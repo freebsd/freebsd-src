@@ -212,6 +212,9 @@ distVerifyFlags(void)
 	Dists |= DIST_XF86;
 #ifdef __i386__
 	Dists |= DIST_COMPAT22;	/* For certain old X applications */
+#if __FreeBSD__ > 3
+	Dists |= DIST_COMPAT3X;
+#endif
 #endif
     }
     if (isDebug())
@@ -866,6 +869,9 @@ distExtractAll(dialogMenuItem *self)
 	status |= installFixupBin(self);
     if (old_dists & DIST_XF86)
 	status |= installFixupXFree(self);
+
+    /* Clear any local dist flags now */
+    Dists &= ~DIST_LOCAL;
 
     if (Dists) {
 	int col = 0;
