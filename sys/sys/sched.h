@@ -76,9 +76,9 @@ void	sched_rem(struct thread *td);
  * hold a thread on a particular CPU.
  */
 void	sched_bind(struct thread *td, int cpu);
-void	sched_pin(struct thread *td);
+static __inline void sched_pin(struct thread *td);
 void	sched_unbind(struct thread *td);
-void	sched_unpin(struct thread *td);
+static __inline void sched_unpin(struct thread *td);
 
 /*
  * These interfaces will eventually be removed.
@@ -99,5 +99,17 @@ extern struct ke_sched *kse0_sched;
 extern struct kg_sched *ksegrp0_sched;
 extern struct p_sched *proc0_sched;
 extern struct td_sched *thread0_sched;
+
+static __inline void
+sched_pin(struct thread *td)
+{
+	td->td_pinned++;
+}
+
+static __inline void
+sched_unpin(struct thread *td)
+{
+	td->td_pinned--;
+}
 
 #endif /* !_SYS_SCHED_H_ */
