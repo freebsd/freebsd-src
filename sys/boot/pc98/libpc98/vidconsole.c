@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.11 1999/01/04 18:45:08 peter Exp $
+ *	$Id$
  */
 
 #include <stand.h>

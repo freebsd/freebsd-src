@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.19 1998/10/11 15:09:14 kato Exp $
+ *	$Id$
  */
 
 

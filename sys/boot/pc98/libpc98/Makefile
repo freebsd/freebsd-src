@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.13 1999/01/10 14:48:04 rnordier Exp $
+#	$Id$
 #
 LIB=			pc98
 NOPIC=
