@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.49 1996/06/08 08:01:51 jkh Exp $
+ * $Id: label.c,v 1.50 1996/06/08 09:08:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -120,10 +120,8 @@ diskLabelCommit(dialogMenuItem *self)
     int i;
 
     /* Already done? */
-    if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes")) {
-        variable_set2(DISK_PARTITIONED, "yes");
+    if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes"))
 	i = DITEM_SUCCESS;
-    }
     else if (!cp) {
 	msgConfirm("You must assign disk labels before this option can be used.");
 	i = DITEM_FAILURE;
@@ -811,6 +809,7 @@ diskLabel(char *str)
 	    if (msgYesNo("Are you SURE you want to Undo everything?"))
 		break;
 	    variable_unset(DISK_PARTITIONED);
+	    variable_unset(DISK_LABELLED);
 	    for (i = 0; devs[i]; i++) {
 		Disk *d;
 
@@ -822,7 +821,6 @@ diskLabel(char *str)
 		    diskPartition(devs[i], d);
 		}
 	    }
-	    variable_unset(DISK_LABELLED);
 	    record_label_chunks(devs);
 	    break;
 
