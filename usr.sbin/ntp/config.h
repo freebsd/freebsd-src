@@ -170,7 +170,7 @@
 /* #undef CLOCK_MX4200 */
 
 /* NMEA GPS receiver */
-/* #undef CLOCK_NMEA */
+#define CLOCK_NMEA 1
 
 /* Palisade clock */ 
 /* #undef CLOCK_PALISADE */
@@ -194,7 +194,7 @@
 /* #undef CLOCK_SHM */
 
 /* Motorola UT Oncore GPS */
-/* #undef CLOCK_ONCORE */
+#define CLOCK_ONCORE 1
 
 /* KSI/Odetics TPRO/S GPS receiver/IRIG interface */
 /* #undef CLOCK_TPRO */
