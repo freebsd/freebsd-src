@@ -1900,7 +1900,7 @@ acpi_FindIndexedResource(ACPI_BUFFER *buf, int index, ACPI_RESOURCE **resp)
     rp = (ACPI_RESOURCE *)buf->Pointer;
     i = index;
     while (i-- > 0) {
-	/* Range check */	
+	/* Range check */
 	if (rp > (ACPI_RESOURCE *)((u_int8_t *)buf->Pointer + buf->Length))
 	    return (AE_BAD_PARAMETER);
 
@@ -2657,7 +2657,7 @@ acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg)
     return (0);
 }
 
-void	
+void
 acpi_deregister_ioctl(u_long cmd, acpi_ioctl_fn fn)
 {
     struct acpi_ioctl_hook	*hp;
@@ -3034,7 +3034,7 @@ acpi_pm_func(u_long cmd, void *arg, ...)
 
 		va_start(ap, arg);
 		state = va_arg(ap, int);
-		va_end(ap);	
+		va_end(ap);
 
 		switch (state) {
 		case POWER_SLEEP_STATE_STANDBY:
