@@ -4,7 +4,7 @@
  * do a lot of the work :).
  */
 /*
- * $Id$
+ * $Id: main.c,v 1.1 1997/12/06 05:23:03 sef Exp $
  */
 
 #include <stdio.h>
@@ -14,6 +14,7 @@
 #include <err.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/ioctl.h>
 #include <sys/pioctl.h>
 
