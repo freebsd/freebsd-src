@@ -38,10 +38,7 @@
 #define _SYS_SOCKETVAR_H_
 
 #include <sys/queue.h>			/* for TAILQ macros */
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
 #include <sys/selinfo.h>		/* for struct selinfo */
-#include <vm/uma.h>
 
 /*
  * Kernel structure per socket.
@@ -50,8 +47,6 @@
  * private data and error information.
  */
 typedef	u_quad_t so_gen_t;
-
-struct accept_filter;
 
 /*
  * List of locks:
@@ -95,7 +90,7 @@ struct socket {
 	short	so_qlimit;		/* max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
-	struct  sigio *so_sigio;	/* [sg]	information for async I/O or
+	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
 	u_long	so_oobmark;		/* chars to oob mark */
 	TAILQ_HEAD(, aiocblist) so_aiojobq; /* AIO ops waiting on socket */
@@ -130,7 +125,7 @@ struct socket {
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
-	struct so_accf { 
+ 	struct so_accf {
 		struct	accept_filter *so_accept_filter;
 		void	*so_accept_filter_arg;	/* saved filter args */
 		char	*so_accept_filter_str;	/* saved user args */
@@ -265,7 +260,6 @@ struct xsocket {
  * still explicitly close the socket, but the last ref count will free
  * the structure.
  */
-
 #define soref(so)	do {			\
 				++(so)->so_count; \
 			} while (0)
@@ -282,22 +276,22 @@ struct xsocket {
 					sofree(so);	\
 			} while(0)
 
-#define	sorwakeup_locked(so)	do {						\
-					if (sb_notify(&(so)->so_rcv))		\
-						sowakeup((so), &(so)->so_rcv);	\
+#define	sorwakeup_locked(so)	do {					\
+					if (sb_notify(&(so)->so_rcv))	\
+						sowakeup((so), &(so)->so_rcv); \
 				} while (0)
 
-#define	sorwakeup(so)		do {						\
-					sorwakeup_locked(so);			\
+#define	sorwakeup(so)		do {					\
+					sorwakeup_locked(so);		\
 				} while (0)
 
-#define	sowwakeup_locked(so)	do {						\
-					if (sb_notify(&(so)->so_snd))		\
-						sowakeup((so), &(so)->so_snd);	\
+#define	sowwakeup_locked(so)	do {					\
+					if (sb_notify(&(so)->so_snd))	\
+						sowakeup((so), &(so)->so_snd); \
 				} while (0)
 
-#define	sowwakeup(so)		do {						\
-					sowwakeup_locked(so);			\
+#define	sowwakeup(so)		do {					\
+					sowwakeup_locked(so);		\
 				} while (0)
 
 #ifdef _KERNEL
@@ -313,7 +307,7 @@ struct sockopt {
 	int	sopt_name;	/* third arg of [gs]etsockopt */
 	void   *sopt_val;	/* fourth arg of [gs]etsockopt */
 	size_t	sopt_valsize;	/* (almost) fifth arg of [gs]etsockopt */
-	struct	thread *sopt_td;	/* calling thread or null if kernel */
+	struct	thread *sopt_td; /* calling thread or null if kernel */
 };
 
 struct sf_buf {
@@ -330,28 +324,28 @@ struct accept_filter {
 		(struct socket *so, char *arg);
 	void	(*accf_destroy)
 		(struct socket *so);
-	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
+	SLIST_ENTRY(accept_filter) accf_next;
 };
 
 #ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_ACCF);
 MALLOC_DECLARE(M_PCB);
 MALLOC_DECLARE(M_SONAME);
-MALLOC_DECLARE(M_ACCF);
 #endif
 
-extern int    maxsockets;
+extern int	maxsockets;
 extern u_long	sb_max;
-extern uma_zone_t	socket_zone;
+extern struct uma_zone *socket_zone;
 extern so_gen_t so_gencnt;
 
 struct file;
 struct filedesc;
+struct knote;
 struct mbuf;
 struct sockaddr;
 struct stat;
 struct ucred;
 struct uio;
-struct knote;
 
 /*
  * File operations on sockets.
@@ -396,6 +390,8 @@ int	sbwait(struct sockbuf *sb);
 int	sb_lock(struct sockbuf *sb);
 int	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
+int	socheckuid(struct socket *so, uid_t uid);
+int	socheckproc(struct socket *so, struct proc *p);
 struct	socket *soalloc(int waitok);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
 void	socantrcvmore(struct socket *so);
@@ -406,11 +402,11 @@ int	soconnect2(struct socket *so1, struct socket *so2);
 int	socreate(int dom, struct socket **aso, int type, int proto,
 	    struct ucred *cred, struct thread *td);
 int	sodisconnect(struct socket *so);
+void	soisconnected_locked(struct socket *so);
 void	sofree(struct socket *so);
 int	sogetopt(struct socket *so, struct sockopt *sopt);
 void	sohasoutofband(struct socket *so);
 void	soisconnected(struct socket *so);
-void	soisconnected_locked(struct socket *so);
 void	soisconnecting(struct socket *so);
 void	soisdisconnected(struct socket *so);
 void	soisdisconnected_locked(struct socket *so);
@@ -440,17 +436,18 @@ int	soshutdown(struct socket *so, int how);
 void	sotoxsocket(struct socket *so, struct xsocket *xso);
 void	sowakeup(struct socket *so, struct sockbuf *sb);
 
-/* accept filter functions */
+/*
+ * Accept filter functions (duh).
+ */
 int	accept_filt_add(struct accept_filter *filt);
 int	accept_filt_del(char *name);
-struct accept_filter *	accept_filt_get(char *name);
+struct	accept_filter *accept_filt_get(char *name);
 #ifdef ACCEPT_FILTER_MOD
-int accept_filt_generic_mod_event(module_t mod, int event, void *data);
+#ifdef SYSCTL_DECL
 SYSCTL_DECL(_net_inet_accf);
-#endif /* ACCEPT_FILTER_MOD */
-
-int	socheckuid(struct socket *so, uid_t uid);
-int	socheckproc(struct socket *so, struct proc *p);
+#endif
+int	accept_filt_generic_mod_event(module_t mod, int event, void *data);
+#endif
 
 #endif /* _KERNEL */
 
