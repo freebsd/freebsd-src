@@ -472,7 +472,7 @@ static u_char bt254_default[NUM_BT254_REGS] = {
  * Returns	1	If transfer aborted or timeout occured.
  *
  */
-static i2c_print_err = 1;
+static int i2c_print_err = 1;
 static int
 i2c_write(meteor_reg_t * mtr, u_char slave, u_char rw, u_char reg, u_char data)
 {

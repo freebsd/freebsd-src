@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.102 1999/04/28 10:52:41 dt Exp $
+ *	$Id: mcd.c,v 1.103 1999/05/06 18:44:00 peter Exp $
  */
 static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -478,7 +478,7 @@ static void mcd_start(int unit)
 	struct mcd_data *cd = mcd_data + unit;
 	struct partition *p;
 	struct buf *bp;
-	register s = splbio();
+	int s = splbio();
 
 	if (cd->flags & MCDMBXBSY) {
 		splx(s);
