@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.66 1998/02/13 12:45:55 phk Exp $
+ *	$Id: si.c,v 1.67 1998/02/15 14:42:33 peter Exp $
  */
 
 #ifndef lint
@@ -117,6 +117,7 @@ static int	siparam __P((struct tty *, struct termios *));
 static	int	siprobe __P((struct isa_device *id));
 static	int	siattach __P((struct isa_device *id));
 static	void	si_modem_state __P((struct si_port *pp, struct tty *tp, int hi_ip));
+static void	si_intr __P((int unit));
 
 struct isa_driver sidriver =
 	{ siprobe, siattach, "si" };
@@ -205,10 +206,12 @@ struct si_softc {
 	int		sc_eisa_irqbits;
 #ifdef	DEVFS
 	struct {
-		void	*ttyd;
+		void	*ttya;
 		void	*cuaa;
 		void	*ttyl;
+		void	*cual;
 		void	*ttyi;
+		void	*cuai;
 	} devfs_token[32]; /* what is the max per card? */
 	void	*control_token;
 #endif
@@ -350,7 +353,7 @@ int unit;
 	 * PCI interrupt handler is a void *, but we're simply going
 	 * to be lazy and hand it the unit number.
 	 */
-	if (!pci_map_int(configid, (pci_inthand_t *) siintr, (void *)unit, &tty_imask)) {
+	if (!pci_map_int(configid, (pci_inthand_t *) si_intr, (void *)unit, &tty_imask)) {
 		printf("si%d: couldn't map interrupt\n", unit);
 	}
 	si_softc[unit].sc_typename = si_type[si_softc[unit].sc_type];
@@ -361,8 +364,8 @@ int unit;
 	 * fill in very much of the structure, since we filled in a
 	 * little of the soft state already.
 	 */
-	id.id_unit=unit;
-	id.id_maddr=(caddr_t) vaddr;
+	id.id_unit = unit;
+	id.id_maddr = (caddr_t) vaddr;
 	siattach(&id);
 }
 
@@ -384,7 +387,6 @@ siprobe(id)
 #ifdef REALPOLL
 	si_realpoll = 1;		/* scan always */
 #endif
-
 	maddr = id->id_maddr;		/* virtual address... */
 	paddr = (caddr_t)vtophys(id->id_maddr);	/* physical address... */
 
@@ -415,9 +417,23 @@ siprobe(id)
 	}
 
 
+	if (si_softc[id->id_unit].sc_typename) {
+		/* PCI has taken this unit, choose another */
+		for (i=0; i < NSI; i++) {
+			if (si_softc[i].sc_typename == NULL) {
+				id->id_unit = i;
+				break;
+			}
+		}
+		if (i >= NSI) {
+			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
+				"si%d: cannot realloc unit\n", id->id_unit));
+			return (0);
+		}
+	}
+
 	for (i=0; i < NSI; i++) {
-		if ((sc = &si_softc[i]) == NULL)
-			continue;
+		sc = &si_softc[i];
 		if ((caddr_t)sc->sc_paddr == (caddr_t)paddr) {
 			DPRINT((0, DBG_AUTOBOOT|DBG_FAIL,
 				"si%d: iomem (%x) already configured to si%d\n",
@@ -427,6 +443,10 @@ siprobe(id)
 	}
 
 #if NEISA > 0
+	/*
+	 * XXX this really sucks, it doesn't use the EISA probe stuff,
+	 * it just depends on knowing which slot the card is in.. -PW
+	 */
 	if (id->id_iobase > 0x0fff) {	/* EISA card */
 		int irq, port;
 		unsigned long base;
@@ -596,6 +616,7 @@ bad_irq:
 		printf("si%d: %s not supported\n", id->id_unit, si_type[type]);
 		return(0);
 	}
+	id->id_intr = (inthand2_t *)si_intr;
 	si_softc[id->id_unit].sc_type = type;
 	si_softc[id->id_unit].sc_typename = si_type[type];
 	return(-1);	/* -1 == found */
@@ -766,7 +787,7 @@ siattach(id)
 				unit, (int)(modp->sm_type & MMASK)));
 
 			/* this is a firmware issue */
-			if (si_Nports == SI_MAXPORTPERCARD) {
+			if (nport == SI_MAXPORTPERCARD) {
 				printf("si%d: extra ports ignored\n", unit);
 				continue;
 			}
@@ -812,7 +833,7 @@ mem_fail:
 	pp = sc->sc_ports;
 	nmodule = 0;
 	modp = (struct si_module *)(maddr + 0x80);
-	uart_type = 0;
+	uart_type = 1000;	 /* arbitary, > uchar_max */
 	for (;;) {
 		switch (modp->sm_type & (~MMASK)) {
 		case M232:
@@ -820,7 +841,7 @@ mem_fail:
 			nmodule++;
 			nport = (modp->sm_type & MMASK);
 			ccbp = (struct si_channel *)((char *)modp+0x100);
-			if (uart_type == 0)
+			if (uart_type == 1000)
 				uart_type = ccbp->type;
 			for (x = 0; x < nport; x++, pp++, ccbp++) {
 				pp->sp_ccb = ccbp;	/* save the address */
@@ -842,12 +863,17 @@ mem_fail:
 			break;
 		}
 		if (modp->sm_next == 0) {
-			printf("si%d: card: %s, ports: %d, modules: %d (type: %d)\n",
+			char *typestr = "";
+			if (uart_type == 0)
+				typestr = " - XIO";
+			else if (uart_type == 1)
+				typestr = " - SI";
+			printf("si%d: card: %s, ports: %d, modules: %d (type: %d%s)\n",
 				unit,
 				sc->sc_typename,
 				sc->sc_nport,
 				nmodule,
-				uart_type);
+				uart_type, typestr);
 			break;
 		}
 		modp = (struct si_module *)
@@ -864,19 +890,26 @@ mem_fail:
 #ifdef DEVFS
 /*	path	name	devsw		minor	type   uid gid perm*/
 	for ( x = 0; x < sc->sc_nport; x++ ) {
-		y = x + 1;	/* For sync with the manuals that start at 1 */
-		sc->devfs_token[x].ttyd = devfs_add_devswf(
+		/* sync with the manuals that start at 1 */
+		y = x + 1 + id->id_unit * (1 << SI_CARDSHIFT);
+		sc->devfs_token[x].ttya = devfs_add_devswf(
 			&si_cdevsw, x,
 			DV_CHR, 0, 0, 0600, "ttyA%02d", y);
 		sc->devfs_token[x].cuaa = devfs_add_devswf(
-			&si_cdevsw, x + 128,
+			&si_cdevsw, x + 0x00080,
 			DV_CHR, 0, 0, 0600, "cuaA%02d", y);
 		sc->devfs_token[x].ttyi = devfs_add_devswf(
 			&si_cdevsw, x + 0x10000,
 			DV_CHR, 0, 0, 0600, "ttyiA%02d", y);
+		sc->devfs_token[x].cuai = devfs_add_devswf(
+			&si_cdevsw, x + 0x10080,
+			DV_CHR, 0, 0, 0600, "cuaiA%02d", y);
 		sc->devfs_token[x].ttyl = devfs_add_devswf(
 			&si_cdevsw, x + 0x20000,
 			DV_CHR, 0, 0, 0600, "ttylA%02d", y);
+		sc->devfs_token[x].cual = devfs_add_devswf(
+			&si_cdevsw, x + 0x20080,
+			DV_CHR, 0, 0, 0600, "cualA%02d", y);
 	}
 	sc->control_token = 
 		devfs_add_devswf(&si_cdevsw, 0x40000, DV_CHR, 0, 0, 0600, 
@@ -1903,7 +1936,7 @@ si_poll(void *nothing)
 		}
 	}
 	if (lost || si_realpoll)
-		siintr(-1);	/* call intr with fake vector */
+		si_intr(-1);	/* call intr with fake vector */
 out:
 	splx(oldspl);
 
@@ -1918,8 +1951,8 @@ out:
 
 static BYTE si_rxbuf[SI_BUFFERSIZE];	/* input staging area */
 
-void
-siintr(int unit)
+static void
+si_intr(int unit)
 {
 	register struct si_softc *sc;
 
@@ -1932,7 +1965,7 @@ siintr(int unit)
 	volatile BYTE *z;
 	BYTE c;
 
-	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "siintr(%d)\n", unit));
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "si_intr(%d)\n", unit));
 	if (in_intr) {
 		if (unit < 0)	/* should never happen */
 			return;
@@ -2006,7 +2039,7 @@ siintr(int unit)
 			 */
 			if (ccbp->hi_stat != pp->sp_pend) {
 				DPRINT((pp, DBG_INTR,
-					"siintr hi_stat = 0x%x, pend = %d\n",
+					"si_intr hi_stat = 0x%x, pend = %d\n",
 					ccbp->hi_stat, pp->sp_pend));
 				switch(pp->sp_pend) {
 				case LOPEN:
@@ -2206,7 +2239,7 @@ siintr(int unit)
 	} /* end of for (all controllers) */
 
 	in_intr = 0;
-	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "end siintr(%d)\n", unit));
+	DPRINT((0, (unit < 0) ? DBG_POLL:DBG_INTR, "end si_intr(%d)\n", unit));
 }
 
 /*
@@ -2229,7 +2262,6 @@ si_start(tp)
 	BYTE ipos;
 	int nchar;
 	int oldspl, count, n, amount, buffer_full;
-	int do_exitproc;
 
 	oldspl = spltty();
 
@@ -2243,18 +2275,8 @@ si_start(tp)
 	if (tp->t_state & (TS_TIMEOUT|TS_TTSTOP))
 		goto out;
 
-	do_exitproc = 0;
 	buffer_full = 0;
 	ccbp = pp->sp_ccb;
-
-	/*
-	 * Handle the case where ttywait() is called on process exit
-	 * this may be BSDI specific, I dont know...
-	 */
-	if (tp->t_session != NULL && tp->t_session->s_leader != NULL &&
-	    (tp->t_session->s_leader->p_flag & P_WEXIT)) {
-		do_exitproc++;
-	}
 
 	count = (int)ccbp->hi_txipos - (int)ccbp->hi_txopos;
 	DPRINT((pp, DBG_START, "count %d\n", (BYTE)count));
@@ -2296,25 +2318,21 @@ si_start(tp)
 	DPRINT((pp, DBG_START, "count %d, nchar %d, tp->t_state 0x%x\n",
 		(BYTE)count, nchar, tp->t_state));
 
-	if ((tp->t_state & TS_BUSY) || do_exitproc)
+	if (tp->t_state & TS_BUSY)
 	{
 		int time;
 
-		if (do_exitproc != 0) {
-			time = hz / 10;
-		} else {
-			time = ttspeedtab(tp->t_ospeed, chartimes);
+		time = ttspeedtab(tp->t_ospeed, chartimes);
 
-			if (time > 0) {
-				if (time < nchar)
-					time = nchar / time;
-				else
-					time = 2;
-			} else {
-				DPRINT((pp, DBG_START,
-					"bad char time value! %d\n", time));
-				time = hz/10;
-			}
+		if (time > 0) {
+			if (time < nchar)
+				time = nchar / time;
+			else
+				time = 2;
+		} else {
+			DPRINT((pp, DBG_START,
+				"bad char time value! %d\n", time));
+			time = hz/10;
 		}
 
 		if ((pp->sp_state & (SS_LSTART|SS_INLSTART)) == SS_LSTART) {
