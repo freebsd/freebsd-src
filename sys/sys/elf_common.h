@@ -95,6 +95,8 @@ typedef struct {
 #define ELFOSABI_IRIX		8	/* IRIX */
 #define ELFOSABI_FREEBSD	9	/* FreeBSD */
 #define ELFOSABI_TRU64		10	/* TRU64 UNIX */
+#define ELFOSABI_MODESTO	11	/* Novell Modesto */
+#define ELFOSABI_OPENBSD	12	/* OpenBSD */
 #define ELFOSABI_ARM		97	/* ARM */
 #define ELFOSABI_STANDALONE	255	/* Standalone (embedded) application */
 
@@ -122,13 +124,18 @@ typedef struct {
 #define EM_860		7	/* Intel i860. */
 #define EM_MIPS		8	/* MIPS R3000 Big-Endian only */
 
-/* Extensions */
-#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */
-#define EM_SPARC64	11	/* SPARC v9 64-bit unoffical */
+/* Extensions.  This list is not complete. */
+#define EM_S370		9	/* IBM System/370 */
+#define EM_MIPS_RS4_BE	10	/* MIPS R4000 Big-Endian */ /* Depreciated */
 #define EM_PARISC	15	/* HPPA */
-#define EM_PPC		20	/* PowerPC */
+#define EM_SPARC32PLUS	18	/* SPARC v8plus */
+#define EM_PPC		20	/* PowerPC 32-bit */
+#define EM_PPC64	21	/* PowerPC 64-bit */
+#define EM_ARM		40	/* ARM */
+#define EM_SPARCV9	43	/* SPARC v9 64-bit */
 #define EM_IA_64	50	/* Intel IA-46 Processor */
-#define EM_ALPHA	0x9026	/* Alpha */
+#define EM_X86_64	62	/* Advanced Micro Devices x86-64 */
+#define EM_ALPHA	0x9026	/* Alpha (written in the absence of an ABI */
 
 /* Special section indexes. */
 #define SHN_UNDEF	     0		/* Undefined, missing, irrelevant. */
