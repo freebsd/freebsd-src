@@ -34,7 +34,7 @@ INSTALL_PIC_ARCHIVE=  yes
 XCC=	${CC}
 XCXX=	${CXX}
 
-CFLAGS+=	-nostdlib -fexceptions
+CFLAGS+=	-fexceptions
 CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-DFINE_GRAINED_LIBRARIES
 .if ${OBJFORMAT} != aout
@@ -42,6 +42,7 @@ CFLAGS+=	-D_PTHREADS -DGTHREAD_USE_WEAK
 .endif
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/cc/cc_tools \
 		-I${GCCDIR}/config -I${GCCDIR} -I.
+LDFLAGS=	-nostdlib
 
 # Remove any objects from LIB2FUNCS and LIB2_DIVMOD_FUNCS that are
 # defined as optimized assembly code in LIB1ASMFUNCS.
