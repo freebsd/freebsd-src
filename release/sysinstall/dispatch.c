@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: dispatch.c,v 1.1 1996/05/16 11:47:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -82,6 +82,7 @@ static struct _word {
     { "mediaSetFtpUserPass",	mediaSetFtpUserPass	},
     { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
     { "mediaGetType",		mediaGetType		},
+    { "optionsEditor",		optionsEditor		},
     { NULL, NULL },
 };
 
@@ -119,7 +120,5 @@ dispatchCommand(char *str)
 	msgConfirm("No such command: %s", str);
 	return DITEM_FAILURE;
     }
-    else if (DITEM_STATUS(i) != DITEM_SUCCESS)
-	msgConfirm("Command `%s' returned an error status.");
     return i;
 }
