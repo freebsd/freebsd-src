@@ -1,11 +1,11 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.4 -->
+<!-- Original revision: 1.5 -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
 
 <p><em>原作: &a.jdp;</em>.
-<p><em>訳: &a.iwasaki;.<newline>28 December 1996.</em>
+<p><em>訳: &a.iwasaki;.<newline>14 February 1997.</em>
 
 <sect1><heading>CVSup の紹介<label id="cvsup:intro"></heading>
 
@@ -39,16 +39,16 @@ CVSup の方がより高速で柔軟性もあるので, もはや sup は FreeBSD
 <p>FreeBSD 2.2 以降を使用している場合, CVSup をインストールするもっとも
 簡単な方法は, FreeBSD <ref id="ports" name="ports コレクション"> の 
 <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/net/cvsup/"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="port"> または対応する <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-2.2/net/cvsup-14.0.tgz"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/net/cvsup-14.1.1.tgz"
 name="バイナリ package"> を使うことです. どちらを使うかは, 
 CVSupを自分で作りたいかどうかによります. 
 
 <p>FreeBSD-2.1.6 を使用している場合は, 残念ながら FreeBSD-2.1.6 には
 存在しないバージョンの C ライブラリが必要となるため バイナリ package 
 は使用できません. しかし, <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup/"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="port"> は FreeBSD 2.2 とまったく同じように簡単に使うことができます. 
 単に tar ファイルを展開し, cvsup ディレクトリへ cd して "make install" 
 とタイプするだけです. 
@@ -58,7 +58,7 @@ url="http://www.research.digital.com/SRC/modula-3/html/home.html"
 name="Modula-3"> で書かれているため, package と port 両方とも Modula-3 
 ランタイムライブラリがインストールされていることが必要です. これらは 
 port の <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib.tar.gz"
 name="lang/modula-3-lib"> および package の <url
 url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/lang/modula-3-lib-3.6.tgz"
 name="lang/modula-3-lib-3.6"> にあります. これらのライブラリの port 
@@ -68,16 +68,38 @@ port や package をインストールする際に, これらのライブラリも自動的に
 
 <p>Modula-3 ライブラリはかなり大きく, これらの転送やコンパイルはすぐに
 終わるものではありません. この理由から, 三つめの選択肢が提供されています. 
-以下のところから, <em>スタティックリンクされた</em> CVSup の 
-FreeBSD 用の実行形式が入手可能です:
+以下のアメリカ合衆国にある配布サイトのどちらからでも, FreeBSD 用の
+<em>スタティックリンクされた</em> CVSup 実行形式が入手可能です:
 
 <itemize>
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz">
-  (client).
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz">
-  (server).
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
+  (クライアント).
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  (サーバ).
+</itemize>
+
+また、ドイツのミラーサイトは以下の通りです:
+
+<itemize>
+  <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz">
+  (クライアント).
+  <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  (サーバ).
+</itemize>
+
+訳注: 日本国内のミラーサイトは以下の通りです:
+
+<itemize>
+  <item><url url="ftp://jaz.jp.freebsd.org/pub/FreeBSD-freefall/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://jaz.jp.freebsd.org/pub/FreeBSD-freefall/CVSup/cvsup-bin-14.1.1.tar.gz">
+  (クライアント).
+  <item><url url="ftp://jaz.jp.freebsd.org/pub/FreeBSD-freefall/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://jaz.jp.freebsd.org/pub/FreeBSD-freefall/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  (サーバ).
 </itemize>
 
 <p>ほとんどのユーザはクライアントのみが必要になるでしょう. これらの
