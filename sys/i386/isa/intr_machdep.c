@@ -409,10 +409,8 @@ isa_irq_pending()
 	u_char irr1;
 	u_char irr2;
 
-	mtx_lock_spin(&icu_lock);
 	irr1 = inb(IO_ICU1);
 	irr2 = inb(IO_ICU2);
-	mtx_unlock_spin(&icu_lock);
 	return ((irr2 << 8) | irr1);
 }
 #endif
