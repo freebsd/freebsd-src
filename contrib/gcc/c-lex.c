@@ -299,11 +299,13 @@ cb_file_change (pfile, new_map)
     }
 
   update_header_times (new_map->to_file);
-#ifndef FREEBSD_NATIVE
-  in_system_header = new_map->sysp != 0;
-#else /* FREEBSD_NATIVE */
-  in_system_header = 0;
-#endif /* FREEBSD_NATIVE */
+  in_system_header = (warn_system_headers && new_map->sysp != 0);
+#ifdef FREEBSD_NATIVE
+  /* Correct logic should be: if warn_system_headers is set, no
+     header file should be considered system, so that no warnings
+     will be suppressed.  */
+  if (warn_system_headers) in_system_header = 0;
+#endif
   input_filename = new_map->to_file;
   lineno = to_line;
   map = new_map;
