@@ -54,7 +54,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 20040702:
 	The native preemption has been added to the kernel scheduler.
 	There is some report that ULE scheduler was broken in some
-	machines and we encourage users using ULE schedluer either
+	machines and we encourage users using ULE scheduler either
 	stick with an known good kernel, or temporary switch to 4BSD
 	scheduler as a workaround.
 
