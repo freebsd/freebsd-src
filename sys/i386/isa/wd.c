@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.13 1993/11/18 05:02:22 rgrimes Exp $
+ *	$Id: wd.c,v 1.14 1993/11/19 06:30:00 davidg Exp $
  */
 
 /* TODO:peel out buffer at low ipl, speed improvement */
@@ -62,10 +62,10 @@
 #include "syslog.h"
 #include "vm/vm.h"
 
-#define _NWD  (NWD - 1)       /* One is for the controller XXX 31 Jul 92*/
+#define _NWD  (NWD - 1)       /* One is for the controller XXX */
 
 #ifndef WDCTIMEOUT
-#define WDCTIMEOUT	10000000  /* arbitrary timeout for drive ready waits */
+#define WDCTIMEOUT	300000  /* arbitrary timeout for drive ready waits */
 #endif
 
 #define	RETRIES		5	/* number of retries before giving up */
@@ -126,6 +126,7 @@ struct	buf	wdtab;
 struct	buf	wdutab[_NWD];		/* head of queue per drive */
 struct	buf	rwdbuf[_NWD];		/* buffers for raw IO */
 long	wdxfer[_NWD];			/* count of transfers */
+int	wdtimeout_status[_NWD];		/* timeout status */
 #ifdef	WDDEBUG
 int	wddebug;
 #endif
@@ -140,6 +141,8 @@ static int wdcommand(struct disk *, int);
 static int wdcontrol(struct buf *);
 static int wdsetctlr(dev_t, struct disk *);
 static int wdgetctlr(int, struct disk *);
+static int wdtimeout(int);
+static int wdreset(int);
 
 /*
  * Probe for controller.
@@ -151,13 +154,13 @@ wdprobe(struct isa_device *dvp)
 	struct disk *du;
 	int wdc;
 
-	if (unit >= _NWD)				/* 31 Jul 92*/
+	if (unit >= _NWD)
 		return(0);
 
 	if ((du = wddrives[unit]) == 0) {
 		du = wddrives[unit] = (struct disk *)
 			malloc (sizeof(struct disk), M_TEMP, M_NOWAIT);
-		bzero (du, sizeof(struct disk));	/* 31 Jul 92*/
+		bzero (du, sizeof(struct disk));
 		du->dk_unit = unit;
 	}
 
@@ -206,6 +209,9 @@ wdattach(struct isa_device *dvp)
 			du->dk_unit = unit;
 			du->dk_port = dvp->id_iobase;
 		}
+		/* initialize timeout */
+		wdtimeout_status[unit] = 0;
+		wdtimeout(unit);
 
 		/* print out description of drive, suppressing multiple blanks*/
 		if(wdgetctlr(unit, du) == 0)  {
@@ -265,7 +271,9 @@ wdstrategy(register struct buf *bp)
 	}
 
 	/* have partitions and want to use them? */
-	if ((du->dk_flags & DKFL_BSDLABEL) != 0 && wdpart(bp->b_dev) != WDRAW) {
+     	if ((du->dk_flags & DKFL_BSDLABEL) != 0 
+	    && wdpart(bp->b_dev) != WDRAW
+ 	    && wddospart(bp->b_dev) == 0) {
 
 		/*
 		 * do bounds checking, adjust transfer. if error, process.
@@ -338,6 +346,7 @@ wdstart()
 	register struct disk *du;	/* disk unit for IO */
 	register struct buf *bp;
 	struct disklabel *lp;
+    	struct dos_partition *dosp;
 	struct buf *dp;
 	register struct bt_bad *bt_ptr;
 	long	blknum, pagcnt, cylin, head, sector;
@@ -384,9 +393,14 @@ loop:
 		du->dk_bc = bp->b_bcount;
 
 	lp = &du->dk_dd;
+	dosp = du->dk_dospartitions;
+    	if (wddospart(bp->b_dev))
+		blknum += dosp[wdpart(bp->b_dev)].dp_start;
 	secpertrk = lp->d_nsectors;
 	secpercyl = lp->d_secpercyl;
-	if ((du->dk_flags & DKFL_BSDLABEL) != 0 && wdpart(bp->b_dev) != WDRAW)
+     	if ((du->dk_flags & DKFL_BSDLABEL) != 0 
+	    && wdpart(bp->b_dev) != WDRAW
+ 	    && wddospart(bp->b_dev) == 0) 
 		blknum += lp->d_partitions[wdpart(bp->b_dev)].p_offset;
 	cylin = blknum / secpercyl;
 	head = (blknum % secpercyl) / secpertrk;
@@ -445,23 +459,12 @@ RETRY:
 			du->dk_bc += DEV_BSIZE;
 
 		/* controller idle? */
-		timeout = 0;
-		/* must delay 5us to conform to ATA spec */
-		DELAY(5);
-		while (inb(wdc+wd_status) & WDCS_BUSY)
-		{
-			if (++timeout > WDCTIMEOUT)
-			{
-				printf("wd.c: Controller busy too long!\n");
-				/* reset the device */
-				outb(wdc+wd_ctlr, (WDCTL_RST|WDCTL_IDS));
-				DELAY(1000);
-				outb(wdc+wd_ctlr, WDCTL_IDS);
-				DELAY(1000);
-				(void) inb(wdc+wd_error);	/* XXX! */
-				outb(wdc+wd_ctlr, WDCTL_4BIT);
-				break;
-			}
+		timeout = WDCTIMEOUT;
+		while ((inb(wdc+wd_status) & WDCS_BUSY) && timeout--)
+			DELAY(10);
+		if (!timeout) {
+			printf("wd: busy timeout\n");
+			wdreset(wdc);
 		}
 
 		/* stuff the task file */
@@ -489,21 +492,13 @@ RETRY:
 		outb(wdc+wd_sdh, WDSD_IBM | (unit<<4) | (head & 0xf));
 
 		/* wait for drive to become ready */
-		timeout = 0;
-		while ((inb(wdc+wd_status) & WDCS_READY) == 0)
-		{
-			if (++timeout > WDCTIMEOUT)
-			{
-				printf("wd.c: Drive busy too long!\n");
-				/* reset the device */
-				outb(wdc+wd_ctlr, (WDCTL_RST|WDCTL_IDS));
-				DELAY(1000);
-				outb(wdc+wd_ctlr, WDCTL_IDS);
-				DELAY(1000);
-				(void) inb(wdc+wd_error);	/* XXX! */
-				outb(wdc+wd_ctlr, WDCTL_4BIT);
-				goto RETRY;
-			}
+		timeout = WDCTIMEOUT;
+		while ((inb(wdc+wd_status) & WDCS_READY) == 0 && timeout--)
+			DELAY(10);
+		if (!timeout) {
+			printf("wd: ready timeout\n");
+			wdreset(wdc);
+			goto RETRY;
 		}
 
 		/* initiate command! */
@@ -521,30 +516,26 @@ RETRY:
 	}
 
 	/* if this is a read operation, just go away until it's done.	*/
-	if (bp->b_flags & B_READ) return;
+	if (bp->b_flags & B_READ) {
+		wdtimeout_status[unit] = 2;
+		return;
+	}
 
 	/* ready to send data?	*/
-	timeout = 0;
-	while ((inb(wdc+wd_status) & WDCS_DRQ) == 0)
-	{
-		if (++timeout > WDCTIMEOUT)
-		{
-			printf("wd.c: Drive not ready for too long!\n");
-			/* reset the device */
-			outb(wdc+wd_ctlr, (WDCTL_RST|WDCTL_IDS));
-			DELAY(1000);
-			outb(wdc+wd_ctlr, WDCTL_IDS);
-			DELAY(1000);
-			(void) inb(wdc+wd_error);	/* XXX! */
-			outb(wdc+wd_ctlr, WDCTL_4BIT);
-			goto RETRY;
-		}
+	timeout = WDCTIMEOUT;
+	while ((inb(wdc+wd_status) & WDCS_DRQ) == 0 && timeout--)
+		DELAY(10);
+	if (!timeout) {
+		printf("wd: drq timeout\n");
+		wdreset(wdc);
+		goto RETRY;
 	}
 
 	/* then send it! */
 	outsw (wdc+wd_data, addr+du->dk_skip * DEV_BSIZE,
 		DEV_BSIZE/sizeof(short));
 	du->dk_bc -= DEV_BSIZE;
+	wdtimeout_status[unit] = 2;
 }
 
 /* Interrupt routine for the controller.  Acknowledge the interrupt, check for
@@ -571,6 +562,7 @@ wdintr(struct intrframe wdif)
 	bp = dp->b_actf;
 	du = wddrives[wdunit(bp->b_dev)];
 	wdc = du->dk_port;
+	wdtimeout_status[wdunit(bp->b_dev)] = 0;
 
 #ifdef	WDDEBUG
 	printf("I ");
@@ -763,7 +755,8 @@ done:
          * that overlaps another partition which is open
          * unless one is the "raw" partition (whole disk).
          */
-        if ((du->dk_openpart & mask) == 0 /*&& part != RAWPART*/ && part != WDRAW) {
+	if ((du->dk_openpart & mask) == 0 /*&& part != RAWPART*/ 
+	    && part != WDRAW && wddospart(dev) == 0) {
 		int	start, end;
 
                 pp = &du->dk_dd.d_partitions[part];
@@ -787,7 +780,8 @@ done:
                                     pp - du->dk_dd.d_partitions + 'a');
                 }
         }
-        if (part >= du->dk_dd.d_npartitions && part != WDRAW)
+	if (part >= du->dk_dd.d_npartitions 
+	    && part != WDRAW && wddospart(dev) == 0)
                 return (ENXIO);
 
 	/* insure only one open at a time */
@@ -840,7 +834,7 @@ wdcontrol(register struct buf *bp)
 		/* must delay 5us to conform to ATA spec */
 		DELAY(5);
 		/* wait for drive and controller to become ready */
-		for (i = WDCTIMEOUT; (inb(wdc+wd_status) & (WDCS_READY|WDCS_BUSY))
+		for (i=WDCTIMEOUT; (inb(wdc+wd_status) & (WDCS_READY|WDCS_BUSY))
 				  != WDCS_READY && i-- != 0; )
 			;
 		outb(wdc+wd_command, WDCC_RESTORE | WD_STEP);
@@ -891,15 +885,17 @@ badopen:
  * assumes interrupts are blocked.
  */
 static int
-wdcommand(struct disk *du, int cmd) {
-	int timeout = WDCTIMEOUT, stat, wdc;
+wdcommand(struct disk *du, int cmd)
+{
+	int timeout, stat, wdc;
 
 	/* controller ready for command? */
 	wdc = du->dk_port;
 	/* must delay 5us to conform to ATA spec */
 	DELAY(5);
-	while (((stat = inb(wdc + wd_status)) & WDCS_BUSY) && timeout > 0)
-		timeout--;
+	timeout = WDCTIMEOUT;
+	while (((stat = inb(wdc + wd_status)) & WDCS_BUSY) && timeout--)
+		DELAY(10);
 	if (timeout <= 0)
 		return(-1);
 
@@ -907,20 +903,22 @@ wdcommand(struct disk *du, int cmd) {
 	outb(wdc+wd_command, cmd);
 	/* must delay 5us to conform to ATA spec */
 	DELAY(5);
-	while (((stat = inb(wdc+wd_status)) & WDCS_BUSY) && timeout > 0)
-		timeout--;
+	timeout = WDCTIMEOUT;
+	while (((stat = inb(wdc+wd_status)) & WDCS_BUSY) && timeout--)
+		DELAY(10);
 	if (timeout <= 0)
 		return(-1);
 	if (cmd != WDCC_READP)
 		return (stat);
 
 	/* is controller ready to return data? */
-	while (((stat = inb(wdc+wd_status)) & (WDCS_ERR|WDCS_DRQ)) == 0 &&
-		timeout > 0)
-		timeout--;
+	timeout = WDCTIMEOUT;
+	while (((stat=inb(wdc+wd_status)) & (WDCS_ERR|WDCS_DRQ)) == 0 
+		&& timeout--)
+		DELAY(10);
 	if (timeout <= 0)
 		return(-1);
-
+		
 	return (stat);
 }
 
@@ -1178,7 +1176,7 @@ wdsize(dev_t dev)
 	int unit = wdunit(dev), part = wdpart(dev), val = 0;
 	struct disk *du;
 
-	if (unit >= _NWD)	/* 31 Jul 92*/
+	if (unit >= _NWD)
 		return(-1);
 
 	du = wddrives[unit];
@@ -1188,6 +1186,39 @@ wdsize(dev_t dev)
 		return (-1);
 
 	return((int)du->dk_dd.d_partitions[part].p_size);
+}
+
+static int
+wdreset(int wdc)
+{
+	outb(wdc+wd_ctlr, (WDCTL_RST|WDCTL_IDS));
+	DELAY(1000);
+	outb(wdc+wd_ctlr, WDCTL_IDS);
+	DELAY(1000);
+	(void) inb(wdc+wd_error);	/* XXX! */
+	outb(wdc+wd_ctlr, WDCTL_4BIT);
+}
+
+static int
+wdtimeout(int unit)
+{
+	int x = splbio();
+
+	if (wdtimeout_status[unit]) {
+		if (--wdtimeout_status[unit] == 0) {
+			struct disk *du = wddrives[unit];
+			int wdc = du->dk_port;
+
+			printf("wd: interupt timeout\n");
+			wdreset(wdc);
+			du->dk_skip = 0;
+			du->dk_flags |= DKFL_SINGLE;
+			wdstart();
+		}
+	}
+	timeout(wdtimeout, unit, 100);
+	splx(x);
+	return (0);
 }
 
 extern        char *vmmap;            /* poor name! */
@@ -1218,7 +1249,7 @@ wddump(dev_t dev)			/* dump core after a system crash */
 	unit = wdunit(dev);		/* eventually support floppies? */
 	part = wdpart(dev);		/* file system */
 	/* check for acceptable drive number */
-	if (unit >= _NWD) return(ENXIO);		/* 31 Jul 92*/
+	if (unit >= _NWD) return(ENXIO);
 
 	du = wddrives[unit];
 	if (du == 0) return(ENXIO);
