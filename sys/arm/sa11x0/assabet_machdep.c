@@ -180,7 +180,6 @@ initarm(void *arg, void *arg2)
 {
 	struct pcpu *pc;
 	struct pv_addr  kernel_l1pt;
-	struct pv_addr	proc0_uarea;
 	struct pv_addr	md_addr;
 	struct pv_addr	md_bla;
 	int loop;
@@ -275,7 +274,7 @@ initarm(void *arg, void *arg2)
 	valloc_pages(abtstack, ABT_STACK_SIZE);
 	valloc_pages(undstack, UND_STACK_SIZE);
 	valloc_pages(kernelstack, KSTACK_PAGES);
-
+	lastalloced = kernelstack.pv_va;
 
 	/*
 	 * Allocate memory for the l1 and l2 page tables. The scheme to avoid
@@ -284,10 +283,6 @@ initarm(void *arg, void *arg2)
 	 * this to work (which is supposed to be the case).
 	 */
 
-	/* Allocate pages for process 0 kernel stack and uarea */
-	valloc_pages(proc0_uarea, UAREA_PAGES);
-	lastalloced = proc0_uarea.pv_va;
-	
 	/*
 	 * Now we start construction of the L1 page table
 	 * We start by mapping the L2 page tables into the L1.
@@ -324,9 +319,6 @@ initarm(void *arg, void *arg2)
 	    UND_STACK_SIZE * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	pmap_map_chunk(l1pagetable, kernelstack.pv_va, kernelstack.pv_pa,
 	    KSTACK_PAGES * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_map_chunk(l1pagetable, proc0_uarea.pv_va, proc0_uarea.pv_pa,
-	    UAREA_PAGES * PAGE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-
 
 	pmap_map_chunk(l1pagetable, kernel_l1pt.pv_va, kernel_l1pt.pv_pa,
 	    L1_TABLE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
@@ -393,7 +385,6 @@ initarm(void *arg, void *arg2)
 	/* Set stack for exception handlers */
 	
 	proc_linkup(&proc0, &ksegrp0, &thread0);
-	proc0.p_uarea = (struct user *) proc0_uarea.pv_va;
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

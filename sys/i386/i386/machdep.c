@@ -1233,7 +1233,6 @@ extern int has_f00f_bug;
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
 
-extern  struct user	*proc0uarea;
 extern  vm_offset_t	proc0kstack;
 
 
@@ -1956,7 +1955,6 @@ init386(first)
 	int gsel_tss, metadata_missing, off, x;
 	struct pcpu *pc;
 
-	proc0.p_uarea = proc0uarea;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
 	   (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

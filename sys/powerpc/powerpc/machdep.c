@@ -123,7 +123,6 @@ extern vm_offset_t ksym_start, ksym_end;
 int cold = 1;
 
 char		pcpu0[PAGE_SIZE];
-char		uarea0[UAREA_PAGES * PAGE_SIZE];
 struct		trapframe frame0;
 
 vm_offset_t	kstack0;
@@ -280,8 +279,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	 * Start initializing proc0 and thread0.
 	 */
 	proc_linkup(&proc0, &ksegrp0, &thread0);
-	proc0.p_uarea = (struct user *)uarea0;
-	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0.td_frame = &frame0;
 
 	/*
