@@ -45,8 +45,10 @@ static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 #include <netinet/in_var.h>
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
+#ifdef NS
 #include <netns/ns.h>
 #include <netns/ns_if.h>
+#endif
 #ifdef ISO
 #include <netiso/iso.h>
 #include <netiso/iso_var.h>
@@ -79,7 +81,9 @@ intpr(interval, ifnetaddr)
 		struct ifaddr ifa;
 		struct in_ifaddr in;
 		struct ipx_ifaddr ipx;
+#ifdef NS
 		struct ns_ifaddr ns;
+#endif
 #ifdef ISO
 		struct iso_ifaddr iso;
 #endif
@@ -182,6 +186,7 @@ intpr(interval, ifnetaddr)
 				    ipx_phost((struct sockaddr *)sipx));
 				}
 				break;
+#ifdef NS
 			case AF_NS:
 				{
 				struct sockaddr_ns *sns =
@@ -197,6 +202,7 @@ intpr(interval, ifnetaddr)
 				    ns_phost((struct sockaddr *)sns));
 				}
 				break;
+#endif
 			case AF_LINK:
 				{
 				struct sockaddr_dl *sdl =

@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.4 1996/01/20 12:56:57 mpp Exp $";
+	"$Id: route.c,v 1.5 1996/02/06 20:36:10 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -57,7 +57,9 @@ static const char rcsid[] =
 #include <net/route.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
+#ifdef NS
 #include <netns/ns.h>
+#endif
 #ifdef ISO
 #include <netiso/iso.h>
 #endif
@@ -89,7 +91,9 @@ struct	ortentry route;
 union	sockunion {
 	struct	sockaddr sa;
 	struct	sockaddr_in sin;
+#ifdef NS
 	struct	sockaddr_ns sns;
+#endif
 #ifdef ISO
 	struct	sockaddr_iso siso;
 #endif
@@ -229,9 +233,11 @@ flushroutes(argc, argv)
 			case K_INET:
 				af = AF_INET;
 				break;
+#ifdef NS
 			case K_XNS:
 				af = AF_NS;
 				break;
+#endif
 			case K_LINK:
 				af = AF_LINK;
 				break;
@@ -313,7 +319,9 @@ routename(sa)
 	struct hostent *hp;
 	static char domain[MAXHOSTNAMELEN + 1];
 	static int first = 1;
+#ifdef NS
 	char *ns_print();
+#endif
 
 	if (first) {
 		first = 0;
@@ -357,8 +365,10 @@ routename(sa)
 		break;
 	    }
 
+#ifdef NS
 	case AF_NS:
 		return (ns_print((struct sockaddr_ns *)sa));
+#endif
 
 	case AF_LINK:
 		return (link_ntoa((struct sockaddr_dl *)sa));
@@ -396,7 +406,9 @@ netname(sa)
 	u_long net, mask;
 	register u_long i;
 	int subnetshift;
+#ifdef NS
 	char *ns_print();
+#endif
 
 	switch (sa->sa_family) {
 
@@ -450,9 +462,11 @@ netname(sa)
 		break;
 	    }
 
+#ifdef NS
 	case AF_NS:
 		return (ns_print((struct sockaddr_ns *)sa));
 		break;
+#endif
 
 	case AF_LINK:
 		return (link_ntoa((struct sockaddr_dl *)sa));
@@ -548,10 +562,12 @@ newroute(argc, argv)
 				af = PF_ROUTE;
 				aflen = sizeof(union sockunion);
 				break;
+#ifdef NS
 			case K_XNS:
 				af = AF_NS;
 				aflen = sizeof(struct sockaddr_ns);
 				break;
+#endif
 			case K_IFACE:
 			case K_INTERFACE:
 				iflag++;
@@ -768,7 +784,9 @@ getaddr(which, s, hpp)
 	struct hostent **hpp;
 {
 	register sup su;
+#ifdef NS
 	struct ns_addr ns_addr();
+#endif
 #ifdef ISO
 	struct iso_addr *iso_addr();
 #endif
@@ -822,6 +840,7 @@ getaddr(which, s, hpp)
 		return (0);
 	}
 	switch (af) {
+#ifdef NS
 	case AF_NS:
 		if (which == RTA_DST) {
 			extern short ns_bh[3];
@@ -834,6 +853,7 @@ getaddr(which, s, hpp)
 		}
 		su->sns.sns_addr = ns_addr(s);
 		return (!ns_nullhost(su->sns.sns_addr));
+#endif
 
 #ifdef ISO
 	case AF_OSI:
@@ -914,6 +934,7 @@ x25_makemask()
 }
 #endif
 
+#ifdef NS
 short ns_nullh[] = {0,0,0};
 short ns_bh[] = {-1,-1,-1};
 
@@ -961,6 +982,7 @@ ns_print(sns)
 		       host, cport);
 	return (mybuf);
 }
+#endif
 
 void
 interfaces()
@@ -1095,7 +1117,9 @@ mask_addr()
 	if ((rtm_addrs & RTA_DST) == 0)
 		return;
 	switch (so_dst.sa.sa_family) {
+#ifdef NS
 	case AF_NS:
+#endif
 	case AF_INET:
 #ifdef CCITT
 	case AF_CCITT:
@@ -1381,10 +1405,12 @@ sodump(su, which)
 		(void) printf("%s: inet %s; ",
 		    which, inet_ntoa(su->sin.sin_addr));
 		break;
+#ifdef NS
 	case AF_NS:
 		(void) printf("%s: xns %s; ",
 		    which, ns_ntoa(su->sns.sns_addr));
 		break;
+#endif
 	}
 	(void) fflush(stdout);
 }
