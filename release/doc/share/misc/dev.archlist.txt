@@ -43,6 +43,7 @@ ahb	i386
 ahd	i386,sparc64,ia64,amd64
 aic	i386,pc98,amd64
 amd	i386,pc98,amd64
+arcmsr	i386,amd64
 asr	i386
 ath	i386
 aue	i386,pc98,ia64,amd64
