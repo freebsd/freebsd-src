@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.60 1998/03/30 09:50:00 phk Exp $
+ * $Id: kern_clock.c,v 1.61 1998/03/31 10:44:56 phk Exp $
  */
 
 #include <sys/param.h>
@@ -523,7 +523,7 @@ getnanotime(struct timespec *tsp)
 
 	tc = timecounter;
 	tsp->tv_sec = tc->offset_sec;
-	tsp->tv_nsec = tc->offset_nano;
+	tsp->tv_nsec = tc->offset_nano >> 32;
 }
 
 void
