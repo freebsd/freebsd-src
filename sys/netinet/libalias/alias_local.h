@@ -68,8 +68,6 @@ struct in_addr GetDestAddress(struct alias_link *);
 struct in_addr GetAliasAddress(struct alias_link *);
 struct in_addr GetDefaultAliasAddress(void);
 void SetDefaultAliasAddress(struct in_addr);
-void SetDefaultTargetAddress(struct in_addr);
-void ClearDefaultTargetAddress(void);
 u_short GetOriginalPort(struct alias_link *);
 u_short GetAliasPort(struct alias_link *);
 void SetAckModified(struct alias_link *);
@@ -78,8 +76,7 @@ int GetDeltaAckIn(struct ip *, struct alias_link *);
 int GetDeltaSeqOut(struct ip *, struct alias_link *);
 void AddSeq(struct ip *, struct alias_link *, int);
 void SetExpire(struct alias_link *, int);
-void ClearNewDefaultLink(void);
-int CheckNewDefaultLink(void);
+void ClearCheckNewLink(void);
 
 /* Housekeeping function */
 void HouseKeeping(void);
@@ -88,4 +85,9 @@ void HouseKeeping(void);
 /*lint -save -library Suppress flexelint warnings */
 void AliasHandleFtpOut(struct ip *, struct alias_link *, int);
 void AliasHandleIrcOut(struct ip *pip, struct alias_link *link, int maxsize );
+
+/* Log file control */
+void InitPacketAliasLog(void);
+void UninitPacketAliasLog(void);
+
 /*lint -restore */
