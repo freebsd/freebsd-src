@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_tcp.c,v 1.2 1995/05/30 05:41:18 rgrimes Exp $";
+static char *rcsid = "$Id: clnt_tcp.c,v 1.2.4.2 1996/06/05 02:49:02 jkh Exp $";
 #endif
 
 /*
@@ -118,7 +118,7 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	u_int recvsz;
 {
 	CLIENT *h;
-	register struct ct_data *ct;
+	register struct ct_data *ct = NULL;
 	struct timeval now;
 	struct rpc_msg call_msg;
 
@@ -216,8 +216,10 @@ fooy:
 	/*
 	 * Something goofed, free stuff and barf
 	 */
-	mem_free((caddr_t)ct, sizeof(struct ct_data));
-	mem_free((caddr_t)h, sizeof(CLIENT));
+	if (ct)
+		mem_free((caddr_t)ct, sizeof(struct ct_data));
+	if (h)
+		mem_free((caddr_t)h, sizeof(CLIENT));
 	return ((CLIENT *)NULL);
 }
 
