@@ -430,7 +430,7 @@ static struct cmd {
 #define IMPLEMENTATION ""
 #endif
 
-static char *usage_string = "\
+static const char usage_string[] = "\
 pppd version %s patch level %d%s\n\
 Usage: %s [ options ], where options are:\n\
 	<device>	Communicate over the named device\n\

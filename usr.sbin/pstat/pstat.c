@@ -699,7 +699,7 @@ kinfo_vnodes(avnodes)
 	return ((struct e_vnode *)vbuf);
 }
 
-char hdr[] =
+const char hdr[] =
 "  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
 int ttyspace = 128;
 

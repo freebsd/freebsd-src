@@ -55,7 +55,7 @@ static const char rcsid[] =
 /*****************************************************************************/
 
 char	*version = "1.0.0";
-char	*defdevice = "/dev/staliomem%d";
+const char defdevice[] = "/dev/staliomem%d";
 char	*image = BOOTDIR "/cdk.sys";
 char	*oldimage = BOOTDIR "/2681.sys";
 
