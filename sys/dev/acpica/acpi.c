@@ -1279,7 +1279,6 @@ ACPI_STATUS
 acpi_SetSleepState(struct acpi_softc *sc, int state)
 {
     ACPI_STATUS	status = AE_OK;
-    UINT16	Count;
     UINT8	TypeA;
     UINT8	TypeB;
 
@@ -1336,19 +1335,6 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    if (status != AE_OK) {
 		device_printf(sc->acpi_dev, "AcpiEnterSleepState failed - %s\n", AcpiFormatException(status));
 		break;
-	    }
-	    /* wait for the WAK_STS bit */
-	    Count = 0;
-	    while (!(AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, WAK_STS))) {
-		AcpiOsSleep(0, 1);
-		/*
-		 * Some BIOSes don't set WAK_STS at all,
-		 * give up waiting for wakeup if we time out.
-		 */
-		if (Count > 1000) {
-		    break;	/* giving up */
-		}
-		Count++;
 	    }
 	}
 	AcpiLeaveSleepState((UINT8)state);
