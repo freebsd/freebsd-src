@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.20 1997/07/12 10:23:17 joerg Exp $
+ *	$Id: boot.h,v 1.21 1997/08/31 06:11:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@ int getc(void);
 int ischar(void);
 int get_diskinfo(int drive);
 int memsize(int extended);
+void vesa_mode(int mode);
 
 /* boot.c */
 void boot(int drive);
