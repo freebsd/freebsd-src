@@ -716,6 +716,13 @@ hint.pcf.0.at="isa"
 hint.pcf.0.port="0x320"
 hint.pcf.0.irq="5"
 
+#
+# Hardware watchdog timers:
+#
+# ichwd: Intel ICH watchdog timer
+#
+device		ichwd
+
 #---------------------------------------------------------------------------
 # ISDN4BSD
 #
