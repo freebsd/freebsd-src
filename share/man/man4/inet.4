@@ -261,6 +261,17 @@ adaptation described above.
 .Pq ip.rtmaxcache
 Integer: trigger level of cached, unreferenced, protocol-cloned routes
 which initiates dynamic adaptation (default 128).
+.It Dv IPCTL_RFC3514
+.Pq ip.rfc3514
+Boolean: Enable support for RFC3514.  Defaults to off.
+.It Dv IPCTL_SPEAK_NO_EVIL
+.Pq ip.speak_no_evil
+Boolean: Prevent the transmission of RFC3514 (EVIL) packets.
+Defaults to off.
+.It Dv IPCTL_HEAR_NO_EVIL
+.Pq ip.hear_no_evil
+Boolean: Prevent the reception of RFC3514 (EVIL) packets.
+Defaults to off.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
