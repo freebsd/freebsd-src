@@ -83,11 +83,7 @@ static u_int8_t	ibmpc_to_pc98[256] = {
 	0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef,
 	0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 
 };
-#if 0
 #define	at2pc98(attr)	((attr) | ibmpc_to_pc98[(unsigned)(attr) >> 8])
-#else
-#define	at2pc98(attr)	ibmpc_to_pc98[(unsigned)(attr) >> 8]
-#endif
 
 void
 sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
@@ -173,9 +169,9 @@ sc_vtb_geta(sc_vtb_t *vtb, int at)
 	vm_offset_t p = vtb_pointer(vtb, at);
 
 	if (vtb->vtb_type == VTB_FRAMEBUFFER)
-		return (readw(p + ATTR_OFFSET_FB) & 0x00ff);
+		return (readw(p + ATTR_OFFSET_FB) & 0xff00);
 	else
-		return (*(u_int16_t *)(p + attr_offset(vtb)) & 0x00ff);
+		return (*(u_int16_t *)(p + attr_offset(vtb)) & 0xff00);
 }
 
 __inline static void
