@@ -2704,7 +2704,7 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		fdt = fd->ft;
 		lp->d_secpercyl = fdt->size / fdt->tracks;
 		lp->d_type = DTYPE_FLOPPY;
-		if (readdisklabel(dkmodpart(dev, RAW_PART), lp) != NULL)
+		if (readdisklabel(dev, lp) != NULL)
 			error = EINVAL;
 		else
 			*(struct disklabel *)addr = *lp;
