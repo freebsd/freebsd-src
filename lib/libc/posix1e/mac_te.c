@@ -45,8 +45,9 @@
 #include <string.h>
 
 /*
- * TE labels simply consist of the typename.  The typename must not be
- * the empty string, and must not exceed the length limit in the label.
+ * TE labels simply consist of the typename.  The type length may
+ * be zero indicating that the text form did not include a type,
+ * but the string length must not exceed the length limit in the label.
  */
 
 int
@@ -54,8 +55,6 @@ mac_te_label_from_string(char *string, struct mac *label)
 {
 
 	bzero(&label->m_te, sizeof(label->m_te));
-	if (strlen(string) == 0)
-		return (EINVAL);
 	if (strlcpy(label->m_te.mt_type, string,
 	    sizeof(label->m_te.mt_type)) >= sizeof(label->m_te.mt_type))
 		return (EINVAL);
