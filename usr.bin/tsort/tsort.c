@@ -67,7 +67,7 @@ static char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
  *     tsort [-dlq] [inputfile]
  *  If no input file is specified, standard input is read.
  *
- *  Should be compatable with AT&T tsort HOWEVER the output is not identical
+ *  Should be compatible with AT&T tsort HOWEVER the output is not identical
  *  (i.e. for most graphs there is more than one sorted order, and this tsort
  *  usually generates a different one then the AT&T tsort).  Also, cycle
  *  reporting seems to be more accurate in this version (the AT&T tsort
