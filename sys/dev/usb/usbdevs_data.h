@@ -1624,6 +1624,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "WingMan GamePad Extreme",
 	},
 	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_WMRPAD,
+	    0,
+	    "Logitech",
+	    "WingMan RumblePad",
+	},
+	{
 	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_WMJOY,
 	    0,
 	    "Logitech",
@@ -1862,6 +1868,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Motorola",
 	    "MC141555 hub controller",
+	},
+	{
+	    USB_VENDOR_MOTOROLA, USB_PRODUCT_MOTOROLA_SB4100,
+	    0,
+	    "Motorola",
+	    "SB4100 USB Cable Modem",
 	},
 	{
 	    USB_VENDOR_MULTITECH, USB_PRODUCT_MULTITECH_ATLAS,
@@ -2312,6 +2324,12 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "SanDisk Corp",
 	    "ImageMate SDDR-05a",
+	},
+	{
+	    USB_VENDOR_SANDISK, USB_PRODUCT_SANDISK_SDDR05,
+	    0,
+	    "SanDisk Corp",
+	    "ImageMate SDDR-05",
 	},
 	{
 	    USB_VENDOR_SANDISK, USB_PRODUCT_SANDISK_SDDR31,

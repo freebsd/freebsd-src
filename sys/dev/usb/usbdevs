@@ -791,6 +791,7 @@ product LOGITECH BD58		0xc00c	BD58 mouse
 product LOGITECH UN58A		0xc030	iFeel Mouse
 product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
+product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
 product LOGITECH WMJOY		0xc281	WingMan Force joystick 
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
@@ -857,6 +858,7 @@ product MITSUMI CDRRW		0x0000	CD-R/RW Drive
 
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
+product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
 
 /* MultiTech products */
 product MULTITECH ATLAS		0xf101	MT5634ZBA-USB modem
@@ -988,6 +990,7 @@ product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
 
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
+product SANDISK SDDR05		0x0005	ImageMate SDDR-05
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
