@@ -553,7 +553,7 @@ dgbattach(dev)
 	volatile struct board_chan *bc;
 	int shrinkmem;
 	int nfails;
-	ushort *pstat;
+	volatile ushort *pstat;
 	int lowwater;
 	static int nports=0;
 	char suffix;
@@ -878,12 +878,16 @@ load_fep:
 			}
 
 		if(sc->type!=PCXEVE) {
-			port->txptr=mem+((bc->tseg-sc->mem_seg)<<4);
-			port->rxptr=mem+((bc->rseg-sc->mem_seg)<<4);
+			port->txptr=(u_char *)(uintptr_t)(volatile void *)
+			    (mem+((bc->tseg-sc->mem_seg)<<4));
+			port->rxptr=(u_char *)(uintptr_t)(volatile void *)
+			    (mem+((bc->rseg-sc->mem_seg)<<4));
 			port->txwin=port->rxwin=0;
 		} else {
-			port->txptr=mem+( ((bc->tseg-sc->mem_seg)<<4) & 0x1FFF );
-			port->rxptr=mem+( ((bc->rseg-sc->mem_seg)<<4) & 0x1FFF );
+			port->txptr=(u_char *)(uintptr_t)(volatile void *)
+			    (mem+( ((bc->tseg-sc->mem_seg)<<4) & 0x1FFF ));
+			port->rxptr=(u_char *)(uintptr_t)(volatile void *)
+			    (mem+( ((bc->rseg-sc->mem_seg)<<4) & 0x1FFF ));
 			port->txwin=FEPWIN | ((bc->tseg-sc->mem_seg)>>9);
 			port->rxwin=FEPWIN | ((bc->rseg-sc->mem_seg)>>9);
 		}
