@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.122 1999/06/24 04:06:26 jlemon Exp $
+**  $Id: pcisupport.c,v 1.123 1999/07/16 01:00:30 msmith Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -696,6 +696,7 @@ pci_bridge_type(device_t dev)
     case PCIS_BRIDGE_PCMCIA:	strcpy(tmpbuf, "PCI to PCMCIA"); break;
     case PCIS_BRIDGE_NUBUS:	strcpy(tmpbuf, "PCI to NUBUS"); break;
     case PCIS_BRIDGE_CARDBUS:	strcpy(tmpbuf, "PCI to CardBus"); break;
+    case PCIS_BRIDGE_OTHER:	strcpy(tmpbuf, "PCI to Other"); break;
     default: 
 	    snprintf(tmpbuf, sizeof(tmpbuf),
 		     "PCI to 0x%x", pci_get_subclass(dev)); 
