@@ -42,14 +42,12 @@ static d_close_t xrpu_close;
 static d_ioctl_t xrpu_ioctl;
 static d_mmap_t xrpu_mmap;
 
-#define CDEV_MAJOR 100
 static struct cdevsw xrpu_cdevsw = {
 	.d_open =	xrpu_open,
 	.d_close =	xrpu_close,
 	.d_ioctl =	xrpu_ioctl,
 	.d_mmap =	xrpu_mmap,
 	.d_name =	"xrpu",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static MALLOC_DEFINE(M_XRPU, "xrpu", "XRPU related");
