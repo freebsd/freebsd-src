@@ -368,7 +368,7 @@ sub manual {
 		    $list .= $_;
 		    $list .= ' ';
 		} else {
-		    $list .= '- ' if (!$flag && !/-/);
+		    $list .= '- ' if (!$flag && !/^- /);
 		    $flag++;
 		    s/^\.[A-Z][a-z][ \t]*//;
 		    s/[ \t]+$//;
