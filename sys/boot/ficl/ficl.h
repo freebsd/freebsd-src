@@ -797,6 +797,13 @@ void       ficlCompileSoftCore(FICL_VM *pVM);
 void       constantParen(FICL_VM *pVM);
 void       twoConstParen(FICL_VM *pVM);
 
+/*
+** So we can more easily debug...
+*/
+#ifdef FICL_TRACE
+extern int ficl_trace;
+#endif
+
 #if defined(__i386__) && !defined(TESTMAIN)
 extern void ficlOutb(FICL_VM *pVM);
 extern void ficlInb(FICL_VM *pVM);
