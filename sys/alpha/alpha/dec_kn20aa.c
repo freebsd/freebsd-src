@@ -6,17 +6,17 @@
  * All rights reserved.
  *
  * Author: Chris G. Demetriou
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -49,8 +49,8 @@
 #include "sio.h"
 #include "sc.h"
 
-#ifndef CONSPEED
-#define CONSPEED TTYDEF_SPEED
+#ifndef	CONSPEED
+#define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
 
@@ -110,7 +110,7 @@ dec_kn20aa_cons_init()
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
-	case 2: 
+	case 2:
 		/* serial console ... */
 		/* XXX */
 		{
@@ -269,87 +269,89 @@ dec_kn20aa_device_register(dev, aux)
 void
 dec_kn20aa_intr_init()
 {
-    /*
-     * Enable ISA-PCI cascade interrupt.
-     */
-    dec_kn20aa_intr_enable(31);
+
+	/*
+	 * Enable ISA-PCI cascade interrupt.
+	 */
+	dec_kn20aa_intr_enable(31);
 }
 
 void
 dec_kn20aa_intr_map(void *arg)
 {
-	pcicfgregs *cfg = (pcicfgregs *)arg;
-        /*
-         * Slot->interrupt translation.  Appears to work, though it
-         * may not hold up forever.
-         *
-         * The DEC engineers who did this hardware obviously engaged
-         * in random drug testing.
-         */
+	pcicfgregs *cfg;
+
+	cfg = (pcicfgregs *)arg;
+	/*
+	 * Slot->interrupt translation.  Appears to work, though it
+	 * may not hold up forever.
+	 *
+	 * The DEC engineers who did this hardware obviously engaged
+	 * in random drug testing.
+	 */
 	switch (cfg->slot) {
-        case 11:
-        case 12:
-                cfg->intline = ((cfg->slot - 11) + 0) * 4;
-                break;
+	case 11:
+	case 12:
+		cfg->intline = ((cfg->slot - 11) + 0) * 4;
+		break;
 
-        case 7:
-                cfg->intline = 8;
-                break;
+	case 7:
+		cfg->intline = 8;
+		break;
 
-        case 9:
-                cfg->intline = 12;
-                break;
+	case 9:
+		cfg->intline = 12;
+		break;
 
-        case 6:                                 /* 21040 on AlphaStation 500 */
-                cfg->intline = 13;
-                break;
+	case 6:				/* 21040 on AlphaStation 500 */
+		cfg->intline = 13;
+		break;
 
-        case 8:
-                cfg->intline = 16;
-                break;
+	case 8:
+		cfg->intline = 16;
+		break;
 
-	case 10:                                /* 8275EB on AlphaStation 500 */
+	case 10:			/* 8275EB on AlphaStation 500 */
 		return;
 
-        default:
+	default:
 		if(!cfg->bus){
 			printf("dec_kn20aa_intr_map: weird slot %d\n",
-			       cfg->slot);
+			    cfg->slot);
 			return;
 		} else {
 			cfg->intline = cfg->slot;
 		}
-        }
-	
-        cfg->intline += cfg->bus*16;
-        if (cfg->intline > KN20AA_MAX_IRQ)
-                panic("dec_kn20aa_intr_map: cfg->intline too large (%d)\n",
-                    cfg->intline);
+	}
 
+	cfg->intline += cfg->bus*16;
+	if (cfg->intline > KN20AA_MAX_IRQ)
+		panic("dec_kn20aa_intr_map: cfg->intline too large (%d)\n",
+		    cfg->intline);
 }
 
 void
 dec_kn20aa_intr_enable(irq)
-        int irq;
+	int irq;
 {
 
-        /*
-         * From disassembling small bits of the OSF/1 kernel:
-         * the following appears to enable a given interrupt request.
-         * "blech."  I'd give valuable body parts for better docs or
-         * for a good decompiler.
-         */
-        alpha_mb();
-        REGVAL(0x8780000000L + 0x40L) |= (1 << irq);    /* XXX */
-        alpha_mb();
+	/*
+	 * From disassembling small bits of the OSF/1 kernel:
+	 * the following appears to enable a given interrupt request.
+	 * "blech."  I'd give valuable body parts for better docs or
+	 * for a good decompiler.
+	 */
+	alpha_mb();
+	REGVAL(0x8780000000L + 0x40L) |= (1 << irq);    /* XXX */
+	alpha_mb();
 }
 
 void
 dec_kn20aa_intr_disable(irq)
-        int irq;
+	int irq;
 {
 
-        alpha_mb();
-        REGVAL(0x8780000000L + 0x40L) &= ~(1 << irq);   /* XXX */
-        alpha_mb();
+	alpha_mb();
+	REGVAL(0x8780000000L + 0x40L) &= ~(1 << irq);   /* XXX */
+	alpha_mb();
 }

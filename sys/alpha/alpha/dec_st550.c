@@ -4,17 +4,17 @@
  * All rights reserved.
  *
  * Author: Chris G. Demetriou
- * 
+ *
  * Permission to use, copy, modify and distribute this software and
  * its documentation is hereby granted, provided that both the copyright
  * notice and this permission notice appear in all copies of the
  * software, derivative works or modified versions, and any portions
  * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
+ *
+ * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS"
+ * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND
  * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
+ *
  * Carnegie Mellon requests users of this software to return to
  *
  *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
@@ -55,8 +55,8 @@
 #include "sio.h"
 #include "sc.h"
 
-#ifndef CONSPEED
-#define CONSPEED TTYDEF_SPEED
+#ifndef	CONSPEED
+#define	CONSPEED TTYDEF_SPEED
 #endif
 static int comcnrate = CONSPEED;
 
@@ -78,6 +78,7 @@ extern int sccnattach __P((void));
 void
 st550_init()
 {
+
 	platform.family = "Digital Personal Workstation (Miata)";
 
 	if ((platform.model = alpha_dsr_sysname()) == NULL) {
@@ -109,23 +110,21 @@ st550_cons_init()
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
-	case 2: 
+	case 2:
 		/* serial console ... */
 		/* XXX */
-		{
-			/*
-			 * Delay to allow PROM putchars to complete.
-			 * FIFO depth * character time,
-			 * character time = (1000000 / (defaultrate / 10))
-			 */
-			DELAY(160000000 / comcnrate);
-			comconsole = 0;
-			if (siocnattach(0x3f8, comcnrate))
-				panic("can't init serial console");
+		/*
+		 * Delay to allow PROM putchars to complete.
+		 * FIFO depth * character time,
+		 * character time = (1000000 / (defaultrate / 10))
+		 */
+		DELAY(160000000 / comcnrate);
+		comconsole = 0;
+		if (siocnattach(0x3f8, comcnrate))
+			panic("can't init serial console");
 
-			boothowto |= RB_SERIAL;
-			break;
-		}
+		boothowto |= RB_SERIAL;
+		break;
 
 	case 3:
 		/* display console ... */
@@ -149,6 +148,7 @@ st550_cons_init()
 static void
 st550_intr_init()
 {
+
 	/* This is here because we need to disable extraneous pci interrupts. */
 	int i;
 	for(i = ST550_PCI_IRQ_BEGIN; i <= ST550_PCI_MAX_IRQ; i++)
@@ -162,70 +162,72 @@ st550_intr_init()
 static void
 st550_intr_map(void *arg)
 {
-	pcicfgregs *cfg = (pcicfgregs *)arg;
+	pcicfgregs *cfg;
 
-        /* There are two main variants of Miata: Miata 1 (Intel SIO)
-         * and Miata {1.5,2} (Cypress).
-         *
-         * The Miata 1 has a CMD PCI IDE wired to compatibility mode at
-         * slot 4 of bus 0.  This variant  has the Pyxis DMA bug.
-         *
-         * On the Miata 1.5 and Miata 2, the Cypress PCI-ISA bridge lives
-         * on device 7 of bus 0.  This device has PCI IDE wired to
-         * compatibility mode on functions 1 and 2.
-         *
-         * There will be no interrupt mapping for these devices, so just
-         * bail out now.
-         */
+	cfg = (pcicfgregs *)arg;
+
+	/* There are two main variants of Miata: Miata 1 (Intel SIO)
+	 * and Miata {1.5,2} (Cypress).
+	 *
+	 * The Miata 1 has a CMD PCI IDE wired to compatibility mode at
+	 * slot 4 of bus 0.  This variant  has the Pyxis DMA bug.
+	 *
+	 * On the Miata 1.5 and Miata 2, the Cypress PCI-ISA bridge lives
+	 * on device 7 of bus 0.  This device has PCI IDE wired to
+	 * compatibility mode on functions 1 and 2.
+	 *
+	 * There will be no interrupt mapping for these devices, so just
+	 * bail out now.
+	 */
 	if(cfg->bus == 0) {
 		if ((hwrpb->rpb_variation & SV_ST_MASK) < SV_ST_MIATA_1_5) {
-                        /* Miata 1 */
-                        if (cfg->slot == 7)
+			/* Miata 1 */
+			if (cfg->slot == 7)
 				return;
-                        else if (cfg->func == 4)
+			else if (cfg->func == 4)
 				return;
 		} else {
 			/* Miata 1.5 or Miata 2 */
-                        if (cfg->slot == 7) {
-                                if (cfg->func == 0)
+			if (cfg->slot == 7) {
+				if (cfg->func == 0)
 					return;
-                                return;
-                        }
-                }
-        }
-	        /* Account for the PCI interrupt offset. */
-        /* cfg->intline += ST550_PCI_IRQ_BEGIN; */
+				return;
+			}
+		}
+	}
+	/* Account for the PCI interrupt offset. */
+	/* cfg->intline += ST550_PCI_IRQ_BEGIN; */
 	return;
 }
 
 /*
- * The functions below were written based on a draft copy of the 
- * 21174 TRM. 
+ * The functions below were written based on a draft copy of the
+ * 21174 TRM.
  */
 static void
 pyxis_intr_enable(irq)
 	int irq;
 {
-        volatile u_int64_t temp;
+	volatile u_int64_t temp;
 
-        alpha_mb();
-        temp =  REGVAL64(PYXIS_INT_MASK);
-        alpha_mb();
+	alpha_mb();
+	temp = REGVAL64(PYXIS_INT_MASK);
+	alpha_mb();
 
-        temp |= ( 1L << irq );
-        REGVAL64(PYXIS_INT_MASK) = temp;
-        alpha_mb();
-        temp = REGVAL64(PYXIS_INT_MASK);
+	temp |= ( 1L << irq );
+	REGVAL64(PYXIS_INT_MASK) = temp;
+	alpha_mb();
+	temp = REGVAL64(PYXIS_INT_MASK);
 #if 0
 	printf("pyxis_intr_enable: enabling %d, current mask= ", irq);
-        {
-                int i;
-                for ( i = 0; i < 61; i++)
-                        if (temp & (1 << i)){
-                                printf("%d " ,i);
-                        }       
-                printf("\n");
-        }
+	{
+		int i;
+		for ( i = 0; i < 61; i++)
+			if (temp & (1 << i)) {
+				printf("%d " , i);
+			}
+		printf("\n");
+	}
 #endif
 
 }
@@ -243,29 +245,31 @@ pyxis_intr_disable(irq)
         alpha_mb();
         temp = REGVAL64(PYXIS_INT_MASK);
 #if 0
-        printf("pyxis_intr_disable: disabled %d, current mask ", irq);
-        {
-                int i;
-                for ( i = 0; i < 61; i++)
-                        if (temp & (1 << i)){
-                                printf("%d ",i);
-                        }
-                printf("\n");
-        }
+	printf("pyxis_intr_disable: disabled %d, current mask ", irq);
+	{
+		int i;
+		for ( i = 0; i < 61; i++)
+			if (temp & (1 << i)) {
+				printf("%d ", i);
+			}
+	printf("\n");
+	}
 #endif
 
 }
 
 static void
 st550_intr_enable(irq)
-        int irq;
+	int irq;
 {
+
 	pyxis_intr_enable(irq + ST550_PCI_IRQ_BEGIN);
 }
 
 static void
 st550_intr_disable(irq)
-        int irq;
+	int irq;
 {
+
 	pyxis_intr_disable(irq + ST550_PCI_IRQ_BEGIN);
 }
