@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.68 1999/03/27 20:35:14 wpaul Exp $
+ *	$Id: if_xl.c,v 1.69 1999/03/31 15:36:30 wpaul Exp $
  */
 
 /*
@@ -150,7 +150,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.68 1999/03/27 20:35:14 wpaul Exp $";
+	"$Id: if_xl.c,v 1.69 1999/03/31 15:36:30 wpaul Exp $";
 #endif
 
 /*
@@ -158,25 +158,25 @@ static const char rcsid[] =
  */
 static struct xl_type xl_devs[] = {
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT,
-		"3Com 3c900 Etherlink XL 10BaseT" },
+		"3Com 3c900-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT_COMBO,
-		"3Com 3c900 Etherlink XL 10BaseT Combo" },
+		"3Com 3c900-COMBO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10_100BT,
-		"3Com 3c905 Fast Etherlink XL 10/100BaseTX" },
+		"3Com 3c905-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_100BT4,
-		"3Com 3c905 Fast Etherlink XL 10/100BaseT4" },
+		"3Com 3c905-T4 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT,
-		"3Com 3c900B Etherlink XL 10BaseT" },
+		"3Com 3c900B-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10BT_COMBO,
-		"3Com 3c900B Etherlink XL 10BaseT Combo" },
+		"3Com 3c900B-COMBO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT,
-		"3Com 3c905B Fast Etherlink XL 10/100BaseTX" },
+		"3Com 3c905B-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT4,
-		"3Com 3c905B Fast Etherlink XL 10/100BaseT4" },
+		"3Com 3c905B-T4 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100FX,
-		"3Com 3c905B Fast Etherlink XL 10/100BaseFX/SC" },
+		"3Com 3c905B-FX/SC Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_CYCLONE_10_100BT_SERV,
-		"3Com 3c980 Fast Etherlink XL 10/100BaseTX" },
+		"3Com 3c980 Fast Etherlink XL" },
 	{ 0, 0, NULL }
 };
 
@@ -263,8 +263,11 @@ static void xl_wait(sc)
 		if (!(CSR_READ_2(sc, XL_STATUS) & XL_STAT_CMDBUSY))
 			break;
 	}
+
+#ifdef DIAGNOSTIC
 	if (i == XL_TIMEOUT)
 		printf("xl%d: command never completed!\n", sc->xl_unit);
+#endif
 
 	return;
 }
