@@ -49,14 +49,14 @@
 .Fd #include <arpa/nameser.h>
 .Fd #include <resolv.h>
 .Fo res_query
-.Fa "char *dname"
+.Fa "const char *dname"
 .Fa "int class"
 .Fa "int type"
 .Fa "u_char *answer"
 .Fa "int anslen"
 .Fc
 .Fo res_search
-.Fa "char *dname"
+.Fa "const char *dname"
 .Fa "int class"
 .Fa "int type"
 .Fa "u_char *answer"
@@ -64,33 +64,33 @@
 .Fc
 .Fo res_mkquery
 .Fa "int op"
-.Fa "char *dname"
+.Fa "const char *dname"
 .Fa "int class"
 .Fa "int type"
-.Fa "char *data"
+.Fa "const char *data"
 .Fa "int datalen"
 .Fa "struct rrec *newrr"
 .Fa "char *buf"
 .Fa "int buflen"
 .Fc
 .Fo res_send
-.Fa "char *msg"
+.Fa "const char *msg"
 .Fa "int msglen"
 .Fa "char *answer"
 .Fa "int anslen"
 .Fc
 .Fn res_init 
 .Fo dn_comp
-.Fa "char *exp_dn"
+.Fa "const char *exp_dn"
 .Fa "char *comp_dn"
 .Fa "int length"
 .Fa "char **dnptrs"
 .Fa "char **lastdnptr"
 .Fc
 .Fo dn_expand
-.Fa "u_char *msg"
-.Fa "u_char *eomorig"
-.Fa "u_char *comp_dn"
+.Fa "const u_char *msg"
+.Fa "const u_char *eomorig"
+.Fa "const u_char *comp_dn"
 .Fa "u_char *exp_dn"
 .Fa "int length"
 .Fc
@@ -163,6 +163,10 @@ will search for host names in the current domain and in parent domains; see
 This is used by the standard host lookup routine
 .Xr gethostbyname 3 .
 This option is enabled by default.
+.It Dv RES_NOALIASES
+This option turns off the user level aliasing feature controlled by the
+.Dq Ev HOSTALIASES
+environment variable.  Network daemons should set this option.
 .El
 .Pp
 The
@@ -179,6 +183,24 @@ The current domain name is defined by the hostname
 if not specified in the configuration file;
 it can be overridden by the environment variable
 .Ev LOCALDOMAIN .
+This environment variable may contain several blank-separated
+tokens if you wish to override the
+.Em "search list"
+on a per-process basis.  This is similar to the
+.Em search
+command in the configuration file.
+Another environment variable (
+.Dq Ev RES_OPTIONS
+can be set to
+override certain internal resolver options which are otherwise
+set by changing fields in the
+.Em _res
+structure or are inherited from the configuration file's
+.Em options
+command.  The syntax of the
+.Dq Ev RES_OPTIONS
+environment variable is explained in
+.Xr resolver 5 .
 Initialization normally occurs on the first call
 to one of the following routines.
 .Pp
