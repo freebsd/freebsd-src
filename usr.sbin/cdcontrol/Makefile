@@ -1,10 +1,9 @@
 # $FreeBSD$
 
 PROG= cdcontrol
+WARNS?= 2
 
 DPADD=	${LIBEDIT} ${LIBTERMCAP}
 LDADD=	-ledit -ltermcap
-
-WARNS?= 2
 
 .include <bsd.prog.mk>
