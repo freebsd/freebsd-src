@@ -40,11 +40,13 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $Id: bsd_comp.c,v 1.1.2.1 1995/10/31 20:07:32 peter Exp $
+ * from: Id: bsd-comp.c,v 1.11 1995/07/04 03:35:11 paulus Exp
+ * $Id$
  */
 
 #include <sys/param.h>
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -129,6 +131,12 @@ struct bsd_db {
 #define BSD_OVHD	2		/* BSD compress overhead/packet */
 #define BSD_INIT_BITS	BSD_MIN_BITS
 
+static void	bsd_clear __P((struct bsd_db *db));
+static int	bsd_check __P((struct bsd_db *db));
+static void	*bsd_alloc __P((u_char *options, int opt_len, int decomp));
+static int	bsd_init __P((struct bsd_db *db, u_char *options, int opt_len,
+			      int unit, int hdrlen, int mru, int debug,
+			      int decomp));
 static void	*bsd_comp_alloc __P((u_char *options, int opt_len));
 static void	*bsd_decomp_alloc __P((u_char *options, int opt_len));
 static void	bsd_free __P((void *state));
