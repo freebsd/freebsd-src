@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.47 1994/09/07 06:11:29 davidg Exp $
+ * $Id: if_ed.c,v 1.48 1994/09/16 13:33:40 davidg Exp $
  */
 
 #include "ed.h"
@@ -124,11 +124,6 @@ void    ed_pio_readmem(), ed_pio_writemem();
 u_short ed_pio_write_mbufs();
 
 void    ed_setrcr(struct ifnet *, struct ed_softc *);
-
-struct trailer_header {
-	u_short ether_type;
-	u_short ether_residual;
-};
 
 struct isa_driver eddriver = {
 	ed_probe,
@@ -1473,11 +1468,7 @@ outloop:
 
 				/*
 				 * Enable 16bit access to shared memory on
-				 * WD/SMC boards Don't update wd_laar_proto
-				 * because we want to restore the previous
-				 * state (because an arp reply in the input
-				 * code may cause a call-back to ed_start) XXX
-				 * - the call-back to 'start' is a bug, IMHO.
+				 * WD/SMC boards.
 				 */
 			case ED_VENDOR_WD_SMC:{
 					outb(sc->asic_addr + ED_WD_LAAR,
@@ -1532,67 +1523,11 @@ outloop:
 		ed_xmit(ifp);
 
 	/*
-	 * If there is BPF support in the configuration, tap off here. The
-	 * following has support for converting trailer packets back to
-	 * normal. XXX - support for trailer packets in BPF should be moved
-	 * into the bpf code proper to avoid code duplication in all of the
-	 * drivers.
+	 * Tap off here if there is a bpf listener.
 	 */
 #if NBPFILTER > 0
 	if (sc->bpf) {
-		u_short etype;
-		int     off, datasize, resid;
-		struct ether_header *eh;
-		struct trailer_header trailer_header;
-		char    ether_packet[ETHER_MAX_LEN];
-		char   *ep;
-
-		ep = ether_packet;
-
-		/*
-		 * We handle trailers below: Copy ether header first, then
-		 * residual data, then data. Put all this in a temporary
-		 * buffer 'ether_packet' and send off to bpf. Since the system
-		 * has generated this packet, we assume that all of the
-		 * offsets in the packet are correct; if they're not, the
-		 * system will almost certainly crash in m_copydata. We make
-		 * no assumptions about how the data is arranged in the mbuf
-		 * chain (i.e. how much data is in each mbuf, if mbuf clusters
-		 * are used, etc.), which is why we use m_copydata to get the
-		 * ether header rather than assume that this is located in the
-		 * first mbuf.
-		 */
-		/* copy ether header */
-		m_copydata(m0, 0, sizeof(struct ether_header), ep);
-		eh = (struct ether_header *) ep;
-		ep += sizeof(struct ether_header);
-		etype = ntohs(eh->ether_type);
-		if (etype >= ETHERTYPE_TRAIL &&
-		    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
-			datasize = ((etype - ETHERTYPE_TRAIL) << 9);
-			off = datasize + sizeof(struct ether_header);
-
-			/* copy trailer_header into a data structure */
-			m_copydata(m0, off, sizeof(struct trailer_header),
-				   (caddr_t) & trailer_header.ether_type);
-
-			/* copy residual data */
-			m_copydata(m0, off + sizeof(struct trailer_header),
-			       resid = ntohs(trailer_header.ether_residual) -
-				   sizeof(struct trailer_header), ep);
-			ep += resid;
-
-			/* copy data */
-			m_copydata(m0, sizeof(struct ether_header),
-				   datasize, ep);
-			ep += datasize;
-
-			/* restore original ether packet type */
-			eh->ether_type = trailer_header.ether_type;
-
-			bpf_tap(sc->bpf, ether_packet, ep - ether_packet);
-		} else
-			bpf_mtap(sc->bpf, m0);
+		bpf_mtap(sc->bpf, m0);
 	}
 #endif
 
@@ -1646,8 +1581,36 @@ ed_rint(unit)
 			ed_pio_readmem(sc, packet_ptr, (char *) &packet_hdr,
 				       sizeof(packet_hdr));
 		len = packet_hdr.count;
-		if ((len >= ETHER_MIN_LEN) && (len <= ETHER_MAX_LEN)) {
-
+		if (len > ETHER_MAX_LEN) {
+			/*
+			 * Length is a wild value. There's a good chance that
+			 * this was caused by the NIC being old and buggy.
+			 * The bug is that the length low byte is duplicated in
+			 * the high byte. Try to recalculate the length based on
+			 * the pointer to the next packet.
+			 */
+			/*
+			 * NOTE: sc->next_packet is pointing at the current packet.
+			 */
+			len &= ED_PAGE_SIZE - 1;	/* preserve offset into page */
+			if (packet_hdr.next_packet >= sc->next_packet) {
+				len += (packet_hdr.next_packet - sc->next_packet) * ED_PAGE_SIZE;
+			} else {
+				len += ((packet_hdr.next_packet - sc->rec_page_start) +
+					(sc->rec_page_stop - sc->next_packet)) * ED_PAGE_SIZE;
+			}
+		}
+		/*
+		 * Be fairly liberal about what we allow as a "reasonable" length
+		 * so that a [crufty] packet will make it to BPF (and can thus
+		 * be analyzed). Note that all that is really important is that
+		 * we have a length that will fit into one mbuf cluster or less;
+		 * the upper layer protocols can then figure out the length from
+		 * their own length field(s).
+		 */
+		if ((len <= MCLBYTES) &&
+		    (packet_hdr.next_packet >= sc->rec_page_start) &&
+		    (packet_hdr.next_packet < sc->rec_page_stop)) {
 			/*
 			 * Go get packet.
 			 */
@@ -1655,12 +1618,8 @@ ed_rint(unit)
 				      len - sizeof(struct ed_ring), packet_hdr.rsr & ED_RSR_PHY);
 			++sc->arpcom.ac_if.if_ipackets;
 		} else {
-
 			/*
-			 * Really BAD...probably indicates that the ring
-			 * pointers are corrupted. Also seen on early rev
-			 * chips under high load - the byte order of the
-			 * length gets switched.
+			 * Really BAD. The ring pointers are corrupted.
 			 */
 			log(LOG_ERR,
 			    "ed%d: NIC memory corrupt - invalid packet length %d\n",
@@ -2087,20 +2046,15 @@ ed_get_packet(sc, buf, len, multicast)
 	int     multicast;
 {
 	struct ether_header *eh;
-	struct mbuf *m, *head = 0, *ed_ring_to_mbuf();
-	u_short off;
-	int     resid;
-	u_short etype;
-	struct trailer_header trailer_header;
+	struct mbuf *m, *ed_ring_to_mbuf();
 
 	/* Allocate a header mbuf */
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
-	if (m == 0)
-		goto bad;
+	if (m == NULL)
+		return;
 	m->m_pkthdr.rcvif = &sc->arpcom.ac_if;
 	m->m_pkthdr.len = len;
 	m->m_len = 0;
-	head = m;
 
 	/* The following sillines is to make NFS happy */
 #define EROUND	((sizeof(struct ether_header) + 3) & ~3)
@@ -2110,75 +2064,26 @@ ed_get_packet(sc, buf, len, multicast)
 	 * The following assumes there is room for the ether header in the
 	 * header mbuf
 	 */
-	head->m_data += EOFF;
-	eh = mtod(head, struct ether_header *);
+	m->m_data += EOFF;
+	eh = mtod(m, struct ether_header *);
 
 	if (sc->mem_shared)
-		bcopy(buf, mtod(head, caddr_t), sizeof(struct ether_header));
+		bcopy(buf, mtod(m, caddr_t), sizeof(struct ether_header));
 	else
-		ed_pio_readmem(sc, buf, mtod(head, caddr_t),
+		ed_pio_readmem(sc, buf, mtod(m, caddr_t),
 			       sizeof(struct ether_header));
 	buf += sizeof(struct ether_header);
-	head->m_len += sizeof(struct ether_header);
+	m->m_len += sizeof(struct ether_header);
 	len -= sizeof(struct ether_header);
-
-	etype = ntohs((u_short) eh->ether_type);
-
-	/*
-	 * Deal with trailer protocol: If trailer protocol, calculate the
-	 * datasize as 'off', which is also the offset to the trailer header.
-	 * Set resid to the amount of packet data following the trailer
-	 * header. Finally, copy residual data into mbuf chain.
-	 */
-	if (etype >= ETHERTYPE_TRAIL &&
-	    etype < ETHERTYPE_TRAIL + ETHERTYPE_NTRAILER) {
-
-		off = (etype - ETHERTYPE_TRAIL) << 9;
-		if ((off + sizeof(struct trailer_header)) > len)
-			goto bad;	/* insanity */
-
-		/*
-		 * If we have shared memory, we can get info directly from the
-		 * stored packet, otherwise we must get a local copy of the
-		 * trailer header using PIO.
-		 */
-		if (sc->mem_shared) {
-			eh->ether_type = *ringoffset(sc, buf, off, u_short *);
-			resid = ntohs(*ringoffset(sc, buf, off + 2, u_short *));
-		} else {
-			struct trailer_header trailer_header;
-
-			ed_pio_readmem(sc,
-				       ringoffset(sc, buf, off, caddr_t),
-				       (char *) &trailer_header,
-				       sizeof(trailer_header));
-			eh->ether_type = trailer_header.ether_type;
-			resid = trailer_header.ether_residual;
-		}
-
-		if ((off + resid) > len)
-			goto bad;	/* insanity */
-
-		resid -= sizeof(struct trailer_header);
-		if (resid < 0)
-			goto bad;	/* insanity */
-
-		m = ed_ring_to_mbuf(sc, ringoffset(sc, buf, off + 4, char *),
-				    head, resid);
-		if (m == 0)
-			goto bad;
-
-		len = off;
-		head->m_pkthdr.len -= 4;	/* subtract trailer header */
-	}
 
 	/*
 	 * Pull packet off interface. Or if this was a trailer packet, the
 	 * data portion is appended.
 	 */
-	m = ed_ring_to_mbuf(sc, buf, m, len);
-	if (m == 0)
-		goto bad;
+	if (ed_ring_to_mbuf(sc, buf, m, len) == NULL) {
+		m_freem(m);
+		return;
+	}
 
 #if NBPFILTER > 0
 
@@ -2187,7 +2092,7 @@ ed_get_packet(sc, buf, len, multicast)
 	 * the raw packet to bpf.
 	 */
 	if (sc->bpf) {
-		bpf_mtap(sc->bpf, head);
+		bpf_mtap(sc->bpf, m);
 
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
@@ -2196,8 +2101,8 @@ ed_get_packet(sc, buf, len, multicast)
 		 */
 		if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
 		    bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-			 sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
-			m_freem(head);
+		      sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
+			m_freem(m);
 			return;
 		}
 	}
@@ -2206,18 +2111,14 @@ ed_get_packet(sc, buf, len, multicast)
 	/*
 	 * Fix up data start offset in mbuf to point past ether header
 	 */
-	m_adj(head, sizeof(struct ether_header));
+	m_adj(m, sizeof(struct ether_header));
 
 	/*
 	 * silly ether_input routine needs 'type' in host byte order
 	 */
 	eh->ether_type = ntohs(eh->ether_type);
 
-	ether_input(&sc->arpcom.ac_if, eh, head);
-	return;
-
-bad:	if (head)
-		m_freem(head);
+	ether_input(&sc->arpcom.ac_if, eh, m);
 	return;
 }
 
