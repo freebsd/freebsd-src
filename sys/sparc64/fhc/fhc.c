@@ -237,7 +237,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	fc->fc_bh = sc->sc_bh[rid];
 
 	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP,
-	    r->r_start);
+	    rman_get_start(r));
 	bus_space_read_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP);
 
 	error = bus_generic_setup_intr(bus, child, r, flags, fhc_intr_stub,
@@ -251,7 +251,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 
 	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_ICLR, 0x0);
 	bus_space_write_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP,
-	    INTMAP_ENABLE(r->r_start, PCPU_GET(mid)));
+	    INTMAP_ENABLE(rman_get_start(r), PCPU_GET(mid)));
 	bus_space_read_4(sc->sc_bt[rid], sc->sc_bh[rid], FHC_IMAP);
 
 	return (error);
