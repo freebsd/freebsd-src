@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rexecd.c,v 1.8 1996/09/22 21:54:45 wosch Exp $
+ *	$Id: rexecd.c,v 1.5.4.4 1996/11/22 09:01:35 pst Exp $
  */
 
 #ifndef lint
@@ -289,7 +289,7 @@ error(fmt, a1, a2, a3)
 	char buf[BUFSIZ];
 
 	buf[0] = 1;
-	(void) sprintf(buf+1, fmt, a1, a2, a3);
+	(void) snprintf(buf+1, sizeof(buf) - 1, fmt, a1, a2, a3);
 	(void) write(2, buf, strlen(buf));
 }
 
