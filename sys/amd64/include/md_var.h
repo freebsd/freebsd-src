@@ -58,8 +58,6 @@ struct	fpreg;
 struct  dbreg;
 
 void	busdma_swi(void);
-void	cpu_halt(void);
-void	cpu_reset(void);
 void	cpu_setregs(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));
 void	doreti_iret_fault(void) __asm(__STRING(doreti_iret_fault));
@@ -68,7 +66,6 @@ void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	pagezero(void *addr);
 int	is_physical_memory(vm_offset_t addr);
 void	setidt(int idx, alias_for_inthand_t *func, int typ, int dpl, int ist);
-void	swi_vm(void *);
 void	fpstate_drop(struct thread *td);
 
 #endif /* !_MACHINE_MD_VAR_H_ */

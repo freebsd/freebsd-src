@@ -28,7 +28,7 @@
 
 #include "acpi.h"
 
-#include <machine/cpu.h>
+#include <machine/md_var.h>
 
 extern u_int64_t ia64_lapic_address;
 

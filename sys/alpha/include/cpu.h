@@ -107,6 +107,12 @@ struct trapframe;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
 
+void	cpu_halt(void);
+void	cpu_reset(void);
+void	fork_trampoline(void);					/* MAGIC */
+void	swi_vm(void *);
+
+/* XXX the following should not be here. */
 void	XentArith(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
 void	XentIF(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
 void	XentInt(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
@@ -139,7 +145,6 @@ void	regtoframe(struct reg *, struct trapframe *);
 void	savectx(struct pcb *);
 void	set_iointr(void (*)(void *, unsigned long));
 void    switch_exit(struct thread *);				/* MAGIC */
-void	fork_trampoline(void);					/* MAGIC */
 void	syscall(u_int64_t, struct trapframe *);
 void	trap(unsigned long, unsigned long, unsigned long, unsigned long,
 	    struct trapframe *);

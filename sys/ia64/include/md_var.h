@@ -39,8 +39,9 @@ extern	int	szsigcode;
 extern	long	Maxmem;
 
 struct fpreg;
-struct thread;
 struct reg;
+struct thread;
+struct trapframe;
 
 struct ia64_fdesc {
 	u_int64_t	func;
@@ -51,11 +52,22 @@ struct ia64_fdesc {
 #define FDESC_GP(fn)    (((struct ia64_fdesc *) fn)->gp)
 
 void	busdma_swi(void);
-void	cpu_halt(void);
-void	cpu_reset(void);
-int	is_physical_memory(vm_offset_t addr);
+int	copyout_regstack(struct thread *, uint64_t *, uint64_t *);
+void	cpu_mp_add(u_int, u_int, u_int);
+int	do_ast(struct trapframe *);
+int	ia64_count_cpus(void);
+int	ia64_highfp_drop(struct thread *);
+int	ia64_highfp_load(struct thread *);
+int	ia64_highfp_save(struct thread *);
+void	ia64_init(void);
+void	ia64_probe_sapics(void);
+void	interrupt(uint64_t, struct trapframe *);
+void	map_gateway_page(void);
+void	map_pal_code(void);
+void	map_port_space(void);
 void	os_boot_rendez(void);
 void	os_mca(void);
-void	swi_vm(void *);
+int	syscall(struct trapframe *);
+void	trap(int, struct trapframe *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
