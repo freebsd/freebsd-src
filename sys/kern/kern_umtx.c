@@ -214,18 +214,20 @@ _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
 		 * and we need to retry or we lost a race to the thread
 		 * unlocking the umtx.
 		 */
-		UMTX_LOCK();
+		PROC_LOCK(td->td_proc);
 		mtx_lock_spin(&sched_lock);
 		if (old == owner && (td->td_flags & TDF_UMTXWAKEUP) == 0) {
 			mtx_unlock_spin(&sched_lock);
-			error = msleep(td, &umtx_lock,
+			error = msleep(td, &td->td_proc->p_mtx,
 			    td->td_priority | PCATCH, "umtx", 0);
 			mtx_lock_spin(&sched_lock);
 		} else
 			error = 0;
 		td->td_flags &= ~TDF_UMTXWAKEUP;
 		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(td->td_proc);
 
+		UMTX_LOCK();
 		umtx_remove(uq, td);
 		UMTX_UNLOCK();
 
@@ -317,9 +319,11 @@ _umtx_unlock(struct thread *td, struct _umtx_unlock_args *uap)
 	 * If there is a thread waiting on the umtx, wake it up.
 	 */
 	if (blocked != NULL) {
+		PROC_LOCK(blocked->td_proc);
 		mtx_lock_spin(&sched_lock);
 		blocked->td_flags |= TDF_UMTXWAKEUP;
 		mtx_unlock_spin(&sched_lock);
+		PROC_UNLOCK(blocked->td_proc);
 		wakeup(blocked);
 	}
 
