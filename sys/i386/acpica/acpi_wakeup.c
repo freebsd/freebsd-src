@@ -301,6 +301,9 @@ static void
 acpi_alloc_wakeup_handler(void)
 {
 
+	if (!cold)
+		return;
+
 	if (bus_dma_tag_create(/* parent */ NULL, /* alignment */ 2, 0,
 			       /* lowaddr below 1MB */ 0x9ffff,
 			       /* highaddr */ BUS_SPACE_MAXADDR, NULL, NULL,
