@@ -215,6 +215,7 @@ mlx_pci_attach(device_t dev)
      */
     error = mlx_attach(sc);
     if (error != 0)
+	mlx_free(sc);
 	return(error);
     
     /*
