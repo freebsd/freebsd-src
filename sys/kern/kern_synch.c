@@ -107,6 +107,7 @@ maybe_resched(p)
 	struct proc *p;
 {
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	if (p->p_pri.pri_level < curproc->p_pri.pri_level)
 		need_resched();
 }
