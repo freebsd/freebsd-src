@@ -458,9 +458,10 @@ getenv_quad(const char *name, quad_t *data)
 	if (value == NULL)
 		return (0);
 	iv = strtoq(value, &vtp, 0);
-	freeenv(value);
-	if (vtp == value || (vtp[0] != '\0' && vtp[1] != '\0'))
+	if (vtp == value || (vtp[0] != '\0' && vtp[1] != '\0')) {
+		freeenv(value);
 		return (0);
+	}
 	switch (vtp[0]) {
 	case 't': case 'T':
 		iv *= 1024;
@@ -473,9 +474,11 @@ getenv_quad(const char *name, quad_t *data)
 	case '\0':
 		break;
 	default:
+		freeenv(value);
 		return (0);
 	}
 	*data = iv;
+	freeenv(value);
 	return (1);
 }
 
