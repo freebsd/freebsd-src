@@ -54,7 +54,7 @@
 /* #undef UGLY_HACK_FOR_PRIOR_BEHAVIOR_SUPPORT */
 
 /* read both confs - read /etc/pam.d and /etc/pam.conf in serial */
-/* #undef PAM_READ_BOTH_CONFS */
+#define PAM_READ_BOTH_CONFS 1
 
 #define HAVE_PATHS_H 1
 #ifdef HAVE_PATHS_H
