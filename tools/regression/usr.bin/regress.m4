@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+dnl A library of routines for doing regression tests for userland utilities.
+
+dnl Start up.  We initialise the exit status to 0 (no failure) and change
+dnl into the directory specified by our first argument, which is the
+dnl directory to run the tests inside.
 define(`REGRESSION_START',
 TESTDIR=$1
 if [ -z "$TESTDIR" ]; then
@@ -9,6 +14,10 @@ cd $TESTDIR
 
 STATUS=0)
 
+dnl An actual test.  The first parameter is the test name.  The second is the
+dnl command/commands to execute for the actual test.  Their exit status is
+dnl checked.  It is assumed that the test will output to stdout, and that the
+dnl output to be used to check for regression will be in regress.TESTNAME.out.
 define(`REGRESSION_TEST',
 echo "Running test $1"
 $2 | diff -u regress.$1.out -
@@ -19,5 +28,9 @@ else
   echo "FAIL: Test $1 failed: regression detected.  See above."
 fi)
 
+dnl Cleanup.  Exit with the status code of the last failure.  Should probably
+dnl be the number of failed tests, but hey presto, this is what it does.  This
+dnl could also clean up potential droppings, if some forms of regression tests
+dnl end up using mktemp(1) or such.
 define(`REGRESSION_END',
 exit $STATUS)
