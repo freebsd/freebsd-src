@@ -53,7 +53,8 @@ printmod(int modid)
     if (modstat(modid, &stat) < 0)
 	warn("can't stat module id %d", modid);
     else
-	printf("\t\t%2d %s\n", stat.id, stat.name);
+	printf("\t\t%2d   %2d 0x%-8x %s\n", 
+		stat.id, stat.refs, stat.version, stat.name);
 }
 
 static void printfile(int fileid, int verbose)
@@ -70,7 +71,7 @@ static void printfile(int fileid, int verbose)
 
     if (verbose) {
 	printf("\tContains modules:\n");
-	printf("\t\tId Name\n");
+	printf("\t\tId Refs Version%*c Name\n", POINTER_WIDTH - 7, ' ');
 	for (modid = kldfirstmod(fileid); modid > 0;
 	     modid = modfnext(modid))
 	    printmod(modid);
