@@ -579,7 +579,7 @@ Info:
 			cur.d_slave = $2;
 		else
 			yyerror("can't specify a bus to something "
-				 other than a controller");
+				 "other than a controller");
 		} |
 	TARGET NUMBER
 	      = { cur.d_target = $2; } |
