@@ -271,7 +271,6 @@ ncp_getopt(nargc, nargv, ostr)
 	char * const *nargv;
 	const char *ostr;
 {
-	extern char *__progname;
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;				/* option letter list index */
 	int tmpind;
