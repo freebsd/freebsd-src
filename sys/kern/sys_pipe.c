@@ -185,6 +185,9 @@ free1:
 	return (error);
 }
 
+/*
+ * Allocate kva for pipe circular buffer, the space is pageable
+ */
 static void
 pipespace(cpipe)
 	struct pipe *cpipe;
@@ -464,7 +467,7 @@ pipe_build_write_buffer(wpipe, uio)
 
 		vm_page_t m;
 
-		vm_fault_quick( addr, VM_PROT_READ);
+		vm_fault_quick( (caddr_t) addr, VM_PROT_READ);
 		paddr = pmap_kextract(addr);
 		if (!paddr) {
 			int j;
@@ -765,6 +768,10 @@ pipewrite(wpipe, uio, nbio)
 			wakeup(wpipe);
 		}
 	}
+
+	/*
+	 * Don't return EPIPE if I/O was successful
+	 */
 	if ((wpipe->pipe_buffer.cnt == 0) &&
 		(uio->uio_resid == 0) &&
 		(error == EPIPE))
