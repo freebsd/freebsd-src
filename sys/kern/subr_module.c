@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: subr_module.c,v 1.1 1998/10/09 00:31:29 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -35,23 +35,24 @@
  * Preloaded module support
  */
 
-caddr_t	module_metadata;
+caddr_t	preload_metadata;
 
 /*
  * Search for the preloaded module (name)
  */
 caddr_t
-module_search_by_name(const char *name)
+preload_search_by_name(const char *name)
 {
     caddr_t	curp;
     u_int32_t	*hdr;
+    int		next;
     
-    if (module_metadata != NULL) {
+    if (preload_metadata != NULL) {
 	
-	curp = module_metadata;
+	curp = preload_metadata;
 	for (;;) {
 	    hdr = (u_int32_t *)curp;
-	    if (hdr[0] == 0)
+	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
 	    /* Search for a MODINFO_NAME field */
@@ -60,7 +61,9 @@ module_search_by_name(const char *name)
 		return(curp);
 
 	    /* skip to next field */
-	    curp += sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = roundup(next, sizeof(u_int32_t));
+	    curp += next;
 	}
     }
     return(NULL);
@@ -70,18 +73,19 @@ module_search_by_name(const char *name)
  * Search for the first preloaded module of (type)
  */
 caddr_t
-module_search_by_type(const char *type)
+preload_search_by_type(const char *type)
 {
     caddr_t	curp, lname;
     u_int32_t	*hdr;
+    int		next;
 
-    if (module_metadata != NULL) {
+    if (preload_metadata != NULL) {
 
-	curp = module_metadata;
+	curp = preload_metadata;
 	lname = NULL;
 	for (;;) {
 	    hdr = (u_int32_t *)curp;
-	    if (hdr[0] == 0)
+	    if (hdr[0] == 0 && hdr[1] == 0)
 		break;
 
 	    /* remember the start of each record */
@@ -94,7 +98,50 @@ module_search_by_type(const char *type)
 		return(lname);
 
 	    /* skip to next field */
-	    curp += sizeof(u_int32_t) * 2 + hdr[1];
+	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = roundup(next, sizeof(u_int32_t));
+	    curp += next;
+	}
+    }
+    return(NULL);
+}
+
+/*
+ * Walk through the preloaded module list
+ */
+caddr_t
+preload_search_next_name(caddr_t base)
+{
+    caddr_t	curp;
+    u_int32_t	*hdr;
+    int		next;
+    
+    if (preload_metadata != NULL) {
+	
+	/* Pick up where we left off last time */
+	if (base) {
+	    /* skip to next field */
+	    curp = base;
+	    hdr = (u_int32_t *)curp;
+	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = roundup(next, sizeof(u_int32_t));
+	    curp += next;
+	} else
+	    curp = preload_metadata;
+
+	for (;;) {
+	    hdr = (u_int32_t *)curp;
+	    if (hdr[0] == 0 && hdr[1] == 0)
+		break;
+
+	    /* Found a new record? */
+	    if (hdr[0] == MODINFO_NAME)
+		return curp;
+
+	    /* skip to next field */
+	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = roundup(next, sizeof(u_int32_t));
+	    curp += next;
 	}
     }
     return(NULL);
@@ -105,17 +152,18 @@ module_search_by_type(const char *type)
  * to the data for the attribute (inf).
  */
 caddr_t
-module_search_info(caddr_t mod, int inf)
+preload_search_info(caddr_t mod, int inf)
 {
     caddr_t	curp;
     u_int32_t	*hdr;
     u_int32_t	type = 0;
+    int		next;
 
     curp = mod;
     for (;;) {
 	hdr = (u_int32_t *)curp;
 	/* end of module data? */
-	if (hdr[0] == 0)
+	if (hdr[0] == 0 && hdr[1] == 0)
 	    break;
 	/* 
 	 * We give up once we've looped back to what we were looking at 
@@ -137,8 +185,79 @@ module_search_info(caddr_t mod, int inf)
 	    return(curp + (sizeof(u_int32_t) * 2));
 
 	/* skip to next field */
-	curp += sizeof(u_int32_t) * 2 + hdr[1];
+	next = sizeof(u_int32_t) * 2 + hdr[1];
+	next = roundup(next, sizeof(u_int32_t));
+	curp += next;
     }
     return(NULL);
 }
 
+/*
+ * Delete a preload record by name.
+ */
+void
+preload_delete_name(const char *name)
+{
+    caddr_t	curp;
+    u_int32_t	*hdr;
+    int		next;
+    int		clearing;
+    
+    if (preload_metadata != NULL) {
+	
+	clearing = 0;
+	curp = preload_metadata;
+	for (;;) {
+	    hdr = (u_int32_t *)curp;
+	    if (hdr[0] == 0 && hdr[1] == 0)
+		break;
+
+	    /* Search for a MODINFO_NAME field */
+	    if (hdr[0] == MODINFO_NAME) {
+		if (!strcmp(name, curp + sizeof(u_int32_t) * 2))
+		    clearing = 1;	/* got it, start clearing */
+		else if (clearing)
+		    clearing = 0;	/* at next one now.. better stop */
+	    }
+	    if (clearing)
+		hdr[0] = MODINFO_EMPTY;
+
+	    /* skip to next field */
+	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = roundup(next, sizeof(u_int32_t));
+	    curp += next;
+	}
+    }
+}
+
+/* Called from locore on i386.  Convert physical pointers to kvm. Sigh. */
+void
+preload_bootstrap_relocate(vm_offset_t offset)
+{
+    caddr_t	curp;
+    u_int32_t	*hdr;
+    vm_offset_t	*ptr;
+    int		next;
+    
+    if (preload_metadata != NULL) {
+	
+	curp = preload_metadata;
+	for (;;) {
+	    hdr = (u_int32_t *)curp;
+	    if (hdr[0] == 0 && hdr[1] == 0)
+		break;
+
+	    /* Look for a MODINFO_ADDR field */
+	    if (hdr[0] == MODINFO_ADDR) {
+		ptr = (vm_offset_t *)(curp + (sizeof(u_int32_t) * 2));
+		*ptr += offset;
+	    }
+	    /* The rest is beyond us for now */
+
+	    /* skip to next field */
+	    next = sizeof(u_int32_t) * 2 + hdr[1];
+	    next = roundup(next, sizeof(u_int32_t));
+	    curp += next;
+	}
+    }
+}
