@@ -64,7 +64,7 @@ static g_orphan_t g_slice_orphan;
 static g_access_t g_slice_access;
 static g_start_t g_slice_start;
 
-struct g_slicer *
+static struct g_slicer *
 g_slice_init(unsigned nslice, unsigned scsize)
 {
 	struct g_slicer *gsp;
