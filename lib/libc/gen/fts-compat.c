@@ -599,6 +599,7 @@ fts_build(sp, type)
 	FTSENT *cur, *tail;
 	DIR *dirp;
 	void *oldaddr;
+	size_t dnamlen;
 	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno,
 	    nostat, doadjust;
 	char *cp;
@@ -704,14 +705,15 @@ fts_build(sp, type)
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
 	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
+		dnamlen = dp->d_namlen;
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
-		if ((p = fts_alloc(sp, dp->d_name, (int)dp->d_namlen)) == NULL)
+		if ((p = fts_alloc(sp, dp->d_name, (int)dnamlen)) == NULL)
 			goto mem1;
-		if (dp->d_namlen >= maxlen) {	/* include space for NUL */
+		if (dnamlen >= maxlen) {	/* include space for NUL */
 			oldaddr = sp->fts_path;
-			if (fts_palloc(sp, dp->d_namlen + len + 1)) {
+			if (fts_palloc(sp, dnamlen + len + 1)) {
 				/*
 				 * No more memory for path or structures.  Save
 				 * errno, free up the current structure and the
@@ -736,7 +738,7 @@ mem1:				saved_errno = errno;
 			maxlen = sp->fts_pathlen - len;
 		}
 
-		if (len + dp->d_namlen >= USHRT_MAX) {
+		if (len + dnamlen >= USHRT_MAX) {
 			/*
 			 * In an FTSENT, fts_pathlen is a u_short so it is
 			 * possible to wraparound here.  If we do, free up
@@ -753,7 +755,7 @@ mem1:				saved_errno = errno;
 		}
 		p->fts_level = level;
 		p->fts_parent = sp->fts_cur;
-		p->fts_pathlen = len + dp->d_namlen;
+		p->fts_pathlen = len + dnamlen;
 
 #ifdef FTS_WHITEOUT
 		if (dp->d_type == DT_WHT)
