@@ -274,15 +274,21 @@ rlines(fp, off, sbp)
 	if (!(size = sbp->st_size))
 		return;
 
+	/*
+	 * size not passed directly to mmap() below because unclear error
+	 * diagnostic "Invalid argument".
+	 */
 	if (size > SIZE_T_MAX || size < 0) {
 		errno = EFBIG;
 		ierr();
 		exit(1);
 	}
 
-	/* XXX: FIXME - mmap() not support files over 2Gb */
-	/* Large file processing require alternative implementation */
-	/* for now print nice error diagnostic at least */
+	/*
+	 * XXX: FIXME - mmap() not support files over 2GB
+	 * Large file processing require alternative implementation,
+	 * for now print nice error diagnostic at least.
+	 */
 	if (size > SSIZE_MAX) {
 		errno = EFBIG;
 		ierr();
