@@ -26,9 +26,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Sun Feb 13 14:38:42 2000]
+.\"	last edit-date: [Wed Nov  1 15:52:28 2000]
 .\"
-.Dd February, 13, 2000
+.Dd November 1, 2000
 .Dt ISDNTRACE 8
 .Os
 .Sh NAME
@@ -71,8 +71,8 @@ utility is only available for passive supported cards.
 .Em Note
 .br
 All filenames, user specified or default, get a date and time stamp string 
-added in the form -yymmdd-hhmmss: a hyphen, two digits year, month, day,
-a hyphen and two digits hour, minutes and seconds. 
+added in the form -yyyymmdd-hhmmss: a hyphen, four digits year, two digits
+month and day, a hyphen and two digits hour, minutes and seconds. 
 Tracefiles no longer get overwritten. 
 In case a new filename is needed within a second, the filename-generating
 mechanism sleeps one second.
@@ -193,7 +193,7 @@ isdntrace -f /var/tmp/isdn.trace
 .Pp
 will start D channel tracing on passive controller 0 with all except B
 channel tracing enabled and logs everything into the output file 
-/var/tmp/isdn.trace-yymmdd-hhmmss (where yymmdd and hhmmss are replaced
+/var/tmp/isdn.trace-yyyymmdd-hhmmss (where yyyymmdd and hhmmss are replaced
 by the current date and time values).
 
 .Sh SEE ALSO
@@ -219,10 +219,10 @@ ITU Recommendation X.208, X.209
 The
 .Nm
 utility was written by 
-.An Gary Jennejohn 
+.An Gary Jennejohn Aq gj@freebsd.org
 and 
-.An Hellmuth Michaelis .
+.An Hellmuth Michaelis Aq hm@freebsd.org .
 .Pp
 This manual page was written by 
-.An Hellmuth Michaelis Aq hm@kts.org .
+.An Hellmuth Michaelis .
 
