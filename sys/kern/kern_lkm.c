@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.39 1997/03/24 11:24:35 bde Exp $
+ * $Id: kern_lkm.c,v 1.40 1997/04/06 11:08:19 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -39,14 +39,11 @@
 #include <sys/tty.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/proc.h>
-#include <sys/uio.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/sysent.h>
 #include <sys/exec.h>
-#include <sys/imgact.h>
 #include <sys/lkm.h>
 #include <sys/vnode.h>
 #ifdef DEVFS
@@ -54,7 +51,6 @@
 #endif /*DEVFS*/
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.16 1997/04/19 06:04:13 kato Exp $
+ * $Id: union_vfsops.c,v 1.17 1997/05/07 14:37:31 kato Exp $
  */
 
 /*
@@ -45,15 +45,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <sys/filedesc.h>
-#include <sys/queue.h>
 #include <miscfs/union/union.h>
 
 extern int	union_init __P((struct vfsconf *));

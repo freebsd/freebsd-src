@@ -31,29 +31,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_segment.c,v 1.21 1997/03/23 00:45:17 bde Exp $
+ * $Id: lfs_segment.c,v 1.22 1997/06/15 17:56:46 dyson Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/kernel.h>
-#include <sys/resourcevar.h>
-#include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/conf.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 
-#include <miscfs/specfs/specdev.h>
-#include <miscfs/fifofs/fifo.h>
-
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
-#include <ufs/ufs/dir.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_media.c,v 1.1 1997/03/17 02:55:15 thorpej Exp $	*/
-/*	$Id$ */
+/*	$Id: if_media.c,v 1.2 1997/05/03 20:58:10 peter Exp $ */
 
 /*
  * Copyright (c) 1997
@@ -48,14 +48,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/netisr.h>
 
 /*
  * Compile-time options:

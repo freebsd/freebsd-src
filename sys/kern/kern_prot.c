@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.31 1997/03/31 15:13:33 peter Exp $
+ * $Id: kern_prot.c,v 1.32 1997/04/02 17:05:49 peter Exp $
  */
 
 /*
@@ -47,10 +47,7 @@
 #include <sys/acct.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/ucred.h>
 #include <sys/proc.h>
-#include <sys/timeb.h>
-#include <sys/times.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
 

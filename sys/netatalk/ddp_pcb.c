@@ -3,8 +3,6 @@
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#include <sys/errno.h>
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
@@ -14,14 +12,10 @@
 #include <sys/protosw.h>
 #include <net/if.h>
 #include <net/route.h>
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
 
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
 #include <netatalk/ddp_var.h>
-#include <netatalk/aarp.h>
-#include <netatalk/endian.h>
 #include <netatalk/at_extern.h>
 
 static void at_pcbdisconnect( struct ddpcb *ddp );

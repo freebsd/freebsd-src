@@ -23,17 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: link_aout.c,v 1.1 1997/05/07 16:05:32 dfr Exp $
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
-#include <sys/queue.h>
-#include <sys/libkern.h>
 #include <sys/malloc.h>
-#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/fcntl.h>
@@ -41,8 +37,6 @@
 #include <sys/linker.h>
 #include <a.out.h>
 #include <link.h>
-#include <machine/reloc.h>
-#include <sys/imgact_aout.h>
 
 static int		link_aout_load_file(const char*, linker_file_t*);
 

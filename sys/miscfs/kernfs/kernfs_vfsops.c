@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
- * $Id$
+ * $Id: kernfs_vfsops.c,v 1.18 1997/02/22 09:40:19 peter Exp $
  */
 
 /*
@@ -45,14 +45,11 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/types.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/malloc.h>
 
-#include <miscfs/specfs/specdev.h>
 #include <miscfs/kernfs/kernfs.h>
 
 dev_t rrootdev = NODEV;

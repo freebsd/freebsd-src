@@ -31,23 +31,20 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.28 1997/02/18 20:43:05 wollman Exp $
+ *	$Id: uipc_mbuf.c,v 1.29 1997/02/24 20:30:55 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
 #define MBTYPES
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 

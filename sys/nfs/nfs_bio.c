@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.41 1997/06/16 00:23:40 dyson Exp $
+ * $Id: nfs_bio.c,v 1.42 1997/06/25 08:35:41 dfr Exp $
  */
 
 
@@ -47,10 +47,8 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_page.h>

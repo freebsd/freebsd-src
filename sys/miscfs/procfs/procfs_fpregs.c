@@ -37,13 +37,10 @@
  *	@(#)procfs_fpregs.c	8.2 (Berkeley) 6/15/94
  *
  * From:
- *	$Id$
+ *	$Id: procfs_fpregs.c,v 1.6 1997/02/22 09:40:27 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <machine/reg.h>

@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_msg.c,v 1.15 1997/02/22 09:39:22 peter Exp $ */
 
 /*
  * Implementation of SVID messages
@@ -18,8 +18,6 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
-
-#include "opt_sysvipc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

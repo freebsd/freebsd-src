@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.4 (Berkeley) 5/8/95
- * $Id: lfs_balloc.c,v 1.11 1997/03/23 00:45:10 bde Exp $
+ * $Id: lfs_balloc.c,v 1.12 1997/05/25 04:57:11 peter Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -39,13 +39,9 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/resourcevar.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h> 
 #include <vm/vm_extern.h>
-
-#include <miscfs/specfs/specdev.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.21 1997/02/22 09:39:24 peter Exp $
+ * $Id: tty_compat.c,v 1.22 1997/03/24 12:03:03 bde Exp $
  */
 
 /*
@@ -42,14 +42,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioctl_compat.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
-#include <sys/termios.h>
-#include <sys/file.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/syslog.h>
 
 static int ttcompatgetflags	__P((struct tty	*tp));
 static void ttcompatsetflags	__P((struct tty	*tp, struct termios *t));

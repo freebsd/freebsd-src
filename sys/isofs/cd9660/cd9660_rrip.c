@@ -36,21 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_rrip.c	8.6 (Berkeley) 12/5/94
- * $Id$
+ * $Id: cd9660_rrip.c,v 1.12 1997/02/22 09:38:49 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/buf.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#include <sys/time.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>

@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.2 1997/05/28 10:10:02 se Exp $
+ * $Id: pci_compat.c,v 1.3 1997/05/30 20:58:04 se Exp $
  *
  */
 
@@ -32,18 +32,13 @@
 
 /* for compatibility to FreeBSD-2.2 version of PCI code */
 
-#include <stddef.h>
-
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/fcntl.h>
 #include <sys/kernel.h> /* for DATA_SET support */
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <i386/isa/isa_device.h>
 #include <sys/interrupt.h>
 
 #include <pci/pcireg.h>

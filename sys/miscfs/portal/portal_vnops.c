@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.17 1997/02/22 09:40:25 peter Exp $
+ * $Id: portal_vnops.c,v 1.18 1997/03/23 03:36:54 bde Exp $
  */
 
 /*
@@ -46,7 +46,6 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
@@ -62,7 +61,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/un.h>
-#include <sys/unpcb.h>
 #include <miscfs/portal/portal.h>
 
 static int portal_fileid = PORTAL_ROOTFILEID+1;

@@ -36,37 +36,22 @@
  *
  *	@(#)procfs_status.c	8.3 (Berkeley) 2/17/94
  *
- *	$Id: procfs_map.c,v 1.10 1997/02/22 09:40:28 peter Exp $
+ *	$Id: procfs_map.c,v 1.11 1997/03/24 11:24:41 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/tty.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
 #include <miscfs/procfs/procfs.h>
-#include <sys/queue.h>
-#include <sys/vmmeter.h>
-#include <sys/mman.h>
-#include <sys/malloc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/vm_inherit.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_pager.h>
-#include <vm/vm_extern.h>
-#include <vm/default_pager.h>
 
 
 #define MEBUFFERSIZE 256

@@ -36,13 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_bmap.c	8.3 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_bmap.c,v 1.6 1997/02/22 09:38:47 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/namei.h>
-#include <sys/buf.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
