@@ -1,0 +1,36 @@
+GLOBAL
+
+This directory contains virgin sources of the original distribution files on
+a "vendor" branch.  Do not, under any circumstances, attempt to upgrade the
+files in this directory via patches and a cvs commit.  New versions or
+official-patch versions must be imported. 
+
+Before attempting an upgrade, please read the section entitled "Contributed
+Software" in the FreeBSD Handbook (from which this file is derived.)  New
+releases of the source should be imported onto the vendor branch and merged
+with the FreeBSD-customized sources that live on the main branch.
+
+To upgrade to a newer version, when it is available:
+        1. Unpack the new version into an empty directory.
+           [Do not make ANY changes to the files.]
+
+        2. Remove any files that don't apply to FreeBSD.
+
+        3. Use the command:
+                cvs import -m 'Virgin import of GLOBAL v<version>' \
+                        src/contrib/global GLOBAL v<version>
+
+        4. Follow the instructions printed out in step 3 to resolve any
+           conflicts between local FreeBSD changes and the newer version.
+
+Do not, under any circumstances, deviate from this procedure.
+
+To make local changes, simply patch and commit to the main branch (aka HEAD). 
+Never make local changes on the GLOBAL vendor branch.  
+
+Please submit changes to GLOBAL's author, Shigio Yamaguchi
+<shigio@wafu.netgate.net> for inclusion in his next release.  The most recent
+release of GLOBAL is available at the author's web page: 
+http://wafu.netgate.net/tama/unix/indexe.html
+
+cwt@freebsd.org - July 1997
