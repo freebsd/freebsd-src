@@ -532,7 +532,7 @@ struct in6_pktinfo {
  */
 struct ip6_mtuinfo {
 	struct sockaddr_in6 ip6m_addr;	/* or sockaddr_storage? */
-	u_int32_t ip6m_mtu;
+	uint32_t ip6m_mtu;
 };
 
 /*
