@@ -1336,6 +1336,15 @@ thread_gc(struct pthread *curthread)
 
 	while ((td = TAILQ_FIRST(&worklist)) != NULL) {
 		TAILQ_REMOVE(&worklist, td, gcle);
+		/*
+		 * XXX we don't free initial thread and its kse
+		 * (if thread is a bound thread), because there might
+		 * have some code referencing initial thread and kse.
+		 */
+		if (td == _thr_initial) {
+			DBG_MSG("Initial thread won't be freed\n");
+			continue;
+		}
 
 		if ((td->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) {
 			crit = _kse_critical_enter();
@@ -1345,15 +1354,8 @@ thread_gc(struct pthread *curthread)
 			KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
 			_kse_critical_leave(crit);
 		}
-		/*
-		 * XXX we don't free initial thread, because there might
-		 * have some code referencing initial thread.
-		 */
-		if (td != _thr_initial) {
-			DBG_MSG("Freeing thread %p\n", td);
-			_thr_free(curthread, td);
-		} else
-			DBG_MSG("Initial thread won't be freed\n");
+		DBG_MSG("Freeing thread %p\n", td);
+		_thr_free(curthread, td);
 	}
 }
 
