@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)shutdown.c	8.4 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: shutdown.c,v 1.15 1998/12/11 11:04:19 bde Exp $";
+	"$Id: shutdown.c,v 1.16 1998/12/11 11:21:47 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -232,7 +232,7 @@ loop()
 	if (tp->timeleft < offset)
 		(void)sleep((u_int)(offset - tp->timeleft));
 	else {
-		while (offset < tp->timeleft)
+		while (tp->timeleft && offset < tp->timeleft)
 			++tp;
 		/*
 		 * Warn now, if going to sleep more than a fifth of
@@ -392,7 +392,8 @@ getoffset(timearg)
 	if (*timearg == '+') {				/* +minutes */
 		if (!isdigit(*++timearg))
 			badtime();
-		offset = atoi(timearg) * 60;
+		if ((offset = atoi(timearg) * 60) < 0)
+			badtime();
 		shuttime = now + offset;
 		return;
 	}
