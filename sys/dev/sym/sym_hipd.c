@@ -57,7 +57,7 @@
 
 /* $FreeBSD$ */
 
-#define SYM_DRIVER_NAME	"sym-1.6.1-20000608"
+#define SYM_DRIVER_NAME	"sym-1.6.2-20000614"
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
@@ -923,7 +923,7 @@ static char *sym_scsi_bus_mode(int mode)
 }
 
 /*
- *  Some poor sync table that refers to Tekram NVRAM layout.
+ *  Some poor and bogus sync table that refers to Tekram NVRAM layout.
  */
 #ifdef SYM_CONF_NVRAM_SUPPORT
 static u_char Tekram_sync[16] =
@@ -2960,11 +2960,15 @@ static int sym_prepare_setting(hcb_p np, struct sym_nvram *nvram)
 		sym_nvram_setup_target (np, i, nvram);
 
 		/*
-		 *  For now, guess PPR support from the period.
+		 *  For now, guess PPR/DT support from the period 
+		 *  and BUS width.
 		 */
-		if (tp->tinfo.user.period <= 9) {
-			tp->tinfo.user.options |= PPR_OPT_DT;
-			tp->tinfo.user.offset   = np->maxoffs_dt;
+		if (np->features & FE_ULTRA3) {
+			if (tp->tinfo.user.period <= 9	&&
+			    tp->tinfo.user.width == BUS_16_BIT) {
+				tp->tinfo.user.options |= PPR_OPT_DT;
+				tp->tinfo.user.offset   = np->maxoffs_dt;
+			}
 		}
 
 		if (!tp->usrtags)
