@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.12 1997/04/27 21:18:58 fsmp Exp $
+ *	$Id: icu.h,v 1.13 1997/05/29 04:58:04 peter Exp $
  */
 
 /*
@@ -63,6 +63,8 @@ void write_io_apic_mask24 __P((int, u_int32_t)); /* i386/i386/mpapic.c */
 #error MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following functions.
 #endif /* MULTIPLE_IOAPICS */
 
+#ifdef nevermore
+/* see if we can get by without these, they're NOT MP_SAFE... */
 static __inline u_int32_t
 INTRGET(void)
 {
@@ -75,6 +77,7 @@ INTRSET(unsigned s)
 	write_io_apic_mask24(0, s);
 	imen = s;
 }
+#endif /** nevermore */
 
 static __inline void
 INTREN(unsigned s)
