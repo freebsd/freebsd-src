@@ -108,14 +108,14 @@ struct	pargs {
 	u_char	ar_args[0];	/* Arguments. */
 };
 
-/*
+/*-
  * Description of a process.
  *
  * This structure contains the information needed to manage a thread of
  * control, known in UN*X as a process; it has references to substructures
  * containing descriptions of things that the process uses, but may share
  * with related processes.  The process structure and the substructures
- * are always addressable except for those marked "(PROC ONLY)" below,
+ * are always addressable except for those marked "(CPU)" below,
  * which might be addressable only on a processor on which the process
  * is running.
  *
@@ -134,8 +134,8 @@ struct	pargs {
  *      i - by curproc or the master session mtx
  *      j - locked by sched_lock mtx
  *      k - either by curproc or a lock which prevents the lock from
- *              going way, such a (d,e).
- *      l - the attaching proc or attaching proc parent.
+ *          going away, such as (d,e)
+ *      l - the attaching proc or attaching proc parent
  *      m - Giant
  *      n - not locked, lazy
  */
@@ -147,10 +147,10 @@ struct	proc {
 	/* substructures: */
 	struct	pcred *p_cred;		/* (b) Process owner's identity. */
 	struct	filedesc *p_fd;		/* (b) Ptr to open files structure. */
-	struct	pstats *p_stats;	/* (b) Accounting/statistics (PROC ONLY). */
+	struct	pstats *p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct	plimit *p_limit;	/* (m) Process limits. */
 	struct	vm_object *p_upages_obj;/* (c) Upages object. */
-	struct	procsig *p_procsig;	/* (c) Signal actions, state (PROC ONLY). */
+	struct	procsig *p_procsig;	/* (c) Signal actions, state (CPU). */
 #define	p_sigacts	p_procsig->ps_sigacts
 #define	p_sigignore	p_procsig->ps_sigignore
 #define	p_sigcatch	p_procsig->ps_sigcatch
@@ -173,13 +173,13 @@ struct	proc {
 #define	p_startzero	p_oppid
 
 	pid_t	p_oppid;	 /* (c) Save parent pid during ptrace. XXX */
-	int	p_dupfd;	 /* (c) Sideways return value from fdopen. XXX */
+	int	p_dupfd;	 /* (c) Sideways ret value from fdopen. XXX */
 	struct	vmspace *p_vmspace;	/* (b) Address space. */
 
 	/* scheduling */
 	u_int	p_estcpu;	 /* (j) Time averaged value of p_cpticks. */
 	int	p_cpticks;	 /* (j) Ticks of cpu time. */
-	fixpt_t	p_pctcpu;	 /* (j) %cpu for this process during p_swtime */
+	fixpt_t	p_pctcpu;	 /* (j) %cpu during p_swtime. */
 	struct	callout p_slpcallout;	/* (h) Callout for sleep. */
 	void	*p_wchan;	 /* (j) Sleep address. */
 	const char *p_wmesg;	 /* (j) Reason for sleep. */
@@ -188,29 +188,29 @@ struct	proc {
 
 	struct	callout p_itcallout;	/* (h) Interval timer callout. */
 	struct	itimerval p_realtimer;	/* (h?/k?) Alarm timer. */
-	u_int64_t p_runtime;		/* (c) Real time in microsec. */
-	u_int64_t p_uu;			/* (c) Previous user time in microsec. */
-	u_int64_t p_su;			/* (c) Previous system time in microsec. */
-	u_int64_t p_iu;			/* (c) Previous interrupt time in usec. */
-	u_int64_t p_uticks;		/* (j) Statclock hits in user mode. */
-	u_int64_t p_sticks;		/* (j) Statclock hits in system mode. */
-	u_int64_t p_iticks;		/* (j) Statclock hits processing intr. */
+	u_int64_t p_runtime;	/* (c) Real time in microsec. */
+	u_int64_t p_uu;		/* (c) Previous user time in microsec. */
+	u_int64_t p_su;		/* (c) Previous system time in microsec. */
+	u_int64_t p_iu;		/* (c) Previous interrupt time in microsec. */
+	u_int64_t p_uticks;	/* (j) Statclock hits in user mode. */
+	u_int64_t p_sticks;	/* (j) Statclock hits in system mode. */
+	u_int64_t p_iticks;	/* (j) Statclock hits processing intr. */
 
 	int	p_traceflag;		/* (j?) Kernel trace points. */
 	struct	vnode *p_tracep;	/* (j?) Trace to vnode. */
 
-	sigset_t p_siglist;		/* (c) Signals arrived but not delivered. */
+	sigset_t p_siglist;	/* (c) Signals arrived but not delivered. */
 
 	struct	vnode *p_textvp;	/* (b) Vnode of executable. */
 
-	char	p_lock;			/* (c) Process lock (prevent swap) count. */
-	struct	mtx p_mtx;		/* (k) Process structure lock. */
+	char	p_lock;		/* (c) Process lock (prevent swap) count. */
+	struct	mtx p_mtx;		/* (k) Lock for this struct. */
 	u_char	p_oncpu;		/* (j) Which cpu we are on. */
 	u_char	p_lastcpu;		/* (j) Last cpu we were on. */
 	char	p_rqindex;		/* (j) Run queue index. */
 
-	short	p_locks;		/* (*) DEBUG: lockmgr count of held locks */
-	short	p_simple_locks;		/* (*) DEBUG: count of held simple locks */
+	short	p_locks;	/* (*) DEBUG: lockmgr count of held locks */
+	short	p_simple_locks;	/* (*) DEBUG: count of held simple locks */
 	u_int	p_stops;		/* (c) Procfs event bitmask. */
 	u_int	p_stype;		/* (c) Procfs stop event type. */
 	char	p_step;			/* (c) Procfs stop *once* flag. */
@@ -219,10 +219,10 @@ struct	proc {
 	register_t p_retval[2];		/* (k) Syscall aux returns. */
 	struct	sigiolst p_sigiolst;	/* (c) List of sigio sources. */
 	int	p_sigparent;		/* (c) Signal to parent on exit. */
-	sigset_t p_oldsigmask;		/* (c) Saved mask from before sigpause. */
+	sigset_t p_oldsigmask;	/* (c) Saved mask from before sigpause. */
 	int	p_sig;			/* (n) For core dump/debugger XXX. */
 	u_long	p_code;			/* (n) For core dump/debugger XXX. */
-	struct	klist p_klist;		/* (c?) Knotes attached to this process. */
+	struct	klist p_klist;	/* (c?) Knotes attached to this process. */
 	LIST_HEAD(, mtx) p_heldmtx;	/* (j) For debugging code. */
 	struct mtx *p_blocked;		/* (j) Mutex process is blocked on. */
 	const char *p_mtxname;		/* (j) Name of mutex blocked on. */
@@ -235,14 +235,14 @@ struct	proc {
 #define	p_startcopy	p_sigmask
 
 	sigset_t p_sigmask;	/* (c) Current signal mask. */
-	stack_t	p_sigstk;	/* (c) Stack pointer and on-stack state variable. */
+	stack_t	p_sigstk;	/* (c) Stack pointer and on-stack flag. */
 
 	int	p_magic;	/* (b) Magic number. */
 	u_char	p_priority;	/* (j) Process priority. */
-	u_char	p_usrpri;	/* (j) User-priority based on p_cpu and p_nice. */
+	u_char	p_usrpri; /* (j) User priority based on p_cpu and p_nice. */
 	u_char	p_nativepri;	/* (j) Priority before propagation. */
 	char	p_nice;		/* (j/k?) Process "nice" value. */
-	char	p_comm[MAXCOMLEN+1];	/* (b) Process name */
+	char	p_comm[MAXCOMLEN + 1];	/* (b) Process name. */
 
 	struct 	pgrp *p_pgrp;	/* (e?/c?) Pointer to process group. */
 	struct 	sysentvec *p_sysent; /* (b) System call dispatch information. */
@@ -253,10 +253,10 @@ struct	proc {
 /* End area that is copied on creation. */
 #define	p_endcopy	p_addr
 
-	struct	user *p_addr;	/* (k) Kernel virtual addr of u-area (PROC ONLY). */
+	struct	user *p_addr;	/* (k) Kernel virtual addr of u-area (CPU). */
 	struct	mdproc p_md;	/* (k) Any machine-dependent fields. */
 
-	u_short	p_xstat;	/* (c) Exit status for wait; also stop signal. */
+	u_short	p_xstat;	/* (c) Exit status for wait; also stop sig. */
 	u_short	p_acflag;	/* (c) Accounting flags. */
 	struct	rusage *p_ru;	/* (a) Exit information. XXX */
 
@@ -265,7 +265,7 @@ struct	proc {
 	struct proc *p_leader;	/* (c) */
 	struct	pasleep p_asleep;	/* (k) Used by asleep()/await(). */
 	void	*p_emuldata;	/* (c) Emulator state data. */
-	struct ithd *p_ithd;	/* (b) For interrupt threads only. */
+	struct	ithd *p_ithd;	/* (b) For interrupt threads only. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -307,7 +307,7 @@ struct	proc {
 #define	P_BUFEXHAUST	0x100000 /* Dirty buffers flush is in progress. */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
-#define	P_DEADLKTREAT   0x800000 /* Lock aquisition - deadlock treatment. */
+#define	P_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
@@ -377,7 +377,7 @@ sigonstack(size_t sp)
 }
 
 /* Handy macro to determine if p1 can mangle p2. */
-#define PRISON_CHECK(p1, p2) \
+#define	PRISON_CHECK(p1, p2) \
 	((p1)->p_prison == NULL || (p1)->p_prison == (p2)->p_prison)
 
 /*
@@ -395,10 +395,10 @@ sigonstack(size_t sp)
 }
 
 /* STOPEVENT() is MP safe. */
-#define	STOPEVENT(p,e,v) do {						\
+#define	STOPEVENT(p, e, v) do {						\
 	if ((p)->p_stops & (e)) {					\
 		mtx_enter(&Giant, MTX_DEF);				\
-		stopevent(p,e,v);					\
+		stopevent((p), (e), (v));				\
 		mtx_exit(&Giant, MTX_DEF);				\
 	}								\
 } while (0)
@@ -423,12 +423,12 @@ sigonstack(size_t sp)
 		faultin(p);						\
 	} else								\
 		PROC_UNLOCK(p);						\
-} while(0)
-#define PRELE(p) do {							\
+} while (0)
+#define	PRELE(p) do {							\
 	PROC_LOCK(p);							\
 	(--(p)->p_lock);						\
 	PROC_UNLOCK(p);							\
-} while(0)
+} while (0)
 
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
@@ -470,11 +470,11 @@ extern struct vm_zone *proc_zone;
  * the range 100-256 Hz (approximately).
  */
 #define	ESTCPULIM(e) \
-    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) \
-	     - PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
-#define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level) */
-#define	NICE_WEIGHT	1		/* priorities per nice level */
-#define	PPQ		(128 / NQS)	/* priorities per queue */
+    min((e), INVERSE_ESTCPU_WEIGHT * (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) - \
+	     PPQ) + INVERSE_ESTCPU_WEIGHT - 1)
+#define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
+#define	NICE_WEIGHT	1		/* Priorities per nice level. */
+#define	PPQ		(128 / NQS)	/* Priorities per queue. */
 
 struct mtx;
 
