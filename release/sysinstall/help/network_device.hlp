@@ -53,6 +53,6 @@ name rather than IP address, you'll also need a name server and
 possibly the address of a gateway (if you're using PPP, it's your
 provider's IP address) to use in talking to it.  If you do not know
 the answers to all or most of these questions then you should really
-probably talk to your system administrator _first_ before trying this
+probably talk to your system administrator FIRST before trying this
 type of installation!  Choosing the wrong IP address on a busy network
 will NOT make you popular with your systems administrator!  :-)
