@@ -390,7 +390,7 @@ void growfldtab(int n)	/* make new fields up to at least $n */
 	nfields = nf;
 }
 
-int refldbld(char *rec, char *fs)	/* build fields from reg expr in FS */
+int refldbld(const char *rec, const char *fs)	/* build fields from reg expr in FS */
 {
 	/* this relies on having fields[] the same length as $0 */
 	/* the fields are all stored in this one array with \0's */
@@ -475,12 +475,12 @@ void recbld(void)	/* create $0 from $1..$NF if necessary */
 
 int	errorflag	= 0;
 
-void yyerror(char *s)
+void yyerror(const char *s)
 {
 	SYNTAX(s);
 }
 
-void SYNTAX(char *fmt, ...)
+void SYNTAX(const char *fmt, ...)
 {
 	extern char *cmdname, *curfname;
 	static int been_here = 0;
@@ -535,7 +535,7 @@ void bcheck2(int n, int c1, int c2)
 		fprintf(stderr, "\t%d extra %c's\n", -n, c2);
 }
 
-void FATAL(char *fmt, ...)
+void FATAL(const char *fmt, ...)
 {
 	extern char *cmdname;
 	va_list varg;
@@ -551,7 +551,7 @@ void FATAL(char *fmt, ...)
 	exit(2);
 }
 
-void WARNING(char *fmt, ...)
+void WARNING(const char *fmt, ...)
 {
 	extern char *cmdname;
 	va_list varg;
@@ -633,7 +633,7 @@ void bclass(int c)
 	}
 }
 
-double errcheck(double x, char *s)
+double errcheck(double x, const char *s)
 {
 
 	if (errno == EDOM) {
@@ -648,9 +648,9 @@ double errcheck(double x, char *s)
 	return x;
 }
 
-int isclvar(char *s)	/* is s of form var=something ? */
+int isclvar(const char *s)	/* is s of form var=something ? */
 {
-	char *os = s;
+	const char *os = s;
 
 	if (!isalpha((uschar) *s) && *s != '_')
 		return 0;
@@ -665,7 +665,7 @@ int isclvar(char *s)	/* is s of form var=something ? */
 /* wrong: violates 4.10.1.4 of ansi C standard */
 
 #include <math.h>
-int is_number(char *s)
+int is_number(const char *s)
 {
 	double r;
 	char *ep;

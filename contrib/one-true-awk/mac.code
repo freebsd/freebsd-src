@@ -1,6 +1,14 @@
-This file contains a make shell script and a version
-of the file missing95.c for the Mac, courtesy of
-Dan Allen.
+Note added June, 2002:  
+
+With the advent of OS X, life is simpler:  if you have the developer
+tools installed, the standard awk makefile and gcc works fine, and
+you can ignore the rest of this file, which is now hereby deprecated.
+
+
+
+
+This file contains a make shell script and a version of the file
+missing95.c for the Mac, courtesy of Dan Allen.
 
 make shell script:
 
