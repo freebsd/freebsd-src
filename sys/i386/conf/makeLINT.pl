@@ -14,6 +14,7 @@ while (<>) {
 	next if ($key =~ /^hint\./);
 	if ($key eq "machine" || $key eq "ident" || $key eq "device" ||
 	    $key eq "makeoptions" || $key eq "options" ||
+	    $key eq "profile" ||
 	    $key eq "cpu" || $key eq "option" || $key eq "maxusers") {
 		print "$line\n";
 	} else {
