@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_usrreq.c	8.1 (Berkeley) 6/10/93
- * $Id: spp_usrreq.c,v 1.4 1995/05/30 08:12:31 rgrimes Exp $
+ * $Id: spp_usrreq.c,v 1.5 1995/07/29 11:41:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>

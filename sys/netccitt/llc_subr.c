@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_subr.c	8.1 (Berkeley) 6/10/93
- * $Id: llc_subr.c,v 1.5 1995/05/30 08:08:52 rgrimes Exp $
+ * $Id: llc_subr.c,v 1.6 1995/07/29 11:41:22 bde Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@
 #include <sys/domain.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/time.h>

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_input.c	8.1 (Berkeley) 6/10/93
- * $Id: pk_input.c,v 1.5 1995/05/30 08:08:59 rgrimes Exp $
+ * $Id: pk_input.c,v 1.6 1995/07/29 11:41:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 

@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.4 (Berkeley) 1/4/94
- * $Id: queue.h,v 1.2 1994/08/02 07:53:25 davidg Exp $
+ * $Id: queue.h,v 1.3 1995/05/30 08:14:30 rgrimes Exp $
  */
 
-#ifndef	_SYS_QUEUE_H_
+#ifndef _SYS_QUEUE_H_
 #define	_SYS_QUEUE_H_
 
 /*
@@ -243,4 +243,49 @@ struct {								\
 		(elm)->field.cqe_prev->field.cqe_next =			\
 		    (elm)->field.cqe_next;				\
 }
-#endif	/* !_SYS_QUEUE_H_ */
+
+#ifdef KERNEL
+
+/*
+ * XXX insque() and remque() are an old way of handling certain queues.
+ * They bogusly assumes that all queue heads look alike.
+ */
+
+struct quehead {
+	struct quehead *qh_link;
+	struct quehead *qh_rlink;
+};
+
+#ifdef	__GNUC__
+
+static __inline void
+insque(void *a, void *b)
+{
+	struct quehead *element = a, *head = b;
+
+	element->qh_link = head->qh_link;
+	element->qh_rlink = head;
+	head->qh_link = element;
+	element->qh_link->qh_rlink = element;
+}
+
+static __inline void
+remque(void *a)
+{
+	struct quehead *element = a;
+
+	element->qh_link->qh_rlink = element->qh_rlink;
+	element->qh_rlink->qh_link = element->qh_link;
+	element->qh_rlink = 0;
+}
+
+#else /* !__GNUC__ */
+
+void	insque __P((void *a, void *b));
+void	remque __P((void *a));
+
+#endif /* __GNUC__ */
+
+#endif /* KERNEL */
+
+#endif /* !_SYS_QUEUE_H_ */
