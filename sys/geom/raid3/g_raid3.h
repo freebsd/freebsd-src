@@ -163,14 +163,9 @@ struct g_raid3_event {
 #define	G_RAID3_DEVICE_STATE_COMPLETE		2
 
 /* Bump syncid on first write. */
-#define	G_RAID3_BUMP_SYNCID_OFW	0x1
-/* Bump syncid immediately. */
-#define	G_RAID3_BUMP_SYNCID_IMM	0x2
-#define	G_RAID3_BUMP_SYNCID	(G_RAID3_BUMP_SYNCID_OFW | \
-				 G_RAID3_BUMP_SYNCID_IMM)
+#define	G_RAID3_BUMP_SYNCID	0x1
 /* Bump genid immediately. */
-#define	G_RAID3_BUMP_GENID_IMM	0x4
-#define	G_RAID3_BUMP_GENID	(G_RAID3_BUMP_GENID_IMM)
+#define	G_RAID3_BUMP_GENID	0x2
 
 struct g_raid3_softc {
 	u_int		sc_state;	/* Device state. */
@@ -214,6 +209,9 @@ u_int g_raid3_ndisks(struct g_raid3_softc *sc, int state);
 int g_raid3_destroy(struct g_raid3_softc *sc, boolean_t force);
 int g_raid3_event_send(void *arg, int state, int flags);
 struct g_raid3_metadata;
+int g_raid3_add_disk(struct g_raid3_softc *sc, struct g_provider *pp,
+    struct g_raid3_metadata *md);
+int g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md);
 void g_raid3_fill_metadata(struct g_raid3_disk *disk,
     struct g_raid3_metadata *md);
 int g_raid3_clear_metadata(struct g_raid3_disk *disk);
