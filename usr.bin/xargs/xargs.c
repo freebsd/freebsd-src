@@ -184,7 +184,7 @@ main(int argc, char **argv)
 	 * arguments.
 	 */
 	if (*argv == NULL)
-		cnt = strlen((*bxp++ = echo));
+		cnt = strlen(*bxp++ = echo);
 	else {
 		do {
 			if (Jflag && strcmp(*argv, replstr) == 0) {
@@ -217,7 +217,7 @@ main(int argc, char **argv)
 	if (nline <= 0)
 		errx(1, "insufficient space for command");
 
-	if ((bbp = malloc((size_t)nline + 1)) == NULL)
+	if ((bbp = malloc((size_t)(nline + 1))) == NULL)
 		err(1, "malloc");
 	ebp = (argp = p = bbp) + nline - 1;
 
