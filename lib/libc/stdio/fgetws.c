@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <errno.h>
-#include <rune.h>
 #include <stdio.h>
 #include <wchar.h>
 #include "un-namespace.h"
@@ -40,7 +39,7 @@ wchar_t *
 fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 {
 	wchar_t *wsp;
-	long r;
+	wint_t wc;
 
 	ORIENTLOCK(fp, 1);
 
@@ -50,18 +49,16 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 	wsp = ws;
 	while (n-- > 1) {
 		/* XXX Inefficient */
-		if ((r = fgetrune(fp)) == _INVALID_RUNE) {
-			errno = EILSEQ;
+		if ((wc = fgetwc(fp)) == WEOF && errno == EILSEQ)
 			return (NULL);
-		}
-		if (r == EOF) {
+		if (wc == WEOF) {
 			if (wsp == ws)
 				/* EOF/error, no characters read yet. */
 				return (NULL);
 			break;
 		}
-		*wsp++ = (wchar_t)r;
-		if (r == L'\n')
+		*wsp++ = (wchar_t)wc;
+		if (wc == L'\n')
 			break;
 	}
 	*wsp++ = L'\0';
