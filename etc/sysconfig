@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.43 1996/04/03 17:13:59 phk Exp $
+#	$Id: sysconfig,v 1.44 1996/04/12 14:24:59 markm Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -194,12 +194,10 @@ gateway=NO
 # If you want this host to be a firewall or otherwise filter IP, set to YES.
 firewall=NO
 
-# Set to YES if you wish to check quotas.  NOTE:  For now this probably
-# doesn't work and should be left disabled.
+# Set to YES if you wish to check quotas.
 check_quotas=NO
 
-# Set to YES to turn on accounting.  NOTE: For now this probably
-# doesn't work and should be left disabled.
+# Set to YES to turn on accounting.
 accounting=NO
 
 ######################### End Of Netconfig Section #######################
