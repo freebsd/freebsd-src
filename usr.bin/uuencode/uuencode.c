@@ -142,9 +142,12 @@ main(int argc, char *argv[])
 void
 base64_encode(void)
 {
-#define	GROUPS	8 /* Group output chunks */
-	unsigned char buf[6];
-	char buf2[16];
+	/*
+	 * Output must fit into 80 columns, chunks come in 4, leave 1.
+	 */
+#define	GROUPS	((80 / 4) - 1)
+	unsigned char buf[3];
+	char buf2[sizeof(buf) * 2 + 1];
 	size_t n;
 	int rv, sequence;
 
