@@ -29,6 +29,8 @@ MLINKS=	\
 	kafs5.3 krb_afslog.3	\
 	kafs5.3 krb_afslog_uid.3
 
+CLEANFILES= kafs5.3
+
 kafs5.3:	kafs.3
 	sed -e 's/libkafs, -lkafs/libkafs5, -lkafs5/g' ${.ALLSRC} >${.TARGET}
 
