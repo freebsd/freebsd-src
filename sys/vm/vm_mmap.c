@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.18 1995/03/22 05:08:41 davidg Exp $
+ * $Id: vm_mmap.c,v 1.19 1995/03/25 16:55:46 davidg Exp $
  */
 
 /*
@@ -323,12 +323,15 @@ msync(p, uap, retval)
 		printf("msync(%d): addr %x len %x\n",
 		    p->p_pid, uap->addr, uap->len);
 #endif
-	if (((int) uap->addr & PAGE_MASK) || uap->addr + uap->len < uap->addr)
-		return (EINVAL);
+
 	map = &p->p_vmspace->vm_map;
 	addr = (vm_offset_t) uap->addr;
 	size = (vm_size_t) uap->len;
 	flags = uap->flags;
+
+	if (((int) addr & PAGE_MASK) || addr + size < addr ||
+	    (flags & (MS_ASYNC|MS_INVALIDATE)) == (MS_ASYNC|MS_INVALIDATE))
+		return (EINVAL);
 
 	/*
 	 * XXX Gak!  If size is zero we are supposed to sync "all modified
