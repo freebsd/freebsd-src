@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.14 1995/03/16 18:12:31 bde Exp $
+ * $Id: kern_exit.c,v 1.15 1995/05/30 08:05:25 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -289,29 +289,35 @@ done:
 #define GETPS(rp)	(rp)[PS]
 #endif
 
+static int wait1(struct proc *, struct wait_args *, int [], int);
+
+struct owait_args {
+        int     dummy;
+};
+
 int
 owait(p, uap, retval)
 	struct proc *p;
-	register struct wait_args *uap;
+	register struct owait_args *uap;
 	int *retval;
 {
+	struct wait_args w;
 
 #ifdef PSL_ALLCC
 	if ((GETPS(p->p_md.md_regs) & PSL_ALLCC) != PSL_ALLCC) {
-		uap->options = 0;
-		uap->rusage = NULL;
+		w.options = 0;
+		w.rusage = NULL;
 	} else {
-		uap->options = p->p_md.md_regs[R0];
-		uap->rusage = (struct rusage *)p->p_md.md_regs[R1];
+		w.options = p->p_md.md_regs[R0];
+		w.rusage = (struct rusage *)p->p_md.md_regs[R1];
 	}
 #else
-	uap->options = 0;
-	uap->rusage = NULL;
+	w.options = 0;
+	w.rusage = NULL;
 #endif
-	uap->pid = WAIT_ANY;
-	uap->status = NULL;
-	uap->compat = 1;
-	return (wait1(p, uap, retval));
+	w.pid = WAIT_ANY;
+	w.status = NULL;
+	return (wait1(p, &w, retval, 1));
 }
 
 int
@@ -320,19 +326,23 @@ wait4(p, uap, retval)
 	struct wait_args *uap;
 	int *retval;
 {
-
-	uap->compat = 0;
-	return (wait1(p, uap, retval));
+	return (wait1(p, uap, retval, 0));
 }
-#else
-#define	wait1	wait4
-#endif
 
-int
-wait1(q, uap, retval)
+static int
+wait1(q, uap, retval, compat)
 	register struct proc *q;
 	register struct wait_args *uap;
 	int retval[];
+	int compat;
+#else
+int
+wait4(q, uap, retval)
+	register struct proc *q;
+	register struct wait_args *uap;
+	int retval[];
+#endif
+
 {
 	register int nfound;
 	register struct proc *p, *t;
@@ -369,7 +379,7 @@ loop:
 
 			retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_IBCS2)
-			if (uap->compat)
+			if (compat)
 				retval[1] = sig;
 			else
 #endif
@@ -447,7 +457,7 @@ loop:
 			p->p_flag |= P_WAITED;
 			retval[0] = p->p_pid;
 #if defined(COMPAT_43) || defined(COMPAT_IBCS2)
-			if (uap->compat) {
+			if (compat) {
 				retval[1] = W_STOPCODE(sig);
 				error = 0;
 			} else

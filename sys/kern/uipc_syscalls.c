@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.5 1995/03/16 18:12:46 bde Exp $
+ * $Id: uipc_syscalls.c,v 1.6 1995/05/30 08:06:24 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -145,20 +145,44 @@ struct accept_args {
 	int	s;
 	caddr_t	name;
 	int	*anamelen;
-#ifdef COMPAT_OLDSOCK
-	int	compat_43;	/* pseudo */
-#endif
 };
 
-#ifndef COMPAT_OLDSOCK
-#  define	accept1	accept
-#endif  /* COMPAT_OLDSOCK*/
+
+#ifdef COMPAT_OLDSOCK
+static int accept1(struct proc *, struct accept_args *, int [], int);
 
 int
-accept1(p, uap, retval)
+oaccept(p, uap, retval)
+	struct proc *p;
+	struct accept_args *uap;
+	int *retval;
+{
+	return (accept1(p, uap, retval, 1));
+}
+
+
+int
+accept(p, uap, retval)
+	struct proc *p;
+	struct accept_args *uap;
+	int *retval;
+{
+	return (accept1(p, uap, retval, 0));
+}
+
+static int
+accept1(p, uap, retval, compat)
 	struct proc *p;
 	register struct accept_args *uap;
 	int *retval;
+	int compat;
+#else   /* COMPAT_OLDSOCK */
+int
+accept(p, uap, retval)
+	struct proc *p;
+	register struct accept_args *uap;
+	int *retval;
+#endif  /* COMPAT_OLDSOCK*/
 {
 	struct file *fp;
 	struct mbuf *nam;
@@ -220,7 +244,7 @@ accept1(p, uap, retval)
 	(void) soaccept(so, nam);
 	if (uap->name) {
 #ifdef COMPAT_OLDSOCK
-		if (uap->compat_43)
+		if (compat)
 			mtod(nam, struct osockaddr *)->sa_family =
 			    mtod(nam, struct sockaddr *)->sa_family;
 #endif
@@ -238,29 +262,6 @@ accept1(p, uap, retval)
 	return (error);
 }
 
-#ifdef COMPAT_OLDSOCK
-int
-accept(p, uap, retval)
-	struct proc *p;
-	struct accept_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 0;
-	return (accept1(p, uap, retval));
-}
-
-int
-oaccept(p, uap, retval)
-	struct proc *p;
-	struct accept_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 1;
-	return (accept1(p, uap, retval));
-}
-#endif /* COMPAT_OLDSOCK */
 
 struct connect_args {
 	int	s;
@@ -623,15 +624,6 @@ done:
 	return (error);
 }
 
-struct recvfrom_args {
-	int	s;
-	caddr_t	buf;
-	size_t	len;
-	int	flags;
-	caddr_t	from;
-	int	*fromlenaddr;
-};
-
 int
 recvit(p, s, mp, namelenp, retsize)
 	register struct proc *p;
@@ -764,9 +756,14 @@ out:
 	return (error);
 }
 
-struct shutdown_args {
+
+struct recvfrom_args {
 	int	s;
-	int	how;
+	caddr_t	buf;
+	size_t	len;
+	int	flags;
+	caddr_t	from;
+	int	*fromlenaddr;
 };
 
 int
@@ -887,6 +884,7 @@ done:
 }
 #endif
 
+
 struct recvmsg_args {
 	int	s;
 	struct	msghdr *msg;
@@ -934,6 +932,13 @@ done:
 		FREE(iov, M_IOV);
 	return (error);
 }
+
+
+struct shutdown_args {
+	int	s;
+	int	how;
+};
+
 /* ARGSUSED */
 int
 shutdown(p, uap, retval)
@@ -1087,25 +1092,48 @@ free1:
 /*
  * Get socket name.
  */
+
 struct getsockname_args {
 	int	fdes;
 	caddr_t	asa;
 	int	*alen;
-#ifdef COMPAT_OLDSOCK
-	int	compat_43;	/* pseudo */
-#endif
 };
 
-#ifndef COMPAT_OLDSOCK
-#define	getsockname1	getsockname
-#endif
+#ifdef COMPAT_OLDSOCK
+static int getsockname1(struct proc *, struct getsockname_args *, int [], int);
 
+int
+ogetsockname(p, uap, retval)
+	struct proc *p;
+	struct getsockname_args *uap;
+	int *retval;
+{
+	return (getsockname1(p, uap, retval, 1));
+}
+
+int
+getsockname(p, uap, retval)
+	struct proc *p;
+	struct getsockname_args *uap;
+	int *retval;
+{
+	return (getsockname1(p, uap, retval, 0));
+}
+
+static int
+getsockname1(p, uap, retval, compat)
+	struct proc *p;
+	register struct getsockname_args *uap;
+	int *retval;
+	int compat;
+#else   /* COMPAT_OLDSOCK */
 /* ARGSUSED */
 int
 getsockname1(p, uap, retval)
 	struct proc *p;
 	register struct getsockname_args *uap;
 	int *retval;
+#endif /* COMPAT_OLDSOCK */
 {
 	struct file *fp;
 	register struct socket *so;
@@ -1128,7 +1156,7 @@ getsockname1(p, uap, retval)
 	if (len > m->m_len)
 		len = m->m_len;
 #ifdef COMPAT_OLDSOCK
-	if (uap->compat_43)
+	if (compat)
 		mtod(m, struct osockaddr *)->sa_family =
 		    mtod(m, struct sockaddr *)->sa_family;
 #endif
@@ -1141,30 +1169,6 @@ bad:
 	return (error);
 }
 
-#ifdef COMPAT_OLDSOCK
-int
-getsockname(p, uap, retval)
-	struct proc *p;
-	struct getsockname_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 0;
-	return (getsockname1(p, uap, retval));
-}
-
-int
-ogetsockname(p, uap, retval)
-	struct proc *p;
-	struct getsockname_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 1;
-	return (getsockname1(p, uap, retval));
-}
-#endif /* COMPAT_OLDSOCK */
-
 /*
  * Get name of peer for connected socket.
  */
@@ -1172,22 +1176,43 @@ struct getpeername_args {
 	int	fdes;
 	caddr_t	asa;
 	int	*alen;
-#ifdef COMPAT_OLDSOCK
-	int	compat_43;	/* pseudo */
-#endif
 };
 
+#ifdef COMPAT_OLDSOCK
+static int getpeername1(struct proc *, struct getpeername_args *, int [], int);
 
-#ifndef COMPAT_OLDSOCK
-#define	getpeername1	getpeername
-#endif
+int
+ogetpeername(p, uap, retval)
+	struct proc *p;
+	struct getpeername_args *uap;
+	int *retval;
+{
+	return (getpeername1(p, uap, retval, 1));
+}
 
+int
+getpeername(p, uap, retval)
+	struct proc *p;
+	struct getpeername_args *uap;
+	int *retval;
+{
+	return (getpeername1(p, uap, retval, 0));
+}
+
+static int
+getpeername1(p, uap, retval, compat)
+	struct proc *p;
+	register struct getpeername_args *uap;
+	int *retval;
+	int compat;
+#else   /* COMPAT_OLDSOCK */
 /* ARGSUSED */
 int
 getpeername1(p, uap, retval)
 	struct proc *p;
 	register struct getpeername_args *uap;
 	int *retval;
+#endif /* COMPAT_OLDSOCK */
 {
 	struct file *fp;
 	register struct socket *so;
@@ -1212,7 +1237,7 @@ getpeername1(p, uap, retval)
 	if (len > m->m_len)
 		len = m->m_len;
 #ifdef COMPAT_OLDSOCK
-	if (uap->compat_43)
+	if (compat)
 		mtod(m, struct osockaddr *)->sa_family =
 		    mtod(m, struct sockaddr *)->sa_family;
 #endif
@@ -1225,29 +1250,7 @@ bad:
 	return (error);
 }
 
-#ifdef COMPAT_OLDSOCK
-int
-getpeername(p, uap, retval)
-	struct proc *p;
-	struct getpeername_args *uap;
-	int *retval;
-{
 
-	uap->compat_43 = 0;
-	return (getpeername1(p, uap, retval));
-}
-
-int
-ogetpeername(p, uap, retval)
-	struct proc *p;
-	struct getpeername_args *uap;
-	int *retval;
-{
-
-	uap->compat_43 = 1;
-	return (getpeername1(p, uap, retval));
-}
-#endif /* COMPAT_OLDSOCK */
 int
 sockargs(mp, buf, buflen, type)
 	struct mbuf **mp;
