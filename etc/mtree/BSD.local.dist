@@ -1,4 +1,6 @@
-#     $Id: BSD.local.dist,v 1.45 1999/06/05 03:03:52 julian Exp $
+#     $Id: BSD.local.dist,v 1.46 1999/06/08 02:24:29 foxfair Exp $
+#
+# Please see the file README before making changes to this file.
 #
 
 /set type=dir uname=root gname=wheel mode=0755

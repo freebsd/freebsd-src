@@ -1,4 +1,6 @@
-#	$Id: BSD.var.dist,v 1.39 1999/03/31 07:06:39 asami Exp $
+#	$Id: BSD.var.dist,v 1.40 1999/03/31 13:38:37 asami Exp $
+#
+# Please see the file README before making changes to this file.
 #
 
 /set type=dir uname=root gname=wheel mode=0755
