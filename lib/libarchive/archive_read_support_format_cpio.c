@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/stat.h>
+
 #ifdef DMALLOC
 #include <dmalloc.h>
 #endif
@@ -145,8 +147,20 @@ archive_read_format_cpio_read_header(struct archive *a,
 	if (bytes < namelength)
 	    return (ARCHIVE_FATAL);
 	(a->compression_read_consume)(a, namelength);
-	archive_strncpy(&a->entry_name, h, bytes);
+	archive_strncpy(&a->entry_name, h, namelength);
 	archive_entry_set_pathname(entry, a->entry_name.s);
+
+	/* If this is a symlink, read the link contents. */
+	if (S_ISLNK(st.st_mode)) {
+		bytes = (a->compression_read_ahead)(a, &h,
+		    a->entry_bytes_remaining);
+		if (bytes < a->entry_bytes_remaining)
+			return (ARCHIVE_FATAL);
+		(a->compression_read_consume)(a, a->entry_bytes_remaining);
+		archive_strncpy(&a->entry_linkname, h, a->entry_bytes_remaining);
+		archive_entry_set_symlink(entry, a->entry_linkname.s);
+		a->entry_bytes_remaining = 0;
+	}
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strcmp(h,"TRAILER!!!")==0) {
