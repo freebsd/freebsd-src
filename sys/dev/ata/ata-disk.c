@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.c,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: ata-disk.c,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 #include "ata.h"
@@ -80,7 +80,7 @@ static struct cdevsw ad_cdevsw = {
 
 /* prototypes */
 static void ad_attach(void *);
-static int32_t ata_get_param(struct ad_softc *);
+static int32_t ad_getparam(struct ad_softc *);
 static void ad_strategy(struct buf *);
 static void ad_start(struct ad_softc *);
 static void ad_sleep(struct ad_softc *, int8_t *);
@@ -119,7 +119,7 @@ ad_attach(void *notused)
 	        adp->controller = atadevices[ctlr];
 		adp->unit = (dev == 0) ? ATA_MASTER : ATA_SLAVE;
 		adp->lun = adnlun;
-		if (ata_get_param(adp)) {
+		if (ad_getparam(adp)) {
 		    free(adp, M_DEVBUF);
 		    continue;
 		}
@@ -136,6 +136,7 @@ ad_attach(void *notused)
 		/* support multiple sectors / interrupt ? */
 		adp->transfersize = DEV_BSIZE;
 		secsperint = min(adp->ata_parm->nsecperint, 16);
+
 		if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
 				 0, 0, 0, secsperint, ATA_WAIT_INTR) &&
 		    ata_wait(adp->controller, ATA_S_DRDY) >= 0)
@@ -187,7 +188,7 @@ ad_attach(void *notused)
 }
 
 static int32_t
-ata_get_param(struct ad_softc *adp)
+ad_getparam(struct ad_softc *adp)
 {
     struct ata_params *ata_parm;
     int8_t buffer[DEV_BSIZE];
@@ -365,10 +366,10 @@ ad_start(struct ad_softc *adp)
 #ifdef AD_DEBUG
 printf("ad_start:\n");
 #endif
-    /* newer called when adp->active != 0 SOS */
-    if (adp->active)
+    if (adp->active) {
+	printf("ad_start: should newer be called when active\n"); /* SOS */
 	return;
-
+    }
     if (!(bp = bufq_first(&adp->queue)))
         return;
 
@@ -411,19 +412,12 @@ ad_transfer(struct buf *bp)
 	if (count > 255) /* SOS */
             printf("ad_transfer: count=%d\n", count);
 
-
 	/* setup transfer length if multible sector access present */
      	adp->currentsize = min(adp->bytecount, adp->transfersize);
 	if (adp->currentsize > DEV_BSIZE)
 	    command = (bp->b_flags&B_READ) ? ATA_C_READ_MULTI:ATA_C_WRITE_MULTI;
 	else
 	    command = (bp->b_flags&B_READ) ? ATA_C_READ : ATA_C_WRITE;
-
-        /* ready to issue command ? */
-        while (ata_wait(adp->controller, 0) < 0) {
-            printf("ad_transfer: timeout waiting to give command");
-            /*ata_unwedge(adp->controller); SOS */
-        }                       
 
         ata_command(adp->controller, adp->unit, command, cylinder, head, 
 		    sector + 1, count, ATA_IMMEDIATE);
@@ -461,7 +455,7 @@ ad_transfer(struct buf *bp)
 #endif
 }
 
-void
+int32_t
 ad_interrupt(struct buf *bp)
 {
     struct ad_softc *adp = bp->b_driver1;
@@ -525,7 +519,7 @@ oops:
 #endif
 	    if (adp->bytecount > 0) {
 	        ad_transfer(bp);		/* MESSY!! only needed for W */
-		return;
+		return ATA_OP_CONTINUES;
 	    }
 	}
 	bufq_remove(&adp->controller->ata_queue, bp);
@@ -538,12 +532,11 @@ oops:
 	biodone(bp);
 	adp->active = 0;
     }
-    adp->controller->active = ATA_IDLE;
     ad_start(adp);
 #ifdef AD_DEBUG
     printf("ad_interrupt: completed\n");
 #endif
-    ata_start(adp->controller);
+    return ATA_OP_FINISHED;
 }
 
 static void

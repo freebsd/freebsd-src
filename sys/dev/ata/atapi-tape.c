@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-tape.c,v 1.3 1999/03/05 09:43:30 sos Exp $
  */
 
 #include "ata.h"
@@ -65,7 +65,9 @@ static struct cdevsw ast_cdevsw = {
     astopen,	astclose,	astread,	astwrite,
     astioctl,	nostop,		nullreset,	nodevtotty,
     seltrue,	nommap,		aststrategy,	"ast",
-    NULL,	-1 };
+    NULL,	-1,		nodump,		nopsize,
+    D_TAPE,	0,		-1
+};
 
 static u_int32_t ast_total = 0;
 
