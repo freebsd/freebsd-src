@@ -198,6 +198,7 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->root = NULL;
 	object->type = type;
 	object->size = size;
+	object->generation = 1;
 	object->ref_count = 1;
 	object->flags = 0;
 	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
@@ -213,8 +214,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 	object->handle = NULL;
 	object->backing_object = NULL;
 	object->backing_object_offset = (vm_ooffset_t) 0;
-
-	atomic_add_int(&object->generation, 1);
 
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
