@@ -146,24 +146,8 @@ _vm_object_allocate(type, size, object)
 	vm_object_t object;
 {
 	int incr;
-	int hadvmlock;
 
-	/*
-	 * XXX: Not all callers seem to have the lock, compensate.
-	 * I'm pretty sure we need to bump the gen count before possibly
-	 * nuking the data contained within while under the lock.
-	 */
-	hadvmlock = mtx_owned(&vm_mtx);
-	if (!hadvmlock)
-		mtx_lock(&vm_mtx);
-	object->generation++;
-	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
-		vm_object_set_flag(object, OBJ_ONEMAPPING);
-	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
-	vm_object_count++;
-	if (!hadvmlock)
-		mtx_unlock(&vm_mtx);
-
+	mtx_assert(&vm_mtx, MA_OWNED);
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
 
@@ -171,6 +155,8 @@ _vm_object_allocate(type, size, object)
 	object->size = size;
 	object->ref_count = 1;
 	object->flags = 0;
+	if ((object->type == OBJT_DEFAULT) || (object->type == OBJT_SWAP))
+		vm_object_set_flag(object, OBJ_ONEMAPPING);
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
@@ -191,6 +177,10 @@ _vm_object_allocate(type, size, object)
 	 */
 	object->hash_rand = object_hash_rand - 129;
 
+	object->generation++;
+
+	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
+	vm_object_count++;
 	object_hash_rand = object->hash_rand;
 }
 
@@ -202,6 +192,8 @@ _vm_object_allocate(type, size, object)
 void
 vm_object_init()
 {
+
+	mtx_assert(&vm_mtx, MA_OWNED);
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", MTX_DEF);
 	vm_object_count = 0;
@@ -220,7 +212,8 @@ vm_object_init()
 }
 
 void
-vm_object_init2() {
+vm_object_init2()
+{
 	zinitna(obj_zone, NULL, NULL, 0, 0, 0, 1);
 }
 
@@ -237,6 +230,7 @@ vm_object_allocate(type, size)
 {
 	vm_object_t result;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	result = (vm_object_t) zalloc(obj_zone);
 	_vm_object_allocate(type, size, result);
 
@@ -253,6 +247,8 @@ void
 vm_object_reference(object)
 	vm_object_t object;
 {
+
+	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
 	if (object == NULL)
 		return;
 
@@ -261,13 +257,12 @@ vm_object_reference(object)
 
 	object->ref_count++;
 	if (object->type == OBJT_VNODE) {
-		mtx_unlock(&vm_mtx);
-		mtx_lock(&Giant);
+		mtx_unlock(VM_OBJECT_MTX(object));
+		mtx_assert(&Giant, MA_OWNED);
 		while (vget((struct vnode *) object->handle, LK_RETRY|LK_NOOBJ, curproc)) {
 			printf("vm_object_reference: delay in getting object\n");
 		}
-		mtx_unlock(&Giant);
-		mtx_lock(&vm_mtx);
+		mtx_lock(VM_OBJECT_MTX(object));
 	}
 }
 
@@ -283,7 +278,7 @@ vm_object_vndeallocate(object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
 	KASSERT(vp != NULL, ("vm_object_vndeallocate: missing vp"));
@@ -303,9 +298,8 @@ vm_object_vndeallocate(object)
 	 * vrele may need a vop lock
 	 */
 	mtx_unlock(VM_OBJECT_MTX(object));
-	mtx_lock(&Giant);
+	mtx_assert(&Giant, MA_OWNED);
 	vrele(vp);
-	mtx_unlock(&Giant);
 	mtx_lock(VM_OBJECT_MTX(object));
 }
 
@@ -327,7 +321,7 @@ vm_object_deallocate(object)
 {
 	vm_object_t temp;
 
-	mtx_assert(&vm_mtx, MA_OWNED);
+	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
 	while (object != NULL) {
 
 		if (object->type == OBJT_VNODE) {
@@ -361,6 +355,9 @@ vm_object_deallocate(object)
 				    ("vm_object_deallocate: ref_count: %d, shadow_count: %d",
 					 object->ref_count,
 					 object->shadow_count));
+#ifdef objlocks
+				mtx_lock(VM_OBJECT_MTX(robject));
+#endif
 				if ((robject->handle == NULL) &&
 				    (robject->type == OBJT_DEFAULT ||
 				     robject->type == OBJT_SWAP)) {
@@ -371,16 +368,32 @@ vm_object_deallocate(object)
 						robject->paging_in_progress ||
 						object->paging_in_progress
 					) {
+#ifdef objlocks
+						mtx_unlock(VM_OBJECT_MTX(object));
+#endif
 						vm_object_pip_sleep(robject, "objde1");
+#ifdef objlocks
+						mtx_unlock(VM_OBJECT_MTX(robject));
+						mtx_lock(VM_OBJECT_MTX(object));
+#endif
 						vm_object_pip_sleep(object, "objde2");
+#ifdef objlocks
+						mtx_lock(VM_OBJECT_MTX(robject));
+#endif
 					}
 
 					if (robject->ref_count == 1) {
 						robject->ref_count--;
+#ifdef objlocks
+						mtx_unlock(VM_OBJECT_MTX(object));
+#endif
 						object = robject;
 						goto doterm;
 					}
 
+#ifdef objlocks
+					mtx_unlock(VM_OBJECT_MTX(object));
+#endif
 					object = robject;
 					vm_object_collapse(object);
 					continue;
@@ -422,6 +435,8 @@ vm_object_terminate(object)
 	vm_page_t p;
 	int s;
 
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_assert(VM_OBJECT_MTX(object), MA_OWNED);
 	/*
 	 * Make sure no one uses us.
 	 */
@@ -454,9 +469,7 @@ vm_object_terminate(object)
 
 		vp = (struct vnode *) object->handle;
 		mtx_unlock(VM_OBJECT_MTX(object));
-		mtx_lock(&Giant);
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
-		mtx_unlock(&Giant);
 		mtx_lock(VM_OBJECT_MTX(object));
 	}
 
@@ -750,6 +763,7 @@ vm_object_pmap_copy_1(object, start, end)
 	vm_pindex_t idx;
 	vm_page_t p;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (object == NULL || (object->flags & OBJ_WRITEABLE) == 0)
 		return;
 
@@ -777,6 +791,7 @@ vm_object_pmap_remove(object, start, end)
 {
 	vm_page_t p;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (object == NULL)
 		return;
 	TAILQ_FOREACH(p, &object->memq, listq) {
@@ -819,6 +834,7 @@ vm_object_madvise(object, pindex, count, advise)
 	vm_object_t tobject;
 	vm_page_t m;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	if (object == NULL)
 		return;
 
@@ -932,6 +948,7 @@ vm_object_shadow(object, offset, length)
 	vm_object_t source;
 	vm_object_t result;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	source = *object;
 
 	/*
@@ -1661,16 +1678,16 @@ vm_object_in_map( object)
 {
 	struct proc *p;
 
-	sx_slock(&allproc_lock);
+	/* sx_slock(&allproc_lock); */
 	LIST_FOREACH(p, &allproc, p_list) {
 		if( !p->p_vmspace /* || (p->p_flag & (P_SYSTEM|P_WEXIT)) */)
 			continue;
 		if( _vm_object_in_map(&p->p_vmspace->vm_map, object, 0)) {
-			sx_sunlock(&allproc_lock);
+			/* sx_sunlock(&allproc_lock); */
 			return 1;
 		}
 	}
-	sx_sunlock(&allproc_lock);
+	/* sx_sunlock(&allproc_lock); */
 	if( _vm_object_in_map( kernel_map, object, 0))
 		return 1;
 	if( _vm_object_in_map( kmem_map, object, 0))
