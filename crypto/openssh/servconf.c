@@ -223,7 +223,7 @@ typedef enum {
 	sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
 	sIgnoreUserKnownHosts, sHostDSAKeyFile, sCiphers, sProtocol, sPidFile,
 	sGatewayPorts, sDSAAuthentication, sConnectionsPerPeriod, sXAuthLocation,
-	sSubsystem, sMaxStartups
+	sSubsystem, sMaxStartups, sVersionAddendum
 } ServerOpCodes;
 
 /* Textual representation of the tokens. */
@@ -288,6 +288,7 @@ static struct {
 	{ "connectionsperperiod", sConnectionsPerPeriod },
 	{ "subsystem", sSubsystem },
 	{ "maxstartups", sMaxStartups },
+	{ "versionaddendum", sVersionAddendum },
 	{ NULL, 0 }
 };
 
@@ -735,6 +736,13 @@ parse_flag:
 			}
 			intptr = &options->max_startups;
 			goto parse_int;
+
+		case sVersionAddendum:
+			ssh_version_set_addendum(strtok(cp, "\n"));
+			do
+				arg = strdelim(&cp);
+			while (arg != NULL && *arg != '\0');
+			break;
 
 		default:
 			fatal("%.200s line %d: Missing handler for opcode %s (%d)\n",
