@@ -283,7 +283,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
     PCI_ROUTING_TABLE		*prt;
     ACPI_HANDLE			lnkdev;
     ACPI_BUFFER			crsbuf, prsbuf;
-    ACPI_RESOURCE		*crsres, *prsres;
+    ACPI_RESOURCE		*crsres, *prsres, resbuf;
     ACPI_DEVICE_INFO		devinfo;
     ACPI_STATUS			status;
     u_int8_t			*prtp;
@@ -403,7 +403,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
      *
      * The Source Index points to the particular resource entry we're interested in.
      */
-    if (ACPI_FAILURE(acpi_FindIndexedResource((ACPI_RESOURCE *)crsbuf.Pointer, prt->SourceIndex, &crsres))) {
+    if (ACPI_FAILURE(acpi_FindIndexedResource(&crsbuf, prt->SourceIndex, &crsres))) {
 	device_printf(sc->ap_dev, "_CRS buffer corrupt, cannot route interrupt\n");
 	goto out;
     }
@@ -442,7 +442,7 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	device_printf(sc->ap_dev, "device has no routed interrupt and no _PRS on PCI interrupt link device\n");
 	goto out;
     }
-    if (ACPI_FAILURE(acpi_FindIndexedResource((ACPI_RESOURCE *)prsbuf.Pointer, prt->SourceIndex, &prsres))) {
+    if (ACPI_FAILURE(acpi_FindIndexedResource(&prsbuf, prt->SourceIndex, &prsres))) {
 	device_printf(sc->ap_dev, "_PRS buffer corrupt, cannot route interrupt\n");
 	goto out;
     }
@@ -467,15 +467,28 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
      * seem to offer a similar mechanism, so picking a "good" interrupt here is a
      * difficult task.
      *
-     * Populate our copy of _CRS and pass it back to _SRS to set the interrupt.
+     * Build a resource buffer and pass it to AcpiSetCurrentResources to route the
+     * new interrupt.
      */
     device_printf(sc->ap_dev, "possible interrupts:");
     for (i = 0; i < prsres->Data.Irq.NumberOfInterrupts; i++)
 	printf("  %d", prsres->Data.Irq.Interrupts[i]);
     printf("\n");
-    crsres->Data.Irq.Interrupts[0] = prsres->Data.Irq.Interrupts[0];
-    crsres->Data.Irq.NumberOfInterrupts = 1;
-    if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &crsbuf))) {
+
+    if (crsbuf.Pointer != NULL)			/* should never happen */
+	AcpiOsFree(crsbuf.Pointer);
+    crsbuf.Pointer = NULL;
+    resbuf.Id = ACPI_RSTYPE_IRQ;
+    resbuf.Length = SIZEOF_RESOURCE(ACPI_RESOURCE_IRQ);
+    resbuf.Data.Irq = prsres->Data.Irq;		/* structure copy other fields */
+    resbuf.Data.Irq.NumberOfInterrupts = 1;
+    resbuf.Data.Irq.Interrupts[0] = prsres->Data.Irq.Interrupts[0];	/* just take first... */
+    if (ACPI_FAILURE(status = acpi_AppendBufferResource(&crsbuf, &resbuf))) {
+	device_printf(sc->ap_dev, "couldn't route interrupt %d via %s, interupt resource build failed - %s\n",
+		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), AcpiFormatException(status));
+	goto out;
+    }
+    if (ACPI_FAILURE(status = AcpiSetCurrentResources(lnkdev, &resbuf))) {
 	device_printf(sc->ap_dev, "couldn't route interrupt %d via %s - %s\n",
 		      prsres->Data.Irq.Interrupts[0], acpi_name(lnkdev), AcpiFormatException(status));
 	goto out;
