@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,6 +79,8 @@ struct iicsmb_softc {
 
 static int iicsmb_probe(device_t);
 static int iicsmb_attach(device_t);
+static int iicsmb_detach(device_t);
+static void iicsmb_identify(driver_t *driver, device_t parent);
 
 static void iicsmb_intr(device_t dev, int event, char *buf);
 static int iicsmb_callback(device_t dev, int index, caddr_t data);
@@ -97,11 +99,13 @@ static devclass_t iicsmb_devclass;
 
 static device_method_t iicsmb_methods[] = {
 	/* device interface */
+	DEVMETHOD(device_identify,	iicsmb_identify),
 	DEVMETHOD(device_probe,		iicsmb_probe),
 	DEVMETHOD(device_attach,	iicsmb_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	iicsmb_detach),
 
 	/* bus interface */
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* iicbus interface */
@@ -129,16 +133,18 @@ static driver_t iicsmb_driver = {
 	sizeof(struct iicsmb_softc),
 };
 
+#define IICBUS_TIMEOUT	100	/* us */
+
+static void
+iicsmb_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, 0, "iicsmb", 0);
+}
+
 static int
 iicsmb_probe(device_t dev)
 {
-	struct iicsmb_softc *sc = (struct iicsmb_softc *)device_get_softc(dev);
-
-	sc->smbus = smbus_alloc_bus(dev);
-
-	if (!sc->smbus)
-		return (EINVAL);	/* XXX don't know what to return else */
-		
+	device_set_desc(dev, "SMBus over I2C bridge");
 	return (0);
 }
 
@@ -147,8 +153,25 @@ iicsmb_attach(device_t dev)
 {
 	struct iicsmb_softc *sc = (struct iicsmb_softc *)device_get_softc(dev);
 
+	bzero(sc, sizeof(*sc));
+
+	sc->smbus = device_add_child(dev, "smbus", -1);
+
 	/* probe and attach the smbus */
-	device_probe_and_attach(sc->smbus);
+	bus_generic_attach(dev);
+
+	return (0);
+}
+
+static int
+iicsmb_detach(device_t dev)
+{
+	struct iicsmb_softc *sc = (struct iicsmb_softc *)device_get_softc(dev);
+	
+	bus_generic_detach(dev);
+	if (sc->smbus) {
+		device_delete_child(dev, sc->smbus);
+	}
 
 	return (0);
 }
@@ -259,11 +282,11 @@ iicsmb_quick(device_t dev, u_char slave, int how)
 
 	switch (how) {
 	case SMB_QWRITE:
-		error = iicbus_start(parent, slave & ~LSB, 0);
+		error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT);
 		break;
 
 	case SMB_QREAD:
-		error = iicbus_start(parent, slave | LSB, 0);
+		error = iicbus_start(parent, slave | LSB, IICBUS_TIMEOUT);
 		break;
 
 	default:
@@ -283,10 +306,10 @@ iicsmb_sendb(device_t dev, u_char slave, char byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
-	error = iicbus_start(parent, slave & ~LSB, 0);
+	error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT);
 
 	if (!error) {
-		error = iicbus_write(parent, &byte, 1, &sent, 0);
+		error = iicbus_write(parent, &byte, 1, &sent, IICBUS_TIMEOUT);
 
 		iicbus_stop(parent);
 	}
@@ -303,7 +326,7 @@ iicsmb_recvb(device_t dev, u_char slave, char *byte)
 	error = iicbus_start(parent, slave | LSB, 0);
 
 	if (!error) {
-		error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, 0);
+		error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, IICBUS_TIMEOUT);
 
 		iicbus_stop(parent);
 	}
@@ -320,8 +343,8 @@ iicsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	error = iicbus_start(parent, slave & ~LSB, 0);
 
 	if (!error) {
-		if (!(error = iicbus_write(parent, &cmd, 1, &sent, 0)))
-			error = iicbus_write(parent, &byte, 1, &sent, 0);
+		if (!(error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
+			error = iicbus_write(parent, &byte, 1, &sent, IICBUS_TIMEOUT);
 
 		iicbus_stop(parent);
 	}
@@ -341,9 +364,9 @@ iicsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	error = iicbus_start(parent, slave & ~LSB, 0);
 
 	if (!error) {
-		if (!(error = iicbus_write(parent, &cmd, 1, &sent, 0)))
-		  if (!(error = iicbus_write(parent, &low, 1, &sent, 0)))
-		    error = iicbus_write(parent, &high, 1, &sent, 0);
+		if (!(error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
+		  if (!(error = iicbus_write(parent, &low, 1, &sent, IICBUS_TIMEOUT)))
+		    error = iicbus_write(parent, &high, 1, &sent, IICBUS_TIMEOUT);
 
 		iicbus_stop(parent);
 	}
@@ -357,16 +380,16 @@ iicsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	device_t parent = device_get_parent(dev);
 	int error, sent, read;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
 		return (error);
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, 0)))
+	if ((error = iicbus_read(parent, byte, 1, &read, IIC_LAST_READ, IICBUS_TIMEOUT)))
 		goto error;
 
 error:
@@ -384,16 +407,16 @@ iicsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	int error, sent, read;
 	char buf[2];
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
 		return (error);
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, 0)))
+	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, IICBUS_TIMEOUT)))
 		goto error;
 
 	/* first, receive low, then high byte */
@@ -411,23 +434,23 @@ iicsmb_pcall(device_t dev, u_char slave, char cmd, short sdata, short *rdata)
 	int error, sent, read;
 	char buf[2];
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
 		return (error);
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
 	/* first, send low, then high byte */
 	buf[0] = (char)(sdata & 0xff);
 	buf[1] = (char)((sdata & 0xff00) >> 8);
 
-	if ((error = iicbus_write(parent, buf, 2, &sent, 0)))
+	if ((error = iicbus_write(parent, buf, 2, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, 0)))
+	if ((error = iicbus_read(parent, buf, 2, &read, IIC_LAST_READ, IICBUS_TIMEOUT)))
 		goto error;
 
 	/* first, receive low, then high byte */
@@ -444,13 +467,13 @@ iicsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	device_t parent = device_get_parent(dev);
 	int error, sent;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_write(parent, buf, (int)count, &sent, 0)))
+	if ((error = iicbus_write(parent, buf, (int)count, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
 	if ((error = iicbus_stop(parent)))
@@ -466,17 +489,17 @@ iicsmb_bread(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	device_t parent = device_get_parent(dev);
 	int error, sent, read;
 
-	if ((error = iicbus_start(parent, slave & ~LSB, 0)))
+	if ((error = iicbus_start(parent, slave & ~LSB, IICBUS_TIMEOUT)))
 		return (error);
 
-	if ((error = iicbus_write(parent, &cmd, 1, &sent, 0)))
+	if ((error = iicbus_write(parent, &cmd, 1, &sent, IICBUS_TIMEOUT)))
 		goto error;
 
-	if ((error = iicbus_repeated_start(parent, slave | LSB, 0)))
+	if ((error = iicbus_repeated_start(parent, slave | LSB, IICBUS_TIMEOUT)))
 		goto error;
 
 	if ((error = iicbus_read(parent, buf, (int)count, &read,
-							IIC_LAST_READ, 0)))
+						IIC_LAST_READ, IICBUS_TIMEOUT)))
 		goto error;
 
 error:
@@ -485,3 +508,6 @@ error:
 }
 
 DRIVER_MODULE(iicsmb, iicbus, iicsmb_driver, iicsmb_devclass, 0, 0);
+MODULE_DEPEND(iicsmb, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_DEPEND(iicsmb, smbus, SMBUS_MINVER, SMBUS_PREFVER, SMBUS_MAXVER);
+MODULE_VERSION(iicsmb, 1);

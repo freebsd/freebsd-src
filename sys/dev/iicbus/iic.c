@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 Nicolas Souchu
+ * Copyright (c) 1998, 2001 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,11 +47,13 @@
 
 struct iic_softc {
 
-	u_char sc_addr;			/* address on iicbus */
+	u_char sc_addr;			/* 7 bit address on iicbus */
 	int sc_count;			/* >0 if device opened */
 
 	char sc_buffer[BUFSIZE];	/* output buffer */
 	char sc_inbuf[BUFSIZE];		/* input buffer */
+
+	dev_t sc_devnode;
 };
 
 #define IIC_SOFTC(unit) \
@@ -62,13 +64,17 @@ struct iic_softc {
 
 static int iic_probe(device_t);
 static int iic_attach(device_t);
+static int iic_detach(device_t);
+static void iic_identify(driver_t *driver, device_t parent);
 
 static devclass_t iic_devclass;
 
 static device_method_t iic_methods[] = {
 	/* device interface */
+	DEVMETHOD(device_identify,	iic_identify),
 	DEVMETHOD(device_probe,		iic_probe),
 	DEVMETHOD(device_attach,	iic_attach),
+	DEVMETHOD(device_detach,	iic_detach),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_intr,		iicbus_generic_intr),
@@ -105,30 +111,44 @@ static struct cdevsw iic_cdevsw = {
 	/* flags */	0,
 };
 
-/*
- * iicprobe()
- */
+static void
+iic_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, 0, "iic", 0);
+}
+
 static int
 iic_probe(device_t dev)
 {
-	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
-
-	sc->sc_addr = iicbus_get_addr(dev);
-
-	/* XXX detect chip with start/stop conditions */
-
+	device_set_desc(dev, "I2C generic I/O");
 	return (0);
 }
 	
-/*
- * iicattach()
- */
 static int
 iic_attach(device_t dev)
 {
-	make_dev(&iic_cdevsw, device_get_unit(dev),	/* XXX cleanup */
+	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
+
+	if (!sc)
+		return (ENOMEM);
+
+	bzero(sc, sizeof(struct iic_softc));
+
+	sc->sc_devnode = make_dev(&iic_cdevsw, device_get_unit(dev),
 			UID_ROOT, GID_WHEEL,
 			0600, "iic%d", device_get_unit(dev));
+
+	return (0);
+}
+
+static int
+iic_detach(device_t dev)
+{
+	struct iic_softc *sc = (struct iic_softc *)device_get_softc(dev);
+
+	if (sc->sc_devnode)
+		destroy_dev(sc->sc_devnode);
+
 	return (0);
 }
 
@@ -174,7 +194,7 @@ iicwrite(dev_t dev, struct uio * uio, int ioflag)
 	struct iic_softc *sc = IIC_SOFTC(minor(dev));
 	int sent, error, count;
 
-	if (!sc || !iicdev)
+	if (!sc || !iicdev || !sc->sc_addr)
 		return (EINVAL);
 
 	if (sc->sc_count == 0)
@@ -202,7 +222,7 @@ iicread(dev_t dev, struct uio * uio, int ioflag)
 	int len, error = 0;
 	int bufsize;
 
-	if (!sc || !iicdev)
+	if (!sc || !iicdev || !sc->sc_addr)
 		return (EINVAL);
 
 	if (sc->sc_count == 0)
@@ -246,6 +266,15 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 	switch (cmd) {
 	case I2CSTART:
 		error = iicbus_start(parent, s->slave, 0);
+
+		/*
+		 * Implicitly set the chip addr to the slave addr passed as
+		 * parameter. Consequently, start/stop shall be called before
+		 * the read or the write of a block.
+		 */
+		if (!error)
+			sc->sc_addr = s->slave;
+
 		break;
 
 	case I2CSTOP:
@@ -257,11 +286,11 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 		break;
 
 	case I2CWRITE:
-		error = iicbus_write(parent, s->buf, s->count, &count, 0);
+		error = iicbus_write(parent, s->buf, s->count, &count, 10);
 		break;
 
 	case I2CREAD:
-		error = iicbus_read(parent, s->buf, s->count, &count, s->last, 0);
+		error = iicbus_read(parent, s->buf, s->count, &count, s->last, 10);
 		break;
 
 	default:
@@ -274,3 +303,5 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct thread *td)
 }
 
 DRIVER_MODULE(iic, iicbus, iic_driver, iic_devclass, 0, 0);
+MODULE_DEPEND(iic, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
+MODULE_VERSION(iic, 1);

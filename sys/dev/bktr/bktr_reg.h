@@ -34,17 +34,6 @@
  *
  */
 
-#ifdef __FreeBSD__
-#  if (__FreeBSD_version >= 310000)
-#    include "smbus.h"
-#  else
-#    define NSMBUS 0		/* FreeBSD before 3.1 does not have SMBUS */
-#  endif
-#  if (NSMBUS > 0)
-#    define BKTR_USE_FREEBSD_SMBUS
-#  endif
-#endif
-
 #ifdef __NetBSD__
 #include <machine/bus.h>		/* struct device */
 #include <sys/device.h>
@@ -457,6 +446,9 @@ struct format_params {
 
 #if defined(BKTR_USE_FREEBSD_SMBUS)
 struct bktr_i2c_softc {
+	int bus_owned;
+
+	device_t iicbb;
 	device_t iicbus;
 	device_t smbus;
 };
@@ -556,9 +548,9 @@ struct bktr_softc {
     bus_space_handle_t	memh;	/* Bus space register access functions */
     bus_size_t		obmemsz;/* Size of card (bytes) */
     #endif
-    #if (NSMBUS > 0)
+#if defined(BKTR_USE_FREEBSD_SMBUS)
       struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
-    #endif
+#endif
     char	bktr_xname[7];	/* device name and unit number */
 #endif
 
