@@ -39,6 +39,7 @@
 #define _COMPONENT      ACPI_TABLES
 
 static char acpi_os_name[128];
+TUNABLE_STR("hw.acpi.os_name", acpi_os_name, sizeof(acpi_os_name));
 
 ACPI_STATUS
 AcpiOsPredefinedOverride (
@@ -49,9 +50,7 @@ AcpiOsPredefinedOverride (
 	return (AE_BAD_PARAMETER);
 
     *NewVal = NULL;
-
-    /* Allow both _OS and _OS_ to be overridden. */
-    if (strncmp(InitVal->Name, "_OS", 3) == 0 &&
+    if (strncmp(InitVal->Name, "_OS_", 4) == 0 &&
 	getenv_string("hw.acpi.os_name", acpi_os_name, sizeof(acpi_os_name))) {
 
 	printf("ACPI: Overriding _OS definition with \"%s\"\n", acpi_os_name);
