@@ -41,12 +41,9 @@
  *	o Bump error count after timeout.
  *	o Satisfy ATA timing in all cases.
  *	o Finish merging berry/sos timeout code (bump error count...).
- *	o Merge/fix TIH/NetBSD bad144 code.
  *	o Don't use polling except for initialization.  Need to
  *	  reorganize the state machine.  Then "extra" interrupts
  *	  shouldn't happen (except maybe one for initialization).
- *	o Fix disklabel, boot and driver inconsistencies with
- *	  bad144 in standard versions.
  *	o Support extended DOS partitions.
  *	o Support swapping to DOS partitions.
  *	o Handle bad sectors, clustering, disklabelling, DOS
@@ -68,7 +65,6 @@
 #include "opt_ide_delay.h"
 
 #include <sys/param.h>
-#include <sys/dkbad.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
@@ -679,35 +675,6 @@ wdstrategy(register struct buf *bp)
 	if (dscheck(bp, du->dk_slices) <= 0)
 		goto done;
 
-	/*
-	 * Check for *any* block on this transfer being on the bad block list
-	 * if it is, then flag the block as a transfer that requires
-	 * bad block handling.  Also, used as a hint for low level disksort
-	 * clustering code to keep from coalescing a bad transfer into
-	 * a normal transfer.  Single block transfers for a large number of
-	 * blocks associated with a cluster I/O are undesirable.
-	 *
-	 * XXX the old disksort() doesn't look at B_BAD.  Coalescing _is_
-	 * desirable.  We should split the results at bad blocks just
-	 * like we should split them at MAXTRANSFER boundaries.
-	 */
-	if (dsgetbad(bp->b_dev, du->dk_slices) != NULL) {
-		long *badsect = dsgetbad(bp->b_dev, du->dk_slices)->bi_bad;
-		int i;
-		int nsecs = howmany(bp->b_bcount, DEV_BSIZE);
-		/* XXX pblkno is too physical. */
-		daddr_t nspblkno = bp->b_pblkno
-		    - du->dk_slices->dss_slices[dkslice(bp->b_dev)].ds_offset;
-		int blkend = nspblkno + nsecs;
-
-		for (i = 0; badsect[i] != -1 && badsect[i] < blkend; i++) {
-			if (badsect[i] >= nspblkno) {
-				bp->b_flags |= B_BAD;
-				break;
-			}
-		}
-	}
-
 	/* queue transfer on drive, activate drive and controller if idle */
 	s = splbio();
 
@@ -862,16 +829,6 @@ wdstart(int ctrlr)
 		     */
 		    || howmany(du->dk_bc, DEV_BSIZE) > MAXTRANSFER)
 			du->dk_flags |= DKFL_SINGLE;
-	}
-
-	if (du->dk_flags & DKFL_SINGLE
-	    && dsgetbad(bp->b_dev, du->dk_slices) != NULL) {
-		/* XXX */
-		u_long ds_offset =
-		    du->dk_slices->dss_slices[dkslice(bp->b_dev)].ds_offset;
-
-		blknum = transbad144(dsgetbad(bp->b_dev, du->dk_slices),
-				     blknum - ds_offset) + ds_offset;
 	}
 
 	wdtab[ctrlr].b_active = 1;	/* mark controller active */
@@ -1171,10 +1128,7 @@ oops:
 			goto outt;
 		}
 
-		if (du->dk_flags & DKFL_BADSCAN) {
-			bp->b_error = EIO;
-			bp->b_flags |= B_ERROR;
-		} else if (du->dk_status & WDCS_ERR) {
+		if (du->dk_status & WDCS_ERR) {
 			if (++wdtab[unit].b_errcnt < RETRIES) {
 				wdtab[unit].b_active = 0;
 			} else {
@@ -1389,9 +1343,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		    &du->dk_dd);
 		/* XXX check value returned by wdwsetctlr(). */
 		wdwsetctlr(du);
-		if (msg == NULL && du->dk_dd.d_flags & D_BADSECT)
-			msg = readbad144(dkmodpart(dev, RAW_PART),
-			    &du->dk_dd, &du->dk_bad);
 		du->dk_flags &= ~DKFL_LABELLING;
 		if (msg != NULL) {
 			log(LOG_WARNING, "wd%d: cannot find label (%s)\n",
@@ -2078,17 +2029,7 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
 #endif
-	switch (cmd) {
-	case DIOCSBADSCAN:
-		if (*(int *)addr)
-			du->dk_flags |= DKFL_BADSCAN;
-		else
-			du->dk_flags &= ~DKFL_BADSCAN;
-		return (0);
-
-	default:
-		return (ENOTTY);
-	}
+	return (ENOTTY);
 }
 
 int
@@ -2205,29 +2146,6 @@ wddump(dev_t dev)
 		 * sector is bad, then reduce reduce the transfer to
 		 * avoid any bad sectors.
 		 */
-		if (du->dk_flags & DKFL_SINGLE
-		    && dsgetbad(dev, du->dk_slices) != NULL) {
-		  for (blkchk = blknum; blkchk < blknum + blkcnt; blkchk++) {
-			daddr_t blknew;
-			blknew = transbad144(dsgetbad(dev, du->dk_slices),
-					     blkchk - ds_offset) + ds_offset;
-			if (blknew != blkchk) {
-				/* Found bad block. */
-				blkcnt = blkchk - blknum;
-				if (blkcnt > 0) {
-					blknext = blknum + blkcnt;
-					goto out;
-				}
-				blkcnt = 1;
-				blknext = blknum + blkcnt;
-#if 1 || defined(WDDEBUG)
-				printf("bad block %ld -> %ld\n",
-				   (long)blknum, (long)blknew);
-#endif
-				break;
-			}
-		    }
-		}
 out:
 
 		/* Compute disk address. */

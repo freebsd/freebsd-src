@@ -35,7 +35,6 @@
  * - NetBSD libi386/biosdisk.c
  * - FreeBSD biosboot/disk.c
  *
- * XXX Todo: add bad144 support.
  */
 
 #include <stand.h>

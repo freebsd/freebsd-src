@@ -363,7 +363,7 @@ loadprog(void)
 	 * because no str*() functions are available.  The file has to be
 	 * copied to &disklabel for userconfig.  It can't be loaded there
 	 * directly because the label is used late in readfile() in some
-	 * unusual cases, e.g., for bad144 handling.
+	 * unusual cases.
 	 */
 	s = name;
 	t = kernel_config_namebuf;
