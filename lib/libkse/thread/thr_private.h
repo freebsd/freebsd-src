@@ -1161,7 +1161,7 @@ SCLASS int	_thread_kern_new_state
 /* Undefine the storage class specifier: */
 #undef  SCLASS
 
-#ifdef	_LOCK_DEBUG
+#ifdef _LOCK_DEBUG
 #define	_FD_LOCK(_fd,_type,_ts)		_thread_fd_lock_debug(_fd, _type, \
 						_ts, __FILE__, __LINE__)
 #define _FD_UNLOCK(_fd,_type)		_thread_fd_unlock_debug(_fd, _type, \
@@ -1254,116 +1254,17 @@ void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
 
+/* #include <sys/acl.h> */
+#ifdef _SYS_ACL_H
+int	__sys___acl_aclcheck_fd(int, acl_type_t, struct acl *);
+int	__sys___acl_delete_fd(int, acl_type_t);
+int	__sys___acl_get_fd(int, acl_type_t, struct acl *);
+int	__sys___acl_set_fd(int, acl_type_t, struct acl *);
+#endif
+
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
 int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
-#endif
-
-/* #include <signal.h> */
-#ifdef _SIGNAL_H_
-int     __sys_sigaction(int, const struct sigaction *, struct sigaction *);
-int     __sys_sigprocmask(int, const sigset_t *, sigset_t *);
-int     __sys_sigreturn(ucontext_t *);
-int     __sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
-#endif
-
-/* #include <sys/stat.h> */
-#ifdef  _SYS_STAT_H_
-int     __sys_fchmod(int, mode_t);
-int     __sys_fstat(int, struct stat *);
-int     __sys_fchflags(int, u_long);
-#endif
-
-/* #include <sys/mount.h> */
-#ifdef  _SYS_MOUNT_H_
-int     __sys_fstatfs(int, struct statfs *);
-#endif
-
-/* #inclde <sys/event.h> */
-#ifdef	_SYS_EVENT_H_
-int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
-	    int, const struct timespec *);
-#endif
-
-/* #include <sys/socket.h> */
-#ifdef  _SYS_SOCKET_H_
-int	__sys_accept(int, struct sockaddr *, socklen_t *);
-int	__sys_bind(int, const struct sockaddr *, socklen_t);
-int	__sys_connect(int, const struct sockaddr *, socklen_t);
-int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
-int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
-int	__sys_getsockopt(int, int, int, void *, socklen_t *);
-int     __sys_listen(int, int);
-int	__sys_setsockopt(int, int, int, const void *, socklen_t);
-int     __sys_shutdown(int, int);
-int     __sys_socket(int, int, int);
-int     __sys_socketpair(int, int, int, int *);
-ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
-ssize_t __sys_recvmsg(int, struct msghdr *, int);
-int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
-ssize_t __sys_sendmsg(int, const struct msghdr *, int);
-ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
-#endif
-
-/* #include <unistd.h> */
-#ifdef  _UNISTD_H_
-int     __sys_close(int);
-int     __sys_dup(int);
-int     __sys_dup2(int, int);
-int     __sys_execve(const char *, char * const *, char * const *);
-int     __sys_fchown(int, uid_t, gid_t);
-pid_t	__sys_fork(void);
-int     __sys_fsync(int);
-int	__sys_pipe(int *);
-long    __sys_fpathconf(int, int);
-ssize_t __sys_read(int, void *, size_t);
-ssize_t __sys_write(int, const void *, size_t);
-void	__sys_exit(int);
-#endif
-
-/* #include <fcntl.h> */
-#ifdef  _SYS_FCNTL_H_
-int     __sys_fcntl(int, int, ...);
-int     __sys_flock(int, int);
-int     __sys_open(const char *, int, ...);
-#endif
-
-/* #include <sys/ioctl.h> */
-#ifdef  _SYS_IOCTL_H_
-int     __sys_ioctl(int, unsigned long, ...);
-#endif
-
-/* #include <dirent.h> */
-#ifdef  _DIRENT_H_
-int     __sys_getdirentries(int, char *, int, long *);
-#endif
-
-/* #include <sys/uio.h> */
-#ifdef  _SYS_UIO_H_
-ssize_t __sys_readv(int, const struct iovec *, int);
-ssize_t __sys_writev(int, const struct iovec *, int);
-#endif
-
-/* #include <sys/wait.h> */
-#ifdef  WNOHANG
-pid_t   __sys_wait4(pid_t, int *, int, struct rusage *);
-#endif
-
-/* #include <poll.h> */
-#ifdef _SYS_POLL_H_
-int 	__sys_poll(struct pollfd *, unsigned, int);
-#endif
-
-/* #include <sys/mman.h> */
-#ifdef _SYS_MMAN_H_
-int	__sys_msync(void *, size_t, int);
-#endif
-
-/* #include <setjmp.h> */
-#ifdef _SETJMP_H_
-extern void	__siglongjmp(sigjmp_buf, int) __dead2;
-extern void	__longjmp(jmp_buf, int) __dead2;
-extern void	___longjmp(jmp_buf, int) __dead2;
 #endif
 
 /* #include <sys/capability.h> */
@@ -1372,12 +1273,111 @@ int	__sys___cap_get_fd(int, struct cap *);
 int	__sys___cap_set_fd(int, struct cap *);
 #endif
 
-/* #include <sys/acl.h> */
-#ifdef _SYS_ACL_H
-int	__sys___acl_aclcheck_fd(int, acl_type_t, struct acl *);
-int	__sys___acl_delete_fd(int, acl_type_t);
-int	__sys___acl_get_fd(int, acl_type_t, struct acl *);
-int	__sys___acl_set_fd(int, acl_type_t, struct acl *);
+/* #include <sys/event.h> */
+#ifdef _SYS_EVENT_H_
+int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
+	    int, const struct timespec *);
+#endif
+
+/* #include <sys/ioctl.h> */
+#ifdef _SYS_IOCTL_H_
+int	__sys_ioctl(int, unsigned long, ...);
+#endif
+
+/* #include <sys/mman.h> */
+#ifdef _SYS_MMAN_H_
+int	__sys_msync(void *, size_t, int);
+#endif
+
+/* #include <sys/mount.h> */
+#ifdef _SYS_MOUNT_H_
+int	__sys_fstatfs(int, struct statfs *);
+#endif
+
+/* #include <sys/socket.h> */
+#ifdef _SYS_SOCKET_H_
+int	__sys_accept(int, struct sockaddr *, socklen_t *);
+int	__sys_bind(int, const struct sockaddr *, socklen_t);
+int	__sys_connect(int, const struct sockaddr *, socklen_t);
+int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
+int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
+int	__sys_getsockopt(int, int, int, void *, socklen_t *);
+int	__sys_listen(int, int);
+ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+ssize_t	__sys_recvmsg(int, struct msghdr *, int);
+int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
+ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
+int	__sys_setsockopt(int, int, int, const void *, socklen_t);
+int	__sys_shutdown(int, int);
+int	__sys_socket(int, int, int);
+int	__sys_socketpair(int, int, int, int *);
+#endif
+
+/* #include <sys/stat.h> */
+#ifdef _SYS_STAT_H_
+int	__sys_fchflags(int, u_long);
+int	__sys_fchmod(int, mode_t);
+int	__sys_fstat(int, struct stat *);
+#endif
+
+/* #include <sys/uio.h> */
+#ifdef _SYS_UIO_H_
+ssize_t	__sys_readv(int, const struct iovec *, int);
+ssize_t	__sys_writev(int, const struct iovec *, int);
+#endif
+
+/* #include <sys/wait.h> */
+#ifdef WNOHANG
+pid_t	__sys_wait4(pid_t, int *, int, struct rusage *);
+#endif
+
+/* #include <dirent.h> */
+#ifdef _DIRENT_H_
+int	__sys_getdirentries(int, char *, int, long *);
+#endif
+
+/* #include <fcntl.h> */
+#ifdef _SYS_FCNTL_H_
+int	__sys_fcntl(int, int, ...);
+int	__sys_flock(int, int);
+int	__sys_open(const char *, int, ...);
+#endif
+
+/* #include <poll.h> */
+#ifdef _SYS_POLL_H_
+int	__sys_poll(struct pollfd *, unsigned, int);
+#endif
+
+/* #include <signal.h> */
+#ifdef _SIGNAL_H_
+int	__sys_sigaction(int, const struct sigaction *, struct sigaction *);
+int	__sys_sigaltstack(const struct sigaltstack *, struct sigaltstack *);
+int	__sys_sigprocmask(int, const sigset_t *, sigset_t *);
+int	__sys_sigreturn(ucontext_t *);
+#endif
+
+/* #include <unistd.h> */
+#ifdef _UNISTD_H_
+int	__sys_close(int);
+int	__sys_dup(int);
+int	__sys_dup2(int, int);
+int	__sys_execve(const char *, char * const *, char * const *);
+void	__sys_exit(int);
+int	__sys_fchown(int, uid_t, gid_t);
+pid_t	__sys_fork(void);
+long	__sys_fpathconf(int, int);
+int	__sys_fsync(int);
+int	__sys_pipe(int *);
+ssize_t	__sys_read(int, void *, size_t);
+ssize_t	__sys_write(int, const void *, size_t);
+#endif
+
+/* #include <setjmp.h> */
+#ifdef _SETJMP_H_
+extern void	__siglongjmp(sigjmp_buf, int) __dead2;
+extern void	__longjmp(jmp_buf, int) __dead2;
+extern void	___longjmp(jmp_buf, int) __dead2;
 #endif
 __END_DECLS
 
