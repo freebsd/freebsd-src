@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.32 1996/04/07 17:39:08 bde Exp $ */
+/* $Id: if_ppp.c,v 1.33 1996/04/13 12:45:33 bde Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -258,6 +258,7 @@ pppdealloc(sc)
 
     if_down(&sc->sc_if);
     sc->sc_if.if_flags &= ~(IFF_UP|IFF_RUNNING);
+    sc->sc_if.if_lastchange = time;
     sc->sc_devp = NULL;
     sc->sc_xfer = 0;
     for (;;) {
@@ -737,7 +738,6 @@ pppoutput(ifp, m0, dst, rtp)
 	IF_ENQUEUE(ifq, m0);
 	(*sc->sc_start)(sc);
     }
-    sc->sc_if.if_lastchange = time;
 
     splx(s);
     return (0);
@@ -1152,7 +1152,6 @@ ppp_inproc(sc, m)
     u_int hlen;
 
     sc->sc_if.if_ipackets++;
-    sc->sc_if.if_lastchange = time;
 
     if (sc->sc_flags & SC_LOG_INPKT) {
 	printf("ppp%d: got %d bytes\n", sc->sc_if.if_unit, ilen);
