@@ -203,6 +203,8 @@ vm_offset_t	msgbuf_phys;
 vm_offset_t avail_start;
 vm_offset_t avail_end;
 
+int pmap_pagedaemon_waken;
+
 /*
  * Map of physical memory regions.
  */
@@ -317,7 +319,7 @@ static void		pmap_pa_map(struct pvo_entry *, vm_offset_t,
 static void		pmap_pa_unmap(struct pvo_entry *, struct pte *, int *);
 static void		pmap_syncicache(vm_offset_t, vm_size_t);
 static boolean_t	pmap_query_bit(vm_page_t, int);
-static boolean_t	pmap_clear_bit(vm_page_t, int);
+static u_int		pmap_clear_bit(vm_page_t, int, int *);
 static void		tlbia(void);
 
 static __inline int
@@ -862,15 +864,6 @@ pmap_change_wiring(pmap_t pm, vm_offset_t va, boolean_t wired)
 }
 
 void
-pmap_clear_modify(vm_page_t m)
-{
-
-	if (m->flags * PG_FICTITIOUS)
-		return;
-	pmap_clear_bit(m, PTE_CHG);
-}
-
-void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	  vm_size_t len, vm_offset_t src_addr)
 {
@@ -900,8 +893,7 @@ void
 pmap_zero_page(vm_page_t m)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
-	caddr_t	va;
-	int	i;
+	caddr_t va;
 
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
@@ -916,13 +908,6 @@ pmap_zero_page(vm_page_t m)
 
 	bzero(va, PAGE_SIZE);
 
-#if 0
-	for (i = PAGE_SIZE / CACHELINESIZE; i > 0; i--) {
-		__asm __volatile("dcbz 0,%0" :: "r"(va));
-		va += CACHELINESIZE;
-	}
-#endif
-
 	if (pa >= SEGMENT_LENGTH)
 		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
 }
@@ -932,7 +917,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 {
 	vm_offset_t pa = VM_PAGE_TO_PHYS(m);
 	caddr_t va;
-	int     i;
 
 	if (pa < SEGMENT_LENGTH) {
 		va = (caddr_t) pa;
@@ -946,13 +930,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	}
 
 	bzero(va + off, size);
-
-#if 0
-	for (i = size / CACHELINESIZE; i > 0; i--) {
-		__asm __volatile("dcbz 0,%0" :: "r"(va));
-		va += CACHELINESIZE;
-	}
-#endif
 
 	if (pa >= SEGMENT_LENGTH)
 		pmap_pa_unmap(pmap_pvo_zeropage, NULL, NULL);
@@ -991,7 +968,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pg = NULL;
 		was_exec = PTE_EXEC;
 	} else {
-		pvo_head = pa_to_pvoh(VM_PAGE_TO_PHYS(m), &pg);
+		pvo_head = vm_page_to_pvoh(m);
+		pg = m;
 		zone = pmap_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
 		was_exec = 0;
@@ -1106,7 +1084,7 @@ boolean_t
 pmap_is_modified(vm_page_t m)
 {
 
-	if (m->flags & PG_FICTITIOUS)
+	if ((m->flags & (PG_FICTITIOUS |PG_UNMANAGED)) != 0)
 		return (FALSE);
 
 	return (pmap_query_bit(m, PTE_CHG));
@@ -1115,7 +1093,19 @@ pmap_is_modified(vm_page_t m)
 void
 pmap_clear_reference(vm_page_t m)
 {
-	TODO;
+
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return;
+	pmap_clear_bit(m, PTE_REF, NULL);
+}
+
+void
+pmap_clear_modify(vm_page_t m)
+{
+
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return;
+	pmap_clear_bit(m, PTE_CHG, NULL);
 }
 
 /*
@@ -1130,12 +1120,17 @@ pmap_clear_reference(vm_page_t m)
  *	should be tested and standardized at some point in the future for
  *	optimal aging of shared pages.
  */
-
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	TODO;
-	return (0);
+	int count;
+
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+		return (0);
+
+	count = pmap_clear_bit(m, PTE_REF, NULL);
+
+	return (count);
 }
 
 /*
@@ -1315,8 +1310,21 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 boolean_t
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
-	TODO;
-	return (0);
+        int loops;
+	struct pvo_entry *pvo;
+
+        if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
+                return FALSE;
+
+	loops = 0;
+	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
+		if (pvo->pvo_pmap == pmap)
+			return (TRUE);
+		if (++loops >= 16)
+			break;
+	}
+
+	return (FALSE);
 }
 
 static u_int	pmap_vsidcontext;
@@ -1457,12 +1465,16 @@ pmap_phys_address(int ppn)
  * references recorded.  Existing mappings in the region are overwritten.
  */
 void
-pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
+pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
-	int	i;
+	vm_offset_t va;
 
-	for (i = 0; i < count; i++, va += PAGE_SIZE)
-		pmap_kenter(va, VM_PAGE_TO_PHYS(m[i]));
+	va = sva;
+	while (count-- > 0) {
+		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
+		va += PAGE_SIZE;
+		m++;
+	}
 }
 
 /*
@@ -1470,12 +1482,15 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
  * temporary mappings entered by pmap_qenter.
  */
 void
-pmap_qremove(vm_offset_t va, int count)
+pmap_qremove(vm_offset_t sva, int count)
 {
-	int	i;
+	vm_offset_t va;
 
-	for (i = 0; i < count; i++, va += PAGE_SIZE)
+	va = sva;
+	while (count-- > 0) {
 		pmap_kremove(va);
+		va += PAGE_SIZE;
+	}
 }
 
 void
@@ -1510,6 +1525,30 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 			pmap_pvo_remove(pvo, pteidx);
 		}
 	}
+}
+
+/*
+ * Remove physical page from all pmaps in which it resides. pmap_pvo_remove()
+ * will reflect changes in pte's back to the vm_page.
+ */
+void
+pmap_remove_all(vm_page_t m)
+{
+	struct  pvo_head *pvo_head;
+	struct	pvo_entry *pvo, *next_pvo;
+
+	KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
+	    ("pv_remove_all: illegal for unmanaged page %#x",
+	    VM_PAGE_TO_PHYS(m)));
+	
+	pvo_head = vm_page_to_pvoh(m);
+	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
+		next_pvo = LIST_NEXT(pvo, pvo_vlink);
+		
+		PMAP_PVO_CHECK(pvo);	/* sanity check */
+		pmap_pvo_remove(pvo, -1);
+	}
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 /*
@@ -1581,9 +1620,11 @@ pmap_new_thread(struct thread *td, int pages)
 		    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 		ma[i] = m;
 
+                vm_page_lock_queues();
 		vm_page_wakeup(m);
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
+		vm_page_unlock_queues();
 	}
 
 	/*
@@ -1979,7 +2020,7 @@ pmap_pvo_remove(struct pvo_entry *pvo, int pteidx)
 		PVO_PTEGIDX_CLR(pvo);
 	} else {
 		pmap_pte_overflow--;
-	}
+	}	
 
 	/*
 	 * Update our statistics.
@@ -2328,9 +2369,10 @@ pmap_query_bit(vm_page_t m, int ptebit)
 	return (TRUE);
 }
 
-static boolean_t
-pmap_clear_bit(vm_page_t m, int ptebit)
+static u_int
+pmap_clear_bit(vm_page_t m, int ptebit, int *origbit)
 {
+	u_int	count;
 	struct	pvo_entry *pvo;
 	struct	pte *pt;
 	int	rv;
@@ -2354,20 +2396,27 @@ pmap_clear_bit(vm_page_t m, int ptebit)
 	 * For each pvo entry, clear the pvo's ptebit.  If this pvo has a
 	 * valid pte clear the ptebit from the valid pte.
 	 */
+	count = 0;
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 		pt = pmap_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
 			pmap_pte_synch(pt, &pvo->pvo_pte);
-			if (pvo->pvo_pte.pte_lo & ptebit)
+			if (pvo->pvo_pte.pte_lo & ptebit) {
+				count++;
 				pmap_pte_clear(pt, PVO_VADDR(pvo), ptebit);
+			}
 		}
 		rv |= pvo->pvo_pte.pte_lo;
 		pvo->pvo_pte.pte_lo &= ~ptebit;
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 	}
 
-	return ((rv & ptebit) != 0);
+	if (origbit != NULL) {
+		*origbit = rv;
+	}
+
+	return (count);
 }
 
 /*
