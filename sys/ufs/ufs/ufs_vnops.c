@@ -570,7 +570,7 @@ ufs_chown(vp, uid, gid, cred, p)
 	 * the caller must be superuser or the call fails.
 	 */
 	if ((cred->cr_uid != ip->i_uid || uid != ip->i_uid ||
-	    (gid != ip->i_gid && !groupmember((gid_t)gid, cred))) &&
+	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
 	    (error = suser_xxx(cred, p, PRISON_ROOT)))
 		return (error);
 	ogid = ip->i_gid;
