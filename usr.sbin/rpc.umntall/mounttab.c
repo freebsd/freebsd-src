@@ -151,6 +151,11 @@ write_mtab() {
 		    strlen(mtabp->mtab_host) > 0) {
 			fprintf(mtabfile, "%ld\t%s\t%s\n", mtabp->mtab_time,
 			    mtabp->mtab_host, mtabp->mtab_dirp);
+			if (verbose) {
+				warnx("write entry " "%s:%s",
+				    mtabp->mtab_host, mtabp->mtab_dirp);
+			}
+			clean_mtab(mtabp->mtab_host, mtabp->mtab_dirp);
 			line++;
 		}		
 	}
@@ -178,14 +183,14 @@ clean_mtab(char *hostp, char *dirp) {
 		    strcmp(mtabp->mtab_host, host) == 0) {
 			if (dirp == NULL) {
 				if (verbose) {
-					warnx("entries deleted for "
+					warnx("delete entries "
 					    "host %s", host);
 				}
 				bzero(mtabp->mtab_host, RPCMNT_NAMELEN);
 			} else {
 				if (strcmp(mtabp->mtab_dirp, dirp) == 0) {
 					if (verbose) {
-						warnx("entry deleted for "
+						warnx("delete entry "
 						    "%s:%s", host, dirp);
 					}
 					bzero(mtabp->mtab_host, RPCMNT_NAMELEN);
@@ -217,5 +222,5 @@ free_mtab() {
 void
 badline(char *bad) {
 
-	syslog(LOG_ERR, "skipped bad line in mounttab with entry %s", bad);
+	syslog(LOG_ERR, "skip bad line in mounttab with entry %s", bad);
 }
