@@ -131,14 +131,17 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 PROG=	${KMOD}.ko
 .endif
 
-${PROG}: ${OBJS} ${DPADD} ${KMODDEPS}
+${PROG}: ${KMOD}.kld ${KMODDEPS}
+	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${KMOD}.kld ${KMODDEPS}
+
+${KMOD}.kld: ${OBJS}
 .if ${OBJFORMAT} == elf
 	gensetdefs ${OBJS}
 	${CC} ${CFLAGS} -c setdef0.c
 	${CC} ${CFLAGS} -c setdef1.c
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${OBJS} setdef1.o  ${KMODDEPS}
+	${LD} ${LDFLAGS} -r -o ${.TARGET} setdef0.o ${OBJS} setdef1.o
 .else
-	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${OBJS} ${KMODDEPS}
+	${LD} ${LDFLAGS} -r -o ${.TARGET} ${OBJS}
 .endif
 
 .if defined(KMODDEPS)
@@ -193,7 +196,7 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
 
-CLEANFILES+= ${PROG} ${OBJS} ${_ILINKS} symb.tmp tmp.o
+CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS} symb.tmp tmp.o
 
 .if !target(install)
 .if !target(beforeinstall)
