@@ -750,28 +750,28 @@ static void
 g_concat_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
     struct g_consumer *cp, struct g_provider *pp)
 {
-        struct g_concat_softc *sc;
+	struct g_concat_softc *sc;
 
-        sc = gp->softc;
-        if (sc == NULL)
-                return;
-        if (gp != NULL) {
-                sbuf_printf(sb, "%s<id>%zu</id>\n", indent, sc->sc_id);
+	sc = gp->softc;
+	if (sc == NULL)
+		return;
+	if (pp == NULL && cp == NULL) {
+		sbuf_printf(sb, "%s<id>%zu</id>\n", indent, sc->sc_id);
 		switch (sc->sc_type) {
 		case G_CONCAT_TYPE_AUTOMATIC:
-                	sbuf_printf(sb, "%s<type>%s</type>\n", indent,
+			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    "automatic");
 			break;
 		case G_CONCAT_TYPE_MANUAL:
-                	sbuf_printf(sb, "%s<type>%s</type>\n", indent,
+			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    "manual");
 			break;
 		default:
-                	sbuf_printf(sb, "%s<type>%s</type>\n", indent,
+			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    "unknown");
 			break;
 		}
-        }
+	}
 }
 
 DECLARE_GEOM_CLASS(g_concat_class, g_concat);
