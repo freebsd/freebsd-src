@@ -87,7 +87,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/eventhandler.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -110,9 +109,17 @@
 #include <machine/bus_pio.h>
 #include <machine/bus_memio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
+
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+
+#include "miibus_if.h"
 
 /*
  * Default to using PIO access for this driver. On SMP systems,
@@ -148,37 +155,22 @@ static struct rl_type rl_devs[] = {
 	{ 0, 0, NULL }
 };
 
-/*
- * Various supported PHY vendors/types and their names. Note that
- * this driver will work with pretty much any MII-compliant PHY,
- * so failure to positively identify the chip is not a fatal error.
- */
-
-static struct rl_type rl_phys[] = {
-	{ TI_PHY_VENDORID, TI_PHY_10BT, "<TI ThunderLAN 10BT (internal)>" },
-	{ TI_PHY_VENDORID, TI_PHY_100VGPMI, "<TI TNETE211 100VG Any-LAN>" },
-	{ NS_PHY_VENDORID, NS_PHY_83840A, "<National Semiconductor DP83840A>"},
-	{ LEVEL1_PHY_VENDORID, LEVEL1_PHY_LXT970, "<Level 1 LXT970>" }, 
-	{ INTEL_PHY_VENDORID, INTEL_PHY_82555, "<Intel 82555>" },
-	{ SEEQ_PHY_VENDORID, SEEQ_PHY_80220, "<SEEQ 80220>" },
-	{ 0, 0, "<MII-compliant physical interface>" }
-};
-
-static unsigned long rl_count = 0;
-static const char *rl_probe	__P((pcici_t, pcidi_t));
-static void rl_attach		__P((pcici_t, int));
+static int rl_probe		__P((device_t));
+static int rl_attach		__P((device_t));
+static int rl_detach		__P((device_t));
 
 static int rl_encap		__P((struct rl_softc *, struct mbuf * ));
 
 static void rl_rxeof		__P((struct rl_softc *));
 static void rl_txeof		__P((struct rl_softc *));
 static void rl_intr		__P((void *));
+static void rl_tick		__P((void *));
 static void rl_start		__P((struct ifnet *));
 static int rl_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void rl_init		__P((void *));
 static void rl_stop		__P((struct rl_softc *));
 static void rl_watchdog		__P((struct ifnet *));
-static void rl_shutdown		__P((void *, int));
+static void rl_shutdown		__P((device_t));
 static int rl_ifmedia_upd	__P((struct ifnet *));
 static void rl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -191,17 +183,52 @@ static void rl_mii_send		__P((struct rl_softc *, u_int32_t, int));
 static int rl_mii_readreg	__P((struct rl_softc *, struct rl_mii_frame *));
 static int rl_mii_writereg	__P((struct rl_softc *, struct rl_mii_frame *));
 
-static u_int16_t rl_phy_readreg	__P((struct rl_softc *, int));
-static void rl_phy_writereg	__P((struct rl_softc *, int, int));
+static int rl_miibus_readreg	__P((device_t, int, int));
+static int rl_miibus_writereg	__P((device_t, int, int, int));
+static void rl_miibus_statchg	__P((device_t));
 
-static void rl_autoneg_xmit	__P((struct rl_softc *));
-static void rl_autoneg_mii	__P((struct rl_softc *, int, int));
-static void rl_setmode_mii	__P((struct rl_softc *, int));
-static void rl_getmode_mii	__P((struct rl_softc *));
 static u_int8_t rl_calchash	__P((caddr_t));
 static void rl_setmulti		__P((struct rl_softc *));
 static void rl_reset		__P((struct rl_softc *));
 static int rl_list_tx_init	__P((struct rl_softc *));
+
+#ifdef RL_USEIOSPACE
+#define RL_RES			SYS_RES_IOPORT
+#define RL_RID			RL_PCI_LOIO
+#else
+#define RL_RES			SYS_RES_MEMORY
+#define RL_RID			RL_PCI_LOMEM
+#endif
+
+static device_method_t rl_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		rl_probe),
+	DEVMETHOD(device_attach,	rl_attach),
+	DEVMETHOD(device_detach,	rl_detach),
+	DEVMETHOD(device_shutdown,	rl_shutdown),
+
+	/* bus interface */
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+
+	/* MII interface */
+	DEVMETHOD(miibus_readreg,	rl_miibus_readreg),
+	DEVMETHOD(miibus_writereg,	rl_miibus_writereg),
+	DEVMETHOD(miibus_statchg,	rl_miibus_statchg),
+
+	{ 0, 0 }
+};
+
+static driver_t rl_driver = {
+	"rl",
+	rl_methods,
+	sizeof(struct rl_softc)
+};
+
+static devclass_t rl_devclass;
+
+DRIVER_MODULE(rl, pci, rl_driver, rl_devclass, 0, 0);
+DRIVER_MODULE(miibus, rl, miibus_driver, miibus_devclass, 0, 0);
 
 #define EE_SET(x)					\
 	CSR_WRITE_1(sc, RL_EECMD,			\
@@ -509,27 +536,40 @@ static int rl_mii_writereg(sc, frame)
 	return(0);
 }
 
-static u_int16_t rl_phy_readreg(sc, reg)
-	struct rl_softc		*sc;
-	int			reg;
+static int rl_miibus_readreg(dev, phy, reg)
+	device_t		dev;
+	int			phy, reg;
 {
+	struct rl_softc		*sc;
 	struct rl_mii_frame	frame;
 	u_int16_t		rval = 0;
 	u_int16_t		rl8139_reg = 0;
 
+	sc = device_get_softc(dev);
+
 	if (sc->rl_type == RL_8139) {
+		/* Pretend the internal PHY is only at address 0 */
+		if (phy)
+			return(0);
 		switch(reg) {
-		case PHY_BMCR:
+		case MII_BMCR:
 			rl8139_reg = RL_BMCR;
 			break;
-		case PHY_BMSR:
+		case MII_BMSR:
 			rl8139_reg = RL_BMSR;
 			break;
-		case PHY_ANAR:
+		case MII_ANAR:
 			rl8139_reg = RL_ANAR;
 			break;
-		case PHY_LPAR:
+		case MII_ANER:
+			rl8139_reg = RL_ANER;
+			break;
+		case MII_ANLPAR:
 			rl8139_reg = RL_LPAR;
+			break;
+		case MII_PHYIDR1:
+		case MII_PHYIDR2:
+			return(0);
 			break;
 		default:
 			printf("rl%d: bad phy register\n", sc->rl_unit);
@@ -541,51 +581,69 @@ static u_int16_t rl_phy_readreg(sc, reg)
 
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = sc->rl_phy_addr;
+	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	rl_mii_readreg(sc, &frame);
 
 	return(frame.mii_data);
 }
 
-static void rl_phy_writereg(sc, reg, data)
-	struct rl_softc		*sc;
-	int			reg;
-	int			data;
+static int rl_miibus_writereg(dev, phy, reg, data)
+	device_t		dev;
+	int			phy, reg, data;
 {
+	struct rl_softc		*sc;
 	struct rl_mii_frame	frame;
 	u_int16_t		rl8139_reg = 0;
 
+	sc = device_get_softc(dev);
+
 	if (sc->rl_type == RL_8139) {
+		/* Pretend the internal PHY is only at address 0 */
+		if (phy)
+			return(0);
 		switch(reg) {
-		case PHY_BMCR:
+		case MII_BMCR:
 			rl8139_reg = RL_BMCR;
 			break;
-		case PHY_BMSR:
+		case MII_BMSR:
 			rl8139_reg = RL_BMSR;
 			break;
-		case PHY_ANAR:
+		case MII_ANAR:
 			rl8139_reg = RL_ANAR;
 			break;
-		case PHY_LPAR:
+		case MII_ANER:
+			rl8139_reg = RL_ANER;
+			break;
+		case MII_ANLPAR:
 			rl8139_reg = RL_LPAR;
+			break;
+		case MII_PHYIDR1:
+		case MII_PHYIDR2:
+			return(0);
 			break;
 		default:
 			printf("rl%d: bad phy register\n", sc->rl_unit);
-			return;
+			return(0);
 		}
 		CSR_WRITE_2(sc, rl8139_reg, data);
-		return;
+		return(0);
 	}
 
 	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = sc->rl_phy_addr;
+	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
 	rl_mii_writereg(sc, &frame);
 
+	return(0);
+}
+
+static void rl_miibus_statchg(dev)
+	device_t		dev;
+{
 	return;
 }
 
@@ -671,292 +729,6 @@ static void rl_setmulti(sc)
 	return;
 }
 
-/*
- * Initiate an autonegotiation session.
- */
-static void rl_autoneg_xmit(sc)
-	struct rl_softc		*sc;
-{
-	u_int16_t		phy_sts;
-
-	rl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-	DELAY(500);
-	while(rl_phy_readreg(sc, PHY_BMCR)
-			& PHY_BMCR_RESET);
-
-	phy_sts = rl_phy_readreg(sc, PHY_BMCR);
-	phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
-	rl_phy_writereg(sc, PHY_BMCR, phy_sts);
-
-	return;
-}
-
-/*
- * Invoke autonegotiation on a PHY. Also used with the 8139 internal
- * transceiver.
- */
-static void rl_autoneg_mii(sc, flag, verbose)
-	struct rl_softc		*sc;
-	int			flag;
-	int			verbose;
-{
-	u_int16_t		phy_sts = 0, media, advert, ability;
-	struct ifnet		*ifp;
-	struct ifmedia		*ifm;
-
-	ifm = &sc->ifmedia;
-	ifp = &sc->arpcom.ac_if;
-
-	/*
-	 * The 100baseT4 PHY sometimes has the 'autoneg supported'
-	 * bit cleared in the status register, but has the 'autoneg enabled'
-	 * bit set in the control register. This is a contradiction, and
-	 * I'm not sure how to handle it. If you want to force an attempt
-	 * to autoneg for 100baseT4 PHYs, #define FORCE_AUTONEG_TFOUR
-	 * and see what happens.
-	 */
-#ifndef FORCE_AUTONEG_TFOUR
-	/*
-	 * First, see if autoneg is supported. If not, there's
-	 * no point in continuing.
-	 */
-	phy_sts = rl_phy_readreg(sc, PHY_BMSR);
-	if (!(phy_sts & PHY_BMSR_CANAUTONEG)) {
-		if (verbose)
-			printf("rl%d: autonegotiation not supported\n",
-							sc->rl_unit);
-		return;
-	}
-#endif
-
-	switch (flag) {
-	case RL_FLAG_FORCEDELAY:
-		/*
-	 	 * XXX Never use this option anywhere but in the probe
-	 	 * routine: making the kernel stop dead in its tracks
- 		 * for three whole seconds after we've gone multi-user
-		 * is really bad manners.
-	 	 */
-		rl_autoneg_xmit(sc);
-		DELAY(5000000);
-		break;
-	case RL_FLAG_SCHEDDELAY:
-		/*
-		 * Wait for the transmitter to go idle before starting
-		 * an autoneg session, otherwise rl_start() may clobber
-	 	 * our timeout, and we don't want to allow transmission
-		 * during an autoneg session since that can screw it up.
-	 	 */
-		if (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx) {
-			sc->rl_want_auto = 1;
-			return;
-		}
-		rl_autoneg_xmit(sc);
-		ifp->if_timer = 5;
-		sc->rl_autoneg = 1;
-		sc->rl_want_auto = 0;
-		return;
-		break;
-	case RL_FLAG_DELAYTIMEO:
-		ifp->if_timer = 0;
-		sc->rl_autoneg = 0;
-		break;
-	default:
-		printf("rl%d: invalid autoneg flag: %d\n", sc->rl_unit, flag);
-		return;
-	}
-
-	if (rl_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_AUTONEGCOMP) {
-		if (verbose)
-			printf("rl%d: autoneg complete, ", sc->rl_unit);
-		phy_sts = rl_phy_readreg(sc, PHY_BMSR);
-	} else {
-		if (verbose)
-			printf("rl%d: autoneg not complete, ", sc->rl_unit);
-	}
-
-	media = rl_phy_readreg(sc, PHY_BMCR);
-
-	/* Link is good. Report modes and set duplex mode. */
-	if (rl_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT) {
-		if (verbose)
-			printf("link status good ");
-		advert = rl_phy_readreg(sc, PHY_ANAR);
-		ability = rl_phy_readreg(sc, PHY_LPAR);
-
-		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(100baseT4)\n");
-		} else if (advert & PHY_ANAR_100BTXFULL &&
-			ability & PHY_ANAR_100BTXFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-			media |= PHY_BMCR_SPEEDSEL;
-			media |= PHY_BMCR_DUPLEX;
-			printf("(full-duplex, 100Mbps)\n");
-		} else if (advert & PHY_ANAR_100BTXHALF &&
-			ability & PHY_ANAR_100BTXHALF) {
-			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
-			media |= PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(half-duplex, 100Mbps)\n");
-		} else if (advert & PHY_ANAR_10BTFULL &&
-			ability & PHY_ANAR_10BTFULL) {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media |= PHY_BMCR_DUPLEX;
-			printf("(full-duplex, 10Mbps)\n");
-		} else {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(half-duplex, 10Mbps)\n");
-		}
-
-		/* Set ASIC's duplex mode to match the PHY. */
-		rl_phy_writereg(sc, PHY_BMCR, media);
-	} else {
-		if (verbose)
-			printf("no carrier\n");
-	}
-
-	rl_init(sc);
-
-	if (sc->rl_tx_pend) {
-		sc->rl_autoneg = 0;
-		sc->rl_tx_pend = 0;
-		rl_start(ifp);
-	}
-
-	return;
-}
-
-static void rl_getmode_mii(sc)
-	struct rl_softc		*sc;
-{
-	u_int16_t		bmsr;
-	struct ifnet		*ifp;
-
-	ifp = &sc->arpcom.ac_if;
-
-	bmsr = rl_phy_readreg(sc, PHY_BMSR);
-	if (bootverbose)
-		printf("rl%d: PHY status word: %x\n", sc->rl_unit, bmsr);
-
-	/* fallback */
-	sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-
-	if (bmsr & PHY_BMSR_10BTHALF) {
-		if (bootverbose)
-			printf("rl%d: 10Mbps half-duplex mode supported\n",
-								sc->rl_unit);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_10_T, 0, NULL);
-	}
-
-	if (bmsr & PHY_BMSR_10BTFULL) {
-		if (bootverbose)
-			printf("rl%d: 10Mbps full-duplex mode supported\n",
-								sc->rl_unit);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
-	}
-
-	if (bmsr & PHY_BMSR_100BTXHALF) {
-		if (bootverbose)
-			printf("rl%d: 100Mbps half-duplex mode supported\n",
-								sc->rl_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_TX, 0, NULL);
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_HDX, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
-	}
-
-	if (bmsr & PHY_BMSR_100BTXFULL) {
-		if (bootverbose)
-			printf("rl%d: 100Mbps full-duplex mode supported\n",
-								sc->rl_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia,
-			IFM_ETHER|IFM_100_TX|IFM_FDX, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	}
-
-	/* Some also support 100BaseT4. */
-	if (bmsr & PHY_BMSR_100BT4) {
-		if (bootverbose)
-			printf("rl%d: 100baseT4 mode supported\n", sc->rl_unit);
-		ifp->if_baudrate = 100000000;
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_100_T4, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_100_T4;
-#ifdef FORCE_AUTONEG_TFOUR
-		if (bootverbose)
-			printf("rl%d: forcing on autoneg support for BT4\n",
-							 sc->rl_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0 NULL):
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
-#endif
-	}
-
-	if (bmsr & PHY_BMSR_CANAUTONEG) {
-		if (bootverbose)
-			printf("rl%d: autoneg supported\n", sc->rl_unit);
-		ifmedia_add(&sc->ifmedia, IFM_ETHER|IFM_AUTO, 0, NULL);
-		sc->ifmedia.ifm_media = IFM_ETHER|IFM_AUTO;
-	}
-
-	return;
-}
-
-/*
- * Set speed and duplex mode.
- */
-static void rl_setmode_mii(sc, media)
-	struct rl_softc		*sc;
-	int			media;
-{
-	u_int16_t		bmcr;
-
-	printf("rl%d: selecting MII, ", sc->rl_unit);
-
-	bmcr = rl_phy_readreg(sc, PHY_BMCR);
-
-	bmcr &= ~(PHY_BMCR_AUTONEGENBL|PHY_BMCR_SPEEDSEL|
-			PHY_BMCR_DUPLEX|PHY_BMCR_LOOPBK);
-
-	if (IFM_SUBTYPE(media) == IFM_100_T4) {
-		printf("100Mbps/T4, half-duplex\n");
-		bmcr |= PHY_BMCR_SPEEDSEL;
-		bmcr &= ~PHY_BMCR_DUPLEX;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_100_TX) {
-		printf("100Mbps, ");
-		bmcr |= PHY_BMCR_SPEEDSEL;
-	}
-
-	if (IFM_SUBTYPE(media) == IFM_10_T) {
-		printf("10Mbps, ");
-		bmcr &= ~PHY_BMCR_SPEEDSEL;
-	}
-
-	if ((media & IFM_GMASK) == IFM_FDX) {
-		printf("full duplex\n");
-		bmcr |= PHY_BMCR_DUPLEX;
-	} else {
-		printf("half duplex\n");
-		bmcr &= ~PHY_BMCR_DUPLEX;
-	}
-
-	rl_phy_writereg(sc, PHY_BMCR, bmcr);
-
-	return;
-}
-
 static void rl_reset(sc)
 	struct rl_softc		*sc;
 {
@@ -979,136 +751,132 @@ static void rl_reset(sc)
  * Probe for a RealTek 8129/8139 chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *
-rl_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int rl_probe(dev)
+	device_t		dev;
 {
 	struct rl_type		*t;
 
 	t = rl_devs;
 
 	while(t->rl_name != NULL) {
-		if ((device_id & 0xFFFF) == t->rl_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->rl_did) {
-			return(t->rl_name);
+		if ((pci_get_vendor(dev) == t->rl_vid) &&
+		    (pci_get_device(dev) == t->rl_did)) {
+			device_set_desc(dev, t->rl_name);
+			return(0);
 		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-rl_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int rl_attach(dev)
+	device_t		dev;
 {
-	int			s, i;
-#ifndef RL_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
+	int			s;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct rl_softc		*sc;
 	struct ifnet		*ifp;
-	int			media = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	struct rl_type		*p;
-	u_int16_t		phy_vid, phy_did, phy_sts;
 	u_int16_t		rl_did = 0;
+	int			unit, error = 0, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct rl_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("rl%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct rl_softc));
 
 	/*
 	 * Handle power management nonsense.
 	 */
 
-	command = pci_conf_read(config_id, RL_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, RL_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, RL_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, RL_PCI_PWRMGMTCTRL, 4);
 		if (command & RL_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, RL_PCI_LOIO);
-			membase = pci_conf_read(config_id, RL_PCI_LOMEM);
-			irq = pci_conf_read(config_id, RL_PCI_INTLINE);
+			iobase = pci_read_config(dev, RL_PCI_LOIO, 4);
+			membase = pci_read_config(dev, RL_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, RL_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("rl%d: chip is is in D%d power mode "
 			"-- setting to D0\n", unit, command & RL_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, RL_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, RL_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, RL_PCI_LOIO, iobase);
-			pci_conf_write(config_id, RL_PCI_LOMEM, membase);
-			pci_conf_write(config_id, RL_PCI_INTLINE, irq);
+			pci_write_config(dev, RL_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, RL_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, RL_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef RL_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("rl%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
-
-	if (!pci_map_port(config_id, RL_PCI_LOIO,
-				(pci_port_t *)&(sc->rl_bhandle))) {
-		printf ("rl%d: couldn't map ports\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->rl_btag = I386_BUS_SPACE_IO;
-#endif
-#ifdef __alpha__
-	sc->rl_btag = ALPHA_BUS_SPACE_IO;
-#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("rl%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+#endif
+
+	rid = RL_RID; 
+	sc->rl_res = bus_alloc_resource(dev, RL_RES, &rid,
+	    0, ~0, 1, RF_ACTIVE);
+
+	if (sc->rl_res == NULL) {
+		printf ("rl%d: couldn't map ports/memory\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, RL_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("rl%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-#ifdef __i386__
-	sc->rl_btag = I386_BUS_SPACE_MEM;
-#endif
-#ifdef __alpha__
-	sc->rl_btag = ALPHA_BUS_SPACE_MEM;
-#endif
-	sc->rl_bhandle = vbase;
-#endif
+	sc->rl_btag = rman_get_bustag(sc->rl_res);
+	sc->rl_bhandle = rman_get_bushandle(sc->rl_res);
 
-	/* Allocate interrupt */
-	if (!pci_map_int(config_id, rl_intr, sc, &net_imask)) {
+	rid = 0;
+	sc->rl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->rl_irq == NULL) {
 		printf("rl%d: couldn't map interrupt\n", unit);
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		error = ENXIO;
 		goto fail;
 	}
+
+	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET,
+	    rl_intr, sc, &sc->rl_intrhand);
+
+	if (error) {
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		printf("rl%d: couldn't set up irq\n", unit);
+		goto fail;
+	}
+
+	callout_handle_init(&sc->rl_stat_ch);
 
 	/* Reset the adapter. */
 	rl_reset(sc);
@@ -1139,22 +907,40 @@ rl_attach(config_id, unit)
 		sc->rl_type = RL_8129;
 	else {
 		printf("rl%d: unknown device ID: %x\n", unit, rl_did);
-		free(sc, M_DEVBUF);
+		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		error = ENXIO;
 		goto fail;
 	}
 
 	sc->rl_cdata.rl_rx_buf = contigmalloc(RL_RXBUFLEN + 32, M_DEVBUF,
-		M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
+		M_NOWAIT, 0x100000, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->rl_cdata.rl_rx_buf == NULL) {
-		free(sc, M_DEVBUF);
 		printf("rl%d: no memory for list buffers!\n", unit);
+		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		error = ENXIO;
 		goto fail;
 	}
 
 	/* Leave a few bytes before the start of the RX ring buffer. */
 	sc->rl_cdata.rl_rx_buf_ptr = sc->rl_cdata.rl_rx_buf;
 	sc->rl_cdata.rl_rx_buf += sizeof(u_int64_t);
+
+	/* Do MII setup */
+	if (mii_phy_probe(dev, &sc->rl_miibus,
+	    rl_ifmedia_upd, rl_ifmedia_sts)) {
+		printf("rl%d: MII without any phy!\n", sc->rl_unit);
+		bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+		free(sc->rl_cdata.rl_rx_buf, M_DEVBUF);
+		error = ENXIO;
+		goto fail;
+	}
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_softc = sc;
@@ -1170,62 +956,6 @@ rl_attach(config_id, unit)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	if (sc->rl_type == RL_8129) {
-		if (bootverbose)
-			printf("rl%d: probing for a PHY\n", sc->rl_unit);
-		for (i = RL_PHYADDR_MIN; i < RL_PHYADDR_MAX + 1; i++) {
-			if (bootverbose)
-				printf("rl%d: checking address: %d\n",
-							sc->rl_unit, i);
-			sc->rl_phy_addr = i;
-			rl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
-			DELAY(500);
-			while(rl_phy_readreg(sc, PHY_BMCR)
-					& PHY_BMCR_RESET);
-			if ((phy_sts = rl_phy_readreg(sc, PHY_BMSR)))
-				break;
-		}
-		if (phy_sts) {
-			phy_vid = rl_phy_readreg(sc, PHY_VENID);
-			phy_did = rl_phy_readreg(sc, PHY_DEVID);
-			if (bootverbose)
-				printf("rl%d: found PHY at address %d, ",
-						sc->rl_unit, sc->rl_phy_addr);
-			if (bootverbose)
-				printf("vendor id: %x device id: %x\n",
-					phy_vid, phy_did);
-			p = rl_phys;
-			while(p->rl_vid) {
-				if (phy_vid == p->rl_vid &&
-					(phy_did | 0x000F) == p->rl_did) {
-					sc->rl_pinfo = p;
-					break;
-				}
-				p++;
-			}
-			if (sc->rl_pinfo == NULL)
-				sc->rl_pinfo = &rl_phys[PHY_UNKNOWN];
-			if (bootverbose)
-				printf("rl%d: PHY type: %s\n",
-					sc->rl_unit, sc->rl_pinfo->rl_name);
-		} else {
-			printf("rl%d: MII without any phy!\n", sc->rl_unit);
-		}
-	}
-
-	/*
-	 * Do ifmedia setup.
-	 */
-	ifmedia_init(&sc->ifmedia, 0, rl_ifmedia_upd, rl_ifmedia_sts);
-
-	rl_getmode_mii(sc);
-
-	/* Choose a default media. */
-	media = IFM_ETHER|IFM_AUTO;
-	ifmedia_set(&sc->ifmedia, media);
-
-	rl_autoneg_mii(sc, RL_FLAG_FORCEDELAY, 1);
-
 	/*
 	 * Call MI attach routines.
 	 */
@@ -1235,12 +965,39 @@ rl_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	EVENTHANDLER_REGISTER(shutdown_post_sync, rl_shutdown, sc,
-			      SHUTDOWN_PRI_DEFAULT);
 
 fail:
 	splx(s);
-	return;
+	return(error);
+}
+
+static int rl_detach(dev)
+	device_t		dev;
+{
+	struct rl_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	if_detach(ifp);
+	rl_stop(sc);
+
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->rl_miibus);
+
+	bus_teardown_intr(dev, sc->rl_irq, sc->rl_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_res);
+	bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
+
+	free(sc->rl_cdata.rl_rx_buf, M_DEVBUF);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -1335,19 +1092,8 @@ static void rl_rxeof(sc)
 	
 		if (!(rxstat & RL_RXSTAT_RXOK)) {
 			ifp->if_ierrors++;
-			if (rxstat & (RL_RXSTAT_BADSYM|RL_RXSTAT_RUNT|
-					RL_RXSTAT_GIANT|RL_RXSTAT_CRCERR|
-					RL_RXSTAT_ALIGNERR)) {
-				CSR_WRITE_2(sc, RL_COMMAND, RL_CMD_TX_ENB);
-				CSR_WRITE_2(sc, RL_COMMAND, RL_CMD_TX_ENB|
-							RL_CMD_RX_ENB);
-				CSR_WRITE_4(sc, RL_RXCFG, RL_RXCFG_CONFIG);
-				CSR_WRITE_4(sc, RL_RXADDR,
-					vtophys(sc->rl_cdata.rl_rx_buf));
-				CSR_WRITE_2(sc, RL_CURRXADDR, cur_rx - 16);
-				cur_rx = 0;
-			}
-			break;
+			rl_init(sc);
+			return;
 		}
 
 		/* No errors; receive the packet. */	
@@ -1485,10 +1231,26 @@ static void rl_txeof(sc)
 		ifp->if_flags &= ~IFF_OACTIVE;
 	} while (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx);
 
-	if (sc->rl_cdata.last_tx == sc->rl_cdata.cur_tx) {
-		if (sc->rl_want_auto)
-			rl_autoneg_mii(sc, RL_FLAG_SCHEDDELAY, 1);
-	}
+	return;
+}
+
+static void rl_tick(xsc)
+	void			*xsc;
+{
+	struct rl_softc		*sc;
+	struct mii_data		*mii;
+	int			s;
+
+	s = splimp();
+
+	sc = xsc;
+	mii = device_get_softc(sc->rl_miibus);
+
+	mii_tick(mii);
+
+	splx(s);
+
+	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
 
 	return;
 }
@@ -1601,11 +1363,6 @@ static void rl_start(ifp)
 
 	sc = ifp->if_softc;
 
-	if (sc->rl_autoneg) {
-		sc->rl_tx_pend = 1;
-		return;
-	}
-
 	while(RL_CUR_TXMBUF(sc) == NULL) {
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
@@ -1653,23 +1410,13 @@ static void rl_init(xsc)
 {
 	struct rl_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
+	struct mii_data		*mii;
 	int			s, i;
 	u_int32_t		rxcfg = 0;
-	u_int16_t		phy_bmcr = 0;
-
-	if (sc->rl_autoneg)
-		return;
 
 	s = splimp();
 
-	/*
-	 * XXX Hack for the 8139: the built-in autoneg logic's state
-	 * gets reset by rl_init() when we don't want it to. Try
-	 * to preserve it. (For 8129 cards with real external PHYs,
-	 * the BMCR register doesn't change, but this doesn't hurt.)
-	 */
-	if (sc->rl_type == RL_8139)
-		phy_bmcr = rl_phy_readreg(sc, PHY_BMCR);
+	mii = device_get_softc(sc->rl_miibus);
 
 	/*
 	 * Cancel pending I/O and free all RX/TX buffers.
@@ -1738,9 +1485,7 @@ static void rl_init(xsc)
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 
-	/* Restore state of BMCR */
-	if (sc->rl_pinfo != NULL)
-		rl_phy_writereg(sc, PHY_BMCR, phy_bmcr);
+	mii_mediachg(mii);
 
 	CSR_WRITE_1(sc, RL_CFG1, RL_CFG1_DRVLOAD|RL_CFG1_FULLDUPLEX);
 
@@ -1748,6 +1493,8 @@ static void rl_init(xsc)
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	(void)splx(s);
+
+	sc->rl_stat_ch = timeout(rl_tick, sc, hz);
 
 	return;
 }
@@ -1759,18 +1506,11 @@ static int rl_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct rl_softc		*sc;
-	struct ifmedia		*ifm;
+	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
-	ifm = &sc->ifmedia;
-
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-		return(EINVAL);
-
-	if (IFM_SUBTYPE(ifm->ifm_media) == IFM_AUTO)
-		rl_autoneg_mii(sc, RL_FLAG_SCHEDDELAY, 1);
-	else
-		rl_setmode_mii(sc, ifm->ifm_media);
+	mii = device_get_softc(sc->rl_miibus);
+	mii_mediachg(mii);
 
 	return(0);
 }
@@ -1783,41 +1523,14 @@ static void rl_ifmedia_sts(ifp, ifmr)
 	struct ifmediareq	*ifmr;
 {
 	struct rl_softc		*sc;
-	u_int16_t		advert = 0, ability = 0;
+	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
+	mii = device_get_softc(sc->rl_miibus);
 
-	if (!(rl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_AUTONEGENBL)) {
-		if (rl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_SPEEDSEL)
-			ifmr->ifm_active = IFM_ETHER|IFM_100_TX;
-		else
-			ifmr->ifm_active = IFM_ETHER|IFM_10_T;
-	
-		if (rl_phy_readreg(sc, PHY_BMCR) & PHY_BMCR_DUPLEX)
-			ifmr->ifm_active |= IFM_FDX;
-		else
-			ifmr->ifm_active |= IFM_HDX;
-		return;
-	}
-
-	ability = rl_phy_readreg(sc, PHY_LPAR);
-	advert = rl_phy_readreg(sc, PHY_ANAR);
-	if (advert & PHY_ANAR_100BT4 &&
-		ability & PHY_ANAR_100BT4) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_T4;
-	} else if (advert & PHY_ANAR_100BTXFULL &&
-		ability & PHY_ANAR_100BTXFULL) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_FDX;
-	} else if (advert & PHY_ANAR_100BTXHALF &&
-		ability & PHY_ANAR_100BTXHALF) {
-		ifmr->ifm_active = IFM_ETHER|IFM_100_TX|IFM_HDX;
-	} else if (advert & PHY_ANAR_10BTFULL &&
-		ability & PHY_ANAR_10BTFULL) {
-		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_FDX;
-	} else if (advert & PHY_ANAR_10BTHALF &&
-		ability & PHY_ANAR_10BTHALF) {
-		ifmr->ifm_active = IFM_ETHER|IFM_10_T|IFM_HDX;
-	}
+	mii_pollstat(mii);
+	ifmr->ifm_active = mii->mii_media_active;
+	ifmr->ifm_status = mii->mii_media_status;
 
 	return;
 }
@@ -1829,6 +1542,7 @@ static int rl_ioctl(ifp, command, data)
 {
 	struct rl_softc		*sc = ifp->if_softc;
 	struct ifreq		*ifr = (struct ifreq *) data;
+	struct mii_data		*mii;
 	int			s, error = 0;
 
 	s = splimp();
@@ -1855,7 +1569,8 @@ static int rl_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
+		mii = device_get_softc(sc->rl_miibus);
+		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
 		break;
 	default:
 		error = EINVAL;
@@ -1874,16 +1589,9 @@ static void rl_watchdog(ifp)
 
 	sc = ifp->if_softc;
 
-	if (sc->rl_autoneg) {
-		rl_autoneg_mii(sc, RL_FLAG_DELAYTIMEO, 1);
-		return;
-	}
-
 	printf("rl%d: watchdog timeout\n", sc->rl_unit);
 	ifp->if_oerrors++;
-	if (!(rl_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))
-		printf("rl%d: no carrier - transceiver cable problem?\n",
-								sc->rl_unit);
+
 	rl_txeof(sc);
 	rl_rxeof(sc);
 	rl_init(sc);
@@ -1903,6 +1611,8 @@ static void rl_stop(sc)
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
+
+	untimeout(rl_tick, sc, sc->rl_stat_ch);
 
 	CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
@@ -1927,23 +1637,14 @@ static void rl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void rl_shutdown(arg, howto)
-	void			*arg;
-	int			howto;
+static void rl_shutdown(dev)
+	device_t		dev;
 {
-	struct rl_softc		*sc = (struct rl_softc *)arg;
+	struct rl_softc		*sc;
+
+	sc = device_get_softc(dev);
 
 	rl_stop(sc);
 
 	return;
 }
-
-
-static struct pci_device rl_device = {
-	"rl",
-	rl_probe,
-	rl_attach,
-	&rl_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(rl, rl_device);
