@@ -34,15 +34,18 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)fseek.3	8.1 (Berkeley) 6/4/93
+.\"	$Id: fseek.3,v 1.4 1999/03/05 12:56:37 bde Exp $
 .\"
-.Dd June 4, 1993
+.Dd Mar 5, 1999
 .Dt FSEEK 3
 .Os
 .Sh NAME
 .Nm fgetpos ,
 .Nm fseek ,
+.Nm fseeko ,
 .Nm fsetpos ,
 .Nm ftell ,
+.Nm ftello ,
 .Nm rewind
 .Nd reposition a stream
 .Sh SYNOPSIS
@@ -57,6 +60,11 @@
 .Fn fgetpos "FILE *stream" "fpos_t *pos"
 .Ft int
 .Fn fsetpos "FILE *stream" "const fpos_t *pos"
+.Fd #include <sys/types.h>
+.Ft int
+.Fn fseeko "FILE *stream" "off_t offset" "int whence"
+.Ft off_t
+.Fn ftello "FILE *stream"
 .Sh DESCRIPTION
 The
 .Fn fseek
@@ -106,6 +114,22 @@ except that the error indicator for the stream is also cleared
 .Xr clearerr 3 ) .
 .Pp
 The
+.Fn fseeko
+function is identical to
+.Fn fseek ,
+except it takes an
+.Fa off_t
+argument
+instead of a
+.Fa long .
+Likewise, the
+.Fn ftello
+function is identical to
+.Fn ftell ,
+except it returns an
+.Fa off_t .
+.Pp
+The
 .Fn fgetpos
 and
 .Fn fsetpos
@@ -115,8 +139,8 @@ are alternate interfaces equivalent to
 and
 .Fn fseek
 (with whence set to
-.Dv SEEK_SET
-), setting and storing the current value of
+.Dv SEEK_SET ) ,
+setting and storing the current value of
 the file offset into or from the object referenced by 
 .Fa pos .
 On some
@@ -133,11 +157,15 @@ returns no value.
 Upon successful completion,
 .Fn fgetpos ,
 .Fn fseek ,
+.Fn fseeko ,
+and
 .Fn fsetpos
 return 0,
 and
 .Fn ftell
-returns the current offset.
+and
+.Fn ftello
+return the current offset.
 Otherwise, \-1 is returned and the global variable errno is set to
 indicate the error.
 .Sh ERRORS
@@ -157,14 +185,21 @@ was not
 .Dv SEEK_END ,
 or
 .Dv SEEK_CUR .
+.It Bq Er EOVERFLOW
+For 
+.Fn ftell ,
+the resulting file offset would be a value which
+cannot be represented correctly in an object of type long.
 .El
 .Pp
-The function
+The functions
 .Fn fgetpos ,
 .Fn fseek ,
+.Fn fseeko ,
 .Fn fsetpos ,
-and 
-.Fn ftell
+.Fn ftell ,
+and
+.Fn ftello
 may also fail and set
 .Va errno
 for any of the errors specified for the routines
@@ -186,3 +221,10 @@ and
 functions
 conform to
 .St -ansiC .
+.Pp
+The
+.Fn fseeko 
+and
+.Fn ftello
+functions conform to
+.St -susv2 .

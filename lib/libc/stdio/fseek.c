@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fseek.c	8.3 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-		"$Id: fseek.c,v 1.6 1997/02/22 15:02:05 peter Exp $";
+		"$Id: fseek.c,v 1.8 1999/02/08 21:32:38 dt Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -53,14 +53,23 @@ static const char rcsid[] =
 
 #define	POS_ERR	(-(fpos_t)1)
 
+int
+fseek(fp, offset, whence)
+	register FILE *fp;
+	long offset;
+	int whence;
+{
+	return (fseeko(fp, offset, whence));
+}
+
 /*
  * Seek the given file to the given offset.
  * `Whence' must be one of the three SEEK_* macros.
  */
 int
-fseek(fp, offset, whence)
+fseeko(fp, offset, whence)
 	register FILE *fp;
-	long offset;
+	off_t offset;
 	int whence;
 {
 	register fpos_t (*seekfn) __P((void *, fpos_t, int));

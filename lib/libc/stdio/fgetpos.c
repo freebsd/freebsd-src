@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fgetpos.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: fgetpos.c,v 1.5 1997/02/22 15:01:53 peter Exp $";
+		"$Id: fgetpos.c,v 1.7 1999/02/08 21:32:38 dt Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -52,7 +52,7 @@ fgetpos(fp, pos)
 {
 	int retval;
 	FLOCKFILE(fp);
-	retval = (*pos = ftell(fp)) == (fpos_t)-1;
+	retval = (*pos = ftello(fp)) == (fpos_t)-1;
 	FUNLOCKFILE(fp);
 	return(retval);
 }
