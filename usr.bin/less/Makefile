@@ -10,6 +10,8 @@ SRCS=	main.c screen.c brac.c ch.c charset.c cmdbuf.c command.c decode.c \
 DPADD=	${LIBNCURSES}
 LDADD=	-lncurses
 
+LINKS=	${BINDIR}/less /usr/bin/more
+
 MAN1=	less.1
 MANDEPEND=	less.1
 CLEANFILES+=	${MANDEPEND}
