@@ -319,7 +319,7 @@ ng_rfc1490_rmnode(node_p node)
 	ng_unname(node);
 	bzero(priv, sizeof(*priv));
 	node->private = NULL;
-	M_FREE(priv, M_NETGRAPH);
+	FREE(priv, M_NETGRAPH);
 	ng_unref(node);		/* let the node escape */
 	return (0);
 }
