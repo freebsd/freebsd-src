@@ -1,8 +1,8 @@
-<!-- $Id: authors.sgml,v 1.11 1995/10/22 00:41:51 jfieber Exp $ -->
+<!-- $Id: authors.sgml,v 1.12 1995/12/10 09:09:44 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
-Names and email address of contributing authors.  Use these
+Names and email address of contributing authors and CVS commiters.  Use these
 entities when referencing people.  Please not the use of single
 and double quotes.  
 -->
@@ -110,3 +110,88 @@ and double quotes.
 <!ENTITY a.wollman "Garrett Wollman 
   <tt><htmlurl url='mailto:wollman@FreeBSD.org' 
   name='&lt;wollman@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.peter "Peter Wemm
+  <tt><htmlurl url='mailto:peter@FreeBSD.org'
+  name='&lt;peter@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.dyson "John Dyson
+  <tt><htmlurl url='mailto:dyson@FreeBSD.org'
+  name='&lt;dyson@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.ache "Andrey A. Chernov
+  <tt><htmlurl url='mailto:ache@FreeBSD.org'
+  name='&lt;ache@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.gibbs "Justin T. Gibbs
+  <tt><htmlurl url='mailto:gibbs@FreeBSD.org'
+  name='&lt;gibbs@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.pst "Paul Traina
+  <tt><htmlurl url='mailto:pst@FreeBSD.org'
+  name='&lt;pst@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.sos  "Soren Schmidt 
+  <tt><htmlurl url='mailto:sos@FreeBSD.org'  
+  name='&lt;sos@FreeBSD.org&gt;'></tt>">  
+
+<!ENTITY a.nate  "Nate Williams        
+  <tt><htmlurl url='mailto:nate@FreeBSD.org'
+  name='&lt;nate@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.karl  "Karl Strickland 
+  <tt><htmlurl url='mailto:karl@FreeBSD.org'
+  name='&lt;karl@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.csgr  "Geoff Rehmet 
+  <tt><htmlurl url='mailto:csgr@FreeBSD.org'
+  name='&lt;csgr@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.ats  "Andreas Schulz
+  <tt><htmlurl url='mailto:ats@FreeBSD.org'
+  name='&lt;ats@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.rich  "Rich Murphey
+  <tt><htmlurl url='mailto:rich@FreeBSD.org'
+  name='&lt;rich@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.jvh  "Johannes Helander
+  <tt><htmlurl url='mailto:jvh@FreeBSD.org'
+  name='&lt;jvh@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.proven  "Chris Provenzano
+  <tt><htmlurl url='mailto;proven@FreeBSD.org'
+  name='&lt;proven@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.guido  "Guido van Rooij 
+  <tt><htmlurl url='mailto;guido@FreeBSD.org'
+  name='&lt;guido@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.hsu  "Jeffrey Hsu  
+  <tt><htmlurl url='mailto;hsu@FreeBSD.org'
+  name='&lt;hsu@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.bde  "Bruce Evans      
+  <tt><htmlurl url='mailto;bde@FreeBSD.org'
+  name='&lt;bde@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.sef  "Sean Eric Fagan 
+  <tt><htmlurl url='mailto;sef@FreeBSD.org'
+  name='&lt;sef@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.se  "Stefan Esser
+  <tt><htmlurl url='mailto;se@FreeBSD.org'
+  name='&lt;se@FreeBSD.org&gt;'></tt>">
+
+<!ENTITY a.torstenb  "Torsten Blum    
+  <tt><htmlurl url='mailto;torstenb@FreeBSD.org' 
+  name='&lt;torstenb@FreeBSD.org&gt;'></tt>"> 
+
+<!ENTITY a.julian  "Julian Elischer
+  <tt><htmlurl url='mailto;julian@FreeBSD.org'
+  name='&lt;julian@FreeBSD.org&gt;'></tt>">           
+
+<!ENTITY a.dfr  "Doug Rabson
+  <tt><htmlurl url='mailto;dfr@FreeBSD.org'
+  name='&lt;dfr@FreeBSD.org&gt;'></tt>">
+
