@@ -40,7 +40,7 @@
 #ifndef __MD5_INCLUDE__
 
 /* typedef a 32-bit type */
-typedef unsigned long int UINT4;
+typedef unsigned int UINT4;
 
 /* Data structure for MD5 (Message-Digest) computation */
 typedef struct {

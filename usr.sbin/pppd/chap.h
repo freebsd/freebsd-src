@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.h,v 1.2 1994/04/11 07:13:44 paulus Exp $
+ * $Id: chap.h,v 1.3 1994/09/21 06:47:37 paulus Exp $
  */
 
 #ifndef __CHAP_INCLUDE__
@@ -98,15 +98,15 @@ typedef struct chap_state {
 
 extern chap_state chap[];
 
-void ChapInit __ARGS((int));
-void ChapAuthWithPeer __ARGS((int, char *, int));
-void ChapAuthPeer __ARGS((int, char *, int));
-void ChapLowerUp __ARGS((int));
-void ChapLowerDown __ARGS((int));
-void ChapInput __ARGS((int, u_char *, int));
-void ChapProtocolReject __ARGS((int));
-int  ChapPrintPkt __ARGS((u_char *, int,
-			  void (*) __ARGS((void *, char *, ...)), void *));
+void ChapInit __P((int));
+void ChapAuthWithPeer __P((int, char *, int));
+void ChapAuthPeer __P((int, char *, int));
+void ChapLowerUp __P((int));
+void ChapLowerDown __P((int));
+void ChapInput __P((int, u_char *, int));
+void ChapProtocolReject __P((int));
+int  ChapPrintPkt __P((u_char *, int,
+		       void (*) __P((void *, char *, ...)), void *));
 
 #define __CHAP_INCLUDE__
 #endif /* __CHAP_INCLUDE__ */

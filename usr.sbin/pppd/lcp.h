@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.4 1994/05/24 11:22:28 paulus Exp $
+ * $Id: lcp.h,v 1.8 1995/06/12 11:22:47 paulus Exp $
  */
 
 /*
@@ -55,10 +55,10 @@ typedef struct lcp_options {
     int neg_lqr : 1;		/* Negotiate use of Link Quality Reports */
     u_short mru;		/* Value of MRU */
     u_char chap_mdtype;		/* which MD type (hashing algorithm) */
-    u_long asyncmap;		/* Value of async map */
-    u_long magicnumber;
+    u_int32_t asyncmap;		/* Value of async map */
+    u_int32_t magicnumber;
     int numloops;		/* Number of loops during magic number neg. */
-    u_long lqr_period;		/* Reporting period for link quality */
+    u_int32_t lqr_period;	/* Reporting period for LQR 1/100ths second */
 } lcp_options;
 
 extern fsm lcp_fsm[];
@@ -66,22 +66,23 @@ extern lcp_options lcp_wantoptions[];
 extern lcp_options lcp_gotoptions[];
 extern lcp_options lcp_allowoptions[];
 extern lcp_options lcp_hisoptions[];
-extern u_long xmit_accm[][8];
+extern u_int32_t xmit_accm[][8];
 
 #define DEFMRU	1500		/* Try for this */
 #define MINMRU	128		/* No MRUs below this */
 #define MAXMRU	16384		/* Normally limit MRU to this */
 
-void lcp_init __ARGS((int));
-void lcp_open __ARGS((int));
-void lcp_close __ARGS((int));
-void lcp_lowerup __ARGS((int));
-void lcp_lowerdown __ARGS((int));
-void lcp_input __ARGS((int, u_char *, int));
-void lcp_protrej __ARGS((int));
-void lcp_sprotrej __ARGS((int, u_char *, int));
-int  lcp_printpkt __ARGS((u_char *, int,
-			  void (*) __ARGS((void *, char *, ...)), void *));
+void lcp_init __P((int));
+void lcp_open __P((int));
+void lcp_close __P((int));
+void lcp_lowerup __P((int));
+void lcp_lowerdown __P((int));
+void lcp_input __P((int, u_char *, int));
+void lcp_protrej __P((int));
+void lcp_sprotrej __P((int, u_char *, int));
+int  lcp_printpkt __P((u_char *, int,
+		       void (*) __P((void *, char *, ...)), void *));
 
-extern int lcp_warnloops;	/* Warn about a loopback this often */
-#define DEFWARNLOOPS	10	/* Default value for above */
+/* Default number of times we receive our magic number from the peer
+   before deciding the link is looped-back. */
+#define DEFLOOPBACKFAIL	5

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.3 1994/04/18 04:05:15 paulus Exp $
+ * $Id: ipcp.h,v 1.5 1994/09/21 06:47:37 paulus Exp $
  */
 
 /*
@@ -49,7 +49,7 @@ typedef struct ipcp_options {
     int accept_remote : 1;	/* accept peer's value for hisaddr */
     u_short vj_protocol;	/* protocol value to use in VJ option */
     u_char maxslotindex, cflag;	/* values for RFC1332 VJ compression neg. */
-    u_long ouraddr, hisaddr;	/* Addresses in NETWORK BYTE ORDER */
+    u_int32_t ouraddr, hisaddr;	/* Addresses in NETWORK BYTE ORDER */
 } ipcp_options;
 
 extern fsm ipcp_fsm[];
@@ -58,11 +58,11 @@ extern ipcp_options ipcp_gotoptions[];
 extern ipcp_options ipcp_allowoptions[];
 extern ipcp_options ipcp_hisoptions[];
 
-void ipcp_init __ARGS((int));
-void ipcp_open __ARGS((int));
-void ipcp_close __ARGS((int));
-void ipcp_lowerup __ARGS((int));
-void ipcp_lowerdown __ARGS((int));
-void ipcp_input __ARGS((int, u_char *, int));
-void ipcp_protrej __ARGS((int));
-int  ipcp_printpkt __ARGS((u_char *, int, void (*)(), void *));
+void ipcp_init __P((int));
+void ipcp_open __P((int));
+void ipcp_close __P((int));
+void ipcp_lowerup __P((int));
+void ipcp_lowerdown __P((int));
+void ipcp_input __P((int, u_char *, int));
+void ipcp_protrej __P((int));
+int  ipcp_printpkt __P((u_char *, int, void (*)(), void *));
