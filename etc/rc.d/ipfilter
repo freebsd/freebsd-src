@@ -164,7 +164,9 @@ ipfilter_resync()
 	case ${OSTYPE} in
 	FreeBSD)
 		# Don't resync if ipfilter is not loaded
-		[ kldstat -v | grep "IP Filter" > /dev/null 2>&1 ] && return
+		if ! kldstat -v | grep "IP Filter" > /dev/null 2>&1; then
+			 return
+		fi
 		;;
 	esac
 	${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
