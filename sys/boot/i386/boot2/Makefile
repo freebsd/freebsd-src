@@ -21,7 +21,9 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS1_ONLY
 
 CFLAGS=	-Os \
-	-fno-guess-branch-probability -fomit-frame-pointer\
+	-fno-guess-branch-probability \
+	-fomit-frame-pointer \
+	-fno-unit-at-a-time \
 	-mno-align-long-strings \
 	-mrtd \
 	-D${BOOT2_UFS} \
