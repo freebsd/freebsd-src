@@ -231,13 +231,16 @@ int
 getwm(p)
 	caddr_t p;
 {
-	static char buf[INTSIZE];
+	union {
+		char buf[INTSIZE];
+		int i;
+	} u;
 	register int i;
 
 	for (i = 0; i < INTSIZE; i++)
-		buf[i] = *p++;
+		u.buf[i] = *p++;
 
-	i = *(int *)buf;
+	i = u.i;
 
 	if (i > MAXPATHLEN || i < -(MAXPATHLEN)) {
 		i = ntohl(i);
