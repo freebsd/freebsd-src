@@ -42,6 +42,13 @@ pthread_mutex_t ptm_up, ptm_down, ptm_event;
 
 #define CTASSERT(foo)
 
+#define DROP_GIANT()
+#define PICKUP_GIANT()
+
+#define EDIRIOCTL -6
+
+#define copyin(foo, bar, barf)	0
+
 /* bio.h */
 
 struct bio {
