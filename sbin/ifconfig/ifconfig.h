@@ -31,7 +31,7 @@
  *
  * so there!
  *
- * $Id: ifconfig.h,v 1.1 1997/05/04 06:27:45 peter Exp $
+ * $Id: ifconfig.h,v 1.2 1997/05/10 14:47:35 peter Exp $
  */
 
 extern struct ifreq ifr;
@@ -43,4 +43,4 @@ struct afswtch;
 extern void setmedia(const char *, int, int, const struct afswtch *rafp);
 extern void setmediaopt(const char *, int, int, const struct afswtch *rafp);
 extern void unsetmediaopt(const char *, int, int, const struct afswtch *rafp);
-extern void media_status(int s);
+extern void media_status(int s, struct rt_addrinfo *);
