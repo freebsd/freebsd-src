@@ -144,63 +144,83 @@ archive_decompressor_none_read_ahead(struct archive *a, const void **buff,
 	if (state->fatal)
 		return (-1);
 
+	/*
+	 * Don't make special efforts to handle requests larger than
+	 * the copy buffer.
+	 */
 	if (min > state->buffer_size)
 		min = state->buffer_size;
 
-	/* Keep reading until we have accumulated enough data. */
-	while (state->avail + state->client_avail < min) {
-		if (state->next > state->buffer &&
-		    state->next + min > state->buffer + state->buffer_size &&
-		    state->avail > 0) {
-			memmove(state->buffer, state->next, state->avail);
-			state->next = state->buffer;
-		}
-		if (state->client_avail > 0) {
-			memcpy(state->next + state->avail, state->client_next,
-			     state->client_avail);
-			state->client_next += state->client_avail;
-			state->avail += state->client_avail;
-			state->client_avail = 0;
-		}
-		/*
-		 * It seems to me that const void ** and const char **
-		 * should be compatible, but they aren't, hence the cast.
-		 */
-		bytes_read = (a->client_reader)(a, a->client_data,
-		    (const void **)&state->client_buff);
-		if (bytes_read < 0) {		/* Read error. */
-			state->client_total = state->client_avail = 0;
-			state->client_next = state->client_buff = NULL;
-			state->fatal = 1;
-			return (-1);
-		}
-		if (bytes_read == 0) {		/* End-of-file. */
-			state->client_total = state->client_avail = 0;
-			state->client_next = state->client_buff = NULL;
-			state->end_of_file = 1;
-			break;
-		}
-		a->raw_position += bytes_read;
-		state->client_total = bytes_read;
-		state->client_avail = state->client_total;
-		state->client_next = state->client_buff;
-	}
-
-	/* Common case: If client buffer suffices, use that. */
-	if (state->avail == 0) {
+	/*
+	 * Try to satisfy the request directly from the client
+	 * buffer.  We can do this if all of the data in the copy
+	 * buffer was copied from the current client buffer.  This
+	 * also covers the case where the copy buffer is empty and
+	 * the client buffer has all the data we need.
+	 */
+	if (state->client_total >= state->client_avail + state->avail
+	    && state->client_avail + state->avail >= min) {
+		state->client_avail += state->avail;
+		state->client_next -= state->avail;
+		state->avail = 0;
+		state->next = state->buffer;
 		*buff = state->client_next;
 		return (state->client_avail);
 	}
 
-	/* Add in bytes from client buffer as necessary to meet the minimum. */
-	if (min > state->avail + state->client_avail)
-		min = state->avail + state->client_avail;
-	if (state->avail < min) {
-		memcpy(state->next + state->avail, state->client_next,
-		     min - state->avail);
-		state->client_next += min - state->avail;
-		state->client_avail -= min - state->avail;
-		state->avail = min;
+	/*
+	 * If we can't use client buffer, we'll have to use copy buffer.
+	 */
+
+	/* Move data forward in copy buffer if necessary. */
+	if (state->next > state->buffer &&
+	    state->next + min > state->buffer + state->buffer_size) {
+		if (state->avail > 0)
+			memmove(state->buffer, state->next, state->avail);
+		state->next = state->buffer;
+	}
+
+	/* Collect data in copy buffer to fulfill request. */
+	while (state->avail < min) {
+		/* Copy data from client buffer to our copy buffer. */
+		if (state->client_avail > 0) {
+			/* First estimate: copy to fill rest of buffer. */
+			size_t tocopy = (state->buffer + state->buffer_size)
+			    - (state->next + state->avail);
+			/* Don't copy more than is available. */
+			if (tocopy > state->client_avail)
+				tocopy = state->client_avail;
+			memcpy(state->next + state->avail, state->client_next,
+			    tocopy);
+			state->client_next += tocopy;
+			state->client_avail -= tocopy;
+			state->avail += tocopy;
+		} else {
+			/* There is no more client data: fetch more. */
+			/*
+			 * It seems to me that const void ** and const
+			 * char ** should be compatible, but they
+			 * aren't, hence the cast.
+			 */
+			bytes_read = (a->client_reader)(a, a->client_data,
+			    (const void **)&state->client_buff);
+			if (bytes_read < 0) {		/* Read error. */
+				state->client_total = state->client_avail = 0;
+				state->client_next = state->client_buff = NULL;
+				state->fatal = 1;
+				return (-1);
+			}
+			if (bytes_read == 0) {		/* End-of-file. */
+				state->client_total = state->client_avail = 0;
+				state->client_next = state->client_buff = NULL;
+				state->end_of_file = 1;
+				break;
+			}
+			a->raw_position += bytes_read;
+			state->client_total = bytes_read;
+			state->client_avail = state->client_total;
+			state->client_next = state->client_buff;
+		}
 	}
 
 	*buff = state->next;
@@ -208,11 +228,9 @@ archive_decompressor_none_read_ahead(struct archive *a, const void **buff,
 }
 
 /*
- * Mark the appropriate data as used.  Note that the request here could
- * be much smaller than the size of the previous read_ahead request, but
- * typically it won't be.  I make an attempt to go back to reading straight
- * from the client buffer in case some end-of-block alignment mismatch forced
- * me to combine writes above.
+ * Mark the appropriate data as used.  Note that the request here will
+ * often be much smaller than the size of the previous read_ahead
+ * request.
  */
 static ssize_t
 archive_decompressor_none_read_consume(struct archive *a, size_t request)
@@ -221,21 +239,11 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
 
 	state = a->compression_data;
 	if (state->avail > 0) {
+		/* Read came from copy buffer. */
 		state->next += request;
 		state->avail -= request;
-		/*
-		 * Rollback state->client_next if we can so that future
-		 * reads come straight from the client buffer and we
-		 * avoid copying more data into our buffer.
-		 */
-		if (state->avail <=
-		    (size_t)(state->client_next - state->client_buff)) {
-			state->client_next -= state->avail;
-			state->client_avail += state->avail;
-			state->avail = 0;
-			state->next = state->buffer;
-		}
 	} else {
+		/* Read came from client buffer. */
 		state->client_next += request;
 		state->client_avail -= request;
 	}
