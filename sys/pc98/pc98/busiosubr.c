@@ -43,7 +43,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <machine/bus.h>
+
+static MALLOC_DEFINE(M_BUSSPACEHANDLE, "busspacehandle", "Bus space handle");
 
 _BUS_SPACE_CALL_FUNCS_PROTO(SBUS_DA_io,u_int8_t,1)
 _BUS_SPACE_CALL_FUNCS_PROTO(SBUS_DA_io,u_int16_t,2)
@@ -142,3 +145,114 @@ struct bus_space_tag NEPC_mem_space_tag = {
 };
 
 #endif /* DEV_MECIA */
+
+/*************************************************************************
+ * map init
+ *************************************************************************/
+static __inline void
+bus_space_iat_init(bus_space_handle_t bsh)
+{
+	int i;
+
+	for (i = 0; i < bsh->bsh_maxiatsz; i++)
+		bsh->bsh_iat[i] = bsh->bsh_base + i;
+}
+
+/*************************************************************************
+ * handle allocation
+ *************************************************************************/
+int
+i386_bus_space_handle_alloc(bus_space_tag_t t, bus_addr_t bpa, bus_size_t size,
+			    bus_space_handle_t *bshp)
+{
+	bus_space_handle_t bsh;
+
+	bsh = (bus_space_handle_t) malloc(sizeof (*bsh), M_BUSSPACEHANDLE,
+					  M_NOWAIT | M_ZERO);
+	if (bsh == NULL)
+		return ENOMEM;
+
+	bsh->bsh_maxiatsz = BUS_SPACE_IAT_MAXSIZE;
+	bsh->bsh_iatsz = 0;
+	bsh->bsh_base = bpa;
+	bsh->bsh_sz = size;
+	bsh->bsh_res = NULL;
+	bsh->bsh_ressz = 0;
+	bus_space_iat_init(bsh);
+
+	bsh->bsh_bam = t->bs_da;		/* default: direct access */
+
+	*bshp = bsh;
+	return 0;
+}
+
+void
+i386_bus_space_handle_free(bus_space_tag_t t, bus_space_handle_t bsh,
+			   size_t size)
+{
+
+	free(bsh, M_BUSSPACEHANDLE);
+}
+
+/*************************************************************************
+ * map
+ *************************************************************************/
+int
+i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t pbsh,
+		     bus_size_t offset, bus_size_t size,
+		     bus_space_handle_t *tbshp)
+{
+	int i, error = 0;
+	bus_space_handle_t bsh;
+	bus_addr_t pbase;
+
+	pbase = pbsh->bsh_base + offset;
+	switch (t->bs_tag) {
+	case BUS_SPACE_IO:
+		if (pbsh->bsh_iatsz > 0) {
+			if (offset >= pbsh->bsh_iatsz || 
+			    offset + size > pbsh->bsh_iatsz)
+				return EINVAL;
+			pbase = pbsh->bsh_base;
+		}
+		break;
+
+	case BUS_SPACE_MEM:
+		if (pbsh->bsh_iatsz > 0)
+			return EINVAL;
+		if (offset > pbsh->bsh_sz || offset + size > pbsh->bsh_sz)
+			return EINVAL;
+		break;
+
+	default:
+		panic("i386_memio_subregion: bad bus space tag");
+		break;
+	}
+
+	error = i386_bus_space_handle_alloc(t, pbase, size, &bsh);
+	if (error != 0)
+		return error;
+
+	switch (t->bs_tag) {
+	case BUS_SPACE_IO:
+		if (pbsh->bsh_iatsz > 0) {
+			for (i = 0; i < size; i ++)
+				bsh->bsh_iat[i] = pbsh->bsh_iat[i + offset];
+			bsh->bsh_iatsz = size;
+		} else if (pbsh->bsh_base > bsh->bsh_base ||
+		         pbsh->bsh_base + pbsh->bsh_sz <
+		         bsh->bsh_base + bsh->bsh_sz) {
+			i386_bus_space_handle_free(t, bsh, size);
+			return EINVAL;
+		}
+		break;
+
+	case BUS_SPACE_MEM:
+		break;
+	}
+
+	if (pbsh->bsh_iatsz > 0)
+		bsh->bsh_bam = t->bs_ra;	/* relocate access */
+	*tbshp = bsh;
+	return error;
+}
