@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
-.\"	$Id: math.3,v 1.2 1995/03/01 05:06:27 jkh Exp $
+.\"	$Id: math.3,v 1.3 1996/02/12 01:20:30 mpp Exp $
 .\"
 .TH MATH 3M "May 6, 1991"
 .UC 4
@@ -112,11 +112,11 @@ arithmetic conforming to the IEEE Standard 754 for Binary
 Floating\-Point Arithmetic.  The two versions behave very
 similarly, as should be expected from programs more accurate
 and robust than was the norm when UNIX was born.  For
-instance, the programs are accurat ere accurn the numbers
+instance, the programs are accurate to within the numbers
 of \*(ups tabulated above; an \*(up is one \fIU\fRnit in the \fIL\fRast
-\fIP\fRlace.  And the progrod the prbeen cured of anomalies that
-afflicted the older mat`  older math library \fIlibm\fR in which incidents like
-the followineported:
+\fIP\fRlace.  And the programs have been cured of anomalies that
+afflicted the older math library \fIlibm\fR in which incidents like
+the following had been reported:
 .RS
 sqrt(\-1.0) = 0.0 and log(\-1.0) = \-1.7e38.
 .br
@@ -623,6 +623,15 @@ IEEE 754 defaults for granted; this means that a decision to
 trap all divisions by zero could disrupt a code that would
 otherwise get correct results despite division by zero.
 .SH SEE ALSO
+\fBfpgetround\fR(3),
+\fBfpsetround\fR(3),
+\fBfpgetprec\fR(3),
+\fBfpsetprec\fR(3),
+\fBfpgetmask\fR(3),
+\fBfpsetmask\fR(3),
+\fBfpgetsticky\fR(3),
+\fBfpresetsticky\fR(3) - IEEE floating point interface
+.SH NOTES
 An explanation of IEEE 754 and its proposed extension p854
 was published in the IEEE magazine MICRO in August 1984 under
 the title "A Proposed Radix\- and Word\-length\-independent
