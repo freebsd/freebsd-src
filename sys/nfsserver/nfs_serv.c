@@ -1850,7 +1850,6 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			if (error)
 				NDFREE(&nd, NDF_ONLY_PNBUF);
 			else {
-			    	nfsrv_object_create(nd.ni_vp);
 				if (exclusive_flag) {
 					exclusive_flag = 0;
 					VATTR_NULL(vap);
@@ -1906,7 +1905,6 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			if (error)
 				goto ereply;
 
-			nfsrv_object_create(nd.ni_vp);
 			if (nd.ni_cnd.cn_flags & ISSYMLINK) {
 				error = EINVAL;
 				goto ereply;
