@@ -1,4 +1,4 @@
-# $Id: ports-supfile,v 1.10 1996/10/06 01:26:53 max Exp $
+# $Id: ports-supfile,v 1.11 1996/10/06 01:36:51 max Exp $
 #
 # This file contains all of the "SUP collections" that comprise the FreeBSD
 # ports distribution.  SUP (Software Update Protocol) allows you to download
@@ -42,6 +42,7 @@ ports-all release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/
 
 #ports-base release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-archivers release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
+#ports-astro release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-benchmarks release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-audio release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
 #ports-cad release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old use-rel-suffix
