@@ -92,6 +92,8 @@ static int 		ad_wait_init(struct mss_info *mss, int x);
 static int 		ad_read(struct mss_info *mss, int reg);
 static void 		ad_write(struct mss_info *mss, int reg, u_char data);
 static void 		ad_write_cnt(struct mss_info *mss, int reg, u_short data);
+static void    		ad_enter_MCE(struct mss_info *mss);
+static void             ad_leave_MCE(struct mss_info *mss);
 
 /* io primitives */
 static void 		conf_wr(struct mss_info *mss, u_char reg, u_char data);
@@ -465,8 +467,10 @@ mss_init(struct mss_info *mss, device_t dev)
  	}
     	if (FULL_DUPLEX(mss) && mss->bd_id != MD_OPTI931)
     		ad_write(mss, 12, ad_read(mss, 12) | 0x40); /* mode 2 */
+	ad_enter_MCE(mss);
     	ad_write(mss, 9, FULL_DUPLEX(mss)? 0 : 4);
-    	ad_write(mss, 10, 2); /* int enable */
+    	ad_leave_MCE(mss);
+	ad_write(mss, 10, 2); /* int enable */
     	io_wr(mss, MSS_STATUS, 0); /* Clear interrupt status */
     	/* the following seem required on the CS4232 */
     	ad_unmute(mss);
