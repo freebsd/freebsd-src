@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.h,v 1.15 1997/06/22 15:47:12 peter Exp $
+ * $Id: vm_kern.h,v 1.16 1997/10/10 18:18:46 phk Exp $
  */
 
 #ifndef _VM_VM_KERN_H_
@@ -81,7 +81,8 @@ extern vm_map_t u_map;
 
 extern vm_offset_t kernel_vm_end;
 /* XXX - elsewhere? */
-extern void *contigmalloc1(u_long, struct malloc_type *, int, u_long, u_long, u_long, u_long,
-			   vm_map_t);
+struct malloc_type;
+extern void *contigmalloc1(u_long, struct malloc_type *, int, u_long, u_long,
+			   u_long, u_long, vm_map_t);
 
 #endif				/* _VM_VM_KERN_H_ */
