@@ -1,5 +1,5 @@
 /* ldwrite.c -- write out the linked file
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2002
    Free Software Foundation, Inc.
    Written by Steve Chamberlain sac@cygnus.com
 
@@ -233,7 +233,9 @@ build_link_order (statement)
 
 	  ASSERT (output_section->owner == output_bfd);
 
-	  if ((output_section->flags & SEC_HAS_CONTENTS) != 0)
+	  if ((output_section->flags & SEC_HAS_CONTENTS) != 0
+	      || ((output_section->flags & SEC_LOAD) != 0
+		  && (output_section->flags & SEC_THREAD_LOCAL)))
 	    {
 	      struct bfd_link_order *link_order;
 
@@ -243,9 +245,10 @@ build_link_order (statement)
 		{
 		  /* We've got a never load section inside one which
 		     is going to be output, we'll change it into a
-		     fill link_order */
-		  link_order->type = bfd_fill_link_order;
-		  link_order->u.fill.value = 0;
+		     fill.  */
+		  link_order->type = bfd_data_link_order;
+		  link_order->u.data.contents = "";
+		  link_order->u.data.size = 1;
 		}
 	      else
 		{
@@ -274,10 +277,11 @@ build_link_order (statement)
 	if ((output_section->flags & SEC_HAS_CONTENTS) != 0)
 	  {
 	    link_order = bfd_new_link_order (output_bfd, output_section);
-	    link_order->type = bfd_fill_link_order;
+	    link_order->type = bfd_data_link_order;
 	    link_order->size = statement->padding_statement.size;
 	    link_order->offset = statement->padding_statement.output_offset;
-	    link_order->u.fill.value = statement->padding_statement.fill;
+	    link_order->u.data.contents = statement->padding_statement.fill->data;
+	    link_order->u.data.size = statement->padding_statement.fill->size;
 	  }
       }
       break;

@@ -2063,8 +2063,8 @@ static void s_thumb_func PARAMS ((int));
 static void s_thumb_set PARAMS ((int));
 static void arm_s_text PARAMS ((int));
 static void arm_s_data PARAMS ((int));
-#ifdef OBJ_ELF
 static void arm_s_section PARAMS ((int));
+#ifdef OBJ_ELF
 static void s_arm_elf_cons PARAMS ((int));
 #endif
 
@@ -2088,11 +2088,11 @@ const pseudo_typeS md_pseudo_table[] =
   /* Allow for the effect of section changes.  */
   { "text",        arm_s_text,    0 },
   { "data",        arm_s_data,    0 },
-#ifdef OBJ_ELF
   { "section",     arm_s_section, 0 },
   { "section.s",   arm_s_section, 0 },
   { "sect",        arm_s_section, 0 },
   { "sect.s",      arm_s_section, 0 },
+#ifdef OBJ_ELF
   { "word",        s_arm_elf_cons, 4 },
   { "long",        s_arm_elf_cons, 4 },
   { "file",        dwarf2_directive_file, 0 },
@@ -2165,14 +2165,14 @@ add_to_lit_pool ()
 	break;
 
       if (literals[lit_count].exp.X_op == inst.reloc.exp.X_op
-          && inst.reloc.exp.X_op == O_symbol
-          && (literals[lit_count].exp.X_add_number
+	  && inst.reloc.exp.X_op == O_symbol
+	  && (literals[lit_count].exp.X_add_number
 	      == inst.reloc.exp.X_add_number)
-          && (literals[lit_count].exp.X_add_symbol
+	  && (literals[lit_count].exp.X_add_symbol
 	      == inst.reloc.exp.X_add_symbol)
-          && (literals[lit_count].exp.X_op_symbol
+	  && (literals[lit_count].exp.X_op_symbol
 	      == inst.reloc.exp.X_op_symbol))
-        break;
+	break;
 
       lit_count++;
     }
@@ -2227,7 +2227,7 @@ symbol_locate (symbolP, name, segment, valu, frag)
 
   S_SET_SEGMENT (symbolP, segment);
   S_SET_VALUE (symbolP, valu);
-  symbol_clear_list_pointers(symbolP);
+  symbol_clear_list_pointers (symbolP);
 
   symbol_set_frag (symbolP, frag);
 
@@ -2585,16 +2585,19 @@ arm_s_data (ignore)
 #endif
 }
 
-#ifdef OBJ_ELF
 static void
 arm_s_section (ignore)
      int ignore;
 {
   s_ltorg (0);
 
+#ifdef OBJ_ELF
   obj_elf_section (ignore);
-}
 #endif
+#ifdef OBJ_COFF
+  obj_coff_section (ignore);
+#endif
+}
 
 static void
 opcode_select (width)
@@ -2624,9 +2627,9 @@ opcode_select (width)
 	  thumb_mode = 0;
 
 	  if (!need_pass_2)
-            frag_align (2, 0, 0);
+	    frag_align (2, 0, 0);
 
-          record_alignment (now_seg, 1);
+	  record_alignment (now_seg, 1);
 	}
       break;
 
@@ -3450,13 +3453,13 @@ ld_mode_required_here (string)
 	    }
 	  else 	      /* [Rn] */
 	    {
-              skip_whitespace (str);
+	      skip_whitespace (str);
 
-              if (* str == '!')
-               {
-                 str ++;
-                 inst.instruction |= WRITE_BACK;
-               }
+	      if (* str == '!')
+		{
+		  str ++;
+		  inst.instruction |= WRITE_BACK;
+		}
 
 	      inst.instruction |= INDEX_UP | HWOFFSET_IMM;
 	      pre_inc = 1;
@@ -4027,10 +4030,10 @@ do_blx (str)
     {
       /* This must be is BLX <target address>, no condition allowed.  */
       if (inst.instruction != COND_ALWAYS)
-    	{
-      	  inst.error = BAD_COND;
+	{
+	  inst.error = BAD_COND;
 	  return;
-    	}
+	}
 
       inst.instruction = 0xfafffffe;
 
@@ -4088,7 +4091,7 @@ do_t_blx (str)
      BKPT <16 bit unsigned immediate>
      Instruction is not conditional.
 	The bit pattern given in insns[] has the COND_ALWAYS condition,
-	and it is an error if the caller tried to override that. */
+	and it is an error if the caller tried to override that.  */
 
 static void
 do_bkpt (str)
@@ -4331,7 +4334,7 @@ do_ldrd (str)
       || (rn = ld_mode_required_here (& str)) == FAIL)
     {
       if (!inst.error)
-        inst.error = BAD_ARGS;
+	inst.error = BAD_ARGS;
       return;
     }
 
@@ -4514,7 +4517,7 @@ my_get_expression (ep, str)
   return 0;
 }
 
-/* We handle all bad expressions here, so that we can report the faulty 
+/* We handle all bad expressions here, so that we can report the faulty
    instruction in the error message.  */
 void
 md_operand (expr)
@@ -5543,7 +5546,7 @@ do_ldstv4 (str)
 	      end_of_line (str);
 	      return;
 	    }
-	  
+
 	  value = validate_immediate (~ inst.reloc.exp.X_add_number);
 
 	  if (value != FAIL)
@@ -6729,7 +6732,7 @@ vfp_psr_parse (str)
   /* Mark it.  */
   *--p = 0;
 
-  for (vreg = vfp_regs + 0; 
+  for (vreg = vfp_regs + 0;
        vreg < vfp_regs + sizeof (vfp_regs) / sizeof (struct vfp_reg);
        vreg++)
     {
@@ -6960,7 +6963,7 @@ vfp_sp_reg_list (str, pos)
 
   /* Sanity check -- should have raised a parse error above.  */
   if (count == 0 || count > 32)
-    abort();
+    abort ();
 
   /* Final test -- the registers must be consecutive.  */
   while (count--)
@@ -7073,7 +7076,7 @@ vfp_dp_reg_list (str)
 
   /* Sanity check -- should have raised a parse error above.  */
   if (count == 0 || count > 16)
-    abort();
+    abort ();
 
   /* Final test -- the registers must be consecutive.  */
   while (count--)
@@ -7090,7 +7093,7 @@ vfp_dp_reg_list (str)
 }
 
 static void
-vfp_sp_ldstm(str, ldstm_type)
+vfp_sp_ldstm (str, ldstm_type)
      char *str;
      enum vfp_ldstm_type ldstm_type;
 {
@@ -7127,7 +7130,7 @@ vfp_sp_ldstm(str, ldstm_type)
 }
 
 static void
-vfp_dp_ldstm(str, ldstm_type)
+vfp_dp_ldstm (str, ldstm_type)
      char *str;
      enum vfp_ldstm_type ldstm_type;
 {
@@ -7433,11 +7436,11 @@ thumb_add_sub (str, subtract)
 	  int offset = inst.reloc.exp.X_add_number;
 
 	  if (subtract)
-	    offset = -offset;
+	    offset = - offset;
 
 	  if (offset < 0)
 	    {
-	      offset = -offset;
+	      offset = - offset;
 	      subtract = 1;
 
 	      /* Quick check, in case offset is MIN_INT.  */
@@ -7933,7 +7936,7 @@ mav_reg_required_here (str, shift, regtype)
   /* In the few cases where we might be able to accept something else
      this error can be overridden.  */
   inst.error = _(all_reg_maps[regtype].expected);
-  
+
   return FAIL;
 }
 
@@ -8181,7 +8184,7 @@ do_mav_quad_6b (str)
 	     REG_TYPE_MVFX);
 }
 
-/* cfmvsc32<cond> DSPSC,MVFX[15:0]. */
+/* cfmvsc32<cond> DSPSC,MVFX[15:0].  */
 static void
 do_mav_dspsc_1 (str)
      char * str;
@@ -9095,7 +9098,7 @@ create_register_alias (newname, p)
   *p = c;
   return 0;
 }
-  
+
 static void
 set_constant_flonums ()
 {
@@ -9936,6 +9939,7 @@ md_apply_fix3 (fixP, valP, seg)
 	value = fixP->fx_offset;
 #endif
 	value += diff;
+
 	if ((value & ~0x3fffff) && ((value & ~0x3fffff) != ~0x3fffff))
 	  as_bad_where (fixP->fx_file, fixP->fx_line,
 			_("branch with link out of range"));
@@ -9943,14 +9947,11 @@ md_apply_fix3 (fixP, valP, seg)
 	newval  = (newval  & 0xf800) | ((value & 0x7fffff) >> 12);
 	newval2 = (newval2 & 0xf800) | ((value & 0xfff) >> 1);
 	if (fixP->fx_r_type == BFD_RELOC_THUMB_PCREL_BLX)
-	  /* Remove bit zero of the adjusted offset.  Bit zero can only be
-	     set if the upper insn is at a half-word boundary, since the
-	     destination address, an ARM instruction, must always be on a
-	     word boundary.  The semantics of the BLX (1) instruction, however,
-	     are that bit zero in the offset must always be zero, and the
-	     corresponding bit one in the target address will be set from bit
-	     one of the source address.  */
-	  newval2 &= ~1;
+	  /* For a BLX instruction, make sure that the relocation is rounded up
+	     to a word boundary.  This follows the semantics of the instruction
+	     which specifies that bit 1 of the target address will come from bit
+	     1 of the base address.  */
+	  newval2 = (newval2 + 1) & ~ 1;
 	md_number_to_chars (buf, newval, THUMB_SIZE);
 	md_number_to_chars (buf + THUMB_SIZE, newval2, THUMB_SIZE);
       }
@@ -10399,7 +10400,6 @@ md_assemble (str)
 #if 0
   arm_align (2, 0);
 #endif
-  listing_prev_line (); /* Defined in listing.h.  */
 
   /* Align the previous label if needed.  */
   if (last_label_seen != NULL)
@@ -10487,7 +10487,7 @@ md_assemble (str)
 
 /* md_parse_option
       Invocation line includes a switch not recognized by the base assembler.
-      See if it's a processor-specific option.  
+      See if it's a processor-specific option.
 
       This routine is somewhat complicated by the need for backwards
       compatibility (since older releases of gcc can't be changed).
@@ -10505,7 +10505,7 @@ md_assemble (str)
 	      -mthumb			 Start in Thumb mode
 	      -mthumb-interwork		 Code supports ARM/Thumb interworking
 
-      For now we will also provide support for 
+      For now we will also provide support for
 
 	      -mapcs-32			 32-bit Program counter
 	      -mapcs-26			 26-bit Program counter
@@ -10546,7 +10546,7 @@ md_assemble (str)
 
       */
 
-CONST char * md_shortopts = "m:k";
+const char * md_shortopts = "m:k";
 
 #ifdef ARM_BI_ENDIAN
 #define OPTION_EB (OPTION_MD_BASE + 0)
@@ -10581,7 +10581,7 @@ struct arm_option_table
   char *deprecated;	/* If non-null, print this message.  */
 };
 
-struct arm_option_table arm_opts[] = 
+struct arm_option_table arm_opts[] =
 {
   {"k",      N_("generate PIC code"),      &pic_code,    1, NULL},
   {"mthumb", N_("assemble Thumb code"),    &thumb_mode,  1, NULL},
@@ -10789,7 +10789,7 @@ static struct arm_cpu_option_table arm_cpus[] =
   {"ep9312",		ARM_ARCH_V4T | ARM_CEXT_MAVERICK, FPU_NONE},
   {NULL, 0, 0}
 };
-   
+
 struct arm_arch_option_table
 {
   char *name;
@@ -11046,7 +11046,7 @@ md_parse_option (c, arg)
 #endif
 
     case 'a':
-      /* Listing option.  Just ignore these, we don't support additional 
+      /* Listing option.  Just ignore these, we don't support additional
 	 ones.  */
       return 0;
 
@@ -11073,10 +11073,10 @@ md_parse_option (c, arg)
 
       for (lopt = arm_long_opts; lopt->option != NULL; lopt++)
 	{
-	  /* These options are expected to have an argument.  */ 
+	  /* These options are expected to have an argument.  */
 	  if (c == lopt->option[0]
 	      && arg != NULL
-	      && strncmp (arg, lopt->option + 1, 
+	      && strncmp (arg, lopt->option + 1,
 			  strlen (lopt->option + 1)) == 0)
 	    {
 #if WARN_DEPRECATED
@@ -11216,7 +11216,6 @@ arm_cleanup ()
   /* Put it at the end of text section.  */
   subseg_set (text_section, 0);
   s_ltorg (0);
-  listing_prev_line ();
 }
 
 void
@@ -11248,7 +11247,7 @@ arm_frob_label (sym)
                 lsl  r3, r3, #2
                 ldr  r2, [r3, r2]
                 mov  pc, r2
-		
+
        .Lbbb:  .word .Lxxx
        .Lccc:  .word .Lyyy
        ..etc...
@@ -11258,7 +11257,7 @@ arm_frob_label (sym)
      The second instruction converts a table index into a byte offset.
      The third instruction gets the jump address out of the table.
      The fourth instruction performs the jump.
-     
+
      If the address stored at .Laaa is that of a symbol which has the
      Thumb_Func bit set, then the linker will arrange for this address
      to have the bottom bit set, which in turn would mean that the
@@ -11307,7 +11306,7 @@ arm_adjust_symtab ()
 		as_bad (_("%s: unexpected function type: %d"),
 			S_GET_NAME (sym), S_GET_STORAGE_CLASS (sym));
 	    }
-          else switch (S_GET_STORAGE_CLASS (sym))
+	  else switch (S_GET_STORAGE_CLASS (sym))
 	    {
 	    case C_EXT:
 	      S_SET_STORAGE_CLASS (sym, C_THUMBEXT);
@@ -11609,17 +11608,17 @@ arm_handle_align (fragP)
   int bytes, fix, noop_size;
   char * p;
   const char * noop;
-  
+
   if (fragP->fr_type != rs_align_code)
     return;
 
   bytes = fragP->fr_next->fr_address - fragP->fr_address - fragP->fr_fix;
   p = fragP->fr_literal + fragP->fr_fix;
   fix = 0;
-  
+
   if (bytes > MAX_MEM_FOR_RS_ALIGN_CODE)
     bytes &= MAX_MEM_FOR_RS_ALIGN_CODE;
-  
+
   if (fragP->tc_frag_data)
     {
       if (target_big_endian)
@@ -11636,7 +11635,7 @@ arm_handle_align (fragP)
 	noop = arm_noop;
       noop_size = sizeof (arm_noop);
     }
-  
+
   if (bytes & (noop_size - 1))
     {
       fix = bytes & (noop_size - 1);
@@ -11652,7 +11651,7 @@ arm_handle_align (fragP)
       bytes -= noop_size;
       fix += noop_size;
     }
-  
+
   fragP->fr_fix += fix;
   fragP->fr_var = noop_size;
 }
@@ -11671,7 +11670,7 @@ arm_frag_align_code (n, max)
      to support alignments greater than 32 bytes.  */
   if (max > MAX_MEM_FOR_RS_ALIGN_CODE)
     as_fatal (_("alignments greater than 32 bytes not supported in .text sections."));
-  
+
   p = frag_var (rs_align_code,
 		MAX_MEM_FOR_RS_ALIGN_CODE,
 		1,

@@ -44,7 +44,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef bfd_elfNN_get_reloc_upper_bound
 #define bfd_elfNN_get_reloc_upper_bound _bfd_elf_get_reloc_upper_bound
 #endif
+#ifndef bfd_elfNN_get_symbol_info
 #define bfd_elfNN_get_symbol_info	_bfd_elf_get_symbol_info
+#endif
 #define bfd_elfNN_get_symtab		_bfd_elf_get_symtab
 #define bfd_elfNN_get_symtab_upper_bound _bfd_elf_get_symtab_upper_bound
 #if 0 /* done in elf-bfd.h */
@@ -87,6 +89,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef elf_backend_want_dynbss
 #define elf_backend_want_dynbss 1
 #endif
+#ifndef elf_backend_want_p_paddr_set_to_zero
+#define elf_backend_want_p_paddr_set_to_zero 0
+#endif
 
 #define bfd_elfNN_bfd_debug_info_start	bfd_void
 #define bfd_elfNN_bfd_debug_info_end	bfd_void
@@ -124,6 +129,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef bfd_elfNN_bfd_merge_sections
 #define bfd_elfNN_bfd_merge_sections \
   _bfd_elf_merge_sections
+#endif
+
+#ifndef bfd_elfNN_bfd_discard_group
+#define bfd_elfNN_bfd_discard_group bfd_elf_discard_group
 #endif
 
 #ifndef bfd_elfNN_bfd_make_debug_symbol
@@ -169,6 +178,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
   _bfd_elf_canonicalize_dynamic_reloc
 #endif
 
+#ifndef bfd_elfNN_bfd_link_hash_table_free
+#define bfd_elfNN_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
+#endif
+
 #ifdef elf_backend_relocate_section
 #ifndef bfd_elfNN_bfd_link_hash_table_create
 #define bfd_elfNN_bfd_link_hash_table_create _bfd_elf_link_hash_table_create
@@ -190,6 +203,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define bfd_elfNN_bfd_final_link	_bfd_generic_final_link
 #endif
 #endif /* ! defined (elf_backend_relocate_section) */
+
+#ifndef bfd_elfNN_bfd_link_just_syms
+#define bfd_elfNN_bfd_link_just_syms	_bfd_elf_link_just_syms
+#endif
+
 #ifndef bfd_elfNN_bfd_link_split_section
 #define bfd_elfNN_bfd_link_split_section _bfd_generic_link_split_section
 #endif
@@ -367,6 +385,21 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #ifndef elf_backend_write_section
 #define elf_backend_write_section		NULL
 #endif
+#ifndef elf_backend_set_nonloadable_filepos
+#define elf_backend_set_nonloadable_filepos	NULL
+#endif
+#ifndef elf_backend_is_contained_by_filepos
+#define elf_backend_is_contained_by_filepos	NULL
+#endif
+#ifndef elf_backend_copy_private_bfd_data_p
+#define elf_backend_copy_private_bfd_data_p	NULL
+#endif
+#ifndef elf_backend_mips_irix_compat
+#define elf_backend_mips_irix_compat		NULL
+#endif
+#ifndef elf_backend_mips_rtype_to_howto
+#define elf_backend_mips_rtype_to_howto		NULL
+#endif
 
 /* Previously, backends could only use SHT_REL or SHT_RELA relocation
    sections, but not both.  They defined USE_REL to indicate SHT_REL
@@ -462,6 +495,11 @@ static const struct elf_backend_data elfNN_bed =
   elf_backend_discard_info,
   elf_backend_ignore_discarded_relocs,
   elf_backend_write_section,
+  elf_backend_set_nonloadable_filepos,
+  elf_backend_is_contained_by_filepos,
+  elf_backend_copy_private_bfd_data_p,
+  elf_backend_mips_irix_compat,
+  elf_backend_mips_rtype_to_howto,
   elf_backend_ecoff_debug_swap,
   ELF_MACHINE_ALT1,
   ELF_MACHINE_ALT2,
@@ -484,7 +522,8 @@ static const struct elf_backend_data elfNN_bed =
   elf_backend_can_gc_sections,
   elf_backend_can_refcount,
   elf_backend_want_got_sym,
-  elf_backend_want_dynbss
+  elf_backend_want_dynbss,
+  elf_backend_want_p_paddr_set_to_zero
 };
 #endif
 

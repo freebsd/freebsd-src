@@ -659,7 +659,8 @@ The @sc{gnu} linker @command{ld} is now described in a separate manual.
 @c man begin SYNOPSIS nm
 nm [@option{-a}|@option{--debug-syms}] [@option{-g}|@option{--extern-only}]
    [@option{-B}] [@option{-C}|@option{--demangle}[=@var{style}]] [@option{-D}|@option{--dynamic}]
-   [@option{-s}|@option{--print-armap}] [@option{-A}|@option{-o}|@option{--print-file-name}]
+   [@option{-S}|@option{--print-size}] [@option{-s}|@option{--print-armap}]
+   [@option{-A}|@option{-o}|@option{--print-file-name}]
    [@option{-n}|@option{-v}|@option{--numeric-sort}] [@option{-p}|@option{--no-sort}]
    [@option{-r}|@option{--reverse-sort}] [@option{--size-sort}] [@option{-u}|@option{--undefined-only}]
    [@option{-t} @var{radix}|@option{--radix=}@var{radix}] [@option{-P}|@option{--portability}]
@@ -850,6 +851,10 @@ encountered.
 @itemx --portability
 Use the POSIX.2 standard output format instead of the default format.
 Equivalent to @samp{-f posix}.
+
+@item -S
+@itemx --print-size
+Print size of defined symbols for the @code{bsd} output format.
 
 @item -s
 @itemx --print-armap
@@ -2221,7 +2226,7 @@ c++filt @var{option} @var{symbol}
 @smallexample
 @c man begin SYNOPSIS addr2line
 addr2line [@option{-b} @var{bfdname}|@option{--target=}@var{bfdname}]
-          [@option{-C}|@option{--demangle}[=@var{style}]
+          [@option{-C}|@option{--demangle}[=@var{style}]]
           [@option{-e} @var{filename}|@option{--exe=}@var{filename}]
           [@option{-f}|@option{--functions}] [@option{-s}|@option{--basename}]
           [@option{-H}|@option{--help}] [@option{-V}|@option{--version}]
@@ -2859,7 +2864,7 @@ readelf [@option{-a}|@option{--all}]
         [@option{-V}|@option{--version-info}]
         [@option{-D}|@option{--use-dynamic}]
         [@option{-x} <number>|@option{--hex-dump=}<number>]
-        [@option{-w[liaprmfs]}|@option{--debug-dump}[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str]]
+        [@option{-w[liaprmfFso]}|@option{--debug-dump}[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]]
         [@option{-histogram}]
         [@option{-v}|@option{--version}]
         [@option{-W}|@option{--wide}]
@@ -2961,8 +2966,8 @@ symbols section.
 @itemx --hex-dump=<number>
 Displays the contents of the indicated section as a hexadecimal dump.
 
-@item -w[liaprmfs]
-@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str]
+@item -w[liaprmfFso]
+@itemx --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]
 Displays the contents of the debug sections in the file, if any are
 present.  If one of the optional letters or words follows the switch
 then only data found in those specific sections will be dumped.

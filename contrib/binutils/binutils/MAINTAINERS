@@ -54,31 +54,35 @@ responsibility among the other maintainers.
   ARM		   Nick Clifton <nickc@redhat.com>
   ARM		   Richard Earnshaw <rearnsha@arm.com>
   AVR		   Denis Chertykov <denisc@overta.ru>
+  AVR		   Marek Michalkiewicz <marekm@amelek.gda.pl>
   CRIS		   Hans-Peter Nilsson <hp@axis.com>
   DWARF2	   Jason Merrill <jason@redhat.com>
+  FR30		   Dave Brolley <brolley@redhat.com>
+  FRV		   Dave Brolley <brolley@redhat.com>
   HPPA elf32	   Alan Modra <amodra@bigpond.net.au>
   IA64		   Jim Wilson <wilson@redhat.com>
-  x86_64	   Jan Hubicka <jh@suse.cz>
-  x86_64	   Andreas Jaeger <aj@suse.de>
   i860		   Jason Eckhardt <jle@redhat.com>
   ix86		   Alan Modra <amodra@bigpond.net.au>
   ix86 COFF,PE	   DJ Delorie <dj@redhat.com>
   ix86		   H.J.Lu <hjl@gnu.org>
   ix86 INTEL MODE  Diego Novillo <dnovillo@redhat.com>
-  M68HC11 M68HC12  Stephane Carrez <Stephane.Carrez@worldnet.fr>
+  M68HC11 M68HC12  Stephane Carrez <stcarrez@nerim.fr>
+  M68k		   Ben Elliston <bje@redhat.com>
+  M88k		   Ben Elliston <bje@redhat.com>
+  MIPS		   Eric Christopher <echristo@redhat.com>
+  MMIX		   Hans-Peter Nilsson <hp@bitrange.com>
   MN10300	   Eric Christopher <echristo@redhat.com>
   MN10300	   Alexandre Oliva <aoliva@redhat.com>
-  MIPS		   Eric Christopher <echristo@redhat.com>
-  M88k		   Ben Elliston <bje@redhat.com>
-  MMIX		   Hans-Peter Nilsson <hp@bitrange.com>
   PPC		   Geoff Keating <geoffk@redhat.com>
-  PPC XCOFF	   Tom Rix <trix@redhat.com>
   s390, s390x	   Martin Schwidefsky <schwidefsky@de.ibm.com>
-  SH		   JÅˆrn Rennecke <joern.rennecke@superh.com>
+  SH		   Jˆrn Rennecke <joern.rennecke@superh.com>
   SH		   Hans-Peter Nilsson <hp@bitrange.com>
   SH		   Alexandre Oliva <aoliva@redhat.com>
   SPARC		   Jakub Jelinek <jakub@redhat.com>
   TIC54X           Timothy Wall <twall@alum.mit.edu>
+  VAX		   Jason R Thorpe <thorpej@wasabisystems.com>
+  x86_64	   Jan Hubicka <jh@suse.cz>
+  x86_64	   Andreas Jaeger <aj@suse.de>
   z8k		   Christian Groessler <chris@groessler.org>
 
 

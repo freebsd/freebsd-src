@@ -947,14 +947,14 @@ coff_arm_link_hash_table_create (abfd)
   struct coff_arm_link_hash_table * ret;
   bfd_size_type amt = sizeof (struct coff_arm_link_hash_table);
 
-  ret = (struct coff_arm_link_hash_table *) bfd_alloc (abfd, amt);
+  ret = (struct coff_arm_link_hash_table *) bfd_malloc (amt);
   if (ret == (struct coff_arm_link_hash_table *) NULL)
     return NULL;
 
   if (! _bfd_coff_link_hash_table_init
       (& ret->root, abfd, _bfd_coff_link_hash_newfunc))
     {
-      bfd_release (abfd, ret);
+      free (ret);
       return (struct bfd_link_hash_table *) NULL;
     }
 
@@ -1701,21 +1701,23 @@ coff_arm_relocate_section (output_bfd, info, input_bfd, input_section,
 		  || signed_check < reloc_signed_min)
 		overflow = true;
 
-	      /* For the BLX(1) instruction remove bit 0 of the adjusted offset.
-		 Bit 0 can only be set if the upper insn is at a half-word boundary,
-		 since the destination address, an ARM instruction, must always be
-		 on a word boundary.  The semantics of the BLX (1) instruction,
-		 however, are that bit 0 in the offset must always be 0, and the
-		 corresponding bit 1 in the target address will be set from bit
-		 1 of the source address.  */
-	      if ((x & 0x18000000) == 0x08000000)
-		relocation &= ~0x2;
-
-	      /* Put the relocation into the correct bits.  */
+	      /* Put the relocation into the correct bits.
+		 For a BLX instruction, make sure that the relocation is rounded up
+		 to a word boundary.  This follows the semantics of the instruction
+		 which specifies that bit 1 of the target address will come from bit
+		 1 of the base address.  */
 	      if (bfd_big_endian (input_bfd))
-		relocation = (((relocation & 0xffe) >> 1)  | ((relocation << 4) & 0x07ff0000));
+	        {
+		  if ((x & 0x1800) == 0x0800 && (relocation & 0x02))
+		    relocation += 2;
+		  relocation = (((relocation & 0xffe) >> 1)  | ((relocation << 4) & 0x07ff0000));
+		}
 	      else
-		relocation = (((relocation & 0xffe) << 15) | ((relocation >> 12) & 0x7ff));
+	        {
+		  if ((x & 0x18000000) == 0x08000000 && (relocation & 0x02))
+		    relocation += 2;
+		  relocation = (((relocation & 0xffe) << 15) | ((relocation >> 12) & 0x7ff));
+		}
 
 	      /* Add the relocation to the correct bits of X.  */
 	      x = ((x & ~howto->dst_mask) | relocation);

@@ -1,5 +1,5 @@
 /* 32-bit ELF support for ARM old abi option.
-   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,6 +18,14 @@
    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define OLD_ARM_ABI
+#define bfd_elf32_arm_allocate_interworking_sections \
+	bfd_elf32_arm_oabi_allocate_interworking_sections
+#define bfd_elf32_arm_get_bfd_for_interworking \
+	bfd_elf32_arm_oabi_get_bfd_for_interworking
+#define bfd_elf32_arm_process_before_allocation \
+	bfd_elf32_arm_oabi_process_before_allocation
+#define bfd_elf32_arm_add_glue_sections_to_bfd \
+	bfd_elf32_arm_oabi_add_glue_sections_to_bfd
 
 #include "elf/arm.h"
 #include "bfd.h"
@@ -416,12 +424,5 @@ elf32_arm_reloc_type_lookup (abfd, code)
 
   return NULL;
 }
-
-#define bfd_elf32_arm_allocate_interworking_sections \
-	bfd_elf32_arm_oabi_allocate_interworking_sections
-#define bfd_elf32_arm_get_bfd_for_interworking \
-	bfd_elf32_arm_oabi_get_bfd_for_interworking
-#define bfd_elf32_arm_process_before_allocation \
-	bfd_elf32_arm_oabi_process_before_allocation
 
 #include "elf32-arm.h"

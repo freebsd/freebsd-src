@@ -160,7 +160,7 @@ srec_init ()
 {
   static boolean inited = false;
 
-  if (inited == false)
+  if (! inited)
     {
       inited = true;
       hex_init ();
@@ -230,22 +230,23 @@ static boolean
 srec_mkobject (abfd)
      bfd *abfd;
 {
+  bfd_size_type amt;
+  tdata_type *tdata;
+
   srec_init ();
 
-  if (abfd->tdata.srec_data == NULL)
-    {
-      bfd_size_type amt = sizeof (tdata_type);
-      tdata_type *tdata = (tdata_type *) bfd_alloc (abfd, amt);
-      if (tdata == NULL)
-	return false;
-      abfd->tdata.srec_data = tdata;
-      tdata->type = 1;
-      tdata->head = NULL;
-      tdata->tail = NULL;
-      tdata->symbols = NULL;
-      tdata->symtail = NULL;
-      tdata->csymbols = NULL;
-    }
+  amt = sizeof (tdata_type);
+  tdata = (tdata_type *) bfd_alloc (abfd, amt);
+  if (tdata == NULL)
+    return false;
+    
+  abfd->tdata.srec_data = tdata;
+  tdata->type = 1;
+  tdata->head = NULL;
+  tdata->tail = NULL;
+  tdata->symbols = NULL;
+  tdata->symtail = NULL;
+  tdata->csymbols = NULL;
 
   return true;
 }
@@ -640,6 +641,7 @@ static const bfd_target *
 srec_object_p (abfd)
      bfd *abfd;
 {
+  PTR tdata_save;
   bfd_byte b[4];
 
   srec_init ();
@@ -654,9 +656,14 @@ srec_object_p (abfd)
       return NULL;
     }
 
-  if (! srec_mkobject (abfd)
-      || ! srec_scan (abfd))
-    return NULL;
+  tdata_save = abfd->tdata.any;
+  if (! srec_mkobject (abfd) || ! srec_scan (abfd))
+    {
+      if (abfd->tdata.any != tdata_save && abfd->tdata.any != NULL)
+	bfd_release (abfd, abfd->tdata.any);
+      abfd->tdata.any = tdata_save;
+      return NULL;
+    }
 
   if (abfd->symcount > 0)
     abfd->flags |= HAS_SYMS;
@@ -670,6 +677,7 @@ static const bfd_target *
 symbolsrec_object_p (abfd)
      bfd *abfd;
 {
+  PTR tdata_save;
   char b[2];
 
   srec_init ();
@@ -684,9 +692,14 @@ symbolsrec_object_p (abfd)
       return NULL;
     }
 
-  if (! srec_mkobject (abfd)
-      || ! srec_scan (abfd))
-    return NULL;
+  tdata_save = abfd->tdata.any;
+  if (! srec_mkobject (abfd) || ! srec_scan (abfd))
+    {
+      if (abfd->tdata.any != tdata_save && abfd->tdata.any != NULL)
+	bfd_release (abfd, abfd->tdata.any);
+      abfd->tdata.any = tdata_save;
+      return NULL;
+    }
 
   if (abfd->symcount > 0)
     abfd->flags |= HAS_SYMS;
@@ -1270,8 +1283,11 @@ srec_print_symbol (abfd, afile, symbol, how)
 #define srec_bfd_relax_section bfd_generic_relax_section
 #define srec_bfd_gc_sections bfd_generic_gc_sections
 #define srec_bfd_merge_sections bfd_generic_merge_sections
+#define srec_bfd_discard_group bfd_generic_discard_group
 #define srec_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
+#define srec_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define srec_bfd_link_add_symbols _bfd_generic_link_add_symbols
+#define srec_bfd_link_just_syms _bfd_generic_link_just_syms
 #define srec_bfd_final_link _bfd_generic_final_link
 #define srec_bfd_link_split_section _bfd_generic_link_split_section
 

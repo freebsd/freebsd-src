@@ -1,5 +1,5 @@
 /* flonum_const.c - Useful Flonum constants
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 2000
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 2000, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,7 +19,7 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-#include <ansidecl.h>
+#include "ansidecl.h"
 #include "flonum.h"
 /* JF:  I added the last entry to this table, and I'm not
    sure if its right or not.  Could go either way.  I wish

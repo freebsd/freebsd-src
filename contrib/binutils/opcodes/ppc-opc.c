@@ -3713,7 +3713,7 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 
 { "stdxe",   X(31,927), X_MASK,		BOOKE64,	{ RS, RA, RB } },
 
-{ "tlbre",   X(31,946),	X_MASK,		BOOKE,		{ RT, RA, WS } },
+{ "tlbre",   X(31,946),	X_MASK,		BOOKE,		{ 0 } },
 
 { "tlbrehi", XTLB(31,946,0), XTLB_MASK,	PPC403,		{ RT, RA } },
 { "tlbrelo", XTLB(31,946,1), XTLB_MASK,	PPC403,		{ RT, RA } },
@@ -3728,20 +3728,20 @@ const struct powerpc_opcode powerpc_opcodes[] = {
 
 { "iccci",   X(31,966),	XRT_MASK,	PPC403,		{ RA, RB } },
 
+{ "tlbwe",   X(31,978),	X_MASK,		BOOKE,		{ 0 } },
+
 { "tlbld",   X(31,978),	XRTRA_MASK,	PPC,		{ RB } },
 
 { "tlbwehi", XTLB(31,978,0), XTLB_MASK,	PPC403,		{ RT, RA } },
 { "tlbwelo", XTLB(31,978,1), XTLB_MASK,	PPC403,		{ RT, RA } },
 { "tlbwe",   X(31,978),	X_MASK,		PPC403,		{ RS, RA, SH } },
 
-{ "tlbwe",   X(31,978),	X_MASK,		BOOKE,		{ RT, RA, WS } },
-
 { "icbi",    X(31,982),	XRT_MASK,	PPC,		{ RA, RB } },
 
 { "stfiwx",  X(31,983),	X_MASK,		PPC,		{ FRS, RA, RB } },
 
-{ "extsw",   XRC(31,986,0), XRB_MASK,	PPC,		{ RA, RS } },
-{ "extsw.",  XRC(31,986,1), XRB_MASK,	PPC,		{ RA, RS } },
+{ "extsw",   XRC(31,986,0), XRB_MASK,	PPC | BOOKE64,	{ RA, RS } },
+{ "extsw.",  XRC(31,986,1), XRB_MASK,	PPC | BOOKE64,	{ RA, RS } },
 
 { "icread",  X(31,998),	XRT_MASK,	PPC403,		{ RA, RB } },
 

@@ -350,7 +350,7 @@ parse_args (pargc, pargv)
      as if it were the argument of an option with character code 1.  */
 
   char *shortopts;
-  extern CONST char *md_shortopts;
+  extern const char *md_shortopts;
   static const char std_shortopts[] = {
     '-', 'J',
 #ifndef WORKING_DOT_WORD
@@ -500,8 +500,8 @@ parse_args (pargc, pargv)
 	  break;
 
 	case OPTION_TARGET_HELP:
-          md_show_usage (stdout);
-          exit (EXIT_SUCCESS);
+	  md_show_usage (stdout);
+	  exit (EXIT_SUCCESS);
 
 	case OPTION_HELP:
 	  show_usage (stdout);
@@ -797,13 +797,7 @@ main (argc, argv)
   textdomain (PACKAGE);
 
   if (debug_memory)
-    {
-#ifdef BFD_ASSEMBLER
-      extern long _bfd_chunksize;
-      _bfd_chunksize = 64;
-#endif
-      chunksize = 64;
-    }
+    chunksize = 64;
 
 #ifdef HOST_SPECIAL_INIT
   HOST_SPECIAL_INIT (argc, argv);

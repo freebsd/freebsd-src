@@ -533,7 +533,7 @@ NAME(aout,some_aout_object_p) (abfd, execp, callback_to_real_object_p)
   obj_aout_sym_hashes (abfd) = NULL;
 
   if (! NAME(aout,make_sections) (abfd))
-    return NULL;
+    goto error_ret;
 
   obj_datasec (abfd)->_raw_size = execp->a_data;
   obj_bsssec (abfd)->_raw_size = execp->a_bss;
@@ -655,13 +655,13 @@ NAME(aout,some_aout_object_p) (abfd, execp, callback_to_real_object_p)
       obj_textsec (abfd)->next = obj_datasec (abfd);
       obj_datasec (abfd)->next = obj_bsssec (abfd);
 #endif
+      return result;
     }
-  else
-    {
-      free (rawptr);
-      abfd->tdata.aout_data = oldrawptr;
-    }
-  return result;
+
+ error_ret:
+  bfd_release (abfd, rawptr);
+  abfd->tdata.aout_data = oldrawptr;
+  return NULL;
 }
 
 /*
@@ -1310,9 +1310,9 @@ aout_get_external_symbols (abfd)
       count = exec_hdr (abfd)->a_syms / EXTERNAL_NLIST_SIZE;
 
 #ifdef USE_MMAP
-      if (bfd_get_file_window (abfd,
-			       obj_sym_filepos (abfd), exec_hdr (abfd)->a_syms,
-			       &obj_aout_sym_window (abfd), true) == false)
+      if (! bfd_get_file_window (abfd, obj_sym_filepos (abfd),
+				 exec_hdr (abfd)->a_syms,
+				 &obj_aout_sym_window (abfd), true))
 	return false;
       syms = (struct external_nlist *) obj_aout_sym_window (abfd).data;
 #else
@@ -1352,8 +1352,8 @@ aout_get_external_symbols (abfd)
       stringsize = GET_WORD (abfd, string_chars);
 
 #ifdef USE_MMAP
-      if (bfd_get_file_window (abfd, obj_str_filepos (abfd), stringsize,
-			       &obj_aout_string_window (abfd), true) == false)
+      if (! bfd_get_file_window (abfd, obj_str_filepos (abfd), stringsize,
+				 &obj_aout_string_window (abfd), true))
 	return false;
       strings = (char *) obj_aout_string_window (abfd).data;
 #else
@@ -1837,11 +1837,9 @@ NAME(aout,slurp_symbol_table) (abfd)
 
   cached_size = obj_aout_external_sym_count (abfd);
   cached_size *= sizeof (aout_symbol_type);
-  cached = (aout_symbol_type *) bfd_malloc (cached_size);
+  cached = (aout_symbol_type *) bfd_zmalloc (cached_size);
   if (cached == NULL && cached_size != 0)
     return false;
-  if (cached_size != 0)
-    memset (cached, 0, (size_t) cached_size);
 
   /* Convert from external symbol information to internal.  */
   if (! (NAME(aout,translate_symbol_table)
@@ -2411,10 +2409,9 @@ NAME(aout,slurp_reloc_table) (abfd, asect, symbols)
   count = reloc_size / each_size;
 
   amt = count * sizeof (arelent);
-  reloc_cache = (arelent *) bfd_malloc (amt);
+  reloc_cache = (arelent *) bfd_zmalloc (amt);
   if (reloc_cache == NULL && count != 0)
     return false;
-  memset (reloc_cache, 0, (size_t) amt);
 
   relocs = bfd_malloc (reloc_size);
   if (relocs == NULL && reloc_size != 0)
@@ -4189,7 +4186,8 @@ aout_link_write_symbols (finfo, input_bfd)
 
 	  /* Use the name from the hash table, in case the symbol was
              wrapped.  */
-	  if (h != NULL)
+	  if (h != NULL
+	      && h->root.type != bfd_link_hash_warning)
 	    name = h->root.root.string;
 
 	  /* If this is an indirect or warning symbol, then change
@@ -4211,7 +4209,6 @@ aout_link_write_symbols (finfo, input_bfd)
 
 	  /* If the symbol has already been written out, skip it.  */
 	  if (h != (struct aout_link_hash_entry *) NULL
-	      && h->root.type != bfd_link_hash_warning
 	      && h->written)
 	    {
 	      if ((type & N_TYPE) == N_INDR

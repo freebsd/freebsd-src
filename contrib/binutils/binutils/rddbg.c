@@ -185,7 +185,7 @@ read_section_stabs_debugging_info (abfd, syms, symcount, dhandle, pfound)
 		  char *f, *s;
 
 		  f = NULL;
-		  
+
 		  if (stroff + strx > strsize)
 		    {
 		      fprintf (stderr, "%s: %s: stab entry %d is corrupt, strx = 0x%x, type = %d\n",
@@ -193,9 +193,9 @@ read_section_stabs_debugging_info (abfd, syms, symcount, dhandle, pfound)
 			       (stab - stabs) / 12, strx, type);
 		      continue;
 		    }
-		  
+
 		  s = (char *) strings + stroff + strx;
-		  
+
 		  while (s[strlen (s) - 1] == '\\'
 			 && stab + 12 < stabs + stabsize)
 		    {

@@ -1,6 +1,6 @@
 /* BFD back-end for Intel 386 COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001
+   2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -117,7 +117,7 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	     When we link PE and non-PE object files together to
 	     generate a non-PE executable, we have to compensate it
 	     here.  */
-	  if (howto->pc_relative == true && howto->pcrel_offset == true)
+	  if (howto->pc_relative && howto->pcrel_offset)
 	    diff = -(1 << howto->size);
 	  else
 	    diff = -reloc_entry->addend;

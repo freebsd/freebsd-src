@@ -196,8 +196,7 @@ bfd_coff_reloc16_relax_section (abfd, input_section, link_info, again)
          The last element is used as an accumlator of shrinks.  */
       amt = reloc_count + 1;
       amt *= sizeof (unsigned);
-      shrinks = (unsigned *) bfd_malloc (amt);
-      memset (shrinks, 0, (size_t) amt);
+      shrinks = (unsigned *) bfd_zmalloc (amt);
 
       /* Loop until nothing changes in this section.  */
       do {

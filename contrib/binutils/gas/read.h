@@ -137,6 +137,7 @@ extern void generate_lineno_debug PARAMS ((void));
 extern void s_abort PARAMS ((int)) ATTRIBUTE_NORETURN;
 extern void s_align_bytes PARAMS ((int arg));
 extern void s_align_ptwo PARAMS ((int));
+extern void s_app_file_string PARAMS ((char *));
 extern void s_app_file PARAMS ((int));
 extern void s_app_line PARAMS ((int));
 extern void s_bad_endr PARAMS ((int));

@@ -70,7 +70,7 @@
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
 #endif
- 
+
 #if defined (_WIN32) && ! defined (__CYGWIN__)
 #define popen _popen
 #define pclose _pclose
@@ -193,38 +193,38 @@ run_cmd (cmd, redir)
 
   /* Count the args.  */
   i = 0;
-  
+
   for (s = cmd; *s; s++)
     if (*s == ' ')
       i++;
-  
+
   i++;
   argv = alloca (sizeof (char *) * (i + 3));
   i = 0;
   s = cmd;
-  
+
   while (1)
     {
       while (*s == ' ' && *s != 0)
 	s++;
-      
+
       if (*s == 0)
 	break;
-      
+
       in_quote = (*s == '\'' || *s == '"');
       sep = (in_quote) ? *s++ : ' ';
       argv[i++] = s;
-      
+
       while (*s != sep && *s != 0)
 	s++;
-      
+
       if (*s == 0)
 	break;
-      
+
       *s++ = 0;
-      
+
       if (in_quote)
-        s++;
+	s++;
     }
   argv[i++] = NULL;
 
@@ -237,8 +237,8 @@ run_cmd (cmd, redir)
   /* Open temporary output file.  */
   redir_handle = open (redir, O_WRONLY | O_TRUNC | O_CREAT, 0666);
   if (redir_handle == -1)
-    fatal (_("can't open temporary file `%s': %s"), redir, 
-           strerror (errno));
+    fatal (_("can't open temporary file `%s': %s"), redir,
+	   strerror (errno));
 
   /* Duplicate the stdout file handle so it can be restored later.  */
   stdout_save = dup (STDOUT_FILENO);
@@ -265,7 +265,7 @@ run_cmd (cmd, redir)
 
   retcode = 0;
   pid = pwait (pid, &wait_status, 0);
-  
+
   if (pid == -1)
     {
       fatal (_("wait: %s"), strerror (errno));
@@ -280,14 +280,14 @@ run_cmd (cmd, redir)
     {
       if (WEXITSTATUS (wait_status) != 0)
 	{
-	  fatal (_("%s exited with status %d"), cmd, 
+	  fatal (_("%s exited with status %d"), cmd,
 	         WEXITSTATUS (wait_status));
 	  retcode = 1;
 	}
     }
   else
     retcode = 1;
-  
+
   return retcode;
 }
 
@@ -309,11 +309,11 @@ open_input_stream (cmd)
 
       cpp_pipe = fopen (cpp_temp_file, FOPEN_RT);;
       if (cpp_pipe == NULL)
-        fatal (_("can't open temporary file `%s': %s"), 
+	fatal (_("can't open temporary file `%s': %s"),
 	       cpp_temp_file, strerror (errno));
-      
+
       if (verbose)
-	fprintf (stderr, 
+	fprintf (stderr,
 	         _("Using temporary file `%s' to read preprocessor output\n"),
 		 cpp_temp_file);
     }
@@ -321,7 +321,7 @@ open_input_stream (cmd)
     {
       cpp_pipe = popen (cmd, FOPEN_RT);
       if (cpp_pipe == NULL)
-        fatal (_("can't popen `%s': %s"), cmd, strerror (errno));
+	fatal (_("can't popen `%s': %s"), cmd, strerror (errno));
       if (verbose)
 	fprintf (stderr, _("Using popen to read preprocessor output\n"));
     }
@@ -472,7 +472,7 @@ read_rc_file (filename, preprocessor, preprocargs, language, use_temp_file)
 	}
 
     }
-  
+
   free (cmd);
 
   rc_filename = xstrdup (filename);
@@ -484,7 +484,7 @@ read_rc_file (filename, preprocessor, preprocargs, language, use_temp_file)
   rcparse_discard_strings ();
 
   close_input_stream ();
-  
+
   if (fontdirs != NULL)
     define_fontdirs ();
 
@@ -507,7 +507,7 @@ close_input_stream ()
       if (cpp_temp_file != NULL)
 	{
 	  int errno_save = errno;
-	  
+
 	  unlink (cpp_temp_file);
 	  errno = errno_save;
 	  free (cpp_temp_file);
@@ -1593,7 +1593,7 @@ write_rc_directory (e, rd, type, name, language, level)
 	      && (re->id.u.id & 0xffff) == re->id.u.id)
 	    {
 	      fprintf (e, "LANGUAGE %lu, %lu\n",
-		       re->id.u.id & ((1 << SUBLANG_SHIFT) - 1), 
+		       re->id.u.id & ((1 << SUBLANG_SHIFT) - 1),
 		       (re->id.u.id >> SUBLANG_SHIFT) & 0xff);
 	      *language = re->id.u.id;
 	    }
@@ -1699,7 +1699,7 @@ write_rc_subdir (e, re, type, name, language, level)
       fprintf (e, "// Level %d: ", level);
       res_id_print (e, re->id, 1);
       fprintf (e, "\n");
-    }		
+    }
 
   write_rc_directory (e, re->u.dir, type, name, language, level + 1);
 }
@@ -2167,7 +2167,7 @@ write_rc_dialog_control (e, control)
     fprintf (e, "%s", ci->name);
   else
     fprintf (e, "CONTROL");
-  
+
   if (control->text.named || control->text.u.id != 0)
     {
       fprintf (e, " ");
