@@ -95,7 +95,7 @@ static inline void GoTo(int row, int col)
 	SP->_curscol = col; 
 }
 
-int _outch(char ch)
+int _outch(int ch)
 {
 	if (SP != NULL)
   		putc(ch, SP->_ofp);
@@ -183,7 +183,7 @@ sigaction_t act, oact;
 
 static int move_right_cost = -1;
 
-static int countc(char c)
+static int countc(int c)
 {
 	return(move_right_cost++);
 }
