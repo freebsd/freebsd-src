@@ -14,6 +14,10 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20041118:	p12	FreeBSD-SA-04:16.fetch
+	Correct a buffer overflow in fetch(1) which could allow a
+	mallicious server to execute arbitrary code on the client.
+
 20041003:	p11	FreeBSD-SA-04:15.syscons
 	Correct a kernel memory disclosure vulnerability in syscons(4).
 
