@@ -105,7 +105,6 @@ struct trapframe_vm86 {
 
 struct intrframe {
 	int	if_vec;
-	int	if_ppl;
 	int	if_fs;
 	int	if_es;
 	int	if_ds;
@@ -132,7 +131,6 @@ struct intrframe {
 
 struct clockframe {
 	int	cf_vec;
-	int	cf_ppl;
 	int	cf_fs;
 	int	cf_es;
 	int	cf_ds;
