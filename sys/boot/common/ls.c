@@ -1,5 +1,5 @@
 /*
- * $Id: ls.c,v 1.4 1998/10/07 02:38:26 msmith Exp $
+ * $Id: ls.c,v 1.5 1998/10/09 07:09:22 msmith Exp $
  * From: $NetBSD: ls.c,v 1.3 1997/06/13 13:48:47 drochner Exp $
  */
 
@@ -163,7 +163,7 @@ ls_getdir(char **pathp)
 {
     struct stat	sb;
     int		fd;
-    char	*cp;
+    const char	*cp;
     char	*path, *tail;
     
     tail = NULL;
