@@ -1,4 +1,5 @@
-#	@(#)Makefile	5.11 (Berkeley) 5/21/91
+#	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
+#	$Id$
 
 NOOBJ=	noobj
 
@@ -499,7 +500,7 @@ distrib-dirs:
 floppies: kcopy-ah-floppy kcopy-bt-floppy filesystem-floppy \
 	  cpio-floppy
 
-release: release-dirs distribution kcopy-kernels \
+release: release-dirs distribution kcopy-kernels floppies \
 	 bin-tarball des-tarball
 	
 release-dirs:
