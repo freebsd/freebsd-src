@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.62 1996/07/30 03:08:15 dyson Exp $
+ *	$Id: vm_page.c,v 1.63 1996/09/08 20:44:44 dyson Exp $
  */
 
 /*
@@ -67,7 +67,6 @@
 /*
  *	Resident memory management module.
  */
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,11 +86,10 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 
-#ifdef DDB
-extern void	DDB_print_page_info __P((void));
-#endif
-
-static void vm_page_queue_init(void);
+static void	vm_page_queue_init __P((void));
+static vm_page_t
+		vm_page_select_free __P((vm_object_t object, vm_pindex_t pindex,
+					 int prefqueue));
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -163,10 +161,8 @@ static u_short vm_page_dev_bsize_chunks[] = {
 	0x1ff, 0x3ff, 0x7ff, 0xfff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 };
 
-static inline __pure int
-		vm_page_hash __P((vm_object_t object, vm_pindex_t pindex))
-		__pure2;
-
+static inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex))
+			       __pure2;
 static int vm_page_freechk_and_unqueue __P((vm_page_t m));
 static void vm_page_free_wakeup __P((void));
 
@@ -392,7 +388,7 @@ vm_page_startup(starta, enda, vaddr)
  *
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
  */
-static inline __pure int
+static inline int
 vm_page_hash(object, pindex)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -628,7 +624,7 @@ vm_page_list_find(basequeue, index)
 /*
  * Find a free or zero page, with specified preference.
  */
-vm_page_t
+static vm_page_t
 vm_page_select_free(object, pindex, prefqueue)
 	vm_object_t object;
 	vm_pindex_t pindex;
@@ -1334,46 +1330,50 @@ vm_page_alloc_contig(size, low, high, alignment)
 	return ((vm_offset_t)contigmalloc(size, M_DEVBUF, M_NOWAIT, low, high,
 					  alignment, 0ul));
 }
+
+#include "opt_ddb.h"
 #ifdef DDB
-void
-DDB_print_page_info(void)
+#include <sys/kernel.h>
+
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(page, vm_page_print_page_info)
 {
-	printf("cnt.v_free_count: %d\n", cnt.v_free_count);
-	printf("cnt.v_cache_count: %d\n", cnt.v_cache_count);
-	printf("cnt.v_inactive_count: %d\n", cnt.v_inactive_count);
-	printf("cnt.v_active_count: %d\n", cnt.v_active_count);
-	printf("cnt.v_wire_count: %d\n", cnt.v_wire_count);
-	printf("cnt.v_free_reserved: %d\n", cnt.v_free_reserved);
-	printf("cnt.v_free_min: %d\n", cnt.v_free_min);
-	printf("cnt.v_free_target: %d\n", cnt.v_free_target);
-	printf("cnt.v_cache_min: %d\n", cnt.v_cache_min);
-	printf("cnt.v_inactive_target: %d\n", cnt.v_inactive_target);
+	db_printf("cnt.v_free_count: %d\n", cnt.v_free_count);
+	db_printf("cnt.v_cache_count: %d\n", cnt.v_cache_count);
+	db_printf("cnt.v_inactive_count: %d\n", cnt.v_inactive_count);
+	db_printf("cnt.v_active_count: %d\n", cnt.v_active_count);
+	db_printf("cnt.v_wire_count: %d\n", cnt.v_wire_count);
+	db_printf("cnt.v_free_reserved: %d\n", cnt.v_free_reserved);
+	db_printf("cnt.v_free_min: %d\n", cnt.v_free_min);
+	db_printf("cnt.v_free_target: %d\n", cnt.v_free_target);
+	db_printf("cnt.v_cache_min: %d\n", cnt.v_cache_min);
+	db_printf("cnt.v_inactive_target: %d\n", cnt.v_inactive_target);
 }
 
-void
-DDB_print_pageq_info(void)
+DB_SHOW_COMMAND(pageq, vm_page_print_pageq_info)
 {
 	int i;
-	printf("PQ_FREE:");
+	db_printf("PQ_FREE:");
 	for(i=0;i<PQ_L2_SIZE;i++) {
-		printf(" %d", *vm_page_queues[PQ_FREE + i].lcnt);
+		db_printf(" %d", *vm_page_queues[PQ_FREE + i].lcnt);
 	}
-	printf("\n");
+	db_printf("\n");
 		
-	printf("PQ_CACHE:");
+	db_printf("PQ_CACHE:");
 	for(i=0;i<PQ_L2_SIZE;i++) {
-		printf(" %d", *vm_page_queues[PQ_CACHE + i].lcnt);
+		db_printf(" %d", *vm_page_queues[PQ_CACHE + i].lcnt);
 	}
-	printf("\n");
+	db_printf("\n");
 
-	printf("PQ_ZERO:");
+	db_printf("PQ_ZERO:");
 	for(i=0;i<PQ_L2_SIZE;i++) {
-		printf(" %d", *vm_page_queues[PQ_ZERO + i].lcnt);
+		db_printf(" %d", *vm_page_queues[PQ_ZERO + i].lcnt);
 	}
-	printf("\n");
+	db_printf("\n");
 
-	printf("PQ_ACTIVE: %d, PQ_INACTIVE: %d\n",
+	db_printf("PQ_ACTIVE: %d, PQ_INACTIVE: %d\n",
 		*vm_page_queues[PQ_ACTIVE].lcnt,
 		*vm_page_queues[PQ_INACTIVE].lcnt);
 }
-#endif
+#endif /* DDB */
