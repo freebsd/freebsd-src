@@ -661,7 +661,7 @@ in_ifinit(ifp, ia, sin, scrub)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	struct sockaddr_in oldaddr;
-	int s = splimp(), flags = RTF_UP, error;
+	int s = splimp(), flags = RTF_UP, error = 0;
 
 	oldaddr = ia->ia_addr;
 	ia->ia_addr = *sin;
@@ -723,12 +723,24 @@ in_ifinit(ifp, ia, sin, scrub)
 			return (0);
 		flags |= RTF_HOST;
 	}
-	if ((error = rtinit(&(ia->ia_ifa), (int)RTM_ADD, flags)) == 0)
-		ia->ia_flags |= IFA_ROUTE;
 
-	if (error != 0 && ia->ia_dstaddr.sin_family == AF_INET) {
-		ia->ia_addr = oldaddr;
-		return (error);
+	/*-
+	 * Don't add host routes for interface addresses of
+	 * 0.0.0.0 --> 0.255.255.255 netmask 255.0.0.0.  This makes it
+	 * possible to assign several such address pairs with consistent
+	 * results (no host route) and is required by BOOTP.
+	 *
+	 * XXX: This is ugly !  There should be a way for the caller to
+	 *      say that they don't want a host route.
+	 */
+	if (ia->ia_addr.sin_addr.s_addr != INADDR_ANY ||
+	    ia->ia_netmask != IN_CLASSA_NET ||
+	    ia->ia_dstaddr.sin_addr.s_addr != htonl(IN_CLASSA_HOST)) {
+		if ((error = rtinit(&ia->ia_ifa, (int)RTM_ADD, flags)) != 0) {
+			ia->ia_addr = oldaddr;
+			return (error);
+		}
+		ia->ia_flags |= IFA_ROUTE;
 	}
 
 	/* XXX check if the subnet route points to the same interface */
