@@ -530,6 +530,10 @@ hifn_detach(device_t dev)
 	/*XXX other resources */
 	callout_stop(&sc->sc_tickto);
 	callout_stop(&sc->sc_rngto);
+#ifdef HIFN_RNDTEST
+	if (sc->sc_rndtest)
+		rndtest_detach(sc->sc->rndtest);
+#endif
 
 	/* Turn off DMA polling */
 	WRITE_REG_1(sc, HIFN_1_DMA_CNFG, HIFN_DMACNFG_MSTRESET |
