@@ -2683,6 +2683,8 @@ options 	CPU_UPGRADE_HW_CACHE
 
 options 	DEBUG
 options 	DEBUG_LINUX
+
+# Disable the 4 MByte PSE CPU feature.
 #options 	DISABLE_PSE
 options 	ENABLE_ALART
 options 	I4B_SMP_WORKAROUND
