@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_jn.c,v 1.6 1994/08/18 23:05:37 jtc Exp $";
+static char rcsid[] = "$Id: e_jn.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 #endif
 
 /*
@@ -238,7 +238,7 @@ static double zero  =  0.00000000000000000000e+00;
 	sign = 1;
 	if(n<0){
 		n = -n;
-		sign = 1 - ((n&1)<<2);
+		sign = 1 - ((n&1)<<1);
 	}
 	if(n==0) return(__ieee754_y0(x));
 	if(n==1) return(sign*__ieee754_y1(x));
