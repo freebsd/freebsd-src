@@ -17,8 +17,8 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS abi accounting addswap adjkerntz amd \
 	ntpdate othermta pccard pcvt ppp-user pppoed pwcheck quota random \
 	rarpd rcconf.sh root route6d routed rpcbind rtadvd rwho savecore \
 	securelevel sendmail serial sppp sshd swap1 syscons sysctl \
-	syslogd timed ttys usbd vinum virecover ypbind yppasswdd ypserv \
-	ypset ypupdated ypxfrd
+	syslogd timed ttys usbd vinum virecover watchdogd ypbind \
+	yppasswdd ypserv ypset ypupdated ypxfrd
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 

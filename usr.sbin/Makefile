@@ -124,6 +124,7 @@ SUBDIR=	IPXrouted \
 	vipw \
 	vnconfig \
 	watch \
+	watchdogd \
 	wicontrol \
 	yp_mkdb \
 	ypbind \
