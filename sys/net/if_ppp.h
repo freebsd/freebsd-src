@@ -1,4 +1,4 @@
-/*	$Id: if_ppp.h,v 1.12 1995/04/24 02:40:23 paulus Exp $	*/
+/*	$Id: if_ppp.h,v 1.16 1997/04/30 05:46:04 paulus Exp $	*/
 
 /*
  * if_ppp.h - Point-to-Point Protocol definitions.
@@ -21,12 +21,6 @@
 
 #ifndef _IF_PPP_H_
 #define _IF_PPP_H_
-
-/*
- * Packet sizes
- */
-#define	PPP_MTU		1500	/* Default MTU (size of Info field) */
-#define PPP_MAXMRU	65000	/* Largest MRU we allow */
 
 /*
  * Bit definitions for flags.
@@ -111,6 +105,10 @@ struct ifpppcstatsreq {
 #define PPPIOCGNPMODE	_IOWR('t', 76, struct npioctl) /* get NP mode */
 #define PPPIOCSNPMODE	_IOW('t', 75, struct npioctl)  /* set NP mode */
 #define PPPIOCGIDLE	_IOR('t', 74, struct ppp_idle) /* get idle time */
+#ifdef PPP_FILTER
+#define PPPIOCSPASS	_IOW('t', 71, struct bpf_program) /* set pass filter */
+#define PPPIOCSACTIVE	_IOW('t', 70, struct bpf_program) /* set active filt */
+#endif /* PPP_FILTER */
 
 /* PPPIOC[GS]MTU are alternatives to SIOC[GS]IFMTU, used under Ultrix */
 #define PPPIOCGMTU	_IOR('t', 73, int)	/* get interface MTU */
@@ -127,4 +125,8 @@ struct ifpppcstatsreq {
 #define ifr_mtu	ifr_ifru.ifru_metric
 #endif
 
+#if defined(_KERNEL) || defined(KERNEL)
+void pppattach __P((void));
+void pppintr __P((void));
+#endif
 #endif /* _IF_PPP_H_ */

@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id: ppp-comp.h,v 1.7 1995/05/01 01:43:37 paulus Exp $
+ * $Id: ppp-comp.h,v 1.10 1996/09/26 06:30:11 paulus Exp $
  */
 
 #ifndef _NET_PPP_COMP_H
@@ -37,6 +37,11 @@
 #ifndef DO_BSD_COMPRESS
 #define DO_BSD_COMPRESS	1	/* by default, include BSD-Compress */
 #endif
+#ifndef DO_DEFLATE
+#define DO_DEFLATE	1	/* by default, include Deflate */
+#endif
+#define DO_PREDICTOR_1	0
+#define DO_PREDICTOR_2	0
 
 /*
  * Structure giving methods for compression/decompression.
@@ -132,5 +137,28 @@ struct compressor {
 
 #define BSD_MIN_BITS		9	/* smallest code size supported */
 #define BSD_MAX_BITS		15	/* largest code size supported */
+
+/*
+ * Definitions for Deflate.
+ */
+#define CI_DEFLATE		24	/* config option for Deflate */
+#define CILEN_DEFLATE		4	/* length of its config option */
+
+#define DEFLATE_MIN_SIZE	8
+#define DEFLATE_MAX_SIZE	15
+#define DEFLATE_METHOD_VAL	8
+#define DEFLATE_SIZE(x)		(((x) >> 4) + DEFLATE_MIN_SIZE)
+#define DEFLATE_METHOD(x)	((x) & 0x0F)
+#define DEFLATE_MAKE_OPT(w)	((((w) - DEFLATE_MIN_SIZE) << 4) \
+				 + DEFLATE_METHOD_VAL)
+#define DEFLATE_CHK_SEQUENCE	0
+
+/*
+ * Definitions for other, as yet unsupported, compression methods.
+ */
+#define CI_PREDICTOR_1		1	/* config option for Predictor-1 */
+#define CILEN_PREDICTOR_1	2	/* length of its config option */
+#define CI_PREDICTOR_2		2	/* config option for Predictor-2 */
+#define CILEN_PREDICTOR_2	2	/* length of its config option */
 
 #endif /* _NET_PPP_COMP_H */
