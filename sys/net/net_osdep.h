@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: net_osdep.h,v 1.21 2000/07/02 23:34:38 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 /*
  * glue for kernel code programming differences.
@@ -35,10 +36,24 @@
 /*
  * OS dependencies:
  *
+ * - struct rt_addrinfo
+ *   all *BSDs except bsdi4 only have two members; rti_addrs and rti_info[].
+ *   bsdi4 has additional members; rti_flags, rti_ifa, rti_ifp, and rti_rtm.
+ *
+ * - side effects of rtrequest[1](RTM_DELETE)
+ *	BSDI[34]: delete all cloned routes underneath the route.
+ *	FreeBSD[234]: delete all protocol-cloned routes underneath the route.
+ *		      note that cloned routes from an interface direct route
+ *		      still remain.
+ *	NetBSD, OpenBSD: no side effects.
  * - privileged process
  *	NetBSD, FreeBSD 3
  *		struct proc *p;
  *		if (p && !suser(p->p_ucred, &p->p_acflag))
+ *			privileged;
+ *	FreeBSD 4
+ *		struct proc *p;
+ *		if (p && !suser(p))
  *			privileged;
  *	OpenBSD, BSDI [34], FreeBSD 2
  *		struct socket *so;
@@ -76,7 +91,7 @@
  *	NetBSD, OpenBSD, BSDI [34], FreeBSD 2
  *		timeout() is a void function
  *	FreeBSD 3
- *		timeout() is non-void, must keep returned value for untimeuot()
+ *		timeout() is non-void, must keep returned value for untimeout()
  * - sysctl
  *	NetBSD, OpenBSD
  *		foo_sysctl()
@@ -106,16 +121,45 @@
  *
  * - dtom()
  *	NEVER USE IT!
+ *
+ * - struct ifnet for loopback interface
+ *	BSDI3: struct ifnet loif;
+ *	BSDI4: struct ifnet *loifp;
+ *	NetBSD, OpenBSD, FreeBSD2: struct ifnet loif[NLOOP];
+ *
+ *	odd thing is that many of them refers loif as ifnet *loif,
+ *	not loif[NLOOP], from outside of if_loop.c.
+ *
+ * - number of bpf pseudo devices
+ *	others: bpfilter.h, NBPFILTER
+ *	FreeBSD4: bpf.h, NBPF
+ *	solution:
+ *		#if defined(__FreeBSD__) && __FreeBSD__ >= 4
+ *		#include "bpf.h"
+ *		#define NBPFILTER	NBPF
+ *		#else
+ *		#include "bpfilter.h"
+ *		#endif
+ *
+ * - protosw for IPv4 (sys/netinet)
+ *	FreeBSD4: struct ipprotosw in netinet/ipprotosw.h
+ *	others: struct protosw in sys/protosw.h
+ *
+ * - header files with defopt (opt_xx.h)
+ *	FreeBSD3: opt_{inet,ipsec,ip6fw,altq}.h
+ *	FreeBSD4: opt_{inet,inet6,ipsec,ip6fw,altq}.h
+ *	NetBSD: opt_{inet,ipsec,altq}.h
+ *	others: does not use defopt
  */
 
 #ifndef __NET_NET_OSDEP_H_DEFINED_
-#define	__NET_NET_OSDEP_H_DEFINED_
+#define __NET_NET_OSDEP_H_DEFINED_
 #ifdef _KERNEL
 
 struct ifnet;
-extern const	char *if_name __P((struct ifnet *));
+extern const char *if_name __P((struct ifnet *));
 
-#define	HAVE_OLD_BPF
+#define HAVE_OLD_BPF
 
 #endif /*_KERNEL*/
 #endif /*__NET_NET_OSDEP_H_DEFINED_ */

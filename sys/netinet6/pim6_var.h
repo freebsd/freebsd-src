@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: pim6_var.h,v 1.8 2000/06/06 08:07:43 jinmei Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -25,10 +28,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-/* $Id: pim6_var.h,v 1.2 1999/08/01 15:58:13 itojun Exp $ */
 
 #ifndef _NETINET6_PIM6_VAR_H_
 #define _NETINET6_PIM6_VAR_H_
@@ -42,30 +42,29 @@
  */
 
 struct pim6stat {
-	u_int	pim6s_rcv_total;	/* total PIM messages received	*/
-	u_int	pim6s_rcv_tooshort;	/* received with too few bytes	*/
-	u_int	pim6s_rcv_badsum;	/* received with bad checksum	*/
-	u_int	pim6s_rcv_badversion;	/* received bad PIM version	*/
-	u_int	pim6s_rcv_registers;	/* received registers		*/
-	u_int	pim6s_rcv_badregisters;	/* received invalid registers	*/
-	u_int	pim6s_snd_registers;	/* sent registers		*/
+	u_quad_t pim6s_rcv_total;	/* total PIM messages received	*/
+	u_quad_t pim6s_rcv_tooshort;	/* received with too few bytes	*/
+	u_quad_t pim6s_rcv_badsum;	/* received with bad checksum	*/
+	u_quad_t pim6s_rcv_badversion;	/* received bad PIM version	*/
+	u_quad_t pim6s_rcv_registers;	/* received registers		*/
+	u_quad_t pim6s_rcv_badregisters; /* received invalid registers	*/
+	u_quad_t pim6s_snd_registers;	/* sent registers		*/
 };
 
-#ifdef _KERNEL
-extern struct	pim6stat pim6stat;
+#if (defined(KERNEL)) || (defined(_KERNEL))
+extern struct pim6stat pim6stat;
 
-int	pim6_input __P((struct mbuf **, int*, int));
-#endif
+int pim6_input __P((struct mbuf **, int*, int));
+#endif /* KERNEL */
 
 /*
  * Names for PIM sysctl objects
  */
-#define	PIMCTL_STATS		1	/* statistics (read-only) */
-#define	PIMCTL_MAXID		2
+#define PIM6CTL_STATS		1	/* statistics (read-only) */
+#define PIM6CTL_MAXID		2
 
-#define	PIMCTL_NAMES { \
+#define PIM6CTL_NAMES { \
 	{ 0, 0 }, \
 	{ 0, 0 }, \
 }
-
 #endif /* _NETINET6_PIM6_VAR_H_ */

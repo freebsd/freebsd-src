@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: bf_pi.h,v 1.3 2000/03/27 04:36:26 sumikawa Exp $	*/
+
 /* crypto/bf/bf_pi.h */
 /* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
  * All rights reserved.
@@ -54,8 +57,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 static BF_KEY bf_init= {

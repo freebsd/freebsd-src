@@ -61,6 +61,7 @@
 #include <netinet/tcp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
+#include <netinet/ip_encap.h>
 
 #include <netinet/ipprotosw.h>
 
@@ -79,6 +80,11 @@
 #include "gif.h"
 #if NGIF > 0
 #include <netinet/in_gif.h>
+#endif
+
+#include "stf.h"
+#if NSTF > 0
+#include <net/if_stf.h>
 #endif
 
 #ifdef IPXIP
@@ -153,29 +159,20 @@ struct ipprotosw inetsw[] = {
 },
 #endif
 #endif /* IPSEC */
-#if NGIF > 0
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
-  in_gif_input,	0,	 	0,		0,
+  encap4_input,	0,	 	0,		rip_ctloutput,
   0,
-  0,		0,		0,		0,
+  encap_init,		0,		0,		0,
   &nousrreqs
 },
 # ifdef INET6
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
-  in_gif_input,	0,	 	0,		0,
+  encap4_input,	0,	 	0,		rip_ctloutput,
   0,
   0,		0,		0,		0,
   &nousrreqs
 },
 #endif
-#else /*NGIF*/
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IPIP,	PR_ATOMIC|PR_ADDR,
-  ipip_input,	0,	 	0,		rip_ctloutput,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
-},
-#endif /*NGIF*/
 #ifdef IPDIVERT
 { SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
   div_input,	0,	 	0,		ip_ctloutput,
@@ -208,6 +205,26 @@ struct ipprotosw inetsw[] = {
   &rip_usrreqs
 },
 };
+
+#if NGIF > 0
+struct ipprotosw in_gif_protosw =
+{ SOCK_RAW,	&inetdomain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
+  in_gif_input, rip_output,	0,		rip_ctloutput,
+  0,
+  0,            0,              0,              0,
+  &rip_usrreqs
+};
+#endif /*NGIF*/
+
+#if NSTF > 0
+struct ipprotosw in_stf_protosw =
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
+  in_stf_input, rip_output,	0,		rip_ctloutput,
+  0,
+  0,            0,              0,              0,
+  &rip_usrreqs
+};
+#endif /*NSTF*/
 
 extern int in_inithead __P((void **, int));
 

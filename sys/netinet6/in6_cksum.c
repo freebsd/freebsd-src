@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in6_cksum.c,v 1.6 2000/03/25 07:23:43 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -68,7 +69,7 @@
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <netinet/in.h>
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 
 #include <net/net_osdep.h>
 
@@ -79,11 +80,11 @@
  * code and should be modified for each CPU to be as fast as possible.
  */
 
-#define	ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
-#define	REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
+#define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
+#define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; ADDCARRY(sum);}
 
 static union {
-	u_int16_t	phs[4];
+	u_int16_t phs[4];
 	struct {
 		u_int32_t	ph_len;
 		u_int8_t	ph_zero[3];
@@ -102,12 +103,15 @@ int
 in6_cksum(m, nxt, off, len)
 	register struct mbuf *m;
 	u_int8_t nxt;
-	register int off, len;
+	u_int32_t off, len;
 {
 	register u_int16_t *w;
 	register int sum = 0;
 	register int mlen = 0;
 	int byte_swapped = 0;
+#if 0
+	int srcifid = 0, dstifid = 0;
+#endif
 	struct ip6_hdr *ip6;	
 	
 	union {
@@ -129,6 +133,16 @@ in6_cksum(m, nxt, off, len)
 	 * First create IP6 pseudo header and calculate a summary.
 	 */
 	ip6 = mtod(m, struct ip6_hdr *);
+#if 0
+	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src)) {
+		srcifid = ip6->ip6_src.s6_addr16[1];
+		ip6->ip6_src.s6_addr16[1] = 0;
+	}
+	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst)) {
+		dstifid = ip6->ip6_dst.s6_addr16[1];
+		ip6->ip6_dst.s6_addr16[1] = 0;
+	}
+#endif
 	w = (u_int16_t *)&ip6->ip6_src;
 	uph.ph.ph_len = htonl(len);
 	uph.ph.ph_nxt = nxt;
@@ -149,6 +163,12 @@ in6_cksum(m, nxt, off, len)
 	sum += uph.phs[0];  sum += uph.phs[1];
 	sum += uph.phs[2];  sum += uph.phs[3];
 
+#if 0
+	if (srcifid)
+		ip6->ip6_src.s6_addr16[1] = srcifid;
+	if (dstifid)
+		ip6->ip6_dst.s6_addr16[1] = dstifid;
+#endif
 	/*
 	 * Secondly calculate a summary of the first mbuf excluding offset.
 	 */

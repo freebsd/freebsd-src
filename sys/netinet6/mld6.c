@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: mld6.c,v 1.19 2000/05/05 11:01:03 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -68,7 +69,8 @@
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
  */
 
-#include "opt_ipsec.h"
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -81,10 +83,9 @@
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netinet6/in6.h>
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
 #include <netinet6/mld6_var.h>
 
 #include <net/net_osdep.h>
@@ -94,23 +95,20 @@
  */
 
 /* denotes that the MLD max response delay field specifies time in milliseconds */
-#define	MLD6_TIMER_SCALE	1000
+#define MLD6_TIMER_SCALE	1000
 /*
  * time between repetitions of a node's initial report of interest in a
  * multicast address(in seconds)
  */
-#define	MLD6_UNSOLICITED_REPORT_INTERVAL	10
+#define MLD6_UNSOLICITED_REPORT_INTERVAL	10
 
-static struct	ip6_pktopts ip6_opts;
-static int	mld6_timers_are_running;
+static struct ip6_pktopts ip6_opts;
+static int mld6_timers_are_running;
 /* XXX: These are necessary for KAME's link-local hack */
-static struct	in6_addr mld6_all_nodes_linklocal =
-			IN6ADDR_LINKLOCAL_ALLNODES_INIT;
-static struct	in6_addr mld6_all_routers_linklocal =
-			IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
+static struct in6_addr mld6_all_nodes_linklocal = IN6ADDR_LINKLOCAL_ALLNODES_INIT;
+static struct in6_addr mld6_all_routers_linklocal = IN6ADDR_LINKLOCAL_ALLROUTERS_INIT;
 
-static void	mld6_sendpkt __P((struct in6_multi *, int,
-				  const struct in6_addr *));
+static void mld6_sendpkt __P((struct in6_multi *, int, const struct in6_addr *));
 
 void
 mld6_init()
@@ -122,7 +120,7 @@ mld6_init()
 	mld6_timers_are_running = 0;
 
 	/* ip6h_nxt will be fill in later */
-	hbh->ip6h_len = 0;	/* (8 >> 3) - 1*/
+	hbh->ip6h_len = 0;	/* (8 >> 3) - 1 */
 
 	/* XXX: grotty hard coding... */
 	hbh_buf[2] = IP6OPT_PADN;	/* 2 byte padding */
@@ -143,7 +141,7 @@ mld6_start_listening(in6m)
 	int s = splnet();
 
 	/*
-	 * (draft-ietf-ipngwg-mld, page 10)
+	 * RFC2710 page 10:
 	 * The node never sends a Report or Done for the link-scope all-nodes
 	 * address.
 	 * MLD messages are never sent for multicast addresses whose scope is 0
@@ -187,7 +185,7 @@ mld6_input(m, off)
 	int off;
 {
 	struct ip6_hdr *ip6 = mtod(m, struct ip6_hdr *);
-	struct mld6_hdr *mldh = (struct mld6_hdr *)(mtod(m, caddr_t) + off);
+	struct mld6_hdr *mldh;
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct in6_multi *in6m;
 	struct in6_ifaddr *ia;
@@ -200,12 +198,24 @@ mld6_input(m, off)
 		    "mld6_input: src %s is not link-local\n",
 		    ip6_sprintf(&ip6->ip6_src));
 		/*
-		 * spec(draft-ietf-ipngwg-mld) does not explicitly
+		 * spec (RFC2710) does not explicitly
 		 * specify to discard the packet from a non link-local
 		 * source address. But we believe it's expected to do so.
 		 */
+		m_freem(m);
 		return;
 	}
+
+#ifndef PULLDOWN_TEST
+	IP6_EXTHDR_CHECK(m, off, sizeof(*mldh),);
+	mldh = (struct mld6_hdr *)(mtod(m, caddr_t) + off);
+#else
+	IP6_EXTHDR_GET(mldh, struct mld6_hdr *, m, off, sizeof(*mldh));
+	if (mldh == NULL) {
+		icmp6stat.icp6s_tooshort++;
+		return;
+	}
+#endif
 
 	/*
 	 * In the MLD6 specification, there are 3 states and a flag.
@@ -231,25 +241,25 @@ mld6_input(m, off)
 				htons(ifp->if_index); /* XXX */
 
 		/*
-		* - Start the timers in all of our membership records
-		*   that the query applies to for the interface on
-		*   which the query arrived excl. those that belong
-		*   to the "all-nodes" group (ff02::1).
-		* - Restart any timer that is already running but has
-		*   A value longer than the requested timeout.
-		* - Use the value specified in the query message as
-		*   the maximum timeout.
-		*/
+		 * - Start the timers in all of our membership records
+		 *   that the query applies to for the interface on
+		 *   which the query arrived excl. those that belong
+		 *   to the "all-nodes" group (ff02::1).
+		 * - Restart any timer that is already running but has
+		 *   A value longer than the requested timeout.
+		 * - Use the value specified in the query message as
+		 *   the maximum timeout.
+		 */
 		IFP_TO_IA6(ifp, ia);
 		if (ia == NULL)
 			break;
 
 		/*
-		* XXX: System timer resolution is too low to handle Max
-		* Response Delay, so set 1 to the internal timer even if
-		* the calculated value equals to zero when Max Response
-		* Delay is positive.
-		*/
+		 * XXX: System timer resolution is too low to handle Max
+		 * Response Delay, so set 1 to the internal timer even if
+		 * the calculated value equals to zero when Max Response
+		 * Delay is positive.
+		 */
 		timer = ntohs(mldh->mld6_maxdelay)*PR_FASTHZ/MLD6_TIMER_SCALE;
 		if (timer == 0 && mldh->mld6_maxdelay)
 			timer = 1;
@@ -277,7 +287,8 @@ mld6_input(m, off)
 						NULL);
 					in6m->in6m_timer = 0; /* reset timer */
 					in6m->in6m_state = MLD6_IREPORTEDLAST;
-				} else if (in6m->in6m_timer == 0 || /*idle state*/
+				}
+				else if (in6m->in6m_timer == 0 || /*idle state*/
 					in6m->in6m_timer > timer) {
 					in6m->in6m_timer =
 						MLD6_RANDOM_DELAY(timer);
@@ -291,14 +302,14 @@ mld6_input(m, off)
 		break;
 	case MLD6_LISTENER_REPORT:
 		/*
-		* For fast leave to work, we have to know that we are the
-		* last person to send a report for this group.  Reports
-		* can potentially get looped back if we are a multicast
-		* router, so discard reports sourced by me.
-		* Note that it is impossible to check IFF_LOOPBACK flag of
-		* ifp for this purpose, since ip6_mloopback pass the physical
-		* interface to looutput.
-		*/
+		 * For fast leave to work, we have to know that we are the
+		 * last person to send a report for this group.  Reports
+		 * can potentially get looped back if we are a multicast
+		 * router, so discard reports sourced by me.
+		 * Note that it is impossible to check IFF_LOOPBACK flag of
+		 * ifp for this purpose, since ip6_mloopback pass the physical
+		 * interface to looutput.
+		 */
 		if (m->m_flags & M_LOOP) /* XXX: grotty flag, but efficient */
 			break;
 
@@ -309,9 +320,9 @@ mld6_input(m, off)
 			mldh->mld6_addr.s6_addr16[1] =
 				htons(ifp->if_index); /* XXX */
 		/*
-		* If we belong to the group being reported, stop
-		* our timer for that group.
-		*/
+		 * If we belong to the group being reported, stop
+		 * our timer for that group.
+		 */
 		IN6_LOOKUP_MULTI(mldh->mld6_addr, ifp, in6m);
 		if (in6m) {
 			in6m->in6m_timer = 0; /* transit to idle state */
@@ -325,6 +336,8 @@ mld6_input(m, off)
 		log(LOG_ERR, "mld6_input: illegal type(%d)", mldh->mld6_type);
 		break;
 	}
+
+	m_freem(m);
 }
 
 void
@@ -376,7 +389,8 @@ mld6_sendpkt(in6m, type, dst)
 	 * At first, find a link local address on the outgoing interface
 	 * to use as the source address of the MLD packet.
 	 */
-	if ((ia = in6ifa_ifpforlinklocal(ifp)) == NULL)
+	if ((ia = in6ifa_ifpforlinklocal(ifp, IN6_IFF_NOTREADY|IN6_IFF_ANYCAST))
+	    == NULL)
 		return;
 
 	/*
@@ -393,6 +407,7 @@ mld6_sendpkt(in6m, type, dst)
 		return;
 	}
 	mh->m_next = md;
+
 	mh->m_pkthdr.len = sizeof(struct ip6_hdr) + sizeof(struct mld6_hdr);
 	mh->m_len = sizeof(struct ip6_hdr);
 	MH_ALIGN(mh, sizeof(struct ip6_hdr));
@@ -400,7 +415,8 @@ mld6_sendpkt(in6m, type, dst)
 	/* fill in the ip6 header */
 	ip6 = mtod(mh, struct ip6_hdr *);
 	ip6->ip6_flow = 0;
-	ip6->ip6_vfc = IPV6_VERSION;
+	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
+	ip6->ip6_vfc |= IPV6_VERSION;
 	/* ip6_plen will be set later */
 	ip6->ip6_nxt = IPPROTO_ICMPV6;
 	/* ip6_hlim will be set by im6o.im6o_multicast_hlim */
@@ -431,7 +447,7 @@ mld6_sendpkt(in6m, type, dst)
 	 * Request loopback of the report if we are acting as a multicast
 	 * router, so that the process-level routing daemon can hear it.
 	 */
-	im6o.im6o_multicast_loop = 0;
+	im6o.im6o_multicast_loop = (ip6_mrouter != NULL);
 
 	/* increment output statictics */
 	icmp6stat.icp6s_outhist[type]++;

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: in6_rmx.c,v 1.7 2000/04/06 08:30:43 sumikawa Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -57,7 +58,6 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in6_rmx.c,v 1.3 1999/08/16 13:42:53 itojun Exp $
  */
 
 /*
@@ -89,10 +89,10 @@
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
 
-#include <netinet6/ip6.h>
+#include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 
-#include <netinet6/icmp6.h>
+#include <netinet/icmp6.h>
 
 #include <netinet/tcp.h>
 #include <netinet/tcp_seq.h>
@@ -101,14 +101,14 @@
 
 extern int	in6_inithead __P((void **head, int off));
 
-#define	RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
+#define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
 /*
  * Do what we need to do when inserting a route.
  */
 static struct radix_node *
 in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
-	     struct radix_node *treenodes)
+	    struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
@@ -452,6 +452,24 @@ in6_mtutimo(void *rock)
 	}
 	timeout(in6_mtutimo, rock, tvtohz(&atv));
 }
+
+#if 0
+void
+in6_rtqdrain()
+{
+	struct radix_node_head *rnh = rt_tables[AF_INET6];
+	struct rtqk_arg arg;
+	int s;
+	arg.found = arg.killed = 0;
+	arg.rnh = rnh;
+	arg.nextstop = 0;
+	arg.draining = 1;
+	arg.updating = 0;
+	s = splnet();
+	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
+	splx(s);
+}
+#endif
 
 /*
  * Initialize our routing tree.

@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: if_gif.c,v 1.28 2000/06/20 12:30:03 jinmei Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
@@ -25,12 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- */
-
-/*
- * gif.c
  */
 
 #include "opt_inet.h"
@@ -46,6 +43,7 @@
 #include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/syslog.h>
+#include <sys/protosw.h>
 #include <machine/cpu.h>
 
 #include <net/if.h>
@@ -70,21 +68,47 @@
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/in6_gif.h>
+#include <netinet6/ip6protosw.h>
 #endif /* INET6 */
 
+#include <netinet/ip_encap.h>
 #include <net/if_gif.h>
 
 #include "gif.h"
+#include "bpf.h"
+#define NBPFILTER	NBPF
 
 #include <net/net_osdep.h>
 
+#if NGIF > 0
+
 void gifattach __P((void *));
+static int gif_encapcheck __P((const struct mbuf *, int, int, void *));
+#ifdef INET
+extern struct protosw in_gif_protosw;
+#endif
+#ifdef INET6
+extern struct ip6protosw in6_gif_protosw;
+#endif
 
 /*
  * gif global variable definitions
  */
-int ngif = NGIF + 1;		/* number of interfaces. +1 for stf. */
-struct gif_softc *gif = 0;
+static int ngif;		/* number of interfaces */
+static struct gif_softc *gif = 0;
+
+#ifndef MAX_GIF_NEST
+/*
+ * This macro controls the upper limitation on nesting of gif tunnels.
+ * Since, setting a large value to this macro with a careless configuration
+ * may introduce system crash, we don't allow any nestings by default.
+ * If you need to configure nested gif tunnels, you can define this macro
+ * in your kernel configuration file. However, if you do so, please be
+ * careful to configure the tunnels so that it won't make a loop.
+ */
+#define MAX_GIF_NEST 1
+#endif
+static int max_gif_nesting = MAX_GIF_NEST;
 
 void
 gifattach(dummy)
@@ -93,33 +117,110 @@ gifattach(dummy)
 	register struct gif_softc *sc;
 	register int i;
 
+	ngif = NGIF;
 	gif = sc = malloc (ngif * sizeof(struct gif_softc), M_DEVBUF, M_WAIT);
 	bzero(sc, ngif * sizeof(struct gif_softc));
-	for (i = 0; i < ngif - 1; sc++, i++) {  /* leave last one for stf */
+	for (i = 0; i < ngif; sc++, i++) {
 		sc->gif_if.if_name = "gif";
 		sc->gif_if.if_unit = i;
+
+		sc->encap_cookie4 = sc->encap_cookie6 = NULL;
+#ifdef INET
+		sc->encap_cookie4 = encap_attach_func(AF_INET, -1,
+		    gif_encapcheck, &in_gif_protosw, sc);
+		if (sc->encap_cookie4 == NULL) {
+			printf("%s: attach failed\n", if_name(&sc->gif_if));
+			continue;
+		}
+#endif
+#ifdef INET6
+		sc->encap_cookie6 = encap_attach_func(AF_INET6, -1,
+		    gif_encapcheck, (struct protosw *)&in6_gif_protosw, sc);
+		if (sc->encap_cookie6 == NULL) {
+			if (sc->encap_cookie4) {
+				encap_detach(sc->encap_cookie4);
+				sc->encap_cookie4 = NULL;
+			}
+			printf("%s: attach failed\n", if_name(&sc->gif_if));
+			continue;
+		}
+#endif
+
 		sc->gif_if.if_mtu    = GIF_MTU;
 		sc->gif_if.if_flags  = IFF_POINTOPOINT | IFF_MULTICAST;
 		sc->gif_if.if_ioctl  = gif_ioctl;
 		sc->gif_if.if_output = gif_output;
 		sc->gif_if.if_type   = IFT_GIF;
-		sc->gif_if.if_snd.ifq_maxlen = ifqmaxlen;
+		sc->gif_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 		if_attach(&sc->gif_if);
+#if NBPFILTER > 0
+#ifdef HAVE_OLD_BPF
 		bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
+#else
+		bpfattach(&sc->gif_if.if_bpf, &sc->gif_if, DLT_NULL, sizeof(u_int));
+#endif
+#endif
 	}
-	sc->gif_if.if_name = "stf";
-	sc->gif_if.if_unit = 0;
-	sc->gif_if.if_mtu    = GIF_MTU;
-	sc->gif_if.if_flags  = IFF_MULTICAST;
-	sc->gif_if.if_ioctl  = gif_ioctl;
-	sc->gif_if.if_output = gif_output;
-	sc->gif_if.if_type   = IFT_GIF;
-	sc->gif_if.if_snd.ifq_maxlen = ifqmaxlen;
-	if_attach(&sc->gif_if);
-	bpfattach(&sc->gif_if, DLT_NULL, sizeof(u_int));
 }
 
 PSEUDO_SET(gifattach, if_gif);
+
+static int
+gif_encapcheck(m, off, proto, arg)
+	const struct mbuf *m;
+	int off;
+	int proto;
+	void *arg;
+{
+	struct ip ip;
+	struct gif_softc *sc;
+
+	sc = (struct gif_softc *)arg;
+	if (sc == NULL)
+		return 0;
+
+	if ((sc->gif_if.if_flags & IFF_UP) == 0)
+		return 0;
+
+	/* no physical address */
+	if (!sc->gif_psrc || !sc->gif_pdst)
+		return 0;
+
+	switch (proto) {
+#ifdef INET
+	case IPPROTO_IPV4:
+		break;
+#endif
+#ifdef INET6
+	case IPPROTO_IPV6:
+		break;
+#endif
+	default:
+		return 0;
+	}
+
+	/* LINTED const cast */
+	m_copydata((struct mbuf *)m, 0, sizeof(ip), (caddr_t)&ip);
+
+	switch (ip.ip_v) {
+#ifdef INET
+	case 4:
+		if (sc->gif_psrc->sa_family != AF_INET ||
+		    sc->gif_pdst->sa_family != AF_INET)
+			return 0;
+		return gif_encapcheck4(m, off, proto, arg);
+#endif
+#ifdef INET6
+	case 6:
+		if (sc->gif_psrc->sa_family != AF_INET6 ||
+		    sc->gif_pdst->sa_family != AF_INET6)
+			return 0;
+		return gif_encapcheck6(m, off, proto, arg);
+#endif
+	default:
+		return 0;
+	}
+}
 
 int
 gif_output(ifp, m, dst, rt)
@@ -131,7 +232,6 @@ gif_output(ifp, m, dst, rt)
 	register struct gif_softc *sc = (struct gif_softc*)ifp;
 	int error = 0;
 	static int called = 0;	/* XXX: MUTEX */
-	int calllimit = 10;	/* XXX: adhoc */
 
 	/*
 	 * gif may cause infinite recursion calls when misconfigured.
@@ -140,7 +240,7 @@ gif_output(ifp, m, dst, rt)
 	 *      mutual exclusion of the variable CALLED, especially if we
 	 *      use kernel thread.
 	 */
-	if (++called >= calllimit) {
+	if (++called > max_gif_nesting) {
 		log(LOG_NOTICE,
 		    "gif_output: recursively called too many times(%d)\n",
 		    called);
@@ -148,6 +248,7 @@ gif_output(ifp, m, dst, rt)
 		error = EIO;	/* is there better errno? */
 		goto end;
 	}
+
 	getmicrotime(&ifp->if_lastchange);
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	if (!(ifp->if_flags & IFF_UP) ||
@@ -157,6 +258,7 @@ gif_output(ifp, m, dst, rt)
 		goto end;
 	}
 
+#if NBPFILTER > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -171,11 +273,18 @@ gif_output(ifp, m, dst, rt)
 		m0.m_next = m;
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
-
+		
+#ifdef HAVE_OLD_BPF
 		bpf_mtap(ifp, &m0);
+#else
+		bpf_mtap(ifp->if_bpf, &m0);
+#endif
 	}
-	ifp->if_opackets++;
+#endif
+	ifp->if_opackets++;	
 	ifp->if_obytes += m->m_pkthdr.len;
+
+	/* XXX should we check if our outer source is legal? */
 
 	switch (sc->gif_psrc->sa_family) {
 #ifdef INET
@@ -189,7 +298,7 @@ gif_output(ifp, m, dst, rt)
 		break;
 #endif
 	default:
-		m_freem(m);
+		m_freem(m);		
 		error = ENETDOWN;
 	}
 
@@ -214,9 +323,9 @@ gif_input(m, af, gifp)
 		return;
 	}
 
-	if (m->m_pkthdr.rcvif)
-		m->m_pkthdr.rcvif = gifp;
-
+	m->m_pkthdr.rcvif = gifp;
+	
+#if NBPFILTER > 0
 	if (gifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -227,13 +336,18 @@ gif_input(m, af, gifp)
 		 */
 		struct mbuf m0;
 		u_int af = AF_INET6;
-
+		
 		m0.m_next = m;
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
-
+		
+#ifdef HAVE_OLD_BPF
 		bpf_mtap(gifp, &m0);
+#else
+		bpf_mtap(gifp->if_bpf, &m0);
+#endif
 	}
+#endif /*NBPFILTER > 0*/
 
 	/*
 	 * Put the packet to the network layer input queue according to the
@@ -282,7 +396,7 @@ gif_input(m, af, gifp)
 	return;
 }
 
-
+/* XXX how should we handle IPv6 scope on SIOC[GS]IFPHYADDR? */
 int
 gif_ioctl(ifp, cmd, data)
 	struct ifnet *ifp;
@@ -292,12 +406,15 @@ gif_ioctl(ifp, cmd, data)
 	struct gif_softc *sc  = (struct gif_softc*)ifp;
 	struct ifreq     *ifr = (struct ifreq*)data;
 	int error = 0, size;
-	struct sockaddr *sa, *dst, *src;
-
+	struct sockaddr *dst, *src;
+	struct sockaddr *sa;
+	int i;
+	struct gif_softc *sc2;
+		
 	switch (cmd) {
 	case SIOCSIFADDR:
 		break;
-
+		
 	case SIOCSIFDSTADDR:
 		break;
 
@@ -305,8 +422,10 @@ gif_ioctl(ifp, cmd, data)
 	case SIOCDELMULTI:
 		break;
 
+#ifdef	SIOCSIFMTU /* xxx */
 	case SIOCGIFMTU:
 		break;
+
 	case SIOCSIFMTU:
 		{
 			u_long mtu;
@@ -317,103 +436,125 @@ gif_ioctl(ifp, cmd, data)
 			ifp->if_mtu = mtu;
 		}
 		break;
+#endif /* SIOCSIFMTU */
 
 	case SIOCSIFPHYADDR:
 #ifdef INET6
 	case SIOCSIFPHYADDR_IN6:
 #endif /* INET6 */
-		switch (ifr->ifr_addr.sa_family) {
-#ifdef INET
-		case AF_INET:
+		switch (cmd) {
+		case SIOCSIFPHYADDR:
 			src = (struct sockaddr *)
 				&(((struct in_aliasreq *)data)->ifra_addr);
 			dst = (struct sockaddr *)
 				&(((struct in_aliasreq *)data)->ifra_dstaddr);
-
-			/* only one gif can have dst = INADDR_ANY */
-#define	satosaddr(sa) (((struct sockaddr_in *)(sa))->sin_addr.s_addr)
-
-#ifdef INET6
-			if (bcmp(ifp->if_name, "stf", 3) == 0)
-				satosaddr(dst) = INADDR_BROADCAST;
-#endif
-
-			if (satosaddr(dst) == INADDR_ANY) {
-				int i;
-				struct gif_softc *sc2;
-
-			  	for (i = 0, sc2 = gif; i < ngif; i++, sc2++) {
-					if (sc2 == sc) continue;
-					if (sc2->gif_pdst &&
-					    satosaddr(sc2->gif_pdst)
-						== INADDR_ANY) {
-					    error = EADDRNOTAVAIL;
-					    goto bad;
-					}
-				}
-			}
-			size = sizeof(struct sockaddr_in);
 			break;
-#endif /* INET */
 #ifdef INET6
-		case AF_INET6:
+		case SIOCSIFPHYADDR_IN6:
 			src = (struct sockaddr *)
 				&(((struct in6_aliasreq *)data)->ifra_addr);
 			dst = (struct sockaddr *)
 				&(((struct in6_aliasreq *)data)->ifra_dstaddr);
-
-			/* only one gif can have dst = in6addr_any */
-#define	satoin6(sa) (&((struct sockaddr_in6 *)(sa))->sin6_addr)
-
-			if (IN6_IS_ADDR_UNSPECIFIED(satoin6(dst))) {
-				int i;
-				struct gif_softc *sc2;
-
-			  	for (i = 0, sc2 = gif; i < ngif; i++, sc2++) {
-					if (sc2 == sc) continue;
-					if (sc2->gif_pdst &&
-					    IN6_IS_ADDR_UNSPECIFIED(
-						satoin6(sc2->gif_pdst)
-								    )) {
-					    error = EADDRNOTAVAIL;
-					    goto bad;
-					}
-				}
-			}
-			size = sizeof(struct sockaddr_in6);
 			break;
-#endif /* INET6 */
-		default:
-			error = EPROTOTYPE;
-			goto bad;
+#endif
+		}
+
+		for (i = 0; i < ngif; i++) {
+			sc2 = gif + i;
+			if (sc2 == sc)
+				continue;
+			if (!sc2->gif_pdst || !sc2->gif_psrc)
+				continue;
+			if (sc2->gif_pdst->sa_family != dst->sa_family ||
+			    sc2->gif_pdst->sa_len != dst->sa_len ||
+			    sc2->gif_psrc->sa_family != src->sa_family ||
+			    sc2->gif_psrc->sa_len != src->sa_len)
+				continue;
+			/* can't configure same pair of address onto two gifs */
+			if (bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
+			    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
+				error = EADDRNOTAVAIL;
+				goto bad;
+			}
+
+			/* can't configure multiple multi-dest interfaces */
+#define multidest(x) \
+	(((struct sockaddr_in *)(x))->sin_addr.s_addr == INADDR_ANY)
+#ifdef INET6
+#define multidest6(x) \
+	(IN6_IS_ADDR_UNSPECIFIED(&((struct sockaddr_in6 *)(x))->sin6_addr))
+#endif
+			if (dst->sa_family == AF_INET &&
+			    multidest(dst) && multidest(sc2->gif_pdst)) {
+				error = EADDRNOTAVAIL;
+				goto bad;
+			}
+#ifdef INET6
+			if (dst->sa_family == AF_INET6 &&
+			    multidest6(dst) && multidest6(sc2->gif_pdst)) {
+				error = EADDRNOTAVAIL;
+				goto bad;
+			}
+#endif
+		}
+
+		if (src->sa_family != dst->sa_family ||
+		    src->sa_len != dst->sa_len) {
+			error = EINVAL;
 			break;
 		}
-		if (sc->gif_psrc != NULL)
-			free((caddr_t)sc->gif_psrc, M_IFADDR);
-		if (sc->gif_pdst != NULL)
-			free((caddr_t)sc->gif_pdst, M_IFADDR);
+		switch (src->sa_family) {
+#ifdef INET
+		case AF_INET:
+			size = sizeof(struct sockaddr_in);
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			size = sizeof(struct sockaddr_in6);
+			break;
+#endif
+		default:
+			error = EAFNOSUPPORT;
+			goto bad;
+		}
+		if (src->sa_len != size) {
+			error = EINVAL;
+			break;
+		}
 
+		if (sc->gif_psrc)
+			free((caddr_t)sc->gif_psrc, M_IFADDR);
 		sa = (struct sockaddr *)malloc(size, M_IFADDR, M_WAITOK);
-		bzero((caddr_t)sa, size);
 		bcopy((caddr_t)src, (caddr_t)sa, size);
 		sc->gif_psrc = sa;
 
+		if (sc->gif_pdst)
+			free((caddr_t)sc->gif_pdst, M_IFADDR);
 		sa = (struct sockaddr *)malloc(size, M_IFADDR, M_WAITOK);
-		bzero((caddr_t)sa, size);
 		bcopy((caddr_t)dst, (caddr_t)sa, size);
 		sc->gif_pdst = sa;
 
-		ifp->if_flags |= (IFF_UP|IFF_RUNNING);
-		{
-			int s;
+		ifp->if_flags |= IFF_UP;
+		if_up(ifp);		/* send up RTM_IFINFO */
 
-			s = splnet();
-			if_up(ifp);		/* send up RTM_IFINFO */
-			splx(s);
-		}
-
+		error = 0;
 		break;
 
+#ifdef SIOCDIFPHYADDR
+	case SIOCDIFPHYADDR:
+		if (sc->gif_psrc) {
+			free((caddr_t)sc->gif_psrc, M_IFADDR);
+			sc->gif_psrc = NULL;
+		}
+		if (sc->gif_pdst) {
+			free((caddr_t)sc->gif_pdst, M_IFADDR);
+			sc->gif_pdst = NULL;
+		}
+		/* change the IFF_UP flag as well? */
+		break;
+#endif
+			
 	case SIOCGIFPSRCADDR:
 #ifdef INET6
 	case SIOCGIFPSRCADDR_IN6:
@@ -443,7 +584,7 @@ gif_ioctl(ifp, cmd, data)
 		}
 		bcopy((caddr_t)src, (caddr_t)dst, size);
 		break;
-
+			
 	case SIOCGIFPDSTADDR:
 #ifdef INET6
 	case SIOCGIFPDSTADDR_IN6:
@@ -475,6 +616,7 @@ gif_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCSIFFLAGS:
+		/* if_ioctl() takes care of it */
 		break;
 
 	default:
@@ -484,3 +626,4 @@ gif_ioctl(ifp, cmd, data)
  bad:
 	return error;
 }
+#endif /*NGIF > 0*/
