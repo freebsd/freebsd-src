@@ -873,6 +873,28 @@ set_timer_freq(u_int freq, int intr_freq)
 }
 
 /*
+ * i8254_restore is called from apm_default_resume() to reload
+ * the countdown register.
+ * this should not be necessary but there are broken laptops that
+ * do not restore the countdown register on resume.
+ * when it happnes, it messes up the hardclock interval and system clock,
+ * which leads to the infamous "calcru: negative time" problem.
+ */
+void
+i8254_restore(void)
+{
+	u_long ef;
+
+	ef = read_eflags();
+	disable_intr();
+	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
+	outb(TIMER_CNTR0, timer0_max_count & 0xff);
+	outb(TIMER_CNTR0, timer0_max_count >> 8);
+	CLOCK_UNLOCK();
+	write_eflags(ef);
+}
+
+/*
  * Initialize 8254 timer 0 early so that it can be used in DELAY().
  * XXX initialization of other timers is unintentionally left blank.
  */
