@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: histedit.c,v 1.4 1995/05/30 00:07:14 rgrimes Exp $
+ *	$Id: histedit.c,v 1.5 1996/09/01 10:20:12 peter Exp $
  */
 
 #ifndef lint
@@ -328,7 +328,7 @@ histcmd(argc, argv)
 			error("can't create temporary file %s", editfile);
 		if ((efp = fdopen(fd, "w")) == NULL) {
 			close(fd);
-			error("can't allocate stdio buffer for temp\n");
+			error("can't allocate stdio buffer for temp");
 		}
 	}
 
