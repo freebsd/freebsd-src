@@ -26,15 +26,15 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#      $Id: lsock.pl,v 1.1 1999/04/14 16:17:34 des Exp $
+#      $Id: sockstat.pl,v 1.1 1999/04/15 13:40:43 des Exp $
 #
 
 my (%myaddr, %hisaddr);
 my ($user, $cmd, $pid, $fd, $inet, $type, $proto, $sock, $laddr, $faddr);
 
-format STDOUT_TOP =
+print <<EOH;
 USER     COMMAND      PID   FD PROTO  LOCAL ADDRESS        FOREIGN ADDRESS
-.
+EOH
 format STDOUT =
 @<<<<<<< @<<<<<<<<< @>>>> @>>> @<<    @<<<<<<<<<<<<<<<<<<< @<<<<<<<<<<<<<<<<<<<
 $user,   $cmd,      $pid, $fd, $proto,$laddr,              $faddr
