@@ -293,6 +293,7 @@ inserted(void *arg)
 	slt->ctrl->power(slt);
 
 	printf("pccard: card inserted, slot %d\n", slt->slotnum);
+	pccard_insert_beep();
 	/*
 	 *	Now start resetting the card.
 	 */
@@ -325,7 +326,6 @@ pccard_event(struct slot *slt, enum card_event event)
 	case card_inserted:
 		slt->insert_seq = 1;
 		slt->insert_ch = timeout(inserted, (void *)slt, hz/4);
-		pccard_insert_beep();
 		break;
 	}
 }
