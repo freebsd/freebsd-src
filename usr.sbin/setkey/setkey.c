@@ -53,7 +53,7 @@
 
 #include "libpfkey.h"
 
-void Usage __P((void));
+void usage __P((void));
 int main __P((int, char **));
 int get_supported __P((void));
 void sendkeyshort __P((u_int));
@@ -94,9 +94,9 @@ extern int lineno;
 extern int parse __P((FILE **));
 
 void
-Usage()
+usage()
 {
-	printf("Usage:\t%s [-dv] -c\n", pname);
+	printf("usage:\t%s [-dv] -c\n", pname);
 	printf("\t%s [-dv] -f (file)\n", pname);
 	printf("\t%s [-Padlv] -D\n", pname);
 	printf("\t%s [-Pdv] -F\n", pname);
@@ -115,7 +115,10 @@ main(ac, av)
 
 	pname = *av;
 
-	if (ac == 1) Usage();
+	if (ac == 1) {
+		usage();
+		/* NOTREACHED */
+	}
 
 	thiszone = gmt2local(0);
 
@@ -161,7 +164,7 @@ main(ac, av)
 			f_verbose = 1;
 			break;
 		default:
-			Usage();
+			usage();
 			/*NOTREACHED*/
 		}
 	}
@@ -186,7 +189,7 @@ main(ac, av)
 		promisc();
 		/*NOTREACHED*/
 	default:
-		Usage();
+		usage();
 		/*NOTREACHED*/
 	}
 
@@ -243,7 +246,7 @@ promisc()
 {
 	struct sadb_msg *m_msg = (struct sadb_msg *)m_buf;
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
-	int so, len;
+	int so, l;
 
 	m_len = sizeof(struct sadb_msg);
 
@@ -261,7 +264,7 @@ promisc()
 		/*NOTREACHED*/
 	}
 
-	if ((len = send(so, m_buf, m_len, 0)) < 0) {
+	if ((l = send(so, m_buf, m_len, 0)) < 0) {
 		err(1, "send");
 		/*NOTREACHED*/
 	}
@@ -269,16 +272,16 @@ promisc()
 	while (1) {
 		struct sadb_msg *base;
 
-		if ((len = recv(so, rbuf, sizeof(*base), MSG_PEEK)) < 0) {
+		if ((l = recv(so, rbuf, sizeof(*base), MSG_PEEK)) < 0) {
 			err(1, "recv");
 			/*NOTREACHED*/
 		}
 
-		if (len != sizeof(*base))
+		if (l != sizeof(*base))
 			continue;
 
 		base = (struct sadb_msg *)rbuf;
-		if ((len = recv(so, rbuf, PFKEY_UNUNIT64(base->sadb_msg_len),
+		if ((l = recv(so, rbuf, PFKEY_UNUNIT64(base->sadb_msg_len),
 				0)) < 0) {
 			err(1, "recv");
 			/*NOTREACHED*/
@@ -286,19 +289,19 @@ promisc()
 		printdate();
 		if (f_hexdump) {
 			int i;
-			for (i = 0; i < len; i++) {
+			for (i = 0; i < l; i++) {
 				if (i % 16 == 0)
 					printf("%08x: ", i);
 				printf("%02x ", rbuf[i] & 0xff);
 				if (i % 16 == 15)
 					printf("\n");
 			}
-			if (len % 16)
+			if (l % 16)
 				printf("\n");
 		}
 		/* adjust base pointer for promisc mode */
 		if (base->sadb_msg_type == SADB_X_PROMISC) {
-			if (sizeof(*base) < len)
+			if (sizeof(*base) < l)
 				base++;
 			else
 				base = NULL;
@@ -317,7 +320,7 @@ sendkeymsg()
 	int so;
 
 	u_char rbuf[1024 * 32];	/* XXX: Enough ? Should I do MSG_PEEK ? */
-	int len;
+	int l;
 	struct sadb_msg *msg;
 
 	if ((so = pfkey_open()) < 0) {
@@ -343,19 +346,19 @@ again:
 		printf("\n");
 	}
 
-	if ((len = send(so, m_buf, m_len, 0)) < 0) {
+	if ((l = send(so, m_buf, m_len, 0)) < 0) {
 		perror("send");
 		goto end;
 	}
 
 	msg = (struct sadb_msg *)rbuf;
 	do {
-		if ((len = recv(so, rbuf, sizeof(rbuf), 0)) < 0) {
+		if ((l = recv(so, rbuf, sizeof(rbuf), 0)) < 0) {
 			perror("recv");
 			goto end;
 		}
 
-		if (PFKEY_UNUNIT64(msg->sadb_msg_len) != len) {
+		if (PFKEY_UNUNIT64(msg->sadb_msg_len) != l) {
 			warnx("invalid keymsg length");
 			break;
 		}
@@ -364,7 +367,7 @@ again:
 			kdebug_sadb((struct sadb_msg *)rbuf);
 			printf("\n");
 		}
-		if (postproc(msg, len) < 0)
+		if (postproc(msg, l) < 0)
 			break;
 	} while (msg->sadb_msg_errno || msg->sadb_msg_seq);
 
@@ -387,7 +390,7 @@ postproc(msg, len)
 
 	if (msg->sadb_msg_errno != 0) {
 		char inf[80];
-		char *errmsg = NULL;
+		const char *errmsg = NULL;
 
 		if (f_mode == MODE_SCRIPT)
 			snprintf(inf, sizeof(inf), "The result of line %d: ", lineno);
@@ -462,13 +465,13 @@ postproc(msg, len)
 }
 
 /*------------------------------------------------------------*/
-static char *satype[] = {
+static const char *satype[] = {
 	NULL, NULL, "ah", "esp"
 };
-static char *sastate[] = {
+static const char *sastate[] = {
 	"L", "M", "D", "d"
 };
-static char *ipproto[] = {
+static const char *ipproto[] = {
 /*0*/	"ip", "icmp", "igmp", "ggp", "ip4",
 	NULL, "tcp", NULL, "egp", NULL,
 /*10*/	NULL, NULL, NULL, NULL, NULL,
@@ -538,14 +541,14 @@ shortdump(msg)
 		else
 			t = (u_long)(cur - ltc->sadb_lifetime_addtime);
 		if (t >= 1000)
-			strcpy(buf, " big/");
+			strlcpy(buf, " big/", sizeof(buf));
 		else
 			snprintf(buf, sizeof(buf), " %3lu/", (u_long)t);
 		printf("%s", buf);
 
 		t = (u_long)lth->sadb_lifetime_addtime;
 		if (t >= 1000)
-			strcpy(buf, "big");
+			strlcpy(buf, "big", sizeof(buf));
 		else
 			snprintf(buf, sizeof(buf), "%-3lu", (u_long)t);
 		printf("%s", buf);
