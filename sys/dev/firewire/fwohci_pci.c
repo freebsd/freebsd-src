@@ -168,12 +168,16 @@ fwohci_pci_probe( device_t dev )
 		device_set_desc(dev, "Texas Instruments PCI4451");
 		return 0;
 	}
-	if (id == (FW_VENDORID_SONY | FW_DEVICE_CX3022)) {
-		device_set_desc(dev, "Sony CX3022");
+	if (id == (FW_VENDORID_SONY | FW_DEVICE_CXD1947)) {
+		device_set_desc(dev, "Sony i.LINK (CXD1947)");
+		return 0;
+	}
+	if (id == (FW_VENDORID_SONY | FW_DEVICE_CXD3222)) {
+		device_set_desc(dev, "Sony i.LINK (CXD3222)");
 		return 0;
 	}
 	if (id == (FW_VENDORID_VIA | FW_DEVICE_VT6306)) {
-		device_set_desc(dev, "VIA VT6306");
+		device_set_desc(dev, "VIA Fire II (VT6306)");
 		return 0;
 	}
 	if (id == (FW_VENDORID_RICOH | FW_DEVICE_R5C551)) {
