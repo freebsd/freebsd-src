@@ -97,8 +97,7 @@ pkg_do(char *pkg)
     if (Plist.head)
 	free_plist(&Plist);
 
-    sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-    	    pkg);
+    sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
 
     if (!fexists(LogDir)) {
 	warnx("no such package '%s' installed", pkg);
@@ -290,9 +289,7 @@ undepend(PackingList p, char *pkgname)
      char *tmp;
      int s;
 
-     sprintf(fname, "%s/%s/%s",
-	     (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-	     p->name, REQUIRED_BY_FNAME);
+     sprintf(fname, "%s/%s/%s", LOG_DIR, p->name, REQUIRED_BY_FNAME);
      fp = fopen(fname, "r");
      if (fp == NULL) {
 	 warnx("couldn't open dependency file `%s'", fname);

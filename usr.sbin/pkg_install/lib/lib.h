@@ -57,9 +57,11 @@
 #define RMDIR_CMD	"rmdir"
 
 /* Where we put logging information by default, else ${PKG_DBDIR} if set */
-#define DEF_LOG_DIR		"/var/db/pkg"
+#define DEF_LOG_DIR	"/var/db/pkg"
 /* just in case we change the environment variable name */
-#define PKG_DBDIR		"PKG_DBDIR"
+#define PKG_DBDIR	"PKG_DBDIR"
+/* macro to get name of directory where we put logging information */
+#define LOG_DIR		(getenv(PKG_DBDIR) ? getenv(PKG_DBDIR) : DEF_LOG_DIR)
 
 /* The names of our "special" files */
 #define CONTENTS_FNAME		"+CONTENTS"
