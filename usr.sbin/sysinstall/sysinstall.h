@@ -404,6 +404,7 @@ extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* config.c */
 extern int	configFstab(void);
+extern void	configEnvironment(char *config);
 extern void	configSysconfig(char *config);
 extern void	configResolv(void);
 extern int	configPackages(dialogMenuItem *self);
