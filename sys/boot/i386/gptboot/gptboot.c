@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.13 1998/10/27 20:16:36 rnordier Exp $
+ *	$Id: boot2.c,v 1.14 1998/11/08 15:36:35 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -230,22 +230,16 @@ load(const char *fname)
     if (fmt == 0) {
 	addr = hdr.ex.a_entry & 0xffffff;
 	p = PTOV(addr);
-	printf("%s=0x%x ", "text", (unsigned)hdr.ex.a_text);
 	fs_off = PAGE_SIZE;
 	if (xfsread(ino, p, hdr.ex.a_text))
 	    return;
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
-	printf("%s=0x%x ", "data", (unsigned)hdr.ex.a_data);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-	p += hdr.ex.a_data;
-	printf("%s=0x%x ", "bss", (unsigned)hdr.ex.a_bss);
-	p += roundup2(hdr.ex.a_bss, PAGE_SIZE);
+	p += hdr.ex.a_data + roundup2(hdr.ex.a_bss, PAGE_SIZE);
 	bootinfo.bi_symtab = VTOP(p);
 	memcpy(p, &hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
 	p += sizeof(hdr.ex.a_syms);
-	printf("symbols=[");
-	printf("+0x%x", (unsigned)hdr.ex.a_syms);
 	if (hdr.ex.a_syms) {
 	    if (xfsread(ino, p, hdr.ex.a_syms))
 		return;
@@ -255,7 +249,6 @@ load(const char *fname)
 	    x = *(uint32_t *)p;
 	    p += sizeof(int);
 	    x -= sizeof(int);
-	    printf("+0x%x", x);
 	    if (xfsread(ino, p, x))
 		return;
 	    p += x;
@@ -270,15 +263,12 @@ load(const char *fname)
 	}
 	for (i = 0; i < 2; i++) {
 	    p = PTOV(ep[i].p_paddr & 0xffffff);
-	    printf("%s=0x%x ", !i ? "text" : "data", ep[i].p_filesz);
 	    fs_off = ep[i].p_offset;
 	    if (xfsread(ino, p, ep[i].p_filesz))
 		return;
 	}
-	printf("%s=0x%x ", "bss", ep[1].p_memsz - ep[1].p_filesz);
 	p += roundup2(ep[1].p_memsz, PAGE_SIZE);
 	bootinfo.bi_symtab = VTOP(p);
-	printf("symbols=[");
 	if (hdr.eh.e_shnum == hdr.eh.e_shstrndx + 3) {
 	    fs_off = hdr.eh.e_shoff + sizeof(es[0]) *
 		(hdr.eh.e_shstrndx + 1);
@@ -287,7 +277,6 @@ load(const char *fname)
 	    for (i = 0; i < 2; i++) {
 		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
 		p += sizeof(es[i].sh_size);
-		printf("+0x%x", es[i].sh_size);
 		fs_off = es[i].sh_offset;
 		if (xfsread(ino, p, es[i].sh_size))
 		    return;
@@ -297,7 +286,6 @@ load(const char *fname)
 	addr = hdr.eh.e_entry & 0xffffff;
     }
     bootinfo.bi_esymtab = VTOP(p);
-    printf("]\n");
     bootinfo.bi_kernelname = VTOP(fname);
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   MAKEBOOTDEV(dsk.type, 0, dsk.slice, dsk.unit, dsk.part),
