@@ -389,3 +389,47 @@ AcpiOsReleaseLock (ACPI_HANDLE Handle, UINT32 Flags)
 	return;
     mtx_unlock(m);
 }
+
+/* Section 5.2.9.1:  global lock acquire/release functions */
+#define GL_ACQUIRED	(-1)
+#define GL_BUSY		0
+#define GL_BIT_PENDING	0x1
+#define GL_BIT_OWNED	0x2
+#define GL_BIT_MASK	(GL_BIT_PENDING | GL_BIT_OWNED)
+
+/*
+ * Acquire the global lock.  If busy, set the pending bit.  The caller
+ * will wait for notification from the BIOS that the lock is available
+ * and then attempt to acquire it again.
+ */
+int
+acpi_acquire_global_lock(uint32_t *lock)
+{
+	uint32_t new, old;
+
+	do {
+		old = *lock;
+		new = (((old & ~GL_BIT_MASK) | GL_BIT_OWNED) |
+			((old >> 1) & GL_BIT_PENDING));
+	} while (atomic_cmpset_acq_int(lock, old, new) == 0);
+
+	return ((new < GL_BIT_MASK) ? GL_ACQUIRED : GL_BUSY);
+}
+
+/*
+ * Release the global lock, returning whether there is a waiter pending.
+ * If the BIOS set the pending bit, OSPM must notify the BIOS when it
+ * releases the lock.
+ */
+int
+acpi_release_global_lock(uint32_t *lock)
+{
+	uint32_t new, old;
+
+	do {
+		old = *lock;
+		new = old & ~GL_BIT_MASK;
+	} while (atomic_cmpset_rel_int(lock, old, new) == 0);
+
+	return (old & GL_BIT_PENDING);
+}
