@@ -13,6 +13,11 @@
      branchpoint. -->
 <!ENTITY release.prev "4.0-RELEASE">
 
+<!-- The previous stable release, useful for pointing user's at the
+     release they SHOULD be running if they don't want the bleeding
+     edge. -->
+<!ENTITY release.prev.stable "4.5-RELEASE">
+
 <!-- The next version to be released, usually used for snapshots. -->
 <!ENTITY release.next "5.0-RELEASE">
 
