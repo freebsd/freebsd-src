@@ -30,10 +30,7 @@ void
 perror_with_name (string)
      char *string;
 {
-  extern int sys_nerr;
-  extern char *sys_errlist[];
-  extern int errno;
-  char *err;
+  const char *err;
   char *combined;
 
   if (errno < sys_nerr)
