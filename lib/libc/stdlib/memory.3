@@ -40,7 +40,8 @@
 .Nm free ,
 .Nm realloc ,
 .Nm calloc ,
-.Nm alloca
+.Nm alloca ,
+.Nm mmap
 .Nd general memory allocation operations
 .Sh LIBRARY
 .Lb libc
@@ -56,6 +57,10 @@
 .Fn calloc "size_t nelem" "size_t elsize"
 .Ft void *
 .Fn alloca "size_t size"
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
+.Ft void *
+.Fn mmap "void * addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
 .Sh DESCRIPTION
 These functions allocate and free memory for the calling process.
 They are described in the
@@ -65,9 +70,12 @@ individual manual pages.
 .Xr calloc 3 ,
 .Xr free 3 ,
 .Xr malloc 3 ,
-.Xr realloc 3
+.Xr realloc 3 ,
+.Xr mmap 2
 .Sh STANDARDS
 These functions, with the exception of
 .Fn alloca
+and
+.Fn mmap
 conform to
 .St -ansiC .
