@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: $
+.\" $Id: syscons.4,v 1.1 1999/02/10 14:25:03 yokota Exp $
 .\"
 .Dd February 9, 1999
 .Dt SYSCONS 4
@@ -47,7 +47,7 @@ the console driver
 .\".Cd "options" \&"SC_PIXEL_MODE\&"
 .Cd "options" \&"STD8X16FONT\&"
 .Cd "makeoptions" \&"STD8X16FONT\&"=\&"_font_name_\&"
-.Cd "device sc0 at isa? tty"
+.Cd "device sc0 at isa?"
 .Sh DESCRIPTION
 The
 .Nm
@@ -358,10 +358,10 @@ driver requires the keyboard driver and the video card driver,
 the kernel configuration file should contain the following lines.
 .Pp
 .Bd -literal -offset indent
-device atkbdc0 at isa? port IO_KBD tty
-device atkbd0 at isa? tty irq 1
+device atkbdc0 at isa? port IO_KBD
+device atkbd0 at atkbdc? irq 1
 device vga0 at isa? conflicts
-device sc0 at isa? tty
+device sc0 at isa?
 
 pseudo-device splash
 .Ed
@@ -380,7 +380,7 @@ to the kernel as the default 8x16 font.
 .Pp
 .Dl "options" \&"STD8X16FONT\&"
 .Dl "makeoptions" \&"STD8X16FONT\&"=\&"cp850\&"
-.Dl "device sc0 at isa? tty"
+.Dl "device sc0 at isa?
 .Pp
 .\".Sh DIAGNOSTICS
 .\".Sh CAVEATS
