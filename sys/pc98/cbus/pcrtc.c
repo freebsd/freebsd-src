@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.42 1998/02/13 09:32:17 kato Exp $
+ *	$Id: clock.c,v 1.43 1998/02/21 15:52:40 kato Exp $
  */
 
 /*
@@ -152,11 +152,9 @@ static	int	beeping = 0;
 static	u_int	clk_imask = HWI_MASK | SWI_MASK;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	u_int	hardclock_max_count;
-#ifndef PC98
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
 static	int	i8254_ticked;
-#endif
 /*
  * XXX new_function and timer_func should not handle clockframes, but
  * timer_func currently needs to hold hardclock to handle the
@@ -191,9 +189,7 @@ static void rtc_outb __P((int));
 #endif
 static	u_int	tsc_present;
 
-#ifndef PC98
 static	u_int64_t i8254_get_timecount __P((void));
-#endif
 static	void	set_timer_freq(u_int freq, int intr_freq);
 static	u_int64_t tsc_get_timecount __P((void));
 static	u_int32_t tsc_get_timedelta __P((struct timecounter *tc));
@@ -984,6 +980,7 @@ inittodr(time_t base)
 	int		yd;
 	int		year, month;
 	int		y, m, s;
+	struct timespec ts;
 #ifdef PC98
 	int		second, min, hour;
 #endif
