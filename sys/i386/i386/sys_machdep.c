@@ -31,7 +31,6 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *
  */
 
 #include <sys/cdefs.h>
