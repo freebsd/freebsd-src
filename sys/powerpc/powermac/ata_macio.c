@@ -83,8 +83,8 @@ DRIVER_MODULE(ata, macio, ata_macio_driver, ata_devclass, 0, 0);
 static int
 ata_macio_locknoop(struct ata_channel *ch, int type)
 {
-	/* XXX SMP ? */
-	return (0);
+
+	return (ch->unit);
 }
 
 static void
