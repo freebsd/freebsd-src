@@ -126,7 +126,6 @@
 126	sync		Generic sync port support <phk>, <brian>
 127	*fire		Firewire driver <ikob@koganei.wide.ad.jp>
 128	arla		Arla (AFS-clone) driver
-129	i2o		Intelligent I/O Character Device
 130	*mlx		Mylex DAC960 RAID (control device)
 134	taupci		Cronyx Tau-PCI card <vak@hanoi.cronyx.ru>
 135	*zsc		TurboLaser console uart
