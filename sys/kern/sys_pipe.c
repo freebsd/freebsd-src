@@ -903,7 +903,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		(wpipe->pipe_buffer.size <= PIPE_SIZE) &&
 		(wpipe->pipe_buffer.cnt == 0)) {
 
-		if ((error = pipelock(wpipe,1)) == 0) {
+		if ((error = pipelock(wpipe, 1)) == 0) {
 			PIPE_GET_GIANT(wpipe);
 			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
 				nbigpipe++;
@@ -948,7 +948,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		    (fp->f_flag & FNONBLOCK) == 0 &&
 			(wpipe->pipe_map.kva || (amountpipekva < LIMITPIPEKVA)) &&
 			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
-			error = pipe_direct_write( wpipe, uio);
+			error = pipe_direct_write(wpipe, uio);
 			if (error)
 				break;
 			continue;
