@@ -155,6 +155,7 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional id
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
+dev/isp/isp_target.c	optional isp
 dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/mii.c		optional miibus
