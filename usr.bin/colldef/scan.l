@@ -25,9 +25,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
@@ -45,6 +47,7 @@ YY_BUFFER_STATE main_buf, map_buf;
 #ifdef FLEX_DEBUG
 YYSTYPE yylval;
 #endif /* FLEX_DEBUG */
+int yylex(void);
 %}
 %%
 <INITIAL,charmap,nchar,subs,subs2>[ \t]+      ;
@@ -166,7 +169,7 @@ YYSTYPE yylval;
 	return STRING;
 }
 <name,defn>.            {
-	char *s = (map_fp != NULL) ? map_name : "input";
+	const char *s = (map_fp != NULL) ? map_name : "input";
 
 	if (!isascii(*yytext) || !isprint(*yytext))
 		errx(EX_UNAVAILABLE, "non-ASCII or non-printable character 0x%02x not allowed in the map/name near line %u of %s",
@@ -219,12 +222,12 @@ YYSTYPE yylval;
 	*ptr++ = '\a';
 }
 <name,string,defn>\n            {
-	char *s = (map_fp != NULL) ? map_name : "input";
+	const char *s = (map_fp != NULL) ? map_name : "input";
 
 	errx(EX_UNAVAILABLE, "unterminated map/name/string near line %u of %s", line_no, s);
 }
 <name,string,nchar><<EOF>>      {
-	char *s = (map_fp != NULL) ? map_name : "input";
+	const char *s = (map_fp != NULL) ? map_name : "input";
 
 	errx(EX_UNAVAILABLE, "premature EOF in the name/string/char near line %u of %s", line_no, s);
 }

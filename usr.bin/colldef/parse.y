@@ -24,9 +24,11 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdarg.h>
@@ -39,10 +41,11 @@
 #include "common.h"
 
 extern FILE *yyin;
-void yyerror(char *fmt, ...) __printflike(1, 2);
+void yyerror(const char *fmt, ...) __printflike(1, 2);
 int yyparse(void);
 int yylex(void);
-static void usage __P((void));
+static void usage(void);
+static void collate_print_tables(void);
 
 char map_name[FILENAME_MAX] = ".";
 
@@ -57,7 +60,7 @@ int prim_pri = 1, sec_pri = 1;
 int debug;
 #endif
 
-char *out_file = "LC_COLLATE";
+const char *out_file = "LC_COLLATE";
 %}
 %union {
 	u_char ch;
@@ -231,6 +234,7 @@ sec_sub_item : CHAR {
 %%
 int
 main(ac, av)
+	int ac;
 	char **av;
 {
 	int ch;
@@ -278,7 +282,8 @@ usage()
 	exit(EX_USAGE);
 }
 
-void yyerror(char *fmt, ...)
+void
+yyerror(const char *fmt, ...)
 {
 	va_list ap;
 	char msg[128];
@@ -290,8 +295,8 @@ void yyerror(char *fmt, ...)
 }
 
 #ifdef COLLATE_DEBUG
-void
-collate_print_tables()
+static void
+collate_print_tables(void)
 {
 	int i;
 	struct __collate_st_chain_pri *p2;
