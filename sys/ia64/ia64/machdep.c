@@ -144,7 +144,7 @@ int	totalphysmem;		/* total amount of physical memory in system */
 int	physmem;		/* physical memory used by NetBSD + some rsvd */
 int	resvmem;		/* amount of memory reserved for PROM */
 
-vm_offset_t phys_avail[20];
+vm_offset_t phys_avail[100];
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
