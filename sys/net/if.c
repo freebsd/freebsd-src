@@ -319,7 +319,7 @@ if_findindex(struct ifnet *ifp)
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
 		snprintf(eaddr, 18, "%6D",
-		    ((struct arpcom *)ifp->if_softc)->ac_enaddr, ":");
+		    IFP2AC(ifp)->ac_enaddr, ":");
 		break;
 	default:
 		eaddr[0] = '\0';
@@ -1979,7 +1979,7 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 	case IFT_XETHER:
 	case IFT_ISO88025:
 	case IFT_L2VLAN:
-		bcopy(lladdr, ((struct arpcom *)ifp->if_softc)->ac_enaddr, len);
+		bcopy(lladdr, IFP2AC(ifp)->ac_enaddr, len);
 		/*
 		 * XXX We also need to store the lladdr in LLADDR(sdl),
 		 * which is done below. This is a pain because we must
