@@ -68,6 +68,16 @@ dev_unlock(void)
 }
 
 void
+dev_ref(struct cdev *dev)
+{
+
+	mtx_assert(&devmtx, MA_NOTOWNED);
+	mtx_lock(&devmtx);
+	dev->si_refcount++;
+	mtx_unlock(&devmtx);
+}
+
+void
 dev_refl(struct cdev *dev)
 {
 
@@ -361,7 +371,7 @@ prep_cdevsw(struct cdevsw *devsw)
 }
 
 struct cdev *
-make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
+make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int mode, const char *fmt, ...)
 {
 	struct cdev *dev;
 	va_list ap;
@@ -370,15 +380,8 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 	KASSERT((minornr & ~MAXMINOR) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minornr));
 
-	if (!(devsw->d_flags & D_INIT)) {
+	if (!(devsw->d_flags & D_INIT)) 
 		prep_cdevsw(devsw);
-		if (devsw->d_uid == 0)
-			devsw->d_uid = uid;
-		if (devsw->d_gid == 0)
-			devsw->d_gid = gid;
-		if (devsw->d_mode == 0)
-			devsw->d_mode = perms;
-	}
 	dev = allocdev();
 	dev_lock();
 	dev = newdev(devsw, minornr, dev);
@@ -407,6 +410,9 @@ make_dev(struct cdevsw *devsw, int minornr, uid_t uid, gid_t gid, int perms, con
 		
 	dev->si_devsw = devsw;
 	dev->si_flags |= SI_NAMED;
+	dev->si_uid = uid;
+	dev->si_gid = gid;
+	dev->si_mode = mode;
 
 	devfs_create(dev);
 	dev_unlock();
