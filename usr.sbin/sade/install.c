@@ -749,7 +749,7 @@ installFixupBin(dialogMenuItem *self)
                 /* Snapshot any boot -c changes back to the new kernel */
 		cp = variable_get(VAR_KGET);
 		if (cp && (*cp == 'Y' || *cp == 'y')) {
-		    if (kstat = kget("/boot/kernel.conf")) {
+		    if ((kstat = kget("/boot/kernel.conf")) != NULL) {
 			msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
 				   "to it.  See the debug screen (ALT-F2) for details.");
 		    }
