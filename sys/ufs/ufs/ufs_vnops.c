@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.87 1998/06/07 11:04:26 bde Exp $
+ * $Id: ufs_vnops.c,v 1.88 1998/06/08 23:55:33 julian Exp $
  */
 
 #include "opt_quota.h"
@@ -401,7 +401,7 @@ ufs_getattr(ap)
 	else
 		vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_bytes = dbtob((u_quad_t)ip->i_blocks);
-	vap->va_type = vp->v_type;
+	vap->va_type = IFTOVT(ip->i_mode);
 	vap->va_filerev = ip->i_modrev;
 	return (0);
 }
