@@ -76,7 +76,7 @@ setpeer(argc, argv)
 	char *argv[];
 {
 	char *host;
-	u_int16_t port;
+	char *port;
 
 	if (connected) {
 		printf("Already connected to %s, use close first.\n",
@@ -95,19 +95,8 @@ setpeer(argc, argv)
 		port = gateport;
 	else
 		port = ftpport;
-	if (argc > 2) {
-		char *ep;
-		long nport;
-
-		nport = strtol(argv[2], &ep, 10);
-		if (nport < 1 || nport > 0xffff || *ep != '\0') {
-			printf("%s: bad port number '%s'.\n", argv[0], argv[2]);
-			printf("usage: %s host-name [port]\n", argv[0]);
-			code = -1;
-			return;
-		}
-		port = htons(nport);
-	}
+	if (argc > 2)
+		port = strdup(argv[2]);
 
 	if (gatemode) {
 		if (gateserver == NULL || *gateserver == '\0')

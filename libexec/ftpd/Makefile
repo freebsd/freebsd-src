@@ -7,6 +7,7 @@ SRCS=	ftpd.c ftpcmd.y logwtmp.c popen.c skey-stuff.c
 
 CFLAGS+=-DSETPROCTITLE -DSKEY -DLOGIN_CAP -DVIRTUAL_HOSTING -Wall \
 	-I${.CURDIR}/../../contrib-crypto/telnet
+CFLAGS+=-DINET6 -g
 YFLAGS=
 
 LDADD=	-lskey -lmd -lcrypt -lutil

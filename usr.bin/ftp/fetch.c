@@ -57,6 +57,7 @@ __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <netdb.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -66,6 +67,11 @@ __RCSID_SOURCE("$NetBSD: fetch.c,v 1.16.2.1 1997/11/18 01:00:22 mellon Exp $");
 #include <unistd.h>
 
 #include "ftp_var.h"
+
+/* wrapper for KAME-special getnameinfo() */
+#ifndef NI_WITHSCOPEID
+#define	NI_WITHSCOPEID	0
+#endif
 
 static int	url_get __P((const char *, const char *));
 void    	aborthttp __P((int));
@@ -91,9 +97,11 @@ url_get(origline, proxyenv)
 	const char *origline;
 	const char *proxyenv;
 {
-	struct sockaddr_in sin;
+	struct addrinfo hints;
+	struct addrinfo *res;
+	char nameinfo[2 * INET6_ADDRSTRLEN + 1];
 	int i, out, isftpurl;
-	u_int16_t port;
+	char *port;
 	volatile int s;
 	size_t len;
 	char c, *cp, *ep, *portnum, *path, buf[4096];
@@ -101,6 +109,7 @@ url_get(origline, proxyenv)
 	char *line, *proxy, *host;
 	volatile sig_t oldintr;
 	off_t hashbytes;
+	int error;
 
 	s = -1;
 	proxy = NULL;
@@ -172,67 +181,68 @@ url_get(origline, proxyenv)
 		path = line;
 	}
 
-	portnum = strchr(host, ':');			/* find portnum */
-	if (portnum != NULL)
+	if (*host == '[' && (portnum = strrchr(host, ']'))) {	/* IPv6 URL */
 		*portnum++ = '\0';
-
+		host++;
+		if (*portnum == ':')
+			portnum++;
+		else
+			portnum = NULL;
+	} else {
+		portnum = strrchr(host, ':');	/* find portnum */
+		if (portnum != NULL)
+			*portnum++ = '\0';
+	}
+	
 	if (debug)
 		printf("host %s, port %s, path %s, save as %s.\n",
 		    host, portnum, path, savefile);
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-
-	if (isdigit((unsigned char)host[0])) {
-		if (inet_aton(host, &sin.sin_addr) == 0) {
-			warnx("Invalid IP address: %s", host);
-			goto cleanup_url_get;
-		}
-	} else {
-		struct hostent *hp;
-
-		hp = gethostbyname(host);
-		if (hp == NULL) {
-			warnx("%s: %s", host, hstrerror(h_errno));
-			goto cleanup_url_get;
-		}
-		if (hp->h_addrtype != AF_INET) {
-			warnx("%s: not an Internet address?", host);
-			goto cleanup_url_get;
-		}
-		memcpy(&sin.sin_addr, hp->h_addr, hp->h_length);
-	}
-
 	if (! EMPTYSTRING(portnum)) {
-		char *ep;
-		long nport;
-
-		nport = strtol(portnum, &ep, 10);
-		if (nport < 1 || nport > 0xffff || *ep != '\0') {
-			warnx("Invalid port: %s", portnum);
-			goto cleanup_url_get;
-		}
-		port = htons(nport);
+		port = portnum;
 	} else
 		port = httpport;
-	sin.sin_port = port;
 
-	s = socket(AF_INET, SOCK_STREAM, 0);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+	error = getaddrinfo(host, port, &hints, &res);
+	if (error) {
+		warnx("%s: %s", host, gai_strerror(error));
+		if (error = EAI_SYSTEM)
+			warnx("%s: %s", host, strerror(errno));
+		goto cleanup_url_get;
+	}
+
+	while (1)
+      {
+	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (s == -1) {
 		warn("Can't create socket");
 		goto cleanup_url_get;
 	}
 
 	if (dobind && bind(s, (struct sockaddr *)&bindto,
-			sizeof(bindto)) == -1) {
-		warn("Can't bind to %s", inet_ntoa(bindto.sin_addr));
+			((struct sockaddr *)&bindto)->sa_len) == -1) {
+		getnameinfo((struct sockaddr *)&bindto,
+			    ((struct sockaddr *)&bindto)->sa_len,
+			    nameinfo, sizeof(nameinfo), NULL, 0,
+			    NI_NUMERICHOST|NI_WITHSCOPEID);
+		/* XXX check error? */
+		warn("Can't bind to %s", nameinfo);
 		goto cleanup_url_get;
 	}
 
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
-		warn("Can't connect to %s", host);
+	if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
+		close(s);
+		res = res->ai_next;
+		if (res)
+			continue;
 		goto cleanup_url_get;
 	}
+
+	break;
+      }
 
 	/*
 	 * Construct and send the request.  We're expecting a return
@@ -644,4 +654,15 @@ parsed_url:
 	if (connected && rval != -1)
 		disconnect(0, NULL);
 	return (rval);
+}
+
+int
+isurl(p)
+	const char *p;
+{
+	if (strncasecmp(p, FTP_URL, sizeof(FTP_URL) - 1) == 0
+	 || strncasecmp(p, HTTP_URL, sizeof(HTTP_URL) - 1) == 0) {
+		return 1;
+	}
+	return 0;
 }

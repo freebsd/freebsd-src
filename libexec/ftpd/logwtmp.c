@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 
 #include <fcntl.h>
 #include <time.h>
@@ -68,15 +69,23 @@ ftpd_logwtmp(line, name, host)
 	struct stat buf;
 
 	if (strlen(host) > UT_HOSTSIZE) {
-		struct hostent *hp = gethostbyname(host);
+		struct addrinfo hints, *res;
+		int error;
+		static char hostbuf[BUFSIZ];
 
-		if (hp != NULL) {
-			struct in_addr in;
-
-			memmove(&in, hp->h_addr, sizeof(in));
-			host = inet_ntoa(in);
-		} else
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = PF_UNSPEC;
+		error = getaddrinfo(host, NULL, &hints, &res);
+		if (error)
 			host = "invalid hostname";
+		else {
+			getnameinfo(res->ai_addr, res->ai_addrlen,
+				hostbuf, sizeof(hostbuf), NULL, 0,
+				NI_NUMERICHOST);
+			host = hostbuf;
+			if (strlen(host) > UT_HOSTSIZE)
+				host[UT_HOSTSIZE] = '\0';
+		}
 	}
 
 	if (fd < 0 && (fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) < 0)
