@@ -194,7 +194,7 @@ ata_raid_attach()
 
 	printf("ar%d: %lluMB <ATA ",
 	       rdp->lun, (unsigned long long)
-	       rdp->total_sectors / ((1024L * 1024L) / DEV_BSIZE));
+	       (rdp->total_sectors / ((1024L * 1024L) / DEV_BSIZE)));
 	switch (rdp->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
 	case AR_F_RAID0:
 	    printf("RAID0 "); break;
