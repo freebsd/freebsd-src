@@ -60,7 +60,6 @@ static int	db_lhistlsize, db_lhistidx, db_lhistcur;
 static int	db_lhist_nlines;
 
 #define	CTRL(c)		((c) & 0x1f)
-#define	isspace(c)	((c) == ' ' || (c) == '\t')
 #define	BLANK		' '
 #define	BACKUP		'\b'
 
