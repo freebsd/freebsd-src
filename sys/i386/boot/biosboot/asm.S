@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:13  rpd
- *	$Id: asm.S,v 1.5 1994/10/06 09:41:01 rgrimes Exp $
+ *	$Id: asm.S,v 1.6 1995/01/25 21:37:36 bde Exp $
  */
 
 
@@ -116,16 +116,17 @@ xprot:
 
 ENTRY(prot_to_real)
 
-	/* set up a dummy stack frame for the second seg change. */
-	movw 	$BOOTSEG, %ax
-	pushw	%ax
-	movw	$xreal, %ax	/* gas botches pushw $xreal, extra bytes 0, 0 */
-	pushw	%ax		/* decode to add %al, (%eax) (%al usually 0) */
+	/* Prepare %ax while we're still in a mode that gas understands. */
+	movw	$0x30, %ax
 
 	/* Change to use16 mode. */
 	ljmp	$0x28, $x16
-
 x16:
+
+	mov	%ax, %ds
+	mov	%ax, %ss
+	mov	%ax, %es
+
 	/* clear the PE bit of CR0 */
 	mov	%cr0, %eax
 	data32
@@ -134,12 +135,12 @@ x16:
 
 	/*
 	 * make intersegment jmp to flush the processor pipeline
-	 * using the fake stack frame set up earlier
 	 * and reload CS register
 	 */
-	lret
-
+	data32
+	ljmp	$BOOTSEG, $xreal
 xreal:
+
 	/*
 	 * we are in real mode now
 	 * set up the real mode segment registers : DS, SS, ES
