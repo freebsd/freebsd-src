@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.h,v 1.12 1998/12/30 01:31:52 grog Exp grog $
+ * $Id: vinumstate.h,v 1.13 1999/02/28 04:58:47 grog Exp grog $
  */
 
 /*
@@ -60,6 +60,8 @@ enum plexstate {
     /* An empty entry, not a plex at all.   */
     plex_unallocated,
 
+    /* The plex has been referenced by a volume */
+    plex_referenced,
     /*
      * The plex has been allocated, but there configuration
      * is not complete 
@@ -130,6 +132,9 @@ enum sdstate {
      * completely.  Some fields may be empty.
      */
     sd_uninit,
+
+    /* The subdisk has been referenced by a plex */
+    sd_referenced,
 
     /*
      * A subdisk entry which has been created completely.
