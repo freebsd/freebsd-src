@@ -122,7 +122,7 @@ main(argc, argv)
 	case opt_unknown:
 				break;
 	}
-	exit(0);
+	exit(exitstatus);
 	/*NOTREACHED*/
 }
 
