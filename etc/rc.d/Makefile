@@ -21,7 +21,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	ldconfig local localpkg lomac lpd \
 	mixer motd mountcritlocal mountcritremote \
 	mountd moused mroute6d mrouted msgs \
-	named netif netoptions \
+	named natd netif netoptions \
 	network_ipv6 nfsclient nfsd \
 	nfslocking nfsserver nisdomain ntpd ntpdate \
 	othermta \
