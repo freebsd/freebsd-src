@@ -216,6 +216,7 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_ATM_UTP_155		9
 #define IFM_ATM_MM_622		10
 #define IFM_ATM_SM_622		11
+#define	IFM_ATM_VIRTUAL		12
 #define IFM_ATM_SDH		0x00000100	/* SDH instead of SONET */
 #define IFM_ATM_NOSCRAMB	0x00000200	/* no scrambling */
 #define IFM_ATM_UNASSIGNED	0x00000400	/* unassigned cells */
@@ -475,6 +476,7 @@ struct ifmedia_description {
 	{ IFM_ATM_UTP_155,	"UTP/155MBit" },			\
 	{ IFM_ATM_MM_622,	"Multi-mode/622MBit" },			\
 	{ IFM_ATM_SM_622,	"Single-mode/622MBit" },		\
+	{ IFM_ATM_VIRTUAL,	"Virtual" },				\
 	{ 0, NULL },							\
 }
 
@@ -488,6 +490,7 @@ struct ifmedia_description {
 	{ IFM_ATM_UTP_155,	"UTP-155" },				\
 	{ IFM_ATM_MM_622,	"MM-622" },				\
 	{ IFM_ATM_SM_622,	"SM-622" },				\
+	{ IFM_ATM_VIRTUAL,	"VIRTUAL" },				\
 	{ 0, NULL },							\
 }
 
