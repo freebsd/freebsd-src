@@ -2938,7 +2938,7 @@ pmap_mapdev(pa, size)
 	pa = pa & PG_FRAME;
 	for (tmpva = va; size > 0;) {
 		pte = (unsigned *)vtopte(tmpva);
-		*pte = pa | PG_RW | PG_V | PG_N;
+		*pte = pa | PG_RW | PG_V;
 		size -= PAGE_SIZE;
 		tmpva += PAGE_SIZE;
 		pa += PAGE_SIZE;
