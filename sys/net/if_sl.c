@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.3 1994/08/02 07:46:20 davidg Exp $
+ * $Id: if_sl.c,v 1.4 1994/08/18 22:35:21 wollman Exp $
  */
 
 /*
@@ -155,7 +155,9 @@ Huh? Slip without inet?
 #endif
 #define	SLMAX		(MCLBYTES - BUFOFFSET)
 #define	SLBUFSIZE	(SLMAX + BUFOFFSET)
+#ifndef SLMTU
 #define	SLMTU		296
+#endif
 #define	SLIP_HIWAT	roundup(50,CBSIZE)
 #define	CLISTRESERVE	1024	/* Can't let clists get too low */
 
