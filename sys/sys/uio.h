@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uio.h	8.5 (Berkeley) 2/22/94
- * $Id: uio.h,v 1.2 1994/08/02 07:54:02 davidg Exp $
+ * $Id: uio.h,v 1.3 1994/09/15 20:24:28 bde Exp $
  */
 
 #ifndef _SYS_UIO_H_
@@ -52,7 +52,8 @@ enum	uio_rw { UIO_READ, UIO_WRITE };
 enum uio_seg {
 	UIO_USERSPACE,		/* from user data space */
 	UIO_SYSSPACE,		/* from system space */
-	UIO_USERISPACE		/* from user I space */
+	UIO_USERISPACE,		/* from user I space */
+	UIO_NOCOPY		/* don't copy, already in object */
 };
 
 #ifdef KERNEL
