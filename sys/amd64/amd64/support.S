@@ -1301,7 +1301,7 @@ ENTRY(susword)
 	shrl	$IDXSHIFT,%edx
 	andb	$0xfc,%dl
 
-	leal	_PTmap(%edx),%ecx
+	leal	PTmap(%edx),%ecx
 	shrl	$IDXSHIFT,%ecx
 	andb	$0xfc,%cl
 	testb	$PG_V,PTmap(%ecx)		/* PTE page must be valid */
