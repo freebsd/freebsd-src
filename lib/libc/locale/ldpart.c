@@ -53,18 +53,18 @@ __part_load_locale(const char *name,
 		int locale_buf_size_min,
 		const char **dst_localebuf)
 {
-	static char		locale_buf_C[] = "C";
-	static int		num_lines;
-	int                     saverr;
-	int			 fd;
-	char			*lbuf;
-	char			*p;
-	const char 		*plim;
-	char                     filename[PATH_MAX];
-	struct stat		 st;
-	size_t			 namesize;
-	size_t			 bufsize;
-	int                      save_using_locale;
+	static char	locale_buf_C[] = "C";
+	static int	num_lines;
+	int             saverr;
+	int		fd;
+	char		*lbuf;
+	char		*p;
+	const char 	*plim;
+	char            filename[PATH_MAX];
+	struct stat	st;
+	size_t		namesize;
+	size_t		bufsize;
+	int             save_using_locale;
 
 	save_using_locale = *using_locale;
 	*using_locale = 0;
@@ -112,7 +112,7 @@ __part_load_locale(const char *name,
 		malloc(bufsize) : reallocf(lbuf, bufsize);
 	if (lbuf == NULL)
 		goto bad_locale;
-	(void) strcpy(lbuf, name);
+	(void)strcpy(lbuf, name);
 	p = lbuf + namesize;
 	plim = p + st.st_size;
 	if (_read(fd, p, (size_t) st.st_size) != st.st_size)
@@ -142,30 +142,36 @@ __part_load_locale(const char *name,
 	locale_buf = lbuf;
 
 	*using_locale = 1;
+
 	return 0;
 
 reset_locale:
 	locale_buf = locale_buf_C;
 	save_using_locale = 0;
 bad_lbuf:
-	saverr = errno; free(lbuf); errno = saverr;
+	saverr = errno; 
+	free(lbuf); 
+	errno = saverr;
 bad_locale:
-	saverr = errno; (void)_close(fd); errno = saverr;
+	saverr = errno; 
+	(void)_close(fd); 
+	errno = saverr;
 no_locale:
 	*using_locale = save_using_locale;
+
 	return -1;
 }
 
 static int
-split_lines(char *p, const char *plim) {
-
+split_lines(char *p, const char *plim) 
+{
 	int i;
 
 	for (i = 0; p < plim; i++) {
 		p = strchr(p, '\n');
 		*p++ = '\0';
 	}
-	return i;
+	return (i);
 }
 
 static void
