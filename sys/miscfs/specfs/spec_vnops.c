@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.81 1999/02/25 05:22:30 dillon Exp $
+ * $Id: spec_vnops.c,v 1.82 1999/04/05 19:38:30 julian Exp $
  */
 
 #include <sys/param.h>
@@ -812,8 +812,7 @@ spec_getpages(ap)
 	bp->b_iodone = spec_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */
-	bp->b_proc = curproc;
-	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
+	bp->b_rcred = bp->b_wcred = curproc->p_ucred;
 	if (bp->b_rcred != NOCRED)
 		crhold(bp->b_rcred);
 	if (bp->b_wcred != NOCRED)

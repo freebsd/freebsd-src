@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.69 1999/04/06 03:07:54 peter Exp $
+ * $Id: nfs_bio.c,v 1.70 1999/05/02 23:56:24 alc Exp $
  */
 
 
@@ -465,7 +465,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
-				if (nfs_asyncio(rabp, cred)) {
+				if (nfs_asyncio(rabp, cred, p)) {
 				    rabp->b_flags |= B_INVAL|B_ERROR;
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
@@ -627,7 +627,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= (B_READ | B_ASYNC);
 				vfs_busy_pages(rabp, 0);
-				if (nfs_asyncio(rabp, cred)) {
+				if (nfs_asyncio(rabp, cred, p)) {
 				    rabp->b_flags |= B_INVAL|B_ERROR;
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
@@ -894,7 +894,6 @@ again:
 
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
-			bp->b_proc = p;
 			if (VOP_BWRITE(bp) == EINTR)
 				return (EINTR);
 			goto again;
@@ -960,7 +959,6 @@ again:
 		 * to turn off caching in this case.  Very odd.  XXX
 		 */
 		if ((np->n_flag & NQNFSNONCACHE) || (ioflag & IO_SYNC)) {
-			bp->b_proc = p;
 			if (ioflag & IO_INVAL)
 				bp->b_flags |= B_NOCACHE;
 			error = VOP_BWRITE(bp);
@@ -973,9 +971,8 @@ again:
 			}
 		} else if ((n + on) == biosize &&
 			(nmp->nm_flag & NFSMNT_NQNFS) == 0) {
-			bp->b_proc = (struct proc *)0;
 			bp->b_flags |= B_ASYNC;
-			(void)nfs_writebp(bp, 0);
+			(void)nfs_writebp(bp, 0, 0);
 		} else {
 			bdwrite(bp);
 		}
@@ -1097,9 +1094,10 @@ nfs_vinvalbuf(vp, flags, cred, p, intrflg)
  * is eventually dequeued by the async daemon, nfs_doio() *will*.
  */
 int
-nfs_asyncio(bp, cred)
+nfs_asyncio(bp, cred, procp)
 	register struct buf *bp;
 	struct ucred *cred;
+	struct proc *procp;
 {
 	struct nfsmount *nmp;
 	int i;
@@ -1165,7 +1163,7 @@ again:
 			error = tsleep(&nmp->nm_bufq, slpflag | PRIBIO,
 				       "nfsaio", slptimeo);
 			if (error) {
-				if (nfs_sigintr(nmp, NULL, bp->b_proc))
+				if (nfs_sigintr(nmp, NULL, procp))
 					return (EINTR);
 				if (slpflag == PCATCH) {
 					slpflag = 0;
