@@ -426,4 +426,4 @@ int aha_probe(struct aha_softc *);
 #define AHA1542_PNPCOMPAT	0xA000D040	/* PNP00A0 */
 #define ICU0091_PNP		0X91005AA4	/* ICU0091 */
 
-#endif	/* _AHA_H_ */
+#endif	/* _AHAREG_H_ */
