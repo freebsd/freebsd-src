@@ -227,10 +227,8 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 				goto out;
 		}
 		/* copy to listener after decrypt */
-#if NBPFILTER > 0
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
-#endif
 		m = ieee80211_decap(ifp, m);
 		if (m == NULL)
 			goto err;
@@ -317,10 +315,8 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 				    >> IEEE80211_FC0_SUBTYPE_SHIFT],
 				    ether_sprintf(wh->i_addr2), rssi);
 		}
-#if NBPFILTER > 0
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
-#endif
 		(*ic->ic_recv_mgmt)(ic, m, subtype, rssi, rstamp, rantenna);
 		m_freem(m);
 		return;
@@ -335,10 +331,8 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m,
 	ifp->if_ierrors++;
   out:
 	if (m != NULL) {
-#if NBPFILTER > 0
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
-#endif
 		m_freem(m);
 	}
 }
