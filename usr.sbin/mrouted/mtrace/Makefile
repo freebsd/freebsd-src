@@ -1,12 +1,12 @@
 # $FreeBSD$
 
-PROG=	mtrace
-
 S=	${.CURDIR}/..
-.PATH:	$S
-CFLAGS+=	-I$S
+.PATH: $S
 
+PROG=	mtrace
 MAN=	mtrace.8
-BINMODE=4555
+BINMODE= 4555
+
+CFLAGS+= -I$S
 
 .include <bsd.prog.mk>

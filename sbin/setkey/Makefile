@@ -24,32 +24,35 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
+#
 # $FreeBSD$
 
 PROG=	setkey
+MAN=	setkey.8
 SRCS=	setkey.c parse.y token.l
-CFLAGS+=-g
+
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libipsec
+YFLAGS=	-d
+
 DPADD=	${LIBL} ${LIBY}
 LDADD=	-ll -ly
-CLEANFILES+=	y.tab.c y.tab.h key_test.o keytest
-YFLAGS+=-d
+
+CLEANFILES=	y.tab.c y.tab.h key_test.o keytest
 
 # libpfkey.
 # ipsec_strerror.c is for avoiding shlib reference to non-exported function.
 .PATH: ${.CURDIR}/../../lib/libipsec ${.CURDIR}/../../sys/netkey
 SRCS+= pfkey.c pfkey_dump.c key_debug.c ipsec_strerror.c
-CFLAGS+=-I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netkey
+CFLAGS+= -I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netkey
 
-SRCS+=y.tab.h
+SRCS+=	y.tab.h
 y.tab.h: parse.y
-CFLAGS+=-DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I.
+CFLAGS+= -DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I.
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
 
-SCRIPTS=scriptdump
-MAN=	setkey.8
+SCRIPTS= scriptdump
 
 LOCALPREFIX=	/usr
 

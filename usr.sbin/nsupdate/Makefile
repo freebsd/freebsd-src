@@ -3,7 +3,7 @@
 USE_LIBBIND=	yes
 .include "${.CURDIR}/../named/Makefile.inc"
 
-.PATH:	${BIND_DIR}/bin/nsupdate
+.PATH: ${BIND_DIR}/bin/nsupdate
 
 PROG=	nsupdate
 NOMAN=	hmm..

@@ -1,5 +1,6 @@
+# $FreeBSD$
 
-CRUNCHED=   fixit
+CRUNCHED=	fixit
 
 # below is boiler-plate to make $(CRUNCHED) from $(CRUNCHED).conf
 # I'd use PROG instead of CRUNCHED, but the system makefiles REALLY want
@@ -8,11 +9,11 @@ CRUNCHED=   fixit
 CONF=	$(CRUNCHED).conf
 
 OUTMK=	$(CRUNCHED).mk
-OUTPUTS=  $(OUTMK) $(CRUNCHED).c $(CRUNCHED).cache
+OUTPUTS= $(OUTMK) $(CRUNCHED).c $(CRUNCHED).cache
 
-NOMAN=
-CLEANFILES+=$(CRUNCHED) *.o *.lo *.c *.mk *.cache
-CLEANDIRFILES+=$(OUTPUTS)
+NOMAN=	#true
+CLEANFILES+= $(CRUNCHED) *.o *.lo *.c *.mk *.cache
+CLEANDIRFILES+= $(OUTPUTS)
 
 all: $(CRUNCHED)
 exe: $(CRUNCHED)

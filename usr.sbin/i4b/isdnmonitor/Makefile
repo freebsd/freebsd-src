@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-PROG	=	isdnmonitor
-SRCS	=	main.c curses.c
-MAN	=	isdnmonitor.8
+PROG=	isdnmonitor
+SRCS=	main.c curses.c
+MAN=	isdnmonitor.8
 
 # compile debug support
-COPTS	+=	-DDEBUG
+COPTS+=	-DDEBUG
 
-DPADD	=	${LIBCURSES}
-LDADD	=	-lcurses
+DPADD=	${LIBCURSES}
+LDADD=	-lcurses
 
 .include <bsd.prog.mk>

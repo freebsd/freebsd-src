@@ -3,13 +3,14 @@
 
 MAINTAINER=	gshapiro@FreeBSD.org
 
-SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
-.PATH:	${SENDMAIL_DIR}/praliases
+SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
+.PATH: ${SENDMAIL_DIR}/praliases
 
 PROG=	praliases
 MAN=	praliases.8
-CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
-CFLAGS+=-DNEWDB -DNOT_SENDMAIL
+
+CFLAGS+= -I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
+CFLAGS+= -DNEWDB -DNOT_SENDMAIL
 
 .if exists(${.OBJDIR}/../../lib/libsmdb)
 LIBSMDBDIR:=	${.OBJDIR}/../../lib/libsmdb
@@ -29,9 +30,9 @@ DPADD=	${LIBSMDB} ${LIBSMUTIL}
 LDADD=	${LIBSMDB} ${LIBSMUTIL}
 
 # User customizations to the sendmail build environment
-CFLAGS+=${SENDMAIL_CFLAGS}
-DPADD+=${SENDMAIL_DPADD}
-LDADD+=${SENDMAIL_LDADD}
+CFLAGS+= ${SENDMAIL_CFLAGS}
 LDFLAGS+=${SENDMAIL_LDFLAGS}
+DPADD+=	${SENDMAIL_DPADD}
+LDADD+=	${SENDMAIL_LDADD}
 
 .include <bsd.prog.mk>

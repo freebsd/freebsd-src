@@ -4,7 +4,8 @@
 PROG=	dpt_dm
 MAN=	dpt_dm.8
 
-CFLAGS+=-I${.CURDIR}/../../../sys
-BINMODE=500
+BINMODE= 500
+
+CFLAGS+= -I${.CURDIR}/../../../sys
 
 .include <bsd.prog.mk>

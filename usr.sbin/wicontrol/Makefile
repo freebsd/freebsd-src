@@ -1,4 +1,5 @@
 # $FreeBSD$
+
 PROG=	wicontrol
 MAN=	wicontrol.8
 

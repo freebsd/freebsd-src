@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 # if you don't like curses stuff in the daemon (i.e. don't intend
 # to ever run it in the foreground but are using the monitoring
 # utilities instead) define this to compile it without.

@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	rpc.umntall
-SRCS=	rpc.umntall.c mounttab.c
 MAN=	rpc.umntall.8
+SRCS=	rpc.umntall.c mounttab.c
 
 .include <bsd.prog.mk>

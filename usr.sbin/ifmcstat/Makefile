@@ -3,11 +3,9 @@
 
 PROG=	ifmcstat
 MAN=	ifmcstat.8
+BINMODE= 550
 
-BINMODE=550
 LDADD=	-lkvm
 DPADD=	${LIBKVM}
-
-CFLAGS+=-DINET6
 
 .include <bsd.prog.mk>

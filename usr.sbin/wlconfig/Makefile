@@ -1,4 +1,5 @@
 # $FreeBSD$
+
 PROG=	wlconfig
 MAN=	wlconfig.8
 

@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-PROG=	testrsrr
-
 S=	${.CURDIR}/..
-.PATH:	$S
-CFLAGS+=	-I$S
+.PATH: $S
 
+PROG=	testrsrr
+NOMAN=	#true
 SRCS=	testrsrr.c
-NOMAN=
+
+CFLAGS+= -I$S
 
 install:
 

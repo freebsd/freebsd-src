@@ -11,19 +11,21 @@
 # AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
+#
 # $FreeBSD$
 
 PROG=	rrenumd
+MAN=	rrenumd.conf.5 rrenumd.8
 SRCS=	rrenumd.c  parser.y lexer.l
-YFLAGS+=	-d
 
 CFLAGS+= -DINET6 -DIPSEC -I. -I${.CURDIR}
+YFLAGS=	-d
+
 LDADD=	-lipsec -lcompat -ll -ly
 DPADD=	${LIBIPSEC} ${LIBCOMPAT} ${LIBL} ${LIBY}
 
-MAN=	rrenumd.conf.5 rrenumd.8
-
-SRCS+=y.tab.h
+CLEANFILES=	y.tab.h
+SRCS+=	y.tab.h
 y.tab.h: parser.y
 
 .if defined(YACCDEBUG)
@@ -32,5 +34,3 @@ YFLAGS+= -t -v
 .endif
 
 .include <bsd.prog.mk>
-
-CLEANFILES+=	y.tab.h

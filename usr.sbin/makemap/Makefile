@@ -4,12 +4,13 @@
 MAINTAINER=	gshapiro@FreeBSD.org
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
-.PATH:	${SENDMAIL_DIR}/makemap
+.PATH: ${SENDMAIL_DIR}/makemap
 
 PROG=	makemap
 MAN=	makemap.8
-CFLAGS+=-I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
-CFLAGS+=-DNEWDB -DNOT_SENDMAIL
+
+CFLAGS+= -I${SENDMAIL_DIR}/src -I${SENDMAIL_DIR}/include
+CFLAGS+= -DNEWDB -DNOT_SENDMAIL
 
 .if exists(${.OBJDIR}/../../lib/libsmdb)
 LIBSMDBDIR:=	${.OBJDIR}/../../lib/libsmdb

@@ -2,10 +2,6 @@
 
 PROG=	sysinstall
 MAN=	sysinstall.8
-
-CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
-CLEANFILES+=	keymap.tmp keymap.h
-
 SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
 	ftp.c globals.c http.c index.c install.c installUpgrade.c keymap.c \
@@ -21,6 +17,9 @@ CFLAGS+= -DPC98
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
+
+CLEANFILES=	makedevs.c rtermcap rtermcap.tmp dumpnlist
+CLEANFILES+=	keymap.tmp keymap.h
 
 makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
@@ -73,7 +72,6 @@ build-tools:	rtermcap
 
 rtermcap:	rtermcap.c
 	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
-
 
 .if ${MACHINE} == "pc98"
 KEYMAPS= jp.pc98 jp.pc98.iso

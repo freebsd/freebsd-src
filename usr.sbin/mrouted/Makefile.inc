@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-CFLAGS+=	-DRSRR
+CFLAGS+= -DRSRR
 
 .if exists(${.OBJDIR}/../common)
 LIBMROUTED=	${.OBJDIR}/../common/libmrouted.a

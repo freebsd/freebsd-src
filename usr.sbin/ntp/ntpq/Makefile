@@ -1,17 +1,14 @@
-#
 # $FreeBSD$
-#
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/ntpq
+.PATH: ${.CURDIR}/../../../contrib/ntp/ntpq
 
-PROG= ntpq
-BINDIR= /usr/bin
+BINDIR=	/usr/bin
 
+PROG=	ntpq
+NOMAN=	yes
 SRCS= 	ntpq.c ntpq_ops.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-NOMAN= yes
 
 DPADD=	${LIBNTP}
 LDADD=	${LIBNTP}

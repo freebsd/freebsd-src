@@ -1,17 +1,16 @@
 # $FreeBSD$
 
+RPCDIR=	${DESTDIR}/usr/include/rpcsvc
+
+.PATH: ${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
+       ${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
+
 PROG=	rpc.yppasswdd
+MAN=	rpc.yppasswdd.8
 SRCS=	pw_copy.c pw_util.c util.c yp_access.c yp_dblookup.c yp_dbwrite.c \
 	yp_error.c yppasswdd_main.c yppasswdd_server.c ypxfr_misc.c ${GENSRCS}
 GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_private.h yppasswd_private_svc.c \
 	yppasswd_private_xdr.c yppasswd_svc.c
-
-RPCDIR=	${DESTDIR}/usr/include/rpcsvc
-
-.PATH:	${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
-	${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
-
-MAN=	rpc.yppasswdd.8
 
 CFLAGS+= -I${.CURDIR}/../../usr.sbin/vipw -I${.CURDIR}/../../usr.sbin/ypserv \
 	 -I${.CURDIR}/../../libexec/ypxfr -I${.CURDIR}/../../usr.bin/chpass \
@@ -22,7 +21,7 @@ LDADD=	-lrpcsvc -lcrypt
 
 CLEANFILES= ${GENSRCS}
 
-RPCGEN= rpcgen -I -C
+RPCGEN=	rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yppasswdd_main.c can see it.
@@ -58,7 +57,7 @@ yppasswd_private_svc.c: yppasswd_private.x
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.CURDIR}/yppwupdate \
-		${DESTDIR}/usr/libexec/yppwupdate
+	    ${.CURDIR}/yppwupdate \
+	    ${DESTDIR}/usr/libexec/yppwupdate
 
 .include <bsd.prog.mk>

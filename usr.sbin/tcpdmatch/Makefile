@@ -1,8 +1,8 @@
-#
 # $FreeBSD$
-#
 
-MAINTAINER=markm@FreeBSD.org
+MAINTAINER= markm@FreeBSD.org
+
+.PATH: ${.CURDIR}/../../contrib/tcp_wrappers
 
 PROG=	tcpdmatch
 MAN=	tcpdmatch.8
@@ -16,7 +16,5 @@ CFLAGS+=-DINET6
 
 DPADD=	${LIBWRAP}
 LDADD=	-lwrap
-
-.PATH:	${.CURDIR}/../../contrib/tcp_wrappers
 
 .include <bsd.prog.mk>

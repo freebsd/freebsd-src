@@ -8,16 +8,15 @@
 #	$NetBSD: Makefile.inc,v 1.10 1998/08/08 22:33:27 christos Exp $
 #	Portions derived from amd/libamu/Makefile
 #	$NetBSD: Makefile,v 1.8 1998/08/08 22:33:37 christos Exp $
-#
 
-CFLAGS+=	-I. -I${.CURDIR} 
-CFLAGS+=	-I${.CURDIR}/../include
+CFLAGS+= -I. -I${.CURDIR} 
+CFLAGS+= -I${.CURDIR}/../include
 .if exists(${.OBJDIR}/../include)
-CFLAGS+=	-I${.OBJDIR}/../include
+CFLAGS+= -I${.OBJDIR}/../include
 .endif
-CFLAGS+=	-I${.CURDIR}/../../../contrib/amd/include
-CFLAGS+=	-I${.CURDIR}/../../../contrib/amd
-CFLAGS+=	-DHAVE_CONFIG_H
+CFLAGS+= -I${.CURDIR}/../../../contrib/amd/include
+CFLAGS+= -I${.CURDIR}/../../../contrib/amd
+CFLAGS+= -DHAVE_CONFIG_H
 
 .if exists(${.OBJDIR}/../libamu)
 LIBAMUDIR=	${.OBJDIR}/../libamu

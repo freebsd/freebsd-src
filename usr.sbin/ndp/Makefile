@@ -13,13 +13,13 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../contrib/tcpdump
+.PATH: ${.CURDIR}/../../contrib/tcpdump
 
 PROG=	ndp
-SRCS=	ndp.c gmt2local.c
 MAN=	ndp.8
+SRCS=	ndp.c gmt2local.c
 
-CFLAGS+=-DINET6
-CFLAGS+=-I. -I${.CURDIR} -I${.CURDIR}/../../contrib/tcpdump
+CFLAGS+= -DINET6
+CFLAGS+= -I. -I${.CURDIR} -I${.CURDIR}/../../contrib/tcpdump
 
 .include <bsd.prog.mk>

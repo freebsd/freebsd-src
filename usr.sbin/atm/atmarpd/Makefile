@@ -1,5 +1,3 @@
-#
-#
 # ===================================
 # HARP  |  Host ATM Research Platform
 # ===================================
@@ -24,16 +22,15 @@
 # notice must be reproduced on all copies.
 #
 #	@(#) $FreeBSD$
-#
-#
 
 PROG=	atmarpd
+MAN=	atmarpd.8
 SRCS=	atmarpd.c atmarp_config.c atmarp_log.c atmarp_scsp.c \
 	atmarp_subr.c atmarp_timer.c
-MAN=	atmarpd.8
 
-CFLAGS+=	-I${.CURDIR}/../../../sys
-LDADD+=		-latm -lmd
-DPADD+=		${LIBATM} ${LIBMD}
+CFLAGS+= -I${.CURDIR}/../../../sys
+
+LDADD=	-latm -lmd
+DPADD=	${LIBATM} ${LIBMD}
 
 .include <bsd.prog.mk>

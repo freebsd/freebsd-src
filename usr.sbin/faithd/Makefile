@@ -11,11 +11,13 @@
 # AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT
 # LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
 # A PARTICULAR PURPOSE.
+#
 # $FreeBSD$
 
 PROG=	faithd
-SRCS=	faithd.c tcp.c ftp.c rsh.c prefix.c
 MAN=	faithd.8
+SRCS=	faithd.c tcp.c ftp.c rsh.c prefix.c
+
 #CFLAGS+= -DFAITH4
 
 .include <bsd.prog.mk>

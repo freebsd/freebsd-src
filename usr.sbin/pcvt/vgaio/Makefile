@@ -1,8 +1,11 @@
 # $FreeBSD$
+
 PROG=	vgaio
 MAN=	vgaio.8
-
 SRCS=	vgaio.y lex.l y.tab.h
+
+CFLAGS+= -I${.OBJDIR} -I${.CURDIR}
+
 YACC=	yacc
 
 #YFLAGS+= -yd	# Bison
@@ -12,8 +15,6 @@ LFLAGS+= -I
 
 DPADD=	${LIBM} ${LIBY} ${LIBL}
 LDADD=	-lm -ly -ll
-
-CFLAGS+= -I${.OBJDIR} -I${.CURDIR}
 
 CLEANFILES+= y.output	# comment file from bison
 

@@ -2,8 +2,9 @@
 # $FreeBSD$
 
 PROG=	acpidump
-SRCS=	acpi.c acpi_user.c asl_dump.c aml_dump.c acpidump.c
 MAN=	acpidump.8
+SRCS=	acpi.c acpi_user.c asl_dump.c aml_dump.c acpidump.c
+
 #DEBUG_FLAGS= -g
 
 .include <bsd.prog.mk>
