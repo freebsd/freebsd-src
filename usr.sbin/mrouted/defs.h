@@ -85,7 +85,9 @@ extern char		s3[];
 
 extern int		errno;
 extern int		sys_nerr;
+#ifndef __FreeBSD__
 extern char *		sys_errlist[];
+#endif
 
 extern void		log();
 
