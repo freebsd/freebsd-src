@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.6 1995/05/25 18:48:22 jkh Exp $
+ * $Id: config.c,v 1.7 1995/05/26 08:41:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,6 +43,7 @@
 
 #include "sysinstall.h"
 #include <sys/disklabel.h>
+#include <sys/wait.h>
 
 static Chunk *chunk_list[MAX_CHUNKS];
 static int nchunks;
@@ -179,7 +180,7 @@ configFstab(void)
     }
 
     Mkdir("/proc", NULL);
-    fprintf(fstab, "proc\t\t\t/proc\t\tprocfs rw 0 0\n");
+    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs rw 0 0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -251,8 +252,28 @@ configSysconfig(void)
 	msgConfirm("Unable to re-write /etc/sysconfig file!  Things may work\nrather strangely as a result of this.");
 	return;
     }
-    for (i = 0; i < nlines; i++)
+    for (i = 0; i < nlines; i++) {
 	fprintf(fp, lines[i]);
+	free(lines[i]);
+
+	/* Stand by for bogus special case handling - we try to dump the interface specs here */
+	if (!strncmp(lines[i], VAR_INTERFACES, strlen(VAR_INTERFACES))) {
+	    Device **devp;
+	    int j, cnt;
+
+	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
+	    cnt = deviceCount(devp);
+	    for (j = 0; j < cnt; j++) {
+		if (devp[j]->private) {
+		    char iname[64];
+
+		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
+		    if (getenv(iname))
+			fprintf(fp, "%s=%s\n", iname, getenv(iname));
+		}
+	    }
+	}
+    }
     fclose(fp);
 }
 
@@ -290,21 +311,57 @@ configResolv(void)
     fprintf(fp, "nameserver\t%s\n", getenv(VAR_NAMESERVER));
     msgNotify("Wrote /etc/resolv.conf");
     fclose(fp);
+    if (getenv(VAR_IPADDR)) {
+	fp = fopen("/etc/hosts", "a");
+	fprintf(fp, "%s\t\t%s\n", getenv(VAR_IPADDR), getenv(VAR_HOSTNAME));
+	fclose(fp);
+    }
     alreadyDone = TRUE;
 }
 
 int
 configPackages(char *str)
 {
+    int i, pstat;
+    pid_t pid;
+    Boolean onCD;
+
+    onCD = FALSE;
+    i = -1;
     if (!mediaDevice || mediaDevice->type != DEVICE_TYPE_CDROM) {
 	if (getpid() == 1) {
 	    if (!mediaSetCDROM(NULL))
-		return 0;
+		onCD = FALSE;
 	    else
-		vsystem("pkg_manage /cdrom");
+		onCD = TRUE;
+	}
+	else
+	    onCD = FALSE;
+    }
+    else if (mediaDevice && mediaDevice->type == DEVICE_TYPE_CDROM)
+	onCD = TRUE;
+    if (onCD) {
+	if (!(pid = fork())) {
+	    execl("/stand/sh", "sh", "-c", "pkg_manage /cdrom", (char *)NULL);
+	    exit(1);
+	}
+	else {
+	    pid = waitpid(pid, (int *)&pstat, 0);
+	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
 	}
     }
-    vsystem("pkg_manage");
+    else {
+	if (!(pid = fork())) {
+	    execl("/stand/sh", "sh", "-c", "pkg_manage", (char *)NULL);
+	    exit(1);
+	}
+	else {
+	    pid = waitpid(pid, (int *)&pstat, 0);
+	    i = (pid == -1) ? -1 : WEXITSTATUS(pstat);
+	}
+    }
+    if (i != 0)
+	msgDebug("pkg_manage returns status of %d\n", i);
     return 0;
 }
 

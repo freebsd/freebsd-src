@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.33 1995/05/25 18:48:30 jkh Exp $
+ * $Id: sysinstall.h,v 1.34 1995/05/26 08:41:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -90,9 +90,11 @@
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
 #define VAR_NAMESERVER		"nameserver"
-#define VAR_GATEWAY		"gateway"
+#define VAR_GATEWAY		"defaultrouter"
+#define VAR_IPADDR		"ipaddr"
 
 #define VAR_IFCONFIG		"ifconfig_"
+#define VAR_INTERFACES		"network_interfaces"
 
 /* The help file for the TCP/IP setup screen */
 #define TCP_HELPFILE		"tcp.hlp"
@@ -398,9 +400,9 @@ extern void	systemChangeScreenmap(const u_char newmap[]);
 extern int	vsystem(char *fmt, ...);
 
 /* tcpip.c */
-extern int	tcpOpenDialog(Device *);
+extern int	tcpOpenDialog(Device *dev);
 extern int	tcpDeviceSelect(char *str);
-extern Boolean	tcpStartPPP(void);
+extern Boolean	tcpStartPPP(Device *dev);
 
 /* termcap.c */
 extern int	set_termcap(void);

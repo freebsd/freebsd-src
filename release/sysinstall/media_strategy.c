@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.25 1995/05/26 10:58:51 jkh Exp $
+ * $Id: media_strategy.c,v 1.26 1995/05/26 11:21:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -554,10 +554,7 @@ mediaInitNetwork(Device *dev)
 
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
-	if (tcpStartPPP()) {
-	    msgConfirm("You have selected a serial device as your network installation device.\nThe PPP dialer is now running on the 3rd screen (type ALT-F3 to interact\nwith it) and should be used to establish the link BEFORE YOU HIT RETURN\nhere!  Once you hit return in this screen (type ALT-F1 to return to this\nscreen from the PPP screen) the installation will assume that your link\nis set up and begin transfering the distributions over PPP.");
-	}
-	else {
+	if (!tcpStartPPP(dev)) {
 	    msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 	    return FALSE;
 	}
