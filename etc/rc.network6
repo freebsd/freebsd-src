@@ -453,11 +453,11 @@ network6_default_interface_setup() {
 	route add -inet6 fe80:: -prefixlen 10 ::1 -reject
 	case ${ipv6_default_interface} in
 	[Nn][Oo] | '')
-		route add -inet6 fec0:: -prefixlen 10 ::1 -reject
+		route add -inet6 ff02:: -prefixlen 16 ::1 -reject
 		;;
 	*)
 		laddr=`network6_getladdr ${ipv6_default_interface}`
-		route add -inet6 fec0:: ${laddr} -prefixlen 10 -interface \
+		route add -inet6 ff02:: ${laddr} -prefixlen 16 -interface \
 			-cloning
 
 		# Disable installing the default interface with the
@@ -467,7 +467,6 @@ network6_default_interface_setup() {
 		# configured default route.
 		case ${ipv6_gateway_enable} in
 		[Yy][Ee][Ss])
-			ndp -I ${ipv6_default_interface}
 			;;
 		*)
 			if [ `sysctl -n net.inet6.ip6.accept_rtadv` -eq 1 ]
