@@ -34,63 +34,8 @@
  * SUCH DAMAGE.
  */
 
-/*
- * Hacks to support "-a|c|n" flags on the command line which enable VJ
- * header compresion and disable ICMP.
- * If this is good all rights go to B & L Jolitz, otherwise send your
- * comments to Reagan (/dev/null).
- *
- * nerd@percival.rain.com (Michael Galassi) 92.09.03
- *
- * Hacked to change from sgtty to POSIX termio style serial line control
- * and added flag to enable cts/rts style flow control.
- *
- * blymn@awadi.com.au (Brett Lymn) 93.04.04
- *
- * Put slattach in it's own process group so it can't be killed
- * accidentally. Close the connection on SIGHUP and SIGINT. Write a
- * syslog entry upon opening and closing the connection.  Rich Murphey
- * and Brad Huntting.
- *
- * Add '-r command' option: runs 'command' upon recieving SIGHUP
- * resulting from loss of carrier.  Log any errors after forking.
- * Rich 8/13/93
- *
- * This version of slattach includes many changes by David Greenman, Brian
- * Smith, Chris Bradley, and me (Michael Galassi).  None of them are
- * represented as functional anywhere outside of RAINet though they do work
- * for us.  Documentation is limited to the usage message for now.  If you
- * make improovments please pass them back.
- *
- * Added '-u UCMD' which runs 'UCMD <old> <new>' whenever the slip
- * unit number changes where <old> and <new> are the old and new unit
- * numbers, respectively.  Also added the '-z' option which forces
- * invocation of the redial command (-r CMD) upon startup regardless
- * of whether the com driver claims (sometimes mistakenly) that
- * carrier is present. Also added '-e ECMD' which runs ECMD before
- * exiting.
- *
- * marc@escargot.rain.com (Marc Frajola) 93/09/10
- *
- * Minor fixes to allow passive SLIP links to work (connections with
- * modem control that do not have an associated dial command). Added
- * code to re-check for carrier after dial command has been executed.
- * Added SIGTERM handler to properly handle normal kill signals. Fixed
- * bug in logic that caused message about no -u command to be logged
- * even when -u was specified and the sl number changes. Tried to get
- * rid of redundant syslog()'s to minimize console log output. Improved
- * logging of improper command line options or number of command
- * arguments. Removed spurious newline characters from syslog() calls.
- *
- * gjung@gjbsd.franken.de
- *
- * sighup_handler changed to set CLOCAL before running redial_cmd.
- * added flag exiting, so exit_handler is not run twice.
- *
- */
-
 #ifndef lint
-char copyright[] =
+static char copyright[] =
 "@(#) Copyright (c) 1988 Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */
@@ -106,6 +51,7 @@ static char rcsid[] = "$Id";
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <net/slip.h>
 #include <net/if_slvar.h>
 #include <netdb.h>
 #include <fcntl.h>
@@ -117,42 +63,35 @@ static char rcsid[] = "$Id";
 #include <signal.h>
 #include <strings.h>
 
-extern int errno;
-extern char *sys_errlist[];
-
 #define DEFAULT_BAUD	9600
 
 void	sighup_handler();	/* SIGHUP handler */
 void	sigint_handler();	/* SIGINT handler */
 void	sigterm_handler();	/* SIGTERM handler */
 void	exit_handler(int ret);	/* run exit_cmd iff specified upon exit. */
-void	setup_line();		/* configure slip line */
-void	attach_line();		/* switch to slip line discipline */
+void	setup_line(int cflag);	/* configure terminal settings */
+void	slip_discipline();	/* switch to slip line discipline */
+void	configure_network();	/* configure slip interface */
+void	acquire_line();		/* get tty device as controling terminal */
 
 int	fd = -1;
-char	*dev = (char *)0;
-int	slipdisc = SLIPDISC;
-int	ttydisc = TTYDISC;
+char	*dev = (char *)0;	/* path name of the tty (e.g. /dev/tty01) */
 int	flow_control = 0;	/* non-zero to enable hardware flow control. */
 int	modem_control = 0;	/* non-zero iff we watch carrier. */
 int	comstate;		/* TIOCMGET current state of serial driver */
 int	redial_on_startup = 0;	/* iff non-zero execute redial_cmd on startup */
-int	speed = DEFAULT_BAUD;
+int	speed = DEFAULT_BAUD;	/* baud rate of tty */
 int	slflags = 0;		/* compression flags */
 int	unit = -1;		/* slip device unit number */
-int	foreground = 0;
+int	foreground = 0;		/* act as demon if zero, else don't fork. */
 int	exiting = 0;		/* allready running exit_handler */
-FILE	*console;
 
-struct	termios tty;
-struct	termios tty_orig;	/* For saving original tty state */
+struct	termios tty;		/* tty configuration/state */
 
-char	devname[32];
-char	hostname[MAXHOSTNAMELEN];
+char	tty_path[32];		/* path name of the tty (e.g. /dev/tty01) */
 char	*redial_cmd = 0;	/* command to exec upon shutdown. */
 char	*config_cmd = 0;	/* command to exec if slip unit changes. */
 char	*exit_cmd = 0;		/* command to exec before exiting. */
-char	string[100];
 
 static char usage_str[] = "\
 usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] device\n\
@@ -171,19 +110,18 @@ usage: %s [-acfhlnz] [-e command] [-r command] [-s speed] [-u command] device\n\
 int main(int argc, char **argv)
 {
 	int option;
-	char name[32];
 	extern char *optarg;
 	extern int optind;
 
 	while ((option = getopt(argc, argv, "ace:fhlnr:s:u:z")) != EOF) {
 		switch (option) {
 		case 'a':
-			slflags |= SC_AUTOCOMP;
-			slflags &= ~SC_COMPRESS;
+			slflags |= IFF_LINK2;
+			slflags &= ~IFF_LINK0;
 			break;
 		case 'c':
-			slflags |= SC_COMPRESS;
-			slflags &= ~SC_AUTOCOMP;
+			slflags |= IFF_LINK0;
+			slflags &= ~IFF_LINK2;
 			break;
 		case 'e':
 			exit_cmd = (char*) strdup (optarg);
@@ -198,7 +136,7 @@ int main(int argc, char **argv)
 			modem_control |= CLOCAL;
 			break;
 		case 'n':
-			slflags |= SC_NOICMP;
+			slflags |= IFF_LINK1;
 			break;
 		case 'r':
 			redial_cmd = (char*) strdup (optarg);
@@ -236,30 +174,21 @@ int main(int argc, char **argv)
 		exit_handler(2);
 	}
 	if (strncmp(_PATH_DEV, dev, sizeof(_PATH_DEV) - 1)) {
-		strcpy(devname, _PATH_DEV);
-		strcat(devname, "/");
-		strncat(devname, dev, 10);
-		dev = devname;
+		strcpy(tty_path, _PATH_DEV);
+		strcat(tty_path, "/");
+		strncat(tty_path, dev, 10);
+		dev = tty_path;
 	}
 
 	if (!foreground)
 		daemon(0,0);	/* fork, setsid, chdir /, and close std*. */
+	/* daemon() closed stderr, so log errors from here on. */
+	openlog("slattach",LOG_CONS|LOG_PID,LOG_DAEMON);
 
-	/* Note: daemon() closes stderr, so log errors from here on. */
-	(void)sprintf(name,"slattach[%d]", getpid());
-	openlog(name,LOG_CONS,LOG_DAEMON);
+	acquire_line();		/* get tty device as controling terminal */
+	setup_line(0);		/* configure for slip line discipline */
+	slip_discipline();	/* switch to slip line discipline */
 
-	if ((fd = open(dev, O_RDWR | O_NONBLOCK)) < 0) {
-                syslog(LOG_ERR, "open(%s): %m", dev);
-		exit_handler(1);
-	}
-	/* acquire the serial line as a controling terminal. */
-	if (ioctl(fd, TIOCSCTTY, 0) < 0)
-		syslog(LOG_NOTICE,"ioctl(TIOCSCTTY) failed: %s: %m");
-	/* Make us the foreground process group associated with the
-	   slip line which is our controlling terminal. */
-	if (tcsetpgrp(fd, getpid()) < 0)
-		syslog(LOG_NOTICE,"tcsetpgrp failed: %s: %m");
 	/* upon INT log a timestamp and exit.  */
 	if ((int)signal(SIGINT,sigint_handler) < 0)
 		syslog(LOG_NOTICE,"cannot install SIGINT handler: %s: %m");
@@ -269,61 +198,108 @@ int main(int argc, char **argv)
 	/* upon HUP redial and reconnect.  */
 	if ((int)signal(SIGHUP,sighup_handler) < 0)
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %s: %m");
-	/* Keep track of our original terminal values for redialing */
-	if (tcgetattr(fd, &tty_orig) < 0) {           
-		syslog(LOG_ERR, "tcgetattr: %m");
-		exit_handler(1);
-         }
-
-
-	setup_line();
 
 	if (redial_on_startup)
 		sighup_handler();
-	else
-		attach_line();
-	if (!(modem_control & CLOCAL)) {
+	else if (!(modem_control & CLOCAL)) {
 		ioctl(fd, TIOCMGET, &comstate);
 		if (!(comstate & TIOCM_CD)) { /* check for carrier */
 			/* force a redial if no carrier */
 			kill (getpid(), SIGHUP);
 		}
 	}
+	else
+		configure_network(); /* configure the network if needed. */
+
 	for (;;) {
-		sigset_t mask = 0;
+		sigset_t mask;
+		sigemptyset(&mask);
 		sigsuspend(&mask);
 	}
 }
 
-void setup_line()
+/* Close all FDs, fork, reopen tty port as 0-2, and make it the
+   controlling terminal for our process group. */
+void acquire_line()
+{
+	int ttydisc = TTYDISC;
+	int pgrp;
+
+	ioctl(fd, TIOCSETD, &ttydisc); /* reset to tty discipline */
+
+	(void)close(STDIN_FILENO); /* close FDs before forking. */
+	(void)close(STDOUT_FILENO);
+	(void)close(STDERR_FILENO);
+	if (fd > 2)
+		(void)close(fd);
+
+	signal(SIGHUP, SIG_IGN); /* ignore HUP signal when parent dies. */
+	daemon(0,0);		/* fork, setsid, chdir /, and close std*. */
+
+	while (getppid () != 1)
+		sleep (1);	/* Wait for parent to die. */
+
+	if ((int)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
+		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %s: %m");
+
+	if ((fd = open(dev, O_RDWR | O_NONBLOCK, 0)) < 0) {
+		syslog(LOG_ERR, "open(%s) fd=%d: %m", dev, fd);
+		exit_handler(1);
+	}
+	(void)dup2(fd, STDIN_FILENO);
+	(void)dup2(fd, STDOUT_FILENO);
+	(void)dup2(fd, STDERR_FILENO);
+	if (fd > 2)
+		(void)close (fd);
+	fd = STDIN_FILENO;
+
+	/* acquire the serial line as a controling terminal. */
+	if (ioctl(fd, TIOCSCTTY, 0) < 0)
+		syslog(LOG_NOTICE,"ioctl(TIOCSCTTY) failed: %s: %m");
+	/* Make us the foreground process group associated with the
+	   slip line which is our controlling terminal. */
+	if (tcsetpgrp(fd, getpid()) < 0)
+		syslog(LOG_NOTICE,"tcsetpgrp failed: %s: %m");
+}
+
+/* Set the tty flags and set DTR. */
+/* Call as setup_line(CLOCAL) to force clocal assertion. */
+void setup_line(int cflag)
 {
 	tty.c_lflag = tty.c_iflag = tty.c_oflag = 0;
-	tty.c_cflag = CREAD | CS8 | flow_control | modem_control;
+	tty.c_cflag = CREAD | CS8 | flow_control | modem_control | cflag;
 	tty.c_ispeed = tty.c_ospeed = speed;
 	/* set the line speed and flow control */
 	if (tcsetattr(fd, TCSAFLUSH, &tty) < 0) {
-                syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
+		syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
 		exit_handler(1);
 	}
 	/* set data terminal ready */
 	if (ioctl(fd, TIOCSDTR) < 0) {
-                syslog(LOG_ERR, "ioctl(TIOCSDTR): %m");
-                exit_handler(1);
-        }
-	/* Switch to slip line discipline. */
-	if (ioctl(fd, TIOCSETD, &slipdisc) < 0) {
-                syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
-		exit_handler(1);
-	}
-	/* Assert any compression or no-icmp flags. */
-	if (ioctl(fd, SLIOCSFLAGS, &slflags) < 0) {
-                syslog(LOG_ERR, "ioctl(SLIOCSFLAGS): %m");
+		syslog(LOG_ERR, "ioctl(TIOCSDTR): %m");
 		exit_handler(1);
 	}
 }
 
-/* switch to slip line discipline and configure the network. */
-void attach_line()
+/* Put the line in slip discipline. */
+void slip_discipline()
+{
+	int slipdisc = SLIPDISC;
+
+	/* Switch to slip line discipline. */
+	if (ioctl(fd, TIOCSETD, &slipdisc) < 0) {
+		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
+		exit_handler(1);
+	}
+	/* Assert any compression or no-icmp flags. */
+	if (ioctl(fd, SIOCSIFFLAGS, &slflags) < 0) {
+		syslog(LOG_ERR, "ioctl(SIOCSIFFLAGS): %m");
+		exit_handler(1);
+	}
+}
+
+/* configure the interface, eg. by passing the unit number to a script. */
+void configure_network()
 {
 	int new_unit;
 
@@ -354,27 +330,17 @@ void attach_line()
 	}
 }
 
-/* Signal handler for SIGHUP when carrier is dropped. */
+/* signup_handler() is invoked when carrier drops, eg. before redial. */
 void sighup_handler()
 {
 	if(exiting) return;
 again:
-	/* reset discipline */
-	if (ioctl(fd, TIOCSETD, &ttydisc) < 0) {
-		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
-		exit_handler(1);
-	}
 	/* invoke a shell for redial_cmd or punt. */
 	if (redial_cmd) {
+		acquire_line();
+		setup_line(CLOCAL);
 		syslog(LOG_NOTICE,"SIGHUP on %s (sl%d); running %s",
 		       dev,unit,redial_cmd);
-		if (!(modem_control & CLOCAL)) {
-			tty_orig.c_cflag |= CLOCAL;
-			if (tcsetattr(fd, TCSAFLUSH, &tty_orig) < 0) {
-				syslog(LOG_ERR, "tcsetattr(TCSAFLUSH): %m");
-				exit_handler(1);
-			}
-		}
 		system(redial_cmd);
 		/* Now check again for carrier (dial command is done): */
 		if (!(modem_control & CLOCAL)) {
@@ -390,50 +356,33 @@ again:
 			}
 		}
 	} else {
-		/*
-		 * No redial command.
-		 *
-		 * If modem control, just wait for carrier before
-		 * falling through to setup_line() and attach_line().
-		 * If no modem control, just fall through immediately.
-		 */
+		/* If modem control, just wait for carrier before attaching.
+		   If no modem control, just fall through immediately. */
 		if (!(modem_control & CLOCAL)) {
-		    int carrier = 0;
-
-		    syslog(LOG_NOTICE, "Waiting for carrier on %s (sl%d)",
-		      dev, unit);
-
-		    /* Now wait for carrier before attaching line: */
-		    while (! carrier) {
-			/*
-			 * Don't burn the CPU checking for carrier;
-			 * carrier must be polled since there is no
-			 * way to have a signal sent when carrier
-			 * goes high (SIGHUP can only be sent when
-			 * carrier is dropped); so add space between
-			 * checks for carrier:
-			 */
-			sleep(2);
-
-			/* Check for carrier present on tty port: */
-			ioctl(fd, TIOCMGET, &comstate);
-			if (comstate & TIOCM_CD) {
-			    carrier = 1;
+			int carrier = 0;
+			syslog(LOG_NOTICE, "Waiting for carrier on %s (sl%d)",
+			       dev, unit);
+			/* Now wait for carrier before attaching line. */
+			/* We must poll since CLOCAL prevents signal. */
+			while (! carrier) {
+				sleep(2);
+				ioctl(fd, TIOCMGET, &comstate);
+				if (comstate & TIOCM_CD)
+					carrier = 1;
 			}
-		    }
-
-		    syslog(LOG_NOTICE, "Carrier now present on %s (sl%d)",
-		      dev, unit);
+			syslog(LOG_NOTICE, "Carrier now present on %s (sl%d)",
+			       dev, unit);
 		}
 	}
-	setup_line();
-	attach_line();
+	setup_line(0);
+	slip_discipline();
+	configure_network();
 }
 /* Signal handler for SIGINT.  We just log and exit. */
 void sigint_handler()
 {
 	if(exiting) return;
-	syslog(LOG_NOTICE,"sl%d on %s caught SIGINT, exiting.",unit,dev);
+	syslog(LOG_NOTICE,"SIGINT on %s (sl%d); exiting",dev,unit);
 	exit_handler(0);
 }
 /* Signal handler for SIGTERM.  We just log and exit. */
