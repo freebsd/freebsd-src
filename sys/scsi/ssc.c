@@ -49,18 +49,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id$
+ * $Id: ssc.c,v 1.14 1997/02/22 09:44:38 peter Exp $
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/scsiio.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
 #include <sys/stat.h>
-#include <sys/buf.h>
-#include <sys/systm.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/

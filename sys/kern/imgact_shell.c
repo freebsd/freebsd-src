@@ -23,17 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_shell.c,v 1.14 1997/02/22 09:38:57 peter Exp $
+ *	$Id: imgact_shell.c,v 1.15 1997/04/23 22:07:04 ache Exp $
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/sysproto.h>
-#include <sys/resourcevar.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
-#include <machine/endian.h>
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 #define SHELLMAGIC	0x2123 /* #! */

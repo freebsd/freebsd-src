@@ -37,12 +37,10 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id$
+ * $Id: bpf_filter.c,v 1.8 1997/02/22 09:40:57 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/types.h>
-#include <sys/time.h>
 
 #ifdef sun
 #include <netinet/in.h>

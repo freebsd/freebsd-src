@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_debug.c,v 1.9 1997/02/22 09:41:37 peter Exp $
  */
 
 #ifdef TCPDEBUG
@@ -43,25 +43,14 @@
 #endif
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/protosw.h>
-#include <sys/errno.h>
-
-#include <net/route.h>
-#include <net/if.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>

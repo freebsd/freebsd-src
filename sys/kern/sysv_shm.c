@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: sysv_shm.c,v 1.28 1997/02/22 09:39:23 peter Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -31,7 +31,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "opt_sysvipc.h"
 #include "opt_rlimit.h"
 
 #include <sys/param.h>
@@ -52,8 +51,6 @@
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_map.h>
-#include <vm/vm_kern.h>
-#include <vm/vm_extern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_inherit.h>
 

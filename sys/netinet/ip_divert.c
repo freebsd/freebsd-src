@@ -30,17 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.11 1997/06/01 15:58:44 peter Exp $
+ *	$Id: ip_divert.c,v 1.12 1997/06/02 05:02:35 julian Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/protosw.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 

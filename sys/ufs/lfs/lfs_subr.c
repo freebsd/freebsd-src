@@ -31,12 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_subr.c	8.4 (Berkeley) 5/8/95
- * $Id$
+ * $Id: lfs_subr.c,v 1.10 1997/02/22 09:47:23 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/vnode.h>
 #include <sys/buf.h>
 #include <sys/mount.h>

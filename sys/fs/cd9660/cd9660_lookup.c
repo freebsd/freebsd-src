@@ -38,21 +38,19 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.14 1997/02/22 09:38:48 peter Exp $
+ * $Id: cd9660_lookup.c,v 1.15 1997/03/08 16:09:38 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/buf.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/iso_rrip.h>
-#include <isofs/cd9660/cd9660_rrip.h>
 
 /*
  * Convert a component of a pathname into a pointer to a locked inode.

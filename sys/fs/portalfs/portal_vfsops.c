@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.11 (Berkeley) 5/14/95
  *
- * $Id$
+ * $Id: portal_vfsops.c,v 1.15 1997/02/22 09:40:24 peter Exp $
  */
 
 /*
@@ -45,21 +45,16 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
 #include <sys/file.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/domain.h>
-#include <sys/un.h>
 #include <miscfs/portal/portal.h>
 
 static int	portal_init __P((struct vfsconf *));

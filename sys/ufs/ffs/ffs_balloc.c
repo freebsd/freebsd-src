@@ -31,17 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_balloc.c	8.8 (Berkeley) 6/16/95
- * $Id: ffs_balloc.c,v 1.13 1997/02/22 09:47:01 peter Exp $
+ * $Id: ffs_balloc.c,v 1.14 1997/04/10 13:17:09 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
-#include <sys/proc.h>
-#include <sys/file.h>
 #include <sys/vnode.h>
-
-#include <vm/vm.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

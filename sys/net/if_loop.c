@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.25 1997/02/22 09:41:02 peter Exp $
+ * $Id: if_loop.c,v 1.26 1997/03/24 11:33:12 bde Exp $
  */
 
 /*
@@ -45,9 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
 #include <sys/sockio.h>
-#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -57,9 +55,7 @@
 
 #ifdef	INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-#include <netinet/ip.h>
 #endif
 
 #ifdef IPX
@@ -78,7 +74,6 @@
 #endif
 
 #ifdef NETATALK
-#include <netinet/if_ether.h>
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
 #endif NETATALK

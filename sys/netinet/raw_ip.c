@@ -31,18 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_ip.c	8.7 (Berkeley) 5/15/95
- *	$Id: raw_ip.c,v 1.45 1997/04/27 20:01:10 wollman Exp $
+ *	$Id: raw_ip.c,v 1.46 1997/05/22 20:52:56 fenner Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
-#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>

@@ -23,18 +23,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.2 1997/06/25 20:16:02 smp Exp smp $
+ * $Id: pci.c,v 1.77 1997/06/25 20:56:29 fsmp Exp $
  *
  */
 
 #include "pci.h"
 #if NPCI > 0
 
-#include <stddef.h>
-
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/time.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>

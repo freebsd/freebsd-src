@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.36 1997/06/16 04:45:57 davidg Exp $
+ *	$Id: if_fxp.c,v 1.37 1997/07/25 23:41:12 davidg Exp $
  */
 
 /*
@@ -43,20 +43,10 @@
 #include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/in_var.h>
-#include <netinet/ip.h>
 #include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
 #endif
 
 #ifdef NS
@@ -66,11 +56,9 @@
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <vm/vm.h>		/* for vtophys */
-#include <vm/vm_param.h>	/* for vtophys */
 #include <vm/pmap.h>		/* for vtophys */
 #include <machine/clock.h>	/* for DELAY */
 

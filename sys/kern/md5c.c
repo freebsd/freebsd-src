@@ -22,7 +22,7 @@
  * These notices must be retained in any copies of any part of this
  * documentation and/or software.
  *
- * $Id$
+ * $Id: md5c.c,v 1.8 1997/02/22 09:39:14 peter Exp $
  *
  * This code is the same as the code published by RSA Inc.  It has been
  * edited for clarity and style only.
@@ -31,7 +31,6 @@
 #include <sys/types.h>
 
 #ifdef KERNEL
-#include <sys/param.h>
 #include <sys/systm.h>
 #else
 #include <string.h>

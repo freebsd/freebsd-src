@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.19 1997/06/26 16:13:56 alex Exp $
+ *	$Id: null_vnops.c,v 1.20 1997/06/26 17:12:59 alex Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.19 1997/06/26 16:13:56 alex Exp $
+ * $Id: null_vnops.c,v 1.20 1997/06/26 17:12:59 alex Exp $
  */
 
 /*
@@ -178,9 +178,6 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/proc.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/namei.h>

@@ -23,13 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.7 1997/06/08 17:15:22 ache Exp $
+ * $Id: kern_intr.c,v 1.8 1997/07/09 18:06:25 ache Exp $
  *
  */
 
 #include <sys/types.h>
 #include <sys/malloc.h>
-#include <sys/time.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #ifdef RESOURCE_CHECK
@@ -43,8 +42,6 @@
 #include <machine/ipl.h>
 
 #include <stddef.h>
-
-#include "vector.h"
 
 typedef struct intrec {
 	intrmask_t	mask;
