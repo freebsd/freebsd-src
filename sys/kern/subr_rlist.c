@@ -45,7 +45,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_rlist.c,v 1.6 1994/08/13 03:50:24 wollman Exp $
+ */
+/*
+ * Changes Copyright (C) 1995, David Greenman & John Dyson; This software may
+ * be used, modified, copied, distributed, and sold, in both source and
+ * binary form provided that the above copyright and these terms are
+ * retained. Under no circumstances is the author responsible for the proper
+ * functioning of this software, nor does the author assume any responsibility
+ * for damages incurred with its use.
+ *
+ *	$Id: subr_rlist.c,v 1.7 1994/10/02 17:35:23 phk Exp $
  */
 
 #include <sys/param.h>
@@ -64,7 +73,7 @@ extern vm_map_t kernel_map;
  */
 
 #define RLIST_MIN 128
-static int rlist_count=0;
+static int rlist_count=0, rlist_desired=0;
 static struct rlist *rlfree;
 int rlist_active;
 
@@ -76,7 +85,7 @@ rlist_malloc()
 	while( rlist_count < RLIST_MIN) {
 		extern vm_map_t kmem_map;
 		int s = splhigh();
-		rl = (struct rlist *)kmem_malloc(kmem_map, NBPG, 0);
+		rl = (struct rlist *)kmem_malloc(kmem_map, NBPG, M_WAITOK);
 		splx(s);
 		if( !rl)
 			break;
@@ -105,115 +114,115 @@ rlist_mfree( struct rlist *rl)
 	++rlist_count;
 }
 	
-
-/*
- * Add space to a resource list. Used to either
- * initialize a list or return free space to it.
- */
 void
-rlist_free (rlp, start, end)
-	register struct rlist **rlp;
-	unsigned start, end;
+rlist_free(rlp, start, end)
+	struct rlist **rlp;
+	u_int start, end;
 {
-	struct rlist *head;
-	register struct rlist *olp = 0;
+	struct rlist *prev_rlp = NULL, *cur_rlp = *rlp, *next_rlp = NULL;
 	int s;
 
 	s = splhigh();
-	while( rlist_active)
+	while (rlist_active) {
+		rlist_desired = 1;
 		tsleep((caddr_t)&rlist_active, PSWP, "rlistf", 0);
+	}
 	rlist_active = 1;
 	splx(s);
 
-	head = *rlp;
-
-loop:
-	/* if nothing here, insert (tail of list) */
-	if (*rlp == 0) {
-		*rlp = rlist_malloc();
-		(*rlp)->rl_start = start;
-		(*rlp)->rl_end = end;
-		(*rlp)->rl_next = 0;
-		rlist_active = 0;
-		wakeup((caddr_t)&rlist_active);
-		return;
+	/*
+	 * Traverse the list looking for an entry after the one we want
+	 * to insert.
+	 */
+	while (cur_rlp != NULL) {
+		if (start < cur_rlp->rl_start)
+			break;
+#ifdef DIAGNOSTIC
+		if (prev_rlp) {
+			if (prev_rlp->rl_end + 1 == cur_rlp->rl_start)
+				panic("rlist_free: missed coalesce opportunity");
+			if (prev_rlp->rl_end ==  cur_rlp->rl_start)
+				panic("rlist_free: entries overlap");
+			if (prev_rlp->rl_end > cur_rlp->rl_start)
+				panic("entries out of order");
+		}
+#endif
+		prev_rlp = cur_rlp;
+		cur_rlp = cur_rlp->rl_next;
 	}
 
-	/* if new region overlaps something currently present, panic */
-	if (start >= (*rlp)->rl_start && start <= (*rlp)->rl_end)  {
-		printf("Frag %d:%d, ent %d:%d ", start, end,
-			(*rlp)->rl_start, (*rlp)->rl_end);
-		panic("overlapping front rlist_free: freed twice?");
-	}
-	if (end >= (*rlp)->rl_start && end <= (*rlp)->rl_end) {
-		printf("Frag %d:%d, ent %d:%d ", start, end,
-			(*rlp)->rl_start, (*rlp)->rl_end);
-		panic("overlapping tail rlist_free: freed twice?");
-	}
+	if (cur_rlp != NULL) {
 
-	/* are we adjacent to this element? (in front) */
-	if (end+1 == (*rlp)->rl_start) {
-		/* coalesce */
-		(*rlp)->rl_start = start;
-		goto scan;
-	}
+		if (end >= cur_rlp->rl_start)
+			panic("rlist_free: free end overlaps already freed area");
 
-	/* are we before this element? */
-	if (end < (*rlp)->rl_start) {
-		register struct rlist *nlp;
-
-		nlp = rlist_malloc();
-		nlp->rl_start = start;
-		nlp->rl_end = end;
-		nlp->rl_next = *rlp;
+		if (prev_rlp) {
+			if (start <= prev_rlp->rl_end)
+				panic("rlist_free: free start overlaps already freed area");
+			/*
+			 * Attempt to append
+			 */
+			if (prev_rlp->rl_end + 1 == start) {
+				prev_rlp->rl_end = end;
+				/*
+				 * Attempt to prepend and coalesce
+				 */
+				if (end + 1 == cur_rlp->rl_start) {
+					prev_rlp->rl_end = cur_rlp->rl_end;
+					prev_rlp->rl_next = cur_rlp->rl_next;
+					rlist_mfree(cur_rlp);
+				}
+				goto done;
+			}
+		}
 		/*
-		 * If the new element is in front of the list,
-		 * adjust *rlp, else don't.
+		 * Attempt to prepend
 		 */
-		if( olp) {
-			olp->rl_next = nlp;
-		} else {
-			*rlp = nlp;
-		}
-		rlist_active = 0;
-		wakeup((caddr_t)&rlist_active);
-		return;
-	}
-
-	/* are we adjacent to this element? (at tail) */
-	if ((*rlp)->rl_end + 1 == start) {
-		/* coalesce */
-		(*rlp)->rl_end = end;
-		goto scan;
-	}
-
-	/* are we after this element */
-	if (start  > (*rlp)->rl_end) {
-		olp = *rlp;
-		rlp = &((*rlp)->rl_next);
-		goto loop;
-	} else
-		panic("rlist_free: can't happen");
-
-scan:
-	/* can we coalesce list now that we've filled a void? */
-	{
-		register struct rlist *lp, *lpn;
-
-		for (lp = head; lp->rl_next ;) { 
-			lpn = lp->rl_next;
-
-			/* coalesce ? */
-			if (lp->rl_end + 1 == lpn->rl_start) {
-				lp->rl_end = lpn->rl_end;
-				lp->rl_next = lpn->rl_next;
-				rlist_mfree(lpn);
-			} else
-				lp = lp->rl_next;
+		if (end + 1 == cur_rlp->rl_start) {
+			cur_rlp->rl_start = start;
+			goto done;
 		}
 	}
+	/*
+	 * Reached the end of the list without finding a larger entry.
+	 * Append to last entry if there is one and it's adjacent.
+	 */
+	if (prev_rlp) {
+		if (start <= prev_rlp->rl_end)
+			panic("rlist_free: free start overlaps already freed area at list tail");
+		/*
+		 * Attempt to append
+		 */
+		if (prev_rlp->rl_end + 1 == start) {
+			prev_rlp->rl_end = end;
+			goto done;
+		}
+	}
+
+	/*
+	 * Could neither append nor prepend; allocate a new entry.
+	 */
+	next_rlp = cur_rlp;
+	cur_rlp = rlist_malloc();
+	cur_rlp->rl_start = start;
+	cur_rlp->rl_end = end;
+	cur_rlp->rl_next = next_rlp;
+	if (prev_rlp) {
+		prev_rlp->rl_next = cur_rlp;
+	} else {
+		/*
+		 * No previous - this entry is the new list head.
+		 */
+		*rlp = cur_rlp;
+	}
+
+done:
 	rlist_active = 0;
-	wakeup((caddr_t)&rlist_active);
+	if (rlist_desired) {
+		wakeup((caddr_t)&rlist_active);
+		rlist_desired = 0;
+	}
+	return;
 }
 
 /*
@@ -231,8 +240,10 @@ int rlist_alloc (rlp, size, loc)
 	register struct rlist *olp = 0;
 
 	s = splhigh();
-	while( rlist_active)
+	while( rlist_active) {
+		rlist_desired = 1;
 		tsleep((caddr_t)&rlist_active, PSWP, "rlista", 0);
+	}
 	rlist_active = 1;
 	splx(s);
 
@@ -260,14 +271,20 @@ int rlist_alloc (rlp, size, loc)
 			}
 
 			rlist_active = 0;
-			wakeup((caddr_t)&rlist_active);
+			if( rlist_desired) {
+				rlist_desired = 0;
+				wakeup((caddr_t)&rlist_active);
+			}
 			return (1);
 		} else {
 			olp = *rlp;
 		}
 
 	rlist_active = 0;
-	wakeup((caddr_t)&rlist_active);
+	if( rlist_desired) {
+		rlist_desired = 0;
+		wakeup((caddr_t)&rlist_active);
+	}
 	/* nothing in list that's big enough */
 	return (0);
 }
