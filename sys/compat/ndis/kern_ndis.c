@@ -720,7 +720,7 @@ ndis_return_packet(buf, arg)
 	sc = p->np_softc;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (returnfunc != NULL)
+	if (adapter != NULL)
 		returnfunc(adapter, p);
 
 	return;
@@ -988,10 +988,12 @@ ndis_set_info(arg, oid, buf, buflen)
 	int			error;
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	setfunc = sc->ndis_chars.nmc_setinfo_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
+	NDIS_UNLOCK(sc);
 
-	if (adapter == NULL)
+	if (adapter == NULL || setfunc == NULL)
 		return(ENXIO);
 
 	rval = setfunc(adapter, oid, buf, *buflen,
@@ -1043,6 +1045,8 @@ ndis_send_packets(arg, packets, cnt)
 
 	sc = arg;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
+	if (adapter == NULL)
+		return(ENXIO);
 	sendfunc = sc->ndis_chars.nmc_sendmulti_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
 	sendfunc(adapter, packets, cnt);
@@ -1076,6 +1080,8 @@ ndis_send_packet(arg, packet)
 
 	sc = arg;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
+	if (adapter == NULL)
+		return(ENXIO);
 	sendfunc = sc->ndis_chars.nmc_sendsingle_func;
 	senddonefunc = sc->ndis_block.nmb_senddone_func;
 
@@ -1157,13 +1163,12 @@ ndis_reset_nic(arg)
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter == NULL)
-		return(EIO);
 	resetfunc = sc->ndis_chars.nmc_reset_func;
-
-	if (resetfunc == NULL)
-		return(EINVAL);
+	NDIS_UNLOCK(sc);
+	if (adapter == NULL || resetfunc == NULL)
+		return(EIO);
 
 	resetfunc(&addressing_reset, adapter);
 
@@ -1182,16 +1187,13 @@ ndis_halt_nic(arg)
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
+
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter == NULL)
+	if (adapter == NULL) {
+		NDIS_UNLOCK(sc);
 		return(EIO);
-
-	haltfunc = sc->ndis_chars.nmc_halt_func;
-
-	if (haltfunc == NULL)
-		return(EINVAL);
-
-	haltfunc(adapter);
+	}
 
 	/*
 	 * The adapter context is only valid after the init
@@ -1199,8 +1201,14 @@ ndis_halt_nic(arg)
 	 * halt handler has been called.
 	 */
 
-	sc->ndis_block.nmb_miniportadapterctx = NULL;
+	haltfunc = sc->ndis_chars.nmc_halt_func;
+	NDIS_UNLOCK(sc);
 
+	haltfunc(adapter);
+
+	NDIS_LOCK(sc);
+	sc->ndis_block.nmb_miniportadapterctx = NULL;
+	NDIS_UNLOCK(sc);
 	/* Clobber all the timers in case the driver left one running. */
 
 	while (!TAILQ_EMPTY(&sc->ndis_block.nmb_timerlist)) {
@@ -1222,13 +1230,12 @@ ndis_shutdown_nic(arg)
 	__stdcall ndis_shutdown_handler	shutdownfunc;
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter == NULL)
-		return(EIO);
 	shutdownfunc = sc->ndis_chars.nmc_shutdown_handler;
-
-	if (shutdownfunc == NULL)
-		return(EINVAL);
+	NDIS_UNLOCK(sc);
+	if (adapter == NULL || shutdownfunc == NULL)
+		return(EIO);
 
 	if (sc->ndis_chars.nmc_rsvd0 == NULL)
 		shutdownfunc(adapter);
@@ -1256,8 +1263,10 @@ ndis_init_nic(arg)
 		return(EINVAL);
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	block = &sc->ndis_block;
 	initfunc = sc->ndis_chars.nmc_init_func;
+	NDIS_UNLOCK(sc);
 
 	TAILQ_INIT(&block->nmb_timerlist);
 
@@ -1273,9 +1282,9 @@ ndis_init_nic(arg)
 	 * If the init failed, none of these will work.
 	 */
 	if (status != NDIS_STATUS_SUCCESS) {
-		bzero((char *)&sc->ndis_chars,
-		    sizeof(ndis_miniport_characteristics));
+		NDIS_LOCK(sc);
 		sc->ndis_block.nmb_miniportadapterctx = NULL;
+		NDIS_UNLOCK(sc);
 		return(ENXIO);
 	}
 
@@ -1291,11 +1300,11 @@ ndis_enable_intr(arg)
 	__stdcall ndis_enable_interrupts_handler	intrenbfunc;
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter == NULL)
-	    return;
 	intrenbfunc = sc->ndis_chars.nmc_enable_interrupts_func;
-	if (intrenbfunc == NULL)
+	NDIS_UNLOCK(sc);
+	if (adapter == NULL || intrenbfunc == NULL)
 		return;
 	intrenbfunc(adapter);
 
@@ -1311,12 +1320,12 @@ ndis_disable_intr(arg)
 	__stdcall ndis_disable_interrupts_handler	intrdisfunc;
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter == NULL)
-	    return;
 	intrdisfunc = sc->ndis_chars.nmc_disable_interrupts_func;
-	if (intrdisfunc == NULL)
-		return;
+	NDIS_UNLOCK(sc);
+	if (adapter == NULL || intrdisfunc)
+	    return;
 	intrdisfunc(adapter);
 
 	return;
@@ -1337,8 +1346,13 @@ ndis_isr(arg, ourintr, callhandler)
 		return(EINVAL);
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	isrfunc = sc->ndis_chars.nmc_isr_func;
+	NDIS_UNLOCK(sc);
+	if (adapter == NULL || isrfunc == NULL)
+		return(ENXIO);
+
 	isrfunc(&accepted, &queue, adapter);
 	*ourintr = accepted;
 	*callhandler = queue;
@@ -1358,8 +1372,13 @@ ndis_intrhand(arg)
 		return(EINVAL);
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	intrfunc = sc->ndis_chars.nmc_interrupt_func;
+	NDIS_UNLOCK(sc);
+	if (adapter == NULL || intrfunc == NULL)
+		return(EINVAL);
+
 	intrfunc(adapter);
 
 	return(0);
@@ -1381,10 +1400,12 @@ ndis_get_info(arg, oid, buf, buflen)
 	int			error;
 
 	sc = arg;
+	NDIS_LOCK(sc);
 	queryfunc = sc->ndis_chars.nmc_queryinfo_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
+	NDIS_UNLOCK(sc);
 
-	if (adapter == NULL)
+	if (adapter == NULL || queryfunc == NULL)
 		return(ENXIO);
 
 	rval = queryfunc(adapter, oid, buf, *buflen,
