@@ -322,7 +322,7 @@
     <para arch="pc98"><filename>libdisk</filename> now uses the
       correct PC98 disk partition value for &os;.  This permits the
       &man.sysinstall.8; disk partition editor to correctly create a
-      single &os; partition covering the entire disk.</para>
+      single &os; partition covering the entire disk. &merged;</para>
 
     <para arch="i386,pc98,amd64,ia64">The library formerly known as
       <filename>libkse</filename> has been renamed
@@ -352,12 +352,15 @@
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
       make the <option>-u</option> operate on effective, rather than
-      real, user ids.</para>
+      real, user ids. &merged;</para>
 
     <para>A bugfix has been applied to NSS support, which fixes
       problems when using third-party NSS modules (such as <filename
       role="package">net/nss_ldap</filename>) and groups with large
       membership lists.</para>
+
+    <para>&man.pw.8; now supports a <option>-H</option> option, which
+      accepts an encrypted password on a file descriptor. &merged;</para>
 
     <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
       has been added.</para>
