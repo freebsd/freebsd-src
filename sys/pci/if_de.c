@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.54.2.2 1996/12/03 10:52:49 phk Exp $
+ * $Id: if_de.c,v 1.54.2.3 1997/02/23 11:00:44 joerg Exp $
  *
  */
 
@@ -3278,7 +3278,7 @@ tulip_read_macaddr(
 	    sc->tulip_boardsw = &tulip_21140_znyx_zx34x_boardsw;
 	} else if (sc->tulip_chipid == TULIP_21040
 	        && (sc->tulip_hwaddr[3] & ~3) == 0xF0
-	        && (sc->tulip_hwaddr[5] & 3) == 0) {
+	        && (sc->tulip_hwaddr[5] & 2) == 0) {
 	    sc->tulip_boardsw = &tulip_21040_zx314_master_boardsw;
 	    sc->tulip_flags |= TULIP_SHAREDINTR;
 	}
