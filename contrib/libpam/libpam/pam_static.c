@@ -21,7 +21,6 @@ SET_DECLARE(_pam_static_modules, struct pam_module);
 /* Return pointer to data structure used to define a static module */
 struct pam_module * _pam_open_static_handler(const char *path)
 {
-    int i;
     const char *clpath = path;
     char *lpath, *end;
     struct pam_module **static_module;

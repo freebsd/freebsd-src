@@ -5,6 +5,7 @@
  * All rights reserved.
  *
  * $Id: pam_delay.c,v 1.3 2001/01/22 06:07:28 agmorgan Exp $
+ * $FreeBSD$
  *
  */
 
@@ -133,7 +134,7 @@ void _pam_await_timer(pam_handle_t *pamh, int status)
 
 int pam_fail_delay(pam_handle_t *pamh, unsigned int usec)
 {
-     int largest;
+     unsigned int largest;
 
      IF_NO_PAMH("pam_fail_delay", pamh, PAM_SYSTEM_ERR);
 
