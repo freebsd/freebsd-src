@@ -36,6 +36,7 @@
 
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
 #include "opt_tcpdebug.h"
+#include "opt_tcp_input.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -92,6 +93,18 @@ int tcp_delack_enabled = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW, 
     &tcp_delack_enabled, 0, 
     "Delay ACK to try and piggyback it onto a data packet");
+
+#ifdef TCP_RESTRICT_RST
+static int restrict_rst = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, restrict_rst, CTLFLAG_RW,
+    &restrict_rst, 0, "Restrict RST emission");
+#endif
+
+#ifdef TCP_DROP_SYNFIN
+static int drop_synfin = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
+    &drop_synfin, 0, "Drop TCP packets with FIN+ACK set");
+#endif
 
 struct inpcbhead tcb;
 struct inpcbinfo tcbinfo;
@@ -339,6 +352,18 @@ tcp_input(m, iphlen)
 		optp = mtod(m, u_char *) + sizeof (struct tcpiphdr);
 	}
 	tiflags = ti->ti_flags;
+
+#ifdef TCP_DROP_SYNFIN
+	/*
+	 * If the drop_synfin option is enabled, drop all packets with
+	 * both the SYN and FIN bits set. This prevents e.g. nmap from
+	 * identifying the TCP/IP stack.
+	 *
+	 * This is incompatible with RFC1644 extensions (T/TCP).
+	 */
+	if (drop_synfin && (tiflags & (TH_SYN|TH_FIN)) == (TH_SYN|TH_FIN))
+		goto drop;
+#endif
 
 	/*
 	 * Convert TCP protocol specific fields to host format.
@@ -1849,6 +1874,10 @@ dropafterack:
 	return;
 
 dropwithreset:
+#ifdef TCP_RESTRICT_RST
+	if (restrict_rst)
+		goto drop;
+#endif
 	/*
 	 * Generate a RST, dropping incoming segment.
 	 * Make ACK acceptable to originator of segment.
