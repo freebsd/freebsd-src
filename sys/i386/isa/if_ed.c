@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.44 1994/08/13 03:50:03 wollman Exp $
+ * $Id: if_ed.c,v 1.45 1994/08/18 22:34:52 wollman Exp $
  */
 
 #include "ed.h"
@@ -1458,7 +1458,7 @@ outloop:
 	 * should never happen at this point.
 	 */
 	if (sc->txb_inuse && (sc->xmit_busy == 0)) {
-		printf("ed: packets buffers, but transmitter idle\n");
+		printf("ed: packets buffered, but transmitter idle\n");
 		ed_xmit(ifp);
 	}
 
