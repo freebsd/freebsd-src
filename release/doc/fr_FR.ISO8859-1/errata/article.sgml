@@ -55,14 +55,14 @@
 <!-- XXX Change release.current to release.prev when there's -->
 <!-- XXX a release on this branch. -->
 
-<para>Ce document énumère les errata pour &os; &release.current;
-, contenant des informations importantes découvertes après la sortie
- de cette version. Ces informations incluent les bulletins de 
- sécurité, aussi bien que des informations sur les logiciels ou 
- sur les documentations qui pourraient affecter son éxécution
-ou son utilisation. Une version à jour de ce document
-devrait toujours être consultée avant d'installer cette version
-de &os;.  
+<para>Ce document &eacute;num&egrave;re les errata pour &os; &release.current;
+, contenant des informations importantes d&eacute;couvertes
+apr&egrave;s la sortie de cette version. Ces informations incluent les
+bulletins de s&eacute;curit&eacute;, aussi bien que des informations
+sur les logiciels ou sur les documentations qui pourraient affecter
+son &eacute;x&eacute;cution ou son utilisation. Une version &agrave;
+jour de ce document devrait toujours être consult&eacute;e avant
+d'installer cette version de &os;.  
 </para>
 
 
@@ -76,7 +76,7 @@ jusqu'a  &os; &release.next;.</para>
 <![ %release.type.release [
 
 <para>Ceci est la version final du errat pour &os; &release.prev;. 
-Les errata suivants de la branche &release.branch; se référeront 
+Les errata suivants de la branche &release.branch; se r&eacute;f&eacute;reront 
 a &os; &release.current; et les version suivantes.</para>
 
 ]]>
@@ -85,46 +85,49 @@ a &os; &release.current; et les version suivantes.</para>
 il n'y a pas eut de version finale dans la branche &release.branch; 
 depuis le dernier changement de branche (la prochaine version finale 
 sera &release.next;). Ce fichier existe pour permettre de creer un canevas
-propre pour les nouvelles branches crées. (Normalement cette note ne devrait
-apparaitre sur aucune version de branches)
+propre pour les nouvelles branches cr&eacute;es. (Normalement cette
+note ne devrait apparaitre sur aucune version de branches)
 </para>
   </abstract>
 
   <sect1>
     <title>Introduction</title>
     
-    <para>Ce document contient les <quote>dernières informations 
-    importantes</quote> à propos de &os; &release.current;. Avant 
+    <para>Ce document contient les <quote>derni&egrave;res informations 
+    importantes</quote> &agrave; propos de &os; &release.current;. Avant 
     d'installer cette version, il est important de consulter ce document 
-    pour se renseigner sur les problèmes qui peuvent avoir déjà 
-    été rencontrés et corrigés.</para>
+    pour se renseigner sur les probl&egrave;mes qui peuvent avoir
+    d&eacute;j&agrave; &eacute;t&eacute; rencontr&eacute;s et
+    corrig&eacute;s.</para>
 
-    <para>Toute version de ce document actuellement distribué avec 
+
+    <para>Toute version de ce document actuellement distribu&eacute; avec 
     une version finale (par exemple sur la distrtibution en CDROM) est 
-    obsolète par définition, mais les autres copies sont gardées 
-    et mises a jour sur Internet et peuvent etre consultées 
-    comment <quote>errata</quote> pour cette version finale. Les autres 
-    copies de cet errata se trouvent 
-    <ulink url="http://www.FreeBSD.org/releases/">ici</ulink> 
-    et sur les autres sites mirroirs de ce site</para>
+    obsol&egrave;te par d&eacute;finition, mais les autres copies sont
+    gard&eacute;es et mises a jour sur Internet et peuvent etre
+    consult&eacute;es comment <quote>errata</quote> pour cette version
+    finale. Les autres copies de cet errata se trouvent <ulink
+    url="http://www.FreeBSD.org/releases/">ici</ulink> et sur les
+    autres sites mirroirs de ce site</para>
+
 
     <para>Les snapshots binaires ou en source de la version 
-    &release.branch; de &os; contiennent toutes une version à jour 
+    &release.branch; de &os; contiennent toutes une version &agrave; jour 
     de ce document (au moment de la creation du snapshot).</para>
 
-    <para>Pour une liste de tous les avis de securité du CERT 
+    <para>Pour une liste de tous les avis de securit&eacute; du CERT 
     sur &os;, voyez <ulink
     url="http://www.FreeBSD.org/security/"></ulink> ou <ulink
     url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
   </sect1>
 
   <sect1>
-    <title>Avis de securité</title>
+    <title>Avis de securit&eacute;</title>
     <para></para>
   </sect1>
 
   <sect1>
-    <title>Information de mise a jour du système</title>
+    <title>Information de mise a jour du syst&egrave;me</title>
     <para></para>
   </sect1>
 </article>
