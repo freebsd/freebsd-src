@@ -12,7 +12,7 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(KRB5_KRB4_COMPAT)
+.if defined(MAKE_KERBEROS4)
 _krb4libs=	-lkrb -lkafs -lkdb
 _krb4deps=	${LIBKRB} ${LIBKAFS} ${LIBKDB}
 .endif

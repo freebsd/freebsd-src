@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		k5admind
-SRCS=		kadmind.c server.c version4.c \
+SRCS=		kadmind.c server.c \
 		kadm5/private.h kadm5/admin.h kadm5/kadm5_err.h
 CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/lib/roken \
@@ -13,11 +13,12 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
 		-I${.OBJDIR}
-.if defined(KRB5_KRB4_COMPAT)
+.if defined(MAKE_KERBEROS4)
+SRCS+=		version4.c
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
 .endif
-LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${KAFS5OBJDIR} -lkafs5 \
+LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${ROKENOBJDIR} -lroken ${_krb4libs} \
 		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
