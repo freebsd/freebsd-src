@@ -224,6 +224,9 @@ extern int exit_val;
 extern int docrc;
 extern char *dirptr;
 extern char *argv0;
+extern char *tempfile;
+extern char *tempbase;
+
 int main __P((int, char **));
 void sig_cleanup __P((int));
 
