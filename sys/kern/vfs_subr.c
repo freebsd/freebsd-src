@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.149 1998/04/15 18:37:49 tegge Exp $
+ * $Id: vfs_subr.c,v 1.150 1998/04/16 03:31:26 peter Exp $
  */
 
 /*
@@ -2404,6 +2404,7 @@ vfs_export_lookup(mp, nep, nam)
 void
 vfs_msync(struct mount *mp, int flags) {
 	struct vnode *vp, *nvp;
+	struct vm_object *obj;
 	int anyio, tries;
 
 	tries = 5;
@@ -2417,9 +2418,15 @@ loop:
 			goto loop;
 		}
 
-		if ((vp->v_flag & VXLOCK) ||
-			(VOP_ISLOCKED(vp) && (flags != MNT_WAIT))) {
+		if (vp->v_flag & VXLOCK)	/* XXX: what if MNT_WAIT? */
 			continue;
+
+		if (flags != MNT_WAIT) {
+			obj = vp->v_object;
+			if (obj == NULL || (obj->flags & OBJ_MIGHTBEDIRTY) == 0)
+				continue;
+			if (VOP_ISLOCKED(vp))
+				continue;
 		}
 
 		simple_lock(&vp->v_interlock);
