@@ -36,10 +36,6 @@
 .
 .eo
 .
-.\" use -rC=1 to number pages continuously
-.
-.if !r C .nr C 0
-.
 .\" use -rD=1 for double-sided printing
 .
 .if !r D .nr D 0
@@ -212,17 +208,10 @@
 .  wh 0 doc-header
 .  wh -1.25i doc-footer
 .
-.  nr nL \n[nl]
 .  if \n[gX] \
 .    ds doc-command-name
 .
 .  br
-.
-.  \" Don't set the page number if this is the first page,
-.  \" in case the user has used -n.
-.  if \n[nL] \
-.    if !\n[C] \
-.      nr % 1
 .
 .  nr gX 0
 .  e@ doc-end-macro
