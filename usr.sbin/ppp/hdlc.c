@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28.2.33 1998/05/04 03:00:07 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.34 1998/05/08 01:15:07 brian Exp $
  *
  *	TODO:
  */
@@ -467,11 +467,10 @@ hdlc_Input(struct bundle *bundle, struct mbuf * bp, struct physical *physical)
     fcs = hdlc_Fcs(INITFCS, MBUF_CTOP(bp), bp->cnt);
   physical->hdlc.lqm.SaveInOctets += bp->cnt + 1;
 
-  log_Printf(LogDEBUG, "hdlc_Input: fcs = %04x (%s)\n",
-	    fcs, (fcs == GOODFCS) ? "good" : "bad");
+  log_Printf(LogDEBUG, "%s: hdlc_Input: fcs = %04x (%s)\n",
+            physical->link.name, fcs, (fcs == GOODFCS) ? "good" : "BAD!");
   if (fcs != GOODFCS) {
     physical->hdlc.lqm.SaveInErrors++;
-    log_Printf(LogDEBUG, "hdlc_Input: Bad FCS\n");
     physical->hdlc.stats.badfcs++;
     mbuf_Free(bp);
     return;

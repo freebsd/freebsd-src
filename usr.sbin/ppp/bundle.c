@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.80 1998/05/10 10:21:10 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.81 1998/05/10 22:20:06 brian Exp $
  */
 
 #include <sys/types.h>
@@ -703,6 +703,9 @@ bundle_Destroy(struct bundle *bundle)
 {
   struct datalink *dl;
   struct descriptor *desc, *ndesc;
+
+  /* In case we're dropping out with an exception :-O */
+  mp_Down(&bundle->ncp.mp);
 
   if (bundle->phys_type & PHYS_DEMAND) {
     ipcp_CleanInterface(&bundle->ncp.ipcp);
