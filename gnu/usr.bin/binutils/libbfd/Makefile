@@ -11,7 +11,8 @@ SRCS+=	archive.c archures.c bfd.c binary.c cache.c \
 	section.c srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
 	targmatch.h dwarf1.c dwarf2.c config.h
 CFLAGS+= -I${SRCDIR}/bfd
-CFLAGS+= -DBFD_VERSION=\"${VERSION}\"
+CFLAGS+= -DBFD_VERSION=\"${VERSION_DATE}\" -DBFD_VERSION_DATE=${VERSION_DATE}
+CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 NOPROFILE=	true
 NOPIC=		true
 INTERNALLIB=	true
