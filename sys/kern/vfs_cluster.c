@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.12 1995/03/04 03:24:28 davidg Exp $
+ * $Id: vfs_cluster.c,v 1.13 1995/03/16 18:12:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -509,8 +509,9 @@ redo:
 
 		pb = trypbuf();
 		/* Get more memory for current buffer */
-		if (len <= 1 || pb == 0) {
-			relpbuf(pb);
+		if (len <= 1 || pb == NULL) {
+			if (pb != NULL)
+				relpbuf(pb);
 			if (last_bp) {
 				bawrite(last_bp);
 			} else if (len) {
@@ -528,7 +529,7 @@ redo:
 		tbp->b_flags |= B_BUSY;
 		last_bp = 0;
 		pb = trypbuf();
-		if( pb == 0) {
+		if (pb == NULL) {
 			bawrite(tbp);
 			return;
 		}
