@@ -93,7 +93,6 @@ To get information about the current activity, a suitable wait time should
 be specified, so that the subsequent sets of printed statistics will be
 averaged over that time.
 .Pp
-.Pp
 The options are as follows:
 .Bl -tag -width flag
 .It Fl c
@@ -116,10 +115,14 @@ or
 .Fl T
 is also specfied to enable the display of CPU or TTY statistics.
 .It Fl h
-Put iostat in
+Put
+.Nm
+in
 .Sq top
 mode.
-In this mode, iostat will show devices in order from highest to lowest bytes
+In this mode,
+.Nm
+will show devices in order from highest to lowest bytes
 per measurement cycle.
 .It Fl I
 Display total statstics for a given time period, rather than average
@@ -256,7 +259,9 @@ will display as many devices as will fit in a standard 80 column screen, or
 the maximum number of devices in the system, whichever is smaller.
 If
 .Fl n
-is specified on the command line, iostat will display the smaller of the
+is specified on the command line,
+.Nm
+will display the smaller of the
 requested number of devices, and the maximum number of devices in the system.
 To force
 .Nm
@@ -269,7 +274,9 @@ the
 argument is given on the command line to specify a maximum number of
 devices to display.
 If fewer devices are specified on the command line than will fit in an 80
-column screen, iostat will show only the specified devices.
+column screen,
+.Nm
+will show only the specified devices.
 .Pp
 The standard
 .Nm
