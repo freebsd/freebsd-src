@@ -42,9 +42,9 @@ struct mtx {
 	LIST_ENTRY(mtx)		mtx_contested;	/* Next contested mtx. */
 
 	/* Fields used only if MUTEX_PROFILING is configured: */
-	u_int64_t		acqtime;
-	const char		*file;
-	int			line;
+	u_int64_t		mtx_acqtime;
+	const char		*mtx_filename;
+	int			mtx_lineno;
 };
 
 #endif /* !_SYS__MUTEX_H_ */
