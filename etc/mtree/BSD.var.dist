@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.38 1998/12/16 05:50:25 peter Exp $
+#	$Id: BSD.var.dist,v 1.39 1999/03/31 07:06:39 asami Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -22,7 +22,7 @@
         ..
     ..
     db              mode=0755
-        pkg
+        pkg         mode=0755
         ..
     ..
 /set type=dir uname=root gname=wheel mode=0755
