@@ -292,14 +292,6 @@ nopgrp:
 			(void)kvm_read(kd, (u_long)mtd.td_wmesg,
 			    kp->ki_wmesg, WMESGLEN);
 
-#ifdef sparc
-		(void)kvm_read(kd, (u_long)&proc.p_vmspace->vm_rssize,
-		    (char *)&kp->ki_rssize,
-		    sizeof(kp->ki_rssize));
-		(void)kvm_read(kd, (u_long)&proc.p_vmspace->vm_tsize,
-		    (char *)&kp->ki_tsize,
-		    3 * sizeof(kp->ki_rssize));	/* XXX */
-#else
 		(void)kvm_read(kd, (u_long)proc.p_vmspace,
 		    (char *)&vmspace, sizeof(vmspace));
 		kp->ki_size = vmspace.vm_map.size;
@@ -308,7 +300,6 @@ nopgrp:
 		kp->ki_tsize = vmspace.vm_tsize;
 		kp->ki_dsize = vmspace.vm_dsize;
 		kp->ki_ssize = vmspace.vm_ssize;
-#endif
 
 		switch (what & ~KERN_PROC_INC_THREAD) {
 
