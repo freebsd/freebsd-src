@@ -48,9 +48,9 @@
 #define I386_VM86	6
 
 struct i386_ldt_args {
-	int	start;
+	unsigned int start;
 	union	descriptor *descs;
-	int	num;
+	unsigned int num;
 }; 
 
 struct i386_ioperm_args {
