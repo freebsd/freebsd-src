@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kbdcontrol.c,v 1.11 1997/09/19 06:28:57 charnier Exp $";
+	"$Id: kbdcontrol.c,v 1.12 1998/01/07 08:43:27 yokota Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -552,7 +552,7 @@ dump_entry(int value)
 	 		if (value >= F_FN && value <= L_FN)
 				printf(" F(%2d),", value - F_FN + 1);
 	 		else if (value >= F_SCR && value <= L_SCR)
-				printf(" S(%02d),", value - F_SCR + 1);
+				printf(" S(%2d),", value - F_SCR + 1);
 	 		else if (value >= F_ACC && value <= L_ACC)
 				printf(" %-4s, ", acc_names_u[value - F_ACC]);
 			else
@@ -575,27 +575,27 @@ dump_key_definition(char *name, keymap_t *keymap)
 {
 	int	i, j;
 
-	printf("static keymap_t key_map_%s = { 0x%02x,\n",
+	printf("static keymap_t keymap_%s = { 0x%02x, {\n",
 	       name, (unsigned)keymap->n_keys);
 	printf(
-"/*                                                            alt\n"
-" * scan                          cntrl          alt    alt   cntrl\n"
-" * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs\n"
+"/*                                                         alt\n"
+" * scan                       cntrl          alt    alt   cntrl\n"
+" * code  base   shift  cntrl  shift   alt   shift  cntrl  shift    spcl flgs\n"
 " * ---------------------------------------------------------------------------\n"
 " */\n");
 	for (i = 0; i < keymap->n_keys; i++) {
-		printf("/* sc=%02x */", i);
+		printf("/*%02x*/{{", i);
 		for (j = 0; j < NUM_STATES; j++) {
 			if (keymap->key[i].spcl & (0x80 >> j))
 				dump_entry(keymap->key[i].map[j] | 0x100);
 			else
 				dump_entry(keymap->key[i].map[j]);
 		}
-		printf(" 0x%02X, 0x%02X,\n",
+		printf("}, 0x%02X,0x%02X },\n",
 		       (unsigned)keymap->key[i].spcl, 
 		       (unsigned)keymap->key[i].flgs);
 	}
-	printf("};\n\n");
+	printf("} };\n\n");
 }
 
 void
@@ -604,8 +604,13 @@ dump_accent_definition(char *name, accentmap_t *accentmap)
 	int i, j;
 	int c;
 
-	printf("static accentmap_t accent_map_%s = { %d,\n  {\n",
+	printf("static accentmap_t accentmap_%s = { %d",
 		name, accentmap->n_accs); 
+	if (accentmap->n_accs <= 0) {
+		printf(" };\n\n");
+		return;
+	}
+	printf(", {\n");
 	for (i = 0; i < NUM_DEADKEYS; i++) {
 		printf("    /* %s=%d */\n    {", acc_names[i], i);
 		c = accentmap->acc[i].accchar;
@@ -634,7 +639,7 @@ dump_accent_definition(char *name, accentmap_t *accentmap)
 		}
 		printf(" }, },\n");
 	}
-	printf("  }\n};\n");
+	printf("} };\n\n");
 }
 
 void
