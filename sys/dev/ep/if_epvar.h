@@ -103,3 +103,9 @@ int ep_get_macaddr(struct ep_softc *, u_char *);
 
 #define EP_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	EP_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define EP_LOCK_INIT(_sc) \
+	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
+	    MTX_NETWORK_LOCK, MTX_DEF)
+#define EP_LOCK_DESTORY(_sc)	mtx_destroy(&_sc->sc_mtx);
+#define EP_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
+#define EP_ASSERT_UNLOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
