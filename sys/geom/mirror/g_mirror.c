@@ -2523,6 +2523,7 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Let's check if device already exists.
 	 */
+	sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
