@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.236 1996/02/02 06:55:33 pst Exp $
+#	$Id: LINT,v 1.237 1996/02/03 11:48:12 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -129,7 +129,6 @@ options		UCONSOLE
 #  try to ensure that it actually compiles.
 #
 options		INET			#Internet communications protocols
-options		CCITT			#X.25 network layer
 options		NS			#Xerox NS communications protocols
 
 options		IPX			#IPX/SPX communications protocols
@@ -138,10 +137,15 @@ options		IPTUNNEL		#IP in IPX encapsulation (not available)
 options		IPXPRINTFS=0		#IPX/SPX Console Debugging Information
 options		IPX_ERRPRINTFS=0	#IPX/SPX Console Debugging Information
 
-# These are currently broken and don't compile
+# These are currently broken and are no longer shipped due to lack
+# of interest.
+#options		CCITT			#X.25 network layer
 #options		ISO
 #options		TPIP			#ISO TP class 4 over IP
 #options		TPCONS			#ISO TP class 0 over X.25
+#options		LLC			#X.25 link layer for Ethernets
+#options		HDLC			#X.25 link layer for serial lines
+#options		EON			#ISO CLNP over IP
 
 #
 # Network interfaces:
@@ -174,11 +178,6 @@ pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver(user process ppp)
 
 options		NSIP			#XNS over IP
-options		LLC			#X.25 link layer for Ethernets
-options		HDLC			#X.25 link layer for serial lines
-
-# broken
-#options		EON			#ISO CLNP over IP
 
 #
 # Internet family options:
@@ -804,7 +803,7 @@ controller	ahc0
 # The PROBE_VERBOSE option enables a long listing of chip set registers
 # for supported PCI chip sets (currently only intel Saturn and Mercury).
 # 
-# The 'meteor' device is a PCI video capture board. It can also have the
+# The `meteor' device is a PCI video capture board. It can also have the
 # following options:
 #   options METEOR_ALLOC_PAGES=xxx	preallocate kernel pages for data entry
 #	figure (ROWS*COLUMN*BYTES_PER_PIXEL*FRAME+PAGE_SIZE-1)/PAGE_SIZE
