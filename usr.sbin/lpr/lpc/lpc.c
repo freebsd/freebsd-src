@@ -115,7 +115,7 @@ main(int argc, char *argv[])
 			exit(1);
 		}
 		if (c->c_generic != 0)
-			generic(c->c_generic, argc, argv);
+			generic(c->c_generic, c->c_handler, argc, argv);
 		else
 			(*c->c_handler)(argc, argv);
 		exit(0);
@@ -200,8 +200,16 @@ cmdscanner(void)
 			printf("?Privileged command\n");
 			continue;
 		}
+
+		/*
+		 * Two different commands might have the same generic rtn
+		 * (eg: "clean" and "tclean"), and just use different
+		 * handler routines for distinct command-setup.  The handler
+		 * routine might also be set on a generic routine for
+		 * initial parameter processing.
+		 */
 		if (c->c_generic != 0)
-			generic(c->c_generic, margc, margv);
+			generic(c->c_generic, c->c_handler, margc, margv);
 		else
 			(*c->c_handler)(margc, margv);
 	}

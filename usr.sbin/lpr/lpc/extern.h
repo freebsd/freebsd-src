@@ -42,14 +42,17 @@
 
 
 __BEGIN_DECLS
-void	 clean(struct printer *_pp);
+void	 clean_q(struct printer *_pp);
 void	 disable(struct printer *_pp);
 void	 doabort(struct printer *_pp);
 void	 down(int _argc, char *_argv[]);
 void	 enable(struct printer *_pp);
-void	 generic(void (*_specificrtn)(struct printer *_pp), int _argc,
-	    char *_argv[]);
+void	 generic(void (*_specificrtn)(struct printer *_pp),
+	    void (*_initcmd)(int _argc, char *_argv[]),
+	    int _argc, char *_argv[]);
 void	 help(int _argc, char *_argv[]);
+void	 init_clean(int _argc, char *_argv[]);
+void	 init_tclean(int _argc, char *_argv[]);
 void	 quit(int _argc, char *_argv[]);
 void	 restart(struct printer *_pp);
 void	 startcmd(struct printer *_pp);

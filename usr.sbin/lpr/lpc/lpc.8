@@ -32,7 +32,7 @@
 .\"     @(#)lpc.8	8.5 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 28, 1995
+.Dd June 20, 2001
 .Dt LPC 8
 .Os BSD 4.2
 .Sh NAME
@@ -96,6 +96,11 @@ for the specified printers.
 Remove any temporary files, data files, and control files that cannot
 be printed (i.e., do not form a complete printer job)
 from the specified printer queue(s) on the local machine.
+This command will also look for 'core' files in spool directory
+for each printer queue, and list any that are found.
+It will not remove any 'core' files.  See also the
+.Ic tclean
+command.
 .Pp
 .It Ic disable Xo
 .Es \&{ \&}
@@ -164,6 +169,24 @@ Display the status of daemons and queues on the local machine.
 .Xc
 Stop a spooling daemon after the current job completes and disable
 printing.
+.Pp
+.It Ic tclean Xo
+.Es \&{ \&}
+.En Cm all | Ar printer
+.Xc
+This will do a test-run of the
+.Ic clean
+command.
+All the same checking is done, but the command will only print out
+messages saying what a similar
+.Ic clean
+command would do if the user typed it in.
+It will not remove any files.
+Note that the
+.Ic clean
+command is a privileged command, while the
+.Ic tclean
+command is not restricted.
 .Pp
 .It Ic topq Ar printer Xo
 .Op Ar jobnum ...
