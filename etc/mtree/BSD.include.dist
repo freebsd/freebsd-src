@@ -54,8 +54,6 @@
         ..
     ..
     fs
-        autofs
-        ..
         devfs
         ..
         fdescfs
