@@ -1,5 +1,5 @@
 /*
-    Alias_util.h contains general utilities used by other functions
+    Alias_util.c contains general utilities used by other functions
     in the packet aliasing module.  At the moment, there are functions
     for computing IP header and TCP packet checksums.
 
@@ -17,7 +17,7 @@
 
 /*
 Note: the checksum routines assume that the actual checksum word has
-been zeroed out.  If the checksum workd is filled with the proper value,
+been zeroed out.  If the checksum word is filled with the proper value,
 then these routines will give a result of zero (useful for testing
 purposes);
 */

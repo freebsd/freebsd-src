@@ -1,3 +1,5 @@
+$FreeBSD$
+
 Version 1.0: August 11, 1996 (cjm)
 
 Version 1.1:  August 20, 1996  (cjm)
@@ -26,7 +28,7 @@ Version 1.6: September 18, 1996
       traceroute, which uses UDP packets to non-existent
       ports.
 
-Verstion 1.7: January 9, 1997 (cjm)
+Version 1.7: January 9, 1997 (cjm)
     - Reduced malloc() activity for ICMP echo and
       timestamp requests.
 
@@ -97,12 +99,12 @@ Version 2.1: May, 1997 (cjm)
       PacketAliasRedirectAddr() added to API.
 
     - Now supports outgoing as well as incoming ICMP
-      error messges.
+      error messages.
 
 Version 2.2: July, 1997 (cjm)
     - Rationalized API function names to all begin with
       "PacketAlias..."  Old function names are retained
-      for backwards compatitibility.
+      for backwards compatibility.
 
     - Packet aliasing engine will now free memory of
       fragments which are never resolved after a timeout
@@ -132,3 +134,8 @@ Version 3.0: January 1, 1999
     - Transparent proxying support added.
     - PPTP redirecting support added based on patches
       contributed by Dru Nelson <dnelson@redwoodsoft.com>.
+
+Version 3.1: May, 2000 (Erik Salander, erik@whistle.com)
+    - Added support to alias 227 replies, allows aliasing for
+      FTP servers in passive mode.
+    - Added support for PPTP aliasing.
