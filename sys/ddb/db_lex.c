@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.c,v 1.15 1998/06/07 17:09:37 dfr Exp $
+ *	$Id: db_lex.c,v 1.16 1998/06/27 15:40:56 dfr Exp $
  */
 
 /*
@@ -114,10 +114,10 @@ db_read_token()
 	return (t);
 }
 
-long	db_tok_number;
+db_expr_t	db_tok_number;
 char	db_tok_string[TOK_STRING_SIZE];
 
-long	db_radix = 16;
+db_expr_t	db_radix = 16;
 
 void
 db_flush_lex()

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.27 1997/11/20 18:24:52 bde Exp $
+ *	$Id: db_trace.c,v 1.28 1998/06/07 17:09:59 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -44,24 +44,24 @@
  * Machine register set.
  */
 struct db_variable db_regs[] = {
-	"cs",	(long *)&ddb_regs.tf_cs,  FCN_NULL,
-	"ds",	(long *)&ddb_regs.tf_ds,  FCN_NULL,
-	"es",	(long *)&ddb_regs.tf_es,  FCN_NULL,
+	"cs",	&ddb_regs.tf_cs,  FCN_NULL,
+	"ds",	&ddb_regs.tf_ds,  FCN_NULL,
+	"es",	&ddb_regs.tf_es,  FCN_NULL,
 #if 0
-	"fs",	(long *)&ddb_regs.tf_fs,  FCN_NULL,
-	"gs",	(long *)&ddb_regs.tf_gs,  FCN_NULL,
+	"fs",	&ddb_regs.tf_fs,  FCN_NULL,
+	"gs",	&ddb_regs.tf_gs,  FCN_NULL,
 #endif
-	"ss",	(long *)&ddb_regs.tf_ss,  FCN_NULL,
-	"eax",	(long *)&ddb_regs.tf_eax, FCN_NULL,
-	"ecx",	(long *)&ddb_regs.tf_ecx, FCN_NULL,
-	"edx",	(long *)&ddb_regs.tf_edx, FCN_NULL,
-	"ebx",	(long *)&ddb_regs.tf_ebx, FCN_NULL,
-	"esp",	(long *)&ddb_regs.tf_esp,FCN_NULL,
-	"ebp",	(long *)&ddb_regs.tf_ebp, FCN_NULL,
-	"esi",	(long *)&ddb_regs.tf_esi, FCN_NULL,
-	"edi",	(long *)&ddb_regs.tf_edi, FCN_NULL,
-	"eip",	(long *)&ddb_regs.tf_eip, FCN_NULL,
-	"efl",	(long *)&ddb_regs.tf_eflags, FCN_NULL,
+	"ss",	&ddb_regs.tf_ss,  FCN_NULL,
+	"eax",	&ddb_regs.tf_eax, FCN_NULL,
+	"ecx",	&ddb_regs.tf_ecx, FCN_NULL,
+	"edx",	&ddb_regs.tf_edx, FCN_NULL,
+	"ebx",	&ddb_regs.tf_ebx, FCN_NULL,
+	"esp",	&ddb_regs.tf_esp, FCN_NULL,
+	"ebp",	&ddb_regs.tf_ebp, FCN_NULL,
+	"esi",	&ddb_regs.tf_esi, FCN_NULL,
+	"edi",	&ddb_regs.tf_edi, FCN_NULL,
+	"eip",	&ddb_regs.tf_eip, FCN_NULL,
+	"efl",	&ddb_regs.tf_eflags, FCN_NULL,
 };
 struct db_variable *db_eregs = db_regs + sizeof(db_regs)/sizeof(db_regs[0]);
 

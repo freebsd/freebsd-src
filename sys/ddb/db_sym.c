@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.23 1998/06/28 00:55:00 dfr Exp $
+ *	$Id: db_sym.c,v 1.24 1998/07/08 06:43:56 bde Exp $
  */
 
 /*
@@ -281,7 +281,7 @@ db_symbol_values(sym, namep, valuep)
  * not accept symbols whose value is "small" (and use plain hex).
  */
 
-unsigned long	db_maxoff = 0x10000;
+db_expr_t	db_maxoff = 0x10000;
 
 void
 db_printsym(off, strategy)
@@ -303,7 +303,7 @@ db_printsym(off, strategy)
 		db_printf("%+#ln", (long)off);
 		return;
 	}
-	if (name == 0 || d >= db_maxoff) {
+	if (name == 0 || d >= (unsigned long)db_maxoff) {
 		db_printf("%#ln", (unsigned long)off);
 		return;
 	}
