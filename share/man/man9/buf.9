@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: security.7,v 1.1 1998/12/20 20:12:17 dillon Exp $
+.\"	$Id: buf.9,v 1.1 1998/12/22 19:47:48 dillon Exp $
 .\"
 .Dd December 22, 1998
 .Dt BUF 9
@@ -60,7 +60,7 @@ valid and dirty bits (m->valid, m->dirty) for pages in DEV_BSIZE chunks.  Thus
 a platform with a hardware page size of 4096 bytes has 8 valid and 8 dirty
 bits.  These bits are generally set and cleared in groups based on the device
 block size of the device backing the page.  Complete page's worth are often
-refered to using the VM_PAGE_BITS_ALL bitmask (i.e. 0xFF if the hardware page
+referred to using the VM_PAGE_BITS_ALL bitmask (i.e. 0xFF if the hardware page
 size is 4096).
 .Pp
 VM buffers also keep track of a byte-granular dirty range and valid range.
