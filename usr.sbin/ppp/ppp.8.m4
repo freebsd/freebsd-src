@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.106 1998/06/16 19:40:28 brian Exp $
+.\" $Id: ppp.8,v 1.107 1998/06/16 23:23:57 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -758,8 +758,14 @@ client-side
 .Pp
 Here, the
 .Ar incoming
-label must be set up in
+section must be set up in
 .Pa /etc/ppp/ppp.conf .
+.Pp
+Make sure that the
+.Ar incoming
+section contains the
+.Dq allow users
+command as appropriate.
 .It
 Prepare an account for the incoming user.
 .Bd -literal
@@ -824,6 +830,7 @@ for each incoming user:
 Pfred<TAB>xxxx
 Pgeorge<TAB>yyyy
 .Ed
+.El
 .Pp
 Now, as soon as
 .Xr getty 8
