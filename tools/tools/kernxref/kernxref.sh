@@ -28,7 +28,7 @@ NF > 1	{
 		ref[$3]=ref[$3]" "$1
 	} else if ($2 == "T" || $2 == "D" || $2 == "A") {
 		if (def[$3] != "")
-			def[$3]=def[$3]","$1
+			def[$3]=def[$3]" "$1
 		else
 			def[$3]=$1
 	} else if ($2 == "?") {
@@ -59,14 +59,37 @@ END	{
 	{
 	if ($2 == "{S}")
 		$2 = "<Linker set>"
-	if ($2 == "{C}")
-		$2 = "<Common symbol>"
 	if (length($3) == 0) {
-		printf "%-30s %s UNREF\n",$1,$2
+		printf "%-30s %3d %s\n\tUNREF\n",$1,0, $2
+		N1++
 	} else if ($2 == "{}") {
-		printf "%-30s {UNDEF}\n",$1
+		printf "%-30s %3d {UNDEF}\n",$1, NF-2
+		N2++
 	} else {
-		printf "%-30s %s\n\t%s\n",$1,$2,$3
+		printf "%-30s %3d %s",$1,NF-2,$2
+		p = 80;
+		for (i = 3 ; i <= NF; i++) {
+			if (p+length ($i)+1 > 78) {
+				printf "\n\t%s", $i
+				p = 7;
+			} else {
+				printf " %s", $i
+			}
+			p += 1 + length ($i)
+		}
+		printf "\n"
+		N3++
+		if (NF-2 == 1) 
+			N4++
+		if (NF-2 == 2)
+			N5++
 	}
+	}
+END	{
+	printf "Total symbols: %5d\n",N1+N2+N3
+	printf "undef symbols: %5d\n",N1
+	printf "unref symbols: %5d\n",N2
+	printf "1 ref symbols: %5d\n",N4
+	printf "2 ref symbols: %5d\n",N5
 	}
 '
