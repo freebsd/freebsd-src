@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.78 1997/11/11 22:58:12 brian Exp $
+.\" $Id: ppp.8,v 1.79 1997/11/14 20:07:39 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1548,16 +1548,10 @@ means that the option will not be requested by us.
 may be one of the following:
 
 .Bl -tag -width 20
-.It vjcomp
-Default: Enabled and Accepted.  This option decides if Van Jacobson
-header compression will be used.
-
-.It lqr
-Default: Disabled and Accepted.  This option decides if Link Quality
-Requests will be sent.  LQR is a protocol that allows
-.Nm
-to determine that the link is down without relying on the modems
-carrier detect.
+.It acfcomp
+Default: Enabled and Accepted.  ACFComp stands for Address and Control
+Field Compression.  Non LCP packets usually have very similar address
+and control fields - making them easily compressible.
 
 .It chap
 Default: Disabled and Accepted.  CHAP stands for Challenge Handshake
@@ -1593,6 +1587,20 @@ challenge.  Refer to the description of the
 .Dq set encrypt
 command for further details.
 
+.It lqr
+Default: Disabled and Accepted.  This option decides if Link Quality
+Requests will be sent.  LQR is a protocol that allows
+.Nm
+to determine that the link is down without relying on the modems
+carrier detect.
+
+.It msext
+Default: Disabled.  This option allows the use of Microsoft's
+.Em PPP
+extensions, supporting the negotiation of the DNS and the NetBIOS NS.
+Enabling this allows us to pass back the values given in "set ns"
+and "set nbns".
+
 .It pap
 Default: Disabled and Accepted.  PAP stands for Password Authentication
 Protocol.  Only one of PAP and CHAP (above) may be negotiated.  With
@@ -1619,37 +1627,25 @@ in
 .Pa /etc/ppp/ppp.conf .
 PAP is accepted by default.
 
-.It acfcomp
-Default: Enabled and Accepted.  ACFComp stands for Address and Control
-Field Compression.  Non LCP packets usually have very similar address
-and control fields - making them easily compressible.
+.It pred1
+Default: Enabled and Accepted.  This option decides if Predictor 1
+compression will be used.
 
 .It protocomp
 Default: Enabled and Accepted.  This option is used to negotiate
 PFC (Protocol Field Compression), a mechanism where the protocol
 field number is reduced to one octet rather than two.
 
-.It pred1
-Default: Enabled and Accepted.  This option decides if Predictor 1
-compression will be used.
-
-.It msext
-Default: Disabled.  This option allows the use of Microsoft's
-.Em PPP
-extensions, supporting the negotiation of the DNS and the NetBIOS NS.
-Enabling this allows us to pass back the values given in "set ns"
-and "set nbns".
-
+.It vjcomp
+Default: Enabled and Accepted.  This option decides if Van Jacobson
+header compression will be used.
 .El
+
+.Pp
 The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
 
 .Bl -tag -width 20
-.It proxy
-Default: Disabled.  Enabling this option will tell
-.Nm
-to proxy ARP for the peer.
-
 .It passwdauth
 Default: Disabled.  Enabling this option will tell the PAP authentication
 code to use the password file (see
@@ -1657,6 +1653,26 @@ code to use the password file (see
 to authenticate the caller rather than the
 .Pa /etc/ppp/ppp.secret
 file.
+
+.It proxy
+Default: Disabled.  Enabling this option will tell
+.Nm
+to proxy ARP for the peer.
+
+.It throughput
+Default: Disabled.  Enabling this option will tell
+.Nm
+to gather thoroughput statistics.  Input and output is sampled over
+a rolling 5 second window, and current, best and total figures are
+retained.  This data is output when the relevent
+.Em PPP
+layer shuts down, and is also available using the
+.Dq show
+command.  Troughput statistics are available at the
+.Dq IPCP
+and 
+.Dq modem
+levels.
 
 .It utmp
 Default: Enabled.  Normally, when a user is authenticated using PAP or

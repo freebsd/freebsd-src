@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.64 1997/11/09 14:18:48 brian Exp $
+ * $Id: modem.c,v 1.65 1997/11/18 08:49:03 brian Exp $
  *
  *  TODO:
  */
@@ -55,6 +55,7 @@
 #include "vars.h"
 #include "main.h"
 #include "chat.h"
+#include "throughput.h"
 #ifdef __OpenBSD__
 #include <util.h>
 #else
@@ -76,6 +77,7 @@ static struct pppTimer ModemTimer;
 static struct mbuf *modemout;
 static struct mqueue OutputQueues[PRI_LINK + 1];
 static int dev_is_modem;
+static struct pppThroughput throughput;
 
 static void CloseLogicalModem(void);
 
@@ -116,130 +118,80 @@ static struct speeds {
 }      speeds[] = {
 
 #ifdef B50
-  {
-    50, B50,
-  },
+  { 50, B50, },
 #endif
 #ifdef B75
-  {
-    75, B75,
-  },
+  { 75, B75, },
 #endif
 #ifdef B110
-  {
-    110, B110,
-  },
+  { 110, B110, },
 #endif
 #ifdef B134
-  {
-    134, B134,
-  },
+  { 134, B134, },
 #endif
 #ifdef B150
-  {
-    150, B150,
-  },
+  { 150, B150, },
 #endif
 #ifdef B200
-  {
-    200, B200,
-  },
+  { 200, B200, },
 #endif
 #ifdef B300
-  {
-    300, B300,
-  },
+  { 300, B300, },
 #endif
 #ifdef B600
-  {
-    600, B600,
-  },
+  { 600, B600, },
 #endif
 #ifdef B1200
-  {
-    1200, B1200,
-  },
+  { 1200, B1200, },
 #endif
 #ifdef B1800
-  {
-    1800, B1800,
-  },
+  { 1800, B1800, },
 #endif
 #ifdef B2400
-  {
-    2400, B2400,
-  },
+  { 2400, B2400, },
 #endif
 #ifdef B4800
-  {
-    4800, B4800,
-  },
+  { 4800, B4800, },
 #endif
 #ifdef B9600
-  {
-    9600, B9600,
-  },
+  { 9600, B9600, },
 #endif
 #ifdef B19200
-  {
-    19200, B19200,
-  },
+  { 19200, B19200, },
 #endif
 #ifdef B38400
-  {
-    38400, B38400,
-  },
+  { 38400, B38400, },
 #endif
 #ifndef _POSIX_SOURCE
 #ifdef B7200
-  {
-    7200, B7200,
-  },
+  { 7200, B7200, },
 #endif
 #ifdef B14400
-  {
-    14400, B14400,
-  },
+  { 14400, B14400, },
 #endif
 #ifdef B28800
-  {
-    28800, B28800,
-  },
+  { 28800, B28800, },
 #endif
 #ifdef B57600
-  {
-    57600, B57600,
-  },
+  { 57600, B57600, },
 #endif
 #ifdef B76800
-  {
-    76800, B76800,
-  },
+  { 76800, B76800, },
 #endif
 #ifdef B115200
-  {
-    115200, B115200,
-  },
+  { 115200, B115200, },
 #endif
 #ifdef B230400
-  {
-    230400, B230400,
-  },
+  { 230400, B230400, },
 #endif
 #ifdef EXTA
-  {
-    19200, EXTA,
-  },
+  { 19200, EXTA, },
 #endif
 #ifdef EXTB
-  {
-    38400, EXTB,
-  },
+  { 38400, EXTB, },
 #endif
 #endif				/* _POSIX_SOURCE */
-  {
-    0, 0
-  }
+  { 0, 0 }
 };
 
 static int
@@ -267,9 +219,6 @@ IntToSpeed(int nspeed)
   }
   return B0;
 }
-
-static time_t uptime;
-u_long OctetsIn, OctetsOut;
 
 void
 DownConnection()
@@ -478,8 +427,7 @@ UnlockModem()
 static void
 HaveModem()
 {
-  time(&uptime);
-  OctetsIn = OctetsOut = 0;
+  throughput_start(&throughput);
   connect_count++;
   LogPrintf(LogPHASE, "Connected!\n");
 }
@@ -497,7 +445,6 @@ OpenModem()
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (mode & MODE_DIRECT) {
-    HaveModem();
     if (isatty(0)) {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
       cp = ttyname(0);
@@ -507,10 +454,12 @@ OpenModem()
         return -1;
       }
       modem = 0;
+      HaveModem();
     } else {
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
       SetVariable(0, 0, 0, VAR_DEVICE);
       /* We don't call ModemTimeout() with this type of connection */
+      HaveModem();
       return modem = 0;
     }
   } else {
@@ -599,7 +548,6 @@ OpenModem()
       if (ioctl(modem, TIOCMGET, &mbits)) {
         LogPrintf(LogERROR, "OpenModem: Cannot get modem status: %s\n",
 		  strerror(errno));
-        uptime = 0;
         CloseLogicalModem();
 	return (-1);
       }
@@ -609,7 +557,6 @@ OpenModem()
     if (oldflag < 0) {
       LogPrintf(LogERROR, "OpenModem: Cannot get modem flags: %s\n",
 		strerror(errno));
-      uptime = 0;
       CloseLogicalModem();
       return (-1);
     }
@@ -674,28 +621,25 @@ UnrawModem()
   }
 }
 
-void ModemAddInOctets(int n)
+void
+ModemAddInOctets(int n)
 {
-  OctetsIn += n;
+  throughput_addin(&throughput, n);
 }
 
-void ModemAddOutOctets(int n)
+void
+ModemAddOutOctets(int n)
 {
-  OctetsOut += n;
+  throughput_addout(&throughput, n);
 }
 
 static void
 ClosePhysicalModem()
 {
+  LogPrintf(LogDEBUG, "ClosePhysicalModem\n");
   close(modem);
-  if (uptime) {
-    LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
-    LogPrintf(LogPHASE, "Modem: %d octets in, %d octets out\n",
-              OctetsIn, OctetsOut);
-    OctetsIn = OctetsOut = 0;
-    uptime = 0;
-  }
-  modem = -1;			/* Mark modem as closed */
+  modem = -1;
+  throughput_log(&throughput, LogPHASE, "Modem");
 }
 
 void
@@ -703,12 +647,13 @@ HangupModem(int flag)
 {
   struct termios tio;
 
-  LogPrintf(LogDEBUG, "Hangup modem (%s), uptime %ld\n",
-            modem >= 0 ? "open" : "closed", (long)uptime);
-  StopTimer(&ModemTimer);
+  LogPrintf(LogDEBUG, "Hangup modem (%s)\n", modem >= 0 ? "open" : "closed");
 
   if (modem < 0)
     return;
+
+  StopTimer(&ModemTimer);
+  throughput_stop(&throughput);
 
   if (TermMode) {
     LogPrintf(LogDEBUG, "HangupModem: Not in 'term' mode\n");
@@ -735,6 +680,7 @@ HangupModem(int flag)
     char ScriptBuffer[SCRIPT_LEN];
 
     strcpy(ScriptBuffer, VarHangupScript);	/* arrays are the same size */
+    LogPrintf(LogDEBUG, "HangupModem: Script: %s\n", ScriptBuffer);
     if (flag || !(mode & MODE_DEDICATED)) {
       DoChat(ScriptBuffer);
       tcflush(modem, TCIOFLUSH);
@@ -755,6 +701,7 @@ HangupModem(int flag)
 static void
 CloseLogicalModem()
 {
+  LogPrintf(LogDEBUG, "CloseLogicalModem\n");
   if (modem >= 0) {
     ClosePhysicalModem();
     if (Utmp) {
@@ -957,6 +904,9 @@ ShowModemStatus()
   fprintf(VarTerm, "DialScript  = %s\n", VarDialScript);
   fprintf(VarTerm, "LoginScript = %s\n", VarLoginScript);
   fprintf(VarTerm, "PhoneNumber(s) = %s\n", VarPhoneList);
+
+  fprintf(VarTerm, "\n");
+  throughput_disp(&throughput, VarTerm);
 
   return 0;
 }
