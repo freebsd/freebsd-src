@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.96 1998/08/10 16:56:53 kato Exp $
+ *  $Id: syscons.c,v 1.97 1998/08/15 09:04:03 kato Exp $
  */
 
 #include "sc.h"
@@ -387,7 +387,7 @@ static u_char	ibmpc_to_pc98[16] =
 static u_char	ibmpc_to_pc98rev[16] = 
  { 0x05,0x25,0x85,0xa5,0x45,0x65,0xc5,0xe5, 0x0d,0x2d,0x8d,0xad,0x4d,0x6d,0xcd,0xed };
 
-static unsigned int
+unsigned int
 at2pc98(unsigned int attr)
 {
     unsigned char fg_at, bg_at;
@@ -1752,6 +1752,14 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
        	if (!crtc_vga)
 	    return ENXIO;
 	scp->xsize = 80;
+
+	scp->status &= ~MOUSE_VISIBLE;
+	remove_cutmarking(scp);
+	s = spltty();
+	if ((error = wait_scrn_saver_stop())) {
+	    splx(s);
+	    return error;
+	}
 	if (scp->history != NULL)
 	    i = imax(scp->history_size / scp->xsize 
 		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
