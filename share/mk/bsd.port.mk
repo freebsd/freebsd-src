@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.68 1994/11/17 00:18:28 jkh Exp $
+# $Id: bsd.port.mk,v 1.69 1994/11/17 00:25:16 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -96,7 +96,7 @@
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
 PORTSDIR?=		${DESTDIR}/usr/ports
-PREFIX?=		/usr/local
+X11BASE?=		/usr/X11R6
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
 .if !defined(NO_WRKDIR)
@@ -113,6 +113,11 @@ PATCHDIR?=		${.CURDIR}/patches
 SCRIPTDIR?=		${.CURDIR}/scripts
 FILESDIR?=		${.CURDIR}/files
 PKGDIR?=		${.CURDIR}/pkg
+.if defined(USE_XMKMF)
+PREFIX?=		${X11BASE}
+.else
+PREFIX?=		/usr/local
+.endif
 
 .if exists(${PORTSDIR}/../Makefile.inc)
 .include "${PORTSDIR}/../Makefile.inc"
