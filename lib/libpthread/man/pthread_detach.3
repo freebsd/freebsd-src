@@ -69,8 +69,9 @@ These early drafts
 also passed a pointer to pthread_t as the argument.
 Beware!
 .Sh ERRORS
+The
 .Fn pthread_detach
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The implementation has detected that the value specified by
@@ -84,6 +85,7 @@ thread ID,
 .Sh SEE ALSO
 .Xr pthread_join 3
 .Sh STANDARDS
+The
 .Fn pthread_detach
-conforms to
+function conforms to
 .St -p1003.1-96 .
