@@ -125,9 +125,15 @@ SRCS+=	rc5cfb64.c rc5_ecb.c rc5_enc.c rc5ofb64.c rc5_skey.c
 # ripemd
 SRCS+=	rmd_dgst.c rmd_one.c
 
+# rsa
+.if defined(WITH_RSA) && ${WITH_RSA} == YES
+SRCS+=	rsa_chk.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c rsa_oaep.c \
+	rsa_pk1.c rsa_saos.c rsa_sign.c rsa_ssl.c
+
 # rsaref
 .if defined(RSAREF) && ${RSAREF} == YES
 SRCS+=	rsar_err.c rsaref.c
+.endif
 .endif
 
 # sha
