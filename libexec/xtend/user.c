@@ -27,11 +27,17 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <ctype.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include "xtend.h"
@@ -40,14 +46,18 @@
 
 MONENTRY Monitor[MAXMON];
 
+int find __P((char *, char *[]));
+void printstatus __P((FILE *, STATUS *));
+
 /*
  * Process a user command
  */
 
+int
 user_command()
 {
   char h;
-  int i, k, c, n, error;
+  int i, k, n, error;
   char cmd[512], dumppath[MAXPATHLEN+1], pkt[3];
   FILE *dumpf;
 
@@ -57,7 +67,7 @@ user_command()
 		&& h >= 'A' && h <= 'P' && i >= 1 && i <= 16) {
       h -= 'A';
       i--;
-      printstatus(User, &Status[h][i]);
+      printstatus(User, &Status[(int)h][i]);
     } else if(sscanf(cmd, "send %c %s %d", &h, cmd, &n) == 3
 	      && h >= 'A' && h <= 'P' && (i = find(cmd, X10cmdnames)) >= 0) {
       h -= 'A';
@@ -66,7 +76,7 @@ user_command()
       pkt[2] = n;
       if(write(tw523, pkt, 3) != 3) {
 	fprintf(Log, "%s:  Transmission error (packet [%s %s]:%d).\n",
-		thedate(), X10housenames[h], X10cmdnames[i], n);
+		thedate(), X10housenames[(int)h], X10cmdnames[i], n);
 	error++;
       } else {
 	fprintf(User, "OK\n");
@@ -77,9 +87,9 @@ user_command()
       if((dumpf = fopen(dumppath, "w")) != NULL) {
 	for(h = 0; h < 16; h++) {
 	  for(i = 0; i < 16; i++) {
-	    if(Status[h][i].lastchange) {
-	      fprintf(dumpf, "%s%d\t", X10housenames[h], i+1);
-	      printstatus(dumpf, &Status[h][i]);
+	    if(Status[(int)h][i].lastchange) {
+	      fprintf(dumpf, "%s%d\t", X10housenames[(int)h], i+1);
+	      printstatus(dumpf, &Status[(int)h][i]);
 	    }
 	  }
 	}
@@ -130,6 +140,7 @@ user_command()
   return(0);
 }
 
+int
 find(s, tab)
 char *s;
 char *tab[];
@@ -142,6 +153,7 @@ char *tab[];
 	return(-1);
 }
 
+void
 printstatus(f, s)
 FILE *f;
 STATUS *s;

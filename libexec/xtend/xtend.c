@@ -27,9 +27,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *	
- * 	$Id$
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * xtend - X-10 daemon
@@ -37,21 +40,25 @@
  * January 14, 1993
  */
 
-#include <stdio.h>
-#include <time.h>
+#include <err.h>
+#include <errno.h>
+#include <pwd.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <pwd.h>
-#include <grp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <grp.h>
 
 #include "xtend.h"
 #include "xten.h"
@@ -68,6 +75,13 @@ void onhup();			/* SIGHUP handler */
 void onterm();			/* SIGTERM handler */
 void onpipe();			/* SIGPIPE handler */
 
+void checkpoint_status __P((void));
+void initstatus __P((void));
+void logpacket __P((unsigned char *));
+void processpacket __P((unsigned char *));
+int user_command __P((void));
+
+int
 main(argc, argv)
 int argc;
 char *argv[];
@@ -82,28 +96,21 @@ char *argv[];
   struct group *gr;
   struct stat sb;
   int user;
-  int fd;
   FILE *pidf;
 
   /*
    * Make sure we start out running as root
    */
-  if(geteuid() != 0) {
-    fprintf(stderr, "You must be root to run %s\n", argv[0]);
-    exit(1);
-  }
+  if(geteuid() != 0)
+    errx(1, "you must be root");
 
   /*
    * Find out what UID/GID we are to run as
    */
-  if((pw = getpwnam(XTENUNAME)) == NULL) {
-    fprintf(stderr, "%s: No such user '%s'\n", argv[0], XTENUNAME);
-    exit(1);
-  }
-  if((gr = getgrnam(XTENGNAME)) == NULL) {
-    fprintf(stderr, "%s: No such group '%s'\n", argv[0], XTENGNAME);
-    exit(1);
-  }
+  if((pw = getpwnam(XTENUNAME)) == NULL)
+    errx(1, "no such user '%s'", XTENUNAME);
+  if((gr = getgrnam(XTENGNAME)) == NULL)
+    errx(1, "no such group '%s'", XTENGNAME);
 
   /*
    * Open the log file before doing anything else
@@ -113,16 +120,13 @@ char *argv[];
     if(mkdir(logpath, 0755) != -1) {
       chown(logpath, pw->pw_uid, gr->gr_gid);
     } else {
-      fprintf(stderr, "%s: Can't create directory '%s'\n", argv[0], logpath);
-      exit(1);
+      errx(1, "can't create directory '%s'", logpath);
     }
   }
   strcat(logpath, "/");
   strcat(logpath, X10LOGNAME);
-  if((Log = fopen(logpath, "a")) == NULL) {
-    fprintf(stderr, "Can't open log file %s\n", logpath);
-    exit(1);
-  }
+  if((Log = fopen(logpath, "a")) == NULL)
+    errx(1, "can't open log file '%s'", logpath);
   chown(logpath, pw->pw_uid, gr->gr_gid);
 
   /*
@@ -334,10 +338,8 @@ void onhup()
   strcpy(logpath, X10DIR);
   strcat(logpath, "/");
   strcat(logpath, X10LOGNAME);
-  if((Log = fopen(logpath, "a")) == NULL) {
-    fprintf(stderr, "Can't open log file %s\n", logpath);
-    exit(1);
-  }
+  if((Log = fopen(logpath, "a")) == NULL)
+    errx(1, "can't open log file '%s'", logpath);
   longjmp(mainloop, 1);
   /* No return */
 }
