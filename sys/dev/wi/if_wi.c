@@ -124,6 +124,13 @@ static const char rcsid[] =
 static u_int8_t	wi_mcast_addr[6] = { 0x01, 0x60, 0x1D, 0x00, 0x01, 0x00 };
 #endif
 
+/*
+ * The following is for compatibility with NetBSD, but should really be
+ * brought in from NetBSD en toto.
+ */
+#define le16toh(a)	(a)
+#define LE16TOH(a)
+
 static void wi_intr		__P((void *));
 static void wi_reset		__P((struct wi_softc *));
 static int wi_ioctl		__P((struct ifnet *, u_long, caddr_t));
@@ -170,6 +177,7 @@ static int wi_alloc		__P((device_t, int));
 static void wi_free		__P((device_t));
 
 static int wi_get_cur_ssid	__P((struct wi_softc *, char *, int *));
+static void wi_get_id		__P((struct wi_softc *, device_t));
 static int wi_media_change	__P((struct ifnet *));
 static void wi_media_status	__P((struct ifnet *, struct ifmediareq *));
 
@@ -350,32 +358,8 @@ static int wi_pccard_attach(device_t dev)
 {
 	struct wi_softc		*sc;
 	int			error;
-	u_int32_t		flags;
 
 	sc = device_get_softc(dev);
-
-	/*
-	 *	XXX: quick hack to support Prism II chip.
-	 *	Currently, we need to set a flags in pccard.conf to specify
-	 *	which type chip is used.
-	 *
-	 *	We need to replace this code in a future.
-	 *	It is better to use CIS than using a flag.
-	 */
-	flags = device_get_flags(dev);
-#define	WI_FLAGS_PRISM2	0x10000
-	if (flags & WI_FLAGS_PRISM2) {
-		sc->wi_prism2 = 1;
-		if (bootverbose) {
-			device_printf(dev, "found PrismII chip\n");
-		}
-	}
-	else {
-		sc->wi_prism2 = 0;
-		if (bootverbose) {
-			device_printf(dev, "found Lucent chip\n");
-		}
-	}
 
 	error = wi_alloc(dev, 0);
 	if (error) {
@@ -510,8 +494,9 @@ wi_generic_attach(device_t dev)
 	bcopy((char *)&mac.wi_mac_addr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	device_printf(dev, "Ethernet address: %6D\n",
-	    sc->arpcom.ac_enaddr, ":");
+	device_printf(dev, "802.11 address: %6D\n", sc->arpcom.ac_enaddr, ":");
+
+	wi_get_id(sc, dev);
 
 	ifp->if_softc = sc;
 	ifp->if_unit = sc->wi_unit;
@@ -609,6 +594,80 @@ wi_generic_attach(device_t dev)
 	WI_UNLOCK(sc);
 
 	return(0);
+}
+
+static void
+wi_get_id(sc, dev)
+	struct wi_softc *sc;
+	device_t dev;
+{
+	struct wi_ltv_ver       ver;
+
+	/* getting chip identity */
+	memset(&ver, 0, sizeof(ver));
+	ver.wi_type = WI_RID_CARDID;
+	ver.wi_len = 5;
+	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
+	device_printf(dev, "using ");
+	switch (le16toh(ver.wi_ver[0])) {
+	case WI_NIC_EVB2:
+		printf("RF:PRISM2 MAC:HFA3841");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB3763:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3763 rev.B");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB3163:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.A");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB3163B:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.B");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_EVB3:
+		printf("RF:PRISM2 MAC:HFA3842");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_HWB1153:
+		printf("RF:PRISM1 MAC:HFA3841 CARD:HWB1153");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_P2_SST:
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163-SST-flash");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_PRISM2_5:
+		printf("RF:PRISM2.5 MAC:ISL3873");
+		sc->wi_prism2 = 1;
+		break;
+	case WI_NIC_3874A:
+		printf("RF:PRISM2.5 MAC:ISL3874A(PCI)");
+		sc->wi_prism2 = 1;
+		break;
+	default:
+		printf("Lucent chip or unknown chip\n");
+		sc->wi_prism2 = 0;
+		break;
+	}
+
+	if (sc->wi_prism2) {
+		/* try to get prism2 firm version */
+		memset(&ver, 0, sizeof(ver));
+		ver.wi_type = WI_RID_IDENT;
+		ver.wi_len = 5;
+		wi_read_record(sc, (struct wi_ltv_gen *)&ver);
+		LE16TOH(ver.wi_ver[1]);
+		LE16TOH(ver.wi_ver[2]);
+		LE16TOH(ver.wi_ver[3]);
+		printf(", Firmware: %i.%i variant %i\n", ver.wi_ver[2],
+		       ver.wi_ver[3], ver.wi_ver[1]);
+		sc->wi_prism2_ver = ver.wi_ver[2] * 100 +
+				    ver.wi_ver[3] *  10 + ver.wi_ver[1];
+	}
+
+	return;
 }
 
 static void wi_rxeof(sc)
