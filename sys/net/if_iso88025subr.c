@@ -94,15 +94,15 @@ iso88025_ifattach(struct ifnet *ifp)
         ifp->if_mtu = ISO88025_DEFAULT_MTU;
     ifp->if_broadcastaddr = etherbroadcastaddr;
 
-        ifa = ifaddr_byindex(ifp->if_index);
-        if (ifa == 0) {
-                printf("iso88025_ifattach: no lladdr!\n");
-                return;
-        }
-        sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-        sdl->sdl_type = IFT_ISO88025;
-        sdl->sdl_alen = ifp->if_addrlen;
-        bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+    ifa = ifaddr_byindex(ifp->if_index);
+    if (ifa == 0) {
+            printf("iso88025_ifattach: no lladdr!\n");
+            return;
+    }
+    sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+    sdl->sdl_type = IFT_ISO88025;
+    sdl->sdl_alen = ifp->if_addrlen;
+    bcopy(IFP2AC(ifp)->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
 }
 
 /*
