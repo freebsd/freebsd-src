@@ -1,9 +1,9 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/28/93
-# 	$Id: $
+# 	$Id: Makefile,v 1.3 1996/05/07 23:19:49 wosch Exp $
 
 PROG=	fsinfo
 MAN8=	fsinfo.8
-SRCS=	fsinfo.c fsi_gram.c fsi_lex.c \
+SRCS=	fsinfo.c fsi_gram.c fsi_gram.h fsi_lex.c \
 	fsi_util.c fsi_analyze.c fsi_dict.c \
 	wr_atab.c wr_bparam.c wr_dumpset.c \
 	wr_exportfs.c wr_fstab.c
@@ -16,6 +16,7 @@ CFLAGS+=-I${.CURDIR}/../config
 CFLAGS+=-DOS_HDR=\"os-bsd44.h\"
 
 fsi_lex.o fsinfo.o: fsi_gram.h
+.ORDER: fsi_gram.c fsi_gram.h
 fsi_gram.c fsi_gram.h: ../fsinfo/fsi_gram.y
 	@echo "# expect 2 shift/reduce conflicts"
 	${YACC} -d ${.CURDIR}/fsi_gram.y
