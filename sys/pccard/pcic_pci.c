@@ -87,8 +87,6 @@ doing so will cause probelms.  Often when no interrupts appear to be routed\n\
 setting this tunable to 1 will resolve the problem.  PCI Cards will almost\n\
 always require this, while builtin bridges need it less often");
 
-typedef void (*init_t)(device_t);
-
 static void pcic_pci_cardbus_init(device_t);
 static pcic_intr_mapirq_t pcic_pci_gen_mapirq;
 
@@ -179,14 +177,13 @@ static struct pcic_chip pcic_pci_topic_chip = {
 	pcic_pci_topic_init
 };
 
-
 struct pcic_pci_table
 {
 	u_int32_t	devid;
 	const char	*descr;
 	int		type;
 	u_int32_t	flags;
- 	struct pcic_chip *chip;
+	struct pcic_chip *chip;
 } pcic_pci_devs[] = {
 	{ PCI_DEVICE_ID_PCIC_CLPD6729,
 	  "Cirrus Logic PD6729/6730 PC-Card Controller",
