@@ -36,7 +36,6 @@
 #ifndef _AIC7XXX_H_
 #define _AIC7XXX_H_
 
-#include "ahc.h"                /* for NAHC from config */
 #include "opt_aic7xxx.h"	/* for config options */
 
 #include <sys/bus.h>		/* For device_t */
