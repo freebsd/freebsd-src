@@ -23,6 +23,8 @@ SOFTWARE.
 
 /*
  * bootpd.h -- common header file for all the modules of the bootpd program.
+ *
+ * $FreeBSD$
  */
 
 #include "bptypes.h"
@@ -181,7 +183,7 @@ struct host {
 				       RFC951 only allocates 1 byte. . . */
 			    haddr[MAXHADDRLEN];
     int32		    time_offset;
-    unsigned int32	    bootsize,
+    u_int32		    bootsize,
 			    msg_size,
 			    min_wait;
     struct in_addr	    bootserver,
