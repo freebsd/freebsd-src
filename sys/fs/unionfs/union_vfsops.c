@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $Id: union_vfsops.c,v 1.24 1998/02/04 22:32:53 eivind Exp $
+ * $Id: union_vfsops.c,v 1.25 1998/02/06 12:13:44 eivind Exp $
  */
 
 /*
@@ -96,7 +96,6 @@ union_mount(mp, path, data, ndp, p)
 	char *cp = 0;
 	int len;
 	u_int size;
-	int islowerunlocked = 0;
 
 #ifdef UNION_DIAGNOSTIC
 	printf("union_mount(mp = %x)\n", mp);
