@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: fdwrite.c,v 1.1.1.1 1994/09/18 07:39:19 phk Exp $
  *
  */
 
@@ -19,7 +19,6 @@
 
 #include <errno.h>
 #include <machine/ioctl_fd.h>
-#include <i386/isa/fdreg.h>	/* XXX should be in <machine> dir */
 
 int
 format_track(int fd, int cyl, int secs, int head, int rate,
