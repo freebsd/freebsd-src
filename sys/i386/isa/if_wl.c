@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.11 1998/02/20 13:11:47 bde Exp $ */
+/* $Id: if_wl.c,v 1.12 1998/06/07 17:10:38 dfr Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -263,7 +263,6 @@ static struct wl_softc wl_softc[NWL];
 
 static int	wlprobe(struct isa_device *);
 static int	wlattach(struct isa_device *);
-void   		wlintr(int);	/* no, not static */
 
 struct isa_driver wldriver = {
     wlprobe, wlattach, "wl", 0
