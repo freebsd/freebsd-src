@@ -38,7 +38,7 @@
 #endif
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: apprentice.c,v 1.49 2002/07/03 19:00:41 christos Exp $")
+FILE_RCSID("@(#)$Id: apprentice.c,v 1.50 2003/02/27 20:47:46 christos Exp $")
 #endif	/* lint */
 
 #define	EATAB {while (isascii((unsigned char) *l) && \
@@ -231,7 +231,7 @@ apprentice_file(struct magic **magicp, uint32_t *nmagicp, const char *fn,
 	}
 
         maxmagic = MAXMAGIS;
-	*magicp = (struct magic *) calloc(sizeof(struct magic), maxmagic);
+	*magicp = (struct magic *) calloc(maxmagic, sizeof(struct magic));
 	if (*magicp == NULL) {
 		(void) fprintf(stderr, "%s: Out of memory (%s).\n", progname,
 		    strerror(errno));

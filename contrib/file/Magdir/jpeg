@@ -59,3 +59,6 @@
 
 # HSI is Handmade Software's proprietary JPEG encoding scheme
 0	string		hsi1		JPEG image data, HSI proprietary
+
+# From: David Santinoli <david@santinoli.com>
+0	string		\x00\x00\x00\x0C\x6A\x50\x20\x20\x0D\x0A\x87\x0A	JPEG 2000 image data
