@@ -1305,15 +1305,15 @@ mn_probe (device_t self)
 	u_int id = pci_get_devid(self);
 
 	if (sizeof (struct m32xreg) != 256) {
-		printf("MN: sizeof(struct m32xreg) = %d, should have been 256\n", sizeof (struct m32xreg));
+		printf("MN: sizeof(struct m32xreg) = %zd, should have been 256\n", sizeof (struct m32xreg));
 		return (ENXIO);
 	}
 	if (sizeof (struct f54rreg) != 128) {
-		printf("MN: sizeof(struct f54rreg) = %d, should have been 128\n", sizeof (struct f54rreg));
+		printf("MN: sizeof(struct f54rreg) = %zd, should have been 128\n", sizeof (struct f54rreg));
 		return (ENXIO);
 	}
 	if (sizeof (struct f54wreg) != 128) {
-		printf("MN: sizeof(struct f54wreg) = %d, should have been 128\n", sizeof (struct f54wreg));
+		printf("MN: sizeof(struct f54wreg) = %zd, should have been 128\n", sizeof (struct f54wreg));
 		return (ENXIO);
 	}
 
