@@ -50,6 +50,8 @@
 #define SHOW_CKSUM	0x04000
 #define SHOW_FMTREV	0x08000
 #define SHOW_PTREV	0x10000
+#define SHOW_DEPEND	0x20000
+#define SHOW_PKGNAME	0x40000
 
 struct which_entry {
     TAILQ_ENTRY(which_entry) next;

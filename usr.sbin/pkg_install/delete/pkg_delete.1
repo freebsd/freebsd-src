@@ -17,7 +17,7 @@
 .\"     @(#)pkg_delete.1
 .\" $FreeBSD$
 .\"
-.Dd November 25, 1994
+.Dd June 29, 2004
 .Dt PKG_DELETE 1
 .Os
 .Sh NAME
@@ -25,7 +25,7 @@
 .Nd a utility for deleting previously installed software package distributions
 .Sh SYNOPSIS
 .Nm
-.Op Fl dDfGinrvx
+.Op Fl dDfGinrvxX
 .Op Fl p Ar prefix
 .Ar pkg-name ...
 .Nm
@@ -119,6 +119,12 @@ provided, in that case
 .Nm
 deletes all packages that match at least one
 regular expression from the list.
+.It Fl X
+Like
+.Fl x ,
+but treats the
+.Ar pkg-name
+as an extended regular expression.
 .It Fl r
 Recursive removal.  In addition to specified packages, delete all
 packages that depend on those packages as well.
@@ -271,6 +277,7 @@ Default location of the installed package database.
 .Sh AUTHORS
 .An Jordan Hubbard
 .Sh CONTRIBUTORS
-.An John Kohl Aq jtk@rational.com
+.An John Kohl Aq jtk@rational.com ,
+.An Oliver Eikemeier Aq eik@FreeBSD.org
 .Sh BUGS
 Sure to be some.
