@@ -233,7 +233,7 @@ vfsload(const char *name)
 
 	snprintf(name_mod, sizeof name_mod, "%s%s", name, "_mod");
 	status = execlp("modload", "modload", "-e", name_mod, "-o", name_mod,
-			path, (const char *)0);
+			"-u", "-q", path, (const char *)0);
 
 	exit(status ? errno : 0);
 }
