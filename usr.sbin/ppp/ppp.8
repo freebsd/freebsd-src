@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.30 1997/04/21 01:01:56 brian Exp $
+.\" $Id: ppp.8,v 1.31 1997/05/04 02:39:04 ache Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -685,7 +685,7 @@ Examine the files
 .Pa /etc/ppp/sample.ppp-dialup
 .Pa /etc/ppp/sample.ppp-pap-dialup
 and
-.Pa /etc/ppp/sample.ppp.conf
+.Pa /etc/ppp/ppp.conf.sample
 for ideas.   ppp-pap-dialup is supposed to be called from
 .Pa /usr/local/etc/mgetty+sendfax/login.conf
 from a line like
