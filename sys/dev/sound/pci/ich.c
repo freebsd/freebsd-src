@@ -44,6 +44,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define SIS7012ID       0x70121039      /* SiS 7012 needs special handling */
 #define ICH4ID		0x24c58086	/* ICH4 needs special handling too */
 #define ICH5ID		0x24d58086	/* ICH5 needs to be treated as ICH4 */
+#define ICH6ID		0x266e8086	/* ICH6 needs to be treated as ICH4 */
 
 /* buffer descriptor */
 struct ich_desc {
@@ -580,7 +581,8 @@ ich_init(struct sc_info *sc)
 	if ((stat & ICH_GLOB_STA_PCR) == 0) {
 		/* ICH4/ICH5 may fail when busmastering is enabled. Continue */
 		if ((pci_get_devid(sc->dev) != ICH4ID) &&
-		    (pci_get_devid(sc->dev) != ICH5ID)) {
+		    (pci_get_devid(sc->dev) != ICH5ID) &&
+		    (pci_get_devid(sc->dev) != ICH6ID)) {
 			return ENXIO;
 		}
 	}
@@ -634,6 +636,10 @@ ich_pci_probe(device_t dev)
 
 	case ICH5ID:
 		device_set_desc(dev, "Intel ICH5 (82801EB)");
+		return -1000;	/* allow a better driver to override us */
+
+	case ICH6ID:
+		device_set_desc(dev, "Intel ICH6 (82801FB)");
 		return -1000;	/* allow a better driver to override us */
 
 	case SIS7012ID:
@@ -717,7 +723,7 @@ ich_pci_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	if (pci_get_devid(dev) == ICH5ID) {
+	if (pci_get_devid(dev) == ICH5ID || pci_get_devid(dev) == ICH6ID) {
 		sc->nambarid = PCIR_MMBAR;
 		sc->nabmbarid = PCIR_MBBAR;
 		sc->regtype = SYS_RES_MEMORY;
