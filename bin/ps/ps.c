@@ -86,6 +86,11 @@ __FBSDID("$FreeBSD$");
 #define	W_SEP	" \t"		/* "Whitespace" list separators */
 #define	T_SEP	","		/* "Terminate-element" list separators */
 
+/* The value of this selects how extra parameters to `ps' are handled. */
+#ifndef PS_BACKWARD_COMPATIBILITY
+#define	PS_BACKWARD_COMPATIBILITY	1
+#endif
+
 #ifdef LAZY_PS
 #define	DEF_UREAD	0
 #define	OPT_LAZY_f	"f"
@@ -409,8 +414,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-#define	BACKWARD_COMPATIBILITY
-#ifndef BACKWARD_COMPATIBILITY		/* This is the 5.x behavior. */
+#if PS_BACKWARD_COMPATIBILITY == 0	/* This is the 5.x behavior. */
 	/*
 	 * If there arguments after processing all the options, attempt
 	 * to treat them as a list of process ids.
@@ -432,7 +436,7 @@ main(int argc, char *argv[])
 	if (xkeep < 0)			/* Neither -X nor -x was specified. */
 		xkeep = xkeep_implied;
 
-#ifdef	BACKWARD_COMPATIBILITY
+#if PS_BACKWARD_COMPATIBILITY != 0	/* Historical (undocumented) behavior */
 	if (*argv) {
 		nlistf = *argv;
 		if (*++argv)
