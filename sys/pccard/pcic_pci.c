@@ -196,16 +196,16 @@ struct pcic_pci_table
 } pcic_pci_devs[] = {
 	{ PCI_DEVICE_ID_PCIC_CLPD6729,
 	  "Cirrus Logic PD6729/6730 PC-Card Controller",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
+	  PCIC_PD6729, PCIC_PD_POWER, &pcic_pci_pd67xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6832,
 	  "Cirrus Logic PD6832 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6833,
 	  "Cirrus Logic PD6833 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_CLPD6834,
 	  "Cirrus Logic PD6834 PCI-CardBus Bridge",
-	  PCIC_PD672X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
+	  PCIC_PD673X, PCIC_PD_POWER, &pcic_pci_pd68xx_chip },
 	{ PCI_DEVICE_ID_PCIC_OZ6729,
 	  "O2micro OZ6729 PC-Card Bridge",
 	  PCIC_I82365, PCIC_AB_POWER, &pcic_pci_oz67xx_chip },
@@ -772,6 +772,17 @@ pcic_pci_ti_init(device_t dev)
 static int
 pcic_pci_topic_func(struct pcic_slot *sp, enum pcic_intr_way way)
 {
+#ifdef THIS_BRAEKS_THINGS
+	device_t	dev = sp->sc->dev;
+	u_int32_t	scr;
+
+	scr = pci_read_config(dev, TOPIC_SOCKET_CTRL, 4);
+	if (way == pcic_iw_pci)
+		scr |= TOPIC_SOCKET_CTRL_SCR_IRQSEL;
+	else
+		scr &= ~TOPIC_SOCKET_CTRL_SCR_IRQSEL;
+	pci_write_config(dev, TOPIC_SLOT_CTRL, scr, 4);
+#endif
 	return (pcic_pci_gen_func(sp, way));
 }
 
@@ -779,14 +790,19 @@ static int
 pcic_pci_topic_csc(struct pcic_slot *sp, enum pcic_intr_way way)
 {
 	device_t	dev = sp->sc->dev;
-	u_int32_t	icr;
+	u_int32_t	scr;
+	u_int32_t device_id;
 
-	icr = pci_read_config(dev, TOPIC_INTERRUPT_CONTROL, 1);
-	if (way == pcic_iw_pci)
-		icr |= TOPIC_ICR_INTA;
-	else
-		icr &= ~TOPIC_ICR_INTA;
-	pci_write_config(dev, TOPIC_INTERRUPT_CONTROL, icr, 1);
+	device_id = pci_get_devid(dev);
+	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
+	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97) {
+		scr = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
+		if (way == pcic_iw_pci)
+			scr |= TOPIC97_SLOT_CTRL_PCIINT;
+		else
+			scr &= ~TOPIC97_SLOT_CTRL_PCIINT;
+		pci_write_config(dev, TOPIC_SLOT_CTRL, scr, 4);
+	}
 
 	return (0);
 }
@@ -795,7 +811,8 @@ static void
 pcic_pci_topic_init(device_t dev)
 {
 	struct pcic_softc *sc = device_get_softc(dev);
-	u_int32_t device_id;
+	u_int32_t	reg;
+	u_int32_t	device_id;
 
 	device_id = pci_get_devid(dev);
 	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
@@ -810,6 +827,14 @@ pcic_pci_topic_init(device_t dev)
 		pcic_setb(&sc->slots[0], PCIC_TOPIC_FCR,
 		    PCIC_FCR_3V_EN | PCIC_FCR_VS_EN);
 	}
+	reg = pci_read_config(dev, TOPIC_SLOT_CTRL, 4);
+	reg |= (TOPIC_SLOT_CTRL_SLOTON | TOPIC_SLOT_CTRL_SLOTEN | 
+	    TOPIC_SLOT_CTRL_ID_LOCK | TOPIC_SLOT_CTRL_CARDBUS);
+	reg &= ~TOPIC_SLOT_CTRL_SWDETECT;
+	if (device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC100 ||
+	    device_id == PCI_DEVICE_ID_TOSHIBA_TOPIC97)
+		reg &= ~(TOPIC97_SLOT_CTRL_STSIRQP | TOPIC97_SLOT_CTRL_IRQP);
+	pci_write_config(dev, TOPIC_SLOT_CTRL, reg, 4);
 	pcic_pci_cardbus_init(dev);
 }
 
@@ -891,13 +916,18 @@ pcic_cd_change(void *arg)
  	sc->cd_pending = 0;
 	stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 
-	/* If the card left, remove it from the system. */
-	if ((stat & CB_SS_CD) != 0) {
+	/* Status changed while present; remove the card from the system. */
+	if (sc->cd_present) {
 		sc->cd_present = 0;
 		pccard_event(sp->slt, card_removed);
-		return;
 	}
+	/* Nothing to do if the debounced state is 'not present'. */
+	if ((stat & CB_SS_CD) != 0)
+		return;
+
 	sc->cd_present = 1;
+	if (bootverbose && (stat & CB_SS_BADVCC) != 0)
+		device_printf(sc->dev, "BAD Vcc request\n");
 	if ((stat & CB_SS_16BIT) == 0)
 		device_printf(sp->sc->dev, "Card type %s is unsupported\n",
 		    pcic_pci_cardtype(stat));
@@ -911,31 +941,28 @@ pcic_pci_intr(void *arg)
 	struct pcic_softc *sc = (struct pcic_softc *) arg;
 	struct pcic_slot *sp = &sc->slots[0];
 	u_int32_t event;
-	u_int32_t stat;
-	int present;
 
 	event = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_EVENT);
 	if (event != 0) {
-		stat = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
 		if (bootverbose)
-			device_printf(sc->dev, "Event mask 0x%x stat 0x%x\n",
-			    event, stat);
+			device_printf(sc->dev, "Event mask 0x%x\n", event);
 
-		present = (stat & CB_SS_CD) == 0;
-		if (present != sc->cd_present) {
+		/*
+		 * Treat all card-detect signal transitions the same way
+		 * since we can't reliably tell if this is an insert or a
+		 * remove event. Stop the card from getting interrupts and
+		 * defer the insert/remove event until the CB_SOCKET_STATE
+		 * signals have had time to settle.
+		 */
+		if ((event & CB_SE_CD) != 0) {
 			if (sc->cd_pending) {
 				untimeout(pcic_cd_change, arg, sc->cd_ch);
 				sc->cd_pending = 0;
 			}
-			/* Delay insert events to debounce noisy signals. */
 			sc->cd_pending = 1;
 			sc->cd_ch = timeout(pcic_cd_change, arg, hz/2);
-			/* if the card is gone, stop interrupts to it */
-			if (!present)
-				sc->func_intr = NULL;
+			sc->func_intr = NULL;
 		}
-		if (bootverbose && (stat & CB_SS_BADVCC) != 0)
-			device_printf(sc->dev, "BAD Vcc request\n");
 
 		/* Ack the interrupt */
 		bus_space_write_4(sp->bst, sp->bsh, 0, event);
@@ -1041,9 +1068,13 @@ pcic_pci_probe(device_t dev)
 static void
 pcic_pci_shutdown(device_t dev)
 {
+/*
+ * More reports of things working w/o this code than with it.
+ */
+#if 0
 	struct pcic_softc *sc;
 	struct pcic_slot *sp;
-		
+
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sp = &sc->slots[0];
 
@@ -1068,6 +1099,7 @@ pcic_pci_shutdown(device_t dev)
 	sp->putb(sp, PCIC_INT_GEN, 0);
 	sp->putb(sp, PCIC_STAT_INT, 0);
 	sp->putb(sp, PCIC_POWER, 0);
+	DELAY(4000);
 
 	/*
 	 * Writing to INT_GEN can cause an interrupt, so we blindly
@@ -1082,6 +1114,24 @@ pcic_pci_shutdown(device_t dev)
 	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, 0);
 	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_EVENT, 0xffffffff);
 	sp->getb(sp, PCIC_STAT_CHG);
+#endif
+}
+
+/*
+ * Print out the config space
+ */
+static void
+pcic_pci_print_config(device_t dev)
+{
+	int i;
+	
+	device_printf(dev, "PCI Configuration space:");
+	for (i = 0; i < 256; i += 4) {
+		if (i % 16 == 0)
+			printf("\n  0x%02x: ", i);
+		printf("0x%08x ", pci_read_config(dev, i, 4));
+	}
+	printf("\n");
 }
 
 /*
@@ -1125,19 +1175,18 @@ pcic_pci_attach(device_t dev)
 		    &sc->iorid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 		if (sc->iores == NULL)
 			return (ENOMEM);
-		sp->bst = rman_get_bustag(sc->iores);
-		sp->bsh = rman_get_bushandle(sc->iores);
-		sp->controller = PCIC_PD672X;
-		sp->revision = 0;
 		sc->flags = PCIC_PD_POWER;
 		itm = pcic_pci_lookup(device_id, &pcic_pci_devs[0]);
 		for (i = 0; i < 2; i++) {
+			sp[i].bst = rman_get_bustag(sc->iores);
+			sp[i].bsh = rman_get_bushandle(sc->iores);
+			sp[i].sc = sc;
+			sp[i].revision = 0;
 			sp[i].getb = pcic_getb_io;
 			sp[i].putb = pcic_putb_io;
 			sp[i].offset = i * PCIC_SLOT_SIZE;
-			sp[i].controller = PCIC_PD672X;
-			printf("ID is 0x%x\n", sp[i].getb(sp, PCIC_ID_REV));
-			if ((sp[i].getb(sp, PCIC_ID_REV) & 0xc0) == 0x80)
+			sp[i].controller = itm ? itm->type : PCIC_PD6729;
+			if ((sp[i].getb(&sp[i], PCIC_ID_REV) & 0xc0) == 0x80)
 				sp[i].slt = (struct slot *) 1;
 		}
 		/*
@@ -1244,6 +1293,8 @@ pcic_pci_attach(device_t dev)
 			return (error);
 		}
 	}
+	if (bootverbose)
+		pcic_pci_print_config(dev);
 	return (pcic_attach(dev));
 }
 
@@ -1361,13 +1412,33 @@ pcic_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
+static int
+pcic_pci_resume(device_t dev)
+{
+	struct pcic_softc *sc = device_get_softc(dev);
+
+	/*
+	 * Some BIOSes will not save the BARs for the pci chips, so we
+	 * must do it ourselves.  If the BAR is reset to 0 for an I/O
+	 * device, it will read back as 0x1, so no explicit test for
+	 * memory devices are needed.
+	 *
+	 * Note: The PCI bus code should do this automatically for us on
+	 * suspend/resume, but until it does, we have to cope.
+	 */
+	if (pci_read_config(dev, CB_PCI_SOCKET_BASE, 4) == 0)
+                pci_write_config(dev, CB_PCI_SOCKET_BASE,
+		    rman_get_start(sc->memres), 4);
+	return (bus_generic_resume(dev));
+}
+
 static device_method_t pcic_pci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_pci_probe),
 	DEVMETHOD(device_attach,	pcic_pci_attach),
 	DEVMETHOD(device_detach,	pcic_pci_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	pcic_pci_resume),
 	DEVMETHOD(device_shutdown,	pcic_pci_shutdown),
 
 	/* Bus interface */
