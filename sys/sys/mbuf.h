@@ -37,11 +37,7 @@
 #ifndef _SYS_MBUF_H_
 #define	_SYS_MBUF_H_
 
-/*
- * XXXMAC: Possibly this recursive include is a bad idea, but a lot
- * of code exists that assumes it is sufficient to include just mbuf.h
- */
-#include <sys/mac.h>
+#include <sys/_label.h>
 
 /*
  * Mbufs are of a single size, MSIZE (machine/param.h), which

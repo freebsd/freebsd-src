@@ -43,10 +43,10 @@
  */
 #include <sys/lockmgr.h>
 
-#include <sys/mac.h>
 #include <sys/ucred.h>
 #include <sys/queue.h>
 #ifdef _KERNEL
+#include <sys/_label.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #endif
