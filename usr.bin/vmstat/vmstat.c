@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.27 1998/09/20 00:11:17 ken Exp $";
+	"$Id: vmstat.c,v 1.29 1998/10/28 06:41:24 jdp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -278,6 +278,15 @@ main(argc, argv)
 		char **getdrivedata();
 		struct winsize winsize;
 
+		/*
+		 * Make sure that the userland devstat version matches the
+		 * kernel devstat version.  If not, exit and print a
+		 * message informing the user of his mistake.
+		 */
+		if (checkversion() < 0)
+			errx(1, "%s", devstat_errbuf);
+
+
 		argv = getdrivedata(argv);
 		winsize.ws_row = 0;
 		(void) ioctl(STDOUT_FILENO, TIOCGWINSZ, (char *)&winsize);
@@ -425,14 +434,6 @@ dovmstat(interval, reps)
 		kread(X_STATHZ, &hz, sizeof(hz));
 	if (!hz)
 		kread(X_HZ, &hz, sizeof(hz));
-
-	/*
-	 * Make sure that the userland devstat version matches the kernel
-	 * devstat version.  If not, exit and print a message informing 
-	 * the user of his mistake.
-	 */
-	if (checkversion() < 0)
-		errx(1, "%s", devstat_errbuf);
 
 	for (hdrcnt = 1;;) {
 		if (!--hdrcnt)

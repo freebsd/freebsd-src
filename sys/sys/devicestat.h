@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devicestat.h,v 1.2 1998/09/20 00:10:58 ken Exp $
+ *	$Id: devicestat.h,v 1.3 1998/11/14 21:58:41 wollman Exp $
  */
 
 #ifndef _DEVICESTAT_H
@@ -45,7 +45,7 @@
  * userland utilities to determine whether or not they are in sync with the
  * kernel.
  */
-#define DEVSTAT_VERSION	   2
+#define DEVSTAT_VERSION	   3
 
 /*
  * These flags specify which statistics features are supported or not
@@ -71,6 +71,22 @@ typedef enum {
 	DEVSTAT_TAG_ORDERED	= 0x02,
 	DEVSTAT_TAG_NONE	= 0x03
 } devstat_tag_type;
+
+typedef enum {
+	DEVSTAT_PRIORITY_MIN	= 0x000,
+	DEVSTAT_PRIORITY_OTHER	= 0x020,
+	DEVSTAT_PRIORITY_PASS	= 0x030,
+	DEVSTAT_PRIORITY_FD	= 0x040,
+	DEVSTAT_PRIORITY_WFD	= 0x050,
+	DEVSTAT_PRIORITY_SA	= 0x060,
+	DEVSTAT_PRIORITY_OCD	= 0x070,
+	DEVSTAT_PRIORITY_WCD	= 0x080,
+	DEVSTAT_PRIORITY_CD	= 0x090,
+	DEVSTAT_PRIORITY_WD	= 0x100,
+	DEVSTAT_PRIORITY_DA	= 0x110,
+	DEVSTAT_PRIORITY_CCD	= 0x120,
+	DEVSTAT_PRIORITY_MAX	= 0xfff
+} devstat_priority;
 
 /*
  * These types are intended to aid statistics gathering/display programs.
@@ -179,13 +195,15 @@ struct devstat {
 						      * given device.
 						      */
 	devstat_type_flags	device_type;	     /* Device type */
+	devstat_priority	priority;	     /* Controls list pos. */
 };
 
 #ifdef KERNEL
 void devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		       int unit_number, u_int32_t block_size,
 		       devstat_support_flags flags,
-		       devstat_type_flags device_type);
+		       devstat_type_flags device_type,
+		       devstat_priority priority);
 void devstat_remove_entry(struct devstat *ds);
 void devstat_start_transaction(struct devstat *ds);
 void devstat_end_transaction(struct devstat *ds, u_int32_t bytes, 
