@@ -141,6 +141,7 @@ static void	nfs_rcvunlock __P((int *flagp, int *statep));
 static void	nfs_realign __P((struct mbuf **pm, int hsiz));
 static int	nfs_receive __P((struct nfsreq *rep, struct sockaddr **aname,
 				 struct mbuf **mp));
+static void	nfs_softterm __P((struct nfsreq *rep));
 static int	nfs_reconnect __P((struct nfsreq *rep));
 #ifndef NFS_NOSERVER 
 static int	nfsrv_getstream __P((struct nfssvc_sock *,int));
@@ -860,8 +861,10 @@ nfsmout:
 					if (nmp->nm_cwnd > NFS_MAXCWND)
 						nmp->nm_cwnd = NFS_MAXCWND;
 				}
-				rep->r_flags &= ~R_SENT;
-				nmp->nm_sent -= NFS_CWNDSCALE;
+				if (rep->r_flags & R_SENT) {
+					rep->r_flags &= ~R_SENT;
+					nmp->nm_sent -= NFS_CWNDSCALE;
+				}
 				/*
 				 * Update rtt using a gain of 0.125 on the mean
 				 * and a gain of 0.25 on the deviation.
@@ -1380,7 +1383,7 @@ nfs_timer(arg)
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM))
 			continue;
 		if (nfs_sigintr(nmp, rep, rep->r_procp)) {
-			rep->r_flags |= R_SOFTTERM;
+			nfs_softterm(rep);
 			continue;
 		}
 		if (rep->r_rtt >= 0) {
@@ -1408,7 +1411,7 @@ nfs_timer(arg)
 		}
 		if (rep->r_rexmit >= rep->r_retry) {	/* too many */
 			nfsstats.rpctimeouts++;
-			rep->r_flags |= R_SOFTTERM;
+			nfs_softterm(rep);
 			continue;
 		}
 		if (nmp->nm_sotype != SOCK_DGRAM) {
@@ -1487,6 +1490,23 @@ nfs_timer(arg)
 	nfs_timer_handle = timeout(nfs_timer, (void *)0, nfs_ticks);
 }
 
+/*
+ * Flag a request as being about to terminate (due to NFSMNT_INT/NFSMNT_SOFT).
+ * The nm_send count is decremented now to avoid deadlocks when the process in
+ * soreceive() hasn't yet managed to send its own request.
+ */
+
+static void
+nfs_softterm(rep)
+	struct nfsreq *rep;
+{
+	rep->r_flags |= R_SOFTTERM;
+
+	if (rep->r_flags & R_SENT) {
+		rep->r_nmp->nm_sent -= NFS_CWNDSCALE;
+		rep->r_flags &= ~R_SENT;
+	}
+}
 
 /*
  * Test for a termination condition pending on the process.
