@@ -600,8 +600,13 @@ int yp_next_record(dbp,key,data,all,allow)
 		rval = yp_first_record(dbp,key,data,allow);
 		if (rval == YP_NOKEY)
 			return(YP_NOMORE);
-		else
+		else {
+#ifdef DB_CACHE
+			qhead.cqh_first->dbptr->key = key->data;
+			qhead.cqh_first->dbptr->size = key->size;
+#endif
 			return(rval);
+		}
 	}
 
 	if (ypdb_debug)
