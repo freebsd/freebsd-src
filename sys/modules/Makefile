@@ -101,6 +101,7 @@ SUBDIR=	${_3dfx} \
 	if_tun \
 	if_vlan \
 	${_iir} \
+	${_io} \
 	ip6fw \
 	${_ipfilter} \
 	ipfw \
@@ -131,6 +132,7 @@ SUBDIR=	${_3dfx} \
 	mac_test \
 	mcd \
 	md \
+	mem \
 	mii \
 	mlx \
 	${_mly} \
@@ -149,7 +151,7 @@ SUBDIR=	${_3dfx} \
 	${_nsp} \
 	ntfs \
 	ntfs_iconv \
-	${_null} \
+	null \
 	nullfs \
 	${_nwfs} \
 	${_oltr} \
@@ -252,7 +254,6 @@ _syscons=	syscons
 .endif
 
 .if defined(ALL_MODULES)
-_null=		null
 _ufs=		ufs
 .endif
 
@@ -301,6 +302,7 @@ _hfa=		hfa
 _i2c=		i2c
 _ibcs2=		ibcs2
 _ie=		ie
+_io=		io
 _linprocfs=	linprocfs
 _linux=		linux
 _lnc=		lnc
@@ -374,6 +376,7 @@ _sppp=		sppp
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
+_io=		io
 #_ndis=		ndis
 .endif
 

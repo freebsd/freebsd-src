@@ -88,7 +88,7 @@ sparc64/sparc64/intr_machdep.c	standard
 sparc64/sparc64/iommu.c		standard
 sparc64/sparc64/locore.S	standard	no-obj
 sparc64/sparc64/machdep.c	standard
-sparc64/sparc64/mem.c		standard
+sparc64/sparc64/mem.c		optional	mem
 sparc64/sparc64/mp_exception.S	optional	smp
 sparc64/sparc64/mp_locore.S	optional	smp
 sparc64/sparc64/mp_machdep.c	optional	smp

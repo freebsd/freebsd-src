@@ -836,8 +836,14 @@ options 	EXT2FS
 # unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
 
-# Cryptographically secure random number generator; /dev/[u]random
+# Cryptographically secure random number generator; /dev/random
 device		random
+
+# The bit-bucket; /dev/null
+device		null
+
+# The system memory devices; /dev/mem, /dev/kmem
+device		mem
 
 # Optional character code conversion support with LIBICONV.
 # Each option requires their base file system and LIBICONV.

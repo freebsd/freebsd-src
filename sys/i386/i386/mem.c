@@ -58,81 +58,31 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 
-#include <machine/db_machdep.h>
-#include <machine/frame.h>
-#include <machine/psl.h>
 #include <machine/specialreg.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-static struct cdev *memdev, *kmemdev, *iodev;
+#include <machine/memdev.h>
 
-static	d_open_t	mmopen;
-static	d_close_t	mmclose;
-static	d_read_t	mmrw;
-static	d_ioctl_t	mmioctl;
-static	d_mmap_t	memmmap;
-
-#define CDEV_MAJOR 2
-static struct cdevsw mem_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	mmopen,
-	.d_close =	mmclose,
-	.d_read =	mmrw,
-	.d_write =	mmrw,
-	.d_ioctl =	mmioctl,
-	.d_mmap =	memmmap,
-	.d_name =	"mem",
-	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_MEM | D_NEEDGIANT,
-};
-
+/*
+ * Used in /dev/mem drivers and elsewhere
+ */
 MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
-
 struct mem_range_softc mem_range_softc;
 
-static int
-mmclose(struct cdev *dev, int flags, int fmt, struct thread *td)
+void
+mem_range_AP_init(void)
 {
-	switch (minor(dev)) {
-	case 14:
-		td->td_frame->tf_eflags &= ~PSL_IOPL;
-	}
-	return (0);
+	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
+		mem_range_softc.mr_op->initAP(&mem_range_softc);
 }
 
-static int
-mmopen(struct cdev *dev, int flags, int fmt, struct thread *td)
-{
-	int error;
 
-	switch (minor(dev)) {
-	case 0:
-	case 1:
-		if (flags & FWRITE) {
-			error = securelevel_gt(td->td_ucred, 0);
-			if (error != 0)
-				return (error);
-		}
-		break;
-	case 14:
-		error = suser(td);
-		if (error != 0)
-			return (error);
-		error = securelevel_gt(td->td_ucred, 0);
-		if (error != 0)
-			return (error);
-		td->td_frame->tf_eflags |= PSL_IOPL;
-		break;
-	}
-	return (0);
-}
-
-/*ARGSUSED*/
-static int
-mmrw(struct cdev *dev, struct uio *uio, int flags)
+/* ARGSUSED */
+int
+memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	int o;
 	u_int c = 0, v;
@@ -148,13 +98,10 @@ mmrw(struct cdev *dev, struct uio *uio, int flags)
 			uio->uio_iov++;
 			uio->uio_iovcnt--;
 			if (uio->uio_iovcnt < 0)
-				panic("mmrw");
+				panic("memrw");
 			continue;
 		}
-		switch (minor(dev)) {
-
-/* minor device 0 is physical memory */
-		case 0:
+		if (minor(dev) == CDEV_MINOR_MEM) {
 			v = uio->uio_offset;
 			v &= ~PAGE_MASK;
 			pmap_kenter((vm_offset_t)ptvmmap, v);
@@ -165,14 +112,14 @@ mmrw(struct cdev *dev, struct uio *uio, int flags)
 			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
 			pmap_qremove((vm_offset_t)ptvmmap, 1);
 			continue;
-
-/* minor device 1 is kernel memory */
-		case 1:
+		}
+		else if (minor(dev) == CDEV_MINOR_KMEM) {
 			c = iov->iov_len;
 
 			/*
-			 * Make sure that all of the pages are currently resident so
-			 * that we don't create any zero-fill pages.
+			 * Make sure that all of the pages are currently
+			 * resident so that we don't create any zero-fill
+			 * pages.
 			 */
 			addr = trunc_page(uio->uio_offset);
 			eaddr = round_page(uio->uio_offset + c);
@@ -189,44 +136,26 @@ mmrw(struct cdev *dev, struct uio *uio, int flags)
 				return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
-
-		default:
-			return (ENODEV);
 		}
-
-		if (error)
-			break;
-		iov->iov_base = (char *)iov->iov_base + c;
-		iov->iov_len -= c;
-		uio->uio_offset += c;
-		uio->uio_resid -= c;
+		/* else panic! */
 	}
 	return (error);
 }
 
-/*******************************************************\
-* allow user processes to MMAP some memory sections	*
-* instead of going through read/write			*
-\*******************************************************/
-static int
-memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
+/*
+ * allow user processes to MMAP some memory sections
+ * instead of going through read/write
+ */
+/* ARGSUSED */
+int
+memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
+    int prot __unused)
 {
-	switch (minor(dev))
-	{
-
-	/* minor device 0 is physical memory */
-	case 0:
+	if (minor(dev) == CDEV_MINOR_MEM)
 		*paddr = offset;
-		break;
-
-	/* minor device 1 is kernel memory */
-	case 1:
+	else if (minor(dev) == CDEV_MINOR_KMEM)
         	*paddr = vtophys(offset);
-		break;
-
-	default:
-		return (-1);
-	}
+	/* else panic! */
 	return (0);
 }
 
@@ -236,8 +165,10 @@ memmmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr, int prot)
  * This is basically just an ioctl shim for mem_range_attr_get
  * and mem_range_attr_set.
  */
-static int 
-mmioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *td)
+/* ARGSUSED */
+int 
+memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
+    struct thread *td)
 {
 	int nd, error = 0;
 	struct mem_range_op *mo = (struct mem_range_op *)data;
@@ -317,46 +248,9 @@ mem_range_attr_set(struct mem_range_desc *mrd, int *arg)
 	return (mem_range_softc.mr_op->set(&mem_range_softc, mrd, arg));
 }
 
-#ifdef SMP
 void
-mem_range_AP_init(void)
+dev_mem_md_init(void)
 {
-	if (mem_range_softc.mr_op && mem_range_softc.mr_op->initAP)
-		(mem_range_softc.mr_op->initAP(&mem_range_softc));
+	if (mem_range_softc.mr_op != NULL)
+		mem_range_softc.mr_op->init(&mem_range_softc);
 }
-#endif
-
-static int
-mem_modevent(module_t mod, int type, void *data)
-{
-	switch(type) {
-	case MOD_LOAD:
-		if (bootverbose)
-			printf("mem: <memory & I/O>\n");
-		/* Initialise memory range handling */
-		if (mem_range_softc.mr_op != NULL)
-			mem_range_softc.mr_op->init(&mem_range_softc);
-
-		memdev = make_dev(&mem_cdevsw, 0, UID_ROOT, GID_KMEM,
-			0640, "mem");
-		kmemdev = make_dev(&mem_cdevsw, 1, UID_ROOT, GID_KMEM,
-			0640, "kmem");
-		iodev = make_dev(&mem_cdevsw, 14, UID_ROOT, GID_WHEEL,
-			0600, "io");
-		return (0);
-
-	case MOD_UNLOAD:
-		destroy_dev(memdev);
-		destroy_dev(kmemdev);
-		destroy_dev(iodev);
-		return (0);
-
-	case MOD_SHUTDOWN:
-		return (0);
-
-	default:
-		return (EOPNOTSUPP);
-	}
-}
-
-DEV_MODULE(mem, mem_modevent, NULL);
