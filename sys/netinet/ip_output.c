@@ -1424,6 +1424,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
+		case IP_RECVTTL:
 		case IP_RECVIF:
 		case IP_FAITH:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
@@ -1455,6 +1456,10 @@ ip_ctloutput(so, sopt)
 
 			case IP_RECVDSTADDR:
 				OPTSET(INP_RECVDSTADDR);
+				break;
+
+			case IP_RECVTTL:
+				OPTSET(INP_RECVTTL);
 				break;
 
 			case IP_RECVIF:
@@ -1553,6 +1558,7 @@ ip_ctloutput(so, sopt)
 		case IP_RECVOPTS:
 		case IP_RECVRETOPTS:
 		case IP_RECVDSTADDR:
+		case IP_RECVTTL:
 		case IP_RECVIF:
 		case IP_PORTRANGE:
 		case IP_FAITH:
@@ -1578,6 +1584,10 @@ ip_ctloutput(so, sopt)
 
 			case IP_RECVDSTADDR:
 				optval = OPTBIT(INP_RECVDSTADDR);
+				break;
+
+			case IP_RECVTTL:
+				optval = OPTBIT(INP_RECVTTL);
 				break;
 
 			case IP_RECVIF:

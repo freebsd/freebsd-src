@@ -399,6 +399,8 @@ __END_DECLS
 #define	IP_DUMMYNET_FLUSH	62   /* flush dummynet */
 #define	IP_DUMMYNET_GET		64   /* get entire dummynet pipes */
 
+#define	IP_RECVTTL		65   /* bool; receive IP TTL w/dgram */
+
 /*
  * Defaults and limits for options
  */
