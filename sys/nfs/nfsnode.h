@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id$
+ * $Id: nfsnode.h,v 1.2 1994/08/02 07:52:22 davidg Exp $
  */
 
 /*
@@ -66,6 +66,7 @@ struct nfsnode {
 	time_t	n_attrstamp;		/* Time stamp for cached attributes */
 	struct	sillyrename *n_sillyrename; /* Ptr to silly rename struct */
 	u_quad_t n_size;		/* Current size of file */
+	struct	lockf *n_lockf;		/* Locking record of file */
 	int	n_error;		/* Save write error value */
 	u_long	n_direofoffset;		/* Dir. EOF offset cache */
 	time_t	n_mtime;		 /* Prev modify time. */

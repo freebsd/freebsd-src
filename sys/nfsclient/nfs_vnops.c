@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id$
+ * $Id: nfs_vnops.c,v 1.3 1994/08/02 07:52:18 davidg Exp $
  */
 
 /*
@@ -54,6 +54,7 @@
 #include <sys/vnode.h>
 #include <sys/map.h>
 #include <sys/dirent.h>
+#include <sys/lockf.h>
 
 #include <vm/vm.h>
 
@@ -2204,8 +2205,14 @@ nfs_advlock(ap)
 		int  a_flags;
 	} */ *ap;
 {
+	register struct nfsnode *np = VTONFS(ap->a_vp);
 
-	return (EOPNOTSUPP);
+	/*
+	 * The following kludge is to allow diskless support to work
+	 * until a real NFS lockd is implemented. Basically, just pretend
+	 * that this is a local lock.
+	 */
+	return (lf_advlock(ap, &(np->n_lockf), np->n_size));
 }
 
 /*

@@ -45,6 +45,7 @@ kern/kern_exec.c	standard
 kern/kern_exit.c	standard
 kern/kern_fork.c	standard
 kern/kern_ktrace.c	standard
+kern/kern_lockf.c	standard
 kern/kern_malloc.c	standard
 kern/kern_physio.c	standard
 kern/kern_proc.c	standard
@@ -277,7 +278,6 @@ ufs/ufs/ufs_bmap.c	standard
 ufs/ufs/ufs_disksubr.c	standard
 ufs/ufs/ufs_ihash.c	standard
 ufs/ufs/ufs_inode.c	standard
-ufs/ufs/ufs_lockf.c	standard
 ufs/ufs/ufs_lookup.c	standard
 ufs/ufs/ufs_quota.c	standard
 ufs/ufs/ufs_vfsops.c	standard
