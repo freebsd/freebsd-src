@@ -116,6 +116,23 @@ command which is similar or identical to this utility.
 Consult the
 .Xr builtin 1
 manual page.
+.Sh EXAMPLES
+Terminate
+the processes with pids 142 and 157:
+.Pp
+.Dl "kill 142 157"
+.Pp
+Send the hangup signal
+.Pq Dv SIGHUP
+to the process with pid 507:
+.Pp
+.Dl "kill -s HUP 507"
+.Pp
+Terminate the process group with pgid 117:
+.Pp
+.Dl "kill -- -117"
+.Sh DIAGNOSTICS
+.Ex -std
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
