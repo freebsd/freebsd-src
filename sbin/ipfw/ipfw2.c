@@ -360,7 +360,7 @@ align_uint64(uint64_t *pll) {
 
 	bcopy (pll, &ret, sizeof(ret));
 	return ret;
-};
+}
 
 /*
  * conditionally runs the command.
@@ -402,7 +402,7 @@ match_token(struct _s_x *table, char *string)
 		if (strlen(pt->s) == i && !bcmp(string, pt->s, i))
 			return pt->x;
 	return -1;
-};
+}
 
 /**
  * match_value takes a table and a value, returns the string associated
