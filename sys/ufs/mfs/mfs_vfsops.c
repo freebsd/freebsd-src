@@ -335,7 +335,7 @@ mfs_mount(mp, path, data, ndp, p)
 	dev = make_dev(&mfs_cdevsw, mfs_minor, 0, 0, 0, "MFS%d", mfs_minor);
 	/* It is not clear that these will get initialized otherwise */
 	dev->si_bsize_phys = DEV_BSIZE;
-	dev->si_bsize_max = MAXBSIZE;
+	dev->si_iosize_max = DFLTPHYS;
 	addaliasu(devvp, makeudev(253, mfs_minor++));
 	devvp->v_data = mfsp;
 	mfsp->mfs_baseoff = args.base;
@@ -497,7 +497,7 @@ mfs_init(vfsp)
 		    0, 0, 0, "MFS%d", mfs_minor);
 		/* It is not clear that these will get initialized otherwise */
 		rootdev->si_bsize_phys = DEV_BSIZE;
-		rootdev->si_bsize_max = MAXBSIZE;
+		rootdev->si_iosize_max = DFLTPHYS;
 		mfs_minor++;
 	} else if (bootverbose)
 		printf("No MFS image available as root f/s.\n");
