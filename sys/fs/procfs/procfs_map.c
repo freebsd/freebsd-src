@@ -142,7 +142,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				    (struct vnode *)lobj->handle,
 				    &fullpath,
 				    &freepath);
-				printf("string: %s\n", fullpath);
 				break;
 			case OBJT_SWAP:
 				type = "swap";
