@@ -98,6 +98,9 @@ dev/aic/aic_isa.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa
 dev/ed/if_ed_isa.c		optional	ed isa
 dev/eisa/eisaconf.c		optional	eisa
+dev/em/if_em.c			optional	em
+dev/em/if_em_fxhw.c		optional	em
+dev/em/if_em_phy.c		optional	em
 dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
@@ -411,6 +414,3 @@ netsmb/smb_smb.c		optional	netsmb
 netsmb/smb_subr.c		optional	netsmb
 netsmb/smb_trantcp.c		optional	netsmb
 netsmb/smb_usr.c		optional	netsmb
-dev/em/if_em.c			optional	em
-dev/em/if_em_fxhw.c		optional	em
-dev/em/if_em_phy.c		optional	em
