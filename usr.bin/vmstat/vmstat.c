@@ -107,13 +107,17 @@ struct nlist namelist[] = {
 	{ "_pgintime" },
 #define	X_XSTATS	18
 	{ "_xstats" },
-#define X_END		18
+#define X_END		19
 #else
 #define X_END		14
 #endif
 #if defined(hp300) || defined(luna68k)
 #define	X_HPDINIT	(X_END)
 	{ "_hp_dinit" },
+#endif
+#if defined(i386)
+#define	X_ISA_BIO	(X_END)
+	{ "_isa_devtab_bio" },
 #endif
 #ifdef mips
 #define	X_SCSI_DINIT	(X_END)
