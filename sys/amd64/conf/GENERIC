@@ -53,7 +53,7 @@ options 	KTRACE			# ktrace(1) support
 options 	SYSVSHM			# SYSV-style shared memory
 options 	SYSVMSG			# SYSV-style message queues
 options 	SYSVSEM			# SYSV-style semaphores
-options 	_KPOSIX_PRIORITY_SCHEDULING # Posix P1003_1B real-time extensions
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
@@ -72,6 +72,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 
 # Make an SMP-capable kernel by default
 options 	SMP		# Symmetric MultiProcessor Kernel
+
 # Workarounds for some known-to-be-broken chipsets (nVidia nForce3-Pro150)
 device		atpic		# 8259A compatability
 options 	NO_MIXED_MODE	# Don't penalize working chipsets
@@ -98,7 +99,7 @@ device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		ahd		# AHA39320/29320 and onboard AIC79xx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
-#device		ispfw		# Firmware for QLogic HBAs- normally a module
+#device 	ispfw		# Firmware for QLogic HBAs- normally a module
 device		mpt		# LSI-Logic MPT-Fusion
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
