@@ -31,37 +31,27 @@
 .Nm ct
 .Nd "WD33C93[ABC] based CBUS SCSI host adapter driver"
 .Sh SYNOPSIS
-.Cd "device ct"
 .Cd "device scbus"
 .Pp
-In
-.Pa /boot/device.hints:
-.Pp
 For most PC-9801-55, -92 and compatibles:
-.Cd hint.ct.0.at="isa"
+.Cd "device ct0 at isa?"
 .Pp
 For ELECOM bus-master
 .Tn SCSI 
 adapters:
-.Cd hint.ct.0.at="isa"
-.Cd hint.ct.0.flags="0x30000"
+.Cd "device ct0 at isa? flags=0x30000"
 .Pp
 For I-O DATA SC98 adapters:
-.Cd hint.ct.0.at="isa"
-.Cd hint.ct.0.flags="0x10000"
+.Cd "device ct0 at isa? flags=0x10000"
 .Pp
 For LOGITEC adapters:
-.Cd hint.ct.0.at="isa"
-.Cd hint.ct.0.flags="0x50000"
+.Cd "device ct0 at isa? flags=0x50000"
 .Pp
 For TEXA adapters:
-.Cd hint.ct.0.at="isa"
-.Cd hint.ct.0.flags="0x20000"
+.Cd "device ct0 at isa? flags=0x20000"
 .Pp
 For adapters with SMIT transfer mode to enable SMIT transfer:
-.Cd hint.ct.0.at="isa"
-.Cd hint.ct.0.flags="0x40000"
-.Cd hint.ct.0.maddr="0xdc000"
+.Cd "device ct0 at isa? iomem 0xdc000 flags=0x40000"
 .Pp
 .Ar Flag
 meaning:

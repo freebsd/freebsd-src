@@ -20,19 +20,15 @@
 .Nm cx
 .Nd driver for synchronous/asynchronous Cronyx Sigma WAN adapters
 .Sh SYNOPSIS
+.Cd "device cx0 at isa? port 0x240 irq 5 drq 7"
+or
 .Cd "device cx"
+for autodetection.
 .Pp
 Additional options:
 .Cd "device sppp"
 .Cd "options NETGRAPH"
 .Cd "options NETGRAPH_CRONYX"
-.Pp
-In
-.Pa /boot/device.hints :
-.Cd hint.cx.0.at="isa"
-.Cd hint.cx.0.port="0x240"
-.Cd hint.cx.0.irq="15"
-.Cd hint.cx.0.drq="7"
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,7 +47,7 @@ Otherwise, it will be compiled with
 support.
 .Pp
 The base I/O port address specified in
-.Pa /boot/device.hints
+.Pa /sys/i386/conf/<YOUR_KERN_CONF>
 must match the port address set by the jumpers on the board.
 The DMA I/O channel and interrupt request numbers are configured
 by software at adapter initialization.
@@ -80,6 +76,7 @@ for information about the
 .Nm
 adapter configuration.
 .Sh SEE ALSO
+.Xr ctau 4 , 
 .Xr sppp 4 , 
 .Xr ifconfig 8 , 
 .Xr sconfig 8 , 
