@@ -351,7 +351,7 @@ Xinvlrng:
 	movl	smp_tlb_addr2, %eax
 1:	invlpg	(%edx)			/* invalidate single page */
 	addl	$PAGE_SIZE, %edx
-	cmpl	%edx, %eax
+	cmpl	%eax, %edx
 	jb	1b
 
 	movl	$0, lapic+LA_EOI	/* End Of Interrupt to APIC */
