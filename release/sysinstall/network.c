@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.14 1995/10/26 08:56:02 jkh Exp $
+ * $Id: network.c,v 1.7.2.15 1995/11/04 11:09:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -115,7 +115,7 @@ mediaInitNetwork(Device *dev)
     else
 	strcpy(ifname, dev->name);
 
-    snprintf(ifconfig, 255, "%s%s", VAR_IFCONFIG, ifname);
+    snprintf(ifconfig, 255, "%s%s", VAR_IFCONFIG, dev->name);
     cp = variable_get(ifconfig);
     if (!cp) {
 	dialog_clear();
