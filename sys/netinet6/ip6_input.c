@@ -361,6 +361,21 @@ ip6_input(m)
 	if (IN6_IS_ADDR_LOOPBACK(&ip6->ip6_src) ||
 	    IN6_IS_ADDR_LOOPBACK(&ip6->ip6_dst)) {
 		if (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) {
+			struct in6_ifaddr *ia6;
+
+			if ((ia6 = in6ifa_ifpwithaddr(m->m_pkthdr.rcvif,
+						      &ip6->ip6_dst)) != NULL) {
+				ia6->ia_ifa.if_ipackets++;
+				ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+			} else {
+				/*
+				 * The packet is looped back, but we do not
+				 * have the destination address for some
+				 * reason.
+				 * XXX: should we return an icmp6 error?
+				 */
+				goto bad;
+			}
 			ours = 1;
 			deliverifp = m->m_pkthdr.rcvif;
 			goto hbhcheck;
@@ -393,6 +408,20 @@ ip6_input(m)
 	 */
 	if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) != 0) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ip6->ip6_dst)) {
+			struct in6_ifaddr *ia6;
+
+			if ((ia6 = in6ifa_ifpwithaddr(m->m_pkthdr.rcvif,
+						      &ip6->ip6_dst)) != NULL) {
+				ia6->ia_ifa.if_ipackets++;
+				ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
+			} else {
+				/*
+				 * We do not have the link-local address
+				 * specified as the destination.
+				 * XXX: should we return an icmp6 error?
+				 */
+				goto bad;
+			}
 			ours = 1;
 			deliverifp = m->m_pkthdr.rcvif;
 			goto hbhcheck;
