@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#define KTR_ULE         KTR_NFS
+#define KTR_ULE	KTR_NFS
 
 /* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 /* XXX This is bogus compatability crap for ps */
@@ -101,6 +101,7 @@ struct ke_sched {
 #define	KEF_ASSIGNED	KEF_SCHED0	/* KSE is being migrated. */
 #define	KEF_BOUND	KEF_SCHED1	/* KSE can not migrate. */
 #define	KEF_XFERABLE	KEF_SCHED2	/* KSE was added as transferable. */
+#define	KEF_HOLD	KEF_SCHED3	/* KSE is temporarily bound. */
 
 struct kg_sched {
 	int	skg_slptime;		/* Number of ticks we vol. slept */
@@ -1143,6 +1144,12 @@ sched_prio(struct thread *td, u_char prio)
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
 			runq_add(ke->ke_runq, ke);
 		}
+		/*
+		 * Hold this kse on this cpu so that sched_prio() doesn't
+		 * cause excessive migration.  We only want migration to
+		 * happen as the result of a wakeup.
+		 */
+		ke->ke_flags |= KEF_HOLD;
 		adjustrunqueue(td, prio);
 	} else
 		td->td_priority = prio;
@@ -1158,7 +1165,7 @@ sched_switch(struct thread *td, struct thread *newtd)
 	ke = td->td_kse;
 
 	td->td_last_kse = ke;
-        td->td_lastcpu = td->td_oncpu;
+	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_pflags &= ~TDP_OWEPREEMPT;
@@ -1172,6 +1179,10 @@ sched_switch(struct thread *td, struct thread *newtd)
 			TD_SET_CAN_RUN(td);
 		} else if (TD_IS_RUNNING(td)) {
 			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			/*
+			 * Don't allow the kse to migrate from a preemption.
+			 */
+			ke->ke_flags |= KEF_HOLD;
 			setrunqueue(td);
 		} else {
 			if (ke->ke_runq) {
@@ -1294,7 +1305,6 @@ sched_fork(struct thread *td, struct proc *p1)
 void
 sched_fork_kse(struct thread *td, struct kse *child)
 {
-
 	struct kse *ke = td->td_kse;
 
 	child->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
@@ -1642,9 +1652,10 @@ sched_add_internal(struct thread *td, int preemptive)
 	 * to do it.
 	 */
 	canmigrate = KSE_CAN_MIGRATE(ke, class);
-	if (TD_IS_RUNNING(td))
+	if (ke->ke_flags & KEF_HOLD) {
+		ke->ke_flags &= ~KEF_HOLD;
 		canmigrate = 0;
-
+	}
 	/*
 	 * If this thread is pinned or bound, notify the target cpu.
 	 */
@@ -1678,8 +1689,9 @@ sched_add_internal(struct thread *td, int preemptive)
 	/*
 	 * XXX With preemption this is not necessary.
 	 */
-        if (td->td_priority < curthread->td_priority)
-                curthread->td_flags |= TDF_NEEDRESCHED;
+	if (td->td_priority < curthread->td_priority &&
+	    ke->ke_runq == kseq->ksq_curr)
+		curthread->td_flags |= TDF_NEEDRESCHED;
 	if (preemptive && maybe_preempt(td))
 		return;
 	ke->ke_ksegrp->kg_runq_kses++;
