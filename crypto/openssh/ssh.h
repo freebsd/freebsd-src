@@ -62,7 +62,7 @@
  */
 #define SSH_SERVICE_NAME	"ssh"
 
-#define ETCDIR			"__PREFIX__/etc"
+#define ETCDIR			"/etc"
 #define PIDDIR			"/var/run"
 
 /*
@@ -79,7 +79,7 @@
 #define SERVER_CONFIG_FILE	ETCDIR "/sshd_config"
 #define HOST_CONFIG_FILE	ETCDIR "/ssh_config"
 
-#define SSH_PROGRAM		"__PREFIX__/bin/ssh"
+#define SSH_PROGRAM		"/usrn1G/bin/ssh"
 
 /*
  * The process id of the daemon listening for connections is saved here to
