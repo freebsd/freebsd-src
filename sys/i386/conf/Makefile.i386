@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.63 1995/05/11 19:48:45 wollman Exp $
+#	$Id: Makefile.i386,v 1.64 1995/05/30 07:59:05 rgrimes Exp $
 #
 # Makefile for FreeBSD
 #
@@ -105,8 +105,9 @@ ${LIBKERN}:
 	@(cd $S/libkern; make)
 
 clean:
-	rm -f eddep kernel tags *.o *.s errs linterrs makelinks genassym \
-	      symbols.exclude symbols.sort ${CLEAN}
+	rm -f *.o *.s eddep errs genassym kernel libkern.a linterrs \
+	      makelinks param.c symbols.exclude symbols.sort tags \
+	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
