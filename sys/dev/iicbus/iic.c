@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.c,v 1.2 1998/09/04 17:53:35 nsouch Exp $
+ *	$Id: iic.c,v 1.3 1998/09/09 18:57:24 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -219,7 +219,7 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 
 	switch (cmd) {
 	case I2CSTART:
-		error = iicbus_start(parent, sc->sc_addr);
+		error = iicbus_start(parent, sc->sc_addr, 0);
 		break;
 
 	case I2CSTOP:
@@ -227,7 +227,7 @@ iicioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 		break;
 
 	case I2CRSTCARD:
-		error = iicbus_reset(parent, 0);
+		error = iicbus_reset(parent, 0, 0, NULL);
 		break;
 
 	default:

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.1.1.11 1998/08/29 17:02:05 son Exp $
+ *	$Id: iiconf.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -71,6 +71,28 @@ iicbus_alloc_bus(device_t parent)
 	return (child);
 }
 
+static int
+iicbus_poll(struct iicbus_softc *sc, int how)
+{
+	int error;
+
+	switch (how) {
+	case (IIC_WAIT | IIC_INTR):
+		error = tsleep(sc, IICPRI|PCATCH, "iicreq", 0);
+		break;
+
+	case (IIC_WAIT | IIC_NOINTR):
+		error = tsleep(sc, IICPRI, "iicreq", 0);
+		break;
+
+	default:
+		return (EWOULDBLOCK);
+		break;
+	}
+
+	return (error);
+}
+
 /*
  * iicbus_request_bus()
  *
@@ -84,25 +106,20 @@ iicbus_request_bus(device_t bus, device_t dev, int how)
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	int s, error = 0;
 
+	/* first, ask the underlying layers if the request is ok */
+	do {
+		error = IICBUS_CALLBACK(device_get_parent(bus),
+						IIC_REQUEST_BUS, (caddr_t)&how);
+		if (error)
+			error = iicbus_poll(sc, how);
+	} while (error);
+
 	while (!error) {
 		s = splhigh();	
 		if (sc->owner) {
 			splx(s);
 
-			switch (how) {
-			case (IIC_WAIT | IIC_INTR):
-				error = tsleep(sc, IICPRI|PCATCH, "iicreq", 0);
-				break;
-
-			case (IIC_WAIT | IIC_NOINTR):
-				error = tsleep(sc, IICPRI, "iicreq", 0);
-				break;
-
-			default:
-				return (EWOULDBLOCK);
-				break;
-			}
-
+			error = iicbus_poll(sc, how);
 		} else {
 			sc->owner = dev;
 
@@ -123,7 +140,13 @@ int
 iicbus_release_bus(device_t bus, device_t dev)
 {
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
-	int s;
+	int s, error;
+
+	/* first, ask the underlying layers if the release is ok */
+	error = IICBUS_CALLBACK(device_get_parent(bus), IIC_RELEASE_BUS, NULL);
+
+	if (error)
+		return (error);
 
 	s = splhigh();
 	if (sc->owner != dev) {
@@ -151,10 +174,10 @@ iicbus_block_write(device_t bus, u_char slave, char *buf, int len, int *sent)
 	u_char addr = slave & ~LSB;
 	int error;
 
-	if ((error = iicbus_start(bus, addr)))
+	if ((error = iicbus_start(bus, addr, 0)))
 		return (error);
 
-	error = iicbus_write(bus, buf, len, sent);
+	error = iicbus_write(bus, buf, len, sent, 0);
 
 	iicbus_stop(bus);
 
@@ -172,12 +195,12 @@ iicbus_block_read(device_t bus, u_char slave, char *buf, int len, int *read)
 	u_char addr = slave | LSB;
 	int error;
 
-	if ((error = iicbus_start(bus, addr)))
+	if ((error = iicbus_start(bus, addr, 0)))
 		return (error);
 
-	error = iicbus_read(bus, buf, len, read);
+	error = iicbus_read(bus, buf, len, read, IIC_LAST_READ, 0);
 
-	/* STOP condition sent at adapter level */
+	iicbus_stop(bus);
 
 	return (error);
 }
@@ -196,12 +219,4 @@ iicbus_get_addr(device_t dev)
 	BUS_READ_IVAR(parent, dev, IICBUS_IVAR_ADDR, &addr);
 
 	return ((u_char)addr);
-}
-
-u_char
-iicbus_get_own_address(device_t bus)
-{
-	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
-
-	return (sc->ownaddr);
 }
