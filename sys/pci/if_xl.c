@@ -3033,8 +3033,8 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				CSR_WRITE_2(sc, XL_COMMAND,
 				    XL_CMD_RX_SET_FILT|rxfilt);
 				XL_SEL_WIN(7);
-			} else
-				if ((ifp->if_flags & IFF_RUNNING) == 0) {
+			} else {
+				if ((ifp->if_flags & IFF_RUNNING) == 0)
 					xl_init_locked(sc);
 			}
 		} else {
