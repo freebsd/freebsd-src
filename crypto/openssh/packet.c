@@ -282,9 +282,14 @@ packet_connection_is_ipv4(void)
 	memset(&to, 0, sizeof(to));
 	if (getsockname(connection_out, (struct sockaddr *)&to, &tolen) < 0)
 		return 0;
-	if (to.ss_family != AF_INET)
-		return 0;
-	return 1;
+	if (to.ss_family == AF_INET)
+		return 1;
+#ifdef IPV4_IN_IPV6
+	if (to.ss_family == AF_INET6 && 
+	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)&to)->sin6_addr))
+		return 1;
+#endif
+	return 0;
 }
 
 /* Sets the connection into non-blocking mode. */
@@ -1305,8 +1310,10 @@ void
 packet_set_interactive(int interactive)
 {
 	static int called = 0;
+#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
 	int lowdelay = IPTOS_LOWDELAY;
 	int throughput = IPTOS_THROUGHPUT;
+#endif
 
 	if (called)
 		return;
@@ -1326,21 +1333,25 @@ packet_set_interactive(int interactive)
 		 * Set IP options for an interactive connection.  Use
 		 * IPTOS_LOWDELAY and TCP_NODELAY.
 		 */
+#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
 		if (packet_connection_is_ipv4()) {
 			if (setsockopt(connection_in, IPPROTO_IP, IP_TOS,
 			    &lowdelay, sizeof(lowdelay)) < 0)
 				error("setsockopt IPTOS_LOWDELAY: %.100s",
 				    strerror(errno));
 		}
+#endif
 		set_nodelay(connection_in);
 	} else if (packet_connection_is_ipv4()) {
 		/*
 		 * Set IP options for a non-interactive connection.  Use
 		 * IPTOS_THROUGHPUT.
 		 */
+#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
 		if (setsockopt(connection_in, IPPROTO_IP, IP_TOS, &throughput,
 		    sizeof(throughput)) < 0)
 			error("setsockopt IPTOS_THROUGHPUT: %.100s", strerror(errno));
+#endif
 	}
 }
 

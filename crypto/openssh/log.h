@@ -15,11 +15,16 @@
 #ifndef SSH_LOG_H
 #define SSH_LOG_H
 
+#include <syslog.h> /* Needed for LOG_AUTHPRIV (if present) */
+
 /* Supported syslog facilities and levels. */
 typedef enum {
 	SYSLOG_FACILITY_DAEMON,
 	SYSLOG_FACILITY_USER,
 	SYSLOG_FACILITY_AUTH,
+#ifdef LOG_AUTHPRIV
+	SYSLOG_FACILITY_AUTHPRIV,
+#endif
 	SYSLOG_FACILITY_LOCAL0,
 	SYSLOG_FACILITY_LOCAL1,
 	SYSLOG_FACILITY_LOCAL2,
