@@ -1425,6 +1425,10 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
             SetDefaultAliasAddress(pip->ip_src);
         }
     }
+    else if (packetAliasMode & PKT_ALIAS_PROXY_ONLY)
+    {
+        SetDefaultAliasAddress(pip->ip_src);
+    }
 
     iresult = PKT_ALIAS_IGNORED;
     if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0)
