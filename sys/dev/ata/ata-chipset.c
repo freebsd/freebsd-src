@@ -1532,6 +1532,7 @@ ata_promise_sx4_command(struct ata_device *atadev, u_int8_t command,
 			u_int64_t lba, u_int16_t count, u_int16_t feature)
 {
     struct ata_channel *ch = atadev->channel;
+    struct ata_dma_prdentry *prd = ch->dma->dmatab;
     struct ata_pci_controller *ctlr = 
 	device_get_softc(device_get_parent(ch->dev));
     caddr_t window = rman_get_virtual(ctlr->r_res1);
@@ -1564,10 +1565,10 @@ ata_promise_sx4_command(struct ata_device *atadev, u_int8_t command,
 	(window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HSG_OFFSET);
     i = idx = 0;
     do {
-	wordp[idx++] = htole32(ch->dma->dmatab[i].base);
-	wordp[idx++] = htole32(ch->dma->dmatab[i].count & ~ATA_DMA_EOT);
-	length += (ch->dma->dmatab[i].count & ~ATA_DMA_EOT);
-    } while (!(ch->dma->dmatab[i++].count & ATA_DMA_EOT));
+	wordp[idx++] = htole32(prd[i].addr);
+	wordp[idx++] = htole32(prd[i].count & ~ATA_DMA_EOT);
+	length += (prd[i].count & ~ATA_DMA_EOT);
+    } while (!(prd[i++].count & ATA_DMA_EOT));
     wordp[idx - 1] |= htole32(ATA_DMA_EOT);
 
     wordp = (u_int32_t *)
