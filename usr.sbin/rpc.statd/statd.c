@@ -60,7 +60,6 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
-  SVCXPRT *transp;
   struct sigaction sa;
 
   if (argc > 1)
