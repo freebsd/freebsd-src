@@ -600,7 +600,7 @@ main(int argc, char *argv[])
 	    errx(1, "invalid hostname");
 	if (asprintf(argv, "ftp://%s/%s/%s", h_hostname,
 		     c_dirname ? c_dirname : "", f_filename) == -1)
-	    errx(1, strerror(ENOMEM));
+	    errx(1, "%s", strerror(ENOMEM));
 	argc++;
     }
 
@@ -613,7 +613,7 @@ main(int argc, char *argv[])
     if (B_size < MINBUFSIZE)
 	B_size = MINBUFSIZE;
     if ((buf = malloc(B_size)) == NULL)
-	errx(1, strerror(ENOMEM));
+	errx(1, "%s", strerror(ENOMEM));
 
     /* timeouts */
     if ((s = getenv("FTP_TIMEOUT")) != NULL) {
