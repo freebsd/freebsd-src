@@ -69,7 +69,6 @@ Lst_Append(Lst *list, LstNode *ln, void *d)
 
     nLNode = emalloc(sizeof(*nLNode));
     nLNode->datum = d;
-    nLNode->useCount = nLNode->flags = 0;
 
     if (ln == NULL) {
 	nLNode->nextPtr = nLNode->prevPtr = NULL;
@@ -161,7 +160,6 @@ Lst_Concat(Lst *list1, Lst *list2, int flags)
 		list1->firstPtr = nln;
 	    }
 	    nln->prevPtr = last;
-	    nln->flags = nln->useCount = 0;
 	    last = nln;
 	}
 
@@ -315,62 +313,6 @@ Lst_FindFrom(Lst *l, LstNode *ln, const void *d, CompareProc *cProc)
 
 /*-
  *-----------------------------------------------------------------------
- * Lst_ForEachFrom --
- *	Apply the given function to each element of the given list. The
- *	function should return 0 if traversal should continue and non-
- *	zero if it should abort.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	Only those created by the passed-in function.
- *
- *-----------------------------------------------------------------------
- */
-void
-Lst_ForEachFrom(Lst *list, LstNode *ln, DoProc *proc, void *d)
-{
-    LstNode	*next;
-    Boolean	done;
-    int		result;
-
-    if (!Lst_Valid(list) || Lst_IsEmpty(list)) {
-	return;
-    }
-
-    do {
-	/*
-	 * Take care of having the current element deleted out from under
-	 * us.
-	 */
-
-	next = ln->nextPtr;
-
-	ln->useCount++;
-	result = (*proc)(ln->datum, d);
-	ln->useCount--;
-
-	/*
-	 * We're done with the traversal if
-	 *  - nothing's been added after the current node and
-	 *  - the next node to examine is the first in the queue or
-	 *    doesn't exist.
-	 */
-	done = (next == ln->nextPtr &&
-		(next == NULL || next == list->firstPtr));
-
-	next = ln->nextPtr;
-
-	if (ln->flags & LN_DELETED) {
-	    free(ln);
-	}
-	ln = next;
-    } while (!result && !Lst_IsEmpty(list) && !done);
-}
-
-/*-
- *-----------------------------------------------------------------------
  * Lst_Insert --
  *	Insert a new node with the given piece of data before the given
  *	node in the given list.
@@ -393,7 +335,6 @@ Lst_Insert(Lst *list, LstNode *ln, void *d)
 
     nLNode = emalloc(sizeof(*nLNode));
     nLNode->datum = d;
-    nLNode->useCount = nLNode->flags = 0;
 
     if (ln == NULL) {
 	nLNode->prevPtr = nLNode->nextPtr = NULL;
@@ -472,9 +413,5 @@ Lst_Remove(Lst *list, LstNode *ln)
      * note that the datum is unmolested. The caller must free it as
      * necessary and as expected.
      */
-    if (ln->useCount == 0) {
-	free(ln);
-    } else {
-	ln->flags |= LN_DELETED;
-    }
+    free(ln);
 }
