@@ -39,41 +39,41 @@
  *
  *	@(#)vnioctl.h	8.1 (Berkeley) 6/10/93
  *
+ * From: src/sys/sys/vnioctl.h,v 1.4
+ *
  * $FreeBSD$
  */
 
-#ifndef _SYS_VNIOCTL_H_
-#define _SYS_VNIOCTL_H_
+#ifndef _SYS_MDIOCTL_H_
+#define _SYS_MDIOCTL_H_
+
+enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP};
 
 /*
- * Ioctl definitions for file (vnode) disk pseudo-device.
+ * Ioctl definitions for memory disk pseudo-device.
  */
 
-#define _PATH_VNTAB	"/etc/vntab"	/* default config file */
-
-struct vn_ioctl {
-	char	*vn_file;	/* pathname of file to mount */
-	int	vn_size;	/* (returned) size of disk */
+struct md_ioctl {
+	unsigned	md_unit;	/* unit number */
+	enum md_types	md_type ;	/* type of disk */
+	char		md_file[MAXPATHLEN + 1]; /* pathname of file to mount */
+	unsigned	md_size;	/* (returned) size of disk */
+	unsigned	md_options;	/* options */
 };
 
 /*
- * Before you can use a unit, it must be configured with VNIOCSET.
+ * Before you can use a unit, it must be configured with MDIOCSET.
  * The configuration persists across opens and closes of the device;
- * an VNIOCCLR must be used to reset a configuration.  An attempt to
- * VNIOCSET an already active unit will return EBUSY.
+ * an MDIOCCLR must be used to reset a configuration.  An attempt to
+ * MDIOCSET an already active unit will return EBUSY.
  */
-#define VNIOCATTACH	_IOWR('F', 0, struct vn_ioctl)	/* attach file */
-#define VNIOCDETACH	_IOWR('F', 1, struct vn_ioctl)	/* detach disk */
-#define VNIOCGSET	_IOWR('F', 2, u_long )		/* set global option */
-#define VNIOCGCLEAR	_IOWR('F', 3, u_long )		/* reset --//-- */
-#define VNIOCUSET	_IOWR('F', 4, u_long )		/* set unit option */
-#define VNIOCUCLEAR	_IOWR('F', 5, u_long )		/* reset --//-- */
 
-#define VN_LABELS	0x1	/* Use disk(/slice) labels */
-#define VN_FOLLOW	0x2	/* Debug flow in vn driver */
-#define VN_DEBUG	0x4	/* Debug data in vn driver */
-#define VN_IO		0x8	/* Debug I/O in vn driver */
-#define VN_DONTCLUSTER	0x10	/* Don't cluster */
-#define VN_RESERVE	0x20	/* Pre-reserve swap */
+#define MDIOCATTACH	_IOWR('m', 0, struct md_ioctl)	/* attach disk */
+#define MDIOCDETACH	_IOWR('m', 1, struct md_ioctl)	/* detach disk */
 
-#endif	/* _SYS_VNIOCTL_H_*/
+#define MD_CLUSTER	0x01	/* Don't cluster */
+#define MD_RESERVE	0x02	/* Pre-reserve swap */
+#define MD_AUTOUNIT	0x04	/* Assign next free unit */
+#define MD_READONLY	0x08	/* Readonly mode */
+
+#endif	/* _SYS_MDIOCTL_H_*/
