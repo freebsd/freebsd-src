@@ -1,5 +1,5 @@
 This is the top level of the FreeBSD source directory.  This file
-was last revised on: $Id$
+was last revised on: $Id: README,v 1.7 1997/01/01 14:06:29 jkh Exp $
 
 For copyright information, please see the file COPYRIGHT in this
 directory (additional copyright information also exists for some
@@ -10,8 +10,9 @@ The Makefile in this directory supports a number of targets for
 building components (or all) of the FreeBSD source tree, the most
 commonly used one being ``world'', which rebuilds and installs
 everything in the FreeBSD system from the source tree except the
-kernel.  Please see the top of the Makefile for more information on
-the standard build targets and compile-time flags.
+kernel and the contents of /etc.  Please see the top of the Makefile
+in this directory for more information on the standard build targets
+and compile-time flags.
 
 Building a kernel with config(1) is a somewhat more involved process,
 documentation for which can be found at:
