@@ -6,7 +6,7 @@
 # decimal_point
 ,
 # thousands_sep
- 
+. 
 # grouping, separated by ;
 0;0
 # EOF
