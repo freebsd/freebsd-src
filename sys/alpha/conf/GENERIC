@@ -58,8 +58,6 @@ options 	NFSSERVER		#Network Filesystem Server
 options 	NFS_ROOT		#NFS usable as root device
 options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
-#XXX: N.B. - PROCFS IS REQUIRED FOR NOW BECAUSE CORE PTRACE CODE USES PIECES
-#XXX: FROM IT. THIS WILL BE ADDRESSES SOONER OR LATER
 options 	PROCFS			#Process filesystem
 options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI 
