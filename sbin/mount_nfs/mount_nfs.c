@@ -171,7 +171,7 @@ int opflags = 0;
 int nfsproto = IPPROTO_UDP;
 int mnttcp_ok = 1;
 u_short port_no = 0;
-enum {
+enum mountmode {
 	ANY,
 	V2,
 	V3
@@ -192,11 +192,22 @@ struct timeval ktv;
 NFSKERBKEYSCHED_T kerb_keysched;
 #endif
 
+/* Return codes for nfs_tryproto. */
+enum tryret {
+	TRYRET_SUCCESS,
+	TRYRET_TIMEOUT,		/* No response received. */
+	TRYRET_REMOTEERR,	/* Error received from remote server. */
+	TRYRET_LOCALERR		/* Local failure. */
+};
+
 int	getnfsargs __P((char *, struct nfs_args *));
 void	set_rpc_maxgrouplist __P((int));
 void	usage __P((void)) __dead2;
 int	xdr_dir __P((XDR *, char *));
 int	xdr_fh __P((XDR *, struct nfhret *));
+enum tryret nfs_tryproto(struct nfs_args *nfsargsp, struct sockaddr_in *sin,
+    char *hostp, char *spec, char **errstr);
+enum tryret returncode(enum clnt_stat stat, struct rpc_err *rpcerr);
 
 /*
  * Used to set mount flags with getmntopts.  Call with dir=TRUE to
@@ -245,7 +256,7 @@ main(argc, argv)
 	register struct nfs_args *nfsargsp;
 	struct nfs_args nfsargs;
 	struct nfsd_cargs ncd;
-	int mntflags, altflags, i, nfssvc_flag, num;
+	int mntflags, altflags, nfssvc_flag, num;
 	char *name, *p, *spec;
 	char mntpath[MAXPATHLEN];
 	struct vfsconf vfc;
@@ -303,9 +314,7 @@ main(argc, argv)
 			num = strtol(optarg, &p, 10);
 			if (*p || num <= 0)
 				errx(1, "illegal -g value -- %s", optarg);
-#ifdef __FreeBSD__
 			set_rpc_maxgrouplist(num);
-#endif
 			nfsargsp->maxgrouplist = num;
 			nfsargsp->flags |= NFSMNT_MAXGRPS;
 			break;
@@ -456,7 +465,6 @@ main(argc, argv)
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
 
-#ifdef __FreeBSD__
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
 		if(vfsload("nfs"))
@@ -469,24 +477,12 @@ main(argc, argv)
 
 	if (mount(vfc.vfc_name, mntpath, mntflags, nfsargsp))
 		err(1, "%s", mntpath);
-#else
-	if (mount("nfs", mntpath, mntflags, nfsargsp))
-		err(1, "%s", mntpath);
-#endif
 	if (nfsargsp->flags & (NFSMNT_NQNFS | NFSMNT_KERB)) {
 		if ((opflags & ISBGRND) == 0) {
-			if ((i = fork())) {
-				if (i == -1)
-					err(1, "nqnfs 1");
-				exit(0);
-			}
-			(void) setsid();
-			(void) close(STDIN_FILENO);
-			(void) close(STDOUT_FILENO);
-			(void) close(STDERR_FILENO);
-			(void) chdir("/");
+			if (daemon(0, 0) != 0)
+				err(1, "daemon");
 		}
-		openlog("mount_nfs:", LOG_PID, LOG_DAEMON);
+		openlog("mount_nfs", LOG_PID, LOG_DAEMON);
 		nfssvc_flag = NFSSVC_MNTD;
 		ncd.ncd_dirp = mntpath;
 		while (nfssvc(nfssvc_flag, (caddr_t)&ncd) < 0) {
@@ -577,75 +573,23 @@ main(argc, argv)
 	exit(0);
 }
 
-/*
- * Return RPC_SUCCESS if server responds.
- */
-enum clnt_stat
-pingnfsserver(addr, version, sotype)
-	struct sockaddr_in *addr;
-	int version;
-	int sotype;
-{
-	struct sockaddr_in sin;
-	int tport;
-	CLIENT *clp;
-	int so = RPC_ANYSOCK;
-	enum clnt_stat stat;
-	struct timeval pertry, try;
-
-	sin = *addr;
-
-	if ((tport = port_no ? port_no :
-	     pmap_getport(&sin, RPCPROG_NFS, version, nfsproto)) == 0) {
-		return rpc_createerr.cf_stat;
-	}
-
-	sin.sin_port = htons(tport);
-
-	pertry.tv_sec = 10;
-	pertry.tv_usec = 0;
-	if (sotype == SOCK_STREAM)
-		clp = clnttcp_create(&sin, RPCPROG_NFS, version,
-				     &so, 0, 0);
-	else
-		clp = clntudp_create(&sin, RPCPROG_NFS, version,
-				     pertry, &so);
-	if (clp == NULL)
-		return rpc_createerr.cf_stat;
-	
-	try.tv_sec = 10;
-	try.tv_usec = 0;
-	stat = clnt_call(clp, NFSPROC_NULL,
-			 xdr_void, NULL, xdr_void, NULL, try);
-
-	clnt_destroy(clp);
-
-	return stat;
-}
-
 int
 getnfsargs(spec, nfsargsp)
 	char *spec;
 	struct nfs_args *nfsargsp;
 {
-	register CLIENT *clp;
 	struct hostent *hp;
-	static struct sockaddr_in saddr;
-	struct timeval pertry, try;
-	enum clnt_stat clnt_stat;
-	int so = RPC_ANYSOCK, i, nfsvers, mntvers, orgcnt, speclen;
-	char *hostp, *delimp;
+	struct sockaddr_in saddr;
+	enum tryret ret;
+	int speclen, remoteerr;
+	char *hostp, *delimp, *errstr;
 #ifdef NFSKERB
 	char *cp;
 #endif
-	u_short tport;
 	size_t len;
-	static struct nfhret nfhret;
 	static char nam[MNAMELEN + 1];
 
-	tport = 0;
-
-	if ((delimp = strchr(spec, ':')) != NULL) {
+	if ((delimp = strrchr(spec, ':')) != NULL) {
 		hostp = spec;
 		spec = delimp + 1;
 	} else if ((delimp = strrchr(spec, '@')) != NULL) {
@@ -655,7 +599,6 @@ getnfsargs(spec, nfsargsp)
 		warnx("no <host>:<dirpath> nfs-name");
 		return (0);
 	}
-
 	*delimp = '\0';
 
 	/*
@@ -684,6 +627,11 @@ getnfsargs(spec, nfsargsp)
 	 * Handle an internet host address and reverse resolve it if
 	 * doing Kerberos.
 	 */
+	bzero(&saddr, sizeof saddr);
+	saddr.sin_family = AF_INET;
+	saddr.sin_len = sizeof saddr;
+	if (port_no != 0)
+		saddr.sin_port = htons(port_no);
 	if (isdigit(*hostp)) {
 		if ((saddr.sin_addr.s_addr = inet_addr(hostp)) == -1) {
 			warnx("bad net address %s", hostp);
@@ -712,123 +660,226 @@ getnfsargs(spec, nfsargsp)
 	}
 #endif /* NFSKERB */
 
-	orgcnt = retrycnt;
-tryagain:
-	if (mountmode == ANY || mountmode == V3) {
-		nfsvers = 3;
-		mntvers = 3;
-		nfsargsp->flags |= NFSMNT_NFSV3;
-	} else {
-		nfsvers = 2;
-		mntvers = 1;
-		nfsargsp->flags &= ~NFSMNT_NFSV3;
-	}
-	nfhret.stat = EACCES;	/* Mark not yet successful */
+	ret = TRYRET_LOCALERR;
 	while (retrycnt > 0) {
-		saddr.sin_family = AF_INET;
-		saddr.sin_port = htons(PMAPPORT);
-		if ((tport = port_no ? port_no :
-		     pmap_getport(&saddr, RPCPROG_NFS,
-		    		  nfsvers, nfsproto)) == 0) {
-			if ((opflags & ISBGRND) == 0)
-				clnt_pcreateerror("NFS Portmap");
-		} else {
-			/*
-			 * First ping the nfs server to see if it supports
-			 * the version of the protocol we want to use.
-			 */
-			clnt_stat = pingnfsserver(&saddr, nfsvers,
-						  nfsargsp->sotype);
-			if (clnt_stat == RPC_PROGVERSMISMATCH) {
-				if (mountmode == ANY) {
-					mountmode = V2;
-					goto tryagain;
-				} else {
-					errx(1, "can't contact NFS server");
-				}
-			}
-			saddr.sin_port = 0;
-			pertry.tv_sec = 10;
-			pertry.tv_usec = 0;
-			if (mnttcp_ok && nfsargsp->sotype == SOCK_STREAM)
-			    clp = clnttcp_create(&saddr, RPCPROG_MNT, mntvers,
-				&so, 0, 0);
-			else
-			    clp = clntudp_create(&saddr, RPCPROG_MNT, mntvers,
-				pertry, &so);
-			if (clp == NULL) {
-				if ((opflags & ISBGRND) == 0)
-					clnt_pcreateerror("Cannot MNT RPC");
-			} else {
-				clp->cl_auth = authunix_create_default();
-				try.tv_sec = 10;
-				try.tv_usec = 0;
-				if (nfsargsp->flags & NFSMNT_KERB)
-				    nfhret.auth = RPCAUTH_KERB4;
-				else
-				    nfhret.auth = RPCAUTH_UNIX;
-				nfhret.vers = mntvers;
-				clnt_stat = clnt_call(clp, RPCMNT_MOUNT,
-				    xdr_dir, spec, xdr_fh, &nfhret, try);
-				if (clnt_stat != RPC_SUCCESS) {
-					if (clnt_stat == RPC_PROGVERSMISMATCH) {
-						if (mountmode == ANY) {
-							mountmode = V2;
-							goto tryagain;
-						} else {
-							errx(1, "%s",
-							     clnt_sperror(clp, "MNT RPC"));
-						}
-					}
-					if ((opflags & ISBGRND) == 0)
-						warnx("%s", clnt_sperror(clp,
-						    "bad MNT RPC"));
-				} else {
-					retrycnt = 0;
-				}
-				auth_destroy(clp->cl_auth);
-				clnt_destroy(clp);
-				so = RPC_ANYSOCK;
-			}
-		}
-		if (--retrycnt > 0) {
-			if (opflags & BGRND) {
-				warnx("Cannot immediately mount %s:%s, "
-				    "backgrounding", hostp, spec);
-				opflags &= ~BGRND;
-				if ((i = fork())) {
-					if (i == -1)
-						err(1, "nqnfs 2");
-					exit(0);
-				}
-				(void) setsid();
-				(void) close(STDIN_FILENO);
-				(void) close(STDOUT_FILENO);
-				(void) close(STDERR_FILENO);
-				(void) chdir("/");
-				opflags |= ISBGRND;
-			}
-			sleep(60);
-		}
-	}
-	if (nfhret.stat) {
-		if (opflags & ISBGRND)
+		remoteerr = 0;
+		ret = nfs_tryproto(nfsargsp, &saddr, hostp, spec, &errstr);
+		if (ret == TRYRET_SUCCESS)
+			break;
+		if (ret != TRYRET_LOCALERR)
+			remoteerr = 1;
+		if ((opflags & ISBGRND) == 0)
+			fprintf(stderr, "%s\n", errstr);
+
+		/*
+		 * Exit on failures if not BGRND mode, or if all errors
+		 * were local.
+		 */
+		if ((opflags & BGRND) == 0 || !remoteerr)
 			exit(1);
-		warnx("can't access %s: %s", spec, strerror(nfhret.stat));
-		return (0);
+
+		if (--retrycnt <= 0)
+			exit(1);
+
+		if ((opflags & (BGRND | ISBGRND)) == BGRND) {
+			warnx("Cannot immediately mount %s:%s, backgrounding",
+			    hostp, spec);
+			opflags |= ISBGRND;
+			if (daemon(0, 0) != 0)
+				err(1, "daemon");
+		}
+		sleep(60);
 	}
-	saddr.sin_port = htons(tport);
-	{
-		nfsargsp->addr = (struct sockaddr *) &saddr;
-		nfsargsp->addrlen = sizeof (saddr);
-	}
-	nfsargsp->fh = nfhret.nfh;
-	nfsargsp->fhsize = nfhret.fhsize;
 	nfsargsp->hostname = nam;
 	/* Add mounted filesystem to PATH_MOUNTTAB */
 	if (!add_mtab(hostp, spec))
 		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, hostp, spec);
 	return (1);
+}
+
+/*
+ * Try to set up the NFS arguments according to the address
+ * (and possibly port) specified by `sinp'.
+ *
+ * Returns TRYRET_SUCCESS if successful, or:
+ *   TRYRET_TIMEOUT		The server did not respond.
+ *   TRYRET_REMOTEERR		The server reported an error.
+ *   TRYRET_LOCALERR		Local failure.
+ *
+ * In all error cases, *errstr will be set to a statically-allocated string
+ * describing the error.
+ */
+enum tryret
+nfs_tryproto(struct nfs_args *nfsargsp, struct sockaddr_in *sinp, char *hostp,
+    char *spec, char **errstr)
+{
+	static char errbuf[256];
+	struct sockaddr_in sin, tmpsin;
+	struct nfhret nfhret;
+	struct timeval try;
+	struct rpc_err rpcerr;
+	CLIENT *clp;
+	int doconnect, nfsvers, mntvers, so;
+	enum clnt_stat stat;
+	enum mountmode trymntmode;
+
+	trymntmode = mountmode;
+	errbuf[0] = '\0';
+	*errstr = errbuf;
+	sin = tmpsin = *sinp;
+
+tryagain:
+	if (trymntmode == V2) {
+		nfsvers = 2;
+		mntvers = 1;
+	} else {
+		nfsvers = 3;
+		mntvers = 3;
+	}
+
+	/* Check that the server (nfsd) responds on the port we have chosen. */
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+	so = RPC_ANYSOCK;
+	if (nfsargsp->sotype == SOCK_STREAM)
+		clp = clnttcp_create(&sin, RPCPROG_NFS, nfsvers, &so, 0, 0);
+	else
+		clp = clntudp_create(&sin, RPCPROG_NFS, nfsvers, try, &so);
+	if (clp == NULL) {
+		snprintf(errbuf, sizeof errbuf, "%s:%s: %s",
+		    hostp, spec, clnt_spcreateerror("nfsd: RPCPROG_NFS"));
+		return (returncode(rpc_createerr.cf_stat,
+		    &rpc_createerr.cf_error));
+	}
+	if (nfsargsp->sotype == SOCK_DGRAM) {
+		/*
+		 * Use connect(), to match what the kernel does. This
+		 * catches cases where the server responds from the
+		 * wrong source address.
+		 */
+		doconnect = 1;
+		if (!clnt_control(clp, CLSET_CONNECT, (char *)&doconnect)) {
+			clnt_destroy(clp);
+			snprintf(errbuf, sizeof errbuf,
+			    "%s:%s: CLSET_CONNECT failed", hostp, spec);
+			return (TRYRET_LOCALERR);
+		}
+	}
+
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+	stat = clnt_call(clp, NFSPROC_NULL, xdr_void, NULL, xdr_void, NULL,
+	    try);
+	if (stat != RPC_SUCCESS) {
+		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
+			clnt_destroy(clp);
+			trymntmode = V2;
+			goto tryagain;
+		}
+		clnt_geterr(clp, &rpcerr);
+		snprintf(errbuf, sizeof errbuf, "%s:%s: %s",
+		    hostp, spec, clnt_sperror(clp, "NFSPROC_NULL"));
+		clnt_destroy(clp);
+		return (returncode(stat, &rpcerr));
+	}
+	clnt_destroy(clp);
+
+	/* Send the RPCMNT_MOUNT RPC to get the root filehandle. */
+	tmpsin.sin_port = 0;
+	try.tv_sec = 10;
+	try.tv_usec = 0;
+	so = RPC_ANYSOCK;
+	if (mnttcp_ok && nfsargsp->sotype == SOCK_STREAM)
+		clp = clnttcp_create(&tmpsin, RPCPROG_MNT, mntvers, &so, 0, 0);
+	else
+		clp = clntudp_create(&tmpsin, RPCPROG_MNT, mntvers, try, &so);
+	if (clp == NULL) {
+		snprintf(errbuf, sizeof errbuf, "%s:%s: %s",
+		    hostp, spec, clnt_spcreateerror("RPCMNT: clnt_create"));
+		return (returncode(rpc_createerr.cf_stat,
+		    &rpc_createerr.cf_error));
+	}
+	clp->cl_auth = authunix_create_default();
+	if (nfsargsp->flags & NFSMNT_KERB)
+		nfhret.auth = RPCAUTH_KERB4;
+	else
+		nfhret.auth = RPCAUTH_UNIX;
+	nfhret.vers = mntvers;
+	stat = clnt_call(clp, RPCMNT_MOUNT, xdr_dir, spec, xdr_fh, &nfhret,
+	    try);
+	auth_destroy(clp->cl_auth);
+	if (stat != RPC_SUCCESS) {
+		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
+			clnt_destroy(clp);
+			trymntmode = V2;
+			goto tryagain;
+		}
+		clnt_geterr(clp, &rpcerr);
+		snprintf(errbuf, sizeof errbuf, "%s:%s: %s",
+		    hostp, spec, clnt_sperror(clp, "RPCPROG_MNT"));
+		clnt_destroy(clp);
+		return (returncode(stat, &rpcerr));
+	}
+	clnt_destroy(clp);
+
+	if (nfhret.stat != 0) {
+		snprintf(errbuf, sizeof errbuf, "%s:%s: %s",
+		    hostp, spec, strerror(nfhret.stat));
+		return (TRYRET_REMOTEERR);
+	}
+
+	/*
+	 * Store the filehandle and server address in nfsargsp, making
+	 * sure to copy any locally allocated structures.
+	 */
+	nfsargsp->addrlen = sin.sin_len;
+	nfsargsp->addr = malloc(nfsargsp->addrlen);
+	nfsargsp->fhsize = nfhret.fhsize;
+	nfsargsp->fh = malloc(nfsargsp->fhsize);
+	if (nfsargsp->addr == NULL || nfsargsp->fh == NULL)
+		err(1, "malloc");
+	bcopy(&sin, nfsargsp->addr, nfsargsp->addrlen);
+	bcopy(nfhret.nfh, nfsargsp->fh, nfsargsp->fhsize);
+
+	if (nfsvers == 3)
+		nfsargsp->flags |= NFSMNT_NFSV3;
+	else
+		nfsargsp->flags &= ~NFSMNT_NFSV3;
+
+	return (TRYRET_SUCCESS);
+}
+
+/*
+ * Catagorise a RPC return status and error into an `enum tryret'
+ * return code.
+ */
+enum tryret
+returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
+{
+	switch (stat) {
+	case RPC_TIMEDOUT:
+		return (TRYRET_TIMEOUT);
+	case RPC_PMAPFAILURE:
+	case RPC_PROGNOTREGISTERED:
+	case RPC_PROGVERSMISMATCH:
+	/* XXX, these can be local or remote. */
+	case RPC_CANTSEND:
+	case RPC_CANTRECV:
+		return (TRYRET_REMOTEERR);
+	case RPC_SYSTEMERROR:
+		switch (rpcerr->re_errno) {
+		case ETIMEDOUT:
+			return (TRYRET_TIMEOUT);
+		case ENOMEM:
+			break;
+		default:
+			return (TRYRET_REMOTEERR);
+		}
+		/* FALLTHROUGH */
+	default:
+		break;
+	}
+	return (TRYRET_LOCALERR);
 }
 
 /*
