@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.86 1998/06/08 08:55:33 kato Exp $
+ *	$Id: machdep.c,v 1.87 1998/06/17 16:30:16 kato Exp $
  */
 
 #include "apm.h"
@@ -64,7 +64,6 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
-#include <sys/conf.h>
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -135,7 +134,9 @@
 #include <pc98/pc98/pc98_machdep.h>
 #include <pc98/pc98/pc98.h>
 #else
+#ifndef VM86
 #include <i386/isa/rtc.h>
+#endif
 #endif
 #include <machine/random.h>
 #include <sys/ptrace.h>
