@@ -1,27 +1,27 @@
 # ex:ts=8
 $FreeBSD$
 
-GNU Texinfo 4.5
+GNU Texinfo 4.6
 	originals can be found at: ftp://ftp.gnu.org/gnu/texinfo/
 
 
 For the import of Texinfo many files and directories were pruned by:
 
-	tar -X FREEBSD-Xlist -xyf texinfo-4.5.tar.bz2
+	tar -X FREEBSD-Xlist -xyf texinfo-4.6.tar.bz2
 
 
 To reduce the size of import, and to make it so the changes from 3.12
-to 4.5 are easy to determine, the 4.5 directory structure was munged
+to 4.6 are easy to determine, the 4.6 directory structure was munged
 before import:
 
-	cd texinfo-4.5
+	cd texinfo-4.6
 	mv config.in config.h.in
 
 
 Then imported by:
 
-	cvs import -m 'Import of stripped down GNU texinfo 4.5' \
-		src/contrib/texinfo FSF v4_5
+	cvs import -m 'Import of stripped down GNU texinfo 4.6' \
+		src/contrib/texinfo FSF v4_6
 
 After the import, a separate extraction of texinfo was GNU configured
 in the "normal" way.  The resulting config.h file should be compared
@@ -35,4 +35,4 @@ All local changes should be submitted to the FSF for inclusion in the
 next vendor release.
 
 ru@FreeBSD.org
-2-May-2003
+18-Jun-2003
