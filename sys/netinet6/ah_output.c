@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ah_output.c,v 1.31 2001/07/26 06:53:15 jinmei Exp $	*/
+/*	$KAME: ah_output.c,v 1.38 2003/09/06 05:15:43 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -128,9 +128,9 @@ ah_hdrsiz(isr)
     estimate:
 	/* ASSUMING:
 	 *	sizeof(struct newah) > sizeof(struct ah).
-	 *	16 = (16 + 3) & ~(4 - 1).
+	 *	AH_MAXSUMSIZE is multiple of 4.
 	 */
-	return sizeof(struct newah) + 16;
+	return sizeof(struct newah) + AH_MAXSUMSIZE;
 }
 
 #ifdef INET
@@ -150,7 +150,7 @@ ah4_output(m, isr)
 	const struct ah_algorithm *algo;
 	u_int32_t spi;
 	u_char *ahdrpos;
-	u_char *ahsumpos = NULL;
+	u_int8_t *ahsumpos = NULL;
 	size_t hlen = 0;	/* IP header+option in bytes */
 	size_t plen = 0;	/* AH payload size in bytes */
 	size_t ahlen = 0;	/* plen + sizeof(ah) */
@@ -270,7 +270,7 @@ ah4_output(m, isr)
 		 * XXX sequence number must not be cycled, if the SA is
 		 * installed by IKE daemon.
 		 */
-		ahdr->ah_seq = htonl(sav->replay->count);
+		ahdr->ah_seq = htonl(sav->replay->count & 0xffffffff);
 		bzero(ahdr + 1, plen);
 	}
 
@@ -304,7 +304,7 @@ ah4_output(m, isr)
 	 * calcurate the checksum, based on security association
 	 * and the algorithm specified.
 	 */
-	error = ah4_calccksum(m, (caddr_t)ahsumpos, plen, algo, sav);
+	error = ah4_calccksum(m, ahsumpos, plen, algo, sav);
 	if (error) {
 		ipseclog((LOG_ERR,
 		    "error after ah4_calccksum, called from ah4_output"));
@@ -366,7 +366,7 @@ ah6_output(m, nexthdrp, md, isr)
 	struct secasvar *sav = isr->sav;
 	const struct ah_algorithm *algo;
 	u_int32_t spi;
-	u_char *ahsumpos = NULL;
+	u_int8_t *ahsumpos = NULL;
 	size_t plen;	/* AH payload size in bytes */
 	int error = 0;
 	int ahlen;
@@ -411,7 +411,7 @@ ah6_output(m, nexthdrp, md, isr)
 	/* fix plen */
 	if (m->m_pkthdr.len - sizeof(struct ip6_hdr) > IPV6_MAXPACKET) {
 		ipseclog((LOG_ERR,
-		    "ip6_output: AH with IPv6 jumbogram is not supported\n"));
+		    "ah6_output: AH with IPv6 jumbogram is not supported\n"));
 		m_freem(m);
 		return EINVAL;
 	}
@@ -485,7 +485,7 @@ ah6_output(m, nexthdrp, md, isr)
 	 * calcurate the checksum, based on security association
 	 * and the algorithm specified.
 	 */
-	error = ah6_calccksum(m, (caddr_t)ahsumpos, plen, algo, sav);
+	error = ah6_calccksum(m, ahsumpos, plen, algo, sav);
 	if (error) {
 		ipsec6stat.out_inval++;
 		m_freem(m);
