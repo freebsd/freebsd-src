@@ -55,6 +55,8 @@ void		warn __P((const char *, ...));
 void		vwarn __P((const char *, _BSD_VA_LIST_));
 void		warnx __P((const char *, ...));
 void		vwarnx __P((const char *, _BSD_VA_LIST_));
+void		err_set_file __P((void *));
+void		err_set_exit __P((void (*)__P((int))));
 __END_DECLS
 
 #endif /* !_ERR_H_ */
