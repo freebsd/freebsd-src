@@ -118,7 +118,14 @@ static void wx_mii_shift_out(wx_softc_t *, u_int32_t, u_int32_t);
 #define	WX_DISABLE_INT(sc)	WRITE_CSR(sc, WXREG_IMCLR, WXDISABLE)
 #define	WX_ENABLE_INT(sc)	WRITE_CSR(sc, WXREG_IMASK, sc->wx_ienable)
 
+/*
+ * Until we do a bit more work, we can get no bigger than MCLBYTES
+ */
+#if	0
 #define	WX_MAXMTU	(WX_MAX_PKT_SIZE_JUMBO - sizeof (struct ether_header))
+#else
+#define	WX_MAXMTU	(MCLBYTES - sizeof (struct ether_header))
+#endif
 
 #define	DPRINTF(sc, x)	if (sc->wx_debug) printf x
 #define	IPRINTF(sc, x)	if (sc->wx_verbose) printf x
