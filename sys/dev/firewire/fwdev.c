@@ -531,15 +531,13 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 	struct fw_xferq *ir, *it;
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
+	struct fw_devinfo *devinfo;
 
 	struct fw_devlstreq *fwdevlst = (struct fw_devlstreq *)data;
 	struct fw_asyreq *asyreq = (struct fw_asyreq *)data;
 	struct fw_isochreq *ichreq = (struct fw_isochreq *)data;
 	struct fw_isobufreq *ibufreq = (struct fw_isobufreq *)data;
 	struct fw_asybindreq *bindreq = (struct fw_asybindreq *)data;
-#if 0
-	struct fw_map_buf *map_buf = (struct fw_map_buf *)data;
-#endif
 	struct fw_crom_buf *crom_buf = (struct fw_crom_buf *)data;
 
 	if (DEV_FWMEM(dev))
@@ -842,19 +840,27 @@ error:
 		err = fw_bindadd(sc->fc, fwb);
 		break;
 	case FW_GDEVLST:
-		i = 0;
-		for(fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
-			fwdev = TAILQ_NEXT(fwdev, link)){
-			if(i < fwdevlst->n){
-				fwdevlst->dst[i] = fwdev->dst;
-				fwdevlst->status[i] = 
-					(fwdev->status == FWDEVATTACHED)?1:0;
-				fwdevlst->eui[i].hi = fwdev->eui.hi;
-				fwdevlst->eui[i].lo = fwdev->eui.lo;
+		i = len = 1;
+		/* myself */
+		devinfo = &fwdevlst->dev[0];
+		devinfo->dst = sc->fc->nodeid;
+		devinfo->status = 0;	/* XXX */
+		devinfo->eui.hi = sc->fc->eui.hi;
+		devinfo->eui.lo = sc->fc->eui.lo;
+		for (fwdev = TAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
+			fwdev = TAILQ_NEXT(fwdev, link)) {
+			if(len < FW_MAX_DEVLST){
+				devinfo = &fwdevlst->dev[len++];
+				devinfo->dst = fwdev->dst;
+				devinfo->status = 
+					(fwdev->status == FWDEVINVAL)?0:1;
+				devinfo->eui.hi = fwdev->eui.hi;
+				devinfo->eui.lo = fwdev->eui.lo;
 			}
 			i++;
 		}
 		fwdevlst->n = i;
+		fwdevlst->info_len = len;
 		break;
 	case FW_GTPMAP:
 		bcopy(sc->fc->topology_map, data,

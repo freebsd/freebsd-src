@@ -135,7 +135,7 @@ struct firewire_comm{
 #define	FWBUSEXPDONE	7
 #define	FWBUSCOMPLETION	10
 	int nisodma;
-	u_int8_t eui[8];
+	struct fw_eui64 eui;
 	STAILQ_HEAD(fw_queue, fw_xfer);
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
