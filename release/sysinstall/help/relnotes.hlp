@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                               FreeBSD 2.2-RELENG
+                              FreeBSD 2.2.2-RELEASE
 
 o For information about the layout of the release directory, see
   the ABOUT.TXT file.
@@ -11,9 +11,6 @@ For the most up-to-date releases along the RELENG_2_2 branch (which
 is now proceeding onwards toward release 2.2.5), please install from:
 
         ftp://releng22.freebsd.org/pub/FreeBSD/
-
-This is a snapshot made of RELENG_2_2 on a daily basis (and containing
-all the latest 2.2 fixes as of that date - you're looking at one now).
 
 
 0. What's new since 2.2.1
