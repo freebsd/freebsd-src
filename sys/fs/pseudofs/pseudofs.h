@@ -113,7 +113,7 @@ struct pfs_node {
 #define PFS_SYMLINK(name, flags, uid, gid, mode, func) \
 	PFS_NODE(name, pfstype_symlink, flags, uid, gid, mode, func)
 #define PFS_PROCDIR(flags, uid, gid, mode, nodes) \
-        PFS_NODE("", pfstype_procdir, flags, 0, uid, gid, mode, nodes)
+        PFS_NODE("", pfstype_procdir, flags, uid, gid, mode, nodes)
 #define PFS_LASTNODE \
 	PFS_NODE("", pfstype_none, 0, 0, 0, 0, NULL)
 
