@@ -132,9 +132,11 @@ cpu_fork(p1, p2, flags)
 			struct pcb_ldt *pcb_ldt = pcb1->pcb_ldt;
 			if (pcb_ldt && pcb_ldt->ldt_refcnt > 1) {
 				pcb_ldt = user_ldt_alloc(pcb1,pcb_ldt->ldt_len);
-				user_ldt_free(pcb1);
+				if (pcb_ldt == NULL)
+					panic("could not copy LDT");
 				pcb1->pcb_ldt = pcb_ldt;
 				set_user_ldt(pcb1);
+				user_ldt_free(pcb1);
 			}
 		}
 		return;
