@@ -137,6 +137,9 @@ socreate(dom, aso, type, proto, p)
 	else
 		prp = pffindtype(dom, type);
 
+	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
+		return (EPROTONOSUPPORT);
+
 	if (p->p_prison && jail_socket_unixiproute_only &&
 	    prp->pr_domain->dom_family != PF_LOCAL &&
 	    prp->pr_domain->dom_family != PF_INET &&
@@ -144,8 +147,6 @@ socreate(dom, aso, type, proto, p)
 		return (EPROTONOSUPPORT);
 	}
 
-	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
-		return (EPROTONOSUPPORT);
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
 	so = soalloc(p != 0);
