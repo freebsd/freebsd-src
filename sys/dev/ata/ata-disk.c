@@ -179,6 +179,15 @@ ad_attach(void *notused)
 		    ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
 		    adp->transfersize *= secsperint;
 
+		/* enable read/write cacheing if not default on device */
+		if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+			    0, 0, 0, 0, ATA_C_F_ENAB_RCACHE, ATA_WAIT_INTR))
+		    printf("ad%d: enabling readahead cache failed\n", adp->lun);
+
+		if (ata_command(adp->controller, adp->unit, ATA_C_SETFEATURES,
+			    0, 0, 0, 0, ATA_C_F_ENAB_WCACHE, ATA_WAIT_INTR))
+		    printf("ad%d: enabling write cache failed\n", adp->lun);
+
 		/* use DMA if drive & controller supports it */
 		if (!ata_dmainit(adp->controller, adp->unit,
 				 apiomode(adp->ata_parm),
