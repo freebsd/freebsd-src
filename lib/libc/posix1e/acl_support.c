@@ -260,7 +260,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 		else
 			i = snprintf(buf, buf_len, "%s", p->pw_name);
 
-		if (i >= buf_len) {
+		if (i < 0 || i >= buf_len) {
 			errno = ENOMEM;
 			return (-1);
 		}
@@ -273,7 +273,7 @@ _posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len, char *buf)
 		else
 			i = snprintf(buf, buf_len, "%s", g->gr_name);
 
-		if (i >= buf_len) {
+		if (i < 0 || i >= buf_len) {
 			errno = ENOMEM;
 			return (-1);
 		}
