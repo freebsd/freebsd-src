@@ -194,7 +194,7 @@ getpackagesite(void)
     uname(&u);
     strcpy(sitepath, u.machine);
 
-    if (reldate >= 400000)
+    if (reldate >= 500000)
 	strcat(sitepath, "/packages-current/Latest/");
 
     return sitepath;
