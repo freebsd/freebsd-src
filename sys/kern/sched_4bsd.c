@@ -996,10 +996,10 @@ sched_add(struct thread *td, int flags)
 
 	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(ke->ke_state != KES_ONRUNQ,
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
+	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
@@ -1092,10 +1092,10 @@ sched_rem(struct thread *td)
 	    ("sched_rem: KSE not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
 	SLOT_RELEASE(td->td_ksegrp);
 	runq_remove(ke->ke_runq, ke);
