@@ -57,7 +57,9 @@
 #include <i386/isa/sound/ad1848_mixer.h>
 #include <i386/isa/sound/iwdefs.h>
 
-#if !defined(CONFIG_CS4232) 
+#if defined(CONFIG_CS4232) 
+extern struct isa_driver cssdriver;
+#else
 extern struct isa_driver mssdriver;
 #endif
 
