@@ -134,6 +134,7 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	UPLCOM_SET_REQUEST		0x01
 #define	UPLCOM_SET_CRTSCTS		0x41
+#define RSAQ_STATUS_CTS			0x80
 #define RSAQ_STATUS_DSR			0x02
 #define RSAQ_STATUS_DCD			0x01
 
@@ -799,10 +800,18 @@ uplcom_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 
 	sc->sc_lsr = sc->sc_msr = 0;
 	pstatus = buf[8];
+	if (ISSET(pstatus, RSAQ_STATUS_CTS))
+		sc->sc_msr |= SER_CTS;
+	else
+		sc->sc_msr &= ~SER_CTS;
 	if (ISSET(pstatus, RSAQ_STATUS_DSR))
 		sc->sc_msr |= SER_DSR;
+	else
+		sc->sc_msr &= ~SER_DSR;
 	if (ISSET(pstatus, RSAQ_STATUS_DCD))
 		sc->sc_msr |= SER_DCD;
+	else
+		sc->sc_msr &= ~SER_DCD;
 	ucom_status_change(&sc->sc_ucom);
 }
 
