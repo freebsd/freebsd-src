@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)rmdir.1	8.1 (Berkeley) 5/31/93
-.\"	$Id: rmdir.1,v 1.2 1994/09/24 02:57:11 davidg Exp $
+.\"	$Id: rmdir.1,v 1.3 1996/08/29 18:06:08 wosch Exp $
 .\"
 .Dd May 31, 1993
 .Dt RMDIR 1
@@ -43,7 +43,7 @@
 .Nd remove directories
 .Sh SYNOPSIS
 .Nm rmdir
-.\" .Op Fl p
+.Op Fl p
 .Ar directory ...
 .Sh DESCRIPTION
 The rmdir utility removes the directory entry specified by
@@ -58,24 +58,24 @@ must be specified first so the parent directory
 is empty when
 .Nm rmdir
 tries to remove it.
-.\" .Pp
-.\" The following option is available:
-.\" .Bl -tag -width Ds
-.\" .It Fl p
-.\" Each
-.\" .Ar directory
-.\" argument is treated as a pathname of which all
-.\" components will be removed, if they are empty,
-.\" starting with the last most component.
-.\" (See
-.\" .Xr rm 1
-.\" for fully non-discriminant recursive removal).
-.\" .El
+.Pp
+The following option is available:
+.Bl -tag -width Ds
+.It Fl p
+Each
+.Ar directory
+argument is treated as a pathname of which all
+components will be removed, if they are empty,
+starting with the last most component.
+(See
+.Xr rm 1
+for fully non-discriminant recursive removal.)
+.El
 .Pp
 The
 .Nm rmdir
 utility exits with one of the following values:
-.Bl -tag -width flag
+.Bl -tag -width Ds
 .It Li \&0
 Each directory entry specified by a dir operand
 referred to an empty directory and was removed
