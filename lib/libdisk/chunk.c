@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.15 1995/06/11 19:29:32 rgrimes Exp $
+ * $Id: chunk.c,v 1.16 1996/03/24 18:55:36 joerg Exp $
  *
  */
 
@@ -66,7 +66,7 @@ Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end, chunk_e type)
 			}
 			return 0;
 		default:
-			warn("Unsupported mother (0x%x) in Find_Mother_Chunk");
+			warn("Unsupported mother type in Find_Mother_Chunk");
 			return 0;
 	}
 }
