@@ -1069,28 +1069,36 @@ out:
 }
 
 /* Allocate an IO port or memory resource, given its GAS. */
-struct resource *
-acpi_bus_alloc_gas(device_t dev, int *rid, ACPI_GENERIC_ADDRESS *gas)
+int
+acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
+    struct resource **res)
 {
-    int type;
+    int error, res_type;
 
-    if (gas == NULL || !ACPI_VALID_ADDRESS(gas->Address) ||
-	gas->RegisterBitWidth < 8)
-	return (NULL);
+    error = ENOMEM;
+    if (type == NULL || rid == NULL || gas == NULL || res == NULL ||
+	!ACPI_VALID_ADDRESS(gas->Address) || gas->RegisterBitWidth < 8)
+	return (EINVAL);
 
     switch (gas->AddressSpaceId) {
     case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-	type = SYS_RES_MEMORY;
+	res_type = SYS_RES_MEMORY;
 	break;
     case ACPI_ADR_SPACE_SYSTEM_IO:
-	type = SYS_RES_IOPORT;
+	res_type = SYS_RES_IOPORT;
 	break;
     default:
-	return (NULL);
+	return (EOPNOTSUPP);
     }
 
-    bus_set_resource(dev, type, *rid, gas->Address, gas->RegisterBitWidth / 8);
-    return (bus_alloc_resource_any(dev, type, rid, RF_ACTIVE));
+    bus_set_resource(dev, res_type, *rid, gas->Address,
+	gas->RegisterBitWidth / 8);
+    *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE);
+    if (*res != NULL) {
+	*type = res_type;
+	error = 0;
+    }
+    return (error);
 }
 
 /* Probe _HID and _CID for compatible ISA PNP ids. */
