@@ -486,11 +486,6 @@ union mcluster {
 	int _mplen = (plen);						\
 	int __mhow = (how);						\
 									\
-	if (_mm == NULL) {						\
-		MGET(_mm, __mhow, MT_DATA);				\
-		if (_mm == NULL)					\
-			break;						\
-	}								\
 	if (M_LEADINGSPACE(_mm) >= _mplen) {				\
 		_mm->m_data -= _mplen;					\
 		_mm->m_len += _mplen;					\
