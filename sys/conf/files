@@ -1069,6 +1069,7 @@ dev/sound/pci/ds1.c	optional pcm pci
 dev/sound/pci/emu10k1.c	optional pcm pci
 dev/sound/pci/es137x.c	optional pcm pci
 dev/sound/pci/neomagic.c optional pcm pci
+dev/sound/pci/solo.c	optional pcm pci
 dev/sound/pci/t4dwave.c	optional pcm pci
 dev/sound/pcm/ac97.c	optional pcm
 dev/sound/pcm/channel.c	optional pcm
