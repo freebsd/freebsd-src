@@ -45,7 +45,11 @@ static int ips_pci_probe(device_t dev)
 	    (pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID)) {
 		device_set_desc(dev, "IBM ServeRAID Adapter");
 		return (0);
-        }
+        } else if ((pci_get_vendor(dev) == IPS_VENDOR_ID_ADAPTEC) &&
+	    (pci_get_device(dev) == IPS_MARCO_DEVICE_ID)) {
+		device_set_desc(dev, "Adaptec ServeRAID Adapter");
+		return (0);
+	}
         return(ENXIO);
 }
 
@@ -77,6 +81,10 @@ static int ips_pci_attach(device_t dev)
 		sc->ips_adapter_reinit = ips_copperhead_reinit;
                 sc->ips_adapter_intr = ips_copperhead_intr;
 		sc->ips_issue_cmd    = ips_issue_copperhead_cmd;
+	} else if (pci_get_device(dev) == IPS_MARCO_DEVICE_ID){
+		sc->ips_adapter_reinit = ips_morpheus_reinit;
+		sc->ips_adapter_intr = ips_morpheus_intr;
+		sc->ips_issue_cmd = ips_issue_morpheus_cmd;
 	} else
                 goto error;
         /* make sure busmastering is on */
@@ -87,10 +95,10 @@ static int ips_pci_attach(device_t dev)
         sc->iores = NULL;
         if(command & PCIM_CMD_MEMEN){
                 PRINTF(10, "trying MEMIO\n");
-		if(pci_get_device(dev) == IPS_MORPHEUS_DEVICE_ID)
-                	sc->rid = PCIR_BAR(0);
+		if(pci_get_device(dev) == IPS_COPPERHEAD_DEVICE_ID)
+                	sc->rid = PCIR_BAR(1);
 		else
-			sc->rid = PCIR_BAR(1);
+			sc->rid = PCIR_BAR(0);
                 sc->iotype = SYS_RES_MEMORY;
                 sc->iores = bus_alloc_resource_any(dev, sc->iotype,
 			&sc->rid, RF_ACTIVE);
