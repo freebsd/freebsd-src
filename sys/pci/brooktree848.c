@@ -1,4 +1,4 @@
-/* BT848 1.24 Driver for Brooktree's Bt848 based cards.
+/* BT848 1.26 Driver for Brooktree's Bt848 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
    Philips SAA 7116 and SAA 7196 are very different chipsets than
@@ -211,6 +211,10 @@
                            Roger Hardiman <roger@cs.strath.ac.uk> submitted 
                            various fixes to smooth out the microcode and made 
                            all modes consistent.
+1.26                       Moved Luigi's I2CWR ioctl from the video_ioctl
+                           section to the tuner_ioctl section
+                           Changed Major device from 79 to 92 and reserved
+                           our Major device number -- hasty@star-gate.com
 */
 
 #define DDB(x) x
@@ -336,7 +340,7 @@ static	d_write_t	bktr_write;
 static	d_ioctl_t	bktr_ioctl;
 static	d_mmap_t	bktr_mmap;
 
-#define CDEV_MAJOR 79
+#define CDEV_MAJOR 92 
 static struct cdevsw bktr_cdevsw = 
 {
 	bktr_open,	bktr_close,	bktr_read,	bktr_write,
@@ -1469,11 +1473,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	vm_offset_t		buf;
 	struct format_params	*fp;
 	int                     i;
-	u_long			par;
-	u_char			write;
-	int			i2c_addr;
-	int			i2c_port;
-	u_long			data;
  
 	bt848 =	bktr->base;
 
@@ -1959,21 +1958,6 @@ video_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		break;
 	/* end of METEORSETGEO */
 
-	case BT848_I2CWR:
-		par = *(u_long *)arg;
-		write = (par >> 24) & 0xff ;
-		i2c_addr = (par >> 16) & 0xff ;
-		i2c_port = (par >> 8) & 0xff ;
-		data = (par) & 0xff ;
- 
-		if (write) { 
-			i2cWrite( bktr, i2c_addr, i2c_port, data);
-		} else {
-			data = i2cRead( bktr, i2c_addr);
-		}
-		*(u_long *)arg = (par & 0xffffff00) | ( data & 0xff );
-		break;
-
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
 	}
@@ -1993,6 +1977,11 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	int		offset;
 	int		count;
 	u_char		*buf;
+	u_long          par;
+	u_char          write;
+	int             i2c_addr;
+	int             i2c_port;
+	u_long          data;
 
 	bt848 =	bktr->base;
 
@@ -2293,7 +2282,22 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		    return( EINVAL );
 	    *(unsigned long *)arg = temp;
 	    break;
+	    /* Luigi's I2CWR ioctl */ 
+	case BT848_I2CWR:
+		par = *(u_long *)arg;
+		write = (par >> 24) & 0xff ;
+		i2c_addr = (par >> 16) & 0xff ;
+		i2c_port = (par >> 8) & 0xff ;
+		data = (par) & 0xff ;
  
+		if (write) { 
+			i2cWrite( bktr, i2c_addr, i2c_port, data);
+		} else {
+			data = i2cRead( bktr, i2c_addr);
+		}
+		*(u_long *)arg = (par & 0xffffff00) | ( data & 0xff );
+		break;
+
 
 	default:
 		return common_ioctl( bktr, bt848, cmd, arg );
