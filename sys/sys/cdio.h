@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.16 1997/02/22 09:44:53 peter Exp $
+ *	$Id: cdio.h,v 1.17 1997/05/04 15:24:23 joerg Exp $
  */
 
 /*
@@ -43,16 +43,16 @@ union msf_lba {
 };
 
 struct cd_toc_entry {
-	u_char	:8;
-	u_char	control:4;
-	u_char	addr_type:4;
+	u_int	:8;
+	u_int	control:4;
+	u_int	addr_type:4;
 	u_char  track;
-	u_char	:8;
+	u_int	:8;
 	union msf_lba  addr;
 };
 
 struct cd_sub_channel_header {
-	u_char	:8;
+	u_int	:8;
 	u_char	audio_status;
 #define CD_AS_AUDIO_INVALID        0x00
 #define CD_AS_PLAY_IN_PROGRESS     0x11
@@ -65,8 +65,8 @@ struct cd_sub_channel_header {
 
 struct cd_sub_channel_position_data {
 	u_char	data_format;
-	u_char	control:4;
-	u_char	addr_type:4;
+	u_int	control:4;
+	u_int	addr_type:4;
 	u_char	track_number;
 	u_char	index_number;
 	union msf_lba  absaddr;
@@ -75,21 +75,21 @@ struct cd_sub_channel_position_data {
 
 struct cd_sub_channel_media_catalog {
         u_char  data_format;
-        u_char  :8;
-        u_char  :8;
-        u_char  :8;
-        u_char  :7;
-        u_char  mc_valid:1;
+        u_int   :8;
+        u_int   :8;
+        u_int   :8;
+        u_int   :7;
+        u_int   mc_valid:1;
         u_char  mc_number[15];
 };
 
 struct cd_sub_channel_track_info {
         u_char  data_format;
-        u_char  :8;
+        u_int   :8;
         u_char  track_number;
-        u_char  :8;
-        u_char  :7;
-        u_char  ti_valid:1;
+        u_int   :8;
+        u_int   :7;
+        u_int   ti_valid:1;
         u_char  ti_number[15];
 };
 

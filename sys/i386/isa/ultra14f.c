@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.58 1998/03/25 22:40:06 imp Exp $
+ *      $Id: ultra14f.c,v 1.59 1998/04/17 22:36:42 des Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh.. this compiles to a program too.. look */
@@ -205,21 +205,21 @@ struct uha_dma_seg {
 };
 
 struct mscp {
-	unsigned char opcode:3;
+	unsigned int  opcode:3;
 #define U14_HAC		0x01	/* host adapter command */
 #define U14_TSP		0x02	/* target scsi pass through command */
 #define U14_SDR		0x04	/* scsi device reset */
-	unsigned char xdir:2;	/* xfer direction */
+	unsigned int  xdir:2;	/* xfer direction */
 #define U14_SDET	0x00	/* determined by scsi command */
 #define U14_SDIN	0x01	/* scsi data in */
 #define U14_SDOUT	0x02	/* scsi data out */
 #define U14_NODATA	0x03	/* no data xfer */
-	unsigned char dcn:1;	/* disable disconnect for this command */
-	unsigned char ca:1;	/* cache control */
-	unsigned char sgth:1;	/* scatter gather flag */
-	unsigned char target:3;
-	unsigned char chan:2;	/* scsi channel (always 0 for 14f) */
-	unsigned char lun:3;
+	unsigned int  dcn:1;	/* disable disconnect for this command */
+	unsigned int  ca:1;	/* cache control */
+	unsigned int  sgth:1;	/* scatter gather flag */
+	unsigned int  target:3;
+	unsigned int  chan:2;	/* scsi channel (always 0 for 14f) */
+	unsigned int  lun:3;
 	physaddr data;
 	physlen datalen;
 	physaddr link;
