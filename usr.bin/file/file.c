@@ -26,7 +26,7 @@
  */
 #ifndef	lint
 static char *moduleid =
-	"@(#)$Id: file.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
+	"@(#)$Id: file.c,v 1.2 1995/05/30 06:30:01 rgrimes Exp $";
 #endif	/* lint */
 
 #include <stdio.h>
@@ -36,15 +36,24 @@ static char *moduleid =
 #include <sys/param.h>	/* for MAXPATHLEN */
 #include <sys/stat.h>
 #include <fcntl.h>	/* for open() */
+#if (__COHERENT__ >= 0x420)
+#include <sys/utime.h>
+#else
 #include <utime.h>
+#endif
 #include <unistd.h>	/* for read() */
 
+#ifdef __ELF__
+#include <elf.h>
+#endif
+
+#include "patchlevel.h"
 #include "file.h"
 
 #ifdef S_IFLNK
-# define USAGE  "Usage: %s [-czL] [-f namefile] [-m magicfile] file...\n"
+# define USAGE  "Usage: %s [-vczL] [-f namefile] [-m magicfiles] file...\n"
 #else
-# define USAGE  "Usage: %s [-cz] [-f namefile] [-m magicfile] file...\n"
+# define USAGE  "Usage: %s [-vcz] [-f namefile] [-m magicfiles] file...\n"
 #endif
 
 #ifndef MAGIC
@@ -61,7 +70,7 @@ int			/* Misc globals				*/
 
 struct  magic *magic;	/* array of magic entries		*/
 
-char *magicfile = MAGIC;/* where magic be found 		*/
+char *magicfile;	/* where magic be found 		*/
 
 char *progname;		/* used throughout 			*/
 int lineno;		/* line number in the magic file	*/
@@ -78,15 +87,22 @@ int argc;
 char *argv[];
 {
 	int c;
-	int check = 0, didsomefiles = 0, errflg = 0, ret = 0;
+	int check = 0, didsomefiles = 0, errflg = 0, ret = 0, app = 0;
 
 	if ((progname = strrchr(argv[0], '/')) != NULL)
 		progname++;
 	else
 		progname = argv[0];
 
-	while ((c = getopt(argc, argv, "cdf:Lm:z")) != EOF)
+	if (!(magicfile = getenv("MAGIC")))
+		magicfile = MAGIC;
+
+	while ((c = getopt(argc, argv, "vcdf:Lm:z")) != EOF)
 		switch (c) {
+		case 'v':
+			(void) fprintf(stdout, "%s-%d.%d\n", progname,
+				       FILE_VERSION_MAJOR, patchlevel);
+			return 1;
 		case 'c':
 			++check;
 			break;
@@ -94,6 +110,12 @@ char *argv[];
 			++debug;
 			break;
 		case 'f':
+			if (!app) {
+				ret = apprentice(magicfile, check);
+				if (check)
+					exit(ret);
+				app = 1;
+			}
 			unwrap(optarg);
 			++didsomefiles;
 			break;
@@ -113,14 +135,18 @@ char *argv[];
 			errflg++;
 			break;
 		}
+
 	if (errflg) {
 		(void) fprintf(stderr, USAGE, progname);
 		exit(2);
 	}
 
-	ret = apprentice(magicfile, check);
-	if (check)
-		exit(ret);
+	if (!app) {
+		ret = apprentice(magicfile, check);
+		if (check)
+			exit(ret);
+		app = 1;
+	}
 
 	if (optind == argc) {
 		if (!didsomefiles) {
@@ -190,6 +216,7 @@ int wid;
 	struct utimbuf  utbuf;
 	struct stat	sb;
 	int nbytes = 0;	/* number of bytes read from a datafile */
+	char match = '\0';
 
 	if (strcmp("-", inname) == 0) {
 		if (fstat(0, &sb)<0) {
@@ -236,8 +263,55 @@ int wid;
 		ckfputs("empty", stdout);
 	else {
 		buf[nbytes++] = '\0';	/* null-terminate it */
-		tryit(buf, nbytes, zflag);
+		match = tryit(buf, nbytes, zflag);
 	}
+#ifdef __ELF__
+	/*
+	 * ELF executables have multiple section headers in arbitrary
+	 * file locations and thus file(1) cannot determine it from easily.
+	 * Instead we traverse thru all section headers until a symbol table
+	 * one is found or else the binary is stripped.
+	 * XXX: This will not work for binaries of a different byteorder.
+	 *	Should come up with a better fix.
+	 */
+
+	if (match == 's' && nbytes > sizeof (Elf32_Ehdr) &&
+	    buf[EI_MAG0] == ELFMAG0 &&
+	    buf[EI_MAG1] == ELFMAG1 &&
+	    buf[EI_MAG2] == ELFMAG2 &&
+	    buf[EI_MAG3] == ELFMAG3) {
+
+		union {
+			long l;
+			char c[sizeof (long)];
+		} u;
+		Elf32_Ehdr elfhdr;
+		int stripped = 1;
+
+		u.l = 1;
+		(void) memcpy(&elfhdr, buf, sizeof elfhdr);
+
+		/*
+		 * If the system byteorder does not equal the object byteorder
+		 * then don't test.
+		 */
+		if ((u.c[sizeof(long) - 1] + 1) == elfhdr.e_ident[5]) {
+		    if (lseek(fd, elfhdr.e_shoff, SEEK_SET)<0)
+			error("lseek failed (%s).\n", strerror(errno));
+
+		    for ( ; elfhdr.e_shnum ; elfhdr.e_shnum--) {
+			if (read(fd, buf, elfhdr.e_shentsize)<0)
+			    error("read failed (%s).\n", strerror(errno));
+			if (((Elf32_Shdr *)&buf)->sh_type == SHT_SYMTAB) {
+			    stripped = 0;
+			    break;
+			}
+		    }
+		    if (stripped)
+			(void) printf (", stripped");
+		}
+	}
+#endif
 
 	if (inname != stdname) {
 		/*
@@ -252,25 +326,24 @@ int wid;
 }
 
 
-void
+int
 tryit(buf, nb, zflag)
 unsigned char *buf;
 int nb, zflag;
 {
-	/*
-	 * Try compression stuff
-	 */
-	if (!zflag || zmagic(buf, nb) != 1)
-		/*
-		 * try tests in /etc/magic (or surrogate magic file)
-		 */
-		if (softmagic(buf, nb) != 1)
-			/*
-			 * try known keywords, check for ascii-ness too.
-			 */
-			if (ascmagic(buf, nb) != 1)
-			    /*
-			     * abandon hope, all ye who remain here
-			     */
-			    ckfputs("data", stdout);
+	/* try compression stuff */
+	if (zflag && zmagic(buf, nb))
+		return 'z';
+
+	/* try tests in /etc/magic (or surrogate magic file) */
+	if (softmagic(buf, nb))
+		return 's';
+
+	/* try known keywords, check whether it is ASCII */
+	if (ascmagic(buf, nb))
+		return 'a';
+
+	/* abandon hope, all ye who remain here */
+	ckfputs("data", stdout);
+		return '\0';
 }

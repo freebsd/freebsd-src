@@ -34,7 +34,7 @@
 
 #ifndef	lint
 static char *moduleid =
-	"@(#)$Id: softmagic.c,v 1.2 1995/05/24 02:54:30 ache Exp $";
+	"@(#)$Id: softmagic.c,v 1.3 1995/05/30 06:30:09 rgrimes Exp $";
 #endif	/* lint */
 
 static int match	__P((unsigned char *, int));
@@ -179,18 +179,24 @@ struct magic *m;
   	switch (m->type) {
   	case BYTE:
 		v = p->b;
+		v = signextend(m, v) & m->mask;
+		(void) printf(m->desc, (unsigned char) v);
 		break;
 
   	case SHORT:
   	case BESHORT:
   	case LESHORT:
 		v = p->h;
+		v = signextend(m, v) & m->mask;
+		(void) printf(m->desc, (unsigned short) v);
 		break;
 
   	case LONG:
   	case BELONG:
   	case LELONG:
 		v = p->l;
+		v = signextend(m, v) & m->mask;
+		(void) printf(m->desc, (unsigned long) v);
   		break;
 
   	case STRING:
@@ -214,9 +220,6 @@ struct magic *m;
 		error("invalid m->type (%d) in mprint().\n", m->type);
 		/*NOTREACHED*/
 	}
-
-	v = signextend(m, v) & m->mask;
-	(void) printf(m->desc, v);
 }
 
 /*
@@ -270,7 +273,7 @@ long offset;
 char *str;
 int len;
 {
-	(void) fprintf(stderr, "mget @%d: ", offset);
+	(void) fprintf(stderr, "mget @%ld: ", offset);
 	showstr(stderr, (char *) str, len);
 	(void) fputc('\n', stderr);
 	(void) fputc('\n', stderr);
@@ -284,11 +287,20 @@ struct magic *m;
 int nbytes;
 {
 	long offset = m->offset;
-	if (offset + sizeof(union VALUETYPE) > nbytes)
-	    return 0;
 
+	if (offset + sizeof(union VALUETYPE) <= nbytes)
+		memcpy(p, s + offset, sizeof(union VALUETYPE));
+	else {
+		/*
+		 * the usefulness of padding with zeroes eludes me, it
+		 * might even cause problems
+		 */
+		long have = nbytes - offset;
+		memset(p, 0, sizeof(union VALUETYPE));
+		if (have > 0)
+			memcpy(p, s + offset, have);
+	}
 
-	memcpy(p, s + offset, sizeof(union VALUETYPE));
 
 	if (debug) {
 		mdebug(offset, (char *) p, sizeof(union VALUETYPE));
