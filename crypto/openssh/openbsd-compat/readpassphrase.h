@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: include/readpassphrase.h */
+
 /*	$OpenBSD: readpassphrase.h,v 1.3 2002/06/28 12:32:22 millert Exp $	*/
 
 /*

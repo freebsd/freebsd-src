@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: include/glob.h */
+
 /*	$OpenBSD: glob.h,v 1.8 2003/06/02 19:34:12 millert Exp $	*/
 /*	$NetBSD: glob.h,v 1.5 1994/10/26 00:55:56 cgd Exp $	*/
 

@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/net/getrrsetbyname.c */
+
 /* $OpenBSD: getrrsetbyname.c,v 1.7 2003/03/07 07:34:14 itojun Exp $ */
 
 /*
@@ -45,11 +47,9 @@
 
 #include "includes.h"
 
-#if defined(DNS) && !defined(HAVE_GETRRSETBYNAME)
+#ifndef HAVE_GETRRSETBYNAME
 
 #include "getrrsetbyname.h"
-
-/* #include "thread_private.h" */
 
 #define ANSWER_BUFFER_SIZE 1024*64
 
@@ -159,7 +159,6 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
     unsigned int rdtype, unsigned int flags,
     struct rrsetinfo **res)
 {
-	struct __res_state *_resp = &_res;
 	int result;
 	struct rrsetinfo *rrset = NULL;
 	struct dns_response *response;
@@ -188,19 +187,19 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 	}
 
 	/* initialize resolver */
-	if ((_resp->options & RES_INIT) == 0 && res_init() == -1) {
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		result = ERRSET_FAIL;
 		goto fail;
 	}
 
 #ifdef DEBUG
-	_resp->options |= RES_DEBUG;
+	_res.options |= RES_DEBUG;
 #endif /* DEBUG */
 
 #ifdef RES_USE_DNSSEC
 	/* turn on DNSSEC if EDNS0 is configured */
-	if (_resp->options & RES_USE_EDNS0)
-		_resp->options |= RES_USE_DNSSEC;
+	if (_res.options & RES_USE_EDNS0)
+		_res.options |= RES_USE_DNSSEC;
 #endif /* RES_USE_DNSEC */
 
 	/* make query */
@@ -575,4 +574,4 @@ count_dns_rr(struct dns_rr *p, u_int16_t class, u_int16_t type)
 	return (n);
 }
 
-#endif /* defined(DNS) && !defined(HAVE_GETRRSETBYNAME) */
+#endif /* !defined(HAVE_GETRRSETBYNAME) */

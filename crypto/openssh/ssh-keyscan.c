@@ -7,7 +7,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keyscan.c,v 1.44 2003/06/28 16:23:06 deraadt Exp $");
+RCSID("$OpenBSD: ssh-keyscan.c,v 1.46 2003/11/23 23:17:34 djm Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -214,13 +214,11 @@ fdlim_get(int hard)
 	if (getrlimit(RLIMIT_NOFILE, &rlfd) < 0)
 		return (-1);
 	if ((hard ? rlfd.rlim_max : rlfd.rlim_cur) == RLIM_INFINITY)
-		return 10000;
+		return SSH_SYSFDMAX;
 	else
 		return hard ? rlfd.rlim_max : rlfd.rlim_cur;
-#elif defined (HAVE_SYSCONF)
-	return sysconf (_SC_OPEN_MAX);
 #else
-	return 10000;
+	return SSH_SYSFDMAX;
 #endif
 }
 
@@ -675,7 +673,7 @@ fatal(const char *fmt,...)
 	if (nonfatal_fatal)
 		longjmp(kexjmp, -1);
 	else
-		fatal_cleanup();
+		exit(255);
 }
 
 static void

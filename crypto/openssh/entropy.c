@@ -36,16 +36,16 @@
 
 /*
  * Portable OpenSSH PRNG seeding:
- * If OpenSSL has not "internally seeded" itself (e.g. pulled data from 
- * /dev/random), then we execute a "ssh-rand-helper" program which 
- * collects entropy and writes it to stdout. The child program must 
+ * If OpenSSL has not "internally seeded" itself (e.g. pulled data from
+ * /dev/random), then we execute a "ssh-rand-helper" program which
+ * collects entropy and writes it to stdout. The child program must
  * write at least RANDOM_SEED_SIZE bytes. The child is run with stderr
  * attached, so error/debugging output should be visible.
  *
  * XXX: we should tell the child how many bytes we need.
  */
 
-RCSID("$Id: entropy.c,v 1.46 2003/08/25 01:16:21 mouring Exp $");
+RCSID("$Id: entropy.c,v 1.48 2003/11/21 12:56:47 djm Exp $");
 
 #ifndef OPENSSL_PRNG_ONLY
 #define RANDOM_SEED_SIZE 48
@@ -86,16 +86,16 @@ seed_rng(void)
 		close(p[1]);
 		close(devnull);
 
-		if (original_uid != original_euid && 
-		    ( seteuid(getuid()) == -1 || 
+		if (original_uid != original_euid &&
+		    ( seteuid(getuid()) == -1 ||
 		      setuid(original_uid) == -1) ) {
-			fprintf(stderr, "(rand child) setuid(%li): %s\n", 
+			fprintf(stderr, "(rand child) setuid(%li): %s\n",
 			    (long int)original_uid, strerror(errno));
 			_exit(1);
 		}
-		
+
 		execl(SSH_RAND_HELPER, "ssh-rand-helper", NULL);
-		fprintf(stderr, "(rand child) Couldn't exec '%s': %s\n", 
+		fprintf(stderr, "(rand child) Couldn't exec '%s': %s\n",
 		    SSH_RAND_HELPER, strerror(errno));
 		_exit(1);
 	}
@@ -114,12 +114,12 @@ seed_rng(void)
 	close(p[0]);
 
 	if (waitpid(pid, &ret, 0) == -1)
-	       fatal("Couldn't wait for ssh-rand-helper completion: %s", 
+	       fatal("Couldn't wait for ssh-rand-helper completion: %s",
 		   strerror(errno));
 	signal(SIGCHLD, old_sigchld);
 
 	/* We don't mind if the child exits upon a SIGPIPE */
-	if (!WIFEXITED(ret) && 
+	if (!WIFEXITED(ret) &&
 	    (!WIFSIGNALED(ret) || WTERMSIG(ret) != SIGPIPE))
 		fatal("ssh-rand-helper terminated abnormally");
 	if (WEXITSTATUS(ret) != 0)
@@ -134,7 +134,7 @@ seed_rng(void)
 }
 
 void
-init_rng(void) 
+init_rng(void)
 {
 	/*
 	 * OpenSSL version numbers: MNNFFPPS: major minor fix patch status
