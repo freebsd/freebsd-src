@@ -64,6 +64,7 @@ struct eh_cie_fde
   unsigned char removed : 1;
   unsigned char make_relative : 1;
   unsigned char make_lsda_relative : 1;
+  unsigned char per_encoding_relative : 1;
 };
 
 struct eh_frame_sec_info
@@ -469,6 +470,8 @@ _bfd_elf_discard_section_eh_frame (abfd, info, sec, ehdrsec,
 		    = cie.make_relative;
 		  sec_info->entry[last_cie_ndx].make_lsda_relative
 		    = cie.make_lsda_relative;
+		  sec_info->entry[last_cie_ndx].per_encoding_relative
+		    = (cie.per_encoding & 0x70) == DW_EH_PE_pcrel;
 		}
 	    }
 
@@ -633,8 +636,9 @@ _bfd_elf_discard_section_eh_frame (abfd, info, sec, ehdrsec,
 	  else
 	    {
 	      if (info->shared
-		  && (cie.fde_encoding & 0xf0) == DW_EH_PE_absptr
-		  && cie.make_relative == 0)
+		  && (((cie.fde_encoding & 0xf0) == DW_EH_PE_absptr
+		       && cie.make_relative == 0)
+		      || (cie.fde_encoding & 0xf0) == DW_EH_PE_aligned))
 		{
 		  /* If shared library uses absolute pointers
 		     which we cannot turn into PC relative,
@@ -689,6 +693,7 @@ _bfd_elf_discard_section_eh_frame (abfd, info, sec, ehdrsec,
 	    {
 	      sec_info->entry[i].make_relative = make_relative;
 	      sec_info->entry[i].make_lsda_relative = make_lsda_relative;
+	      sec_info->entry[i].per_encoding_relative = 0;
 	    }
 	}
       else if (sec_info->entry[i].cie && sec_info->entry[i].sec == sec)
@@ -947,7 +952,8 @@ _bfd_elf_write_section_eh_frame (abfd, sec, ehdrsec, contents)
 	  /* CIE */
 	  cie_offset = sec_info->entry[i].new_offset;
 	  if (sec_info->entry[i].make_relative
-	      || sec_info->entry[i].make_lsda_relative)
+	      || sec_info->entry[i].make_lsda_relative
+	      || sec_info->entry[i].per_encoding_relative)
 	    {
 	      unsigned char *aug;
 	      unsigned int action;
@@ -956,7 +962,8 @@ _bfd_elf_write_section_eh_frame (abfd, sec, ehdrsec, contents)
 	      /* Need to find 'R' or 'L' augmentation's argument and modify
 		 DW_EH_PE_* value.  */
 	      action = (sec_info->entry[i].make_relative ? 1 : 0)
-		       | (sec_info->entry[i].make_lsda_relative ? 2 : 0);
+		       | (sec_info->entry[i].make_lsda_relative ? 2 : 0)
+		       | (sec_info->entry[i].per_encoding_relative ? 4 : 0);
 	      buf = contents + sec_info->entry[i].offset;
 	      /* Skip length, id and version.  */
 	      buf += 9;
@@ -988,10 +995,22 @@ _bfd_elf_write_section_eh_frame (abfd, sec, ehdrsec, contents)
                     per_width = get_DW_EH_PE_width (per_encoding,
 						    ptr_size);
 		    BFD_ASSERT (per_width != 0);
+		    BFD_ASSERT (((per_encoding & 0x70) == DW_EH_PE_pcrel)
+				== sec_info->entry[i].per_encoding_relative);
 		    if ((per_encoding & 0xf0) == DW_EH_PE_aligned)
 		      buf = (contents
 			     + ((buf - contents + per_width - 1)
 				& ~((bfd_size_type) per_width - 1)));
+		    if (action & 4)
+		      {
+			bfd_vma value;
+
+			value = read_value (abfd, buf, per_width);
+			value += (sec_info->entry[i].offset
+				  - sec_info->entry[i].new_offset);
+			write_value (abfd, buf, value, per_width);
+			action &= ~4;
+		      }
 		    buf += per_width;
 		    break;
 		  case 'R':
@@ -1008,7 +1027,7 @@ _bfd_elf_write_section_eh_frame (abfd, sec, ehdrsec, contents)
 		  }
 	    }
 	}
-      else
+      else if (sec_info->entry[i].size > 4)
 	{
 	  /* FDE */
 	  bfd_vma value = 0, address;
@@ -1081,6 +1100,9 @@ _bfd_elf_write_section_eh_frame (abfd, sec, ehdrsec, contents)
 		}
 	    }
 	}
+      else
+	/* Terminating FDE must be at the end of .eh_frame section only.  */
+	BFD_ASSERT (i == sec_info->count - 1);
 
       BFD_ASSERT (p == contents + sec_info->entry[i].new_offset);
       memmove (p, contents + sec_info->entry[i].offset,

@@ -2114,7 +2114,7 @@ xcoff_link_add_dynamic_symbols (abfd, info)
 
   /* Remove the sections from this object, so that they do not get
      included in the link.  */
-  abfd->sections = NULL;
+  bfd_section_list_clear (abfd);
 
   bfd_xcoff_swap_ldhdr_in (abfd, contents, &ldhdr);
 

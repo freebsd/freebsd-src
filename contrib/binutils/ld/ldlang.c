@@ -2914,6 +2914,8 @@ lang_size_sections (s, output_section_statement, prev, fill, dot, relax)
 		       defined, issue a warning.  */
 		    if ((bfd_get_section_flags (output_bfd, os->bfd_section)
 			 & (SEC_ALLOC | SEC_LOAD)) != 0
+			&& (bfd_get_section_flags (output_bfd, os->bfd_section)
+			    & SEC_NEVER_LOAD) == 0
 			&& ! link_info.relocateable
 			&& strcmp (os->region->name, "*default*") == 0
 			&& lang_memory_region_list != NULL

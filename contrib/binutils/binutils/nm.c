@@ -1291,7 +1291,8 @@ print_symbol (abfd, sym, archive_bfd)
 				 bfd_asymbol_name (*r->sym_ptr_ptr)) == 0
 		      && bfd_find_nearest_line (abfd, secs[i], syms,
 						r->address, &filename,
-						&functionname, &lineno))
+						&functionname, &lineno)
+		      && filename != NULL)
 		    {
 		      /* We only print the first one we find.  */
 		      printf ("\t%s:%u", filename, lineno);

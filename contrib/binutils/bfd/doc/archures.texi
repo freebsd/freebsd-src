@@ -225,8 +225,8 @@ enum bfd_architecture
 #define bfd_mach_avr5          5
   bfd_arch_cris,      /* Axis CRIS */
   bfd_arch_s390,      /* IBM s390 */
-#define bfd_mach_s390_esa      0
-#define bfd_mach_s390_esame    1
+#define bfd_mach_s390_31       0
+#define bfd_mach_s390_64       1
   bfd_arch_openrisc,  /* OpenRISC */
   bfd_arch_mmix,      /* Donald Knuth's educational processor.  */
   bfd_arch_xstormy16,
@@ -253,7 +253,9 @@ typedef struct bfd_arch_info
   const char *arch_name;
   const char *printable_name;
   unsigned int section_align_power;
-  /* True if this is the default machine for the architecture.  */
+  /* True if this is the default machine for the architecture.
+     The default arch should be the first entry for an arch so that
+     all the entries for that arch can be accessed via @code{next}.  */
   boolean the_default;
   const struct bfd_arch_info * (*compatible)
        PARAMS ((const struct bfd_arch_info *a,

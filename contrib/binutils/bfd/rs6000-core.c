@@ -182,7 +182,7 @@ typedef union {
 
 /* Return the c_impl field from struct core_dumpx C.  */
 
-#ifdef AIX_CORE_DUMPX_CORE
+#if defined (HAVE_ST_C_IMPL) || defined (AIX_5_CORE)
 # define CNEW_IMPL(c)	(c).c_impl
 #else
 # define CNEW_IMPL(c)	0

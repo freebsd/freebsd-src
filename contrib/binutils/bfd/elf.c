@@ -3881,7 +3881,6 @@ prep_headers (abfd)
   Elf_Internal_Ehdr *i_ehdrp;	/* Elf file header, internal form */
   Elf_Internal_Phdr *i_phdrp = 0; /* Program header table, internal form */
   Elf_Internal_Shdr **i_shdrp;	/* Section header table, internal form */
-  int count;
   struct elf_strtab_hash *shstrtab;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
 
@@ -3903,12 +3902,6 @@ prep_headers (abfd)
   i_ehdrp->e_ident[EI_DATA] =
     bfd_big_endian (abfd) ? ELFDATA2MSB : ELFDATA2LSB;
   i_ehdrp->e_ident[EI_VERSION] = bed->s->ev_current;
-
-  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_NONE;
-  i_ehdrp->e_ident[EI_ABIVERSION] = 0;
-
-  for (count = EI_PAD; count < EI_NIDENT; count++)
-    i_ehdrp->e_ident[count] = 0;
 
   if ((abfd->flags & DYNAMIC) != 0)
     i_ehdrp->e_type = ET_DYN;
