@@ -163,7 +163,7 @@ sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
 	unit = snd_unit;
 	error = sysctl_handle_int(oidp, &unit, sizeof(unit), req);
 	if (error == 0 && req->newptr != NULL) {
-		if (unit < 0 || unit > devclass_get_maxunit(pcm_devclass))
+		if (unit < 0 || unit >= devclass_get_maxunit(pcm_devclass))
 			return EINVAL;
 		d = devclass_get_softc(pcm_devclass, unit);
 		if (d == NULL || SLIST_EMPTY(&d->channels))
