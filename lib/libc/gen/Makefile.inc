@@ -50,7 +50,7 @@ MAN+=	alarm.3 arc4random.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
 	glob.3 initgroups.3 isinf.3 \
 	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
-	nice.3 nlist.3 pause.3 popen.3 psignal.3 pwcache.3 \
+	nice.3 nlist.3 pause.3 popen.3 pselect.3 psignal.3 pwcache.3 \
 	raise.3 rand48.3 readpassphrase.3 rfork_thread.3 \
 	scandir.3 setjmp.3 setmode.3 setproctitle.3 shm_open.3 \
 	siginterrupt.3 signal.3 sigsetops.3 sleep.3 stringlist.3 \
