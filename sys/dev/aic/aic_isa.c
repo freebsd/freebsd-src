@@ -51,8 +51,8 @@ struct aic_isa_softc {
 
 static int aic_isa_alloc_resources __P((device_t));
 static void aic_isa_release_resources __P((device_t));
-static int aic_isa_probe __P((device_t dev));
-static int aic_isa_attach __P((device_t dev));
+static int aic_isa_probe __P((device_t));
+static int aic_isa_attach __P((device_t));
 
 static u_int aic_isa_ports[] = { 0x340, 0x140 };
 #define	AIC_ISA_NUMPORTS (sizeof(aic_isa_ports) / sizeof(aic_isa_ports[0]))
@@ -154,6 +154,7 @@ aic_isa_probe(device_t dev)
 		bus_set_resource(dev, SYS_RES_IRQ, 0, PORTA_IRQ(porta), 1);
 	if ((aic->flags & AIC_DMA_ENABLE) && isa_get_drq(dev) == -1)
 		bus_set_resource(dev, SYS_RES_DRQ, 0, PORTA_DRQ(porta), 1);
+	device_set_desc(dev, "Adaptec 6260/6360 SCSI controller");
 	return (0);
 }
 
