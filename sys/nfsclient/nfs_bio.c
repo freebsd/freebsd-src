@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.35 1997/04/18 14:11:59 dfr Exp $
+ * $Id: nfs_bio.c,v 1.36 1997/04/19 14:28:36 dfr Exp $
  */
 
 
@@ -958,7 +958,7 @@ nfs_doio(bp, cr, p)
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;
 		nfsstats.write_bios++;
-		if ((bp->b_flags & (B_ASYNC | B_NEEDCOMMIT | B_NOCACHE)) == B_ASYNC)
+		if ((bp->b_flags & (B_ASYNC | B_NEEDCOMMIT | B_NOCACHE | B_CLUSTER)) == B_ASYNC)
 		    iomode = NFSV3WRITE_UNSTABLE;
 		else
 		    iomode = NFSV3WRITE_FILESYNC;
