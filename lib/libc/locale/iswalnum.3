@@ -105,15 +105,16 @@
 .Ft int
 .Fn iswxdigit "wint_t wc"
 .Sh DESCRIPTION
-The functions are character classification utility functions,
+The above functions are character classification utility functions,
 for use with wide characters
 .Po
 .Fa wchar_t
 or
 .Fa wint_t
 .Pc .
-See description for singlebyte classification functions, like
-.Xr isalnum 3 ,
+See the description for the similarly-named single byte classification
+functions (like
+.Xr isalnum 3 ),
 for details.
 .Sh RETURN VALUES
 The functions return zero if the character tests false and
@@ -155,5 +156,7 @@ which are
 .Fx
 extensions.
 .Sh CAVEATS
-The argument to these functions must be WEOF or valid wchar_t
-value with current locale; otherwise, the result is undefined.
+The result of these functions is undefined unless
+the argument is WEOF or a valid
+.Vt wchar_t
+value for the current locale.
