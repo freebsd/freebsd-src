@@ -439,27 +439,54 @@ dump(nfile, file, copies)
 	char *nfile, *file;
 	int copies;
 {
-	register short n, fill;
 	struct stat lbuf;
+	const char etctmpl[] = ", ...";
+	char	 etc[sizeof(etctmpl)];
+	char	*lastsep;
+	short	 fill, nlen;
+	short	 rem, remetc;
 
 	/*
-	 * Print as many files as will fit
-	 *  (leaving room for the total size)
+	 * Print as many filenames as will fit
+	 *      (leaving room for the 'total size' field)
 	 */
-	 fill = first ? 0 : 2;	/* fill space for ``, '' */
-	 if (((n = strlen(nfile)) + col + fill) >= SIZCOL-4) {
-		if (col < SIZCOL) {
-			printf(" ..."), col += 4;
-			blankfill(SIZCOL);
+	fill = first ? 0 : 2;	/* fill space for ``, '' */
+	nlen = strlen(nfile);
+	rem = SIZCOL - 1 - col;
+	if (nlen + fill > rem) {
+		if (first) {
+			/* print the right-most part of the name */
+			printf("...%s ", &nfile[3+nlen-rem]);
+			col = SIZCOL;
+		} else if (rem > 0) {
+			/* fit as much of the etc-string as we can */
+			remetc = rem;
+			if (rem > strlen(etctmpl))
+				remetc = strlen(etctmpl);
+			etc[0] = '\0';
+			strncat(etc, etctmpl, remetc);
+			printf(etc);
+			col += remetc;
+			rem -= remetc;
+			/* room for the last segment of this filename? */
+			lastsep = strrchr(nfile, '/');
+			if ((lastsep != NULL) && (rem > strlen(lastsep))) {
+				/* print the right-most part of this name */
+				printf("%s", lastsep);
+				col += strlen(lastsep);
+			} else {
+				/* do not pack any more names in here */
+				blankfill(SIZCOL);
+			}
 		}
 	} else {
-		if (first)
-			first = 0;
-		else
+		if (!first)
 			printf(", ");
 		printf("%s", nfile);
-		col += n+fill;
+		col += nlen + fill;
 	}
+	first = 0;
+
 	seteuid(euid);
 	if (*file && !stat(file, &lbuf))
 		totsize += copies * lbuf.st_size;
