@@ -43,6 +43,7 @@
 #include <isa/isavar.h>
 #include <i386/isa/pcibus.h>
 /* #include <machine/nexusvar.h> */
+#include <machine/clock.h>
 #include <machine/pci_cfgreg.h>
 #include <machine/segments.h>
 #include <machine/pc/bios.h>
@@ -580,7 +581,7 @@ pcireg_cfgopen(void)
 	devmax = 32;
 
 	outl(CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
-	outb(CONF1_ADDR_PORT +3, 0);
+	DELAY(1);
 	mode1res = inl(CONF1_ADDR_PORT);
 	outl(CONF1_ADDR_PORT, oldval1);
 
