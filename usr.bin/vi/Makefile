@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3.2.7 1997/08/11 18:36:39 asami Exp $
+# $Id: Makefile,v 1.3.2.8 1997/08/21 04:51:43 peter Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -40,13 +40,14 @@ MAN1=	${SRCDIR}/docs/USD.doc/vi.man/vi.1
 MLINKS+=vi.1 ex.1 vi.1 view.1
 MLINKS+=vi.1 nex.1 vi.1 nview.1 vi.1 nvi.1
 
-CATALOGS= dutch english french german ru_SU.KOI8-R spanish swedish
+CATALOGS= dutch english french german polish ru_SU.KOI8-R spanish swedish
 NLLINKS= nl_NL
 ENLINKS= en_AU en_CA en_GB en_US
 FRLINKS= fr_BE fr_CA fr_CH fr_FR
 DELINKS= de_AT de_CH de_DE
 ESLINKS= es_ES
 SVLINKS= sv_SE
+PLLINKS= pl_PL
 
 .PATH:	${SRCDIR}/common
 .PATH:	${SRCDIR}/ex
@@ -176,6 +177,9 @@ afterinstall:
 	for l in ${SVLINKS}; do \
 		ln -fs swedish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-1; \
 	done
+	for l in ${PLLINKS}; do \
+		ln -fs polish ${DESTDIR}/usr/share/vi/catalog/$$l.ISO_8859-2; \
+	done
 	ln -fs ru_SU.KOI8-R ${DESTDIR}/usr/share/vi/catalog/ru_RU.KOI8-R
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${SRCDIR}/tcl_scripts/*.tcl \
@@ -184,7 +188,7 @@ afterinstall:
 		${SRCDIR}/perl_scripts/*.pl \
 		${DESTDIR}/usr/share/vi/perl
 .if defined(PERLINTERP)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm \
 		${DESTDIR}/usr/share/vi/perl
 .endif
 
