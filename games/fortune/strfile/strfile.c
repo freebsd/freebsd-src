@@ -131,8 +131,13 @@ STRFILE	Tbl;				/* statistics table */
 
 STR	*Firstch;			/* first chars of each string */
 
-void getargs(), add_offset(), do_order(), randomize(), usage();
-int cmp_str();
+void	add_offset __P((FILE *, long));
+int	cmp_str __P((const void *, const void *));
+static int	collate_range_cmp  __P((int, int));
+void	do_order __P((void));
+void	getargs __P((int, char **));
+void	randomize __P((void));
+void	usage __P((void));
 
 /*
  * main:
@@ -264,8 +269,6 @@ void getargs(argc, argv)
 int	argc;
 char	**argv;
 {
-	extern char	*optarg;
-	extern int	optind;
 	int	ch;
 
 	while ((ch = getopt(argc, argv, "Cc:iorsx")) != EOF)
@@ -387,9 +390,10 @@ static int collate_range_cmp (c1, c2)
  * cmp_str:
  *	Compare two strings in the file
  */
-int cmp_str(p1, p2)
-STR	*p1, *p2;
+int cmp_str(s1, s2)
+const void	*s1, *s2;
 {
+	const STR	*p1, *p2;
 	int	c1, c2;
 	int	n1, n2;
 	int r;
@@ -397,6 +401,9 @@ STR	*p1, *p2;
 # define	SET_N(nf,ch)	(nf = (ch == '\n'))
 # define        IS_END(ch,nf)   (ch == EOF || (ch == (unsigned char) Delimch && nf))
 
+	p1 = (const STR *) s1;
+	p2 = (const STR *) s2;
+	
 	c1 = (unsigned char) p1->first;
 	c2 = (unsigned char) p2->first;
 	if ((r = collate_range_cmp(c1, c2)) != 0)
