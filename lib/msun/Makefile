@@ -121,9 +121,7 @@ ${ARCH_PREFIX}${i}: ${.CURDIR}/${ARCH}/${i}
 	cp ${.ALLSRC} ${.TARGET}
 .endfor
 
-MANSRC= ${.CURDIR}/man
-
-MAN3+=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
+MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 ceil.3 \
 	cos.3 cosh.3 erf.3 exp.3 fabs.3 floor.3 fmod.3 hypot.3 ieee.3 \
 	ieee_test.3 j0.3 lgamma.3 math.3 rint.3 sin.3 sinh.3 sqrt.3 \
 	tan.3 tanh.3

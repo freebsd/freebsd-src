@@ -27,7 +27,6 @@ CFLAGS+=-I${.CURDIR} -I${OPIE_DIST} -I${DIST_DIR} \
 LDADD+=	-lmd
 DPADD+=	${LIBMD}
 
-MAN4=	${OPIE_DIST}/opie.4
-MAN5=	${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
+MAN=	${OPIE_DIST}/opie.4 ${OPIE_DIST}/opiekeys.5 ${OPIE_DIST}/opieaccess.5
 
 .include <bsd.lib.mk>

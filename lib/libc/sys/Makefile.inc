@@ -73,7 +73,7 @@ ${SPSEUDOR}:
 	    > ${.TARGET}
 
 .if ${LIB} == "c"
-MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
+MAN+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
@@ -102,7 +102,7 @@ MAN2+=	_exit.2 accept.2 access.2 acct.2 adjtime.2 \
 	truncate.2 umask.2 undelete.2 \
 	unlink.2 utimes.2 vfork.2 wait.2 write.2
 .if !defined(NO_P1003_1B)
-MAN2+=	sched_get_priority_max.2 sched_setparam.2 \
+MAN+=	sched_get_priority_max.2 sched_setparam.2 \
 	sched_setscheduler.2 sched_yield.2
 .endif
 

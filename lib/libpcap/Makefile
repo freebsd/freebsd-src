@@ -6,7 +6,7 @@ SRCS=	grammar.y tokdefs.h pcap-bpf.c \
         pcap.c inet.c gencode.c optimize.c nametoaddr.c \
 	etherent.c savefile.c bpf_filter.c bpf_image.c \
         scanner.l version.c
-MAN3=	pcap.3
+MAN=	pcap.3
 CLEANFILES=tokdefs.h version.c
 
 DEFS=	-DHAVE_SYS_IOCCOM_H=1 -DHAVE_SYS_SOCKIO_H=1 \

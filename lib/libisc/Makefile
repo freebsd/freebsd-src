@@ -29,9 +29,9 @@ INCS=		${BIND_DIR}/include/isc/assertions.h \
 		${BIND_DIR}/include/isc/tree.h
 INCDIR=		/usr/include/isc
 
-MAN3=		assertions.3 bitncmp.3 eventlib.3 heap.3 \
+MAN=		assertions.3 bitncmp.3 eventlib.3 heap.3 \
 		logging.3 memcluster.3 tree.3
-CLEANFILES+=	${MAN3}
+CLEANFILES+=	${MAN}
 
 MLINKS+=	assertions.3 ENSURE.3 \
 		assertions.3 ENSURE_ERR.3 \

@@ -34,7 +34,7 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc"
 
 .if ${LIB} == "c"
-MAN3+=  alarm.3 arc4random.3 clock.3 \
+MAN+=	alarm.3 arc4random.3 clock.3 \
 	basename.3 \
 	confstr.3 ctermid.3 daemon.3 \
 	devname.3 directory.3 dirname.3 dladdr.3 dllockinit.3 dlopen.3 \

@@ -24,7 +24,7 @@ SRCS+=	strtod.c
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/stdlib/Makefile.inc"
 
 .if ${LIB} == "c"
-MAN3+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
+MAN+=	abort.3 abs.3 alloca.3 atexit.3 atof.3 atoi.3 atol.3 bsearch.3 \
 	div.3 exit.3 getenv.3 getopt.3 getsubopt.3 labs.3 \
 	ldiv.3 malloc.3 memory.3 qsort.3 radixsort.3 rand.3 random.3 \
 	realpath.3 strtod.3 strtol.3 strtoul.3 system.3 tsearch.3

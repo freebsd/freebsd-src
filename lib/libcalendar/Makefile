@@ -5,7 +5,7 @@ LIB=	calendar
 SRCS=	calendar.c easter.c
 INCS=	calendar.h
 
-MAN3=   calendar.3
+MAN=	calendar.3
 
 MLINKS=	calendar.3 easterg.3 calendar.3 easterog.3 calendar.3 easteroj.3 \
 	calendar.3 gdate.3 calendar.3 jdate.3 \
