@@ -1,5 +1,5 @@
 .\"
-.\"	$Id$
+.\"	$Id: bktr.4,v 1.1 1998/03/09 10:56:22 jkh Exp $
 .\"
 .Dd January 28, 1998
 .br
@@ -11,6 +11,10 @@
 .Nd video capture driver
 .Sh SYNOPSIS
 .Nm device bktr0
+.Pp
+.Nm controller iicbus0
+.Nm controller iicbb0
+.Nm controller smbus0
 .Sh DESCRIPTION
 The
 .Nm bktr
@@ -46,6 +50,15 @@ rgb24
 .br
 rgb32
 .in -0.5i
+.Pp
+On these cards, tuners and other components are interconnected with an I2C bus.
+The Brooktree848 chips act as a master device on the bus to control them.
+Therefore,
+.Xr iicbus 4 ,
+.Xr iicbb 4
+and
+.Xr smbus 4
+controller declarations are mandatory to active bktr support.
 .Pp
 The following kernel parameters may be used to further configure the driver:
 .Pp
