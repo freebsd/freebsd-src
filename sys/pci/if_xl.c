@@ -54,6 +54,7 @@
  * 3Com 3c980C-TX	10/100Mbps server adapter (Tornado ASIC)
  * 3Com 3cSOHO100-TX	10/100Mbps/RJ-45 (Hurricane ASIC)
  * 3Com 3c450-TX	10/100Mbps/RJ-45 (Tornado ASIC)
+ * 3Com 3c555		10/100Mbps/RJ-45 (MiniPCI, Laptop Hurricane)
  * 3Com 3c556		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
  * 3Com 3c556B		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
  * 3Com 3c575TX		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
@@ -190,6 +191,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3cSOHO100-TX OfficeConnect" },
 	{ TC_VENDORID, TC_DEVICEID_TORNADO_HOMECONNECT,
 		"3Com 3c450-TX HomeConnect" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_555,
+		"3Com 3c555 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_556,
 		"3Com 3c556 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_556B,
@@ -1231,6 +1234,7 @@ xl_choose_xcvr(sc, verbose)
 			printf("xl%d: guessing 10baseFL\n", sc->xl_unit);
 		break;
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
+	case TC_DEVICEID_HURRICANE_555:		/* 3c555 */
 	case TC_DEVICEID_HURRICANE_556:		/* 3c556 */
 	case TC_DEVICEID_HURRICANE_556B:	/* 3c556B */
 	case TC_DEVICEID_HURRICANE_575A:	/* 3c575TX */
@@ -1302,12 +1306,15 @@ xl_attach(dev)
 	XL_LOCK(sc);
 
 	sc->xl_flags = 0;
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555)
+		sc->xl_flags |= XL_FLAG_EEPROM_OFFSET | XL_FLAG_PHYOK;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556 ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
 		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_WEIRDRESET |
 		    XL_FLAG_INVERT_LED_PWR | XL_FLAG_INVERT_MII_PWR;
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_555 ||
+	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
 		sc->xl_flags |= XL_FLAG_8BITROM;
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556B)
 		sc->xl_flags |= XL_FLAG_NO_XCVR_PWR;
