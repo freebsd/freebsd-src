@@ -43,7 +43,7 @@ do
 
 	vnconfig -s labels -c /dev/r${VNDEVICE} ${FSIMG}
 	disklabel -Brw /dev/r${VNDEVICE} ${FSLABEL}
-	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} -o space /dev/r${VNDEVICE}c
+	newfs -i ${FSINODE} -T ${FSLABEL} -o space /dev/r${VNDEVICE}c
 
 	mount /dev/${VNDEVICE}c ${MNT}
 
