@@ -47,11 +47,14 @@
 .Fn unvis "char *cp" "int c" "int *astate" "int flag"
 .Ft int 
 .Fn strunvis "char *dst" "const char *src"
+.Ft int 
+.Fn strunvisx "char *dst" "const char *src" "int flag"
 .Sh DESCRIPTION
 The
-.Fn unvis
-and
+.Fn unvis ,
 .Fn strunvis
+and
+.Fn strunvisx
 functions
 are used to decode a visual representation of characters, as produced
 by the
@@ -87,6 +90,16 @@ equal to the size of
 .Ar src
 (that is, no expansion takes place during
 decoding).
+.Pp
+The
+.Fn strunvisx
+function does the same as the
+.Fn strunvis
+function, but it allows you to add a flag that specifies the style the string 
+.Ar src
+is encoded with.
+Currently, the only supported flag is
+.Dv VIS_HTTPSTYLE .
 .Pp
 The
 .Fn unvis
@@ -126,9 +139,19 @@ unknown state.  The decoder is placed into the starting state.
 .Pp
 When all bytes in the stream have been processed, call
 .Fn unvis
-one more time with flag set to
+one more time with
+.Ar flag
+set to
 .Dv UNVIS_END
 to extract any remaining character (the character passed in is ignored).
+.Pp
+The
+.Ar flag
+argument is also used to specify the encoding style of the source.
+If set to
+.Dv VIS_HTTPSTYLE ,
+.Fn unvis
+will decode URI strings as specified in RFC 1808.
 .Pp
 The following code fragment illustrates a proper use of
 .Fn unvis .
