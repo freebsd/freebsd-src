@@ -2860,13 +2860,26 @@
     <para arch="i386,alpha">Floppy drives (&man.fdc.4; driver)</para>
     <para arch="i386">Genius and Mustek hand scanners</para>
     <para arch="i386">GPB and Transputer drivers</para>
+
+    <para arch="i386,alpha">VGA-compatible video cards
+      (&man.vga.4; driver)
+
+      <note>
+	<para>Information regarding specific video cards and
+	  compatibility with <application>XFree86</application> can be
+	  found at <ulink
+	  url="http://www.xfree86.org/"></ulink>.</para>
+      </note>
+
+      </para>
+
     <para arch="i386,alpha">Keyboards including:
       <itemizedlist>
         <listitem arch="i386,alpha">
-	  <para>AT-style keyboards</para>
+	  <para>AT-style keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
         <listitem arch="i386,alpha">
-	  <para>PS/2 keyboards</para>
+	  <para>PS/2 keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
         <listitem arch="i386,alpha">
 	  <para>USB keyboards (specific instances are listed in the
@@ -2875,22 +2888,29 @@
       </itemizedlist>
     </para>
     <para arch="i386">Loran-C receiver (Dave Mills experimental hardware, loran driver).</para>
-    <para arch="i386,alpha">Mice including:
+    <para arch="i386,alpha">Pointing devices including:
       <itemizedlist>
         <listitem arch="i386">
-	  <para>Bus mice (&man.mse.4; driver)</para>
+	  <para>Bus mice and compatible devices (&man.mse.4; driver)</para>
 	</listitem>
         <listitem arch="i386,alpha">
-	  <para>PS/2 mice (&man.psm.4; driver)</para>
+	  <para>PS/2 mice and compatible devices (&man.psm.4; driver)</para>
 	</listitem>
         <listitem>
-	  <para>Serial mice</para>
+	  <para>Serial mice and compatible devices</para>
 	</listitem>
         <listitem arch="i386,alpha">
 	  <para>USB mice (specific instances are listed in the
 	  section describing <link linkend="usb">USB devices</link>)</para>
 	</listitem>
       </itemizedlist>
+
+      <note>
+	<para>&man.moused.8; has more information on using pointing
+	  devices with &os;.  Information on using pointing devices
+	  with <application>XFree86</application> can be found at
+	  <ulink url="http://www.xfree86.org/"></ulink>.</para>
+      </note>
     </para>
 
     <para arch="i386,alpha"><quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
