@@ -402,6 +402,11 @@ struct pthread_barrierattr {
 	int		pshared;
 };
 
+struct pthread_spinlock {
+	volatile int	s_lock;
+	pthread_t	s_owner;
+};
+
 /*
  * Flags for condition variables.
  */
@@ -1093,6 +1098,7 @@ int	_pthread_rwlock_init(pthread_rwlock_t *, const pthread_rwlockattr_t *);
 int	_pthread_rwlock_destroy (pthread_rwlock_t *);
 struct pthread *_pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
+void	_pthread_yield(void);
 struct pthread *_thr_alloc(struct pthread *);
 void	_thr_exit(char *, int, char *);
 void	_thr_exit_cleanup(void);

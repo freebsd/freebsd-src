@@ -70,6 +70,7 @@ SRCS+= \
 	thr_printf.c \
 	thr_priority_queue.c \
 	thr_pselect.c \
+	thr_pspinlock.c \
 	thr_raise.c \
 	thr_read.c \
 	thr_readv.c \
