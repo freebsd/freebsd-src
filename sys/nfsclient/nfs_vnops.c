@@ -1463,6 +1463,12 @@ int
 nfs_removeit(struct sillyrename *sp)
 {
 
+	/*
+	 * Make sure that the directory vnode is still valid.
+	 * XXX we should lock sp->s_dvp here.
+	 */
+	if (sp->s_dvp->v_type == VBAD)
+		return (0);
 	return (nfs_removerpc(sp->s_dvp, sp->s_name, sp->s_namlen, sp->s_cred,
 		NULL));
 }
