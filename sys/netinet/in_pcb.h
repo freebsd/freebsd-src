@@ -290,10 +290,7 @@ struct inpcb *
 	in_pcblookup_hash __P((struct inpcbinfo *,
 			       struct in_addr, u_int, struct in_addr, u_int,
 			       int, struct ifnet *));
-void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
-	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int),
-		u_int32_t, int));
-void	in_pcbnotifyall __P((struct inpcbhead *, struct sockaddr *,
+void	in_pcbnotifyall __P((struct inpcbhead *, struct in_addr,
 	    int, void (*)(struct inpcb *, int)));
 void	in_pcbrehash __P((struct inpcb *));
 int	in_setpeeraddr __P((struct socket *so, struct sockaddr **nam));
