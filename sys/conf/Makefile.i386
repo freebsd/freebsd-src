@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.52 1994/12/31 19:27:28 gibbs Exp $
+#	$Id: Makefile.i386,v 1.53 1995/01/25 21:40:00 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -68,7 +68,7 @@ SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o 
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
 SYSTEM_LD_TAIL= @echo rearranging symbols; \
-	symorder ${SYMORDER_EXCLUDE} symbols.sort $@; \
+	symorder -m ${SYMORDER_EXCLUDE} symbols.sort $@; \
 	size $@; chmod 755 $@
 
 %BEFORE_DEPEND
