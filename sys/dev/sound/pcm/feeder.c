@@ -117,8 +117,8 @@ feed_root(pcm_feeder *feeder, u_int8_t *buffer, u_int32_t count, struct uio *str
 		tmp -= stream->uio_resid;
 		c += tmp;
 	}
-	if (!tmp) panic("feed_root: uiomove didn't");
-	return tmp;
+	if (!c) panic("feed_root: uiomove didn't");
+	return c;
 }
 pcm_feeder feeder_root = { "root", 0, NULL, NULL, feed_root };
 
