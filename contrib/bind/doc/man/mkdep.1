@@ -26,7 +26,7 @@
 .Op Fl ap
 .Op Fl f Ar depend_file
 .Op Ar flags 
-.Ar file ...
+.Ar
 .Sh DESCRIPTION
 .Ic Mkdep
 takes a set of flags for the C compiler and a list
@@ -73,9 +73,7 @@ C module.
 The 
 .Dq Fl a 
 option causes appending to the output file, so that multiple 
-.Xo Ic mkdep 
-.Ns 's 
-.Xc
+.Ic mkdep Ns 's 
 may be run from a single 
 .Pa Makefile .
 .Sh SEE ALSO
