@@ -1195,8 +1195,7 @@ static void
 thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
 {
 	/* This has to initialize all members of the sigframe. */
-	psf->psf_flags =
-	    thread->flags & (THR_FLAGS_PRIVATE | THR_FLAGS_IN_TDLIST);
+	psf->psf_flags = thread->flags & THR_FLAGS_PRIVATE;
 	psf->psf_interrupted = thread->interrupted;
 	psf->psf_timeout = thread->timeout;
 	psf->psf_state = thread->state;

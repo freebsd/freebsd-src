@@ -139,6 +139,9 @@ LIST_HEAD(thread_hash_head, pthread);
 static struct thread_hash_head	thr_hashtable[THREAD_HASH_QUEUES];
 #define	THREAD_HASH(thrd)	((unsigned long)thrd % THREAD_HASH_QUEUES)
 
+/* Lock for thread tcb constructor/destructor */
+static pthread_mutex_t		_tcb_mutex;
+
 #ifdef DEBUG_THREAD_KERN
 static void	dump_queues(struct kse *curkse);
 #endif
@@ -166,7 +169,7 @@ static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
 		    struct pthread_sigframe *psf);
 static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
 static void	thr_unlink(struct pthread *thread);
-static void	thr_destroy(struct pthread *thread);
+static void	thr_destroy(struct pthread *curthread, struct pthread *thread);
 static void	thread_gc(struct pthread *thread);
 static void	kse_gc(struct pthread *thread);
 static void	kseg_gc(struct pthread *thread);
@@ -240,7 +243,7 @@ _kse_single_thread(struct pthread *curthread)
 			_thr_stack_free(&thread->attr);
 			if (thread->specific != NULL)
 				free(thread->specific);
-			thr_destroy(thread);
+			thr_destroy(curthread, thread);
 		}
 	}
 
@@ -285,14 +288,14 @@ _kse_single_thread(struct pthread *curthread)
 	/* Free the free threads. */
 	while ((thread = TAILQ_FIRST(&free_threadq)) != NULL) {
 		TAILQ_REMOVE(&free_threadq, thread, tle);
-		thr_destroy(thread);
+		thr_destroy(curthread, thread);
 	}
 	free_thread_count = 0;
 
 	/* Free the to-be-gc'd threads. */
 	while ((thread = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
 		TAILQ_REMOVE(&_thread_gc_list, thread, gcle);
-		thr_destroy(thread);
+		thr_destroy(curthread, thread);
 	}
 	TAILQ_INIT(&gc_ksegq);
 	_gc_count = 0;
@@ -381,6 +384,7 @@ _kse_init(void)
 		if (_lock_init(&_thread_list_lock, LCK_ADAPTIVE,
 		    _kse_lock_wait, _kse_lock_wakeup) != 0)
 			PANIC("Unable to initialize thread list lock");
+		_pthread_mutex_init(&_tcb_mutex, NULL);
 		active_kse_count = 0;
 		active_kseg_count = 0;
 		_gc_count = 0;
@@ -1204,7 +1208,6 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 		thread->kseg = _kse_initial->k_kseg;
 		thread->kse = _kse_initial;
 	}
-	thread->flags |= THR_FLAGS_GC_SAFE;
 
 	/*
 	 * We can't hold the thread list lock while holding the
@@ -1213,6 +1216,7 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	DBG_MSG("Adding thread %p to GC list\n", thread);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+	thread->tlflags |= TLFLAGS_GC_SAFE;
 	THR_GCLIST_ADD(thread);
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 	if (sys_scope) {
@@ -1252,7 +1256,7 @@ thread_gc(struct pthread *curthread)
 	/* Check the threads waiting for GC. */
 	for (td = TAILQ_FIRST(&_thread_gc_list); td != NULL; td = td_next) {
 		td_next = TAILQ_NEXT(td, gcle);
-		if ((td->flags & THR_FLAGS_GC_SAFE) == 0)
+		if ((td->tlflags & TLFLAGS_GC_SAFE) == 0)
 			continue;
 		else if (((td->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) &&
 		    ((td->kse->k_kcb->kcb_kmbx.km_flags & KMF_DONE) == 0)) {
@@ -2382,7 +2386,14 @@ _thr_alloc(struct pthread *curthread)
 	if ((thread == NULL) &&
 	    ((thread = malloc(sizeof(struct pthread))) != NULL)) {
 		bzero(thread, sizeof(struct pthread));
-		if ((thread->tcb = _tcb_ctor(thread, curthread == NULL)) == NULL) {
+		if (curthread) {
+			_pthread_mutex_lock(&_tcb_mutex);
+			thread->tcb = _tcb_ctor(thread, 0 /* not initial tls */);
+			_pthread_mutex_unlock(&_tcb_mutex);
+		} else {
+			thread->tcb = _tcb_ctor(thread, 1 /* initial tls */);
+		}
+		if (thread->tcb == NULL) {
 			free(thread);
 			thread = NULL;
 		} else {
@@ -2418,7 +2429,7 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 		thread->name = NULL;
 	}
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
-		thr_destroy(thread);
+		thr_destroy(curthread, thread);
 	} else {
 		/* Add the thread to the free thread list. */
 		crit = _kse_critical_enter();
@@ -2431,14 +2442,20 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 }
 
 static void
-thr_destroy(struct pthread *thread)
+thr_destroy(struct pthread *curthread, struct pthread *thread)
 {
 	int i;
 
 	for (i = 0; i < MAX_THR_LOCKLEVEL; i++)
 		_lockuser_destroy(&thread->lockusers[i]);
 	_lock_destroy(&thread->lock);
-	_tcb_dtor(thread->tcb);
+	if (curthread) {
+		_pthread_mutex_lock(&_tcb_mutex);
+		_tcb_dtor(thread->tcb);
+		_pthread_mutex_unlock(&_tcb_mutex);
+	} else {
+		_tcb_dtor(thread->tcb);
+	}
 	free(thread->siginfo);
 	free(thread);
 }
