@@ -150,23 +150,28 @@ strcpy (char *dst, const char *src)
   return retval;
 }
 
-/* XXX sio always uses its major with minor 0 no matter what we specify.  */
-#define	REMOTE_DEV	0
-
-cn_getc_t		siocngetc;
-cn_putc_t		siocnputc;
+/*
+ * These are set up by the serial card that is configured to be the gdb port.
+ */
+dev_t gdbdev = -1;
+cn_getc_t *gdb_getc;
+cn_putc_t *gdb_putc;
 
 static int
 putDebugChar (int c)		/* write a single character      */
 {
-  siocnputc (REMOTE_DEV, c);
+  if (gdbdev == -1)
+	return 0;
+  (*gdb_putc)(gdbdev, c);
   return 1;
 }
 
 static int
 getDebugChar (void)		/* read and return a single char */
 {
-  return siocngetc (REMOTE_DEV);
+  if (gdbdev == -1)
+	return -1;
+  return (*gdb_getc)(gdbdev);
 }
 
 static const char hexchars[]="0123456789abcdef";
