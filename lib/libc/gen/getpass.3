@@ -86,3 +86,7 @@ will modify the same object.
 The calling process should zero the password as soon as possible to
 avoid leaving the cleartext password visible in the process's address
 space.
+.Pp
+Upon receipt of a SIGTSTP, the input buffer will be flushed, so any
+partially typed password must be retyped when the process
+continues.
