@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw_user.c,v 1.26 1999/02/08 21:26:44 des Exp $";
+	"$Id: pw_user.c,v 1.27 1999/02/23 07:15:10 davidn Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -56,7 +56,7 @@ static const char rcsid[] =
 
 static          randinit;
 
-static int      print_user(struct passwd * pwd, int pretty);
+static int      print_user(struct passwd * pwd, int pretty, int v7);
 static uid_t    pw_uidpolicy(struct userconf * cnf, struct cargs * args);
 static uid_t    pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer);
 static time_t   pw_pwdpolicy(struct userconf * cnf, struct cargs * args);
@@ -271,10 +271,11 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	}
 	if (mode == M_PRINT && getarg(args, 'a')) {
 		int             pretty = getarg(args, 'P') != NULL;
+		int		v7 = getarg(args, '7') != NULL;
 
 		SETPWENT();
 		while ((pwd = GETPWENT()) != NULL)
-			print_user(pwd, pretty);
+			print_user(pwd, pretty, v7);
 		ENDPWENT();
 		return EXIT_SUCCESS;
 	}
@@ -309,7 +310,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (mode == M_PRINT && getarg(args, 'F')) {
 				fakeuser.pw_name = a_name ? a_name->val : "nouser";
 				fakeuser.pw_uid = a_uid ? (uid_t) atol(a_uid->val) : -1;
-				return print_user(&fakeuser, getarg(args, 'P') != NULL);
+				return print_user(&fakeuser,
+						  getarg(args, 'P') != NULL,
+						  getarg(args, '7') != NULL);
 			}
 			if (a_name == NULL)
 				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
@@ -389,7 +392,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			}
 			return EXIT_SUCCESS;
 		} else if (mode == M_PRINT)
-			return print_user(pwd, getarg(args, 'P') != NULL);
+			return print_user(pwd,
+					  getarg(args, 'P') != NULL,
+					  getarg(args, '7') != NULL);
 
 		/*
 		 * The rest is edit code
@@ -525,7 +530,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Special case: -N only displays & exits
 	 */
 	if (getarg(args, 'N') != NULL)
-		return print_user(pwd, getarg(args, 'P') != NULL);
+		return print_user(pwd,
+				  getarg(args, 'P') != NULL,
+				  getarg(args, '7') != NULL);
 
 	r = r1 = 1;
 	if (mode == M_ADD) {
@@ -964,12 +971,12 @@ pw_password(struct userconf * cnf, struct cargs * args, char const * user)
 
 
 static int
-print_user(struct passwd * pwd, int pretty)
+print_user(struct passwd * pwd, int pretty, int v7)
 {
 	if (!pretty) {
 		char            buf[_UC_MAXLINE];
 
-		fmtpwent(buf, pwd);
+		fmtpwentry(buf, pwd, v7 ? PWF_PASSWD : PWF_STANDARD);
 		fputs(buf, stdout);
 	} else {
 		int		j;

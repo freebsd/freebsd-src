@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pw.c,v 1.13 1999/02/23 10:35:47 davidn Exp $";
+	"$Id: pw.c,v 1.14 1999/02/23 11:01:50 davidn Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -101,7 +101,7 @@ main(int argc, char *argv[])
 			"V:C:qn:u:c:d:e:p:g:G:mk:s:oL:i:w:h:Db:NPy:Y",
 			"V:C:qn:u:rY",
 			"V:C:qn:u:c:d:e:p:g:G:ml:k:s:w:L:h:FNPY",
-			"V:C:qn:u:FPa",
+			"V:C:qn:u:FPa7",
 			"V:C:q"
 		},
 		{ /* grp  */
@@ -351,7 +351,8 @@ cmdhelp(int mode, int which)
 				"\t-u uid         user id\n"
 				"\t-F             force print\n"
 				"\t-P             prettier format\n"
-				"\t-a             print all users\n",
+				"\t-a             print all users\n"
+				"\t-7             print in v7 format\n",
 				"usage: pw usernext [switches]\n"
 				"\t-V etcdir      alternate /etc location\n"
 				"\t-C config      configuration file\n"
