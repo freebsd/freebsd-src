@@ -321,8 +321,8 @@ mptable_setup_local(void)
 		printf("Preset Config %d", mpfps->config_type);
 	} else {
 		lapic_init((uintptr_t)mpct->apic_address);
-		printf("%.*s %.*s", sizeof(mpct->oem_id), mpct->oem_id,
-		    sizeof(mpct->product_id), mpct->product_id);
+		printf("%.*s %.*s", (int)sizeof(mpct->oem_id), mpct->oem_id,
+		    (int)sizeof(mpct->product_id), mpct->product_id);
 	}
 	printf(">\n");
 	return (0);
