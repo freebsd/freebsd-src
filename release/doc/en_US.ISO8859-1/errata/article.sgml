@@ -240,6 +240,20 @@ boot</screen>
     <para>(9 Nov 2004) The &os; 5.3-RELEASE Release Notes should have stated
       that <filename role="package">net/mpd</filename> which was compiled
       on the old systems prior to 5.3-RELEASE must be recompiled.</para>
+
+    <para>(10 Nov 2004) The &os; 5.3-RELEASE Release Notes should have stated
+      explicitly that ports/packages which were built on the old systems
+      prior to 5.3-RELEASE and linked with the old POSIX thread libraries
+      (<application>libc_r</application> or <application>libkse</application>)
+      can cause an error <quote>Spinlock called when not threaded.</quote>
+      at run time.  This happens when the program is linked with multiple
+      different threading libraries (typically the older ports will be linked with
+      <application>libc_r</application>, while newer ports will be linked with
+      <application>libpthread</application>).
+      Either recompile the ports/packages or add the necessary lines to
+      <filename>/etc/libmap.conf</filename>.
+      More details can be found in <filename>/usr/src/UPDATING</filename>
+      (20040303 and 20040130).</para>
   </sect1>
 
   <sect1 id="late-news">
