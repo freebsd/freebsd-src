@@ -59,6 +59,7 @@ oui JATO			0x00e083	Jato Technologies
 oui LEVEL1			0x00207b	Level 1
 oui NATSEMI			0x080017	National Semiconductor
 oui QUALSEMI			0x006051	Quality Semiconductor
+oui REALTEK			0x000020	RealTek Semicondctor
 oui SEEQ			0x00a07d	Seeq
 oui SIS				0x00e006	Silicon Integrated Systems
 oui TDK				0x00c039	TDK
@@ -136,6 +137,9 @@ model NATSEMI DP83861		0x0006 DP83861 10/100/1000 media interface
 
 /* Quality Semiconductor PHYs */
 model QUALSEMI QS6612		0x0000 QS6612 10/100 media interface
+
+/* RealTek Semiconductor PHYs */
+model REALTEK RTL8201L		0x0020 RTL8201L 10/100 media interface
 
 /* Seeq PHYs */
 model xxSEEQ 80220		0x0003 Seeq 80220 10/100 media interface
