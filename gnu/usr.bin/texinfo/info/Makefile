@@ -11,8 +11,8 @@ SRCS=	dir.c display.c doc.c dribble.c echo-area.c filesys.c \
 
 CFLAGS+= -DINFODIR=\"${INFODIR}:/usr/local/info:.\"
 
-DPADD=	${LIBTERMCAP} ${LIBTXI}
-LDADD=	-ltermcap ${LIBTXI}
+DPADD+=	${LIBTERMCAP} ${LIBTXI}
+LDADD+=	-ltermcap ${LIBTXI}
 
 .include <bsd.prog.mk>
 
