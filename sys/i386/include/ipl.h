@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.12 1997/09/21 21:38:53 gibbs Exp $
+ *	$Id: ipl.h,v 1.13 1998/01/15 07:32:56 gibbs Exp $
  */
 
 #ifndef _MACHINE_IPL_H_
@@ -56,6 +56,7 @@
 #define	SWI_VM		(NHWI + 4)
 #define	SWI_CLOCK	30
 #define	SWI_AST		31
+#define	NSWI		(32 - NHWI)
 
 /*
  * Corresponding interrupt-pending bits for ipending.
