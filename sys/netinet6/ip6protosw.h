@@ -156,4 +156,8 @@ struct ip6protosw {
 	struct	pfil_head	pr_pfh;
 };
 
+#ifdef _KERNEL
+extern struct ip6protosw inet6sw[];
+#endif
+
 #endif /* !_NETINET6_IP6PROTOSW_H_ */
