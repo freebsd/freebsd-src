@@ -60,6 +60,7 @@ static OPTION const options[] = {
 	{ "-and",	N_AND,		NULL,		O_NONE },
 	{ "-atime",	N_ATIME,	c_atime,	O_ARGV },
 	{ "-ctime",	N_CTIME,	c_ctime,	O_ARGV },
+	{ "-delete",	N_DELETE,	c_delete,	O_ZERO },
 	{ "-depth",	N_DEPTH,	c_depth,	O_ZERO },
 	{ "-exec",	N_EXEC,		c_exec,		O_ARGVP },
 	{ "-follow",	N_FOLLOW,	c_follow,	O_ZERO },

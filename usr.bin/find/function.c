@@ -937,6 +937,59 @@ c_type(typestring)
 }
 
 /*
+ * -delete functions --
+ *
+ *	True always.  Makes it's best shot and continues on regardless.
+ */
+int
+f_delete(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	/* ignore these from fts */
+	if (strcmp(entry->fts_accpath, ".") == 0 ||
+	    strcmp(entry->fts_accpath, "..") == 0)
+		return (1);
+
+	/* sanity check */
+	if (isdepth == 0 ||			/* depth off */
+	    (ftsoptions & FTS_NOSTAT) ||	/* not stat()ing */
+	    !(ftsoptions & FTS_PHYSICAL) ||	/* physical off */
+	    (ftsoptions & FTS_LOGICAL))		/* or finally, logical on */
+		errx(1, "-delete: insecure options got turned on");
+
+	/* Potentially unsafe - do not accept relative paths whatsoever */
+	if (strchr(entry->fts_accpath, '/') != NULL)
+		errx(1, "-delete: %s: relative path potentially not safe",
+			entry->fts_accpath);
+
+	/* rmdir directories, unlink everything else */
+	if (S_ISDIR(entry->fts_statp->st_mode)) {
+		if (rmdir(entry->fts_accpath) < 0)
+			warn("-delete: rmdir(%s)", entry->fts_path);
+	} else {
+		if (unlink(entry->fts_accpath) < 0)
+			warn("-delete: unlink(%s)", entry->fts_path);
+	}
+
+	/* "succeed" */
+	return (1);
+}
+
+PLAN *
+c_delete()
+{
+
+	ftsoptions &= ~FTS_NOSTAT;	/* no optimise */
+	ftsoptions |= FTS_PHYSICAL;	/* disable -follow */
+	ftsoptions &= ~FTS_LOGICAL;	/* disable -follow */
+	isoutput = 1;			/* possible output */
+	isdepth = 1;			/* -depth implied */
+
+	return (palloc(N_DELETE, f_delete));
+}
+
+/*
  * -user uname functions --
  *
  *	True if the file belongs to the user uname.  If uname is numeric and
