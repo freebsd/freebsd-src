@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.37 1994/10/19 01:58:50 wollman Exp $
+ *      $Id: aha1542.c,v 1.38 1994/10/23 21:27:04 wollman Exp $
  */
 
 /*
@@ -192,6 +192,24 @@ struct aha_ccb {
 #define AHA_TARGET_CCB		0x01	/* SCSI Target CCB */
 #define AHA_INIT_SCAT_GATH_CCB	0x02	/* SCSI Initiator with scatter gather */
 #define AHA_RESET_CCB		0x81	/* SCSI Bus reset */
+
+#define AHA_INIT_RESID_CCB	0x03	/* SCSI Initiator CCB */
+#define AHA_INIT_SG_RESID_CCB	0x04	/* SCSI initiator with scatter gather */
+
+/* Which CCBs to use.  If you use the "RESID" ones then the
+ * host adapter will return the DATA OVER/UNDERRUN condition
+ * on short reads and writes.
+ *
+ * This apparently FAILS on old 1542s.  Perhaps we can auto configure
+ * it somehow using an inquiry for a long string?
+ */
+#if 1
+#define INITIATOR_CCB       AHA_INIT_RESID_CCB
+#define INIT_SCAT_GATH_CCB  AHA_INIT_SG_RESID_CCB
+#else
+#define INITIATOR_CCB       AHA_INITIATOR_CCB
+#define INIT_SCAT_GATH_CCB  AHA_INIT_SCAT_GATH_CCB
+#endif
 
 /*
  * aha_ccb.host_stat values
@@ -800,6 +818,9 @@ aha_done(unit, ccb)
 		printf("aha%d: exiting but not in use!\n", unit);
 		Debugger("aha1542");
 	}
+	xs->status = ccb->target_stat;
+	xs->resid = 0;
+
 	if (((ccb->host_stat != AHA_OK) || (ccb->target_stat != SCSI_OK))
 	    && ((xs->flags & SCSI_ERR_OK) == 0)) {
 		/*
@@ -817,6 +838,31 @@ aha_done(unit, ccb)
 			case AHA_SEL_TIMEOUT:	/* No response */
 				xs->error = XS_TIMEOUT;
 				break;
+
+			case	AHA_OVER_UNDER:		/* Over run / under run */
+				switch(ccb->opcode)
+				{
+					case AHA_TARGET_CCB:
+					xs->resid = xs->datalen - _3btol(ccb->data_length);
+					if (xs->resid <= 0)
+						xs->error = XS_LENGTH;
+					break;
+
+					case AHA_INIT_RESID_CCB:
+					case AHA_INIT_SG_RESID_CCB:
+					xs->resid = _3btol(ccb->data_length);
+					if (xs->resid <= 0)
+						xs->error = XS_LENGTH;
+					printf("aha over under: resid %d error %d.\n",
+					xs->resid, xs->error);
+
+					break;
+
+					default:
+						xs->error = XS_LENGTH;
+				}
+				break;
+
 			default:	/* Other scsi protocol messes */
 				xs->error = XS_DRIVER_STUFFUP;
 				printf("aha%d:host_stat%x\n",
@@ -840,10 +886,8 @@ aha_done(unit, ccb)
 				xs->error = XS_DRIVER_STUFFUP;
 			}
 		}
-	} else {
-		/* All went correctly  OR errors expected */
-		xs->resid = 0;
 	}
+
 	xs->flags |= ITSDONE;
 	aha_free_ccb(unit, ccb, xs->flags);
 	scsi_done(xs);
@@ -1108,7 +1152,8 @@ aha_scsi_cmd(xs)
 		return (TRY_AGAIN_LATER);
 	}
 	if (ccb->mbx->cmd != AHA_MBO_FREE)
-		printf("aha%d: MBO not free\n", unit);
+		printf("aha%d: MBO %02x and not %02x (free)\n",
+		unit, ccb->mbx->cmd, AHA_MBO_FREE);
 
 	/*
 	 * Put all the arguments for the xfer in the ccb
@@ -1119,15 +1164,23 @@ aha_scsi_cmd(xs)
 	} else {
 		/* can't use S/G if zero length */
 		ccb->opcode = (xs->datalen ?
-		    AHA_INIT_SCAT_GATH_CCB
-		    : AHA_INITIATOR_CCB);
+		    INIT_SCAT_GATH_CCB
+		    : INITIATOR_CCB);
 	}
 	ccb->target = sc_link->target;
 	ccb->data_out = 0;
 	ccb->data_in = 0;
 	ccb->lun = sc_link->lun;
 	ccb->scsi_cmd_length = xs->cmdlen;
-	ccb->req_sense_length = sizeof(ccb->scsi_sense);
+
+	/* Some devices (e.g, Microtek ScanMaker II)
+	 * fall on the ground if you ask for anything but
+	 * an exact number of sense bytes (wiping out the
+	 * sense data)
+	 */
+	ccb->req_sense_length = (xs->req_sense_length)
+		? xs->req_sense_length
+		: sizeof(ccb->scsi_sense);
 
 	if ((xs->datalen) && (!(flags & SCSI_RESET))) {
 		/* can use S/G only if not zero length */
