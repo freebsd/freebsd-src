@@ -56,7 +56,7 @@ GNATS_SITE=freefall
 
 # What mailer to use.  This must come after the config file, since it is
 # host-dependent.
-MAIL_AGENT="/usr/sbin/sendmail -oi -t"
+MAIL_AGENT="${MAIL_AGENT:-/usr/sbin/sendmail -oi -t}"
 
 ECHON=bsd
 
@@ -73,12 +73,6 @@ fi
 
 #
 
-[ -z "$TMPDIR" ] && TMPDIR=/tmp
-
-TEMP=$TMPDIR/p$$
-BAD=$TMPDIR/pbad$$
-REF=$TMPDIR/pf$$
-
 if [ -z "$LOGNAME" -a -n "$USER" ]; then
   LOGNAME=$USER
 fi
@@ -93,19 +87,21 @@ elif [ -f $HOME/.fullname ]; then
   ORIGINATOR="`sed -e '1q' $HOME/.fullname`"
 elif [ -f /bin/domainname ]; then
   if [ "`/bin/domainname`" != "" -a -f /usr/bin/ypcat ]; then
+    PTEMP=`mktemp -t p` || exit 1
     # Must use temp file due to incompatibilities in quoting behavior
     # and to protect shell metacharacters in the expansion of $LOGNAME
     /usr/bin/ypcat passwd 2>/dev/null | cat - /etc/passwd | grep "^$LOGNAME:" |
-      cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
-    ORIGINATOR="`cat $TEMP`"
-    rm -f $TEMP
+      cut -f5 -d':' | sed -e 's/,.*//' > $PTEMP
+    ORIGINATOR="`cat $PTEMP`"
+    rm -f $PTEMP
   fi
 fi
 
 if [ "$ORIGINATOR" = "" ]; then
-  grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $TEMP
-  ORIGINATOR="`cat $TEMP`"
-  rm -f $TEMP
+  PTEMP=`mktemp -t p` || exit 1
+  grep "^$LOGNAME:" /etc/passwd | cut -f5 -d':' | sed -e 's/,.*//' > $PTEMP
+  ORIGINATOR="`cat $PTEMP`"
+  rm -f $PTEMP
 fi
 
 if [ -n "$ORGANIZATION" ]; then
@@ -138,8 +134,7 @@ ARCH=`[ -f /bin/arch ] && /bin/arch`
 MACHINE=`[ -f /bin/machine ] && /bin/machine`
 
 COMMAND=`echo $0 | sed -e 's,.*/,,'`
-USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [--request-id] 
-[--version]"
+USAGE="Usage: $COMMAND [-PVL] [-t address] [-f filename] [--version]"
 REMOVE=
 BATCH=
 
@@ -161,7 +156,6 @@ while [ $# -gt 0 ]; do
     -p | -P | --print) PRINT=true ;;
     -L | --list) FORMAT=norm ;;
     -l | -CL | --lisp) FORMAT=lisp ;;
-    --request-id) REQUEST_ID=true ;;
     -h | --help) echo "$USAGE"; exit 0 ;;
     -V | --version) echo "$VERSION"; exit 0 ;;
     -*) echo "$USAGE" ; exit 1 ;;
@@ -186,20 +180,8 @@ if [ -n "$USER_GNATS_SITE" ]; then
   GNATS_ADDR=$USER_GNATS_SITE-gnats
 fi
 
-if [ "$SUBMITTER" = "unknown" -a -z "$REQUEST_ID" -a -z "$IN_FILE" ]; then
-  cat << '__EOF__'
-It seems that send-pr is not installed with your unique submitter-id.
-You need to run
-
-          install-sid YOUR-SID
-
-where YOUR-SID is the identification code you received with `send-pr'.
-`send-pr' will automatically insert this value into the template field
-`>Submitter-Id'.  If you've downloaded `send-pr' from the Net, use `net'
-for this value.  If you do not know your id, run `send-pr --request-id' to 
-get one from your support site.
-__EOF__
-  exit 1
+if [ "$SUBMITTER" = "unknown" -a -z "$IN_FILE" ]; then
+  SUBMITTER="current-users"
 fi
 
 if [ -r "$DATADIR/gnats/$GNATS_SITE" ]; then
@@ -240,7 +222,7 @@ CATEGORY_C=`echo "$CATEGORIES" | \
 
 ORIGINATOR_C='<Name of the PR author (one line)>'
 ORGANIZATION_C='<Organization of PR author (multiple lines)>'
-CONFIDENTIAL_C='<[ yes | no ] (one line)>'
+CONFIDENTIAL_C='no <FreeBSD PRs are public data>'
 SYNOPSIS_C='<Synopsis of the problem (one line)>'
 SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
 PRIORITY_C='<[ low | medium | high ] (one line)>'
@@ -251,6 +233,9 @@ DESCRIPTION_C='<Precise description of the problem (multiple lines)>'
 HOW_TO_REPEAT_C='<Code/input/activities to reproduce the problem (multiple lines)>'
 FIX_C='<How to correct or work around the problem, if known (multiple lines)>'
 
+# Create temporary files, safely
+REF=`mktemp -t pf` || exit 1
+TEMP=`mktemp -t pf` || exit 1
 # Catch some signals. ($xs kludge needed by Sun /bin/sh)
 xs=0
 trap 'rm -f $REF $TEMP; exit $xs' 0
@@ -350,7 +335,7 @@ X-send-pr-version: $VERSION
 	$HOW_TO_REPEAT_C
 
 >Fix: 
-	
+
 	$FIX_C
 
 __EOF__
@@ -364,16 +349,7 @@ __EOF__
   fi
 
   chmod u+w $TEMP
-  if [ -z "$REQUEST_ID" ]; then
-    eval $EDIT $TEMP
-  else
-    ed -s $TEMP << '__EOF__'
-/^Subject/s/^Subject:.*/Subject: request for a customer id/
-/^>Category/s/^>Category:.*/>Category: send-pr/
-w
-q
-__EOF__
-  fi
+  eval $EDIT $TEMP
 
   if cmp -s $REF $TEMP ; then
     echo "$COMMAND: problem report not filled out, therefore not sent"
@@ -397,7 +373,7 @@ q
 }'
 
 
-while [ -z "$REQUEST_ID" ]; do
+while true; do
   CNT=0
 
   # 1) Confidential
@@ -405,7 +381,7 @@ while [ -z "$REQUEST_ID" ]; do
   PATTERN=">Confidential:"
   CONFIDENTIAL=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$CONFIDENTIAL" in
-    ""|yes|no) CNT=`expr $CNT + 1` ;;
+    ""|no) CNT=`expr $CNT + 1` ;;
     *) echo "$COMMAND: \`$CONFIDENTIAL' is not a valid value for \`Confidential'." ;;
   esac
   #
@@ -482,6 +458,7 @@ while [ -z "$REQUEST_ID" ]; do
     case "$input" in
       a*)
 	if [ -z "$BATCH" ]; then
+	  BAD=`mktemp -t pbad`
 	  echo "$COMMAND: the problem report remains in $BAD and is not sent."
 	  mv $TEMP $BAD
         else
@@ -542,6 +519,7 @@ if $MAIL_AGENT < $REF; then
 else
   echo "$COMMAND: mysterious mail failure."
   if [ -z "$BATCH" ]; then
+    BAD=`mktemp -t pbad`
     echo "$COMMAND: the problem report remains in $BAD and is not sent."
     mv $REF $BAD
   else
