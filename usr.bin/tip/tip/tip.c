@@ -81,6 +81,7 @@ int	disc = OTTYDISC;		/* tip normally runs this way */
 
 void	intprompt();
 void	timeout();
+void	killchild();
 void	cleanup();
 void	tipdone();
 char	*sname();
@@ -286,6 +287,15 @@ usage()
 }
 
 void
+killchild()
+{
+	if (pid != 0) {
+		kill(pid, SIGTERM);
+		pid = 0;
+	}
+}
+
+void
 cleanup()
 {
 
@@ -426,6 +436,8 @@ tipin()
 {
 	int i;
 	char gch, bol = 1;
+
+	atexit(killchild);
 
 	/*
 	 * Kinda klugey here...

@@ -160,7 +160,8 @@ tipout()
 		omask = sigblock(ALLSIGS);
 		for (cp = buf; cp < buf + cnt; cp++)
 			*cp &= 0177;
-		write(1, buf, cnt);
+		if (write(1, buf, cnt) < 0)
+			exit(1);
 		if (boolean(value(SCRIPT)) && fscript != NULL) {
 			if (!boolean(value(BEAUTIFY))) {
 				fwrite(buf, 1, cnt, fscript);
