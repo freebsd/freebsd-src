@@ -103,11 +103,13 @@ char *name;
 	long recstart;
 	char *cp, *p;
 	struct stat statbuf;
+	mode_t oldmask;
 
 	/* See if the _PATH_SKEYFILE exists, and create it if not */
 	if(stat(_PATH_SKEYFILE,&statbuf) == -1 && errno == ENOENT){
+		oldmask = umask(S_IRWXG|S_IRWXO);
 		mp->keyfile = fopen(_PATH_SKEYFILE,"w+");
-		(void) chmod(_PATH_SKEYFILE, 0644);
+		(void)umask(oldmask);
 	} else {
 		/* Otherwise open normally for update */
 		mp->keyfile = fopen(_PATH_SKEYFILE,"r+");
