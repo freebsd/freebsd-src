@@ -29,16 +29,22 @@
 union IEEEl2bits {
 	long double	e;
 	struct {
+#ifndef __ARMEB__
 		unsigned int	manl	:32;
-		unsigned int	manh	:32;
-		unsigned int	exp	:15;
+		unsigned int	manh	:20;
+		unsigned int	exp	:11;
 		unsigned int	sign	:1;
-		unsigned int	junk	:16;
+#else
+		unsigned int		sign	:1;
+		unsigned int		exp	:11;
+		unsigned int		manh	:20;
+		unsigned int		manl	:32;
+#endif
 	} bits;
 };
 
-#define	LDBL_NBIT	0x80000000
-#define	mask_nbit_l(u)	((u).bits.manh &= ~LDBL_NBIT)
+#define	LDBL_NBIT	0
+#define	mask_nbit_l(u)	((void)0)
 
 #define	LDBL_MANH_SIZE	32
 #define	LDBL_MANL_SIZE	32
