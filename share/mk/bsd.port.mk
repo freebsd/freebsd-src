@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.161 1995/05/13 05:37:45 asami Exp $
+# $Id: bsd.port.mk,v 1.162 1995/05/13 23:37:16 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1115,7 +1115,7 @@ fake-pkg:
 	@rm -rf ${PKG_DBDIR}/${PKGNAME}
 .endif
 	@if [ ! -d ${PKG_DBDIR}/${PKGNAME} ]; then \
-		${ECHO_MSG} "===> Registering installation for ${PKGNAME}"; \
+		${ECHO_MSG} "===>  Registering installation for ${PKGNAME}"; \
 		mkdir -p ${PKG_DBDIR}/${PKGNAME}; \
 		${PKG_CMD} ${PKG_ARGS} -O ${PKGFILE} > ${PKG_DBDIR}/${PKGNAME}/+CONTENTS; \
 		cp ${PKGDIR}/DESCR ${PKG_DBDIR}/${PKGNAME}/+DESC; \
