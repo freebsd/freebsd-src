@@ -3362,13 +3362,10 @@ rl_getc (stream)
 }
 
 #if !defined (SHELL)
-#ifdef savestring
-#undef savestring
-#endif
 /* Backwards compatibilty, now that savestring has been removed from
    all `public' readline header files. */
 char *
-savestring (s)
+rl_savestring (s)
      char *s;
 {
   return ((char *)strcpy (xmalloc (1 + (int)strlen (s)), (s)));
