@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.25 1995/12/09 20:40:40 phk Exp $
+ *	$Id: support.s,v 1.26 1995/12/10 03:11:32 bde Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -47,10 +47,10 @@
 ENTRY(rtcin)					/* rtcin(val) */
 	movl	4(%esp),%eax
 	outb	%al,$0x70
-	NOP
+	FASTER_NOP
 	xorl	%eax,%eax
 	inb	$0x71,%al
-	NOP
+	FASTER_NOP
 	ret
 
 /*
