@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_fxp.c,v 1.1 1995/11/28 23:55:20 davidg Exp $
  */
 
 /*
@@ -74,18 +74,18 @@
 #include <net/bpfdesc.h>
 #endif
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <machine/clock.h>
-#include <machine/pmap.h>
+#include <vm/vm.h>		/* for vtophys */
+#include <vm/vm_param.h>	/* for vtophys */
+#include <machine/pmap.h>	/* for vtophys */
+#include <machine/clock.h>	/* for DELAY */
 
 #include <pci/pcivar.h>
 #include <pci/if_fxpreg.h>
 
 struct fxp_softc {
-	struct arpcom arpcom;
-	caddr_t bpf;
-	struct fxp_csr *csr;
+	struct arpcom arpcom;		/* per-interface network data */
+	caddr_t bpf;			/* BPF token */
+	struct fxp_csr *csr;		/* control/status registers */
 	struct fxp_cb_tx *cbl_base;	/* base of TxCB list */
 	struct fxp_cb_tx *cbl_first;	/* first active TxCB in list */
 	struct fxp_cb_tx *cbl_last;	/* last active TxCB in list */
@@ -181,6 +181,10 @@ DATA_SET(pcidevice_set, fxp_device);
  */
 #define FXP_NRFABUFS	32
 
+/*
+ * Wait for the previous command to be accepted (but not necessarily
+ * completed).
+ */
 static inline void
 fxp_scb_wait(csr)
 	struct fxp_csr *csr;
@@ -190,6 +194,9 @@ fxp_scb_wait(csr)
 	while ((csr->scb_command & FXP_SCB_COMMAND_MASK) && --i);
 }
 
+/*
+ * Return identification string if this is device is ours.
+ */
 static char *
 fxp_probe(config_id, device_id)
 	pcici_t config_id;
@@ -222,6 +229,9 @@ fxp_attach(config_id, unit)
 
 	s = splimp();
 
+	/*
+	 * Map control/status registers.
+	 */
 	if (!pci_map_mem(config_id, FXP_PCI_MMBA,
 	    (vm_offset_t *)&sc->csr, &pbase)) {
 		printf("fxp%d: couldn't map memory\n", unit);
@@ -229,11 +239,14 @@ fxp_attach(config_id, unit)
 	}
 
 	/*
-	 * Now that the CSR is mapped, issue a software reset.
+	 * Issue a software reset.
 	 */
 	sc->csr->port = 0;
 	DELAY(10);
 
+	/*
+	 * Allocate our interrupt.
+	 */
 	if (!pci_map_int(config_id, fxp_intr, sc, &net_imask)) {
 		printf("fxp%d: couldn't map interrupt\n", unit);
 		goto fail;
@@ -249,6 +262,9 @@ fxp_attach(config_id, unit)
 		goto malloc_fail;
 	bzero(sc->fxp_stats, sizeof(struct fxp_stats));
 
+	/*
+	 * Pre-allocate our receive buffers.
+	 */
 	for (i = 0; i < FXP_NRFABUFS; i++) {
 		if (fxp_add_rfabuf(sc, NULL) != 0) {
 			goto malloc_fail;
@@ -270,6 +286,9 @@ fxp_attach(config_id, unit)
 	printf("fxp%d: Ethernet address %s\n", unit,
 	    ether_sprintf(sc->arpcom.ac_enaddr));
 
+	/*
+	 * Attach the interface.
+	 */
 	if_attach(ifp);
 #if NBPFILTER > 0
 	bpfattach(&sc->bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
@@ -409,6 +428,9 @@ txloop:
 		ifp->if_flags |= IFF_OACTIVE;
 		return;
 	}
+	/*
+	 * Grab a packet to transmit.
+	 */
 	IF_DEQUEUE(&sc->arpcom.ac_if.if_snd, mb_head);
 	if (mb_head == NULL) {
 		/*
@@ -417,6 +439,9 @@ txloop:
 		return;
 	}
 
+	/*
+	 * Get pointer to next available (unused) descriptor.
+	 */
 	txp = sc->cbl_last->next;
 
 	/*
@@ -550,12 +575,19 @@ fxp_intr(arg)
 			struct fxp_rfa *rfa;
 rcvloop:
 			m = sc->rfa_headm;
-			rfa = (struct fxp_rfa *)(mtod(m, u_long) & ~(MCLBYTES - 1));
+			rfa = (struct fxp_rfa *)m->m_ext.ext_buf;
 
 			if (rfa->rfa_status & FXP_RFA_STATUS_C) {
+				/*
+				 * Remove first packet from the chain.
+				 */
 				sc->rfa_headm = m->m_next;
 				m->m_next = NULL;
 
+				/*
+				 * Add a new buffer to the receive chain. If this
+				 * fails, the old buffer is recycled instead.
+				 */
 				if (fxp_add_rfabuf(sc, m) == 0) {
 					struct ether_header *eh;
 					u_short total_len;
@@ -589,8 +621,7 @@ rcvloop:
 
 				ifp->if_ierrors++;
 				fxp_scb_wait(csr);
-				csr->scb_general = vtophys(mtod(sc->rfa_headm, u_long) &
-				    ~(MCLBYTES - 1));
+				csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 				csr->scb_command = FXP_SCB_COMMAND_RU_START;
 			}
 		}
@@ -599,6 +630,17 @@ rcvloop:
 	return found;
 }
 
+/*
+ * Update packet in/out/collision statistics. The i82557 doesn't
+ * allow you to access these counters without doing a fairly
+ * expensive DMA to get _all_ of the statistics it maintains, so
+ * we do this operation here only once per second. The statistics
+ * counters in the kernel are updated from the previous dump-stats
+ * DMA and then a new dump-stats DMA is started. The on-chip
+ * counters are zeroed when the DMA completes. If we can't start
+ * the DMA immediately, we don't wait - we just prepare to read
+ * them again next time.
+ */
 void
 fxp_stats_update(arg)
 	void *arg;
@@ -616,19 +658,24 @@ fxp_stats_update(arg)
 	 * around. Make sure we don't count the stats twice
 	 * however.
 	 */
-	if (sc->csr->scb_command & FXP_SCB_COMMAND_MASK) {
+	if ((sc->csr->scb_command & FXP_SCB_COMMAND_MASK) == 0) {
+		/*
+		 * Start another stats dump. By waiting for it to be
+		 * accepted, we avoid having to do splhigh locking when
+		 * writing scb_command in other parts of the driver.
+		 */
+		sc->csr->scb_command = FXP_SCB_COMMAND_CU_DUMPRESET;
+		fxp_scb_wait(sc);
+	} else {
+		/*
+		 * A previous command is still waiting to be accepted.
+		 * Just zero our copy of the stats and wait for the
+		 * next timer event to pdate them.
+		 */
 		sp->tx_good = 0;
 		sp->tx_total_collisions = 0;
 		sp->rx_good = 0;
-		return;
 	}
-	/*
-	 * Start another stats dump. By waiting for it to be accepted,
-	 * we avoid having to do splhigh locking when writing scb_command
-	 * in other parts of the driver.
-	 */
-	sc->csr->scb_command = FXP_SCB_COMMAND_CU_DUMPRESET;
-	fxp_scb_wait(sc);
 	/*
 	 * Schedule another timeout one second from now.
 	 */
@@ -830,7 +877,7 @@ fxp_init(unit)
 	 * Initialize receiver buffer area - RFA.
 	 */
 	fxp_scb_wait(csr);
-	csr->scb_general = vtophys(mtod(sc->rfa_headm, u_long) & ~(MCLBYTES - 1));
+	csr->scb_general = vtophys(sc->rfa_headm->m_ext.ext_buf);
 	csr->scb_command = FXP_SCB_COMMAND_RU_START;
 
 	ifp->if_flags |= IFF_RUNNING;
@@ -879,8 +926,12 @@ fxp_add_rfabuf(sc, oldm)
 	rfa->actual_size = 0;
 	rfa->size = MCLBYTES - sizeof(struct fxp_rfa);
 	m->m_data += sizeof(struct fxp_rfa);
+	/*
+	 * If there are other buffers already on the list, attach this
+	 * one to the end by fixing up the tail to point to this one.
+	 */
 	if (sc->rfa_headm != NULL) {
-		p_rfa = (struct fxp_rfa *) (mtod(sc->rfa_tailm, u_long) & ~(MCLBYTES - 1));
+		p_rfa = (struct fxp_rfa *) sc->rfa_tailm->m_ext.ext_buf;
 		sc->rfa_tailm->m_next = m;
 		p_rfa->link_addr = vtophys(rfa);
 		p_rfa->rfa_control &= ~FXP_RFA_CONTROL_EL;
@@ -889,7 +940,7 @@ fxp_add_rfabuf(sc, oldm)
 	}
 	sc->rfa_tailm = m;
 
-	return m == oldm ? 1 : 0;
+	return (m == oldm);
 }
 
 static int
