@@ -35,7 +35,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)apply.c	8.4 (Berkeley) 4/4/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/wait.h>
@@ -152,7 +156,7 @@ main(argc, argv)
 		 * there's enough space to build it.
 		 */
 		for (l = strlen(cmd), i = 0; i < nargs; i++)
-			l += strlen(argv[i]);
+			l += strlen(argv[i+1]);
 		if (l > clen && (c = realloc(c, clen = l)) == NULL)
 			err(1, NULL);
 
