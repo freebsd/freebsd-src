@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.300 1997/06/21 15:41:55 jkh Exp $
+#	$Id: Makefile,v 1.301 1997/06/21 15:45:51 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -195,7 +195,7 @@ rerelease release:
 	echo "make all install"			>> ${CHROOTDIR}/mk
 .endif
 .if !defined(NODOC)
-	echo "cd /usr/doc && make all install" >> ${CHROOTDIR}/mk
+	echo "cd /usr/doc && make all distribute DISTDIR=/R/stage/trees" >> ${CHROOTDIR}/mk
 .endif
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
