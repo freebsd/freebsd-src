@@ -75,11 +75,12 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-        enum {COMPRESS, DECOMPRESS} style = COMPRESS;
+	enum {COMPRESS, DECOMPRESS} style;
 	size_t len;
 	int bits, cat, ch;
 	char *p, newname[MAXPATHLEN];
 
+	cat = 0;
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
@@ -89,12 +90,12 @@ main(argc, argv)
 	else if (!strcmp(p, "compress"))
 		style = COMPRESS;
 	else if (!strcmp(p, "zcat")) {
-		style = DECOMPRESS;
 		cat = 1;
+		style = DECOMPRESS;
 	} else
 		errx(1, "unknown program name");
 
-	bits = cat = 0;
+	bits = 0;
 	while ((ch = getopt(argc, argv, "b:cdfv")) != -1)
 		switch(ch) {
 		case 'b':
