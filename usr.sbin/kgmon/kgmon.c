@@ -190,7 +190,8 @@ openfiles(system, kmemf, kvp)
 	char *kmemf;
 	struct kvmvars *kvp;
 {
-	int mib[3], state, size, openmode;
+	size_t size;
+	int mib[3], state, openmode;
 	char errbuf[_POSIX2_LINE_MAX];
 
 	if (!kflag) {
@@ -260,7 +261,8 @@ int
 getprof(kvp)
 	struct kvmvars *kvp;
 {
-	int mib[3], size;
+	size_t size;
+	int mib[3];
 
 	if (kflag) {
 		size = kvm_read(kvp->kd, nl[N_GMONPARAM].n_value, &kvp->gpm,
@@ -316,7 +318,8 @@ setprof(kvp, state)
 	int state;
 {
 	struct gmonparam *p = (struct gmonparam *)nl[N_GMONPARAM].n_value;
-	int mib[3], sz, oldstate;
+	size_t sz;
+	int mib[3], oldstate;
 
 	sz = sizeof(state);
 	if (!kflag) {
@@ -353,7 +356,8 @@ dumpstate(kvp)
 	struct tostruct *tos;
 	u_long frompc;
 	u_short *froms, *tickbuf;
-	int mib[3], i;
+	size_t i;
+	int mib[3];
 	struct gmonhdr h;
 	int fromindex, endfrom, toindex;
 
@@ -464,7 +468,8 @@ int
 getprofhz(kvp)
 	struct kvmvars *kvp;
 {
-	int mib[2], size, profrate;
+	size_t size;
+	int mib[2], profrate;
 	struct clockinfo clockrate;
 
 	if (kflag) {
