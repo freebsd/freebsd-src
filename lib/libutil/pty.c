@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #else
 static const char rcsid[] =
-	"$Id: pty.c,v 1.7 1997/08/13 20:42:18 steve Exp $";
+	"$Id: pty.c,v 1.8 1998/10/09 11:24:20 jkh Exp $";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -60,7 +60,7 @@ openpty(amaster, aslave, name, termp, winp)
 	struct termios *termp;
 	struct winsize *winp;
 {
-	static char line[] = "/dev/ptyXX";
+	char line[] = "/dev/ptyXX";
 	register const char *cp1, *cp2;
 	register int master, slave, ttygid;
 	struct group *gr;
