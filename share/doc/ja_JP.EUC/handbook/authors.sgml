@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.21 1997/05/09 03:07:23 max Exp $ -->
+<!-- $Id: authors.sgml,v 1.22 1997/05/13 22:57:43 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.67 -->
+<!-- Original revision: 1.69 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -52,6 +52,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.cawimm "Charles A. Wimmer
   <tt><htmlurl url='mailto:cawimm@FreeBSD.ORG' 
   name='&lt;cawimm@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.charnier "Philippe Charnier
+  <tt><htmlurl url='mailto:charnier@FreeBSD.ORG'
+  name='&lt;charnier@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.chuck "Chuck Robey
   <tt><htmlurl url='mailto:chuckr@glue.umd.edu'
