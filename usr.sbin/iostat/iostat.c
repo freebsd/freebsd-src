@@ -24,6 +24,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 /*
  * Parts of this program are derived from the original FreeBSD iostat
@@ -97,10 +99,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -157,10 +155,9 @@ usage(void)
 	 * This isn't mentioned in the man page, or the usage statement,
 	 * but it is supported.
 	 */
-	fprintf(stderr, "%s\n%s\n",
-	"usage: iostat [-CdhIKoT] [-c count] [-M core] [-n devs] [-N system]",
-	"              [-t type,if,pass] [-w wait] [drives]");
-	exit(1);
+	fprintf(stderr, "usage: iostat [-CdhIKoT?] [-c count] [-M core]"
+		" [-n devs] [-N system]\n"
+		"\t      [-t type,if,pass] [-w wait] [drives]\n");
 }
 
 int
@@ -174,6 +171,7 @@ main(int argc, char **argv)
 	struct devstat_match *matches;
 	int num_matches = 0;
         char errbuf[_POSIX2_LINE_MAX];
+	char *err_str;
 	kvm_t	 *kd;
 	int hz, stathz;
 	int headercount;
@@ -187,7 +185,7 @@ main(int argc, char **argv)
 	matches = NULL;
 	maxshowdevs = 3;
 
-	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:")) != -1) {
+	while ((c = getopt(argc, argv, "c:CdhIKM:n:N:ot:Tw:?")) != -1) {
 		switch(c) {
 			case 'c':
 				cflag++;
@@ -241,9 +239,9 @@ main(int argc, char **argv)
 				if (waittime < 1)
 					errx(1, "wait time is < 1");
 				break;
-			case '?':
 			default:
 				usage();
+				exit(1);
 				break;
 		}
 	}
@@ -290,11 +288,7 @@ main(int argc, char **argv)
 		err(1, "can't get number of devices");
 
 	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	if (cur.dinfo == NULL)
-		errx(1, "malloc failed");
 	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
-	if (last.dinfo == NULL)
-		errx(1, "malloc failed");
 	bzero(cur.dinfo, sizeof(struct devinfo));
 	bzero(last.dinfo, sizeof(struct devinfo));
 
@@ -314,8 +308,6 @@ main(int argc, char **argv)
 	 * they are in the list of devices we have now.
 	 */
 	specified_devices = (char **)malloc(sizeof(char *));
-	if (specified_devices == NULL)
-		errx(1, "malloc failed");
 	for (num_devices_specified = 0; *argv; ++argv) {
 		if (isdigit(**argv))
 			break;
@@ -323,8 +315,6 @@ main(int argc, char **argv)
 		specified_devices = (char **)realloc(specified_devices,
 						     sizeof(char *) *
 						     num_devices_specified);
-		if (specified_devices == NULL)
-			errx(1, "malloc failed");
 		specified_devices[num_devices_specified - 1] = *argv;
 
 	}
