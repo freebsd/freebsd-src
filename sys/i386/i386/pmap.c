@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.8 1993/11/13 02:25:03 davidg Exp $
+ *	$Id: pmap.c,v 1.9 1993/11/25 01:31:00 wollman Exp $
  */
 
 /*
@@ -904,6 +904,8 @@ pmap_enter(pmap, va, pa, prot, wired)
 	}
 
 	pte = pmap_pte(pmap, va);
+	if (!pte)
+		panic("non-resident page table page (pmap_enter)");
 	opa = pmap_pte_pa(pte);
 #ifdef DEBUG
 	if (pmapdebug & PDB_ENTER)
@@ -1105,6 +1107,8 @@ pmap_change_wiring(pmap, va, wired)
 		return;
 
 	pte = pmap_pte(pmap, va);
+	if (!pte)
+		panic("non-resident page table page (pmap_change_wiring)");
 #ifdef DEBUG
 	/*
 	 * Page table page is not allocated.
@@ -1569,6 +1573,8 @@ pmap_testbit(pa, bit)
 	if (pv->pv_pmap != NULL) {
 		for (; pv; pv = pv->pv_next) {
 			pte = (int *) pmap_pte(pv->pv_pmap, pv->pv_va);
+				if (!pte)
+					panic("non-resident page table page (pmap_testbit)");
 			ix = 0;
 			do {
 				if (*pte++ & bit) {
@@ -1634,6 +1640,8 @@ pmap_changebit(pa, bit, setem)
                         }
 
 			pte = (int *) pmap_pte(pv->pv_pmap, va);
+			if (!pte)
+				panic("non-resident page table page (pmap_changebit)");
 			ix = 0;
 			do {
 				if (setem)
