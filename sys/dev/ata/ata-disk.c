@@ -40,8 +40,6 @@
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>

@@ -39,9 +39,6 @@
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/cdio.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
-#include <pci/pcivar.h>
 #if NAPM > 0
 #include <machine/apm_bios.h>
 #endif

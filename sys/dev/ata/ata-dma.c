@@ -32,7 +32,6 @@
 #include "apm.h"
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/malloc.h> 
 #include <sys/bus.h>
@@ -40,7 +39,6 @@
 #include <vm/pmap.h>
 #if NPCI > 0
 #include <pci/pcivar.h>
-#include <pci/pcireg.h>
 #endif
 #if NAPM > 0
 #include <machine/apm_bios.h>
