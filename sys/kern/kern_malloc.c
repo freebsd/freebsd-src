@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.22 1996/05/10 19:28:48 wollman Exp $
+ * $Id: kern_malloc.c,v 1.23 1996/05/18 22:33:13 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -263,7 +263,7 @@ free(addr, type)
 	long size;
 	int s;
 #ifdef DIAGNOSTIC
-	caddr_t cp;
+	struct freelist *fp;
 	long *end, *lp, alloc, copysize;
 #endif
 #ifdef KMEMSTATS
@@ -318,11 +318,16 @@ free(addr, type)
 	 * it looks free before laboriously searching the freelist.
 	 */
 	if (freep->spare0 == WEIRD_ADDR) {
-		for (cp = kbp->kb_next; cp; cp = *(caddr_t *)cp) {
-			if (addr != cp)
-				continue;
-			printf("multiply freed item %p\n", addr);
-			panic("free: duplicated free");
+		fp = (struct freelist *)kbp->kb_next;
+		while (fp) {
+			if (fp->spare0 != WEIRD_ADDR) {
+				printf("trashed free item %p\n", fp);
+				panic("free: free item modified");
+			} else if (addr == (caddr_t)fp) {
+				printf("multiple freed item %p\n", addr);
+				panic("free: multiple free");
+			}
+			fp = (struct freelist *)fp->next;
 		}
 	}
 	/*
