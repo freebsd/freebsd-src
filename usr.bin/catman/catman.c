@@ -75,9 +75,7 @@ static const char *nroff_device = "ascii";
 static const char *locale_device[] = {
 	"KOI8-R",	"koi8-r",
 	"ISO8859-1",	"latin1",
-	"ISO_8859-1",	"latin1",
 	"ISO8859-15",	"latin1",
-	"ISO_8859-15",	"latin1",
 	NULL
 };
 
