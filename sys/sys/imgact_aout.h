@@ -150,9 +150,7 @@ struct exec {
 #ifdef KERNEL
 struct proc;
 
-__BEGIN_DECLS
-int aout_coredump __P((struct proc *, struct vnode *, off_t));
-__END_DECLS
+int	aout_coredump __P((struct proc *p, struct vnode *vp, off_t limit));
 #endif /* KERNEL */
 
 #endif /* !_IMGACT_AOUT_H_ */
