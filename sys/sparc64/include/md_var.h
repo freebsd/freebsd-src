@@ -47,6 +47,7 @@ void	cpu_identify(u_int clock);
 void	cpu_reset(void);
 int	fill_fpregs(struct thread *td, struct fpreg *fpregs);
 int	fill_regs(struct thread *td, struct reg *regs);
+int	is_physical_memory(vm_offset_t addr);
 void	swi_vm(void *v);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
