@@ -2301,8 +2301,6 @@ options 	METEOR_TEST_VIDEO
 options 	NDEVFSINO=1025
 options 	NDEVFSOVERFLOW=32769
 options 	NETGRAPH_BRIDGE
-# SIMOS is broken since it is alpha-only but not ifdefed.
-##options 	SIMOS
 
 # Yet more undocumented options for linting.
 options 	VGA_DEBUG
