@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -403,10 +403,56 @@ ata_dmainit(struct ata_softc *scp, int device,
 	}
 	goto via_82c586;
 
-    case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 */
-	if (ata_find_dev(parent, 0x06861106, 0x40) ||
-	    ata_find_dev(parent, 0x82311106, 0) ||
-	    ata_find_dev(parent, 0x30741106, 0)) {		/* 82C686b */
+    case 0x05711106:	/* VIA 82C571, 82C586, 82C596, 82C686 , 8231, 8233 */
+	{
+	    int via_modes[4][7] = {
+		{ 0x00, 0x00, 0xc0, 0x00, 0x00, 0x00, 0x00 },	/* ATA33 */
+		{ 0x00, 0x00, 0xea, 0x00, 0xe8, 0x00, 0x00 },	/* ATA66 */
+		{ 0x00, 0x00, 0xf4, 0x00, 0xf1, 0xf0, 0x00 },	/* ATA100 */
+		{ 0x00, 0x00, 0xf6, 0x00, 0xf2, 0xf1, 0xf0 }};	/* ATA133 */
+	    int *reg_val = NULL;
+
+	    if (ata_find_dev(parent, 0x31471106, 0x40)) {	/* 8233a */
+		udmamode = imin(udmamode, 6);
+		reg_val = via_modes[3];
+	    }
+	    else if (ata_find_dev(parent, 0x06861106, 0x40) ||	/* 82C686b */
+		ata_find_dev(parent, 0x82311106, 0) ||		/* 8231 */
+		ata_find_dev(parent, 0x30741106, 0) ||		/* 8233 */
+		ata_find_dev(parent, 0x31091106, 0)) {		/* 8233c */
+		udmamode = imin(udmamode, 5);
+		reg_val = via_modes[2];
+	    }
+	    else if (ata_find_dev(parent, 0x06861106, 0x10) ||	/* 82C686a */
+		     ata_find_dev(parent, 0x05961106, 0x12)) {	/* 82C596b */
+		udmamode = imin(udmamode, 4);
+		reg_val = via_modes[1];
+	    }
+	    else if (ata_find_dev(parent, 0x06861106, 0x0)) {	/* 82C686 */
+		udmamode = imin(udmamode, 2);
+		reg_val = via_modes[1];
+	    }
+	    else if (ata_find_dev(parent, 0x05961106, 0) ||	/* 82C596a */
+		     ata_find_dev(parent, 0x05861106, 0x03)) {	/* 82C586b */
+via_82c586:
+		udmamode = imin(udmamode, 2);
+		reg_val = via_modes[0];
+	    }
+	    else
+		udmamode = 0;
+	
+	    if (udmamode >= 6) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
+				    ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    ata_printf(scp, device, "%s setting UDMA6 on VIA chip\n",
+			       (error) ? "failed" : "success");
+		if (!error) {
+		    pci_write_config(parent, 0x53 - devno, reg_val[6], 1);
+		    scp->mode[ATA_DEV(device)] = ATA_UDMA6;
+		    return;
+		}
+	    }
 	    if (udmamode >= 5) {
 		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
 				    ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -414,7 +460,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 		    ata_printf(scp, device, "%s setting UDMA5 on VIA chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0xf0, 1);
+		    pci_write_config(parent, 0x53 - devno, reg_val[5], 1);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA5;
 		    return;
 		}
@@ -426,7 +472,7 @@ ata_dmainit(struct ata_softc *scp, int device,
 		    ata_printf(scp, device, "%s setting UDMA4 on VIA chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0xf1, 1);
+		    pci_write_config(parent, 0x53 - devno, reg_val[4], 1);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
 		    return;
 		}
@@ -438,56 +484,12 @@ ata_dmainit(struct ata_softc *scp, int device,
 		    ata_printf(scp, device, "%s setting UDMA2 on VIA chip\n",
 			       (error) ? "failed" : "success");
 		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0xf4, 1);
+		    pci_write_config(parent, 0x53 - devno, reg_val[2], 1);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
 		    return;
 		}
 	    }
-	}
-	else if (ata_find_dev(parent, 0x06861106, 0) ||		/* 82C686a */
-		 ata_find_dev(parent, 0x05961106, 0x12)) {	/* 82C596b */
-	    if (udmamode >= 4) {
-		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
-				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
-		if (bootverbose)
-		    ata_printf(scp, device, "%s setting UDMA4 on VIA chip\n",
-			       (error) ? "failed" : "success");
-		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0xe8, 1);
-		    scp->mode[ATA_DEV(device)] = ATA_UDMA4;
-		    return;
-		}
-	    }
-	    if (udmamode >= 2) {
-		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
-				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
-		if (bootverbose)
-		    ata_printf(scp, device, "%s setting UDMA2 on VIA chip\n",
-			       (error) ? "failed" : "success");
-		if (!error) {
-		    pci_write_config(parent, 0x53 - devno, 0xea, 1);
-		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		    return;
-		}
-	    }
-	}
-	else if (ata_find_dev(parent, 0x05961106, 0) ||		/* 82C596a */
-		 ata_find_dev(parent, 0x05861106, 0x03)) {	/* 82C586b */
-via_82c586:
-	    if (udmamode >= 2) {
-		error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
-				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
-		if (bootverbose)
-		    ata_printf(scp, device, "%s setting UDMA2 on %s chip\n",
-			       (error) ? "failed" : "success",
-			       ((scp->chiptype == 0x74091022) ||
-				(scp->chiptype == 0x74111022)) ? "AMD" : "VIA");
-		if (!error) {
-	            pci_write_config(parent, 0x53 - devno, 0xc0, 1);
-		    scp->mode[ATA_DEV(device)] = ATA_UDMA2;
-		    return;
-		}
-	    }
+
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
@@ -794,20 +796,44 @@ via_82c586:
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
+    case 0x4d69105a:	/* Promise TX2 ATA133 controllers */
+	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (udmamode >= 6 && !(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
+				ATA_UDMA6, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting UDMA6 on Promise chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		scp->mode[ATA_DEV(device)] = ATA_UDMA6;
+		return;
+	    }
+	}
+	/* FALLTHROUGH */
+
     case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
     case 0x6268105a:	/* Promise TX2 ATA100 controllers */
-    case 0x4d69105a:	/* Promise TX2 ATA133 controllers */
+	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
+	if (udmamode >= 5 && !(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
+				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
+	    if (bootverbose)
+		ata_printf(scp, device, "%s setting UDMA5 on Promise chip\n",
+			   (error) ? "failed" : "success");
+	    if (!error) {
+		scp->mode[ATA_DEV(device)] = ATA_UDMA5;
+		return;
+	    }
+	}
 	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (udmamode >= 4 && !(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x04)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
-				ATA_UDMA + udmamode, ATA_C_F_SETXFER,
-				ATA_WAIT_READY);
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		ata_printf(scp, device, "%s setting %s on Promise chip\n",
-			   (error) ? "failed" : "success", 
-			   ata_mode2str(ATA_UDMA + udmamode));
+		ata_printf(scp, device, "%s setting UDMA4 on Promise chip\n",
+			   (error) ? "failed" : "success");
 	    if (!error) {
-		scp->mode[ATA_DEV(device)] = ATA_UDMA + udmamode;
+		scp->mode[ATA_DEV(device)] = ATA_UDMA4;
 		return;
 	    }
 	}
@@ -933,7 +959,7 @@ via_82c586:
 		return;
 	    }
 	}
-	if (!ATAPI_DEVICE(scp, device) && udmamode >=4 && 
+	if (!ATAPI_DEVICE(scp, device) && udmamode >= 4 && 
 	    !(pci_read_config(parent, 0x5a, 1) & (scp->channel ? 0x01:0x02))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -1042,7 +1068,7 @@ ata_dmasetup(struct ata_softc *scp, int device, struct ata_dmaentry *dmatab,
     }
     
     dma_base = vtophys(data);
-    dma_count = min(count, (PAGE_SIZE - ((uintptr_t)data & PAGE_MASK)));
+    dma_count = imin(count, (PAGE_SIZE - ((uintptr_t)data & PAGE_MASK)));
     data += dma_count;
     count -= dma_count;
 
@@ -1055,9 +1081,9 @@ ata_dmasetup(struct ata_softc *scp, int device, struct ata_dmaentry *dmatab,
 	    return -1;
 	}
 	dma_base = vtophys(data);
-	dma_count = min(count, PAGE_SIZE);
-	data += min(count, PAGE_SIZE);
-	count -= min(count, PAGE_SIZE);
+	dma_count = imin(count, PAGE_SIZE);
+	data += imin(count, PAGE_SIZE);
+	count -= imin(count, PAGE_SIZE);
     }
     dmatab[i].base = dma_base;
     dmatab[i].count = (dma_count & 0xffff) | ATA_DMA_EOT;
@@ -1116,7 +1142,7 @@ cyrix_timing(struct ata_softc *scp, int devno, int mode)
     ATA_OUTL(scp->r_bmio, (devno << 3) + 0x20, reg20);
     ATA_OUTL(scp->r_bmio, (devno << 3) + 0x24, reg24);
 }
- 
+
 static void
 promise_timing(struct ata_softc *scp, int devno, int mode)
 {
