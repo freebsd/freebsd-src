@@ -32,14 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "From: @(#)lpf.c	8.1 (Berkeley) 6/6/93";
-static char id[] = "$FreeBSD$";
+*/
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 /*
@@ -166,7 +169,7 @@ main(int argc, char *argv[])
 				}
 
 			default:
-				if (col >= width || !literal && ch < ' ') {
+				if (col >= width || (!literal && ch < ' ')) {
 					col++;
 					break;
 				}
