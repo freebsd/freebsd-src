@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.42 1994/10/03 13:45:03 jkh Exp $
+# $Id: bsd.port.mk,v 1.43 1994/10/03 14:38:27 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -15,6 +15,7 @@
 # PORTSDIR		- The root of the ports tree (default: /usr/ports).
 # DISTDIR 		- Where to get gzip'd, tarballed copies of original sources
 #				  (default: ${PORTSDIR}/distfiles).
+# PREFIX		- Where to install things in general (default: /usr/local).
 # MASTER_SITES	- Primary location(s) for distribution files if not found
 #				  locally.
 # PACKAGES		- A top level directory where all packages go (rather than
@@ -80,6 +81,7 @@
 # tree we are and thus can't go relative.  They can, of course, be overridden
 # by individual Makefiles.
 PORTSDIR?=		${DESTDIR}/usr/ports
+PREFIX?=		${DESTDIR}/usr/local
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
 WRKDIR?=		${.CURDIR}/work
