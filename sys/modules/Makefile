@@ -59,6 +59,7 @@ SUBDIR=	3dfx \
 	mac_none \
 	mac_seeotheruids \
 	mac_test \
+	mcd \
 	md \
 	mii \
 	mlx \
