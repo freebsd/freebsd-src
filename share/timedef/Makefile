@@ -134,5 +134,6 @@ afterinstall:
 		${LOCALEDIR}/af_ZA.ISO8859-15/LC_TIME
 	ln -fs ../ko_KR.eucKR/LC_TIME \
 		${LOCALEDIR}/ko_KR.CP949/LC_TIME
-
+	ln -fs ../zh_CN.GB2312/LC_TIME \
+		${LOCALEDIR}/zh_CN.GBK/LC_TIME
 .include <bsd.prog.mk>
