@@ -12,9 +12,6 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#if (__FreeBSD_version >= 500028)
-#include <sys/queue.h>
-#endif
 #include <sys/file.h>
 #if !defined(__FreeBSD_version)  
 # include <sys/ioctl.h>      
