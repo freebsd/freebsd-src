@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: btxv86.h,v 1.2 1998/09/17 23:52:05 msmith Exp $
+ *	$Id: btxv86.h,v 1.3 1998/10/02 16:22:54 msmith Exp $
  */
 
 #ifndef _BTXV86_H_
@@ -52,10 +52,10 @@ void __v86int(void);
 extern u_int32_t	__base;
 extern u_int32_t	__args;
 
-#define	PTOV(pa)	(caddr_t)((pa) - __base)
-#define	VTOP(va)	(vm_offset_t)((va) + __base)
-#define	VTOPSEG(va)	(u_int16_t)(VTOP(va) >> 4)
-#define	VTOPOFF(va)	(u_int16_t)(VTOP(va) & 0xf)
+#define	PTOV(pa)	((caddr_t)(pa) - __base)
+#define	VTOP(va)	((vm_offset_t)(va) + __base)
+#define	VTOPSEG(va)	(u_int16_t)(VTOP((caddr_t)va) >> 4)
+#define	VTOPOFF(va)	(u_int16_t)(VTOP((caddr_t)va) & 0xf)
 
 void __exit(int) __attribute__((__noreturn__));
 void __exec(caddr_t, ...);
