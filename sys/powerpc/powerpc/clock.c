@@ -84,8 +84,8 @@ static const char rcsid[] =
  * Initially we assume a processor with a bus frequency of 12.5 MHz.
  */
 u_int			tickspending;
+u_long			ns_per_tick = 80;
 static u_long		ticks_per_sec = 12500000;
-static u_long		ns_per_tick = 80;
 static long		ticks_per_intr;
 static volatile u_long	lasttb;
 
