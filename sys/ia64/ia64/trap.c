@@ -440,10 +440,51 @@ trap(int vector, struct trapframe *tf)
 
 	case IA64_VEC_BREAK:
 		if (user) {
-			if (tf->tf_special.ifa == 0x100000) {
+			/* XXX we don't decode break.b */
+			ucode = (int)tf->tf_special.ifa & 0x1FFFFF;
+			if (ucode < 0x80000) {
+				/* Software interrupts. */
+				switch (ucode) {
+				case 0:		/* Unknown error. */
+					sig = SIGILL;
+					break;
+				case 1:		/* Integer divide by zero. */
+					sig = SIGFPE;
+					ucode = FPE_INTDIV;
+					break;
+				case 2:		/* Integer overflow. */
+					sig = SIGFPE;
+					ucode = FPE_INTOVF;
+					break;
+				case 3:		/* Range check/bounds check. */
+					sig = SIGFPE;
+					ucode = FPE_FLTSUB;
+					break;
+				case 6: 	/* Decimal overflow. */
+				case 7: 	/* Decimal divide by zero. */
+				case 8: 	/* Packed decimal error. */
+				case 9: 	/* Invalid ASCII digit. */
+				case 10:	/* Invalid decimal digit. */
+					sig = SIGFPE;
+					ucode = FPE_FLTINV;
+					break;
+				case 4:		/* Null pointer dereference. */
+				case 5:		/* Misaligned data. */
+				case 11:	/* Paragraph stack overflow. */
+					sig = SIGSEGV;
+					break;
+				default:
+					sig = SIGILL;
+					break;
+				}
+			} else if (ucode < 0x100000) {
+				/* Debugger breakpoint. */
+				tf->tf_special.psr &= ~IA64_PSR_SS;
+				sig = SIGTRAP;
+			} else if (ucode == 0x100000) {
 				break_syscall(tf);
 				return;		/* do_ast() already called. */
-			} else if (tf->tf_special.ifa == 0x180000) {
+			} else if (ucode == 0x180000) {
 				mcontext_t mc;
 
 				error = copyin((void*)tf->tf_scratch.gr8,
@@ -452,12 +493,10 @@ trap(int vector, struct trapframe *tf)
 					set_mcontext(td, &mc);
 					return;	/* Don't call do_ast()!!! */
 				}
-				ucode = tf->tf_scratch.gr8;
 				sig = SIGSEGV;
-			} else {
-				tf->tf_special.psr &= ~IA64_PSR_SS;
-				sig = SIGTRAP;
-			}
+				ucode = tf->tf_scratch.gr8;
+			} else
+				sig = SIGILL;
 		} else {
 #ifdef DDB
 			if (kdb_trap(vector, tf))
