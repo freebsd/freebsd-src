@@ -96,7 +96,7 @@ static u_long	nchash;			/* size of hash table */
 SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0, "");
 static u_long	ncnegfactor = 16;	/* ratio of negative entries */
 SYSCTL_ULONG(_debug, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0, "");
-static u_long	numneg;		/* number of cache entries allocated */
+static u_long	numneg;			/* number of cache entries allocated */
 SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0, "");
 static u_long	numcache;		/* number of cache entries allocated */
 SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0, "");
@@ -110,6 +110,8 @@ struct	nchstats nchstats;		/* cache effectiveness statistics */
 
 static int	doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
+
+/* Export size information to userland */
 SYSCTL_INT(_debug, OID_AUTO, vnsize, CTLFLAG_RD, 0, sizeof(struct vnode), "");
 SYSCTL_INT(_debug, OID_AUTO, ncsize, CTLFLAG_RD, 0, sizeof(struct namecache), "");
 
@@ -625,15 +627,22 @@ struct  __getcwd_args {
 };
 #endif
 
+/*
+ * XXX All of these sysctls would probably be more productive dead.
+ */
 static int disablecwd;
-SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
+   "Disable the getcwd syscall");
 
+/* Various statistics for the getcwd syscall */
 static u_long numcwdcalls; STATNODE(CTLFLAG_RD, numcwdcalls, &numcwdcalls);
 static u_long numcwdfail1; STATNODE(CTLFLAG_RD, numcwdfail1, &numcwdfail1);
 static u_long numcwdfail2; STATNODE(CTLFLAG_RD, numcwdfail2, &numcwdfail2);
 static u_long numcwdfail3; STATNODE(CTLFLAG_RD, numcwdfail3, &numcwdfail3);
 static u_long numcwdfail4; STATNODE(CTLFLAG_RD, numcwdfail4, &numcwdfail4);
 static u_long numcwdfound; STATNODE(CTLFLAG_RD, numcwdfound, &numcwdfound);
+
+/* Implementation of the getcwd syscall */
 int
 __getcwd(td, uap)
 	struct thread *td;
@@ -731,8 +740,8 @@ __getcwd(td, uap)
 	SYSCTL_UINT(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, "")
 
 static int disablefullpath;
-SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW,
-    &disablefullpath, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW, &disablefullpath, 0,
+	"Disable the vn_fullpath function");
 
 STATNODE(numfullpathcalls);
 STATNODE(numfullpathfail1);
@@ -741,6 +750,10 @@ STATNODE(numfullpathfail3);
 STATNODE(numfullpathfail4);
 STATNODE(numfullpathfound);
 
+/*
+ * Retrieve the full filesystem path that correspond to a vnode from the name
+ * cache (if available)
+ */
 int
 vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 {

@@ -71,6 +71,10 @@ MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
 
 #define ROOTNAME	"root_device"
 
+/*
+ * The vnode of the system's root (/ in the filesystem, without chroot
+ * active.)
+ */
 struct vnode	*rootvnode;
 
 /* 
@@ -293,6 +297,9 @@ vfs_mountroot_ask(void)
 	}
 }
 
+/*
+ * Local helper function for vfs_mountroot_ask.
+ */
 static void
 gets(char *cp)
 {
@@ -367,6 +374,7 @@ setrootbyname(char *name)
 	return (1);
 }
 
+/* Show the dev_t for a disk specified by name */
 #ifdef DDB
 DB_SHOW_COMMAND(disk, db_getdiskbyname)
 {
