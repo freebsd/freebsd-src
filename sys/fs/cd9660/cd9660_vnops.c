@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.3 (Berkeley) 1/23/94
- * $Id: cd9660_vnops.c,v 1.15 1995/08/02 13:00:40 dfr Exp $
+ * $Id: cd9660_vnops.c,v 1.16 1995/09/04 00:20:05 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -1007,6 +1007,7 @@ struct vnodeopv_entry_desc cd9660_specop_entries[] = {
 	{ &vop_vfree_desc, spec_vfree },	/* vfree */
 	{ &vop_truncate_desc, spec_truncate },	/* truncate */
 	{ &vop_update_desc, cd9660_update },	/* update */
+ 	{ &vop_getpages_desc, spec_getpages},
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.14 1995/09/22 06:02:40 davidg Exp $
+ * $Id: ffs_vnops.c,v 1.15 1995/09/25 06:00:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -158,6 +158,7 @@ struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_vfree_desc, ffs_vfree },			/* vfree */
 	{ &vop_truncate_desc, spec_truncate },		/* truncate */
 	{ &vop_update_desc, ffs_update },		/* update */
+	{ &vop_getpages_desc, spec_getpages},
 	{ &vop_bwrite_desc, vn_bwrite },
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.12 1995/09/07 04:39:09 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.13 1995/09/11 15:56:46 bde Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -319,11 +319,6 @@ WRITE(ap)
 
 #ifndef LFS_READWRITE
 
-static void ffs_getpages_iodone(struct buf *bp) {
-	bp->b_flags |= B_DONE;
-	wakeup(bp);
-}
-
 /*
  * get page routine
  */
@@ -331,25 +326,28 @@ int
 ffs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	vm_offset_t kva, foff;
+	vm_offset_t foff, physoffset;
 	int i, size, bsize;
 	struct vnode *dp;
-	struct buf *bp;
-	int s;
 	int error = 0;
-	int contigbackwards, contigforwards;
-	int pcontigbackwards, pcontigforwards;
-	int firstcontigpage;
-	daddr_t reqlblkno, reqblkno;
+	int bbackwards, bforwards;
+	int pbackwards, pforwards;
+	int firstpage;
+	int reqlblkno;
+	daddr_t reqblkno;
 	int poff;
+	int pcount;
+	int rtval;
+	int pagesperblock;
 
+	pcount = round_page(ap->a_count) / PAGE_SIZE;
 	/*
 	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block
 	 * then, the entire page is valid --
 	 */
 	if (ap->a_m[ap->a_reqpage]->valid) {
 		ap->a_m[ap->a_reqpage]->valid = VM_PAGE_BITS_ALL;
-		for (i = 0; i < ap->a_count; i++) {
+		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vnode_pager_freepage(ap->a_m[i]);
 		}
@@ -357,13 +355,19 @@ ffs_getpages(ap)
 	}
 
 	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
-	foff = ap->a_m[ap->a_reqpage]->offset;
-	reqlblkno = foff / bsize;
-	poff = (foff - reqlblkno * bsize) / PAGE_SIZE;
 
-	if ( VOP_BMAP( ap->a_vp, reqlblkno, &dp, &reqblkno, &contigforwards,
-		&contigbackwards) || (reqblkno == -1)) {
-		for(i = 0; i < ap->a_count; i++) {
+	/*
+	 * foff is the file offset of the required page
+	 * reqlblkno is the logical block that contains the page
+	 * poff is the index of the page into the logical block
+	 */
+	foff = ap->a_m[ap->a_reqpage]->offset + ap->a_offset;
+	reqlblkno = foff / bsize;
+	poff = (foff % bsize) / PAGE_SIZE;
+
+	if ( VOP_BMAP( ap->a_vp, reqlblkno, &dp, &reqblkno,
+		&bforwards, &bbackwards) || (reqblkno == -1)) {
+		for(i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage)
 				vnode_pager_freepage(ap->a_m[i]);
 		}
@@ -378,130 +382,54 @@ ffs_getpages(ap)
 		}
 	}
 
-	reqblkno += (poff * PAGE_SIZE) / DEV_BSIZE;
-
-	firstcontigpage = 0;
-	pcontigbackwards = 0;
-	if (ap->a_reqpage > 0) {
-		pcontigbackwards = poff + ((contigbackwards * bsize) / PAGE_SIZE);
-		if (pcontigbackwards < ap->a_reqpage) {
-			firstcontigpage = ap->a_reqpage - pcontigbackwards;
-			for(i = 0; i < firstcontigpage; i++)
+	physoffset = reqblkno * DEV_BSIZE + poff * PAGE_SIZE;
+	pagesperblock = bsize / PAGE_SIZE;
+	/*
+	 * find the first page that is contiguous...
+	 * note that pbackwards is the number of pages that are contiguous
+	 * backwards.
+	 */
+	firstpage = 0;
+	if (ap->a_count) {
+		pbackwards = poff + bbackwards * pagesperblock;
+		if (ap->a_reqpage > pbackwards) {
+			firstpage = ap->a_reqpage - pbackwards;
+			for(i=0;i<firstpage;i++)
 				vnode_pager_freepage(ap->a_m[i]);
 		}
-	}
 
-	pcontigforwards = ((bsize / PAGE_SIZE) - (poff + 1)) +
-		(contigforwards * bsize) / PAGE_SIZE;
-	if (pcontigforwards < (ap->a_count - (ap->a_reqpage + 1))) {
-		for( i = ap->a_reqpage + pcontigforwards + 1; i < ap->a_count; i++)
-			vnode_pager_freepage(ap->a_m[i]);
-		ap->a_count = ap->a_reqpage + pcontigforwards + 1;
-	}
-
-	if (firstcontigpage != 0) {
-		for (i = firstcontigpage; i < ap->a_count; i++) {
-			ap->a_m[i - firstcontigpage] = ap->a_m[i];
+	/*
+	 * pforwards is the number of pages that are contiguous
+	 * after the current page.
+	 */
+		pforwards = (pagesperblock - (poff + 1)) +
+			bforwards * pagesperblock;
+		if (pforwards < (pcount - (ap->a_reqpage + 1))) {
+			for( i = ap->a_reqpage + pforwards + 1; i < pcount; i++)
+				vnode_pager_freepage(ap->a_m[i]);
+			pcount = ap->a_reqpage + pforwards + 1;
 		}
-		ap->a_count -= firstcontigpage;
-		ap->a_reqpage -= firstcontigpage;
+
+	/*
+	 * number of pages for I/O corrected for the non-contig pages at
+	 * the beginning of the array.
+	 */
+		pcount -= firstpage;
 	}
 
 	/*
 	 * calculate the size of the transfer
 	 */
-	foff = ap->a_m[0]->offset;
-	reqblkno -= (ap->a_m[ap->a_reqpage]->offset - foff) / DEV_BSIZE;
-	size = ap->a_count * PAGE_SIZE;
-	if ((foff + size) >
+
+	size = pcount * PAGE_SIZE;
+	if ((ap->a_m[firstpage]->offset + size) >
 		((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size)
-		size = ((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size - foff;
+		size = ((vm_object_t) ap->a_vp->v_object)->un_pager.vnp.vnp_size - ap->a_m[firstpage]->offset;
 
-	/*
-	 * round up physical size for real devices
-	 */
-	if (dp->v_type == VBLK || dp->v_type == VCHR)
-		size = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+	physoffset -= ap->a_m[ap->a_reqpage]->offset;
+	rtval = VOP_GETPAGES(dp, &ap->a_m[firstpage], size,
+		(ap->a_reqpage - firstpage), physoffset);
 
-	bp = getpbuf();
-	kva = (vm_offset_t) bp->b_data;
-
-	/*
-	 * and map the pages to be read into the kva
-	 */
-	pmap_qenter(kva, ap->a_m, ap->a_count);
-
-	/* build a minimal buffer header */
-	bp->b_flags = B_BUSY | B_READ | B_CALL;
-	bp->b_iodone = ffs_getpages_iodone;
-	/* B_PHYS is not set, but it is nice to fill this in */
-	bp->b_proc = curproc;
-	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
-	if (bp->b_rcred != NOCRED)
-		crhold(bp->b_rcred);
-	if (bp->b_wcred != NOCRED)
-		crhold(bp->b_wcred);
-	bp->b_blkno = reqblkno;
-	pbgetvp(dp, bp);
-	bp->b_bcount = size;
-	bp->b_bufsize = size;
-
-	cnt.v_vnodein++;
-	cnt.v_vnodepgsin += ap->a_count;
-
-	/* do the input */
-	VOP_STRATEGY(bp);
-
-	s = splbio();
-	/* we definitely need to be at splbio here */
-
-	while ((bp->b_flags & B_DONE) == 0) {
-		tsleep(bp, PVM, "vnread", 0);
-	}
-	splx(s);
-	if ((bp->b_flags & B_ERROR) != 0)
-		error = EIO;
-
-	if (!error) {
-		if (size != ap->a_count * PAGE_SIZE)
-			bzero((caddr_t) kva + size, PAGE_SIZE * ap->a_count - size);
-	}
-	pmap_qremove(kva, ap->a_count);
-
-	/*
-	 * free the buffer header back to the swap buffer pool
-	 */
-	relpbuf(bp);
-
-	for (i = 0; i < ap->a_count; i++) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(ap->a_m[i]));
-		ap->a_m[i]->dirty = 0;
-		ap->a_m[i]->valid = VM_PAGE_BITS_ALL;
-		if (i != ap->a_reqpage) {
-
-			/*
-			 * whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere. (it already is in the object). Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * just in case someone was asking for this page we
-			 * now tell them that it is ok to use
-			 */
-			if (!error) {
-				vm_page_deactivate(ap->a_m[i]);
-				PAGE_WAKEUP(ap->a_m[i]);
-			} else {
-				vnode_pager_freepage(ap->a_m[i]);
-			}
-		}
-	}
-	if (error) {
-		printf("ffs_getpages: I/O read error\n");
-	}
-	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+	return (rtval);
 }
 #endif
