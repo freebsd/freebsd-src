@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.28 1994/11/12 16:24:54 ache Exp $
+ *	$Id: clock.c,v 1.29 1994/12/30 12:43:34 bde Exp $
  */
 
 /*
@@ -292,9 +292,30 @@ calibrate_cyclecounter(void)
 	 * This assumes that you will never have a clock rate higher
 	 * than 4GHz, probably a good assumption.
 	 */
-	cycles_per_sec = (long long)edx + eax;
-	cycles_per_sec -= (long long)lastedx + lasteax;
+	/* The following C code is correct, but our current gcc 2.6.3
+	 * seems to produce bad assembly code for it , ATS , XXXX */
+#if 0
+	cycles_per_sec = ((long long)edx << 32) + eax;
+	cycles_per_sec -= ((long long)lastedx << 32) + lasteax;
 	pentium_mhz = ((long)cycles_per_sec + 500000) / 1000000; /* round up */
+#else
+	/* produce a workaround for the code above */
+	{
+		union { 
+			long long extralong;
+			long shorty[2];
+		} tmp;
+
+		tmp.shorty[0] = eax;
+		tmp.shorty[1] = edx;
+		cycles_per_sec = tmp.extralong;
+		tmp.shorty[0] = lasteax;
+		tmp.shorty[1] = lastedx;
+		cycles_per_sec -= tmp.extralong;
+		/* round up */
+		pentium_mhz = (long) ((cycles_per_sec + 500000) / 1000000);
+	}
+#endif
 }
 #endif
 
