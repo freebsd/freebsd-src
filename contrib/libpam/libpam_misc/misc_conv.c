@@ -132,6 +132,7 @@ static int get_delay(void)
 static char *read_string(int echo, const char *prompt)
 {
     struct termios term_before, term_tmp;
+    char *input;
     char line[INPUTSIZE];
     struct sigaction old_sig;
     int delay, nc, have_term=0;
@@ -191,8 +192,6 @@ static char *read_string(int echo, const char *prompt)
 	    if (expired) {
 		delay = get_delay();
 	    } else if (nc > 0) {                 /* we got some user input */
-		char *input;
-
 		if (nc > 0 && line[nc-1] == '\n') {     /* <NUL> terminate */
 		    line[--nc] = '\0';
 		} else {
@@ -201,25 +200,25 @@ static char *read_string(int echo, const char *prompt)
 		input = x_strdup(line);
 		_pam_overwrite(line);
 
-		return input;                  /* return malloc()ed string */
+		goto cleanexit;                  /* return malloc()ed string */
 	    } else if (nc == 0) {                                /* Ctrl-D */
-		char *input;
-
 		D(("user did not want to type anything"));
 		input = x_strdup("");
-		return input;                  /* return malloc()ed string */
+		goto cleanexit;                  /* return malloc()ed string */
 	    }
 	}
     }
 
     /* getting here implies that the timer expired */
+    memset(line, 0, INPUTSIZE);                      /* clean up */
+    input = NULL;
+
+cleanexit:
     if (have_term) {
 	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 	(void) tcsetattr(STDIN_FILENO, TCSADRAIN, &term_before);
     }
-
-    memset(line, 0, INPUTSIZE);                      /* clean up */
-    return NULL;
+    return input;
 }
 
 /* end of read_string functions */
