@@ -1,4 +1,4 @@
-# @(#)pacificnew	7.6
+# @(#)pacificnew	7.7
 
 # From Arthur David Olson (April 5, 1989):
 # On April 5, 1989, the U. S. House of Representatives passed (238-154) a bill
@@ -20,7 +20,7 @@
 
 # Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
 ## Zone	US/Pacific-PET	-8:00	US		P%sT	XXXX
-## 			-8:00	Twilite		P%sT
+##			-8:00	Twilite		P%sT
 
 # For now...
 Link	America/Los_Angeles	US/Pacific-New	##
