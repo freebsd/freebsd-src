@@ -211,5 +211,7 @@ afterinstall:
 	       ${LOCALEDIR}/af_ZA.UTF-8/LC_TIME
 	ln -fs ../zh_TW.UTF-8/LC_TIME \
 		${LOCALEDIR}/zh_HK.UTF-8/LC_TIME
+	ln -fs ../zh_TW.UTF-8/LC_TIME \
+		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_TIME
 
 .include <bsd.prog.mk>

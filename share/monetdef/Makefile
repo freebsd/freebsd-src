@@ -155,5 +155,7 @@ afterinstall:
 .endfor
 	ln -sf ../zh_TW.Big5/LC_MONETARY \
 		${LOCALEDIR}/zh_TW.UTF-8/LC_MONETARY
+	ln -sf ../zh_HK.UTF-8/LC_MONETARY \
+		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_MONETARY
 
 .include <bsd.prog.mk>
