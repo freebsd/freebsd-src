@@ -640,16 +640,14 @@ static void HandleRoutingInfo (int fd)
 	}
 
 	if (verbose)
-		printf ("Routing message %X received.\n", ifMsg.ifm_type);
+		printf ("Routing message %#x received.\n", ifMsg.ifm_type);
 
-	if (ifMsg.ifm_type != RTM_NEWADDR)
-		return;
-
-	if (verbose && ifMsg.ifm_index == ifIndex)
-		printf ("Interface address has changed.\n");
-
-	if (ifMsg.ifm_index == ifIndex)
+	if ((ifMsg.ifm_type == RTM_NEWADDR || ifMsg.ifm_type == RTM_IFINFO) &&
+	    ifMsg.ifm_index == ifIndex) {
+		if (verbose)
+			printf("Interface address/MTU has probably changed.\n");
 		assignAliasAddr = 1;
+	}
 }
 
 static void PrintPacket (struct ip* ip)
