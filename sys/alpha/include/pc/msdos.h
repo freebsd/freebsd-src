@@ -4,6 +4,7 @@
  * how to decipher DOS disk structures in coexisting with DOS
  *
  *	$Id$
+ *	from: i386/include/pc msdos.h,v 1.4
  */
 
 #define MSECTOR_SIZE	512		/* MSDOS sector size in bytes */
