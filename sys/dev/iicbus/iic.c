@@ -35,11 +35,9 @@
 #include <sys/uio.h>
 #include <sys/fcntl.h>
 
-
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
-
-#include <machine/iic.h>
+#include <dev/iicbus/iic.h>
 
 #include "iicbus_if.h"
 
