@@ -129,7 +129,7 @@ INCS+=	ec.h
 
 # engine
 SRCS+=	eng_all.c eng_cnf.c eng_ctrl.c eng_dyn.c eng_err.c eng_fat.c \
-	eng_init.c eng_lib.c eng_list.c eng_openssl.c eng_pkey.c \
+	eng_init.c eng_lib.c eng_list.c eng_openssl.c eng_padlock.c eng_pkey.c \
 	eng_table.c hw_4758_cca.c hw_4758_cca_err.c hw_aep.c hw_aep_err.c \
 	hw_atalla.c hw_atalla_err.c hw_cryptodev.c hw_cswift.c \
 	hw_cswift_err.c hw_ncipher.c hw_ncipher_err.c hw_nuron.c \
