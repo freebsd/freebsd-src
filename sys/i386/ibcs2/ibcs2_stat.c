@@ -83,6 +83,10 @@ cvt_statfs(sp, buf, len)
 {
 	struct ibcs2_statfs ssfs;
 
+	if (len < 0)
+		return (EINVAL);
+	else if (len > sizeof(ssfs))
+		len = sizeof(ssfs);
 	bzero(&ssfs, sizeof ssfs);
 	ssfs.f_fstyp = 0;
 	ssfs.f_bsize = sp->f_bsize;
