@@ -59,7 +59,7 @@ struct bootsector50 {
 struct bootsector710 {
 	u_int8_t	bsJump[3];		/* jump inst E9xxxx or EBxx90 */
 	int8_t		bsOEMName[8];		/* OEM name and version */
-	int8_t		bsPBP[53];		/* BIOS parameter block */
+	int8_t		bsBPB[53];		/* BIOS parameter block */
 	int8_t		bsExt[26];		/* Bootsector Extension */
 	int8_t		bsBootCode[418];	/* pad so structure is 512b */
 	u_int8_t	bsBootSectSig2;		/* 2 & 3 are only defined for FAT32? */
