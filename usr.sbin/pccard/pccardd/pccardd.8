@@ -111,18 +111,7 @@ The PC-CARD slot resources are freed.
 Once a card/driver instance is configured, the resources
 bound to that instance are remembered, and if the card is removed
 and reinserted, the same driver is allocated.
-The primary reason
-is that once a driver is associated with a card, the
-driver's
-.Fn probe
-routine has been called, and this usually causes driver specific
-data areas to be initialized with the I/O ports or memory resources
-allocated to the card.
-Most drivers are not designed to be
-disassociated from the hardware and then reassociated with different
-parameters.
-This will change significantly when loadable kernel
-modules are supported.
+The reasons are mostly historical.
 .Pp
 SIGHUP causes
 .Nm
