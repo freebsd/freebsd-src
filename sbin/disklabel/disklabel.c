@@ -163,20 +163,20 @@ char	boot1[MAXPATHLEN];
 #endif
 
 enum	{
-	UNSPEC, EDIT, NOWRITE, READ, RESTORE, WRITE, WRITEABLE, WRITEBOOT
+	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
 } op = UNSPEC;
 
 int	rflag;
 int	disable_write;   /* set to disable writing to disk label */
 
-#define OPTIONS	"BNRWb:enrs:w"
+#define OPTIONS	"BRb:enrs:w"
 
 int
 main(int argc, char *argv[])
 {
 	struct disklabel *lp;
 	FILE *t;
-	int ch, f = 0, flag, error = 0;
+	int ch, f = 0, error = 0;
 	char *name = 0;
 
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
@@ -194,11 +194,6 @@ main(int argc, char *argv[])
 				break;
 #endif
 #endif
-			case 'N':
-				if (op != UNSPEC)
-					usage();
-				op = NOWRITE;
-				break;
 			case 'n':
 				disable_write = 1;
 				break;
@@ -206,11 +201,6 @@ main(int argc, char *argv[])
 				if (op != UNSPEC)
 					usage();
 				op = RESTORE;
-				break;
-			case 'W':
-				if (op != UNSPEC)
-					usage();
-				op = WRITEABLE;
 				break;
 			case 'e':
 				if (op != UNSPEC)
@@ -276,12 +266,6 @@ main(int argc, char *argv[])
 		error = edit(lp, f);
 		break;
 
-	case NOWRITE:
-		flag = 0;
-		if (ioctl(f, DIOCWLABEL, (char *)&flag) < 0)
-			err(4, "ioctl DIOCWLABEL");
-		break;
-
 	case READ:
 		if (argc != 1)
 			usage();
@@ -328,12 +312,6 @@ main(int argc, char *argv[])
 		*lp = lab;
 		if (checklabel(lp) == 0)
 			error = writelabel(f, bootarea, lp);
-		break;
-
-	case WRITEABLE:
-		flag = 1;
-		if (ioctl(f, DIOCWLABEL, (char *)&flag) < 0)
-			err(4, "ioctl DIOCWLABEL");
 		break;
 
 #if NUMBOOT > 0
