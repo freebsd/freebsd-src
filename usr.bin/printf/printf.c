@@ -91,7 +91,7 @@ static const char rcsid[] =
 static int	 asciicode(void);
 static int	 escape(char *, int);
 static int	 getchr(void);
-static int	 getdouble(double *);
+static int	 getfloating(long double *, int);
 static int	 getint(int *);
 static int	 getquads(quad_t *, u_quad_t *, int);
 static const char
@@ -110,6 +110,7 @@ main(int argc, char *argv[])
 {
 	static const char *skip1, *skip2;
 	int ch, chopped, end, fieldwidth, haveprec, havewidth, precision, rval;
+	int mod_ldbl;
 	char convch, nextch, *format, *fmt, *start;
 
 #ifndef BUILTIN
@@ -211,6 +212,27 @@ next:		for (start = fmt;; ++fmt) {
 			return (1);
 		}
 
+		/*
+		 * Look for a length modifier.  POSIX doesn't have these, so
+		 * we only support them for floating-point conversions, which
+		 * are extensions.  This is useful because the L modifier can
+		 * be used to gain extra range and precision, while omitting
+		 * it is more likely to produce consistent results on different
+		 * architectures.  This is not so important for integers
+		 * because overflow is the only bad thing that can happen to
+		 * them, but consider the command  printf %a 1.1
+		 */
+		if (*fmt == 'L') {
+			mod_ldbl = 1;
+			fmt++;
+			if (!strchr("aAeEfFgG", *fmt)) {
+				warnx2("bad modifier L for %%%c", *fmt, NULL);
+				return (1);
+			}
+		} else {
+			mod_ldbl = 0;
+		}
+
 		convch = *fmt;
 		nextch = *++fmt;
 		*fmt = '\0';
@@ -276,11 +298,14 @@ next:		for (start = fmt;; ++fmt) {
 		case 'f': case 'F':
 		case 'g': case 'G':
 		case 'a': case 'A': {
-			double p;
+			long double p;
 
-			if (getdouble(&p))
+			if (getfloating(&p, mod_ldbl))
 				rval = 1;
-			PF(start, p);
+			if (mod_ldbl)
+				PF(start, p);
+			else
+				PF(start, (double)p);
 			break;
 		}
 		default:
@@ -465,7 +490,7 @@ getquads(quad_t *qp, u_quad_t *uqp, int signedconv)
 }
 
 static int
-getdouble(double *dp)
+getfloating(long double *dp, int mod_ldbl)
 {
 	char *ep;
 	int rval;
@@ -478,7 +503,10 @@ getdouble(double *dp)
 	}
 	rval = 0;
 	errno = 0;
-	*dp = strtod(*gargv, &ep);
+	if (mod_ldbl)
+		*dp = strtold(*gargv, &ep);
+	else
+		*dp = strtod(*gargv, &ep);
 	if (ep == *gargv) {
 		warnx2("%s: expected numeric value", *gargv, NULL);
 		rval = 1;
