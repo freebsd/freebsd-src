@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)telnetd.c	8.2 (Berkeley) 12/15/93";
 #endif
 static const char rcsid[] =
-	"$Id: telnetd.c,v 1.13 1997/12/03 07:16:05 charnier Exp $";
+	"$Id: telnetd.c,v 1.14 1998/04/26 06:51:36 phk Exp $";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -1091,13 +1091,13 @@ telnet(f, p, host)
 #endif
 
 	if (getent(defent, "default") == 1) {
-		char *getstr();
+		char *Getstr();
 		char *cp=defstrs;
 
-		HE = getstr("he", &cp);
-		HN = getstr("hn", &cp);
-		IM = getstr("im", &cp);
-		IF = getstr("if", &cp);
+		HE = Getstr("he", &cp);
+		HN = Getstr("hn", &cp);
+		IM = Getstr("im", &cp);
+		IF = Getstr("if", &cp);
 		if (HN && *HN)
 			(void) strcpy(host_name, HN);
 		if (IF && (if_fd = open(IF, O_RDONLY, 000)) != -1)
