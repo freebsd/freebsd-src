@@ -1,0 +1,4 @@
+#IQ31244 board configuration
+#$FreeBSD$
+include		"../xscale/i80321/std.i80321"
+files		"../xscale/i80321/files.iq31244"
