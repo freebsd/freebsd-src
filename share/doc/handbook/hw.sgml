@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.7 1995/10/02 15:59:53 wollman Exp $ -->
+<!-- $Id: hw.sgml,v 1.8 1995/10/07 04:31:26 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -31,6 +31,95 @@
     question, please remember to specify exactly what version of
     FreeBSD you are using and include as many details of your
     hardware as possible.
+
+<sect><heading>Sample Configurations<label id="hw:configs"></heading>
+<p>The following list of sample hardware configurations by no means
+constitutes an endorsement of a given hardware vendor or product by
+<em>The FreeBSD Project</em>.  This information is provided only as a public
+service and merely catalogs some of the experiences that various individuals
+have had with different hardware combinations.  Your mileage may vary.
+Slippery when wet.  Beware of dog.
+
+ <sect1><heading>Jordan's Picks</heading>
+    <p>I have had fairly good luck building workstation and server
+    configurations with the following components.  I can't guarantee that
+    you will too, nor that any of the companies here will remain "best buys"
+    forever.  I will try, when I can, to keep this list up-to-date but
+    cannot obviously guarantee that it will be at any given time.
+
+  <sect2><heading>Motherboards</heading>
+    <p>The <htmlurl url="http://asustek.asus.com.tw/" name="ASUS"> P55TP4XE
+    motherboard appears to be a good choice for mid-to-high range Pentium
+    server and workstation systems.  If you're really looking for performance,
+    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  It's worth the extra
+    cost, I feel.  If you're looking for a 486 class motherboard, you might
+    also investigate ASUS's 486SP3G offering.
+
+  <sect2><heading>Disk Controllers</heading>
+    <p>This one is a bit trickier, and while I used to recommend the
+    <htmlurl url="http://www.buslogic.com" name="Buslogic"> controllers
+    unilaterally for everything from ISA to PCI, now I tend to lean
+    towards the <htmlurl url="http://www.adaptec.com" name="Adaptec">
+    1542CF for ISA, Buslogic Bt747c for EISA and Adaptec 2940 for PCI.
+    I've currently heard nothing about Buslogic's new Bt-930 controller
+    but would welcome any reports on its performance.
+
+  <sect2><heading>Disk drives</heading>
+    <p>In this particular game of russian roulette, I'll make few specific
+    recommendations except to say "SCSI over IDE whenever you can afford it."
+    Even in small desktop configurations, SCSI often makes more sense since it
+    allows you to migrate drives from server to desktop as falling drive
+    prices make it economical to do so.  If you have more than one machine
+    to administer then think of it not simply as storage, think of it as a
+    food chain.
+
+    <p>I do not currently see SCSI WIDE drives as a necessary expense unless
+    you're putting together an NFS or NEWS server that will be doing a lot
+    of multiuser disk I/O.  
+
+  <sect2><heading>Video Cards</heading>
+    <p>If you can also afford to buy a commercial X server for $99 from
+    <htmlurl url="http://www.xinside.com/" name="X Inside"> then I
+    can heartily recommend the <htmlurl url="http://www.matrox.com/"
+    name="Matrox"> <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
+    name="Millenium"> card.  If free X servers are more to your
+    liking, you certainly can't go wrong with one of <htmlurl url="http://www.nine.com/" name="Number 9's"> cards.  Their S3 Vision 868 and 968 based cards 
+    (the 9FX series) are no slouches either, and are supported by
+    <htmlurl url="http://www.xfree86.org" name="XFree86">'s S3 server.
+
+  <sect2><heading>Monitors</heading>
+    <p>I have had very good luck with the <htmlurl url="http://cons3.sel.sony.com/SEL/ccpg/display/ms17se2.html"
+    name="Sony Multiscan 17SE monitors">, as have I with 
+    the Viewsonic offering in the same (trinitron) tube.  For larger than
+    17", all I can recommend at the time of this writing is to not spend
+    any less than U.S. $2,500 for a 21" monitor if that's what you really
+    need.  There are good monitors available in the >=20" range and there
+    are also cheap monitors in the >=20" range.  Unfortunately, none are
+    both cheap and good!
+
+  <sect2><heading>Networking</heading>
+    <p>I can recommend the <htmlurl url="http://www.smc.com/" name="SMC">
+    Ultra 16 controller for any ISA application and the SMC EtherPower
+    or Compex ENET32 cards for any serious PCI based networking.  Both of
+    the PCI cards are based around DEC's DC21041 ethernet controller
+    chip and other cards using it, such as the Zynx ZX342 or DEC DE435,
+    will generally work as well.
+
+    <p>If you're looking for high-speed serial networking solutions, then
+    <htmlurl url="http://www.digiboard.com/" name="Digi International">
+    makes the <htmlurl url="http://www.digiboard.com/prodprofiles/profiles-prices/arnetprofiles/sync570i.html" name="SYNC 570i"> series, with drivers now in
+    FreeBSD-current. <htmlurl url="http://www.etinc.com"
+    name="Emerging Technologies"> also manufactures a board with T1/E1
+    capabilities, using software they provide.
+
+   <sect2><heading>Audio</heading>
+    <p>I currently use the <htmlurl url="http://www.gravis.com/" name="Gravis">
+    Ultrasound MAX due to its high sound quality and full-duplex audio
+    capabilities (dual DMA channels).  Support for Windows NT and OS/2 is
+    fairly anemic, however, so I'm not sure that I can recommend it as an
+    all-around card for a machine that will be running both FreeBSD and NT
+    or OS/2.  In such a scenario, I might recommend the <htmlurl url="http://www.creaf.com/" name="Creative Labs"> AWE32 instead.
+
 
 <sect><heading>Core/Processing<label id="hw:core"></heading>
 
@@ -300,8 +389,9 @@ sio16: type 16550A (multiport master)
 <sect1><heading>* Mice</heading>
 <sect1><heading>* Other</heading>
 
-<sect><heading>* Storage Devices<label id="hw:storage"></heading>
-
+<sect><heading>Storage Devices<label id="hw:storage"></heading>
+&esdi;
+&scsi;
 <sect1><heading>* Disk/tape controllers</heading>
   <sect2><heading>* SCSI</heading>
   <sect2><heading>* IDE</heading>
@@ -311,9 +401,9 @@ sio16: type 16550A (multiport master)
 <sect1><heading>* CD-ROM drives</heading>
 <sect1><heading>* Other</heading>
 
-<sect><heading>* Other<label id="hw:other"></heading>
-
+<sect1><heading>* Adding and reconfiguring disks</heading>
+<sect1><heading>* Tapes and backups</heading>
+<sect1><heading>* Serial ports</heading>
+<sect1><heading>* Sound cards</heading>
 <sect1><heading>* PCMCIA</heading>
-	  
-
-
+<sect1><heading>* Other<label id="hw:other"></heading>
