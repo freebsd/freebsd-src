@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.19 1999/01/24 00:10:10 msmith Exp $
+ *	$Id: boot2.c,v 1.20 1999/01/29 03:36:42 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -635,9 +635,10 @@ getstr(char *str, int size)
 	case 0:
 	    break;
 	case '\b':
+	case '\177':
 	    if (s > str) {
 		s--;
-		putchar(c);
+		putchar('\b');
 		putchar(' ');
 	    } else
 		c = 0;
