@@ -706,6 +706,45 @@ OF_claim(void *virt, u_int size, u_int align)
 }
 
 /* Allocate an area of physical memory */
+vm_offset_t
+OF_claim_virt(vm_offset_t virt, size_t size, int align)
+{
+	static struct {
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nret;
+		cell_t	method;
+		cell_t	ihandle;
+		cell_t	align;
+		cell_t	size;
+		cell_t	virt;
+		cell_t	status;
+		cell_t	ret;
+	} args = {
+		(cell_t)"call-method",
+		5,
+		2,
+		(cell_t)"claim",
+		0,
+		0,
+		0,
+		0,
+		0,	/* ret */
+		0,
+	};
+
+	args.ihandle = mmu;
+	args.align = align;
+	args.size = size;
+	args.virt = virt;
+
+	if (openfirmware(&args) == -1)
+		return (vm_offset_t)-1;
+
+	return (vm_offset_t)args.ret;
+}
+
+/* Allocate an area of physical memory */
 void *
 OF_alloc_phys(size_t size, int align)
 {
@@ -762,6 +801,37 @@ OF_release(void *virt, u_int size)
 	};
 	
 	args.virt = (cell_t)virt;
+	args.size = size;
+	openfirmware(&args);
+}
+
+/* Release an area of physical memory. */
+void
+OF_release_phys(vm_offset_t phys, u_int size)
+{
+	static struct {
+		cell_t	name;
+		cell_t	nargs;
+		cell_t	nret;
+		cell_t	method;
+		cell_t	ihandle;
+		cell_t	size;
+		cell_t	phys_hi;
+		cell_t	phys_lo;
+	} args = {
+		(cell_t)"call-method",
+		5,
+		0,
+		(cell_t)"release",
+		0,
+		0,
+		0,
+		0
+	};
+
+	args.ihandle = memory;
+	args.phys_hi = (u_int32_t)(phys >> 32);
+	args.phys_lo = (u_int32_t)phys;
 	args.size = size;
 	openfirmware(&args);
 }
