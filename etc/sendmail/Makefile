@@ -13,9 +13,9 @@ CFDIR=		${SENDMAIL_DIR}/cf
 # this is overkill, but....
 M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
 
-.SUFFIXES:	.mc .cf
+.SUFFIXES: .mc .cf
 
-.mc.cf:		${M4FILES}
+.mc.cf: ${M4FILES}
 	${RM} ${.TARGET}
 	(cd ${.CURDIR} && \
 	    ${M4} -D_CF_DIR_=${CFDIR}/ ${SENDMAIL_M4_FLAGS} \
@@ -69,11 +69,11 @@ ALL+=		${SENDMAIL_ADDITIONAL_CF}
 CLEANFILES+=	${SENDMAIL_ADDITIONAL_CF}
 .endif
 
-all:		${ALL}
+all: ${ALL}
 
 depend:
 
-install:	${INSTALL_CF} ${INSTALL_SUBMIT_CF}
+install: ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .if (defined(SENDMAIL_MC) && defined(SENDMAIL_CF))
 	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
 	@false
@@ -81,40 +81,40 @@ install:	${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .if defined(INSTALL_CF)
 .if ${INSTALL_CF} != ${DEST_CF}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
-		${DEST_CF}
+	    ${DEST_CF}
 .endif
 .endif
 .if defined(SENDMAIL_ADDITIONAL_CF)
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
+	    ${SENDMAIL_ADDITIONAL_CF} ${DESTDIR}/etc/mail
 .endif
 .ifndef SENDMAIL_SET_USER_ID
 .if defined(INSTALL_SUBMIT_CF)
 .if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
+	    ${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .endif
 .endif
 .endif
 
 # Helper for src/etc/Makefile
-distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
+distribution: freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .if (defined(SENDMAIL_MC) && defined(SENDMAIL_CF))
 	@echo ">>> ERROR: Both SENDMAIL_CF and SENDMAIL_MC can not be set"
 	@false
 .endif
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/freebsd.mc \
-		${DESTDIR}/etc/mail/freebsd.mc
+	    ${DESTDIR}/etc/mail/freebsd.mc
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
-		${DESTDIR}/etc/mail/freebsd.cf
+	    ${DESTDIR}/etc/mail/freebsd.cf
 .if defined(INSTALL_CF)
 .if ${INSTALL_CF} != ${DEST_CF}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${INSTALL_CF} \
-		${DEST_CF}
+	    ${DEST_CF}
 .endif
 .else
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 freebsd.cf \
-		${DEST_CF}
+	    ${DEST_CF}
 .endif
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.mc \
 	    ${DESTDIR}/etc/mail/freebsd.submit.mc
@@ -124,7 +124,7 @@ distribution:	freebsd.cf freebsd.mc ${INSTALL_CF} ${INSTALL_SUBMIT_CF}
 .if defined(INSTALL_SUBMIT_CF)
 .if ${INSTALL_SUBMIT_CF} != ${DEST_SUBMIT_CF}
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
+	    ${INSTALL_SUBMIT_CF} ${DEST_SUBMIT_CF}
 .endif
 .else
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 ${CFDIR}/cf/submit.cf \
