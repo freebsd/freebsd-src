@@ -64,13 +64,10 @@ optpat()
 	char delim;
 	int n;
 
-	if ((delim = *ibufp) == '\n') {
-		if (!exp) sprintf(errmsg, "no previous pattern");
-		return exp;
-	} else if (delim == ' ' || *++ibufp == '\n') {
+	if ((delim = *ibufp) == ' ') {
 		sprintf(errmsg, "invalid pattern delimiter");
 		return NULL;
-	} else if (*ibufp == delim) {
+	} else if (delim == '\n' || *++ibufp == '\n' || *ibufp == delim) {
 		if (!exp) sprintf(errmsg, "no previous pattern");
 		return exp;
 	} else if ((exps = getlhs(delim)) == NULL)
