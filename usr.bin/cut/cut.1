@@ -117,6 +117,9 @@ Output fields are separated by a single occurrence of the field delimiter
 character.
 .It Fl n
 Do not split multi-byte characters.
+Characters will only be output if at least one byte is selected, and,
+after a prefix of zero or more unselected bytes, the rest of the bytes
+that form the character are selected.
 .It Fl s
 Suppress lines with no field delimiter characters.
 Unless specified, lines with no delimiters are passed through unmodified.
