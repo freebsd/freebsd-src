@@ -35,23 +35,24 @@
 #define LogCONNECT	(6)
 #define LogDEBUG	(7)	/* syslog(LOG_DEBUG, ....)	 */
 #define LogDNS		(8)
-#define LogHDLC		(9)
-#define LogID0		(10)
-#define LogIPCP		(11)
-#define LogLCP		(12)
-#define LogLQM		(13)
-#define LogPHASE	(14)
-#define LogPHYSICAL	(15)	/* syslog(LOG_INFO, ....)	 */
-#define LogSYNC		(16)	/* syslog(LOG_INFO, ....)	 */
-#define LogTCPIP	(17)
-#define LogTIMER	(18)	/* syslog(LOG_DEBUG, ....)	 */
-#define LogTUN		(19)	/* If set, tun%d is output with each message */
-#define LogWARN		(20)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
-#define LogERROR	(21)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
-#define LogALERT	(22)	/* syslog(LOG_ALERT, ....)	 */
+#define LogFILTER       (9)
+#define LogHDLC		(10)
+#define LogID0		(11)
+#define LogIPCP		(12)
+#define LogLCP		(13)
+#define LogLQM		(14)
+#define LogPHASE	(15)
+#define LogPHYSICAL	(16)	/* syslog(LOG_INFO, ....)	 */
+#define LogSYNC		(17)	/* syslog(LOG_INFO, ....)	 */
+#define LogTCPIP	(18)
+#define LogTIMER	(19)	/* syslog(LOG_DEBUG, ....)	 */
+#define LogTUN		(20)	/* If set, tun%d is output with each message */
+#define LogWARN		(21)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
+#define LogERROR	(22)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
+#define LogALERT	(23)	/* syslog(LOG_ALERT, ....)	 */
 
-#define LogMAXCONF	(19)
-#define LogMAX		(22)
+#define LogMAXCONF	(20)  
+#define LogMAX		(24)
 
 struct mbuf;
 struct cmdargs;

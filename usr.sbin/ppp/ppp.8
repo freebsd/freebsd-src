@@ -2166,6 +2166,8 @@ Log Chat lines containing the string "CONNECT".
 Log debug information.
 .It Li DNS
 Log DNS QUERY packets.
+.It Li Filter
+Log packets permitted by the dial filter and denied by any filter.
 .It Li HDLC
 Dump HDLC packet in hex.
 .It Li ID0

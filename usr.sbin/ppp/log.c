@@ -51,6 +51,7 @@ static const char * const LogNames[] = {
   "Connect",
   "Debug",
   "DNS",
+  "Filter",			/* Log discarded packets */
   "HDLC",
   "ID0",
   "IPCP",
