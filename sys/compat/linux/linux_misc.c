@@ -185,6 +185,7 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     struct vnode *vp;
     struct exec *a_out;
     struct vattr attr;
+    struct ucred *uc;
     vm_offset_t vmaddr;
     unsigned long file_offset;
     vm_offset_t buffer;
@@ -236,14 +237,21 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
     /*
      * Executable?
      */
-    error = VOP_GETATTR(vp, &attr, p->p_ucred, p);
-    if (error)
+    PROC_LOCK(p);
+    uc = p->p_ucred;
+    crhold(uc);
+    PROC_UNLOCK(p);
+    error = VOP_GETATTR(vp, &attr, uc, p);
+    if (error) {
+	crfree(uc);
 	goto cleanup;
+    }
 
     if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
 	((attr.va_mode & 0111) == 0) ||
 	(attr.va_type != VREG)) {
 	    error = ENOEXEC;
+	    crfree(uc);
 	    goto cleanup;
     }
 
@@ -252,17 +260,21 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
      */
     if (attr.va_size == 0) {
 	error = ENOEXEC;
+	crfree(uc);
 	goto cleanup;
     }
 
     /*
      * Can we access it?
      */
-    error = VOP_ACCESS(vp, VEXEC, p->p_ucred, p);
-    if (error)
+    error = VOP_ACCESS(vp, VEXEC, uc, p);
+    if (error) {
+	crfree(uc);
 	goto cleanup;
+    }
 
-    error = VOP_OPEN(vp, FREAD, p->p_ucred, p);
+    error = VOP_OPEN(vp, FREAD, uc, p);
+    crfree(uc);
     if (error)
 	goto cleanup;
 
@@ -320,6 +332,9 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
 	error = EFAULT;
 	goto cleanup;
     }
+
+    /* To protect p->p_rlimit in the if condition. */
+    mtx_assert(&Giant, MA_OWNED);
 
     /*
      * text/data/bss must not exceed limits
