@@ -319,9 +319,9 @@ EOF
 	# The BFD linker knows what the default object file format is, so
 	# first see if it will tell us.
 	ld_help_string=`ld --help 2>&1`
-	if echo $ld_help_string | grep >/dev/null 2>&1 "supported emulations: elf_i[345]86"; then
-	  echo "${UNAME_MACHINE}-unknown-linux" ; exit 0
-	elif echo $ld_help_string | grep >/dev/null 2>&1 "supported emulations: i[345]86linux"; then
+#	if echo $ld_help_string | grep >/dev/null 2>&1 "supported emulations: elf_i[345]86"; then
+#	  echo "${UNAME_MACHINE}-unknown-linux" ; exit 0
+	if echo $ld_help_string | grep >/dev/null 2>&1 "supported emulations: i[345]86linux"; then
 	  echo "${UNAME_MACHINE}-unknown-linuxaout" ; exit 0
 	elif echo $ld_help_string | grep >/dev/null 2>&1 "supported emulations: i[345]86coff"; then
 	  echo "${UNAME_MACHINE}-unknown-linuxcoff" ; exit 0
@@ -329,17 +329,27 @@ EOF
 	  echo alpha-unknown-linux ; exit 0
 	else
 	  # Either a pre-BFD a.out linker (linuxoldld) or one that does not give us
-	  # useful --help.  Gcc wants to distinguish between linuxoldld and linuxaout.
-	  test ! -d /usr/lib/ldscripts/. \
-	    && echo "${UNAME_MACHINE}-unknown-linuxoldld" && exit 0
+	  # useful --help.  Gcc wants to distinguish between linuxoldld and linuxaout,
+	  # and between different C library versions.
+	  echo "$ld_help_string" | grep >/dev/null 2>&1 "supported emulations:"
+	  test $? != 0 && echo "${UNAME_MACHINE}-pc-linux-gnuoldld" && exit 0
 	  # Determine whether the default compiler is a.out or elf
 	  cat >dummy.c <<EOF
+#include <features.h>
 main(argc, argv)
 int argc;
 char *argv[];
 {
 #ifdef __ELF__
-  printf ("%s-unknown-linux\n", argv[1]);
+# ifdef __GLIBC__
+#  if __GLIBC__ >= 2
+    printf ("%s-unknown-linux\n", argv[1]);
+#  else
+    printf ("%s-unknown-linux-gnulibc1\n", argv[1]);
+#  endif
+# else
+   printf ("%s-unknown-linux-gnulibc1\n", argv[1]);
+# endif
 #else
   printf ("%s-unknown-linuxaout\n", argv[1]);
 #endif
