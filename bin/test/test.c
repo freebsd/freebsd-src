@@ -204,17 +204,18 @@ main(argc, argv)
 	else
 		p++;
 	if (strcmp(p, "[") == 0) {
-		if (strcmp(argv[--argc], "]"))
+		if (strcmp(argv[--argc], "]") != 0)
 			error("missing ]");
 		argv[argc] = NULL;
 	}
 
+	/* no expression => false */
+	if (--argc <= 0)
+		return 1;
+
 	/* XXX work around the absence of an eaccess(2) syscall */
 	(void)setgid(getegid());
 	(void)setuid(geteuid());
-
-	if (--argc <= 0)
-		return 1;
 
 	t_wp = &argv[1];
 	res = !oexpr(t_lex(*t_wp));
@@ -469,13 +470,13 @@ getn(s)
 	r = strtol(s, &p, 10);
 
 	if (errno != 0)
-	  error("%s: out of range", s);
+		error("%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
-	  p++;
+		p++;
 
 	if (*p)
-	  error("%s: bad number", s);
+		error("%s: bad number", s);
 
 	return (int) r;
 }
@@ -492,13 +493,13 @@ getq(s)
 	r = strtoq(s, &p, 10);
 
 	if (errno != 0)
-	  error("%s: out of range", s);
+		error("%s: out of range", s);
 
 	while (isspace((unsigned char)*p))
-	  p++;
+		p++;
 
 	if (*p)
-	  error("%s: bad number", s);
+		error("%s: bad number", s);
 
 	return r;
 }
