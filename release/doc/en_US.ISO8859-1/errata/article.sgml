@@ -206,6 +206,14 @@ boot</screen>
       the existing RAID configuration which was created on 5.2 or prior.
       The ATA RAID support for these controllers is non-functional
       for this release.</para>
+
+    <para>(3 Nov 2004) For &os;/i386 and &os;/amd64, the SMP support
+      in the <filename>GENERIC</filename> kernel has been disabled
+      by default because the SMP kernel can degrade the performance
+      on UP machines.  A kernel configuration file <filename>SMP</filename>
+      which can be used to enable the SMP support has been added.
+      More details on building the custom kernel can be found in
+      <ulink url="&url.books.handbook;/kernelconfig.html"></ulink>.</para>
   </sect1>
 
   <sect1 id="late-news">
