@@ -286,13 +286,13 @@ product INTEL PRO100LAN56	0x110a Intel EtherExpress PRO/100 LAN Modem
 
 /* Intersil */
 /* OEMs sell these things under different marketing names */
-product INTERSIL MA401RA	0x7300 Netgear MA401RA
 product INTERSIL DWL650		0x7110 Dlink DWL650
+product INTERSIL MA401RA	0x7300 Netgear MA401RA
 
 /* I-O DATA */
-product IODATA PCLATE		0x2216 I-O DATA PCLA/TE
 product IODATA2 WNB11PCM	0x0002 I-O DATA WN-B11/PCM
 product IODATA2 WCF12		0x0673 Wireless CF Card
+product IODATA PCLATE		0x2216 I-O DATA PCLA/TE
 
 /* Kingston Products */
 product KINGSTON KNE2		0x0100 Kingston KNE-PC2 Ethernet
@@ -323,8 +323,8 @@ product MEGAHERTZ XJ4336	0x0027 Megahertz XJ4336 Modem
 product MEGAHERTZ XJ5560	0x0034 Megahertz X-JACK 56kbps Modem
 
 /* Melco Products */
-product MELCO LPC3_TX	 	0xc1ab Melco LPC3-TX
 product MELCO LPC3_CLX		0x0301 Melco LPC3-CLX Ethernet Adapter
+product MELCO LPC3_TX	 	0xc1ab Melco LPC3-TX
 
 /* Microsoft Products */
 product MICROSOFT MN_520	0x0001 Microsoft MN-520 WLAN Card
@@ -362,8 +362,8 @@ product NWN WLAN_550		0x0002 NWN 550 WLAN
 product NWN WLAN_1148		0x0003 NWN 1148 WLAN
 
 /* Olicom Products */
-product OLICOM TR		0x2132 GoCard Token Ring 16/4
 product OLICOM OC2220		0x2022 GoCard Ethernet
+product OLICOM TR		0x2132 GoCard Token Ring 16/4
 product OLICOM OC2231		0x3122 GoCard Combo Eth/Modem 288
 product OLICOM OC2232		0x3222 GoCard Combo Eth/Modem 336
 
