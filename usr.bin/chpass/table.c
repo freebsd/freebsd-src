@@ -50,7 +50,7 @@ ENTRY list[] = {
 	{ "class",		p_class,  1,   5, e1,   },
 	{ "change",		p_change, 1,   6, NULL, },
 	{ "expire",		p_expire, 1,   6, NULL, },
-	{ "full name",		p_gecos,  0,   9, e2,   },
+	{ "full name",		p_gecos,  1,   9, e2,   },
 	{ "office phone",	p_gecos,  0,  12, e2,   },
 	{ "home phone",		p_gecos,  0,  10, e2,   },
 	{ "location",		p_gecos,  0,   8, e2,   },

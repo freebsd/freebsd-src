@@ -118,16 +118,32 @@ display(fd, pw)
 		(void)fprintf(fp, "Shell: %s\n",
 		    *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL);
 	else
-		list[E_SHELL].restricted = 1;
+	  list[E_SHELL].restricted = 1;
 	bp = pw->pw_gecos;
+
 	p = strsep(&bp, ",");
-	(void)fprintf(fp, "Full Name: %s\n", p ? p : "");
-	p = strsep(&bp, ",");
-	(void)fprintf(fp, "Location: %s\n", p ? p : "");
-	p = strsep(&bp, ",");
-	(void)fprintf(fp, "Office Phone: %s\n", p ? p : "");
-	p = strsep(&bp, ",");
-	(void)fprintf(fp, "Home Phone: %s\n", p ? p : "");
+	if (p)
+	  list[E_NAME].save = strdup(p);
+	if (!list[E_NAME].restricted)
+	  (void)fprintf(fp, "Full Name: %s\n", p ? p : "");
+	
+        p = strsep(&bp, ",");
+	if (p)
+	  list[E_LOCATE].save = strdup(p);
+	if (!list[E_LOCATE].restricted)
+	  (void)fprintf(fp, "Location: %s\n", p ? p : "");
+	
+        p = strsep(&bp, ",");
+	if (p)
+	  list[E_BPHONE].save = strdup(p);
+	if (!list[E_BPHONE].restricted)
+	  (void)fprintf(fp, "Office Phone: %s\n", p ? p : "");
+	
+        p = strsep(&bp, ",");
+	if (p)
+	  list[E_HPHONE].save = strdup(p);
+	if (!list[E_HPHONE].restricted)
+	  (void)fprintf(fp, "Home Phone: %s\n", p ? p : "");
 
 	(void)fchown(fd, getuid(), getgid());
 	(void)fclose(fp);
