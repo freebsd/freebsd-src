@@ -4,24 +4,28 @@
 
 .PATH: ${SRCDIR}/binutils
 
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=	-Dprint_insn_i386=print_insn_i386_att
+.endif
+
 PROG=	gdb
 XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
 	c-valprint.c ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c	\
-	coffread.c command.c complaints.c copying.c corefile.c		\
-	corelow.c core-regset.c cp-valprint.c dcache.c dbxread.c demangle.c \
-	dwarfread.c dwarf2read.c elfread.c environ.c eval.c exec.c	\
-	expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c		\
-	findvar.c fork-child.c gdbarch.c gdbtypes.c infcmd.c inflow.c	\
-	infptrace.c infrun.c inftarg.c language.c jv-exp.y jv-lang.c	\
-	jv-valprint.c jv-typeprint.c nlmread.c m2-lang.c m2-exp.y	\
-	m2-typeprint.c m2-valprint.c main.c maint.c mdebugread.c	\
-	mem-break.c minsyms.c objfiles.c parse.c printcmd.c remote.c	\
-	remote-utils.c scm-exp.c scm-lang.c scm-valprint.c solib.c	\
-	source.c stabsread.c stack.c symfile.c symmisc.c symtab.c	\
-	target.c thread.c top.c tracepoint.c typeprint.c utils.c	\
-	valarith.c valops.c valprint.c values.c version.c serial.c	\
-	ser-unix.c ser-tcp.c
+	coffread.c command.c complaints.c copying.c core-regset.c	\
+	corefile.c corelow.c cp-valprint.c dcache.c dbxread.c		\
+	demangle.c dwarfread.c dwarf2read.c elfread.c environ.c eval.c	\
+	exec.c expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c	\
+	findvar.c fork-child.c freebsd-uthread.c gdbarch.c gdbtypes.c	\
+	infcmd.c inflow.c infptrace.c infrun.c inftarg.c language.c	\
+	jv-exp.y jv-lang.c jv-valprint.c jv-typeprint.c nlmread.c	\
+	m2-lang.c m2-exp.y m2-typeprint.c m2-valprint.c main.c maint.c	\
+	mdebugread.c mem-break.c minsyms.c objfiles.c parse.c		\
+	printcmd.c remote.c remote-utils.c scm-exp.c scm-lang.c		\
+	scm-valprint.c solib.c source.c stabsread.c stack.c symfile.c	\
+	symmisc.c symtab.c target.c thread.c top.c tracepoint.c		\
+	typeprint.c utils.c valarith.c valops.c valprint.c values.c	\
+	version.c serial.c ser-unix.c ser-tcp.c
 SRCS=	init.c ${XSRCS}
 
 .if exists(${.CURDIR}/Makefile.${MACHINE_ARCH})
@@ -34,18 +38,18 @@ CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
-LDADD+=		-L${RELTOP}/libbfd -lbfd
-LDADD+=		-L${RELTOP}/libopcodes -lopcodes
-LDADD+=		-lreadline
-LDADD+=		-lgnuregex
-LDADD+=		-L${RELTOP}/libiberty -liberty
-LDADD+=		-ltermcap
-DPADD+=		${RELTOP}/libbfd/libbfd.a
+DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
 DPADD+=		${LIBREADLINE}
 DPADD+=		${LIBGNUREGEX}
 DPADD+=		${RELTOP}/libiberty/libiberty.a
 DPADD+=		${LIBTERMCAP}
+LDADD+=		${RELTOP}/libbfd/libbfd.a
+LDADD+=		${RELTOP}/libopcodes/libopcodes.a
+LDADD+=		-lreadline
+LDADD+=		-lgnuregex
+LDADD+=		${RELTOP}/libiberty/libiberty.a
+LDADD+=		-ltermcap
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb
