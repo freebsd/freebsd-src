@@ -42,6 +42,9 @@
  *	across the network to save BandWidth
  *
  * $Log: supfilesrv.c,v $
+ * Revision 1.4  1996/02/06  19:03:58  pst
+ * make setproctitle display smaller
+ *
  * Revision 1.3  1996/02/06 18:48:03  pst
  * Setproctitle some useful information
  *
@@ -1230,6 +1233,7 @@ TREE *t;
 	register int fdtmp;
 	char sys_com[STRINGLENGTH], temp_file[STRINGLENGTH], rcs_file[STRINGLENGTH];
         union wait status;
+	int wstat;
 	char *uconvert(),*gconvert();
 	int sendfile ();
 
@@ -1297,15 +1301,54 @@ TREE *t;
 #endif
                         if (fd == -1) {
                                 if (docompress) {
-                                        tmpnam(temp_file);
-                                        sprintf(sys_com, "gzip -c < %s > %s\n", t->Tname, temp_file);
-                                        if (system(sys_com) != 0) {
-                                                /* Just in case */
-                                                unlink(temp_file);
-                                                goaway ("We died trying to \"%s\"", sys_com);
-                                                t->Tmode = 0;
-                                        }
-                                        fd = open (temp_file,O_RDONLY,0);
+					FILE *tf;
+					int pid;
+					int i;
+
+					tf = tmpfile();
+					if (tf == NULL) {
+						goaway("no temp file");
+						t->Tmode = 0;
+						goto out;
+					}
+					pid = fork();
+					switch (pid) {
+					case -1:	/* fail */
+						goaway("Could not fork");
+						t->Tmode = 0;
+						fclose(tf);
+						break;
+					case 0:		/* child */
+						close(1);
+						dup(fileno(tf));/* write end */
+						for(i = 3; i < 64; i++)
+							close(i);
+						execl("/usr/bin/gzip", "sup-gzip", "-c", t->Tname, 0);
+						execl("/usr/local/bin/gzip", "sup-gzip", "-c", t->Tname, 0);
+						execlp("gzip", "sup-gzip", "-c", t->Tname, 0);
+						perror("gzip");
+						_exit(1); /* pipe breaks */
+					default:	/* parent */
+						wait(&wstat);
+						if (WIFEXITED(wstat) &&
+						    WEXITSTATUS(wstat) > 0) {
+							fclose(tf);
+							goaway("gzip failed!");
+							t->Tmode = 0;
+							goto out;
+						}
+						if (WIFSIGNALED(wstat)) {
+							fclose(tf);
+							goaway("gzip died!");
+							t->Tmode = 0;
+							goto out;
+						}
+						fd = dup(fileno(tf));
+						fclose(tf);
+						lseek(fd, 0, 0);
+						break;
+					}
+			out:
                                 }
                                 else
                                         fd = open (t->Tname,O_RDONLY,0);
