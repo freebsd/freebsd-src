@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.68 1998/05/31 19:49:31 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.69 1998/05/31 20:08:56 peter Exp $
  */
 
 #include <sys/param.h>
@@ -371,8 +371,6 @@ nfs_fsinfo(nmp, vp, cred, p)
 		if (max < nmp->nm_readdirsize) {
 			nmp->nm_readdirsize = max;
 		}
-		/* XXX */
-		nmp->nm_maxfilesize = (u_int64_t)0x80000000 * DEV_BSIZE - 1;
 		fxdr_hyper(&fsp->fs_maxfilesize, &maxfsize);
 		if (maxfsize > 0 && maxfsize < nmp->nm_maxfilesize)
 			nmp->nm_maxfilesize = maxfsize;
@@ -851,12 +849,20 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 		 */
 		mp->mnt_maxsymlinklen = 1;
 
-	if ((argp->flags & NFSMNT_NFSV3) == 0)
-		/*
-		 * V2 can only handle 32 bit filesizes. For v3, nfs_fsinfo
-		 * will fill this in.
-		 */
+	/*
+	 * V2 can only handle 32 bit filesizes.  A 4GB-1 limit may be too
+	 * high, depending on whether we end up with negative offsets in
+	 * the client or server somewhere.  2GB-1 may be safer.
+	 *
+	 * For V3, nfs_fsinfo will adjust this as necessary.  Assume maximum
+	 * that we can handle until we find out otherwise.
+	 * XXX Our "safe" limit on the client is what we can store in our
+	 * buffer cache using signed(!) block numbers.
+	 */
+	if ((argp->flags & NFSMNT_NFSV3) == 0) {
 		nmp->nm_maxfilesize = 0xffffffffLL;
+	else
+		nmp->nm_maxfilesize = (u_int64_t)0x80000000 * DEV_BSIZE - 1;
 
 	nmp->nm_timeo = NFS_TIMEO;
 	nmp->nm_retry = NFS_RETRANS;
