@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2004 Tim Kientzle
+.\" Copyright (c) 2003-2005 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 1, 2003
+.Dd January 8, 2005
 .Dt archive_read 3
 .Os
 .Sh NAME
@@ -35,9 +35,10 @@
 .Nm archive_read_support_compression_compress ,
 .Nm archive_read_support_compression_gzip ,
 .Nm archive_read_support_compression_none ,
-.Nm archive_read_support_format_tar ,
-.Nm archive_read_support_format_cpio ,
 .Nm archive_read_support_format_all ,
+.Nm archive_read_support_format_cpio ,
+.Nm archive_read_support_format_iso9660 ,
+.Nm archive_read_support_format_tar ,
 .Nm archive_read_open ,
 .Nm archive_read_open_fd ,
 .Nm archive_read_open_file ,
@@ -69,11 +70,13 @@
 .Ft int
 .Fn archive_read_support_compression_none "struct archive *"
 .Ft int
-.Fn archive_read_support_format_tar "struct archive *"
+.Fn archive_read_support_format_all "struct archive *"
 .Ft int
 .Fn archive_read_support_format_cpio "struct archive *"
 .Ft int
-.Fn archive_read_support_format_all "struct archive *"
+.Fn archive_read_support_format_iso9660 "struct archive *"
+.Ft int
+.Fn archive_read_support_format_tar "struct archive *"
 .Ft int
 .Fn archive_read_open "struct archive *" "void *client_data" "archive_open_archive_callback *" "archive_read_archive_callback *" "archive_close_archive_callback *"
 .Ft int
@@ -119,7 +122,7 @@ Sets the block size used for reading the archive data.
 This controls the size that will be used when invoking the read
 callback function.
 The default is 20 records or 10240 bytes for tar formats.
-.It Fn archive_read_support_compression_XXX
+.It Fn archive_read_support_comression_all , Fn archive_read_support_compression_bzip2 , Fn archive_read_support_compression_compress , Fn archive_read_support_compression_gzip , Fn archive_read_support_compression_none
 Enables auto-detection code and decompression support for the
 specified compression.
 Note that
@@ -128,10 +131,10 @@ is always enabled by default.
 For convenience,
 .Fn archive_read_support_compression_all
 enables all available decompression code.
-.It Fn archive_read_support_format_XXX
+.It Fn archive_read_support_format_all , Fn archive_read_support_format_cpio , Fn archive_read_support_format_iso9660 , Fn archive_read_support_format_tar
 Enables support---including auto-detection code---for the
 specified archive format.
-In particular,
+For example,
 .Fn archive_read_support_format_tar
 enables support for a variety of standard tar formats, old-style tar,
 ustar, pax interchange format, and many common variants.
@@ -251,6 +254,13 @@ or
 compression and transparently performs the appropriate decompression.
 It also automatically detects the archive format.
 .Pp
+A complete description of the
+.Tn struct archive
+and
+.Tn struct archive_entry
+objects can be found in the overview manual page for
+.Xr libarchive 3 .
+.Sh CLIENT CALLBACKS
 The callback functions must match the following prototypes:
 .Bl -item -offset indent
 .It
@@ -263,17 +273,46 @@ The callback functions must match the following prototypes:
 .Ft typedef int
 .Fn archive_close_callback "struct archive *" "void *client_data"
 .El
-These callback functions are called whenever the library requires
-raw bytes from the archive.
-Note that it is the client's responsibility to correctly
-block the input.
 .Pp
-A complete description of the
-.Tn struct archive
-and
-.Tn struct archive_entry
-objects can be found in the overview manual page for
-.Xr libarchive 3 .
+The open callback is invoked by
+.Fn archive_open .
+It should return
+.Cm ARCHIVE_OK
+if the underlying file or data source is successfully
+opened.
+If the open fails, it should call
+.Fn archive_set_error
+to register an error code and message and return
+.Cm ARCHIVE_FATAL .
+.Pp
+The read callback is invoked whenever the library
+requires raw bytes from the archive.
+The read callback should read data into a buffer,
+set the
+.Li const void **buffer
+argument to point to the available data, and
+return a count of the number of bytes available.
+The library will invoke the read callback again
+only after it has consumed this data.
+The library imposes no constraints on the size
+of the data blocks returned.
+On end-of-file, the read callback should
+return zero.
+On error, the read callback should invoke
+.Fn archive_set_error
+to register an error code and message and
+return -1.
+.Pp
+The close callback is invoked by archive_close when
+the archive processing is complete.
+The callback should return
+.Cm ARCHIVE_OK
+on success.
+On failure, the callback should invoke
+.Fn archive_set_error
+to register an error code and message and
+regurn
+.Cm ARCHIVE_FATAL.
 .Sh EXAMPLE
 The following illustrates basic usage of the library.
 In this example,
@@ -389,6 +428,7 @@ to be returned.)
 .Sh SEE ALSO
 .Xr tar 1 ,
 .Xr archive 3 ,
+.Xr archive_util 3 ,
 .Xr tar 5
 .Sh HISTORY
 The
