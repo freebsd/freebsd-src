@@ -22,7 +22,7 @@ u_long         get_last_login_time(uid_t, const char *, char *, u_int);
 
 #ifdef LOGIN_NEEDS_UTMPX
 void	record_utmp_only(pid_t, const char *, const char *, const char *,
-		struct sockaddr *);
+		struct sockaddr *, socklen_t);
 #endif
 
 #endif

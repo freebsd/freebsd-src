@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.150 2002/09/16 19:55:33 stevesk Exp $");
+RCSID("$OpenBSD: session.c,v 1.154 2003/03/05 22:33:43 markus Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -201,6 +201,8 @@ auth_input_request_forwarding(struct passwd * pw)
 void
 do_authenticated(Authctxt *authctxt)
 {
+	setproctitle("%s", authctxt->pw->pw_name);
+
 	/*
 	 * Cancel the alarm we set to limit the time taken for
 	 * authentication.
@@ -689,7 +691,7 @@ do_pre_login(Session *s)
 
 	record_utmp_only(pid, s->tty, s->pw->pw_name,
 	    get_remote_name_or_ip(utmp_len, options.verify_reverse_mapping),
-	    (struct sockaddr *)&from);
+	    (struct sockaddr *)&from, fromlen);
 }
 #endif
 
@@ -730,8 +732,8 @@ do_login(Session *s, const char *command)
 	 * the address be 0.0.0.0.
 	 */
 	memset(&from, 0, sizeof(from));
+	fromlen = sizeof(from);
 	if (packet_connection_is_on_socket()) {
-		fromlen = sizeof(from);
 		if (getpeername(packet_get_connection_in(),
 		    (struct sockaddr *) & from, &fromlen) < 0) {
 			debug("getpeername: %.100s", strerror(errno));
@@ -949,7 +951,7 @@ do_setup_env(Session *s, const char *shell)
 {
 	char buf[256];
 	u_int i, envsize;
-	char **env;
+	char **env, *laddr;
 	struct passwd *pw = s->pw;
 
 	/* Initialize the environment. */
@@ -969,6 +971,9 @@ do_setup_env(Session *s, const char *shell)
 		/* Set basic environment. */
 		child_set_env(&env, &envsize, "USER", pw->pw_name);
 		child_set_env(&env, &envsize, "LOGNAME", pw->pw_name);
+#ifdef _AIX
+		child_set_env(&env, &envsize, "LOGIN", pw->pw_name);
+#endif
 		child_set_env(&env, &envsize, "HOME", pw->pw_dir);
 #ifdef HAVE_LOGIN_CAP
 		if (setusercontext(lc, pw, pw->pw_uid, LOGIN_SETPATH) < 0)
@@ -1025,9 +1030,10 @@ do_setup_env(Session *s, const char *shell)
 	    get_remote_ipaddr(), get_remote_port(), get_local_port());
 	child_set_env(&env, &envsize, "SSH_CLIENT", buf);
 
+	laddr = get_local_ipaddr(packet_get_connection_in());
 	snprintf(buf, sizeof buf, "%.50s %d %.50s %d",
-	    get_remote_ipaddr(), get_remote_port(),
-	    get_local_ipaddr(packet_get_connection_in()), get_local_port());
+	    get_remote_ipaddr(), get_remote_port(), laddr, get_local_port());
+	xfree(laddr);
 	child_set_env(&env, &envsize, "SSH_CONNECTION", buf);
 
 	if (s->ttyfd != -1)
@@ -1146,8 +1152,10 @@ do_rc_files(Session *s, const char *shell)
 		/* Add authority data to .Xauthority if appropriate. */
 		if (debug_flag) {
 			fprintf(stderr,
-			    "Running %.500s add "
-			    "%.100s %.100s %.100s\n",
+			    "Running %.500s remove %.100s\n",
+  			    options.xauth_location, s->auth_display);
+			fprintf(stderr,
+			    "%.500s add %.100s %.100s %.100s\n",
 			    options.xauth_location, s->auth_display,
 			    s->auth_proto, s->auth_data);
 		}
@@ -1155,6 +1163,8 @@ do_rc_files(Session *s, const char *shell)
 		    options.xauth_location);
 		f = popen(cmd, "w");
 		if (f) {
+			fprintf(f, "remove %s\n",
+			    s->auth_display);
 			fprintf(f, "add %s %s %s\n",
 			    s->auth_display, s->auth_proto,
 			    s->auth_data);
@@ -1187,6 +1197,7 @@ do_nologin(struct passwd *pw)
 		while (fgets(buf, sizeof(buf), f))
 			fputs(buf, stderr);
 		fclose(f);
+		fflush(NULL);
 		exit(254);
 	}
 }
@@ -1195,11 +1206,11 @@ do_nologin(struct passwd *pw)
 void
 do_setusercontext(struct passwd *pw)
 {
-#ifdef HAVE_CYGWIN
-	if (is_winnt) {
-#else /* HAVE_CYGWIN */
-	if (getuid() == 0 || geteuid() == 0) {
+#ifndef HAVE_CYGWIN
+	if (getuid() == 0 || geteuid() == 0)
 #endif /* HAVE_CYGWIN */
+	{
+
 #ifdef HAVE_SETPCRED
 		setpcred(pw->pw_name);
 #endif /* HAVE_SETPCRED */
@@ -1249,6 +1260,10 @@ do_setusercontext(struct passwd *pw)
 		permanently_set_uid(pw);
 #endif
 	}
+
+#ifdef HAVE_CYGWIN
+	if (is_winnt)
+#endif
 	if (getuid() != pw->pw_uid || geteuid() != pw->pw_uid)
 		fatal("Failed to set uids to %u.", (u_int) pw->pw_uid);
 }
@@ -1306,7 +1321,7 @@ do_child(Session *s, const char *command)
 	 */
 	if (!options.use_login) {
 #ifdef HAVE_OSF_SIA
-		session_setup_sia(pw->pw_name, s->ttyfd == -1 ? NULL : s->tty);
+		session_setup_sia(pw, s->ttyfd == -1 ? NULL : s->tty);
 		if (!check_quietlogin(s, command))
 			do_motd();
 #else /* HAVE_OSF_SIA */
@@ -1320,11 +1335,16 @@ do_child(Session *s, const char *command)
 	 * legal, and means /bin/sh.
 	 */
 	shell = (pw->pw_shell[0] == '\0') ? _PATH_BSHELL : pw->pw_shell;
+
+	/*
+	 * Make sure $SHELL points to the shell from the password file,
+	 * even if shell is overridden from login.conf
+	 */
+	env = do_setup_env(s, shell);
+
 #ifdef HAVE_LOGIN_CAP
 	shell = login_getcapstr(lc, "shell", (char *)shell, (char *)shell);
 #endif
-
-	env = do_setup_env(s, shell);
 
 	/* we have to stash the hostname before we close our socket. */
 	if (options.use_login)
@@ -1989,13 +2009,22 @@ session_tty_list(void)
 {
 	static char buf[1024];
 	int i;
+	char *cp;
+
 	buf[0] = '\0';
 	for (i = 0; i < MAX_SESSIONS; i++) {
 		Session *s = &sessions[i];
 		if (s->used && s->ttyfd != -1) {
+			
+			if (strncmp(s->tty, "/dev/", 5) != 0) {
+				cp = strrchr(s->tty, '/');
+				cp = (cp == NULL) ? s->tty : cp + 1;
+			} else
+				cp = s->tty + 5;
+			
 			if (buf[0] != '\0')
 				strlcat(buf, ",", sizeof buf);
-			strlcat(buf, strrchr(s->tty, '/') + 1, sizeof buf);
+			strlcat(buf, cp, sizeof buf);
 		}
 	}
 	if (buf[0] == '\0')

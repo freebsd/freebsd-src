@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keysign.c,v 1.7 2002/07/03 14:21:05 markus Exp $");
+RCSID("$OpenBSD: ssh-keysign.c,v 1.10 2003/03/13 11:42:19 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -168,8 +168,8 @@ main(int argc, char **argv)
 	initialize_options(&options);
 	(void)read_config_file(_PATH_HOST_CONFIG_FILE, "", &options);
 	fill_default_options(&options);
-	if (options.hostbased_authentication != 1)
-		fatal("Hostbased authentication not enabled in %s",
+	if (options.enable_ssh_keysign != 1)
+		fatal("ssh-keysign not enabled in %s",
 		    _PATH_HOST_CONFIG_FILE);
 
 	if (key_fd[0] == -1 && key_fd[1] == -1)
@@ -192,13 +192,6 @@ main(int argc, char **argv)
 		keys[i] = key_load_private_pem(key_fd[i], KEY_UNSPEC,
 		    NULL, NULL);
 		close(key_fd[i]);
-		if (keys[i] != NULL && keys[i]->type == KEY_RSA) {
-			if (RSA_blinding_on(keys[i]->rsa, NULL) != 1) {
-				error("RSA_blinding_on failed");
-				key_free(keys[i]);
-				keys[i] = NULL;
-			}
-		}
 		if (keys[i] != NULL)
 			found = 1;
 	}
