@@ -7,7 +7,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: imgact_gzip.c,v 1.1 1994/10/03 05:23:01 phk Exp $
  *
  * This module handles execution of a.out files which have been run through
  * "gzip -9".
@@ -252,6 +252,7 @@ do_aout_hdr(struct gzip *gz)
     gz->ip->entry_addr = gz->a_out.a_entry;
 
     gz->ip->proc->p_sysent = &aout_sysvec;
+printf("a.out ok, entry=%08x\n",gz->ip->entry_addr);
     return 0;
 }
 
@@ -352,10 +353,16 @@ Flush(struct gzip *gz,u_long siz)
 		gz->error = i;
 		return i;
 	    }
+	    if(gz->file_offset < sizeof gz->a_out) {
+		q = (u_char*) gz->virtual_offset + gz->output - gz->file_offset;
+		bcopy(&gz->a_out,q,sizeof gz->a_out);
+	    }
 	}
     }
     if(gz->output >= gz->file_offset && 
-		gz->output < (gz->file_offset+gz->a_out.a_text)) {
+		gz->output < (gz->file_offset+
+			gz->a_out.a_text+
+			gz->a_out.a_data)) {
 
 	i = min(siz,
 	    (gz->file_offset+
@@ -623,7 +630,6 @@ int inflate_stored OF((struct gzip *));
 int inflate_fixed OF((struct gzip *));
 int inflate_dynamic OF((struct gzip *));
 int inflate_block OF((struct gzip *,int *));
-int inflate OF((struct gzip *));
 int inflate_free OF((struct gzip *));
 
 
