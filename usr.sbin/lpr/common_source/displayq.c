@@ -32,21 +32,30 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)displayq.c	8.4 (Berkeley) 4/28/95";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/file.h>
 
-#include <signal.h>
-#include <fcntl.h>
+#include <ctype.h>
 #include <dirent.h>
-#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#define psignal foil_gcc_psignal
+#define	sys_siglist foil_gcc_siglist
+#include <unistd.h>
+#undef psignal
+#undef sys_siglist
+
 #include "lp.h"
 #include "lp.local.h"
 #include "pathnames.h"
@@ -76,13 +85,14 @@ static char	*head0 = "Rank   Owner      Job  Files";
 static char	*head1 = "Total Size\n";
 
 static void	alarmhandler __P((int));
-static void	warn __P((void));
+static void	warn __P((const struct printer *pp));
 
 /*
  * Display the current state of the queue. Format = 1 if long format.
  */
 void
-displayq(format)
+displayq(pp, format)
+	struct printer *pp;
 	int format;
 {
 	register struct queue *q;
@@ -96,71 +106,55 @@ displayq(format)
 	lflag = format;
 	totsize = 0;
 	rank = -1;
-	if ((i = cgetent(&bp, printcapdb, printer)) == -2)
-		fatal("can't open printer description file");
-	else if (i == -1)
-		fatal("unknown printer");
-	else if (i == -3)
-		fatal("potential reference loop detected in printcap file");
-	if (cgetstr(bp, "lp", &LP) < 0)
-		LP = _PATH_DEFDEVLP;
-	if (cgetstr(bp, "rp", &RP) < 0)
-		RP = DEFLP;
-	if (cgetstr(bp, "sd", &SD) < 0)
-		SD = _PATH_DEFSPOOL;
-	if (cgetstr(bp,"lo", &LO) < 0)
-		LO = DEFLOCK;
-	if (cgetstr(bp, "st", &ST) < 0)
-		ST = DEFSTAT;
-	if (cgetnum(bp, "ct", &CT) < 0)
-		CT = DEFTIMEOUT;
-	if (cgetstr(bp, "rm", &RM) < 0)
-		RM = NULL;
-	if ((cp = checkremote()))
+
+	if ((cp = checkremote(pp))) {
 		printf("Warning: %s\n", cp);
+		free(cp);
+	}
 
 	/*
 	 * Print out local queue
 	 * Find all the control files in the spooling directory
 	 */
 	seteuid(euid);
-	if (chdir(SD) < 0)
-		fatal("cannot chdir to spooling directory");
+	if (chdir(pp->spool_dir) < 0)
+		fatal(pp, "cannot chdir to spooling directory: %s",
+		      strerror(errno));
 	seteuid(uid);
-	if ((nitems = getq(&queue)) < 0)
-		fatal("cannot examine spooling area\n");
+	if ((nitems = getq(pp, &queue)) < 0)
+		fatal(pp, "cannot examine spooling area\n");
 	seteuid(euid);
-	ret = stat(LO, &statb);
+	ret = stat(pp->lock_file, &statb);
 	seteuid(uid);
 	if (ret >= 0) {
-		if (statb.st_mode & 0100) {
-			if (remote)
+		if (statb.st_mode & LFM_PRINT_DIS) {
+			if (pp->remote)
 				printf("%s: ", host);
-			printf("Warning: %s is down: ", printer);
+			printf("Warning: %s is down: ", pp->printer);
 			seteuid(euid);
-			fd = open(ST, O_RDONLY);
+			fd = open(pp->status_file, O_RDONLY|O_SHLOCK);
 			seteuid(uid);
 			if (fd >= 0) {
-				(void) flock(fd, LOCK_SH);
 				while ((i = read(fd, line, sizeof(line))) > 0)
 					(void) fwrite(line, 1, i, stdout);
 				(void) close(fd);	/* unlocks as well */
 			} else
 				putchar('\n');
 		}
-		if (statb.st_mode & 010) {
-			if (remote)
+		if (statb.st_mode & LFM_QUEUE_DIS) {
+			if (pp->remote)
 				printf("%s: ", host);
-			printf("Warning: %s queue is turned off\n", printer);
+			printf("Warning: %s queue is turned off\n", 
+			       pp->printer);
 		}
 	}
 
 	if (nitems) {
 		seteuid(euid);
-		fp = fopen(LO, "r");
+		fp = fopen(pp->lock_file, "r");
 		seteuid(uid);
 		if (fp == NULL)
-			warn();
+			warn(pp);
 		else {
 			/* get daemon pid */
 			cp = current;
@@ -176,7 +170,7 @@ displayq(format)
 				seteuid(uid);
 			}
 			if (ret < 0) {
-				warn();
+				warn(pp);
 			} else {
 				/* read current file name */
 				cp = current;
@@ -186,16 +180,16 @@ displayq(format)
 				/*
 				 * Print the status file.
 				 */
-				if (remote)
+				if (pp->remote)
 					printf("%s: ", host);
 				seteuid(euid);
-				fd = open(ST, O_RDONLY);
+				fd = open(pp->status_file, O_RDONLY|O_SHLOCK);
 				seteuid(uid);
 				if (fd >= 0) {
-					(void) flock(fd, LOCK_SH);
-					while ((i = read(fd, line, sizeof(line))) > 0)
-						(void) fwrite(line, 1, i, stdout);
-					(void) close(fd);	/* unlocks as well */
+					while ((i = read(fd, line,
+							 sizeof(line))) > 0)
+						fwrite(line, 1, i, stdout);
+					close(fd);	/* unlocks as well */
 				} else
 					putchar('\n');
 			}
@@ -209,12 +203,12 @@ displayq(format)
 			header();
 		for (i = 0; i < nitems; i++) {
 			q = queue[i];
-			inform(q->q_name);
+			inform(pp, q->q_name);
 			free(q);
 		}
 		free(queue);
 	}
-	if (!remote) {
+	if (!pp->remote) {
 		if (nitems == 0)
 			puts("no entries");
 		return;
@@ -226,7 +220,8 @@ displayq(format)
 	 */
 	if (nitems)
 		putchar('\n');
-	(void) snprintf(line, sizeof(line), "%c%s", format + '\3', RP);
+	(void) snprintf(line, sizeof(line), "%c%s", format ? '\4' : '\3',
+			pp->remote_queue);
 	cp = line;
 	for (i = 0; i < requests && cp-line+10 < sizeof(line) - 1; i++) {
 		cp += strlen(cp);
@@ -240,19 +235,19 @@ displayq(format)
 	}
 	strcat(line, "\n");
 	savealrm = signal(SIGALRM, alarmhandler);
-	alarm(CT);
-	fd = getport(RM, 0);
+	alarm(pp->conn_timeout);
+	fd = getport(pp, pp->remote_host, 0);
 	alarm(0);
 	(void)signal(SIGALRM, savealrm);
 	if (fd < 0) {
 		if (from != host)
 			printf("%s: ", host);
-		printf("connection to %s is down\n", RM);
+		printf("connection to %s is down\n", pp->remote_host);
 	}
 	else {
 		i = strlen(line);
 		if (write(fd, line, i) != i)
-			fatal("Lost connection");
+			fatal(pp, "Lost connection");
 		while ((i = read(fd, line, sizeof(line))) > 0)
 			(void) fwrite(line, 1, i, stdout);
 		(void) close(fd);
@@ -263,9 +258,10 @@ displayq(format)
  * Print a warning message if there is no daemon present.
  */
 static void
-warn()
+warn(pp)
+	const struct printer *pp;
 {
-	if (remote)
+	if (pp->remote)
 		printf("%s: ", host);
 	puts("Warning: no daemon present");
 	current[0] = '\0';
@@ -284,7 +280,8 @@ header()
 }
 
 void
-inform(cf)
+inform(pp, cf)
+	const struct printer *pp;
 	char *cf;
 {
 	register int j;
@@ -301,7 +298,7 @@ inform(cf)
 
 	if (rank < 0)
 		rank = 0;
-	if (remote || garbage || strcmp(cf, current))
+	if (pp->remote || garbage || strcmp(cf, current))
 		rank++;
 	j = 0;
 	while (getline(cfp)) {

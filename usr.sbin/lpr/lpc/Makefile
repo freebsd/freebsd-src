@@ -1,12 +1,14 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/6/93
+#	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
+#	$Id$
 
 PROG=	lpc
-CFLAGS+=-I${.CURDIR}/../common_source
+CFLAGS+=-I${.CURDIR}/../common_source ${CWARNFLAGS}
 MAN8=	lpc.8
-SRCS=	lpc.c cmds.c cmdtab.c startdaemon.c common.c
+SRCS=	lpc.c cmds.c cmdtab.c
 BINGRP=	daemon
 BINMODE=2555
 .PATH:	${.CURDIR}/../common_source
+LDADD=	-L${.OBJDIR}/../common_source -llpr
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>

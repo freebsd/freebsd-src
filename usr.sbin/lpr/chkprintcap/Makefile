@@ -1,10 +1,8 @@
-#	From: @(#)Makefile	8.1 (Berkeley) 6/6/93
 #	$Id$
 
-PROG=	pac
-CFLAGS+=-I${.CURDIR}/../common_source
-MAN8=	pac.8
-SRCS=	pac.c
+PROG=	chkprintcap
+MAN8=	chkprintcap.8
+CFLAGS+=-I${.CURDIR}/../common_source -Wall -Werror
 .PATH:	${.CURDIR}/../common_source
 LDADD=	-L${.OBJDIR}/../common_source -llpr
 

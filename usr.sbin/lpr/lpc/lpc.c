@@ -43,13 +43,14 @@ static const char copyright[] =
 static char sccsid[] = "@(#)lpc.c	8.3 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lpc.c,v 1.5 1997/09/24 06:47:46 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
 
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <grp.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -58,7 +59,7 @@ static const char rcsid[] =
 #include <syslog.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/param.h>
+
 #include "lp.h"
 #include "lpc.h"
 #include "extern.h"
@@ -116,7 +117,10 @@ main(argc, argv)
 			printf("?Privileged command\n");
 			exit(1);
 		}
-		(*c->c_handler)(argc, argv);
+		if (c->c_generic != 0)
+			generic(c->c_generic, argc, argv);
+		else
+			(*c->c_handler)(argc, argv);
 		exit(0);
 	}
 	fromatty = isatty(fileno(stdin));
@@ -172,7 +176,10 @@ cmdscanner(top)
 			printf("?Privileged command\n");
 			continue;
 		}
-		(*c->c_handler)(margc, margv);
+		if (c->c_generic != 0)
+			generic(c->c_generic, margc, margv);
+		else
+			(*c->c_handler)(margc, margv);
 	}
 	longjmp(toplevel, 0);
 }
