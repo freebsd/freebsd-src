@@ -55,7 +55,7 @@
 
 /*
  * The nexus (which is a pseudo-bus actually) iterates over the nodes that
- * hang from the OpenFirmware root node and adds them as devices to this bus
+ * hang from the Open Firmware root node and adds them as devices to this bus
  * (except some special nodes which are excluded) so that drivers can be
  * attached to them.
  *
@@ -63,7 +63,7 @@
  * done at this level.
  *
  * Maybe this code should get into dev/ofw to some extent, as some of it should
- * work for all OpenFirmware based machines...
+ * work for all Open Firmware based machines...
  */
 
 static MALLOC_DEFINE(M_NEXUS, "nexus", "nexus device information");
@@ -169,7 +169,7 @@ nexus_probe(device_t dev)
 {
 
 	/* Nexus does always match. */
-	device_set_desc(dev, "OpenFirmware Nexus device");
+	device_set_desc(dev, "Open Firmware Nexus device");
 	return (0);
 }
 

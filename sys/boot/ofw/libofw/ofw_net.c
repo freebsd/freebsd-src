@@ -207,7 +207,7 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	}
 
 #if defined(NETIF_DEBUG)
-	printf("ofwn_init: OpenFirmware instance handle: %08x\n", netinstance);
+	printf("ofwn_init: Open Firmware instance handle: %08x\n", netinstance);
 #endif
 
 #ifndef __sparc64__

@@ -111,7 +111,7 @@ device		ppp		# Kernel PPP
 device		tun		# Packet tunnel.
 device		pty		# Pseudo-ttys (telnet etc)
 device		md		# Memory "disks"
-device		ofwd		# OpenFirmware disks
+device		ofwd		# Open Firmware disks
 device		gif		# IPv6 and IPv4 tunneling
 device		faith		# IPv6-to-IPv4 relaying/(translation)
 

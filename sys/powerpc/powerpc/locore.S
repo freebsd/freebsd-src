@@ -102,7 +102,7 @@ GLOBAL(eintrcnt)
 idle_u:
 	.long	0			/* fake uarea during idle after exit */
 openfirmware_entry:
-	.long	0			/* openfirmware entry point */
+	.long	0			/* Open Firmware entry point */
 srsave:
 	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 

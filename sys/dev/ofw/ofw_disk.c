@@ -139,7 +139,7 @@ ofwd_strategy(struct bio *bp)
 }
 
 /*
- * Attach the OpenFirmware disk to nexus if present
+ * Attach the Open Firmware disk to nexus if present.
  */
 static void
 ofwd_identify(driver_t *driver, device_t parent)
@@ -162,7 +162,7 @@ ofwd_identify(driver_t *driver, device_t parent)
 }
 
 /*
- * Probe for an OpenFirmware disk.
+ * Probe for an Open Firmware disk.
  */
 static int
 ofwd_probe(device_t dev)
@@ -181,7 +181,7 @@ ofwd_probe(device_t dev)
 	if (OF_getprop(node, "file", fname, sizeof(fname)) == -1)
 		return (ENXIO);
 
-	device_set_desc(dev, "OpenFirmware disk");
+	device_set_desc(dev, "Open Firmware disk");
 	return (0);
 }
 

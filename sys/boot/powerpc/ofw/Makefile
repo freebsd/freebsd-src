@@ -2,7 +2,7 @@
 
 PROG=		loader
 NOMAN=
-NEWVERSWHAT=	"bootstrap loader" OpenFirmware/PowerPC
+NEWVERSWHAT=	"bootstrap loader" "Open Firmware/PowerPC"
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
@@ -76,7 +76,7 @@ CFLAGS+= -Wa,-mppc64bridge
 .PATH:		${.CURDIR}/../../ofw/common
 .include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
-# OpenFirmware standalone support library
+# Open Firmware standalone support library
 LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
 CFLAGS+=	-I${.CURDIR}/../../ofw/libofw
 

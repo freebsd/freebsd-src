@@ -277,7 +277,7 @@ openfirm_modevent(module_t mod, int type, void *data)
 	switch(type) {
 	case MOD_LOAD:
 		if (bootverbose)
-			printf("openfirm: <OpenFirmware control device>\n");
+			printf("openfirm: <Open Firmware control device>\n");
 		/*
 		 * Allow only root access by default; this device may allow
 		 * users to peek into firmware passwords, and likely to crash

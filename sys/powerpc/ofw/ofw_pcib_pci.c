@@ -95,7 +95,7 @@ ofw_pcib_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	device_set_desc(dev, "OpenFirmware PCI-PCI bridge");
+	device_set_desc(dev, "Open Firmware PCI-PCI bridge");
 	return (-1000);
 }
 
