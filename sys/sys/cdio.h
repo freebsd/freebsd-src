@@ -1,7 +1,7 @@
 /*
  * 16 Feb 93	Julian Elischer	(julian@dialix.oz.au)
  *
- *	$Id: cdio.h,v 1.8 1995/05/30 08:14:11 rgrimes Exp $
+ *	$Id: cdio.h,v 1.9 1996/01/30 02:56:08 mpp Exp $
  */
 /*
 <1>	Fixed a conflict with ioctl usage.  There were two different
@@ -32,7 +32,7 @@ union msf_lba {
 		unsigned char   second;
 		unsigned char   frame;
 	} msf;
-	int     lba;
+	int     lba;    /* network byte order */
 	u_char	addr[4];
 };
 
