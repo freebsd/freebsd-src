@@ -93,7 +93,7 @@ and
 .Cm restart
 targets.
 .Sh RC.CONF VARIABLES
-The following variables effect the behavior of
+The following variables affect the behavior of
 .Nm .
 They are defined in
 .Pa /etc/defaults/rc.conf
@@ -148,7 +148,7 @@ a localhost-only listening SMTP service required for running
 as a non-set-user-ID binary.
 Note that this does not work inside
 .Xr jail 2
-systems as jails do not allow binding to just the localhost interface.
+systems, as jails do not allow binding to just the localhost interface.
 .It Va sendmail_submit_flags
 .Pq Vt str
 If
@@ -204,7 +204,7 @@ start a client (MSP) queue runner
 daemon at system boot time.
 As of sendmail 8.12, a separate queue is used for command line
 submissions.
-The client queue runner assures that nothing is
+The client queue runner ensures that nothing is
 left behind in the submission queue.
 .It Va sendmail_msp_queue_flags
 .Pq Vt str
