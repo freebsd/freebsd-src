@@ -28,11 +28,7 @@
 .\"
 .\" /usr/sbin/adduser - add new user(s)
 .\"
-.\" Bugs: sure (my English!)
-.\"   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
-.\"
-.\" $Id: adduser.8,v 1.7 1995/03/08 22:44:35 ache Exp $
-.\"
+.\" $Id: adduser.8,v 1.8 1996/01/30 13:48:14 mpp Exp $
 
 .Dd Jan, 9, 1995
 .Dt ADDUSER 8
@@ -59,7 +55,21 @@ HOME-directory, dotfiles and send new user a welcome message.
 .Sh RESTRICTION
 .Bl -tag -width Ds -compact
 .It Sy username
-Login name. Only lowercase characters or digits.
+Login name. Only lowercase characters or digits. Maximum length
+is 8 characters (see 
+.Xr setlogin 2
+BUGS section). 
+The reasons for this limit is "Historical". 
+Given that people have traditionally wanted to break this
+limit for aesthetic reasons, it's never been of great importance to break
+such a basic fundamental parameter in UNIX.
+You can change UT_NAMESIZE in /usr/include/utmp.h and recompile the
+world; people have done this and it works, but you will have problems
+with any precompiled programs, or source that assumes the 8-character
+name limit and NIS. The NIS protocol mandates an 8-character username.
+If you need a longer login name for e-mail addresses,
+you can define an alias in
+.Pa /etc/aliases .
 .It Sy fullname
 Firstname and surname. 
 .Ql Pa \:
@@ -225,6 +235,8 @@ logfile for adduser
 .Xr chpass 1 ,
 .Xr finger 1 ,
 .Xr passwd 1 ,
+.Xr setlogin 2 ,
+.Xr yp 4 ,
 .Xr aliases 5 ,
 .Xr passwd 5 ,
 .Xr group 5 ,
@@ -238,6 +250,3 @@ logfile for adduser
 The
 .Nm
 command appeared in FreeBSD 2.1
-
-.\" .Sh AUTHOR
-.\" Wolfram Schneider, Berlin
