@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.14 1995/08/06 03:21:04 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.15 1995/08/17 00:36:06 jkh Exp $";
 #endif
 
 /*
@@ -118,7 +118,7 @@ where_playpen(void)
 	return NULL;
 }
 
-long
+size_t
 min_free(char *tmpdir)
 {
     struct statfs buf;
