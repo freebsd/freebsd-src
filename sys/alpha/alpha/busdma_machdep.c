@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1997 Justin T. Gibbs.
  * All rights reserved.
  *

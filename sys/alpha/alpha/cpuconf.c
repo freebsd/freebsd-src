@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1996 Christopher G. Demetriou.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
