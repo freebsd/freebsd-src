@@ -607,7 +607,7 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_DAISY, USB_PRODUCT_DAISY_DMC,
 	    0,
 	    "Daisy Technology",
-	    "PhotoClip Camera",
+	    "PhotoClip USBMediaReader",
 	},
 	{
 	    USB_VENDOR_DALLAS, USB_PRODUCT_DALLAS_J6502,
