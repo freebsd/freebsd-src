@@ -523,6 +523,7 @@ BKTR_NO_MSP_RESET		opt_bktr.h
 BKTR_430_FX_MODE		opt_bktr.h
 BKTR_SIS_VIA_MODE		opt_bktr.h
 BKTR_USE_FREEBSD_SMBUS		opt_bktr.h
+BKTR_NEW_MSP34XX_DRIVER		opt_bktr.h
 
 # meteor opt_meteor.h
 METEOR_ALLOC_PAGES	opt_meteor.h

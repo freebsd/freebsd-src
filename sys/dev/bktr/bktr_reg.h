@@ -695,6 +695,15 @@ struct bktr_softc {
     int                 audio_mux_present;     /* 1 = has audio mux on GPIO lines, 0 = no audio mux */
     int                 msp_source_selected;   /* 0 = TV source, 1 = Line In source, 2 = FM Radio Source */
 
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+    /* msp3400c related data */
+    void *		msp3400c_info;
+    int			stereo_once;
+    int			amsound;
+    int			mspsimple;
+    int			dolby;
+#endif
+
 };
 
 typedef struct bktr_softc bktr_reg_t;
