@@ -98,7 +98,7 @@ Static struct cdevsw ufm_cdevsw = {
 	.d_name =	"ufm",
 	.d_maj =	UFM_CDEV_MAJOR,
 #if (__FreeBSD_version < 500014)
- 	-1
+ 	.d_bmaj =	-1
 #endif
 };
 #endif  /*defined(__FreeBSD__)*/

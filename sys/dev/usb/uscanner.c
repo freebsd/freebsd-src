@@ -267,7 +267,7 @@ Static struct cdevsw uscanner_cdevsw = {
 	.d_name =	"uscanner",
 	.d_maj =	USCANNER_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
-	/* bmaj */	-1
+	.d_bmaj		-1
 #endif
 };
 #endif
