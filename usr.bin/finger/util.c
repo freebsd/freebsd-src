@@ -412,6 +412,7 @@ int
 hide(pw)
 	struct passwd *pw;
 {
+	struct stat st;
 	char buf[MAXPATHLEN];
 
 	if (!pw->pw_dir)
@@ -419,7 +420,7 @@ hide(pw)
 
 	snprintf(buf, sizeof(buf), "%s/%s", pw->pw_dir, _PATH_NOFINGER);
 
-	if (access(buf, F_OK) == 0)
+	if (stat(buf, &st) == 0)
 		return 1;
 
 	return 0;
