@@ -428,9 +428,10 @@
 294	UNIMPL	NOHIDE	nosys
 295	UNIMPL	NOHIDE	nosys
 296	UNIMPL	NOHIDE	nosys
-297	UNIMPL	NOHIDE	nosys
-298	UNIMPL	NOHIDE	nosys
-299	UNIMPL	NOHIDE	nosys
+; XXX 297 is 300 in NetBSD 
+297	STD	BSD	{ int fhstatfs(const struct fhandle *u_fhp, struct statfs *buf); }
+298	STD	BSD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
+299	STD	BSD 	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
 ; syscall numbers for FreeBSD
 300	STD	BSD	{ int modnext(int modid); }
 301	STD	BSD	{ int modstat(int modid, struct module_stat* stat); }

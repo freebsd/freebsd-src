@@ -80,6 +80,7 @@ static struct vfsops ufs_vfsops = {
 	ffs_sync,
 	ffs_vget,
 	ffs_fhtovp,
+	ufs_check_export,
 	ffs_vptofh,
 	ffs_init,
 };
@@ -1177,13 +1178,10 @@ restart:
  *   those rights via. exflagsp and credanonp
  */
 int
-ffs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
+ffs_fhtovp(mp, fhp, vpp)
 	register struct mount *mp;
 	struct fid *fhp;
-	struct sockaddr *nam;
 	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
 {
 	register struct ufid *ufhp;
 	struct fs *fs;
@@ -1193,7 +1191,7 @@ ffs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
 	if (ufhp->ufid_ino < ROOTINO ||
 	    ufhp->ufid_ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
-	return (ufs_check_export(mp, ufhp, nam, vpp, exflagsp, credanonp));
+	return (ufs_fhtovp(mp, ufhp, vpp));
 }
 
 /*

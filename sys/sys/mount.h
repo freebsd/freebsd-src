@@ -38,6 +38,13 @@
 #define _SYS_MOUNT_H_
 
 #include <sys/ucred.h>
+
+#ifndef KERNEL
+#if !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)
+#include <sys/stat.h>
+#endif /* !_POSIX_C_SOURCE */
+#endif /* !KERNEL */
+
 #include <sys/queue.h>
 #include <sys/lock.h>
 
@@ -305,8 +312,9 @@ struct vfsops {
 	int	(*vfs_vget)	__P((struct mount *mp, ino_t ino,
 				    struct vnode **vpp));
 	int	(*vfs_fhtovp)	__P((struct mount *mp, struct fid *fhp,
-				    struct sockaddr *nam, struct vnode **vpp,
-				    int *exflagsp, struct ucred **credanonp));
+				    struct vnode **vpp));
+	int	(*vfs_checkexp) __P((struct mount *mp, struct sockaddr *nam,
+				    int *extflagsp, struct ucred **credanonp));
 	int	(*vfs_vptofh)	__P((struct vnode *vp, struct fid *fhp));
 	int	(*vfs_init)	__P((struct vfsconf *));
 	int	(*vfs_uninit)	__P((struct vfsconf *));
@@ -321,9 +329,11 @@ struct vfsops {
 #define VFS_STATFS(MP, SBP, P)	  (*(MP)->mnt_op->vfs_statfs)(MP, SBP, P)
 #define VFS_SYNC(MP, WAIT, C, P)  (*(MP)->mnt_op->vfs_sync)(MP, WAIT, C, P)
 #define VFS_VGET(MP, INO, VPP)	  (*(MP)->mnt_op->vfs_vget)(MP, INO, VPP)
-#define VFS_FHTOVP(MP, FIDP, NAM, VPP, EXFLG, CRED) \
-	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, NAM, VPP, EXFLG, CRED)
+#define VFS_FHTOVP(MP, FIDP, VPP) \
+	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, VPP)
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
+#define VFS_CHECKEXP(MP, NAM, EXFLG, CRED) \
+	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED)
 
 #include <sys/module.h>
 
@@ -409,8 +419,9 @@ int	vfs_stdstatfs __P((struct mount *mp, struct statfs *sbp, struct proc *p));
 int	vfs_stdsync __P((struct mount *mp, int waitfor, struct ucred *cred, 
 		struct proc *p));
 int	vfs_stdvget __P((struct mount *mp, ino_t ino, struct vnode **vpp));
-int	vfs_stdfhtovp __P((struct mount *mp, struct fid *fhp, struct sockaddr *nam,
-		struct vnode **vpp, int *exflagsp, struct ucred **credanonp));
+int	vfs_stdfhtovp __P((struct mount *mp, struct fid *fhp, struct vnode **vpp));
+int	vfs_stdcheckexp __P((struct mount *mp, struct sockaddr *nam,
+	   int *extflagsp, struct ucred **credanonp));
 int	vfs_stdvptofh __P((struct vnode *vp, struct fid *fhp));
 int	vfs_stdinit __P((struct vfsconf *));
 int	vfs_stduninit __P((struct vfsconf *));
@@ -427,6 +438,9 @@ int	getmntinfo __P((struct statfs **, int));
 int	mount __P((const char *, const char *, int, void *));
 int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
+int	fhopen __P((const struct fhandle *, int));
+int	fhstat __P((const struct fhandle *, struct stat *));
+int	fhstatfs __P((const struct fhandle *, struct statfs *));
 
 /* C library stuff */
 void	endvfsent __P((void));

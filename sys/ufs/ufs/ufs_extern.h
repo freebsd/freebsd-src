@@ -61,9 +61,9 @@ int	ufs_vnoperatespec __P((struct vop_generic_args *));
 int	 ufs_bmap __P((struct vop_bmap_args *));
 int	 ufs_bmaparray __P((struct vnode *, daddr_t, daddr_t *, struct indir *,
 		int *, int *, int *));
-int	 ufs_check_export __P((struct mount *, struct ufid *, 
-			       struct sockaddr *, struct vnode **, 
-			       int *exflagsp, struct ucred **));
+int	 ufs_check_export __P((struct mount *, struct sockaddr *, 
+			       int *, struct ucred **));
+int	 ufs_fhtovp(register struct mount *, struct ufid *, struct vnode **);
 int	 ufs_checkpath __P((struct inode *, struct inode *, struct ucred *));
 void	 ufs_dirbad __P((struct inode *, doff_t, char *));
 int	 ufs_dirbadentry __P((struct vnode *, struct direct *, int));

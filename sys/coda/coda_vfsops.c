@@ -530,6 +530,7 @@ struct vfsops coda_vfsops = {
     coda_sync,
     vfs_stdvget,
     vfs_stdfhtovp,
+    vfs_stdcheckexp,
     vfs_stdvptofh,
     vfs_stdinit
 };

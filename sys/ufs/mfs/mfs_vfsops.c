@@ -114,6 +114,7 @@ static struct vfsops mfs_vfsops = {
 	ffs_sync,
 	ffs_vget,
 	ffs_fhtovp,
+	ufs_check_export,
 	ffs_vptofh,
 	mfs_init,
 };
