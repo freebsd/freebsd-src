@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.25 1997/03/03 22:46:16 ache Exp $
+ * $Id: kern_prot.c,v 1.26 1997/03/03 23:02:43 ache Exp $
  */
 
 /*
@@ -460,13 +460,27 @@ setgroups(p, uap, retval)
 	if ((error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 	ngrp = uap->gidsetsize;
-	if (ngrp < 1 || ngrp > NGROUPS)
+	if (ngrp > NGROUPS)
 		return (EINVAL);
+	/*
+	 * XXX A little bit lazy here.  We could test if anything has
+	 * changed before crcopy() and setting P_SUGID.
+	 */
 	pc->pc_ucred = crcopy(pc->pc_ucred);
-	if ((error = copyin((caddr_t)uap->gidset,
-	    (caddr_t)pc->pc_ucred->cr_groups, ngrp * sizeof(gid_t))))
-		return (error);
-	pc->pc_ucred->cr_ngroups = ngrp;
+	if (ngrp < 1) {
+		/*
+		 * setgroups(0, NULL) is a legitimate way of clearing the
+		 * groups vector on non-BSD systems (which generally do not
+		 * have the egid in the groups[0]).  We risk security holes
+		 * when running non-BSD software if we do not do the same.
+		 */
+		pc->pc_ucred->cr_ngroups = 1;
+	} else {
+		if ((error = copyin((caddr_t)uap->gidset,
+		    (caddr_t)pc->pc_ucred->cr_groups, ngrp * sizeof(gid_t))))
+			return (error);
+		pc->pc_ucred->cr_ngroups = ngrp;
+	}
 	p->p_flag |= P_SUGID;
 	return (0);
 }
