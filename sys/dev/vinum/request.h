@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.14 1999/03/16 03:37:50 grog Exp grog $
+ * $Id: request.h,v 1.15 1999/07/05 02:39:00 grog Exp grog $
  */
 
 /* Information needed to set up a transfer */
@@ -85,16 +85,14 @@ struct rqelement {
     daddr_t sdoffset;					    /* offset in subdisk */
     int useroffset;					    /* offset in user buffer of normal data */
     /*
-     * dataoffset and datalen refer to
-     * "individual" data transfers which involve
-     * only this drive (normal read, parityless
-     * write) and also degraded write.
+     * dataoffset and datalen refer to "individual" data
+     * transfers which involve only this drive (normal read,
+     * parityless write) and also degraded write.
      *
-     * groupoffset and grouplen refer to the other
-     * "group" operations (normal write, recovery
-     * read) which involve more than one drive.
-     * Both the offsets are relative to the start
-     * of the local buffer.
+     * groupoffset and grouplen refer to the other "group"
+     * operations (normal write, recovery read) which involve
+     * more than one drive.  Both the offsets are relative to
+     * the start of the local buffer.
      */
     int dataoffset;					    /* offset in buffer of the normal data */
     int groupoffset;					    /* offset in buffer of group data */
@@ -108,8 +106,8 @@ struct rqelement {
 };
 
 /*
- * A group of requests built to satisfy a certain
- * component of a user request.
+ * A group of requests built to satisfy an I/O
+ * transfer on a single plex.
  */
 struct rqgroup {
     struct rqgroup *next;				    /* pointer to next group */
@@ -154,17 +152,18 @@ struct sdbuf {
 };
 
 /*
- * Values returned by rqe and friends.
- * Be careful with these: they are in order of increasing
- * seriousness.  Some routines check for > REQUEST_RECOVERED
- * to indicate a completely failed request.
+ * Values returned by rqe and friends.  Be careful
+ * with these: they are in order of increasing
+ * seriousness.  Some routines check for
+ * > REQUEST_RECOVERED to indicate a failed request. XXX
  */
 enum requeststatus {
     REQUEST_OK,						    /* request built OK */
     REQUEST_RECOVERED,					    /* request OK, but involves RAID5 recovery */
-    REQUEST_EOF,					    /* request failed: outside plex */
-    REQUEST_DOWN,					    /* request failed: subdisk down  */
-    REQUEST_ENOMEM					    /* ran out of memory */
+    REQUEST_DEGRADED,					    /* parts of request failed */
+    REQUEST_EOF,					    /* parts of request failed: outside plex */
+    REQUEST_DOWN,					    /* all of request failed: subdisk(s) down */
+    REQUEST_ENOMEM					    /* all of request failed: ran out of memory */
 };
 
 #ifdef VINUMDEBUG
@@ -188,6 +187,8 @@ struct rqinfo {
     enum rqinfo_type type;				    /* kind of event */
     struct timeval timestamp;				    /* time it happened */
     struct buf *bp;					    /* point to user buffer */
+    int devmajor;					    /* major and minor device info */
+    int devminor;
     union {
 	struct buf b;					    /* yup, the *whole* buffer header */
 	struct rqelement rqe;				    /* and the whole rqe */
