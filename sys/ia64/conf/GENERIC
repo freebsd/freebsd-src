@@ -54,10 +54,10 @@ options		P1003_1B		#Posix P1003_1B real-time extentions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 
 # Debugging for use in -current
-options 	DDB
-options 	INVARIANTS
-options 	INVARIANT_SUPPORT
-options 	WITNESS
+options 	DDB			#Enable the kernel debugger
+options 	INVARIANTS		#Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			#Enable mutex checks to detects deadlocks and cycles
 
 # Standard busses
 device		isa
@@ -117,8 +117,8 @@ device          ppi             # Parallel port interface device
  
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
-device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 device		txp		# 3Com 3cR990 (``Typhoon'')
+device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 # NOTE: Be sure to keep the 'device miibus' line in order to use these NICs!
