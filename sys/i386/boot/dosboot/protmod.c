@@ -96,7 +96,7 @@ static struct dtr FreeBSDGdtr = { sizeof FreeBSDGdt - 1, 0 };
 static struct dtr Gdtr = { sizeof gdt2 - 1, 0 };
 static struct dtr Idtr = { sizeof idt2 - 1, 0 };
 
-struct bootinfo_t bootinfo;
+struct bootinfo bootinfo;
 int VCPIboot;
 
 int pm_copy(char far *from, unsigned long to, unsigned long count)
@@ -320,12 +320,13 @@ wehaveit:	mov ax,4310h
 	return (long)hi*0x10000l+(long)lo + 128l*1024l;
 }
 
-void startprog(long hmaddress, long hmsize, long startaddr, long argv[])
+void startprog(long hmaddress, long hmsize, long startaddr, long loadflags,
+			   long bootdev)
 {
 	long GDTaddr=ptr2lin(FreeBSDGdt);
 	long *stack=_MK_FP(0x9f00, 0);	/* prepare stack for starting the kernel */
 	unsigned int pmseg, pmoff;
-	unsigned int segment, pcxoff, psioff;
+	unsigned int segment, pcxoff, psioff, pdioff;
 	long h, BOOTaddr, ourret;
 	unsigned char *page;
 	int status;
@@ -357,6 +358,8 @@ void startprog(long hmaddress, long hmsize, long startaddr, long argv[])
 		mov pcxoff,bx
 		mov bx,offset psi
 		mov psioff,bx
+		mov bx,offset pdi
+		mov pdioff,bx
 		mov segment,ds
 
 		pop ds
@@ -364,6 +367,7 @@ void startprog(long hmaddress, long hmsize, long startaddr, long argv[])
 
 	*((long *)_MK_FP(segment, pcxoff+1)) = hmsize;
 	*((long *)_MK_FP(segment, psioff+1)) = hmaddress;
+	*((long *)_MK_FP(segment, pdioff+1)) = startaddr;
 
 	h = ptr2lin(&VCPI);
 
@@ -391,8 +395,8 @@ void startprog(long hmaddress, long hmsize, long startaddr, long argv[])
 	*stack++ = startaddr;		/* that's the startaddress */
 	*stack++ = 8l;			/* new CS */
 	*stack++ = ourret;		/* ourreturn */
-	*stack++ = argv[1];		/* howto */
-	*stack++ = argv[2];		/* bootdev */
+	*stack++ = loadflags;		/* howto */
+	*stack++ = bootdev;		/* bootdev */
 	*stack++ = 0l;			/* Parameter 4 */
 	*stack++ = 0l;			/* Parameter 5 */
 	*stack++ = 0l;			/* Parameter 6 */
@@ -571,7 +575,7 @@ psi:		_emit 0beh	; mov si,0
 		_emit 0
 		_emit 0
 		_emit 0
-		_emit 0bfh	; mov di,0
+pdi:		_emit 0bfh	; mov di,0
 		_emit 0
 		_emit 0
 		_emit 0x10
