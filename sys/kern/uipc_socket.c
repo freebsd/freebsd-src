@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- * $Id: uipc_socket.c,v 1.13 1995/12/14 22:51:01 bde Exp $
+ * $Id: uipc_socket.c,v 1.15 1996/02/13 18:16:20 wollman Exp $
  */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/file.h>
@@ -82,6 +83,8 @@ socreate(dom, aso, type, proto, p)
 		return (EPROTOTYPE);
 	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_WAIT);
 	bzero((caddr_t)so, sizeof(*so));
+	TAILQ_INIT(&so->so_incomp);
+	TAILQ_INIT(&so->so_comp);
 	so->so_type = type;
 	if (p->p_ucred->cr_uid == 0)
 		so->so_state = SS_PRIV;
@@ -127,7 +130,7 @@ solisten(so, backlog)
 		splx(s);
 		return (error);
 	}
-	if (so->so_q == 0)
+	if (so->so_comp.tqh_first == NULL)
 		so->so_options |= SO_ACCEPTCONN;
 	if (backlog < 0 || backlog > somaxconn)
 		backlog = somaxconn;
@@ -140,13 +143,21 @@ void
 sofree(so)
 	register struct socket *so;
 {
+	struct socket *head = so->so_head;
 
 	if (so->so_pcb || (so->so_state & SS_NOFDREF) == 0)
 		return;
-	if (so->so_head) {
-		if (!soqremque(so, 0) && !soqremque(so, 1))
-			panic("sofree dq");
-		so->so_head = 0;
+	if (head != NULL) {
+		if (so->so_state & SS_INCOMP) {
+			TAILQ_REMOVE(&head->so_incomp, so, so_list);
+		} else if (so->so_state & SS_COMP) {
+			TAILQ_REMOVE(&head->so_comp, so, so_list);
+		} else {
+			panic("sofree: not queued");
+		}
+		head->so_qlen--;
+		so->so_state &= ~(SS_INCOMP|SS_COMP);
+		so->so_head = NULL;
 	}
 	sbrelease(&so->so_snd);
 	sorflush(so);
@@ -166,10 +177,12 @@ soclose(so)
 	int error = 0;
 
 	if (so->so_options & SO_ACCEPTCONN) {
-		while (so->so_q0)
-			(void) soabort(so->so_q0);
-		while (so->so_q)
-			(void) soabort(so->so_q);
+		struct socket *sp;
+
+		for (sp = so->so_incomp.tqh_first; sp != NULL; sp = sp->so_list.tqe_next)
+			(void) soabort(sp);
+		for (sp = so->so_comp.tqh_first; sp != NULL; sp = sp->so_list.tqe_next)
+			(void) soabort(sp);
 	}
 	if (so->so_pcb == 0)
 		goto discard;

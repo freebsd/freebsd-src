@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.16 1996/02/29 00:07:13 hsu Exp $
+ * $Id: socketvar.h,v 1.12 1996/03/11 02:22:23 hsu Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -66,10 +66,10 @@ struct socket {
  * and limit on number of queued connections for this socket.
  */
 	struct	socket *so_head;	/* back pointer to accept socket */
-	struct	socket *so_q0;		/* queue of partial connections */
-	struct	socket *so_q;		/* queue of incoming connections */
-	short	so_q0len;		/* partials on so_q0 */
-	short	so_qlen;		/* number of connections on so_q */
+	TAILQ_HEAD(, socket) so_incomp;	/* queue of partial unaccepted connections */
+	TAILQ_HEAD(, socket) so_comp;	/* queue of complete unaccepted connections */
+	TAILQ_ENTRY(socket) so_list;	/* list of unaccepted connections */
+	short	so_qlen;		/* number of unaccepted connections */
 	short	so_qlimit;		/* max number queued connections */
 	short	so_timeo;		/* connection timeout */
 	u_short	so_error;		/* error affecting connection */
@@ -106,18 +106,21 @@ struct socket {
 /*
  * Socket state bits.
  */
-#define	SS_NOFDREF		0x001	/* no file table ref any more */
-#define	SS_ISCONNECTED		0x002	/* socket connected to a peer */
-#define	SS_ISCONNECTING		0x004	/* in process of connecting to peer */
-#define	SS_ISDISCONNECTING	0x008	/* in process of disconnecting */
-#define	SS_CANTSENDMORE		0x010	/* can't send more data to peer */
-#define	SS_CANTRCVMORE		0x020	/* can't receive more data from peer */
-#define	SS_RCVATMARK		0x040	/* at mark on input */
+#define	SS_NOFDREF		0x0001	/* no file table ref any more */
+#define	SS_ISCONNECTED		0x0002	/* socket connected to a peer */
+#define	SS_ISCONNECTING		0x0004	/* in process of connecting to peer */
+#define	SS_ISDISCONNECTING	0x0008	/* in process of disconnecting */
+#define	SS_CANTSENDMORE		0x0010	/* can't send more data to peer */
+#define	SS_CANTRCVMORE		0x0020	/* can't receive more data from peer */
+#define	SS_RCVATMARK		0x0040	/* at mark on input */
 
-#define	SS_PRIV			0x080	/* privileged for broadcast, raw... */
-#define	SS_NBIO			0x100	/* non-blocking ops */
-#define	SS_ASYNC		0x200	/* async i/o notify */
-#define	SS_ISCONFIRMING		0x400	/* deciding to accept connection req */
+#define	SS_PRIV			0x0080	/* privileged for broadcast, raw... */
+#define	SS_NBIO			0x0100	/* non-blocking ops */
+#define	SS_ASYNC		0x0200	/* async i/o notify */
+#define	SS_ISCONFIRMING		0x0400	/* deciding to accept connection req */
+
+#define	SS_INCOMP		0x0800	/* unaccepted, incomplete connection */
+#define	SS_COMP			0x1000	/* unaccepted, complete connection */
 
 
 /*
@@ -142,7 +145,7 @@ struct socket {
 #define	soreadable(so) \
     ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
 	((so)->so_state & SS_CANTRCVMORE) || \
-	(so)->so_qlen || (so)->so_error)
+	(so)->so_comp.tqh_first || (so)->so_error)
 
 /* can we write something to so? */
 #define	sowriteable(so) \
@@ -253,8 +256,6 @@ void	soisdisconnecting __P((struct socket *so));
 int	solisten __P((struct socket *so, int backlog));
 struct socket *
 	sonewconn1 __P((struct socket *head, int connstatus));
-void	soqinsque __P((struct socket *head, struct socket *so, int q));
-int	soqremque __P((struct socket *so, int q));
 int	soreceive __P((struct socket *so, struct mbuf **paddr, struct uio *uio,
 	    struct mbuf **mp0, struct mbuf **controlp, int *flagsp));
 int	soreserve __P((struct socket *so, u_long sndcc, u_long rcvcc));
