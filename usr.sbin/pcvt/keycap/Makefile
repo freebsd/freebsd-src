@@ -17,6 +17,10 @@ KEYCAPSRC=	keycap.src
 CFLAGS	+=	-DKEYCAP_PATH=\"$(CAPPATH)\"
 SRCS	=	keycap.c
 MAN3	=	keycap.${MAN3EXT}
+MLINKS+=	keycap.${MAN3EXT} kgetent.${MAN3EXT} \
+		keycap.${MAN3EXT} keygetnum.${MAN3EXT} \
+		keycap.${MAN3EXT} keygetflag.${MAN3EXT} \
+		keycap.${MAN3EXT} ketgetstr.${MAN3EXT}
 MAN5	=	man5/keycap.${MAN5EXT}
 #CLEANFILES+=	keycap.0 man5/keycap.0
 
