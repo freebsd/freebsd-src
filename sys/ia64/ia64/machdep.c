@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Doug Rabson
+ * Copyright (c) 2000,2001 Doug Rabson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,7 @@
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
-#include "opt_simos.h"
+#include "opt_ski.h"
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
@@ -68,6 +68,7 @@
 #include <machine/reg.h>
 #include <machine/fpu.h>
 #include <machine/pal.h>
+#include <machine/sal.h>
 #include <machine/bootinfo.h>
 #include <machine/mutex.h>
 #include <machine/vmparam.h>
@@ -77,15 +78,15 @@
 #include <sys/vnode.h>
 #include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
+#include <machine/efi.h>
 
-#include <boot/efi/include/ia64/efibind.h>
-#include <boot/efi/include/efidef.h>
-#include <boot/efi/include/efidevp.h>
-#include <boot/efi/include/eficon.h>
-#include <boot/efi/include/efiapi.h>
+#ifdef SKI
+extern void ia64_ski_init(void);
+#endif
 
-u_int64_t cycles_per_usec;
-u_int32_t cycles_per_sec;
+u_int64_t processor_frequency;
+u_int64_t bus_frequency;
+u_int64_t itc_frequency;
 int cold = 1;
 struct bootinfo bootinfo;
 
@@ -382,7 +383,13 @@ identifycpu(void)
 
 	features = ia64_get_cpuid(4);
 
-	printf("CPU: %s\n", familyname);
+	printf("CPU: %s", familyname);
+	if (processor_frequency)
+		printf(" (%ld.%02ld-Mhz)\n",
+		       (processor_frequency + 4999) / 1000000,
+		       ((processor_frequency + 4999) / 10000) % 100);
+	else
+		printf("\n");
 	printf("  Origin = \"%s\"  Model = %d  Revision = %d\n",
 	       vendor, model, revision);
 	printf("  Features = 0x%b\n", (u_int32_t) features,
@@ -392,8 +399,99 @@ identifycpu(void)
 
 extern char kernel_text[], _end[];
 
+static void
+map_pal_code(void)
+{
+	EFI_MEMORY_DESCRIPTOR *md, *mdp;
+	int mdcount, i;
+	u_int64_t psr;
+	struct ia64_pte pte;
+	vm_offset_t addr;
+
+	if (!bootinfo.bi_systab)
+		return;
+
+	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
+	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
+
+	for (i = 0, mdp = md; i < mdcount; i++,
+		 mdp = NextMemoryDescriptor(mdp, bootinfo.bi_memdesc_size)) {
+		if (mdp->Type == EfiPalCode)
+			break;
+	}
+
+	if (i == mdcount) {
+		printf("Can't find PAL Code\n");
+		return;
+	}
+
+	/*
+	 * We use a TR to map the first 256M of memory - this might
+	 * cover the palcode too.
+	 */
+	if ((mdp->PhysicalStart & ~((1 << 28) - 1)) == 0) {
+		printf("PAL Code is mapped by the kernel's TR\n");
+		return;
+	}
+
+	addr = mdp->PhysicalStart & ~((1 << 28) - 1);
+
+	bzero(&pte, sizeof(pte));
+	pte.pte_p = 1;
+	pte.pte_ma = PTE_MA_WB;
+	pte.pte_a = 1;
+	pte.pte_d = 1;
+	pte.pte_pl = PTE_PL_KERN;
+	pte.pte_ar = PTE_AR_RWX;
+	pte.pte_ppn = addr >> 12;
+
+	__asm __volatile("mov %0=psr;;" : "=r" (psr));
+	__asm __volatile("rsm psr.ic|psr.i;; srlz.i;;");
+	__asm __volatile("mov cr.ifa=%0" :: "r"(IA64_PHYS_TO_RR7(addr)));
+	__asm __volatile("mov cr.itir=%0" :: "r"(28 << 2));
+	__asm __volatile("srlz.i;;");
+	__asm __volatile("itr.i itr[%0]=%1;;"
+			 :: "r"(2), "r"(*(u_int64_t*)&pte));
+	__asm __volatile("srlz.i;;");
+	__asm __volatile("mov psr.l=%0;; srlz.i" :: "r" (psr));
+}
+
+static void
+calculate_frequencies(void)
+{
+	struct ia64_sal_result sal;
+	struct ia64_pal_result pal;
+
+	sal = ia64_sal_entry(SAL_FREQ_BASE, 0, 0, 0, 0, 0, 0, 0);
+	pal = ia64_call_pal_static(PAL_FREQ_RATIOS, 0, 0, 0);
+
+	if (sal.sal_status == 0 && pal.pal_status == 0) {
+		if (bootverbose) {
+			printf("Platform clock frequency %ld Hz\n",
+			       sal.sal_result[0]);
+			printf("Processor ratio %ld/%ld, Bus ratio %ld/%ld, "
+			       "ITC ratio %ld/%ld\n",
+			       pal.pal_result[0] >> 32,
+			       pal.pal_result[0] & ((1L << 32) - 1),
+			       pal.pal_result[1] >> 32,
+			       pal.pal_result[1] & ((1L << 32) - 1),
+			       pal.pal_result[2] >> 32,
+			       pal.pal_result[2] & ((1L << 32) - 1));
+		}
+		processor_frequency =
+			sal.sal_result[0] * (pal.pal_result[0] >> 32)
+			/ (pal.pal_result[0] & ((1L << 32) - 1));
+		bus_frequency =
+			sal.sal_result[0] * (pal.pal_result[1] >> 32)
+			/ (pal.pal_result[1] & ((1L << 32) - 1));
+		itc_frequency =
+			sal.sal_result[0] * (pal.pal_result[2] >> 32)
+			/ (pal.pal_result[2] & ((1L << 32) - 1));
+	}
+}
+
 void
-ia64_init()
+ia64_init(u_int64_t arg1, u_int64_t arg2)
 {
 	int phys_avail_cnt;
 	vm_offset_t kernstart, kernend;
@@ -433,6 +531,7 @@ ia64_init()
 	mdcount = bootinfo.bi_memmap_size / bootinfo.bi_memdesc_size;
 	md = (EFI_MEMORY_DESCRIPTOR *) IA64_PHYS_TO_RR7(bootinfo.bi_memmap);
 	if (!md) {
+#ifdef SKI
 		static EFI_MEMORY_DESCRIPTOR ski_md[2];
 		/*
 		 * XXX hack for ski. In reality, the loader will probably ask
@@ -453,6 +552,7 @@ ia64_init()
 	
 		md = ski_md;
 		mdcount = 2;
+#endif
 	}
 
 	for (i = 0, mdp = md; i < mdcount; i++,
@@ -466,8 +566,38 @@ ia64_init()
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
-
+ 
 	/* OUTPUT NOW ALLOWED */
+
+	/*
+	 * Look at arguments passed to us and compute boothowto.
+	 */
+	boothowto = bootinfo.bi_boothowto;
+#ifdef KADB
+	boothowto |= RB_KDB;
+#endif
+
+	/*
+	 * Catch case of boot_verbose set in environment.
+	 */
+	if ((p = getenv("boot_verbose")) != NULL) {
+		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
+			boothowto |= RB_VERBOSE;
+		}
+	}
+
+	if (boothowto & RB_VERBOSE)
+		bootverbose = 1;
+
+	/*
+	 * Wire things up so we can call the firmware.
+	 */
+	map_pal_code();
+	ia64_efi_init();
+#ifdef SKI
+	ia64_ski_init();
+#endif
+	calculate_frequencies();
 
 	/*
 	 * Find the beginning and end of the kernel.
@@ -517,6 +647,7 @@ ia64_init()
 		       mdp->PhysicalStart,
 		       mdp->NumberOfPages);
 #endif
+
 		pfn0 = ia64_btop(round_page(mdp->PhysicalStart));
 		pfn1 = ia64_btop(trunc_page(mdp->PhysicalStart
 					    + mdp->NumberOfPages * 4096));
@@ -669,26 +800,6 @@ ia64_init()
 	mtx_lock(&Giant);
 
 	/*
-	 * Look at arguments passed to us and compute boothowto.
-	 */
-	boothowto = bootinfo.bi_boothowto;
-#ifdef KADB
-	boothowto |= RB_KDB;
-#endif
-
-	/*
-	 * Catch case of boot_verbose set in environment.
-	 */
-	if ((p = getenv("boot_verbose")) != NULL) {
-		if (strcmp(p, "yes") == 0 || strcmp(p, "YES") == 0) {
-			boothowto |= RB_VERBOSE;
-		}
-	}
-
-	if (boothowto & RB_VERBOSE)
-		bootverbose = 1;
-
-	/*
 	 * Force single-user for a while.
 	 */
 	boothowto |= RB_SINGLE;
@@ -746,7 +857,17 @@ bzero(void *buf, size_t len)
 void
 DELAY(int n)
 {
-    /* TODO */
+	u_int64_t start, end, now;
+
+	/*
+	 * XXX This can't cope with rollovers.
+	 */
+	start = ia64_get_itc();
+	end = start + (itc_frequency * n) / 1000000;
+	/* printf("DELAY from 0x%lx to 0x%lx\n", start, end); */
+	do {
+		now = ia64_get_itc();
+	} while (now < end);
 }
 
 /*
@@ -1044,13 +1165,12 @@ sigreturn(struct thread *td,
 
 /*
  * Machine dependent boot() routine
- *
- * I haven't seen anything to put here yet
- * Possibly some stuff might be grafted back here from boot()
  */
 void
 cpu_boot(int howto)
 {
+
+	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
 }
 
 /*
@@ -1059,7 +1179,8 @@ cpu_boot(int howto)
 void
 cpu_halt(void)
 {
-    /* TODO */
+
+	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
 }
 
 /*

@@ -53,6 +53,8 @@
 #include <sys/bus.h>
 #include <sys/timetc.h>
 
+#include <machine/pal.h>
+#include <machine/sal.h>
 #include <machine/clock.h>
 #include <machine/clockvar.h>
 #include <isa/isareg.h>
@@ -78,7 +80,7 @@ int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 static	int	beeping = 0;
 
-extern int cycles_per_sec;
+extern u_char itc_frequency;
 
 static timecounter_get_t	ia64_get_timecount;
 
@@ -129,7 +131,6 @@ clockattach(device_t dev)
 	if (clockdev)
 		panic("clockattach: multiple clocks");
 	clockdev = dev;
-	cycles_per_sec = calibrate_clocks(cycles_per_sec);
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
@@ -176,12 +177,10 @@ cpu_initclocks()
 		tickfixinterval = hz >> (ftp - 1);
         }
 
-	/*
-	 * XXX we should call SAL_FREQ_BASE_INTERVAL_TIMER here.
-	 */
-	cycles_per_sec = 70000000;
+	if (!itc_frequency)
+		panic("Unknown clock frequency");
 
-	freq = cycles_per_sec;
+	freq = itc_frequency;
 	last_time = ia64_get_itc();
 	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
 	max_cycles_per_tick = 2*freq / hz;
@@ -189,7 +188,7 @@ cpu_initclocks()
 	ia64_timecounter.tc_frequency = freq;
 	tc_init(&ia64_timecounter);
 
-	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
+	ia64_set_itm(ia64_get_itc() + (itc_frequency + hz/2) / hz);
 	ia64_set_itv(240);	/* highest priority class */
 
 	stathz = 128;
@@ -252,7 +251,7 @@ fail:
 void
 handleclock(void* arg)
 {
-	ia64_set_itm(ia64_get_itc() + (cycles_per_sec + hz/2) / hz);
+	ia64_set_itm(ia64_get_itc() + (itc_frequency + hz/2) / hz);
 	hardclock(arg);
 }
 
