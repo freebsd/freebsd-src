@@ -523,6 +523,7 @@ trap(a0, a1, a2, entry, framep)
 				goto out;
 			}
 
+			mtx_lock(&Giant);
 			/*
 			 * It is only a kernel address space fault iff:
 			 *	1. !user and
@@ -629,9 +630,11 @@ trap(a0, a1, a2, entry, framep)
 					rv = KERN_INVALID_ADDRESS;
 			}
 			if (rv == KERN_SUCCESS) {
+				mtx_unlock(&Giant);
 				goto out;
 			}
 
+			mtx_unlock(&Giant);
 			if (!user) {
 				/* Check for copyin/copyout fault */
 				if (p != NULL &&
