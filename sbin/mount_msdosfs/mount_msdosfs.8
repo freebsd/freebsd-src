@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.11 1998/02/23 17:20:07 ache Exp $
+.\"	$Id: mount_msdos.8,v 1.12 1998/02/23 17:29:08 ache Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -143,10 +143,18 @@ If some code not present in Unicode, use
 0x003F code ('?') as replacement.
 .It
 DOS to local character set conversion table (upper half) for DOS names,
-128 character codes.
+128 character codes. Code 0x3F ('?') used for impossible translations.
 .It
 Local character set to DOS conversion table (upper half) for DOS names,
-128 character codes.
+128 character codes. Some codes have special meaning:
+.Bl -hang
+.It 0x00
+character disallowed in DOS file name;
+.It 0x01
+character should be replaced by '_' in DOS file name;
+.It 0x02
+character should be skipped in DOS file name;
+.El
 .El
 .Pp
 By default ISO 8859-1 assumed as local character set.
