@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.27 1994/08/13 03:49:57 wollman Exp $
+ *	$Id: fd.c,v 1.28 1994/08/23 07:52:09 paul Exp $
  *
  */
 
@@ -70,6 +70,8 @@
 #if NFT > 0
 extern int ftopen(), ftintr(), ftattach(), ftclose(), ftioctl();
 #endif
+
+#define RAW_PART 2
 
 #define b_cylin b_resid
 #define FDBLK 512
@@ -1066,7 +1068,7 @@ retrier(fdcu)
 		{
 			dev_t sav_b_dev = bp->b_dev;
 			/* Trick diskerr */
-			bp->b_dev = makedev(major(bp->b_dev), (FDUNIT(minor(bp->b_dev))<<3)|3);
+			bp->b_dev = makedev(major(bp->b_dev), (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
 			diskerr(bp, "fd", "hard error", LOG_PRINTF,
 				fdc->fd->skip, (struct disklabel *)NULL);
 			bp->b_dev = sav_b_dev;
