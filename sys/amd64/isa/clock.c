@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.138 1999/06/27 09:08:48 peter Exp $
+ *	$Id: clock.c,v 1.139 1999/07/18 15:19:29 bde Exp $
  */
 
 /*
@@ -229,39 +229,26 @@ clkintr(struct clockframe frame)
 		break;
 
 	case ACQUIRE_PENDING:
-		setdelayed();
-		timer0_max_count = TIMER_DIV(new_rate);
 		disable_intr();
+		i8254_offset = i8254_get_timecount(NULL);
+		i8254_lastcount = 0;
+		timer0_max_count = TIMER_DIV(new_rate);
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 		enable_intr();
-		timer0_prescaler_count = 0;
 		timer_func = new_function;
 		timer0_state = ACQUIRED;
+		setdelayed();
 		break;
 
 	case RELEASE_PENDING:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
-			timer0_prescaler_count -= hardclock_max_count;
-#ifdef FIXME
-			/*
-			 * XXX: This magic doesn't work, but It shouldn't be 
-			 * needed now anyway since we will not be able to 
-			 * aquire the i8254 if it is used for timecounting.
-			 */
-			/*
-			 * See microtime.s for this magic.
-			 */
-			time.tv_usec += (27465 * timer0_prescaler_count) >> 15;
-			if (time.tv_usec >= 1000000)
-				time.tv_usec -= 1000000;
-#endif
-			hardclock(&frame);
-			setdelayed();
-			timer0_max_count = hardclock_max_count;
 			disable_intr();
+			i8254_offset = i8254_get_timecount(NULL);
+			i8254_lastcount = 0;
+			timer0_max_count = hardclock_max_count;
 			outb(TIMER_MODE,
 			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 			outb(TIMER_CNTR0, timer0_max_count & 0xff);
@@ -270,6 +257,8 @@ clkintr(struct clockframe frame)
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
+			hardclock(&frame);
+			setdelayed();
 		}
 		break;
 	}
@@ -284,8 +273,6 @@ acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 	static int old_rate;
 
 	if (rate <= 0 || rate > TIMER0_MAX_FREQ)
-		return (-1);
-	if (strcmp(timecounter->tc_name, "i8254") == 0)
 		return (-1);
 	switch (timer0_state) {
 
