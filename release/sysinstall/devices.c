@@ -85,6 +85,7 @@ static struct _devname {
     { DEVICE_TYPE_DISK, 	"ramrd%d",	"AMI MegaRAID drive",	133, 65538, 8, 4, 'c'			},
     { DEVICE_TYPE_DISK, 	"idad%d",	"Compaq RAID array",	29, 65538, 8, 4, 'b'			},
     { DEVICE_TYPE_DISK, 	"ridad%d",	"Compaq RAID array",	109, 65538, 8, 4, 'c'			},
+    { DEVICE_TYPE_DISK, 	"twed%d",	"3ware ATA RAID array",	147, 65538, 8, 4, 'c'			},
     { DEVICE_TYPE_FLOPPY,	"fd%d",		"floppy drive unit A",	2, 0, 64, 4, 'b'			},
     { DEVICE_TYPE_FLOPPY,	"worm%d",	"SCSI optical disk / CDR",	23, 0, 1, 4, 'b'		},
     { DEVICE_TYPE_NETWORK,	"aue",		"ADMtek USB ethernet adapter"					},
