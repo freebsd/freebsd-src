@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.20 1995/10/04 23:06:09 jkh Exp $
+#	$Id: Makefile,v 1.193.2.21 1995/10/05 04:36:59 jkh Exp $
 #
 # How to roll a release:
 #
@@ -385,11 +385,11 @@ release.8: write_mfs_in_kernel
 	echo "	:pc#$$a:oc#0:bc#4096:fc#512:" &&			\
 	echo   								\
 	) >> /etc/disktab
+
+	# first the standard boot floppy, with GENERIC kernel
 	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
 		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
 		FSINODE=${MFSINODE}
-
-	# first the standard boot floppy, with GENERIC kernel
 	rm -rf ${RD}/bootfd
 	mkdir ${RD}/bootfd
 	cp ${RD}/kernels/BOOTMFS ${RD}/bootfd/kernel
@@ -401,6 +401,9 @@ release.8: write_mfs_in_kernel
 	cd ${.CURDIR} && ${MAKE} doFLOPPY FLOPPY=boot
 
 	# Now the IDE CDROM floppy, with ATAPI kernel
+	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
+		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
+		FSINODE=${MFSINODE}
 	rm -rf ${RD}/atapifd
 	mkdir ${RD}/atapifd
 	cp ${RD}/kernels/BOOTMFS_A ${RD}/atapifd/kernel
