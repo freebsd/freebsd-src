@@ -10,7 +10,7 @@ To use it:
 
 2.  Build and install the svr4 module in /sys/modules/svr4
 
-3.  Type "svr4" to start it up.
+3.  Type "kldload svr4" to start it up.
 
 4.  Grab compat_sol26.tar.gz or compat_svr4.tar.gz from
     http://www.freebsd.org/~newton/freebsd-svr4 and install them in
