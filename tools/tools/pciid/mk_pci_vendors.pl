@@ -31,7 +31,7 @@
 # currently available at:
 #
 # Boemler:	http://www.yourvote.com/pci/
-# Hart:		http://members.hyperlink.com.au/~chart/pci.htm
+# Hart:		http://members.datafast.net.au/dft0802/downloads.htm
 #
 # -l	Where an entry is found in both input lists, use the entry with
 #	the longest description.  The default is for the Boemler file to
