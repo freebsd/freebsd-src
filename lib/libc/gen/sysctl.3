@@ -797,6 +797,17 @@ is too large or too small.
 The length pointed to by
 .Fa oldlenp
 is too short to hold the requested value.
+.It Bq Er ENOMEM
+The smaller of either the length pointed to by
+.Fa oldlenp
+or the estimated size of the returned data exceeds the
+system limit on locked memory.
+.It Bq Er ENOMEM
+Locking the buffer
+.Fa oldp ,
+or a portion of the buffer if the estimated size of the data
+to be returned is smaller,
+would cause the process to exceed its per-process locked memory limit.
 .It Bq Er ENOTDIR
 The
 .Fa name
