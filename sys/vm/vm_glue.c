@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.28 1995/10/16 05:45:49 dyson Exp $
+ * $Id: vm_glue.c,v 1.29 1995/10/23 05:35:42 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -251,10 +251,8 @@ vm_fork(p1, p2, isvfork)
 
 	/* and force-map the upages into the kernel pmap */
 	for (i = 0; i < UPAGES; i++)
-		pmap_enter(vm_map_pmap(u_map),
-		    ((vm_offset_t) up) + PAGE_SIZE * i,
-		    pmap_extract(vp->pmap, addr + PAGE_SIZE * i),
-		    VM_PROT_READ | VM_PROT_WRITE, 1);
+		pmap_kenter(((vm_offset_t) up) + PAGE_SIZE * i,
+		    pmap_extract(vp->pmap, addr + PAGE_SIZE * i));
 
 	p2->p_addr = up;
 
@@ -350,9 +348,7 @@ faultin(p)
 			if (pa == 0) 
 				panic("faultin: missing page for UPAGES\n");
 				
-			pmap_enter(vm_map_pmap(u_map),
-			    ((vm_offset_t) p->p_addr) + off,
-			    pa, VM_PROT_READ | VM_PROT_WRITE, 1);
+			pmap_kenter(((vm_offset_t) p->p_addr) + off, pa);
 		}
 
 		s = splhigh();
@@ -506,6 +502,7 @@ swapout(p)
 {
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_offset_t ptaddr;
+	int i;
 
 	++p->p_stats->p_ru.ru_nswap;
 	/*
@@ -524,8 +521,8 @@ swapout(p)
 	/*
 	 * let the upages be paged
 	 */
-	pmap_remove(vm_map_pmap(u_map),
-	    (vm_offset_t) p->p_addr, ((vm_offset_t) p->p_addr) + UPAGES * PAGE_SIZE);
+	for(i=0;i<UPAGES;i++)
+		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
 
 	vm_map_pageable(map, (vm_offset_t) kstack,
 	    (vm_offset_t) kstack + UPAGES * PAGE_SIZE, TRUE);
