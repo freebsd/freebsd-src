@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.13 1996/07/12 19:08:34 jkh Exp $
+ *	$Id: ldconfig.c,v 1.14 1996/10/01 01:31:51 peter Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,11 @@
 #include "shlib.h"
 #include "support.h"
 
+#if DEBUG
+/* test */
+#undef _PATH_LD_HINTS
+#define _PATH_LD_HINTS		"./ld.so.hints"
+#endif
 
 #undef major
 #undef minor
@@ -67,6 +72,7 @@ static int			verbose;
 static int			nostd;
 static int			justread;
 static int			merge;
+static char			*hints_file = _PATH_LD_HINTS;
 
 struct shlib_list {
 	/* Internal list of shared libraries found */
@@ -96,8 +102,11 @@ char	*argv[];
 	int		i, c;
 	int		rval = 0;
 
-	while ((c = getopt(argc, argv, "mrsv")) != EOF) {
+	while ((c = getopt(argc, argv, "f:mrsv")) != EOF) {
 		switch (c) {
+		case 'f':
+			hints_file = optarg;
+			break;
 		case 'm':
 			merge = 1;
 			break;
@@ -111,7 +120,7 @@ char	*argv[];
 			verbose = 1;
 			break;
 		default:
-			errx(1, "Usage: %s [-mrsv] [dir ...]",
+			errx(1, "Usage: %s [-mrsv] [-f hints_file] [dir ...]",
 				__progname);
 			break;
 		}
@@ -254,12 +263,6 @@ int	dewey[], ndewey;
 }
 
 
-#if DEBUG
-/* test */
-#undef _PATH_LD_HINTS
-#define _PATH_LD_HINTS		"./ld.so.hints"
-#endif
-
 int
 hinthash(cp, vmajor)
 char	*cp;
@@ -366,7 +369,7 @@ buildhints()
 		errx(1, "str_index(%d) != strtab_sz(%d)", str_index, strtab_sz);
 	}
 
-	tmpfile = concat(_PATH_LD_HINTS, ".XXXXXX", "");
+	tmpfile = concat(hints_file, ".XXXXXX", "");
 	if ((tmpfile = mktemp(tmpfile)) == NULL) {
 		warn("%s", tmpfile);
 		return -1;
@@ -374,37 +377,37 @@ buildhints()
 
 	umask(0);	/* Create with exact permissions */
 	if ((fd = open(tmpfile, O_RDWR|O_CREAT|O_TRUNC, 0444)) == -1) {
-		warn("%s", _PATH_LD_HINTS);
+		warn("%s", hints_file);
 		return -1;
 	}
 
 	if (write(fd, &hdr, sizeof(struct hints_header)) !=
 						sizeof(struct hints_header)) {
-		warn("%s", _PATH_LD_HINTS);
+		warn("%s", hints_file);
 		return -1;
 	}
 	if (write(fd, blist, hdr.hh_nbucket * sizeof(struct hints_bucket)) !=
 				hdr.hh_nbucket * sizeof(struct hints_bucket)) {
-		warn("%s", _PATH_LD_HINTS);
+		warn("%s", hints_file);
 		return -1;
 	}
 	if (write(fd, strtab, strtab_sz) != strtab_sz) {
-		warn("%s", _PATH_LD_HINTS);
+		warn("%s", hints_file);
 		return -1;
 	}
 	if (close(fd) != 0) {
-		warn("%s", _PATH_LD_HINTS);
+		warn("%s", hints_file);
 		return -1;
 	}
 
 	/* Install it */
-	if (unlink(_PATH_LD_HINTS) != 0 && errno != ENOENT) {
-		warn("%s", _PATH_LD_HINTS);
+	if (unlink(hints_file) != 0 && errno != ENOENT) {
+		warn("%s", hints_file);
 		return -1;
 	}
 
-	if (rename(tmpfile, _PATH_LD_HINTS) != 0) {
-		warn("%s", _PATH_LD_HINTS);
+	if (rename(tmpfile, hints_file) != 0) {
+		warn("%s", hints_file);
 		return -1;
 	}
 
@@ -423,8 +426,8 @@ readhints()
 	struct shlib_list	*shp;
 	int			i;
 
-	if ((fd = open(_PATH_LD_HINTS, O_RDONLY, 0)) == -1) {
-		warn("%s", _PATH_LD_HINTS);
+	if ((fd = open(hints_file, O_RDONLY, 0)) == -1) {
+		warn("%s", hints_file);
 		return -1;
 	}
 
@@ -432,14 +435,14 @@ readhints()
 	addr = mmap(0, msize, PROT_READ, MAP_COPY, fd, 0);
 
 	if (addr == (caddr_t)-1) {
-		warn("%s", _PATH_LD_HINTS);
+		warn("%s", hints_file);
 		return -1;
 	}
 
 	hdr = (struct hints_header *)addr;
 	if (HH_BADMAG(*hdr)) {
 		warnx("%s: Bad magic: %o",
-			_PATH_LD_HINTS, hdr->hh_magic);
+			hints_file, hdr->hh_magic);
 		return -1;
 	}
 
@@ -454,7 +457,7 @@ readhints()
 				PROT_READ, MAP_COPY|MAP_FIXED,
 				fd, msize) != (caddr_t)(addr+msize)) {
 
-			warn("%s", _PATH_LD_HINTS);
+			warn("%s", hints_file);
 			return -1;
 		}
 	}
@@ -499,7 +502,7 @@ listhints()
 	struct shlib_list	*shp;
 	int			i;
 
-	printf("%s:\n", _PATH_LD_HINTS);
+	printf("%s:\n", hints_file);
 	printf("\tsearch directories: %s\n", dir_list);
 
 	for (i = 0, shp = shlib_head; shp; i++, shp = shp->next)

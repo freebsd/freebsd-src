@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ldconfig.8,v 1.7 1995/06/24 10:08:43 asami Exp $
+.\"	$Id: ldconfig.8,v 1.8 1996/04/08 04:17:33 mpp Exp $
 .\"
 .Dd October 3, 1993
 .Dt LDCONFIG 8
@@ -38,6 +38,7 @@
 .Sh SYNOPSIS
 .Nm ldconfig
 .Op Fl mrsv
+.Op Fl f Ar hints_file
 .Op Ar directory Ar ...
 .Sh DESCRIPTION
 .Nm
@@ -82,15 +83,17 @@ is typically run as part of the boot sequence.
 The following options recognized by
 .Nm ldconfig:
 .Bl -tag -width indent
+.It Fl f Ar hints_file
+Read and/or update the specified hints file, instead of
+.Pa /var/run/ld.so.hints .
+This option is provided primarily for testing.
 .It Fl m
-Instead of replacing the contents of
-.Pa ld.so.hints
+Instead of replacing the contents of the hints file
 with those found in the directories specified,
 .Dq merge
 in new entries.
 .It Fl r
-Lists the current contents of
-.Pa ld.so.hints
+Lists the current contents of the hints file
 on the standard output. The hints file will not be modified.
 .It Fl s
 Do not scan the built-in system directory
@@ -104,8 +107,7 @@ space of
 .Ev set-user-Id
 programs. Whenever such a program is run,
 .Nm ld.so
-will only load shared libraries from the
-.Pa ld.so.hints
+will only load shared libraries from the hints
 file. In particular, the
 .Ev LD_LIBRARY_PATH
 is not used to search for libraries. Thus, the role of ldconfig is dual. In
@@ -114,11 +116,6 @@ specify the trusted collection of directories from which shared objects can
 be safely loaded. It is presumed that the set of directories specified to
 .Nm ldconfig
 are under control of the system's administrator.
-.Nm ld.so
-further assists set-user-Id programs by erasing the
-.Ev LD_LIBRARY_PATH
-from the environment.
-
 .Sh FILES
 .Pa /var/run/ld.so.hints
 .Sh SEE ALSO
