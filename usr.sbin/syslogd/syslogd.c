@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.12.2.9 1997/11/07 07:30:40 charnier Exp $";
+	"$Id: syslogd.c,v 1.12.2.10 1998/03/01 11:09:02 jraynard Exp $";
 #endif /* not lint */
 
 /*
@@ -292,12 +292,12 @@ main(argc, argv)
 
 	while ((ch = getopt(argc, argv, "a:dsf:m:p:")) != -1)
 		switch(ch) {
+		case 'd':		/* debug */
+			Debug++;
+			break;
 		case 'a':		/* allow specific network addresses only */
 			if (allowaddr(optarg) == -1)
 				usage();
-			break;
-		case 'd':		/* debug */
-			Debug++;
 			break;
 		case 'f':		/* configuration file */
 			ConfFile = optarg;
