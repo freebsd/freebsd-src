@@ -168,7 +168,7 @@ struct pccard_card {
 /* More later? */
 struct pccard_ivar {
 	struct resource_list resources;
-	int	slotnum;
+	struct pccard_function *fcn;
 };
 
 struct pccard_softc {
@@ -244,8 +244,7 @@ void	pccard_ccr_write(struct pccard_function *, int, int);
 
 /* The following is the vestages of the NetBSD driver api */
 
-void	pccard_function_init(struct pccard_function *,
-	    struct pccard_config_entry *);
+void	pccard_function_init(struct pccard_function *);
 int	pccard_function_enable(struct pccard_function *);
 void	pccard_function_disable(struct pccard_function *);
 
