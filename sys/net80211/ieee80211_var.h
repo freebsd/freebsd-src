@@ -137,7 +137,8 @@ struct ieee80211com {
 				    struct mbuf *, int, int, u_int32_t, u_int);
 	int			(*ic_send_mgmt)(struct ieee80211com *,
 				    struct ieee80211_node *, int, int);
-	int			(*ic_newstate)(void *, enum ieee80211_state);
+	int			(*ic_newstate)(struct ieee80211com *,
+				    enum ieee80211_state, int);
 	void			(*ic_newassoc)(struct ieee80211com *,
 				    struct ieee80211_node *, int);
 	u_int8_t		ic_myaddr[IEEE80211_ADDR_LEN];
