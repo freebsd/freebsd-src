@@ -19,7 +19,7 @@ given the increasing size of disk drives (the latest 9.0 Gbyte models
 holding the equivalent of some six thousand 1.44MB floppies!) and the
 virtual explosion of operating system options available for the PC.  To
 solve this problem, IBM came up with a scheme for "slicing" the disks
-into more manageble chunks, or partitions.  It works, but only just.
+into more manageable chunks, or partitions.  It works, but only just.
 To better understand why, first a brief bit of history:
 
 MS-DOS, when hard disk support was unceremoniously grafted on back in the
@@ -94,7 +94,7 @@ A:  FreeBSD always has an MBR slice with type 0xa5 (each of the 4 slices can
     there should always be an MBR record, even in the case where FreeBSD
     occupies the entire disk.
 B:  The FreeBSD slice contains the FreeBSD disklabel in the second sector
-    (remember, the first sector contains the secondard boot code for FreeBSD,
+    (remember, the first sector contains the secondary boot code for FreeBSD,
      which is what prints that FreeBSD prompt at you when you first boot
      FreeBSD from a floppy or hard disk).
 C:  The 'C' partition in the FreeBSD disklabel corresponds to the entire
@@ -102,7 +102,7 @@ C:  The 'C' partition in the FreeBSD disklabel corresponds to the entire
 D:  The 'D' partition corresponds to the entire physical disk.
 E:  Should a disk not have a FreeBSD slice (because there simply is no 
     FreeBSD on it anywhere), then the MBR slices are mapped into partitions
-    'E' to 'H' of a artificially created FreeBSD disklabel.  This is useful
+    'E' to 'H' of an artificially created FreeBSD disklabel.  This is useful
     for getting at DOS-only disks.
 
 Therefore, to get FreeBSD onto your disk, you need to do the following:
@@ -260,4 +260,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.3 1994/11/07 10:35:54 jkh Exp $
+$Id: DISKSPACE.FAQ,v 1.4 1994/11/09 02:51:19 jkh Exp $
