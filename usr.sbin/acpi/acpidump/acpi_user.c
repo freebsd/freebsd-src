@@ -121,6 +121,34 @@ acpi_get_rsdp(u_long addr)
 	return (acpi_map_physical(addr, len));
 }
 
+static struct ACPIrsdp *
+acpi_scan_rsd_ptr(void)
+{
+#if defined(__i386__)
+	struct ACPIrsdp *rsdp;
+	u_long		addr, end;
+
+	/*
+	 * On ia32, scan physical memory for the RSD PTR if above failed.
+	 * According to section 5.2.2 of the ACPI spec, we only consider
+	 * two regions for the base address:
+	 * 1. EBDA (1 KB area addressed by the 16 bit pointer at 0x40E
+	 * 2. High memory (0xE0000 - 0xFFFFF)
+	 */
+	addr = RSDP_EBDA_PTR;
+	pread(acpi_mem_fd, &addr, sizeof(uint16_t), addr);
+	addr <<= 4;
+	end = addr + RSDP_EBDA_SIZE;
+	for (; addr < end; addr += 16)
+		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
+			return (rsdp);
+	for (addr = RSDP_HI_START; addr < RSDP_HI_END; addr += 16)
+		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
+			return (rsdp);
+#endif /* __i386__ */
+	return (NULL);
+}
+
 /*
  * Public interfaces
  */
@@ -143,23 +171,7 @@ acpi_find_rsd_ptr(void)
 			    machdep_acpi_root);
 	}
 
-#if defined(__i386__)
-	/*
-	 * On ia32, scan physical memory for the RSD PTR if above failed.
-	 * According to section 5.2.2 of the ACPI spec, we only consider
-	 * two regions for the base address:
-	 * 1. EBDA (0x0 - 0x3FF)
-	 * 2. High memory (0xE0000 - 0xFFFFF)
-	 */
-	for (addr = RSDP_EBDA_START; addr < RSDP_EBDA_END; addr += 16)
-		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
-			return (rsdp);
-	for (addr = RSDP_HI_START; addr < RSDP_HI_END; addr += 16)
-		if ((rsdp = acpi_get_rsdp(addr)) != NULL)
-			return (rsdp);
-#endif
-
-	return (NULL);
+	return (acpi_scan_rsd_ptr());
 }
 
 void *
