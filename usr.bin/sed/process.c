@@ -362,10 +362,7 @@ substitute(cp)
 				slen -= match[0].rm_eo;
 				lastempty = 0;
 			} else {
-				if (match[0].rm_so == 0)
-					cspace(&SS, s, match[0].rm_so + 1,
-					    APPEND);
-				else
+				if (match[0].rm_so < slen)
 					cspace(&SS, s + match[0].rm_so, 1,
 					    APPEND);
 				s += match[0].rm_so + 1;
