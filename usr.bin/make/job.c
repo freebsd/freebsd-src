@@ -106,7 +106,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#ifdef USE_KQUEUE
 #include <sys/event.h>
+#endif
 #include <sys/wait.h>
 #include <err.h>
 #include <errno.h>
