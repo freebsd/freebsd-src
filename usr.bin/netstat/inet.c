@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1988, 1993
+ * Copyright (c) 1983, 1988, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)inet.c	8.4 (Berkeley) 4/20/94";
+static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -217,6 +217,7 @@ tcp_stats(off, name)
 	p(tcps_rcvshort, "\t\t%d discarded because packet too short\n");
 	p(tcps_connattempt, "\t%d connection request%s\n");
 	p(tcps_accepts, "\t%d connection accept%s\n");
+	p(tcps_badsyn, "\t%d bad connection attempt%s\n");
 	p(tcps_connects, "\t%d connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
 		"\t%d connection%s closed (including %d drop%s)\n");
