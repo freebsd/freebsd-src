@@ -1,4 +1,4 @@
-<!-- $Id: ports.sgml,v 1.6 1995/07/12 15:01:38 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.7 1995/09/27 00:46:26 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>The Ports collection<label id="ports"></heading>
@@ -32,7 +32,7 @@ those shell scripts, Makefiles and source code ``diffs'' that are
 necessary to configure and compile the program under FreeBSD.  This
 keeps the entire system down to a manageable size, with the current
 system having over 300 ports in the master source tree and yet taking
-up less than ten megabytes.
+up less than twenty megabytes.
 
 
 <sect1><heading>How does the system compile with no source code?</heading>
@@ -134,10 +134,8 @@ going to the top of the tree and typing ``make fetch''.
 
 <sect1><heading>I've ported a program and I want to make a port out of it. What now?</heading>
 
-<p>   See the file GUIDELINES, in:
-	   ftp://ftp.FreeBSD.org/pub/FreeBSD/ports/GUIDELINES
-   This contains details of the procedure and structure involved.
-
+<p>   See the <ref id="porting:starting" name="guidelines"> that
+      contain details of the procedure and structure involved.
 
 <sect1><heading>I've got a good port, what now?</heading>
 

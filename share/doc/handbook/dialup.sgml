@@ -1,6 +1,6 @@
 <!-- This is an SGML document in the linuxdoc DTD of the Tutorial for
      Configuring a FreeBSD for Dialup Services by Guy Helmer.
-     $Id: dialup.sgml,v 1.2 1995/06/30 17:37:34 jfieber Exp $
+     $Id: dialup.sgml,v 1.3 1995/08/29 01:42:35 jfieber Exp $
 
 <!DOCTYPE linuxdoc PUBLIC "-//Linux//DTD linuxdoc//EN">
 
@@ -208,7 +208,7 @@ messages while the kernel is booting, or use the
 <tt>/sbin/dmesg</tt> command to replay the kernel's boot messages.  In
 particular, look for messages that start with the characters <tt/sio/.
 Hint: to view just the messages that have the word <tt/sio/, use the
-command 
+command: 
 
 <tscreen><verb>
 /usr/sbin/dmesg | grep 'sio'
@@ -247,7 +247,7 @@ already) by <tt/cd/ing to <tt>/sys/i386/conf</tt>.  Then, if you are
 creating a new custom configuration file, copy the file GENERICAH (or
 GENERICBT, if you have a BusTek SCSI controller on FreeBSD 1.x) to
 <em/YOURSYS/, where <em/YOURSYS/ is the name of your system, but in
-upper-case letters.  Edit the file, and change the device lines
+upper-case letters.  Edit the file, and change the device lines:
 
 <tscreen><verb>
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
@@ -790,9 +790,10 @@ the <tt/DTR/ line is asserted by checking the modem's indicator lights
 
 If you've gone over everything several times and it still doesn't work,
 take a break and come back to it later.  If it still doesn't work,
-perhaps you can send an electronic mail message to
-<tt>FreeBSD-Questions@freebsd.org</tt> describing your modem and your
-problem, and the good folks on the list will try to help.
+perhaps you can send an electronic mail message to <tt><htmlurl
+url="mailto:questions@freebsd.org" name="questions@FreeBSD.ORG"></tt>
+describing your modem and your problem, and the good folks on the list will
+try to help.
 
 <sect1><heading>Acknowledgements</heading>
 <p>
