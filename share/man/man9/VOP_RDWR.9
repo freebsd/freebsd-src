@@ -220,8 +220,14 @@ vop_write(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 .Ed
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EFBIG
+An attempt was made to write a file that exceeds the process's file size
+limit or the maximum file size.
 .It Bq Er ENOSPC
 The filesystem is full.
+.It Bq Er EPERM
+An append-only flag is set on the file, but the caller is attempting to
+write before the current end of file.
 .El
 .Sh SEE ALSO
 .Xr uiomove 9 ,
