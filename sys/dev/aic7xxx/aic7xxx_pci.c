@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#27 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#28 $
  *
  * $FreeBSD$
  */
@@ -839,6 +839,14 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	    ahc_pci_read_config(ahc->dev_softc, CSIZE_LATTIME,
 				/*bytes*/1) & CACHESIZE;
 	ahc->pci_cachesize *= 4;
+
+	if ((ahc->bugs & AHC_PCI_2_1_RETRY_BUG) != 0
+	 && ahc->pci_cachesize == 4) {
+
+		ahc_pci_write_config(ahc->dev_softc, CSIZE_LATTIME,
+				     0, /*bytes*/1);
+		ahc->pci_cachesize = 0;
+	}
 
 	/*
 	 * We cannot perform ULTRA speeds without the presense
