@@ -325,7 +325,7 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 #endif
 	}
 
-	if (map != NULL) {
+	if (map != NULL && map != &nobounce_dmamap) {
 		if (STAILQ_FIRST(&map->bpages) != NULL)
 			return (EBUSY);
 		free(map, M_DEVBUF);
