@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.19 1999/05/09 17:06:57 peter Exp $
+ *	$Id: if_pn.c,v 1.20 1999/05/26 23:08:04 gallatin Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.19 1999/05/09 17:06:57 peter Exp $";
+	"$Id: if_pn.c,v 1.20 1999/05/26 23:08:04 gallatin Exp $";
 #endif
 
 
@@ -109,8 +109,6 @@ static struct pn_type pn_devs[] = {
 		"82c168 PNIC 10/100BaseTX" },
 	{ PN_VENDORID, PN_DEVICEID_PNIC,
 		"82c169 PNIC 10/100BaseTX" },
-	{ PN_VENDORID, PN_DEVICEID_PNIC_II,
-		"82c115 PNIC II 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 

@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mx.4,v 1.2 1998/12/05 09:31:25 rnordier Exp $
+.\"	$Id: mx.4,v 1.3 1999/03/25 00:52:44 wpaul Exp $
 .\"
 .Dd November 5, 1998
 .Dt MX 4 i386
@@ -46,7 +46,12 @@ driver provides support for PCI ethernet adapters and embedded
 controllers based on the Macronix 98713, 98713A, 98715, 98715A and
 98725 fast ethernet controller chips. This includes the NDC
 Communications SOHOware SFA110, the SVEC PN102-TX
-fast ethernet card, and various other adapters.
+fast ethernet card, and various other adapters. The
+.Nm
+driver also supports the Lite-On 82c115 PNIC II chip, which is
+actually similar in design to the Macronix 98715A with the addition
+of wake on LAN support. Supported PNIC II cards include the
+LinkSys LNE100TX Version 2.
 .Pp
 The Macronix chips use bus master DMA and are designed to be
 DEC 'tulip' workalikes. The original 98713 had an MII bus for
