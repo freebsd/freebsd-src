@@ -45,6 +45,11 @@ device		apic			# I/O apic
 # Optional:
 options 	NO_MIXED_MODE		# Disable use of mixed mode
 
+#
+# Watchdog routines.
+#
+options 	MP_WATCHDOG
+
 
 #####################################################################
 # CPU OPTIONS
@@ -443,8 +448,8 @@ device		stg
 # it's tested on a big-endian machine
 #
 device		safe		# SafeNet 1141
-options		SAFE_DEBUG	# enable debugging support: hw.safe.debug
-options		SAFE_RNDTEST	# enable rndtest support
+options 	SAFE_DEBUG	# enable debugging support: hw.safe.debug
+options 	SAFE_RNDTEST	# enable rndtest support
 
 #####################################################################
 
@@ -607,7 +612,7 @@ device		i4b
 #
 # userland driver to do ISDN tracing (for passive cards only)
 device		i4btrc
-options		NI4BTRC=4
+options 	NI4BTRC=4
 #
 # userland driver to control the whole thing
 device		i4bctl
@@ -617,7 +622,7 @@ device		i4bctl
 #
 # userland driver for access to raw B channel
 device		i4brbch
-options		NI4BRBCH=4
+options 	NI4BRBCH=4
 #
 # userland driver for telephony
 device		i4btel
@@ -638,7 +643,7 @@ options 	NI4BISPPP=4
 #
 # B-channel interface to the netgraph subsystem
 device		i4bing
-options		NI4BING=2
+options 	NI4BING=2
 #
 # CAPI driver needed for active ISDN cards (see iavc driver above)
 device		i4bcapi
