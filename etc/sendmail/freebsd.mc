@@ -60,7 +60,7 @@ dnl Dialup users should uncomment and define this appropriately
 dnl define(`SMART_HOST', `your.isp.mail.server')dnl
 FEATURE(local_lmtp)dnl
 define(`LOCAL_MAILER_FLAGS', LOCAL_MAILER_FLAGS`'P)dnl
-define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
+define(`confCW_FILE', `/etc/mail/sendmail.cw')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confMAX_MIME_HEADER_LENGTH', `256/128')dnl
 MAILER(local)dnl
