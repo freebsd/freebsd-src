@@ -205,9 +205,15 @@ static int pageshift;		/* log base 2 of the pagesize */
 long percentages();
 
 #ifdef ORDER
-/* sorting orders. first is default */
-char *ordernames[] = {
+/*
+ * Sorting orders.  One vector per display mode.
+ * The first element is the default for each mode.
+ */
+char *proc_ordernames[] = {
 	"cpu", "size", "res", "time", "pri", NULL
+};
+char *io_ordernames[] = {
+	"total", "read", "write", "fault", NULL
 };
 #endif
 
@@ -265,7 +271,15 @@ machine_init(struct statics *statics)
 	statics->memory_names = memorynames;
 	statics->swap_names = swapnames;
 #ifdef ORDER
-	statics->order_names = ordernames;
+	switch (displaymode) {
+	case DISP_IO:
+		statics->order_names = io_ordernames;
+		break;
+	case DISP_CPU:
+	default:
+		statics->order_names = proc_ordernames;
+		break;
+	}
 #endif
 
 	/* all done! */
@@ -917,14 +931,74 @@ compare_prio(void *arg1, void *arg2)
 }
 #endif
 
+/* compare_io - the comparison function for sorting by total io */
+
 int
+#ifdef ORDER
+compare_iototal(void *arg1, void *arg2)
+#else
 io_compare(void *arg1, void *arg2)
+#endif
 {
 	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
 	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
 
 	return (get_io_total(p2) - get_io_total(p1));
 }
+
+#ifdef ORDER
+/* io compare routines */
+int compare_ioread(), compare_iowrite(), compare_iofault();
+
+int (*io_compares[])() = {
+	compare_iototal,
+	compare_ioread,
+	compare_iowrite,
+	compare_iofault,
+	NULL
+};
+
+int
+compare_ioread(void *arg1, void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	long dummy, inp1, inp2;
+
+	(void) get_io_stats(p1, &inp1, &dummy, &dummy);
+	(void) get_io_stats(p2, &inp2, &dummy, &dummy);
+
+	return (inp2 - inp1);
+}
+
+int
+compare_iowrite(void *arg1, void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	long dummy, oup1, oup2;
+
+	(void) get_io_stats(p1, &dummy, &oup1, &dummy);
+	(void) get_io_stats(p2, &dummy, &oup2, &dummy);
+
+	return (oup2 - oup1);
+}
+
+int
+compare_iofault(void *arg1, void *arg2)
+{
+	struct kinfo_proc *p1 = *(struct kinfo_proc **)arg1;
+	struct kinfo_proc *p2 = *(struct kinfo_proc **)arg2;
+	long dummy, flp1, flp2;
+
+	(void) get_io_stats(p1, &dummy, &dummy, &flp1);
+	(void) get_io_stats(p2, &dummy, &dummy, &flp2);
+
+	return (flp2 - flp1);
+}
+
+#endif /* ORDER */
+
 /*
  * proc_owner(pid) - returns the uid that owns process "pid", or -1 if
  *		the process does not exist.
