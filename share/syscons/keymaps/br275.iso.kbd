@@ -3,7 +3,7 @@
 # code  base   shift  cntrl  shift  alt    shift  cntrl  shift state
 # ------------------------------------------------------------------
   000   nop    nop    nop    nop    nop    nop    nop    nop     O
-  001   esc    esc    nop    nop    esc    esc    nop    nop     O
+  001   esc    esc    nop    nop    esc    esc    debug  nop     O
   002   '1'    '!'    nop    nop    185    '!'    nop    nop     O
   003   '2'    '@'    nul    nul    178    '@'    nul    nul     O
   004   '3'    '#'    nop    nop    179    '#'    nop    nop     O
@@ -59,7 +59,7 @@
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    nscr   nscr   '*'    '*'    nscr   nscr    O
   056   lalt   lalt   lalt   lalt   lalt   lalt   lalt   lalt    O
-  057   ' '    ' '    nul    ' '    ' '    ' '    ' '    ' '     O
+  057   ' '    ' '    nul    ' '    ' '    ' '    susp   ' '     O
   058   clock  clock  clock  clock  clock  clock  clock  clock   O
   059   fkey01 fkey13 fkey25 fkey37 scr01  scr11  scr01  scr11   O
   060   fkey02 fkey14 fkey26 fkey38 scr02  scr12  scr02  scr12   O
