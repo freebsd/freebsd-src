@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.17 1995/10/16 15:13:55 jkh Exp $
+ * $Id: disks.c,v 1.31.2.18 1995/10/19 15:54:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,15 +60,13 @@ record_chunks(Disk *d)
     int last_free = 0;
     if (!d->chunks)
 	msgFatal("No chunk list found for %s!", d->name);
-    c1 = d->chunks->part;
     current_chunk = 0;
-    while (c1) {
+    for (c1 = d->chunks->part; c1; c1 = c1->next) {
 	if (c1->type == unused && c1->size > last_free) {
 	    last_free = c1->size;
 	    current_chunk = i;
 	}
 	chunk_info[i++] = c1;
-	c1 = c1->next;
     }
     chunk_info[i] = NULL;
 }

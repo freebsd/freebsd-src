@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.7.2.3 1995/10/14 19:13:19 jkh Exp $
+ * $Id: floppy.c,v 1.7.2.4 1995/10/18 00:12:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -121,6 +121,7 @@ Boolean
 mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
+    struct ufs_args u_args;
 
     if (floppyMounted)
 	return TRUE;
@@ -134,13 +135,20 @@ mediaInitFloppy(Device *dev)
     	msgConfirm("Please insert next floppy into %s", dev->description);
     else
 	msgConfirm("Please insert floppy containing %s into %s", distWanted, dev->description);
+
     memset(&dosargs, 0, sizeof dosargs);
     dosargs.fspec = dev->devname;
     dosargs.uid = dosargs.gid = 0;
     dosargs.mask = 0777;
-    if (mount(MOUNT_MSDOS, "/dist", 0, (caddr_t)&dosargs) == -1) {
-	msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
-	return FALSE;
+
+    memset(&u_args, 0, sizeof(u_args));
+    u_args.fspec = dev->devname;
+
+    if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&dosargs) == -1) {
+	if (mount(MOUNT_UFS, "/dist", MNT_RDONLY, (caddr_t)&u_args) == -1) {
+	    msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
+	    return FALSE;
+	}
     }
     msgDebug("initFloppy: mounted floppy %s successfully on /dist\n", dev->devname);
     floppyMounted = TRUE;
@@ -174,7 +182,6 @@ mediaGetFloppy(Device *dev, char *file, Boolean tentative)
 	    }
 	}
     }
-
     fd = open(buf, O_RDONLY);
     return fd;
 }

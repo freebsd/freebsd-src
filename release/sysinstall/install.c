@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.44 1995/10/20 14:24:46 jkh Exp $
+ * $Id: install.c,v 1.71.2.45 1995/10/20 15:40:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -376,7 +376,7 @@ installExpress(char *str)
     if (!msgYesNo("Would you like to go to the general configuration menu for any last\n"
 		  "additional configuration options?"))
 	dmenuOpenSimple(&MenuConfigure);
-    return 0;
+    return RET_DONE;
 }
 
 /*

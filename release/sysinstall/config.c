@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.17 1995/10/18 00:11:49 jkh Exp $
+ * $Id: config.c,v 1.16.2.18 1995/10/20 07:02:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -397,13 +397,19 @@ configPackages(char *str)
 	pos = scroll = 0;
 	index_menu(&top, &plist, &pos, &scroll);
 
-	/* Now show the packling list menu */
-	pos = scroll = 0;
-	ret = index_menu(&plist, NULL, &pos, &scroll);
-	if (ret == RET_DONE)
-	    break;
-	else if (ret != RET_FAIL) {
-	    index_extract(mediaDevice, &plist);
+	if (plist.kids) {
+	    /* Now show the packling list menu */
+	    pos = scroll = 0;
+	    ret = index_menu(&plist, NULL, &pos, &scroll);
+	    if (ret == RET_DONE)
+		break;
+	    else if (ret != RET_FAIL) {
+		index_extract(mediaDevice, &plist);
+		break;
+	    }
+	}
+	else {
+	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
     }

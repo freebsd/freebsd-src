@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.6.2.3 1995/10/07 11:55:19 jkh Exp $
+ * $Id: dos.c,v 1.6.2.4 1995/10/18 00:12:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,7 +66,7 @@ mediaInitDOS(Device *dev)
     if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
-    if (Mkdir("/dist", NULL) != RET_SUCCESS)
+    if (Mkdir("/dos", NULL) != RET_SUCCESS)
 	return FALSE;
 
     memset(&args, 0, sizeof(args));
@@ -74,12 +74,12 @@ mediaInitDOS(Device *dev)
     args.uid = args.gid = 0;
     args.mask = 0777;
 
-    if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&args) == -1) {
-	msgConfirm("Error mounting %s on /dist: %s (%u)\n", args.fspec, strerror(errno), errno);
+    if (mount(MOUNT_MSDOS, "/dos", MNT_RDONLY, (caddr_t)&args) == -1) {
+	msgConfirm("Error mounting %s on /dos: %s (%u)\n", args.fspec, strerror(errno), errno);
 	return FALSE;
     }
     else
-	msgDebug("Mounted DOS device (%s) on /dist.\n", args.fspec);
+	msgDebug("Mounted DOS device (%s) on /dos.\n", args.fspec);
     DOSMounted = TRUE;
     return TRUE;
 }
@@ -90,16 +90,16 @@ mediaGetDOS(Device *dev, char *file, Boolean tentative)
     char		buf[PATH_MAX];
 
     msgDebug("Request for %s from DOS\n", file);
-    snprintf(buf, PATH_MAX, "/dist/freebsd/%s", file);
+    snprintf(buf, PATH_MAX, "/dos/freebsd/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dist/freebsd/dists/%s", file);
+    snprintf(buf, PATH_MAX, "/dos/freebsd/dists/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dist/%s", file);
+    snprintf(buf, PATH_MAX, "/dos/%s", file);
     if (file_readable(buf))
 	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
+    snprintf(buf, PATH_MAX, "/dos/dists/%s", file);
     return open(buf, O_RDONLY);
 }
 
@@ -108,8 +108,8 @@ mediaShutdownDOS(Device *dev)
 {
     if (!RunningAsInit || !DOSMounted)
 	return;
-    msgDebug("Unmounting %s from /dist\n", dev->name);
-    if (unmount("/dist", MNT_FORCE) != 0)
+    msgDebug("Unmounting %s from /dos\n", dev->name);
+    if (unmount("/dos", MNT_FORCE) != 0)
 	msgConfirm("Could not unmount the DOS partition: %s\n", strerror(errno));
     if (isDebug())
 	msgDebug("Unmount successful\n");
