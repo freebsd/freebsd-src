@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.30 1998/06/09 14:02:07 dfr Exp $";
+	"$Id: mkmakefile.c,v 1.31 1998/06/24 06:16:32 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -136,24 +136,6 @@ new_fent()
 	return (fp);
 }
 
-static	struct users {
-	int	u_default;
-	int	u_min;
-	int	u_max;
-} users[] = {
-	{ 8, 2, 512 },			/* MACHINE_VAX */
-	{ 8, 2, 512 },			/* MACHINE_TAHOE */
-	{ 8, 2, 512 },			/* MACHINE_HP300 */
-	{ 8, 2, 512 },			/* MACHINE_I386 */
-	{ 8, 2, 512 },			/* MACHINE_MIPS */
-	{ 8, 2, 512 },			/* MACHINE_PMAX */
-	{ 8, 2, 512 },			/* MACHINE_LUNA68K */
-	{ 8, 2, 512 },			/* MACHINE_NEWS3400 */
-	{ 8, 2, 512 },			/* MACHINE_PC98 */
-	{ 8, 2, 512 },			/* MACHINE_ALPHA */
-};
-#define	NUSERS	(sizeof (users) / sizeof (users[0]))
-
 /*
  * Build the makefile from the skeleton
  */
@@ -163,7 +145,6 @@ makefile()
 	FILE *ifp, *ofp;
 	char line[BUFSIZ];
 	struct opt *op;
-	struct users *up;
 	int warn_make_clean = 0;
 	int versreq;
 
@@ -185,13 +166,6 @@ makefile()
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
-#if 0
-	/* XXX: moved to cputype.h */
-	{ struct cputype *cp;
-	  for (cp = cputype; cp; cp = cp->cpu_next)
-		fprintf(ofp, " -D%s", cp->cpu_name);
-	}
-#endif
 	for (op = opt; op; op = op->op_next) {
 		if (!op->op_ownfile) {
 			warn_make_clean++;
@@ -204,20 +178,6 @@ makefile()
 		}
 	}
 	fprintf(ofp, "\n");
-	if ((unsigned)machine > NUSERS) {
-		printf("maxusers config info isn't present, using vax\n");
-		up = &users[MACHINE_VAX-1];
-	} else
-		up = &users[machine-1];
-	if (maxusers == 0) {
-		printf("maxusers not specified; %d assumed\n", up->u_default);
-		maxusers = up->u_default;
-	} else if (maxusers < up->u_min) {
-		printf("minimum of %d maxusers assumed\n", up->u_min);
-		maxusers = up->u_min;
-	} else if (maxusers > up->u_max)
-		printf("warning: maxusers > %d (%d)\n", up->u_max, maxusers);
-	fprintf(ofp, "PARAM=-DMAXUSERS=%d\n", maxusers);
 	if (loadaddress != -1) {
 		fprintf(ofp, "LOAD_ADDRESS=%X\n", loadaddress);
 	}

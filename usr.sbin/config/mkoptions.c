@@ -37,7 +37,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkoptions.c,v 1.6 1997/09/15 06:37:10 charnier Exp $";
+	"$Id: mkoptions.c,v 1.7 1998/07/12 02:31:08 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -53,6 +53,24 @@ static const char rcsid[] =
 
 #define ns(s) strdup(s)
 
+static	struct users {
+	int	u_default;
+	int	u_min;
+	int	u_max;
+} users[] = {
+	{ 8, 2, 512 },			/* MACHINE_VAX */
+	{ 8, 2, 512 },			/* MACHINE_TAHOE */
+	{ 8, 2, 512 },			/* MACHINE_HP300 */
+	{ 8, 2, 512 },			/* MACHINE_I386 */
+	{ 8, 2, 512 },			/* MACHINE_MIPS */
+	{ 8, 2, 512 },			/* MACHINE_PMAX */
+	{ 8, 2, 512 },			/* MACHINE_LUNA68K */
+	{ 8, 2, 512 },			/* MACHINE_NEWS3400 */
+	{ 8, 2, 512 },			/* MACHINE_PC98 */
+	{ 8, 2, 512 },			/* MACHINE_ALPHA */
+};
+#define	NUSERS	(sizeof (users) / sizeof (users[0]))
+
 static	char *lower __P((char *));
 void read_options __P((void));
 void do_option __P((char *));
@@ -60,20 +78,44 @@ void do_option __P((char *));
 void
 options()
 {
-	struct opt_list *ol;
-
-	/* fake the cpu types as options */
-	/* Please forgive me for this hack.. :-) */
+	char buf[40];
 	struct cputype *cp;
+	struct opt_list *ol;
+	struct opt *op;
+	struct users *up;
 
-	for (cp = cputype; cp; cp = cp->cpu_next) {
-		struct opt *op = (struct opt *)malloc(sizeof (struct opt));
+	/* Fake the cpu types as options. */
+	for (cp = cputype; cp != NULL; cp = cp->cpu_next) {
+		op = (struct opt *)malloc(sizeof(*op));
 		memset(op, 0, sizeof(*op));
 		op->op_name = ns(cp->cpu_name);
-		op->op_value = 0;
 		op->op_next = opt;
 		opt = op;
 	}	
+
+	/* Initialize `maxusers'. */
+	if ((unsigned)machine > NUSERS) {
+		printf("maxusers config info isn't present, using vax\n");
+		up = &users[MACHINE_VAX - 1];
+	} else
+		up = &users[machine - 1];
+	if (maxusers == 0) {
+		printf("maxusers not specified; %d assumed\n", up->u_default);
+		maxusers = up->u_default;
+	} else if (maxusers < up->u_min) {
+		printf("minimum of %d maxusers assumed\n", up->u_min);
+		maxusers = up->u_min;
+	} else if (maxusers > up->u_max)
+		printf("warning: maxusers > %d (%d)\n", up->u_max, maxusers);
+
+	/* Fake MAXUSERS as an option. */
+	op = (struct opt *)malloc(sizeof(*op));
+	memset(op, 0, sizeof(*op));
+	op->op_name = "MAXUSERS";
+	sprintf(buf, "%d", maxusers);
+	op->op_value = ns(buf);
+	op->op_next = opt;
+	opt = op;
 
 	read_options();
 	for (ol = otab; ol != 0; ol = ol->o_next)
