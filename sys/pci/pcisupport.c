@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.18 1995/08/15 09:43:42 se Exp $
+**  $Id: pcisupport.c,v 1.19 1995/09/07 14:17:46 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -86,7 +86,6 @@ struct condmsg {
 static char*
 chipset_probe (pcici_t tag, pcidi_t type)
 {
-	u_long data;
 	unsigned	rev;
 
 	switch (type) {
@@ -104,7 +103,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 #ifdef undef
 	case 0x04868086:
 		return ("Intel 82430ZX (Aries)");
-#endif
+#endif /* undef */
 	case 0x04a38086:
 		rev = (unsigned) pci_conf_read (tag, PCI_CLASS_REG) & 0xff;
 		if (rev == 16 || rev == 17)
@@ -128,26 +127,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("DEC 21050 PCI-PCI bridge");
 	};
 
-	/*
-	**	check classes
-	*/
-
-	data = pci_conf_read(tag, PCI_CLASS_REG);
-	switch (data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) {
-
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_HOST:
-		return ("CPU-PCI bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_ISA:
-		return ("PCI-ISA bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_EISA:
-		return ("PCI-EISA bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_MC:
-		return ("PCI-MC bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI:
-		return ("PCI-PCI bridge");
-	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCMCIA:
-		return ("PCI-PCMCIA bridge");
-	};
 	return ((char*)0);
 }
 
