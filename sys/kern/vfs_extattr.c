@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.83 1997/11/22 06:10:36 bde Exp $
+ * $Id: vfs_syscalls.c,v 1.84 1997/11/22 06:41:21 bde Exp $
  */
 
 /*
@@ -2752,17 +2752,15 @@ __getcwd(p, uap)
 	struct proc *p;
 	struct __getcwd_args *uap;
 {
+	char *bp, *buf;
+	int error, i, slash_prefixed;
 	struct filedesc *fdp;
-	struct vnode *vp;
 	struct namecache *ncp;
-	char *buf, *bp;
-	int i, j, error;
+	struct vnode *vp;
 
+	numcwdcalls++;
 	if (disablecwd)
 		return (ENODEV);
-	fdp = p->p_fd;
-	j = 0;
-	error = 0;
 	if (uap->buflen < 2)
 		return (EINVAL);
 	if (uap->buflen > MAXPATHLEN)
@@ -2770,7 +2768,8 @@ __getcwd(p, uap)
 	buf = bp = malloc(uap->buflen, M_TEMP, M_WAITOK);
 	bp += uap->buflen - 1;
 	*bp = '\0';
-	numcwdcalls++;
+	fdp = p->p_fd;
+	slash_prefixed = 0;
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
 		if (vp->v_flag & VROOT) {
 			vp = vp->v_mount->mnt_vnodecovered;
@@ -2792,7 +2791,7 @@ __getcwd(p, uap)
 			free(buf, M_TEMP);
 			return (EBADF);
 		}
-		for (i=ncp->nc_nlen - 1; i >= 0; i--) {
+		for (i = ncp->nc_nlen - 1; i >= 0; i--) {
 			if (bp == buf) {
 				numcwdfail4++;
 				free(buf, M_TEMP);
@@ -2806,10 +2805,10 @@ __getcwd(p, uap)
 			return (ENOMEM);
 		}
 		*--bp = '/';
-		j++;
+		slash_prefixed = 1;
 		vp = vp->v_dd;
 	}
-	if (!j) {
+	if (!slash_prefixed) {
 		if (bp == buf) {
 			numcwdfail4++;
 			free(buf, M_TEMP);
