@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c     8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: inetd.c,v 1.15.2.5 1997/09/22 06:23:24 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -158,8 +158,9 @@ struct	servtab {
 	char	*se_service;		/* name of service */
 	int	se_socktype;		/* type of socket to use */
 	char	*se_proto;		/* protocol used */
-	short	se_maxchild;		/* max number of children */
-	short	se_numchild;		/* current number of children */
+	int	se_maxchild;		/* max number of children */
+	int	se_maxcpm;		/* max connects per minute    */
+	int	se_numchild;		/* current number of children */
 	pid_t	*se_pids;		/* array of child pids */
 	char	*se_user;		/* user name to run as */
 	struct	biltin *se_bi;		/* if built-in, description */
@@ -217,6 +218,7 @@ void		setup __P((struct servtab *));
 char	       *sskip __P((char **));
 char	       *skip __P((char **));
 struct servtab *tcpmux __P((int));
+int 		cpmip __P((struct servtab *, int));
 
 void		unregisterrpc __P((register struct servtab *sep));
 
@@ -224,7 +226,7 @@ struct biltin {
 	char	*bi_service;		/* internally provided service name */
 	int	bi_socktype;		/* type of socket supported */
 	short	bi_fork;		/* 1 if should fork before call */
-	short	bi_maxchild;		/* max number of children (default) */
+	int	bi_maxchild;		/* max number of children (default) */
 	void	(*bi_fn)();		/* function which performs it */
 } biltins[] = {
 	/* Echo received data */
@@ -413,13 +415,18 @@ main(argc, argv, envp)
 						sep->se_service);
 				    continue;
 			    }
+			    if (cpmip(sep, ctrl) < 0) {
+				    close(ctrl);
+				    continue;
+			    }
 			    if (log) {
 				i = sizeof peer;
-				if(getpeername(ctrl, (struct sockaddr *)
+				if (getpeername(ctrl, (struct sockaddr *)
 						&peer, &i)) {
 					syslog(LOG_WARNING,
 						"getpeername(for %s): %m",
 						sep->se_service);
+					close(ctrl);
 					continue;
 				}
 				syslog(LOG_INFO,"%s from %s",
@@ -670,6 +677,7 @@ config(signo)
 			SWAP(sep->se_pids, new->se_pids);
 			sep->se_maxchild = new->se_maxchild;
 			sep->se_numchild = new->se_numchild;
+			sep->se_maxcpm   = new->se_maxcpm;
 			/* might need to turn on or off service now */
 			if (sep->se_fd >= 0) {
 			      if (sep->se_maxchild
@@ -1096,18 +1104,25 @@ more:
 		goto more;
 	}
 	sep->se_maxchild = -1;
+	sep->se_maxcpm   = -1;
 	if ((s = strchr(arg, '/')) != NULL) {
 		char *eptr;
 		u_long val;
 
 		val = strtoul(s + 1, &eptr, 10);
-		if (eptr == s + 1 || *eptr || val > MAX_MAXCHLD) {
+		if (eptr == s + 1 || val > MAX_MAXCHLD) {
 			syslog(LOG_ERR,
 				"%s: bad max-child for service %s",
 				CONFIG, sep->se_service);
 			goto more;
 		}
 		sep->se_maxchild = val;
+		if (*eptr == '/')
+			sep->se_maxcpm = strtol(eptr + 1, &eptr, 10);
+		/*
+		 * explicitly do not check for \0 for future expansion /
+		 * backwards compatibility
+		 */
 	}
 	if (ISMUX(sep)) {
 		/*
@@ -1693,4 +1708,107 @@ tcpmux(s)
 	}
 	strwrite(s, "-Service not available\r\n");
 	return (NULL);
+}
+
+#define CPMHSIZE	256
+#define CPMHMASK	(CPMHSIZE-1)
+#define CHTGRAN		10
+#define CHTSIZE		6
+
+typedef struct CTime {
+	unsigned long 	ct_Ticks;
+	int		ct_Count;
+} CTime;
+
+typedef struct CHash {
+	struct in_addr	ch_Addr;
+	time_t		ch_LTime;
+	char		*ch_Service;
+	CTime		ch_Times[CHTSIZE];
+} CHash;
+
+CHash	CHashAry[CPMHSIZE];
+
+int
+cpmip(sep, ctrl)
+	struct servtab *sep;
+	int ctrl;
+{
+	struct sockaddr_in rsin;
+	int rsinLen = sizeof(rsin);
+	int r = 0;
+
+	/*
+	 * If getpeername() fails, just let it through (if logging is
+	 * enabled the condition is caught elsewhere)
+	 */
+
+	if (sep->se_maxcpm > 0 && 
+	    getpeername(ctrl, (struct sockaddr *)&rsin, &rsinLen) == 0 ) {
+		time_t t = time(NULL);
+		int hv = 0xABC3D20F;
+		int i;
+		int cnt = 0;
+		CHash *chBest = NULL;
+		unsigned int ticks = t / CHTGRAN;
+
+		{
+			char *p;
+			int i;
+
+			for (i = 0, p = (char *)&rsin.sin_addr; 
+			    i < sizeof(rsin.sin_addr); 
+			    ++i, ++p) {
+				hv = (hv << 5) ^ (hv >> 23) ^ *p;
+			}
+			hv = (hv ^ (hv >> 16));
+		}
+		for (i = 0; i < 5; ++i) {
+			CHash *ch = &CHashAry[(hv + i) & CPMHMASK];
+
+			if (rsin.sin_addr.s_addr == ch->ch_Addr.s_addr &&
+			    ch->ch_Service && strcmp(sep->se_service,
+			    ch->ch_Service) == 0) {
+				chBest = ch;
+				break;
+			}
+			if (chBest == NULL || ch->ch_LTime == 0 || 
+			    ch->ch_LTime < chBest->ch_LTime) {
+				chBest = ch;
+			}
+		}
+		if (rsin.sin_addr.s_addr != chBest->ch_Addr.s_addr ||
+		    chBest->ch_Service == NULL ||
+		    strcmp(sep->se_service, chBest->ch_Service) != 0) {
+			chBest->ch_Addr = rsin.sin_addr;
+			if (chBest->ch_Service)
+				free(chBest->ch_Service);
+			chBest->ch_Service = strdup(sep->se_service);
+			bzero(chBest->ch_Times, sizeof(chBest->ch_Times));
+		} 
+		chBest->ch_LTime = t;
+		{
+			CTime *ct = &chBest->ch_Times[ticks % CHTSIZE];
+			if (ct->ct_Ticks != ticks) {
+				ct->ct_Ticks = ticks;
+				ct->ct_Count = 0;
+			}
+			++ct->ct_Count;
+		}
+		for (i = 0; i < CHTSIZE; ++i) {
+			CTime *ct = &chBest->ch_Times[i];
+			if (ct->ct_Ticks <= ticks &&
+			    ct->ct_Ticks >= ticks - CHTSIZE) {
+				cnt += ct->ct_Count;
+			}
+		}
+		if (cnt * (CHTSIZE * CHTGRAN) / 60 > sep->se_maxcpm) {
+			r = -1;
+			syslog(LOG_ERR,
+			    "%s from %s exceeded counts/min limit %d/%d",
+			    sep->se_service, inet_ntoa(rsin.sin_addr), cnt,
+			    sep->se_maxcpm);
+		}
+	}
+	return(r);
 }
