@@ -901,9 +901,16 @@ falloc(p, resultfp, resultfd)
 {
 	register struct file *fp, *fq;
 	int error, i;
+	int maxuserfiles = maxfiles - (maxfiles / 20);
+	static struct timeval lastfail;
+	static int curfail;
 
-	if (nfiles >= maxfiles) {
-		tablefull("file");
+	if ((nfiles >= maxuserfiles && p->p_cred->p_ruid != 0)
+	   || nfiles >= maxfiles) {
+		if (ppsratecheck(&lastfail, &curfail, 1)) {
+			printf("kern.maxfiles limit exceeded by uid %d, please see tuning(7).\n",
+				p->p_cred->p_ruid);
+		}
 		return (ENFILE);
 	}
 	/*
