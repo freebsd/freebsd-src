@@ -138,13 +138,13 @@ struct ciss_error_info
 	    u_int8_t	res1[3];
 	    u_int8_t	type;
 	    u_int32_t	error_info;
-	} common_info __packed;
+	} __packed common_info;
 	struct {
 	    u_int8_t	res1[2];
 	    u_int8_t	offense_size;
 	    u_int8_t	offense_offset;
 	    u_int32_t	offense_value;
-	} invalid_command __packed;
+	} __packed invalid_command;
     } additional_error_info;
     u_int8_t	sense_info[0];
 } __packed;
