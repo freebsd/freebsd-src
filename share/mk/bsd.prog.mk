@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.17 1995/01/14 19:48:49 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.18 1995/01/24 17:33:22 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -65,7 +65,7 @@ LDDESTDIR+=	-L${DESTDIR}/usr/lib
 .if defined(SRCS)
 
 DPSRCS+= ${SRCS:M*.h}
-.if !defined(NOOBJS)
+.if !defined(NOOBJ)
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 .endif
 
