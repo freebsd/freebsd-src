@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ahareg.h,v 1.4 1998/11/10 06:44:42 gibbs Exp $
+ *      $Id: ahareg.h,v 1.5 1999/01/20 06:21:27 imp Exp $
  */
 
 #ifndef _AHAREG_H_
@@ -382,10 +382,8 @@ struct aha_softc {
 				 tag_capable	  :1,
 				 resource_shortage:1,
 						  :26;
-	u_int16_t		 tags_permitted;
 	u_int16_t		 disc_permitted;
 	u_int16_t		 sync_permitted;
-	u_int16_t		 fast_permitted;
 	u_int8_t		 init_level;
 	volatile u_int8_t	 command_cmp;
 	volatile u_int8_t	 latched_status;
