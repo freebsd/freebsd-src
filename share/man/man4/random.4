@@ -171,7 +171,7 @@ requires cryptographic randomness.
 A cryptographic random number generator should be designed
 so that its output is difficult to guess,
 even if a lot of auxiliary information is known
-(such as when it was seeded, subsequent or previous output, ...).
+(such as when it was seeded, subsequent or previous output, and so on).
 On
 .Fx ,
 seeding for cryptographic random number generators is provided by the
@@ -183,7 +183,14 @@ The
 library call provides a pseudo-random sequence
 which is generally reckoned to be suitable for
 simple cryptographic use.
-The OpenSSL library also provides functions for managing randomness.
+The OpenSSL library also provides functions for managing randomness
+via functions such as
+.Xr RAND_bytes 3
+and
+.Xr RAND_add 3 .
+Note that OpenSSL uses the
+.Nm
+device for seeding automatically.
 .Pp
 Randomness for simulation is required in engineering or
 scientific software and games.
@@ -231,7 +238,7 @@ are provided for deterministically setting
 the state of the generator and
 the function
 .Xr srandomdev 3
-is provided for setting the state the
+is provided for setting the state via the
 .Nm
 device.
 The
@@ -278,6 +285,8 @@ so its use is discouraged.
 .It Pa /dev/random
 .El
 .Sh SEE ALSO
+.Xr RAND_add 3 ,
+.Xr RAND_bytes 3 ,
 .Xr arc4random 3 ,
 .Xr drand48 3 ,
 .Xr rand 3 ,
