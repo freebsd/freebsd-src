@@ -75,7 +75,6 @@ static struct kern_target {
 #define KTT_HOSTNAME	47
 #define KTT_BOOTFILE	49
 #define KTT_AVENRUN	53
-#define KTT_DEVICE	71
 	u_char kt_tag;
 	u_char kt_vtype;
 	mode_t kt_mode;
@@ -93,11 +92,6 @@ static struct kern_target {
      { DT_REG, N("loadavg"),   0,            KTT_AVENRUN,  VREG, READ_MODE  },
      { DT_REG, N("pagesize"),  &cnt.v_page_size, KTT_INT,  VREG, READ_MODE  },
      { DT_REG, N("physmem"),   &physmem,     KTT_INT,      VREG, READ_MODE  },
-#if 0
-     { DT_DIR, N("root"),      0,            KTT_NULL,     VDIR, DIR_MODE   },
-     { DT_BLK, N("rootdev"),   &rootdev,     KTT_DEVICE,   VBLK, READ_MODE  },
-     { DT_CHR, N("rrootdev"),  &rrootdev,    KTT_DEVICE,   VCHR, READ_MODE  },
-#endif
      { DT_REG, N("time"),      0,            KTT_TIME,     VREG, READ_MODE  },
      { DT_REG, N("version"),   version,      KTT_STRING,   VREG, READ_MODE  },
 #undef N
@@ -278,18 +272,6 @@ kernfs_lookup(ap)
 	return (cnp->cn_nameiop == LOOKUP ? ENOENT : EROFS);
 
 found:
-	if (kt->kt_tag == KTT_DEVICE) {
-		dev_t *dp = kt->kt_data;
-	loop:
-		if (*dp == NODEV || !vfinddev(*dp, kt->kt_vtype, &fvp)) {
-			vn_lock(dvp, LK_SHARED | LK_RETRY, p);
-			return (ENOENT);
-		}
-		*vpp = fvp;
-		if (vget(fvp, LK_EXCLUSIVE, p))
-			goto loop;
-		return (0);
-	}
 
 #ifdef DEBUG
 	printf("kernfs_lookup: allocate new vnode\n");
@@ -540,14 +522,6 @@ kernfs_readdir(ap)
 #ifdef DEBUG
 		printf("kernfs_readdir: i = %d\n", i);
 #endif
-
-		if (kt->kt_tag == KTT_DEVICE) {
-			dev_t *dp = kt->kt_data;
-			struct vnode *fvp;
-
-			if (*dp == NODEV || !vfinddev(*dp, kt->kt_vtype, &fvp))
-				continue;
-		}
 
 		bzero((caddr_t)dp, UIO_MX);
 		dp->d_namlen = kt->kt_namlen;
