@@ -683,7 +683,7 @@ retry:
 	error = selscan(p, ibits, obits, uap->nd);
 	if (error || p->p_retval[0])
 		goto done;
-	if (atv.tv_sec) {
+	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
 		if (timevalcmp(&rtv, &atv, >=)) 
 			goto done;
@@ -816,7 +816,7 @@ retry:
 	error = pollscan(p, (struct pollfd *)bits, SCARG(uap, nfds));
 	if (error || p->p_retval[0])
 		goto done;
-	if (atv.tv_sec) {
+	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
 		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
