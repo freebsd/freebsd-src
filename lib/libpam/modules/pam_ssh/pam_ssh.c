@@ -241,8 +241,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			continue;
 		authenticated += (retval == PAM_SUCCESS);
 	}
-	if (!authenticated)
+	if (!authenticated) {
+		PAM_VERBOSE_ERROR("SSH authentication refused");
 		PAM_RETURN(PAM_AUTH_ERR);
+	}
 
 	PAM_LOG("Done authenticating; got %d", authenticated);
 
@@ -376,10 +378,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		env_value = strchr(env_string, '=');
 		if (env_value == NULL) {
 			env_end = strchr(env_value, ';');
-			if (env_end != NULL)
+			if (env_end == NULL)
 				continue;
+			*env_end = '\0';
 		}
-		*env_end = '\0';
 		/* pass to the application ... */
 		retval = pam_putenv(pamh, env_string);
 		if (retval != PAM_SUCCESS) {
@@ -388,6 +390,9 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				fclose(env_fp);
 			PAM_RETURN(PAM_SERVICE_ERR);
 		}
+
+		PAM_LOG("Put to environment: %s", env_string);
+
 		*env_value++ = '\0';
 		if (strcmp(&env_string[strlen(env_string) -
 		    strlen(ENV_SOCKET_SUFFIX)], ENV_SOCKET_SUFFIX) == 0) {
@@ -403,6 +408,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			    env_value, ssh_cleanup);
 			if (retval != PAM_SUCCESS)
 				PAM_RETURN(retval);
+			PAM_LOG("Environment write successful");
 		}
 	}
 	if (env_fp)
