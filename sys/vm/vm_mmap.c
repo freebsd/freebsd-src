@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.90 1999/02/19 14:25:36 luoqi Exp $
+ * $Id: vm_mmap.c,v 1.91 1999/03/01 20:42:16 alc Exp $
  */
 
 /*
@@ -675,6 +675,7 @@ mincore(p, uap)
 	register vm_map_entry_t current;
 	vm_map_entry_t entry;
 	int mincoreinfo;
+	unsigned int timestamp;
 
 	/*
 	 * Make sure that the addresses presented are valid for user
@@ -696,6 +697,8 @@ mincore(p, uap)
 	pmap = vmspace_pmap(p->p_vmspace);
 
 	vm_map_lock_read(map);
+RestartScan:
+	timestamp = map->timestamp;
 
 	if (!vm_map_lookup_entry(map, addr, &entry))
 		entry = entry->next;
@@ -766,6 +769,12 @@ mincore(p, uap)
 			}
 
 			/*
+			 * subyte may page fault.  In case it needs to modify
+			 * the map, we release the lock.
+			 */
+			vm_map_unlock_read(map);
+
+			/*
 			 * calculate index into user supplied byte vector
 			 */
 			vecindex = OFF_TO_IDX(addr - first_addr);
@@ -777,7 +786,6 @@ mincore(p, uap)
 			while((lastvecindex + 1) < vecindex) {
 				error = subyte( vec + lastvecindex, 0);
 				if (error) {
-					vm_map_unlock_read(map);
 					return (EFAULT);
 				}
 				++lastvecindex;
@@ -788,13 +796,27 @@ mincore(p, uap)
 			 */
 			error = subyte( vec + vecindex, mincoreinfo);
 			if (error) {
-				vm_map_unlock_read(map);
 				return (EFAULT);
 			}
+
+			/*
+			 * If the map has changed, due to the subyte, the previous
+			 * output may be invalid.
+			 */
+			vm_map_lock_read(map);
+			if (timestamp != map->timestamp)
+				goto RestartScan;
+
 			lastvecindex = vecindex;
 			addr += PAGE_SIZE;
 		}
 	}
+
+	/*
+	 * subyte may page fault.  In case it needs to modify
+	 * the map, we release the lock.
+	 */
+	vm_map_unlock_read(map);
 
 	/*
 	 * Zero the last entries in the byte vector.
@@ -803,13 +825,20 @@ mincore(p, uap)
 	while((lastvecindex + 1) < vecindex) {
 		error = subyte( vec + lastvecindex, 0);
 		if (error) {
-			vm_map_unlock_read(map);
 			return (EFAULT);
 		}
 		++lastvecindex;
 	}
 	
+	/*
+	 * If the map has changed, due to the subyte, the previous
+	 * output may be invalid.
+	 */
+	vm_map_lock_read(map);
+	if (timestamp != map->timestamp)
+		goto RestartScan;
 	vm_map_unlock_read(map);
+
 	return (0);
 }
 
