@@ -796,5 +796,5 @@ ums_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 #if defined(__FreeBSD__)
 DEV_DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass,
-		UMS_CDEV_MAJOR, NODEV, ums_cdevsw, usbd_driver_load, 0);
+		UMS_CDEV_MAJOR, NOMAJ, ums_cdevsw, usbd_driver_load, 0);
 #endif

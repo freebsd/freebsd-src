@@ -443,5 +443,5 @@ ulpt_detach(device_t self)
 }
 
 DEV_DRIVER_MODULE(ulpt, uhub, ulpt_driver, ulpt_devclass,
-		ULPT_CDEV_MAJOR, NODEV, ulpt_cdevsw, usbd_driver_load, 0);
+		ULPT_CDEV_MAJOR, NOMAJ, ulpt_cdevsw, usbd_driver_load, 0);
 #endif

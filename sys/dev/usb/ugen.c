@@ -998,5 +998,5 @@ ugen_detach(device_t self)
 }
 
 DEV_DRIVER_MODULE(ugen, uhub, ugen_driver, ugen_devclass,
-		UGEN_CDEV_MAJOR, NODEV, ugen_cdevsw, usbd_driver_load, 0);
+		UGEN_CDEV_MAJOR, NOMAJ, ugen_cdevsw, usbd_driver_load, 0);
 #endif

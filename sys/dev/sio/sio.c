@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.235 1999/05/09 10:28:50 phk Exp $
+ *	$Id: sio.c,v 1.236 1999/05/09 10:51:13 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -3176,4 +3176,4 @@ siopnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 #endif
 
 DEV_DRIVER_MODULE(sio, isa, sio_driver, sio_devclass,
-		   CDEV_MAJOR, NODEV, sio_cdevsw, 0, 0);
+		   CDEV_MAJOR, NOMAJ, sio_cdevsw, 0, 0);
