@@ -56,18 +56,21 @@ and is listening for connections after a
 .Xr listen 2 .
 The
 .Fn accept
-system call
-extracts the first connection request
-on the queue of pending connections, creates
-a new socket with the same properties as
-.Fa s ,
-and allocates a new file descriptor
-for the socket.  If no pending connections are
-present on the queue, and the socket is not marked
-as non-blocking,
+system call extracts the first connection request on the
+queue of pending connections, creates a new socket,
+and allocates a new file descriptor for the socket which
+inherits the state of the
+.Dv O_NONBLOCK
+property from the original socket
+.Fa s .
+.Pp
+If no pending connections are
+present on the queue, and the original socket
+is not marked as non-blocking,
 .Fn accept
 blocks the caller until a connection is present.
-If the socket is marked non-blocking and no pending
+If the original socket
+is marked non-blocking and no pending
 connections are present on the queue,
 .Fn accept
 returns an error as described below.
