@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.79 1999/07/17 18:43:47 phk Exp $
+ * $Id: nfs_subs.c,v 1.80 1999/08/08 18:42:55 phk Exp $
  */
 
 /*
@@ -1311,26 +1311,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {
 			vp->v_op = spec_nfsv2nodeop_p;
-			nvp = checkalias(vp, rdev, vp->v_mount);
-			if (nvp) {
-				/*
-				 * Discard unneeded vnode, but save its nfsnode.
-				 * Since the nfsnode does not have a lock, its
-				 * vnode lock has to be carried over.
-				 */
-				nvp->v_vnlock = vp->v_vnlock;
-				vp->v_vnlock = NULL;
-				nvp->v_data = vp->v_data;
-				vp->v_data = NULL;
-				vp->v_op = spec_vnodeop_p;
-				vrele(vp);
-				vgone(vp);
-				/*
-				 * Reinitialize aliased node.
-				 */
-				np->n_vnode = nvp;
-				*vpp = vp = nvp;
-			}
+			addaliasu(vp, rdev);
 		}
 		np->n_mtime = mtime.tv_sec;
 	}

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.219 1999/08/25 04:55:17 julian Exp $
+ * $Id: vfs_subr.c,v 1.220 1999/08/25 12:24:34 phk Exp $
  */
 
 /*
@@ -1278,119 +1278,48 @@ bdevvp(dev, vpp)
 		return (error);
 	}
 	vp = nvp;
-	/* dev2udev() results in a CDEV, so we need to cheat here. */
 	vp->v_type = VBLK;
-	if ((nvp = checkalias2(vp, dev, (struct mount *)0)) != NULL) {
-		vput(vp);
-		vp = nvp;
-	}
+	addalias(vp, dev);
 	*vpp = vp;
 	return (0);
 }
 
 /*
- * Check to see if the new vnode represents a special device
- * for which we already have a vnode (either because of
- * bdevvp() or because of a different vnode representing
- * the same block device). If such an alias exists, deallocate
- * the existing contents and return the aliased vnode. The
- * caller is responsible for filling it with its new contents.
+ * Add vnode to the alias list hung off the dev_t.
+ *
+ * The reason for this gunk is that multiple vnodes can reference
+ * the same physical device, so checking vp->v_usecount to see
+ * how many users there are is inadequate; the v_usecount for
+ * the vnodes need to be accumulated.  vcount() does that.
  */
-struct vnode *
-checkalias(nvp, nvp_rdev, mp)
-	register struct vnode *nvp;
+void
+addaliasu(nvp, nvp_rdev)
+	struct vnode *nvp;
 	udev_t nvp_rdev;
-	struct mount *mp;
 {
-	dev_t	dev;
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
-		return (NULLVP);
+		panic("addaliasu on non-special vnode");
 
-	dev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
-	return (checkalias2(nvp, dev, mp));
+	nvp->v_rdev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
+	simple_lock(&spechash_slock);
+	SLIST_INSERT_HEAD(&nvp->v_rdev->si_hlist, nvp, v_specnext);
+	simple_unlock(&spechash_slock);
 }
 
-struct vnode *
-checkalias2(nvp, dev, mp)
-	register struct vnode *nvp;
+void
+addalias(nvp, dev)
+	struct vnode *nvp;
 	dev_t dev;
-	struct mount *mp;
 {
-	struct proc *p = curproc;	/* XXX */
-	struct vnode *vp;
-	struct vnode **vpp;
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
-		return (NULLVP);
-	
-	vpp = &dev->si_hlist;
-loop:
+		panic("addalias on non-special vnode");
+
+	nvp->v_rdev = dev;
 	simple_lock(&spechash_slock);
-	for (vp = *vpp; vp; vp = vp->v_specnext) {
-		if (nvp->v_type != vp->v_type)
-			continue;
-		/*
-		 * Alias, but not in use, so flush it out.
-		 * Only alias active device nodes.
-		 * Not sure why we don't re-use this like we do below.
-		 */
-		simple_lock(&vp->v_interlock);
-		if (vp->v_usecount == 0) {
-			simple_unlock(&spechash_slock);
-			vgonel(vp, p);
-			goto loop;
-		}
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
-			/*
-			 * It dissappeared, and we may have slept.
-			 * Restart from the beginning
-			 */
-			simple_unlock(&spechash_slock);
-			goto loop;
-		}
-		break;
-	}
-	/*
-	 * It would be a lot clearer what is going on here if
-	 * this had been expressed as:
-	 * if ( vp && (vp->v_tag == VT_NULL))
-	 * and the clauses had been swapped.
-	 */
-	if (vp == NULL || vp->v_tag != VT_NON) {
-		struct specinfo *sinfo;
-
-		/*
-		 * Put the new vnode into the hash chain.
-		 * and if there was an alias, connect them.
-		 */
-		nvp->v_specnext = *vpp;
-		*vpp = nvp;
-		nvp->v_rdev = sinfo = dev;
-
-		simple_unlock(&spechash_slock);
-		if (vp != NULLVP) {
-			nvp->v_flag |= VALIASED;
-			vp->v_flag |= VALIASED;
-			vput(vp);
-		}
-		return (NULLVP);
-	}
-	/*
-	 * if ( vp && (vp->v_tag == VT_NULL))
-	 * We have a vnode alias, but it is a trashed.
-	 * Make it look like it's newly allocated. (by getnewvnode())
-	 * The caller should use this instead.
-	 */
+	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
 	simple_unlock(&spechash_slock);
-	VOP_UNLOCK(vp, 0, p);
-	simple_lock(&vp->v_interlock);
-	vclean(vp, 0, p);
-	vp->v_op = nvp->v_op;
-	vp->v_tag = nvp->v_tag;
-	nvp->v_type = VNON;
-	insmntque(vp, mp);
-	return (vp);
 }
 
 /*
@@ -1757,12 +1686,6 @@ vclean(vp, flags, p)
 
 	cache_purge(vp);
 	if (vp->v_vnlock) {
-#if 0 /* This is the only place we have LK_DRAINED in the entire kernel ??? */
-#ifdef DIAGNOSTIC
-		if ((vp->v_vnlock->lk_flags & LK_DRAINED) == 0)
-			vprint("vclean: lock not drained", vp);
-#endif
-#endif
 		FREE(vp->v_vnlock, M_VNODE);
 		vp->v_vnlock = NULL;
 	}
@@ -1795,56 +1718,30 @@ vop_revoke(ap)
 	} */ *ap;
 {
 	struct vnode *vp, *vq;
-	struct proc *p = curproc;	/* XXX */
+	dev_t dev;
 
 	KASSERT((ap->a_flags & REVOKEALL) != 0, ("vop_revoke"));
 
 	vp = ap->a_vp;
-	simple_lock(&vp->v_interlock);
-
-	if (vp->v_flag & VALIASED) {
-		/*
-		 * If a vgone (or vclean) is already in progress,
-		 * wait until it is done and return.
-		 */
-		if (vp->v_flag & VXLOCK) {
-			vp->v_flag |= VXWANT;
-			simple_unlock(&vp->v_interlock);
-			tsleep((caddr_t)vp, PINOD, "vop_revokeall", 0);
-			return (0);
-		}
-		/*
-		 * Ensure that vp will not be vgone'd while we
-		 * are eliminating its aliases.
-		 */
-		vp->v_flag |= VXLOCK;
+	/*
+	 * If a vgone (or vclean) is already in progress,
+	 * wait until it is done and return.
+	 */
+	if (vp->v_flag & VXLOCK) {
+		vp->v_flag |= VXWANT;
 		simple_unlock(&vp->v_interlock);
-		while (vp->v_flag & VALIASED) {
-			simple_lock(&spechash_slock);
-			for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
-				if (vq->v_type != vp->v_type || vp == vq)
-					continue;
-				simple_unlock(&spechash_slock);
-				vgone(vq);
-				break;
-			}
-			if (vq == NULLVP) {
-				simple_unlock(&spechash_slock);
-			}
-		}
-		/*
-		 * Remove the lock so that vgone below will
-		 * really eliminate the vnode after which time
-		 * vgone will awaken any sleepers.
-		 */
-		simple_lock(&vp->v_interlock);
-		vp->v_flag &= ~VXLOCK;
-		if (vp->v_flag & VXWANT) {
-			vp->v_flag &= ~VXWANT;
-			wakeup(vp);
-		}
+		tsleep((caddr_t)vp, PINOD, "vop_revokeall", 0);
+		return (0);
 	}
-	vgonel(vp, p);
+	dev = vp->v_rdev;
+	for (;;) {
+		simple_lock(&spechash_slock);
+		vq = SLIST_FIRST(&dev->si_hlist);
+		simple_unlock(&spechash_slock);
+		if (!vq)
+			break;
+		vgone(vq);
+	}
 	return (0);
 }
 
@@ -1894,8 +1791,6 @@ vgonel(vp, p)
 	struct proc *p;
 {
 	int s;
-	struct vnode *vq;
-	struct vnode *vx;
 
 	/*
 	 * If a vgone (or vclean) is already in progress,
@@ -1923,35 +1818,9 @@ vgonel(vp, p)
 	 * If special device, remove it from special device alias list
 	 * if it is on one.
 	 */
-	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != 0) {
+	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != NULL) {
 		simple_lock(&spechash_slock);
-		if (vp->v_hashchain == vp) {
-			vp->v_hashchain = vp->v_specnext;
-		} else {
-			for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
-				if (vq->v_specnext != vp)
-					continue;
-				vq->v_specnext = vp->v_specnext;
-				break;
-			}
-			if (vq == NULL)
-				panic("missing bdev");
-		}
-		if (vp->v_flag & VALIASED) {
-			vx = NULL;
-			for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
-				if (vq->v_type != vp->v_type)
-					continue;
-				if (vx)
-					break;
-				vx = vq;
-			}
-			if (vx == NULL)
-				panic("missing alias");
-			if (vq == NULL)
-				vx->v_flag &= ~VALIASED;
-			vp->v_flag &= ~VALIASED;
-		}
+		SLIST_REMOVE(&vp->v_hashchain, vp, vnode, v_specnext);
 		simple_unlock(&spechash_slock);
 		vp->v_rdev = NULL;
 	}
@@ -1996,19 +1865,18 @@ vfinddev(dev, type, vpp)
 	enum vtype type;
 	struct vnode **vpp;
 {
-	register struct vnode *vp;
-	int rc = 0;
+	struct vnode *vp;
 
 	simple_lock(&spechash_slock);
-	for (vp = dev->si_hlist; vp; vp = vp->v_specnext) {
-		if (type != vp->v_type)
-			continue;
-		*vpp = vp;
-		rc = 1;
-		break;
+	SLIST_FOREACH(vp, &dev->si_hlist, v_specnext) {
+		if (type == vp->v_type) {
+			*vpp = vp;
+			simple_unlock(&spechash_slock);
+			return (1);
+		}
 	}
 	simple_unlock(&spechash_slock);
-	return (rc);
+	return (0);
 }
 
 /*
@@ -2016,32 +1884,19 @@ vfinddev(dev, type, vpp)
  */
 int
 vcount(vp)
-	register struct vnode *vp;
+	struct vnode *vp;
 {
 	struct vnode *vq, *vnext;
 	int count;
 
-loop:
-	if ((vp->v_flag & VALIASED) == 0)
-		return (vp->v_usecount);
+	count = 0;
 	simple_lock(&spechash_slock);
-	for (count = 0, vq = vp->v_hashchain; vq; vq = vnext) {
-		vnext = vq->v_specnext;
-		if (vq->v_type != vp->v_type)
-			continue;
-		/*
-		 * Alias, but not in use, so flush it out.
-		 */
-		if (vq->v_usecount == 0 && vq != vp) {
-			simple_unlock(&spechash_slock);
-			vgone(vq);
-			goto loop;
-		}
+	SLIST_FOREACH(vq, &vp->v_hashchain, v_specnext)
 		count += vq->v_usecount;
-	}
 	simple_unlock(&spechash_slock);
 	return (count);
 }
+
 /*
  * Print out a description of a vnode.
  */
@@ -2051,7 +1906,7 @@ static char *typename[] =
 void
 vprint(label, vp)
 	char *label;
-	register struct vnode *vp;
+	struct vnode *vp;
 {
 	char buf[96];
 
@@ -2075,8 +1930,6 @@ vprint(label, vp)
 		strcat(buf, "|VXWANT");
 	if (vp->v_flag & VBWAIT)
 		strcat(buf, "|VBWAIT");
-	if (vp->v_flag & VALIASED)
-		strcat(buf, "|VALIASED");
 	if (vp->v_flag & VDOOMED)
 		strcat(buf, "|VDOOMED");
 	if (vp->v_flag & VFREE)
@@ -2281,24 +2134,10 @@ int
 vfs_mountedon(vp)
 	struct vnode *vp;
 {
-	struct vnode *vq;
-	int error = 0;
 
 	if (vp->v_specmountpoint != NULL)
 		return (EBUSY);
-	if (vp->v_flag & VALIASED) {
-		simple_lock(&spechash_slock);
-		for (vq = vp->v_hashchain; vq; vq = vq->v_specnext) {
-			if (vq->v_type != vp->v_type)
-				continue;
-			if (vq->v_specmountpoint != NULL) {
-				error = EBUSY;
-				break;
-			}
-		}
-		simple_unlock(&spechash_slock);
-	}
-	return (error);
+	return (0);
 }
 
 /*

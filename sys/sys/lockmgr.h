@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lock.h	8.12 (Berkeley) 5/19/95
- * $Id: lock.h,v 1.13 1999/01/20 14:49:12 eivind Exp $
+ * $Id: lock.h,v 1.14 1999/06/26 02:45:40 mckusick Exp $
  */
 
 #ifndef	_LOCK_H_
@@ -129,7 +129,6 @@ struct lock {
 #define LK_HAVE_EXCL	0x00000400	/* exclusive lock obtained */
 #define LK_WAITDRAIN	0x00000800	/* process waiting for lock to drain */
 #define LK_DRAINING	0x00004000	/* lock is being drained */
-#define LK_DRAINED	0x00008000	/* lock has been decommissioned */
 /*
  * Control flags
  *

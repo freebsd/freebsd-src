@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.120 1999/08/22 00:15:16 jdp Exp $
+ * $Id: ufs_vnops.c,v 1.121 1999/08/23 20:35:21 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -2035,24 +2035,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 	case VCHR:
 	case VBLK:
 		vp->v_op = specops;
-		nvp = checkalias(vp, ip->i_rdev, mntp);
-		if (nvp) {
-			/*
-			 * Discard unneeded vnode, but save its inode.
-			 * Note that the lock is carried over in the inode
-			 * to the replacement vnode.
-			 */
-			nvp->v_data = vp->v_data;
-			vp->v_data = NULL;
-			vp->v_op = spec_vnodeop_p;
-			vrele(vp);
-			vgone(vp);
-			/*
-			 * Reinitialize aliased inode.
-			 */
-			vp = nvp;
-			ip->i_vnode = vp;
-		}
+		addaliasu(vp, ip->i_rdev);
 		break;
 	case VFIFO:
 		vp->v_op = fifoops;
