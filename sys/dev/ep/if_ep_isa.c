@@ -73,6 +73,10 @@ const char * ep_isa_match_id (u_int32_t, struct isa_ident *);
 #define ISA_ID_3C509_COMBO 0x506d5094
 #define ISA_ID_3C509_TPO   0x506d5095
 #define ISA_ID_3C509_TPC   0x506d5098
+#ifdef PC98
+#define ISA_ID_3C569B_COMBO 0x506d5694
+#define ISA_ID_3C569B_TPO   0x506d5695
+#endif
 
 static struct isa_ident ep_isa_devs[] = {
 	{ ISA_ID_3C509_TP,	"3Com 3C509-TP EtherLink III" },
@@ -80,6 +84,10 @@ static struct isa_ident ep_isa_devs[] = {
 	{ ISA_ID_3C509_COMBO,	"3Com 3C509-Combo EtherLink III" },
 	{ ISA_ID_3C509_TPO,	"3Com 3C509-TPO EtherLink III" },
 	{ ISA_ID_3C509_TPC,	"3Com 3C509-TPC EtherLink III" },
+#ifdef PC98
+	{ ISA_ID_3C569B_COMBO,	"3Com 3C569B-J-Combo EtherLink III" },
+	{ ISA_ID_3C569B_TPO,	"3Com 3C569B-J-TPO EtherLink III" },
+#endif
 	{ 0,			NULL },
 };
 
