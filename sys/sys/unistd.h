@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unistd.h	8.2 (Berkeley) 1/7/94
- * $Id: unistd.h,v 1.7 1996/08/20 07:23:35 smpatel Exp $
+ * $Id: unistd.h,v 1.8 1996/09/03 13:55:50 bde Exp $
  */
 
 #ifndef _SYS_UNISTD_H_
@@ -47,7 +47,7 @@
  */
 #define	_POSIX_SAVED_IDS	/* saved set-user-ID and set-group-ID */
 
-#define	_POSIX_VERSION		198808L
+#define	_POSIX_VERSION		199009L
 #define	_POSIX2_VERSION		199212L
 
 /* execution-time symbolic constants */
