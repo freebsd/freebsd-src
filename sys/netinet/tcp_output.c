@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.21.2.1 1997/09/16 18:37:01 joerg Exp $
+ *	$Id: tcp_output.c,v 1.21.2.2 1997/09/30 16:25:10 davidg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -572,10 +572,10 @@ send:
 	 */
 	if (win < (long)(so->so_rcv.sb_hiwat / 4) && win < (long)tp->t_maxseg)
 		win = 0;
-	if (win > (long)TCP_MAXWIN << tp->rcv_scale)
-		win = (long)TCP_MAXWIN << tp->rcv_scale;
 	if (win < (long)(tp->rcv_adv - tp->rcv_nxt))
 		win = (long)(tp->rcv_adv - tp->rcv_nxt);
+	if (win > (long)TCP_MAXWIN << tp->rcv_scale)
+		win = (long)TCP_MAXWIN << tp->rcv_scale;
 	ti->ti_win = htons((u_short) (win>>tp->rcv_scale));
 	if (SEQ_GT(tp->snd_up, tp->snd_nxt)) {
 		ti->ti_urp = htons((u_short)(tp->snd_up - tp->snd_nxt));
