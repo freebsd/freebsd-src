@@ -738,7 +738,7 @@ ah_input_cb(struct cryptop *crp)
 	struct secasindex *saidx;
 	u_int8_t nxt;
 	caddr_t ptr;
-	int s, authsize;
+	int authsize;
 
 	crd = crp->crp_desc;
 
@@ -749,8 +749,6 @@ ah_input_cb(struct cryptop *crp)
 	protoff = tc->tc_protoff;
 	mtag = (struct m_tag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
-
-	s = splnet();
 
 	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
 	if (sav == NULL) {
@@ -866,12 +864,11 @@ ah_input_cb(struct cryptop *crp)
 	IPSEC_COMMON_INPUT_CB(m, sav, skip, protoff, mtag);
 
 	KEY_FREESAV(&sav);
-	splx(s);
+
 	return error;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
-	splx(s);
 	if (m != NULL)
 		m_freem(m);
 	if (tc != NULL)
@@ -1123,7 +1120,7 @@ ah_output_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct mbuf *m;
 	caddr_t ptr;
-	int s, err;
+	int err;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	KASSERT(tc != NULL, ("ah_output_cb: null opaque data area!"));
@@ -1132,9 +1129,8 @@ ah_output_cb(struct cryptop *crp)
 	ptr = (caddr_t) (tc + 1);
 	m = (struct mbuf *) crp->crp_buf;
 
-	s = splnet();
-
 	isr = tc->tc_isr;
+	mtx_lock(&isr->lock);
 	sav = KEY_ALLOCSA(&tc->tc_dst, tc->tc_proto, tc->tc_spi);
 	if (sav == NULL) {
 		ahstat.ahs_notdb++;
@@ -1151,7 +1147,7 @@ ah_output_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			KEY_FREESAV(&sav);
-			splx(s);
+			mtx_unlock(&isr->lock);
 			return crypto_dispatch(crp);
 		}
 
@@ -1183,12 +1179,13 @@ ah_output_cb(struct cryptop *crp)
 	/* NB: m is reclaimed by ipsec_process_done. */
 	err = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
-	splx(s);
+	mtx_unlock(&isr->lock);
+
 	return err;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
-	splx(s);
+	mtx_unlock(&isr->lock);
 	if (m)
 		m_freem(m);
 	free(tc, M_XDATA);
