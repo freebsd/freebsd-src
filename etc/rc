@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.169.2.11 1999/05/03 08:13:26 grog Exp $
+#	$Id: rc,v 1.169.2.12 1999/06/01 13:27:37 brian Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -395,12 +395,12 @@ fi
 
 if [ "X${update_motd}" != X"NO" ]; then
 	T=/tmp/_motd
-	rm -f $T
+	rm -rf $T
 	uname -v | sed -e 's,^\([^#]*\) #\(.* [1-2][0-9][0-9][0-9]\).*/\([^\]*\) $,\1 (\3) #\2,' > $T
 	awk '{if (NR == 1) {if ($1 == "FreeBSD") {next} else {print "\n"$0}} else {print}}' < /etc/motd >> $T
 	cp $T /etc/motd
 	chmod 644 /etc/motd
-	rm -f $T
+	rm -rf $T
 fi
 
 # Run rc.devfs if present to customify devfs
