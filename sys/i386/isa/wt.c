@@ -1,3 +1,4 @@
+
 /*
  * Streamer tape driver for 386bsd and FreeBSD.
  * Supports Archive and Wangtek compatible QIC-02/QIC-36 boards.
@@ -19,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.28 1996/01/08 12:46:14 joerg Exp $
+ * $Id: wt.c,v 1.29 1996/01/27 02:33:37 bde Exp $
  *
  */
 
@@ -76,6 +77,7 @@
 #include <vm/vm_param.h>
 
 #include <machine/clock.h>
+#include <machine/wtio.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wtreg.h>
@@ -310,13 +312,15 @@ wtattach (struct isa_device *id)
 
 struct isa_driver wtdriver = { wtprobe, wtattach, "wt", };
 
-int wtdump (dev_t dev)
+int
+wtdump (dev_t dev)
 {
 	/* Not implemented */
 	return (EINVAL);
 }
 
-int wtsize (dev_t dev)
+int
+wtsize (dev_t dev)
 {
 	/* Not implemented */
 	return (-1);
@@ -325,7 +329,8 @@ int wtsize (dev_t dev)
 /*
  * Open routine, called on every device open.
  */
-int wtopen (dev_t dev, int flag, int fmt, struct proc *p)
+int
+wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -403,7 +408,8 @@ int wtopen (dev_t dev, int flag, int fmt, struct proc *p)
 /*
  * Close routine, called on last device close.
  */
-int wtclose (dev_t dev, int flags, int fmt, struct proc *p)
+int
+wtclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -451,7 +457,8 @@ done:
  * ioctl (int fd, MTIOCGET, struct mtget *buf)  -- get status
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
  */
-int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
+int
+wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 {
 	int u = minor (dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -541,7 +548,8 @@ int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 /*
  * Strategy routine.
  */
-void wtstrategy (struct buf *bp)
+void
+wtstrategy (struct buf *bp)
 {
 	int u = minor (bp->b_dev) & T_UNIT;
 	wtinfo_t *t = wttab + u;
@@ -611,7 +619,8 @@ xit:    biodone (bp);
 /*
  * Interrupt routine.
  */
-void wtintr (int u)
+void
+wtintr (int u)
 {
 	wtinfo_t *t = wttab + u;
 	unsigned char s;
@@ -701,7 +710,8 @@ void wtintr (int u)
 }
 
 /* start the rewind operation */
-static void wtrewind (wtinfo_t *t)
+static void
+wtrewind (wtinfo_t *t)
 {
 	int rwmode = (t->flags & (TPRO | TPWO));
 
@@ -721,7 +731,8 @@ static void wtrewind (wtinfo_t *t)
 }
 
 /* start the `read marker' operation */
-static int wtreadfm (wtinfo_t *t)
+static int
+wtreadfm (wtinfo_t *t)
 {
 	t->flags &= ~(TPRO | TPWO | TPVOL);
 	if (! wtcmd (t, QIC_READFM)) {
@@ -735,7 +746,8 @@ static int wtreadfm (wtinfo_t *t)
 }
 
 /* write marker to the tape */
-static int wtwritefm (wtinfo_t *t)
+static int
+wtwritefm (wtinfo_t *t)
 {
 	tsleep ((caddr_t)wtwritefm, WTPRI, "wtwfm", hz); /* timeout: 1 second */
 	t->flags &= ~(TPRO | TPWO);
@@ -749,7 +761,8 @@ static int wtwritefm (wtinfo_t *t)
 }
 
 /* while controller status & mask == bits continue waiting */
-static int wtpoll (wtinfo_t *t, int mask, int bits)
+static int
+wtpoll (wtinfo_t *t, int mask, int bits)
 {
 	int s, i;
 
@@ -775,7 +788,8 @@ static int wtpoll (wtinfo_t *t, int mask, int bits)
 }
 
 /* execute QIC command */
-static int wtcmd (wtinfo_t *t, int cmd)
+static int
+wtcmd (wtinfo_t *t, int cmd)
 {
 	int s, x;
 
@@ -798,7 +812,8 @@ static int wtcmd (wtinfo_t *t, int cmd)
 }
 
 /* wait for the end of i/o, seeking marker or rewind operation */
-static int wtwait (wtinfo_t *t, int catch, char *msg)
+static int
+wtwait (wtinfo_t *t, int catch, char *msg)
 {
 	int error;
 
@@ -810,7 +825,8 @@ static int wtwait (wtinfo_t *t, int catch, char *msg)
 }
 
 /* initialize dma for the i/o operation */
-static void wtdma (wtinfo_t *t)
+static void
+wtdma (wtinfo_t *t)
 {
 	t->flags |= TPACTIVE;
 	wtclock (t);
@@ -826,7 +842,8 @@ static void wtdma (wtinfo_t *t)
 }
 
 /* start i/o operation */
-static int wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
+static int
+wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
 {
 	int s, x;
 
@@ -849,7 +866,8 @@ static int wtstart (wtinfo_t *t, unsigned flags, void *vaddr, unsigned len)
 }
 
 /* start timer */
-static void wtclock (wtinfo_t *t)
+static void
+wtclock (wtinfo_t *t)
 {
 	if (! (t->flags & TPTIMER)) {
 		t->flags |= TPTIMER;
@@ -864,7 +882,8 @@ static void wtclock (wtinfo_t *t)
  * This is necessary in case interrupts get eaten due to
  * multiple devices on a single IRQ line.
  */
-static void wtimer (void *xt)
+static void
+wtimer (void *xt)
 {
 	wtinfo_t *t = (wtinfo_t *)xt;
 	int s;
@@ -887,7 +906,8 @@ static void wtimer (void *xt)
 }
 
 /* reset the controller */
-static int wtreset (wtinfo_t *t)
+static int
+wtreset (wtinfo_t *t)
 {
 	/* Perform QIC-02 and QIC-36 compatible reset sequence. */
 	/* Thanks to Mikael Hybsch <micke@dynas.se>. */
@@ -915,7 +935,8 @@ static int wtreset (wtinfo_t *t)
 
 /* get controller status information */
 /* return 0 if user i/o request should receive an i/o error code */
-static int wtsense (wtinfo_t *t, int verb, int ignor)
+static int
+wtsense (wtinfo_t *t, int verb, int ignor)
 {
 	char *msg = 0;
 	int err;
@@ -955,7 +976,8 @@ static int wtsense (wtinfo_t *t, int verb, int ignor)
 }
 
 /* get controller status information */
-static int wtstatus (wtinfo_t *t)
+static int
+wtstatus (wtinfo_t *t)
 {
 	char *p;
 	int x;
@@ -991,7 +1013,8 @@ static int wtstatus (wtinfo_t *t)
 
 static wt_devsw_installed = 0;
 
-static void 	wt_drvinit(void *unused)
+static void 
+wt_drvinit(void *unused)
 {
 	dev_t dev;
 
