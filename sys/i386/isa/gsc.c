@@ -396,10 +396,6 @@ gscprobe (struct isa_device *isdp)
   struct gsc_unit *scu = unittab + unit;
   int stb;
   struct gsc_geom geom = NEW_GEOM;
-  static int once;
-
-  if (!once++)
-	cdevsw_add(&gsc_cdevsw);
 
   scu->flags = FLAG_DEBUG;
 

@@ -355,10 +355,7 @@ static int twprobe(idp)
   struct tw_sc sc;
   int d;
   int tries;
-  static int once;
 
-  if (!once++)
-	cdevsw_add(&tw_cdevsw);
   sc.sc_port = idp->id_iobase;
   /* Search for the zero crossing signal at ports, bit combinations. */
   tw_zcport = tw_control;

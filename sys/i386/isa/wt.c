@@ -209,10 +209,6 @@ static int
 wtprobe (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&wt_cdevsw);
 
 	t->unit = id->id_unit;
 	t->chan = id->id_drq;
