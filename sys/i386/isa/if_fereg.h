@@ -35,7 +35,7 @@
  */
 
 #define FE_FMV0		16	/* Hardware status.		*/
-#define FE_FMV1		17	/* Hardrare type?  Always 0	*/
+#define FE_FMV1		17	/* Hardware type?  Always 0	*/
 #define FE_FMV2		18	/* Hardware configuration.	*/
 #define FE_FMV3		19	/* Hardware enable.		*/
 #define FE_FMV4		20	/* Station address #1		*/

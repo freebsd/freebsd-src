@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id$
+ * $Id: pipe.h,v 1.1 1996/01/28 23:38:22 dyson Exp $
  */
 
 #ifndef OLD_PIPE
@@ -27,7 +27,7 @@ struct vm_object;
 
 /*
  * pipe buffer information
- * Seperate in, out, cnt is used to simplify calculations.
+ * Separate in, out, cnt is used to simplify calculations.
  */
 struct pipebuf {
 	u_int	cnt;		/* number of chars currently in buffer */

@@ -7,7 +7,7 @@
  * and this paragraph are duplicated in all such forms.
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * Resource lists.
  *
@@ -16,7 +16,7 @@
  *		rlist_alloc(&swapmap, 100, &loc); obtain 100 sectors from swap
  *
  *	from: unknown?
- *	$Id: rlist.h,v 1.6 1993/11/25 01:38:01 wollman Exp $
+ *	$Id: rlist.h,v 1.7 1994/10/09 07:35:10 davidg Exp $
  */
 
 #ifndef _SYS_RLIST_H_

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * 	from: @(#) ieeefp.h 	1.0 (Berkeley) 9/23/93
- *	$Id: ieeefp.h,v 1.1 1994/08/04 19:16:37 wollman Exp $
+ *	$Id: ieeefp.h,v 1.2 1994/08/05 14:36:04 wollman Exp $
  */
 
 /*
@@ -52,13 +52,13 @@ typedef enum {
 } fp_rnd_t;
 
 /*
- * FP precison modes
+ * FP precision modes
  */
 typedef enum {
-	FP_PS=0,	/* 24 bit (single-precsion) */
+	FP_PS=0,	/* 24 bit (single-precision) */
 	FP_PRS,		/* reserved */
 	FP_PD,		/* 53 bit (double-precision) */
-	FP_PE		/* 64 bit (extended-precsion) */
+	FP_PE		/* 64 bit (extended-precision) */
 } fp_prec_t;
 
 #define fp_except_t	int

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.12 1995/12/11 04:58:03 dyson Exp $
+ *	$Id: swap_pager.h,v 1.13 1995/12/14 09:54:54 phk Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
 /*
  * SWB_NPAGES can be set to any value from 1 to 16 pages per allocation,
  * however, due to the allocation spilling into non-swap pager backed memory,
- * suggest keeping SWB_NPAGES small (1-4).  If high performance is manditory
+ * suggest keeping SWB_NPAGES small (1-4).  If high performance is mandatory
  * perhaps up to 8 pages might be in order????
  * Above problem has been fixed, now we support 16 pages per block.  Unused
  * space is recovered by the swap pager now...

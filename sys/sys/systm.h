@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.34 1996/01/16 10:22:20 bde Exp $
+ * $Id: systm.h,v 1.35 1996/01/29 03:20:44 gibbs Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -50,7 +50,7 @@
  * It can only be decreased by process 1 (/sbin/init).
  *
  * Security levels are as follows:
- *   -1	permannently insecure mode - always run system in level 0 mode.
+ *   -1	permanently insecure mode - always run system in level 0 mode.
  *    0	insecure mode - immutable and append-only flags make be turned off.
  *	All devices may be read or written subject to permission modes.
  *    1	secure mode - immutable and append-only flags may not be changed;

@@ -1,4 +1,4 @@
-/*	$Id: bpb.h,v 1.1 1994/09/19 15:41:37 dfr Exp $ */
+/*	$Id: bpb.h,v 1.2 1995/05/30 08:07:30 rgrimes Exp $ */
 /*	$NetBSD: bpb.h,v 1.3 1994/06/29 06:35:29 cgd Exp $	*/
 
 /*
@@ -50,7 +50,7 @@ struct bpb50 {
 	u_short bpbSecPerTrack;	/* sectors per track */
 	u_short bpbHeads;	/* number of heads */
 	u_long bpbHiddenSecs;	/* number of hidden sectors */
-	u_long bpbHugeSectors;	/* number of sectrs if bpbSectors == 0 */
+	u_long bpbHugeSectors;	/* number of sectors if bpbSectors == 0 */
 };
 
 /*
@@ -116,5 +116,5 @@ struct byte_bpb50 {
 	char bpbSecPerTrack[2];	/* sectors per track */
 	char bpbHeads[2];	/* number of heads */
 	char bpbHiddenSecs[4];	/* number of hidden sectors */
-	char bpbHugeSectors[4];	/* number of sectrs if bpbSectors == 0 */
+	char bpbHugeSectors[4];	/* number of sectors if bpbSectors == 0 */
 };

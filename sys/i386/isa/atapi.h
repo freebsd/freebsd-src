@@ -7,7 +7,7 @@
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Authors grant any other persons or organisations permission to use
+ * Authors grant any other persons or organizations permission to use
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
@@ -52,7 +52,7 @@
 #define AER_ABRT        0x04            /* command aborted */
 #define AER_MCR         0x08            /* media change requested */
 #define AER_SKEY        0xf0            /* sense key mask */
-#define AER_SK_NO_SENSE         0x00    /* no spesific sense key info */
+#define AER_SK_NO_SENSE         0x00    /* no specific sense key info */
 #define AER_SK_RECOVERED_ERROR  0x10    /* command succeeded, data recovered */
 #define AER_SK_NOT_READY        0x20    /* no access to drive */
 #define AER_SK_MEDIUM_ERROR     0x30    /* non-recovered data error */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.6 1995/01/14 10:44:55 bde Exp $
+ *	$Id: specialreg.h,v 1.7 1995/05/30 08:00:54 rgrimes Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -59,7 +59,7 @@
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
 
 /*
- * Cyrix 486 DLC special registers, accessable as IO ports.
+ * Cyrix 486 DLC special registers, accessible as IO ports.
  */
 #define CCR0	0xc0		/* configuration control register 0 */
 #define CCR0_NC0	0x01	/* first 64K of each 1M memory region is
@@ -79,7 +79,7 @@
 
 /*
  * the following four 3-byte registers control the non-cacheable regions.
- * These registers must be written as three seperate bytes.
+ * These registers must be written as three separate bytes.
  *
  * NCRx+0: A31-A24 of starting address
  * NCRx+1: A23-A16 of starting address

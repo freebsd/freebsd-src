@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *      @(#)if_llc.h	8.1 (Berkeley) 6/10/93
- * $Id: if_llc.h,v 1.2 1994/08/02 07:46:16 davidg Exp $
+ * $Id: if_llc.h,v 1.3 1994/08/21 05:11:42 paul Exp $
  */
 
 #ifndef _NET_IF_LLC_H_
@@ -41,7 +41,7 @@
  * IEEE 802.2 Link Level Control headers, for use in conjunction with
  * 802.{3,4,5} media access control methods.
  *
- * Headers here do not use bit fields due to shortcommings in many
+ * Headers here do not use bit fields due to shortcomings in many
  * compilers.
  */
 

@@ -6,7 +6,7 @@
  * met: 1. Redistributions of source code must retain the above copyright
  * notice, this list of conditions and the following disclaimer. 2. The name
  * of the author may not be used to endorse or promote products derived from
- * this software withough specific prior written permission
+ * this software without specific prior written permission
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -31,7 +31,7 @@
 
  */
 /*
- *  $Id: if_epreg.h,v 1.8 1995/05/30 08:02:09 rgrimes Exp $
+ *  $Id: if_epreg.h,v 1.9 1996/01/29 03:16:14 gibbs Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -141,7 +141,7 @@ struct ep_board {
 /**************************************************************************
  *									  *
  * These define the EEPROM data structure.  They are used in the probe
- * function to verify the existance of the adapter after having sent
+ * function to verify the existence of the adapter after having sent
  * the ID_Sequence.
  *
  * There are others but only the ones we use are defined here.

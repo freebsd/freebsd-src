@@ -105,7 +105,7 @@ struct nic_info {
 	int ic;            /* Type of ic, Am7990, Am79C960 etc. */
 	int mem_mode;
 	int iobase;
-	int mode;          /* Mode setting at initialisation */
+	int mode;          /* Mode setting at initialization */
 };
 
 struct host_ring_entry {

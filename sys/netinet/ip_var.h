@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.17 1995/12/05 17:46:25 wollman Exp $
+ *	$Id: ip_var.h,v 1.18 1995/12/14 09:53:45 phk Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -136,7 +136,7 @@ struct	ipstat {
 	u_long	ips_localout;		/* total ip packets generated here */
 	u_long	ips_odropped;		/* lost packets due to nobufs, etc. */
 	u_long	ips_reassembled;	/* total packets reassembled ok */
-	u_long	ips_fragmented;		/* datagrams sucessfully fragmented */
+	u_long	ips_fragmented;		/* datagrams successfully fragmented */
 	u_long	ips_ofragments;		/* output fragments created */
 	u_long	ips_cantfrag;		/* don't fragment flag was set, etc. */
 	u_long	ips_badoptions;		/* error in option processing */

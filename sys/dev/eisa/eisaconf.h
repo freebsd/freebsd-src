@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.h,v 1.6 1995/11/21 12:52:49 bde Exp $
+ *	$Id: eisaconf.h,v 1.7 1996/01/29 03:13:23 gibbs Exp $
  */
 
 #ifndef _I386_EISA_EISACONF_H_
@@ -74,7 +74,7 @@ struct eisa_driver {
 					/* Return the device to a safe
 					 * state before shutdown
 					 */
-	u_long  *unit;			/* Next availible unit */
+	u_long  *unit;			/* Next available unit */
 };
 
 /* To be replaced by the "super device" generic device structure... */

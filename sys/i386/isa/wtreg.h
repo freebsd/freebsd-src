@@ -9,7 +9,7 @@
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
- * Authors grant any other persons or organisations permission to use
+ * Authors grant any other persons or organizations permission to use
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wtreg.h,v 1.5 1995/05/30 08:03:24 rgrimes Exp $
+ * $Id: wtreg.h,v 1.6 1996/01/08 12:46:15 joerg Exp $
  *
  */
 

@@ -33,7 +33,7 @@
  *
  *	@(#)ipx.h
  *
- * $Id: ipx.h,v 1.5 1995/11/24 12:25:02 bde Exp $
+ * $Id: ipx.h,v 1.6 1995/12/16 02:14:31 bde Exp $
  */
 
 #ifndef _NETIPX_IPX_H_
@@ -132,7 +132,7 @@ struct sockaddr_ipx {
 struct ipx {
 	u_short	ipx_sum;	/* Checksum */
 	u_short	ipx_len;	/* Length, in bytes, including header */
-	u_char	ipx_tc;		/* Transport Crontrol (i.e. hop count) */
+	u_char	ipx_tc;		/* Transport Control (i.e. hop count) */
 	u_char	ipx_pt;		/* Packet Type (i.e. level 2 protocol) */
 	struct ipx_addr	ipx_dna;	/* Destination Network Address */
 	struct ipx_addr	ipx_sna;	/* Source Network Address */

@@ -30,7 +30,7 @@
  /* 
   * If you make modifications to this file, please contact me before
   * distributing the modified version. There is already enough 
-  * divercity in the world.
+  * diversity in the world.
   *
   * Regards,
   * Hannu Savolainen
@@ -135,7 +135,7 @@
  *	Sample loading mechanism for internal synthesizers (/dev/sequencer)
  *	The following patch_info structure has been designed to support
  *	Gravis UltraSound. It tries to be universal format for uploading
- *	sample based patches but is propably too limited.
+ *	sample based patches but is probably too limited.
  */
 
 struct patch_info {
@@ -383,7 +383,7 @@ struct patmgr_info {	/* Note! size must be < 4k since kmalloc() is used */
 /*		undefined		0x20 */
 /* The controller numbers 0x21 to 0x3f are reserved for the */
 /* least significant bytes of the controllers 0x00 to 0x1f. */
-/* These controllers are not recognised by the driver. */
+/* These controllers are not recognized by the driver. */
 
 /* Controllers 64 to 69 (0x40 to 0x45) are on/off switches. */
 /* 0=OFF and 127=ON (intermediate values are possible) */
@@ -671,7 +671,7 @@ typedef struct copr_msg {
 /* 
  * The AD1848 codec and compatibles have three line level inputs
  * (line, aux1 and aux2). Since each card manufacturer have assigned
- * different meanings to these inputs, it's inpractical to assign
+ * different meanings to these inputs, it's impractical to assign
  * specific meanings (line, cd, synth etc.) to them.
  */
 #define SOUND_MIXER_LINE1	14	/* Input source 1  (aux1) */
@@ -1001,7 +1001,7 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 #endif
 
 /*
- * Timing and syncronization macros
+ * Timing and synchronization macros
  */
 
 #define _TIMER_EVENT(ev, parm)		{_SEQ_NEEDBUF(8);\

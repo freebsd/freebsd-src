@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp.h	8.2 (Berkeley) 4/16/94
- * $Id: clnp.h,v 1.3 1994/08/21 06:14:13 paul Exp $
+ * $Id: clnp.h,v 1.4 1995/05/30 08:10:12 rgrimes Exp $
  */
 
 #ifndef _NETISO_CLNP_H_
@@ -63,7 +63,7 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /home/ncvs/src/sys/netiso/clnp.h,v 1.3 1994/08/21 06:14:13 paul Exp $ */
+/* $Header: /home/ncvs/src/sys/netiso/clnp.h,v 1.4 1995/05/30 08:10:12 rgrimes Exp $ */
 /* $Source: /home/ncvs/src/sys/netiso/clnp.h,v $ */
 
 /* should be config option but cpp breaks with too many #defines */
@@ -81,7 +81,7 @@ SOFTWARE.
 	(msb) = (u_char)((hword) >> 8);\
 	(lsb) = (u_char)((hword) & 0xff)
 /*
- *	Move the two charcters into the halfword
+ *	Move the two characters into the halfword
  */
 #define	CTOH(msb, lsb, hword)\
 	(hword) = ((msb) << 8) | (lsb)
@@ -140,7 +140,7 @@ struct clnp_segment {
 
 /*
  *	NOTE:
- *		The clnp_frag structure is stored in an mbuf immedately preceeding
+ *		The clnp_frag structure is stored in an mbuf immediately preceding
  *	the fragment data. Since there are words in this struct,
  *	it must be word aligned.
  *
@@ -171,7 +171,7 @@ struct clnp_fragl {
  *	The following structure is used to index into an options section
  *	of a clnp datagram. These values can be used without worry that
  *	offset or length fields are invalid or too big, etc. That is,
- *	the consistancy of the options will be guaranteed before this
+ *	the consistency of the options will be guaranteed before this
  *	structure is filled in. Any pointer (field ending in p) is
  *	actually the offset from the beginning of the mbuf the option
  *	is contained in.  A value of NULL for any pointer

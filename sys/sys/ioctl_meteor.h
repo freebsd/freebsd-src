@@ -92,8 +92,8 @@ struct meteor_counts {
 
 				/* METEORCAPTUR capture options */
 #define METEOR_CAP_SINGLE	0x0001	/* capture one frame */
-#define METEOR_CAP_CONTINOUS	0x0002	/* contiuously capture */
-#define METEOR_CAP_STOP_CONT	0x0004	/* stop the continous capture */
+#define METEOR_CAP_CONTINOUS	0x0002	/* continuously capture */
+#define METEOR_CAP_STOP_CONT	0x0004	/* stop the continuous capture */
 
 				/* METEORCAPFRM capture commands */
 #define METEOR_CAP_N_FRAMES	0x0001	/* capture N frames */

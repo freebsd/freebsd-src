@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.28 1995/12/25 07:24:13 bde Exp $
+ * $Id: vnode.h,v 1.29 1996/01/19 03:59:06 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -195,8 +195,8 @@ extern int		vttoif_tab[];
  * Flags to various vnode functions.
  */
 #define	SKIPSYSTEM	0x0001		/* vflush: skip vnodes marked VSYSTEM */
-#define	FORCECLOSE	0x0002		/* vflush: force file closeure */
-#define	WRITECLOSE	0x0004		/* vflush: only close writeable files */
+#define	FORCECLOSE	0x0002		/* vflush: force file closure */
+#define	WRITECLOSE	0x0004		/* vflush: only close writable files */
 #define	DOCLOSE		0x0008		/* vclean: close active files */
 #define	V_SAVE		0x0001		/* vinvalbuf: sync file first */
 #define	V_SAVEMETA	0x0002		/* vinvalbuf: leave indirect blocks */
@@ -260,7 +260,7 @@ extern void	(*lease_updatetime) __P((int deltat));
 
 
 /*
- * Mods for exensibility.
+ * Mods for extensibility.
  */
 
 /*
@@ -318,9 +318,9 @@ extern struct vnodeop_desc *vnodeop_descs[];
 /*
  * This macro is very helpful in defining those offsets in the vdesc struct.
  *
- * This is stolen from X11R4.  I ingored all the fancy stuff for
+ * This is stolen from X11R4.  I ignored all the fancy stuff for
  * Crays, so if you decide to port this to such a serious machine,
- * you might want to consult Intrisics.h's XtOffset{,Of,To}.
+ * you might want to consult Intrinsic.h's XtOffset{,Of,To}.
  */
 #define VOPARG_OFFSET(p_type,field) \
         ((int) (((char *) (&(((p_type)NULL)->field))) - ((char *) NULL)))

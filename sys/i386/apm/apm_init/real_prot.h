@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.7  92/02/29  15:33:41  rpd
- *	$Id: real_prot.h,v 1.2 1995/02/17 02:22:33 phk Exp $
+ *	$Id: real_prot.h,v 1.3 1995/05/30 07:58:16 rgrimes Exp $
  */
 
 /*
@@ -40,7 +40,7 @@
  * use.
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
- * Nov., 1994	Commited to FreeBSD 2.0-current
+ * Nov., 1994	Committed to FreeBSD 2.0-current
  * Jan., 1995	Ported to RT-Mach 3.0 MK83g
  */
 
