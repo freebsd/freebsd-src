@@ -1,5 +1,5 @@
 .ig \"-*- nroff -*-
-Copyright (C) 1989-1995 Free Software Foundation, Inc.
+Copyright (C) 1989-1999 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -94,6 +94,13 @@ silently ignores options of
 .B \-q
 or
 .BR \-s .
+Options 
+.B \-S
+(safer) and
+.B \-U
+(unsafe) are passed to groff. 
+.B \-S
+is passed by default.
 .SH "SEE ALSO"
 .BR groff (@MAN1EXT@),
 .BR @g@troff (@MAN1EXT@),
