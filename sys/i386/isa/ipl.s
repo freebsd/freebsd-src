@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.1 1997/05/24 17:02:30 smp Exp smp $
+ *	$Id: ipl.s,v 1.1 1997/05/26 17:58:27 fsmp Exp $
  */
 
 
@@ -62,6 +62,11 @@ _tty_imask:	.long	0
 _bio_imask:	.long	0
 	.globl	_net_imask
 _net_imask:	.long	0
+	.globl	_softnet_imask
+_softnet_imask:	.long	SWI_NET_MASK
+	.globl	_softtty_imask
+_softtty_imask:	.long	SWI_TTY_MASK
+
 	.globl	_ipending
 
 /* pending interrupts blocked by splxxx() */
