@@ -27,9 +27,6 @@
  * $FreeBSD$
  */
 
-#include "gusc.h"
-#include "isa.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -45,14 +42,11 @@
 #include <dev/sound/chip.h>
 #include "bus_if.h"
 
-
-#if NISA > 0
 #include <isa/isavar.h>
 #include <isa/isa_common.h>
 #ifdef __alpha__		/* XXX workaround a stupid warning */
 #include <alpha/isa/isavar.h>
 #endif
-#endif /* NISA > 0 */
 
 #define LOGICALID_NOPNP 0
 #define LOGICALID_PCM   0x0000561e
@@ -85,12 +79,10 @@ struct gusc_softc {
 
 typedef struct gusc_softc *sc_p;
 
-#if NISA > 0
 static int gusc_probe(device_t dev);
 static int gusc_attach(device_t dev);
 static int gusisa_probe(device_t dev);
 static void gusc_intr(void *);
-#endif /* NISA > 0 */
 static struct resource *gusc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					      u_long start, u_long end, u_long count, u_int flags);
 static int gusc_release_resource(device_t bus, device_t child, int type, int rid,
@@ -103,8 +95,6 @@ static int alloc_resource(sc_p scp);
 static int release_resource(sc_p scp);
 
 static devclass_t gusc_devclass;
-
-#if NISA > 0
 
 static int
 gusc_probe(device_t dev)
@@ -361,7 +351,6 @@ gusc_intr(void *arg)
 #endif /* notyet */
 	} while (did_something != 0);
 }
-#endif /* NISA > 0 */
 
 static struct resource *
 gusc_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -644,7 +633,6 @@ release_resource(sc_p scp)
 	return (0);
 }
 
-#if NISA > 0
 static device_method_t gusc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		gusc_probe),
@@ -676,4 +664,3 @@ static driver_t gusc_driver = {
  * gusc can be attached to an isa bus.
  */
 DRIVER_MODULE(gusc, isa, gusc_driver, gusc_devclass, 0, 0);
-#endif /* NISA > 0 */
