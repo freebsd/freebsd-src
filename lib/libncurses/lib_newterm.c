@@ -46,6 +46,8 @@ SCREEN * newterm(char *term, FILE *ofp, FILE *ifp)
 sigaction_t act;
 int	errret;
 int	stolen, topstolen;
+extern char _ncurses_copyright[];
+char   *use_it = _ncurses_copyright;
 
 #ifdef TRACE
 	_init_trace();
