@@ -64,6 +64,7 @@
 #include <netinet/in.h>
 
 ASSYM(PC_CURTHREAD,	offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_IDLETHREAD,	offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_FPCURTHREAD,	offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_CURPCB,	offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_SWITCHTIME,	offsetof(struct pcpu, pc_switchtime));
