@@ -155,7 +155,7 @@ static struct filterops *sysfilt_ops[] = {
 static int
 filt_fileattach(struct knote *kn)
 {
-	
+
 	return (fo_kqfilter(kn->kn_fp, kn));
 }
 
@@ -568,7 +568,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct thread *td)
 	} else {
 		if (fdp->fd_knhashmask != 0) {
 			struct klist *list;
-			
+
 			list = &fdp->fd_knhash[
 			    KN_HASH((u_long)kev->ident, fdp->fd_knhashmask)];
 			SLIST_FOREACH(kn, list, kn_link)
