@@ -474,9 +474,6 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	brelse(bp);
 	bp = NULL;
 
-	mtx_init(&udfmp->hash_mtx, "udf_hash", NULL, MTX_DEF);
-	udfmp->hashtbl = phashinit(UDF_HASHTBLSIZE, M_UDFMOUNT, &udfmp->hashsz);
-
 	return 0;
 
 bail:
@@ -515,14 +512,15 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 #endif
 	}
 
+	DROP_GIANT();
+	g_topology_lock();
 	g_vfs_close(udfmp->im_cp, td);
+	g_topology_unlock();
+	PICKUP_GIANT();
 	vrele(udfmp->im_devvp);
 
 	if (udfmp->s_table != NULL)
 		FREE(udfmp->s_table, M_UDFMOUNT);
-
-	if (udfmp->hashtbl != NULL)
-		FREE(udfmp->hashtbl, M_UDFMOUNT);
 
 	FREE(udfmp, M_UDFMOUNT);
 
@@ -583,58 +581,16 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct file_entry *fe;
 	int error, sector, size;
 
+	error = vfs_hash_get(mp, ino, flags, curthread, vpp);
+	if (error)
+		return (error);
+	if (*vpp != NULL)
+		return (0);
+
 	td = curthread;
 	udfmp = VFSTOUDFFS(mp);
 
-	/* See if we already have this in the cache */
-	if ((error = udf_hashlookup(udfmp, ino, flags, vpp)) != 0)
-		return (error);
-	if (*vpp != NULL) {
-		return (0);
-	}
-
-	/*
-	 * Allocate memory and check the tag id's before grabbing a new
-	 * vnode, since it's hard to roll back if there is a problem.
-	 */
-	unode = uma_zalloc(udf_zone_node, M_WAITOK);
-	if (unode == NULL) {
-		printf("Cannot allocate udf node\n");
-		return (ENOMEM);
-	}
-
-	/*
-	 * Copy in the file entry.  Per the spec, the size can only be 1 block.
-	 */
-	sector = ino + udfmp->part_start;
-	devvp = udfmp->im_devvp;
-	if ((error = RDSECTOR(devvp, sector, udfmp->bsize, &bp)) != 0) {
-		printf("Cannot read sector %d\n", sector);
-		uma_zfree(udf_zone_node, unode);
-		return (error);
-	}
-
-	fe = (struct file_entry *)bp->b_data;
-	if (udf_checktag(&fe->tag, TAGID_FENTRY)) {
-		printf("Invalid file entry!\n");
-		uma_zfree(udf_zone_node, unode);
-		brelse(bp);
-		return (ENOMEM);
-	}
-	size = UDF_FENTRY_SIZE + le32toh(fe->l_ea) + le32toh(fe->l_ad);
-	MALLOC(unode->fentry, struct file_entry *, size, M_UDFFENTRY,
-	    M_NOWAIT | M_ZERO);
-	if (unode->fentry == NULL) {
-		printf("Cannot allocate file entry block\n");
-		uma_zfree(udf_zone_node, unode);
-		brelse(bp);
-		return (ENOMEM);
-	}
-
-	bcopy(bp->b_data, unode->fentry, size);
-	
-	brelse(bp);
-	bp = NULL;
+	unode = uma_zalloc(udf_zone_node, M_WAITOK | M_ZERO);
 
 	if ((error = udf_allocv(mp, &vp, td))) {
 		printf("Error from udf_allocv\n");
@@ -648,8 +604,68 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	unode->i_dev = udfmp->im_dev;
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
+
+	/*
+	 * Exclusively lock the vnode before adding to hash. Note, that we
+	 * must not release nor downgrade the lock (despite flags argument
+	 * says) till it is fully initialized.
+	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
+
+	/*
+	 * Atomicaly (in terms of vfs_hash operations) check the hash for
+	 * duplicate of vnode being created and add it to the hash. If a
+	 * duplicate vnode was found, it will be vget()ed from hash for us.
+	 */
+	if ((error = vfs_hash_insert(vp, ino, flags, curthread, vpp)) != 0) {
+		vput(vp);
+		*vpp = NULL;
+		return (error);
+	}
+
+	/* We lost the race, then throw away our vnode and return existing */
+	if (*vpp != NULL) {
+		vput(vp);
+		return (0);
+	}
+
+	/*
+	 * Copy in the file entry.  Per the spec, the size can only be 1 block.
+	 */
+	sector = ino + udfmp->part_start;
+	devvp = udfmp->im_devvp;
+	if ((error = RDSECTOR(devvp, sector, udfmp->bsize, &bp)) != 0) {
+		printf("Cannot read sector %d\n", sector);
+		vput(vp);
+		brelse(bp);
+		*vpp = NULL;
+		return (error);
+	}
+
+	fe = (struct file_entry *)bp->b_data;
+	if (udf_checktag(&fe->tag, TAGID_FENTRY)) {
+		printf("Invalid file entry!\n");
+		vput(vp);
+		brelse(bp);
+		*vpp = NULL;
+		return (ENOMEM);
+	}
+	size = UDF_FENTRY_SIZE + le32toh(fe->l_ea) + le32toh(fe->l_ad);
+	MALLOC(unode->fentry, struct file_entry *, size, M_UDFFENTRY,
+	    M_NOWAIT | M_ZERO);
+	if (unode->fentry == NULL) {
+		printf("Cannot allocate file entry block\n");
+		vput(vp);
+		brelse(bp);
+		*vpp = NULL;
+		return (ENOMEM);
+	}
+
 	VREF(udfmp->im_devvp);
-	udf_hashins(unode);
+	bcopy(bp->b_data, unode->fentry, size);
+	
+	brelse(bp);
+	bp = NULL;
 
 	switch (unode->fentry->icbtag.file_type) {
 	default:
