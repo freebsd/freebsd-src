@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 16, 2004
+.Dd February 12, 2005
 .Dt NG_ETHER 4
 .Os
 .Sh NAME
@@ -167,6 +167,18 @@ The default setting for this flag is enabled.
 .It Dv NGM_ETHER_GET_AUTOSRC Pq Li getautosrc
 Get the current value of the node's source address override flag.
 The returned value is always either one or zero.
+.It Dv NGM_ETHER_ADD_MULTI Pq Li addmulti
+Join Ethernet multicast group.
+This control message is equivalent to using the
+.Dv SIOCADDMULTI
+.Xr ioctl 2
+system call.
+.It Dv NGM_ETHER_DEL_MULTI Pq Li delmulti
+Leave Ethernet multicast group.
+This control message is equivalent to using the
+.Dv SIOCDELMULTI
+.Xr ioctl 2
+system call.
 .El
 .Sh SHUTDOWN
 This node is persistent for as long as the corresponding interface exists.
