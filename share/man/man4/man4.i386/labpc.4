@@ -29,17 +29,6 @@
 .\"
 .\" $FreeBSD$
 .\"
-.rm ES
-.rm EE
-.de ES
-.Pp
-.nf
-.in +0.5i
-..
-.de EE
-.in -0.5i
-.fi
-..
 .Dd April 26, 1995
 .Dt LABPC 4 i386
 .Os FreeBSD
@@ -61,7 +50,7 @@ and not as part of the driver.
 .Pp
 The selection of the input or output device, mode, and channel is
 through the minor number:
-.ES
+.Bd -literal -offset indent
 The 8 bit minor number format is UUSIDCCC, with
  UU: Board unit.
   S: SCAN bit for scan enable.
@@ -78,7 +67,7 @@ CCC: The channel selector:
      DIGITAL:
      input:  Channel must be 0 to 2.
      output: Channel must be 0 to 2.
-.EE
+.Ed
 .Pp
 The /dev/MAKEDEV script will make the basic analog and digital
 devices if you do "sh MAKEDEV labpcaio" and "sh MAKEDEV labpcdio",
