@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -128,7 +129,8 @@ r_reg(FILE *fp, enum STYLE style, off_t off, struct stat *sbp)
 	curoff = size - 2;
 	lineend = size;
 	while (curoff >= 0) {
-		if (curoff < map.mapoff || curoff >= map.mapoff + map.maplen) {
+		if (curoff < map.mapoff ||
+		    curoff >= map.mapoff + (off_t)map.maplen) {
 			if (maparound(&map, curoff) != 0) {
 				ierr();
 				return;
@@ -245,7 +247,7 @@ r_buf(FILE *fp)
 	}
 
 	if (enomem) {
-		warnx("warning: %qd bytes discarded", enomem);
+		warnx("warning: %jd bytes discarded", (intmax_t)enomem);
 		rval = 1;
 	}
 
