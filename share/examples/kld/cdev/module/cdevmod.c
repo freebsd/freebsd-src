@@ -69,10 +69,33 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/conf.h>
 
 #include "cdev.h"
 
-static int cdev_load(module_t,   modeventtype_t, void *);
+#define CDEV_MAJOR 32
+
+static struct cdevsw my_devsw = {
+	/* open */	mydev_open,
+	/* close */	mydev_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	mydev_ioctl,
+	/* stop */	nostop,
+	/* reset */	noreset,
+	/* devtotty */	nodevtotty,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"cdev",
+	/* parms */	noparms,
+	/* maj */	CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	D_TTY,
+	/* maxio */	0,
+	/* bmaj */	-1
+};
 
 /*
  * This function is called each time the module is loaded or unloaded.
@@ -86,10 +109,7 @@ static int cdev_load(module_t,   modeventtype_t, void *);
  */
 
 static int
-cdev_load(mod, cmd, arg)
-    module_t	mod;
-    modeventtype_t cmd;
-    void * arg;
+cdev_load(module_t mod, int cmd, void *arg)
 {
     int  err = 0;
 
@@ -119,4 +139,4 @@ cdev_load(mod, cmd, arg)
 
 /* Now declare the module to the system */
 
-DEV_MODULE(cdev_mod, CDEV_MAJOR, -1, my_devsw, cdev_load, 0);
+DEV_MODULE(cdev, CDEV_MAJOR, -1, my_devsw, cdev_load, 0);
