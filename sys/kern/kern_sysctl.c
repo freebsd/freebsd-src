@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.62 1996/04/13 13:28:54 phk Exp $
+ * $Id: kern_sysctl.c,v 1.63 1996/06/06 17:17:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -571,22 +571,80 @@ sysctl_old_kernel(struct sysctl_req *req, const void *p, int l)
 			bcopy(p, req->oldptr + req->oldidx, i);
 	}
 	req->oldidx += l;
-	if (i != l)
+	if (req->oldptr && i != l)
 		return (ENOMEM);
 	return (0);
-
 }
 
 static int
-sysctl_new_kernel(struct sysctl_req *req, const void *p, int l)
+sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
 {
 	if (!req->newptr)
 		return 0;
 	if (req->newlen - req->newidx < l)
 		return (EINVAL);
-	bcopy(p, req->newptr + req->newidx, l);
+	bcopy(req->newptr + req->newidx, p, l);
 	req->newidx += l;
 	return (0);
+}
+
+int
+kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldlenp, void *new, size_t newlen, int *retval)
+{
+	int error = 0;
+	struct sysctl_req req;
+
+	bzero(&req, sizeof req);
+
+	req.p = p;
+
+	if (oldlenp) {
+		req.oldlen = *oldlenp;
+	}
+
+	if (old) {
+		req.oldptr= old;
+	}
+
+	if (newlen) {
+		req.newlen = newlen;
+		req.newptr = new;
+	}
+
+	req.oldfunc = sysctl_old_kernel;
+	req.newfunc = sysctl_new_kernel;
+	req.lock = 1;
+
+	/* XXX this should probably be done in a general way */
+	while (memlock.sl_lock) {
+		memlock.sl_want = 1;
+		(void) tsleep((caddr_t)&memlock, PRIBIO+1, "sysctl", 0);
+		memlock.sl_locked++;
+	}
+	memlock.sl_lock = 1;
+
+	error = sysctl_root(0, name, namelen, &req);
+
+	if (req.lock == 2)
+		vsunlock(req.oldptr, req.oldlen, B_WRITE);
+
+	memlock.sl_lock = 0;
+
+	if (memlock.sl_want) {
+		memlock.sl_want = 0;
+		wakeup((caddr_t)&memlock);
+	}
+
+	if (error && error != ENOMEM)
+		return (error);
+
+	if (retval) {
+		if (req.oldptr && req.oldidx > req.oldlen)
+			*retval = req.oldlen;
+		else
+			*retval = req.oldidx;
+	}
+	return (error);
 }
 
 /*
