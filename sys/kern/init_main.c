@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id$
+ * $Id: init_main.c,v 1.57 1997/02/22 09:38:59 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -70,6 +70,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>
+#include <sys/copyright.h>
 
 extern struct linker_set	sysinit_set;	/* XXX */
 
@@ -262,24 +263,6 @@ kproc_start(udata)
 SYSINIT(swapinit, SI_SUB_SWAP, SI_ORDER_FIRST, swapinit, NULL)
 #endif	/* OMIT*/
 
-/*
- * Should get its own file...
- */
-#ifdef HPFPLIB
-char	copyright[] =
-"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.\nCopyright (c) 1992 Hewlett-Packard Company\nCopyright (c) 1992 Motorola Inc.\nAll rights reserved.\n\n";
-#else
-char	copyright[] =
-"Copyright (c) 1992-1996 FreeBSD Inc.\n"
-#ifdef PC98
-"Copyright (c) 1994-1996  FreeBSD(98) porting team.\n"
-"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.\n"
-"Copyright (c) 1992  A.Kojima F.Ukai M.Ishii (KMC).\n"
-"\tAll rights reserved.\n\n";
-#else
-"Copyright (c) 1982, 1986, 1989, 1991, 1993\n\tThe Regents of the University of California.  All rights reserved.\n\n";
-#endif
-#endif
 static void print_caddr_t __P((void *data));
 static void
 print_caddr_t(data)
