@@ -440,11 +440,13 @@ The body of a man page is easily constructed from a basic
 template found in the file:
 .Bd -literal -offset indent
 \&.\e" /usr/share/misc/man.template:
-\&.\e" The following six lines are required.
-\&.Dd Month day, year
+\&.\e" The following requests are required for all man pages.
+\&.Dd "Month day, year"
 \&.Os OPERATING_SYSTEM [version/release]
 \&.Dt DOCUMENT_TITLE [section number] [volume]
 \&.Sh NAME
+\&.Nm name
+\&.Nm one line description of name
 \&.Sh SYNOPSIS
 \&.Sh DESCRIPTION
 \&.\e" The following requests should be uncommented and
