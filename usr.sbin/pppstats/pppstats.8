@@ -1,42 +1,36 @@
 .\"	@(#) $FreeBSD$
-.TH PPPSTATS 8 "2 May 1995"
-.SH NAME
-pppstats \- print PPP statistics
-.SH SYNOPSIS
-.B pppstats
-[
-.B -v
-] [
-.B -r
-] [
-.B -c
-] [
-.B -i
-.I <secs>
-] [
-.I <unit#>
-]
-.ti 12
-.SH DESCRIPTION
-.B pppstats
+.Dd May 2, 1995
+.Dt PPPSTATS 8
+.Sh NAME
+.Nm pppstats
+.Nd print PPP statistics
+.Sh SYNOPSIS
+.Nm
+.Op Fl v
+.Op Fl r
+.Op Fl c
+.Op Fl i Ar secs
+.Op Ar unit#
+.Sh DESCRIPTION
+.Nm pppstats
 prints PPP-related statistics.
-.PP
+.Pp
 The
-.B -v
+.Fl v
 flag causes
-.B pppstats
+.Nm
 to display additional statistics, such as the number of packets tossed
 (that is, which the VJ TCP header decompression code rejected).
-.PP
+.Pp
 The
-.B -r
+.Fl r
 flag causes
-.B pppstats
+.Nm
 to display the overall packet compression rate.  The rate value is
 between 0 and 1, with 0 meaning that the data is incompressible.
-.PP
+.Pp
 The
-.B -c
+.Fl c
 flag is used to specify an alternate display mode that shows
 packet compression statistics: the number of packets and bytes
 uncompressed (that is, before compression or after decompression),
@@ -45,10 +39,13 @@ compression and were transmitted uncompressed), and the recent
 compression rate.  This rate reflects the recent performance of the
 compression code rather than the overall rate achieved since
 compression was enabled.
-.PP
+.Pp
 The
-.B -i
+.Fl i
 flag is used to specify the interval between printouts. The default is
 5 seconds.
-.PP
-<unit#> specifies which interface to use for gathering statistics.
+.Pp
+.Ar unit#
+specifies which interface to use for gathering statistics.
+.Sh SEE ALSO
+.Xr pppd 8
