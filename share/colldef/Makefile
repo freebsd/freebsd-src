@@ -1,20 +1,20 @@
-# $Id: Makefile,v 1.17 1999/02/13 14:15:25 ache Exp $
+# $Id: Makefile,v 1.18 1999/02/15 15:11:07 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=        de_DE.ISO_8859-1 \
+LOCALES=	de_DE.DIS_8859-15 \
+		de_DE.ISO_8859-1 \
+		es_ES.DIS_8859-15 \
 		es_ES.ISO_8859-1 \
+		is_IS.DIS_8859-15 \
 		is_IS.ISO_8859-1 \
 		lt_LN.ASCII      \
+		lt_LN.DIS_8859-15 \
 		lt_LN.ISO_8859-1 \
 		lt_LN.ISO_8859-2 \
 		ru_SU.CP866 \
-		ru_SU.KOI8-R \
-		de_DE.DIS_8859-15 \
-		es_ES.DIS_8859-15 \
-		is_IS.DIS_8859-15 \
-		lt_LN.DIS_8859-15 
+		ru_SU.KOI8-R
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
@@ -38,17 +38,17 @@ DELINKS = de_AT de_CH
 .if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
 
-ru_SU.KOI8-R.out:       map.KOI8-R
-ru_SU.CP866.out:        map.CP866
-lt_LN.ISO_8859-1.out:   map.ISO_8859-1
-lt_LN.ISO_8859-2.out:   map.ISO_8859-2
-es_ES.ISO_8859-1.out:   map.ISO_8859-1
+de_DE.DIS_8859-15.out:  map.DIS_8859-15
 de_DE.ISO_8859-1.out:   map.ISO_8859-1
+es_ES.DIS_8859-15.out:  map.DIS_8859-15
+es_ES.ISO_8859-1.out:   map.ISO_8859-1
+is_IS.DIS_8859-15.out:  map.DIS_8859-15
 is_IS.ISO_8859-1.out:   map.ISO_8859-1
 lt_LN.DIS_8859-15.out:  map.DIS_8859-15
-es_ES.DIS_8859-15.out:  map.DIS_8859-15
-de_DE.DIS_8859-15.out:  map.DIS_8859-15
-is_IS.DIS_8859-15.out:  map.DIS_8859-15
+lt_LN.ISO_8859-1.out:   map.ISO_8859-1
+lt_LN.ISO_8859-2.out:   map.ISO_8859-2
+ru_SU.CP866.out:        map.CP866
+ru_SU.KOI8-R.out:       map.KOI8-R
 
 afterinstall:
 .for locale in ${LOCALES}
