@@ -130,12 +130,12 @@ struct xswdev {
 #ifdef _KERNEL
 #define num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
-extern	u_quad_t maxtsiz;
-extern	u_quad_t dfldsiz;
-extern	u_quad_t maxdsiz;
-extern	u_quad_t dflssiz;
-extern	u_quad_t maxssiz;
-extern	u_quad_t sgrowsiz;
+extern	unsigned long maxtsiz;
+extern	unsigned long dfldsiz;
+extern	unsigned long maxdsiz;
+extern	unsigned long dflssiz;
+extern	unsigned long maxssiz;
+extern	unsigned long sgrowsiz;
 #endif				/* _KERNEL */
 #endif				/* ASSEMBLER */
 #endif				/* _VM_PARAM_ */
