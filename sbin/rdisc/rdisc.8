@@ -1,4 +1,4 @@
-.\" @(#)in.rdisc.8c 1.4 91/10/21 SMI
+.\" @(#)rdisc.8c 1.4 96/1/22 FreeBSD
 '\"macro stdmacro
 .\"
 .\" Rdisc (this program) was developed by Sun Microsystems, Inc. and is 
@@ -28,16 +28,16 @@
 .\" Mountain View, California  94043
 .\"
 .nr X
-.TH in.rdisc 8C "2 Oct 1991"
+.TH rdisc 8C "22 Jan 1996"
 .SH NAME
-in.rdisc \- network router discovery daemon
+rdisc \- network router discovery daemon
 .SH SYNOPSIS
-.B in.rdisc
+.B rdisc
 [
 .B \-sfa
 ]
 .LP
-.B in.rdisc
+.B rdisc
 .B \-r
 [
 .BI \-p " preference"
@@ -45,24 +45,24 @@ in.rdisc \- network router discovery daemon
 .BI \-T " interval"
 ]
 .SH DESCRIPTION
-.IX "in.rdisc" "" "\fLin.rdisc\fP \(em ICMP router discovery daemon"
-.IX "Internet" "ICMP router discovery daemon" ""  "ICMP router discovery daemon \(em \fLin.rdisc\fP"
+.IX "rdisc" "" "\fLrdisc\fP \(em ICMP router discovery daemon"
+.IX "Internet" "ICMP router discovery daemon" ""  "ICMP router discovery daemon \(em \fLrdisc\fP"
 .IX "Internet Control Message Protocol" "See ICMP"
-.IX "ICMP" "router discovery daemon" "" "router discovery daemon \(em \fLin.rdisc\fP"  
+.IX "ICMP" "router discovery daemon" "" "router discovery daemon \(em \fLrdisc\fP"  
 .LP
-\f4in.rdisc\f1
+\f4rdisc\f1
 implements the 
 .SM ICMP
 router discover protocol.
 The first form of the command is used on hosts and the
 second form is used on routers.
-On a host \f4in.rdisc\f1 is invoked at 
+On a host \f4rdisc\f1 is invoked at 
 boot time to populate the network routing tables with default routes. 
 On a router it is also invoked at boot time in order to start
 advertising the router to all the hosts.
 .SS "Host (First Form)"
 .PP
-On a host \f4in.rdisc\f1
+On a host \f4rdisc\f1
 listens on the \f4ALL_HOSTS\f1 (224.0.0.1) multicast address 
 for \f4ROUTER_ADVERTISE\f1 messages from routers. The received
 messages are handled by first ignoring
@@ -71,7 +71,7 @@ Among the remaining addresses the ones with the highest preference are selected
 as default routers and a default route is entered in the kernel routing
 table for each one of them.
 .LP
-Optionally, \f4in.rdisc\f1 can avoid waiting for routers to announce 
+Optionally, \f4rdisc\f1 can avoid waiting for routers to announce 
 themselves by sending out a few \f4ROUTER_SOLICITATION\f1 messages
 to the \f4ALL_ROUTERS\f1 (224.0.0.2) multicast address when it is started.
 .LP
@@ -86,7 +86,7 @@ message with the preference being maximally negative.
 .SS "Router (Second Form)"
 .PP
 When 
-\f4in.rdisc\f1
+\f4rdisc\f1
 is started on a router, it uses the
 \f4SIOCGIFCONF\f1
 .BR ioctl (2)
@@ -105,7 +105,7 @@ transmit
 .I advertise
 messages approximately every 600 seconds.
 .LP
-When \f4in.rdisc\f1
+When \f4rdisc\f1
 receives a 
 .I solicitation
 message it sends an 
@@ -115,7 +115,7 @@ message to the host that sent the
 message.
 .LP
 When
-.B in.rdisc
+.B rdisc
 is terminated by a signal it sends out an
 .I advertise
 message with the preference being maximally negative.
@@ -128,16 +128,16 @@ Accept all routers independently of the preference they have in their
 .I advertise
 messages.
 Normally
-.B in.rdisc
+.B rdisc
 only accepts (and enters in the kernel routing tables) 
 the router or routers with the highest preference.
 .TP
 .B \-f
 Run
-.B in.rdisc 
+.B rdisc 
 forever even if no routers are found.
 Normally 
-.B in.rdisc 
+.B rdisc 
 gives up if it has not received any 
 .I advertise 
 message after after soliciting three times,
@@ -165,7 +165,7 @@ when the system is booted.
 When 
 .B \-s
 is specified 
-.B in.rdisc
+.B rdisc
 exits with a non-zero exit code if it can not find any routers.
 This can be overridden with the
 .B \-f
@@ -177,8 +177,7 @@ Set the interval between transmitting the
 messages.
 The default time is 600 seconds.
 .SH "SEE ALSO"
-.BR in.routed (8C)
-.BR ioctl (2),
+.BR routed (8C)
 .BR icmp (7),
 .BR inet (7)
 .LP
