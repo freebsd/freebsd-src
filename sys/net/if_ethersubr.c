@@ -364,7 +364,7 @@ ether_output_frame(ifp, m)
 {
 	int error = 0;
 
-	if (do_bridge && bdg_forward_ptr != NULL && BDG_USED(ifp) ) {
+	if (BDG_ACTIVE(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
 
 		m->m_pkthdr.rcvif = NULL;
@@ -429,7 +429,7 @@ ether_input(ifp, eh, m)
 	}
 
 	/* Check for bridging mode */
-	if (do_bridge && bdg_forward_ptr != NULL && BDG_USED(ifp) ) {
+	if (BDG_ACTIVE(ifp) ) {
 		struct ifnet *bif;
 
 		/* Check with bridging code */
@@ -441,7 +441,7 @@ ether_input(ifp, eh, m)
 			struct mbuf *oldm = m ;
 
 			save_eh = *eh ; /* because it might change */
-			m = bdg_forward_ptr(m, eh, bif);	/* needs forwarding */
+			m = bdg_forward_ptr(m, eh, bif); /* needs forwarding */
 			/*
 			 * Do not continue if bdg_forward_ptr() processed our
 			 * packet (and cleared the mbuf pointer m) or if
@@ -462,7 +462,7 @@ ether_input(ifp, eh, m)
 
 		/* If not local and not multicast, just drop it */
 		if (m != NULL)
-		    m_freem(m);
+			m_freem(m);
 		return;
        }
 
@@ -488,7 +488,7 @@ ether_demux(ifp, eh, m)
 #if defined(NETATALK)
 	register struct llc *l;
 #endif
-
+    if (! (BDG_ACTIVE(ifp) ) )
 	/* Discard packet if upper layers shouldn't see it because it was
 	   unicast to a different Ethernet address. If the driver is working
 	   properly, then this situation can only happen when the interface
@@ -674,7 +674,7 @@ ether_ifattach(ifp, bpf)
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
-	if (bdgtakeifaces_ptr != NULL)
+	if (BDG_LOADED)
 		bdgtakeifaces_ptr();
 }
 
@@ -691,7 +691,7 @@ ether_ifdetach(ifp, bpf)
 	if (bpf)
 		bpfdetach(ifp);
 	if_detach(ifp);
-	if (bdgtakeifaces_ptr != NULL)
+	if (BDG_LOADED)
 		bdgtakeifaces_ptr();
 }
 
