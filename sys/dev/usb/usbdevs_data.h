@@ -1024,7 +1024,7 @@ const struct usb_knowndev usb_knowndevs[] = {
 	    "CD-Writer Plus 8200e",
 	},
 	{
-	    USB_VENDOR_HP, USB_PRODUCT_HP_1200C,
+	    USB_VENDOR_HP, USB_PRODUCT_HP_1220C,
 	    0,
 	    "Hewlett Packard",
 	    "DeskJet 1220C",
