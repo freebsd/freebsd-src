@@ -62,8 +62,8 @@ struct file {
 #define	DTYPE_FIFO	4	/* fifo (named pipe) */
 #define	DTYPE_KQUEUE	5	/* event queue */
 	short	f_type;		/* descriptor type */
-	short	f_count;	/* reference count */
-	short	f_msgcount;	/* references from message queue */
+	short	f_FILLER1;	/* (OLD) reference count */
+	short	f_FILLER2;	/* (OLD) references from message queue */
 	struct	ucred *f_cred;	/* credentials associated with descriptor */
 	struct	fileops {
 		int	(*fo_read)	__P((struct file *fp, struct uio *uio,
@@ -90,6 +90,8 @@ struct file {
 				 */
 	off_t	f_offset;
 	caddr_t	f_data;		/* vnode or socket */
+	int	f_count;	/* reference count */
+	int	f_msgcount;	/* reference count from message queue */
 };
 
 #ifdef MALLOC_DECLARE
