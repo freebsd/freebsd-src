@@ -601,7 +601,7 @@ ng_internalize(struct mbuf *control, struct thread *td)
 	 * shortcut straight to the node. */
 	switch (fp->f_type) {
 	case DTYPE_VNODE:
-		vn = fp->un_data.vnode;
+		vn = fp->f_data;
 		if (vn && (vn->v_type == VCHR)) {
 			/* for a VCHR, actually reference the FILE */
 			fp->f_count++;

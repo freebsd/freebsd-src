@@ -82,7 +82,7 @@ svr4_find_socket(td, fp, dev, ino)
 	ino_t ino;
 {
 	struct svr4_sockcache_entry *e;
-	void *cookie = fp->un_data.socket->so_emuldata;
+	void *cookie = ((struct socket *)fp->f_data)->so_emuldata;
 
 	if (svr4_str_initialized != 2) {
 		if (atomic_cmpset_acq_int(&svr4_str_initialized, 0, 1)) {

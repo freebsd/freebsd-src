@@ -112,7 +112,7 @@ svr4_sys_ioctl(td, uap)
 
 #if defined(DEBUG_SVR4)
 	if (fp->f_type == DTYPE_SOCKET) {
-	        struct socket *so = fp->un_data.socket;
+	        struct socket *so = fp->f_data;
 		DPRINTF(("<<< IN: so_state = 0x%x\n", so->so_state));
 	}
 #endif
@@ -157,7 +157,7 @@ svr4_sys_ioctl(td, uap)
 	if (fp->f_type == DTYPE_SOCKET) {
 	        struct socket *so;
 
-	        so = fp->un_data.socket;
+	        so = fp->f_data;
 		DPRINTF((">>> OUT: so_state = 0x%x\n", so->so_state));
 	}
 #endif

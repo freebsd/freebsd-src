@@ -238,7 +238,7 @@ pipe(td, uap)
 	FILE_LOCK(rf);
 	rf->f_flag = FREAD | FWRITE;
 	rf->f_type = DTYPE_PIPE;
-	rf->un_data.pipe = rpipe;
+	rf->f_data = rpipe;
 	rf->f_ops = &pipeops;
 	FILE_UNLOCK(rf);
 	error = falloc(td, &wf, &fd);
@@ -259,7 +259,7 @@ pipe(td, uap)
 	FILE_LOCK(wf);
 	wf->f_flag = FREAD | FWRITE;
 	wf->f_type = DTYPE_PIPE;
-	wf->un_data.pipe = wpipe;
+	wf->f_data = wpipe;
 	wf->f_ops = &pipeops;
 	FILE_UNLOCK(wf);
 	td->td_retval[1] = fd;
@@ -452,7 +452,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 	struct thread *td;
 	int flags;
 {
-	struct pipe *rpipe = fp->un_data.pipe;
+	struct pipe *rpipe = fp->f_data;
 	int error;
 	int nread = 0;
 	u_int size;
@@ -868,7 +868,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	int orig_resid;
 	struct pipe *wpipe, *rpipe;
 
-	rpipe = fp->un_data.pipe;
+	rpipe = fp->f_data;
 	wpipe = rpipe->pipe_peer;
 
 	PIPE_LOCK(rpipe);
@@ -1155,7 +1155,7 @@ pipe_ioctl(fp, cmd, data, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct pipe *mpipe = fp->un_data.pipe;
+	struct pipe *mpipe = fp->f_data;
 #ifdef MAC
 	int error;
 #endif
@@ -1223,7 +1223,7 @@ pipe_poll(fp, events, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct pipe *rpipe = fp->un_data.pipe;
+	struct pipe *rpipe = fp->f_data;
 	struct pipe *wpipe;
 	int revents = 0;
 #ifdef MAC
@@ -1284,7 +1284,7 @@ pipe_stat(fp, ub, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct pipe *pipe = fp->un_data.pipe;
+	struct pipe *pipe = fp->f_data;
 #ifdef MAC
 	int error;
 
@@ -1317,10 +1317,10 @@ pipe_close(fp, td)
 	struct file *fp;
 	struct thread *td;
 {
-	struct pipe *cpipe = fp->un_data.pipe;
+	struct pipe *cpipe = fp->f_data;
 
 	fp->f_ops = &badfileops;
-	fp->un_data.pipe = NULL;
+	fp->f_data = NULL;
 	funsetown(&cpipe->pipe_sigio);
 	pipeclose(cpipe);
 	return (0);
@@ -1428,7 +1428,7 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 {
 	struct pipe *cpipe;
 
-	cpipe = kn->kn_fp->un_data.pipe;
+	cpipe = kn->kn_fp->f_data;
 	switch (kn->kn_filter) {
 	case EVFILT_READ:
 		kn->kn_fop = &pipe_rfiltops;
@@ -1465,7 +1465,7 @@ filt_pipedetach(struct knote *kn)
 static int
 filt_piperead(struct knote *kn, long hint)
 {
-	struct pipe *rpipe = kn->kn_fp->un_data.pipe;
+	struct pipe *rpipe = kn->kn_fp->f_data;
 	struct pipe *wpipe = rpipe->pipe_peer;
 
 	PIPE_LOCK(rpipe);
@@ -1487,7 +1487,7 @@ filt_piperead(struct knote *kn, long hint)
 static int
 filt_pipewrite(struct knote *kn, long hint)
 {
-	struct pipe *rpipe = kn->kn_fp->un_data.pipe;
+	struct pipe *rpipe = kn->kn_fp->f_data;
 	struct pipe *wpipe = rpipe->pipe_peer;
 
 	PIPE_LOCK(rpipe);

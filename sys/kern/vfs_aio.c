@@ -555,7 +555,7 @@ aio_proc_rundown(struct proc *p)
 		aiocbn = TAILQ_NEXT(aiocbe, plist);
 		fp = aiocbe->fd_file;
 		if (fp != NULL) {
-			so = fp->un_data.socket;
+			so = fp->f_data;
 			TAILQ_REMOVE(&so->so_aiojobq, aiocbe, list);
 			if (TAILQ_EMPTY(&so->so_aiojobq)) {
 				so->so_snd.sb_flags &= ~SB_AIO;
@@ -1059,7 +1059,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	if (fp->f_type != DTYPE_VNODE) 
 		return (-1);
 
-	vp = fp->un_data.vnode;
+	vp = fp->f_data;
 
 	/*
 	 * If its not a disk, we don't want to return a positive error.
@@ -1406,7 +1406,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		error = EBADF;
 		goto aqueue_fail;
 	}
-	kq = kq_fp->un_data.kqueue;
+	kq = kq_fp->f_data;
 	kev.ident = (uintptr_t)aiocbe->uuaiocb;
 	kev.filter = EVFILT_AIO;
 	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
@@ -1441,7 +1441,7 @@ no_kqueue:
 		 * socket, and set the flags so we get a call when sbnotify()
 		 * happens.
 		 */
-		so = fp->un_data.socket;
+		so = fp->f_data;
 		s = splnet();
 		if (((opcode == LIO_READ) && (!soreadable(so))) || ((opcode ==
 		    LIO_WRITE) && (!sowriteable(so)))) {
@@ -1731,14 +1731,14 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		return (EBADF);
 
         if (fp->f_type == DTYPE_VNODE) {
-		vp = fp->un_data.vnode;
+		vp = fp->f_data;
 		
 		if (vn_isdisk(vp,&error)) {
 			td->td_retval[0] = AIO_NOTCANCELED;
         	        return 0;
 		}
 	} else if (fp->f_type == DTYPE_SOCKET) {
-		so = fp->un_data.socket;
+		so = fp->f_data;
 
 		s = splnet();
 

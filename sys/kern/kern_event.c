@@ -157,7 +157,7 @@ filt_fileattach(struct knote *kn)
 static int
 kqueue_kqfilter(struct file *fp, struct knote *kn)
 {
-	struct kqueue *kq = kn->kn_fp->un_data.kqueue;
+	struct kqueue *kq = kn->kn_fp->f_data;
 
 	if (kn->kn_filter != EVFILT_READ)
 		return (1);
@@ -170,7 +170,7 @@ kqueue_kqfilter(struct file *fp, struct knote *kn)
 static void
 filt_kqdetach(struct knote *kn)
 {
-	struct kqueue *kq = kn->kn_fp->un_data.kqueue;
+	struct kqueue *kq = kn->kn_fp->f_data;
 
 	SLIST_REMOVE(&kq->kq_sel.si_note, kn, knote, kn_selnext);
 }
@@ -179,7 +179,7 @@ filt_kqdetach(struct knote *kn)
 static int
 filt_kqueue(struct knote *kn, long hint)
 {
-	struct kqueue *kq = kn->kn_fp->un_data.kqueue;
+	struct kqueue *kq = kn->kn_fp->f_data;
 
 	kn->kn_data = kq->kq_count;
 	return (kn->kn_data > 0);
@@ -378,7 +378,7 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	fp->f_type = DTYPE_KQUEUE;
 	fp->f_ops = &kqueueops;
 	TAILQ_INIT(&kq->kq_head);
-	fp->un_data.kqueue = kq;
+	fp->f_data = kq;
 	FILE_UNLOCK(fp);
 	FILEDESC_LOCK(fdp);
 	td->td_retval[0] = fd;
@@ -427,7 +427,7 @@ kevent(struct thread *td, struct kevent_args *uap)
 	}
 	mtx_lock(&Giant);
 
-	kq = fp->un_data.kqueue;
+	kq = fp->f_data;
 	nerrors = 0;
 
 	while (uap->nchanges > 0) {
@@ -650,7 +650,7 @@ kqueue_scan(struct file *fp, int maxevents, struct kevent *ulistp,
 
 	FILE_LOCK_ASSERT(fp, MA_NOTOWNED);
 
-	kq = fp->un_data.kqueue;
+	kq = fp->f_data;
 	count = maxevents;
 	if (count == 0)
 		goto done;
@@ -806,7 +806,7 @@ kqueue_poll(struct file *fp, int events, struct ucred *active_cred,
 	int revents = 0;
 	int s = splnet();
 
-	kq = fp->un_data.kqueue;
+	kq = fp->f_data;
         if (events & (POLLIN | POLLRDNORM)) {
                 if (kq->kq_count) {
                         revents |= events & (POLLIN | POLLRDNORM);
@@ -826,7 +826,7 @@ kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 {
 	struct kqueue *kq;
 
-	kq = fp->un_data.kqueue;
+	kq = fp->f_data;
 	bzero((void *)st, sizeof(*st));
 	st->st_size = kq->kq_count;
 	st->st_blksize = sizeof(struct kevent);
@@ -838,7 +838,7 @@ kqueue_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 static int
 kqueue_close(struct file *fp, struct thread *td)
 {
-	struct kqueue *kq = fp->un_data.kqueue;
+	struct kqueue *kq = fp->f_data;
 	struct filedesc *fdp = td->td_proc->p_fd;
 	struct knote **knp, *kn, *kn0;
 	int i;
@@ -885,7 +885,7 @@ kqueue_close(struct file *fp, struct thread *td)
 	}
 	FILEDESC_UNLOCK(fdp);
 	free(kq, M_KQUEUE);
-	fp->un_data.kqueue = NULL;
+	fp->f_data = NULL;
 
 	return (0);
 }
