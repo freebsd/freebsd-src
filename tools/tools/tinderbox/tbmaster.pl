@@ -52,6 +52,7 @@ my %SETUPS	= (
 	'TARGETS'	=> [ 'update', 'world', 'generic', 'lint' ],
 	'ARCHES'	=> {
 	    'alpha'	=> [ 'alpha' ],
+	    'amd64'	=> [ 'amd64' ],
 	    'i386'	=> [ 'i386', 'pc98' ],
 	    'ia64'	=> [ 'ia64' ],
 	    'sparc64'	=> [ 'sparc64' ],
@@ -78,7 +79,6 @@ my %SETUPS	= (
 	'BRANCHES'	=> [ 'CURRENT' ],
 	'TARGETS'	=> [ 'update', 'world', 'generic', 'lint' ],
 	'ARCHES'	=> {
-	    'amd64'	=> [ 'amd64' ],
 	    'powerpc'	=> [ 'powerpc' ],
 	},
 	'ENV'		=> {
