@@ -1654,6 +1654,14 @@ i.e., the default is to allow everything through.
 If no rule is matched to a packet, that packet will be discarded
 (blocked).
 .It
+It's possible to filter based on the payload of UDP frames where those
+frames contain a
+.Em PROTO_IP
+.Em PPP
+frame header.  See the
+.Ar filter-decapsulation
+option below for further details.
+.It
 Use
 .Dq set filter Ar name No -1
 to flush all rules.
@@ -2722,6 +2730,30 @@ This option determines if Van Jacobson header compression will be used.
 The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
 .Bl -tag -width XX
+.It filter-decapsulation
+Default: Disabled.
+When this option is enabled,
+.Nm
+will examine UDP frames to see if they actually contain a
+.Em PPP
+frame as their payload.  If this is the case, all filters will operate
+on the payload rather than the actual packet.
+.Pp
+This is useful if you want to send PPPoUDP traffic over a
+.Em PPP
+link, but want that link to do smart things with the real data rather than
+the UDP wrapper.
+.Pp
+The UDP frame payload must not be compressed in any way, otherwise
+.Nm
+will not be able to interpret it.  It's therefore recommended that
+you
+.Ic disable vj pred1 deflate
+and
+.Ic deny vj pred1 deflate
+in the configuration for the
+.Nm
+invocation with the udp link.
 .It idcheck
 Default: Enabled.
 When
