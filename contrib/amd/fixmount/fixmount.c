@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1998 Erez Zadok
+ * Copyright (c) 1997-1999 Erez Zadok
  * Copyright (c) 1990 Jan-Simon Pendry
  * Copyright (c) 1990 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1990 The Regents of the University of California.
@@ -38,7 +38,8 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fixmount.c,v 1.3 1998/11/14 03:13:31 obrien Exp $
+ * $Id: fixmount.c,v 1.4 1999/02/04 07:24:42 ezk Exp $
+ * $FreeBSD$
  *
  */
 
@@ -86,15 +87,6 @@ void fix_rmtab(CLIENT *, char *, mountlist, int, int);
 void print_dump(mountlist);
 void usage(void);
 
-/* dummy variables */
-#if 0
-char *progname;
-char hostname[MAXHOSTNAMELEN];
-pid_t mypid;
-serv_state amd_state;
-int foreground, orig_umask;
-int debug_flags;
-#endif
 
 void
 usage(void)
