@@ -24,15 +24,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cy_pci.c,v 1.1 1996/10/13 01:09:23 davidg Exp $
  */
 
 /*
  * Cyclades Y PCI serial interface driver
  */
 
-#include <pci.h>
+#include "pci.h"
 #if NPCI > 0
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>

@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.7 1996/03/10 08:42:47 sos Exp $
+ *	$Id: linux.h,v 1.8 1996/03/10 22:30:52 peter Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
 #define _I386_LINUX_LINUX_H_
-#include "i386/linux/linux_syscall.h"
+
+#include <i386/linux/linux_syscall.h>
 
 typedef unsigned short linux_uid_t;
 typedef unsigned short linux_gid_t;
