@@ -204,10 +204,7 @@ HTAGSFLAGS=
 .S.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
 
-.s.o:
-	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-
-.asm.o:
+.s.o .asm.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
 
 # XXX not -j safe
