@@ -55,6 +55,7 @@ SRCS		+= openpam_free_data.c
 SRCS		+= openpam_get_option.c
 SRCS		+= openpam_load.c
 SRCS		+= openpam_log.c
+SRCS		+= openpam_nullconv.c
 SRCS		+= openpam_restore_cred.c
 SRCS		+= openpam_set_option.c
 SRCS		+= openpam_ttyconv.c
