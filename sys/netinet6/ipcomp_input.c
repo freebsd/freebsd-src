@@ -83,8 +83,7 @@
 #define IPLEN_FLIPPED
 
 #ifdef INET
-#include <netinet/ipprotosw.h>
-extern struct ipprotosw inetsw[];
+extern struct protosw inetsw[];
 
 void
 #if __STDC__
@@ -110,7 +109,7 @@ ipcomp4_input(m, va_alist)
 
 	va_start(ap, m);
 	off = va_arg(ap, int);
-	proto = va_arg(ap, int);
+	proto = mtod(m, struct ip *)->ip_p;
 	va_end(ap);
 
 	if (m->m_pkthdr.len < off + sizeof(struct ipcomp)) {
@@ -231,7 +230,7 @@ ipcomp4_input(m, va_alist)
 			ipsecstat.in_polvio++;
 			goto fail;
 		}
-		(*inetsw[ip_protox[nxt]].pr_input)(m, off, nxt);
+		(*inetsw[ip_protox[nxt]].pr_input)(m, off);
 	} else
 		m_freem(m);
 	m = NULL;

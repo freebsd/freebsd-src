@@ -63,8 +63,6 @@
 #include <netinet/udp_var.h>
 #include <netinet/ip_encap.h>
 
-#include <netinet/ipprotosw.h>
-
 /*
  * TCP/IP protocol family: IP, ICMP, UDP, TCP.
  */
@@ -90,7 +88,7 @@
 extern	struct domain inetdomain;
 static	struct pr_usrreqs nousrreqs;
 
-struct ipprotosw inetsw[] = {
+struct protosw inetsw[] = {
 { 0,		&inetdomain,	0,		0,
   0,		0,		0,		0,
   0,
@@ -207,8 +205,8 @@ extern int in_inithead __P((void **, int));
 
 struct domain inetdomain =
     { AF_INET, "internet", 0, 0, 0, 
-      (struct protosw *)inetsw,
-      (struct protosw *)&inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
+      inetsw,
+      &inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
       in_inithead, 32, sizeof(struct sockaddr_in)
     };
 

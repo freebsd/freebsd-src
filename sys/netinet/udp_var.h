@@ -105,7 +105,7 @@ extern int	log_in_vain;
 
 void	udp_ctlinput __P((int, struct sockaddr *, void *));
 void	udp_init __P((void));
-void	udp_input __P((struct mbuf *, int, int));
+void	udp_input __P((struct mbuf *, int));
 
 void	udp_notify __P((struct inpcb *inp, int errno));
 int	udp_shutdown __P((struct socket *so));
