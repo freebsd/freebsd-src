@@ -4,12 +4,20 @@
 
 .PATH: ${SRCDIR}/binutils
 
+.if ${TARGET_ARCH} == "sparc64"
+GDB_CPU=	sparc
+.elif ${TARGET_ARCH} == "x86-64"
+GDB_CPU=	i386
+.else
+GDB_CPU=	${TARGET_ARCH}
+.endif
+
 NOSHARED?=yes
 PROG=	gdb
 XSRCS=	annotate.c ax-general.c ax-gdb.c bcache.c blockframe.c		\
 	breakpoint.c buildsym.c c-exp.y c-lang.c c-typeprint.c		\
 	c-valprint.c ch-exp.c ch-lang.c ch-typeprint.c ch-valprint.c	\
-	coffread.c complaints.c copying.c core-regset.c	\
+	coffread.c complaints.c copying.c \
 	corefile.c corelow.c cp-valprint.c dcache.c dbxread.c		\
 	demangle.c dwarfread.c dwarf2read.c elfread.c environ.c eval.c	\
 	exec.c expprint.c f-exp.y f-lang.c f-typeprint.c f-valprint.c	\
@@ -40,7 +48,7 @@ WARNS=	0
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
 CFLAGS+=	-DCROSS_COMPILE=1
 .endif
-CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${TARGET_ARCH}_arch
+CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${GDB_CPU}_arch
 CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils
 CFLAGS+=	-I${SRCDIR}/bfd
@@ -117,13 +125,13 @@ init.c: ${XSRCS}
 .PRECIOUS: init.c
 
 nm.h:
-	echo '#include "${TARGET_ARCH}/nm-fbsd.h"'	>${.TARGET}
+	echo '#include "${GDB_CPU}/nm-fbsd.h"'	>${.TARGET}
 	echo '#include "fbsd-kgdb.h"'		>>${.TARGET}
 
-.for H in tm-fbsd xm-${TARGET_ARCH}
+.for H in tm-fbsd xm-${GDB_CPU}
 ${H:C/-.*$//}.h:
 	ln -sf \
-	    ${.CURDIR}/../../../../contrib/gdb/gdb/config/${TARGET_ARCH}/${H}.h \
+	    ${.CURDIR}/../../../../contrib/gdb/gdb/config/${GDB_CPU}/${H}.h \
 	    ${.TARGET}
 .endfor
 
