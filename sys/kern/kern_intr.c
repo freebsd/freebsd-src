@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kern_intr.c,v 1.4 1997/08/21 06:36:02 smp Exp smp $
+ * $Id: kern_intr.c,v 1.11 1997/08/21 06:39:41 fsmp Exp $
  *
  */
 
@@ -199,8 +199,9 @@ add_intrdesc(intrec *idesc)
 			 * can't append new handler, if either list head or
 			 * new handler do not allow interrupts to be shared
 			 */
-			printf("\tdevice combination doesn't support shared irq%d\n", 
-			       irq);
+			if (bootverbose)
+				printf("\tdevice combination doesn't support "
+				       "shared irq%d\n", irq);
 			return (-1);
 		}
 		if (head->next == NULL) {
@@ -258,7 +259,7 @@ intr_connect(intrec *idesc)
 		errcode = add_intrdesc(idesc);
 		splx(oldspl);
 	}
-	if (errcode != 0)
+	if (errcode != 0 && bootverbose)
 		printf("\tintr_connect(irq%d) failed, result=%d\n", 
 		       irq, errcode);
 
