@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- * $Id: protosw.h,v 1.5 1994/10/08 22:22:57 phk Exp $
+ * $Id: protosw.h,v 1.6 1995/02/07 02:01:57 wollman Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -64,19 +64,39 @@ struct protosw {
 	struct	domain *pr_domain;	/* domain protocol a member of */
 	short	pr_protocol;		/* protocol number */
 	short	pr_flags;		/* see below */
+
 /* protocol-protocol hooks */
-	void	(*pr_input)();		/* input to protocol (from below) */
-	int	(*pr_output)();		/* output to protocol (from above) */
-	void	(*pr_ctlinput)();	/* control input (from below) */
-	int	(*pr_ctloutput)();	/* control output (from above) */
+
+	/* input to protocol (from below) */
+	void	(*pr_input)();
+
+	/* output to protocol (from above) */
+	int	(*pr_output)();
+
+	/* control input (from below) */
+	void	(*pr_ctlinput)();
+
+	/* control output (from above) */
+	int	(*pr_ctloutput)();
+
 /* user-protocol hook */
-	int	(*pr_usrreq)();		/* user request: see list below */
+
+	/* user request: see list below */
+	int	(*pr_usrreq)();
+
 /* utility hooks */
-	void	(*pr_init)();		/* initialization hook */
-	void	(*pr_fasttimo)();	/* fast timeout (200ms) */
-	void	(*pr_slowtimo)();	/* slow timeout (500ms) */
-	void	(*pr_drain)();		/* flush any excess space possible */
-	int	(*pr_sysctl)();		/* sysctl for protocol */
+
+	/* initialization hook */
+	void	(*pr_init)(void);
+
+	/* fast timeout (200ms) */
+	void	(*pr_fasttimo)(void);
+
+	/* slow timeout (500ms) */
+	void	(*pr_slowtimo)(void);
+
+	/* flush any excess space possible */
+	void	(*pr_drain)(void);
 };
 
 #define	PR_SLOWHZ	2		/* 2 slow timeouts per second */
@@ -216,7 +236,8 @@ char	*prcorequests[] = {
 #endif
 
 #ifdef KERNEL
-extern	struct protosw *pffindproto(), *pffindtype();
+struct protosw *pffindproto(int family, int protocol, int type);
+struct protosw *pffindtype(int family, int type);
 #endif
 
 #endif
