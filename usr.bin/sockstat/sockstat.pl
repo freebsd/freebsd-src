@@ -39,6 +39,67 @@ my $unknown = [ "?", "?", "?", "?", "?", "?", "?", "?", "?" ];
 my $inet_fmt = "%-8.8s %-8.8s %5.5s %4.4s %-6.6s %-21.21s %-21.21s\n";
 my $unix_fmt = "%-8.8s %-8.8s %5.5s %4.4s %-6.6s %-43.43s\n";
 
+my @ranges;
+
+#
+# Parse a port range specification
+#
+sub parse_port_ranges($) {
+    my $spec = shift;		# Range spec
+
+    my $range;			# Range
+    my ($low, $high);		# Low/high ends of range
+
+    foreach $range (split(/\s*,\s*/, $spec)) {
+	if ($range =~ m/^(\d+)-(\d+)$/) {
+	    ($low, $high) = ($1, $2);
+	} elsif ($range =~ m/^-(\d+)$/) {
+	    ($low, $high) = (1, $1);
+	} elsif ($range =~ m/^(\d+)-$/) {
+	    ($low, $high) = ($1, 65535);
+	} elsif ($range =~ m/^(\d+)$/) {
+	    $low = $high = $1;
+	} else {
+	    die("invalid range specification: $range\n");
+	}
+	if ($low < 0 || $low > 65535 || $high < 0 || $high > 65535) {
+	    die("valid ports numbers are 1-65535 inclusive\n");
+	}
+	if ($low > $high) {
+	    $low ^= $high;
+	    $high ^= $low;
+	    $low ^= $high;
+	}
+	push(@ranges, [ $low, $high ]);
+    }
+}
+
+#
+# Check if a port is in an allowed range
+#
+sub check_range($) {
+    my $addr = shift;		# Address to check
+
+    my $port;			# Port number
+    my $range;			# Range
+    
+    if (@ranges == 0) {
+	return 1;
+    }
+
+    if ($addr !~ m/\.(\d+)$/) {
+	return undef;
+    }
+    $port = $1;
+
+    foreach $range (@ranges) {
+	if ($port >= $range->[0] && $port <= $range->[1]) {
+	    return 1;
+	}
+    }
+    return undef;
+}
+
 #
 # Gather information about sockets
 #
@@ -108,6 +169,7 @@ sub print_inet($$$) {
     foreach $fsd (@{$fstat{$af}}) {
 	next unless defined($fsd->[7]);
 	$nsd = $netstat{$fsd->[7]} || $unknown;
+	next unless (check_range($nsd->[4]) || check_range($nsd->[5]));
 	next if (!$conn && $nsd->[5] ne '*.*');
 	next if (!$listen && $nsd->[5] eq '*.*');
 	printf($inet_fmt, $fsd->[0], $fsd->[1], $fsd->[2],
@@ -149,14 +211,14 @@ sub print_unix($$) {
 # Print usage message and exit
 #
 sub usage() {
-    print(STDERR "Usage: sockstat [-46clu]\n");
+    print(STDERR "Usage: sockstat [-46clu] [-p ports]\n");
     exit(1);
 }
 
 MAIN:{
     my %opts;			# Command-line options
 
-    getopts("46clu", \%opts)
+    getopts("46clp:u", \%opts)
 	or usage();
 
     gather();
@@ -166,6 +228,9 @@ MAIN:{
     }
     if (!$opts{'c'} && !$opts{'l'}) {
 	$opts{'c'} = $opts{'l'} = 1;
+    }
+    if ($opts{'p'}) {
+	parse_port_ranges($opts{'p'});
     }
     if ($opts{'4'}) {
 	print_inet("internet", $opts{'c'}, $opts{'l'});

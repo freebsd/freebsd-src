@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 13, 1999
+.Dd August 7, 2001
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 46clu
+.Op Fl p Ar ports
 .Sh DESCRIPTION
 The
 .Nm
@@ -51,6 +52,13 @@ Show AF_INET6 (IPv6) sockets.
 Show connected sockets.
 .It Fl l
 Show listening sockets.
+.It Fl p Ar ports
+Only show Internet sockets if either the local or foreign port number
+is on the specified list.
+The
+.Ar ports
+argument is a comma-separated list of port numbers and ranges
+specified as first and last port separated by a dash.
 .It Fl u
 Show AF_LOCAL (Unix) sockets.
 .El
