@@ -34,12 +34,15 @@
   SGML document marked up according to the Docbook DTD into
   HTML.
 
-  There are <em>many</em> parts of the Docbook DTD that this
+  There are many parts of the Docbook DTD that this
   translation does nothing with, however most of the basic
   elements handled.
 
-  This needs to be structured in such a way that a post-processor
-  can split the file into nice sized chunks.
+  The rules in this file are in alphabetical order according
+  to the name of the element to which they apply.  Rules
+  intended to be invoked from other rules are at the end of
+  the file.  The order of the rules affects how they are processed
+  and an alphabetical order helps prevent unpleasnt surprises.
     
 -->
 
@@ -49,6 +52,10 @@
 <!ENTITY gt CDATA ">">
 <!ENTITY amp CDATA "&">
 <!ENTITY wspace CDATA "&nbsp;&nbsp;">
+<!ENTITY hlofont CDATA '<FONT FACE="Helvetica">'>
+<!ENTITY hlcfont CDATA '</FONT>'>
+
+<!-- Rule names (instant only allows cryptic numbers) -->
 
 <!ENTITY r.pass "1">
 <!ENTITY r.astart "2">
@@ -67,9 +74,10 @@
 <!ENTITY r.s2toci "24">
 <!ENTITY r.s3toc "25">
 <!ENTITY r.s3toci "26">
+<!ENTITY r.aptoci "27">
 
-<!ENTITY hlofont CDATA '<FONT FACE="Helvetica">'>
-<!ENTITY hlcfont CDATA '</FONT>'>
+<!ENTITY r.fnote "40">
+<!ENTITY r.fnotei "41">
 
 <!ENTITY cmap SYSTEM "/usr/share/sgml/transpec/html.cmap">
 <!ENTITY sdata SYSTEM "/usr/share/sgml/transpec/html.sdata">
@@ -79,10 +87,12 @@
 <transpec>
 
 <!-- Character and SDATA entity mapping -->
+
 <cmap>&cmap;</cmap>
 <smap>&sdata;</smap>
 
-<!-- Variables -->
+<!-- Numerous counters -->
+
 <var>partnum	1
 <var>chapnum	1
 <var>sect1num	1
@@ -91,22 +101,22 @@
 <var>sect4num	1
 <var>sect5num	1
 <var>subsect	1
-<var>app	1
+<var>appnum	A
 <var>exnum	1
 <var>fignum	1
 <var>tabnum	1
 <var>eqnum	1
-
+<var>fnotenum	1
 <var>tmpchapnum 1
 
 <!-- Transform rules -->
 
-<rule>
+<rule> <!-- Abbreviation, especially one followed by a period -->
 <match>
 <gi>ABBREV
 </rule>
 
-<rule>
+<rule> <!-- Document summary -->
 <match>
 <gi>ABSTRACT
 <action>
@@ -114,74 +124,100 @@
 <end>${_attval ID &r.aend;}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Keycap used with a meta key to activate a graphical user interface -->
+<match>
+<gi>ACCEL
+</rule>
+
+<rule> <!-- Acknowledgements in an Article -->
 <match>
 <gi>ACKNO
 </rule>
 
-<rule>
+<rule> <!-- Pronounceable contraction of initials -->
 <match>
 <gi>ACRONYM
 </rule>
 
-<rule>
+<rule> <!-- Function invoked in response to a user event -->
 <match>
 <gi>ACTION
 </rule>
 
-<rule>
+<rule> <!-- Real-world address -->
 <match>
 <gi>ADDRESS
 </rule>
 
-<rule>
+<rule> <!-- Author's institutional affiliation -->
 <match>
 <gi>AFFILIATION
 <action>
 <start>&lt;BR></start>
 </rule>
 
-<rule>
+<rule> <!-- Spot in text -->
 <match>
-  <gi>ANCHOR
+<gi>ANCHOR
 <action>
-  <start>&lt;A NAME="${ID}">&lt;/A></start>
+<start>&lt;A NAME="${ID}">&lt;/A></start>
 </rule>
 
-<rule>
+<rule> <!-- Appendix for a Book -->
 <match>
 <gi>APPENDIX
+<action>
+<start>^${_set chapnum ${appnum}}&lt;!-- Start APPENDIX ${appnum} (${ID}): 
+${_followrel child TITLE &r.pass;} -->^</start>
+<end>^&lt;!-- End APPENDIX -->^</end>
+<incr>appnum
+<set>sect1num	1
 </rule>
 
-<rule>
+<rule> <!-- Name of a software program -->
 <match>
 <gi>APPLICATION
 <action>
-<start>&lt;I></start>
-<end>&lt;/I></end>
+<start>&lt;B></start>
+<end>&lt;/B></end>
 </rule>
 
-<rule>
+<rule> <!-- Region defined in a graphic or code example -->
+<match>
+<gi>AREA
+</rule>
+
+<rule> <!-- Set of related areas in a graphic or code example -->
+<match>
+<gi>AREASET
+</rule>
+
+<rule> <!-- Collection of regions in a graphic or code example -->
+<match>
+<gi>AREASPEC
+</rule>
+
+<rule> <!-- Argument in a CmdSynopsis -->
 <match>
 <gi>ARG
 </rule>
 
-<rule>
+<rule> <!-- Metainformation for an Article -->
 <match>
 <gi>ARTHEADER
 </rule>
 
-<rule>
+<rule> <!-- Article -->
 <match>
 <gi>ARTICLE
 </rule>
 
-<rule>
+<rule> <!-- Page numbers of an Article as published -->
 <match>
 <gi>ARTPAGENUMS
 </rule>
 
-<rule>
+<rule> <!-- Author of a document -->
 <match>
 <gi>AUTHOR
 <action>
@@ -189,47 +225,47 @@
 <!-- <end>&lt;/P>^ -->
 </rule>
 
-<rule>
+<rule> <!-- Short description of author -->
 <match>
 <gi>AUTHORBLURB
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for Author information -->
 <match>
 <gi>AUTHORGROUP
 </rule>
 
-<rule>
+<rule> <!-- Initials or other identifier for the author of a Revision or Comment -->
 <match>
 <gi>AUTHORINITIALS
 </rule>
 
-<rule>
+<rule> <!-- Page break in a print version of a work that may be displayed online -->
 <match>
 <gi>BEGINPAGE
 </rule>
 
-<rule>
+<rule> <!-- Section of a Bibliography -->
 <match>
 <gi>BIBLIODIV
 </rule>
 
-<rule>
+<rule> <!-- Entry in a Bibliography -->
 <match>
 <gi>BIBLIOENTRY
 </rule>
 
-<rule>
+<rule> <!-- Bibliography -->
 <match>
 <gi>BIBLIOGRAPHY
 </rule>
 
-<rule>
+<rule> <!-- Untyped information supplied in a BiblioEntry or BookInfo -->
 <match>
 <gi>BIBLIOMISC
 </rule>
 
-<rule>
+<rule> <!-- Quotation set off from the main text, rather than occurring in-line -->
 <match>
 <gi>BLOCKQUOTE
 <action>
@@ -239,24 +275,25 @@ ${_attval ID &r.astart;}^</start>
 &lt;/BLOCKQUOTE>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Book -->
 <match>
 <gi>BOOK
 <action>
 <start>^&lt;!-- Generated on ${date} using ${transpec} -->
 &lt;!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
 &lt;HTML>&lt;TITLE>${_followrel descendant TITLE &r.pass;}&lt;/TITLE>&lt;BODY BGCOLOR="#FFFFFF" TEXT="#000000">^</start>
-<end>^&lt;/BODY>&lt;/HTML></end>
+<end>^${_set fnotenum 1}${_action &r.fnote;t}
+&lt;/BODY>&lt;/HTML></end>
 </rule>
 
-<rule>
+<rule> <!-- Information about a book used in a bibliographical citation -->
 <match>
 <gi>BOOKBIBLIO
 <action>
 <start>^&lt;H1>${_followrel child TITLE &r.pass;}&lt;/H1></start>
 </rule>
 
-<rule>
+<rule> <!-- Metainformation for a Book -->
 <match>
 <gi>BOOKINFO
 <relation>sibling PART
@@ -265,7 +302,7 @@ ${_attval ID &r.astart;}^</start>
 ${_followrel parent BOOK &r.pttoc;t}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Metainformation for a Book -->
 <match>
 <gi>BOOKINFO
 <action>
@@ -273,7 +310,7 @@ ${_followrel parent BOOK &r.pttoc;t}^</end>
 ${_followrel parent BOOK &r.chtoc;t}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Free-floating heading not tied to the Sect hierarchy -->
 <match>
 <gi>BRIDGEHEAD
 <action>
@@ -281,7 +318,17 @@ ${_followrel parent BOOK &r.chtoc;t}^</end>
 <end>&lt;/EM>&lt;/H4>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Description linked to Areas in a graphic or code example -->
+<match>
+<gi>CALLOUT
+</rule>
+
+<rule> <!-- Collection of callout descriptions -->
+<match>
+<gi>CALLOUTLIST
+</rule>
+
+<rule> <!-- Admonition set off from the text -->
 <match>
 <gi>CAUTION
 <relation>child TITLE
@@ -289,14 +336,14 @@ ${_followrel parent BOOK &r.chtoc;t}^</end>
 <do>&r.admona;
 </rule>
 
-<rule>
+<rule> <!-- Admonition set off from the text -->
 <match>
 <gi>CAUTION
 <action>
 <do>&r.admonb;
 </rule>
 
-<rule>
+<rule> <!-- Chapter of a Book -->
 <match>
 <gi>CHAPTER
 <action>
@@ -307,7 +354,9 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <set>sect1num	1
 </rule>
 
-<rule>
+<rule> <!-- In-line bibliographic reference to another published
+            work that uses a reference string, such as an abbreviation
+            in a Bibliography -->
 <match>
 <gi>CITATION
 <action>
@@ -315,48 +364,53 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/CITE></end>
 </rule>
 
-<rule>
+<rule> <!-- Citation of a RefEntry -->
 <match>
 <gi>CITEREFENTRY
 <!-- a link to a man page cgi would be good here... -->
 </rule>
 
-<rule>
+<rule> <!-- Citation of some published work -->
 <match>
 <gi>CITETITLE
 </rule>
 
-<rule>
+<rule> <!-- Name of a city in an Address -->
 <match>
 <gi>CITY
 </rule>
 
-<rule>
+<rule> <!-- Name of the class to which a program component belongs -->
 <match>
 <gi>CLASSNAME
 </rule>
 
-<rule>
+<rule> <!-- Synopsis for a Command -->
 <match>
 <gi>CMDSYNOPSIS
 </rule>
 
-<rule>
+<rule> <!-- Callout area specification embedded in a code example -->
+<match>
+<gi>CO
+</rule>
+
+<rule> <!-- A collaborative group of authors -->
 <match>
 <gi>COLLAB
 </rule>
 
-<rule>
+<rule> <!-- Name of a collaborative group of authors -->
 <match>
 <gi>COLLABNAME
 </rule>
 
-<rule>
+<rule> <!-- Formatting specification for a column in a Table -->
 <match>
 <gi>COLSPEC
 </rule>
 
-<rule>
+<rule> <!-- Executable program, or the entry a user makes to execute a command -->
 <match>
 <gi>COMMAND
 <action>
@@ -364,12 +418,15 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Remark made within the document file that is intended for use
+            during interim stages of production -->
 <match>
 <gi>COMMENT
+<action>
+<ignore>all
 </rule>
 
-<rule>
+<rule> <!-- Data presented to the user by a computer -->
 <match>
 <gi>COMPUTEROUTPUT
 <action>
@@ -377,47 +434,48 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Dates of a conference in connection with which a document was written -->
 <match>
 <gi>CONFDATES
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for information about a conference -->
 <match>
 <gi>CONFGROUP
 </rule>
 
-<rule>
+<rule> <!-- Formal number of a conference in connection with which a document was written -->
 <match>
 <gi>CONFNUM
 </rule>
 
-<rule>
+<rule> <!-- Sponsor of a conference in connection with which a document was written -->
 <match>
 <gi>CONFSPONSOR
 </rule>
 
-<rule>
+<rule> <!-- Title of a conference in connection with which a document was written -->
 <match>
 <gi>CONFTITLE
 </rule>
 
-<rule>
+<rule> <!-- Number of a contract under which a document was written -->
 <match>
 <gi>CONTRACTNUM
 </rule>
 
-<rule>
+<rule> <!-- Sponsor of a contract under which a document was written -->
 <match>
 <gi>CONTRACTSPONSOR
 </rule>
 
-<rule>
+<rule> <!-- Information about the contributions of an Author,
+            Editor, or OtherCredit to the work in question -->
 <match>
 <gi>CONTRIB
 </rule>
 
-<rule>
+<rule> <!-- Copyright information about a documen -->
 <match>
 <gi>COPYRIGHT
 <action>
@@ -425,47 +483,47 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <!-- <end>&lt;/P>^ -->
 </rule>
 
-<rule>
+<rule> <!-- Corporate author of a Book -->
 <match>
 <gi>CORPAUTHOR
 </rule>
 
-<rule>
+<rule> <!-- Name of a corporation -->
 <match>
 <gi>CORPNAME
 </rule>
 
-<rule>
+<rule> <!-- Name of a country in an Address -->
 <match>
 <gi>COUNTRY
 </rule>
 
-<rule>
+<rule> <!-- Name of an organized set of data -->
 <match>
 <gi>DATABASE
 </rule>
 
-<rule>
+<rule> <!-- Date of publication or revision of a document -->
 <match>
 <gi>DATE
 </rule>
 
-<rule>
+<rule> <!-- Metainformation for a book component -->
 <match>
 <gi>DOCINFO
 </rule>
 
-<rule>
+<rule> <!-- Name or number of an edition of a document -->
 <match>
 <gi>EDITION
 </rule>
 
-<rule>
+<rule> <!-- Editor of a document -->
 <match>
 <gi>EDITOR
 </rule>
 
-<rule>
+<rule> <!-- Email address in an Address -->
 <match>
 <gi>EMAIL
 <action>
@@ -473,64 +531,63 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/A></end>
 </rule>
 
-<!-- Emphasis -->
-<!-- The remap attribute indicates the procedural markup tags
+<!-- Emphasis: The remap attribute indicates the procedural markup tags
      used in the linuxdoc DTD. -->
      
-<rule>
+<rule> <!-- Emphasized text: Bold -->
 <match>
-  <gi>EMPHASIS
-  <attval>REMAP bf
+<gi>EMPHASIS
+<attval>REMAP bf
 <action>
-  <start>&lt;B></start>
-  <end>&lt;/B></end>
+<start>&lt;B></start>
+<end>&lt;/B></end>
 </rule>
 
-<rule>
+<rule> <!-- Emphasized text: Italic -->
 <match>
-  <gi>EMPHASIS
-  <attval>REMAP it
+<gi>EMPHASIS
+<attval>REMAP it
 <action>
-  <start>&lt;I></start>
-  <end>&lt;/I></end>
+<start>&lt;I></start>
+<end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Emphasized text: Sans-Serif -->
 <match>
-  <gi>EMPHASIS
-  <attval>REMAP sf
+<gi>EMPHASIS
+<attval>REMAP sf
 <action>
-  <start>&hlofont;</start>
-  <end>&hlcfont;</end>
+<start>&hlofont;</start>
+<end>&hlcfont;</end>
 </rule>
 
-<rule>
+<rule> <!-- Emphasized text: Slanted -->
 <match>
-  <gi>EMPHASIS
-  <attval>REMAP sl
+<gi>EMPHASIS
+<attval>REMAP sl
 <action>
-  <start>&lt;I></start>
-  <end>&lt;/I></end>
+<start>&lt;I></start>
+<end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Emphasized text: Typewriter -->
 <match>
-  <gi>EMPHASIS
-  <attval>REMAP tt
+<gi>EMPHASIS
+<attval>REMAP tt
 <action>
-  <start>&lt;TT></start>
-  <end>&lt;/TT></end>
+<start>&lt;TT></start>
+<end>&lt;/TT></end>
 </rule>
 
-<rule>
+<rule> <!-- Emphasized text -->
 <match>
-  <gi>EMPHASIS
+<gi>EMPHASIS
 <action>
-  <start>&lt;EM></start>
-  <end>&lt;/EM></end>
+<start>&lt;EM></start>
+<end>&lt;/EM></end>
 </rule>
 
-<rule>
+<rule> <!-- Cell in a table -->
 <match>
 <gi>ENTRY
 <context>ROW THEAD
@@ -539,7 +596,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/TH>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Cell in a table -->
 <match>
 <gi>ENTRY
 <action>
@@ -547,62 +604,62 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/TD>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Subtable appearing as a table cell -->
 <match>
 <gi>ENTRYTBL
 </rule>
 
-<rule>
+<rule> <!-- Brief text set at the beginning of a document as relevant to its content -->
 <match>
 <gi>EPIGRAPH
 </rule>
 
-<rule>
+<rule> <!-- Formal mathematical equation displayed as a block rather than in-line -->
 <match>
 <gi>EQUATION
 <action>
-<start>^&lt;HR>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${eqnum}:&lt;/STRONG>
+<start>^&lt;P>&lt;HR NOSHADE>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${eqnum}:&lt;/STRONG>
 ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
-<end>^&lt;HR>^</end>
+<end>^&lt;HR NOSHADE>^</end>
 <incr>eqnum
 </rule>
 
-<rule>
+<rule> <!-- Error message reported by a computer -->
 <match>
 <gi>ERRORNAME
 </rule>
 
-<rule>
+<rule> <!-- Classification of an error message reported by a computer -->
 <match>
 <gi>ERRORTYPE
 </rule>
 
-<rule>
+<rule> <!-- Example of a computer program or related information -->
 <match>
 <gi>EXAMPLE
 <action>
-<start>^&lt;HR>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${exnum}:&lt;/STRONG>
+<start>^&lt;P>&lt;HR NOSHADE>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${exnum}:&lt;/STRONG>
 ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
-<end>^&lt;HR>^</end>
+<end>^&lt;HR NOSHADE>^</end>
 <incr>exnum
 </rule>
 
-<rule>
+<rule> <!-- Fax number in an Address -->
 <match>
 <gi>FAX
 </rule>
 
-<rule>
+<rule> <!-- Formal illustration -->
 <match>
 <gi>FIGURE
 <action>
-<start>^&lt;HR>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${fignum}:&lt;/STRONG>
+<start>^&lt;P>&lt;HR NOSHADE>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${fignum}:&lt;/STRONG>
 ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
-<end>^&lt;HR>^</end>
+<end>^&lt;HR NOSHADE>^</end>
 <incr>fignum
 </rule>
 
-<rule>
+<rule> <!-- Name of a file, possibly including pathname -->
 <match>
 <gi>FILENAME
 <action>
@@ -610,7 +667,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Given name -->
 <match>
 <gi>FIRSTNAME
 <action>
@@ -618,7 +675,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>^</end>
 </rule>
 
-<rule>
+<rule> <!-- First occurrence of a word in a given context -->
 <match>
 <gi>FIRSTTERM
 <action>
@@ -626,17 +683,22 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Footnotes: Put both a link and an anchor here
+            so that footnotes can be followed in both directions. -->
 <match>
 <gi>FOOTNOTE
+<action>
+<start>&lt;A NAME="rfn-${fnotenum}">&lt;/A>&lt;SUP>&lt;SMALL>&lt;A HREF="#fn-${fnotenum}">${fnotenum}&lt/A>&lt/SMALL>&lt;/SUP></start>
+<ignore>all
+<incr>fnotenum
 </rule>
 
-<rule>
+<rule> <!-- Location of a footnote mark -->
 <match>
 <gi>FOOTNOTEREF
 </rule>
 
-<rule>
+<rule> <!-- Word or words in a language other than that of the containing document -->
 <match>
 <gi>FOREIGNPHRASE
 <action>
@@ -644,37 +706,46 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/EM></end>
 </rule>
 
-<rule>
+<rule> <!-- Paragraph with a Title -->
 <match>
 <gi>FORMALPARA
 </rule>
 
-<rule>
+<rule> <!-- Function or routine name and its return type in a FuncSynopsis -->
 <match>
 <gi>FUNCDEF
 </rule>
 
-<rule>
+<rule> <!-- Parameter information for a function or routine that is
+            pointed to from within a FuncSynopsis -->
 <match>
 <gi>FUNCPARAMS
 </rule>
 
-<rule>
+<rule> <!-- Set of function or routine prototype information in a FuncSynopsis -->
+<match>
+<gi>FUNCPROTOTYPE
+</rule>
+
+<rule> <!-- Synopsis of a Function -->
 <match>
 <gi>FUNCSYNOPSIS
 </rule>
 
-<rule>
+<rule> <!-- Information supplementing the FuncDefs of a FuncSynopsis -->
 <match>
 <gi>FUNCSYNOPSISINFO
 </rule>
 
-<rule>
+<rule> <!-- Subroutine in a program or external library -->
 <match>
 <gi>FUNCTION
+<action>
+<start>&lt;CODE></start>
+<end>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Glossary of terms -->
 <match>
 <gi>GLOSSARY
 <action>
@@ -683,7 +754,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/DL></end>
 </rule>
 
-<rule>
+<rule> <!-- Definition attached to a GlossTerm in a GlossEntry -->
 <match>
 <gi>GLOSSDEF
 <action>
@@ -691,32 +762,33 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/DD>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Division of a Glossary -->
 <match>
 <gi>GLOSSDIV
 </rule>
 
-<rule>
+<rule> <!-- Entry in a Glossary or GlossList -->
 <match>
 <gi>GLOSSENTRY
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for a set of GlossEntries -->
 <match>
 <gi>GLOSSLIST
 </rule>
 
-<rule>
+<rule> <!-- Cross-reference from one GlossEntry to another -->
 <match>
 <gi>GLOSSSEE
 </rule>
 
-<rule>
+<rule> <!-- Cross-reference from one GlossDef to another GlossEntry -->
 <match>
 <gi>GLOSSSEEALSO
 </rule>
 
-<rule>
+<rule> <!-- Term outside a Glossary that is defined in some GlossEntry;
+            term within a GlossEntry that is defined by that GlossEntry -->
 <match>
 <gi>GLOSSTERM
 <action>
@@ -724,39 +796,76 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/STRONG>&lt;/DT></end>
 </rule>
 
-<rule>
+<rule> <!-- Graphical data, or a pointer to an external entity containing
+            such data, to be rendered as an object, not in-line -->
 <match>
 <gi>GRAPHIC
 <action>
 <replace>^&lt;P>&lt;A HREF="${_filename}">[image]&lt;/A>&lt;/P>^</replace>
 </rule>
 
-<rule>
+<rule> <!-- Graphic that contains a specification of areas within it that
+            have associated callouts -->
+<match>
+<gi>GRAPHICCO
+</rule>
+
+<rule> <!-- Group of constituent parts of a CmdSynopsis -->
 <match>
 <gi>GROUP
 </rule>
 
-<rule>
+<rule> <!-- Text on a button in a graphical user interface -->
+<match>
+<gi>GUIBUTTON
+</rule>
+
+<rule> <!-- Graphic and, or, text appearing as a icon in a graphical user interface -->
+<match>
+<gi>GUIICON
+</rule>
+
+<rule> <!-- Text in a graphical user interface -->
+<match>
+<gi>GUILABEL
+</rule>
+
+<rule> <!-- Name of a menu in a graphical user interface -->
+<match>
+<gi>GUIMENU
+</rule>
+
+<rule> <!-- Name of a terminal menu item in a graphical user interface -->
+<match>
+<gi>GUIMENUITEM
+</rule>
+
+<rule> <!-- Name of a submenu in a graphical user interface -->
+<match>
+<gi>GUISUBMENU
+</rule>
+
+<rule> <!-- Physical part of a computer system -->
 <match>
 <gi>HARDWARE
 </rule>
 
-<rule>
+<rule> <!-- List of main points discussed in a book component such as a Chapter -->
 <match>
 <gi>HIGHLIGHTS
 </rule>
 
-<rule>
+<rule> <!-- Holder of a copyright in the containing document -->
 <match>
 <gi>HOLDER
 </rule>
 
-<rule>
+<rule> <!-- Title of a person -->
 <match>
 <gi>HONORIFIC
 </rule>
 
-<rule>
+<rule> <!-- Admonition set off from the text -->
 <match>
 <gi>IMPORTANT
 <relation>child TITLE
@@ -764,46 +873,46 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <do>&r.admona;
 </rule>
 
-<rule>
+<rule> <!-- Admonition set off from the text -->
 <match>
 <gi>IMPORTANT
 <action>
 <do>&r.admonb;
 </rule>
 
-<rule>
+<rule> <!-- Index to content -->
 <match>
 <gi>INDEX
 </rule>
 
-<rule>
+<rule> <!-- Division of an Index -->
 <match>
 <gi>INDEXDIV
 </rule>
 
-<rule>
+<rule> <!-- Entry in an Index -->
 <match>
 <gi>INDEXENTRY
 </rule>
 
-<rule>
+<rule> <!-- Character string to be indexed, occurring in the text flow but not in the text itself -->
 <match>
 <gi>INDEXTERM
 <action>
 <ignore>all
 </rule>
 
-<rule>
+<rule> <!-- Informal mathematical equation displayed as a block, rather than in-line -->
 <match>
 <gi>INFORMALEQUATION
 </rule>
 
-<rule>
+<rule> <!-- Untitled Example -->
 <match>
 <gi>INFORMALEXAMPLE
 </rule>
 
-<rule>
+<rule> <!-- Untitled table -->
 <match>
 <gi>INFORMALTABLE
 <action>
@@ -811,47 +920,50 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>^&lt;/TABLE>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Untitled mathematical equation occurring in-line or as the
+            content of an Equation -->
 <match>
 <gi>INLINEEQUATION
 </rule>
 
-<rule>
+<rule> <!-- Graphical data, or a pointer to an external entity containing
+            such data, to be rendered in-line -->
 <match>
 <gi>INLINEGRAPHIC
 </rule>
 
-<rule>
+<rule> <!-- Element of a graphical user interface -->
 <match>
 <gi>INTERFACE
 </rule>
 
-<rule>
+<rule> <!-- Specification for a graphical user interface -->
 <match>
-<gi>INTERFACEDEFINITIONID
+<gi>INTERFACEDEFINITION
 </rule>
 
-<rule>
+<rule> <!-- Inventory part number -->
 <match>
 <gi>INVPARTNUMBER
 </rule>
 
-<rule>
+<rule> <!-- International Standard Book Number of a document -->
 <match>
 <gi>ISBN
 </rule>
 
-<rule>
+<rule> <!-- International Standard Serial Number of a journal -->
 <match>
 <gi>ISSN
 </rule>
 
-<rule>
+<rule> <!-- Number of an issue of a journal -->
 <match>
 <gi>ISSUENUM
 </rule>
 
-<rule>
+<rule> <!-- List in which each entry is marked with a bullet, dash, or other
+            dingbat -->
 <match>
 <gi>ITEMIZEDLIST
 <context>PARA
@@ -862,7 +974,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- List in which each entry is marked with a bullet, dash, or other
+            dingbat -->
 <match>
 <gi>ITEMIZEDLIST
 <action>
@@ -870,37 +983,46 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>^&lt;/UL>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Title of a remunerated position in an Affiliation -->
 <match>
 <gi>JOBTITLE
 </rule>
 
-<rule>
+<rule> <!-- Text printed on a physical key on a computer keyboard, not
+            necessarily the same thing as a KeyCode -->
 <match>
 <gi>KEYCAP
 </rule>
 
-<rule>
+<rule> <!-- Computer's numeric designation of a key on a computer
+            keyboard -->
 <match>
 <gi>KEYCODE
 </rule>
 
-<rule>
+<rule> <!-- Combination of input actions -->
+<match>
+<gi>KEYCOMBO
+</rule>
+
+<rule> <!-- Key symbol name, which is not necessarily the same thing as a
+            Keycap -->
 <match>
 <gi>KEYSYM
 </rule>
 
-<rule>
+<rule> <!-- Statement of legal obligations or requirements -->
 <match>
 <gi>LEGALNOTICE
 </rule>
 
-<rule>
+<rule> <!-- Portion of a person's name indicating a relationship to ancestors -->
 <match>
 <gi>LINEAGE
 </rule>
 
-<rule>
+<rule> <!-- Writer's or editor's comment on a line of program code
+            within an Example, ProgramListing, or Screen -->
 <match>
 <gi>LINEANNOTATION
 <action>
@@ -908,12 +1030,13 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/EM></end>
 </rule>
 
-<rule>
+<rule> <!-- Hypertext link -->
 <match>
 <gi>LINK
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for the elements of items in an ItemizedList or
+            OrderedList -->
 <match>
 <gi>LISTITEM
 <context>VARLISTENTRY
@@ -922,7 +1045,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/DD>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for the elements of items in an ItemizedList or
+            OrderedList -->
 <match>
 <gi>LISTITEM
 <action>
@@ -930,13 +1054,13 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/LI>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Literal string, used in-line, that is part of data in a computer -->
 <match>
 <gi>LITERAL
 <context>LITERALLAYOUT
 </rule>
 
-<rule>
+<rule> <!-- Literal string, used in-line, that is part of data in a computer -->
 <match>
 <gi>LITERAL
 <action>
@@ -944,10 +1068,13 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for lines set off from the main text that are not
+            tagged as Screens, Examples, or ProgramListing, in which
+            line breaks and leading white space are to be regarded as
+            significant -->
 <match>
 <gi>LITERALLAYOUT
-<context>PARA
+<context>PARA|INFORMALEXAMPLE
 <action>
 <start>&lt;/P>
 &lt;PRE>^</start>
@@ -955,7 +1082,10 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for lines set off from the main text that are not
+            tagged as Screens, Examples, or ProgramListing, in which
+            line breaks and leading white space are to be regarded as
+            significant -->
 <match>
 <gi>LITERALLAYOUT
 <action>
@@ -963,17 +1093,18 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>^&lt;/PRE></end>
 </rule>
 
-<rule>
+<rule> <!-- List of titles of objects within a document -->
 <match>
 <gi>LOT
 </rule>
 
-<rule>
+<rule> <!-- Entry in a LoT -->
 <match>
 <gi>LOTENTRY
 </rule>
 
-<rule>
+<rule> <!-- Section of a complete set of UNIX reference pages that a
+            reference page belongs to -->
 <match>
 <gi>MANVOLNUM
 <action>
@@ -981,90 +1112,115 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>)</end>
 </rule>
 
-<rule>
+<rule> <!-- String of formatting markup in text, which it is desired to represent
+            literally -->
 <match>
 <gi>MARKUP
 </rule>
 
-<rule>
+<rule> <!-- Name of the physical medium on or in which some information
+            is contained -->
 <match>
 <gi>MEDIALABEL
 </rule>
 
-<rule>
+<rule> <!-- Member of a SimpleList: first -->
+<match>
+<gi>MEMBER
+<nthchild>1
+</rule>
+
+<rule> <!-- Member of a SimpleList: middle -->
+<match>
+<gi>MEMBER
+<relation>sibling+ MEMBER
+<action>
+<start>, </start>
+</rule>
+
+<rule> <!-- Member of a SimpleList: last -->
 <match>
 <gi>MEMBER
 <action>
-<start>^&lt;LI></start>
-<end>&lt;/LI>^</end>
+<start>, and </start>
 </rule>
 
-<rule>
+<rule> <!-- Application-specific information necessary for the completion
+            of an OLink -->
 <match>
 <gi>MODESPEC
 </rule>
 
-<rule>
+<rule> <!-- Conventional name of a mouse button -->
+<match>
+<gi>MOUSEBUTTON
+</rule>
+
+<rule> <!-- Error message and its subparts, along with explanatory text, in a
+            MsgEntry -->
 <match>
 <gi>MSG
 </rule>
 
-<rule>
+<rule> <!-- Audience to which a Msg is relevant -->
 <match>
 <gi>MSGAUD
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for an entry in a MsgSet -->
 <match>
 <gi>MSGENTRY
 </rule>
 
-<rule>
+<rule> <!-- Explanatory material relating to a Msg -->
 <match>
 <gi>MSGEXPLAN
 </rule>
 
-<rule>
+<rule> <!-- Information about the Msg that contains it -->
 <match>
 <gi>MSGINFO
 </rule>
 
-<rule>
+<rule> <!-- Level of importance or severity of a Msg -->
 <match>
 <gi>MSGLEVEL
 </rule>
 
-<rule>
+<rule> <!-- Main error message of a Msg -->
 <match>
 <gi>MSGMAIN
 </rule>
 
-<rule>
+<rule> <!-- Origin of a Msg -->
 <match>
 <gi>MSGORIG
 </rule>
 
-<rule>
+<rule> <!-- Subpart of a Msg containing a message that is related to the main
+            message -->
 <match>
 <gi>MSGREL
 </rule>
 
-<rule>
+<rule> <!-- List of error messages produced by a system, with various
+            additional information -->
 <match>
 <gi>MSGSET
 </rule>
 
-<rule>
+<rule> <!-- Optional subpart of a Msg, which might contain messages that
+            appear in various contexts -->
 <match>
 <gi>MSGSUB
 </rule>
 
-<rule>
+<rule> <!-- Contents of the parts of Msg -->
 <match>
 <gi>MSGTEXT
 </rule>
 
-<rule>
+<rule> <!-- Message to the user, set off from the text -->
 <match>
 <gi>NOTE
 <relation>child TITLE
@@ -1072,29 +1228,36 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <do>&r.admona;
 </rule>
 
-<rule>
+<rule> <!-- Message to the user, set off from the text -->
 <match>
 <gi>NOTE
 <action>
 <do>&r.admonb;
 </rule>
 
-<rule>
+<rule> <!-- Link that addresses its target by use of an entity -->
 <match>
 <gi>OLINK
 </rule>
 
-<rule>
+<rule> <!-- Option for a computer program command -->
 <match>
 <gi>OPTION
+<action>
+<start>&lt;TT></start>
+<end>&lt;/TT></end>
 </rule>
 
-<rule>
+<rule> <!-- Optional information contained in a Synopsis -->
 <match>
 <gi>OPTIONAL
+<action>
+<start>[</start>
+<end>]</end>
 </rule>
 
-<rule>
+<rule> <!-- List in which each entry is marked with a sequentially
+            incremented label -->
 <match>
 <gi>ORDEREDLIST
 <context>PARA
@@ -1105,7 +1268,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- List in which each entry is marked with a sequentially
+            incremented label -->
 <match>
 <gi>ORDEREDLIST
 <action>
@@ -1113,52 +1277,47 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <end>^&lt;/OL>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Division of an organization -->
 <match>
 <gi>ORGDIV
 </rule>
 
-<rule>
+<rule> <!-- Name of an organization other than a corporation -->
 <match>
 <gi>ORGNAME
 </rule>
 
-<rule>
+<rule> <!-- Uncategorized information in Address -->
 <match>
 <gi>OTHERADDR
 </rule>
 
-<rule>
+<rule> <!-- Person or entity to be credited, other than an Author or Editor -->
 <match>
 <gi>OTHERCREDIT
 </rule>
 
-<rule>
+<rule> <!-- Name component that is not a Firstname, Surname, or Lineage -->
 <match>
 <gi>OTHERNAME
 </rule>
 
-<rule>
+<rule> <!-- Numbers of the pages contained in a Book, for use in its
+            BookBiblio -->
 <match>
 <gi>PAGENUMS
 </rule>
 
-<rule>
+<rule> <!-- Paragraph -->
 <match>
 <gi>PARA
-<context>LISTITEM|VARLISTENTRY|GLOSSDEF
+<context>LISTITEM|VARLISTENTRY|STEP|GLOSSDEF
 <action>
 <start>^&lt;P></start>
 <end>&lt;/P></end>
 </rule>
 
-<rule>
-<match>
-<gi>PARA
-<context>LISTITEM
-</rule>
-
-<rule>
+<rule> <!-- Paragraph -->
 <match>
 <gi>PARA
 <action>
@@ -1166,19 +1325,20 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}^</start>
 <!-- <end>&lt;/P> -->
 </rule>
 
-<rule>
+<rule> <!-- Data type information and the name of the Parameter this
+            information applies to -->
 <match>
 <gi>PARAMDEF
 </rule>
 
-<rule>
+<rule> <!-- Part of an instruction to a computer -->
 <match>
 <gi>PARAMETER
 </rule>
 
-<rule>
+<rule> <!-- Section of a Book containing book components -->
 <match>
-  <gi>PART
+<gi>PART
 <action>
 <start>^&lt;!-- Start PART ${partnum} (${ID}): 
 ${_followrel child TITLE &r.pass;} -->^</start>
@@ -1186,65 +1346,69 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <incr>partnum 
 </rule>
 
-<rule>
+<rule> <!-- Introduction to the contents of a Part -->
 <match>
 <gi>PARTINTRO
 </rule>
 
-<rule>
+<rule> <!-- Telephone number in an Address -->
 <match>
 <gi>PHONE
 </rule>
 
-<rule>
+<rule> <!-- Post office box number in an Address -->
 <match>
 <gi>POB
 </rule>
 
-<rule>
+<rule> <!-- Postal code in an Address -->
 <match>
 <gi>POSTCODE
 </rule>
 
-<rule>
+<rule> <!-- Introductory textual matter in a Book -->
 <match>
 <gi>PREFACE
 </rule>
 
-<rule>
+<rule> <!-- Word or phrase occurring in the text that is to appear in the index
+            under as a primary entry -->
 <match>
 <gi>PRIMARY
 </rule>
 
-<rule>
+<rule> <!-- Primary entry in an Index, not in the text -->
 <match>
 <gi>PRIMARYIE
 </rule>
 
-<rule>
+<rule> <!-- Printing history of a Book -->
 <match>
 <gi>PRINTHISTORY
 </rule>
 
-<rule>
+<rule> <!-- List of operations to be performed -->
 <match>
 <gi>PROCEDURE
+<action>
+<start>^&lt;OL>^</start>
+<end>^&lt;/OL>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Formal name for a product -->
 <match>
 <gi>PRODUCTNAME
 </rule>
 
-<rule>
+<rule> <!-- Number assigned to a product -->
 <match>
 <gi>PRODUCTNUMBER
 </rule>
 
-<rule>
+<rule> <!-- Listing of all or part of a program -->
 <match>
 <gi>PROGRAMLISTING
-<context>PARA
+<context>PARA|INFORMALEXAMPLE
 <action>
 <start>&lt;/P>
 &lt;BLOCKQUOTE>&lt;PRE>^</start>
@@ -1252,7 +1416,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- Listing of all or part of a program -->
 <match>
 <gi>PROGRAMLISTING
 <action>
@@ -1260,12 +1424,18 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^&lt;/PRE>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Listing of a program or related information containing
+            areas with associated callouts -->
+<match>
+<gi>PROGRAMLISTINGCO
+</rule>
+
+<rule> <!-- Defined set of data associated with a window -->
 <match>
 <gi>PROPERTY
 </rule>
 
-<rule>
+<rule> <!-- Date of publication of a document -->
 <match>
 <gi>PUBDATE
 <action>
@@ -1273,22 +1443,23 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/P></end>
 </rule>
 
-<rule>
+<rule> <!-- Publisher of a document -->
 <match>
 <gi>PUBLISHER
 </rule>
 
-<rule>
+<rule> <!-- Name of a publisher of a document in Publisher -->
 <match>
 <gi>PUBLISHERNAME
 </rule>
 
-<rule>
+<rule> <!-- Number assigned to a publication, other than an ISBN or
+            ISSN or InvPartNumber -->
 <match>
 <gi>PUBSNUMBER
 </rule>
 
-<rule>
+<rule> <!-- In-line quotation -->
 <match>
 <gi>QUOTE
 <action>
@@ -1296,24 +1467,27 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>''</end>
 </rule>
 
-<rule>
+<rule> <!-- Applicability or scope of the topic of a RefEntry -->
 <match>
 <gi>REFCLASS
 </rule>
 
-<rule>
+<rule> <!-- Substitute for RefName to be used when a RefEntry covers
+            more than one topic and none of the topic names is to be
+            used as the sort name -->
 <match>
 <gi>REFDESCRIPTOR
 </rule>
 
-<rule>
+<rule> <!-- A reference page -->
 <match>
 <gi>REFENTRY
 <action>
 <start>^&lt;!-- Reference Entry --></start>
 </rule>
 
-<rule>
+<rule> <!-- Primary name given to a reference page for sorting and
+            indexing -->
 <match>
 <gi>REFENTRYTITLE
 <context>CITEREFENTRY
@@ -1322,32 +1496,35 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Primary name given to a reference page for sorting and
+            indexing -->
 <match>
 <gi>REFENTRYTITLE
 <action>
-<start>&lt;HR>&lt;H2>${_followrel ancestor REFENTRY 4}</start>
+<start>&lt;HR NOSHADE>&lt;H2>${_followrel ancestor REFENTRY 4}</start>
 <end>${_followrel ancestor REFENTRY 5}&lt;/H2></end>
 </rule>
 
-<rule>
+<rule> <!-- Collection of RefEntries, forming a book component -->
 <match>
 <gi>REFERENCE
 </rule>
 
-<rule>
+<rule> <!-- First major division of a reference page, in which metainformation
+            about the reference page is supplied -->
 <match>
 <gi>REFMETA
 </rule>
 
-<rule>
+<rule> <!-- Information in RefMeta that may be supplied by vendors, or a
+            descriptive phrase for use in a print header -->
 <match>
 <gi>REFMISCINFO
 <action>
 <ignore>all
 </rule>
 
-<rule>
+<rule> <!-- Subject or subjects of a reference page -->
 <match>
 <gi>REFNAME
 <action>
@@ -1355,7 +1532,8 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^&lt;/STRONG> -^</end>
 </rule>
 
-<rule>
+<rule> <!-- Major division of a reference page containing naming,
+            purpose, and classification information -->
 <match>
 <gi>REFNAMEDIV
 <action>
@@ -1364,70 +1542,71 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^&lt;/P>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Subject of a reference page -->
 <match>
 <gi>REFPURPOSE
 </rule>
 
-<rule>
+<rule> <!-- Major subsection of a RefEntry -->
 <match>
 <gi>REFSECT1
 </rule>
 
-<rule>
+<rule> <!-- Subsection of a RefSect1 -->
 <match>
 <gi>REFSECT2
 </rule>
 
-<rule>
+<rule> <!-- Subsection of a Refsect2 -->
 <match>
 <gi>REFSECT3
 </rule>
 
-<rule>
+<rule> <!-- Major division of a reference page, in which the syntax of
+            the subject of the reference page is indicated -->
 <match>
 <gi>REFSYNOPSISDIV
 </rule>
 
-<rule>
+<rule> <!-- Information about a particular version of a document -->
 <match>
 <gi>RELEASEINFO
 </rule>
 
-<rule>
+<rule> <!-- Content that may be replaced in a synopsis or command line -->
 <match>
 <gi>REPLACEABLE
 <action>
-<start>&lt;i></start>
-<end>&lt;/i></end>
+<start>&lt;I></start>
+<end>&lt;/I></end>
 </rule>
 
-<rule>
+<rule> <!-- Value returned by a function -->
 <match>
 <gi>RETURNVALUE
 </rule>
 
-<rule>
+<rule> <!-- Revisions to a document -->
 <match>
 <gi>REVHISTORY
 </rule>
 
-<rule>
+<rule> <!-- Entry in RevHistory, describing some revision made to the text -->
 <match>
 <gi>REVISION
 </rule>
 
-<rule>
+<rule> <!-- Number of a Revision -->
 <match>
 <gi>REVNUMBER
 </rule>
 
-<rule>
+<rule> <!-- Description of a Revision -->
 <match>
 <gi>REVREMARK
 </rule>
 
-<rule>
+<rule> <!-- Row in a TBody, THead, or TFoot -->
 <match>
 <gi>ROW
 <action>
@@ -1435,10 +1614,17 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^&lt;/TR>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Line break in a command synopsis -->
+<match>
+<gi>SBR
+<action>
+<start>&lt;BR></start>
+</rule>
+
+<rule> <!-- Text that a user sees or might see on a computer screen -->
 <match>
 <gi>SCREEN
-<context>PARA
+<context>PARA|INFORMALEXAMPLE
 <action>
 <start>&lt;/P>
 &lt;BLOCKQUOTE>&lt;PRE>^</start>
@@ -1446,7 +1632,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- Text that a user sees or might see on a computer screen -->
 <match>
 <gi>SCREEN
 <action>
@@ -1454,27 +1640,35 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^&lt;/PRE>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Screen containing areas with associated callouts -->
+<match>
+<gi>SCREENCO
+</rule>
+
+<rule> <!-- Information about how a ScreenShot was produced -->
 <match>
 <gi>SCREENINFO
 </rule>
 
-<rule>
+<rule> <!-- Representation of what the user sees or might see on a
+            computer screen -->
 <match>
 <gi>SCREENSHOT
 </rule>
 
-<rule>
+<rule> <!-- Word or phrase in the text that is to appear in the index beneath
+            a Primary entry -->
 <match>
 <gi>SECONDARY
 </rule>
 
-<rule>
+<rule> <!-- Part of IndexEntry, like PrimaryIE -->
 <match>
 <gi>SECONDARYIE
 </rule>
 
-<rule>
+<rule> <!-- Top-level section of a book component, including the Title of that
+            section -->
 <match>
 <gi>SECT1
 <action>
@@ -1482,7 +1676,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <set>sect2num	1
 </rule>
 
-<rule>
+<rule> <!-- Section beginning with a second-level heading -->
 <match>
 <gi>SECT2
 <action>
@@ -1490,7 +1684,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <set>sect3num	1
 </rule>
 
-<rule>
+<rule> <!-- Section beginning with a third-level heading -->
 <match>
 <gi>SECT3
 <action>
@@ -1498,7 +1692,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <set>sect4num	1
 </rule>
 
-<rule>
+<rule> <!-- Section beginning with a fourth-level heading -->
 <match>
 <gi>SECT4
 <action>
@@ -1506,81 +1700,86 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <set>sect5num	1
 </rule>
 
-<rule>
+<rule> <!-- Section beginning with a fifth-level heading -->
 <match>
 <gi>SECT5
 <action>
 <incr>sect5num
 </rule>
 
-<rule>
+<rule> <!-- Part of IndexTerm, indicating, for a word or phrase in the text,
+            the index entry to which the reader is to be directed when he
+            consults the stub index entry for another element within the
+            IndexTerm -->
 <match>
 <gi>SEE
 </rule>
 
-<rule>
+<rule> <!-- Like See, but indicates the index entries to which the reader
+            is also to be directed when he consults a full index entry -->
 <match>
 <gi>SEEALSO
 </rule>
 
-<rule>
+<rule> <!-- "See also" entry in an Index -->
 <match>
 <gi>SEEALSOIE
 </rule>
 
-<rule>
+<rule> <!-- "See" entry in an Index -->
 <match>
 <gi>SEEIE
 </rule>
 
-<rule>
+<rule> <!-- Component of a SegmentedList -->
 <match>
 <gi>SEG
 </rule>
 
-<rule>
+<rule> <!-- List item in a SegmentedList -->
 <match>
 <gi>SEGLISTITEM
 </rule>
 
-<rule>
+<rule> <!-- List of sets of information -->
 <match>
 <gi>SEGMENTEDLIST
 </rule>
 
-<rule>
+<rule> <!-- Title that pertains to one Seg in each SegListItem -->
 <match>
 <gi>SEGTITLE
 </rule>
 
-<rule>
+<rule> <!-- Information about the publication series of which the containing
+            Book is a part -->
 <match>
 <gi>SERIESINFO
 </rule>
 
-<rule>
+<rule> <!-- Numbers of all the volumes in a Series, for use in SeriesInfo -->
 <match>
 <gi>SERIESVOLNUMS
 </rule>
 
-<rule>
+<rule> <!-- Two or more Books -->
 <match>
 <gi>SET
 </rule>
 
-<rule>
+<rule> <!-- Index to a Set -->
 <match>
 <gi>SETINDEX
 </rule>
 
-<rule>
+<rule> <!-- Metainformation for a Set, in which it may appear -->
 <match>
 <gi>SETINFO
 </rule>
 
 <!-- SGMLTag in its variations -->
 
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <attval>class PARAMENTITY
@@ -1589,7 +1788,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <attval>class GENENTITY
@@ -1598,7 +1797,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>;&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <attval>class STARTTAG
@@ -1607,7 +1806,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <attval>class ENDTAG
@@ -1616,7 +1815,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <attval>class PI
@@ -1625,7 +1824,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>>&lt;/CODE></end>
 </rule>
 
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <attval>class PI
@@ -1635,82 +1834,93 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 </rule>
 
 <!-- catchall for remaining types of tags -->
-<rule>
+<rule> <!-- Component of SGML markup -->
 <match>
 <gi>SGMLTAG
 <action>
-<start>&lt;CODE>&amp;lt;</start>
-<end>&amp;gt;&lt;/CODE></end>
+<start>&lt;CODE></start>
+<end>&lt;/CODE></end>
 </rule>
 
-
-
-<rule>
+<rule> <!-- Brief version of of Affiliation, in which it may appear -->
 <match>
 <gi>SHORTAFFIL
 </rule>
 
-<rule>
+<rule> <!-- Segment of a book component that is isolated from the narrative
+            flow of the main text, typically boxed and floating -->
 <match>
 <gi>SIDEBAR
 <action>
 <do>&r.admonb;
 </rule>
 
-<rule>
+<rule> <!-- Paragraph that is only a text block, without included
+            block-oriented elements -->
 <match>
 <gi>SIMPARA
 </rule>
 
-<rule>
+<rule> <!-- List of single words or short phrases -->
 <match>
 <gi>SIMPLELIST
-<action>
-<start>^&lt;UL>^</start>
-<end>^&lt;/UL>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Section with no subdivisions -->
+<match>
+<gi>SIMPLESECT
+</rule>
+
+<rule> <!-- Formatting information for a spanned column in a TGroup -->
 <match>
 <gi>SPANSPEC
 </rule>
 
-<rule>
+<rule> <!-- State in an Address -->
 <match>
 <gi>STATE
 </rule>
 
-<rule>
+<rule> <!-- Part of a Procedure -->
 <match>
 <gi>STEP
+<action>
+<start>^&lt;LI></start>
+<end>&lt;/LI>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Street in an Address -->
 <match>
 <gi>STREET
 </rule>
 
-<rule>
+<rule> <!-- Field in a Structure -->
 <match>
 <gi>STRUCTFIELD
 </rule>
 
-<rule>
+<rule> <!-- Name of a Structure -->
 <match>
 <gi>STRUCTNAME
 </rule>
 
-<rule>
+<rule> <!-- Subscript -->
 <match>
 <gi>SUBSCRIPT
+<action>
+<start>&lt;SUB></start>
+<end>&lt;/SUB></end>
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for Steps within Steps -->
 <match>
 <gi>SUBSTEPS
+<action>
+<start>^&lt;OL>^</start>
+<end>^&lt;/OL>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Subtitle of a document -->
 <match>
 <gi>SUBTITLE
 <action>
@@ -1718,12 +1928,15 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>&lt;/EM>&lt;/P>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Superscript -->
 <match>
 <gi>SUPERSCRIPT
+<action>
+<start>&lt;SUP></start>
+<end>&lt;/SUP></end>
 </rule>
 
-<rule>
+<rule> <!-- Family name -->
 <match>
 <gi>SURNAME
 <action>
@@ -1731,22 +1944,22 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Name that is replaced by a value before processing -->
 <match>
 <gi>SYMBOL
 </rule>
 
-<rule>
+<rule> <!-- Part of CmdSynopsis -->
 <match>
 <gi>SYNOPFRAGMENT
 </rule>
 
-<rule>
+<rule> <!-- Part of a CmdSynopsis -->
 <match>
 <gi>SYNOPFRAGMENTREF
 </rule>
 
-<rule>
+<rule> <!-- Syntax of a command or function -->
 <match>
 <gi>SYNOPSIS
 <context>PARA
@@ -1757,7 +1970,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- Syntax of a command or function -->
 <match>
 <gi>SYNOPSIS
 <action>
@@ -1765,38 +1978,39 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <end>^&lt;/PRE>^</end>
 </rule>
 
-<rule>
+<rule> <!-- System-related term or item -->
 <match>
 <gi>SYSTEMITEM
 </rule>
 
-<rule>
+<rule> <!-- Table in a document -->
 <match>
 <gi>TABLE
-<attval>frame none
+<attval>FRAME none
 <action>
-<start>^${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${tabnum}:&lt;/STRONG>
+<start>^&lt;P>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${tabnum}:&lt;/STRONG>
 ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE>^</start>
 <end>^&lt;/TABLE>^</end>
 <incr>tabnum
 </rule>
 
-<rule>
+<rule> <!-- Table in a document -->
 <match>
 <gi>TABLE
 <action>
-<start>^${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${tabnum}:&lt;/STRONG>
-${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border">^</start>
+<start>^&lt;P>${_attval ID &r.astart;}&lt;STRONG>${_gi M} ${tabnum}:&lt;/STRONG>
+${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="1">^</start>
 <end>^&lt;/TABLE>^</end>
 <incr>tabnum
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for the Rows of a Table or InformalTable -->
 <match>
 <gi>TBODY
 </rule>
 
-<rule>
+<rule> <!-- Hanging term attached to a ListItem within a VarListEntry in a
+            VariableList -->
 <match>
 <gi>TERM
 <action>
@@ -1804,32 +2018,34 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>&lt;/DT>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Word or phrase that is to appear in the index under a Secondary
+            entry -->
 <match>
 <gi>TERTIARY
 </rule>
 
-<rule>
+<rule> <!-- Third-level entry in an Index, not in the text -->
 <match>
 <gi>TERTIARYIE
 </rule>
 
-<rule>
+<rule> <!-- Footer row of a table -->
 <match>
 <gi>TFOOT
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for part of a Table that contains an array along with its
+            formatting information -->
 <match>
 <gi>TGROUP
 </rule>
 
-<rule>
+<rule> <!-- Heading row of a table -->
 <match>
 <gi>THEAD
 </rule>
 
-<rule>
+<rule> <!-- Suggestion to the user, set off from the text -->
 <match>
 <gi>TIP
 <relation>child TITLE
@@ -1837,7 +2053,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <do>&r.admona;
 </rule>
 
-<rule>
+<rule> <!-- Suggestion to the user, set off from the text -->
 <match>
 <gi>TIP
 <action>
@@ -1846,7 +2062,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 
 <!-- Titles in the preface -->
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>PREFACE
@@ -1855,7 +2071,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>&lt;/H1>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT1
@@ -1865,7 +2081,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>&lt;/H2>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT2
@@ -1875,7 +2091,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>&lt;/H3>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT3
@@ -1887,7 +2103,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 
 <!-- Title in bookbiblio -->
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>BOOKBIBLIO
@@ -1897,7 +2113,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 
 <!-- Titles in other sections -->
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>^REF.*
@@ -1906,7 +2122,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>^&lt;/H3></end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>PART
@@ -1915,43 +2131,52 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>${_followrel parent PART 5}&hlcfont;&lt;/H1>${_followrel parent PART &r.chtoc;t}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>CHAPTER
 <action>
-<start>^&lt;H1>&lt;A NAME="ch-${chapnum}">&lt;/A>&hlofont;${_followrel parent CHAPTER 4}${chapnum}&wspace;^</start>
+<start>^&lt;H1>&lt;A NAME="ch-${chapnum}">&lt;/A>&hlofont;${_followrel parent CHAPTER 4}${chapnum}.&wspace;^</start>
 <end>${_followrel parent CHAPTER 5}&hlcfont;&lt;/H1>${_followrel parent CHAPTER &r.s1toc;t}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
+<match>
+<gi>TITLE
+<context>APPENDIX
+<action>
+<start>^&lt;H1>&lt;A NAME="ch-${chapnum}">&lt;/A>&hlofont;${_followrel parent APPENDIX 4}${chapnum}.&wspace;^</start>
+<end>${_followrel parent APPENDIX 5}&hlcfont;&lt;/H1>${_followrel parent APPENDIX &r.s1toc;t}^</end>
+</rule>
+
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT1
 <action>
-<start>^&lt;H2>&lt;A NAME="s1-${chapnum}-${sect1num}">&lt;/A>&hlofont;${_followrel parent SECT1 4}${chapnum}.${sect1num}&wspace;^</start>
+<start>^&lt;H2>&lt;A NAME="s1-${chapnum}-${sect1num}">&lt;/A>&hlofont;${_followrel parent SECT1 4}${chapnum}.${sect1num}.&wspace;^</start>
 <end>${_followrel parent SECT1 5}&hlcfont;&lt;/H2>${_followrel parent SECT1 &r.s2toc;t}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT2
 <action>
-<start>^&lt;H3>&lt;A NAME="s2-${chapnum}-${sect1num}-${sect2num}">&lt;/A>&hlofont;${_followrel parent SECT2 4}${chapnum}.${sect1num}.${sect2num}&wspace^</start>
+<start>^&lt;H3>&lt;A NAME="s2-${chapnum}-${sect1num}-${sect2num}">&lt;/A>&hlofont;${_followrel parent SECT2 4}${chapnum}.${sect1num}.${sect2num}.&wspace^</start>
 <end>${_followrel parent SECT2 5}&hlcfont;&lt;/H3>${_followrel parent SECT2 &r.s3toc;t}^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT3
 <action>
-<start>^&lt;H4>&lt;A NAME="s3-${chapnum}-${sect1num}-${sect2num}-${sect3num}">&hlofont;${_followrel parent SECT3 4}${chapnum}.${sect1num}.${sect2num}.${sect3num}&wspace;^</start>
+<start>^&lt;H4>&lt;A NAME="s3-${chapnum}-${sect1num}-${sect2num}-${sect3num}">&hlofont;${_followrel parent SECT3 4}${chapnum}.${sect1num}.${sect2num}.${sect3num}.&wspace;^</start>
 <end>${_followrel parent SECT1 5}&hlcfont;&lt;/H4>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT4
@@ -1960,7 +2185,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>${_followrel parent SECT4 5}&hlcfont;&lt;/H4>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>SECT5
@@ -1969,7 +2194,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>${_followrel parent SECT5 5}&hlcfont;&lt;/H4>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>FIGURE|EXAMPLE|TABLE|CAUTION|IMPORTANT|NOTE|TIP|WARNING
@@ -1979,7 +2204,7 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <ignore>all
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 <context>GLOSSARY
@@ -1987,99 +2212,100 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <ignore>all
 </rule>
 
-<rule>
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
 <match>
 <gi>TITLE
 </rule>
 
-<rule>
+<rule> <!-- Abbreviated title -->
 <match>
 <gi>TITLEABBREV
 <action>
 <ignore>all
 </rule>
 
-<rule>
+<rule> <!-- Table of contents -->
 <match>
 <gi>TOC
 </rule>
 
-<rule>
+<rule> <!-- Entry for back matter in a ToC -->
 <match>
 <gi>TOCBACK
 </rule>
 
-<rule>
+<rule> <!-- Entry in a ToC for a part of the body of a Book -->
 <match>
 <gi>TOCCHAP
 </rule>
 
-<rule>
+<rule> <!-- Entry in a ToC or its subelements -->
 <match>
 <gi>TOCENTRY
 </rule>
 
-<rule>
+<rule> <!-- Entry for introductory matter in a ToC -->
 <match>
 <gi>TOCFRONT
 </rule>
 
-<rule>
+<rule> <!-- Top-level entry within a ToCchap -->
 <match>
 <gi>TOCLEVEL1
 </rule>
 
-<rule>
+<rule> <!-- Second-level entry within a ToCchap -->
 <match>
 <gi>TOCLEVEL2
 </rule>
 
-<rule>
+<rule> <!-- Third-level entry within a ToCchap -->
 <match>
 <gi>TOCLEVEL3
 </rule>
 
-<rule>
+<rule> <!-- Fourth-level entry within a ToCchap -->
 <match>
 <gi>TOCLEVEL4
 </rule>
 
-<rule>
+<rule> <!-- Fifth-level entry within a ToCchap -->
 <match>
 <gi>TOCLEVEL5
 </rule>
 
-<rule>
+<rule> <!-- Entry in a ToC for a Part of a Book -->
 <match>
 <gi>TOCPART
 </rule>
 
-<rule>
+<rule> <!-- Unit of information in the context of lexical analysis -->
 <match>
 <gi>TOKEN
 </rule>
 
-<rule>
+<rule> <!-- Trademark -->
 <match>
 <gi>TRADEMARK
 <action>
-<end>(TM)</end>
+<end>&lt;SMALL>&lt;SUP>(TM)&lt;/SUP>&lt;/SMALL></end>
 </rule>
 
-<rule>
+<rule> <!-- Classification of a value -->
 <match>
 <gi>TYPE
 </rule>
 
-<rule>
+<rule> <!-- Link that addresses its target by means of a Uniform Resource
+            Locator -->
 <match>
 <gi>ULINK
 <action>
-<start>&lt;A href="${URL}"></start>
+<start>&lt;A HREF="${URL}"></start>
 <end>&lt;/A></end>
 </rule>
 
-<rule>
+<rule> <!-- Data entered by the user -->
 <match>
 <gi>USERINPUT
 <action>
@@ -2087,12 +2313,14 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>&lt;/B></end>
 </rule>
 
-<rule>
+<rule> <!-- Empty element, part of FuncSynopsis, indicating that the Function in
+            question has a variable number of arguments -->
 <match>
 <gi>VARARGS
 </rule>
 
-<rule>
+<rule> <!-- List in which each entry is composed of sets of one or more
+            Terms with associated ListItems -->
 <match>
 <gi>VARIABLELIST
 <context>PARA
@@ -2103,7 +2331,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 &lt;P></end>
 </rule>
 
-<rule>
+<rule> <!-- List in which each entry is composed of sets of one or more
+            Terms with associated ListItems -->
 <match>
 <gi>VARIABLELIST
 <action>
@@ -2111,22 +2340,25 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>^&lt;/DL>^</end>
 </rule>
 
-<rule>
+<rule> <!-- Wrapper for Term and its associated ListItem in a
+            VariableList -->
 <match>
 <gi>VARLISTENTRY
 </rule>
 
-<rule>
+<rule> <!-- Empty element, part of FuncSynopsis, that indicates that the Function in
+            question takes no arguments -->
 <match>
 <gi>VOID
 </rule>
 
-<rule>
+<rule> <!-- Number of a Book in relation to Set, or of a journal, when Book
+            is used to represent a journal by containing Articles -->
 <match>
 <gi>VOLUMENUM
 </rule>
 
-<rule>
+<rule> <!-- Admonition set off from the text -->
 <match>
 <gi>WARNING
 <relation>child TITLE
@@ -2134,34 +2366,34 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <do>&r.admona;
 </rule>
 
-<rule>
+<rule> <!-- Admonition set off from the text -->
 <match>
 <gi>WARNING
 <action>
 <do>&r.admonb;
 </rule>
 
-<rule>
+<rule> <!-- Word -->
 <match>
 <gi>WORDASWORD
 </rule>
 
-<rule>
+<rule> <!-- Cross reference link to another part of the document -->
 <match>
-  <gi>XREF
-  <attval>REMAP .
+<gi>XREF
+<attval>REMAP .
 <action>
-  <replace>&lt;A HREF="#${LINKEND}">&lt;EM>${REMAP}&lt;/EM>&lt;/A></replace>
+<replace>&lt;A HREF="#${LINKEND}">&lt;EM>${REMAP}&lt;/EM>&lt;/A></replace>
 </rule>
 
-<rule>
+<rule> <!-- Cross reference link to another part of the document -->
 <match>
-  <gi>XREF
+<gi>XREF
 <action>
-  <replace>&lt;A HREF="#${LINKEND}">&lt;EM>${_chasetogi TITLE &r.pass}&lt;/EM>&lt;/A></replace>
+<replace>&lt;A HREF="#${LINKEND}">&lt;EM>${_chasetogi TITLE &r.pass}&lt;/EM>&lt;/A></replace>
 </rule>
 
-<rule>
+<rule> <!-- Year of publication of a document -->
 <match>
 <gi>YEAR
 <action>
@@ -2169,12 +2401,19 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <end>^</end>
 </rule>
 
+<rule> <!-- Absorb anything that mannages to get this
+            far without a match so it does not accidentally
+            match the rules below which are meant to be
+            explicitly invoked from other rules. -->
+<match>
+<gi>*
+</rule>
+
 <!-- Taken from osf-book transpec -->
 <rule id="&r.pass;">
 <match>
 <gi>_pass-text
 </rule>
-
 
 <rule id="&r.astart;"> <!-- Just output the anchor tag and ID.  No content. -->
 <match>
@@ -2217,8 +2456,8 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>_admonition
 <action>
-<start>^&lt;TABLE border="0">
- &lt;TR>&lt;TD BGCOLOR="EEEEFF">&lt;P>&lt;STRONG>${_attval ID &r.astart;}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}:&lt;/STRONG>&lt;/P>^</start>
+<start>^&lt;P>&lt;TABLE border="1" cellpadding="5" width="100%">
+&lt;TR>&lt;TD BGCOLOR="FFFFEE">&lt;P>&lt;STRONG>${_attval ID &r.astart;}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}:&lt;/STRONG>&lt;/P>^</start>
 <end>&lt;/TD>&lt;/TR>&lt;/TABLE>^</end>
 </rule>
 
@@ -2226,18 +2465,10 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 <match>
 <gi>_admonition
 <action>
-<start>^&lt;TABLE border="0">
+<start>^&lt;P>&lt;TABLE border="1" cellpadding="5" width="100%">
 &lt;TR>
-&lt;TD BGCOLOR="EEEEFF">&lt;P>&lt;STRONG>${_attval ID &r.astart;}${_gi M}${_attval ID &r.aend;}:&lt;/STRONG>&lt;/P></start>
+&lt;TD BGCOLOR="FFFFEE">&lt;P>&lt;STRONG>${_attval ID &r.astart;}${_gi M}${_attval ID &r.aend;}:&lt;/STRONG>&lt;/P></start>
 <end>^&lt;/TD>&lt;/TR>&lt;/TABLE>^</end>
-</rule>
-
-<rule id="8">
-<match>
-<gi>_titletext
-<action>
-<start>${_attval ID &r.astart;}${ttext}${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}</start>
-<ignore>all
 </rule>
 
 <!-- Generate tables of contents.  Each r.??toc scans the subtree for
@@ -2245,89 +2476,116 @@ ${_followrel child TITLE &r.pass;}${_attval ID &r.aend;}&lt;TABLE border="border
 
 <rule id="&r.pttoc;">
 <match>
-  <relation>descendant PART
+<relation>descendant PART
 <action>
-  <replace>^&lt;DL>
+<replace>^&lt;DL>
 ${_find gi PART &r.pttoci;}
 &lt;/DL>${_set partnum 1}^</replace>
 </rule>
 
 <rule id="&r.pttoci;">
 <match>
-  <gi>_pttoc
+<gi>_pttoc
 <action>
-  <replace>&lt;DD>Part ${partnum}.&wspace;&lt;EM>&lt;A HREF="#pt-${partnum}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
-  <incr>partnum
+<replace>&lt;DD>Part ${partnum}.&wspace;&lt;EM>&lt;A HREF="#pt-${partnum}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
+<incr>partnum
 </rule>
 
 <rule id="&r.chtoc;">
 <match>
-  <relation>descendant CHAPTER
+<relation>descendant CHAPTER
 <action>
-  <replace>^&lt;DL>
-${_set tmpchapnum ${chapnum}}${_find gi CHAPTER &r.chtoci;}
+<replace>^&lt;DL>
+${_set tmpchapnum ${chapnum}}${_find gi CHAPTER &r.chtoci;}${_set chapnum ${appnum}}${_find gi APPENDIX &r.chtoci;}
 &lt;/DL>^</replace>
-  <set>chapnum ${tmpchapnum}
+<set>chapnum ${tmpchapnum}
 </rule>
 
 <rule id="&r.chtoci;">
 <match>
-  <gi>_chtoc
+<gi>_chtoc
 <action>
-  <replace>&lt;DD>${chapnum}.&wspace;&lt;EM>&lt;A HREF="#ch-${chapnum}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
-  <incr>chapnum
+<replace>&lt;DD>${chapnum}.&wspace;&lt;EM>&lt;A HREF="#ch-${chapnum}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
+<incr>chapnum
 </rule>
+
+<!-- <rule id="&r.aptoci;">
+<match>
+<gi>_aptoc
+<action>
+<replace>&lt;DD>${chapnum}.&wspace;&lt;EM>&lt;A HREF="#ap-${chapnum}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
+<incr>chapnum
+</rule>-->
 
 <rule id="&r.s1toc;">
 <match>
-  <relation>descendant SECT1
+<relation>descendant SECT1
 <action>
-  <replace>^&lt;DL>
+<replace>^&lt;DL>
 ${_find gi SECT1 &r.s1toci;}
 &lt;/dl>${_set sect1num 1}^</replace>
 </rule>
 
 <rule id="&r.s1toci;">
 <match>
-  <gi>_s1toc
+<gi>_s1toc
 <action>
-  <replace>&lt;DD>${chapnum}.${sect1num}.&wspace;&lt;EM>&lt;A HREF="#s1-${chapnum}-${sect1num}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
-  <incr>sect1num
+<replace>&lt;DD>${chapnum}.${sect1num}.&wspace;&lt;EM>&lt;A HREF="#s1-${chapnum}-${sect1num}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
+<incr>sect1num
 </rule>
 
 <rule id="&r.s2toc;">
 <match>
-  <relation>descendant SECT2
+<relation>descendant SECT2
 <action>
-  <replace>^&lt;DL>
+<replace>^&lt;DL>
 ${_find gi SECT2 &r.s2toci;}
 &lt;/dl>${_set sect2num 1}^</replace>
 </rule>
 
 <rule id="&r.s2toci;">
 <match>
-  <gi>_s2toc
+<gi>_s2toc
 <action>
-  <replace>&lt;DD>${chapnum}.${sect1num}.${sect2num}.&wspace;&lt;EM>&lt;A HREF="#s2-${chapnum}-${sect1num}-${sect2num}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
-  <incr>sect2num
+<replace>&lt;DD>${chapnum}.${sect1num}.${sect2num}.&wspace;&lt;EM>&lt;A HREF="#s2-${chapnum}-${sect1num}-${sect2num}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
+<incr>sect2num
 </rule>
 
 <rule id="&r.s3toc;">
 <match>
-  <relation>descendant SECT3
+<relation>descendant SECT3
 <action>
-  <replace>^&lt;DL>
+<replace>^&lt;DL>
 ${_find gi SECT3 &r.s3toci;}
 &lt;/dl>${_set sect3num 1}^</replace>
 </rule>
 
 <rule id="&r.s3toci;">
 <match>
-  <gi>_s3toc
+<gi>_s3toc
 <action>
-  <replace>&lt;DD>${chapnum}.${sect1num}.${sect2num}.${sect3num}.&wspace;&lt;EM>&lt;A HREF="#s3-${chapnum}-${sect1num}-${sect2num}-${sect3num}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
-  <incr>sect3num
+<replace>&lt;DD>${chapnum}.${sect1num}.${sect2num}.${sect3num}.&wspace;&lt;EM>&lt;A HREF="#s3-${chapnum}-${sect1num}-${sect2num}-${sect3num}">${_followrel descendant TITLE &r.pass;}&lt;/A>&lt;/EM>&lt;/DD>^</replace>
+<incr>sect3num
+</rule>
+
+<rule id="&r.fnote;">
+<match>
+<relation>descendant FOOTNOTE
+<action>
+<replace>&lt;H1>&hlofont;Notes&hlcfont;&lt;/H1>
+&lt;TABLE width="100%">
+${_find top gi FOOTNOTE &r.fnotei;}
+&lt;/TABLE></replace>
+</rule>
+
+<rule id="&r.fnotei;">
+<match>
+<gi>_fnote
+<action>
+<start>^&lt;TR>&lt;TD VALIGN="TOP">&lt;B>&lt;A NAME="fn-${fnotenum}">&lt/A>&lt;A HREF="#rfn-${fnotenum}">${fnotenum}.&lt/A>&lt;/B>&lt;/TD>
+&lt;TD VALIGN="TOP"></start>
+<end>&lt;/TD>&lt;TR></end>
+<incr>fnotenum
 </rule>
 
 </transpec>
-
