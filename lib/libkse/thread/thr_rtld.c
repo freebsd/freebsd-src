@@ -140,8 +140,11 @@ _thr_rtld_fini()
 #endif
 
 struct rtld_kse_lock {
-	struct lock lck;
-	kse_critical_t crit;
+	struct lock	lck;
+	struct kse	*owner;
+	kse_critical_t	crit;
+	int		count;
+	int		write;
 };
 
 static void *
@@ -150,16 +153,23 @@ _thr_rtld_lock_create()
 	struct rtld_kse_lock *l = malloc(sizeof(struct rtld_kse_lock));
 
 	_lock_init(&l->lck, LCK_ADAPTIVE, _kse_lock_wait, _kse_lock_wakeup);
+	l->owner = NULL;
+	l->count = 0;
+	l->write = 0;
 	return (l);
 }
 
 static void
 _thr_rtld_lock_destroy(void *lock)
 {
+	/* XXX We really can not free memory after a fork() */
+#if 0
 	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
-
+	
 	_lock_destroy(&l->lck);
 	free(l);
+#endif
+	return;
 }
 
 static void
@@ -167,10 +177,20 @@ _thr_rtld_rlock_acquire(void *lock)
 {
 	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
 	kse_critical_t crit;
+	struct kse *curkse;
 
 	crit = _kse_critical_enter();
-	KSE_LOCK_ACQUIRE(_get_curkse(), &l->lck);
-	l->crit = crit;
+	curkse = _get_curkse();
+	if (l->owner == curkse) {
+		l->count++;
+		_kse_critical_leave(crit);	/* probably not necessary */
+	} else {
+		KSE_LOCK_ACQUIRE(curkse, &l->lck);
+		l->crit = crit;
+		l->owner = curkse;
+		l->count = 1;
+		l->write = 0;
+	}
 }
 
 static void
@@ -178,20 +198,57 @@ _thr_rtld_wlock_acquire(void *lock)
 {
 	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
 	kse_critical_t crit;
+	struct kse *curkse;
 
 	crit = _kse_critical_enter();
-	KSE_LOCK_ACQUIRE(_get_curkse(), &l->lck);
-	l->crit = crit;
+	curkse = _get_curkse();
+	if (l->owner == curkse) {
+		_kse_critical_leave(crit);
+		PANIC("Recursive write lock attempt on rtld lock");
+	} else {
+		KSE_LOCK_ACQUIRE(curkse, &l->lck);
+		l->crit = crit;
+		l->owner = curkse;
+		l->count = 1;
+		l->write = 1;
+	}
 }
 
 static void
 _thr_rtld_lock_release(void *lock)
 {
 	struct rtld_kse_lock *l = (struct rtld_kse_lock *)lock;
-	kse_critical_t crit = l->crit;
+	kse_critical_t crit;
+	struct kse *curkse;
 
-	KSE_LOCK_RELEASE(_get_curkse(), &l->lck);
-	_kse_critical_leave(crit);
+	crit = _kse_critical_enter();
+	curkse = _get_curkse();
+	if (l->owner != curkse) {
+		/*
+		 * We might want to forcibly unlock the rtld lock
+		 * and/or disable threaded mode so there is better
+		 * chance that the panic will work.  Otherwise,
+		 * we could end up trying to take the rtld lock
+		 * again.
+		 */
+		_kse_critical_leave(crit);
+		PANIC("Attempt to unlock rtld lock when not owner.");
+	} else {
+		l->count--;
+		if (l->count == 0) {
+			/*
+			 * If there ever is a count associated with
+			 * _kse_critical_leave(), we'll need to add
+			 * another call to it here with the crit
+			 * value from above.
+			 */
+			crit  = l->crit;
+			l->owner = NULL;
+			l->write = 0;
+			KSE_LOCK_RELEASE(curkse, &l->lck);
+		}
+		_kse_critical_leave(crit);
+	}
 }
 
 
