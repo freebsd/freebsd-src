@@ -102,6 +102,21 @@
 	(jb)[0]._jb[R_RA + 4] = (long)(ra);		\
 	(jb)[0]._jb[R_T12 + 4] = (long)(ra);		\
 } while (0)
+#elif defined(__ia64__)
+#define	GET_BSP_JB(jb)		(*((unsigned long*)JMPBUF_ADDR_OF(jb,J_BSP)))
+#define	GET_STACK_JB(jb)	(*((unsigned long*)JMPBUF_ADDR_OF(jb,J_SP)))
+#define	GET_STACK_SJB(sjb)	GET_STACK_JB(sjb)
+#define	SET_RETURN_ADDR_JB(jb, ra)			\
+do {							\
+	*((unsigned long*)JMPBUF_ADDR_OF(jb,J_B0)) = ((long*)(ra))[0];	\
+	*((unsigned long*)JMPBUF_ADDR_OF(jb,J_PFS)) &= ~0x1FFFFFFFFFUL;	\
+} while (0)
+#define SET_STACK_JB(jb, stk, sz)			\
+do {							\
+	UPD_STACK_JB(jb, stk + sz - 16);		\
+	GET_BSP_JB(jb) = (long)(stk);			\
+} while (0)
+#define UPD_STACK_JB(jb, stk)	GET_STACK_JB(jb) = (long)(stk)
 #elif	defined(__sparc64__)
 #include <machine/frame.h>
 
@@ -432,7 +447,11 @@ struct pthread_attr {
 /*
  * Miscellaneous definitions.
  */
+#if !defined(__ia64__)
 #define PTHREAD_STACK_DEFAULT			65536
+#else
+#define PTHREAD_STACK_DEFAULT			0x40000
+#endif
 /*
  * Size of default red zone at the end of each stack.  In actuality, this "red
  * zone" is merely an unmapped region, except in the case of the initial stack.
@@ -450,7 +469,11 @@ extern int _pthread_page_size;
  * than the stacks of other threads, since many applications are likely to run
  * almost entirely on this stack.
  */
+#if !defined(__ia64__)
 #define PTHREAD_STACK_INITIAL			0x100000
+#else
+#define PTHREAD_STACK_INITIAL			0x400000
+#endif
 
 /*
  * Define the different priority ranges.  All applications have thread

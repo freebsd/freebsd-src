@@ -373,8 +373,13 @@ _thread_init(void)
 
 		/* Setup the context for the scheduler: */
 		_setjmp(_thread_kern_sched_jb);
+#if !defined(__ia64__)
 		SET_STACK_JB(_thread_kern_sched_jb, _thread_kern_sched_stack +
 		    sched_stack_size - sizeof(double));
+#else
+		SET_STACK_JB(_thread_kern_sched_jb, _thread_kern_sched_stack,
+		    sched_stack_size);
+#endif
 		SET_RETURN_ADDR_JB(_thread_kern_sched_jb, _thread_kern_scheduler);
 
 		/*
