@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
- * Author: Julian Elisher <julian@freebsd.org>
+ * Author: Julian Elischer <julian@freebsd.org>
  *
  * $FreeBSD$
  * $Whistle: ng_frame_relay.c,v 1.20 1999/11/01 09:24:51 julian Exp $
@@ -125,13 +125,13 @@ static struct segment {
 
 /* Netgraph methods */
 static ng_constructor_t	ngfrm_constructor;
-static ng_shutdown_t	ngfrm_rmnode;
+static ng_shutdown_t	ngfrm_shutdown;
 static ng_newhook_t	ngfrm_newhook;
 static ng_rcvdata_t	ngfrm_rcvdata;
 static ng_disconnect_t	ngfrm_disconnect;
 
 /* Other internal functions */
-static int ngfrm_decode(node_p node, struct mbuf * m, meta_p meta);
+static int ngfrm_decode(node_p node, item_p item);
 static int ngfrm_addrlen(char *hdr);
 static int ngfrm_allocate_CTX(sc_p sc, int dlci);
 
@@ -142,7 +142,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ngfrm_constructor,
 	NULL,
-	ngfrm_rmnode,
+	ngfrm_shutdown,
 	ngfrm_newhook,
 	NULL,
 	NULL,
@@ -212,23 +212,18 @@ ngfrm_allocate_CTX(sc_p sc, int dlci)
  * Node constructor
  */
 static int
-ngfrm_constructor(node_p *nodep)
+ngfrm_constructor(node_p node)
 {
 	sc_p sc;
-	int error = 0;
 
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (!sc)
 		return (ENOMEM);
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(sc, M_NETGRAPH);
-		return (error);
-	}
 	sc->addrlen = 2;	/* default */
 
 	/* Link the node and our private info */
-	(*nodep)->private = sc;
-	sc->node = *nodep;
+	node->private = sc;
+	sc->node = node;
 	return (0);
 }
 
@@ -335,8 +330,7 @@ ngfrm_addrlen(char *hdr)
  * Receive data packet
  */
 static int
-ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ngfrm_rcvdata(hook_p hook, item_p item)
 {
 	struct	ctxinfo *const ctxp = hook->private;
 	int     error = 0;
@@ -344,6 +338,7 @@ ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	sc_p    sc;
 	int     alen;
 	char   *data;
+	struct mbuf *m;
 
 	/* Data doesn't come in from just anywhere (e.g debug hook) */
 	if (ctxp == NULL) {
@@ -354,8 +349,9 @@ ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	/* If coming from downstream, decode it to a channel */
 	dlci = ctxp->dlci;
 	if (dlci == -1)
-		return (ngfrm_decode(hook->node, m, meta));
+		return (ngfrm_decode(hook->node, item));
 
+	NGI_GET_M(item, m);
 	/* Derive the softc we will need */
 	sc = hook->node->private;
 
@@ -408,11 +404,12 @@ ngfrm_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	}
 
 	/* Send it */
-	NG_SEND_DATA(error, sc->downstream.hook, m, meta);
+	NG_FWD_NEW_DATA(error, item, sc->downstream.hook, m);
 	return (error);
 
 bad:
-	NG_FREE_DATA(m, meta);
+	NG_FREE_ITEM(item);
+	NG_FREE_M(m);
 	return (error);
 }
 
@@ -420,7 +417,7 @@ bad:
  * Decode an incoming frame coming from the switch
  */
 static int
-ngfrm_decode(node_p node, struct mbuf *m, meta_p meta)
+ngfrm_decode(node_p node, item_p item)
 {
 	const sc_p  sc = node->private;
 	char       *data;
@@ -428,7 +425,9 @@ ngfrm_decode(node_p node, struct mbuf *m, meta_p meta)
 	u_int	    dlci = 0;
 	int	    error = 0;
 	int	    ctxnum;
+	struct mbuf *m;
 
+	NGI_GET_M(item, m);
 	if (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL) {
 		error = ENOBUFS;
 		goto out;
@@ -466,13 +465,14 @@ ngfrm_decode(node_p node, struct mbuf *m, meta_p meta)
 	if ((ctxnum & CTX_VALID) && sc->channel[ctxnum &= CTX_VALUE].hook) {
 		/* Send it */
 		m_adj(m, alen);
-		NG_SEND_DATA(error, sc->channel[ctxnum].hook, m, meta);
+		NG_FWD_NEW_DATA(error, item, sc->channel[ctxnum].hook, m);
 		return (error);
 	} else {
 		error = ENETDOWN;
 	}
 out:
-	NG_FREE_DATA(m, meta);
+	NG_FREE_ITEM(item);
+	NG_FREE_M(m);
 	return (error);
 }
 
@@ -480,13 +480,11 @@ out:
  * Shutdown node
  */
 static int
-ngfrm_rmnode(node_p node)
+ngfrm_shutdown(node_p node)
 {
 	const sc_p sc = node->private;
 
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	node->private = NULL;
 	FREE(sc, M_NETGRAPH);
 	ng_unref(node);
@@ -515,7 +513,8 @@ ngfrm_disconnect(hook_p hook)
 		cp->flags = 0;
 		sc->datahooks--;
 	}
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(hook->node);
 	return (0);
 }

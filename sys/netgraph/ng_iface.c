@@ -118,7 +118,7 @@ static void	ng_iface_print_ioctl(struct ifnet *ifp, int cmd, caddr_t data);
 /* Netgraph methods */
 static ng_constructor_t	ng_iface_constructor;
 static ng_rcvmsg_t	ng_iface_rcvmsg;
-static ng_shutdown_t	ng_iface_rmnode;
+static ng_shutdown_t	ng_iface_shutdown;
 static ng_newhook_t	ng_iface_newhook;
 static ng_rcvdata_t	ng_iface_rcvdata;
 static ng_disconnect_t	ng_iface_disconnect;
@@ -186,7 +186,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_iface_constructor,
 	ng_iface_rcvmsg,
-	ng_iface_rmnode,
+	ng_iface_shutdown,
 	ng_iface_newhook,
 	NULL,
 	NULL,
@@ -521,11 +521,10 @@ ng_iface_print_ioctl(struct ifnet *ifp, int command, caddr_t data)
  * Constructor for a node
  */
 static int
-ng_iface_constructor(node_p *nodep)
+ng_iface_constructor(node_p node)
 {
 	char ifname[NG_IFACE_IFACE_NAME_MAX + 1];
 	struct ifnet *ifp;
-	node_p node;
 	priv_p priv;
 	int error = 0;
 
@@ -549,15 +548,6 @@ ng_iface_constructor(node_p *nodep)
 		FREE(priv, M_NETGRAPH);
 		return (error);
 	}
-
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&typestruct, nodep)) != 0) {
-		ng_iface_free_unit(priv->unit);
-		FREE(ifp, M_NETGRAPH);
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
-	node = *nodep;
 
 	/* Link together node and private info */
 	node->private = priv;
@@ -615,14 +605,15 @@ ng_iface_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
-		const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
+ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ifnet *const ifp = priv->ifp;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_IFACE_COOKIE:
 		switch (msg->header.cmd) {
@@ -707,11 +698,8 @@ ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -719,20 +707,22 @@ ng_iface_rcvmsg(node_p node, struct ng_mesg *msg,
  * Recive data from a hook. Pass the packet to the correct input routine.
  */
 static int
-ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_iface_rcvdata(hook_p hook, item_p item)
 {
 	const priv_p priv = hook->node->private;
 	const iffam_p iffam = get_iffam_from_hook(priv, hook);
 	struct ifnet *const ifp = priv->ifp;
+	struct mbuf *m;
 
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 	/* Sanity checks */
 	KASSERT(iffam != NULL, ("%s: iffam", __FUNCTION__));
 	KASSERT(m->m_flags & M_PKTHDR, ("%s: not pkthdr", __FUNCTION__));
 	if (m == NULL)
 		return (EINVAL);
 	if ((ifp->if_flags & IFF_UP) == 0) {
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
 		return (ENETDOWN);
 	}
 
@@ -746,9 +736,6 @@ ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 	/* Berkeley packet filter */
 	ng_iface_bpftap(ifp, m, iffam->family);
 
-	/* Ignore any meta-data */
-	NG_FREE_META(meta);
-
 	/* Send packet */
 	return family_enqueue(iffam->family, m);
 }
@@ -757,12 +744,10 @@ ng_iface_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Shutdown and remove the node and its associated interface.
  */
 static int
-ng_iface_rmnode(node_p node)
+ng_iface_shutdown(node_p node)
 {
 	const priv_p priv = node->private;
 
-	ng_cutlinks(node);
-	ng_unname(node);
 	bpfdetach(priv->ifp);
 	if_detach(priv->ifp);
 	priv->ifp = NULL;

@@ -119,14 +119,14 @@ struct ng_mppc_dir {
 struct ng_mppc_private {
 	struct ng_mppc_dir	xmit;		/* compress/encrypt config */
 	struct ng_mppc_dir	recv;		/* decompress/decrypt config */
-	char			*ctrlpath;	/* path to controlling node */
+	ng_ID_t			ctrlnode;	/* path to controlling node */
 };
 typedef struct ng_mppc_private *priv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_mppc_constructor;
 static ng_rcvmsg_t	ng_mppc_rcvmsg;
-static ng_shutdown_t	ng_mppc_rmnode;
+static ng_shutdown_t	ng_mppc_shutdown;
 static ng_newhook_t	ng_mppc_newhook;
 static ng_rcvdata_t	ng_mppc_rcvdata;
 static ng_disconnect_t	ng_mppc_disconnect;
@@ -148,7 +148,7 @@ static struct ng_type ng_mppc_typestruct = {
 	NULL,
 	ng_mppc_constructor,
 	ng_mppc_rcvmsg,
-	ng_mppc_rmnode,
+	ng_mppc_shutdown,
 	ng_mppc_newhook,
 	NULL,
 	NULL,
@@ -171,22 +171,16 @@ static const u_char ng_mppe_weakenkey[3] = { 0xd1, 0x26, 0x9e };
  * Node type constructor
  */
 static int
-ng_mppc_constructor(node_p *nodep)
+ng_mppc_constructor(node_p node)
 {
 	priv_p priv;
-	int error;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&ng_mppc_typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = priv;
+	node->private = priv;
 
 	/* Done */
 	return (0);
@@ -222,13 +216,14 @@ ng_mppc_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_mppc_rcvmsg(node_p node, struct ng_mesg *msg,
-	      const char *raddr, struct ng_mesg **rptr, hook_p lasthook)
+ng_mppc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_MPPC_COOKIE:
 		switch (msg->header.cmd) {
@@ -260,17 +255,7 @@ ng_mppc_rcvmsg(node_p node, struct ng_mesg *msg,
 				cfg->bits = 0;
 
 			/* Save return address so we can send reset-req's */
-			if (priv->ctrlpath != NULL) {
-				FREE(priv->ctrlpath, M_NETGRAPH);
-				priv->ctrlpath = NULL;
-			}
-			if (!isComp && raddr != NULL) {
-				MALLOC(priv->ctrlpath, char *,
-				    strlen(raddr) + 1, M_NETGRAPH, M_NOWAIT);
-				if (priv->ctrlpath == NULL)
-					ERROUT(ENOMEM);
-				strcpy(priv->ctrlpath, raddr);
-			}
+			priv->ctrlnode = NGI_RETADDR(item);
 
 			/* Configuration is OK, reset to it */
 			d->cfg = *cfg;
@@ -331,13 +316,9 @@ ng_mppc_rcvmsg(node_p node, struct ng_mesg *msg,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
 done:
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -345,38 +326,43 @@ done:
  * Receive incoming data on our hook.
  */
 static int
-ng_mppc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_mppc_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
 	struct mbuf *out;
 	int error;
+	struct mbuf *m;
 
+	NGI_GET_M(item, m);
 	/* Compress and/or encrypt */
 	if (hook == priv->xmit.hook) {
 		if (!priv->xmit.cfg.enable) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
 		if ((error = ng_mppc_compress(node, m, &out)) != 0) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return(error);
 		}
-		m_freem(m);
-		NG_SEND_DATA(error, priv->xmit.hook, out, meta);
+		NG_FREE_M(m);
+		NG_FWD_NEW_DATA(error, item, priv->xmit.hook, out);
 		return (error);
 	}
 
 	/* Decompress and/or decrypt */
 	if (hook == priv->recv.hook) {
 		if (!priv->recv.cfg.enable) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
 		if ((error = ng_mppc_decompress(node, m, &out)) != 0) {
-			NG_FREE_DATA(m, meta);
-			if (error == EINVAL && priv->ctrlpath != NULL) {
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
+			if (error == EINVAL && priv->ctrlnode != NULL) {
 				struct ng_mesg *msg;
 
 				/* Need to send a reset-request */
@@ -384,14 +370,13 @@ ng_mppc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 				    NGM_MPPC_RESETREQ, 0, M_NOWAIT);
 				if (msg == NULL)
 					return (error);
-				/* XXX can we use a hook instead of ctrlpath? */
-				ng_send_msg(node, msg, priv->ctrlpath,
-					NULL, NULL, NULL); 
+				NG_SEND_MSG_ID(error, node, msg,
+					priv->ctrlnode, NULL); 
 			}
 			return (error);
 		}
-		m_freem(m);
-		NG_SEND_DATA(error, priv->recv.hook, out, meta);
+		NG_FREE_M(m);
+		NG_FWD_NEW_DATA(error, item, priv->recv.hook, out);
 		return (error);
 	}
 
@@ -403,16 +388,12 @@ ng_mppc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Destroy node
  */
 static int
-ng_mppc_rmnode(node_p node)
+ng_mppc_shutdown(node_p node)
 {
 	const priv_p priv = node->private;
 
 	/* Take down netgraph node */
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
-	if (priv->ctrlpath != NULL)
-		FREE(priv->ctrlpath, M_NETGRAPH);
 #ifdef NETGRAPH_MPPC_COMPRESSION
 	if (priv->xmit.history != NULL)
 		FREE(priv->xmit.history, M_NETGRAPH);
@@ -442,8 +423,9 @@ ng_mppc_disconnect(hook_p hook)
 		priv->recv.hook = NULL;
 
 	/* Go away if no longer connected */
-	if (node->numhooks == 0)
-		ng_rmnode(node);
+	if ((node->numhooks == 0)
+	&& ((node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(node);
 	return (0);
 }
 

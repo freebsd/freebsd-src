@@ -61,7 +61,7 @@
 
 static ng_constructor_t	ng_xxx_constructor;
 static ng_rcvmsg_t	ng_xxx_rcvmsg;
-static ng_shutdown_t	ng_xxx_rmnode;
+static ng_shutdown_t	ng_xxx_shutdown;
 static ng_newhook_t	ng_xxx_newhook;
 static ng_connect_t	ng_xxx_connect;
 static ng_rcvdata_t	ng_xxx_rcvdata;	 /* note these are both ng_rcvdata_t */
@@ -101,7 +101,7 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_xxx_constructor,
 	ng_xxx_rcvmsg,
-	ng_xxx_rmnode,
+	ng_xxx_shutdown,
 	ng_xxx_newhook,
 	NULL,
 	ng_xxx_connect,
@@ -131,20 +131,16 @@ struct XXX {
 typedef struct XXX *xxx_p;
 
 /*
- * Allocate the private data structure and the generic node
- * and link them together.
- *
- * ng_make_node_common() returns with a generic node struct
- * with a single reference for us.. we transfer it to the
- * private structure.. when we free the private struct we must
- * unref the node so it gets freed too.
+ * Allocate the private data structure. The generic node has already
+ * been created. Link them together. We arrive with a reference to the node
+ * i.e. the reference count is incremented for us already.
  *
  * If this were a device node than this work would be done in the attach()
  * routine and the constructor would return EINVAL as you should not be able
  * to creatednodes that depend on hardware (unless you can add the hardware :)
  */
 static int
-ng_xxx_constructor(node_p *nodep)
+ng_xxx_constructor(node_p nodep)
 {
 	xxx_p privdata;
 	int i, error;
@@ -157,12 +153,6 @@ ng_xxx_constructor(node_p *nodep)
 	for (i = 0; i < XXX_NUM_DLCIS; i++) {
 		privdata->channel[i].dlci = -2;
 		privdata->channel[i].channel = i;
-	}
-
-	/* Call the 'generic' (ie, superclass) node constructor */
-	if ((error = ng_make_node_common(&typestruct, nodep))) {
-		FREE(privdata, M_NETGRAPH);
-		return (error);
 	}
 
 	/* Link structs together; this counts as our one reference to *nodep */
@@ -245,6 +235,11 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
 
 /*
  * Get a netgraph control message.
+ * We actually recieve a queue item that has a pointer to the message.
+ * If we free the item, the message will be freed too, unless we remove
+ * it from the item using NGI_GET_MSG();
+ * The return address is also stored in the item, as an ng_ID_t,
+ * accessible as NGI_RETADDR(item);
  * Check it is one we understand. If needed, send a response.
  * We could save the address for an async action later, but don't here.
  * Always free the message.
@@ -255,13 +250,14 @@ ng_xxx_newhook(node_p node, hook_p hook, const char *name)
  * (so that old userland programs could continue to work).
  */
 static int
-ng_xxx_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-		struct ng_mesg **rptr, hook_p lasthook)
+ng_xxx_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const xxx_p xxxp = node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
 	case NGM_XXX_COOKIE: 
@@ -298,18 +294,17 @@ ng_xxx_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 	}
 
 	/* Take care of synchronous response, if any */
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
+	NG_RESPOND_MSG(error, node, item, resp);
 	/* Free the message and return */
-	FREE(msg, M_NETGRAPH);
+	NG_FREE_MSG(msg);
 	return(error);
 }
 
 /*
  * Receive data, and do something with it.
+ * Actually we receive a queue item which holds the data.
+ * If we free the item it wil also froo the data and metadata unless
+ * we have previously disassociated them using the NGI_GET_xxx() macros.
  * Possibly send it out on another link after processing.
  * Possibly do something different if it comes from different
  * hooks. the caller will never free m or meta, so
@@ -321,14 +316,17 @@ ng_xxx_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
  * in the connect() method. 
  */
 static int
-ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_xxx_rcvdata(hook_p hook, item_p item )
 {
 	const xxx_p xxxp = hook->node->private;
 	int chan = -2;
 	int dlci = -2;
 	int error;
+	struct mbuf *m;
+	meta_p meta;
 
+
+	NGI_GET_M(item, m);
 	if (hook->private) {
 		dlci = ((struct XXX_hookinfo *) hook->private)->dlci;
 		chan = ((struct XXX_hookinfo *) hook->private)->channel;
@@ -339,8 +337,8 @@ ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			 * the front here */
 			/* M_PREPEND(....)	; */
 			/* mtod(m, xxxxxx)->dlci = dlci; */
-			NG_SEND_DATA(error, xxxp->downstream_hook.hook,
-			    m, meta);
+			NG_FWD_NEW_DATA(error, item, 
+				xxxp->downstream_hook.hook, m);
 			xxxp->packets_out++;
 		} else {
 			/* data came from the multiplexed link */
@@ -350,7 +348,8 @@ ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 				if (xxxp->channel[chan].dlci == dlci)
 					break;
 			if (chan == XXX_NUM_DLCIS) {
-				NG_FREE_DATA(m, meta);
+				NG_FREE_ITEM(item);
+				NG_FREE_M(m);
 				return (ENETUNREACH);
 			}
 			/* If we were called at splnet, use the following:
@@ -364,13 +363,15 @@ ng_xxx_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			 * the processing of the data can continue. after
 			 * these are run 'm' and 'meta' should be considered
 			 * as invalid and NG_SEND_DATA actually zaps them. */
-			NG_SEND_DATA(error, xxxp->channel[chan].hook, m, meta);
+			NG_FWD_NEW_DATA(error, item,
+				xxxp->channel[chan].hook, m);
 			xxxp->packets_in++;
 		}
 	} else {
 		/* It's the debug hook, throw it away.. */
 		if (hook == xxxp->downstream_hook.hook)
-			NG_FREE_DATA(m, meta);
+			NG_FREE_ITEM(item);
+			NG_FREE_M(m);
 	}
 	return 0;
 }
@@ -398,24 +399,46 @@ devintr()
 
 /*
  * Do local shutdown processing..
+ * All our links and the name have already been removed.
  * If we are a persistant device, we might refuse to go away, and
- * we'd only remove our links and reset ourself.
+ * we'd create a new node immediatly.
  */
 static int
-ng_xxx_rmnode(node_p node)
+ng_xxx_shutdown(node_p node)
 {
 	const xxx_p privdata = node->private;
+	int error;
 
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-#ifndef PERSISTANT_NODE
-	ng_unname(node);
 	node->private = NULL;
 	ng_unref(privdata->node);
+#ifndef PERSISTANT_NODE
 	FREE(privdata, M_NETGRAPH);
 #else
+	/* 
+	 * Create a new node. This is basically what a device 
+	 * driver would do in the attach routine.
+	 */
+	error = ng_make_node_common(&typestruct, &node);
+	if (node == NULL) {
+		printf ("node recreation failed:");
+		return (error);
+	}
+	if ( ng_name_node(node, "name")) {	/* whatever name is needed */
+		printf("something informative");
+		ng_unref(node);			/* drop it again */
+		return (0);
+	}
 	privdata->packets_in = 0;		/* reset stats */
 	privdata->packets_out = 0;
+	for (i = 0; i < XXX_NUM_DLCIS; i++) {
+		privdata->channel[i].dlci = -2;
+		privdata->channel[i].channel = i;
+	}
+
+	/* Link structs together; this counts as our one reference to node */
+	privdata->node = node;
+	node->private = privdata;
 	node->flags &= ~NG_INVALID;		/* reset invalid flag */
 #endif /* PERSISTANT_NODE */
 	return (0);
@@ -470,8 +493,9 @@ ng_xxx_disconnect(hook_p hook)
 {
 	if (hook->private)
 		((struct XXX_hookinfo *) (hook->private))->hook = NULL;
-	if (hook->node->numhooks == 0)
-		ng_rmnode(hook->node);
+	if ((hook->node->numhooks == 0)
+	&& ((hook->node->flags & NG_INVALID) == 0)) /* already shutting down? */
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 

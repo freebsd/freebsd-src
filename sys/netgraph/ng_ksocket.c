@@ -80,7 +80,7 @@ typedef struct ng_ksocket_private *priv_p;
 /* Netgraph node methods */
 static ng_constructor_t	ng_ksocket_constructor;
 static ng_rcvmsg_t	ng_ksocket_rcvmsg;
-static ng_shutdown_t	ng_ksocket_rmnode;
+static ng_shutdown_t	ng_ksocket_shutdown;
 static ng_newhook_t	ng_ksocket_newhook;
 static ng_rcvdata_t	ng_ksocket_rcvdata;
 static ng_disconnect_t	ng_ksocket_disconnect;
@@ -464,7 +464,7 @@ static struct ng_type ng_ksocket_typestruct = {
 	NULL,
 	ng_ksocket_constructor,
 	ng_ksocket_rcvmsg,
-	ng_ksocket_rmnode,
+	ng_ksocket_shutdown,
 	ng_ksocket_newhook,
 	NULL,
 	NULL,
@@ -484,22 +484,16 @@ NETGRAPH_INIT(ksocket, &ng_ksocket_typestruct);
  * Node type constructor
  */
 static int
-ng_ksocket_constructor(node_p *nodep)
+ng_ksocket_constructor(node_p node)
 {
 	priv_p priv;
-	int error;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&ng_ksocket_typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = priv;
+	node->private = priv;
 
 	/* Done */
 	return (0);
@@ -563,15 +557,16 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
  * Receive a control message
  */
 static int
-ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
-	      const char *raddr, struct ng_mesg **rptr, hook_p lasthook)
+ng_ksocket_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
 	const priv_p priv = node->private;
 	struct socket *const so = priv->so;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_KSOCKET_COOKIE:
 		switch (msg->header.cmd) {
@@ -723,7 +718,7 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 			ksopt = (struct ng_ksocket_sockopt *)resp->data;
 			sopt.sopt_val = ksopt->value;
 			if ((error = sogetopt(so, &sopt)) != 0) {
-				FREE(resp, M_NETGRAPH);
+				NG_FREE_MSG(resp);
 				break;
 			}
 
@@ -766,13 +761,9 @@ ng_ksocket_rcvmsg(node_p node, struct ng_mesg *msg,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
 done:
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -780,16 +771,17 @@ done:
  * Receive incoming data on our hook.  Send it out the socket.
  */
 static int
-ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_ksocket_rcvdata(hook_p hook, item_p item)
 {
 	struct proc *p = curproc ? curproc : &proc0;	/* XXX broken */
 	const node_p node = hook->node;
 	const priv_p priv = node->private;
 	struct socket *const so = priv->so;
 	int error;
+	struct mbuf *m;
 
-	NG_FREE_META(meta);
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
 	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, 0, 0, m, 0, 0, p);
 	return (error);
 }
@@ -798,7 +790,7 @@ ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Destroy node
  */
 static int
-ng_ksocket_rmnode(node_p node)
+ng_ksocket_shutdown(node_p node)
 {
 	const priv_p priv = node->private;
 
@@ -813,8 +805,6 @@ ng_ksocket_rmnode(node_p node)
 
 	/* Take down netgraph node */
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
 	node->private = NULL;
@@ -830,7 +820,8 @@ ng_ksocket_disconnect(hook_p hook)
 {
 	KASSERT(hook->node->numhooks == 0,
 	    ("%s: numhooks=%d?", __FUNCTION__, hook->node->numhooks));
-	ng_rmnode(hook->node);
+	if ((hook->node->flags & NG_INVALID) == 0)
+		ng_rmnode_self(hook->node);
 	return (0);
 }
 
@@ -846,7 +837,6 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 {
 	const node_p node = arg;
 	const priv_p priv = node->private;
-	meta_p meta = NULL;
 	struct mbuf *m;
 	struct uio auio;
 	int s, flags, error;
@@ -876,7 +866,7 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 			   packet header and length correct (eg. kern/15175) */
 			for (n = m, m->m_pkthdr.len = 0; n; n = n->m_next)
 				m->m_pkthdr.len += n->m_len;
-			NG_SEND_DATA(error, priv->hook, m, meta);
+			NG_SEND_DATA_ONLY(error, priv->hook, m);
 		}
 	} while (error == 0 && m != NULL);
 	splx(s);

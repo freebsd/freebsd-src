@@ -89,7 +89,7 @@ typedef struct ng_vjc_private *priv_p;
 /* Netgraph node methods */
 static ng_constructor_t	ng_vjc_constructor;
 static ng_rcvmsg_t	ng_vjc_rcvmsg;
-static ng_shutdown_t	ng_vjc_rmnode;
+static ng_shutdown_t	ng_vjc_shutdown;
 static ng_newhook_t	ng_vjc_newhook;
 static ng_rcvdata_t	ng_vjc_rcvdata;
 static ng_disconnect_t	ng_vjc_disconnect;
@@ -227,7 +227,7 @@ static struct ng_type ng_vjc_typestruct = {
 	NULL,
 	ng_vjc_constructor,
 	ng_vjc_rcvmsg,
-	ng_vjc_rmnode,
+	ng_vjc_shutdown,
 	ng_vjc_newhook,
 	NULL,
 	NULL,
@@ -245,22 +245,16 @@ NETGRAPH_INIT(vjc, &ng_vjc_typestruct);
  * Create a new node
  */
 static int
-ng_vjc_constructor(node_p *nodep)
+ng_vjc_constructor(node_p node)
 {
 	priv_p priv;
-	int error;
 
 	/* Allocate private structure */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 	if (priv == NULL)
 		return (ENOMEM);
 
-	/* Call generic node constructor */
-	if ((error = ng_make_node_common(&ng_vjc_typestruct, nodep))) {
-		FREE(priv, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = priv;
+	node->private = priv;
 
 	/* Done */
 	return (0);
@@ -300,13 +294,14 @@ ng_vjc_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_vjc_rcvmsg(node_p node, struct ng_mesg *msg,
-	      const char *raddr, struct ng_mesg **rptr, hook_p lasthook)
+ng_vjc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	const priv_p priv = (priv_p) node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	/* Check type cookie */
 	switch (msg->header.typecookie) {
 	case NGM_VJC_COOKIE:
@@ -396,13 +391,9 @@ ng_vjc_rcvmsg(node_p node, struct ng_mesg *msg,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
 done:
-	FREE(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -410,13 +401,14 @@ done:
  * Receive data
  */
 static int
-ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_vjc_rcvdata(hook_p hook, item_p item)
 {
 	const node_p node = hook->node;
 	const priv_p priv = (priv_p) node->private;
 	int error = 0;
+	struct mbuf *m;
 
+	NGI_GET_M(item, m);
 	if (hook == priv->ip) {			/* outgoing packet */
 		u_int type = TYPE_IP;
 
@@ -425,7 +417,7 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			struct ip *ip;
 
 			if ((m = ng_vjc_pulluphdrs(m, 0)) == NULL) {
-				NG_FREE_META(meta);
+				NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
 			ip = mtod(m, struct ip *);
@@ -460,7 +452,8 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 
 		/* Are we decompressing? */
 		if (!priv->conf.enableDecomp) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
 
@@ -471,7 +464,7 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		if (m->m_len < need2pullup
 		    && (m = m_pullup(m, need2pullup)) == NULL) {
 			priv->slc.sls_errorin++;
-			NG_FREE_META(meta);
+			NG_FREE_ITEM(item);
 			return (ENOBUFS);
 		}
 
@@ -480,7 +473,8 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		    m->m_len, m->m_pkthdr.len, TYPE_COMPRESSED_TCP,
 		    &priv->slc, &hdr, &hlen);
 		if (vjlen <= 0) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 		m_adj(m, vjlen);
@@ -489,7 +483,8 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		MGETHDR(hm, M_DONTWAIT, MT_DATA);
 		if (hm == NULL) {
 			priv->slc.sls_errorin++;
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (ENOBUFS);
 		}
 		hm->m_len = 0;
@@ -499,7 +494,8 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 			if ((hm->m_flags & M_EXT) == 0) {
 				m_freem(hm);
 				priv->slc.sls_errorin++;
-				NG_FREE_DATA(m, meta);
+				NG_FREE_M(m);
+				NG_FREE_ITEM(item);
 				return (ENOBUFS);
 			}
 		}
@@ -517,13 +513,14 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 
 		/* Are we decompressing? */
 		if (!priv->conf.enableDecomp) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
 
 		/* Pull up IP+TCP headers */
 		if ((m = ng_vjc_pulluphdrs(m, 1)) == NULL) {
-			NG_FREE_META(meta);
+			NG_FREE_ITEM(item);
 			return (ENOBUFS);
 		}
 
@@ -531,7 +528,8 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		if (sl_uncompress_tcp_core(mtod(m, u_char *),
 		    m->m_len, m->m_pkthdr.len, TYPE_UNCOMPRESSED_TCP,
 		    &priv->slc, &hdr, &hlen) < 0) {
-			NG_FREE_DATA(m, meta);
+			NG_FREE_M(m);
+			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
 		hook = priv->ip;
@@ -541,7 +539,7 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
 		panic("%s: unknown hook", __FUNCTION__);
 
 	/* Send result back out */
-	NG_SEND_DATA(error, hook, m, meta);
+	NG_FWD_NEW_DATA(error, item, hook, m);
 	return (error);
 }
 
@@ -549,13 +547,11 @@ ng_vjc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
  * Shutdown node
  */
 static int
-ng_vjc_rmnode(node_p node)
+ng_vjc_shutdown(node_p node)
 {
 	const priv_p priv = (priv_p) node->private;
 
 	node->flags |= NG_INVALID;
-	ng_cutlinks(node);
-	ng_unname(node);
 	bzero(priv, sizeof(*priv));
 	FREE(priv, M_NETGRAPH);
 	node->private = NULL;
@@ -585,8 +581,9 @@ ng_vjc_disconnect(hook_p hook)
 		panic("%s: unknown hook", __FUNCTION__);
 
 	/* Go away if no hooks left */
-	if (node->numhooks == 0)
-		ng_rmnode(node);
+	if ((node->numhooks == 0)
+	&& ((node->flags & NG_INVALID) == 0))
+		ng_rmnode_self(node);
 	return (0);
 }
 

@@ -51,11 +51,24 @@
 #error "This file should not be included in user level programs"
 #endif
 
+#include <sys/mutex.h>
+
+/* The structure for queueing across ISR switches */
+struct ng_item ; /* forward reference */
+typedef	struct ng_item *item_p;
+struct ng_queue {
+	u_long          q_flags;
+	struct mtx      q_mtx;
+	item_p queue;
+	item_p *last;
+	struct ng_node *q_node;		/* find the front of the node.. */
+};
+
 /*
  * Structure of a hook
  */
 struct ng_hook {
-	char   *name;		/* what this node knows this link as */
+	char   name[NG_HOOKLEN+1];/* what this node knows this link as */
 	void   *private;	/* node dependant ID for this hook */
 	int	flags;		/* info about this hook/link */
 	int	refs;		/* dont actually free this till 0 */
@@ -68,30 +81,32 @@ typedef struct ng_hook *hook_p;
 /* Flags for a hook */
 #define HK_INVALID		0x0001	/* don't trust it! */
 #define HK_QUEUE		0x0002	/* queue for later delivery */
+#define HK_FORCE_WRITER		0x0004	/* Incoming data queued as a writer */
 
 /*
  * Structure of a node
  */
 struct ng_node {
-	char   *name;		/* optional globally unique name */
+	char   name[NG_NODELEN+1]; /* optional globally unique name */
 	struct	ng_type *type;	/* the installed 'type' */
 	int	flags;		/* see below for bit definitions */
-	int	sleepers;	/* #procs sleeping on this node */
 	int	refs;		/* number of references to this node */
 	int	numhooks;	/* number of hooks */
-	int	colour;		/* for graph colouring algorithms */
 	void   *private;	/* node type dependant node ID */
 	ng_ID_t		ID;	/* Unique per node */
 	LIST_HEAD(hooks, ng_hook) hooks;	/* linked list of node hooks */
 	LIST_ENTRY(ng_node)	  nodes;	/* linked list of all nodes */
 	LIST_ENTRY(ng_node)	  idnodes;	/* ID hash collision list */
+	TAILQ_ENTRY(ng_node)	  work;		/* nodes with work to do */
+	struct	ng_queue	  input_queue;	/* input queue for locking */
 };
 typedef struct ng_node *node_p;
 
 /* Flags for a node */
-#define NG_INVALID	0x001	/* free when all sleepers and refs go to 0 */
-#define NG_BUSY		0x002	/* callers should sleep or wait */
-#define NG_TOUCHED	0x004	/* to avoid cycles when 'flooding' */
+#define NG_INVALID	0x00000001	/* free when refs go to 0 */
+#define NG_WORKQ	0x00000002	/* node is on the work queue */
+#define NG_FORCE_WRITER	0x00000004	/* Never multithread this node */
+#define NG_CLOSING	0x00000008	/* ng_rmnode() at work */
 #define NGF_TYPE1	0x10000000	/* reserved for type specific storage */
 #define NGF_TYPE2	0x20000000	/* reserved for type specific storage */
 #define NGF_TYPE3	0x40000000	/* reserved for type specific storage */
@@ -131,18 +146,15 @@ typedef struct ng_meta *meta_p;
 #define NGMF_TRACE	0x02	/* trace when handing this data to a node */
 
 /* node method definitions */
-typedef	int	ng_constructor_t(node_p *node);
-typedef	int	ng_rcvmsg_t(node_p node, struct ng_mesg *msg,
-			const char *retaddr, struct ng_mesg **resp,
-			hook_p lasthook);
+typedef	int	ng_constructor_t(node_p node);
+typedef	int	ng_rcvmsg_t(node_p node, item_p item, hook_p lasthook);
 typedef	int	ng_shutdown_t(node_p node);
 typedef	int	ng_newhook_t(node_p node, hook_p hook, const char *name);
 typedef	hook_p	ng_findhook_t(node_p node, const char *name);
 typedef	int	ng_connect_t(hook_p hook);
-typedef	int	ng_rcvdata_t(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp);
+typedef	int	ng_rcvdata_t(hook_p hook, item_p item);
 typedef	int	ng_disconnect_t(hook_p hook);
-
+typedef	int	ng_rcvitem (node_p node, hook_p hook, item_p item);
 /*
  * Command list -- each node type specifies the command that it knows
  * how to convert between ASCII and binary using an array of these.
@@ -191,73 +203,371 @@ struct ng_type {
 	int		    refs;		/* number of instances */
 };
 
+struct ng_item {
+	u_long	el_flags;
+	item_p	el_next;
+	node_p	el_dest; /* The node it will be applied against (or NULL) */
+	hook_p	el_hook; /* Entering hook. Optional in Control messages */
+	union {
+		struct {
+			struct mbuf	*da_m;
+			meta_p		da_meta;
+		} data;
+		struct {
+			struct ng_mesg	*msg_msg;
+			ng_ID_t		msg_retaddr;
+		} msg;
+	} body;
+#define ITEM_DEBUG 
+#ifdef	ITEM_DEBUG
+	char *lastfile;
+	int  lastline;
+	TAILQ_ENTRY(ng_item)	  all;		/* all existing items */
+#endif	/* ITEM_DEBUG */
+};
+#define NGQF_D_M	0x01		/* MASK of data/message */
+#define NGQF_DATA	0x01		/* the queue element is data */
+#define NGQF_MESG	0x00		/* the queue element is a message */
+#define NGQF_TYPE	0x02		/*  MASK for queue entry type */
+#define NGQF_READER	0x02		/* queued as a reader */
+#define NGQF_WRITER	0x00		/* queued as a writer */
+#define NGQF_FREE	0x04
+
 /*
  * This defines the in-kernel binary interface version.
  * It is possible to change this but leave the external message
  * API the same. Each type also has it's own cookies for versioning as well.
+ * Change it for ITEM_DEBUG version so we cannot mix debug and non debug
+ * modules.
  */
-#define NG_ABI_VERSION	5
+#define _NG_ABI_VERSION 5
+#ifdef	ITEM_DEBUG
+#define NG_ABI_VERSION	(_NG_ABI_VERSION + 0x10000)
+#else	/* ITEM_DEBUG */
+#define NG_ABI_VERSION	_NG_ABI_VERSION
+#endif	/* ITEM_DEBUG */
 
-/* Send data packet with meta-data */
-#define NG_SEND_DATA(err, hook, m, meta)				\
+/**********************************************************************
+* Queue item macros.  Peek and extract values.
+**********************************************************************/
+/*
+ * Get the mbuf (etc) out of an item.
+ * Sets the value in the item to NULL in case we need to call NG_FREE_ITEM()
+ * with it, (to avoid freeing the things twice).
+ * If you don't want to zero out the item then realise that the
+ * item still owns it.
+ * Retaddr is different. There are no references on that. It's just a number.
+ * The debug versions must be either all used everywhere or not at all.
+ */
+
+#define _NGI_M(i) ((i)->body.data.da_m)
+#define _NGI_META(i) ((i)->body.data.da_meta)
+#define _NGI_MSG(i) ((i)->body.msg.msg_msg)
+#define _NGI_RETADDR(i) ((i)->body.msg.msg_retaddr)
+
+#ifdef ITEM_DEBUG
+void	dumpitem(item_p item, char *file, int line);
+static __inline void _ngi_check(item_p item, char *file, int line) ;
+static __inline struct mbuf ** _ngi_m(item_p item, char *file, int line) ;
+static __inline meta_p * _ngi_meta(item_p item, char *file, int line) ;
+static __inline struct ng_mesg ** _ngi_msg(item_p item, char *file, int line) ;
+static __inline ng_ID_t * _ngi_retaddr(item_p item, char *file, int line) ;
+
+static __inline void
+_ngi_check(item_p item, char *file, int line) 
+{
+	if (item->el_flags & NGQF_FREE) {
+		dumpitem(item, file, line);
+		panic ("free item!");
+	}
+	(item)->lastline = line;
+	(item)->lastfile = file;
+}
+
+static __inline struct mbuf **
+_ngi_m(item_p item, char *file, int line) 
+{
+	_ngi_check(item, file, line);
+	return (&_NGI_M(item));
+}
+
+static __inline meta_p *
+_ngi_meta(item_p item, char *file, int line) 
+{
+	_ngi_check(item, file, line);
+	return (&_NGI_META(item));
+}
+
+static __inline struct ng_mesg **
+_ngi_msg(item_p item, char *file, int line) 
+{
+	_ngi_check(item, file, line);
+	return (&_NGI_MSG(item));
+}
+
+static __inline ng_ID_t *
+_ngi_retaddr(item_p item, char *file, int line) 
+{
+	_ngi_check(item, file, line);
+	return (&_NGI_RETADDR(item));
+}
+
+#define NGI_M(i) (*_ngi_m(i, __FILE__, __LINE__))
+
+#define NGI_META(i) (*_ngi_meta(i, __FILE__, __LINE__))
+
+#define NGI_MSG(i) (*_ngi_msg(i, __FILE__, __LINE__))
+
+#define NGI_RETADDR(i) (*_ngi_retaddr(i, __FILE__, __LINE__))
+
+#define NGI_GET_M(i,m)							\
 	do {								\
-		(err) = ng_send_data((hook), (m), (meta),	\
-						NULL, NULL, NULL);	\
-		(m) = NULL;						\
-		(meta) = NULL;						\
+		m = NGI_M(i);						\
+		_NGI_M(i) = NULL;					\
 	} while (0)
 
-/* Send data packet with no meta-data */
-#define NG_SEND_DATA_ONLY(err, hook, m)					\
+#define NGI_GET_META(i,m)						\
 	do {								\
-		(err) = ng_send_data((hook), (m), NULL,	\
-						NULL, NULL, NULL);	\
-		(m) = NULL;						\
+		m = NGI_META(i);					\
+		_NGI_META(i) = NULL;					\
 	} while (0)
 
+#define NGI_GET_MSG(i,m)						\
+	do {								\
+		m = NGI_MSG(i);						\
+		_NGI_MSG(i) = NULL;					\
+	} while (0)
+
+#define NG_FREE_ITEM(item)						\
+	do {								\
+		_ngi_check(item, __FILE__, __LINE__);			\
+		ng_free_item((item));					\
+	} while (0)
+
+#define	SAVE_LINE(item)							\
+	do {								\
+		(item)->lastline = __LINE__;				\
+		(item)->lastfile = __FILE__;				\
+	} while (0)
+
+#else	/* ITEM_DEBUG */
+
+
+#define NGI_M(i)	_NGI_M(i)
+#define NGI_META(i)	_NGI_META(i)
+#define NGI_MSG(i)	_NGI_MSG(i)
+#define NGI_RETADDR(i)	_NGI_RETADDR(i)
+
+#define NGI_GET_M(i,m)       do {m = NGI_M(i); NGI_M(i) = NULL;      } while (0)
+#define NGI_GET_META(i,m)    do {m = NGI_META(i); NGI_META(i) = NULL;} while (0)
+#define NGI_GET_MSG(i,m)     do {m = NGI_MSG(i); NGI_MSG(i) = NULL;  } while (0)
+
+#define	NG_FREE_ITEM(item)	ng_free_item((item))
+#define	SAVE_LINE(item)
+
+#endif	/* ITEM_DEBUG */
+	
+/**********************************************************************
+* Data macros.  Send, manipulate and free.
+**********************************************************************/
 /* Send data packet including a possible sync response pointer */
-#define NG_SEND_DATA_RESP(err, hook, m, meta, rmsg)			\
+#define NG_SEND_DATA(error, hook, m, meta)				\
 	do {								\
-		(err) = ng_send_data((hook), (m), (meta),	\
-					NULL, NULL, rmsg);		\
+		item_p item;						\
+		if ((item = ng_package_data((m), (meta)))) {		\
+			if (!((error) = ng_address_hook(NULL, item,	\
+							hook, NULL))) {	\
+				SAVE_LINE(item);			\
+				(error) = ng_snd_item((item), 0);	\
+			}						\
+		} else {						\
+			(error) = ENOMEM;				\
+		}							\
 		(m) = NULL;						\
 		(meta) = NULL;						\
+	} while (0)
+
+#define NG_SEND_DATA_ONLY(error, hook, m)				\
+	do {								\
+		item_p item;						\
+		if ((item = ng_package_data((m), NULL))) {		\
+			if (!((error) = ng_address_hook(NULL, item,	\
+							hook, NULL))) {	\
+				SAVE_LINE(item);			\
+				(error) = ng_snd_item((item), 0);	\
+			}						\
+		} else {						\
+			(error) = ENOMEM;				\
+		}							\
+		(m) = NULL;						\
 	} while (0)
 
 /*
- * Send data packet including a possible sync response pointer
- * Allow the callee to replace the data and pass it back
- * or to simply 'reject it' or 'keep it'
+ * Forward a data packet with no new meta-data.
+ * old metadata is passed along without change.
+ * Mbuf pointer is updated to new value.
  */
-#define NG_SEND_DATA_RET(err, hook, m, meta, rmsg)			\
+#define NG_FWD_NEW_DATA(error, item, hook, m)				\
 	do {								\
-		struct mbuf *rm = NULL;					\
-		meta_p rmeta = NULL;					\
-		(err) = ng_send_data((hook), (m), (meta),	\
-					&rm, &rmeta, (rmsg));		\
-		(m) = rm;						\
-		(meta) = rmeta;						\
+		NGI_M(item) = m;					\
+		if (!((error) = ng_address_hook(NULL, (item),		\
+						(hook), NULL))) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		}							\
+		(item) = NULL;						\
+		(m) = NULL;						\
+	} while (0)
+
+/*
+ * Assuming the data is already ok, just set the new address and send
+ */
+#define NG_FWD_DATA(error, item, hook)					\
+	do {								\
+		if (!((error) = ng_address_hook(NULL, (item),		\
+						(hook), NULL))) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		} else {						\
+			(error) = ENXIO;				\
+		}							\
+		(item) = NULL;						\
 	} while (0)
 
 
-/* Free metadata */
+/* Note that messages can be static (e.g. in ng_rmnode_self()) */
+/* XXX flag should not be user visible  */
+#define NG_FREE_MSG(msg)						\
+	do {								\
+		if ((msg)) {						\
+			if ((msg->header.flags & NGF_STATIC) == 0) {	\
+				FREE((msg), M_NETGRAPH_MSG);		\
+			}						\
+			(msg) = NULL;					\
+		}	 						\
+	} while (0)
+
 #define NG_FREE_META(meta)						\
 	do {								\
 		if ((meta)) {						\
-			FREE((meta), M_NETGRAPH);			\
-			meta = NULL;					\
-		}							\
+			FREE((meta), M_NETGRAPH_META);			\
+			(meta) = NULL;					\
+		}	 						\
 	} while (0)
 
-/* Free any data packet and/or meta-data */
-#define NG_FREE_DATA(m, meta)						\
+#define NG_FREE_M(m)							\
 	do {								\
 		if ((m)) {						\
 			m_freem((m));					\
-			m = NULL;					\
+			(m) = NULL;					\
 		}							\
+	} while (0)
+/* Free any data packet and/or meta-data */
+#define NG_FREE_DATAX(m, meta)						\
+	do {								\
+		NG_FREE_M((m));						\
 		NG_FREE_META((meta));					\
 	} while (0)
+/*****************************************
+* Message macros
+*****************************************/
+
+#define NG_SEND_MSG_HOOK(error, here, msg, hook, retaddr)		\
+	do {								\
+		item_p item;						\
+		if ((item = ng_package_msg(msg))			\
+		&& (ng_address_hook((here), (item),			\
+					(hook), (retaddr)) == 0)) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		} else {						\
+			(error) = EINVAL;				\
+		}							\
+		(msg) = NULL;						\
+	} while (0)
+
+#define NG_SEND_MSG_PATH(error, here, msg, path, retaddr)		\
+	do {								\
+		item_p item;						\
+		if ((item = ng_package_msg(msg))			\
+		&& (ng_address_path((here), (item),			\
+					(path), (retaddr)) == 0)) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		} else {						\
+			(error) = EINVAL;				\
+		}							\
+		(msg) = NULL;						\
+	} while (0)
+
+#define NG_SEND_MSG_ID(error, here, msg, ID, retaddr)			\
+	do {								\
+		item_p item;						\
+		if ((item = ng_package_msg(msg))			\
+		&& (ng_address_ID((here), (item),			\
+					(ID), (retaddr)) == 0)) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		} else {						\
+			(error) = EINVAL;				\
+		}							\
+		(msg) = NULL;						\
+	} while (0)
+
+#define NG_QUEUE_MSG(error, here, msg, path, retaddr)			\
+	do {								\
+		item_p item;						\
+		if ((item = ng_package_msg(msg))			\
+		&& (ng_address_path((here), (item),			\
+					(path), (retaddr)) == 0)) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		} else {						\
+			(error) = EINVAL;				\
+		}							\
+		(msg) = NULL;						\
+	} while (0)
+
+/*
+ * Redirect the message to the next hop using the given hook.
+ * ng_retarget_msg() frees the item if there is an error
+ * and returns an error code.  It returns 0 on success.
+ */
+#define NG_FWD_MSG_HOOK(error, here, item, hook, retaddr)		\
+	do {								\
+		if ((ng_address_hook((here), (item),			\
+					(hook), (retaddr))) == 0) {	\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
+		} else {						\
+			(error) = EINVAL;				\
+		}							\
+		(item) = NULL;						\
+	} while (0)
+
+/*
+ * Send a queue item back to it's originator with a response message.
+ * Assume original message was removed and freed separatly.
+ */
+#define NG_RESPOND_MSG(error, here, item, resp)				\
+	do {								\
+		if (resp) {						\
+			ng_ID_t dest = NGI_RETADDR(item);		\
+			NGI_RETADDR(item) = NULL;			\
+			NGI_MSG(item) = resp;				\
+			if ((ng_address_ID((here), (item),		\
+					dest, NULL )) == 0) {		\
+				SAVE_LINE(item);			\
+				(error) = ng_snd_item((item), 1);	\
+			} else {					\
+				(error) = EINVAL;			\
+			}						\
+		} else {						\
+			NG_FREE_ITEM(item);				\
+		}							\
+		(item) = NULL;						\
+	} while (0)
+
 
 /*
  * Use the NETGRAPH_INIT() macro to link a node type into the
@@ -284,39 +594,35 @@ MODULE_DEPEND(ng_##typename, netgraph, 1, 1, 1)
 	NETGRAPH_INIT_ORDERED(tn, tp, SI_SUB_PSEUDO, SI_ORDER_ANY)
 
 /* Special malloc() type for netgraph structs and ctrl messages */
+/* Only these two types should be visible to nodes */ 
 MALLOC_DECLARE(M_NETGRAPH);
+MALLOC_DECLARE(M_NETGRAPH_MSG);
+MALLOC_DECLARE(M_NETGRAPH_META);
 
-int	ng_bypass(hook_p hook1, hook_p hook2);
-void	ng_cutlinks(node_p node);
-int	ng_con_nodes(node_p node,
-	     const char *name, node_p node2, const char *name2);
+
+
+/* Methods that should go away (or become private)*/
+/* Methods that should exist */
+int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
+int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
+int	ng_address_path(node_p here, item_p item,
+	char *address, ng_ID_t retaddr);
 meta_p	ng_copy_meta(meta_p meta);
-void	ng_destroy_hook(hook_p hook);
 hook_p	ng_findhook(node_p node, const char *name);
-node_p	ng_findname(node_p node, const char *name);
-struct	ng_type *ng_findtype(const char *type);
-int	ng_make_node(const char *type, node_p *nodepp);
+void	ng_free_item(item_p item);
 int	ng_make_node_common(struct ng_type *typep, node_p *nodep);
-int	ng_mkpeer(node_p node, const char *name, const char *name2, char *type);
 int	ng_mod_event(module_t mod, int what, void *arg);
 int	ng_name_node(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
 ng_ID_t ng_node2ID(node_p node);
-int	ng_path2node(node_p here, const char *path,
-		node_p *dest, hook_p *lasthook);
-int	ng_path_parse(char *addr, char **node, char **path, char **hook);
-int	ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta);
-int	ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address,
-		hook_p hook, char *retaddr);
-void	ng_release_node(node_p node);
-void	ng_rmnode(node_p node);
-int	ng_send_data(hook_p hook, struct mbuf *m, meta_p meta,
-		struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp);
-int	ng_send_msg(node_p here, struct ng_mesg *msg, const char *address,
-		hook_p hook, char *retaddr, struct ng_mesg **resp);
+item_p	ng_package_data(struct mbuf *m, meta_p meta);
+item_p	ng_package_msg(struct ng_mesg *msg);
+item_p	ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg);
+void	ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr);
+int	ng_rmnode_self(node_p here);
+int	ng_snd_item(item_p item, int queue);
 void	ng_unname(node_p node);
 void	ng_unref(node_p node);
-int	ng_wait_node(node_p node, char *msg);
 
 #endif /* _NETGRAPH_NETGRAPH_H_ */
 

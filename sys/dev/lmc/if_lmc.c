@@ -1130,18 +1130,17 @@ lmc_attach(lmc_softc_t * const sc)
 	if (ng_lmc_done_init == 0) ng_lmc_init(NULL);
 	if (ng_make_node_common(&typestruct, &sc->lmc_node) != 0)
 		return (0);
+	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
+	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
+		ng_unref(sc->lmc_node); /* make it go away again */
+		return (0);
+	}
 	sc->lmc_node->private = sc;
 	callout_handle_init(&sc->lmc_handle);
 	sc->lmc_xmitq.ifq_maxlen = IFQ_MAXLEN;
 	sc->lmc_xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
 	mtx_init(&sc->lmc_xmitq.ifq_mtx, "lmc_xmitq", MTX_DEF);
 	mtx_init(&sc->lmc_xmitq_hipri.ifq_mtx, "lmc_xmitq_hipri", MTX_DEF);
-	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
-	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
-		ng_rmnode(sc->lmc_node);
-		ng_unref(sc->lmc_node);
-		return (0);
-	}
 	sc->lmc_running = 0;
 
 	/*
@@ -1251,7 +1250,7 @@ ng_lmc_watchdog_frame(void *arg)
  * If the hardware exists, it will already have created it.
  */
 static  int
-ng_lmc_constructor(node_p *nodep)
+ng_lmc_constructor(node_p node)
 {
         return (EINVAL);
 }
@@ -1295,13 +1294,14 @@ ng_lmc_newhook(node_p node, hook_p hook, const char *name)
  * Just respond to the generic TEXT_STATUS message
  */
 static  int
-ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
-	const char *retaddr, struct ng_mesg **rptr, hook_p lasthook)
+ng_lmc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	lmc_softc_t *sc = (lmc_softc_t *) node->private;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NG_LMC_COOKIE:
 		switch (msg->header.cmd) {
@@ -1377,12 +1377,8 @@ ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
 	}
 
 	/* Take care of synchronous response, if any */
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
-
-	free(msg, M_NETGRAPH);
+	NG_RESPOND_MSG(error, node, item, resp);
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -1390,13 +1386,19 @@ ng_lmc_rcvmsg(node_p node, struct ng_mesg *msg,
  * get data from another node and transmit it to the line
  */
 static  int
-ng_lmc_rcvdata(hook_p hook, struct mbuf *m, meta_p meta,
-	struct mbuf **ret_m, meta_p *ret_meta, struct ng_mesg **resp)
+ng_lmc_rcvdata(hook_p hook, item_p item)
 {
         int s;
         int error = 0;
         lmc_softc_t * sc = (lmc_softc_t *) hook->node->private;
         struct ifqueue  *xmitq_p;
+	struct mbuf *m;
+	meta_p meta;
+
+	/* Unpack all the data components */
+	NGI_GET_M(item, m);
+	NGI_GET_META(item, meta);
+	NG_FREE_ITEM(item);
 
         /*
          * data doesn't come in from just anywhere (e.g control hook)
@@ -1434,7 +1436,8 @@ bad:
          * It was an error case.
          * check if we need to free the mbuf, and then return the error
          */
-        NG_FREE_DATA(m, meta);
+        NG_FREE_M(m);
+        NG_FREE_META(meta);
         return (error);
 }
 
@@ -1449,8 +1452,35 @@ ng_lmc_rmnode(node_p node)
         lmc_softc_t * sc = (lmc_softc_t *) node->private;
 
         lmc_ifdown(sc);
-        ng_cutlinks(node);
-        node->flags &= ~NG_INVALID; /* bounce back to life */
+	
+	/*
+	 * Get rid of the old node.
+	 */
+	node->flags |= NG_INVALID;
+	node->private = NULL;
+	ng_unref(node);
+	
+	/*
+	 * Create a new node. This is basically what a device
+	 * driver would do in the attach routine. So let's just do that..
+	 * The node is dead, long live the node!
+	 */
+	if (ng_make_node_common(&typestruct, &sc->lmc_node) != 0)
+		return (0);
+	sprintf(sc->lmc_nodename, "%s%d", NG_LMC_NODE_TYPE, sc->lmc_unit);
+	if (ng_name_node(sc->lmc_node, sc->lmc_nodename)) {
+		sc->lmc_node = NULL; /* to be sure */
+		ng_unref(sc->lmc_node); /* make it go away */
+		return (0);
+	}
+	sc->lmc_node->private = sc;
+	callout_handle_init(&sc->lmc_handle);
+	sc->lmc_running = 0;
+	/*
+	 * turn off those LEDs...
+	 */
+	sc->lmc_miireg16 |= LMC_MII16_LED_ALL;
+	lmc_led_on(sc, LMC_MII16_LED0);
         return (0);
 }
 /* already linked */

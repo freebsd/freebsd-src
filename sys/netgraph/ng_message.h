@@ -66,6 +66,8 @@ struct ng_mesg {
 	char	data[0];		/* placeholder for actual data */
 };
 
+/* this command is guaranteed to not alter data or'd into the command */
+#define NGM_READONLY	0x10000000
 
 /* Keep this in sync with the above structure definition */
 #define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
@@ -88,12 +90,13 @@ struct ng_mesg {
  * Interfaces within the kernel are defined by a different 
  * value (see NG_ABI_VERSION in netgraph.g)
  */
-#define NG_VERSION	4
+#define NG_VERSION	5
 
 /* Flags field flags */
-#define NGF_ORIG	0x0000		/* the msg is the original request */
-#define NGF_RESP	0x0001		/* the message is a response */
-
+#define NGF_ORIG	0x00000000	/* the msg is the original request */
+#define NGF_RESP	0x00000001	/* the message is a response */
+#define NGF_STATIC	0x00000002	/* Not malloc'd. Don't FREE */
+					/* Only checked in generic message */
 /* Type of a unique node ID */
 #define ng_ID_t unsigned int
 
@@ -104,7 +107,7 @@ struct ng_mesg {
  */
 
 /* Generic message type cookie */
-#define NGM_GENERIC_COOKIE	851672668
+#define NGM_GENERIC_COOKIE	977674408
 
 /* Generic messages defined for this type cookie */
 #define	NGM_SHUTDOWN		1	/* shut down node */
@@ -112,14 +115,14 @@ struct ng_mesg {
 #define NGM_CONNECT		3	/* connect two nodes */
 #define NGM_NAME		4	/* give a node a name */
 #define NGM_RMHOOK		5	/* break a connection btw. two nodes */
-#define	NGM_NODEINFO		6	/* get nodeinfo for the target */
-#define	NGM_LISTHOOKS		7	/* get list of hooks on node */
-#define	NGM_LISTNAMES		8	/* list all globally named nodes */
-#define	NGM_LISTNODES		9	/* list all nodes, named and unnamed */
-#define	NGM_LISTTYPES		10	/* list all installed node types */
-#define	NGM_TEXT_STATUS		11	/* (optional) get text status report */
-#define	NGM_BINARY2ASCII	12	/* convert struct ng_mesg to ascii */
-#define	NGM_ASCII2BINARY	13	/* convert ascii to struct ng_mesg */
+#define	NGM_NODEINFO		(6|NGM_READONLY)/* get nodeinfo for target */
+#define	NGM_LISTHOOKS		(7|NGM_READONLY)/* get list of hooks on node */
+#define	NGM_LISTNAMES		(8|NGM_READONLY)/* list globally named nodes */
+#define	NGM_LISTNODES		(9|NGM_READONLY)/* list nodes, named & not */
+#define	NGM_LISTTYPES		(10|NGM_READONLY)/* list installed node types */
+#define	NGM_TEXT_STATUS		(11|NGM_READONLY)/* (optional) get txt status */
+#define	NGM_BINARY2ASCII	(12|NGM_READONLY)/* convert ng_mesg to ascii */
+#define	NGM_ASCII2BINARY	(13|NGM_READONLY)/* convert ascii to ng_mesg */
 #define	NGM_TEXT_CONFIG		14	/* (optional) get/set text config */
 
 /*
@@ -143,13 +146,13 @@ struct ng_mesg {
 /* Downstream messages */
 #define NGM_DROP_LINK		41	/* drop DTR, etc. - stay in the graph */
 #define NGM_RAISE LINK		42	/* if you previously dropped it */
-#define NGM_FLUSH_QUEUE		43	/* no data */
-#define NGM_GET_BANDWIDTH	44	/* either real or measured */
-#define NGM_SET_XMIT_Q_LIMITS	45	/* includes queue state */
-#define NGM_GET_XMIT_Q_LIMITS	46	/* returns queue state */
-#define NGM_MICROMANAGE		47	/* We want sync. queue state reply 
-					   for each packet sent down */
-#define NGM_SET_FLOW_MANAGER	48	/* send flow control here */ 
+#define NGM_FLUSH_QUEUE		43		/* no data */
+#define NGM_GET_BANDWIDTH	(44|NGM_READONLY)	/* either real or measured */
+#define NGM_SET_XMIT_Q_LIMITS	45		/* includes queue state */
+#define NGM_GET_XMIT_Q_LIMITS	(46|NGM_READONLY)	/* returns queue state */
+#define NGM_MICROMANAGE		47		/* We want sync. queue state
+						reply for each packet sent */
+#define NGM_SET_FLOW_MANAGER	48		/* send flow control here */ 
 /* Structure used for NGM_MKPEER */
 struct ngm_mkpeer {
 	char	type[NG_TYPELEN + 1];			/* peer type */
@@ -388,7 +391,7 @@ struct flow_manager {
 #define NG_MKMESSAGE(msg, cookie, cmdid, len, how)			\
 	do {								\
 	  MALLOC((msg), struct ng_mesg *, sizeof(struct ng_mesg)	\
-	    + (len), M_NETGRAPH, (how) | M_ZERO);			\
+	    + (len), M_NETGRAPH_MSG, (how) | M_ZERO);			\
 	  if ((msg) == NULL)						\
 	    break;							\
 	  (msg)->header.version = NG_VERSION;				\
@@ -406,7 +409,7 @@ struct flow_manager {
 #define NG_MKRESPONSE(rsp, msg, len, how)				\
 	do {								\
 	  MALLOC((rsp), struct ng_mesg *, sizeof(struct ng_mesg)	\
-	    + (len), M_NETGRAPH, (how) | M_ZERO);			\
+	    + (len), M_NETGRAPH_MSG, (how) | M_ZERO);			\
 	  if ((rsp) == NULL)						\
 	    break;							\
 	  (rsp)->header.version = NG_VERSION;				\
