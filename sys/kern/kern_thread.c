@@ -1406,17 +1406,17 @@ thread_single(int force_exit)
 				if (TD_IS_SUSPENDED(td2)) {
 					if (force_exit == SINGLE_EXIT) {
 						thread_unsuspend_one(td2);
+					} else {
+						continue;
 					}
 				}
-				if ( TD_IS_SLEEPING(td2)) {
+				if (TD_ON_SLEEPQ(td2) &&
+				    (td2->td_flags & TDF_SINTR)) {
 					if (td2->td_flags & TDF_CVWAITQ)
-						cv_waitq_remove(td2);
+						cv_abort(td2);
 					else
-						unsleep(td2);
-					break;
+						abortsleep(td2);
 				}
-				if (TD_CAN_RUN(td2))
-					setrunqueue(td2);
 			}
 		}
 		/*
