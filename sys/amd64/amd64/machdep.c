@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.322 1999/01/15 17:24:05 msmith Exp $
+ *	$Id: machdep.c,v 1.323 1999/01/28 11:45:29 newton Exp $
  */
 
 #include "apm.h"
@@ -291,7 +291,7 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %d (%dK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
+	printf("real memory  = %u (%uK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -302,7 +302,7 @@ cpu_startup(dummy)
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			int size1 = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n",
+			printf("0x%08x - 0x%08x, %u bytes (%u pages)\n",
 			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
 			    size1 / PAGE_SIZE);
 		}
@@ -443,7 +443,7 @@ again:
 	cninit();		/* the preferred console may have changed */
 #endif
 
-	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
+	printf("avail memory = %u (%uK bytes)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1024);
 
 	/*
@@ -1152,8 +1152,8 @@ init386(first)
 	struct region_descriptor r_gdt, r_idt;
 #endif
 	int pagesinbase, pagesinext;
-	int target_page, pa_indx;
-	int off;
+	vm_offset_t target_page;
+	int pa_indx, off;
 	int speculative_mprobe;
 
 	/*
@@ -1326,12 +1326,12 @@ init386(first)
 	 *	don't believe it - set it to 640k.
 	 */
 	if (biosbasemem > 640) {
-		printf("Preposterous RTC basemem of %dK, truncating to 640K\n",
+		printf("Preposterous RTC basemem of %uK, truncating to 640K\n",
 		       biosbasemem);
 		biosbasemem = 640;
 	}
 	if (bootinfo.bi_memsizes_valid && bootinfo.bi_basemem > 640) {
-		printf("Preposterous BIOS basemem of %dK, truncating to 640K\n",
+		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 		       bootinfo.bi_basemem);
 		bootinfo.bi_basemem = 640;
 	}
