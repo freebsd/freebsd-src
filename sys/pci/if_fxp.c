@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.8.2.11 1997/02/05 12:50:31 davidg Exp $
+ *	$Id: if_fxp.c,v 1.8.2.12 1997/03/17 11:11:32 davidg Exp $
  */
 
 /*
@@ -217,7 +217,7 @@ fxp_probe(config_id, device_id)
 {
 	if (((device_id & 0xffff) == FXP_VENDORID_INTEL) &&
 	    ((device_id >> 16) & 0xffff) == FXP_DEVICEID_i82557)
-		return ("Intel EtherExpress Pro/100B Fast Ethernet");
+		return ("Intel EtherExpress Pro 10/100B Ethernet");
 
 	return NULL;
 }
