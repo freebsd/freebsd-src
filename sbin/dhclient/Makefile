@@ -10,6 +10,8 @@ SUBDIR= common dst minires omapip client
 
 .ifdef(RELEASE_CRUNCH)
 
+CFLAGS+=-I../../contrib/isc-dhcp/includes
+
 # client
 OBJS=  client/clparse.o client/dhclient.o
 
