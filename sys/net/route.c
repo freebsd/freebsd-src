@@ -475,7 +475,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 
 		/* 
 		 * If there is llinfo or similar associated with the 
-		 * route, give the interface a chance to deal with it..
+		 * route, give the protocol a chance to deal with it..
 		 */
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
