@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.2 1998/10/15 23:17:35 gibbs Exp $
+ *      $Id: cam_ccb.h,v 1.3 1998/12/10 04:05:49 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -145,6 +145,14 @@ typedef enum {
 /* Vendor Unique codes: 0x80->0x8F */
 	XPT_VUNIQUE = 0x80
 } xpt_opcode;
+
+#define XPT_OPCODE_GROUP_MASK		0xF0
+#define XPT_OPCODE_GROUP(op) ((op) & XPT_OPCODE_GROUP_MASK)
+#define XPT_OPCODE_GROUP_COMMON		0x00
+#define XPT_OPCODE_GROUP_SCSI_CONTROL	0x10
+#define XPT_OPCODE_GROUP_HBA_ENGINE	0x20
+#define XPT_OPCODE_GROUP_TMODE		0x30
+#define XPT_OPCODE_GROUP_VENDOR_UNIQUE	0x80
 
 typedef union {
 	LIST_ENTRY(ccb_hdr) le;
