@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfsrvcache.h,v 1.2 1994/08/02 07:52:25 davidg Exp $
  */
+
+#ifndef _NFS_NFSRVCACHE_H_
+#define _NFS_NFSRVCACHE_H_
 
 /*
  * Definitions for the server recent request cache
@@ -83,3 +86,5 @@ struct nfsrvcache {
 #define	RC_NQNFS	0x10
 #define	RC_INETADDR	0x20
 #define	RC_NAM		0x40
+
+#endif

@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrtt.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: nfsrtt.h,v 1.2 1994/08/02 07:52:24 davidg Exp $
  */
+
+#ifndef _NFS_NFSRTT_H_
+#define _NFS_NFSRTT_H_
 
 /*
  * Definitions for performance monitor.
@@ -95,3 +98,5 @@ struct nfsdrt {
 		struct timeval tstamp;	/* Timestamp of log entry */
 	} drt[NFSRTTLOGSIZ];
 };
+
+#endif

@@ -34,8 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.3 1994/08/08 17:30:55 davidg Exp $
+ * $Id: nfsnode.h,v 1.4 1994/08/09 15:10:14 davidg Exp $
  */
+
+#ifndef _NFS_NFSNODE_H_
+#define _NFS_NFSNODE_H_
 
 /*
  * Silly rename structure that hangs off the nfsnode until the name
@@ -165,3 +168,5 @@ int	nfs_truncate __P((struct vop_truncate_args *));
 int	nfs_update __P((struct vop_update_args *));
 int	nfs_bwrite __P((struct vop_bwrite_args *));
 #endif /* KERNEL */
+
+#endif
