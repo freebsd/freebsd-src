@@ -507,23 +507,25 @@ psycho_attach(device_t dev)
 		psycho_set_intr(sc, 1, dev, PSR_CE_INT_MAP, 0, psycho_ce);
 		psycho_set_intr(sc, 2, dev, PSR_PCIAERR_INT_MAP, INTR_FAST,
 		    psycho_bus_a);
-		psycho_set_intr(sc, 3, dev, PSR_PCIBERR_INT_MAP, INTR_FAST,
-		    psycho_bus_b);
 		psycho_set_intr(sc, 4, dev, PSR_POWER_INT_MAP, INTR_FAST,
 		    psycho_powerfail);
+		/* Psycho-specific initialization. */
+		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
+			/*
+			 * Sabres do not have the following two interrupts.
+			 */
+			psycho_set_intr(sc, 3, dev, PSR_PCIBERR_INT_MAP,
+			    INTR_FAST, psycho_bus_b);
 #ifdef PSYCHO_MAP_WAKEUP
-		/*
-		 * On some models, this is mapped to the same interrupt as
-		 * pciberr by default, so leave it alone for now since
-		 * psycho_wakeup() doesn't do anything useful anyway.
-		 */
-		psycho_set_intr(sc, 5, dev, PSR_PWRMGT_INT_MAP, 0,
-		    psycho_wakeup);
+			/*
+			 * psycho_wakeup() doesn't do anything useful right
+			 * now.
+			 */
+			psycho_set_intr(sc, 5, dev, PSR_PWRMGT_INT_MAP, 0,
+			    psycho_wakeup);
 #endif /* PSYCHO_MAP_WAKEUP */
 
-
-		/* Initialize the counter-timer if we handle a psycho. */
-		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
+			/* Initialize the counter-timer. */
 			sparc64_counter_init(sc->sc_bustag, sc->sc_bushandle,
 			    PSR_TC0);
 		}
