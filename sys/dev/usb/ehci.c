@@ -2332,6 +2332,7 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 		    EHCI_QTD_NBUFFERS * EHCI_PAGE_SIZE) {
 			/* we can handle it in this QTD */
 			curlen = len;
+		}
 #elif defined(__FreeBSD__)
 		/* XXX This is pretty broken: Because we do not allocate
 		 * a contiguous buffer (contiguous in physical pages) we
@@ -2341,8 +2342,9 @@ printf("status=%08x toggle=%d\n", epipe->sqh->qh.qh_qtd.qtd_status,
 		 */
 		if (dataphyspage == dataphyslastpage) {
 			curlen = len;
+		}
 #endif
-		} else {
+		else {
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 			/* must use multiple TDs, fill as much as possible. */
 			curlen = EHCI_QTD_NBUFFERS * EHCI_PAGE_SIZE -
