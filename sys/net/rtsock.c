@@ -391,7 +391,7 @@ route_output(m, so)
 				} else {
 					ifpaddr = 0;
 					ifaaddr = 0;
-			    }
+				}
 			}
 			len = rt_msg2(rtm->rtm_type, &info, (caddr_t)0,
 				(struct walkarg *)0);
