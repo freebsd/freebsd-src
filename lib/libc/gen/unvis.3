@@ -41,9 +41,9 @@
 .Sh SYNOPSIS
 .Fd #include <vis.h>
 .Ft int 
-.Fn unvis "u_char *cp" "u_char c" "int *astate" "int flag"
+.Fn unvis "char *cp" "int c" "int *astate" "int flag"
 .Ft int 
-.Fn strunvis "char *dst" "char *src"
+.Fn strunvis "char *dst" "const char *src"
 .Sh DESCRIPTION
 The
 .Fn unvis

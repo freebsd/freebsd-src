@@ -42,10 +42,11 @@
 .Nm des_cipher
 .Nd DES encryption
 .Sh SYNOPSIS
+.Fd #include <unistd.h>
 .Ft char *
 .Fn crypt "const char *key" "const char *setting"
 .Ft int
-.Fn setkey "char *key"
+.Fn setkey "const char *key"
 .Ft int
 .Fn encrypt "char *block" "int flag"
 .Ft int
