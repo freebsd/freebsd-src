@@ -276,7 +276,7 @@ fe_probe_tdk (device_t dev, const struct fe_pccard_product *pp)
 	struct fe_softc *sc = device_get_softc(dev);
 
         static struct fe_simple_probe_struct probe_table [] = {
-                { FE_DLCR2, 0x50, 0x00 },
+                { FE_DLCR2, 0x10, 0x00 },
                 { FE_DLCR4, 0x08, 0x00 },
             /*  { FE_DLCR5, 0x80, 0x00 },       Does not work well.  */
                 { 0 }
