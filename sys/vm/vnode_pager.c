@@ -991,8 +991,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 		rtvals[i] = VM_PAGER_AGAIN;
 
 	if ((int) m[0]->pindex < 0) {
-		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%x)\n",
-			(long)m[0]->pindex, m[0]->dirty);
+		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
+			(long)m[0]->pindex, (u_long)m[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
 		return VM_PAGER_BAD;
 	}
