@@ -31,26 +31,12 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#ifdef __FreeBSD__
-#   if __FreeBSD__ < 2
-#      include <machine/pio.h>
-#      define RB_GETC(q) getc(q)
-#   endif
-#endif
-#ifdef __bsdi__
-#   include <sys/ttystats.h>
-#   include <machine/inline.h>
-#   define tsleep(tp,pri,msg,x) ((tp)->t_state |= TS_WOPEN,\
-		ttysleep (tp, (caddr_t)&tp->t_rawq, pri, msg, x))
-#endif
-#if !defined (__FreeBSD__) || __FreeBSD__ >= 2
 #      define t_out t_outq
 #      define RB_LEN(q) ((q).c_cc)
 #      define RB_GETC(q) getc(&q)
 #ifndef TSA_CARR_ON /* FreeBSD 2.x before not long after 2.0.5 */
 #      define TSA_CARR_ON(tp) tp
 #      define TSA_OLOWAT(q) ((caddr_t)&(q)->t_out)
-#endif
 #endif
 
 #include <machine/cronyx.h>
@@ -78,7 +64,6 @@ timeout_t cxtimeout;
 
 extern cx_board_t cxboard [NCX];        /* adapter state structures */
 extern cx_chan_t *cxchan [NCX*NCHAN];   /* unit to channel struct pointer */
-#if __FreeBSD__ >= 2
 static struct tty cx_tty [NCX*NCHAN];          /* tty data */
 
 static	d_open_t	cxopen;
@@ -103,9 +88,6 @@ struct cdevsw cx_cdevsw = {
 	/* flags */	D_TTY | D_KQFILTER,
 	/* kqfilter */	ttykqfilter,
 };
-#else
-struct tty *cx_tty [NCX*NCHAN];         /* tty data */
-#endif
 
 static void cxoproc (struct tty *tp);
 static void cxstop (struct tty *tp, int flag);
@@ -130,35 +112,12 @@ int cxopen (dev_t dev, int flag, int mode, struct thread *td)
 	if (c->mode != M_ASYNC)
 		return (EBUSY);
 	if (! c->ttyp) {
-#ifdef __FreeBSD__
-#if __FreeBSD__ >= 2
 		c->ttyp = &cx_tty[unit];
-#else
-		c->ttyp = cx_tty[unit] = ttymalloc (cx_tty[unit]);
-#endif
-#else
-		MALLOC (cx_tty[unit], struct tty*, sizeof (struct tty), M_DEVBUF, M_WAITOK);
-		bzero (cx_tty[unit], sizeof (*cx_tty[unit]));
-		c->ttyp = cx_tty[unit];
-#endif
 		c->ttyp->t_oproc = cxoproc;
 		c->ttyp->t_stop = cxstop;
 		c->ttyp->t_param = cxparam;
 	}
 	dev->si_tty = c->ttyp;
-#ifdef __bsdi__
-	if (! c->ttydev) {
-		MALLOC (c->ttydev, struct ttydevice_tmp*,
-			sizeof (struct ttydevice_tmp), M_DEVBUF, M_WAITOK);
-		bzero (c->ttydev, sizeof (*c->ttydev));
-		strcpy (c->ttydev->tty_name, "cx");
-		c->ttydev->tty_unit = unit;
-		c->ttydev->tty_base = unit;
-		c->ttydev->tty_count = 1;
-		c->ttydev->tty_ttys = c->ttyp;
-		tty_attach (c->ttydev);
-	}
-#endif
 	tp = c->ttyp;
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) && (tp->t_state & TS_XCLUDE) &&
@@ -167,16 +126,12 @@ int cxopen (dev_t dev, int flag, int mode, struct thread *td)
 	if (! (tp->t_state & TS_ISOPEN)) {
 		ttychars (tp);
 		if (tp->t_ispeed == 0) {
-#ifdef __bsdi__
-			tp->t_termios = deftermios;
-#else
 			tp->t_iflag = 0;
 			tp->t_oflag = 0;
 			tp->t_lflag = 0;
 			tp->t_cflag = CREAD | CS8 | HUPCL;
 			tp->t_ispeed = c->rxbaud;
 			tp->t_ospeed = c->txbaud;
-#endif
 		}
 		cxparam (tp, &tp->t_termios);
 		ttsetwater (tp);
@@ -239,11 +194,7 @@ int cxopen (dev_t dev, int flag, int mode, struct thread *td)
 	spl0 ();
 	if (error)
 		return (error);
-#if __FreeBSD__ >= 2
 	error = (*linesw[tp->t_line].l_open) (dev, tp);
-#else
-	error = (*linesw[tp->t_line].l_open) (dev, tp, 0);
-#endif
 	return (error);
 }
 
@@ -418,11 +369,7 @@ int cxioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	tp = c->ttyp;
 	if (! tp)
 		return (EINVAL);
-#if __FreeBSD__ >= 2
 	error = (*linesw[tp->t_line].l_ioctl) (tp, cmd, data, flag, td);
-#else
-	error = (*linesw[tp->t_line].l_ioctl) (tp, cmd, data, flag);
-#endif
 	if (error != ENOIOCTL)
 		return (error);
 	error = ttioctl (tp, cmd, data, flag);
@@ -631,12 +578,6 @@ cxparam (struct tty *tp, struct termios *t)
 	if (t->c_ispeed && (t->c_ispeed < 300 || t->c_ispeed > 256*1024))
                 return(EINVAL);
 
-#ifdef __bsdi__
-	/* CLOCAL flag set -- wakeup everybody who waits for CD. */
-	/* FreeBSD does this themselves. */
-	if (! (tp->t_cflag & CLOCAL) && (t->c_cflag & CLOCAL))
-		wakeup ((caddr_t) &tp->t_rawq);
-#endif
 	/* And copy them to tty and channel structures. */
 	c->rxbaud = tp->t_ispeed = t->c_ispeed;
 	c->txbaud = tp->t_ospeed = t->c_ospeed;
@@ -941,7 +882,6 @@ void cxtimeout (void *a)
 }
 
 
-#if defined(__FreeBSD__) && (__FreeBSD__ > 1 )
 static void 	cx_drvinit(void *unused)
 {
 
@@ -949,6 +889,3 @@ static void 	cx_drvinit(void *unused)
 }
 
 SYSINIT(cxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cx_drvinit,NULL)
-
-
-#endif
