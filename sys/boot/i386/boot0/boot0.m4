@@ -74,3 +74,4 @@ define(jmpnwi,`.byte 0xe9; .word $1 - . - 0x2')dnl
 define(tstbi1,`.byte 0xf6; .byte 0x40 | $3; .byte $2; .byte $1')dnl
 define(incb1,`.byte 0xfe; .byte 0x40 | $2; .byte $1')dnl
 define(pushw1,`.byte 0xff; .byte 0x70 | $2; .byte $1')dnl
+define(retn,`.byte 0xc3')dnl
