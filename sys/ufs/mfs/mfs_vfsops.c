@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.22.2.2 1997/03/22 16:05:06 davidg Exp $
+ * $Id: mfs_vfsops.c,v 1.22.2.3 1998/03/08 02:12:32 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -297,7 +297,7 @@ mfs_mount(mp, path, data, ndp, p)
 		mfsp->mfs_vnode = rootvp;
 		mfsp->mfs_pid = p->p_pid;
 		mfsp->mfs_active = 1;
-		TAILQ_INIT(&mfsp->buf_queue);
+		bufq_init(&mfsp->buf_queue);
 
 		/* MFS wants to be read/write */
 		mp->mnt_flag &= ~MNT_RDONLY;
@@ -392,7 +392,7 @@ mfs_mount(mp, path, data, ndp, p)
 	mfsp->mfs_vnode = devvp;
 	mfsp->mfs_pid = p->p_pid;
 	mfsp->mfs_active = 1;
-	TAILQ_INIT(&mfsp->buf_queue);
+	bufq_init(&mfsp->buf_queue);
 
 	/*
 	 * Since this is a new mount, we want the names for
@@ -467,8 +467,8 @@ mfs_start(mp, flags, p)
 
 	base = mfsp->mfs_baseoff;
 	while (mfsp->mfs_active) {
-		while (bp = TAILQ_FIRST(&mfsp->buf_queue)) {
-			TAILQ_REMOVE(&mfsp->buf_queue, bp, b_act);
+		while (bp = bufq_first(&mfsp->buf_queue)) {
+			bufq_remove(&mfsp->buf_queue, bp);
 			mfs_doio(bp, base);
 			wakeup((caddr_t)bp);
 		}
