@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.10 1995/11/29 17:40:47 bde Exp $
+ *	$Id: eisaconf.c,v 1.11 1995/12/10 13:33:49 phk Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -97,7 +97,7 @@ eisa_configure()
 		int id_size = sizeof(eisa_id);
 		eisa_id = 0;
     		for( i = 0; i < id_size; i++ ) {
-			outb(eisaBase,0xc80 + i); /*Some cards require priming*/
+			outb(eisaBase,0x80 + i); /*Some cards require priming*/
 			eisa_id |= inb(eisaBase+i) << ((id_size-i-1)*CHAR_BIT);
 		}
 		if (eisa_id & 0x80000000)
