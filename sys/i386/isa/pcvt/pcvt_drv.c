@@ -48,7 +48,7 @@
  *	pcvt_drv.c	VT220 Driver Main Module / OS - Interface
  *	---------------------------------------------------------
  *
- *	Last Edit-Date: [Thu Apr  6 09:44:24 2000]
+ *	Last Edit-Date: [Sat Jul 15 15:06:06 2000]
  *
  * $FreeBSD$
  *
@@ -114,8 +114,10 @@ static struct cdevsw vt_cdevsw = {
 
 static int pcvt_probe(device_t dev);
 static int pcvt_attach(device_t dev);
+static void pcvt_identify (driver_t *driver, device_t parent);
 
 static device_method_t pcvt_methods[] = {
+	DEVMETHOD(device_identify,	pcvt_identify),
 	DEVMETHOD(device_probe,		pcvt_probe),
 	DEVMETHOD(device_attach,	pcvt_attach),
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -131,6 +133,15 @@ static driver_t pcvt_driver = {
 static devclass_t pcvt_devclass;
 
 DRIVER_MODULE(pcvt, isa, pcvt_driver, pcvt_devclass, 0, 0);
+
+/*---------------------------------------------------------------------------*
+ *	driver identify
+ *---------------------------------------------------------------------------*/
+static void
+pcvt_identify (driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, ISA_ORDER_SPECULATIVE, "vt", 0);
+}
 
 /*---------------------------------------------------------------------------*
  *	driver probe
