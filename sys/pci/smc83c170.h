@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * stable-166
+ * stable-167
  *
  */
 
@@ -40,7 +40,7 @@
 				/* packet to new allocated mbuf, */
 				/* receive directly to mbuf */
 
-/*#define	TX_FRAG_LIST	1	 Eliminites need of copy xmiting */
+#define	TX_FRAG_LIST	1	/* Eliminites need of copy xmiting */
 				/* packet to static buffer, xmit from */
 				/* mbuf directly */
 
@@ -167,6 +167,15 @@
 #define	GENCTL_SOFTWARE2		0x00002000
 #define	GENCTL_RESET_PHY		0x00004000
 
+#define	NVCTL_ENABLE_MEMORY_MAP		0x00000001
+#define	NVCTL_CLOCK_RUN_SUPPORTED	0x00000002
+#define	NVCTL_GP1_OUTPUT_ENABLE		0x00000004
+#define	NVCTL_GP2_OUTPUT_ENABLE		0x00000008
+#define	NVCTL_GP1			0x00000010
+#define	NVCTL_GP2			0x00000020
+#define	NVCTL_CARDBUS_MODE		0x00000040
+#define	NVCTL_IPG_DELAY_MASK(x)		((x&0xF)<<7)
+
 #define	RXCON_SAVE_ERRORED_PACKETS	0x00000001
 #define	RXCON_RECEIVE_RUNT_FRAMES	0x00000002
 #define	RXCON_RECEIVE_BROADCAST_FRAMES	0x00000004
@@ -192,9 +201,11 @@
 /*
  * National Semiconductor's DP83840A Registers and bits
  */
+#define	DP83840_OUI	0x080017
 #define DP83840_BMCR	0x00	/* Control register */
 #define DP83840_BMSR	0x01	/* Status rgister */
 #define	DP83840_ANAR	0x04	/* Autonegotiation advertising register */
+#define	DP83840_LPAR	0x05	/* Link Partner Ability register */
 #define DP83840_ANER	0x06	/* Auto-Negotiation Expansion Register */
 #define DP83840_PAR	0x19	/* PHY Address Register */
 #define	DP83840_PHYIDR1	0x02
@@ -219,16 +230,37 @@
 
 #define ANER_MULTIPLE_LINK_FAULT	0x10
 
+/* ANAR and LPAR have the same bits, define them only once */
 #define	ANAR_10			0x0020
 #define	ANAR_10_FD		0x0040
-#define	ANAR_100		0x0080
-#define	ANAR_100_FD		0x0100
+#define	ANAR_100_TX		0x0080
+#define	ANAR_100_TX_FD		0x0100
+#define	ANAR_100_T4		0x0200
+
+/*
+ * Quality Semiconductor's QS6612 registers and bits
+ */
+#define	QS6612_OUI		0x006051
+#define	QS6612_INTSTAT		29
+#define	QS6612_INTMASK		30
+
+#define	INTSTAT_AN_COMPLETE	0x40	/* Autonegotiation complete */
+#define	INTSTAT_RF_DETECTED	0x20	/* Remote Fault detected */
+#define	INTSTAT_LINK_STATUS	0x10	/* Link status changed */
+#define	INTSTAT_AN_LP_ACK	0x08	/* Autoneg. LP Acknoledge */
+#define	INTSTAT_PD_FAULT	0x04	/* Parallel Detection Fault */
+#define	INTSTAT_AN_PAGE		0x04	/* Autoneg. Page Received */
+#define	INTSTAT_RE_CNT_FULL	0x01	/* Receive Error Counter Full */
+
+#define	INTMASK_THUNDERLAN	0x8000	/* Enable interrupts */
 
 /*
  * Structures definition and Functions prototypes
  */
 
 /* EPIC's hardware descriptors, must be aligned on dword in memory */
+/* NB: to make driver happy, this two structures MUST have thier sizes */
+/* be divisor of PAGE_SIZE */
 struct epic_tx_desc {
 	u_int16_t	status;
 	u_int16_t	txlength;
@@ -244,29 +276,31 @@ struct epic_rx_desc {
 	u_int32_t	buflength;
 	u_int32_t	next;
 };
-struct epic_frag_elem {			/* frag elem structure for LFFORM=0 */
-	u_int32_t	fragaddr;
-	u_int32_t	fraglen;
-};
+
+/* This structure defines EPIC's fragment list, maximum number of frags */
+/* is 63. Let use maximum, becouse size of struct MUST be divisor of */
+/* PAGE_SIZE, and sometimes come mbufs with more then 30 frags */
 struct epic_frag_list {
 	u_int32_t		numfrags;
-	struct epic_frag_elem	frag[63]; 
+	struct {
+		u_int32_t	fragaddr;
+		u_int32_t	fraglen;
+	} frag[63]; 
+	u_int32_t		pad;		/* align on 256 bytes */
 };
 
 /* This is driver's structure to define EPIC descriptors */
 struct epic_rx_buffer {
-	struct epic_rx_desc	desc;		/* EPIC's descriptor */
-	caddr_t			data;		/* Rx buffer address */
 #if defined(RX_TO_MBUF)
-	struct mbuf *		mbuf;		/* Or mbuf */
+	struct mbuf *		mbuf;		/* mbuf receiving packet */
+#else
+	caddr_t			data;		/* or static address */
 #endif
 };
 
 struct epic_tx_buffer {
-	struct epic_tx_desc	desc;		/* EPIC's descriptor */
 #if defined(TX_FRAG_LIST)
 	struct mbuf *		mbuf;		/* mbuf contained packet */
-	struct epic_frag_list	flist;		/* static frag list */
 #else
 	caddr_t			data;		/* Tx buffer address */
 #endif
@@ -282,7 +316,18 @@ typedef struct {
 	u_int32_t		unit;
 	struct epic_rx_buffer	rx_buffer[RX_RING_SIZE];
 	struct epic_tx_buffer	tx_buffer[TX_RING_SIZE];
+
+	/* Each element of array MUST be aligned on dword  */
+	/* and bounded on PAGE_SIZE 			   */
+	struct epic_rx_desc	*rx_desc;
+	struct epic_tx_desc	*tx_desc;
+#if defined(TX_FRAG_LIST)
+	struct epic_frag_list	*tx_flist;
+#endif
+
+	struct ifmedia 		ifmedia;
 	struct arpcom		epic_ac;
+	u_int32_t		phyid;
 	u_int32_t		cur_tx;
 	u_int32_t		cur_rx;
 	u_int32_t		dirty_tx;
@@ -298,35 +343,38 @@ typedef struct {
 //extern epic_softc_t *epics[];
 //extern u_long epic_pci_count;
 
-static char* epic_pci_probe(pcici_t, pcidi_t);
+static char* epic_pci_probe __P((pcici_t, pcidi_t));
 
 /* Folowing functions calls splimp() */
-static int epic_ifioctl(register struct ifnet *, int, caddr_t);
-static void epic_ifstart(struct ifnet *);
-static void epic_ifwatchdog(struct ifnet *);
-static void epic_pci_attach(pcici_t, int);
-static int epic_init(epic_softc_t *);
-static void epic_stop(epic_softc_t *);
+static int epic_ifioctl __P((register struct ifnet *, int, caddr_t));
+static void epic_ifstart __P((struct ifnet *));
+static void epic_ifwatchdog __P((struct ifnet *));
+static void epic_pci_attach __P((pcici_t, int));
+static int epic_init __P((epic_softc_t *));
+static void epic_stop __P((epic_softc_t *));
+
+static int epic_ifmedia_change __P((struct ifnet *));
+static void epic_ifmedia_status __P((struct ifnet *, struct ifmediareq *));
 
 /* Following functions doesn't call splimp() */
-static void epic_intr_normal(void *);
-static void epic_rx_done(epic_softc_t *);
-static void epic_tx_done(epic_softc_t *);
+static void epic_intr_normal __P((void *));
+static inline void epic_rx_done __P((epic_softc_t *));
+static inline void epic_tx_done __P((epic_softc_t *));
+static void epic_shutdown __P((int, void *));
 
-static void epic_update_if_media_flags(epic_softc_t *);
-static int epic_init_rings(epic_softc_t *);
-static void epic_free_rings(epic_softc_t *);
-static void epic_set_rx_mode(epic_softc_t *);
-static void epic_set_mc_table(epic_softc_t *);
-static void epic_set_media_speed(epic_softc_t *);
-static int epic_autoneg(epic_softc_t *);
+static int epic_init_rings __P((epic_softc_t *));
+static void epic_free_rings __P((epic_softc_t *));
+static void epic_set_rx_mode __P((epic_softc_t *));
+static void epic_set_mc_table __P((epic_softc_t *));
+static void epic_set_media_speed __P((epic_softc_t *));
+static int epic_autoneg __P((epic_softc_t *));
 
-static int epic_read_eeprom(u_int16_t,u_int16_t);
-static void epic_output_eepromw(u_int16_t, u_int16_t);
-static u_int16_t epic_input_eepromw(u_int16_t);
-static u_int8_t epic_eeprom_clock(u_int16_t,u_int8_t);
-static void epic_write_eepromreg(u_int16_t,u_int8_t);
-static u_int8_t epic_read_eepromreg(u_int16_t);
+static int epic_read_eeprom __P((u_int16_t,u_int16_t));
+static void epic_output_eepromw __P((u_int16_t, u_int16_t));
+static u_int16_t epic_input_eepromw __P((u_int16_t));
+static u_int8_t epic_eeprom_clock __P((u_int16_t,u_int8_t));
+static void epic_write_eepromreg __P((u_int16_t,u_int8_t));
+static u_int8_t epic_read_eepromreg __P((u_int16_t));
 
-static int epic_read_phy_register(u_int16_t, u_int16_t);
-static void epic_write_phy_register(u_int16_t, u_int16_t,u_int16_t);
+static int epic_read_phy_register __P((u_int16_t, u_int16_t));
+static void epic_write_phy_register __P((u_int16_t, u_int16_t,u_int16_t));
