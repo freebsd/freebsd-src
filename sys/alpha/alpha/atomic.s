@@ -31,14 +31,14 @@
 	.text
 	
 LEAF(atomic_set_8, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extbl	t2, a0, t0
 	bis	t0, a1, t0
 	insbl	t0, a0, t0
 	mskbl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -46,14 +46,14 @@ LEAF(atomic_set_8, 2)
 	END(atomic_set_8)
 
 LEAF(atomic_clear_8, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extbl	t2, a0, t0
 	bic	t0, a1, t0
 	insbl	t0, a0, t0
 	mskbl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -61,14 +61,14 @@ LEAF(atomic_clear_8, 2)
 	END(atomic_clear_8)
 	
 LEAF(atomic_add_8, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extbl	t2, a0, t0
 	addl	t0, a1, t0
 	insbl	t0, a0, t0
 	mskbl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -76,14 +76,14 @@ LEAF(atomic_add_8, 2)
 	END(atomic_add_8)
 
 LEAF(atomic_subtract_8, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extbl	t2, a0, t0
 	subl	t0, a1, t0
 	insbl	t0, a0, t0
 	mskbl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -91,14 +91,14 @@ LEAF(atomic_subtract_8, 2)
 	END(atomic_subtract_8)
 	
 LEAF(atomic_set_16, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extwl	t2, a0, t0
 	bis	t0, a1, t0
 	inswl	t0, a0, t0
 	mskwl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -106,14 +106,14 @@ LEAF(atomic_set_16, 2)
 	END(atomic_set_16)
 
 LEAF(atomic_clear_16, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extwl	t2, a0, t0
 	bic	t0, a1, t0
 	inswl	t0, a0, t0
 	mskwl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -121,14 +121,14 @@ LEAF(atomic_clear_16, 2)
 	END(atomic_clear_16)
 	
 LEAF(atomic_add_16, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extwl	t2, a0, t0
 	addl	t0, a1, t0
 	inswl	t0, a0, t0
 	mskwl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
@@ -136,14 +136,14 @@ LEAF(atomic_add_16, 2)
 	END(atomic_add_16)
 
 LEAF(atomic_subtract_16, 2)
-	bic	a0, 3, t1
-0:	ldl_l	t2, 0(t1)
+	bic	a0, 7, t1
+0:	ldq_l	t2, 0(t1)
 	extwl	t2, a0, t0
 	subl	t0, a1, t0
 	inswl	t0, a0, t0
 	mskwl	t2, a0, t2
 	or	t2, t0, t0
-	stl_c	t0, 0(t1)
+	stq_c	t0, 0(t1)
 	beq	t0, 1f
 	mb
 	RET
