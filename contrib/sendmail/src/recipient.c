@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: recipient.c,v 8.231.14.10 2001/02/14 04:07:30 gshapiro Exp $";
+static char id[] = "@(#)$Id: recipient.c,v 8.231.14.11 2001/05/03 17:24:14 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -185,7 +185,7 @@ sendtolist(list, ctladdr, sendq, aliaslevel, e)
 
 	e->e_to = oldto;
 	if (bufp != buf)
-		free(bufp);
+		sm_free(bufp);
 #if _FFR_ADDR_TYPE
 	define(macid("{addr_type}", NULL), NULL, e);
 #endif /* _FFR_ADDR_TYPE */
@@ -293,7 +293,7 @@ removefromlist(list, sendq, e)
 
 	e->e_to = oldto;
 	if (bufp != buf)
-		free(bufp);
+		sm_free(bufp);
 #if _FFR_ADDR_TYPE
 	define(macid("{addr_type}", NULL), NULL, e);
 #endif /* _FFR_ADDR_TYPE */
@@ -780,7 +780,7 @@ recipient(a, sendq, aliaslevel, e)
   done:
 	a->q_flags |= QTHISPASS;
 	if (buf != buf0)
-		free(buf);
+		sm_free(buf);
 
 	/*
 	**  If we are at the top level, check to see if this has
@@ -1573,6 +1573,13 @@ resetuid:
 static void
 includetimeout()
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(CtxIncludeTimeout, 1);
 }
 /*

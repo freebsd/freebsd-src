@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: headers.c,v 8.203.4.12 2001/01/22 19:00:22 gshapiro Exp $";
+static char id[] = "@(#)$Id: headers.c,v 8.203.4.13 2001/05/03 17:24:06 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -343,7 +343,7 @@ hse:
 			}
 			if ((sp = macvalue(macid("{currHeader}", NULL), e)) !=
 			    NULL)
-				free(sp);
+				sm_free(sp);
 			define(macid("{currHeader}", NULL), newstr(qval), e);
 			define(macid("{hdr_name}", NULL), newstr(fname), e);
 			(void) rscheck(rs, fvalue, NULL, e, stripcom, TRUE, 4,

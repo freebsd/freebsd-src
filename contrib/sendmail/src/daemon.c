@@ -16,9 +16,9 @@
 
 #ifndef lint
 # ifdef DAEMON
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.51 2001/02/23 18:57:27 geir Exp $ (with daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.61 2001/05/27 22:14:40 gshapiro Exp $ (with daemon mode)";
 # else /* DAEMON */
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.51 2001/02/23 18:57:27 geir Exp $ (without daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.61 2001/05/27 22:14:40 gshapiro Exp $ (without daemon mode)";
 # endif /* DAEMON */
 #endif /* ! lint */
 
@@ -87,6 +87,8 @@ typedef struct daemon DAEMON_T;
 static void	connecttimeout __P((void));
 static int	opendaemonsocket __P((struct daemon *, bool));
 static u_short	setupdaemon __P((SOCKADDR *));
+static SIGFUNC_DECL	sighup __P((int));
+static void	restart_daemon __P((void));
 
 /*
 **  DAEMON.C -- routines to use when running as a daemon.
@@ -194,6 +196,10 @@ getrequests(e)
 			  ControlSocketName, errstring(errno));
 
 	(void) setsignal(SIGCHLD, reapchild);
+	(void) setsignal(SIGHUP, sighup);
+
+	/* workaround: can't seem to release the signal in the parent */
+	(void) releasesignal(SIGHUP);
 
 	/* write the pid to file */
 	log_sendmail_pid(e);
@@ -234,6 +240,11 @@ getrequests(e)
 
 		/* see if we are rejecting connections */
 		(void) blocksignal(SIGALRM);
+
+		if (ShutdownRequest != NULL)
+			shutdown_daemon();
+		else if (RestartRequest != NULL)
+			restart_daemon();
 
 		timenow = curtime();
 
@@ -295,6 +306,12 @@ getrequests(e)
 				Daemons[idx].d_firsttime = FALSE;
 			}
 		}
+
+		/* May have been sleeping above, check again */
+		if (ShutdownRequest != NULL)
+			shutdown_daemon();
+		else if (RestartRequest != NULL)
+			restart_daemon();
 
 		if (timenow >= last_disk_space_check)
 		{
@@ -389,6 +406,11 @@ getrequests(e)
 			fd_set readfds;
 			struct timeval timeout;
 
+			if (ShutdownRequest != NULL)
+				shutdown_daemon();
+			else if (RestartRequest != NULL)
+				restart_daemon();
+
 			FD_ZERO(&readfds);
 
 			for (idx = 0; idx < ndaemons; idx++)
@@ -419,23 +441,17 @@ getrequests(e)
 			}
 # endif /* NETUNIX */
 
-			/*
-			**  if one socket is closed, set the timeout
-			**  to 5 seconds (so it might get reopened soon),
-			**  otherwise (all sockets open) 60.
-			*/
-
-			idx = 0;
-			while (idx < ndaemons && Daemons[idx].d_socket >= 0)
-				idx++;
-			if (idx < ndaemons)
-				timeout.tv_sec = 5;
-			else
-				timeout.tv_sec = 60;
+			timeout.tv_sec = 5;
 			timeout.tv_usec = 0;
 
 			t = select(highest + 1, FDSET_CAST &readfds,
 				   NULL, NULL, &timeout);
+
+			/* Did someone signal while waiting? */
+			if (ShutdownRequest != NULL)
+				shutdown_daemon();
+			else if (RestartRequest != NULL)
+				restart_daemon();
 
 
 
@@ -675,6 +691,18 @@ getrequests(e)
 			**	Verify calling user id if possible here.
 			*/
 
+			/* Reset global flags */
+			RestartRequest = NULL;
+			ShutdownRequest = NULL;
+			PendingSignal = 0;
+
+			(void) releasesignal(SIGALRM);
+			(void) releasesignal(SIGCHLD);
+			(void) setsignal(SIGCHLD, SIG_DFL);
+			(void) setsignal(SIGHUP, SIG_DFL);
+			(void) setsignal(SIGTERM, intsig);
+
+
 			if (!control)
 			{
 				define(macid("{daemon_addr}", NULL),
@@ -686,10 +714,6 @@ getrequests(e)
 				       newstr(status), &BlankEnvelope);
 			}
 
-			(void) releasesignal(SIGALRM);
-			(void) releasesignal(SIGCHLD);
-			(void) setsignal(SIGCHLD, SIG_DFL);
-			(void) setsignal(SIGHUP, intsig);
 			for (idx = 0; idx < ndaemons; idx++)
 			{
 				if (Daemons[idx].d_socket >= 0)
@@ -1709,7 +1733,7 @@ makeconnection(host, port, mci, e)
 	{
 		STRUCTCOPY(ClientAddr, clt_addr);
 		if (clt_addr.sa.sa_family == AF_UNSPEC)
-			clt_addr.sa.sa_family = InetMode;
+			clt_addr.sa.sa_family = family;
 		switch (clt_addr.sa.sa_family)
 		{
 # if NETINET
@@ -1998,8 +2022,9 @@ gothostent:
 	for (;;)
 	{
 		if (tTd(16, 1))
-			dprintf("makeconnection (%s [%s])\n",
-				host, anynet_ntoa(&addr));
+			dprintf("makeconnection (%s [%s].%d (%d))\n",
+				host, anynet_ntoa(&addr), ntohs(port),
+				addr.sa.sa_family);
 
 		/* save for logging */
 		CurHostAddr = addr;
@@ -2012,7 +2037,7 @@ gothostent:
 		}
 		else
 		{
-			s = socket(addr.sa.sa_family, SOCK_STREAM, 0);
+			s = socket(clt_addr.sa.sa_family, SOCK_STREAM, 0);
 		}
 		if (s < 0)
 		{
@@ -2118,9 +2143,11 @@ gothostent:
 			int i;
 
 			if (e->e_ntries <= 0 && TimeOuts.to_iconnect != 0)
-				ev = setevent(TimeOuts.to_iconnect, connecttimeout, 0);
+				ev = setevent(TimeOuts.to_iconnect,
+					      connecttimeout, 0);
 			else if (TimeOuts.to_connect != 0)
-				ev = setevent(TimeOuts.to_connect, connecttimeout, 0);
+				ev = setevent(TimeOuts.to_connect,
+					      connecttimeout, 0);
 			else
 				ev = NULL;
 
@@ -2306,6 +2333,12 @@ gothostent:
 static void
 connecttimeout()
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
 	errno = ETIMEDOUT;
 	longjmp(CtxConnectTimeout, 1);
 }
@@ -2405,6 +2438,124 @@ int makeconnection_ds(mux_path, mci)
 	return EX_OK;
 }
 # endif /* NETUNIX */
+/*
+**  SIGHUP -- handle a SIGHUP signal
+**
+**	Parameters:
+**		sig -- incoming signal.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		Sets RestartRequest which should cause the daemon
+**		to restart.
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
+*/
+
+/* ARGSUSED */
+static SIGFUNC_DECL
+sighup(sig)
+	int sig;
+{
+	int save_errno = errno;
+
+	FIX_SYSV_SIGNAL(sig, sighup);
+	RestartRequest = "signal";
+	errno = save_errno;
+	return SIGFUNC_RETURN;
+}
+/*
+**  RESTART_DAEMON -- Performs a clean restart of the daemon
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+**
+**	Side Effects:
+**		restarts the daemon or exits if restart fails.
+*/
+
+static void
+restart_daemon()
+{
+	int i;
+	int save_errno;
+	char *reason;
+	sigfunc_t oalrm, ochld, ohup, oint, opipe, oterm, ousr1;
+	extern int DtableSize;
+
+	allsignals(TRUE);
+
+	reason = RestartRequest;
+	RestartRequest = NULL;
+	PendingSignal = 0;
+
+	if (SaveArgv[0][0] != '/')
+	{
+		if (LogLevel > 3)
+			sm_syslog(LOG_INFO, NOQID,
+				  "could not restart: need full path");
+		finis(FALSE, EX_OSFILE);
+	}
+	if (LogLevel > 3)
+		sm_syslog(LOG_INFO, NOQID, "restarting %s due to %s",
+			  SaveArgv[0],
+			  reason == NULL ? "implicit call" : reason);
+
+	closecontrolsocket(TRUE);
+	if (drop_privileges(TRUE) != EX_OK)
+	{
+		if (LogLevel > 0)
+			sm_syslog(LOG_ALERT, NOQID,
+				  "could not set[ug]id(%d, %d): %m",
+				  RunAsUid, RunAsGid);
+		finis(FALSE, EX_OSERR);
+	}
+
+	/* arrange for all the files to be closed */
+	for (i = 3; i < DtableSize; i++)
+	{
+		register int j;
+
+		if ((j = fcntl(i, F_GETFD, 0)) != -1)
+			(void) fcntl(i, F_SETFD, j | FD_CLOEXEC);
+	}
+
+	/* need to allow signals before execve() so make them harmless */
+	oalrm = setsignal(SIGALRM, SIG_DFL);
+	ochld = setsignal(SIGCHLD, SIG_DFL);
+	ohup = setsignal(SIGHUP, SIG_DFL);
+	oint = setsignal(SIGINT, SIG_DFL);
+	opipe = setsignal(SIGPIPE, SIG_DFL);
+	oterm = setsignal(SIGTERM, SIG_DFL);
+	ousr1 = setsignal(SIGUSR1, SIG_DFL);
+	allsignals(FALSE);
+
+	(void) execve(SaveArgv[0], (ARGV_T) SaveArgv, (ARGV_T) ExternalEnviron);
+	save_errno = errno;
+
+	/* restore signals */
+	allsignals(TRUE);
+	(void) setsignal(SIGALRM, oalrm);
+	(void) setsignal(SIGCHLD, ochld);
+	(void) setsignal(SIGHUP, ohup);
+	(void) setsignal(SIGINT, oint);
+	(void) setsignal(SIGPIPE, opipe);
+	(void) setsignal(SIGTERM, oterm);
+	(void) setsignal(SIGUSR1, ousr1);
+
+	errno = save_errno;
+	if (LogLevel > 0)
+		sm_syslog(LOG_ALERT, NOQID, "could not exec %s: %m",
+			  SaveArgv[0]);
+	finis(FALSE, EX_OSFILE);
+}
 /*
 **  MYHOSTNAME -- return the name of this host.
 **
@@ -2568,6 +2719,13 @@ static jmp_buf	CtxAuthTimeout;
 static void
 authtimeout()
 {
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
 	longjmp(CtxAuthTimeout, 1);
 }
 

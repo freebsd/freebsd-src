@@ -16,9 +16,9 @@
 
 #ifndef lint
 # if QUEUE
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.44 2001/02/22 00:55:35 ca Exp $ (with queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.55 2001/05/03 23:37:11 gshapiro Exp $ (with queueing)";
 # else /* QUEUE */
-static char id[] = "@(#)$Id: queue.c,v 8.343.4.44 2001/02/22 00:55:35 ca Exp $ (without queueing)";
+static char id[] = "@(#)$Id: queue.c,v 8.343.4.55 2001/05/03 23:37:11 gshapiro Exp $ (without queueing)";
 # endif /* QUEUE */
 #endif /* ! lint */
 
@@ -507,7 +507,7 @@ queueup(e, announce)
 
 	fprintf(tfp, ".\n");
 
-	if (fflush(tfp) < 0 ||
+	if (fflush(tfp) != 0 ||
 	    (SuperSafe && fsync(fileno(tfp)) < 0) ||
 	    ferror(tfp))
 	{
@@ -793,6 +793,12 @@ run_single_queue(queuedir, forkflag, verbose)
 			return TRUE;
 		}
 		/* child -- clean up signals */
+
+		/* Reset global flags */
+		RestartRequest = NULL;
+		ShutdownRequest = NULL;
+		PendingSignal = 0;
+
 		clrcontrol();
 		proc_list_clear();
 
@@ -801,8 +807,8 @@ run_single_queue(queuedir, forkflag, verbose)
 			      PROC_QUEUE_CHILD);
 		(void) releasesignal(SIGCHLD);
 		(void) setsignal(SIGCHLD, SIG_DFL);
-		(void) setsignal(SIGHUP, intsig);
-
+		(void) setsignal(SIGHUP, SIG_DFL);
+		(void) setsignal(SIGTERM, intsig);
 	}
 
 	sm_setproctitle(TRUE, CurEnv, "running queue: %s",
@@ -811,7 +817,7 @@ run_single_queue(queuedir, forkflag, verbose)
 	if (LogLevel > 69 || tTd(63, 99))
 		sm_syslog(LOG_DEBUG, NOQID,
 			  "runqueue %s, pid=%d, forkflag=%d",
-			  qid_printqueue(queuedir), getpid(), forkflag);
+			  qid_printqueue(queuedir), (int) getpid(), forkflag);
 
 	/*
 	**  Release any resources used by the daemon code.
@@ -953,10 +959,10 @@ run_single_queue(queuedir, forkflag, verbose)
 			if (pid != 0)
 				(void) waitfor(pid);
 		}
-		free(w->w_name);
+		sm_free(w->w_name);
 		if (w->w_host)
-			free(w->w_host);
-		free((char *) w);
+			sm_free(w->w_host);
+		sm_free((char *) w);
 	}
 
 	/* exit without the usual cleanup */
@@ -969,6 +975,16 @@ run_single_queue(queuedir, forkflag, verbose)
 
 /*
 **  RUNQUEUEEVENT -- stub for use in setevent
+**
+**	Parameters:
+**		none.
+**
+**	Returns:
+**		none.
+**
+**	NOTE:	THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+**		ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+**		DOING.
 */
 
 static void
@@ -1061,10 +1077,10 @@ orderq(queuedir, doall)
 		register WORK *nw = w->w_next;
 
 		WorkQ = nw;
-		free(w->w_name);
+		sm_free(w->w_name);
 		if (w->w_host != NULL)
-			free(w->w_host);
-		free((char *) w);
+			sm_free(w->w_host);
+		sm_free((char *) w);
 		w = nw;
 	}
 
@@ -1312,9 +1328,9 @@ orderq(queuedir, doall)
 			/* don't even bother sorting this job in */
 			if (tTd(41, 49))
 				dprintf("skipping %s (%x)\n", w->w_name, i);
-			free(w->w_name);
+			sm_free(w->w_name);
 			if (w->w_host)
-				free(w->w_host);
+				sm_free(w->w_host);
 			wn--;
 		}
 	}
@@ -1415,7 +1431,7 @@ orderq(queuedir, doall)
 		WorkQ = w;
 	}
 	if (WorkList != NULL)
-		free(WorkList);
+		sm_free(WorkList);
 	WorkList = NULL;
 	WorkListSize = 0;
 
@@ -1464,8 +1480,8 @@ grow_wlist(queuedir)
 	else
 	{
 		int newsize = WorkListSize + QUEUESEGSIZE;
-		WORK *newlist = (WORK *) realloc((char *)WorkList,
-					  (unsigned)sizeof(WORK) * (newsize + 1));
+		WORK *newlist = (WORK *) xrealloc((char *)WorkList,
+						  (unsigned)sizeof(WORK) * (newsize + 1));
 
 		if (newlist != NULL)
 		{
@@ -1762,6 +1778,11 @@ dowork(queuedir, id, forkflag, requeueflag, e)
 		**		can recover on interrupt.
 		*/
 
+		/* Reset global flags */
+		RestartRequest = NULL;
+		ShutdownRequest = NULL;
+		PendingSignal = 0;
+
 		/* set basic modes, etc. */
 		(void) alarm(0);
 		clearstats();
@@ -1782,7 +1803,7 @@ dowork(queuedir, id, forkflag, requeueflag, e)
 		if (LogLevel > 76)
 			sm_syslog(LOG_DEBUG, e->e_id,
 				  "dowork, pid=%d",
-				  getpid());
+				  (int) getpid());
 
 		/* don't use the headers from sendmail.cf... */
 		e->e_header = NULL;
@@ -1838,7 +1859,7 @@ readqf(e)
 {
 	register FILE *qfp;
 	ADDRESS *ctladdr;
-	struct stat st;
+	struct stat st, stf;
 	char *bp;
 	int qfver = 0;
 	long hdrsize = 0;
@@ -1883,18 +1904,58 @@ readqf(e)
 	}
 
 	/*
-	**  Check the queue file for plausibility to avoid attacks.
+	**  Prevent locking race condition.
+	**
+	**  Process A: readqf(): qfp = fopen(qffile)
+	**  Process B: queueup(): rename(tf, qf)
+	**  Process B: unlocks(tf)
+	**  Process A: lockfile(qf);
+	**
+	**  Process A (us) has the old qf file (before the rename deleted
+	**  the directory entry) and will be delivering based on old data.
+	**  This can lead to multiple deliveries of the same recipients.
+	**
+	**  Catch this by checking if the underlying qf file has changed
+	**  *after* acquiring our lock and if so, act as though the file
+	**  was still locked (i.e., just return like the lockfile() case
+	**  above.
 	*/
 
-	if (fstat(fileno(qfp), &st) < 0)
+	if (stat(qf, &stf) < 0 ||
+	    fstat(fileno(qfp), &st) < 0)
 	{
 		/* must have been being processed by someone else */
 		if (tTd(40, 8))
-			dprintf("readqf(%s): fstat failure (%s)\n",
+			dprintf("readqf(%s): [f]stat failure (%s)\n",
 				qf, errstring(errno));
 		(void) fclose(qfp);
 		return FALSE;
 	}
+
+	if (st.st_nlink != stf.st_nlink ||
+	    st.st_dev != stf.st_dev ||
+	    st.st_ino != stf.st_ino ||
+# if HAS_ST_GEN && 0		/* AFS returns garbage in st_gen */
+	    st.st_gen != stf.st_gen ||
+# endif /* HAS_ST_GEN && 0 */
+	    st.st_uid != stf.st_uid ||
+	    st.st_gid != stf.st_gid ||
+	    st.st_size != stf.st_size)
+	{
+		/* changed after opened */
+		if (Verbose)
+			printf("%s: changed\n", e->e_id);
+		if (tTd(40, 8))
+			dprintf("%s: changed\n", e->e_id);
+		if (LogLevel > 19)
+			sm_syslog(LOG_DEBUG, e->e_id, "changed");
+		(void) fclose(qfp);
+		return FALSE;
+	}
+
+	/*
+	**  Check the queue file for plausibility to avoid attacks.
+	*/
 
 	qsafe = S_IWOTH|S_IWGRP;
 #if _FFR_QUEUE_FILE_MODE
@@ -2243,7 +2304,7 @@ readqf(e)
 		}
 
 		if (bp != buf)
-			free(bp);
+			sm_free(bp);
 	}
 
 	/*
@@ -2351,7 +2412,11 @@ printqueue()
 	int i, nrequests = 0;
 
 	for (i = 0; i < NumQueues; i++)
+	{
+		if (StopRequest)
+			stop_sendmail();
 		nrequests += print_single_queue(i);
+	}
 	if (NumQueues > 1)
 		printf("\t\tTotal Requests: %d\n", nrequests);
 }
@@ -2467,6 +2532,9 @@ print_single_queue(queuedir)
 		char bodytype[MAXNAME + 1];
 		char qf[MAXPATHLEN];
 
+		if (StopRequest)
+			stop_sendmail();
+
 		printf("%12s", w->w_name + 2);
 		(void) snprintf(qf, sizeof qf, "%s/%s", qd, w->w_name);
 		f = fopen(qf, "r");
@@ -2498,6 +2566,9 @@ print_single_queue(queuedir)
 		{
 			register int i;
 			register char *p;
+
+			if (StopRequest)
+				stop_sendmail();
 
 			fixcrlf(buf, TRUE);
 			switch (buf[0])
@@ -2680,7 +2751,8 @@ queuename(e, type)
 **		none.
 */
 
-static char	Base60Code[] =	"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx";
+static const char QueueIdChars[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx";
+# define QIC_LEN	60
 
 void
 assign_queueid(e)
@@ -2696,7 +2768,7 @@ assign_queueid(e)
 		return;
 
 	/* see if we need to get a new base time/pid */
-	if (cX >= 60 || LastQueueTime == 0 || LastQueuePid != pid)
+	if (cX >= QIC_LEN || LastQueueTime == 0 || LastQueuePid != pid)
 	{
 		time_t then = LastQueueTime;
 
@@ -2714,16 +2786,16 @@ assign_queueid(e)
 	}
 	if (tTd(7, 50))
 		dprintf("assign_queueid: random_offset = %ld (%d)\n",
-			random_offset, (int)(cX + random_offset) % 60);
+			random_offset, (int)(cX + random_offset) % QIC_LEN);
 
 	tm = gmtime(&LastQueueTime);
-	idbuf[0] = Base60Code[tm->tm_year % 60];
-	idbuf[1] = Base60Code[tm->tm_mon];
-	idbuf[2] = Base60Code[tm->tm_mday];
-	idbuf[3] = Base60Code[tm->tm_hour];
-	idbuf[4] = Base60Code[tm->tm_min];
-	idbuf[5] = Base60Code[tm->tm_sec];
-	idbuf[6] = Base60Code[((int)cX++ + random_offset) % 60];
+	idbuf[0] = QueueIdChars[tm->tm_year % QIC_LEN];
+	idbuf[1] = QueueIdChars[tm->tm_mon];
+	idbuf[2] = QueueIdChars[tm->tm_mday];
+	idbuf[3] = QueueIdChars[tm->tm_hour];
+	idbuf[4] = QueueIdChars[tm->tm_min];
+	idbuf[5] = QueueIdChars[tm->tm_sec];
+	idbuf[6] = QueueIdChars[((int)cX++ + random_offset) % QIC_LEN];
 	(void) snprintf(&idbuf[7], sizeof idbuf - 7, "%05d",
 			(int) LastQueuePid);
 	e->e_id = newstr(idbuf);
@@ -3056,7 +3128,7 @@ chkqdir(name, sff)
 
 	/* skip over . and .. directories */
 	if (name[0] == '.' &&
-	    (name[1] == '\0' || (name[2] == '.' && name[3] == '\0')))
+	    (name[1] == '\0' || (name[1] == '.' && name[2] == '\0')))
 		return FALSE;
 # if HASLSTAT
 	if (lstat(name, &statb) < 0)
@@ -3137,9 +3209,9 @@ multiqueue_cache()
 		for (i = 0; i < NumQueues; i++)
 		{
 			if (QPaths[i].qp_name != NULL)
-				(void) free(QPaths[i].qp_name);
+				sm_free(QPaths[i].qp_name);
 		}
-		(void) free((char *)QPaths);
+		sm_free((char *)QPaths);
 		QPaths = NULL;
 		NumQueues = 0;
 	}
@@ -3232,9 +3304,9 @@ multiqueue_cache()
 			}
 			else if (slotsleft < 1)
 			{
-				QPaths = (QPATHS *)realloc((char *)QPaths,
-							  (sizeof *QPaths) *
-							  (NumQueues + 10));
+				QPaths = (QPATHS *)xrealloc((char *)QPaths,
+							    (sizeof *QPaths) *
+							    (NumQueues + 10));
 				if (QPaths == NULL)
 				{
 					(void) closedir(dp);

@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.38 2000/12/28 03:37:28 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.41 2001/05/23 21:32:16 ca Exp $')
 
 MAILER(local)dnl
 
@@ -77,6 +77,7 @@ dnl required to "rename" the check_* rulesets...
 define(`_U_',ifdef(`_DELAY_CHECKS_',`',`_'))
 dnl default relaying denied message
 ifdef(`confRELAY_MSG', `', `define(`confRELAY_MSG', `"550 Relaying denied"')')
+define(`CODE553', `553')
 divert(0)dnl
 
 # override file safeties - setting this option compromises system security,
@@ -221,7 +222,7 @@ include(_CF_DIR_`m4/version.m4')
 _OPTION(SevenBitInput, `confSEVEN_BIT_INPUT', `False')
 
 # 8-bit data handling
-_OPTION(EightBitMode, `confEIGHT_BIT_HANDLING', `adaptive')
+_OPTION(EightBitMode, `confEIGHT_BIT_HANDLING', `pass8')
 
 # wait for alias file rebuild (default units: minutes)
 _OPTION(AliasWait, `confALIAS_WAIT', `5m')
@@ -867,26 +868,26 @@ R$*			$: $>Parse1 $1		final parsing
 
 SParse0
 R<@>			$@ <@>			special case error msgs
-R$* : $* ; <@>		$#error $@ 5.1.3 $: "501 List:; syntax illegal for recipient addresses"
+R$* : $* ; <@>		$#error $@ 5.1.3 $: "CODE553 List:; syntax illegal for recipient addresses"
 R@ <@ $* >		< @ $1 >		catch "@@host" bogosity
-R<@ $+>			$#error $@ 5.1.3 $: "501 User address required"
+R<@ $+>			$#error $@ 5.1.3 $: "CODE553 User address required"
 R$*			$: <> $1
 R<> $* < @ [ $+ ] > $*	$1 < @ [ $2 ] > $3
-R<> $* <$* : $* > $*	$#error $@ 5.1.3 $: "501 Colon illegal in host name part"
+R<> $* <$* : $* > $*	$#error $@ 5.1.3 $: "CODE553 Colon illegal in host name part"
 R<> $*			$1
-R$* < @ . $* > $*	$#error $@ 5.1.2 $: "501 Invalid host name"
-R$* < @ $* .. $* > $*	$#error $@ 5.1.2 $: "501 Invalid host name"
+R$* < @ . $* > $*	$#error $@ 5.1.2 $: "CODE553 Invalid host name"
+R$* < @ $* .. $* > $*	$#error $@ 5.1.2 $: "CODE553 Invalid host name"
 dnl comma only allowed before @; this check is not complete
-R$* , $~O $*		$#error $@ 5.1.2 $: "501 Invalid route address"
+R$* , $~O $*		$#error $@ 5.1.2 $: "CODE553 Invalid route address"
 
 # now delete the local info -- note $=O to find characters that cause forwarding
 R$* < @ > $*		$@ $>Parse0 $>canonify $1	user@ => user
 R< @ $=w . > : $*	$@ $>Parse0 $>canonify $2	@here:... -> ...
 R$- < @ $=w . >		$: $(dequote $1 $) < @ $2 . >	dequote "foo"@here
-R< @ $+ >		$#error $@ 5.1.3 $: "501 User address required"
+R< @ $+ >		$#error $@ 5.1.3 $: "CODE553 User address required"
 R$* $=O $* < @ $=w . >	$@ $>Parse0 $>canonify $1 $2 $3	...@here -> ...
 R$- 			$: $(dequote $1 $) < @ *LOCAL* >	dequote "foo"
-R< @ *LOCAL* >		$#error $@ 5.1.3 $: "501 User address required"
+R< @ *LOCAL* >		$#error $@ 5.1.3 $: "CODE553 User address required"
 R$* $=O $* < @ *LOCAL* >
 			$@ $>Parse0 $>canonify $1 $2 $3	...@*LOCAL* -> ...
 R$* < @ *LOCAL* >	$: $1
@@ -935,8 +936,10 @@ R<@> $+			$: $1
 R<!> $+			$: $1
 R< error : $-.$-.$- : $+ > $* 	$#error $@ $1.$2.$3 $: $4
 R< error : $- $+ > $* 	$#error $@ $(dequote $1 $) $: $2
-R< $+ > $+ < @ $+ >	$: $>Recurse $1',
-`dnl')
+ifdef(`_NO_VIRTUSER_RECURSION_',
+`R< $+ > $+ < @ $+ >	$: $>ParseLocal $>Parse0 $>canonify $1',
+`R< $+ > $+ < @ $+ >	$: $>Recurse $1')
+dnl', `dnl')
 
 # short circuit local delivery so forwarded email works
 ifdef(`_MAILER_usenet_', `dnl
@@ -1013,7 +1016,7 @@ R$* < @ $* > $*		$: $>MailerToTriple < $S > $1 < @ $2 > $3	glue on smarthost nam
 # deal with other remote names
 ifdef(`_MAILER_smtp_',
 `R$* < @$* > $*		$#_SMTP_ $@ $2 $: $1 < @ $2 > $3	user@host.domain',
-`R$* < @$* > $*		$#error $@ 5.1.2 $: "501 Unrecognized host name " $2')
+`R$* < @$* > $*		$#error $@ 5.1.2 $: "CODE553 Unrecognized host name " $2')
 
 # handle locally delivered names
 R$=L			$#_LOCAL_ $: @ $1		special local names
@@ -1522,7 +1525,7 @@ dnl workspace: < ? $&{client_name} > <user@localhost|host>
 dnl	or:    <address>
 dnl	or:    <?> <address>	(thanks to u in ${daemon_flags})
 R<? $=w> $*		$: $2			local client: ok
-R<? $+> <$+>		$#error $@ 5.5.4 $: "501 Real domain name required for sender address"
+R<? $+> <$+>		$#error $@ 5.5.4 $: "CODE553 Real domain name required for sender address"
 dnl remove <?> (happens only if ${client_name} == "" or u in ${daemon_flags})
 R<?> $*			$: $1')
 dnl workspace: address (or <address>)
@@ -1572,13 +1575,13 @@ dnl remove daemon_flags
 R$* $| $*		$: $2
 R<?> $*			$: < ? $&{client_name} > $1
 R<?> $*			$@ <OK>				...local unqualed ok
-R<? $+> $*		$#error $@ 5.5.4 $: "501 Domain name required for sender address " $&f
+R<? $+> $*		$#error $@ 5.5.4 $: "CODE553 Domain name required for sender address " $&f
 							...remote is not')
 # check results
 R<?> $*			$: @ $1		mark address: nothing known about it
 R<OK> $*		$@ <OK>
 R<TEMP> $*		$#error $@ 4.1.8 $: "451 Domain of sender address " $&f " does not resolve"
-R<PERM> $*		$#error $@ 5.1.8 $: "501 Domain of sender address " $&f " does not exist"
+R<PERM> $*		$#error $@ 5.1.8 $: "CODE553 Domain of sender address " $&f " does not exist"
 ifdef(`_ACCESS_TABLE_', `dnl
 R<$={Accept}> $*	$# $1
 R<DISCARD> $*		$#discard $: discard
