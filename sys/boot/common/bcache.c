@@ -158,7 +158,6 @@ static int
 read_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
 		char *buf, size_t *rsize)
 {
-    static int			bcache_unit = -1;
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
     int				p_size, result;
     daddr_t			p_blk, i, j, nblk;
@@ -227,9 +226,6 @@ bcache_strategy(void *devdata, int unit, int rw, daddr_t blk, size_t size,
 {
     static int			bcache_unit = -1;
     struct bcache_devdata	*dd = (struct bcache_devdata *)devdata;
-    int				p_size, result;
-    daddr_t			p_blk, i, j, nblk;
-    caddr_t			p_buf;
 
     bcache_ops++;
 
