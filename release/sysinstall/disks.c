@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.70.2.21 1997/10/18 21:22:43 jkh Exp $
+ * $Id: disks.c,v 1.70.2.22 1998/02/01 06:01:00 steve Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -586,7 +586,7 @@ diskPartitionEditor(dialogMenuItem *self)
 	    return i | DITEM_RESTORE;
 	}
     }
-    return DITEM_FAILURE;
+    return DITEM_SUCCESS;
 }
 
 int
