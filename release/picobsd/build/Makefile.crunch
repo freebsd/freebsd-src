@@ -13,7 +13,13 @@ crunch:
 	else \
 		crunchgen -h ../../build/crunch.inc ./crunch1.conf ; \
 	fi )
-	@${MAKE} -f crunch1.mk $(CRUNCHFLAGS) all \
+	../../build/munge_crunchmk.pl crunch1.mk ;
+	@( if [ -f buildopts.inc ] ; then \
+		echo '.include "buildopts.inc"' > crunch1.mk.tmp ; \
+		cat crunch1.mk >> crunch1.mk.tmp ; \
+		mv crunch1.mk.tmp crunch1.mk ; \
+	fi )
+	${MAKE} -f crunch1.mk $(CRUNCHFLAGS) all \
 	    "CFLAGS=${CFLAGS} ${CRUNCHFLAGS}" #2>&1 >/dev/null
 	strip --remove-section=.note --remove-section=.comment crunch1
 
