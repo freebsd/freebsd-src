@@ -246,7 +246,7 @@ getauthmask(type, maskp)
 {
 	register int x;
 
-	if (strcasecmp(type, AUTHTYPE_NAME(0))) {
+	if (!strcasecmp(type, AUTHTYPE_NAME(0))) {
 		*maskp = -1;
 		return(1);
 	}
@@ -262,14 +262,14 @@ getauthmask(type, maskp)
 
 	int
 auth_enable(type)
-	int type;
+	char * type;
 {
 	return(auth_onoff(type, 1));
 }
 
 	int
 auth_disable(type)
-	int type;
+	char * type;
 {
 	return(auth_onoff(type, 0));
 }
@@ -279,15 +279,20 @@ auth_onoff(type, on)
 	char *type;
 	int on;
 {
-	int mask = -1;
+	int i, mask = -1;
 	Authenticator *ap;
 
 	if (!strcasecmp(type, "?") || !strcasecmp(type, "help")) {
                 printf("auth %s 'type'\n", on ? "enable" : "disable");
 		printf("Where 'type' is one of:\n");
 		printf("\t%s\n", AUTHTYPE_NAME(0));
-		for (ap = authenticators; ap->type; ap++)
+		mask = 0;
+		for (ap = authenticators; ap->type; ap++) {
+			if ((mask & (i = typemask(ap->type))) != 0)
+				continue;
+			mask |= i;
 			printf("\t%s\n", AUTHTYPE_NAME(ap->type));
+		}
 		return(0);
 	}
 
@@ -295,7 +300,6 @@ auth_onoff(type, on)
 		printf("%s: invalid authentication type\n", type);
 		return(0);
 	}
-	mask = getauthmask(type, &mask);
 	if (on)
 		i_wont_support &= ~mask;
 	else
@@ -319,16 +323,22 @@ auth_togdebug(on)
 auth_status()
 {
 	Authenticator *ap;
+	int i, mask;
 
 	if (i_wont_support == -1)
 		printf("Authentication disabled\n");
 	else
 		printf("Authentication enabled\n");
 
-	for (ap = authenticators; ap->type; ap++)
+	mask = 0;
+	for (ap = authenticators; ap->type; ap++) {
+		if ((mask & (i = typemask(ap->type))) != 0)
+			continue;
+		mask |= i;
 		printf("%s: %s\n", AUTHTYPE_NAME(ap->type),
 			(i_wont_support & typemask(ap->type)) ?
 					"disabled" : "enabled");
+	}
 	return(1);
 }
 
