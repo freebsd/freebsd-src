@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.58 1998/05/06 05:29:38 msmith Exp $
+ * $Id: nfs_vfsops.c,v 1.59 1998/05/19 07:11:25 peter Exp $
  */
 
 #include <sys/param.h>
@@ -710,7 +710,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	 * no sense in that context.
 	 */
 	if (argp->sotype == SOCK_STREAM)
-		argp->flags &= ~NFSMNT_NOCONN;
+		nmp->nm_flags &= ~NFSMNT_NOCONN;
 
 	if ((argp->flags & NFSMNT_TIMEO) && argp->timeo > 0) {
 		nmp->nm_timeo = (argp->timeo * NFS_HZ + 5) / 10;
