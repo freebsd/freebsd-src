@@ -25,7 +25,3 @@ HOME=/var/log
 # does nothing, if you have UTC cmos clock.
 # See adjkerntz(8) for details.
 1,31	0-5	*	*	*	root	adjkerntz -a
-#
-# Try and stop mail sitting around in the queue forever if there is no
-# sendmail -q30m periodically trying to dequeue it.
-41	6	*	*	*	root	/usr/sbin/sendmail -q
