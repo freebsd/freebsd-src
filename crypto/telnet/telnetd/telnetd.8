@@ -243,29 +243,6 @@ have been idle for some period of time to determine
 if the client is still there, so that idle connections
 from machines that have crashed or can no longer
 be reached may be cleaned up.
-.It Fl r Ar lowpty-highpty
-This option is only enabled when
-.Nm
-is compiled for
-.Dv UNICOS .
-It specifies an inclusive range of pseudo-terminal devices to
-use.  If the system has sysconf variable
-.Dv _SC_CRAY_NPTY
-configured, the default pty search range is 0 to
-.Dv _SC_CRAY_NPTY ;
-otherwise, the default range is 0 to 128.  Either
-.Ar lowpty
-or
-.Ar highpty
-may be omitted to allow changing
-either end of the search range.  If
-.Ar lowpty
-is omitted, the - character is still required so that
-.Nm
-can differentiate
-.Ar highpty
-from
-.Ar lowpty .
 .It Fl s
 This option is only enabled if
 .Nm
@@ -543,8 +520,6 @@ will be displayed to both console and remote logins.
 .Bl -tag -width /usr/ucb/bftp -compact
 .It Pa /etc/services
 .It Pa /etc/gettytab
-.It Pa /etc/inittab
-(UNICOS systems only)
 .It Pa /etc/iptos
 (if supported)
 .It Pa /usr/ucb/bftp

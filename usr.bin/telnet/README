@@ -14,6 +14,8 @@ have been compiled on:
 	Ultrix 4.3	  X	  X (no linemode in server)
 	Ultrix 4.1	  X	  X (no linemode in server)
 
+	NOTE - UNICOS and hpux-specific #ifdef code has now been removed
+
 In addition, previous versions have been compiled on the following
 machines, but were not available for testing this version.
 			telnet	telnetd

@@ -52,10 +52,6 @@ int def_row = 0, def_col = 0;
 static int _terminit = 0;
 #endif	/* LINEMODE */
 
-#if	defined(CRAY2) && defined(UNICOS5)
-int	newmap = 1;	/* nonzero if \n maps to ^M^J */
-#endif
-
 #ifdef	LINEMODE
 /*
  * localstat
@@ -137,14 +133,6 @@ int	newmap = 1;	/* nonzero if \n maps to ^M^J */
 localstat()
 {
 	int need_will_echo = 0;
-
-#if	defined(CRAY2) && defined(UNICOS5)
-	/*
-	 * Keep track of that ol' CR/NL mapping while we're in the
-	 * neighborhood.
-	 */
-	newmap = tty_isnewmap();
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 
 	/*
 	 * Check for changes to flow control if client supports it.
@@ -564,33 +552,9 @@ clientstat(code, parm1, parm2)
 		break;
 	}  /* end of switch */
 
-#if	defined(CRAY2) && defined(UNICOS5)
-	/*
-	 * Just in case of the likely event that we changed the pty state.
-	 */
-	rcv_ioctl();
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
-
 	netflush();
 
 }  /* end of clientstat */
-
-#if	defined(CRAY2) && defined(UNICOS5)
-	void
-termstat()
-{
-	needtermstat = 1;
-}
-
-	void
-_termstat()
-{
-	needtermstat = 0;
-	init_termbuf();
-	localstat();
-	rcv_ioctl();
-}
-#endif	/* defined(CRAY2) && defined(UNICOS5) */
 
 #ifdef	LINEMODE
 /*
