@@ -500,7 +500,11 @@ _("more than one -l option specified"));
 			case 'm':
 			{
 				void *set = setmode(optarg);
+				if (set == NULL)
+					errx(EXIT_FAILURE,
+_("invalid file mode"));
 				getmode(set, mflag);
+				free(set);
 				break;
 			}
 			case 'p':
