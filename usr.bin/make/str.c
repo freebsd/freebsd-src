@@ -112,9 +112,12 @@ str_concat(s1, s2, flags)
 			result[len1++] = '/';
 	}
 
-	/* copy second string plus EOS into place */
+	/* copy second string into place */
 	if (len2)
-		memcpy(result + len1, s2, len2 + 1);
+		memcpy(result + len1, s2, len2);
+
+	/* Terminate. */
+	result[len1 + len2] = '\0';
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
