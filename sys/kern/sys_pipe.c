@@ -55,6 +55,7 @@
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/filio.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/ttycom.h>
@@ -155,6 +156,7 @@ static int nbigpipe;
 
 static int amountpipekva;
 
+static void pipeinit __P((void *dummy __unused));
 static void pipeclose __P((struct pipe *cpipe));
 static void pipe_free_kmem __P((struct pipe *cpipe));
 static int pipe_create __P((struct pipe **cpipep));
@@ -170,6 +172,15 @@ static void pipe_clone_write_buffer __P((struct pipe *wpipe));
 static int pipespace __P((struct pipe *cpipe, int size));
 
 static vm_zone_t pipe_zone;
+
+SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, pipeinit, NULL);
+
+static void
+pipeinit(void *dummy __unused)
+{
+
+	pipe_zone = zinit("PIPE", sizeof(struct pipe), 0, 0, 4);
+}
 
 /*
  * The pipe system call for the DTYPE_PIPE type of pipes
@@ -188,9 +199,7 @@ pipe(td, uap)
 	struct pipe *rpipe, *wpipe;
 	int fd, error;
 	
-	/* XXX: SYSINIT this! */
-	if (pipe_zone == NULL)
-		pipe_zone = zinit("PIPE", sizeof(struct pipe), 0, 0, 4);
+	KASSERT(pipe_zone != NULL, ("pipe_zone not initialized"));
 
 	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
@@ -1313,7 +1322,9 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 	}
 	kn->kn_hook = (caddr_t)cpipe;
 
+	PIPE_LOCK(cpipe);
 	SLIST_INSERT_HEAD(&cpipe->pipe_sel.si_note, kn, kn_selnext);
+	PIPE_UNLOCK(cpipe);
 	return (0);
 }
 
@@ -1322,7 +1333,9 @@ filt_pipedetach(struct knote *kn)
 {
 	struct pipe *cpipe = (struct pipe *)kn->kn_hook;
 
+	PIPE_LOCK(cpipe);
 	SLIST_REMOVE(&cpipe->pipe_sel.si_note, kn, knote, kn_selnext);
+	PIPE_UNLOCK(cpipe);
 }
 
 /*ARGSUSED*/
@@ -1332,15 +1345,18 @@ filt_piperead(struct knote *kn, long hint)
 	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
 	struct pipe *wpipe = rpipe->pipe_peer;
 
+	PIPE_LOCK(rpipe);
 	kn->kn_data = rpipe->pipe_buffer.cnt;
 	if ((kn->kn_data == 0) && (rpipe->pipe_state & PIPE_DIRECTW))
 		kn->kn_data = rpipe->pipe_map.cnt;
 
 	if ((rpipe->pipe_state & PIPE_EOF) ||
 	    (wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
-		kn->kn_flags |= EV_EOF; 
+		kn->kn_flags |= EV_EOF;
+		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
+	PIPE_UNLOCK(rpipe);
 	return (kn->kn_data > 0);
 }
 
@@ -1351,14 +1367,17 @@ filt_pipewrite(struct knote *kn, long hint)
 	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
 	struct pipe *wpipe = rpipe->pipe_peer;
 
+	PIPE_LOCK(rpipe);
 	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF; 
+		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
 	kn->kn_data = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
 	if (wpipe->pipe_state & PIPE_DIRECTW)
 		kn->kn_data = 0;
 
+	PIPE_UNLOCK(rpipe);
 	return (kn->kn_data >= PIPE_BUF);
 }
