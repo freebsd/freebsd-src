@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.23 1999/04/24 21:38:49 peter Exp $
+#	$Id: Makefile.alpha,v 1.24 1999/05/08 20:04:38 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -17,8 +17,10 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	400014
+%VERSREQ=	400016
 
+# Can be overridden by makeoptions or /etc/make.conf
+KERNEL?=	kernel
 STD8X16FONT?=	iso
 
 .if exists(./@/.)
@@ -72,19 +74,12 @@ SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 .if ${CFLAGS:M-g} == ""
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
-SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
 	${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
 SYSTEM_LD= @${LD} --export-dynamic -T$S/alpha/conf/kernel.script -e locorestart \
 	-o $@ -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
-
-.if defined(DEBUG)
-FULLKERNEL=	${KERNEL}.debug
-.else
-FULLKERNEL=	${KERNEL}
-.endif
 
 %BEFORE_DEPEND
 
@@ -96,9 +91,23 @@ FULLKERNEL=	${KERNEL}
 
 %MFILES
 
-%LOAD
-
 %CLEAN
+
+all:	${KERNEL}
+
+.if !defined(DEBUG)
+FULLKERNEL=	${KERNEL}
+.else
+FULLKERNEL=	${KERNEL}.debug
+${KERNEL}:	${FULLKERNEL}
+	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
+.endif
+
+${FULLKERNEL}:	${SYSTEM_DEP} vers.o
+	@rm -f ${.TARGET}
+	@echo linking ${.TARGET}
+	${SYSTEM_LD}
+	${SYSTEM_LD_TAIL}
 
 .if !exists(.depend)
 ${SYSTEM_OBJS}: ${BEFORE_DEPEND:M*.h}
@@ -237,20 +246,15 @@ cleandepend:
 	rm -f .depend
 
 links:
-	egrep '#if' ${CFILES:Nswapkernel.c} | sed -f $S/conf/defines | \
+	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
 	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	echo ${CFILES:Nswapkernel.c} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	echo ${CFILES} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	  sort -u | comm -23 - dontlink | \
 	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks && rm -f dontlink
 
 tags:
 	@echo "see $S/kern/Makefile for tags"
-
-.if defined(DEBUG)
-${KERNEL}:	${FULLKERNEL}
-	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
-.endif
   
 install install.debug:
 	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
@@ -264,8 +268,8 @@ install install.debug:
 	PATH=$${PATH}:/sbin:/usr/sbin; \
 	if [ `sysctl -n kern.bootfile` = ${DESTDIR}/${KERNEL} ] ; then \
 		sysctl -w kern.bootfile=${DESTDIR}/${KERNEL}.old ; \
-		if [ -f /var/db/kvm_kernel.db ] ; then \
-			mv -f /var/db/kvm_kernel.db /var/db/kvm_kernel.old.db ; \
+		if [ -f /var/db/kvm_${KERNEL}.db ] ; then \
+			mv -f /var/db/kvm_${KERNEL}.db /var/db/kvm_${KERNEL}.old.db ; \
 		fi \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
