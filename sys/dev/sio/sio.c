@@ -2532,13 +2532,14 @@ void siogdbputc __P((int c));
 #else
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
+static cn_term_t siocnterm;
 #endif
 static cn_checkc_t siocncheckc;
 static cn_getc_t siocngetc;
 static cn_putc_t siocnputc;
 
 #ifndef __alpha__
-CONS_DRIVER(sio, siocnprobe, siocninit, NULL, siocngetc, siocncheckc,
+CONS_DRIVER(sio, siocnprobe, siocninit, siocnterm, siocngetc, siocncheckc,
 	    siocnputc, NULL);
 #endif
 
@@ -2788,6 +2789,13 @@ siocninit(cp)
 	struct consdev	*cp;
 {
 	comconsole = DEV_TO_UNIT(cp->cn_dev);
+}
+
+static void
+siocnterm(cp)
+	struct consdev	*cp;
+{
+	comconsole = -1;
 }
 
 #endif
