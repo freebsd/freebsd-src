@@ -241,6 +241,71 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 }
 
+static int
+ieee80211_match_bss(struct ifnet *ifp, struct ieee80211_node *ni)
+{
+	struct ieee80211com *ic = (void *)ifp;
+        u_int8_t rate;
+        int fail;
+
+	fail = 0;
+	if (isclr(ic->ic_chan_active, ieee80211_chan2ieee(ic, ni->ni_chan)))
+		fail |= 0x01;
+	if (ic->ic_des_chan != IEEE80211_CHAN_ANYC &&
+	    ni->ni_chan != ic->ic_des_chan)
+		fail |= 0x01;
+	if (ic->ic_opmode == IEEE80211_M_IBSS) {
+		if ((ni->ni_capinfo & IEEE80211_CAPINFO_IBSS) == 0)
+			fail |= 0x02;
+	} else {
+		if ((ni->ni_capinfo & IEEE80211_CAPINFO_ESS) == 0)
+			fail |= 0x02;
+	}
+	if (ic->ic_flags & IEEE80211_F_WEPON) {
+		if ((ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) == 0)
+			fail |= 0x04;
+	} else {
+		/* XXX does this mean privacy is supported or required? */
+		if (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY)
+			fail |= 0x04;
+	}
+	rate = ieee80211_fix_rate(ic, ni, IEEE80211_F_DONEGO);
+	if (rate & IEEE80211_RATE_BASIC)
+		fail |= 0x08;
+	if (ic->ic_des_esslen != 0 &&
+	    (ni->ni_esslen != ic->ic_des_esslen ||
+	     memcmp(ni->ni_essid, ic->ic_des_essid, ic->ic_des_esslen) != 0))
+		fail |= 0x10;
+	if ((ic->ic_flags & IEEE80211_F_DESBSSID) &&
+	    !IEEE80211_ADDR_EQ(ic->ic_des_bssid, ni->ni_bssid))
+		fail |= 0x20;
+#ifdef IEEE80211_DEBUG
+	if (ifp->if_flags & IFF_DEBUG) {
+		printf(" %c %s", fail ? '-' : '+',
+		    ether_sprintf(ni->ni_macaddr));
+		printf(" %s%c", ether_sprintf(ni->ni_bssid),
+		    fail & 0x20 ? '!' : ' ');
+		printf(" %3d%c", ieee80211_chan2ieee(ic, ni->ni_chan),
+			fail & 0x01 ? '!' : ' ');
+		printf(" %+4d", ni->ni_rssi);
+		printf(" %2dM%c", (rate & IEEE80211_RATE_VAL) / 2,
+		    fail & 0x08 ? '!' : ' ');
+		printf(" %4s%c",
+		    (ni->ni_capinfo & IEEE80211_CAPINFO_ESS) ? "ess" :
+		    (ni->ni_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" :
+		    "????",
+		    fail & 0x02 ? '!' : ' ');
+		printf(" %3s%c ",
+		    (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) ?
+		    "wep" : "no",
+		    fail & 0x04 ? '!' : ' ');
+		ieee80211_print_essid(ni->ni_essid, ni->ni_esslen);
+		printf("%s\n", fail & 0x10 ? "!" : "");
+	}
+#endif
+	return fail;
+}
+
 /*
  * Complete a scan of potential channels.
  */
@@ -249,7 +314,6 @@ ieee80211_end_scan(struct ifnet *ifp)
 {
 	struct ieee80211com *ic = (void *)ifp;
 	struct ieee80211_node *ni, *nextbs, *selbs;
-	u_int8_t rate;
 	int i, fail;
 
 	ic->ic_flags &= ~IEEE80211_F_ASCAN;
@@ -315,59 +379,7 @@ ieee80211_end_scan(struct ifnet *ifp)
 				ieee80211_free_node(ic, ni);
 			continue;
 		}
-		fail = 0;
-		if (isclr(ic->ic_chan_active, ieee80211_chan2ieee(ic, ni->ni_chan)))
-			fail |= 0x01;
-		if (ic->ic_des_chan != IEEE80211_CHAN_ANYC &&
-		    ni->ni_chan != ic->ic_des_chan)
-			fail |= 0x01;
-		if (ic->ic_opmode == IEEE80211_M_IBSS) {
-			if ((ni->ni_capinfo & IEEE80211_CAPINFO_IBSS) == 0)
-				fail |= 0x02;
-		} else {
-			if ((ni->ni_capinfo & IEEE80211_CAPINFO_ESS) == 0)
-				fail |= 0x02;
-		}
-		if (ic->ic_flags & IEEE80211_F_WEPON) {
-			if ((ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) == 0)
-				fail |= 0x04;
-		} else {
-			if (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY)
-				fail |= 0x04;
-		}
-		rate = ieee80211_fix_rate(ic, ni, IEEE80211_F_DONEGO);
-		if (rate & IEEE80211_RATE_BASIC)
-			fail |= 0x08;
-		if (ic->ic_des_esslen != 0 &&
-		    (ni->ni_esslen != ic->ic_des_esslen ||
-		     memcmp(ni->ni_essid, ic->ic_des_essid, ic->ic_des_esslen) != 0))
-			fail |= 0x10;
-		if ((ic->ic_flags & IEEE80211_F_DESBSSID) &&
-		    !IEEE80211_ADDR_EQ(ic->ic_des_bssid, ni->ni_bssid))
-			fail |= 0x20;
-		if (ifp->if_flags & IFF_DEBUG) {
-			printf(" %c %s", fail ? '-' : '+',
-			    ether_sprintf(ni->ni_macaddr));
-			printf(" %s%c", ether_sprintf(ni->ni_bssid),
-			    fail & 0x20 ? '!' : ' ');
-			printf(" %3d%c", ieee80211_chan2ieee(ic, ni->ni_chan),
-				fail & 0x01 ? '!' : ' ');
-			printf(" %+4d", ni->ni_rssi);
-			printf(" %2dM%c", (rate & IEEE80211_RATE_VAL) / 2,
-			    fail & 0x08 ? '!' : ' ');
-			printf(" %4s%c",
-			    (ni->ni_capinfo & IEEE80211_CAPINFO_ESS) ? "ess" :
-			    (ni->ni_capinfo & IEEE80211_CAPINFO_IBSS) ? "ibss" :
-			    "????",
-			    fail & 0x02 ? '!' : ' ');
-			printf(" %3s%c ",
-			    (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY) ?
-			    "wep" : "no",
-			    fail & 0x04 ? '!' : ' ');
-			ieee80211_print_essid(ni->ni_essid, ni->ni_esslen);
-			printf("%s\n", fail & 0x10 ? "!" : "");
-		}
-		if (!fail) {
+		if (ieee80211_match_bss(ifp, ni) == 0) {
 			if (selbs == NULL)
 				selbs = ni;
 			else if (ni->ni_rssi > selbs->ni_rssi) {
