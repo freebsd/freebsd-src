@@ -509,7 +509,11 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * CPU, spin instead of blocking.
 		 */
 		owner = (struct thread *)(v & MTX_FLAGMASK);
+#ifdef ADAPTIVE_GIANT
+		if (TD_IS_RUNNING(owner)) {
+#else
 		if (m != &Giant && TD_IS_RUNNING(owner)) {
+#endif
 			turnstile_release(&m->mtx_object);
 			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
 #if defined(__i386__) || defined(__amd64__)
