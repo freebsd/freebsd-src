@@ -38,7 +38,7 @@
 .Sh NAME
 .Nm getdomainname ,
 .Nm setdomainname
-.Nd get/set domain name of current host
+.Nd get/set the NIS domain name of current host
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -51,7 +51,7 @@
 The
 .Fn getdomainname
 function
-returns the standard domain name for the current processor, as
+returns the standard NIS domain name for the current host, as
 previously set by
 .Fn setdomainname .
 The
@@ -65,7 +65,7 @@ space is provided.
 The
 .Fn setdomainname
 function
-sets the domain name of the host machine to be
+sets the NIS domain name of the host machine to be
 .Fa name ,
 which has length
 .Fa namelen .
