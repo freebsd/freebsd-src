@@ -924,8 +924,6 @@ _Xrendezvous:
 	movl	$KDSEL, %eax
 	movl	%ax, %ds		/* use KERNEL data segment */
 	movl	%ax, %es
-	movl	$KPSEL, %eax
-	movl	%ax, %fs
 
 	call	smp_rendezvous_action
 
