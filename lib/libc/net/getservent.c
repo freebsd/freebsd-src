@@ -78,7 +78,6 @@ _getypservent(line)
 			free(key);
 		if ((rv = yp_first(yp_domain, "services.byname", &key, &keylen,
 			     &result, &resultlen))) {
-			free(result);
 			serv_stepping_yp = 0;
 			return(0);
 		}
