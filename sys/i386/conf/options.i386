@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.26.2.11 1997/10/05 21:00:26 joerg Exp $
+#	$Id: options.i386,v 1.26.2.12 1997/10/18 11:03:38 joerg Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -56,6 +56,7 @@ I686_CPU			opt_cpu.h
 SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
 SLOW_VGA		opt_syscons.h
+SC_HISTORY_SIZE		opt_syscons.h
 
 PSM_ACCEL		opt_psm.h
 PSM_EMULATION		opt_psm.h
