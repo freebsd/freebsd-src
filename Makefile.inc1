@@ -367,10 +367,6 @@ CUR_TIMET!=	grep __time_t /usr/include/machine/_types.h | awk '{print $$2}'
 SRC_TIMET!=	grep __time_t ${.CURDIR}/sys/sparc64/include/_types.h | \
 		awk '{print $$2}'
 NEWSPARC_TIMETYPE?=${CUR_TIMET}
-THISHOST!=	hostname -s
-.if empty(THISHOST)
-THISHOST="name not set yet"
-.endif
 
 sparc64_installcheck:
 .if ${CUR_TIMET} != ${SRC_TIMET}
@@ -381,7 +377,7 @@ sparc64_installcheck:
 	@echo "* Note: This installation changes the type used for time_t."
 .endif
 	@echo "* "
-	@echo "* This host (${THISHOST}) has time_t defined as ${CUR_TIMET},"
+	@echo "* This host has time_t defined as ${CUR_TIMET},"
 	@echo "* and this installation would change that to type ${SRC_TIMET}."
 .if ${NEWSPARC_TIMETYPE} != ${SRC_TIMET}
 	@echo "* "
