@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
- * $Id: nfsm_subs.h,v 1.22 1998/12/25 10:34:27 dfr Exp $
+ * $Id: nfsm_subs.h,v 1.23 1999/06/05 05:35:03 peter Exp $
  */
 
 
@@ -392,9 +392,10 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		} \
 		mreq = *mrq; \
 		if (error && (!(nfsd->nd_flag & ND_NFSV3) || \
-			error == EBADRPC)) \
-			return(0); \
-		}
+			error == EBADRPC)) { \
+			error = 0; \
+			goto nfsmout; \
+		} }
 
 #define	nfsm_writereply(s, v3) \
 		{ \
