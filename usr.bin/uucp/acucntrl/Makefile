@@ -5,6 +5,6 @@ CFLAGS+=-I${.CURDIR}/../includes
 BINDIR=	${LIBDIR}
 BINOWN=	root
 BINMODE=6550
-MAN8=	acucntrl.0
+MAN8=	acucntrl.8
 
 .include <bsd.prog.mk>
