@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.30 1996/03/20 19:05:59 jdp Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.31 1996/06/20 18:33:36 jkh Exp $";
 #endif
 
 /*
@@ -155,11 +155,6 @@ pkg_perform(char **pkgs)
 	add_plist(&plist, PLIST_FILE, MTREE_FNAME);
 	add_plist(&plist, PLIST_MTREE, MTREE_FNAME);
     }
-
-    /* Run through the list again, picking up extra "local" items */
-    /* check_list(".", &plist); */
-    /* copy_plist(".", &plist); */
-    /* mark_plist(&plist); */
 
     /* Finally, write out the packing list */
     fp = fopen(CONTENTS_FNAME, "w");
