@@ -150,7 +150,6 @@ softdep_setup_freeblocks(ip, length)
 	panic("softdep_setup_freeblocks called");
 }
 
-/* XXX needed to change this for FreeBSD.. hit poul */
 void
 softdep_freefile(pvp, ino, mode)
 		struct vnode *pvp;
