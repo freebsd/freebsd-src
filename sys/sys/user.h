@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)user.h	8.2 (Berkeley) 9/23/93
- * $Id: user.h,v 1.16 1998/07/15 20:18:00 dfr Exp $
+ * $Id: user.h,v 1.17 1998/12/19 02:55:34 julian Exp $
  */
 
 #ifndef _SYS_USER_H_
@@ -101,12 +101,8 @@ void fill_eproc __P((struct proc *, struct eproc *));
 
 struct	user {
 	struct	pcb u_pcb;
-
-#ifndef COMPAT_LINUX_THREADS
 	struct	sigacts u_sigacts;	/* p_sigacts points here (use it!) */
-#endif /* COMPAT_LINUX_THREADS */
 	struct	pstats u_stats;		/* p_stats points here (use it!) */
-
 	/*
 	 * Remaining fields only for core dump and/or ptrace--
 	 * not valid at other times!

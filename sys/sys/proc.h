@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.64 1998/12/21 07:41:50 dillon Exp $
+ * $Id: proc.h,v 1.65 1998/12/31 13:23:16 bde Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -86,13 +86,11 @@ struct	procsig {
 #define ps_begincopy ps_sigignore
 	sigset_t ps_sigignore;	/* Signals being ignored. */
 	sigset_t ps_sigcatch;	/* Signals being caught by user. */
-        int      ps_flag;
-	struct	 sigacts ps_sigacts;
+	int      ps_flag;
+	struct	 sigacts *ps_sigacts;
 #define ps_endcopy ps_refcnt
 	int	 ps_refcnt;
-        int      ps_posix;
 };
-
 #endif /* COMPAT_LINUX_THREADS */
 
 /*
@@ -125,7 +123,14 @@ struct	proc {
 	struct	pstats *p_stats;	/* Accounting/statistics (PROC ONLY). */
 	struct	plimit *p_limit;	/* Process limits. */
 	struct	vm_object *p_upages_obj;/* Upages object */
+#ifndef COMPAT_LINUX_THREADS
 	struct	sigacts *p_sigacts;	/* Signal actions, state (PROC ONLY). */
+#else
+	struct	procsig *p_procsig;
+#define p_sigacts	p_procsig->ps_sigacts
+#define p_sigignore	p_procsig->ps_sigignore
+#define p_sigcatch	p_procsig->ps_sigcatch
+#endif
 
 #define	p_ucred		p_cred->pc_ucred
 #define	p_rlimit	p_limit->pl_rlimit
@@ -201,22 +206,12 @@ struct	proc {
 #define	p_endzero	p_startcopy
 
 /* The following fields are all copied upon creation in fork. */
-#ifndef COMPAT_LINUX_THREADS
 #define	p_startcopy	p_sigmask
-#else
-#define	p_startcopy	p_procsig
-#endif /* COMPAT_LINUX_THREADS */
 
-#ifdef COMPAT_LINUX_THREADS
-	struct	procsig *p_procsig;
-#define p_sigignore p_procsig->ps_sigignore
-#define p_sigcatch p_procsig->ps_sigcatch
-#endif /* COMPAT_LINUX_THREADS */
 	sigset_t p_sigmask;	/* Current signal mask. */
 #ifndef COMPAT_LINUX_THREADS
 	sigset_t p_sigignore;	/* Signals being ignored. */
 	sigset_t p_sigcatch;	/* Signals being caught by user. */
-
 #endif /* COMPAT_LINUX_THREADS */
 	u_char	p_priority;	/* Process priority. */
 	u_char	p_usrpri;	/* User-priority based on p_cpu and p_nice. */
