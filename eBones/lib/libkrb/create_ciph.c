@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: create_ciph.c,v 4.8 89/05/18 21:24:26 jis Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

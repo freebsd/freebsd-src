@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	kadmin
 SRCS=	${KRBOBJDIR}/krb_err.h kadmin.c kadmin_cmds.c

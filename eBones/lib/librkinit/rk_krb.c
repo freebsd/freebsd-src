@@ -1,7 +1,7 @@
 /* 
- * $FreeBSD$
+ * $Id$
  * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_krb.c,v $
- * $Author: gibbs $
+ * $Author: jkh $
  *
  * This file contains the kerberos parts of the rkinit library.
  * See the comment at the top of rk_lib.c for a description of the naming
@@ -9,7 +9,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$Id$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

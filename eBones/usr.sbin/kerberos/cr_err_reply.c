@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: cr_err_reply.c,v 4.10 89/01/10 11:34:42 steiner Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

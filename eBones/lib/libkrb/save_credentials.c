@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: save_credentials.c,v 4.9 89/05/31 17:45:43 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char *rcsid =
-"$FreeBSD$";
+"$Id$";
 #endif /* lint */
 #endif
 

@@ -6,13 +6,13 @@
  * <mit-copyright.h>.
  *
  *	from: acl_files.c,v 4.4 89/12/19 13:30:53 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif lint
 #endif
 

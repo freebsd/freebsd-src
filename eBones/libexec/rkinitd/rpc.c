@@ -1,13 +1,13 @@
 /* 
- * $FreeBSD$
+ * $Id$
  * $Source: /home/ncvs/src/eBones/libexec/rkinitd/rpc.c,v $
- * $Author: gibbs $
+ * $Author: jkh $
  *
  * This file contains the network parts of the rkinit server.
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$Id$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

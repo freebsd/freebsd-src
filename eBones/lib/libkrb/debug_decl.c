@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: debug_decl.c,v 4.5 88/10/07 06:07:49 shanzer Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

@@ -3,14 +3,14 @@
  * For copying and distribution information, please see the file
  * <Copyright.MIT>.
  *
- *	from: $Header: /home/ncvs/src/eBones/lib/libkdb/print_princ.c,v 1.4 1995/09/07 21:37:13 markm Exp $
- *	$FreeBSD$
+ *	from: $Header: /home/ncvs/src/eBones/lib/libkdb/print_princ.c,v 1.5 1997/01/14 05:40:32 jkh Exp $
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 

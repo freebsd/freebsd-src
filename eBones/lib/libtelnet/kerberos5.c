@@ -1,7 +1,7 @@
 /*
  *	$Source: /home/ncvs/src/eBones/lib/libtelnet/kerberos5.c,v $
- *	$Author: pst $
- *	$FreeBSD$
+ *	$Author: jkh $
+ *	$Id$
  */
 
 #if !defined(lint) && !defined(SABER)
@@ -9,7 +9,7 @@ static
 #ifdef __STDC__
 const
 #endif
-char rcsid_kerberos5_c[] = "$FreeBSD$";
+char rcsid_kerberos5_c[] = "$Id$";
 #endif /* lint */
 
 /*-

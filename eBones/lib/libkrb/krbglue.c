@@ -4,13 +4,13 @@
  * <Copyright.MIT>.
  *
  *	from: krbglue.c,v 4.1 89/01/23 15:51:50 wesommer Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-$FreeBSD$";
+$Id$";
 #endif lint
 #endif
 

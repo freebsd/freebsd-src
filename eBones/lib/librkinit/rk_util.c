@@ -1,7 +1,7 @@
 /* 
- * $FreeBSD$
+ * $Id$
  * $Source: /home/ncvs/src/eBones/lib/librkinit/rk_util.c,v $
- * $Author: gibbs $
+ * $Author: jkh $
  *
  * This file contains internal routines for general use by the rkinit
  * library and server.  
@@ -11,7 +11,7 @@
  */
 
 #if !defined(lint) && !defined(SABER) && !defined(LOCORE) && defined(RCS_HDRS)
-static char *rcsid = "$FreeBSD$";
+static char *rcsid = "$Id$";
 #endif /* lint || SABER || LOCORE || RCS_HDRS */
 
 #include <stdio.h>

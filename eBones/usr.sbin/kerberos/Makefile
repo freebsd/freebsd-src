@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$FreeBSD$
+#	$Id$
 
 PROG=	kerberos
 SRCS=	kerberos.c cr_err_reply.c

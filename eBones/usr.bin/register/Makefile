@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/1/93
-#	$FreeBSD$
+#	$Id$
 
 PROG=	register
 CFLAGS+=-DCRYPT -DDEBUG -DKERBEROS

@@ -5,13 +5,13 @@
  * <Copyright.MIT>.
  *
  *	from: kerberos.c,v 4.19 89/11/01 17:18:07 qjb Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif  lint
 #endif
 

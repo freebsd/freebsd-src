@@ -7,13 +7,13 @@
  * access to a local account
  *
  *	from: kuserok.c,v 4.5 89/01/23 09:25:21 jtkohl Exp $
- *	$FreeBSD$
+ *	$Id$
  */
 
 #if 0
 #ifndef	lint
 static char rcsid[] =
-"$FreeBSD$";
+"$Id$";
 #endif	lint
 #endif
 
