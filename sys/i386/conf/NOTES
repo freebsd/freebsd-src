@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.37 1994/01/06 18:15:20 rgrimes Exp $
+#	$Id: LINT,v 1.38 1994/01/09 13:30:49 ats Exp $
 #
 
 machine		"i386"
@@ -113,8 +113,8 @@ device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device is0 at isa? port 0x280 net irq 10 drq 7 vector isintr
 #device ix0 at isa? port 0x320 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
-# driver for the Etherlink III ( 3C509 ) card, not ready yet.
-# device ep0 at isa? port 0x350 net irq 10 vector epintr
+# driver for the Etherlink III ( 3C509 ) card, beta version.
+device ep0 at isa? port 0x300 net irq 10 vector epintr
 #special cased above:
 #controller	isa0
 device		lpa0	at isa? port "IO_LPT1" tty
