@@ -53,16 +53,17 @@ The
 .Fn g_new_geomf
 function creates a new geom, which will be an instance of the class
 .Fa mp .
-The geom name is created in a printf\-like way from the rest of the arguments.
+The geom's name is created in a printf\-like way from the rest of the arguments.
 .Pp
 The
 .Fn g_destroy_geom
-function destroys the given geom imediately and cancels all related pending
+function destroys the given geom immediately and cancels all related pending
 events.
 .Pp
-Structure
+The
 .Vt g_geom
-contains fields, that should be set by the caller after geom creation, but before
+structure
+contains fields that should be set by the caller after geom creation, but before
 creating any providers or consumers related to this geom (not all are required):
 .Bl -inset -offset indent
 .It Vt "g_start_t *" Va start
