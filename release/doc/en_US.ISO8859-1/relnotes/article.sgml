@@ -441,7 +441,7 @@
 	sharing of a secret between multiple GEOM providers.  All of
 	these providers must be present in order to reveal the
 	secret.  This feature is controlled by the &man.gshsec.8;
-	utility.</para>
+	utility. &merged;</para>
 
       <para>The &man.hptmv.4; driver, which supports the HighPoint
 	RocketRAID 182x series, has been added. &merged;</para>
@@ -499,11 +499,11 @@
       force creation of a GPT even when there is an MBR record on a
       disk. &merged;</para>
 
-    <para>The &man.dump.8; utility now supports a <option>-n</option>
+    <para>The &man.newfs.8; utility now supports a <option>-n</option>
       flag to suppress the creation of a <filename>.snap</filename>
       directory on new file systems.  This feature is intended for use
       on memory or vnode file systems that will not require snapshot
-      support.</para>
+      support. &merged;</para>
 
     <para>The &man.ifconfig.8; utility has been restructured.  It is
       now more modular and flexible with respect to supporting
@@ -516,11 +516,27 @@
       indicating the correct full form when one of these abbreviations
       is detected.</para>
 
+    <para>The on-disk format of <literal>LC_CTYPE</literal> files has
+      been changed to be machine-indepedent.</para>
+
     <para>The <filename>libarchive</filename> library (as well as the
       &man.tar.1; command that uses it) now has support for reading ISO
       images (with optional RockRidge extensions) and ZIP archives
       (with <literal>deflate</literal> and <literal>none</literal>
       compression). &merged;</para>
+
+    <para>The default stack sizes in <filename>libpthread</filename>
+      and <filename>libc_r</filename> have been increased.  On 32-bit
+      platforms, the main thread receives a 2MB stack size by default,
+      with other threads receiving a 1MB stack size by default.  On
+      64-bit platforms, the default stack sizes are 4MB and 2MB
+      respectively.</para>
+
+    <para>A number of new functions have been implemented in the
+      &man.math.3; library.  These include &man.ceill.3;,
+      &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; and variants,
+      &man.lrint.3; and variants, and &man.lround.3; and
+      variants. &merged;</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
@@ -531,7 +547,7 @@
     <para arch="i386">The &man.mkuzip.8; utility, which
       compresses file system images for use with
       <literal>GEOM_UZIP</literal> &man.geom.4; module,
-      has been added.</para>
+      has been added. &merged;</para>
 
     <para>The &man.newsyslog.8; utility now supports
 	a <option>-d</option> option to specify an alternate root for log files
@@ -586,6 +602,11 @@
       a string for being an affirmative or negative response in the
       current locale.</para>
 
+    <para>The &man.rtld.1; dynamic linker now supports specifying
+      library replacements via the <varname>LD_LIBMAP</varname>
+      environment variable.  This variable will override the entries
+      in &man.libmap.conf.5;. &merged;</para>
+
     <para>The rune(3) non-standard multibyte and wide character support
       interface has been removed.</para>
 
@@ -605,6 +626,12 @@
     <para>The &man.telnet.1; and &man.telnetd.8; programs now support
       the <option>-S</option> option for specifying a numeric TOS
       byte.</para>
+
+    <para>Prepending a <literal>+</literal> character to port numbers
+      passed to &man.telnet.1; program will now disable option
+      negotiation and allow the transfer of characters with the high
+      bit set.  This feature is intended to support the fairly common
+      use of &man.telnet.1; as a protocol tester.</para>
 
     <para>The &man.tcpdrop.8; command, which closes a selected TCP
       connection, has been added.  It was obtained from
@@ -659,7 +686,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       version 4.3 to version 5.0.</para>
 
     <para><application>Heimdal</application> has been updated from
-      0.6.1 to 0.6.3.</para>
+      0.6.1 to 0.6.3. &merged;</para>
 
     <para><application>lukemftp</application> has been updated from a
       26 April 2004 snapshot from OpenBSD's sources to a snapshot as
@@ -676,7 +703,7 @@ moused_ums0_port="/dev/ums0"</programlisting>
       to 3.9p1.</para>
 
     <para><application>OpenSSL</application> has been updated from
-      0.9.7d to 0.9.7e.</para>
+      0.9.7d to 0.9.7e. &merged;</para>
 
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.3. &merged;</para>
@@ -772,7 +799,10 @@ moused_ums0_port="/dev/ums0"</programlisting>
 <sect1 id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
-  <para></para>
+  <para>Source upgrades to &os; &release.current; are only supported
+    from &os; 5.3-RELEASE or later.  Users of older systems wanting to
+    upgrade &release.current; will need to update to &os; 5.3 or newer
+    first, then to &os; &release.current;.</para>
 
   <important>
     <para>Upgrading &os; should, of course, only be attempted after
