@@ -653,7 +653,6 @@ _havemaster(char *_pw_yp_domain)
 
 	if (yp_first(_pw_yp_domain, "master.passwd.byname",
 		&key, &keylen, &result, &resultlen)) {
-		free(result);
 		return 0;
 	}
 	free(result);
