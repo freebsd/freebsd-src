@@ -75,29 +75,16 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
+#define NDIS_IMAGE
+#define NDIS_REGVALS
+
 #include "ndis_driver_data.h"
 
-MODULE_DEPEND(ndis, pci, 1, 1, 1);
-MODULE_DEPEND(ndis, ether, 1, 1, 1);
-MODULE_DEPEND(ndis, wlan, 1, 1, 1);
-MODULE_DEPEND(ndis, ndisapi, 1, 1, 1);
-
-/*
- * Various supported device vendors/types and their names.
- * These are defined in the ndis_driver_data.h file.
- */
-static struct ndis_type ndis_devs[] = {
-#ifdef NDIS_DEV_TABLE
-	NDIS_DEV_TABLE
-#endif
-	{ 0, 0, 0, NULL }
-};
-
-static int ndis_probe		(device_t);
-static int ndis_attach		(device_t);
-static int ndis_detach		(device_t);
-static int ndis_suspend		(device_t);
-static int ndis_resume		(device_t);
+int ndis_attach			(device_t);
+int ndis_detach			(device_t);
+int ndis_suspend		(device_t);
+int ndis_resume			(device_t);
+void ndis_shutdown		(device_t);
 
 static __stdcall void ndis_txeof	(ndis_handle,
 	ndis_packet *, ndis_status);
@@ -119,7 +106,6 @@ static int ndis_wi_ioctl_set	(struct ifnet *, u_long, caddr_t);
 static void ndis_init		(void *);
 static void ndis_stop		(struct ndis_softc *);
 static void ndis_watchdog	(struct ifnet *);
-static void ndis_shutdown	(device_t);
 static int ndis_ifmedia_upd	(struct ifnet *);
 static void ndis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 static int ndis_get_assoc	(struct ndis_softc *, ndis_wlan_bssid_ex *);
@@ -134,42 +120,6 @@ static void ndis_map_sclist	(void *, bus_dma_segment_t *,
 	int, bus_size_t, int);
 
 extern struct mtx_pool *ndis_mtxpool;
-
-static device_method_t ndis_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_probe,		ndis_probe),
-	DEVMETHOD(device_attach,	ndis_attach),
-	DEVMETHOD(device_detach,	ndis_detach),
-	DEVMETHOD(device_shutdown,	ndis_shutdown),
-	DEVMETHOD(device_suspend,	ndis_suspend),
-	DEVMETHOD(device_resume,	ndis_resume),
-
-	{ 0, 0 }
-};
-
-static driver_t ndis_driver = {
-#ifdef NDIS_DEVNAME
-	NDIS_DEVNAME,
-#else
-	"ndis",
-#endif
-	ndis_methods,
-	sizeof(struct ndis_softc)
-};
-
-static devclass_t ndis_devclass;
-
-#ifdef NDIS_MODNAME
-#define NDIS_MODNAME_OVERRIDE_PCI(x)					\
-	DRIVER_MODULE(x, pci, ndis_driver, ndis_devclass, 0, 0)
-#define NDIS_MODNAME_OVERRIDE_CARDBUS(x)				\
-	DRIVER_MODULE(x, cardbus, ndis_driver, ndis_devclass, 0, 0)
-NDIS_MODNAME_OVERRIDE_PCI(NDIS_MODNAME);
-NDIS_MODNAME_OVERRIDE_CARDBUS(NDIS_MODNAME);
-#else
-DRIVER_MODULE(ndis, pci, ndis_driver, ndis_devclass, 0, 0);
-DRIVER_MODULE(ndis, cardbus, ndis_driver, ndis_devclass, 0, 0);
-#endif
 
 /*
  * Program the 64-bit multicast hash filter.
@@ -244,32 +194,6 @@ out:
 		device_printf (sc->ndis_dev, "set filter failed: %d\n", error);
 
 	return;
-}
-
-/*
- * Probe for an NDIS device. Check the PCI vendor and device
- * IDs against our list and return a device name if we find a match.
- */
-static int
-ndis_probe(dev)
-	device_t		dev;
-{
-	struct ndis_type	*t;
-
-	t = ndis_devs;
-
-	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did) &&
-		    ((pci_read_config(dev, PCIR_SUBVEND_0, 4) ==
-		    t->ndis_subsys) || t->ndis_subsys == 0)) {
-			device_set_desc(dev, t->ndis_name);
-			return(0);
-		}
-		t++;
-	}
-
-	return(ENXIO);
 }
 
 static int
@@ -428,104 +352,21 @@ ndis_probe_offload(sc)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int
+int
 ndis_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	struct ndis_softc		*sc;
+	struct ndis_softc	*sc;
 	struct ifnet		*ifp = NULL;
-	int			unit, error = 0, rid, len;
 	void			*img;
-	struct ndis_type	*t;
-	int			i, devidx = 0, defidx = 0;
-	struct resource_list	*rl;
-	struct resource_list_entry	*rle;
+	int			error = 0, len;
+	int			i;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
-	sc->ndis_dev = dev;
 
 	sc->ndis_mtx = mtx_pool_alloc(ndis_mtxpool);
 	sc->ndis_intrmtx = mtx_pool_alloc(ndis_mtxpool);
-
-	/*
-	 * Map control/status registers.
-	 */
-
-	pci_enable_busmaster(dev);
-
-	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
-	if (rl != NULL) {
-		SLIST_FOREACH(rle, rl, link) {
-			switch (rle->type) {
-			case SYS_RES_IOPORT:
-				sc->ndis_io_rid = rle->rid;
-				sc->ndis_res_io = bus_alloc_resource(dev,
-				    SYS_RES_IOPORT, &sc->ndis_io_rid,
-				    0, ~0, 1, RF_ACTIVE);
-				if (sc->ndis_res_io == NULL) {
-					device_printf(dev,
-					    "couldn't map iospace\n");
-					error = ENXIO;
-					goto fail;
-				}
-				break;
-			case SYS_RES_MEMORY:
-				if (sc->ndis_res_altmem != NULL &&
-				    sc->ndis_res_mem != NULL) {
-					device_printf(dev,
-					    "too many memory resources\n");
-					error = ENXIO;
-					goto fail;
-				}
-				if (rle->rid == PCIR_BAR(2)) {
-					sc->ndis_altmem_rid = rle->rid;
-					sc->ndis_res_altmem =
-					    bus_alloc_resource(dev,
-					        SYS_RES_MEMORY,
-						&sc->ndis_altmem_rid,
-						0, ~0, 1, RF_ACTIVE);
-					if (sc->ndis_res_altmem == NULL) {
-						device_printf(dev,
-						    "couldn't map alt "
-						    "memory\n");
-						error = ENXIO;
-						goto fail;
-					}
-				} else {
-					sc->ndis_mem_rid = rle->rid;
-					sc->ndis_res_mem =
-					    bus_alloc_resource(dev,
-					        SYS_RES_MEMORY,
-						&sc->ndis_mem_rid,
-						0, ~0, 1, RF_ACTIVE);
-					if (sc->ndis_res_mem == NULL) {
-						device_printf(dev,
-						    "couldn't map memory\n");
-						error = ENXIO;
-						goto fail;
-					}
-				}
-				break;
-			case SYS_RES_IRQ:
-				rid = rle->rid;
-				sc->ndis_irq = bus_alloc_resource(dev,
-				    SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    			    RF_SHAREABLE | RF_ACTIVE);
-				if (sc->ndis_irq == NULL) {
-					device_printf(dev,
-					    "couldn't map interrupt\n");
-					error = ENXIO;
-					goto fail;
-				}
-				break;
-			default:
-				break;
-			}
-			sc->ndis_rescnt++;
-		}
-	}
 
         /*
 	 * Hook interrupt early, since calling the driver's
@@ -540,51 +381,7 @@ ndis_attach(dev)
 		goto fail;
 	}
 
-	/*
-	 * Allocate the parent bus DMA tag appropriate for PCI.
-	 */
-#define NDIS_NSEG_NEW 32
-	error = bus_dma_tag_create(NULL,	/* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-                        BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, NDIS_NSEG_NEW,/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,       /* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->ndis_parent_tag);
-
-        if (error)
-                goto fail;
-
-	img = drv_data;
 	sc->ndis_regvals = ndis_regvals;
-	sc->ndis_iftype = PCIBus;
-
-	/* Figure out exactly which device we matched. */
-
-	t = ndis_devs;
-
-	while(t->ndis_name != NULL) {
-		if ((pci_get_vendor(dev) == t->ndis_vid) &&
-		    (pci_get_device(dev) == t->ndis_did)) {
-			if (t->ndis_subsys == 0)
-				defidx = devidx;
-			else {
-				if (t->ndis_subsys ==
-				    pci_read_config(dev, PCIR_SUBVEND_0, 4))
-					break;
-			}
-		}
-		t++;
-		devidx++;
-	}
-
-	if (ndis_devs[devidx].ndis_name == NULL)
-		sc->ndis_devidx = defidx;
-	else
-		sc->ndis_devidx = devidx;
 
 	sysctl_ctx_init(&sc->ndis_ctx);
 
@@ -592,6 +389,7 @@ ndis_attach(dev)
 	ndis_create_sysctls(sc);
 
 	/* Set up driver image in memory. */
+	img = drv_data;
 	ndis_load_driver((vm_offset_t)img, sc);
 
 	/* Tell the user what version of the API the driver is using. */
@@ -622,7 +420,6 @@ ndis_attach(dev)
 	len = sizeof(eaddr);
 	ndis_get_info(sc, OID_802_3_CURRENT_ADDRESS, &eaddr, &len);
 
-	sc->ndis_unit = unit;
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
 	/*
@@ -900,7 +697,7 @@ fail:
  * to be careful about only freeing resources that have actually been
  * allocated.
  */
-static int
+int
 ndis_detach(dev)
 	device_t		dev;
 {
@@ -947,14 +744,15 @@ ndis_detach(dev)
 
 	ndis_unload_driver((void *)ifp);
 
-	bus_dma_tag_destroy(sc->ndis_parent_tag);
+	if (sc->ndis_iftype == PCIBus)
+		bus_dma_tag_destroy(sc->ndis_parent_tag);
 
 	sysctl_ctx_free(&sc->ndis_ctx);
 
 	return(0);
 }
 
-static int
+int
 ndis_suspend(dev)
 	device_t		dev;
 {
@@ -972,7 +770,7 @@ ndis_suspend(dev)
 	return(0);
 }
 
-static int
+int
 ndis_resume(dev)
 	device_t		dev;
 {
@@ -2241,7 +2039,7 @@ ndis_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+void
 ndis_shutdown(dev)
 	device_t		dev;
 {

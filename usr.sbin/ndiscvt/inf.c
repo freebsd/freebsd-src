@@ -57,8 +57,10 @@ static struct assign
 		*find_assign	(const char *, const char *);
 static struct section
 		*find_section	(const char *);
-static void	dump_deviceids	(void);
+static void	dump_deviceids_pci	(void);
+static void	dump_deviceids_pcmcia	(void);
 static void	dump_pci_id	(const char *);
+static void	dump_pcmcia_id	(const char *);
 static void	dump_regvals	(void);
 static void	dump_paramreg	(const struct section *,
 				const struct reg *, int);
@@ -76,8 +78,11 @@ inf_parse (FILE *fp, FILE *outfp)
 	yyin = fp;
 	yyparse();
 
-	dump_deviceids();
+	dump_deviceids_pci();
+	dump_deviceids_pcmcia();
+	fprintf(outfp, "#ifdef NDIS_REGVALS\n");
 	dump_regvals();
+	fprintf(outfp, "#endif /* NDIS_REGVALS */\n");
 
 	return (0);
 }
@@ -145,6 +150,54 @@ find_section (const char *s)
 }
 
 static void
+dump_pcmcia_id(const char *s)
+{
+	char *manstr, *devstr;
+	char *p0, *p;
+
+	p0 = __DECONST(char *, s);
+
+	p = strchr(p0, '\\');
+	if (p == NULL)
+		return;
+	p0 = p + 1;
+
+	p = strchr(p0, '-');
+	if (p == NULL)
+		return;
+	*p = '\0';
+
+	manstr = p0;
+
+	/* Convert any underscores to spaces. */
+
+	while (*p0 != '\0') {
+		if (*p0 == '_')
+			*p0 = ' ';
+		p0++;
+	}
+
+	p0 = p + 1;
+	p = strchr(p0, '-');
+	if (p == NULL)
+		return;
+	*p = '\0';
+
+	devstr = p0;
+
+	/* Convert any underscores to spaces. */
+
+	while (*p0 != '\0') {
+		if (*p0 == '_')
+			*p0 = ' ';
+		p0++;
+	}
+
+	fprintf(ofp, "\t\\\n\t{ \"%s\", \"%s\", ", manstr, devstr);
+	return;
+}
+
+static void
 dump_pci_id(const char *s)
 {
 	char *p;
@@ -178,7 +231,7 @@ dump_pci_id(const char *s)
 }
 
 static void
-dump_deviceids()
+dump_deviceids_pci()
 {
 	struct assign *manf, *dev;
 	struct section *sec;
@@ -201,8 +254,25 @@ dump_deviceids()
 	} else
 		sec = find_section(manf->vals[0]);
 
-	/* Emit start of device table */
-	fprintf (ofp, "#define NDIS_DEV_TABLE");
+	/* See if there are any PCI device definitions. */
+
+	TAILQ_FOREACH(assign, &ah, link) {
+		if (assign->section == sec) {
+			dev = find_assign("strings", assign->key);
+			if (strcasestr(assign->vals[1], "PCI") != NULL) {
+				found++;
+				break;
+			}
+		}
+	}
+
+	if (found == 0)
+		return;
+
+	found = 0;
+
+	/* Emit start of PCI device table */
+	fprintf (ofp, "#define NDIS_PCI_DEV_TABLE");
 
 retry:
 
@@ -218,11 +288,87 @@ retry:
 			/* Emit device IDs. */
 			if (strcasestr(assign->vals[1], "PCI") != NULL)
 				dump_pci_id(assign->vals[1]);
-			else if (strcasestr(assign->vals[1], "PCMCIA") != NULL)
+			else
 				continue;
-#ifdef notdef
+			/* Emit device description */
+			fprintf (ofp, "\t\\\n\t\"%s\" },", dev->vals[0]);
+			found++;
+		}
+	}
+
+	/* Someone tried to fool us. Shame on them. */
+	if (!found) {
+		found++;
+		sec = find_section(manf->vals[0]);
+		goto retry;
+	}
+
+	/* Emit end of table */
+
+	fprintf(ofp, "\n\n");
+
+}
+
+static void
+dump_deviceids_pcmcia()
+{
+	struct assign *manf, *dev;
+	struct section *sec;
+	struct assign *assign;
+	char xpsec[256];
+	int found = 0;
+
+	/* Find manufacturer name */
+	manf = find_assign("Manufacturer", NULL);
+
+	/* Find manufacturer section */
+	if (manf->vals[1] != NULL &&
+	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
+		/* Handle Windows XP INF files. */
+		snprintf(xpsec, sizeof(xpsec), "%s.%s",
+		    manf->vals[0], manf->vals[1]);
+		sec = find_section(xpsec);
+	} else
+		sec = find_section(manf->vals[0]);
+
+	/* See if there are any PCMCIA device definitions. */
+
+	TAILQ_FOREACH(assign, &ah, link) {
+		if (assign->section == sec) {
+			dev = find_assign("strings", assign->key);
+			if (strcasestr(assign->vals[1], "PCMCIA") != NULL) {
+				found++;
+				break;
+			}
+		}
+	}
+
+	if (found == 0)
+		return;
+
+	found = 0;
+
+	/* Emit start of PCMCIA device table */
+	fprintf (ofp, "#define NDIS_PCMCIA_DEV_TABLE");
+
+retry:
+
+	/*
+	 * Now run through all the device names listed
+	 * in the manufacturer section and dump out the
+	 * device descriptions and vendor/device IDs.
+	 */
+
+	TAILQ_FOREACH(assign, &ah, link) {
+		if (assign->section == sec) {
+			dev = find_assign("strings", assign->key);
+			/* Emit device IDs. */
+			if (strcasestr(assign->vals[1], "PCMCIA") != NULL)
 				dump_pcmcia_id(assign->vals[1]);
-#endif
+			else
+				continue;
 			/* Emit device description */
 			fprintf (ofp, "\t\\\n\t\"%s\" },", dev->vals[0]);
 			found++;
