@@ -66,7 +66,11 @@ void putchar (unsigned char c)
 	default:        videomem[curs++] = 0x0700 | c;          break;
 	}
 	while (curs >= cols*lines) {
+		int col;
+
 		memcpy (videomem, videomem+cols, (lines-1) * cols * 2);
+		for (col = 0; col < cols; col++)
+			videomem[(lines - 1) * cols + col] = 0x720;
 		curs -= cols;
 	}
 	/* set cursor position */
@@ -127,15 +131,8 @@ void boot (int howto)
 			curs = (lines-1) * cols;
 	}
 
-	/* save bios area */
-	memcpy (bios, (void*) 0x400, sizeof (bios));
-
 	putstr ("Uncompressing kernel...");
 	decompress_kernel ((void*) KADDR);
 	putstr ("done\n");
-
-	/* restore bios area */
-	memcpy ((void*) 0x400, bios, sizeof (bios));
-
 	putstr ("Booting the kernel\n");
 }
