@@ -235,9 +235,24 @@ if_clone_free(struct if_clone *ifc)
 int
 if_clone_list(struct if_clonereq *ifcr)
 {
-	char outbuf[IFNAMSIZ], *dst;
+	char *buf, *dst, *outbuf = NULL;
 	struct if_clone *ifc;
-	int count, err = 0;
+	int buf_count, count, err = 0;
+
+	IF_CLONERS_LOCK();
+	/*
+	 * Set our internal output buffer size.  We could end up not
+	 * reporting a cloner that is added between the unlock and lock
+	 * below, but that's not a major problem.  Not caping our
+	 * allocation to the number of cloners actually in the system
+	 * could be because that would let arbitrary users cause us to
+	 * allocate abritrary amounts of kernel memory.
+	 */
+	buf_count = (if_cloners_count < ifcr->ifcr_count) ?
+	    if_cloners_count : ifcr->ifcr_count;
+	IF_CLONERS_UNLOCK();
+
+	outbuf = malloc(IFNAMSIZ*buf_count, M_CLONE, M_WAITOK | M_ZERO);
 
 	IF_CLONERS_LOCK();
 
@@ -252,19 +267,21 @@ if_clone_list(struct if_clonereq *ifcr)
 		goto done;
 	}
 
-	count = (if_cloners_count < ifcr->ifcr_count) ?
-	    if_cloners_count : ifcr->ifcr_count;
+	count = (if_cloners_count < buf_count) ?
+	    if_cloners_count : buf_count;
 
-	for (ifc = LIST_FIRST(&if_cloners); ifc != NULL && count != 0;
-	     ifc = LIST_NEXT(ifc, ifc_list), count--, dst += IFNAMSIZ) {
-		strlcpy(outbuf, ifc->ifc_name, IFNAMSIZ);
-		err = copyout(outbuf, dst, IFNAMSIZ);
-		if (err)
-			break;
+	for (ifc = LIST_FIRST(&if_cloners), buf = outbuf;
+	    ifc != NULL && count != 0;
+	    ifc = LIST_NEXT(ifc, ifc_list), count--, buf += IFNAMSIZ) {
+		strlcpy(buf, ifc->ifc_name, IFNAMSIZ);
 	}
 
 done:
 	IF_CLONERS_UNLOCK();
+	if (err == 0)
+		err = copyout(outbuf, dst, buf_count*IFNAMSIZ);
+	if (outbuf != NULL)
+		free(outbuf, M_CLONE);
 	return (err);
 }
 
