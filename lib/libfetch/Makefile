@@ -10,8 +10,8 @@ SRCS=		fetch.c common.c ftp.c http.c file.c \
 INCS=		fetch.h
 MAN=		fetch.3
 CLEANFILES=	ftperr.h httperr.h
-DPADD=		${LIBCRYPTO} ${LIBSSL}
-LDADD=		-lcrypto -lssl
+#DPADD=		${LIBCRYPTO} ${LIBSSL}
+#LDADD=		-lcrypto -lssl
 
 NO_WERROR=	yes
 
