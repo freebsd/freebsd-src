@@ -165,8 +165,8 @@ struct ata_params {
 	u_int16_t	multi_count:8;
 #endif
 
-/*060*/	u_int16_t	lba_size_lo;
-	u_int16_t	lba_size_hi;
+/*060*/	u_int16_t	lba_size_1;
+	u_int16_t	lba_size_2;
 	u_int16_t	obsolete62;
 /*063*/	u_int16_t	mwdmamodes;		/* multiword DMA modes */ 
 /*064*/	u_int16_t	apiomodes;		/* advanced PIO modes */ 
