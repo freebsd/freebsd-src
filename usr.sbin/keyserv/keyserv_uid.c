@@ -28,24 +28,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: keyserv_uid.c,v 1.13 1997/01/19 20:23:05 wpaul Exp $
  */
 
+#include <signal.h>
 #include <stdio.h>
-#include <sys/types.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include <rpc/key_prot.h>
 #include <rpc/des.h>
-#include <signal.h>
 #include <sys/socket.h>
 #include <sys/param.h>
-#include <unistd.h>
 
 #include "keyserv.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: keyserv_uid.c,v 1.13 1997/01/19 20:23:05 wpaul Exp $";
+static const char rcsid[] =
+	"$Id$";
 #endif
 
 /*

@@ -28,25 +28,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: crypt_server.c,v 1.1.1.1 1997/05/28 15:44:22 wpaul Exp $
  */
 
-#include <stdio.h>
 #include <sys/types.h>
 #include <sys/param.h>
-#include <stdlib.h>
 #include <dirent.h>
+#include <dlfcn.h>
 #include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
-#include <string.h>
-#include <dlfcn.h>
 #include "crypt.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: crypt_server.c,v 1.1.1.1 1997/05/28 15:44:22 wpaul Exp $";
-#endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * The U.S. government stupidly believes that a) it can keep strong
