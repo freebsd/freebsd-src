@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.466 1999/01/31 12:38:19 jkh Exp $
+#	$Id: Makefile,v 1.467 1999/02/01 18:08:07 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -73,7 +73,7 @@ MNT=			/mnt
 #
 BOOTSIZE=		1440
 FIXITSIZE=		1440
-MFSSIZE=		1440
+MFSSIZE=		2880
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
 MFSINODE=		8000
@@ -81,12 +81,10 @@ FIXITINODE=		2000
 BOOTLABEL=		fd1440
 FIXITLABEL=		fd1440
 BIGBOOTLABEL=		minimum2
-MFSLABEL=		fd1440
+MFSLABEL=		minimum2
 
 # overrides.
 .if ${MACHINE_ARCH} == "alpha"
-MFSSIZE=		2880
-MFSLABEL=		minimum2
 FIXITSIZE=		2880
 FIXITLABEL=		minimum2
 .endif
