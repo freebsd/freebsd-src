@@ -1457,11 +1457,3 @@ atapi_dump(int ctrlr, int lun, char *label, void *data, int len)
 	while (--len > 0) printf ("-%x", *p++);
 	printf ("\n");
 }
-
-static void 
-acd_drvinit(void *unused)
-{
-    cdevsw_add(&acd_cdevsw);
-}
-
-SYSINIT(acddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, acd_drvinit, NULL)

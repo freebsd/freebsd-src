@@ -90,12 +90,6 @@ astattach(struct atapi_softc *atp)
     struct ast_softc *stp;
     struct ast_readposition position;
     dev_t dev;
-    static int ast_cdev_done = 0;
-
-    if (!ast_cdev_done) {
-	cdevsw_add(&ast_cdevsw);
-	ast_cdev_done = 1;
-    }
 
     stp = malloc(sizeof(struct ast_softc), M_AST, M_NOWAIT | M_ZERO);
     if (!stp) {
