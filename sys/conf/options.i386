@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.17 1996/09/10 23:07:04 bde Exp $
+#	$Id: options.i386,v 1.18 1996/09/11 19:53:31 phk Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -22,6 +22,9 @@ FAT_CURSOR		opt_pcvt.h
 PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
 XSERVER			opt_pcvt.h
+
+AHC_TAGENABLE		opt_aic7xxx.h
+AHC_SCBPAGING_ENABLE	opt_aic7xxx.h
 
 CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
