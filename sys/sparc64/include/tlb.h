@@ -29,6 +29,12 @@
 #ifndef	_MACHINE_TLB_H_
 #define	_MACHINE_TLB_H_
 
+#define	TLB_DIRECT_MASK			(((1UL << (64 - 38)) - 1) << 38)
+#define	TLB_DIRECT_SHIFT		(3)
+#define	TLB_DIRECT_UNCACHEABLE_SHIFT	(11)
+#define	TLB_DIRECT_COLOR_SHIFT		(10)
+#define	TLB_DIRECT_UNCACHEABLE		(1 << TLB_DIRECT_UNCACHEABLE_SHIFT)
+
 #define	TLB_DAR_SLOT_SHIFT		(3)
 #define	TLB_DAR_SLOT(slot)		((slot) << TLB_DAR_SLOT_SHIFT)
 

@@ -61,6 +61,7 @@ typedef	struct pmap *pmap_t;
 struct md_page {
 	STAILQ_HEAD(, tte) tte_list;
 	int	colors[DCACHE_COLORS];
+	int	color;
 	int	flags;
 };
 
