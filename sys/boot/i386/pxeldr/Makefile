@@ -8,7 +8,6 @@ LDR=		pxeldr
 BOOT=		pxeboot
 PROG=		${BOOT}
 MAN8=		${BOOT}.8
-# NOMAN=
 STRIP=
 BINDIR?=	/boot
 
@@ -32,9 +31,6 @@ ${LDR}: ${LDR}.o
 	${LD} -N -e start -Ttext ${ORG} -o ${LDR}.out ${LDR}.o
 	objcopy -S -O binary ${LDR}.out ${.TARGET}
 .endif
-
-${LDR}.o: ${.CURDIR}/${LDR}.s
-	${AS} ${AFLAGS} -o ${.TARGET} ${.CURDIR}/${LDR}.s
 
 CLEANFILES+= ${LDR} ${LDR}.out ${LDR}.o ${BOOT}.tmp
 
