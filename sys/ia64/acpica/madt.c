@@ -43,7 +43,7 @@ struct sapic *sapic_create(int, int, u_int64_t);
  
 typedef struct	/* Interrupt Source Override */
 {
-	APIC_HEADER	header;
+	APIC_HEADER	Header;
 	UINT8		Bus;
 	UINT8		Source;
 	UINT32		GlobalSystemInterrupt;
@@ -52,7 +52,7 @@ typedef struct	/* Interrupt Source Override */
 
 typedef struct	/* IO SAPIC */
 {
-	APIC_HEADER	header;
+	APIC_HEADER	Header;
 	UINT8		IoSapicId;		/* I/O SAPIC ID */
 	UINT8		Reserved;		/* reserved - must be zero */
 	UINT32		Vector;			/* interrupt base */
@@ -61,7 +61,7 @@ typedef struct	/* IO SAPIC */
 
 typedef struct  /* LOCAL SAPIC */
 {
-	APIC_HEADER	header;
+	APIC_HEADER	Header;
 	UINT8		ProcessorId;		/* ACPI processor id */
 	UINT8		LocalSapicId;		/* Processor local SAPIC id */
 	UINT8		LocalSapicEid;		/* Processor local SAPIC eid */
@@ -72,7 +72,7 @@ typedef struct  /* LOCAL SAPIC */
 
 typedef struct  /* PLATFORM INTERRUPT SOURCE */
 {
-	APIC_HEADER	header;
+	APIC_HEADER	Header;
 	UINT16		Polarity   : 2;		/* Polarity of input signal */
 	UINT16		TriggerMode: 2;		/* Trigger mode of input signal */
 	UINT16		Reserved1  : 12;
@@ -132,10 +132,11 @@ parse_platform_interrupt(PLATFORM_INTERRUPT_SOURCE *source)
 		    source->GlobalSystemInterrupt);
 }
 
-static void
-parse_madt(APIC_TABLE *madt)
+static int
+parse_madt(APIC_TABLE *madt, int countcpus)
 {
 	char			*p, *end;
+	int			maxid = 0;
 
 	/*
 	 * MADT header is followed by a number of variable length
@@ -144,6 +145,17 @@ parse_madt(APIC_TABLE *madt)
 	end = (char *) madt + madt->Header.Length;
 	for (p = (char *) (madt + 1); p < end; ) {
 		APIC_HEADER *head = (APIC_HEADER *) p;
+
+		if (countcpus) {
+			if (head->Type == APIC_LOCAL_SAPIC) {
+				LOCAL_SAPIC *sapic = (LOCAL_SAPIC *) head;
+				if (sapic->ProcessorEnabled)
+					if (sapic->ProcessorId > maxid)
+						maxid = sapic->ProcessorId;
+			}
+			p = p + head->Length;
+			continue;
+		}
 
 		if (bootverbose)
 			printf("\t");
@@ -208,10 +220,12 @@ parse_madt(APIC_TABLE *madt)
 
 		p = p + head->Length;
 	}
+
+	return (maxid);
 }
 
-void
-ia64_probe_sapics(void)
+static int
+parse_table(int countcpus)
 {
 	ACPI_PHYSICAL_ADDRESS	rsdp_phys;
 	RSDP_DESCRIPTOR		*rsdp;
@@ -220,7 +234,7 @@ ia64_probe_sapics(void)
 	int			i, count;
 
 	if (AcpiOsGetRootPointer(0, &rsdp_phys) != AE_OK)
-		return;
+		return 0;
 
 	rsdp = (RSDP_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp_phys);
 	xsdt = (XSDT_DESCRIPTOR *)IA64_PHYS_TO_RR7(rsdp->XsdtPhysicalAddress);
@@ -231,12 +245,29 @@ ia64_probe_sapics(void)
 		table = (ACPI_TABLE_HEADER *)
 			IA64_PHYS_TO_RR7(xsdt->TableOffsetEntry[i]);
 
-		if (bootverbose)
+		if (bootverbose && !countcpus)
 			printf("Table '%c%c%c%c' at %p\n", table->Signature[0],
 			    table->Signature[1], table->Signature[2],
 			    table->Signature[3], table);
 
 		if (!strncmp(table->Signature, APIC_SIG, 4))
-			parse_madt((APIC_TABLE *) table);
+			return (parse_madt((APIC_TABLE *) table, countcpus));
 	}
+	return (0);
+}
+
+void
+ia64_probe_sapics(void)
+{
+	parse_table(0);
+}
+
+/*
+ * Return the maximum cpuid used by any cpu in the system. This will
+ * return zero for systems with only one cpu.
+ */
+int
+ia64_count_aps(void)
+{
+	return (parse_table(1));
 }
