@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.34 1995/06/05 17:10:04 jkh Exp $
+ * $Id: install.c,v 1.70.2.35 1995/06/05 17:11:19 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -288,7 +288,7 @@ installCommit(char *str)
 
     /* Resurrect /dev */
     msgNotify("Making all devices.. Please wait!");
-    if (!SystemWasInstalled && vsystem("cd /dev; sh MAKEDEV all"))
+    if (!SystemWasInstalled && vsystem("cd /dev; sh MAKEDEV all tun0"))
 	msgConfirm("MAKEDEV returned non-zero status");
 
     msgNotify("Resurrecting /dev entries for slices..");
