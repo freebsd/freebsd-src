@@ -94,6 +94,7 @@ taskqueue_free(struct taskqueue *queue)
 {
 
 	mtx_lock(&queue->tq_mutex);
+	KASSERT(queue->tq_draining == 0, ("free'ing a draining taskqueue"));
 	queue->tq_draining = 1;
 	mtx_unlock(&queue->tq_mutex);
 
