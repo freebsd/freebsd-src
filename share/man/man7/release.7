@@ -260,6 +260,8 @@ environment immediately after any local patches are applied.
 .It Va MAKE_ISOS
 If defined, bootable ISO CD-ROM images will be created from the
 contents of the CD-ROM stage directory.
+.It Va NOCDROM
+If defined, the CD-ROM stage directories will not be created.
 .It Va NODOC
 If set to
 .Dq Li YES ,
@@ -271,6 +273,8 @@ However, the
 distribution will still be created with the minimal documentation set
 provided in
 .Pa src/share/doc .
+.It Va NO_FLOPPIES
+If defined, no floppy disk image files will be created.
 .It Va NOPORTS
 If set to
 .Dq Li YES
