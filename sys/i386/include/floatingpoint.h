@@ -37,6 +37,7 @@
 #ifndef _FLOATINGPOINT_H_
 #define _FLOATINGPOINT_H_
 
+#include <sys/cdefs.h>
 #include <machine/ieeefp.h>
 
 #endif /* !_FLOATINGPOINT_H_ */
