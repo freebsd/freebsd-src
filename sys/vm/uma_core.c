@@ -1603,7 +1603,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	uma_cache_t cache;
 	uma_bucket_t bucket;
 	int cpu;
-	int badness = 1;
+	int badness = 0;
 
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
@@ -1613,10 +1613,14 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	if (!(flags & M_NOWAIT)) {
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
+		if (strcmp(zone->uz_name, "Mbuf") == 0)
 #ifdef WITNESS
-		badness = WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-		    "malloc(M_WAITOK) of \"%s\", forcing M_NOWAIT",
-		    zone->uz_name);
+			badness = WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
+			    NULL,
+			    "malloc(M_WAITOK) of \"%s\", forcing M_NOWAIT",
+			    zone->uz_name);
+#else
+			badness = 1;
 #endif
 		if (badness) {
 			flags &= ~M_WAITOK;
