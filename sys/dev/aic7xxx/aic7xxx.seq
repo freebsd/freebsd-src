@@ -564,7 +564,6 @@ p_mesgout_dropatn:
 	mvi	CLRSINT1,CLRATNO			/* drop ATN */
 p_mesgout_outb:
 	dec	DINDEX
-	mvi	CLRSINT0, CLRSPIORDY
 	mov	SCSIDATL,SINDIR
 	jmp	p_mesgout_loop
 
