@@ -256,13 +256,26 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 void
 print_syscall(FILE *outfile, const char *name, int nargs, char **s_args) {
   int i;
-  fprintf(outfile, "syscall %s(", name);
+  int len = 0;
+  len += fprintf(outfile, "%s(", name);
   for (i = 0; i < nargs; i++) {
     if (s_args[i])
-      fprintf(outfile, "%s", s_args[i]);
+      len += fprintf(outfile, "%s", s_args[i]);
     else
-      fprintf(outfile, "<missing argument>");
-    fprintf(outfile, "%s", i < (nargs - 1) ? "," : "");
+      len += fprintf(outfile, "<missing argument>");
+    len += fprintf(outfile, "%s", i < (nargs - 1) ? "," : "");
   }
-  fprintf(outfile, ")\n\t");
+  len += fprintf(outfile, ")");
+  for (i = 0; i < 6 - (len / 8); i++)
+	fprintf(outfile, "\t");
+}
+
+void
+print_syscall_ret(FILE *outfile, const char *name, int nargs, char **s_args, int errorp, int retval) {
+  print_syscall(outfile, name, nargs, s_args);
+  if (errorp) {
+    fprintf(outfile, " ERR#%d '%s'\n", retval, strerror(retval));
+  } else {
+    fprintf(outfile, " = %d (0x%x)\n", retval, retval);
+  }
 }

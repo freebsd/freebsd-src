@@ -299,12 +299,7 @@ i386_syscall_exit(int pid, int syscall) {
    * but that complicates things considerably.
    */
 
-  print_syscall(outfile, fsc.name, fsc.nargs, fsc.s_args);
-  if (errorp) {
-    fprintf(outfile, "errno %d '%s'\n", retval, strerror(retval));
-  } else {
-    fprintf(outfile, "returns %d (0x%x)\n", retval, retval);
-  }
+  print_syscall_ret(outfile, fsc.name, fsc.nargs, fsc.s_args, errorp, retval);
   clear_fsc();
 
   return;
