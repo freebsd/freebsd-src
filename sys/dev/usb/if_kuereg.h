@@ -166,11 +166,11 @@ struct kue_softc {
 	usbd_pipe_handle	kue_ep[KUE_ENDPT_MAX];
 	int			kue_unit;
 	int			kue_if_flags;
-	u_int8_t		kue_gone;
 	u_int16_t		kue_rxfilt;
 	u_int8_t		*kue_mcfilters;
 	struct kue_cdata	kue_cdata;
 	struct mtx		kue_mtx;
+	char			kue_dying;
 };
 
 #if 0
