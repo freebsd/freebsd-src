@@ -61,6 +61,7 @@ TARGET?=	${MACHINE}
 TARGET?=	${TARGET_ARCH}
 .endif
 CROSSMAKE=	${MAKE} TARGET_ARCH=${TARGET_ARCH} TARGET=${TARGET}
+NATIVEMAKE=	${MAKE} TARGET_ARCH=${MACHINE_ARCH} TARGET=${MACHINE}
 
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
@@ -264,9 +265,9 @@ rerelease release:
 .endif
 	mkdir -p ${CHROOTDIR}
 	@echo ">>> make release started on `LC_ALL=C TZ=GMT date`"
-	cd ${.CURDIR}/.. && ${MAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
+	cd ${.CURDIR}/.. && ${NATIVEMAKE} -DNOGAMES -DNOHTML -DNOINFO -DNOMAN \
 	    -DNOPROFILE installworld DESTDIR=${CHROOTDIR}
-	cd ${.CURDIR}/../etc && ${MAKE} distribution DESTDIR=${CHROOTDIR}
+	cd ${.CURDIR}/../etc && ${NATIVEMAKE} distribution DESTDIR=${CHROOTDIR}
 	if [ -f /etc/resolv.conf ]; then \
 		cp -p /etc/resolv.conf ${CHROOTDIR}/etc; \
 	fi
