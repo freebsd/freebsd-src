@@ -131,7 +131,6 @@ static void	vo_set_device_state(ACPI_HANDLE, UINT32);
 /* _DSS (Device Set Status) argument bits and masks. */
 #define DSS_INACTIVE		0
 #define DSS_ACTIVE		(1 << 0)
-#define DSS_ACTIVITY		(1 << 0)
 #define DSS_SETNEXT		(1 << 30)
 #define DSS_COMMIT		(1 << 31)
 
@@ -166,11 +165,11 @@ MALLOC_DEFINE(M_ACPIVIDEO, "acpivideo", "ACPI video extension");
 static int
 acpi_video_modevent(struct module *mod __unused, int evt, void *cookie __unused)
 {
-	int err = 0;
+	int err;
 
+	err = 0;
 	switch (evt) {
 	case MOD_LOAD:
-		acpi_video_sysctl_tree = NULL;
 		sysctl_ctx_init(&acpi_video_sysctl_ctx);
 		STAILQ_INIT(&lcd_units);
 		STAILQ_INIT(&crt_units);
@@ -236,7 +235,13 @@ acpi_video_attach(device_t dev)
 	ACPI_SERIAL_BEGIN(video);
 	acpi_video_bind_outputs(sc);
 	ACPI_SERIAL_END(video);
-	vid_set_switch_policy(sc->handle, DOS_SWITCH_BY_OSPM);
+
+	/*
+	 * Notify the BIOS that we want to switch both active outputs and
+	 * brightness levels.
+	 */
+	vid_set_switch_policy(sc->handle, DOS_SWITCH_BY_OSPM |
+	    DOS_BRIGHTNESS_BY_BIOS);
 
 	acpi_video_power_profile(sc);
 
@@ -278,18 +283,19 @@ acpi_video_shutdown(device_t dev)
 }
 
 static void
-acpi_video_notify_handler(ACPI_HANDLE handle __unused, UINT32 notify,
-    void *context)
+acpi_video_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 {
 	struct acpi_video_softc *sc;
 	struct acpi_video_output *vo, *vo_tmp;
-	ACPI_HANDLE lasthand = NULL;
-	UINT32 dcs, dss, dss_p = 0;
+	ACPI_HANDLE lasthand;
+	UINT32 dcs, dss, dss_p;
 
-	sc = context;
+	sc = (struct acpi_video_softc *)context;
 
 	switch (notify) {
 	case VID_NOTIFY_SWITCHED:
+		dss_p = 0;
+		lasthand = NULL;
 		ACPI_SERIAL_BEGIN(video);
 		STAILQ_FOREACH(vo, &sc->vid_outputs, vo_next) {
 			dss = vo_get_graphics_state(vo->handle);
@@ -316,15 +322,15 @@ acpi_video_notify_handler(ACPI_HANDLE handle __unused, UINT32 notify,
 		STAILQ_FOREACH_SAFE(vo, &sc->vid_outputs, vo_next, vo_tmp) {
 			if (vo->handle == NULL) {
 				STAILQ_REMOVE(&sc->vid_outputs, vo,
-					      acpi_video_output, vo_next);
+				    acpi_video_output, vo_next);
 				acpi_video_vo_destroy(vo);
 			}
 		}
 		ACPI_SERIAL_END(video);
 		break;
 	default:
-		device_printf(sc->device,
-			      "unknown notify event 0x%x\n", notify);
+		device_printf(sc->device, "unknown notify event 0x%x\n",
+		    notify);
 	}
 }
 
@@ -345,8 +351,8 @@ acpi_video_power_profile(void *context)
 	STAILQ_FOREACH(vo, &sc->vid_outputs, vo_next) {
 		if (vo->vo_levels != NULL && vo->vo_brightness == -1)
 			vo_set_brightness(vo->handle,
-					  state == POWER_PROFILE_ECONOMY
-					  ? vo->vo_economy : vo->vo_fullpower);
+			    state == POWER_PROFILE_ECONOMY ?
+			    vo->vo_economy : vo->vo_fullpower);
 	}
 	ACPI_SERIAL_END(video);
 }
@@ -386,7 +392,7 @@ acpi_video_vo_init(UINT32 adr)
 {
 	struct acpi_video_output *vn, *vo, *vp;
 	int n, x;
-	char name[64], env[128];
+	char name[8], env[32];
 	const char *type, *desc;
 	struct acpi_video_output_queue *voqh;
 
@@ -434,10 +440,10 @@ acpi_video_vo_init(UINT32 adr)
 		vo->vo_economy = -1;
 		vo->vo_numlevels = 0;
 		vo->vo_levels = NULL;
-		snprintf(env, 128, "hw.acpi.video.%s.fullpower", name);
+		snprintf(env, sizeof(env), "hw.acpi.video.%s.fullpower", name);
 		if (getenv_int(env, &x))
 			vo->vo_fullpower = x;
-		snprintf(env, 128, "hw.acpi.video.%s.economy", name);
+		snprintf(env, sizeof(env), "hw.acpi.video.%s.economy", name);
 		if (getenv_int(env, &x))
 			vo->vo_economy = x;
 
@@ -582,7 +588,7 @@ acpi_video_vo_active_sysctl(SYSCTL_HANDLER_ARGS)
 	if (err != 0 || req->newptr == NULL)
 		goto out;
 	vo_set_device_state(vo->handle,
-			    DSS_COMMIT | (state ? DSS_ACTIVE : DSS_INACTIVE));
+	    DSS_COMMIT | (state ? DSS_ACTIVE : DSS_INACTIVE));
 out:
 	ACPI_SERIAL_END(video);
 	return (err);
@@ -634,8 +640,9 @@ static int
 acpi_video_vo_presets_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct acpi_video_output *vo;
-	int i, level, *preset, err = 0;
+	int i, level, *preset, err;
 
+	err = 0;
 	vo = (struct acpi_video_output *)arg1;
 	ACPI_SERIAL_BEGIN(video);
 	if (vo->handle == NULL) {
@@ -660,8 +667,7 @@ acpi_video_vo_presets_sysctl(SYSCTL_HANDLER_ARGS)
 		i = (arg2 == POWER_PROFILE_ECONOMY) ?
 		    BCL_ECONOMY : BCL_FULLPOWER;
 		level = vo->vo_levels[i];
-	}
-	else if ((err = acpi_video_vo_check_level(vo, level)) != 0)
+	} else if ((err = acpi_video_vo_check_level(vo, level)) != 0)
 		goto out;
 
 	if (vo->vo_brightness == -1 && (power_profile_get_state() == arg2))
@@ -794,8 +800,9 @@ vo_get_brightness_levels(ACPI_HANDLE handle, int **levelp)
 	ACPI_STATUS status;
 	ACPI_BUFFER bcl_buf;
 	ACPI_OBJECT *res;
-	int num = 0, i, n, *levels;
+	int num, i, n, *levels;
 
+	num = 0;
 	bcl_buf.Length = ACPI_ALLOCATE_BUFFER;
 	bcl_buf.Pointer = NULL;
 	status = AcpiEvaluateObject(handle, "_BCL", NULL, &bcl_buf);
@@ -852,9 +859,10 @@ vo_set_brightness(ACPI_HANDLE handle, int level)
 static UINT32
 vo_get_device_status(ACPI_HANDLE handle)
 {
-	UINT32 dcs = 0;
+	UINT32 dcs;
 	ACPI_STATUS status;
 
+	dcs = 0;
 	status = acpi_GetInteger(handle, "_DCS", &dcs);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._DCS - %s\n",
@@ -866,9 +874,10 @@ vo_get_device_status(ACPI_HANDLE handle)
 static UINT32
 vo_get_graphics_state(ACPI_HANDLE handle)
 {
-	UINT32 dgs = 0;
+	UINT32 dgs;
 	ACPI_STATUS status;
 
+	dgs = 0;
 	status = acpi_GetInteger(handle, "_DGS", &dgs);
 	if (ACPI_FAILURE(status))
 		printf("can't evaluate %s._DGS - %s\n",
