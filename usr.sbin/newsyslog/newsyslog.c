@@ -27,7 +27,7 @@ provided "as is" without express or implied warranty.
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newsyslog.c,v 1.13 1997/05/06 23:11:06 brian Exp $";
+	"$Id: newsyslog.c,v 1.14 1997/10/06 07:46:08 charnier Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -515,7 +515,7 @@ static void dotrim(log,pid_file,numdays,flags,perm,owner_uid,group_gid)
 			if (notified) {
 				if (verbose)
 					printf("small pause to allow daemon to close log\n");
-				sleep(3);
+				sleep(10);
 			}
                         compress_log(log);
 		}
