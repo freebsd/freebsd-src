@@ -286,10 +286,13 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		warn("%s", specpath);
 		return (1);
 	}
-	if (strcmp(mntpath, specpath) == 0) {
-		warnx("%s: Special device file and mount point may not be the same",
-		    specpath);
-		return (1);
+	if (strcmp(vfstype, "ufs") == 0 || strcmp(vfstype, "msdos") == 0 ||
+	    strcmp(vfstype, "cd9660") == 0) {
+		if (strcmp(mntpath, specpath) == 0) {
+			warnx("%s: Special device file and mount point may not be the same",
+		    	    specpath);
+			return (1);
+		}
 	}
 
 	if (mntopts == NULL)
