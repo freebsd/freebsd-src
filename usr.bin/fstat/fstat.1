@@ -133,14 +133,14 @@ If the file number is followed by an asterisk (``*''), the file is
 not an inode, but rather a socket,
 .Tn FIFO ,
 or there is an error.
-In this case the remainder of the line doesn't
+In this case the remainder of the line does not
 correspond to the remaining headers -- the format of the line
 is described later under
 .Sx Sockets .
 .It Li MOUNT
 If the
 .Fl n
-flag wasn't specified, this header is present and is the
+flag was not specified, this header is present and is the
 pathname that the file system the file resides in is mounted on.
 .It Li DEV
 If the
@@ -153,7 +153,7 @@ The inode number of the file.
 The mode of the file.
 If the
 .Fl n
-flag isn't specified, the mode is printed
+flag is not specified, the mode is printed
 using a symbolic format (see
 .Xr strmode 3 ) ;
 otherwise, the mode is printed

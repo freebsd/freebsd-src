@@ -51,7 +51,7 @@ If it exists, it is added to the search path.
 .Nm Manpath
 is used by
 .Xr man 1
-to determine the search path, so users normally don't need to set the
+to determine the search path, so users normally do not need to set the
 .Ev MANPATH
 environment variable directly.
 .Pp

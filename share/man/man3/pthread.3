@@ -299,7 +299,7 @@ Lock a mutex and block until it becomes available or until the timeout expires.
 .Ft int
 .Fn pthread_mutex_trylock "pthread_mutex_t *mutex"
 .Xc
-Try to lock a mutex, but don't block if the mutex is locked by another thread,
+Try to lock a mutex, but do not block if the mutex is locked by another thread,
 including the current thread.
 .It Xo
 .Ft int

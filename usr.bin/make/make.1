@@ -992,7 +992,7 @@ variable is being compared against 0.
 When
 .Nm
 is evaluating one of these conditional expressions, and it encounters
-a word it doesn't recognize, either the
+a word it does not recognize, either the
 .Dq make
 or
 .Dq defined
@@ -1068,8 +1068,8 @@ This source prevents this target from being selected.
 .It Ic .OPTIONAL
 If a target is marked with this attribute and
 .Nm
-can't figure out how to create it, it will ignore this fact and assume
-the file isn't needed or already exists.
+cannot figure out how to create it, it will ignore this fact and assume
+the file is not needed or already exists.
 .It Ic .PRECIOUS
 When
 .Nm
@@ -1113,7 +1113,7 @@ This is sort of a
 rule for any target (that was used only as a
 source) that
 .Nm
-can't figure out any other way to create.
+cannot figure out any other way to create.
 Only the shell script is used.
 The
 .Ic .IMPSRC
@@ -1462,7 +1462,7 @@ For loops are expanded before tests, so a fragment such as:
 \&.endfor
 .Ed
 .Pp
-won't work, and should be rewritten as:
+will not work, and should be rewritten as:
 .Bd -literal -offset indent
 \&.for ARCH in ${SHARED_ARCHS}
 \&.if ${MACHINE} == ${ARCH}

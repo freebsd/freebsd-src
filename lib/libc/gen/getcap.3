@@ -110,8 +110,8 @@ On success 0 is returned, 1 if the returned
 record contains an unresolved
 .Ic tc
 expansion,
-\-1 if the requested record couldn't be found,
-\-2 if a system error was encountered (couldn't open/read a file, etc.) also
+\-1 if the requested record could not be found,
+\-2 if a system error was encountered (could not open/read a file, etc.) also
 setting
 .Va errno ,
 and \-3 if a potential reference loop is detected (see
@@ -178,7 +178,7 @@ in
 .Fa buf
 is returned on success,
 .Dv NULL
-if the requested capability couldn't be
+if the requested capability could not be
 found.
 The end of the capability value is signaled by a `:' or
 .Tn ASCII
@@ -195,7 +195,7 @@ The numeric value is returned in the
 .Ft long
 pointed to by
 .Fa num .
-0 is returned on success, \-1 if the requested numeric capability couldn't
+0 is returned on success, \-1 if the requested numeric capability could not
 be found.
 .Pp
 The
@@ -214,7 +214,7 @@ pointed to by
 .Fa str .
 The number of characters in the decoded string not including the trailing
 .Dv NUL
-is returned on success, \-1 if the requested string capability couldn't
+is returned on success, \-1 if the requested string capability could not
 be found, \-2 if a system error was encountered (storage allocation
 failure).
 .Pp
@@ -257,7 +257,7 @@ expansion is done (see
 .Ic tc=
 comments below).
 Upon completion of the database 0 is returned, 1 is returned upon successful
-return of record with possibly more remaining (we haven't reached the end of
+return of record with possibly more remaining (we have not reached the end of
 the database yet), 2 is returned if the record contains an unresolved
 .Ic tc
 expansion, \-1 is returned if a system error occurred, and \-2
@@ -559,7 +559,7 @@ No memory to allocate.
 .Xr cap_mkdb 1 ,
 .Xr malloc 3
 .Sh BUGS
-Colons (`:') can't be used in names, types, or values.
+Colons (`:') cannot be used in names, types, or values.
 .Pp
 There are no checks for
 .Ic tc Ns = Ns Ic name

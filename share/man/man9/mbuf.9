@@ -408,7 +408,7 @@ to
 .Fa mbuf .
 If the macro fails, the
 .Dv M_EXT
-flag won't be set in
+flag will not be set in
 .Fa mbuf .
 .It Fn M_ALIGN mbuf len
 Set the pointer
@@ -602,7 +602,7 @@ handle
 .Dv M_PKTHDR
 properly.
 .Sy Note :
-It doesn't allocate any
+It does not allocate any
 .Vt mbuf clusters ,
 so
 .Fa len
@@ -632,7 +632,7 @@ on failure
 .Vt mbuf chain
 is freed in this case).
 .Sy Note :
-It doesn't allocate any
+It does not allocate any
 .Vt mbuf clusters ,
 so
 .Fa len
@@ -704,7 +704,7 @@ extending the
 .Vt mbuf chain
 if necessary.
 .Sy Note :
-It doesn't allocate any
+It does not allocate any
 .Vt mbuf clusters ,
 just adds
 .Vt mbufs

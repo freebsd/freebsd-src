@@ -86,7 +86,7 @@ which defaults to
 Lookups within that directory are handled by
 .Nm hlfsd ,
 which uses the password map to determine how to resolve the lookup.  The
-directory will be created if it doesn't already exist.  The symbolic link will
+directory will be created if it does not already exist.  The symbolic link will
 be to the accessing user's home directory, with
 .Ar subdir
 appended to it.  If not specified,
@@ -113,7 +113,7 @@ the symbolic link returned by
 will point, if it cannot access the home directory of the user.  This
 defaults to
 .Pa /var/hlfs .
-This directory will be created  if it doesn't exist.  It is expected
+This directory will be created  if it does not exist.  It is expected
 that either users will read these files, or the system administrators
 will run a script to resend this
 .Dq lost mail

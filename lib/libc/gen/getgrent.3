@@ -147,7 +147,7 @@ is non-zero, file descriptors are left open, significantly speeding
 functions subsequent calls.
 This functionality is unnecessary for
 .Fn getgrent
-as it doesn't close its file descriptors by default.
+as it does not close its file descriptors by default.
 It should also
 be noted that it is dangerous for long-running programs to use this
 functionality as the group file may be updated.

@@ -214,7 +214,7 @@ and
 .It Li bs_drop
 the number of packets which were accepted by the filter but dropped by the
 kernel because of buffer overflows
-(i.e., the application's reads aren't keeping up with the packet traffic).
+(i.e., the application's reads are not keeping up with the packet traffic).
 .El
 .It Dv BIOCIMMEDIATE
 .Pq Li u_int
@@ -349,7 +349,7 @@ header will be word aligned.
 Suitable precautions
 must be taken when accessing the link layer protocol fields on alignment
 restricted machines.
-(This isn't a problem on an Ethernet, since
+(This is not a problem on an Ethernet, since
 the type field is a short falling on an even offset,
 and the addresses are probably accessed in a bytewise fashion).
 .Pp
@@ -586,7 +586,7 @@ BPF_RET+BPF_A		accept A bytes
 BPF_RET+BPF_K		accept k bytes
 .Ed
 .It Dv BPF_MISC
-The miscellaneous category was created for anything that doesn't
+The miscellaneous category was created for anything that does not
 fit into the above classes, and for any new instructions that might need to
 be added.
 Currently, these are the register transfer instructions

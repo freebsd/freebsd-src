@@ -151,7 +151,7 @@ is non-zero, file descriptors are left open, significantly speeding
 up subsequent accesses for all of the routines.
 (This latter functionality is unnecessary for
 .Fn getpwent
-as it doesn't close its file descriptors by default.)
+as it does not close its file descriptors by default.)
 .Pp
 It is dangerous for long-running programs to keep the file descriptors
 open as the database will become out of date if it is updated while the
