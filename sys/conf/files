@@ -613,7 +613,7 @@ pci/adw_pci.c		optional adw device-driver
 pci/ahc_pci.c		optional ahc device-driver			\
 	dependency	"aic7xxx_reg.h $S/pci/ahc_pci.c"
 dev/bktr/bktr_core.c	optional bktr device-driver
-dev/bktr/bktr_i2c.c	optional bktr device-driver
+dev/bktr/bktr_i2c.c	optional bktr smbus device-driver
 dev/bktr/bktr_card.c	optional bktr device-driver
 dev/bktr/bktr_tuner.c	optional bktr device-driver
 dev/bktr/bktr_audio.c	optional bktr device-driver
