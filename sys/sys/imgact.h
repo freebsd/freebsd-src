@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.4 1994/08/13 03:50:34 wollman Exp $
+ *	$Id: imgact.h,v 1.5 1994/08/18 22:35:43 wollman Exp $
  */
 
 #ifndef __h_imgact
@@ -55,17 +55,5 @@ struct image_params {
 	char interpreted;	/* flag - this executable is interpreted */
 	char interpreter_name[64]; /* name of the interpreter */
 };
-
-struct execsw {
-	int (*ex_imgact)(struct image_params *);
-	const char *ex_name;
-};
-
-#ifdef KERNEL
-extern const struct execsw **execsw;
-
-extern int exec_extract_strings(struct image_params *);
-extern int exec_new_vmspace(struct image_params *);
-#endif
 
 #endif /* __h_imgact */

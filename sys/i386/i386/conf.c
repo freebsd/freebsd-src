@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.26 1994/05/25 08:52:45 rgrimes Exp $
+ *	$Id: conf.c,v 1.27 1994/08/18 22:34:39 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -68,6 +68,35 @@ typedef int d_mmap_t __P((/* XXX */));
 
 d_rdwr_t rawread, rawwrite;
 d_strategy_t swstrategy;
+
+#ifdef LKM
+int lkmenodev();
+#define	lkmopen		(d_open_t *)lkmenodev
+#define	lkmclose	(d_close_t *)lkmenodev
+#define lkmread		(d_rdwr_t *)lkmenodev
+#define lkmwrite	(d_rdwr_t *)lkmenodev
+#define	lkmstrategy	(d_strategy_t *)lkmenodev
+#define	lkmioctl	(d_ioctl_t *)lkmenodev
+#define	lkmdump		(d_dump_t *)lkmenodev
+#define	lkmsize		(d_psize_t *)0
+#define lkmstop		(d_stop_t *)lkmenodev
+#define lkmreset	(d_reset_t *)lkmenodev
+#define lkmmmap		(d_mmap_t *)lkmenodev
+#define lkmselect	(d_select_t *)lkmenodev
+#else
+#define	lkmopen		(d_open_t *)enxio
+#define	lkmclose	(d_close_t *)enxio
+#define lkmread		(d_rdwr_t *)enxio
+#define lkmwrite	(d_rdwr_t *)enxio
+#define	lkmstrategy	(d_strategy_t *)enxio
+#define	lkmioctl	(d_ioctl_t *)enxio
+#define	lkmdump		(d_dump_t *)enxio
+#define	lkmsize		(d_psize_t *)0
+#define lkmstop		(d_stop_t *)enxio
+#define lkmreset	(d_reset_t *)enxio
+#define lkmmmap		(d_mmap_t *)enxio
+#define lkmselect	(d_select_t *)enxio
+#endif
 
 #include "wd.h"
 #if (NWD > 0)
@@ -226,7 +255,21 @@ struct bdevsw	bdevsw[] =
 	  cddump,	cdsize,		0 },
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
 	  mcddump,	mcdsize,	0 },
-	{ 0, } /* block major 8 is reserved for local use */
+#ifdef LKM
+	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*8*/
+	  lkmdump,	lkmsize,	NULL },
+	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*9*/
+	  lkmdump,	lkmsize,	NULL },
+	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*10*/
+	  lkmdump,	lkmsize,	NULL },
+	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*11*/
+	  lkmdump,	lkmsize,	NULL },
+	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*12*/
+	  lkmdump,	lkmsize,	NULL },
+	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*13*/
+	  lkmdump,	lkmsize,	NULL },
+#endif
+	{ 0, } /* block major 14 is reserved for local use */
 /*
  * If you need a bdev major number, please contact the FreeBSD team
  * by sending mail to "FreeBSD-hackers@freefall.cdrom.com".
@@ -503,6 +546,16 @@ d_ioctl_t ukioctl;
 #define	ukioctl		(d_ioctl_t *)enxio
 #endif
 
+#ifdef LKM
+d_open_t lkmcopen;
+d_close_t lkmcclose;
+d_ioctl_t lkmcioctl;
+#else
+#define	lkmcopen	(d_open_t *)enxio
+#define lkmcclose	(d_close_t *)enxio
+#define lkmcioctl	(d_ioctl_t *)enxio
+#endif
+
 #define noopen		(d_open_t *)enodev
 #define noclose		(d_close_t *)enodev
 #define noread		(d_rdwr_t *)enodev
@@ -618,6 +671,27 @@ struct cdevsw	cdevsw[] =
 	{ ukopen,	ukclose,	noread,         nowrite,      	/*31*/
 	  ukioctl,	nostop,		nullreset,	NULL,	/* unknown */
 	  seltrue,	nommap,		NULL },			/* scsi */
+	{ lkmcopen,	lkmcclose,	noread,		nowrite,	/*32*/
+	  lkmcioctl,	nostop,		nullreset,	NULL,
+	  noselect,	nommap,		NULL },
+	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*33*/
+	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmselect,	lkmmmap,	NULL },
+	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*34*/
+	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmselect,	lkmmmap,	NULL },
+	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*35*/
+	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmselect,	lkmmmap,	NULL },
+	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*36*/
+	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmselect,	lkmmmap,	NULL },
+	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*37*/
+	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmselect,	lkmmmap,	NULL },
+	{ lkmopen,	lkmclose,	lkmread,	lkmwrite,	/*38*/
+	  lkmioctl,	lkmstop,	lkmreset,	NULL,
+	  lkmselect,	lkmmmap,	NULL },
 	{ 0, } /* character device 32 is reserved for local use */
 /*
  * If you need a cdev major number, please contact the FreeBSD team
