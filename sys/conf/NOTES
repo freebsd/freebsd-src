@@ -309,6 +309,13 @@ options 	GDB
 options 	SYSCTL_DEBUG
 
 #
+# DEBUG_MEMGUARD builds and enables memguard(9), a replacement allocator
+# for the kernel used to detect modify-after-free scenarios.  See the
+# memguard(9) man page for more information on usage.
+#
+options		DEBUG_MEMGUARD
+
+#
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
 # SMP-friendly, KTRACE uses a worker thread to process most trace events
 # asynchronously to the thread generating the event.  This requires a
