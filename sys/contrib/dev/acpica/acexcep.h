@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 63 $
+ *       $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -233,8 +233,9 @@
 #define AE_AML_ALIGNMENT                (ACPI_STATUS) (0x001D | AE_CODE_AML)
 #define AE_AML_NO_RESOURCE_END_TAG      (ACPI_STATUS) (0x001E | AE_CODE_AML)
 #define AE_AML_BAD_RESOURCE_VALUE       (ACPI_STATUS) (0x001F | AE_CODE_AML)
+#define AE_AML_CIRCULAR_REFERENCE       (ACPI_STATUS) (0x0020 | AE_CODE_AML)
 
-#define AE_CODE_AML_MAX                 0x001F
+#define AE_CODE_AML_MAX                 0x0020
 
 /*
  * Internal exceptions used for control
@@ -249,8 +250,9 @@
 #define AE_CTRL_TRANSFER                (ACPI_STATUS) (0x0008 | AE_CODE_CONTROL)
 #define AE_CTRL_BREAK                   (ACPI_STATUS) (0x0009 | AE_CODE_CONTROL)
 #define AE_CTRL_CONTINUE                (ACPI_STATUS) (0x000A | AE_CODE_CONTROL)
+#define AE_CTRL_SKIP                    (ACPI_STATUS) (0x000B | AE_CODE_CONTROL)
 
-#define AE_CODE_CTRL_MAX                0x000A
+#define AE_CODE_CTRL_MAX                0x000B
 
 
 #ifdef DEFINE_ACPI_GLOBALS
@@ -346,7 +348,8 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_NO_WHILE",
     "AE_AML_ALIGNMENT",
     "AE_AML_NO_RESOURCE_END_TAG",
-    "AE_AML_BAD_RESOURCE_VALUE"
+    "AE_AML_BAD_RESOURCE_VALUE",
+    "AE_AML_CIRCULAR_REFERENCE"
 };
 
 NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Ctrl[] =
@@ -360,7 +363,8 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Ctrl[] =
     "AE_CTRL_END",
     "AE_CTRL_TRANSFER",
     "AE_CTRL_BREAK",
-    "AE_CTRL_CONTINUE"
+    "AE_CTRL_CONTINUE",
+    "AE_CTRL_SKIP"
 };
 
 #endif /* ACPI GLOBALS */

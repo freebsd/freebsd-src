@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actbl2.h - ACPI Specification Revision 2.0 Tables
- *       $Revision: 27 $
+ *       $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -230,8 +230,8 @@ typedef struct
     UINT16                  Plvl3Lat;           /* Worst case HW latency to enter/exit C3 state */
     UINT16                  FlushSize;          /* Number of flush strides that need to be read */
     UINT16                  FlushStride;        /* Processor's memory cache line width, in bytes */
-    UINT8                   DutyOffset;         /* Processor’s duty cycle index in processor's P_CNT reg*/
-    UINT8                   DutyWidth;          /* Processor’s duty cycle value bit width in P_CNT register.*/
+    UINT8                   DutyOffset;         /* Processor's duty cycle index in processor's P_CNT reg*/
+    UINT8                   DutyWidth;          /* Processor's duty cycle value bit width in P_CNT register.*/
     UINT8                   DayAlrm;            /* Index to day-of-month alarm in RTC CMOS RAM */
     UINT8                   MonAlrm;            /* Index to month-of-year alarm in RTC CMOS RAM */
     UINT8                   Century;            /* Index to century in RTC CMOS RAM */

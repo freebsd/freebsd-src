@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 87 $
+ *              $Revision: 88 $
  *
  ******************************************************************************/
 
@@ -341,7 +341,7 @@ AcpiDbDisplayHelp (
         return;
 
     default:
-        AcpiOsPrintf ("Unrecognized Command Class: %X\n", HelpType);
+        AcpiOsPrintf ("Unrecognized Command Class: %s\n", HelpType);
         return;
     }
 }

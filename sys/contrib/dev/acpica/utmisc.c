@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 80 $
+ *              $Revision: 84 $
  *
  ******************************************************************************/
 
@@ -119,8 +119,6 @@
 
 #include "acpi.h"
 #include "acnamesp.h"
-#include "amlcode.h"
-#include "acinterp.h"
 
 
 #define _COMPONENT          ACPI_UTILITIES
@@ -1534,5 +1532,6 @@ AcpiUtReportInfo (
 
     AcpiOsPrintf ("%8s-%04d: *** Info: ", ModuleName, LineNumber);
 }
+
 
 

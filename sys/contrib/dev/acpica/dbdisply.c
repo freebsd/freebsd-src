@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 78 $
+ *              $Revision: 79 $
  *
  ******************************************************************************/
 
@@ -358,7 +358,7 @@ DumpNte:
 
     else
     {
-        AcpiOsPrintf ("Object (%p) Pathname:  %s\n", Node, RetBuf.Pointer);
+        AcpiOsPrintf ("Object (%p) Pathname:  %s\n", Node, (char *) RetBuf.Pointer);
     }
 
     if (!AcpiOsReadable (Node, sizeof (ACPI_NAMESPACE_NODE)))
@@ -407,7 +407,7 @@ AcpiDbDecodeInternalObject (
 
     if (!ObjDesc)
     {
-        AcpiOsPrintf (" Uninitialized\n");
+        AcpiOsPrintf (" Uninitialized");
         return;
     }
 
@@ -546,7 +546,7 @@ AcpiDbDisplayInternalObject (
         Type = ACPI_GET_OBJECT_TYPE (ObjDesc);
         if (Type > INTERNAL_TYPE_MAX)
         {
-            AcpiOsPrintf (" Type %hX [Invalid Type]", Type);
+            AcpiOsPrintf (" Type %X [Invalid Type]", (UINT32) Type);
             return;
         }
 
@@ -591,13 +591,20 @@ AcpiDbDisplayInternalObject (
             case AML_INDEX_OP:
 
                 AcpiOsPrintf ("[Index]          ");
-                AcpiDbDecodeInternalObject (ObjDesc->Reference.Object);
+                if (!ObjDesc->Reference.Where)
+                {
+                    AcpiOsPrintf ("Uninitialized WHERE ptr");
+                }
+                else
+                {
+                    AcpiDbDecodeInternalObject (*(ObjDesc->Reference.Where));
+                }
                 break;
 
 
             case AML_REF_OF_OP:
 
-                AcpiOsPrintf ("[Reference]      ");
+                AcpiOsPrintf ("[RefOf]          ");
 
                 /* Reference can be to a Node or an Operand object */
 

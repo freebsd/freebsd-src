@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbstats - Generation and display of ACPI table statistics
- *              $Revision: 61 $
+ *              $Revision: 63 $
  *
  ******************************************************************************/
 
@@ -115,9 +115,9 @@
  *****************************************************************************/
 
 
-#include <acpi.h>
-#include <acdebug.h>
-#include <acnamesp.h>
+#include "acpi.h"
+#include "acdebug.h"
+#include "acnamesp.h"
 
 #ifdef ACPI_DEBUGGER
 
@@ -412,7 +412,7 @@ AcpiDbDisplayStatistics (
 
         AcpiOsPrintf ("\nObjects defined in the current namespace:\n\n");
 
-        AcpiOsPrintf ("%16.16s % 10.10s % 10.10s\n", "ACPI_TYPE", "NODES", "OBJECTS");
+        AcpiOsPrintf ("%16.16s %10.10s %10.10s\n", "ACPI_TYPE", "NODES", "OBJECTS");
 
         for (i = 0; i < INTERNAL_TYPE_NODE_MAX; i++)
         {

@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -308,6 +308,16 @@ AcpiExStoreObjectToObject (
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
+        }
+
+        if (SourceDesc == ActualSrcDesc)
+        {
+            /* 
+             * No conversion was performed.  Return the SourceDesc as the
+             * new object.
+             */
+            *NewDesc = SourceDesc;
+            return_ACPI_STATUS (AE_OK);
         }
     }
 
