@@ -1,5 +1,5 @@
 /* Subroutines needed for unwinding stack frames for exception handling.  */
-/* Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002
+/* Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by Jason Merrill <jason@cygnus.com>.
 
@@ -60,6 +60,10 @@ struct object
     } b;
     size_t i;
   } s;
+
+#ifdef DWARF2_OBJECT_END_PTR_EXTENSION
+  char *fde_end;
+#endif
 
   struct object *next;
 };
@@ -122,7 +126,7 @@ typedef unsigned char ubyte;
    a) in a linear search, find the shared image (i.e. DLL) containing
       the PC
    b) using the FDE table for that shared object, locate the FDE using
-      binary search (which requires the sorting).  */   
+      binary search (which requires the sorting).  */
 
 /* The first few fields of a CIE.  The CIE_id field is 0 for a CIE,
    to distinguish it from a valid FDE.  FDEs are aligned to an addressing
@@ -160,3 +164,13 @@ next_fde (fde *f)
 }
 
 extern fde * _Unwind_Find_FDE (void *, struct dwarf_eh_bases *);
+
+static inline int
+last_fde (struct object *obj __attribute__ ((__unused__)), fde *f)
+{
+#ifdef DWARF2_OBJECT_END_PTR_EXTENSION
+  return (char *)f == obj->fde_end || f->length == 0;
+#else
+  return f->length == 0;
+#endif
+}

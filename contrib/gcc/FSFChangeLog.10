@@ -5704,7 +5704,7 @@ Sun Aug 13 14:50:58 1995  Jim Wilson  <wilson@chestnut.cygnus.com>
 	* Makefile.in (gfloat.h): Add a - before the rm command.
 
 	* loop.c (find_and_verify_loops): Set dest_loop only if
-	JUMP_LABEL (insn) is non-zero.
+	JUMP_LABEL (insn) is nonzero.
 
 Mon Jul 31 14:31:53 1995  Ian Lance Taylor  <ian@cygnus.com>
 
@@ -6057,7 +6057,7 @@ Mon Jul 17 06:41:19 1995  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
 
 	* xm-alpha.h (sbrk): Add declaration.
 
-	* convert.c (convert_to_integer): If TYPE is a enumeral type or
+	* convert.c (convert_to_integer): If TYPE is an enumeral type or
 	if its precision is not the same as the size of its mode,
 	convert in two steps.
 
@@ -8538,7 +8538,7 @@ Tue Apr 25 18:52:43 1995  Stephen R. van den Berg  (berg@pool.informatik.rwth-aa
 	(mark_regs_pat, straighten_stack): New functions.
 	(reg_to_stack): Amend initialisation of FP_mode_reg.
 	Mark FP registers mentioned in USE insns before NOTE_INSN_FUNCTION_BEG.
-	(get_true_reg): Eliminate FP subreg accesses in favour of the
+	(get_true_reg): Eliminate FP subreg accesses in favor of the
 	actual FP register in use.
 	(record_reg_life_pat): Make it work on SUBREGs as well.  Make use of
 	the new mark_regs_pat function.  Handle USE insns if called unnested.
@@ -8552,7 +8552,7 @@ Tue Apr 25 18:52:43 1995  Stephen R. van den Berg  (berg@pool.informatik.rwth-aa
 	Delete the no_live_regs shortcut to save space.
 	Use stackentry state to determine filled registers.
 	(replace_reg): Accept COMPLEX_FLOAT as well.
-	(move_for_stack_reg): Optimise away some pointer dereferencing.
+	(move_for_stack_reg): Optimize away some pointer dereferencing.
 	(subst_stack_regs): Make sure the stack is in the right order
 	and of the right size for register passing.
 	(goto_block_pat): Make sure the stack is in the right order
@@ -8841,7 +8841,7 @@ Sat Apr 15 13:26:34 1995  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
 Sat Apr 15 12:11:46 1995  Brendan Kehoe  <brendan@cygnus.com>
 
 	* alpha/alpha.c (output_epilog): Initialize fp_offset to 0, and
-	make sure it's non-zero before we try to use it to restore the
+	make sure it's nonzero before we try to use it to restore the
 	frame pointer.
 
 Fri Apr 14 19:45:05 1995  Jason Merrill  <jason@phydeaux.cygnus.com>

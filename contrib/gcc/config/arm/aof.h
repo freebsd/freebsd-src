@@ -54,8 +54,6 @@ Boston, MA 02111-1307, USA.  */
    addressing across such boundaries.  */
 #define TEXT_SECTION_ASM_OP aof_text_section ()
 
-#define SELECT_RTX_SECTION(MODE,RTX,ALIGN) text_section ();
-
 #define DATA_SECTION_ASM_OP aof_data_section ()
 
 #define EXTRA_SECTIONS in_zero_init, in_common
@@ -222,14 +220,8 @@ do					\
 
 extern int arm_main_function;
 
-#define ASM_GLOBALIZE_LABEL(STREAM,NAME)		\
-do {							\
-  fprintf ((STREAM), "\tEXPORT\t");			\
-  assemble_name ((STREAM), (NAME));			\
-  fputc ('\n', (STREAM));				\
-  if ((NAME)[0] == 'm' && ! strcmp ((NAME), "main"))	\
-    arm_main_function = 1;				\
-} while (0)
+/* Globalizing directive for a label.  */
+#define GLOBAL_ASM_OP "\tEXPORT\t"
 
 #define ASM_OUTPUT_LABEL(STREAM,NAME)	\
 do {					\

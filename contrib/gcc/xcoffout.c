@@ -32,6 +32,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "toplev.h"
 #include "output.h"
 #include "ggc.h"
+#include "target.h"
 
 #ifdef XCOFF_DEBUGGING_INFO
 
@@ -475,7 +476,9 @@ xcoffout_end_function (last_linenum)
    Called after the epilogue is output.  */
 
 void
-xcoffout_end_epilogue ()
+xcoffout_end_epilogue (line, file)
+     unsigned int line ATTRIBUTE_UNUSED;
+     const char *file ATTRIBUTE_UNUSED;
 {
   /* We need to pass the correct function size to .function, otherwise,
      the xas assembler can't figure out the correct size for the function

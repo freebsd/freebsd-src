@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler,
-   for powerpc machines running Linux.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2003
+   for PowerPC machines running Linux.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Contributed by Michael Meissner (meissner@cygnus.com).
 
@@ -21,15 +21,20 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* Don't assume anything about the header files.  */
-#define NO_IMPLICIT_EXTERN_C
-
 #undef MD_EXEC_PREFIX
 #undef MD_STARTFILE_PREFIX
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES \
- "-DPPC -D__ELF__ -Dpowerpc -Acpu=powerpc -Amachine=powerpc"
+#undef TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS()          \
+  do                                      \
+    {                                     \
+      builtin_define_std ("PPC");         \
+      builtin_define ("__ELF__");         \
+      builtin_define_std ("powerpc");     \
+      builtin_assert ("cpu=powerpc");     \
+      builtin_assert ("machine=powerpc"); \
+    }                                     \
+  while (0)
 
 #undef	CPP_OS_DEFAULT_SPEC
 #define CPP_OS_DEFAULT_SPEC "%(cpp_os_linux)"
@@ -79,7 +84,18 @@ Boston, MA 02111-1307, USA.  */
 
 #ifdef IN_LIBGCC2
 #include <signal.h>
-#include <sys/ucontext.h>
+
+/* During the 2.5 kernel series the kernel ucontext was changed, but
+   the new layout is compatible with the old one, so we just define
+   and use the old one here for simplicity and compatibility.  */
+
+struct kernel_old_ucontext {
+  unsigned long     uc_flags;
+  struct ucontext  *uc_link;
+  stack_t           uc_stack;
+  struct sigcontext_struct uc_mcontext;
+  sigset_t          uc_sigmask;
+};
 
 enum { SIGNAL_FRAMESIZE = 64 };
 #endif
@@ -115,7 +131,7 @@ enum { SIGNAL_FRAMESIZE = 64 };
 	  struct siginfo *pinfo;					\
 	  void *puc;							\
 	  struct siginfo info;						\
-	  struct ucontext uc;						\
+	  struct kernel_old_ucontext uc;				\
 	} *rt_ = (CONTEXT)->cfa;					\
 	sc_ = &rt_->uc.uc_mcontext;					\
       }									\
@@ -139,15 +155,9 @@ enum { SIGNAL_FRAMESIZE = 64 };
     (FS)->regs.reg[LINK_REGISTER_REGNUM].loc.offset 			\
       = (long)&(sc_->regs->link) - new_cfa_;				\
 									\
-    /* The unwinder expects the IP to point to the following insn,	\
-       whereas the kernel returns the address of the actual		\
-       faulting insn. We store NIP+4 in an unused register slot to	\
-       get the same result for multiple evaluation of the same signal	\
-       frame.  */							\
-    sc_->regs->gpr[47] = sc_->regs->nip + 4;  				\
     (FS)->regs.reg[CR0_REGNO].how = REG_SAVED_OFFSET;			\
     (FS)->regs.reg[CR0_REGNO].loc.offset 				\
-      = (long)&(sc_->regs->gpr[47]) - new_cfa_;				\
+      = (long)&(sc_->regs->nip) - new_cfa_;				\
     (FS)->retaddr_column = CR0_REGNO;					\
     goto SUCCESS;							\
   } while (0)

@@ -20,7 +20,7 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#undef TARGET_VERSION
+#undef  TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (FreeBSD/x86-64 ELF)");
 
 /* Provide a LINK_SPEC appropriate for the FreeBSD/x86-64 ELF target.
@@ -29,8 +29,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef	LINK_SPEC
 #define LINK_SPEC "\
-  %{!m32:-m elf_x86_64} \
-  %{m32:-m elf_i386} \
+  %{m32:-m elf_i386_fbsd} \
   %{Wl,*:%*} \
   %{v:-V} \
   %{assert*} %{R*} %{rpath*} %{defsym*} \

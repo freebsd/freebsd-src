@@ -26,19 +26,18 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "ggc.h"
 
 static void free_list PARAMS ((rtx *, rtx *));
-static void zap_lists PARAMS ((void *));
 
 /* Functions for maintaining cache-able lists of EXPR_LIST and INSN_LISTs.  */
 
 /* An INSN_LIST containing all INSN_LISTs allocated but currently unused.  */
-static rtx unused_insn_list;
+static GTY ((deletable (""))) rtx unused_insn_list;
 
 /* An EXPR_LIST containing all EXPR_LISTs allocated but currently unused.  */
-static rtx unused_expr_list;
+static GTY ((deletable (""))) rtx unused_expr_list;
 
 
 /* This function will free an entire list of either EXPR_LIST or INSN_LIST
-   nodes. This is to be used only only lists that consist exclusively of
+   nodes. This is to be used only on lists that consist exclusively of
    nodes of one type only.  This is only called by free_EXPR_LIST_list
    and free_INSN_LIST_list.  */
 static void
@@ -62,7 +61,7 @@ free_list (listp, unused_listp)
 }
 
 /* This call is used in place of a gen_rtx_INSN_LIST. If there is a cached
-   node available, we'll use it, otherwise a call to gen_rtx_INSN_LIST 
+   node available, we'll use it, otherwise a call to gen_rtx_INSN_LIST
    is made.  */
 rtx
 alloc_INSN_LIST (val, next)
@@ -85,7 +84,7 @@ alloc_INSN_LIST (val, next)
 }
 
 /* This call is used in place of a gen_rtx_EXPR_LIST. If there is a cached
-   node available, we'll use it, otherwise a call to gen_rtx_EXPR_LIST 
+   node available, we'll use it, otherwise a call to gen_rtx_EXPR_LIST
    is made.  */
 rtx
 alloc_EXPR_LIST (kind, val, next)
@@ -108,24 +107,8 @@ alloc_EXPR_LIST (kind, val, next)
   return r;
 }
 
-/* This function will initialize the EXPR_LIST and INSN_LIST caches.  */
-
-static void
-zap_lists (dummy)
-     void *dummy ATTRIBUTE_UNUSED;
-{
-  unused_expr_list = NULL;
-  unused_insn_list = NULL;
-}
-
-void 
-init_EXPR_INSN_LIST_cache ()
-{
-  ggc_add_root (&unused_expr_list, 1, 1, zap_lists);
-}
-
 /* This function will free up an entire list of EXPR_LIST nodes.  */
-void 
+void
 free_EXPR_LIST_list (listp)
      rtx *listp;
 {
@@ -135,7 +118,7 @@ free_EXPR_LIST_list (listp)
 }
 
 /* This function will free up an entire list of INSN_LIST nodes.  */
-void 
+void
 free_INSN_LIST_list (listp)
      rtx *listp;
 {
@@ -145,7 +128,7 @@ free_INSN_LIST_list (listp)
 }
 
 /* This function will free up an individual EXPR_LIST node.  */
-void 
+void
 free_EXPR_LIST_node (ptr)
      rtx ptr;
 {
@@ -154,10 +137,12 @@ free_EXPR_LIST_node (ptr)
 }
 
 /* This function will free up an individual INSN_LIST node.  */
-void 
+void
 free_INSN_LIST_node (ptr)
      rtx ptr;
 {
   XEXP (ptr, 1) = unused_insn_list;
   unused_insn_list = ptr;
 }
+
+#include "gt-lists.h"

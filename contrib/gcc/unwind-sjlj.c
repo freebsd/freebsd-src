@@ -63,7 +63,7 @@ struct SjLj_Function_Context
 #ifdef DONT_USE_BUILTIN_SETJMP
   /* We don't know what sort of alignment requirements the system
      jmp_buf has.  We over estimated in except.c, and now we have
-     to match that here just in case the system *didn't* have more 
+     to match that here just in case the system *didn't* have more
      restrictive requirements.  */
   jmp_buf jbuf __attribute__((aligned));
 #else
@@ -76,7 +76,7 @@ struct _Unwind_Context
   struct SjLj_Function_Context *fc;
 };
 
-typedef struct 
+typedef struct
 {
   _Unwind_Personality_Fn personality;
 } _Unwind_FrameState;
@@ -174,6 +174,15 @@ _Unwind_GetGR (struct _Unwind_Context *context, int index)
   return context->fc->data[index];
 }
 
+/* Get the value of the CFA as saved in CONTEXT.  */
+
+_Unwind_Word
+_Unwind_GetCFA (struct _Unwind_Context *context)
+{
+  /* ??? Ideally __builtin_setjmp places the CFA in the jmpbuf.  */
+  return NULL;
+}
+
 void
 _Unwind_SetGR (struct _Unwind_Context *context, int index, _Unwind_Word val)
 {
@@ -206,6 +215,12 @@ _Unwind_Ptr
 _Unwind_GetRegionStart (struct _Unwind_Context *context __attribute__((unused)) )
 {
   return 0;
+}
+
+void *
+_Unwind_FindEnclosingFunction (void *pc)
+{
+  return NULL;
 }
 
 #ifndef __ia64__
@@ -244,14 +259,14 @@ uw_update_context (struct _Unwind_Context *context,
   context->fc = context->fc->prev;
 }
 
-static inline void 
+static inline void
 uw_init_context (struct _Unwind_Context *context)
 {
   context->fc = _Unwind_SjLj_GetContext ();
 }
 
 /* ??? There appear to be bugs in integrate.c wrt __builtin_longjmp and
-   virtual-stack-vars.  An inline version of this segfaults on Sparc.  */
+   virtual-stack-vars.  An inline version of this segfaults on SPARC.  */
 #define uw_install_context(CURRENT, TARGET)		\
   do							\
     {							\
@@ -274,6 +289,7 @@ uw_identify_context (struct _Unwind_Context *context)
 #define _Unwind_RaiseException		_Unwind_SjLj_RaiseException
 #define _Unwind_ForcedUnwind		_Unwind_SjLj_ForcedUnwind
 #define _Unwind_Resume			_Unwind_SjLj_Resume
+#define _Unwind_Resume_or_Rethrow	_Unwind_SjLj_Resume_or_Rethrow
 
 #include "unwind.inc"
 

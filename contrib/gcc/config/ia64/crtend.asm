@@ -1,4 +1,4 @@
-/* Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 2000, 2001, 2003 Free Software Foundation, Inc.
    Contributed by Jes Sorensen, <Jes.Sorensen@cern.ch>
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -16,6 +16,8 @@
    write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
+#include "auto-host.h"
+
 .section .ctors,"aw","progbits"
 	.align	8
 __CTOR_END__:
@@ -31,6 +33,7 @@ __DTOR_END__:
 __JCR_END__:
 	data8	0
 
+#ifndef HAVE_INITFINI_ARRAY
 /*
  * Fragment of the ELF _init routine that invokes our dtor cleanup.
  *
@@ -59,9 +62,16 @@ __JCR_END__:
 	  br.call.sptk.many b0 = b6
 	  ;;
 	}
+#endif /* !HAVE_INITFINI_ARRAY */
 
 .text
 	.align 16
+#ifdef HAVE_INITFINI_ARRAY
+	/* This is referenced from crtbegin.o.  */
+	.globl __do_global_ctors_aux#
+	.type __do_global_ctors_aux#,@function
+	.hidden __do_global_ctors_aux#
+#endif
 	.proc __do_global_ctors_aux#
 __do_global_ctors_aux:
 	/*

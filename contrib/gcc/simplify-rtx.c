@@ -1,6 +1,6 @@
 /* RTL simplification functions for GNU compiler.
    Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -22,8 +22,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
-
 #include "rtl.h"
+#include "tree.h"
 #include "tm_p.h"
 #include "regs.h"
 #include "hard-reg-set.h"
@@ -43,26 +43,12 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    virtual regs here because the simplify_*_operation routines are called
    by integrate.c, which is called before virtual register instantiation.
 
-   ?!? FIXED_BASE_PLUS_P and NONZERO_BASE_PLUS_P need to move into 
+   ?!? NONZERO_BASE_PLUS_P needs to move into
    a header file so that their definitions can be shared with the
    simplification routines in simplify-rtx.c.  Until then, do not
-   change these macros without also changing the copy in simplify-rtx.c.  */
+   change this macro without also changing the copy in simplify-rtx.c.  */
 
-#define FIXED_BASE_PLUS_P(X)					\
-  ((X) == frame_pointer_rtx || (X) == hard_frame_pointer_rtx	\
-   || ((X) == arg_pointer_rtx && fixed_regs[ARG_POINTER_REGNUM])\
-   || (X) == virtual_stack_vars_rtx				\
-   || (X) == virtual_incoming_args_rtx				\
-   || (GET_CODE (X) == PLUS && GET_CODE (XEXP (X, 1)) == CONST_INT \
-       && (XEXP (X, 0) == frame_pointer_rtx			\
-	   || XEXP (X, 0) == hard_frame_pointer_rtx		\
-	   || ((X) == arg_pointer_rtx				\
-	       && fixed_regs[ARG_POINTER_REGNUM])		\
-	   || XEXP (X, 0) == virtual_stack_vars_rtx		\
-	   || XEXP (X, 0) == virtual_incoming_args_rtx))	\
-   || GET_CODE (X) == ADDRESSOF)
-
-/* Similar, but also allows reference to the stack pointer.
+/* Allows reference to the stack pointer.
 
    This used to include FIXED_BASE_PLUS_P, however, we can't assume that
    arg_pointer_rtx by itself is nonzero, because on at least one machine,
@@ -101,13 +87,6 @@ static int simplify_plus_minus_op_data_cmp PARAMS ((const void *,
 static rtx simplify_plus_minus		PARAMS ((enum rtx_code,
 						 enum machine_mode, rtx,
 						 rtx, int));
-static void check_fold_consts		PARAMS ((PTR));
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
-static void simplify_unary_real		PARAMS ((PTR));
-static void simplify_binary_real	PARAMS ((PTR));
-#endif
-static void simplify_binary_is2orm1	PARAMS ((PTR));
-
 
 /* Negate a CONST_INT rtx, truncating (because a conversion from a
    maximally negative number can overflow).  */
@@ -116,11 +95,11 @@ neg_const_int (mode, i)
      enum machine_mode mode;
      rtx i;
 {
-  return GEN_INT (trunc_int_for_mode (- INTVAL (i), mode));
+  return gen_int_mode (- INTVAL (i), mode);
 }
 
 
-/* Make a binary operation by properly ordering the operands and 
+/* Make a binary operation by properly ordering the operands and
    seeing if the expression folds.  */
 
 rtx
@@ -166,6 +145,9 @@ avoid_constant_pool_reference (x)
   if (GET_CODE (x) != MEM)
     return x;
   addr = XEXP (x, 0);
+
+  if (GET_CODE (addr) == LO_SUM)
+    addr = XEXP (addr, 1);
 
   if (GET_CODE (addr) != SYMBOL_REF
       || ! CONSTANT_POOL_ADDRESS_P (addr))
@@ -239,6 +221,31 @@ simplify_gen_relational (code, mode, cmp_mode, op0, op1)
   if ((tem = simplify_relational_operation (code, cmp_mode, op0, op1)) != 0)
     return tem;
 
+  /* For the following tests, ensure const0_rtx is op1.  */
+  if (op0 == const0_rtx && swap_commutative_operands_p (op0, op1))
+    tem = op0, op0 = op1, op1 = tem, code = swap_condition (code);
+
+  /* If op0 is a compare, extract the comparison arguments from it.  */
+  if (GET_CODE (op0) == COMPARE && op1 == const0_rtx)
+    op1 = XEXP (op0, 1), op0 = XEXP (op0, 0);
+
+  /* If op0 is a comparison, extract the comparison arguments form it.  */
+  if (code == NE && op1 == const0_rtx
+      && GET_RTX_CLASS (GET_CODE (op0)) == '<')
+    return op0;
+  else if (code == EQ && op1 == const0_rtx)
+    {
+      /* The following tests GET_RTX_CLASS (GET_CODE (op0)) == '<'.  */
+      enum rtx_code new = reversed_comparison_code (op0, NULL_RTX);
+      if (new != UNKNOWN)
+        {
+	  code = new;
+	  mode = cmp_mode;
+	  op1 = XEXP (op0, 1);
+	  op0 = XEXP (op0, 0);
+        }
+    }
+
   /* Put complex operands first and constants second.  */
   if (swap_commutative_operands_p (op0, op1))
     tem = op0, op0 = op1, op1 = tem, code = swap_condition (code);
@@ -307,7 +314,7 @@ simplify_replace_rtx (x, old, new)
 	rtx op0 = simplify_replace_rtx (XEXP (x, 0), old, new);
 
 	return
-	  simplify_gen_ternary (code, mode, 
+	  simplify_gen_ternary (code, mode,
 				(op_mode != VOIDmode
 				 ? op_mode
 				 : GET_MODE (op0)),
@@ -331,79 +338,36 @@ simplify_replace_rtx (x, old, new)
 	}
       return x;
 
-    default:
-      if (GET_CODE (x) == MEM)
-	return
-	  replace_equiv_address_nv (x,
-				    simplify_replace_rtx (XEXP (x, 0),
-							  old, new));
+    case 'o':
+      if (code == MEM)
+	return replace_equiv_address_nv (x,
+					 simplify_replace_rtx (XEXP (x, 0),
+							       old, new));
+      else if (code == LO_SUM)
+	{
+	  rtx op0 = simplify_replace_rtx (XEXP (x, 0), old, new);
+	  rtx op1 = simplify_replace_rtx (XEXP (x, 1), old, new);
 
+	  /* (lo_sum (high x) x) -> x  */
+	  if (GET_CODE (op0) == HIGH && rtx_equal_p (XEXP (op0, 0), op1))
+	    return op1;
+
+	  return gen_rtx_LO_SUM (mode, op0, op1);
+	}
+      else if (code == REG)
+	{
+	  if (REG_P (old) && REGNO (x) == REGNO (old))
+	    return new;
+	}
+
+      return x;
+
+    default:
       return x;
     }
   return x;
 }
 
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
-/* Subroutine of simplify_unary_operation, called via do_float_handler.
-   Handles simplification of unary ops on floating point values.  */
-struct simplify_unary_real_args
-{
-  rtx operand;
-  rtx result;
-  enum machine_mode mode;
-  enum rtx_code code;
-  bool want_integer;
-};
-#define REAL_VALUE_ABS(d_) \
-   (REAL_VALUE_NEGATIVE (d_) ? REAL_VALUE_NEGATE (d_) : (d_))
-
-static void
-simplify_unary_real (p)
-     PTR p;
-{
-  REAL_VALUE_TYPE d;
-
-  struct simplify_unary_real_args *args =
-    (struct simplify_unary_real_args *) p;
-
-  REAL_VALUE_FROM_CONST_DOUBLE (d, args->operand);
-
-  if (args->want_integer)
-    {
-      HOST_WIDE_INT i;
-
-      switch (args->code)
-	{
-	case FIX:		i = REAL_VALUE_FIX (d);		  break;
-	case UNSIGNED_FIX:	i = REAL_VALUE_UNSIGNED_FIX (d);  break;
-	default:
-	  abort ();
-	}
-      args->result = GEN_INT (trunc_int_for_mode (i, args->mode));
-    }
-  else
-    {
-      switch (args->code)
-	{
-	case SQRT:
-	  /* We don't attempt to optimize this.  */
-	  args->result = 0;
-	  return;
-
-	case ABS:	      d = REAL_VALUE_ABS (d);			break;
-	case NEG:	      d = REAL_VALUE_NEGATE (d);		break;
-	case FLOAT_TRUNCATE:  d = real_value_truncate (args->mode, d);  break;
-	case FLOAT_EXTEND:    /* All this does is change the mode.  */  break;
-	case FIX:	      d = REAL_VALUE_RNDZINT (d);		break;
-	case UNSIGNED_FIX:    d = REAL_VALUE_UNSIGNED_RNDZINT (d);	break;
-	default:
-	  abort ();
-	}
-      args->result = CONST_DOUBLE_FROM_REAL_VALUE (d, args->mode);
-    }
-}
-#endif
-
 /* Try to simplify a unary operation CODE whose output mode is to be
    MODE with input operand OP whose mode was originally OP_MODE.
    Return zero if no simplification can be made.  */
@@ -417,11 +381,47 @@ simplify_unary_operation (code, mode, op, op_mode)
   unsigned int width = GET_MODE_BITSIZE (mode);
   rtx trueop = avoid_constant_pool_reference (op);
 
+  if (code == VEC_DUPLICATE)
+    {
+      if (!VECTOR_MODE_P (mode))
+	abort ();
+      if (GET_MODE (trueop) != VOIDmode
+	  && !VECTOR_MODE_P (GET_MODE (trueop))
+	  && GET_MODE_INNER (mode) != GET_MODE (trueop))
+	abort ();
+      if (GET_MODE (trueop) != VOIDmode
+	  && VECTOR_MODE_P (GET_MODE (trueop))
+	  && GET_MODE_INNER (mode) != GET_MODE_INNER (GET_MODE (trueop)))
+	abort ();
+      if (GET_CODE (trueop) == CONST_INT || GET_CODE (trueop) == CONST_DOUBLE
+	  || GET_CODE (trueop) == CONST_VECTOR)
+	{
+          int elt_size = GET_MODE_SIZE (GET_MODE_INNER (mode));
+          unsigned n_elts = (GET_MODE_SIZE (mode) / elt_size);
+	  rtvec v = rtvec_alloc (n_elts);
+	  unsigned int i;
+
+	  if (GET_CODE (trueop) != CONST_VECTOR)
+	    for (i = 0; i < n_elts; i++)
+	      RTVEC_ELT (v, i) = trueop;
+	  else
+	    {
+	      enum machine_mode inmode = GET_MODE (trueop);
+              int in_elt_size = GET_MODE_SIZE (GET_MODE_INNER (inmode));
+              unsigned in_n_elts = (GET_MODE_SIZE (inmode) / in_elt_size);
+
+	      if (in_n_elts >= n_elts || n_elts % in_n_elts)
+		abort ();
+	      for (i = 0; i < n_elts; i++)
+	        RTVEC_ELT (v, i) = CONST_VECTOR_ELT (trueop, i % in_n_elts);
+	    }
+	  return gen_rtx_CONST_VECTOR (mode, v);
+	}
+    }
+
   /* The order of these tests is critical so that, for example, we don't
      check the wrong mode (input vs. output) for a conversion operation,
      such as FIX.  At some point, this should be simplified.  */
-
-#if !defined(REAL_IS_NOT_DOUBLE) || defined(REAL_ARITHMETIC)
 
   if (code == FLOAT && GET_MODE (trueop) == VOIDmode
       && (GET_CODE (trueop) == CONST_DOUBLE || GET_CODE (trueop) == CONST_INT))
@@ -434,25 +434,7 @@ simplify_unary_operation (code, mode, op, op_mode)
       else
 	lv = CONST_DOUBLE_LOW (trueop),  hv = CONST_DOUBLE_HIGH (trueop);
 
-#ifdef REAL_ARITHMETIC
       REAL_VALUE_FROM_INT (d, lv, hv, mode);
-#else
-      if (hv < 0)
-	{
-	  d = (double) (~ hv);
-	  d *= ((double) ((HOST_WIDE_INT) 1 << (HOST_BITS_PER_WIDE_INT / 2))
-		* (double) ((HOST_WIDE_INT) 1 << (HOST_BITS_PER_WIDE_INT / 2)));
-	  d += (double) (unsigned HOST_WIDE_INT) (~ lv);
-	  d = (- d - 1.0);
-	}
-      else
-	{
-	  d = (double) hv;
-	  d *= ((double) ((HOST_WIDE_INT) 1 << (HOST_BITS_PER_WIDE_INT / 2))
-		* (double) ((HOST_WIDE_INT) 1 << (HOST_BITS_PER_WIDE_INT / 2)));
-	  d += (double) (unsigned HOST_WIDE_INT) lv;
-	}
-#endif  /* REAL_ARITHMETIC */
       d = real_value_truncate (mode, d);
       return CONST_DOUBLE_FROM_REAL_VALUE (d, mode);
     }
@@ -480,19 +462,10 @@ simplify_unary_operation (code, mode, op, op_mode)
       else
 	hv = 0, lv &= GET_MODE_MASK (op_mode);
 
-#ifdef REAL_ARITHMETIC
       REAL_VALUE_FROM_UNSIGNED_INT (d, lv, hv, mode);
-#else
-
-      d = (double) (unsigned HOST_WIDE_INT) hv;
-      d *= ((double) ((HOST_WIDE_INT) 1 << (HOST_BITS_PER_WIDE_INT / 2))
-	    * (double) ((HOST_WIDE_INT) 1 << (HOST_BITS_PER_WIDE_INT / 2)));
-      d += (double) (unsigned HOST_WIDE_INT) lv;
-#endif  /* REAL_ARITHMETIC */
       d = real_value_truncate (mode, d);
       return CONST_DOUBLE_FROM_REAL_VALUE (d, mode);
     }
-#endif
 
   if (GET_CODE (trueop) == CONST_INT
       && width <= HOST_BITS_PER_WIDE_INT && width > 0)
@@ -668,20 +641,38 @@ simplify_unary_operation (code, mode, op, op_mode)
       return immed_double_const (lv, hv, mode);
     }
 
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
   else if (GET_CODE (trueop) == CONST_DOUBLE
 	   && GET_MODE_CLASS (mode) == MODE_FLOAT)
     {
-      struct simplify_unary_real_args args;
-      args.operand = trueop;
-      args.mode = mode;
-      args.code = code;
-      args.want_integer = false;
+      REAL_VALUE_TYPE d;
+      REAL_VALUE_FROM_CONST_DOUBLE (d, trueop);
 
-      if (do_float_handler (simplify_unary_real, (PTR) &args))
-	return args.result;
+      switch (code)
+	{
+	case SQRT:
+	  /* We don't attempt to optimize this.  */
+	  return 0;
 
-      return 0;
+	case ABS:
+	  d = REAL_VALUE_ABS (d);
+	  break;
+	case NEG:
+	  d = REAL_VALUE_NEGATE (d);
+	  break;
+	case FLOAT_TRUNCATE:
+	  d = real_value_truncate (mode, d);
+	  break;
+	case FLOAT_EXTEND:
+	  /* All this does is change the mode.  */
+	  break;
+	case FIX:
+	  real_arithmetic (&d, FIX_TRUNC_EXPR, &d, NULL);
+	  break;
+
+	default:
+	  abort ();
+	}
+      return CONST_DOUBLE_FROM_REAL_VALUE (d, mode);
     }
 
   else if (GET_CODE (trueop) == CONST_DOUBLE
@@ -689,18 +680,19 @@ simplify_unary_operation (code, mode, op, op_mode)
 	   && GET_MODE_CLASS (mode) == MODE_INT
 	   && width <= HOST_BITS_PER_WIDE_INT && width > 0)
     {
-      struct simplify_unary_real_args args;
-      args.operand = trueop;
-      args.mode = mode;
-      args.code = code;
-      args.want_integer = true;
-
-      if (do_float_handler (simplify_unary_real, (PTR) &args))
-	return args.result;
-
-      return 0;
+      HOST_WIDE_INT i;
+      REAL_VALUE_TYPE d;
+      REAL_VALUE_FROM_CONST_DOUBLE (d, trueop);
+      switch (code)
+	{
+	case FIX:		i = REAL_VALUE_FIX (d);		  break;
+	case UNSIGNED_FIX:	i = REAL_VALUE_UNSIGNED_FIX (d);  break;
+	default:
+	  abort ();
+	}
+      return gen_int_mode (i, mode);
     }
-#endif
+
   /* This was formerly used only for non-IEEE float.
      eggert@twinsun.com says it is safe for IEEE also.  */
   else
@@ -765,7 +757,7 @@ simplify_unary_operation (code, mode, op, op_mode)
 	    return convert_memory_address (Pmode, op);
 	  break;
 #endif
-	  
+
 	default:
 	  break;
 	}
@@ -774,96 +766,6 @@ simplify_unary_operation (code, mode, op, op_mode)
     }
 }
 
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
-/* Subroutine of simplify_binary_operation, called via do_float_handler.
-   Handles simplification of binary ops on floating point values.  */
-struct simplify_binary_real_args
-{
-  rtx trueop0, trueop1;
-  rtx result;
-  enum rtx_code code;
-  enum machine_mode mode;
-};
-
-static void
-simplify_binary_real (p)
-     PTR p;
-{
-  REAL_VALUE_TYPE f0, f1, value;
-  struct simplify_binary_real_args *args =
-    (struct simplify_binary_real_args *) p;
-
-  REAL_VALUE_FROM_CONST_DOUBLE (f0, args->trueop0);
-  REAL_VALUE_FROM_CONST_DOUBLE (f1, args->trueop1);
-  f0 = real_value_truncate (args->mode, f0);
-  f1 = real_value_truncate (args->mode, f1);
-
-#ifdef REAL_ARITHMETIC
-#ifndef REAL_INFINITY
-  if (args->code == DIV && REAL_VALUES_EQUAL (f1, dconst0))
-    {
-      args->result = 0;
-      return;
-    }
-#endif
-  REAL_ARITHMETIC (value, rtx_to_tree_code (args->code), f0, f1);
-#else
-  switch (args->code)
-    {
-    case PLUS:
-      value = f0 + f1;
-      break;
-    case MINUS:
-      value = f0 - f1;
-      break;
-    case MULT:
-      value = f0 * f1;
-      break;
-    case DIV:
-#ifndef REAL_INFINITY
-      if (f1 == 0)
-	return 0;
-#endif
-      value = f0 / f1;
-      break;
-    case SMIN:
-      value = MIN (f0, f1);
-      break;
-    case SMAX:
-      value = MAX (f0, f1);
-      break;
-    default:
-      abort ();
-    }
-#endif
-
-  value = real_value_truncate (args->mode, value);
-  args->result = CONST_DOUBLE_FROM_REAL_VALUE (value, args->mode);
-}
-#endif
-
-/* Another subroutine called via do_float_handler.  This one tests
-   the floating point value given against 2. and -1.  */
-struct simplify_binary_is2orm1_args
-{
-  rtx value;
-  bool is_2;
-  bool is_m1;
-};
-
-static void
-simplify_binary_is2orm1 (p)
-     PTR p;
-{
-  REAL_VALUE_TYPE d;
-  struct simplify_binary_is2orm1_args *args =
-    (struct simplify_binary_is2orm1_args *) p;
-
-  REAL_VALUE_FROM_CONST_DOUBLE (d, args->value);
-  args->is_2 = REAL_VALUES_EQUAL (d, dconst2);
-  args->is_m1 = REAL_VALUES_EQUAL (d, dconstm1);
-}
-
 /* Simplify a binary operation CODE with result mode MODE, operating on OP0
    and OP1.  Return 0 if no simplification is possible.
 
@@ -898,23 +800,28 @@ simplify_binary_operation (code, mode, op0, op1)
       tem = trueop0, trueop0 = trueop1, trueop1 = tem;
     }
 
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
   if (GET_MODE_CLASS (mode) == MODE_FLOAT
       && GET_CODE (trueop0) == CONST_DOUBLE
       && GET_CODE (trueop1) == CONST_DOUBLE
       && mode == GET_MODE (op0) && mode == GET_MODE (op1))
     {
-      struct simplify_binary_real_args args;
-      args.trueop0 = trueop0;
-      args.trueop1 = trueop1;
-      args.mode = mode;
-      args.code = code;
+      REAL_VALUE_TYPE f0, f1, value;
 
-      if (do_float_handler (simplify_binary_real, (PTR) &args))
-	return args.result;
-      return 0;
+      REAL_VALUE_FROM_CONST_DOUBLE (f0, trueop0);
+      REAL_VALUE_FROM_CONST_DOUBLE (f1, trueop1);
+      f0 = real_value_truncate (mode, f0);
+      f1 = real_value_truncate (mode, f1);
+
+      if (code == DIV
+	  && !MODE_HAS_INFINITIES (mode)
+	  && REAL_VALUES_EQUAL (f1, dconst0))
+	return 0;
+
+      REAL_ARITHMETIC (value, rtx_to_tree_code (code), f0, f1);
+
+      value = real_value_truncate (mode, value);
+      return CONST_DOUBLE_FROM_REAL_VALUE (value, mode);
     }
-#endif  /* not REAL_IS_NOT_DOUBLE, or REAL_ARITHMETIC */
 
   /* We can fold some multi-word operations.  */
   if (GET_MODE_CLASS (mode) == MODE_INT
@@ -1049,16 +956,15 @@ simplify_binary_operation (code, mode, op0, op1)
       switch (code)
 	{
 	case PLUS:
-	  /* In IEEE floating point, x+0 is not the same as x.  Similarly
-	     for the other optimizations below.  */
-	  if (TARGET_FLOAT_FORMAT == IEEE_FLOAT_FORMAT
-	      && FLOAT_MODE_P (mode) && ! flag_unsafe_math_optimizations)
-	    break;
-
-	  if (trueop1 == CONST0_RTX (mode))
+	  /* Maybe simplify x + 0 to x.  The two expressions are equivalent
+	     when x is NaN, infinite, or finite and nonzero.  They aren't
+	     when x is -0 and the rounding mode is not towards -infinity,
+	     since (-0) + 0 is then 0.  */
+	  if (!HONOR_SIGNED_ZEROS (mode) && trueop1 == CONST0_RTX (mode))
 	    return op0;
 
-	  /* ((-a) + b) -> (b - a) and similarly for (a + (-b)) */
+	  /* ((-a) + b) -> (b - a) and similarly for (a + (-b)).  These
+	     transformations are safe even for IEEE.  */
 	  if (GET_CODE (op0) == NEG)
 	    return simplify_gen_binary (MINUS, mode, op1, XEXP (op0, 0));
 	  else if (GET_CODE (op1) == NEG)
@@ -1138,7 +1044,7 @@ simplify_binary_operation (code, mode, op0, op1)
 	    }
 
 	  /* If one of the operands is a PLUS or a MINUS, see if we can
-	     simplify this by the associative law. 
+	     simplify this by the associative law.
 	     Don't use the associative law for floating point.
 	     The inaccuracy makes it nonassociative,
 	     and subtle programs can break if operations are associated.  */
@@ -1187,15 +1093,9 @@ simplify_binary_operation (code, mode, op0, op1)
 #endif
 		return xop00;
 	    }
-	  break;	      
+	  break;
 
 	case MINUS:
-	  /* None of these optimizations can be done for IEEE
-	     floating point.  */
-	  if (TARGET_FLOAT_FORMAT == IEEE_FLOAT_FORMAT
-	      && FLOAT_MODE_P (mode) && ! flag_unsafe_math_optimizations)
-	    break;
-
 	  /* We can't assume x-x is 0 even with non-IEEE floating point,
 	     but since it is zero except in very strange circumstances, we
 	     will treat it as zero with -funsafe-math-optimizations.  */
@@ -1204,16 +1104,23 @@ simplify_binary_operation (code, mode, op0, op1)
 	      && (! FLOAT_MODE_P (mode) || flag_unsafe_math_optimizations))
 	    return CONST0_RTX (mode);
 
-	  /* Change subtraction from zero into negation.  */
-	  if (trueop0 == CONST0_RTX (mode))
+	  /* Change subtraction from zero into negation.  (0 - x) is the
+	     same as -x when x is NaN, infinite, or finite and nonzero.
+	     But if the mode has signed zeros, and does not round towards
+	     -infinity, then 0 - 0 is 0, not -0.  */
+	  if (!HONOR_SIGNED_ZEROS (mode) && trueop0 == CONST0_RTX (mode))
 	    return gen_rtx_NEG (mode, op1);
 
 	  /* (-1 - a) is ~a.  */
 	  if (trueop0 == constm1_rtx)
 	    return gen_rtx_NOT (mode, op1);
 
-	  /* Subtracting 0 has no effect.  */
-	  if (trueop1 == CONST0_RTX (mode))
+	  /* Subtracting 0 has no effect unless the mode has signed zeros
+	     and supports rounding towards -infinity.  In such a case,
+	     0 - 0 is -0.  */
+	  if (!(HONOR_SIGNED_ZEROS (mode)
+		&& HONOR_SIGN_DEPENDENT_ROUNDING (mode))
+	      && trueop1 == CONST0_RTX (mode))
 	    return op0;
 
 	  /* See if this is something like X * C - X or vice versa or
@@ -1270,12 +1177,12 @@ simplify_binary_operation (code, mode, op0, op1)
 		}
 	    }
 
-	  /* (a - (-b)) -> (a + b).  */
+	  /* (a - (-b)) -> (a + b).  True even for IEEE.  */
 	  if (GET_CODE (op1) == NEG)
 	    return simplify_gen_binary (PLUS, mode, op0, XEXP (op1, 0));
 
 	  /* If one of the operands is a PLUS or a MINUS, see if we can
-	     simplify this by the associative law. 
+	     simplify this by the associative law.
 	     Don't use the associative law for floating point.
 	     The inaccuracy makes it nonassociative,
 	     and subtle programs can break if operations are associated.  */
@@ -1316,17 +1223,20 @@ simplify_binary_operation (code, mode, op0, op1)
 	      return tem ? tem : gen_rtx_NEG (mode, op0);
 	    }
 
-	  /* In IEEE floating point, x*0 is not always 0.  */
-	  if ((TARGET_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
-	       || ! FLOAT_MODE_P (mode) || flag_unsafe_math_optimizations)
+	  /* Maybe simplify x * 0 to 0.  The reduction is not valid if
+	     x is NaN, since x * 0 is then also NaN.  Nor is it valid
+	     when the mode has signed zeros, since multiplying a negative
+	     number by 0 will give -0, not 0.  */
+	  if (!HONOR_NANS (mode)
+	      && !HONOR_SIGNED_ZEROS (mode)
 	      && trueop1 == CONST0_RTX (mode)
 	      && ! side_effects_p (op0))
 	    return op1;
 
-	  /* In IEEE floating point, x*1 is not equivalent to x for nans.
-	     However, ANSI says we can drop signals,
-	     so we can do this anyway.  */
-	  if (trueop1 == CONST1_RTX (mode))
+	  /* In IEEE floating point, x*1 is not equivalent to x for
+	     signalling NaNs.  */
+	  if (!HONOR_SNANS (mode)
+	      && trueop1 == CONST1_RTX (mode))
 	    return op0;
 
 	  /* Convert multiply by constant power of two into shift unless
@@ -1341,20 +1251,18 @@ simplify_binary_operation (code, mode, op0, op1)
 	      && ! rtx_equal_function_value_matters)
 	    return gen_rtx_ASHIFT (mode, op0, GEN_INT (val));
 
+	  /* x*2 is x+x and x*(-1) is -x */
 	  if (GET_CODE (trueop1) == CONST_DOUBLE
-	      && GET_MODE_CLASS (GET_MODE (trueop1)) == MODE_FLOAT)
+	      && GET_MODE_CLASS (GET_MODE (trueop1)) == MODE_FLOAT
+	      && GET_MODE (op0) == mode)
 	    {
-	      struct simplify_binary_is2orm1_args args;
+	      REAL_VALUE_TYPE d;
+	      REAL_VALUE_FROM_CONST_DOUBLE (d, trueop1);
 
-	      args.value = trueop1;
-	      if (! do_float_handler (simplify_binary_is2orm1, (PTR) &args))
-		return 0;
-
-	      /* x*2 is x+x and x*(-1) is -x */
-	      if (args.is_2 && GET_MODE (op0) == mode)
+	      if (REAL_VALUES_EQUAL (d, dconst2))
 		return gen_rtx_PLUS (mode, op0, copy_rtx (op0));
 
-	      else if (args.is_m1 && GET_MODE (op0) == mode)
+	      if (REAL_VALUES_EQUAL (d, dconstm1))
 		return gen_rtx_NEG (mode, op0);
 	    }
 	  break;
@@ -1429,14 +1337,16 @@ simplify_binary_operation (code, mode, op0, op1)
 		return op0;
 	    }
 
-	  /* In IEEE floating point, 0/x is not always 0.  */
-	  if ((TARGET_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
-	       || ! FLOAT_MODE_P (mode) || flag_unsafe_math_optimizations)
+	  /* Maybe change 0 / x to 0.  This transformation isn't safe for
+	     modes with NaNs, since 0 / 0 will then be NaN rather than 0.
+	     Nor is it safe for modes with signed zeros, since dividing
+	     0 by a negative number gives -0, not 0.  */
+	  if (!HONOR_NANS (mode)
+	      && !HONOR_SIGNED_ZEROS (mode)
 	      && trueop0 == CONST0_RTX (mode)
 	      && ! side_effects_p (op1))
 	    return op0;
 
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
 	  /* Change division by a constant into multiplication.  Only do
 	     this with -funsafe-math-optimizations.  */
 	  else if (GET_CODE (trueop1) == CONST_DOUBLE
@@ -1449,18 +1359,11 @@ simplify_binary_operation (code, mode, op0, op1)
 
 	      if (! REAL_VALUES_EQUAL (d, dconst0))
 		{
-#if defined (REAL_ARITHMETIC)
 		  REAL_ARITHMETIC (d, rtx_to_tree_code (DIV), dconst1, d);
-		  return gen_rtx_MULT (mode, op0, 
+		  return gen_rtx_MULT (mode, op0,
 				       CONST_DOUBLE_FROM_REAL_VALUE (d, mode));
-#else
-		  return
-		    gen_rtx_MULT (mode, op0, 
-				  CONST_DOUBLE_FROM_REAL_VALUE (1./d, mode));
-#endif
 		}
 	    }
-#endif
 	  break;
 
 	case UMOD:
@@ -1497,14 +1400,14 @@ simplify_binary_operation (code, mode, op0, op1)
 	  break;
 
 	case SMIN:
-	  if (width <= HOST_BITS_PER_WIDE_INT && GET_CODE (trueop1) == CONST_INT 
+	  if (width <= HOST_BITS_PER_WIDE_INT && GET_CODE (trueop1) == CONST_INT
 	      && INTVAL (trueop1) == (HOST_WIDE_INT) 1 << (width -1)
 	      && ! side_effects_p (op0))
 	    return op1;
 	  else if (rtx_equal_p (trueop0, trueop1) && ! side_effects_p (op0))
 	    return op0;
 	  break;
-	   
+
 	case SMAX:
 	  if (width <= HOST_BITS_PER_WIDE_INT && GET_CODE (trueop1) == CONST_INT
 	      && ((unsigned HOST_WIDE_INT) INTVAL (trueop1)
@@ -1521,7 +1424,7 @@ simplify_binary_operation (code, mode, op0, op1)
 	  else if (rtx_equal_p (trueop0, trueop1) && ! side_effects_p (op0))
 	    return op0;
 	  break;
-	    
+
 	case UMAX:
 	  if (trueop1 == constm1_rtx && ! side_effects_p (op0))
 	    return op1;
@@ -1536,10 +1439,14 @@ simplify_binary_operation (code, mode, op0, op1)
 	  /* ??? There are simplifications that can be done.  */
 	  return 0;
 
+	case VEC_SELECT:
+	case VEC_CONCAT:
+	  return 0;
+
 	default:
 	  abort ();
 	}
-      
+
       return 0;
     }
 
@@ -1726,9 +1633,9 @@ simplify_binary_operation (code, mode, op0, op1)
 
    Rather than test for specific case, we do this by a brute-force method
    and do all possible simplifications until no more changes occur.  Then
-   we rebuild the operation. 
+   we rebuild the operation.
 
-   If FORCE is true, then always generate the rtx.  This is used to 
+   If FORCE is true, then always generate the rtx.  This is used to
    canonicalize stuff emitted from simplify_gen_binary.  Note that this
    can still fail if the rtx is too complex.  It won't fail just because
    the result is not 'simpler' than the input, however.  */
@@ -1765,7 +1672,7 @@ simplify_plus_minus (code, mode, op0, op1, force)
   int i, j;
 
   memset ((char *) ops, 0, sizeof ops);
-  
+
   /* Set up the two operands and then expand them until nothing has been
      changed.  If we run out of room in our array, give up; this should
      almost never happen.  */
@@ -1889,7 +1796,7 @@ simplify_plus_minus (code, mode, op0, op1, force)
 
 		tem = simplify_binary_operation (ncode, mode, lhs, rhs);
 
-		/* Reject "simplifications" that just wrap the two 
+		/* Reject "simplifications" that just wrap the two
 		   arguments in a CONST.  Failure to do so can result
 		   in infinite recursion with simplify_binary_operation
 		   when it calls us to simplify CONST operations.  */
@@ -1961,7 +1868,7 @@ simplify_plus_minus (code, mode, op0, op1, force)
      is also an improvement, so accept it.  */
   if (!force
       && (n_ops + n_consts > input_ops
-          || (n_ops + n_consts == input_ops && n_consts <= input_consts)))
+	  || (n_ops + n_consts == input_ops && n_consts <= input_consts)))
     return NULL_RTX;
 
   /* Put a non-negated operand first.  If there aren't any, make all
@@ -1991,35 +1898,6 @@ simplify_plus_minus (code, mode, op0, op1, force)
 			     mode, result, ops[i].op);
 
   return negate ? gen_rtx_NEG (mode, result) : result;
-}
-
-struct cfc_args
-{
-  rtx op0, op1;			/* Input */
-  int equal, op0lt, op1lt;	/* Output */
-  int unordered;
-};
-
-static void
-check_fold_consts (data)
-  PTR data;
-{
-  struct cfc_args *args = (struct cfc_args *) data;
-  REAL_VALUE_TYPE d0, d1;
-
-  /* We may possibly raise an exception while reading the value.  */
-  args->unordered = 1;
-  REAL_VALUE_FROM_CONST_DOUBLE (d0, args->op0);
-  REAL_VALUE_FROM_CONST_DOUBLE (d1, args->op1);
-
-  /* Comparisons of Inf versus Inf are ordered.  */
-  if (REAL_VALUE_ISNAN (d0)
-      || REAL_VALUE_ISNAN (d1))
-    return;
-  args->equal = REAL_VALUES_EQUAL (d0, d1);
-  args->op0lt = REAL_VALUES_LESS (d0, d1);
-  args->op1lt = REAL_VALUES_LESS (d1, d0);
-  args->unordered = 0;
 }
 
 /* Like simplify_binary_operation except used for relational operators.
@@ -2094,32 +1972,26 @@ simplify_relational_operation (code, mode, op0, op1)
   if (flag_unsafe_math_optimizations && code == UNORDERED)
     return const0_rtx;
 
-  /* For non-IEEE floating-point, if the two operands are equal, we know the
-     result.  */
-  if (rtx_equal_p (trueop0, trueop1)
-      && (TARGET_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
-	  || ! FLOAT_MODE_P (GET_MODE (trueop0)) 
-	  || flag_unsafe_math_optimizations))
+  /* For modes without NaNs, if the two operands are equal, we know the
+     result.  Nevertheless, don't discard them if they have side-effects.  */
+  if (!HONOR_NANS (GET_MODE (trueop0))
+      && rtx_equal_p (trueop0, trueop1)
+      && ! side_effects_p (trueop0))
     equal = 1, op0lt = 0, op0ltu = 0, op1lt = 0, op1ltu = 0;
 
   /* If the operands are floating-point constants, see if we can fold
      the result.  */
-#if ! defined (REAL_IS_NOT_DOUBLE) || defined (REAL_ARITHMETIC)
   else if (GET_CODE (trueop0) == CONST_DOUBLE
 	   && GET_CODE (trueop1) == CONST_DOUBLE
 	   && GET_MODE_CLASS (GET_MODE (trueop0)) == MODE_FLOAT)
     {
-      struct cfc_args args;
+      REAL_VALUE_TYPE d0, d1;
 
-      /* Setup input for check_fold_consts() */
-      args.op0 = trueop0;
-      args.op1 = trueop1;
-      
-      
-      if (!do_float_handler (check_fold_consts, (PTR) &args))
-	args.unordered = 1;
+      REAL_VALUE_FROM_CONST_DOUBLE (d0, trueop0);
+      REAL_VALUE_FROM_CONST_DOUBLE (d1, trueop1);
 
-      if (args.unordered)
+      /* Comparisons are unordered iff at least one of the values is NaN.  */
+      if (REAL_VALUE_ISNAN (d0) || REAL_VALUE_ISNAN (d1))
 	switch (code)
 	  {
 	  case UNEQ:
@@ -2142,12 +2014,10 @@ simplify_relational_operation (code, mode, op0, op1)
 	    return 0;
 	  }
 
-      /* Receive output from check_fold_consts() */
-      equal = args.equal;
-      op0lt = op0ltu = args.op0lt;
-      op1lt = op1ltu = args.op1lt;
+      equal = REAL_VALUES_EQUAL (d0, d1);
+      op0lt = op0ltu = REAL_VALUES_LESS (d0, d1);
+      op1lt = op1ltu = REAL_VALUES_LESS (d1, d0);
     }
-#endif  /* not REAL_IS_NOT_DOUBLE, or REAL_ARITHMETIC */
 
   /* Otherwise, see if the operands are both integers.  */
   else if ((GET_MODE_CLASS (mode) == MODE_INT || mode == VOIDmode)
@@ -2171,7 +2041,7 @@ simplify_relational_operation (code, mode, op0, op1)
 	  l0u = l0s = INTVAL (trueop0);
 	  h0u = h0s = HWI_SIGN_EXTEND (l0s);
 	}
-	  
+
       if (GET_CODE (trueop1) == CONST_DOUBLE)
 	{
 	  l1u = l1s = CONST_DOUBLE_LOW (trueop1);
@@ -2260,7 +2130,29 @@ simplify_relational_operation (code, mode, op0, op1)
 	      && INTEGRAL_MODE_P (mode))
 	    return const0_rtx;
 	  break;
-	  
+
+	case LT:
+	  /* Optimize abs(x) < 0.0.  */
+	  if (trueop1 == CONST0_RTX (mode) && !HONOR_SNANS (mode))
+	    {
+	      tem = GET_CODE (trueop0) == FLOAT_EXTEND ? XEXP (trueop0, 0)
+						       : trueop0;
+	      if (GET_CODE (tem) == ABS)
+		return const0_rtx;
+	    }
+	  break;
+
+	case GE:
+	  /* Optimize abs(x) >= 0.0.  */
+	  if (trueop1 == CONST0_RTX (mode) && !HONOR_NANS (mode))
+	    {
+	      tem = GET_CODE (trueop0) == FLOAT_EXTEND ? XEXP (trueop0, 0)
+						       : trueop0;
+	      if (GET_CODE (tem) == ABS)
+		return const1_rtx;
+	    }
+	  break;
+
 	default:
 	  break;
 	}
@@ -2371,12 +2263,12 @@ simplify_ternary_operation (code, mode, op0_mode, op0, op1, op2)
 
       /* Convert a == b ? b : a to "a".  */
       if (GET_CODE (op0) == NE && ! side_effects_p (op0)
-	  && (! FLOAT_MODE_P (mode) || flag_unsafe_math_optimizations)
+	  && !HONOR_NANS (mode)
 	  && rtx_equal_p (XEXP (op0, 0), op1)
 	  && rtx_equal_p (XEXP (op0, 1), op2))
 	return op1;
       else if (GET_CODE (op0) == EQ && ! side_effects_p (op0)
-	  && (! FLOAT_MODE_P (mode) || flag_unsafe_math_optimizations)
+	  && !HONOR_NANS (mode)
 	  && rtx_equal_p (XEXP (op0, 1), op1)
 	  && rtx_equal_p (XEXP (op0, 0), op2))
 	return op2;
@@ -2404,7 +2296,7 @@ simplify_ternary_operation (code, mode, op0_mode, op0, op1, op2)
 	    {
 	      HOST_WIDE_INT t = INTVAL (op1);
 	      HOST_WIDE_INT f = INTVAL (op2);
-	      
+
 	      if (t == STORE_FLAG_VALUE && f == 0)
 	        code = GET_CODE (op0);
 	      else if (t == 0 && f == STORE_FLAG_VALUE)
@@ -2420,6 +2312,30 @@ simplify_ternary_operation (code, mode, op0_mode, op0, op1, op2)
 
 	      return gen_rtx_fmt_ee (code, mode, XEXP (op0, 0), XEXP (op0, 1));
 	    }
+	}
+      break;
+    case VEC_MERGE:
+      if (GET_MODE (op0) != mode
+	  || GET_MODE (op1) != mode
+	  || !VECTOR_MODE_P (mode))
+	abort ();
+      op0 = avoid_constant_pool_reference (op0);
+      op1 = avoid_constant_pool_reference (op1);
+      op2 = avoid_constant_pool_reference (op2);
+      if (GET_CODE (op0) == CONST_VECTOR
+	  && GET_CODE (op1) == CONST_VECTOR
+	  && GET_CODE (op2) == CONST_INT)
+	{
+          int elt_size = GET_MODE_SIZE (GET_MODE_INNER (mode));
+	  unsigned n_elts = (GET_MODE_SIZE (mode) / elt_size);
+	  rtvec v = rtvec_alloc (n_elts);
+	  unsigned int i;
+
+	  for (i = 0; i < n_elts; i++)
+	    RTVEC_ELT (v, i) = (INTVAL (op2) & (1 << i)
+				? CONST_VECTOR_ELT (op0, i)
+				: CONST_VECTOR_ELT (op1, i));
+	  return gen_rtx_CONST_VECTOR (mode, v);
 	}
       break;
 
@@ -2454,18 +2370,124 @@ simplify_subreg (outermode, op, innermode, byte)
   if (outermode == innermode && !byte)
     return op;
 
+  /* Simplify subregs of vector constants.  */
+  if (GET_CODE (op) == CONST_VECTOR)
+    {
+      int elt_size = GET_MODE_SIZE (GET_MODE_INNER (innermode));
+      const unsigned int offset = byte / elt_size;
+      rtx elt;
+
+      if (GET_MODE_INNER (innermode) == outermode)
+	{
+	  elt = CONST_VECTOR_ELT (op, offset);
+
+	  /* ?? We probably don't need this copy_rtx because constants
+	     can be shared.  ?? */
+
+	  return copy_rtx (elt);
+	}
+      else if (GET_MODE_INNER (innermode) == GET_MODE_INNER (outermode)
+	       && GET_MODE_SIZE (innermode) > GET_MODE_SIZE (outermode))
+	{
+	  return (gen_rtx_CONST_VECTOR
+		  (outermode,
+		   gen_rtvec_v (GET_MODE_NUNITS (outermode),
+				&CONST_VECTOR_ELT (op, offset))));
+	}
+      else if (GET_MODE_CLASS (outermode) == MODE_INT
+	       && (GET_MODE_SIZE (outermode) % elt_size == 0))
+	{
+	  /* This happens when the target register size is smaller then
+	     the vector mode, and we synthesize operations with vectors
+	     of elements that are smaller than the register size.  */
+	  HOST_WIDE_INT sum = 0, high = 0;
+	  unsigned n_elts = (GET_MODE_SIZE (outermode) / elt_size);
+	  unsigned i = BYTES_BIG_ENDIAN ? offset : offset + n_elts - 1;
+	  unsigned step = BYTES_BIG_ENDIAN ? 1 : -1;
+	  int shift = BITS_PER_UNIT * elt_size;
+
+	  for (; n_elts--; i += step)
+	    {
+	      elt = CONST_VECTOR_ELT (op, i);
+	      if (GET_CODE (elt) == CONST_DOUBLE
+		  && GET_MODE_CLASS (GET_MODE (elt)) == MODE_FLOAT)
+		{
+		  elt = gen_lowpart_common (int_mode_for_mode (GET_MODE (elt)),
+					    elt);
+		  if (! elt)
+		    return NULL_RTX;
+		}
+	      if (GET_CODE (elt) != CONST_INT)
+		return NULL_RTX;
+	      /* Avoid overflow.  */
+	      if (high >> (HOST_BITS_PER_WIDE_INT - shift))
+		return NULL_RTX;
+	      high = high << shift | sum >> (HOST_BITS_PER_WIDE_INT - shift);
+	      sum = (sum << shift) + INTVAL (elt);
+	    }
+	  if (GET_MODE_BITSIZE (outermode) <= HOST_BITS_PER_WIDE_INT)
+	    return GEN_INT (trunc_int_for_mode (sum, outermode));
+	  else if (GET_MODE_BITSIZE (outermode) == 2* HOST_BITS_PER_WIDE_INT)
+	    return immed_double_const (sum, high, outermode);
+	  else
+	    return NULL_RTX;
+	}
+      else if (GET_MODE_CLASS (outermode) == MODE_INT
+	       && (elt_size % GET_MODE_SIZE (outermode) == 0))
+	{
+	  enum machine_mode new_mode
+	    = int_mode_for_mode (GET_MODE_INNER (innermode));
+	  int subbyte = byte % elt_size;
+
+	  op = simplify_subreg (new_mode, op, innermode, byte - subbyte);
+	    if (! op)
+	      return NULL_RTX;
+	  return simplify_subreg (outermode, op, new_mode, subbyte);
+	}
+      else if (GET_MODE_CLASS (outermode) == MODE_INT)
+        /* This shouldn't happen, but let's not do anything stupid.  */
+	return NULL_RTX;
+    }
+
   /* Attempt to simplify constant to non-SUBREG expression.  */
   if (CONSTANT_P (op))
     {
       int offset, part;
       unsigned HOST_WIDE_INT val = 0;
 
+      if (GET_MODE_CLASS (outermode) == MODE_VECTOR_INT
+	  || GET_MODE_CLASS (outermode) == MODE_VECTOR_FLOAT)
+	{
+	  /* Construct a CONST_VECTOR from individual subregs.  */
+	  enum machine_mode submode = GET_MODE_INNER (outermode);
+	  int subsize = GET_MODE_UNIT_SIZE (outermode);
+	  int i, elts = GET_MODE_NUNITS (outermode);
+	  rtvec v = rtvec_alloc (elts);
+	  rtx elt;
+
+	  for (i = 0; i < elts; i++, byte += subsize)
+	    {
+	      /* This might fail, e.g. if taking a subreg from a SYMBOL_REF.  */
+	      /* ??? It would be nice if we could actually make such subregs
+		 on targets that allow such relocations.  */
+	      if (byte >= GET_MODE_UNIT_SIZE (innermode))
+		elt = CONST0_RTX (submode);
+	      else
+	        elt = simplify_subreg (submode, op, innermode, byte);
+	      if (! elt)
+		return NULL_RTX;
+	      RTVEC_ELT (v, i) = elt;
+	    }
+	  return gen_rtx_CONST_VECTOR (outermode, v);
+	}
+
       /* ??? This code is partly redundant with code below, but can handle
 	 the subregs of floats and similar corner cases.
 	 Later it we should move all simplification code here and rewrite
 	 GEN_LOWPART_IF_POSSIBLE, GEN_HIGHPART, OPERAND_SUBWORD and friends
 	 using SIMPLIFY_SUBREG.  */
-      if (subreg_lowpart_offset (outermode, innermode) == byte)
+      if (subreg_lowpart_offset (outermode, innermode) == byte
+	  && GET_CODE (op) != CONST_VECTOR)
 	{
 	  rtx new = gen_lowpart_if_possible (outermode, op);
 	  if (new)
@@ -2482,6 +2504,20 @@ simplify_subreg (outermode, op, innermode, byte)
 				      innermode);
 	  if (new)
 	    return new;
+	}
+
+      if (GET_MODE_CLASS (outermode) != MODE_INT
+	  && GET_MODE_CLASS (outermode) != MODE_CC)
+	{
+	  enum machine_mode new_mode = int_mode_for_mode (outermode);
+
+	  if (new_mode != innermode || byte != 0)
+	    {
+	      op = simplify_subreg (new_mode, op, innermode, byte);
+	      if (! op)
+		return NULL_RTX;
+	      return simplify_subreg (outermode, op, new_mode, 0);
+	    }
 	}
 
       offset = byte * BITS_PER_UNIT;
@@ -2504,7 +2540,7 @@ simplify_subreg (outermode, op, innermode, byte)
 	  val = part ? CONST_DOUBLE_HIGH (op) : CONST_DOUBLE_LOW (op);
 	  offset %= HOST_BITS_PER_WIDE_INT;
 
-	  /* We've already picked the word we want from a double, so 
+	  /* We've already picked the word we want from a double, so
 	     pretend this is actually an integer.  */
 	  innermode = mode_for_size (HOST_BITS_PER_WIDE_INT, MODE_INT, 0);
 
@@ -2621,15 +2657,12 @@ simplify_subreg (outermode, op, innermode, byte)
   if (REG_P (op)
       && (! REG_FUNCTION_VALUE_P (op)
 	  || ! rtx_equal_function_value_matters)
-#ifdef CLASS_CANNOT_CHANGE_MODE
-      && ! (CLASS_CANNOT_CHANGE_MODE_P (outermode, innermode)
-	    && GET_MODE_CLASS (innermode) != MODE_COMPLEX_INT
-	    && GET_MODE_CLASS (innermode) != MODE_COMPLEX_FLOAT
-	    && (TEST_HARD_REG_BIT
-		(reg_class_contents[(int) CLASS_CANNOT_CHANGE_MODE],
-		 REGNO (op))))
-#endif
       && REGNO (op) < FIRST_PSEUDO_REGISTER
+#ifdef CANNOT_CHANGE_MODE_CLASS
+      && ! (REG_CANNOT_CHANGE_MODE_P (REGNO (op), innermode, outermode)
+	    && GET_MODE_CLASS (innermode) != MODE_COMPLEX_INT
+	    && GET_MODE_CLASS (innermode) != MODE_COMPLEX_FLOAT)
+#endif
       && ((reload_completed && !frame_pointer_needed)
 	  || (REGNO (op) != FRAME_POINTER_REGNUM
 #if HARD_FRAME_POINTER_REGNUM != FRAME_POINTER_REGNUM
@@ -2646,7 +2679,7 @@ simplify_subreg (outermode, op, innermode, byte)
 
       /* ??? We do allow it if the current REG is not valid for
 	 its mode.  This is a kludge to work around how float/complex
-	 arguments are passed on 32-bit Sparc and should be fixed.  */
+	 arguments are passed on 32-bit SPARC and should be fixed.  */
       if (HARD_REGNO_MODE_OK (final_regno, outermode)
 	  || ! HARD_REGNO_MODE_OK (REGNO (op), innermode))
 	{
@@ -2769,7 +2802,7 @@ simplify_gen_subreg (outermode, op, innermode, byte)
     maintain and improve.  It's totally silly that when we add a
     simplification that it needs to be added to 4 places (3 for RTL
     simplification and 1 for tree simplification.  */
-	   
+
 rtx
 simplify_rtx (x)
      rtx x;
@@ -2813,7 +2846,7 @@ simplify_rtx (x)
     case 'x':
       /* The only case we try to handle is a SUBREG.  */
       if (code == SUBREG)
-        return simplify_gen_subreg (mode, SUBREG_REG (x),
+	return simplify_gen_subreg (mode, SUBREG_REG (x),
 				    GET_MODE (SUBREG_REG (x)),
 				    SUBREG_BYTE (x));
       return NULL;

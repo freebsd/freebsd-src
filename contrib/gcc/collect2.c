@@ -57,10 +57,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "obstack.h"
 #include "intl.h"
 #include "version.h"
-
-/* Obstack allocation and deallocation routines.  */
-#define obstack_chunk_alloc xmalloc
-#define obstack_chunk_free free
 
 /* On certain systems, we have code that works by scanning the object file
    directly.  But this code uses system-specific header files and library
@@ -144,11 +140,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Some systems use __main in a way incompatible with its use in gcc, in these
    cases use the macros NAME__MAIN to give a quoted symbol and SYMBOL__MAIN to
-   give the same symbol without quotes for an alternative entry point.  You
-   must define both, or neither.  */
+   give the same symbol without quotes for an alternative entry point.  */
 #ifndef NAME__MAIN
 #define NAME__MAIN "__main"
-#define SYMBOL__MAIN __main
 #endif
 
 /* This must match tree.h.  */
@@ -237,18 +231,10 @@ static struct head exports;		/* list of exported symbols */
 static struct head frame_tables;	/* list of frame unwind info tables */
 
 struct obstack temporary_obstack;
-struct obstack permanent_obstack;
 char * temporary_firstobj;
 
 /* Holds the return value of pexecute.  */
 int pexecute_pid;
-
-/* Defined in the automatically-generated underscore.c.  */
-extern int prepends_underscore;
-
-#ifndef GET_ENV_PATH_LIST
-#define GET_ENV_PATH_LIST(VAR,NAME)	do { (VAR) = getenv (NAME); } while (0)
-#endif
 
 /* Structure to hold all the directories in which to search for files to
    execute.  */
@@ -526,8 +512,8 @@ dump_file (name)
 	  if (*word == '.')
 	    ++word, putc ('.', stderr);
 	  p = word;
-	  if (*p == '_' && prepends_underscore)
-	    ++p;
+	  if (!strncmp (p, USER_LABEL_PREFIX, strlen (USER_LABEL_PREFIX)))
+	    p += strlen (USER_LABEL_PREFIX);
 
 	  if (no_demangle)
 	    result = 0;
@@ -762,7 +748,7 @@ prefix_from_env (env, pprefix)
      struct path_prefix *pprefix;
 {
   const char *p;
-  GET_ENV_PATH_LIST (p, env);
+  GET_ENVIRONMENT (p, env);
 
   if (p)
     prefix_from_string (p, pprefix);
@@ -926,7 +912,6 @@ main (argc, argv)
 #endif
 
   obstack_begin (&temporary_obstack, 0);
-  obstack_begin (&permanent_obstack, 0);
   temporary_firstobj = (char *) obstack_alloc (&temporary_obstack, 0);
 
   current_demangling_style = auto_demangling;
@@ -1086,18 +1071,18 @@ main (argc, argv)
     {
       const char *q = extract_string (&p);
       if (*q == '-' && (q[1] == 'm' || q[1] == 'f'))
-	*c_ptr++ = obstack_copy0 (&permanent_obstack, q, strlen (q));
+	*c_ptr++ = xstrdup (q);
       if (strcmp (q, "-EL") == 0 || strcmp (q, "-EB") == 0)
-	*c_ptr++ = obstack_copy0 (&permanent_obstack, q, strlen (q));
+	*c_ptr++ = xstrdup (q);
       if (strcmp (q, "-shared") == 0)
 	shared_obj = 1;
       if (*q == '-' && q[1] == 'B')
 	{
-	  *c_ptr++ = obstack_copy0 (&permanent_obstack, q, strlen (q));
+	  *c_ptr++ = xstrdup (q);
 	  if (q[2] == 0)
 	    {
 	      q = extract_string (&p);
-	      *c_ptr++ = obstack_copy0 (&permanent_obstack, q, strlen (q));
+	      *c_ptr++ = xstrdup (q);
 	    }
 	}
     }
@@ -1506,7 +1491,7 @@ main (argc, argv)
 }
 
 
-/* Wait for a process to finish, and exit if a non-zero status is found.  */
+/* Wait for a process to finish, and exit if a nonzero status is found.  */
 
 int
 collect_wait (prog)
@@ -1522,7 +1507,7 @@ collect_wait (prog)
 	  int sig = WTERMSIG (status);
 	  error ("%s terminated with signal %d [%s]%s",
 		 prog, sig, strsignal(sig),
-		 status & 0200 ? "" : ", core dumped");
+		 WCOREDUMP(status) ? ", core dumped" : "");
 	  collect_exit (FATAL_EXIT_CODE);
 	}
 
@@ -2144,7 +2129,7 @@ scan_prog_file (prog_name, which_pass)
 	fatal_perror ("close %d", pipe_fd[1]);
 
       execv (nm_file_name, real_nm_argv);
-      fatal_perror ("execvp %s", nm_file_name);
+      fatal_perror ("execv %s", nm_file_name);
     }
 
   /* Parent context from here on.  */
@@ -2870,7 +2855,7 @@ scan_prog_file (prog_name, which_pass)
   (void) ldclose(ldptr);
 #endif
 }
-
+#endif /* OBJECT_FORMAT_COFF */
 
 #ifdef COLLECT_EXPORT_LIST
 /* Given a library name without "lib" prefix, this function
@@ -2950,9 +2935,7 @@ ignore_library (name)
     if (! strcmp (name, *p)) return 1;
   return 0;
 }
-#endif
-
-#endif /* OBJECT_FORMAT_COFF */
+#endif /* COLLECT_EXPORT_LIST */
 
 
 /*

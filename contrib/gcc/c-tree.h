@@ -34,16 +34,32 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    lang_identifier nodes, because some keywords are only special in a
    particular context.  */
 
-struct lang_identifier
+struct lang_identifier GTY(())
 {
-  struct c_common_identifier ignore;
-  tree global_value, local_value, label_value, implicit_decl;
-  tree error_locus, limbo_value;
+  struct c_common_identifier common_id;
+  tree global_value;
+  tree local_value;
+  tree label_value;
+  tree implicit_decl;
+  tree error_locus;
+  tree limbo_value;
+};
+
+/* The resulting tree type.  */
+
+union lang_tree_node 
+  GTY((desc ("TREE_CODE (&%h.generic) == IDENTIFIER_NODE"),
+       chain_next ("(union lang_tree_node *)TREE_CHAIN (&%h.generic)")))
+{
+  union tree_node GTY ((tag ("0"), 
+			desc ("tree_node_structure (&%h)"))) 
+    generic;
+  struct lang_identifier GTY ((tag ("1"))) identifier;
 };
 
 /* Language-specific declaration information.  */
 
-struct lang_decl
+struct lang_decl GTY(())
 {
   struct c_lang_decl base;
   /* The return types and parameter types may have variable size.
@@ -107,10 +123,10 @@ struct lang_decl
   (DECL_LANG_SPECIFIC (NODE)->base.declared_inline)
 
 /* In a RECORD_TYPE, a sorted array of the fields of the type.  */
-struct lang_type
+struct lang_type GTY(())
 {
   int len;
-  tree elts[1];
+  tree GTY((length ("%h.len"))) elts[1];
 };
 
 /* Record whether a type or decl was written with nonconstant size.
@@ -150,29 +166,36 @@ struct lang_type
 /* in c-lang.c and objc-act.c */
 extern tree lookup_interface			PARAMS ((tree));
 extern tree is_class_name			PARAMS ((tree));
-extern void maybe_objc_check_decl		PARAMS ((tree));
+extern tree objc_is_id				PARAMS ((tree));
+extern void objc_check_decl			PARAMS ((tree));
 extern void finish_file				PARAMS ((void));
-extern int maybe_objc_comptypes                 PARAMS ((tree, tree, int));
-extern tree maybe_building_objc_message_expr    PARAMS ((void));
-extern int recognize_objc_keyword		PARAMS ((void));
+extern int objc_comptypes                 	PARAMS ((tree, tree, int));
+extern tree objc_message_selector		PARAMS ((void));
 extern tree lookup_objc_ivar			PARAMS ((tree));
 
 
 /* in c-parse.in */
 extern void c_parse_init			PARAMS ((void));
-extern void c_set_yydebug			PARAMS ((int));
-extern int yyparse_1				PARAMS ((void));
 
 /* in c-aux-info.c */
 extern void gen_aux_info_record                 PARAMS ((tree, int, int, int));
 
 /* in c-decl.c */
+extern int global_bindings_p			PARAMS ((void));
+extern int kept_level_p				PARAMS ((void));
+extern tree getdecls				PARAMS ((void));
+extern void pushlevel				PARAMS ((int));
+extern tree poplevel				PARAMS ((int,int, int));
+extern void insert_block			PARAMS ((tree));
+extern void set_block				PARAMS ((tree));
+extern tree pushdecl				PARAMS ((tree));
+
+extern void c_insert_default_attributes		PARAMS ((tree));
 extern void c_init_decl_processing		PARAMS ((void));
+extern void c_dup_lang_specific_decl		PARAMS ((tree));
 extern void c_print_identifier			PARAMS ((FILE *, tree, int));
 extern tree build_array_declarator              PARAMS ((tree, tree, int, int));
 extern tree build_enumerator                    PARAMS ((tree, tree));
-extern int  c_decode_option                     PARAMS ((int, char **));
-extern void c_mark_varargs                      PARAMS ((void));
 extern void check_for_loop_decls                PARAMS ((void));
 extern void clear_parm_order                    PARAMS ((void));
 extern int  complete_array_type                 PARAMS ((tree, tree, int));
@@ -191,14 +214,12 @@ extern tree implicitly_declare                  PARAMS ((tree));
 extern void implicit_decl_warning               PARAMS ((tree));
 extern int  in_parm_level_p                     PARAMS ((void));
 extern void keep_next_level                     PARAMS ((void));
-extern int  kept_level_p                        PARAMS ((void));
 extern tree lookup_name                         PARAMS ((tree));
 extern tree lookup_name_current_level		PARAMS ((tree));
 extern void parmlist_tags_warning               PARAMS ((void));
 extern void pending_xref_error                  PARAMS ((void));
-extern void mark_c_function_context             PARAMS ((struct function *));
-extern void push_c_function_context             PARAMS ((struct function *));
-extern void pop_c_function_context              PARAMS ((struct function *));
+extern void c_push_function_context             PARAMS ((struct function *));
+extern void c_pop_function_context              PARAMS ((struct function *));
 extern void pop_label_level                     PARAMS ((void));
 extern void push_label_level                    PARAMS ((void));
 extern void push_parm_decl                      PARAMS ((tree));
@@ -218,7 +239,7 @@ extern tree xref_tag                            PARAMS ((enum tree_code, tree));
 extern tree c_begin_compound_stmt               PARAMS ((void));
 extern void c_expand_deferred_function          PARAMS ((tree));
 extern void c_expand_decl_stmt                  PARAMS ((tree));
-
+extern tree make_pointer_declarator		PARAMS ((tree, tree));
 
 /* in c-objc-common.c */
 extern int c_disregard_inline_limits		PARAMS ((tree));
@@ -227,23 +248,28 @@ extern const char *c_objc_common_init		PARAMS ((const char *));
 extern int c_missing_noreturn_ok_p		PARAMS ((tree));
 extern void c_objc_common_finish_file		PARAMS ((void));
 extern int defer_fn				PARAMS ((tree));
+extern bool c_warn_unused_global_decl		PARAMS ((tree));
 
 #define c_build_type_variant(TYPE, CONST_P, VOLATILE_P)		  \
   c_build_qualified_type ((TYPE),				  \
 			  ((CONST_P) ? TYPE_QUAL_CONST : 0) |	  \
 			  ((VOLATILE_P) ? TYPE_QUAL_VOLATILE : 0))
 
+#define c_sizeof_nowarn(T)  c_sizeof_or_alignof_type (T, SIZEOF_EXPR, 0)
 /* in c-typeck.c */
 extern tree require_complete_type		PARAMS ((tree));
 extern int comptypes				PARAMS ((tree, tree));
-extern tree c_sizeof_nowarn			PARAMS ((tree));
 extern tree c_size_in_bytes                     PARAMS ((tree));
+extern bool c_mark_addressable			PARAMS ((tree));
+extern void c_incomplete_type_error		PARAMS ((tree, tree));
+extern tree c_type_promotes_to			PARAMS ((tree));
 extern tree build_component_ref                 PARAMS ((tree, tree));
 extern tree build_indirect_ref                  PARAMS ((tree, const char *));
 extern tree build_array_ref                     PARAMS ((tree, tree));
 extern tree build_external_ref			PARAMS ((tree, int));
 extern tree parser_build_binary_op              PARAMS ((enum tree_code,
 							 tree, tree));
+extern int c_tree_expr_nonnegative_p          	PARAMS ((tree));
 extern void readonly_warning			PARAMS ((tree, const char *));
 extern tree build_conditional_expr              PARAMS ((tree, tree, tree));
 extern tree build_compound_expr                 PARAMS ((tree));
@@ -287,94 +313,14 @@ extern int current_function_returns_null;
 
 extern int current_function_returns_abnormally;
 
-/* Nonzero means `$' can be in an identifier.  */
-
-extern int dollars_in_ident;
-
-/* Nonzero means allow type mismatches in conditional expressions;
-   just make their values `void'.  */
-
-extern int flag_cond_mismatch;
-
-/* Nonzero means don't recognize the keyword `asm'.  */
-
-extern int flag_no_asm;
-
-/* Nonzero means warn about implicit declarations.  */
-
-extern int warn_implicit;
-
-/* Nonzero means warn for all old-style non-prototype function decls.  */
-
-extern int warn_strict_prototypes;
-
-/* Nonzero means warn about multiple (redundant) decls for the same single
-   variable or function.  */
-
-extern int warn_redundant_decls;
-
-/* Nonzero means warn about extern declarations of objects not at
-   file-scope level and about *all* declarations of functions (whether
-   extern or static) not at file-scope level.  Note that we exclude
-   implicit function declarations.  To get warnings about those, use
-   -Wimplicit.  */
-
-extern int warn_nested_externs;
-
-/* Nonzero means warn about pointer casts that can drop a type qualifier
-   from the pointer target type.  */
-
-extern int warn_cast_qual;
-
-/* Nonzero means warn when casting a function call to a type that does
-   not match the return type (e.g. (float)sqrt() or (anything*)malloc()
-   when there is no previous declaration of sqrt or malloc.  */
-
-extern int warn_bad_function_cast;
-
-/* Warn about traditional constructs whose meanings changed in ANSI C.  */
-
-extern int warn_traditional;
-
-/* Warn about a subscript that has type char.  */
-
-extern int warn_char_subscripts;
-
-/* Warn if main is suspicious.  */
-
-extern int warn_main;
-
-/* Nonzero means to allow single precision math even if we're generally
-   being traditional.  */
-extern int flag_allow_single_precision;
-
-/* Warn if initializer is not completely bracketed.  */
-
-extern int warn_missing_braces;
-
-/* Warn about comparison of signed and unsigned values.  */
-
-extern int warn_sign_compare;
-
-/* Warn about testing equality of floating point numbers.  */
-
-extern int warn_float_equal;
-
-/* Warn about multicharacter constants.  */
-
-extern int warn_multichar;
-
 /* Nonzero means we are reading code that came from a system header file.  */
 
 extern int system_header_p;
 
-/* Warn about implicit declarations.  1 = warning, 2 = error.  */
-extern int mesg_implicit_function_declaration;
-
 /* In c-decl.c */
-extern void finish_incomplete_decl PARAMS ((tree));
+extern void c_finish_incomplete_decl PARAMS ((tree));
 
-extern tree static_ctors;
-extern tree static_dtors;
+extern GTY(()) tree static_ctors;
+extern GTY(()) tree static_dtors;
 
 #endif /* ! GCC_C_TREE_H */

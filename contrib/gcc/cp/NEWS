@@ -1,4 +1,6 @@
-*** Changes in GCC 3.2.2:
+*** Changes in GCC 3.3:
+
+* The "new X = 3" extension has been removed; you must now use "new X(3)".
 
 * G++ no longer allows in-class initializations of static data members
   that do not have arithmetic or enumeration type.  For example:

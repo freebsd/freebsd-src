@@ -83,18 +83,9 @@ extern void expand_eh_region_end_throw		PARAMS ((tree));
    destroying an object twice.  */
 extern void expand_eh_region_end_fixup		PARAMS ((tree));
 
-/* Begin a region that will contain entries created with
-   add_partial_entry.  */
-extern void begin_protect_partials              PARAMS ((void));
-
-/* Create a new exception region and add the handler for the region
-   onto a list. These regions will be ended (and their handlers emitted)
-   when end_protect_partials is invoked.  */
-extern void add_partial_entry			PARAMS ((tree));
-
-/* End all of the pending exception regions that have handlers added with
-   add_partial_entry.  */
-extern void end_protect_partials		PARAMS ((void));
+/* Note that the current EH region (if any) may contain a throw, or a
+   call to a function which itself may contain a throw.  */
+extern void note_eh_region_may_contain_throw    PARAMS ((void));
 
 /* Invokes CALLBACK for every exception handler label.  Only used by old
    loop hackery; should not be used by new code.  */
@@ -104,8 +95,8 @@ extern void for_each_eh_label			PARAMS ((void (*) (rtx)));
 extern bool can_throw_internal			PARAMS ((rtx));
 extern bool can_throw_external			PARAMS ((rtx));
 
-/* Return nonzero if nothing in this function can throw.  */
-extern bool nothrow_function_p			PARAMS ((void));
+/* Set current_function_nothrow and cfun->all_throwers_are_sibcalls.  */
+extern void set_nothrow_function_flags		PARAMS ((void));
 
 /* After initial rtl generation, call back to finish generating
    exception support code.  */
@@ -128,7 +119,7 @@ extern rtx expand_builtin_eh_return_data_regno	PARAMS ((tree));
 extern rtx expand_builtin_extract_return_addr	PARAMS ((tree));
 extern void expand_builtin_init_dwarf_reg_sizes PARAMS ((tree));
 extern rtx expand_builtin_frob_return_addr	PARAMS ((tree));
-extern rtx expand_builtin_dwarf_fp_regnum	PARAMS ((void));
+extern rtx expand_builtin_dwarf_sp_column	PARAMS ((void));
 extern void expand_builtin_eh_return		PARAMS ((tree, tree));
 extern void expand_eh_return			PARAMS ((void));
 extern rtx get_exception_pointer		PARAMS ((struct function *));
@@ -164,7 +155,6 @@ extern tree (*lang_eh_runtime_type) PARAMS ((tree));
 #if ! (defined (EH_RETURN_DATA_REGNO)			\
        && (defined (IA64_UNWIND_INFO)			\
 	   || (DWARF2_UNWIND_INFO			\
-	       && defined (EH_RETURN_STACKADJ_RTX)	\
 	       && (defined (EH_RETURN_HANDLER_RTX)	\
 		   || defined (HAVE_eh_return)))))
 #define MUST_USE_SJLJ_EXCEPTIONS	1
@@ -180,9 +170,6 @@ extern tree (*lang_eh_runtime_type) PARAMS ((tree));
 #  define USING_SJLJ_EXCEPTIONS		0
 #  ifndef EH_RETURN_DATA_REGNO
     #error "EH_RETURN_DATA_REGNO required"
-#  endif
-#  ifndef EH_RETURN_STACKADJ_RTX
-    #error "EH_RETURN_STACKADJ_RTX required"
 #  endif
 #  if !defined(EH_RETURN_HANDLER_RTX) && !defined(HAVE_eh_return)
     #error "EH_RETURN_HANDLER_RTX or eh_return required"

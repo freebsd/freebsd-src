@@ -133,6 +133,12 @@ abstract_virtuals_error (decl, type)
   tree u;
   tree tu;
 
+  if (processing_template_decl)
+    /* If we are processing a template, TYPE may be a template
+       class where CLASSTYPE_PURE_VIRTUALS always contains
+       inline friends.  */
+    return 0;
+
   if (!CLASS_TYPE_P (type) || !CLASSTYPE_PURE_VIRTUALS (type))
     return 0;
 
@@ -182,14 +188,35 @@ abstract_virtuals_error (decl, type)
 
 /* Print an error message for invalid use of an incomplete type.
    VALUE is the expression that was used (or 0 if that isn't known)
-   and TYPE is the type that was invalid.  */
+   and TYPE is the type that was invalid.  DIAG_TYPE indicates the
+   type of diagnostic:  0 for an error, 1 for a warning, 2 for a
+   pedwarn.  */
 
 void
-incomplete_type_error (value, type)
+cxx_incomplete_type_diagnostic (value, type, diag_type)
      tree value;
      tree type;
+     int diag_type;
 {
   int decl = 0;
+  void (*p_msg) PARAMS ((const char *, ...));
+  void (*p_msg_at) PARAMS ((const char *, ...));
+
+  if (diag_type == 1)
+    {
+      p_msg = warning;
+      p_msg_at = cp_warning_at;
+    }
+  else if (diag_type == 2)
+    {
+      p_msg = pedwarn;
+      p_msg_at = cp_pedwarn_at;
+    }
+  else
+    {
+      p_msg = error;
+      p_msg_at = cp_error_at;
+    }
   
   /* Avoid duplicate error message.  */
   if (TREE_CODE (type) == ERROR_MARK)
@@ -199,7 +226,7 @@ incomplete_type_error (value, type)
 		     || TREE_CODE (value) == PARM_DECL
 		     || TREE_CODE (value) == FIELD_DECL))
     {
-      cp_error_at ("`%D' has incomplete type", value);
+      (*p_msg_at) ("`%D' has incomplete type", value);
       decl = 1;
     }
 retry:
@@ -211,15 +238,15 @@ retry:
     case UNION_TYPE:
     case ENUMERAL_TYPE:
       if (!decl)
-        error ("invalid use of undefined type `%#T'", type);
+        (*p_msg) ("invalid use of undefined type `%#T'", type);
       if (!TYPE_TEMPLATE_INFO (type))
-	cp_error_at ("forward declaration of `%#T'", type);
+	(*p_msg_at) ("forward declaration of `%#T'", type);
       else
-	cp_error_at ("declaration of `%#T'", type);
+	(*p_msg_at) ("declaration of `%#T'", type);
       break;
 
     case VOID_TYPE:
-      error ("invalid use of `%T'", type);
+      (*p_msg) ("invalid use of `%T'", type);
       break;
 
     case ARRAY_TYPE:
@@ -228,32 +255,43 @@ retry:
           type = TREE_TYPE (type);
           goto retry;
         }
-      error ("invalid use of array with unspecified bounds");
+      (*p_msg) ("invalid use of array with unspecified bounds");
       break;
 
     case OFFSET_TYPE:
     bad_member:
-      error ("invalid use of member (did you forget the `&' ?)");
+      (*p_msg) ("invalid use of member (did you forget the `&' ?)");
       break;
 
     case TEMPLATE_TYPE_PARM:
-      error ("invalid use of template type parameter");
+      (*p_msg) ("invalid use of template type parameter");
       break;
 
     case UNKNOWN_TYPE:
       if (value && TREE_CODE (value) == COMPONENT_REF)
         goto bad_member;
       else if (value && TREE_CODE (value) == ADDR_EXPR)
-        error ("address of overloaded function with no contextual type information");
+        (*p_msg) ("address of overloaded function with no contextual type information");
       else if (value && TREE_CODE (value) == OVERLOAD)
-        error ("overloaded function with no contextual type information");
+        (*p_msg) ("overloaded function with no contextual type information");
       else
-        error ("insufficient contextual information to determine type");
+        (*p_msg) ("insufficient contextual information to determine type");
       break;
     
     default:
       abort ();
     }
+}
+
+/* Backward-compatibility interface to incomplete_type_diagnostic;
+   required by ../tree.c.  */
+#undef cxx_incomplete_type_error
+void
+cxx_incomplete_type_error (value, type)
+     tree value;
+     tree type;
+{
+  cxx_incomplete_type_diagnostic (value, type, 0);
 }
 
 
@@ -288,12 +326,6 @@ store_init_value (decl, init)
   if (TREE_CODE (type) == ERROR_MARK)
     return NULL_TREE;
 
-#if 0
-  /* This breaks arrays, and should not have any effect for other decls.  */
-  /* Take care of C++ business up here.  */
-  type = TYPE_MAIN_VARIANT (type);
-#endif
-
   if (IS_AGGR_TYPE (type))
     {
       if (! TYPE_HAS_TRIVIAL_INIT_REF (type)
@@ -305,35 +337,6 @@ store_init_value (decl, init)
 	  error ("constructor syntax used, but no constructor declared for type `%T'", type);
 	  init = build_nt (CONSTRUCTOR, NULL_TREE, nreverse (init));
 	}
-#if 0
-      if (TREE_CODE (init) == CONSTRUCTOR)
-	{
-	  tree field;
-
-	  /* Check that we're really an aggregate as ARM 8.4.1 defines it.  */
-	  if (CLASSTYPE_N_BASECLASSES (type))
-	    cp_error_at ("initializer list construction invalid for derived class object `%D'", decl);
-	  if (CLASSTYPE_VTBL_PTR (type))
-	    cp_error_at ("initializer list construction invalid for polymorphic class object `%D'", decl);
-	  if (TYPE_NEEDS_CONSTRUCTING (type))
-	    {
-	      cp_error_at ("initializer list construction invalid for `%D'", decl);
-	      error ("due to the presence of a constructor");
-	    }
-	  for (field = TYPE_FIELDS (type); field; field = TREE_CHAIN (field))
-	    if (TREE_PRIVATE (field) || TREE_PROTECTED (field))
-	      {
-		cp_error_at ("initializer list construction invalid for `%D'", decl);
-		cp_error_at ("due to non-public access of member `%D'", field);
-	      }
-	  for (field = TYPE_METHODS (type); field; field = TREE_CHAIN (field))
-	    if (TREE_PRIVATE (field) || TREE_PROTECTED (field))
-	      {
-		cp_error_at ("initializer list construction invalid for `%D'", decl);
-		cp_error_at ("due to non-public access of member `%D'", field);
-	      }
-	}
-#endif
     }
   else if (TREE_CODE (init) == TREE_LIST
 	   && TREE_TYPE (init) != unknown_type_node)
@@ -370,15 +373,8 @@ store_init_value (decl, init)
 
   /* End of special C++ code.  */
 
-  /* We might have already run this bracketed initializer through
-     digest_init.  Don't do so again.  */
-  if (TREE_CODE (init) == CONSTRUCTOR && TREE_HAS_CONSTRUCTOR (init)
-      && TREE_TYPE (init)
-      && TYPE_MAIN_VARIANT (TREE_TYPE (init)) == TYPE_MAIN_VARIANT (type))
-    value = init;
-  else
-    /* Digest the specified initializer into an expression.  */
-    value = digest_init (type, init, (tree *) 0);
+  /* Digest the specified initializer into an expression.  */
+  value = digest_init (type, init, (tree *) 0);
 
   /* Store the expression if valid; else report error.  */
 
@@ -391,32 +387,8 @@ store_init_value (decl, init)
     return value;
   else if (TREE_STATIC (decl)
 	   && (! TREE_CONSTANT (value)
-	       || ! initializer_constant_valid_p (value, TREE_TYPE (value))
-#if 0
-	       /* A STATIC PUBLIC int variable doesn't have to be
-		  run time inited when doing pic.  (mrs) */
-	       /* Since ctors and dtors are the only things that can
-		  reference vtables, and they are always written down
-		  the vtable definition, we can leave the
-		  vtables in initialized data space.
-		  However, other initialized data cannot be initialized
-		  this way.  Instead a global file-level initializer
-		  must do the job.  */
-	       || (flag_pic && !DECL_VIRTUAL_P (decl) && TREE_PUBLIC (decl))
-#endif
-	       ))
-
+	       || ! initializer_constant_valid_p (value, TREE_TYPE (value))))
     return value;
-#if 0 /* No, that's C.  jason 9/19/94 */
-  else
-    {
-      if (pedantic && TREE_CODE (value) == CONSTRUCTOR)
-	{
-	  if (! TREE_CONSTANT (value) || ! TREE_STATIC (value))
-	    pedwarn ("ISO C++ forbids non-constant aggregate initializer expressions");
-	}
-    }
-#endif
   
   /* Store the VALUE in DECL_INITIAL.  If we're building a
      statement-tree we will actually expand the initialization later
@@ -425,27 +397,6 @@ store_init_value (decl, init)
   return NULL_TREE;
 }
 
-/* Same as store_init_value, but used for known-to-be-valid static
-   initializers.  Used to introduce a static initializer even in data
-   structures that may require dynamic initialization.  */
-
-tree
-force_store_init_value (decl, init)
-     tree decl, init;
-{
-  tree type = TREE_TYPE (decl);
-  int needs_constructing = TYPE_NEEDS_CONSTRUCTING (type);
-
-  TYPE_NEEDS_CONSTRUCTING (type) = 0;
-
-  init = store_init_value (decl, init);
-  if (init)
-    abort ();
-
-  TYPE_NEEDS_CONSTRUCTING (type) = needs_constructing;
-
-  return init;
-}  
 
 /* Digest the parser output INIT as an initializer for type TYPE.
    Return a C expression of type TYPE to represent the initial value.
@@ -463,8 +414,7 @@ digest_init (type, init, tail)
   enum tree_code code = TREE_CODE (type);
   tree element = NULL_TREE;
   tree old_tail_contents = NULL_TREE;
-  /* Nonzero if INIT is a braced grouping, which comes in as a CONSTRUCTOR
-     tree node which has no TREE_TYPE.  */
+  /* Nonzero if INIT is a braced grouping.  */
   int raw_constructor;
 
   /* By default, assume we use one element from a list.
@@ -482,7 +432,7 @@ digest_init (type, init, tail)
 
   if (TREE_CODE (init) == ERROR_MARK)
     /* __PRETTY_FUNCTION__'s initializer is a bogus expression inside
-       a template function. This gets substituted during instantiation. */
+       a template function. This gets substituted during instantiation.  */
     return init;
 
   /* We must strip the outermost array type when completing the type,
@@ -495,10 +445,8 @@ digest_init (type, init, tail)
   if (TREE_CODE (init) == NON_LVALUE_EXPR)
     init = TREE_OPERAND (init, 0);
 
-  if (TREE_CODE (init) == CONSTRUCTOR && TREE_TYPE (init) == type)
-    return init;
-
-  raw_constructor = TREE_CODE (init) == CONSTRUCTOR && TREE_TYPE (init) == 0;
+  raw_constructor = (TREE_CODE (init) == CONSTRUCTOR 
+		     && TREE_HAS_CONSTRUCTOR (init));
 
   if (raw_constructor
       && CONSTRUCTOR_ELTS (init) != 0
@@ -759,7 +707,9 @@ process_init_constructor (type, init, elts)
 	      next1 = digest_init (TREE_TYPE (type), next1, 0);
 	    }
 	  else if (! zero_init_p (TREE_TYPE (type)))
-	    next1 = build_forced_zero_init (TREE_TYPE (type));
+	    next1 = build_zero_init (TREE_TYPE (type),
+				     /*nelts=*/NULL_TREE,
+				     /*static_storage_p=*/false);
 	  else
 	    /* The default zero-initialization is fine for us; don't
 	       add anything to the CONSTRUCTOR.  */
@@ -808,7 +758,7 @@ process_init_constructor (type, init, elts)
 	      continue;
 	    }
 
-	  if (TREE_CODE (field) != FIELD_DECL)
+	  if (TREE_CODE (field) != FIELD_DECL || DECL_ARTIFICIAL (field))
 	    continue;
 
 	  if (tail)
@@ -876,7 +826,9 @@ process_init_constructor (type, init, elts)
 		warning ("missing initializer for member `%D'", field);
 
 	      if (! zero_init_p (TREE_TYPE (field)))
-		next1 = build_forced_zero_init (TREE_TYPE (field));
+		next1 = build_zero_init (TREE_TYPE (field),
+					 /*nelts=*/NULL_TREE,
+					 /*static_storage_p=*/false);
 	      else
 		/* The default zero-initialization is fine for us; don't
 		   add anything to the CONSTRUCTOR.  */
@@ -900,8 +852,7 @@ process_init_constructor (type, init, elts)
 
       /* Find the first named field.  ANSI decided in September 1990
 	 that only named fields count here.  */
-      while (field && (DECL_NAME (field) == 0
-		       || TREE_CODE (field) != FIELD_DECL))
+      while (field && (!DECL_NAME (field) || TREE_CODE (field) != FIELD_DECL))
 	field = TREE_CHAIN (field);
 
       /* If this element specifies a field, initialize via that field.  */
@@ -986,7 +937,7 @@ process_init_constructor (type, init, elts)
 
 /* Given a structure or union value DATUM, construct and return
    the structure or union component which results from narrowing
-   that value by the type specified in BASETYPE.  For example, given the
+   that value to the base specified in BASETYPE.  For example, given the
    hierarchy
 
    class L { int ii; };
@@ -1007,29 +958,36 @@ process_init_constructor (type, init, elts)
    I used to think that this was nonconformant, that the standard specified
    that first we look up ii in A, then convert x to an L& and pull out the
    ii part.  But in fact, it does say that we convert x to an A&; A here
-   is known as the "naming class".  (jason 2000-12-19) */
+   is known as the "naming class".  (jason 2000-12-19)
+
+   BINFO_P points to a variable initialized either to NULL_TREE or to the
+   binfo for the specific base subobject we want to convert to.  */
 
 tree
-build_scoped_ref (datum, basetype)
+build_scoped_ref (datum, basetype, binfo_p)
      tree datum;
      tree basetype;
+     tree *binfo_p;
 {
-  tree ref;
   tree binfo;
 
   if (datum == error_mark_node)
     return error_mark_node;
-  binfo = lookup_base (TREE_TYPE (datum), basetype, ba_check, NULL);
+  if (*binfo_p)
+    binfo = *binfo_p;
+  else
+    binfo = lookup_base (TREE_TYPE (datum), basetype, ba_check, NULL);
 
-  if (binfo == error_mark_node)
-    return error_mark_node;
-  if (!binfo)
-    return error_not_base_type (TREE_TYPE (datum), basetype);
-  
-  ref = build_unary_op (ADDR_EXPR, datum, 0);
-  ref = build_base_path (PLUS_EXPR, ref, binfo, 1);
+  if (!binfo || binfo == error_mark_node)
+    {
+      *binfo_p = NULL_TREE;
+      if (!binfo)
+	error_not_base_type (basetype, TREE_TYPE (datum));
+      return error_mark_node;
+    }
 
-  return build_indirect_ref (ref, "(compiler error in build_scoped_ref)");
+  *binfo_p = binfo;
+  return build_base_path (PLUS_EXPR, datum, binfo, 1);
 }
 
 /* Build a reference to an object specified by the C++ `->' operator.
@@ -1164,8 +1122,8 @@ build_m_component_ref (datum, component)
 			| cp_type_quals (TREE_TYPE (datum)));
 
 	  /* There's no such thing as a mutable pointer-to-member, so
-	     we don't need to deal with that here like we do in
-	     build_component_ref.  */
+	     things are not as complex as they are for references to
+	     non-static data members.  */
 	  field_type = cp_build_qualified_type (field_type, type_quals);
 	}
     }
@@ -1277,8 +1235,8 @@ build_functional_cast (exp, parms)
       return get_target_expr (exp);
     }
 
-  exp = build_method_call (NULL_TREE, complete_ctor_identifier, parms,
-			   TYPE_BINFO (type), LOOKUP_NORMAL);
+  exp = build_special_member_call (NULL_TREE, complete_ctor_identifier, parms,
+				   TYPE_BINFO (type), LOOKUP_NORMAL);
 
   if (exp == error_mark_node)
     return error_mark_node;
@@ -1313,6 +1271,7 @@ add_exception_specifier (list, spec, complain)
   int ok;
   tree core = spec;
   int is_ptr;
+  int diag_type = -1; /* none */
   
   if (spec == error_mark_node)
     return list;
@@ -1334,7 +1293,15 @@ add_exception_specifier (list, spec, complain)
   else if (processing_template_decl)
     ok = 1;
   else
-    ok = COMPLETE_TYPE_P (complete_type (core));
+    {
+      ok = 1;
+      /* 15.4/1 says that types in an exception specifier must be complete,
+         but it seems more reasonable to only require this on definitions
+         and calls.  So just give a pedwarn at this point; we will give an
+         error later if we hit one of those two cases.  */
+      if (!COMPLETE_TYPE_P (complete_type (core)))
+	diag_type = 2; /* pedwarn */
+    }
 
   if (ok)
     {
@@ -1344,19 +1311,19 @@ add_exception_specifier (list, spec, complain)
         if (same_type_p (TREE_VALUE (probe), spec))
           break;
       if (!probe)
-        {
-          spec = build_tree_list (NULL_TREE, spec);
-          TREE_CHAIN (spec) = list;
-          list = spec;
-        }
+	list = tree_cons (NULL_TREE, spec, list);
     }
-  else if (complain)
-    incomplete_type_error (NULL_TREE, core);
+  else
+    diag_type = 0; /* error */
+    
+  if (diag_type >= 0 && complain)
+    cxx_incomplete_type_diagnostic (NULL_TREE, core, diag_type);
+
   return list;
 }
 
 /* Combine the two exceptions specifier lists LIST and ADD, and return
-   their union. */
+   their union.  */
 
 tree
 merge_exception_specifiers (list, add)
@@ -1389,4 +1356,35 @@ merge_exception_specifiers (list, add)
         }
     }
   return list;
+}
+
+/* Subroutine of build_call.  Ensure that each of the types in the
+   exception specification is complete.  Technically, 15.4/1 says that
+   they need to be complete when we see a declaration of the function,
+   but we should be able to get away with only requiring this when the
+   function is defined or called.  See also add_exception_specifier.  */
+
+void
+require_complete_eh_spec_types (fntype, decl)
+     tree fntype, decl;
+{
+  tree raises;
+  /* Don't complain about calls to op new.  */
+  if (decl && DECL_ARTIFICIAL (decl))
+    return;
+  for (raises = TYPE_RAISES_EXCEPTIONS (fntype); raises;
+       raises = TREE_CHAIN (raises))
+    {
+      tree type = TREE_VALUE (raises);
+      if (type && !COMPLETE_TYPE_P (type))
+	{
+	  if (decl)
+	    error
+	      ("call to function `%D' which throws incomplete type `%#T'",
+	       decl, type);
+	  else
+	    error ("call to function which throws incomplete type `%#T'",
+		   decl);
+	}
+    }
 }

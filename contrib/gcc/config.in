@@ -1,4 +1,4 @@
-/* config.in.  Generated automatically from configure.in by autoheader.  */
+/* config.in.  Generated automatically from configure.in by autoheader 2.13.  */
 
 /* Define if using alloca.c.  */
 #undef C_ALLOCA
@@ -93,6 +93,9 @@
 /* Define if you have the __argz_stringify function.  */
 #undef HAVE___ARGZ_STRINGIFY
 
+/* Define if you have the alphasort function.  */
+#undef HAVE_ALPHASORT
+
 /* Define if you have the atoll function.  */
 #undef HAVE_ATOLL
 
@@ -138,14 +141,14 @@
 /* Define if you have the getgid function.  */
 #undef HAVE_GETGID
 
-/* Define if you have the getpagesize function.  */
-#undef HAVE_GETPAGESIZE
-
 /* Define if you have the getrlimit function.  */
 #undef HAVE_GETRLIMIT
 
 /* Define if you have the getrusage function.  */
 #undef HAVE_GETRUSAGE
+
+/* Define if you have the gettimeofday function.  */
+#undef HAVE_GETTIMEOFDAY
 
 /* Define if you have the getuid function.  */
 #undef HAVE_GETUID
@@ -159,6 +162,9 @@
 /* Define if you have the mempcpy function.  */
 #undef HAVE_MEMPCPY
 
+/* Define if you have the mmap function.  */
+#undef HAVE_MMAP
+
 /* Define if you have the munmap function.  */
 #undef HAVE_MUNMAP
 
@@ -170,6 +176,9 @@
 
 /* Define if you have the putenv function.  */
 #undef HAVE_PUTENV
+
+/* Define if you have the scandir function.  */
+#undef HAVE_SCANDIR
 
 /* Define if you have the setenv function.  */
 #undef HAVE_SETENV
@@ -246,6 +255,9 @@
 /* Define if you have the <sys/file.h> header file.  */
 #undef HAVE_SYS_FILE_H
 
+/* Define if you have the <sys/mman.h> header file.  */
+#undef HAVE_SYS_MMAN_H
+
 /* Define if you have the <sys/param.h> header file.  */
 #undef HAVE_SYS_PARAM_H
 
@@ -272,39 +284,6 @@
 
 /* Define to enable the use of a default assembler. */
 #undef DEFAULT_ASSEMBLER
-
-/* Define if you want more run-time sanity checks.  This one gets a grab
-   bag of miscellaneous but relatively cheap checks. */
-#undef ENABLE_CHECKING
-
-/* Define if you want all operations on trees (the basic data
-   structure of the front ends) to be checked for dynamic type safety
-   at runtime.  This is moderately expensive. */
-#undef ENABLE_TREE_CHECKING
-
-/* Define if you want all operations on RTL (the basic data structure
-   of the optimizer and back end) to be checked for dynamic type safety
-   at runtime.  This is quite expensive. */
-#undef ENABLE_RTL_CHECKING
-
-/* Define if you want the garbage collector to do object poisoning and
-   other memory allocation checks.  This is quite expensive. */
-#undef ENABLE_GC_CHECKING
-
-/* Define if you want the garbage collector to operate in maximally
-   paranoid mode, validating the entire heap and collecting garbage at
-   every opportunity.  This is extremely expensive. */
-#undef ENABLE_GC_ALWAYS_COLLECT
-
-/* Define if you want to use __cxa_atexit, rather than atexit, to
-   register C++ destructors for local statics and global objects.
-   This is essential for fully standards-compliant handling of
-   destructors, but requires __cxa_atexit in libc. */
-#undef DEFAULT_USE_CXA_ATEXIT
-
-/* Define if you want the C and C++ compilers to support multibyte
-   character sets for source code. */
-#undef MULTIBYTE_CHARS
 
 /* Define if your compiler understands volatile. */
 #undef HAVE_VOLATILE
@@ -339,6 +318,48 @@
 /* Define if the host execution character set is EBCDIC. */
 #undef HOST_EBCDIC
 
+/* Define if you want more run-time sanity checks.  This one gets a grab
+   bag of miscellaneous but relatively cheap checks. */
+#undef ENABLE_CHECKING
+
+/* Define if you want all operations on trees (the basic data
+   structure of the front ends) to be checked for dynamic type safety
+   at runtime.  This is moderately expensive. */
+#undef ENABLE_TREE_CHECKING
+
+/* Define if you want all operations on RTL (the basic data structure
+   of the optimizer and back end) to be checked for dynamic type safety
+   at runtime.  This is quite expensive. */
+#undef ENABLE_RTL_CHECKING
+
+/* Define if you want RTL flag accesses to be checked against the RTL
+   codes that are supported for each access macro.  This is relatively
+   cheap. */
+#undef ENABLE_RTL_FLAG_CHECKING
+
+/* Define if you want the garbage collector to do object poisoning and
+   other memory allocation checks.  This is quite expensive. */
+#undef ENABLE_GC_CHECKING
+
+/* Define if you want the garbage collector to operate in maximally
+   paranoid mode, validating the entire heap and collecting garbage at
+   every opportunity.  This is extremely expensive. */
+#undef ENABLE_GC_ALWAYS_COLLECT
+
+/* Define if you want to run subprograms and generated programs
+   through valgrind (a memory checker).  This is extremely expensive. */
+#undef ENABLE_VALGRIND_CHECKING
+
+/* Define if you want to use __cxa_atexit, rather than atexit, to
+   register C++ destructors for local statics and global objects.
+   This is essential for fully standards-compliant handling of
+   destructors, but requires __cxa_atexit in libc. */
+#undef DEFAULT_USE_CXA_ATEXIT
+
+/* Define if you want the C and C++ compilers to support multibyte
+   character sets for source code. */
+#undef MULTIBYTE_CHARS
+
 /* Always define this when using the GNU C Library */
 #undef _GNU_SOURCE
 
@@ -372,14 +393,14 @@
 /* Define if printf supports %p. */
 #undef HAVE_PRINTF_PTR
 
-/* Define if mmap can get us zeroed pages from /dev/zero. */
-#undef HAVE_MMAP_DEV_ZERO
-
-/* Define if mmap can get us zeroed pages using MAP_ANON(YMOUS). */
-#undef HAVE_MMAP_ANON
-
 /* Define if read-only mmap of a plain file works. */
 #undef HAVE_MMAP_FILE
+
+/* Define if mmap of /dev/zero works. */
+#undef HAVE_MMAP_DEV_ZERO
+
+/* Define if mmap with MAP_ANON(YMOUS) works. */
+#undef HAVE_MMAP_ANON
 
 /* Define if you have the iconv() function. */
 #undef HAVE_ICONV
@@ -430,6 +451,9 @@
 #undef HAVE_DECL_ERRNO
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
+#undef HAVE_DECL_VASPRINTF
+
+/* Define to 1 if we found this declaration otherwise define to 0. */
 #undef HAVE_DECL_MALLOC
 
 /* Define to 1 if we found this declaration otherwise define to 0. */
@@ -459,6 +483,9 @@
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #undef HAVE_DECL_GETRUSAGE
 
+/* Define to `long' if <sys/resource.h> doesn't define. */
+#undef rlim_t
+
 /* Define to 1 if we found this declaration otherwise define to 0. */
 #undef HAVE_DECL_TIMES
 
@@ -468,8 +495,19 @@
 /* Define if <time.h> defines clock_t. */
 #undef HAVE_CLOCK_T
 
+/* Define .init_array/.fini_array sections are available and working. */
+#undef HAVE_INITFINI_ARRAY
+
 /* Define if host mkdir takes a single argument. */
 #undef MKDIR_TAKES_ONE_ARG
+
+/* Define to the name of a file containing a list of extra machine modes
+   for this architecture. */
+#undef EXTRA_MODES_FILE
+
+/* Define if the target architecture needs extra machine modes to represent
+   the results of comparisons. */
+#undef EXTRA_CC_MODES
 
 /* Define if you have the iconv() function. */
 #undef HAVE_ICONV
@@ -523,6 +561,9 @@
 /* Define if your assembler supports marking sections with SHF_MERGE flag. */
 #undef HAVE_GAS_SHF_MERGE
 
+/* Define if your assembler supports thread-local storage. */
+#undef HAVE_AS_TLS
+
 /* Define if your assembler supports explicit relocations. */
 #undef HAVE_AS_EXPLICIT_RELOCS
 
@@ -544,6 +585,9 @@
 /* Define true if the assembler supports '.long foo@GOTOFF'. */
 #undef HAVE_AS_GOTOFF_IN_DATA
 
+/* Define if your assembler supports ltoffx and ldxmov relocations. */
+#undef HAVE_AS_LTOFFX_LDXMOV_RELOCS
+
 /* Define if your assembler supports dwarf2 .file/.loc directives,
    and preserves file table indices exactly as given. */
 #undef HAVE_AS_DWARF2_DEBUG_LINE
@@ -554,11 +598,21 @@
 /* Define if your assembler supports the --gstabs option. */
 #undef HAVE_AS_GSTABS_DEBUG_FLAG
 
+/* Define if your linker links a mix of read-only
+   and read-write sections into a read-write section. */
+#undef HAVE_LD_RO_RW_SECTION_MIXING
+
 /* Define if your linker supports --eh-frame-hdr option. */
 #undef HAVE_LD_EH_FRAME_HDR
 
+/* Define if your MIPS libgloss linker scripts consistently include STARTUP directives. */
+#undef HAVE_MIPS_LIBGLOSS_STARTUP_DIRECTIVES
+
 /* Define 0/1 to force the choice for exception handling model. */
 #undef CONFIG_SJLJ_EXCEPTIONS
+
+/* Define if gcc should use -lunwind. */
+#undef USE_LIBUNWIND_EXCEPTIONS
 
 
 /* Bison unconditionally undefines `const' if neither `__STDC__' nor

@@ -2,7 +2,7 @@
    hosting on U/WIN (Windows32), using GNU tools and the Windows32 API 
    Library, as distinct from winnt.h, which is used to build GCC for use 
    with a windows style library and tool set and uses the Microsoft tools.
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2002 Free Software Foundation, Inc.
    Contributed by Mumit Khan  <khan@xraylith.wisc.edu>.
 
 This file is part of GNU CC.
@@ -25,26 +25,27 @@ Boston, MA 02111-1307, USA.  */
 /* Most of this is the same as for Cygwin32, except for changing some
    specs.  */
 
-#include "i386/cygwin.h"
-
 #define STANDARD_INCLUDE_COMPONENT "UWIN"
 #define SYSTEM_INCLUDE_DIR "/usr/gnu/include"
 #undef MD_STARTFILE_PREFIX
 #define MD_STARTFILE_PREFIX "/usr/gnu/lib/"
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D_WIN32 -D__WIN32__ \
-  -D_UWIN -DWINNT  -D_X86_=1 -D__STDC__=1 \
-  -D__UWIN__ -D__MSVCRT__ \
-  -D_STD_INCLUDE_DIR=mingw32 \
-  -D__stdcall=__attribute__((__stdcall__)) \
-  _D_stdcall=__attribute__((__stdcall__)) \
-  -D__cdecl=__attribute__((__cdecl__)) \
-  -D__declspec(x)=__attribute__((x)) \
-  -Asystem=winnt"
+#undef MAYBE_UWIN_CPP_BUILTINS
+#define MAYBE_UWIN_CPP_BUILTINS()			\
+  do							\
+    {							\
+	builtin_define_std ("WINNT");			\
+	builtin_define ("_WIN32");			\
+	builtin_define ("__WIN32__");			\
+	builtin_define ("_UWIN");			\
+	builtin_define ("__UWIN__");			\
+	builtin_define ("__MSVCRT__");			\
+	builtin_define ("_STD_INCLUDE_DIR=mingw32");	\
+    }							\
+  while (0)
 
 #undef CPP_SPEC
-#define CPP_SPEC "-remap %(cpp_cpu) %{posix:-D_POSIX_SOURCE} \
+#define CPP_SPEC "-remap %{posix:-D_POSIX_SOURCE} \
   -include /usr/include/astwin32.h \
   -idirafter /usr/gnu/include/mingw32"
 

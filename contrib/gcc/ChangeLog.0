@@ -2670,7 +2670,7 @@ Thu Jun  4 01:26:57 1998  Craig Burley  <burley@gnu.org>
 
 Thu Jun  4 00:54:21 1998  Graham  <grahams@rcp.co.uk>
 
-	* loop.c (check_dbra_loop): Initialise final_value before
+	* loop.c (check_dbra_loop): Initialize final_value before
 	normalizing the loop.
 
 Wed Jun  3 20:00:04 1998  J"orn Rennecke  <amylaar@cygnus.co.uk>
@@ -4435,7 +4435,7 @@ Sun May  3 23:57:25 1998  Robert Lipe  <robertl@dgii.com>
 
 Sun May  3 13:51:34 1998  Richard Henderson  <rth@cygnus.com>
 
-	Support for official Sparc V9 ABI:
+	Support for official SPARC V9 ABI:
 	* sparc.c (sparc_override_options): Force stack bias off for !arch64.
 	Care for flag_pcc_struct_return default.
 	(output_move_quad): Rewrite to move by halves on v9 and in the
@@ -6574,8 +6574,8 @@ Wed Mar 11 12:05:20 1998  Teemu Torma  <tot@trema.com>
 	* gthr.h: Changed the comment about return values.
 	* gthr-solaris.h (__gthread_once): Do not use errno; return the
 	error number instead of -1.
-	(__gthread_key_create): Any non-zero return value is an error.
-	* libgcc2.c (eh_context_initialize): Check for non-zero return
+	(__gthread_key_create): Any nonzero return value is an error.
+	* libgcc2.c (eh_context_initialize): Check for nonzero return
 	value from __gthread_once.
 	Check that the value of get_eh_context was really changed.
 
@@ -10440,7 +10440,7 @@ Tue Nov  4 20:36:50 1997  Richard Henderson  (rth@cygnus.com)
 
 	* alpha.c (alpha_handle_trap_shadows): Init sum.defd to zero.
 
-	* alpha.md (attr trap): Make TRAP_YES non-zero for sanity's sake.
+	* alpha.md (attr trap): Make TRAP_YES nonzero for sanity's sake.
 
 Tue Nov  4 18:49:42 1997  Jeffrey A Law  (law@cygnus.com)
 
@@ -12000,7 +12000,7 @@ Wed Sep 10 11:49:20 1997  Jason Merrill  <jason@yorick.cygnus.com>
 	EXCEPTION_SECTION, mark the start of the frame info with a
 	collectible tag.
 	* collect2.c (frame_tables): New list.
-	(is_ctor_dtor): Recognise frame entries.
+	(is_ctor_dtor): Recognize frame entries.
 	(scan_prog_file): Likewise.
 	(main): Pass -fno-exceptions to sub-compile.  Also do collection
 	if there are any frame entries.

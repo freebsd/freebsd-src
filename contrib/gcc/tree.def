@@ -49,7 +49,7 @@ DEFTREECODE (ERROR_MARK, "error_mark", 'x', 0)
    Internally it looks like a STRING_CST node.
    There is only one IDENTIFIER_NODE ever made for any particular name.
    Use `get_identifier' to get it (or create it, the first time).  */
-DEFTREECODE (IDENTIFIER_NODE, "identifier_node", 'x', -1)
+DEFTREECODE (IDENTIFIER_NODE, "identifier_node", 'x', ((LANG_HOOKS_IDENTIFIER_SIZE - sizeof (struct tree_common) + sizeof (tree) - 1) / sizeof (tree)))
 
 /* Has the TREE_VALUE and TREE_PURPOSE fields.  */
 /* These nodes are made into lists by chaining through the
@@ -76,10 +76,10 @@ DEFTREECODE (TREE_VEC, "tree_vec", 'x', 2)
    could either point to another BLOCK node or it could point to a
    FUNCTION_DECL node (e.g. in the case of a block representing the
    outermost scope of a particular inlining of a function).
-   BLOCK_ABSTRACT is non-zero if the block represents an abstract
+   BLOCK_ABSTRACT is nonzero if the block represents an abstract
    instance of a block (i.e. one which is nested within an abstract
    instance of an inline function). 
-   TREE_ASM_WRITTEN is non-zero if the block was actually referenced
+   TREE_ASM_WRITTEN is nonzero if the block was actually referenced
    in the generated assembly.  */
 DEFTREECODE (BLOCK, "block", 'b', 0)
 
@@ -199,19 +199,17 @@ DEFTREECODE (FILE_TYPE, "file_type", 't', 0)
    TREE_TYPE		  Type of an array element.
    TYPE_DOMAIN		  Type to index by.
 			    Its range of values specifies the array length.
-   TYPE_SEP		  Expression for units from one elt to the next.
-   TYPE_SEP_UNIT	  Number of bits in a unit for previous.
  The field TYPE_POINTER_TO (TREE_TYPE (array_type)) is always nonzero
  and holds the type to coerce a value of that array type to in C.
  TYPE_STRING_FLAG indicates a string (in contrast to an array of chars)
- in languages (such as Chill) that make a distinction. */
+ in languages (such as Chill) that make a distinction.  */
 /* Array types in C or Pascal */
 DEFTREECODE (ARRAY_TYPE, "array_type", 't', 0)
 
 /* Types of sets for Pascal.  Special fields are the same as
    in an array type.  The target type is always a boolean type.
    Used for both bitstrings and powersets in Chill;
-   TYPE_STRING_FLAG indicates a bitstring. */
+   TYPE_STRING_FLAG indicates a bitstring.  */
 DEFTREECODE (SET_TYPE, "set_type", 't', 0)
 
 /* Struct in C, or record in Pascal.  */
@@ -329,7 +327,7 @@ DEFTREECODE (STRING_CST, "string_cst", 'c', 3)
    holds a line number.  In some cases these can be the location of
    a reference, if no definition has been seen.
 
-   DECL_ABSTRACT is non-zero if the decl represents an abstract instance
+   DECL_ABSTRACT is nonzero if the decl represents an abstract instance
    of a decl (i.e. one which is nested within an abstract instance of a
    inline function.  */
 
@@ -369,7 +367,7 @@ DEFTREECODE (INDIRECT_REF, "indirect_ref", 'r', 1)
 DEFTREECODE (BUFFER_REF, "buffer_ref", 'r', 1)
 
 /* Array indexing.
-   Operand 0 is the array; operand 1 is a (single) array index. */
+   Operand 0 is the array; operand 1 is a (single) array index.  */
 DEFTREECODE (ARRAY_REF, "array_ref", 'r', 2)
 
 /* Likewise, except that the result is a range ("slice") of the array.  The
@@ -643,7 +641,7 @@ DEFTREECODE (BIT_NOT_EXPR, "bit_not_expr", '1', 1)
    needed or not (for side effects).  The operand may have
    BOOLEAN_TYPE or INTEGER_TYPE.  In either case, the argument will be
    either zero or one.  For example, a TRUTH_NOT_EXPR will never have
-   a INTEGER_TYPE VAR_DECL as its argument; instead, a NE_EXPR will be
+   an INTEGER_TYPE VAR_DECL as its argument; instead, a NE_EXPR will be
    used to compare the VAR_DECL to zero, thereby obtaining a node with
    value zero or one.  */
 DEFTREECODE (TRUTH_ANDIF_EXPR, "truth_andif_expr", 'e', 2)
@@ -670,7 +668,7 @@ DEFTREECODE (NE_EXPR, "ne_expr", '<', 2)
 DEFTREECODE (UNORDERED_EXPR, "unordered_expr", '<', 2)
 DEFTREECODE (ORDERED_EXPR, "ordered_expr", '<', 2)
 
-/* These are equivalent to unordered or ... */
+/* These are equivalent to unordered or ...  */
 DEFTREECODE (UNLT_EXPR, "unlt_expr", '<', 2)
 DEFTREECODE (UNLE_EXPR, "unle_expr", '<', 2)
 DEFTREECODE (UNGT_EXPR, "ungt_expr", '<', 2)
@@ -757,12 +755,9 @@ DEFTREECODE (CONJ_EXPR, "conj_expr", '1', 1)
 DEFTREECODE (REALPART_EXPR, "realpart_expr", '1', 1)
 DEFTREECODE (IMAGPART_EXPR, "imagpart_expr", '1', 1)
 
-/* The first argument is the lvalue to be incremented or decremented.
-   The second argument is the value that should be added or
-   subtracted.  If the first argument has pointer type, the second
-   argument is interpreted as the number of bytes to add or subtract
-   from the address.  The second argument must not be a constant
-   zero.  */
+/* Nodes for ++ and -- in C.
+   The second arg is how much to increment or decrement by.
+   For a pointer, it would be the size of the object pointed to.  */
 DEFTREECODE (PREDECREMENT_EXPR, "predecrement_expr", 'e', 2)
 DEFTREECODE (PREINCREMENT_EXPR, "preincrement_expr", 'e', 2)
 DEFTREECODE (POSTDECREMENT_EXPR, "postdecrement_expr", 'e', 2)
@@ -779,7 +774,7 @@ DEFTREECODE (VA_ARG_EXPR, "va_arg_expr", 'e', 1)
 DEFTREECODE (TRY_CATCH_EXPR, "try_catch_expr", 'e', 2)
 
 /* Evaluate the first operand.
-   The second operand is a a cleanup expression which is evaluated
+   The second operand is a cleanup expression which is evaluated
    before an exit (normal, exception, or jump out) from this expression.
 
    Like a CLEANUP_POINT_EXPR/WITH_CLEANUP_EXPR combination, but those
@@ -849,7 +844,7 @@ DEFTREECODE (EXPR_WITH_FILE_LOCATION, "expr_with_file_location", 'e', 3)
 /* Switch expression.
    Operand 0 is the expression used to perform the branch,
    Operand 1 contains the case values. The way they're organized is
-   front-end implementation defined. */
+   front-end implementation defined.  */
 DEFTREECODE (SWITCH_EXPR, "switch_expr", 'e', 2)
 
 /* The exception object from the runtime.  */
