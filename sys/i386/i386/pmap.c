@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.202 1998/05/21 07:47:34 dyson Exp $
+ *	$Id: pmap.c,v 1.203 1998/07/11 07:45:32 bde Exp $
  */
 
 /*
@@ -483,6 +483,7 @@ putmtrr()
 void
 pmap_setvidram(void)
 {
+#if 0
 	if (cpu == CPU_686) {
 		wbinvd();
 		/*
@@ -495,6 +496,7 @@ pmap_setvidram(void)
 		 */
 		wrmsr(0x259, 0x0101010101010101LL);
 	}
+#endif
 }
 
 void
@@ -505,7 +507,6 @@ pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
 	unsigned long long base;
 	unsigned long long mask;
 
-	return;
 	if (cpu != CPU_686)
 		return;
 
