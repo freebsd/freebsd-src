@@ -404,6 +404,7 @@ nwfs_getpages(ap)
 	struct ucred *cred;
 	struct nwmount *nmp;
 	struct nwnode *np;
+	vm_object_t object;
 	vm_page_t *pages;
 
 	vp = ap->a_vp;
@@ -414,7 +415,7 @@ nwfs_getpages(ap)
 	pages = ap->a_m;
 	count = ap->a_count;
 
-	if (vp->v_object == NULL) {
+	if ((object = vp->v_object) == NULL) {
 		printf("nwfs_getpages: called with non-merged cache vnode??\n");
 		return VM_PAGER_ERROR;
 	}
@@ -439,6 +440,8 @@ nwfs_getpages(ap)
 
 	relpbuf(bp, &nwfs_pbuf_freecnt);
 
+	if (error)
+		VM_OBJECT_LOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("nwfs_getpages: error %d\n",error);
 		vm_page_lock_queues();
@@ -447,6 +450,7 @@ nwfs_getpages(ap)
 				vm_page_free(pages[i]);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
@@ -493,6 +497,8 @@ nwfs_getpages(ap)
 		}
 	}
 	vm_page_unlock_queues();
+	if (error)
+		VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* NWFS_RWCACHE */
 }
