@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.51.4.3 1996/04/12 00:43:08 davidg Exp $
+ * $Id: vm_pageout.c,v 1.51.4.4 1996/05/26 18:01:16 davidg Exp $
  */
 
 /*
@@ -359,8 +359,7 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 	int map_remove_only;
 {
 	register vm_page_t p, next;
-	int rcount;
-	int dcount;
+	int s, rcount, dcount;
 
 	dcount = 0;
 	if (count == 0)
@@ -418,8 +417,10 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 					 * memory.
 					 */
 				} else {
+					s = splbio();
 					TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
 					TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+					splx(s);
 				}
 				/*
 				 * see if we are done yet
@@ -443,8 +444,10 @@ vm_pageout_object_deactivate_pages(map, object, count, map_remove_only)
 				if (p->act_count < ACT_MAX)
 					p->act_count += ACT_ADVANCE;
 
+				s = splbio();
 				TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+				splx(s);
 			}
 		} else if ((p->flags & (PG_INACTIVE | PG_BUSY)) == PG_INACTIVE) {
 			vm_page_protect(p, VM_PROT_NONE);
@@ -516,6 +519,7 @@ vm_pageout_scan()
 	vm_object_t object;
 	int force_wakeup = 0;
 	int vnodes_skipped = 0;
+	int s;
 
 	pages_freed = 0;
 
@@ -551,8 +555,10 @@ rescan1:
 		 * dont mess with busy pages
 		 */
 		if (m->hold_count || m->busy || (m->flags & PG_BUSY)) {
+			s = splbio();
 			TAILQ_REMOVE(&vm_page_queue_inactive, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
+			splx(s);
 			m = next;
 			continue;
 		}
@@ -669,8 +675,10 @@ rescan1:
 		if ((m->busy != 0) ||
 		    (m->flags & PG_BUSY) ||
 		    (m->hold_count != 0)) {
+			s = splbio();
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			splx(s);
 			m = next;
 			continue;
 		}
@@ -683,8 +691,10 @@ rescan1:
 			if (m->act_count < ACT_MAX) {
 				m->act_count += ACT_ADVANCE;
 			}
+			s = splbio();
 			TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 			TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+			splx(s);
 		} else {
 			m->flags &= ~PG_REFERENCED;
 			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
@@ -708,8 +718,10 @@ rescan1:
 					--page_shortage;
 				}
 			} else if (m->act_count) {
+				s = splbio();
 				TAILQ_REMOVE(&vm_page_queue_active, m, pageq);
 				TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
+				splx(s);
 			}
 		}
 		maxscan--;
