@@ -224,9 +224,15 @@ void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
 static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 
+#ifdef WITNESS
+static int nosleepwithlocks = 1;
+SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RD, &nosleepwithlocks,
+    0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
+#else
 static int nosleepwithlocks = 0;
 SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
     0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
+#endif
 SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
     NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
