@@ -580,51 +580,51 @@ cpu_critical_exit(critical_t eflags)
 
 #else /* !__GNUC__ */
 
-int	breakpoint	(void);
-u_int	bsfl		(u_int mask);
-u_int	bsrl		(u_int mask);
-void	disable_intr	(void);
-void	do_cpuid	(u_int ax, u_int *p);
-void	enable_intr	(void);
-u_char	inb		(u_int port);
-u_int	inl		(u_int port);
-void	insb		(u_int port, void *addr, size_t cnt);
-void	insl		(u_int port, void *addr, size_t cnt);
-void	insw		(u_int port, void *addr, size_t cnt);
-void	invd		(void);
-void	invlpg		(u_int addr);
-void	invltlb		(void);
-u_short	inw		(u_int port);
-void	outb		(u_int port, u_char data);
-void	outl		(u_int port, u_int data);
-void	outsb		(u_int port, void *addr, size_t cnt);
-void	outsl		(u_int port, void *addr, size_t cnt);
-void	outsw		(u_int port, void *addr, size_t cnt);
-void	outw		(u_int port, u_short data);
-u_int	rcr2		(void);
-u_int64_t rdmsr		(u_int msr);
-u_int64_t rdpmc		(u_int pmc);
-u_int64_t rdtsc		(void);
-u_int	read_eflags	(void);
-void	wbinvd		(void);
-void	write_eflags	(u_int ef);
-void	wrmsr		(u_int msr, u_int64_t newval);
-u_int	rfs		(void);
-u_int	rgs		(void);
-void	load_fs		(u_int sel);
-void	load_gs		(u_int sel);
+int	breakpoint(void);
+u_int	bsfl(u_int mask);
+u_int	bsrl(u_int mask);
+void	disable_intr(void);
+void	do_cpuid(u_int ax, u_int *p);
+void	enable_intr(void);
+u_char	inb(u_int port);
+u_int	inl(u_int port);
+void	insb(u_int port, void *addr, size_t cnt);
+void	insl(u_int port, void *addr, size_t cnt);
+void	insw(u_int port, void *addr, size_t cnt);
+void	invd(void);
+void	invlpg(u_int addr);
+void	invltlb(void);
+u_short	inw(u_int port);
+void	outb(u_int port, u_char data);
+void	outl(u_int port, u_int data);
+void	outsb(u_int port, void *addr, size_t cnt);
+void	outsl(u_int port, void *addr, size_t cnt);
+void	outsw(u_int port, void *addr, size_t cnt);
+void	outw(u_int port, u_short data);
+u_int	rcr2(void);
+u_int64_t rdmsr(u_int msr);
+u_int64_t rdpmc(u_int pmc);
+u_int64_t rdtsc(void);
+u_int	read_eflags(void);
+void	wbinvd(void);
+void	write_eflags(u_int ef);
+void	wrmsr(u_int msr, u_int64_t newval);
+u_int	rfs(void);
+u_int	rgs(void);
+void	load_fs(u_int sel);
+void	load_gs(u_int sel);
 critical_t cpu_critical_enter(void);
 void	cpu_critical_exit(critical_t eflags);
 
 #endif	/* __GNUC__ */
 
-void	load_cr0	(u_int cr0);
-void	load_cr3	(u_int cr3);
-void	load_cr4	(u_int cr4);
-void	ltr		(u_short sel);
-u_int	rcr0		(void);
-u_int	rcr3		(void);
-u_int	rcr4		(void);
+void	load_cr0(u_int cr0);
+void	load_cr3(u_int cr3);
+void	load_cr4(u_int cr4);
+void	ltr(u_short sel);
+u_int	rcr0(void);
+u_int	rcr3(void);
+u_int	rcr4(void);
 void    reset_dbregs(void);
 __END_DECLS
 
