@@ -52,7 +52,7 @@ capable browser by saying:
       <browser> file:/usr/share/doc/handbook/handbook.html
 
   To read the FAQ:
-      <browser> file:/usr/share/doc/FAQ/FAQ.html
+      <browser> file:/usr/share/doc/FAQ/freebsd-faq.html
 
 You can also visit the master (and most frequently updated) copies at
 http://www.freebsd.org.
@@ -373,5 +373,5 @@ mentioned, and we sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.1.2.3 1995/10/27 00:03:44 uhclem Exp $
+$Id: relnotes.hlp,v 1.1.2.4 1995/10/30 08:04:57 jkh Exp $
 
