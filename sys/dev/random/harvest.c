@@ -35,7 +35,9 @@
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/random.h>
-#include <sys/time.h>
+
+#include <machine/cpu.h>
+
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/random/hash.h>
@@ -44,14 +46,14 @@
 static u_int read_random_phony(void *, u_int);
 
 /* hold the address of the routine which is actually called if
- * the ramdomdev is loaded
+ * the randomdev is loaded
  */
-static void (*reap_func)(struct timespec *, void *, u_int, u_int, u_int, u_int) = NULL;
+static void (*reap_func)(u_int64_t, void *, u_int, u_int, u_int, u_int) = NULL;
 static u_int (*read_func)(void *, u_int) = read_random_phony;
 
 /* Initialise the harvester at load time */
 void
-random_init_harvester(void (*reaper)(struct timespec *, void *, u_int, u_int, u_int, u_int), u_int (*reader)(void *, u_int))
+random_init_harvester(void (*reaper)(u_int64_t, void *, u_int, u_int, u_int, u_int), u_int (*reader)(void *, u_int))
 {
 	reap_func = reaper;
 	read_func = reader;
@@ -73,12 +75,8 @@ random_deinit_harvester(void)
 void
 random_harvest(void *entropy, u_int count, u_int bits, u_int frac, u_int origin)
 {
-	struct timespec timebuf;
-
-	if (reap_func) {
-		nanotime(&timebuf);
-		(*reap_func)(&timebuf, entropy, count, bits, frac, origin);
-	}
+	if (reap_func)
+		(*reap_func)(get_cyclecount(), entropy, count, bits, frac, origin);
 }
 
 /* Userland-visible version of read_random */
@@ -95,18 +93,15 @@ read_random(void *buf, u_int count)
 static u_int
 read_random_phony(void *buf, u_int count)
 {
-	struct timespec timebuf;
 	u_long randval;
 	int size, i;
 	static int initialised = 0;
 
 	/* Try to give random(9) a half decent initialisation
-	 * DO not make the mistake of thinking this is secure!!
+	 * DO NOT make the mistake of thinking this is secure!!
 	 */
-	if (!initialised) {
-		nanotime(&timebuf);
-		srandom((u_long)(timebuf.tv_sec ^ timebuf.tv_nsec));
-	}
+	if (!initialised)
+		srandom((u_long)get_cyclecount());
 
 	/* Fill buf[] with random(9) output */
 	for (i = 0; i < count; i+= sizeof(u_long)) {
