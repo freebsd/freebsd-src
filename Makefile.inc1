@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.63 1999/02/14 13:56:14 des Exp $
+#	$Id: Makefile.inc1,v 1.64 1999/02/27 03:18:10 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -916,7 +916,7 @@ legacy-install:
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/libexec/rtld-aout; ${MAKE} -DNOMAN install
 	@echo
-.if ${MACHINE_ARCH} != "alpha"
+.if ${MACHINE_ARCH} == "i386"
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing legacy boot"
 	@echo "--------------------------------------------------------------"
