@@ -293,29 +293,17 @@ makefile(void)
 	moveifchanged(path("env.c.new"), path("env.c"));
 }
 
-/*
- * Read in the information about files used in making the system.
- * Store it in the ftab linked list.
- */
-static void
-read_files(void)
+void
+read_file(char *fname)
 {
 	FILE *fp;
 	struct file_list *tp, *pf;
 	struct device *dp;
 	struct opt *op;
 	char *wd, *this, *needs, *compilewith, *depends, *clean, *warning;
-	char fname[MAXPATHLEN];
-	int nreqs, first = 1, isdup, std, filetype,
+	int nreqs, isdup, std, filetype,
 	    imp_rule, no_obj, needcount, before_depend, mandatory, nowerror;
 
-	STAILQ_INIT(&ftab);
-	if (ident == NULL) {
-		printf("no ident line specified\n");
-		exit(1);
-	}
-	(void) snprintf(fname, sizeof(fname), "../../conf/files");
-openit:
 	fp = fopen(fname, "r");
 	if (fp == 0)
 		err(1, "%s", fname);
@@ -330,19 +318,8 @@ next:
 	wd = get_word(fp);
 	if (wd == (char *)EOF) {
 		(void) fclose(fp);
-		if (first == 1) {
-			first++;
-			(void) snprintf(fname, sizeof(fname),
-			    "../../conf/files.%s", machinename);
-			fp = fopen(fname, "r");
-			if (fp != 0)
-				goto next;
-			(void) snprintf(fname, sizeof(fname),
-			    "files.%s", machinename);
-			goto openit;
-		}
 		return;
-	}
+	} 
 	if (wd == 0)
 		goto next;
 	if (wd[0] == '#')
@@ -555,6 +532,34 @@ doneparam:
 	if (pf && pf->f_type == INVISIBLE)
 		pf->f_flags |= ISDUP;		/* mark as duplicate */
 	goto next;
+}
+
+/*
+ * Read in the information about files used in making the system.
+ * Store it in the ftab linked list.
+ */
+static void
+read_files(void)
+{
+	char fname[MAXPATHLEN];
+	FILE *fp;
+	struct files_name *nl, *tnl;
+	
+	if (ident == NULL) {
+		printf("no ident line specified\n");
+		exit(1);
+	}
+	(void) snprintf(fname, sizeof(fname), "../../conf/files");
+	read_file(fname);
+	(void) snprintf(fname, sizeof(fname),
+		       	"../../conf/files.%s", machinename);
+	read_file(fname);
+	for (nl = STAILQ_FIRST(&fntab); nl != NULL; nl = tnl) {
+		read_file(nl->f_name);
+		tnl = STAILQ_NEXT(nl, f_next);
+		free(nl->f_name);
+		free(nl);
+	}
 }
 
 static int

@@ -22,6 +22,7 @@
 %token	NOMAKEOPTION 
 %token	SEMICOLON
 %token	INCLUDE
+%token	FILES
 
 %token	<str>	ID
 %token	<val>	NUMBER
@@ -84,6 +85,7 @@ int	hintmode;
 int	yyline;
 const	char *yyfile;
 struct  file_list_head ftab;
+struct  files_name_head fntab;
 char	errbuf[80];
 int	maxusers;
 
@@ -121,6 +123,9 @@ Spec:
 	INCLUDE ID SEMICOLON
 	      = { include($2, 0); };
 		|
+	FILES ID SEMICOLON
+	      = { newfile($2); };
+	        |
 	SEMICOLON
 		|
 	error SEMICOLON
@@ -275,6 +280,20 @@ yyerror(const char *s)
 	errx(1, "%s:%d: %s", yyfile, yyline + 1, s);
 }
 
+/*
+ * Add a new file to the list of files.
+ */
+static void
+newfile(char *name)
+{
+	struct files_name *nl;
+	
+	nl = (struct files_name *) malloc(sizeof *nl);
+	bzero(nl, sizeof *nl);
+	nl->f_name = name;
+	STAILQ_INSERT_TAIL(&fntab, nl, f_next);
+}
+	
 /*
  * add a device to the list of devices
  */
