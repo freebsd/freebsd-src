@@ -357,10 +357,11 @@ remove_dev(dev_t dev)
 	freedev(dev);
 }
 
-char *
+const char *
 devtoname(dev_t dev)
 {
 	char *p;
+	int mynor;
 
 	if (dev->si_name[0] == '#' || dev->si_name[0] == '\0') {
 		p = dev->si_name;
@@ -369,8 +370,11 @@ devtoname(dev_t dev)
 		else
 			sprintf(p, "#%d/", major(dev));
 		p += strlen(p);
-		sprintf(p, minor(dev) > 255 ? "0x%x" : "%d", minor(dev));
+		mynor = minor(dev);
+		if (mynor < 0 || mynor > 255)
+			sprintf(p, "%#x", (u_int)mynor);
+		else
+			sprintf(p, "%d", mynor);
 	}
 	return (dev->si_name);
 }
-
