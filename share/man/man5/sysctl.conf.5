@@ -55,17 +55,12 @@ section, below.
 Initial settings for
 .Xr sysctl 8 .
 .El
-.Sh EXAMPLES
-To turn off logging of programs that exit due to fatal signals, as well as
-telling Linux programs that you are running
-.Fx 3.4 Ns -STABLE ,
-you may use
+.Sh EXAMPLE
+To turn off logging of programs that exit due to fatal signals you may use
 a configuration like
 .Bd -literal -offset indent
-# Configure logging and Linux execution.
+# Configure logging.
 kern.logsigexit=0	# Do not log fatal signal exits (e.g. sig 11)
-compat.linux.osname=FreeBSD
-compat.linux.osrelease=3.4-STABLE
 .Ed
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
@@ -76,3 +71,10 @@ The
 .Nm
 file appeared in
 .Fx 4.0 .
+.Sh BUGS
+If loadable kernel modules are used to introduce additional kernel
+functionality and sysctls to manage that functionality, sysctl.conf may
+be processed too early in the boot process to set those sysctls.
+For example, sysctls to manage the linux emulator cannot be set in
+sysctl.conf if the linux emulator is loaded as a module rather than
+compiled into the kernel.
