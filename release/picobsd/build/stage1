@@ -14,8 +14,8 @@ MFS_NAME=fs.PICOBSD
 MFS_MOUNTPOINT=`mktemp -d "/tmp/picobsd.XXXXXXXXXX"`
 export MFS_MOUNTPOINT
 
-MAKEOBJDIRPREFIX=${OBJ}/picobsd/${TYPE}
-export MAKEOBJDIRPREFIX
+PICO_OBJ=${OBJ}/picobsd/${TYPE}
+export PICO_OBJ
 
 # Location of the boot blocks (in case you want them custom-built)
 boot1=/boot/boot1

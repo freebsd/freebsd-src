@@ -7,12 +7,12 @@ all: crunch
 
 crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
-	-@( if [ -f crunch.inc ] ; then \
-		crunchgen -o -h ./crunch.inc ./crunch1.conf ; \
+	@( if [ -f crunch.inc ] ; then \
+		crunchgen -p ${PICO_OBJ} -o -h ./crunch.inc ./crunch1.conf ; \
 	else \
-		crunchgen -o ./crunch1.conf ; \
+		crunchgen -p ${PICO_OBJ} -o ./crunch1.conf ; \
 	fi )
-	${MAKE} -s -f crunch1.mk all
+	@${MAKE} -f crunch1.mk
 	strip --remove-section=.note --remove-section=.comment crunch1
 
 
