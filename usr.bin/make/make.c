@@ -511,8 +511,8 @@ Make_Update (cgn)
      * of this node.
      */
     if (Lst_Open (cgn->iParents) == SUCCESS) {
-	char    *p1;
-	char	*cpref = Var_Value(PREFIX, cgn, &p1);
+	char    *ptr;
+	char	*cpref = Var_Value(PREFIX, cgn, &ptr);
 
 	while ((ln = Lst_Next (cgn->iParents)) != NULL) {
 	    pgn = (GNode *)Lst_Datum (ln);
@@ -521,7 +521,7 @@ Make_Update (cgn)
 		Var_Set (PREFIX, cpref, pgn);
 	    }
 	}
-	efree(p1);
+	efree(ptr);
 	Lst_Close (cgn->iParents);
     }
 }

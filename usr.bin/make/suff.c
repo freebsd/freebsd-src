@@ -1816,40 +1816,40 @@ SuffFindNormalDeps(gn, slst)
 
 	if (ln != NULL) {
 	    int	    prefLen;	    /* Length of the prefix */
-	    Src	    *targ;
+	    Src	    *target;
 
 	    /*
 	     * Allocate a Src structure to which things can be transformed
 	     */
-	    targ = (Src *)emalloc(sizeof (Src));
-	    targ->file = estrdup(gn->name);
-	    targ->suff = (Suff *)Lst_Datum(ln);
-	    targ->suff->refCount++;
-	    targ->node = gn;
-	    targ->parent = (Src *)NULL;
-	    targ->children = 0;
+	    target = (Src *)emalloc(sizeof (Src));
+	    target->file = estrdup(gn->name);
+	    target->suff = (Suff *)Lst_Datum(ln);
+	    target->suff->refCount++;
+	    target->node = gn;
+	    target->parent = (Src *)NULL;
+	    target->children = 0;
 #ifdef DEBUG_SRC
-	    targ->cp = Lst_Init(FALSE);
+	    target->cp = Lst_Init(FALSE);
 #endif
 
 	    /*
 	     * Allocate room for the prefix, whose end is found by subtracting
 	     * the length of the suffix from the end of the name.
 	     */
-	    prefLen = (eoname - targ->suff->nameLen) - sopref;
-	    targ->pref = emalloc(prefLen + 1);
-	    memcpy(targ->pref, sopref, prefLen);
-	    targ->pref[prefLen] = '\0';
+	    prefLen = (eoname - target->suff->nameLen) - sopref;
+	    target->pref = emalloc(prefLen + 1);
+	    memcpy(target->pref, sopref, prefLen);
+	    target->pref[prefLen] = '\0';
 
 	    /*
 	     * Add nodes from which the target can be made
 	     */
-	    SuffAddLevel(srcs, targ);
+	    SuffAddLevel(srcs, target);
 
 	    /*
 	     * Record the target so we can nuke it
 	     */
-	    (void)Lst_AtEnd(targs, (void *)targ);
+	    (void)Lst_AtEnd(targs, (void *)target);
 
 	    /*
 	     * Search from this suffix's successor...
