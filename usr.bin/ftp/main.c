@@ -70,10 +70,14 @@ main(argc, argv)
 	int ch, top;
 	struct passwd *pw = NULL;
 	char *cp, homedir[MAXPATHLEN];
+	struct servent sp_default;
 
 	sp = getservbyname("ftp", "tcp");
-	if (sp == 0)
-		errx(1, "ftp/tcp: unknown service");
+	if (sp == 0) {
+		sp = &sp_default;
+		memset(sp, 0, sizeof *sp);
+		sp->s_port = htons(21);
+	}
 	doglob = 1;
 	interactive = 1;
 	autologin = 1;
