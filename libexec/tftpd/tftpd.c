@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tftpd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: tftpd.c,v 1.11 1998/04/12 11:15:54 phk Exp $";
+	"$Id: tftpd.c,v 1.12 1998/10/30 16:17:39 dg Exp $";
 #endif /* not lint */
 
 /*
@@ -65,6 +65,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <setjmp.h>
@@ -108,7 +109,6 @@ static int	logging;
 
 static char *errtomsg __P((int));
 static void  nak __P((int));
-static char *verifyhost __P((struct sockaddr_in *));
 
 int
 main(argc, argv)
@@ -325,8 +325,11 @@ again:
 	}
 	ecode = (*pf->f_validate)(&filename, tp->th_opcode);
 	if (logging) {
-		syslog(LOG_INFO, "%s: %s request for %s: %s",
-			verifyhost(&from),
+		char host[MAXHOSTNAMELEN + 1];
+
+		realhostname(host, sizeof host - 1, &from.sin_addr);
+		host[sizeof host - 1] = '\0';
+		syslog(LOG_INFO, "%s: %s request for %s: %s", host,
 			tp->th_opcode == WRQ ? "write" : "read",
 			filename, errtomsg(ecode));
 	}
@@ -669,18 +672,4 @@ nak(error)
 	length += 5;
 	if (send(peer, buf, length, 0) != length)
 		syslog(LOG_ERR, "nak: %m");
-}
-
-static char *
-verifyhost(fromp)
-	struct sockaddr_in *fromp;
-{
-	struct hostent *hp;
-
-	hp = gethostbyaddr((char *)&fromp->sin_addr, sizeof (fromp->sin_addr),
-			    fromp->sin_family);
-	if (hp)
-		return hp->h_name;
-	else
-		return inet_ntoa(fromp->sin_addr);
 }
