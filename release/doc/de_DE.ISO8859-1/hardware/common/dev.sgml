@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.55 2003/01/13 20:30:48 ue Exp $
-	basiert auf: 1.126
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.57 2003/01/14 23:25:14 ue Exp $
+	basiert auf: 1.128
 -->
 
 <sect1 id="support">
@@ -2145,7 +2145,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha">Davicom DM9100 und DM9102 PCI Fast
+    <para arch="i386,pc98,alpha">Davicom DM9009, DM9100 und DM9102 PCI Fast
       Ethernet Karten (&man.dc.4; Treiber)
       <itemizedlist>
         <listitem>
@@ -2366,7 +2366,7 @@
         </listitem>
 
         <listitem arch="i386,alpha">
-          <para>3C556/556B MiniPCI</para>
+          <para>3C555/556/556B MiniPCI</para>
         </listitem>
 
         <listitem arch="i386,alpha">
@@ -2887,7 +2887,7 @@
 
         <listitem>
           <para>Cisco Systems Aironet 340 und 350 Familien (PCMCIA,
-            PCI, und ISA Karten werden unterst&uuml;tzt)</para>
+            PCI, Mini-PCI und ISA Karten werden unterst&uuml;tzt)</para>
         </listitem>
 
 	<listitem>

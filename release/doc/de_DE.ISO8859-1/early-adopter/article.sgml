@@ -2,8 +2,8 @@
   The FreeBSD Documentation Project
   The FreeBSD German Documentation Project
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.13 2003/01/13 20:30:46 ue Exp $
-  basiert auf: 1.11
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/early-adopter/article.sgml,v 1.14 2003/01/14 23:20:53 ue Exp $
+  basiert auf: 1.12
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -192,8 +192,7 @@
 
       <listitem>
 	<para>GCC:  Der Compiler und die dazugeh&ouml;rigen Werkzeuge
-	  basieren jetzt auf einer Vorabversion von GCC 3.2.1 und
-	  nicht mehr auf GCC
+	  basieren jetzt auf GCC 3.2.1 und nicht mehr auf GCC
 	  2.95.<replaceable>X</replaceable>.</para>
       </listitem>
 
@@ -328,7 +327,7 @@
     <para>Die Ver&ouml;ffentlichung von &os; 5.0 bedeutet nicht das
       Ende der Entwicklungszweiges 4-STABLE.  Es wird auf jeden Fall
       noch eine weitere Version auf der Basis dieses
-      Entwicklungszweiges geben:  Das voraussichtlich am 1. Februar
+      Entwicklungszweiges geben:  Das voraussichtlich im M&auml;rz
       2003 erscheinende 4.8-RELEASE.</para>
 
     <para>Zum gegenw&auml;rtigen Zeitpunkt hat das Release Engineering
@@ -445,8 +444,11 @@
 	Standardsystem vorhandenen Programme, die Perl
 	ben&ouml;tigten, wurden entweder in einer anderen Sprache neu
 	geschrieben (wenn sie noch ben&ouml;tigt wurden) oder
-	ersatzlos entfernt (wenn sie &uuml;berfl&uuml;ssig
-	waren).</para>
+	ersatzlos entfernt (wenn sie &uuml;berfl&uuml;ssig waren).  Da
+	&man.sysinstall.8; das Perl Package bei den meisten
+	Distributionen automatisch mit instaliert, sollte diese
+	&Auml;nderung kaum Auswirkungen auf die Anwender
+	haben.</para>
 
       <para>Einige Scripte verlassen sich darauf, da&szlig; der
 	Perl-Interpreter als <filename>/usr/bin/perl</filename>

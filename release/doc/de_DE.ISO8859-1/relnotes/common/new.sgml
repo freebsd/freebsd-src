@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.172 2003/01/13 20:30:52 ue Exp $
-  basiert auf: 1.475
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.176 2003/01/16 21:44:01 ue Exp $
+  basiert auf: 1.480
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -462,7 +462,7 @@
 
     <para arch="i386,pc98">Der neue Treiber ubsa unterst&uuml;tzt den
       Belkin F5U103 USB-nach-seriell Konverter und kompatible
-      Ger&auml;te.</para>
+      Ger&auml;te.  &merged;</para>
 
     <para arch="i386,pc98" role="historic">Der neue Treiber
       &man.umodem.4;  unterst&uuml;tzt USB Modems, zur Zeit werden das
@@ -786,6 +786,9 @@
         anders sind, werden diese nicht unterst&uuml;tzt.  Mit dieser
         &Auml;nderung ist es m&ouml;glich, mit DHCP &uuml;ber ein
         Netzwerk zu booten.  &merged;</para>
+
+     <para arch="pc98">Der PC98 Bootloader ist jetzt auch in der Lage,
+       von SCSI MO Medien zu booten.  &merged;</para>
 
       <!-- Above this line, order bootloader changes by keyword-->
 
@@ -2810,6 +2813,13 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Wenn der Dump vollst&auml;ndig ist, wird der Snapshot wieder
       gel&ouml;scht.</para>
 
+    <para>Wird bei &man.dump.8; die neue Option <option>-C</option>
+      angegeben, wird ein Cache f&uuml;r Datenbl&ouml;cke der
+      Festplatte eingerichtet.  Dadurch steigt die Performance von
+      &man.dump.8;, kann aber dazu f&uuml;hren, da&szlig; zwischen den
+      einzelnen L&auml;ufen erfolgende &Auml;nderungen des
+      Dateisystems nicht erkannt werden.</para>
+
     <para role="historic">Der Option <option>-T</option> von &man.dump.8; verbraucht
       keinen zus&auml;tzlichen Parameter mehr.  &merged;</para>
 
@@ -3390,6 +3400,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       OpenBSD/NetBSD genutzten Varianten von &man.make.1; zu
       verringern.  &merged;</para>
 
+    <para>Wird &man.make.1; mit der neuen Option <option>-C</option>,
+      wechselt es in das angegebene Verzeichnis, bevor es mit der
+      Arbeit beginnt.  &merged;</para>
+
     <para role="historic">In &man.make.1; wurden diverse Fehler beseitigt, unter
       falsche Behandlung des leeren Suffix, falsche Annahmen &uuml;ber
       die Berechtigungen des aktuellen Verzeichnisses, und mehrere
@@ -3422,7 +3436,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       wird.</para>
 
     <para arch="ia64">Mit dem neuen Programm mca k&ouml;nen Machine
-      Check Records dekodiert werden.</para>
+      Check Architecture Records dekodiert werden.</para>
 
     <para>Das neue Kommando &man.mdmfs.8; ruft &man.mdconfig.8;,
       &man.disklabel.8;, &man.newfs.8; und &man.mount.8; auf und
@@ -3549,6 +3563,16 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       alte Verhalten (die Komprimierung mit &man.gzip.1;) in der Datei
       <filename>/etc/newsyslog.conf</filename> konfiguriert
       werden.</para>
+
+    <para>Wird bei &man.newsyslog.8; bei einem Eintrag (bzw. einer
+      Gruppe von Eintr&auml;gen, bei denen die Option
+      <literal>G</literal> gesetzt ist) die neue Option
+      <literal>W</literal> angeben, wird das Programm zur Kompression
+      des Logfiles erst gestartet, wenn er die vorher gestarteten
+      Packprogramme durchgelaufen sind.  Dadurch soll verhindert
+      werden, da&szlig; Systeme durch die gleichzeitige Kompression
+      mehrerer gro&szlig;er Logfiles &uuml;berlastet werden.
+      &merged;</para>
 
     <para>Mit den neuen Programm &man.nextboot.8; k&ouml;nnen ein
       alternativer Kernel und/oder andere Einstellung f&uuml;r den
@@ -3767,6 +3791,10 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>Der von &man.rand.3; zur Verf&uuml;gung gestellte Generator
       f&uuml;r Pseudo-Zufallszahlen wurde verbessert, um bessere
       Ergebnisse zu liefern.</para>
+
+    <para>Bei &man.rarpd.8; kann jetzt mit <option>-t</option> ein
+      Verzeichnis angegeben werden, das statt
+      <filename>/tftpboot</filename> genutzt wird.  &merged;</para>
 
     <para role="historic">&man.rc.8; enth&auml;lt jetzt die notwendigen Infrastruktur,
       um Abh&auml;ngigkeiten zwischen den in &man.rc.conf.5;
@@ -4480,7 +4508,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         &man.rc.conf.5; unterst&uuml;tzt. &merged;</para>
 
       <para>Der <application>ISC DHCP</application> Client wurde auf
-        Version 3.0.1RC8 aktualisiert.</para>
+        Version 3.0.1RC11 aktualisiert.</para>
 
       <para role="historic"><application>Kerberos IV</application> wurde auf Version
         1.0.5 aktualisiert. &merged;</para>
