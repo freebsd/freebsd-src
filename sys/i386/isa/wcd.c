@@ -619,7 +619,7 @@ static int wcd_request_wait (struct wcd *t, u_char cmd, u_char a1, u_char a2,
 	return (0);
 }
 
-static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
+static __inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
 {
 	lba += 150;             /* offset of first logical frame */
 	lba &= 0xffffff;        /* negative lbas use only 24 bits */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.36.2.2 1997/09/30 12:28:59 davidg Exp $
+ * $Id: if.h,v 1.36.2.3 1997/10/05 21:41:05 julian Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -267,14 +267,14 @@ typedef void if_init_f_t __P((void *));
 #define	IF_ENQ_DROP(ifq, m)	if_enq_drop(ifq, m)
 
 #if defined(__GNUC__) && defined(MT_HEADER)
-static inline int
+static __inline int
 if_queue_drop(struct ifqueue *ifq, struct mbuf *m)
 {
 	IF_DROP(ifq);
 	return 0;
 }
 
-static inline int
+static __inline int
 if_enq_drop(struct ifqueue *ifq, struct mbuf *m)
 {
 	if (IF_QFULL(ifq) &&

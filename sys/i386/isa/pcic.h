@@ -125,7 +125,7 @@ enum memtype { COMMON, ATTRIBUTE };
 /*
  * read a byte from a pcic register for a particular slot
  */
-static inline unsigned char
+static __inline unsigned char
 pcic_getb (int slot, int reg)
 {
     outb (INDEX(slot), OFFSET (slot) + reg);
@@ -135,7 +135,7 @@ pcic_getb (int slot, int reg)
 /*
  * write a byte to a pcic register for a particular slot
  */
-static inline void
+static __inline void
 pcic_putb (int slot, int reg, unsigned char val)
 {
     outb (INDEX(slot), OFFSET (slot) + reg);
@@ -145,7 +145,7 @@ pcic_putb (int slot, int reg, unsigned char val)
 /*
  * read a word from a pcic register for a particular slot
  */
-static inline unsigned short
+static __inline unsigned short
 pcic_getw (int slot, int reg)
 {
     return pcic_getb (slot, reg) | (pcic_getb (slot, reg+1) << 8);
@@ -154,7 +154,7 @@ pcic_getw (int slot, int reg)
 /*
  * write a word to a pcic register at a particular slot
  */
-static inline void
+static __inline void
 pcic_putw (int slot, int reg, unsigned short val)
 {
     pcic_putb (slot, reg, val & 0xff);

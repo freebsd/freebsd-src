@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.9 1995/11/07 14:06:42 phk Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.10 1995/12/03 16:41:57 bde Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -377,7 +377,7 @@ updatefats(pmp, bp, fatbn)
  * Where n is even. m = n + (n >> 2)
  *
  */
-static inline void
+static __inline void
 usemap_alloc(pmp, cn)
 	struct msdosfsmount *pmp;
 	u_long cn;
@@ -387,7 +387,7 @@ usemap_alloc(pmp, cn)
 	pmp->pm_freeclustercount--;
 }
 
-static inline void
+static __inline void
 usemap_free(pmp, cn)
 	struct msdosfsmount *pmp;
 	u_long cn;

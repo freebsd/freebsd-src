@@ -54,7 +54,7 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.18 1996/10/12 21:35:25 dyson Exp $
+ *	$Id: subr_rlist.c,v 1.19 1996/10/12 21:37:59 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -105,7 +105,7 @@ rlist_malloc()
 	return rl;
 }
 
-inline static void
+__inline static void
 rlist_mfree( struct rlist *rl)
 {
 	rl->rl_next = rlfree;

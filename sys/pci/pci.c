@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57.2.7 1998/03/07 11:33:01 se Exp $
+**  $Id: pci.c,v 1.57.2.8 1998/05/06 19:12:26 gibbs Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1188,7 +1188,7 @@ static struct pci_int_desc*
 
 #ifndef NO_SHARED_IRQ
 
-static inline unsigned
+static __inline unsigned
 splq (unsigned mask)
 {
 	unsigned temp=cpl;
