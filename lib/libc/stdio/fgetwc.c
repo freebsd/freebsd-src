@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "mblocal.h"
 
 /*
  * MT-safe version.
@@ -70,7 +71,7 @@ __fgetwc(FILE *fp)
 		return (wc);
 	}
 	do {
-		nconv = mbrtowc(&wc, fp->_p, fp->_r, &fp->_extra->mbstate);
+		nconv = __mbrtowc(&wc, fp->_p, fp->_r, &fp->_extra->mbstate);
 		if (nconv == (size_t)-1)
 			break;
 		else if (nconv == (size_t)-2)

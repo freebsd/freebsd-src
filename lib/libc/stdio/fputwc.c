@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "mblocal.h"
 
 /*
  * Non-MT-safe version.
@@ -55,7 +56,7 @@ __fputwc(wchar_t wc, FILE *fp)
 		*buf = (unsigned char)wc;
 		len = 1;
 	} else {
-		if ((len = wcrtomb(buf, wc, &fp->_extra->mbstate)) ==
+		if ((len = __wcrtomb(buf, wc, &fp->_extra->mbstate)) ==
 		    (size_t)-1) {
 			fp->_flags |= __SERR;
 			return (WEOF);
