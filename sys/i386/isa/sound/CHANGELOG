@@ -1,5 +1,83 @@
-Changelog for version 3.0-950506
-------------------------------------
+Changelog for version 3.5-alpha7
+--------------------------------
+
+Since 3.5-alpha6
+- Changed all #ifndef EXCLUDE_xx stuff to #ifdef CONFIG_xx. Modified
+configure to handle this. 
+- Removed initialization messages from the
+modularized version. They can be enabled by using init_trace=1 in
+the insmod command line (insmod sound init_trace=1).
+- More AIX stuff.
+- Added support for syncronizing dsp/audio devices with /dev/sequencer.
+- mmap() support for dsp/audio devices.
+
+Since 3.5-alpha5
+- AIX port.
+- Changed some xxx_PATCH macros in soundcard.h to work with
+  big endian machines.
+
+Since 3.5-alpha4
+- Removed the 'setfx' stuff from the version distributed with kernel
+  sources.
+
+Since 3.5-alpha3
+- Moved stuff from the 'setfx' program to the AudioTriX Pro driver.
+
+Since 3.5-alpha2
+- Modifications to makefile and configure.c. Unnecessary sources
+  are no longer compiled. Newly created local.h is also copied to
+  /etc/soundconf. "make oldconfig" reads /etc/soundconf and produces
+  new local.h which is compatible with current version of the driver.
+- Some fixes to the SB16 support.
+- Fixed random protection fault in gus_wave.c
+
+Since 3.5-alpha1
+- Modified to work with Linux-1.3.33 and leater
+- Some minor changes
+
+Since 3.0.2
+- Support for CS4232 based PnP cards (AcerMagic S23 etc).
+- Full duplex support for some CS4231, CS4232 and AD1845 based cards
+(GUA MAX, AudioTrix Pro, AcerMagic S23 and many MAD16/Mozart cards
+having a codec mentioned above).
+- Almost fully rewritten loadable modules support.
+- Fixed some bugs.
+- Huge amount of testing (more testing is still required).
+- mmap() support (works with some cards). Requires much more testing.
+- Sample/patch/program loading for TB Maui/Tropez. No initialization
+since TB doesn't allow me to release that code.
+- Using CS4231 compatible codecs as timer for /dev/music.
+
+Since 3.0.1
+- Added allocation of I/O ports, DMA channels and interrupts
+to the initialization code. This may break modules support since
+the driver may not free some resources on unload. Should be fixed soon.
+
+Since 3.0
+- Some important bug fixes. 
+- select() for /dev/dsp and /dev/audio (Linux only).
+(To use select() with read, you have to call read() to start
+the recording. Calling write() kills recording immediately so
+use select() carefully when you are writing a half duplex app.
+Full duplex mode is not implemented yet.) Select works also with
+/dev/sequencer and /dev/music. Maybe with /dev/midi## too.
+
+Since 3.0-beta2
+- Minor fixes.
+- Added Readme.cards
+
+Since 3.0-beta1
+- Minor fixes to the modules support.
+- Eliminated call to sb_free_irq() in ad1848.c
+- Rewritten MAD16&Mozart support (not tested with MAD16 Pro).
+- Fix to DMA initialization of PSS cards.
+- Some fixes to ad1848/cs42xx mixer support (GUS MAX, MSS, etc.)
+- Fixed some bugs in the PSS driver which caused I/O errors with
+  the MSS mode (/dev/dsp).
+
+Since 3.0-950506
+- Recording with GUS MAX fixed. It works when the driver is configured
+  to use two DMA channels with GUS MAX (16 bit ones recommended).
 
 Since 3.0-94xxxx
 - Too many changes
