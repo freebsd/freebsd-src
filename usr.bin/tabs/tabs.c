@@ -76,7 +76,7 @@ static int	 ttywidth(void);
 static void	 usage(void);
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[])
 {
 	long cols, i, inc, j, margin, nstops, stops[NSTOPS];
 	const char *cr, *ct, *st, *ML;
