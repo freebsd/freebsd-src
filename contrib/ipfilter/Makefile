@@ -5,7 +5,7 @@
 # provided that this notice is preserved and due credit is given
 # to the original author and the contributors.
 #
-# $Id: Makefile,v 2.0.2.26.2.1 1997/11/12 10:40:21 darrenr Exp $
+# $Id: Makefile,v 2.0.2.26.2.5 1997/11/27 09:32:38 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -13,6 +13,7 @@ MANDIR=/usr/local/man
 #To test prototyping
 #CC=gcc -Wstrict-prototypes -Wmissing-prototypes -Werror
 CC=gcc
+#CC=cc -Dconst=
 DEBUG=-g
 CFLAGS=-I$$(TOP)
 CPU=`uname -m`
@@ -65,6 +66,7 @@ all:
 	@echo "bsd	- compile for generic 4.4BSD systems"
 	@echo "bsdi	- compile for BSD/OS"
 	@echo "irix	- compile for SGI IRIX"
+	@echo "linux	- compile for Linux 2.0.31+"
 	@echo ""
 
 tests:
@@ -118,8 +120,8 @@ bsd: include
 
 bsdi bsdos: include
 	make setup "TARGOS=BSD" "CPUDIR=$(CPUDIR)"
-	(cd BSD/$(CPUDIR); make build "TOP=../.." $(MFLAGS) LKM= ; cd ..)
-	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+	(cd BSD/$(CPUDIR); make build "CC=$(CC)" "TOP=../.." $(MFLAGS) LKM= ; cd ..)
+	(cd BSD/$(CPUDIR); make -f Makefile.ipsend "CC=$(CC)" "TOP=../.." $(MFLAGS); cd ..)
 
 irix IRIX: include
 	make setup "TARGOS=IRIX" "CPUDIR=$(CPUDIR)"

@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1997 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.0.2.29.2.3 1997/11/12 10:57:25 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.0.2.29.2.4 1997/11/28 06:14:46 darrenr Exp $";
 #endif
 
 #include <stdio.h>
@@ -106,9 +106,11 @@ int	main __P((int, char *[]));
 #define	OPT_VERBOSE	0x008
 #define	OPT_HEXHDR	0x010
 #define	OPT_TAIL	0x020
-#define	OPT_ALL		0x040
 #define	OPT_NAT		0x080
 #define	OPT_STATE	0x100
+#define	OPT_FILTER	0x200
+#define	OPT_PORTNUM	0x400
+#define	OPT_ALL		(OPT_NAT|OPT_STATE|OPT_FILTER)
 
 #ifndef	LOGFAC
 #define	LOGFAC	LOG_LOCAL0
@@ -156,7 +158,7 @@ u_short	port;
 	struct	servent	*serv;
 
 	(void) sprintf(pname, "%hu", htons(port));
-	if (!res)
+	if (!res || (opts & OPT_PORTNUM))
 		return pname;
 	serv = getservbyport((int)port, proto);
 	if (!serv)
@@ -598,7 +600,7 @@ FILE *log;
 	int	fd, flushed = 0;
 
 	if ((fd = open(file, O_RDWR)) == -1) {
-		(void) fprintf(stderr, "%s: open: %s", file, STRERROR(errno));
+		(void) fprintf(stderr, "%s: open: %s\n", file,STRERROR(errno));
 		exit(-1);
 	}
 
@@ -620,50 +622,94 @@ FILE *log;
 }
 
 
+static void logopts(turnon, options)
+int turnon;
+char *options;
+{
+	int flags = 0;
+	char *s;
+
+	for (s = options; *s; s++)
+	{
+		switch (*s)
+		{
+		case 'N' :
+			flags |= OPT_NAT;
+			break;
+		case 'S' :
+			flags |= OPT_STATE;
+			break;
+		case 'I' :
+			flags |= OPT_FILTER;
+			break;
+		default :
+			fprintf(stderr, "Unknown log option %c\n", *s);
+			exit(1);
+		}
+	}
+
+	if (turnon)
+		opts |= flags;
+	else
+		opts &= ~(flags);
+}
+
+
 int main(argc, argv)
 int argc;
 char *argv[];
 {
 	struct	stat	sb;
 	FILE	*log = stdout;
-	int	fd[3], doread, n, i, nfd = 1;
-	int	tr, nr, regular, c;
-	int	fdt[3];
-	char	buf[512], *iplfile = IPL_NAME;
+	int	fd[3], doread, n, i;
+	int	tr, nr, regular[3], c;
+	int	fdt[3], devices = 0;
+	char	buf[512], *iplfile[3];
 	extern	int	optind;
 	extern	char	*optarg;
 
 	fd[0] = fd[1] = fd[2] = -1;
- 	fdt[0] = IPL_LOGIPF;
-	fdt[1] = IPL_LOGNAT;
-	fdt[2] = IPL_LOGSTATE;
+	fdt[0] = fdt[1] = fdt[2] = -1;
+	iplfile[0] = IPL_NAME;
+	iplfile[1] = IPNAT_NAME;
+	iplfile[2] = IPSTATE_NAME;
 
-	while ((c = getopt(argc, argv, "?af:FhnNsStvxX")) != -1)
+	while ((c = getopt(argc, argv, "?af:FhI:nN:o:O:sS:tvxX")) != -1)
 		switch (c)
 		{
 		case 'a' :
 			opts |= OPT_ALL;
-			nfd = 3;
 			break;
-		case 'f' :
-			iplfile = optarg;
+		case 'f' : case 'I' :
+			opts |= OPT_FILTER;
+			fdt[0] = IPL_LOGIPF;
+			iplfile[0] = optarg;
 			break;
 		case 'F' :
-			if (!(opts & OPT_ALL))
-				flushlogs(iplfile, log);
-			else {
-				flushlogs(IPL_NAME, log);
-				flushlogs(IPL_NAT, log);
-				flushlogs(IPL_STATE, log);
-			}
+			flushlogs(iplfile[0], log);
+			flushlogs(iplfile[1], log);
+			flushlogs(iplfile[2], log);
 			break;
 		case 'n' :
 			opts |= OPT_RESOLVE;
 			break;
 		case 'N' :
 			opts |= OPT_NAT;
-			fdt[0] = IPL_LOGNAT;
-			iplfile = IPL_NAT;
+			fdt[1] = IPL_LOGNAT;
+			iplfile[1] = optarg;
+			break;
+		case 'o' : case 'O' :
+			logopts(c == 'o', optarg);
+			fdt[0] = fdt[1] = fdt[2] = -1;
+			if (opts & OPT_FILTER)
+				fdt[0] = IPL_LOGIPF;
+			if (opts & OPT_NAT)
+				fdt[1] = IPL_LOGNAT;
+			if (opts & OPT_STATE)
+				fdt[2] = IPL_LOGSTATE;
+			break;
+		case 'p' :
+			opts |= OPT_PORTNUM;
 			break;
 		case 's' :
 			openlog(argv[0], LOG_NDELAY|LOG_PID, LOGFAC);
@@ -671,8 +717,8 @@ char *argv[];
 			break;
 		case 'S' :
 			opts |= OPT_STATE;
-			fdt[0] = IPL_LOGSTATE;
-			iplfile = IPL_STATE;
+			fdt[2] = IPL_LOGSTATE;
+			iplfile[2] = optarg;
 			break;
 		case 't' :
 			opts |= OPT_TAIL;
@@ -692,22 +738,32 @@ char *argv[];
 			usage(argv[0]);
 		}
 
-	if ((fd[0] == -1) && (fd[0] = open(iplfile, O_RDONLY)) == -1) {
-		(void) fprintf(stderr, "%s: open: %s", iplfile,
-			STRERROR(errno));
-		exit(-1);
-	}
+	/*
+	 * Default action is to only open the filter log file.
+	 */
+	if ((fdt[0] == -1) && (fdt[1] == -1) && (fdt[2] == -1))
+		fdt[0] = IPL_LOGIPF;
 
-	if ((opts & OPT_ALL)) {
-		if ((fd[1] = open(IPL_NAT, O_RDONLY)) == -1) {
-			(void) fprintf(stderr, "%s: open: %s", IPL_NAT,
-				STRERROR(errno));
-			exit(-1);
-		}
-		if ((fd[2] = open(IPL_STATE, O_RDONLY)) == -1) {
-			(void) fprintf(stderr, "%s: open: %s", IPL_STATE,
-				STRERROR(errno));
-			exit(-1);
+	for (i = 0; i < 3; i++) {
+		if (fdt[i] == -1)
+			continue;
+		if (!strcmp(iplfile[i], "-"))
+			fd[i] = 0;
+		else {
+			if ((fd[i] = open(iplfile[i], O_RDONLY)) == -1) {
+				(void) fprintf(stderr,
+					       "%s: open: %s\n", iplfile[i],
+					       STRERROR(errno));
+				exit(-1);
+			}
+
+			if (fstat(fd[i], &sb) == -1) {
+				(void) fprintf(stderr, "%d: fstat: %s\n",fd[i],
+					       STRERROR(errno));
+				exit(-1);
+			}
+			if (!(regular[i] = !S_ISCHR(sb.st_mode)))
+				devices++;
 		}
 	}
 
@@ -715,27 +771,21 @@ char *argv[];
 		log = argv[optind] ? fopen(argv[optind], "a") : stdout;
 		if (log == NULL) {
 			
-			(void) fprintf(stderr, "%s: fopen: %s", argv[optind],
+			(void) fprintf(stderr, "%s: fopen: %s\n", argv[optind],
 				STRERROR(errno));
 			exit(-1);
 		}
 		setvbuf(log, NULL, _IONBF, 0);
 	}
 
-	if (stat(iplfile, &sb) == -1) {
-		(void) fprintf(stderr, "%s: stat: %s", iplfile,
-			STRERROR(errno));
-		exit(-1);
-	}
-
-	regular = !S_ISCHR(sb.st_mode);
-
 	for (doread = 1; doread; ) {
 		nr = 0;
 
-		for (i = 0; i < nfd; i++) {
+		for (i = 0; i < 3; i++) {
 			tr = 0;
-			if (!regular) {
+			if (fdt[i] == -1)
+				continue;
+			if (!regular[i]) {
 				if (ioctl(fd[i], FIONREAD, &tr) == -1) {
 					perror("ioctl(FIONREAD)");
 					exit(-1);
@@ -745,7 +795,7 @@ char *argv[];
 				if (!tr && !(opts & OPT_TAIL))
 					doread = 0;
 			}
-			if (!tr && nfd != 1)
+			if (!tr)
 				continue;
 			nr += tr;
 
@@ -777,7 +827,7 @@ char *argv[];
 				break;
 			}
 		}
-		if (!nr && ((opts & OPT_TAIL) || !regular))
+		if (!nr && ((opts & OPT_TAIL) || devices))
 			sleep(1);
 	}
 	exit(0);

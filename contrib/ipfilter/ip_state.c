@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.3 1997/11/12 10:55:34 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_state.c,v 2.0.2.24.2.4 1997/11/19 11:44:09 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL) && !defined(__KERNEL__)
@@ -179,9 +179,7 @@ int mode;
 	case SIOCIPFFL :
 		IRCOPY(data, (caddr_t)&arg, sizeof(arg));
 		if (arg == 0 || arg == 1) {
-			MUTEX_ENTER(&ipf_state);
 			ret = fr_state_flush(arg);
-			MUTEX_EXIT(&ipf_state);
 			IWCOPY((caddr_t)&ret, data, sizeof(ret));
 		} else
 			error = EINVAL;
