@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)correct.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: correct.c,v 1.2 1997/10/22 06:19:48 charnier Exp $";
 #endif /* not lint */
 
 #include "globals.h"
@@ -84,9 +84,7 @@ correct(avdelta)
 				mstotvround(&to.tsp_time, corr);
 				to.tsp_type = TSP_ADJTIME;
 			}
-			(void)strncpy(to.tsp_name, hostname,
-					sizeof to.tsp_name-1);
-			to.tsp_name[sizeof to.tsp_name-1] = '\0';
+			(void)strcpy(to.tsp_name, hostname);
 			answer = acksend(&to, &htp->addr, htp->name,
 					 TSP_ACK, 0, 0);
 			if (!answer) {

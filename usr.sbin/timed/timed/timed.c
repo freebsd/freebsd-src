@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: timed.c,v 1.5 1997/10/22 06:19:49 charnier Exp $";
 #endif /* not lint */
 
 #define TSPTYPES
@@ -573,8 +573,7 @@ suppress(addr, name,net)
 	if (trace)
 		fprintf(fd, "suppress: %s\n", name);
 	tgt = *addr;
-	(void)strncpy(tname, name, sizeof tname-1);
-	tname[sizeof tname-1] = '\0';
+	(void)strcpy(tname, name);
 
 	while (0 != readmsg(TSP_ANY, ANYADDR, &wait, net)) {
 		if (trace)
@@ -584,8 +583,7 @@ suppress(addr, name,net)
 
 	syslog(LOG_NOTICE, "suppressing false master %s", tname);
 	msg.tsp_type = TSP_QUIT;
-	(void)strncpy(msg.tsp_name, hostname, sizeof msg.tsp_name-1);
-	msg.tsp_name[sizeof msg.tsp_name-1] = '\0';
+	(void)strcpy(msg.tsp_name, hostname);
 	(void)acksend(&msg, &tgt, tname, TSP_ACK, 0, 1);
 }
 
@@ -603,8 +601,7 @@ lookformaster(ntp)
 
 	/* look for master */
 	resp.tsp_type = TSP_MASTERREQ;
-	(void)strncpy(resp.tsp_name, hostname, sizeof resp.tsp_name-1);
-	resp.tsp_name[sizeof resp.tsp_name-1] = '\0';
+	(void)strcpy(resp.tsp_name, hostname);
 	answer = acksend(&resp, &ntp->dest_addr, ANYADDR,
 			 TSP_MASTERACK, ntp, 0);
 	if (answer != 0 && !good_host_name(answer->tsp_name)) {
@@ -659,8 +656,7 @@ lookformaster(ntp)
 	}
 
 	ntp->status = SLAVE;
-	(void)strncpy(mastername, answer->tsp_name, sizeof mastername-1);
-	mastername[sizeof mastername-1] = '\0';
+	(void)strcpy(mastername, answer->tsp_name);
 	masteraddr = from;
 
 	/*
@@ -678,9 +674,7 @@ lookformaster(ntp)
 	if (answer != NULL &&
 	    strcmp(answer->tsp_name, mastername) != 0) {
 		conflict.tsp_type = TSP_CONFLICT;
-		(void)strncpy(conflict.tsp_name, hostname,
-				sizeof conflict.tsp_name-1);
-		conflict.tsp_name[sizeof conflict.tsp_name-1] = '\0';
+		(void)strcpy(conflict.tsp_name, hostname);
 		if (!acksend(&conflict, &masteraddr, mastername,
 			     TSP_ACK, 0, 0)) {
 			syslog(LOG_ERR,

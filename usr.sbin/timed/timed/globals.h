@@ -33,10 +33,6 @@
  *	@(#)globals.h	8.1 (Berkeley) 6/6/93
  */
 
-#ifdef sgi
-#ident "$Revision: 1.1.1.1 $"
-#endif
-
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/socket.h>
