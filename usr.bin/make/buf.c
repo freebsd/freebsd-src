@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  *	buffer in case it holds a string.
  */
 #define	BufExpand(bp, nb) do {						\
- 	if (bp->left < (nb) + 1) {					\
+ 	if ((bp)->left < (nb) + 1) {					\
 		int newSize = (bp)->size + max((nb) + 1, BUF_ADD_INC);	\
 		Byte  *newBuf = erealloc((bp)->buffer, newSize);	\
 									\
