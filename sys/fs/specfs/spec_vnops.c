@@ -84,9 +84,11 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_getpages_desc,		(vop_t *) spec_getpages },
 	{ &vop_getwritemount_desc, 	(vop_t *) vop_stdgetwritemount },
 	{ &vop_ioctl_desc,		(vop_t *) spec_ioctl },
+	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
 	{ &vop_kqfilter_desc,		(vop_t *) spec_kqfilter },
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_link_desc,		(vop_t *) vop_panic },
+	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_mkdir_desc,		(vop_t *) vop_panic },
 	{ &vop_mknod_desc,		(vop_t *) vop_panic },
 	{ &vop_open_desc,		(vop_t *) spec_open },
@@ -104,10 +106,8 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) vop_ebadf },
 	{ &vop_strategy_desc,		(vop_t *) spec_strategy },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
-	{ &vop_write_desc,		(vop_t *) spec_write },
-	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_unlock_desc,		(vop_t *) vop_nounlock },
-	{ &vop_islocked_desc,		(vop_t *) vop_noislocked },
+	{ &vop_write_desc,		(vop_t *) spec_write },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc spec_vnodeop_opv_desc =
