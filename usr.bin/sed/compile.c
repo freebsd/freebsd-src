@@ -140,7 +140,7 @@ compile()
 
 #define EATSPACE() do {							\
 	if (p)								\
-		while (*p && isascii(*p) && isspace(*p))		\
+		while (*p && isspace((unsigned char)*p))                \
 			p++;						\
 	} while (0)
 
@@ -696,7 +696,7 @@ duptoeol(s, ctype)
 
 	ws = 0;
 	for (start = s; *s != '\0' && *s != '\n'; ++s)
-		ws = isspace(*s);
+		ws = isspace((unsigned char)*s);
 	*s = '\0';
 	if (ws)
 		err(WARNING, "whitespace after %s", ctype);
