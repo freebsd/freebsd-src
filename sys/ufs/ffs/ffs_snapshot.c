@@ -984,19 +984,14 @@ mapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	struct inode *ip;
 	ino_t inum;
 
-	/*
-	 * We only care about the leaf block numbers, not the
-	 * meta-block numbers.
-	 */
-	if (lblkno == -1)
-		return (0);
 	ip = VTOI(vp);
 	inum = ip->i_number;
 	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
-		if (expungetype == BLK_SNAP && blkno != BLK_SNAP)
+		if (lblkno != -1 && expungetype == BLK_SNAP &&
+		    blkno != BLK_SNAP)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
@@ -1260,19 +1255,14 @@ mapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 	struct inode *ip;
 	ino_t inum;
 
-	/*
-	 * We only care about the leaf block numbers, not the
-	 * meta-block numbers.
-	 */
-	if (lblkno == -1)
-		return (0);
 	ip = VTOI(vp);
 	inum = ip->i_number;
 	for ( ; oldblkp < lastblkp; oldblkp++, lblkno++) {
 		blkno = *oldblkp;
 		if (blkno == 0 || blkno == BLK_NOCOPY)
 			continue;
-		if (expungetype == BLK_SNAP && blkno != BLK_SNAP)
+		if (lblkno != -1 && expungetype == BLK_SNAP &&
+		    blkno != BLK_SNAP)
 			*ip->i_snapblklist++ = lblkno;
 		if (blkno == BLK_SNAP)
 			blkno = blkstofrags(fs, lblkno);
