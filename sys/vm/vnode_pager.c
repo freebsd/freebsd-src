@@ -305,7 +305,6 @@ vnode_pager_setsize(vp, nsize)
 		 * it can screw up NFS reads, so we don't allow the case.
 		 */
 		if (nsize & PAGE_MASK) {
-			vm_offset_t kva;
 			vm_page_t m;
 
 			m = vm_page_lookup(object, OFF_TO_IDX(nsize));
@@ -317,9 +316,7 @@ vnode_pager_setsize(vp, nsize)
 				 * Clear out partial-page garbage in case
 				 * the page has been mapped.
 				 */
-				kva = vm_pager_map_page(m);
-				bzero((caddr_t)kva + base, size);
-				vm_pager_unmap_page(kva);
+				vm_page_zero_fill_area(m, base, size);
 
 				/*
 				 * XXX work around SMP data integrity race
