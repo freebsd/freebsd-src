@@ -45,7 +45,7 @@
 .Nm
 .Op Fl c | Fl d | Fl u
 .Op Fl i
-.Op Fl f Ar fields
+.Op Fl f Ar num
 .Op Fl s Ar chars
 .Oo
 .Ar input_file
@@ -71,7 +71,7 @@ Only output lines that are repeated in the input.
 .It Fl f Ar num
 Ignore the first
 .Ar num
-in each input line when doing comparisons.
+fields in each input line when doing comparisons.
 A field is a string of non-blank characters separated from adjacent fields
 by blanks.
 Field numbers are one based, i.e. the first field is field one.
