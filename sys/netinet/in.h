@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.h	8.3 (Berkeley) 1/3/94
- * $Id: in.h,v 1.26 1997/02/22 09:41:28 peter Exp $
+ * $Id: in.h,v 1.27 1997/09/25 00:34:35 wollman Exp $
  */
 
 #ifndef _NETINET_IN_H_
@@ -303,7 +303,8 @@ struct ip_mreq {
 #define IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
 #define IPCTL_INTRQDROPS	11	/* number of netisr q drops */
 #define	IPCTL_STATS		12	/* ipstat structure */
-#define	IPCTL_MAXID		13
+#define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
+#define	IPCTL_MAXID		14
 
 #define	IPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -319,6 +320,7 @@ struct ip_mreq {
 	{ "intr-queue-maxlen", CTLTYPE_INT }, \
 	{ "intr-queue-drops", CTLTYPE_INT }, \
 	{ "stats", CTLTYPE_STRUCT }, \
+	{ "accept_sourceroute", CTLTYPE_INT }, \
 }
 
 
