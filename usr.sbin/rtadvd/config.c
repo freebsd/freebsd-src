@@ -630,7 +630,7 @@ get_prefix(struct rainfo *rai)
 
 		/* link into chain */
 		insque(pp, &rai->prefix);
-		pp->rainfo == rai;
+		pp->rainfo = rai;
 
 		/* counter increment */
 		rai->pfxs++;
