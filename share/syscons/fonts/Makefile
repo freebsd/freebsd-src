@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.15 1997/09/22 21:44:38 wosch Exp $
+# $Id: Makefile,v 1.16 1998/01/03 14:09:18 wosch Exp $
 
 FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	cp437-thin-8x8.fnt cp437-thin-8x16.fnt \
@@ -14,6 +14,7 @@ FONTS=	cp437-8x8.fnt cp437-8x14.fnt cp437-8x16.fnt \
 	iso-8859-2-8x16.fnt \
 	koi8-r-8x8.fnt koi8-r-8x14.fnt koi8-r-8x16.fnt \
 	koi8-rb-8x16.fnt koi8-rc-8x16.fnt \
+	swiss-8x16.fnt swiss-8x8.fnt \
 	INDEX.fonts
 
 FONTDIR = ${SHAREDIR}/syscons/fonts
