@@ -539,8 +539,10 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						/* The wait timedout. */
 						rval = ETIMEDOUT;
 						(void)_mutex_cv_lock(mutex);
-					} else if (interrupted || done)
+					} else if (interrupted || done) {
 						rval = _mutex_cv_lock(mutex);
+						unlock_mutex = 1;
+					}
 				}
 			}
 			break;
@@ -738,7 +740,7 @@ cond_queue_deq(pthread_cond_t cond)
 
 	while ((pthread = TAILQ_FIRST(&cond->c_queue)) != NULL) {
 		TAILQ_REMOVE(&cond->c_queue, pthread, sqe);
-		THR_CONDQ_SET(pthread);
+		THR_CONDQ_CLEAR(pthread);
 		if ((pthread->timeout == 0) && (pthread->interrupted == 0))
 			/*
 			 * Only exit the loop when we find a thread
