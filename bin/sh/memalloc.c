@@ -42,11 +42,12 @@ static char sccsid[] = "@(#)memalloc.c	8.3 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
+
 #include "shell.h"
 #include "output.h"
 #include "memalloc.h"
 #include "error.h"
-#include "machdep.h"
 #include "mystring.h"
 #include "expand.h"
 #include <stdlib.h>
@@ -139,8 +140,8 @@ stalloc(int nbytes)
 		sp = ckmalloc(sizeof(struct stack_block) - MINSIZE + 
 		    blocksize);
 		sp->prev = stackp;
-		stacknxt = sp->space;
-		stacknleft = blocksize;
+		stacknxt = (char *)ALIGN(sp->space);
+		stacknleft = blocksize - (stacknxt - sp->space);
 		stackp = sp;
 		INTON;
 	}
