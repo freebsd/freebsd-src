@@ -405,14 +405,14 @@ int
 reply(question)
 	char *question;
 {
-	char c;
+	int c;
 
 	do	{
 		fprintf(stderr, "%s? [yn] ", question);
 		(void) fflush(stderr);
 		c = getc(terminal);
 		while (c != '\n' && getc(terminal) != '\n')
-			if (feof(terminal))
+			if (c == EOF)
 				return (FAIL);
 	} while (c != 'y' && c != 'n');
 	if (c == 'y')
