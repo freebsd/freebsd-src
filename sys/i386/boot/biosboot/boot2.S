@@ -1,6 +1,4 @@
 /*
- * Ported to boot 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
- *
  * Mach Operating System
  * Copyright (c) 1992, 1991 Carnegie Mellon University
  * All Rights Reserved.
@@ -24,54 +22,9 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
- */
-
-/*
- * HISTORY
- * $Log: boot2.S,v $
-Revision 1.2  1993/07/11  12:02:22  andrew
-Fixes from bde, including support for loading @ any MB boundary (e.g. a
-kernel linked for 0xfe100000 will load at the 1MB mark) and read-ahead
-buffering to speed booting from floppies.  Also works with aha174x
-controllers in enhanced mode.
-
  *
- * 93/07/06  bde
- *	Delete LOADMSG define (not used).
- *
- * 93/06/29  bde
- *	Use EXT.
- *
- *	Initialize GDT and IDT pointers at boot time.
- *
- *	Convert (drive | head | junk) to drive arg for boot() (not strictly
- *	necessary - boot() only uses drive & 0x80).
- *
- * 93/06/28  bde
- *	Initialize top bits of %eax for setting _ouraddr.  start.s
- *	initialized them suitably, but this isn't documented, and the BIOS
- *	isn't documented to preserve them.
- *
- *	Use addr32 for setting _ouraddr.  Without this, there were extra bytes
- *	0, 0 after the store.  These decode as "add %al, (%bx,%si)" in 16-bit
- *	mode would clobber something (except %al is very likely to be 0 :-).
- *
- *	Clear the bss.  This may be unnecessary.  Some is already cleared in
- *	the disk image.
- *
- *	Loop if boot() returns.
- *
-Revision 1.1  1993/03/21  18:08:33  cgd
-after 0.2.2 "stable" patches applied
-
- * Revision 2.2  92/04/04  11:35:26  rpd
- * 	From 2.5
- * 	[92/03/30            rvb]
- * 
- * Revision 2.2  91/04/02  14:39:21  mbj
- * 	Put into rcs tree
- * 	[90/02/09            rvb]
- * 
+ *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
+ *	$Id$
  */
 
 #include	"asm.h"
