@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/vnode.h>
-#include <sys/ksiginfo.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -1240,15 +1239,11 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 		return (0);
 
 	p = td->td_proc;
-	PROC_LOCK(p);
-	ksiginfo_to_sigset_t(p, &tmpset);
+	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
-	if (signal_queued(p, 0) && NFSINT_SIGMASK(tmpset)) {
-		PROC_UNLOCK(p);
+	if (SIGNOTEMPTY(p->p_siglist) && NFSINT_SIGMASK(tmpset))
 		return (EINTR);
-	}
-	PROC_UNLOCK(p);
 
 	return (0);
 }

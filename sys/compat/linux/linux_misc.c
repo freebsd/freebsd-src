@@ -36,7 +36,6 @@
 #include <sys/imgact_aout.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
-#include <sys/ksiginfo.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
@@ -833,7 +832,7 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	if ((error = wait4(td, &tmp)) != 0)
 		return error;
 
-	signal_delete(td->td_proc, NULL, SIGCHLD);
+	SIGDELSET(td->td_proc->p_siglist, SIGCHLD);
 
 	if (args->status) {
 		if ((error = copyin((caddr_t)args->status, &tmpstat,

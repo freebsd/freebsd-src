@@ -565,7 +565,7 @@ svr4_sys_sigpending(td, uap)
 		if (SCARG(uap, mask) == NULL)
 			return 0;
 		PROC_LOCK(td->td_proc);
-		ksiginfo_to_sigset_t(td->td_proc, &bss);
+		bss = td->td_proc->p_siglist;
 		SIGSETAND(bss, td->td_proc->p_sigmask);
 		PROC_UNLOCK(td->td_proc);
 		bsd_to_svr4_sigset(&bss, &sss);

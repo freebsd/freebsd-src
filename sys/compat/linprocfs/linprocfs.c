@@ -651,7 +651,7 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	 * running on anything but i386, so ignore that for now.
 	 */
 	PROC_LOCK(p);
-	sbuf_printf(sb, "SigPnd:\t%08x\n",	0); /* XXX */
+	sbuf_printf(sb, "SigPnd:\t%08x\n",	p->p_siglist.__bits[0]);
 	/*
 	 * I can't seem to find out where the signal mask is in
 	 * relation to struct proc, so SigBlk is left unimplemented.
