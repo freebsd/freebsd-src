@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.h,v 1.49 2001/01/23 17:04:30 augustss Exp $	*/
+/*	$NetBSD: usbdi.h,v 1.50 2001/04/12 01:18:24 thorpej Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -268,9 +268,13 @@ int usbd_driver_load(module_t mod, int what, void *arg);
 
 /* XXX Perhaps USB should have its own levels? */
 #ifdef USB_USE_SOFTINTR
+#ifdef __HAVE_GENERIC_SOFT_INTERRUPTS
 #define splusb splsoftnet
 #else
+#define	splusb splsoftclock
+#endif /* __HAVE_GENERIC_SOFT_INTERRUPTS */
+#else
 #define splusb splbio
-#endif
+#endif /* USB_USE_SOFTINTR */
 #define splhardusb splbio
 #define IPL_USB IPL_BIO
