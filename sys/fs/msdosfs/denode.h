@@ -1,9 +1,9 @@
-/*	$Id: denode.h,v 1.13 1997/08/26 07:32:36 phk Exp $ */
-/*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
+/*	$Id: denode.h,v 1.14 1997/10/17 12:36:16 phk Exp $ */
+/*	$NetBSD: denode.h,v 1.25 1997/11/17 15:36:28 ws Exp $	*/
 
 /*-
- * Copyright (C) 1994 Wolfgang Solfrank.
- * Copyright (C) 1994 TooLs GmbH.
+ * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
+ * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
  * Original code by Paul Popelka (paulp@uts.amdahl.com) (see below).
  *
@@ -103,8 +103,8 @@
  * structure (fc_frcn).
  */
 struct fatcache {
-	u_short fc_frcn;	/* file relative cluster number */
-	u_short fc_fsrcn;	/* filesystem relative cluster number */
+	u_long fc_frcn;		/* file relative cluster number */
+	u_long fc_fsrcn;	/* filesystem relative cluster number */
 };
 
 /*
@@ -121,7 +121,7 @@ struct fatcache {
 				 * to */
 #define	FC_LASTFC	1	/* entry for the last cluster in the file */
 
-#define	FCE_EMPTY	0xffff	/* doesn't represent an actual cluster # */
+#define	FCE_EMPTY	0xffffffff	/* doesn't represent an actual cluster # */
 
 /*
  * Set a slot in the fat cache.
@@ -143,19 +143,21 @@ struct denode {
 	u_long de_flag;		/* flag bits */
 	dev_t de_dev;		/* device where direntry lives */
 	u_long de_dirclust;	/* cluster of the directory file containing this entry */
-	u_long de_diroffset;	/* ordinal of this entry in the directory */
-	u_long de_fndclust;	/* cluster of found dir entry */
+	u_long de_diroffset;	/* offset of this entry in the directory cluster */
 	u_long de_fndoffset;	/* offset of found dir entry */
+	int de_fndcnt;		/* number of slots before de_fndoffset */
 	long de_refcnt;		/* reference count */
 	struct msdosfsmount *de_pmp;	/* addr of our mount struct */
 	struct lockf *de_lockf;	/* byte level lock list */
-	/* the next two fields must be contiguous in memory... */
-	u_char de_Name[8];	/* name, from directory entry */
-	u_char de_Extension[3];	/* extension, from directory entry */
+	u_char de_Name[12];	/* name, from DOS directory entry */
 	u_char de_Attributes;	/* attributes, from directory entry */
-	u_short de_Time;	/* creation time */
-	u_short de_Date;	/* creation date */
-	u_short de_StartCluster; /* starting cluster of file */
+	u_char de_CHun;		/* Hundredth of second of CTime*/
+	u_short de_CTime;	/* creation time */
+	u_short de_CDate;	/* creation date */
+	u_short de_ADate;	/* access date */
+	u_short de_MTime;	/* modification time */
+	u_short de_MDate;	/* modification date */
+	u_long de_StartCluster; /* starting cluster of file */
 	u_long de_FileSize;	/* size of file in bytes */
 	struct fatcache de_fc[FC_SIZE];	/* fat cache */
 	u_quad_t de_modrev;	/* Revision level for lease. */
@@ -164,31 +166,49 @@ struct denode {
 /*
  * Values for the de_flag field of the denode.
  */
-#define	DE_UPDATE	0x0004	/* modification time update request */
-#define	DE_MODIFIED	0x0080	/* denode has been modified, but DE_UPDATE
-				 * isn't set */
+#define	DE_UPDATE	0x0004	/* Modification time update request */
+#define	DE_CREATE	0x0008	/* Creation time update */
+#define	DE_ACCESS	0x0010	/* Access time update */
+#define	DE_MODIFIED	0x0020	/* Denode has been modified */
+#define	DE_RENAME	0x0040	/* Denode is in the process of being renamed */
+
 
 /*
  * Transfer directory entries between internal and external form.
  * dep is a struct denode * (internal form),
  * dp is a struct direntry * (external form).
  */
-#define DE_INTERNALIZE(dep, dp)			\
+#define DE_INTERNALIZE32(dep, dp)			\
+	 ((dep)->de_StartCluster |= getushort((dp)->deHighClust) << 16)
+#define DE_INTERNALIZE(dep, dp)				\
 	(bcopy((dp)->deName, (dep)->de_Name, 11),	\
 	 (dep)->de_Attributes = (dp)->deAttributes,	\
-	 (dep)->de_Time = getushort((dp)->deTime),	\
-	 (dep)->de_Date = getushort((dp)->deDate),	\
+	 (dep)->de_CHun = (dp)->deCHundredth,		\
+	 (dep)->de_CTime = getushort((dp)->deCTime),	\
+	 (dep)->de_CDate = getushort((dp)->deCDate),	\
+	 (dep)->de_ADate = getushort((dp)->deADate),	\
+	 (dep)->de_MTime = getushort((dp)->deMTime),	\
+	 (dep)->de_MDate = getushort((dp)->deMDate),	\
 	 (dep)->de_StartCluster = getushort((dp)->deStartCluster), \
-	 (dep)->de_FileSize = getulong((dp)->deFileSize))
+	 (dep)->de_FileSize = getulong((dp)->deFileSize), \
+	 (FAT32((dep)->de_pmp) ? DE_INTERNALIZE32((dep), (dp)) : 0))
 
+#define DE_EXTERNALIZE32(dp, dep)			\
+	 putushort((dp)->deHighClust, (dep)->de_StartCluster >> 16)
 #define DE_EXTERNALIZE(dp, dep)				\
 	(bcopy((dep)->de_Name, (dp)->deName, 11),	\
 	 bzero((dp)->deReserved, 10),                   \
 	 (dp)->deAttributes = (dep)->de_Attributes,	\
-	 putushort((dp)->deTime, (dep)->de_Time),	\
-	 putushort((dp)->deDate, (dep)->de_Date),	\
+	 (dp)->deCHundredth = (dep)->de_CHun,		\
+	 putushort((dp)->deCTime, (dep)->de_CTime),	\
+	 putushort((dp)->deCDate, (dep)->de_CDate),	\
+	 putushort((dp)->deADate, (dep)->de_ADate),	\
+	 putushort((dp)->deMTime, (dep)->de_MTime),	\
+	 putushort((dp)->deMDate, (dep)->de_MDate),	\
 	 putushort((dp)->deStartCluster, (dep)->de_StartCluster), \
-	 putulong((dp)->deFileSize, (dep)->de_FileSize))
+	 putulong((dp)->deFileSize,			\
+	     ((dep)->de_Attributes & ATTR_DIRECTORY) ? 0 : (dep)->de_FileSize), \
+	 (FAT32((dep)->de_pmp) ? DE_EXTERNALIZE32((dp), (dep)) : 0))
 
 #define	de_forw		de_chain[0]
 #define	de_back		de_chain[1]
@@ -198,17 +218,20 @@ struct denode {
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
 #define	DETOV(de)	((de)->de_vnode)
 
-#define	DE_TIMES(dep, t) \
-	if ((dep)->de_flag & DE_UPDATE) { \
-		if (!((dep)->de_Attributes & ATTR_DIRECTORY)) { \
-			struct timespec DE_TIMES_ts; \
-			(dep)->de_flag |= DE_MODIFIED; \
-			TIMEVAL_TO_TIMESPEC((t), &DE_TIMES_ts); \
-			unix2dostime(&DE_TIMES_ts, &(dep)->de_Date, \
-				     &(dep)->de_Time); \
+#define	DETIMES(dep, acc, mod, cre) \
+	if ((dep)->de_flag & (DE_UPDATE | DE_CREATE | DE_ACCESS)) { \
+		(dep)->de_flag |= DE_MODIFIED; \
+		if ((dep)->de_flag & DE_UPDATE) { \
+			unix2dostime((mod), &(dep)->de_MDate, &(dep)->de_MTime, NULL); \
 			(dep)->de_Attributes |= ATTR_ARCHIVE; \
 		} \
-		(dep)->de_flag &= ~DE_UPDATE; \
+		if (!((dep)->de_pmp->pm_flags & MSDOSFSMNT_NOWIN95)) { \
+			if ((dep)->de_flag & DE_ACCESS) \
+				unix2dostime((acc), &(dep)->de_ADate, NULL, NULL); \
+			if ((dep)->de_flag & DE_CREATE) \
+				unix2dostime((cre), &(dep)->de_CDate, &(dep)->de_CTime, &(dep)->de_CHun); \
+		} \
+		(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS); \
 	}
 
 /*
@@ -219,9 +242,10 @@ struct defid {
 	u_short defid_pad;	/* force long alignment */
 
 	u_long defid_dirclust;	/* cluster this dir entry came from */
-	u_long defid_dirofs;	/* index of entry within the cluster */
-
-	/* u_long	defid_gen;	 generation number */
+	u_long defid_dirofs;	/* offset of entry within the cluster */
+#if 0
+	u_long	defid_gen;	/* generation number */
+#endif
 };
 
 extern vop_t **msdosfs_vnodeop_p;
@@ -233,5 +257,19 @@ int msdosfs_reclaim __P((struct vop_reclaim_args *));
 /*
  * Internal service routine prototypes.
  */
-int deget __P((struct msdosfsmount * pmp, u_long dirclust, u_long diroffset, struct direntry * direntptr, struct denode ** depp));
+int deget __P((struct msdosfsmount *, u_long, u_long, struct denode **));
+int uniqdosname __P((struct denode *, struct componentname *, u_char *));
+int findwin95 __P((struct denode *));
+
+int readep __P((struct msdosfsmount *pmp, u_long dirclu, u_long dirofs,  struct buf **bpp, struct direntry **epp));
+int readde __P((struct denode *dep, struct buf **bpp, struct direntry **epp));
+int deextend __P((struct denode *dep, u_long length, struct ucred *cred));
+int fillinusemap __P((struct msdosfsmount *pmp));
+void reinsert __P((struct denode *dep));
+int dosdirempty __P((struct denode *dep));
+int createde __P((struct denode *dep, struct denode *ddep, struct denode **depp, struct componentname *cnp));
+int deupdat __P((struct denode *dep, int waitfor));
+int removede __P((struct denode *pdep, struct denode *dep));
+int detrunc __P((struct denode *dep, u_long length, int flags, struct ucred *cred, struct proc *p));
+int doscheckpath __P(( struct denode *source, struct denode *target));
 #endif	/* KERNEL */
