@@ -70,7 +70,7 @@ CFLAGS+=-DNOSUID
 SRCS+=	id.c
 .endif
 
-.if !exists(${.CURDIR}/../../crypto) || defined(NOCRYPT) || defined(NO_OPENSSL) || defined(NODES)
+.if defined(NOCRYPT) || defined(NO_OPENSSL)
 CFLAGS+=-DNODES
 .else
 DISTRIBUTION=crypto
