@@ -168,7 +168,6 @@ spec_open(ap)
 		return (ENXIO);
 
 	switch (vp->v_type) {
-
 	case VCHR:
 		dsw = devsw(dev);
 		if ( (dsw == NULL) || (dsw->d_open == NULL))
@@ -237,6 +236,7 @@ spec_open(ap)
 		if (!dev->si_bsize_max)
 			dev->si_bsize_max = MAXBSIZE;
 	}
+
 	return (error);
 }
 
@@ -263,6 +263,7 @@ spec_read(ap)
 	int n, on;
 	d_ioctl_t *ioctl;
 	int error = 0;
+	int seqcount = ap->a_ioflag >> 16;
 	dev_t dev;
 
 #ifdef DIAGNOSTIC
@@ -284,6 +285,8 @@ spec_read(ap)
 		return (error);
 
 	case VBLK:
+		if (enable_userblk_io == 0)
+			return (EINVAL);
 		if (uio->uio_offset < 0)
 			return (EINVAL);
 		dev = vp->v_rdev;
@@ -309,13 +312,13 @@ spec_read(ap)
 			bn = btodb(uio->uio_offset) & ~(bscale - 1);
 			on = uio->uio_offset % bsize;
 			n = min((unsigned)(bsize - on), uio->uio_resid);
-			if (vp->v_lastr + bscale == bn) {
+			if (seqcount > 1) {
 				nextbn = bn + bscale;
 				error = breadn(vp, bn, (int)bsize, &nextbn,
 					(int *)&bsize, 1, NOCRED, &bp);
-			} else
+			} else {
 				error = bread(vp, bn, (int)bsize, NOCRED, &bp);
-			vp->v_lastr = bn;
+			}
 			n = min(n, bsize - bp->b_resid);
 			if (error) {
 				brelse(bp);
@@ -372,6 +375,8 @@ spec_write(ap)
 		return (error);
 
 	case VBLK:
+		if (enable_userblk_io == 0)
+			return (EINVAL);
 		if (uio->uio_resid == 0)
 			return (0);
 		if (uio->uio_offset < 0)
