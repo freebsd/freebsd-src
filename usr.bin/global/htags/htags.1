@@ -1,0 +1,99 @@
+.\"
+.\" Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Shigio Yamaguchi.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd Feb 17, 1997
+.Dt HTAGS 1
+.Os BSD 4
+.Sh NAME
+.Nm htags
+.Nd generate hypertext from C and Yacc source code
+.Sh SYNOPSIS
+.Nm htags
+.Op Fl a
+.Op Fl v
+.Op Fl w
+.Op Fl d Ar tagdir
+.Op Fl t Ar title
+.Op Ar dir
+.Sh DESCRIPTION
+.Nm Htags
+makes hypertext from C and Yacc source code using GLOBAL database.
+.Pp
+In advance of using this command, you must execute
+.Xr gtags 1
+at the root directory of the source tree.
+Then you can execute
+.Nm htags
+at the same place.
+.Nm Htags
+makes HTML directory and generate hypertext in it.
+.Pp
+You can start browsing from 'HTML/index.html'.
+Once hypertext generated, you can move it anywhere and browse it
+by any browsers.
+.Pp
+.br
+.Bl -tag -width Ds
+.It Fl a
+make alphabetical function index. It's suitable to large project.
+.It Fl v
+verbose mode.
+.It Fl w
+print warning message.
+.It Fl d Ar tagdir
+the directory in which GTAGS and GRTAGS exist. Default is current directory.
+.It Fl t Ar title
+Tile of this hypertext. Default is the last conponent of current path.
+.It Ar dir
+the directory in which hypertext generated. Default is current directory.
+.Sh EXAMPLES
+  % cd /usr/src/sys
+  # gtags -se
+  # htags -vat 'Welcom to FreeBSD kernel source tour!'
+  % lynx HTML/index.html
+.Sh FILES
+.Bl -tag -width tags -compact
+.It Pa HTML/index.html
+Index file.
+.It Pa GTAGS
+tags file for function definitions.
+.It Pa GRTAGS
+tags file for function references.
+.El
+.Sh DIAGNOSTICS
+.Nm Htags
+exits with a value of 1 if an error occurred, 0 otherwise.
+.Sh SEE ALSO
+.Xr gtags 1 ,
+.Xr btreeop 1
+.Sh BUG
+Generated hypertext is VERY LARGE. In advance, check the space of your disk.
+.Sh AUTHORS
+Shigio Yamaguchi (shigio@wafu.netgate.net)
