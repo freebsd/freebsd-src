@@ -82,7 +82,7 @@ static void buf_daemon __P((void));
  * but the code is intricate enough already.
  */
 vm_page_t bogus_page;
-int vmiodirenable = FALSE;
+int vmiodirenable = TRUE;
 int runningbufspace;
 static vm_offset_t bogus_offset;
 
