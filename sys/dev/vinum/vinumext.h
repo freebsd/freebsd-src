@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.18 1999/01/15 02:41:16 grog Exp grog $
+ * $Id: vinumext.h,v 1.19 1999/03/23 02:57:04 grog Exp grog $
  */
 
 /* vinumext.h: external definitions */
@@ -142,11 +142,18 @@ void sdio(struct buf *bp);
 /* XXX Do we need this? */
 int vinumpart(dev_t);
 
+/* Why aren't these declared anywhere? XXX */
+int setjmp(jmp_buf);
+extern jmp_buf command_fail;				    /* return here if config fails */
+
 #ifdef VINUMDEBUG
 /* Memory allocation and request tracing */
 void vinum_meminfo(caddr_t data);
 int vinum_mallocinfo(caddr_t data);
 int vinum_rqinfo(caddr_t data);
+void LongJmp(jmp_buf, int);
+#else
+void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 #endif
 
 void expand_table(void **, int, int);
@@ -167,6 +174,7 @@ enum requeststatus checksdstate(struct sd *sd, struct request *rq, daddr_t diska
 int set_plex_state(int plexno, enum plexstate state, enum setstateflags flags);
 int set_volume_state(int volumeno, enum volumestate state, enum setstateflags flags);
 void update_sd_state(int sdno);
+void forceup(int plexno);
 void update_plex_state(int plexno);
 void update_volume_state(int volno);
 void invalidate_subdisks(struct plex *, enum sdstate);
