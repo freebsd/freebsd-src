@@ -57,26 +57,44 @@
 #include <vm/vm_object.h>
 
 static int	exec_aout_imgact(struct image_params *imgp);
+static int	aout_fixup(register_t **stack_base, struct image_params *imgp);
 
 struct sysentvec aout_sysvec = {
 	SYS_MAXSYSCALL,
 	sysent,
 	0,
 	0,
+	NULL,
 	0,
-	0,
-	0,
-	0,
-	0,
+	NULL,
+	NULL,
+	aout_fixup,
 	sendsig,
 	sigcode,
 	&szsigcode,
-	0,
+	NULL,
 	"FreeBSD a.out",
 	aout_coredump,
 	NULL,
-	MINSIGSTKSZ
+	MINSIGSTKSZ,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	exec_copyout_strings,
+	exec_setregs
 };
+
+static int
+aout_fixup(stack_base, imgp)
+	register_t **stack_base;
+	struct image_params *imgp;
+{
+
+	return (suword(--(*stack_base), imgp->argc));
+}
 
 static int
 exec_aout_imgact(imgp)

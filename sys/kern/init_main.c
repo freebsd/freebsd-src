@@ -47,6 +47,7 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/exec.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/ktr.h>
@@ -255,8 +256,33 @@ set_boot_verbose(void *data __unused)
 }
 SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL)
 
-static struct sysentvec null_sysvec;
-
+struct sysentvec null_sysvec = {
+	0,
+	NULL,
+	0,
+	0,
+	NULL,
+	0,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	"null",
+	NULL,
+	NULL,
+	0,
+	PAGE_SIZE,
+	VM_MIN_ADDRESS,
+	VM_MAXUSER_ADDRESS,
+	USRSTACK,
+	PS_STRINGS,
+	VM_PROT_ALL,
+	NULL,
+	NULL
+};
 
 /*
  ***************************************************************************

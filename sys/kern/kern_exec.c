@@ -85,8 +85,6 @@ struct execlist {
 TAILQ_HEAD(exec_list_head, execlist);
 static struct exec_list_head exec_list = TAILQ_HEAD_INITIALIZER(exec_list);
 
-static register_t *exec_copyout_strings(struct image_params *);
-
 /* XXX This should be vm_size_t. */
 static u_long ps_strings = PS_STRINGS;
 SYSCTL_ULONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings,
