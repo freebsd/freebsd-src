@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id$
+ * $Id: sys_generic.c,v 1.3 1994/08/02 07:42:38 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -86,7 +86,11 @@ read(p, uap, retval)
 	aiov.iov_len = uap->nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
+
 	auio.uio_resid = uap->nbyte;
+	if (auio.uio_resid < 0)
+		return (EINVAL);
+
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_procp = p;
