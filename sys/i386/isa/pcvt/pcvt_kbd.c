@@ -73,6 +73,8 @@
 
 #include <i386/isa/pcvt/pcvt_hdr.h>	/* global include */
 
+#define LEDSTATE_UPDATE_PENDING	(1 << 3)
+
 extern int kbd_response __P((void));
 
 static void fkey1(void), fkey2(void),  fkey3(void),  fkey4(void);
@@ -98,7 +100,7 @@ static int	rmkeydef ( int key );
 static int	setkeydef ( struct kbd_ovlkey *data );
 static u_char *	xlatkey2ascii( U_short key );
 
-static int	ledstate  = 0;	/* keyboard led's */
+static int	ledstate  = LEDSTATE_UPDATE_PENDING;	/* keyboard led's */
 static int	tpmrate   = KBD_TPD500|KBD_TPM100;
 static u_char	altkpflag = 0;
 static u_short	altkpval  = 0;
@@ -179,6 +181,9 @@ do_vgapage(int page)
  * the interrupts sometimes gets lost (I'm not sure of the details of
  * how and why and what hardware this happens with).
  *
+ * This may have had something to do with spltty() previously not being
+ * called before the kbd_cmd() calls in update_led().
+ *
  * This is a real problem, because normally the keyboard is only polled
  * by pcrint(), and no more interrupts will be generated until the ACK
  * has been read.  So the keyboard is hung.  This code polls a little
@@ -211,29 +216,64 @@ check_for_lost_intr (void *arg)
 void
 update_led(void)
 {
-
 #if !PCVT_NO_LED_UPDATE
 
 	/* Don't update LED's unless necessary. */
 
-	int new_ledstate = ((vsp->scroll_lock) |
-			    (vsp->num_lock * 2) |
-			    (vsp->caps_lock * 4));
+	int opri, new_ledstate, response1, response2;
+
+	opri = spltty();
+	new_ledstate = (vsp->scroll_lock) |
+		       (vsp->num_lock * 2) |
+		       (vsp->caps_lock * 4);
 
 	if (new_ledstate != ledstate)
 	{
+		ledstate = LEDSTATE_UPDATE_PENDING;
+
 		if(kbd_cmd(KEYB_C_LEDS) != 0)
 		{
 			printf("Keyboard LED command timeout\n");
+			splx(opri);
 			return;
 		}
+
+		/*
+		 * For some keyboards or keyboard controllers, it is an
+		 * error to issue a command without waiting long enough
+		 * for an ACK for the previous command.  The keyboard
+		 * gets confused, and responds with KEYB_R_RESEND, but
+		 * we ignore that.  Wait for the ACK here.  The busy
+		 * waiting doesn't matter much, since we lose anyway by
+		 * busy waiting to send the command.
+		 *
+		 * XXX actually wait for any response, since we can't
+		 * handle normal scancodes here.
+		 *
+		 * XXX all this should be interrupt driven.  Issue only
+		 * one command at a time wait for a ACK before proceeding.
+		 * Retry after a timeout or on receipt of a KEYB_R_RESEND.
+		 * KEYB_R_RESENDs seem to be guaranteed by working
+		 * keyboard controllers with broken (or disconnected)
+		 * keyboards.  There is another code for keyboard
+		 * reconnects.  The keyboard hardware is very simple and
+		 * well designed :-).
+		 */
+		response1 = kbd_response();
 
 		if(kbd_cmd(new_ledstate) != 0) {
 			printf("Keyboard LED data timeout\n");
+			splx(opri);
 			return;
 		}
+		response2 = kbd_response();
 
-		ledstate = new_ledstate;
+		if (response1 == KEYB_R_ACK && response2 == KEYB_R_ACK)
+			ledstate = new_ledstate;
+		else
+			printf(
+			"Keyboard LED command not ACKed (responses %#x %#x)\n",
+			       response1, response2);
 
 #if PCVT_UPDLED_LOSES_INTR
 		if (lost_intr_timeout_queued)
@@ -244,6 +284,9 @@ update_led(void)
 #endif /* PCVT_UPDLED_LOSES_INTR */
 
 	}
+
+	splx(opri);
+
 #endif /* !PCVT_NO_LED_UPDATE */
 }
 
@@ -392,17 +435,29 @@ void doreset(void)
 
 	/*
 	 * Discard any stale keyboard activity.  The 0.1 boot code isn't
-	 * very careful and sometimes leaves a KEYB_R_RESEND.
+	 * very careful and sometimes leaves a KEYB_R_RESEND.  Versions
+	 * between 1992 and Oct 1996 didn't have the delay and sometimes
+	 * left a KEYB_R_RESEND.
 	 */
-	while (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
-		kbd_response();
+	while (1) {
+		if (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)
+			kbd_response();
+		else {
+			DELAY(10000);
+			if (!(inb(CONTROLLER_CTRL) & STATUS_OUTPBF))
+				break;
+		}
+	}
 
 	/* Start keyboard reset */
 
 	opri = spltty ();
 
 	if (kbd_cmd(KEYB_C_RESET) != 0)
+	{
 		printf("pcvt: doreset() - timeout for keyboard reset command\n");
+		outb(CONTROLLER_DATA, KEYB_C_RESET);	/* force */
+	}
 
 	/* Wait for the first response to reset and handle retries */
 	while ((response = kbd_response()) != KEYB_R_ACK)
@@ -413,11 +468,13 @@ void doreset(void)
 				printf("pcvt: doreset() - response != ack and response < 0 [one time only msg]\n");
 			response = KEYB_R_RESEND;
 		}
-		if (response == KEYB_R_RESEND)
+		else if (response == KEYB_R_RESEND)
 		{
 			if(!again)	/* print message only once ! */
 				printf("pcvt: doreset() - got KEYB_R_RESEND response ... [one time only msg]\n");
-
+		}
+		if (response == KEYB_R_RESEND)
+		{
 			if(++again > PCVT_NONRESP_KEYB_TRY)
 			{
 				printf("pcvt: doreset() - Caution - no PC keyboard detected!\n");
@@ -430,6 +487,7 @@ void doreset(void)
 			{
 				once++;		/* print message only once ! */
 				printf("pcvt: doreset() - timeout for loop keyboard reset command [one time only msg]\n");
+				outb(CONTROLLER_DATA, KEYB_C_RESET);	/* force */
 			}
 		}
 	}
