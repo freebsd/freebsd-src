@@ -640,7 +640,7 @@ ADMtek Inc. AN986-based USB ethernet NICs including the following:
     Billionton USB100
     D-Link DSB-650TX
     LinkSys USB100TX
-    Melco Inc. LU-ATX
+    Melco Inc. LUA-TX
     SMC 2202USB
 
 CATC USB-EL1210A-based USB ethernet NICs including the following:
