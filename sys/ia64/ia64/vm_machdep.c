@@ -239,7 +239,6 @@ cpu_set_fork_handler(td, func, arg)
 /*
  * cpu_exit is called as the last action during exit.
  * We drop the fp state (if we have it) and switch to a live one.
- * When the proc is reaped, cpu_wait() will gc the VM state.
  */
 void
 cpu_exit(struct thread *td)
@@ -252,12 +251,6 @@ cpu_exit(struct thread *td)
 void
 cpu_sched_exit(td)
 	register struct thread *td;
-{
-}
-
-void
-cpu_wait(p)
-	struct proc *p;
 {
 }
 
