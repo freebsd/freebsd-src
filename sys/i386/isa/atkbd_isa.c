@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd_isa.c,v 1.1 1999/01/09 02:44:40 yokota Exp $
+ * $Id$
  */
 
 #include "atkbd.h"
@@ -57,23 +57,8 @@ struct isa_driver atkbddriver = {
 static int
 atkbdprobe(struct isa_device *dev)
 {
-	atkbd_softc_t *sc;
-	int error;
-
-	sc = atkbd_get_softc(dev->id_unit);
-	if (sc == NULL)
-		return 0;
-
-	/* try to find a keyboard */
-	error = atkbd_probe_unit(dev->id_unit, sc, dev->id_iobase,
-				 dev->id_irq, dev->id_flags);
-	if (error)
-		return 0;
-
-	/* declare our interrupt handler */
-	dev->id_ointr = atkbd_isa_intr;
-
-	return -1;
+	return ((atkbd_probe_unit(dev->id_unit, dev->id_iobase,
+				  dev->id_irq, dev->id_flags)) ? 0 : -1);
 }
 
 static int
@@ -85,7 +70,9 @@ atkbdattach(struct isa_device *dev)
 	if (sc == NULL)
 		return 0;
 
-	return ((atkbd_attach_unit(dev->id_unit, sc)) ? 0 : 1);
+	dev->id_ointr = atkbd_isa_intr;
+	return ((atkbd_attach_unit(dev->id_unit, sc, dev->id_iobase,
+				   dev->id_irq, dev->id_flags)) ? 0 : 1);
 }
 
 static void
@@ -94,7 +81,7 @@ atkbd_isa_intr(int unit)
 	keyboard_t *kbd;
 
 	kbd = atkbd_get_softc(unit)->kbd;
-	(*kbdsw[kbd->kb_index]->intr)(kbd);
+	(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
 }
 
 #endif /* NATKBD > 0 */

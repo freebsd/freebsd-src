@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.41.2.1 1999/05/07 09:01:46 dfr Exp $
+ *	$Id$
  *	from: i386/include console.h,v 1.43
  */
 
@@ -51,9 +51,10 @@
 #define KDGKBTYPE	_IOR('K', 64, int)
 #define KDGETLED	_IOR('K', 65, int)
 #define KDSETLED	_IO('K', 66 /*, int */)
-#define KDSETRAD	_IO('K', 67 /*, int */)
+#define KDSETRAD	_IO('K', 67 /*, int */)		/* obsolete */
 #define KDRASTER	_IOW('K', 100, scr_size_t)
 #define KDGKBINFO	_IOR('K', 101, keyboard_info_t)
+#define KDSETREPEAT	_IOW('K', 102, keyboard_delay_t)
 
 #define GETFKEY		_IOWR('k', 0, fkeyarg_t)
 #define SETFKEY		_IOWR('k', 1, fkeyarg_t)
@@ -394,6 +395,7 @@ typedef struct video_adapter_info video_adapter_info_t;
 typedef struct video_info video_info_t;
 typedef struct keyboard_info keyboard_info_t;
 typedef struct {int scr_size[3];} scr_size_t;
+typedef struct {int kbd_delay[2];} keyboard_delay_t;
 
 /* defines for "special" keys (spcl bit set in keymap) */
 #define NOP		0x00		/* nothing (dead key)		*/

@@ -52,6 +52,7 @@ devclass_t	atkbd_devclass;
 
 static int	atkbdprobe(device_t dev);
 static int	atkbdattach(device_t dev);
+static void	atkbd_isa_intr(void *arg);
 
 static device_method_t atkbd_methods[] = {
 	DEVMETHOD(device_probe,		atkbdprobe),
@@ -69,12 +70,9 @@ static driver_t atkbd_driver = {
 static int
 atkbdprobe(device_t dev)
 {
-	atkbd_softc_t *sc;
 	u_long port;
 	u_long irq;
 	u_long flags;
-
-	sc = (atkbd_softc_t *)device_get_softc(dev);
 
 	device_set_desc(dev, "AT Keyboard");
 
@@ -84,14 +82,16 @@ atkbdprobe(device_t dev)
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
 
 	/* probe the device */
-	return atkbd_probe_unit(device_get_unit(dev), sc, port, irq, flags);
+	return atkbd_probe_unit(device_get_unit(dev), port, irq, flags);
 }
 
 static int
 atkbdattach(device_t dev)
 {
 	atkbd_softc_t *sc;
+	u_long port;
 	u_long irq;
+	u_long flags;
 	struct resource *res;
 	void *ih;
 	int zero = 0;
@@ -99,19 +99,30 @@ atkbdattach(device_t dev)
 
 	sc = (atkbd_softc_t *)device_get_softc(dev);
 
-	error = atkbd_attach_unit(device_get_unit(dev), sc);
+	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_PORT, &port);
+	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
+	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
+
+	error = atkbd_attach_unit(device_get_unit(dev), sc, port, irq, flags);
 	if (error)
 		return error;
 
 	/* declare our interrupt handler */
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
 	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1,
 				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res,
-		       (driver_intr_t *) kbdsw[sc->kbd->kb_index]->intr, sc->kbd,
+	BUS_SETUP_INTR(device_get_parent(dev), dev, res, atkbd_isa_intr, sc,
 		       &ih);
 
 	return 0;
+}
+
+static void
+atkbd_isa_intr(void *arg)
+{
+	atkbd_softc_t *sc;
+
+	sc = (atkbd_softc_t *)arg;
+	(*kbdsw[sc->kbd->kb_index]->intr)(sc->kbd, NULL);
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
