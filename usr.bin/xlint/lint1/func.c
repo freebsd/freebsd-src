@@ -144,7 +144,8 @@ pushctrl(env)
 {
 	cstk_t	*ci;
 
-	ci = xcalloc(1, sizeof (cstk_t));
+	if ((ci = calloc(1, sizeof (cstk_t))) == NULL)
+		nomem();
 	ci->c_env = env;
 	ci->c_nxt = cstk;
 	cstk = ci;
@@ -463,7 +464,8 @@ label(typ, sym, tn)
 			 * to the type of the switch expression
 			 */
 			v = constant(tn);
-			nv = xcalloc(1, sizeof (val_t));
+			if ((nv = calloc(1, sizeof (val_t))) == NULL)
+				nomem();
 			cvtcon(CASE, 0, ci->c_swtype, nv, v);
 			free(v);
 
@@ -483,7 +485,8 @@ label(typ, sym, tn)
 				 * append the value to the list of
 				 * case values
 				 */
-				cl = xcalloc(1, sizeof (clst_t));
+				if ((cl = calloc(1, sizeof (clst_t))) == NULL)
+					nomem();
 				STRUCT_ASSIGN(cl->cl_val, *nv);
 				cl->cl_nxt = ci->c_clst;
 				ci->c_clst = cl;
@@ -591,7 +594,8 @@ switch1(tn)
 	 * duplicated. This is not too complicated because it is
 	 * only an integer type.
 	 */
-	tp = xcalloc(1, sizeof (type_t));
+	if ((tp = calloc(1, sizeof (type_t))) == NULL)
+		nomem();
 	if (tn != NULL) {
 		tp->t_tspec = tn->tn_type->t_tspec;
 		if ((tp->t_isenum = tn->tn_type->t_isenum) != 0)
