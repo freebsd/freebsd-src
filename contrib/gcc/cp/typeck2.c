@@ -863,8 +863,7 @@ process_init_constructor (type, init, elts)
 	    {
 	      if (TREE_READONLY (field))
 		error ("uninitialized const member `%D'", field);
-	      else if (TYPE_LANG_SPECIFIC (TREE_TYPE (field))
-		       && CLASSTYPE_READONLY_FIELDS_NEED_INIT (TREE_TYPE (field)))
+	      else if (CLASSTYPE_READONLY_FIELDS_NEED_INIT (TREE_TYPE (field)))
 		error ("member `%D' with uninitialized const fields",
 			  field);
 	      else if (TREE_CODE (TREE_TYPE (field)) == REFERENCE_TYPE)
@@ -976,6 +975,8 @@ process_init_constructor (type, init, elts)
     return error_mark_node;
 
   result = build (CONSTRUCTOR, type, NULL_TREE, nreverse (members));
+  if (TREE_CODE (type) == ARRAY_TYPE && TYPE_DOMAIN (type) == NULL_TREE)
+    complete_array_type (type, result, /*do_default=*/0);
   if (init)
     TREE_HAS_CONSTRUCTOR (result) = TREE_HAS_CONSTRUCTOR (init);
   if (allconstant) TREE_CONSTANT (result) = 1;
