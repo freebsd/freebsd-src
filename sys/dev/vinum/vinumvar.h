@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.21 1999/10/12 04:39:08 grog Exp grog $
+ * $Id: vinumvar.h,v 1.25 2000/05/11 05:28:47 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -166,8 +166,8 @@ enum constants {
     INITIAL_SUBDISKS_IN_DRIVE = 4,			    /* number of subdisks to allocate to a drive */
     INITIAL_DRIVE_FREELIST = 16,			    /* number of entries in drive freelist */
     PLEX_REGION_TABLE_SIZE = 8,				    /* number of entries in plex region tables */
-    INITIAL_LOCKS = 64,					    /* number of locks to allocate to a plex */
-    MAX_REVIVE_BLOCKSIZE = 65536,			    /* maximum revive block size */
+    INITIAL_LOCKS = 256,				    /* number of locks to allocate to a plex */
+    MAX_REVIVE_BLOCKSIZE = MAXPHYS,			    /* maximum revive block size */
     DEFAULT_REVIVE_BLOCKSIZE = 65536,			    /* default revive block size */
     VINUMHOSTNAMELEN = 32,				    /* host name field in label */
 };
@@ -483,8 +483,7 @@ struct plex {
     int usedlocks;					    /* number currently in use */
     int lockwaits;					    /* and number of waits for locks */
     struct rangelock *lock;				    /* ranges of locked addresses */
-    u_int64_t checkblock;				    /* block number for check parity op */
-    u_int64_t rebuildblock;				    /* block number for rebuild parity op */
+    off_t checkblock;					    /* block number for parity op */
     /* Statistics */
     u_int64_t reads;					    /* number of reads on this plex */
     u_int64_t writes;					    /* number of writes on this plex */
@@ -621,6 +620,7 @@ enum setstateflags {
 enum parityop {
     checkparity,
     rebuildparity,
+    rebuildandcheckparity,				    /* rebuildparity with the -v option */
 };
 
 #ifdef VINUMDEBUG

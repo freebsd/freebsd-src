@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.15 2000/01/04 04:39:25 grog Exp grog $
+ * $Id: vinumstate.c,v 2.18 2000/05/10 07:30:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -643,7 +643,7 @@ checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t disken
 	 * - if it's RAID-4 or RAID-5, we can do it as
 	 *   long as only one subdisk is down
 	 */
-	if (plex->state == plex_striped)		    /* plex is striped, */
+	if (plex->organization == plex_striped)		    /* plex is striped, */
 	    return REQUEST_DOWN;
 
 	else if (isparity(plex)) {			    /* RAID-4 or RAID-5 plex */
