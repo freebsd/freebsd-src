@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-getsockname(int s, struct sockaddr * name, int *namelen)
+getsockname(int s, struct sockaddr * name, socklen_t *namelen)
 {
 	int             ret;
 

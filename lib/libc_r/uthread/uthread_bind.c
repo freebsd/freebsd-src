@@ -38,7 +38,7 @@
 #include "pthread_private.h"
 
 int
-bind(int fd, const struct sockaddr * name, int namelen)
+bind(int fd, const struct sockaddr * name, socklen_t namelen)
 {
 	int             ret;
 
