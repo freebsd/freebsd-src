@@ -349,6 +349,12 @@ pc98/pc98/sio_cbus.c		optional	sio isa
 pc98/pc98/syscons_pc98.c	optional	sc
 pc98/pc98/wd.c			optional	wdc
 pc98/pc98/wd_cd.c		optional	wcd wdc
+pccard/pccard.c			optional card
+pccard/pccard_beep.c		optional card
+pccard/pccard_nbk.c		optional card
+pccard/pcic.c			optional pcic card
+pccard/pcic_isa.c		optional pcic card isa
+pccard/pcic_pci.c		optional pcic card pci
 pccard/mecia.c			optional	mecia card
 pci/agp_ali.c			optional	agp
 pci/agp_amd.c			optional	agp
