@@ -267,6 +267,9 @@ struct usb_attach_arg {
 
 #endif
 
+#define USBD_SHOW_DEVICE_CLASS		0x1
+#define USBD_SHOW_INTERFACE_CLASS	0x2
+
 #if defined(__FreeBSD__)
 int usbd_driver_load(module_t mod, int what, void *arg);
 #endif

@@ -4,6 +4,9 @@
  *	$NetBSD: usb_subr.c,v 1.102 2003/01/01 16:21:50 augustss Exp $
  *	$NetBSD: usb_subr.c,v 1.103 2003/01/10 11:19:13 augustss Exp $
  *	$NetBSD: usb_subr.c,v 1.111 2004/03/15 10:35:04 augustss Exp $
+ *	$NetBSD: usb_subr.c,v 1.114 2004/06/23 02:30:52 mycroft Exp $
+ *	$NetBSD: usb_subr.c,v 1.115 2004/06/23 05:23:19 mycroft Exp $
+ *	$NetBSD: usb_subr.c,v 1.116 2004/06/23 06:27:54 mycroft Exp $
  */
 
 #include <sys/cdefs.h>
@@ -318,15 +321,17 @@ void
 usbd_devinfo(usbd_device_handle dev, int showclass, char *cp)
 {
 	usb_device_descriptor_t *udd = &dev->ddesc;
+	usbd_interface_handle iface;
 	char vendor[USB_MAX_STRING_LEN];
 	char product[USB_MAX_STRING_LEN];
 	int bcdDevice, bcdUSB;
+	usb_interface_descriptor_t *id;
 
 	usbd_devinfo_vp(dev, vendor, product, 1);
 	cp += sprintf(cp, "%s %s", vendor, product);
-	if (showclass)
+	if (showclass & USBD_SHOW_DEVICE_CLASS)
 		cp += sprintf(cp, ", class %d/%d",
-			      udd->bDeviceClass, udd->bDeviceSubClass);
+		    udd->bDeviceClass, udd->bDeviceSubClass);
 	bcdUSB = UGETW(udd->bcdUSB);
 	bcdDevice = UGETW(udd->bcdDevice);
 	cp += sprintf(cp, ", rev ");
@@ -334,6 +339,14 @@ usbd_devinfo(usbd_device_handle dev, int showclass, char *cp)
 	*cp++ = '/';
 	cp += usbd_printBCD(cp, bcdDevice);
 	cp += sprintf(cp, ", addr %d", dev->address);
+	if (showclass & USBD_SHOW_INTERFACE_CLASS)
+	{
+		/* fetch the interface handle for the first interface */
+		(void)usbd_device2interface_handle(dev, 0, &iface);
+		id = usbd_get_interface_descriptor(iface);
+		cp += sprintf(cp, ", iclass %d/%d",
+		    id->bInterfaceClass, id->bInterfaceSubClass);
+	}
 	*cp = 0;
 }
 
@@ -605,11 +618,19 @@ usbd_set_config_index(usbd_device_handle dev, int index, int msg)
 
 	DPRINTFN(5,("usbd_set_config_index: dev=%p index=%d\n", dev, index));
 
-	/* XXX check that all interfaces are idle */
 	if (dev->config != USB_UNCONFIG_NO) {
+		nifc = dev->cdesc->bNumInterface;
+
+		/* Check that all interfaces are idle */
+		for (ifcidx = 0; ifcidx < nifc; ifcidx++) {
+			if (LIST_EMPTY(&dev->ifaces[ifcidx].pipes))
+				continue;
+			DPRINTF(("usbd_set_config_index: open pipes exist\n"));
+			return (USBD_IN_USE);
+		}
+
 		DPRINTF(("usbd_set_config_index: free old config\n"));
 		/* Free all configuration data structures. */
-		nifc = dev->cdesc->bNumInterface;
 		for (ifcidx = 0; ifcidx < nifc; ifcidx++)
 			usbd_free_iface_data(dev, ifcidx);
 		free(dev->ifaces, M_USB);
@@ -1324,11 +1345,13 @@ usbd_fill_deviceinfo(usbd_device_handle dev, struct usb_device_info *di,
 	di->udi_speed = dev->speed;
 
 	if (dev->subdevs != NULL) {
-		for (i = 0; dev->subdevs[i] &&
-			     i < USB_MAX_DEVNAMES; i++) {
-			strncpy(di->udi_devnames[i], USBDEVPTRNAME(dev->subdevs[i]),
-				USB_MAX_DEVNAMELEN);
-			di->udi_devnames[i][USB_MAX_DEVNAMELEN-1] = '\0';
+		for (i = 0; dev->subdevs[i] && i < USB_MAX_DEVNAMES; i++) {
+			if (device_is_attached(dev->subdevs[i]))
+				strlcpy(di->udi_devnames[i],
+				    USBDEVPTRNAME(dev->subdevs[i]),
+				    USB_MAX_DEVNAMELEN);
+			else
+				di->udi_devnames[i][0] = 0;
                 }
         } else {
                 i = 0;
@@ -1379,6 +1402,8 @@ usb_free_device(usbd_device_handle dev)
 		free(dev->cdesc, M_USB);
 	if (dev->subdevs != NULL)
 		free(dev->subdevs, M_USB);
+	if (dev->ifacenums != NULL)
+		free(dev->ifacenums, M_USB);
 	free(dev, M_USB);
 }
 
