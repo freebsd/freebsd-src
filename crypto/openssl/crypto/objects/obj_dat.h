@@ -1,4 +1,10 @@
-/* lib/obj/obj_dat.h */
+/* crypto/objects/obj_dat.h */
+
+/* THIS FILE IS GENERATED FROM objects.h by obj_dat.pl via the
+ * following command:
+ * perl obj_dat.pl objects.h obj_dat.h
+ */
+
 /* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -56,17 +62,12 @@
  * [including the GNU Public Licence.]
  */
 
-/* THIS FILE IS GENERATED FROM Objects.h by obj_dat.pl via the
- * following command:
- * perl obj_dat.pl objects.h obj_dat.h
- */
+#define NUM_NID 404
+#define NUM_SN 402
+#define NUM_LN 402
+#define NUM_OBJ 376
 
-#define NUM_NID 393
-#define NUM_SN 392
-#define NUM_LN 392
-#define NUM_OBJ 366
-
-static unsigned char lvalues[2896]={
+static unsigned char lvalues[2941]={
 0x00,                                        /* [  0] OBJ_undef */
 0x2A,0x86,0x48,0x86,0xF7,0x0D,               /* [  1] OBJ_rsadsi */
 0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,          /* [  7] OBJ_pkcs */
@@ -390,49 +391,59 @@ static unsigned char lvalues[2896]={
 0x2B,0x06,0x01,0x05,0x05,0x07,0x08,0x01,     /* [2583] OBJ_id_on_personalData */
 0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x01,     /* [2591] OBJ_id_pda_dateOfBirth */
 0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x02,     /* [2599] OBJ_id_pda_placeOfBirth */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x03,     /* [2607] OBJ_id_pda_pseudonym */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x04,     /* [2615] OBJ_id_pda_gender */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x05,     /* [2623] OBJ_id_pda_countryOfCitizenship */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x06,     /* [2631] OBJ_id_pda_countryOfResidence */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x01,     /* [2639] OBJ_id_aca_authenticationInfo */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x02,     /* [2647] OBJ_id_aca_accessIdentity */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x03,     /* [2655] OBJ_id_aca_chargingIdentity */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x04,     /* [2663] OBJ_id_aca_group */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x05,     /* [2671] OBJ_id_aca_role */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0B,0x01,     /* [2679] OBJ_id_qcs_pkixQCSyntax_v1 */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0C,0x01,     /* [2687] OBJ_id_cct_crs */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0C,0x02,     /* [2695] OBJ_id_cct_PKIData */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x0C,0x03,     /* [2703] OBJ_id_cct_PKIResponse */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x03,     /* [2711] OBJ_ad_timeStamping */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x04,     /* [2719] OBJ_ad_dvcs */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x01,/* [2727] OBJ_id_pkix_OCSP_basic */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x02,/* [2736] OBJ_id_pkix_OCSP_Nonce */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x03,/* [2745] OBJ_id_pkix_OCSP_CrlID */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x04,/* [2754] OBJ_id_pkix_OCSP_acceptableResponses */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x05,/* [2763] OBJ_id_pkix_OCSP_noCheck */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x06,/* [2772] OBJ_id_pkix_OCSP_archiveCutoff */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x07,/* [2781] OBJ_id_pkix_OCSP_serviceLocator */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x08,/* [2790] OBJ_id_pkix_OCSP_extendedStatus */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x09,/* [2799] OBJ_id_pkix_OCSP_valid */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x0A,/* [2808] OBJ_id_pkix_OCSP_path */
-0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x0B,/* [2817] OBJ_id_pkix_OCSP_trustRoot */
-0x2B,0x0E,0x03,0x02,                         /* [2826] OBJ_algorithm */
-0x2B,0x0E,0x03,0x02,0x0B,                    /* [2830] OBJ_rsaSignature */
-0x55,0x08,                                   /* [2835] OBJ_X500algorithms */
-0x2B,                                        /* [2837] OBJ_org */
-0x2B,0x06,                                   /* [2838] OBJ_dod */
-0x2B,0x06,0x01,                              /* [2840] OBJ_iana */
-0x2B,0x06,0x01,0x01,                         /* [2843] OBJ_Directory */
-0x2B,0x06,0x01,0x02,                         /* [2847] OBJ_Management */
-0x2B,0x06,0x01,0x03,                         /* [2851] OBJ_Experimental */
-0x2B,0x06,0x01,0x04,                         /* [2855] OBJ_Private */
-0x2B,0x06,0x01,0x05,                         /* [2859] OBJ_Security */
-0x2B,0x06,0x01,0x06,                         /* [2863] OBJ_SNMPv2 */
-0x2B,0x06,0x01,0x07,                         /* [2867] OBJ_Mail */
-0x01,                                        /* [2871] OBJ_Enterprises */
-0xBA,0x82,0x58,                              /* [2872] OBJ_dcObject */
-0x09,0x92,0x26,0x89,0x93,0xF2,0x2C,0x64,0x01,0x19,/* [2875] OBJ_domainComponent */
-0x09,0x92,0x26,0x89,0x93,0xF2,0x2C,0x64,0x04,0x0D,/* [2885] OBJ_Domain */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x03,     /* [2607] OBJ_id_pda_gender */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x04,     /* [2615] OBJ_id_pda_countryOfCitizenship */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x09,0x05,     /* [2623] OBJ_id_pda_countryOfResidence */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x01,     /* [2631] OBJ_id_aca_authenticationInfo */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x02,     /* [2639] OBJ_id_aca_accessIdentity */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x03,     /* [2647] OBJ_id_aca_chargingIdentity */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x04,     /* [2655] OBJ_id_aca_group */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x05,     /* [2663] OBJ_id_aca_role */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0B,0x01,     /* [2671] OBJ_id_qcs_pkixQCSyntax_v1 */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0C,0x01,     /* [2679] OBJ_id_cct_crs */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0C,0x02,     /* [2687] OBJ_id_cct_PKIData */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0C,0x03,     /* [2695] OBJ_id_cct_PKIResponse */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x03,     /* [2703] OBJ_ad_timeStamping */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x04,     /* [2711] OBJ_ad_dvcs */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x01,/* [2719] OBJ_id_pkix_OCSP_basic */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x02,/* [2728] OBJ_id_pkix_OCSP_Nonce */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x03,/* [2737] OBJ_id_pkix_OCSP_CrlID */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x04,/* [2746] OBJ_id_pkix_OCSP_acceptableResponses */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x05,/* [2755] OBJ_id_pkix_OCSP_noCheck */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x06,/* [2764] OBJ_id_pkix_OCSP_archiveCutoff */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x07,/* [2773] OBJ_id_pkix_OCSP_serviceLocator */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x08,/* [2782] OBJ_id_pkix_OCSP_extendedStatus */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x09,/* [2791] OBJ_id_pkix_OCSP_valid */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x0A,/* [2800] OBJ_id_pkix_OCSP_path */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x30,0x01,0x0B,/* [2809] OBJ_id_pkix_OCSP_trustRoot */
+0x2B,0x0E,0x03,0x02,                         /* [2818] OBJ_algorithm */
+0x2B,0x0E,0x03,0x02,0x0B,                    /* [2822] OBJ_rsaSignature */
+0x55,0x08,                                   /* [2827] OBJ_X500algorithms */
+0x2B,                                        /* [2829] OBJ_org */
+0x2B,0x06,                                   /* [2830] OBJ_dod */
+0x2B,0x06,0x01,                              /* [2832] OBJ_iana */
+0x2B,0x06,0x01,0x01,                         /* [2835] OBJ_Directory */
+0x2B,0x06,0x01,0x02,                         /* [2839] OBJ_Management */
+0x2B,0x06,0x01,0x03,                         /* [2843] OBJ_Experimental */
+0x2B,0x06,0x01,0x04,                         /* [2847] OBJ_Private */
+0x2B,0x06,0x01,0x05,                         /* [2851] OBJ_Security */
+0x2B,0x06,0x01,0x06,                         /* [2855] OBJ_SNMPv2 */
+0x2B,0x06,0x01,0x07,                         /* [2859] OBJ_Mail */
+0x01,                                        /* [2863] OBJ_Enterprises */
+0xBA,0x82,0x58,                              /* [2864] OBJ_dcObject */
+0x09,0x92,0x26,0x89,0x93,0xF2,0x2C,0x64,0x01,0x19,/* [2867] OBJ_domainComponent */
+0x09,0x92,0x26,0x89,0x93,0xF2,0x2C,0x64,0x04,0x0D,/* [2877] OBJ_Domain */
+0x50,                                        /* [2887] OBJ_joint_iso_ccitt */
+0x55,0x01,0x05,                              /* [2888] OBJ_selected_attribute_types */
+0x55,0x01,0x05,0x37,                         /* [2891] OBJ_clearance */
+0x2A,0x86,0x48,0x86,0xF7,0x0D,0x01,0x01,0x03,/* [2895] OBJ_md4WithRSAEncryption */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x01,0x0A,     /* [2904] OBJ_ac_proxying */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x01,0x0B,     /* [2912] OBJ_sinfo_access */
+0x2B,0x06,0x01,0x05,0x05,0x07,0x0A,0x06,     /* [2920] OBJ_id_aca_encAttrs */
+0x55,0x04,0x48,                              /* [2928] OBJ_role */
+0x55,0x1D,0x24,                              /* [2931] OBJ_policy_constraints */
+0x55,0x1D,0x37,                              /* [2934] OBJ_target_information */
+0x55,0x1D,0x38,                              /* [2937] OBJ_no_rev_avail */
 };
 
 static ASN1_OBJECT nid_objs[NUM_NID]={
@@ -576,7 +587,8 @@ static ASN1_OBJECT nid_objs[NUM_NID]={
 {"G","givenName",NID_givenName,3,&(lvalues[535]),0},
 {"S","surname",NID_surname,3,&(lvalues[538]),0},
 {"I","initials",NID_initials,3,&(lvalues[541]),0},
-{"UID","uniqueIdentifier",NID_uniqueIdentifier,3,&(lvalues[544]),0},
+{"uniqueIdentifier","uniqueIdentifier",NID_uniqueIdentifier,3,
+	&(lvalues[544]),0},
 {"crlDistributionPoints","X509v3 CRL Distribution Points",
 	NID_crl_distribution_points,3,&(lvalues[547]),0},
 {"RSA-NP-MD5","md5WithRSA",NID_md5WithRSA,5,&(lvalues[550]),0},
@@ -985,66 +997,84 @@ static ASN1_OBJECT nid_objs[NUM_NID]={
 	&(lvalues[2591]),0},
 {"id-pda-placeOfBirth","id-pda-placeOfBirth",NID_id_pda_placeOfBirth,
 	8,&(lvalues[2599]),0},
-{"id-pda-pseudonym","id-pda-pseudonym",NID_id_pda_pseudonym,8,
-	&(lvalues[2607]),0},
-{"id-pda-gender","id-pda-gender",NID_id_pda_gender,8,&(lvalues[2615]),0},
+{NULL,NULL,NID_undef,0,NULL},
+{"id-pda-gender","id-pda-gender",NID_id_pda_gender,8,&(lvalues[2607]),0},
 {"id-pda-countryOfCitizenship","id-pda-countryOfCitizenship",
-	NID_id_pda_countryOfCitizenship,8,&(lvalues[2623]),0},
+	NID_id_pda_countryOfCitizenship,8,&(lvalues[2615]),0},
 {"id-pda-countryOfResidence","id-pda-countryOfResidence",
-	NID_id_pda_countryOfResidence,8,&(lvalues[2631]),0},
+	NID_id_pda_countryOfResidence,8,&(lvalues[2623]),0},
 {"id-aca-authenticationInfo","id-aca-authenticationInfo",
-	NID_id_aca_authenticationInfo,8,&(lvalues[2639]),0},
+	NID_id_aca_authenticationInfo,8,&(lvalues[2631]),0},
 {"id-aca-accessIdentity","id-aca-accessIdentity",
-	NID_id_aca_accessIdentity,8,&(lvalues[2647]),0},
+	NID_id_aca_accessIdentity,8,&(lvalues[2639]),0},
 {"id-aca-chargingIdentity","id-aca-chargingIdentity",
-	NID_id_aca_chargingIdentity,8,&(lvalues[2655]),0},
-{"id-aca-group","id-aca-group",NID_id_aca_group,8,&(lvalues[2663]),0},
-{"id-aca-role","id-aca-role",NID_id_aca_role,8,&(lvalues[2671]),0},
+	NID_id_aca_chargingIdentity,8,&(lvalues[2647]),0},
+{"id-aca-group","id-aca-group",NID_id_aca_group,8,&(lvalues[2655]),0},
+{"id-aca-role","id-aca-role",NID_id_aca_role,8,&(lvalues[2663]),0},
 {"id-qcs-pkixQCSyntax-v1","id-qcs-pkixQCSyntax-v1",
-	NID_id_qcs_pkixQCSyntax_v1,8,&(lvalues[2679]),0},
-{"id-cct-crs","id-cct-crs",NID_id_cct_crs,8,&(lvalues[2687]),0},
+	NID_id_qcs_pkixQCSyntax_v1,8,&(lvalues[2671]),0},
+{"id-cct-crs","id-cct-crs",NID_id_cct_crs,8,&(lvalues[2679]),0},
 {"id-cct-PKIData","id-cct-PKIData",NID_id_cct_PKIData,8,
-	&(lvalues[2695]),0},
+	&(lvalues[2687]),0},
 {"id-cct-PKIResponse","id-cct-PKIResponse",NID_id_cct_PKIResponse,8,
-	&(lvalues[2703]),0},
+	&(lvalues[2695]),0},
 {"ad_timestamping","AD Time Stamping",NID_ad_timeStamping,8,
-	&(lvalues[2711]),0},
-{"AD_DVCS","ad dvcs",NID_ad_dvcs,8,&(lvalues[2719]),0},
+	&(lvalues[2703]),0},
+{"AD_DVCS","ad dvcs",NID_ad_dvcs,8,&(lvalues[2711]),0},
 {"basicOCSPResponse","Basic OCSP Response",NID_id_pkix_OCSP_basic,9,
-	&(lvalues[2727]),0},
-{"Nonce","OCSP Nonce",NID_id_pkix_OCSP_Nonce,9,&(lvalues[2736]),0},
-{"CrlID","OCSP CRL ID",NID_id_pkix_OCSP_CrlID,9,&(lvalues[2745]),0},
+	&(lvalues[2719]),0},
+{"Nonce","OCSP Nonce",NID_id_pkix_OCSP_Nonce,9,&(lvalues[2728]),0},
+{"CrlID","OCSP CRL ID",NID_id_pkix_OCSP_CrlID,9,&(lvalues[2737]),0},
 {"acceptableResponses","Acceptable OCSP Responses",
-	NID_id_pkix_OCSP_acceptableResponses,9,&(lvalues[2754]),0},
-{"noCheck","noCheck",NID_id_pkix_OCSP_noCheck,9,&(lvalues[2763]),0},
+	NID_id_pkix_OCSP_acceptableResponses,9,&(lvalues[2746]),0},
+{"noCheck","noCheck",NID_id_pkix_OCSP_noCheck,9,&(lvalues[2755]),0},
 {"archiveCutoff","OCSP Archive Cutoff",NID_id_pkix_OCSP_archiveCutoff,
-	9,&(lvalues[2772]),0},
+	9,&(lvalues[2764]),0},
 {"serviceLocator","OCSP Service Locator",
-	NID_id_pkix_OCSP_serviceLocator,9,&(lvalues[2781]),0},
+	NID_id_pkix_OCSP_serviceLocator,9,&(lvalues[2773]),0},
 {"extendedStatus","Extended OCSP Status",
-	NID_id_pkix_OCSP_extendedStatus,9,&(lvalues[2790]),0},
-{"valid","valid",NID_id_pkix_OCSP_valid,9,&(lvalues[2799]),0},
-{"path","path",NID_id_pkix_OCSP_path,9,&(lvalues[2808]),0},
+	NID_id_pkix_OCSP_extendedStatus,9,&(lvalues[2782]),0},
+{"valid","valid",NID_id_pkix_OCSP_valid,9,&(lvalues[2791]),0},
+{"path","path",NID_id_pkix_OCSP_path,9,&(lvalues[2800]),0},
 {"trustRoot","Trust Root",NID_id_pkix_OCSP_trustRoot,9,
-	&(lvalues[2817]),0},
-{"algorithm","algorithm",NID_algorithm,4,&(lvalues[2826]),0},
-{"rsaSignature","rsaSignature",NID_rsaSignature,5,&(lvalues[2830]),0},
+	&(lvalues[2809]),0},
+{"algorithm","algorithm",NID_algorithm,4,&(lvalues[2818]),0},
+{"rsaSignature","rsaSignature",NID_rsaSignature,5,&(lvalues[2822]),0},
 {"X500algorithms","directory services - algorithms",
-	NID_X500algorithms,2,&(lvalues[2835]),0},
-{"ORG","org",NID_org,1,&(lvalues[2837]),0},
-{"DOD","dod",NID_dod,2,&(lvalues[2838]),0},
-{"IANA","iana",NID_iana,3,&(lvalues[2840]),0},
-{"directory","Directory",NID_Directory,4,&(lvalues[2843]),0},
-{"mgmt","Management",NID_Management,4,&(lvalues[2847]),0},
-{"experimental","Experimental",NID_Experimental,4,&(lvalues[2851]),0},
-{"private","Private",NID_Private,4,&(lvalues[2855]),0},
-{"security","Security",NID_Security,4,&(lvalues[2859]),0},
-{"snmpv2","SNMPv2",NID_SNMPv2,4,&(lvalues[2863]),0},
-{"mail","Mail",NID_Mail,4,&(lvalues[2867]),0},
-{"enterprises","Enterprises",NID_Enterprises,1,&(lvalues[2871]),0},
-{"dcobject","dcObject",NID_dcObject,3,&(lvalues[2872]),0},
-{"DC","domainComponent",NID_domainComponent,10,&(lvalues[2875]),0},
-{"domain","Domain",NID_Domain,10,&(lvalues[2885]),0},
+	NID_X500algorithms,2,&(lvalues[2827]),0},
+{"ORG","org",NID_org,1,&(lvalues[2829]),0},
+{"DOD","dod",NID_dod,2,&(lvalues[2830]),0},
+{"IANA","iana",NID_iana,3,&(lvalues[2832]),0},
+{"directory","Directory",NID_Directory,4,&(lvalues[2835]),0},
+{"mgmt","Management",NID_Management,4,&(lvalues[2839]),0},
+{"experimental","Experimental",NID_Experimental,4,&(lvalues[2843]),0},
+{"private","Private",NID_Private,4,&(lvalues[2847]),0},
+{"security","Security",NID_Security,4,&(lvalues[2851]),0},
+{"snmpv2","SNMPv2",NID_SNMPv2,4,&(lvalues[2855]),0},
+{"mail","Mail",NID_Mail,4,&(lvalues[2859]),0},
+{"enterprises","Enterprises",NID_Enterprises,1,&(lvalues[2863]),0},
+{"dcobject","dcObject",NID_dcObject,3,&(lvalues[2864]),0},
+{"DC","domainComponent",NID_domainComponent,10,&(lvalues[2867]),0},
+{"domain","Domain",NID_Domain,10,&(lvalues[2877]),0},
+{"JOINT-ISO-CCITT","joint-iso-ccitt",NID_joint_iso_ccitt,1,
+	&(lvalues[2887]),0},
+{"selected-attribute-types","Selected Attribute Types",
+	NID_selected_attribute_types,3,&(lvalues[2888]),0},
+{"clearance","clearance",NID_clearance,4,&(lvalues[2891]),0},
+{"RSA-MD4","md4WithRSAEncryption",NID_md4WithRSAEncryption,9,
+	&(lvalues[2895]),0},
+{"ac-proxying","ac-proxying",NID_ac_proxying,8,&(lvalues[2904]),0},
+{"subjectInfoAccess","Subject Information Access",NID_sinfo_access,8,
+	&(lvalues[2912]),0},
+{"id-aca-encAttrs","id-aca-encAttrs",NID_id_aca_encAttrs,8,
+	&(lvalues[2920]),0},
+{"role","role",NID_role,3,&(lvalues[2928]),0},
+{"policyConstraints","X509v3 Policy Constraints",
+	NID_policy_constraints,3,&(lvalues[2931]),0},
+{"targetInformation","X509v3 AC Targeting",NID_target_information,3,
+	&(lvalues[2934]),0},
+{"noRevAvail","X509v3 No Revocation Available",NID_no_rev_avail,3,
+	&(lvalues[2937]),0},
 };
 
 static ASN1_OBJECT *sn_objs[NUM_SN]={
@@ -1093,6 +1123,7 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[46]),/* "IDEA-OFB" */
 &(nid_objs[181]),/* "ISO" */
 &(nid_objs[183]),/* "ISO-US" */
+&(nid_objs[393]),/* "JOINT-ISO-CCITT" */
 &(nid_objs[15]),/* "L" */
 &(nid_objs[ 3]),/* "MD2" */
 &(nid_objs[257]),/* "MD4" */
@@ -1138,6 +1169,7 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[124]),/* "RLE" */
 &(nid_objs[19]),/* "RSA" */
 &(nid_objs[ 7]),/* "RSA-MD2" */
+&(nid_objs[396]),/* "RSA-MD4" */
 &(nid_objs[ 8]),/* "RSA-MD5" */
 &(nid_objs[96]),/* "RSA-MDC2" */
 &(nid_objs[104]),/* "RSA-NP-MD5" */
@@ -1154,7 +1186,6 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[16]),/* "ST" */
 &(nid_objs[143]),/* "SXNetID" */
 &(nid_objs[106]),/* "T" */
-&(nid_objs[102]),/* "UID" */
 &(nid_objs[ 0]),/* "UNDEF" */
 &(nid_objs[11]),/* "X500" */
 &(nid_objs[378]),/* "X500algorithms" */
@@ -1164,6 +1195,7 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[125]),/* "ZLIB" */
 &(nid_objs[289]),/* "aaControls" */
 &(nid_objs[287]),/* "ac-auditEntity" */
+&(nid_objs[397]),/* "ac-proxying" */
 &(nid_objs[288]),/* "ac-targeting" */
 &(nid_objs[368]),/* "acceptableResponses" */
 &(nid_objs[363]),/* "ad_timestamping" */
@@ -1178,6 +1210,7 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[152]),/* "certBag" */
 &(nid_objs[89]),/* "certificatePolicies" */
 &(nid_objs[54]),/* "challengePassword" */
+&(nid_objs[395]),/* "clearance" */
 &(nid_objs[130]),/* "clientAuth" */
 &(nid_objs[131]),/* "codeSigning" */
 &(nid_objs[50]),/* "contentType" */
@@ -1204,6 +1237,7 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[355]),/* "id-aca-accessIdentity" */
 &(nid_objs[354]),/* "id-aca-authenticationInfo" */
 &(nid_objs[356]),/* "id-aca-chargingIdentity" */
+&(nid_objs[399]),/* "id-aca-encAttrs" */
 &(nid_objs[357]),/* "id-aca-group" */
 &(nid_objs[358]),/* "id-aca-role" */
 &(nid_objs[176]),/* "id-ad" */
@@ -1275,7 +1309,6 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[348]),/* "id-pda-dateOfBirth" */
 &(nid_objs[351]),/* "id-pda-gender" */
 &(nid_objs[349]),/* "id-pda-placeOfBirth" */
-&(nid_objs[350]),/* "id-pda-pseudonym" */
 &(nid_objs[175]),/* "id-pe" */
 &(nid_objs[261]),/* "id-pkip" */
 &(nid_objs[258]),/* "id-pkix-mod" */
@@ -1386,6 +1419,7 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[137]),/* "msSGC" */
 &(nid_objs[173]),/* "name" */
 &(nid_objs[369]),/* "noCheck" */
+&(nid_objs[403]),/* "noRevAvail" */
 &(nid_objs[72]),/* "nsBaseUrl" */
 &(nid_objs[76]),/* "nsCaPolicyUrl" */
 &(nid_objs[74]),/* "nsCaRevocationUrl" */
@@ -1413,9 +1447,11 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[22]),/* "pkcs7-signedData" */
 &(nid_objs[151]),/* "pkcs8ShroudedKeyBag" */
 &(nid_objs[47]),/* "pkcs9" */
+&(nid_objs[401]),/* "policyConstraints" */
 &(nid_objs[385]),/* "private" */
 &(nid_objs[84]),/* "privateKeyUsagePeriod" */
 &(nid_objs[286]),/* "qcStatements" */
+&(nid_objs[400]),/* "role" */
 &(nid_objs[ 6]),/* "rsaEncryption" */
 &(nid_objs[377]),/* "rsaSignature" */
 &(nid_objs[ 1]),/* "rsadsi" */
@@ -1426,15 +1462,19 @@ static ASN1_OBJECT *sn_objs[NUM_SN]={
 &(nid_objs[159]),/* "sdsiCertificate" */
 &(nid_objs[154]),/* "secretBag" */
 &(nid_objs[386]),/* "security" */
+&(nid_objs[394]),/* "selected-attribute-types" */
 &(nid_objs[129]),/* "serverAuth" */
 &(nid_objs[371]),/* "serviceLocator" */
 &(nid_objs[52]),/* "signingTime" */
 &(nid_objs[387]),/* "snmpv2" */
 &(nid_objs[85]),/* "subjectAltName" */
+&(nid_objs[398]),/* "subjectInfoAccess" */
 &(nid_objs[82]),/* "subjectKeyIdentifier" */
+&(nid_objs[402]),/* "targetInformation" */
 &(nid_objs[293]),/* "textNotice" */
 &(nid_objs[133]),/* "timeStamping" */
 &(nid_objs[375]),/* "trustRoot" */
+&(nid_objs[102]),/* "uniqueIdentifier" */
 &(nid_objs[55]),/* "unstructuredAddress" */
 &(nid_objs[49]),/* "unstructuredName" */
 &(nid_objs[373]),/* "valid" */
@@ -1503,12 +1543,15 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[167]),/* "S/MIME Capabilities" */
 &(nid_objs[387]),/* "SNMPv2" */
 &(nid_objs[386]),/* "Security" */
+&(nid_objs[394]),/* "Selected Attribute Types" */
 &(nid_objs[143]),/* "Strong Extranet ID" */
+&(nid_objs[398]),/* "Subject Information Access" */
 &(nid_objs[130]),/* "TLS Web Client Authentication" */
 &(nid_objs[129]),/* "TLS Web Server Authentication" */
 &(nid_objs[133]),/* "Time Stamping" */
 &(nid_objs[375]),/* "Trust Root" */
 &(nid_objs[12]),/* "X509" */
+&(nid_objs[402]),/* "X509v3 AC Targeting" */
 &(nid_objs[90]),/* "X509v3 Authority Key Identifier" */
 &(nid_objs[87]),/* "X509v3 Basic Constraints" */
 &(nid_objs[103]),/* "X509v3 CRL Distribution Points" */
@@ -1519,6 +1562,8 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[126]),/* "X509v3 Extended Key Usage" */
 &(nid_objs[86]),/* "X509v3 Issuer Alternative Name" */
 &(nid_objs[83]),/* "X509v3 Key Usage" */
+&(nid_objs[403]),/* "X509v3 No Revocation Available" */
+&(nid_objs[401]),/* "X509v3 Policy Constraints" */
 &(nid_objs[84]),/* "X509v3 Private Key Usage Period" */
 &(nid_objs[85]),/* "X509v3 Subject Alternative Name" */
 &(nid_objs[82]),/* "X509v3 Subject Key Identifier" */
@@ -1526,6 +1571,7 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[185]),/* "X9.57 CM ?" */
 &(nid_objs[289]),/* "aaControls" */
 &(nid_objs[287]),/* "ac-auditEntity" */
+&(nid_objs[397]),/* "ac-proxying" */
 &(nid_objs[288]),/* "ac-targeting" */
 &(nid_objs[364]),/* "ad dvcs" */
 &(nid_objs[376]),/* "algorithm" */
@@ -1539,6 +1585,7 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[111]),/* "cast5-ofb" */
 &(nid_objs[152]),/* "certBag" */
 &(nid_objs[54]),/* "challengePassword" */
+&(nid_objs[395]),/* "clearance" */
 &(nid_objs[13]),/* "commonName" */
 &(nid_objs[50]),/* "contentType" */
 &(nid_objs[53]),/* "countersignature" */
@@ -1581,6 +1628,7 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[355]),/* "id-aca-accessIdentity" */
 &(nid_objs[354]),/* "id-aca-authenticationInfo" */
 &(nid_objs[356]),/* "id-aca-chargingIdentity" */
+&(nid_objs[399]),/* "id-aca-encAttrs" */
 &(nid_objs[357]),/* "id-aca-group" */
 &(nid_objs[358]),/* "id-aca-role" */
 &(nid_objs[176]),/* "id-ad" */
@@ -1652,7 +1700,6 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[348]),/* "id-pda-dateOfBirth" */
 &(nid_objs[351]),/* "id-pda-gender" */
 &(nid_objs[349]),/* "id-pda-placeOfBirth" */
-&(nid_objs[350]),/* "id-pda-pseudonym" */
 &(nid_objs[175]),/* "id-pe" */
 &(nid_objs[261]),/* "id-pkip" */
 &(nid_objs[258]),/* "id-pkix-mod" */
@@ -1747,12 +1794,14 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[46]),/* "idea-ofb" */
 &(nid_objs[101]),/* "initials" */
 &(nid_objs[181]),/* "iso" */
+&(nid_objs[393]),/* "joint-iso-ccitt" */
 &(nid_objs[150]),/* "keyBag" */
 &(nid_objs[157]),/* "localKeyID" */
 &(nid_objs[15]),/* "localityName" */
 &(nid_objs[ 3]),/* "md2" */
 &(nid_objs[ 7]),/* "md2WithRSAEncryption" */
 &(nid_objs[257]),/* "md4" */
+&(nid_objs[396]),/* "md4WithRSAEncryption" */
 &(nid_objs[ 4]),/* "md5" */
 &(nid_objs[114]),/* "md5-sha1" */
 &(nid_objs[104]),/* "md5WithRSA" */
@@ -1806,6 +1855,7 @@ static ASN1_OBJECT *ln_objs[NUM_LN]={
 &(nid_objs[123]),/* "rc5-ofb" */
 &(nid_objs[117]),/* "ripemd160" */
 &(nid_objs[119]),/* "ripemd160WithRSA" */
+&(nid_objs[400]),/* "role" */
 &(nid_objs[19]),/* "rsa" */
 &(nid_objs[ 6]),/* "rsaEncryption" */
 &(nid_objs[377]),/* "rsaSignature" */
@@ -1843,6 +1893,7 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[181]),/* OBJ_iso                          1 */
 &(nid_objs[182]),/* OBJ_member_body                  1 2 */
 &(nid_objs[379]),/* OBJ_org                          1 3 */
+&(nid_objs[393]),/* OBJ_joint_iso_ccitt              2 */
 &(nid_objs[11]),/* OBJ_X500                         2 5 */
 &(nid_objs[380]),/* OBJ_dod                          1 3 6 */
 &(nid_objs[12]),/* OBJ_X509                         2 5 4 */
@@ -1850,6 +1901,7 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[81]),/* OBJ_id_ce                        2 5 29 */
 &(nid_objs[183]),/* OBJ_ISO_US                       1 2 840 */
 &(nid_objs[381]),/* OBJ_iana                         1 3 6 1 */
+&(nid_objs[394]),/* OBJ_selected_attribute_types     2 5 1 5 */
 &(nid_objs[13]),/* OBJ_commonName                   2 5 4 3 */
 &(nid_objs[100]),/* OBJ_surname                      2 5 4 4 */
 &(nid_objs[105]),/* OBJ_serialNumber                 2 5 4 5 */
@@ -1865,6 +1917,7 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[101]),/* OBJ_initials                     2 5 4 43 */
 &(nid_objs[102]),/* OBJ_uniqueIdentifier             2 5 4 45 */
 &(nid_objs[174]),/* OBJ_dnQualifier                  2 5 4 46 */
+&(nid_objs[400]),/* OBJ_role                         2 5 4 72 */
 &(nid_objs[82]),/* OBJ_subject_key_identifier       2 5 29 14 */
 &(nid_objs[83]),/* OBJ_key_usage                    2 5 29 15 */
 &(nid_objs[84]),/* OBJ_private_key_usage_period     2 5 29 16 */
@@ -1878,7 +1931,10 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[103]),/* OBJ_crl_distribution_points      2 5 29 31 */
 &(nid_objs[89]),/* OBJ_certificate_policies         2 5 29 32 */
 &(nid_objs[90]),/* OBJ_authority_key_identifier     2 5 29 35 */
+&(nid_objs[401]),/* OBJ_policy_constraints           2 5 29 36 */
 &(nid_objs[126]),/* OBJ_ext_key_usage                2 5 29 37 */
+&(nid_objs[402]),/* OBJ_target_information           2 5 29 55 */
+&(nid_objs[403]),/* OBJ_no_rev_avail                 2 5 29 56 */
 &(nid_objs[390]),/* OBJ_dcObject                      1466 344 */
 &(nid_objs[382]),/* OBJ_Directory                    1 3 6 1 1 */
 &(nid_objs[383]),/* OBJ_Management                   1 3 6 1 2 */
@@ -1888,6 +1944,7 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[387]),/* OBJ_SNMPv2                       1 3 6 1 6 */
 &(nid_objs[388]),/* OBJ_Mail                         1 3 6 1 7 */
 &(nid_objs[376]),/* OBJ_algorithm                    1 3 14 3 2 */
+&(nid_objs[395]),/* OBJ_clearance                    2 5 1 5 55 */
 &(nid_objs[19]),/* OBJ_rsa                          2 5 8 1 1 */
 &(nid_objs[96]),/* OBJ_mdc2WithRSA                  2 5 8 3 100 */
 &(nid_objs[95]),/* OBJ_mdc2                         2 5 8 3 101 */
@@ -1970,6 +2027,8 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[290]),/* OBJ_sbqp_ipAddrBlock             1 3 6 1 5 5 7 1 7 */
 &(nid_objs[291]),/* OBJ_sbqp_autonomousSysNum        1 3 6 1 5 5 7 1 8 */
 &(nid_objs[292]),/* OBJ_sbqp_routerIdentifier        1 3 6 1 5 5 7 1 9 */
+&(nid_objs[397]),/* OBJ_ac_proxying                  1 3 6 1 5 5 7 1 10 */
+&(nid_objs[398]),/* OBJ_sinfo_access                 1 3 6 1 5 5 7 1 11 */
 &(nid_objs[164]),/* OBJ_id_qt_cps                    1 3 6 1 5 5 7 2 1 */
 &(nid_objs[165]),/* OBJ_id_qt_unotice                1 3 6 1 5 5 7 2 2 */
 &(nid_objs[293]),/* OBJ_textNotice                   1 3 6 1 5 5 7 2 3 */
@@ -2027,15 +2086,15 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[347]),/* OBJ_id_on_personalData           1 3 6 1 5 5 7 8 1 */
 &(nid_objs[348]),/* OBJ_id_pda_dateOfBirth           1 3 6 1 5 5 7 9 1 */
 &(nid_objs[349]),/* OBJ_id_pda_placeOfBirth          1 3 6 1 5 5 7 9 2 */
-&(nid_objs[350]),/* OBJ_id_pda_pseudonym             1 3 6 1 5 5 7 9 3 */
-&(nid_objs[351]),/* OBJ_id_pda_gender                1 3 6 1 5 5 7 9 4 */
-&(nid_objs[352]),/* OBJ_id_pda_countryOfCitizenship  1 3 6 1 5 5 7 9 5 */
-&(nid_objs[353]),/* OBJ_id_pda_countryOfResidence    1 3 6 1 5 5 7 9 6 */
+&(nid_objs[351]),/* OBJ_id_pda_gender                1 3 6 1 5 5 7 9 3 */
+&(nid_objs[352]),/* OBJ_id_pda_countryOfCitizenship  1 3 6 1 5 5 7 9 4 */
+&(nid_objs[353]),/* OBJ_id_pda_countryOfResidence    1 3 6 1 5 5 7 9 5 */
 &(nid_objs[354]),/* OBJ_id_aca_authenticationInfo    1 3 6 1 5 5 7 10 1 */
 &(nid_objs[355]),/* OBJ_id_aca_accessIdentity        1 3 6 1 5 5 7 10 2 */
 &(nid_objs[356]),/* OBJ_id_aca_chargingIdentity      1 3 6 1 5 5 7 10 3 */
 &(nid_objs[357]),/* OBJ_id_aca_group                 1 3 6 1 5 5 7 10 4 */
 &(nid_objs[358]),/* OBJ_id_aca_role                  1 3 6 1 5 5 7 10 5 */
+&(nid_objs[399]),/* OBJ_id_aca_encAttrs              1 3 6 1 5 5 7 10 6 */
 &(nid_objs[359]),/* OBJ_id_qcs_pkixQCSyntax_v1       1 3 6 1 5 5 7 11 1 */
 &(nid_objs[360]),/* OBJ_id_cct_crs                   1 3 6 1 5 5 7 12 1 */
 &(nid_objs[361]),/* OBJ_id_cct_PKIData               1 3 6 1 5 5 7 12 2 */
@@ -2050,6 +2109,7 @@ static ASN1_OBJECT *obj_objs[NUM_OBJ]={
 &(nid_objs[112]),/* OBJ_pbeWithMD5AndCast5_CBC       1 2 840 113533 7 66 12 */
 &(nid_objs[ 6]),/* OBJ_rsaEncryption                1 2 840 113549 1 1 1 */
 &(nid_objs[ 7]),/* OBJ_md2WithRSAEncryption         1 2 840 113549 1 1 2 */
+&(nid_objs[396]),/* OBJ_md4WithRSAEncryption         1 2 840 113549 1 1 3 */
 &(nid_objs[ 8]),/* OBJ_md5WithRSAEncryption         1 2 840 113549 1 1 4 */
 &(nid_objs[65]),/* OBJ_sha1WithRSAEncryption        1 2 840 113549 1 1 5 */
 &(nid_objs[28]),/* OBJ_dhKeyAgreement               1 2 840 113549 1 3 1 */

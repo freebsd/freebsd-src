@@ -68,6 +68,11 @@ if [ "x$XREL" != "x" ]; then
 	    4.2)
 		echo "whatever-whatever-unixware1"; exit 0
 		;;
+     OpenUNIX)
+		if [ "`echo x$VERSION | sed -e 's/\..*//'`" = "x8" ]; then
+		    echo "${MACHINE}-unknown-OpenUNIX${VERSION}"; exit 0
+		fi
+		;;
 	    5)
 		if [ "`echo x$VERSION | sed -e 's/\..*//'`" = "x7" ]; then
 		    echo "${MACHINE}-sco-unixware7"; exit 0
@@ -195,14 +200,32 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 	echo "${MACHINE}-whatever-openbsd"; exit 0
 	;;
 
+    OpenUNIX:*)
+	echo "${MACHINE}-unknown-OpenUNIX${VERSION}"; exit 0
+	;;
+
     OSF1:*:*:*alpha*)
-	echo "${MACHINE}-dec-osf"; exit 0
+	OSFMAJOR=`echo ${RELEASE}| sed -e 's/^V\([0-9]*\)\..*$/\1/'`
+	case "$OSFMAJOR" in
+	    4|5)
+		echo "${MACHINE}-dec-tru64"; exit 0
+		;;
+	    1|2|3)
+		echo "${MACHINE}-dec-osf"; exit 0
+		;;
+	    *)
+		echo "${MACHINE}-dec-osf"; exit 0
+		;;
+	esac
 	;;
 
     QNX:*)
-	case "$VERSION" in
+	case "$RELEASE" in
 	    4*)
 		echo "${MACHINE}-whatever-qnx4"
+		;;
+	    6*)
+		echo "${MACHINE}-whatever-qnx6"
 		;;
 	    *)
 		echo "${MACHINE}-whatever-qnx"
@@ -217,6 +240,10 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 
     Rhapsody:*)
 	echo "ppc-apple-rhapsody"; exit 0
+	;;
+
+    Darwin:*)
+	echo "ppc-apple-darwin"; exit 0
 	;;
 
     SunOS:5.*)
@@ -269,6 +296,10 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 
     NEWS-OS:4.*)
 	echo "mips-sony-newsos4"; exit 0;
+	;;
+
+    CYGWIN*)
+	echo "${MACHINE}-whatever-cygwin32"; exit 0
 	;;
 
 esac
@@ -435,11 +466,27 @@ case "$GUESSOS" in
 	    esac
 	fi
 	;;
-  mips-*-linux?) OUT="linux-mips" ;;
+  mips-*-linux?)
+          cat >dummy.c <<EOF
+#include <stdio.h>  /* for printf() prototype */
+        int main (argc, argv) int argc; char *argv[]; {
+#ifdef __MIPSEB__
+  printf ("linux-%s\n", argv[1]);
+#endif
+#ifdef __MIPSEL__
+  printf ("linux-%sel\n", argv[1]);
+#endif
+  return 0;
+}
+EOF
+	${CC} -o dummy dummy.c && OUT=`./dummy ${MACHINE}`
+	rm dummy dummy.c
+	;;
   ppc-*-linux2) OUT="linux-ppc" ;;
   m68k-*-linux*) OUT="linux-m68k" ;;
   ia64-*-linux?) OUT="linux-ia64" ;;
   ppc-apple-rhapsody) OUT="rhapsody-ppc-cc" ;;
+  ppc-apple-darwin) OUT="darwin-ppc-cc" ;;
   sparc64-*-linux2)
 	#Before we can uncomment following lines we have to wait at least
 	#till 64-bit glibc for SPARC is operational:-(
@@ -485,7 +532,15 @@ case "$GUESSOS" in
   pmax*-*-openbsd) OUT="OpenBSD-mips" ;;
   *-*-openbsd) OUT="OpenBSD" ;;
   *86*-*-bsdi4) OUT="bsdi-elf-gcc" ;;
-  *-*-osf) OUT="alpha-cc" ;;
+  *-*-osf) OUT="alphaold-cc" ;;
+  *-*-tru64) OUT="alpha-cc" ;;
+  *-*-OpenUNIX*)
+	if [ "$CC" = "gcc" ]; then
+	  OUT="OpenUNIX-8-gcc" 
+	else    
+	  OUT="OpenUNIX-8" 
+	fi
+	;;
   *-*-unixware7) OUT="unixware-7" ;;
   *-*-UnixWare7) OUT="unixware-7" ;;
   *-*-Unixware7) OUT="unixware-7" ;;
@@ -505,6 +560,8 @@ case "$GUESSOS" in
   # *-aix) OUT="aix-$CC" ;;
   # *-dgux) OUT="dgux" ;;
   mips-sony-newsos4) OUT="newsos4-gcc" ;;
+  *-*-cygwin32) OUT="CygWin32"
+		options="$options no-threads no-asm" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 
@@ -533,7 +590,7 @@ case "$GUESSOS" in
   i386-*) options="$options 386" ;;
 esac
 
-for i in bf cast des dh dsa hmac md2 md5 mdc2 rc2 rc4 rc5 ripemd rsa sha
+for i in bf cast des dh dsa hmac idea md2 md5 mdc2 rc2 rc4 rc5 ripemd rsa sha
 do
   if [ ! -d crypto/$i ]
   then

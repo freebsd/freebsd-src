@@ -116,10 +116,10 @@ my %table=(
 "debug-ben-debug",	"gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DPEDANTIC -DDEBUG_SAFESTACK -g3 -O2 -pedantic -Wall -Wshadow -Werror -pipe::(unknown):::::",
 "debug-ben-strict",	"gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DCONST_STRICT -O2 -Wall -Wshadow -Werror -Wpointer-arith -Wcast-qual -Wwrite-strings -pipe::(unknown):::::",
 "debug-rse","cc:-DTERMIOS -DL_ENDIAN -pipe -O -g -ggdb3 -Wall::(unknown)::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
-"debug-bodo",	"gcc:-DL_ENDIAN -DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -DBIO_PAIR_DEBUG -g -m486 -pedantic -Wshadow -Wall::-D_REENTRANT::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
-"debug-ulf",	"gcc:-DL_ENDIAN -DREF_CHECK -DCONF_DEBUG -DBN_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -g -O2 -m486 -Wall -Werror -Wshadow -pipe::-D_REENTRANT::${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
+"debug-bodo",	"gcc:-DL_ENDIAN -DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -DPEDANTIC -DBIO_PAIR_DEBUG -g -m486 -pedantic -Wshadow -Wall::-D_REENTRANT::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
+"debug-ulf",	"gcc:-DL_ENDIAN -DREF_CHECK -DCONF_DEBUG -DBN_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -DPEDANTIC -g -O2 -m486 -Wall -Werror -Wshadow -pipe::-D_REENTRANT::${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
 "debug-steve",	"gcc:-DL_ENDIAN -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DDEBUG_SAFESTACK -DCRYPTO_MDEBUG_ALL -DPEDANTIC -g -O2 -m486 -pedantic -Wall -Werror -Wshadow -pipe::-D_REENTRANT::${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}",
-"debug-levitte-linux-elf","gcc:-DUSE_ALLOCATING_PRINT -DRL_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DNO_ASM -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -ggdb -g3 -m486 -pedantic -ansi -Wall -Wshadow -Wid-clash-31 -pipe::-D_REENTRANT:-ldl:::::::::::dlfcn",
+"debug-levitte-linux-elf","gcc:-DUSE_ALLOCATING_PRINT -DRL_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DPEDANTIC -DNO_ASM -DL_ENDIAN -DTERMIO -D_POSIX_SOURCE -ggdb -g3 -m486 -pedantic -ansi -Wall -Wshadow -Wid-clash-31 -pipe::-D_REENTRANT:-ldl:::::::::::dlfcn",
 "dist",		"cc:-O::(unknown):::::",
 
 # Basic configs that should work on any (32 and less bit) box
@@ -132,21 +132,21 @@ my %table=(
 # surrounds it with #APP #NO_APP comment pair which (at least Solaris
 # 7_x86) /usr/ccs/bin/as fails to assemble with "Illegal mnemonic"
 # error message.
-"solaris-x86-gcc","gcc:-O3 -fomit-frame-pointer -m486 -Wall -DL_ENDIAN -DNO_INLINE_ASM::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_sol_asm}:dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"solaris-x86-gcc","gcc:-O3 -fomit-frame-pointer -m486 -Wall -DL_ENDIAN -DNO_INLINE_ASM::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_sol_asm}:dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### Solaris x86 with Sun C setups
 "solaris-x86-cc","cc:-fast -O -Xa::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_PTR DES_UNROLL BF_PTR::::::::::dlfcn:solaris-shared:-KPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### SPARC Solaris with GNU C setups
-"solaris-sparcv7-gcc","gcc:-O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR::::::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"solaris-sparcv8-gcc","gcc:-mv8 -O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8.o:::::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"solaris-sparcv9-gcc","gcc:-mcpu=ultrasparc -O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W -DULTRASPARC::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8plus.o:::asm/md5-sparcv8plus.o::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"solaris-sparcv7-gcc","gcc:-O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR::::::::::dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"solaris-sparcv8-gcc","gcc:-mv8 -O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8.o:::::::::dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"solaris-sparcv9-gcc","gcc:-mcpu=ultrasparc -O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W -DULTRASPARC::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8plus.o:::asm/md5-sparcv8plus.o::::::dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # gcc pre-2.8 doesn't understand -mcpu=ultrasparc, so fall down to -mv8
 # but keep the assembler modules.
-"solaris-sparcv9-gcc27","gcc:-mv8 -O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W -DULTRASPARC::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8plus-gcc27.o:::asm/md5-sparcv8plus-gcc27.o::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"solaris-sparcv9-gcc27","gcc:-mv8 -O3 -fomit-frame-pointer -Wall -DB_ENDIAN -DBN_DIV2W -DULTRASPARC::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8plus-gcc27.o:::asm/md5-sparcv8plus-gcc27.o::::::dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 ####
-"debug-solaris-sparcv8-gcc","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -O -g -mv8 -Wall -DB_ENDIAN::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8.o:::::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"debug-solaris-sparcv9-gcc","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -O -g -mcpu=ultrasparc -Wall -DB_ENDIAN::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8plus.o:::::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"debug-solaris-sparcv8-gcc","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -O -g -mv8 -Wall -DB_ENDIAN::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8.o:::::::::dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"debug-solaris-sparcv9-gcc","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG_ALL -O -g -mcpu=ultrasparc -Wall -DB_ENDIAN::-D_REENTRANT:-lsocket -lnsl -ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:asm/sparcv8plus.o:::::::::dlfcn:solaris-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### SPARC Solaris with Sun C setups
 # DO NOT use /xO[34] on sparc with SC3.0.  It is broken, and will not pass the tests
@@ -180,17 +180,17 @@ my %table=(
 
 #### IRIX 5.x configs
 # -mips2 flag is added by ./config when appropriate.
-"irix-gcc","gcc:-O3 -DTERMIOS -DB_ENDIAN::(unknown)::BN_LLONG MD2_CHAR RC4_INDEX RC4_CHAR RC4_CHUNK DES_UNROLL DES_RISC2 DES_PTR BF_PTR:::",
-"irix-cc", "cc:-O2 -use_readonly_const -DTERMIOS -DB_ENDIAN::(unknown)::BN_LLONG RC4_CHAR RC4_CHUNK DES_PTR DES_RISC2 DES_UNROLL BF_PTR:::",
+"irix-gcc","gcc:-O3 -DTERMIOS -DB_ENDIAN::(unknown)::BN_LLONG MD2_CHAR RC4_INDEX RC4_CHAR RC4_CHUNK DES_UNROLL DES_RISC2 DES_PTR BF_PTR::::::::::dlfcn:irix-shared::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix-cc", "cc:-O2 -use_readonly_const -DTERMIOS -DB_ENDIAN::(unknown)::BN_LLONG RC4_CHAR RC4_CHUNK DES_PTR DES_RISC2 DES_UNROLL BF_PTR::::::::::dlfcn:irix-shared::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 #### IRIX 6.x configs
 # Only N32 and N64 ABIs are supported. If you need O32 ABI build, invoke
 # './Configure irix-[g]cc' manually.
 # -mips4 flag is added by ./config when appropriate.
-"irix-mips3-gcc","gcc:-mabi=n32 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::MD2_CHAR RC4_INDEX RC4_CHAR RC4_CHUNK_LL DES_UNROLL DES_RISC2 DES_PTR BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}",
-"irix-mips3-cc", "cc:-n32 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::DES_PTR RC4_CHAR RC4_CHUNK_LL DES_RISC2 DES_UNROLL BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}",
+"irix-mips3-gcc","gcc:-mabi=n32 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::MD2_CHAR RC4_INDEX RC4_CHAR RC4_CHUNK_LL DES_UNROLL DES_RISC2 DES_PTR BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}:dlfcn:irix-shared::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix-mips3-cc", "cc:-n32 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::DES_PTR RC4_CHAR RC4_CHUNK_LL DES_RISC2 DES_UNROLL BF_PTR SIXTY_FOUR_BIT:${mips3_irix_asm}:dlfcn:irix-shared::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # N64 ABI builds.
-"irix64-mips4-gcc","gcc:-mabi=64 -mips4 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}",
-"irix64-mips4-cc", "cc:-64 -mips4 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}",
+"irix64-mips4-gcc","gcc:-mabi=64 -mips4 -mmips-as -O3 -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}:dlfcn:irix-shared::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"irix64-mips4-cc", "cc:-64 -mips4 -O2 -use_readonly_const -DTERMIOS -DB_ENDIAN -DBN_DIV3W::-D_SGI_MP_SOURCE::RC4_CHAR RC4_CHUNK DES_RISC2 DES_UNROLL SIXTY_FOUR_BIT_LONG:${mips3_irix_asm}:dlfcn:irix-shared::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### Unified HP-UX ANSI C configs.
 # Special notes:
@@ -222,41 +222,44 @@ my %table=(
 #
 #!#"hpux-parisc-cc","cc:-Ae +O3 +ESlit -z -DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY:::-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
 # Since there is mention of this in shlib/hpux10-cc.sh
-"hpux-parisc-cc-o4","cc:-Ae +O4 +ESlit -z -DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY:::-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
-"hpux-parisc-gcc","gcc:-O3 -DB_ENDIAN -DBN_DIV2W:::-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
-"hpux64-parisc-cc","cc:-Ae +DD64 +O3 +ESlit -z -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldl:SIXTY_FOUR_BIT_LONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dlfcn",
+"hpux-parisc-cc-o4","cc:-Ae +O4 +ESlit -z -DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY:::-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"hpux-parisc-gcc","gcc:-O3 -DB_ENDIAN -DBN_DIV2W:::-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:-fPIC:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"hpux64-parisc-cc","cc:-Ae +DD64 +O3 +ESlit -z -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldl:SIXTY_FOUR_BIT_LONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dlfcn:hpux64-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 # More attempts at unified 10.X and 11.X targets for HP C compiler.
 #
 # Chris Ruemmler <ruemmler@cup.hp.com>
 # Kevin Steves <ks@hp.se>
-"hpux-parisc-cc","cc:+O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY::-D_REENTRANT:-ldld:MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dl",
-"hpux-parisc2-cc","cc:+DA2.0 +DS2.0 +O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldld:SIXTY_FOUR_BIT MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT:asm/pa-risc2.o:::::::::dl",
-"hpux64-parisc2-cc","cc:+DD64 +O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldl:SIXTY_FOUR_BIT_LONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT:asm/pa-risc2W.o:::::::::dlfcn",
-"hpux-parisc1_1-cc","cc:+DA1.1 +DS1.1 +O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldld:MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dl",
+"hpux-parisc-cc","cc:+O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY::-D_REENTRANT:-ldld:MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"hpux-parisc2-cc","cc:+DA2.0 +DS2.0 +O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldld:SIXTY_FOUR_BIT MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT:asm/pa-risc2.o:::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"hpux64-parisc2-cc","cc:+DD64 +O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldl:SIXTY_FOUR_BIT_LONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT:asm/pa-risc2W.o:::::::::dlfcn:hpux64-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"hpux-parisc1_1-cc","cc:+DA1.1 +DS1.1 +O3 +Optrs_strongly_typed +Olibcalls -Ae +ESlit -DB_ENDIAN -DMD32_XARRAY::-D_REENTRANT:-ldld:MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC1 DES_INT::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 # HPUX 9.X config.
 # Don't use the bundled cc.  It is broken.  Use HP ANSI C if possible, or
 # egcs.  gcc 2.8.1 is also broken.
 
-"hpux-cc",	"cc:-DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY -Ae +ESlit +O3 -z::(unknown):-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux-cc",	"cc:-DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY -Ae +ESlit +O3 -z::(unknown):-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # If hpux-cc fails (e.g. during "make test"), try the next one; otherwise,
 # please report your OS and compiler version to the openssl-bugs@openssl.org
 # mailing list.
-"hpux-brokencc",	"cc:-DB_ENDIAN -DBN_DIV2W -Ae +ESlit +O2 -z::(unknown):-ldld:DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux-brokencc",	"cc:-DB_ENDIAN -DBN_DIV2W -Ae +ESlit +O2 -z::(unknown):-ldld:DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
-"hpux-gcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::(unknown):-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux-gcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::(unknown):-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:-fPIC:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # If hpux-gcc fails, try this one:
-"hpux-brokengcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::(unknown):-ldld:DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux-brokengcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::(unknown):-ldld:DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:-fPIC:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+
+# HPUX 9.X on Motorola 68k platforms with gcc
+"hpux-m68k-gcc",  "gcc:-DB_ENDIAN -DBN_DIV2W -O3::(unknown)::BN_LLONG DES_PTR DES_UNROLL:::",
 
 # HPUX 10.X config.  Supports threads.
-"hpux10-cc",	"cc:-DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY -Ae +ESlit +O3 -z::-D_REENTRANT:-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux10-cc",	"cc:-DB_ENDIAN -DBN_DIV2W -DMD32_XARRAY -Ae +ESlit +O3 -z::-D_REENTRANT:-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # If hpux10-cc fails, try this one (if still fails, try deleting BN_LLONG):
-"hpux10-brokencc",	"cc:-DB_ENDIAN -DBN_DIV2W -Ae +ESlit +O2 -z::-D_REENTRANT:-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux10-brokencc",	"cc:-DB_ENDIAN -DBN_DIV2W -Ae +ESlit +O2 -z::-D_REENTRANT:-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:+Z:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
-"hpux10-gcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::-D_REENTRANT:-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux10-gcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::-D_REENTRANT:-ldld:BN_LLONG DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:-fPIC:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 # If hpux10-gcc fails, try this one:
-"hpux10-brokengcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::-D_REENTRANT:-ldld:DES_PTR DES_UNROLL DES_RISC1::::::::::dl",
+"hpux10-brokengcc",	"gcc:-DB_ENDIAN -DBN_DIV2W -O3::-D_REENTRANT:-ldld:DES_PTR DES_UNROLL DES_RISC1::::::::::dl:hpux-shared:-fPIC:.sl.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 # HPUX 11.X from www.globus.org.
 # Only works on PA-RISC 2.0 cpus, and not optimized.  Why?
@@ -267,12 +270,39 @@ my %table=(
 #### HP MPE/iX http://jazz.external.hp.com/src/openssl/
 "MPE/iX-gcc", "gcc:-D_ENDIAN -DBN_DIV2W -O3 -DMPE -D_POSIX_SOURCE -D_SOCKET_SOURCE -I/SYSLOG/PUB::(unknown):-L/SYSLOG/PUB -lsyslog -lsocket -lcurses:BN_LLONG DES_PTR DES_UNROLL DES_RISC1:::",
 
-# Dec Alpha, OSF/1 - the alpha164-cc is the flags for a 21164A with
-# the new compiler
+# Dec Alpha, OSF/1 - the alpha164-cc is historical, for the conversion
+# from the older DEC C Compiler to the newer compiler.  It's now the
+# same as the preferred entry, alpha-cc.  If you are still using the
+# older compiler (you're at 3.x or earlier, or perhaps very early 4.x)
+# you should use `alphaold-cc'.
+#
+#	"What's in a name? That which we call a rose
+#	 By any other word would smell as sweet."
+#
+# - William Shakespeare, "Romeo & Juliet", Act II, scene II.
+#
+# For OSF/1 3.2b and earlier, and Digital UNIX 3.2c - 3.2g, with the
+# vendor compiler, use alphaold-cc.
+# For Digital UNIX 4.0 - 4.0e, with the vendor compiler, use alpha-cc.
+# For Tru64 UNIX 4.f - current, with the vendor compiler, use alpha-cc.
+#
+# There's also an alternate target available (which `config' will never
+# select) called alpha-cc-rpath.  This target builds an RPATH into the
+# shared libraries, which is very convenient on Tru64 since binaries
+# linked against that shared library will automatically inherit that RPATH,
+# and hence know where to look for the openssl libraries, even if they're in
+# an odd place.
+#
 # For gcc, the following gave a %50 speedup on a 164 over the 'DES_INT' version
-"alpha-gcc","gcc:-O3::(unknown)::SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_UNROLL DES_RISC1:${alpha_asm}:dlfcn:tru64-shared::.so",
-"alpha-cc", "cc:-std1 -tune host -O4 -readonly_strings::(unknown)::SIXTY_FOUR_BIT_LONG RC4_CHUNK:${alpha_asm}:dlfcn:tru64-shared::.so",
-"alpha164-cc", "cc:-std1 -tune host -fast -readonly_strings::(unknown)::SIXTY_FOUR_BIT_LONG RC4_CHUNK:${alpha_asm}:dlfcn:tru64-shared::.so",
+#
+"alpha-gcc","gcc:-O3::(unknown)::SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_UNROLL DES_RISC1:${alpha_asm}:dlfcn:alpha-osf1-shared::.so",
+"alphaold-cc", "cc:-std1 -tune host -O4 -readonly_strings::(unknown)::SIXTY_FOUR_BIT_LONG RC4_CHUNK:${alpha_asm}:dlfcn:alpha-osf1-shared::.so",
+"alpha164-cc", "cc:-std1 -tune host -fast -readonly_strings::-pthread::SIXTY_FOUR_BIT_LONG RC4_CHUNK:${alpha_asm}:dlfcn:tru64-shared::.so",
+"alpha-cc", "cc:-std1 -tune host -fast -readonly_strings::-pthread::SIXTY_FOUR_BIT_LONG RC4_CHUNK:${alpha_asm}:dlfcn:tru64-shared::.so",
+"alpha-cc-rpath", "cc:-std1 -tune host -fast -readonly_strings::-pthread::SIXTY_FOUR_BIT_LONG RC4_CHUNK:${alpha_asm}:dlfcn:tru64-shared-rpath::.so",
+#
+# This probably belongs in a different section.
+#
 "FreeBSD-alpha","gcc:-DTERMIOS -O -fomit-frame-pointer::(unknown)::SIXTY_FOUR_BIT_LONG RC4_CHUNK DES_INT DES_PTR DES_RISC2::::::::::dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
 #### Alpha Linux with GNU C and Compaq C setups
@@ -302,15 +332,16 @@ my %table=(
 "debug-linux-elf","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DL_ENDIAN -DTERMIO -g -m486 -Wall::-D_REENTRANT:-lefence -ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn",
 "debug-linux-elf-noefence","gcc:-DBN_DEBUG -DREF_CHECK -DCONF_DEBUG -DBN_CTX_DEBUG -DCRYPTO_MDEBUG -DL_ENDIAN -DTERMIO -g -m486 -Wall::-D_REENTRANT:-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn",
 "linux-aout",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -m486 -Wall::(unknown)::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_out_asm}",
-"linux-mips",   "gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::(unknown)::BN_LLONG:::",
-"linux-ppc",    "gcc:-DB_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT::BN_LLONG::",
+"linux-mipsel",   "gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::(unknown)::BN_LLONG:::",
+"linux-mips",   "gcc:-DB_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::(unknown)::BN_LLONG:::",
+"linux-ppc",	"gcc:-DB_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT:-ldl:BN_LLONG RC4_CHAR RC4_CHUNK DES_RISC1 DES_UNROLL::::::::::dlfcn:linux-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "linux-m68k",   "gcc:-DB_ENDIAN -DTERMIO -O2 -fomit-frame-pointer -Wall::-D_REENTRANT::BN_LLONG::",
 "linux-s390",	"gcc:-DB_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT::BN_LLONG::",
-"linux-ia64",   "gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::(unknown)::SIXTY_FOUR_BIT_LONG::",
+"linux-ia64",   "gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT:-ldl:SIXTY_FOUR_BIT_LONG RC4_CHUNK RC4_CHAR:asm/ia64.o:::::::::dlfcn:linux-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "NetBSD-sparc",	"gcc:-DTERMIOS -O3 -fomit-frame-pointer -mv8 -Wall -DB_ENDIAN::(unknown)::BN_LLONG MD2_CHAR RC4_INDEX DES_UNROLL::::::::::dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "NetBSD-m68",	"gcc:-DTERMIOS -O3 -fomit-frame-pointer -Wall -DB_ENDIAN::(unknown)::BN_LLONG MD2_CHAR RC4_INDEX DES_UNROLL::::::::::dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "NetBSD-x86",	"gcc:-DTERMIOS -O3 -fomit-frame-pointer -m486 -Wall::(unknown)::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}::::::::::dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
-"FreeBSD-elf",  "gcc:-DTERMIOS -DL_ENDIAN -fomit-frame-pointer -O3 -m486 -Wall::(unknown)::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+"FreeBSD-elf",  "gcc:-DTERMIOS -DL_ENDIAN -fomit-frame-pointer -O3 -m486 -Wall::-pthread -D_REENTRANT -D_THREAD_SAFE -D_THREADSAFE::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "FreeBSD",      "gcc:-DTERMIOS -DL_ENDIAN -fomit-frame-pointer -O3 -m486 -Wall::(unknown)::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_out_asm}",
 "bsdi-gcc",     "gcc:-O3 -ffast-math -DL_ENDIAN -DPERL5 -m486::(unknown)::RSA_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_bsdi_asm}",
 "bsdi-elf-gcc",     "gcc:-DPERL5 -DL_ENDIAN -fomit-frame-pointer -O3 -m486 -Wall::(unknown):-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
@@ -321,6 +352,9 @@ my %table=(
 
 # QNX 4
 "qnx4",	"cc:-DL_ENDIAN -DTERMIO::(unknown)::${x86_gcc_des} ${x86_gcc_opts}:",
+
+# QNX 6
+"qnx6",	"cc:-DL_ENDIAN -DTERMIOS::(unknown):-lsocket:${x86_gcc_des} ${x86_gcc_opts}:",
 
 # Linux on ARM
 "linux-elf-arm","gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT::BN_LLONG::::::::::dlfcn:linux-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
@@ -338,6 +372,15 @@ my %table=(
 "unixware-7","cc:-O -DFILIO_H -Kalloca::-Kthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
 "unixware-7-pentium","cc:-O -DFILIO_H -Kalloca -Kpentium::-Kthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
 "unixware-7-pentium_pro","cc:-O -DFILIO_H -Kalloca -Kpentium_pro::-Kthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
+"unixware-7-gcc","gcc:-DL_ENDIAN -DFILIO_H -O3 -fomit-frame-pointer -m486 -Wall::-D_REENTRANT:-lsocket -lnsl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}::::::::::dlfcn:gnu-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+
+# OpenUNIX 8
+"OpenUNIX-8","cc:-O -DFILIO_H -Kalloca::-Kthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
+"OpenUNIX-8-gcc","gcc:-O -DFILIO_H -fomit-frame-pointer::-pthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
+"OpenUNIX-8-pentium","cc:-O -DFILIO_H -Kalloca -Kpentium::-Kthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
+"OpenUNIX-8-pentium_pro","cc:-O -DFILIO_H -Kalloca -Kpentium_pro::-Kthread:-lsocket -lnsl:BN_LLONG MD2_CHAR RC4_INDEX ${x86_gcc_des}::",
+"OpenUNIX-8-shared","cc:-O -DFILIO_H -Kalloca::-Kthread:-lsocket -lnsl:MD2_CHAR RC4_INDEX ${x86_gcc_des}::::::::::dlfcn:svr5-shared:-Kpic",
+"OpenUNIX-8-gcc-shared","gcc:-O3 -DFILIO_H -fomit-frame-pointer::-pthread:-lsocket -lnsl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:svr5-shared:-fPIC",
 
 # IBM's AIX.
 "aix-cc",   "cc:-O -DAIX -DB_ENDIAN -qmaxmem=16384::(unknown)::BN_LLONG RC4_CHAR:::",
@@ -391,6 +434,12 @@ my %table=(
 # SIEMENS BS2000/OSD: an EBCDIC-based mainframe
 "BS2000-OSD","c89:-O -XLLML -XLLMK -XL -DB_ENDIAN -DTERMIOS -DCHARSET_EBCDIC::(unknown):-lsocket -lnsl:THIRTY_TWO_BIT DES_PTR DES_UNROLL MD2_CHAR RC4_INDEX RC4_CHAR BF_PTR:::",
 
+# OS/390 Unix an EBCDIC-based Unix system on IBM mainframe
+# You need to compile using the c89.sh wrapper in the tools directory, because the
+# IBM compiler does not like the -L switch after any object modules.
+#
+"OS390-Unix","c89.sh:-O -DB_ENDIAN -DCHARSET_EBCDIC -DNO_SYS_PARAM_H  -D_ALL_SOURCE::(unknown)::THIRTY_TWO_BIT DES_PTR DES_UNROLL MD2_CHAR RC4_INDEX RC4_CHAR BF_PTR:::",
+
 # Windows NT, Microsoft Visual C++ 4.0
 
 "VC-NT","cl:::::BN_LLONG RC4_INDEX ${x86_gcc_opts}::::::::::win32",
@@ -424,8 +473,9 @@ my %table=(
 "OpenBSD",      "gcc:-DTERMIOS -O3 -fomit-frame-pointer::(unknown)::BN_LLONG RC2_CHAR RC4_INDEX DES_UNROLL::::::::::dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 "OpenBSD-mips","gcc:-O2 -DL_ENDIAN::(unknown):BN_LLONG MD2_CHAR RC4_INDEX RC4_CHAR DES_UNROLL DES_RISC2 DES_PTR BF_PTR:::::::::::dlfcn:bsd-gcc-shared:-fPIC:.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
 
-##### MacOS X (a.k.a. Rhapsody) setup
+##### MacOS X (a.k.a. Rhapsody or Darwin) setup
 "rhapsody-ppc-cc","cc:-O3 -DB_ENDIAN::(unknown)::BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:::",
+"darwin-ppc-cc","cc:-O3 -DB_ENDIAN::(unknown)::BN_LLONG RC4_CHAR RC4_CHUNK DES_UNROLL BF_PTR:::",
 
 ##### Sony NEWS-OS 4.x
 "newsos4-gcc","gcc:-O -DB_ENDIAN -DNEWS4::(unknown):-lmld -liberty:BN_LLONG RC4_CHAR RC4_CHUNK DES_PTR DES_RISC1 DES_UNROLL BF_PTR::::",
@@ -861,7 +911,16 @@ while (<IN>)
 	s/^SHLIB_TARGET=.*/SHLIB_TARGET=$shared_target/;
 	s/^SHLIB_MARK=.*/SHLIB_MARK=$shared_mark/;
 	s/^SHARED_LIBS=.*/SHARED_LIBS=\$(SHARED_CRYPTO) \$(SHARED_SSL)/ if (!$no_shared);
-	s/^SHARED_LIBS_LINK_EXTS=.*/SHARED_LIBS_LINK_EXTS=.so.\$(SHLIB_MAJOR) .so/ if ($shared_extension ne "" && $shared_extension !~ /^\.s[ol]$/);
+	if ($shared_extension ne "" && $shared_extension =~ /^\.s([ol])\.[^\.]*$/)
+		{
+		my $sotmp = $1;
+		s/^SHARED_LIBS_LINK_EXTS=.*/SHARED_LIBS_LINK_EXTS=.s$sotmp/
+		}
+	elsif ($shared_extension ne "" && $shared_extension =~ /^\.s([ol])\.[^\.]*\.[^\.]*$/)
+		{
+		my $sotmp = $1;
+		s/^SHARED_LIBS_LINK_EXTS=.*/SHARED_LIBS_LINK_EXTS=.s$sotmp.\$(SHLIB_MAJOR) .s$sotmp/;
+		}
 	print OUT $_."\n";
 	}
 close(IN);
