@@ -47,7 +47,7 @@ struct in_addr;
 __BEGIN_DECLS
 void	login __P((struct utmp *_ut));
 int	login_tty __P((int _fd));
-int	logout __P((char *_line));
+int	logout __P((const char *_line));
 void	logwtmp __P((const char *_line, const char *_name, const char *_host));
 void	trimdomain __P((char *_fullhost, int _hostsize));
 int	openpty __P((int *_amaster, int *_aslave, char *_name,
