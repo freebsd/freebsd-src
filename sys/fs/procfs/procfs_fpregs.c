@@ -63,7 +63,7 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 	int kl;
 
 	PROC_LOCK(p);
-	if (p_candebug(td->td_proc, p)) {
+	if (p_candebug(td, p)) {
 		PROC_UNLOCK(p);
 		return (EPERM);
 	}

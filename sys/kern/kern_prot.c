@@ -168,7 +168,7 @@ getpgid(struct thread *td, struct getpgid_args *uap)
 	} else if ((pt = pfind(uap->pid)) == NULL)
 		error = ESRCH;
 	else {
-		error = p_cansee(p, pt);
+		error = p_cansee(td, pt);
 		if (error == 0)
 			td->td_retval[0] = pt->p_pgrp->pg_id;
 		PROC_UNLOCK(pt);
@@ -204,7 +204,7 @@ getsid(struct thread *td, struct getsid_args *uap)
 	} else if ((pt = pfind(uap->pid)) == NULL)
 		error = ESRCH;
 	else {
-		error = p_cansee(p, pt);
+		error = p_cansee(td, pt);
 		if (error == 0)
 			td->td_retval[0] = pt->p_session->s_sid;
 		PROC_UNLOCK(pt);
@@ -422,7 +422,7 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 			error = ESRCH;
 			goto done;
 		}
-		if ((error = p_cansee(curproc, targp))) {
+		if ((error = p_cansee(curthread, targp))) {
 			PROC_UNLOCK(targp);
 			goto done;
 		}
@@ -1361,19 +1361,20 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 }
 
 /*-
- * Determine if p1 "can see" the subject specified by p2.
+ * Determine if td "can see" the subject specified by p.
  * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protect p1->p_ucred and p2->p_ucred must
- *        be held.  Normally, p1 will be curproc, and a lock must be held
- *        for p2.
- * References: p1 and p2 must be valid for the lifetime of the call
+ * Locks: Sufficient locks to protect p->p_ucred must be held.  td really
+ *        should be curthread.
+ * References: td and p must be valid for the lifetime of the call
  */
 int
-p_cansee(struct proc *p1, struct proc *p2)
+p_cansee(struct thread *td, struct proc *p)
 {
 
 	/* Wrap cr_cansee() for all functionality. */
-	return (cr_cansee(p1->p_ucred, p2->p_ucred));
+	KASSERT(td == curthread, ("%s: td not curthread", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	return (cr_cansee(td->td_ucred, p->p_ucred));
 }
 
 /*-
@@ -1387,6 +1388,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 {
 	int error;
 
+	PROC_LOCK_ASSERT(proc, MA_OWNED);
 	/*
 	 * Jail semantics limit the scope of signalling to proc in the
 	 * same jail as cred, if cred is in jail.
@@ -1448,18 +1450,20 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 
 
 /*-
- * Determine whether p1 may deliver the specified signal to p2.
+ * Determine whether td may deliver the specified signal to p.
  * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protect various components of p1 and p2
- *        must be held.  Normally, p1 will be curproc, and a lock must
- *        be held for p2.
- * References: p1 and p2 must be valid for the lifetime of the call
+ * Locks: Sufficient locks to protect various components of td and p
+ *        must be held.  td must be curthread, and a lock must be
+ *        held for p.
+ * References: td and p must be valid for the lifetime of the call
  */
 int
-p_cansignal(struct proc *p1, struct proc *p2, int signum)
+p_cansignal(struct thread *td, struct proc *p, int signum)
 {
 
-	if (p1 == p2)
+	KASSERT(td == curthread, ("%s: td not curthread", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (td->td_proc == p)
 		return (0);
 
 	/*
@@ -1467,40 +1471,43 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 	 * session always be able to deliver SIGCONT to one another,
 	 * overriding the remaining protections.
 	 */
-	if (signum == SIGCONT && p1->p_session == p2->p_session)
+	/* XXX: This will require an additional lock of some sort. */
+	if (signum == SIGCONT && td->td_proc->p_session == p->p_session)
 		return (0);
 
-	return (cr_cansignal(p1->p_ucred, p2, signum));
+	return (cr_cansignal(td->td_ucred, p, signum));
 }
 
 /*-
- * Determine whether p1 may reschedule p2.
+ * Determine whether td may reschedule p.
  * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protect various components of p1 and p2
- *        must be held.  Normally, p1 will be curproc, and a lock must
- *        be held for p2.
- * References: p1 and p2 must be valid for the lifetime of the call
+ * Locks: Sufficient locks to protect various components of td and p
+ *        must be held.  td must be curthread, and a lock must
+ *        be held for p.
+ * References: td and p must be valid for the lifetime of the call
  */
 int
-p_cansched(struct proc *p1, struct proc *p2)
+p_cansched(struct thread *td, struct proc *p)
 {
 	int error;
 
-	if (p1 == p2)
+	KASSERT(td == curthread, ("%s: td not curthread", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	if (td->td_proc == p)
 		return (0);
-	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
-	if ((error = cr_seeotheruids(p1->p_ucred, p2->p_ucred)))
+	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
-	if (p1->p_ucred->cr_ruid == p2->p_ucred->cr_ruid)
+	if (td->td_ucred->cr_ruid == p->p_ucred->cr_ruid)
 		return (0);
-	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_ruid)
+	if (td->td_ucred->cr_uid == p->p_ucred->cr_ruid)
 		return (0);
-	if (suser_cred(p1->p_ucred, PRISON_ROOT) == 0)
+	if (suser_cred(td->td_ucred, PRISON_ROOT) == 0)
 		return (0);
 
 #ifdef CAPABILITIES
-	if (!cap_check(NULL, p1, CAP_SYS_NICE, PRISON_ROOT))
+	if (!cap_check(NULL, td, CAP_SYS_NICE, PRISON_ROOT))
 		return (0);
 #endif
 
@@ -1524,73 +1531,75 @@ SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_proc_debug, CTLFLAG_RW,
     "Unprivileged processes may use process debugging facilities");
 
 /*-
- * Determine whether p1 may debug p2.
+ * Determine whether td may debug p.
  * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protect various components of p1 and p2
- *        must be held.  Normally, p1 will be curproc, and a lock must
- *        be held for p2.
- * References: p1 and p2 must be valid for the lifetime of the call
+ * Locks: Sufficient locks to protect various components of td and p
+ *        must be held.  td must be curthread, and a lock must
+ *        be held for p.
+ * References: td and p must be valid for the lifetime of the call
  */
 int
-p_candebug(struct proc *p1, struct proc *p2)
+p_candebug(struct thread *td, struct proc *p)
 {
 	int credentialchanged, error, grpsubset, i, uidsubset;
 
+	KASSERT(td == curthread, ("%s: td not curthread", __func__));
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!unprivileged_proc_debug) {
-		error = suser_cred(p1->p_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, PRISON_ROOT);
 		if (error)
 			return (error);
 	}
-	if (p1 == p2)
+	if (td->td_proc == p)
 		return (0);
-	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+	if ((error = prison_check(td->td_ucred, p->p_ucred)))
 		return (error);
-	if ((error = cr_seeotheruids(p1->p_ucred, p2->p_ucred)))
+	if ((error = cr_seeotheruids(td->td_ucred, p->p_ucred)))
 		return (error);
 
 	/*
-	 * Is p2's group set a subset of p1's effective group set?  This
-	 * includes p2's egid, group access list, rgid, and svgid.
+	 * Is p's group set a subset of td's effective group set?  This
+	 * includes p's egid, group access list, rgid, and svgid.
 	 */
 	grpsubset = 1;
-	for (i = 0; i < p2->p_ucred->cr_ngroups; i++) {
-		if (!groupmember(p2->p_ucred->cr_groups[i], p1->p_ucred)) {
+	for (i = 0; i < p->p_ucred->cr_ngroups; i++) {
+		if (!groupmember(p->p_ucred->cr_groups[i], td->td_ucred)) {
 			grpsubset = 0;
 			break;
 		}
 	}
 	grpsubset = grpsubset &&
-	    groupmember(p2->p_ucred->cr_rgid, p1->p_ucred) &&
-	    groupmember(p2->p_ucred->cr_svgid, p1->p_ucred);
+	    groupmember(p->p_ucred->cr_rgid, td->td_ucred) &&
+	    groupmember(p->p_ucred->cr_svgid, td->td_ucred);
 
 	/*
-	 * Are the uids present in p2's credential equal to p1's
-	 * effective uid?  This includes p2's euid, svuid, and ruid.
+	 * Are the uids present in p's credential equal to td's
+	 * effective uid?  This includes p's euid, svuid, and ruid.
 	 */
-	uidsubset = (p1->p_ucred->cr_uid == p2->p_ucred->cr_uid &&
-	    p1->p_ucred->cr_uid == p2->p_ucred->cr_svuid &&
-	    p1->p_ucred->cr_uid == p2->p_ucred->cr_ruid);
+	uidsubset = (td->td_ucred->cr_uid == p->p_ucred->cr_uid &&
+	    td->td_ucred->cr_uid == p->p_ucred->cr_svuid &&
+	    td->td_ucred->cr_uid == p->p_ucred->cr_ruid);
 
 	/*
 	 * Has the credential of the process changed since the last exec()?
 	 */
-	credentialchanged = (p2->p_flag & P_SUGID);
+	credentialchanged = (p->p_flag & P_SUGID);
 
 	/*
-	 * If p2's gids aren't a subset, or the uids aren't a subset,
+	 * If p's gids aren't a subset, or the uids aren't a subset,
 	 * or the credential has changed, require appropriate privilege
-	 * for p1 to debug p2.  For POSIX.1e capabilities, this will
+	 * for td to debug p.  For POSIX.1e capabilities, this will
 	 * require CAP_SYS_PTRACE.
 	 */
 	if (!grpsubset || !uidsubset || credentialchanged) {
-		error = suser_cred(p1->p_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, PRISON_ROOT);
 		if (error)
 			return (error);
 	}
 
 	/* Can't trace init when securelevel > 0. */
-	if (p2 == initproc) {
-		error = securelevel_gt(p1->p_ucred, 0);
+	if (p == initproc) {
+		error = securelevel_gt(td->td_ucred, 0);
 		if (error)
 			return (error);
 	}
@@ -1601,7 +1610,7 @@ p_candebug(struct proc *p1, struct proc *p2)
 	 * basic correctness/functionality decision.  Therefore, this check
 	 * should be moved to the caller's of p_candebug().
 	 */
-	if ((p2->p_flag & P_INEXEC) != 0)
+	if ((p->p_flag & P_INEXEC) != 0)
 		return (EAGAIN);
 
 	return (0);

@@ -107,6 +107,7 @@ procfs_attr(PFS_ATTR_ARGS)
 		vap->va_mode = 0600;
 
 	/* p is locked by caller */
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	vap->va_uid = p->p_ucred->cr_uid;
 	vap->va_gid = p->p_ucred->cr_gid;
 	
@@ -130,8 +131,9 @@ procfs_notsystem(PFS_VIS_ARGS)
 int
 procfs_candebug(PFS_VIS_ARGS)
 {
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	return ((p->p_flag & P_SYSTEM) == 0 &&
-	    p_candebug(td->td_proc, p) == 0);
+	    p_candebug(td, p) == 0);
 }
 
 /*
