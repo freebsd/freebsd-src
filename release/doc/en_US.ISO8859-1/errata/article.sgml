@@ -46,6 +46,7 @@
       <year>2001</year>
       <year>2002</year>
       <year>2003</year>
+      <year>2004</year>
       <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
 
@@ -125,44 +126,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-
-    <para>(5 Dec 2003) <application>BIND</application> contains the potential for a
-      denial-of-service attack.  This vulnerability has been addressed
-      by a vendor patch on the &release.prev; security fix branch and
-      by the import of a new version to the &release.branch;
-      development branch.  For more information, see 
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>.</para>
-
-    <para>(8 Feb 2004) A bug with the System V Shared Memory interface
-      (specifically the &man.shmat.2; system call)
-      can cause a shared memory segment to reference
-      unallocated kernel memory.  In turn, this can permit a local
-      attacker to gain unauthorized access to parts of kernel memory,
-      possibly resulting in disclosure of sensitive information,
-      bypass of access control mechanisms, or privilege escalation.
-      More details, including bugfix and workaround information,
-      can be found in security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.</para>
-
-    <para>(4 Mar 2004) It is possible for a remote attacker to conduct
-      a low-bandwidth denial-of-service attack against a machine
-      providing TCP-based services, filling up the target's memory
-      buffers and potentially leading to a system crash.  This
-      vulnerability has been addressed on the &os; &release.prev;
-      security fix branch.  Security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>
-      contains more details, as well as information on patching
-      existing systems.</para>
-
-    <para>(17 Mar 2004) By performing a specially crafted SSL/TLS
-      handshake with an application that uses OpenSSL a null pointer
-      may be dereferenced.  This may in turn cause the application to
-      crash, resulting in a denial of service attack.  For more information
-      see the Security Advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:05.openssl.asc">FreeBSD-SA-04:05</ulink>
-      which contains more details and instructions on how to patch existing
-      systems.</para>
-
+    <para>No active security advisories.</para>
 ]]>
 
   </sect1>
@@ -175,62 +139,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-
-    <para>(28 Oct 2003) Very late in the release cycle, a change was made to the
-      HyperThreading (HTT) support on &intel; processors.  HTT support
-      is now enabled by default on SMP-capable kernels; as a result,
-      the <literal>HTT</literal> kernel option is unnecessary and has
-      been removed.  The extra logical CPUs are always started so that
-      they can handle interrupts, but are prevented from executing
-      user processes by default.  To enable the logical CPUs, change
-      the value of the <varname>machdep.hlt_logical_cpus</varname>
-      &man.sysctl.8; variable from <literal>1</literal> to
-      <literal>0</literal>.  This value can also be set from the
-      loader as a tunable of the same name.  This behavior is now
-      identical to &os; 5.<replaceable>X</replaceable>.</para>
-
-    <para>(29 Oct 2003) Some of the packages contained in the first CD-ROM depend on
-      different versions of the <application>OpenLDAP</application>
-      packages, which cannot co-exist on the same host.  One
-      manifestation of this problem is that it is not possible to
-      install both the <filename role="package">x11/gnome2</filename>
-      and <filename role="package">x11/kde3</filename>
-      packages.</para>
-
-    <para>(30 Oct 2003) It appears that the
-      <filename>crypto</filename> distribution is required for correct
-      functioning of the &os; base system.  At the very least, the
-      libraries contained in the <filename>crypto</filename>
-      distribution are required for &man.pkg.add.1;.</para>
-
-    <para>(30 Oct 2003) There are known cases of fairly-recent i386
-      machines with BIOSes that do not support booting from emulation
-      mode El Torito CDROMs.  This prevents booting from the &os;
-      &release.current; CDROMs.  As a workaround, download the floppy
-      disk images, use them to boot the machine into
-      &man.sysinstall.8;, and then do a CDROM install.  This problem
-      does not seem to be wide-spread as of this writing.
-
-      <note>
-	<para>&os; 5.<replaceable>X</replaceable> uses non-emulation
-	  El Torito booting on its CDROM releases by default.  These,
-	  of course, cannot be booted on very old i386 machines that
-	  only support emulation mode.</para>
-      </note>
-
-      </para>
-
-    <para>(10 Nov 2003) An update was made to the
-      <literal>xterm</literal> entry in the &man.termcap.5; database
-      which, among other things, removed the (already deprecated)
-      <literal>bs</literal> backspacing capability.  The &man.hack.6;
-      game appears to depend on this capability and hence fails when
-      run from inside a window with a terminal type of
-      <literal>xterm</literal>.</para>
-
-    <para>(10 Nov 2003) Tagged queueing in the &man.ata.4; driver
-      is broken and appears to cause kernel panics.</para>
-
+    <para>No news.</para>
 ]]>
   </sect1>
 </article>
