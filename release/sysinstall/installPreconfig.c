@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.14 1995/10/24 02:18:00 jkh Exp $
+ * $Id: installPreconfig.c,v 1.15 1995/10/27 01:22:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,6 +65,7 @@ static struct _word {
     { "diskLabelEditor",	diskLabelEditor		},
     { "diskLabelCommit",	diskLabelCommit		},
     { "distReset",		distReset		},
+    { "distSetCustom",		distSetCustom		},
     { "distSetDeveloper",	distSetDeveloper	},
     { "distSetXDeveloper",	distSetXDeveloper	},
     { "distSetKernDeveloper",	distSetKernDeveloper	},
