@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.19 1995/01/21 15:20:23 bde Exp $
+ *	$Id: swtch.s,v 1.20 1995/02/17 02:22:42 phk Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -504,14 +504,18 @@ ENTRY(mvesp)
 	ret
 
 /*
- * savectx(pcb, altreturn)
- * Update pcb, saving current processor state and arranging
- * for alternate return ala longjmp in cpu_switch if altreturn is true.
+ * savectx(pcb)
+ * Update pcb, saving current processor state.
  */
 ENTRY(savectx)
+	/* PCB */
 	movl	4(%esp),%ecx
+
+	/* caller's return address - child won't execute this routine */
 	movl	(%esp),%eax
 	movl	%eax,PCB_EIP(%ecx)
+
+	movl	$1,PCB_EAX(%ecx)		/* return 1 in child */
 	movl	%ebx,PCB_EBX(%ecx)
 	movl	%esp,PCB_ESP(%ecx)
 	movl	%ebp,PCB_EBP(%ecx)
@@ -553,25 +557,8 @@ ENTRY(savectx)
 	call	_bcopy
 	addl	$12,%esp
 	popl	%ecx
-1:
 #endif	/* NNPX > 0 */
 
-	cmpl	$0,8(%esp)
-	je	1f
-	movl	%esp,%edx			/* relocate current sp relative to pcb */
-	subl	$_kstack,%edx			/*   (sp is relative to kstack): */
-	addl	%edx,%ecx			/*   pcb += sp - kstack; */
-	movl	%eax,(%ecx)			/* write return pc at (relocated) sp@ */
-
-/* this mess deals with replicating register state gcc hides */
-	movl	12(%esp),%eax
-	movl	%eax,12(%ecx)
-	movl	16(%esp),%eax
-	movl	%eax,16(%ecx)
-	movl	20(%esp),%eax
-	movl	%eax,20(%ecx)
-	movl	24(%esp),%eax
-	movl	%eax,24(%ecx)
 1:
 	xorl	%eax,%eax			/* return 0 */
 	ret
