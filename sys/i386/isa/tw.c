@@ -353,7 +353,6 @@ int twopen(dev, flag, mode, p)
 {
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
-  int port;
 
   s = spltty();
   if(sc->sc_state == 0) {
@@ -477,8 +476,7 @@ int twselect(dev, rw, p)
      struct proc *p;
 {
   struct tw_sc *sc;
-  struct proc *pp;
-  int s, i;
+  int s;
 
   sc = &tw_sc[TWUNIT(dev)];
   s = spltty();
@@ -668,7 +666,7 @@ int h, k, cnt;
 static int wait_for_zero(sc)
 struct tw_sc *sc;
 {
-  int i, old, new, max, cnt;
+  int i, old, new, max;
   int port = sc->sc_port + tw_control;
 
   old = sc->sc_xphase;

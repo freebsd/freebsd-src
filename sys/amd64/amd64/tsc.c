@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.36 1995/08/25 19:24:56 bde Exp $
+ *	$Id: clock.c,v 1.37 1995/10/12 20:39:49 wollman Exp $
  */
 
 /*
@@ -505,7 +505,7 @@ void
 resettodr()
 {
 	unsigned long	tm;
-	int		y, m, fd, r, s;
+	int		y, m, s;
 
 	if (disable_rtc_set)
 		return;

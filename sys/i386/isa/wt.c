@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.18 1995/09/05 05:45:34 julian Exp $
+ * $Id: wt.c,v 1.19 1995/09/08 11:08:03 bde Exp $
  *
  */
 
@@ -201,7 +201,8 @@ wt_registerdev(struct isa_device *id)
 /*
  * Probe for the presence of the device.
  */
-int wtprobe (struct isa_device *id)
+static int 
+wtprobe (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
 
@@ -247,7 +248,8 @@ int wtprobe (struct isa_device *id)
 /*
  * Device is found, configure it.
  */
-int wtattach (struct isa_device *id)
+static int
+wtattach (struct isa_device *id)
 {
 	wtinfo_t *t = wttab + id->id_unit;
 

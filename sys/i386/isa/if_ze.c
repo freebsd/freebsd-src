@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.21 1995/10/13 19:47:52 wollman Exp $
+ * $Id: if_ze.c,v 1.22 1995/10/26 20:29:51 julian Exp $
  */
 
 #include "ze.h"
@@ -341,9 +341,9 @@ ze_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	struct ze_softc *sc = &ze_softc[isa_dev->id_unit];
-	int i, x, re_init_flag;
+	int i;
 	u_int memsize;
-	u_char iptr, memwidth, sum, tmp;
+	u_char tmp;
 	int slot;
 
         if ((slot = ze_find_adapter (isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
@@ -774,7 +774,6 @@ ze_init(unit)
 	struct ze_softc *sc = &ze_softc[unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int i, s;
-	u_char	command;
 
 
 	pcic_power_on(sc->slot);
@@ -979,7 +978,6 @@ ze_start(ifp)
 	struct mbuf *m0, *m;
 	caddr_t buffer;
 	int len;
-	u_char laar_tmp;
 
 outloop:
 	/*
@@ -1074,7 +1072,7 @@ ze_rint(unit)
 	int unit;
 {
 	register struct ze_softc *sc = &ze_softc[unit];
-	u_char boundry, current;
+	u_char boundry;
 	u_short len;
 	struct ed_ring *packet_ptr;
 
@@ -1337,7 +1335,6 @@ ze_ioctl(ifp, command, data)
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
 	struct ze_softc *sc = &ze_softc[ifp->if_unit];
-	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
 	s = splnet();
@@ -1490,13 +1487,6 @@ ze_get_packet(sc, buf, len)
 {
 	struct ether_header *eh;
     	struct mbuf *m, *head = NULL;
-	u_short off;
-	int resid;
-	u_short etype;
-	struct trailer_header {
-		u_short	trail_type;
-		u_short trail_residual;
-	} trailer_header;
 
 	/* Allocate a header mbuf */
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
