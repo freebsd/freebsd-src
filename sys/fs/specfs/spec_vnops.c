@@ -485,9 +485,12 @@ spec_strategy(ap)
 				mp->mnt_stat.f_syncreads++;
 		}
 	}
-	KASSERT(devsw(bp->b_dev) != NULL,
-	   ("No devsw on dev %s responsible for buffer %p\n",
-	   devtoname(bp->b_dev), bp));
+	if (devsw(bp->b_dev) == NULL) {
+		bp->b_io.bio_error = ENXIO;
+		bp->b_io.bio_flags |= BIO_ERROR;
+		biodone(&bp->b_io);
+		return (0);
+	}
 	KASSERT(devsw(bp->b_dev)->d_strategy != NULL,
 	   ("No strategy on dev %s responsible for buffer %p\n",
 	   devtoname(bp->b_dev), bp));
