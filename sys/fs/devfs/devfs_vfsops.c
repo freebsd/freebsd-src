@@ -68,7 +68,7 @@ devfs_mount(struct mount *mp, struct thread *td)
 
 	error = 0;
 
-	if (mp->mnt_flag & (MNT_UPDATE | MNT_NODEV))
+	if (mp->mnt_flag & (MNT_UPDATE | MNT_NODEV | MNT_ROOTFS))
 		return (EOPNOTSUPP);
 
 	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
