@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 
-int	insecure;	/* -i flag, needed here for elfhints.c */
+extern int	insecure;	/* -i flag, needed here for elfhints.c */
 
 __BEGIN_DECLS
 void	list_elf_hints __P((const char *));
