@@ -532,7 +532,7 @@ main(argc, argv)
 #endif
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
 #ifdef LOGIN_CAP
-		if (login_getcapbool(lc, "requirehome", !rootlogin))
+		if (login_getcapbool(lc, "requirehome", 0))
 			refused("Home directory not available", "HOMEDIR", 1);
 #endif
 		if (chdir("/") < 0) 
