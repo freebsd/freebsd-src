@@ -40,7 +40,7 @@ mount.h: ${MOUNT_X}
 mount_xdr.c: mount.h ${MOUNT_X}
 	${RPCCOM} -c -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
 
-${OBJS}: nfs_prot.h
+${OBJS} beforedepend: nfs_prot.h
 
 nfs_prot.h: ${NFS_PROT_X}
 	${RPCCOM} -h ${NFS_PROT_X} -o ${.TARGET}
