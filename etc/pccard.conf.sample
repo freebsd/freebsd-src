@@ -192,6 +192,14 @@ card "D-Link" "DE-660"
 	insert /etc/pccard_ether ed0 link0 -link1
 	remove /sbin/ifconfig ed0 delete
 
+# NDC Ethernet Instant-Link NE2000 clone
+card "NDC" "Ethernet"
+	config 0x22 "ed0" ? 0x10
+	insert	echo NDC Ethernet Instant-Link adapter inserted
+	insert	/etc/pccard_ether ed0
+	remove	echo NDC Ethernet Instant-Link adapter removed
+	remove	/sbin/ifconfig ed0 delete
+
 # CyQ've ELA-010
 card "CyQ've" "ELA-010"
 	config	0x20 "ed0" ?
