@@ -25,43 +25,65 @@ if [ -r /etc/defaults/periodic.conf ]; then
     source_periodic_confs
 fi
 
-dir=$1
-run=`basename $dir`
+dirlist=
 
 # If a full path was not specified, check the standard cron areas
 
-if [ "$dir" = "$run" ] ; then
-    dirlist=""
-    for top in /etc/periodic ${local_periodic} ; do
-	if [ -d $top/$dir ] ; then
-	    dirlist="${dirlist} $top/$dir"
-	fi
-    done
-
-# User wants us to run stuff in a particular directory
-else
-   for dir in $* ; do
-       if [ ! -d $dir ] ; then
-	   echo "$0: $dir not found" 1>&2
-	   exit 1
-       fi
-   done
-
-   dirlist="$*"
-fi
+for dir
+do
+    case "$dir" in
+    /*)
+	if [ -d "$dir" ]
+	then
+	    dirlist="$dirlist $dir"
+	else
+	    echo "$0: $dir not found" >&2 
+	fi;;
+    *)
+	for top in /etc/periodic ${local_periodic}
+	do
+	    [ -d $top/$dir ] && dirlist="$dirlist $top/$dir"
+	done;;
+    esac
+done
 
 host=`hostname`
 export host
-echo "Subject: $host $run run output"
+tmp_output=/var/run/periodic.$$
 
 # Execute each executable file in the directory list.  If the x bit is not
 # set, assume the user didn't really want us to muck with it (it's a
 # README file or has been disabled).
 
-for dir in $dirlist ; do
-    for file in $dir/* ; do
-	if [ -x $file -a ! -d $file ] ; then
-	    $file
-	fi
+for dir in $dirlist
+do
+    eval output=\$${dir##*/}_output
+    case "$output" in
+    /*) pipe="cat >>$output";;
+    *)  pipe="mail -s '$host ${dir##*/} run output' ${output:-root}";;
+    esac
+
+    success=YES info=YES badconfig=NO	# Defaults when ${run}_* aren't YES/NO
+    for var in success info badconfig
+    do
+	case $(eval echo "\$${dir##*/}_show_$var") in
+	[Yy][Ee][Ss]) eval $var=YES;;
+	[Nn][Oo])     eval $var=NO;;
+	esac
     done
+
+    for file in $dir/*
+    do
+	if [ -x $file -a ! -d $file ]
+	then
+	    $file </dev/null >$tmp_output 2>&1
+	    case $? in
+	    0)  [ $success = YES ] && cat $tmp_output;;
+	    1)  [ $info = YES ] && cat $tmp_output;;
+	    2)  [ $badconfig = YES ] && cat $tmp_output;;
+	    *)  cat $tmp_output;;
+	    esac
+	    rm -f $tmp_output
+	fi
+    done | eval $pipe
 done

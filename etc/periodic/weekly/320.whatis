@@ -13,34 +13,39 @@ fi
 
 case "$weekly_whatis_enable" in
     [Yy][Ee][Ss])
-	if [ -x /usr/libexec/makewhatis.local -a -x /usr/bin/manpath ]
+	echo ""
+	echo "Rebuilding whatis database:"
+
+	MANPATH=`/usr/bin/manpath -q`
+	if [ $? = 0 ]
 	then
-	    echo ""
-	    echo "Rebuilding whatis database:"
-
-	    MANPATH=`/usr/bin/manpath -q`
-	    if [ $? = 0 ]
+	    if [ -z "${MANPATH}" ]
 	    then
-		if [ "x${MANPATH}" = "x" ]
+		echo "manpath failed to find any manpage directories"
+		rc=3
+	    else
+		man_locales=`/usr/bin/manpath -qL`
+		rc=0
+
+	        # Build whatis(1) database(s) for original, non-localized
+		#  manpages.
+		/usr/libexec/makewhatis.local "${MANPATH}" || rc=3
+
+	        # Build whatis(1) database(s) for localized manpages.
+		if [ X"${man_locales}" != X ]
 		then
-		    echo "manpath failed to find any manpage directories"
-		else
-		    man_locales=`/usr/bin/manpath -qL`
-
-	            # Build whatis(1) database(s) for original, non-localized
-		    #  manpages.
-		    /usr/libexec/makewhatis.local "${MANPATH}"
-
-	            # Build whatis(1) database(s) for localized manpages.
-		    if [ X"${man_locales}" != X ]
-		    then
-			for i in ${man_locales}
-			do
-			    LC_CTYPE=$i /usr/libexec/makewhatis.local -a \
-				-L "${MANPATH}"
-			done
-		    fi
+		    for i in ${man_locales}
+		    do
+			LC_CTYPE=$i /usr/libexec/makewhatis.local -a \
+			    -L "${MANPATH}" || rc=3
+		    done
 		fi
 	    fi
+	else
+	    rc=3
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc

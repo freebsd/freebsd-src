@@ -13,30 +13,33 @@ fi
 
 case "$daily_status_security_enable" in
     [Yy][Ee][Ss])
-	if [ -f /etc/security -a -x /usr/sbin/sendmail ]
-	then
-	    echo ""
-	    echo "Security check:"
+	echo ""
+	echo "Security check:"
 
-	    case "$daily_status_security_noamd" in
-		[Yy][Ee][Ss])
-			args=-a;;
-		*)
-			args=;;
-	    esac
+	case "$daily_status_security_noamd" in
+	    [Yy][Ee][Ss])
+		args=-a;;
+	    *)
+		args=;;
+	esac
 
-	    case "$daily_status_security_nomfs" in
-		[Yy][Ee][Ss])
-			args="$args -m";;
-	    esac
+	case "$daily_status_security_nomfs" in
+	    [Yy][Ee][Ss])
+		args="$args -m";;
+	esac
 
-	    case "$daily_status_security_inline" in
-		[Yy][Ee][Ss])
-		    sh /etc/security -s $args;;
+	case "$daily_status_security_inline" in
+	    [Yy][Ee][Ss])
+		    sh /etc/security -s $args
+		    rc=$?;;
 
-		*)
+	    *)
 		    echo "    (output mailed separately)"
-		    sh /etc/security $args 2>&1 | sendmail root;;
-	    esac
-	fi;;
+		    sh /etc/security $args 2>&1 |
+			sendmail root && rc=0 || rc=3;;
+	esac;;
+
+    *)  rc=0;;
 esac
+
+exit $rc

@@ -14,14 +14,20 @@ fi
 case "$monthly_accounting_enable" in
     [Yy][Ee][Ss])
 	W=/var/log/wtmp
-	if [ -f $W.0 ]
+	if [ ! -f $W.0 ]
 	then
-	    if [ -x /usr/sbin/ac ]
-	    then
-		echo ""
-		echo "Doing login accounting:"
+	    echo '$monthly_accounting_enable is set but' \
+		"$W.0 doesn't exist"
+	    rc=2
+	else
+	    echo ""
+	    echo "Doing login accounting:"
 
-		ac -p -w $W.0 | sort -nr +1
-	    fi
+	    rc=$(ac -p -w $W.0 | sort -nr +1 | tee /dev/stderr | wc -l)
+	    [ $rc -gt 0 ] && rc=1
 	fi;;
+
+    *)  rc=0;;
 esac
+
+exit $rc
