@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 	euid = geteuid();
 	uid = getuid();
 	seteuid(uid);
-	name = argv[0];
+	progname = argv[0];
 	openlog("lpd", 0, LOG_LPR);
 
 	if (--argc > 0) {

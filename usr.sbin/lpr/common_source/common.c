@@ -64,7 +64,7 @@ static const char rcsid[] =
  * Routines and data common to all the line printer functions.
  */
 char	line[BUFSIZ];
-const char	*name;		/* program name */
+const char	*progname;		/* program name */
 
 extern uid_t	uid, euid;
 
@@ -555,7 +555,7 @@ fatal(pp, msg, va_alist)
 #endif
 	if (from != host)
 		(void)printf("%s: ", host);
-	(void)printf("%s: ", name);
+	(void)printf("%s: ", progname);
 	if (pp && pp->printer)
 		(void)printf("%s: ", pp->printer);
 	(void)vprintf(msg, ap);

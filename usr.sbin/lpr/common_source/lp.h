@@ -153,7 +153,7 @@ struct	request {
  * Global definitions for the line printer system.
  */
 extern char	line[BUFSIZ];
-extern const char	*name;		/* program name */
+extern const char	*progname;	/* program name (lpr, lpq, etc) */
 				/* host machine name */
 extern char	host[MAXHOSTNAMELEN];
 extern char	*from;		/* client's machine name */
