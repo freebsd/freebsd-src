@@ -1727,7 +1727,7 @@ raidlookup(path, td, vpp)
 
 	NDINIT(nd, LOOKUP, FOLLOW, UIO_SYSSPACE, path, curthread);
 	flags = FREAD | FWRITE;
-	if ((error = vn_open(nd, &flags, 0)) != 0) {
+	if ((error = vn_open(nd, &flags, 0, -1)) != 0) {
 		rf_printf(2, "RAIDframe: vn_open returned %d\n", error);
 		goto end1;
 	}

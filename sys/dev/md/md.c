@@ -840,13 +840,13 @@ mdcreate_vnode(struct md_ioctl *mdio, struct thread *td)
 
 	flags = FREAD|FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
-	error = vn_open(&nd, &flags, 0);
+	error = vn_open(&nd, &flags, 0, -1);
 	if (error) {
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
 		flags &= ~FWRITE;
 		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
-		error = vn_open(&nd, &flags, 0);
+		error = vn_open(&nd, &flags, 0, -1);
 		if (error)
 			return (error);
 	}
