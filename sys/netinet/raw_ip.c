@@ -136,27 +136,6 @@ rip_input(m)
       }
 }
 
-void rip_ip_input(mm, ip_mrouter, src)
-      struct mbuf *mm;
-      register struct socket *ip_mrouter;
-      struct sockaddr *src;
-{
-      if (ip_mrouter)
-      {
-              if (sbappendaddr(&ip_mrouter->so_rcv, src,
-                              mm, (struct mbuf *) 0) == 0)
-                      m_freem(mm);
-              else
-                      sorwakeup(ip_mrouter);
-      }
-      else
-      {
-              m_freem(mm);
-		ipstat.ips_noproto++;
-		ipstat.ips_delivered--;
-	}
-}
-
 /*
  * Generate IP header and pass packet to ip_output.
  * Tack on options user may have setup with control call.
@@ -249,7 +228,7 @@ rip_ctloutput(op, so, level, optname, m)
 		}
 
 		if (op == PRCO_SETOPT) {
-			error=(*ip_fw_ctl_ptr)(optname, *m);
+			error=(*ip_fw_ctl_ptr)(optname, *m); 
 			if (*m)
 				(void)m_free(*m);
 		}
@@ -261,13 +240,13 @@ rip_ctloutput(op, so, level, optname, m)
 	case IP_ACCT_ADD:
 	case IP_ACCT_CLR:
 	case IP_ACCT_FLUSH:
-	case IP_ACCT_ZERO:
+	case IP_ACCT_ZERO: 
 		if (ip_acct_ctl_ptr==NULL) {
 			if (*m)
 				(void)m_free(*m);
 			return(EINVAL);
 		}
-
+	
 		if (op == PRCO_SETOPT) {
 			error=(*ip_acct_ctl_ptr)(optname, *m);
 			if (*m)
@@ -285,16 +264,26 @@ rip_ctloutput(op, so, level, optname, m)
 		return ip_rsvp_done();
 		break;
 
-	case DVMRP_INIT:
-	case DVMRP_DONE:
-	case DVMRP_ADD_VIF:
-	case DVMRP_DEL_VIF:
-	case DVMRP_ADD_MFC:
-	case DVMRP_DEL_MFC:
+	case IP_RSVP_VIF_ON:
+		return ip_rsvp_vif_init(so, *m);
+
+	case IP_RSVP_VIF_OFF:
+		return ip_rsvp_vif_done(so, *m);
+
+	case MRT_INIT:
+	case MRT_DONE:
+	case MRT_ADD_VIF:
+	case MRT_DEL_VIF:
+	case MRT_ADD_MFC:
+	case MRT_DEL_MFC:
+	case MRT_VERSION:
+	case MRT_ASSERT:
 		if (op == PRCO_SETOPT) {
-			error = ip_mrouter_cmd(optname, so, *m);
+			error = ip_mrouter_set(optname, so, *m);
 			if (*m)
 				(void)m_free(*m);
+		} else if (op == PRCO_GETOPT) {
+			error = ip_mrouter_get(optname, so, m);
 		} else
 			error = EINVAL;
 		return (error);
