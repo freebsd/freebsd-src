@@ -43,12 +43,15 @@
 /*
  * MCOUNT
  */
-
-#if !defined(GPROF) && !defined(PROF)
-#define MCOUNT	/* nothing */
+#if defined(GPROF)
+#define	MCOUNT					\
+	alloc	out0 = ar.pfs, 8, 0, 4, 0;	\
+	mov	out1 = r1;			\
+	mov	out2 = b0;;			\
+	mov	out3 = r0;			\
+	br.call.sptk b0 = _mcount;;
 #else
-#define MCOUNT					\
-	br.call.sptk.many b7=_mcount
+#define	MCOUNT	/* nothing */
 #endif
 
 /*
@@ -61,7 +64,7 @@
 	.align	16;				\
 	.proc	_name_;				\
 _name_:;					\
-	.regstk	_n_args_, 0, 0, 0		\
+	.regstk	_n_args_, 0, 0, 0;		\
 	MCOUNT
 
 #define	ENTRY_NOPROFILE(_name_, _n_args_)	\
