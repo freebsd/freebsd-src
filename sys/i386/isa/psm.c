@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.58 1999/01/06 05:40:01 yokota Exp $
+ * $Id: psm.c,v 1.59 1999/01/11 03:18:23 yokota Exp $
  */
 
 /*
@@ -240,12 +240,16 @@ static int get_aux_id __P((KBDC));
 static int set_mouse_sampling_rate __P((KBDC, int));
 static int set_mouse_scaling __P((KBDC, int));
 static int set_mouse_resolution __P((KBDC, int));
+#ifdef PSM_RESETAFTERSUSPEND
 static int set_mouse_mode __P((KBDC));
+#endif /* PSM_RESETAFTERSUSPEND */
 static int get_mouse_buttons __P((KBDC));
 static int is_a_mouse __P((int));
 static void recover_from_error __P((KBDC));
 static int restore_controller __P((KBDC, int));
+#ifdef PSM_RESETAFTERSUSPEND
 static int reinitialize __P((int, mousemode_t *));
+#endif
 static int doopen __P((int, int));
 static char *model_name(int);
 static ointhand2_t psmintr;
@@ -431,6 +435,7 @@ set_mouse_resolution(KBDC kbdc, int val)
     return ((res == PSM_ACK) ? val : -1);
 }
 
+#ifdef PSM_RESETAFTERSUSPEND
 /*
  * NOTE: once `set_mouse_mode()' is called, the mouse device must be
  * re-enabled by calling `enable_aux_dev()'
@@ -446,6 +451,8 @@ set_mouse_mode(KBDC kbdc)
 
     return (res == PSM_ACK);
 }
+#endif /* PSM_RESETAFTERSUSPEND */
+
 
 static int
 get_mouse_buttons(KBDC kbdc)
@@ -563,6 +570,7 @@ restore_controller(KBDC kbdc, int command_byte)
     }
 }
 
+#ifdef PSM_RESETAFTERSUSPEND
 /* 
  * Re-initialize the aux port and device. The aux port must be enabled
  * and its interrupt must be disabled before calling this routine. 
@@ -669,6 +677,7 @@ reinitialize(int unit, mousemode_t *mode)
 
     return TRUE;
 }
+#endif /* PSM_RESETAFTERSUSPEND */
 
 static int
 doopen(int unit, int command_byte)

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.22 1998/08/23 09:57:09 bde Exp $
+ * $Id: stallion.c,v 1.23 1998/10/22 05:58:40 bde Exp $
  */
 
 /*****************************************************************************/
@@ -491,7 +491,7 @@ static int	stl_clrportstats(stlport_t *portp, caddr_t data);
 static stlport_t *stl_getport(int brdnr, int panelnr, int portnr);
 
 #if NPCI > 0
-static char	*stlpciprobe(pcici_t tag, pcidi_t type);
+static const char *stlpciprobe(pcici_t tag, pcidi_t type);
 static void	stlpciattach(pcici_t tag, int unit);
 static void	stlpciintr(void * arg);
 #endif
@@ -673,7 +673,7 @@ static int stlattach(struct isa_device *idp)
  *	carefull here, since it looks sort like a Nat Semi IDE chip...
  */
 
-char *stlpciprobe(pcici_t tag, pcidi_t type)
+static const char *stlpciprobe(pcici_t tag, pcidi_t type)
 {
 	unsigned long	class;
 
