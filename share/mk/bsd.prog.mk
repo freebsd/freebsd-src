@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.31 1996/06/17 12:31:02 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.32 1996/06/17 15:59:52 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -63,6 +63,7 @@ LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}/usr/lib/libscsi.a
 LIBSKEY?=	${DESTDIR}/usr/lib/libskey.a
 LIBSS?=		${DESTDIR}/usr/lib/libss.a
+LIBTCL?=	${DESTDIR}/usr/lib/libtcl.a
 LIBTELNET?=	${DESTDIR}/usr/lib/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}/usr/lib/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
