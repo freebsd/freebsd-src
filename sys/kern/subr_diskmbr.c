@@ -43,7 +43,8 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #ifdef PC98
-#define PC98_ATCOMPAT
+#define	PC98_ATCOMPAT
+#define	dsinit			atcompat_dsinit
 #endif
 #include <sys/disklabel.h>
 #define	DOSPTYP_EXTENDED	5
@@ -53,10 +54,6 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 
-#ifdef PC98_ATCOMPAT
-int     atcompat_dsinit __P((dev_t dev, struct disklabel *lp, struct diskslices **sspp));
-#define dsinit atcompat_dsinit
-#endif
 #define TRACE(str)	do { if (dsi_debug) printf str; } while (0)
 
 static volatile u_char dsi_debug;
@@ -72,9 +69,9 @@ static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks,
 			   u_long mbr_offset));
 static void mbr_extended __P((dev_t dev, struct disklabel *lp,
-			  struct diskslices *ssp, u_long ext_offset,
-			  u_long ext_size, u_long base_ext_offset,
-			  int nsectors, int ntracks, u_long mbr_offset));
+			      struct diskslices *ssp, u_long ext_offset,
+			      u_long ext_size, u_long base_ext_offset,
+			      int nsectors, int ntracks, u_long mbr_offset));
 
 static int
 check_part(sname, dp, offset, nsectors, ntracks, mbr_offset )
@@ -189,7 +186,7 @@ reread_mbr:
 	bp->b_flags |= B_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
-		diskerr(bp, devtoname(bp->b_dev), 
+		diskerr(bp, devtoname(bp->b_dev),
 		    "error reading primary partition table",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);
 		printf("\n");
@@ -208,12 +205,10 @@ reread_mbr:
 		error = EINVAL;
 		goto done;
 	}
-	/*
-	 * Take a temporary copy of the partition table to avoid
-	 * alignment problems.
-	 */
-	memcpy(dpcopy, cp + DOSPARTOFF,
-	       NDOSPART * sizeof(struct dos_partition));
+
+	/* Make a copy of the partition table to avoid alignment problems. */
+	memcpy(&dpcopy[0], cp + DOSPARTOFF, sizeof(dpcopy));
+
 	dp0 = &dpcopy[0];
 
 	/* Check for "Ontrack Diskmanager". */
@@ -329,7 +324,7 @@ reread_mbr:
 		sp->ds_size = dp->dp_size;
 		sp->ds_type = dp->dp_typ;
 #ifdef PC98_ATCOMPAT
-		/* fake up FreeBSD(98) */
+		/* Fake FreeBSD(98). */
 		if (sp->ds_type == DOSPTYP_386BSD)
 			sp->ds_type = 0x94;
 #endif
@@ -346,8 +341,8 @@ reread_mbr:
 		if (sp->ds_type == DOSPTYP_EXTENDED || 
                     sp->ds_type == DOSPTYP_EXTENDEDX)
 			mbr_extended(bp->b_dev, lp, ssp,
-				 sp->ds_offset, sp->ds_size, sp->ds_offset,
-				 max_nsectors, max_ntracks, mbr_offset);
+				     sp->ds_offset, sp->ds_size, sp->ds_offset,
+				     max_nsectors, max_ntracks, mbr_offset);
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
@@ -358,8 +353,8 @@ done:
 }
 
 void
-mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
-	 nsectors, ntracks, mbr_offset)
+mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset, nsectors,
+	     ntracks, mbr_offset)
 	dev_t	dev;
 	struct disklabel *lp;
 	struct diskslices *ssp;
@@ -374,7 +369,6 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	u_char	*cp;
 	int	dospart;
 	struct dos_partition *dp;
-	struct dos_partition *dp0;
 	struct dos_partition dpcopy[NDOSPART];
 	u_long	ext_offsets[NDOSPART];
 	u_long	ext_sizes[NDOSPART];
@@ -408,16 +402,12 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			       sname);
 		goto done;
 	}
-	/*
-	 * Take a temporary copy of the partition table to avoid
-	 * alignment problems.
-	 */
-	memcpy(dpcopy, cp + DOSPARTOFF,
-	       NDOSPART * sizeof(struct dos_partition));
-	dp0 = &dpcopy[0];
 
-	for (dospart = 0, dp = dp0,
-	     slice = ssp->dss_nslices, sp = &ssp->dss_slices[slice];
+	/* Make a copy of the partition table to avoid alignment problems. */
+	memcpy(&dpcopy[0], cp + DOSPARTOFF, sizeof(dpcopy));
+
+	for (dospart = 0, dp = &dpcopy[0], slice = ssp->dss_nslices,
+	     sp = &ssp->dss_slices[slice];
 	     dospart < NDOSPART; dospart++, dp++) {
 		ext_sizes[dospart] = 0;
 		if (dp->dp_scyl == 0 && dp->dp_shd == 0 && dp->dp_ssect == 0
@@ -450,7 +440,7 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			sp->ds_size = dp->dp_size;
 			sp->ds_type = dp->dp_typ;
 #ifdef PC98_ATCOMPAT
-			/* fake up FreeBSD(98) */
+			/* Fake FreeBSD(98). */
 			if (sp->ds_type == DOSPTYP_386BSD)
 				sp->ds_type = 0x94;
 #endif
@@ -463,10 +453,9 @@ mbr_extended(dev, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* If we found any more slices, recursively find all the subslices. */
 	for (dospart = 0; dospart < NDOSPART; dospart++)
 		if (ext_sizes[dospart] != 0)
-			mbr_extended(dev, lp, ssp,
-				 ext_offsets[dospart], ext_sizes[dospart],
-				 base_ext_offset, nsectors, ntracks,
-				 mbr_offset);
+			mbr_extended(dev, lp, ssp, ext_offsets[dospart],
+				     ext_sizes[dospart], base_ext_offset,
+				     nsectors, ntracks, mbr_offset);
 
 done:
 	bp->b_flags |= B_INVAL | B_AGE;
@@ -478,10 +467,12 @@ void
 alpha_fix_srm_checksum(bp)
 	struct buf *bp;
 {
-	u_int64_t *p = (u_int64_t *) bp->b_data;
-	u_int64_t sum = 0;
+	u_int64_t *p;
+	u_int64_t sum;
 	int i;
 
+	p = bp->b_data;
+	sum = 0;
 	for (i = 0; i < 63; i++)
 		sum += p[i];
 	p[63] = sum;
