@@ -19,8 +19,6 @@ PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
 ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 SOFTWARE.
 
- $FreeBSD$
-
 ************************************************************************/
 
 /*
@@ -39,7 +37,8 @@ SOFTWARE.
  *	See ./ToDo
  */
 
-
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -443,7 +442,7 @@ main(argc, argv)
 		} else {
 			bootps_port = (u_short) IPPORT_BOOTPS;
 			report(LOG_ERR,
-				   "udp/bootps: unknown service -- assuming port %d",
+				"bootps/udp: unknown service -- using port %d",
 				   bootps_port);
 		}
 
@@ -469,7 +468,7 @@ main(argc, argv)
 		bootpc_port = ntohs(servp->s_port);
 	} else {
 		report(LOG_ERR,
-			   "udp/bootpc: unknown service -- assuming port %d",
+			   "bootpc/udp: unknown service -- using port %d",
 			   IPPORT_BOOTPC);
 		bootpc_port = (u_short) IPPORT_BOOTPC;
 	}
