@@ -12,7 +12,7 @@
  * or modify this software as long as this message is kept with the software,
  * all derivative works or modified versions.
  *
- * Version 1.1, Mon Jul 10 21:55:11 MSD 1995
+ * Version 1.2, Mon Jul 24 17:21:25 MSD 1995
  */
 
 /*
@@ -262,10 +262,16 @@ void wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	}
 
 	/* Get drive capabilities. */
+	/* Do it twice to avoid the stale media changed state. */
 	result = atapi_request_immediate (ata, unit, ATAPI_MODE_SENSE,
 		0, CAP_PAGE, 0, 0, 0, 0, sizeof (t->cap) >> 8, sizeof (t->cap),
 		0, 0, 0, 0, 0, 0, 0, (char*) &t->cap, sizeof (t->cap));
 
+	if (result.code == RES_ERR && result.error == AER_SK_UNIT_ATTENTION)
+		result = atapi_request_immediate (ata, unit, ATAPI_MODE_SENSE,
+			0, CAP_PAGE, 0, 0, 0, 0, sizeof (t->cap) >> 8,
+			sizeof (t->cap), 0, 0, 0, 0, 0, 0, 0,
+			(char*) &t->cap, sizeof (t->cap));
 	if (result.code == 0) {
 		wcd_describe (t);
 		if (t->flags & F_DEBUG)
@@ -367,14 +373,12 @@ int wcdopen (dev_t dev, int flags, int fmt, struct proc *p)
 	result = atapi_request_wait (t->ata, t->unit, ATAPI_TEST_UNIT_READY,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	if (result.code == RES_ERR && result.error == AER_SK_UNIT_ATTENTION)
+	if (result.code == RES_ERR && result.error == AER_SK_UNIT_ATTENTION) {
 		t->flags |= F_MEDIA_CHANGED;
-
-	if (result.code)
 		result = atapi_request_wait (t->ata, t->unit,
 			ATAPI_TEST_UNIT_READY, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0);
-
+	}
 	if (result.code) {
 		wcd_error (t, result);
 		return (ENXIO);
