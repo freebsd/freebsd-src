@@ -172,7 +172,7 @@ sysctl_kern_geom_conftxt(SYSCTL_HANDLER_ARGS)
 	sbuf_clear(sb);
 	g_call_me(g_conftxt, sb);
 	do {
-		tsleep(sb, PZERO, "g_dot", hz);
+		tsleep(sb, PZERO, "g_conftxt", hz);
 	} while(!sbuf_done(sb));
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
@@ -189,7 +189,7 @@ sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
 	sbuf_clear(sb);
 	g_call_me(g_confdot, sb);
 	do {
-		tsleep(sb, PZERO, "g_dot", hz);
+		tsleep(sb, PZERO, "g_confdot", hz);
 	} while(!sbuf_done(sb));
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
@@ -206,7 +206,7 @@ sysctl_kern_geom_confxml(SYSCTL_HANDLER_ARGS)
 	sbuf_clear(sb);
 	g_call_me(g_confxml, sb);
 	do {
-		tsleep(sb, PZERO, "g_xml", hz);
+		tsleep(sb, PZERO, "g_confxml", hz);
 	} while(!sbuf_done(sb));
 	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
 	sbuf_delete(sb);
