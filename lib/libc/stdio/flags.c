@@ -56,10 +56,10 @@ static const char rcsid[] =
  */
 int
 __sflags(mode, optr)
-	register const char *mode;
+	const char *mode;
 	int *optr;
 {
-	register int ret, m, o;
+	int ret, m, o;
 
 	switch (*mode++) {
 

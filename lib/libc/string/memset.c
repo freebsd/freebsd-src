@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 void
 bzero(dst0, length)
 	void *dst0;
-	register size_t length;
+	size_t length;
 #else
 #define	RETURN	return (dst0)
 #define	VAL	c0
@@ -65,15 +65,15 @@ bzero(dst0, length)
 void *
 memset(dst0, c0, length)
 	void *dst0;
-	register int c0;
-	register size_t length;
+	int c0;
+	size_t length;
 #endif
 {
-	register size_t t;
+	size_t t;
 #ifndef BZERO
-	register u_int c;
+	u_int c;
 #endif
-	register u_char *dst;
+	u_char *dst;
 
 	dst = dst0;
 	/*

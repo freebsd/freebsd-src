@@ -991,9 +991,9 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 	struct hostent *template;
 	int *errp;
 {
-	register const HEADER *hp;
-	register const u_char *cp;
-	register int n;
+	const HEADER *hp;
+	const u_char *cp;
+	int n;
 	const u_char *eom, *erdata;
 	char *bp, **ap, **hap;
 	int type, class, buflen, ancount, qdcount;
@@ -1202,7 +1202,7 @@ getanswer(answer, anslen, qname, qtype, template, errp)
 			DNS_ASSERT(strcasecmp(template->h_name, bp) == 0);
 			DNS_ASSERT(n == template->h_length);
 			if (!haveanswer) {
-				register int nn;
+				int nn;
 
 				template->h_name = bp;
 				nn = strlen(bp) + 1;	/* for the \0 */

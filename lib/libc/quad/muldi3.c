@@ -38,6 +38,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)muldi3.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "quad.h"
 
@@ -105,8 +107,8 @@ __muldi3(a, b)
 	quad_t a, b;
 {
 	union uu u, v, low, prod;
-	register u_long high, mid, udiff, vdiff;
-	register int negall, negmid;
+	u_long high, mid, udiff, vdiff;
+	int negall, negmid;
 #define	u1	u.ul[H]
 #define	u0	u.ul[L]
 #define	v1	v.ul[H]

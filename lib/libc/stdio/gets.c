@@ -54,8 +54,8 @@ char *
 gets(buf)
 	char *buf;
 {
-	register int c;
-	register char *s;
+	int c;
+	char *s;
 	static int warned;
 	static char w[] =
 	    "warning: this program uses gets(), which is unsafe.\n";

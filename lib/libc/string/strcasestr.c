@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
  */
 char *
 strcasestr(s, find)
-	register const char *s, *find;
+	const char *s, *find;
 {
-	register char c, sc;
-	register size_t len;
+	char c, sc;
+	size_t len;
 
 	if ((c = *find++) != 0) {
 		c = tolower((unsigned char)c);

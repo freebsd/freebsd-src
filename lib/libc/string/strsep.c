@@ -53,12 +53,12 @@ __FBSDID("$FreeBSD$");
  */
 char *
 strsep(stringp, delim)
-	register char **stringp;
-	register const char *delim;
+	char **stringp;
+	const char *delim;
 {
-	register char *s;
-	register const char *spanp;
-	register int c, sc;
+	char *s;
+	const char *spanp;
+	int c, sc;
 	char *tok;
 
 	if ((s = *stringp) == NULL)

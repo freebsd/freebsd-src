@@ -37,6 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)hash_func.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -68,10 +70,10 @@ u_int32_t (*__default_hash) __P((const void *, size_t)) = hash4;
 static u_int32_t
 hash1(keyarg, len)
 	const void *keyarg;
-	register size_t len;
+	size_t len;
 {
-	register const u_char *key;
-	register u_int32_t h;
+	const u_char *key;
+	u_int32_t h;
 
 	/* Convert string to integer */
 	for (key = keyarg, h = 0; len--;)
@@ -90,9 +92,9 @@ hash2(keyarg, len)
 	const void *keyarg;
 	size_t len;
 {
-	register const u_char *e, *key;
-	register u_int32_t h;
-	register u_char c;
+	const u_char *e, *key;
+	u_int32_t h;
+	u_char c;
 
 	key = keyarg;
 	e = key + len;
@@ -117,11 +119,11 @@ hash2(keyarg, len)
 static u_int32_t
 hash3(keyarg, len)
 	const void *keyarg;
-	register size_t len;
+	size_t len;
 {
-	register const u_char *key;
-	register size_t loop;
-	register u_int32_t h;
+	const u_char *key;
+	size_t loop;
+	u_int32_t h;
 
 #define HASHC   h = *key++ + 65599 * h
 
@@ -165,11 +167,11 @@ hash3(keyarg, len)
 static u_int32_t
 hash4(keyarg, len)
 	const void *keyarg;
-	register size_t len;
+	size_t len;
 {
-	register const u_char *key;
-	register size_t loop;
-	register u_int32_t h;
+	const u_char *key;
+	size_t loop;
+	u_int32_t h;
 
 #define HASH4a   h = (h << 5) - h + *key++;
 #define HASH4b   h = (h << 5) + h + *key++;

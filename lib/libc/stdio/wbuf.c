@@ -54,10 +54,10 @@ static const char rcsid[] =
  */
 int
 __swbuf(c, fp)
-	register int c;
-	register FILE *fp;
+	int c;
+	FILE *fp;
 {
-	register int n;
+	int n;
 
 	/*
 	 * In case we cannot write, or longjmp takes us out early,

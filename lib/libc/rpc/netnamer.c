@@ -157,9 +157,9 @@ _getgroups(uname, groups)
 	gid_t          groups[NGROUPS];
 {
 	gid_t           ngroups = 0;
-	register struct group *grp;
-	register int    i;
-	register int    j;
+	struct group *grp;
+	int    i;
+	int    j;
 	int             filter;
 
 	setgrent();

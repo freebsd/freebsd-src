@@ -58,7 +58,7 @@ static const char rcsid[] =
 
 int
 fseek(fp, offset, whence)
-	register FILE *fp;
+	FILE *fp;
 	long offset;
 	int whence;
 {
@@ -109,7 +109,7 @@ _fseeko(fp, offset, whence, ltest)
 	int whence;
 	int ltest;
 {
-	register fpos_t (*seekfn) __P((void *, fpos_t, int));
+	fpos_t (*seekfn) __P((void *, fpos_t, int));
 	fpos_t target, curoff, ret;
 	size_t n;
 	struct stat st;

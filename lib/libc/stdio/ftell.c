@@ -56,9 +56,9 @@ static const char rcsid[] =
  */
 long
 ftell(fp)
-	register FILE *fp;
+	FILE *fp;
 {
-	register off_t rv;
+	off_t rv;
 
 	rv = ftello(fp);
 	if (rv > LONG_MAX) {
@@ -73,7 +73,7 @@ ftell(fp)
  */
 off_t
 ftello(fp)
-	register FILE *fp;
+	FILE *fp;
 {
 	fpos_t rv;
 	int ret;
@@ -92,10 +92,10 @@ ftello(fp)
 
 int
 _ftello(fp, offset)
-	register FILE *fp;
+	FILE *fp;
 	fpos_t *offset;
 {
-	register fpos_t pos;
+	fpos_t pos;
 	size_t n;
 
 	if (fp->_seek == NULL) {

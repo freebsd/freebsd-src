@@ -56,7 +56,7 @@ static const char rcsid[] =
  */
 int
 fpurge(fp)
-	register FILE *fp;
+	FILE *fp;
 {
 	int retval;
 	FLOCKFILE(fp);

@@ -56,13 +56,13 @@ static const char rcsid[] =
  */
 int
 __sfvwrite(fp, uio)
-	register FILE *fp;
-	register struct __suio *uio;
+	FILE *fp;
+	struct __suio *uio;
 {
-	register size_t len;
-	register char *p;
-	register struct __siov *iov;
-	register int w, s;
+	size_t len;
+	char *p;
+	struct __siov *iov;
+	int w, s;
 	char *nl;
 	int nlknown, nldist;
 

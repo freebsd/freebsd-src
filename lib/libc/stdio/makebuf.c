@@ -58,10 +58,10 @@ static char sccsid[] = "@(#)makebuf.c	8.1 (Berkeley) 6/4/93";
  */
 void
 __smakebuf(fp)
-	register FILE *fp;
+	FILE *fp;
 {
-	register void *p;
-	register int flags;
+	void *p;
+	int flags;
 	size_t size;
 	int couldbetty;
 
@@ -91,7 +91,7 @@ __smakebuf(fp)
  */
 int
 __swhatbuf(fp, bufsize, couldbetty)
-	register FILE *fp;
+	FILE *fp;
 	size_t *bufsize;
 	int *couldbetty;
 {

@@ -95,8 +95,8 @@ static int fcc_shift[] = {
 void
 __fpu_compare(struct fpemu *fe, int cmpe, int fcc)
 {
-	register struct fpn *a, *b;
-	register int cc;
+	struct fpn *a, *b;
+	int cc;
 	FPU_DECL_CARRY
 
 	a = &fe->fe_f1;

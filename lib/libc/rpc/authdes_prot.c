@@ -77,8 +77,8 @@ xdr_authdes_cred(xdrs, cred)
 
 bool_t
 xdr_authdes_verf(xdrs, verf)
-	register XDR *xdrs;
-	register struct authdes_verf *verf;	
+	XDR *xdrs;
+	struct authdes_verf *verf;	
 {
 	/*
  	 * Unrolled xdr

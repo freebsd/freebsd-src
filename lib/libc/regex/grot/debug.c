@@ -21,10 +21,10 @@ regprint(r, d)
 regex_t *r;
 FILE *d;
 {
-	register struct re_guts *g = r->re_g;
-	register int i;
-	register int c;
-	register int last;
+	struct re_guts *g = r->re_g;
+	int i;
+	int c;
+	int last;
 	int nincat[NC];
 
 	fprintf(d, "%ld states, %d categories", (long)g->nstates,
@@ -87,21 +87,21 @@ FILE *d;
 
 /*
  - s_print - print the strip for debugging
- == static void s_print(register struct re_guts *g, FILE *d);
+ == static void s_print(struct re_guts *g, FILE *d);
  */
 static void
 s_print(g, d)
-register struct re_guts *g;
+struct re_guts *g;
 FILE *d;
 {
-	register sop *s;
-	register cset *cs;
-	register int i;
-	register int done = 0;
-	register sop opnd;
-	register int col = 0;
-	register int last;
-	register sopno offset = 2;
+	sop *s;
+	cset *cs;
+	int i;
+	int done = 0;
+	sop opnd;
+	int col = 0;
+	int last;
+	sopno offset = 2;
 #	define	GAP()	{	if (offset % 5 == 0) { \
 					if (col > 40) { \
 						fprintf(d, "\n\t"); \

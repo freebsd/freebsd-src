@@ -103,7 +103,7 @@ struct hostent *
 gethostent()
 {
 	char *p;
-	register char *cp, **q;
+	char *cp, **q;
 	int af, len;
 
 	if (!hostf && !(hostf = fopen(_PATH_HOSTS, "r" ))) {
@@ -169,8 +169,8 @@ _ht_gethostbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
 	int af;
-	register struct hostent *p;
-	register char **cp;
+	struct hostent *p;
+	char **cp;
 
 	name = va_arg(ap, const char *);
 	af = va_arg(ap, int);
@@ -197,7 +197,7 @@ _ht_gethostbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	const char *addr;
 	int len, af;
-	register struct hostent *p;
+	struct hostent *p;
 
 	addr = va_arg(ap, const char *);
 	len = va_arg(ap, int);

@@ -63,7 +63,7 @@ _gethostbynis(name, map, af)
 	char *map;
 	int af;
 {
-	register char *cp, **q;
+	char *cp, **q;
 	char *result;
 	int resultlen,size;
 	static struct hostent h;

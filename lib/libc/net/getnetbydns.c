@@ -110,9 +110,9 @@ getnetanswer(answer, anslen, net_i)
 	int net_i;
 {
 
-	register HEADER *hp;
-	register u_char *cp;
-	register int n;
+	HEADER *hp;
+	u_char *cp;
+	int n;
 	u_char *eom;
 	int type, class, buflen, ancount, qdcount, haveanswer, i, nchar;
 	char aux1[MAXHOSTNAMELEN], aux2[MAXHOSTNAMELEN], ans[MAXHOSTNAMELEN];

@@ -458,7 +458,7 @@ clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	struct sockaddr_un *raddr;
 	u_long prog;
 	u_long vers;
-	register int *sockp;
+	int *sockp;
 	u_int sendsz;
 	u_int recvsz;
 {
@@ -508,7 +508,7 @@ done:
  */
 SVCXPRT *
 svcunix_create(sock, sendsize, recvsize, path)
-	register int sock;
+	int sock;
 	u_int sendsize;
 	u_int recvsize;
 	char *path;

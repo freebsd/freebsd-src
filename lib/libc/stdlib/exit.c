@@ -61,8 +61,8 @@ void
 exit(status)
 	int status;
 {
-	register struct atexit *p;
-	register int n;
+	struct atexit *p;
+	int n;
 
 	/* Ensure that the auto-initialization routine is linked in: */
 	extern int _thread_autoinit_dummy_decl;

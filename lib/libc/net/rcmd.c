@@ -457,7 +457,7 @@ iruserok_sa(ra, rlen, superuser, ruser, luser)
 	int superuser;
 	const char *ruser, *luser;
 {
-	register char *cp;
+	char *cp;
 	struct stat sbuf;
 	struct passwd *pwd;
 	FILE *hostf;
@@ -605,7 +605,7 @@ __ivaliduser_sa(hostf, raddr, salen, luser, ruser)
 	socklen_t salen;
 	const char *luser, *ruser;
 {
-	register char *user, *p;
+	char *user, *p;
 	int ch;
 	char buf[MAXHOSTNAMELEN + 128];		/* host + login */
 	char hname[MAXHOSTNAMELEN];

@@ -37,6 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)hash_bigkey.c	8.3 (Berkeley) 5/31/94";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * PACKAGE: hash
@@ -90,7 +92,7 @@ __big_insert(hashp, bufp, key, val)
 	BUFHEAD *bufp;
 	const DBT *key, *val;
 {
-	register u_int16_t *p;
+	u_int16_t *p;
 	int key_size, n, val_size;
 	u_int16_t space, move_bytes, off;
 	char *cp, *key_data, *val_data;
@@ -188,7 +190,7 @@ __big_delete(hashp, bufp)
 	HTAB *hashp;
 	BUFHEAD *bufp;
 {
-	register BUFHEAD *last_bfp, *rbufp;
+	BUFHEAD *last_bfp, *rbufp;
 	u_int16_t *bp, pageno;
 	int key_done, n;
 
@@ -270,8 +272,8 @@ __find_bigpair(hashp, bufp, ndx, key, size)
 	char *key;
 	int size;
 {
-	register u_int16_t *bp;
-	register char *p;
+	u_int16_t *bp;
+	char *p;
 	int ksize;
 	u_int16_t bytes;
 	char *kkey;
@@ -452,8 +454,8 @@ collect_data(hashp, bufp, len, set)
 	BUFHEAD *bufp;
 	int len, set;
 {
-	register u_int16_t *bp;
-	register char *p;
+	u_int16_t *bp;
+	char *p;
 	BUFHEAD *xbp;
 	u_int16_t save_addr;
 	int mylen, totlen;
@@ -576,8 +578,8 @@ __big_split(hashp, op, np, big_keyp, addr, obucket, ret)
 	u_int32_t   obucket;/* Old Bucket */
 	SPLIT_RETURN *ret;
 {
-	register BUFHEAD *tmpp;
-	register u_int16_t *tp;
+	BUFHEAD *tmpp;
+	u_int16_t *tp;
 	BUFHEAD *bp;
 	DBT key, val;
 	u_int32_t change;

@@ -93,7 +93,7 @@ struct netent *
 getnetent()
 {
 	char *p;
-	register char *cp, **q;
+	char *cp, **q;
 
 	if (netf == NULL && (netf = fopen(_PATH_NETWORKS, "r" )) == NULL)
 		return (NULL);
@@ -141,8 +141,8 @@ int
 _ht_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
 	const char *name;
-	register struct netent *p;
-	register char **cp;
+	struct netent *p;
+	char **cp;
 
 	name = va_arg(ap, const char *);
 
@@ -166,7 +166,7 @@ _ht_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
 	unsigned long net;
 	int type;
-	register struct netent *p;
+	struct netent *p;
 
 	net = va_arg(ap, unsigned long);
 	type = va_arg(ap, int);

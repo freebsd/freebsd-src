@@ -104,11 +104,11 @@
  */
 struct fpn *
 __fpu_mul(fe)
-	register struct fpemu *fe;
+	struct fpemu *fe;
 {
-	register struct fpn *x = &fe->fe_f1, *y = &fe->fe_f2;
-	register u_int a3, a2, a1, a0, x3, x2, x1, x0, bit, m;
-	register int sticky;
+	struct fpn *x = &fe->fe_f1, *y = &fe->fe_f2;
+	u_int a3, a2, a1, a0, x3, x2, x1, x0, bit, m;
+	int sticky;
 	FPU_DECL_CARRY
 
 	/*
