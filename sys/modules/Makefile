@@ -202,6 +202,7 @@ SUBDIR+=3dfx \
 	hfa \
 	i2c \
 	ibcs2 \
+	ida \
 	ie \
 	linprocfs \
 	linux \
