@@ -50,16 +50,26 @@ static const char rcsid[] =
  *
  * Encode a file so it can be mailed to a remote system.
  */
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 
+#include <netinet/in.h>
+
 #include <err.h>
+#include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 void encode __P((void));
+void base64_encode __P((void));
 static void usage __P((void));
+
+FILE *output = stdout;
+int mode;
+char **av;
 
 int
 main(argc, argv)
@@ -67,10 +77,26 @@ main(argc, argv)
 	char *argv[];
 {
 	struct stat sb;
-	int mode;
+	int base64;
+	char ch;
+	char *outfile;
 
-	while (getopt(argc, argv, "") != -1)
-		usage();
+	base64 = 0;
+	outfile = NULL;
+
+	while ((ch = getopt(argc, argv, "mo:")) != -1) {
+		switch (ch) {
+		case 'm':
+			base64 = 1;
+			break;
+		case 'o':
+			outfile = optarg;
+			break;
+		case '?':
+		default:
+			usage();
+		}
+	}
 	argv += optind;
 	argc -= optind;
 
@@ -91,10 +117,18 @@ main(argc, argv)
 		usage();
 	}
 
-	(void)printf("begin %o %s\n", mode, *argv);
-	encode();
-	(void)printf("end\n");
-	if (ferror(stdout))
+	av = argv;
+
+	if (outfile != NULL) {
+		output = fopen(outfile, "w+");
+		if (output == NULL)
+			err(1, "unable to open %s for output", outfile);
+	}
+	if (base64)
+		base64_encode();
+	else
+		encode();
+	if (ferror(output))
 		errx(1, "write error");
 	exit(0);
 }
@@ -103,7 +137,34 @@ main(argc, argv)
 #define	ENC(c) ((c) ? ((c) & 077) + ' ': '`')
 
 /*
- * copy from in to out, encoding as you go along.
+ * Copy from in to out, encoding in base64 as you go along.
+ */
+void
+base64_encode()
+{
+#define	GROUPS	8 /* Group output chunks */
+	unsigned char buf[6];
+	char buf2[16];
+	size_t n;
+	int rv, sequence;
+
+	sequence = 0;
+
+	fprintf(output, "begin-base64 %o %s\n", mode, *av);
+	while ((n = fread(buf, 1, sizeof(buf), stdin))) {
+		++sequence;
+		rv = b64_ntop(buf, n, buf2, (sizeof(buf2) / sizeof(buf2[0])));
+		if (rv == -1)
+			errx(1, "b64_ntop: error encoding base64");
+		fprintf(output, "%s%s", buf2, (sequence % GROUPS) ? "" : "\n");
+	}
+	if (sequence % GROUPS)
+		fprintf(output, "\n");
+	fprintf(output, "====\n");
+}
+
+/*
+ * Copy from in to out, encoding as you go along.
  */
 void
 encode()
@@ -112,9 +173,10 @@ encode()
 	register char *p;
 	char buf[80];
 
+	(void)fprintf(output, "begin %o %s\n", mode, *av);
 	while ((n = fread(buf, 1, 45, stdin))) {
 		ch = ENC(n);
-		if (putchar(ch) == EOF)
+		if (fputc(ch, output) == EOF)
 			break;
 		for (p = buf; n > 0; n -= 3, p += 3) {
 			/* Pad with nulls if not a multiple of 3. */
@@ -125,34 +187,32 @@ encode()
 			}
 			ch = *p >> 2;
 			ch = ENC(ch);
-			if (putchar(ch) == EOF)
+			if (fputc(ch, output) == EOF)
 				break;
 			ch = ((*p << 4) & 060) | ((p[1] >> 4) & 017);
 			ch = ENC(ch);
-			if (putchar(ch) == EOF)
+			if (fputc(ch, output) == EOF)
 				break;
 			ch = ((p[1] << 2) & 074) | ((p[2] >> 6) & 03);
 			ch = ENC(ch);
-			if (putchar(ch) == EOF)
+			if (fputc(ch, output) == EOF)
 				break;
 			ch = p[2] & 077;
 			ch = ENC(ch);
-			if (putchar(ch) == EOF)
+			if (fputc(ch, output) == EOF)
 				break;
 		}
-		if (putchar('\n') == EOF)
+		if (fputc('\n', output) == EOF)
 			break;
 	}
 	if (ferror(stdin))
 		errx(1, "read error");
-	ch = ENC('\0');
-	(void)putchar(ch);
-	(void)putchar('\n');
+	(void)fprintf(output, "%c\nend\n", ENC('\0'));
 }
 
 static void
 usage()
 {
-	(void)fprintf(stderr,"usage: uuencode [infile] remotefile\n");
+	(void)fprintf(stderr,"usage: uuencode [-m] [-o outfile] [infile] remotefile\n");
 	exit(1);
 }

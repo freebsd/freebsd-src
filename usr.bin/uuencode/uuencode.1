@@ -41,6 +41,8 @@
 .Nd encode/decode a binary file
 .Sh SYNOPSIS
 .Nm
+.Op Fl m
+.Op Fl o Ar output_file
 .Op Ar file
 .Ar name
 .Nm uudecode
@@ -63,7 +65,9 @@ data.
 reads
 .Ar file
 (or by default the standard input) and writes an encoded version
-to the standard output.
+to the standard output, or
+.Ar output_file
+if one has been specified.
 The encoding uses only printing
 .Tn ASCII
 characters and includes the
@@ -86,7 +90,20 @@ and execute bits are not retained.
 .Nm Uudecode
 ignores any leading and trailing lines.
 .Pp
-The following options are available for
+The following options are available:
+.Pp
+.Nm uuencode :
+.Bl -tag -width ident
+.It Fl m
+Use the Base64 method of encoding, rather than the traditional
+.Nm
+algorithm.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of standard output.
+.El
+.Pp
 .Nm uudecode :
 .Bl -tag -width ident
 .It Fl c
