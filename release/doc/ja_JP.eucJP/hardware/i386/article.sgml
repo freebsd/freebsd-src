@@ -1,6 +1,6 @@
 <!--
     $FreeBSD$
-    Original revision: 1.6
+    Original revision: 1.1.2.5
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -8,10 +8,6 @@
 %articles.ent;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY % devauto-ja PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//JA">
-%devauto-ja;
-<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
-%devauto;
 <!ENTITY % sections SYSTEM "../common/hw.ent"> %sections;
 
 <!-- Architecture-specific customization -->
