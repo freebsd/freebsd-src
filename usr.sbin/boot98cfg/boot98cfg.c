@@ -154,9 +154,9 @@ write_boot(const char *disk, u_char *boot)
 		fd = open(buf, O_RDONLY);
 		if (fd < 0)
 			continue;
-		n = ioctl(fd, DIOCGPC98, boot);
+		n = ioctl(fd, DIOCSPC98, boot);
 		if (n != 0)
-			err(1, "%s: ioctl DIOCGPC98", disk);
+			err(1, "%s: ioctl DIOCSPC98", disk);
 		close(fd);
 		return 0;
 	}
