@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.61 1995/04/03 01:13:50 nate Exp $
+#	$Id: Makefile.i386,v 1.62 1995/04/05 04:10:58 nate Exp $
 #
 # Makefile for FreeBSD
 #
@@ -161,9 +161,9 @@ depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
 	mkdep -a -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}
 
 links:
-	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
+	egrep '#if' ${CFILES:Nswapkernel.c} | sed -f $S/conf/defines | \
 	  sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	echo ${CFILES} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
+	echo ${CFILES:Nswapkernel.c} | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
 	  sort -u | comm -23 - dontlink | \
 	  sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
 	sh makelinks && rm -f dontlink
