@@ -706,8 +706,10 @@ ngmn_disconnect(hook_p hook)
 
 	/* Free all transmit descriptors and mbufs */
 	for (dp = sc->ch[chan]->x1; dp ; dp = dp2) {
-		if (dp->m)
+		if (dp->m) {
+			sc->ch[chan]->tx_pending -= dp->m->m_pkthdr.len;
 			m_freem(dp->m);
+		}
 		sc->ch[chan]->x1 = dp2 = dp->vnext;
 		mn_free_desc(dp);
 	}
