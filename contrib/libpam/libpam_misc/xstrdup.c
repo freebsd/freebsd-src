@@ -7,8 +7,7 @@
  *
  */
 
-#include <malloc.h>
-#include <string.h>
+#include <stdlib.h>
 #include <security/pam_misc.h>
 
 /*
