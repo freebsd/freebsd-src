@@ -125,9 +125,9 @@ struct _keywords keywords[] =
 #ifndef _KERNEL						    /* for vinum(8) only */
 #ifdef VINUMDEBUG
     keypair(debug),
+#endif
     keypair(stripe),
     keypair(mirror),
-#endif
 #endif
     keypair(attach),
     keypair(detach),
