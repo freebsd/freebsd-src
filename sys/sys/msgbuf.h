@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)msgbuf.h	8.1 (Berkeley) 6/2/93
- * $Id: msgbuf.h,v 1.5 1995/03/16 18:16:21 bde Exp $
+ * $Id: msgbuf.h,v 1.6 1995/08/07 07:58:23 davidg Exp $
  */
 
 #ifndef _SYS_MSGBUF_H_
 #define _SYS_MSGBUF_H_
 
-#define	MSG_BSIZE	(4096 - 3 * sizeof(unsigned int))
+#define	MSG_BSIZE	(8192 - 3 * sizeof(unsigned int))
 struct	msgbuf {
 #define	MSG_MAGIC	0x063061
 	unsigned int	msg_magic;
