@@ -211,10 +211,10 @@ DRIVER_MODULE(if_sf, pci, sf_driver, sf_devclass, 0, 0);
 DRIVER_MODULE(miibus, sf, miibus_driver, miibus_devclass, 0, 0);
 
 #define SF_SETBIT(sc, reg, x)	\
-	csr_write_4(sc, reg, csr_read_4(sc, reg) | x)
+	csr_write_4(sc, reg, csr_read_4(sc, reg) | (x))
 
 #define SF_CLRBIT(sc, reg, x)				\
-	csr_write_4(sc, reg, csr_read_4(sc, reg) & ~x)
+	csr_write_4(sc, reg, csr_read_4(sc, reg) & ~(x))
 
 static u_int32_t
 csr_read_4(sc, reg)
