@@ -1,11 +1,13 @@
 ports-base release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-archivers release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
+ports-benchmarks release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-audio release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-cad release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-comms release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-databases release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-devel release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-editors release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-emulators release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-games release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-graphics release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-japanese release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
@@ -16,6 +18,8 @@ ports-net release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/
 ports-news release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-print release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
 ports-russian release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old
+ports-security release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-shells release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-sysutils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-utils release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
 ports-x11 release=current host=SUP.FreeBSD.ORG hostbase=/home base=/usr prefix=/usr/ports delete old 
