@@ -55,7 +55,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aha.c,v 1.15 1998/12/13 00:05:04 gibbs Exp $
+ *      $Id: aha.c,v 1.16 1998/12/15 02:51:54 imp Exp $
  */
 
 #include <sys/param.h>
@@ -720,10 +720,10 @@ aha_find_probe_range(int ioport, int *port_index, int *max_port_index)
 				break;
 		if ((i >= AHA_NUM_ISAPORTS)
 		 || (ioport != aha_isa_ports[i].addr)) {
-			printf("
-aha_isa_probe: Invalid baseport of 0x%x specified.
-aha_isa_probe: Nearest valid baseport is 0x%x.
-aha_isa_probe: Failing probe.\n",
+			printf("\n"
+"aha_isa_probe: Invalid baseport of 0x%x specified.\n"
+"aha_isa_probe: Nearest valid baseport is 0x%x.\n"
+"aha_isa_probe: Failing probe.\n",
 			       ioport,
 			       (i < AHA_NUM_ISAPORTS)
 				    ? aha_isa_ports[i].addr
@@ -1360,13 +1360,16 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 	case AMBI_ABORT:
 	case AMBI_ERROR:
 		/* An error occured */
+		csio->resid = aha_a24tou(accb->hccb.data_len);
 		switch(accb->hccb.ahastat) {
 		case AHASTAT_DATARUN_ERROR:
-			if (aha_a24tou(accb->hccb.data_len) <= 0) {
+		{
+			if (csio->resid <= 0) {
 				csio->ccb_h.status = CAM_DATA_RUN_ERR;
 				break;
 			}
 			/* FALLTHROUGH */
+		}
 		case AHASTAT_NOERROR:
 			csio->scsi_status = accb->hccb.sdstat;
 			csio->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
@@ -1389,7 +1392,6 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 				csio->ccb_h.status = CAM_REQ_CMP;
 				break;
 			}
-			csio->resid = aha_a24tou(accb->hccb.data_len);
 			break;
 		case AHASTAT_SELTIMEOUT:
 			csio->ccb_h.status = CAM_SEL_TIMEOUT;
