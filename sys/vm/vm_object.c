@@ -495,6 +495,13 @@ vm_object_deallocate(vm_object_t object)
 					 */
 					object->ref_count++;
 					VM_OBJECT_UNLOCK(object);
+					/*
+					 * More likely than not the thread
+					 * holding robject's lock has lower
+					 * priority than the current thread.
+					 * Let the lower priority thread run.
+					 */
+					tsleep(&proc0, PVM, "vmo_de", 1);
 					continue;
 				}
 				if ((robject->handle == NULL) &&
