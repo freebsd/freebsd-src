@@ -15,6 +15,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	related kernel options, INVARIANTS, malloc debugging flags
 	in userland, and various verbose features in the kernel.  Many
 	developers choose to disable these features on build machines
+	to maximize performance.
 
 20030819:
 	The OFW_NEWPCI option has been turned on in the Sparc64 GENERIC kernel.
