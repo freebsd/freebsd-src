@@ -19,7 +19,7 @@ extern int	disable_rtc_set;
 extern int	statclock_disable;
 extern u_int	timer_freq;
 extern int	timer0_max_count;
-extern u_int	tsc_freq;
+extern uint64_t	tsc_freq;
 extern int	tsc_is_broken;
 extern int	wall_cmos_clock;
 #ifdef APIC_IO

@@ -44,6 +44,7 @@
 #include "opt_cpu.h"
 
 #include <sys/param.h>
+#include <sys/stdint.h>
 #include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -566,17 +567,17 @@ printcpuinfo(void)
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
-		printf("%d.%02d-MHz ",
-		       (tsc_freq + 4999) / 1000000,
-		       ((tsc_freq + 4999) / 10000) % 100);
+		printf("%jd.%02d-MHz ",
+		       (intmax_t)(tsc_freq + 4999) / 1000000,
+		       (u_int)((tsc_freq + 4999) / 10000) % 100);
 		printf("586");
 		break;
 #endif
 #if defined(I686_CPU)
 	case CPUCLASS_686:
-		printf("%d.%02d-MHz ",
-		       (tsc_freq + 4999) / 1000000,
-		       ((tsc_freq + 4999) / 10000) % 100);
+		printf("%jd.%02d-MHz ",
+		       (intmax_t)(tsc_freq + 4999) / 1000000,
+		       (u_int)((tsc_freq + 4999) / 10000) % 100);
 		printf("686");
 		break;
 #endif
