@@ -43,7 +43,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: clparse.c,v 1.62.2.3 2002/11/17 02:25:43 dhankins Exp $ Copyright (c) 1996-2002 The Internet Software Consortium.  All rights reserved.\n"
+"$Id: clparse.c,v 1.62.2.4 2003/02/10 00:39:57 dhankins Exp $ Copyright (c) 1996-2002 The Internet Software Consortium.  All rights reserved.\n"
 "$FreeBSD$\n";
 #endif /* not lint */
 
@@ -620,34 +620,41 @@ void parse_option_list (cfile, list)
 	struct parse *cfile;
 	u_int32_t **list;
 {
-	int ix, i;
+	int ix;
 	int token;
 	const char *val;
 	pair p = (pair)0, q, r;
+	struct option *option;
 
 	ix = 0;
 	do {
-		token = next_token (&val, (unsigned *)0, cfile);
-		if (token == SEMI)
+		token = peek_token (&val, (unsigned *)0, cfile);
+		if (token == SEMI) {
+			token = next_token (&val, (unsigned *)0, cfile);
 			break;
+		}
 		if (!is_identifier (token)) {
 			parse_warn (cfile, "%s: expected option name.", val);
+			token = next_token (&val, (unsigned *)0, cfile);
 			skip_to_semi (cfile);
 			return;
 		}
-		for (i = 0; i < 256; i++) {
-			if (!strcasecmp (dhcp_options [i].name, val))
-				break;
-		}
-		if (i == 256) {
+		option = parse_option_name (cfile, 0, NULL);
+		if (!option) {
 			parse_warn (cfile, "%s: expected option name.", val);
+			return;
+		}
+		if (option -> universe != &dhcp_universe) {
+			parse_warn (cfile,
+				"%s.%s: Only global options allowed.",
+				option -> universe -> name, option->name );
 			skip_to_semi (cfile);
 			return;
 		}
 		r = new_pair (MDL);
 		if (!r)
 			log_fatal ("can't allocate pair for option code.");
-		r -> car = (caddr_t)(long)i;
+		r -> car = (caddr_t)(long)option -> code;
 		r -> cdr = (pair)0;
 		if (p)
 			q -> cdr = r;

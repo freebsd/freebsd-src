@@ -35,7 +35,7 @@
 .\" see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
 .\" ``http://www.nominum.com''.
 .\"
-.\" $Id: dhcp-options.5,v 1.19.2.9 2002/11/17 02:26:57 dhankins Exp $
+.\" $Id: dhcp-options.5,v 1.19.2.10 2003/02/23 03:27:42 dhankins Exp $
 .\" $FreeBSD$
 .\"
 .TH dhcpd-options 5
@@ -222,7 +222,7 @@ sending TCP segments.  The minimum value is 1.
 .B option \fBdhcp-client-identifier\fR \fIstring\fR\fB;\fR
 .RS 0.25i
 .PP
-This option can be used to specify the a DHCP client identifier in a
+This option can be used to specify a DHCP client identifier in a
 host declaration, so that dhcpd can find the host record by matching
 against the client identifier.
 .PP
@@ -412,8 +412,8 @@ RFC2132.
 \fIip-address\fR... ]\fB;\fR
 .RS 0.25i
 .PP
-The Finger server option specifies a list of Finger available to the
-client.  Servers should be listed in order of preference.
+The Finger server option specifies a list of Finger servers available
+to the client.  Servers should be listed in order of preference.
 .RE
 .PP
 .B option \fBfont-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR...
@@ -485,8 +485,8 @@ forwarding, and a value of true means enable IP forwarding.
 \fIip-address\fR... ]\fB;\fR
 .RS 0.25i
 .PP
-The IRC server option specifies a list of IRC available to the
-client.  Servers should be listed in order of preference.
+The IRC server option specifies a list of IRC servers available
+to the client.  Servers should be listed in order of preference.
 .RE
 .PP
 .B option \fBlog-servers\fR \fIip-address\fR [\fB,\fR \fIip-address\fR...
@@ -593,7 +593,7 @@ Possible node types are:
 B-node: Broadcast - no WINS
 .TP
 .I 2
-P-node: Peer - WINS only.
+P-node: Peer - WINS only
 .TP
 .I 4
 M-node: Mixed - broadcast, then WINS
@@ -648,8 +648,8 @@ preference.
 \fIip-address\fR... ]\fB;\fR
 .RS 0.25i
 .PP
-The NNTP server option specifies a list of NNTP available to the
-client.  Servers should be listed in order of preference.
+The NNTP server option specifies a list of NNTP servesr available
+to the client.  Servers should be listed in order of preference.
 .RE
 .PP
 .B option \fBnon-local-source-routing\fR \fIflag\fR\fB;\fR
@@ -733,8 +733,8 @@ See STD 3 (RFC1122) for further information.
 .B option \fBpop-server\fR \fIip-address\fR [\fB,\fR \fIip-address\fR... ]\fB;\fR
 .RS 0.25i
 .PP
-The POP3 server option specifies a list of POP3 available to the
-client.  Servers should be listed in order of preference.
+The POP3 server option specifies a list of POP3 servers available
+to the client.  Servers should be listed in order of preference.
 .RE
 .PP
 .B option \fBresource-location-servers\fR \fIip-address\fR
@@ -905,8 +905,8 @@ This specifies the IP address of the client's swap server.
 .B option \fBtcp-keepalive-garbage\fR \fIflag\fR\fB;\fR
 .RS 0.25i
 .PP
-This option specifies the whether or not the client should send TCP
-keepalive messages with a octet of garbage for compatibility with
+This option specifies whether or not the client should send TCP
+keepalive messages with an octet of garbage for compatibility with
 older implementations.  A value of false indicates that a garbage octet
 should not be sent. A value of true indicates that a garbage octet
 should be sent.
@@ -1031,8 +1031,8 @@ details.
 \fIip-address\fR... ]\fB;\fR
 .RS 0.25i
 .PP
-The WWW server option specifies a list of WWW available to the
-client.  Servers should be listed in order of preference.
+The WWW server option specifies a list of WWW servers available
+to the client.  Servers should be listed in order of preference.
 .RE
 .PP
 .B option \fBx-display-manager\fR \fIip-address\fR [\fB,\fR \fIip-address\fR...
