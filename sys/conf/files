@@ -335,6 +335,7 @@ dev/bktr/bktr_core.c	optional bktr pci
 dev/bktr/bktr_i2c.c	optional bktr pci smbus
 dev/bktr/bktr_os.c	optional bktr pci
 dev/bktr/bktr_tuner.c	optional bktr pci
+dev/bktr/msp34xx.c	optional bktr pci
 dev/buslogic/bt.c	optional bt
 dev/buslogic/bt_eisa.c	optional bt eisa
 dev/buslogic/bt_isa.c	optional bt isa

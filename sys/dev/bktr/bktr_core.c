@@ -471,6 +471,9 @@ common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 {
 	vm_offset_t	buf = 0;
 	int		need_to_allocate_memory = 1;
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+	int 		err;
+#endif
 
 /***************************************/
 /* *** OS Specific memory routines *** */
@@ -612,10 +615,28 @@ bktr_store_address(unit, BKTR_MEM_BUF,          buf);
         bktr->msp_source_selected = -1;
 	bktr->audio_mux_present = 1;
 
+#if defined(__FreeBSD__) 
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+	/* get hint on short programming of the msp34xx, so we know */
+	/* if the decision what thread to start should be overwritten */
+	if ( (err = resource_int_value("bktr", unit, "mspsimple",
+			&(bktr->mspsimple)) ) != 0 )
+		bktr->mspsimple = -1;	/* fall back to default */
+#endif
+#endif
+
 	probeCard( bktr, TRUE, unit );
 
 	/* Initialise any MSP34xx or TDA98xx audio chips */
 	init_audio_devices( bktr );
+
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+	/* setup the kenrel thread */
+	err = msp_attach( bktr );
+	if ( err != 0 ) /* error doing kernel thread stuff, disable msp3400c */
+		bktr->card.msp3400c = 0;
+#endif
+
 
 }
 

@@ -46,6 +46,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "opt_bktr.h"               /* Include any kernel config options */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -472,6 +474,13 @@ void msp_read_id( bktr_ptr_t bktr ){
  *     the chip and re-programs it if needed.
  */
 void msp_autodetect( bktr_ptr_t bktr ) {
+
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+
+  /* Just wake up the (maybe) sleeping thread, it'll do everything for us */
+  msp_wake_thread(bktr);
+
+#else
   int auto_detect, loops;
   int stereo;
 
@@ -596,6 +605,8 @@ void msp_autodetect( bktr_ptr_t bktr ) {
   /* uncomment the following line to enable the MSP34xx 1Khz Tone Generator */
   /* turn your speaker volume down low before trying this */
   /* msp_dpl_write(bktr, bktr->msp_addr, 0x12, 0x0014, 0x7f40); */
+
+#endif /* BKTR_NEW_MSP34XX_DRIVER */
 }
 
 /* Read the DPL version string */
