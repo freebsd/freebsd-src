@@ -1,5 +1,5 @@
-/*	$NetBSD: if_devar.h,v 1.22 1997/10/20 14:33:01 matt Exp $	*/
-/*	$Id: if_devar.h,v 1.3 1997/10/18 18:15:03 peter Exp $ */
+/*	$NetBSD: if_devar.h,v 1.26 1998/02/11 01:28:29 thorpej Exp $	*/
+/*	$Id: if_devar.h,v 1.4 1997/11/08 14:46:58 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -35,6 +35,12 @@
 #include "rnd.h"
 #if NRND > 0
 #include <sys/rnd.h>
+#endif
+
+#if NetBSD >= 199803
+#define	TULIP_BUS_DMA		1
+/* #define	TULIP_BUS_DMA_NORX	1 */
+/* #define	TULIP_BUS_DMA_NOTX	1 */
 #endif
 
 typedef bus_addr_t tulip_csrptr_t;
@@ -165,6 +171,7 @@ typedef struct {
 #define	TULIP_COPY_RXDATA	1
 #endif
 
+#define	TULIP_DATA_PER_DESC	2032
 #define	TULIP_TXTIMER		4
 #define	TULIP_RXDESCS		48
 #define	TULIP_TXDESCS		128
@@ -496,6 +503,20 @@ struct _tulip_softc_t {
 #if !defined(tulip_ifmedia) && defined(IFM_ETHER)
     struct ifmedia tulip_ifmedia;
 #endif
+#if defined(TULIP_BUS_DMA)
+    bus_dma_tag_t tulip_dmatag;		/* bus DMA tag */
+#if !defined(TULIP_BUS_DMA_NOTX)
+    bus_dmamap_t tulip_setupmap;
+    bus_dmamap_t tulip_txdescmap;
+    bus_dmamap_t tulip_txmaps[TULIP_TXDESCS];
+    unsigned tulip_txmaps_free;
+#endif
+#if !defined(TULIP_BUS_DMA_NORX)
+    bus_dmamap_t tulip_rxdescmap;
+    bus_dmamap_t tulip_rxmaps[TULIP_RXDESCS];
+    unsigned tulip_rxmaps_free;
+#endif
+#endif
 #if !defined(__NetBSD__)
     struct arpcom tulip_ac;
 #endif
@@ -668,13 +689,8 @@ struct _tulip_softc_t {
     u_int8_t tulip_pci_devno;		/* needed for multiport boards */
     u_int8_t tulip_connidx;
     tulip_srom_connection_t tulip_conntype;
-#if defined(__FreeBSD__)
     tulip_desc_t *tulip_rxdescs;
     tulip_desc_t *tulip_txdescs;
-#else
-    tulip_desc_t tulip_rxdescs[TULIP_RXDESCS];
-    tulip_desc_t tulip_txdescs[TULIP_TXDESCS];
-#endif
 #if defined(__NetBSD__) && NRND > 0
     rndsource_element_t    tulip_rndsource;
 #endif
@@ -836,6 +852,60 @@ static int tulip_softintr_max_unit;
 static void tulip_softintr(void);
 #endif
 
+#if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NORX)
+#define TULIP_RXDESC_PRESYNC(sc, di, s)	\
+	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_rxdescmap, \
+		   (caddr_t) di - (caddr_t) (sc)->tulip_rxdescs, \
+		   (s), BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
+#define TULIP_RXDESC_POSTSYNC(sc, di, s)	\
+	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_rxdescmap, \
+		   (caddr_t) di - (caddr_t) (sc)->tulip_rxdescs, \
+		   (s), BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
+#define	TULIP_RXMAP_PRESYNC(sc, map) \
+	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
+			BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
+#define	TULIP_RXMAP_POSTSYNC(sc, map) \
+	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
+			BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
+#define	TULIP_RXMAP_CREATE(sc, mapp) \
+	bus_dmamap_create((sc)->tulip_dmatag, TULIP_RX_BUFLEN, 2, \
+			  TULIP_DATA_PER_DESC, 0, \
+			  BUS_DMA_NOWAIT|BUS_DMA_ALLOCNOW, (mapp))
+#else
+#define TULIP_RXDESC_PRESYNC(sc, di, s)		do { } while (0)
+#define TULIP_RXDESC_POSTSYNC(sc, di, s)	do { } while (0)
+#define TULIP_RXMAP_PRESYNC(sc, map)		do { } while (0)
+#define TULIP_RXMAP_POSTSYNC(sc, map)		do { } while (0)
+#define TULIP_RXMAP_CREATE(sc, mapp)		do { } while (0)
+#endif
+
+#if defined(TULIP_BUS_DMA) && !defined(TULIP_BUS_DMA_NOTX)
+#define TULIP_TXDESC_PRESYNC(sc, di, s)	\
+	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_txdescmap, \
+			(caddr_t) di - (caddr_t) (sc)->tulip_txdescs, \
+			(s), BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
+#define TULIP_TXDESC_POSTSYNC(sc, di, s)	\
+	bus_dmamap_sync((sc)->tulip_dmatag, (sc)->tulip_txdescmap, \
+			(caddr_t) di - (caddr_t) (sc)->tulip_txdescs, \
+			(s), BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
+#define	TULIP_TXMAP_PRESYNC(sc, map) \
+	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
+			BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE)
+#define	TULIP_TXMAP_POSTSYNC(sc, map) \
+	bus_dmamap_sync((sc)->tulip_dmatag, (map), 0, (map)->dm_mapsize, \
+			BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE)
+#define	TULIP_TXMAP_CREATE(sc, mapp) \
+	bus_dmamap_create((sc)->tulip_dmatag, TULIP_DATA_PER_DESC, \
+			  TULIP_MAX_TXSEG, TULIP_DATA_PER_DESC, \
+			  0, BUS_DMA_NOWAIT, (mapp))
+#else
+#define TULIP_TXDESC_PRESYNC(sc, di, s)		do { } while (0)
+#define TULIP_TXDESC_POSTSYNC(sc, di, s)	do { } while (0)
+#define TULIP_TXMAP_PRESYNC(sc, map)		do { } while (0)
+#define TULIP_TXMAP_POSTSYNC(sc, map)		do { } while (0)
+#define TULIP_TXMAP_CREATE(sc, mapp)		do { } while (0)
+#endif
+
 #ifdef notyet
 #define	SIOCGADDRROM		_IOW('i', 240, struct ifreq)	/* get 128 bytes of ROM */
 #define	SIOCGCHIPID		_IOWR('i', 241, struct ifreq)	/* get chipid */
@@ -926,9 +996,11 @@ extern struct cfdriver de_cd;
 #define	loudprintf			printf
 #define	TULIP_PRINTF_FMT		"%s"
 #define	TULIP_PRINTF_ARGS		sc->tulip_xname
+#if !defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX)
 #if defined(__alpha__)
 /* XXX XXX NEED REAL DMA MAPPING SUPPORT XXX XXX */
 #define TULIP_KVATOPHYS(sc, va)		alpha_XXX_dmamap((vm_offset_t)(va))
+#endif
 #endif
 #endif	/* __NetBSD__ */
 
@@ -977,8 +1049,8 @@ extern struct cfdriver de_cd;
 #define	tulip_intrfunc_t	int
 #endif
 
-#if !defined(TULIP_KVATOPHYS)
-#define	TULIP_KVATOPHYS(sc, va)	vtophys(va)
+#if !defined(TULIP_KVATOPHYS) && (!defined(TULIP_BUS_DMA) || defined(TULIP_BUS_DMA_NORX) || defined(TULIP_BUS_DMA_NOTX))
+#define	TULIP_KVATOPHYS(sc, va)		vtophys(va)
 #endif
 
 #ifndef TULIP_RAISESPL
