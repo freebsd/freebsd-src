@@ -36,7 +36,7 @@ one would use the following:
   s = socket(AF_NATM, SOCK_STREAM, PROTO_NATMAAL5);
                        /* note: PROTO_NATMAAL0 is AAL0 */
   if (s < 0) { perror("socket"); exit(1); }
-  bzero(&snatm, sieof(snatm));
+  bzero(&snatm, sizeof(snatm));
   snatm.snatm_len = sizeof(snatm);
   snatm.snatm_family = AF_NATM;
   sprintf(snatm.snatm_if, "en0");
@@ -80,7 +80,7 @@ us.
 We are currently involved with a video server project and are using
 this driver as part of it.  We have a device we build called an MMX.
 You can connect a video camera to an MMX and have it send you a stream
-of of AAL0 cells with the video output in it.  Of course this stream
+of AAL0 cells with the video output in it.  Of course this stream
 is pretty rapid (in fact, it is massive!), and the normal AAL0
 handling of the driver is unable to handle it (you end up with a cell
 per small mbuf trying to make it to the application ... it turns out

@@ -1,5 +1,5 @@
 .\"
-.\"     $Id: ipfirewall.4,v 1.11 1997/09/10 03:11:36 peter Exp $
+.\"     $Id: ipfirewall.4,v 1.13 1999/02/12 02:12:07 alex Exp $
 .\"
 .Dd June 22, 1997
 .Dt IPFIREWALL 4
@@ -171,7 +171,7 @@ Options in the kernel configuration file:
 When packets match a rule with the IP_FW_F_PRN bit set, a message
 is logged to the console if IPFIREWALL_VERBOSE has been enabled;
 IPFIREWALL_VERBOSE_LIMIT limits the maximum number of times each
-rule can cause cause a log message. These variables are also
+rule can cause a log message. These variables are also
 available via the
 .Xr sysctl 3
 interface.
