@@ -2120,9 +2120,15 @@ device		urio
 device		uscanner
 # USB serial support
 device		ucom
+# USB support for serial adapters based on the FT8U100AX and FT8U232AM
+device		uftdi
+# USB support for Prolific PL-2303 serial adapters
 device		uplcom
 # USB serial support for DDI pocket's PHS
 device		uvscom
+# USB Visor and Palm devices
+device		uvisor
+
 # USB Fm Radio
 device		ufm
 #
@@ -2145,18 +2151,7 @@ device		kue
 
 # debugging options for the USB subsystem
 #
-options 	UHCI_DEBUG
-options 	OHCI_DEBUG
 options 	USB_DEBUG
-
-options 	UGEN_DEBUG
-options 	UHID_DEBUG
-options 	UHUB_DEBUG
-options 	UKBD_DEBUG
-options 	ULPT_DEBUG
-options 	UMASS_DEBUG
-options 	UMS_DEBUG
-options 	URIO_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
