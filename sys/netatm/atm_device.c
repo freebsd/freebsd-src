@@ -374,8 +374,7 @@ atm_dev_lower(cmd, tok, arg1, arg2)
 		/*
 		 * Send the packet to the interface's bpf if this vc has one.
 		 */
-		if (cvcp->cvc_conn->co_mpx == ATM_ENC_LLC &&
-		    cvcp->cvc_vcc && cvcp->cvc_vcc->vc_nif) {
+		if (cvcp->cvc_vcc != NULL && cvcp->cvc_vcc->vc_nif != NULL) {
 			struct ifnet *ifp =
 			    (struct ifnet *)cvcp->cvc_vcc->vc_nif;
 
