@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.8 1996/10/23 15:35:43 ache Exp $
+ * $Id: collate.c,v 1.8.2.1 1996/11/28 21:47:15 phk Exp $
  */
 
 #include <rune.h>
@@ -73,10 +73,8 @@ __collate_load_tables(encoding)
 		__collate_load_error = save_load_error;
 		return -1;
 	}
-	strcpy(buf, _PathLocale);
-	strcat(buf, "/");
-	strcat(buf, encoding);
-	strcat(buf, "/LC_COLLATE");
+	(void) snprintf(buf, sizeof buf, "%s/%s/LC_COLLATE",
+			_PathLocale, encoding);
 	if ((fp = fopen(buf, "r")) == NULL) {
 		__collate_load_error = save_load_error;
 		return -1;
