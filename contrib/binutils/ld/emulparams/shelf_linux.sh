@@ -1,14 +1,2 @@
-SCRIPT_NAME=elf
+. ${srcdir}/emulparams/shlelf_linux.sh
 OUTPUT_FORMAT="elf32-shbig-linux"
-TEXT_START_ADDR=0x400000
-MAXPAGESIZE=0x10000
-ARCH=sh
-MACHINE=
-TEMPLATE_NAME=elf32
-GENERATE_SHLIB_SCRIPT=yes
-
-DATA_START_SYMBOLS='__data_start = . ;';
-
-OTHER_READWRITE_SECTIONS='
-  .note.ABI-tag : { *(.note.ABI-tag) }
-'

@@ -1,5 +1,5 @@
 /* COFF specific linker code.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -1005,7 +1005,8 @@ _bfd_coff_final_link (abfd, info)
   if (info->task_link)
     {
       finfo.failed = false;
-      coff_link_hash_traverse (coff_hash_table (info), _bfd_coff_write_task_globals,
+      coff_link_hash_traverse (coff_hash_table (info),
+			       _bfd_coff_write_task_globals,
 			       (PTR) &finfo);
       if (finfo.failed)
 	goto error_return;
@@ -1013,7 +1014,8 @@ _bfd_coff_final_link (abfd, info)
 
   /* Write out the global symbols.  */
   finfo.failed = false;
-  coff_link_hash_traverse (coff_hash_table (info), _bfd_coff_write_global_sym,
+  coff_link_hash_traverse (coff_hash_table (info),
+			   _bfd_coff_write_global_sym,
 			   (PTR) &finfo);
   if (finfo.failed)
     goto error_return;
@@ -2497,6 +2499,13 @@ _bfd_coff_write_global_sym (h, data)
 
   output_bfd = finfo->output_bfd;
 
+  if (h->root.type == bfd_link_hash_warning)
+    {
+      h = (struct coff_link_hash_entry *) h->root.u.i.link;
+      if (h->root.type == bfd_link_hash_new)
+	return true;
+    }
+
   if (h->indx >= 0)
     return true;
 
@@ -2512,6 +2521,7 @@ _bfd_coff_write_global_sym (h, data)
     {
     default:
     case bfd_link_hash_new:
+    case bfd_link_hash_warning:
       abort ();
       return false;
 
@@ -2544,7 +2554,6 @@ _bfd_coff_write_global_sym (h, data)
       break;
 
     case bfd_link_hash_indirect:
-    case bfd_link_hash_warning:
       /* Just ignore these.  They can't be handled anyhow.  */
       return true;
     }
@@ -2698,6 +2707,9 @@ _bfd_coff_write_task_globals (h, data)
   struct coff_final_link_info *finfo = (struct coff_final_link_info *) data;
   boolean rtnval = true;
   boolean save_global_to_static;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct coff_link_hash_entry *) h->root.u.i.link;
 
   if (h->indx < 0)
     {

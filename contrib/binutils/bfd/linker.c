@@ -1419,7 +1419,7 @@ static const enum link_action link_action[8][8] =
   /* DEFW_ROW 	*/  {DEFW,  DEFW,  DEFW,  NOACT, NOACT, NOACT, NOACT, CYCLE },
   /* COMMON_ROW	*/  {COM,   COM,   COM,   CREF,  COM,   BIG,   REFC,  WARNC },
   /* INDR_ROW	*/  {IND,   IND,   IND,   MDEF,  IND,   CIND,  MIND,  CYCLE },
-  /* WARN_ROW   */  {MWARN, WARN,  WARN,  CWARN, CWARN, WARN,  CWARN, MWARN },
+  /* WARN_ROW   */  {MWARN, WARN,  WARN,  CWARN, CWARN, WARN,  CWARN, NOACT },
   /* SET_ROW	*/  {SET,   SET,   SET,   SET,   SET,   SET,   CYCLE, CYCLE }
 };
 
@@ -2455,6 +2455,9 @@ _bfd_generic_link_write_global_symbol (h, data)
   struct generic_write_global_symbol_info *wginfo =
     (struct generic_write_global_symbol_info *) data;
   asymbol *sym;
+
+  if (h->root.type == bfd_link_hash_warning)
+    h = (struct generic_link_hash_entry *) h->root.u.i.link;
 
   if (h->written)
     return true;

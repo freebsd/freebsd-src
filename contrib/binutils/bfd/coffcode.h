@@ -4443,16 +4443,14 @@ coff_slurp_symbol_table (abfd)
 
 #ifdef COFF_WITH_PE
 	      if (src->u.syment.n_sclass == C_NT_WEAK)
-		dst->symbol.flags = BSF_WEAK;
+		dst->symbol.flags |= BSF_WEAK;
+
 	      if (src->u.syment.n_sclass == C_SECTION
 		  && src->u.syment.n_scnum > 0)
-		{
-		  dst->symbol.flags = BSF_LOCAL;
-		}
+		dst->symbol.flags = BSF_LOCAL;
 #endif
-
 	      if (src->u.syment.n_sclass == C_WEAKEXT)
-		dst->symbol.flags = BSF_WEAK;
+		dst->symbol.flags |= BSF_WEAK;
 
 	      break;
 

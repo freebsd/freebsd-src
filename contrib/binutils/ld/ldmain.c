@@ -404,20 +404,6 @@ main (argc, argv)
   /* Print error messages for any missing symbols, for any warning
      symbols, and possibly multiple definitions.  */
 
-  if (! link_info.relocateable)
-    {
-      /* Look for a text section and switch the readonly attribute in it.  */
-      asection *found = bfd_get_section_by_name (output_bfd, ".text");
-
-      if (found != (asection *) NULL)
-	{
-	  if (config.text_read_only)
-	    found->flags |= SEC_READONLY;
-	  else
-	    found->flags &= ~SEC_READONLY;
-	}
-    }
-
   if (link_info.relocateable)
     output_bfd->flags &= ~EXEC_P;
   else

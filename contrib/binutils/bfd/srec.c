@@ -167,13 +167,13 @@ srec_init ()
     }
 }
 
-/* The maximum number of bytes on a line is FF.  */
+/* The maximum number of address+data+crc bytes on a line is FF.  */
 #define MAXCHUNK 0xff
 
 /* Default size for a CHUNK.  */
 #define DEFAULT_CHUNK 16
 
-/* The number of bytes we actually fit onto a line on output.
+/* The number of data bytes we actually fit onto a line on output.
    This variable can be modified by objcopy's --srec-len parameter.
    For a 0x75 byte record you should set --srec-len=0x70.  */
 unsigned int Chunk = DEFAULT_CHUNK;
@@ -936,7 +936,7 @@ srec_write_record (abfd, type, address, data, end)
      const bfd_byte *data;
      const bfd_byte *end;
 {
-  char buffer[MAXCHUNK];
+  char buffer[2 * MAXCHUNK + 6];
   unsigned int check_sum = 0;
   const bfd_byte *src = data;
   char *dst = buffer;
@@ -994,15 +994,14 @@ static boolean
 srec_write_header (abfd)
      bfd *abfd;
 {
-  bfd_byte buffer[MAXCHUNK];
-  bfd_byte *dst = buffer;
-  unsigned int i;
+  unsigned int len = strlen (abfd->filename);
 
   /* I'll put an arbitary 40 char limit on header size.  */
-  for (i = 0; i < 40 && abfd->filename[i]; i++)
-    *dst++ = abfd->filename[i];
+  if (len > 40)
+    len = 40;
 
-  return srec_write_record (abfd, 0, (bfd_vma) 0, buffer, dst);
+  return srec_write_record (abfd, 0, (bfd_vma) 0,
+			    abfd->filename, abfd->filename + len);
 }
 
 static boolean
@@ -1013,6 +1012,17 @@ srec_write_section (abfd, tdata, list)
 {
   unsigned int octets_written = 0;
   bfd_byte *location = list->data;
+
+  /* Validate number of data bytes to write.  The srec length byte
+     counts the address, data and crc bytes.  S1 (tdata->type == 1)
+     records have two address bytes, S2 (tdata->type == 2) records
+     have three, and S3 (tdata->type == 3) records have four.
+     The total length can't exceed 255, and a zero data length will
+     spin for a long time.  */
+  if (Chunk == 0)
+    Chunk = 1;
+  else if (Chunk > MAXCHUNK - tdata->type - 2)
+    Chunk = MAXCHUNK - tdata->type - 2;
 
   while (octets_written < list->size)
     {
@@ -1043,17 +1053,14 @@ srec_write_terminator (abfd, tdata)
      bfd *abfd;
      tdata_type *tdata;
 {
-  bfd_byte buffer[2];
-
   return srec_write_record (abfd, 10 - tdata->type,
-			    abfd->start_address, buffer, buffer);
+			    abfd->start_address, NULL, NULL);
 }
 
 static boolean
 srec_write_symbols (abfd)
      bfd *abfd;
 {
-  char buffer[MAXCHUNK];
   /* Dump out the symbols of a bfd.  */
   int i;
   int count = bfd_get_symcount (abfd);
@@ -1062,10 +1069,10 @@ srec_write_symbols (abfd)
     {
       bfd_size_type len;
       asymbol **table = bfd_get_outsymbols (abfd);
-      sprintf (buffer, "$$ %s\r\n", abfd->filename);
-
-      len = strlen (buffer);
-      if (bfd_bwrite (buffer, len, abfd) != len)
+      len = strlen (abfd->filename);
+      if (bfd_bwrite ("$$ ", (bfd_size_type) 3, abfd) != 3
+	  || bfd_bwrite (abfd->filename, len, abfd) != len
+	  || bfd_bwrite ("\r\n", (bfd_size_type) 2, abfd) != 2)
 	return false;
 
       for (i = 0; i < count; i++)
@@ -1075,23 +1082,29 @@ srec_write_symbols (abfd)
 	      && (s->flags & BSF_DEBUGGING) == 0)
 	    {
 	      /* Just dump out non debug symbols.  */
-	      char buf2[40], *p;
+	      char buf[42], *p;
 
-	      sprintf_vma (buf2,
-			   s->value + s->section->output_section->lma
-			   + s->section->output_offset);
-	      p = buf2;
+	      len = strlen (s->name);
+	      if (bfd_bwrite ("  ", (bfd_size_type) 2, abfd) != 2
+		  || bfd_bwrite (s->name, len, abfd) != len)
+		return false;
+
+	      sprintf_vma (buf + 1, (s->value
+				     + s->section->output_section->lma
+				     + s->section->output_offset));
+	      p = buf + 1;
 	      while (p[0] == '0' && p[1] != 0)
 		p++;
-	      sprintf (buffer, "  %s $%s\r\n", s->name, p);
-	      len = strlen (buffer);
-	      if (bfd_bwrite (buffer, len, abfd) != len)
+	      len = strlen (p);
+	      p[len] = '\r';
+	      p[len + 1] = '\n';
+	      *--p = ' ';
+	      len += 3;
+	      if (bfd_bwrite (p, len, abfd) != len)
 		return false;
 	    }
 	}
-      sprintf (buffer, "$$ \r\n");
-      len = strlen (buffer);
-      if (bfd_bwrite (buffer, len, abfd) != len)
+      if (bfd_bwrite ("$$ \r\n", (bfd_size_type) 5, abfd) != 5)
 	return false;
     }
 
