@@ -229,7 +229,7 @@ ieee80211_classify(struct ieee80211com *ic, struct mbuf *m, struct ieee80211_nod
 	v_wme_ac = 0;
 	if (ni->ni_vlan != 0) {
 		 struct m_tag *mtag = VLAN_OUTPUT_TAG(ic->ic_ifp, m);
-		 if (mtag != NULL) {
+		 if (mtag == NULL) {
 			IEEE80211_NODE_STAT(ni, tx_novlantag);
 			return 1;
 		}
