@@ -325,6 +325,20 @@ while (<INDEX>) {
 close INDEX;
 
 #
+# If we're doing commands output, cripple the output so that users
+# can't just pipe the output to sh(1) and expect this to work.
+#
+if ($ShowCommandsFlag) {
+    print<<EOF
+echo "The commands output of pkg_version cannot be executed without editing."
+echo "You MUST save this output to a file and then edit it, taking into"
+echo "account package dependencies and the fact that some packages cannot"
+echo "or should not be upgraded." 
+exit 1
+EOF
+}
+
+#
 # Produce reports
 #
 # Prior versions of pkg_version used commas (",") as delimiters
