@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.188 1996/11/15 08:45:24 sos Exp $
+ *  $Id: syscons.c,v 1.189 1996/11/19 17:08:10 nate Exp $
  */
 
 #include "sc.h"
@@ -298,31 +298,47 @@ scprobe(struct isa_device *dev)
 
     sc_port = dev->id_iobase;
 
+    /* discard anything left after UserConfig */
+    empty_both_buffers(sc_port, 10);
+
     /* save the current keyboard controller command byte */
-    write_controller_command(sc_port, KBDC_GET_COMMAND_BYTE);
-    c = read_controller_data(sc_port);
-    if (c == -1) {
+    c = -1;
+    if (!write_controller_command(sc_port, KBDC_GET_COMMAND_BYTE)) {
+	/* CONTROLLER ERROR */
 	printf("sc%d: unable to get the current command byte value.\n",
 	    dev->id_unit);
 	goto fail;
     }
+    c = read_controller_data(sc_port);
+    if (c == -1) {
+	/* CONTROLLER ERROR */
+	printf("sc%d: unable to get the current command byte value.\n",
+	    dev->id_unit);
+	goto fail;
+    }
+#if 0
+    /* override the keyboard lock switch */
+    c |= KBD_OVERRIDE_KBD_LOCK;
+#endif
 
     /*
      * enable the keyboard port, but disable the keyboard intr. 
      * the aux port (mouse port) is disabled too.
      */
-    write_controller_command(sc_port, KBDC_DISABLE_KBD_PORT);
-    set_controller_command_byte(sc_port,
-     				 c&~(KBD_KBD_CONTROL_BITS|KBD_AUX_CONTROL_BITS),
-       				 KBD_ENABLE_KBD_PORT|KBD_DISABLE_KBD_INT
-           			 |KBD_DISABLE_AUX_PORT|KBD_DISABLE_AUX_INT);
- 
-     /* flush any noise in the buffer */
-     empty_both_buffers(sc_port);
+    if (!set_controller_command_byte(sc_port,
+            c & ~(KBD_KBD_CONTROL_BITS | KBD_AUX_CONTROL_BITS),
+            KBD_ENABLE_KBD_PORT | KBD_DISABLE_KBD_INT
+            | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
+	/* CONTROLLER ERROR 
+	 * there is very little we can do...
+	 */
+	printf("sc%d: unable to set the command byte.\n", dev->id_unit);
+	goto fail;
+     }
  
      /* reset keyboard hardware */
      if (!reset_kbd(sc_port)) {
-        /* 
+        /* KEYBOARD ERROR
 	 * Keyboard reset may fail either because the keyboard doen't exist,
          * or because the keyboard doesn't pass the self-test, or the keyboard 
          * controller on the motherboard and the keyboard somehow fail to 
@@ -331,15 +347,17 @@ scprobe(struct isa_device *dev)
          * test_controller() and test_kbd_port() appear to bring the keyboard
          * controller back (I don't know why and how, though.)
 	 */
+	empty_both_buffers(sc_port, 10);
 	test_controller(sc_port);
 	test_kbd_port(sc_port);
 	/* We could disable the keyboard port and interrupt... but, 
-	 * the keyboard may still exist (see above). Just leave the command
-	 *  byte as before.
+	 * the keyboard may still exist (see above). 
 	 */
-	set_controller_command_byte(sc_port, c, 0);
+	if (bootverbose)
+	    printf("sc%d: failed to reset the keyboard.\n", dev->id_unit);
 	goto fail;
     }
+
     /*
      * Allow us to set the XT_KEYBD flag in UserConfig so that keyboards
      * such as those on the IBM ThinkPad laptop computers can be used
@@ -347,19 +365,36 @@ scprobe(struct isa_device *dev)
      */
     if (dev->id_flags & XT_KEYBD) {
 	if (send_kbd_command_and_data(
-	    sc_port, KBDC_SET_SCAN_CODESET, 1) == KBD_ACK)
+	        sc_port, KBDC_SET_SCAN_CODESET, 1) == KBD_ACK) {
 	    /* XT kbd doesn't need scan code translation */
 	    c &= ~KBD_TRANSLATION;
-	wait_while_controller_busy(sc_port);
+	} else {
+	    /* KEYBOARD ERROR 
+	     * The XT kbd isn't usable unless the proper scan code set
+	     * is selected. 
+	     */
+	    printf("sc%d: unable to set the XT keyboard mode.\n", dev->id_unit);
+	    goto fail;
+	}
     }
     /* enable the keyboard port and intr. */
-    set_controller_command_byte(sc_port, c & ~KBD_KBD_CONTROL_BITS,
-				KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT);
+    if (!set_controller_command_byte(sc_port, c & ~KBD_KBD_CONTROL_BITS,
+				KBD_ENABLE_KBD_PORT | KBD_ENABLE_KBD_INT)) {
+	/* CONTROLLER ERROR 
+	 * This is serious; we are left with the disabled keyboard intr. 
+	 */
+	printf("sc%d: unable to enable the keyboard port and intr.\n", 
+	    dev->id_unit);
+	goto fail;
+    }
 
 succeed: 
     return (IO_KBDSIZE);
 
 fail:
+    if (c != -1)
+	/* try to restore the command byte as before, if possible */
+	set_controller_command_byte(sc_port, c, 0);
     return ((dev->id_flags & DETECT_KBD) ? 0 : IO_KBDSIZE);
 }
 
