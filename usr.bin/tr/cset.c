@@ -93,29 +93,13 @@ cset_add(struct cset *cs, wchar_t ch)
 	csn = cs->cs_root = cset_splay(cs->cs_root, ch);
 
 	/*
-	 * Easy cases where we can avoid allocating a new node:
-	 *	(a) node already exists.
-	 *	(b) we can lower the extent's "min" to accomodate this
-	 *	    character without having to coalesce.
-	 *	(c) we can raise the extent's "max" without having
-	 *	    to coalesce.
+	 * Avoid adding duplicate nodes.
 	 */
 	if (cset_rangecmp(csn, ch) == 0)
 		return (true);
-	if (ch + 1 == csn->csn_min && (csn->csn_left == NULL ||
-	    ch > csn->csn_left->csn_max + 1)) {
-		csn->csn_min--;
-		return (true);
-	}
-	if (ch == csn->csn_max + 1 && (csn->csn_right == NULL ||
-	    ch + 1 < csn->csn_right->csn_min)) {
-		csn->csn_max++;
-		return (true);
-	}
 
 	/*
-	 * Allocate a new node and link it into the tree as a direct
-	 * child of the root.
+	 * Allocate a new node and make it the new root.
 	 */
 	ncsn = malloc(sizeof(*ncsn));
 	if (ncsn == NULL)
@@ -133,24 +117,26 @@ cset_add(struct cset *cs, wchar_t ch)
 	cs->cs_root = ncsn;
 
 	/*
-	 * Splay to bring the newly inserted node to the root, then
-	 * coalesce with left and right neighbours if possible.
+	 * Coalesce with left and right neighbours if possible.
 	 */
-	csn = cs->cs_root = cset_splay(cs->cs_root, ch);
-	if (csn->csn_left != NULL &&
-	    csn->csn_left->csn_max + 1 == csn->csn_min) {
-		oval = csn->csn_left->csn_min;
-		cs->cs_root = cset_delete(cs->cs_root,
-		    csn->csn_left->csn_min);
-		ncsn->csn_min = oval;
+	if (ncsn->csn_left != NULL) {
+		ncsn->csn_left = cset_splay(ncsn->csn_left, ncsn->csn_min - 1);
+		if (ncsn->csn_left->csn_max == ncsn->csn_min - 1) {
+			oval = ncsn->csn_left->csn_min;
+			ncsn->csn_left = cset_delete(ncsn->csn_left,
+			    ncsn->csn_left->csn_min);
+			ncsn->csn_min = oval;
+		}
 	}
-	csn = cs->cs_root = cset_splay(cs->cs_root, ch);
-	if (csn->csn_right != NULL &&
-	    csn->csn_right->csn_min - 1 == csn->csn_max) {
-		oval = csn->csn_right->csn_max;
-		cs->cs_root = cset_delete(cs->cs_root,
-		    csn->csn_right->csn_min);
-		ncsn->csn_max = oval;
+	if (ncsn->csn_right != NULL) {
+		ncsn->csn_right = cset_splay(ncsn->csn_right,
+		    ncsn->csn_max + 1);
+		if (ncsn->csn_right->csn_min == ncsn->csn_max + 1) {
+			oval = ncsn->csn_right->csn_max;
+			ncsn->csn_right = cset_delete(ncsn->csn_right,
+			    ncsn->csn_right->csn_min);
+			ncsn->csn_max = oval;
+		}
 	}
 
 	return (true);
