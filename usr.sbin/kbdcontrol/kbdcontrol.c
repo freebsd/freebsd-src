@@ -115,9 +115,29 @@ int 		number;
 char 		letter;
 int		token;
 
+void		dump_accent_definition(char *name, accentmap_t *accentmap);
+void		dump_entry(int value);
+void		dump_key_definition(char *name, keymap_t *keymap);
 int		get_accent_definition_line(accentmap_t *);
+int		get_entry(void);
 int		get_key_definition_line(keymap_t *);
-void		usage(void);
+void		load_keymap(char *opt, int dumponly);
+void		load_default_functionkeys(void);
+char *		nextarg(int ac, char **av, int *indp, int oc);
+char *		mkfullname(const char *s1, const char *s2, const char *s3);
+void		print_accent_definition_line(FILE *fp, int accent,
+			struct acc_t *key);
+void		print_entry(FILE *fp, int value);
+void		print_key_definition_line(FILE *fp, int scancode,
+			struct keyent_t *key);
+void		print_keymap(void);
+void		release_keyboard(void);
+void		set_bell_values(char *opt);
+void		set_functionkey(char *keynumstr, char *string);
+void		set_keyboard(char *device);
+void		set_keyrates(char *opt);
+void		show_kbd_info(void);
+void		usage(void) __dead2;
 
 char *
 nextarg(int ac, char **av, int *indp, int oc)
@@ -126,7 +146,6 @@ nextarg(int ac, char **av, int *indp, int oc)
 		return(av[(*indp)++]);
 	warnx("option requires two arguments -- %c", oc);
 	usage();
-	return("");
 }
 
 
@@ -158,7 +177,7 @@ mkfullname(const char *s1, const char *s2, const char *s3)
 
 
 int
-get_entry()
+get_entry(void)
 {
 	switch ((token = yylex())) {
 	case TNOP:
@@ -489,7 +508,6 @@ print_entry(FILE *fp, int value)
 	}
 }
 
-
 void
 print_key_definition_line(FILE *fp, int scancode, struct keyent_t *key)
 {
@@ -765,8 +783,9 @@ load_keymap(char *opt, int dumponly)
 	FILE	*fd;
 	int	i, j;
 	char	*name, *cp;
-	char	*prefix[]  = {"", "", KEYMAP_PATH, NULL};
-	char	*postfix[] = {"", ".kbd", NULL};
+	char	blank[] = "", keymap_path[] = KEYMAP_PATH, dotkbd[] = ".kbd";
+	char	*prefix[]  = {blank, blank, keymap_path, NULL};
+	char	*postfix[] = {blank, dotkbd, NULL};
 
 	cp = getenv("KEYMAP_PATH");
 	if (cp != NULL)
@@ -816,7 +835,7 @@ load_keymap(char *opt, int dumponly)
 }
 
 void
-print_keymap()
+print_keymap(void)
 {
 	keymap_t keymap;
 	accentmap_t accentmap;
@@ -841,9 +860,8 @@ print_keymap()
 
 }
 
-
 void
-load_default_functionkeys()
+load_default_functionkeys(void)
 {
 	fkeyarg_t fkey;
 	int i;
@@ -882,7 +900,6 @@ set_functionkey(char *keynumstr, char *string)
 	if (ioctl(0, SETFKEY, &fkey) < 0)
 		warn("setting function key");
 }
-
 
 void
 set_bell_values(char *opt)
@@ -923,7 +940,6 @@ badopt:
 	if ((bell & ~2) == 0)
 		fprintf(stderr, "[=%d;%dB", pitch, duration);
 }
-
 
 void
 set_keyrates(char *opt)
@@ -974,18 +990,18 @@ badopt:
 	}
 }
 
-static char
-*get_kbd_type_name(int type)
+static const char *
+get_kbd_type_name(int type)
 {
 	static struct {
 		int type;
-		char *name;
+		const char *name;
 	} name_table[] = {
 		{ KB_84,	"AT 84" },
 		{ KB_101,	"AT 101/102" },
 		{ KB_OTHER,	"generic" },
 	};
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < sizeof(name_table)/sizeof(name_table[0]); ++i) {
 		if (type == name_table[i].type)
@@ -1008,7 +1024,6 @@ show_kbd_info(void)
 		(int)sizeof(info.kb_name), info.kb_name, info.kb_unit,
 		get_kbd_type_name(info.kb_type), info.kb_type);
 }
-
 
 void
 set_keyboard(char *device)
@@ -1043,7 +1058,6 @@ set_keyboard(char *device)
 	if (ioctl(0, CONS_SETKBD, info.kb_index) == -1)
 		warn("unable to set keyboard");
 }
-
 
 void
 release_keyboard(void)
