@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_vfsops.c,v 1.8 1995/03/16 18:13:47 bde Exp $
+ *	$Id: procfs_vfsops.c,v 1.9 1995/03/16 20:23:42 wollman Exp $
  */
 
 /*
@@ -55,6 +55,8 @@
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>			/* for PAGE_SIZE */
+
+int procfs_statfs __P((struct mount *, struct statfs *, struct proc *));
 
 /*
  * VFS Operations.
@@ -90,7 +92,7 @@ procfs_mount(mp, path, data, ndp, p)
 	size = sizeof("procfs") - 1;
 	bcopy("procfs", mp->mnt_stat.f_mntfromname, size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-
+	(void)procfs_statfs(mp, &mp->mnt_stat, p);
 	return (0);
 }
 
