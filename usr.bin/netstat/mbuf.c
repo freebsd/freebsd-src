@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "netstat.h"
 
 #define	YES	1
@@ -54,10 +55,10 @@ typedef int bool;
 
 struct	mbstat mbstat;
 
-static struct mbtypes {
+static struct mbtypenames {
 	int	mt_type;
 	char	*mt_name;
-} mbtypes[] = {
+} mbtypenames[] = {
 	{ MT_DATA,	"data" },
 	{ MT_OOBDATA,	"oob data" },
 	{ MT_CONTROL,	"ancillary data" },
@@ -91,9 +92,6 @@ static struct mbtypes {
 	{ 0, 0 }
 };
 
-int nmbtypes = sizeof(mbstat.m_mtypes) / sizeof(short);
-bool seen[256];			/* "have we seen this type yet?" */
-
 /*
  * Print mbuf statistics.
  */
@@ -102,9 +100,14 @@ mbpr()
 {
 	register int totmem, totfree, totmbufs;
 	register int i;
-	register struct mbtypes *mp;
-	int name[3], nmbclusters, nmbufs;
-	size_t nmbclen, nmbuflen, mbstatlen;
+	struct mbtypenames *mp;
+	int name[3], nmbclusters, nmbufs, nmbtypes;
+	size_t nmbclen, nmbuflen, mbstatlen, mbtypeslen;
+	u_long *mbtypes;
+	bool *seen;	/* "have we seen this type yet?" */
+
+	mbtypes = NULL;
+	seen = NULL;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_IPC;
@@ -112,20 +115,40 @@ mbpr()
 	mbstatlen = sizeof mbstat;
 	if (sysctl(name, 3, &mbstat, &mbstatlen, 0, 0) < 0) {
 		warn("sysctl: retrieving mbstat");
-		return;
+		goto err;
 	}
 
+	if (sysctlbyname("kern.ipc.mbtypes", NULL, &mbtypeslen, NULL, 0) < 0) {
+		warn("sysctl: retrieving mbtypes length");
+		goto err;
+	}
+	if ((mbtypes = malloc(mbtypeslen)) == NULL) {
+		warn("malloc: %lu bytes for mbtypes", (u_long)mbtypeslen);
+		goto err;
+	}
+	if (sysctlbyname("kern.ipc.mbtypes", mbtypes, &mbtypeslen, NULL,
+	    0) < 0) {
+		warn("sysctl: retrieving mbtypes");
+		goto err;
+	}
+
+	nmbtypes = mbtypeslen / sizeof(*mbtypes);
+	if ((seen = calloc(nmbtypes, sizeof(*seen))) == NULL) {
+		warn("calloc");
+		goto err;
+	}
+		
 	name[2] = KIPC_NMBCLUSTERS;
 	nmbclen = sizeof(int);
 	if (sysctl(name, 3, &nmbclusters, &nmbclen, 0, 0) < 0) {
 		warn("sysctl: retrieving nmbclusters");
-		return;
+		goto err;
 	}
 
 	nmbuflen = sizeof(int);
 	if (sysctlbyname("kern.ipc.nmbufs", &nmbufs, &nmbuflen, 0, 0) < 0) {
 		warn("sysctl: retrieving nmbufs");
-		return;
+		goto err;
 	}
 
 #undef MSIZE
@@ -133,27 +156,22 @@ mbpr()
 #undef MCLBYTES
 #define	MCLBYTES	(mbstat.m_mclbytes)
 
-	if (nmbtypes != 256) {
-		warnx("unexpected change to mbstat; check source");
-		return;
-	}
-
 	totmbufs = 0;
-	for (mp = mbtypes; mp->mt_name; mp++)
-		totmbufs += mbstat.m_mtypes[mp->mt_type];
+	for (mp = mbtypenames; mp->mt_name; mp++)
+		totmbufs += mbtypes[mp->mt_type];
 	printf("%u/%lu/%u mbufs in use (current/peak/max):\n", totmbufs,
 	    mbstat.m_mbufs, nmbufs);
-	for (mp = mbtypes; mp->mt_name; mp++)
-		if (mbstat.m_mtypes[mp->mt_type]) {
+	for (mp = mbtypenames; mp->mt_name; mp++)
+		if (mbtypes[mp->mt_type]) {
 			seen[mp->mt_type] = YES;
-			printf("\t%u mbufs allocated to %s\n",
-			    mbstat.m_mtypes[mp->mt_type], mp->mt_name);
+			printf("\t%lu mbufs allocated to %s\n",
+			    mbtypes[mp->mt_type], mp->mt_name);
 		}
 	seen[MT_FREE] = YES;
 	for (i = 0; i < nmbtypes; i++)
-		if (!seen[i] && mbstat.m_mtypes[i]) {
-			printf("\t%u mbufs allocated to <mbuf type %d>\n",
-			    mbstat.m_mtypes[i], i);
+		if (!seen[i] && mbtypes[i]) {
+			printf("\t%lu mbufs allocated to <mbuf type %d>\n",
+			    mbtypes[i], i);
 		}
 	printf("%lu/%lu/%u mbuf clusters in use (current/peak/max)\n",
 		mbstat.m_clusters - mbstat.m_clfree, mbstat.m_clusters,
@@ -166,4 +184,10 @@ mbpr()
 	printf("%lu requests for memory denied\n", mbstat.m_drops);
 	printf("%lu requests for memory delayed\n", mbstat.m_wait);
 	printf("%lu calls to protocol drain routines\n", mbstat.m_drain);
+
+err:
+	if (mbtypes != NULL)
+		free(mbtypes);
+	if (seen != NULL)
+		free(seen);
 }
