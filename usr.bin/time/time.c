@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: time.c,v 1.6 1997/08/14 06:48:59 charnier Exp $";
+	"$Id: time.c,v 1.7 1998/07/24 07:19:29 phk Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -55,8 +55,9 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
 
 static int getstathz __P((void));
 static void usage __P((void));
@@ -70,31 +71,25 @@ main(argc, argv)
 	extern int optind;
 
 	register int pid;
-	int ch, status, lflag;
+	int ch, status, lflag, aflag = 0;
 	struct timeval before, after;
 	struct rusage ru;
-	FILE *out = NULL;
+	FILE *out = stderr;
+	char *ofn = NULL;
 
 	lflag = 0;
-	while ((ch = getopt(argc, argv, "a:f:l")) != -1)
+	while ((ch = getopt(argc, argv, "a:o:l")) != -1)
 		switch((char)ch) {
 		case 'a':
-			if (out)
-				err(1, optarg);
-			out = fopen(optarg, "a");
-			if (!out)
-				err(1, optarg);
+		        if (ofn)
+			        usage();
+			ofn = optarg;
+			aflag = 1;
 			break;
-		case 'f':
-			if (out)
-				err(1, optarg);
-			if (strcmp(optarg, "-") == 0)
-				out = stdout;
-			else {
-				out = fopen(optarg, "w");
-				if (!out)
-					err(1, optarg);
-			}
+		case 'o':
+		        if (ofn)
+			        usage();
+			ofn = optarg;
 			break;
 		case 'l':
 			lflag = 1;
@@ -108,8 +103,13 @@ main(argc, argv)
 		exit(0);
 	argv += optind;
 
-	if (!out)
-		out = stderr;
+	if (ofn) {
+	        if (strcmp(ofn, "-") == 0)
+		        out = stdout;
+		else
+		        if ((out = fopen(ofn, aflag?"a":"w")) == NULL)
+			        err(EX_IOERR, ofn);
+	}
 
 	gettimeofday(&before, (struct timezone *)NULL);
 	switch(pid = vfork()) {
@@ -187,8 +187,8 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: time [-l] command\n");
-	exit(1);
+	fprintf(stderr, "usage: time [-l] [-{o|a} file] command\n");
+	exit(EX_USAGE);
 }
 
 /*
