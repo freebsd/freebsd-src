@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -55,18 +57,10 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "")) != -1)
-		switch (ch) {
-		case '?':
-		default:
-			usage();
-		}
-	argc -= optind;
-	argv += optind;
-
+	if (argc != 1)
+		usage();
 	if ((p = getlogin()) == NULL)
 		err(1, NULL);
 	(void)printf("%s\n", p);
