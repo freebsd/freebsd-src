@@ -3113,7 +3113,7 @@ siogdbattach(port, speed)
 	printf("sio%d: gdb debugging port\n", unit);
 	siogdbunit = unit;
 #if DDB > 0
-	sprintf(gdbconsdev, "ttyd%d", unit);
+	siocnset(&gdbconsdev, unit);
 	gdb_arg = &gdbconsdev;
 	gdb_getc = siocngetc;
 	gdb_putc = siocnputc;
