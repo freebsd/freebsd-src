@@ -80,8 +80,6 @@ static struct netsend_cow_stats socow_stats = {0,0,0,0,0,0,0,0,0,0,0};
 extern struct sf_buf *sf_bufs;
 extern vm_offset_t sf_base;
 #define dtosf(x) (&sf_bufs[((uintptr_t)(x) - (uintptr_t)sf_base) >> PAGE_SHIFT])
-void sf_buf_free(caddr_t addr, void *args);
-struct sf_buf *sf_buf_alloc(void);
 static void socow_iodone(void *addr, void *args);
 
 static void
