@@ -7,7 +7,7 @@
 #
 
 LOCKDIR=/var/spool/lock
-DEVICE=com1
+DEVICE=cuaa0
 
 PHONE=4511234
 USER=Pkarl

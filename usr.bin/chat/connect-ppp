@@ -22,7 +22,7 @@
 CON_DB=/etc/ppp-connections
 
 #<LOCAL> define whatever your device is.
-DEVICE=tty00
+DEVICE=cuaa0
 
 #<LOCAL> define whatever your device speed is.
 DEVICESPEED=57600
