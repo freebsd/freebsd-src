@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.2 1995/04/29 19:33:02 jkh Exp $
+ * $Id: media.c,v 1.3 1995/05/01 21:56:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,37 +42,56 @@
  */
 
 /*
- * Return 0 if we successfully found and set the installation type to
+ * Return 1 if we successfully found and set the installation type to
  * be a CD.
  */
 int
 mediaSetCDROM(char *str)
 {
+    if (OnCDROM == TRUE)
+	return 1;
+    else {
+	dmenuOpenSimple(&MenuMediaCDROM);
+	if (getenv(MEDIA_DEVICE)) {
+	    variable_set(MEDIA_TYPE, "cdrom");
+	    return 1;
+	}
+    }
     return 0;
 }
 
 /*
- * Return 0 if we successfully found and set the installation type to
+ * Return 1 if we successfully found and set the installation type to
  * be a floppy
  */
 int
 mediaSetFloppy(char *str)
 {
+    dmenuOpenSimple(&MenuMediaFloppy);
+    if (getenv(MEDIA_DEVICE)) {
+	variable_set2(MEDIA_TYPE, "floppy");
+	return 1;
+    }
     return 0;
 }
 
 /*
- * Return 0 if we successfully found and set the installation type to
+ * Return 1 if we successfully found and set the installation type to
  * be a DOS partition.
  */
 int
 mediaSetDOS(char *str)
 {
+    Device **devs;
+
+    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
+    if (!devs)
+	msgConfirm("No disk devices found!");
     return 0;
 }
 
 /*
- * Return 0 if we successfully found and set the installation type to
+ * Return 1 if we successfully found and set the installation type to
  * be a tape drive.
  */
 int
@@ -88,6 +107,11 @@ mediaSetTape(char *str)
 int
 mediaSetFTP(char *str)
 {
+    dmenuOpenSimple(&MenuMediaFtp);
+    if (getenv(MEDIA_DEVICE)) {
+	variable_set2(MEDIA_TYPE, "ftp");
+	return 1;
+    }
     return 0;
 }
 
@@ -100,3 +124,85 @@ mediaSetFS(char *str)
 {
     return 0;
 }
+
+Boolean
+mediaGetType(void)
+{
+    extern DMenu MenuMedia;
+    char *cp;
+
+    dmenuOpenSimple(&MenuMedia);
+    cp = getenv(MEDIA_TYPE);
+    if (!cp)
+	return FALSE;
+    return TRUE;
+}
+
+FILE *
+mediaOpen(char *parent, *char *me)
+{
+    char fname[FILENAME_MAX];
+    FILE *fp;
+
+    if (!getenv(MEDIA_TYPE)) {
+	if (!mediaGetType())
+	    return NULL;
+    }
+    if (!getenv(MEDIA_DEVICE)) {
+	msgConfirm("No media device has been set up!?\nPlease configure a device from the media type menu.");
+	return NULL;
+    }
+    if (parent)
+	snprintf(fname, FILENAME_MAX, "%s%s", parent, me);
+    else
+	strncpy(fname, me, FILENAME_MAX);
+    /* XXX find a Device here XXX */
+}
+
+/* Various media "get" routines */
+Boolean
+mediaUFSGet(char *dist)
+{
+    return TRUE;
+}
+
+Boolean
+mediaCDROMGet(char *dist)
+{
+    return TRUE;
+}
+
+Boolean
+mediaTapeInit(void)
+{
+    return TRUE;
+}
+
+Boolean
+mediaTapeGet(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaTapeClose(void)
+{
+}
+
+Boolean
+mediaNetworkInit(void)
+{
+    return TRUE;
+}
+
+Boolean
+mediaNetworkGet(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaNetworkClose(void)
+{
+}
+

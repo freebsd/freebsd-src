@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.6 1995/05/10 08:00:47 jkh Exp $
+ * $Id: dmenu.c,v 1.7 1995/05/11 06:10:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,6 +46,16 @@
 #define MAX_MENU		12
 
 static DMenuItem shellAction = { NULL, NULL, DMENU_SHELL_ESCAPE, NULL, 0 };
+
+/* Traverse menu but give user no control over positioning */
+void
+dmenuOpenSimple(DMenu *menu)
+{
+    int choice, scroll, curr, max;
+
+    choice = scroll = curr = max = 0;
+    dmenuOpen(menu, &choice, &scroll, &curr, &max);
+}
 
 /* Traverse over an internal menu */
 void
@@ -139,7 +149,8 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	    items_free(nitems, curr, max);
 	    return;
 	}
-	if (dispatch(tmp, result) || menu->options & DMENU_SELECTION_RETURNS) {
+	if (dispatch(tmp, result) ||
+	    menu->options & DMENU_SELECTION_RETURNS) {
 	    items_free(nitems, curr, max);
 	    return;
 	}

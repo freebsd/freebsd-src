@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.15 1995/05/11 06:47:44 jkh Exp $
+ * $Id: install.c,v 1.16 1995/05/11 09:01:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,136 +48,88 @@
 #include <unistd.h>
 
 Boolean SystemWasInstalled;
-struct disk *Disks[100];	/* some ridiculously large number */
 
-static int
-installHook(char *str)
+static void	make_filesystems(void);
+static void	cpio_extract(void);
+static void	install_configuration_files(void);
+static void	do_final_setup(void);
+
+int
+installCommit(char *str)
 {
+    extern u_char boot1[], boot2[];
+    extern u_char mbr[], bteasy17[];
+    u_char *mbrContents;
+    Device **devs;
     int i;
-    extern DMenu MenuInstall;
 
-    i = 0;
-    /* Clip garbage off the ends */
-    string_prune(str);
-    str = string_skipwhite(str);
-    /* Try and open all the disks */
-    while (str) {
-	char *cp;
+    if (!getenv(DISK_PARTITIONED)) {
+	msgConfirm("You need to partition your disk before you can proceed with\nthe installation.");
 
-	cp = index(str, '\n');
-	if (cp)
-	   *cp++ = 0; 
-	if (!*str) {
-	    beep();
-	    return 0;
-	}
-	Disks[i] = Open_Disk(str);
-	if (!Disks[i])
-	    msgFatal("Unable to open disk %s!", str);
-	++i;
-	str = cp;
+	return 0;
     }
-    Disks[i] = NULL;
-    if (!i)
+    if (!getenv(DISK_LABELLED)) {
+	msgConfirm("You need to assign disk labels before you can proceed with\nthe installation.");
 	return 0;
-
-    while (1) {
-	/* Now go set up all the MBR partition information */
-	for (i = 0; Disks[i]; i++)
-	    Disks[i] = device_slice_disk(Disks[i]);
-
-	/* Whap partitions on all the FreeBSD slices created */
-	partition_disks();
-
-	/* Try and write it out */
-	if (!write_disks()) {
-	    int scroll, choice, curr, max;
-
-	    make_filesystems();
-	    scroll = choice = curr = max = 0;
-	    dmenuOpen(&MenuInstall, &choice, &scroll, &curr, &max);
-	    chdir("/mnt");
-	    cpio_extract();
-	    chroot("/mnt");
-	    distExtractAll();
-	    install_configuration_files();
-	    do_final_setup();
-	    SystemWasInstalled = TRUE;
-	    break;
-	}
-	else {
-	    dialog_clear();
-	    if (msgYesNo("Would you like to go back to the Master Partition Editor?")) {
-		for (i = 0; Disks[i]; i++)
-		    Free_Disk(Disks[i]);
-		break;
-	    }
-	}
     }
-    return SystemWasInstalled;
-}
-
-int
-installCustom(char *str)
-{
-    int scroll, choice, curr, max;
-    extern DMenu MenuDiskDevices;
-    DMenu *menu;
-    Device *devs;
-
-    variable_set2("install_type", "custom");
-    menu = device_create_disk_menu(&MenuDiskDevices, &devs, installHook);
-    if (!menu)
+    if (!Dists) {
+	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
-    choice = scroll = curr = max = 0;
-    dmenuOpen(menu, &choice, &scroll, &curr, &max);
-    free(menu);
-    free(devs);
-    return SystemWasInstalled;
-}
-
-int
-installExpress(char *str)
-{
-    int scroll, choice, curr, max;
-    extern DMenu MenuDiskDevices;
-    DMenu *menu;
-    Device *devs;
-
-    variable_set2("install_type", "express");
-    menu = device_create_disk_menu(&MenuDiskDevices, &devs, installHook);
-    if (!menu)
+    }
+    if (mediaVerifyStatus()) {
+	msgConfirm("Please correct installation media problems and try again!");
 	return 0;
-    choice = scroll = curr = max = 0;
-    dmenuOpen(menu, &choice, &scroll, &curr, &max);
-    free(menu);
-    free(devs);
-    return SystemWasInstalled;
-}
-
-int
-installMaint(char *str)
-{
-    msgConfirm("Sorry, maintainance mode is not implemented in this version.");
-    return 0;
+    }
+    if (msgYesNo("Last Chance!  Are you SURE you want continue the\ninstallation?  If you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before doing this.\nWe take no responsibility for lost disk contents!"))
+	return 0;
+    dialog_clear();
+    mbrContents = NULL;
+    if (!msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
+	mbrContents = bteasy17;
+    else {
+	dialog_clear();
+	if (!msgYesNo("Would you like to remove an existing boot manager?"))
+	    mbrContents = mbr;
+    }
+    for (i = 0; Devices[i]; i++) {
+	if (Devices[i]->type != DEVICE_TYPE_DISK)
+	    continue;
+	if (mbrContents) {
+	    Set_Boot_Mgr((Disk *)Devices[i]->private, mbrContents);
+	    mbrContents = NULL;
+	}
+	Set_Boot_Blocks((Disk *)Devices[i]->private, boot1, boot2);
+	msgNotify("Writing partition information to drive %s",
+		  Devices[i]->name);
+	Write_Disk((Disk *)Devices[i]->private);
+    }
+    make_filesystems();
+    cpio_extract();
+    install_configuration_files();
+    do_final_setup();
+    return 1;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
-void
+static void
 make_filesystems(void)
 {
     int i;
+    Disk *disk;
+    Chunk *c1;
 
     command_clear();
-    for (i = 0; Disks[i]; i++) {
-	struct chunk *c1;
+    for (i = 0; Devices[i]; i++) {
+	if (Devices[i]->type != DEVICE_TYPE_DISK)
+	    continue;
 
-	if (!Disks[i]->chunks)
-	    msgFatal("No chunk list found for %s!", Disks[i]->name);
-	c1 = Disks[i]->chunks->part;
+	disk = (Disk *)Devices[i]->private;
+	if (!disk->chunks)
+	    msgFatal("No chunk list found for %s!", disk->name);
+	c1 = disk->chunks->part;
 	while (c1) {
 	    if (c1->type == freebsd) {
-		struct chunk *c2 = c1->part;
+		Chunk *c2 = c1->part;
 
 		while (c2) {
 		    if (c2->type == part && c2->subtype != FS_SWAP &&
@@ -185,19 +137,12 @@ make_filesystems(void)
 			PartInfo *tmp = (PartInfo *)c2->private;
 
 			if (tmp->newfs)
-			    command_add(tmp->mountpoint,
-					"%s %s", tmp->newfs_cmd, c2->name);
-			if (strcmp(tmp->mountpoint, "/")) {
-			    command_add(tmp->mountpoint,
-					"mkdir -p /mnt%s", tmp->mountpoint);
-			    command_add(tmp->mountpoint,
-					"mount /mnt/dev/%s /mnt%s", c2->name,
-					tmp->mountpoint);
-			}
-			else
-			    command_add(tmp->mountpoint,
-					"mount /mnt/dev/%s /mnt", c2->name);
-
+			    command_shell_add(tmp->mountpoint,
+					      "%s %s", tmp->newfs_cmd,
+					      c2->name);
+			if (strcmp(tmp->mountpoint, "/"))
+			    command_func_add(tmp->mountpoint, Mkdir, NULL);
+			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    c2 = c2->next;
 		}
@@ -209,7 +154,7 @@ make_filesystems(void)
     command_execute();
 }
 
-void
+static void
 cpio_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
@@ -253,13 +198,12 @@ cpio_extract(void)
 		 i, j, cpid, zpid, strerror(errno));
 }
 
-void
+static void
 install_configuration_files(void)
 {
 }
 
-void
+static void
 do_final_setup(void)
 {
 }
-

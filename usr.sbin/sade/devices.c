@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.13 1995/05/11 06:10:45 jkh Exp $
+ * $Id: devices.c,v 1.14 1995/05/11 06:47:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,324 +42,277 @@
  */
 
 #include "sysinstall.h"
+
 #include <sys/fcntl.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+
+#include <net/if.h>
+#include <net/if_dl.h>
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <arpa/inet.h>
+
+#define	NSIP
+#include <netns/ns.h>
+#include <netns/ns_if.h>
+#include <netdb.h>
+
+#define EON
+#include <netiso/iso.h>
+#include <netiso/iso_var.h>
+#include <sys/protosw.h>
+
 #include <ctype.h>
 
-/* Where we start displaying chunk information on the screen */
-#define CHUNK_START_ROW		5
+static Device *Devices[DEV_MAX];
+static int numDevs;
 
-static char *cdrom_table[] = {
-    "cd0a",	"cd1a",		/* SCSI			*/
-    "mcd0a",	"mcd1a",	/* Mitsumi (old model)	*/
-    "scd0a",	"scd1a",	/* Sony CDROM		*/
-    "matcd0a",	"matcd1a",	/* Matsushita (SB)	*/
-    NULL,
+#define CHECK_DEVS \
+	if (numDevs == DEV_MAX) msgFatal("Too many devices found!")
+
+static struct {
+    DeviceType type;
+    char *name;
+    char *description;
+} device_names[] = {
+    { DEVICE_TYPE_CDROM, "cd0a",	"SCSI CDROM drive"					},
+    { DEVICE_TYPE_CDROM, "cd1a",	"SCSI CDROM drive (2nd unit)"				},
+    { DEVICE_TYPE_CDROM, "mcd0a",	"Mitsumi (old model) CDROM drive"			},
+    { DEVICE_TYPE_CDROM, "mcd1a",	"Mitsumi (old model) CDROM drive (2nd unit)"		},
+    { DEVICE_TYPE_CDROM, "scd0a",	"Sony CDROM drive - CDU31/33A type",			}
+    { DEVICE_TYPE_CDROM, "scd1a",	"Sony CDROM drive - CDU31/33A type (2nd unit)"		},
+    { DEVICE_TYPE_CDROM, "matcd0a",	"Matsushita CDROM ("sound blaster" type)"		},
+    { DEVICE_TYPE_CDROM, "matcd1a",	"Matsushita CDROM ("sound blaster" type - 2nd unit)"	},
+    { DEVICE_TYPE_TAPE,  "rst0",	"SCSI tape drive"					},
+    { DEVICE_TYPE_TAPE,  "rst1",	"SCSI tape drive (2nd unit)"				},
+    { DEVICE_TYPE_TAPE,  "ft0",		"Floppy tape drive (QIC-02)"				},
+    { DEVICE_TYPE_TAPE,  "wt0",		"Wangtek tape drive"					},
+    { DEVICE_TYPE_DISK,  "sd",		"SCSI disk device"					},
+    { DEVICE_TYPE_DISK,  "wd",		"IDE/ESDI/MFM/ST506 disk device"			},
+    { DEVICE_TYPE_NETWORK, "lo",	"Loop-back (local) network interface"			},
+    { DEVICE_TYPE_NETWORK, "sl",	"Serial-line IP (SLIP) interface"			},
+    { DEVICE_TYPE_NETWORK, "ppp",	"Point-to-Point Protocol (PPP) interface"		},
+    { DEVICE_TYPE_NETWORK, "tun",	"Tunneling IP driver (not for direct use)"		},
+    { DEVICE_TYPE_NETWORK, "ed",	"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
+    { DEVICE_TYPE_NETWORK, "ep",	"3Com 3C509 interface card"				},
+    { DEVICE_TYPE_NETWORK, "el",	"3Com 3C501 interface card"				},
+    { DEVICE_TYPE_NETWORK, "fe",	"Fujitsu MB86960A/MB86965A Ethernet"			},
+    { DEVICE_TYPE_NETWORK, "ie",	"AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210"	},
+    { DEVICE_TYPE_NETWORK, "le",	"DEC EtherWorks 2 and 3"				},
+    { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)"	},
+    { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet controller"	},
+    { DEVICE_TYPE_NETWORK, "zp",	"3Com PCMCIA Etherlink III"				},
+    { NULL },
 };
 
-/* Get all device information for a given device class */
 static Device *
-device_get_all(DeviceType which, int *ndevs)
+new_device(char *name)
 {
-    char **names;
-    Device *devs = NULL;
+    Device *dev;
 
-    *ndevs = 0;
-    if (which == DEVICE_TYPE_DISK || which == DEVICE_TYPE_ANY) {
-	if ((names = Disk_Names()) != NULL) {
+    dev = safe_malloc(sizeof(Device));
+    if (name)
+	strcpy(dev->name, name);
+    else
+	dev->name[0] = '\0';
+    return dev;
+}
+
+static int
+deviceTry(char *name)
+{
+    char try[FILENAME_MAX];
+
+    snprintf(try, FILENAME_MAX, "/dev/%s", name);
+    fd = open(try, O_RDWR);
+    if (fd > 0)
+	return fd;
+    snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
+    fd = open(try, O_RDWR);
+    return fd;
+}
+
+static void
+deviceDiskFree(Device *dev)
+{
+    Disk_Close(dev->private);
+}
+
+/* Get all device information for devices we have attached */
+void
+deviceGetAll(Boolean disksOnly)
+{
+    int i, fd, s;
+    struct ifconf ifc;
+    struct ifreq *ifptr, *end;
+    int ifflags, selectflag = -1;
+    char buffer[INTERFACES_MAX * sizeof(struct ifreq)];
+
+    /* We do this at the very beginning */
+    if (disksOnly) {
+	char **names = Disk_names();
+
+	if (names) {
 	    int i;
-
-	    for (i = 0; names[i]; i++)
-		++*ndevs;
-	    devs = safe_malloc(sizeof(Device) * (*ndevs + 1));
+	    
 	    for (i = 0; names[i]; i++) {
-		strcpy(devs[i].name, names[i]);
-		devs[i].type = DEVICE_TYPE_DISK;
+		CHECK_DEVS;
+		Devices[numDevs] = new_device(names[i]);
+		Devices[numDevs]->type = DEVICE_TYPE_DISK;
+		Devices[numDevs]->ignore = TRUE;
+		Devices[numDevs]->init = NULL;
+		Devices[numDevs]->get = mediaUFSGet;
+		Devices[numDevs]->close = deviceDiskFree;
+		Devices[numDevs]->private = Open_Disk(names[i]);
+		if (!Devices[numDevs]->private)
+		    msgFatal("Unable to open device for %s!", names[i]);
+		msgDebug("Found a device of type disk named: %s\n",
+			 names[i]);
+		++numDevs;
 	    }
 	    free(names);
 	}
+	return;
     }
-    if (which == DEVICE_TYPE_CDROM || which == DEVICE_TYPE_ANY) {
-	char try[FILENAME_MAX];
-	int i, fd;
 
-	for (i = 0; cdrom_table[i]; i++) {
-	    snprintf(try, FILENAME_MAX, "/mnt/dev/%s", cdrom_table[i]);
-	    fd = open(try, O_RDWR);
+    /*
+     * Try to get all the types of devices it makes sense to get at the
+     * second stage of the installation.
+     */
+    for (i = 0; device_names[i].name; i++) {
+	switch(device_names[i].type) {
+	case DEVICE_TYPE_CDROM:
+	    fd = deviceTry(device_names[i].name);
 	    if (fd > 0) {
 		close(fd);
-		devs = safe_realloc(devs, sizeof(Device) * (*ndevs + 2));
-		strcpy(devs[*ndevs].name, cdrom_table[i]);
-		devs[(*ndevs)++].type = DEVICE_TYPE_CDROM;
-		break;
+		CHECK_DEVS;
+		Devices[numDevs] = new_devices(device_names[i].name);
+		Devices[numDevs]->type = DEVICE_TYPE_CDROM;
+		Devices[numDevs]->description = devices_names[i].description;
+		Devices[numDevs]->ignore = FALSE;
+		Devices[numDevs]->init = NULL;
+		Devices[numDevs]->get = mediaCDROMGet;
+		Devices[numDevs]->close = NULL;
+		Devices[numDevs]->private = NULL;
+		msgDebug("Found a device of type CDROM named: %s\n",
+			 cdrom_table[i]);
+		++numDevs;
 	    }
+	    break;
+
+	case DEVICE_TYPE_TAPE:
+	    fd = deviceTry(device_names[i].name);
+	    if (fd > 0) {
+		close(fd);
+		CHECK_DEVS;
+		Devices[numDevs] = new_devices(device_names[i].name);
+		Devices[numDevs]->type = DEVICE_TYPE_TAPE;
+		Devices[numDevs]->ignore = FALSE;
+		Devices[numDevs]->init = mediaTapeInit;
+		Devices[numDevs]->get = mediaTapeGet;
+		Devices[numDevs]->close = mediaTapeClose;
+		Devices[numDevs]->private = NULL;
+		msgDebug("Found a device of type TAPE named: %s\n",
+			 tape_table[i]);
+		++numDevs;
+	    }
+	    break;
 	}
+    }
+
+    /*
+     * Now go for the network interfaces dynamically.  Stolen shamelessly
+     * from ifconfig!
+     */
+    ifc.ifc_len = sizeof(buffer);
+    ifc.ifc_buf = buffer;
+
+    s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+	msgConfirm("ifconfig: socket");
+	return;
+    }
+    if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
+	msgConfirm("ifconfig (SIOCGIFCONF)");
+	return;
+    }
+    ifflags = ifc.ifc_req->ifr_flags;
+    end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
+    ifptr = ifc.ifc_req;
+    while (ifptr < end) {
+	CHECK_DEVS;
+	Devices[numDevs] = new_devices(ifptr->ifr_name);
+	Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
+	Devices[numDevs]->ignore = FALSE;
+	Devices[numDevs]->init = mediaNetworkInit;
+	Devices[numDevs]->get = mediaNetworkGet;
+	Devices[numDevs]->close = mediaNetworkClose;
+	Devices[numDevs]->private = NULL;
+	msgDebug("Found a device of type network named: %s\n",
+		 ifptr->ifr_name);
+	++numDevs;
+	close(s);
+	if ((s = socket(af, SOCK_DGRAM, 0)) < 0) {
+	    msgConfirm("ifconfig: socket");
+	    continue;
+	}
+	if (ifptr->ifr_addr.sa_len)	/* Dohw! */
+	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len
+				     - sizeof(struct sockaddr));
+	ifptr++;
     }
     /* Terminate the devices array */
-    devs[*ndevs].name[0] = '\0';
-    return devs;
-}
-
-static struct chunk *chunk_info[10];
-static int current_chunk;
-
-static void
-record_chunks(struct disk *d)
-{
-    struct chunk *c1;
-    int i = 0;
-    int last_free = 0;
-    if (!d->chunks)
-	msgFatal("No chunk list found for %s!", d->name);
-    c1 = d->chunks->part;
-    current_chunk = 0;
-    while (c1) {
-	if (c1->type == unused && c1->size > last_free) {
-	    last_free = c1->size;
-	    current_chunk = i;
-	}
-	chunk_info[i++] = c1;
-	c1 = c1->next;
-    }
-    chunk_info[i] = NULL;
-}
-
-static void
-print_chunks(struct disk *d)
-{
-    int row;
-    int i;
-
-    attrset(A_NORMAL);
-    mvaddstr(0, 0, "Disk name:\t");
-    attrset(A_REVERSE); addstr(d->name); attrset(A_NORMAL);
-    attrset(A_REVERSE); mvaddstr(0, 55, "Master Partition Editor"); attrset(A_NORMAL);
-    mvprintw(1, 0,
-	     "BIOS Geometry:\t%lu cyls/%lu heads/%lu sectors",
-	     d->bios_cyl, d->bios_hd, d->bios_sect);
-    mvprintw(3, 1, "%10s %10s %10s %8s %8s %8s %8s %8s",
-	     "Offset", "Size", "End", "Name", "PType", "Desc",
-	     "Subtype", "Flags");
-    for (i = 0, row = CHUNK_START_ROW; chunk_info[i]; i++, row++) {
-	if (i == current_chunk)
-	    attrset(A_REVERSE);
-	mvprintw(row, 2, "%10lu %10lu %10lu %8s %8d %8s %8d %6lx",
-		 chunk_info[i]->offset, chunk_info[i]->size,
-		 chunk_info[i]->end, chunk_info[i]->name,
-		 chunk_info[i]->type, chunk_n[chunk_info[i]->type],
-		 chunk_info[i]->subtype, chunk_info[i]->flags);
-	if (i == current_chunk)
-	    attrset(A_NORMAL);
-    }
-}
-
-static void
-print_command_summary()
-{
-    mvprintw(14, 0, "The following commands are supported (in upper or lower case):");
-    mvprintw(16, 0, "A = Use Entire Disk    B = Bad Block Scan     C = Create Partition");
-    mvprintw(17, 0, "D = Delete Partition   G = Set BIOS Geometry  S = Set Bootable");
-    mvprintw(18, 0, "U = Undo All Changes   W = `Wizard' Mode      ESC = Proceed to next screen");
-    mvprintw(20, 0, "The currently selected partition is displayed in ");
-    attrset(A_REVERSE); addstr("reverse video."); attrset(A_NORMAL);
-    mvprintw(21, 0, "Use F1 or ? to get more help, arrow keys to move.");
-    move(0, 0);
-}
-
-struct disk *
-device_slice_disk(struct disk *d)
-{
-    char *p;
-    int key = 0;
-    Boolean chunking;
-    char *msg = NULL;
-    char name[40];
-
-    dialog_clear();
-    chunking = TRUE;
-    strncpy(name, d->name, 40);
-    keypad(stdscr, TRUE);
-
-    record_chunks(d);
-    while (chunking) {
-	clear();
-	print_chunks(d);
-	print_command_summary();
-	if (msg) {
-	    standout(); mvprintw(23, 0, msg); standend();
-	    beep();
-	    msg = NULL;
-	}
-	refresh();
-
-	key = toupper(getch());
-	switch (key) {
-	case KEY_UP:
-	case '-':
-	    if (current_chunk != 0)
-		--current_chunk;
-	    break;
-
-	case KEY_DOWN:
-	case '+':
-	case '\r':
-	case '\n':
-	    if (chunk_info[current_chunk + 1])
-		++current_chunk;
-	    break;
-
-	case KEY_HOME:
-	    current_chunk = 0;
-	    break;
-
-	case KEY_END:
-	    while (chunk_info[current_chunk + 1])
-		++current_chunk;
-	    break;
-
-	case KEY_F(1):
-	case '?':
-	    systemDisplayFile("slice.hlp");
-	    break;
-
-	case 'A':
-	    All_FreeBSD(d);
-	    record_chunks(d);
-	    break;
-
-	case 'B':
-	    if (chunk_info[current_chunk]->type != freebsd)
-		msg = "Can only scan for bad blocks in FreeBSD partition.";
-	    else if (strncmp(name, "sd", 2) ||
-		     !msgYesNo("This typically makes sense only for ESDI, IDE or MFM drives.\nAre you sure you want to do this on a SCSI disk?"))
-		chunk_info[current_chunk]->flags |= CHUNK_BAD144;
-	    break;
-
-	case 'C':
-	    if (chunk_info[current_chunk]->type != unused)
-		msg = "Partition in use, delete it first or move to an unused one.";
-	    else {
-		char *val, tmp[20];
-		int size;
-
-		snprintf(tmp, 20, "%d", chunk_info[current_chunk]->size);
-		val = msgGetInput(tmp, "Please specify size for new FreeBSD partition");
-		if (val && (size = strtol(val, 0, 0)) > 0) {
-		    Create_Chunk(d, chunk_info[current_chunk]->offset,
-				 size,
-				 freebsd,
-				 3,
-				 (chunk_info[current_chunk]->flags &
-				  CHUNK_ALIGN));
-		    record_chunks(d);
-		}
-	    }
-	    break;
-
-	case 'D':
-	    if (chunk_info[current_chunk]->type == unused)
-		msg = "Partition is already unused!";
-	    else {
-		Delete_Chunk(d, chunk_info[current_chunk]);
-		record_chunks(d);
-	    }
-	    break;
-
-	case 'G': {
-	    char *val, geometry[80];
-
-	    snprintf(geometry, 80, "%lu/%lu/%lu",
-		     d->bios_cyl, d->bios_hd, d->bios_sect);
-	    val = msgGetInput(geometry,
-"Please specify the new geometry in cyl/hd/sect format.\nDon't forget to use the two slash (/) separator characters!\nIt's not possible to parse the field without them.");
-	    if (val) {
-		d->bios_cyl = strtol(val, &val, 0);
-		d->bios_hd = strtol(val + 1, &val, 0);
-		d->bios_sect = strtol(val + 1, 0, 0);
-	    }
-	}
-	    break;
-
-	case 'S':
-	    /* Set Bootable */
-	    chunk_info[current_chunk]->flags |= CHUNK_ACTIVE;
-	    break;
-
-	case 'U':
-	    Free_Disk(d);
-	    d = Open_Disk(name);
-	    if (!d)
-		msgFatal("Can't reopen disk %s!", name);
-	    record_chunks(d);
-	    break;
-
-	case 'W':
-	    if (!msgYesNo("Are you sure you want to go into Wizard mode?\nNo seat belts whatsoever are provided!")) {
-		clear();
-		dialog_clear();
-		end_dialog();
-		DialogActive = FALSE;
-		slice_wizard(d);
-		clear();
-		dialog_clear();
-		DialogActive = TRUE;
-		record_chunks(d);
-	    }
-	    else
-		msg = "Wise choice!";
-	    break;
-
-	case 27:	/* ESC */
-	    chunking = FALSE;
-	    break;
-
-	default:
-	    beep();
-	    msg = "Type F1 or ? for help";
-	    break;
-	}
-    }
-    p = CheckRules(d);
-    if (p) {
-	msgConfirm(p);
-	free(p);
-    }
-    clear();
-    refresh();
-    return d;
+    Devices[numDevs] = NULL;
 }
 
 /*
- * Create a menu listing all the devices in the system.  The pass-in menu
- * is expected to be a "prototype" from which the new menu is cloned.
+ * Find all devices that match the criteria, allowing "wildcarding" as well
+ * by allowing NULL or ANY values to match all.
+ */
+Device **
+deviceFind(char *name, DeviceType class)
+{
+    static Device *found[DEV_MAX];
+    int i, j;
+
+    for (i = 0, j = 0; i < numDevs; i++) {
+	if ((!name || !strcmp(Devices[i]->name, name)) &&
+	    (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
+	    found[j++] = Devices[i];
+    }
+    found[j] = NULL;
+    return j ? found : NULL;
+}
+
+/*
+ * Create a menu listing all the devices of a certain type in the system.
+ * The passed-in menu is expected to be a "prototype" from which the new
+ * menu is cloned.
  */
 DMenu *
-device_create_disk_menu(DMenu *menu, Device **rdevs, int (*hook)())
+deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 {
-    Device *devices;
-    int numdevs;
+    Device **devs;
 
-    devices = device_get_all(DEVICE_TYPE_DISK, &numdevs);
-    *rdevs = devices;
-    if (!devices) {
-	msgConfirm("No devices suitable for installation found!\n\nPlease verify that your disk controller (and attached drives) were detected properly.  This can be done by selecting the ``Bootmsg'' option on the main menu and reviewing the boot messages carefully.");
-	return NULL;
-    }
-    else {
-	Device *start;
+    devs = deviceFind(NULL, type);
+    if (devs) {
 	DMenu *tmp;
-	int i;
+	int i, j;
 
 	tmp = (DMenu *)safe_malloc(sizeof(DMenu) +
 				   (sizeof(DMenuItem) * (numdevs + 1)));
 	bcopy(menu, tmp, sizeof(DMenu));
-	for (start = devices, i = 0; start->name[0]; start++, i++) {
-	    tmp->items[i].title = start->name;
-	    if (!strncmp(start->name, "sd", 2))
-		tmp->items[i].prompt = "SCSI disk";
-	    else if (!strncmp(start->name, "wd", 2))
-		tmp->items[i].prompt = "IDE/ESDI/MFM/ST506 disk";
-	    else
-		msgFatal("Unknown disk type: %s!", start->name);
+	for (i = 0; *devs; i++, devs++) {
+	    tmp->items[i].title = *devs->name;
+	    for (j = 0; device_names[j].name; j++) {
+		if (!strncmp(*devs->name, device_names[j].name,
+			     strlen(device_names[j].name)))
+		    tmp->items[i].prompt = devices_names[j].description;
+	    }
+	    if (!device_names[j].name)
+		tmp->items[i].prompt = "<unknown device type>";
 	    tmp->items[i].type = DMENU_CALL;
 	    tmp->items[i].ptr = hook;
 	    tmp->items[i].disabled = FALSE;

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.14 1995/05/08 21:39:40 jkh Exp $
+ * $Id: sysinstall.h,v 1.15 1995/05/10 07:45:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,11 +66,33 @@
 #define VAR_VALUE_MAX		1024
 
 /* device limits */
-#define DEV_NAME_MAX		128
+#define DEV_NAME_MAX		128	/* The maximum length of a device name	*/
+#define DEV_MAX			200	/* The maximum number of devices we'll deal with */
+#define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
+
+
+/* Internal flag variables */
+#define DISK_PARTITIONED	"_diskPartitioned"
+#define DISK_LABELLED		"_diskLabelled"
+#define TCP_CONFIGURED		"_tcpConfigured"
+#define NO_CONFIRMATION		"_noConfirmation"
+#define MEDIA_DEVICE		"mediaDevice"
+#define MEDIA_TYPE		"mediaType"
+
+#define VAR_HOSTNAME		"hostname"
+#define VAR_DOMAINNAME		"domainname"
+#define VAR_IPADDR		"ip_addr"
+#define VAR_NAMESERVER		"nameserver"
+
+#define VAR_IFCONFIG_ARGS	"if_flags"
+#define VAR_NETMASK		"netmask"
+#define VAR_GATEWAY		"gateway"
 
 
 /*** Types ***/
 typedef unsigned int Boolean;
+typedef struct disk Disk;
+typedef struct chunk Chunk;
 
 typedef enum {
     DMENU_SHELL_ESCAPE,			/* Fork a shell			*/
@@ -117,8 +139,6 @@ typedef enum {
     DEVICE_TYPE_NETWORK,
     DEVICE_TYPE_CDROM,
     DEVICE_TYPE_TAPE,
-    DEVICE_TYPE_SERIAL,
-    DEVICE_TYPE_PARALLEL,
     DEVICE_TYPE_ANY,
 } DeviceType;
 
@@ -126,6 +146,11 @@ typedef enum {
 typedef struct _device {
     char name[DEV_NAME_MAX];
     DeviceType type;
+    Boolean enabled;
+    int (*deviceInit)(void);
+    int (*deviceGet)(char *fname);
+    int (*deviceClose)(void);
+    void *devicePrivate;
 } Device;
 
 /* Some internal representations of partitions */
@@ -133,7 +158,8 @@ typedef enum {
     PART_NONE,
     PART_SLICE,
     PART_SWAP,
-    PART_FILESYSTEM
+    PART_FILESYSTEM,
+    PART_FAT,
 } PartType;
 
 /* The longest newfs command we'll hand to system() */
@@ -144,6 +170,8 @@ typedef struct _part_info {
     char mountpoint[FILENAME_MAX];
     char newfs_cmd[NEWFS_CMD_MAX];
 } PartInfo;
+
+typedef int (*commandFunc)(char *key, void *data);
 
 
 /*** Externs ***/
@@ -161,7 +189,7 @@ extern unsigned int	SrcDists; /* Which src distributions we want    */
 extern unsigned int	XF86Dists;/* Which XFree86 dists we want	*/
 extern unsigned int	XF86ServerDists; /* The XFree86 servers we want */
 extern unsigned int	XF86FontDists; /* The XFree86 fonts we want     */
-extern struct disk	*Disks[]; /* The disks we're working on		*/
+extern Device		*Devices[]; /* The devices we have to work with	*/
 
 /*** Prototypes ***/
 
@@ -169,7 +197,8 @@ extern struct disk	*Disks[]; /* The disks we're working on		*/
 extern void	command_clear(void);
 extern void	command_sort(void);
 extern void	command_execute(void);
-extern void	command_add(char *key, char *fmt, ...);
+extern void	command_shell_add(char *key, char *fmt, ...);
+extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);
@@ -177,17 +206,11 @@ extern Boolean	dispatch(DMenuItem *tmp, char *name);
 extern Boolean	decode_and_dispatch_multiple(DMenu *menu, char *names);
 
 /* devices.c */
-extern struct disk	*device_slice_disk(struct disk *d);
-extern DMenu *device_create_disk_menu(DMenu *menu, Device **rdevs, int (*hook)());
+extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)());
+extern Device	*deviceGetInfo(DeviceType which);
 
 /* disks.c */
-extern void	partition_disks(void);
-extern int	write_disks(void);
-extern void	make_filesystems(void);
-extern void	cpio_extract(void);
-extern void	extract_dists(void);
-extern void	install_configuration_files(void);
-extern void	do_final_setup(void);
+extern int	diskPartitionEditor(Disk *disk);
 
 /* dist.c */
 extern int	distSetDeveloper(char *str);
@@ -202,6 +225,7 @@ extern void	distExtractAll(void);
 /* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
 			  int *curr, int *max);
+extern void	dmenuOpenSimple(DMenu *menu);
 
 /* globals.c */
 extern void	globalsInit(void);
@@ -223,6 +247,9 @@ extern void	lang_set_Norwegian(char *str);
 extern void	lang_set_Russian(char *str);
 extern void	lang_set_Spanish(char *str);
 extern void	lang_set_Swedish(char *str);
+
+/* label.c */
+extern void	diskLabelEditor(char *str);
 
 /* makedevs.c (auto-generated) */
 extern const char	termcap_vt100[];
@@ -294,7 +321,7 @@ extern void	variable_set(char *var);
 extern void	variable_set2(char *name, char *value);
 
 /* wizard.c */
-extern void	slice_wizard(struct disk *d);
+extern void	slice_wizard(Disk *d);
 
 #endif
 /* _SYSINSTALL_H_INCLUDE */
