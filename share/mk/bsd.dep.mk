@@ -125,25 +125,32 @@ depend: beforedepend ${DEPENDFILE} afterdepend
 
 # Different types of sources are compiled with slightly different flags.
 # Split up the sources, and filter out headers and non-applicable flags.
+.if ${CC} == "icc"
+MKDEP_CFLAGS=	${CFLAGS:M-X*} ${CFLAGS:M-[BID]*}
+MKDEP_CXXFLAGS=	${CXXFLAGS:M-X*} ${CXXFLAGS:M-[BID]*}
+MKDEP_OBJCFLAGS=${OBJCFLAGS:M-X*} ${OBJCFLAGS:M-[BID]*}
+.else
+MKDEP_CFLAGS=	${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*}
+MKDEP_CXXFLAGS=	${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*}
+MKDEP_OBJCFLAGS=${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} ${OBJCFLAGS:M-Wno-import*}
+.endif
+
 DPSRCS+= ${SRCS}
 ${DEPENDFILE}: ${DPSRCS}
 	rm -f ${DEPENDFILE}
 .if !empty(DPSRCS:M*.[cS])
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
-	    ${.ALLSRC:M*.[cS]}
+	    ${MKDEP_CFLAGS} ${.ALLSRC:M*.[cS]}
 .endif
 .if !empty(DPSRCS:M*.cc) || !empty(DPSRCS:M*.C) || !empty(DPSRCS:M*.cpp) || \
     !empty(DPSRCS:M*.cxx)
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
+	    ${MKDEP_CXXFLAGS} \
 	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
 .endif
 .if !empty(DPSRCS:M*.m)
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
-	    ${OBJCFLAGS:M-nostdinc*} ${OBJCFLAGS:M-[BID]*} \
-	    ${OBJCFLAGS:M-Wno-import*} \
-	    ${.ALLSRC:M*.m}
+	    ${MKDEP_OBJCFLAGS} ${.ALLSRC:M*.m}
 .endif
 .if target(_EXTRADEPEND)
 _EXTRADEPEND: .USE

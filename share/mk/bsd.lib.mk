@@ -48,14 +48,23 @@ PICFLAG=-fpic
 .endif
 .endif
 
+.if ${CC} == "icc"
+PO_FLAG=-p
+.else
+PO_FLAG=-pg
+.endif
+
+.c.o:
+	${CC} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+
 .c.po:
-	${CC} -pg ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CC} ${PO_FLAG} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.po .C.po .cpp.po .cxx.po:
-	${CXX} -pg ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CXX} ${PO_FLAG} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
 
 .cc.So .C.So .cpp.So .cxx.So:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -157,7 +166,7 @@ ${LINTLIB}: ${LINTOBJS}
 	${LINT} ${LINTLIBFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
 
-.endif !defined(INTERNALLIB)
+.endif #!defined(INTERNALLIB)
 
 all: ${_LIBS}
 
