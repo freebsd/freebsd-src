@@ -1722,9 +1722,8 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 		 */
 		if (force) {
 			/*
-			 * If called with 'force' true, we're called from
-			 * timeout * procedure, so don't bother canceling
-			 * timeout.
+			 * If 'force' is true, we have been called due to
+			 * timeout, so don't bother canceling timeout.
 			 */
 			ndisks = 0;
 			LIST_FOREACH(disk, &sc->sc_disks, d_next) {
