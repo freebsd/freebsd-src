@@ -38,20 +38,12 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
-
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
-
 #include <sys/kernel.h> /* for DATA_SET */
-
-#if __FreeBSD_version < 500000
-#define MODULE_VERSION(mod, ver)
-#define MODULE_DEPEND(mod, dep, min, pref, max)
-#endif
-
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/file.h>
