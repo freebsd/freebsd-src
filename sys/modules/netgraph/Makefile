@@ -9,6 +9,8 @@ SUBDIR=	async \
 	eiface \
 	ether \
 	frame_relay \
+	gif \
+	gif_demux \
 	hole \
 	iface \
 	ksocket \
