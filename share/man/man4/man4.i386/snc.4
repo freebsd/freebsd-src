@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2004
+.Dd August 20, 2004
 .Dt SNC 4 i386
 .Os
 .Sh NAME
@@ -95,23 +95,17 @@ and
 .Tn PnP
 buses.
 Support is also provided for legacy C-Bus.
-.Sh ERRORS
+.Sh DIAGNOSTICS
 The following driver specific error messages
 may be reported:
-.Bl -tag -width Er
-.It Bq Er EIO
-May be returned if the device cannot allocate a port,
-memory resource, or
+.Bl -diag
+.It "snc%d: snc_nec16_register_irq: unsupported irq (%d)"
+The card returned an
 .Tn IRQ
-with the given resource ID.
-.It Bq Er ENOENT
-May be returned if the driver cannot assign memory, a port or an
-.Tn IRQ
-to the board.
-.It Bq Er ENXIO
-May be returned if the card supplied a
-.Tn PnP
-ID which did not match any of the known IDs.
+which is not supported by the driver.
+.It "snc%d: invalid packet length %d bytes"
+An attempt to transfer a data packet failed due to an
+invalid packet length.
 .El
 .Sh SEE ALSO
 .Xr card 4 ,
