@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)profile.h	8.1 (Berkeley) 6/11/93
- * $Id: profile.h,v 1.6 1996/01/01 17:11:21 bde Exp $
+ * $Id: profile.h,v 1.7 1996/08/28 20:15:25 bde Exp $
  */
 
 #ifndef _MACHINE_PROFILE_H_
@@ -97,18 +97,44 @@ typedef	u_int	fptrint_t;
  */
 typedef	int	fptrdiff_t;
 
-__BEGIN_DECLS
 #ifdef KERNEL
+
 void	mcount __P((fptrint_t frompc, fptrint_t selfpc));
-#else
-void	mcount __P((void)) __asm("mcount");
-static void	_mcount __P((fptrint_t frompc, fptrint_t selfpc));
-#endif
 
 #ifdef GUPROF
-u_int	cputime __P((void));
-void	mexitcount __P((fptrint_t selfpc));
-#endif
+struct gmonparam;
+
+void	nullfunc_loop_profiled __P((void));
+void	nullfunc_profiled __P((void));
+void	startguprof __P((struct gmonparam *p));
+void	stopguprof __P((struct gmonparam *p));
+#else
+#define	startguprof(p)
+#define	stopguprof(p)
+#endif /* GUPROF */
+
+#else /* !KERNEL */
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+void	mcount __P((void)) __asm("mcount");
+static void	_mcount __P((fptrint_t frompc, fptrint_t selfpc));
 __END_DECLS
+
+#endif /* KERNEL */
+
+#ifdef GUPROF
+/* XXX doesn't quite work outside kernel yet. */
+extern int	cputime_bias;
+
+__BEGIN_DECLS
+int	cputime __P((void));
+void	empty_loop __P((void));
+void	mexitcount __P((fptrint_t selfpc));
+void	nullfunc __P((void));
+void	nullfunc_loop __P((void));
+__END_DECLS
+#endif
 
 #endif /* !_MACHINE_PROFILE_H_ */
