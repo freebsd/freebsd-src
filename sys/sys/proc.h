@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.45 1997/10/12 20:26:03 phk Exp $
+ * $Id: proc.h,v 1.46 1997/11/06 19:29:45 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -126,7 +126,7 @@ struct	proc {
 	int	p_cpticks;	 /* Ticks of cpu time. */
 	fixpt_t	p_pctcpu;	 /* %cpu for this process during p_swtime */
 	void	*p_wchan;	 /* Sleep address. */
-	char	*p_wmesg;	 /* Reason for sleep. */
+	const char *p_wmesg;	 /* Reason for sleep. */
 	u_int	p_swtime;	 /* Time swapped in or out. */
 	u_int	p_slptime;	 /* Time since last blocked. */
 
