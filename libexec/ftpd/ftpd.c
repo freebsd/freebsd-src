@@ -1698,9 +1698,10 @@ send_data(instr, outstr, blksize, filesize, isreg)
 	off_t filesize;
 	int isreg;
 {
-	int c, cnt, filefd, netfd;
-	char *buf, *bp;
+	int c, filefd, netfd;
+	char *buf;
 	size_t len;
+	off_t cnt;
 
 	transflag++;
 	if (setjmp(urgcatch)) {
@@ -1737,27 +1738,28 @@ send_data(instr, outstr, blksize, filesize, isreg)
 		netfd = fileno(outstr);
 		filefd = fileno(instr);
 
-		if (isreg && filesize < (off_t)16 * 1024 * 1024) {
-			buf = mmap(0, filesize, PROT_READ, MAP_SHARED, filefd,
-				   (off_t)0);
-			if (buf == MAP_FAILED) {
-				syslog(LOG_WARNING, "mmap(%lu): %m",
-				       (unsigned long)filesize);
-				goto oldway;
-			}
-			bp = buf;
-			len = filesize;
-			do {
-				cnt = write(netfd, bp, len);
-				len -= cnt;
-				bp += cnt;
-				if (cnt > 0) byte_count += cnt;
-			} while(cnt > 0 && len > 0);
+		if (isreg) {
 
-			transflag = 0;
-			munmap(buf, (size_t)filesize);
-			if (cnt < 0)
-				goto data_err;
+			off_t offset;
+			int err;
+
+			len = filesize;
+			err = cnt = offset = 0;
+
+			while (err != -1 && cnt < filesize) {
+				err = sendfile(filefd, netfd, offset, len,
+					(struct sf_hdtr *) NULL, &cnt, 0);
+				offset += cnt;
+				len -= cnt;
+
+				if (err == -1) {
+					if (!cnt)
+						goto oldway;
+
+					goto data_err;
+				}
+			}
+
 			reply(226, "Transfer complete.");
 			return;
 		}
