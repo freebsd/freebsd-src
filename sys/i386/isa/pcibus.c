@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.8.4.3 1995/10/10 01:00:58 davidg Exp $
+**  $Id: pcibus.c,v 1.8.4.4 1995/10/20 22:12:53 davidg Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -204,7 +204,9 @@ pcibus_setup (void)
 	**---------------------------------------
 	*/
 
-	if ((mode1res != CONF1_ENABLE_CHK) && (mode2res != CONF2_ENABLE_CHK)) {
+	if ((mode1res != CONF1_ENABLE_CHK) 
+	    && (mode1res != CONF1_ENABLE_CHK + CONF2_ENABLE_CHK) 
+	    && (mode2res != CONF2_ENABLE_CHK)) {
 		return;
 	}
 
