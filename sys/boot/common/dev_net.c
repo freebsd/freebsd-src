@@ -196,7 +196,6 @@ net_strategy()
  */
 #ifdef	SUPPORT_BOOTP
 int try_bootp = 1;
-int bootp(int sock);
 #endif
 
 extern n_long ip_convertaddr(char *p);
