@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.32 1997/03/22 06:53:28 bde Exp $
+ * $Id: ffs_alloc.c,v 1.33 1997/03/23 20:08:16 guido Exp $
  */
 
 #include "opt_quota.h"
@@ -1139,7 +1139,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 			bit = 1;
 		}
 	}
-	if (got == cgp->cg_nclusterblks)
+	if (got >= cgp->cg_nclusterblks)
 		goto fail;
 	/*
 	 * Allocate the cluster that we have found.
