@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.7.2.2 1997/05/09 17:36:35 brian Exp $
+ * $Id: vars.h,v 1.7.2.3 1997/05/10 03:42:36 brian Exp $
  *
  *	TODO:
  */
@@ -117,5 +117,9 @@ extern struct pppvars pppVars;
 
 int ipInOctets, ipOutOctets, ipKeepAlive;
 int ipConnectSecs, ipIdleSecs;
-int lostCarrier;
+/*
+ * One of these should be set (reconnectRequired=1 or reconnectCount=0)
+ * every time LcpClose is called
+ */
+int reconnectRequired, reconnectCount;
 #endif

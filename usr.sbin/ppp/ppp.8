@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.19.2.5 1997/05/12 11:55:16 brian Exp $
+.\" $Id: ppp.8,v 1.19.2.6 1997/05/13 09:32:17 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -471,6 +471,9 @@ should be taken with this option.  If the local timeout is slightly
 longer than the remote timeout, the reconnect feature will always be
 triggered (up to the given number of times) after the remote side
 times out and hangs up.
+
+NOTE:  In this context, losing too many LQRs constitutes a loss of
+carrier and will trigger a reconnect.
 
 If the
 .Fl background
