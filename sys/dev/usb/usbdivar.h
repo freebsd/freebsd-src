@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdivar.h,v 1.63 2001/01/21 19:00:06 augustss Exp $	*/
+/*	$NetBSD: usbdivar.h,v 1.64 2001/11/10 16:54:56 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -221,6 +221,12 @@ struct usbd_xfer {
 
 void usbd_init(void);
 void usbd_finish(void);
+
+void usbd_dump_iface(struct usbd_interface *iface);
+void usbd_dump_device(struct usbd_device *dev);
+void usbd_dump_endpoint(struct usbd_endpoint *endp);
+void usbd_dump_queue(usbd_pipe_handle pipe);
+void usbd_dump_pipe(usbd_pipe_handle pipe);
 
 /* Routines from usb_subr.c */
 int		usbctlprint(void *, const char *);
