@@ -145,21 +145,6 @@ MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 #define PMAP_INLINE
 #endif
 
-#if 0
-
-static void
-pmap_break(void)
-{
-}
-
-/* #define PMAP_DEBUG_VA(va) if ((va) == 0x120058000) pmap_break(); else */
-
-#endif
-
-#ifndef PMAP_DEBUG_VA
-#define PMAP_DEBUG_VA(va) do {} while(0)
-#endif
-
 /*
  * Get PDEs and PTEs for user/kernel address space
  */
@@ -1376,7 +1361,6 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	for (i = 0; i < count; i++) {
 		vm_offset_t tva = va + i * PAGE_SIZE;
 		int wasvalid;
-		PMAP_DEBUG_VA(tva);
 		pte = pmap_find_kpte(tva);
 		wasvalid = pte->pte_p;
 		pmap_set_pte(pte, tva, VM_PAGE_TO_PHYS(m[i]),
@@ -1397,7 +1381,6 @@ pmap_qremove(vm_offset_t va, int count)
 	struct ia64_lpte *pte;
 
 	for (i = 0; i < count; i++) {
-		PMAP_DEBUG_VA(va);
 		pte = pmap_find_kpte(va);
 		pmap_clear_pte(pte, va);
 		va += PAGE_SIZE;
@@ -1781,10 +1764,8 @@ validate:
 	 * if the mapping or permission bits are different, we need
 	 * to invalidate the page.
 	 */
-	if (!pmap_equal_pte(&origpte, pte)) {
-		PMAP_DEBUG_VA(va);
+	if (!pmap_equal_pte(&origpte, pte))
 		pmap_invalidate_page(pmap, va);
-	}
 
 	pmap_install(oldpmap);
 }
@@ -1813,8 +1794,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pte = pmap_find_pte(va);
 	if (pte->pte_p)
 		return;
-
-	PMAP_DEBUG_VA(va);
 
 	/*
 	 * Enter on the PV list since its part of our managed memory.
