@@ -16,12 +16,14 @@ static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.0.2.29.2.4 1997/11/28 06:14:46
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
+#ifndef __FreeBSD__
 #if !defined(__SVR4) && !defined(__svr4__)
 #include <strings.h>
 #include <sys/dir.h>
 #else
 #include <sys/filio.h>
 #include <sys/byteorder.h>
+#endif
 #endif
 #include <sys/stat.h>
 #include <sys/param.h>
