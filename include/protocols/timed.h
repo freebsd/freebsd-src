@@ -33,8 +33,8 @@
  *	@(#)timed.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef	_TIMED_H_
-#define	_TIMED_H_
+#ifndef	_PROTOCOLS_TIMED_H_
+#define	_PROTOCOLS_TIMED_H_
 
 /*
  * Time Synchronization Protocol

@@ -33,8 +33,8 @@
  *	@(#)telnet.h	8.2 (Berkeley) 12/15/93
  */
 
-#ifndef _TELNET_H_
-#define	_TELNET_H_
+#ifndef _ARPA_TELNET_H_
+#define	_ARPA_TELNET_H_
 
 /*
  * Definitions for the TELNET protocol.
