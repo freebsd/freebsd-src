@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: libdisk.3,v 1.1 1996/03/17 23:20:09 joerg Exp $
 .\" "
 .Dd March 15, 1996
 .Dt LIBDISK 3
@@ -61,8 +61,9 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <libdisk.h>
+.Dv extern const u_char *boot1, boot2;
 .Ft struct disk *
-.Fn Open_Disk "char *devname"
+.Fn Open_Disk "const char *devname"
 .Ft struct disk *
 .Fn Clone_Disk "struct disk *disk"
 .Ft void
@@ -86,9 +87,9 @@
 .Ft char **
 .Fn Disk_Names "void"
 .Ft void
-.Fn Set_Boot_Mgr "struct disk *d" "u_char *bootmgr"
+.Fn Set_Boot_Mgr "struct disk *d" "const u_char *bootmgr"
 .Ft void
-.Fn Set_Boot_Blocks "struct disk *d" "u_char *boot1" "u_char *boot2"
+.Fn Set_Boot_Blocks "struct disk *d" "const u_char *boot1" "const u_char *boot2"
 .Ft int
 .Fn Write_Disk "struct disk *d"
 .Ft int
@@ -106,9 +107,9 @@
 .Ft struct chunk *
 .Fn Create_Chunk_DWIM "struct disk *d" "struct chunk *parent" "u_long size" "chunk_e type" "int subtype" "u_long flags"
 .Ft int
-.Fn MakeDev "struct chunk *c" "char *path"
+.Fn MakeDev "struct chunk *c" "const char *path"
 .Ft int
-.Fn MakeDevDisk "struct disk *d,char *path"
+.Fn MakeDevDisk "struct disk *d" "const char *path"
 .Ft char *
 .Fn ShowChunkFlags "struct chunk *c"
 .Ft char *
@@ -155,7 +156,7 @@ struct chunk {
 	u_long		flags;
 	void		(*private_free)(void*);
 	void		*(*private_clone)(void*);
-	void		*private;
+	void		*private_data;
 };
 .Ed
 The
@@ -190,7 +191,7 @@ considerations.
 .El
 .Pp
 The
-.Ql private ,
+.Ql private_data ,
 .Ql private_free ,
 and
 .Ql private_clone
@@ -254,7 +255,11 @@ is called.
 .Fn Set_Boot_Blocks
 sets the boot-blocks for use on this disk.  Gets written when
 .Fn Write_Disk
-is called.
+is called.  The external variables
+.Dv boot1
+and
+.Dv boot2
+contain suitable data to be passed to this function.
 .Pp
 .Fn Write_Disk
 writes all the MBRs, disklabels, bootblocks and boot managers.
