@@ -143,7 +143,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	struct gpt_ent *ent;
 	struct gpt_hdr *hdr;
 	u_int i, npart, secsz, tblsz;
-	int error;
+	int error, ps;
 
 	g_trace(G_T_TOPOLOGY, "g_gpt_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
@@ -209,6 +209,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 
 	for (i = 0; i < hdr->hdr_entries; i++) {
 		struct uuid unused = GPT_ENT_TYPE_UNUSED;
+		struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
 		if (i >= GPT_MAX_SLICES)
 			break;
 		ent = (void*)(buf + i * hdr->hdr_entsz);
@@ -218,9 +219,11 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		if (gs->part[i] == NULL)
 			break;
 		bcopy(ent, gs->part[i], hdr->hdr_entsz);
+		ps = (!memcmp(&ent->ent_type, &freebsd, sizeof(freebsd)))
+		    ? 's' : 'p';
 		(void)g_slice_addslice(gp, i, ent->ent_lba_start * secsz,
 		    (ent->ent_lba_end - ent->ent_lba_start + 1ULL) * secsz,
-		    "%ss%d", gp->name, i + 1);
+		    "%s%c%d", gp->name, ps, i + 1);
 		npart++;
 	}
 
