@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.137 1997/09/13 21:07:12 brian Exp $
+#	$Id: rc,v 1.138 1997/09/21 16:09:47 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -132,6 +132,27 @@ rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
+
+#
+# Clearing /tmp at boot-time seems to have a long tradition.  It doesn't
+# help in any way for long-living systems, and it might accidentally
+# clobber files you would rather like to have preserved after a crash
+# (if not using mfs /tmp anyway).
+#
+# See also the example of another cleanup policy in /etc/periodic/daily.
+#
+if [ "X${clear_tmp_enable}" = X"YES" ]; then
+	echo clearing /tmp
+
+	# prune quickly with one rm, then use find to clean up /tmp/[lq]*
+	# (not needed with mfs /tmp, but doesn't hurt there...)
+	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
+	    find -d . ! -name . ! -name lost+found ! -name quotas -exec rm -rf -- {} \;)
+
+	# Also remove X lock files since it will prevent you from
+	# restarting X11 after a system crash.
+	rm -f /tmp/.X*-lock /tmp/.X11-unix/*
+fi
 
 # enable dumpdev so that savecore can see it
 # /var/crash should be a directory or a symbolic link
