@@ -32,11 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bcopy.S,v 1.1 1993/12/05 13:01:41 ats Exp $
+ *	$Id: bcopy.S,v 1.1 1994/08/05 01:18:24 wollman Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-	.asciz "$Id: bcopy.S,v 1.1 1993/12/05 13:01:41 ats Exp $"
+	.text
+	.asciz "$Id: bcopy.S,v 1.1 1994/08/05 01:18:24 wollman Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

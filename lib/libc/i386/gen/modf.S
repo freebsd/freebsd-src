@@ -32,11 +32,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	.asciz "@(#)modf.s	5.5 (Berkeley) 3/18/91"
-#endif /* LIBC_SCCS and not lint */
+#if defined(LIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id$"
+#endif /* LIBC_RCS and not lint */
 
 /*
  * modf(value, iptr): return fractional part of value, and stores the

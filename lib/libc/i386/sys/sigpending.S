@@ -33,12 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigpending.S,v 1.2 1994/02/21 05:19:19 rgrimes Exp $
+ *	$Id: sigpending.S,v 1.1 1994/08/05 01:18:51 wollman Exp $
  */
 
-#if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)sigpending.s	5.1 (Berkeley) 7/1/90"
-#endif /* SYSLIBC_SCCS and not lint */
+#if defined(SYSLIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id$"
+#endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 

@@ -33,12 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cerror.S,v 1.1 1994/08/05 01:18:40 wollman Exp $
+ *	$Id: cerror.S,v 1.2 1994/08/13 14:00:26 davidg Exp $
  */
 
-#if defined(SYSLIBC_SCCS) && !defined(lint)
-	.asciz "@(#)cerror.s	5.1 (Berkeley) 4/23/90"
-#endif /* SYSLIBC_SCCS and not lint */
+#if defined(SYSLIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id$"
+#endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 

@@ -27,11 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: swab.S,v 1.7 1994/03/12 01:40:09 jtc Exp $
+ *	$Id: swab.S,v 1.1 1995/01/22 21:36:15 davidg Exp $
  */
 
-#if defined(LIBC_SCCS)
-	.asciz "$Id$"
+#if defined(LIBC_RCS) && !defined(lint)
+	.text
+	.asciz "$Id: swab.S,v 1.1 1995/01/22 21:36:15 davidg Exp $"
 #endif
 
 #include "DEFS.h"
