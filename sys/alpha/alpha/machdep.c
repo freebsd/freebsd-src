@@ -2021,6 +2021,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	if (clear_ret != 0) {
 		mcp->mc_regs[FRAME_V0] = 0;
 		mcp->mc_regs[FRAME_A4] = 0;
+		mcp->mc_regs[FRAME_A3] = 0;
 	}
 
 	/*
