@@ -1,4 +1,4 @@
-<!-- $Id: skey.sgml,v 1.1 1995/09/25 18:23:05 wollman Exp $ -->
+<!-- $Id: skey.sgml,v 1.2 1995/09/26 19:12:28 wollman Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!--
 Copyright 1995 Massachusetts Institute of Technology
@@ -190,7 +190,7 @@ s/key 92 hi52030
 Password:
 </verb></tscreen>
 
->Note that, before prompting for a password, the login program
+Note that, before prompting for a password, the login program
 prints out the iteration number and seed which you will need in order
 to generate the appropriate key.  You will also find a useful feature
 (not shown here): if you press return at the password prompt, the

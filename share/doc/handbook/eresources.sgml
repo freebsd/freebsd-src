@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.12 1995/09/27 08:39:54 asami Exp $ -->
+<!-- $Id: eresources.sgml,v 1.13 1995/10/03 21:38:20 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -21,10 +21,7 @@
       <sect>
         <heading>Mailing lists<label id="eresources:mail"></heading>
 
-<p><em>Contributed by &a.dufalt;.<newline>
-  20 Jun 1995.</em>
-
-Though many of the FreeBSD development members read USENET, we cannot
+<p>Though many of the FreeBSD development members read USENET, we cannot
 always guarantee that we'll get to your questions in a timely fashion
 (or at all) if you post them only to one of the comp.unix.bsd.*
 groups.  By addressing your questions to the appropriate mailing list

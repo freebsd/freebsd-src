@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: esdi.sgml,v 1.1 1995/09/25 04:53:30 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -23,7 +23,7 @@
 
     <sect><heading>ESDI hard disks and FreeBSD<label id="esdi"></heading>
 
-      <p><em>&copy; 1995, &a.wilko;.<newline>24 September 1995.</em>
+      <p><em>Copyright &copy; 1995, &a.wilko;.<newline>24 September 1995.</em>
 
 	ESDI is an acronym that means Enhanced Small Device Interface.
 	It is loosely based on the good old ST506/412 interface originally
