@@ -2272,6 +2272,34 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			    nfsm_adv(NFSX_V3FATTR);
 			    tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
 			    doit = fxdr_unsigned(int, *tl);
+			    /*
+ 			     * Skip loading the attrs for "..". There's a 
+ 			     * race between loading the attrs here and 
+ 			     * lookups that look for the directory currently
+ 			     * being read (in the parent). We try to acquire
+ 			     * the exclusive lock on ".." here, owning the 
+ 			     * lock on the directory being read. Lookup will
+ 			     * hold the lock on ".." and try to acquire the 
+ 			     * lock on the directory being read.
+ 			     * 
+ 			     * There are other ways of fixing this, one would
+ 			     * be to do a trylock on the ".." vnode and skip
+ 			     * loading the attrs on ".." if it happens to be 
+ 			     * locked by another process. But skipping the
+ 			     * attrload on ".." seems the easiest option.
+ 			     */
+ 			    if (strcmp(dp->d_name, "..") == 0) {
+ 				    doit = 0;
+ 				    /*
+ 				     * We've already skipped over the attrs, 
+ 				     * skip over the filehandle. And store d_type
+ 				     * as VDIR.
+ 				     */
+ 				    tl = nfsm_dissect(u_int32_t *, NFSX_UNSIGNED);
+ 				    i = fxdr_unsigned(int, *tl);
+ 				    nfsm_adv(nfsm_rndup(i));
+ 				    dp->d_type = IFTODT(VTTOIF(VDIR));
+ 			    }	    
 			    if (doit) {
 				nfsm_getfh(fhp, fhsize, 1);
 				if (NFS_CMPFH(dnp, fhp, fhsize)) {
