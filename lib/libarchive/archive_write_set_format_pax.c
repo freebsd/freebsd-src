@@ -409,7 +409,7 @@ archive_write_pax_header(struct archive *a,
 	}
 
 	/* If file size is too large, add 'size' to pax extended attrs. */
-	if (st_main->st_size >= (1 << 30)) {
+	if (st_main->st_size >= (((int64_t)1) << 33)) {
 		add_pax_attr_int(&(pax->pax_header), "size", st_main->st_size);
 		need_extension = 1;
 	}
