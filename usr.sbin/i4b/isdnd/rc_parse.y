@@ -73,6 +73,7 @@ int		controllercount = -1;
 
 %token		ACCTALL
 %token		ACCTFILE
+%token		ADDPREFIX
 %token		ALERT
 %token		ALIASFNAME
 %token		ALIASING
@@ -141,6 +142,8 @@ int		controllercount = -1;
 %token		PPP_SEND_AUTH
 %token		PPP_SEND_NAME
 %token		PPP_SEND_PASSWORD
+%token		PREFIXNATIONAL
+%token		PREFIXINTERNATIONAL
 %token		PROTOCOL
 %token		RATESFILE
 %token		RATETYPE
@@ -349,6 +352,7 @@ sysfilekeyword:	  RATESFILE		{ $$ = RATESFILE; }
 sysboolkeyword:	  USEACCTFILE		{ $$ = USEACCTFILE; }
 		| ALIASING		{ $$ = ALIASING; }
 		| ACCTALL		{ $$ = ACCTALL; }
+		| ADDPREFIX		{ $$ = ADDPREFIX; }
 		| BEEPCONNECT		{ $$ = BEEPCONNECT; }
 		| EXTCALLATTR		{ $$ = EXTCALLATTR; }
 		| ISDNTIME		{ $$ = ISDNTIME; }
@@ -361,6 +365,8 @@ sysnumkeyword:	  MONITORPORT		{ $$ = MONITORPORT; }
 
 sysstrkeyword:	  MAILER		{ $$ = MAILER; }
 		| MAILTO		{ $$ = MAILTO; }
+		| PREFIXNATIONAL	{ $$ = PREFIXNATIONAL; }
+		| PREFIXINTERNATIONAL	{ $$ = PREFIXINTERNATIONAL; }
 		| ROTATESUFFIX		{ $$ = ROTATESUFFIX; }
 		| REGEXPR		{ $$ = REGEXPR; }
 		| REGPROG		{ $$ = REGPROG; }

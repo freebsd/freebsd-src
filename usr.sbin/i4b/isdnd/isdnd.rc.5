@@ -24,9 +24,9 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"     last edit-date: [Sun Aug 11 13:03:49 2002]
+.\"     last edit-date: [Sun Aug 11 20:07:38 2002]
 .\"
-.Dd March 26, 2002
+.Dd August 11, 2002
 .Dt ISDND.RC 5
 .Os
 .Sh NAME
@@ -100,6 +100,17 @@ Specifies the name of the accounting file which is used when the keyword
 See also system keyword
 .Em rotatesuffix .
 If this keyword is omitted the system default is used.
+(optional)
+.It Li add-prefix
+If set to 
+.Em on ,
+for incoming numbers, have a look at the "type of number" indicator and
+adjust the number as specified by the
+.Em prefix-national
+and
+.Em prefix-international
+keywords described later.
+If this keyword is omitted, the system default (off) is used.
 (optional)
 .It Li aliasing
 If this parameter is set to
@@ -203,6 +214,20 @@ The supported access rights are:
 .It Ar callin
 .It Ar callout
 .El
+.It Li prefix-international
+In conjunction with the
+.Em add-prefix
+switch (see above), specify the prefix number string for incoming numbers
+with the international number tag. If aliases are used, they have to be 
+adjusted accordingly.
+(optional)
+.It Li prefix-national
+In conjunction with the
+.Em add-prefix
+switch (see above), specify the prefix number string for incoming numbers
+with the national number tag. If aliases are used, they have to be
+adjusted accordingly.
+(optional)
 .It Li ratesfile
 Specifies the name of the ratesfile.
 If this keyword is omitted the system
