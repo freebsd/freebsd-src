@@ -354,6 +354,7 @@ struct bpf_if;
 int	 bpf_validate(const struct bpf_insn *, int);
 void	 bpf_tap(struct bpf_if *, u_char *, u_int);
 void	 bpf_mtap(struct bpf_if *, struct mbuf *);
+void	 bpf_mtap2(struct bpf_if *, void *, u_int, struct mbuf *);
 void	 bpfattach(struct ifnet *, u_int, u_int);
 void	 bpfattach2(struct ifnet *, u_int, u_int, struct bpf_if **);
 void	 bpfdetach(struct ifnet *);
@@ -366,8 +367,16 @@ u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 		bpf_tap((_ifp)->if_bpf, (_pkt), (_pktlen));	\
 } while (0)
 #define	BPF_MTAP(_ifp,_m) do {					\
-	if ((_ifp)->if_bpf)					\
+	if ((_ifp)->if_bpf) {					\
+		M_ASSERTVALID(_m);				\
 		bpf_mtap((_ifp)->if_bpf, (_m));			\
+	}							\
+} while (0)
+#define	BPF_MTAP2(_ifp,_data,_dlen,_m) do {			\
+	if ((_ifp)->if_bpf) {					\
+		M_ASSERTVALID(_m);				\
+		bpf_mtap2((_ifp)->if_bpf,(_data),(_dlen),(_m));	\
+	}							\
 } while (0)
 #endif
 

@@ -372,13 +372,7 @@ ef_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 	eifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
 	m->m_pkthdr.rcvif = eifp;
 
-	if (eifp->if_bpf) {
-		struct mbuf m0;
-		m0.m_next = m;
-		m0.m_len = ETHER_HDR_LEN;
-		m0.m_data = (char *)eh;
-		BPF_MTAP(eifp, &m0);
-	}
+	BPF_MTAP2(eifp, eh, ETHER_HDR_LEN, m);
 	/*
 	 * Now we ready to adjust mbufs and pass them to protocol intr's
 	 */
