@@ -72,7 +72,10 @@ is given.
 Reinitialize the boot code contained in sector 0 of the disk.  Ignored
 if
 .Fl f
-is given.
+is given.  It should be noted, however, that the standard boot code
+written by
+.Nm
+is suitable for booting only from hard drive 0 (BIOS drive 0x80).
 .It Fl 1234
 Operate on a single fdisk entry only.  Ignored if
 .Fl f
