@@ -1145,7 +1145,7 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 	struct witness_child_list_entry *wcl;
 	int i, level;
 
-	level =  parent->w_level;
+	level = parent->w_level;
 	prnt("%-2d", level);
 	for (i = 0; i < level; i++)
 		prnt(" ");
