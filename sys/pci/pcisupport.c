@@ -1088,6 +1088,12 @@ chip_match(device_t dev)
 		return ("VIA 82C586B ACPI interface");
 	case 0x05711106:
 		return ("VIA 82C586B IDE controller");
+	case 0x30571106:
+		return ("VIA 82C686 ACPI interface");
+	case 0x30581106:
+		return ("VIA 82C686 AC97 Audio");
+	case 0x30681106:
+		return ("VIA 82C686 AC97 Modem");
 #if 0
 	case 0x30381106:
 		return ("VIA 83C572 USB controller");
