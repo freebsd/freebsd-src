@@ -224,6 +224,8 @@ static symtab_t pnpprod[] = {
     { "MSH0001",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
     /* MS IntelliMouse TrackBall */
     { "MSH0004",	MOUSE_PROTO_INTELLI,	MOUSE_MODEL_INTELLI },
+    /* Tremon Wheel Mouse MUSD */
+    { "HTK0001",        MOUSE_PROTO_INTELLI,    MOUSE_MODEL_INTELLI },
     /* Genius PnP Mouse */
     { "KYE0001",	MOUSE_PROTO_MS,		MOUSE_MODEL_GENERIC },
     /* MouseSystems SmartScroll Mouse (OEM from Genius?) */
