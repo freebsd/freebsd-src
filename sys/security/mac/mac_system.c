@@ -98,6 +98,7 @@ SYSCTL_DECL(_security);
 
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
+
 #ifndef MAC_MAX_POLICIES
 #define	MAC_MAX_POLICIES	8
 #endif
@@ -178,30 +179,34 @@ SYSCTL_INT(_security_mac_debug, OID_AUTO, label_fallback, CTLFLAG_RW,
 TUNABLE_INT("security.mac.debug_label_fallback",
     &mac_debug_label_fallback);
 
+SYSCTL_NODE(_security_mac_debug, OID_AUTO, counters, CTLFLAG_RW, 0,
+    "TrustedBSD MAC object counters");
+
 static unsigned int nmacmbufs, nmaccreds, nmacifnets, nmacbpfdescs,
     nmacsockets, nmacmounts, nmactemp, nmacvnodes, nmacdevfsdirents,
     nmacipqs, nmacpipes;
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, mbufs, CTLFLAG_RD,
+
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mbufs, CTLFLAG_RD,
     &nmacmbufs, 0, "number of mbufs in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, creds, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, creds, CTLFLAG_RD,
     &nmaccreds, 0, "number of ucreds in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, ifnets, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ifnets, CTLFLAG_RD,
     &nmacifnets, 0, "number of ifnets in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, ipqs, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, ipqs, CTLFLAG_RD,
     &nmacipqs, 0, "number of ipqs in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, bpfdescs, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, bpfdescs, CTLFLAG_RD,
     &nmacbpfdescs, 0, "number of bpfdescs in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, sockets, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, sockets, CTLFLAG_RD,
     &nmacsockets, 0, "number of sockets in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, pipes, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, pipes, CTLFLAG_RD,
     &nmacpipes, 0, "number of pipes in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, mounts, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, mounts, CTLFLAG_RD,
     &nmacmounts, 0, "number of mounts in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, temp, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, temp, CTLFLAG_RD,
     &nmactemp, 0, "number of temporary labels in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, vnodes, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, vnodes, CTLFLAG_RD,
     &nmacvnodes, 0, "number of vnodes in use");
-SYSCTL_UINT(_security_mac_debug, OID_AUTO, devfsdirents, CTLFLAG_RD,
+SYSCTL_UINT(_security_mac_debug_counters, OID_AUTO, devfsdirents, CTLFLAG_RD,
     &nmacdevfsdirents, 0, "number of devfs dirents inuse");
 #endif
 
