@@ -42,7 +42,7 @@
 .Nm newfs
 .Op Fl NO
 .Op Fl S Ar sector-size
-.Op Fl a maxcontig
+.Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
 .Op Fl d Ar rotdelay
@@ -62,7 +62,9 @@
 .Ar special
 .Nm mount_mfs
 .Op Fl N
-.Op Fl a maxcontig
+.Op Fl F Ar file
+.Op Fl T Ar disktype
+.Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar cylinders
 .Op Fl d Ar rotdelay
@@ -116,6 +118,14 @@ the file system has to be paged.
 .Pp
 The following options define the general layout policies.
 .Bl -tag -width Fl
+.It Fl T Ar disktype
+For backward compatibility and for
+.Nm mount_mfs .
+.It Fl F Ar file
+.Nm mount_mfs
+will use this file for the image of the filesystem.  When
+.Nm mount_mfs
+exits, this file will be left behind.
 .It Fl N
 Causes the file system parameters to be printed out
 without really creating the file system.
