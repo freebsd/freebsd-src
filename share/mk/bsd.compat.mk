@@ -15,7 +15,8 @@
 	NOMANCOMPRESS:NO_MANCOMPRESS \
 	NOOBJ:NO_OBJ \
 	NOPIC:NO_PIC \
-	NOPROFILE:NO_PROFILE
+	NOPROFILE:NO_PROFILE \
+	NOTAGS:NO_TAGS
 .for old in ${oldnew:C/:.*//}
 .for new in ${oldnew:C/.*://}
 .if defined(${old}) && !defined(${new})
