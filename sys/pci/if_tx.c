@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.22 1999/03/14 08:30:23 semenu Exp $ */
+/*	$Id: if_tx.c,v 1.23 1999/03/31 13:50:52 nsayer Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -2036,10 +2036,4 @@ epic_dump_state __P((
 		);
 	}
 }
-#if 0
-static void epic_kldinit (void * a) {
-	pci_register_lkm (&txdevice, 0);
-}
-PSEUDO_SET(epic_kldinit,if_tx);
-#endif
 #endif /* NPCI > 0 */

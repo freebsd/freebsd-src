@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.73 1998/11/15 15:12:58 bde Exp $
+ *	$Id: mount.h,v 1.74 1999/02/16 10:49:55 dfr Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -325,32 +325,6 @@ struct vfsops {
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, NAM, VPP, EXFLG, CRED)
 #define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
 
-#if defined(VFS_LKM) && !defined(KLD_MODULE)
-#include <sys/conf.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-#define VFS_SET(vfsops, fsname, flags) \
-	static struct vfsconf _fs_vfsconf = { \
-		&vfsops, \
-		#fsname, \
-		-1, \
-		0, \
-		flags, \
-	}; \
-	extern struct linker_set MODVNOPS; \
-	MOD_VFS(fsname,&MODVNOPS,&_fs_vfsconf); \
-	int \
-	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver); \
-	int \
-	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
-		MOD_DISPATCH(fsname, \
-		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); } \
-	struct __hack
-
-#else
-
 #include <sys/module.h>
 
 #define VFS_SET(vfsops, fsname, flags) \
@@ -367,8 +341,6 @@ struct vfsops {
 		& fsname ## _vfsconf				\
 	};							\
 	DECLARE_MODULE(fsname, fsname ## _mod, SI_SUB_VFS, SI_ORDER_MIDDLE)
-
-#endif /* VFS_LKM */
 
 #include <net/radix.h>
 

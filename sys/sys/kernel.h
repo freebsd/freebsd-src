@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.52 1999/01/29 08:12:49 dillon Exp $
+ * $Id: kernel.h,v 1.53 1999/01/29 23:18:50 dillon Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -287,30 +287,8 @@ struct kproc_desc {
 void	kproc_start __P((const void *udata));
 void	sysinit_add __P((struct sysinit **set));
 
-#ifdef PSEUDO_LKM
-#include <sys/conf.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-#define PSEUDO_SET(init, name) \
-	extern struct linker_set MODVNOPS; \
-	MOD_MISC(name); \
-	static int \
-	name ## _load(struct lkm_table *lkmtp, int cmd) \
-		{ init((void *)NULL /* XXX unused (?) */); return 0; } \
-	static int \
-	name ## _unload(struct lkm_table *lkmtp, int cmd) \
-		{ return EINVAL; } \
-	int \
-	name ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
-		MOD_DISPATCH(name, lkmtp, cmd, ver, name ## _load, name ## _unload, \
-			 lkm_nullcmd); } \
-	struct __hack
-#else /* PSEUDO_LKM */
-
 /*
- * Compatibility.  To be deprecated after LKM is updated.
+ * Compatibility.  To be deprecated after LKM is removed.
  */
 #include <sys/module.h>
 #define	PSEUDO_SET(sym, name) \
@@ -334,8 +312,6 @@ void	sysinit_add __P((struct sysinit **set));
 		(void *)sym \
 	}; \
 	DECLARE_MODULE(name, name ## _mod, SI_SUB_PSEUDO, SI_ORDER_ANY)
-
-#endif /* PSEUDO_LKM */
 
 extern struct linker_set execsw_set;
 

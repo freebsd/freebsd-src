@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.25 1999/01/19 23:29:20 se Exp $
+ * $Id: pcivar.h,v 1.26 1999/04/16 21:22:52 peter Exp $
  *
  */
 
@@ -282,11 +282,6 @@ struct pci_device {
     int    (*pd_shutdown) (int, int);
 };
 
-struct pci_lkm {
-	struct pci_device *dvp;
-	struct pci_lkm	*next;
-};
-
 #ifdef __i386__
 typedef u_short pci_port_t;
 #else
@@ -295,7 +290,6 @@ typedef u_int pci_port_t;
 
 u_long pci_conf_read (pcici_t tag, u_long reg);
 void pci_conf_write (pcici_t tag, u_long reg, u_long data);
-void pci_configure (void);
 int pci_map_port (pcici_t tag, u_long reg, pci_port_t* pa);
 int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_dense (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
@@ -305,7 +299,6 @@ int pci_map_int (pcici_t tag, pci_inthand_t *handler, void *arg,
 int pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		      intrmask_t *maskptr, u_int flags);
 int pci_unmap_int (pcici_t tag);
-int pci_register_lkm (struct pci_device *dvp, int if_revision);
 
 #endif /* PCI_COMPAT */
 #endif /* _PCIVAR_H_ */

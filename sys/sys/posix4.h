@@ -41,7 +41,7 @@
 #include <posix4/sched.h>
 
 /* Generate syscall stubs for when something is optionally
- * LKM'd.  References "syscall_not_present". 
+ * loadable as a module.  References "syscall_not_present". 
  * XXX Good candidate for sys/syscall.h
  */
 struct proc;

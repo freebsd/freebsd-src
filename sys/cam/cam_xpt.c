@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.49 1999/03/14 05:15:38 ken Exp $
+ *      $Id: cam_xpt.c,v 1.50 1999/04/07 22:57:48 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -5859,7 +5859,7 @@ xpt_finishconfig(struct cam_periph *periph, union ccb *done_ccb)
 
 	if (busses_to_config == 0) {
 		/* Register all the peripheral drivers */
-		/* XXX This will have to change when we have LKMs */
+		/* XXX This will have to change when we have loadable modules */
 		p_drv = (struct periph_driver **)periphdriver_set.ls_items;
 		for (i = 0; p_drv[i] != NULL; i++) {
 			(*p_drv[i]->init)();

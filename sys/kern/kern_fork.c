@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.56 1999/03/02 00:28:08 julian Exp $
+ * $Id: kern_fork.c,v 1.57 1999/04/06 03:03:34 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -448,7 +448,7 @@ again:
 	vm_fork(p1, p2, flags);
 
 	/*
-	 * Both processes are set up, now check if any LKMs want
+	 * Both processes are set up, now check if any loadable modules want
 	 * to adjust anything.
 	 *   What if they have an error? XXX
 	 */
