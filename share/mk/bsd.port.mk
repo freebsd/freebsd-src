@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.82 1994/12/17 01:58:11 ache Exp $
+# $Id: bsd.port.mk,v 1.83 1994/12/17 02:37:26 ache Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -489,8 +489,8 @@ check-md5: fetch
 		CKSUM=`${MD5} $$file | awk '{print $$4}'`; \
 		CKSUM2=`grep "($$file)" ${MD5_FILE} | awk '{print $$4}'`; \
 		if [ "$$CKSUM" != "$$CKSUM2" ]; then \
-			echo ">> Checksum mismatch for $$file" \
-			exit 1;\
+			echo ">> Checksum mismatch for $$file"; \
+			exit 1; \
 		fi; \
 	done)
 	@echo "Checksums OK."
