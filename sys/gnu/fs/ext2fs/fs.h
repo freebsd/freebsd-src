@@ -153,8 +153,10 @@ extern u_char *fragtbl[];
 #define  unlock_super(devvp) 	VOP_UNLOCK(devvp, 0, curthread)
 
 /*
- * To lock a buffer, set the B_LOCKED flag and then brelse() it. To unlock,
- * reset the B_LOCKED flag and brelse() the buffer back on the LRU list
+ * Historically, ext2fs kept it's metadata buffers on the LOCKED queue.  Now,
+ * we simply change the lock owner to kern so that it may be released from
+ * another context.  Later, we release the buffer, and conditionally write it
+ * when we're done.
  */
 #define LCK_BUF(bp)	BUF_KERNPROC(bp);
 
