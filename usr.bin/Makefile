@@ -168,6 +168,7 @@ SUBDIR=	alias \
 	tabs \
 	tail \
 	talk \
+	tar \
 	tcopy \
 	tee \
 	telnet \
