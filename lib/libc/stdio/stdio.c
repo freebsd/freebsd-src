@@ -127,8 +127,8 @@ _swrite(fp, buf, n)
 {
 	int ret;
 
-	if ((fp->_flags & __SAPP) && _sseek(fp, (fpos_t)0, SEEK_END) == -1)
-		return (-1);
+	if (fp->_flags & __SAPP)
+		(void)_sseek(fp, (fpos_t)0, SEEK_END);
 	ret = (*fp->_write)(fp->_cookie, buf, n);
 	/* __SOFF removed even on success in case O_APPEND mode is set. */
 	if (ret >= 0) {
