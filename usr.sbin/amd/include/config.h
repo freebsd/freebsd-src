@@ -574,6 +574,9 @@
 /* Define to 1 if you have the <msdosfs/msdosfsmount.h> header file. */
 /* #undef HAVE_MSDOSFS_MSDOSFSMOUNT_H */
 
+/* Define to 1 if you have the <fs/msdosfs/msdosfsmount.h> header file. */
+#define HAVE_FS_MSDOSFS_MSDOSFSMOUNT_H 1
+
 /* Define to 1 if you have the <ndbm.h> header file. */
 #define HAVE_NDBM_H 1
 
@@ -692,19 +695,19 @@
 /* #undef HAVE_PCFS_ARGS_T_DSTTIME */
 
 /* Define if `fspec' is member of `pcfs_args_t'. */
-/* #undef HAVE_PCFS_ARGS_T_FSPEC */
+#define HAVE_PCFS_ARGS_T_FSPEC 1
 
 /* Define if `gid' is member of `pcfs_args_t'. */
-/* #undef HAVE_PCFS_ARGS_T_GID */
+#define HAVE_PCFS_ARGS_T_GID 1
 
 /* Define if `mask' is member of `pcfs_args_t'. */
-/* #undef HAVE_PCFS_ARGS_T_MASK */
+#define HAVE_PCFS_ARGS_T_MASK 1
 
 /* Define if `secondswest' is member of `pcfs_args_t'. */
 /* #undef HAVE_PCFS_ARGS_T_SECONDSWEST */
 
 /* Define if `uid' is member of `pcfs_args_t'. */
-/* #undef HAVE_PCFS_ARGS_T_UID */
+#define HAVE_PCFS_ARGS_T_UID 1
 
 /* Define to 1 if you have the `plock' function. */
 /* #undef HAVE_PLOCK */
@@ -1981,7 +1984,7 @@
 #define nfs_args_t struct nfs_args
 
 /* Define a type for the pcfs_args structure */
-/* #undef pcfs_args_t */
+#define pcfs_args_t struct msdosfs_args
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef pid_t */
