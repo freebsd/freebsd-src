@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.512 1998/12/27 12:35:35 phk Exp $
+#	$Id: LINT,v 1.513 1998/12/27 12:40:07 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1129,7 +1129,6 @@ device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000
 device cs0 at isa? port 0x300 net irq ?
 device cx0 at isa? port 0x240 net irq 15 drq 7
 device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000
-device eg0 at isa? port 0x310 net irq 5
 device el0 at isa? port 0x300 net irq 9
 device ep0 at isa? port 0x300 net irq 10
 device ex0 at isa? port? net irq?
