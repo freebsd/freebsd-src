@@ -82,6 +82,6 @@ ENTRY(_sparc64_enter_uts)
 	flushw
 	add	%i2, %i3, %i2
 	sub	%i2, SPOFF + CCFSZ, %sp
-	jmpl	%i1, %g0
-	mov	%i0, %o0
+	jmpl	%i0, %g0
+	mov	%i1, %o0
 END(_sparc64_enter_uts)
