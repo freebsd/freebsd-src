@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.13 1995/03/05 08:10:23 jkh Exp $
+ * $Id: dmabuf.c,v 1.14 1995/03/18 20:01:10 swallace Exp $
  */
 
 #include "sound_config.h"
@@ -299,7 +299,7 @@ DMAbuf_release (int dev, int mode)
   return 0;
 }
 
-static int
+int
 DMAbuf_start_input(int dev)
 {
   unsigned long   flags;
