@@ -128,6 +128,11 @@ fr.iso.acc.kbd:pt:Francês ISO-8859-1 (com acentos)
 fr.iso.acc.kbd:es:Francés ISO-8859-1 (con acentos)
 fr.iso.acc.kbd:uk:æÒÁÎÃÕÚØËÁ ISO-8859-1 (accent keys)
 
+fr.dvorak.kbd:en:French Dvorak-like
+fr.dvorak.kbd:de:Französisch Dvorak
+fr.dvorak.kbd:es:Francés Dvorak
+fr.dvorak.kbd:uk:French Dvorak-like
+
 fr_CA.iso.acc.kbd:en:French Canadian ISO-8859-1 (accent keys)
 fr_CA.iso.acc.kbd:de:Französisch Kanada ISO-8859-1 (mit Akzenten)
 fr_CA.iso.acc.kbd:es:Francocanadiense ISO-8859-1 (con acentos)
@@ -211,6 +216,11 @@ norwegian.iso.kbd:no:Norsk ISO-8859-1
 norwegian.iso.kbd:de:Norwegisch ISO-8859-1
 norwegian.iso.kbd:pt:Norueguês ISO-8859-1
 norwegian.iso.kbd:es:Noruego ISO-8859-1
+norwegian.dvorak.kbd:en:Norwegian dvorak
+norwegian.dvorak.kbd:no:Norsk dvorak
+norwegian.dvorak.kbd:de:Norwegisch dvorak
+norwegian.dvorak.kbd:pt:Norueguês dvorak
+norwegian.dvorak.kbd:es:Noruego Idvorak
 
 pl_PL.ISO8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
 pl_PL.ISO8859-2.kbd:de:Polnisch ISO-8859-2 (für Programmierer)
