@@ -48,65 +48,59 @@
   <abstract>
     <para>This document lists errata items for &os; 
 <![ %release.type.snapshot [
-    &release.prev;,
+      &release.prev;,
 ]]>
 <![ %release.type.release [
-    &release.current;,
+      &release.current;,
 ]]>
-    containing significant information
-    discovered after the release.  This information includes 
-    security advisories, as well as
-    news relating to the software or documentation
-    that could affect its operation or usability.  An up-to-date
-    version of this document should always be consulted before
-    installing this version of &os;.</para>
+      containing significant information discovered after the release.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
 
     <para>This errata document for &os; 
 <![ %release.type.snapshot [
-    &release.prev;
+      &release.prev;
 ]]>
 <![ %release.type.release [
-    &release.current;
+      &release.current;
 ]]>
-    will be
-    maintained until the release of &os; &release.next;.</para>
+      will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1>
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-    about &os;
+      about &os;
 <![ %release.type.snapshot [
-    &release.prev;.
+      &release.prev;.
 ]]>
 <![ %release.type.release [
-    &release.current;.
+      &release.current;.
 ]]>
-    Before installing this version,
-    it is important to consult this document to learn about
-    any post-release discoveries or 
-    problems that may already have been found and
-    fixed.</para>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
 
-    <para>Any
-    version of this
-    errata document actually distributed with the
-    release (for example, on a CDROM distribution) will be out of
-    date by definition, but other copies are kept updated on the Internet and
-    should be consulted as the <quote>current errata</quote> for this
-    release.  These other copies of the errata are located at <ulink
-    url="http://www.FreeBSD.org/releases/"></ulink>,
-    plus any sites which keep up-to-date mirrors of this
-    location.</para>
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
-    contain up-to-date copies of this document (as of the time of the
-    snapshot).</para>
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-    url="http://www.FreeBSD.org/security/"></ulink> or <ulink
-    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
   </sect1>
 
@@ -119,9 +113,9 @@
 
 <![ %release.type.snapshot [
     <para>Support for per-user <filename>~/.login_conf</filename>
-    files (as documented in &man.login.conf.5;) has been disabled due
-    to incorrect merging of local and global settings.  This problem
-    will be fixed in future releases.</para>
+      files (as documented in &man.login.conf.5;) has been disabled
+      due to incorrect merging of local and global settings.  This
+      problem will be fixed in future releases.</para>
 
     <para>A local root vulnerability in
       <application>UUCP</application> was corrected before the release
