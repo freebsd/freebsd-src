@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.147 1998/03/28 13:24:54 bde Exp $
+ * $Id: vfs_subr.c,v 1.148 1998/03/30 09:51:08 phk Exp $
  */
 
 /*
@@ -2738,8 +2738,10 @@ sync_fsync(ap)
 	 * not already on the sync list.
 	 */
 	simple_lock(&mountlist_slock);
-	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_slock, p) != 0)
+	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_slock, p) != 0) {
+		simple_unlock(&mountlist_slock);
 		return (0);
+	}
 	asyncflag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
 	VFS_SYNC(mp, MNT_LAZY, ap->a_cred, p);
