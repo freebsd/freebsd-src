@@ -89,7 +89,7 @@ struct tcb {
 	__asm __volatile("movl %%gs:%1, %0"			\
 	    : "=r" (__i)					\
 	    : "m" (*(u_int *)(__kcb_offset(name))));		\
-	__result = *(__kcb_type(name) *)&__i;			\
+	__result = __kcb_type(name)__i;				\
 								\
 	__result;						\
 })
@@ -101,7 +101,7 @@ struct tcb {
 	__kcb_type(name) __val = (val);				\
 								\
 	u_int __i;						\
-	__i = *(u_int *)&__val;					\
+	__i = (u_int)__val;					\
 	__asm __volatile("movl %1,%%gs:%0"			\
 	    : "=m" (*(u_int *)(__kcb_offset(name)))		\
 	    : "r" (__i));					\
