@@ -125,5 +125,4 @@ static driver_t cs_pccard_driver = {
 extern devclass_t cs_devclass;
 
 DRIVER_MODULE(cs, pccard, cs_pccard_driver, cs_devclass, 0, 0);
-MODULE_DEPEND(cs, pccard, 1, 1, 1);
 MODULE_DEPEND(cs, ether, 1, 1, 1);
