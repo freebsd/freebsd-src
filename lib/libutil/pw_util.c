@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: pw_util.c,v 1.9 1997/10/27 07:53:19 charnier Exp $";
+	"$Id: pw_util.c,v 1.10 1998/10/13 14:52:33 des Exp $";
 #endif /* not lint */
 
 /*
@@ -45,6 +45,7 @@ static const char rcsid[] =
  */
 
 #include <sys/param.h>
+#include <sys/errno.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -185,16 +186,18 @@ pw_edit(notsetuid)
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
+		errno = 0;
 		execlp(editor, p, tempname, NULL);
-		_exit(1);
+		_exit(errno);
 	}
 	for (;;) {
 		editpid = waitpid(editpid, (int *)&pstat, WUNTRACED);
+		errno = WEXITSTATUS(pstat);
 		if (editpid == -1)
 			pw_error(editor, 1, 1);
 		else if (WIFSTOPPED(pstat))
 			raise(WSTOPSIG(pstat));
-		else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0)
+		else if (WIFEXITED(pstat) && errno == 0)
 			break;
 		else
 			pw_error(editor, 1, 1);
