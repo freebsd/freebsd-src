@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.144 1998/10/22 02:32:49 brian Exp $
+ * $Id: main.c,v 1.145 1998/10/31 17:38:46 brian Exp $
  *
  *	TODO:
  */
@@ -515,8 +515,12 @@ DoLoop(struct bundle *bundle)
 
     for (i = 0; i <= nfds; i++)
       if (FD_ISSET(i, &efds)) {
-        log_Printf(LogERROR, "Exception detected on descriptor %d\n", i);
-        break;
+        log_Printf(LogPHASE, "Exception detected on descriptor %d\n", i);
+        /* We deal gracefully with link descriptor exceptions */
+        if (!bundle_Exception(bundle, i)) {
+          log_Printf(LogERROR, "Exception cannot be handled !\n");
+          break;
+        }
       }
 
     if (i <= nfds)
