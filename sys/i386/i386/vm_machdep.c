@@ -286,7 +286,8 @@ cpu_thread_exit(struct thread *td)
 {
 	struct pcb *pcb = td->td_pcb; 
 #ifdef DEV_NPX
-	npxexit(td);
+	if (td == PCPU_GET(fpcurthread))
+		npxdrop();
 #endif
         if (pcb->pcb_flags & PCB_DBREGS) {
 		/* disable all hardware breakpoints */
@@ -369,6 +370,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * more analysis) (need a good safe default).
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
+	pcb2->pcb_flags &= ~(PCB_NPXTRAP|PCB_NPXINITDONE);
 
 	/*
 	 * Create a new fresh stack for the new thread.
