@@ -49,7 +49,7 @@ All four chipsets provide a similar interface to the driver.
 .Pp
 All host/device interaction is via programmed I/O.
 Supported features include 802.11 and 802.3 frames, power management, BSS,
-IBSS, WDS and ad-hoc operation modes.
+IBSS, WDS and old-style Lucent ad-hoc operation modes.
 Cards based on the Intersil PRISM-II and PRISM-2.5 chips also support a
 host-based access point mode which allows a card to act as a normal access
 point (with some assistance from the
@@ -84,20 +84,32 @@ This mode requires the use of an access point (base station).
 .Pp
 The
 .Nm
-driver also supports an ad-hoc (point-to-point) mode where
-the ssid is ignored and stations can communicate amongst
-themselves without the aid of an access point.
-Note that there are two possible ad-hoc modes.
+driver also supports an point-to-point mode where the ssid is
+ignored and stations can communicate amongst themselves without the
+aid of an access point.
+Note that there are two possible point-to-point modes.
 One mode, referred to as
 .Dq ad-hoc demo mode ,
+or
+.Dq legacy Lucent ad-hoc mode ,
 predates the IEEE 802.11 specification and so may not interoperate
-with cards from other vendors.
-The standardized ad-hoc mode, also known as IBSS mode, is not
-supported by cards with very old firmware revisions.
+with cards from different vendors.
+The standardized point-to-point mode, is called IBSS (or confusingly
+just ad-hoc mode), but is not supported by cards with very old
+firmware revisions.
+If your cards supports IBSS mode, it is recommended that you use it in
+preference to the
+.Dq ad-hoc demo mode
+in new installations.
 .Pp
 Cards based on the Intersil PRISM-II and PRISM-2.5 chips also
 have a host-based access point mode which allows the card to
 act as an access point (base station).
+Access points are different than operating in IBSS mode.
+They operate in BSS mode.
+They allow for easier roaming and bridge all ethernet traffic such
+that machines connected via an access point appear to be on the local
+ethernet segment.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
@@ -212,14 +224,14 @@ Join a specific BSS network with WEP encryption:
 	wepkey 0x8736639624
 .Ed
 .Pp
-Join an ad-hoc network with network name
+Join a Lucent legacy demo ad-hoc network with network name
 .Dq my_net .
 .Bd -literal -compact -offset indent
 # ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 	mediaopt adhoc
 .Ed
 .Pp
-Create an IBBS network with network name
+Create an IBSS network with network name
 .Dq my_net .
 .Bd -literal -compact -offset indent
 # ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
@@ -228,7 +240,7 @@ Create an IBBS network with network name
 Note: The infrastructure for mediaopt ibss-master has not been
 committed yet.
 .Pp
-Join an IBBS network with network name
+Join an IBSS network with network name
 .Dq my_net .
 .Bd -literal -compact -offset indent
 # ifconfig wi0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
