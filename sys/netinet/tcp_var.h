@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_var.h	8.3 (Berkeley) 4/10/94
- * $Id: tcp_var.h,v 1.12 1995/06/19 16:45:33 wollman Exp $
+ * $Id: tcp_var.h,v 1.13 1995/06/29 18:11:24 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_VAR_H_
@@ -282,6 +282,9 @@ struct	tcpstat {
 	u_long	tcps_cachedrtt;		/* times cached RTT in route updated */
 	u_long	tcps_cachedrttvar;	/* times cached rttvar updated */
 	u_long	tcps_cachedssthresh;	/* times cached ssthresh updated */
+	u_long	tcps_usedrtt;		/* times RTT initialized from route */
+	u_long	tcps_usedrttvar;	/* times RTTVAR initialized from rt */
+	u_long	tcps_usedssthresh;	/* times ssthresh initialized from rt*/
 };
 
 /*
@@ -368,6 +371,10 @@ struct tcpcb *
 int	 tcp_usrreq __P((struct socket *,
 	    int, struct mbuf *, struct mbuf *, struct mbuf *));
 void	 tcp_xmit_timer __P((struct tcpcb *, int));
+
+extern	u_long tcp_sendspace;
+extern	u_long tcp_recvspace;
+
 #endif /* KERNEL */
 
 #endif /* _NETINET_TCP_VAR_H_ */
