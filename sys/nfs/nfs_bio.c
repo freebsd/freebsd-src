@@ -364,7 +364,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
 		return (EFBIG);
 	biosize = vp->v_mount->mnt_stat.f_iosize;
-	seqcount = (int)((off_t)(ioflag >> 16) * biosize / BKVASIZE);
+	seqcount = (int)((off_t)(ioflag >> IO_SEQSHIFT) * biosize / BKVASIZE);
 	/*
 	 * For nfs, cache consistency can only be maintained approximately.
 	 * Although RFC1094 does not specify the criteria, the following is
