@@ -82,24 +82,24 @@ bytes of data from the kernel-space address
 to the user-space address
 .Pa uaddr .
 .It Fn copystr
-Copies a NULL-terminated string, at most
+Copies a NUL-terminated string, at most
 .Pa len
 bytes long, from kernel-space address
 .Pa kfaddr
 to kernel-space address
 .Pa kdaddr .
 The number of bytes actually copied, including the terminating
-NULL, is returned in
+NUL, is returned in
 .Pa *done .
 .It Fn copyinstr
-Copies a NULL-terminated string, at most
+Copies a NUL-terminated string, at most
 .Pa len
 bytes long, from user-space address
 .Pa uaddr
 to kernel-space address
 .Pa kaddr .
 The number of bytes actually copied, including the terminating
-NULL, is returned in
+NUL, is returned in
 .Pa *done .
 .\" .It Fn copyoutstr
 .\" Copies a NULL-terminated string, at most
