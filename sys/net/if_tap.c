@@ -218,7 +218,7 @@ tapclone(arg, name, namelen, dev)
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, dev, extra);
 	if (i) {
-		*dev = make_dev(&tap_cdevsw, unit2minor(unit) | extra,
+		*dev = make_dev(&tap_cdevsw, unit2minor(unit | extra),
 		     UID_ROOT, GID_WHEEL, 0600, "%s%d", device_name, unit);
 		if (*dev != NULL)
 			(*dev)->si_flags |= SI_CHEAPCLONE;
@@ -247,20 +247,18 @@ tapcreate(dev)
 	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(&taphead, tp, tap_next);
 
-	unit = dev2unit(dev) & TAPMAXUNIT;
+	unit = dev2unit(dev);
 
 	/* select device: tap or vmnet */
-	if (minor(dev) & VMNET_DEV_MASK) {
+	if (unit & VMNET_DEV_MASK) {
 		name = VMNET;
 		tp->tap_flags |= TAP_VMNET;
 	} else
 		name = TAP;
 
-	TAPDEBUG("tapcreate(%s%d). minor = %#x\n", name, unit, minor(dev));
+	unit &= TAPMAXUNIT;
 
-	if (!(dev->si_flags & SI_NAMED))
-		dev = make_dev(&tap_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
-						0600, "%s%d", name, unit);
+	TAPDEBUG("tapcreate(%s%d). minor = %#x\n", name, unit, minor(dev));
 
 	/* generate fake MAC address: 00 bd xx xx xx unit_no */
 	macaddr_hi = htons(0x00bd);
@@ -306,13 +304,13 @@ tapopen(dev, flag, mode, td)
 	struct thread	*td;
 {
 	struct tap_softc	*tp = NULL;
-	int			 unit, error;
+	int			 error;
 
 	if ((error = suser(td)) != 0)
 		return (error);
 
-	unit = dev2unit(dev) & TAPMAXUNIT;
-
+	if ((dev2unit(dev) & CLONE_UNITMASK) > TAPMAXUNIT)
+		return (ENXIO);
 
 	tp = dev->si_drv1;
 	if (tp == NULL) {
