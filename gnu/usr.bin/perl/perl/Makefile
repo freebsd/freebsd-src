@@ -13,6 +13,5 @@ DPADD= ${LIBM}
 DPADD+= ${LIBCRYPT}
 LDADD+= -lcrypt
 
-.include <bsd.prog.mk> 
 .include "../../Makefile.inc"
-
+.include <bsd.prog.mk> 

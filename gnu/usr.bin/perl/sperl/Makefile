@@ -22,6 +22,5 @@ DPADD+= ${LIBCRYPT}
 NOMAN=
 
 
-.include <bsd.prog.mk>
 .include "../../Makefile.inc"
-
+.include <bsd.prog.mk>

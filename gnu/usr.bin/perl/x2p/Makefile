@@ -10,9 +10,10 @@ DPADD= ${LIBM}
 MAN1+= a2p.1 s2p.1 h2ph.1  
 
 beforeinstall:
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/s2p ${BINDIR}
-	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/h2ph ${BINDIR}
+	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/s2p \
+		${DESTDIR}${BINDIR}
+	install -c -o ${BINOWN} -g ${BINGRP} -m 555 ${.CURDIR}/h2ph \
+		${DESTDIR}${BINDIR}
 
-.include <bsd.prog.mk>
 .include "../../Makefile.inc"
-
+.include <bsd.prog.mk>
