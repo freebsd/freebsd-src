@@ -157,11 +157,6 @@ ENTRY(cpu_switch)
 	bl	chooseproc
 
 1:
-	/* just did this resched thing */
-	xor	3,3,3
-	lis	4,want_resched@ha
-	stw	3,want_resched@l(4)
-
 	/* record new process */
 	mfsprg	4,0
 	stw	3,GD_CURPROC(4)
