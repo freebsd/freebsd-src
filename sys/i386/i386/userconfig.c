@@ -478,7 +478,7 @@ typedef struct _devlist_struct
     int		attrib;			/* flag values as per the FLG_* defines above */
     int		class;			/* disk, etc as per the CLS_* defines above */
     char	dev[16];
-    int		iobase,irq,drq,maddr,msize,unit,flags,conflict_ok,id;
+    int		iobase,irq,drq,maddr,msize,unit,flags,id;
     int		comment;		/* 0 = device, 1 = comment, 2 = collapsed comment */
     int		conflicts;		/* set/reset by findconflict, count of conflicts */
     int		changed;		/* nonzero if the device has been edited */
@@ -573,7 +573,6 @@ getdevs(void)
 	    scratch.maddr = (int)ap[i].id_maddr;
 	    scratch.msize = ap[i].id_msize;
 	    scratch.flags = ap[i].id_flags;
-	    scratch.conflict_ok = ap[i].id_conflicts;
 
 	    scratch.comment = DEV_DEVICE;		/* admin stuff */
 	    scratch.conflicts = 0;
@@ -596,7 +595,6 @@ getdevs(void)
 		scratch.maddr = -2;
 		scratch.msize = -2;
 		scratch.flags = 0;
-		scratch.conflict_ok = 0;		/* shouldn't conflict */
 		scratch.comment = DEV_DEVICE;		/* is a device */
 		scratch.unit = 0;			/* arbitrary number of them */
 		scratch.conflicts = 0;
@@ -1023,8 +1021,6 @@ findconflict(DEV_LIST *list)
 
 	    if (sp == dp)			/* always conflict with itself */
 		continue;
-	    if (sp->conflict_ok && dp->conflict_ok)
-		continue;			/* both allowed to conflict */
 
 	    if ((dp->iobase > 0) &&		/* iobase conflict? */
 		(dp->iobase == sp->iobase))
@@ -1635,8 +1631,6 @@ showparams(DEV_LIST *dev)
 	sprintf(buf,"DRQ number     : %d",dev->drq);
 	putxy(26,20,buf);
     }
-    if (dev->conflict_ok)
-	putxy(54,18,"Conflict allowed");
 }
 
 
@@ -3331,17 +3325,16 @@ lsdevtab(struct isa_device *dt)
 	}
 	if (lineno == 0) {
 		printf(
-"Device   port       irq   drq   iomem   iosize   unit  flags      enab confl\n"
+"Device   port       irq   drq   iomem   iosize   unit  flags      enab\n"
 		    );
 		++lineno;
 	}
 	sprintf(dname, "%s%d", dt->id_driver->name, dt->id_unit);
-	printf("%-9.9s%-#11x%-6d%-6d%-8p%-9d%-6d%-#11x%-5s%-3s\n",
+	printf("%-9.9s%-#11x%-6d%-6d%-8p%-9d%-6d%-#11x%-5s\n",
 	    dname, /* dt->id_id, dt->id_driver(by name), */ dt->id_iobase,
 	    ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr, dt->id_msize,
 	    /* dt->id_intr(by name), */ dt->id_unit, dt->id_flags,
-	    dt->id_enabled ? "Yes" : "No",
-	    dt->id_conflicts ? "Yes" : "No");
+	    dt->id_enabled ? "Yes" : "No");
 	++lineno;
     }
     return(0);
@@ -3381,8 +3374,6 @@ load_devtab(void)
 	val = 0;
 	resource_int_value(name, unit, "disabled", &val);
 	isa_devtab[dt].id_enabled = !val;
-	resource_int_value(name, unit, "conflicts",
-		(int *)&isa_devtab[dt].id_conflicts);
 	isa_drvtab[dt].name = malloc(strlen(name) + 1, M_DEVL,M_WAITOK);
 	strcpy(isa_drvtab[dt].name, name);
 	dt++;
@@ -3547,7 +3538,6 @@ save_resource(struct isa_device *idev)
     resource_set_int(name, unit, "msize", idev->id_msize);
     resource_set_int(name, unit, "flags", idev->id_flags);
     resource_set_int(name, unit, "disabled", !idev->id_enabled);
-    resource_set_int(name, unit, "conflicts", idev->id_conflicts);
 }
 
 static int
