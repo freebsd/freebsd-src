@@ -71,9 +71,7 @@ void	usage(int);
 int eval, force, verbose;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	enum {COMPRESS, DECOMPRESS} style;
 	size_t len;
@@ -198,9 +196,7 @@ main(argc, argv)
 }
 
 void
-compress(in, out, bits)
-	const char *in, *out;
-	int bits;
+compress(const char *in, const char *out, int bits)
 {
 	size_t nr;
 	struct stat isb, sb;
@@ -290,9 +286,7 @@ err:	if (ofp) {
 }
 
 void
-decompress(in, out, bits)
-	const char *in, *out;
-	int bits;
+decompress(const char *in, const char *out, int bits)
 {
 	size_t nr;
 	struct stat sb;
@@ -357,9 +351,7 @@ err:	if (ofp) {
 }
 
 void
-setfile(name, fs)
-	const char *name;
-	struct stat *fs;
+setfile(const char *name, struct stat *fs)
 {
 	static struct timeval tv[2];
 
@@ -389,8 +381,7 @@ setfile(name, fs)
 }
 
 int
-permission(fname)
-	const char *fname;
+permission(const char *fname)
 {
 	int ch, first;
 
@@ -404,8 +395,7 @@ permission(fname)
 }
 
 void
-usage(iscompress)
-	int iscompress;
+usage(int iscompress)
 {
 	if (iscompress)
 		(void)fprintf(stderr,
