@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.5 1995/05/17 16:16:09 jkh Exp $
+ * $Id: label.c,v 1.6 1995/05/18 09:01:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -491,6 +491,10 @@ diskLabelEditor(char *str)
 		    else
 			p = NULL;
 
+		    if ((flags & CHUNK_IS_ROOT) && !(label_chunk_info[here].c->flags & CHUNK_BSD_COMPAT)) {
+			msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
+			break;
+		    }
 		    tmp = Create_Chunk_DWIM(label_chunk_info[here].d,
 					    label_chunk_info[here].c,
 					    size, part,
@@ -500,17 +504,10 @@ diskLabelEditor(char *str)
 			msgConfirm("Unable to create the partition. Too big?");
 			break;
 		    }
-		    else if (flags & CHUNK_IS_ROOT) {
-			if (tmp->flags & CHUNK_PAST_1024) {
+		    else if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
 			    msgConfirm("This region cannot be used for your root partition as it starts\nor extends past the 1024'th cylinder mark and is thus a\npoor location to boot from.  Please choose another\nlocation for your root partition and try again!");
 			    Delete_Chunk(label_chunk_info[here].d, tmp);
 			    break;
-			}
-			else if (!(tmp->flags & CHUNK_BSD_COMPAT)) {
-			    msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
-			    Delete_Chunk(label_chunk_info[here].d, tmp);
-			    break;
-			}
 		    }
 		    tmp->private = p;
 		    tmp->private_free = safe_free;
