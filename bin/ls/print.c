@@ -352,22 +352,20 @@ printtype(mode)
 }
 
 #ifdef COLORLS
-static char tcapbuf[512];
 void
 printcolor(c)
        Colors c;
 {
-	char *bp = tcapbuf;
 	char *ansiseq;
 
 	if (colors[c][0] != -1) {
-		ansiseq = tparm(tgetstr("AF", &bp), colors[c][0]);
+		ansiseq = tparm(ansi_fgcol, colors[c][0]);
 		if (ansiseq)
 			putp(ansiseq);
 	}
 
 	if (colors[c][1] != -1) {
-		ansiseq = tparm(tgetstr("AB", &bp), colors[c][1]);
+		ansiseq = tparm(ansi_bgcol, colors[c][1]);
 		if (ansiseq)
 			putp(ansiseq);
 	}
@@ -376,11 +374,8 @@ printcolor(c)
 void
 endcolor()
 {
-	char *bp = tcapbuf;
-	char *ansiseq;
-	ansiseq = tgetstr("se", &bp);
-	if (ansiseq)
-		putp(ansiseq);
+	if (ansi_coloff)
+		putp(ansi_coloff);
 }
 
 int

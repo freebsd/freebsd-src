@@ -119,6 +119,10 @@ int f_type;			/* add type character for non-regular files */
 int f_whiteout;			/* show whiteout entries */
 #ifdef COLORLS
 int f_color;			/* add type in color for non-regular files */
+
+char *ansi_bgcol;		/* ANSI sequence to set background colour */
+char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
+char *ansi_coloff;		/* ANSI sequence to reset colours */
 #endif
 
 int rval;
@@ -132,6 +136,12 @@ main(argc, argv)
 	struct winsize win;
 	int ch, fts_options, notused;
 	char *p;
+
+#ifdef COLORLS
+	char termcapbuf[1024];		/* termcap definition buffer */
+	char tcapbuf[512];		/* capability buffer */
+	char *bp = tcapbuf;
+#endif
 
 	(void) setlocale(LC_ALL, "");
 
@@ -198,8 +208,19 @@ main(argc, argv)
 		case 'G':
 			if (isatty(STDOUT_FILENO))
 #ifdef COLORLS
-				if (tgetent(NULL, getenv("TERM")) == 1)
-					f_color = 1;
+				if (tgetent(termcapbuf, getenv("TERM")) == 1) {
+					ansi_fgcol = tgetstr("AF", &bp);
+					ansi_bgcol = tgetstr("AB", &bp);
+
+					/* To switch colours off use 'op' if
+					 * available, otherwise use 'oc', or
+					 * don't do colours at all. */
+					ansi_coloff = tgetstr("op", &bp);
+					if (!ansi_coloff)
+						ansi_coloff = tgetstr("oc", &bp);
+					if (ansi_fgcol && ansi_bgcol && ansi_coloff)
+						f_color = 1;
+				}
 #else
 				(void)fprintf(stderr, "Color support not compiled in.\n");
 #endif

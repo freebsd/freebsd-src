@@ -55,4 +55,8 @@ int	 prn_octal __P((char *));
 void	 parsecolors __P((char *cs));
 int	 colortype __P((mode_t mode));
 void	 endcolor __P((void));
+
+char	*ansi_fgcol;
+char	*ansi_bgcol;
+char	*ansi_coloff;
 #endif
