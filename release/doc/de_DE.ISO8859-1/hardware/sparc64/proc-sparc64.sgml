@@ -1,7 +1,7 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.sgml,v 1.6 2003/01/09 13:13:31 ue Exp $
-	basiert auf: 1.6
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.sgml,v 1.7 2003/01/12 09:01:47 ue Exp $
+	basiert auf: 1.7
 -->
 <sect1>
   <title>Unterst&uuml;tzte Systeme</title>
@@ -135,7 +135,7 @@
       </listitem>
 
       <listitem>
-	<para>Ultra 1E</para>
+	<para>Ultra 1 Enterprise (auch als 1E bezeichnet)</para>
       </listitem>
 
       <listitem>
