@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.82 1996/09/01 10:10:12 davidg Exp $
+ *	$Id: trap.c,v 1.83 1996/09/10 08:32:01 bde Exp $
  */
 
 /*
@@ -350,10 +350,10 @@ trap(frame)
 						   doreti_popl_ds_fault);
 				MAYBE_DORETI_FAULT(doreti_popl_es,
 						   doreti_popl_es_fault);
-			}
-			if (curpcb && curpcb->pcb_onfault) {
-				frame.tf_eip = (int)curpcb->pcb_onfault;
-				return;
+				if (curpcb && curpcb->pcb_onfault) {
+					frame.tf_eip = (int)curpcb->pcb_onfault;
+					return;
+				}
 			}
 			break;
 
@@ -493,7 +493,8 @@ trap_pfault(frame, usermode)
 
 		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
-		    (curpcb == NULL || curpcb->pcb_onfault == NULL))) {
+		     (intr_nesting_level != 0 || curpcb == NULL ||
+		      curpcb->pcb_onfault == NULL))) {
 			trap_fatal(frame);
 			return (-1);
 		}
@@ -550,7 +551,7 @@ trap_pfault(frame, usermode)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (curpcb && curpcb->pcb_onfault) {
+		if (intr_nesting_level == 0 && curpcb && curpcb->pcb_onfault) {
 			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
@@ -645,7 +646,7 @@ trap_pfault(frame, usermode)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (curpcb && curpcb->pcb_onfault) {
+		if (intr_nesting_level == 0 && curpcb && curpcb->pcb_onfault) {
 			frame->tf_eip = (int)curpcb->pcb_onfault;
 			return (0);
 		}
