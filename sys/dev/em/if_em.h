@@ -74,7 +74,6 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <dev/pci/pcireg.h>
 #include <sys/endian.h>
 #include <sys/proc.h>
-#include <sys/sysctl.h>
 #include "opt_bdg.h"
 
 #include <dev/em/if_em_hw.h>
@@ -398,9 +397,6 @@ struct adapter {
 	/* Jumbo frame */
 	struct mbuf        *fmp;
 	struct mbuf        *lmp;
-
-	struct sysctl_ctx_list sysctl_ctx;
-        struct sysctl_oid *sysctl_tree;
 
 	/* Misc stats maintained by the driver */
 	unsigned long   dropped_pkts;
