@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.195 1998/06/04 12:02:52 jb Exp $
+#	$Id: Makefile,v 1.196 1998/06/05 16:50:45 jkh Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -493,15 +493,15 @@ bootstrap:
 	cd ${.CURDIR}/usr.bin/lex; ${MAKE} bootstrap; \
 		${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} -DNOLIB all; \
-		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR} ${OBJDIR}
+		${MAKE} ${MK_FLAGS} -DNOLIB -B install ${CLEANDIR}
+.if !defined(NOOBJDIR)
+	cd ${.CURDIR}/usr.bin/lex; ${MAKE} ${OBJDIR}
+.endif
 	cd ${.CURDIR}/usr.sbin/mtree; ${MAKE} ${MK_FLAGS} ${_DEPEND}; \
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .if defined(DESTDIR)
 	cd ${.CURDIR}/include && ${MAKE} copies
-.endif
-.if !defined(NOOBJDIR)
-	cd ${.CURDIR}/usr.bin/lex; ${MAKE} ${OBJDIR}
 .endif
 
 #
