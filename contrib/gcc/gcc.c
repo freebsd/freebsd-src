@@ -2405,8 +2405,12 @@ static int warn_std;
 /* Gives value to pass as "warn" to add_prefix for standard prefixes.  */
 static int *warn_std_ptr = 0;
 
-#if defined(FREEBSD_NATIVE) && defined(__i386__)
-static int objformat_aout = 0;	/* ELF by default */
+#if defined(FREEBSD_NATIVE)
+#include <objformat.h>
+
+typedef enum { OBJFMT_UNKNOWN, OBJFMT_AOUT, OBJFMT_ELF } objf_t;
+
+static objf_t objformat = OBJFMT_UNKNOWN;
 #endif
 
 #if defined(HAVE_OBJECT_SUFFIX) || defined(HAVE_EXECUTABLE_SUFFIX)
@@ -2726,36 +2730,16 @@ process_command (argc, argv)
 	}
     }
 
-#if defined(FREEBSD_NATIVE) && defined(__i386__)
+#if defined(FREEBSD_NATIVE)
   {
-    /* first hint is /etc/objformat */
-    FILE *fp = fopen("/etc/objformat", "r");
-    if (fp) {
-      char buf[1024];
-      buf[1023] = '\0';
-      while (fgets(buf, sizeof(buf) - 1, fp) != NULL) {
-	i = strlen(buf);
-	if (buf[i - 1] == '\n')
-	  buf[i - 1] = '\0';
-	if (strcmp(buf, "OBJFORMAT=aout") == 0)
-	  objformat_aout = 1;
-	else if (strcmp(buf, "OBJFORMAT=elf") == 0)
-	  objformat_aout = 0;
-	else
-	  fprintf(stderr, "Unrecognized line in /etc/objformat: %s\n", buf);
-      }
-      fclose(fp);
-    }
-    /* but the user $OBJFORMAT overrides system default */
-    temp = getenv("OBJFORMAT");
-    if (temp) {
-      if (strcmp(temp, "aout") == 0)
-	objformat_aout = 1;
-      else if (strcmp(temp, "elf") == 0)
-	objformat_aout = 0;
+    char buf[64];
+    if (getobjformat (buf, sizeof buf, &argc, argv))
+      if (strcmp (buf, "aout") == 0)
+        objformat = OBJFMT_AOUT;
+      else if (strcmp (buf, "elf") == 0)
+        objformat = OBJFMT_ELF;
       else
-	fprintf(stderr, "Unrecognized value of $OBJFORMAT: %s\n", temp);
-    }
+        fprintf(stderr, "Unrecognized object format: %s\n", buf);
   }
 #endif
 
@@ -2771,19 +2755,6 @@ process_command (argc, argv)
 
   for (i = 1; i < argc; i++)
     {
-#if defined(FREEBSD_NATIVE) && defined(__i386__)
-      /* .. and command line args override all */
-      if (strcmp (argv[i], "-aout") == 0)
-	{
-	  objformat_aout = 1;
-	  continue;
-	}
-      else if (strcmp (argv[i], "-elf") == 0)
-	{
-	  objformat_aout = 0;
-	  continue;
-	}
-#endif
       if (! strcmp (argv[i], "-dumpspecs"))
 	{
 	  struct spec_list *sl;
@@ -3108,18 +3079,21 @@ process_command (argc, argv)
   /* Use 2 as fourth arg meaning try just the machine as a suffix,
      as well as trying the machine and the version.  */
 #ifdef FREEBSD_NATIVE
-#if defined(__i386__)
-  if (objformat_aout) {
-    n_switches++;		/* add implied -maout */
-    add_prefix (&exec_prefixes, "/usr/libexec/aout/", "BINUTILS",
-	      0, 0, NULL_PTR);
-  } else
-    add_prefix (&exec_prefixes, "/usr/libexec/elf/", "BINUTILS",
-	      0, 0, NULL_PTR);
-#endif
-  add_prefix (&exec_prefixes, "/usr/libexec", "GCC",
+  switch (objformat)
+    {
+    case OBJFMT_AOUT:
+      n_switches++;		/* add implied -maout */
+      add_prefix (&exec_prefixes, "/usr/libexec/aout/", "BINUTILS",
+		  0, 0, NULL_PTR);
+      break;
+    case OBJFMT_ELF:
+      add_prefix (&exec_prefixes, "/usr/libexec/elf/", "BINUTILS",
+		  0, 0, NULL_PTR);
+      break;
+    }
+  add_prefix (&exec_prefixes, "/usr/libexec/", "GCC",
 	      0, 0, warn_std_ptr);
-  add_prefix (&exec_prefixes, "/usr/bin", "GCC",
+  add_prefix (&exec_prefixes, "/usr/bin/", "GCC",
 	      0, 0, warn_std_ptr);
   add_prefix (&startfile_prefixes, "/usr/libdata/gcc/", "BINUTILS",
 	      0, 0, warn_std_ptr);
@@ -3196,17 +3170,21 @@ process_command (argc, argv)
      to the copy in the vector of switches.
      Store all the infiles in their vector.  */
 
-#if defined(FREEBSD_NATIVE) && defined(__i386__)
-  if (objformat_aout == 1) {
-    switches[n_switches].part1 = "maout";
-    switches[n_switches].args = 0;
-    switches[n_switches].live_cond = 0;
-    switches[n_switches].validated = 0;
-    n_switches++;
-    putenv("OBJFORMAT=aout");
-  } else {
-    putenv("OBJFORMAT=elf");
-  }
+#if defined(FREEBSD_NATIVE)
+  switch (objformat)
+    {
+    case OBJFMT_AOUT:
+      switches[n_switches].part1 = "maout";
+      switches[n_switches].args = 0;
+      switches[n_switches].live_cond = 0;
+      switches[n_switches].validated = 0;
+      n_switches++;
+      putenv("OBJFORMAT=aout");
+      break;
+    case OBJFMT_ELF:
+      putenv("OBJFORMAT=elf");
+      break;
+    }
 #endif
 
   for (i = 1; i < argc; i++)
@@ -3228,12 +3206,6 @@ process_command (argc, argv)
 	;
       else if (! strcmp (argv[i], "-print-multi-directory"))
 	;
-#if defined(FREEBSD_NATIVE) && defined(__i386__)
-      else if (! strcmp (argv[i], "-aout"))
-	;
-      else if (! strcmp (argv[i], "-elf"))
-	;
-#endif
       else if (strcmp (argv[i], "-fhelp") == 0)
 	{
 	  if (verbose_flag)
