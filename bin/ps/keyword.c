@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #include <err.h>
-#include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ps.h"
 
-static VAR *findvar(char *);
+static VAR *findvar(char *, int, char **header);
 static int  vcmp(const void *, const void *);
 
 #ifdef NOTINUSE
@@ -212,22 +211,43 @@ showkey(void)
 }
 
 void
-parsefmt(const char *p)
+parsefmt(const char *p, int user)
 {
 	static struct varent *vtail;
 	char *tempstr, *tempstr1;
 
+#define	SKIP_5x_USERCHGS	1
+#if SKIP_5x_USERCHGS
+	/*
+	 * XXX - For now in 4.x-stable, always act as if the user
+	 *	explicitly requested this format string.  This is
+	 *	done to reduce the code-differences with 5.x,
+	 *	without making any user-visible changes.
+	 */
+	user = 1;
+#endif
+
 #define		FMTSEP	" \t,\n"
 	tempstr1 = tempstr = strdup(p);
 	while (tempstr && *tempstr) {
-		char *cp;
+		char *cp, *hp;
 		VAR *v;
 		struct varent *vent;
 
 		while ((cp = strsep(&tempstr, FMTSEP)) != NULL && *cp == '\0')
 			/* void */;
-		if (cp == NULL || !(v = findvar(cp)))
+		if (cp == NULL || !(v = findvar(cp, user, &hp)))
 			continue;
+		if (!user) {
+			/*
+			 * If the user is NOT adding this field manually,
+			 * get on with our lives if this VAR is already
+			 * represented in the list.
+			 */
+			vent = find_varentry(v);
+			if (vent != NULL)
+				continue;
+		}
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
 			errx(1, "malloc failed");
 		vent->var = v;
@@ -248,7 +268,7 @@ parsefmt(const char *p)
 }
 
 static VAR *
-findvar(char *p)
+findvar(char *p, int user, char **header __unused)
 {
 	VAR *v, key;
 	char *hp;
@@ -265,14 +285,14 @@ findvar(char *p)
 			warnx("%s: illegal keyword specification", p);
 			eval = 1;
 		}
-		parsefmt(v->alias);
+		parsefmt(v->alias, user);
 		return ((VAR *)NULL);
 	}
 	if (!v) {
 		warnx("%s: keyword not found", p);
 		eval = 1;
 	} else if (hp)
-		v->header = hp;
+		v->header = strdup(hp);
 	return (v);
 }
 
