@@ -1739,7 +1739,7 @@ bundle_AutoAdjust(struct bundle *bundle, int percent, int what)
     } else if (otherlinkup) {	/* Only bring the second-last link down */
       log_Printf(LogPHASE, "%d%% saturation -> Closing link ``%s''\n",
                  percent, choice->name);
-      datalink_Down(choice, CLOSE_NORMAL);
+      datalink_Close(choice, CLOSE_STAYDOWN);
       mp_StopAutoloadTimer(&bundle->ncp.mp);
     }
   }
