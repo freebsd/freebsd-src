@@ -39,12 +39,14 @@
 #define NEED_LITERAL_POOL
 #define REPEAT_CONS_EXPRESSIONS
 
+extern void alpha_validate_fix PARAMS ((struct fix *));
 extern int alpha_force_relocation PARAMS ((struct fix *));
 extern int alpha_fix_adjustable PARAMS ((struct fix *));
 
 extern unsigned long alpha_gprmask, alpha_fprmask;
 extern valueT alpha_gp_value;
 
+#define TC_VALIDATE_FIX(FIXP,SEGTYPE,SKIP) alpha_validate_fix (FIXP)
 #define TC_FORCE_RELOCATION(FIXP)	alpha_force_relocation (FIXP)
 #define tc_fix_adjustable(FIXP)		alpha_fix_adjustable (FIXP)
 #define RELOC_REQUIRES_SYMBOL

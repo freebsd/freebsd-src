@@ -29,9 +29,9 @@
    out of luck; there's no --compatibility or --pedantic option.  */
 
 #include "bfd.h"
-#include "getopt.h"
 #include "bucomm.h"
 #include "libiberty.h"
+#include "getopt.h"
 
 #ifndef BSD_DEFAULT
 #define BSD_DEFAULT 1

@@ -1,6 +1,90 @@
+2002-02-13  Matt Fredette  <fredette@netbsd.org>
+
+	* m68k.h (EF_M68000): Define.
+
+2002-02-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (DT_PPC64_OPD, DT_PPC64_OPDSZ): Define.
+
+2002-02-09  Richard Henderson  <rth@redhat.com>
+
+	* alpha.h (R_ALPHA_BRSGP): New.
+
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2002-01-23  Alexandre Oliva  <aoliva@redhat.com>
+	* sh.h (R_SH_GOTPLT32, R_SH_GOT_LOW16, R_SH_GOT_MEDLOW16,
+	R_SH_GOT_MEDHI16, R_SH_GOT_HI16, R_SH_GOTPLT_LOW16,
+	R_SH_GOTPLT_MEDLOW16, R_SH_GOTPLT_MEDHI16, R_SH_GOTPLT_HI16,
+	R_SH_PLT_LOW16, R_SH_PLT_MEDLOW16, R_SH_PLT_MEDHI16,
+	R_SH_PLT_HI16, R_SH_GOTOFF_LOW16, R_SH_GOTOFF_MEDLOW16,
+	R_SH_GOTOFF_MEDHI16, R_SH_GOTOFF_HI16, R_SH_GOTPC_LOW16,
+	R_SH_GOTPC_MEDLOW16, R_SH_GOTPC_MEDHI16, R_SH_GOTPC_HI16,
+	R_SH_GOT10BY4, R_SH_GOTPLT10BY4, R_SH_GOT10BY8,
+	R_SH_GOTPLT10BY8, R_SH_COPY64, R_SH_GLOB_DAT64, R_SH_JMP_SLOT64,
+	R_SH_RELATIVE64): New relocs.
+	(R_SH_FIRST_INVALID_RELOC_4): Adjust.
+	2001-05-16  Alexandre Oliva  <aoliva@redhat.com>
+	* sh.h: Renumbered and renamed some SH5 relocations to match
+	official numbers and names; moved unmaching ones to the range
+	0xf2-0xff.
+	2001-01-06  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (sh64_get_contents_type): Declare.
+	(sh64_address_is_shmedia): Likewise.
+	2000-12-30  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (sh64_elf_crange): New type.
+	(struct sh64_section_data): New.
+	(sh64_elf_section_data): New macro.
+	(EF_SH5): Rename back from EF_SH64.
+	2000-12-18  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (SHF_SH5_ISA32_MIXED, SHT_SH5_CR_SORTED,
+	SH64_CRANGES_SECTION_NAME, SH64_CRANGE_SIZE,
+	SH64_CRANGE_CR_ADDR_OFFSET, SH64_CRANGE_CR_SIZE_OFFSET,
+	SH64_CRANGE_CR_TYPE_OFFSET): New macros.
+	2000-12-12  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (EF_SH64): Don't define EF_SH64_ABI64.
+	2000-11-27  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (EF_SH64_32BIT_ABI, EF_SH64_64BIT_ABI): Delete.
+	(EF_SH64_ABI64): New.
+	2000-11-23  Hans-Peter Nilsson  <hpn@cygnus.com>
+	* sh.h (EF_SH64): Rename from EF_SH5.
+	(EF_SH64_32BIT_ABI): New.
+	(EF_SH64_64BIT_ABI): New.
+	(R_SH_PT_16, R_SH_SHMEDIA_CODE
+	R_SH_IMMU5, R_SH_IMMS6, R_SH_IMMU6, R_SH_IMMS10, R_SH_IMMS10BY2,
+	R_SH_IMMS10BY4, R_SH_IMMS10BY8, R_SH_IMMS16, R_SH_IMMU16,
+	R_SH_IMM_LOW16, R_SH_IMM_LOW16_PCREL, R_SH_IMM_MEDLOW16,
+	R_SH_IMM_MEDLOW16_PCREL, R_SH_IMM_MEDHI16, R_SH_IMM_MEDHI16_PCREL,
+	R_SH_IMM_HI16, R_SH_IMM_HI16_PCREL, R_SH_64, R_SH_64_PCREL): New
+	relocs.
+	2000-09-01  Ben Elliston  <bje@redhat.com>
+	* sh.h (EF_SH5): Define.
+
+2002-02-01  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* mmix.h: Tweak comments.
+	(MMIX_LD_ALLOCATED_REG_CONTENTS_SECTION_NAME): New.
+	[BFD_ARCH_SIZE] (_bfd_mmix_prepare_linker_allocated_gregs,
+	_bfd_mmix_finalize_linker_allocated_gregs,
+	_bfd_mmix_check_all_relocs): Provide prototypes.
+
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* or32.h: New file.
+	* common.h: Add support for or32 targets.
+
+2002-01-28  Jason Merrill  <jason@redhat.com>
+
+	* dwarf2.h: Sync with gcc version.
+
 2002-01-16  Alan Modra  <amodra@bigpond.net.au>
 
 	* ppc.h (DT_PPC64_GLINK): Define.
+
+2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm.h (F_VFP_FLOAT, EF_ARM_VFP_FLOAT): Define.
 
 2002-01-09  Jason Thorpe  <thorpej@wasabisystems.com>
 
@@ -23,6 +107,10 @@
 	* internal.h (struct elf_internal_sym <st_shndx>): Make it an
 	unsigned int.
 	* common.h (SHN_BAD): Define.
+
+2001-12-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* elf/common.h (PT_GNU_EH_FRAME): Define.
 
 2001-12-11  Alan Modra  <amodra@bigpond.net.au>
 
@@ -90,7 +178,7 @@
 	(E_H8_MACH_H8300, E_H8_MACH_H8300H, E_H8_MACH_H8300S): New
 	machine types.
 
-Tue Aug 26 23:32:34 2001  J"orn Rennecke <amylaar@redhat.com>
+2001-08-26  J"orn Rennecke <amylaar@redhat.com>
 
 	* h8.h: New file.
 
@@ -117,6 +205,11 @@ Tue Aug 26 23:32:34 2001  J"orn Rennecke <amylaar@redhat.com>
 
 	* common.h: Remove definition of EM_MIPS_RS4_BE.  The constant was
 	never in active use and is used otherwise by the ABI.
+
+2001-05-11  Jakub Jelinek  <jakub@redhat.com>
+
+	* ia64.h (ELF_STRING_ia64_unwind_once): Define.
+	(ELF_STRING_ia64_unwind_info_once): Define.
 
 2001-05-07  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
 
@@ -390,8 +483,8 @@ Tue Aug 26 23:32:34 2001  J"orn Rennecke <amylaar@redhat.com>
 	(ELFOSABI_MODESTO): Defined.
 	(ELFOSABI_OPENBSD): Likewise.
 
-Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
-			  David Mosberger  <davidm@hpl.hp.com>
+2000-04-21  Richard Henderson  <rth@cygnus.com>
+	    David Mosberger  <davidm@hpl.hp.com>
 
 	* ia64.h: New file.
 
@@ -425,7 +518,7 @@ Fri Apr 21 13:20:53 2000  Richard Henderson  <rth@cygnus.com>
 	(PF_ARM_PI): Define.
 	(PF_ARM_ABS): Define.
 
-Wed Apr  5 22:08:59 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
+2000-04-05  J"orn Rennecke <amylaar@cygnus.co.uk>
 
 	* sh.h (R_SH_LOOP_START, R_SH_LOOP_END): New RELOC_NUMBERs.
 
@@ -454,7 +547,7 @@ Wed Apr  5 22:08:59 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
 
 	* common.h (ELFOSABI_LINUX): Define.
 
-Thu Feb 17 00:18:33 2000  J"orn Rennecke <amylaar@cygnus.co.uk>
+2000-02-17  J"orn Rennecke <amylaar@cygnus.co.uk>
 
 	* sh.h: (EF_SH_MACH_MASK, EF_SH_UNKNOWN, EF_SH1, EF_SH2): New macros.
 	(EF_SH3, EF_SH_HAS_DSP, EF_SH_DSP, EF_SH3_DSP): Likewise.

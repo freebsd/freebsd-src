@@ -67,6 +67,7 @@ responsibility among the other maintainers.
   ix86 INTEL MODE  Diego Novillo <dnovillo@redhat.com>
   M68HC11 M68HC12  Stephane Carrez <Stephane.Carrez@worldnet.fr>
   MN10300	   Eric Christopher <echristo@redhat.com>
+  MN10300	   Alexandre Oliva <aoliva@redhat.com>
   MIPS		   Eric Christopher <echristo@redhat.com>
   M88k		   Ben Elliston <bje@redhat.com>
   MMIX		   Hans-Peter Nilsson <hp@bitrange.com>
@@ -75,6 +76,7 @@ responsibility among the other maintainers.
   s390, s390x	   Martin Schwidefsky <schwidefsky@de.ibm.com>
   SH		   JÅˆrn Rennecke <amylaar@onetel.net.uk>
   SH		   Hans-Peter Nilsson <hp@bitrange.com>
+  SH		   Alexandre Oliva <aoliva@redhat.com>
   SPARC		   Jakub Jelinek <jakub@redhat.com>
   TIC54X           Timothy Wall <twall@alum.mit.edu>
   z8k		   Christian Groessler <cpg@aladdin.de>
@@ -126,4 +128,4 @@ burden of maintaining the branch in sync with the mainline becomes too
 great).  If you are uncertain as to whether a patch is appropriate for
 the branch, ask the branch maintainer.  This is:
 
-   Philip Blundell  <philb@gnu.org>
+   Daniel Jacobowitz  <dan@debian.org>

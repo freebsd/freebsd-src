@@ -170,25 +170,20 @@ CODE_FRAGMENT
 .{
 .  {* The name of the section; the name isn't a copy, the pointer is
 .     the same as that passed to bfd_make_section.  *}
-.
 .  const char *name;
 .
 .  {* A unique sequence number.  *}
-.
 .  int id;
 .
 .  {* Which section in the bfd; 0..n-1 as sections are created in a bfd.  *}
-.
 .  int index;
 .
 .  {* The next section in the list belonging to the BFD, or NULL.  *}
-.
 .  struct sec *next;
 .
 .  {* The field flags contains attributes of the section. Some
 .     flags are read in from the object file, and some are
 .     synthesized from other information.  *}
-.
 .  flagword flags;
 .
 .#define SEC_NO_FLAGS   0x000
@@ -397,25 +392,21 @@ CODE_FRAGMENT
 .      backend can assign addresses (for example, in <<a.out>>, where
 .      the default address for <<.data>> is dependent on the specific
 .      target and various flags).  *}
-.
 .  bfd_vma vma;
 .
 .  {*  The load address of the section - where it would be in a
 .      rom image; really only used for writing section header
-.      information. *}
-.
+.      information.  *}
 .  bfd_vma lma;
 .
 .  {* The size of the section in octets, as it will be output.
 .     Contains a value even if the section has no contents (e.g., the
 .     size of <<.bss>>).  This will be filled in after relocation.  *}
-.
 .  bfd_size_type _cooked_size;
 .
 .  {* The original size on disk of the section, in octets.  Normally this
 .     value is the same as the size, but if some relaxing has
 .     been done, then this value will be bigger.  *}
-.
 .  bfd_size_type _raw_size;
 .
 .  {* If this section is going to be output, then this value is the
@@ -425,49 +416,39 @@ CODE_FRAGMENT
 .     100th octet (8-bit quantity) in the output section, this value
 .     would be 100.  However, if the target byte size is 16 bits
 .     (bfd_octets_per_byte is "2"), this value would be 50.  *}
-.
 .  bfd_vma output_offset;
 .
 .  {* The output section through which to map on output.  *}
-.
 .  struct sec *output_section;
 .
 .  {* The alignment requirement of the section, as an exponent of 2 -
 .     e.g., 3 aligns to 2^3 (or 8).  *}
-.
 .  unsigned int alignment_power;
 .
 .  {* If an input section, a pointer to a vector of relocation
 .     records for the data in this section.  *}
-.
 .  struct reloc_cache_entry *relocation;
 .
 .  {* If an output section, a pointer to a vector of pointers to
 .     relocation records for the data in this section.  *}
-.
 .  struct reloc_cache_entry **orelocation;
 .
-.  {* The number of relocation records in one of the above  *}
-.
+.  {* The number of relocation records in one of the above.  *}
 .  unsigned reloc_count;
 .
 .  {* Information below is back end specific - and not always used
 .     or updated.  *}
 .
 .  {* File position of section data.  *}
-.
 .  file_ptr filepos;
 .
 .  {* File position of relocation info.  *}
-.
 .  file_ptr rel_filepos;
 .
 .  {* File position of line data.  *}
-.
 .  file_ptr line_filepos;
 .
 .  {* Pointer to data for applications.  *}
-.
 .  PTR userdata;
 .
 .  {* If the SEC_IN_MEMORY flag is set, this points to the actual
@@ -475,48 +456,40 @@ CODE_FRAGMENT
 .  unsigned char *contents;
 .
 .  {* Attached line number information.  *}
-.
 .  alent *lineno;
 .
 .  {* Number of line number records.  *}
-.
 .  unsigned int lineno_count;
 .
 .  {* Entity size for merging purposes.  *}
-.
 .  unsigned int entsize;
 .
 .  {* Optional information about a COMDAT entry; NULL if not COMDAT.  *}
-.
 .  struct bfd_comdat_info *comdat;
 .
 .  {* When a section is being output, this value changes as more
 .     linenumbers are written out.  *}
-.
 .  file_ptr moving_line_filepos;
 .
 .  {* What the section number is in the target world.  *}
-.
 .  int target_index;
 .
 .  PTR used_by_bfd;
 .
 .  {* If this is a constructor section then here is a list of the
 .     relocations created to relocate items within it.  *}
-.
 .  struct relent_chain *constructor_chain;
 .
 .  {* The BFD which owns the section.  *}
-.
 .  bfd *owner;
 .
-.  {* A symbol which points at this section only *}
+.  {* A symbol which points at this section only.  *}
 .  struct symbol_cache_entry *symbol;
 .  struct symbol_cache_entry **symbol_ptr_ptr;
 .
 .  struct bfd_link_order *link_order_head;
 .  struct bfd_link_order *link_order_tail;
-.} asection ;
+.} asection;
 .
 .{* These sections are global, and are managed by BFD.  The application
 .   and target back end are not permitted to change the values in
@@ -528,18 +501,18 @@ CODE_FRAGMENT
 .#define BFD_COM_SECTION_NAME "*COM*"
 .#define BFD_IND_SECTION_NAME "*IND*"
 .
-.{* the absolute section *}
+.{* The absolute section.  *}
 .extern const asection bfd_abs_section;
 .#define bfd_abs_section_ptr ((asection *) &bfd_abs_section)
 .#define bfd_is_abs_section(sec) ((sec) == bfd_abs_section_ptr)
-.{* Pointer to the undefined section *}
+.{* Pointer to the undefined section.  *}
 .extern const asection bfd_und_section;
 .#define bfd_und_section_ptr ((asection *) &bfd_und_section)
 .#define bfd_is_und_section(sec) ((sec) == bfd_und_section_ptr)
-.{* Pointer to the common section *}
+.{* Pointer to the common section.  *}
 .extern const asection bfd_com_section;
 .#define bfd_com_section_ptr ((asection *) &bfd_com_section)
-.{* Pointer to the indirect section *}
+.{* Pointer to the indirect section.  *}
 .extern const asection bfd_ind_section;
 .#define bfd_ind_section_ptr ((asection *) &bfd_ind_section)
 .#define bfd_is_ind_section(sec) ((sec) == bfd_ind_section_ptr)

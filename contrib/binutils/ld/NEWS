@@ -1,4 +1,8 @@
 -*- text -*-
+* Support for Don Knuth's MMIX, by Hans-Peter Nilsson.
+
+* Support for the OpenRISC 32-bit embedded processor by OpenCores.
+
 * Support for -z nocopyreloc in the x86 ELF linker, which disables
   production of copy relocs.  Warning: using this option may result in
   non-sharable applications.

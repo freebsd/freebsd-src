@@ -199,6 +199,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Old version of PowerPC, this should be removed shortly. */
 #define EM_PPC_OLD	17
 
+/* (Depreciated) Temporary number for the OpenRISC processor.  */
+#define EM_OR32	       0x8472
+
 /* Cygnus M32R ELF backend.  Written in the absence of an ABI.  */
 #define EM_CYGNUS_M32R 0x9041
 

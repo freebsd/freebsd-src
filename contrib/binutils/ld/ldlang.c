@@ -132,7 +132,6 @@ static boolean lang_one_common PARAMS ((struct bfd_link_hash_entry *, PTR));
 static void lang_place_orphans PARAMS ((void));
 static int topower PARAMS ((int));
 static void lang_set_startof PARAMS ((void));
-static void reset_memory_regions PARAMS ((void));
 static void gc_section_callback
   PARAMS ((lang_wild_statement_type *, struct wildcard_list *, asection *,
 	   lang_input_statement_type *, PTR));
@@ -179,6 +178,7 @@ lang_statement_list_type lang_output_section_statement;
 lang_statement_list_type *stat_ptr = &statement_list;
 lang_statement_list_type file_chain = { NULL, NULL };
 const char *entry_symbol = NULL;
+const char *entry_section = ".text";
 boolean entry_from_cmdline;
 boolean lang_has_input_file = false;
 boolean had_output_filename = false;
@@ -3466,7 +3466,7 @@ lang_finish ()
 
 	  /* Can't find the entry symbol, and it's not a number.  Use
 	     the first address in the text section.  */
-	  ts = bfd_get_section_by_name (output_bfd, ".text");
+	  ts = bfd_get_section_by_name (output_bfd, entry_section);
 	  if (ts != (asection *) NULL)
 	    {
 	      if (warn)
@@ -3972,8 +3972,8 @@ lang_final ()
 
 /* Reset the current counters in the regions.  */
 
-static void
-reset_memory_regions ()
+void
+lang_reset_memory_regions ()
 {
   lang_memory_region_type *p = lang_memory_region_list;
   asection *o;
@@ -4160,7 +4160,7 @@ lang_process ()
 
       do
 	{
-	  reset_memory_regions ();
+	  lang_reset_memory_regions ();
 
 	  relax_again = false;
 
@@ -4981,7 +4981,7 @@ lang_vers_match_lang_java (expr, sym)
 /* This is called for each variable name or match expression.  */
 
 struct bfd_elf_version_expr *
-lang_new_vers_regex (orig, new, lang)
+lang_new_vers_pattern (orig, new, lang)
      struct bfd_elf_version_expr *orig;
      const char *new;
      const char *lang;
@@ -5154,7 +5154,7 @@ lang_do_version_exports_section ()
       p = contents;
       while (p < contents + len)
 	{
-	  greg = lang_new_vers_regex (greg, p, NULL);
+	  greg = lang_new_vers_pattern (greg, p, NULL);
 	  p = strchr (p, '\0') + 1;
 	}
 
@@ -5165,7 +5165,7 @@ lang_do_version_exports_section ()
 	bfd_get_section_flags (is->the_bfd, sec) | SEC_EXCLUDE);
     }
 
-  lreg = lang_new_vers_regex (NULL, "*", NULL);
+  lreg = lang_new_vers_pattern (NULL, "*", NULL);
   lang_register_vers_node (command_line.version_exports_section,
 			   lang_new_vers_node (greg, lreg), NULL);
 }

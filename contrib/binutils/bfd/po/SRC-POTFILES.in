@@ -37,6 +37,7 @@ coff-i960.c
 coff-m68k.c
 coff-m88k.c
 coff-mips.c
+coff-or32.c
 coff-rs6000.c
 coff-sh.c
 coff-sparc.c
@@ -84,6 +85,7 @@ cpu-mips.c
 cpu-mmix.c
 cpu-ns32k.c
 cpu-openrisc.c
+cpu-or32.c
 cpu-pdp11.c
 cpu-pj.c
 cpu-powerpc.c
@@ -138,12 +140,14 @@ elf32-m88k.c
 elf32-mcore.c
 elf32-mips.c
 elf32-openrisc.c
+elf32-or32.c
 elf32-pj.c
 elf32-ppc.c
 elf32-s390.c
 elf32-sh-lin.c
 elf32-sh-nbsd.c
 elf32-sh.c
+elf32-sh64.c
 elf32-sparc.c
 elf32-v850.c
 elf32-xstormy16.c
@@ -156,6 +160,7 @@ elf64-mips.c
 elf64-mmix.c
 elf64-ppc.c
 elf64-s390.c
+elf64-sh64.c
 elf64-sparc.c
 elf64-x86-64.c
 elf64.c

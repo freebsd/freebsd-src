@@ -174,6 +174,10 @@ END_RELOC_NUMBERS (R_PPC_max)
 /* Specify the start of the .glink section.  */
 #define DT_PPC64_GLINK		DT_LOPROC
 
+/* Specify the start and size of the .opd section.  */
+#define DT_PPC64_OPD		(DT_LOPROC + 1)
+#define DT_PPC64_OPDSZ		(DT_LOPROC + 2)
+
 /* Processor specific flags for the ELF header e_flags field.  */
 
 #define	EF_PPC_EMB		0x80000000	/* PowerPC embedded flag.  */

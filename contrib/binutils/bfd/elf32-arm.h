@@ -1148,26 +1148,24 @@ elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
 	    }
 
 	  skip = false;
+	  relocate = false;
 
 	  outrel.r_offset =
 	    _bfd_elf_section_offset (output_bfd, info, input_section,
 				     rel->r_offset);
 	  if (outrel.r_offset == (bfd_vma) -1)
 	    skip = true;
+	  else if (outrel.r_offset == (bfd_vma) -2)
+	    skip = true, relocate = true;
 	  outrel.r_offset += (input_section->output_section->vma
 			      + input_section->output_offset);
 
 	  if (skip)
-	    {
-	      memset (&outrel, 0, sizeof outrel);
-	      relocate = false;
-	    }
+	    memset (&outrel, 0, sizeof outrel);
 	  else if (r_type == R_ARM_PC24)
 	    {
 	      BFD_ASSERT (h != NULL && h->dynindx != -1);
-	      if ((input_section->flags & SEC_ALLOC) != 0)
-		relocate = false;
-	      else
+	      if ((input_section->flags & SEC_ALLOC) == 0)
 		relocate = true;
 	      outrel.r_info = ELF32_R_INFO (h->dynindx, R_ARM_PC24);
 	    }
@@ -1184,9 +1182,7 @@ elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
 	      else
 		{
 		  BFD_ASSERT (h->dynindx != -1);
-		  if ((input_section->flags & SEC_ALLOC) != 0)
-		    relocate = false;
-		  else
+		  if ((input_section->flags & SEC_ALLOC) == 0)
 		    relocate = true;
 		  outrel.r_info = ELF32_R_INFO (h->dynindx, R_ARM_ABS32);
 		}
@@ -2112,11 +2108,11 @@ elf32_arm_set_private_flags (abfd, flags)
 	{
 	  if (flags & EF_ARM_INTERWORK)
 	    (*_bfd_error_handler) (_("\
-Warning: Not setting interwork flag of %s since it has already been specified as non-interworking"),
+Warning: Not setting interworking flag of %s since it has already been specified as non-interworking"),
 				   bfd_archive_filename (abfd));
 	  else
 	    _bfd_error_handler (_("\
-Warning: Clearing the interwork flag of %s due to outside request"),
+Warning: Clearing the interworking flag of %s due to outside request"),
 				bfd_archive_filename (abfd));
 	}
     }
@@ -2164,7 +2160,7 @@ elf32_arm_copy_private_bfd_data (ibfd, obfd)
 	{
 	  if (out_flags & EF_ARM_INTERWORK)
 	    _bfd_error_handler (_("\
-Warning: Clearing the interwork flag in %s because non-interworking code in %s has been linked with it"),
+Warning: Clearing the interworking flag of %s because non-interworking code in %s has been linked with it"),
 				bfd_get_filename (obfd),
 				bfd_archive_filename (ibfd));
 
@@ -2259,7 +2255,7 @@ elf32_arm_merge_private_bfd_data (ibfd, obfd)
   if (EF_ARM_EABI_VERSION (in_flags) != EF_ARM_EABI_VERSION (out_flags))
     {
       _bfd_error_handler (_("\
-Error: %s compiled for EABI version %d, whereas %s is compiled for version %d"),
+ERROR: %s is compiled for EABI version %d, whereas %s is compiled for version %d"),
 			  bfd_archive_filename (ibfd),
 			  (in_flags & EF_ARM_EABIMASK) >> 24,
 			  bfd_get_filename (obfd),
@@ -2273,7 +2269,7 @@ Error: %s compiled for EABI version %d, whereas %s is compiled for version %d"),
       if ((in_flags & EF_ARM_APCS_26) != (out_flags & EF_ARM_APCS_26))
 	{
 	  _bfd_error_handler (_("\
-Error: %s compiled for APCS-%d, whereas %s is compiled for APCS-%d"),
+ERROR: %s is compiled for APCS-%d, whereas target %s uses APCS-%d"),
 			      bfd_archive_filename (ibfd),
 			      in_flags & EF_ARM_APCS_26 ? 26 : 32,
 			      bfd_get_filename (obfd),
@@ -2285,12 +2281,12 @@ Error: %s compiled for APCS-%d, whereas %s is compiled for APCS-%d"),
 	{
 	  if (in_flags & EF_ARM_APCS_FLOAT)
 	    _bfd_error_handler (_("\
-Error: %s passes floats in FP registers, whereas %s passes them in integer registers"),
+ERROR: %s passes floats in float registers, whereas %s passes them in integer registers"),
 				bfd_archive_filename (ibfd),
 				bfd_get_filename (obfd));
 	  else
 	    _bfd_error_handler (_("\
-Error: %s passes floats in integer registers, whereas %s passes them in FP registers"),
+ERROR: %s passes floats in integer registers, whereas %s passes them in float registers"),
 				bfd_archive_filename (ibfd),
 				bfd_get_filename (obfd));
 
@@ -2301,12 +2297,12 @@ Error: %s passes floats in integer registers, whereas %s passes them in FP regis
 	{
 	  if (in_flags & EF_ARM_VFP_FLOAT)
 	    _bfd_error_handler (_("\
-Error: %s uses VFP instructions, whereas %s FPA instructions"),
+ERROR: %s uses VFP instructions, whereas %s uses FPA instructions"),
 				bfd_archive_filename (ibfd),
 				bfd_get_filename (obfd));
 	  else
 	    _bfd_error_handler (_("\
-Error: %s uses FPA instructions, whereas %s VFP instructions"),
+ERROR: %s uses FPA instructions, whereas %s uses VFP instructions"),
 				bfd_archive_filename (ibfd),
 				bfd_get_filename (obfd));
 
@@ -2325,13 +2321,13 @@ Error: %s uses FPA instructions, whereas %s VFP instructions"),
 	      || (in_flags & EF_ARM_VFP_FLOAT) == 0)
 	    {
 	      if (in_flags & EF_ARM_SOFT_FLOAT)
-		_bfd_error_handler (_ ("\
-Error: %s uses software FP, whereas %s uses hardware FP"),
+		_bfd_error_handler (_("\
+ERROR: %s uses software FP, whereas %s uses hardware FP"),
 				    bfd_archive_filename (ibfd),
 				    bfd_get_filename (obfd));
 	      else
-		_bfd_error_handler (_ ("\
-Error: %s uses hardware FP, whereas %s uses software FP"),
+		_bfd_error_handler (_("\
+ERROR: %s uses hardware FP, whereas %s uses software FP"),
 				    bfd_archive_filename (ibfd),
 				    bfd_get_filename (obfd));
 
@@ -2395,9 +2391,9 @@ elf32_arm_print_private_bfd_data (abfd, ptr)
 	fprintf (file, _(" [interworking enabled]"));
 
       if (flags & EF_ARM_APCS_26)
-	fprintf (file, _(" [APCS-26]"));
+	fprintf (file, " [APCS-26]");
       else
-	fprintf (file, _(" [APCS-32]"));
+	fprintf (file, " [APCS-32]");
 
       if (flags & EF_ARM_VFP_FLOAT)
 	fprintf (file, _(" [VFP float format]"));

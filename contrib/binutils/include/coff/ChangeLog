@@ -1,10 +1,17 @@
+2002-02-01  Tom Rix  <trix@redhat.com>
+
+	* xcoff.h: Conditionally support <aiaff> for pre AIX 4.3.
+ 
+2002-01-31  Ivan Guzvinec  <ivang@opencores.org>
+
+	* or32.h: New file.
+
 2001-12-24  Tom Rix  <trix@redhat.com>
 
 	* xcoff.h (xcoff_big_format_p): Make <bigaf> the default archive 
 	format.
 	(XCOFFARMAG_ELEMENT_SIZE, XCOFFARMAGBIG_ELEMENT_SIZE): Define for 
 	archive header ascii elements.  
-
 
 2001-12-17  Tom Rix  <trix@redhat.com>
 
@@ -14,6 +21,10 @@
 2001-12-16  Tom Rix  <trix@redhat.com>
 
 	* xcoff.h : Clean up formatting. 
+
+2002-01-15  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm.h (F_VFP_FLOAT): Define.
 
 2001-11-11  Timothy Wall  <twall@alum.mit.edu>
 

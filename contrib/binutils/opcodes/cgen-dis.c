@@ -1,6 +1,6 @@
 /* CGEN generic disassembler support code.
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
@@ -30,6 +30,11 @@
 static CGEN_INSN_LIST *  hash_insn_array      PARAMS ((CGEN_CPU_DESC, const CGEN_INSN *, int, int, CGEN_INSN_LIST **, CGEN_INSN_LIST *));
 static CGEN_INSN_LIST *  hash_insn_list       PARAMS ((CGEN_CPU_DESC, const CGEN_INSN_LIST *, CGEN_INSN_LIST **, CGEN_INSN_LIST *));
 static void              build_dis_hash_table PARAMS ((CGEN_CPU_DESC));
+static int		 count_decodable_bits PARAMS ((const CGEN_INSN *));
+static void		 add_insn_to_hash_chain PARAMS ((CGEN_INSN_LIST *,
+							 const CGEN_INSN *,
+							 CGEN_INSN_LIST **,
+							 unsigned int));
 
 /* Return the number of decodable bits in this insn.  */
 static int
