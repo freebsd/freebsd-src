@@ -37,11 +37,11 @@
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/devicestat.h>
+#include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
 #include <cam/cam.h>
-#include <cam/cam_conf.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_periph.h>
@@ -264,9 +264,10 @@ static u_int
 camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired)
 {
 	struct	cam_periph *periph;
-	struct	cam_periph_config *periph_conf;
-	char	*periph_name;
+	char	*periph_name, *strval;
 	int	s;
+	int	i, val, dunit;
+	const char *dname;
 
 	s = splsoftcam();
 	periph_name = p_drv->driver_name;
@@ -287,25 +288,27 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired)
 			}
 			continue;
 		}
+		if (wired)
+			break;
 
-		for (periph_conf = cam_pinit;
-		     wired == 0 && periph_conf->periph_name != NULL;
-		     periph_conf++) {
-
-			/*
-			 * Don't match entries like "da 4" as a wired down
-			 * device, but do match entries like "da 4 target 5"
-			 * or even "da 4 scbus 1". 
-			 */
-			if (IS_SPECIFIED(periph_conf->periph_unit)
-			 && (!strcmp(periph_name, periph_conf->periph_name))
-			 && (IS_SPECIFIED(periph_conf->target)
-			  || IS_SPECIFIED(periph_conf->pathid))
-			 && (newunit == periph_conf->periph_unit))
+		/*
+		 * Don't match entries like "da 4" as a wired down
+		 * device, but do match entries like "da 4 target 5"
+		 * or even "da 4 scbus 1". 
+		 */
+		i = -1;
+		while ((i = resource_locate(i, periph_name)) != -1) {
+			dname = resource_query_name(i);
+			dunit = resource_query_unit(i);
+			/* if no "target" and no specific scbus, skip */
+			if (resource_int_value(dname, dunit, "target", &val) &&
+			    (resource_string_value(dname, dunit, "at",&strval)||
+			     strcmp(strval, "scbus") == 0))
+				continue;
+			if (newunit == dunit)
 				break;
 		}
-
-		if (wired != 0 || periph_conf->periph_name == NULL)
+		if (i == -1)
 			break;
 	}
 	splx(s);
@@ -316,51 +319,44 @@ static u_int
 camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	      target_id_t target, lun_id_t lun)
 {
-	struct cam_periph_config *periph_conf;
-	u_int unit;
-	int hit;
+	u_int	unit;
+	int	hit, i, val, dunit;
+	const char *dname;
+	char	pathbuf[32], *strval, *periph_name;
 
 	unit = 0;
 	hit = 0;
 
-	for (periph_conf = cam_pinit;
-	     periph_conf->periph_name != NULL;
-	     periph_conf++, hit = 0) {
-
-		if (!strcmp(p_drv->driver_name, periph_conf->periph_name)
-		 && IS_SPECIFIED(periph_conf->periph_unit)) {
-
-			if (IS_SPECIFIED(periph_conf->pathid)) {
-
-				if (pathid != periph_conf->pathid)
-					continue;
-				hit++;
-			}
-
-			if (IS_SPECIFIED(periph_conf->target)) {
-
-				if (target != periph_conf->target)
-					continue;
-				hit++;
-			}
-
-			if (IS_SPECIFIED(periph_conf->lun)) {
-
-				if (lun != periph_conf->lun)
-					continue;
-				hit++;
-			}
-
-			if (hit != 0) {
-				unit = periph_conf->periph_unit;
-				break;
-			}
+	periph_name = p_drv->driver_name;
+	snprintf(pathbuf, sizeof(pathbuf), "scbus%d", pathid);
+	i = -1;
+	while ((i = resource_locate(i, periph_name)) != -1) {
+		dname = resource_query_name(i);
+		dunit = resource_query_unit(i);
+		if (resource_string_value(dname, dunit, "at", &strval) == 0) {
+			if (strcmp(strval, pathbuf) != 0)
+				continue;
+			hit++;
+		}
+		if (resource_int_value(dname, dunit, "target", &val) == 0) {
+			if (val != target)
+				continue;
+			hit++;
+		}
+		if (resource_int_value(dname, dunit, "lun", &val) == 0) {
+			if (val != lun)
+				continue;
+			hit++;
+		}
+		if (hit != 0) {
+			unit = dunit;
+			break;
 		}
 	}
 
 	/*
 	 * Either start from 0 looking for the next unit or from
-	 * the unit number given in the periph_conf.  This way,
+	 * the unit number given in the resource config.  This way,
 	 * if we have wildcard matches, we don't return the same
 	 * unit number twice.
 	 */
