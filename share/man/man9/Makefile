@@ -66,7 +66,7 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	pmap_is_prefaultable.9 pmap_map.9 \
 	pmap_mincore.9 pmap_object_init_pt.9 pmap_page_exists_quick.9 \
 	pmap_page_protect.9 pmap_pinit.9 pmap_qenter.9 \
-	pmap_release.9 pmap_remove.9 pmap_zero_page.9 \
+	pmap_release.9 pmap_remove.9 pmap_resident_count.9 pmap_zero_page.9 \
 	random.9 resettodr.9 resource_int_value.9 resource_query_string.9 \
 	rtalloc.9 rtentry.9 runqueue.9  random_harvest.9 rijndael.9 \
 	rman.9 \
@@ -231,6 +231,7 @@ MLINKS+=pmap_pinit.9 pmap_pinit2.9
 MLINKS+=pmap_qenter.9 pmap_qremove.9
 MLINKS+=pmap_remove.9 pmap_remove_all.9
 MLINKS+=pmap_remove.9 pmap_remove_pages.9
+MLINKS+=pmap_resident_count.9 pmap_wired_count.9
 MLINKS+=pmap_zero_page.9 pmap_zero_idle.9
 MLINKS+=pmap_zero_page.9 pmap_zero_area.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
