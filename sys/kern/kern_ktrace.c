@@ -168,7 +168,7 @@ sysctl_kern_ktrace_request_pool(SYSCTL_HANDLER_ARGS)
 	error = SYSCTL_OUT(req, &oldsize, sizeof(u_int));
 	if (error)
 		return (error);
-	if (newsize != wantsize)
+	if (wantsize > oldsize && newsize < wantsize)
 		return (ENOSPC);
 	return (0);
 }
@@ -179,14 +179,16 @@ static u_int
 ktrace_resize_pool(u_int newsize)
 {
 	struct ktr_request *req;
+	int bound;
 
 	mtx_assert(&ktrace_mtx, MA_OWNED);
 	print_message = 1;
-	if (newsize == ktr_requestpool)
-		return (newsize);
-	if (newsize < ktr_requestpool)
+	bound = newsize - ktr_requestpool;
+	if (bound == 0)
+		return (ktr_requestpool);
+	if (bound < 0)
 		/* Shrink pool down to newsize if possible. */
-		while (ktr_requestpool > newsize) {
+		while (bound++ < 0) {
 			req = STAILQ_FIRST(&ktr_free);
 			if (req == NULL)
 				return (ktr_requestpool);
@@ -198,7 +200,7 @@ ktrace_resize_pool(u_int newsize)
 		}
 	else
 		/* Grow pool up to newsize. */
-		while (ktr_requestpool < newsize) {
+		while (bound-- > 0) {
 			mtx_unlock(&ktrace_mtx);
 			req = malloc(sizeof(struct ktr_request), M_KTRACE,
 			    M_WAITOK);
