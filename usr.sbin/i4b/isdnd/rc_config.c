@@ -361,6 +361,11 @@ cfg_setval(int keyword)
 			strcpy(acctfile, yylval.str);
 			DBGL(DL_RCCF, (log(LL_DBG, "system: acctfile = %s", yylval.str)));
 			break;
+	
+		case ADDPREFIX:
+			addprefix = yylval.booln;
+			DBGL(DL_RCCF, (log(LL_DBG, "system: add-prefix = %d", yylval.booln)));
+			break;
 
 		case ALERT:
 			if(yylval.num < MINALERT)
@@ -908,6 +913,16 @@ cfg_setval(int keyword)
 			DBGL(DL_RCCF, (log(LL_DBG, "entry %d: ppp-send-password = %s", entrycount, yylval.str)));
 			strncpy(cfg_entry_tab[entrycount].ppp_send_password, yylval.str, sizeof(cfg_entry_tab[entrycount].ppp_send_password) -1);
 			set_isppp_auth(entrycount);
+			break;
+
+		case PREFIXINTERNATIONAL:
+			strncpy(prefixinternational, yylval.str, sizeof(prefixinternational)-1);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: prefix-international = %s", prefixinternational)));
+			break;
+
+		case PREFIXNATIONAL:
+			strncpy(prefixnational, yylval.str, sizeof(prefixnational)-1);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: prefix-national = %s", prefixnational)));
 			break;
 
 		case PROTOCOL:

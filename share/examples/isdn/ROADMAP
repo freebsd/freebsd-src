@@ -4,7 +4,7 @@
 
  $FreeBSD$
 
-	last edit-date: [Sat Jun  2 13:46:20 2001]
+	last edit-date: [Mon Aug 12 09:42:53 2002]
 
 
 1.	Documentation
@@ -12,7 +12,7 @@
 
 	The i4b handbook which describes the setup and configuration of
 	isdn4bsd under FreeBSD in detail can be found at 
-	http://people.freebsd.org/~hm/
+	http://people.freebsd.org/~hm/i4b-home/
 
 	The i4b homepage is http://www.freebsd-support.de/i4b/
 

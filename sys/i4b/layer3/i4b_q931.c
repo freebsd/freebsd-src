@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Mar  9 19:36:45 2002]
+ *      last edit-date: [Sun Aug 11 19:18:08 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -427,6 +427,20 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 				cd->scr_ind = (msg_ptr[3] & 0x03) + SCR_USR_NOSC;
 				cd->prs_ind = ((msg_ptr[3] >> 5) & 0x03) + PRS_ALLOWED;
 			}
+
+			/* type of number (source) */
+			switch ((msg_ptr[2] & 0x70) >> 4)
+			{
+				case 1:	
+					cd->src_ton = TON_INTERNAT;
+					break;
+				case 2:
+					cd->src_ton = TON_NATIONAL;
+					break;
+				default:
+					cd->src_ton = TON_OTHER;
+					break;
+			}
 			NDBGL3(L3_P_MSG, "IEI_CALLINGPN = %s", cd->src_telno);
 			break;
 	
@@ -439,6 +453,21 @@ i4b_decode_q931_cs0_ie(int unit, call_desc_t *cd, int msg_len, u_char *msg_ptr)
 		case IEI_CALLEDPN:	/* called party number */
 			memcpy(cd->dst_telno, &msg_ptr[3], min(TELNO_MAX, msg_ptr[1]-1));
 			cd->dst_telno[min(TELNO_MAX, msg_ptr[1] - 1)] = '\0';
+
+			/* type of number (destination) */
+			switch ((msg_ptr[2] & 0x70) >> 4)
+			{
+				case 1:	
+					cd->dst_ton = TON_INTERNAT;
+					break;
+				case 2:
+					cd->dst_ton = TON_NATIONAL;
+					break;
+				default:
+					cd->dst_ton = TON_OTHER;
+					break;
+			}
+
 			NDBGL3(L3_P_MSG, "IEI_CALLED = %s", cd->dst_telno); 
 			break;
 	
