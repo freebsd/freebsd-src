@@ -54,7 +54,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <fcntl.h>
 #include <locale.h>
-
+#include <errno.h>
 
 #include "shell.h"
 #include "main.h"
@@ -81,7 +81,6 @@ static const char rcsid[] =
 
 int rootpid;
 int rootshell;
-extern int errno;
 #if PROFILE
 short profile_buf[16384];
 extern int etext();
