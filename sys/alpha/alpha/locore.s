@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: locore.s,v 1.5 1998/11/15 00:50:59 dima Exp $
+ *	$Id: locore.s,v 1.6 1998/11/28 09:55:15 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -127,8 +127,8 @@
 	 * to 'reasonable' values.
 	 */
 	lda	sp,-(FRAME_SIZE * 8)(sp)	/* space for struct trapframe */
-	mov	sp, a0				/* main()'s arg is frame ptr */
-	CALL(main)				/* go to main()! */
+	mov	sp, a0				/* arg is frame ptr */
+	CALL(mi_startup)			/* go to mi_startup()! */
 
 	/*
 	 * Call exception_return, to simulate return from (fake)
