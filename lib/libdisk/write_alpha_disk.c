@@ -20,7 +20,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
-#include <sys/diskmbr.h>
 #include <paths.h>
 #include "libdisk.h"
 
@@ -74,13 +73,10 @@ int
 Write_Disk(const struct disk *d1)
 {
 	int fd;
-	struct disk *old = 0;
+	struct disk *old = NULL;
 	struct chunk *c1;
 	int ret = 0;
 	char device[64];
-	u_char *mbr;
-	struct dos_partition *dp,work[NDOSPART];
-	int s[4];
 
 	strcpy(device,_PATH_DEV);
         strcat(device,d1->name);
@@ -90,12 +86,6 @@ Write_Disk(const struct disk *d1)
         if (fd < 0)
                 return 1;
 
-	memset(s,0,sizeof s);
-	mbr = read_block(fd, 0, d1->sector_size);
-	dp = (struct dos_partition*)(mbr + DOSPARTOFF);
-	memcpy(work, dp, sizeof work);
-	dp = work;
-	free(mbr);
 	for (c1 = d1->chunks->part->part; c1; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name, "X")) continue;
