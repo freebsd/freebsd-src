@@ -264,15 +264,10 @@ ex_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	device_printf(sc->dev, "Ethernet address %6D\n",
 			sc->arpcom.ac_enaddr, ":");
-	/*
-	 * If BPF is in the kernel, call the attach for it
-	 */
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 
 	return(0);
 }

@@ -646,12 +646,14 @@ ether_demux(ifp, eh, m)
  * Perform common duties while attaching to interface list
  */
 void
-ether_ifattach(ifp)
+ether_ifattach(ifp, bpf)
 	register struct ifnet *ifp;
+	int bpf;
 {
 	register struct ifaddr *ifa;
 	register struct sockaddr_dl *sdl;
 
+	if_attach(ifp);
 	ifp->if_type = IFT_ETHER;
 	ifp->if_addrlen = 6;
 	ifp->if_hdrlen = 14;
@@ -660,16 +662,30 @@ ether_ifattach(ifp)
 	if (ifp->if_baudrate == 0)
 	    ifp->if_baudrate = 10000000;
 	ifa = ifnet_addrs[ifp->if_index - 1];
-	if (ifa == 0) {
-		printf("ether_ifattach: no lladdr!\n");
-		return;
-	}
+	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __FUNCTION__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
 	sdl->sdl_alen = ifp->if_addrlen;
 	bcopy((IFP2AC(ifp))->ac_enaddr, LLADDR(sdl), ifp->if_addrlen);
+	if (bpf)
+		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
+}
+
+/*
+ * Perform common duties while detaching an Ethernet interface
+ */
+void
+ether_ifdetach(ifp, bpf)
+	struct ifnet *ifp;
+	int bpf;
+{
+	if (ng_ether_detach_p != NULL)
+		(*ng_ether_detach_p)(ifp);
+	if (bpf)
+		bpfdetach(ifp);
+	if_detach(ifp);
 }
 
 SYSCTL_DECL(_net_link);
