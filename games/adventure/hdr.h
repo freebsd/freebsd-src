@@ -156,7 +156,6 @@ int turns,lmwarn,iwest,knfloc,detail,   /* various flags & counters     */
 
 int demo,newloc,limit;
 
-char *malloc();
 char *decr();
 unsigned long crc();
 
