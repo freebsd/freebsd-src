@@ -127,6 +127,7 @@ struct knote {
 		struct		proc *p_proc;	/* proc pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;
+	caddr_t			kn_hook;
 #define KN_ACTIVE	0x01			/* event has been triggered */
 #define KN_QUEUED	0x02			/* event is on queue */
 #define KN_DISABLED	0x04			/* event is disabled */

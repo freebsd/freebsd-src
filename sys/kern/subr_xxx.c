@@ -134,6 +134,15 @@ noioctl(dev, cmd, data, flags, p)
 }
 
 int
+nokqfilter(dev, kn)
+	dev_t dev;
+	struct knote *kn;
+{
+
+	return (ENODEV);
+}
+
+int
 nommap(dev, offset, nprot)
 	dev_t dev;
 	vm_offset_t offset;
