@@ -197,8 +197,6 @@ sb16_dsp_ioctl(int dev, u_int cmd, ioctl_arg arg, int local)
 static int
 sb16_dsp_open(int dev, int mode)
 {
-    int             retval;
-
     DEB(printf("sb16_dsp_open()\n"));
 
     if (!sb16_dsp_ok) {

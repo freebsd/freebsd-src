@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.39 1998/11/10 09:04:09 peter Exp $
+ * $Id: vfs_init.c,v 1.40 1998/11/15 15:18:30 bde Exp $
  */
 
 
@@ -162,8 +162,7 @@ vfs_add_vnodeops(void *data)
 	int *newref;
 	vop_t **opv_desc_vector;
 	struct vnodeop_desc *desc;
-	struct vnodeopv_entry_desc *opve_descp;
-	int i, j, k;
+	int i, j;
 
 	opv = (struct vnodeopv_desc *)data;
 	MALLOC(newopv, struct vnodeopv_desc **,
@@ -230,7 +229,6 @@ vfs_rm_vnodeops(void *data)
 	int *newref;
 	vop_t **opv_desc_vector;
 	struct vnodeop_desc *desc;
-	struct vnodeopv_entry_desc *opve_descp;
 	int i, j, k;
 
 	opv = (struct vnodeopv_desc *)data;
@@ -442,8 +440,6 @@ int
 vfs_modevent(module_t mod, int type, void *data)
 {
 	struct vfsconf *vfc;
-	struct vnodeopv_desc *opv;
-	int i;
 	int error = 0;
 
 	vfc = (struct vfsconf *)data;

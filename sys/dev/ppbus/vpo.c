@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.4 1997/09/01 00:51:52 bde Exp $
+ *	$Id: vpo.c,v 1.8 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 
@@ -157,7 +157,6 @@ vpoprobe(struct ppb_data *ppb)
 static int
 vpoattach(struct ppb_device *dev)
 {
-	struct scsibus_data *scbus;
 	struct vpo_data *vpo = vpodata[dev->id_unit];
 	struct cam_devq *devq;
 
@@ -211,9 +210,11 @@ vpoattach(struct ppb_device *dev)
 static void
 vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 {
-
-	int i, errno;	/* error in errno.h */
+	int errno;	/* error in errno.h */
 	int s;
+#ifdef VP0_DEBUG
+	int i;
+#endif
 
 	s = splcam();
 

@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.16 1998/10/22 05:58:39 bde Exp $ */
+/* $Id: if_wl.c,v 1.17 1998/11/15 19:30:48 eivind Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -311,7 +311,6 @@ static void	wlmmcstat(int unit);
 static u_short	wlbldru(int unit);
 static u_short	wlmmcread(u_int base, u_short reg);
 static void	wlinitmmc(int unit);
-static void	wlsetirq(int base, int irq);
 static int	wlhwrst(int unit);
 static void	wlrustrt(int unit);
 static void	wlbldcu(int unit);
@@ -365,7 +364,6 @@ wlprobe(struct isa_device *id)
 {
     struct wl_softc	*sc = &wl_softc[id->id_unit];	
     register short	base = id->id_iobase;
-    int			unit = id->id_unit;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
     unsigned long	oldpri;
@@ -723,8 +721,6 @@ static int
 wlhwrst(int unit)
 {
     register struct wl_softc	*sc = WLSOFTC(unit);
-    int 	i;
-    short	base = sc->base;
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -1171,7 +1167,6 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     short		base = sc->base;
     short		mode = 0;
     int			opri, error = 0;
-    u_short		tmp;
     struct proc		*p = curproc;	/* XXX */
     int			irq, irqval, i, isroot, size;
     caddr_t		up;
@@ -1479,11 +1474,8 @@ wlintr(unit)
 int unit;
 {
     register struct wl_softc *sc = &wl_softc[unit];
-    scb_t		scb;
-    ac_t		cb;
     short		base = sc->base;
-    int			next, x, opri;
-    int			i, ac_status;
+    int			ac_status;
     u_short		int_type, int_type1;
 
 #ifdef WLDEBUG
@@ -2328,7 +2320,6 @@ static void
 wlsftwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, int unit)
 {
     struct mbuf	*tm_p = *tm_pp;
-    u_char		*mb_p = *mb_pp;
     u_short		count = 0;
     u_char		*cp = (u_char *) t_packet;
     int			len;
@@ -2387,10 +2378,6 @@ wlmmcread(u_int base, u_short reg)
 static void
 getsnr(int unit)
 {
-    register struct wl_softc *sc = WLSOFTC(unit);
-    short	base = sc->base;
-    register int s;
-
     MMC_WRITE(MMC_FREEZE,1);
     /* 
      * SNR retrieval procedure :

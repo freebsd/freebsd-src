@@ -31,7 +31,6 @@ static void at_aarpinput( struct arpcom *ac, struct mbuf *m);
 #define AARPTAB_NB	19
 #define AARPTAB_SIZE	(AARPTAB_BSIZ * AARPTAB_NB)
 static struct aarptab	aarptab[AARPTAB_SIZE];
-static int		aarptab_size = AARPTAB_SIZE;
 
 #define AARPTAB_HASH(a) \
     ((((a).s_net << 8 ) + (a).s_node ) % AARPTAB_NB )

@@ -37,7 +37,6 @@ atintr( void )
     struct elaphdr	*elhp, elh;
     struct ifnet	*ifp;
     struct mbuf		*m;
-    struct at_ifaddr	*aa;
     int			s;
 
     /*

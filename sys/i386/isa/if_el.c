@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.37 1998/06/21 15:54:11 bde Exp $
+ * $Id: if_el.c,v 1.38 1998/10/22 05:58:39 bde Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -155,8 +155,6 @@ el_attach(struct isa_device *idev)
 {
 	struct el_softc *sc;
 	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	u_short base;
 
 	dprintf(("Attaching el%d...\n",idev->id_unit));

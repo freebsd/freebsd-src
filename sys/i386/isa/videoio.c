@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: videoio.c,v 1.5 1998/09/26 03:38:40 yokota Exp $
+ * $Id: videoio.c,v 1.6 1998/10/01 11:39:18 yokota Exp $
  */
 
 #include "sc.h"
@@ -1156,10 +1156,12 @@ static int
 vid_save_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 {
     u_char buf[PARAM_BUFSIZE];
-    u_char val = 0;
     u_int32_t segment;
     int c;
+#ifdef SC_ALT_SEQACCESS
+    u_char val = 0;
     int s;
+#endif
 
     prologue(ad, V_ADP_FONT, 1);
 
@@ -1231,10 +1233,12 @@ static int
 vid_load_font(int ad, int page, int fontsize, u_char *data, int ch, int count)
 {
     u_char buf[PARAM_BUFSIZE];
-    u_char val = 0;
     u_int32_t segment;
     int c;
+#ifdef SC_ALT_SEQACCESS
+    u_char val = 0;
     int s;
+#endif
 
     prologue(ad, V_ADP_FONT, 1);
 

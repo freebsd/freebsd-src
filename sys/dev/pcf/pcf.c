@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pcf.c,v 1.4 1998/10/31 14:23:09 peter Exp $
+ *	$Id: pcf.c,v 1.5 1998/11/04 22:09:17 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -149,7 +149,6 @@ pcfprobe_isa(struct isa_device *dvp)
 {
 	device_t pcfdev;
 	struct pcf_isa_softc *pcf;
-	int error;
 
 	if (npcf >= MAXPCF)
 		return (0);
@@ -172,7 +171,6 @@ pcfprobe_isa(struct isa_device *dvp)
 	if (!pcfdev)
 		goto error;
 
-end_probe:
 	return (1);
 
 error:

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.106 1998/11/15 18:10:14 dfr Exp $
+ * $Id: ip_input.c,v 1.107 1998/11/16 08:27:36 dfr Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -245,7 +245,6 @@ ip_input(struct mbuf *m)
 {
 	struct ip *ip;
 	struct ipq *fp;
-	struct ipqent *ipqe;
 	struct in_ifaddr *ia;
 	int    i, hlen, mff;
 	u_short sum;

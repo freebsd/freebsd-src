@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.41 1998/11/11 10:03:56 truckman Exp $
+ *	$Id: uipc_socket2.c,v 1.42 1998/11/23 00:45:38 truckman Exp $
  */
 
 #include <sys/param.h>
@@ -312,8 +312,6 @@ sowakeup(so, sb)
 	register struct socket *so;
 	register struct sockbuf *sb;
 {
-	struct proc *p;
-
 	selwakeup(&sb->sb_sel);
 	sb->sb_flags &= ~SB_SEL;
 	if (sb->sb_flags & SB_WAIT) {

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.2 1998/09/13 18:26:26 nsouch Exp $
+ *	$Id: vpoio.c,v 1.3 1998/09/20 14:41:54 nsouch Exp $
  *
  */
 
@@ -449,10 +449,7 @@ vpoio_outstr(struct vpoio_data *vpo, char *buffer, int size)
 static int
 vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 {
-
-	register int k;
 	int error = 0;
-	int r, mode, epp;
 
 	ppb_MS_exec(&vpo->vpo_dev, MS_OP_GET, buffer, size, MS_UNKNOWN, &error);
 
@@ -488,7 +485,6 @@ vpoio_instr(struct vpoio_data *vpo, char *buffer, int size)
 static char
 vpoio_select(struct vpoio_data *vpo, int initiator, int target)
 {
-	register int	k;
 	int ret;
 
 	struct ppb_microseq select_microseq[] = {

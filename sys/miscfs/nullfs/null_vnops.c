@@ -37,11 +37,11 @@
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
- *	$Id: null_vnops.c,v 1.28 1998/06/10 06:34:56 peter Exp $
+ *	$Id: null_vnops.c,v 1.29 1998/07/04 20:45:33 julian Exp $
  *	...and...
  *	@(#)null_vnodeops.c 1.20 92/07/07 UCLA Ficus project
  *
- * $Id: null_vnops.c,v 1.28 1998/06/10 06:34:56 peter Exp $
+ * $Id: null_vnops.c,v 1.29 1998/07/04 20:45:33 julian Exp $
  */
 
 /*
@@ -523,8 +523,6 @@ null_unlock(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-	struct vnode *vp = ap->a_vp;
-
 	vop_nounlock(ap);
 	ap->a_flags &= ~LK_INTERLOCK;
 	return (null_bypass((struct vop_generic_args *)ap));

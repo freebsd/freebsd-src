@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.13 1998/11/09 08:03:01 peter Exp $
+ * $Id: pci_compat.c,v 1.14 1998/12/04 22:54:56 archie Exp $
  *
  */
 
@@ -172,11 +172,10 @@ int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	vm_offset_t dense;
-	int retval = 0;
-
 	if(pci_map_mem(cfg, reg, va, pa)){
 #ifdef __alpha__
+		vm_offset_t dense;
+
 		if(dense = pci_cvt_to_dense(*pa)){
 			*pa = dense;
 			*va = ALPHA_PHYS_TO_K0SEG(*pa);
@@ -193,11 +192,10 @@ pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 int 
 pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 {
-	vm_offset_t bwx;
-	int retval = 0;
-
 	if(pci_map_mem(cfg, reg, va, pa)){
 #ifdef __alpha__
+		vm_offset_t bwx;
+
 		if(bwx = pci_cvt_to_bwx(*pa)){
 			*pa = bwx;
 			*va = ALPHA_PHYS_TO_K0SEG(*pa);

@@ -239,7 +239,7 @@ update_led(void)
 
 	/* Don't update LED's unless necessary. */
 
-	int opri, new_ledstate, response1, response2;
+	int opri, new_ledstate;
 
 	opri = spltty();
 	new_ledstate = (vsp->scroll_lock) |
@@ -249,6 +249,7 @@ update_led(void)
 	if (new_ledstate != ledstate)
 	{
 #ifndef _I386_ISA_KBDIO_H_
+		int response1, response2;
 
 		ledstate = LEDSTATE_UPDATE_PENDING;
 
@@ -412,7 +413,9 @@ static int
 set_keyboard_param(int command, int data)
 {
     int s;
+#if 0
     int c;
+#endif
 
     if (kbdc == NULL)
 	return 1;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.12 1998/01/15 07:34:01 gibbs Exp $
+ *	$Id: ipl_funcs.c,v 1.13 1998/02/01 22:04:58 bde Exp $
  */
 
 #include <sys/types.h>
@@ -379,9 +379,10 @@ splx(unsigned ipl)
 intrmask_t
 splq(intrmask_t mask)
 {
-	intrmask_t tmp, tmp2;
-
+	intrmask_t tmp;
 #ifdef INTR_SPL
+	intrmask_t tmp2;
+
 	for (;;) {
 		IFCPL_LOCK();
 		tmp = tmp2 = cpl;

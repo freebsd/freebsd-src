@@ -914,7 +914,6 @@ ad1848_start_input(int dev, u_long buf, int count,
 static int
 ad1848_prepare_for_IO(int dev, int bsize, int bcount)
 {
-    int             timeout;
     u_char   fs, old_fs;
     u_long   flags;
     ad1848_info    *devc = (ad1848_info *) audio_devs[dev]->devc;

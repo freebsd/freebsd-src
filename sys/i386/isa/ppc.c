@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppc.c,v 1.10 1998/10/22 05:58:40 bde Exp $
+ *	$Id: ppc.c,v 1.11 1998/10/31 11:37:09 nsouch Exp $
  *
  */
 #include "ppc.h"
@@ -240,7 +240,7 @@ static int
 ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never forced */
 {
     static int	index = 0;
-    int		base, idport, irq;
+    int		idport, irq;
     int		ptr, pcr, val, i;
     
     while ((idport = pc873xx_basetab[index++])) {
@@ -701,7 +701,7 @@ static int w83877f_hefs[] = { WINB_HEFERE, WINB_HEFRAS, WINB_HEFERE | WINB_HEFRA
 static int
 ppc_w83877f_detect(struct ppc_data *ppc, int chipset_mode)
 {
-	int i, j, efer, base;
+	int i, j, efer;
 	unsigned char r, hefere, hefras;
 
 	for (i = 0; i < 4; i ++) {
@@ -876,8 +876,6 @@ found:
 static int
 ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 {
-	char save_control;
-
 	/* default to generic */
 	ppc->ppc_link.adapter = &ppc_generic_adapter;
 
@@ -1308,7 +1306,6 @@ ppcprobe(struct isa_device *dvp)
 {
 	static short next_bios_ppc = 0;
 	struct ppc_data *ppc;
-	int error;
 
 	/*
 	 * If port not specified, use bios list.
@@ -1370,8 +1367,6 @@ ppcprobe(struct isa_device *dvp)
 	if (ppc_detect(ppc, dvp->id_flags & 0xf))
 		goto error;
 
-end_probe:
-
 	return (1);
 
 error:
@@ -1383,7 +1378,6 @@ ppcattach(struct isa_device *isdp)
 {
 	struct ppc_data *ppc = ppcdata[isdp->id_unit];
 	struct ppb_data *ppbus;
-	char * mode;
 
 	printf("ppc%d: %s chipset (%s) in %s mode%s\n", ppc->ppc_unit,
 		ppc_types[ppc->ppc_type], ppc_avms[ppc->ppc_avm],

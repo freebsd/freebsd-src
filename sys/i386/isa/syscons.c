@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.286 1998/11/03 02:37:46 yokota Exp $
+ *	$Id: syscons.c,v 1.287 1998/11/08 12:39:02 dfr Exp $
  */
 
 #include "sc.h"
@@ -640,7 +640,9 @@ static int
 scattach(struct isa_device *dev)
 {
     scr_stat *scp;
+#if defined(VESA) && defined(VM86)
     video_info_t info;
+#endif
     dev_t cdev = makedev(CDEV_MAJOR, 0);
 #ifdef DEVFS
     int vc;
@@ -924,7 +926,6 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
     int i;
     struct tty *tp;
     scr_stat *scp;
-    video_adapter_t *adp;
     int s;
 
     tp = scdevtotty(dev);
