@@ -151,8 +151,6 @@ typedef int	bool;
 #define TRUE	1
 #define FALSE	0
 
-#define toupper(c)	((c) - ' ' * (((c) >= 'a') && ((c) <= 'z')))
-#define isdigit(c)	(((c) >= '0') && ((c) <= '9'))
 #define dtoi(c)		((c) - '0')
 
 static int octave;	/* currently selected octave */
