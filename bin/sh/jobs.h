@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)jobs.h	8.2 (Berkeley) 5/4/95
- *	$Id: jobs.h,v 1.9 1998/09/08 13:16:52 cracauer Exp $
+ *	$Id: jobs.h,v 1.11 1999/04/21 11:52:39 cracauer Exp $
  */
 
 /* Mode argument to forkshell.  Don't change FORK_FG or FORK_BG. */
@@ -91,7 +91,7 @@ int waitcmd __P((int, char **));
 int jobidcmd __P((int, char **));
 struct job *makejob __P((union node *, int));
 int forkshell __P((struct job *, union node *, int));
-int waitforjob __P((struct job *));
+int waitforjob __P((struct job *, int *));
 int stoppedjobs __P((void));
 char *commandtext __P((union node *));
 

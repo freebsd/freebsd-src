@@ -39,11 +39,12 @@
 static char sccsid[] = "@(#)eval.c	8.9 (Berkeley) 6/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: eval.c,v 1.15.2.3 1999/05/08 10:42:55 kris Exp $";
+	"$Id: eval.c,v 1.15.2.4 1999/07/19 11:02:39 sheldonh Exp $";
 #endif /* not lint */
 
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h> /* For WIFSIGNALED(status) */
 
 /*
  * Evaluate a command.
@@ -409,7 +410,7 @@ evalsubshell(n, flags)
 	}
 	if (! backgnd) {
 		INTOFF;
-		exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
 	}
 }
@@ -508,7 +509,7 @@ evalpipe(n)
 	INTON;
 	if (n->npipe.backgnd == 0) {
 		INTOFF;
-		exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp, (int *)NULL);
 		TRACE(("evalpipe:  job done exit status %d\n", exitstatus));
 		INTON;
 	}
@@ -601,6 +602,7 @@ evalcommand(cmd, flags, backcmd)
 	struct localvar *volatile savelocalvars;
 	volatile int e;
 	char *lastarg;
+	int realstatus;
 #if __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &argv;
@@ -861,8 +863,12 @@ cmddone:
 parent:	/* parent process gets here (if we forked) */
 	if (mode == 0) {	/* argument to fork */
 		INTOFF;
-		exitstatus = waitforjob(jp);
+		exitstatus = waitforjob(jp, &realstatus);
 		INTON;
+		if (iflag && loopnest > 0 && WIFSIGNALED(realstatus)) {
+			evalskip = SKIPBREAK;
+			skipcount = loopnest;
+		}
 	} else if (mode == 2) {
 		backcmd->fd = pip[0];
 		close(pip[1]);
