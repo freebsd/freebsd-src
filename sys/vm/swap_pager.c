@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.17 1994/11/06 09:55:28 davidg Exp $
+ * $Id: swap_pager.c,v 1.18 1994/11/13 15:36:48 davidg Exp $
  */
 
 /*
@@ -1070,7 +1070,6 @@ swap_pager_input(swp, m, count, reqpage)
 	} else {
 		rv = VM_PAGER_OK;
 	}
-	bp->b_flags &= ~(B_BUSY|B_WANTED|B_PHYS|B_DIRTY|B_CALL|B_DONE);
 
 	--swp->sw_piip;
 	if (swp->sw_piip == 0)
@@ -1467,7 +1466,6 @@ retrygetspace:
 	} else {
 		rv = VM_PAGER_OK;
 	}
-	bp->b_flags &= ~(B_BUSY|B_WANTED|B_PHYS|B_DIRTY|B_CALL|B_DONE);
 
 	--swp->sw_poip;
 	if (swp->sw_poip == 0)
@@ -1639,7 +1637,6 @@ swap_pager_iodone(bp)
 		vwakeup(bp);
 */
 		
-	bp->b_flags &= ~(B_BUSY|B_WANTED|B_PHYS|B_DIRTY|B_ASYNC);
 	if (bp->b_vp) {
 		brelvp(bp);
 	}
