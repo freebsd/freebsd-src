@@ -9,8 +9,8 @@ SRCS+= stab.c str.c toke.c util.c
 SRCS+=	usersub.c curses.c
 
 CFLAGS+=	-DDEBUGGING -I${.CURDIR}/../perl
-LDADD+= 	-lncurses -ltermcap -ltermlib -lcrypt -lm
-DPADD+=		${LIBNCURSES} ${LIBTERMCAP} ${LIBTERMLIB} ${LIBCRYPT} ${LIBM}
+LDADD+=         -lncurses -lmytinfo -lcrypt -lm
+DPADD+=         ${LIBNCURSES} ${LIBMYTINFO} ${LIBCRYPT} ${LIBM}
 CLEANFILES+=	curses.c
 VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
