@@ -286,6 +286,13 @@
       <para>The &man.wx.4; driver now supports the Intel PRO1000-F and
       PRO1000-T (10/100/1000) adapters. &merged;</para>
 
+      <para>Added the &man.nge.4; driver, which supports PCI Gigabit
+      Ethernet adapters based on the National Semiconductor DP83820
+      and DP83821 Gigabit Ethernet controller chips, including the
+      D-Link DGE-500T, SMC EZ Card 1000 (SMC9462TX), Asante
+      FriendlyNet GigaNIC 1000TA and 1000TPC and Addtron
+      AEG320T.</para>
+
     </sect3>
 
     <sect3>
@@ -797,7 +804,7 @@
     of an interface. &merged;</para>
 
     <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
-    notation.</para>
+    notation. &merged;</para>
 
     <para>&man.setproctitle.3; has been moved from
     <filename>libutil</filename> to
@@ -1216,6 +1223,9 @@
 
     <para>Ukranian language support has been added to the &os;
     console.</para>
+
+    <para>The performance of the ELF dynamic linker &man.rtld.1; has
+    been improved. &merged;</para>
 
     <sect3>
       <title>Contributed Software</title>
