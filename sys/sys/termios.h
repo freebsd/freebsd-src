@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)termios.h	8.3 (Berkeley) 3/28/94
- * $Id: termios.h,v 1.3 1994/08/02 07:53:46 davidg Exp $
+ * $Id: termios.h,v 1.4 1995/04/30 14:56:30 bde Exp $
  */
 
 #ifndef _SYS_TERMIOS_H_
@@ -78,10 +78,10 @@
 #endif
 #define	NCCS		20
 
-#define _POSIX_VDISABLE	((unsigned char)'\377')
+#define	_POSIX_VDISABLE	0xff
 
 #ifndef _POSIX_SOURCE
-#define CCEQ(val, c)	(c == val ? val != _POSIX_VDISABLE : 0)
+#define	CCEQ(val, c)	((c) == (val) ? (val) != _POSIX_VDISABLE : 0)
 #endif
 
 /*
