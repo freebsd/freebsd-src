@@ -391,6 +391,7 @@
 .ds doc-operating-system-NetBSD-1.3a 1.3A
 .ds doc-operating-system-NetBSD-1.4  1.4
 .ds doc-operating-system-NetBSD-1.5  1.5
+.ds doc-operating-system-NetBSD-1.6  1.6
 .
 .ds doc-operating-system-FreeBSD-1.0     1.0
 .ds doc-operating-system-FreeBSD-1.1     1.1
@@ -420,6 +421,8 @@
 .ds doc-operating-system-FreeBSD-4.1.1   4.1.1
 .ds doc-operating-system-FreeBSD-4.2     4.2
 .ds doc-operating-system-FreeBSD-4.3     4.3
+.ds doc-operating-system-FreeBSD-4.4     4.4
+.ds doc-operating-system-FreeBSD-4.5     4.5
 .ds doc-operating-system-FreeBSD-5.0     5.0
 .
 .de Os
