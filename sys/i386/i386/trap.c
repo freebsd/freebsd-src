@@ -464,6 +464,9 @@ restart:
 					vm86_trap((struct vm86frame *)&frame);
 				goto out;
 			}
+			if (type == T_STKFLT)
+				break;
+
 			/* FALL THROUGH */
 
 		case T_SEGNPFLT:	/* segment not present fault */
