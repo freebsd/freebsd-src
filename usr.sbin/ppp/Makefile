@@ -9,9 +9,9 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	server.c sig.c slcompress.c sync.c systems.c tcp.c tcpmss.c \
 	throughput.c timer.c tty.c tun.c udp.c vjcomp.c
 .if defined(NOSUID) || defined(PPP_NOSUID)
-BINMODE=554
+BINMODE=551
 .else
-BINMODE=4554
+BINMODE=4551
 BINOWN=	root
 .endif
 BINGRP=	network
