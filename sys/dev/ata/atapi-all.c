@@ -87,12 +87,12 @@ atapi_attach(struct ata_softc *scp, int32_t device)
 
 #ifdef ATA_ENABLE_ATAPI_DMA
     if (!(ATP_PARAM->drqtype == ATAPI_DRQT_INTR)) {
-	if (!ata_dmainit(atp->controller, atp->unit,
-			 (ata_pmode(ATP_PARAM) < 0) ? 
-			  (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
-			 (ata_wmode(ATP_PARAM) < 0) ? 
-			  (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
-			 ata_umode(ATP_PARAM)))
+	ata_dmainit(atp->controller, atp->unit,
+		    (ata_pmode(ATP_PARAM) < 0) ? 
+		    (ATP_PARAM->dmaflag ? 4 : 0) : ata_pmode(ATP_PARAM),
+		    (ata_wmode(ATP_PARAM) < 0) ? 
+		    (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
+		    ata_umode(ATP_PARAM));
     }
     else
 #endif
