@@ -179,7 +179,7 @@ Static device_method_t uvisor_methods[] = {
 
 
 Static driver_t uvisor_driver = {
-       "usio",
+       "ucom",
        uvisor_methods,
        sizeof (struct uvisor_softc)
 };
