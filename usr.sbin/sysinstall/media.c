@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.52 1996/08/03 10:11:16 jkh Exp $
+ * $Id: media.c,v 1.53 1996/09/26 22:07:32 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -259,21 +259,23 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, *hostname, *dir;
     extern int FtpPort;
-    static int first_time = 1;
+    int what;
 
-    dialog_clear_norefresh();
     cp = variable_get(VAR_FTP_PATH);
-    if (!(cp && first_time)) {
+    if (!cp) {
+	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
 	    return DITEM_FAILURE | DITEM_RECREATE;
 	else
 	    cp = variable_get(VAR_FTP_PATH);
+	what = DITEM_RECREATE;
     }
-    if (first_time)
-	first_time = 0;
+    else
+	what = DITEM_RESTORE;
     if (!cp) {
+	dialog_clear_norefresh();
 	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
-	return DITEM_FAILURE | DITEM_RECREATE;
+	return DITEM_FAILURE | what;
     }
     else if (!strcmp(cp, "other")) {
 	variable_set2(VAR_FTP_PATH, "ftp://");
@@ -286,20 +288,20 @@ mediaSetFTP(dialogMenuItem *self)
 				"Where <path> is relative to the anonymous ftp directory or the\n"
 				"home directory of the user being logged in as.");
 	if (!cp || !*cp)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | what;
     }
     if (strncmp("ftp://", cp, 6)) {
 	msgConfirm("Sorry, %s is an invalid URL!", cp);
-	return DITEM_FAILURE | DITEM_RECREATE;
+	return DITEM_FAILURE | what;
     }
     strcpy(ftpDevice.name, cp);
 
     if (!tcpDeviceSelect())
-	return DITEM_FAILURE | DITEM_RECREATE;
+	return DITEM_FAILURE | what;
     if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
 	if (isDebug())
 	    msgDebug("mediaSetFTP: Net device init failed.\n");
-	return DITEM_FAILURE | DITEM_RECREATE;
+	return DITEM_FAILURE | what;
     }
     hostname = cp + 6;
     if ((cp = index(hostname, ':')) != NULL) {
@@ -321,7 +323,7 @@ mediaSetFTP(dialogMenuItem *self)
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", hostname);
 	    mediaDevice->shutdown(mediaDevice);
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | what;
 	}
     }
     variable_set2(VAR_FTP_HOST, hostname);
@@ -334,7 +336,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
-    return DITEM_LEAVE_MENU | DITEM_RECREATE;
+    return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
 
 int
@@ -357,6 +359,7 @@ mediaSetUFS(dialogMenuItem *self)
     static Device ufsDevice;
     char *cp;
 
+    dialog_clear_norefresh();
     cp = variable_get_value(VAR_UFS_PATH, "Enter a fully qualified pathname for the directory\n"
 			    "containing the FreeBSD distribution files:");
     if (!cp)
@@ -378,6 +381,7 @@ mediaSetNFS(dialogMenuItem *self)
     static Device nfsDevice;
     char *cp, *idx;
 
+    dialog_clear_norefresh();
     cp = variable_get_value(VAR_NFS_PATH, "Please enter the full NFS file specification for the remote\n"
 			    "host and directory containing the FreeBSD distribution files.\n"
 			    "This should be in the format:  hostname:/some/freebsd/dir");
@@ -593,15 +597,18 @@ mediaVerify(void)
 
 /* Set the FTP username and password fields */
 int
-mediaSetFtpUserPass(dialogMenuItem *self)
+mediaSetFTPUserPass(dialogMenuItem *self)
 {
     char *pass;
 
-    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:"))
+    dialog_clear_norefresh();
+    if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:")) {
+	dialog_clear_norefresh();
 	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
+    }
     else
 	pass = NULL;
-    return pass ? DITEM_SUCCESS : DITEM_FAILURE;
+    return (pass ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 /* Set CPIO verbosity level */
