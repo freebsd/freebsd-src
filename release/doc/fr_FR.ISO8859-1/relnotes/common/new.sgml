@@ -18,7 +18,8 @@
     <year>2000</year>
     <year>2001</year>
     <year>2002</year>
-    <holder role="mailto:doc@FreeBSD.org">Projet de Documentation de FreeBSD</holder>
+    <holder role="mailto:doc@FreeBSD.org">Projet de Documentation de 
+    FreeBSD</holder>
   </copyright>
 
   <abstract>
@@ -37,11 +38,11 @@
 <sect1>
   <title>Introduction</title>
         <para>Ce document contient les notes de version pour &os;
-        &release.current; sur plate-forme &arch.print;. Il décrit les nouvelles
-        fonctions de &os; qui ont été ajoutées (ou modifiées)
-        depuis &release.prev;. Il contient également quelques notes
-        sur la mise à jour depuis la version précédente de
-        &os;.</para>
+        &release.current; sur plate-forme &arch.print;. Il décrit les 
+	nouvelles fonctions de &os; qui ont été ajoutées 
+	(ou modifiées) depuis &release.prev;. Il contient également 
+	quelques notes sur la mise à jour depuis la version 
+	précédente de &os;.</para>
 <![ %release.type.snapshot [
 
         <para>La distribution snapshot à laquelle s'applique ces notes
@@ -61,11 +62,12 @@
   <para>Cette distribution de &os; &release.current; est uune distribution
   de type &release.type;. Elle est disponible a <ulink
   url="&release.url;"></ulink> 
-  ou sur un des mirroirs. Pour plus d'informations sur la façon d'obtenir cette
-  (ou une autre) distribution &release.type;  de &os; voyez le chapitre <ulink
+  ou sur un des mirroirs. Pour plus d'informations sur la façon d'obtenir 
+  cette (ou une autre) distribution &release.type;  de &os; voyez 
+  le chapitre <ulink
   url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtenire
-  FreeBSD</quote></ulink> du <ulink url="http://www.FreeBSD.org/handbook/">guide de référence
-  de FreeBSD</ulink>.</para>
+  FreeBSD</quote></ulink> du <ulink url="http://www.FreeBSD.org/handbook/">
+  guide de référence de FreeBSD</ulink>.</para>
 
 ]]>
 </sect1>
@@ -105,99 +107,108 @@
 
         <para>De nombreux changements supplémentaires apportés à
         &os; ne sont pas mentionnés ici par faute de place. Par
-        exemple, la documentation a été corrigée et améliorée, des
-        bugs mineurs ont été corrigés, du code potentiellement
-        dangereux pour la sécurité a été audité et corrigé et le
-        code source a été remis au propre.</para>
+        exemple, la documentation a été corrigée et améliorée, 
+	des bugs mineurs ont été corrigés, du code potentiellement 
+	dangereux pour la sécurité a été audité et corrigé 
+	et le code source a été remis au propre.</para>
 
   <sect2 id="kernel">
     <title>**Changements concernant le noyau</title>
 
     <para arch="i386">Le gestionnaire de périphérique &man.amdpm.4; 
-    a été ajouté pour permettre d'accéder aux fonctions du système de
-    surveillance des puces AMD 756 chipset. &merged;</para>
+    a été ajouté pour permettre d'accéder aux fonctions du 
+    système de surveillance des puces AMD 756 chipset. &merged;</para>
 
     <para>Le gestionnaire de périphérique &man.agp.4; pour les
     périphériques AGS a été ajouté. &merged;</para>
 
-    <para>Une nouvelle commande <command>show pcpu</command> ajoutée a &man.ddb.4;, 
-    permet d'obtenir la liste des données par processeur.</para>
+    <para>Une nouvelle commande <command>show pcpu</command> ajoutée a 
+    &man.ddb.4;, permet d'obtenir la liste des données par 
+    processeur.</para>
 
     <para>Deux nouvelles commandes a &man.ddb.4; , <command>hwatch</command> et
     <command>dhwatch</command>, ont été introduites.  Parallèlement a 
     <command>watch</command> et <command>dwatch</command>, elles permettent
     d'installer des points de vérification matériels (en opposition aux
-    point de vérification logiciels) si l'architecture matérielle le supporte.
-    &merged;</para>
+    point de vérification logiciels) si l'architecture matérielle le 
+    supporte. &merged;</para>
 
-    <para>&man.devfs.5;, permet de créer automatiquement les entrées nécessaires dans 
-    le répertoire <filename>/dev</filename> et le support des périphériques a attachement
-    variable, a été longuement revu. &man.devfs.5; est maintenant activé par défaut et 
-    peut etre désactivé par l'option du noyau <literal>NODEVFS</literal> .</para>
+    <para>&man.devfs.5;, permet de créer automatiquement les entrées 
+    nécessaires dans le répertoire <filename>/dev</filename> et le 
+    support des périphériques a attachement variable, a été 
+    longuement revu. &man.devfs.5; est maintenant activé par défaut 
+    et peut etre désactivé par l'option du noyau 
+    <literal>NODEVFS</literal> .</para>
 
-    <para>Le gestionnaire de périphérique dgm a été retiré en faveur du gestionnaire
-     digi.</para>
+    <para>Le gestionnaire de périphérique dgm a été retiré 
+    en faveur du gestionnaire digi.</para>
 
-    <para>Un nouveau gestionnaire de périphérique digi a été ajouté pour supporter 
-    les cartes Digiboard PCI Xr et ISA Xem. Un nouveau programme, &man.digictl.8;,
-    permet de ré-initialiser les cartes qui ont des modules de ports externes attachés
-    comme les PC/Xem.</para>
+    <para>Un nouveau gestionnaire de périphérique digi a été 
+    ajouté pour supporter les cartes Digiboard PCI Xr et ISA Xem. Un 
+    nouveau programme, &man.digictl.8;, permet de ré-initialiser les 
+    cartes qui ont des modules de ports externes attachés comme les 
+    PC/Xem.</para>
 
-    <para>Un nouvel appel système &man.eaccess.2; a été ajouté, similaire à
-    &man.access.2; excepté qu'il utilise les identités effective au lieu des 
-    identités réelles.</para>
+    <para>Un nouvel appel système &man.eaccess.2; a été ajouté, 
+    similaire à &man.access.2; excepté qu'il utilise les identités 
+    effective au lieu des identités réelles.</para>
 
-    <para arch="i386">Le gestionnaire de périphérique &man.ichsmb.4; pour les cartes
-     controleur Intel 82801AA
-    (ICH) SMBus et compatibles a été ajouté. &merged;</para>
+    <para arch="i386">Le gestionnaire de périphérique &man.ichsmb.4; 
+    pour les cartes controleur Intel 82801AA (ICH) SMBus et compatibles a 
+    été ajouté. &merged;</para>
 
-    <para>Chaque environnement &man.jail.2; peut maintenant tourner dans son niveau
-    de sécurité personnel.</para>
+    <para>Chaque environnement &man.jail.2; peut maintenant tourner dans 
+    son niveau de sécurité personnel.</para>
 
-    <para>Les variables sysctl pour&man.jail.2; ont été déplacées de 
-    la hiérarchie <varname>jail.*</varname> a
-    <varname>security.*</varname>.  Les autres variable sysctl ayant un
-    rapport avec la sécurité ont été déplacées de la hiérarchie
-    <varname>kern.security.*</varname> a
-    <varname>security.*</varname>.</para>
+    <para>Les variables sysctl pour&man.jail.2; ont été déplacées
+     de la hiérarchie <varname>jail.*</varname> a 
+     <varname>security.*</varname>.  Les autres variable sysctl ayant un 
+     rapport avec la sécurité ont été déplacées de la 
+     hiérarchie <varname>kern.security.*</varname> a 
+     <varname>security.*</varname>.</para>
 
-    <para>La variable <varname>kern.maxvnodes</varname> limite maintenant
-    propremement le nombre de vnodes utilisés. Précédemment uniquement les vnodes
-    n'utilisant pas les pages de cache pouvaient etre libérés; cela pouvait conduire
-    a un nombre croissant de vnodes sans limitation mémoire sur des machines
-    accédant a beaucoup de petits fichiers. Un thread noyau, <literal>vnlru</literal>,
-    permet d'aider a libérer et réutiliser les vnodes &merged;</para>
+    <para>La variable <varname>kern.maxvnodes</varname> limite maintenant 
+    propremement le nombre de vnodes utilisés. Précédemment 
+    uniquement les vnodes n'utilisant pas les pages de cache pouvaient etre 
+    libérés; cela pouvait conduire a un nombre croissant de vnodes sans 
+    limitation mémoire sur des machines accédant a beaucoup de petits 
+    fichiers. Un thread noyau, <literal>vnlru</literal>, permet d'aider a 
+    libérer et réutiliser les vnodes &merged;</para>
 
     <para>Le tambon des messages noyau est maintenant accessible (de façon
     indépendante de l'architecture) via la variable sysctl 
     <varname>kern.msgbuf</varname> ; &man.dmesg.8; n'a plus besoin d'etre
     SGID <groupname>kmem</groupname>. &merged;</para>
 
-    <para>L'appel système &man.kqueue.2; a été ajouté au noyau &os;. C'est une nouvelle
-    interface qui remplace &man.poll.2;/&man.select.2;, qui offre de mailleurs performances 
-    ainsi que la possiblité de rapporter différents type d'événements. Il
-    supporte la supervision des changements dans les sockets, les pipe, les fifos,
-    les fichiers, les signaux et les processus. &merged;</para>
+    <para>L'appel système &man.kqueue.2; a été ajouté au noyau
+     &os;. C'est une nouvelle interface qui remplace 
+     &man.poll.2;/&man.select.2;, qui offre de mailleurs performances ainsi
+      que la possiblité de rapporter différents type d'événements.
+       Il supporte la supervision des changements dans les sockets, les pipes,
+        les fifos, les fichiers, les signaux et les processus. &merged;</para>
 
     <para arch="i386">une nouvelle option du noyau
      <varname>KVA_SPACE</varname> permet de reconfigurer la taille de l'espace
      adressable virtuel du noyau. &merged;</para>
 
-    <para>Le gestionnaire de périphérique &man.labpc.4; a été retirer du a
-    <quote>bitrot</quote>.</para>
+    <para>Le gestionnaire de périphérique &man.labpc.4; a été 
+    retirer du a <quote>bitrot</quote>.</para>
 
     <para>Le chargeur et le linker du noyau vérifient via la présence
-    du fichier <filename>linker.hints</filename> dans chaque répertoire des modules
-    chargeables par le noyau du nom du module et de la version du fichier KLD. 
-    L'utilitaire &man.kldxref.8; permet de générer ces fichiers.</para>
+    du fichier <filename>linker.hints</filename> dans chaque répertoire 
+    des modules chargeables par le noyau du nom du module et de la version 
+    du fichier KLD. L'utilitaire &man.kldxref.8; permet de générer ces
+     fichiers.</para>
 
 
-    <para>L'émulation Linux supporte maintenant les fonctionnalités noyau nécessaires
-    au port <filename role="package">emulators/linux_base-7</filename> (émulation RedHat 7.X)
-    . &merged;</para>
+    <para>L'émulation Linux supporte maintenant les fonctionnalités 
+    noyau nécessaires au port 
+    <filename role="package">emulators/linux_base-7</filename> 
+    (émulation RedHat 7.X). &merged;</para>
 
-    <para>L'émulation linux nécessite maintenant l'option<literal>options
-    SYSVSEM</literal> dans le fichier de configuration du noyau. &merged;</para>
+    <para>L'émulation linux nécessite maintenant l'option 
+    <literal>options SYSVSEM</literal> dans le fichier de configuration 
+    du noyau. &merged;</para>
 
     <para>**&man.lomac.4;, a Low-Watermark Mandatory Access Control
     security facility, has been added as a kernel module.  It provides
@@ -207,20 +218,22 @@
     sponsored by DARPA and NAI Labs.</para>
 
     <para>La variable de configuration du noyau <varname>maxusers</varname> 
-    est maintenant paramétrable au moment du démarrage. Les autres paramètres
-    dépendant de <varname>maxusers</varname> sont maintenant modifiables au démarrage.
-    Le paramètre <varname>hz</varname> est lui aussi modifiable. &merged;</para>
+    est maintenant paramétrable au moment du démarrage. Les autres
+     paramètres dépendant de <varname>maxusers</varname> sont maintenant
+      modifiables au démarrage. Le paramètre <varname>hz</varname> est
+       lui aussi modifiable. &merged;</para>
 
     <para>Une valeur de <literal>0</literal> 
     pour la variable noyau <varname>maxusers</varname> indique de calculer
-    ,au moment du démarrage, une valeur apropriée (entre 32 et 384, en fonction
-    de la quantité de mémoire). C'est la valeur par défaut du  noyau
-    <filename>GENERIC</filename>. &merged;</para>
+    ,au moment du démarrage, une valeur apropriée (entre 32 et 384, en
+     fonction de la quantité de mémoire). C'est la valeur par défaut
+      du  noyau <filename>GENERIC</filename>. &merged;</para>
 
     <para arch="alpha">L'option noyau <varname>MAXMEM</varname> ,
     couplée a la variable <varname>hw.physmem</varname> permet de
-    réduire, de façon articielle, la quantité de mémoire présente sur
-    une machine pour les tests (ou d'autres choses).&merged;</para>
+    réduire, de façon articielle, la quantité de mémoire 
+    présente sur une machine pour les tests (ou d'autres choses).
+    &merged;</para>
 
     <para>Les parametres noyau
     <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
@@ -236,47 +249,54 @@
     L'option <literal>NCPU</literal> est maintenant fixée a 16 et 
     les autres options sus-mentionnées sont dynamiques. &merged;</para>
 
-    <para>Un gestionnaire de périphérique null-modem, &man.nmdm.4; a été ajouté.
-    &merged;</para>
+    <para>Un gestionnaire de périphérique null-modem, &man.nmdm.4; a
+     été ajouté. &merged;</para>
 
     <para>L'option <literal>O_DIRECT</literal> a été ajoutée a
     &man.open.2; et &man.fcntl.2;. L'ajout de cette option au moment
     de l'ouverture de fichiers tente de minimiser les effects du cache
     en lecture et en écriture &merged;</para>
 
-    <para>Le gestionnaire de périphérique &man.orm.4; a été ajouté permettant
-    d'utiliser la ROM optionnel dans l'espacec mémoire ISA des I/O, cela permet
-    de prévenir d'autres gestionnaire de périphérique de réclamer cette espace mémoire
-    et donc d'entrer en conflit avec.&merged;</para>
+    <para>Le gestionnaire de périphérique &man.orm.4; a été 
+    ajouté permettant d'utiliser la ROM optionnel dans l'espace 
+    mémoire ISA des I/O, cela permet de prévenir d'autres gestionnaires
+     de périphériques de réclamer cette espace mémoire et donc 
+     d'entrer en conflit avec.&merged;</para>
 
-    <para arch="i386">Le support PECOFF (format d'éxécution Win32)a été
-    ajouté.</para>
+    <para arch="i386">Le support PECOFF (format d'éxécution Win32) a
+     été ajouté.</para>
 
-    <para arch="i386">Le gestionnaire de périphérique pcm supporte maintenant
-    la gestion d'énergie de the NEC PC-98NOTE.. &merged;</para>
+    <para arch="i386">Le gestionnaire de périphérique pcm supporte 
+    maintenant la gestion d'énergie de the NEC PC-98NOTE.. &merged;</para>
 
-    <para>Les objets de mémoire partagés POSIX.1b sont maintenant supportés.
-    L'implémentation utilise des fichiers, mais active automatiquement l'options
-    MAP_NOSYNC lorsqu'ils sont &man.mmap.2;-ed. &merged;</para>
+    <para>Les objets de mémoire partagés POSIX.1b sont maintenant	
+    supportés. L'implémentation utilise des fichiers, mais active 
+    automatiquement l'option MAP_NOSYNC lorsqu'ils sont &man.mmap.2;-ed.
+     &merged;</para>
 
-    <para>Les différentes options <literal>PQ_*CACHE</literal> ont été 
-    remplacées par une seul option <literal>PQ_CACHESIZE</literal> permettant
-    de fixer la taille du cache en kilobytes. Les anciennes options
-    sont toujours supportées pour la compatibilité.&merged;</para>
+    <para>Les différentes options <literal>PQ_*CACHE</literal> ont 
+    été remplacées par une seul option 
+    <literal>PQ_CACHESIZE</literal> permettant de fixer la taille du 
+    cache en kilobytes. Les anciennes options sont toujours supportées 
+    pour la compatibilité.&merged;</para>
 
-    <para arch="i386">Le gestionnaire de périphérique &man.puc.4; (PCI <quote>Universal</quote>
-    Communications) a été ajouté, permettant de connecter les ports séries PCI 
-    au gestionnaire &man.sio.4;.</para>
+    <para arch="i386">Le gestionnaire de périphérique &man.puc.4; 
+    (PCI <quote>Universal</quote> Communications) a été ajouté, 
+    permettant de connecter les ports séries PCI au 
+    gestionnaire &man.sio.4;.</para>
 
-    <para>Le gestionnaire de périphérique &man.random.4; a été réécrit pour
-    utiliser l'algorithme <application>Yarrow</application>. Il permet 
-    d'obtenir une meilleur entropy, depuis différentes sources, incluant
-    la console, les interfaces réseaux Ethernet et PPP, et les périphériques
-    de stockage. L'entropy de  &man.random.4; est maintenant périodiquement 
-    sauvegardé dans des fichiers dans le répertoire <filename>/var/db/entropy</filename>, 
-    ainsi que au moment de l'arret du système. La sémantique de <filename>/dev/random</filename>
-    a changé; il ne bloque plus  en attendant des bits d'entropy, mais génére un flux de
-    pseudo données aléatoires exactement comme <filename>/dev/urandom</filename>.</para>
+    <para>Le gestionnaire de périphérique &man.random.4; a été 
+    réécrit pour utiliser l'algorithme <application>Yarrow</application>.
+    Il permet d'obtenir une meilleur entropy, depuis différentes sources,
+     incluant la console, les interfaces réseaux Ethernet et PPP, et les
+      périphériques de stockage. L'entropy de  &man.random.4; est
+       maintenant périodiquement sauvegardé dans des fichiers dans le 
+       répertoire <filename>/var/db/entropy</filename>, ainsi que au moment
+        de l'arret du système. La sémantique de 
+	<filename>/dev/random</filename> a changé; il ne bloque plus
+	en attendant des bits d'entropy, mais génére un flux de pseudo
+	données aléatoires exactement comme
+	 <filename>/dev/urandom</filename>.</para>
 
     <para>Une nouvelle option du noyau, <literal>options REGRESSION</literal>,
     active les interfaces et les fonctionnalités utiles lors des phases de
@@ -286,31 +306,34 @@
     permettant d'accéder au périphérique d'appel de certains
     portable Sony, a été ajouté..</para>
 
-    <para>Le gestionnaire de périphérique &man.syscons.4; supporte maintenant le copier-coller
-    via le clavier, par défaut via les touches
-    <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
+    <para>Le gestionnaire de périphérique &man.syscons.4; supporte 
+    maintenant le copier-coller via le clavier, par défaut via les 
+    touches <keycap>Shift</keycap>-<keycap>Insert</keycap>.</para>
 
-    <para>Le support des périphériques USB a été ajouté au noyau 
-    <filename>GENERIC</filename> et au programme d'installation pour
-    permettre de supporte les périphériques USB par défaut. Notez que SRM
-    ne supporte pas tous les périphériques USB actuellement, et donc vous
-    devez utilisez un clavier AT si vous n'utilisez pas une console série.
-     &merged;</para>
+    <para>Le support des périphériques USB a été ajouté au 
+    noyau <filename>GENERIC</filename> et au programme d'installation pour
+    permettre de supporte les périphériques USB par défaut. Notez 
+    que SRM ne supporte pas tous les périphériques USB actuellement, 
+    et donc vous devez utilisez un clavier AT si vous n'utilisez pas 
+    une console série. &merged;</para>
 
     <para arch="i386">Un gestionnaire de périphériques umodem pour
-    les modems USB a été ajouté. Il supporte les modems 3Com 5605 et Metricom Ricochet GS
-    wireless USB modems. &merged;</para>
+    les modems USB a été ajouté. Il supporte les modems 3Com 5605 et
+     Metricom Ricochet GS wireless USB modems. &merged;</para>
 
-    <para arch="i386">Un gestionnaire de périphériques &man.uscanner.4; permettant
-    le support basique de scanner USB utilisant SANE a été ajouté. Référez vous a
+    <para arch="i386">Un gestionnaire de périphériques &man.uscanner.4;
+     permettant le support basique de scanner USB utilisant SANE a été 
+     ajouté. Référez vous a
     <ulink
     url="http://www.mostang.com/sane/">la page SANE</ulink> pour la liste
     des scanners supportés Les scanners HP ScanJet 4100C, 5200C et 6300C 
     sont supportés. &merged;</para>
 
-    <para>L'option du noyau <literal>USER_LDT</literal> est maintenant activée par défaut.</para>
+    <para>L'option du noyau <literal>USER_LDT</literal> est maintenant 
+    activée par défaut.</para>
 
-    <para>Un gestionnaire de périphériques VESA S3 linear framebuffer a été ajouté.</para>
+    <para>Un gestionnaire de périphériques VESA S3 linear framebuffer 
+    a été ajouté.</para>
 
     <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
@@ -319,18 +342,22 @@
     IDE disks, where large memory dumps could take up to an hour to
     complete. &merged;</para>
 
-    <para>Les très grands swap  (&gt;67 GB) ne panique plus le système.</para>
+    <para>Les très grands swap (&gt;67 GB) ne panique plus le 
+    système.</para>
 
-    <para arch="alpha">Le support pour les threads en émulation Linux a été ajouté.</para>
+    <para arch="alpha">Le support pour les threads en émulation Linux a 
+    été ajouté.</para>
 
     <para>La cible <maketarget>buildkernel</maketarget> prend en compte
-    la variable <varname>KERNCONF</varname> et non plus <varname>KERNEL</varname>
-    pour savoir quel fichier du noyau créer. Il n'est plus nécessaire, dans
-    certains cas, de faire précéder un <maketarget>buildkernel</maketarget> 
-    par un <maketarget>buildworld</maketarget>. (Un <maketarget>buildworld</maketarget>
-    est nécessaire pour la mise a jour lors des version majeures, ou de la mise a jour
-    de <application>binutil</application> et lors de changements dans &man.config.8;.) &merged;
-    </para>
+    la variable <varname>KERNCONF</varname> et non plus 
+    <varname>KERNEL</varname> pour savoir quel fichier du noyau créer. 
+    Il n'est plus nécessaire, dans certains cas, de faire précéder
+     un <maketarget>buildkernel</maketarget> par un 
+     <maketarget>buildworld</maketarget>. 
+     (Un <maketarget>buildworld</maketarget> est nécessaire pour la 
+     mise à jour lors des version majeures, ou de la mise a jour
+    de <application>binutil</application> et lors de changements dans 
+    &man.config.8;.) &merged;</para>
 
 
     <para>Le code de terminaison des processus lorsqu'il n'y a plus
@@ -340,17 +367,19 @@
     processus.&merged;</para>
 
     <para>Les définitions du linker sont maintenant inclues par défaut; 
-    &man.gensetdefs.8; n'est donc plus nécessaire et a donc été retiré.</para>
+    &man.gensetdefs.8; n'est donc plus nécessaire et a donc été 
+    retiré.</para>
 
-    <para>Un vertain nombre de changements SMP a été effectué au niveau
-    de l'allocation des mbuf du noyau.</para>
+    <para>Un vertain nombre de changements SMP a été effectué au 
+    niveau de l'allocation des mbuf du noyau.</para>
 
-    <para>Le clonage de périphérique réseau a été implémenté, et le
-    périphérique &man.gif.4; a été modifié pour en tirer parti. Donc
-    maintenant au lieu de spécifié le nombre d'interfaces &man.gif.4; 
-    disponibles dans le fichier de configuration du noyau, L'option
-     <option>create</option> de &man.ifconfig.8; doit etre utilisée lorsqu'une
-     autre instance de périphérique est désirée. &merged;</para>
+    <para>Le clonage de périphérique réseau a été 
+    implémenté, et le périphérique &man.gif.4; a été 
+    modifié pour en tirer parti. Donc maintenant au lieu de spécifié 
+    le nombre d'interfaces &man.gif.4; disponibles dans le fichier de 
+    configuration du noyau, L'option <option>create</option> de 
+    &man.ifconfig.8; doit etre utilisée lorsqu'une autre instance de 
+    périphérique est désirée. &merged;</para>
 
     <para>Il est maintenant possible de rajouter des variables d'environnement
     directement dans le noyau au moment de la compilation en utilisant la 
@@ -359,30 +388,33 @@
    <para>**Idle zeroing of pages can be enabled with the
     <varname>vm.zeroidle_enable</varname> sysctl variable.</para>
 
-    <para arch="i386">Les adresses de chargement du noyau sont maintenant exportées
-    dans une table de symboles et différentes constantes anciennement codées en dur
-    ont été retirées, ce qui permet a certains programmes, comme &man.ps.1;, de 
-    fonctionner avec des noyaux compilés a différentes adresses. &merged;</para>
+    <para arch="i386">Les adresses de chargement du noyau sont maintenant 
+    exportées dans une table de symboles et différentes constantes 
+    anciennement codées en dur ont été retirées, ce qui permet 
+    a certains programmes, comme &man.ps.1;, de fonctionner avec des noyaux 
+    compilés a différentes adresses. &merged;</para>
 
     <para>Le vidage de mémoire des gros processus (ou d'un nombre important
-    de processus) ne bloque plus la machine pour un long moment. &merged;</para>
+    de processus) ne bloque plus la machine pour un long moment. 
+    &merged;</para>
 
     <para>Le noyau prend en compte maintenant le concept que il y a
     des unités plus petites que un processus a gérer (mais il ne peut
-    avoir plus d'un thread par processus autorisé a un moment précis).</para>
+    avoir plus d'un thread par processus autorisé a un moment précis).
+    </para>
 
-    <para>Le noyau supporte maintenant plusieurs périphériques bas-niveau pour la
-    console. Le nouvel utilitaire &man.conscontrol.8; permet de gérer ces différentes
-    consoles..</para>
+    <para>Le noyau supporte maintenant plusieurs périphériques 
+    bas-niveau pour la console. Le nouvel utilitaire &man.conscontrol.8; 
+    permet de gérer ces différentes consoles..</para>
 
-    <para arch="alpha">Le gestionnaire de périphériques des console supporte
-    maintenant les cartes graphiques de type TGA.</para>
+    <para arch="alpha">Le gestionnaire de périphériques des console 
+    supporte maintenant les cartes graphiques de type TGA.</para>
 
     <para>Le noyau se trouvant sur les CDs d'installation est maintenant
-    séparé de l'image <filename>mfsroot</filename>. Cela permet d'utiliser
-    un noyau complet lors de l'installation sur des machines permettant
-    de démarrer sur les CDs (plutot que d'avoir le noyau restreint utilisé
-    sur les disquettes). &merged;</para>
+    séparé de l'image <filename>mfsroot</filename>. Cela permet 
+    d'utiliser un noyau complet lors de l'installation sur des machines 
+    permettantde démarrer sur les CDs (plutot que d'avoir le noyau 
+    restreint utilisé sur les disquettes). &merged;</para>
 
     <para>**The system load average computation now adds some jitter to
     the timing of samples, in order to avoid synchronization with
@@ -392,26 +424,28 @@
     <literal>makeoptions DEBUG=-g</literal>),les modules chargeables
     a la demande seront aussi compiler avec le support de déboggage. Le
     seul problème engendré sera que les modules construits avec un noyau
-    de déboggage prendront plus de place disque de précedemment. &merged;</para>
+    de déboggage prendront plus de place disque de précedemment. 
+    &merged;</para>
 
     <para>Le périphérique de dump noyau peut maintenant etre activé
-    via le module chargeur <varname>dumpdev</varname>. Cela permet dorénavant
-    d'obtenir des informations sur les crashs du a des panic aux derniers moments
-    d'initialisation du noyau (avant que le système ne passe en mode mono-utilisateur).
-     &merged;</para>
+    via le module chargeur <varname>dumpdev</varname>. Cela permet 
+    dorénavant d'obtenir des informations sur les crashs du a des panic 
+    aux derniers moments d'initialisation du noyau (avant que le système 
+    ne passe en mode mono-utilisateur). &merged;</para>
 
     <sect3>
       <title>Support des cartes mères et des processeurs</title>
 
       <para>Le support multi-processeur SMP a été largement revu, et 
-      le code de BSD/OS 5.0 a été incorporé. Une des fonctionnalités 
-      importante de SNMPng ((<quote>SMP Next Generation</quote>) est
-      de permettre a plus de processus de fonctionner en mode noyau, tout
-      en ne nécessitant pas de "spin locks" qui réduisent énormément
-      l'utilité des systèmes multi-processeurs. Les "handlers" d'interruptions
-      ont maintenant leur propre contexte, ce qui permet de les bloquer et
-      donc qui permet de réduire le besoin de poser des "locks" sur les 
-      interruptions.</para>
+      le code de BSD/OS 5.0 a été incorporé. Une des 
+      fonctionnalités importantes de SNMPng ((<quote>SMP Next 
+      Generation</quote>) est de permettre a plus de processus de fonctionner
+       en mode noyau, tout en ne nécessitant pas de "spin locks" qui 
+       réduisent énormément l'utilité des systèmes 
+       multi-processeurs. Les "handlers" d'interruptions ont maintenant 
+       leur propre contexte, ce qui permet de les bloquer et donc qui permet
+       de réduire le besoin de poser des "locks" sur les interruptions.
+       </para>
 
       <para arch="i386">Le support des processeurs 80386 a été retiré
       du noyau <filename>GENERIC</filename> car ce code réduisait 
@@ -419,54 +453,60 @@
 
       <para arch="i386">L'option noyau<literal>I386_CPU</literal> permettant
       le support des processeurs 80386 est maintenant exclusive par rapport au 
-      support des autres processeurs IA32; cela devrait sérieusement augmenter
-      la performance sur les 80386 du a l'élimination des vérifications du type
-      de processeur au moment de l'éxécution.</para>
+      support des autres processeurs IA32; cela devrait sérieusement 
+      augmenter la performance sur les 80386 du a l'élimination des 
+      vérifications du type de processeur au moment de 
+      l'éxécution.</para>
 
       <para arch="i386">Les noyaux devant tournés sur des 80386 peuvent etre
       construits en ne rajoutant dans les options CPU du noyau uniquement
       <literal>I386_CPU</literal>.</para>
 
       <para arch="alpha">Les serveurs AlphaServer 1200 (<quote>Tincup</quote>) 
-      ont été testés et fonctionnent. Pour l'instant il n'est pas possible
-      de démarrer depuis un CD ou un lecteur de disquette, mais en prenant
-      un disque venant d'un autre server Alpha cela fonctionne.&merged;</para>
+      ont été testés et fonctionnent. Pour l'instant il n'est pas 
+      possible de démarrer depuis un CD ou un lecteur de disquette, mais
+       en prenant un disque venant d'un autre server Alpha cela 
+       fonctionne.&merged;</para>
 
       <para arch="alpha">La carte mère API UP1100 est validée .</para>
 
       <para arch="alpha">Les serveurs API CS20 1U sont validés.</para>
 
-      <para arch="alpha">Le support pour les séries DEC3000 a été retiré de l'image 
-      mfsroot disquette, cela permet d'obtenir une image sur une disquette 1.44 Mbyte. Comme
-      le DEC300 est actuellement uniquement utilisable sans disque, cela ne devrait pas
-      poser de problèmes.</para>
+      <para arch="alpha">Le support pour les séries DEC3000 a été 
+      retiré de l'image mfsroot disquette, cela permet d'obtenir une image
+       sur une disquette 1.44 Mbyte. Comme le DEC300 est actuellement 
+       uniquement utilisable sans disque, cela ne devrait pas poser de
+        problèmes.</para>
 
-      <para arch="alpha">Le support pour les AlphaServer 2100A (<quote>Lynx</quote>) 
-      a été ajouté.</para>
+      <para arch="alpha">Le support pour les AlphaServer 2100A 
+      (<quote>Lynx</quote>) a été ajouté.</para>
 
-      <para arch="alpha">Du code dans le noyau a été ajouté pour permettre a de vieilles
-      générations de processeurs Alpha(EV4 et EV5) d'émuler les instructions pour les
-      nouvelles générations de processeurs Alphas. Cela permet d'utiliser certains programmes
-      ,disponibles uniquement en binaire, comme <application>Adobe
-      Acrobat 4</application> sur des processeurs EV4 et EV5.</para>
+      <para arch="alpha">Du code dans le noyau a été ajouté pour
+       permettre a de vieilles générations de processeurs Alpha
+       (EV4 et EV5) d'émuler les instructions pour les nouvelles 
+       générations de processeurs Alphas. Cela permet d'utiliser 
+       certains programmes, disponibles uniquement en binaire, comme 
+       <application>Adobe Acrobat 4</application> sur des processeurs 
+       EV4 et EV5.</para>
 
-      <para arch="alpha">Le support SMP sur Alpha est maintenant opérationnel.</para>
+      <para arch="alpha">Le support SMP sur Alpha est maintenant 
+      opérationnel.</para>
 
       <para arch="i386">La détection des nouveaux processeurs, comme
       FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, et Transmeta
       Crusoe LongRun, a été ajouté. &merged;</para>
 
-      <para arch="alpha">Le support du matériel suivant a été retirer du noyau 
-      d'installation pour permettre d'obtenir une disquette 1.44.Mb:
-      Multia, NoName, PC64, EB64, Aspen Alpine, sa (SCSI tape), amr, support du port 
-      parallel,  vx (3c590, 3c595), pcn (AMD Am79C97x PCI 10/100), 
-      sf (Adaptec AIC-6915), sis (SiS 900/SiS 7016), ste (Sundance ST201 
-      (D-Link DFE-550TX)), wb (Winbond W89C840F).</para>
+      <para arch="alpha">Le support du matériel suivant a été retirer
+       du noyau d'installation pour permettre d'obtenir une disquette 1.44.Mb:
+        Multia, NoName, PC64, EB64, Aspen Alpine, sa (SCSI tape), amr, support
+	 du port parallel,  vx (3c590, 3c595), pcn (AMD Am79C97x PCI 10/100),
+	  sf (Adaptec AIC-6915), sis (SiS 900/SiS 7016), ste (Sundance ST201
+	  (D-Link DFE-550TX)), wb (Winbond W89C840F).</para>
 
       <para arch="i386">Le support pour Streaming <acronym>SIMD</acronym>
-      Extensions (<acronym>SSE</acronym>) a été introduit. L'option du noyau 
-      <literal>CPU_ENABLE_SSE</literal> controle l'intégration dans le noyau
-      &merged;</para>
+      Extensions (<acronym>SSE</acronym>) a été introduit. L'option du
+       noyau <literal>CPU_ENABLE_SSE</literal> controle l'intégration dans
+        le noyau.&merged;</para>
 
 
     </sect3>
@@ -478,45 +518,48 @@
       pour les CDROMs donne une meilleur compatibilité avec certains BIOS 
       qui ne respectait pas totalement l'implémentation standard des CDROM 
       bootable El Torito . Le nouveau gestionnaire de démarrage supporte
-      le mode <quote>no emulation</quote> de démarrage qui permet d'éliminer
-      le besoin d'émulation d'une image mémoire d'une disquette pour un CDROM
-      bootable. &merged;</para>
+      le mode <quote>no emulation</quote> de démarrage qui permet 
+      d'éliminer le besoin d'émulation d'une image mémoire d'une 
+      disquette pour un CDROM bootable. &merged;</para>
 
-      <para arch="i386">Le gestionnaire de démarrage i386 supporte maintenant un
-      nouveau type de console,<literal>nullconsole</literal>, permettant
-      d'utiliser un système sans carte vidéo et sans port série. &merged;</para>
+      <para arch="i386">Le gestionnaire de démarrage i386 supporte 
+      maintenant un nouveau type de console,<literal>nullconsole</literal>, 
+      permettant d'utiliser un système sans carte vidéo et sans port
+      série. &merged;</para>
 
-      <para arch="i386">Le programme &man.loader.8; dispose maintenant du support 
-      optionnel (activer a la compilation, désactivé par défaut) pour charger
-      des noyaux et des modules compressés en <application>bzip2</application>.
-       &merged;</para>
+      <para arch="i386">Le programme &man.loader.8; dispose maintenant du 
+      support optionnel (activer a la compilation, désactivé par 
+      défaut) pour charger des noyaux et des modules compressés 
+      en <application>bzip2</application>. &merged;</para>
 
-      <para arch="i386">Le support Intel's Wired for Management 2.0 (PXE)
-      a été ajouté au gestionnaire de démarrage de &os;. Du a des différences
-      d'API, l'ancienne version de PXI n'est plus supportée. Cela permet de démarrer
-      en réseau en utilisant le DHCP.&merged;</para>
+      <para arch="i386">Le support Intel's Wired for Management 2.0 (PXE) a
+       été ajouté au gestionnaire de démarrage de &os;. Du a des 
+       différences d'API, l'ancienne version de PXI n'est plus 
+       supportée. Cela permet de démarrer en réseau en utilisant le
+        DHCP.&merged;</para>
 
       <!-- Above this line, order bootloader changes by keyword-->
 
-      <para arch="i386">Le gestionnaire de démarrage de &os; contient maintenant
-      un correctif permettant de supporte le démarrage sur uun CDROM sur certains
-      BIOS IBM qui s'attendaient a ce que le premier secteur de l'émulation
-      des disquette contiennt un BPB MS-DOS valide pour qu'ils puissent le 
-      modifier. &merged;</para>
+      <para arch="i386">Le gestionnaire de démarrage de &os; contient 
+      maintenant un correctif permettant de supporte le démarrage sur un
+       CDROM sur certains BIOS IBM qui s'attendaient a ce que le premier
+        secteur de l'émulation des disquette contiennt un BPB MS-DOS 
+	valide pour qu'ils puissent le modifier. &merged;</para>
 
-      <para arch="i386">Le gestionnaire de démarrage de &os; dispose maintenant
-      d'une option <option>-p</option> permettant de forcer le noyau a faire
-      une pause entre chaque ligne d'affichage au moment de la phase de 
-      détection. &merged;</para>
+      <para arch="i386">Le gestionnaire de démarrage de &os; dispose 
+      maintenant d'une option <option>-p</option> permettant de forcer le 
+      noyau a faire une pause entre chaque ligne d'affichage au moment de la 
+      phase de  détection. &merged;</para>
 
-      <para arch="alpha,i386">Le gestionnaire de démarrage de &os; est maintenant
-      capable de démarrer depuis des systèmes de fichier ayant des tailles de
-      block de plus de 8K.&merged;</para>
+      <para arch="alpha,i386">Le gestionnaire de démarrage de &os; est 
+      maintenant capable de démarrer depuis des systèmes de fichier 
+      ayant des tailles de block de plus de 8K.&merged;</para>
 
-      <para>Le noyau et les modules ont été déplacés dans le répertoire
-      <filename>/boot/kernel</filename>, pour permettre de les manipuler ensemble
-      de façon plus simple. Le gestionnaire de démarrage a été mise à jour pour 
-      refléter ce changement.</para>
+      <para>Le noyau et les modules ont été déplacés dans le 
+      répertoire <filename>/boot/kernel</filename>, pour permettre de les 
+      manipuler ensemble de façon plus simple. Le gestionnaire de 
+      démarrage a été mise à jour pour refléter ce 
+      changement.</para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
@@ -526,88 +569,103 @@
       <title>Support des interfaces réseau</title>
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
-      <para>Le gestionnaire de périphériques &man.an.4; pour les cartes Cisco Aironet supporte 
-      maintenant le chiffrement "Wired Equivalent Privacy" (WEP), et est
-      controlable via &man.ancontrol.8;. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.an.4; pour les cartes
+       Cisco Aironet supporte maintenant le chiffrement "Wired Equivalent 
+       Privacy" (WEP), et est controlable via &man.ancontrol.8;.&merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.an.4; supporte maintenant les séries
-      Cisco Aironet 350. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.an.4; supporte 
+      maintenant les séries Cisco Aironet 350. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.an.4; supporte le mode <quote>monitor</quote>
-      controlable via l'option <option>-M</option> de &man.ancontrol.8;. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.an.4; supporte le 
+      mode <quote>monitor</quote> controlable via l'option 
+      <option>-M</option> de &man.ancontrol.8;. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.an.4; supporte maintenant Cisco LEAP
-      aussi bien que les clefs WEP. Les utilitaires Aironet Linux sont supportés sous
-      l'émulation. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.an.4; supporte 
+      maintenant Cisco LEAP aussi bien que les clefs WEP. Les utilitaires 
+      Aironet Linux sont supportés sous l'émulation. &merged;</para>
 
-      <para arch="i386">Le support générique pour les réseaux a jetons de type ARCNET 
-      a été ajouté. &merged;</para>
+      <para arch="i386">Le support générique pour les réseaux à
+       jetons de type ARCNET a été ajouté. &merged;</para>
 
-      <para arch="i386">Le gestionnaire de périphériques &man.bge.4; a été ajouté et permet
-      de gérer les cartes de la famille des controleurs Gigabit Ethernet Broadcom BCM570x, cela
-      inclut les cartes 3Com 3c996-T, SysKonnect SK-9D21 et SK-9D41, et les cartes
-      Gigabit Ethernet des serveurs Dell PowerEdge 2550. Les "jumbo frames", le marquage
-      des VLAN et le controle de sortie "TCP/IP offload" sont supportés, tout comme
-      la moderation des interruptions. &merged;</para>
+      <para arch="i386">Le gestionnaire de périphériques &man.bge.4; 
+      a été ajouté et permet de gérer les cartes de la famille
+       des controleurs Gigabit Ethernet Broadcom BCM570x, cela inclut les 
+       cartes 3Com 3c996-T, SysKonnect SK-9D21 et SK-9D41, et les cartes 
+       Gigabit Ethernet des serveurs Dell PowerEdge 2550. Les "jumbo frames", 
+       le marquage des VLAN et le controle de sortie "TCP/IP offload" sont 
+       supportés, tout comme la moderation des interruptions.&merged;</para>
 
-      <para arch="i386">Le gestionnaire de périphériques cm a été ajouté et permet de supporter
-      les cartes ARCNET SMC COM90cx6 ARCNET. &merged;</para>
+      <para arch="i386">Le gestionnaire de périphériques cm a été 
+      ajouté et permet de supporter les cartes ARCNET SMC COM90cx6 
+      ARCNET. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.dc.4; supporte désormais les
-      cartes a base de composants Xircom 3201 et Conexant LANfinity RS7112.</para>
+      <para>Le gestionnaire de périphériques &man.dc.4; supporte 
+      désormais les cartes à base de composants Xircom 3201 et 
+      Conexant LANfinity RS7112.</para>
 
-      <para>Le gestionnaire de périphériques &man.dc.4; supporte maintenant les VLAN.</para>
+      <para>Le gestionnaire de périphériques &man.dc.4; supporte 
+      maintenant les VLAN.</para>
 
-      <para>Le gestionnaire de périphériques &man.de.4; effectue maintenant une arbitration
-      a base de "round-robin" entre les réceptions et les transmissions du 21143
-      a la place de donner la priorité a l'unité de reception. Cela permet de gagner
+      <para>Le gestionnaire de périphériques &man.de.4; effectue 
+      maintenant une arbitration à base de "round-robin" entre les 
+      réceptions et les transmissions du 21143 à la place de donner 
+      la priorité a l'unité de reception. Cela permet de gagner 
       10&ndash;15% de performances lors des gros transferts. &merged;</para>
 
-      <para arch="alpha">Le gestionnaire de périphériques &man.ed.4; est supporté.</para>
+      <para arch="alpha">Le gestionnaire de périphériques &man.ed.4; 
+      est supporté.</para>
 
-      <para arch="i386">Les cartes Fast Ethernet Linksys PCCARD supportés via
-      le gestionnaire de périphériques &man.ed.4; nécessite maintenant l'ajout du drapeau
-      <literal>0x80000</literal> a la ligne de configuration de &man.pccard.conf.5;.  
-      Ce drapeau n'est pas optionnel. Les cartes Linksys ne serait pas reconnues 
-      sans lui. &merged;</para>
+      <para arch="i386">Les cartes Fast Ethernet Linksys PCCARD supportés 
+      viale gestionnaire de périphériques &man.ed.4; nécessite 
+      maintenant l'ajout du drapeau <literal>0x80000</literal> à la 
+      ligne de configuration de &man.pccard.conf.5;. Ce drapeau n'est pas 
+      optionnel. Les cartes Linksys ne serait pas reconnues sans 
+      lui. &merged;</para>
 
-      <para>Un problème avec le gestionnaire de périphériques &man.ed.4; qui 
-      pouvait résulter en un "panic" du système avec les très petits paquets et les
-      BPF ou le pontage activé a été fixé. &merged;</para>
+      <para>Un problème avec le gestionnaire de périphériques 
+      &man.ed.4; qui pouvait résulter en un "panic" du système avec 
+      les très petits paquets et les BPF ou le pontage activé a 
+      été fixé. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.ed.4; supporte maintenant les composants
-      D-Link DL10022 chips, nécessaires pour pour certaines cartes dont la carte 
-      NetGear FA-410TX. Le gestionnaire <literal>miibus</literal> est
-      maintenant nécessaire dans la configuration du noyau pour le gestionnaire de
-      périphériques &man.ed.4;. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.ed.4; supporte 
+      maintenant les composants D-Link DL10022 chips, nécessaires pour
+      certaines cartes dont la carte NetGear FA-410TX. Le gestionnaire 
+      <literal>miibus</literal> est maintenant nécessaire dans la 
+      configuration du noyau pour le gestionnaire de périphériques 
+      &man.ed.4;. &merged;</para>
 
-      <para arch="i386">Le gestionnaire de périphériques &man.el.4; peut maintenant
-      etre chargé en module.</para>
+      <para arch="i386">Le gestionnaire de périphériques &man.el.4; 
+      peut maintenant etre chargé en module.</para>
 
-      <para arch="i386">Le gestionnaire de périphériques &man.em.4; supporte maintenant
-      les cartes basées sur les composants controleurs Gigabit Ethernet Intel 82544, 82542, et 82543.
-      Le gestionnaire supporte les "jumbo frames" et les "checksum offload"  en émission/
-      réception sur les cartes basées sur les composants 82543 et 82544. &merged;</para>
+      <para arch="i386">Le gestionnaire de périphériques &man.em.4; 
+      supporte maintenant les cartes basées sur les composants controleurs 
+      Gigabit Ethernet Intel 82544, 82542, et 82543. Le gestionnaire supporte
+       les "jumbo frames" et les "checksum offload"  en 
+       émission/réception sur les cartes basées sur les composants 
+       82543 et 82544. &merged;</para>
 
-      <para>Le périphérique &man.faith.4; est maintenant chargeable, déchargeable et 
-      clonable. &merged;</para>
+      <para>Le périphérique &man.faith.4; est maintenant chargeable, 
+      déchargeable et clonable. &merged;</para>
 
-      <para arch="i386">Le support des cartes Ethernet Fujitsu MB86960A/MB86965A PC-Cards
-      a été de nouveau rajouté au gestionnaire de périphériques &man.fe.4;. &merged;</para>
+      <para arch="i386">Le support des cartes Ethernet Fujitsu 
+      MB86960A/MB86965A PC-Cards a été de nouveau rajouté au 
+      gestionnaire de périphériques &man.fe.4;. &merged;</para>
 
-      <para arch="alpha">Le gestionnaire de périphériques &man.fpa.4; supporte maintenant les
-      cartes DEFPA FDDI Digital sur les architectures Alpha. &merged;</para>
+      <para arch="alpha">Le gestionnaire de périphériques &man.fpa.4; 
+      supporte maintenant les cartes DEFPA FDDI Digital sur les architectures 
+      Alpha. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.fxp.4; nécessite maintenant l'entrée
-      <literal>device miibus</literal> dans le fichier de configuration du 
-      noyau. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.fxp.4; nécessite 
+      maintenant l'entrée <literal>device miibus</literal> dans le 
+      fichier de configuration du noyau. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.fxp.4; contient maintenant un 
-      correctif pour la violation de protocole PCI causé sur certains
-      systèmes basés sur des composants Intel ICH2/ICH2-M. Le correctif
-      consiste en écrivant dans l'EEPROM de l'interface a désactiver le mode
-      "Dynamic Standby"; une fois l'EEPROM modifiée, le système doit etre redémarré
-      pour que les modifications soient prises en compte. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.fxp.4; contient 
+      maintenant un correctif pour la violation de protocole PCI causé sur 
+      certains systèmes basés sur des composants Intel ICH2/ICH2-M. Le
+       correctif consiste à lécriture dans l'EEPROM de l'interface a 
+       désactiver pour le mode "Dynamic Standby"; une fois l'EEPROM 
+       modifiée, le système doit etre redémarré pour que les 
+       modifications soient prises en compte. &merged;</para>
 
        <para>**The &man.fxp.4; driver now supports Intel's loadable
       microcode to implement receive-side interrupt coalescing and
@@ -615,11 +673,12 @@
       support can be activated by the use of the
       <option>link0</option> option to &man.ifconfig.8;. &merged;</para>
 
-      <para>Le gestionnaire de périphériques &man.gx.4; a été ajouté et permet 
-      de gérer les cartes basées sur les controleurs Gigabit Ethernet Intel 82542 et 82543.
-      Les versions fibres et cuivre sont supportées. Les deux cartes supportent 
-      l'insertion de VLAN et le taggage de VLAN, les cartes 82543 supportent un 
-      plus les "checksum offload" TCP/IP. &merged;</para>
+      <para>Le gestionnaire de périphériques &man.gx.4; a été 
+      ajouté et permet de gérer les cartes basées sur les controleurs
+       Gigabit Ethernet Intel 82542 et 82543. Les versions fibres et cuivre
+       sont supportées. Les deux cartes supportent  l'insertion de VLAN et
+       le taggage de VLAN, les cartes 82543 supportent un plus les "checksum
+        offload" TCP/IP. &merged;</para>
 
       <para>The &man.lge.4; driver has been added to support the Level
       1 LXT1001 NetCellerator Gigabit Ethernet controller chip. This
