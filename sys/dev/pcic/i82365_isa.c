@@ -201,15 +201,10 @@ pcic_isa_attach(device_t dev)
 	sc->memt = rman_get_bustag(sc->mem_res);
 	sc->memh = rman_get_bushandle(sc->mem_res);;
 
-#if 0 /* Not yet */
 	pcic_attach(dev);
-
-	pcic_isa_bus_width_probe (dev, sc->iot, sc->ioh,
-	    rman_get_start(sc->port_res), 
-	    rman_get_end(sc->port_res) - rman_get_end(sc->port_res) + 1);
-
+	pcic_isa_bus_width_probe (dev);
 	pcic_attach_sockets(dev);
-#endif
+
 	return 0;
  error:
 	if (sc->port_res)
