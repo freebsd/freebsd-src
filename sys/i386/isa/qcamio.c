@@ -35,9 +35,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(bsdi)
+#define	CSRG	/* a more specific way of saying not Linux and not SysV */
+#endif
+
+#ifdef	CSRG
 #include	"qcam.h"
+#endif
+
 #if NQCAM > 0
 
+#ifdef	CSRG
 #include	<sys/param.h>
 #include	<machine/cpufunc.h>
 #include	<machine/clock.h>
@@ -45,8 +53,20 @@
 #include	<sys/systm.h>
 #include	<sys/devconf.h>
 #endif	/* KERNEL */
-
 #include	<machine/qcam.h>
+#endif	/* CSRG */
+
+#ifdef	LINUX
+#include	<sys/param.h>
+#include	<linux/kernel.h>
+#include	<linux/sched.h>
+#include	<linux/string.h>
+#include	<linux/delay.h>
+#include	<asm/io.h>
+#include	"qcam-linux.h"
+#include	"../include/qcam.h"
+#endif	/* LINUX */
+
 #include	"qcamreg.h"
 #include	"qcamdefs.h"
 
@@ -263,14 +283,20 @@ qcam_bi_4bit (struct qcam_softc *qs)
 static void
 qcam_bi_6bit (struct qcam_softc *qs)
 {
-	u_char *p, *end;
-	u_short hi, low, dummy;
+	u_char *p;
+	u_short hi, low;
 	u_int   port;
 
 	port = qs->iobase;			/* for speed */
 
 	qcam_waitfor_bi(port);
 
+	/*
+	 * This was interleaved before, but I cut it back to the simple
+	 * mode so that it's easier for people to play with it.  A quick
+	 * unrolling of the loop coupled with interleaved decoding and I/O
+	 * should get us a slight CPU bonus later.
+	 */
 	for (p = qs->buffer; p < qs->buffer_end; ) {
 		write_control(port, QC_CTL_HIGHWORD);
 		READ_DATA_WORD_HIGH(port, hi, QC_TIMEOUT);
@@ -280,12 +306,6 @@ qcam_bi_6bit (struct qcam_softc *qs)
 		READ_DATA_WORD_LOW(port, low, QC_TIMEOUT);
 		DECODE_WORD_BI6BPP(p, low);
 	}
-
-#ifdef	notdef
-	/* XXX xfqcam does this, seems stupid, the read times out */
-	write_control(port, QC_CTL_HIGHWORD);
-	READ_DATA_WORD_HIGH(port, dummy, QC_TIMEOUT);
-#endif
 }
 
 /*
@@ -352,7 +372,8 @@ qcam_uni_6bit (struct qcam_softc *qs)
 
 	/*
 	 * This routine has been partially interleaved... we can do a better
-	 * job, but for right now, keep it simple.
+	 * job, but for right now, I've deliberately kept it less efficient
+	 * so we can play with decoding without hurting peoples brains.
 	 */
 	for (p = qs->buffer; p < qs->buffer_end; ) {
 		write_control(port, QC_CTL_HIGHNIB);
@@ -495,25 +516,24 @@ qcam_default (struct qcam_softc *qs) {
 	qs->exposure	 = QC_DEF_EXPOSURE;
 }
 
+#ifndef	QCAM_INVASIVE_SCAN
+/*
+ * Attempt a non-destructive probe for the QuickCam.
+ * Current models appear to toggle the upper 4 bits of
+ * the status register at approximately 5-10 Hz.
+ *
+ * Be aware that this isn't the way that Connectix detects the
+ * camera (they send a reset and try to handshake),  but this
+ * way is safe.
+ */
 int
 qcam_detect (u_int port) {
-	int i, transitions;
+	int i, transitions = 0;
 	u_char reg, last;
 
 	write_control(port, 0x20);
 	write_control(port, 0x0b);
 	write_control(port, 0x0e);
-
-	/*
-	 * Attempt a non-destructive probe for the QuickCam.
-	 * Current models appear to toggle the upper 4 bits of
-	 * the status register at approximately 5-10 Hz.
-	 *
-	 * Be aware that this isn't the way that Connectix detects the
-	 * camera (they send a reset and try to handshake),  but this
-	 * way is safe.
-	 */
-	transitions = 0;
 
 	last = reg = read_status(port);
 
@@ -527,7 +547,33 @@ qcam_detect (u_int port) {
 	    DELAY(100000);	/* 100ms */
 	}
 
-	return transitions >= QC_PROBECNTLOW && transitions <= QC_PROBECNTHI;
+	return transitions >= QC_PROBECNTLOW &&
+	       transitions <= QC_PROBECNTHI;
 }
+#else
+/*
+ * This form of probing for the camera can cause garbage to show
+ * up on your printers if they're plugged in instead.  However,
+ * some folks have a problem with the nondestructive scan when
+ * using EPP/ECP parallel ports.
+ *
+ * Try to send down a brightness command, if we succeed, we've
+ * got a camera on the remote side.
+ */
+int
+qcam_detect (u_int port) {
+	write_control(port, 0x20);
+	write_data(port, 0x75);
+	read_data(port);
+	write_control(port, 0x0b);
+	DELAY(250);
+	write_control(port, 0x0e);
+	DELAY(250);
+
+	if (sendbyte(port, QC_BRIGHTNESS, QC_DEF_EXPOSURE) != QC_BRIGHTNESS)
+		return 0;	/* failure */
+	return (sendbyte(port, 1, QC_DEF_EXPOSURE) == 1);
+}
+#endif
 
 #endif /* NQCAM */
