@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$FreeBSD$
+ * $FreeBSD$
  *
  */
 
@@ -46,11 +46,9 @@
 
 /* Netgraph methods */
 static ng_constructor_t ng_split_constructor;
-static ng_rcvmsg_t ng_split_rcvmsg;
-static ng_shutdown_t ng_split_rmnode;
+static ng_shutdown_t ng_split_shutdown;
 static ng_newhook_t ng_split_newhook;
 static ng_rcvdata_t ng_split_rcvdata;
-static ng_connect_t ng_split_connect;
 static ng_disconnect_t ng_split_disconnect;
 
 /* Node type descriptor */
@@ -59,11 +57,11 @@ static struct ng_type typestruct = {
 	NG_SPLIT_NODE_TYPE,
 	NULL,
 	ng_split_constructor,
-	ng_split_rcvmsg,
-	ng_split_rmnode,
+	NULL,
+	ng_split_shutdown,
 	ng_split_newhook,
 	NULL,
-	ng_split_connect,
+	NULL,
 	ng_split_rcvdata,
 	ng_split_disconnect,
 	NULL
@@ -72,9 +70,9 @@ NETGRAPH_INIT(ng_split, &typestruct);
 
 /* Node private data */
 struct ng_split_private {
-        hook_p outhook;
-        hook_p inhook;
-        hook_p mixed;
+	hook_p out;
+	hook_p in;
+	hook_p mixed;
 	node_p	node;			/* Our netgraph node */
 };
 typedef struct ng_split_private *priv_p;
@@ -89,7 +87,7 @@ typedef struct ng_split_private *priv_p;
 static int
 ng_split_constructor(node_p node)
 {
-	priv_p          priv;
+	priv_p		priv;
 
 	/* Allocate node */
 	MALLOC(priv, priv_p, sizeof(*priv), M_NETGRAPH, M_ZERO | M_NOWAIT);
@@ -111,42 +109,25 @@ ng_split_constructor(node_p node)
 static int
 ng_split_newhook(node_p node, hook_p hook, const char *name)
 {
-	priv_p          priv = NG_NODE_PRIVATE(node);
+	priv_p		priv = NG_NODE_PRIVATE(node);
+	hook_p		*localhook;
 
-	if (strcmp(name, NG_SPLIT_HOOK_MIXED)) {
-		if (strcmp(name, NG_SPLIT_HOOK_INHOOK)) {
-			if (strcmp(name, NG_SPLIT_HOOK_OUTHOOK))
-				return (EPFNOSUPPORT);
-			else {
-				if (priv->outhook != NULL)
-					return (EISCONN);
-				priv->outhook = hook;
-				NG_HOOK_SET_PRIVATE(hook, &(priv->outhook));
-			}
-		} else {
-			if (priv->inhook != NULL)
-				return (EISCONN);
-			priv->inhook = hook;
-			NG_HOOK_SET_PRIVATE(hook, &(priv->inhook));
-		}
+	if (strcmp(name, NG_SPLIT_HOOK_MIXED) == 0) {
+		localhook = &priv->mixed;
+	} else if (strcmp(name, NG_SPLIT_HOOK_IN) == 0) {
+		localhook = &priv->in;
+	} else if (strcmp(name, NG_SPLIT_HOOK_OUT) == 0) {
+		localhook = &priv->out;
 	} else {
-		if (priv->mixed != NULL)
-			return (EISCONN);
-		priv->mixed = hook;
-		NG_HOOK_SET_PRIVATE(hook, &(priv->mixed));
+		return (EPFNOSUPPORT);
 	}
 
-	return (0);
-}
+	if (*localhook != NULL)
+		return (EISCONN);
+	*localhook = hook;
+	NG_HOOK_SET_PRIVATE(hook, localhook);
 
-/*
- * Receive a control message
- */
-static int
-ng_split_rcvmsg(node_p node, item_p item, hook_p lasthook)
-{
-	NG_FREE_ITEM(item);
-	return (EINVAL);
+	return (0);
 }
 
 /*
@@ -155,56 +136,31 @@ ng_split_rcvmsg(node_p node, item_p item, hook_p lasthook)
 static int
 ng_split_rcvdata(hook_p hook, item_p item)
 {
-	meta_p          meta;
-	const priv_p priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
-	int             error = 0;
+	const priv_p	priv = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	int		error = 0;
 
-	if (hook == priv->outhook) {
-		printf("ng_split: got packet from outhook!\n");
+	if (hook == priv->out) {
+		printf("ng_split: got packet from out hook!\n");
 		NG_FREE_ITEM(item);
-		return (EINVAL);
-	}
-#if 0 /* should never happen */
-	if (NGI_M(item) == NULL) {
-		printf("ng_split: mbuf is null.\n");
-		NG_FREE_ITEM(item);
-		return (EINVAL);
-	}
-#endif
-	/* 
-	 * XXX Really here we should just remove metadata we understand.
-	 */
-	NGI_GET_META(item, meta);
-	NG_FREE_META(meta);
-	if ((hook == priv->inhook) && (priv->mixed)) {
+		error = EINVAL;
+	} else if ((hook == priv->in) && (priv->mixed != NULL)) {
 		NG_FWD_ITEM_HOOK(error, item, priv->mixed);
-	} else if ((hook == priv->mixed) && (priv->outhook)) {
-		NG_FWD_ITEM_HOOK(error, item, priv->outhook);
+	} else if ((hook == priv->mixed) && (priv->out != NULL)) {
+		NG_FWD_ITEM_HOOK(error, item, priv->out);
 	}
+
 	return (error);
 }
 
 static int
-ng_split_rmnode(node_p node)
+ng_split_shutdown(node_p node)
 {
-	const priv_p priv = NG_NODE_PRIVATE(node);
+	const priv_p	priv = NG_NODE_PRIVATE(node);
 
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
 	FREE(priv, M_NETGRAPH);
 
-	return (0);
-}
-
-
-/*
- * This is called once we've already connected a new hook to the other node.
- * It gives us a chance to balk at the last minute.
- */
-static int
-ng_split_connect(hook_p hook)
-{
-	/* be really amiable and just say "YUP that's OK by me! " */
 	return (0);
 }
 
@@ -214,13 +170,13 @@ ng_split_connect(hook_p hook)
 static int
 ng_split_disconnect(hook_p hook)
 {
-	if (NG_HOOK_PRIVATE(hook)) {
-		*((hook_p *)NG_HOOK_PRIVATE(hook)) = (hook_p)0;
-	}
-
+	hook_p		*localhook = NG_HOOK_PRIVATE(hook);
+	
+	KASSERT(localhook != NULL, ("%s: null info", __FUNCTION__));
+	*localhook = NULL;
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)
-	&& (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
-			ng_rmnode_self(NG_HOOK_NODE(hook));
+	    && (NG_NODE_IS_VALID(NG_HOOK_NODE(hook)))) {
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	}
 
 	return (0);
