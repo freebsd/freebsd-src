@@ -35,7 +35,7 @@
 # Bugs: sure
 #   Email: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: catman.perl,v 1.9 1995/03/15 01:27:11 w Exp $
+# $Id: catman.perl,v 1.1 1995/03/15 22:47:38 joerg Exp $
 #
 
 sub usage {
@@ -278,7 +278,7 @@ sub parse_subdir {
 
 sub nroff {
     local($man,$cat) = @_;
-    local($nroff) = "groff -Tlatin1 -man | col";
+    local($nroff) = "/usr/bin/nroff -Tascii -man | col";
     local($dev, $ino) = (stat($man))[01];
 
     # It's a link
