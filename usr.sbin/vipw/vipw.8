@@ -44,10 +44,10 @@
 edits the password file after setting the appropriate locks,
 and does any necessary processing after the password file is unlocked.
 If the password file is already locked for editing by another user,
-.Nm vipw
+.Nm
 will ask you
 to try again later. The default editor for
-.Nm vipw
+.Nm
 is
 .Xr vi 1 .
 .Pp
@@ -58,12 +58,12 @@ and will not allow a password file with a
 entry to be
 installed.
 If
-.Nm vipw
+.Nm
 rejects the new password file, the user is prompted to re-enter
 the edit session.
 .Pp
 Once the information has been verified,
-.Nm vipw
+.Nm
 uses
 .Xr pwd_mkdb 8
 to update the user database.  This is run in the background, and,
@@ -72,7 +72,7 @@ is completed, the password file is unavailable for other updates
 and the new information is not available to programs.
 .Sh ENVIRONMENT
 If the following environment variable exists it will be utilized by
-.Nm vipw :
+.Nm Ns :
 .Bl -tag -width EDITOR
 .It Ev EDITOR
 The editor specified by the string
