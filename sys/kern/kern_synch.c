@@ -420,9 +420,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (p && KTRPOINT(p, KTR_CSW))
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
-	DROP_GIANT_NOSWITCH();
 	WITNESS_SLEEP(0, mtx);
 	mtx_enter(&sched_lock, MTX_SPIN);
+	DROP_GIANT_NOSWITCH();
 
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
@@ -461,7 +461,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	p->p_nativepri = p->p_priority;
 	CTR4(KTR_PROC, "msleep: proc %p (pid %d, %s), schedlock %p",
 		p, p->p_pid, p->p_comm, (void *) sched_lock.mtx_lock);
-	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
+	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
 	if (timo)
 		thandle = timeout(endtsleep, (void *)p, timo);
 	/*
@@ -583,7 +583,7 @@ asleep(void *ident, int priority, const char *wmesg, int timo)
 		p->p_slptime = 0;
 		p->p_asleep.as_priority = priority;
 		p->p_asleep.as_timo = timo;
-		TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
+		TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_slpq);
 	}
 
 	mtx_exit(&sched_lock, MTX_SPIN);
@@ -612,9 +612,9 @@ mawait(struct mtx *mtx, int priority, int timo)
 	int s;
 	WITNESS_SAVE_DECL(mtx);
 
-	DROP_GIANT_NOSWITCH();
 	WITNESS_SLEEP(0, mtx);
 	mtx_enter(&sched_lock, MTX_SPIN);
+	DROP_GIANT_NOSWITCH();
 	if (mtx != NULL) {
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
 		WITNESS_SAVE(mtx, mtx);
@@ -778,7 +778,7 @@ unsleep(p)
 	s = splhigh();
 	mtx_enter(&sched_lock, MTX_SPIN);
 	if (p->p_wchan) {
-		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_procq);
+		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_slpq);
 		p->p_wchan = 0;
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
@@ -800,9 +800,9 @@ wakeup(ident)
 	mtx_enter(&sched_lock, MTX_SPIN);
 	qp = &slpque[LOOKUP(ident)];
 restart:
-	TAILQ_FOREACH(p, qp, p_procq) {
+	TAILQ_FOREACH(p, qp, p_slpq) {
 		if (p->p_wchan == ident) {
-			TAILQ_REMOVE(qp, p, p_procq);
+			TAILQ_REMOVE(qp, p, p_slpq);
 			p->p_wchan = 0;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
@@ -846,9 +846,9 @@ wakeup_one(ident)
 	mtx_enter(&sched_lock, MTX_SPIN);
 	qp = &slpque[LOOKUP(ident)];
 
-	TAILQ_FOREACH(p, qp, p_procq) {
+	TAILQ_FOREACH(p, qp, p_slpq) {
 		if (p->p_wchan == ident) {
-			TAILQ_REMOVE(qp, p, p_procq);
+			TAILQ_REMOVE(qp, p, p_slpq);
 			p->p_wchan = 0;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */

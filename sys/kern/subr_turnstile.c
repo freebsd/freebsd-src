@@ -718,6 +718,7 @@ static char *dup_list[] = {
 };
 
 static char *sleep_list[] = {
+	"Giant",
 	NULL
 };
 

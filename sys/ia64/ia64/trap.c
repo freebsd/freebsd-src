@@ -102,8 +102,8 @@ userret(register struct proc *p, u_int64_t pc, u_quad_t oticks, int have_giant)
 		 * indicated by our priority.
 		 */
 		s = splstatclock();
-		DROP_GIANT_NOSWITCH();
 		mtx_enter(&sched_lock, MTX_SPIN);
+		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();

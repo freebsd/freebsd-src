@@ -192,8 +192,8 @@ userret(p, frame, oticks, have_giant)
 		 * our priority.
 		 */
 		s = splhigh();
-		DROP_GIANT_NOSWITCH();
 		mtx_enter(&sched_lock, MTX_SPIN);
+		DROP_GIANT_NOSWITCH();
 		setrunqueue(p);
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();

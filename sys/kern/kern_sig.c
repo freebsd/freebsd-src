@@ -1283,8 +1283,8 @@ issignal(p)
 			psignal(p->p_pptr, SIGCHLD);
 			do {
 				stop(p);
-				DROP_GIANT_NOSWITCH();
 				mtx_enter(&sched_lock, MTX_SPIN);
+				DROP_GIANT_NOSWITCH();
 				mi_switch();
 				mtx_exit(&sched_lock, MTX_SPIN);
 				PICKUP_GIANT();
@@ -1356,8 +1356,8 @@ issignal(p)
 				stop(p);
 				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 					psignal(p->p_pptr, SIGCHLD);
-				DROP_GIANT_NOSWITCH();
 				mtx_enter(&sched_lock, MTX_SPIN);
+				DROP_GIANT_NOSWITCH();
 				mi_switch();
 				mtx_exit(&sched_lock, MTX_SPIN);
 				PICKUP_GIANT();
