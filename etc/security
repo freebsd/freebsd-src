@@ -199,7 +199,7 @@ fi
 
 # Show kernel log messages
 #
-if dmesg 2>/dev/null > ${TMP}; then
+if dmesg -a 2>/dev/null > ${TMP}; then
 	if [ ! -f ${LOG}/dmesg.today ]; then
 		[ $rc -lt 1 ] && rc=1
 		separator
