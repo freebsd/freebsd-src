@@ -843,7 +843,7 @@ length(tp, name)
 	switch (tp->t_tspec) {
 	case FUNC:
 		/* compiler takes size of function */
-		lerror(msgs[12]);
+		lerror("%s", msgs[12]);
 		/* NOTREACHED */
 	case STRUCT:
 	case UNION:
