@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.72 1999/01/21 17:17:02 peter Exp $
+ *	$Id: vn.c,v 1.73 1999/01/23 00:28:56 peter Exp $
  */
 
 /*
@@ -411,6 +411,7 @@ vnstrategy(struct buf *bp)
 			addr += sz;
 			resid -= sz;
 		}
+		bp->b_resid = resid;
 		biodone(bp);
 		putvnbuf(nbp);
 	}
