@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1995 Scott Bartram
+ * Copyright (c) 1995 Steven Wallace
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: ibcs2_signal.c,v 1.4 1995/10/19 19:20:17 swallace Exp $
  */
 
 #include <sys/param.h>
@@ -247,6 +248,7 @@ ibcs2_sigsys(p, uap, retval)
 	struct ibcs2_sigsys_args *uap;
 	int *retval;
 {
+	struct sigaction sa;
 	int signum = ibcs2_to_bsd_sig[IBCS2_SIGNO(SCARG(uap, sig))];
 	int error;
 	caddr_t sg = stackgap_init();
@@ -259,30 +261,42 @@ ibcs2_sigsys(p, uap, retval)
 	}
 	
 	switch (IBCS2_SIGCALL(SCARG(uap, sig))) {
-	/*
-	 * sigset is identical to signal() except that SIG_HOLD is allowed as
-	 * an action.
-	 */
 	case IBCS2_SIGSET_MASK:
 		/*
-		 * sigset is identical to signal() except
-		 * that SIG_HOLD is allowed as
-		 * an action.
+		 * Check for SIG_HOLD action.
+		 * Otherwise, perform signal() except with different sa_flags.
 		 */
-		if (SCARG(uap, fp) == IBCS2_SIG_HOLD) {
+		if (SCARG(uap, fp) != IBCS2_SIG_HOLD) {
+			/* add sig to mask before exececuting signal handler */
+			sa.sa_flags = 0;
+			goto ibcs2_sigset;
+		}
+		/* else fallthrough to sighold */
+
+	case IBCS2_SIGHOLD_MASK:
+		{
 			struct sigprocmask_args sa;
 
 			SCARG(&sa, how) = SIG_BLOCK;
 			SCARG(&sa, mask) = sigmask(signum);
 			return sigprocmask(p, &sa, retval);
 		}
-		/* FALLTHROUGH */
-
+		
 	case IBCS2_SIGNAL_MASK:
 		{
 			struct sigaction_args sa_args;
-			struct sigaction *nbsa, *obsa, sa;
+			struct sigaction *nbsa, *obsa;
 
+			/* do not automatically block signal */
+			sa.sa_flags = SA_NODEFER;
+#ifdef SA_RESETHAND
+			if((signum != IBCS2_SIGILL) &&
+			   (signum != IBCS2_SIGTRAP) &&
+			   (signum != IBCS2_SIGPWR))
+				/* set to SIG_DFL before executing handler */
+				sa.sa_flags |= SA_RESETHAND;
+#endif
+		ibcs2_sigset:
 			nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			SCARG(&sa_args, signum) = signum;
@@ -291,7 +305,6 @@ ibcs2_sigsys(p, uap, retval)
 
 			sa.sa_handler = SCARG(uap, fp);
 			sigemptyset(&sa.sa_mask);
-			sa.sa_flags = SA_NODEFER;
 #if 0
 			if (signum != SIGALRM)
 				sa.sa_flags |= SA_RESTART;
@@ -310,15 +323,6 @@ ibcs2_sigsys(p, uap, retval)
 			return 0;
 		}
 		
-	case IBCS2_SIGHOLD_MASK:
-		{
-			struct sigprocmask_args sa;
-
-			SCARG(&sa, how) = SIG_BLOCK;
-			SCARG(&sa, mask) = sigmask(signum);
-			return sigprocmask(p, &sa, retval);
-		}
-		
 	case IBCS2_SIGRELSE_MASK:
 		{
 			struct sigprocmask_args sa;
@@ -331,7 +335,7 @@ ibcs2_sigsys(p, uap, retval)
 	case IBCS2_SIGIGNORE_MASK:
 		{
 			struct sigaction_args sa_args;
-			struct sigaction *bsa, sa;
+			struct sigaction *bsa;
 
 			bsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			SCARG(&sa_args, signum) = signum;
