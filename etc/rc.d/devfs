@@ -4,8 +4,8 @@
 #
 
 # PROVIDE: devfs
-# REQUIRE: LOGIN
-# BEFORE:  securelevel
+# REQUIRE: rcconf mountcritremote
+# BEFORE:  SERVERS securelevel
 # KEYWORD: nojail
 
 . /etc/rc.subr
