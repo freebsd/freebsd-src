@@ -596,7 +596,11 @@ vfs_bio_awrite(struct buf * bp)
 	int nwritten;
 
 	s = splbio();
-	if (/* (vp->v_type != VBLK) && */
+	/*
+	 * right now we support clustered writing only to regular files
+	 */
+	if ((vp->v_type == VREG) && 
+	    (vp->v_mount != 0) && /* Only on nodes that have the size info */
 	    (bp->b_flags & (B_CLUSTEROK | B_INVAL)) == B_CLUSTEROK) {
 		int size;
 		int maxcl;
