@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#199 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#200 $
  *
  * $FreeBSD$
  */
@@ -589,7 +589,7 @@ ahd_handle_seqint(struct ahd_softc *ahd, u_int intstat)
 			/*
 			 * Somehow need to know if this
 			 * is from a selection or reselection.
-			 * From that, we can termine target
+			 * From that, we can determine target
 			 * ID so we at least have an I_T nexus.
 			 */
 		} else {
@@ -2198,8 +2198,14 @@ ahd_clear_critical_section(struct ahd_softc *ahd)
 			ahd_outb(ahd, LQOMODE0, 0);
 			ahd_outb(ahd, LQOMODE1, 0);
 			ahd_set_modes(ahd, AHD_MODE_SCSI, AHD_MODE_SCSI);
-  			simode1 = ahd_inb(ahd, SIMODE1);
-  			ahd_outb(ahd, SIMODE1, simode1 & ENBUSFREE);
+			simode1 = ahd_inb(ahd, SIMODE1);
+			/*
+			 * We don't clear ENBUSFREE.  Unfortunately
+			 * we cannot re-enable busfree detection within
+			 * the current connection, so we must leave it
+			 * on while single stepping.
+			 */
+			ahd_outb(ahd, SIMODE1, simode1 & ENBUSFREE);
 			ahd_outb(ahd, SEQCTL0, ahd_inb(ahd, SEQCTL0) | STEP);
 			stepping = TRUE;
 		}
@@ -2207,9 +2213,8 @@ ahd_clear_critical_section(struct ahd_softc *ahd)
 		ahd_outb(ahd, CLRINT, CLRSCSIINT);
 		ahd_set_modes(ahd, ahd->saved_src_mode, ahd->saved_dst_mode);
 		ahd_outb(ahd, HCNTRL, ahd->unpause);
-		do {
+		while (!ahd_is_paused(ahd))
 			ahd_delay(200);
-		} while (!ahd_is_paused(ahd));
 		ahd_update_modes(ahd);
 	}
 	if (stepping) {
@@ -3737,8 +3742,13 @@ reswitch:
 		if ((ahd->msg_flags & MSG_FLAG_PACKETIZED) != 0) {
 			printf("%s: Returning to Idle Loop\n",
 			       ahd_name(ahd));
-			ahd_outb(ahd, LASTPHASE, P_BUSFREE);
 			ahd_clear_msg_state(ahd);
+
+			/*
+			 * Perform the equivalent of a clear_target_state.
+			 */
+			ahd_outb(ahd, LASTPHASE, P_BUSFREE);
+			ahd_outb(ahd, SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT);
 			ahd_outb(ahd, SEQCTL0, FASTMODE|SEQRESET);
 		} else {
 			ahd_clear_msg_state(ahd);
@@ -4562,9 +4572,8 @@ ahd_reinitialize_dataptrs(struct ahd_softc *ahd)
 	 */
 	ahd_outb(ahd, DFFSXFRCTL, CLRCHN);
 	wait = 1000;
-	do {
+	while (--wait && !(ahd_inb(ahd, MDFFSTAT) & FIFOFREE))
 		ahd_delay(100);
-	} while (--wait && !(ahd_inb(ahd, MDFFSTAT) & FIFOFREE));
 	if (wait == 0) {
 		ahd_print_path(ahd, scb);
 		printf("ahd_reinitialize_dataptrs: Forcing FIFO free.\n");
@@ -6240,6 +6249,7 @@ ahd_chip_init(struct ahd_softc *ahd)
 	ahd_outb(ahd, CLRSINT3, NTRAMPERR|OSRAMPERR);
 	ahd_outb(ahd, CLRINT, CLRSCSIINT);
 
+#if NEEDS_MORE_TESTING
 	/*
 	 * Always enable abort on incoming L_Qs if this feature is
 	 * supported.  We use this to catch invalid SCB references.
@@ -6247,6 +6257,7 @@ ahd_chip_init(struct ahd_softc *ahd)
 	if ((ahd->bugs & AHD_ABORT_LQI_BUG) == 0)
 		ahd_outb(ahd, LQCTL1, ABORTPENDING);
 	else
+#endif
 		ahd_outb(ahd, LQCTL1, 0);
 
 	/* All of our queues are empty */
@@ -7387,9 +7398,12 @@ ahd_reset_current_bus(struct ahd_softc *ahd)
 	ahd_outb(ahd, SIMODE1, ahd_inb(ahd, SIMODE1) & ~ENSCSIRST);
 	scsiseq = ahd_inb(ahd, SCSISEQ0) & ~(ENSELO|ENARBO|SCSIRSTO);
 	ahd_outb(ahd, SCSISEQ0, scsiseq | SCSIRSTO);
+	ahd_flush_device_writes(ahd);
 	ahd_delay(AHD_BUSRESET_DELAY);
 	/* Turn off the bus reset */
 	ahd_outb(ahd, SCSISEQ0, scsiseq);
+	ahd_flush_device_writes(ahd);
+	ahd_delay(AHD_BUSRESET_DELAY);
 	if ((ahd->bugs & AHD_SCSIRST_BUG) != 0) {
 		/*
 		 * 2A Razor #474
@@ -7397,7 +7411,6 @@ ahd_reset_current_bus(struct ahd_softc *ahd)
 		 * SCSI bus resets that we initiate, so
 		 * we must reset the chip.
 		 */
-		ahd_delay(AHD_BUSRESET_DELAY);
 		ahd_reset(ahd, /*reinit*/TRUE);
 		ahd_intr_enable(ahd, /*enable*/TRUE);
 		AHD_ASSERT_MODES(ahd, AHD_MODE_SCSI_MSK, AHD_MODE_SCSI_MSK);
