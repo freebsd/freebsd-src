@@ -346,7 +346,7 @@ udp6_input(mp, offp, proto)
 
 			strcpy(buf, ip6_sprintf(&ip6->ip6_dst));
 			log(LOG_INFO,
-			    "Connection attempt to UDP %s:%d from %s:%d\n",
+			    "Connection attempt to UDP [%s]:%d from [%s]:%d\n",
 			    buf, ntohs(uh->uh_dport),
 			    ip6_sprintf(&ip6->ip6_src), ntohs(uh->uh_sport));
 		}

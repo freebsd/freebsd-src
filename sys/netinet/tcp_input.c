@@ -576,14 +576,18 @@ findpcb:
 	if (inp == NULL) {
 		if (log_in_vain) {
 #ifdef INET6
-			char dbuf[INET6_ADDRSTRLEN], sbuf[INET6_ADDRSTRLEN];
+			char dbuf[INET6_ADDRSTRLEN+2], sbuf[INET6_ADDRSTRLEN+2];
 #else
 			char dbuf[4*sizeof "123"], sbuf[4*sizeof "123"];
 #endif
 
 			if (isipv6) {
-				strcpy(dbuf, ip6_sprintf(&ip6->ip6_dst));
-				strcpy(sbuf, ip6_sprintf(&ip6->ip6_src));
+				strcpy(dbuf, "[");
+				strcpy(sbuf, "[");
+				strcat(dbuf, ip6_sprintf(&ip6->ip6_dst));
+				strcat(sbuf, ip6_sprintf(&ip6->ip6_src));
+				strcat(dbuf, "]");
+				strcat(sbuf, "]");
 			} else {
 				strcpy(dbuf, inet_ntoa(ip->ip_dst));
 				strcpy(sbuf, inet_ntoa(ip->ip_src));
