@@ -22,10 +22,25 @@
 #ifndef IA64_TDEP_H
 #define IA64_TDEP_H
 
-extern CORE_ADDR ia64_linux_sigcontext_register_address (CORE_ADDR, int);
-extern CORE_ADDR ia64_aix_sigcontext_register_address (CORE_ADDR, int);
-extern unsigned long ia64_linux_getunwind_table (void *, size_t);
-extern void ia64_write_pc (CORE_ADDR, ptid_t);
-extern void ia64_linux_write_pc (CORE_ADDR, ptid_t);
+#include "osabi.h"
+
+/* Target-dependent structure in gdbarch.  */
+struct gdbarch_tdep
+{
+  enum gdb_osabi osabi;		/* OS/ABI of inferior.  */
+
+  CORE_ADDR (*sigcontext_register_address) (CORE_ADDR, int);
+    			/* OS specific function which, given a frame address
+			   and register number, returns the offset to the
+			   given register from the start of the frame. */
+  CORE_ADDR (*find_global_pointer) (CORE_ADDR);
+};
+
+#define SIGCONTEXT_REGISTER_ADDRESS \
+  (gdbarch_tdep (current_gdbarch)->sigcontext_register_address)
+#define FIND_GLOBAL_POINTER \
+  (gdbarch_tdep (current_gdbarch)->find_global_pointer)
+
+extern CORE_ADDR ia64_generic_find_global_pointer (CORE_ADDR);
 
 #endif /* IA64_TDEP_H */

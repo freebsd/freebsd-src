@@ -45,17 +45,6 @@
 #include "libunwind-ia64.h"
 #endif
 
-/* Hook for determining the global pointer when calling functions in
-   the inferior under AIX.  The initialization code in ia64-aix-nat.c
-   sets this hook to the address of a function which will find the
-   global pointer for a given address.  
-   
-   The generic code which uses the dynamic section in the inferior for
-   finding the global pointer is not of much use on AIX since the
-   values obtained from the inferior have not been relocated.  */
-
-CORE_ADDR (*native_find_global_pointer) (CORE_ADDR) = 0;
-
 /* An enumeration of the different IA-64 instruction types.  */
 
 typedef enum instruction_type
@@ -255,20 +244,6 @@ struct ia64_frame_cache
   CORE_ADDR saved_regs[NUM_IA64_RAW_REGS];
 
 };
-
-struct gdbarch_tdep
-  {
-    CORE_ADDR (*sigcontext_register_address) (CORE_ADDR, int);
-    			/* OS specific function which, given a frame address
-			   and register number, returns the offset to the
-			   given register from the start of the frame. */
-    CORE_ADDR (*find_global_pointer) (CORE_ADDR);
-  };
-
-#define SIGCONTEXT_REGISTER_ADDRESS \
-  (gdbarch_tdep (current_gdbarch)->sigcontext_register_address)
-#define FIND_GLOBAL_POINTER \
-  (gdbarch_tdep (current_gdbarch)->find_global_pointer)
 
 int
 ia64_register_reggroup_p (struct gdbarch *gdbarch, int regnum,
@@ -682,9 +657,18 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
  
       if ((cfm & 0x7f) > regnum - V32_REGNUM) 
 	{
+	  ULONGEST bspstore;
 	  ULONGEST reg_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
-	  reg = read_memory_integer ((CORE_ADDR)reg_addr, 8);
-	  store_unsigned_integer (buf, register_size (current_gdbarch, regnum), reg);
+	  regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
+					 &bspstore);
+	  if (reg_addr < bspstore) {
+	    reg = read_memory_integer ((CORE_ADDR)reg_addr, 8);
+	    store_unsigned_integer (buf, register_size (current_gdbarch,
+							regnum), reg);
+	  } else
+	    target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
+				 (void*)bspstore, buf, reg_addr - bspstore,
+				 register_size (current_gdbarch, regnum));
 	}
       else
 	store_unsigned_integer (buf, register_size (current_gdbarch, regnum), 0);
@@ -725,7 +709,21 @@ ia64_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 	  if (nat_addr >= bsp)
 	    regcache_cooked_read_unsigned (regcache, IA64_RNAT_REGNUM, &nat_collection);
 	  else
-	    nat_collection = read_memory_integer (nat_addr, 8);
+	    {
+	      ULONGEST bspstore;
+	      regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
+					     &bspstore);
+	      if (nat_addr < bspstore)
+		nat_collection = read_memory_integer (nat_addr, 8);
+	      else {
+		char natbuf[8];
+		target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
+				     (void*)bspstore, natbuf,
+				     nat_addr - bspstore,
+				     register_size (current_gdbarch, regnum));
+		nat_collection = *((uint64_t*)natbuf);
+	      }
+	    }
 	  nat_bit = (gr_addr >> 3) & 0x3f;
 	  natN_val = (nat_collection >> nat_bit) & 1;
 	}
@@ -789,8 +787,16 @@ ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
  
       if ((cfm & 0x7f) > regnum - V32_REGNUM) 
 	{
+	  ULONGEST bspstore;
 	  ULONGEST reg_addr = rse_address_add (bsp, (regnum - V32_REGNUM));
-	  write_memory (reg_addr, (void *)buf, 8);
+	  regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
+					 &bspstore);
+	  if (reg_addr < bspstore)
+	    write_memory (reg_addr, (void *)buf, 8);
+	  else
+	    target_write_partial (&current_target, TARGET_OBJECT_DIRTY,
+				  (void*)bspstore, buf, reg_addr - bspstore,
+				  register_size (current_gdbarch, regnum));
 	}
     }
   else if (IA64_NAT0_REGNUM <= regnum && regnum <= IA64_NAT31_REGNUM)
@@ -845,13 +851,33 @@ ia64_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 	  else
 	    {
 	      char nat_buf[8];
-	      nat_collection = read_memory_integer (nat_addr, 8);
+	      ULONGEST bspstore;
+	      regcache_cooked_read_unsigned (regcache, IA64_BSPSTORE_REGNUM,
+					     &bspstore);
+	      if (nat_addr < bspstore)
+		nat_collection = read_memory_integer (nat_addr, 8);
+	      else {
+		char natbuf[8];
+		target_read_partial (&current_target, TARGET_OBJECT_DIRTY,
+				     (void*)bspstore, natbuf,
+				     nat_addr - bspstore,
+				     register_size (current_gdbarch, regnum));
+		nat_collection = *((uint64_t*)natbuf);
+	      }
 	      if (natN_val)
 		nat_collection |= natN_mask;
 	      else
 		nat_collection &= ~natN_mask;
-	      store_unsigned_integer (nat_buf, register_size (current_gdbarch, regnum), nat_collection);
-	      write_memory (nat_addr, nat_buf, 8);
+	      store_unsigned_integer (nat_buf, register_size (current_gdbarch,
+							      regnum),
+				      nat_collection);
+	      if (nat_addr < bspstore)
+		write_memory (nat_addr, nat_buf, 8);
+	      else
+		target_write_partial (&current_target, TARGET_OBJECT_DIRTY,
+				      (void*)bspstore, nat_buf,
+				      nat_addr - bspstore,
+				      register_size (current_gdbarch, regnum));
 	    }
 	}
     }
@@ -1813,6 +1839,7 @@ ia64_frame_prev_register (struct frame_info *next_frame, void **this_cache,
 	  prev_bof = rse_address_add (prev_bsp, -(prev_cfm & 0x7f));
 
 	  addr = rse_address_add (prev_bof, (regnum - IA64_GR32_REGNUM));
+	  /* XXX marcel */
 	  *lvalp = lval_memory;
 	  *addrp = addr;
 	  read_memory (addr, valuep, register_size (current_gdbarch, regnum));
@@ -2858,8 +2885,8 @@ slot_alignment_is_next_even (struct type *t)
    DT_PLTGOT tag.  If it finds one of these, the corresponding
    d_un.d_ptr value is the global pointer.  */
 
-static CORE_ADDR
-generic_elf_find_global_pointer (CORE_ADDR faddr)
+CORE_ADDR
+ia64_generic_find_global_pointer (CORE_ADDR faddr)
 {
   struct obj_section *faddr_sect;
      
@@ -3255,32 +3282,9 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   tdep = xmalloc (sizeof (struct gdbarch_tdep));
   gdbarch = gdbarch_alloc (&info, tdep);
-
-  /* Set the method of obtaining the sigcontext addresses at which
-     registers are saved.  The method of checking to see if
-     native_find_global_pointer is nonzero to indicate that we're
-     on AIX is kind of hokey, but I can't think of a better way
-     to do it.  */
-  if (info.osabi == GDB_OSABI_LINUX)
-    tdep->sigcontext_register_address = ia64_linux_sigcontext_register_address;
-  else if (native_find_global_pointer != 0)
-    tdep->sigcontext_register_address = ia64_aix_sigcontext_register_address;
-  else
-    tdep->sigcontext_register_address = 0;
-
-  /* We know that GNU/Linux won't have to resort to the
-     native_find_global_pointer hackery.  But that's the only one we
-     know about so far, so if native_find_global_pointer is set to
-     something non-zero, then use it.  Otherwise fall back to using
-     generic_elf_find_global_pointer.  This arrangement should (in
-     theory) allow us to cross debug GNU/Linux binaries from an AIX
-     machine.  */
-  if (info.osabi == GDB_OSABI_LINUX)
-    tdep->find_global_pointer = generic_elf_find_global_pointer;
-  else if (native_find_global_pointer != 0)
-    tdep->find_global_pointer = native_find_global_pointer;
-  else
-    tdep->find_global_pointer = generic_elf_find_global_pointer;
+  tdep->osabi = info.osabi;
+  tdep->sigcontext_register_address = NULL;
+  tdep->find_global_pointer = ia64_generic_find_global_pointer;
 
   /* Define the ia64 floating-point format to gdb.  */
   builtin_type_ia64_ext =
@@ -3338,10 +3342,7 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   set_gdbarch_memory_remove_breakpoint (gdbarch, ia64_memory_remove_breakpoint);
   set_gdbarch_breakpoint_from_pc (gdbarch, ia64_breakpoint_from_pc);
   set_gdbarch_read_pc (gdbarch, ia64_read_pc);
-  if (info.osabi == GDB_OSABI_LINUX)
-    set_gdbarch_write_pc (gdbarch, ia64_linux_write_pc);
-  else
-    set_gdbarch_write_pc (gdbarch, ia64_write_pc);
+  set_gdbarch_write_pc (gdbarch, ia64_write_pc);
 
   /* Settings for calling functions in the inferior.  */
   set_gdbarch_push_dummy_call (gdbarch, ia64_push_dummy_call);
@@ -3365,6 +3366,8 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   set_gdbarch_print_insn (gdbarch, ia64_print_insn);
   set_gdbarch_convert_from_func_ptr_addr (gdbarch, ia64_convert_from_func_ptr_addr);
+
+  gdbarch_init_osabi (info, gdbarch);
 
   return gdbarch;
 }
