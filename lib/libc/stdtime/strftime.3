@@ -36,7 +36,7 @@
 .\"     @(#)strftime.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 4, 1997
+.Dd January 4, 2003
 .Dt STRFTIME 3
 .Os
 .Sh NAME
@@ -262,3 +262,9 @@ and
 are defined in ISO 8601: 1988.
 .Sh BUGS
 There is no conversion specification for the phase of the moon.
+.Pp
+The
+.Fn strftime
+function does not correctly handle multibyte characters in the
+.Fa format
+argument.
