@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Jake Burkholder <jake@FreeBSD.org>
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
