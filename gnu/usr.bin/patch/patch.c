@@ -450,7 +450,7 @@ reinitialize_almost_everything()
 	fatal1("you may not change to a different patch file\n");
 }
 
-static char *shortopts = "-b:B:cCd:D:eEfF:IlnNo:p::r:RsStuvV:x:";
+static char *shortopts = "-b:B:cCd:D:eEfF:i:IlnNo:p::r:RsStuvV:x:";
 static struct option longopts[] =
 {
   {"suffix", 1, NULL, 'b'},
@@ -540,6 +540,9 @@ get_some_switches()
 	    case 'F':
 		maxfuzz = atoi(optarg);
 		break;
+	    case 'i':
+		filearg[1] = savestr(optarg);
+		break;
 	    case 'I':
 		index_first = TRUE;
 		break;
@@ -601,7 +604,7 @@ Usage: %s [options] [origfile [patchfile]] [+ [options] [origfile]]...\n",
 		fprintf(stderr, "\
 Options:\n\
        [-cCeEflnNRsStuv] [-b backup-ext] [-B backup-prefix] [-d directory]\n\
-       [-D symbol] [-F max-fuzz] [-o out-file] [-p[strip-count]]\n\
+       [-D symbol] [-F max-fuzz] [-i patchfile] [-o out-file] [-p[strip-count]]\n\
        [-r rej-name] [-V {numbered,existing,simple}] [--check] [--context]\n\
        [--prefix=backup-prefix] [--suffix=backup-ext] [--ifdef=symbol]\n\
        [--directory=directory] [--ed] [--fuzz=max-fuzz] [--force] [--batch]\n\
