@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.29 1996/03/21 05:50:27 jkh Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.30 1996/03/21 06:12:40 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -323,25 +323,21 @@ for this domain.
 
 <tag>Taiwan</tag>
 
+In case of problems, please contact the
+<htmlurl url="mailto:hostmaster@tw.freebsd.org" name="hostmaster">
+for this domain.
+
 <itemize>
 
 <item>
 <htmlurl url="ftp://ftp.tw.freebsd.org/pub/FreeBSD"
 	name="ftp://ftp.tw.freebsd.org/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftpadmin@ftp.tw.freebsd.org"
-	name="ftpadmin@ftp.tw.freebsd.org">.
-
 <item>
-<htmlurl url="ftp://NCTUCCCA.edu.tw/Operating-Systems/FreeBSD"
-	name="ftp://NCTUCCCA.edu.tw/Operating-Systems/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:freebsd@NCTUCCCA.edu.tw"
-	name="freebsd@NCTUCCCA.edu.tw">.
-
+<htmlurl url="ftp://ftp2.tw.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp2.tw.freebsd.org/pub/FreeBSD"><newline>
 <item>
-<htmlurl url="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD"
-	name="ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD"><newline>
-	Contact: <htmlurl url="mailto:ftp@netbsd.csie.nctu.edu.tw"
-	name="ftp@netbsd.csie.nctu.edu.tw">.
+<htmlurl url="ftp://ftp3.tw.freebsd.org/pub/FreeBSD"
+	name="ftp://ftp3.tw.freebsd.org/pub/FreeBSD"><newline>
 
 </itemize>
 
