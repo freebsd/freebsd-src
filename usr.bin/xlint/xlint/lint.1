@@ -98,7 +98,7 @@ are taken to be the result of an earlier invocation of
 .Nm ,
 with either the
 .Fl i ,
-.Fl o
+.Fl o ,
 or
 .Fl C
 option in effect.
@@ -152,8 +152,8 @@ if a complaint stems not from a given source file, but from one of
 its included files, the source filename will be printed followed by
 a question mark.
 .Pp
-.Sy Options
-.Bl -tag -width Fl
+The options are as follows:
+.Bl -tag -width Ds
 .It Fl a
 Report assignments of
 .Sy long
@@ -400,7 +400,9 @@ Also shut off complaints about unused function arguments.
 Suppresses any intra-file warning except those dealing with
 unused variables or functions.
 This directive should be placed
-on the line immediately preceding where the lint warning occurred.
+on the line immediately preceding where the
+.Nm
+warning occurred.
 .It Li /* LONGLONG */
 Suppress complaints about use of long long integer types.
 .It Li /* NOTREACHED */
