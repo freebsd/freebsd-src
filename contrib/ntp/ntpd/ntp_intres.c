@@ -20,6 +20,7 @@
 # include <config.h>
 #endif
 
+#include "ntp_machine.h"
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_request.h"
@@ -515,7 +516,7 @@ findhostaddr(
 			msyslog(LOG_INFO, "findhostaddr: address resolved.");
 #endif
 		s = strlen(hp->h_name) + 1;
-		cp = emalloc(s);
+		cp = (char *)emalloc(s);
 		strcpy(cp, hp->h_name);
 		entry->ce_name = cp;
 	}

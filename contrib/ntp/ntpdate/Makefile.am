@@ -16,5 +16,5 @@ $(PROGRAMS): $(LDADD)
 	cd ../libntp && $(MAKE)
 
 version.o: $(ntpdate_OBJECTS) ../libntp/libntp.a @LIBRSAREF@ Makefile
-	$(top_builddir)/scripts/mkver ntpdate
+	env CSET=`cat $(top_srcdir)/version` $(top_builddir)/scripts/mkver ntpdate
 	$(COMPILE) -c version.c

@@ -1,4 +1,4 @@
-# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+# Makefile.in generated automatically by automake 1.5 from Makefile.am.
 
 # Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
 # Free Software Foundation, Inc.
@@ -10,6 +10,10 @@
 # but WITHOUT ANY WARRANTY, to the extent permitted by law; without
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
+#AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
 
 SHELL = @SHELL@
 
@@ -31,11 +35,9 @@ infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
 oldincludedir = /usr/include
-
 pkgdatadir = $(datadir)/@PACKAGE@
 pkglibdir = $(libdir)/@PACKAGE@
 pkgincludedir = $(includedir)/@PACKAGE@
-
 top_builddir = ..
 
 ACLOCAL = @ACLOCAL@
@@ -49,23 +51,18 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_HEADER = $(INSTALL_DATA)
 transform = @program_transform_name@
-
 NORMAL_INSTALL = :
 PRE_INSTALL = :
 POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-
 build_alias = @build_alias@
 build_triplet = @build@
 host_alias = @host_alias@
 host_triplet = @host@
 target_alias = @target_alias@
 target_triplet = @target@
-
-@SET_MAKE@
-AMDEP = @AMDEP@
 AMTAR = @AMTAR@
 AUTOKEY = @AUTOKEY@
 AWK = @AWK@
@@ -78,13 +75,12 @@ DCFD = @DCFD@
 DEPDIR = @DEPDIR@
 EF_LIBS = @EF_LIBS@
 EF_PROGS = @EF_PROGS@
+EXEEXT = @EXEEXT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
-INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
 LDFLAGS = @LDFLAGS@
 LIBPARSE = @LIBPARSE@
 LIBRSAREF = @LIBRSAREF@
 LN_S = @LN_S@
-MAKEINFO = @MAKEINFO@
 MAKE_ADJTIMED = @MAKE_ADJTIMED@
 MAKE_CHECK_Y2K = @MAKE_CHECK_Y2K@
 MAKE_LIBPARSE = @MAKE_LIBPARSE@
@@ -95,6 +91,7 @@ MAKE_NTP_GENKEYS = @MAKE_NTP_GENKEYS@
 MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
 MAKE_TIMETRIM = @MAKE_TIMETRIM@
+OBJEXT = @OBJEXT@
 OPENSSL = @OPENSSL@
 OPENSSL_INC = @OPENSSL_INC@
 OPENSSL_LIB = @OPENSSL_LIB@
@@ -107,15 +104,12 @@ RSADIR = @RSADIR@
 RSAOBJS = @RSAOBJS@
 RSAREF = @RSAREF@
 RSASRCS = @RSASRCS@
-STRIP = @STRIP@
 TESTDCF = @TESTDCF@
 U = @U@
 VERSION = @VERSION@
-_am_include = @_am_include@
+am__include = @am__include@
+am__quote = @am__quote@
 install_sh = @install_sh@
-
-#AUTOMAKE_OPTIONS = ../util/ansi2knr no-dependencies
-
 
 AUTOMAKE_OPTIONS = ../util/ansi2knr
 noinst_PROGRAMS = @TESTDCF@ @DCFD@
@@ -123,8 +117,6 @@ EXTRA_PROGRAMS = testdcf dcfd
 INCLUDES = -I$(top_srcdir)/include
 ETAGS_ARGS = Makefile.am
 DISTCLEANFILES = $(EXTRA_PROGRAMS)
-EXEEXT =
-OBJEXT = o
 subdir = parseutil
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
@@ -133,76 +125,90 @@ EXTRA_PROGRAMS = testdcf$(EXEEXT) dcfd$(EXEEXT)
 noinst_PROGRAMS = @TESTDCF@ @DCFD@
 PROGRAMS = $(noinst_PROGRAMS)
 
-
-DEFS = @DEFS@ -I. -I$(srcdir) -I$(top_builddir)
-CPPFLAGS = @CPPFLAGS@
-LIBS = @LIBS@
-ANSI2KNR = ../util/ansi2knr
 dcfd_SOURCES = dcfd.c
 dcfd_OBJECTS = dcfd$U.$(OBJEXT)
 dcfd_LDADD = $(LDADD)
-dcfd_DEPENDENCIES = 
-dcfd_LDFLAGS = 
+dcfd_DEPENDENCIES =
+dcfd_LDFLAGS =
 testdcf_SOURCES = testdcf.c
 testdcf_OBJECTS = testdcf$U.$(OBJEXT)
 testdcf_LDADD = $(LDADD)
-testdcf_DEPENDENCIES = 
-testdcf_LDFLAGS = 
-COMPILE = $(CC) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+testdcf_DEPENDENCIES =
+testdcf_LDFLAGS =
+
+DEFS = @DEFS@
+DEFAULT_INCLUDES =  -I. -I$(srcdir) -I$(top_builddir)
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+@AMDEP_TRUE@DEP_FILES = $(DEPDIR)/dcfd$U.Po $(DEPDIR)/testdcf$U.Po
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
 DIST_SOURCES = dcfd.c testdcf.c
-depcomp = $(SHELL) $(top_srcdir)/depcomp
-@AMDEP@DEP_FILES = $(DEPDIR)/dcfd$U.Po $(DEPDIR)/testdcf$U.Po
 DIST_COMMON = README Makefile.am Makefile.in
-
 SOURCES = dcfd.c testdcf.c
-OBJECTS = dcfd$U.$(OBJEXT) testdcf$U.$(OBJEXT)
 
 all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .o .obj
-
-$(srcdir)/Makefile.in: Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+$(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
 	cd $(top_srcdir) && \
 	  $(AUTOMAKE) --gnu  parseutil/Makefile
-
-Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && \
 	  CONFIG_HEADERS= CONFIG_LINKS= \
 	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
 
 clean-noinstPROGRAMS:
 	-test -z "$(noinst_PROGRAMS)" || rm -f $(noinst_PROGRAMS)
+dcfd$(EXEEXT): $(dcfd_OBJECTS) $(dcfd_DEPENDENCIES) 
+	@rm -f dcfd$(EXEEXT)
+	$(LINK) $(dcfd_LDFLAGS) $(dcfd_OBJECTS) $(dcfd_LDADD) $(LIBS)
+testdcf$(EXEEXT): $(testdcf_OBJECTS) $(testdcf_DEPENDENCIES) 
+	@rm -f testdcf$(EXEEXT)
+	$(LINK) $(testdcf_LDFLAGS) $(testdcf_OBJECTS) $(testdcf_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT) core *.core
 
 distclean-compile:
 	-rm -f *.tab.c
-../util/ansi2knr: ../util/ansi2knr.$(OBJEXT)
+
+ANSI2KNR = ../util/ansi2knr
+../util/ansi2knr:
 	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr
-
-../util/ansi2knr.$(OBJEXT):
-	cd ../util && $(MAKE) $(AM_MAKEFLAGS) ansi2knr.$(OBJEXT)
-
 
 mostlyclean-kr:
 	-rm -f *_.c
 
-dcfd: $(dcfd_OBJECTS) $(dcfd_DEPENDENCIES)
-	@rm -f dcfd
-	$(LINK) $(dcfd_LDFLAGS) $(dcfd_OBJECTS) $(dcfd_LDADD) $(LIBS)
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/dcfd$U.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/testdcf$U.Po@am__quote@
 
-testdcf: $(testdcf_OBJECTS) $(testdcf_DEPENDENCIES)
-	@rm -f testdcf
-	$(LINK) $(testdcf_LDFLAGS) $(testdcf_OBJECTS) $(testdcf_LDADD) $(LIBS)
+distclean-depend:
+	-rm -rf $(DEPDIR)
+
+.c.o:
+@AMDEP_TRUE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP_TRUE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c `test -f $< || echo '$(srcdir)/'`$<
+
+.c.obj:
+@AMDEP_TRUE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
+@AMDEP_TRUE@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+	$(COMPILE) -c `cygpath -w $<`
+CCDEPMODE = @CCDEPMODE@
 dcfd_.c: dcfd.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dcfd.c; then echo $(srcdir)/dcfd.c; else echo dcfd.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dcfd_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/dcfd.c; then echo $(srcdir)/dcfd.c; else echo dcfd.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > dcfd_.c || rm -f dcfd_.c
 testdcf_.c: testdcf.c $(ANSI2KNR)
-	$(CPP) $(DEFS) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/testdcf.c; then echo $(srcdir)/testdcf.c; else echo testdcf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > testdcf_.c
+	$(CPP) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) `if test -f $(srcdir)/testdcf.c; then echo $(srcdir)/testdcf.c; else echo testdcf.c; fi` | sed 's/^# \([0-9]\)/#line \1/' | $(ANSI2KNR) > testdcf_.c || rm -f testdcf_.c
 dcfd_.$(OBJEXT) testdcf_.$(OBJEXT) : $(ANSI2KNR)
+uninstall-info-am:
 
 tags: TAGS
 
@@ -215,7 +221,7 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	       END { for (i in files) print i; }'`; \
 	mkid -fID $$unique $(LISP)
 
-TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -231,31 +237,10 @@ TAGS: $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 GTAGS:
 	here=`CDPATH=: && cd $(top_builddir) && pwd` \
 	  && cd $(top_srcdir) \
-	  && gtags -i $$here
+	  && gtags -i $(GTAGS_ARGS) $$here
 
 distclean-tags:
-	-rm -f TAGS ID
-
-@AMDEP@@_am_include@ $(DEPDIR)/dcfd$U.Po
-@AMDEP@@_am_include@ $(DEPDIR)/testdcf$U.Po
-
-distclean-depend:
-	-rm -rf $(DEPDIR)
-
-@AMDEP@CCDEPMODE = @CCDEPMODE@
-
-.c.o:
-@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
-@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ `test -f $< || echo '$(srcdir)/'`$<
-
-.c.obj:
-@AMDEP@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
-@AMDEP@	depfile='$(DEPDIR)/$*.Po' tmpdepfile='$(DEPDIR)/$*.TPo' @AMDEPBACKSLASH@
-@AMDEP@	$(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-	$(COMPILE) -c -o $@ `cygpath -w $<`
-
+	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH
 
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 
@@ -264,7 +249,11 @@ distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
 
 distdir: $(DISTFILES)
 	@for file in $(DISTFILES); do \
-	  d=$(srcdir); \
+	  if test -f $$file; then d=.; else d=$(srcdir); fi; \
+	  dir=`echo "$$file" | sed -e 's,/[^/]*$$,,'`; \
+	  if test "$$dir" != "$$file" && test "$$dir" != "."; then \
+	    $(mkinstalldirs) "$(distdir)/$$dir"; \
+	  fi; \
 	  if test -d $$d/$$file; then \
 	    cp -pR $$d/$$file $(distdir) \
 	    || exit 1; \
@@ -290,24 +279,21 @@ install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
 installcheck: installcheck-am
-
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
-	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
-
+	  `test -z '$(STRIP)' || \
+	    echo "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'"` install
 mostlyclean-generic:
 
 clean-generic:
 
 distclean-generic:
-	-rm -f Makefile $(CONFIG_CLEAN_FILES)
-	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+	-rm -f Makefile $(CONFIG_CLEAN_FILES) stamp-h stamp-h[0-9]*
 	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-	-rm -f Makefile.in
 clean: clean-am
 
 clean-am: clean-generic clean-noinstPROGRAMS mostlyclean-am
@@ -317,11 +303,11 @@ distclean: distclean-am
 distclean-am: clean-am distclean-compile distclean-depend \
 	distclean-generic distclean-tags
 
-dvi:
+dvi: dvi-am
 
 dvi-am:
 
-info:
+info: info-am
 
 info-am:
 
@@ -329,7 +315,7 @@ install-data-am:
 
 install-exec-am:
 
-install-info:
+install-info: install-info-am
 
 install-man:
 
@@ -343,21 +329,23 @@ mostlyclean: mostlyclean-am
 
 mostlyclean-am: mostlyclean-compile mostlyclean-generic mostlyclean-kr
 
-.PHONY: all all-am check check-am check-local clean clean-generic \
+uninstall-am: uninstall-info-am
+
+.PHONY: GTAGS all all-am check check-am check-local clean clean-generic \
 	clean-noinstPROGRAMS distclean distclean-compile \
 	distclean-depend distclean-generic distclean-tags distdir dvi \
 	dvi-am info info-am install install-am install-data \
 	install-data-am install-exec install-exec-am install-info \
-	install-man install-strip installcheck installcheck-am \
-	installdirs maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-kr tags uninstall uninstall-am
+	install-info-am install-man install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic mostlyclean-kr tags uninstall uninstall-am \
+	uninstall-info-am
 
 #EXTRA_DIST= TAGS
 
 check-local: dcfd
 	./dcfd -Y
-
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -10,13 +10,11 @@ end of this file.
 
 When you run configure, the Right Thing will happen.
 
-Be advised that the RSA DES code is not quite as portable os one might
+Be advised that the RSA DES code is not quite as portable is one might
 wish for.  In particular, DES under NTP will only work between machines
 of the same "endianness".
 
-Dave would prefer that new/alternative encryption schemes follow the
-RSA API.
-
+Note that the next release of NTP uses OpenSSL instead of RSAREF.
 
 --- rsa.c.orig	Fri Mar 25 14:01:48 1994
 +++ rsaref2/source/rsa.c	Mon Dec 13 13:10:28 1999

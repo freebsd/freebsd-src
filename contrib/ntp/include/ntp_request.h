@@ -129,8 +129,19 @@ struct req_pkt {
 };
 
 /*
+ * The req_pkt_tail structure is used by ntpd to adjust for different
+ * packet sizes that may arrive.
+ */
+struct req_pkt_tail {
+	l_fp tstamp;			/* time stamp, for authentication */
+	keyid_t keyid;			/* encryption key */
+	char mac[MAX_MAC_LEN-sizeof(u_int32)]; /* (optional) 8 byte auth code */
+};
+
+/*
  * Input packet lengths.  One with the mac, one without.
  */
+#define	REQ_LEN_HDR	8	/* 4 * u_char + 2 * u_short */
 #define	REQ_LEN_MAC	(sizeof(struct req_pkt))
 #define	REQ_LEN_NOMAC	(sizeof(struct req_pkt) - MAX_MAC_LEN)
 
@@ -285,7 +296,7 @@ struct resp_pkt {
 #define INFO_FLAG_KERNEL	0x8
 #define INFO_FLAG_MONITOR	0x40
 #define INFO_FLAG_FILEGEN	0x80
-#define INFO_FLAG_PLL_SYNC	0x10
+#define INFO_FLAG_CAL		0x10
 #define INFO_FLAG_PPS_SYNC	0x20
 
 /*
@@ -521,6 +532,18 @@ struct info_timer_stats {
 /*
  * Structure for passing peer configuration information
  */
+struct old_conf_peer {
+	u_int32 peeraddr;	/* address to poll */
+	u_char hmode;		/* mode, either broadcast, active or client */
+	u_char version;		/* version number to poll with */
+	u_char minpoll;		/* min host poll interval */
+	u_char maxpoll;		/* max host poll interval */
+	u_char flags;		/* flags for this request */
+	u_char ttl;		/* time to live (multicast) or refclock mode */
+	u_short unused;		/* unused */
+	keyid_t keyid;		/* key to use for this association */
+};
+
 struct conf_peer {
 	u_int32 peeraddr;	/* address to poll */
 	u_char hmode;		/* mode, either broadcast, active or client */
@@ -560,12 +583,14 @@ struct conf_sys_flags {
 /*
  * System flags we can set/clear
  */
-#define	SYS_FLAG_BCLIENT	0x1
-#define	SYS_FLAG_PPS		0x2
-#define SYS_FLAG_NTP		0x4
-#define SYS_FLAG_KERNEL		0x8
+#define	SYS_FLAG_BCLIENT	0x01
+#define	SYS_FLAG_PPS		0x02
+#define SYS_FLAG_NTP		0x04
+#define SYS_FLAG_KERNEL		0x08
 #define SYS_FLAG_MONITOR	0x10
 #define SYS_FLAG_FILEGEN	0x20
+#define SYS_FLAG_AUTH		0x40
+#define SYS_FLAG_CAL		0x80
 
 /*
  * Structure used for returning restrict entries

@@ -11,6 +11,6 @@ clktest_LDADD = ../libntp/libntp.a
 ETAGS_ARGS = Makefile.am
 #EXTRA_DIST = TAGS
 
-chutest: ../libntp/libntp.a
+chutest$(EXEEXT): ../libntp/libntp.a
 
-clktest: ../libntp/libntp.a
+clktest$(EXEEXT): ../libntp/libntp.a
