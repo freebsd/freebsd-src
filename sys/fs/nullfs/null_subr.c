@@ -304,9 +304,8 @@ null_hashrem(xp)
 }
 
 #ifdef DIAGNOSTIC
-#include "opt_ddb.h"
 
-#ifdef DDB
+#ifdef KDB
 #define	null_checkvp_barrier	1
 #else
 #define	null_checkvp_barrier	0
