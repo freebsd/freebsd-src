@@ -44,15 +44,19 @@ int
 main(int argc __unused, char *argv[])
 {
 	char path[PATH_MAX];
-	const char *p, *q, *self;
+	const char *cmd, *p, *q, *self;
 	size_t len;
 
 	self = argv[0];
+	if ((cmd = strrchr(self, '/')) == NULL)
+		cmd = self;
+	else
+		cmd++;
 	argv[0] = path;
 	for (p = q = getenv("PATH"); p && *p && *q; p = q + 1) {
 		for (q = p; *q && *q != ':'; ++q)
 			/* nothing */ ;
-		len = snprintf(path, sizeof path, "%.*s/perl", (int)(q - p), p);
+		len = snprintf(path, sizeof path, "%.*s/%s", (int)(q - p), p, cmd);
 		if (len >= PATH_MAX || strcmp(path, self) == 0)
 			continue;
 		execve(path, argv, environ);
