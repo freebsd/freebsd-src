@@ -275,11 +275,11 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 	else
 		printf(" %u", chain->fw_prot);
 
+	printf(" from %s", chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
+
 	if (chain->fw_flg & IP_FW_F_SME) {
-		printf(" from me");
+		printf("me");
 	} else {
-		printf(" from %s",
-		    chain->fw_flg & IP_FW_F_INVSRC ? "not " : "");
 
 		adrt = ntohl(chain->fw_smsk.s_addr);
 		if (adrt == ULONG_MAX && do_resolv) {
@@ -321,11 +321,11 @@ show_ipfw(struct ip_fw *chain, int pcwidth, int bcwidth)
 		}
 	}
 
-	if (chain->fw_flg & IP_FW_F_DME) {
-		printf(" to me");
-	} else {
-		printf(" to %s", chain->fw_flg & IP_FW_F_INVDST ? "not " : "");
+	printf(" to %s", chain->fw_flg & IP_FW_F_INVDST ? "not " : "");
 
+	if (chain->fw_flg & IP_FW_F_DME) {
+		printf("me");
+	} else {
 		adrt = ntohl(chain->fw_dmsk.s_addr);
 		if (adrt == ULONG_MAX && do_resolv) {
 			adrt = (chain->fw_dst.s_addr);
@@ -972,6 +972,8 @@ fill_reject_code(u_short *codep, char *str)
 	u_long val;
 	char *s;
 
+	if (str == '\0')
+		errx(EX_DATAERR, "missing unreachable code");
 	val = strtoul(str, &s, 0);
 	if (s != str && *s == '\0' && val < 0x100) {
 		*codep = val;
