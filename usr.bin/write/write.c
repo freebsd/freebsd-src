@@ -308,7 +308,7 @@ wr_fputs(s)
 #define	PUTC(c)	if (putchar(c) == EOF) goto err;
 
 	for (; *s != '\0'; ++s) {
-		c = toascii(*s);
+		c = *s;
 		if (c == '\n') {
 			PUTC('\r');
 			PUTC('\n');
