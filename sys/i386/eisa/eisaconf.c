@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: eisaconf.c,v 1.27 1997/03/13 18:04:02 joerg Exp $
+ *	$Id: eisaconf.c,v 1.28 1997/07/20 06:31:09 bde Exp $
  */
 
 #include "opt_eisa.h"
@@ -41,6 +41,9 @@
 #include <i386/eisa/eisaconf.h>
 
 #include <i386/isa/icu.h>	 /* Hmmm.  Interrupt stuff? */
+
+#include <i386/isa/intr_machdep.h>
+#include <sys/interrupt.h>
 
 struct eisa_device_node{
 	struct	eisa_device dev;
