@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)indent_globs.h	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #define BACKSLASH '\\'
@@ -155,6 +156,8 @@ int         procnames_start_line;	/* if true, the names of procedures
 					 * name) */
 int         proc_calls_space;	/* If true, procedure calls look like:
 				 * foo(bar) rather than foo (bar) */
+int         format_block_comments;	/* true if comments beginning with
+					 * `/*\n' are to be reformatted */
 int         format_col1_comments;	/* If comments which start in column 1
 					 * are to be magically reformatted
 					 * (just like comments that begin in
