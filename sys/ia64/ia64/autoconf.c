@@ -85,8 +85,6 @@ configure(void *dummy)
 		isa_probe_children(isa_bus_device);
 #endif
 
-	cninit_finish();
-
 	/*
 	 * Now we're ready to handle (pending) interrupts.
 	 * XXX this is slightly misplaced.
