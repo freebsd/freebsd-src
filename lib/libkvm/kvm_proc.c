@@ -104,7 +104,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct pstats pstats;
 	struct ucred ucred;
 	struct thread mtd;
-	struct kse mke;
+	/*struct kse mke;*/
 	struct ksegrp mkg;
 	struct proc proc;
 	struct proc pproc;
@@ -137,6 +137,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 					    TAILQ_FIRST(&proc.p_ksegrps));
 					return (-1);
 				}
+#if 0
 				if (KREAD(kd,
 				    (u_long)TAILQ_FIRST(&mkg.kg_kseq), &mke)) {
 					_kvm_err(kd, kd->program,
@@ -144,6 +145,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 					    TAILQ_FIRST(&mkg.kg_kseq));
 					return (-1);
 				}
+#endif
 			}
 		}
 		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
@@ -386,9 +388,14 @@ nopgrp:
 				kp->ki_pri.pri_user = mkg.kg_user_pri;
 				kp->ki_estcpu = mkg.kg_estcpu;
 
+#if 0
 				/* Stuff from the kse */
 				kp->ki_pctcpu = mke.ke_pctcpu;
 				kp->ki_rqindex = mke.ke_rqindex;
+#else
+				kp->ki_pctcpu = 0;
+				kp->ki_rqindex = 0;
+#endif
 			} else {
 				kp->ki_tdflags = -1;
 				/* All the rest are 0 for now */

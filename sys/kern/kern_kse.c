@@ -68,12 +68,6 @@ TAILQ_HEAD(, kse_upcall) zombie_upcalls =
 static int thread_update_usr_ticks(struct thread *td);
 static void thread_alloc_spare(struct thread *td);
 
-/* move to proc.h */
-extern void kse_purge(struct proc *p, struct thread *td);
-extern void kse_purge_group(struct thread *td);
-void kseinit(void);
-void kse_GC(void);
-
 struct kse_upcall *
 upcall_alloc(void)
 {
@@ -277,7 +271,6 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 {
 	struct proc *p;
 	struct ksegrp *kg;
-	struct kse *ke;
 	struct kse_upcall *ku, *ku2;
 	int    error, count;
 
@@ -330,22 +323,38 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 		psignal(p, SIGSEGV);
 	mtx_lock_spin(&sched_lock);
 	upcall_remove(td);
-	ke = td->td_kse;
-	if (p->p_numthreads == 1) {
-		kse_purge(p, td);
-		p->p_flag &= ~P_SA;
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
-	} else {
-		if (kg->kg_numthreads == 1) { /* Shutdown a group */
-			kse_purge_group(td);
-			ke->ke_flags |= KEF_EXIT;
-		}
+	if (p->p_numthreads != 1) {
+		/*
+		 * If we are not the last thread, but we are the last
+		 * thread in this ksegrp, then by definition this is not
+		 * the last group and we need to clean it up as well.
+		 * thread_exit will clean up the kseg as needed.
+		 */
 		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
+	/*
+	 * This is the last thread. Just return to the user.
+	 * We know that there is only one ksegrp too, as any others
+	 * would have been discarded in previous calls to thread_exit().
+	 * Effectively we have left threading mode..
+	 * The only real thing left to do is ensure that the
+	 * scheduler sets out concurrency back to 1 as that may be a
+	 * resource leak otherwise.
+	 * This is an A[PB]I issue.. what SHOULD we do?
+	 * One possibility is to return to the user. It may not cope well.
+	 * The other possibility would be to let the process exit.
+	 */
+	p->p_flag &= ~(P_SA|P_HADTHREADS);
+	sched_set_concurrency(td->td_ksegrp, 1);
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
+#if 1
 	return (0);
+#else
+	exit1(td, 0);
+#endif
 }
 
 /*
@@ -489,6 +498,10 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 /*
  * No new KSEG: first call: use current KSE, don't schedule an upcall
  * All other situations, do allocate max new KSEs and schedule an upcall.
+ *
+ * XXX should be changed so that 'first' behaviour lasts for as long
+ * as you have not made a kse in this ksegrp. i.e. as long as we do not have
+ * a mailbox..
  */
 /* struct kse_create_args {
 	struct kse_mailbox *mbx;
@@ -497,7 +510,6 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 int
 kse_create(struct thread *td, struct kse_create_args *uap)
 {
-	struct kse *newke;
 	struct ksegrp *newkg;
 	struct ksegrp *kg;
 	struct proc *p;
@@ -509,6 +521,13 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	p = td->td_proc;
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
 		return (err);
+
+	/*
+	 * Processes using the other threading model can't
+	 * suddenly start calling this one
+	 */
+	if ((p->p_flag & (P_SA|P_HADTHREADS)) == P_HADTHREADS)
+		 return (EINVAL);
 
 	ncpus = mp_ncpus;
 	if (virtual_cpu != 0)
@@ -531,7 +550,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	PROC_LOCK(p);
 	if (!(p->p_flag & P_SA)) {
 		first = 1;
-		p->p_flag |= P_SA;
+		p->p_flag |= P_SA|P_HADTHREADS;
 	}
 	PROC_UNLOCK(p);
 	/*
@@ -612,17 +631,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 * an upcall when blocked.  This simulates pthread system
 		 * scope thread behaviour.
 		 */
-		while (newkg->kg_kses < ncpus) {
-			newke = kse_alloc();
-			bzero(&newke->ke_startzero, RANGEOF(struct kse,
-			      ke_startzero, ke_endzero));
-			mtx_lock_spin(&sched_lock);
-			kse_link(newke, newkg);
-			sched_fork_kse(td, newke);
-			/* Add engine */
-			kse_reassign(newke);
-			mtx_unlock_spin(&sched_lock);
-		}
+		sched_set_concurrency(newkg, ncpus);
 	}
 	/* 
 	 * Even bound LWPs get a mailbox and an upcall to hold it.
@@ -981,7 +990,8 @@ error:
 /*
  * This function is intended to be used to initialize a spare thread
  * for upcall. Initialize thread's large data area outside sched_lock
- * for thread_schedule_upcall().
+ * for thread_schedule_upcall(). The crhold is also here to get it out
+ * from the schedlock as it has a mutex op itself.
  */
 void
 thread_alloc_spare(struct thread *td)
@@ -1037,7 +1047,6 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	td2->td_upcall = ku;
 	td2->td_flags  = 0;
 	td2->td_pflags = TDP_SA|TDP_UPCALLING;
-	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
 	SIGFILLSET(td2->td_sigmask);
@@ -1075,9 +1084,9 @@ thread_signal_add(struct thread *td, int sig)
 	PROC_LOCK(p);
 	mtx_lock(&ps->ps_mtx);
 }
-
-void
-thread_switchout(struct thread *td)
+#include "opt_sched.h"
+struct thread *
+thread_switchout(struct thread *td, int flags, struct thread *nextthread)
 {
 	struct kse_upcall *ku;
 	struct thread *td2;
@@ -1113,8 +1122,20 @@ thread_switchout(struct thread *td)
 		td->td_upcall = NULL;
 		td->td_pflags &= ~TDP_CAN_UNBIND;
 		td2 = thread_schedule_upcall(td, ku);
+#ifdef SCHED_4BSD
+		if (flags & SW_INVOL || nextthread) {
+			setrunqueue(td2, SRQ_YIELDING);
+		} else {
+			/* Keep up with reality.. we have one extra thread 
+			 * in the picture.. and it's 'running'.
+			 */
+			return td2;
+		}
+#else
 		setrunqueue(td2, SRQ_YIELDING);
+#endif
 	}
+	return (nextthread);
 }
 
 /*

@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_sched.h"
 
+#ifndef KERN_SWITCH_INCLUDE
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
@@ -100,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sched.h>
+#else  /* KERN_SWITCH_INCLUDE */
 #if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 #include <sys/smp.h>
 #endif
@@ -115,6 +117,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 CTASSERT((RQB_BPW * RQB_LEN) == RQ_NQS);
+
+#define td_kse td_sched
 
 /************************************************************************
  * Functions that manipulate runnability from a thread perspective.	*
@@ -149,7 +153,7 @@ retry:
 		td = ke->ke_thread;
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
 		kg = ke->ke_ksegrp;
-		if (td->td_proc->p_flag & P_SA) {
+		if (td->td_proc->p_flag & P_HADTHREADS) {
 			if (kg->kg_last_assigned == td) {
 				kg->kg_last_assigned = TAILQ_PREV(td,
 				    threadqueue, td_runq);
@@ -183,51 +187,41 @@ retry:
 }
 
 /*
- * Given a surplus KSE, either assign a new runable thread to it
- * (and put it in the run queue) or put it in the ksegrp's idle KSE list.
- * Assumes that the original thread is not runnable.
+ * Given a surplus system slot, try assign a new runnable thread to it.
+ * Called from:
+ *  sched_thread_exit()  (local)
+ *  sched_switch()  (local)
+ *  sched_thread_exit()  (local)
+ *  remrunqueue()  (local) (commented out)
  */
-void
-kse_reassign(struct kse *ke)
+static void
+slot_fill(struct ksegrp *kg)
 {
-	struct ksegrp *kg;
 	struct thread *td;
-	struct thread *original;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	original = ke->ke_thread;
-	KASSERT(original == NULL || TD_IS_INHIBITED(original),
-    	    ("reassigning KSE with runnable thread"));
-	kg = ke->ke_ksegrp;
-	if (original)
-		original->td_kse = NULL;
+	while (kg->kg_avail_opennings > 0) {
+		/*
+		 * Find the first unassigned thread
+		 */
+		if ((td = kg->kg_last_assigned) != NULL)
+			td = TAILQ_NEXT(td, td_runq);
+		else
+			td = TAILQ_FIRST(&kg->kg_runq);
 
-	/*
-	 * Find the first unassigned thread
-	 */
-	if ((td = kg->kg_last_assigned) != NULL)
-		td = TAILQ_NEXT(td, td_runq);
-	else 
-		td = TAILQ_FIRST(&kg->kg_runq);
-
-	/*
-	 * If we found one, assign it the kse, otherwise idle the kse.
-	 */
-	if (td) {
-		kg->kg_last_assigned = td;
-		td->td_kse = ke;
-		ke->ke_thread = td;
-		CTR2(KTR_RUNQ, "kse_reassign: ke%p -> td%p", ke, td);
-		sched_add(td, SRQ_BORING);
-		return;
+		/*
+		 * If we found one, send it to the system scheduler.
+		 */
+		if (td) {
+			kg->kg_last_assigned = td;
+			kg->kg_avail_opennings--;
+			sched_add(td, SRQ_BORING);
+			CTR2(KTR_RUNQ, "slot_fill: td%p -> kg%p", td, kg);
+		} else {
+			/* no threads to use up the slots. quit now */
+			break;
+		}
 	}
-
-	ke->ke_state = KES_IDLE;
-	ke->ke_thread = NULL;
-	TAILQ_INSERT_TAIL(&kg->kg_iq, ke, ke_kgrlist);
-	kg->kg_idle_kses++;
-	CTR1(KTR_RUNQ, "kse_reassign: ke%p on idle queue", ke);
-	return;
 }
 
 #if 0
@@ -253,16 +247,17 @@ remrunqueue(struct thread *td)
 	/*
 	 * If it is not a threaded process, take the shortcut.
 	 */
-	if ((td->td_proc->p_flag & P_SA) == 0) {
+	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/* Bring its kse with it, leave the thread attached */
 		sched_rem(td);
+		kg->kg_avail_opennings++;
 		ke->ke_state = KES_THREAD; 
 		return;
 	}
    	td3 = TAILQ_PREV(td, threadqueue, td_runq);
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	kg->kg_runnable--;
-	if (ke) {
+	if (ke->ke_state == KES_ONRUNQ) {
 		/*
 		 * This thread has been assigned to a KSE.
 		 * We need to dissociate it and try assign the
@@ -270,12 +265,13 @@ remrunqueue(struct thread *td)
 		 * see if we need to move the KSE in the run queues.
 		 */
 		sched_rem(td);
+		kg->kg_avail_opennings++;
 		ke->ke_state = KES_THREAD; 
 		td2 = kg->kg_last_assigned;
 		KASSERT((td2 != NULL), ("last assigned has wrong value"));
 		if (td2 == td) 
 			kg->kg_last_assigned = td3;
-		kse_reassign(ke);
+		slot_fill(kg);
 	}
 }
 #endif
@@ -297,7 +293,7 @@ adjustrunqueue( struct thread *td, int newpri)
 	/*
 	 * If it is not a threaded process, take the shortcut.
 	 */
-	if ((td->td_proc->p_flag & P_SA) == 0) {
+	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/* We only care about the kse in the run queue. */
 		td->td_priority = newpri;
 		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
@@ -310,77 +306,67 @@ adjustrunqueue( struct thread *td, int newpri)
 	/* It is a threaded process */
 	kg = td->td_ksegrp;
 	TD_SET_CAN_RUN(td);
-	if (ke) {
+	if (ke->ke_state == KES_ONRUNQ) {
 		if (kg->kg_last_assigned == td) {
 			kg->kg_last_assigned =
 			    TAILQ_PREV(td, threadqueue, td_runq);
 		}
 		sched_rem(td);
+		kg->kg_avail_opennings++;
 	}
 	TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	kg->kg_runnable--;
 	td->td_priority = newpri;
 	setrunqueue(td, SRQ_BORING);
 }
-
+int limitcount;
 void
 setrunqueue(struct thread *td, int flags)
 {
-	struct kse *ke;
 	struct ksegrp *kg;
 	struct thread *td2;
 	struct thread *tda;
 	int count;
 
-	CTR4(KTR_RUNQ, "setrunqueue: td:%p ke:%p kg:%p pid:%d",
-	    td, td->td_kse, td->td_ksegrp, td->td_proc->p_pid);
+	CTR3(KTR_RUNQ, "setrunqueue: td:%p kg:%p pid:%d",
+	    td, td->td_ksegrp, td->td_proc->p_pid);
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("setrunqueue: bad thread state"));
 	TD_SET_RUNQ(td);
 	kg = td->td_ksegrp;
-	if ((td->td_proc->p_flag & P_SA) == 0) {
+	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/*
 		 * Common path optimisation: Only one of everything
 		 * and the KSE is always already attached.
 		 * Totally ignore the ksegrp run queue.
 		 */
+		if (kg->kg_avail_opennings != 1) {
+			if (limitcount < 100) {
+				limitcount++;
+				printf("pid %d: bad slot count (%d)\n",
+				    td->td_proc->p_pid, kg->kg_avail_opennings);
+
+			}
+			kg->kg_avail_opennings = 1;
+		}
+		kg->kg_avail_opennings--;
 		sched_add(td, flags);
 		return;
 	}
 
 	tda = kg->kg_last_assigned;
-	if ((ke = td->td_kse) == NULL) {
-		if (kg->kg_idle_kses) {
-			/*
-			 * There is a free one so it's ours for the asking..
-			 */
-			ke = TAILQ_FIRST(&kg->kg_iq);
-			CTR2(KTR_RUNQ, "setrunqueue: kg:%p: Use free ke:%p",
-			    kg, ke);
-			TAILQ_REMOVE(&kg->kg_iq, ke, ke_kgrlist);
-			ke->ke_state = KES_THREAD;
-			kg->kg_idle_kses--;
-		} else if (tda && (tda->td_priority > td->td_priority)) {
-			/*
-			 * None free, but there is one we can commandeer.
-			 */
-			ke = tda->td_kse;
-			CTR3(KTR_RUNQ,
-			    "setrunqueue: kg:%p: take ke:%p from td: %p",
-			    kg, ke, tda);
-			sched_rem(tda);
-			tda->td_kse = NULL;
-			ke->ke_thread = NULL;
-			tda = kg->kg_last_assigned =
-		    	    TAILQ_PREV(tda, threadqueue, td_runq);
-		}
-	} else {
-		/* 
-		 * Temporarily disassociate so it looks like the other cases.
+	if ((kg->kg_avail_opennings <= 0) &&
+	(tda && (tda->td_priority > td->td_priority))) {
+		/*
+		 * None free, but there is one we can commandeer.
 		 */
-		ke->ke_thread = NULL;
-		td->td_kse = NULL;
+		CTR2(KTR_RUNQ,
+		    "setrunqueue: kg:%p: take slot from td: %p", kg, tda);
+		sched_rem(tda);
+		tda = kg->kg_last_assigned =
+		    TAILQ_PREV(tda, threadqueue, td_runq);
+		kg->kg_avail_opennings++;
 	}
 
 	/*
@@ -407,40 +393,30 @@ setrunqueue(struct thread *td, int flags)
 	}
 
 	/*
-	 * If we have a ke to use, then put it on the run queue and
-	 * If needed, readjust the last_assigned pointer.
+	 * If we have a slot to use, then put the thread on the system
+	 * run queue and if needed, readjust the last_assigned pointer.
 	 */
-	if (ke) {
+	if (kg->kg_avail_opennings > 0) {
 		if (tda == NULL) {
 			/*
 			 * No pre-existing last assigned so whoever is first
 			 * gets the KSE we brought in.. (maybe us)
 			 */
 			td2 = TAILQ_FIRST(&kg->kg_runq);
-			KASSERT((td2->td_kse == NULL),
-			    ("unexpected ke present"));
-			td2->td_kse = ke;
-			ke->ke_thread = td2;
 			kg->kg_last_assigned = td2;
 		} else if (tda->td_priority > td->td_priority) {
-			/*
-			 * It's ours, grab it, but last_assigned is past us
-			 * so don't change it.
-			 */
-			td->td_kse = ke;
-			ke->ke_thread = td;
+			td2 = td;
 		} else {
 			/* 
 			 * We are past last_assigned, so 
-			 * put the new kse on whatever is next,
+			 * gave the next slot to whatever is next,
 			 * which may or may not be us.
 			 */
 			td2 = TAILQ_NEXT(tda, td_runq);
 			kg->kg_last_assigned = td2;
-			td2->td_kse = ke;
-			ke->ke_thread = td2;
 		}
-		sched_add(ke->ke_thread, flags);
+		kg->kg_avail_opennings--;
+		sched_add(td2, flags);
 	} else {
 		CTR3(KTR_RUNQ, "setrunqueue: held: td%p kg%p pid%d",
 			td, td->td_ksegrp, td->td_proc->p_pid);
@@ -692,7 +668,6 @@ runq_check(struct runq *rq)
 
 #if defined(SMP) && defined(SCHED_4BSD)
 int runq_fuzz = 1;
-SYSCTL_DECL(_kern_sched);
 SYSCTL_INT(_kern_sched, OID_AUTO, runq_fuzz, CTLFLAG_RW, &runq_fuzz, 0, "");
 #endif
 
@@ -766,3 +741,115 @@ runq_remove(struct runq *rq, struct kse *ke)
 	}
 }
 
+/****** functions that are temporarily here ***********/
+#include <vm/uma.h>
+#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
+extern struct mtx kse_zombie_lock;
+
+/*
+ *  Allocate scheduler specific per-process resources.
+ * The thread and ksegrp have already been linked in.
+ * In this case just set the default concurrency value.
+ *
+ * Called from:
+ *  proc_init() (UMA init method)
+ */
+void
+sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td)
+{
+
+	/* This can go in sched_fork */
+	sched_init_concurrency(kg);
+}
+
+/*
+ * Called by the uma process fini routine..
+ * undo anything we may have done in the uma_init method.
+ * Panic if it's not all 1:1:1:1
+ * Called from:
+ *  proc_fini() (UMA method)
+ */
+void
+sched_destroyproc(struct proc *p)
+{
+
+	/* this function slated for destruction */
+	KASSERT((p->p_numthreads == 1), ("Cached proc with > 1 thread "));
+	KASSERT((p->p_numksegrps == 1), ("Cached proc with > 1 ksegrp "));
+}
+
+#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
+/*
+ * thread is being either created or recycled.
+ * Fix up the per-scheduler resources associated with it.
+ * Called from:
+ *  sched_fork_thread()
+ *  thread_dtor()  (*may go away)
+ *  thread_init()  (*may go away)
+ */
+void
+sched_newthread(struct thread *td)
+{
+	struct td_sched *ke;
+
+	ke = (struct td_sched *) (td + 1);
+	bzero(ke, sizeof(*ke));
+	td->td_sched     = ke;
+	ke->ke_thread	= td;
+	ke->ke_oncpu	= NOCPU;
+	ke->ke_state	= KES_THREAD;
+}
+
+/*
+ * Set up an initial concurrency of 1
+ * and set the given thread (if given) to be using that
+ * concurrency slot.
+ * May be used "offline"..before the ksegrp is attached to the world
+ * and thus wouldn't need schedlock in that case.
+ * Called from:
+ *  thr_create()
+ *  proc_init() (UMA) via sched_newproc()
+ */
+void
+sched_init_concurrency(struct ksegrp *kg)
+{
+
+	kg->kg_concurrency = 1;
+	kg->kg_avail_opennings = 1;
+}
+
+/*
+ * Change the concurrency of an existing ksegrp to N
+ * Called from:
+ *  kse_create()
+ *  kse_exit()
+ *  thread_exit()
+ *  thread_single()
+ */
+void
+sched_set_concurrency(struct ksegrp *kg, int concurrency)
+{
+
+	/* Handle the case for a declining concurrency */
+	kg->kg_avail_opennings += (concurrency - kg->kg_concurrency);
+	kg->kg_concurrency = concurrency;
+}
+
+/*
+ * Called from thread_exit() for all exiting thread
+ *
+ * Not to be confused with sched_exit_thread()
+ * that is only called from thread_exit() for threads exiting
+ * without the rest of the process exiting because it is also called from
+ * sched_exit() and we wouldn't want to call it twice.
+ * XXX This can probably be fixed.
+ */
+void
+sched_thread_exit(struct thread *td)
+{
+
+	td->td_ksegrp->kg_avail_opennings++;
+	slot_fill(td->td_ksegrp);
+}
+
+#endif /* KERN_SWITCH_INCLUDE */

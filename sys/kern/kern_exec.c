@@ -254,7 +254,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+	if (p->p_flag & P_HADTHREADS) {
 		if (thread_single(SINGLE_EXIT)) {
 			PROC_UNLOCK(p);
 			mtx_unlock(&Giant);
@@ -262,12 +262,8 @@ kern_execve(td, fname, argv, envv, mac_p)
 		}
 		/*
 		 * If we get here all other threads are dead,
-		 * so unset the associated flags and lose KSE mode.
+		 * and threading mode has been turned off
 		 */
-		p->p_flag &= ~P_SA;
-		td->td_mailbox = NULL;
-		td->td_pflags &= ~TDP_SA;
-		thread_single_end();
 	}
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);

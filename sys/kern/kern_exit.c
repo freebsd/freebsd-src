@@ -134,7 +134,7 @@ exit1(struct thread *td, int rv)
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
+	if (p->p_flag & P_HADTHREADS) {
 retry:
 		/*
 		 * First check if some other thread got here before us..
@@ -164,13 +164,8 @@ retry:
 			goto retry;
 		/*
 		 * All other activity in this process is now stopped.
-		 * Remove excess KSEs and KSEGRPS. XXXKSE (when we have them)
-		 * ...
-		 * Turn off threading support.
+		 * Threading support has been turned off.
 		 */
-		p->p_flag &= ~P_SA;
-		td->td_pflags &= ~TDP_SA;
-		thread_single_end();	/* Don't need this any more. */
 	}
 
 	p->p_flag |= P_WEXIT;
@@ -383,16 +378,6 @@ retry:
 	p->p_limit = NULL;
 	PROC_UNLOCK(p);
 	lim_free(plim);
-
-	/*
-	 * Release this thread's reference to the ucred.  The actual proc
-	 * reference will stay around until the proc is harvested by
-	 * wait().  At this point the ucred is immutable (no other threads
-	 * from this proc are around that can change it) so we leave the
-	 * per-thread ucred pointer intact in case it is needed although
-	 * in theory nothing should be using it at this point.
-	 */
-	crfree(td->td_ucred);
 
 	/*
 	 * Remove proc from allproc queue and pidhash chain.

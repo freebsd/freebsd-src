@@ -1116,7 +1116,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
 	 */
-	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &thread0);
 
 	preload_metadata = (caddr_t)(uintptr_t)(modulep + KERNBASE);
 	preload_bootstrap_relocate(KERNBASE);
