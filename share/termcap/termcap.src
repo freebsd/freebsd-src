@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#	$Id$
+#	$Id: termcap.src,v 1.60 1996/10/05 18:37:31 wosch Exp $
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2245,6 +2245,14 @@ cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
 	:kD=\E[K:tc=cons25w:
 cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
 	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25r:
+cons30r|cons30-koi8-r:\
+	:li#30:tc=cons25r:
+cons30r-m|cons30-koi8-r-mono:\
+	:li#30:tc=cons25r-m:
+cons43r|cons43-koi8-r:\
+	:li#43:tc=cons25r:
+cons43r-m|cons43-koi8-r-mono:\
+	:li#43:tc=cons25r-m:
 cons50r|cons50-koi8-r:\
 	:li#50:tc=cons25r:
 cons50r-m|cons50-koi8-r-mono:\
@@ -2259,6 +2267,14 @@ cons25l1|cons25-iso8859-1:\
 	:tc=cons25w:
 cons25l1-m|cons25-iso8859-1-mono:\
 	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=cons25l1:
+cons30l1|cons30-iso8859-1:\
+	:li#30:tc=cons25l1:
+cons30l1-m|cons30-iso8859-1-mono:\
+	:li#30:tc=cons25l1-m:
+cons43l1|cons43-iso8859-1:\
+	:li#43:tc=cons25l1:
+cons43l1-m|cons43-iso8859-1-mono:\
+	:li#43:tc=cons25l1-m:
 cons50l1|cons50-iso8859-1:\
 	:li#50:tc=cons25l1:
 cons50l1-m|cons50-iso8859-1-mono:\
