@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Marcel Moolenaar
+ * Copyright (c) 1999, 2003 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,5 +95,10 @@ typedef struct __mcontext {
 	struct _caller_saved_fp	mc_scratch_fp;
 	struct _high_fp		mc_high_fp;
 } mcontext_t;
+
+#ifdef _KERNEL
+/* Flags for get_mcontext().  See also <sys/ucontext.h>. */
+#define	GET_MC_IA64_SCRATCH	0x10
+#endif
 
 #endif /* !_MACHINE_UCONTEXT_H_ */
