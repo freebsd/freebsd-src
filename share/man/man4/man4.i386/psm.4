@@ -21,16 +21,16 @@ The
 .Nm
 driver provides support for the PS/2 mouse style pointing device.
 
-.Nm port \&"IO_KBD\&"
+.Em port \&"IO_KBD\&"
 and
-.Nm conflicts
+.Em conflicts
 are required, 
 as the PS/2 mouse port is located
 at the auxiliary port of the keyboard controller, thus, the 
 .Nm
 driver has to share the same I/O ports with the keyboard driver.
 Note also that there is currently no provision of changing the 
-.Nm irq
+.Em irq
 number.
 .Pp
 A series of data packets is read from the
