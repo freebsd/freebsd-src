@@ -4,6 +4,69 @@ This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
 
+This is for the 5.2 release branch.  All entries since 5.0 are an
+itemized list of commits to this branch, numbered from the beginning.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
+
+20040127:	p1	FreeBSD-SA-04:01.mksnap_ffs
+	Fixed mksnap_ffs to preserve existing file system flags.
+
+	NOTE WELL:
+	Due to release engineering in progress, 5.2-RELEASE-p1 also
+	includes numerous other critical bug fixes, most of which
+	are not security related.
+
+	- (i386) `cdboot' now works around a BIOS problem observed on
+	  some systems when booting from USB CDROM drives.
+
+	- (sparc64) The dc(4) driver now supports sparc64 Davicom
+	  cards that store their MAC address in OpenFirmware.
+
+	- Several bugs related to multicast and promiscuous mode
+	  handling in the sk(4) driver have been fixed.
+
+	- A bug in GEOM(4) that could result in I/O hangs in some
+	  rare cases has been fixed.
+
+	- A panic in the NFSv4 client has been fixed; this occurred
+	  when attempting operations against an NFSv3/NFSv2-only
+	  server.
+
+	- A bugfix has been applied to NSS support, which fixes
+	  problems when using third-party NSS modules (such as
+	  `net/nss_ldap') and groups with large membership lists.
+
+	- Security improvements from CVS 1.11.10 and 1.11.11 have
+	  been backported.  Specifically, certain malformed module
+	  requests are now rejected, and when using `cvs pserver'
+	  mode, attempts to authenticate as `root' are rejected and
+	  recorded via syslog(3).
+
+	- The `PFIL_HOOKS' option is now enabled by default in the
+	  GENERIC kernel.  The most notable effect of this change is
+	  to make IPFilter work correctly when loaded as a kernel
+	  module.
+
+	- Some bugs in the IPsec implementation from the KAME Project
+	  have been fixed.  These bugs were related to freeing memory
+	  objects before all references to them were removed, and
+	  could cause erratic behavior or kernel panics after flushing
+	  the Security Policy Database (SPD).
+
+	- A number of bugs in the ata(4) driver have been fixed.  Most
+	  notably, master/slave device detection should work better,
+	  and some problems with timeouts should be resolved.
+
+	- (pc98) The partition type used for new partitions on the pc98
+	  platform was corrected.
+
+	- Allow devfs path rules to work on directories.
+
 20031206:
 	FreeBSD 5.2 branched
 
