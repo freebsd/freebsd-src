@@ -50,6 +50,7 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/memrange.h>
 #include <sys/proc.h>
 #include <sys/msgbuf.h>
 #include <sys/signalvar.h>
