@@ -1136,7 +1136,9 @@ checkuser(char *fname, char *name, int pwset, char **residue)
 			 * Save the rest of line to "residue" if matched
 			 */
 			if (found && residue) {
-				if ((p = strtok(NULL, "")) != NULL) {
+				if ((p = strtok(NULL, "")) != NULL)
+					p += strspn(p, " \t");
+				if (p && *p) {
 				 	if ((*residue = strdup(p)) == NULL)
 						fatalerror("Ran out of memory.");
 				} else
