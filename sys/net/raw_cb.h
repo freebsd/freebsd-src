@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.h	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.h,v 1.3 1994/08/21 05:11:46 paul Exp $
+ * $Id: raw_cb.h,v 1.4 1995/07/29 11:41:00 bde Exp $
  */
 
 #ifndef _NET_RAW_CB_H_
@@ -62,7 +62,7 @@ struct rawcb {
 extern struct rawcb rawcb;		/* head of list */
 
 int	 raw_attach __P((struct socket *, int));
-void	 raw_ctlinput __P((int, struct sockaddr *));
+void	 raw_ctlinput __P((int, struct sockaddr *, void *));
 void	 raw_detach __P((struct rawcb *));
 void	 raw_disconnect __P((struct rawcb *));
 void	 raw_init __P((void));

@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.4 1995/11/04 09:02:58 julian Exp $
+ * $Id: ipx_ip.c,v 1.5 1995/11/24 12:07:33 bde Exp $
  */
 
 /*
@@ -394,9 +394,10 @@ struct ifnet *ifp;
 }
 
 void
-ipxip_ctlinput(cmd, sa)
+ipxip_ctlinput(cmd, sa, dummy)
 	int cmd;
 	struct sockaddr *sa;
+	void *dummy;
 {
 	/*extern u_char inetctlerrmap[]; */ /*XXX*/ /*JRE*/
 	struct sockaddr_in *sin;
