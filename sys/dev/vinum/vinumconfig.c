@@ -254,12 +254,14 @@ give_sd_to_plex(int plexno, int sdno)
 	} else						    /* first subdisk */
 	    sd->plexoffset = 0;				    /* start at the beginning */
     }
-    if (plex->subdisks == MAXSD)			    /* we already have our maximum */
+    if (plex->subdisks == MAXSD) {			    /* we already have our maximum */
+	if (sd->state == sd_unallocated)		    /* haven't finished allocating the sd, */
+	    free_sd(sdno);				    /* free it to return drive space */
 	throw_rude_remark(ENOSPC,			    /* crap out */
 	    "Can't add %s to %s: plex full",
 	    sd->name,
 	    plex->name);
-
+    }
     plex->subdisks++;					    /* another entry */
     if (plex->subdisks >= plex->subdisks_allocated)	    /* need more space */
 	EXPAND(plex->sdnos, int, plex->subdisks_allocated, INITIAL_SUBDISKS_IN_PLEX);
@@ -737,7 +739,13 @@ free_sd(int sdno)
 	    sd->sectors);
     if (sd->plexno >= 0)
 	PLEX[sd->plexno].subdisks--;			    /* one less subdisk */
-    destroy_dev(sd->dev);
+    /*
+     * If we come here as the result of a
+     * configuration error, we may not yet have
+     * created a device entry for the subdisk.
+     */
+    if (sd->dev)
+	destroy_dev(sd->dev);
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
     vinum_conf.subdisks_used--;				    /* one less sd */
@@ -1199,11 +1207,6 @@ config_subdisk(int update)
     if (DRIVE[sd->driveno].state != drive_up)
 	sd->state = sd_crashed;
 
-    /*
-     * This is tacky.  If something goes wrong
-     * with the checks, we may end up losing drive
-     * space.  FIXME.
-     */
     if (autosize != 0)					    /* need to find a size, */
 	give_sd_to_drive(sdno);				    /* do it before the plex */
 
@@ -1226,8 +1229,11 @@ config_subdisk(int update)
 	    strlcpy(sd->name,				    /* take it from there */
 		PLEX[sd->plexno].name,
 		sizeof(sd->name));
-	else						    /* no way */
+	else {						    /* no way */
+	    if (sd->state == sd_unallocated)		    /* haven't finished allocating the sd, */
+		free_sd(sdno);				    /* free it to return drive space */
 	    throw_rude_remark(EINVAL, "Unnamed sd is not associated with a plex");
+	}
 	sprintf(sdsuffix, ".s%d", sdindex);		    /* form the suffix */
 	strlcat(sd->name, sdsuffix, sizeof(sd->name));	    /* and add it to the name */
     }
