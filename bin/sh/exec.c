@@ -891,14 +891,21 @@ typecmd(argc, argv)
 
 		switch (entry.cmdtype) {
 		case CMDNORMAL: {
-			int j = entry.u.index;
-			char *path = pathval(), *name;
-			do { 
-				name = padvance(&path, argv[i]);
-				stunalloc(name);
-			} while (--j >= 0);
-			out1fmt(" is%s %s\n",
-			    cmdp ? " a tracked alias for" : "", name);
+			if (strchr(argv[i], '/') == NULL) {
+				char *path = pathval(), *name;
+				int j = entry.u.index;
+				do {
+					name = padvance(&path, argv[i]);
+					stunalloc(name);
+				} while (--j >= 0);
+				out1fmt(" is%s %s\n",
+				    cmdp ? " a tracked alias for" : "", name);
+			} else {
+				if (access(argv[i], X_OK) == 0)
+					out1fmt(" is %s\n", argv[i]);
+				else
+					out1fmt(": %s\n", strerror(errno));
+			}
 			break;
 		}
 		case CMDFUNCTION:
@@ -910,7 +917,7 @@ typecmd(argc, argv)
 			break;
 
 		default:
-			out1str(" not found\n");
+			out1str(": not found\n");
 			error |= 127;
 			break;
 		}
