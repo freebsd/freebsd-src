@@ -1,8 +1,8 @@
-# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.17 1996/08/12 19:04:23 ache Exp $
+# $Header: /home/ncvs/src/gnu/lib/libregex/Makefile,v 1.19 1996/11/16 22:53:42 joerg Exp $
 
 
 LIB=	gnuregex
-CFLAGS+=-I${.CURDIR} -DHAVE_STRING_H=1 -DSTDC_HEADERS=1
+CFLAGS+=-I${.CURDIR} -DHAVE_STRING_H=1 -DSTDC_HEADERS=1 -DNO_POSIX_COMPAT=1
 SRCS=	regex.c
 NOMAN=	noman
 
