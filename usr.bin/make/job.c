@@ -130,8 +130,6 @@ __FBSDID("$FreeBSD$");
 #include "util.h"
 #include "var.h"
 
-#define STATIC static
-
 /*
  * Job Table definitions.
  *
@@ -379,12 +377,12 @@ char		*shellPath = NULL;	/* full pathname of executable image */
 char		*shellName = NULL;	/* last component of shell */
 
 int		maxJobs;	/* The most children we can run at once */
-STATIC int	nJobs;		/* The number of children currently running */
+static int	nJobs;		/* The number of children currently running */
 
 /* The structures that describe them */
 static struct JobList jobs = TAILQ_HEAD_INITIALIZER(jobs);
 
-STATIC Boolean	jobFull;    	/* Flag to tell when the job table is full. It
+static Boolean	jobFull;    	/* Flag to tell when the job table is full. It
 				 * is set TRUE when (1) the total number of
 				 * running jobs equals the maximum allowed */
 #ifdef USE_KQUEUE
@@ -394,9 +392,9 @@ static fd_set  	outputs;    	/* Set of descriptors of pipes connected to
 				 * the output channels of children */
 #endif
 
-STATIC GNode   	*lastNode;	/* The node for which output was most recently
+static GNode   	*lastNode;	/* The node for which output was most recently
 				 * produced. */
-STATIC const char *targFmt;   	/* Format string to use to head output from a
+static const char *targFmt;   	/* Format string to use to head output from a
 				 * job when it's not the most-recent job heard
 				 * from */
 
@@ -415,9 +413,9 @@ STATIC const char *targFmt;   	/* Format string to use to head output from a
  */
 static struct JobList stoppedJobs = TAILQ_HEAD_INITIALIZER(stoppedJobs);
 
-STATIC int	fifoFd;		/* Fd of our job fifo */
-STATIC char	fifoName[] = "/tmp/make_fifo_XXXXXXXXX";
-STATIC int	fifoMaster;
+static int	fifoFd;		/* Fd of our job fifo */
+static char	fifoName[] = "/tmp/make_fifo_XXXXXXXXX";
+static int	fifoMaster;
 
 static sig_atomic_t interrupted;
 
@@ -1805,7 +1803,7 @@ JobOutput(Job *job, char *cp, char *endp, int msg)
  * Side Effects:
  *	curPos may be shifted as may the contents of outBuf.
  */
-STATIC void
+static void
 JobDoOutput(Job *job, Boolean finish)
 {
 	Boolean	gotNL = FALSE;	/* true if got a newline */
