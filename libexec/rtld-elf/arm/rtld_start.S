@@ -60,17 +60,14 @@ __FBSDID("$FreeBSD$");
 	bl	_rtld_relocate_nonplt_self
 	mov	r1, sp
 	add	r2, sp, #4
-	mov	r0, r6		/* sp */
+	mov	r0, r6			/* sp */
 	bl	_rtld			/* call the shared loader */
 	mov	r3, r0			/* save entry point */
 
-	ldr	r1, [sp, #0]		/* r2 = cleanup */
-	ldr	r0, [sp, #4]		/* r1 = obj_main */
+	ldr	r2, [sp, #0]		/* r2 = cleanup */
+	ldr	r1, [sp, #4]		/* r1 = obj_main */
 	add	sp, sp, #8		/* restore stack */
-	#if 0
 	mov	r0, r4			/* restore ps_strings */
-	#endif
-	mov	r2, #0
 	mov	pc, r3			/* jump to the entry point */
 .L2:
 	.word	_GLOBAL_OFFSET_TABLE_ - (.L1+8)

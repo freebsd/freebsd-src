@@ -90,13 +90,11 @@ _rtld_relocate_nonplt_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	}
 	rellim = (const Elf_Rel *)((caddr_t)rel + relsz);
 	size = (rellim - 1)->r_offset - rel->r_offset;
-	mprotect((void*)relocbase, size, PROT_READ|PROT_WRITE|PROT_EXEC); 
 	for (; rel < rellim; rel++) {
 		where = (Elf_Addr *)(relocbase + rel->r_offset);
 		
 		*where += (Elf_Addr)relocbase;
 	}
-	mprotect((void*)relocbase, size, PROT_READ|PROT_EXEC);
 }
 /*
  * It is possible for the compiler to emit relocations for unaligned data.
@@ -339,3 +337,14 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 	return target;
 }
 
+void
+allocate_initial_tls(Obj_Entry *objs)
+{
+	
+}
+
+void *
+__tls_get_addr(tls_index* ti)
+{
+	return (NULL);
+}
