@@ -53,7 +53,7 @@ struct vnode;
 struct buf;
 TAILQ_HEAD(snaphead, inode);
 
-struct specinfo {
+struct cdev {
 	u_int		si_flags;
 #define SI_STASHED	0x0001	/* created in stashed storage */
 #define SI_ALIAS	0x0002	/* carrier of alias name */
@@ -67,10 +67,10 @@ struct specinfo {
 	struct timespec	si_ctime;
 	struct timespec	si_mtime;
 	udev_t		si_udev;
-	LIST_ENTRY(specinfo)	si_hash;
+	LIST_ENTRY(cdev)	si_hash;
 	SLIST_HEAD(, vnode)	si_hlist;
-	LIST_HEAD(, specinfo)	si_children;
-	LIST_ENTRY(specinfo)	si_siblings;
+	LIST_HEAD(, cdev)	si_children;
+	LIST_ENTRY(cdev)	si_siblings;
 	dev_t		si_parent;
 	struct snaphead	si_snapshots;
 	int		(*si_copyonwrite)(struct vnode *, struct buf *);
