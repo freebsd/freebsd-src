@@ -332,7 +332,16 @@ g_disk_create(void *arg, int flag)
 	g_error_provider(pp, 0);
 }
 
+static void
+g_disk_destroy(void *ptr, int flag)
+{
+	struct g_geom *gp;
 
+	g_topology_assert();
+	gp = ptr;
+	gp->softc = NULL;
+	g_wither_geom(gp, ENXIO);
+}
 
 void
 disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * unused2 __unused)
@@ -344,6 +353,9 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	KASSERT(dp->d_name != NULL, ("disk_create need d_name"));
 	KASSERT(*dp->d_name != 0, ("disk_create need d_name"));
 	KASSERT(strlen(dp->d_name) < SPECNAMELEN - 4, ("disk name too long"));
+	if (bootverbose || 1)
+		printf("GEOM: create disk %s%d dp=%p\n",
+		    dp->d_name, dp->d_unit, dp);
 	dp->d_devstat = devstat_new_entry(dp->d_name, dp->d_unit,
 	    dp->d_sectorsize, DEVSTAT_ALL_SUPPORTED,
 	    DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
@@ -351,36 +363,22 @@ disk_create(int unit, struct disk *dp, int flags, void *unused __unused, void * 
 	g_post_event(g_disk_create, dp, M_WAITOK, dp, NULL);
 }
 
-/*
- * XXX: There is a race if disk_destroy() is called while the g_disk_create()
- * XXX: event is running.  I belive the current result is that disk_destroy()
- * XXX: actually doesn't do anything.  Considering that the driver owns the
- * XXX: struct disk and is likely to free it in a few moments, this can
- * XXX: hardly be said to be optimal.  To what extent we can sleep in
- * XXX: disk_create() and disk_destroy() is currently undefined (but generally
- * XXX: undesirable) so any solution seems to involve an intrusive decision.
- */
-
-static void
-disk_destroy_event(void *ptr, int flag)
-{
-
-	g_topology_assert();
-	g_wither_geom(ptr, ENXIO);
-}
-
 void
 disk_destroy(struct disk *dp)
 {
 	struct g_geom *gp;
 
+	if (bootverbose || 1)
+		printf("GEOM: destroy disk %s%d dp=%p\n",
+		    dp->d_name, dp->d_unit, dp);
 	g_cancel_event(dp);
 	gp = dp->d_geom;
 	if (gp == NULL)
 		return;
 	gp->softc = NULL;
 	devstat_remove_entry(dp->d_devstat);
-	g_post_event(disk_destroy_event, gp, M_WAITOK, NULL, NULL);
+	g_waitfor_event(g_disk_destroy, gp, M_WAITOK, NULL, NULL);
+	dp->d_geom = NULL;
 }
 
 static void
