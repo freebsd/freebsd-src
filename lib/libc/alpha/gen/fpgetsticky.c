@@ -1,6 +1,3 @@
-/*	$NetBSD: fpgetsticky.c,v 1.1 1995/04/29 05:10:59 cgd Exp $	*/
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 1995 Christopher G. Demetriou
  * All rights reserved.
@@ -30,7 +27,12 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$NetBSD: fpgetsticky.c,v 1.1 1995/04/29 05:10:59 cgd Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <ieeefp.h>
