@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_icmp.h,v 1.7 1996/01/30 22:58:24 mpp Exp $
+ * $Id: ip_icmp.h,v 1.8 1996/07/24 18:46:18 wollman Exp $
  */
 
 #ifndef _NETINET_IP_ICMP_H_
@@ -149,6 +149,9 @@ struct icmp {
 #define		ICMP_UNREACH_HOST_PROHIB 10		/* ditto */
 #define		ICMP_UNREACH_TOSNET	11		/* bad tos for net */
 #define		ICMP_UNREACH_TOSHOST	12		/* bad tos for host */
+#define		ICMP_UNREACH_FILTER_PROHIB 13		/* admin prohib */
+#define		ICMP_UNREACH_HOST_PRECEDENCE 14		/* host prec vio. */
+#define		ICMP_UNREACH_PRECEDENCE_CUTOFF 15	/* prec cutoff */
 #define	ICMP_SOURCEQUENCH	4		/* packet lost, slow down */
 #define	ICMP_REDIRECT		5		/* shorter route, codes: */
 #define		ICMP_REDIRECT_NET	0		/* for network */
