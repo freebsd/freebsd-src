@@ -319,8 +319,11 @@ spec_ioctl(ap)
 	dev_t dev;
 
 	dev = ap->a_vp->v_rdev;
-	return ((*devsw(dev)->d_ioctl)(dev, ap->a_command,
-	    ap->a_data, ap->a_fflag, ap->a_td));
+	error = (*devsw(dev)->d_ioctl)(dev, ap->a_command,
+	    ap->a_data, ap->a_fflag, ap->a_td);
+	if (error == ENOIOCTL)
+		error = ENOTTY;
+	return (error);
 }
 
 /* ARGSUSED */
