@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.13 1995/09/25 00:51:54 jkh Exp $
+#	$Id: Makefile,v 1.193.2.14 1995/09/25 02:15:26 jkh Exp $
 #
 # How to roll a release:
 #
@@ -11,7 +11,7 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.1.0-950922-SNAP
+BUILDNAME=2.1.0-950928-SNAP
 CHROOTDIR=/a/release
 # If this is a RELEASE, then set
 RELEASETAG=RELENG_2_1_0
@@ -188,7 +188,8 @@ release.3:
 	mkdir -p ${RD}/kernels
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
-		sed 's/GENERIC/BOOTMFS/g' GENERIC > BOOTMFS && \
+		fgrep -v SYSV GENERIC | \
+		sed 's/GENERIC/BOOTMFS/g' > BOOTMFS && \
 		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
 		echo "options  MFS" >> BOOTMFS
 	for i in BOOTMFS GENERIC ; do \
