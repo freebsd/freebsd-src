@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.13 1994/09/02 23:23:57 ats Exp $
+ *	$Id: if_ie.c,v 1.14 1994/09/05 22:28:31 ats Exp $
  */
 
 /*
@@ -151,10 +151,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <net/bpfdesc.h>
 #endif
 
-#if (NBPFILTER > 0) || defined(MULTICAST)
-#define FILTER
 static struct mbuf *last_not_for_us;
-#endif
 
 #ifdef DEBUG
 #define IED_RINT 1
@@ -197,9 +194,7 @@ static int ieget(int, struct ie_softc *, struct mbuf **,
 		   struct ether_header *, int *);
 static caddr_t setup_rfa(caddr_t ptr, struct ie_softc *ie);
 static int mc_setup(int, caddr_t, volatile struct ie_sys_ctl_block *);
-#ifdef MULTICAST
 static void ie_mc_reset(int unit);
-#endif
 
 #ifdef DEBUG
 void print_rbd(volatile struct ie_recv_buf_desc *rbd);
@@ -557,9 +552,7 @@ ieattach(dvp)
 	 ether_sprintf(ie->arpcom.ac_enaddr));
 
   ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
-#ifdef MULTICAST
   ifp->if_flags  |= IFF_MULTICAST;
-#endif /* MULTICAST */
 
   ifp->if_init = ieinit;
   ifp->if_output = ether_output;
@@ -794,7 +787,6 @@ static int iernr(unit, ie)
   return 0;
 }
 
-#ifdef FILTER
 /*
  * Compare two Ether/802 addresses for equality, inlined and
  * unrolled for speed.  I'd love to have an inline assembler
@@ -855,7 +847,6 @@ static inline int check_eh(struct ie_softc *ie,
     if(*to_bpf) *to_bpf = 2; /* we don't need to see it */
 #endif
 
-#ifdef MULTICAST
     /*
      * Not a multicast, so BPF wants to see it but we don't.
      */
@@ -873,7 +864,6 @@ static inline int check_eh(struct ie_softc *ie,
 	return 1;
       }
     }
-#endif /* MULTICAST */
     return 1;
 
   case IFF_ALLMULTI | IFF_PROMISC:
@@ -912,7 +902,6 @@ static inline int check_eh(struct ie_softc *ie,
   }
   return 0;
 }
-#endif /* FILTER */
 
 /*
  * We want to isolate the bits that have meaning...  This assumes that
@@ -991,13 +980,11 @@ static inline int ieget(unit, ie, mp, ehp, to_bpf)
    * This is only a consideration when FILTER is defined; i.e., when
    * we are either running BPF or doing multicasting.
    */
-#ifdef FILTER
   if(!check_eh(ie, ehp, to_bpf)) {
     ie_drop_packet_buffer(unit, ie);
     ie->arpcom.ac_if.if_ierrors--; /* just this case, it's not an error */
     return -1;
   }
-#endif
   totlen -= (offset = sizeof *ehp);
 
   MGETHDR(*mp, M_DONTWAIT, MT_DATA);
@@ -1181,7 +1168,6 @@ static void ie_readframe(unit, ie, num)
 
   if(!m) return;
 
-#ifdef FILTER
   if(last_not_for_us) {
     m_freem(last_not_for_us);
     last_not_for_us = 0;
@@ -1222,7 +1208,6 @@ static void ie_readframe(unit, ie, num)
    * copying the data in; this saves us valuable cycles when operating
    * as a multicast router or when using BPF.
    */
-#endif /* FILTER */
 
   eh.ether_type = ntohs(eh.ether_type);
 
@@ -1938,7 +1923,6 @@ ieioctl(ifp, command, data)
     }
     break;
 
-#ifdef MULTICAST
   case SIOCADDMULTI:
   case SIOCDELMULTI:
     /*
@@ -1954,7 +1938,6 @@ ieioctl(ifp, command, data)
       error = 0;
     }
     break;
-#endif /* MULTICAST */
 
   case SIOCSIFMTU:
     /*
@@ -1975,7 +1958,6 @@ ieioctl(ifp, command, data)
   return error;
 }
 
-#ifdef MULTICAST
 static void ie_mc_reset(int unit) {
   struct ie_softc *ie = &ie_softc[unit];
   struct ether_multi *enm;
@@ -2003,7 +1985,6 @@ setflag:
   ie->want_mcsetup = 1;
 }
 
-#endif
 
 #ifdef DEBUG
 void print_rbd(volatile struct ie_recv_buf_desc *rbd) {
