@@ -232,12 +232,21 @@ cont:
 			break;
 		case 's':
 			/*
-			 * Set the Subject list.
+			 * Set the Subject line.
 			 */
 			cp = &linebuf[2];
 			while (isspace(*cp))
 				cp++;
 			hp->h_subject = savestr(cp);
+			break;
+		case 'R':
+			/*
+			 * Set the Reply-To line.
+			 */
+			cp = &linebuf[2];
+			while (isspace(*cp))
+				cp++;
+			hp->h_replyto = savestr(cp);
 			break;
 		case 'c':
 			/*

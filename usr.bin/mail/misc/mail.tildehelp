@@ -12,6 +12,7 @@ The following ~ escapes are defined:
 ~p		Print the message buffer
 ~m messages	Read in messages, right shifted by a tab
 ~M messages	Same as ~m, but keep all header lines
+~R address	Set reply-to
 ~s subject	Set subject
 ~t users	Add users to to list
 ~v		Invoke display editor on message

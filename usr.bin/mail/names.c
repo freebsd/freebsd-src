@@ -261,7 +261,8 @@ outof(names, fo, hp)
 			}
 			(void) fcntl(image, F_SETFD, 1);
 			fprintf(fout, "From %s %s", myname, date);
-			puthead(hp, fout, GTO|GSUBJECT|GCC|GNL);
+			puthead(hp, fout,
+				GTO|GSUBJECT|GCC|GREPLYTO|GINREPLYTO|GNL);
 			while ((c = getc(fo)) != EOF)
 				(void) putc(c, fout);
 			rewind(fo);
