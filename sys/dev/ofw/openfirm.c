@@ -127,6 +127,38 @@ OF_test(char *name)
 	return args.missing;
 }
 
+int
+OF_interpret(char *cmd, int nreturns, ...)
+{
+	va_list ap;
+	static struct {
+		cell_t name;
+		cell_t nargs;
+		cell_t nreturns;
+		cell_t slot[16];
+	} args = {
+		(cell_t)"interpret",
+		1
+	};
+	cell_t status;
+	int i = 0;
+
+	args.nreturns = ++nreturns;
+	args.slot[i++] = (cell_t)cmd;
+	va_start(ap, nreturns);
+	while (i < 1)
+		args.slot[i++] = va_arg(ap, cell_t);
+	if (openfirmware(&args) == -1) {
+		va_end(ap);
+		return (-1);
+	}
+	status = args.slot[i++];
+	while (i < 1 + nreturns)
+		*va_arg(ap, cell_t *) = args.slot[i++];
+	va_end(ap);
+	return (status);
+}
+
 /* Return firmware millisecond count. */
 int
 OF_milliseconds()
