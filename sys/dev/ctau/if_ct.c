@@ -43,12 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/tty.h>
-#if __FreeBSD_version >= 400000
-#   include <sys/bus.h>
-#   include <machine/bus.h>
-#   include <sys/rman.h>
-#   include <isa/isavar.h>
-#endif
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <isa/isavar.h>
 #include <sys/interrupt.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -57,33 +55,21 @@ __FBSDID("$FreeBSD$");
 #include <machine/cserial.h>
 #include <machine/clock.h>
 #if __FreeBSD_version < 500000
-#include <i386/isa/isa_device.h>
+#   include <i386/isa/isa_device.h>
 #endif
-#if __FreeBSD_version >= 400000
 #include <machine/resource.h>
-#   if __FreeBSD_version <= 501000
+#if __FreeBSD_version <= 501000
 #   include <i386/isa/intr_machdep.h>
-#   endif
 #endif
-#if __FreeBSD_version >= 400000
 #include <dev/cx/machdep.h>
 #include <dev/ctau/ctddk.h>
 #include <dev/cx/cronyxfw.h>
-#else
-#include <i386/isa/cronyx/machdep.h>
-#include <i386/isa/cronyx/ctddk.h>
-#include <i386/isa/cronyx/cronyxfw.h>
-#endif
 #include "opt_ng_cronyx.h"
 #ifdef NETGRAPH_CRONYX
 #   include "opt_netgraph.h"
 #   include <netgraph/ng_message.h>
 #   include <netgraph/netgraph.h>
-#if __FreeBSD_version >= 400000
 #   include <dev/ctau/ng_ct.h>
-#else
-#   include <netgraph/ng_ct.h>
-#endif
 #else
 #   include <net/if_types.h>
 #   if __FreeBSD_version < 500000
@@ -94,18 +80,11 @@ __FBSDID("$FreeBSD$");
 #   endif
 #   include <net/if_sppp.h>
 #   define PP_CISCO IFF_LINK2
-#if __FreeBSD_version < 400000
-#   include <bpfilter.h>
-#   if NBPFILTER > 0
-#      include <net/bpf.h>
-#   endif
-#else
 #   if __FreeBSD_version < 500000
 #       include <bpf.h>
 #   endif
 #   include <net/bpf.h>
 #   define NBPFILTER NBPF
-#endif
 #endif
 
 /* If we don't have Cronyx's sppp version, we don't have fr support via sppp */
@@ -119,7 +98,6 @@ __FBSDID("$FreeBSD$");
 				printf ("%s: ", d->name); printf s;}})
 #define CDEV_MAJOR	99
 
-#if __FreeBSD_version >= 400000
 static void ct_identify		__P((driver_t *, device_t));
 static int ct_probe		__P((device_t));
 static int ct_attach		__P((device_t));
@@ -151,7 +129,6 @@ static driver_t ct_isa_driver = {
 };
 
 static devclass_t ct_devclass;
-#endif
 
 typedef struct _drv_t {
 	char name [8];
@@ -171,9 +148,7 @@ typedef struct _drv_t {
 #else
 	struct sppp pp;
 #endif
-#if __FreeBSD_version >= 400000
 	struct cdev *devt;
-#endif
 } drv_t;
 
 static void ct_receive (ct_chan_t *c, char *data, int len);
@@ -266,16 +241,10 @@ static void ct_led_off (void *arg)
 /*
  * Activate interupt handler from DDK.
  */
-#if __FreeBSD_version >= 400000
 static void ct_intr (void *arg)
 {
 	bdrv_t *bd = arg;
 	ct_board_t *b = bd->board;
-#else
-static void ct_intr (int bnum)
-{
-	ct_board_t *b = adapter [bnum];
-#endif
 	int s = splimp ();
 
 	/* Turn LED on. */
@@ -326,7 +295,6 @@ static	short porttab [] = {
 static	char dmatab [] = { 7, 6, 5, 0 };
 static	char irqtab [] = { 5, 10, 11, 7, 3, 15, 12, 0 };
 
-#if __FreeBSD_version >= 400000
 static int ct_is_free_res (device_t dev, int rid, int type, u_long start,
 	u_long end, u_long count)
 {
@@ -476,128 +444,22 @@ static int ct_probe (device_t dev)
 	
 	return 0;
 }
-#else /* __FreeBSD_version < 400000 */
-static int ct_probe (struct isa_device *id)
-{
-	int unit = id->id_unit;
-	int iobase;
-	ct_board_t *b;
-	int i;
-
-	iobase = id->id_iobase;
-	if (iobase < 0) {
-		/* Autodetect the adapter. */
-
-		for (i=0; ; i++) {
-			if (! porttab[i]) {
-				iobase = -1;
-				return 0;
-			}
-			iobase = porttab[i];
-			if (unit > 0 && adapter[0] && adapter[0]->port == iobase)
-				continue;
-			if (unit > 1 && adapter[1] && adapter[1]->port == iobase)
-				continue;
-			if (! haveseen_isadev (id, CC_IOADDR | CC_QUIET) &&
-			    ct_probe_board (iobase, -1, -1))
-				break;
-		}
-	} else if (! ct_probe_board (iobase, -1, -1))
-		return 0;
-
-	if (id->id_drq < 0) {
-		/* Find available 16-bit DRQ. */
-
-		for (i=0; ; ++i) {
-			if (! dmatab[i]) {
-				printf ("ct%d: no available drq found\n",
-					unit);
-				id->id_drq = -1;
-				return 0;
-			}
-			id->id_drq = dmatab[i];
-			if (! haveseen_isadev (id, CC_DRQ | CC_QUIET)
-			    && !isa_dma_acquire (id->id_drq))
-				break;
-		}
-	}
-
-	b = malloc (sizeof (ct_board_t), M_DEVBUF, M_WAITOK);
-	if (!b) {
-		printf ("ct:%d: Couldn't allocate memory\n", unit);
-		return (ENXIO);
-	}
-	adapter[unit] = b;
-	bzero (b, sizeof(ct_board_t));
-
-	if (! ct_open_board (b, unit, iobase,
-	    id->id_irq ? ffs (id->id_irq) - 1 : -1, id->id_drq)) {
-		printf ("ct%d: error loading firmware\n", unit);
-		adapter [unit] = 0;
-		free (b, M_DEVBUF);
-		isa_dma_release (id->id_drq);
- 		return 0;
-	}
-
-	if (id->id_irq) {
-		if (! probe_irq (b, ffs (id->id_irq) - 1))
-			printf ("ct%d: irq %d not functional\n",
-				unit, ffs (id->id_irq) - 1);
-	} else {
-		/* Find available IRQ. */
-
-		for (i=0; ; ++i) {
-			if (! irqtab[i]) {
-				printf ("ct%d: no available irq found\n",
-					unit);
-				id->id_irq = -1;
-				isa_dma_release (id->id_drq);
-				adapter [unit] = 0;
-				free (b, M_DEVBUF);
-				return 0;
-			}
-			id->id_irq = 1 << irqtab[i];
-			if (haveseen_isadev (id, CC_IRQ | CC_QUIET))
-				continue;
-#ifdef KLD_MODULE
-			if (register_intr (irqtab[i], 0, 0, (inthand2_t*)
-			    ct_intr, &net_imask, unit) != 0)
-				continue;
-			unregister_intr (irqtab[i], (inthand2_t*) ct_intr);
-#endif
-			if (probe_irq (b, irqtab[i]))
-				break;
-		}
-	}
-	ct_init_board (b, b->num, b->port, ffs (id->id_irq) - 1, b->dma,
-		b->type, b->osc);
-	ct_setup_board (b, 0, 0, 0);
-
-	return 1;
-}
-#endif /* __FreeBSD_version < 400000 */
 
 extern struct cdevsw ct_cdevsw;
 /*
  * The adapter is present, initialize the driver structures.
  */
-#if __FreeBSD_version < 400000
-static int ct_attach (struct isa_device *id)
-{
-#else
 static int ct_attach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
 	u_long iobase, drq, irq, rescount;
 	int unit = device_get_unit (dev);
-	int i;
-	int s;
-#endif
 	ct_board_t *b;
 	ct_chan_t *c;
 	drv_t *d;
+	int i;
+	int s;
 
-#if __FreeBSD_version >= 400000
 	KASSERT ((bd != NULL), ("ct%d: NULL device softc\n", unit));
 	
 	bus_get_resource (dev, SYS_RES_IOPORT, 0, &iobase, &rescount);
@@ -722,15 +584,9 @@ static int ct_attach (device_t dev)
 	
 	ct_init_board (b, b->num, b->port, irq, drq, b->type, b->osc);
 	ct_setup_board (b, 0, 0, 0);
-#else
-	b = adapter [id->id_unit];
-#endif
 
 	printf ("ct%d: <Cronyx-%s>, clock %s MHz\n", b->num, b->name,
 		b->osc == 20000000 ? "20" : "16.384");
-#if __FreeBSD_version < 400000
-	id->id_ointr = ct_intr;
-#endif
 
 	for (c=b->chan; c<b->chan+NCHAN; ++c) {
 		d = contigmalloc (sizeof(drv_t), M_DEVBUF, M_WAITOK,
@@ -747,11 +603,7 @@ static int ct_attach (device_t dev)
 			printf ("%s: cannot make common node\n", d->name);
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;		
-#if __FreeBSD_version < 400000
-			free (d, M_DEVBUF);
-#else
 			contigfree (d, sizeof (*d), M_DEVBUF);
-#endif
 			continue;
 		}
 #if __FreeBSD_version >= 500000
@@ -771,11 +623,7 @@ static int ct_attach (device_t dev)
 #endif
 			channel [b->num*NCHAN + c->num] = 0;
 			c->sys = 0;		
-#if __FreeBSD_version < 400000
-			free (d, M_DEVBUF);
-#else
 			contigfree (d, sizeof (*d), M_DEVBUF);
-#endif
 			continue;
 		}
 		d->queue.ifq_maxlen = IFQ_MAXLEN;
@@ -802,30 +650,22 @@ static int ct_attach (device_t dev)
 		if_attach (&d->pp.pp_if);
 		d->pp.pp_tlf            = ct_tlf;
 		d->pp.pp_tls            = ct_tls;
-#if __FreeBSD_version >= 400000 || NBPFILTER > 0
 		/* If BPF is in the kernel, call the attach for it.
 		 * Header size is 4 bytes. */
 		bpfattach (&d->pp.pp_if, DLT_PPP, 4);
-#endif
 #endif /*NETGRAPH*/
 		ct_start_chan (c, &d->buf, vtophys (&d->buf));
 		ct_register_receive (c, &ct_receive);
 		ct_register_transmit (c, &ct_transmit);
 		ct_register_error (c, &ct_error);
-#if __FreeBSD_version >= 400000
 		d->devt = make_dev (&ct_cdevsw, b->num*NCHAN+c->num, UID_ROOT,
 				GID_WHEEL, 0600, "ct%d", b->num*NCHAN+c->num);
 	}
 	splx (s);
 	
 	return 0;
-#else /* __FreeBSD_version < 400000 */
-	}
-	return 1;
-#endif /*__FreeBSD_version */
 }
 
-#if __FreeBSD_version >= 400000
 static int ct_detach (device_t dev)
 {
 	bdrv_t *bd = device_get_softc (dev);
@@ -908,11 +748,7 @@ static int ct_detach (device_t dev)
 			continue;
 		
 		/* Deallocate buffers. */
-#if __FreeBSD_version < 400000
-		free (d, M_DEVBUF);
-#else
 		contigfree (d, sizeof (*d), M_DEVBUF);
-#endif
 	}
 	bd->board = 0;
 	adapter [b->num] = 0;
@@ -921,7 +757,6 @@ static int ct_detach (device_t dev)
 	
 	return 0;	
 }
-#endif
 
 #ifndef NETGRAPH
 static void ct_ifstart (struct ifnet *ifp)
@@ -1067,7 +902,7 @@ static void ct_send (drv_t *d)
 #endif
 		if (! m)
 			return;
-#if (__FreeBSD_version >= 400000 || NBPFILTER > 0) && !defined (NETGRAPH)
+#ifndef NETGRAPH
 		if (d->pp.pp_if.if_bpf)
 #if __FreeBSD_version >= 500000
 			BPF_MTAP (&d->pp.pp_if, m);
@@ -1192,7 +1027,6 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 #else
 	++d->pp.pp_if.if_ipackets;
 	m->m_pkthdr.rcvif = &d->pp.pp_if;
-#if __FreeBSD_version >= 400000 || NBPFILTER > 0
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
 	if (d->pp.pp_if.if_bpf)
@@ -1200,7 +1034,6 @@ static void ct_receive (ct_chan_t *c, char *data, int len)
 		BPF_TAP (&d->pp.pp_if, data, len);
 #else
 		bpf_tap (&d->pp.pp_if, data, len);
-#endif
 #endif
 	sppp_input (&d->pp.pp_if, m);
 #endif
@@ -1345,9 +1178,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETPROTO:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1379,9 +1210,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETKEEPALIVE:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1414,9 +1243,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCFG:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1496,9 +1323,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_CLRSTAT:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1525,9 +1350,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETBAUD:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1545,9 +1368,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETLOOP:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1567,9 +1388,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETDPLL:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1591,9 +1410,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETNRZI:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1613,9 +1430,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETDEBUG:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1639,9 +1454,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETHIGAIN:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1665,9 +1478,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	        if (c->mode != M_E1)
 	                return EINVAL;
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1692,9 +1503,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCLK:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1720,9 +1529,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETTIMESLOTS:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1742,9 +1549,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETSUBCHAN:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1772,9 +1577,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETINVCLK:
 	case SERIAL_SETINVTCLK:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1790,9 +1593,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETINVRCLK:
 	        /* Only for superuser! */
-#if __FreeBSD_version < 400000
-	        error = suser (p->p_ucred, &p->p_acflag);
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 	        error = suser (p);
 #else /* __FreeBSD_version >= 500000 */
 	        error = suser (td);
@@ -1854,15 +1655,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	return ENOTTY;
 }
 
-#if __FreeBSD_version < 400000
-struct isa_driver ctdriver = { ct_probe, ct_attach, "ct" };
-static struct cdevsw ct_cdevsw = {
-	ct_open,	ct_close,	noread,		nowrite,
-	ct_ioctl,	nostop,		noreset,	nodevtotty,
-	seltrue,	nommap,		NULL,		"ct",
-	NULL,		-1,
-};
-#elif __FreeBSD_version < 500000
+#if __FreeBSD_version < 500000
 static struct cdevsw ct_cdevsw = {
 	ct_open,	ct_close,	noread,		nowrite,
 	ct_ioctl,	nopoll,		nommap,		nostrategy,
@@ -2444,184 +2237,6 @@ static int ng_ct_disconnect (hook_p hook)
 }
 #endif
 
-#ifdef KLD_MODULE
-#if __FreeBSD_version < 400000
-/*
- * Function called when loading the driver.
- */
-static int ct_load (void)
-{
-	int i;
-
-	for (i=0;i<NCTAU; ++i) {
-		struct isa_device id = {-1, &ctdriver, -1, 0, -1, 0, 0, (inthand2_t *)ct_intr, i, 0, 0, 0, 0 ,0 ,1 ,0 ,0};
-		disable_intr();
-		if (!ct_probe (&id)) {
-			enable_intr();
-			break;
-		}
-		ct_attach (&id);
-		register_intr ((adapter [i])->irq, 0, 0, (inthand2_t*) ct_intr,
-				&net_imask, id.id_unit);
-		enable_intr();
-	}
-	if (!i) {
-		/* Deactivate the timeout routine. */
-		untimeout (ct_timeout, 0, timeout_handle);
-
-		return ENXIO;
-	}
-	return 0;
-}
-
-/*
- * Function called when unloading the driver.
- */
-static int ct_unload (void)
-{
-	int i, s;
-
-	/* Check if the device is busy (open). */
-	for (i=0; i<NCTAU*NCHAN; ++i) {
-		drv_t *d = channel[i];
-
-		if (!d)
-			continue;
-		if (d->running)
-				return EBUSY;
-	}
-
-	/* OK to unload the driver, unregister the interrupt first. */
-	s = splimp ();
-
-	/* Deactivate the timeout routine. */
-	for (i=0; i<NCTAU; ++i) {
-		if (!adapter [i])
-			continue;
-		untimeout (ct_timeout, 0, timeout_handle);
-		break;
-	}
-
-	for (i=0; i<NCTAU; ++i) {
-		ct_board_t *b = adapter [i];
-
-		if (!b || ! b->port)
-			continue;
-
-		ct_close_board (b);
-	}
-
-	for (i=0; i<NCTAU; ++i) {
-		ct_board_t *b = adapter [i];
-
-		if (!b || ! b->port)
-			continue;
-
-		if (led_timo[i].callout)
-			untimeout (ct_led_off, b, led_timo[i]);
-	}
-
-	for (i=0; i<NCTAU; ++i) {
-		ct_board_t *b = adapter [i];
-
-		if (!b || ! b->port)
-			continue;
-
-		/* Disable the interrupt request. */
-		disable_intr();
-		unregister_intr (b->irq, (inthand2_t *)ct_intr);
-		isa_dma_release (b->dma);
-		enable_intr();
-	}
-
-	/* Detach the interfaces, free buffer memory. */
-	for (i=0; i<NCTAU*NCHAN; ++i) {
-		drv_t *d = channel[i];
-
-		if (!d)
-			continue;
-
-#ifndef NETGRAPH
-#if NBPFILTER > 0
-		/* Detach from the packet filter list of interfaces. */
-		{
-			struct bpf_if *q, **b = &bpf_iflist;
-
-			while ((q = *b)) {
-				if (q->bif_ifp == d->pp.pp_if) {
-					*b = q->bif_next;
-					free (q, M_DEVBUF);
-				}
-				b = &(q->bif_next);
-			}
-		}
-#endif /* NBPFILTER > 0 */
-		/* Detach from the sync PPP list. */
-		sppp_detach (&d->pp.pp_if);
-
-		/* Detach from the system list of interfaces. */
-		{
-			struct ifaddr *ifa;
-			TAILQ_FOREACH (ifa, &d->pp.pp_if.if_addrhead, ifa_link) {
-				TAILQ_REMOVE (&d->pp.pp_if.if_addrhead, ifa, ifa_link);
-				free (ifa, M_IFADDR);
-			}
-			TAILQ_REMOVE (&ifnet, &d->pp.pp_if, if_link);
-		}
-#endif /* !NETGRAPH */
-		/* Deallocate buffers. */
-/*		free (d, M_DEVBUF);*/
-	}
-	for (i=0; i<NCTAU; ++i) {
-		ct_board_t *b = adapter [i];
-		if (!b)
-			continue;
-		adapter [i] = 0;
-		free (b, M_DEVBUF);
-	}
-	splx(s);
-
-	return 0;
-}
-
-#define devsw(a)	cdevsw[major((a))]
-#endif /* __FreeBSD_version < 400000 */
-#endif /* KLD_MODULE */
-
-#if __FreeBSD_version < 400000
-#ifdef KLD_MODULE
-static int ct_modevent (module_t mod, int type, void *unused)
-{
-        dev_t dev;
-	int result;
-	static int load_count = 0;
-
-	dev = makedev (CDEV_MAJOR, 0);
-	switch (type) {
-	case MOD_LOAD:
-		if (devsw(dev))
-			return (ENXIO);
-		load_count ++;
-		cdevsw_add (&dev, &ct_cdevsw, NULL);
-		timeout_handle = timeout (ct_timeout, 0, hz*5);
-		result = ct_load ();
- 		return result;
-	case MOD_UNLOAD:
-		result = ct_unload ();
-		if (result)
-			return result;
-		if (devsw(dev)&&!(load_count-1)) {
-			cdevsw_add (&dev, NULL, NULL);
-		}
-		load_count --;
-		return result;
-	case MOD_SHUTDOWN:
-		break;
-	}
-	return 0;
-}
-#endif /* KLD_MODULE */
-#else /* __FreeBSD_version >= 400000 */
 static int ct_modevent (module_t mod, int type, void *unused)
 {
         struct cdev *dev;
@@ -2670,7 +2285,6 @@ static int ct_modevent (module_t mod, int type, void *unused)
 	}
 	return 0;
 }
-#endif /* __FreeBSD_version >= 400000 */
 
 #ifdef NETGRAPH
 static struct ng_type typestruct = {
@@ -2685,10 +2299,6 @@ static struct ng_type typestruct = {
 	.disconnect	= ng_ct_disconnect
 };
 
-#if __FreeBSD_version < 400000
-NETGRAPH_INIT_ORDERED (ct, &typestruct, SI_SUB_DRIVERS,\
-	SI_ORDER_MIDDLE + CDEV_MAJOR);
-#endif
 #endif /*NETGRAPH*/
 
 #if __FreeBSD_version >= 500000
@@ -2708,38 +2318,5 @@ DRIVER_MODULE(ct, isa, ct_isa_driver, ct_devclass, ng_mod_event, &typestruct);
 #else
 DRIVER_MODULE(ct, isa, ct_isa_driver, ct_devclass, ct_modevent, 0);
 #endif
-#else /* __FreeBSD_version < 400000 */
-#ifdef KLD_MODULE
-#ifndef NETGRAPH
-static moduledata_t ctmod = { "ct", ct_modevent, };
-DECLARE_MODULE (ct, ctmod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR);
-#endif /* !NETGRAPH */
-#else /* KLD_MODULE */
-
-/*
- * Now for some driver initialisation.
- * Occurs ONCE during boot (very early).
- * This is if we are NOT a loadable module.
- */
-static void ct_drvinit (void *unused)
-{
-        dev_t dev;
-
-	dev = makedev (CDEV_MAJOR, 0);
-	cdevsw_add (&dev, &ct_cdevsw, NULL);
-
-	/* Activate the timeout routine. */
-	timeout_handle = timeout (ct_timeout, 0, hz);
-#ifdef NETGRAPH
-#if 0
-	/* Register our node type in netgraph */
-	if (ng_newtype (&typestruct))
-		printf ("Failed to register ng_ct\n");
-#endif
-#endif
-}
-
-SYSINIT (ctdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR, ct_drvinit, 0)
-#endif /* KLD_MODULE */
-#endif /* __FreeBSD_version < 400000 */
+#endif /* __FreeBSD_version >= 400000 */
 #endif /* NCTAU */
