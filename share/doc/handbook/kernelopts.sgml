@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: kernelopts.sgml,v 1.1 1996/12/23 12:20:04 joerg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
 
@@ -109,7 +109,7 @@ id="kernelconfig" name="kernel configuration"> before reading here.
   comment the new section in the
   <tt>options[<em>.&lt;arch&gt;</em>]</tt> file.  <tt/config(8)/ will
   automagically pick up the change, and create that file next time it
-  is run.  Most options should go in a header file by themself.
+  is run.  Most options should go in a header file by themselves..
 
   <p>Packing too many options into a single
   <tt>opt_<em>foo</em>.h</tt> will cause too many kernel files to be
