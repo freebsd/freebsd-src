@@ -728,7 +728,7 @@ udp_output(inp, m, addr, control, td)
 
 	INP_LOCK_ASSERT(inp);
 #ifdef MAC
-	mac_create_mbuf_from_socket(inp->inp_socket, m);
+	mac_create_mbuf_from_inpcb(inp, m);
 #endif
 
 	if (len + sizeof(struct udpiphdr) > IP_MAXPACKET) {

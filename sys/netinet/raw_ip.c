@@ -248,7 +248,9 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
 	int flags = (so->so_options & SO_DONTROUTE) | IP_ALLOWBROADCAST;
 
 #ifdef MAC
-	mac_create_mbuf_from_socket(so, m);
+	INP_LOCK(inp);
+	mac_create_mbuf_from_inpcb(inp, m);
+	INP_UNLOCK(inp);
 #endif
 
 	/*

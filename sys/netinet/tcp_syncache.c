@@ -1131,7 +1131,7 @@ syncache_respond(sc, m)
 	inp = sc->sc_tp->t_inpcb;
 	INP_LOCK(inp);
 #ifdef MAC
-	mac_create_mbuf_from_socket(inp->inp_socket, m);
+	mac_create_mbuf_from_inpcb(inp, m);
 #endif
 
 #ifdef INET6
