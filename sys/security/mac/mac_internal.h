@@ -2120,7 +2120,6 @@ mac_check_vnode_write(struct ucred *active_cred, struct ucred *file_cred,
 	return (error);
 }
 
-
 /*
  * When relabeling a process, call out to the policies for the maximum
  * permission allowed for each object type we know about in its
@@ -2285,7 +2284,6 @@ mac_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
 	MAC_PERFORM(relabel_cred, cred, newlabel);
-	mac_cred_mmapped_drop_perms(curthread, cred);
 }
 
 void
@@ -3002,8 +3000,6 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 
 /*
  * MPSAFE
- *
- * XXX: Needs to be re-written for proc locking.
  */
 int
 __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
@@ -3038,12 +3034,19 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 
 	setsugid(p);
 	crcopy(newcred, oldcred);
-	PROC_UNLOCK(p);
 	mac_relabel_cred(newcred, &intlabel);
-
-	PROC_LOCK(p);
 	p->p_ucred = newcred;
+
+	/*
+	 * Grab additional reference for use while revoking mmaps, prior
+	 * to releasing the proc lock and sharing the cred.
+	 */
+	crhold(newcred);
 	PROC_UNLOCK(p);
+
+	mac_cred_mmapped_drop_perms(td, newcred);
+
+	crfree(newcred);	/* Free revocation reference. */
 	crfree(oldcred);
 	mac_destroy_temp(&intlabel);
 	return (0);
