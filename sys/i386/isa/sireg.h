@@ -2,9 +2,9 @@
  * Device driver for Specialix range (SI/XIO) of serial line multiplexors.
  * 'C' definitions for Specialix serial multiplex driver.
  *
- * Copyright (C) 1990, 1992 Specialix International,
+ * Copyright (C) 1990, 1992, 1998 Specialix International,
  * Copyright (C) 1993, Andy Rutter <andy@acronym.co.uk>
- * Copyright (C) 1995, Peter Wemm <peter@haywire.dialix.com>
+ * Copyright (C) 1995, Peter Wemm <peter@netplex.com.au>
  *
  * Derived from:	SunOS 4.x version
  *
@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: sireg.h,v 1.4 1997/02/22 09:37:11 peter Exp $
+ *	$Id: sireg.h,v 1.5 1998/02/15 14:42:33 peter Exp $
  */
 
 /*
@@ -56,6 +56,11 @@
 #define SIINTCL		0xA000			/* Clear host int */
 #define SIINTCL_CL 	0xE000			/* Clear host int */
 
+/* SI EISA */
+#define SIEISADEVID	0x4d980411		/* EISA Device ID */
+#define SIEISABASE	0xc00			/* Our ports start here */
+#define SIEISAIOSIZE	0x100			/* XXX How many ports */
+
 /* SI old PCI */
 #define SIPCIBADR	0x10			/* Which BADR to map in RAM */
 #define SIPCI_MEMSIZE	0x100000		/* Mapping size */
@@ -63,12 +68,13 @@
 #define SIPCIINTCL	0x40001			/* 0 = clear int */
 
 /* SI Jet PCI */
-#define SIJETSSIDREG	0x2c			/* Is it a SI/XIO or RIO? */
+#define SIJETSSIDREG	0x2c			/* Is it an SX or RIO? */
 #define SIJETBADR	0x18			/* Which BADR to map in RAM */
 /* SI Jet PCI & ISA */
 #define SIJETIDBASE	0x7c00			/* ID ROM base */
 #define SISPLXID	0x984d			/* Specialix ID */
-#define SIUNIQID	0x7c0e			/* & 0xf0 = 0x20 for Si/XIO */
+#define SIUNIQID	0x7c0e			/* & 0xf0 = 0x20 for SX */
+#define SIJETIDSTR	0x7c20			/* ID ROM string */
 #define SIJETRESET	0x7d00
 #define SIJETINTCL	0x7d80
 #define SIJETCONFIG	0x7c00			/* for ISA, top nibble = IRQ */
@@ -79,12 +85,13 @@
  * MEMSIZE is the total shared mem region
  * RAMSIZE is value to use when probing
  */
-#define SIJET_MEMSIZE		0x10000
+#define SIJETPCI_MEMSIZE	0x10000
+#define SIJETISA_MEMSIZE	0x10000
 #define SIJET_RAMSIZE		0x7000
 #define	SIHOST_MEMSIZE		0x10000
 #define	SIHOST_RAMSIZE		0x8000
 #define	SIHOST2_MEMSIZE		0x8000
 #define	SIHOST2_RAMSIZE		0x7ff7
 #define	SIEISA_MEMSIZE		0x10000
-#define	SEISAT_RAMSIZE		0x10000
+#define	SIEISA_RAMSIZE		0x10000
 
