@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.hist.c,v 3.26 1999/02/06 15:01:23 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.hist.c,v 3.27 2000/06/10 22:07:56 kim Exp $ */
 /*
  * sh.hist.c: Shell history expansions and substitutions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.hist.c,v 3.26 1999/02/06 15:01:23 christos Exp $")
+RCSID("$Id: sh.hist.c,v 3.27 2000/06/10 22:07:56 kim Exp $")
 
 #include "tc.h"
 
@@ -376,7 +376,7 @@ fmthist(fmt, ptr, buf, bufsiz)
 	else {
 	    Char ibuf[INBUFSIZE], *ip;
 	    char *p;
-	    (void) sprlex(ibuf, sizeof(ibuf), &hp->Hlex);
+	    (void) sprlex(ibuf, sizeof(ibuf) / sizeof(Char), &hp->Hlex);
 	    for (p = buf, ip = ibuf; (*p++ = (CHAR & *ip++)) != '\0'; )
 		continue;
 	}
