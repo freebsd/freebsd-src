@@ -51,10 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-static struct opttab other_options[] = {
-	{ NULL, 0 }
-};
-
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
@@ -65,7 +61,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	char *luser, *rhost;
 	int r;
 
-	pam_std_option(&options, other_options, argc, argv);
+	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
 
