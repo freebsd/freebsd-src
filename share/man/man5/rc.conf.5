@@ -1727,6 +1727,13 @@ specified by the
 variable.
 The default value is
 .Dq /var/crash .
+Set to
+.Dq NO
+to not run
+.Xr savecore 8
+at boot time when
+.Va dumpdir
+is set.
 .It Va enable_quotas
 .Pq Vt bool
 Set to
