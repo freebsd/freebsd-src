@@ -67,20 +67,19 @@ field is separated from the
 field by one or more tab characters or spaces.
 .Pp
 Note that if you use spaces as separators, your
-.Pa syslog.conf
+.Nm
 might be incompatible with other Unices or Unix-like systems.
 This functionality was added for the ease of configuration
 (e.g. it is possible to cut-and-paste into
-.Pa syslog.conf ) ,
+.Nm ) ,
 and to avoid possible mistakes.
 This change however preserves
 backwards compatibility with the old style of the
-.Pa syslog.conf
+.Nm
 (i.e. tab characters only).
 .Pp
 The
-.Em Selectors
-function
+.Em selectors
 are encoded as a
 .Em facility ,
 a period
@@ -166,7 +165,7 @@ specification is a line beginning with
 or
 .Ql !prog
 (the former is for compatibility with the previous syslogd, if one is sharing
-.Pa syslog.conf
+.Nm
 files, for example)
 and the following blocks will be associated with calls to
 .Xr syslog 3
@@ -305,8 +304,8 @@ Selected messages are written to all logged-in users.
 A vertical bar
 .Pq Dq \&| ,
 followed by a command to pipe the selected
-messages to.  The command is passed to a
-.Pa /bin/sh
+messages to.  The command is passed to
+.Xr sh 1
 for evaluation, so usual shell metacharacters or input/output
 redirection can occur.  (Note however that redirecting
 .Xr stdio 3
@@ -320,7 +319,7 @@ redirected to
 .Pa /dev/null .
 Upon receipt of a
 .Dv SIGHUP ,
-.Nm
+.Xr syslogd 8
 will close the pipe to the process.  If the process didn't exit
 voluntarily, it will be sent a
 .Dv SIGTERM
