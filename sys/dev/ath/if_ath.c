@@ -490,8 +490,15 @@ ath_bmiss_proc(void *arg, int pending)
 	DPRINTF(("ath_bmiss_proc: pending %u\n", pending));
 	KASSERT(ic->ic_opmode == IEEE80211_M_STA,
 		("unexpect operating mode %u", ic->ic_opmode));
-	if (ic->ic_state == IEEE80211_S_RUN)
-		ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
+	if (ic->ic_state == IEEE80211_S_RUN) {
+		/*
+		 * Rather than go directly to scan state, try to
+		 * reassociate first.  If that fails then the state
+		 * machine will drop us into scanning after timing
+		 * out waiting for a probe response.
+		 */
+		ieee80211_new_state(ic, IEEE80211_S_ASSOC, -1);
+	}
 }
 
 static u_int
