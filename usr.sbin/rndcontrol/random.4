@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 .\" OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: random.4,v 1.5 1997/02/22 16:12:46 peter Exp $
 .\"
 .Dd October 21, 1995
 .Dt RANDOM 4 i386
@@ -109,16 +109,18 @@ This interface will return the requested number of random bytes,
 and place it in the requested buffer.
 .Pp
 The two other interfaces are two character devices
-.Nm /dev/random
+.Pa /dev/random
 and
-.Nm /dev/urandom . /dev/random
-is suitable for use when very high quality randomness is desired
-(for example, for key generation.), as it will only return a maximum
+.Pa /dev/urandom .
+The
+.Pa /dev/random
+device is suitable for use when very high quality randomness is desired
+(e.g. for key generation), as it will only return a maximum
 of the number of bits of randomness (as estimated by the random number
 generator) contained in the entropy pool.
 .Pp
 The
-.Nm /dev/urandom
+.Pa /dev/urandom
 device does not have this limit, and will return as many bytes as are
 requested.  As more and more random bytes are requested without giving
 time for the entropy pool to recharge, this will result in lower quality
@@ -145,9 +147,16 @@ unpredictable.  The routines try to estimate how many bits of
 randomness a particular interrupt channel offers, by keeping track
 of the first and second order deltas in the interrupt timings.
 .Sh ACKNOWLEDGEMENTS
-The original core code was written by Theodore Ts'o, and was intended
-for the Linux platform. This was ported to FreeBSD by Mark Murray,
-who also wrote the rndcontrol utility.
+The original core code was written by
+.An Theodore Ts'o ,
+and was intended
+for the Linux platform. This was ported to
+.Bx Free
+by
+.An Mark Murray ,
+who also wrote the
+.Xr rndcontrol 8
+utility.
 .Pp
 Ideas for constructing this random number generator were derived
 from the Pretty Good Privacy's random number generator, and from
@@ -172,7 +181,7 @@ Eastlake, Steve Crocker, and Jeff Schiller.
 .El
 .Sh HISTORY
 The
-.Nm random ,
-.Nm urandom
+.Pa random ,
+.Pa urandom
 files appeared in
 .Fx 2.1.5 .
