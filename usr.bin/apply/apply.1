@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)apply.1	8.2 (Berkeley) 4/4/94
+.\" $FreeBSD$
 .\"
 .Dd April 4, 1994
 .Dt APPLY 1
@@ -39,10 +40,10 @@
 .Nd apply a command to a set of arguments
 .Sh SYNOPSIS
 .Nm apply
-.Op Fl a Ns Ar c
-.Op Fl Ns Ar #
-.Ar command argument
-.Op Ar ...
+.Op Fl a Ar c
+.Op Fl d
+.Op Fl #
+.Ar command argument ...
 .Sh DESCRIPTION
 .Nm apply
 runs the named
@@ -67,8 +68,8 @@ each execution of
 .Ar command .
 .Pp
 The options are as follows:
-.Bl -tag -width "-ac"
-.It Fl Ns Ar #
+.Bl -tag -width indent
+.It Fl #
 Normally arguments are taken singly; the optional number
 .Fl #
 specifies the number of arguments to be passed to
@@ -85,16 +86,19 @@ occur in
 the
 .Fl #
 option is ignored.
-.It Fl a Ns Ar c
+.It Fl a Ar c
 The use of the character
 .Sq Li %
 as a magic character may be changed with the
 .Fl a
 option.
+.It Fl d
+Display the commands that would have been executed, but do not actually
+execute them.
 .El
 .Sh ENVIRONMENT
 The following environment variable affects the execution of
-.Nm apply :
+.Nm Ns :
 .Bl -tag -width SHELL
 .It Ev SHELL
 Pathname of shell to use.

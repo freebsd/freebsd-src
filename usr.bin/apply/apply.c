@@ -35,7 +35,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)apply.c	8.4 (Berkeley) 4/4/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/wait.h>
@@ -68,7 +72,7 @@ main(argc, argv)
 		case 'a':
 			if (optarg[1] != '\0')
 				errx(1,
-				    "illegal magic character specification.");
+				    "illegal magic character specification");
 			magic = optarg[0];
 			break;
 		case 'd':
@@ -78,7 +82,7 @@ main(argc, argv)
 		case '5': case '6': case '7': case '8': case '9':
 			if (nargs != -1)
 				errx(1,
-				    "only one -# argument may be specified.");
+				    "only one -# argument may be specified");
 			nargs = optopt - '0';
 			break;
 		default:
@@ -152,7 +156,7 @@ main(argc, argv)
 		 * there's enough space to build it.
 		 */
 		for (l = strlen(cmd), i = 0; i < nargs; i++)
-			l += strlen(argv[i]);
+			l += strlen(argv[i+1]);
 		if (l > clen && (c = realloc(c, clen = l)) == NULL)
 			err(1, NULL);
 
@@ -228,6 +232,6 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: apply [-a magic] [-0123456789] command arguments ...\n");
+	"usage: apply [-a magic] [-d] [-0123456789] command arguments ...\n");
 	exit(1);
 }
