@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.17 1998/10/26 19:07:42 brian Exp $
+ *	$Id: bundle.h,v 1.18 1998/10/27 22:53:22 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -66,13 +66,6 @@ struct bundle {
     char Name[20];            /* The /dev/XXXX name */
     int fd;                   /* The /dev/XXXX descriptor */
   } dev;
-
-#if 0
-  struct {
-    int Index;                /* The interface index */
-    char *Name;               /* The interface name */
-  } ifp;
-#endif
 
   u_long ifSpeed;             /* struct tuninfo speed */
   struct iface *iface;        /* Interface information */
