@@ -60,8 +60,11 @@ including slashes (``/'').
 As a special case, a pattern containing no globbing characters (``foo'')
 is matched as though it were ``*foo*''.
 .Sh FILES
-.Bl -tag -width /var/db/locate.database -compact
+.Bl -tag -width /usr/libexec/locate.updatedb -compact
 .It Pa /var/db/locate.database
+The actual database
+.It Pa /usr/libexec/locate.updatedb
+Script to update the locate database
 .El
 .Sh SEE ALSO
 .Xr find 1 ,
@@ -74,6 +77,16 @@ is matched as though it were ``*foo*''.
 .%V 8:1
 .%P pp. 8-10
 .Re
+.Sh BUGS
+.Nm Locate
+may fail to list some files that are present, or may 
+to list files that have been removed from the system.  This is because
+locate only reports files that are present in the database, which is
+typically only regenerated once a week by the 
+.Nm /etc/weekly 
+script.  Use
+.Xr find 1
+to locate files that are of a more transitory nature.
 .Sh HISTORY
 The
 .Nm locate
