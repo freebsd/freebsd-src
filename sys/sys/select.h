@@ -36,10 +36,4 @@
 #ifndef _SYS_SELECT_H_
 #define	_SYS_SELECT_H_
 
-/*
- * For the moment, just include <sys/selinfo.h> until all clients are
- * fixed.
- */
-#include <sys/selinfo.h>
-
 #endif /* _SYS_SELECT_H_ */
