@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.59 1997/09/16 14:19:46 bde Exp $
+ * $Id: systm.h,v 1.60 1997/09/21 22:09:24 gibbs Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -76,14 +76,17 @@ extern int bootverbose;		/* nonzero to print verbose messages */
 /*
  * General function declarations.
  */
+
+struct malloc_type;
+
 void	Debugger __P((const char *msg));
 int	nullop __P((void));
 int	eopnotsupp __P((void));
 int	einval __P((void));
 int	seltrue __P((dev_t dev, int which, struct proc *p));
 int	ureadc __P((int, struct uio *));
-void	*hashinit __P((int count, int type, u_long *hashmask));
-void	*phashinit __P((int count, int type, u_long *nentries));
+void	*hashinit __P((int count, struct malloc_type *type, u_long *hashmask));
+void	*phashinit __P((int count, struct malloc_type *type, u_long *nentries));
 
 void	panic __P((const char *, ...)) __dead2;
 void	boot __P((int)) __dead2;
