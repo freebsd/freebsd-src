@@ -129,6 +129,7 @@
 #include "progs.h"
 #include "s_apps.h"
 #include <openssl/err.h>
+#include <openssl/fips.h>
 
 /* The LHASH callbacks ("hash" & "cmp") have been replaced by functions with the
  * base prototypes (we cast each variable inside the function to the required
@@ -147,6 +148,7 @@ char *default_config_file=NULL;
 #ifdef MONOLITH
 CONF *config=NULL;
 BIO *bio_err=NULL;
+int in_FIPS_mode=0;
 #endif
 
 
@@ -227,10 +229,31 @@ int main(int Argc, char *Argv[])
 	char **argv,*p;
 	LHASH *prog=NULL;
 	long errline;
- 
+
 	arg.data=NULL;
 	arg.count=0;
 
+	in_FIPS_mode = 0;
+
+#ifdef OPENSSL_FIPS
+	if(getenv("OPENSSL_FIPS")) {
+#if defined(_WIN32)
+		char filename[MAX_PATH] = "";
+		GetModuleFileName( NULL, filename, MAX_PATH) ;
+		p = filename;
+#else
+		p = Argv[0];
+#endif
+		if (!FIPS_mode_set(1,p)) {
+			ERR_load_crypto_strings();
+			ERR_print_errors(BIO_new_fp(stderr,BIO_NOCLOSE));
+			exit(1);
+		}
+		in_FIPS_mode = 1;
+		if (getenv("OPENSSL_FIPS_MD5"))
+			FIPS_allow_md5(1);
+		}
+#endif
 	if (bio_err == NULL)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);

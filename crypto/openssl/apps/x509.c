@@ -168,7 +168,7 @@ int MAIN(int argc, char **argv)
 	char *CAkeyfile=NULL,*CAserial=NULL;
 	char *alias=NULL;
 	int text=0,serial=0,hash=0,subject=0,issuer=0,startdate=0,enddate=0;
-	int ocspid=0;
+	int next_serial=0,ocspid=0;
 	int noout=0,sign_flag=0,CA_flag=0,CA_createserial=0,email=0;
 	int trustout=0,clrtrust=0,clrreject=0,aliasout=0,clrext=0;
 	int C=0;
@@ -371,6 +371,8 @@ int MAIN(int argc, char **argv)
 			email= ++num;
 		else if (strcmp(*argv,"-serial") == 0)
 			serial= ++num;
+		else if (strcmp(*argv,"-next_serial") == 0)
+			next_serial= ++num;
 		else if (strcmp(*argv,"-modulus") == 0)
 			modulus= ++num;
 		else if (strcmp(*argv,"-pubkey") == 0)
@@ -591,12 +593,16 @@ bad:
 		if ((x=X509_new()) == NULL) goto end;
 		ci=x->cert_info;
 
-		if (sno)
+		if (sno == NULL)
 			{
-			if (!X509_set_serialNumber(x, sno))
+			sno = ASN1_INTEGER_new();
+			if (!sno || !rand_serial(NULL, sno))
 				goto end;
 			}
-		else if (!ASN1_INTEGER_set(X509_get_serialNumber(x),0)) goto end;
+
+		if (!X509_set_serialNumber(x, sno)) 
+			goto end;
+
 		if (!X509_set_issuer_name(x,req->req_info->subject)) goto end;
 		if (!X509_set_subject_name(x,req->req_info->subject)) goto end;
 
@@ -617,7 +623,7 @@ bad:
 		if (xca == NULL) goto end;
 		}
 
-	if (!noout || text)
+	if (!noout || text || next_serial)
 		{
 		OBJ_create("2.99999.3",
 			"SET.ex3","SET x509v3 extension 3");
@@ -690,6 +696,24 @@ bad:
 				BIO_printf(STDout,"serial=");
 				i2a_ASN1_INTEGER(STDout,x->cert_info->serialNumber);
 				BIO_printf(STDout,"\n");
+				}
+			else if (next_serial == i)
+				{
+				BIGNUM *bnser;
+				ASN1_INTEGER *ser;
+				ser = X509_get_serialNumber(x);
+				bnser = ASN1_INTEGER_to_BN(ser, NULL);
+				if (!bnser)
+					goto end;
+				if (!BN_add_word(bnser, 1))
+					goto end;
+				ser = BN_to_ASN1_INTEGER(bnser, NULL);
+				if (!ser)
+					goto end;
+				BN_free(bnser);
+				i2a_ASN1_INTEGER(out, ser);
+				ASN1_INTEGER_free(ser);
+				BIO_puts(out, "\n");
 				}
 			else if (email == i) 
 				{
@@ -1047,13 +1071,6 @@ static ASN1_INTEGER *x509_load_serial(char *CAfile, char *serialfile, int create
 		}
 	else
 		BUF_strlcpy(buf,serialfile,len);
-	serial=BN_new();
-	bs=ASN1_INTEGER_new();
-	if ((serial == NULL) || (bs == NULL))
-		{
-		ERR_print_errors(bio_err);
-		goto end;
-		}
 
 	serial = load_serial(buf, create, NULL);
 	if (serial == NULL) goto end;

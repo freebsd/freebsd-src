@@ -1395,6 +1395,7 @@ int MAIN(int argc, char **argv)
 					EVP_DecryptInit_ex(&ctx,evp_cipher,NULL,key16,iv);
 				else
 					EVP_EncryptInit_ex(&ctx,evp_cipher,NULL,key16,iv);
+				EVP_CIPHER_CTX_set_padding(&ctx, 0);
 
 				Time_F(START);
 				if(decrypt)
