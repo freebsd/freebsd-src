@@ -1,9 +1,9 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.5 1994/09/04 02:52:27 jkh Exp $
+#	$Id: sys.mk,v 1.6 1994/09/07 06:52:25 rgrimes Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
-.SUFFIXES: .out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .s .cl .p .h 
+.SUFFIXES:	.out .a .ln .o .c .cc .cxx .C .F .f .e .r .y .l .S .s .cl .p .h 
 
 .LIBS:		.a
 
@@ -85,6 +85,9 @@ YFLAGS		?=	-d
 
 .e.o .r.o .F.o .f.o:
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} -c ${.IMPSRC}
+
+.S.o:
+	${CC} ${CFLAGS} -c ${.IMPSRC}
 
 .s.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
