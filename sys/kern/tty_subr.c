@@ -6,7 +6,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.18 1995/11/20 12:15:45 phk Exp $
+ * $Id: tty_subr.c,v 1.19 1995/12/14 08:32:04 phk Exp $
  */
 
 /*
@@ -39,7 +39,7 @@ static void cblock_free __P((struct cblock *cblockp));
 static void cblock_free_cblocks __P((int number));
 
 #ifdef DDB
-void DDB_cbstat __P((void));
+static void DDB_cbstat __P((void));
 
 static void
 DDB_cbstat()
