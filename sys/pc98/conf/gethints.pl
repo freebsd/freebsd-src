@@ -12,6 +12,7 @@ while (<>) {
 	chop;
 	s/#.*//;
 	next unless /^device/;
+	s/"//g;
 	($dev, $nameunit, $at, $where, @rest) = split;
 	next unless $at eq "at" && $where ne "";
 	$name = $nameunit;
@@ -69,6 +70,10 @@ while (<>) {
 			if ($val ne "?") {
 				print "hint.$name.$unit.port=\"$val\"\n";
 			}
+			next;
+		}
+		if ($key eq "port?" || $key eq "drq?" || $key eq "irq?" ||
+		    $key eq "iomem?" || $key eq "iosiz?") {
 			next;
 		}
 		if ($key eq "irq" || $key eq "drq" || $key eq "drive" ||
