@@ -31,6 +31,7 @@ static const char rcsid[] =
 
 #include <calendar.h>
 #include <err.h>
+#include <langinfo.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -370,7 +371,10 @@ printeaster(int y, int julian, int orthodox)
 	date    dt;
 	struct tm tm;
 	char    buf[80];
+	static int d_first = -1;
 
+	if (d_first < 0)
+		d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 	/* force orthodox easter for years before 1583 */
 	if (y < 1583)
 		orthodox = 1;
@@ -387,7 +391,7 @@ printeaster(int y, int julian, int orthodox)
 	tm.tm_year = dt.y - 1900;
 	tm.tm_mon  = dt.m - 1;
 	tm.tm_mday = dt.d;
-	strftime(buf, sizeof(buf), "%EF %Y",  &tm);
+	strftime(buf, sizeof(buf), d_first ? "%e %B %Y" : "%B %e %Y",  &tm);
 	printf("%s\n", buf);
 }
 
