@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.76 1995/03/05 21:41:40 jkh Exp $
+ *	$Id: conf.c,v 1.77 1995/03/05 22:24:59 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -955,6 +955,26 @@ d_ioctl_t ispyioctl;
 #define ispyioctl       nxioctl
 #endif
 
+#include "rc.h"
+#if NRC > 0
+d_open_t        rcopen;
+d_close_t       rcclose;
+d_rdwr_t        rcread, rcwrite;
+d_ioctl_t       rcioctl;
+d_stop_t        rcstop;
+d_ttycv_t       rcdevtotty;
+#define rcreset        nxreset
+#else
+#define rcopen         nxopen
+#define rcclose        nxclose
+#define rcread         nxread
+#define rcwrite        nxwrite
+#define rcioctl        nxioctl
+#define rcstop         nxstop
+#define rcreset        nxreset
+#define rcdevtotty     nxdevtotty
+#endif
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -1156,7 +1176,10 @@ struct cdevsw	cdevsw[] =
 	{ wormopen,	wormclose,	rawread,	rawwrite,	/*62*/
 	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
 	  seltrue,	nommap,		wormstrategy },
-	{ nxopen, nxclose, nxread,					/*63*/
+	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
+	  rcioctl,      rcstop,         rcreset,        rcdevtotty,/* rc */
+	  ttselect,	nommap,		NULL },
+	{ nxopen, nxclose, nxread,                                      /*64*/
 	  nxwrite, nxioctl, nxstop,				   /* Talisman*/
 	  nxreset, nxdevtotty, nxselect,
 	  nxmmap, NULL },
