@@ -200,7 +200,6 @@ PMAP_STATS_VAR(pmap_ncache_remove_oc);
 PMAP_STATS_VAR(pmap_ncache_remove_cc);
 PMAP_STATS_VAR(pmap_ncache_remove_coc);
 PMAP_STATS_VAR(pmap_ncache_remove_nc);
-PMAP_STATS_VAR(pmap_niflush);
 PMAP_STATS_VAR(pmap_nzero_page);
 PMAP_STATS_VAR(pmap_nzero_page_c);
 PMAP_STATS_VAR(pmap_nzero_page_oc);
@@ -1499,7 +1498,6 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		 */
 		if ((prot & VM_PROT_EXECUTE) != 0) {
 			if ((data & TD_EXEC) == 0) {
-				PMAP_STATS_INC(pmap_niflush);
 				icache_page_inval(pa);
 			}
 			tp->tte_data |= TD_EXEC;
@@ -1536,7 +1534,6 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			data |= TD_SW;
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
-			PMAP_STATS_INC(pmap_niflush);
 			icache_page_inval(pa);
 		}
 
