@@ -266,6 +266,9 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x16   12.7  (0.5)   48        394  (10,000)  MFM   C   X3.193-1990  1
 0x17   12.7  (0.5)   48      1,673  (42,500)  MFM   C   X3B5/91-174  1
 0x18   12.7  (0.5)  112      1,673  (42,500)  MFM   C   X3B5/92-50   1
+0x19   12.7  (0.5)  128      2,460  (62,500)  RLL   C   DLTapeIII    6,7
+0x1A   12.7  (0.5)  128      3,214  (81,633)  RLL   C   DLTapeIV(20) 6,7
+0x1B   12.7  (0.5)  208      3,383  (85,937)  RLL   C   DLTapeIV(35) 6,7
 0x1C    6.3  (0.25)  34      1,654  (42,000)  MFM   C   QIC-385M     1,6
 0x1D    6.3  (0.25)  32      1,512  (38,400)  GCR   C   QIC-410M     1,6
 0x1E    6.3  (0.25)  30      1,385  (36,000)  GCR   C   QIC-1000C    1,6
@@ -282,6 +285,7 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x29   12.7  (0.5)
 0x2A
 0x2B   12.7  (0.5)    3          ?        ?     ?   C   X3.267       5
+0x41   12.7  (0.5)  208      3,868  (98,250)  RLL   C   DLTapeIV(40) 6,7
 .Ed
 .Bd -literal -offset 3n
 Code Description                                   Type Description
@@ -302,6 +306,8 @@ NOTES
 5. Helical scan.
 6. This is not an American National Standard.  The reference is based on
    an industry standard definition of the media format.
+7. DLT recording: serially recorded track pairs (DLTapeIII and
+   DLTapeIV(20)), or track quads (DLTapeIV(35) and DLTapeIV(40)).
 .Ed
 .Sh ENVIRONMENT
 If the following environment variable exists, it is utilized by
