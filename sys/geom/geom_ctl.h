@@ -50,8 +50,6 @@ enum gctl_request {
 	GCTL_DESTROY_PROVIDER,
 	GCTL_INSERT_GEOM,
 	GCTL_ELIMINATE_GEOM,
-	GCTL_WRITE_META,
-	GCTL_READ_META
 };
 
 #ifdef GCTL_TABLE
@@ -61,24 +59,21 @@ struct gctl_req_table {
 	int             	provider;
 	int             	consumer;
 	int             	params;
-	int             	meta;
 	char			*name;
 	enum gctl_request	request;
 } gcrt[] = {
-/*        Cl Ge Pr Co Pa Me Name                Request			*/
-	{ 1, 0, 1, 0, 1, 0, "create geom",	GCTL_CREATE_GEOM            },
-	{ 0, 1, 0, 0, 1, 0, "destroy geom",	GCTL_DESTROY_GEOM           },
-	{ 0, 1, 1, 0, 1, 0, "attach",		GCTL_ATTACH                 },
-	{ 0, 1, 1, 0, 1, 0, "detach",		GCTL_DETACH                 },
-	{ 0, 1, 0, 0, 1, 0, "create provider",	GCTL_CREATE_PROVIDER        },
-	{ 0, 1, 1, 0, 1, 0, "destroy provider",	GCTL_DESTROY_PROVIDER       },
-	{ 1, 1, 1, 0, 1, 0, "insert geom",	GCTL_INSERT_GEOM            },
-	{ 0, 1, 0, 0, 1, 0, "eliminate geom",	GCTL_ELIMINATE_GEOM         },
-	{ 0, 1, 0, 0, 1, 1, "write meta",	GCTL_WRITE_META             },
-	{ 0, 1, 0, 0, 1, 1, "read meta",	GCTL_READ_META              },
+/*        Cl Ge Pr Co Pa Name                Request			*/
+	{ 1, 0, 1, 0, 1, "create geom",		GCTL_CREATE_GEOM            },
+	{ 0, 1, 0, 0, 1, "destroy geom",	GCTL_DESTROY_GEOM           },
+	{ 0, 1, 1, 0, 1, "attach",		GCTL_ATTACH                 },
+	{ 0, 1, 1, 0, 1, "detach",		GCTL_DETACH                 },
+	{ 0, 1, 0, 0, 1, "create provider",	GCTL_CREATE_PROVIDER        },
+	{ 0, 1, 1, 0, 1, "destroy provider",	GCTL_DESTROY_PROVIDER       },
+	{ 1, 1, 1, 0, 1, "insert geom",		GCTL_INSERT_GEOM            },
+	{ 0, 1, 0, 0, 1, "eliminate geom",	GCTL_ELIMINATE_GEOM         },
 
 	/* Terminator entry */
-	{ 1, 1, 1, 1, 1, 1, "*INVALID*",	GCTL_INVALID_REQUEST        }
+	{ 1, 1, 1, 1, 1, "*INVALID*",		GCTL_INVALID_REQUEST        }
 };
 
 #endif /* GCTL_TABLE */
