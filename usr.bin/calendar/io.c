@@ -32,13 +32,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)calendar.c	8.3 (Berkeley) 3/25/94";
+static const char sccsid[] = "@(#)calendar.c  8.3 (Berkeley) 3/25/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)calendar.c	8.3 (Berkeley) 3/25/94";
 #include <unistd.h>
 #include <err.h>
 #include <errno.h>
+#include <locale.h>
 #include <string.h>
 #include <sys/uio.h>
 #include <sys/time.h>
@@ -65,13 +66,13 @@ char *calendarHome = ".calendar"; /* HOME */
 char *calendarNoMail = "nomail";  /* don't sent mail if this file exist */
 
 struct iovec header[] = {
-	"From: ", 6,
-	NULL, 0,
-	" (Reminder Service)\nTo: ", 24,
-	NULL, 0,
-	"\nSubject: ", 10,
-	NULL, 0,
-	"'s Calendar\nPrecedence: bulk\n\n",  30,
+	{"From: ", 6},
+	{NULL, 0},
+	{" (Reminder Service)\nTo: ", 24},
+	{NULL, 0},
+	{"\nSubject: ", 10},
+	{NULL, 0},
+	{"'s Calendar\nPrecedence: bulk\n\n",  30},
 };
 
 
@@ -81,7 +82,7 @@ cal()
 	register int printing;
 	register char *p;
 	FILE *fp;
-	int ch;
+	int ch, l;
 	int month;
 	int day;
 	int var;
@@ -94,8 +95,18 @@ cal()
 			*p = '\0';
 		else
 			while ((ch = getchar()) != '\n' && ch != EOF);
+		for (l = strlen(buf);
+		     l > 0 && isspace((unsigned char)buf[l - 1]);
+		     l--)
+			;
+		buf[l] = '\0';
 		if (buf[0] == '\0')
 			continue;
+		if (strncmp(buf, "LANG=", 5) == 0) {
+			(void) setlocale(LC_ALL, buf + 5);
+			setnnames();
+			continue;
+		}
 		if (buf[0] != '\t') {
 			printing = isnow(buf, &month, &day, &var) ? 1 : 0;
 			if ((p = strchr(buf, '\t')) == NULL)
@@ -120,23 +131,23 @@ getfield(p, endp, flags)
 	int val, var;
 	char *start, savech;
 
-	for (; !isdigit(*p) && !isalpha(*p) && *p != '*'; ++p);
+	for (; !isdigit((unsigned char)*p) && !isalpha((unsigned char)*p) && *p != '*'; ++p);
 	if (*p == '*') {			/* `*' is current month */
 		*flags |= F_ISMONTH;
 		*endp = p+1;
 		return (tp->tm_mon + 1);
 	}
-	if (isdigit(*p)) {
+	if (isdigit((unsigned char)*p)) {
 		val = strtol(p, &p, 10);	/* if 0, it's failure */
-		for (; !isdigit(*p) && !isalpha(*p) && *p != '*'; ++p);
+		for (; !isdigit((unsigned char)*p) && !isalpha((unsigned char)*p) && *p != '*'; ++p);
 		*endp = p;
 		return (val);
 	}
-	for (start = p; isalpha(*++p););
+	for (start = p; isalpha((unsigned char)*++p););
 	
 	/* Sunday-1 */
 	if (*p == '+' || *p == '-') 
-	    for(; isdigit(*++p););
+	    for(; isdigit((unsigned char)*++p););
 	    
 	savech = *p;
 	*p = '\0';
@@ -163,12 +174,16 @@ getfield(p, endp, flags)
 	else if ((val = geteaster(start, tp->tm_year + 1900)) != 0)
 	    *flags |= F_EASTER;
 
+	/* Paskha */
+	else if ((val = getpaskha(start, tp->tm_year + 1900)) != 0)
+	    *flags |= F_EASTER;
+
 	/* undefined rest */
 	else {
 		*p = savech;
 		return (0);
 	}
-	for (*p = savech; !isdigit(*p) && !isalpha(*p) && *p != '*'; ++p);
+	for (*p = savech; !isdigit((unsigned char)*p) && !isalpha((unsigned char)*p) && *p != '*'; ++p);
 	*endp = p;
 	return (val);
 }

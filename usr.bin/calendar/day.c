@@ -32,7 +32,10 @@
  */
 
 
+#include <ctype.h>
+#include <locale.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <time.h>
 #include <sys/uio.h>
@@ -57,19 +60,83 @@ static char *days[] = {
 	"sun", "mon", "tue", "wed", "thu", "fri", "sat", NULL,
 };
 
+static char *fndays[8];         /* full national days names */
+static char *ndays[8];          /* short national days names */
+
 static char *months[] = {
 	"jan", "feb", "mar", "apr", "may", "jun",
 	"jul", "aug", "sep", "oct", "nov", "dec", NULL,
 };
 
+static char *fnmonths[13];      /* full national months names */
+static char *nmonths[13];       /* short national month names */
 
 
+void setnnames(void)
+{
+	char buf[80];
+	int i, l;
+	struct tm tm;
+
+	for (i = 0; i < 7; i++) {
+		tm.tm_wday = i;
+		strftime(buf, sizeof(buf), "%a", &tm);
+		for (l = strlen(buf);
+		     l > 0 && isspace((unsigned char)buf[l - 1]);
+		     l--)
+			;
+		buf[l] = '\0';
+		if (ndays[i] != NULL)
+			free(ndays[i]);
+		ndays[i] = strdup(buf);
+
+		strftime(buf, sizeof(buf), "%A", &tm);
+		for (l = strlen(buf);
+		     l > 0 && isspace((unsigned char)buf[l - 1]);
+		     l--)
+			;
+		buf[l] = '\0';
+		if (fndays[i] != NULL)
+			free(fndays[i]);
+		fndays[i] = strdup(buf);
+#ifdef DEBUG
+		printf("ndays[%d] = %s, fndays[%d] = %s\n",
+			i, ndays[i], i, fndays[i]);
+#endif
+	}
+
+	for (i = 0; i < 12; i++) {
+		tm.tm_mon = i;
+		strftime(buf, sizeof(buf), "%b", &tm);
+		for (l = strlen(buf);
+		     l > 0 && isspace((unsigned char)buf[l - 1]);
+		     l--)
+			;
+		buf[l] = '\0';
+		if (nmonths[i] != NULL)
+			free(nmonths[i]);
+		nmonths[i] = strdup(buf);
+
+		strftime(buf, sizeof(buf), "%B", &tm);
+		for (l = strlen(buf);
+		     l > 0 && isspace((unsigned char)buf[l - 1]);
+		     l--)
+			;
+		buf[l] = '\0';
+		if (fnmonths[i] != NULL)
+			free(fnmonths[i]);
+		fnmonths[i] = strdup(buf);
+#ifdef DEBUG
+		printf("nmonths[%d] = %s, fnmonths[%d] = %s\n",
+			i, nmonths[i], i, fnmonths[i]);
+#endif
+	}
+}
 
 void
 settime(now)
     	time_t now;
 {
-
 	tp = localtime(&now);
 	if ( isleap(tp->tm_year + 1900) ) {
 		yrdays = 366;
@@ -81,7 +148,12 @@ settime(now)
 	/* Friday displays Monday's events */
 	offset = tp->tm_wday == 5 ? 3 : 1;
 	header[5].iov_base = dayname;
+
+	(void) setlocale(LC_TIME, "C");
 	header[5].iov_len = strftime(dayname, sizeof(dayname), "%A", tp);
+	(void) setlocale(LC_TIME, "");
+
+	setnnames();
 }
 
 /* convert Day[/Month][/Year] into unix time (since 1970)
@@ -149,7 +221,7 @@ isnow(endp, monthp, dayp, varp)
 	int	*dayp;
 	int	*varp;
 {
-	int day, flags, month, v1, v2;
+	int day, flags, month = 0, v1, v2;
 
 	/* 
 	 * CONVENTION
@@ -317,6 +389,12 @@ getmonth(s)
 {
 	register char **p;
 
+	for (p = fnmonths; *p; ++p)
+		if (!strncasecmp(s, *p, strlen(*p)))
+			return ((p - fnmonths) + 1);
+	for (p = nmonths; *p; ++p)
+		if (!strncasecmp(s, *p, strlen(*p)))
+			return ((p - nmonths) + 1);
 	for (p = months; *p; ++p)
 		if (!strncasecmp(s, *p, 3))
 			return ((p - months) + 1);
@@ -330,6 +408,12 @@ getday(s)
 {
 	register char **p;
 
+	for (p = fndays; *p; ++p)
+		if (!strncasecmp(s, *p, strlen(*p)))
+			return ((p - fndays) + 1);
+	for (p = ndays; *p; ++p)
+		if (!strncasecmp(s, *p, strlen(*p)))
+			return ((p - ndays) + 1);
 	for (p = days; *p; ++p)
 		if (!strncasecmp(s, *p, 3))
 			return ((p - days) + 1);

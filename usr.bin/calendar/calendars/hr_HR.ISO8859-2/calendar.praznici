@@ -1,11 +1,13 @@
 /*
  * hrvatski praznici
  *
- * $Id: calendar.croatian,v 1.2 1996/01/30 23:35:08 wosch Exp $
+ * $Id: calendar.praznici,v 1.1 1996/02/09 14:35:02 wosch Exp $
  */
 
 #ifndef _hr_HR_ISO_8859_2_praznici
 #define _hr_HR_ISO_8859_2_praznici
+
+LANG=hr_HR.ISO_8859-2
 
 /* slobodni dr¾avni praznici */
 01/01	Nova godina

@@ -1,10 +1,11 @@
 /* 
  * Copyright (c) 1995 Wolfram Schneider. Public domain.
  *
- * $Id: ostern.c,v 1.2 1996/02/01 13:05:12 wosch Exp $
+ * $Id: ostern.c,v 1.1 1996/02/02 06:02:40 wosch Exp $
 */
 
 #include <string.h>
+#include <stdlib.h>
 
 /* return year day for Easter */
 

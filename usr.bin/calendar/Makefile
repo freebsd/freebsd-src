@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
 PROG=	calendar
-SRCS=   calendar.c io.c day.c ostern.c
+SRCS=   calendar.c io.c day.c ostern.c paskha.c
+CFLAGS+= -Wall
 INTER=		de_DE.ISO_8859-1 hr_HR.ISO_8859-2
 TEXTMODE?=	444
 
