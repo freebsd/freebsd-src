@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.7 1994/09/24 21:37:01 davidg Exp $
+ * $Id: exec.h,v 1.8 1994/10/02 17:24:41 phk Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -60,8 +60,9 @@ struct ps_strings {
 /*
  * Address of ps_strings structure (in user space).
  */
-#define	PS_STRINGS \
-	((struct ps_strings *)(USRSTACK - sizeof(struct ps_strings)))
+#define SPARE_USRSPACE	256
+#define	PS_STRINGS ((struct ps_strings *) \
+		(USRSTACK - sizeof(struct ps_strings) - SPARE_USRSPACE))
 
 /*
  * Arguments to the exec system call.
