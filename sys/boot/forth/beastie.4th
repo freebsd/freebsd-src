@@ -173,6 +173,7 @@ set-current
 			acpienabled? if
 				s" acpi_load" unsetenv
 				s" 1" s" hint.acpi.0.disabled" setenv
+				s" 1" s" loader.acpi_disabled_by_user" setenv
 			else
 				s" YES" s" acpi_load" setenv
 				s" 0" s" hint.acpi.0.disabled" setenv
@@ -183,6 +184,7 @@ set-current
 			s" arch-i386" environment? if
 				s" acpi_load" unsetenv
 				s" 1" s" hint.acpi.0.disabled" setenv
+				s" 1" s" loader.acpi_disabled_by_user" setenv
 			then
 			s" 0" s" hw.ata.ata_dma" setenv
 			s" 0" s" hw.ata.atapi_dma" setenv
