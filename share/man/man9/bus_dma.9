@@ -1,0 +1,720 @@
+.\" Copyright (c) 2002, 2003 Hiten M. Pandya.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions, and the following disclaimer,
+.\"    without modification, immediately at the beginning of the file.
+.\" 2. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR, CONTRIBUTORS OR THE
+.\" VOICES IN HITEN PANDYA'S HEAD BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+.\" TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\" PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Copyright (c) 1996, 1997, 1998, 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Jason R. Thorpe of the Numerical Aerospace Simulation Facility,
+.\" NASA Ames Research Center.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgment:
+.\" 	This product includes software developed by the NetBSD
+.\" 	Foundation, Inc. and its contributors.
+.\" 4. Neither the name of The NetBSD Foundation nor the names of its
+.\"    contributors may be used to endorse or promote products derived
+.\"    from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
+.\"
+.Dd May 28, 2003
+.Dt BUS_DMA 9
+.Os
+.Sh NAME
+.Nm bus_dma ,
+.Nm bus_dma_tag_create ,
+.Nm bus_dma_tag_destroy ,
+.Nm bus_dmamap_create ,
+.Nm bus_dmamap_destroy ,
+.Nm bus_dmamap_load ,
+.Nm bus_dmamap_load_mbuf ,
+.Nm bus_dmamap_load_uio ,
+.Nm bus_dmamap_unload ,
+.Nm bus_dmamap_sync ,
+.Nm bus_dmamem_alloc ,
+.Nm bus_dmamem_free ,
+.Nd Bus and Machine Independent DMA Mapping Interface
+.Sh SYNOPSIS
+.In machine/bus.h
+.Ft int
+.Fn bus_dma_tag_create "bus_dma_tag_t parent" "bus_size_t alignment" \
+"bus_size_t boundary" "bus_addr_t lowaddr" "bus_addr_t highaddr" \
+"bus_dma_filter_t *filtfunc" "void *filtfuncarg" "bus_size_t maxsize" \
+"int nsegments" "bus_size_t maxsegsz" "int flags" "bus_dma_tag_t *dmat"
+.Ft int
+.Fn bus_dma_tag_destroy "bus_dma_tag_t dmat"
+.Ft int
+.Fn bus_dmamap_create "bus_dma_tag_t dmat" "int flags" "bus_dmamap_t *mapp"
+.Ft int
+.Fn bus_dmamap_destroy "bus_dma_tag_t dmat" "bus_dmamap_t map"
+.Ft int
+.Fn bus_dmamap_load "bus_dma_tag_t dmat" "bus_dmamap_t map" "void *buf" \
+"bus_size_t buflen" "bus_dmamap_callback_t *callback" "void *callback_arg" \
+"int flags"
+.Ft int
+.Fn bus_dmamap_load_mbuf "bus_dma_tag_t dmat" "bus_dmamap_t map" \
+"struct mbuf *mbuf" "bus_dmamap_callback2_t *callback" "void *callback_arg" \
+"int flags"
+.Ft int
+.Fn bus_dmamap_load_uio "bus_dma_tag_t dmat" "bus_dmamap_t map" \
+"struct uio *uio" "bus_dmamap_callback2_t *callback" "void *callback_arg" \
+"int flags"
+.Ft int
+.Fn bus_dmamem_alloc "bus_dma_tag_t dmat" "void **vaddr" \
+"int flags" "bus_dmamap_t *mapp"
+.Ft void
+.Fn bus_dmamap_unload "bus_dma_tag_t dmat" "bus_dmamap_t map"
+.Ft void
+.Fn bus_dmamap_sync "bus_dma_tag_t dmat" "bus_dmamap_t map" \
+"op"
+.Ft void
+.Fn bus_dmamem_free "bus_dma_tag_t dmat" "void *vaddr" \
+"bus_dmamap_t map"
+.Sh DESCRIPTION
+Direct Memory Access (DMA) is a method of transferring data
+without involving the CPU, thus providing higher performance.
+A DMA transaction can be achieved between device to memory,
+device to device, or memory to memory.
+.Pp
+The
+.Nm
+API is a bus, device, and machine-independent (MI) interface to
+DMA mechanisms.
+It provides the client with flexibility and simplicity by
+abstracting machine dependent issues like setting up
+DMA mappings, handling cache issues, bus specific features
+and limitations.
+.Sh STRUCTURES AND TYPES
+.Bl -tag -width compact
+.It Vt bus_dma_tag_t
+A machine-dependent (MD) opaque type that describes the
+characteristics of DMA transactions.
+DMA tags are organized into a hierarchy, with each child
+tag inheriting the restrictions of its parent.
+This allows all devices along the path of DMA transactions
+to contribute to the constraints of those transactions.
+.It Vt bus_dma_filter_t
+Client specified address filter having the format:
+.Bl -tag -width compact
+.It Ft int
+.Fn "client_filter" "void *filtarg" "bus_addr_t testaddr"
+.El
+.sp
+Address filters can be specified during tag creation to allow
+for devices who's DMA address restrictions cannot be specified
+by a single window.
+The
+.Fa filtarg
+is client specified during tag creation to be passed to all
+invocations of the callback.
+The
+.Fa testaddr
+argument contains a potential starting address of a DMA mapping.
+The filter function operates on the set of addresses from
+.Fa testaddr
+to
+.Ql trunc_page(testaddr) + PAGE_SIZE - 1 ,
+inclusive.
+The filter function should return zero for any mapping in this range
+that can be accommodated by the device and non-zero otherwise.
+.It Vt bus_dma_segment_t
+A machine-dependent type that describes individual
+DMA segments.
+.Bd -literal
+	bus_addr_t	ds_addr;
+	bus_size_t	ds_len;
+.Ed
+.sp
+The
+.Fa ds_addr
+field contains the device visible address of the DMA segment, and
+.Fa ds_len
+contains the length of the DMA segment.
+Although the DMA segments returned by a mapping call will adhere to
+all restrictions necessary for a successful DMA operation, some conversion
+(e.g. a conversion from host byte order to the device's byte order) is
+almost always required when presenting segment information to the device.
+.It Vt bus_dmamap_t
+A machine-dependent opaque type describing an individual mapping.
+Multiple DMA maps can be associated with one DMA tag.
+.It Vt bus_dmamap_callback_t
+Client specified callback for receiving mapping information resulting from
+the load of a
+.Vt bus_dmamap_t
+via
+.Fn bus_dmamap_load .
+Callbacks are of the format:
+.Bl -tag -width compact
+.It Ft void
+.Fn "client_callback" "void *callback_arg" "bus_dma_segment_t *segs" \
+"int nseg" "int error"
+.El
+.sp
+The
+.Fa callback_arg
+is the callback argument passed to dmamap load functions.
+The 
+.Fa segs
+and
+.Fa nseg
+parameters describe an array of
+.Vt bus_dma_segment_t
+structures that represent the mapping.
+This array is only valid within the scope of the callback function.
+The success or failure of the mapping is indicated by the
+.Fa error
+parameter.
+More information on the use of callbacks can be found in the
+description of the individual dmamap load functions.
+.It Vt bus_dmamap_callback2_t
+Client specified callback for receiving mapping information resulting from
+the load of a
+.Vt bus_dmamap_t
+via
+.Fn bus_dmamap_load_uio
+or 
+.Fn bus_dmamap_load_mbuf .
+.sp
+Callback2s are of the format:
+.Bl -tag -width compact
+.It Ft void
+.Fn "client_callback2" "void *callback_arg" "bus_dma_segment_t *segs" \
+"int nseg" "bus_size_t mapsize" "int error"
+.El
+.sp
+Callback2's behavior is the same as
+.Vt bus_dmamap_callback_t
+with the addition that the length of the data mapped is provided via
+.Fa mapsize .
+.It Vt bus_dmasync_op_t
+Memory synchronization operation specifier.
+Bus DMA requires explicit synchronization of memory with it's device
+visible mapping in order to guarantee memory coherency.
+The
+.Vt bus_dmasync_op_t
+allows the type of DMA operation that will be or has been performed
+to be communicated to the system so that the correct coherency measures
+are taken.
+All operations specified below are performed from the DMA engine's
+point of view:
+.Bl -tag -width BUS_DMASYNC_POSTWRITE
+.It Dv BUS_DMASYNC_PREREAD
+Perform any synchronization required after an update of memory by the CPU
+but prior to DMA read operations.
+.It Dv BUS_DMASYNC_PREWRITE
+Perform any synchronization required after an update of memory by the CPU
+but prior to DMA write operations.
+.It Dv BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE
+Perform any synchronization required prior to a combination of DMA read
+and write operations.
+.It Dv BUS_DMASYNC_POSTREAD
+Perform any synchronization required after DMA read operations, but prior
+to CPU access of the memory.
+.It Dv BUS_DMASYNC_POSTWRITE
+Perform any synchronization required after DMA write operations, but prior
+to CPU access of the memory.
+.It Dv BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE
+Perform any synchronization required after a combination of DMA read
+and write operations.
+.El
+.El
+.Sh FUNCTIONS
+.Bl -tag -width compact
+.It Fn bus_dma_tag_create "parent" "alignment" "boundary" "lowaddr" \
+"highaddr" "*filtfunc" "*filtfuncarg" "maxsize" "nsegments" "maxsegsz" \
+"flags" "*dmat"
+Allocates a device specific DMA tag, and initializes it according to
+the arguments provided:
+.Bl -tag -width *filtfuncarg -compact
+.It Fa parent
+Indicates restrictions between the parent bridge, CPU memory, and the
+device.
+May be NULL, if no DMA restrictions are to be inherited.
+.It Fa alignment
+Alignment constraint, in bytes, of any mappings created using this tag.
+The alignment must be a power of 2.
+Hardware that can DMA starting at any address would specify
+.Em 1
+for byte alignment.
+Hardware requiring DMA transfers to start on a multiple of 4K
+would specify
+.Em 4096.
+.It Fa boundary
+Boundary constraint, in bytes, of the target DMA memory region.
+The boundary indicates the set of addresses, all multiples of the
+boundary argument, that cannot be crossed by a single
+.Vt bus_dma_segment_t .
+The boundary must be either a power of 2 or 0.
+.Ql 0
+indicates that there are no boundary restrictions.
+.It Fa lowaddr
+.It Fa highaddr
+Bounds of the window of bus address space that
+.Em cannot
+be directly accessed by the device.
+The window contains all address greater than lowaddr and
+less than or equal to highaddr.
+For example, a device incapable of DMA above 4GB, would specify
+a highaddr of
+.Dv BUS_SPACE_MAXADDR
+and a lowaddr of
+.Dv BUS_SPACE_MAXADDR_32BIT .
+Similarly a device that can only dma to addresses bellow 16MB would
+specify a highaddr of
+.Dv BUS_SPACE_MAXADDR
+and a lowaddr of
+.Dv BUS_SPACE_MAXADDR_24BIT .
+Some implementations requires that some region of device visible
+address space, overlapping available host memory, be outside the
+window.
+This area of
+.Ql safe memory
+is used to bounce requests that would otherwise conflict with
+the exclusion window.
+.It Fa filtfunc
+Optional filter function (may be NULL) to be called for any attempt to
+map memory into the window described by
+.Fa lowaddr
+and
+.Fa highaddr.
+A filter function is only required when the single window described
+by
+.Fa lowaddr
+and
+.Fa highaddr
+cannot adequately describe the constraints of the device.
+The filter function will be called for every machine page
+that overlaps the exclusion window.
+.It Fa filtfuncarg
+Argument passed to all calls to the filter function for this tag.
+May be NULL.
+.It Fa maxsegsz
+Maximum size, in bytes, of a segment in any DMA mapped region associated
+with
+.Fa dmat .
+.It Fa maxsize
+Maximum size, in bytes, of the sum of all segment lengths in a given
+DMA mapping associated with this tag.
+.It Fa nsegments
+Number of discontinuities (scatter/gather segments) allowed
+in a DMA mapped region.
+If there is no restriction, 
+.Dv BUS_SPACE_UNRESTRICTED
+may be specified.
+.It Fa flags
+Are as follows:
+.Bl -tag -width "BUS_DMA_ALLOCNOW" -compact
+.It Dv BUS_DMA_ALLOCNOW
+Allocate the resources necessary to guarantee that all map load
+operations associated with this tag will not block.
+If sufficient resources are not available,
+.Er ENOMEM
+is returned.
+.El
+.It Fa dmat
+Pointer to a bus_dma_tag_t where the resulting DMA tag will 
+be stored.
+.El
+.Pp
+Returns
+.Er ENOMEM
+if sufficient memory is not available for tag creation
+or allocating mapping resources.
+.It Fn bus_dma_tag_destroy "dmat"
+Deallocate the DMA tag
+.Fa dmat
+that was created by
+.Fn bus_dma_tag_create .
+.Pp
+Returns
+.Er EBUSY
+if any DMA maps remain associated with
+.Fa dmat
+or
+.Ql 0
+on success.
+.It Fn bus_dmamap_create "dmat" "flags" "*mapp"
+Allocates and initializes a DMA map.
+Arguments are as follows:
+.Bl -tag -width nsegments -compact
+.It Fa dmat
+DMA tag.
+.It Fa flags
+The value of this argument is currently undefined and should be
+specified as
+.Ql 0 .
+.It Fa mapp
+Pointer to a
+.Vt bus_dmamap_t
+where the resulting DMA map will be stored.
+.El
+.Pp
+Returns
+.Er ENOMEM
+if sufficient memory is not available for creating the
+map or allocating mapping resources.
+.It Fn bus_dmamap_destroy "dmat" "map"
+Frees all resources associated with a given DMA map.
+Arguments are as follows:
+.Bl -tag -width dmat -compact
+.It Fa dmat
+DMA tag used to allocate
+.Fa map .
+.It Fa map
+The DMA map to destroy.
+.El
+.Pp
+Returns
+.Er EBUSY
+if a mapping is still active for
+.Fa map .
+.It Fn bus_dmamap_load "dmat" "map" "buf" "buflen" "*callback" "..."
+Creates a mapping in device visible address space of
+.Fa buflen
+bytes of
+.Fa buf ,
+associated with the DMA map
+.Fa map.
+Arguments are as follows:
+.Bl -tag -width buflen -compact
+.It Fa dmat
+DMA tag used to allocate
+.Fa map.
+.It Fa map
+A DMA map without a currently active mapping.
+.It Fa buf
+A kernel virtual address pointer to a contiguous (in KVA) buffer, to be
+mapped into device visible address space.
+.It Fa buflen
+The size of the buffer.
+.It Fa callback Fa callback_arg
+The callback function, and its argument.
+.It Fa flags
+The value of this argument is currently undefined, and should be
+specified as
+.Ql 0 .
+.El
+.Pp
+Return values to the caller are as follows:
+.Bl -tag -width EINPROGRESS -compact
+.It 0
+The callback has been called and completed.
+The status of the mapping has been delivered to the callback.
+.It Er EINPROGRESS
+The mapping has been deferred for lack of resources.
+The callback will be called as soon as resources are available.
+Callbacks are serviced in FIFO order.
+DMA maps created from DMA tags that are allocated with
+the
+.Dv BUS_DMA_ALLOCNOW
+flag will never return this status for a load operation.
+.It Er EINVAL
+The load request was invalid.
+The callback has not, and will not be called.
+This error value may indicate that
+.Fa dmat ,
+.Fa map ,
+.Fa buf ,
+or
+.Fa callback
+were invalid, or
+.Fa buslen
+was larger than the
+.Fa maxsize
+argument used to create the dma tag
+.Fa dmat .
+.El
+.Pp
+When the callback is called, it is presented with an error value
+indicating the disposition of the mapping.
+Error may be one of the following:
+.Bl -tag -width EINPROGRESS -compact
+.It 0
+The mapping was successful and the
+.Fa dm_segs
+callback argument contains an array of
+.Vt bus_dma_segment_t
+elements describing the mapping.
+This array is only valid during the scope of the callback function.
+.It Er EFBIG
+A mapping could not be achieved within the segment constraints provided
+in the tag even though the requested allocation size was less than maxsize.
+.El
+.It Fn bus_dmamap_load_mbuf "dmat" "map" "mbuf" "callback2" "callback_arg" \
+"flags"
+This is a variation of
+.Fn bus_dmamap_load
+which maps mbuf chains
+for DMA transfers.
+A
+.Vt bus_size_t
+argument is also passed to the callback routine, which
+contains the mbuf chain's packet header length.
+.Pp
+Mbuf chains are assumed to be in kernel virtual address space.
+.Pp
+Returns
+.Er EINVAL
+if the size of the mbuf chain exceeds the maximum limit of the
+DMA tag.
+.It Fn bus_dmamap_load_uio "dmat" "map" "uio" "callback2" "callback_arg" "flags"
+This is a variation of
+.Fn bus_dmamap_load
+which maps buffers pointed to by
+.Fa uio
+for DMA transfers.
+A
+.Vt bus_size_t
+argument is also passed to the callback routine, which contains the size of
+.Fa uio ,
+i.e.
+.Fa uio->uio_resid .
+.Pp
+If
+.Fa uio->uio_segflg
+is
+.Dv UIO_USERSPACE ,
+then it is assumed that the buffer,
+.Fa uio
+is in
+.Fa "uio->uio_td->td_proc" Ns 's
+address space.
+User space memory must be in-core and wired prior to attempting a map
+load operation.
+.It Fn bus_dmamap_unload "dmat" "map"
+Unloads a DMA map.
+Arguments are as follows:
+.Bl -tag -width dmam -compact
+.It Fa dmat
+DMA tag used to allocate
+.Fa map .
+.It Fa map
+The DMA map that is to be unloaded.
+.El
+.Pp
+.Fn bus_dmamap_unload
+will not perform any implicit synchronization of DMA buffers.
+This must be done explicitly by a call to
+.Fn bus_dmamap_sync
+prior to unloading the map.
+.It Fn bus_dmamap_sync "dmat" "map" "op"
+Performs synchronization of a device visible mapping with the CPU visible
+memory referenced by that mapping.
+Arguments are as follows:
+.Bl -tag -width dmat -compact
+.It Fa dmat
+DMA tag used to allocate
+.Fa map .
+.It Fa map
+The DMA mapping to be synchronized.
+.It Fa op
+Type of synchronization operation to perform.
+See the definition of
+.Vt bus_dmasync_op_t
+for a description of the acceptable values for
+.Fa op .
+.El
+.Pp
+.Fn bus_dmamap_sync
+is the method used to ensure that CPU and device DMA access to shared
+memory is coherent.
+For example, the CPU might be used to setup the contents of a buffer
+that is to be DMA'ed into a device.
+To ensure that the data are visible via the device's mapping of that
+memory, the buffer must be loaded and a dma sync operation of
+.Dv BUS_DMASYNC_PREREAD
+must be performed.
+Additional sync operations must be performed after every CPU write
+to this memory if additional DMA reads are to be performed.
+Conversely, for the DMA write case, the buffer must be loaded,
+and a dma sync operation of
+.Dv BUS_DMASYNC_PREWRITE
+must be performed.
+The CPU will only be able to see the results of this DMA write
+once the DMA has completed and a
+.Dv BUS_DMASYNC_POSTWRITE
+operation has been performed.
+.Pp
+If DMA read and write operations are not preceded and followed by the
+appropriate synchronization operations, behavior is undefined.
+.It Fn bus_dmamem_alloc "dmat" "**vaddr" "flags" "mapp"
+Allocates memory that is mapped into KVA at the address returned
+in
+.Fa vaddr
+that is permanently loaded into the newly created
+.Vt bus_dmamap_t
+returned via
+.Fa mapp .
+Arguments are as follows:
+.Bl -tag -width alignment -compact
+.It Fa dmat 
+DMA tag describing the constraints of the DMA mapping.
+.It Fa vaddr
+Pointer to a pointer that will hold the returned KVA mapping of
+the allocated region.
+.It Fa flags
+Flags are defined as follows:
+.Bl -tag -width BUS_DMA_NOWAIT -compact
+.It Dv BUS_DMA_WAITOK
+The routine can safely wait (sleep) for resources.
+.It Dv BUS_DMA_NOWAIT
+The routine is not allowed to wait for resources.
+If resources are not available, 
+.Dv ENOMEM
+is returned.
+.It Dv BUS_DMA_COHERENT
+Attempt to map this memory such that cache sync operations are
+as cheap as possible.
+This flag is typically set on memory that will be accessed by both
+a CPU and a DMA engine, frequently.
+Use of this flag does not remove the requirement of using
+bus_dmamap_sync, but it may reduce the cost of performing
+these operations.
+.El
+.It Fa mapp
+Pointer to storage for the returned DMA map.
+.El
+.Pp
+The size of memory to be allocated is
+.Fa maxsize
+as specified in
+.Fa dmat .
+.Pp
+The current implementation of
+.Fn bus_dmamem_alloc
+will allocate all requests as a single segment.
+.Pp
+Although no explicit loading is required to access the memory
+referenced by the returned map, the synchronization requirements
+as described in the
+.Fn bus_dmamap_sync
+section still apply.
+.Pp
+Returns
+.Er ENOMEM
+if sufficient memory is not available for completing
+the operation.
+.It Fn bus_dmamem_free "dmat" "*vaddr" "map"
+Frees memory previously allocated by
+.Fn bus_dmamem_alloc .
+Any mappings
+will be invalidated.
+Arguments are as follows:
+.Bl -tag -width vaddr -compact
+.It Fa dmat
+DMA tag.
+.It Fa vaddr
+Kernel virtual address of the memory.
+.It Fa map
+DMA map to be invalidated.
+.El
+.El
+.Sh RETURN VALUES
+Behavior is undefined if invalid arguments are passed to
+any of the above functions.
+If sufficient resources cannot be allocated for a given
+transaction,
+.Er ENOMEM
+is returned.
+All
+routines that are not of type,
+.Vt void ,
+will return 0 on success or an error
+code, as discussed above.
+.Pp
+All
+.Vt void
+routines will succeed if provided with valid arguments.
+.Sh SEE ALSO
+.Xr devclass 9 ,
+.Xr device 9 ,
+.Xr driver 9 ,
+.Xr rman 9
+.Pp
+.Rs
+.%A "Jason R. Thorpe"
+.%T "A Machine-Independent DMA Framework for NetBSD"
+.%J "Proceedings of the Summer 1998 USENIX Technical Conference"
+.%Q "USENIX Association"
+.%D "June 1998"
+.Re
+.Sh HISTORY
+The
+.Nm
+interface first appeared in
+.Nx 1.3 .
+.Pp
+The
+.Nm
+API was adopted from
+.Nx
+for use in the CAM SCSI subsystem.
+The alterations to the original API were aimed to remove the need for
+a
+.Vt bus_dma_segment_t
+array stored in each
+.Vt bus_dmamap_t
+while allowing callers to queue up on scarce resources.
+.Sh AUTHORS
+The
+.Nm
+interface was designed and implemented by Jason R. Thorpe of the
+Numerical Aerospace Simulation Facility, NASA Ames Research Center.
+Additional input on the
+.Nm
+design was provided by Chris Demetriou, Charles Hannum, Ross Harvey,
+Matthew Jacob, Jonathan Stone, and Matt Thomas.
+.Pp
+The
+.Nm
+interface in
+.Fx
+benefits from the contributions of Justin T. Gibbs,
+Peter Wemm, Doug Rabson, Matthew N. Dodd, Sam Leffler,
+Maxime Henrion, Jake Burkholder, Takahashi Yoshihiro,
+Scott Long and many others.
+.Pp
+This manual page was written by Hiten M. Pandya and Justin T. Gibbs.
