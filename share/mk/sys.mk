@@ -40,7 +40,7 @@ CC		?=	cc
 CFLAGS		?=	-O -pipe
 
 CXX		?=	c++
-CXXFLAGS	?=	${CFLAGS:C/-std=[a-z:0-9]+//}
+CXXFLAGS	?=	${CFLAGS:N-std=*}
 
 CPP		?=	cpp
 
