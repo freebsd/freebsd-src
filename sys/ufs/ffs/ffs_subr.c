@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.2 (Berkeley) 9/21/93
- * $Id$
+ * $Id: ffs_subr.c,v 1.2 1994/08/02 07:54:22 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -71,7 +71,8 @@ ffs_blkatoff(ap)
 	bsize = blksize(fs, ip, lbn);
 
 	*ap->a_bpp = NULL;
-	if (error = bread(ap->a_vp, lbn, bsize, NOCRED, &bp)) {
+	error = bread(ap->a_vp, lbn, bsize, NOCRED, &bp);
+	if (error) {
 		brelse(bp);
 		return (error);
 	}
@@ -143,9 +144,9 @@ ffs_checkoverlap(bp, ip)
 		    ep->b_blkno + btodb(ep->b_bcount) <= start)
 			continue;
 		vprint("Disk overlap", vp);
-		(void)printf("\tstart %d, end %d overlap start %d, end %d\n",
-			start, last, ep->b_blkno,
-			ep->b_blkno + btodb(ep->b_bcount) - 1);
+		(void)printf("\tstart %lu, end %lu overlap start %lu, end %lu\n",
+			(u_long)start, (u_long)last, (u_long)ep->b_blkno,
+			(u_long)(ep->b_blkno + btodb(ep->b_bcount) - 1));
 		panic("Disk buffer overlap");
 	}
 }
