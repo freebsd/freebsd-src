@@ -8,6 +8,18 @@
 # dependency lines other than the first are silently ignored.
 #
 #
+linux_genassym.o		optional	compat_linux		\
+	dependency 	"$S/alpha/linux/linux_genassym.c"		\
+	compile-with	"${CC} ${CFLAGS} -c ${.IMPSRC}"			\
+	no-obj no-implicit-rule						\
+	clean		"linux_genassym.o"
+#
+linux_assym.h			optional	compat_linux		\
+	dependency 	"$S/kern/genassym.sh linux_genassym.o"		\
+	compile-with	"sh $S/kern/genassym.sh linux_genassym.o > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"linux_assym.h"
+#
 font8x16.o			optional	std8x16font		\
 	compile-with	"uudecode < /usr/share/syscons/fonts/${STD8X16FONT}-8x16.fnt && file2c 'unsigned char font_16[16*256] = {' '};' < ${STD8X16FONT}-8x16 > font8x16.c && ${CC} -c ${CFLAGS} font8x16.c"				\
 	no-implicit-rule before-depend					\
@@ -80,15 +92,28 @@ alpha/alpha/vm_machdep.c	standard
 alpha/isa/isa.c			optional	isa
 alpha/isa/isa_dma.c		optional	isa
 alpha/isa/mcclock_isa.c		optional	isa
+alpha/linux/linux_dummy.c	optional	compat_linux
+alpha/linux/linux_locore.s	optional	compat_linux		\
+	dependency 	"linux_assym.h"
+alpha/linux/linux_machdep.c	optional	compat_linux
+alpha/linux/linux_sysent.c	optional	compat_linux
+alpha/linux/linux_sysvec.c	optional	compat_linux
 alpha/mcbus/mcbus.c		optional	dec_kn300
 alpha/mcbus/mcmem.c		optional	dec_kn300
 alpha/mcbus/mcpcia.c		optional	dec_kn300
+alpha/osf1/imgact_osf1.c	optional	compat_linux
 alpha/osf1/imgact_osf1.c	optional	compat_osf1
+alpha/osf1/osf1_ioctl.c		optional	compat_linux
 alpha/osf1/osf1_ioctl.c		optional	compat_osf1
+alpha/osf1/osf1_misc.c		optional	compat_linux
 alpha/osf1/osf1_misc.c		optional	compat_osf1
+alpha/osf1/osf1_mount.c		optional	compat_linux
 alpha/osf1/osf1_mount.c		optional	compat_osf1
+alpha/osf1/osf1_signal.c	optional	compat_linux
 alpha/osf1/osf1_signal.c	optional	compat_osf1
+alpha/osf1/osf1_sysent.c	optional	compat_linux
 alpha/osf1/osf1_sysent.c	optional	compat_osf1
+alpha/osf1/osf1_sysvec.c	optional	compat_linux
 alpha/osf1/osf1_sysvec.c	optional	compat_osf1
 alpha/pci/alphapci_if.m		optional	pci
 alpha/pci/apecs.c		optional	dec_2100_a50
@@ -149,6 +174,15 @@ alpha/tlsb/tlsb.c		optional	dec_kn8ae
 alpha/tlsb/tlsbcpu.c		optional	dec_kn8ae
 alpha/tlsb/tlsbmem.c		optional	dec_kn8ae
 alpha/tlsb/zs_tlsb.c		optional	dec_kn8ae
+compat/linux/linux_file.c	optional	compat_linux
+compat/linux/linux_ioctl.c	optional	compat_linux
+compat/linux/linux_ipc.c	optional	compat_linux
+compat/linux/linux_mib.c	optional	compat_linux
+compat/linux/linux_misc.c	optional	compat_linux
+compat/linux/linux_signal.c	optional	compat_linux
+compat/linux/linux_socket.c	optional	compat_linux
+compat/linux/linux_stats.c	optional	compat_linux
+compat/linux/linux_util.c	optional	compat_linux
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/dec/mcclock.c		optional	mcclock
