@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: kbd.c,v 1.4 1999/03/10 10:36:52 yokota Exp $
+ * $Id: kbd.c,v 1.5 1999/05/18 11:07:12 yokota Exp $
  */
 
 #include "kbd.h"
@@ -170,8 +170,8 @@ kbd_set_maps(keyboard_t *kbd, keymap_t *keymap, accentmap_t *accmap,
 int
 kbd_register(keyboard_t *kbd)
 {
-	keyboard_driver_t **list;
-	keyboard_driver_t *p;
+	const keyboard_driver_t **list;
+	const keyboard_driver_t *p;
 	int index;
 
 	for (index = 0; index < keyboards; ++index) {
@@ -191,7 +191,7 @@ kbd_register(keyboard_t *kbd)
 	kbd->kb_callback.kc_func = NULL;
 	kbd->kb_callback.kc_arg = NULL;
 
-	list = (keyboard_driver_t **)kbddriver_set.ls_items;
+	list = (const keyboard_driver_t **)kbddriver_set.ls_items;
 	while ((p = *list++) != NULL) {
 		if (strcmp(p->name, kbd->kb_name) == 0) {
 			keyboard[index] = kbd;
@@ -239,10 +239,10 @@ kbd_unregister(keyboard_t *kbd)
 keyboard_switch_t
 *kbd_get_switch(char *driver)
 {
-	keyboard_driver_t **list;
-	keyboard_driver_t *p;
+	const keyboard_driver_t **list;
+	const keyboard_driver_t *p;
 
-	list = (keyboard_driver_t **)kbddriver_set.ls_items;
+	list = (const keyboard_driver_t **)kbddriver_set.ls_items;
 	while ((p = *list++) != NULL) {
 		if (strcmp(p->name, driver) == 0)
 			return p->kbdsw;
@@ -372,10 +372,10 @@ keyboard_t
 int
 kbd_configure(int flags)
 {
-	keyboard_driver_t **list;
-	keyboard_driver_t *p;
+	const keyboard_driver_t **list;
+	const keyboard_driver_t *p;
 
-	list = (keyboard_driver_t **)kbddriver_set.ls_items;
+	list = (const keyboard_driver_t **)kbddriver_set.ls_items;
 	while ((p = *list++) != NULL) {
 		if (p->configure != NULL)
 			(*p->configure)(flags);
