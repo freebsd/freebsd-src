@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.3 1998/07/05 12:08:59 dfr Exp $
+ *	$Id: ipl_funcs.c,v 1.4 1998/07/12 16:32:02 dfr Exp $
  */
 
 #include <sys/types.h>
@@ -32,12 +32,15 @@
 #include <machine/cpu.h>
 #include <net/netisr.h>
 
+#include "sio.h"
+
 unsigned int bio_imask;		/* XXX */
 unsigned int net_imask;		/* XXX */
 
 void	(*netisrs[32]) __P((void));
 u_int32_t netisr;
 u_int32_t ipending;
+u_int32_t idelayed;
 
 #define getcpl()	(alpha_pal_rdps() & ALPHA_PSL_IPL_MASK)
 
@@ -81,7 +84,9 @@ static u_int32_t atomic_readandclear(u_int32_t* p)
 static void
 swi_tty()
 {
-    /* XXX no users yet */
+#if NSIO > 0
+    siopoll();
+#endif
 }
 
 static void
@@ -114,19 +119,27 @@ do_sir()
 }
 
 
-#define GENSETSOFT(name, bit)			\
+#define GENSET(name, ptr, bit)			\
 						\
 void name(void)					\
 {						\
-    atomic_setbit(&ipending, (1 << bit));	\
+    atomic_setbit(ptr, bit);			\
 }
 
-GENSETSOFT(setsofttty, SWI_TTY)
-GENSETSOFT(setsoftnet, SWI_NET)
-GENSETSOFT(setsoftcamnet, SWI_CAMNET)
-GENSETSOFT(setsoftcambio, SWI_CAMBIO)
-GENSETSOFT(setsoftvm, SWI_VM)
-GENSETSOFT(setsoftclock, SWI_CLOCK)
+GENSET(setdelayed,	&ipending,	atomic_readandclear(&idelayed))
+GENSET(setsofttty,	&ipending,	1 << SWI_TTY)
+GENSET(setsoftnet,	&ipending,	1 << SWI_NET)
+GENSET(setsoftcamnet,	&ipending,	1 << SWI_CAMNET)
+GENSET(setsoftcambio,	&ipending,	1 << SWI_CAMBIO)
+GENSET(setsoftvm,	&ipending,	1 << SWI_VM)
+GENSET(setsoftclock,	&ipending,	1 << SWI_CLOCK)
+
+GENSET(schedsofttty,	&idelayed,	1 << SWI_TTY)
+GENSET(schedsoftnet,	&idelayed,	1 << SWI_NET)
+GENSET(schedsoftcamnet,	&idelayed,	1 << SWI_CAMNET)
+GENSET(schedsoftcambio,	&idelayed,	1 << SWI_CAMBIO)
+GENSET(schedsoftvm,	&idelayed,	1 << SWI_VM)
+GENSET(schedsoftclock,	&idelayed,	1 << SWI_CLOCK)
 
 #define SPLDOWN(name, pri)			\
 						\
