@@ -412,6 +412,23 @@ On return,
 contains the number of times the timeout has expired since the last call to
 .Fn kevent .
 This filter automatically sets the EV_CLEAR flag internally.
+.It Dv EVFILT_NETDEV
+Takes a descriptor to a network interface as the identifier, and the events to watch for in
+.Va fflags .
+It returns, when one or more of the requested events occur on the descriptor.
+The events to monitor are:
+.Bl -tag -width XXNOTE_LINKDOWN
+.It Dv NOTE_LINKUP
+The link is up.
+.It Dv NOTE_LINKDOWN
+The link is down.
+.It Dv NOTE_LINKINV
+The link state is invalid.
+.El
+.Pp
+On return,
+.Va fflags
+contains the events which triggered the filter.
 .El
 .Sh RETURN VALUES
 The
@@ -512,3 +529,10 @@ It is currently not possible to watch a
 .Xr vnode 9
 that resides on anything but
 a UFS file system.
+.Pp
+The 
+.Dv EVFILT_NETDEV
+filter is currently only implemented for devices that use the
+.Xr miibus 4
+driver for LINKUP and LINKDOWN operations.
+Therefore, it will not work with many non-ethernet devices.
