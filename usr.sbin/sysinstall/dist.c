@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.46 1996/04/29 17:59:07 jkh Exp $
+ * $Id: dist.c,v 1.47 1996/04/29 21:07:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -492,9 +492,10 @@ distExtractAll(dialogMenuItem *self)
 
     if (Dists) {
 	printSelected(buf, Dists, DistTable);
-	msgConfirm("Couldn't extract all of the distributions.  This may\n"
-		   "be because the following distributions are not available on the\n"
-		   "installation media you've chosen:\n\n\t%s", buf);
+	dialog_clear();
+	msgConfirm("Couldn't extract the following distributions.  This may\n"
+		   "be because they were not available on the installation\n"
+		   "media you've chosen:\n\n\t%s", buf);
     }
     return DITEM_SUCCESS;
 }
