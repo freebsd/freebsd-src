@@ -113,7 +113,6 @@
  * in a different (wrong) way).
  */
 #if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5
-#define	__attribute__(x)
 #define	__dead2
 #define	__pure2
 #define	__unused
