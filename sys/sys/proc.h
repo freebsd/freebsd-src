@@ -447,6 +447,10 @@ struct kse {
 };
 
 /* flags kept in ke_flags */
+#define	KEF_SCHED0	0x00001	/* For scheduler specific use. */
+#define	KEF_SCHED1	0x00002	/* For scheduler specific use. */
+#define	KEF_SCHED2	0X00004	/* For scheduler specific use. */
+#define	KEF_SCHED3	0x00008	/* For scheduler specific use. */
 #define	KEF_DIDRUN	0x02000	/* KSE actually ran. */
 #define	KEF_EXIT	0x04000	/* KSE is being killed. */
 
