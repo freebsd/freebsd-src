@@ -22,7 +22,7 @@ ioctl_includes=`
 	find * -name '*.h' -follow |
 		egrep -v '^(netns)/' |
 		xargs egrep -l \
-'^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-0_]*[ 	]+_IO[^a-z0-9_]' |
+'^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
 		sed -e 's/^/#include </' -e s'/$/>/'
 `
 
