@@ -475,6 +475,7 @@
 #define		FIFORESET	0x01
 
 #define	DFSTATUS		0x094
+#define		MREQPEND	0x10
 #define		HDONE		0x08
 #define		FIFOEMP		0x01
 
@@ -527,7 +528,7 @@
 #define		MK_MESSAGE      0x80
 #define		DISCENB         0x40
 #define		TAG_ENB		0x20
-#define		TRACE_SCB	0x10
+#define		SPLIT_SG	0x10
 #define		ABORT_SCB	0x08
 #define		DISCONNECTED	0x04
 #define		SCB_TAG_TYPE	0x03
@@ -588,6 +589,16 @@
 
 #define DSPCISTATUS		0x086
 
+#define BRDCTL			0x01d
+#define		BRDDAT7		0x80
+#define		BRDDAT6		0x40
+#define		BRDDAT5		0x20
+#define		BRDSTB		0x10
+#define		BRDCS		0x08
+#define		BRDRW		0x04
+#define		BRDCTL1		0x02
+#define		BRDCTL0		0x01
+
 /*
  * Serial EEPROM Control (p. 4-92 in 7870 Databook)
  * Controls the reading and writing of an external serial 1-bit
@@ -621,7 +632,6 @@
 #define		SEECK		0x04
 #define		SEEDO		0x02
 #define		SEEDI		0x01
-
 /* ---------------------- Scratch RAM Offsets ------------------------- */
 /* These offsets are either to values that are initialized by the board's
  * BIOS or are specified by the sequencer code.
