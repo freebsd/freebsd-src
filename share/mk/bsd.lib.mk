@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.29 1996/01/21 17:26:25 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.30 1996/03/24 00:21:04 wosch Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -184,7 +184,7 @@ SOBJS+= ${OBJS:.o=.so}
 lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}.${SHLIB_MINOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-	@${LD} -Bshareable \
+	@${LD} -Bshareable -x \
 	    -o lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 	    `lorder ${SOBJS} | tsort` ${LDDESTDIR} ${LDADD}
 
