@@ -32,12 +32,13 @@
 .\"     from: @(#)floor.3	6.5 (Berkeley) 4/19/91
 .\" $FreeBSD$
 .\"
-.Dd March 10, 1994
+.Dd January 13, 2005
 .Dt FLOOR 3
 .Os
 .Sh NAME
 .Nm floor ,
-.Nm floorf
+.Nm floorf ,
+.Nm floorl
 .Nd largest integral value less than or equal to x
 .Sh LIBRARY
 .Lb libm
@@ -47,11 +48,14 @@
 .Fn floor "double x"
 .Ft float
 .Fn floorf "float x"
+.Ft "long double"
+.Fn floorl "long double x"
 .Sh DESCRIPTION
 The
-.Fn floor
-and
+.Fn floor ,
 .Fn floorf
+and
+.Fn floorl
 functions return the largest integral value
 less than or equal to
 .Fa x ,
@@ -70,3 +74,9 @@ The
 .Fn floor
 function conforms to
 .St -isoC .
+The
+.Fn floorf
+and
+.Fn floorl
+functions conform to
+.St -isoC-99 .

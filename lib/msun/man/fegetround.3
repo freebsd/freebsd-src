@@ -37,7 +37,7 @@
 .In fenv.h
 .Fd "#pragma STDC FENV_ACCESS ON"
 .Ft int
-.Fn fegetround "void"
+.Fn fegetround void
 .Ft int
 .Fn fesetround "int round"
 .Sh DESCRIPTION
@@ -49,9 +49,7 @@ and the
 function sets the current rounding mode to
 .Fa round .
 The rounding mode is one of
-.Dv FE_TONEAREST ,
-.Dv FE_DOWNWARD ,
-.Dv FE_UPWARD ,
+.Dv FE_TONEAREST , FE_DOWNWARD , FE_UPWARD ,
 or
 .Dv FE_TOWARDZERO ,
 as described in

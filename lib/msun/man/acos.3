@@ -32,7 +32,7 @@
 .\"     from: @(#)acos.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd January 14, 2005
 .Dt ACOS 3
 .Os
 .Sh NAME
@@ -66,27 +66,20 @@ and the
 functions return the arc cosine in the range
 .Bq 0 , \*(Pi
 radians.
-On the
-.Tn VAX
-and
-.Tn Tahoe ,
-if:
+If:
 .Bd -unfilled -offset indent
 .Pf \&| Ns Ar x Ns \&| > 1 ,
 .Ed
 .Pp
 .Fn acos x
-sets the global variable
-.Va errno
-to
-.Er EDOM
-and a reserved operand fault is generated.
+raises an invalid exception and returns an \*(Na.
 .Sh SEE ALSO
 .Xr asin 3 ,
 .Xr atan 3 ,
 .Xr atan2 3 ,
 .Xr cos 3 ,
 .Xr cosh 3 ,
+.Xr fenv 3 ,
 .Xr math 3 ,
 .Xr sin 3 ,
 .Xr sinh 3 ,

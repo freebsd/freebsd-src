@@ -32,12 +32,13 @@
 .\"     from: @(#)ceil.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd March 10, 1994
+.Dd January 13, 2005
 .Dt CEIL 3
 .Os
 .Sh NAME
 .Nm ceil ,
-.Nm ceilf
+.Nm ceilf ,
+.Nm ceill
 .Nd smallest integral value greater than or equal to x
 .Sh LIBRARY
 .Lb libm
@@ -47,11 +48,14 @@
 .Fn ceil "double x"
 .Ft float
 .Fn ceilf "float x"
+.Ft "long double"
+.Fn ceill "long double x"
 .Sh DESCRIPTION
 The
-.Fn ceil
-and the
+.Fn ceil ,
 .Fn ceilf
+and
+.Fn ceill
 functions return the smallest integral value
 greater than or equal to
 .Fa x ,
@@ -70,3 +74,9 @@ The
 .Fn ceil
 function conforms to
 .St -isoC .
+The
+.Fn ceilf
+and
+.Fn ceill
+functions conform to
+.St -isoC-99 .

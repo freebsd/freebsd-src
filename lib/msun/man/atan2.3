@@ -32,7 +32,7 @@
 .\"     from: @(#)atan2.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd January 14, 2005
 .Dt ATAN2 3
 .Os
 .Sh NAME
@@ -69,16 +69,7 @@ in the range
 .Bq \&- Ns \*(Pi , \&+ Ns \*(Pi
 .Ek
 radians.
-If both
-.Fa x
-and
-.Fa y
-are zero, the global variable
-.Va errno
-is set to
-.Er EDOM .
-On the
-.Tn VAX :
+Here are some of the special cases:
 .Bl -column atan_(y,x)_:=____  sign(y)_(Pi_atan2(Xy_xX))___
 .It Fn atan2 y x No := Ta
 .Fn atan y/x Ta
@@ -105,9 +96,7 @@ The function
 .Fn atan2
 defines "if x > 0,"
 .Fn atan2 0 0
-= 0 on a
-.Tn VAX
-despite that previously
+= 0 despite that previously
 .Fn atan2 0 0
 may have generated an error message.
 The reasons for assigning a value to
@@ -142,10 +131,9 @@ r\(**sin\(*h.
 These equations are satisfied when (x=0,y=0)
 is mapped to
 .if n \
-(r=0,theta=0)
+(r=0,theta=0).
 .if t \
-(r=0,\(*h=0)
-on a VAX.
+(r=0,\(*h=0).
 In general, conversions to polar coordinates
 should be computed thus:
 .Bd -unfilled -offset indent

@@ -32,7 +32,7 @@
 .\"     from: @(#)cosh.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd January 14, 2005
 .Dt COSH 3
 .Os
 .Sh NAME
@@ -54,18 +54,6 @@ and the
 .Fn coshf
 functions compute the hyperbolic cosine of
 .Fa x .
-.Sh RETURN VALUES
-The
-.Fn cosh
-and the
-.Fn coshf
-functions return the hyperbolic cosine unless the magnitude
-of
-.Fa x
-is too large; in this event, the global variable
-.Va errno
-is set to
-.Er ERANGE .
 .Sh SEE ALSO
 .Xr acos 3 ,
 .Xr asin 3 ,

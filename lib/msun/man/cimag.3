@@ -24,20 +24,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 7, 2004
+.Dd August 7, 2004
 .Dt CIMAG 3
 .Os
 .Sh NAME
-.Nm cimag ,
-.Nm cimagf ,
-.Nm cimagl ,
-.Nm conj ,
-.Nm conjf ,
-.Nm conjl ,
-.Nm creal ,
-.Nm crealf ,
-.Nm creall
-.Nd functions to manipulate complex numbers
+.Nm cimag , cimagf , cimagl ,
+.Nm conj , conjf , conjl ,
+.Nm creal , crealf , creall
+.Nd "functions to manipulate complex numbers"
 .Sh LIBRARY
 .Lb libm
 .Sh SYNOPSIS
@@ -46,19 +40,19 @@
 .Fn cimag "double complex z"
 .Ft float
 .Fn cimagf "float complex z"
-.Ft long double
+.Ft "long double"
 .Fn cimagl "long double complex z"
-.Ft double complex
+.Ft "double complex"
 .Fn conj "double complex z"
-.Ft float complex
+.Ft "float complex"
 .Fn conjf "float complex z"
-.Ft long double complex
+.Ft "long double complex"
 .Fn conjl "long double complex z"
 .Ft double
 .Fn creal "double complex z"
 .Ft float
 .Fn crealf "float complex z"
-.Ft long double
+.Ft "long double"
 .Fn creall "long double complex z"
 .Sh DESCRIPTION
 Let
@@ -66,7 +60,7 @@ Let
 .Fa a + b * Em i
 .Sm on
 denote the complex number
-.Ar z .
+.Fa z .
 .Pp
 The
 .Fn cimag

@@ -32,7 +32,7 @@
 .\"     from: @(#)lgamma.3	6.6 (Berkeley) 12/3/92
 .\" $FreeBSD$
 .\"
-.Dd December 3, 1992
+.Dd January 14, 2005
 .Dt LGAMMA 3
 .Os
 .Sh NAME
@@ -79,7 +79,6 @@ and
 return ln\||\(*G(x)| where
 .Bd -unfilled -offset indent
 \(*G(x) = \(is\d\s8\z0\s10\u\u\s8\(if\s10\d t\u\s8x\-1\s10\d e\u\s8\-t\s10\d dt	for x > 0 and
-.br
 \(*G(x) = \(*p/(\(*G(1\-x)\|sin(\(*px))	for x < 1.
 .Ed
 .\}
@@ -149,13 +148,6 @@ and
 return appropriate values unless an argument is out of range.
 Overflow will occur for sufficiently large positive values, and
 non-positive integers.
-On the
-.Tn VAX ,
-the reserved operator is returned,
-and
-.Va errno
-is set to
-.Er ERANGE .
 For large non-integer negative values,
 .Fn tgamma
 will underflow.
