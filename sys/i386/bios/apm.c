@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/apm_bios.h>
 #include <machine/clock.h>
+#include <machine/endian.h>
 #include <machine/pc/bios.h>
 #include <machine/cpufunc.h>
 #include <machine/segments.h>
@@ -119,6 +120,7 @@ static struct cdevsw apm_cdevsw = {
 
 static int apm_suspend_delay = 1;
 static int apm_standby_delay = 1;
+static int apm_swab_batt_minutes = 0;
 static int apm_debug = 0;
 
 #define APM_DPRINT(args...) do	{					\
@@ -130,6 +132,10 @@ static int apm_debug = 0;
 SYSCTL_INT(_machdep, OID_AUTO, apm_suspend_delay, CTLFLAG_RW, &apm_suspend_delay, 1, "");
 SYSCTL_INT(_machdep, OID_AUTO, apm_standby_delay, CTLFLAG_RW, &apm_standby_delay, 1, "");
 SYSCTL_INT(_debug, OID_AUTO, apm_debug, CTLFLAG_RW, &apm_debug, 0, "");
+
+TUNABLE_INT("machdep.apm_swab_batt_minutes", &apm_swab_batt_minutes);
+SYSCTL_INT(_machdep, OID_AUTO, apm_swab_batt_minutes, CTLFLAG_RW,
+	   &apm_swab_batt_minutes, 0, "Byte swap battery time value.");
 
 #ifdef PC98
 static __inline void
@@ -629,6 +635,8 @@ apm_get_pwstatus(apm_pwstatus_t app)
 	app->ap_batt_flag = (sc->bios.r.ecx >> 8) & 0xff;
 	app->ap_batt_life = sc->bios.r.ecx & 0xff;
 	sc->bios.r.edx &= 0xffff;
+	if (apm_swab_batt_minutes)
+		sc->bios.r.edx = __bswap16(sc->bios.r.edx) | 0x8000;
 	if (sc->bios.r.edx == 0xffff)	/* Time is unknown */
 		app->ap_batt_time = -1;
 	else if (sc->bios.r.edx & 0x8000)	/* Time is in minutes */
