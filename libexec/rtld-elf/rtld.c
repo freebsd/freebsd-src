@@ -357,7 +357,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
-    sym_zero.st_shndx = SHN_ABS;
+    sym_zero.st_shndx = SHN_UNDEF;
 
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
