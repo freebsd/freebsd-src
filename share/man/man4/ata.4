@@ -96,7 +96,7 @@ The
 .Nm
 driver provides access to ATA (IDE) and SerialATA disk drives,
 ATAPI CDROM/DVD drives, ZIP/LS120 ATAPI drives and ATAPI tape drives
-connected to controllers according to the ATA/ATAPI standards. 
+connected to controllers according to the ATA/ATAPI standards.
 .Pp
 The currently supported ATA/SATA controller chips are:
 .Pp
@@ -133,7 +133,7 @@ SIS5513, SIS530, SIS540, SIS550, SIS620, SIS630, SIS630S, SIS633, SIS635, SIS730
 VT82C586, VT82C586B, VT82C596, VT82C596B, VT82C686, VT82C686A, VT82C686B, VT8231, VT8233, VT8233A, VT8233C, VT8235, VT8237.
 .El
 .Pp
-Unknown ATA chipsets are supported in PIO modes, and if the standard 
+Unknown ATA chipsets are supported in PIO modes, and if the standard
 busmaster DMA registers are present and contains valid setup, DMA is
 also enabled, however the max mode is limitted to UDMA33, as it is
 not known what the chipset can do and how to program it.
@@ -145,7 +145,7 @@ when the system is up and running, see
 .Xr atacontrol 8 .
 .Pp
 The
-.nm
+.Nm
 driver sets the maximum transfer mode supported by the hardware as default.
 However the
 .Nm
@@ -153,10 +153,11 @@ driver sometimes warns:
 .Dq Sy "DMA limited to UDMA33, non-ATA66 cable or device"
 This means that
 the
-.Mn
+.Nm
 driver has detected that the needed 80 conductor cable is not present or
-at least could not be deteceted properly. If the cable is 80 conductor, 
-it can also be because one of the devices on the channel only accepts up 
+at least could not be deteceted properly.
+If the cable is 80 conductor,
+it can also be because one of the devices on the channel only accepts up
 to UDMA2/ATA33.
 .Pp
 ATAPI devices are default set to PIO mode because severe DMA problems are
@@ -188,20 +189,24 @@ based systems
 .Sh NOTES
 Please remember that in order to use UDMA4/ATA66 and above modes you
 .Em must
-use 80 conductor cables. Please assure that ribbon cables are no longer
-than 45cm's. In case of rounded ATA cables the length depends on the
-quality of the cables. SATA cables can be up to 1m long according to spec.
+use 80 conductor cables.
+Please assure that ribbon cables are no longer than 45cm's.
+In case of rounded ATA cables the length depends on the
+quality of the cables.
+SATA cables can be up to 1m long according to spec.
 .Pp
 Static device numbering
 (enabled with the
 .Dv ATA_STATIC_ID
 kernel option)
 reserves a number for each possibly connected disk,
-even when not present. This is usefull in hotswap senarios
+even when not present.
+This is usefull in hotswap senarios
 where disks always will show up as the same numbered device,
 and not depend on attach order.
 .Pp
 .Sh SEE ALSO
+.Xr atapicam 4 ,
 .Xr atacontrol 8 ,
 .Xr burncd 8
 .Sh HISTORY
