@@ -62,7 +62,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-char *filename;
+const char *filename;
 int cflag, iflag, pflag, sflag;
 
 static void usage __P((void));
