@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: list.c,v 1.21 2000/01/03 02:58:07 grog Exp grog $
+ * $Id: list.c,v 1.23 2000/03/01 02:38:55 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -432,16 +432,11 @@ vinum_lpi(int plexno, int recurse)
 		printf("\tStripe size: %s\n", roughlength(plex.stripesize * DEV_BSIZE, 1));
 	    else
 		printf("\n");
-	    if (isparity((&plex))) {
-		if (plex.rebuildblock != 0)
-		    printf("\t\tRebuild block pointer:\t\t%s (%d%%)\n",
-			roughlength(plex.rebuildblock << DEV_BSHIFT, 0),
-			(int) (((u_int64_t) (plex.rebuildblock * 100)) / plex.length / (plex.subdisks - 1)));
-		if (plex.checkblock != 0)
-		    printf("\t\tCheck block pointer:\t\t%s (%d%%)\n",
-			roughlength(plex.checkblock << DEV_BSHIFT, 0),
-			(int) (((u_int64_t) (plex.checkblock * 100)) / plex.length / (plex.subdisks - 1)));
-	    }
+	    if ((isparity((&plex)))
+		&& (plex.checkblock != 0))
+		printf("\t\tCheck block pointer:\t\t%s (%d%%)\n",
+		    roughlength((plex.checkblock << DEV_BSHIFT) * (plex.subdisks - 1), 0),
+		    (int) (((u_int64_t) (plex.checkblock * 100)) * (plex.subdisks - 1) / plex.length));
 	    if (plex.volno >= 0) {
 		get_volume_info(&vol, plex.volno);
 		printf("\t\tPart of volume %s\n", vol.name);
@@ -923,7 +918,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	    case loginfo_rqe:				    /* user RQE */
 		printf("%s 3RQ %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
 		    rq.bp,
 		    rq.devmajor,
 		    rq.devminor,
@@ -938,7 +933,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	    case loginfo_iodone:			    /* iodone called */
 		printf("%s 4DN %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
 		    rq.bp,
 		    rq.devmajor,
 		    rq.devminor,
@@ -953,7 +948,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	    case loginfo_raid5_data:			    /* RAID-5 write data block */
 		printf("%s 5RD %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
 		    rq.bp,
 		    rq.devmajor,
 		    rq.devminor,
@@ -968,7 +963,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 	    case loginfo_raid5_parity:			    /* RAID-5 write parity block */
 		printf("%s 6RP %s %p\t%d.%-6d 0x%-9x\t%ld\t%d\t%x\t%x\t%x\n",
 		    timetext(&rq.timestamp),
-		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
+		    rq.info.rqe.b.b_iocmd == BIO_READ ? "Read " : "Write",
 		    rq.bp,
 		    rq.devmajor,
 		    rq.devminor,
@@ -992,7 +987,7 @@ vinum_info(int argc, char *argv[], char *argv0[])
 		break;
 
 	    case loginfo_sdiodone:			    /* subdisk I/O done */
-		printf("%s %dDN %s %p\t\t  0x%-9x\t%ld\t%d\n",
+		printf("%s %dSD %s %p\t\t  0x%-9x\t%ld\t%d\n",
 		    timetext(&rq.timestamp),
 		    rq.type,
 		    rq.info.b.b_iocmd == BIO_READ ? "Read " : "Write",
