@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/kdb.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/time.h>
@@ -367,6 +368,7 @@ release_timer2()
 static void
 rtcintr(struct clockframe *frame)
 {
+
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		if (profprocs != 0) {
 			if (--pscnt == 0)
@@ -399,7 +401,10 @@ getit(void)
 {
 	int high, low;
 
-	mtx_lock_spin(&clock_lock);
+#ifdef KDB
+	if (!kdb_active)
+#endif
+		mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
 	outb(TIMER_MODE, TIMER_SEL0 | TIMER_LATCH);
@@ -407,7 +412,11 @@ getit(void)
 	low = inb(TIMER_CNTR0);
 	high = inb(TIMER_CNTR0);
 
-	mtx_unlock_spin(&clock_lock);
+#ifdef KDB
+	if (!kdb_active)
+#endif
+		mtx_unlock_spin(&clock_lock);
+
 	return ((high << 8) | low);
 }
 
@@ -448,18 +457,8 @@ DELAY(int n)
 	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
 	 * takes about 6 usec on a 486/33 and 13 usec on a 386/20.  The
 	 * multiplications and divisions to scale the count take a while).
-	 *
-	 * However, if ddb is active then use a fake counter since reading
-	 * the i8254 counter involves acquiring a lock.  ddb must not go
-	 * locking for many reasons, but it calls here for at least atkbd
-	 * input.
 	 */
-#ifdef DDB
-	if (db_active)
-		prev_tick = 0;
-	else
-#endif
-		prev_tick = getit();
+	prev_tick = getit();
 	n -= 0;			/* XXX actually guess no initial overhead */
 	/*
 	 * Calculate (n * (timer_freq / 1e6)) without using floating point
@@ -486,13 +485,7 @@ DELAY(int n)
 			     / 1000000;
 
 	while (ticks_left > 0) {
-#ifdef DDB
-		if (db_active) {
-			inb(0x84);
-			tick = prev_tick + 1;
-		} else
-#endif
-			tick = getit();
+		tick = getit();
 #ifdef DELAYDEBUG
 		++getit_calls;
 #endif
