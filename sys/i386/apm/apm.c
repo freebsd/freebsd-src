@@ -15,11 +15,10 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.92 1999/07/28 19:37:32 msmith Exp $
+ *	$Id: apm.c,v 1.93 1999/07/28 20:20:29 msmith Exp $
  */
 
 #include "opt_devfs.h"
-#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -45,28 +44,14 @@
 #include <vm/pmap.h>
 #include <sys/syslog.h>
 
-#include <machine/psl.h>
+#include <machine/pc/bios.h>
 #include <machine/vm86.h>
 
-#ifdef SMP
-#include <machine/smp.h>
-#endif
-
 static int apm_display __P((int newstate));
-static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
-
-extern int apm_bios_call __P((struct apm_bios_arg *));	/* in apm_setup.s */
+static int apm_bioscall(void);
 
 static u_long	apm_version;
-static u_long	apm_cs_entry;
-static u_short	apm_cs32_base;
-static u_short	apm_cs16_base;
-static u_short	apm_ds_base;
-static u_short	apm_cs32_limit;
-static u_short	apm_cs16_limit;
-static u_short	apm_ds_limit;
-static u_short	apm_flags;
 
 #define APM_NEVENTS 16
 #define APM_NPMEV   13
@@ -75,14 +60,12 @@ int	apm_evindex;
 
 /* static data */
 struct apm_softc {
-	int	initialized, active;
+	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
 	u_int	minorversion, majorversion;
-	u_int	cs32_base, cs16_base, ds_base;
-	u_int	cs16_limit, cs32_limit, ds_limit;
-	u_int	cs_entry;
-	u_int	intversion;
+	u_int	intversion, connectmode;
+	struct bios_args bios;
 	struct apmhook sc_suspend;
 	struct apmhook sc_resume;
 	struct selinfo sc_rsel;
@@ -144,67 +127,24 @@ static struct cdevsw apm_cdevsw = {
 	/* bmaj */	-1
 };
 
-/* setup APM GDT discriptors */
-static void
-setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code32_limit, u_int code16_limit, u_int data_limit)
-{
-#ifdef SMP
-	int x;
-#endif
-
-	/* setup 32bit code segment */
-	gdt_segs[GAPMCODE32_SEL].ssd_base  = code32_base;
-	gdt_segs[GAPMCODE32_SEL].ssd_limit = code32_limit;
-
-	/* setup 16bit code segment */
-	gdt_segs[GAPMCODE16_SEL].ssd_base  = code16_base;
-	gdt_segs[GAPMCODE16_SEL].ssd_limit = code16_limit;
-
-	/* setup data segment */
-	gdt_segs[GAPMDATA_SEL  ].ssd_base  = data_base;
-	gdt_segs[GAPMDATA_SEL  ].ssd_limit = data_limit;
-
-	/* reflect these changes on physical GDT */
-	ssdtosd(gdt_segs + GAPMCODE32_SEL, &gdt[GAPMCODE32_SEL].sd);
-	ssdtosd(gdt_segs + GAPMCODE16_SEL, &gdt[GAPMCODE16_SEL].sd);
-	ssdtosd(gdt_segs + GAPMDATA_SEL  , &gdt[GAPMDATA_SEL  ].sd);
-
-#ifdef SMP
-	for (x = 1; x < NCPU; x++) {
-		gdt[x * NGDT + GAPMCODE32_SEL].sd = gdt[GAPMCODE32_SEL].sd;
-		gdt[x * NGDT + GAPMCODE16_SEL].sd = gdt[GAPMCODE16_SEL].sd;
-		gdt[x * NGDT + GAPMDATA_SEL  ].sd = gdt[GAPMDATA_SEL  ].sd;
-	}
-#endif
-}
-
-/* 48bit far pointer. Do not staticize - used from apm_setup.s */
-struct addr48 {
-	u_long		offset;
-	u_short		segment;
-} apm_addr;
-
-static int apm_errno;
-
 static int
-apm_int(u_long *eax, u_long *ebx, u_long *ecx, u_long *edx)
+apm_bioscall(void)
 {
-	struct apm_bios_arg apa;
-	int cf;
-	
-	apa.eax = *eax;
-	apa.ebx = *ebx;
-	apa.ecx = *ecx;
-	apa.edx = *edx;
-	cf = apm_bios_call(&apa);
-	*eax = apa.eax;
-	*ebx = apa.ebx;
-	*ecx = apa.ecx;
-	*edx = apa.edx;
-	apm_errno = ((*eax) >> 8) & 0xff;
-	return cf;
-}
+	struct apm_softc *sc = &apm_softc;
+	int errno = 0;
 
+	sc->bios_busy = 1;
+	if (sc->connectmode == APM_PROT32CONNECT) {
+		set_bios_selectors(&sc->bios.seg,
+				   BIOSCODE_FLAG | BIOSDATA_FLAG);
+		errno = bios32(&sc->bios.r,
+			       sc->bios.entry, GSEL(GBIOSCODE32_SEL, SEL_KPL));
+	} else {
+		errno = bios16(&sc->bios, NULL);
+	}
+	sc->bios_busy = 0;
+	return (errno);
+}
 
 /* enable/disable power management */
 static int
@@ -212,80 +152,79 @@ apm_enable_disable_pm(int enable)
 {
 	struct apm_softc *sc = &apm_softc;
 
-	u_long eax, ebx, ecx, edx;
-
-	eax = (APM_BIOS << 8) | APM_ENABLEDISABLEPM;
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_ENABLEDISABLEPM;
 
 	if (sc->intversion >= INTVERSION(1, 1))
-		ebx  = PMDV_ALLDEV;
+		sc->bios.r.ebx  = PMDV_ALLDEV;
 	else
-		ebx  = 0xffff;	/* APM version 1.0 only */
-	ecx  = enable;
-	edx = 0;
-	return apm_int(&eax, &ebx, &ecx, &edx);
+		sc->bios.r.ebx  = 0xffff;	/* APM version 1.0 only */
+	sc->bios.r.ecx  = enable;
+	sc->bios.r.edx = 0;
+	return (apm_bioscall());
 }
 
-static void
+/* register driver version (APM 1.1 or later) */
+static int
 apm_driver_version(int version)
 {
-	u_long eax, ebx, ecx, edx;
+	struct apm_softc *sc = &apm_softc;
+ 
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_DRVVERSION;
+	sc->bios.r.ebx  = 0x0;
+	sc->bios.r.ecx  = version;
+	sc->bios.r.edx = 0;
 
-	/* First try APM 1.2 */
-	eax = (APM_BIOS << 8) | APM_DRVVERSION;
-	ebx  = 0x0;
-	ecx  = version;
-	edx = 0;
-	if(!apm_int(&eax, &ebx, &ecx, &edx)) 
-		apm_version = eax & 0xffff;
+	if (apm_bioscall() == 0 && sc->bios.r.eax == version)
+		return (0);
+	return (1);
 }
-
+ 
 /* engage/disengage power management (APM 1.1 or later) */
 static int
 apm_engage_disengage_pm(int engage)
 {
-	u_long eax, ebx, ecx, edx;
-
-	eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
-	ebx = PMDV_ALLDEV;
-	ecx = engage;
-	edx = 0;
-	return(apm_int(&eax, &ebx, &ecx, &edx));
+	struct apm_softc *sc = &apm_softc;
+ 
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_ENGAGEDISENGAGEPM;
+	sc->bios.r.ebx = PMDV_ALLDEV;
+	sc->bios.r.ecx = engage;
+	sc->bios.r.edx = 0;
+	return (apm_bioscall());
 }
-
+ 
 /* get PM event */
 static u_int
 apm_getevent(void)
 {
-	u_long eax, ebx, ecx, edx;
-
-	eax = (APM_BIOS << 8) | APM_GETPMEVENT;
-
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	if (apm_int(&eax, &ebx, &ecx, &edx))
-		return PMEV_NOEVENT;
-
-	return ebx & 0xffff;
+	struct apm_softc *sc = &apm_softc;
+ 
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETPMEVENT;
+ 
+	sc->bios.r.ebx = 0;
+	sc->bios.r.ecx = 0;
+	sc->bios.r.edx = 0;
+	if (apm_bioscall())
+		return (PMEV_NOEVENT);
+	return (sc->bios.r.ebx & 0xffff);
 }
-
+ 
 /* suspend entire system */
 static int
 apm_suspend_system(int state)
 {
-	u_long eax, ebx, ecx, edx;
-
-	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	ebx = PMDV_ALLDEV;
-	ecx = state;
-	edx = 0;
-
-	if (apm_int(&eax, &ebx, &ecx, &edx)) {
-		printf("Entire system suspend failure: errcode = %ld\n",
-			0xff & (eax >> 8));
-		return 1;
-	}
-	return 0;
+	struct apm_softc *sc = &apm_softc;
+ 
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	sc->bios.r.ebx = PMDV_ALLDEV;
+	sc->bios.r.ecx = state;
+	sc->bios.r.edx = 0;
+ 
+	if (apm_bioscall()) {
+ 		printf("Entire system suspend failure: errcode = %d\n",
+		       0xff & (sc->bios.r.eax >> 8));
+ 		return 1;
+ 	}
+ 	return 0;
 }
 
 /* Display control */
@@ -297,18 +236,18 @@ apm_suspend_system(int state)
 static int
 apm_display(int newstate)
 {
-	u_long eax, ebx, ecx, edx;
-
-	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	ebx = PMDV_DISP0;
-	ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
-	edx = 0;
-	if (apm_int(&eax, &ebx, &ecx, &edx)) {
-		printf("Display off failure: errcode = %ld\n",
-			0xff & (eax >> 8));
-		return 1;
-	}
-	return 0;
+	struct apm_softc *sc = &apm_softc;
+ 
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	sc->bios.r.ebx = PMDV_DISP0;
+	sc->bios.r.ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
+	sc->bios.r.edx = 0;
+	if (apm_bioscall()) {
+ 		printf("Display off failure: errcode = %d\n",
+		       0xff & (sc->bios.r.eax >> 8));
+ 		return 1;
+ 	}
+ 	return 0;
 }
 
 /*
@@ -317,16 +256,16 @@ apm_display(int newstate)
 static void
 apm_power_off(int howto, void *junk)
 {
-	u_long eax, ebx, ecx, edx;
+	struct apm_softc *sc = &apm_softc;
 
 	/* Not halting powering off, or not active */
 	if (!(howto & RB_POWEROFF) || !apm_softc.active)
 		return;
-	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	ebx = PMDV_ALLDEV;
-	ecx = PMST_OFF;
-	edx = 0;
-	apm_int(&eax, &ebx, &ecx, &edx);
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	sc->bios.r.ebx = PMDV_ALLDEV;
+	sc->bios.r.ecx = PMST_OFF;
+	sc->bios.r.edx = 0;
+	(void) apm_bioscall();
 }
 
 /* APM Battery low handler */
@@ -495,39 +434,36 @@ static u_int apm_op_inprog = 0;
 static void
 apm_lastreq_notify(void)
 {
-	u_long eax, ebx, ecx, edx;
+	struct apm_softc *sc = &apm_softc;
 
-	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	ebx = PMDV_ALLDEV;
-	ecx = PMST_LASTREQNOTIFY;
-	edx = 0;
-
-	apm_int(&eax, &ebx, &ecx, &edx);
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	sc->bios.r.ebx = PMDV_ALLDEV;
+	sc->bios.r.ecx = PMST_LASTREQNOTIFY;
+	sc->bios.r.edx = 0;
+	apm_bioscall();
 }
 
 static int
 apm_lastreq_rejected(void)
 {
-	u_long eax, ebx, ecx, edx;
+	struct apm_softc *sc = &apm_softc;
 
 	if (apm_op_inprog == 0) {
 		return 1;	/* no operation in progress */
 	}
 
-	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	ebx = PMDV_ALLDEV;
-	ecx = PMST_LASTREQREJECT;
-	edx = 0;
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_SETPWSTATE;
+	sc->bios.r.ebx = PMDV_ALLDEV;
+	sc->bios.r.ecx = PMST_LASTREQREJECT;
+	sc->bios.r.edx = 0;
 
-	if (apm_int(&eax, &ebx, &ecx, &edx)) {
+	if (apm_bioscall()) {
 #ifdef APM_DEBUG
 		printf("apm_lastreq_rejected: failed\n");
 #endif
 		return 1;
 	}
-
 	apm_op_inprog = 0;
-
 	return 0;
 }
 
@@ -587,41 +523,40 @@ static int
 apm_get_info(apm_info_t aip)
 {
 	struct apm_softc *sc = &apm_softc;
-	u_long eax, ebx, ecx, edx;
 
-	eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
-	ebx = PMDV_ALLDEV;
-	ecx = 0;
-	edx = 0xffff;			/* default to unknown battery time */
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
+	sc->bios.r.ebx = PMDV_ALLDEV;
+	sc->bios.r.ecx = 0;
+	sc->bios.r.edx = 0xffff;		/* default to unknown battery time */
 
-	if (apm_int(&eax, &ebx, &ecx, &edx))
+	if (apm_bioscall())
 		return 1;
 
 	aip->ai_infoversion = 1;
-	aip->ai_acline      = (ebx >> 8) & 0xff;
-	aip->ai_batt_stat   = ebx & 0xff;
-	aip->ai_batt_life   = ecx & 0xff;
+	aip->ai_acline      = (sc->bios.r.ebx >> 8) & 0xff;
+	aip->ai_batt_stat   = sc->bios.r.ebx & 0xff;
+	aip->ai_batt_life   = sc->bios.r.ecx & 0xff;
 	aip->ai_major       = (u_int)sc->majorversion;
 	aip->ai_minor       = (u_int)sc->minorversion;
 	aip->ai_status      = (u_int)sc->active;
-	edx &= 0xffff;
-	if (edx == 0xffff)	/* Time is unknown */
+	sc->bios.r.edx &= 0xffff;
+	if (sc->bios.r.edx == 0xffff)	/* Time is unknown */
 		aip->ai_batt_time = -1;
-	else if (edx & 0x8000)	/* Time is in minutes */
-		aip->ai_batt_time = (edx & 0x7fff) * 60;
+	else if (sc->bios.r.edx & 0x8000)	/* Time is in minutes */
+		aip->ai_batt_time = (sc->bios.r.edx & 0x7fff) * 60;
 	else			/* Time is in seconds */
-		aip->ai_batt_time = edx;
+		aip->ai_batt_time = sc->bios.r.edx;
 
-	eax = (APM_BIOS << 8) | APM_GETCAPABILITIES;
-	ebx = 0;
-	ecx = 0;
-	edx = 0;
-	if (apm_int(&eax, &ebx, &ecx, &edx)) {
+	sc->bios.r.eax = (APM_BIOS << 8) | APM_GETCAPABILITIES;
+	sc->bios.r.ebx = 0;
+	sc->bios.r.ecx = 0;
+	sc->bios.r.edx = 0;
+	if (apm_bioscall()) {
 		aip->ai_batteries = -1;	/* Unknown */
 		aip->ai_capabilities = 0xff00; /* Unknown, with no bits set */
 	} else {
-		aip->ai_batteries = ebx & 0xff;
-		aip->ai_capabilities = ecx & 0xf;
+		aip->ai_batteries = sc->bios.r.ebx & 0xff;
+		aip->ai_capabilities = sc->bios.r.ecx & 0xf;
 	}
 
 	bzero(aip->ai_spare, sizeof aip->ai_spare);
@@ -637,11 +572,10 @@ apm_cpu_idle(void)
 	struct apm_softc *sc = &apm_softc;
 
 	if (sc->active) {
-		u_long eax, ebx, ecx, edx;
 
-		eax = (APM_BIOS <<8) | APM_CPUIDLE;
-		edx = ecx = ebx = 0;
-		apm_int(&eax, &ebx, &ecx, &edx);
+		sc->bios.r.eax = (APM_BIOS <<8) | APM_CPUIDLE;
+		sc->bios.r.edx = sc->bios.r.ecx = sc->bios.r.ebx = 0;
+		(void) apm_bioscall();
 	}
 	/*
 	 * Some APM implementation halts CPU in BIOS, whenever
@@ -669,11 +603,10 @@ apm_cpu_busy(void)
 	 * necessary.
 	 */
 	if (sc->slow_idle_cpu && sc->active) {
-		u_long eax, ebx, ecx, edx;
 
-		eax = (APM_BIOS <<8) | APM_CPUBUSY;
-		edx = ecx = ebx = 0;
-		apm_int(&eax, &ebx, &ecx, &edx);
+		sc->bios.r.eax = (APM_BIOS <<8) | APM_CPUBUSY;
+		sc->bios.r.edx = sc->bios.r.ecx = sc->bios.r.ebx = 0;
+		apm_bioscall();
 	}
 }
 
@@ -692,7 +625,8 @@ apm_timeout(void *dummy)
 	if (apm_op_inprog)
 		apm_lastreq_notify();
 
-	apm_processevent();
+	if (!sc->bios_busy)
+		apm_processevent();
 
 	if (sc->active == 1)
 		/* Run slightly more oftan than 1 Hz */
@@ -752,14 +686,14 @@ apm_not_halt_cpu(void)
 /* device driver definitions */
 
 /*
- * probe APM
+ * probe for APM BIOS
  */
-
 static int
 apm_probe(device_t dev)
 {
+#define APM_KERNBASE	KERNBASE
 	struct vm86frame	vmf;
-	int			i;
+	struct apm_softc	*sc = &apm_softc;
 	int			disabled, flags;
 
 	if (resource_int_value("apm", 0, "disabled", &disabled) == 0
@@ -777,68 +711,71 @@ apm_probe(device_t dev)
 		flags = 0;
 
 	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
-	vmf.vmf_ax = (APM_BIOS << 8) | APM_INSTCHECK;
-	vmf.vmf_bx = 0;
-	if (((i = vm86_intcall(SYSTEM_BIOS, &vmf)) == 0) &&
-	    !(vmf.vmf_eflags & PSL_C) && 
-	    (vmf.vmf_bx == 0x504d)) {
-
-		apm_version   = vmf.vmf_ax;
-		apm_flags     = vmf.vmf_cx;
-
-		vmf.vmf_ax = (APM_BIOS << 8) | APM_PROT32CONNECT;
-		vmf.vmf_bx = 0;
-		if (((i = vm86_intcall(SYSTEM_BIOS, &vmf)) == 0) &&
-		    !(vmf.vmf_eflags & PSL_C)) {
-
-			apm_cs32_base = vmf.vmf_ax;
-			apm_cs_entry  = vmf.vmf_ebx;
-			apm_cs16_base = vmf.vmf_cx;
-			apm_ds_base   = vmf.vmf_dx;
-			apm_cs32_limit  = vmf.vmf_si;
-			if (apm_version >= 0x0102)
-				apm_cs16_limit = (vmf.esi.r_ex >> 16);
-			apm_ds_limit  = vmf.vmf_di;
-#ifdef APM_DEBUG
-			printf("apm: BIOS probe/32-bit connect successful\n");
-#endif
-		} else {
-			/* XXX constant typo! */
-			if (vmf.vmf_ah == APME_PROT32NOTDUPPORTED) {
-				apm_version = APMINI_NOT32BIT;
-			} else {
-				apm_version = APMINI_CONNECTERR;
-			}
-#ifdef APM_DEBUG
-			printf("apm: BIOS 32-bit connect failed: error 0x%x  carry %d  ah 0x%x\n",
-			       i, (vmf.vmf_eflags & PSL_C) ? 1 : 0, vmf.vmf_ah);
-#endif
-		}
-	} else {
-		apm_version = APMINI_CANTFIND;
-#ifdef APM_DEBUG
-		printf("apm: BIOS probe failed: error 0x%x  carry %d  bx 0x%x\n",
-		       i, (vmf.vmf_eflags & PSL_C) ? 1 : 0, vmf.vmf_bx);
-#endif
-	}
-
 	bzero(&apm_softc, sizeof(apm_softc));
-
-	switch (apm_version) {
-	case APMINI_CANTFIND:
-		/* silent */
-		return ENXIO;
-	case APMINI_NOT32BIT:
-		printf("apm: 32bit connection is not supported.\n");
-		return ENXIO;
-	case APMINI_CONNECTERR:
-		printf("apm: 32-bit connection error.\n");
+	vmf.vmf_ah = APM_BIOS;
+	vmf.vmf_al = APM_INSTCHECK;
+	vmf.vmf_bx = 0;
+	if (vm86_intcall(APM_INT, &vmf))
+		return ENXIO;			/* APM not found */
+	if (vmf.vmf_bx != 0x504d) {
+		printf("apm: incorrect signature (0x%x)\n", vmf.vmf_bx);
 		return ENXIO;
 	}
-	if (flags & 0x20)
-		statclock_disable = 1;
-	return 0;
+	if ((vmf.vmf_cx & (APM_32BIT_SUPPORT | APM_16BIT_SUPPORT)) == 0) {
+		printf("apm: protected mode connections are not supported\n");
+		return ENXIO;
+	}
+
+	apm_version = vmf.vmf_ax;
+	sc->slow_idle_cpu = ((vmf.vmf_cx & APM_CPUIDLE_SLOW) != 0);
+	sc->disabled = ((vmf.vmf_cx & APM_DISABLED) != 0);
+	sc->disengaged = ((vmf.vmf_cx & APM_DISENGAGED) != 0);
+
+	vmf.vmf_ah = APM_BIOS;
+	vmf.vmf_al = APM_DISCONNECT;
+	vmf.vmf_bx = 0;
+        vm86_intcall(APM_INT, &vmf);		/* disconnect, just in case */
+
+	if ((vmf.vmf_cx & APM_32BIT_SUPPORT) != 0) {
+		vmf.vmf_ah = APM_BIOS;
+		vmf.vmf_al = APM_PROT32CONNECT;
+		vmf.vmf_bx = 0;
+		if (vm86_intcall(APM_INT, &vmf)) {
+			printf("apm: 32-bit connection error.\n");
+			return (ENXIO);
+ 		}
+		sc->bios.seg.code32.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
+		sc->bios.seg.code32.limit = 0xffff;
+		sc->bios.seg.code16.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
+		sc->bios.seg.code16.limit = vmf.vmf_si;
+		sc->bios.seg.data.base = (vmf.vmf_dx << 4) + APM_KERNBASE;
+		sc->bios.seg.data.limit = vmf.vmf_di;
+		sc->bios.entry = vmf.vmf_ebx;
+		sc->connectmode = APM_PROT32CONNECT;
+ 	} else {
+		/* use 16-bit connection */
+		vmf.vmf_ah = APM_BIOS;
+		vmf.vmf_al = APM_PROT16CONNECT;
+		vmf.vmf_bx = 0;
+		if (vm86_intcall(APM_INT, &vmf)) {
+			printf("apm: 16-bit connection error.\n");
+			return (ENXIO);
+		}
+		sc->bios.seg.code16.base = (vmf.vmf_ax << 4) + APM_KERNBASE;
+		sc->bios.seg.code16.limit = vmf.vmf_si;
+		sc->bios.seg.data.base = (vmf.vmf_cx << 4) + APM_KERNBASE;
+		sc->bios.seg.data.limit = vmf.vmf_di;
+		sc->bios.entry = vmf.vmf_bx;
+		sc->connectmode = APM_PROT16CONNECT;
+	}
+	if (apm_version == 0x100) {
+		/* APM v1.0 does not set SI/DI */
+		sc->bios.seg.code16.limit = 0xffff;
+		sc->bios.seg.data.limit = 0xffff;
+	}
+	return(0);
 }
+
 
 /*
  * return 0 if the user will notice and handle the event,
@@ -953,62 +890,40 @@ apm_processevent(void)
 static int
 apm_attach(device_t dev)
 {
-#define APM_KERNBASE	KERNBASE
 	struct apm_softc	*sc = &apm_softc;
 	int			flags;
+	int			drv_version;
 
 	if (resource_int_value("apm", 0, "flags", &flags) != 0)
 		flags = 0;
+
+	if (flags & 0x20)
+		statclock_disable = 1;
 
 	sc->initialized = 0;
 
 	/* Must be externally enabled */
 	sc->active = 0;
 
-	/* setup APM parameters */
-	sc->cs16_base = (apm_cs16_base << 4) + APM_KERNBASE;
-	sc->cs32_base = (apm_cs32_base << 4) + APM_KERNBASE;
-	sc->ds_base = (apm_ds_base << 4) + APM_KERNBASE;
-	sc->cs32_limit = apm_cs32_limit - 1;
-	if (apm_cs16_limit == 0)
-	    apm_cs16_limit = apm_cs32_limit;
-	sc->cs16_limit = apm_cs16_limit - 1;
-	sc->ds_limit = apm_ds_limit - 1;
-	sc->cs_entry = apm_cs_entry;
-
 	/* Always call HLT in idle loop */
 	sc->always_halt_cpu = 1;
-
-	sc->slow_idle_cpu = ((apm_flags & APM_CPUIDLE_SLOW) != 0);
-	sc->disabled = ((apm_flags & APM_DISABLED) != 0);
-	sc->disengaged = ((apm_flags & APM_DISENGAGED) != 0);
 
 	/* print bootstrap messages */
 #ifdef APM_DEBUG
 	printf("apm: APM BIOS version %04x\n",  apm_version);
-	printf("apm: Code32 0x%08x, Code16 0x%08x, Data 0x%08x\n",
-		sc->cs32_base, sc->cs16_base, sc->ds_base);
+	printf("apm: Code16 0x%08x, Data 0x%08x\n",
+               sc->bios.seg.code16.base, sc->bios.seg.data.base);
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
-		sc->cs_entry, is_enabled(sc->slow_idle_cpu),
-		is_enabled(!sc->disabled));
-	printf("apm: CS32_limit=0x%x, CS16_limit=0x%x, DS_limit=0x%x\n",
-		(u_short)sc->cs32_limit, (u_short)sc->cs16_limit, (u_short)sc->ds_limit);
+               sc->bios.entry, is_enabled(sc->slow_idle_cpu),
+	       is_enabled(!sc->disabled));
+	printf("apm: CS_limit=0x%x, DS_limit=0x%x\n",
+	      sc->bios.seg.code16.limit, sc->bios.seg.data.limit);
 #endif /* APM_DEBUG */
 
 #if 0
-	/* Workaround for some buggy APM BIOS implementations */
-	sc->cs_limit = 0xffff;
-	sc->ds_limit = 0xffff;
-#endif
-
-	/* setup GDT */
-	setup_apm_gdt(sc->cs32_base, sc->cs16_base, sc->ds_base,
-			sc->cs32_limit, sc->cs16_limit, sc->ds_limit);
-
-	/* setup entry point 48bit pointer */
-	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
-	apm_addr.offset  = sc->cs_entry;
-
+	/*
+	 * XXX this may not be needed anymore
+	 */
 	if ((flags & 0x10)) {
 		if ((flags & 0xf) >= 0x2) {
 			apm_driver_version(0x102);
@@ -1021,13 +936,20 @@ apm_attach(device_t dev)
 		if (!apm_version)
 			apm_driver_version(0x101);
 	} 
-	if (!apm_version)
-		apm_version = 0x100;
-
-	sc->minorversion = ((apm_version & 0x00f0) >>  4) * 10 +
-			((apm_version & 0x000f) >> 0);
-	sc->majorversion = ((apm_version & 0xf000) >> 12) * 10 +
-			((apm_version & 0x0f00) >> 8);
+#endif
+	/*
+        * In one test, apm bios version was 1.02; an attempt to register
+        * a 1.04 driver resulted in a 1.00 connection!  Registering a
+        * 1.02 driver resulted in a 1.02 connection.
+        */
+	drv_version = apm_version > 0x102 ? 0x102 : apm_version;
+	for (; drv_version > 0x100; drv_version--)
+		if (apm_driver_version(drv_version) == 0)
+			break;
+	sc->minorversion = ((drv_version & 0x00f0) >>  4) * 10 +
+		((drv_version & 0x000f) >> 0);
+	sc->majorversion = ((drv_version & 0xf000) >> 12) * 10 +
+		((apm_version & 0x0f00) >> 8);
 
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
@@ -1036,8 +958,10 @@ apm_attach(device_t dev)
 		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
 #endif
 
-	printf("apm: found APM BIOS version %d.%d\n",
-		sc->majorversion, sc->minorversion);
+	printf("apm: found APM BIOS v%ld.%ld, connected at v%d.%d\n",
+	       ((apm_version & 0xf000) >> 12) * 10 + ((apm_version & 0x0f00) >> 8),
+	       ((apm_version & 0x00f0) >> 4) * 10 + ((apm_version & 0x000f) >> 0),
+	       sc->majorversion, sc->minorversion);
 
 #ifdef APM_DEBUG
 	printf("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
@@ -1078,8 +1002,6 @@ apm_attach(device_t dev)
 
         apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
-
-	apm_event_enable();
 
 	/* Power the system off using APM */
 	at_shutdown_pri(apm_power_off, NULL, SHUTDOWN_FINAL, SHUTDOWN_PRI_LAST);
@@ -1208,10 +1130,12 @@ apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		if (apm_display(newstate))
 			error = ENXIO;
 		break;
+#if 0
 	case APMIO_BIOS:
 		if (apm_bios_call((struct apm_bios_arg*)addr) == 0)
 			((struct apm_bios_arg*)addr)->eax &= 0xff;
 		break;
+#endif
 	default:
 		error = EINVAL;
 		break;

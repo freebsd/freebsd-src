@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.36 1999/07/10 15:27:56 bde Exp $
+ * $Id: asnames.h,v 1.37 1999/07/20 06:52:33 msmith Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -179,6 +179,7 @@
 #define _bigJump			bigJump
 #define _bintr				bintr
 #define _bio_imask			bio_imask
+#define _bioscall_vector		bioscall_vector
 #define _bluetrap			bluetrap
 #define _bootCodeSeg			bootCodeSeg
 #define _bootDataSeg			bootDataSeg
