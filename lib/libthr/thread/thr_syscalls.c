@@ -97,7 +97,7 @@ extern int __sys_select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 extern int __system(const char *);
 extern int __tcdrain(int);
 extern pid_t __wait(int *);
-extern pid_t _wait4(pid_t, int *, int, struct rusage *);
+extern pid_t __sys_wait4(pid_t, int *, int, struct rusage *);
 extern pid_t __waitpid(pid_t, int *, int);
 
 __weak_reference(_aio_suspend, aio_suspend);
@@ -115,10 +115,10 @@ _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
 	return ret;
 }
 
-__weak_reference(__close, close);
+__weak_reference(_close, close);
 
 int
-__close(int fd)
+_close(int fd)
 {
 	int	ret;
 
@@ -128,10 +128,10 @@ __close(int fd)
 	
 	return ret;
 }
-__weak_reference(___creat, creat);
+__weak_reference(_creat, creat);
 
 int
-___creat(const char *path, mode_t mode)
+_creat(const char *path, mode_t mode)
 {
 	int	ret;
 
@@ -142,10 +142,10 @@ ___creat(const char *path, mode_t mode)
 	return ret;
 }
 
-__weak_reference(__fcntl, fcntl);
+__weak_reference(_fcntl, fcntl);
 
 int
-__fcntl(int fd, int cmd,...)
+_fcntl(int fd, int cmd,...)
 {
 	int	ret;
 	va_list	ap;
@@ -173,10 +173,10 @@ __fcntl(int fd, int cmd,...)
 	return ret;
 }
 
-__weak_reference(__fsync, fsync);
+__weak_reference(_fsync, fsync);
 
 int
-__fsync(int fd)
+_fsync(int fd)
 {
 	int	ret;
 
@@ -187,10 +187,10 @@ __fsync(int fd)
 	return ret;
 }
 
-__weak_reference(__msync, msync);
+__weak_reference(_msync, msync);
 
 int
-__msync(void *addr, size_t len, int flags)
+_msync(void *addr, size_t len, int flags)
 {
 	int	ret;
 
@@ -216,10 +216,10 @@ _nanosleep(const struct timespec * time_to_sleep, struct timespec *
 	return ret;
 }
 
-__weak_reference(__open, open);
+__weak_reference(_open, open);
 
 int
-__open(const char *path, int flags,...)
+_open(const char *path, int flags,...)
 {
 	int	ret;
 	int	mode = 0;
@@ -241,10 +241,10 @@ __open(const char *path, int flags,...)
 	return ret;
 }
 
-__weak_reference(__poll, poll);
+__weak_reference(_poll, poll);
 
 int
-__poll(struct pollfd *fds, unsigned int nfds, int timeout)
+_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 {
 	int ret;
 
@@ -271,10 +271,10 @@ pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	return (ret);
 }
 
-__weak_reference(__read, read);
+__weak_reference(_read, read);
 
 ssize_t
-__read(int fd, void *buf, size_t nbytes)
+_read(int fd, void *buf, size_t nbytes)
 {
 	ssize_t	ret;
 
@@ -285,10 +285,10 @@ __read(int fd, void *buf, size_t nbytes)
 	return ret;
 }
 
-__weak_reference(__readv, readv);
+__weak_reference(_readv, readv);
 
 ssize_t
-__readv(int fd, const struct iovec *iov, int iovcnt)
+_readv(int fd, const struct iovec *iov, int iovcnt)
 {
 	ssize_t ret;
 
@@ -299,10 +299,10 @@ __readv(int fd, const struct iovec *iov, int iovcnt)
 	return ret;
 }
 
-__weak_reference(__select, select);
+__weak_reference(_select, select);
 
 int 
-__select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+_select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 	struct timeval *timeout)
 {
 	int ret;
@@ -371,15 +371,15 @@ _wait(int *istat)
 	return ret;
 }
 
-__weak_reference(__wait4, wait4);
+__weak_reference(_wait4, wait4);
 
 pid_t
-__wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
+_wait4(pid_t pid, int *istat, int options, struct rusage *rusage)
 {
 	pid_t ret;
 
 	_thread_enter_cancellation_point();
-	ret = _wait4(pid, istat, options, rusage);
+	ret = __sys_wait4(pid, istat, options, rusage);
 	_thread_leave_cancellation_point();
 
 	return ret;
@@ -399,10 +399,10 @@ _waitpid(pid_t wpid, int *status, int options)
 	return ret;
 }
 
-__weak_reference(__write, write);
+__weak_reference(_write, write);
 
 ssize_t
-__write(int fd, const void *buf, size_t nbytes)
+_write(int fd, const void *buf, size_t nbytes)
 {
 	ssize_t	ret;
 
@@ -413,10 +413,10 @@ __write(int fd, const void *buf, size_t nbytes)
 	return ret;
 }
 
-__weak_reference(__writev, writev);
+__weak_reference(_writev, writev);
 
 ssize_t
-__writev(int fd, const struct iovec *iov, int iovcnt)
+_writev(int fd, const struct iovec *iov, int iovcnt)
 {
 	ssize_t ret;
 
