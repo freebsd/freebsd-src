@@ -817,6 +817,25 @@ static int
 kqueue_ioctl(struct file *fp, u_long cmd, void *data,
 	struct ucred *active_cred, struct thread *td)
 {
+	/*
+	 * Enabling sigio causes two major problems:
+	 * 1) infinite recursion:
+	 * Synopsys: kevent is being used to track signals and have FIOASYNC
+	 * set.  On receipt of a signal this will cause a kqueue to recurse
+	 * into itself over and over.  Sending the sigio causes the kqueue
+	 * to become ready, which in turn posts sigio again, forever.
+	 * Solution: this can be solved by setting a flag in the kqueue that
+	 * we have a SIGIO in progress.
+	 * 2) locking problems:
+	 * Synopsys: Kqueue is a leaf subsystem, but adding signalling puts
+	 * us above the proc and pgrp locks.
+	 * Solution: Post a signal using an async mechanism, being sure to
+	 * record a generation count in the delivery so that we do not deliver
+	 * a signal to the wrong process.
+	 *
+	 * Note, these two mechanisms are somewhat mutually exclusive!
+	 */
+#if 0
 	struct kqueue *kq;
 
 	kq = fp->f_data;
@@ -836,6 +855,7 @@ kqueue_ioctl(struct file *fp, u_long cmd, void *data,
 		*(int *)data = fgetown(&kq->kq_sigio);
 		return (0);
 	}
+#endif
 
 	return (ENOTTY);
 }
