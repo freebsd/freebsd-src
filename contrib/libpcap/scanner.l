@@ -273,6 +273,7 @@ lex_init(buf)
 	char *buf;
 {
 	in_buffer = buf;
+	yyrestart(NULL);
 }
 
 /*
