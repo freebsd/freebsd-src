@@ -2,7 +2,7 @@
 .\"	David L. Nugent.
 .\"	Password Maintenance
 .\"
-.\"	$Id: pw.8,v 1.3 1996/11/18 03:09:01 davidn Exp $
+.\"	$Id: pw.8,v 1.1.1.1 1996/12/09 14:05:35 joerg Exp $
 .\"
 .Dd November 13, 1996
 .Dt PW 8
@@ -114,14 +114,18 @@ is a command-line based editor for the system
 .Em user
 and
 .Em group
-files, allowing the superuser and easy to use and standardised way of adding,
+files, allowing the superuser and easy to use and standardized way of adding,
 modifying and removing users and groups.
 Note that
 .Nm pw
 only operates on the local user and group files; NIS users and groups must be
 maintained on the NIS server.
 .Nm pw
-handles updating the passwd, master.passwd, group and the secure and insecure
+handles updating the 
+.Pa passwd , 
+.Pa master.passwd , 
+.Pa group
+and the secure and insecure
 password database files, and must be run as root.
 .Pp
 The first one or two keywords provided on
@@ -139,7 +143,7 @@ or
 .Ar show ,
 and may be specified in either order (ie. showuser, usershow, show user and user show
 are all considered to be the same thing).
-This flexiblity is useful for interactive scripts which call
+This flexibility is useful for interactive scripts which call
 .Nm pw 
 for the actual user and group database manipulation.
 Following these keywords, you may optionally specify the user or group name or numeric
@@ -188,7 +192,7 @@ Specifies the user/account name.
 Specifies the user/account numeric id.
 .Pp
 Usually, you need only to provide one or the other of these options, as the account
-name will imply the uid, and vice verca.
+name will imply the uid, and vice versa.
 Also, you may provide either the account or userid immediately after the
 .Ar useradd ,
 .Ar userdel ,
@@ -248,13 +252,13 @@ This option also accepts a relative date in the form
 where
 .Ql \&n
 is a decimal, octal (leading 0) or hexadecimal (leading 0x) digit followed by the
-number of Minutes, Hours, Days, Weeks, mOnths or Years from the current date at
+number of Minutes, Hours, Days, Weeks, Months or Years from the current date at
 which the expiry date is to be set.
 .It Fl p Ar date
 Sets the account's password expiration date.
 This field is identical to the account expiration date option, except that it
 applies to forced password changes.
-The same formats are accepted as with the account expiratino option.
+The same formats are accepted as with the account expiration option.
 .It Fl g Ar group
 Sets the account's primary group to the given group.
 .Ar group
@@ -283,7 +287,7 @@ the filesystem.
 The new home directory is populated with the contents of the
 .Ar skeleton
 directory, which typically contains a set of shell configuration files that the
-user may personalise to taste.
+user may personalize to taste.
 When
 .Ql Fl m
 is used on an account with
@@ -450,7 +454,7 @@ by their symbolic names.
 .It Fl k Ar dir
 Sets the default
 .Em skeleton
-directory, from which prototype shell and other initialisation files are copied when
+directory, from which prototype shell and other initialization files are copied when
 .Nm pw
 creates a user's home directory.
 .It Fl u Ar min,max
@@ -524,7 +528,7 @@ Secondly, it will only remove files and directories that are actually owned by
 the user, or symbolic links owned by anyone under the user's home directory.
 Finally, after deleting all contents owned by the user only empty directories
 will be removed.
-If any additional cleanup work is required, this is left to the adminstrator.
+If any additional cleanup work is required, this is left to the administrator.
 .El
 .Pp
 Mail spool files and crontabs are always removed when an account is deleted as these
@@ -544,7 +548,7 @@ with the password field replaced with a
 Class, account and password expiration fields will be blank or zero zero unless the user
 running
 .Nm pw
-has root priviledges, as the secure password file where these reside is not accessible
+has root privileges, as the secure password file where these reside is not accessible
 to non-root users.
 If the
 .Ql Fl p
@@ -572,7 +576,7 @@ Specifies the group name.
 .It Fl g Ar gid
 Specifies the group numeric id.
 .Pp
-As with the account name and id fields, yo uwill usually only need to supply one of
+As with the account name and id fields, you will usually only need to supply one of
 these, as the group name implies the uid and vice versa.
 You will only need to use both when setting a specific group id against a new group
 or when changing the uid of an existing group.
@@ -588,7 +592,7 @@ There is rarely any need to duplicate a group id.
 .Pp
 The
 .Ar groupmod
-command adds one additonal switch:
+command adds one additional switch:
 .Pp
 .Bl -tag -width "-l name"
 .It Fl l Ar name
@@ -632,17 +636,18 @@ Temporary copy of the group file
 Pw default options file
 .El
 .Sh SEE ALSO
-.Xr pw.conf 5 ,
-.Xr passwd 1 ,
 .Xr chpass 1 ,
-.Xr passwd 5 ,
+.Xr passwd 1 ,
 .Xr group 5 ,
+.Xr passwd 5 ,
+.Xr pw.conf 5 ,
 .Xr pwd_mkdb 8 ,
-.Xr vipw 5
+.Xr vipw 8
 .Sh HISTORY
 .Nm pw
-was written to mimick many of the options used in the Linux
+was written to mimic many of the options used in the Linux
 .Em shadow
 suite, but is modified for passwd and group fields specific to
-the BSD 4.4 operating system.
-
+the
+.Bx 4.4
+operating system.
