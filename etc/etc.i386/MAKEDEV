@@ -65,6 +65,8 @@
 #	cuaA*	Specialix SI/XIO dialout ports
 #	ttyD*	Digiboard - 16 dialin ports
 #	cuaD*	Digiboard - 16 dialout ports
+#	ttyR*	Rocketport dialin ports
+#	cuaR*	Rocketport dialout ports
 #
 # Pseudo terminals:
 #	pty*	set of 32 master and slave pseudo terminals
@@ -104,7 +106,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.139 1997/03/10 02:10:58 danny Exp $
+#	$Id: MAKEDEV,v 1.140 1997/05/11 00:34:36 jmg Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -900,6 +902,79 @@ cuaD?)
 		mknod cualD$name c $major `expr $minor + 64 + 128`
 		chown uucp.dialer cua*D$name
 	done
+	umask 77
+	;;
+
+# Rocketport multiport serial card.
+#
+#
+ttyR?)
+	major=81
+	Rnum=0; IRnum=32; LRnum=64
+	unit=1; minor=0
+	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
+	controllers=`awk '{print $1}' < /tmp/rp_list`
+
+	rm -f /dev/ttyR*
+	rm -f /dev/ttyiR*
+	rm -f /dev/ttylR*
+
+	for i in $controllers; do
+	  ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
+	  echo -n "Creating $ndevices devices for $i: "
+	  for dev in `jot $ndevices 0`; do
+		name=ttyR$Rnum
+		echo -n "$name "
+		mknod /dev/$name c $major $Rnum 
+		name=ttylR$Rnum
+		echo -n "$name "
+		mknod /dev/$name c $major $LRnum 
+		name=ttyiR$Rnum
+		echo -n "$name "
+		mknod /dev/$name c $major $IRnum 
+		Rnum=`expr $Rnum + 1`
+		LRnum=`expr $LRnum + 1`
+		IRnum=`expr $IRnum + 1`
+	  done
+	  unit=`expr $unit + 1`
+	  echo " "
+	done
+	chown root.wheel /dev/ttyR*
+	;;
+
+cuaR?)
+	major=81
+	CUnum=128; ICUnum=160; LCUnum=192
+	unit=1; minor=0
+	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
+	controllers=`awk '{print $1}' < /tmp/rp_list`
+
+	umask 7
+	rm -f /dev/cuaR*
+	rm -f /dev/cuaiR*
+	rm -f /dev/cualR*
+
+	for i in $controllers; do
+	  ndevices=`grep ^$i /tmp/rp_list | sed -e 's/.* \([0-9]*\) ports/\1/'`
+	  echo -n "Creating $ndevices devices for $i: "
+	  for dev in `jot $ndevices 0`; do
+		name=cuaR$Rnum
+		echo -n "$name "
+		mknod /dev/$name c $major $CUnum 
+		name=cualR$Rnum
+		echo -n "$name "
+		mknod /dev/$name c $major $LCUnum 
+		name=cuaiR$Rnum
+		echo -n "$name "
+		mknod /dev/$name c $major $ICUnum 
+		CUnum=`expr $CUnum + 1`
+		LCUnum=`expr $LCUnum + 1`
+		ICUnum=`expr $ICUnum + 1`
+	  done
+	  unit=`expr $unit + 1`
+	  echo " "
+	done
+	chown uucp.dialer /dev/cuaR*
 	umask 77
 	;;
 
