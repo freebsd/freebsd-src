@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 8.31 2000/03/30 20:16:50 vixie Exp $
+ *	$Id: resolv.h,v 8.32 2000/12/23 08:14:49 vixie Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -328,7 +328,7 @@ extern const struct res_sym __p_rcode_syms[];
 #define res_nclose		__res_nclose
 #define res_ninit		__res_ninit
 #define res_nmkquery		__res_nmkquery
-#define res_npquery		__res_npquery
+#define res_pquery		__res_pquery
 #define res_nquery		__res_nquery
 #define res_nquerydomain	__res_nquerydomain
 #define res_nsearch		__res_nsearch
@@ -383,7 +383,7 @@ int		res_ninit __P((res_state));
 int		res_nisourserver __P((const res_state,
 				      const struct sockaddr_in *));
 void		fp_resstat __P((const res_state, FILE *));
-void		res_npquery __P((const res_state, const u_char *, int, FILE *));
+void		res_pquery __P((const res_state, const u_char *, int, FILE *));
 const char *	res_hostalias __P((const res_state, const char *,
 				   char *, size_t));
 int		res_nquery __P((res_state,

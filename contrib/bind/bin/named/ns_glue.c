@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_glue.c,v 8.17 2000/07/17 07:36:52 vixie Exp $";
+static const char rcsid[] = "$Id: ns_glue.c,v 8.18 2000/11/08 06:16:36 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -434,17 +434,6 @@ ctimel(long l) {
 
 	return (checked_ctime(&t));
 }
-
-/*
- * rename() is lame (can't overwrite an existing file) on some systems.
- * use movefile() instead, and let lame OS ports do what they need to.
- */
-#ifndef HAVE_MOVEFILE
-int
-movefile(const char *oldname, const char *newname) {
-	return (rename(oldname, newname));
-}
-#endif
 
 #ifdef ultrix
 /*

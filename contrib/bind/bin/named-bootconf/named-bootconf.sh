@@ -181,19 +181,24 @@ while read CMD ARGS; do
 		esac
 		set - X $ARGS
 		shift
-		if [ $# -gt 2 ]; then
+		if [ $# -gt 1 ]; then
 			ZONE=$1
 			shift
-			PRIMARIES=$1
-			while [ $# -gt 2 ]; do
-				shift
+			PRIMARIES=""
+			while [ $# -gt 1 ]; do
 				PRIMARIES="$PRIMARIES $1"
+				shift
 			done
 			(echo ""
 			cat $COMMENTFILE
 			echo "zone \"$ZONE\" ${class}{"
 			echo "	type slave;"
-			echo "	file \"$2\";"
+			if expr x"$1" : '^x[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null
+			then
+				PRIMARIES="$PRIMARIES $1"
+			else
+				echo "	file \"$1\";"
+			fi
 			echo "	masters {"
 			for PRIMARY in $PRIMARIES; do
 				echo "		$PRIMARY;"
@@ -215,19 +220,24 @@ while read CMD ARGS; do
 		esac
 		set - X $ARGS
 		shift
-		if [ $# -gt 2 ]; then
+		if [ $# -gt 1 ]; then
 			ZONE=$1
 			shift
-			PRIMARIES=$1
-			while [ $# -gt 2 ]; do
-				shift
+			PRIMARIES=""
+			while [ $# -gt 1 ]; do
 				PRIMARIES="$PRIMARIES $1"
+				shift
 			done
 			(echo ""
 			cat $COMMENTFILE
 			echo "zone \"$ZONE\" ${class}{"
 			echo "	type stub;"
-			echo "	file \"$2\";"
+			if expr x"$1" : '^x[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null
+			then
+				PRIMARIES="$PRIMARIES $1"
+			else
+				echo "	file \"$1\";"
+			fi
 			echo "	masters {"
 			for PRIMARY in $PRIMARIES; do
 				echo "		$PRIMARY;"

@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: mkservdb.c,v 1.6 1999/10/13 16:39:00 vixie Exp $";
+static const char rcsid[] = "$Id: mkservdb.c,v 1.9 2001/01/26 06:54:11 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -29,6 +29,7 @@ static const char rcsid[] = "$Id: mkservdb.c,v 1.6 1999/10/13 16:39:00 vixie Exp
 #include <ctype.h>
 #ifdef IRS_LCL_SV_DB
 #include <db.h>
+#include <err.h>
 #endif
 #include <fcntl.h>
 #include <limits.h>
@@ -37,9 +38,11 @@ static const char rcsid[] = "$Id: mkservdb.c,v 1.6 1999/10/13 16:39:00 vixie Exp
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "../../include/irs.h"
 #include "../../lib/irs/irs_p.h"
+#include "../../include/isc/misc.h"
 
 #include "port_after.h"
 
@@ -61,6 +64,7 @@ main(int argc, char **argv) {
 
 struct servent *getnextent(FILE *);
 
+int
 main(int argc, char **argv) {
 	DB *db;
 	DBT key;
@@ -112,24 +116,26 @@ main(int argc, char **argv) {
 		}
 		data.size = p - dbuf;
 
-		if ((r = db->put(db, &key, &data, R_NOOVERWRITE)))
+		if ((r = db->put(db, &key, &data, R_NOOVERWRITE))) {
 			if (r < 0)
-				errx(1, "failed to write %s", key.data);
+				errx(1, "failed to write %s", (char *)key.data);
 			else
-				warnx("will not overwrite %s", key.data);
+				warnx("will not overwrite %s", (char *)key.data);
+		}
 		for (n = 0; sv->s_aliases[n]; ++n) {
 			if (strlen(sv->s_aliases[n]) + sizeof "/"
 			    + strlen(sv->s_proto) > sizeof kbuf)
 				continue;
 			key.size = SPRINTF((kbuf, "%s/%s",
 					    sv->s_aliases[n], sv->s_proto))+1;
-			if ((r = db->put(db, &key, &data, R_NOOVERWRITE)))
+			if ((r = db->put(db, &key, &data, R_NOOVERWRITE))) {
 				if (r < 0)
 					errx(1, "failed to write %s",
-					     key.data);
+					     (char *)key.data);
 				else
 					warnx("will not overwrite %s",
-					      key.data);
+					      (char *)key.data);
+			}
 		}
 
 		ports = (u_short *)kbuf;
@@ -152,16 +158,17 @@ main(int argc, char **argv) {
 				}
 		data.size = p - dbuf;
 
-		if ((r = db->put(db, &key, &data, R_NOOVERWRITE)))
+		if ((r = db->put(db, &key, &data, R_NOOVERWRITE))) {
 			if (r < 0)
 				errx(1, "failed to write %d/%s",
 				     ntohs(sv->s_port), sv->s_proto); 
 			else
 				warnx("will not overwrite %d/%s",
-				      ntohs(sv->s_port), sv->s_proto); 
+				      ntohs(sv->s_port), sv->s_proto);
+		}
 	}
 	db->close(db);
-	if (rename(tmpdatabase, database))
+	if (isc_movefile(tmpdatabase, database))
 		err(1, "rename %s -> %s", tmpdatabase, database);
 	exit(0);
 }
