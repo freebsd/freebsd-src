@@ -24,6 +24,8 @@
  * $FreeBSD$
  */
 
+#define OBSOLETE_IN_6
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
