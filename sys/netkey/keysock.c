@@ -50,6 +50,7 @@
 
 #include <net/raw_cb.h>
 #include <net/route.h>
+#include <netinet/in.h>
 
 #include <net/pfkeyv2.h>
 #include <netkey/keydb.h>
