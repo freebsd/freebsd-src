@@ -114,6 +114,7 @@ device		pass		# Passthrough device (direct SCSI access)
 # RAID controllers interfaced to the SCSI subsystem
 device		asr		# DPT SmartRAID V, VI and Adaptec SCSI RAID
 device		dpt		# DPT Smartcache - See LINT for options!
+device          iir             # Intel Integrated RAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 device		ciss		# Compaq SmartRAID 5* series
 
