@@ -336,7 +336,7 @@ struct thread {
 #define	TDF_UNUSED7	0x00000080 /* --available -- */
 #define	TDF_TSNOBLOCK	0x00000100 /* Don't block on a turnstile due to race. */
 #define	TDF_UNUSED9	0x00000200 /* --available -- */
-#define	TDF_UNUSED10	0x00000400 /* --available -- */
+#define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x00002000 /* Thread is marked as interrupted. */
@@ -573,6 +573,7 @@ struct proc {
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (c) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
+	int		p_boundary_count;/* (c) Num threads at user boundary */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -633,7 +634,7 @@ struct proc {
 #define	P_STOPPED_SINGLE 0x80000 /* Only 1 thread can continue (not to user). */
 #define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
 #define	P_SIGEVENT	0x200000 /* Process pending signals changed. */
-
+#define	P_SINGLE_BOUNDARY 0x400000 /* Threads should suspend at user boundary. */
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
 
@@ -681,8 +682,9 @@ struct proc {
 /* How values for thread_single(). */
 #define	SINGLE_NO_EXIT	0
 #define	SINGLE_EXIT	1
+#define	SINGLE_BOUNDARY	2
 
-/* XXXKSE: Missing values for thread_signal_check(). */
+/* XXXKSE: Missing values for thread_suspsend_check(). */
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
