@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.3 1993/10/16 19:11:39 rgrimes Exp $
+ *	$Id: sys.c,v 1.4 1994/08/21 17:47:26 paul Exp $
  */
 
 #include "boot.h"
@@ -178,12 +178,16 @@ openrd()
 		/*******************************************************\
 		* Look inside brackets for unit number, and partition	*
 		\*******************************************************/
+		/*
+		 * Allow any valid digit as the unit number, as the BIOS
+		 * will complain if the unit number is out of range.
+		 * Restricting the range here prevents the possibilty of using
+		 * BIOSes that support more than 2 units.
+	 * XXX Bad values may cause strange errors, need to check if
+	 * what happens when a value out of range is supplied.
+		 */
 		if (*cp >= '0' && *cp <= '9')
-			if ((unit = *cp++ - '0') > 1)
-			{
-				printf("Bad unit\n");
-				return 1;
-			}
+			unit = *cp++ - '0';
 		if (!*cp || (*cp == ',' && !*++cp))
 			return 1;
 		if (*cp >= 'a' && *cp <= 'p')
