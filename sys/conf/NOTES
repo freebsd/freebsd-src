@@ -372,9 +372,8 @@ options 	IPSEC_DEBUG		#debug for IP security
 # The default is that packets coming from a tunnel are _not_ processed;
 # they are assumed trusted.
 #
-# Note that enabling this can be problematic as there are no mechanisms
-# in place for distinguishing packets coming out of a tunnel (e.g. no
-# encX devices as found on openbsd).
+# IPSEC history is preserved for such packets, and can be filtered
+# using ipfw(8)'s 'ipsec' keyword, when this option is enabled.
 #
 #options 	IPSEC_FILTERGIF		#filter ipsec packets from a tunnel
 
