@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: e_log10.c,v 1.6 1994/08/18 23:05:44 jtc Exp $";
+static char rcsid[] = "$Id: e_log10.c,v 1.1.1.1 1994/08/19 09:39:44 jkh Exp $";
 #endif
 
 /* __ieee754_log10(x)
@@ -55,7 +55,6 @@ static const double
 #else
 static double
 #endif
-one	  = 1.0,
 two54      =  1.80143985094819840000e+16, /* 0x43500000, 0x00000000 */
 ivln10     =  4.34294481903251816668e-01, /* 0x3FDBCB7B, 0x1526E50E */
 log10_2hi  =  3.01029995663611771306e-01, /* 0x3FD34413, 0x509F6000 */
