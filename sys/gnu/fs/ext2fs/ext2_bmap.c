@@ -64,9 +64,9 @@ int
 ufs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
-		daddr64_t a_bn;
+		daddr_t a_bn;
 		struct vnode **a_vpp;
-		daddr64_t *a_bnp;
+		daddr_t *a_bnp;
 		int *a_runp;
 		int *a_runb;
 	} */ *ap;
