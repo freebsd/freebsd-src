@@ -41,7 +41,7 @@ usage()
 	fprintf(stderr, "\tmdconfig -d -u unit\n");
 	fprintf(stderr, "\tmdconfig -l [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
-	fprintf(stderr, "\t\toption = {cluster, compress, reserve, autounit}\n");
+	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
 	exit(1);
 }
@@ -118,10 +118,6 @@ main(int argc, char **argv)
 				mdio.md_options |= MD_RESERVE;
 			else if (!strcmp(optarg, "noreserve"))
 				mdio.md_options &= ~MD_RESERVE;
-			else if (!strcmp(optarg, "autounit"))
-				mdio.md_options |= MD_AUTOUNIT;
-			else if (!strcmp(optarg, "noautounit"))
-				mdio.md_options &= ~MD_AUTOUNIT;
 			else
 				errx(1, "Unknown option.");
 			break;
