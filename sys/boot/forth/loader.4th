@@ -57,7 +57,7 @@ include /boot/support.4th
 only forth also support-functions also builtins definitions
 
 : boot
-  0= if ( interpreted ) get-arguments then
+  0= if ( interpreted ) get_arguments then
 
   \ Unload only if a path was passed
   dup if
@@ -83,7 +83,7 @@ only forth also support-functions also builtins definitions
 ;
 
 : boot-conf
-  0= if ( interpreted ) get-arguments then
+  0= if ( interpreted ) get_arguments then
   0 1 unload drop
   load_kernel_and_modules
   ?dup 0= if 0 1 autoboot then
@@ -281,6 +281,24 @@ only forth definitions also support-functions
 : ignore true ;         \ For use in load error commands
 
 \ Return to strict forth vocabulary
+
+: #type
+  over - >r
+  type
+  r> spaces
+;
+
+: .? 2 spaces 2swap 15 #type 2 spaces type cr ;
+
+: ?
+  ['] ? execute
+  s" boot-conf" s" load kernel and modules, then autoboot" .?
+  s" read-conf" s" read a configuration file" .?
+  s" enable-module" s" enable loading of a module" .?
+  s" disable-module" s" disable loading of a module" .?
+  s" toggle-module" s" toggle loading of a module" .?
+  s" show-module" s" show module load data" .?
+;
 
 only forth also
 
