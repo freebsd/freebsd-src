@@ -267,7 +267,7 @@ i386/isa/matcd/matcd.c		count		matcd
 i386/isa/mca_machdep.c		optional	mca
 i386/isa/mcd.c			count		mcd
 i386/isa/mse.c			optional	mse
-i386/isa/npx.c			mandatory	npx
+i386/isa/npx.c			optional	npx
 i386/isa/pcaudio.c		optional	pca
 i386/isa/pcf.c			optional	pcf
 i386/isa/pcvt/pcvt_drv.c	optional	vt
