@@ -289,6 +289,7 @@ fw_rbuf_update(struct firewire_comm *fc, int sub, int flag){
 				STAILQ_REMOVE_HEAD(&ir->stfree, link);
 			}
 		}else{
+			device_printf(fc->bdev, "no free chunk available\n");
 			bulkxfer = STAILQ_FIRST(&ir->stvalid);
 			STAILQ_REMOVE_HEAD(&ir->stvalid, link);
 		}
