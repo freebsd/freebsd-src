@@ -16,6 +16,7 @@
 #include <sys/rlist.h>
 #include <nlist.h>
 #include <kvm.h>
+#include <limits.h>
 
 struct rlist *swaplist;
 
@@ -45,12 +46,11 @@ char	**argv;
 	static long blocksize;
         static int headerlen;
         static char *header;
-        char  **save;
 	kvm_t *kd;
+	char errbuf[_POSIX2_LINE_MAX];
 
 	/* We are trying to be simple here: */
 
-	save = argv;
 	while ((ch = getopt(argc, argv, "k")) != EOF)
 		switch(ch) {
 		case 'k':
@@ -60,19 +60,13 @@ char	**argv;
 		default:
 			usage();
 		}
-	argv += optind;
-
-	if (!*argv) {
-		argv = save;
-		argv[0] = ".";
-		argv[1] = NULL;
-	}
 
 	/* Open up /dev/kmem for reading. */
-	
-	if ((kd = kvm_openfiles(NULL, NULL, NULL, NULL, NULL)) == (kvm_t *)0) {
-		fprintf (stderr, "%s: kvm_openfiles:  %s\n", 
-			 argv [0], kvm_geterr(kd));
+
+	kd = kvm_openfiles((char *)NULL, (char *)NULL, (char *)NULL, 0, errbuf);
+	if (kd == NULL) {
+		fprintf (stderr, "%s: kvm_openfiles:  %s\n",
+			 argv [0], errbuf);
 		exit (1);
 	}
 
