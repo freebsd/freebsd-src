@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.79 1996/06/26 05:39:26 dyson Exp $
+ * $Id: vm_pageout.c,v 1.80 1996/06/29 09:15:39 davidg Exp $
  */
 
 /*
@@ -446,30 +446,30 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 				continue;
 			}
 
-			if ((p->flags & PG_REFERENCED) == 0) {
-				refcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
-				if (refcount) {
-					p->act_count += refcount - 1;
-					p->flags |= PG_REFERENCED;
-				}
-			} else {
-				pmap_clear_reference(VM_PAGE_TO_PHYS(p));
+			refcount = pmap_ts_referenced(VM_PAGE_TO_PHYS(p));
+			if (refcount) {
+				p->flags |= PG_REFERENCED;
+			} else if (p->flags & PG_REFERENCED) {
+				refcount = 1;
 			}
 
 			if ((p->queue != PQ_ACTIVE) &&
 				(p->flags & PG_REFERENCED)) {
 				vm_page_activate(p);
-			}
-
-			/*
-			 * if a page is active, not wired and is in the processes
-			 * pmap, then deactivate the page.
-			 */
-			if (p->queue == PQ_ACTIVE) {
+				p->act_count += refcount;
+				p->flags &= ~PG_REFERENCED;
+			} else if (p->queue == PQ_ACTIVE) {
 				if ((p->flags & PG_REFERENCED) == 0) {
-					vm_page_protect(p, VM_PROT_NONE);
-					if (!remove_mode)
+					p->act_count -= min(p->act_count, ACT_DECLINE);
+					if (!remove_mode && (vm_pageout_algorithm_lru || (p->act_count == 0))) {
+						vm_page_protect(p, VM_PROT_NONE);
 						vm_page_deactivate(p);
+					} else {
+						s = splvm();
+						TAILQ_REMOVE(&vm_page_queue_active, p, pageq);
+						TAILQ_INSERT_TAIL(&vm_page_queue_active, p, pageq);
+						splx(s);
+					}
 				} else {
 					p->flags &= ~PG_REFERENCED;
 					if (p->act_count < (ACT_MAX - ACT_ADVANCE))
@@ -564,7 +564,7 @@ vm_pageout_map_deactivate_pages(map, desired)
 static int
 vm_pageout_scan()
 {
-	vm_page_t m, next;
+	vm_page_t m, next, nextnext;
 	int page_shortage, addl_page_shortage, maxscan, maxlaunder, pcount;
 	int pages_freed;
 	struct proc *p, *bigproc;
@@ -753,17 +753,23 @@ rescan0:
 		page_shortage += addl_page_shortage;
 	}
 
-
 	pcount = cnt.v_active_count;
 	m = TAILQ_FIRST(&vm_page_queue_active);
+	nextnext = NULL;
 	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
 		int refcount;
 
 		if (m->queue != PQ_ACTIVE) {
-			break;
+			m = nextnext;
+			if ((m == NULL) || (m->queue != PQ_ACTIVE))
+				break;
 		}
 
 		next = TAILQ_NEXT(m, pageq);
+		if (next)
+			nextnext = TAILQ_NEXT(next, pageq);
+		else
+			nextnext = NULL;
 
 		/*
 		 * Don't deactivate pages that are busy.
