@@ -39,6 +39,7 @@
 .Nd system status server
 .Sh SYNOPSIS
 .Nm rwhod
+.Op Fl i
 .Op Fl m Op Ar ttl
 .Sh DESCRIPTION
 .Nm Rwhod
@@ -62,6 +63,12 @@ As a consumer of information, it listens for other
 servers' status messages, validating them, then recording
 them in a collection of files located in the directory
 .Pa /var/rwho .
+.Pp
+The
+.Fl i
+option enables insecure mode, which causes
+.Nm
+to ignore the source port on incoming packets.
 .Pp
 The
 .Fl m
@@ -163,7 +170,9 @@ Messages received by the
 .Nm rwho
 server are discarded unless they originated at an
 .Nm rwho
-server's port.  In addition, if the host's name, as specified
+server's port or the
+.Fl i
+option was specified.  In addition, if the host's name, as specified
 in the message, contains any unprintable
 .Tn ASCII
 characters, the
