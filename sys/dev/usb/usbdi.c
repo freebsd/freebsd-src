@@ -609,6 +609,14 @@ usbd_clear_endpoint_stall_async(pipe)
 	return (err);
 }
 
+void
+usbd_clear_endpoint_toggle(pipe)
+	usbd_pipe_handle pipe;
+{
+	pipe->methods->cleartoggle(pipe);
+}
+
+
 usbd_status 
 usbd_endpoint_count(iface, count)
 	usbd_interface_handle iface;
