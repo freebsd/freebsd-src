@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,8 +31,8 @@
  *	test.c					 12-Dec-97
  *
  */
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <unistd.h>
 
@@ -50,21 +50,23 @@
  *			"x"	[ -x path ]
  *
  *	i)	path	path
+ *			if NULL then previous path.
  *	r)		0: no, 1: ok
  *
  * You can specify more than one character. It assumed 'and' test.
  */
 int
 test(flags, path)
-char	*flags;
-char	*path;
+const char *flags;
+const char *path;
 {
-	struct stat sb;
+	static struct stat sb;
 	int	c;
 
-	if (stat(path, &sb) < 0)
-		return 0;
-	while ((c = *flags++) != NULL) {
+	if (path != NULL)
+		if (stat(path, &sb) < 0)
+			return 0;
+	while ((c = *flags++) != 0) {
 		switch (c) {
 		case 'f':
 	 		if (!S_ISREG(sb.st_mode))

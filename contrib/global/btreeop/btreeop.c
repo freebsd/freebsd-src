@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1997 Shigio Yamaguchi. All rights reserved.
+ * Copyright (c) 1996, 1997, 1998 Shigio Yamaguchi. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,9 +28,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	btreeop.c				6-Nov-97
+ *	btreeop.c				12-Nov-98
  *
  */
+#include <sys/types.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
@@ -38,21 +39,20 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dbio.h"
 #include "global.h"
 
-char    *dbdefault = "btree";   	/* default database name */
-char	*progname  = "btreeop";		/* command name */
+const char *dbdefault = "btree";   	/* default database name */
+const char *progname  = "btreeop";		/* command name */
 
 static void	usage __P((void));
 void	signal_setup __P((void));
 void	onintr __P((int));
-void	main __P((int, char **));
-void	dbwrite __P((DBIO *));
-void	dbkey __P((DBIO *, char *, int));
-void	dbscan __P((DBIO *, char *, int));
-void	dbdel __P((DBIO *, char *, int));
-void	dbbysecondkey __P((DBIO *, int, char *, int));
+int	main __P((int, char **));
+void	dbwrite __P((DBOP *));
+void	dbkey __P((DBOP *, char *, int));
+void	dbscan __P((DBOP *, char *, int));
+void	dbdel __P((DBOP *, char *, int));
+void	dbbysecondkey __P((DBOP *, int, char *, int));
 
 #define F_KEY	0
 #define F_DEL	1
@@ -61,7 +61,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n",
-		"usage: btreeop [-A][-C][-D[n] key][-K[n] key][-L][-k prefix][dbname]");
+		"usage: btreeop [-A][-C][-D[n] key][-K[n] key][-L[2]][-k prefix][dbname]");
 	exit(1);
 }
 
@@ -86,7 +86,7 @@ signal_setup()
 	signal(SIGTERM, onintr);
 }
 
-void
+int
 main(argc, argv)
 int	argc;
 char	*argv[];
@@ -94,11 +94,12 @@ char	*argv[];
 	char	command = 'R';
 	char	*key = NULL;
 	int     mode = 0;
-	char	*dbname;
-	DBIO	*dbio;
+	const char *db_name;
+	DBOP	*dbop;
 	int	i, c;
 	int	secondkey = 0;
-	char	*prefix = (char *)0;
+	int	keylist = 0;
+	char	*prefix = NULL;
 
 	for (i = 1; i < argc && argv[i][0] == '-'; ++i) {
 		switch (c = argv[i][1]) {
@@ -106,22 +107,34 @@ char	*argv[];
 		case 'K':
 			if (argv[i][2] && isdigit(argv[i][2]))
 				secondkey = atoi(&argv[i][2]);
-			key = argv[++i];
+			if (++i < argc)
+				key = argv[i];
+			else
+				usage();
+			/* FALLTHROUGH */
 		case 'A':
 		case 'C':
 		case 'L':
 			if (command != 'R')
 				usage();
 			command = c;
+			if (command == 'L') {
+				keylist = 1;
+				if (argv[i][2] == '2')
+					keylist = 2;
+			}
 			break;
 		case 'k':
-			prefix = argv[++i];
+			if (++i < argc)
+				prefix = argv[i];
+			else
+				usage();
 			break;
 		default:
 			usage();
 		}
 	}
-	dbname = (i < argc) ? argv[i] : dbdefault;
+	db_name = (i < argc) ? argv[i] : dbdefault;
 	switch (command) {
 	case 'A':
 	case 'D':
@@ -136,27 +149,35 @@ char	*argv[];
 		mode = 0;
 		break;
 	}
-	dbio = db_open(dbname, mode, 0644, DBIO_DUP);
-	if (dbio == NULL)
-		die1("db_open failed (dbname = %s).", dbname);
-
+	dbop = dbop_open(db_name, mode, 0644, DBOP_DUP);
+	if (dbop == NULL) {
+		switch (mode) {
+		case 0:
+		case 2:
+			die1("cannot open '%s'.", db_name);
+			break;
+		case 1:
+			die1("cannot create '%s'.", db_name);
+			break;
+		}
+	}
 	switch (command) {
 	case 'A':			/* Append records */
 	case 'C':			/* Create database */
-		dbwrite(dbio);
+		dbwrite(dbop);
 		break;
 	case 'D':			/* Delete records */
-		dbdel(dbio, key, secondkey);
+		dbdel(dbop, key, secondkey);
 		break;
 	case 'K':			/* Keyed (indexed) read */
-		dbkey(dbio, key, secondkey);
+		dbkey(dbop, key, secondkey);
 		break;
 	case 'R':			/* sequencial Read */
 	case 'L':			/* primary key List */
-		dbscan(dbio, prefix, (command == 'L') ? 1 : 0);
+		dbscan(dbop, prefix, keylist);
 		break;
 	}
-	db_close(dbio);
+	dbop_close(dbop);
 	if (exitflag)
 		exit(1);
 	exit(0);
@@ -164,11 +185,11 @@ char	*argv[];
 /*
  * dbwrite: write to database
  *
- *	i)	dbio		database
+ *	i)	dbop		database
  */
 void
-dbwrite(dbio)
-DBIO	*dbio;
+dbwrite(dbop)
+DBOP	*dbop;
 {
 	char	*p;
 	char	keybuf[MAXKEYLEN+1];
@@ -194,7 +215,7 @@ DBIO	*dbio;
 	 * +------------------
 	 * | __.VERSION 2
 	 */
-	while ((p = mgets(stdin, 0, NULL)) != NULL) {
+	while ((p = mgets(stdin, NULL, 0)) != NULL) {
 		if (exitflag)
 			break;
 		c = p;
@@ -215,89 +236,93 @@ DBIO	*dbio;
 		if (*c == 0)
 			die("data part is null.");
 		entab(p);
-		db_put(dbio, keybuf, p);
+		dbop_put(dbop, keybuf, p);
 	}
 }
 
 /*
  * dbkey: Keyed search
  *
- *	i)	dbio		database
+ *	i)	dbop		database
  *	i)	skey		key for search
  *	i)	secondkey	0: primary key, >0: secondary key
  */
 void
-dbkey(dbio, skey, secondkey)
-DBIO	*dbio;
+dbkey(dbop, skey, secondkey)
+DBOP	*dbop;
 char	*skey;
 int	secondkey;
 {
 	char	*p;
 
 	if (!secondkey) {
-		for (p = db_first(dbio, skey, 0); p; p = db_next(dbio))
+		for (p = dbop_first(dbop, skey, 0); p; p = dbop_next(dbop))
 			detab(stdout, p);
 		return;
 	}
-	dbbysecondkey(dbio, F_KEY, skey, secondkey);
+	dbbysecondkey(dbop, F_KEY, skey, secondkey);
 }
 
 /*
  * dbscan: Scan records
  *
- *	i)	dbio		database
+ *	i)	dbop		database
  *	i)	prefix		prefix of primary key
- *	i)	keylist		0: key and data, 1: primary key only
+ *	i)	keylist		0: data, 1: key, 2: key and data
  */
 void
-dbscan(dbio, prefix, keylist)
-DBIO	*dbio;
+dbscan(dbop, prefix, keylist)
+DBOP	*dbop;
 char	*prefix;
 int	keylist;
 {
 	char	*p;
-	int	flags = DBIO_SKIPMETA; 
+	int	flags = 0;
 
 	if (prefix)	
-		flags |= DBIO_PREFIX;
+		flags |= DBOP_PREFIX;
 	if (keylist)
-		flags |= DBIO_KEY;
+		flags |= DBOP_KEY;
 
-	for (p = db_first(dbio, prefix, flags); p; p = db_next(dbio))
-		detab(stdout, p);
+	for (p = dbop_first(dbop, prefix, flags); p; p = dbop_next(dbop)) {
+		if (keylist == 2)
+			fprintf(stdout, "%s %s\n", p, dbop->lastdat);
+		else
+			detab(stdout, p);
+	}
 }
 
 /*
  * dbdel: Delete records
  *
- *	i)	dbio		database
+ *	i)	dbop		database
  *	i)	skey		key for search
  *	i)	secondkey	0: primary key, >0: secondary key
  */
 void
-dbdel(dbio, skey, secondkey)
-DBIO	*dbio;
+dbdel(dbop, skey, secondkey)
+DBOP	*dbop;
 char	*skey;
 int	secondkey;
 {
 	signal_setup();
 	if (!secondkey) {
-		db_del(dbio, skey);
+		dbop_del(dbop, skey);
 		return;
 	}
-	dbbysecondkey(dbio, F_DEL, skey, secondkey);
+	dbbysecondkey(dbop, F_DEL, skey, secondkey);
 }
 /*
  * dbbysecondkey: proc by second key
  *
- *	i)	dbio	database
+ *	i)	dbop	database
  *	i)	func	F_KEY, F_DEL
  *	i)	skey
  *	i)	secondkey
  */
 void
-dbbysecondkey(dbio, func, skey, secondkey)
-DBIO	*dbio;
+dbbysecondkey(dbop, func, skey, secondkey)
+DBOP	*dbop;
 int	func;
 char	*skey;
 int	secondkey;
@@ -312,7 +337,7 @@ int	secondkey;
 	for (c = skey+strlen(skey)-1; *c && isspace(*c); c--)
 		*c = 0;
 
-	for (p = db_first(dbio, NULL, DBIO_SKIPMETA); p; p = db_next(dbio)) {
+	for (p = dbop_first(dbop, NULL, 0); p; p = dbop_next(dbop)) {
 		if (exitflag)
 			break;
 		c = p;
@@ -334,7 +359,7 @@ int	secondkey;
 				detab(stdout, p);
 				break;
 			case F_DEL:
-				db_del(dbio, NULL);
+				dbop_del(dbop, NULL);
 				break;
 			}
 		}
