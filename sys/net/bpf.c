@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.10 1995/07/31 10:35:36 peter Exp $
+ * $Id: bpf.c,v 1.11 1995/09/08 11:08:52 bde Exp $
  */
 
 #include "bpfilter.h"
@@ -52,6 +52,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <machine/cpu.h>	/* for bootverbose */
 #include <sys/mbuf.h>
 #include <sys/buf.h>
 #include <sys/time.h>
@@ -1304,7 +1305,8 @@ bpfattach(driverp, ifp, dlt, hdrlen)
 		for (i = 0; i < NBPFILTER; ++i)
 			D_MARKFREE(&bpf_dtab[i]);
 
-	printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
+	if (bootverbose)
+		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
 }
 
 #if BSD >= 199103
@@ -1339,37 +1341,6 @@ ifpromisc(ifp, pswitch)
 	}
 	ifr.ifr_flags = ifp->if_flags;
 	return ((*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr));
-}
-#endif
-
-#if BSD < 199103
-/*
- * Allocate some memory for bpf.  This is temporary SunOS support, and
- * is admittedly a hack.
- * If resources unavaiable, return 0.
- */
-static caddr_t
-bpf_alloc(size, canwait)
-	register int size;
-	register int canwait;
-{
-	register struct mbuf *m;
-
-	if ((unsigned)size > (MCLBYTES-8))
-		return 0;
-
-	MGET(m, canwait, MT_DATA);
-	if (m == 0)
-		return 0;
-	if ((unsigned)size > (MLEN-8)) {
-		MCLGET(m);
-		if (m->m_len != MCLBYTES) {
-			m_freem(m);
-			return 0;
-		}
-	}
-	*mtod(m, struct mbuf **) = m;
-	return mtod(m, caddr_t) + 8;
 }
 #endif
 #endif
