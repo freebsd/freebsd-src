@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 2000 Michael Smith
+ * Copyright (c) 2001 Scott Long
  * Copyright (c) 2000 BSDi
+ * Copyright (c) 2001 Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -97,7 +99,7 @@ static driver_t aac_disk_driver = {
 
 DRIVER_MODULE(aacd, aac, aac_disk_driver, aac_disk_devclass, 0, 0);
 
-/********************************************************************************
+/******************************************************************************
  * Handle open from generic layer.
  *
  * This is called by the diskslice code on first open in order to get the 
@@ -133,7 +135,7 @@ aac_disk_open(dev_t dev, int flags, int fmt, struct proc *p)
     return (0);
 }
 
-/********************************************************************************
+/******************************************************************************
  * Handle last close of the disk device.
  */
 static int
@@ -150,7 +152,7 @@ aac_disk_close(dev_t dev, int flags, int fmt, struct proc *p)
     return (0);
 }
 
-/********************************************************************************
+/******************************************************************************
  * Handle an I/O request.
  */
 static void
@@ -176,7 +178,7 @@ aac_disk_strategy(struct bio *bp)
     return;
 }
 
-/********************************************************************************
+/******************************************************************************
  * Handle completion of an I/O request.
  */
 void
@@ -192,7 +194,7 @@ aac_biodone(struct bio *bp)
     biodone(bp);
 }
 
-/********************************************************************************
+/******************************************************************************
  * Stub only.
  */
 static int
@@ -204,7 +206,7 @@ aac_disk_probe(device_t dev)
     return (0);
 }
 
-/********************************************************************************
+/******************************************************************************
  * Attach a unit to the controller.
  */
 static int
@@ -217,11 +219,15 @@ aac_disk_attach(device_t dev)
     debug_called(4);
 
     /* initialise our softc */
-    sc->ad_controller = (struct aac_softc *)device_get_softc(device_get_parent(dev));
+    sc->ad_controller =
+	(struct aac_softc *)device_get_softc(device_get_parent(dev));
     sc->ad_container = device_get_ivars(dev);
     sc->ad_dev = dev;
 
-    /* require that extended translation be enabled - other drivers read the disk! */
+    /*
+     * require that extended translation be enabled - other drivers read the
+     * disk!
+     */
     sc->ad_size = sc->ad_container->co_mntobj.Capacity;
     if (sc->ad_size >= (2 * 1024 * 1024)) {		/* 2GB */
 	sc->ad_heads = 255;
@@ -238,33 +244,39 @@ aac_disk_attach(device_t dev)
     device_printf(dev, "%uMB (%u sectors)\n",
 		  sc->ad_size / ((1024 * 1024) / AAC_BLOCK_SIZE), sc->ad_size);
 
-    devstat_add_entry(&sc->ad_stats, "aacd", device_get_unit(dev), AAC_BLOCK_SIZE,
-		      DEVSTAT_NO_ORDERED_TAGS,
+    devstat_add_entry(&sc->ad_stats, "aacd", device_get_unit(dev),
+		      AAC_BLOCK_SIZE, DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_STORARRAY | DEVSTAT_TYPE_IF_OTHER, 
 		      DEVSTAT_PRIORITY_ARRAY);
 
     /* attach a generic disk device to ourselves */
-    sc->ad_dev_t = disk_create(device_get_unit(dev), &sc->ad_disk, 0, &aac_disk_cdevsw, &aac_disk_disk_cdevsw);
+    sc->ad_dev_t = disk_create(device_get_unit(dev), &sc->ad_disk, 0,
+			       &aac_disk_cdevsw, &aac_disk_disk_cdevsw);
     sc->ad_dev_t->si_drv1 = sc;
 #ifdef FREEBSD_4
     disks_registered++;
 #endif
 
     /*
-     * We can calculate the maximum number of s/g entries based on the size of the
-     * FIB and the command structures packed within it.
+     * We can calculate the maximum number of s/g entries based on the size of
+     * the FIB and the command structures packed within it.
      */
     sgspace = (sizeof(struct aac_fib) - sizeof(struct aac_fib_header) - 
-	       imax(sizeof(struct aac_blockwrite), sizeof(struct aac_blockread)));
-    maxsg = (sgspace - sizeof(struct aac_sg_table)) / sizeof(struct aac_sg_entry);
-	      
-    /* set the maximum I/O size to the theoretical worst maximum allowed by the S/G list size */
+	       imax(sizeof(struct aac_blockwrite),
+	       sizeof(struct aac_blockread)));
+    maxsg = (sgspace - sizeof(struct aac_sg_table)) /
+	     sizeof(struct aac_sg_entry);
+
+    /*      
+     * set the maximum I/O size to the theoretical worst maximum allowed by the
+     * S/G list size
+     */
     sc->ad_dev_t->si_iosize_max = (maxsg - 1) * PAGE_SIZE;
 
     return (0);
 }
 
-/********************************************************************************
+/******************************************************************************
  * Disconnect ourselves from the system.
  */
 static int
