@@ -62,6 +62,7 @@
 #define	USB_VENDOR_BTC	0x046e		/* BTC */
 #define	USB_VENDOR_PHILIPS	0x0471		/* Philips */
 #define	USB_VENDOR_CONNECTIX	0x0478		/* Connectix */
+#define	USB_VENDOR_LUCENT	0x047e		/* Lucent */
 #define	USB_VENDOR_ACER	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
 #define	USB_VENDOR_EPSON	0x04b8		/* Epson */
@@ -129,6 +130,9 @@
 /* Connectix products */
 #define	USB_PRODUCT_CONNECTIX_QUICKCAM	0x0001		/* QuickCam */
 
+/* Lucent products */
+#define	USB_PRODUCT_LUCENT_EVALKIT	0x1001		/* USS-720 evaluation kit */
+
 /* Acer products */
 #define	USB_PRODUCT_ACER_ACERSCAN_C310U	0x12a6		/* Acerscan C310U */
 
@@ -136,7 +140,7 @@
 #define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
 
 /* Epson products */
-#define	USB_PRODUCT_EPSON_PRINTER3	0x0003		/* printer adapter */
+#define	USB_PRODUCT_EPSON_PRINTER3	0x0003		/* ISD USB Smart Cable */
 
 /* 3Com products */
 #define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
