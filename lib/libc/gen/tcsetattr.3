@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)tcsetattr.3	8.3 (Berkeley) 1/2/94
 .\"
-.Dd "January 2, 1994"
+.Dd January 2, 1994
 .Dt TCSETATTR 3
 .Os
 .Sh NAME
@@ -47,11 +47,11 @@
 .Sh SYNOPSIS
 .Fd #include <termios.h>
 .Ft speed_t
-.Fn cfgetispeed "struct termios *t"
+.Fn cfgetispeed "const struct termios *t"
 .Ft int
 .Fn cfsetispeed "struct termios *t" "speed_t speed"
 .Ft speed_t
-.Fn cfgetospeed "struct termios *t"
+.Fn cfgetospeed "const struct termios *t"
 .Ft int
 .Fn cfsetospeed "struct termios *t" "speed_t speed"
 .Ft int
@@ -61,7 +61,7 @@
 .Ft int
 .Fn tcgetattr "int fd" "struct termios *t"
 .Ft int
-.Fn tcsetattr "int fd" "int action" "struct termios *t"
+.Fn tcsetattr "int fd" "int action" "const struct termios *t"
 .Sh DESCRIPTION
 The
 .Fn cfmakeraw ,
