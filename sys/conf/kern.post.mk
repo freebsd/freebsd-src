@@ -151,7 +151,7 @@ kernel-install:
 		fi ; \
 		mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old ; \
 		if [ "$$thiskernel" = ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
-			sysctl -w kern.bootfile=${DESTDIR}${KODIR}.old/${KERNEL_KO} ; \
+			sysctl kern.bootfile=${DESTDIR}${KODIR}.old/${KERNEL_KO} ; \
 		fi; \
 	fi
 .endif
