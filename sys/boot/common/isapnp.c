@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pnp.c,v 1.5 1998/02/09 06:08:38 eivind Exp $
+ *      $Id: isapnp.c,v 1.1 1998/09/18 00:24:25 msmith Exp $
  */
 
 /*
@@ -126,20 +126,23 @@ isapnp_get_serial(u_int8_t *data)
 }
 
 /*
- * Format a pnp id as a string in standard ISA PnP format, 0x<hex identifier>
+ * Format a pnp id as a string in standard ISA PnP format, AAAIIRR
+ * where 'AAA' is the EISA ID, II is the product ID and RR the revision ID.
  */
 static char *
 isapnp_format(u_int8_t *data)
 {
-    static char	idbuf[16];
-    u_int32_t	i;
-    
-    i = data[3];
-    i = (i << 8) + data[2];
-    i = (i << 8) + data[1];
-    i = (i << 8) + data[0];
-    sprintf(idbuf, "0x%08x", i);
-    return(idbuf);
+    static char	idbuf[8];
+    const char	hextoascii[] = "0123456789abcdef";
+
+    idbuf[0] = '@' + ((data[0] & 0x7c) >> 2);
+    idbuf[1] = '@' + (((data[0] & 0x3) << 3) + ((data[1] & 0xe0) >> 5));
+    idbuf[2] = '@' + (data[1] & 0x1f);
+    idbuf[3] = hextoascii[(data[2] >> 4)];
+    idbuf[4] = hextoascii[(data[2] & 0xf)];
+    idbuf[5] = hextoascii[(data[3] >> 4)];
+    idbuf[6] = hextoascii[(data[3] & 0xf)];
+    idbuf[7] = 0;
 }
 
 /*
