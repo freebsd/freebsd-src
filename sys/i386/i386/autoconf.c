@@ -94,7 +94,6 @@ device_t isa_bus_device = 0;
 static void	configure_first(void *);
 static void	configure(void *);
 static void	configure_final(void *);
-extern void	bootpc_init(void);
 
 #if defined(NFSCLIENT) && defined(NFS_ROOT) && !defined(BOOTP_NFSROOT)
 static void	pxe_setup_nfsdiskless(void);

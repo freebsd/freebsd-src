@@ -55,7 +55,6 @@
 #include <cam/cam_debug.h>
 
 static void	configure(void *);
-extern void	bootpc_init(void);
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
 
 #ifdef DEV_ISA
