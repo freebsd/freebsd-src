@@ -175,7 +175,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 	int err;
 	u_int i;
 
-	if (sc->mbuf_npages == HE_CONFIG_MAX_MBUF_PAGES)
+	if (sc->mbuf_npages == sc->mbuf_max_pages))
 		return;
 	if ((pg = malloc(MBUF_ALLOC_SIZE, M_DEVBUF, M_NOWAIT)) == NULL)
 		return;
