@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.132 1998/10/23 05:43:13 dg Exp $
+ * $Id: vm_object.c,v 1.133 1998/10/25 17:44:58 phk Exp $
  */
 
 /*
@@ -404,6 +404,7 @@ vm_object_terminate(object)
 	register vm_object_t object;
 {
 	register vm_page_t p;
+	int s;
 
 	/*
 	 * Make sure no one uses us.
@@ -449,6 +450,7 @@ vm_object_terminate(object)
 	 * removes them from paging queues. Don't free wired pages, just
 	 * remove them from the object.
 	 */
+	s = splvm();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 #if !defined(MAX_PERF)
 		if (p->busy || (p->flags & PG_BUSY))
@@ -465,6 +467,7 @@ vm_object_terminate(object)
 			vm_page_remove(p);
 		}
 	}
+	splx(s);
 
 	/*
 	 * Let the pager know object is dead.
