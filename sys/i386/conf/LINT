@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.46 1994/01/27 01:01:22 ache Exp $
+#	$Id: LINT,v 1.47 1994/01/29 03:17:39 ache Exp $
 #
 
 machine		"i386"
@@ -77,7 +77,6 @@ options		NFS			#Network File System
 options		NS			#Xerox NS communications protocols
 options		NSIP			#XNS over IP
 options		PCFS			#PC (MSDOS) File System
-#options		PROCFS			#Proc File System
 pseudo-device	ppp	2
 pseudo-device	pty	4
 options		QUOTA			#enable disk quotas
