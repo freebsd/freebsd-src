@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.247
+    Original revision: 1.248
 -->
 
 <articleinfo>
@@ -977,6 +977,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
+
+      <para>&man.ata.4; ドライバは 48-bit アドレスに対応しました.
+	137GB より大きなデバイスに対応したことになります. &merged;</para>
 
       <para>CAM のエラー回復処理コードが更新されました.</para>
 
@@ -2779,7 +2782,7 @@ hw.pcic.irq="0"</programlisting>
       たとえば <literal>en_US.ISO_8859-1</literal> は
       <literal>en_US.ISO8859-1</literal> に変わっています.
       これに対する後方互換性は <filename>/etc/locale.alias</filename>
-      に含まれるエントリによって提供されています.</para>
+      に含まれるエントリによって提供されています. &merged;</para>
 
     <para><filename>/usr/src/share/examples/BSD_daemon/</filename> に
       スケーラブルな Beastie 画像が追加されました.
