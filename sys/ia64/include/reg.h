@@ -56,8 +56,8 @@ struct dbreg {
 
 struct proc;
 
-void	restorefpstate __P((struct fpreg *));
-void	savefpstate __P((struct fpreg *));
+void	restorehighfp __P((struct ia64_fpreg *));
+void	savehighfp __P((struct ia64_fpreg *));
 void	setregs __P((struct proc *, u_long, u_long, u_long));
 #endif
 

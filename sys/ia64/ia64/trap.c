@@ -310,7 +310,7 @@ trap(int vector, struct trapframe *framep)
 		 * on exit from the kernel, if proc == fpcurproc,
 		 * FP is enabled.
 		 */
-		if (fpcurproc == p) {
+		if (PCPU_GET(fpcurproc) == p) {
 			printf("trap: fp disabled for fpcurproc == %p", p);
 			goto dopanic;
 		}
@@ -320,6 +320,8 @@ trap(int vector, struct trapframe *framep)
 		break;
 
 	case IA64_VEC_PAGE_NOT_PRESENT:
+	case IA64_VEC_INST_ACCESS_RIGHTS:
+	case IA64_VEC_DATA_ACCESS_RIGHTS:
 	{
 		vm_offset_t va = framep->tf_cr_ifa;
 		struct vmspace *vm = NULL;
@@ -378,7 +380,9 @@ trap(int vector, struct trapframe *framep)
 			map = &vm->vm_map;
 		}
 
-		if (framep->tf_cr_isr & (IA64_ISR_X | IA64_ISR_R))
+		if (framep->tf_cr_isr & IA64_ISR_X)
+			ftype = VM_PROT_EXECUTE;
+		else if (framep->tf_cr_isr & IA64_ISR_R)
 			ftype = VM_PROT_READ;
 		else
 			ftype = VM_PROT_WRITE;
