@@ -55,20 +55,16 @@ em_delete_or_list(el, c)
     int c;
 {
     if (el->el_line.cursor == el->el_line.lastchar) {	/* if I'm at the end */
-#ifdef notyet
 	if (el->el_line.cursor == el->el_line.buffer) {	/* and the beginning */
-#endif
 	    term_overwrite(el, STReof, 4);/* then do a EOF */
 	    term__flush();
 	    return CC_EOF;
-#ifdef notyet
 	}
 	else {
-	    re_goto_bottom(el);
-	    *el->el_line.lastchar = '\0';		/* just in case */
-	    return CC_LIST_CHOICES;
+	    /* Here we could list completions, but it is an error right now */
+	    term_beep(el);
+	    return CC_ERROR;
 	}
-#endif
     }
     else {
 	c_delafter(el, el->el_state.argument);	/* delete after dot */
