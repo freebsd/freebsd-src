@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.2 1998/09/15 22:05:44 gibbs Exp $
+ *      $Id: cam_xpt.c,v 1.3 1998/09/16 00:11:33 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -4680,7 +4680,7 @@ proberegister(struct cam_periph *periph, void *arg)
 		return(CAM_REQ_CMP_ERR);
 	}
 
-	softc = (probe_softc *)malloc(sizeof(*softc),M_DEVBUF,M_NOWAIT);
+	softc = (probe_softc *)malloc(sizeof(*softc), M_TEMP, M_NOWAIT);
 
 	if (softc == NULL) {
 		printf("proberegister: Unable to probe new device. "
