@@ -585,7 +585,7 @@ dev/my/if_my.c		optional my
 dev/musycc/musycc.c	optional musycc
 dev/nge/if_nge.c	optional nge
 dev/nmdm/nmdm.c		optional nmdm
-dev/null/null.c		optional null
+dev/null/null.c		standard
 dev/patm/if_patm.c	optional patm pci
 dev/patm/if_patm_intr.c	optional patm pci
 dev/patm/if_patm_ioctl.c	optional patm pci
