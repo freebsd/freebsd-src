@@ -13,7 +13,7 @@
 /* SUPPRESS 288 on yyerrlab *//* Label unused */
 
 #include "bsdtar_platform.h"
-__FBSDID("$FreeBSD$);
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <stdio.h>
