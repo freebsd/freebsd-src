@@ -260,7 +260,7 @@ cpu_startup(dummy)
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	printf(version);
+	printf("%s", version);
 	identifycpu();
 
 	/* startrtclock(); */
