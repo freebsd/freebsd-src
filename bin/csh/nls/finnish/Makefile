@@ -2,7 +2,7 @@
 
 NL=     finnish
 DL=     fi_FI.ISO_8859-1
-LL=     fi_FI.DIS_8859-15
+LL=     fi_FI.ISO_8859-15
 
 .PATH: ${BASESRC}/${NL}
 
