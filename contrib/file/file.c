@@ -58,7 +58,7 @@
 #include "patchlevel.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$Id: file.c,v 1.68 2003/02/08 18:33:53 christos Exp $")
+FILE_RCSID("@(#)$Id: file.c,v 1.69 2003/02/27 20:47:46 christos Exp $")
 #endif	/* lint */
 
 
@@ -429,7 +429,7 @@ process(const char *inname, int wid)
 
 		if ((fd = open(inname, O_RDONLY)) < 0) {
 			/* We can't open it, but we were able to stat it. */
-			if (sb.st_mode & 0002) ckfputs("writeable, ", stdout);
+			if (sb.st_mode & 0002) ckfputs("writable, ", stdout);
 			if (sb.st_mode & 0111) ckfputs("executable, ", stdout);
 			ckfprintf(stdout, "can't read `%s' (%s).\n",
 			    inname, strerror(errno));
