@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -61,31 +62,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/user.h>
 
-#ifndef SMP
 #include <machine/asmacros.h>
-#endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
-#ifndef SMP
 #include <machine/clock.h>
-#endif
 #include <machine/resource.h>
 #include <machine/specialreg.h>
 #include <machine/segments.h>
 #include <machine/ucontext.h>
 
-#ifndef SMP
 #include <i386/isa/icu.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #else
 #include <i386/isa/isa.h>
 #endif
-#endif
-#include <i386/isa/intr_machdep.h>
+#include <machine/intr_machdep.h>
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
@@ -165,9 +160,7 @@ static	void	fpusave(union savefpu *);
 static	void	fpurstor(union savefpu *);
 static	int	npx_attach(device_t dev);
 static	void	npx_identify(driver_t *driver, device_t parent);
-#ifndef SMP
 static	void	npx_intr(void *);
-#endif
 static	int	npx_probe(device_t dev);
 #ifdef I586_CPU_XXX
 static	long	timezero(const char *funcname,
@@ -180,10 +173,8 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	CTLFLAG_RD, &hw_float, 0, 
 	"Floatingpoint instructions executed in hardware");
 
-#ifndef SMP
 static	volatile u_int		npx_intrs_while_probing;
 static	volatile u_int		npx_traps_while_probing;
-#endif
 
 static	union savefpu		npx_cleanstate;
 static	bool_t			npx_cleanstate_ready;
@@ -191,7 +182,6 @@ static	bool_t			npx_ex16;
 static	bool_t			npx_exists;
 static	bool_t			npx_irq13;
 
-#ifndef SMP
 alias_for_inthand_t probetrap;
 __asm("								\n\
 	.text							\n\
@@ -203,7 +193,6 @@ __asm("								\n\
 	fnclex							\n\
 	iret							\n\
 ");
-#endif /* SMP */
 
 /*
  * Identify routine.  Create a connection point on our parent for probing.
@@ -220,7 +209,6 @@ npx_identify(driver, parent)
 		panic("npx_identify");
 }
 
-#ifndef SMP
 /*
  * Do minimal handling of npx interrupts to convert them to traps.
  */
@@ -230,9 +218,7 @@ npx_intr(dummy)
 {
 	struct thread *td;
 
-#ifndef SMP
 	npx_intrs_while_probing++;
-#endif
 
 	/*
 	 * The BUSY# latch must be cleared in all cases so that the next
@@ -264,7 +250,6 @@ npx_intr(dummy)
 		mtx_unlock_spin(&sched_lock);
 	}
 }
-#endif /* !SMP */
 
 /*
  * Probe routine.  Initialize cr0 to give correct behaviour for [f]wait
@@ -276,7 +261,6 @@ static int
 npx_probe(dev)
 	device_t dev;
 {
-#ifndef SMP
 	struct gate_descriptor save_idt_npxtrap;
 	struct resource *ioport_res, *irq_res;
 	void *irq_cookie;
@@ -307,7 +291,6 @@ npx_probe(dev)
 	if (bus_setup_intr(dev, irq_res, INTR_TYPE_MISC | INTR_FAST, npx_intr,
 	    NULL, &irq_cookie) != 0)
 		panic("npx: can't create intr");
-#endif /* !SMP */
 
 	/*
 	 * Partially reset the coprocessor, if any.  Some BIOS's don't reset
@@ -347,16 +330,6 @@ npx_probe(dev)
 	fninit();
 
 	device_set_desc(dev, "math processor");
-
-#ifdef SMP
-
-	/*
-	 * Exception 16 MUST work for SMP.
-	 */
-	npx_ex16 = hw_float = npx_exists = 1;
-	return (0);
-
-#else /* !SMP */
 
 	/*
 	 * Don't use fwait here because it might hang.
@@ -413,6 +386,10 @@ npx_probe(dev)
 				 */
 				npx_irq13 = 1;
 				idt[IDT_MF] = save_idt_npxtrap;
+#ifdef SMP
+				if (mp_ncpus > 1)
+					panic("npx0 cannot use IRQ 13 on an SMP system");
+#endif
 				return (0);
 			}
 			/*
@@ -425,6 +402,10 @@ npx_probe(dev)
 	 * emulator and say that it has been installed.  XXX handle devices
 	 * that aren't really devices better.
 	 */
+#ifdef SMP
+	if (mp_ncpus > 1)
+		panic("npx0 cannot be emulated on an SMP system");
+#endif
 	/* FALLTHROUGH */
 no_irq13:
 	idt[IDT_MF] = save_idt_npxtrap;
@@ -435,20 +416,15 @@ no_irq13:
 	 * irq active then we would get it instead of exception 16.
 	 */
 	{
-		register_t crit;
+		struct intsrc *isrc;
 
-		crit = intr_disable();
-		mtx_lock_spin(&icu_lock);
-		INTRDIS(1 << irq_num);
-		mtx_unlock_spin(&icu_lock);
-		intr_restore(crit);
+		isrc = intr_lookup_source(irq_num);
+		isrc->is_pic->pic_disable_source(isrc);
 	}
 
 	bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
 	bus_release_resource(dev, SYS_RES_IOPORT, ioport_rid, ioport_res);
 	return (0);
-
-#endif /* SMP */
 }
 
 /*

@@ -24,9 +24,6 @@ extern int	timer0_max_count;
 extern uint64_t	tsc_freq;
 extern int	tsc_is_broken;
 extern int	wall_cmos_clock;
-#ifdef APIC_IO
-extern int	apic_8254_intr;
-#endif
 
 /*
  * Driver to clock driver interface.
