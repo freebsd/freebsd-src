@@ -6,35 +6,32 @@
 
 
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
-LIBKZHEAD?=	${DESTDIR}${LIBDIR}/kzhead.o
-LIBKZTAIL?=	${DESTDIR}${LIBDIR}/kztail.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
+LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBC_R?=	${DESTDIR}${LIBDIR}/libc_r.a
-LIBC_PIC=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
 LIBCIPHER?=	${DESTDIR}${LIBDIR}/libcipher.a	# XXX in secure dist, not base
-LIBCOM_ERR=	${DESTDIR}${LIBDIR}/libcom_err.a
+LIBCOM_ERR?=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
 LIBCRYPTO?=	${DESTDIR}${LIBDIR}/libcrypto.a	# XXX in secure dist, not base
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
 LIBDES?=	${DESTDIR}${LIBDIR}/libdes.a	# XXX in secure dist, not base
+LIBDEVINFO?=	${DESTDIR}${LIBDIR}/libdevinfo.a
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
-LIBF2C?=	${DESTDIR}${LIBDIR}/libf2c.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
-LIBFORMS?=	${DESTDIR}${LIBDIR}/libforms.a
+LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
 LIBFTPIO?=	${DESTDIR}${LIBDIR}/libftpio.a
-LIBGPLUSPLUS?=	${DESTDIR}${LIBDIR}/libg++.a
+LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
 LIBGCC?=	${DESTDIR}${LIBDIR}/libgcc.a
-LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGMP?=	${DESTDIR}${LIBDIR}/libgmp.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
@@ -49,6 +46,7 @@ LIBL?=		${DESTDIR}${LIBDIR}/libl.a
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
 LIBMD?=		${DESTDIR}${LIBDIR}/libmd.a
+LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBMYTINFO?=	"don't use LIBMYTINFO, use LIBNCURSES"
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
@@ -72,6 +70,7 @@ MINUSLPAM+=	-lradius -ltacplus -lskey -lcrypt -lmd -lutil -lopie \
 		-L${.OBJDIR}/../../secure/lib/libssh/ -lssh -lcrypto
 .endif
 
+LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPC?=		${DESTDIR}${LIBDIR}/libpc.a	# XXX doesn't exist
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPERL?=	${DESTDIR}${LIBDIR}/libperl.a
@@ -81,9 +80,6 @@ LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
-LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
-LIBDESCRYPT?=	"don't use LIBDESCRYPT, use LIBCRYPT"
-LIBSCSI?=	${DESTDIR}${LIBDIR}/libscsi.a
 LIBSKEY?=	${DESTDIR}${LIBDIR}/libskey.a
 LIBSS?=		${DESTDIR}${LIBDIR}/libss.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a	# XXX in secure dist, not base
@@ -91,7 +87,10 @@ LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
+LIBTINFO?=	"don't use LIBTINFO, use LIBNCURSES"
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
+LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
+LIBVGL?=	${DESTDIR}${LIBDIR}/libvgl.a
 LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a
 LIBY?=		${DESTDIR}${LIBDIR}/liby.a
