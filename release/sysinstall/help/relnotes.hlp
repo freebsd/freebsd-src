@@ -58,9 +58,9 @@ o Support for using VESA video modes. It is now possible to select and
   fx. 132x60 sized consoles and highres graphics in a generic manner on
   hardware that supports it. There is also support for running the 
   console in rastermode, which allows XFree86 to run a simple 16color
-  server in 800x600 on othervise unsupported video hardware.
+  server in 800x600 on otherwise unsupported video hardware.
 
-o Support for AdvanSys SCSI controllers (8 bit only for now)
+o Support for AdvanSys SCSI controllers
 
 o Support for the Compaq QLogic SCSI controller.
 
@@ -223,7 +223,7 @@ o Added support for SMC EtherPower II 10/100 Fast Ethernet card
 o Added support for ATAPI floppy drives (LS-120).
   [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
 
-o Added support for IBM Etherjet and other Crystam Semiconductor
+o Added support for IBM Etherjet and other Crystal Semiconductor
   CS89x0-based NICs.
   [MERGED: Also in 2.2.7 and later releases on 2.2-STABLE branch]
 
