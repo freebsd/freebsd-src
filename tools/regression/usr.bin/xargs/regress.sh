@@ -9,7 +9,7 @@ cd $TESTDIR
 
 STATUS=0
 
-for test in normal I J L; do
+for test in normal I J L R; do
   echo "Running test $test"
   case "$test" in
   normal)
@@ -23,6 +23,9 @@ for test in normal I J L; do
     ;;
   L)
     xargs -L3 echo < regress.in | diff -u regress.$test.out -
+    ;;
+  R)
+    xargs -I% -R1 echo The % % % %% % % < regress.in | diff -u regress.$test.out -
     ;;
   esac
   if [ $? -eq 0 ]; then
