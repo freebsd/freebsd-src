@@ -56,7 +56,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4 2004
+.Dd March 4, 2004
 .Dt EUI64 3
 .Os
 .Sh NAME
@@ -198,7 +198,9 @@ functions are large enough to contain the returned hostnames.
 .Sh NIS INTERACTION
 If the
 .Pa /etc/eui64
-contains a line with a single + in it, the
+contains a line with a single
+.Ql +
+in it, the
 .Fn eui64_ntohost
 and
 .Fn eui64_hostton
