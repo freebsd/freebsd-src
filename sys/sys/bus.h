@@ -29,40 +29,45 @@
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
-/*
- * Interface information structure.
+/**
+ * @defgroup NEWBUS newbus - a generic framework for managing devices
+ * @{
+ */
+
+/**
+ * @brief Interface information structure.
  */
 struct u_businfo {
-	int	ub_version;		/* interface version */
+	int	ub_version;		/**< @brief interface version */
 #define BUS_USER_VERSION	1
-	int	ub_generation;		/* generation count */
+	int	ub_generation;		/**< @brief generation count */
 };
 
-/*
- * State of the device.
+/**
+ * @brief State of the device.
  */
 typedef enum device_state {
-	DS_NOTPRESENT,			/* not probed or probe failed */
-	DS_ALIVE,			/* probe succeeded */
-	DS_ATTACHED,			/* attach method called */
-	DS_BUSY				/* device is open */
+	DS_NOTPRESENT,			/**< @brief not probed or probe failed */
+	DS_ALIVE,			/**< @brief probe succeeded */
+	DS_ATTACHED,			/**< @brief attach method called */
+	DS_BUSY				/**< @brief device is open */
 } device_state_t;
 
-/*
- * Device information exported to userspace.
+/**
+ * @brief Device information exported to userspace.
  */
 struct u_device {
 	uintptr_t	dv_handle;
 	uintptr_t	dv_parent;
 
-	char		dv_name[32];		/* Name of device in tree. */
-	char		dv_desc[32];		/* Driver description */
-	char		dv_drivername[32];	/* Driver name */
-	char		dv_pnpinfo[128];	/* Plug and play info */
-	char		dv_location[128];	/* Where is the device? */
-	uint32_t	dv_devflags;		/* API Flags for device */
-	uint16_t	dv_flags;		/* flags for dev date */
-	device_state_t	dv_state;		/* State of attachment */
+	char		dv_name[32];		/**< @brief Name of device in tree. */
+	char		dv_desc[32];		/**< @brief Driver description */
+	char		dv_drivername[32];	/**< @brief Driver name */
+	char		dv_pnpinfo[128];	/**< @brief Plug and play info */
+	char		dv_location[128];	/**< @brief Where is the device? */
+	uint32_t	dv_devflags;		/**< @brief API Flags for device */
+	uint16_t	dv_flags;		/**< @brief flags for dev date */
+	device_state_t	dv_state;		/**< @brief State of attachment */
 	/* XXX more driver info? */
 };
 
@@ -71,7 +76,7 @@ struct u_device {
 #include <sys/queue.h>
 #include <sys/kobj.h>
 
-/*
+/**
  * devctl hooks.  Typically one should use the devctl_notify
  * hook to send the message.  However, devctl_queue_data is also
  * included in case devctl_notify isn't sufficiently general.
@@ -84,25 +89,61 @@ void devctl_queue_data(char *__data);
  * Forward declarations
  */
 typedef struct device		*device_t;
+
+/**
+ * @brief A device driver (included mainly for compatibility with
+ * FreeBSD 4.x).
+ */
 typedef struct kobj_class	driver_t;
+
+/**
+ * @brief A device class
+ *
+ * The devclass object has two main functions in the system. The first
+ * is to manage the allocation of unit numbers for device instances
+ * and the second is to hold the list of device drivers for a
+ * particular bus type. Each devclass has a name and there cannot be
+ * two devclasses with the same name. This ensures that unique unit
+ * numbers are allocated to device instances.
+ *
+ * Drivers that support several different bus attachments (e.g. isa,
+ * pci, pccard) should all use the same devclass to ensure that unit
+ * numbers do not conflict.
+ *
+ * Each devclass may also have a parent devclass. This is used when
+ * searching for device drivers to allow a form of inheritance. When
+ * matching drivers with devices, first the driver list of the parent
+ * device's devclass is searched. If no driver is found in that list,
+ * the search continues in the parent devclass (if any).
+ */
 typedef struct devclass		*devclass_t;
+
+/**
+ * @brief A device method (included mainly for compatibility with
+ * FreeBSD 4.x).
+ */
 #define device_method_t		kobj_method_t
 
+/**
+ * @brief A driver interrupt service routine
+ */
 typedef void driver_intr_t(void*);
 
-/*
- * Interrupt type bits.  These flags are used both by newbus interrupt
+/**
+ * @brief Interrupt type bits.
+ * 
+ * These flags are used both by newbus interrupt
  * registration (nexus.c) and also in struct intrec, which defines
  * interrupt properties.
  *
  * XXX We should probably revisit this and remove the vestiges of the
- * spls implicit in names like INTR_TYPE_TTY.  In the meantime, don't
+ * spls implicit in names like INTR_TYPE_TTY. In the meantime, don't
  * confuse things by renaming them (Grog, 18 July 2000).
  *
  * We define this in terms of bits because some devices may belong
  * to multiple classes (and therefore need to be included in
  * multiple interrupt masks, which is what this really serves to
- * indicate.  Buses which do interrupt remapping will want to
+ * indicate. Buses which do interrupt remapping will want to
  * change their type to reflect what sort of devices are underneath.
  */
 enum intr_type {
@@ -133,8 +174,10 @@ enum intr_polarity {
 
 typedef int (*devop_t)(void);
 
-/*
- * This structure is deprecated. Use the kobj(9) macro DEFINE_CLASS to
+/**
+ * @brief This structure is deprecated.
+ *
+ * Use the kobj(9) macro DEFINE_CLASS to
  * declare classes which implement device drivers.
  */
 struct driver {
@@ -147,79 +190,42 @@ struct driver {
  */
 struct	resource;
 
+/**
+ * @brief An entry for a single resource in a resource list.
+ */
 struct resource_list_entry {
 	SLIST_ENTRY(resource_list_entry) link;
-	int	type;			/* type argument to alloc_resource */
-	int	rid;			/* resource identifier */
-	struct	resource *res;		/* the real resource when allocated */
-	u_long	start;			/* start of resource range */
-	u_long	end;			/* end of resource range */
-	u_long	count;			/* count within range */
+	int	type;			/**< @brief type argument to alloc_resource */
+	int	rid;			/**< @brief resource identifier */
+	struct	resource *res;		/**< @brief the real resource when allocated */
+	u_long	start;			/**< @brief start of resource range */
+	u_long	end;			/**< @brief end of resource range */
+	u_long	count;			/**< @brief count within range */
 };
 SLIST_HEAD(resource_list, resource_list_entry);
 
-/*
- * Initialise a resource list.
- */
 void	resource_list_init(struct resource_list *rl);
-
-/*
- * Reclaim memory used by a resource list.
- */
 void	resource_list_free(struct resource_list *rl);
-
-/*
- * Add a resource entry or modify an existing entry if one exists with
- * the same type and rid.
- */
 void	resource_list_add(struct resource_list *rl,
 			  int type, int rid,
 			  u_long start, u_long end, u_long count);
 int	resource_list_add_next(struct resource_list *rl,
 			  int type,
 			  u_long start, u_long end, u_long count);
-
-
-/*
- * Find a resource entry by type and rid.
- */
 struct resource_list_entry*
 	resource_list_find(struct resource_list *rl,
 			   int type, int rid);
-
-/*
- * Delete a resource entry.
- */
 void	resource_list_delete(struct resource_list *rl,
 			     int type, int rid);
-
-/*
- * Implement BUS_ALLOC_RESOURCE by looking up a resource from the list
- * and passing the allocation up to the parent of bus. This assumes
- * that the first entry of device_get_ivars(child) is a struct
- * resource_list. This also handles 'passthrough' allocations where a
- * child is a remote descendant of bus by passing the allocation up to
- * the parent of bus.
- */
 struct resource *
 	resource_list_alloc(struct resource_list *rl,
 			    device_t bus, device_t child,
 			    int type, int *rid,
 			    u_long start, u_long end,
 			    u_long count, u_int flags);
-
-/*
- * Implement BUS_RELEASE_RESOURCE.
- */
 int	resource_list_release(struct resource_list *rl,
 			      device_t bus, device_t child,
 			      int type, int rid, struct resource *res);
-
-/*
- * Print all resources of a specified type, for use in bus_print_child.
- * The name is printed if at least one resource of the given type is available.
- * The format ist used to print resource start and end.
- */
 int	resource_list_print_type(struct resource_list *rl,
 				 const char *name, int type,
 				 const char *format);
@@ -410,7 +416,7 @@ int	resource_set_string(const char *name, int unit, const char *resname,
 int	bus_data_generation_check(int generation);
 void	bus_data_generation_update(void);
 
-/*
+/**
  * Shorthand for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
@@ -425,7 +431,7 @@ struct	module;
 
 int	driver_module_handler(struct module *, int, void *);
 
-/*
+/**
  * Module support for automatically adding drivers to busses.
  */
 struct driver_module_data {
@@ -453,7 +459,7 @@ static moduledata_t name##_##busname##_mod = {				\
 DECLARE_MODULE(name##_##busname, name##_##busname##_mod,		\
 	       SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
-/*
+/**
  * Generic ivar accessor generation macros for bus drivers
  */
 #define __BUS_ACCESSOR(varp, var, ivarp, ivar, type)			\
