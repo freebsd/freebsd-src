@@ -566,7 +566,7 @@
 
       <para>A new geom_concat class has been added to concatenate
         multiple disks to appear as a single larger disk.  The
-        &man.gconcat.8; utility is used for configurating concatenated
+        &man.gconcat.8; utility is used for configuring concatenated
         disks.</para>
 
       <para>A panic in the NFSv4 client has been fixed; this occurred
@@ -604,7 +604,7 @@
 
     <para>The &man.cron.8 daemon now accepts two new options,
       <option>-j</option> and <option>-J</option>, to enable
-      time jitter for jobs to run as unpriviliged users and the
+      time jitter for jobs to run as unprivileged users and the
       superuser, respectively.  Time jitter means that &man.cron.8
       will sleep for a small random period of time in the specified
       range before executing a job.  This feature is intended to
@@ -1001,6 +1001,11 @@
 
     <para>The supported release of <application>KDE</application>
       has been updated from 3.1.4 to 3.2.1.</para>
+
+    <para>The <filename role="package">security/portaudit</filename> utility
+      now exists in the ports collection.  This utility will read a database
+      containing known ports vulnerabilities and report them to the
+      administrator.</para>
   </sect2>
 
   <sect2 id="doc">
