@@ -33,7 +33,7 @@
  * 
  *	@(#)ipx_ip.c
  *
- * $Id: ipx_ip.c,v 1.6 1995/12/16 02:14:34 bde Exp $
+ * $Id: ipx_ip.c,v 1.7 1996/03/11 15:13:50 davidg Exp $
  */
 
 /*
@@ -89,6 +89,7 @@ ipxipattach()
 
 	MALLOC((m), struct ifnet_en *, sizeof(*m), M_PCB, M_NOWAIT);
 	if (m == NULL) return (NULL);
+	bzero(m, sizeof(*m));
 	m->ifen_next = ipxip_list;
 	ipxip_list = m;
 	ifp = &m->ifen_ifnet;
@@ -148,9 +149,9 @@ struct mbuf *ipxip_lastin;
 int ipxip_hold_input;
 
 void
-ipxip_input(m, ifp)
+ipxip_input(m, hlen)
 	register struct mbuf *m;
-	struct ifnet *ifp;
+	int hlen;
 {
 	register struct ip *ip;
 	register struct ipx *ipx;
@@ -206,11 +207,6 @@ ipxip_input(m, ifp)
 	}
 
 	/*
-	 * Place interface pointer before the data
-	 * for the receiving protocol.
-	 */
-	m->m_pkthdr.rcvif = ifp;
-	/*
 	 * Deliver to IPX
 	 */
 	s = splimp();
@@ -265,6 +261,7 @@ ipxipoutput(ifp, m, dst, rt)
 		m0->m_len = sizeof (struct ip);
 		m0->m_pkthdr.len = m0->m_len + m->m_len;
 		m->m_flags &= ~M_PKTHDR;
+		m = m0;
 	} else {
 		M_PREPEND(m, sizeof (struct ip), M_DONTWAIT);
 		if (m == 0)
@@ -305,7 +302,8 @@ struct ifnet *ifp;
 struct ifreq ifr_ipxip = {"ipxip0"};
 
 int
-ipxip_route(m)
+ipxip_route(so, m)
+	struct socket *so;
 	register struct mbuf *m;
 {
 	register struct ipxip_req *rq = mtod(m, struct ipxip_req *);
@@ -372,10 +370,10 @@ ipxip_route(m)
 	 */
 	ifr_ipxip.ifr_name[4] = '0' + ipxipif.if_unit - 1;
 	ifr_ipxip.ifr_dstaddr = * (struct sockaddr *) ipx_dst;
-	(void)ipx_control((struct socket *)0, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
+	(void)ipx_control(so, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
 			(struct ifnet *)ifn);
 	satoipx_addr(ifr_ipxip.ifr_addr).x_host = ipx_thishost;
-	return (ipx_control((struct socket *)0, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
+	return (ipx_control(so, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
 			(struct ifnet *)ifn));
 }
 

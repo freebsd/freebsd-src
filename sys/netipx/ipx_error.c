@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_error.c
  *
- * $Id: ipx_error.c,v 1.3 1995/11/04 09:02:43 julian Exp $
+ * $Id: ipx_error.c,v 1.4 1995/12/16 02:14:32 bde Exp $
  */
 
 #include <sys/param.h>
@@ -142,6 +142,8 @@ ipx_error(om, type, param)
 	if (m == NULL)
 		goto freeit;
 	m->m_len = sizeof(*ep);
+	m->m_pkthdr.len = m->m_len;
+	m->m_pkthdr.rcvif = om->m_pkthdr.rcvif;
 	MH_ALIGN(m, m->m_len);
 	ep = mtod(m, struct ipx_epipx *);
 	if ((u_int)type > IPX_ERR_TOO_BIG)
