@@ -54,7 +54,6 @@
 
 #include "debug.h"
 #else /* _KERNEL */
-#include <sys/bus.h>
 #include <sys/systm.h>
 #endif /* !_KERNEL */
 
