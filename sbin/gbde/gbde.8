@@ -47,7 +47,7 @@ attach
 .Op Fl l Ar lockfile
 .Op Fl p Ar pass-phrase
 .Nm
-dettach
+detach
 .Ar destination
 .Nm
 init
@@ -81,7 +81,7 @@ The interaction between the
 program and the kernel part is not a published interface.
 .Pp
 The operational aspect consists of two subcommands, one to open and attach 
-a device and one to close and dettach
+a device and one to close and detach
 a device to the in-kernel cryptographic gbde module.
 .Pp
 The management part allows initialization of the master key and lock sectors
@@ -131,10 +131,10 @@ To initialize a device, using default parameters:
 To attach an encrypted device:
 .Dl # gbde attach ad0s1f -l /etc/ad0s1f.lock
 .Pp
-To dettach an encrypted device:
-.Dl # gbde dettach ad0s1f
+To detach an encrypted device:
+.Dl # gbde detach ad0s1f
 .Pp
-To initialize the second key using a dettached lockfile and a trivial
+To initialize the second key using a detached lockfile and a trivial
 pass-phrase:
 .Dl # gbde setkey ad0s1f -n 2 -P foo -L key2.lockfile
 .Pp
