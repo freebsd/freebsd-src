@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.10 1994/11/02 06:19:46 jkh Exp $
+ * $Id: stage2.c,v 1.11 1994/11/02 11:00:35 jkh Exp $
  *
  */
 
@@ -41,6 +41,7 @@ stage2()
 
     for (i = 1; Fname[i]; i++)
 	Fsize[i] = i;
+    Fsize[i] = 0;
 
     for (j = 1; j;)
 	for (j = 0, i = 1; Fsize[i+1]; i++) {
