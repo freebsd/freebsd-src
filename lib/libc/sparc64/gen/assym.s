@@ -5,12 +5,11 @@
  * $FreeBSD$
  */
 
-#define	UC_SIGMASK	0x0
-#define	UC_MC		0x10
-#define	MC_G1		0x8
-#define	MC_O0		0x40
-#define	MC_O1		0x48
-#define	MC_O6		0x70
-#define	MC_O7		0x78
-#define	MC_TNPC		0x90
-#define	MC_TPC		0x88
+#define	_JB_FP		0x0
+#define	_JB_PC		0x8
+#define	_JB_SP		0x10
+#define	_JB_SIGMASK	0x18
+#define	_JB_SIGFLAG	0x28
+
+#define	SIG_BLOCK	1
+#define	SIG_SETMASK	3
