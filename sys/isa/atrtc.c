@@ -98,7 +98,6 @@ __FBSDID("$FreeBSD$");
 
 #define	TIMER_DIV(x) ((timer_freq + (x) / 2) / (x))
 
-
 int	adjkerntz;		/* local offset from GMT in seconds */
 int	clkintr_pending;
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
@@ -169,7 +168,6 @@ clkintr(struct clockframe *frame)
 #endif
 }
 
-
 int
 acquire_timer2(int mode)
 {
@@ -189,7 +187,6 @@ acquire_timer2(int mode)
 
 	return (0);
 }
-
 
 int
 release_timer2()
