@@ -62,6 +62,23 @@ compat/linux/linux_signal.c	optional	compat_linux
 compat/linux/linux_socket.c	optional	compat_linux
 compat/linux/linux_stats.c	optional	compat_linux
 compat/linux/linux_util.c	optional	compat_linux
+compat/svr4/imgact_svr4.c		optional	compat_svr4
+compat/svr4/svr4_fcntl.c		optional	compat_svr4
+compat/svr4/svr4_filio.c		optional	compat_svr4
+compat/svr4/svr4_ioctl.c		optional	compat_svr4
+compat/svr4/svr4_ipc.c			optional	compat_svr4
+compat/svr4/svr4_misc.c		optional	compat_svr4
+compat/svr4/svr4_resource.c		optional	compat_svr4
+compat/svr4/svr4_signal.c		optional	compat_svr4
+compat/svr4/svr4_socket.c		optional	compat_svr4
+compat/svr4/svr4_sockio.c		optional	compat_svr4
+compat/svr4/svr4_stat.c		optional	compat_svr4
+compat/svr4/svr4_stream.c		optional	compat_svr4
+compat/svr4/svr4_syscallnames.c	optional	compat_svr4
+compat/svr4/svr4_sysent.c		optional	compat_svr4
+compat/svr4/svr4_sysvec.c		optional	compat_svr4
+compat/svr4/svr4_termios.c		optional	compat_svr4
+compat/svr4/svr4_ttold.c		optional	compat_svr4
 contrib/dev/fla/fla.c		optional	fla
 contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
@@ -132,6 +149,7 @@ gnu/i386/isa/sound/awe_wave.c	optional	awe
 i386/apm/apm.c			count		apm
 i386/i386/atomic.c		standard				\
 	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} ${.IMPSRC}"
+i386/i386/acpi_machdep.c	optional	acpi
 i386/i386/autoconf.c		standard
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
@@ -373,21 +391,4 @@ pc98/pc98/wd.c			count		wdc
 pc98/pc98/wd_cd.c		count		wcd wdc
 pc98/pc98/wfd.c			count		wfd wdc
 pc98/pc98/wst.c			count		wst wdc
-svr4/imgact_svr4.c		optional	compat_svr4
-svr4/svr4_fcntl.c		optional	compat_svr4
-svr4/svr4_filio.c		optional	compat_svr4
-svr4/svr4_ioctl.c		optional	compat_svr4
-svr4/svr4_ipc.c			optional	compat_svr4
-svr4/svr4_misc.c		optional	compat_svr4
-svr4/svr4_resource.c		optional	compat_svr4
-svr4/svr4_signal.c		optional	compat_svr4
-svr4/svr4_socket.c		optional	compat_svr4
-svr4/svr4_sockio.c		optional	compat_svr4
-svr4/svr4_stat.c		optional	compat_svr4
-svr4/svr4_stream.c		optional	compat_svr4
-svr4/svr4_syscallnames.c	optional	compat_svr4
-svr4/svr4_sysent.c		optional	compat_svr4
-svr4/svr4_sysvec.c		optional	compat_svr4
-svr4/svr4_termios.c		optional	compat_svr4
-svr4/svr4_ttold.c		optional	compat_svr4
 #pci/ide_pci.c			optional	wdc pci
