@@ -863,10 +863,8 @@ ast*)
 	0|1|2|3)
 		mknod ast${unit} c $chr $(($unit * 8 + 0)) root:operator
 		chmod 640 ast${unit}
-		ln -fs ast${unit} rast${unit}
 		mknod nast${unit} c $chr $(($unit * 8 + 1)) root:operator
 		chmod 640 nast${unit}
-		ln -fs nast${unit} nrast${unit}
 		;;
 	*)
 		echo bad unit for tape in: $i
