@@ -111,6 +111,16 @@ procfs_control(curp, p, op)
 	int error;
 
 	/*
+	 * Authorization check: rely on normal debugging protection, except
+	 * allow processes to disengage debugging on a process onto which
+	 * they have previously attached, but no longer have permission to
+	 * debug.
+	 */
+	if (op != PROCFS_CTL_DETACH &&
+	    ((error = p_can(curp, p, P_CAN_DEBUG, NULL))))
+		return (error);
+
+	/*
 	 * Attach - attaches the target process for debugging
 	 * by the calling process.
 	 */
@@ -122,10 +132,6 @@ procfs_control(curp, p, op)
 		/* can't trace yourself! */
 		if (p->p_pid == curp->p_pid)
 			return (EINVAL);
-
-		/* can't trace init when securelevel > 0 */
-		if (securelevel > 0 && p->p_pid == 1)
-			return (EPERM);
 
 		/*
 		 * Go ahead and set the trace flag.
