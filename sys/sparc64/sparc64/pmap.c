@@ -308,23 +308,23 @@ pmap_bootstrap(vm_offset_t ekva)
 	tsb_kernel_phys = pa;
 	tsb_kernel = (struct tte *)virtual_avail;
 	virtual_avail += KVA_PAGES * PAGE_SIZE_4M;
-	for (i = 0; i < KVA_PAGES; i++) {
-		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
-		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
-		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
-		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
-		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
-		    TLB_SLOT_TSB_KERNEL_MIN + i);
-	}
+	pmap_map_tsb();
 	bzero(tsb_kernel, KVA_PAGES * PAGE_SIZE_4M);
 
 	/*
-	 * Load the tsb registers.
+	 * Allocate a kernel stack with guard page for thread0 and map it into
+	 * the kernel tsb.
 	 */
-	stxa(AA_DMMU_TSB, ASI_DMMU, (vm_offset_t)tsb_kernel);
-	stxa(AA_IMMU_TSB, ASI_IMMU, (vm_offset_t)tsb_kernel);
-	membar(Sync);
-	flush(tsb_kernel);
+	pa = pmap_bootstrap_alloc(KSTACK_PAGES * PAGE_SIZE);
+	kstack0_phys = pa;
+	kstack0 = virtual_avail + (KSTACK_GUARD_PAGES * PAGE_SIZE);
+	virtual_avail += (KSTACK_PAGES + KSTACK_GUARD_PAGES) * PAGE_SIZE;
+	for (i = 0; i < KSTACK_PAGES; i++) {
+		pa = kstack0_phys + i * PAGE_SIZE;
+		va = kstack0 + i * PAGE_SIZE;
+		pmap_kenter(va, pa);
+		tlb_page_demap(TLB_DTLB, TLB_CTX_KERNEL, va);
+	}
 
 	/*
 	 * Allocate the message buffer.
@@ -399,6 +399,36 @@ pmap_bootstrap(vm_offset_t ekva)
 	pm->pm_active = ~0;
 	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
+}
+
+void
+pmap_map_tsb(void)
+{
+	struct tte tte;
+	vm_offset_t va;
+	vm_offset_t pa;
+	int i;
+
+	/*
+	 * Map the 4mb tsb pages.
+	 */
+	for (i = 0; i < KVA_PAGES; i++) {
+		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
+		pa = tsb_kernel_phys + i * PAGE_SIZE_4M;
+		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
+		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
+		    TD_L | TD_CP | TD_CV | TD_P | TD_W;
+		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
+		    TLB_SLOT_TSB_KERNEL_MIN + i);
+	}
+
+	/*
+	 * Load the tsb registers.
+	 */
+	stxa(AA_DMMU_TSB, ASI_DMMU, (vm_offset_t)tsb_kernel);
+	stxa(AA_IMMU_TSB, ASI_IMMU, (vm_offset_t)tsb_kernel);
+	membar(Sync);
+	flush(tsb_kernel);
 
 	/*
 	 * Set the secondary context to be the kernel context (needed for
