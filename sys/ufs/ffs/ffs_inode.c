@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id$
+ * $Id: ffs_inode.c,v 1.3 1994/08/02 07:54:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,7 @@ ffs_truncate(ap)
 	oip = VTOI(ovp);
 	tv = time;
 	if (ovp->v_type == VLNK &&
-	    oip->i_size < ovp->v_mount->mnt_maxsymlinklen) {
+	    (oip->i_size < ovp->v_mount->mnt_maxsymlinklen || oip->i_din.di_blocks == 0)) {
 #ifdef DIAGNOSTIC
 		if (length != 0)
 			panic("ffs_truncate: partial truncate of symlink");
