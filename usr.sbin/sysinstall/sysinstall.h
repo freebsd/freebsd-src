@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.167 1999/07/02 22:36:14 jkh Exp $
+ * $Id: sysinstall.h,v 1.168 1999/07/06 08:45:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -157,6 +157,7 @@
 #define VAR_SLOW_ETHER			"slowEthernetCard"
 #define VAR_SWAP_SIZE			"swapSize"
 #define VAR_TAPE_BLOCKSIZE		"tapeBlocksize"
+#define VAR_TRY_DHCP			"tryDHCP"
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.59 1999/04/27 14:33:28 jkh Exp $
+ * $Id: options.c,v 1.60 1999/05/07 11:02:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,6 +113,8 @@ static Option Options[] = {
       OPT_IS_VAR,	NULL,			VAR_NO_WARN,		varCheck	},
 { "Yes to All",		"Assume \"Yes\" answers to all non-critical dialogs",
       OPT_IS_VAR,	NULL,			VAR_NO_CONFIRM,		varCheck	},
+{ "DHCP",		"Attempt automatic DHCP configuration of interfaces",
+      OPT_IS_VAR,	NULL,			VAR_TRY_DHCP,		varCheck	},
 { "FTP username",	"Username and password to use instead of anonymous",
       OPT_IS_FUNC,	mediaSetFTPUserPass,	VAR_FTP_USER,		varCheck	},
 { "Editor",		"Which text editor to use during installation",
@@ -187,13 +189,17 @@ fire(Option opt)
     }
     else if (opt.type == OPT_IS_VAR) {
 	if (opt.data) {
-	    (void)variable_get_value(opt.aux, opt.data, 1);
+	    (void)variable_get_value(opt.aux, opt.data, -1);
 	    status = 1;
 	}
-	else if (variable_get(opt.aux))
-	    variable_unset(opt.aux);
+	else if (variable_get(opt.aux)) {
+	    if (!variable_cmp(opt.aux, "YES"))
+		variable_set2(opt.aux, "NO", -1);
+	    else
+		variable_set2(opt.aux, "YES", -1);
+	}
 	else
-	    variable_set2(opt.aux, "YES", 1);
+	    variable_set2(opt.aux, "YES", 0);
     }
     if (opt.check)
 	opt.check(opt);
