@@ -88,7 +88,7 @@
  *    You will need to make at least three routines: open(), close(),
  *    strategy() and possibly ioctl().
  * 2. Make attach() routine, which should allocate all the needed data
- *    structures and print the device description string (see wcdattach()).
+ *    structures and print the device description string (see xxxattach()).
  * 3. Add an appropriate case to the switch in atapi_attach() routine,
  *    call attach() routine of the new driver here.  Add the appropriate
  *    #include line at the top of attach.c.
@@ -104,7 +104,6 @@
 
 #ifndef ATAPI_MODULE
 # include "acd.h"
-# include "wcd.h"
 # include "wfd.h"
 # include "wst.h"
 /* # include "wmd.h" -- add your driver here */
@@ -172,7 +171,6 @@ static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
 extern int wdstart (int ctrlr);
 extern int acdattach(struct atapi*, int, struct atapi_params*, int);
-extern int wcdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wstattach(struct atapi*, int, struct atapi_params*, int);
 
@@ -302,16 +300,8 @@ int atapi_attach (int ctlr, int unit, int port)
 		ata->attached[unit] = 1;
 		return (1);
 #else
-#if NWCD > 0
-		/* ATAPI CD-ROM drives */
-		if (wcdattach (ata, unit, ap, ata->debug) < 0)
-			break;
-		ata->attached[unit] = 1;
-		return (1);
-#else
 		printf ("wdc%d: ATAPI CD-ROMs not configured\n", ctlr);
 		break;
-#endif
 #endif
 
 	case AT_TYPE_TAPE:              /* streaming tape */
@@ -662,8 +652,8 @@ int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac)
  */
 int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac)
 {
-	/* Wait for DRQ from 50 usec to 3 msec for slow devices */
-	int cnt = ata->intrcmd ? 10000 : ata->slow ? 3000 : 50;
+	/* Wait for DRQ from 100 usec to 3 msec for slow devices */
+	int cnt = ata->intrcmd ? 10000 : ata->slow ? 3000 : 100;
 	int ireason = 0, phase = 0;
 
 	/* Wait for command phase. */
