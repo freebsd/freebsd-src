@@ -1,4 +1,4 @@
-$Id: majors.alpha,v 1.2 1998/07/12 16:27:34 dfr Exp $
+$Id: majors.alpha,v 1.3 1998/12/29 00:13:37 mjacob Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -141,3 +141,4 @@ chrdev	name		comments
 97	prom		Alpha PROM console
 98	zsc		TurboLaser console uart
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
+112	kbd		keyboard
