@@ -42,8 +42,10 @@
 static void MDString (string)
 char *string;
 {
+  char buf[33];
 
-  printf ("MD%d (\"%s\") = %s\n", MD, string, MDData(string,strlen(string)));
+  printf ("MD%d (\"%s\") = %s\n", 
+	MD, string, MDData(string,strlen(string),buf));
 }
 
 /* Digests a reference suite of strings and prints the results.
