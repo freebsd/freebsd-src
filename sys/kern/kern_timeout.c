@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.52 1998/01/14 19:42:47 phk Exp $
+ * $Id: kern_timeout.c,v 1.53 1998/02/15 14:15:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -150,7 +150,7 @@ softclock()
  */
 struct callout_handle
 timeout(ftn, arg, to_ticks)
-	timeout_t ftn;
+	timeout_t *ftn;
 	void *arg;
 	register int to_ticks;
 {
@@ -184,7 +184,7 @@ timeout(ftn, arg, to_ticks)
 
 void
 untimeout(ftn, arg, handle)
-	timeout_t ftn;
+	timeout_t *ftn;
 	void *arg;
 	struct callout_handle handle;
 {
