@@ -55,6 +55,7 @@
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 #include <sys/jail.h>
+#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -1970,6 +1971,19 @@ ifmaof_ifpforaddr(sa, ifp)
 			break;
 
 	return ifma;
+}
+
+int
+if_printf(struct ifnet *ifp, const char * fmt, ...)
+{
+	va_list ap;
+	int retval;
+
+	retval = printf("%s%d: ", ifp->if_name, ifp->if_unit);
+	va_start(ap, fmt);
+	retval += vprintf(fmt, ap);
+	va_end(ap);
+	return (retval);
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
