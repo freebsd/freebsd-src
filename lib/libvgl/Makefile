@@ -4,6 +4,7 @@ SHLIB_MAJOR= 2
 SHLIB_MINOR= 0
 CFLAGS+=-Wall -I${.CURDIR}
 SRCS=	main.c simple.c bitmap.c text.c mouse.c keyboard.c
+INCS=	vgl.h
 MAN3=	vgl.3
 MLINKS+=	vgl.3 VGLBitmapCopy.3 \
 		vgl.3 VGLBitmapPutChar.3 \
@@ -28,9 +29,5 @@ MLINKS+=	vgl.3 VGLBitmapCopy.3 \
 		vgl.3 VGLSetPalette.3 \
 		vgl.3 VGLSetPaletteIndex.3 \
 		vgl.3 VGLTextSetFontFile.3
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/vgl.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

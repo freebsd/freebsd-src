@@ -26,6 +26,7 @@
 
 LIB=		tacplus
 SRCS=		taclib.c
+INCS=		taclib.h
 CFLAGS+=	-Wall
 DPADD+=		${LIBMD}
 LDADD+=		-lmd
@@ -33,9 +34,5 @@ SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
 MAN3+=		libtacplus.3
 MAN5+=		tacplus.conf.5
-
-beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${.CURDIR}/taclib.h ${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

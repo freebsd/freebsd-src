@@ -29,12 +29,9 @@
 
 LIB=	atm
 SRCS=	atm_addr.c cache_key.c ioctl_subr.c ip_addr.c ip_checksum.c timer.c
+INCS=	libatm.h
 
 LDADD+=	-lmd
 DPADD+=	${LIBMD}
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libatm.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

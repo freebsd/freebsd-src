@@ -9,6 +9,7 @@ SRCS=	login.c login_tty.c logout.c logwtmp.c pty.c setproctitle.c \
 	login_cap.c login_class.c login_auth.c login_times.c login_ok.c \
 	_secure_path.c uucplock.c property.c auth.c realhostname.c fparseln.c \
 	stat_flags.c
+INCS=	libutil.h login_cap.h
 MAN3+=	login.3 login_auth.3 login_tty.3 logout.3 logwtmp.3 pty.3 \
 	setproctitle.3 login_cap.3 login_class.3 login_times.3 login_ok.3 \
 	_secure_path.3 uucplock.3 property.3 auth.3 realhostname.3 \
@@ -35,11 +36,5 @@ MLINKS+=login_ok.3 auth_ttyok.3 login_ok.3 auth_hostok.3 \
 MLINKS+=login_auth.3 auth_checknologin.3 login_auth.3 auth_cat.3
 MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_lock_txfr.3 \
 	uucplock.3 uu_unlock.3 uucplock.3 uu_lockerr.3
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/libutil.h \
-		${DESTDIR}/usr/include
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/login_cap.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>

@@ -16,12 +16,7 @@ CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
 SRCS = adler32.c compress.c crc32.c gzio.c uncompr.c deflate.c trees.c \
        zutil.c inflate.c infblock.c inftrees.c infcodes.c infutil.c inffast.c
-
-beforeinstall:
-.for hdr in zconf.h zlib.h
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/${hdr} \
-		${DESTDIR}/usr/include
-.endfor
+INCS=		zconf.h zlib.h
 
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz

@@ -1,7 +1,9 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
+#	$FreeBSD$
 
 LIB=	skey
 SRCS=	skeyaccess.c put.c skey_crypt.c skey_getpass.c skeylogin.c skeysubr.c
+INCS=	skey.h
 MAN1=	skey.1
 MAN3=	skey.3
 MLINKS=	skey.3 skeylookup.3 skey.3 skeyverify.3 skey.3 skeychallenge.3 \
@@ -17,9 +19,5 @@ CFLAGS+=-Werror
 
 DPADD+= ${LIBCRYPT} ${LIBMD}
 LDADD+=	-lcrypt -lmd
-
-beforeinstall:
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/skey.h \
-		${DESTDIR}/usr/include
 
 .include <bsd.lib.mk>
