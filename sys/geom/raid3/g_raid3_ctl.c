@@ -93,7 +93,10 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
 	const char *name;
-	int *nargs, *autosync, *noautosync, do_sync = 0;
+	int *nargs, do_sync = 0;
+	int *autosync, *noautosync;
+	int *round_robin, *noround_robin;
+	int *verify, *noverify;
 	u_int n;
 
 	g_topology_assert();
@@ -122,13 +125,45 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "noautosync");
 		return;
 	}
-	if (!*autosync && !*noautosync) {
-		gctl_error(req, "Nothing has changed.");
-		return;
-	}
 	if (*autosync && *noautosync) {
 		gctl_error(req, "'%s' and '%s' specified.", "autosync",
 		    "noautosync");
+		return;
+	}
+	round_robin = gctl_get_paraml(req, "round_robin", sizeof(*round_robin));
+	if (round_robin == NULL) {
+		gctl_error(req, "No '%s' argument.", "round_robin");
+		return;
+	}
+	noround_robin = gctl_get_paraml(req, "noround_robin",
+	    sizeof(*noround_robin));
+	if (noround_robin == NULL) {
+		gctl_error(req, "No '%s' argument.", "noround_robin");
+		return;
+	}
+	if (*round_robin && *noround_robin) {
+		gctl_error(req, "'%s' and '%s' specified.", "round_robin",
+		    "noround_robin");
+		return;
+	}
+	verify = gctl_get_paraml(req, "verify", sizeof(*verify));
+	if (verify == NULL) {
+		gctl_error(req, "No '%s' argument.", "verify");
+		return;
+	}
+	noverify = gctl_get_paraml(req, "noverify", sizeof(*noverify));
+	if (noverify == NULL) {
+		gctl_error(req, "No '%s' argument.", "noverify");
+		return;
+	}
+	if (*verify && *noverify) {
+		gctl_error(req, "'%s' and '%s' specified.", "verify",
+		    "noverify");
+		return;
+	}
+	if (!*autosync && !*noautosync && !*round_robin && !*noround_robin &&
+	    !*verify && !*noverify) {
+		gctl_error(req, "Nothing has changed.");
 		return;
 	}
 	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOAUTOSYNC) != 0) {
@@ -139,6 +174,27 @@ g_raid3_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	} else {
 		if (*noautosync)
 			sc->sc_flags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
+	}
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_VERIFY) != 0) {
+		if (*noverify)
+			sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_VERIFY;
+	} else {
+		if (*verify)
+			sc->sc_flags |= G_RAID3_DEVICE_FLAG_VERIFY;
+	}
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
+		if (*noround_robin)
+			sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
+	} else {
+		if (*round_robin)
+			sc->sc_flags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
+	}
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_VERIFY) != 0 &&
+	    (sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
+		/*
+		 * VERIFY and ROUND-ROBIN options are mutally exclusive.
+		 */
+		sc->sc_flags &= ~G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
 	}
 	for (n = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
@@ -282,6 +338,7 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	struct g_consumer *cp;
 	const char *name;
 	u_char *sector;
+	off_t compsize;
 	intmax_t *no;
 	int *hardcode, *nargs, error;
 
@@ -339,6 +396,17 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 		    "Cannot insert provider %s, because of its sector size.",
 		    pp->name);
 		return;
+	}
+	compsize = sc->sc_mediasize / (sc->sc_ndisks - 1);
+	if (compsize > pp->mediasize - pp->sectorsize) {
+		gctl_error(req, "Provider %s too small.", pp->name);
+		return;
+	}
+	if (compsize < pp->mediasize - pp->sectorsize) {
+		gctl_error(req,
+		    "warning: %s: only %jd bytes from %jd bytes used.",
+		    pp->name, (intmax_t)compsize,
+		    (intmax_t)(pp->mediasize - pp->sectorsize));
 	}
 	gp = g_new_geomf(mp, "raid3:insert");
 	gp->orphan = g_raid3_ctl_insert_orphan;

@@ -58,6 +58,10 @@ struct g_command class_commands[] = {
 		{ 'd', "dynamic", NULL, G_TYPE_NONE },
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
+		{ 'r', "round_robin", NULL, G_TYPE_NONE },
+		{ 'R', "noround_robin", NULL, G_TYPE_NONE },
+		{ 'w', "verify", NULL, G_TYPE_NONE },
+		{ 'W', "noverify", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -73,6 +77,8 @@ struct g_command class_commands[] = {
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		{ 'n', "noautosync", NULL, G_TYPE_NONE },
+		{ 'r', "round_robin", NULL, G_TYPE_NONE },
+		{ 'w', "verify", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
 	    }
 	},
@@ -99,14 +105,14 @@ void
 usage(const char *comm)
 {
 	fprintf(stderr,
-	    "usage: %s label [-hnv] name prov prov prov [prov [...]]\n"
+	    "usage: %s label [-hnrvw] name prov prov prov [prov [...]]\n"
 	    "       %s clear [-v] prov [prov [...]]\n"
 	    "       %s dump prov [prov [...]]\n"
-	    "       %s configure [-adhnv] name\n"
+	    "       %s configure [-adhnrRvwW] name\n"
 	    "       %s rebuild [-v] name prov\n"
 	    "       %s insert [-hv] <-n number> name prov\n"
 	    "       %s remove [-v] <-n number> name\n"
-	    "       %s stop [-fv] name\n",
+	    "       %s stop [-fv] name [...]\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm);
 	exit(EXIT_FAILURE);
 }
@@ -141,9 +147,10 @@ raid3_label(struct gctl_req *req)
 	u_char sector[512];
 	const char *str;
 	char param[16];
-	int *hardcode, *nargs, *noautosync, error, i;
-	unsigned sectorsize;
-	off_t mediasize;
+	int *hardcode, *nargs, *noautosync, *round_robin, *verify;
+	int error, i;
+	unsigned sectorsize, ssize;
+	off_t mediasize, msize;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -184,6 +191,24 @@ raid3_label(struct gctl_req *req)
 	}
 	if (*noautosync)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
+	round_robin = gctl_get_paraml(req, "round_robin", sizeof(*round_robin));
+	if (round_robin == NULL) {
+		gctl_error(req, "No '%s' argument.", "round_robin");
+		return;
+	}
+	if (*round_robin)
+		md.md_mflags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;
+	verify = gctl_get_paraml(req, "verify", sizeof(*verify));
+	if (verify == NULL) {
+		gctl_error(req, "No '%s' argument.", "verify");
+		return;
+	}
+	if (*verify)
+		md.md_mflags |= G_RAID3_DEVICE_FLAG_VERIFY;
+	if (*round_robin && *verify) {
+		gctl_error(req, "Both '%c' and '%c' options given.", 'r', 'w');
+		return;
+	}
 	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
 	if (hardcode == NULL) {
 		gctl_error(req, "No '%s' argument.", "hardcode");
@@ -197,9 +222,6 @@ raid3_label(struct gctl_req *req)
 	mediasize = 0;
 	sectorsize = 0;
 	for (i = 1; i < *nargs; i++) {
-		unsigned ssize;
-		off_t msize;
-
 		snprintf(param, sizeof(param), "arg%u", i);
 		str = gctl_get_asciiparam(req, param);
 
@@ -243,6 +265,13 @@ raid3_label(struct gctl_req *req)
 		snprintf(param, sizeof(param), "arg%u", i);
 		str = gctl_get_asciiparam(req, param);
 
+		msize = g_get_mediasize(str) - g_get_sectorsize(str);
+		if (mediasize < msize) {
+			fprintf(stderr,
+			    "warning: %s: only %jd bytes from %jd bytes used.\n",
+			    str, (intmax_t)mediasize, (intmax_t)msize);
+		}
+
 		md.md_no = i - 1;
 		if (!*hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
@@ -250,6 +279,13 @@ raid3_label(struct gctl_req *req)
 			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 				str += strlen(_PATH_DEV);
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
+		}
+		if (*verify && md.md_no == md.md_all - 1) {
+			/*
+			 * In "verify" mode, force synchronization of parity
+			 * component on start.
+			 */
+			md.md_syncid = 0;
 		}
 		raid3_metadata_encode(&md, sector);
 		error = g_metadata_store(str, sector, sizeof(sector));

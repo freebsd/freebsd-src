@@ -35,7 +35,13 @@
 #define	G_RAID3_CLASS_NAME	"RAID3"
 
 #define	G_RAID3_MAGIC		"GEOM::RAID3"
-#define	G_RAID3_VERSION		0
+/*
+ * Version history:
+ * 0 - Initial version number.
+ * 1 - Added 'round-robin reading' algorithm.
+ * 2 - Added 'verify reading' algorithm.
+ */
+#define	G_RAID3_VERSION		2
 
 #define	G_RAID3_DISK_FLAG_DIRTY		0x0000000000000001ULL
 #define	G_RAID3_DISK_FLAG_SYNCHRONIZING	0x0000000000000002ULL
@@ -46,7 +52,11 @@
 					 G_RAID3_DISK_FLAG_FORCE_SYNC)
 
 #define	G_RAID3_DEVICE_FLAG_NOAUTOSYNC	0x0000000000000001ULL
-#define	G_RAID3_DEVICE_FLAG_MASK	(G_RAID3_DEVICE_FLAG_NOAUTOSYNC)
+#define	G_RAID3_DEVICE_FLAG_ROUND_ROBIN	0x0000000000000002ULL
+#define	G_RAID3_DEVICE_FLAG_VERIFY	0x0000000000000004ULL
+#define	G_RAID3_DEVICE_FLAG_MASK	(G_RAID3_DEVICE_FLAG_NOAUTOSYNC | \
+					 G_RAID3_DEVICE_FLAG_ROUND_ROBIN | \
+					 G_RAID3_DEVICE_FLAG_VERIFY)
 
 #ifdef _KERNEL
 extern u_int g_raid3_debug;
@@ -81,9 +91,18 @@ extern u_int g_raid3_debug;
 #define	G_RAID3_BIO_CFLAG_PARITY	0x04
 #define	G_RAID3_BIO_CFLAG_NODISK	0x08
 #define	G_RAID3_BIO_CFLAG_REGSYNC	0x10
+#define	G_RAID3_BIO_CFLAG_MASK		(G_RAID3_BIO_CFLAG_REGULAR |	\
+					 G_RAID3_BIO_CFLAG_SYNC |	\
+					 G_RAID3_BIO_CFLAG_PARITY |	\
+					 G_RAID3_BIO_CFLAG_NODISK |	\
+					 G_RAID3_BIO_CFLAG_REGSYNC)
 
 #define	G_RAID3_BIO_PFLAG_DEGRADED	0x01
 #define	G_RAID3_BIO_PFLAG_NOPARITY	0x02
+#define	G_RAID3_BIO_PFLAG_VERIFY	0x04
+#define	G_RAID3_BIO_PFLAG_MASK		(G_RAID3_BIO_PFLAG_DEGRADED |	\
+					 G_RAID3_BIO_PFLAG_NOPARITY |	\
+					 G_RAID3_BIO_PFLAG_VERIFY)
 
 /*
  * Informations needed for synchronization.
@@ -162,6 +181,7 @@ struct g_raid3_softc {
 
 	struct g_raid3_disk *sc_disks;
 	u_int		sc_ndisks;	/* Number of disks. */
+	u_int		sc_round_robin;
 	struct g_raid3_disk *sc_syncdisk;
 
 	uma_zone_t	sc_zone_64k;
@@ -281,6 +301,10 @@ raid3_metadata_dump(const struct g_raid3_metadata *md)
 	else {
 		if ((md->md_mflags & G_RAID3_DEVICE_FLAG_NOAUTOSYNC) != 0)
 			printf(" NOAUTOSYNC");
+		if ((md->md_mflags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0)
+			printf(" ROUND-ROBIN");
+		if ((md->md_mflags & G_RAID3_DEVICE_FLAG_VERIFY) != 0)
+			printf(" VERIFY");
 	}
 	printf("\n");
 	printf("    dflags:");
