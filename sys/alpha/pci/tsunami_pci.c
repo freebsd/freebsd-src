@@ -201,7 +201,7 @@ tsunami_check_abort(void)
 		tsunami_check_abort();			\
 		return ~0;				\
 	}						\
-	data = ##op##(va);				\
+	data = op(va);					\
 	if (tsunami_check_abort())			\
 		return ~0;				\
 	return data;					\
@@ -213,7 +213,7 @@ tsunami_check_abort(void)
 	tsunami_clear_abort();				\
 	if (badaddr((caddr_t)va, width))		\
 		return;					\
-	##op##(va, data);				\
+	op(va, data);					\
 	tsunami_check_abort();				\
 } while (0)
 
