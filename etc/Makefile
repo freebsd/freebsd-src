@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.86 1994/09/28 13:32:59 ache Exp $
+#	$Id: Makefile,v 1.87 1994/10/15 07:55:36 phk Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -56,7 +56,7 @@ MDEC=		usr/mdec/bootfd usr/mdec/fdboot
 MDEC+=		usr/mdec/bootsd usr/mdec/sdboot
 MDEC+=		usr/mdec/bootwd usr/mdec/wdboot
 #
-KC_DIRS=	bin dev mnt sbin
+KC_DIRS=	bin dev mnt sbin etc
 KC_FILES=	${COPYRIGHT}
 KC_LINKS=	bin/[ bin/cp bin/echo bin/sh bin/test
 KC_LINKS+=	sbin/fsck sbin/halt sbin/init
@@ -270,7 +270,7 @@ kcopy-floppy:
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${.CURDIR}/etc.i386/kc.profile ${MOUNT}/.profile
+	    ${.CURDIR}/etc.i386/kc.profile ${MOUNT}/etc/rc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    kcopy ${MOUNT}/bin/kcopy
 	(cd ${MOUNT}/; \
@@ -314,10 +314,11 @@ cdins-floppy:
 	mkdir ${MOUNT}/cdrom
 	chown ${BINOWN}.${BINGRP} ${MOUNT}/cdrom
 	chmod 755 ${MOUNT}/cdrom
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${.CURDIR}/etc.i386/cdinst1.profile ${MOUNT}/.profile
+	#install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	#    ${.CURDIR}/etc.i386/cdinst1.profile ${MOUNT}/.profile
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/cdinst1.install ${MOUNT}/install
+	ln ${MOUNT}/install ${MOUNT}/etc/rc
 	
 cdins_ah.flp:
 	(cd ${.CURDIR}; ${MAKE} kcopy-floppy)
@@ -362,10 +363,11 @@ filesyst.flp:
 	    (find ${FILESYSTEM_CPIO}; ls -d ${FILESYSTEM_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst1.cpio.gz)
-	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
-	    ${.CURDIR}/etc.i386/inst1.profile ${MOUNT}/.profile
+	#install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	#    ${.CURDIR}/etc.i386/inst1.profile ${MOUNT}/.profile
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${.CURDIR}/etc.i386/inst1.install ${MOUNT}/install
+	ln ${MOUNT}/install ${MOUNT}/etc/rc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    filesystem ${MOUNT}/bin/filesystem
 	(cd ${MOUNT}/; \
