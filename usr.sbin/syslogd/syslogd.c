@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.29 1998/04/22 06:28:18 phk Exp $";
+	"$Id: syslogd.c,v 1.30 1998/04/24 17:32:23 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -248,7 +248,7 @@ int	Initialized = 0;	/* set when we have initialized ourselves */
 int	MarkInterval = 20 * 60;	/* interval between marks in seconds */
 int	MarkSeq = 0;		/* mark sequence number */
 int	SecureMode = 0;		/* when true, receive only unix domain socks */
-int	Vogons = 0;		/* packets arriving in SecureMode */
+u_int	Vogons = 0;		/* packets arriving in SecureMode */
 
 int     created_lsock = 0;      /* Flag if local socket created */
 char	bootfile[MAXLINE+1];	/* booted kernel file */
@@ -385,8 +385,8 @@ main(argc, argv)
 			logerror("bind");
 			if (!Debug)
 				die(0);
+		} else
 			inetm = FDMASK(finet);
-		}
 	}
 
 	if ((fklog = open(_PATH_KLOG, O_RDONLY, 0)) >= 0)
@@ -458,7 +458,7 @@ main(argc, argv)
 			    (struct sockaddr *)&frominet, &len);
 			if (SecureMode) {
 				Vogons++;
-				if (Vogons & (Vogons + 1)) {
+				if (!(Vogons & (Vogons - 1))) {
 					(void)snprintf(line, sizeof line,
 "syslogd: discarded %d unwanted packets in secure mode", Vogons);
 					logmsg(LOG_SYSLOG|LOG_AUTH, line,
