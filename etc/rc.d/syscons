@@ -44,13 +44,15 @@ viddev=/dev/ttyv0
 
 syscons_precmd()
 {
-	if [ -c $kbddev ] && \
-	   [ -x /usr/sbin/ispcvt ] && \
-	   ! /usr/sbin/ispcvt
+	if [ ! -c $kbddev ]
 	then
-		return 0
+		return 1
 	fi
-	return 1
+	if [ -x /usr/sbin/ispcvt ] && /usr/sbin/ispcvt
+	then
+		return 1
+	fi
+	return 0
 }
 
 syscons_start()
