@@ -225,8 +225,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF,
 	    M_ZERO | M_NOWAIT);
 	if (newtag == NULL) {
-		CTR3(KTR_BUSDMA, "bus_dma_tag_create returned tag %p tag "
-		    "flags 0x%x error %d", newtag, 0, error);
+		CTR3(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
+		    __func__, newtag, 0, error);
 		return (ENOMEM);
 	}
 
@@ -307,8 +307,8 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	} else {
 		*dmat = newtag;
 	}
-	CTR3(KTR_BUSDMA, "bus_dma_tag_create returned tag %p tag flags 0x%x "
-	    "error %d", newtag, (newtag != NULL ? newtag->flags : 0), error);
+	CTR3(KTR_BUSDMA, "%s returned tag %p tag flags 0x%x error %d",
+	    __func__, newtag, (newtag != NULL ? newtag->flags : 0), error);
 	return (error);
 }
 
@@ -348,8 +348,7 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 		}
 	}
 out:
-	CTR2(KTR_BUSDMA, "bus_dma_tag_destroy tag %p error %d", dmat_copy,
-	    error);
+	CTR2(KTR_BUSDMA, "%s tag %p error %d", __func__, dmat_copy, error);
 	return (error);
 }
 
@@ -369,8 +368,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
 		    M_NOWAIT);
 		if (dmat->segments == NULL) {
-			CTR2(KTR_BUSDMA, "bus_dmamap_create: tag %p error %d",
-			    dmat, ENOMEM);
+			CTR2(KTR_BUSDMA, "%s: tag %p error %d",
+			    __func__, dmat, ENOMEM);
 			return (ENOMEM);
 		}
 	}
@@ -393,8 +392,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
 					     M_NOWAIT | M_ZERO);
 		if (*mapp == NULL) {
-			CTR2(KTR_BUSDMA, "bus_dmamap_create: tag %p error %d",
-			    dmat, ENOMEM);
+			CTR2(KTR_BUSDMA, "%s: tag %p error %d",
+			    __func__, dmat, ENOMEM);
 			return (ENOMEM);
 		}
 
@@ -427,8 +426,8 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	}
 	if (error == 0)
 		dmat->map_count++;
-	CTR3(KTR_BUSDMA, "bus_dmamap_create: tag %p tag flags 0x%x error %d",
-	    dmat, dmat->flags, error);
+	CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
+	    __func__, dmat, dmat->flags, error);
 	return (error);
 }
 
@@ -441,14 +440,14 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	if (map != NULL && map != &nobounce_dmamap) {
 		if (STAILQ_FIRST(&map->bpages) != NULL) {
-			CTR2(KTR_BUSDMA, "bus_dmamap_destroy: tag %p error %d",
-			    dmat, EBUSY);
+			CTR2(KTR_BUSDMA, "%s: tag %p error %d",
+			    __func__, dmat, EBUSY);
 			return (EBUSY);
 		}
 		free(map, M_DEVBUF);
 	}
 	dmat->map_count--;
-	CTR1(KTR_BUSDMA, "bus_dmamap_destroy: tag %p error 0", dmat);
+	CTR1(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
 	return (0);
 }
 
@@ -479,8 +478,8 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    sizeof(bus_dma_segment_t) * dmat->nsegments, M_DEVBUF,
 		    M_NOWAIT);
 		if (dmat->segments == NULL) {
-			CTR3(KTR_BUSDMA, "bus_dmamem_alloc: tag %p tag "
-			    "flags 0x%x error %d", dmat, dmat->flags, ENOMEM);
+			CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
+			    __func__, dmat, dmat->flags, ENOMEM);
 			return (ENOMEM);
 		}
 	}
@@ -500,12 +499,12 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    dmat->boundary);
 	}
 	if (*vaddr == NULL) {
-		CTR3(KTR_BUSDMA, "bus_dmamem_alloc: tag %p tag flags 0x%x "
-		    "error %d", dmat, dmat->flags, ENOMEM);
+		CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
+		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
 	}
-	CTR3(KTR_BUSDMA, "bus_dmamem_alloc: tag %p tag flags 0x%x error %d",
-	    dmat, dmat->flags, ENOMEM);
+	CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
+	    __func__, dmat, dmat->flags, ENOMEM);
 	return (0);
 }
 
@@ -528,8 +527,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	else {
 		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 	}
-	CTR2(KTR_BUSDMA, "bus_dmamem_free: tag %p flags 0x%x", dmat,
-	    dmat->flags);
+	CTR2(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 
 /*
@@ -698,8 +696,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	     &lastaddr, dmat->segments, &nsegs, 1);
 
 	if (error == EINPROGRESS) {
-		CTR3(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x "
-		    "error %d", dmat, dmat->flags, error);
+		CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
+		    __func__, dmat, dmat->flags, error);
 		return (error);
 	}
 
@@ -708,8 +706,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	else
 		(*callback)(callback_arg, dmat->segments, nsegs + 1, 0);
 
-	CTR3(KTR_BUSDMA, "bus_dmamap_load: tag %p tag flags 0x%x error 0 "
-	    "nsegs %d", dmat, dmat->flags, nsegs + 1);
+	CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error 0 nsegs %d",
+	    __func__, dmat, dmat->flags, nsegs + 1);
 	return (0);
 }
 
@@ -755,8 +753,8 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, m0->m_pkthdr.len, error);
 	}
-	CTR4(KTR_BUSDMA, "bus_dmamap_load_mbuf: tag %p tag flags 0x%x "
-	    "error %d nsegs %d", dmat, dmat->flags, error, nsegs + 1);
+	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat->flags, error, nsegs + 1);
 	return (error);
 }
 
@@ -792,8 +790,8 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 	/* XXX FIXME: Having to increment nsegs is really annoying */
 	++*nsegs;
-	CTR4(KTR_BUSDMA, "bus_dmamap_load_mbuf: tag %p tag flags 0x%x "
-	    "error %d nsegs %d", dmat, dmat->flags, error, *nsegs);
+	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat->flags, error, *nsegs);
 	return (error);
 }
 
@@ -852,8 +850,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		(*callback)(callback_arg, dmat->segments,
 			    nsegs+1, uio->uio_resid, error);
 	}
-	CTR4(KTR_BUSDMA, "bus_dmamap_load_uio: tag %p tag flags 0x%x "
-	    "error %d nsegs %d", dmat, dmat->flags, error, nsegs + 1);
+	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat->flags, error, nsegs + 1);
 	return (error);
 }
 
@@ -883,8 +881,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		 * the caches on broken hardware
 		 */
 		dmat->bounce_zone->total_bounced++;
-		CTR3(KTR_BUSDMA, "_bus_dmamap_sync: tag %p tag flags 0x%x "
-		    "op 0x%x performing bounce", op, dmat, dmat->flags);
+		CTR3(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
+		    "performing bounce", __func__, op, dmat, dmat->flags);
 
 		if (op & BUS_DMASYNC_PREWRITE) {
 			while (bpage != NULL) {
