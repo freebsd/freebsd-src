@@ -4,9 +4,9 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.2 1999/11/28 05:49:27 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.3 1999/11/29 20:53:36 imp Exp 
  */
-/* $NetBSD: pcmciadevs,v 1.59 1999/11/27 01:03:18 soren Exp $ */
+/* $NetBSD: pcmciadevs,v 1.60 1999/11/29 02:28:19 jun Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -252,6 +252,9 @@
 #define	PCCARD_CIS_TDK_DFL9610	{ NULL, NULL, NULL, NULL }
 #define	PCCARD_PRODUCT_TDK_DFL9610	0x0d0a
 #define	PCCARD_STR_TDK_DFL9610	"TDK DFL9610 Ethernet & Digital Cellular"
+#define	PCCARD_CIS_TDK_LAK_CF010	{ NULL, NULL, NULL, NULL }
+#define	PCCARD_PRODUCT_TDK_LAK_CF010	0x0900
+#define	PCCARD_STR_TDK_LAK_CF010	"TDK LAC-CF010"
 
 /* TDK Vendor ID also used by Xircom! */
 #define	PCCARD_CIS_TDK_XIR_CE_10	{ NULL, NULL, NULL, NULL }
