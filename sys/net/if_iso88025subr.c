@@ -233,7 +233,7 @@ iso88025_output(ifp, m0, dst, rt0)
 		if (!arpresolve(ac, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
 		/* Add LLC and SNAP headers */
-		M_PREPEND(m, 8, M_DONTWAIT)
+		M_PREPEND(m, 8, M_DONTWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
