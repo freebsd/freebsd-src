@@ -233,8 +233,7 @@ getconfig(intface)
 
 	MAYHAVE(val64, "retrans", DEF_ADVRETRANSTIMER);
 	if (val64 < 0 || val64 > 0xffffffff) {
-		syslog(LOG_ERR,
-		       "<%s> retrans time out of range", __func__);
+		syslog(LOG_ERR, "<%s> retrans time out of range", __func__);
 		exit(1);
 	}
 	tmp->retranstimer = (u_int32_t)val64;
@@ -276,7 +275,7 @@ getconfig(intface)
 	/* prefix information */
 
 	/*
-	 * This is an implementation specific parameter to consinder
+	 * This is an implementation specific parameter to consider
 	 * link propagation delays and poorly synchronized clocks when
 	 * checking consistency of advertised lifetimes.
 	 */
@@ -567,6 +566,7 @@ get_prefix(struct rainfo *rai)
 		       __func__);
 		exit(1);
 	}
+
 	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
 		int plen;
 
@@ -577,7 +577,6 @@ get_prefix(struct rainfo *rai)
 		a = &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr;
 		if (IN6_IS_ADDR_LINKLOCAL(a))
 			continue;
-
 		/* get prefix length */
 		m = (u_char *)&((struct sockaddr_in6 *)ifa->ifa_netmask)->sin6_addr;
 		lim = (u_char *)(ifa->ifa_netmask) + ifa->ifa_netmask->sa_len;
@@ -611,7 +610,6 @@ get_prefix(struct rainfo *rai)
 			*p++ &= *m++;
 		while (p < ep)
 			*p++ = 0x00;
-
 	        if (!inet_ntop(AF_INET6, &pp->prefix, ntopbuf,
 	            sizeof(ntopbuf))) {
 			syslog(LOG_ERR, "<%s> inet_ntop failed", __func__);
@@ -839,7 +837,7 @@ init_prefix(struct in6_prefixreq *ipr)
 	ipr->ipr_pltime = DEF_ADVPREFERREDLIFETIME;
 	ipr->ipr_raf_onlink = 1;
 	ipr->ipr_raf_auto = 1;
-        return 0;
+	return 0;
 #endif
 }
 
@@ -887,8 +885,7 @@ make_packet(struct rainfo *rainfo)
 		if ((lladdroptlen = lladdropt_length(rainfo->sdl)) == 0) {
 			syslog(LOG_INFO,
 			       "<%s> link-layer address option has"
-			       " null length on %s."
-			       " Treat as not included.",
+			       " null length on %s.  Treat as not included.",
 			       __func__, rainfo->ifname);
 			rainfo->advlinkopt = 0;
 		}
