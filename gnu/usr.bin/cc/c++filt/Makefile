@@ -8,7 +8,7 @@ PROG=	c++filt
 SRCS=	cp-demangle.c cplus-dem+%DIKED.c
 NOMAN=	1
 
-CFLAGS+= -DMAIN -DIN_GCC -DVERSION=\"$(version)\"
+CFLAGS+= -DSTANDALONE_DEMANGLER -DIN_GCC -DVERSION=\"$(version)\"
 
 DPADD+=	${LIBCC_INT}
 LDADD+=	${LIBCC_INT}
