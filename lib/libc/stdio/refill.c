@@ -44,6 +44,7 @@ static const char rcsid[] =
 
 #include "namespace.h"
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "un-namespace.h"
@@ -141,10 +142,18 @@ __srefill(FILE *fp)
 		if (fp->_r == 0)
 			fp->_flags |= __SEOF;
 		else {
+	err:
 			fp->_r = 0;
 			fp->_flags |= __SERR;
+			fp->_flags &= ~__SOFF;
 		}
 		return (EOF);
+	} else if (fp->_flags & __SOFF) {
+		if (fp->_offset > OFF_MAX - fp->_r) {
+			errno = EOVERFLOW;
+			goto err;
+		} else
+			fp->_offset += fp->_r;
 	}
 	return (0);
 }
