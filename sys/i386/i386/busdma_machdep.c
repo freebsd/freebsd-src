@@ -382,12 +382,14 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
 
 		/* Must bounce */
+		struct bounce_zone *bz;
 		int maxpages;
 
 		if (dmat->bounce_zone == NULL) {
 			if ((error = alloc_bounce_zone(dmat)) != 0)
 				return (error);
 		}
+		bz = dmat->bounce_zone;
 
 		*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
 					     M_NOWAIT | M_ZERO);
@@ -404,13 +406,17 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		 * Attempt to add pages to our pool on a per-instance
 		 * basis up to a sane limit.
 		 */
-		maxpages = MIN(MAX_BPAGES, Maxmem - atop(dmat->lowaddr));
+		if (dmat->alignment > 1)
+			maxpages = MAX_BPAGES;
+		else
+			maxpages = MIN(MAX_BPAGES, Maxmem -atop(dmat->lowaddr));
 		if ((dmat->flags & BUS_DMA_MIN_ALLOC_COMP) == 0
-		 || (dmat->map_count > 0 && total_bpages < maxpages)) {
+		 || (dmat->map_count > 0 && bz->total_bpages < maxpages)) {
 			int pages;
 
 			pages = MAX(atop(dmat->maxsize), 1);
-			pages = MIN(maxpages - total_bpages, pages);
+			pages = MIN(maxpages - bz->total_bpages, pages);
+			pages = MAX(pages, 1);
 			if (alloc_bounce_pages(dmat, pages) < pages)
 				error = ENOMEM;
 
