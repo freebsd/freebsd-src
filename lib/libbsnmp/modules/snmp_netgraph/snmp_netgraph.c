@@ -928,7 +928,6 @@ ng_start(void)
 
 	reg_index = or_register(&oid_begemotNg, 
 	    "The MIB for the NetGraph access module for SNMP.", module);
-
 }
 
 /*
