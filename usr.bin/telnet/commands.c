@@ -2980,7 +2980,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 
 		hints.ai_flags = AI_NUMERICHOST;
 		error = getaddrinfo(cp, NULL, &hints, &res);
-		if (error == EAI_NONAME) {
+		if (error == EAI_NODATA) {
 			hints.ai_flags = 0;
 			error = getaddrinfo(cp, NULL, &hints, &res);
 		}
