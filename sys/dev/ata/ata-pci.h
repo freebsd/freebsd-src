@@ -35,7 +35,7 @@ struct ata_chip_id {
     int			 cfg1;
     int			 cfg2;
     u_int8_t		 max_dma;
-    char       		*text;
+    char		*text;
 };
 
 /* structure describing a PCI ATA controller */
@@ -55,7 +55,7 @@ struct ata_pci_controller {
     struct {
     void		(*function)(void *);
     void		 *argument;
-    } interrupt[4];	/* XXX SOS max ch# for now */
+    } interrupt[4];	/* SOS max ch# for now XXX */
 };
 
 #define ATA_MASTERDEV(dev)	((pci_get_progif(dev) & 0x80) && \
@@ -115,6 +115,9 @@ struct ata_pci_controller {
 #define ATA_I82801EB		0x24db8086
 #define ATA_I82801EB_1		0x24d18086
 
+#define ATA_NATIONAL_ID		0x100b
+#define ATA_SC1100		0x0502100b
+
 #define ATA_NVIDIA_ID		0x10de
 #define ATA_NFORCE1		0x01bc10de
 #define ATA_NFORCE2		0x006510de
@@ -147,6 +150,7 @@ struct ata_pci_controller {
 #define ATA_PDC20621		0x6621105a
 
 #define ATA_SERVERWORKS_ID	0x1166
+#define ATA_ROSB4_ISA		0x02001166
 #define ATA_ROSB4		0x02111166
 #define ATA_CSB5		0x02121166
 #define ATA_CSB6		0x02131166
@@ -279,6 +283,7 @@ int ata_cyrix_ident(device_t);
 int ata_cypress_ident(device_t);
 int ata_highpoint_ident(device_t);
 int ata_intel_ident(device_t);
+int ata_national_ident(device_t);
 int ata_nvidia_ident(device_t);
 int ata_promise_ident(device_t);
 int ata_serverworks_ident(device_t);

@@ -36,7 +36,7 @@
 #define AR_WRITE	0x02
 #define AR_WAIT		0x04
 #define AR_STRATEGY(x)	(x)->bio_disk->d_strategy((x))
-#define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
+#define AD_SOFTC(x)	((struct ad_softc *)(x.device->softc))
 #define ATA_MAGIC	"FreeBSD ATA driver RAID "
 
 struct ar_disk {

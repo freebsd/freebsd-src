@@ -35,6 +35,7 @@
 #include <sys/ata.h>
 #include <sys/bus.h>
 #include <sys/malloc.h>
+#include <sys/taskqueue.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>

@@ -30,7 +30,9 @@
 
 /* ATA register defines */
 #define ATA_DATA			0x00	/* data register */
+
 #define ATA_ERROR			0x01	/* (R) error register */
+#define		ATA_E_ILI		0x01	/* illegal length */
 #define		ATA_E_NM		0x02	/* no media */
 #define		ATA_E_ABORT		0x04	/* command aborted */
 #define		ATA_E_MCR		0x08	/* media change request */
@@ -38,6 +40,24 @@
 #define		ATA_E_MC		0x20	/* media changed */
 #define		ATA_E_UNC		0x40	/* uncorrectable data */
 #define		ATA_E_ICRC		0x80	/* UDMA crc error */
+#define		ATA_E_MASK		0x0f	/* error mask */
+#define		ATA_SK_MASK		0xf0	/* sense key mask */
+#define		ATA_SK_NO_SENSE		0x00	/* no specific sense key info */
+#define		ATA_SK_RECOVERED_ERROR	0x10	/* command OK, data recovered */
+#define		ATA_SK_NOT_READY	0x20	/* no access to drive */
+#define		ATA_SK_MEDIUM_ERROR	0x30	/* non-recovered data error */
+#define		ATA_SK_HARDWARE_ERROR	0x40	/* non-recoverable HW failure */
+#define		ATA_SK_ILLEGAL_REQUEST	0x50	/* invalid command param(s) */
+#define		ATA_SK_UNIT_ATTENTION	0x60	/* media changed */
+#define		ATA_SK_DATA_PROTECT	0x70	/* write protect */
+#define		ATA_SK_BLANK_CHECK	0x80	/* blank check */
+#define		ATA_SK_VENDOR_SPECIFIC	0x90	/* vendor specific skey */
+#define		ATA_SK_COPY_ABORTED	0xa0	/* copy aborted */
+#define		ATA_SK_ABORTED_COMMAND	0xb0	/* command aborted, try again */
+#define		ATA_SK_EQUAL		0xc0	/* equal */
+#define		ATA_SK_VOLUME_OVERFLOW	0xd0	/* volume overflow */
+#define		ATA_SK_MISCOMPARE	0xe0	/* data dont match the medium */
+#define		ATA_SK_RESERVED		0xf0
 
 #define ATA_FEATURE			0x01	/* (W) feature register */
 #define		ATA_F_DMA		0x01	/* enable DMA */
@@ -58,44 +78,6 @@
 #define		ATA_D_IBM		0xa0	/* 512 byte sectors, ECC */
 
 #define ATA_CMD				0x07	/* command register */
-#define		ATA_C_NOP		0x00	/* NOP command */
-#define		    ATA_C_F_FLUSHQUEUE	0x00	/* flush queued cmd's */
-#define		    ATA_C_F_AUTOPOLL	0x01	/* start autopoll function */
-#define		ATA_C_ATAPI_RESET	0x08	/* reset ATAPI device */
-#define		ATA_C_READ		0x20	/* read command */
-#define		ATA_C_READ48		0x24	/* read command */
-#define		ATA_C_READ_DMA48	0x25	/* read w/DMA command */
-#define		ATA_C_READ_DMA_QUEUED48 0x26	/* read w/DMA QUEUED command */
-#define		ATA_C_READ_MUL48	0x29	/* read multi command */
-#define		ATA_C_WRITE		0x30	/* write command */
-#define		ATA_C_WRITE48		0x34	/* write command */
-#define		ATA_C_WRITE_DMA48	0x35	/* write w/DMA command */
-#define		ATA_C_WRITE_DMA_QUEUED48 0x36	/* write w/DMA QUEUED command */
-#define		ATA_C_WRITE_MUL48	0x39	/* write multi command */
-#define		ATA_C_PACKET_CMD	0xa0	/* packet command */
-#define		ATA_C_ATAPI_IDENTIFY	0xa1	/* get ATAPI params*/
-#define		ATA_C_SERVICE		0xa2	/* service command */
-#define		ATA_C_READ_MUL		0xc4	/* read multi command */
-#define		ATA_C_WRITE_MUL		0xc5	/* write multi command */
-#define		ATA_C_SET_MULTI		0xc6	/* set multi size command */
-#define		ATA_C_READ_DMA_QUEUED	0xc7	/* read w/DMA QUEUED command */
-#define		ATA_C_READ_DMA		0xc8	/* read w/DMA command */
-#define		ATA_C_WRITE_DMA		0xca	/* write w/DMA command */
-#define		ATA_C_WRITE_DMA_QUEUED	0xcc	/* write w/DMA QUEUED command */
-#define		ATA_C_SLEEP		0xe6	/* sleep command */
-#define		ATA_C_FLUSHCACHE	0xe7	/* flush cache to disk */
-#define		ATA_C_FLUSHCACHE48	0xea	/* flush cache to disk */
-#define		ATA_C_ATA_IDENTIFY	0xec	/* get ATA params */
-#define		ATA_C_SETFEATURES	0xef	/* features command */
-#define		    ATA_C_F_SETXFER	0x03	/* set transfer mode */
-#define		    ATA_C_F_ENAB_WCACHE 0x02	/* enable write cache */
-#define		    ATA_C_F_DIS_WCACHE	0x82	/* disable write cache */
-#define		    ATA_C_F_ENAB_RCACHE 0xaa	/* enable readahead cache */
-#define		    ATA_C_F_DIS_RCACHE	0x55	/* disable readahead cache */
-#define		    ATA_C_F_ENAB_RELIRQ 0x5d	/* enable release interrupt */
-#define		    ATA_C_F_DIS_RELIRQ	0xdd	/* disable release interrupt */
-#define		    ATA_C_F_ENAB_SRVIRQ 0x5e	/* enable service interrupt */
-#define		    ATA_C_F_DIS_SRVIRQ	0xde	/* disable service interrupt */
 
 #define ATA_STATUS			0x07	/* status register */
 #define		ATA_S_ERROR		0x01	/* error */
@@ -117,6 +99,16 @@
 #define		ATA_A_RESET		0x04	/* RESET controller */
 #define		ATA_A_4BIT		0x08	/* 4 head bits */
 
+/* ATAPI misc defines */
+#define ATAPI_MAGIC_LSB			0x14
+#define ATAPI_MAGIC_MSB			0xeb
+#define ATAPI_P_READ			(ATA_S_DRQ | ATA_I_IN)
+#define ATAPI_P_WRITE			(ATA_S_DRQ)
+#define ATAPI_P_CMDOUT			(ATA_S_DRQ | ATA_I_CMD)
+#define ATAPI_P_DONEDRQ			(ATA_S_DRQ | ATA_I_CMD | ATA_I_IN)
+#define ATAPI_P_DONE			(ATA_I_CMD | ATA_I_IN)
+#define ATAPI_P_ABORT			0
+
 /* misc defines */
 #define ATA_PRIMARY			0x1f0
 #define ATA_SECONDARY			0x170
@@ -126,8 +118,6 @@
 #define ATA_ALTIOSIZE			0x01
 #define ATA_BMIOSIZE			0x08
 #define ATA_PC98_BANKIOSIZE		0x01
-#define ATA_OP_FINISHED			0x00
-#define ATA_OP_CONTINUES		0x01
 #define ATA_IOADDR_RID			0
 #define ATA_ALTADDR_RID			1
 #define ATA_BMADDR_RID			0x20
@@ -163,22 +153,72 @@
 #define ATA_IDX_DATA			0x0f
 #define ATA_MAX_RES			0x10
 
-/* structure for holding DMA address data */
-struct ata_dmaentry {
-    u_int32_t base;
-    u_int32_t count;
-};  
+#define ATA_INTR_FLAGS			(INTR_MPSAFE|INTR_TYPE_BIO|INTR_ENTROPY)
+#define ATA_OP_CONTINUES		0
+#define ATA_OP_FINISHED			1
+
+struct ata_request {
+    struct ata_device		*device;	/* ptr to device softc */
+    void			*driver;	/* driver specific */
+
+    union {
+	struct {
+	    u_int8_t		command;	/* command reg */
+	    u_int8_t		feature;	/* feature reg */
+	    u_int64_t		lba;		/* lba reg */
+	    u_int16_t		count;		/* count reg */
+	} ata;
+	struct {
+	    u_int8_t		ccb[16];	/* ATAPI command block */
+	} atapi;
+    } u;
+
+    u_int8_t			status;		/* ATA status */
+    u_int8_t			error;		/* ATA error */
+    u_int8_t			dmastat;	/* DMA status */
+
+    u_int32_t			bytecount;	/* bytes to transfer */
+    u_int32_t			transfersize;	/* bytes pr transfer */
+    u_int32_t			donecount;	/* bytes transferred */
+    caddr_t			data;		/* pointer to data buf */
+    int				flags;
+#define		ATA_R_DONE		0x0001
+#define		ATA_R_CONTROL		0x0002
+#define		ATA_R_READ		0x0004
+#define		ATA_R_WRITE		0x0008
+
+#define		ATA_R_ATAPI		0x0010
+#define		ATA_R_QUIET		0x0020
+#define		ATA_R_DMA		0x0040
+
+#define		ATA_R_ORDERED		0x0100
+#define		ATA_R_AT_HEAD		0x0200
+#define		ATA_R_REQUEUE		0x0400
+#define		ATA_R_SKIPSTART		0x0800
+
+    void			(*callback)(struct ata_request *);
+    int				retries;	/* retry count */
+    int				timeout;	/* timeout for this cmd */
+    struct callout_handle	timeout_handle; /* handle for untimeout */
+    int				result;		/* result error code */
+    struct task			task;		/* task management */
+    TAILQ_ENTRY(ata_request)	sequence;	/* sequence management */
+    TAILQ_ENTRY(ata_request)	chain;		/* list management */
+};
 
 /* structure describing an ATA/ATAPI device */
 struct ata_device {
     struct ata_channel		*channel;
     int				unit;		/* unit number */
-#define ATA_MASTER			0x00
-#define ATA_SLAVE			0x10
+#define		ATA_MASTER		0x00
+#define		ATA_SLAVE		0x10
 
     char			*name;		/* device name */
     struct ata_params		*param;		/* ata param structure */
-    void			*driver;	/* ptr to driver for device */
+    void			*softc;		/* ptr to softc for device */
+    void			(*attach)(struct ata_device *);
+    void			(*detach)(struct ata_device *);
+    void			(*start)(struct ata_device *);
     int				flags;
 #define		ATA_D_USE_CHS		0x0001
 #define		ATA_D_DETACHING		0x0002
@@ -186,13 +226,18 @@ struct ata_device {
 #define		ATA_D_ENC_PRESENT	0x0008
 
     int				cmd;		/* last cmd executed */
-    void			*result;	/* misc data */
     int				mode;		/* transfermode */
     void			(*setmode)(struct ata_device *, int);
 };
 
+/* structure for holding DMA address data */
+struct ata_dmaentry {
+    u_int32_t base;
+    u_int32_t count;
+};  
+
 /* structure holding DMA related information */
-struct ata_dma_data {
+struct ata_dma {
     bus_dma_tag_t		dmatag;		/* parent DMA tag */
     bus_dma_tag_t		cdmatag;	/* control DMA tag */
     bus_dmamap_t		cdmamap;	/* control DMA map */
@@ -200,7 +245,8 @@ struct ata_dma_data {
     bus_dmamap_t		ddmamap;	/* data DMA map */
     struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     bus_addr_t			mdmatab;	/* bus address of dmatab */
-    u_int32_t alignment;			/* DMA engine alignment */
+    u_int32_t			alignment;	/* DMA engine alignment */
+    u_int32_t			max_iosize;	/* DMA engine max IO size */
     int				flags;
 #define ATA_DMA_ACTIVE			0x01	/* DMA transfer in progress */
 #define ATA_DMA_READ			0x02	/* transaction is a read */
@@ -210,6 +256,13 @@ struct ata_dma_data {
     int (*setup)(struct ata_device *, caddr_t, int32_t);
     int (*start)(struct ata_channel *, caddr_t, int32_t, int);
     int (*stop)(struct ata_channel *);
+};
+
+/* structure holding lowlevel functions */
+struct ata_lowlevel {
+    void (*reset)(struct ata_channel *);
+    int (*transaction)(struct ata_request *);
+    void (*interrupt)(void *);
 };
 
 /* structure holding resources for an ATA channel */
@@ -225,15 +278,14 @@ struct ata_channel {
     struct ata_resource		r_io[ATA_MAX_RES];/* I/O resources */
     struct resource		*r_irq;		/* interrupt of this channel */
     void			*ih;		/* interrupt handle */
-    struct ata_dma_data		*dma;		/* DMA data / functions */
-    u_int32_t			chiptype;	/* controller chip PCI id */
+    struct ata_lowlevel		hw;		/* lowlevel HW functions */
+    struct ata_dma		*dma;		/* DMA data / functions */
     int				flags;		/* channel flags */
 #define		ATA_NO_SLAVE		0x01
 #define		ATA_USE_16BIT		0x02
 #define		ATA_USE_PC98GEOM	0x04
 #define		ATA_ATAPI_DMA_RO	0x08
-#define		ATA_QUEUED		0x10
-#define		ATA_48BIT_ACTIVE	0x20
+#define		ATA_48BIT_ACTIVE	0x10
 
     struct ata_device		device[2];	/* devices on this channel */
 #define		MASTER			0x00
@@ -245,26 +297,40 @@ struct ata_channel {
 #define		ATA_ATAPI_MASTER	0x04
 #define		ATA_ATAPI_SLAVE		0x08
 
-    u_int8_t			status;		/* last controller status */
-    u_int8_t			error;		/* last controller error */
-    int				active;		/* ATA channel state control */
+    int				state;		/* ATA channel state control */
 #define		ATA_IDLE		0x0000
-#define		ATA_IMMEDIATE		0x0001
-#define		ATA_WAIT_INTR		0x0002
-#define		ATA_WAIT_READY		0x0004
-#define		ATA_WAIT_MASK		0x0007
-#define		ATA_ACTIVE		0x0010
-#define		ATA_ACTIVE_ATA		0x0020
-#define		ATA_ACTIVE_ATAPI	0x0040
-#define		ATA_CONTROL		0x0080
+#define		ATA_ACTIVE		0x0001
+#define		ATA_CONTROL		0x0002
 
     void (*locking)(struct ata_channel *, int);
 #define		ATA_LF_LOCK		0x0001
 #define		ATA_LF_UNLOCK		0x0002
 
-    TAILQ_HEAD(, ad_request)	ata_queue;	/* head of ATA queue */
-    TAILQ_HEAD(, atapi_request) atapi_queue;	/* head of ATAPI queue */
+    struct mtx			queue_mtx;
+    TAILQ_HEAD(, ata_request)	ata_queue;	/* head of ATA queue */
     void			*running;	/* currently running request */
+};
+
+/* ATAPI request sense structure */
+struct atapi_sense {
+    u_int8_t	error_code	:7;		/* current or deferred errors */
+    u_int8_t	valid		:1;		/* follows ATAPI spec */
+    u_int8_t	segment;			/* Segment number */
+    u_int8_t	sense_key	:4;		/* sense key */
+    u_int8_t	reserved2_4	:1;		/* reserved */
+    u_int8_t	ili		:1;		/* incorrect length indicator */
+    u_int8_t	eom		:1;		/* end of medium */
+    u_int8_t	filemark	:1;		/* filemark */
+    u_int32_t	cmd_info __packed;		/* cmd information */
+    u_int8_t	sense_length;			/* additional sense len (n-7) */
+    u_int32_t	cmd_specific_info __packed;	/* additional cmd spec info */
+    u_int8_t	asc;				/* additional sense code */
+    u_int8_t	ascq;				/* additional sense code qual */
+    u_int8_t	replaceable_unit_code;		/* replaceable unit code */
+    u_int8_t	sk_specific	:7;		/* sense key specific */
+    u_int8_t	sksv		:1;		/* sense key specific info OK */
+    u_int8_t	sk_specific1;			/* sense key specific */
+    u_int8_t	sk_specific2;			/* sense key specific */
 };
 
 /* disk bay/enclosure related */
@@ -277,20 +343,15 @@ struct ata_channel {
 /* externs */
 extern devclass_t ata_devclass;
 extern struct intr_config_hook *ata_delayed_attach;
+extern int ata_dma, ata_wc, atapi_dma;
  
 /* public prototypes */
+/* ata-all.c: */
 int ata_probe(device_t);
 int ata_attach(device_t);
 int ata_detach(device_t);
 int ata_suspend(device_t);
 int ata_resume(device_t);
-void ata_start(struct ata_channel *);
-void ata_reset(struct ata_channel *);
-int ata_reinit(struct ata_channel *);
-int ata_wait(struct ata_device *, u_int8_t);
-int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t, int);
-void ata_enclosure_leds(struct ata_device *, u_int8_t);
-void ata_enclosure_print(struct ata_device *);
 int ata_printf(struct ata_channel *, int, const char *, ...) __printflike(3, 4);
 int ata_prtdev(struct ata_device *, const char *, ...) __printflike(2, 3);
 void ata_set_name(struct ata_device *, char *, int);
@@ -299,22 +360,45 @@ int ata_get_lun(u_int32_t *);
 int ata_test_lun(u_int32_t *, int);
 void ata_free_lun(u_int32_t *, int);
 char *ata_mode2str(int);
-int ata_pmode(struct ata_params *);
-int ata_wmode(struct ata_params *);
-int ata_umode(struct ata_params *);
-int ata_limit_mode(struct ata_device *, int, int);
+int ata_pmode(struct ata_params *ap);
+int ata_wmode(struct ata_params *ap);
+int ata_umode(struct ata_params *ap);
+int ata_limit_mode(struct ata_device *atadev, int mode, int maxmode);
+
+/* ata-queue.c: */
+int ata_reinit(struct ata_channel *ch);
+void ata_start(struct ata_channel *ch);
+struct ata_request *ata_alloc_request(void);
+void ata_free_request(struct ata_request *request);
+int ata_controlcmd(struct ata_device *atadev, u_int8_t command, u_int16_t feature, u_int64_t lba, u_int16_t count);
+int ata_atapicmd(struct ata_device *atadev, u_int8_t *ccb, caddr_t data, int count, int flags, int timeout);
+void ata_queue_request(struct ata_request *request);
+void ata_finish(struct ata_request *request);
+char *ata_cmd2str(struct ata_request *request);
+
+/* ata-lowlevel.c: */
+void ata_generic_hw(struct ata_channel *ch);
+
+/* subdrivers */
+void ad_attach(struct ata_device *);
+void acd_attach(struct ata_device *);
+void afd_attach(struct ata_device *);
+void ast_attach(struct ata_device *);
+void atapi_cam_attach_bus(struct ata_channel *);
+void atapi_cam_detach_bus(struct ata_channel *);
+void atapi_cam_reinit_bus(struct ata_channel *);
 
 /* macros for locking a channel */
 #define ATA_LOCK_CH(ch, value) \
-	atomic_cmpset_acq_int(&(ch)->active, ATA_IDLE, (value))
+	atomic_cmpset_acq_int(&(ch)->state, ATA_IDLE, (value))
 
 #define ATA_SLEEPLOCK_CH(ch, value) \
-	while (!atomic_cmpset_acq_int(&(ch)->active, ATA_IDLE, (value))) \
+	while (!atomic_cmpset_acq_int(&(ch)->state, ATA_IDLE, (value))) \
 	    tsleep((caddr_t)&(ch), PRIBIO, "atalck", 1);
 
-#define ATA_FORCELOCK_CH(ch, value) atomic_store_rel_int(&(ch)->active, (value))
+#define ATA_FORCELOCK_CH(ch, value) atomic_store_rel_int(&(ch)->state, (value))
 
-#define ATA_UNLOCK_CH(ch) atomic_store_rel_int(&(ch)->active, ATA_IDLE)
+#define ATA_UNLOCK_CH(ch) atomic_store_rel_int(&(ch)->state, ATA_IDLE)
 
 /* macros to hide busspace uglyness */
 #define ATA_INB(res, offset) \

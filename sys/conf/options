@@ -297,13 +297,10 @@ ISP_TARGET_MODE		opt_isp.h
 ISP_FW_CRASH_DUMP	opt_isp.h
 
 # Options used in the 'ata' ATA/ATAPI driver
-ACD_DEBUG		opt_ata.h
-AST_DEBUG		opt_ata.h
-ATAPI_DEBUG		opt_ata.h
-ATA_DEBUG		opt_ata.h
 ATA_STATIC_ID		opt_ata.h
 ATA_NOPCI		opt_ata.h
 DEV_ATADISK		opt_ata.h
+DEV_ATARAID		opt_ata.h
 DEV_ATAPICD		opt_ata.h
 DEV_ATAPIST		opt_ata.h
 DEV_ATAPIFD		opt_ata.h
