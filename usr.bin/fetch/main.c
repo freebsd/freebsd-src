@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1996
- *      Jordan Hubbard, Poul-Henning Kamp, Jean-Marc Zucconi
+ *      Jean-Marc Zucconi
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.2 1996/06/22 20:16:57 jkh Exp $ */
+/* $Id: main.c,v 1.3 1996/06/22 21:42:14 jkh Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -325,7 +325,7 @@ display (int size, int n)
 			     size ? "" : " [appending]");
 		else
 		    sprintf (s, "Receiving %s", outputfile);
-		printf ("\n%s", s);
+		printf ("%s", s);
 		fflush (stdout);
 		bytes = n;
 		return;
