@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.40 1995/12/11 15:09:08 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.41 1996/01/03 13:12:13 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -180,7 +180,7 @@
 	  <item>Hideaki Ohmon &lt;ohmon@sfc.keio.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
 	  <item>Ishii Masahiro, R. Kym Horsell
-	  <item>J.T. Conklin &lt;jtc@winsey.com&gt;
+	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
@@ -276,7 +276,7 @@
 	<item>Herb Peyerl &lt;hpeyerl@novatel.cuc.ab.ca
 	<item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
 	<item>Ishii Masahiro, R. Kym Horsell
-	<item>J.T. Conklin &lt;jtc@winsey.com&gt;
+	<item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	<item>Jagane D Sundar &lt; jagane@netcom.com &gt;
 	<item>James Clark &lt;jjc@jclark.com&gt;
 	<item>James Jegers &lt;jimj@miller.cs.uwm.edu&gt;
