@@ -17,7 +17,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm kbdcontrol
-.Nd a utility for manipulating the syscons keyboard driver section.
+.Nd a utility for manipulating the syscons keyboard driver section
 .Sh SYNOPSIS
 .Nm
 .Op Fl dFx
@@ -25,18 +25,17 @@
 .Op Fl r Ar delay.repeat | Ar speed
 .Op Fl l Ar mapfile
 .Op Fl f Ar # Ar string
-.Op Fl h size
-.Op Fl L mapfile
+.Op Fl h Ar size
+.Op Fl L Ar mapfile
 .Sh DESCRIPTION
 The
-.Nm kbdcontrol
+.Nm
 command is used to set various keyboard related options for the syscons 
 console driver, such as keymap, keyboard repeat & delay rates, bell 
 characteristics etc.
 .Pp
 The following command line options are supported:
-.Pp
-.Bl -tag -width xxxxxx
+.Bl -tag -width indent
 .It Fl b Ar duration.pitch | Ar belltype
 Set the bell duration and pitch values. 
 If a 
@@ -62,18 +61,18 @@ argument is specified, it may be one of
 (250.34)
 or
 .Ar normal
-(500.126)
+(500.126).
 .It Fl l Ar mapfile
 Install keyboard map file from
-.Ar mapfile
+.Ar mapfile .
 .It Fl d
-Dump the current keyboard map onto stdout
+Dump the current keyboard map onto stdout.
 .It Fl f Ar # Ar string
 .BI "\-f\ " #\ string
 Set function key number
 .Ar #
 to send
-.Ar string
+.Ar string .
 .It Fl F
 Set function keys back to the standard definitions.
 .It Fl x
@@ -88,6 +87,7 @@ Load keyboard map file from
 and write the 
 .Ft "struct keymap"
 compiled from it to stdout.
+.El
 .Sh FILES
 .Bl -tag -width /usr/share/syscons/keymaps -compact
 .Pa /usr/share/syscons/keymaps
@@ -98,4 +98,4 @@ Report when found.
 .Xr keyboard 4 ,
 .Xr screen 4
 .Sh AUTHORS
-Søren Schmidt (sos@FreeBSD.org)
+.An Søren Schmidt Aq sos@FreeBSD.org
