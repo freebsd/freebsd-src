@@ -602,7 +602,7 @@ ihfc_fsm(ihfc_sc_t *sc, int flag)
 	 * NOTE: HFC-S/SP and ISAC transmitters are always active when 	      *
 	 * activated state is reached. The bytes sent to the S0-bus are all   *
 	 * high impedance, so they do not disturb.			      *
-	 * The HFC-1 has a seperate SIEMENS S0-device.			      */
+	 * The HFC-1 has a separate SIEMENS S0-device.			      */
 
 	if (S_HFC & HFC_1)
 	{

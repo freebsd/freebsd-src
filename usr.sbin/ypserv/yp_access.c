@@ -198,7 +198,7 @@ void load_securenets()
  *   package does not ship with FreeBSD, we use the built-in support
  *   by default. Users can recompile the server with the tcp-wrapper library
  *   if they already have it installed and want to use hosts.allow and
- *   hosts.deny to control access instead of having a seperate securenets
+ *   hosts.deny to control access instead of having a separate securenets
  *   file.)
  *
  *   If no /var/yp/securenets file is present, the host access checks

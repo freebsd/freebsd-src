@@ -543,7 +543,7 @@ retry:
 		 * using TX channel 0. Also, round length up to a word
 		 * size which should only effect the last buffer in the
 		 * chain. This works because the PDU length is maintained
-		 * seperately and we're not really adjusting the buffer's
+		 * separately and we're not really adjusting the buffer's
 		 * idea of its length.
 		 */
 		KB_DATASTART ( m, buf_addr, u_long );

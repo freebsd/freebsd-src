@@ -493,7 +493,7 @@ print_symbol(objname, sym)
 		(void)printf("%s:", objname);
 
 	/*
-	 * handle undefined-only format seperately (no space is
+	 * handle undefined-only format separately (no space is
 	 * left for symbol values, no type field is printed)
 	 */
 	if (print_only_undefined_symbols) {

@@ -79,7 +79,7 @@ YPMAPDIR = $(YPDIR)/$(DOMAIN)
 
 # These are the files from which the NIS databases are built. You may edit
 # these to taste in the event that you wish to keep your NIS source files
-# seperate from your NIS server's actual configuration files. Note that the
+# separate from your NIS server's actual configuration files. Note that the
 # NIS passwd and master.passwd files are stored in /var/yp: the server's
 # real password database is not used by default. However, you may use
 # the real /etc/passwd and /etc/master.passwd files by:

@@ -74,7 +74,7 @@ struct bootsector710 {
 #ifdef	atari
 /*
  * The boot sector on a gemdos fs is a little bit different from the msdos fs
- * format. Currently there is no need to declare a seperate structure, the
+ * format. Currently there is no need to declare a separate structure, the
  * bootsector33 struct will do.
  */
 #if 0
