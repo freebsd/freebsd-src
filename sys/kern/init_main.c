@@ -39,10 +39,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.49 1996/09/23 04:37:54 peter Exp $
+ * $Id: init_main.c,v 1.50 1996/10/20 21:01:46 alex Exp $
  */
 
 #include "opt_rlimit.h"
+#include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/filedesc.h>
@@ -594,6 +595,11 @@ start_init(p, framep)
 
 #ifdef BOOTCDROM
 		(void)subyte(--ucp, 'C');
+		options = 1;
+#endif
+
+#if defined(DEVFS) && defined(DEVFS_ROOT)
+		(void)subyte(--ucp, 'd');
 		options = 1;
 #endif
 		if (options == 0)
