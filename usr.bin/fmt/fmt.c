@@ -525,7 +525,7 @@ output_word(size_t indent0, size_t indent1, const char *word, size_t length, siz
     if (indent>0) output_indent(indent);
     fwrite(output_buffer, 1, x0, stdout);
     if (x0==0 || (new_x <= max_length && new_x-goal_length <= goal_length-x)) {
-      printf("%*s", pending_spaces, "");
+      printf("%*s", (int)pending_spaces, "");
       goto write_out_word;
     }
     else {
