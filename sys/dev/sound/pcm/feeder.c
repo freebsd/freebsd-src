@@ -267,25 +267,60 @@ no:
 u_int32_t
 chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 {
-	struct pcm_feeder *try, *stop;
-	int max;
+	struct pcm_feeder *try, *del, *stop;
+	u_int32_t tmpfrom[2], best, *from;
+	int i, max, bestmax;
 
-	/* we're broken for recording currently, reject attempts */
-	if (c->direction == PCMDIR_REC)
-		return EINVAL;
+	KASSERT(c != NULL, ("c == NULL"));
+	KASSERT(c->feeder != NULL, ("c->feeder == NULL"));
+	KASSERT(to != NULL, ("to == NULL"));
+	KASSERT(to[0] != 0, ("to[0] == 0"));
+
 	stop = c->feeder;
-	try = NULL;
-	max = 0;
-	while (try == NULL && max < 8) {
-		try = feeder_fmtchain(to, c->feeder, stop, max);
-		max++;
+
+	if (c->direction == PCMDIR_REC && c->feeder->desc->type == FEEDER_ROOT) {
+		from = chn_getcaps(c)->fmtlist;
+	} else {
+		tmpfrom[0] = c->feeder->desc->out;
+		tmpfrom[1] = 0;
+		from = tmpfrom;
 	}
+
+	i = 0;
+	best = 0;
+	bestmax = 100;
+	while (from[i] != 0) {
+		c->feeder->desc->out = from[i];
+		try = NULL;
+		max = 0;
+		while (try == NULL && max < 8) {
+			try = feeder_fmtchain(to, c->feeder, stop, max);
+			if (try == NULL)
+				max++;
+		}
+		if (try != NULL && max < bestmax) {
+			bestmax = max;
+			best = from[i];
+		}
+		while (try != NULL && try != stop) {
+			del = try;
+			try = try->source;
+			feeder_destroy(del);
+		}
+		i++;
+	}
+	if (best == 0)
+		return 0;
+
+	c->feeder->desc->out = best;
+	try = feeder_fmtchain(to, c->feeder, stop, bestmax);
 	if (try == NULL)
 		return 0;
+
 	c->feeder = try;
 	c->align = 0;
 #ifdef FEEDER_DEBUG
-	printf("chain: ");
+	printf("\n\nchain: ");
 #endif
 	while (try && (try != stop)) {
 #ifdef FEEDER_DEBUG
@@ -293,6 +328,8 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 		if (try->source)
 			printf(" -> ");
 #endif
+		if (try->source)
+			try->source->parent = try;
 		if (try->align > 0)
 			c->align += try->align;
 		else if (try->align < 0 && c->align < -try->align)
@@ -302,7 +339,7 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 #ifdef FEEDER_DEBUG
 	printf("%s [%d]\n", try->class->name, try->desc->idx);
 #endif
-	return c->feeder->desc->out;
+	return (c->direction == PCMDIR_REC)? best : c->feeder->desc->out;
 }
 
 /*****************************************************************************/
