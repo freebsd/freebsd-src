@@ -332,7 +332,8 @@ __archive_write_format_header_ustar(struct archive *a, char buff[512],
 			break;
 		default:
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive this");
+			    "tar format cannot archive this (mode=0%lo)",
+			    (unsigned long)st->st_mode);
 			ret = ARCHIVE_WARN;
 		}
 	}

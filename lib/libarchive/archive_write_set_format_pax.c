@@ -351,7 +351,8 @@ archive_write_pax_header(struct archive *a,
 			return (ARCHIVE_WARN);
 		default:
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
-			    "tar format cannot archive this");
+			    "tar format cannot archive this (mode=0%lo)",
+			    (unsigned long)st_original->st_mode);
 			return (ARCHIVE_WARN);
 		}
 	}
