@@ -188,7 +188,7 @@ linux_signal(struct thread *td, struct linux_signal_args *args)
 #ifdef DEBUG
 	if (ldebug(signal))
 		printf(ARGS(signal, "%d, %p"),
-		    args->sig, (void *)args->handler);
+		    args->sig, (void *)(uintptr_t)args->handler);
 #endif
 
 	nsa.lsa_handler = args->handler;
