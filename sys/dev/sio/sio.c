@@ -489,13 +489,6 @@ static int
 sio_pccard_probe(dev)
 	device_t	dev;
 {
-	const char *name;
-
-	name = pccard_get_name(dev);
-	printf("sio_pccard_probe: Does %s match?\n", name);
-	if (strcmp(name, "sio"))
-		return ENXIO;
-
 	return (sioprobe(dev));
 }
 
