@@ -70,8 +70,6 @@ options 	WITNESS
 device		isa
 device		eisa
 device		pci
-device		pccard
-device		cardbus
 
 # Floppy drives
 device		fdc
@@ -152,6 +150,8 @@ device		pmtimer
 # Pcmcia and cardbus bridge support
 #device		pcic			# pcmcia bridge
 device		pccbb			# cardbus (yenta) bridge
+device		pccard
+device		cardbus
 
 # Serial (COM) ports
 device		sio		# 8250, 16[45]50 based serial ports
