@@ -92,11 +92,21 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
     draw_shadow(stdscr, y, x, height, width);
 #endif
   dialog = newwin(height, width, y, x);
+  if (dialog == NULL) {
+    endwin();
+    fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
+    exit(1);
+  }
   keypad(dialog, TRUE);
 
   /* Create window for text region, used for scrolling text */
 /*  text = newwin(height-4, width-2, y+1, x+1); */
   text = subwin(dialog, height-4, width-2, y+1, x+1);
+  if (text == NULL) {
+    endwin();
+    fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", height-4,width-2,y+1,x+1);
+    exit(1);
+  }
   keypad(text, TRUE);
 
   draw_box(dialog, 0, 0, height, width, dialog_attr, border_attr);
