@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: warp_saver.c,v 1.1 1998/12/27 22:03:09 des Exp $
+ *	$Id: warp_saver.c,v 1.2 1998/12/28 14:20:13 des Exp $
  */
 
 #include <sys/param.h>
@@ -86,9 +86,9 @@ warp_saver(int blank)
 	    saved_mode = scp->mode;
 	    scp->mode = M_VGA_CG320;
 	    scp->status |= SAVER_RUNNING|GRAPHICS_MODE;
-	    save_palette(scp, (char *)save_pal);
+	    save_palette(scp, save_pal);
 	    set_mode(scp);
-	    load_palette(scp, (char *)warp_pal);
+	    load_palette(scp, warp_pal);
 	    scrn_blanked++;
 	    vid = (u_char *)Crtat;
 	    splx(pl);
@@ -107,7 +107,7 @@ warp_saver(int blank)
 		scp->mode = saved_mode;
 		scp->status &= ~(SAVER_RUNNING|GRAPHICS_MODE);
 		set_mode(scp);
-		load_palette(scp, (char *)save_pal);
+		load_palette(scp, save_pal);
 		saved_mode = 0;
 		splx(pl);
 	    }
