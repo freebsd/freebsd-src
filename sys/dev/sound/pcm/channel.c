@@ -35,6 +35,7 @@
 
 #define ISA_DMA(b) (((b)->chan >= 0 && (b)->chan != 4 && (b)->chan < 8))
 #define CANCHANGE(c) (!(c)->buffer.dl)
+#define ROUND(x) ((x) & DMA_ALIGN_MASK)
 /*
 #define DEB(x) x
 */
@@ -828,8 +829,6 @@ buf_clear(snd_dbuf *b, u_int32_t fmt, int length)
 	int i;
 	u_int16_t data, *p;
 
-	/* rely on length & DMA_ALIGN_MASK == 0 */
-	length &= DMA_ALIGN_MASK;
 	if (length == 0)
 		return;
 
@@ -848,7 +847,7 @@ buf_clear(snd_dbuf *b, u_int32_t fmt, int length)
 
 	i = b->fp;
 	p = (u_int16_t *)(b->buf + b->fp);
-	while (length > 0) {
+	while (length > 1) {
 		*p++ = data;
 		length -= 2;
 		i += 2;
@@ -857,6 +856,8 @@ buf_clear(snd_dbuf *b, u_int32_t fmt, int length)
 			i = 0;
 		}
 	}
+	if (length == 1)
+		*(b->buf + i) = data & 0xff;
 }
 
 void
@@ -1220,6 +1221,7 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	buf_clear(bs, bs->fmt, bs->bufsize);
 	bs->blkcnt = blkcnt;
 	bs->blksz = blksz;
+	RANGE(blksz, 16, b->bufsize / 2);
 	b->blksz = c->setblocksize(c->devinfo, blksz);
 	splx(s);
 
