@@ -34,22 +34,23 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/file.h>
+
 #include <err.h>
 #include <langinfo.h>
 #include <locale.h>
@@ -62,17 +63,18 @@ static const char rcsid[] =
 #include <utmp.h>
 
 static void usage __P((void));
-void output __P((struct utmp *));
+static void output __P((struct utmp *));
+static FILE *file __P((const char *));
 
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register char *p;
+	char *p;
 	struct utmp usr;
 	struct passwd *pw;
-	FILE *ufp, *file();
+	FILE *ufp;
 	char *t;
 
 	(void) setlocale(LC_TIME, "");
@@ -154,9 +156,9 @@ output(up)
 	(void)putchar('\n');
 }
 
-FILE *
+static FILE *
 file(name)
-	char *name;
+	const char *name;
 {
 	FILE *ufp;
 
