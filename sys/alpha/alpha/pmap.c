@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.21 1999/04/28 15:52:09 dt Exp $
+ *	$Id: pmap.c,v 1.23 1999/05/11 18:59:56 dt Exp $
  */
 
 /*
@@ -2302,7 +2302,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	 * if we are processing a major portion of the object, then scan the
 	 * entire thing.
 	 */
-	if (psize > (object->size >> 2)) {
+	if (psize > (object->resident_page_count >> 2)) {
 		objpgs = psize;
 
 		for (p = TAILQ_FIRST(&object->memq);

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.234 1999/04/28 01:03:23 luoqi Exp $
+ *	$Id: pmap.c,v 1.235 1999/05/18 06:01:49 alc Exp $
  */
 
 /*
@@ -2406,7 +2406,7 @@ retry:
 	 * if we are processing a major portion of the object, then scan the
 	 * entire thing.
 	 */
-	if (psize > (object->size >> 2)) {
+	if (psize > (object->resident_page_count >> 2)) {
 		objpgs = psize;
 
 		for (p = TAILQ_FIRST(&object->memq);
