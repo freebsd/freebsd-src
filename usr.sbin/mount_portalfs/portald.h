@@ -67,6 +67,8 @@ extern int portal_exec(struct portal_cred *,
 				char *key, char **v, int so, int *fdp);
 extern int portal_file(struct portal_cred *,
 				char *key, char **v, int so, int *fdp);
+extern int portal_pipe(struct portal_cred *,
+				char *key, char **v, int so, int *fdp);
 extern int portal_tcp(struct portal_cred *,
 				char *key, char **v, int so, int *fdp);
 extern int portal_tcplisten(struct portal_cred *,
