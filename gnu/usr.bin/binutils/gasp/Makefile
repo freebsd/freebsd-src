@@ -10,7 +10,6 @@ WARNS?=	2
 CFLAGS+= -DBFD_ASSEMBLER
 CFLAGS+= -I${.CURDIR}/../as/${TARGET_ARCH}-freebsd -I${.CURDIR}/../as
 CFLAGS+= -I${.CURDIR}
-CFLAGS+= -I${DESTDIR}/usr/include/gnu
 CFLAGS+= -I${SRCDIR} -I${SRCDIR}/gas -I${SRCDIR}/gas/config
 DPADD=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
