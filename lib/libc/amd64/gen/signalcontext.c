@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 typedef void (*handler_t)(uint64_t, uint64_t, uint64_t);
 
 /* Prototypes */
-static void ctx_wrapper(ucontext_t *ucp, handler_t func, uint64_t *args);
+static void sigctx_wrapper(ucontext_t *ucp, handler_t func, uint64_t *args);
 
 __weak_reference(__signalcontext, signalcontext);
 
@@ -54,8 +54,9 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 
 	/*
 	 * Build a signal frame and copy the arguments of signal handler
-	 * 'func' onto the stack. We only need 3 arguments, but we
-	 * create room for 4 so that we are 16-byte aligned.
+	 * 'func' onto the stack and do the funky stack alignment.
+	 * This means that we need an 8-byte-odd alignment since the ABI expects
+	 * the return address to be pushed, thus breaking the 16 byte alignment.
 	 */
 	sp = (ucp->uc_mcontext.mc_rsp - sizeof(ucontext_t)) & ~15UL;
 	sig_uc = (ucontext_t *)sp;
@@ -64,12 +65,11 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	sig_si = (siginfo_t *)sp;
 	bzero(sig_si, sizeof(*sig_si));
 	sig_si->si_signo = sig;
-	sp -= 4 * sizeof(uint64_t);
+	sp -= 3 * sizeof(uint64_t);
 	args = (uint64_t *)sp;
 	args[0] = sig;
 	args[1] = (intptr_t)sig_si;
 	args[2] = (intptr_t)sig_uc;
-	args[3] = 0;
 	sp -= 16;
 
 	/*
@@ -86,12 +86,12 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	ucp->uc_mcontext.mc_rbp = (register_t)sp;
 	ucp->uc_mcontext.mc_rbx = (register_t)sp;
 	ucp->uc_mcontext.mc_rsp = (register_t)sp;
-	ucp->uc_mcontext.mc_rip = (register_t)ctx_wrapper;
+	ucp->uc_mcontext.mc_rip = (register_t)sigctx_wrapper;
 	return (0);
 }
 
 static void
-ctx_wrapper(ucontext_t *ucp, handler_t func, uint64_t *args)
+sigctx_wrapper(ucontext_t *ucp, handler_t func, uint64_t *args)
 {
 
 	(*func)(args[0], args[1], args[2]);
