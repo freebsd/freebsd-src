@@ -36,6 +36,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <regex.h>
 #include <sys/ioctl.h>
 #include "cardd.h"
 
@@ -208,17 +209,44 @@ card_removed(struct slot *sp)
 
 /* CIS string comparison */
 
+#define	REGCOMP_FLAGS	(REG_EXTENDED | REG_NOSUB)
+#define	REGEXEC_FLAGS	(0)
+
 static int
 cis_strcmp(char *db, char *cis)
 {
+	int     res, err;
+	char    buf[256];
+	regex_t rx;
+	char *	p;
 	size_t	n;
 
 	if (!db || !cis) {
 		return -1;
 	}
 	n = strlen(db);
-	return strncmp(db, cis, n);
-	/* XXX Add code for regex CIS string comparison here */
+	if (n > 2 && db[0] == '/' && db[n-1] == '/') {
+		/* matching by regex */
+		db++;
+	} else {
+		/* otherwise, matching by strncmp() */
+		return strncmp(db, cis, n);
+	}
+	p = xmalloc(n);
+	strncpy(p + 1, db, n-2);
+	*p = '^';
+	db = p;
+	if ((err = regcomp(&rx, p, REGCOMP_FLAGS))) {
+		regerror(err, &rx, buf, sizeof buf);
+		logmsg("Warning: REGEX error for\"%s\" -- %s\n", p, buf);
+		regfree(&rx);
+		free(p);
+		return -1;
+	}
+	res = regexec(&rx, cis, 0, NULL, REGEXEC_FLAGS);
+	regfree(&rx);
+	free(p);
+	return res;
 }
 
 /*
@@ -252,11 +280,23 @@ card_inserted(struct slot *sp)
 		case DT_VERS:
 			if (cis_strcmp(cp->manuf, sp->cis->manuf) == 0 &&
 			    cis_strcmp(cp->version, sp->cis->vers) == 0) {
+				if (cp->add_info1 != NULL &&
+				    cis_strcmp(cp->add_info1, sp->cis->add_info1) != 0) {
+					break;
+				}
+				if (cp->add_info2 != NULL &&
+				    cis_strcmp(cp->add_info2, sp->cis->add_info2) != 0) {
+					break;
+				}
+
 				logmsg("Card \"%s\"(\"%s\") "
-					"matched \"%s\" (\"%s\") ",
-					sp->cis->manuf, sp->cis->vers,
-					cp->manuf, cp->version
-					);
+					"[%s] [%s] "
+					"matched \"%s\" (\"%s\") "
+					"[%s] [%s] ",
+				    sp->cis->manuf, sp->cis->vers,
+				    sp->cis->add_info1, sp->cis->add_info2,
+				    cp->manuf, cp->version,
+				    cp->add_info1, cp->add_info2);
 				goto escape;
 			}
 			break;
