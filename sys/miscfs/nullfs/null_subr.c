@@ -92,8 +92,10 @@ nullfs_uninit(vfsp)
 	struct vfsconf *vfsp;
 {
 
-        if (null_node_hashtbl)
+        if (null_node_hashtbl) {
+		lockdestroy(&null_hashlock);
 		free(null_node_hashtbl, M_NULLFSHASH);
+	}
 	return (0);
 }
 

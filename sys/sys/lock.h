@@ -41,8 +41,8 @@
 #ifndef	_LOCK_H_
 #define	_LOCK_H_
 
-
 #include <machine/lock.h>
+#include <machine/mutex.h>
 
 /*
  * The general lock structure.  Provides for multiple shared locks,
@@ -50,7 +50,8 @@
  * can be gained. The simple locks are defined in <machine/param.h>.
  */
 struct lock {
-	struct	simplelock lk_interlock; /* lock on remaining fields */
+	struct	mtx lk_interlock;	/* lock on remaining fields */
+	struct	mtxf lk_pad;		/* padding to keep sizeof constant */
 	u_int	lk_flags;		/* see below */
 	int	lk_sharecount;		/* # of accepted shared locks */
 	int	lk_waitcount;		/* # of processes sleeping for lock */
@@ -132,13 +133,20 @@ struct lock {
 #define LK_HAVE_EXCL	0x00000400	/* exclusive lock obtained */
 #define LK_WAITDRAIN	0x00000800	/* process waiting for lock to drain */
 #define LK_DRAINING	0x00004000	/* lock is being drained */
+#define LK_VALID	0x00008000	/*
+					 * Lock is initialized.  This is a
+					 * temporary hack to support vfs
+					 * layering.
+					 */
 /*
  * Control flags
  *
  * Non-persistent external flags.
  */
-#define LK_INTERLOCK	0x00010000 /* unlock passed simple lock after
-				   getting lk_interlock */
+#define LK_INTERLOCK	0x00010000 /*
+				    * unlock passed mutex after getting
+				    * lk_interlock
+				    */
 #define LK_RETRY	0x00020000 /* vn_lock: retry until locked */
 #define	LK_NOOBJ	0x00040000 /* vget: don't create object */
 #define	LK_THISLAYER	0x00080000 /* vn_lock: lock/unlock only current layer */
@@ -177,9 +185,11 @@ struct proc;
 
 void	lockinit __P((struct lock *, int prio, char *wmesg, int timo,
 			int flags));
+void	lockdestroy __P((struct lock *));
+
 #ifdef DEBUG_LOCKS
 int	debuglockmgr __P((struct lock *, u_int flags,
-			struct simplelock *, struct proc *p,
+			struct mtx *, struct proc *p,
 			const char *,
 			const char *,
 			int));
@@ -188,7 +198,7 @@ int	debuglockmgr __P((struct lock *, u_int flags,
 	    "lockmgr", __FILE__, __LINE__)
 #else
 int	lockmgr __P((struct lock *, u_int flags,
-			struct simplelock *, struct proc *p));
+			struct mtx *, struct proc *p));
 #endif
 void	lockmgr_printinfo __P((struct lock *));
 int	lockstatus __P((struct lock *, struct proc *));

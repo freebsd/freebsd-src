@@ -63,6 +63,7 @@
 
 #include <machine/elf.h>
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 
 #define OLD_EI_BRAND	8
 
@@ -477,9 +478,9 @@ exec_elf_imgact(struct image_params *imgp)
 	 * a context switch.  Better safe than sorry; I really don't want
 	 * the file to change while it's being loaded.
 	 */
-	simple_lock(&imgp->vp->v_interlock);
+	mtx_enter(&imgp->vp->v_interlock, MTX_DEF);
 	imgp->vp->v_flag |= VTEXT;
-	simple_unlock(&imgp->vp->v_interlock);
+	mtx_exit(&imgp->vp->v_interlock, MTX_DEF);
 
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;

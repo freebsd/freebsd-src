@@ -65,6 +65,8 @@
 
 #include <vm/vm_zone.h>
 
+#include <machine/mutex.h>
+
 #include <netinet/in.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -1199,9 +1201,9 @@ nqnfs_lease_updatetime(deltat)
 	 * Search the mount list for all nqnfs mounts and do their timer
 	 * queues.
 	 */
-	simple_lock(&mountlist_slock);
+	mtx_enter(&mountlist_mtx, MTX_DEF);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nxtmp) {
-		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nxtmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
@@ -1215,11 +1217,11 @@ nqnfs_lease_updatetime(deltat)
 				}
 			}
 		}
-		simple_lock(&mountlist_slock);
+		mtx_enter(&mountlist_mtx, MTX_DEF);
 		nxtmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	simple_unlock(&mountlist_slock);
+	mtx_exit(&mountlist_mtx, MTX_DEF);
 }
 
 #ifndef NFS_NOSERVER 

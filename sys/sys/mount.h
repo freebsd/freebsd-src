@@ -411,7 +411,7 @@ int	vfs_setpublicfs			    /* set publicly exported fs */
 int	vfs_lock __P((struct mount *));         /* lock a vfs */
 void	vfs_msync __P((struct mount *, int));
 void	vfs_unlock __P((struct mount *));       /* unlock a vfs */
-int	vfs_busy __P((struct mount *, int, struct simplelock *, struct proc *));
+int	vfs_busy __P((struct mount *, int, struct mtx *, struct proc *));
 int	vfs_export			    /* process mount export info */
 	  __P((struct mount *, struct netexport *, struct export_args *));
 struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
@@ -428,7 +428,7 @@ void	vfs_unmountall __P((void));
 int	vfs_register __P((struct vfsconf *));
 int	vfs_unregister __P((struct vfsconf *));
 extern	TAILQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
-extern	struct simplelock mountlist_slock;
+extern	struct mtx mountlist_mtx;
 extern	struct nfs_public nfs_pub;
 
 /* 

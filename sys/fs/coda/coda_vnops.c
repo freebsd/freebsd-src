@@ -1753,6 +1753,7 @@ coda_reclaim(v)
 #endif
     }	
     cache_purge(vp);
+    lockdestroy(&(VTOC(vp)->c_lock));
     coda_free(VTOC(vp));
     VTOC(vp) = NULL;
     return (0);

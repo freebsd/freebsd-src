@@ -87,6 +87,7 @@ struct sockaddr;
 static int	hpfs_mount __P((struct mount *, char *, caddr_t,
 				struct nameidata *, struct proc *));
 static int	hpfs_init __P((struct vfsconf *));
+static int	hpfs_uninit __P((struct vfsconf *));
 static int	hpfs_checkexp __P((struct mount *, struct sockaddr *,
 				   int *, struct ucred **));
 #else /* defined(__NetBSD__) */
@@ -168,6 +169,16 @@ hpfs_init ()
 	return 0;
 #endif
 }
+
+#if defined(__FreeBSD__)
+static int
+hpfs_uninit (vfsp)
+	struct vfsconf *vfsp;
+{
+	hpfs_hphashdestroy();
+	return 0;;
+}
+#endif
 
 static int
 hpfs_mount ( 
@@ -737,7 +748,7 @@ static struct vfsops hpfs_vfsops = {
 	hpfs_checkexp,
 	hpfs_vptofh,
 	hpfs_init,
-	vfs_stduninit,
+	hpfs_uninit,
 	vfs_stdextattrctl,
 };
 VFS_SET(hpfs_vfsops, hpfs, 0);

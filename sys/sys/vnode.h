@@ -44,6 +44,7 @@
 #include <sys/acl.h>
 
 #include <machine/lock.h>
+#include <machine/mutex.h>
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a
@@ -82,7 +83,7 @@ struct namecache;
  * v_freelist is locked by the global vnode_free_list simple lock.
  * v_mntvnodes is locked by the global mntvnodes simple lock.
  * v_flag, v_usecount, v_holdcount and v_writecount are
- *    locked by the v_interlock simple lock.
+ *    locked by the v_interlock mutex.
  * v_pollinfo is locked by the lock contained inside it.
  */
 struct vnode {
@@ -115,7 +116,7 @@ struct vnode {
 	daddr_t	v_lasta;			/* last allocation */
 	int	v_clen;				/* length of current cluster */
 	struct vm_object *v_object;		/* Place to store VM object */
-	struct	simplelock v_interlock;		/* lock on usecount and flag */
+	struct	mtx v_interlock;		/* lock on usecount and flag */
 	struct	lock v_lock;			/* used if fs don't have one */
 	struct	lock *v_vnlock;			/* pointer to vnode lock */
 	enum	vtagtype v_tag;			/* type of underlying data */

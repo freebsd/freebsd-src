@@ -69,7 +69,7 @@ struct ntnode {
 
 	/* locking */
 	struct lock	i_lock;
-	struct simplelock i_interlock;
+	struct mtx	i_interlock;
 	int		i_usecount;
 
 	LIST_HEAD(,fnode)	i_fnlist;

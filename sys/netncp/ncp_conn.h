@@ -204,6 +204,7 @@ struct ncp_conn {
 #define ncp_conn_invalidate(conn) 	{conn->flags |= NCPFL_INVALID;}
 
 int  ncp_conn_init(void);
+int  ncp_conn_destroy(void);
 int  ncp_conn_alloc(struct proc *p,struct ucred *cred, struct ncp_conn **connid);
 int  ncp_conn_free(struct ncp_conn *conn);
 int  ncp_conn_access(struct ncp_conn *conn,struct ucred *cred,mode_t mode);

@@ -46,6 +46,8 @@
 #include <sys/lock.h>
 #include <sys/systm.h>
 
+#include <machine/mutex.h>
+
 /*
  * Locking primitives implementation.
  * Locks provide shared/exclusive sychronization.
@@ -111,11 +113,11 @@ apause(struct lock *lkp, int flags)
 		return 0;
 #ifdef SMP
 	for (lock_wait = LOCK_WAIT_TIME; lock_wait > 0; lock_wait--) {
-		simple_unlock(&lkp->lk_interlock);
+		mtx_exit(&lkp->lk_interlock, MTX_DEF);
 		for (i = LOCK_SAMPLE_WAIT; i > 0; i--)
 			if ((lkp->lk_flags & flags) == 0)
 				break;
-		simple_lock(&lkp->lk_interlock);
+		mtx_enter(&lkp->lk_interlock, MTX_DEF);
 		if ((lkp->lk_flags & flags) == 0)
 			return 0;
 	}
@@ -126,6 +128,10 @@ apause(struct lock *lkp, int flags)
 static int
 acquire(struct lock *lkp, int extflags, int wanted) {
 	int s, error;
+
+	CTR3(KTR_LOCKMGR,
+	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x\n",
+	    lkp, extflags, wanted);
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
 		return EBUSY;
@@ -141,9 +147,9 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 	while ((lkp->lk_flags & wanted) != 0) {
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
-		simple_unlock(&lkp->lk_interlock);
+		mtx_exit(&lkp->lk_interlock, MTX_DEF);
 		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, lkp->lk_timo);
-		simple_lock(&lkp->lk_interlock);
+		mtx_enter(&lkp->lk_interlock, MTX_DEF);
 		if (lkp->lk_waitcount == 1) {
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
 			lkp->lk_waitcount = 0;
@@ -178,7 +184,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 #endif
 	struct lock *lkp;
 	u_int flags;
-	struct simplelock *interlkp;
+	struct mtx *interlkp;
 	struct proc *p;
 #ifdef	DEBUG_LOCKS
 	const char *name;	/* Name of lock function */
@@ -190,15 +196,19 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 	pid_t pid;
 	int extflags;
 
+	CTR5(KTR_LOCKMGR,
+	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
+	    "interlkp == %p, p == %p", lkp, lkp->lk_wmesg, flags, interlkp, p);
+
 	error = 0;
 	if (p == NULL)
 		pid = LK_KERNPROC;
 	else
 		pid = p->p_pid;
 
-	simple_lock(&lkp->lk_interlock);
+	mtx_enter(&lkp->lk_interlock, MTX_DEF);
 	if (flags & LK_INTERLOCK)
-		simple_unlock(interlkp);
+		mtx_exit(interlkp, MTX_DEF);
 
 	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
 
@@ -424,7 +434,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		break;
 
 	default:
-		simple_unlock(&lkp->lk_interlock);
+		mtx_exit(&lkp->lk_interlock, MTX_DEF);
 		panic("lockmgr: unknown locktype request %d",
 		    flags & LK_TYPE_MASK);
 		/* NOTREACHED */
@@ -435,7 +445,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		lkp->lk_flags &= ~LK_WAITDRAIN;
 		wakeup((void *)&lkp->lk_flags);
 	}
-	simple_unlock(&lkp->lk_interlock);
+	mtx_exit(&lkp->lk_interlock, MTX_DEF);
 	return (error);
 }
 
@@ -453,10 +463,10 @@ acquiredrain(struct lock *lkp, int extflags) {
 
 	while (lkp->lk_flags & LK_ALL) {
 		lkp->lk_flags |= LK_WAITDRAIN;
-		simple_unlock(&lkp->lk_interlock);
+		mtx_exit(&lkp->lk_interlock, MTX_DEF);
 		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
 			lkp->lk_wmesg, lkp->lk_timo);
-		simple_lock(&lkp->lk_interlock);
+		mtx_enter(&lkp->lk_interlock, MTX_DEF);
 		if (error)
 			return error;
 		if (extflags & LK_SLEEPFAIL) {
@@ -477,9 +487,14 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	int timo;
 	int flags;
 {
+	CTR5(KTR_LOCKMGR, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
+	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
-	simple_lock_init(&lkp->lk_interlock);
-	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
+	if (lkp->lk_flags & LK_VALID)
+		lockdestroy(lkp);
+
+	mtx_init(&lkp->lk_interlock, "lockmgr interlock", MTX_DEF);
+	lkp->lk_flags = (flags & LK_EXTFLG_MASK) | LK_VALID;
 	lkp->lk_sharecount = 0;
 	lkp->lk_waitcount = 0;
 	lkp->lk_exclusivecount = 0;
@@ -487,6 +502,21 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	lkp->lk_wmesg = wmesg;
 	lkp->lk_timo = timo;
 	lkp->lk_lockholder = LK_NOPROC;
+}
+
+/*
+ * Destroy a lock.
+ */
+void
+lockdestroy(lkp)
+	struct lock *lkp;
+{
+	CTR2(KTR_LOCKMGR, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
+	    lkp, lkp->lk_wmesg);
+	if (lkp->lk_flags & LK_VALID) {
+		lkp->lk_flags &= ~LK_VALID;
+		mtx_destroy(&lkp->lk_interlock);
+	}
 }
 
 /*
@@ -499,7 +529,7 @@ lockstatus(lkp, p)
 {
 	int lock_type = 0;
 
-	simple_lock(&lkp->lk_interlock);
+	mtx_enter(&lkp->lk_interlock, MTX_DEF);
 	if (lkp->lk_exclusivecount != 0) {
 		if (p == NULL || lkp->lk_lockholder == p->p_pid)
 			lock_type = LK_EXCLUSIVE;
@@ -507,7 +537,7 @@ lockstatus(lkp, p)
 			lock_type = LK_EXCLOTHER;
 	} else if (lkp->lk_sharecount != 0)
 		lock_type = LK_SHARED;
-	simple_unlock(&lkp->lk_interlock);
+	mtx_exit(&lkp->lk_interlock, MTX_DEF);
 	return (lock_type);
 }
 
@@ -520,9 +550,9 @@ lockcount(lkp)
 {
 	int count;
 
-	simple_lock(&lkp->lk_interlock);
+	mtx_enter(&lkp->lk_interlock, MTX_DEF);
 	count = lkp->lk_exclusivecount + lkp->lk_sharecount;
-	simple_unlock(&lkp->lk_interlock);
+	mtx_exit(&lkp->lk_interlock, MTX_DEF);
 	return (count);
 }
 

@@ -414,6 +414,7 @@ extern vop_t ** hpfs_vnodeop_p;
 
 /* Hash routines, too small to be separate header */
 void hpfs_hphashinit __P((void));
+void hpfs_hphashdestroy __P((void));
 struct hpfsnode *hpfs_hphashlookup __P((dev_t, lsn_t));
 struct hpfsnode *hpfs_hphashget __P((dev_t, lsn_t));
 struct vnode *hpfs_hphashvget __P((dev_t, lsn_t, struct proc *));

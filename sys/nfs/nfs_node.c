@@ -300,6 +300,8 @@ nfs_reclaim(ap)
 		FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
 	}
 
+	lockdestroy(&np->n_rslock);
+
 	cache_purge(vp);
 	zfree(nfsnode_zone, vp->v_data);
 	vp->v_data = (void *)0;

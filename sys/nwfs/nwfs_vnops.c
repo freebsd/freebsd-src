@@ -46,6 +46,8 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+#include <machine/mutex.h>
+
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_subr.h>
@@ -255,24 +257,24 @@ nwfs_close(ap)
 
 	if (vp->v_type == VDIR) return 0;	/* nothing to do now */
 	error = 0;
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (np->opened == 0) {
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		return 0;
 	}
-	simple_unlock(&vp->v_interlock);
+	mtx_exit(&vp->v_interlock, MTX_DEF);
 	error = nwfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 1);
-	simple_lock(&vp->v_interlock);
+	mtx_enter(&vp->v_interlock, MTX_DEF);
 	if (np->opened == 0) {
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		return 0;
 	}
 	if (--np->opened == 0) {
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, 
 		   ap->a_p, ap->a_cred);
 	} else
-		simple_unlock(&vp->v_interlock);
+		mtx_exit(&vp->v_interlock, MTX_DEF);
 	np->n_atime = 0;
 	return (error);
 }

@@ -196,9 +196,9 @@ ntfs_mountroot()
 		return (error);
 	}
 
-	simple_lock(&mountlist_slock);
+	mtx_enter(&mountlist_mtx, MTX_DEF);
 	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	simple_unlock(&mountlist_slock);
+	mtx_exit(&mountlist_mtx, MTX_DEF);
 	(void)ntfs_statfs(mp, &mp->mnt_stat, p);
 	vfs_unbusy(mp);
 	return (0);
@@ -219,6 +219,15 @@ ntfs_init (
 {
 	ntfs_nthashinit();
 	ntfs_toupper_init();
+	return 0;
+}
+
+static int
+ntfs_uninit (
+	struct vfsconf *vcp )
+{
+	ntfs_toupper_destroy();
+	ntfs_nthashdestroy();
 	return 0;
 }
 
@@ -1006,7 +1015,7 @@ static struct vfsops ntfs_vfsops = {
 	ntfs_checkexp,
 	ntfs_vptofh,
 	ntfs_init,
-	vfs_stduninit,
+	ntfs_uninit,
 	vfs_stdextattrctl,
 };
 VFS_SET(ntfs_vfsops, ntfs, 0);

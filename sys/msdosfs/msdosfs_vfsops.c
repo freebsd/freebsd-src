@@ -62,6 +62,8 @@
 #include <sys/malloc.h>
 #include <sys/stat.h> 				/* defines ALLPERMS */
 
+#include <machine/mutex.h>
+
 #include <msdosfs/bpb.h>
 #include <msdosfs/bootsect.h>
 #include <msdosfs/direntry.h>
@@ -873,14 +875,14 @@ loop:
 		if (vp->v_mount != mp)
 			goto loop;
 
-		simple_lock(&vp->v_interlock);
+		mtx_enter(&vp->v_interlock, MTX_DEF);
 		nvp = vp->v_mntvnodes.le_next;
 		dep = VTODE(vp);
 		if (vp->v_type == VNON ||
 		    ((dep->de_flag &
 		    (DE_ACCESS | DE_CREATE | DE_UPDATE | DE_MODIFIED)) == 0 &&
 		    (TAILQ_EMPTY(&vp->v_dirtyblkhd) || waitfor == MNT_LAZY))) {
-			simple_unlock(&vp->v_interlock);
+			mtx_exit(&vp->v_interlock, MTX_DEF);
 			continue;
 		}
 		simple_unlock(&mntvnode_slock);
