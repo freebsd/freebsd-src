@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.95 1995/01/04 23:06:38 jkh Exp $
+# $Id: bsd.port.mk,v 1.96 1995/01/05 02:15:05 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -317,7 +317,7 @@ pre-install:
 .endif
 
 .if !target(install)
-install: ${INSTALL_COOKIE}
+install: build ${INSTALL_COOKIE}
 
 ${INSTALL_COOKIE}:
 	@echo "===>  Installing for ${DISTNAME}"
@@ -376,7 +376,7 @@ pre-build:
 .endif
 
 .if !target(build)
-build: depends configure ${BUILD_COOKIE}
+build: configure ${BUILD_COOKIE}
 
 ${BUILD_COOKIE}:
 	@echo "===>  Building for ${DISTNAME}"
@@ -402,7 +402,7 @@ pre-patch:
 .endif
 
 .if !target(patch)
-patch: ${PATCH_COOKIE}
+patch: extract ${PATCH_COOKIE}
 
 ${PATCH_COOKIE}:
 	@${MAKE} ${.MAKEFLAGS} pre-patch
@@ -432,7 +432,7 @@ pre-configure:
 .endif
 
 .if !target(configure)
-configure: extract patch ${CONFIGURE_COOKIE}
+configure: depends patch ${CONFIGURE_COOKIE}
 
 ${CONFIGURE_COOKIE}:
 	@echo "===>  Configuring for ${DISTNAME}"
