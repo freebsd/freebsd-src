@@ -45,14 +45,14 @@
 #
 # Console ports:
 #	vty*	virtual console devices for syscons/pcvt/codrv
-# 
+#
 # Pointing devices:
 #	mse*	Logitech and ATI Inport bus mouse
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
-#       tty*    general purpose serial ports
-#       cua*    dialout serial ports
+#	tty*	general purpose serial ports
+#	cua*	dialout serial ports
 #
 # Pseudo terminals:
 #	pty*	set of 32 master and slave pseudo terminals
@@ -68,7 +68,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
-#	pcaudio PCM audio driver 
+#	pcaudio PCM audio driver
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #	gsc	Genius GS-4500 hand scanner
@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.77 1995/03/04 20:54:13 dufault Exp $
+#	$Id: MAKEDEV,v 1.78 1995/03/11 12:07:57 dufault Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -141,13 +141,13 @@ case $i in
 
 all)
 	sh MAKEDEV std						# standard
-	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3 	# bdev, disk
+	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3	# bdev, disk
 	sh MAKEDEV cd0 mcd0 scd0 matcd0				# bdev, cdrom
-	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
+	sh MAKEDEV ft0 wt0 st0					# bdev, tape
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
 	sh MAKEDEV lpt0 lpt1 lpt2				# cdev, printer
-	sh MAKEDEV pty0 ch0 tw0 bpf0 				# cdev
+	sh MAKEDEV pty0 ch0 tw0 bpf0				# cdev
 	sh MAKEDEV speaker pcaudio psm0 mse0			# cdev
 	sh MAKEDEV vty4						# cdev
 	;;
@@ -171,7 +171,7 @@ std)
 	mkdir fd > null 2>&1
 	(cd fd && eval `echo "" | awk ' BEGIN { \
 		for (i = 0; i < 64; i++) \
-	 		printf("mknod %d c 22 %d;", i, i)}'`)
+			printf("mknod %d c 22 %d;", i, i)}'`)
 	chown -R bin.bin fd
 	chmod 555 fd
 	chmod 666 fd/*
@@ -189,7 +189,7 @@ wt*)
 #	mknod nrWt${u}  c 10 `expr 68 + $u`
 	mknod rwt${u}b  c 10 `expr 16 + $u`	# 60 megabytes
 	mknod nrwt${u}b c 10 `expr 20 + $u`
-	mknod rwt${u}c  c 10 `expr 24 + $u`     # 120 megabytes
+	mknod rwt${u}c  c 10 `expr 24 + $u`	# 120 megabytes
 	mknod nrwt${u}c c 10 `expr 28 + $u`
 	mknod rwt${u}d  c 10 `expr 32 + $u`	# 150 megabytes
 	mknod nrwt${u}d c 10 `expr 36 + $u`
@@ -414,11 +414,11 @@ pty*)
 	2) offset=64 name=r;;
 	3) offset=96 name=s;;
 # Note that xterm (at least) only look at p-s.
-        4) offset=128 name=P;;
-        5) offset=160 name=Q;;
-        6) offset=192 name=R;;
-        7) offset=224 name=S;;
- 	# This still leaves [tuTU].
+	4) offset=128 name=P;;
+	5) offset=160 name=Q;;
+	6) offset=192 name=R;;
+	7) offset=224 name=S;;
+	# This still leaves [tuTU].
 	*) echo bad unit for pty in: $i;;
 	esac
 	case $class in
@@ -447,11 +447,11 @@ st*)
 	chr=14;
 
 	#remove old stype names
-	rm -f [hml]rst[0123456] [hml][en]rst[0123456] [hml]enrst[0123456]  
+	rm -f [hml]rst[0123456] [hml][en]rst[0123456] [hml]enrst[0123456]
 	#remove new style names
-	rm -f rst${unit} [en]rst${unit} enrst${unit}  
+	rm -f rst${unit} [en]rst${unit} enrst${unit}
 	rm -f rst${unit}.[0123] nrst${unit}.[0123]\
-		 erst${unit}.[0123] st${unit}ctl.[0123]
+		erst${unit}.[0123] st${unit}ctl.[0123]
 
 	case $unit in
 	0|1|2|3|4|5|6)
@@ -461,13 +461,13 @@ st*)
 			mknod nrst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 1`
 			mknod erst${unit}.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 2`
 			mknod st${unit}ctl.${mode} c $chr `expr $unit '*' 16 + $mode '*' 4 + 3`
-			chgrp operator 	rst${unit}.${mode}\
+			chgrp operator	rst${unit}.${mode}\
 					nrst${unit}.${mode} \
 					erst${unit}.${mode} \
 					st${unit}ctl.${mode}
-			chmod 640 	rst${unit}.${mode}\
+			chmod 640	rst${unit}.${mode}\
 					nrst${unit}.${mode} \
-					erst${unit}.${mode} 
+					erst${unit}.${mode}
 			chmod 660	st${unit}ctl.${mode}
 		done
 		ln rst${unit}.0 rst${unit}
@@ -476,9 +476,9 @@ st*)
 		;;
 	*)
 		echo bad unit for tape in: $i
-  		;;
-  	esac
-  	umask 77
+		;;
+	esac
+	umask 77
 	;;
 
 ch*)
@@ -511,9 +511,9 @@ cd*|mcd*|scd*)
 	case $unit in
 	0|1|2|3|4|5|6)
 		mknod ${name}${unit}a	b $blk `expr $unit '*' 8 + 0`
-		mknod ${name}${unit}c   b $blk `expr $unit '*' 8 + 2`
+		mknod ${name}${unit}c	b $blk `expr $unit '*' 8 + 2`
 		mknod r${name}${unit}a	c $chr `expr $unit '*' 8 + 0`
-		mknod r${name}${unit}c  c $chr `expr $unit '*' 8 + 2`
+		mknod r${name}${unit}c	c $chr `expr $unit '*' 8 + 2`
 		chgrp operator ${name}${unit}[a-h] r${name}${unit}[a-h]
 		chmod 640 ${name}${unit}[a-h] r${name}${unit}[a-h]
 		;;
@@ -657,15 +657,15 @@ socksys)
 snd*)
 	chr=30
 	rm -f mixer		# Mixer	[ Control ]
-	mknod mixer 		c $chr 0
+	mknod mixer		c $chr 0
 	chmod 666 mixer
 
 	rm -f sequencer		# Sequencer [ FM Synth and MIDI output ]
 	mknod sequencer		c $chr 1
 	chmod 666 sequencer
 
-	rm -f midi midi00       # Midi 0
-	mknod midi00            c $chr 2
+	rm -f midi midi00	# Midi 0
+	mknod midi00		c $chr 2
 	chmod 666 midi00
 
 	rm -f dsp		# DSP [ Digitized voice ]
@@ -684,16 +684,16 @@ snd*)
 	mknod sndstat		c $chr 6
 	chmod 666 sndstat
 
-	rm -f sequencer2        # Sequencer level 2
-	mknod sequencer2        c $chr 8
+	rm -f sequencer2	# Sequencer level 2
+	mknod sequencer2	c $chr 8
 	chmod 666 sequencer2
 
-	rm -f sndproc           # PSS Device
-	mknod sndproc           c $chr 9
+	rm -f sndproc		# PSS Device
+	mknod sndproc		c $chr 9
 	chmod 666 sndproc
 
-	rm -f midi01            # Midi 1
-	mknod midi01            c $chr 18
+	rm -f midi01		# Midi 1
+	mknod midi01		c $chr 18
 	chmod 666 midi01
 
 	rm -f dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
@@ -728,10 +728,10 @@ apm)
 
 ttyx?|ttyy?|ttyz?)
 	case $i in
-	*0) unit=0;;    *1) unit=1;;    *2) unit=2;;    *3) unit=3;;
-	*4) unit=4;;    *5) unit=5;;    *6) unit=6;;    *7) unit=7;;
-	*8) unit=8;;    *9) unit=9;;    *a) unit=10;;   *b) unit=11;;
-	*c) unit=12;;   *d) unit=13;;   *e) unit=14;;   *f) unit=15;;
+	*0) unit=0;;	*1) unit=1;;	*2) unit=2;;	*3) unit=3;;
+	*4) unit=4;;	*5) unit=5;;	*6) unit=6;;	*7) unit=7;;
+	*8) unit=8;;	*9) unit=9;;	*a) unit=10;;	*b) unit=11;;
+	*c) unit=12;;	*d) unit=13;;	*e) unit=14;;	*f) unit=15;;
 	esac
 	case $i in
 	ttyy?)  unit=`expr $unit \+ 16`;;
@@ -746,7 +746,7 @@ cronyx)
 	rm -f cronyx
 	mknod cronyx c 42 63
 	chown root.wheel cronyx
-  	;;
+	;;
 
 joy)
 	umask 2
@@ -782,9 +782,9 @@ snp?)
 #	none	makes all the node but nic0
 #	5000	makes nic0 for Niccy 5000
 #	3008	makes nic0 for Niccy 3008
-#       3009    makes nic0 for Niccy 3009
-#       1000    makes nodes for Niccy 1000
-#       tel*    makes nodes for TELES S0
+#	3009	makes nic0 for Niccy 3009
+#	1000	makes nodes for Niccy 1000
+#	tel*	makes nodes for TELES S0
 #
 isdn*)
 	type=`expr $i : 'isdn\(.*\)'`
