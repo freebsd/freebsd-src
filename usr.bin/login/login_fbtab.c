@@ -13,6 +13,7 @@
 * warranties, including, without limitation, the implied warranties of
 * merchantibility and fitness for any particular purpose.
 ************************************************************************/
+/* $FreeBSD$ */
 /*
     SYNOPSIS
 	void login_fbtab(tty, uid, gid)
@@ -133,7 +134,7 @@ gid_t gid;
 
     if (strcmp("/*", path + pathlen - 2) != 0) {
 	/* clear flags of the device */
-        if (chflags(path, 0) && errno != ENOENT)
+	if (chflags(path, 0) && (errno != ENOENT) && (errno != EOPNOTSUPP))
 	    syslog(LOG_ERR, "%s: chflags(%s): %m", table, path);
 	if (chmod(path, mask) && errno != ENOENT)
 	    syslog(LOG_ERR, "%s: chmod(%s): %m", table, path);
