@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)output.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.18 $"
+#ident "$Revision: 1.21 $"
 
 #include "defs.h"
 
@@ -53,7 +53,7 @@ struct {
 	naddr	to_std_mask;
 	naddr	to_std_net;
 	struct interface *ifp;		/* usually output interface */
-	struct auth_key *a;
+	struct auth *a;
 	char	metric;			/* adjust metrics by interface */
 	int	npackets;
 	int	gen_limit;
@@ -180,10 +180,15 @@ output(enum output_type type,
 			}
 			sin.sin_addr.s_addr = htonl(INADDR_RIP_GROUP);
 		}
+		break;
 
 	case NO_OUT_MULTICAST:
 	case NO_OUT_RIPV2:
-		break;
+	default:
+#ifdef DEBUG
+		abort();
+#endif
+		return -1;
 	}
 
 	trace_rip(msg, "to", &sin, ifp, buf, size);
@@ -206,28 +211,42 @@ output(enum output_type type,
 }
 
 
-/* Find the first key that has not expired, but settle for
+/* Find the first key for a packet to send.
+ * Try for a key that is eligable and has not expired, but settle for
  * the last key if they have all expired.
  * If no key is ready yet, give up.
  */
-struct auth_key *
+struct auth *
 find_auth(struct interface *ifp)
 {
-	struct auth_key *ap, *res;
+	struct auth *ap, *res;
 	int i;
 
 
-	if (ifp == 0 || ifp->int_auth.type == RIP_AUTH_NONE)
+	if (ifp == 0)
 		return 0;
-	
+
 	res = 0;
-	ap = ifp->int_auth.keys;
+	ap = ifp->int_auth;
 	for (i = 0; i < MAX_AUTH_KEYS; i++, ap++) {
-		if ((u_long)ap->start <= (u_long)clk.tv_sec) {
-			if ((u_long)ap->end >= (u_long)clk.tv_sec)
-				return ap;
-			res = ap;
+		/* stop looking after the last key */
+		if (ap->type == RIP_AUTH_NONE)
+			break;
+		
+		/* ignore keys that are not ready yet */
+		if ((u_long)ap->start > (u_long)clk.tv_sec)
+			continue;
+
+		if ((u_long)ap->end < (u_long)clk.tv_sec) {
+			/* note best expired password as a fall-back */
+			if (res == 0 || (u_long)ap->end > (u_long)res->end)
+				res = ap;
+			continue;
 		}
+
+		/* note key with the best future */
+		if (res == 0 || (u_long)res->end < (u_long)ap->end)
+			res = ap;
 	}
 	return res;
 }
@@ -235,8 +254,7 @@ find_auth(struct interface *ifp)
 
 void
 clr_ws_buf(struct ws_buf *wb,
-	   struct auth_key *ap,
-	   struct interface *ifp)
+	   struct auth *ap)
 {
 	struct netauth *na;
 
@@ -249,13 +267,13 @@ clr_ws_buf(struct ws_buf *wb,
 	if (ap == 0)
 		return;
 	na = (struct netauth*)wb->n;
-	if (ifp->int_auth.type == RIP_AUTH_PW) {
+	if (ap->type == RIP_AUTH_PW) {
 		na->a_family = RIP_AF_AUTH;
 		na->a_type = RIP_AUTH_PW;
 		bcopy(ap->key, na->au.au_pw, sizeof(na->au.au_pw));
 		wb->n++;
 
-	} else if (ifp->int_auth.type ==  RIP_AUTH_MD5) {
+	} else if (ap->type ==  RIP_AUTH_MD5) {
 		na->a_family = RIP_AF_AUTH;
 		na->a_type = RIP_AUTH_MD5;
 		na->au.a_md5.md5_keyid = ap->keyid;
@@ -269,7 +287,7 @@ clr_ws_buf(struct ws_buf *wb,
 
 void
 end_md5_auth(struct ws_buf *wb,
-	     struct auth_key *ap)
+	     struct auth *ap)
 {
 	struct netauth *na, *na2;
 	MD5_CTX md5_ctx;
@@ -306,7 +324,7 @@ supply_write(struct ws_buf *wb)
 	case NO_OUT_RIPV2:
 		break;
 	default:
-		if (ws.ifp->int_auth.type == RIP_AUTH_MD5)
+		if (ws.a != 0 && ws.a->type == RIP_AUTH_MD5)
 			end_md5_auth(wb,ws.a);
 		if (output(wb->type, &ws.to, ws.ifp, wb->buf,
 			   ((char *)wb->n - (char*)wb->buf)) < 0
@@ -316,7 +334,7 @@ supply_write(struct ws_buf *wb)
 		break;
 	}
 
-	clr_ws_buf(wb,ws.a,ws.ifp);
+	clr_ws_buf(wb,ws.a);
 }
 
 
@@ -326,7 +344,7 @@ static void
 supply_out(struct ag_info *ag)
 {
 	int i;
-	naddr mask, v1_mask, dst_h, ddst_h;
+	naddr mask, v1_mask, dst_h, ddst_h = 0;
 	struct ws_buf *wb;
 
 
@@ -563,25 +581,33 @@ walk_supply(struct radix_node *rn,
 	 * forgotten.
 	 *
 	 * Include the routes for both ends of point-to-point interfaces
-	 * since the other side presumably knows them as well as we do.
+	 * among those suppressed by split-horizon, since the other side
+	 * should knows them as well as we do.
 	 */
 	if (RT->rt_ifp == ws.ifp && ws.ifp != 0
 	    && !(ws.state & WS_ST_QUERY)
 	    && (ws.state & WS_ST_TO_ON_NET)
 	    && (!(RT->rt_state & RS_IF)
 		|| ws.ifp->int_if_flags & IFF_POINTOPOINT)) {
-		/* Poison-reverse the route instead of only not advertising it
-		 * it is recently changed from some other route.
+		/* If we do not mark the route with AGS_SPLIT_HZ here,
+		 * it will be poisoned-reverse, or advertised back toward
+		 * its source with an infinite metric.  If we have recently
+		 * advertised the route with a better metric than we now
+		 * have, then we should poison-reverse the route before
+		 * suppressing it for split-horizon.
+		 *
 		 * In almost all cases, if there is no spare for the route
-		 * then it is either old or a brand new route, and if it
-		 * is brand new, there is no need for poison-reverse.
+		 * then it is either old and dead or a brand new route.
+		 * If it is brand new, there is no need for poison-reverse.
+		 * If it is old and dead, it is already poisoned.
 		 */
-		metric = HOPCNT_INFINITY;
 		if (RT->rt_poison_time < now_expire
-		    || RT->rt_spares[1].rts_gate ==0) {
+		    || RT->rt_poison_metric >= metric
+		    || RT->rt_spares[1].rts_gate == 0) {
 			ags |= AGS_SPLIT_HZ;
 			ags &= ~(AGS_PROMOTE | AGS_SUPPRESS);
 		}
+		metric = HOPCNT_INFINITY;
 	}
 
 	/* Adjust the outgoing metric by the cost of the link.
@@ -716,10 +742,10 @@ supply(struct sockaddr_in *dst,
 	}
 
 	ws.a = (vers == RIPv2) ? find_auth(ifp) : 0;
-	if (ws.a != 0 && !passwd_ok && ifp->int_auth.type == RIP_AUTH_PW)
+	if (!passwd_ok && ws.a != 0 && ws.a->type == RIP_AUTH_PW)
 		ws.a = 0;
-	clr_ws_buf(&v12buf,ws.a,ifp);
-	clr_ws_buf(&v2buf,ws.a,ifp);
+	clr_ws_buf(&v12buf,ws.a);
+	clr_ws_buf(&v2buf,ws.a);
 
 	/*  Fake a default route if asked and if there is not already
 	 * a better, real default route.
