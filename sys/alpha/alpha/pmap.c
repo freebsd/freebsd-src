@@ -594,7 +594,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	va = (void *)ALPHA_PHYS_TO_K0SEG(m->phys_addr);
-	if ((m->flags & PG_ZERO) == 0)
+	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
 	return (va);
 }

@@ -539,7 +539,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	}
 
 	va = (void *)IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(m));
-	if ((m->flags & PG_ZERO) == 0)
+	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
 	return (va);
 }
