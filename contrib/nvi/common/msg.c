@@ -472,7 +472,8 @@ mod_rpt(sp)
 				*p++ = ' ';
 				tlen += 2;
 			}
-			len = snprintf(p, MAXNUM, "%lu ", sp->rptlines[cnt]);
+			len = snprintf(p, MAXNUM, "%lu ",
+			    (u_long)sp->rptlines[cnt]);
 			p += len;
 			tlen += len;
 			t = msg_cat(sp,
