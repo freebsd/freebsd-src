@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.14 1995/07/30 09:41:21 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.15 1995/08/01 07:16:50 jkh Exp $";
 #endif
 
 /*
@@ -25,6 +25,7 @@ static const char *rcsid = "$Id: file.c,v 1.14 1995/07/30 09:41:21 jkh Exp $";
 #include "lib.h"
 #include "ftp.h"
 #include <pwd.h>
+#include <time.h>
 
 /* Quick check to see if a file exists */
 Boolean
@@ -174,8 +175,9 @@ fileGetURL(char *fname)
     static char tmpl[40];
     struct passwd *pw;
     FTP_t ftp;
-    int fd, fd2, i;
+    int fd, fd2, i, len = 0;
     char ch;
+    time_t start, stop;
 
     if (!isURL(fname))
 	return NULL;
@@ -215,30 +217,32 @@ fileGetURL(char *fname)
     for (i = strlen(dir); i && dir[i] != '/'; i--);
     dir[i] = '\0';
 
-    if (dir[0])
+    if (dir[0]) {
+	if (Verbose) printf("FTP: chdir to %s\n", dir);
 	FtpChdir(ftp, dir);
-    FtpBinary(ftp, TRUE);
-    fd = FtpGet(ftp, basename_of(file));
-    if (fd < 0) {
-	whinge("Unable to get `%s' over ftp!", file);
-	return NULL;
     }
+    FtpBinary(ftp, TRUE);
+    if (Verbose) printf("FTP: trying to get %s\n", basename_of(file));
+    fd = FtpGet(ftp, basename_of(file));
+    if (fd < 0)
+	return NULL;
     if ((cp = getenv("PKG_TMPDIR")) != NULL)
 	sprintf(tmpl, "%s/instpkg-XXXXXX.tgz", cp);
     else
 	strcpy(tmpl, "/var/tmp/instpkg-XXXXXX.tgz");
-    cp = mktemp(tmpl);
-    if (!cp) {
-	whinge("Unable to make temporary filename from template: %s!", tmpl);
-	return NULL;
-    }
-    fd2 = open(cp, O_CREAT | O_WRONLY);
+    fd2 = mkstemp(tmpl);
     if (fd2 < 0) {
 	whinge("Unable to create a temporary file for ftp: %s", tmpl);
 	return NULL;
     }
-    while (read(fd, &ch, 1) == 1)
-	write(fd, &ch, 1);
+    if (Verbose) printf("FTP: Trying to copy from ftp connection to temporary: %s\n", tmpl);
+    (void)time(&start);
+    while (read(fd, &ch, 1) == 1) {
+	++len;
+	write(fd2, &ch, 1);
+    }
+    (void)time(&stop);
+    if (Verbose) printf("FTP: Read %d bytes from connection, %d elapsed seconds.\n%FTP: Average transfer rate: %d bytes/second.\n", len, stop - start, len / ((stop - start) + 1));
     FtpEOF(ftp);
     FtpClose(ftp);
     return tmpl;
