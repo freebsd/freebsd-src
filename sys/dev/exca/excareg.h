@@ -395,6 +395,13 @@
 #define EXCA_RID_296				0x32
 #define EXCA_RID_396				0xb2
 
+/*
+ * o2 micro specific registers
+ */
+#define EXCA_O2MICRO_CTRL_C			0x3a
+#define EXCA_O2CC_IREQ_INTC			0x80
+#define EXCA_O2CC_STSCHG_INTC			0x20
+
 /* Plug and play */
 #define EXCA_PNP_ACTIONTEC	0x1802A904	/* AEI0218 */
 #define EXCA_PNP_IBM3765	0x65374d24	/* IBM3765 */
