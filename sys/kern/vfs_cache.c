@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.5 1995/03/06 06:45:52 phk Exp $
+ * $Id: vfs_cache.c,v 1.6 1995/03/08 01:08:03 phk Exp $
  */
 
 #include <sys/param.h>
@@ -112,20 +112,14 @@ cache_lookup(dvp, vpp, cnp)
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, (u_int)ncp->nc_nlen))
 			break;
 		nnp = ncp->nc_hash.le_next;
-#ifdef not_yet_phk
-		/*
-		 * if not already last and one of the vp's are invalid,
-		 * move to head of LRU
-		 */
-		if ((ncp->nc_lru.tqe_next != 0) &&
-		   ( (ncp->nc_dvpid != ncp->nc_dvp->v_id) ||
-			(ncp->nc_vp && (ncp->nc_vpid != ncp->nc_vp->v_id)))) {
+		/* If one of the vp's went stale, don't bother anymore. */
+		if ((ncp->nc_dvpid != ncp->nc_dvp->v_id) ||
+			(ncp->nc_vp && (ncp->nc_vpid != ncp->nc_vp->v_id))) {
 			LIST_REMOVE(ncp, nc_hash);
 			ncp->nc_hash.le_prev = 0;
 			TAILQ_REMOVE(&nclruhead, ncp, nc_lru);
 			TAILQ_INSERT_HEAD(&nclruhead, ncp, nc_lru);
 		}
-#endif /* not_yet_phk */
 	}
 	if (ncp == 0) {
 		nchstats.ncs_miss++;
@@ -157,10 +151,6 @@ cache_lookup(dvp, vpp, cnp)
 			TAILQ_REMOVE(&nclruhead, ncp, nc_lru);
 			TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);
 		}
-#ifdef not_yet_phk
-		/* Touch the parent vnode */
-		vtouch(ncp->nc_dvp);
-#endif /* not_yet_phk */
 		*vpp = ncp->nc_vp;
 		return (-1);
 	}
