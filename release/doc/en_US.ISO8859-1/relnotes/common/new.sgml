@@ -112,6 +112,12 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+    <para>The &man.dcons.4; <quote>dumb console</quote> driver has
+      been added to provide a local and remote console.  It can be
+      accessed over FireWire using the &man.dcons.crom.4; driver.  A
+      &man.dconschat.8; utility provides user access to &man.dcons.4;
+      devices.</para>
+
     <para>The &man.stl.4; driver has been updated to version 5.6.0b1.</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
@@ -190,6 +196,10 @@
       option for an interface, which disables the sending of ARP
       requests for that interface.</para>
 
+    <para>&man.killall.1; now supports a <option>-e</option> flag to
+      make the <option>-u</option> operate on effective, rather than
+      real, user ids.</para>
+
     <para>The default mode for the <filename>lost+found</filename>
       directory of &man.fsck.8; is now <literal>0700</literal> instead
       of <literal>01777</literal>.</para>
@@ -200,8 +210,16 @@
       Managers.  Note that currently having the Call Manager behind
       the NAT gateway is not supported.</para>
 
+    <para arch="i386"><filename>libdisk</filename> now uses the
+      correct PC98 disk partition value for &os;.  This permits the
+      &man.sysinstall.8; disk partition editor to correctly create a
+      single &os; partition covering the entire disk.</para>
+
     <para>&man.makewhatis.1;, formerly a Perl script, has been
       reimplemented in C.</para>
+
+    <para>&man.pw.8; now supports a <option>-H</option> option, which
+      accepts an encrypted password on a file descriptor.</para>
 
     <para>&man.rtld.1; now has support for the dynamic mapping of
       shared object dependencies.  More information on using this
