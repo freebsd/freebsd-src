@@ -262,12 +262,6 @@ div_output(struct socket *so, struct mbuf *m,
 
 	KASSERT(m->m_pkthdr.rcvif == NULL, ("rcvif not null"));
 
-#ifdef MAC
-	SOCK_LOCK(so);
-	mac_create_mbuf_from_socket(so, m);
-	SOCK_UNLOCK(so);
-#endif
-
 	if (control)
 		m_freem(control);		/* XXX */
 
@@ -324,6 +318,9 @@ div_output(struct socket *so, struct mbuf *m,
 			/* Send packet to output processing */
 			ipstat.ips_rawout++;			/* XXX */
 
+#ifdef MAC
+			mac_create_mbuf_from_inpcb(inp, m);
+#endif
 			error = ip_output(m,
 				    inp->inp_options, NULL,
 				    (so->so_options & SO_DONTROUTE) |
@@ -350,6 +347,11 @@ div_output(struct socket *so, struct mbuf *m,
 			}
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
 		}
+#ifdef MAC
+		SOCK_LOCK(so);
+		mac_create_mbuf_from_socket(so, m);
+		SOCK_UNLOCK(so);
+#endif
 		/* Send packet to input processing */
 		ip_input(m);
 	}
