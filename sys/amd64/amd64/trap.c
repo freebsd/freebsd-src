@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.56 1995/07/16 10:31:26 joerg Exp $
+ *	$Id: trap.c,v 1.57 1995/07/16 14:10:55 peter Exp $
  */
 
 /*
@@ -448,9 +448,9 @@ trap_pfault(frame, usermode)
 		vm_offset_t v;
 		vm_page_t ptepg;
 
-		if ((p == NULL) ||
+		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
-		    curpcb->pcb_onfault == NULL)) {
+		    (curpcb == NULL || curpcb->pcb_onfault == NULL))) {
 			trap_fatal(frame);
 			return (-1);
 		}
