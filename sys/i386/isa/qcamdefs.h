@@ -84,7 +84,7 @@ struct qcam_softc {
 
 #define	QC_MAXFRAMEBUFSIZE	(QC_MAX_XSIZE*QC_MAX_YSIZE)
 
-#ifdef	LINUX			/* Linux is backwards from *BSD */
+#ifdef	__linux__		/* Linux is backwards from *BSD */
 
 #define	read_data(P)		inb((P))
 #define	read_data_word(P)	inw((P))
