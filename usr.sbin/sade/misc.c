@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.25 1996/12/12 22:38:41 jkh Exp $
+ * $Id: misc.c,v 1.26 1996/12/17 00:00:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -345,6 +345,123 @@ Mount(char *mountp, void *dev)
 }
 
 WINDOW *
+openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height)
+{
+    WINDOW              *win;
+    char                help[FILENAME_MAX];
+    
+    /* We need a curses window */
+    win = newwin(LINES, COLS, 0, 0);
+    if (win) {
+	/* Say where our help comes from */
+	if (helpfile) {
+	    systemHelpFile(helpfile, help);
+	    use_helpfile(help);
+	}
+    
+	/* Setup a nice screen for us to splat stuff onto */
+	draw_box(win, y, x, height, width, dialog_attr, border_attr);
+	wattrset(win, dialog_attr);
+	mvwaddstr(win, y, x + 20, title);
+    }
+    return win;
+}
+
+ComposeObj *
+initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max)
+{
+    ComposeObj *obj = NULL, *first;
+    int n;
+
+    /* Loop over the layout list, create the objects, and add them
+       onto the chain of objects that dialog uses for traversal*/
+    
+    n = 0;
+    while (layout[n].help != NULL) {
+	switch (layout[n].type) {
+	case STRINGOBJ:
+	    layout[n].obj = NewStringObj(win, layout[n].prompt, layout[n].var,
+					 layout[n].y + y, layout[n].x + x, layout[n].len, layout[n].maxlen);
+	    break;
+	    
+	case BUTTONOBJ:
+	    layout[n].obj = NewButtonObj(win, layout[n].prompt, layout[n].var, layout[n].y + y, layout[n].x + x);
+	    break;
+	    
+	default:
+	    msgFatal("Don't support this object yet!");
+	}
+	AddObj(&obj, layout[n].type, (void *) layout[n].obj);
+	n++;
+    }
+    *max = n - 1;
+    /* Find the first object in the list */
+    for (first = obj; first->prev; first = first->prev);
+    return first;
+}
+
+int
+layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj, int *n, int max, int *cbutton, int *cancel)
+{
+    char help_line[80];
+    int ret, i, len = strlen(layout[*n].help);
+
+    /* Display the help line at the bottom of the screen */
+    for (i = 0; i < 79; i++)
+	help_line[i] = (i < len) ? layout[*n].help[i] : ' ';
+    help_line[i] = '\0';
+    use_helpline(help_line);
+    display_helpline(win, LINES - 1, COLS - 1);
+	    
+    /* Ask for libdialog to do its stuff */
+    ret = PollObj(obj);
+    /* Handle special case stuff that libdialog misses. Sigh */
+    switch (ret) {
+    case SEL_ESC:	/* Bail out */
+	*cancel = TRUE;
+	return FALSE;
+	      
+	/* This doesn't work for list dialogs. Oh well. Perhaps
+	   should special case the move from the OK button ``up''
+	   to make it go to the interface list, but then it gets
+	   awkward for the user to go back and correct screw up's
+	   in the per-interface section */
+    case KEY_DOWN:
+    case SEL_CR:
+    case SEL_TAB:
+	if (*n < max)
+	    ++*n;
+	else
+	    *n = 0;
+	break;
+	      
+	/* The user has pressed enter over a button object */
+    case SEL_BUTTON:
+	if (cbutton && *cbutton)
+	    *cancel = TRUE;
+	else
+	    *cancel = FALSE;
+	return FALSE;
+	
+    case KEY_UP:
+    case SEL_BACKTAB:
+	if (*n)
+	    --*n;
+	else
+	    *n = max;
+	break;
+	
+    case KEY_F(1):
+	display_helpfile();
+	
+	/* They tried some key combination we don't support - tootle them forcefully! */
+    default:
+	beep();
+    }
+    return TRUE;
+}
+
+WINDOW *
 savescr(void)
 {
     WINDOW *w;
@@ -360,3 +477,4 @@ restorescr(WINDOW *w)
     wrefresh(w);
     delwin(w);
 }
+
