@@ -175,6 +175,10 @@ loop:
 		vp->v_type = VREG;
 		break;
 
+	case Pprocstat:
+	case Pprocstatus:
+		/* fallthrough */
+		
 	case Pmeminfo:
 	case Pcpuinfo:
 	case Pstat:
@@ -250,6 +254,12 @@ linprocfs_rw(ap)
 	switch (pfs->pfs_type) {
 	case Pmem:
 		rtval = procfs_domem(curp, p, pfs, uio);
+		break;
+	case Pprocstat:
+		rtval = linprocfs_doprocstat(curp, p, pfs, uio);
+		break;
+	case Pprocstatus:
+		rtval = linprocfs_doprocstatus(curp, p, pfs, uio);
 		break;
 	case Pmeminfo:
 		rtval = linprocfs_domeminfo(curp, p, pfs, uio);
