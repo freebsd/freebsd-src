@@ -57,6 +57,7 @@ int             std_in = 0, std_out = 1;
 
 int             clear_ok = 0;
 struct sgttyb   sgo;
+struct tchars	tco;
 char            tbuf[1024], buf[1024];
 
 
@@ -91,9 +92,9 @@ set_tty()
 	struct tchars	tc;
 
 	ioctl(std_in, TIOCGETP, &sgo);
-	ioctl(std_in, TIOCGETC, &tc);
-	/* bcopy(&sgn, &sgo, sizeof(struct sgttyb)); */
+	ioctl(std_in, TIOCGETC, &tco);
 	sgn = sgo;
+	tc = tco;
 	sgn.sg_flags |= CBREAK;
 	sgn.sg_flags &= ~ECHO;
 	ospeed = sgo.sg_ospeed;
@@ -107,6 +108,7 @@ void
 unset_tty()
 {
 	ioctl(std_in, TIOCSETP, &sgo);
+	ioctl(std_in, TIOCSETC, &tco);
 }
 
 
