@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.38 1997/04/27 20:01:16 wollman Exp $
+ *	$Id: udp_usrreq.c,v 1.39 1997/08/16 19:15:41 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -603,5 +603,5 @@ struct pr_usrreqs udp_usrreqs = {
 	pru_connect2_notsupp, in_control, udp_detach, udp_disconnect, 
 	pru_listen_notsupp, in_setpeeraddr, pru_rcvd_notsupp, 
 	pru_rcvoob_notsupp, udp_send, pru_sense_null, udp_shutdown,
-	in_setsockaddr, sosend, soreceive, soselect
+	in_setsockaddr, sosend, soreceive, sopoll
 };
