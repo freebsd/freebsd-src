@@ -894,7 +894,7 @@ doMFSKERN:
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
-	@chflags noschg ${RD}/kernels/BOOTMFS
+	@chflags noschg ${RD}/kernels/BOOTMFS || true
 	@strip ${RD}/kernels/BOOTMFS
 	@cp ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
