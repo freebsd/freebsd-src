@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.17 1996/05/09 20:14:59 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.18 1996/07/11 16:32:02 wollman Exp $
  */
 
 #include "opt_ktrace.h"
@@ -370,8 +370,10 @@ socketpair(p, uap, retval)
 			goto free4;
 	}
 	error = copyout((caddr_t)sv, (caddr_t)uap->rsv, 2 * sizeof (int));
+#if 0	/* old pipe(2) syscall compatability, unused these days */
 	retval[0] = sv[0];		/* XXX ??? */
 	retval[1] = sv[1];		/* XXX ??? */
+#endif
 	return (error);
 free4:
 	ffree(fp2);
