@@ -954,7 +954,7 @@ trapsignal(p, sig, code)
 	register struct sigacts *ps = p->p_sigacts;
 
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(p->p_sigcatch, sig) &&
-	    SIGISMEMBER(p->p_sigmask, sig)) {
+	    !SIGISMEMBER(p->p_sigmask, sig)) {
 		p->p_stats->p_ru.ru_nsignals++;
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_PSIG))
