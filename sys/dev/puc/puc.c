@@ -537,18 +537,6 @@ puc_print_resource_list(struct resource_list *rl)
 }
 #endif
 
-/* XXX
- * This function should be part of the general bus_space_* functions. It
- * should also handle the PC98 case where bus_space_handle_t is a structure.
- */
-int
-bus_space_subregion(bus_space_tag_t t, bus_space_handle_t h, bus_size_t offset,
-    bus_size_t s, bus_space_handle_t *newhandle)
-{
-	*newhandle = h + offset;
-	return (0);
-}
-
 static struct resource *
 puc_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
