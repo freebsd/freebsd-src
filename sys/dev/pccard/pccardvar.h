@@ -34,6 +34,7 @@
 #include <sys/queue.h>
 
 #include <machine/bus.h>
+#include "card_if.h"
 
 extern int	pccard_verbose;
 
@@ -294,8 +295,17 @@ void	pccard_io_unmap(struct pccard_function *, int);
 	(pccard_chip_mem_unmap((pf)->sc->pct, (pf)->sc->pch, (window)))
 
 /* compat layer */
-int pccard_compat_probe(device_t dev);
-int pccard_compat_attach(device_t dev);
+static __inline int
+pccard_compat_probe(device_t dev)
+{
+	return (CARD_COMPAT_DO_PROBE(device_get_parent(dev), dev));
+}
+
+static __inline int
+pccard_compat_attach(device_t dev)
+{
+	return (CARD_COMPAT_DO_ATTACH(device_get_parent(dev), dev));
+}
 
 /* ivar interface */
 enum {

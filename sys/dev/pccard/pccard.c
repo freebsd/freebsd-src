@@ -673,14 +673,14 @@ pccard_io_unmap(struct pccard_function *pf, int window)
  * needs to grab devices while in the old they were assigned to the device by
  * the pccardd process.  These symbols are exported to the upper layers.
  */
-int
-pccard_compat_probe(device_t dev)
+static int
+pccard_compat_do_probe(device_t bus, device_t dev)
 {
 	return (CARD_COMPAT_MATCH(dev));
 }
 
-int
-pccard_compat_attach(device_t dev)
+static int
+pccard_compat_do_attach(device_t bus, device_t dev)
 {
 	int err;
 
@@ -1106,6 +1106,8 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(card_get_type,	pccard_card_gettype),
 	DEVMETHOD(card_attach_card,	pccard_attach_card),
 	DEVMETHOD(card_detach_card,	pccard_detach_card),
+	DEVMETHOD(card_compat_do_probe, pccard_compat_do_probe),
+	DEVMETHOD(card_compat_do_attach, pccard_compat_do_attach),
 
 	{ 0, 0 }
 };
