@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_open_session.c#13 $
+ * $P4: //depot/projects/openpam/lib/pam_open_session.c#14 $
  */
 
 #include <sys/param.h>
@@ -71,8 +71,8 @@ pam_open_session(pam_handle_t *pamh,
 
 /**
  * The =pam_open_session sets up a user session for a previously
- * authenticated user.  The session should later be torn down by a call to
- * =pam_close_session.
+ * authenticated user.
+ * The session should later be torn down by a call to =pam_close_session.
  *
  * The =flags argument is the binary or of zero or more of the following
  * values:

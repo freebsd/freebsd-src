@@ -11,6 +11,7 @@ libpam_la_SOURCES = \
 	openpam_dynamic.c \
 	openpam_findenv.c \
 	openpam_free_data.c \
+	openpam_free_envlist.c \
 	openpam_get_option.c \
 	openpam_load.c \
 	openpam_log.c \
@@ -51,7 +52,7 @@ libpam_la_LDFLAGS = -no-undefined -version-info @LIB_MAJ@ @DL_LIBS@
 
 # Not implemented yet:
 #	pam_authenticate_secondary.c
-#	pam_get_mapped_authtok.c 
-#	pam_get_mapped_username.c 
-#	pam_set_mapped_authtok.c 
-#	pam_set_mapped_username.c 
+#	pam_get_mapped_authtok.c
+#	pam_get_mapped_username.c
+#	pam_set_mapped_authtok.c
+#	pam_set_mapped_username.c
