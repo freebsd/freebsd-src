@@ -55,7 +55,7 @@ extern PkgNode Top;
 int
 package_add(char *name)
 {
-    PkgNodePtr tmp, tmp2, *tmp3;
+    PkgNodePtr tmp;
     int i;
 
     if (!mediaVerify())
@@ -68,8 +68,7 @@ package_add(char *name)
     if (DITEM_STATUS(i) != DITEM_SUCCESS)
 	return i;
 
-    tmp3 = strpbrk(name, "-") ? NULL : &tmp2;
-    tmp = index_search(&Top, name, tmp3);
+    tmp = index_search(&Top, name, &tmp);
     if (tmp)
 	return index_extract(mediaDevice, &Top, tmp, FALSE);
     else {
