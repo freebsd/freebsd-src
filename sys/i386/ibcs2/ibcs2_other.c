@@ -74,3 +74,49 @@ ibcs2_lseek(struct proc *p, register struct ibcs2_lseek_args *uap, int *retval)
 	*(long *)retval = lret;
 	return (error);
 }
+
+#ifdef SPX_HACK
+#include <sys/socket.h>
+#include <sys/un.h>     
+
+int
+spx_open(struct proc *p, void *uap, int *retval)
+{
+	struct socket_args sock;
+	struct connect_args conn;
+	struct sockaddr_un *Xaddr;
+	caddr_t name;
+	int fd, error;
+	caddr_t sg = stackgap_init();
+
+	/* obtain a socket. */
+	DPRINTF(("SPX: open socket\n"));
+	sock.domain = AF_UNIX;
+	sock.type = SOCK_STREAM;
+	sock.protocol = 0;
+	error = socket(p, &sock, retval);
+	if (error)
+		return error;
+
+	/* connect the socket to standard X socket */
+	DPRINTF(("SPX: connect to /tmp/X11-unix/X0\n"));
+	Xaddr = stackgap_alloc(&sg, sizeof(struct sockaddr_un));
+	Xaddr->sun_family = AF_UNIX;
+	Xaddr->sun_len = sizeof(struct sockaddr_un) - sizeof(Xaddr->sun_path) +
+	  strlen(Xaddr->sun_path) + 1;
+	copyout("/tmp/.X11-unix/X0", Xaddr->sun_path, 18);
+
+	conn.s = fd = *retval;
+	conn.name = (caddr_t)Xaddr;
+	conn.namelen = sizeof(struct sockaddr_un);
+	error = connect(p, &conn, retval);
+	if (error) {
+		struct close_args cl;
+		cl.fd = fd;
+		close(p, &cl, retval);
+		return error;
+	}
+	*retval = fd;
+	return 0;
+}
+#endif /* SPX_HACK */

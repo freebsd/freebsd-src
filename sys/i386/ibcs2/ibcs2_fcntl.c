@@ -23,6 +23,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 #include <sys/param.h>
@@ -185,6 +187,12 @@ ibcs2_open(p, uap, retval)
 		CHECKALTEXIST(p, &sg, SCARG(uap, path));
 	ret = open(p, (struct open_args *)uap, retval);
 
+#ifdef SPX_HACK
+	if(ret == ENXIO)
+		if(!strcmp(SCARG(uap, path), "/compat/ibcs2/dev/spx"))
+			ret = spx_open(p, uap, retval);
+	else
+#endif /* SPX_HACK */
 	if (!ret && !noctty && SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
 		struct filedesc *fdp = p->p_fd;
 		struct file *fp = fdp->fd_ofiles[*retval];
