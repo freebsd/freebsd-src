@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.89 1998/10/25 17:44:58 phk Exp $
+ * $Id: vm_fault.c,v 1.90 1998/10/28 13:37:02 dg Exp $
  */
 
 /*
@@ -275,7 +275,7 @@ RetryFault:;
 			
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
-			int queue;
+			int queue, s;
 			/*
 			 * If the page is being brought in, wait for it and
 			 * then retry.
@@ -283,8 +283,6 @@ RetryFault:;
 			if ((fs.m->flags & PG_BUSY) ||
 				(fs.m->busy &&
 				 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
-				int s;
-
 				unlock_things(&fs);
 				s = splvm();
 				if ((fs.m->flags & PG_BUSY) ||
@@ -300,7 +298,9 @@ RetryFault:;
 			}
 
 			queue = fs.m->queue;
+			s = splvm();
 			vm_page_unqueue_nowakeup(fs.m);
+			splx(s);
 
 			/*
 			 * Mark page busy for other processes, and the pagedaemon.
