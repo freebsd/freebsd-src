@@ -132,7 +132,7 @@ AcpiSetDsdtTablePtr(
 
     if (AcpiGbl_AcpiTables[ACPI_TABLE_DSDT].LoadedIntoNamespace)
     {
-        return_ACPI_STATUS (AE_EXIST);
+        return_ACPI_STATUS (AE_ALREADY_EXISTS);
     }
 
     AcpiGbl_DSDT = TablePtr;
