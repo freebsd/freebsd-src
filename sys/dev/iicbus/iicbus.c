@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
+ *	$Id: iicbus.c,v 1.3 1998/11/07 14:33:46 nsouch Exp $
  *
  */
 
@@ -179,7 +179,9 @@ iicbus_attach(device_t dev)
 	for (iicdev = iicbus_children; iicdev->iicd_name; iicdev++) {
 		switch (iicdev->iicd_class) {
 		case IICBUS_DEVICE_CLASS:
-			if (iic_probe_device(dev, iicdev->iicd_addr))
+			/* check if the devclass exists */
+			if (devclass_find(iicdev->iicd_name) &&
+				iic_probe_device(dev, iicdev->iicd_addr))
 				iicdev->iicd_alive = 1;
 			break;
 
