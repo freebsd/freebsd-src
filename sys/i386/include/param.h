@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)param.h	5.8 (Berkeley) 6/28/91
- *	$Id: param.h,v 1.32 1997/08/07 05:15:52 dyson Exp $
+ *	$Id: param.h,v 1.33 1997/08/09 00:03:16 dyson Exp $
  */
 
 #ifndef _MACHINE_PARAM_H_
@@ -45,7 +45,11 @@
  */
 
 #define MACHINE		"i386"
+#ifdef SMP
+#define NCPUS		2
+#else
 #define NCPUS		1
+#endif
 #define MID_MACHINE	MID_I386
 
 /*
