@@ -73,7 +73,6 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/ioccom.h>
-#include <sys/systm.h>
 #include <sys/conf.h>
 
 #include "cdev.h"
