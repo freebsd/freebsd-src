@@ -41,7 +41,8 @@
 .Nm tgetstr ,
 .Nm tgoto ,
 .Nm tputs ,
-.Nm tparm
+.Nm tparm ,
+.Nm _set_ospeed
 .Nd terminal independent operation routines
 .Sh SYNOPSIS
 .Fd #include <termcap.h>
@@ -63,6 +64,8 @@
 .Fn tputs "const char *cp" "int affcnt" "int (*outc)(int)"
 .Ft char *
 .Fn tparm "const char *cp" "..."
+.Ft void
+.Fn _set_ospeed "long speed"
 .Sh DESCRIPTION
 These functions extract and use capabilities from a terminal capability data
 base, usually
@@ -232,6 +235,13 @@ The external variable
 .Va ospeed
 should contain the output speed of the terminal as encoded by
 .Xr stty 3 .
+The
+.Fn _set_ospeed
+functions converts any (not exactly matched only) numeric speed to
+.Xr stty 3
+encoded speed and set
+.Va ospeed
+variable.
 The external variable
 .Va PC
 should contain a pad character to be used (from the
