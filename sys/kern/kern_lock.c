@@ -35,14 +35,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id$
+ * $Id: kern_lock.c,v 1.5 1997/03/25 17:11:30 peter Exp $
  */
 
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/systm.h>
-#include <machine/cpu.h>
 
 /*
  * Locking primitives implementation.
@@ -446,11 +445,13 @@ lockmgr_printinfo(lkp)
 
 #if defined(SIMPLELOCK_DEBUG) && NCPUS == 1
 #include <sys/kernel.h>
-#include <vm/vm.h>
 #include <sys/sysctl.h>
-int lockpausetime = 0;
-/* struct ctldebug debug2 = { "lockpausetime", &lockpausetime }; */
+
+static int lockpausetime = 0;
+SYSCTL_INT(_debug, OID_AUTO, lockpausetime, CTLFLAG_RW, &lockpausetime, 0, "");
+
 int simplelockrecurse;
+
 /*
  * Simple lock functions so that the debugger can see from whence
  * they are being called.
