@@ -1,0 +1,61 @@
+/*-
+ * Copyright (c) 1998 Doug Rabson
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	$Id$
+ */
+
+enum isa_device_ivars {
+    ISA_IVAR_PORT,
+    ISA_IVAR_PORTSIZE,
+    ISA_IVAR_FLAGS,
+    ISA_IVAR_IRQ
+};
+
+extern int isa_irq_pending(void);
+extern int isa_irq_mask(void);
+
+/*
+ * Simplified accessors for isa devices
+ */
+#define ISA_ACCESSOR(A, B, T)						\
+									\
+static __inline T isa_get_ ## A(device_t dev)				\
+{									\
+	u_long v;							\
+	BUS_READ_IVAR(device_get_parent(dev), dev, ISA_IVAR_ ## B, &v);	\
+	return (T) v;							\
+}									\
+									\
+static __inline void isa_set_ ## A(device_t dev, T t)			\
+{									\
+	u_long v = (u_long) t;						\
+	BUS_WRITE_IVAR(device_get_parent(dev), dev, ISA_IVAR_ ## B, v);	\
+}
+
+ISA_ACCESSOR(port, PORT, int)
+ISA_ACCESSOR(portsize, PORTSIZE, int)
+ISA_ACCESSOR(flags, FLAGS, int)
+ISA_ACCESSOR(irq, IRQ, int)
+
