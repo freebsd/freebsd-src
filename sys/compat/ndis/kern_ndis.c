@@ -1190,6 +1190,7 @@ ndis_set_info(arg, oid, buf, buflen)
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
 	if (adapter == NULL || setfunc == NULL) {
+		sc->ndis_block->nmb_pendingreq = NULL;
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		return(ENXIO);
 	}
@@ -1574,15 +1575,7 @@ ndis_isr(arg, ourintr, callhandler)
 	if (adapter == NULL || isrfunc == NULL)
 		return(ENXIO);
 
-#ifdef notdef
-	if (NDIS_SERIALIZED(sc->ndis_block))
-		mtx_lock(&sc->ndis_block->nmb_serialmtx);
-#endif
 	MSCALL3(isrfunc, &accepted, &queue, adapter);
-#ifdef notdef
-	if (NDIS_SERIALIZED(sc->ndis_block))
-		mtx_unlock(&sc->ndis_block->nmb_serialmtx);
-#endif
 
 	*ourintr = accepted;
 	*callhandler = queue;
@@ -1649,6 +1642,7 @@ ndis_get_info(arg, oid, buf, buflen)
 	adapter = sc->ndis_block->nmb_miniportadapterctx;
 
 	if (adapter == NULL || queryfunc == NULL) {
+		sc->ndis_block->nmb_pendingreq = NULL;
 		KeReleaseSpinLock(&sc->ndis_block->nmb_lock, irql);
 		return(ENXIO);
 	}
