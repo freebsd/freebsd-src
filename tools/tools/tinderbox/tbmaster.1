@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2004
+.Dd June 14, 2004
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -168,6 +168,11 @@ This defaults to the name reported by the
 option of the
 .Xr uname 1
 command, and is only used for cosmetic purposes.
+.It JOBS
+The maximum number of concurrent
+.Xr make 1
+jobs to run.
+No default value.
 .It LOGDIR
 .Pq Vt single
 The location of the log directory.
