@@ -266,7 +266,12 @@ This option makes libalias reverse the way it
 handles incoming and outgoing packets, allowing
 it to be fed data that passes through the internal
 interface rather than the external one.
-
+.It PKT_ALIAS_PROXY_ONLY.
+This option tells libalias to obey transparent proxy
+rules only.  Normal packet aliasing is not performed.
+See
+.Fn PacketAliasProxyRule
+below for details.
 .El
 
 .Ss 2.5 PacketAliasSetFWBase()
