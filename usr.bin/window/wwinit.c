@@ -364,6 +364,7 @@ wwstart()
 	register i;
 
 	(void) wwsettty(0, &wwnewtty);
+	signal(SIGIO, wwrint);
 	for (i = 0; i < wwnrow; i++)
 		wwtouched[i] = WWU_TOUCHED;
 	wwstart1();
