@@ -2812,9 +2812,9 @@ loop:
 			panic("nfs_fsync: not dirty");
 		if ((passone || !commit) && (bp->b_flags & B_NEEDCOMMIT)) {
 			BUF_UNLOCK(bp);
-			VI_LOCK(vp);
 			continue;
 		}
+		VI_UNLOCK(vp);
 		bremfree(bp);
 		if (passone || !commit)
 		    bp->b_flags |= B_ASYNC;
