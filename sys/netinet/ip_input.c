@@ -1164,7 +1164,6 @@ ip_dooptions(m)
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register u_char *cp;
-	register struct ip_timestamp *ipt;
 	register struct in_ifaddr *ia;
 	int opt, optlen, cnt, off, code, type = ICMP_PARAMPROB, forward = 0;
 	struct in_addr *sin, dst;
@@ -1328,35 +1327,33 @@ nosourcerouting:
 
 		case IPOPT_TS:
 			code = cp - (u_char *)ip;
-			ipt = (struct ip_timestamp *)cp;
-			if (ipt->ipt_len < 4 || ipt->ipt_len > 40) {
-				code = (u_char *)&ipt->ipt_len - (u_char *)ip;
+			if (optlen < 4 || optlen > 40) {
+				code = &cp[IPOPT_OLEN] - (u_char *)ip;
 				goto bad;
 			}
-			if (ipt->ipt_ptr < 5) {
-				code = (u_char *)&ipt->ipt_ptr - (u_char *)ip;
+			if ((off = cp[IPOPT_OFFSET]) < 5) {
+				code = &cp[IPOPT_OLEN] - (u_char *)ip;
 				goto bad;
 			}
-			if (ipt->ipt_ptr >
-			    ipt->ipt_len - (int)sizeof(int32_t)) {
-				if (++ipt->ipt_oflw == 0) {
-					code = (u_char *)&ipt->ipt_ptr -
-					    (u_char *)ip;
+			if (off > optlen - (int)sizeof(int32_t)) {
+				cp[IPOPT_OFFSET + 1] += (1 << 4);
+				if ((cp[IPOPT_OFFSET + 1] & 0xf0) == 0) {
+					code = &cp[IPOPT_OFFSET] - (u_char *)ip;
 					goto bad;
 				}
 				break;
 			}
-			sin = (struct in_addr *)(cp + ipt->ipt_ptr - 1);
-			switch (ipt->ipt_flg) {
+			off--;				/* 0 origin */
+			sin = (struct in_addr *)(cp + off);
+			switch (cp[IPOPT_OFFSET + 1] & 0x0f) {
 
 			case IPOPT_TS_TSONLY:
 				break;
 
 			case IPOPT_TS_TSANDADDR:
-				if (ipt->ipt_ptr - 1 + sizeof(n_time) +
-				    sizeof(struct in_addr) > ipt->ipt_len) {
-					code = (u_char *)&ipt->ipt_ptr -
-					    (u_char *)ip;
+				if (off + sizeof(n_time) +
+				    sizeof(struct in_addr) > optlen) {
+					code = &cp[IPOPT_OFFSET] - (u_char *)ip;
 					goto bad;
 				}
 				ipaddr.sin_addr = dst;
@@ -1366,33 +1363,29 @@ nosourcerouting:
 					continue;
 				(void)memcpy(sin, &IA_SIN(ia)->sin_addr,
 				    sizeof(struct in_addr));
-				ipt->ipt_ptr += sizeof(struct in_addr);
+				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 				break;
 
 			case IPOPT_TS_PRESPEC:
-				if (ipt->ipt_ptr - 1 + sizeof(n_time) +
-				    sizeof(struct in_addr) > ipt->ipt_len) {
-					code = (u_char *)&ipt->ipt_ptr -
-					    (u_char *)ip;
+				if (off + sizeof(n_time) +
+				    sizeof(struct in_addr) > optlen) {
+					code = &cp[IPOPT_OFFSET] - (u_char *)ip;
 					goto bad;
 				}
 				(void)memcpy(&ipaddr.sin_addr, sin,
 				    sizeof(struct in_addr));
 				if (ifa_ifwithaddr((SA)&ipaddr) == 0)
 					continue;
-				ipt->ipt_ptr += sizeof(struct in_addr);
+				cp[IPOPT_OFFSET] += sizeof(struct in_addr);
 				break;
 
 			default:
-				/* XXX can't take &ipt->ipt_flg */
-				code = (u_char *)&ipt->ipt_ptr -
-				    (u_char *)ip + 1;
+				code = &cp[IPOPT_OFFSET + 1] - (u_char *)ip;
 				goto bad;
 			}
 			ntime = iptime();
-			(void)memcpy(cp + ipt->ipt_ptr - 1, &ntime,
-			    sizeof(n_time));
-			ipt->ipt_ptr += sizeof(n_time);
+			(void)memcpy(cp + off, &ntime, sizeof(n_time));
+			cp[IPOPT_OFFSET] += sizeof(n_time);
 		}
 	}
 	if (forward && ipforwarding) {
