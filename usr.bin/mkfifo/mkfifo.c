@@ -32,21 +32,28 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkfifo.c	8.2 (Berkeley) 1/5/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include <errno.h>
+#include <err.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -75,6 +82,7 @@ main(argc, argv)
 	exit(exitval);
 }
 
+static void
 usage()
 {
 	(void)fprintf(stderr, "usage: mkfifo fifoname ...\n");
