@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.66 1996/10/03 06:01:31 jkh Exp $
+ * $Id: disks.c,v 1.67 1996/10/04 13:33:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -369,13 +369,12 @@ diskPartition(Device *dev, Disk *d)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("WARNING:  This should only be used for modifying an\n"
-			  "EXISTING installation - If you are installing FreeBSD\n"
-			  "for the first time then you should simply hit 'Q' now."
-			  "Your changes will be committed in one batch at the end\n"
-			  "of this section and do not have to be written now.\n\n"
+	    if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+			  "installation.  If you are installing FreeBSD for the first time\n"
+			  "then you should simply type Q when you're finished here and your\n"
+			  "changes will be committed in one batch automatically at the end of\n"
+			  "these questions.\n\n"
 			  "Are you absolutely sure you want to do this now?")) {
-
 		variable_set2(DISK_PARTITIONED, "yes");
 
 		/* Don't trash the MBR if the first (and therefore only) chunk is marked for a truly dedicated

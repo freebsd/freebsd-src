@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.60 1996/10/01 14:08:23 jkh Exp $
+ * $Id: label.c,v 1.61 1996/10/02 02:19:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -855,10 +855,12 @@ diskLabel(char *str)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("You also have the option of doing this later in one final 'commit'\n"
-			  "operation, and it should also be noted that this option is NOT for\n"
-			  "use during new installations but rather for modifying existing ones.\n\n"
-			  "Are you absolutely SURE you want to do this now?")) {
+	    if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+			  "installation.  If you are installing FreeBSD for the first time\n"
+			  "then you should simply type Q when you're finished here and your\n"
+			  "changes will be committed in one batch automatically at the end of\n"
+			  "these questions.\n\n"
+			  "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
 	    }
