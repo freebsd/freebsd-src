@@ -1,27 +1,22 @@
 #!/bin/sh
 #
-# $Id: config.SH-elf.alpha,v 1.12 1999/05/02 15:29:40 markm Exp $
+# $Id: config.SH-elf.alpha,v 1.11.2.1 1999/05/05 13:28:38 markm Exp $
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date: 1999/05/02 15:29:40 $
+# Configuration time: $Date: 1999/05/05 13:28:38 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
 Author=''
-Date='$Date: 1999/05/02 15:29:40 $'
+Date='$Date: 1999/05/05 13:28:38 $'
 Header=''
-Id='$Id: config.SH-elf.alpha,v 1.12 1999/05/02 15:29:40 markm Exp $'
+Id='$Id: config.SH-elf.alpha,v 1.11.2.1 1999/05/05 13:28:38 markm Exp $'
 Locker=''
-Log='$Log: config.SH-elf.alpha,v $
-Log='Revision 1.12  1999/05/02 15:29:40  markm
-Log='System Perl is now 5.00503! There is support for threads, but this is
-Log='not currently enabled. Thread-boffins are welcome to send me patches.
-Log=''
 Mcc='Mcc'
 RCSfile='$RCSfile: config.SH-elf.alpha,v $'
-Revision='$Revision: 1.12 $'
+Revision='$Revision: 1.11.2.1 $'
 Source=''
 State=''
 _a='.a'
@@ -55,7 +50,7 @@ ccflags=''
 ccsymbols='__ELF__=1 __FreeBSD__=4 __FreeBSD_cc_version=400002 __GNUC_MINOR__=91 __GNUC__=2 cpu=alpha machine=alpha system=FreeBSD system=unix'
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date: 1999/05/02 15:29:40 $'
+cf_time='$Date: 1999/05/05 13:28:38 $'
 chgrp=''
 chmod=''
 chown=''
@@ -462,7 +457,7 @@ mv=''
 myarchname='alpha-freebsd'
 mydomain='.freebsd.org'
 myhostname='freefall'
-myuname='freebsd freefall.freebsd.org 4.0-current freebsd 4.0-current #0: $Date: 1999/05/02 15:29:40 $'
+myuname='freebsd freefall.freebsd.org 4.0-current freebsd 4.0-current #0: $Date: 1999/05/05 13:28:38 $'
 n='-n'
 netdb_hlen_type='int'
 netdb_host_type='const char *'
