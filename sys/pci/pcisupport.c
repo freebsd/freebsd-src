@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.32 1996/02/17 23:57:04 se Exp $
+**  $Id: pcisupport.c,v 1.33 1996/04/07 17:32:36 bde Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -50,6 +50,8 @@
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
+
+static void config_orion (pcici_t tag);
 
 /*---------------------------------------------------------
 **
@@ -128,9 +130,21 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		    return ("Intel 82434NX (Neptune) PCI cache memory controller");
 		return ("Intel 82434LX (Mercury) PCI cache memory controller");
 	case 0x122d8086:
-		return ("Intel 82437 (Triton) PCI cache memory controller");
+		return ("Intel 82437FX PCI cache memory controller");
 	case 0x122e8086:
-		return ("Intel 82371 (Triton) PCI-ISA bridge");
+		return ("Intel 82371FB PCI-ISA bridge");
+	case 0x12308086:
+		return ("Intel 82371FB IDE interface");
+	case 0x70008086:
+		return ("Intel 82371SB PCI-ISA bridge");
+	case 0x70108086:
+		return ("Intel 82371SB IDE interface");
+	case 0x12378086:
+		return ("Intel 82440FX (Natoma) PCI and memory controller");
+	case 0x84c48086:
+		return ("Intel 82450KX (Orion) PCI memory controller");
+	case 0x84c58086:
+		return ("Intel 8245??? (Orion) host to PCI bridge");
 	case 0x04961039:
 		return ("SiS 85c496");
 	case 0x04061039:
@@ -581,6 +595,21 @@ writeconfig (pcici_t config_id, const struct condmsg *tbl)
     }
 }
 
+#ifdef DUMPCONFIGSPACE
+static void
+dumpconfigspace (pcici_t tag)
+{
+    int reg;
+    printf ("configuration space registers:");
+    for (reg = 0; reg < 0x100; reg+=4) {
+	if ((reg & 0x0f) == 0) 
+	    printf ("\n%02x:\t", reg);
+	printf ("%08x ", pci_conf_read (tag, reg));
+    }
+    printf ("\n");
+}
+#endif /* DUMPCONFIGSPACE */
+
 #endif /* PCI_QUIET */
 
 static void
@@ -615,6 +644,9 @@ chipset_attach (pcici_t config_id, int unit)
 		break;
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
+		break;
+	case 0x84c48086: /* Intel Orion */
+		config_orion (config_id);
 		break;
 #if 0
 	case 0x00011011: /* DEC 21050 */
@@ -762,3 +794,21 @@ ign_probe (pcici_t tag, pcidi_t type)
 static void
 ign_attach (pcici_t tag, int unit)
 {}
+
+/*---------------------------------------------------------
+**
+**	special PCI chip set devices
+**
+**---------------------------------------------------------
+*/
+
+extern unsigned pciroots;
+
+static void
+config_orion (pcici_t tag)
+{
+    if (pci_conf_read (tag, 0x4A) > 0) {
+	pciroots++;
+    }
+}
+
