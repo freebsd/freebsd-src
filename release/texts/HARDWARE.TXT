@@ -20,7 +20,7 @@ throughout this document to differentiate it from the machine output.
 --      -------------------------------
 
 The following table contains a list of all of the devices that are
-present in the GENERIC kernel. This is the essential part of the 
+present in the GENERIC kernel.  This is the essential part of the 
 operating system that is placed in your root partition during the 
 installation process.  A compressed version of the GENERIC kernel is
 also used on the installation floppy diskette and DOS boot image.
@@ -256,7 +256,7 @@ section 6 of FreeBSD.FAQ).  The LINT configuration file
 (/sys/i386/conf/LINT) also contains prototype entries for just about
 every device supported by FreeBSD and is a good general reference.
 
-The device names and a short description of each are listed below. The port
+The device names and a short description of each are listed below.  The port
 numbers, etc, are not meaningful here since you will need to compile a
 custom kernel to gain access to these devices anyway and can thus
 adjust the addresses to match the hardware in your computer in the process.
@@ -579,7 +579,7 @@ Floppy tape drives (some rather old models only, driver rather stale)
 
 Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
 (2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
-(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS).  Note: the
 ISA versions of these adapters are actually PCMCIA cards combined with
 an ISA to PCMCIA bridge card, so both kinds of devices work with
 the same driver.
