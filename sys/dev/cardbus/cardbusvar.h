@@ -31,21 +31,10 @@
 /*
  * Structure definitions for the Cardbus Bus driver
  */
-
-struct cardbus_intrlist {
-	SLIST_ENTRY(cardbus_intrlist) link;
-	device_t	dev;
-	struct		resource *irq;
-	void		*cookie;
-};
-
 struct cardbus_devinfo {
-	struct		resource_list resources;
-	pcicfgregs	cfg;
-	struct		pci_conf conf;
-	u_int8_t	mprefetchable; /* bit mask of prefetchable BARs */
-	u_int8_t	mbelow1mb; /* bit mask of BARs which require below 1Mb */
-	u_int8_t	ibelow1mb; /* bit mask of BARs which require below 1Mb */
-#define	BARBIT(RID) (1<<((RID)-CARDBUS_BASE0_REG)/4)
-	SLIST_HEAD(, cardbus_intrlist) intrlist;
+	struct pci_devinfo pci;
+	u_int8_t        mprefetchable; /* bit mask of prefetchable BARs */
+	u_int8_t        mbelow1mb; /* bit mask of BARs which require below 1Mb */
+	u_int8_t        ibelow1mb; /* bit mask of BARs which require below 1Mb */
+#define        BARBIT(RID) (1<<((RID)-CARDBUS_BASE0_REG)/4)
 };
