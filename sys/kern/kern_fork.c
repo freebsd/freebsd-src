@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.16 1996/01/03 21:42:02 wollman Exp $
+ * $Id: kern_fork.c,v 1.17 1996/02/23 18:49:17 peter Exp $
  */
 
 #include "opt_ktrace.h"
@@ -149,12 +149,22 @@ fork1(p1, forktype, rforkflags, retval)
 		return (EAGAIN);
 	}
 	/*
+	 * Increment the nprocs resource before blocking can occur.  There
+	 * are hard-limits as to the number of processes that can run.
+	 */
+	nprocs++;
+
+	/*
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
 	 */
 	count = chgproccnt(uid, 1);
 	if (uid != 0 && count > p1->p_rlimit[RLIMIT_NPROC].rlim_cur) {
 		(void)chgproccnt(uid, -1);
+		/*
+		 * Back out the process count
+		 */
+		nprocs--;
 		return (EAGAIN);
 	}
 
@@ -214,7 +224,6 @@ again:
 	 * rearranging code.  Yes, it *is* terribly ugly, but at least
 	 * it works.
 	 */
-	nprocs++;
 	p2 = newproc;
 #define	Vp2 ((volatile struct proc *)p2)
 	Vp2->p_stat = SIDL;			/* protect against others */
