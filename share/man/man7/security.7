@@ -2,7 +2,7 @@
 .\" the BSD Copyright as specified in the file "/usr/src/COPYRIGHT" in
 .\" the source tree.
 .\"
-.\"	$Id: security.7,v 1.3 1998/12/25 23:39:01 obrien Exp $
+.\"	$Id: security.7,v 1.4 1998/12/26 05:19:42 dillon Exp $
 .\"
 .Dd December 20, 1998
 .Dt SECURITY 7
@@ -16,10 +16,14 @@ Security is a function that begins and ends with the system administrator.
 While all
 .Bx
 systems are inherently multi-user capable, the job of building and
-maintaining security mechanisms to keep those users 'honest' is probably
+maintaining security mechanisms to keep those users
+.Sq honest
+is probably
 one of the single largest undertakings of the sysadmin.  Machines are
 only as secure as you make them, and security concerns are ever competing
-with the human necessity for convenience.   UNIX systems,
+with the human necessity for convenience.  
+.Ux
+systems,
 in general, are capable of running a huge number of simultaneous processes
 and many of these processes operate as servers - meaning that external entities
 can connect and talk to them.  As yesterday's mini-computers and mainframes 
@@ -54,7 +58,10 @@ sysadmins still run standard telnetd, rlogind, rshd, and ftpd servers on their
 machines.  These servers, by default, do not operate over encrypted
 connections.  The result is that if you have any moderate-sized user base,
 one or more of your users logging into your system from a remote location
-(which is the most common and convenient way to login to a system) will
+.Po
+which is the most common and convenient way to login to a system
+.Pc
+will
 have his or her password sniffed.  The attentive system admin will analyze
 his remote access logs occasionally looking for suspicious source addresses
 even for successful logins.
@@ -74,7 +81,8 @@ connection to that server, or the attacker may know of a bug in an suid-root
 program that allows the attacker to break root once he has broken into a 
 user's account.
 .Pp
-Security remedies are always implemented in a multi-layered 'onion peel' 
+Security remedies are always implemented in a multi-layered
+.Sq onion peel
 approach and can be categorized as follows:
 .Bl -enum -offset indent
 .It
@@ -96,23 +104,33 @@ Paranoia
 .Pp
 Don't bother securing staff accounts if you haven't secured the root
 account.  Most systems have a password assigned to the root account.  The
-first thing you do is assume that the password is 'always' compromised.
+first thing you do is assume that the password is
+.Sq always
+compromised.
 To secure the root account you make sure that it is not possible to login
 to the root account using the root password from a random user account or 
 over the network.  If you haven't already, configure telnetd, rlogind, and
 all other servers that handle login operations to refuse root logins, period,
 whether the right password is given or not.  Allow direct root logins only
-via the system console.  The '/etc/ttys' file comes in handy here and is
+via the system console.  The
+.Sq Pa /etc/ttys
+file comes in handy here and is
 secure by default on most systems, but a good sysadmin always checks to make
 sure.
 .Pp
 Of course, as a sysadmin you have to be able to get to root, so we open up
 a few holes.  But we make sure these holes require additional password
 verification to operate.  One way to make root accessible is to add appropriate
-staff accounts to the wheel group (in /etc/group).  The staff members placed
-in the wheel group are allowed to 'su' to root.  You should never give staff
+staff accounts to the wheel group
+.Pq in Pa /etc/group .
+The staff members placed
+in the wheel group are allowed to 
+.Sq su
+to root.  You should never give staff
 members native wheel access via their entry in the password file... put staff
-in a 'staff' group or something and only add those that really need root to
+in a
+.Sq staff
+group or something and only add those that really need root to
 the wheel group.  Unfortunately the wheel mechanism still allows an intruder to
 break root if the intruder has gotten hold of your password file - he need only
 break the root password and the password of one of the staff accounts that
@@ -125,13 +143,24 @@ for the staff accounts.  This way an intruder may be able to steal the password
 file but will not be able to break into any staff accounts (or, indirectly,
 root, even if root has a crypted password associated with it).  Staff members
 get into their staff accounts through a secure login mechanism such as 
-kerberos(1) or ssh(1) (see /usr/ports/security/ssh) using a private/public
+.Xr kerberos 1
+or
+.Xr ssh 1
+.Po
+see
+.Pa /usr/ports/security/ssh
+.Pc
+using a private/public
 key pair.  When you use something like kerberos you generally must secure
 the machines which run the kerberos servers and your desktop workstation.
 When you use a public/private key pair with ssh, you must generally secure
-the machine you are logging in FROM (typically your workstation), but you can
+the machine you are logging in FROM
+.Pq typically your workstation ,
+but you can
 also add an additional layer of protection to the key pair by password 
-protecting the key pair when you create it with ssh-keygen(1).  Being able
+protecting the keypair when you create it with
+.Xr ssh-keygen 1 .
+Being able
 to *-out the passwords for staff accounts also guarantees that staff members
 can only login through secure access methods that you have setup.  You can
 thus force all staff members to use secure, encrypted connections for
@@ -139,12 +168,12 @@ all their sessions which closes an important hole used by many intruders:  That
 of sniffing the network from an unrelated, less secure machine.
 .Pp
 The more indirect security mechanisms also assume that you are logging in
-from a more restrictive server to a less restrictive server.  For example, 
+from a more restrictive server to a less restrictive server.  For example,
 if your main box is running all sorts of servers, your workstation shouldn't
- be running any.  In order for your workstation to be reasonably secure 
+be running any.  In order for your workstation to be reasonably secure 
 you should run as few servers as possible, up to and including no servers 
-at all, and you should run a password-protected screen blanker. 
- Of course, given physical access to
+at all, and you should run a password-protected screen blanker.
+Of course, given physical access to
 a workstation an attacker can break any sort of security you put on it.
 This is definitely a problem that you should consider but you should also
 consider the fact that the vast majority of break-ins occur remotely, over
@@ -159,8 +188,8 @@ password on all machines should not be underrated.  With discrete passwords,
 changing a password on N machines can be a mess.  You can also impose 
 re-passwording restrictions with kerberos:  not only can a kerberos ticket
 be made to timeout after a while, but the kerberos system can require that
-the user choose a new password after a certain period of time (say, once a 
-month). 
+the user choose a new password after a certain period of time
+.Pq say, once a month .
 .Sh SECURING ROOT - ROOT-RUN SERVERS AND SUID/SGID BINARIES
 .Pp
 The prudent sysadmin only runs the servers he needs to, no more, no less.  Be
@@ -168,7 +197,8 @@ aware that third party servers are often the most bug-prone.  For example,
 running an old version of imapd or popper is like giving a universal root
 ticket out to the entire world.  Never run a server that you have not checked
 out carefully.  Many servers do not need to be run as root.  For example,
-the ntalk, comsat, and finger daemons can be run in special user 'sandboxes'.
+the ntalk, comsat, and finger daemons can be run in special user
+.Sq sandboxes .
 A sandbox isn't perfect unless you go to a large amount of trouble, but the
 onion approach to security still stands:  If someone is able to break in
 through a server running in a sandbox, they still have to break out of the
@@ -178,9 +208,11 @@ virtually every server ever run as root, including basic system servers.
 If you are running a machine through which people only login via sshd and
 never login via telnetd or rshd or rlogind, then turn off those services!
 .Pp
-FreeBSD now defaults to running ntalkd, comsat, and finger in a sandbox.
+.Bx Free
+now defaults to running ntalkd, comsat, and finger in a sandbox.
 Another program which may be a candidate for running in a sandbox is
-named(8).  The default rc.conf includes the arguments necessary to run
+.Xr named 8 .
+The default rc.conf includes the arguments necessary to run
 named in a sandbox in a commented-out form.  Depending on whether you
 are installing a new system or upgrading an existing system, the special
 user accounts used by these sandboxes may not be installed.  The prudent
@@ -189,24 +221,38 @@ sysadmin would research and implement sandboxes for servers whenever possible.
 There are a number of other servers that typically do not run in sandboxes:
 sendmail, popper, imapd, ftpd, and others.  There are alternatives to
 some of these, but installing them may require more work then you are willing
-to put (the convenience factor strikes again).  You may have to run these
+to put
+.Pq the convenience factor strikes again .
+You may have to run these
 servers as root and rely on other mechanisms to detect break-ins that might
 occur through them.
 .Pp
 The other big potential root hole in a system are the suid-root and sgid
 binaries installed on the system.  Most of these binaries, such as rlogin,
-reside in /bin, /sbin, /usr/bin, or /usr/sbin.  While nothing is 100% safe,
+reside in
+.Pa /bin ,
+.Pa /sbin ,
+.Pa /usr/bin ,
+or
+.Pa /usr/sbin .
+While nothing is 100% safe,
 the system-default suid and sgid binaries can be considered reasonably safe.
 Still, root holes are occasionally found in these binaries.  A root hole
-was found in Xlib in 1998 that made xterm (which is typically suid) vulnerable.
+was found in Xlib in 1998 that made xterm
+.Pq which is typically suid
+vulnerable.
 It is better to be safe then sorry and the prudent sysadmin will restrict suid
 binaries that only staff should run to a special group that only staff can
-access, and get rid of (chmod 000) any suid binaries that nobody uses.  A 
+access, and get rid of
+.Pq chmod 000
+any suid binaries that nobody uses.  A 
 server with no display generally does not need an xterm binary.  Sgid binaries
 can be almost as dangerous.  If an intruder can break an sgid-kmem binary the
-intruder might be able to read /dev/kmem and thus read the crypted password
+intruder might be able to read
+.Pa /dev/kmem
+and thus read the crypted password
 file, potentially compromising any passworded account.  An intruder that breaks
-the tty group can write to almost user's tty.  If a user is running a terminal
+the tty group can write to almost any user's tty.  If a user is running a terminal
 program or emulator with a talk-back feature, the intruder can potentially 
 generate a data stream that causes the user's terminal to echo a command, which
 is then run as that user.
@@ -224,34 +270,53 @@ password.
 .Pp
 The only sure fire way is to *-out as many passwords as you can and 
 use ssh or kerberos for access to those accounts.  Even though the 
-crypted password file (/etc/spwd.db) can only be read by root, it may
-be possible for a intruder to obtain read access to that file even if the 
+crypted password file
+.Pq Pa /etc/spwd.db
+can only be read by root, it may
+be possible for an intruder to obtain read access to that file even if the 
 attacker cannot obtain root-write access.
 .Pp
 Your security scripts should always check for and report changes to 
-the password file (see 'Checking file integrity' below).
+the password file
+.Po
+see 
+.Sq Checking file integrity
+below
+.Pc .
 .Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILESYSTEMS
 .Pp
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
-packet sniffing device driver built in.  Under FreeBSD it is called
-the 'bpf' device.  A intruder will commonly attempt to run a packet sniffer
+packet sniffing device driver built in.  Under
+.Bx Free
+it is called
+the
+.Sq bpf
+device.  An intruder will commonly attempt to run a packet sniffer
 on a compromised machine.  You do not need to give the intruder the 
 capability and most systems should not have the bpf device compiled in.
-Unfortunately, there is another kernel feature called the Loadable Kernel
-Module interface.  An enterprising intruder can use an LKM to install 
-his own bpf device or other sniffing device on a running kernel.  If you
-do not need to use the module loader, turn it off in the kernel configuration
-with the NO_LKM option.
 .Pp
-But even if you turn off the bpf device, and turn off the module loader,
-you still have /dev/mem and /dev/kmem to worry about.  For that matter,
-the intruder can still write raw devices.  To avoid this you have to run
-the kernel at a higher secure level... at least securelevel 1.  The securelevel
+But even if you turn off the bpf device,
+you still have
+.Pa /dev/mem
+and
+.Pa /dev/kmem
+to worry about.  For that matter,
+the intruder can still write raw devices.
+Also, there is another kernel feature called
+.Xr kldload 8 .
+An enterprising intruder can use a KLD module to install 
+his own bpf device or other sniffing device on a running kernel.
+To avoid these problems you have to run
+the kernel at a higher secure level, at least securelevel 1.  The securelevel
 can be set with a sysctl on the kern.securelevel variable.  Once you have
 set the securelevel to 1, write access to raw devices will be denied and
-special chflags flags, such as 'schg', will be enforced.  You must also ensure
-that the 'schg' flag is set on critical startup binaries, directories, and
+special chflags flags, such as
+.Sq schg ,
+will be enforced.  You must also ensure
+that the
+.Sq schg
+flag is set on critical startup binaries, directories, and
 script files - everything that gets run up to the point where the securelevel
 is set.  This might be overdoing it, and upgrading the system is much more
 difficult when you operate at a higher secure level.  You may compromise and
@@ -265,18 +330,32 @@ rears its ugly head.  The last layer of your security onion is perhaps
 the most important - detection.
 .Pp
 The only correct way to check a system's file integrity is via another,
-more secure system.  It is fairly easy to setup a 'secure' system: you
+more secure system.  It is fairly easy to setup a
+.Sq secure
+system: you
 simply do not run any services on it.  With a secure system in place you
 can then give it access to other system's root spaces via ssh.  This may
 seem like a security breech, but you have to put your trust somewhere and
 as long as you don't do something stupid like run random servers it really
-is possible to build a secure machine.  When I say 'secure' here, I assuming
+is possible to build a secure machine.  When I say
+.Sq secure
+here, I assuming
 physical access security as well, of course.  Given a secure machine with
 root access on all your other machines, you can then write security scripts
 ON the secure machine to check the other machines on the system.  The most
-common way of checking is to have the security script scp(1) over a find
+common way of checking is to have the security script
+.Xr scp 1
+over a find
 and md5 binary and then ssh a shell command to the remote machine to md5
-all the files in the system (or, at least, the /, /var, and /usr partitions!).
+all the files in the system
+.Po
+or, at least, the 
+.Pa / ,
+.Pa /var ,
+and
+.Pa /usr
+partitions!
+.Pc .
 The security machine copies the results to a file and diff's them against
 results from a previous run (or compares the results against its own 
 binaries), then emails each staff member a daily report of differences.
@@ -288,21 +367,34 @@ or spoof.
 .Pp
 A good security script will also check for changes to user and staff members
 access configuration files:  .rhosts, .shosts, .ssh/authorized_keys, and
-so forth... files that might fall outside the prevue of the MD5 check.
+so forth... files that might fall outside the purview of the MD5 check.
 .Pp
 A good security script will check for suid and sgid binaries on all 
 filesystems and report their absolute existence as well as a diff against
-the previous report or some baseline (say, make a baseline once a week).
+the previous report or some baseline
+.Pq say, make a baseline once a week .
 While you can turn off the ability to run suid and sgid binaries on certain
-filesystems through the 'nosuid' option in fstab/mount, you cannot turn this
-off on root and anyone who breaks root can just install their binary their.
+filesystems through the
+.Sq nosuid
+option in fstab/mount, you cannot turn this
+off on root and anyone who breaks root can just install their binary there.
 If you have a huge amount of user disk space, though, it may be useful to
-disallow suid binaries and devices ('nodev' option) on the user partitions
+disallow suid binaries and devices 
+.Po
+.Sq nodev
+option
+.Pc
+on the user partitions
 so you do not have to scan them for such.  I would scan them anyway, though,
 at least once a week, since the object of this onion layer is detection of
 a break-in.
 .Pp
-Process accounting (see accton(1)) is a relatively low-overhead feature of
+Process accounting
+.Po
+see
+.Xr accton 1
+.Pc
+is a relatively low-overhead feature of
 the operating system which I recommend using as a post-break-in evaluation
 mechanism.  It is especially useful in tracking down how an intruder has 
 actually broken root on a system, assuming the file is still intact after
@@ -335,27 +427,54 @@ Kernel Route Cache
 .Pp
 A common DOS attack is against a forking server that attempts to cause the
 server to eat processes, file descriptors, and memory until the machine
-dies.  Inetd (see inetd(8)) has several options to limit this sort of attack.
+dies.  Inetd
+.Po
+see
+.Xr inetd 8
+.Pc
+has several options to limit this sort of attack.
 It should be noted that while it is possible to prevent a machine from going
 down it is not generally possible to prevent a service from being disrupted 
 by the attack.  Read the inetd manual page carefully and pay specific attention
-to the -c, -C, and -R options.  Note that spoofed-IP attacks will circumvent
-the -C option to inetd, so typically a combination of options must be used.
+to the
+.Fl c ,
+.Fl C ,
+and
+.Fl R
+options.  Note that spoofed-IP attacks will circumvent
+the
+.Fl C
+option to inetd, so typically a combination of options must be used.
 Some standalone servers have self-fork-limitation parameters.  
 .Pp
-Sendmail has its -OMaxDaemonChildren option which tends to work much
-better then trying to use sendmail's load limiting options due to the
-load lag.  You should specify a MaxDaemonChildren parameter when you start
+Sendmail has its 
+.Fl OMaxDaemonChildren
+option which tends to work much
+better than trying to use sendmail's load limiting options due to the
+load lag.  You should specify a
+.Cm MaxDaemonChildren
+parameter when you start
 sendmail high enough to handle your expected load but no so high that the
 computer cannot handle that number of sendmails without falling on its face. 
-It is also prudent to run sendmail in queued mode (-ODeliveryMode=queued)
-and to run the daemon (sendmail -bd) separate from the queue-runs
-(sendmail -q15m).   If you still want realtime delivery you can run the queue
-at a much lower interval, such as -q1m, but be sure to specify a reasonable
-MaxDaemonChildren option for that sendmail to prevent cascade failures.
+It is also prudent to run sendmail in queued mode 
+.Pq Fl ODeliveryMode=queued
+and to run the daemon 
+.Pq Cm sendmail -bd
+separate from the queue-runs
+.Pq Cm sendmail -q15m .
+If you still want realtime delivery you can run the queue
+at a much lower interval, such as
+.Fl q1m ,
+but be sure to specify a reasonable
+.Cm MaxDaemonChildren
+option for that sendmail to prevent cascade failures.
 .Pp
 Syslogd can be attacked directly and it is strongly recommended that you use
-the -s option whenever possible, and the -a option otherwise.
+the 
+.Fl s
+option whenever possible, and the
+.Fl a
+option otherwise.
 .Pp
 You should also be fairly careful
 with connect-back services such as tcpwrapper's reverse-identd, which can 
@@ -365,28 +484,43 @@ feature of tcpwrappers for this reason.
 It is a very good idea to protect internal services from external access
 by firewalling them off at your border routers.  The idea here is to prevent
 saturation attacks from outside your LAN, not so much to protect internal 
-services from root network-based root compromise.  Always configure an exclusive
-firewall, i.e. 'firewall everything *except* ports A, B, C, D, and M-Z'.   This
+services from network-based root compromise.  Always configure an exclusive
+firewall, i.e.
+.So
+firewall everything *except* ports A, B, C, D, and M-Z
+.Sc .
+This
 way you can firewall off all of your low ports except for certain specific
-services such as named (if you are primary for a zone), ntalkd, sendmail,
+services such as named 
+.Pq if you are primary for a zone ,
+ntalkd, sendmail,
 and other internet-accessible services.
 If you try to configure the firewall the other
 way - as an inclusive or permissive firewall, there is a good chance that you
-will forget to 'close' a couple of services or that you will add a new internal
+will forget to 
+.Sq close
+a couple of services or that you will add a new internal
 service and forget to update the firewall.  You can still open up the 
 high-numbered port range on the firewall to allow permissive-like operation
-without compromising your low ports.  Also take note that FreeBSD allows you to
+without compromising your low ports.  Also take note that
+.Bx Free
+allows you to
 control the range of port numbers used for dynamic binding via the various
-net.inet.ip.portrange sysctl's (sysctl -a | fgrep portrange), which can also
+net.inet.ip.portrange sysctl's
+.Pq sysctl -a \&| fgrep portrange ,
+which can also
 ease the complexity of your firewall's configuration.  I usually use a normal
 first/last range of 4000 to 5000, and a hiport range of 49152 to 65535, then
-block everything under 4000 off in my firewall ( except for certain specific
-internet-accessible ports, of course ).
+block everything under 4000 off in my firewall
+.Po
+except for certain specific
+internet-accessible ports, of course
+.Pc .
 .Pp
 Another common DOS attack is called a springboard attack - to attack a server
 in a manner that causes the server to generate responses which then overload
 the server, the local network, or some other machine.  The most common attack
-of this nature is the ICMP PING BROADCAST attack.  The attacker spoofed ping
+of this nature is the ICMP PING BROADCAST attack.  The attacker spoofs ping
 packets sent to your LAN's broadcast address with the source IP address set
 to the actual machine they wish to attack.  If your border routers are not
 configured to stomp on ping's to broadcast addresses, your LAN winds up
@@ -399,7 +533,9 @@ constructing packets that generate ICMP error responses, an attacker can
 saturate a server's incoming network and cause the server to saturate its 
 outgoing network with ICMP responses.  This type of attack can also crash the
 server by running it out of mbuf's, especially if the server cannot drain the
-ICMP responses it generates fast enough.  The FreeBSD kernel has a new kernel
+ICMP responses it generates fast enough.  The
+.Bx Free
+kernel has a new kernel
 compile option called ICMP_BANDLIM which limits the effectiveness of these 
 sorts of attacks.  The last major class of springboard attacks is related to
 certain internal inetd services such as the udp echo service.  An attacker 
@@ -415,15 +551,19 @@ Spoofed packet attacks may also be used to overload the kernel route cache.
 Refer to the net.inet.ip.rtexpire, rtminexpire, and rtmaxcache sysctl 
 parameters.  A spoofed packet attack that uses a random source IP will cause
 the kernel to generate a temporary cached route in the route table, viewable
-with 'netstat -rna | fgrep W3'.  These routes typically timeout in 1600
+with
+.Sq netstat -rna \&| fgrep W3 .
+These routes typically timeout in 1600
 seconds or so.  If the kernel detects that the cached route table has gotten
 too big it will dynamically reduce the rtexpire but will never decrease it to
 less then rtminexpire.  There are two problems:  (1) The kernel does not react
 quickly enough when a lightly loaded server is suddenly attacked, and (2) The
 rtminexpire is not low enough for the kernel to survive a sustained attack.
 If your servers are connected to the internet via a T3 or better it may be 
-prudent to manually override both rtexpire and rtminexpire via sysctl(8).
-Never set either parameter to zero (unless you want to crash the machine :-)).
+prudent to manually override both rtexpire and rtminexpire via
+.Xr sysctl 8 .
+Never set either parameter to zero
+.Pq unless you want to crash the machine :-) .
 Setting both parameters to 2 seconds should be sufficient to protect the route
 table from attack.
 
@@ -442,5 +582,9 @@ table from attack.
 .Sh HISTORY
 The
 .Nm
-manual page was originally written by Matthew Dillon and first appeared 
-in FreeBSD-3.0.1, December 1998.
+manual page was originally written by
+.An Matthew Dillon
+and first appeared 
+in
+.Fx 3.1 ,
+December 1998.
