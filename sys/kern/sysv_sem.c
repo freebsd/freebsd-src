@@ -486,7 +486,7 @@ __semctl(td, uap)
 	mtx_lock(&Giant);
 	switch(cmd) {
 	case SEM_STAT:
-		if (semid < 0 || semid >= seminfo.semmsl)
+		if (semid < 0 || semid >= seminfo.semnmi)
 			UGAR(EINVAL);
 		semaptr = &sema[semid];
 		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0 )
@@ -504,7 +504,7 @@ __semctl(td, uap)
 	}
 
 	semid = IPCID_TO_IX(semid);
-	if (semid < 0 || semid >= seminfo.semmsl) {
+	if (semid < 0 || semid >= seminfo.semmni) {
 		error = EINVAL;
 		goto done2;
 	}
@@ -831,7 +831,7 @@ semop(td, uap)
 	mtx_lock(&Giant);
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */
 
-	if (semid < 0 || semid >= seminfo.semmsl) {
+	if (semid < 0 || semid >= seminfo.semmni) {
 		error = EINVAL;
 		goto done2;
 	}
