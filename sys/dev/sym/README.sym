@@ -68,22 +68,23 @@ Status:
          FreeBSD 3.3 RELEASE
 
 Latest revision:
-   sym-0.11.0-19991120
+   sym-0.12.0-19991127
    Files to download:
       SYM-0.9.0-19991024.tar.gz
       PATCH-SYM-0.10.0-19991111.gz
       PATCH-SYM-0.11.0-19991120.gz
+      PATCH-SYM-0.12.0-19991127.gz
 
 Supported SCSI features:
   - Initiator mode
   - Wide 16 SCSI BUS
-  - FAST10 up to FAST80-DT synchronous data transfers (1)
+  - FAST10 up to FAST80-DT synchronous data transfers
     (depends on controller capabilities)
   - 64 luns per target
   - 256 tags per lun
-  - MDP (2)
+  - MDP (1)
   - BUS DEVICE RESET message
-  - ABORT, ABORT TAG message (2)
+  - ABORT, ABORT TAG message
 
 Supported generic chip features:
   - On chip RAM
@@ -102,9 +103,7 @@ Others:
     100% scalability.
 
 Notes:
-(1) FAST80-DT only supported by the LSI53C1010 
-    but not yet tested.
-(2) Not yet reported. May not work as expected.
+(1) Not yet reported. May not work as expected.
    
 Files:
   README.sym		this file
@@ -121,20 +120,21 @@ be attached by the sym_hipd.c driver.
 Installation:
   1) Untar SYM-0.9.0-19991024.tar.gz
   2) Create the /usr/src/sys/dev/sym directory
-  2) Copy README.sym, sym_conf.h, sym_defs.h and sym_hipd.c to 
+  3) Copy README.sym, sym_conf.h, sym_defs.h and sym_hipd.c to 
      /usr/src/sys/dev/sym/
-  3) Change to /usr/src/sys/ directory
-  4) If FreeBSD-4, apply the unified patch sym_sys.patch
+  4) Change to /usr/src/sys/ directory
+  5) If FreeBSD-4, apply the unified patch sym_sys.patch
          (patch -p0 <sym_sys.patch)
      Otherwise,
      If FreeBSD-3, apply the unified patch sym_sys_3.patch
          (patch -p0 <sym_sys_3.patch)
      Otherwise, leave here. ;)
-  5) Change to /usr/src/sys/dev/sym directory
-  6) Update to SYM-0.11.0-19991120
+  6) Change to /usr/src/sys/dev/sym directory
+  7) Update to SYM-0.11.0-19991120
      gzip -d <PATCH-SYM-0.10.0-19991111.gz | patch -p0
      gzip -d <PATCH-SYM-0.11.0-19991120.gz | patch -p0
-  7) Add sym0 to your kernel configuration as indicated in patched LINT file.
+     gzip -d <PATCH-SYM-0.12.0-19991127.gz | patch -p0
+  8) Add sym0 to your kernel configuration as indicated in patched LINT file.
      Configure and make your kernel.
 
 As seen from the shell history file (driver material assumed from /tmp), 
@@ -148,7 +148,53 @@ patch -p0 <dev/sym/sym_sys.patch    # use sym_sys_3.patch if FreeBSD-3.X
 cd dev/sym
 gzip -d </tmp/PATCH-SYM-0.10.0-19991111.gz | patch -p0
 gzip -d </tmp/PATCH-SYM-0.11.0-19991120.gz | patch -p0
+gzip -d </tmp/PATCH-SYM-0.12.0-19991127.gz | patch -p0
 
+Configuring Ultra-3 DT data transfer support.
+---------------------------------------------
+If you have a board using the SYM53C1010 (only evaluation boards seem to 
+be available for now), you may want to give Ultra-3 DT transfer a try.
+For the reasons that FreeBSD-CAM is not yet ready for Ultra-3 and that 
+early SYM53C1010 chips need some work-around for DT transfers to work 
+reliably, you must apply manually the following additionnal patch to your 
+kernel tree:
+
+---------------------- Cut Here ------------------------
+--- cam/scsi/scsi_all.c.00	1999/08/29 16:21:44
++++ cam/scsi/scsi_all.c	1999/11/23 22:11:22
+@@ -2394,6 +2394,7 @@
+         u_int period_factor;
+         u_int period;	/* in 10ths of ns */
+ } scsi_syncrates[] = {
++        { 0x09, 125 },
+         { 0x0a, 250 },
+         { 0x0b, 303 },
+         { 0x0c, 500 }
+--- pci/sym_conf.h.00	Fri Nov 26 22:58:59 1999
++++ pci/sym_conf.h	Fri Nov 26 22:58:38 1999
+@@ -69,6 +69,7 @@
+  *  corresponding code will get useless.
+  */
+ /* #define	SYMCONF_BROKEN_U3EN_SUPPORT */
++#define	SYMCONF_BROKEN_U3EN_SUPPORT
+ 
+ /*
+  *  Use Normal IO instead of MMIO.
+---------------------- Cut Here ------------------------
+
+This change consist in allowing sync factor 9 support to be handled 
+by scsi_all.c and a compilation option to be defined in sym_conf.h.
+The driver may only start a PPR negotiation if sync factor is 9.
+This change has been only tested on FreeBSD-3.3 for the moment.
+
+For the PPR negotiation to occur at system startup time, you need to 
+configure Ultra3 hard disks in the NVRAM for 80 Mega-transfers per second 
+Wide.
+If you prefer to use camcontrol for such a negotiation to be performed after 
+system startup, then you have to rebuild either the libcam shareable library 
+with the patched version of scsi_all.c, on to rebuild camcontrol using 
+the new static version of the libcam library that includes the patched 
+version of scsi_all.o.
 
 Warnings:
 - This driver uses LOAD/STORE instructions from SCRIPTS and therefore does 
@@ -163,8 +209,9 @@ Versionning:
   They must be applied from directory: /usr/src/sys/dev/sym/
 - Version 1.0.0 will happen when the driver will be tested enough but this 
   driver version will probably not officially support the C1010 (Ultra-3) 
-  since the testing hasn't started yet. Some 1.X.0 version will support the 
-  C1010 (DT data transfer). 
+  since the testing of Ultra3 has just started and FreeBSD-CAM is not yet  
+  ready for the support of Ultra-3. Some 1.X.0 version will support 
+  DT data transfer for the C1010.
 - Version 2.0.0 is not planned for now, but will add support for host target 
   mode if it will ever exist.
 
@@ -228,7 +275,7 @@ Change log:
   Fix the LED support through GPIO0 for pre-896 chips. In fact some code 
   was wrongly conditionned by something that was never met.
   Switch driver status to BETA-RELEASE given that this driver has been rock 
-  solid even if s small number of users seems to actually use it.
+  solid even if a small number of users seems to actually use it.
 
 * SYM-0.11.0-19991120  (diff file PATCH-SYM-0.11.0-19991120)
   Rearrange a bit the initialisation code that deals with IO registers.
@@ -240,4 +287,11 @@ Change log:
   LSI53C1010 tested with Asynchronous, FAST5, FAST10, FAST20 and FAST40 
   data transfers.
 
-November 25 1999.          "Gerard Roudier"<groudier@club-internet.fr>
+* SYM-0.12.0-19991127  (diff file PATCH-SYM-0.12.0-19991127)
+  Some testing in Ultra3 FAST-80 DT mode using a SYM53C1010 connected 
+  to an ATLAS 4 Ultra3 disk. Required some tiny fix in the ppr nego code.
+  Some cosmetic changes in messages displayed under DEBUG.
+  Fix the chip table (and code) that made the driver wrongly attach 
+  810 and 825 devices.
+
+November 27 1999.          "Gerard Roudier"<groudier@club-internet.fr>
