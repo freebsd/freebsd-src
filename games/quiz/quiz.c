@@ -299,6 +299,7 @@ next_cat(s)
 			break;
 		case ':':
 			return (s);
+			s++;
 		}
 	/* NOTREACHED */
 }
