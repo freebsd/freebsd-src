@@ -49,24 +49,13 @@ struct old_ps_strings {
 #define	OLD_PS_STRINGS ((struct old_ps_strings *) \
 	(USRSTACK - SPARE_USRSPACE - sizeof(struct old_ps_strings)))
 
-#if defined(__STDC__)		/* from other parts of sendmail */
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
 
 #define SPT_BUFSIZE 2048	/* from other parts of sendmail */
 extern char * __progname;	/* is this defined in a .h anywhere? */
 
 void
-#if defined(__STDC__)
 setproctitle(const char *fmt, ...)
-#else
-setproctitle(fmt, va_alist)
-	const char *fmt;
-	va_dcl
-#endif
 {
 	static struct ps_strings *ps_strings;
 	static char buf[SPT_BUFSIZE];
@@ -81,24 +70,20 @@ setproctitle(fmt, va_alist)
 	unsigned long ul_ps_strings;
 	int oid[4];
 
-#if defined(__STDC__)
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 
 	if (fmt) {
 		buf[sizeof(buf) - 1] = '\0';
 
-		/* print program name heading for grep */
-		(void) snprintf(buf, sizeof(buf), "%s: ", __progname);
-
-		/*
-		 * can't use return from sprintf, as that is the count of how
-		 * much it wanted to write, not how much it actually did.
-		 */
-
-		len = strlen(buf);
+		if (fmt[0] == '-') {
+			/* skip program name prefix */
+			fmt++;
+			len = 0;
+		} else {
+			/* print program name heading for grep */
+			(void) snprintf(buf, sizeof(buf), "%s: ", __progname);
+			len = strlen(buf);
+		}
 
 		/* print the argument string */
 		(void) vsnprintf(buf + len, sizeof(buf) - len, fmt, ap);
