@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.33 1995/11/04 11:08:43 jkh Exp $
+ * $Id: config.c,v 1.16.2.34 1995/11/04 15:45:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -342,8 +342,7 @@ void
 configResolv(void)
 {
     FILE *fp;
-    char *cp, *hp;
-    static Boolean hostsAppended = FALSE;
+    char *cp, *dp, *hp;
 
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
@@ -376,26 +375,25 @@ configResolv(void)
 	msgDebug("Wrote out /etc/resolv.conf\n");
 
 skip:
-    /* Tack ourselves at the end of /etc/hosts */
-    if (hostsAppended)
-	return;
+    /* Tack ourselves into /etc/hosts */
     cp = variable_get(VAR_IPADDR);
+    dp = variable_get(VAR_DOMAINNAME);
     if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
 	char cp2[255];
 
 	(void)vsystem("hostname %s", hp);
-	fp = fopen("/etc/hosts", "a");
+	fp = fopen("/etc/hosts", "w");
 	if (!index(cp, '.'))
 	    cp2[0] = '\0';
 	else {
 	    strcpy(cp2, cp);
 	    *(index(cp2, '.')) = '\0';
 	}
+	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
 	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
 	fclose(fp);
 	if (isDebug())
-	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
-	hostsAppended = TRUE;
+	    msgDebug("Wrote entry for %s to /etc/hosts\n", cp);
     }
 }
 
