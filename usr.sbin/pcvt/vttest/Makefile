@@ -3,6 +3,6 @@
 PROG=	vttest
 SRCS=	main.c esc.c
 
-CFLAGS+= -traditional -DUSEMYSTTY
+CFLAGS+= -DUSEMYSTTY
 
 .include <bsd.prog.mk>
