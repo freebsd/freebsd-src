@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.32 1996/08/13 19:43:24 pst Exp $
+ * $Id: ipfw.c,v 1.33 1996/08/31 17:58:23 nate Exp $
  *
  */
 
@@ -31,6 +31,8 @@
 #include <time.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
+#include <sys/sockio.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
 #include <netinet/tcp.h>
@@ -594,6 +596,26 @@ delete(ac,av)
 		err(1,"setsockopt(IP_FW_DEL)");
 }
 
+int
+verify_interface(rule)
+	struct ip_fw *rule;
+{
+	struct ifreq ifr;
+
+	/*
+	 *	If a unit was specified, check for that exact interface.
+	 *	If a wildcard was specified, check for unit 0.
+	 */
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "%s%d", 
+			 rule->fw_via_name,
+			 rule->fw_flg & IP_FW_F_IFUWILD ? 0 : rule->fw_via_unit);
+
+	if (ioctl(s, SIOCGIFFLAGS, &ifr) < 0)
+		return(-1);	/* interface isn't recognized by the kernel */
+
+	return(0); /* interface exists */
+}
+
 void
 add(ac,av)
 	int ac;
@@ -706,6 +728,8 @@ add(ac,av)
 					rule.fw_via_unit = atoi(q);
 				*q = '\0';
 				rule.fw_flg |= IP_FW_F_IFNAME;
+				if (verify_interface(&rule) != 0)
+					fprintf(stderr, "Warning: interface does not exist\n");
 			} else if (inet_aton(*av,&rule.fw_via_ip) == INADDR_NONE) {
 				show_usage("bad IP# after via\n");
 			}
