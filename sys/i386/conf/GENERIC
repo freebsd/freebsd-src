@@ -190,6 +190,8 @@ device		wi
 # card for a manually chosen I/O address and IRQ, you must specify
 # those paremeters here.
 device		an
+# BayStack 660 and others
+device		awi
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
 device		fe0	at isa? port 0x300
@@ -197,8 +199,8 @@ device		le0	at isa? port 0x300 irq 5 iomem 0xd0000
 device		lnc0	at isa? port 0x280 irq 10 drq 0
 device		cs0	at isa? port 0x300
 device		sn0	at isa? port 0x300 irq 10
-# requires PCCARD (PCMCIA) support to be activated
-#device		xe0	at isa?
+# Disabled because it is currently broken.
+#device		xe
 
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
