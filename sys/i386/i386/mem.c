@@ -167,7 +167,7 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 			c = min(c, (u_int)(PAGE_SIZE - o));
 			c = min(c, (u_int)iov->iov_len);
 			error = uiomove((caddr_t)&ptvmmap[o], (int)c, uio);
-			pmap_kremove((vm_offset_t)ptvmmap);
+			pmap_qremove((vm_offset_t)ptvmmap, 1);
 			continue;
 
 /* minor device 1 is kernel memory */
