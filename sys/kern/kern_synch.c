@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.57 1998/05/28 09:30:19 phk Exp $
+ * $Id: kern_synch.c,v 1.58 1998/06/21 18:02:43 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -214,6 +214,7 @@ roundrobin(arg)
 
 /* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
 static fixpt_t	ccpu = 0.95122942450071400909 * FSCALE;	/* exp(-1/20) */
+SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
 
 /*
  * If `ccpu' is not equal to `exp(-1/20)' and you still want to use the
