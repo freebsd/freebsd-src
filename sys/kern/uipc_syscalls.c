@@ -455,7 +455,7 @@ connect(td, uap)
 
 	error = getsockaddr(&sa, uap->name, uap->namelen);
 	if (error)
-		return error;
+		return (error);
 
 	return (kern_connect(td, uap->s, sa));
 }
@@ -1606,7 +1606,7 @@ getsockaddr(namp, uaddr, len)
 	int error;
 
 	if (len > SOCK_MAXADDRLEN)
-		return ENAMETOOLONG;
+		return (ENAMETOOLONG);
 	if (len < offsetof(struct sockaddr, sa_data[0]))
 		return EINVAL;
 	MALLOC(sa, struct sockaddr *, len, M_SONAME, M_WAITOK);
@@ -1621,7 +1621,7 @@ getsockaddr(namp, uaddr, len)
 		sa->sa_len = len;
 		*namp = sa;
 	}
-	return error;
+	return (error);
 }
 
 /*
