@@ -217,10 +217,10 @@ bar graphs of the amount of time executing in user mode (``user''),
 in user mode running low priority processes (``nice''), in
 system mode (``system''), in interrupt mode (``interrupt''),
 and idle (``idle'').  Statistics
-on disk throughput show, for each drive, kilobytes of data transferred,
-number of disk transactions performed, and average seek time
-(in milliseconds).  This information may be displayed as
-bar graphs or as rows of numbers which scroll downward.  Bar
+on disk throughput show, for each drive, megabytes per second,
+average number of disk transactions per second, and
+average kilobytes of data per transaction.  This information may be
+displayed as bar graphs or as rows of numbers which scroll downward.  Bar
 graphs are shown by default.
 .Pp
 The following commands are specific to the
@@ -237,9 +237,9 @@ displayed in numeric columns which scroll downward.
 Show the disk
 .Tn I/O
 statistics in bar graph form (default).
-.It Cm msps
-Toggle the display of average seek time (the default is to
-not display seek times).
+.It Cm kbpt
+Toggle the display of kilobytes per transaction. (the default is to
+not display kilobytes per transaction).
 .El
 .It Ic swap
 Show information about swap space usage on all the 
@@ -452,6 +452,32 @@ drives may be specified, separated by spaces.
 .It Cm display Op Ar drives
 Display information about the drives indicated.  Multiple drives
 may be specified, separated by spaces.
+.It Cm only Op Ar drives
+Display only the specified drives.  Multiple drives may be specified,
+separated by spaces.
+.It Cm drives
+Display a list of available devices.
+.It Cm match Ar type,if,pass Op Ar | ...
+Display devivces matching the given pattern.  The basic matching
+expressions are the same as those used in
+.Xr iostat 8
+with one difference.  Instead of specifying multiple
+.Fl t
+arguments which are then ORed together, the user instead specifys multiple
+matching expressions joined by the pipe ( | ) character.  The comma
+separated arguments within each matching expression are ANDed together, and
+then the pipe separated matching expressions are ORed together.  Any
+device matching the combined expression will be displayed, if there is room
+to display it.  For example:
+.Pp
+.Dl match da,scsi | cd,ide 
+.Pp
+This will display all SCSI Direct Access devices and all IDE CDROM devices.
+.Pp
+.Dl match da | sa | cd,pass
+.Pp
+This will display all Direct Access devices, all Sequential Access devices,
+and all passthrough devices that provide access to CDROM drives.
 .El
 .Sh SEE ALSO
 .Xr iostat 1 ,

@@ -2,10 +2,11 @@
 
 PROG=	vmstat
 CFLAGS+=-I${.CURDIR}/../../sys
+SRCS=	vmstat.c
 MAN8=	vmstat.8
 BINGRP=	kmem
 BINMODE=2555
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+DPADD=	${LIBKVM} ${LIBDEVSTAT}
+LDADD=	-lkvm -ldevstat
 
 .include <bsd.prog.mk>
