@@ -6,8 +6,8 @@
 
 LIB=	bfd
 SRCS+=	archive.c archures.c bfd.c binary.c cache.c \
-	coffgen.c corefile.c elf.c format.c hash.c ihex.c \
-	init.c libbfd.c linker.c opncls.c reloc.c section.c \
+	coffgen.c corefile.c elf.c elf-eh-frame.c elf-strtab.c format.c hash.c ihex.c \
+	init.c libbfd.c linker.c merge.c opncls.c reloc.c section.c \
 	srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
 	targmatch.h dwarf1.c dwarf2.c config.h
 CFLAGS+= -I${SRCDIR}/bfd
