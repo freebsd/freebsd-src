@@ -629,11 +629,21 @@ release.8:
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp /boot/boot* ${RD}/mfsfd/boot
 	@cp /boot/loader.help ${RD}/mfsfd/boot
+	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
+.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
+	@cd ${.CURDIR} && ${MAKE} doMODULES KERNEL=BOOTMFS KERNEL_KO=BOOTMFS KODIR=""
+.endif
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
+.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
+	@mkdir -p ${RD}/mfsfd/stand/modules
+	@perl ${.CURDIR}/scripts/driver-copy2.pl \
+		${.CURDIR}/${MACHINE}/drivers.conf \
+		${RD}/kernels/modules ${RD}/mfsfd/stand/modules
+.endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
@@ -901,6 +911,23 @@ installCRUNCH:
 	fi
 
 #
+# --==## BOOTMFS config file ##==--
+#
+
+createBOOTMFS:
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
+	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS
+.if ${MACHINE_ARCH} == "i386"
+	@echo "options  INTRO_USERCONFIG" >> \
+	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+.endif
+.if exists(${.CURDIR}/${MACHINE}/drivers.conf)
+	@perl ${.CURDIR}/scripts/driver-remove.pl \
+		${.CURDIR}/${MACHINE}/drivers.conf \
+		${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
+.endif
+
+#
 # --==## Compile a kernel by name ${KERNEL} ##==--
 #
 # We don't erase the sys/compile/${KERNEL} directory, since somebody
@@ -914,18 +941,30 @@ doKERNEL:
 			make ${KERNEL_FLAGS} ${KERNEL} && \
 			make kernel-reinstall DESTDIR=${RD}/kernels
 
+doMODULES:
+	-mkdir ${RD}/kernels/modules
+#
+# XXX Many modules install shell script wrappers and other lame things.
+#
+	mtree -deU -f ${MTREEFILES}/BSD.root.dist \
+	    -p ${RD}/kernels > /dev/null && \
+	mtree -deU -f ${MTREEFILES}/BSD.usr.dist \
+	    -p ${RD}/kernels/usr > /dev/null && \
+
+	@rm -f ${RD}/kernels/modules/*.ko
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
+	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+			make modules-depend && \
+			make ${KERNEL_FLAGS} modules && \
+			make NOMAN=1 modules-reinstall DESTDIR=${RD}/kernels
+
 #
 # --==## Put a filesystem into a BOOTMFS kernel ##==--
 #
 doMFSKERN:
 	@echo "Running doMFSKERN for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
-	@cd ${.CURDIR}/../sys/${MACHINE}/conf && \
-	  sh ${.CURDIR}/scripts/dokern.sh ${FDSIZE} < ${KERNCONF} > BOOTMFS
-.if ${MACHINE_ARCH} == "i386"
-	@echo "options  INTRO_USERCONFIG" >> \
-	  ${.CURDIR}/../sys/${MACHINE}/conf/BOOTMFS
-.endif
+	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	@rm -rf ${RD}/image.${FSIMAGE}
 	@mkdir  ${RD}/image.${FSIMAGE}
