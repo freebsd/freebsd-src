@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.18 1995/02/03 23:54:07 wpaul Exp $
+#	$Id: netstart,v 1.19 1995/02/07 20:52:35 ats Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
@@ -13,7 +13,7 @@ sendmail_flags="-bd -q30m"
 amdflags="NO"
 nfs_client=NO
 nfs_server=NO
-nis_client="NO"
+nis_clientflags="NO"
 nis_serverflags="NO"
 yppasswddflags="NO"
 #yppasswddflags"-m /var/yp/master.passwd -s -f"
