@@ -65,7 +65,7 @@ dies Saturni
 #
 # c_fmt
 #
-%a %e %b %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -77,4 +77,23 @@ pm
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %Ex %Y %X %Z
+#
+# Long months names (alternative)
+#
+Ianuarius
+Februarius
+Martius
+Aprilis
+Maius
+Iunius
+Iulius
+Augustus
+September
+October
+November
+December
+#
+# Ex_fmt
+#
+%e %b

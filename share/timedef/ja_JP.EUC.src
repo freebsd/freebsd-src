@@ -67,7 +67,7 @@
 #
 # just following tradition...
 # %a %b %e %H:%M:%S %Y
-%a %b/%e %T %Y
+%a %Ex %T %Y
 #
 # am
 #
@@ -84,3 +84,22 @@ PM
 # date_fmt
 #
 %Y年 %B%e日 %A %X %Z
+#
+# Long months names (alternative)
+#
+1月
+2月
+3月
+4月
+5月
+6月
+7月
+8月
+9月
+10月
+11月
+12月
+#
+# Ex_fmt
+#
+%b/%e

@@ -62,7 +62,7 @@ Lauantai
 #
 # c_fmt
 #
-%a %b %e %X %Y
+%a %Ex %X %Y
 #
 # am
 #
@@ -74,4 +74,23 @@ pm
 #
 # date_fmt
 #
-%a %e %b %Y %X %Z
+%a %Ex %Y %X %Z
+#
+# Long months names (alternative)
+#
+Tammikuu
+Helmikuu
+Maaliskuu
+Huhtikuu
+Toukokuu
+Kesäkuu
+Heinäkuu
+Elokuu
+Syyskuu
+Lokakuu
+Marraskuu
+Joulukuu
+#
+# Ex_fmt
+#
+%e %b
