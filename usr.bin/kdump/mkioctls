@@ -56,9 +56,11 @@ BEGIN {
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
 	print ""
+	print "const char *ioctlname(register_t val);"
+	print ""
 	print ioctl_includes
 	print ""
-	print "char *"
+	print "const char *"
 	print "ioctlname(register_t val)"
 	print "{"
 	print ""
