@@ -132,5 +132,7 @@ afterinstall:
 .endfor
 	ln -sf ../ja_JP.eucJP/LC_NUMERIC \
 		${LOCALEDIR}/ja_JP.SJIS/LC_NUMERIC
+	ln -sf ../ko_KR.eucKR/LC_NUMERIC \
+		${LOCALEDIR}/ko_KR.CP949/LC_NUMERIC
 
 .include <bsd.prog.mk>
