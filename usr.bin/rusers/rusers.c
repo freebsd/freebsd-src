@@ -37,29 +37,28 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/socket.h>
+#include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
+#include <rpcsvc/rnusers.h>
+#include <arpa/inet.h>
 #include <err.h>
 #include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
-#include <rpc/rpc.h>
-#include <rpc/pmap_clnt.h>
-#include <arpa/inet.h>
-#include <rpcsvc/rnusers.h>
 
-#define MAX_INT 0x7fffffff
-#define HOST_WIDTH 20
-#define LINE_WIDTH 15
+#define MAX_INT		0x7fffffff
+#define HOST_WIDTH	20
+#define LINE_WIDTH	15
 
 int longopt;
 int allopt;
 
 struct host_list {
-	struct host_list *next;
-	struct in_addr addr;
+	struct	host_list *next;
+	struct	in_addr addr;
 } *hosts;
 
 int
@@ -67,14 +66,14 @@ search_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
-	if (!hosts)
-		return(0);
+	if (hosts == NULL)
+		return (0);
 
 	for (hp = hosts; hp != NULL; hp = hp->next) {
 		if (hp->addr.s_addr == addr.s_addr)
-			return(1);
+			return (1);
 	}
-	return(0);
+	return (0);
 }
 
 void
@@ -82,7 +81,7 @@ remember_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
-	if (!(hp = (struct host_list *)malloc(sizeof(struct host_list))))
+	if ((hp = (struct host_list *)malloc(sizeof(struct host_list))) == NULL)
 		errx(1, "no memory");
 	hp->addr.s_addr = addr.s_addr;
 	hp->next = hosts;
@@ -92,107 +91,107 @@ remember_host(struct in_addr addr)
 int
 rusers_reply(char *replyp, struct sockaddr_in *raddrp)
 {
-        int x, idle;
-        char date[32], idle_time[64], remote[64];
-        struct hostent *hp;
-        utmpidlearr *up = (utmpidlearr *)replyp;
-        char *host;
-        int days, hours, minutes, seconds;
+	int x, idle;
+	char date[32], idle_time[64], remote[64];
+	struct hostent *hp;
+	utmpidlearr *up = (utmpidlearr *)replyp;
+	char *host;
+	int days, hours, minutes, seconds;
 
 	if (search_host(raddrp->sin_addr))
-		return(0);
+		return (0);
 
-        if (!allopt && !up->utmpidlearr_len)
-                return(0);
+	if (!allopt && up->utmpidlearr_len == 0)
+		return (0);
 
-        hp = gethostbyaddr((char *)&raddrp->sin_addr.s_addr,
-                           sizeof(struct in_addr), AF_INET);
-        if (hp)
-                host = hp->h_name;
-        else
-                host = inet_ntoa(raddrp->sin_addr);
+	hp = gethostbyaddr((char *)&raddrp->sin_addr.s_addr,
+	    sizeof(struct in_addr), AF_INET);
+	if (hp != NULL)
+		host = hp->h_name;
+	else
+		host = inet_ntoa(raddrp->sin_addr);
 
-        if (!longopt)
-                printf("%-*s ", HOST_WIDTH, host);
+	if (!longopt)
+		printf("%-*s ", HOST_WIDTH, host);
 
-        for (x = 0; x < up->utmpidlearr_len; x++) {
-                strncpy(date,
-                        &(ctime((time_t *)&(up->utmpidlearr_val[x].ui_utmp.ut_time))[4]),
-                        sizeof(date)-1);
+	for (x = 0; x < up->utmpidlearr_len; x++) {
+		strncpy(date,
+		&(ctime((time_t *)&(up->utmpidlearr_val[x].ui_utmp.ut_time))[4]),
+		    sizeof(date) - 1);
 
-                idle = up->utmpidlearr_val[x].ui_idle;
-                sprintf(idle_time, "  :%02d", idle);
-                if (idle == MAX_INT)
-                        strcpy(idle_time, "??");
-                else if (idle == 0)
-                        strcpy(idle_time, "");
-                else {
-                        seconds = idle;
-                        days = seconds/(60*60*24);
-                        seconds %= (60*60*24);
-                        hours = seconds/(60*60);
-                        seconds %= (60*60);
-                        minutes = seconds/60;
-                        seconds %= 60;
-                        if (idle > 60)
-                                sprintf(idle_time, "%d:%02d",
-                                        minutes, seconds);
-                        if (idle >= (60*60))
-                                sprintf(idle_time, "%d:%02d:%02d",
-                                        hours, minutes, seconds);
-                        if (idle >= (24*60*60))
-                                sprintf(idle_time, "%d days, %d:%02d:%02d",
-                                        days, hours, minutes, seconds);
-                }
+		idle = up->utmpidlearr_val[x].ui_idle;
+		sprintf(idle_time, "  :%02d", idle);
+		if (idle == MAX_INT)
+			strcpy(idle_time, "??");
+		else if (idle == 0)
+			strcpy(idle_time, "");
+		else {
+			seconds = idle;
+			days = seconds / (60 * 60 * 24);
+			seconds %= (60 * 60 * 24);
+			hours = seconds / (60 * 60);
+			seconds %= (60 * 60);
+			minutes = seconds / 60;
+			seconds %= 60;
+			if (idle > 60)
+				sprintf(idle_time, "%d:%02d", minutes, seconds);
+			if (idle >= (60 * 60))
+				sprintf(idle_time, "%d:%02d:%02d",
+				    hours, minutes, seconds);
+			if (idle >= (24 * 60 * 60))
+				sprintf(idle_time, "%d days, %d:%02d:%02d",
+				    days, hours, minutes, seconds);
+		}
 
-                strncpy(remote, up->utmpidlearr_val[x].ui_utmp.ut_host, sizeof(remote)-1);
-                if (strlen(remote) != 0)
-                        sprintf(remote, "(%.16s)", up->utmpidlearr_val[x].ui_utmp.ut_host);
+		strncpy(remote, up->utmpidlearr_val[x].ui_utmp.ut_host,
+		    sizeof(remote) - 1);
+		if (strlen(remote) != 0)
+			sprintf(remote, "(%.16s)",
+			    up->utmpidlearr_val[x].ui_utmp.ut_host);
 
-                if (longopt)
-                        printf("%-8.8s %*s:%-*.*s %-12.12s  %6s %.18s\n",
-                               up->utmpidlearr_val[x].ui_utmp.ut_name,
-                               HOST_WIDTH, host,
-                               LINE_WIDTH, LINE_WIDTH, up->utmpidlearr_val[x].ui_utmp.ut_line,
-                               date,
-                               idle_time,
-                               remote
-                               );
-                else
-                        printf("%s ",
-                               up->utmpidlearr_val[x].ui_utmp.ut_name);
-        }
-        if (!longopt)
-                putchar('\n');
+		if (longopt)
+			printf("%-8.8s %*s:%-*.*s %-12.12s  %6s %.18s\n",
+			    up->utmpidlearr_val[x].ui_utmp.ut_name,
+			    HOST_WIDTH, host, LINE_WIDTH, LINE_WIDTH,
+			    up->utmpidlearr_val[x].ui_utmp.ut_line, date,
+			    idle_time, remote );
+		else
+			printf("%s ",
+			    up->utmpidlearr_val[x].ui_utmp.ut_name);
+	}
+	if (!longopt)
+		putchar('\n');
 
 	remember_host(raddrp->sin_addr);
-	return(0);
+	return (0);
 }
 
 void
 onehost(char *host)
 {
-        utmpidlearr up;
-        CLIENT *rusers_clnt;
-        struct sockaddr_in addr;
-        struct hostent *hp;
-		struct timeval tv;
+	utmpidlearr up;
+	CLIENT *rusers_clnt;
+	struct sockaddr_in addr;
+	struct hostent *hp;
+	struct timeval tv;
 
-        hp = gethostbyname(host);
-        if (hp == NULL)
-                errx(1, "unknown host \"%s\"", host);
+	hp = gethostbyname(host);
+	if (hp == NULL)
+		errx(1, "unknown host \"%s\"", host);
 
-        rusers_clnt = clnt_create(host, RUSERSPROG, RUSERSVERS_IDLE, "udp");
-        if (rusers_clnt == NULL)
-                errx(1, "%s", clnt_spcreateerror(""));
+	rusers_clnt = clnt_create(host, RUSERSPROG, RUSERSVERS_IDLE, "udp");
+	if (rusers_clnt == NULL)
+		errx(1, "%s", clnt_spcreateerror(""));
 
 	bzero((char *)&up, sizeof(up));
-	tv.tv_sec = 15;		/* XXX ?? */
+	tv.tv_sec = 15;	/* XXX ?? */
 	tv.tv_usec = 0;
-	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
-                errx(1, "%s", clnt_sperror(rusers_clnt, ""));
-        addr.sin_addr.s_addr = *(int *)hp->h_addr;
-        rusers_reply((char *)&up, &addr);
+	if (clnt_call(rusers_clnt, RUSERSPROC_NAMES, xdr_void, NULL,
+	    xdr_utmpidlearr, &up, tv) != RPC_SUCCESS)
+		errx(1, "%s", clnt_sperror(rusers_clnt, ""));
+	addr.sin_addr.s_addr = *(int *)hp->h_addr;
+	rusers_reply((char *)&up, &addr);
+	clnt_destroy(rusers_clnt);
 }
 
 void
@@ -202,9 +201,9 @@ allhosts()
 	enum clnt_stat clnt_stat;
 
 	bzero((char *)&up, sizeof(up));
-	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE, RUSERSPROC_NAMES,
-				   xdr_void, NULL,
-				   xdr_utmpidlearr, (char *)&up, rusers_reply);
+	clnt_stat = clnt_broadcast(RUSERSPROG, RUSERSVERS_IDLE,
+	    RUSERSPROC_NAMES, xdr_void, NULL, xdr_utmpidlearr, (char *)&up,
+	    rusers_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
@@ -212,34 +211,35 @@ allhosts()
 static void
 usage()
 {
-        fprintf(stderr, "usage: rusers [-la] [hosts ...]\n");
-        exit(1);
+
+	fprintf(stderr, "usage: rusers [-la] [hosts ...]\n");
+	exit(1);
 }
 
 int
 main(int argc, char *argv[])
 {
-        int ch;
+	int ch;
 
-        while ((ch = getopt(argc, argv, "al")) != -1)
-	        switch (ch) {
-                case 'a':
-                        allopt++;
-                        break;
-                case 'l':
-                        longopt++;
-                        break;
-                default:
-                        usage();
-                        /*NOTREACHED*/
-                }
+	while ((ch = getopt(argc, argv, "al")) != -1)
+		switch (ch) {
+		case 'a':
+			allopt++;
+			break;
+		case 'l':
+			longopt++;
+			break;
+		default:
+			usage();
+			/* NOTREACHED */
+		}
 
-        setlinebuf(stdout);
+	setlinebuf(stdout);
 	if (argc == optind)
 		allhosts();
 	else {
 		for (; optind < argc; optind++)
-			(void) onehost(argv[optind]);
+			(void)onehost(argv[optind]);
 	}
-        exit(0);
+	exit(0);
 }
