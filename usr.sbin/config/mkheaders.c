@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkheaders.c,v 1.6 1997/09/15 06:37:09 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -59,10 +59,19 @@ void
 headers()
 {
 	register struct file_list *fl;
+	struct device *dp;
 
 	for (fl = ftab; fl != 0; fl = fl->f_next)
 		if (fl->f_needs != 0)
 			do_count(fl->f_needs, fl->f_needs, 1);
+	for (dp = dtab; dp != 0; dp = dp->d_next)
+		if ((dp->d_type & TYPEMASK) == PSEUDO_DEVICE) {
+			if (!(dp->d_type & DEVDONE))
+				printf("Warning: pseudo-device \"%s\" is unknown\n",
+				       dp->d_name);
+			else
+				dp->d_type &= TYPEMASK;
+		}
 }
 
 /*
@@ -87,6 +96,7 @@ do_count(dev, hname, search)
 			if (dp->d_type == PSEUDO_DEVICE) {
 				count =
 				    dp->d_slave != UNKNOWN ? dp->d_slave : 1;
+				dp->d_type |= DEVDONE;
 				break;
 			}
 			count++;
