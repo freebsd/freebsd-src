@@ -43,17 +43,16 @@ interfaces in the same cluster, a
 box can also implement what in commercial terms is called a
 .Dq trunk
 interface.
-This means packets
-coming from one of the interfaces in the cluster,
-will appear
-on the wire on the
+This means that packets
+coming from one of the interfaces in a cluster
+will appear on the wire of the
 .Dq parent
-interfaces of any VLAN
-interface belonging to the cluster, with the
-proper VLAN tag.
-Similarly, packets coming from a
-parent interface, will have the VLAN tag stripped and
-will be forwarded to other interfaces on the same cluster.
+interface of any VLAN interface in a cluster,
+with the proper VLAN tag.
+Similarly, packets
+coming from a parent interface of any VLAN interface in a cluster
+will have the VLAN tag stripped,
+and will be forwarded to other interfaces in a cluster.
 See the
 .Sx EXAMPLES
 section for more details.
@@ -159,7 +158,8 @@ interface, and pass packets
 for 802.1q VLANs 10 and 20 to physical interfaces
 .Li dc1
 and
-.Li dc2 :
+.Li dc2 ,
+respectively:
 .Bd -literal -offset indent
 sysctl net.link.ether.bridge_cfg=vlan0:34,dc1:34,vlan1:56,dc2:56
 ifconfig vlan0 vlan 10 vlandev dc0
