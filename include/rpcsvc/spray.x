@@ -36,7 +36,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)spray.x 1.2 87/09/18 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)spray.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: spray.x,v 1.1 1994/08/04 19:01:54 wollman Exp $";
+%static const char rcsid[] = "$Id: spray.x,v 1.4 1997/05/28 04:38:22 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
