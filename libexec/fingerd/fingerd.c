@@ -38,12 +38,17 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <errno.h>
 
@@ -55,7 +60,7 @@ static char sccsid[] = "@(#)fingerd.c	8.1 (Berkeley) 6/4/93";
 #include <strings.h>
 #include "pathnames.h"
 
-void err __P((const char *, ...));
+void logerr __P((const char *, ...));
 
 int
 main(argc, argv)
@@ -88,19 +93,30 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			err("illegal option -- %c", ch);
+			logerr("illegal option -- %c", ch);
 		}
 
 	if (logging) {
 		sval = sizeof(sin);
 		if (getpeername(0, (struct sockaddr *)&sin, &sval) < 0)
-			err("getpeername: %s", strerror(errno));
+			logerr("getpeername: %s", strerror(errno));
 		if (hp = gethostbyaddr((char *)&sin.sin_addr.s_addr,
 		    sizeof(sin.sin_addr.s_addr), AF_INET))
 			lp = hp->h_name;
 		else
 			lp = inet_ntoa(sin.sin_addr);
 		syslog(LOG_NOTICE, "query from %s", lp);
+	}
+
+	/*
+	 * Enable server-side Transaction TCP.
+	 */
+	{
+		int one = 1;
+		if (setsockopt(STDOUT_FILENO, IPPROTO_TCP, TCP_NOPUSH, &one, 
+			       sizeof one) < 0) {
+			logerr("setsockopt(TCP_NOPUSH) failed: %m");
+		}
 	}
 
 	if (!fgets(line, sizeof(line), stdin))
@@ -137,7 +153,7 @@ main(argc, argv)
 	else
 		*comp = prog;
 	if (pipe(p) < 0)
-		err("pipe: %s", strerror(errno));
+		logerr("pipe: %s", strerror(errno));
 
 	switch(vfork()) {
 	case 0:
@@ -147,14 +163,14 @@ main(argc, argv)
 			(void)close(p[1]);
 		}
 		execv(prog, comp);
-		err("execv: %s: %s", prog, strerror(errno));
+		logerr("execv: %s: %s", prog, strerror(errno));
 		_exit(1);
 	case -1:
-		err("fork: %s", strerror(errno));
+		logerr("fork: %s", strerror(errno));
 	}
 	(void)close(p[1]);
 	if (!(fp = fdopen(p[0], "r")))
-		err("fdopen: %s", strerror(errno));
+		logerr("fdopen: %s", strerror(errno));
 	while ((ch = getc(fp)) != EOF) {
 		if (ch == '\n')
 			putchar('\r');
@@ -171,9 +187,9 @@ main(argc, argv)
 
 void
 #if __STDC__
-err(const char *fmt, ...)
+logerr(const char *fmt, ...)
 #else
-err(fmt, va_alist)
+logerr(fmt, va_alist)
 	char *fmt;
         va_dcl
 #endif
