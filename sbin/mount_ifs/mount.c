@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #else
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mount.c,v 1.19 1997/08/24 21:02:49 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -95,6 +95,8 @@ static struct opt {
 	{ MNT_RDONLY,		"read-only" },
 	{ MNT_SYNCHRONOUS,	"synchronous" },
 	{ MNT_UNION,		"union" },
+	{ MNT_NOCLUSTERR,	"noclusterr" },
+	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ NULL }
 };
 
@@ -595,6 +597,10 @@ putfsent(ent)
 		printf(",async");
 	if (ent->f_flags & MNT_NOATIME)
 		printf(",noatime");
+	if (ent->f_flags & MNT_NOCLUSTERR)
+		printf(",noclusterr");
+	if (ent->f_flags & MNT_NOCLUSTERW)
+		printf(",noclusterw");
 
 	if ((fst = getfsspec(ent->f_mntfromname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
