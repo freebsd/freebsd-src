@@ -292,23 +292,16 @@ kernel-install kernel-install.debug:
 	fi
 .if exists(${DESTDIR}${KODIR})
 .if exists(${DESTDIR}${KODIR}.old)
-	@-chflags -R noschg ${DESTDIR}${KODIR}.old
 	-rm -rf ${DESTDIR}${KODIR}.old
 .endif
 	mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
-	@-if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
-	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
-	fi
-	install -c -m 555 -o root -g wheel -fschg \
+	install -c -m 555 -o root -g wheel \
 		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}${KODIR}
 
 kernel-reinstall kernel-reinstall.debug:
-	@-if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
-	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
-	fi
-	install -c -m 555 -o root -g wheel -fschg \
+	install -c -m 555 -o root -g wheel \
 		${KERNEL_KO}${.TARGET:S/kernel-reinstall//} ${DESTDIR}${KODIR}
 
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists($S/modules)
