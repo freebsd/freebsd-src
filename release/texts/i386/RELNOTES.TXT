@@ -221,7 +221,7 @@ the SANE home page for supported scanners. HP ScanJet 4100C, 5200C
 and 6300C are known to be working.
 
 The umodem(4) driver for USB modems. Supported so far is only the 
-3Com 5605 USB modem.
+3Com 5605 and Metricom Ricochet GS wireless USB modems.
 
 The ncv, nsp, and stg drivers have been ported from NetBSD/pc98. 
 They supports NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50 
