@@ -29,8 +29,6 @@ SHLIB_MAJOR=	2
 
 NOLINT=		true
 
-MAINTAINER=	kris
-
 # base sources
 SRCS+=	cpt_err.c cryptlib.c cversion.c ebcdic.c ex_data.c mem.c mem_dbg.c \
 	tmdiff.c uid.c
