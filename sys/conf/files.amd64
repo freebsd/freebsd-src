@@ -85,6 +85,7 @@ amd64/pci/pci_cfgreg.c		optional	pci
 amd64/pci/pci_bus.c		optional	pci
 
 amd64/ia32/ia32_misc.c		optional	ia32
+amd64/ia32/ia32_syscalls.c	optional	ia32
 amd64/ia32/ia32_sysent.c	optional	ia32
 amd64/ia32/ia32_sysvec.c	optional	ia32
 amd64/ia32/ia32_signal.c	optional	ia32
