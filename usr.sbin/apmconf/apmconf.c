@@ -20,7 +20,7 @@
 #include <sys/ioctl.h>
 #include <machine/apm_bios.h>
 
-#define APMDEV		"/dev/apm0"
+#define APMDEV		"/dev/apm"
 
 static int		enable = 0, disable = 0;
 static int		haltcpu = 0, nothaltcpu = 0;
