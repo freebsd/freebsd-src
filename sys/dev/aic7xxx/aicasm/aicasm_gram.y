@@ -38,11 +38,12 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#21 $
+ * $Id: //depot/aic7xxx/aic7xxx/aicasm/aicasm_gram.y#24 $
  *
  * $FreeBSD$
  */
 
+#include <inttypes.h>
 #include <sys/types.h>
 
 #include <inttypes.h>
@@ -937,6 +938,8 @@ immediate_or_a:
 |	T_A
 	{
 		SLIST_INIT(&$$.referenced_syms);
+		symlist_add(&$$.referenced_syms, accumulator.symbol,
+			    SYMLIST_INSERT_HEAD);
 		$$.value = 0;
 	}
 ;
@@ -1236,9 +1239,22 @@ code:
 ;
 
 code:
-	T_MVI destination ',' immediate_or_a ret ';'
+	T_MVI destination ',' immediate ret ';'
 	{
-		format_1_instr(AIC_OP_OR, &$2, &$4, &allzeros, $5);
+		if ($4.value == 0
+		 && is_download_const(&$4) == 0) {
+			expression_t immed;
+
+			/*
+			 * Allow move immediates of 0 so that macros,
+			 * that can't know the immediate's value and
+			 * otherwise compensate, still work.
+			 */
+			make_expression(&immed, 0xff);
+			format_1_instr(AIC_OP_AND, &$2, &immed, &allzeros, $5);
+		} else {
+			format_1_instr(AIC_OP_OR, &$2, &$4, &allzeros, $5);
+		}
 	}
 ;
 
