@@ -1,9 +1,7 @@
 # $FreeBSD$
 
 # Build the add-in FORTH interpreter
-.if ${MACHINE_ARCH} != "ia64"
 SUBDIR+=		ficl
-.endif
 
 # Build OpenFirmware library on PowerPC
 .if ${MACHINE_ARCH} == "powerpc"
