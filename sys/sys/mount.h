@@ -584,7 +584,6 @@ struct cdev *vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */
 int	vfs_modevent(module_t, int, void *);
 void	vfs_mountroot(void);			/* mount our root filesystem */
-int	vfs_rootmountalloc(char *, char *, struct mount **);
 void	vfs_mount_destroy(struct mount *, struct thread *);
 int	vfs_suser(struct mount *, struct thread *);
 void	vfs_unbusy(struct mount *, struct thread *);
