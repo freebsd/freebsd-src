@@ -312,6 +312,23 @@ main(argc, argv)
 		pp = &lp->d_partitions[*cp - 'a'];
 	if (pp->p_size == 0)
 		fatal("%s: `%c' partition is unavailable", argv[0], *cp);
+        if (fsize == 0) {
+			fsize = pp->p_fsize;
+			if (fsize <= 0)
+				fsize = MAX(DFL_FRAGSIZE, lp->d_secsize);
+	}
+
+	if (bsize == 0) {
+			bsize = pp->p_frag * fsize;
+			if (bsize <= 0)
+				bsize = MIN(DFL_LFSBLOCK, 8 * fsize);
+	}
+	
+	if (segsize == 0) {
+			segsize = pp->p_cpg * bsize;
+			if (segsize <= 0)
+				segsize = DFL_LFSSEG;
+	}
 
 	/* If we're making a LFS, we break out here */
 	exit(make_lfs(fso, lp, pp, minfree, bsize, segsize));

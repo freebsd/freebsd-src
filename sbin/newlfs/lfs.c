@@ -167,12 +167,12 @@ static void make_dir __P(( void *, struct direct *, int));
 static void put __P((int, off_t, void *, size_t));
 
 int
-make_lfs(fd, lp, partp, minfree, block_size, seg_size)
+make_lfs(fd, lp, partp, minfree, bsize, seg_size)
 	int fd;
 	struct disklabel *lp;
 	struct partition *partp;
 	int minfree;
-	int block_size;
+	int bsize;
 	int seg_size;
 {
 	struct dinode *dip;	/* Pointer to a disk inode */
@@ -197,7 +197,6 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 	u_long *dp;		/* Used to computed checksum on data */
 	u_long *datasump;	/* Used to computed checksum on data */
 	int block_array_size;	/* How many entries in block array */
-	int bsize;		/* Block size */
 	int db_per_fb;		/* Disk blocks per file block */
 	int i, j;
 	int off;		/* Offset at which to write */
@@ -208,8 +207,6 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 
 	lfsp = &lfs_default;
 
-	if (!(bsize = block_size))
-		bsize = DFL_LFSBLOCK;
 	if (!(ssize = seg_size))
 		ssize = DFL_LFSSEG;
 
@@ -222,6 +219,7 @@ make_lfs(fd, lp, partp, minfree, block_size, seg_size)
 		lfsp->lfs_fsize = bsize;
 		lfsp->lfs_bmask = bsize - 1;
 		lfsp->lfs_inopb = bsize / sizeof(struct dinode);
+
 /* MIS -- should I round to power of 2 */
 		lfsp->lfs_ifpb = bsize / sizeof(IFILE);
 		lfsp->lfs_sepb = bsize / sizeof(SEGUSE);
