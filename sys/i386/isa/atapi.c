@@ -937,7 +937,7 @@ extern void wdintr (int);
 /*
  * Construct lkm_misc structure (see lkm.h).
  */
-MOD_MISC("atapi")
+MOD_MISC(atapi);
 
 int atapi_locked;
 
@@ -951,7 +951,7 @@ int atapi_lock (int ctlr)
 /*
  * Function called when loading the driver.
  */
-int atapi_load (struct lkm_table *lkmtp, int cmd)
+static int atapi_load (struct lkm_table *lkmtp, int cmd)
 {
 	struct atapidrv *d;
 	int n, x;
@@ -995,7 +995,7 @@ int atapi_load (struct lkm_table *lkmtp, int cmd)
 /*
  * Function called when unloading the driver.
  */
-int atapi_unload (struct lkm_table *lkmtp, int cmd)
+static int atapi_unload (struct lkm_table *lkmtp, int cmd)
 {
 	struct atapi *ata;
 	int u;

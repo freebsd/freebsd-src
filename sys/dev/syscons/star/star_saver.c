@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: star_saver.c,v 1.4 1995/10/28 12:35:14 peter Exp $
+ *	$Id: star_saver.c,v 1.5 1995/11/13 07:19:10 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,10 +37,10 @@
 #include <sys/errno.h>
 #include <saver.h>
 
-MOD_MISC("star_saver")
+MOD_MISC(star_saver);
 
-void (*current_saver)();
-void (*old_saver)();
+void (*current_saver)(int blank);
+void (*old_saver)(int blank);
 
 #define NUM_STARS	50
 
@@ -48,7 +48,7 @@ void (*old_saver)();
  * Alternate saver that got its inspiration from a well known utility
  * package for an inferior^H^H^H^H^H^Hfamous OS.
  */
-void
+static void
 star_saver(int blank)
 {
 	scr_stat	*scp = cur_console;
@@ -89,6 +89,7 @@ star_saver(int blank)
 	}
 }
 
+static int
 star_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -98,6 +99,7 @@ star_saver_load(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+static int
 star_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -106,6 +108,7 @@ star_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+int
 star_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, star_saver_load, star_saver_unload,

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.2 1995/10/28 12:35:07 peter Exp $
+ *	$Id: linux.c,v 1.3 1995/11/13 07:18:38 bde Exp $
  */
 
 #include <sys/param.h>
@@ -34,24 +34,26 @@
 #include <sys/conf.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
 
 extern const struct execsw linux_execsw;
 
-MOD_EXEC("linux_emulator", -1, (struct execsw*)&linux_execsw)
+MOD_EXEC(linux, -1, (struct execsw*)&linux_execsw);
 
+static int
 linux_load(struct lkm_table *lkmtp, int cmd)
 {
 	uprintf("Linux emulator installed\n");
 	return 0;
 }
 
+static int
 linux_unload(struct lkm_table *lkmtp, int cmd)
 {
 	uprintf("Linux emulator removed\n");
 	return 0;
 }
 
+int
 linux_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, linux_load, linux_unload, lkm_nullcmd);

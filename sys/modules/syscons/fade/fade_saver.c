@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fade_saver.c,v 1.3 1995/10/28 12:35:10 peter Exp $
+ *	$Id: fade_saver.c,v 1.4 1995/11/13 07:18:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,10 +37,10 @@
 #include <sys/errno.h>
 #include <saver.h>
 
-MOD_MISC("fade_saver")
+MOD_MISC(fade_saver);
 
-void (*current_saver)();
-void (*old_saver)();
+void (*current_saver)(int blank);
+void (*old_saver)(int blank);
 
 static void
 fade_saver(int blank)
@@ -73,6 +73,7 @@ fade_saver(int blank)
 	}
 }
 
+static int
 fade_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -82,6 +83,7 @@ fade_saver_load(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+static int
 fade_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -90,6 +92,7 @@ fade_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+int
 fade_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, fade_saver_load, fade_saver_unload,

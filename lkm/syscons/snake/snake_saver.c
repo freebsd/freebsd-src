@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.6 1995/10/28 12:35:12 peter Exp $
+ *	$Id: snake_saver.c,v 1.7 1995/11/13 07:19:03 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,10 +37,10 @@
 #include <sys/errno.h>
 #include <saver.h>
 
-MOD_MISC("snake_saver")
+MOD_MISC(snake_saver);
 
-void (*current_saver)();
-void (*old_saver)();
+void (*current_saver)(int blank);
+void (*old_saver)(int blank);
 
 static void
 snake_saver(int blank)
@@ -99,6 +99,7 @@ snake_saver(int blank)
 	}
 }
 
+static int
 snake_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -108,6 +109,7 @@ snake_saver_load(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+static int
 snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -116,6 +118,7 @@ snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+int
 snake_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, snake_saver_load, snake_saver_unload,
