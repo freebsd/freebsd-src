@@ -65,7 +65,6 @@ static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #endif not lint
 
 #include <sys/param.h>
-#include <sys/buf.h>
 #include <sys/dkstat.h>
 
 #include <string.h>
@@ -256,7 +255,7 @@ barlabels(row)
 	char tmpstr[10];
 
 	mvwaddstr(wnd, row++, INSET,
-	    "/0   /5   /10  /15  /20  /25  /30  /35  /40  /45  /50");
+	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 	linesperregion = 2 + kbpt;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
@@ -349,12 +348,12 @@ devstats(row, col, dn)
 		return(row);
 	}
 	wmove(wnd, row++, col);
-	histogram(mb_per_second, 50, 1.0);
+	histogram(mb_per_second, 50, .5);
 	wmove(wnd, row++, col);
-	histogram(transfers_per_second, 50, 1.0);
+	histogram(transfers_per_second, 50, .5);
 	if (kbpt) {
 		wmove(wnd, row++, col);
-		histogram(kb_per_transfer, 50, 1.0);
+		histogram(kb_per_transfer, 50, .5);
 	}
 
 	return(row);
