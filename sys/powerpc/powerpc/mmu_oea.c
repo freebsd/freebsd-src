@@ -341,11 +341,14 @@ va_to_pteg(u_int sr, vm_offset_t addr)
 }
 
 static __inline struct pvo_head *
-pa_to_pvoh(vm_offset_t pa)
+pa_to_pvoh(vm_offset_t pa, vm_page_t *pg_p)
 {
 	struct	vm_page *pg;
 
 	pg = PHYS_TO_VM_PAGE(pa);
+
+	if (pg_p != NULL)
+		*pg_p = pg;
 
 	if (pg == NULL)
 		return (&pmap_pvo_unmanaged);
@@ -741,7 +744,7 @@ pmap_bootstrap(vm_offset_t kernelstart, vm_offset_t kernelend)
 void
 pmap_activate(struct thread *td)
 {
-	pmap_t	pm;
+	pmap_t	pm, pmr;
 
 	/*
 	 * Load all the data we need up front to encourasge the compiler to
@@ -751,7 +754,11 @@ pmap_activate(struct thread *td)
 
 	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
 
+	if ((pmr = (pmap_t)pmap_kextract((vm_offset_t)pm)) == NULL)
+		pmr = pm;
+
 	pm->pm_active |= PCPU_GET(cpumask);
+	PCPU_SET(curpmap, pmr);
 }
 
 void
@@ -761,6 +768,7 @@ pmap_deactivate(struct thread *td)
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	pm->pm_active &= ~(PCPU_GET(cpumask));
+	PCPU_SET(curpmap, NULL);
 }
 
 vm_offset_t
@@ -853,42 +861,75 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 {
 	struct		pvo_head *pvo_head;
 	uma_zone_t	zone;
-	u_int		pte_lo, pvo_flags;
+	vm_page_t	pg;
+	u_int		pte_lo, pvo_flags, was_exec, i;
 	int		error;
 
 	if (!pmap_initialized) {
 		pvo_head = &pmap_pvo_kunmanaged;
 		zone = pmap_upvo_zone;
 		pvo_flags = 0;
+		pg = NULL;
+		was_exec = PTE_EXEC;
 	} else {
-		pvo_head = pa_to_pvoh(m->phys_addr);
+		pvo_head = pa_to_pvoh(VM_PAGE_TO_PHYS(m), &pg);
 		zone = pmap_mpvo_zone;
 		pvo_flags = PVO_MANAGED;
+		was_exec = 0;
 	}
 
+	/*
+	 * If this is a managed page, and it's the first reference to the page,
+	 * clear the execness of the page.  Otherwise fetch the execness.
+	 */
+	if (pg != NULL) {
+		if (LIST_EMPTY(pvo_head)) {
+			pmap_attr_clear(pg, PTE_EXEC);
+		} else {
+			was_exec = pmap_attr_fetch(pg) & PTE_EXEC;
+		}
+	}
+
+
+	/*
+	 * Assume the page is cache inhibited and access is guarded unless
+	 * it's in our available memory array.
+	 */
 	pte_lo = PTE_I | PTE_G;
+	for (i = 0; i < (phys_avail_count * 2); i += 2) {
+		if (VM_PAGE_TO_PHYS(m) >= phys_avail[i] &&
+		    VM_PAGE_TO_PHYS(m) <= phys_avail[i + 1]) {
+			pte_lo &= ~(PTE_I | PTE_G);
+			break;
+		}
+	}
 
 	if (prot & VM_PROT_WRITE)
 		pte_lo |= PTE_BW;
 	else
 		pte_lo |= PTE_BR;
 
-	if (prot & VM_PROT_EXECUTE)
-		pvo_flags |= PVO_EXECUTABLE;
+	pvo_flags |= (prot & VM_PROT_EXECUTE);
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
 
-	error = pmap_pvo_enter(pmap, zone, pvo_head, va, m->phys_addr, pte_lo,
-	    pvo_flags);
+	error = pmap_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
+	    pte_lo, pvo_flags);
 
-	if (error == ENOENT) {
+	/*
+	 * Flush the real page from the instruction cache if this page is
+	 * mapped executable and cacheable and was not previously mapped (or
+	 * was not mapped executable).
+	 */
+	if (error == 0 && (pvo_flags & PVO_EXECUTABLE) &&
+	    (pte_lo & PTE_I) == 0 && was_exec == 0) {
 		/*
 		 * Flush the real memory from the cache.
 		 */
-		if ((pvo_flags & PVO_EXECUTABLE) && (pte_lo & PTE_I) == 0) {
-			pmap_syncicache(m->phys_addr, PAGE_SIZE);
-		}
+		pmap_syncicache(VM_PAGE_TO_PHYS(m), PAGE_SIZE);
+		if (pg != NULL)
+			pmap_attr_save(pg, PTE_EXEC);
 	}
 }
 
@@ -1672,6 +1713,7 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	int	i;
 
 	pmap_pvo_enter_calls++;
+	first = 0;
 
 	/*
 	 * Compute the PTE Group index.
@@ -1730,7 +1772,8 @@ pmap_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	 * Remember if the list was empty and therefore will be the first
 	 * item.
 	 */
-	first = LIST_FIRST(pvo_head) == NULL;
+	if (LIST_FIRST(pvo_head) == NULL)
+		first = 1;
 
 	LIST_INSERT_HEAD(pvo_head, pvo, pvo_vlink);
 	if (pvo->pvo_pte.pte_lo & PVO_WIRED)
