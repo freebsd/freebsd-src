@@ -1,0 +1,2 @@
+gawk: defref.awk:2: warning: function `foo' called but never defined
+gawk: defref.awk:1: fatal: function `foo' not defined

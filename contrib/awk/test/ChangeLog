@@ -1,0 +1,252 @@
+Thu May 15 12:49:08 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Release 3.0.3: Release tar file made.
+
+Tue May 13 12:53:46 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (messages): more testing for OK failure on Linux.
+
+Sun May 11 14:57:11 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (nondec): new test case.
+	* nondec.awk, nondec.ok: new files.
+
+Sun May 11 07:07:05 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (prdupval): new test case.
+	* prdupval.awk, prdupval.in, prdupval.ok: new files.
+
+Wed May  7 21:54:34 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (delarprm): new test case.
+	* delarprm.awk, delarprm.ok: new files.
+
+Wed May  7 17:54:00 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (pid): several fixes from ghazi@caip.rutgers.edu.
+
+Tue May  6 20:28:30 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (strftime): Use the right locale stuff.
+	  (clobber): don't need an input file.
+
+Thu Apr 24 22:24:42 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (pid): new test case, from jco@convex.com.
+	  (specfile): removed test case, pid does it better.
+	* pid.awk, pid.ok, pid.sh: new files.
+	* specfile.awk: removed.
+
+Wed Apr 23 23:37:10 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (pipeio2): new test case.
+	* pipeio2.awk, pipeio2.ok, pipeio2.in: new files.
+
+Sun Apr 20 12:22:52 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (clobber): new test case.
+	* clobber.awk, clobber.ok: new files.
+
+Fri Apr 18 07:55:47 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* BETA Release 3.0.34: Release tar file made.
+
+Tue Apr 15 05:57:29 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (strftlng): More wizardry for bizarre Unix systems.
+	  (nlfldsep): use program and input file, not shell script
+	  (basic, unix-tests, gawk.extensions): moved specfile, pipeio1
+	  and strftlng into unix-tests per Pat Rankin.
+	* nlfldsep.awk, nlfldsep.in: new files.
+	* nlfldsep.sh: removed.
+
+Wed Apr  9 23:32:47 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (funstack): new test case.
+	* funstack.awk, funstack.in, funstack.ok: new files.
+	* substr.awk: added many more tests.
+	* substr.ok: updated
+
+Wed Mar 19 20:10:21 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (pipeio1): new test case.
+	* pipeio1.awk, pipeio1.ok: new files.
+
+Tue Mar 18 06:38:36 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (noparm): new test case.
+	* noparm.awk, noparm.ok: new files.
+
+Fri Feb 21 06:30:18 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (reint): new test case.
+	* reint.awk, reint.in, reint.ok: new files.
+
+Wed Feb  5 18:17:51 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (fnarydel): new test case.
+	* fnarydel.awk, fnarydel.ok: new files.
+
+Sun Jan 19 17:06:18 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (nors): new test case.
+	* nors.ok: new file.
+
+Sun Jan 19 17:06:18 1997  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (specfile, strftlng, nfldstr): new test cases.
+	* specfile.awk, strftlng.awk, strftlng.ok, nfldstr.ok: new files.
+
+Fri Dec 27 11:27:13 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (intest): new test case.
+	* intest.awk, intest.ok: new files.
+
+Wed Dec 25 11:25:22 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Release 3.0.2: Release tar file made.
+
+Tue Dec 10 23:09:26 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Release 3.0.1: Release tar file made.
+
+Thu Nov  7 09:12:20 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (splitvar): new test case.
+	* splitvar.awk, splitvar.in, splitvar.ok: new files.
+
+Sun Nov  3 10:55:50 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (nlfldsep): new test case.
+	* nlfldsep.sh, nlfldsep.ok: new files.
+
+Fri Oct 25 10:29:56 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* rand.awk: call srand with fixed seed.
+	* rand.ok: new file.
+	* Makefile.in (rand): changed to compare output with rand.ok.
+
+Sat Oct 19 21:52:04 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (tradanch): new test case.
+	* tradanch.awk, tradanch.in, tradanch.ok: new files.
+
+Thu Oct 17 21:22:05 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* tweakfld.awk: move `rm' out into Makefile.in.
+	* eofsplit.awk: fixed buggy code so won't loop forever.
+	* Makefile.in (all): add unix-tests.
+	  (unix-tests): new target, has pound-bang, fflush, getlnhd.
+	  (basic): removed fflush, getlnhd.
+	  (tweakfld): added rm from tweakfld.awk.
+
+Sun Oct  6 22:00:35 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (back89): new test case.
+	* back89.in, back89.ok: new files.
+
+Sun Oct  6 20:45:54 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (splitwht): new test case.
+	* splitwht.awk, splitwht.ok: new files.
+
+Sun Sep 29 23:14:20 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (gsubtest): new test case.
+	* gsubtest.awk, gsubtest.ok: new files.
+
+Fri Sep 20 11:58:40 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (prtoeval): new test case.
+	* prtoeval.awk, prtoeval.ok: new files.
+
+Tue Sep 10 06:26:44 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (gsubasgn): new test case.
+	* gsubasgn.awk, gsubasgn.ok: new files.
+
+Wed Aug 28 22:06:33 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* badargs.ok: updated output corresponding to change made to
+	  main.c (see main ChangeLog).
+
+Thu Aug  1 07:20:28 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (clean): remove out[123] files from `messages' test.
+	  Thanks to Pat Rankin (rankin@eql.caltech.edu).
+
+Sat Jul 27 23:56:57 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (prt1eval): new test case.
+	* prt1eval.awk, prt1eval.ok: new files.
+
+Mon Jul 22 22:06:10 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (eofsplit): new test case.
+	* eofsplit.awk, eofsplit.ok: new files.
+
+Sun Jul 14 07:07:45 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (fldchgnf): new test case.
+	* fldchgnf.awk, fldchgnf.ok: new files.
+
+Tue May 21 23:23:22 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (substr): new test case.
+	* substr.awk, substr.ok: new files.
+
+Tue May 14 15:05:23 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (dynlj): new test case.
+	* dynlj.awk, dynlj.ok: new files.
+
+Sun May 12 20:45:34 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (fnarray): new test case.
+	* fnarray.awk, fnarray.ok: new files.
+
+Fri Mar 15 06:46:48 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (clean): added `*~' to list of files to be removed.
+	* tweakfld.awk (END): added to do clean up action.
+
+Thu Mar 14 16:41:32 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (mmap8k): new test case.
+	* mmap8k.in, mmap8k.ok: new files.
+
+Sun Mar 10 22:58:35 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (clsflnam): new test case.
+	* clsflnam.in, clsflnam.awk, clsflnam.ok: new files.
+	* tweakfld.awk: changed to have a fixed date.
+
+Thu Mar  7 09:56:09 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (tweakfld): new test case.
+	* tweakfld.in, tweakfld.awk, tweakfld.ok: new files.
+
+Sun Mar  3 06:51:26 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (getlnhd, backgsub) : new test cases.
+	* getlnhd.awk, getlnhd.ok: new files.
+	* backgsub.in, backgsub.awk, backgsub.ok: new files.
+
+Mon Feb 26 22:30:02 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (sprintfc): new test case.
+	* sprintfc.in, sprintfc.awk, sprintfc.ok: new files.
+	* gensub.awk: updated for case of no match of regex.
+
+Wed Jan 24 10:06:16 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* Makefile.in (distclean, maintainer-clean): new targets.
+	  (reindops): added test from Rick Adams (rick@uunet.uu.net).
+	  (arrayparm, paramdup, defref, strftime, prmarscl, sclforin,
+	  sclifin): Fix from Larry Schwimmer (schwim@cyclone.stanford.edu)
+	  so that tests that are supposed to fail use `... || exit 0' to
+	  cause a clean `make clean'.
+
+Wed Jan 10 22:58:55 1996  Arnold D. Robbins  <arnold@skeeve.atl.ga.us>
+
+	* ChangeLog created.
