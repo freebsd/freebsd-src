@@ -115,7 +115,7 @@ will be set and
 will engage interactive mode.
 .Sh BUILTIN COMMANDS
 In
-.Nm Ns ,
+.Nm ,
 builtin commands take parameters from the command line.
 Presently,
 the only way to call them from a script is by using
@@ -312,7 +312,9 @@ These are described below.
 .Bl -tag -width bootfile
 .It Va acpi_load
 Unset this to disable automatic loading of the ACPI module.
-See also hint.acpi.0.disable in
+See also
+.Va hint.acpi.0.disable
+in
 .Xr device.hints 5 .
 .It Va autoboot_delay
 Number of seconds
@@ -590,7 +592,7 @@ virtual machine library that can be called by C functions and vice
 versa.
 .Pp
 In
-.Nm Ns ,
+.Nm ,
 each line read interactively is then fed to
 .Tn FICL ,
 which may call
