@@ -69,7 +69,6 @@ static const char rcsid[] =
 #include    "hash.h"
 #include    "dir.h"
 #include    "job.h"
-extern int errno;
 
 /*
  * The following array is used to make a fast determination of which

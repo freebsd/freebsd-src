@@ -725,7 +725,7 @@ tiplink (char *cmd, unsigned int flags)
  *  1 <-> remote tty out
  *  2 <-> local tty out
  */
-void
+int
 consh(c)
 {
 	char buf[256];
@@ -733,6 +733,7 @@ consh(c)
 	if (prompt("Local command? ", buf, sizeof(buf)))
 		return;
 	tiplink (buf, TL_SIGNAL_TIPOUT | TL_VERBOSE);
+	return 0;
 }
 #endif
 
