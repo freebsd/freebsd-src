@@ -232,8 +232,6 @@
                 ..
                 18.gprof
                 ..
-                19.curses
-                ..
                 20.ipctut
                 ..
                 21.ipc
@@ -308,8 +306,6 @@
             FreeBSD_version
             ..
             IPv6
-            ..
-            atapi
             ..
             atm
             ..
@@ -418,8 +414,6 @@
                 ..
                 sort
                 ..
-            ..
-            svr4
             ..
             worm
             ..
