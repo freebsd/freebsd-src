@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.77 1998/07/11 07:45:39 bde Exp $
+ * $Id: kern_clock.c,v 1.78 1998/08/05 18:06:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -81,15 +81,6 @@ long cp_time[CPUSTATES];
 #else
 static long cp_time[CPUSTATES];
 #endif
-long dk_seek[DK_NDRIVE];
-static long dk_time[DK_NDRIVE];	/* time busy (in statclock ticks) */
-long dk_wds[DK_NDRIVE];
-long dk_wpms[DK_NDRIVE];
-long dk_xfer[DK_NDRIVE];
-
-int dk_busy;
-int dk_ndrive = 0;
-char dk_names[DK_NDRIVE][DK_NAMELEN];
 
 long tk_cancc;
 long tk_nin;
@@ -408,15 +399,8 @@ statclock(frame)
 
 	/*
 	 * We maintain statistics shown by user-level statistics
-	 * programs:  the amount of time in each cpu state, and
-	 * the amount of time each of DK_NDRIVE ``drives'' is busy.
-	 *
-	 * XXX	should either run linked list of drives, or (better)
-	 *	grab timestamps in the start & done code.
+	 * programs:  the amount of time in each cpu state.
 	 */
-	for (i = 0; i < DK_NDRIVE; i++)
-		if (dk_busy & (1 << i))
-			dk_time[i]++;
 
 	/*
 	 * We adjust the priority of the current process.  The priority of

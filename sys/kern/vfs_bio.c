@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.174 1998/09/04 08:06:55 dfr Exp $
+ * $Id: vfs_bio.c,v 1.175 1998/09/05 14:13:06 phk Exp $
  */
 
 /*
@@ -545,21 +545,14 @@ bawrite(struct buf * bp)
 
 /*
  * Ordered write.
- * Start output on a buffer, but only wait for it to complete if the
- * output device cannot guarantee ordering in some other way.  Devices
- * that can perform asynchronous ordered writes will set the B_ASYNC
- * flag in their strategy routine.
- * The buffer is released when the output completes.
+ * Start output on a buffer, and flag it so that the device will write
+ * it in the order it was queued.  The buffer is released when the output
+ * completes.
  */
 int
 bowrite(struct buf * bp)
 {
-	/*
-	 * XXX Add in B_ASYNC once the SCSI
-	 *     layer can deal with ordered
-	 *     writes properly.
-	 */
-	bp->b_flags |= B_ORDERED;
+	bp->b_flags |= B_ORDERED|B_ASYNC;
 	return (VOP_BWRITE(bp));
 }
 
