@@ -1868,6 +1868,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     permissions for greater security; these checks can be disabled
     with the <option>-i</option> flag. &merged;</para>
 
+    <para>&man.ldd.1; can now be used on shared libraries, in addition
+    to executables.</para>
+
     <para><filename>libc</filename> is now thread-safe by default;
     <filename>libc_r</filename> contains only thread functions.</para>
 
@@ -2476,7 +2479,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       misconfigurations. &merged;</para>
 
       <para><application>BIND</application> has been updated to
-      8.2.4-REL. &merged;</para>
+      8.3.1-REL.</para>
 
       <para><application>Binutils</application> have been updated to
       a 27 January 2002 snapshot from the FSF 2.12 branch.</para>
