@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <time.h>
@@ -51,8 +52,11 @@ wcsftime(wchar_t * __restrict wcs, size_t maxsize,
 {
 	static const mbstate_t initial;
 	mbstate_t state;
-	char *dst, *sformat;
+	char *dst, *dstp, *sformat;
 	size_t n, sflen;
+	int sverrno;
+
+	sformat = dst = NULL;
 
 	/*
 	 * Convert the supplied format string to a multibyte representation
@@ -61,8 +65,9 @@ wcsftime(wchar_t * __restrict wcs, size_t maxsize,
 	state = initial;
 	sflen = wcsrtombs(NULL, &format, 0, &state);
 	if (sflen == (size_t)-1)
-		return (0);
-	sformat = alloca(sflen + 1);
+		goto error;
+	if ((sformat = malloc(sflen + 1)) == NULL)
+		goto error;
 	state = initial;
 	wcsrtombs(sformat, &format, sflen + 1, &state);
 
@@ -72,16 +77,29 @@ wcsftime(wchar_t * __restrict wcs, size_t maxsize,
 	 * Then, copy and convert the result back into wide characters in
 	 * the caller's buffer.
 	 */
-	if (SIZE_T_MAX / MB_CUR_MAX <= maxsize)
+	if (SIZE_T_MAX / MB_CUR_MAX <= maxsize) {
 		/* maxsize is prepostorously large - avoid int. overflow. */
-		return (0);
-	dst = alloca(maxsize * MB_CUR_MAX);
+		errno = EINVAL;
+		goto error;
+	}
+	if ((dst = malloc(maxsize * MB_CUR_MAX)) == NULL)
+		goto error;
 	if (strftime(dst, maxsize, sformat, timeptr) == 0)
-		return (0);
+		goto error;
 	state = initial;
-	n = mbsrtowcs(wcs, (const char **)&dst, maxsize, &state);
-	if (n == (size_t)-2 || n == (size_t)-1 || dst != NULL)
-		return (0);
+	dstp = dst;
+	n = mbsrtowcs(wcs, (const char **)&dstp, maxsize, &state);
+	if (n == (size_t)-2 || n == (size_t)-1 || dstp != NULL)
+		goto error;
 
+	free(sformat);
+	free(dst);
 	return (n);
+
+error:
+	sverrno = errno;
+	free(sformat);
+	free(dst);
+	errno = sverrno;
+	return (0);
 }
