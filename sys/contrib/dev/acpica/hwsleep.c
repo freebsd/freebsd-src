@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 47 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -10,7 +10,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -288,7 +288,6 @@ AcpiEnterSleepState (
     ACPI_BIT_REGISTER_INFO  *SleepTypeRegInfo;
     ACPI_BIT_REGISTER_INFO  *SleepEnableRegInfo;
     UINT32                  InValue;
-    UINT32                  Retry;
     ACPI_STATUS             Status;
 
 
@@ -337,12 +336,12 @@ AcpiEnterSleepState (
 
     /* Get current value of PM1A control */
 
-    Status = AcpiHwRegisterRead (ACPI_MTX_LOCK, ACPI_REGISTER_PM1_CONTROL, &PM1AControl);
+    Status = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_CONTROL, &PM1AControl);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
-    ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Entering S%d\n", SleepState));
+    ACPI_DEBUG_PRINT ((ACPI_DB_INIT, "Entering sleep state [S%d]\n", SleepState));
 
     /* Clear SLP_EN and SLP_TYP fields */
 
@@ -356,13 +355,13 @@ AcpiEnterSleepState (
 
     /* Write #1: fill in SLP_TYP data */
 
-    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
+    Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
+    Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -377,13 +376,13 @@ AcpiEnterSleepState (
 
     ACPI_FLUSH_CPU_CACHE ();
 
-    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
+    Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1A_CONTROL, PM1AControl);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
     }
 
-    Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
+    Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1B_CONTROL, PM1BControl);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -401,7 +400,7 @@ AcpiEnterSleepState (
          */
         AcpiOsStall (10000000);
 
-        Status = AcpiHwRegisterWrite (ACPI_MTX_LOCK, ACPI_REGISTER_PM1_CONTROL,
+        Status = AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK, ACPI_REGISTER_PM1_CONTROL,
                     SleepEnableRegInfo->AccessBitMask);
         if (ACPI_FAILURE (Status))
         {
@@ -411,28 +410,19 @@ AcpiEnterSleepState (
 
     /* Wait until we enter sleep state */
 
-    Retry = 1000;
     do
     {
-        Status = AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &InValue, ACPI_MTX_LOCK);
+        Status = AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &InValue, ACPI_MTX_DO_NOT_LOCK);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
-        }
-
-        /*
-         * Some BIOSes don't set WAK_STS at all,
-         * give up waiting for wakeup if we time out.
-         */
-        if (Retry-- == 0) {
-            break;             /* giving up */
         }
 
         /* Spin until we wake */
 
     } while (!InValue);
 
-    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_LOCK);
+    Status = AcpiSetRegister (ACPI_BITREG_ARB_DISABLE, 0, ACPI_MTX_DO_NOT_LOCK);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -440,6 +430,52 @@ AcpiEnterSleepState (
 
     return_ACPI_STATUS (AE_OK);
 }
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiEnterSleepStateS4bios
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Perform a S4 bios request.
+ *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiEnterSleepStateS4bios (
+    void)
+{
+    UINT32                  InValue;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("AcpiEnterSleepStateS4bios");
+
+    AcpiSetRegister (ACPI_BITREG_WAKE_STATUS, 1, ACPI_MTX_DO_NOT_LOCK);
+    AcpiHwClearAcpiStatus();
+
+    AcpiHwDisableNonWakeupGpes();
+
+    ACPI_FLUSH_CPU_CACHE();
+
+    Status = AcpiOsWritePort (AcpiGbl_FADT->SmiCmd, (ACPI_INTEGER) AcpiGbl_FADT->S4BiosReq, 8);
+
+    do {
+        AcpiOsStall(1000);
+        Status = AcpiGetRegister (ACPI_BITREG_WAKE_STATUS, &InValue, ACPI_MTX_DO_NOT_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+    } while (!InValue);
+
+    return_ACPI_STATUS (AE_OK);
+}
+
 
 /******************************************************************************
  *

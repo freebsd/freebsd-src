@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 10 $
+ *       $Revision: 11 $
  *
  *****************************************************************************/
 
@@ -9,7 +9,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2002, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2003, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -143,11 +143,15 @@
 #include <sys/libkern.h>
 #include <machine/stdarg.h>
 
+#define asm         __asm
+#define __cli()     disable_intr()
+#define __sti()     enable_intr()
+
+#ifdef ACPI_DEBUG_OUTPUT
 #ifdef DEBUGGER_THREADING
 #undef DEBUGGER_THREADING
 #endif /* DEBUGGER_THREADING */
 #define DEBUGGER_THREADING 0    /* integrated with DDB */
-#ifdef ACPI_DEBUG_OUTPUT
 #include "opt_ddb.h"
 #ifdef DDB
 #define ACPI_DEBUGGER
