@@ -1,5 +1,7 @@
+/*	$OpenBSD: scard.h,v 1.7 2002/03/04 17:27:39 stevesk Exp $	*/
+
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -22,54 +24,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "includes.h"
-RCSID("$OpenBSD: uuencode.c,v 1.15 2002/03/04 17:27:39 stevesk Exp $");
+#include <openssl/engine.h>
 
-#include "xmalloc.h"
-#include "uuencode.h"
+#ifndef SCARD_H
+#define SCARD_H
 
-#include <resolv.h>
+#define SCARD_ERROR_FAIL	-1
+#define SCARD_ERROR_NOCARD	-2
+#define SCARD_ERROR_APPLET	-3
 
-int
-uuencode(u_char *src, u_int srclength,
-    char *target, size_t targsize)
-{
-	return __b64_ntop(src, srclength, target, targsize);
-}
+Key	*sc_get_key(const char*);
+ENGINE	*sc_get_engine(void);
+void	 sc_close(void);
 
-int
-uudecode(const char *src, u_char *target, size_t targsize)
-{
-	int len;
-	char *encoded, *p;
-
-	/* copy the 'readonly' source */
-	encoded = xstrdup(src);
-	/* skip whitespace and data */
-	for (p = encoded; *p == ' ' || *p == '\t'; p++)
-		;
-	for (; *p != '\0' && *p != ' ' && *p != '\t'; p++)
-		;
-	/* and remove trailing whitespace because __b64_pton needs this */
-	*p = '\0';
-	len = __b64_pton(encoded, target, targsize);
-	xfree(encoded);
-	return len;
-}
-
-void
-dump_base64(FILE *fp, u_char *data, u_int len)
-{
-	u_char *buf = xmalloc(2*len);
-	int i, n;
-
-	n = uuencode(data, len, buf, 2*len);
-	for (i = 0; i < n; i++) {
-		fprintf(fp, "%c", buf[i]);
-		if (i % 70 == 69)
-			fprintf(fp, "\n");
-	}
-	if (i % 70 != 69)
-		fprintf(fp, "\n");
-	xfree(buf);
-}
+#endif

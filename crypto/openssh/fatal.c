@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,53 +23,18 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: uuencode.c,v 1.15 2002/03/04 17:27:39 stevesk Exp $");
+RCSID("$OpenBSD: fatal.c,v 1.1 2002/02/22 12:20:34 markus Exp $");
 
-#include "xmalloc.h"
-#include "uuencode.h"
+#include "log.h"
 
-#include <resolv.h>
-
-int
-uuencode(u_char *src, u_int srclength,
-    char *target, size_t targsize)
-{
-	return __b64_ntop(src, srclength, target, targsize);
-}
-
-int
-uudecode(const char *src, u_char *target, size_t targsize)
-{
-	int len;
-	char *encoded, *p;
-
-	/* copy the 'readonly' source */
-	encoded = xstrdup(src);
-	/* skip whitespace and data */
-	for (p = encoded; *p == ' ' || *p == '\t'; p++)
-		;
-	for (; *p != '\0' && *p != ' ' && *p != '\t'; p++)
-		;
-	/* and remove trailing whitespace because __b64_pton needs this */
-	*p = '\0';
-	len = __b64_pton(encoded, target, targsize);
-	xfree(encoded);
-	return len;
-}
+/* Fatal messages.  This function never returns. */
 
 void
-dump_base64(FILE *fp, u_char *data, u_int len)
+fatal(const char *fmt,...)
 {
-	u_char *buf = xmalloc(2*len);
-	int i, n;
-
-	n = uuencode(data, len, buf, 2*len);
-	for (i = 0; i < n; i++) {
-		fprintf(fp, "%c", buf[i]);
-		if (i % 70 == 69)
-			fprintf(fp, "\n");
-	}
-	if (i % 70 != 69)
-		fprintf(fp, "\n");
-	xfree(buf);
+	va_list args;
+	va_start(args, fmt);
+	do_log(SYSLOG_LEVEL_FATAL, fmt, args);
+	va_end(args);
+	fatal_cleanup();
 }
