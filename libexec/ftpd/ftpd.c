@@ -145,6 +145,7 @@ int	readonly=0;		/* Server is in readonly mode.	*/
 int	noepsv=0;		/* EPSV command is disabled.	*/
 int	noretr=0;		/* RETR command is disabled.	*/
 int	noguestretr=0;		/* RETR command is disabled for anon users. */
+int	noguestmkd=0;		/* MKD command is disabled for anon users. */
 int	noguestmod=1;		/* anon users may not modify existing files. */
 
 static volatile sig_atomic_t recvurg;
@@ -303,7 +304,7 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "46a:AdDElmoOp:rRSt:T:u:Uv")) != -1) {
+	while ((ch = getopt(argc, argv, "46a:AdDElmMoOp:rRSt:T:u:Uv")) != -1) {
 		switch (ch) {
 		case '4':
 			enable_v4 = 1;
@@ -341,6 +342,10 @@ main(argc, argv, envp)
 
 		case 'm':
 			noguestmod = 0;
+			break;
+
+		case 'M':
+			noguestmkd = 1;
 			break;
 
 		case 'o':
@@ -2345,7 +2350,9 @@ makedir(name)
 	char *s;
 
 	LOGCMD("mkdir", name);
-	if (mkdir(name, 0777) < 0)
+	if (guest && noguestmkd)
+		reply(550, "%s: permission denied", name);
+	else if (mkdir(name, 0777) < 0)
 		perror_reply(550, name);
 	else {
 		if ((s = doublequote(name)) == NULL)
