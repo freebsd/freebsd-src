@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.117 1995/05/30 08:03:13 rgrimes Exp $
+ *  $Id: syscons.c,v 1.118 1995/06/14 05:16:12 bde Exp $
  */
 
 #include "sc.h"
@@ -1860,7 +1860,15 @@ outloop:
  	u_short cur_attr = scp->term.cur_attr;
  	u_short *cursor_pos = scp->cursor_pos;
 	do {
-	    *cursor_pos++ = (scr_map[*ptr++] | cur_attr);
+	    /*
+	     * gcc-2.6.3 generates poor (un)sign extension code.  Casting the
+	     * pointers in the following to volatile should have no effect,
+	     * but in fact speeds up this inner loop from 26 to 18 cycles
+	     * (+ cache misses) on i486's.
+	     */
+#define	UCVP(ucp)	((u_char volatile *)(ucp))
+	    *cursor_pos++ = UCVP(scr_map)[*UCVP(ptr)] | cur_attr;
+	    ptr++;
 	    cnt--;
 	} while (cnt && PRINTABLE(*ptr));
 	len -= (cursor_pos - scp->cursor_pos);
