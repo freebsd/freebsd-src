@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.46 1999/02/18 19:45:06 brian Exp $
+ * $Id: chap.c,v 1.47 1999/02/20 01:12:45 brian Exp $
  *
  *	TODO:
  */
@@ -542,6 +542,13 @@ chap_Input(struct physical *p, struct mbuf *bp)
 #ifdef HAVE_DES
   int lanman;
 #endif
+
+  if (bundle_Phase(p->dl->bundle) != PHASE_NETWORK &&
+      bundle_Phase(p->dl->bundle) != PHASE_AUTHENTICATE) {
+    log_Printf(LogPHASE, "Unexpected chap input - dropped !\n");
+    mbuf_Free(bp);
+    return;
+  }
 
   if ((bp = auth_ReadHeader(&chap->auth, bp)) == NULL &&
       ntohs(chap->auth.in.hdr.length) == 0)
