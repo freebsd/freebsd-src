@@ -611,6 +611,13 @@ static int
 ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
+ 	struct ifnet *const ifp = priv->ifp;
+
+	/* Check whether interface is ready for packets */
+	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING)) {
+		NG_FREE_DATA(m, meta);
+		return (ENETDOWN);
+	}
 
 	/* Make sure header is fully pulled up */
 	if (m->m_pkthdr.len < sizeof(struct ether_header)) {
@@ -625,14 +632,14 @@ ng_ether_rcv_lower(node_p node, struct mbuf *m, meta_p meta)
 
 	/* Drop in the MAC address if desired */
 	if (priv->autoSrcAddr) {
-		bcopy((IFP2AC(priv->ifp))->ac_enaddr,
+		bcopy((IFP2AC(ifp))->ac_enaddr,
 		    mtod(m, struct ether_header *)->ether_shost,
 		    ETHER_ADDR_LEN);
 	}
 
 	/* Send it on its way */
 	NG_FREE_META(meta);
-	return ether_output_frame(priv->ifp, m);
+	return ether_output_frame(ifp, m);
 }
 
 /*
