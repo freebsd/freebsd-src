@@ -153,9 +153,7 @@ static void fwohci_complete(void *, int);
  */
 #define DMA_PROG_ALLOC		(8 * PAGE_SIZE)
 
-/* #define NDB 1024 */
 #define NDB FWMAXQUEUE
-#define NDVDB (DVBUF * NDB)
 
 #define	OHCI_VERSION		0x00
 #define	OHCI_ATRETRY		0x08
