@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.21 1998/08/23 08:26:40 bde Exp $
+ * $Id: istallion.c,v 1.22 1998/08/23 09:57:09 bde Exp $
  */
 
 /*****************************************************************************/
@@ -540,7 +540,6 @@ struct tty		*stlidevtotty(dev_t dev);
  *	Internal function prototypes.
  */
 static stliport_t *stli_dev2port(dev_t dev);
-static int	stli_chksharemem(void);
 static int	stli_isaprobe(struct isa_device *idp);
 static int	stli_eisaprobe(struct isa_device *idp);
 static int	stli_mcaprobe(struct isa_device *idp);
@@ -3548,6 +3547,7 @@ static int stli_brdattach(stlibrd_t *brdp)
  *	FIX: need to start this optimization somewhere...
  */
 
+#ifdef notdef
 static int stli_chksharemem()
 {
 	stlibrd_t	*brdp, *nxtbrdp;
@@ -3597,6 +3597,7 @@ static int stli_chksharemem()
 
 	return(0);
 }
+#endif /* notdef */
 
 /*****************************************************************************/
 
