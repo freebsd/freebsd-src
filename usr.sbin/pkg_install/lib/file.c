@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.6 1994/12/06 00:51:48 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.7 1995/04/22 13:58:42 jkh Exp $";
 #endif
 
 /*
@@ -23,6 +23,8 @@ static const char *rcsid = "$Id: file.c,v 1.6 1994/12/06 00:51:48 jkh Exp $";
  */
 
 #include "lib.h"
+#include <FtpLibrary.h>
+#include <pwd.h>
 
 /* Quick check to see if a file exists */
 Boolean
@@ -81,8 +83,196 @@ isemptyfile(char *fname)
     return TRUE;
 }
 
+/* Returns TRUE if file is a URL specification */
+Boolean
+isURL(char *fname)
+{
+    /*
+     * I'm sure there are other types of URL specifications that I could
+     * also be looking for here, but for now I'll just be happy to get ftp
+     * working.
+     */
+    while (isspace(*fname))
+	++fname;
+    if (!strncmp(fname, "ftp://", 6))
+	return TRUE;
+    return FALSE;
+}
+
+/* Returns the host part of a URL */
 char *
-get_file_contents(char *fname)
+fileURLHost(char *fname, char *where, int max)
+{
+    char *ret;
+
+    while (isspace(*fname))
+	++fname;
+    /* Don't ever call this on a bad URL! */
+    fname += strlen("ftp://");
+    /* Do we have a place to stick our work? */
+    if (ret = where) {
+	while (*fname && *fname != '/' && max--)
+	    *where++ = *fname++;
+	*where = '\0';
+	return ret;
+    }
+    /* If not, they must really want us to stomp the original string */
+    ret = fname;
+    while (*fname && *fname != '/')
+	++fname;
+    *fname = '\0';
+    return ret;
+}
+
+/* Returns the filename part of a URL */
+char *
+fileURLFilename(char *fname, char *where, int max)
+{
+    char *ret;
+
+    while (isspace(*fname))
+	++fname;
+    /* Don't ever call this on a bad URL! */
+    fname += strlen("ftp://");
+    /* Do we have a place to stick our work? */
+    if (ret = where) {
+	while (*fname && *fname != '/')
+	    ++fname;
+	if (*fname == '/') {
+	    while (*fname && max--)
+		*where++ = *fname++;
+	}
+	*where = '\0';
+	return ret;
+    }
+    /* If not, they must really want us to stomp the original string */
+    while (*fname && *fname != '/')
+	++fname;
+    return fname;
+}
+
+/*
+ * Callback functions for fileGetURL - GetIO is called on I/O requests
+ * and GetAbort when the transfer aborts.
+ */
+
+/* Something they can use to keep track of the action */
+Boolean connectionAborted = FALSE;
+
+static int
+_fileGetIO(FTP *ftp, int n, char *s )
+{ 
+    printf("In IO: %s\n", s);
+    return 0;
+}
+
+static int
+_fileGetAbort(FTP *ftp, int n, char *s )
+{
+    /* No access or not found, exclude network or host unreachable */
+    if (abs(n) == 550 && FtpBadReply550(s)) {
+	connectionAborted = TRUE;
+	return 1;
+    }
+    return 0;
+}
+
+#define HOSTNAME_MAX	64
+
+/*
+ * Try and fetch a file by URL, returning the name of the local
+ * copy if fetched successfully.
+ */
+char *
+fileGetURL(char *fname)
+{
+    static char out[FILENAME_MAX];
+    char *cp;
+    char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
+    char pword[HOSTNAME_MAX + 40], *uname;
+    struct passwd *pw;
+    FTP *ftp;
+    int i;
+
+    if (!isURL(fname))
+	return NULL;
+
+    cp = fileURLHost(fname, host, HOSTNAME_MAX);
+    if (!*cp) {
+	whinge("URL `%s' has bad host part!", fname);
+	return NULL;
+    }
+
+    cp = fileURLFilename(fname, file, FILENAME_MAX);
+    if (!*cp) {
+	whinge("URL `%s' has bad filename part!", fname);
+	return NULL;
+    }
+
+    FtpSetErrorHandler(&FtpInit, _fileGetAbort);
+    FtpSetFlag(&FtpInit, FTP_REST);
+    FtpSetTimeout(&FtpInit, 60);  /* XXX this may be too short */
+
+    /* Maybe change to ftp if this doesn't work */
+    uname = "anonymous";
+
+    /* Make up a convincing "password" */
+    pw = getpwuid(getuid());
+    if (!pw) {
+	whinge("Can't get user name for ID %d\n.", getuid());
+	strcpy(pword, "joe@");
+    }
+    else
+	snprintf(pword, HOSTNAME_MAX + 40, "%s@%s", pw->pw_name, host);
+    if (Verbose)
+	printf("Trying to fetch %s from %s.\n", file, host);
+
+    FtpLogin(&ftp, host, uname, pword, NULL);
+
+    strcpy(dir, file);
+    for (i = strlen(dir); i && dir[i] != '/'; i--);
+    dir[i] = '\0';
+
+    if (dir[0])
+	FtpChdir(ftp, dir);
+    FtpBinary(ftp);
+
+    if ((cp = getenv("PKG_TMPDIR")) != NULL)
+	sprintf(out, "%s/instpkg-XXXXXX.tgz", cp);
+    else
+	strcpy(out, "/var/tmp/instpkg-XXXXXX.tgz");
+
+    FtpGet(ftp, basename_of(file), out);
+    FtpBye(ftp);
+    if (connectionAborted)
+	return NULL;
+    return out;
+}
+
+char *
+fileFindByPath(char *fname)
+{
+    static char tmp[FILENAME_MAX];
+    char *cp;
+
+    cp = getenv("PKG_PATH");
+    if (!cp)
+	whinge("Warning: PKG_PATH environment variable not set.");
+    tmp[0] = '\0';
+    while (cp) {
+	char *cp2 = strsep(&cp, ":");
+	
+	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
+	if (fexists(tmp))
+	    break;
+	else
+	    tmp[0] = '\0';
+    }
+    return tmp;
+}
+
+char *
+fileGetContents(char *fname)
 {
     char *contents;
     struct stat sb;
@@ -125,9 +315,9 @@ copy_file(char *dir, char *fname, char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	sprintf(cmd, "cp -p -r %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "cp -p -r %s %s", fname, to);
     else
-	sprintf(cmd, "cp -p -r %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "cp -p -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd))
 	barf("Couldn't perform '%s'", cmd);
 }
@@ -138,9 +328,9 @@ move_file(char *dir, char *fname, char *to)
     char cmd[FILENAME_MAX];
 
     if (fname[0] == '/')
-	sprintf(cmd, "mv %s %s", fname, to);
+	snprintf(cmd, FILENAME_MAX, "mv %s %s", fname, to);
     else
-	sprintf(cmd, "mv %s/%s %s", dir, fname, to);
+	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd))
 	barf("Couldn't perform '%s'", cmd);
 }
@@ -162,10 +352,12 @@ copy_hierarchy(char *dir, char *fname, Boolean to)
 	/* If absolute path, use it */
 	if (*fname == '/')
 	    dir = "/";
-	sprintf(cmd, "tar cf - -C %s %s | tar xpf -", dir, fname);
+	snprintf(cmd, FILENAME_MAX * 3, "tar cf - -C %s %s | tar xpf -",
+ 		 dir, fname);
     }
     else
-	sprintf(cmd, "tar cf - %s | tar xpf - -C %s", fname, dir);
+	snprintf(cmd, FILENAME_MAX * 3, "tar cf - %s | tar xpf - -C %s",
+ 		 fname, dir);
 #ifdef DEBUG
     printf("Using '%s' to copy trees.\n", cmd);
 #endif

@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.14 1995/04/22 07:41:01 jkh Exp $ */
+/* $Id: lib.h,v 1.15 1995/04/22 13:58:43 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -123,7 +123,12 @@ char		*basename_of(char *);
 Boolean		fexists(char *);
 Boolean		isdir(char *);
 Boolean		isempty(char *);
-char		*get_file_contents(char *);
+Boolean		isURL(char *);
+char		*fileGetURL(char *);
+char		*fileURLFilename(char *, char *, int);
+char		*fileURLHost(char *, char *, int);
+char		*fileFindByPath(char *);
+char		*fileGetContents(char *);
 void		write_file(char *, char *);
 void		copy_file(char *, char *, char *);
 void		move_file(char *, char *, char *);
