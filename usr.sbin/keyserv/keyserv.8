@@ -1,0 +1,77 @@
+.\" @(#)keyserv.1m 1.21 93/07/14 SMI; from SVr4
+'\"macro stdmacro
+.\" Copyright 1989 AT&T
+.\" @(#)keyserv.8c 1.8 89/03/29 SMI;
+.\".TH KEYSERV 8C "9 September 1987"
+.nr X
+.TH keyserv 1M "14 Sep 1992"
+.SH NAME
+keyserv \- server for storing private encryption keys
+.SH SYNOPSIS
+.B keyserv 
+[
+.B \-d
+] [
+.B \-D
+] [
+.B \-n
+]
+.SH AVAILABILITY
+.LP
+SUNWcsu
+.SH DESCRIPTION
+.IX "keyserv" "" "\fLkeyserv\fP \(em server for storing private encryption keys"
+.IX "NFS security" "server for storing private encryption keys" "" "server for storing private encryption keys \(em \fLkeyserv\fP"
+.IX "encryption keys"  "server for storing private keys" "" "server for storing private keys \(em \fLkeyserv\fP"
+.LP
+.B keyserv
+is a daemon that is used for storing the
+private encryption keys of each
+user logged into the system.
+These encryption keys are used for accessing
+secure network services such as secure NFS.
+.P
+Normally, root's key is read from the file
+.B /etc/.rootkey
+when the daemon is started.
+This is useful during power-fail reboots
+when no one is around to type a password. 
+.P
+If a client with no secret key calls 
+.BR keyserv , 
+then the key of user 
+.B nobody 
+is used instead as the default key.
+.SH OPTIONS
+.TP 10
+.B \-d 
+Disable the use of default keys for
+.BR nobody .
+.TP
+.B \-D 
+Run in debugging mode and log all requests to 
+.BR keyserv .
+.TP
+.B \-n
+Root's secret key is not read from
+.BR /etc/.rootkey .
+Instead,
+.B keyserv
+prompts the user for the password to decrypt
+root's key stored in the
+.B /etc/publickey
+database and then stores the decrypted key in
+.B /etc/.rootkey
+for future use.
+This option is useful if the
+.B /etc/.rootkey
+file ever gets out of date or corrupted.
+.SH FILES
+.PD 0
+.TP 20
+.B /etc/.rootkey
+.PD
+.SH "SEE ALSO"
+.BR keylogin (1),
+.BR keylogout (1),
+.BR publickey (4)
