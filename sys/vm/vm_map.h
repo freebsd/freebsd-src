@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.33.2.2 1999/03/11 05:56:49 alc Exp $
+ * $Id: vm_map.h,v 1.33.2.3 1999/07/28 07:40:02 alc Exp $
  */
 
 /*
@@ -125,10 +125,17 @@ struct vm_map_entry {
  *	by address.  A single hint is provided to start
  *	searches again from the last successful search,
  *	insertion, or removal.
+ *
+ *	Note: the lock structure cannot be the first element of vm_map
+ *	because this can result in a running lockup between two or more
+ *	system processes trying to kmem_alloc_wait() due to kmem_alloc_wait()
+ *	and free tsleep/waking up 'map' and the underlying lockmgr also
+ *	sleeping and waking up on 'map'.  The lockup occurs when the map fills
+ *	up.  The 'exec' map, for example.
  */
 struct vm_map {
-	struct lock lock;		/* Lock for map data */
 	struct vm_map_entry header;	/* List of entries */
+	struct lock lock;		/* Lock for map data */
 	int nentries;			/* Number of entries */
 	vm_size_t size;			/* virtual size */
 	unsigned char	is_main_map;		/* Am I a main map? */
