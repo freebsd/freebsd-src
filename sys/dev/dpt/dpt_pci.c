@@ -156,7 +156,6 @@ dpt_pci_attach (device_t dev)
 	s = splcam();
 
 	if (dpt_init(dpt) != 0) {
-		dpt_free(dpt);
 		error = ENXIO;
 		goto bad;
 	}
@@ -178,8 +177,7 @@ dpt_pci_attach (device_t dev)
 bad:
 	dpt_release_resources(dev);
 
-	if (dpt)
-		dpt_free(dpt);
+	dpt_free(dpt);
 
 	return (error);
 }
