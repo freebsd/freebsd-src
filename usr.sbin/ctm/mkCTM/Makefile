@@ -2,7 +2,6 @@
 
 PROG=	mkctm
 NO_MAN=
-SRCS=	mkctm.c
 
 DPADD=	${LIBMD}
 LDADD=	-lmd

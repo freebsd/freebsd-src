@@ -5,7 +5,6 @@
 
 PROG=	ntp-keygen
 NO_MAN=
-SRCS=	ntp-keygen.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 

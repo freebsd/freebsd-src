@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	rlogind
-SRCS=	rlogind.c
 MAN=	rlogind.8
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
