@@ -7,7 +7,7 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: kernxref.sh,v 1.2 1995/11/06 16:51:45 phk Exp $
+# $Id: kernxref.sh,v 1.4 1995/12/15 13:29:32 phk Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.
@@ -87,8 +87,8 @@ END	{
 	}
 END	{
 	printf "Total symbols: %5d\n",N1+N2+N3
-	printf "undef symbols: %5d\n",N1
-	printf "unref symbols: %5d\n",N2
+	printf "unref symbols: %5d\n",N1
+	printf "undef symbols: %5d\n",N2
 	printf "1 ref symbols: %5d\n",N4
 	printf "2 ref symbols: %5d\n",N5
 	}
