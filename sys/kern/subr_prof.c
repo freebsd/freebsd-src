@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.16 1995/12/29 15:29:08 bde Exp $
+ * $Id: subr_prof.c,v 1.17 1996/10/17 19:32:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -66,6 +66,8 @@ nullfunc_loop_profiled()
 		nullfunc_profiled();
 }
 
+#define	nullfunc_loop_profiled_end	nullfunc_profiled	/* XXX */
+
 void
 nullfunc_profiled()
 {
@@ -82,11 +84,11 @@ kmstartup(dummy)
 	int cputime_overhead;
 	int empty_loop_time;
 	int i;
-	fptrint_t kmstartup_addr;
 	int mcount_overhead;
 	int mexitcount_overhead;
 	int nullfunc_loop_overhead;
 	int nullfunc_loop_profiled_time;
+	fptrint_t tmp_addr;
 #endif
 
 	/*
@@ -175,11 +177,11 @@ kmstartup(dummy)
 #if defined(i386) && __GNUC__ >= 2
 		    asm("call mexitcount; 1:"
 			: : : "ax", "bx", "cx", "dx", "memory");
-	asm("movl $1b,%0" : "=rm" (kmstartup_addr));
+	asm("movl $1b,%0" : "=rm" (tmp_addr));
 #else
 #error
 #endif
-	mexitcount_overhead = KCOUNT(p, PC_TO_I(p, kmstartup_addr));
+	mexitcount_overhead = KCOUNT(p, PC_TO_I(p, tmp_addr));
 
 	p->state = GMON_PROF_OFF;
 	stopguprof(p);
@@ -187,15 +189,10 @@ kmstartup(dummy)
 	enable_intr();
 
 	nullfunc_loop_profiled_time = 0;
-	for (i = 0; i < 28; i += sizeof(HISTCOUNTER)) {
-		int x;
-
-		x = KCOUNT(p, PC_TO_I(p,
-				      (fptrint_t)nullfunc_loop_profiled + i));
-		nullfunc_loop_profiled_time += x;
-		printf("leaf[%d] = %d sum %d\n",
-		       i, x, nullfunc_loop_profiled_time);
-	}
+	for (tmp_addr = (fptrint_t)nullfunc_loop_profiled;
+	     tmp_addr < (fptrint_t)nullfunc_loop_profiled_end;
+	     tmp_addr += HISTFRACTION * sizeof(HISTCOUNTER))
+		nullfunc_loop_profiled_time += KCOUNT(p, PC_TO_I(p, tmp_addr));
 #define CALIB_DOSCALE(count)	(((count) + CALIB_SCALE / 3) / CALIB_SCALE)
 #define	c2n(count, freq)	((int)((count) * 1000000000LL / freq))
 	printf("cputime %d, empty_loop %d, nullfunc_loop_profiled %d, mcount %d, mexitcount %d\n",
