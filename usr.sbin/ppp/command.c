@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.12 1998/02/09 19:20:41 brian Exp $
+ * $Id: command.c,v 1.131.2.13 1998/02/09 19:23:58 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -834,7 +834,7 @@ ShowCommand(struct cmdargs const *arg)
   if (arg->argc > 0)
     FindExec(arg->bundle, ShowCommands, arg->argc, arg->argv, "show ");
   else if (VarTerm)
-    fprintf(VarTerm, "Use ``show ?'' to get a arg->cmd.\n");
+    fprintf(VarTerm, "Use ``show ?'' to get a list.\n");
   else
     LogPrintf(LogWARN, "show command must have arguments\n");
 
@@ -1527,7 +1527,7 @@ SetCommand(struct cmdargs const *arg)
   if (arg->argc > 0)
     FindExec(arg->bundle, SetCommands, arg->argc, arg->argv, "set ");
   else if (VarTerm)
-    fprintf(VarTerm, "Use `set ?' to get a arg->cmd or `set ? <var>' for"
+    fprintf(VarTerm, "Use `set ?' to get a list or `set ? <var>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "set command must have arguments\n");
@@ -1635,7 +1635,7 @@ AliasCommand(struct cmdargs const *arg)
   if (arg->argc > 0)
     FindExec(arg->bundle, AliasCommands, arg->argc, arg->argv, "alias ");
   else if (VarTerm)
-    fprintf(VarTerm, "Use `alias help' to get a arg->cmd or `alias help"
+    fprintf(VarTerm, "Use `alias help' to get a list or `alias help"
             " <option>' for syntax help.\n");
   else
     LogPrintf(LogWARN, "alias command must have arguments\n");
@@ -1707,7 +1707,7 @@ AllowCommand(struct cmdargs const *arg)
   if (arg->argc > 0)
     FindExec(arg->bundle, AllowCommands, arg->argc, arg->argv, "allow ");
   else if (VarTerm)
-    fprintf(VarTerm, "Use `allow ?' to get a arg->cmd or `allow ? <cmd>' for"
+    fprintf(VarTerm, "Use `allow ?' to get a list or `allow ? <cmd>' for"
 	    " syntax help.\n");
   else
     LogPrintf(LogWARN, "allow command must have arguments\n");
