@@ -1244,14 +1244,26 @@ For instance, you should write tests as
 not the other way around, which doesn't work.
 .Pp
 For loops are expanded before tests, so a fragment such as:
-.Bd -literal
+.Bd -literal -offset indent
 \&.for TMACHINE in ${SHARED_ARCHS}
 \&.if ${TMACHINE} = ${MACHINE}
      ...
 \&.endif
 \&.endfor
 .Ed
+.Pp
 won't work, and should be rewritten the other way around.
+.Pp
+The parsing code is broken with respect to handling a semicolon
+after a colon, so a fragment like this will fail:
+.Bd -literal -offset indent
+HDRS=   foo.h bar.h
+
+all:
+\&.for h in ${HDRS:S;^;${.CURDIR}/;}
+     ...
+\&.endfor
+.Ed
 .Sh SEE ALSO
 .Xr mkdep 1 ,
 .Xr make.conf 5
