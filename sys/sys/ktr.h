@@ -128,8 +128,8 @@ void	ktr_tracepoint(u_int mask, const char *file, int line,
 #define CTR6(m, format, p1, p2, p3, p4, p5, p6) do {			\
 	if (KTR_COMPILE & (m))						\
 		ktr_tracepoint((m), __FILE__, __LINE__, format,		\
-		    (u_long)p1, (u_long)p2, (u_long)p3, (u_long)p4,	\
-		    (u_long)p5, (u_long)p6);				\
+		    (u_long)(p1), (u_long)(p2), (u_long)(p3),		\
+		    (u_long)(p4), (u_long)(p5), (u_long)(p6));		\
 	} while(0)
 #define CTR0(m, format)			CTR6(m, format, 0, 0, 0, 0, 0, 0)
 #define CTR1(m, format, p1)		CTR6(m, format, p1, 0, 0, 0, 0, 0)
