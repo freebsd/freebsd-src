@@ -1,6 +1,6 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.3 2002/03/12 15:36:48 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.4 2002/03/17 10:26:34 ue Exp $
   $Id: proc-i386.sgml,v 1.3 2002/03/10 15:37:15 ue Exp $
   basiert auf: 1.2
 -->
@@ -37,7 +37,7 @@
   <para>Symmetrische Multi-Prozessor (SMP) Systeme werden im
     allgemeinen von &os; unterst&uuml;tzt.  Allerdings kommt es in
     einigen F&auml;llen zu Problemen, weil das BIOS oder das Mainboard
-    fehlerhaft sind.  Ein Blick in der Archive der &a.smp; kann hier
+    fehlerhaft sind.  Ein Blick in der Archive der Mailingliste &a.smp; kann hier
     weiterhelfen.</para>
 
   <para>&os; l&auml;uft normalerweise auf Laptops mit i386-Prozessoren,
@@ -48,5 +48,5 @@
     F&auml;llen ist es sogar notwendig, &os; speziell anzupassen, um
     Fehlern in der Hardware und anderen Merkw&uuml;rdigkeiten
     auszugleichen.  Im Zweifelsfalle kann ein Blick in der Archive der
-    &a.mobile; weiterhelfen.</para>
+    Mailingliste &a.mobile; weiterhelfen.</para>
 </sect1>
