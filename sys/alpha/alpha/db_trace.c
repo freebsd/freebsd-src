@@ -96,6 +96,12 @@ static struct special_symbol {
 	{ NULL }
 };
 
+
+int  db_md_set_watchpoint   __P((db_expr_t addr, db_expr_t size));
+int  db_md_clr_watchpoint   __P((db_expr_t addr, db_expr_t size));
+void db_md_list_watchpoints __P((void));
+
+
 /*
  * Decode the function prologue for the function we're in, and note
  * which registers are stored where, and how large the stack frame is.
@@ -367,3 +373,30 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		frame += pi.pi_frame_size;
 	}
 }
+
+
+
+int
+db_md_set_watchpoint(addr, size)
+	db_expr_t addr;
+	db_expr_t size;
+{
+	return (-1);
+}
+
+
+int
+db_md_clr_watchpoint(addr, size)
+	db_expr_t addr;
+	db_expr_t size;
+{
+	return (-1);
+}
+
+
+void
+db_md_list_watchpoints()
+{
+	return;
+}
+

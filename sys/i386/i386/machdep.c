@@ -2186,15 +2186,27 @@ fill_dbregs(p, dbregs)
 {
 	struct pcb *pcb;
 
-	pcb = &p->p_addr->u_pcb;
-	dbregs->dr0 = pcb->pcb_dr0;
-	dbregs->dr1 = pcb->pcb_dr1;
-	dbregs->dr2 = pcb->pcb_dr2;
-	dbregs->dr3 = pcb->pcb_dr3;
-	dbregs->dr4 = 0;
-	dbregs->dr5 = 0;
-	dbregs->dr6 = pcb->pcb_dr6;
-	dbregs->dr7 = pcb->pcb_dr7;
+	if (p == NULL) {
+		dbregs->dr0 = rdr0();
+		dbregs->dr1 = rdr1();
+		dbregs->dr2 = rdr2();
+		dbregs->dr3 = rdr3();
+		dbregs->dr4 = rdr4();
+		dbregs->dr5 = rdr5();
+		dbregs->dr6 = rdr6();
+		dbregs->dr7 = rdr7();
+	}
+	else {
+		pcb = &p->p_addr->u_pcb;
+		dbregs->dr0 = pcb->pcb_dr0;
+		dbregs->dr1 = pcb->pcb_dr1;
+		dbregs->dr2 = pcb->pcb_dr2;
+		dbregs->dr3 = pcb->pcb_dr3;
+		dbregs->dr4 = 0;
+		dbregs->dr5 = 0;
+		dbregs->dr6 = pcb->pcb_dr6;
+		dbregs->dr7 = pcb->pcb_dr7;
+	}
 	return (0);
 }
 
@@ -2207,73 +2219,83 @@ set_dbregs(p, dbregs)
 	int i;
 	u_int32_t mask1, mask2;
 
-	/*
-	 * Don't let an illegal value for dr7 get set.  Specifically,
-	 * check for undefined settings.  Setting these bit patterns
-	 * result in undefined behaviour and can lead to an unexpected
-	 * TRCTRAP.
-	 */
-	for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8; 
-	     i++, mask1 <<= 2, mask2 <<= 2)
-		if ((dbregs->dr7 & mask1) == mask2)
+	if (p == NULL) {
+		load_dr0(dbregs->dr0);
+		load_dr1(dbregs->dr1);
+		load_dr2(dbregs->dr2);
+		load_dr3(dbregs->dr3);
+		load_dr4(dbregs->dr4);
+		load_dr5(dbregs->dr5);
+		load_dr6(dbregs->dr6);
+		load_dr7(dbregs->dr7);
+	}
+	else {
+		/*
+		 * Don't let an illegal value for dr7 get set.	Specifically,
+		 * check for undefined settings.  Setting these bit patterns
+		 * result in undefined behaviour and can lead to an unexpected
+		 * TRCTRAP.
+		 */
+		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8; 
+		     i++, mask1 <<= 2, mask2 <<= 2)
+			if ((dbregs->dr7 & mask1) == mask2)
+				return (EINVAL);
+		
+		if (dbregs->dr7 & 0x0000fc00)
 			return (EINVAL);
 
-	if (dbregs->dr7 & 0x0000fc00)
-		return (EINVAL);
+		pcb = &p->p_addr->u_pcb;
+		
+		/*
+		 * Don't let a process set a breakpoint that is not within the
+		 * process's address space.  If a process could do this, it
+		 * could halt the system by setting a breakpoint in the kernel
+		 * (if ddb was enabled).  Thus, we need to check to make sure
+		 * that no breakpoints are being enabled for addresses outside
+		 * process's address space, unless, perhaps, we were called by
+		 * uid 0.
+		 *
+		 * XXX - what about when the watched area of the user's
+		 * address space is written into from within the kernel
+		 * ... wouldn't that still cause a breakpoint to be generated
+		 * from within kernel mode?
+		 */
 
-
-
-	pcb = &p->p_addr->u_pcb;
-
-	/*
-	 * Don't let a process set a breakpoint that is not within the
-	 * process's address space.  If a process could do this, it
-	 * could halt the system by setting a breakpoint in the kernel
-	 * (if ddb was enabled).  Thus, we need to check to make sure
-	 * that no breakpoints are being enabled for addresses outside
-	 * process's address space, unless, perhaps, we were called by
-	 * uid 0.
-	 *
-	 * XXX - what about when the watched area of the user's
-	 * address space is written into from within the kernel
-	 * ... wouldn't that still cause a breakpoint to be generated
-	 * from within kernel mode?
-	 */
-
-	if (suser(p) != 0) {
-		if (dbregs->dr7 & 0x3) {
-			/* dr0 is enabled */
-			if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)
-				return (EINVAL);
+		if (suser(p) != 0) {
+			if (dbregs->dr7 & 0x3) {
+				/* dr0 is enabled */
+				if (dbregs->dr0 >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+			
+			if (dbregs->dr7 & (0x3<<2)) {
+				/* dr1 is enabled */
+				if (dbregs->dr1 >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+			
+			if (dbregs->dr7 & (0x3<<4)) {
+				/* dr2 is enabled */
+				if (dbregs->dr2 >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+			
+			if (dbregs->dr7 & (0x3<<6)) {
+				/* dr3 is enabled */
+				if (dbregs->dr3 >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
 		}
 
-		if (dbregs->dr7 & (0x3<<2)) {
-			/* dr1 is enabled */
-			if (dbregs->dr1 >= VM_MAXUSER_ADDRESS)
-				return (EINVAL);
-		}
+		pcb->pcb_dr0 = dbregs->dr0;
+		pcb->pcb_dr1 = dbregs->dr1;
+		pcb->pcb_dr2 = dbregs->dr2;
+		pcb->pcb_dr3 = dbregs->dr3;
+		pcb->pcb_dr6 = dbregs->dr6;
+		pcb->pcb_dr7 = dbregs->dr7;
 
-		if (dbregs->dr7 & (0x3<<4)) {
-			/* dr2 is enabled */
-			if (dbregs->dr2 >= VM_MAXUSER_ADDRESS)
-       				return (EINVAL);
-		}
-
-		if (dbregs->dr7 & (0x3<<6)) {
-			/* dr3 is enabled */
-			if (dbregs->dr3 >= VM_MAXUSER_ADDRESS)
-				return (EINVAL);
-		}
+		pcb->pcb_flags |= PCB_DBREGS;
 	}
-
-	pcb->pcb_dr0 = dbregs->dr0;
-	pcb->pcb_dr1 = dbregs->dr1;
-	pcb->pcb_dr2 = dbregs->dr2;
-	pcb->pcb_dr3 = dbregs->dr3;
-	pcb->pcb_dr6 = dbregs->dr6;
-	pcb->pcb_dr7 = dbregs->dr7;
-
-	pcb->pcb_flags |= PCB_DBREGS;
 
 	return (0);
 }
