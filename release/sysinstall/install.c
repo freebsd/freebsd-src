@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.24 1995/05/18 14:11:15 jkh Exp $
+ * $Id: install.c,v 1.25 1995/05/18 16:53:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,6 +99,9 @@ installCommit(char *str)
 	Disk *d = (Disk *)devs[i]->private;
 	Chunk *c1;
 
+	if (!devs[i]->enabled)
+	    continue;
+
 	if (mbrContents) {
 	    Set_Boot_Mgr(d, mbrContents);
 	    mbrContents = NULL;
@@ -160,10 +163,10 @@ make_filesystems(void)
 			    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", c2->name, p->mountpoint);
 			    continue;
 			}
-			sprintf(dname, "/dev/%sa", disk->name);
 			if (p->newfs) {
 			    int i;
 
+			    sprintf(dname, "/dev/r%sa", disk->name);
 			    msgNotify("Making a new root filesystem on %s", dname);
 			    i = vsystem("newfs %s", dname);
 			    if (i) {
@@ -173,6 +176,7 @@ make_filesystems(void)
 			}
 			else
 			    msgConfirm("Warning:  You have selected a Read-Only root device\nand may be unable to find the appropriate device entries on it\nif it is from an older pre-slice version of FreeBSD.");
+			sprintf(dname, "/dev/%sa", disk->name);
 			if (Mount("/mnt", dname)) {
 			    msgConfirm("Unable to mount the root file system!  Giving up.");
 			    return;
@@ -213,7 +217,7 @@ make_filesystems(void)
 
 			if (tmp->newfs)
 			    command_shell_add(tmp->mountpoint,
-					      "%s %s", tmp->newfs_cmd, c2->name);
+					      "%s /mnt/dev/r%s", tmp->newfs_cmd, c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		}
