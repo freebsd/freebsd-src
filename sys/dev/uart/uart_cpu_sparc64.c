@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
+static phandle_t uart_cpu_getdev_keyboard(phandle_t root);
+
 static struct bus_space_tag bst_store[3];
 
 static int
@@ -65,6 +67,25 @@ uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 	return ((b1->bsh == b2->bsh) ? 1 : 0);
 }
 
+static phandle_t
+uart_cpu_getdev_keyboard(phandle_t root)
+{
+	phandle_t child;
+	phandle_t node;
+	char buf[32];
+
+	for (child = OF_child(root); child != 0 && child != -1;
+	    child = OF_peer(child)) {
+		if (OF_getprop(child, "device_type", buf, sizeof(buf)) != -1 &&
+		    !strcmp(buf, "serial") &&
+		    OF_getprop(child, "keyboard", buf, sizeof(buf)) != -1)
+			return (child);
+		if ((node = uart_cpu_getdev_keyboard(child)) != -1)
+			return (node);
+	}
+	return (-1);
+}
+
 int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
@@ -86,26 +107,26 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	 * I would assume that the user expects that FreeBSD uses the new
 	 * console setting. There's choice choice, really.
 	 */
-	if ((options = OF_finddevice("/options")) == -1)
-		return (ENXIO);
-	if (OF_getprop(options, "input-device", dev, sizeof(dev)) == -1)
-		return (ENXIO);
-	if ((input = OF_finddevice(dev)) == -1)
-		return (ENXIO);
-	if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
-		return (ENXIO);
-	if (strcmp(buf, "serial"))
-		return (ENODEV);
-	if (devtype == UART_DEV_KEYBOARD) {
-		if (OF_getprop(input, "keyboard", buf, sizeof(buf)) == -1)
+	 if ((options = OF_finddevice("/options")) == -1)
+		 return (ENXIO);
+	if (devtype == UART_DEV_CONSOLE) {
+		if (OF_getprop(options, "input-device", dev, sizeof(dev)) == -1)
 			return (ENXIO);
-	} else if (devtype == UART_DEV_CONSOLE) {
+		if ((input = OF_finddevice(dev)) == -1)
+			return (ENXIO);
+		if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
+			return (ENXIO);
+		if (strcmp(buf, "serial"))
+			return (ENODEV);
 		if (OF_getprop(options, "output-device", buf, sizeof(buf))
 		    == -1)
 			return (ENXIO);
 		if ((output = OF_finddevice(buf)) == -1)
 			return (ENXIO);
 		if (input != output)
+			return (ENXIO);
+	} else if (devtype == UART_DEV_KEYBOARD) {
+		if ((input = uart_cpu_getdev_keyboard(OF_peer(0))) == -1)
 			return (ENXIO);
 	} else
 		return (ENODEV);
