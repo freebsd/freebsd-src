@@ -1,3 +1,169 @@
+	--- 8.2.4-REL released --- (Wed May  9 14:36:23 PDT 2001)
+
+1212.	[bug]		some function declarations wern't protected by
+			__BEGIN_DECL/__END_DECL in resolv.h.
+
+1211.	[port]		next: openstep is now supported as well as nextstep.
+
+1210.	[port]		add: SCO Unix 5.0.6.
+
+1209.	[port]		winnt: issues.
+
+	--- 8.2.4-T2B released --- (Thu May  3 05:48:14 PDT 2001)
+
+1207.	[contrib]	new h2n from author.
+
+1206.	[bug]		ixfr_getdelta() uninitialised variable used.
+
+1205.	[bug]		parse_cert_rr() passes wrong buffer size to b64_pton().
+
+1204.	[bug]		memory leak: pathname leaked specifing controls unix.
+
+1203.	[bug]		detect corrupted ixfr logs.
+
+1202.	[bug]		memory leak: dynamic update was leaking.
+
+1200.	[bug]		memory leak: when following CNAMES from of req_query().
+
+1199.	[bug]		memory leak: when defining keys.
+
+1195.	[bug]		memory leak: include in named.conf leaked file name.
+
+1194.	[port]		MPE/IX port updated by Mark Bixby of the
+			HP CSY MPE/iX Internet & Interoperability Team.
+
+1193.	[port]		winnt: path separator.
+
+1192.	[bug]		winnt: fix accept failures.
+
+1191.	[port]		winnt: a CLI tool for controling named 'BINDcmd' now
+			exists.
+
+1190.	[contrib]	nslint upgraded from 1.5.1 to 2.0.2 (by author).
+
+1189.	[port]		redo #1146 to cope w/ differing gettimeofday()
+			function signatures.
+
+1188.	[bug]		memory leak when removing multiple records via dynamic
+			updates.
+
+	--- 8.2.4-T1B released --- (Thu Apr 19 14:38:30 PDT 2001)
+
+1187.	[support]	Don't accept in a query names which would be rejected
+			in responses.
+
+1186.	[bug]		DNSSEC key ids were computed incorrectly.
+
+1185.	[bug]		remember if a notify came in while a zone transfer is
+			in progress and perform a refresh check after the
+			transfer completes.
+
+	--- 8.2.4-T1A released --- (Sun Apr  1 12:15:48 PDT 2001)
+
+1184.	[support]	notify delay limit now "nzones" rather than "nzones/5".
+
+1183.	[port]		new port/cygwin contributed by s_c_biggs@bigfoot.com.
+
+1182.	[contrib]	new contrib/mdnkit (V1.3) from author.
+
+1181.	[bug]		dig -T was only delaying after the first batched query.
+
+1180.	[bug]		NSAP processing did not support leading 0x as required
+			by RFC 1706.
+
+1179.	[contrib]	new contrib/adm from official ftp site.
+
+1178.	[contrib]	new contrib/host from author.
+
+1177.	[contrib]	new contrib/dnsp from author.
+
+1176.	[bug]		fix memory and file descriptor leaks.
+
+1175.	[bug]		statp->nsort could fail to be re-initialised if
+			resolv.conf goes away.
+
+1174.	[port]		winnt: missing call to sockout() in close().
+
+1173.	[bug]		suppress repeated notifies when a nameserver is a
+			CNAME.
+
+1172.	[bug]		allow res_{n}update to take a single unlinked element.
+
+1171.	[doc]		rfc2308-type1 applies to answers from the cache.
+
+1170.	[port]		winnt: does not have unix domain sockets.
+
+1171.	[bug]		xfers_deferred could become out of sync.
+
+1170.	[bug]		check the family before using a cached result from
+			gethostbyname*().
+
+1169.	[cleanup]	namespace cleanup of prand_conf.
+
+1168.	[port]		fix ctk ORD_32 problem on some HPUX 10.20 systems.
+
+1167.	[support]	note possible HAVE_STRNDUP need for AIX4.
+
+1166.	[bug]		bad $TTL could kill the contributed dns_signer.
+
+1165.	[func]		INITIALZONES tuning for large servers (> 1000 zones).
+
+1164.	[bug]		the resolver could leak a file descriptors under
+			certain conditions.
+
+1163.	[func]		ns_critical() is now available.
+
+1162.	[port]		winnt: add strerror.
+
+1161.	[support]	log out of memory during zone transfers.
+
+1160.	[support]	extend "Response from unexpected source" message.
+
+1159.	[doc]		query-source is used for TCP and that the port is
+			ignored.
+
+1158.	[func]		add A6, DNAME, SINK and OPT to list of known RR types
+			in res_debug.
+
+1157.	[perf]		add more ns_wouldlog() calls on mainline.
+
+1156.	[bug]		don't use a known bogus key name.
+
+1155.	[support]	log possible "TSIG BUG" exploit attempts.  Requires
+			LOG_TSIG_BUG to be defined in bin/named/named.h.
+
+1154.	[bug]		RFC2317 support was broken in bin/host command again.
+
+1153.	[support]	be more consist with the use of slave vs secondary.
+
+1152.	[bug]		ixfr processing could leave Z_XFER_RUNNING set.
+
+1151.	[bug]		failed to correctly parse the orginal ttl in SIG
+			records.
+
+1150.	[bug]		forwarders: it was possible to use freed memory.
+
+1149.	[support]	zone rejected message to error level.
+
+1148.	[bug]		non-glue now logged to category load.
+
+1147.	[bug]		handle notify w/ SOA records better.
+
+1146.	[support]	be more gentle in handling bad system clocks.
+
+1145.	[port]		solaris: 2.4 does not have pthreads.
+
+1144.	[support]	log class w/ denied messages.
+
+1143.	[bug]		only use the query-source address, not port, for TCP
+			connections.
+
+1142.	[doc]		document change #924 better (doc/html/controls.html).
+
+1141.	[bug]		DESTDIR is not part of the nslookup help file path.
+
+1140.	[bug]		only reset interval timers if the value has changed.
+
 	--- 8.2.3-REL released ---
 
 1139.	[bug]		inet_{net_,}ntop() had an off-by-one error.

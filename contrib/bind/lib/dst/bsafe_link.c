@@ -1,5 +1,5 @@
 #if defined(BSAFE) || defined(DNSSAFE)
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/bsafe_link.c,v 1.11 1999/10/13 16:39:22 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/bsafe_link.c,v 1.12 2001/04/05 21:59:59 bwelling Exp $";
 
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -489,8 +489,6 @@ dst_bsafe_from_dns_key(DST_KEY *s_key, const u_char *key, const int len)
 
 	B_SetKeyInfo(r_key->rk_Public_Key, KI_RSAPublic, (POINTER) public);
 
-	s_key->dk_id = (u_int16_t)
-		dst_s_get_int16(&public->modulus.data[public->modulus.len - 3]);
 	s_key->dk_key_size = dst_bsafe_key_size(r_key);
 	SAFE_FREE(public->modulus.data);
 	SAFE_FREE(public->exponent.data);
@@ -750,8 +748,6 @@ dst_bsafe_key_from_file_format(DST_KEY *d_key, const char *buff,
 	if (status)
 		return (-1);
 
-	tag = (int)(u_int16_t)
-		dst_s_get_int16(&public->modulus.data[public->modulus.len - 3]);
 	d_key->dk_key_size = dst_bsafe_key_size(b_key);
 
 	SAFE_FREE(private->modulus.data);
@@ -766,7 +762,7 @@ dst_bsafe_key_from_file_format(DST_KEY *d_key, const char *buff,
 	SAFE_FREE(public->modulus.data);
 	SAFE_FREE(public->exponent.data);
 	SAFE_FREE(public);
-	return (tag);
+	return (0);
 }
 
 
@@ -925,10 +921,7 @@ dst_bsafe_generate_keypair(DST_KEY *key, int exp)
 	rsa->rk_Public_Key = public;
 	key->dk_KEY_struct = (void *) rsa;
 
-	/* fill in the footprint on generate key */
 	B_GetKeyInfo((POINTER *) &pk_access, public, KI_RSAPublic);
-	key->dk_id = (u_int16_t)
-		dst_s_get_int16(&pk_access->modulus.data[pk_access->modulus.len - 3]);
 	return (1);
 }
 

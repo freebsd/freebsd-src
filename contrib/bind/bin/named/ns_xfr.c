@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_xfr.c,v 8.63 2000/12/23 08:14:43 vixie Exp $";
+static const char rcsid[] = "$Id: ns_xfr.c,v 8.64 2001/02/15 00:18:46 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -117,8 +117,10 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	(void) setsockopt(qsp->s_rfd, SOL_SOCKET, SO_SNDLOWAT,
 			  (char *)&sndlowat, sizeof sndlowat);
 #endif
-	if (sq_openw(qsp, 64*1024) == -1)
+	if (sq_openw(qsp, 64*1024) == -1) {
+		ns_error(ns_log_xfer_out, "ns_xfr: out of memory");
 		goto abort;
+	}
 	memset(&qsp->xfr, 0, sizeof qsp->xfr);
 	qsp->xfr.top.axfr = znp;
 	qsp->xfr.zone = zone;
@@ -129,8 +131,10 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	qsp->xfr.id = id;
 	qsp->xfr.opcode = opcode;
 	qsp->xfr.msg = memget(XFER_BUFSIZE);
-	if (!qsp->xfr.msg)
+	if (!qsp->xfr.msg) {
+		ns_error(ns_log_xfer_out, "ns_xfr: out of memory");
 		goto abort;
+	}
 	qsp->xfr.eom = qsp->xfr.msg + XFER_BUFSIZE;
 	qsp->xfr.cp = NULL;
 	qsp->xfr.state = s_x_firstsoa;
@@ -199,6 +203,7 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 		}
 	} else {
 		if (sx_pushlev(qsp, znp) < 0) {
+			ns_error(ns_log_xfer_out, "ns_xfr: out of memory");
  abort:
 			(void) shutdown(qsp->s_rfd, 2);
 			sq_remove(qsp);

@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/prandom.c,v 1.9 2000/07/17 07:36:53 vixie Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/isc/bind8/src/lib/dst/prandom.c,v 1.10 2001/02/12 23:13:46 marka Exp $";
 #endif
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -204,7 +204,6 @@ do_time(dst_work *work)
 	zone = (struct timezone *) tmp;
 	mtime = (struct timeval *)(tmp + sizeof(struct timezone));
 	gettimeofday(mtime, zone);
-	assert(mtime->tv_usec >= 0 && mtime->tv_usec < 1000000);
 	cnt = sizeof(tmp);
 	my_digest(work, tmp, sizeof(tmp));
 
@@ -252,7 +251,7 @@ do_ls(dst_work *work)
 	if (stat(dirs[i++], &buf))  /* directory does not exist */
 		return (0);
 
-	gettimeofday(&tv,NULL);
+	gettimeofday(&tv, NULL);
 	if (d_round == 0) 
 		d_round = tv.tv_sec - MAX_OLD;
 	else if (i==1) /* if starting a new round cut what we accept */
