@@ -1851,15 +1851,17 @@ ttycheckoutq(struct tty *tp, int wait)
 	int hiwat, s;
 	sigset_t oldmask;
 	struct thread *td;
+	struct proc *p;
 
 	td = curthread;
+	p = td->td_proc;
 	hiwat = tp->t_ohiwat;
 	SIGEMPTYSET(oldmask);
 	s = spltty();
 	if (wait) {
-		PROC_LOCK(td->td_proc);
+		PROC_LOCK(p);
 		oldmask = td->td_siglist;
-		PROC_UNLOCK(td->td_proc);
+		PROC_UNLOCK(p);
 	}
 	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
 		while (tp->t_outq.c_cc > hiwat) {
@@ -1870,13 +1872,13 @@ ttycheckoutq(struct tty *tp, int wait)
 				splx(s);
 				return (0);
 			}
-			PROC_LOCK(td->td_proc);
+			PROC_LOCK(p);
 			if (!SIGSETEQ(td->td_siglist, oldmask)) {
-				PROC_UNLOCK(td->td_proc);
+				PROC_UNLOCK(p);
 				splx(s);
 				return (0);
 			}
-			PROC_UNLOCK(td->td_proc);
+			PROC_UNLOCK(p);
 			SET(tp->t_state, TS_SO_OLOWAT);
 			tsleep(TSA_OLOWAT(tp), PZERO - 1, "ttoutq", hz);
 		}
@@ -2383,7 +2385,7 @@ ttyinfo(struct tty *tp)
 {
 	struct proc *p, *pick;
 	struct timeval utime, stime;
-	const char *stmp;
+	const char *stmp, *sprefix;
 	long ltmp;
 	int tmp;
 	struct thread *td;
@@ -2414,6 +2416,7 @@ ttyinfo(struct tty *tp)
 			PGRP_UNLOCK(tp->t_pgrp);
 
 			td = FIRST_THREAD_IN_PROC(pick);
+			sprefix = "";
 			if (pick->p_flag & P_THREADED) {
 				stmp = "KSE" ;  /* XXXKSE */
 			} else {
@@ -2423,6 +2426,7 @@ ttyinfo(struct tty *tp)
 						stmp = "running";
 					} else if (TD_ON_LOCK(td)) {
 						stmp = td->td_lockname;
+						sprefix = "*";
 					} else if (td->td_wmesg) {
 						stmp = td->td_wmesg;
 					} else {
@@ -2434,9 +2438,7 @@ ttyinfo(struct tty *tp)
 				}
 			}
 			calcru(pick, &utime, &stime, NULL);
-			/* XXXKSE The TDS_IWAIT  line is Dubious */
 			if (pick->p_state == PRS_NEW ||
-			    (td && (TD_AWAITING_INTR(td))) ||
 			    pick->p_state == PRS_ZOMBIE) {
 				ltmp = 0;
 			} else {
@@ -2446,9 +2448,7 @@ ttyinfo(struct tty *tp)
 			mtx_unlock_spin(&sched_lock);
 
 			ttyprintf(tp, " cmd: %s %d [%s%s] ", pick->p_comm,
-			    pick->p_pid,
-			    TD_ON_LOCK(td) ? "*" : "",
-			    stmp);
+			    pick->p_pid, sprefix, stmp);
 
 			/* Print user time. */
 			ttyprintf(tp, "%ld.%02ldu ",
