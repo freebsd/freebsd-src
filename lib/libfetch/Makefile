@@ -1,17 +1,21 @@
+#	$Id$
+
 LIB=		fetch
-CFLAGS+=	-I${.CURDIR} -Wall -pedantic -DNDEBUG
+CFLAGS+=	-I. -Wall -pedantic -DNDEBUG
 SRCS=		fetch.c ftp.c http.c file.c
+DPSRCS=		ftperr.c httperr.c
 MAN3=		fetch.3
-CLEANFILES+=	ftperr.c httperr.c
+CLEANFILES=	${DPSRCS}
 
 SHLIB_MAJOR=    1
 SHLIB_MINOR=	0
+
+beforedepend: ${DPSRCS}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/fetch.h \
 		${DESTDIR}/usr/include
 
-ftp.c: ftperr.c
 ftperr.c: ftp.errors
 	@echo "struct ftperr {" \ >  ${.TARGET}
 	@echo "    const int num;" \ >>  ${.TARGET}
@@ -27,7 +31,6 @@ ftperr.c: ftp.errors
 	@echo "    { -1, \"Unknown FTP error\" }" >> ${.TARGET}
 	@echo "};" >> ${.TARGET}
 
-http.c:	httperr.c
 httperr.c: http.errors
 	@echo "struct httperr {" \ >  ${.TARGET}
 	@echo "    const int num;" \ >>  ${.TARGET}
@@ -44,3 +47,7 @@ httperr.c: http.errors
 	@echo "};" >> ${.TARGET}
 
 .include <bsd.lib.mk>
+
+.if !exists(${DEPENDFILE})
+${OBJS} ${POBJS} ${SOBJS}: ${DPSRCS}
+.endif
