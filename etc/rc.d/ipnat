@@ -59,7 +59,7 @@ ipnat_start()
 		return 0
 	fi
 	echo -n "Installing NAT rules ... "
-	/usr/sbin/ipnat -CF -f ${ipnat_rules} ${ipnat_flags}
+	${ipnat_program} -CF -f ${ipnat_rules} ${ipnat_flags}
 }
 
 run_rc_command "$1"
