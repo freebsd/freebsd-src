@@ -348,6 +348,9 @@ struct dos_partition {
 	u_int32_t	dp_start;	/* absolute starting sector number */
 	u_int32_t	dp_size;	/* partition size in sectors */
 };
+#ifdef CTASSERT
+CTASSERT(sizeof (struct dos_partition) == 16);
+#endif
 #endif
 
 #define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
