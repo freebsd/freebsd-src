@@ -25,15 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.4 1997/02/22 19:54:15 peter Exp $
+ *  $Id: brandelf.c,v 1.5 1997/03/29 04:28:17 imp Exp $
  */
 
-#include <stdlib.h>
+#include <elf.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/imgact_elf.h>
 
 int usage(void);
 
@@ -65,8 +65,8 @@ main(int argc, char **argv)
 	}
 	while (argc) {
 		int fd;
-		char buffer[EI_NINDENT];
-		char string[(EI_NINDENT-EI_SPARE)+1];
+		char buffer[EI_NIDENT];
+		char string[(EI_NIDENT-EI_BRAND)+1];
 
 		if ((fd = open(argv[0], O_RDWR, 0)) < 0) {
 			fprintf(stderr, "No such file %s.\n", argv[0]);
@@ -74,7 +74,7 @@ main(int argc, char **argv)
 			goto fail;
 			
 		}
-		if (read(fd, buffer, EI_NINDENT) < EI_NINDENT) {
+		if (read(fd, buffer, EI_NIDENT) < EI_NIDENT) {
 			fprintf(stderr, "File '%s' too short.\n", argv[0]);
 			retval = 1;
 			goto fail;
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 		}		
 		if (!change) {
 			bzero(string, sizeof(string));
-			strncpy(string, &buffer[EI_SPARE], EI_NINDENT-EI_SPARE);
+			strncpy(string, &buffer[EI_BRAND], EI_NIDENT-EI_BRAND);
 			if (strlen(string)) {
 				fprintf(stdout, "File '%s' is of brand '%s'.\n",
 					argv[0], string);
@@ -98,9 +98,9 @@ main(int argc, char **argv)
 					argv[0]);
 		}
 		else {
-			strncpy(&buffer[EI_SPARE], type, EI_NINDENT-EI_SPARE);
+			strncpy(&buffer[EI_BRAND], type, EI_NIDENT-EI_BRAND);
 			lseek(fd, 0, SEEK_SET);
-			if (write(fd, buffer, EI_NINDENT) != EI_NINDENT) {
+			if (write(fd, buffer, EI_NIDENT) != EI_NIDENT) {
 				fprintf(stderr, "Error writing %s\n", argv[0]);
 			retval = 1;
 				goto fail;
