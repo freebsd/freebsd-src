@@ -28,7 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-
+#include <stdlib.h>
 #include <string.h>
 
 #include "archive.h"
@@ -148,4 +148,14 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 	}
 	a->error = a->error_string.s;
 	va_end(ap);
+}
+
+void
+__archive_errx(int retvalue, const char *msg)
+{
+	static const char *msg1 = "Fatal Internal Error in libarchive: ";
+	write(2, msg1, strlen(msg1));
+	write(2, msg, strlen(msg));
+	write(2, "\n", 1);
+	exit(retvalue);
 }

@@ -35,7 +35,6 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include <err.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,8 +109,8 @@ archive_read_open(struct archive *a, void *client_data,
 	archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW);
 
 	if (reader == NULL)
-		errx(1,
-		    "Fatal: No reader function provided to archive_read_open");
+		__archive_errx(1,
+		    "No reader function provided to archive_read_open");
 
 	a->client_reader = reader;
 	a->client_opener = opener;
@@ -181,7 +180,7 @@ choose_decompressor(struct archive *a, const void *buffer, size_t bytes_read)
 	 * and demands a quick and definitive abort.
 	 */
 	if (best_bid_slot < 0)
-		errx(1, "Fatal: No decompressors were registered; you "
+		__archive_errx(1, "No decompressors were registered; you "
 		    "must call at least one "
 		    "archive_read_support_compression_XXX function in order "
 		    "to successfully read an archive.");
@@ -304,7 +303,7 @@ choose_format(struct archive *a)
 	 * and demands a quick and definitive abort.
 	 */
 	if (best_bid_slot < 0)
-		errx(1, "Fatal: No formats were registered; you must "
+		__archive_errx(1, "No formats were registered; you must "
 		    "invoke at least one archive_read_support_format_XXX "
 		    "function in order to successfully read an archive.");
 
@@ -526,7 +525,8 @@ __archive_read_register_format(struct archive *a,
 		}
 	}
 
-	errx(1, "Fatal: Not enough slots for format registration");
+	__archive_errx(1, "Not enough slots for format registration");
+	return (ARCHIVE_FATAL); /* Never actually called. */
 }
 
 /*
@@ -554,5 +554,6 @@ __archive_read_register_compression(struct archive *a,
 		}
 	}
 
-	errx(1, "Fatal: Not enough slots for compression registration");
+	__archive_errx(1, "Not enough slots for compression registration");
+	return (ARCHIVE_FATAL); /* Never actually executed. */
 }

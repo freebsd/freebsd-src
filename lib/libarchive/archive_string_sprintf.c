@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
  * the core code, so it cannot easily be omitted.)
  */
 
-#include <err.h>
 #include <stdio.h>
 
 #include "archive_string.h"

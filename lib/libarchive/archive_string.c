@@ -32,10 +32,10 @@ __FBSDID("$FreeBSD$");
  * strings while minimizing heap activity.
  */
 
-#include <err.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "archive_private.h"
 #include "archive_string.h"
 
 struct archive_string *
@@ -68,8 +68,10 @@ __archive_string_ensure(struct archive_string *as, size_t s)
 	while (as->buffer_length < s)
 		as->buffer_length *= 2;
 	as->s = realloc(as->s, as->buffer_length);
+	/* TODO: Return null instead and fix up all of our callers to
+	 * handle this correctly. */
 	if (as->s == NULL)
-		errx(1,"Out of memory");
+		__archive_errx(1, "Out of memory");
 	return (as);
 }
 
