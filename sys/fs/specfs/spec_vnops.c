@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.12 1995/07/08 04:03:12 davidg Exp $
+ * $Id: spec_vnops.c,v 1.13 1995/07/29 11:40:31 bde Exp $
  */
 
 #include <sys/param.h>
@@ -498,6 +498,8 @@ spec_bmap(ap)
 		daddr_t  a_bn;
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
+		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 
@@ -507,6 +509,8 @@ spec_bmap(ap)
 		*ap->a_bnp = ap->a_bn;
 	if (ap->a_runp != NULL)
 		*ap->a_runp = 0;
+	if (ap->a_runb != NULL)
+		*ap->a_runb = 0;
 	return (0);
 }
 

@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.6 1995/08/01 18:50:51 davidg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.7 1995/09/02 07:09:01 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -1044,6 +1044,7 @@ int devfs_bmap(ap)
                 struct vnode **a_vpp;
                 daddr_t *a_bnp;
                 int *a_runp;
+                int *a_runb;
         } */ *ap;
 {
 DBPRINT(("bmap\n"));

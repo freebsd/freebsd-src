@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_balloc.c	8.1 (Berkeley) 6/11/93
- * $Id: lfs_balloc.c,v 1.6 1995/04/09 06:03:41 davidg Exp $
+ * $Id: lfs_balloc.c,v 1.7 1995/05/30 08:15:12 rgrimes Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -79,7 +79,7 @@ lfs_balloc(vp, iosize, lbn, bpp)
 	 */
 
 	*bpp = NULL;
-	if (error = ufs_bmaparray(vp, lbn, &daddr, &indirs[0], &num, NULL ))
+	if (error = ufs_bmaparray(vp, lbn, &daddr, &indirs[0], &num, NULL, NULL ))
 		return (error);
 
 	*bpp = bp = getblk(vp, lbn, fs->lfs_bsize, 0, 0);

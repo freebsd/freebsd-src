@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_bmap.c	8.3 (Berkeley) 1/23/94
- * $Id$
+ * $Id: cd9660_bmap.c,v 1.2 1994/08/02 07:41:15 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -62,6 +62,7 @@ cd9660_bmap(ap)
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
 		int *a_runp;
+		int *a_runb;
 	} */ *ap;
 {
 	struct iso_node *ip = VTOI(ap->a_vp);
@@ -97,6 +98,10 @@ cd9660_bmap(ap)
 			*ap->a_runp = MAXBSIZE/bsize - 1;
 		else
 			*ap->a_runp = nblk;
+	}
+
+	if (ap->a_runb) {
+		*ap->a_runb = 0;
 	}
 
 	return 0;
