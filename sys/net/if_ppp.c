@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id$ */
+/* $Id: if_ppp.c,v 1.39 1997/02/22 09:41:03 peter Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -84,7 +84,8 @@
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/filio.h>
+#include <sys/sockio.h>
 #include <sys/kernel.h>
 
 #include <net/if.h>
