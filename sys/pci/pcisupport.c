@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.101 1999/05/06 21:21:30 julian Exp $
+**  $Id: pcisupport.c,v 1.102 1999/05/07 04:04:42 julian Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -1091,7 +1091,11 @@ chip_match(device_t dev)
 		return ("Intel 82439TX System Controller (MTXC)");
 
 	case 0x71138086:
+#if NINTPM > 0
+		return NULL;
+#else
 		return ("Intel 82371AB Power management controller");
+#endif
 	case 0x12378086:
 		fixwsc_natoma(dev);
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
