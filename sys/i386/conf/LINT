@@ -2134,6 +2134,7 @@ device		pcf0	at isa? port 0x320 irq 5
 #       isic  - Siemens/Infineon ISDN ISAC/HSCX/IPAC chipset driver
 #       iwic  - Winbond W6692 PCI bus ISDN S/T interface controller
 #       ifpi  - AVM Fritz!Card PCI driver
+#       ifpi2 - AVM Fritz!Card PCI driver Version 2
 #       ihfc  - Cologne Chip HFC ISA/ISA-PnP chipset driver
 #       ifpnp - AVM Fritz!Card PnP driver 
 #       itjc  - Siemens ISAC / TJNet Tiger300/320 chipset
@@ -2256,6 +2257,13 @@ device ihfc
 #
 # AVM Fritz!Card PCI 1.0
 device  ifpi
+#
+#---------------------------------------------------------------------------
+#       ifpi2 driver for AVM Fritz!Card PCI 2.0
+#---------------------------------------------------------------------------
+#
+# AVM Fritz!Card PCI 2.0
+device  "ifpi2"
 #
 #---------------------------------------------------------------------------
 #       iwic driver for Winbond W6692 chipset
