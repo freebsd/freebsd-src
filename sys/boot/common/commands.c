@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.5 1998/10/09 07:09:22 msmith Exp $
+ *	$Id: commands.c,v 1.6 1998/10/21 20:07:04 msmith Exp $
  */
 
 #include <stand.h>
@@ -34,21 +34,168 @@
 
 char		*command_errmsg;
 char		command_errbuf[256];	/* XXX should have procedural interface for setting, size limit? */
-    
+
+
+/*
+ * Help is read from a formatted text file.
+ *
+ * Entries in the file are formatted as 
+
+# Ttopic [Ssubtopic] Ddescription
+help
+text
+here
+#
+
+ *
+ * Note that for code simplicity's sake, the above format must be followed
+ * exactly.
+ *
+ * Subtopic entries must immediately follow the topic (this is used to
+ * produce the listing of subtopics).
+ *
+ * If no argument(s) are supplied by the user, the help for 'help' is displayed.
+ */
 COMMAND_SET(help, "help", "detailed help", command_help);
 
 static int
-command_help(int argc, char *argv[])
+help_getnext(int fd, char **topic, char **subtopic, char **desc) 
 {
-    char	helppath[80];	/* XXX buffer size? */
+    char	line[81], *cp, *ep;
+    
+    for (;;) {
+	if (fgetstr(line, 80, fd) < 0)
+	    return(0);
+	
+	if ((strlen(line) < 3) || (line[0] != '#') || (line[1] != ' '))
+	    continue;
+
+	*topic = *subtopic = *desc = NULL;
+	cp = line + 2;
+	while((cp != NULL) && (*cp != 0)) {
+	    ep = strchr(cp, ' ');
+	    if ((*cp == 'T') && (*topic == NULL)) {
+		if (ep != NULL)
+		    *ep++ = 0;
+		*topic = strdup(cp + 1);
+	    } else if ((*cp == 'S') && (*subtopic == NULL)) {
+		if (ep != NULL)
+		    *ep++ = 0;
+		*subtopic = strdup(cp + 1);
+	    } else if (*cp == 'D') {
+		*desc = strdup(cp + 1);
+		ep = NULL;
+	    }
+	    cp = ep;
+	}
+	if (*topic == NULL) {
+	    if (*subtopic != NULL)
+		free(*subtopic);
+	    if (*desc != NULL)
+		free(*desc);
+	    continue;
+	}
+	return(1);
+    }
+}
+
+static void
+help_emitsummary(char *topic, char *subtopic, char *desc)
+{
+    int		i;
+    
+    pager_output("    ");
+    pager_output(topic);
+    i = strlen(topic);
+    if (subtopic != NULL) {
+	pager_output(" ");
+	pager_output(subtopic);
+	i += strlen(subtopic) + 1;
+    }
+    if (desc != NULL) {
+	do {
+	    pager_output(" ");
+	} while (i++ < 30);
+	pager_output(desc);
+    }
+    pager_output("\n");
+}
+
+	    
+static int
+command_help(int argc, char *argv[]) 
+{
+    char	buf[81];	/* XXX buffer size? */
+    int		hfd, matched, doindex;
+    char	*topic, *subtopic, *t, *s, *d;
 
     /* page the help text from our load path */
-    sprintf(helppath, "%s/boot/boot.help", getenv("loaddev"));
-    printf("%s\n", helppath);
-    if (pager_file(helppath) == -1)
+    sprintf(buf, "%s/boot/loader.help", getenv("loaddev"));
+    if ((hfd = open(buf, O_RDONLY)) < 0) {
 	printf("Verbose help not available, use '?' to list commands\n");
+	return(CMD_OK);
+    }
+
+    /* pick up request from arguments */
+    topic = subtopic = NULL;
+    switch(argc) {
+    case 3:
+	subtopic = strdup(argv[2]);
+    case 2:
+	topic = strdup(argv[1]);
+	break;
+    case 1:
+	topic = strdup("help");
+	break;
+    default:
+	command_errmsg = "usage is 'help <topic> [<subtopic>]";
+	return(CMD_ERROR);
+    }
+
+    /* magic "index" keyword */
+    doindex = !strcmp(topic, "index");
+    matched = doindex;
+    
+    /* Scan the helpfile looking for help matching the request */
+    pager_open();
+    while(help_getnext(hfd, &t, &s, &d)) {
+
+	if (doindex) {		/* dink around formatting */
+	    help_emitsummary(t, s, d);
+
+	} else if (strcmp(topic, t)) {
+	    /* topic mismatch */
+	    if(matched)		/* nothing more on this topic, stop scanning */
+		break;
+
+	} else {
+	    /* topic matched */
+	    matched = 1;
+	    if (((subtopic == NULL) && (s == NULL)) ||
+		((subtopic != NULL) && (s != NULL) && !strcmp(subtopic, s))) {
+		/* exact match, print text */
+		while((fgetstr(buf, 80, hfd) >= 0) && (buf[0] != '#')) {
+		    pager_output(buf);
+		    pager_output("\n");
+		}
+	    } else if ((subtopic == NULL) && (s != NULL)) {
+		/* topic match, list subtopics */
+		help_emitsummary(t, s, d);
+	    }
+	}
+	free(t);
+	free(s);
+	free(d);
+    }
+    pager_close();
+    close(hfd);
+    if (!matched) {
+	sprintf(command_errbuf, "no help available for '%s'", topic);
+	return(CMD_ERROR);
+    }
     return(CMD_OK);
 }
+
 
 COMMAND_SET(commandlist, "?", "list commands", command_commandlist);
 
@@ -56,7 +203,6 @@ static int
 command_commandlist(int argc, char *argv[])
 {
     struct bootblk_command	**cmdp;
-    int				i;
     
     printf("Available commands:\n");
     SET_FOREACH(cmdp, Xcommand_set) {
@@ -232,5 +378,47 @@ command_read(int argc, char *argv[])
 
     if (name != NULL)
 	setenv(name, buf, 1);
+    return(CMD_OK);
+}
+
+/*
+ * List all disk-like devices
+ */
+COMMAND_SET(lsdev, "lsdev", NULL, command_lsdev);
+
+static int
+command_lsdev(int argc, char *argv[])
+{
+    int		verbose, ch, i;
+    char	line[80];
+    
+    verbose = 0;
+    optind = 1;
+    while ((ch = getopt(argc, argv, "v")) != -1) {
+	switch(ch) {
+	case 'v':
+	    verbose = 1;
+	    break;
+	case '?':
+	default:
+	    /* getopt has already reported an error */
+	    return(CMD_OK);
+	}
+    }
+    argv += (optind);
+    argc -= (optind);
+
+    pager_open();
+    for (i = 0; devsw[i] != NULL; i++) {
+	if (devsw[i]->dv_print != NULL){
+	    sprintf(line, "%s @ %p\n", devsw[i]->dv_name, devsw[i]->dv_print);
+	    pager_output(line);
+	    devsw[i]->dv_print(verbose);
+	} else {
+	    sprintf(line, "%s: (unknown)\n", devsw[i]->dv_name);
+	    pager_output(line);
+	}
+    }
+    pager_close();
     return(CMD_OK);
 }
