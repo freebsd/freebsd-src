@@ -770,6 +770,7 @@ rescan0:
 			continue;
 		}
 
+		vm_page_lock_queues();
 		/*
 		 * If the object is not being used, we ignore previous 
 		 * references.
@@ -789,7 +790,6 @@ rescan0:
 		 */
 		} else if (((m->flags & PG_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
-			vm_page_lock_queues();
 			vm_page_activate(m);
 			vm_page_unlock_queues();
 			m->act_count += (actcount + ACT_ADVANCE);
@@ -805,7 +805,6 @@ rescan0:
 		if ((m->flags & PG_REFERENCED) != 0) {
 			vm_page_flag_clear(m, PG_REFERENCED);
 			actcount = pmap_ts_referenced(m);
-			vm_page_lock_queues();
 			vm_page_activate(m);
 			vm_page_unlock_queues();
 			m->act_count += (actcount + ACT_ADVANCE + 1);
@@ -823,6 +822,7 @@ rescan0:
 		} else {
 			vm_page_dirty(m);
 		}
+		vm_page_unlock_queues();
 
 		/*
 		 * Invalid pages can be easily freed
