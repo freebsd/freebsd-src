@@ -18,6 +18,6 @@ PROG=	mld6query
 MAN=	mld6query.8
 SRCS=	mld6.c
 
-CFLAGS+= -DINET6 -DIPSEC
+CFLAGS+= -DINET6 -DIPSEC -DUSE_RFC2292BIS
 
 .include <bsd.prog.mk>

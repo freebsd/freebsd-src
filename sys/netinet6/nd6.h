@@ -129,6 +129,24 @@ struct	in6_defrouter {
 	u_short if_index;
 };
 
+#ifdef _KERNEL
+struct	in6_oprlist {
+	char ifname[IFNAMSIZ];
+	struct {
+		struct	in6_addr prefix;
+		struct prf_ra raflags;
+		u_char	prefixlen;
+		u_char	origin;
+		u_long vltime;
+		u_long pltime;
+		u_long expire;
+		u_short if_index;
+		u_short advrtrs; /* number of advertisement routers */
+		struct	in6_addr advrtr[DRLSTSIZ]; /* XXX: explicit limit */
+	} prefix[PRLSTSIZ];
+};
+#endif
+
 struct	in6_prlist {
 	char ifname[IFNAMSIZ];
 	struct {
@@ -150,9 +168,9 @@ struct in6_prefix {
 	struct prf_ra raflags;
 	u_char	prefixlen;
 	u_char	origin;
-	u_long	vltime;
-	u_long	pltime;
-	u_long	expire;
+	u_int32_t vltime;
+	u_int32_t pltime;
+	time_t expire;
 	u_int32_t flags;
 	int refcnt;
 	u_short if_index;
@@ -220,9 +238,6 @@ struct	nd_defrouter {
 	u_char	flags;		/* flags on RA message */
 	u_short	rtlifetime;
 	u_long	expire;
-	u_long	advint;		/* Mobile IPv6 addition (milliseconds) */
-	u_long	advint_expire;	/* Mobile IPv6 addition */
-	int	advints_lost;	/* Mobile IPv6 addition */
 	struct  ifnet *ifp;
 };
 
@@ -319,7 +334,7 @@ extern u_int32_t ip6_temp_valid_lifetime; /* seconds */
 extern int ip6_temp_regen_advance; /* seconds */
 
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[9];	/* max = home agent info */
+	struct nd_opt_hdr *nd_opt_array[13];	/* max = target address list */
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
@@ -328,8 +343,10 @@ union nd_opts {
 		struct nd_opt_rd_hdr *rh;
 		struct nd_opt_mtu *mtu;
 		struct nd_opt_hdr *six;
-		struct nd_opt_advint *adv;
-		struct nd_opt_hai *hai;
+		struct nd_opt_advinterval *adv;
+		struct nd_opt_homeagent_info *hai;
+		struct nd_opt_hdr *src_addrlist;
+		struct nd_opt_hdr *tgt_addrlist;
 		struct nd_opt_hdr *search;	/* multiple opts */
 		struct nd_opt_hdr *last;	/* multiple opts */
 		int done;
@@ -344,6 +361,8 @@ union nd_opts {
 #define nd_opts_mtu		nd_opt_each.mtu
 #define nd_opts_adv		nd_opt_each.adv
 #define nd_opts_hai		nd_opt_each.hai
+#define nd_opts_src_addrlist	nd_opt_each.src_addrlist
+#define nd_opts_tgt_addrlist	nd_opt_each.tgt_addrlist
 #define nd_opts_search		nd_opt_each.search
 #define nd_opts_last		nd_opt_each.last
 #define nd_opts_done		nd_opt_each.done
