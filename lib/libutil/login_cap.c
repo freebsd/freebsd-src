@@ -245,7 +245,7 @@ login_getclassbyname(char const *name, const struct passwd *pwd)
 	    msg = "%s: no default/fallback class '%s'";
 	    if (cgetent(&lc->lc_cap, login_dbarray, (char*)name) != 0 && r >= 0)
 		break;
-	    /* Fallthru - just return system defaults */
+	    /* FALLTHROUGH - just return system defaults */
 	case 0:		/* success! */
 	    if ((lc->lc_class = strdup(name)) != NULL) {
 		if (dir) {

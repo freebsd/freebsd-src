@@ -394,7 +394,7 @@ _thread_kern_scheduler(void)
 			case PS_SELECT_WAIT:
 				/* Return zero file descriptors ready: */
 				pthread->data.poll_data->nfds = 0;
-				/* fall through */
+				/* FALLTHROUGH */
 			default:
 				/*
 				 * Remove this thread from the waiting queue

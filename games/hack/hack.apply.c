@@ -1,6 +1,8 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.apply.c - version 1.0.3 */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include	"hack.h"
 #include	"def.edog.h"
@@ -37,7 +39,7 @@ doapply() {
 			use_magic_whistle(obj);
 			break;
 		}
-		/* fall into next case */
+		/* FALLTHROUGH */
 	case WHISTLE:
 		use_whistle(obj);
 		break;

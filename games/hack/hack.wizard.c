@@ -1,8 +1,10 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.wizard.c - version 1.0.3 */
-/* $FreeBSD$ */
 
 /* wizard code - inspired by rogue code from Merlyn Leroy (digi-g!brian) */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "hack.h"
 extern struct permonst pm_wizard;
@@ -137,7 +139,7 @@ struct monst *mtmp;
 		    case 1:
 			pline("\"Destroy the thief, my pets!\"");
 			aggravate();	/* aggravate all the monsters */
-			/* fall into next case */
+			/* FALLTHROUGH */
 		    case 2:
 			if (flags.no_of_wizards == 1 && rnd(5) == 0)
 			    /* if only 1 wizard, clone himself */

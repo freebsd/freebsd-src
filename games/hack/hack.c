@@ -1,6 +1,8 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.c - version 1.0.3 */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "hack.h"
 #include <stdio.h>
@@ -496,7 +498,7 @@ struct monst *mtmp;
 		case '+':
 			if(x != u.ux && y != u.uy) break;
 			if(flags.run != 1) goto stop;
-			/* fall into next case */
+			/* FALLTHROUGH */
 		case CORR_SYM:
 		corr:
 			if(flags.run == 1 || flags.run == 3) {
