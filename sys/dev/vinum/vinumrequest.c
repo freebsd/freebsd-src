@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.36 2003/05/08 04:34:55 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.69 2003/10/18 17:57:48 phk Exp $
  */
 
 #include <sys/cdefs.h>
@@ -447,6 +447,7 @@ launch_requests(struct request *rq, int reviveok)
 		}
 #endif
 		/* fire off the request */
+		rqe->b.b_offset = rqe->b.b_blkno << DEV_BSHIFT;
 		DEV_STRATEGY(&rqe->b);
 	    }
 	}
@@ -991,6 +992,7 @@ sdio(struct buf *bp)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_sdiol, (union rqinfou) &sbp->b, &sbp->b);
 #endif
+    sbp->b.b_offset = sbp->b.b_blkno << DEV_BSHIFT;
     DEV_STRATEGY(&sbp->b);
     splx(s);
 }
