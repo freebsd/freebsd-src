@@ -423,7 +423,7 @@ alpha_dispatch_intr(void *frame, unsigned long vector)
 	KASSERT(ithd != NULL, ("interrupt vector without a thread"));
 
 	/*
-	 * As an optomization, if an ithread has no handlers, don't
+	 * As an optimization, if an ithread has no handlers, don't
 	 * schedule it to run.
 	 */
 	if (TAILQ_EMPTY(&ithd->it_handlers))
