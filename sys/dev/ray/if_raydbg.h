@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_raydbg.h,v 1.1 2000/04/24 14:50:01 dmlb Exp $
+ * $Id: if_raydbg.h,v 1.3 2000/05/11 18:53:10 dmlb Exp $
  *
  */
 
@@ -45,11 +45,13 @@
  *	STARTJOIN	State transitions for start/join
  *	CCS		CCS info
  *	IOCTL		IOCTL calls
- *	MBUF		MBUFs dumped
+ *	MBUF		MBUFs dumped - needs one of TX, RX, MGT, or CTL
  *	RX		packet types reported
  *	CM		common memory re-mapping
  *	COM		new command sleep/wakeup
  *	STOP		driver detaching
+ *	CTL		CTL packets
+ *	MGT		MGT packets
  */
 #define RAY_DBG_RECERR		0x0001
 #define RAY_DBG_SUBR		0x0002
@@ -62,6 +64,9 @@
 #define RAY_DBG_CM		0x0200
 #define RAY_DBG_COM		0x0400
 #define RAY_DBG_STOP		0x0800
+#define RAY_DBG_CTL		0x1000
+#define RAY_DBG_MGT		0x2000
+#define RAY_DBG_TX		0x4000
 /* Cut and paste this into a kernel configuration file */
 #if 0
 #define RAY_DEBUG	(				\
@@ -76,30 +81,36 @@
                         /* RAY_DBG_CM		| */	\
                         /* RAY_DBG_COM		| */	\
                         /* RAY_DBG_STOP		| */	\
+                        /* RAY_DBG_CTL		| */ 	\
+                        /* RAY_DBG_MGT		| */  	\
+                        /* RAY_DBG_TX		| */  	\
 			0				\
 			)
 #endif
 
 #if RAY_DEBUG
 
-/* This macro assumes that common memory is mapped into kernel space */
-#define RAY_DHEX8(sc, mask, off, len) do { if (RAY_DEBUG & (mask)) {	\
-    int i, j;								\
-    for (i = (off); i < (off)+(len); i += 8) {				\
-	    printf("  0x%04x ",	i);					\
-	    for (j = 0; j < 8; j++)					\
-		    printf("%02x ", SRAM_READ_1((sc), i+j));		\
-	    printf("\n");						\
-} } } while (0)
-
 #define RAY_DPRINTF(sc, mask, fmt, args...) do {if (RAY_DEBUG & (mask)) {\
     device_printf((sc)->dev, "%s(%d) " fmt "\n",			\
     	__FUNCTION__ , __LINE__ , ##args);				\
 } } while (0)
 
+/* This macro assumes that common memory is mapped into kernel space */
+#define RAY_DHEX8(sc, mask, off, len, s) do { if (RAY_DEBUG & (mask)) {	\
+    int i, j;								\
+    device_printf((sc)->dev, "%s(%d) %s\n",				\
+    	__FUNCTION__ , __LINE__ , (s));					\
+    for (i = (off); i < (off)+(len); i += 8) {				\
+	    printf("  0x%04x ",	i);					\
+	    for (j = 0; j < 8; j++)					\
+		    printf("%02x ", SRAM_READ_1((sc), i+j));		\
+	    printf("\n");						\
+    }									\
+} } while (0)
+
 #else
-#define RAY_DHEX8(sc, mask, off, len)
 #define RAY_DPRINTF(sc, mask, fmt, args...)
+#define RAY_DHEX8(sc, mask, off, len, s)
 #endif /* RAY_DEBUG > 0 */
 
 /*
@@ -126,5 +137,7 @@
 #endif /* RAY_DEBUG & RAY_DBG_COM */
 
 #if RAY_DEBUG & RAY_DBG_MBUF
-#define RAY_MBUF_DUMP(sc, m, s)	ray_dump_mbuf((sc), (m), (s))
+#define RAY_MBUF_DUMP(sc, mask, m, s)	do { if (RAY_DEBUG & (mask)) {	\
+	ray_dump_mbuf((sc), (m), (s));					\
+} } while (0)
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
