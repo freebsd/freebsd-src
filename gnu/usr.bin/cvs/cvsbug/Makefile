@@ -1,8 +1,8 @@
-#	$Id: Makefile,v 1.1 1995/12/10 23:05:53 peter Exp $
+#	$Id: Makefile,v 1.2 1995/12/11 01:58:51 peter Exp $
 
 MAN8=	cvsbug.8
 
-CLEANFILES+= cvsbug
+CLEANFILES+= cvsbug ver
 
 .SUFFIXES: .sh
 

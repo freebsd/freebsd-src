@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.11 1995/12/10 23:01:41 peter Exp $
+#	$Id: Makefile,v 1.12 1995/12/11 02:22:27 peter Exp $
 
 PROG=	cvs
 MAN1=	cvs.1
 MAN5=	cvs.5
-SRCS =	add.c admin.c checkin.c checkout.c classify.c client.c commit.c \
+SRCS=	add.c admin.c checkin.c checkout.c classify.c client.c commit.c \
 	create_adm.c cvsrc.c diff.c entries.c expand_path.c find_names.c \
 	history.c ignore.c import.c lock.c log.c login.c logmsg.c main.c \
 	modules.c no_diff.c parseinfo.c patch.c rcs.c rcscmds.c recurse.c \
