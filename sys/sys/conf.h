@@ -270,6 +270,7 @@ d_dump_t	nodump;
 d_open_t	nullopen;
 d_close_t	nullclose;
 
+l_ioctl_t	l_nullioctl;
 l_read_t	l_noread;
 l_write_t	l_nowrite;
 
