@@ -44,6 +44,10 @@
 #include <pccard/slot.h>
 #include <pccard/pcic.h>
 
+/* Get pnp IDs */
+#include <isa/isavar.h>
+#include <dev/pcic/i82365reg.h>
+
 /*
  *	Prototypes for interrupt handler.
  */
@@ -76,9 +80,20 @@ static struct pcic_slot {
 	u_char	*regs;			/* Pointer to regs in mem */
 } pcic_slots[PCIC_MAX_SLOTS];
 
-static int		pcic_irq;
 static struct slot_ctrl cinfo;
 
+static struct isa_pnp_id pcic_ids[] = {
+	{PCIC_PNP_82365,		NULL},		/* PNP0E00 */
+	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
+	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
+	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
+	{0}
+};
+
+static int validunits = 0;
+
+#define GET_UNIT(d)	*(int *)device_get_softc(d)
+#define SET_UNIT(d,u)	*(int *)device_get_softc(d) = (u)
 
 /*
  *	Internal inline functions for accessing the PCIC.
@@ -264,16 +279,16 @@ pcic_probe(device_t dev)
 	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
-	void		 *ih;
 	char *name;
-	int i;
 	int error;
-	struct resource *res = 0;
+	struct resource *r;
 	int rid;
 	static int maybe_vlsi = 0;
 
-	if (device_get_unit(dev) != 0)
-		return ENXIO;
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, pcic_ids);
+	if (error == ENXIO)
+		return (ENXIO);
 
 	/*
 	 *	Initialise controller information structure.
@@ -289,22 +304,26 @@ pcic_probe(device_t dev)
 	cinfo.maxmem = PCIC_MEM_WIN;
 	cinfo.maxio = PCIC_IO_WIN;
 
-	sp = pcic_slots;
-	for (slotnum = 0; slotnum < PCIC_MAX_SLOTS; slotnum++, sp++) {
+	if (bus_get_resource_start(dev, SYS_RES_IOPORT, 0) == 0)
+		bus_set_resource(dev, SYS_RES_IOPORT, 0, PCIC_INDEX0, 2);
+	rid = 0;
+	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (!r) {
+		if (bootverbose)
+			device_printf(dev, "Cannot get I/O range\n");
+		return ENOMEM;
+	}
+
+	sp = &pcic_slots[validunits * PCIC_CARD_SLOTS];
+	for (slotnum = 0; slotnum < PCIC_CARD_SLOTS; slotnum++, sp++) {
 		/*
 		 *	Initialise the PCIC slot table.
 		 */
 		sp->getb = getb1;
 		sp->putb = putb1;
-		if (slotnum < 4) {
-			sp->index = PCIC_INDEX_0;
-			sp->data = PCIC_DATA_0;
-			sp->offset = slotnum * PCIC_SLOT_SIZE;
-		} else {
-			sp->index = PCIC_INDEX_1;
-			sp->data = PCIC_DATA_1;
-			sp->offset = (slotnum - 4) * PCIC_SLOT_SIZE;
-		}
+		sp->index = rman_get_start(r);
+		sp->data = sp->index + 1;
+		sp->offset = slotnum * PCIC_SLOT_SIZE;
 		/* 
 		 * XXX - Screwed up slot 1 on the VLSI chips.  According to
 		 * the Linux PCMCIA code from David Hinds, working chipsets
@@ -444,46 +463,12 @@ pcic_probe(device_t dev)
 		 *	Allocate a slot and initialise the data structures.
 		 */
 		validslots++;
-		sp->slotnum = slotnum;
+		sp->slotnum = slotnum + validunits * PCIC_CARD_SLOTS;
 		slt = pccard_alloc_slot(&cinfo);
 		if (slt == 0)
 			continue;
 		slt->cdata = sp;
 		sp->slt = slt;
-		/*
-		 * If we haven't allocated an interrupt for the controller,
-		 * then attempt to get one.
-		 */
-		if (pcic_irq == 0) {
-			/* See if the user has requested a specific IRQ */
-			if (!getenv_int("machdep.pccard.pcic_irq", &pcic_irq))
-				pcic_irq = -1;
-			rid = 0;
-			if (pcic_irq) {
-				if (pcic_irq < 0)
-					pcic_irq = 0;
-				res = bus_alloc_resource(dev, SYS_RES_IRQ, 
-				    &rid, pcic_irq, ~0, 1, RF_ACTIVE);
-			}
-			if (res) {
-				error = bus_setup_intr(dev, res, 
-				    INTR_TYPE_MISC, pcicintr, NULL, &ih);
-				if (error) {
-					bus_release_resource(dev, SYS_RES_IRQ,
-					    rid, res);
-					return error;
-				}
-				pcic_irq = rman_get_start(res);
-				printf("pcic: management irq %d\n", pcic_irq);
-			} else {
-				if (pcic_irq)
-					printf("pcic: polling mode, can't alloc %d\n",
-						pcic_irq);
-				else
-					printf("pcic: polling mode\n");
-				pcic_irq = 0;
-			}
-		}
 		/*
 		 * Modem cards send the speaker audio (dialing noises)
 		 * to the host's speaker.  Cirrus Logic PCIC chips must
@@ -495,32 +480,85 @@ pcic_probe(device_t dev)
 			setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
 			setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 		}
-		/*
-		 *	Check for a card in this slot.
-		 */
+	}
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, r);
+	return(validslots ? 0 : ENXIO);
+}
+
+static int
+pcic_attach(device_t dev)
+{
+	void		 *ih;
+	int rid;
+	struct resource *r;
+	int irq;
+	int error;
+	struct pcic_slot *sp;
+	int i;
+	
+	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
+	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
+		if (sp->slt)
+			device_add_child(dev, NULL, -1);
+	}
+	SET_UNIT(dev, validunits);
+	validunits++;
+
+	rid = 0;
+	r = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1, RF_ACTIVE);
+	if (!r) {
+		return ENXIO;
+	}
+
+	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
+	if (irq == 0) {
+		/* See if the user has requested a specific IRQ */
+		if (!getenv_int("machdep.pccard.pcic_irq", &irq))
+			irq = 0;
+	}
+	rid = 0;
+	r = 0;
+	if (irq >= 0) {
+		r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, 
+		    ~0, 1, RF_ACTIVE);
+	}
+	if (r) {
+		error = bus_setup_intr(dev, r, INTR_TYPE_MISC,
+		    pcicintr, (void *) GET_UNIT(dev), &ih);
+		if (error) {
+			bus_release_resource(dev, SYS_RES_IRQ, rid, r);
+			return error;
+		}
+		irq = rman_get_start(r);
+		device_printf(dev, "management irq %d\n", irq);
+	} else {
+		irq = 0;
+	}
+	if (irq == 0) {
+		pcictimeout_ch = timeout(pcictimeout, (void *) GET_UNIT(dev), 
+		    hz/2);
+		device_printf(dev, "Polling mode\n");
+	}
+
+	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
+	for (i = 0; i < PCIC_CARD_SLOTS; i++, sp++) {
+		/* Assign IRQ */
+		sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0xF);
+
+		/* Check for changes */
 		setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
+		if (sp->slt == NULL)
+			continue;
 		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
-			slt->laststate = slt->state = empty;
+			sp->slt->laststate = sp->slt->state = empty;
 		} else {
-			slt->laststate = slt->state = filled;
+			sp->slt->laststate = sp->slt->state = filled;
 			pccard_event(sp->slt, card_inserted);
 		}
-		/*
-		 *	Assign IRQ for slot changes
-		 */
-		if (pcic_irq > 0)
-			sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
-		else if (pcic_irq == 0) 
-			sp->putb(sp, PCIC_STAT_INT, 0xF);
+		sp->slt->irq = irq;
 	}
-	if (validslots && pcic_irq <= 0)
-		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
-	if (validslots) {
-		for (i = 0; i < validslots; i++) {
-			device_add_child(dev, NULL, -1);
-		}
-	}
-	return(validslots ? 0 : ENXIO);
+
+	return (bus_generic_attach(dev));
 }
 
 /*
@@ -711,8 +749,8 @@ pcic_disable(struct slot *slt)
 static void
 pcictimeout(void *chan)
 {
-	pcicintr(0);
-	pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
+	pcicintr(chan);
+	pcictimeout_ch = timeout(pcictimeout, chan, hz/2);
 }
 
 /*
@@ -726,10 +764,11 @@ pcicintr(void *arg)
 {
 	int	slot, s;
 	unsigned char chg;
-	struct pcic_slot *sp = pcic_slots;
+	int unit = (int) arg;
+	struct pcic_slot *sp = &pcic_slots[unit * PCIC_CARD_SLOTS];
 
 	s = splhigh();
-	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
+	for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
 		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
 			if (chg & PCIC_CDTCH) {
 				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
@@ -752,8 +791,7 @@ pcic_resume(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
 
-	if (pcic_irq > 0)
-		sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
+	sp->putb(sp, PCIC_STAT_INT, (slt->irq << 4) | 0xF);
 	if (sp->controller == PCIC_PD672X) {
 		setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
 		setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
@@ -881,7 +919,7 @@ pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 static device_method_t pcic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	pcic_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -904,7 +942,7 @@ devclass_t	pcic_devclass;
 static driver_t pcic_driver = {
 	"pcic",
 	pcic_methods,
-	1,			/* no softc */
+	sizeof(int)
 };
 
 DRIVER_MODULE(pcic, isa, pcic_driver, pcic_devclass, 0, 0);
