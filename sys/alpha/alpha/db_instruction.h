@@ -1,6 +1,6 @@
 /* $NetBSD: db_instruction.h,v 1.4 1997/09/16 22:53:32 thorpej Exp $ */
 
-/* 
+/*-
  * Mach Operating System
  * Copyright (c) 1993,1992 Carnegie Mellon University
  * All Rights Reserved.
