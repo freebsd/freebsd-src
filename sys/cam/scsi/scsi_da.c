@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.2 1998/09/16 23:30:11 ken Exp $
+ *      $Id: scsi_da.c,v 1.3 1998/09/18 22:33:59 ken Exp $
  */
 
 #include <sys/param.h>
@@ -364,6 +364,13 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 			  /*sense_flags*/0, &softc->device_stats);
 
 	xpt_release_ccb(ccb);
+
+	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+		cam_release_devq(ccb->ccb_h.path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
 
 	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
 		daprevent(periph, PR_ALLOW);
