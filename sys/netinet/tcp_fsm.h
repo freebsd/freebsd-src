@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_fsm.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_fsm.h,v 1.4 1994/08/26 22:27:14 wollman Exp $
+ * $Id: tcp_fsm.h,v 1.5 1995/02/16 01:53:31 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_FSM_H_
@@ -73,7 +73,7 @@
 u_char	tcp_outflags[TCP_NSTATES] = {
     TH_RST|TH_ACK, 0, TH_SYN, TH_SYN|TH_ACK,
     TH_ACK, TH_ACK,
-    TH_FIN|TH_ACK, TH_ACK, TH_FIN|TH_ACK, TH_ACK, TH_ACK,
+    TH_FIN|TH_ACK, TH_FIN|TH_ACK, TH_FIN|TH_ACK, TH_ACK, TH_ACK,
 };
 #endif
 
