@@ -124,6 +124,15 @@
       advisory <ulink 
         url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
 
+    <para>An <quote>off-by-one</quote> bug has been fixed in
+      <application>OpenSSH</application>'s multiplexing code.  This bug
+      could have allowed a connecting SSH client to execute arbitrary
+      code with the privileges of the client user.  Various workarounds
+      and bugfixes, for versions of
+      <application>OpenSSH</application> in both the base system and
+      Ports Collection, can be found in security advisory <ulink
+        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.</para>
+
 ]]>
   </sect1>
 
