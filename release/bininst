@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.46 1994/11/18 16:27:51 jkh Exp $
+# $Id: bininst,v 1.47 1994/11/20 14:49:46 jkh Exp $
 
 if [ "$_BININST_LOADED_" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
@@ -82,7 +82,7 @@ Please select one of the following options:" -1 -1 4 \
 	case $choice in
 	tzsetup)
 		dialog --clear
-		tzsetup
+		sh /stand/tzsetup
 		dialog --clear
 	;;
 
