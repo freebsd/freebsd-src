@@ -1,3 +1,14 @@
+2002-12-16  Derek Price  <derek@ximbiot.com>
+
+	* cvs_acls.in: Fix split loop error with Perl 5.8.0.
+	(Patch from Ville Skyttä <ville.skytta@iki.fi>.)
+
+2002-12-11  Larry Jones  <lawrence.jones@eds.com>
+
+	* Makefile.am (install-data-local): test -e isn't portable: use -f.
+	* Makefile.in: Regenerated.
+	(Reported by Philip Brown <phil@bolthole.com>.)
+
 2002-11-21  Larry Jones  <lawrence.jones@eds.com>
 
 	* .cvsignore: Add check_cvs.

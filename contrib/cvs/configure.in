@@ -1,5 +1,5 @@
 dnl configure.in for cvs
-AC_INIT([Concurrent Versions System (CVS)],[1.11.2.1],[bug-cvs@gnu.org],[cvs])
+AC_INIT([Concurrent Versions System (CVS)],[1.11.5],[bug-cvs@gnu.org],[cvs])
 AC_CONFIG_SRCDIR(src/cvs.h)
 AM_INIT_AUTOMAKE([gnu 1.5 dist-bzip2 no-define])
 AC_PREREQ(2.53)
@@ -518,6 +518,79 @@ dnl
 dnl Done setting default umask
 dnl
 
+dnl
+dnl Set CVS Administrator Group
+dnl
+AC_ARG_WITH(
+  [cvs-admin-group],
+  AC_HELP_STRING(
+    [--with-cvs-admin-group=GROUP],
+    [The CVS admin command is restricted to the members of this group.
+     If this group does not exist, all users are allowed to run CVS admin.
+     To disable the CVS admin command for all users, create an empty group
+     by specifying the --with-cvs-admin-group= option.  To disable access
+     control for CVS admin, run configure with the --without-cvs-admin-group
+     option. (default 'cvsadmin')]), ,
+  [with_cvs_admin_group=cvsadmin])
+
+if test yes = "$with_cvs_admin_group"; then
+  with_cvs_admin_group=cvsadmin
+fi
+if test no != "$with_cvs_admin_group"; then
+  dnl FIXME We should warn if the group doesn't exist
+  AC_DEFINE_UNQUOTED(
+    [CVS_ADMIN_GROUP], ["$with_cvs_admin_group"],
+    [The CVS admin command is restricted to the members of the group
+     CVS_ADMIN_GROUP.  If this group does not exist, all users are
+     allowed to run CVS admin.  To disable the CVS admin command for
+     all users, create an empty CVS_ADMIN_GROUP by running configure
+     with the --with-cvs-admin-group= option.  To disable access control
+     for CVS admin, run configure with the --without-cvs-admin-group
+     option in order to comment out the define below.])
+fi
+
+dnl
+dnl Done setting CVS Administrator Group
+dnl
+
+dnl
+dnl Set the NDBM library to use.
+dnl
+dnl XXX - FIXME - FIXME - FIXME - XXX
+dnl
+dnl This is very bad.  It should really autodetect an appropriate NDBM library
+dnl and, if it doesn't find one, decide to use MY_NDBM.  I'm am defining
+dnl this here since this is no worse than it worked when it was in options.h
+dnl and I am cleaning out options.h so that the Windows version of CVS will
+dnl compile properly for the next release.
+dnl
+dnl That's why this option is in the --with-* section rather than the
+dnl --enable-* section.
+dnl
+dnl XXX - FIXME - FIXME - FIXME - XXX
+dnl
+AC_ARG_ENABLE(
+  [cvs-ndbm],
+  AC_HELP_STRING(
+    [--enable-cvs-ndbm],
+    [Use the NDBM library distributed with CVS rather than attempting to use
+     a system NDBM library.  Disabling this may not work.  (default)]), ,
+  [enable_cvs_ndbm=yes])
+if test no != "$enable_cvs_ndbm"; then
+  AC_DEFINE(
+    [MY_NDBM], [1],
+    [By default, CVS stores its modules and other such items in flat
+     text files (MY_NDBM enables this).  Turning off MY_NDBM causes CVS
+     to look for a system-supplied ndbm database library and use it
+     instead.  That may speed things up, but the default setting
+     generally works fine too.])
+fi
+
+dnl
+dnl Done selecting NDBM library.
+dnl
+
+
 
 dnl
 dnl end --with-*
@@ -770,8 +843,9 @@ dnl end --enable-rootcommit
 dnl
 
 
+
 dnl
-dnl end --enables
+dnl end --enable-*
 dnl
 
 
