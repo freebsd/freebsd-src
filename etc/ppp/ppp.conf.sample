@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.28.2.2 1998/04/19 15:25:21 brian Exp $
+# $Id: ppp.conf.sample,v 1.28.2.3 1998/04/19 18:52:03 brian Exp $
 #
 #################################################################
 
@@ -25,7 +25,7 @@
 #  so that subsequent commands are logged.
 #
 default:
- set log Phase Chat Connect Carrier LCP IPCP CCP tun command
+ set log Phase Chat Connect LCP IPCP CCP tun command
  set device /dev/cuaa1
  set speed 115200
  deny lqr
