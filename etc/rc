@@ -137,7 +137,7 @@ adjkerntz -i
 clean_var() {
 	if [ ! -f /var/run/clean_var ]; then
 		rm -rf /var/run/*
-		rm -f /var/spool/lock/*
+		find /var/spool/lock ! -type d -delete
 		rm -rf /var/spool/uucp/.Temp/*
 		# Keep a copy of the boot messages around
 		dmesg >/var/run/dmesg.boot
@@ -202,11 +202,13 @@ case ${ipv6_enable} in
 esac
 
 # Mount NFS filesystems if present in /etc/fstab
-if mount -d -a -t nfs | grep -q nfs >/dev/null 2>&1; then
+case "`mount -d -a -t nfs`" in
+*mount_nfs*)
 	echo -n "Mounting NFS file systems"
 	mount -a -t nfs
 	echo .
-fi
+	;;
+esac
 
 # Whack the pty perms back into shape.
 #
@@ -501,6 +503,9 @@ fi
 # ---- rc.local ----
 #	if [ -r /etc/defaults/rc.conf ]; then
 #		. /etc/defaults/rc.conf
+#		source_rc_confs
+#	elif [ -r /etc/rc.conf ]; then
+#		. /etc/rc.conf
 #	fi
 #
 #	... additional startup conditionals ...
