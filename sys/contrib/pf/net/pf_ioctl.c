@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pf_ioctl.c,v 1.81 2003/08/22 21:50:34 david Exp $ */
 
 /*
@@ -34,6 +35,11 @@
  *
  */
 
+#if defined(__FreeBSD__)
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#endif
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -43,9 +49,13 @@
 #include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
+#include <sys/malloc.h>
+#if defined(__FreeBSD__)
+#include <sys/conf.h>
+#else
 #include <sys/timeout.h>
 #include <sys/pool.h>
-#include <sys/malloc.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -63,24 +73,58 @@
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet/in_pcb.h>
+#if defined(__FreeBSD__) && (__FreeBSD_version < 501108)
+#include <netinet6/ip6protosw.h>
+#endif
 #endif /* INET6 */
 
 #ifdef ALTQ
 #include <altq/altq.h>
 #endif
 
+#if defined(__FreeBSD__)
+#if (__FreeBSD_version >= 500112)
+#include <sys/limits.h>
+#else
+#include <machine/limits.h>
+#endif
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#if __FreeBSD_version < 501108
+#include <sys/protosw.h>
+#endif
+#include <net/pfil.h>
+#endif /* __FreeBSD__ */
+
+#if defined(__FreeBSD__)
+void			 init_zone_var(void);
+void			 cleanup_pf_zone(void);
+int			 pfattach(void);
+#else
 void			 pfattach(int);
 int			 pfopen(dev_t, int, int, struct proc *);
 int			 pfclose(dev_t, int, int, struct proc *);
+#endif
 struct pf_pool		*pf_get_pool(char *, char *, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 int			 pf_get_ruleset_number(u_int8_t);
 void			 pf_init_ruleset(struct pf_ruleset *);
 void			 pf_mv_pool(struct pf_palist *, struct pf_palist *);
 void			 pf_empty_pool(struct pf_palist *);
+#if defined(__FreeBSD__)
+int			 pfioctl(dev_t, u_long, caddr_t, int, struct thread *);
+#else
 int			 pfioctl(dev_t, u_long, caddr_t, int, struct proc *);
+#endif
 
+#if defined(__FreeBSD__)
+extern struct callout pf_expire_to;
+#if __FreeBSD_version < 501108
+extern struct protosw inetsw[];
+#endif
+#else
 extern struct timeout	 pf_expire_to;
+#endif
 
 struct pf_rule		 pf_default_rule;
 
@@ -89,6 +133,244 @@ TAILQ_HEAD(pf_tags, pf_tagname)	pf_tags = TAILQ_HEAD_INITIALIZER(pf_tags);
 
 #define DPFPRINTF(n, x) if (pf_status.debug >= (n)) printf x
 
+
+#if defined(__FreeBSD__)
+static dev_t		pf_dev;
+
+/*
+ * XXX - These are new and need to be checked when moveing to a new version
+ */
+static int pf_beginrules(void *addr);
+static int pf_commitrules(void *addr);
+#if defined(ALTQ)
+static int pf_beginaltqs(void *addr);
+static int pf_commitaltqs(void *addr);
+static int pf_stopaltq(void);
+#endif
+static void pf_clearstates(void);
+static int pf_clear_tables(void *addr);
+/*
+ * XXX - These are new and need to be checked when moveing to a new version
+ */
+ 
+#if (__FreeBSD_version < 501108)
+static int pf_check_in(void *ip, int hlen, struct ifnet *ifp, int dir,
+		struct mbuf **m);
+static int pf_check_out(void *ip, int hlen, struct ifnet *ifp, int dir,
+		struct mbuf **m);
+#if defined(INET6)
+static int pf_check6_in(void *ip, int hlen, struct ifnet *ifp, int dir,
+		struct mbuf **m);
+static int pf_check6_out(void *ip, int hlen, struct ifnet *ifp, int dir,
+		struct mbuf **m);
+#endif
+#else /* (__FreeBSD_version >= 501108) */
+static int pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp,
+		int dir);
+static int pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp,
+		int dir);
+#if defined(INET6)
+static int pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp,
+		int dir);
+static int pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp,
+		int dir);
+#endif
+#endif /* (__FreeBSD_version >= 501108) */
+static int hook_pf(void);
+static int dehook_pf(void);
+static int shutdown_pf(void);
+static int pf_load(void);
+static int pf_unload(void);
+
+
+
+static struct cdevsw pf_cdevsw = {
+#if (__FreeBSD_version < 500105)
+	/* open */	noopen,
+	/* close */	noclose,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	pfioctl,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	PF_NAME,
+	/* maj */	PF_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0,
+	/* kqfilter */	nokqfilter,
+#elif (__FreeBSD_version < 501110)
+	.d_open =	noopen,
+	.d_close =	noclose,
+	.d_read =	noread,
+	.d_write =	nowrite,
+	.d_ioctl =	pfioctl,
+	.d_poll =	nopoll,
+	.d_mmap =	nommap,
+	.d_strategy =	nostrategy,
+	.d_name =	PF_NAME,
+	.d_maj =	MAJOR_AUTO, /* PF_CDEV_MAJOR */
+	.d_dump =	nodump,
+	.d_flags =	0,
+	.d_kqfilter =	nokqfilter,
+#else
+	.d_ioctl =	pfioctl,
+	.d_name =	PF_NAME,
+	.d_version =	D_VERSION,
+#endif
+};
+#endif /* __FreeBSD__ */
+
+#if defined(__FreeBSD__)
+static volatile int pf_pfil_hooked = 0;
+struct mtx pf_task_mtx;
+
+void
+init_pf_mutex(void)
+{
+	mtx_init(&pf_task_mtx, "pf task mtx", NULL, MTX_DEF);
+/*
+ * pf_altq_mtx is initialized at altq_subr.c.
+ *
+ * #if defined(ALTQ) && !defined(ALTQ3_COMPAT)
+ *	mtx_init(&pf_altq_mtx, "pf altq mtx", NULL, MTX_DEF);
+ * #endif
+ */
+}
+
+void
+destroy_pf_mutex(void)
+{
+	mtx_destroy(&pf_task_mtx);
+/*
+ * pf_altq_mtx is initialized at altq_subr.c.
+ *
+ * #if defined(ALTQ) && !defined(ALTQ3_COMPAT)
+ * 	mtx_destroy(&pf_altq_mtx);
+ * #endif
+ */
+}
+
+void
+init_zone_var(void)
+{
+	pf_tree_pl = pf_rule_pl = pf_addr_pl = NULL;
+	pf_state_pl = pf_altq_pl = pf_pooladdr_pl = NULL;
+	pf_frent_pl = pf_frag_pl = pf_cache_pl = pf_cent_pl = NULL;
+	pf_state_scrub_pl = NULL;
+	pfr_ktable_pl = pfr_kentry_pl = NULL;
+}
+
+void
+cleanup_pf_zone(void)
+{
+	UMA_DESTROY(pf_tree_pl);
+	UMA_DESTROY(pf_rule_pl);
+	UMA_DESTROY(pf_addr_pl);
+	UMA_DESTROY(pf_state_pl);
+	UMA_DESTROY(pf_altq_pl);
+	UMA_DESTROY(pf_pooladdr_pl);
+	UMA_DESTROY(pf_frent_pl);
+	UMA_DESTROY(pf_frag_pl);
+	UMA_DESTROY(pf_cache_pl);
+	UMA_DESTROY(pf_cent_pl);
+	UMA_DESTROY(pfr_ktable_pl);
+	UMA_DESTROY(pfr_kentry_pl);
+	UMA_DESTROY(pf_state_scrub_pl);
+}
+#endif /* __FreeBSD__ */
+
+#if defined(__FreeBSD__)
+int
+pfattach(void)
+{
+	u_int32_t *my_timeout = pf_default_rule.timeout;
+	int error = 1;
+
+	do {
+		UMA_CREATE(pf_tree_pl,	  struct pf_tree_node, "pftrpl");
+		UMA_CREATE(pf_rule_pl,	  struct pf_rule, "pfrulepl");
+		UMA_CREATE(pf_addr_pl,	  struct pf_addr_dyn, "pfaddrpl");
+		UMA_CREATE(pf_state_pl,	  struct pf_state, "pfstatepl");
+		UMA_CREATE(pf_altq_pl,	  struct pf_altq, "pfaltqpl");
+		UMA_CREATE(pf_pooladdr_pl, struct pf_pooladdr, "pfpooladdrpl");
+		UMA_CREATE(pfr_ktable_pl,  struct pfr_ktable, "pfrktable");
+		UMA_CREATE(pfr_kentry_pl,  struct pfr_kentry, "pfrkentry");
+		UMA_CREATE(pf_frent_pl,	  struct pf_frent, "pffrent");
+		UMA_CREATE(pf_frag_pl,	  struct pf_fragment, "pffrag");
+		UMA_CREATE(pf_cache_pl,	  struct pf_fragment, "pffrcache");
+		UMA_CREATE(pf_cent_pl,	  struct pf_frcache, "pffrcent");
+		UMA_CREATE(pf_state_scrub_pl, struct pf_state_scrub, 
+		    "pfstatescrub");
+		error = 0;
+	} while(0);
+	if (error) {
+		cleanup_pf_zone();
+		return (error);
+	}
+	pfr_initialize();
+	if ( (error = pf_osfp_initialize()) ) {
+		cleanup_pf_zone();
+		pf_osfp_cleanup();
+		return (error);
+	}
+
+	pf_pool_limits[PF_LIMIT_STATES].pp = pf_state_pl;
+	pf_pool_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
+	pf_pool_limits[PF_LIMIT_FRAGS].pp = pf_frent_pl;
+	pf_pool_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
+	uma_zone_set_max(pf_pool_limits[PF_LIMIT_STATES].pp,
+		pf_pool_limits[PF_LIMIT_STATES].limit);
+
+	RB_INIT(&tree_lan_ext);
+	RB_INIT(&tree_ext_gwy);
+	TAILQ_INIT(&pf_anchors);
+	pf_init_ruleset(&pf_main_ruleset); 
+	TAILQ_INIT(&pf_altqs[0]);
+	TAILQ_INIT(&pf_altqs[1]);
+	TAILQ_INIT(&pf_pabuf);
+	pf_altqs_active = &pf_altqs[0];
+	pf_altqs_inactive = &pf_altqs[1];
+
+	/* default rule should never be garbage collected */
+	pf_default_rule.entries.tqe_prev = &pf_default_rule.entries.tqe_next;
+	pf_default_rule.action = PF_PASS;
+	pf_default_rule.nr = -1;
+
+	/* initialize default timeouts */
+	my_timeout[PFTM_TCP_FIRST_PACKET] = 120;	/* First TCP packet */
+	my_timeout[PFTM_TCP_OPENING] = 30; 		/* No response yet */
+	my_timeout[PFTM_TCP_ESTABLISHED] = 24*60*60;	/* Established */
+	my_timeout[PFTM_TCP_CLOSING] = 15 * 60;		/* Half closed */
+	my_timeout[PFTM_TCP_FIN_WAIT] = 45;		/* Got both FINs */
+	my_timeout[PFTM_TCP_CLOSED] = 90;		/* Got a RST */
+	my_timeout[PFTM_UDP_FIRST_PACKET] = 60;		/* First UDP packet */
+	my_timeout[PFTM_UDP_SINGLE] = 30;		/* Unidirectional */
+	my_timeout[PFTM_UDP_MULTIPLE] = 60;		/* Bidirectional */
+	my_timeout[PFTM_ICMP_FIRST_PACKET] = 20;	/* First ICMP packet */
+	my_timeout[PFTM_ICMP_ERROR_REPLY] = 10;		/* Got error response */
+	my_timeout[PFTM_OTHER_FIRST_PACKET] = 60;	/* First packet */
+	my_timeout[PFTM_OTHER_SINGLE] = 30;		/* Unidirectional */
+	my_timeout[PFTM_OTHER_MULTIPLE] = 60;		/* Bidirectional */
+	my_timeout[PFTM_FRAG] = 30;			/* Fragment expire */
+	my_timeout[PFTM_INTERVAL] = 10;			/* Expire interval */
+
+	/*
+	 * XXX
+	 *  The 2nd arg. 0 to callout_init(9) shoule be set to CALLOUT_MPSAFE
+	 * if Gaint lock is removed from the network stack.
+	 */
+	callout_init(&pf_expire_to, 0);
+	callout_reset(&pf_expire_to, my_timeout[PFTM_INTERVAL] * hz,
+	    pf_purge_timeout, &pf_expire_to);
+
+	pf_normalize_init();
+	pf_status.debug = PF_DEBUG_URGENT;
+	pf_pfil_hooked = 0;
+	return (error);
+}
+#else /* !__FreeBSD__ */
 void
 pfattach(int num)
 {
@@ -129,7 +411,7 @@ pfattach(int num)
 
 	/* initialize default timeouts */
 	timeout[PFTM_TCP_FIRST_PACKET] = 120;		/* First TCP packet */
-	timeout[PFTM_TCP_OPENING] = 30;			/* No response yet */
+	timeout[PFTM_TCP_OPENING] = 30; 		/* No response yet */
 	timeout[PFTM_TCP_ESTABLISHED] = 24*60*60;	/* Established */
 	timeout[PFTM_TCP_CLOSING] = 15 * 60;		/* Half closed */
 	timeout[PFTM_TCP_FIN_WAIT] = 45;		/* Got both FINs */
@@ -151,7 +433,9 @@ pfattach(int num)
 	pf_normalize_init();
 	pf_status.debug = PF_DEBUG_URGENT;
 }
+#endif /* __FreeBSD__ */
 
+#if !defined(__FreeBSD__)
 int
 pfopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
@@ -159,7 +443,9 @@ pfopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (ENXIO);
 	return (0);
 }
+#endif
 
+#if !defined(__FreeBSD__)
 int
 pfclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
@@ -167,6 +453,7 @@ pfclose(dev_t dev, int flags, int fmt, struct proc *p)
 		return (ENXIO);
 	return (0);
 }
+#endif
 
 struct pf_pool *
 pf_get_pool(char *anchorname, char *rulesetname, u_int32_t ticket,
@@ -349,7 +636,8 @@ pf_remove_if_empty_ruleset(struct pf_ruleset *ruleset)
 	struct pf_anchor	*anchor;
 	int			 i;
 
-	if (ruleset == NULL || ruleset->anchor == NULL || ruleset->tables > 0 ||	    ruleset->topen)
+	if (ruleset == NULL || ruleset->anchor == NULL || ruleset->tables > 0 ||
+	    ruleset->topen)
 		return;
 	for (i = 0; i < PF_RULESET_MAX; ++i)
 		if (!TAILQ_EMPTY(ruleset->rules[i].active.ptr) ||
@@ -498,8 +786,13 @@ pf_tag_unref(u_int16_t tag)
 	}
 }
 
+#if defined(__FreeBSD__)
+int
+pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
+#else
 int
 pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
+#endif
 {
 	struct pf_pooladdr	*pa = NULL;
 	struct pf_pool		*pool = NULL;
@@ -542,6 +835,9 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		case DIOCRCLRASTATS:
 		case DIOCRTSTADDRS:
 		case DIOCOSFPGET:
+#if defined(__FreeBSD__)
+		case DIOCGIFSPEED:
+#endif
 			break;
 		default:
 			return (EPERM);
@@ -571,10 +867,17 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		case DIOCRGETASTATS:
 		case DIOCRTSTADDRS:
 		case DIOCOSFPGET:
+#if defined(__FreeBSD__)
+		case DIOCGIFSPEED:
+#endif
 			break;
 		default:
 			return (EACCES);
 		}
+
+#if defined(__FreeBSD__)
+	PF_LOCK();
+#endif
 
 	switch (cmd) {
 
@@ -583,13 +886,32 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = EEXIST;
 		else {
 			u_int32_t states = pf_status.states;
+#if defined(__FreeBSD__)
+			PF_UNLOCK();
+			error = hook_pf();
+			PF_LOCK();
+			if (error) {
+				DPFPRINTF(PF_DEBUG_MISC,
+				    ("pf: pfil registeration fail\n"));
+				break;
+			}
+#endif
 			bzero(&pf_status, sizeof(struct pf_status));
 			pf_status.running = 1;
 			pf_status.states = states;
+#if defined(__FreeBSD__)
+			pf_status.since = time_second;
+#else
 			pf_status.since = time.tv_sec;
+#endif
 			if (status_ifp != NULL)
+#if defined(__FreeBSD__) && (__FreeBSD_version < 501113)
+				snprintf(pf_status.ifname, IFNAMSIZ, "%s%d",
+				    status_ifp->if_name, status_ifp->if_unit);
+#else
 				strlcpy(pf_status.ifname,
 				    status_ifp->if_xname, IFNAMSIZ);
+#endif
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: started\n"));
 		}
 		break;
@@ -599,6 +921,16 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = ENOENT;
 		else {
 			pf_status.running = 0;
+#if defined(__FreeBSD__)
+			PF_UNLOCK();
+			error = dehook_pf();
+			PF_LOCK();
+			if (error) {
+				pf_status.running = 1;
+				DPFPRINTF(PF_DEBUG_MISC,
+					("pf: pfil unregisteration failed\n"));
+			}
+#endif
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
 		break;
@@ -1108,7 +1440,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		state->nat_rule.ptr = NULL;
 		state->anchor.ptr = NULL;
 		state->rt_ifp = NULL;
+#if defined(__FreeBSD__)
+		state->creation = time_second;
+#else
 		state->creation = time.tv_sec;
+#endif
 		state->packets[0] = state->packets[1] = 0;
 		state->bytes[0] = state->bytes[1] = 0;
 		if (pf_insert_state(state)) {
@@ -1144,8 +1480,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		    -1 : n->state->anchor.ptr->nr;
 		splx(s);
 		ps->state.expire = pf_state_expires(n->state);
+#if defined(__FreeBSD__)
+		if (ps->state.expire > time_second)
+			ps->state.expire -= time_second;
+#else
 		if (ps->state.expire > time.tv_sec)
 			ps->state.expire -= time.tv_sec;
+#endif
 		else
 			ps->state.expire = 0;
 		break;
@@ -1164,13 +1505,20 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				nr++;
 			splx(s);
 			ps->ps_len = sizeof(struct pf_state) * nr;
+#if defined(__FreeBSD__)
+			PF_UNLOCK();
+#endif
 			return (0);
 		}
 
 		s = splsoftnet();
 		p = ps->ps_states;
 		RB_FOREACH(n, pf_state_tree, &tree_ext_gwy) {
+#if defined(__FreeBSD__)
+			int	secs = time_second;
+#else
 			int	secs = time.tv_sec;
+#endif
 
 			if ((nr + 1) * sizeof(*p) > (unsigned)ps->ps_len)
 				break;
@@ -1187,7 +1535,11 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 				pstore.expire -= secs;
 			else
 				pstore.expire = 0;
+#if defined(__FreeBSD__)
+			PF_COPYOUT(&pstore, p, sizeof(*p), error);
+#else
 			error = copyout(&pstore, p, sizeof(*p));
+#endif
 			if (error) {
 				splx(s);
 				goto fail;
@@ -1236,8 +1588,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		pf_status.since = since;
 		pf_status.debug = debug;
 		if (status_ifp != NULL)
+#if defined(__FreeBSD__) && (__FreeBSD_version < 501113)
+			snprintf(pf_status.ifname, IFNAMSIZ, "%s%d",
+			    status_ifp->if_name, status_ifp->if_unit);
+#else
 			strlcpy(pf_status.ifname,
 			    status_ifp->if_xname, IFNAMSIZ);
+#endif
 		break;
 	}
 
@@ -1339,11 +1696,15 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			error = EINVAL;
 			goto fail;
 		}
+#if defined(__FreeBSD__)
+		uma_zone_set_max(pf_pool_limits[pl->index].pp, pl->limit);
+#else
 		if (pool_sethardlimit(pf_pool_limits[pl->index].pp,
 		    pl->limit, NULL, 0) != 0) {
 			error = EBUSY;
 			goto fail;
 		}
+#endif
 		old_limit = pf_pool_limits[pl->index].limit;
 		pf_pool_limits[pl->index].limit = pl->limit;
 		pl->limit = old_limit;
@@ -1369,6 +1730,26 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		splx(s);
 		break;
 	}
+
+#if defined(__FreeBSD__)
+	case DIOCGIFSPEED: {
+		struct pf_ifspeed	*psp = (struct pf_ifspeed *)addr;
+		struct pf_ifspeed	ps;
+		struct ifnet		*ifp;
+
+		if (psp->ifname[0] != 0) {
+			/* Can we completely trust user-land? */
+			strlcpy(ps.ifname, psp->ifname, IFNAMSIZ);
+			ifp = ifunit(ps.ifname);
+			if (ifp )
+				psp->baudrate = ifp->if_baudrate;
+			else
+				error = EINVAL;
+		} else
+			error = EINVAL;
+		break;
+	}
+#endif /* __FreeBSD__ */
 
 #ifdef ALTQ
 	case DIOCSTARTALTQ: {
@@ -1396,8 +1777,16 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 					break;
 			}
 		}
+#if defined(__FreeBSD__)
+		if (error == 0) {
+			mtx_lock(&pf_altq_mtx);
+			pfaltq_running = 1;
+			mtx_unlock(&pf_altq_mtx);
+		}
+#else
 		if (error == 0)
 			pfaltq_running = 1;
+#endif
 		splx(s);
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: started\n"));
 		break;
@@ -1429,8 +1818,16 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 					error = err;
 			}
 		}
+#if defined(__FreeBSD__)
+		if (error == 0) {
+			mtx_lock(&pf_altq_mtx);
+			pfaltq_running = 0;
+			mtx_unlock(&pf_altq_mtx);
+		}
+#else
 		if (error == 0)
 			pfaltq_running = 0;
+#endif
 		splx(s);
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: stopped\n"));
 		break;
@@ -1445,7 +1842,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 			if (altq->qname[0] == 0) {
 				/* detach and destroy the discipline */
+#if defined(__FreeBSD__)
+				PF_UNLOCK();
+#endif
 				error = altq_remove(altq);
+#if defined(__FreeBSD__)
+				PF_LOCK();
+#endif
 			}
 			pool_put(&pf_altq_pl, altq);
 		}
@@ -1482,7 +1885,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			}
 		}
 
+#if defined(__FreeBSD__)
+		PF_UNLOCK();
+#endif		
 		error = altq_add(altq);
+#if defined(__FreeBSD__)
+		PF_LOCK();
+#endif
 		if (error) {
 			pool_put(&pf_altq_pl, altq);
 			break;
@@ -1517,7 +1926,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
 			if (altq->qname[0] == 0) {
 				/* attach the discipline */
+#if defined(__FreeBSD__)
+				PF_UNLOCK();
+#endif
 				error = altq_pfattach(altq);
+#if defined(__FreeBSD__)
+				PF_LOCK();
+#endif
 				if (error) {
 					splx(s);
 					goto fail;
@@ -1530,12 +1945,18 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 			if (altq->qname[0] == 0) {
 				/* detach and destroy the discipline */
+#if defined(__FreeBSD__)
+				PF_UNLOCK();
+#endif
 				err = altq_pfdetach(altq);
 				if (err != 0 && error == 0)
 					error = err;
 				err = altq_remove(altq);
 				if (err != 0 && error == 0)
 					error = err;
+#if defined(__FreeBSD__)
+				PF_LOCK();
+#endif
 			}
 			pool_put(&pf_altq_pl, altq);
 		}
@@ -1621,7 +2042,13 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 			splx(s);
 			break;
 		}
+#if defined(__FreeBSD__)
+		PF_UNLOCK();
+#endif
 		error = altq_getqstats(altq, pq->buf, &nbytes);
+#if defined(__FreeBSD__)
+		PF_LOCK();
+#endif
 		splx(s);
 		if (error == 0) {
 			pq->scheduler = altq->scheduler;
@@ -2153,6 +2580,713 @@ pfioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 		break;
 	}
 fail:
+#if defined(__FreeBSD__)
+	PF_UNLOCK();
+#endif
+	return (error);
+}
+
+#if defined(__FreeBSD__)
+/*
+ * XXX - Check for version missmatch!!!
+ */
+static int
+pf_beginrules(void *addr)
+{
+	struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
+	struct pf_ruleset	*ruleset;
+	struct pf_rule		*rule;
+	int			 rs_num;
+	int			 error = 0;
+
+	do {
+		ruleset = pf_find_or_create_ruleset(pr->anchor, pr->ruleset);
+		if (ruleset == NULL) {
+			error = EINVAL;
+			break;
+		}
+		rs_num = pf_get_ruleset_number(pr->rule.action);
+		if (rs_num >= PF_RULESET_MAX) {
+			error = EINVAL;
+			break;
+		}
+		while ((rule =
+		    TAILQ_FIRST(ruleset->rules[rs_num].inactive.ptr)) != NULL)
+			pf_rm_rule(ruleset->rules[rs_num].inactive.ptr, rule);
+		pr->ticket = ++ruleset->rules[rs_num].inactive.ticket;
+	} while(0);
 
 	return (error);
 }
+
+static int
+pf_commitrules(void *addr)
+{
+	struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
+	struct pf_ruleset	*ruleset;
+	struct pf_rulequeue	*old_rules;
+	struct pf_rule		*rule;
+	int			 rs_num, s;
+	int			 error = 0;
+
+	do {
+		ruleset = pf_find_ruleset(pr->anchor, pr->ruleset);
+		if (ruleset == NULL) {
+			error = EINVAL;
+			break;
+		}
+		rs_num = pf_get_ruleset_number(pr->rule.action);
+		if (rs_num >= PF_RULESET_MAX) {
+			error = EINVAL;
+			break;
+		}
+		if (pr->ticket != ruleset->rules[rs_num].inactive.ticket) {
+			error = EBUSY;
+			break;
+		}
+
+#ifdef ALTQ
+		/* set queue IDs */
+		if (rs_num == PF_RULESET_FILTER)
+			pf_rule_set_qid(ruleset->rules[rs_num].inactive.ptr);
+#endif
+
+		/* Swap rules, keep the old. */
+		s = splsoftnet();
+		old_rules = ruleset->rules[rs_num].active.ptr;
+		ruleset->rules[rs_num].active.ptr =
+		    ruleset->rules[rs_num].inactive.ptr;
+		ruleset->rules[rs_num].inactive.ptr = old_rules;
+		ruleset->rules[rs_num].active.ticket =
+		    ruleset->rules[rs_num].inactive.ticket;
+		pf_calc_skip_steps(ruleset->rules[rs_num].active.ptr);
+
+		/* Purge the old rule list. */
+		while ((rule = TAILQ_FIRST(old_rules)) != NULL)
+			pf_rm_rule(old_rules, rule);
+		pf_remove_if_empty_ruleset(ruleset);
+		pf_update_anchor_rules();
+		splx(s);
+	} while (0);
+
+	return (error);
+}
+
+#if defined(ALTQ)
+static int
+pf_beginaltqs(void *addr)
+{
+	u_int32_t	*ticket = (u_int32_t *)addr;
+	struct pf_altq	*altq;
+	int		error = 0;
+
+	/* Purge the old altq list */
+	while ((altq = TAILQ_FIRST(pf_altqs_inactive)) != NULL) {
+		TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
+		if (altq->qname[0] == 0) {
+#if defined(__FreeBSD__)
+			PF_UNLOCK();
+#endif
+			/* detach and destroy the discipline */
+			error = altq_remove(altq);
+#if defined(__FreeBSD__)
+			PF_LOCK();
+#endif
+		}
+		uma_zfree(pf_altq_pl, altq);
+	}
+	*ticket = ++ticket_altqs_inactive;
+
+	return (error);
+}
+
+static int
+pf_commitaltqs(void *addr)
+{
+	u_int32_t		*ticket = (u_int32_t *)addr;
+	struct pf_altqqueue	*old_altqs;
+	struct pf_altq		*altq;
+	struct pf_anchor	*anchor;
+	struct pf_ruleset	*ruleset;
+	int			 err;
+	int			 s;
+	int			 error = 0;
+
+	do {
+		if (*ticket != ticket_altqs_inactive) {
+			error = EBUSY;
+			break;
+		}
+
+		/* Swap altqs, keep the old. */
+		s = splsoftnet();
+		old_altqs = pf_altqs_active;
+		pf_altqs_active = pf_altqs_inactive;
+		pf_altqs_inactive = old_altqs;
+		ticket_altqs_active = ticket_altqs_inactive;
+
+		/* Attach new disciplines */
+		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
+			if (altq->qname[0] == 0) {
+				/* attach the discipline */
+#if defined(__FreeBSD__)
+				PF_UNLOCK();
+#endif
+				error = altq_pfattach(altq);
+#if defined(__FreeBSD__)
+				PF_LOCK();
+#endif
+				if (error) {
+					splx(s);
+					goto altq_fail;
+				}
+			}
+		}
+
+		/* Purge the old altq list */
+		while ((altq = TAILQ_FIRST(pf_altqs_inactive)) != NULL) {
+			TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
+			if (altq->qname[0] == 0) {
+				/* detach and destroy the discipline */
+#if defined(__FreeBSD__)
+				PF_UNLOCK();
+#endif
+				err = altq_pfdetach(altq);
+				if (err != 0 && error == 0)
+					error = err;
+				err = altq_remove(altq);
+				if (err != 0 && error == 0)
+					error = err;
+#if defined(__FreeBSD__)
+				PF_LOCK();
+#endif
+			}
+			uma_zfree(pf_altq_pl, altq);
+		}
+		splx(s);
+
+		/* update queue IDs */
+		pf_rule_set_qid(
+		    pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
+		TAILQ_FOREACH(anchor, &pf_anchors, entries) {
+			TAILQ_FOREACH(ruleset, &anchor->rulesets, entries) {
+				pf_rule_set_qid(
+				    ruleset->rules[PF_RULESET_FILTER].active.ptr
+				    );
+			}
+		}
+	} while (0);
+
+altq_fail:
+
+	return (error);
+}
+
+static int
+pf_stopaltq(void)
+{
+	struct pf_altq		*altq;
+	struct ifnet		*ifp;
+	struct tb_profile	 tb;
+	int			 err;
+	int			 s;
+	int			 error = 0;
+
+	do {
+		/* disable all altq interfaces on active list */
+		s = splsoftnet();
+		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
+			if (altq->qname[0] == 0) {
+				if ((ifp = ifunit(altq->ifname)) == NULL) {
+					error = EINVAL;
+					break;
+				}
+				if (ifp->if_snd.altq_type != ALTQT_NONE) {
+					err = altq_disable(&ifp->if_snd);
+					if (err != 0 && error == 0)
+						error = err;
+				}
+				/* clear tokenbucket regulator */
+				tb.rate = 0;
+				err = tbr_set(&ifp->if_snd, &tb);
+				if (err != 0 && error == 0)
+					error = err;
+			}
+		}
+#if defined(__FreeBSD__)
+		if (error == 0) {
+			mtx_lock(&pf_altq_mtx);
+			pfaltq_running = 0;
+			mtx_unlock(&pf_altq_mtx);
+		}
+#else
+		if (error == 0)
+			pfaltq_running = 0;
+#endif
+		splx(s);
+	} while (0);
+
+	return (error);
+}
+#endif
+
+static void
+pf_clearstates(void)
+{
+	struct pf_tree_node	*n;
+	int s;
+
+	s = splsoftnet();
+	RB_FOREACH(n, pf_state_tree, &tree_ext_gwy)
+		n->state->timeout = PFTM_PURGE;
+	pf_purge_expired_states();
+	pf_status.states = 0;
+	splx(s);
+}
+
+static int
+pf_clear_tables(void *addr)
+{
+	struct pfioc_table *io = (struct pfioc_table *)addr;
+	int error;
+
+	error = pfr_clr_tables(&io->pfrio_table, &io->pfrio_ndel,
+	    io->pfrio_flags);
+
+	return (error);
+}
+
+static int
+shutdown_pf(void)
+{
+	struct pfioc_rule pr;
+#if defined(ALTQ)
+	struct pfioc_altq pa;
+#endif
+	struct pfioc_table io;
+	int error = 0;
+
+	callout_stop(&pf_expire_to);
+
+	PF_LOCK();
+	pf_status.running = 0;
+	do {
+#if defined(ALTQ)
+		if ((error = pf_stopaltq())) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("ALTQ: stop(%i)\n", error));
+			break;
+		}
+#endif
+		bzero(&pr, sizeof(pr));
+		pr.rule.action = PF_SCRUB;
+		if ((error = pf_beginrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_SCRUB: begin(%i)\n", error));
+			break;
+		}
+		if ((error = pf_commitrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_SCRUB: commit(%i)\n", error));
+			break;
+		}
+
+		pr.rule.action = PF_PASS;
+		if ((error = pf_beginrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_PASS: begin(%i)\n", error));
+			break;
+		}
+		if ((error = pf_commitrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_PASS: commit(%i)\n", error));
+			break;
+		}
+
+/*
+ * XXX not sure, but can't hurt:
+ */
+		bzero(&pr, sizeof(pr));
+		pr.rule.action = PF_NAT;
+		if ((error = pf_beginrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_NAT: begin(%i)\n", error));
+			break;
+		}
+		if ((error = pf_commitrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_NAT: commit(%i)\n", error));
+			break;
+		}
+
+		pr.rule.action = PF_BINAT;
+		if ((error = pf_beginrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_BINAT: begin(%i)\n", error));
+			break;
+		}
+		if ((error = pf_commitrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_BINAT: begin(%i)\n", error));
+			break;
+		}
+
+		pr.rule.action = PF_RDR;
+		if ((error = pf_beginrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_RDR: begin(%i)\n", error));
+			break;
+		}
+		if ((error = pf_commitrules(&pr))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("PF_RDR: commit(%i)\n", error));
+			break;
+		}
+
+#if defined(ALTQ)
+		bzero(&pa, sizeof(pa));
+		if ((error = pf_beginaltqs(&pa))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("ALTQ: begin(%i)\n", error));
+			break;
+		}
+		if ((error = pf_commitaltqs(&pa))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("ALTQ: commit(%i)\n", error));
+			break;
+		}
+#endif
+		pf_clearstates();
+
+		bzero(&io, sizeof(io));
+		if ((error = pf_clear_tables(&io))) {
+			DPFPRINTF(PF_DEBUG_MISC, 
+			    ("TABLES: clear(%i)\n", error));
+			break;
+		}
+		pf_osfp_flush();
+	} while(0);
+
+	PF_UNLOCK();
+        return (error);
+}
+
+static int
+#if (__FreeBSD_version < 501108)
+pf_check_in(void *ip, int hlen, struct ifnet *ifp, int dir, struct mbuf **m)
+#else
+pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+#endif
+{
+	/*
+	 * XXX Wed Jul 9 22:03:16 2003 UTC
+	 * OpenBSD has changed its byte ordering convention on ip_len/ip_off
+	 * in network stack. OpenBSD's network stack have converted
+	 * ip_len/ip_off to host byte order frist as FreeBSD.
+	 * Now this is not true anymore , so we should convert back to network
+	 * byte order. 
+	 */
+	struct ip *h = NULL;
+	int chk;
+
+	if ((*m)->m_pkthdr.len >= (int)sizeof(struct ip)) {
+		/* if m_pkthdr.len is less than ip header, pf will handle. */
+		h = mtod(*m, struct ip *);
+	        HTONS(h->ip_len);
+	        HTONS(h->ip_off);
+	}
+	chk = pf_test(PF_IN, ifp, m);
+	if (chk && *m) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	if (*m != NULL) {
+		/* pf_test can change ip header location */
+		h = mtod(*m, struct ip *);
+		NTOHS(h->ip_len);
+		NTOHS(h->ip_off);
+	}
+	return chk;
+}
+
+static int
+#if (__FreeBSD_version < 501108)
+pf_check_out(void *ip, int hlen, struct ifnet *ifp, int dir, struct mbuf **m)
+#else
+pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+#endif
+{
+	/*
+	 * XXX Wed Jul 9 22:03:16 2003 UTC
+	 * OpenBSD has changed its byte ordering convention on ip_len/ip_off
+	 * in network stack. OpenBSD's network stack have converted
+	 * ip_len/ip_off to host byte order frist as FreeBSD.
+	 * Now this is not true anymore , so we should convert back to network
+	 * byte order. 
+	 */
+	struct ip *h = NULL;
+	int chk;
+
+	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
+	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		in_delayed_cksum(*m);
+		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+	if ((*m)->m_pkthdr.len >= (int)sizeof(*h)) {
+		/* if m_pkthdr.len is less than ip header, pf will handle. */
+		h = mtod(*m, struct ip *);
+	        HTONS(h->ip_len);
+	        HTONS(h->ip_off);
+	}
+	chk = pf_test(PF_OUT, ifp, m);
+	if (chk && *m) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	if (*m != NULL) {
+		/* pf_test can change ip header location */
+		h = mtod(*m, struct ip *);
+		NTOHS(h->ip_len);
+		NTOHS(h->ip_off);
+	}
+	return chk;
+}
+
+#ifdef INET6
+static int
+#if (__FreeBSD_version < 501108)
+pf_check6_in(void *ip, int hlen, struct ifnet *ifp, int dir, struct mbuf **m)
+#else
+pf_check6_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+#endif
+{
+	/*
+	 * IPv6 does not affected ip_len/ip_off byte order changes.
+	 */
+	int chk;
+
+	chk = pf_test6(PF_IN, ifp, m);
+	if (chk && *m) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	return chk;
+}
+
+static int
+#if (__FreeBSD_version < 501108)
+pf_check6_out(void *ip, int hlen, struct ifnet *ifp, int dir, struct mbuf **m)
+#else
+pf_check6_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir)
+#endif
+{
+	/*
+	 * IPv6 does not affected ip_len/ip_off byte order changes.
+	 */
+	int chk;
+
+	/* We need a proper CSUM befor we start (s. OpenBSD ip_output) */
+	if ((*m)->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+		in_delayed_cksum(*m);
+		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+	}
+	chk = pf_test6(PF_OUT, ifp, m);
+	if (chk && *m) {
+		m_freem(*m);
+		*m = NULL;
+	}
+	return chk;
+}
+#endif /* INET6 */
+
+static int
+hook_pf(void)
+{
+#if (__FreeBSD_version >= 501108)
+	struct pfil_head *pfh_inet;
+#if defined(INET6)
+	struct pfil_head *pfh_inet6;
+#endif
+#endif
+	
+	PF_ASSERT(MA_NOTOWNED);
+
+	if (pf_pfil_hooked)
+		return (0); 
+	
+#if (__FreeBSD_version < 501108)
+	/*
+	 * XXX
+	 * There is no easy way to get pfil header pointer with address
+	 * family such as AF_INET, AF_INET6.
+	 * Needs direct variable reference.
+	 */
+
+	pfil_add_hook(pf_check_in, PFIL_IN,
+		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+	pfil_add_hook(pf_check_out, PFIL_OUT,
+		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+#if defined(INET6)
+	pfil_add_hook(pf_check6_in, PFIL_IN,
+		&inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+	pfil_add_hook(pf_check6_out, PFIL_OUT,
+		&inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+#endif
+#else /* __FreeBSD_version >= 501108 */
+	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	if (pfh_inet == NULL)
+		return (ESRCH); /* XXX */
+	pfil_add_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet);
+	pfil_add_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet);
+#if defined(INET6)
+	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (pfh_inet6 == NULL) {
+		pfil_remove_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK,
+		    pfh_inet);
+		pfil_remove_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
+		    pfh_inet);
+		return (ESRCH); /* XXX */
+	}
+	pfil_add_hook(pf_check6_in, NULL, PFIL_IN | PFIL_WAITOK, pfh_inet6);
+	pfil_add_hook(pf_check6_out, NULL, PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+#endif
+#endif /* __FreeBSD_version >= 501108 */
+
+	pf_pfil_hooked = 1;
+	return (0);
+}
+
+static int
+dehook_pf(void)
+{
+#if (__FreeBSD_version >= 501108)
+	struct pfil_head *pfh_inet;
+#if defined(INET6)
+	struct pfil_head *pfh_inet6;
+#endif
+#endif
+
+	PF_ASSERT(MA_NOTOWNED);
+
+	if (pf_pfil_hooked == 0)
+		return (0);
+
+#if (__FreeBSD_version < 501108)
+	pfil_remove_hook(pf_check_in, PFIL_IN,
+		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+	pfil_remove_hook(pf_check_out, PFIL_OUT,
+		&inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+#if defined(INET6)
+	pfil_remove_hook(pf_check6_in, PFIL_IN,
+		&inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+	pfil_remove_hook(pf_check6_out, PFIL_OUT,
+		&inet6sw[ip6_protox[IPPROTO_IPV6]].pr_pfh);
+#endif
+#else /* __FreeBSD_version >= 501108 */
+	pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	if (pfh_inet == NULL)
+		return (ESRCH); /* XXX */
+	pfil_remove_hook(pf_check_in, NULL, PFIL_IN | PFIL_WAITOK,
+	    pfh_inet);
+	pfil_remove_hook(pf_check_out, NULL, PFIL_OUT | PFIL_WAITOK,
+	    pfh_inet);
+#if defined(INET6)
+	pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	if (pfh_inet6 == NULL)
+		return (ESRCH); /* XXX */
+	pfil_remove_hook(pf_check6_in, NULL, PFIL_IN | PFIL_WAITOK,
+	    pfh_inet6);
+	pfil_remove_hook(pf_check6_out, NULL, PFIL_OUT | PFIL_WAITOK,
+	    pfh_inet6);
+#endif
+#endif /* __FreeBSD_version >= 501108 */
+
+	pf_pfil_hooked = 0;
+	return (0);
+}
+
+static int
+pf_load(void)
+{
+	init_zone_var();
+	init_pf_mutex();
+	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
+	if (pfattach() < 0) {
+		destroy_dev(pf_dev);
+		destroy_pf_mutex();
+		return (ENOMEM);
+	}
+#if defined(ALTQ)
+	mtx_lock(&pf_altq_mtx);
+	++pfaltq_ref;
+	mtx_unlock(&pf_altq_mtx);
+#endif
+	printf("pf: $Name:  $\n");
+	return (0);
+}
+
+static int
+pf_unload(void)
+{
+	int error = 0;
+
+	PF_LOCK();
+	pf_status.running = 0;
+	PF_UNLOCK();
+	error = dehook_pf();
+	if (error) {
+		/*
+		 * Should not happen!
+		 * XXX Due to error code ESRCH, kldunload will show
+		 * a message like 'No such process'.
+		 */
+		printf("%s : pfil unregisteration fail\n", __FUNCTION__);
+		return error;
+	}
+	shutdown_pf();
+	cleanup_pf_zone();
+	pf_osfp_cleanup();
+	destroy_dev(pf_dev);
+#if defined(ALTQ)
+	mtx_lock(&pf_altq_mtx);
+	--pfaltq_ref;
+	mtx_unlock(&pf_altq_mtx);
+#endif
+	destroy_pf_mutex();
+	return error;
+}
+
+static int
+pf_modevent(module_t mod, int type, void *data)
+{
+	int error = 0;
+
+	switch(type) {
+	case MOD_LOAD:
+		error = pf_load();
+		break;
+
+	case MOD_UNLOAD:
+		error = pf_unload();
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	return error;
+}
+
+static moduledata_t pf_mod = {
+	"pf",
+	pf_modevent,
+	0
+};
+
+DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+MODULE_DEPEND(pf, pflog, PFLOG_MINVER, PFLOG_PREFVER, PFLOG_MAXVER);
+MODULE_DEPEND(pf, pfsync, PFSYNC_MINVER, PFSYNC_PREFVER, PFSYNC_MAXVER);
+#if defined(ALTQ)
+MODULE_DEPEND(pf, pfaltq, PFALTQ_MINVER, PFALTQ_PREFVER, PFALTQ_MAXVER);
+#endif
+MODULE_VERSION(pf, PF_MODVER);
+#endif	/* __FreeBSD__ */
