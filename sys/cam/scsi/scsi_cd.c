@@ -2976,6 +2976,12 @@ cdsetspeed(struct cam_periph *periph, u_int32_t rdspeed, u_int32_t wrspeed)
 	ccb = cdgetccb(periph, /* priority */ 1);
 	csio = &ccb->csio;
 
+	/* Preserve old behavior: units in multiples of CDROM speed */
+	if (rdspeed < 177)
+		rdspeed *= 177;
+	if (wrspeed < 177)
+		wrspeed *= 177;
+
 	cam_fill_csio(csio,
 		      /* retries */ 1,
 		      /* cbfcnp */ cddone,

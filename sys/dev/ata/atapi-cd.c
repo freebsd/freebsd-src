@@ -1021,11 +1021,24 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	break;
 
     case CDRIOCREADSPEED:
-	error = acd_set_speed(cdp, *(int *)addr, CDR_MAX_SPEED);
+	{
+	    int speed = *(int *)addr;
+
+	    /* Preserve old behavior: units in multiples of CDROM speed */
+	    if (speed < 177)
+		speed *= 177;
+	    error = acd_set_speed(cdp, speed, CDR_MAX_SPEED);
+	}
 	break;
 
     case CDRIOCWRITESPEED:
-	error = acd_set_speed(cdp, CDR_MAX_SPEED, *(int *)addr);
+    	{
+	    int speed = *(int *)addr;
+
+	    if (speed < 177)
+		speed *= 177;
+	    error = acd_set_speed(cdp, CDR_MAX_SPEED, speed);
+	}
 	break;
 
     case CDRIOCGETBLOCKSIZE:
