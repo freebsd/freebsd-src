@@ -546,7 +546,9 @@ blst_meta_free(
 	if (scan->u.bmu_avail == radix)
 		return;
 	if (scan->u.bmu_avail > radix)
-		panic("blst_meta_free: freeing already free blocks (%d) %d/%d", count, scan->u.bmu_avail, radix);
+		panic("blst_meta_free: freeing already free blocks (%lld) %lld/%lld",
+		    (long long)count, (long long)scan->u.bmu_avail,
+		    (long long)radix);
 
 	/*
 	 * Break the free down into its components
