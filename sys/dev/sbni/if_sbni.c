@@ -1222,9 +1222,9 @@ calc_crc32(u_int32_t crc, caddr_t p, u_int len)
 		"xorb	2(%%esi), %%bl\n"
 		"xorl	(%%edi,%%ebx,4), %%eax\n"
 	"2:\n"
-		:
-		: "a" (_crc), "g" (p), "g" (len)
-		: "ax", "bx", "cx", "dx", "si", "di"
+		: "=a" (_crc)
+		: "g" (p), "g" (len)
+		: "bx", "cx", "dx", "si", "di"
 	);
 
 	return (_crc);
