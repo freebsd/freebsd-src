@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.198 1998/06/06 01:13:21 bde Exp $
+#	$Id: Makefile,v 1.199 1998/06/06 04:39:41 jkoshy Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -254,6 +254,17 @@ buildworld:
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
 		${IBMAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
+	)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Making mtools"
+	@echo "--------------------------------------------------------------"
+	( \
+	cd ${.CURDIR}/usr.sbin/mtree; \
+		MAKEOBJDIRPREFIX=""; unset MAKEOBJDIRPREFIX; \
+		${MAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} all; \
+		${MAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} install; \
+		${MAKE} -I${.CURDIR}/share/mk ${MK_FLAGS} clean \
 	)
 .endif
 	@echo
