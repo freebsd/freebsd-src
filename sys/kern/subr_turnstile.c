@@ -142,6 +142,9 @@ MALLOC_DEFINE(M_TURNSTILE, "turnstiles", "turnstiles");
  * Prototypes for non-exported routines.
  */
 static void	init_turnstile0(void *dummy);
+#ifdef TURNSTILE_PROFILING
+static void	init_turnstile_profiling(void *arg);
+#endif
 static void	propagate_priority(struct thread *);
 static void	turnstile_setowner(struct turnstile *ts, struct thread *owner);
 
@@ -307,17 +310,26 @@ propagate_priority(struct thread *td)
 void
 init_turnstiles(void)
 {
-#ifdef TURNSTILE_PROFILING
-	struct sysctl_oid *chain_oid;
-	char chain_name[10];
-#endif
 	int i;
 
 	for (i = 0; i < TC_TABLESIZE; i++) {
 		LIST_INIT(&turnstile_chains[i].tc_turnstiles);
 		mtx_init(&turnstile_chains[i].tc_lock, "turnstile chain",
 		    NULL, MTX_SPIN);
+	}
+	mtx_init(&td_contested_lock, "td_contested", NULL, MTX_SPIN);
+	thread0.td_turnstile = NULL;
+}
+
 #ifdef TURNSTILE_PROFILING
+static void
+init_turnstile_profiling(void *arg)
+{
+	struct sysctl_oid *chain_oid;
+	char chain_name[10];
+	int i;
+
+	for (i = 0; i < TC_TABLESIZE; i++) {
 		snprintf(chain_name, sizeof(chain_name), "%d", i);
 		chain_oid = SYSCTL_ADD_NODE(NULL, 
 		    SYSCTL_STATIC_CHILDREN(_debug_turnstile_chains), OID_AUTO,
@@ -328,11 +340,11 @@ init_turnstiles(void)
 		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
 		    "max_depth", CTLFLAG_RD, &turnstile_chains[i].tc_max_depth,
 		    0, NULL);
-#endif
 	}
-	mtx_init(&td_contested_lock, "td_contested", NULL, MTX_SPIN);
-	thread0.td_turnstile = NULL;
 }
+SYSINIT(turnstile_profiling, SI_SUB_LOCK, SI_ORDER_ANY,
+    init_turnstile_profiling, NULL);
+#endif
 
 static void
 init_turnstile0(void *dummy)
