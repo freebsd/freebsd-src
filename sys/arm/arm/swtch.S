@@ -128,11 +128,9 @@ __FBSDID("$FreeBSD$");
 .Lcpu_do_powersave:
 	.word	_C_LABEL(cpu_do_powersave)
 ENTRY(cpu_throw)
-	mov	r4, r0
 	mov	r5, r1
 
 	/*
-	 * r4 = oldtd
 	 * r5 = newtd
 	 */
 
@@ -148,7 +146,6 @@ ENTRY(cpu_throw)
 	/*
 	 * r0 = Pointer to L1 slot for vector_page (or NULL)
 	 * r1 = lwp0's DACR
-	 * r4 = lwp we're switching from
 	 * r5 = lwp0
 	 * r6 = exit func
 	 * r7 = lwp0's PCB
@@ -200,9 +197,15 @@ ENTRY(cpu_throw)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
-	mov	r0, #0x00000000		/* r5 = old lwp = NULL */
-	mov	r1, r5
-	b	.Lswitch_resume
+	/* We have a new curthread now so make a note it */
+	ldr	r6, .Lcurthread
+	str	r5, [r6]
+
+	/* Hook in a new pcb */
+	ldr	r6, .Lcurpcb
+	str	r7, [r6]
+
+	ldmfd	sp, {r4-r7, pc}
 
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
@@ -227,16 +230,6 @@ ENTRY(cpu_switch)
 	ldr	r7, .Lcurpcb
 	ldr	r2, [r1, #TD_PCB]
 	str	r2, [r7]
-
-
-	/*
-	 * If the old lwp on entry to cpu_switch was zero then the
-	 * process that called it was exiting. This means that we do
-	 * not need to save the current context. Instead we can jump
-	 * straight to restoring the context for the new process.
-	 */
-	teq	r0, #0x00000000
-	beq	.Lswitch_return
 
 	/* rem: r1 = new process */
 	/* rem: interrupts are enabled */
@@ -267,16 +260,15 @@ ENTRY(cpu_switch)
 
 	/* r1 now free! */
 
-	/*
-	 * This can be optimised... We know we want to go from SVC32
-	 * mode to UND32 mode
-	 */
         mrs	r3, cpsr
-	bic	r2, r3, #(PSR_MODE)
-	orr	r2, r2, #(PSR_UND32_MODE)
-        msr	cpsr_c, r2
+	/*
+	 * We can do that, since 
+	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
+	 */
+	orr	r8, r3, #(PSR_UND32_MODE)
+        msr	cpsr_c, r8
 
-	str	sp, [r8, #(PCB_UND_SP)]
+	str	sp, [r2, #(PCB_UND_SP)]
 
         msr	cpsr_c, r3		/* Restore the old mode */
 	/* rem: r8 = old PCB */
@@ -378,6 +370,10 @@ ENTRY(cpu_switch)
 	movne	r0, #0			/* We *know* vector_page's VA is 0x0 */
 	movne	lr, pc
 	ldrne	pc, [r10, #CF_TLB_FLUSHID_SE]
+	/*
+	 * We can do that, since 
+	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
+	 */
 
 .Lcs_context_switched:
 
@@ -385,14 +381,13 @@ ENTRY(cpu_switch)
 
 	/* rem: r9 = new PCB */
 
-	/*
-	 * This can be optimised... We know we want to go from SVC32
-	 * mode to UND32 mode
-	 */
         mrs	r3, cpsr
-	bic	r2, r3, #(PSR_MODE)
-	orr	r2, r2, #(PSR_UND32_MODE)
-        msr	cpsr_c, r2
+	/*
+	 * We can do that, since 
+	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
+	 */
+	orr	r2, r3, #(PSR_UND32_MODE)
+	msr	cpsr_c, r2
 
 	ldr	sp, [r9, #(PCB_UND_SP)]
 
