@@ -143,11 +143,8 @@ noparent:		errx(1, "line %d: no parent node", lineno);
 #define	MAGIC	"?*["
 		if (strpbrk(p, MAGIC))
 			centry->flags |= F_MAGIC;
-		if (strunvis(centry->name, p) == -1) {
-			warnx("filename %s is ill-encoded and literally used",
-			    p);
-			strcpy(centry->name, p);
-		}
+		if (strunvis(centry->name, p) == -1)
+			errx(1, "filename %s is ill-encoded", p);
 		set(NULL, centry);
 
 		if (!root) {
@@ -244,8 +241,11 @@ set(char *t, NODE *ip)
 				lineno, val);
 			break;
 		case F_SLINK:
-			if ((ip->slink = strdup(val)) == NULL)
-				errx(1, "strdup");
+			ip->slink = malloc(strlen(val));
+			if (ip->slink == NULL)
+				errx(1, "malloc");
+			if (strunvis(ip->slink, val) == -1)
+				errx(1, "symlink %s is ill-encoded", val);
 			break;
 		case F_TIME:
 			ip->st_mtimespec.tv_sec = strtoul(val, &ep, 10);
