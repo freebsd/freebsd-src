@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.12 1993/10/19 01:28:09 rgrimes Exp $
+#	$Id: SYSCONS,v 1.13 1993/10/31 00:21:46 jkh Exp $
 #
 
 machine		"i386"
@@ -33,9 +33,13 @@ controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fd0 drive 0
 disk		fd1	at fd0 drive 1
 
-controller	wd0	at isa? port "IO_WD1" bio irq 14 vector wdintr
-disk		wd0	at wd0 drive 0
-disk		wd1	at wd0 drive 1
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+disk		wd1	at wdc0 drive 1
+
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+disk		wd2	at wdc1 drive 0
+disk		wd3	at wdc1 drive 1
 
 controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr

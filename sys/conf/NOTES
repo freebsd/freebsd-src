@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.33 1993/12/19 00:49:52 wollman Exp $
+#	$Id: LINT,v 1.34 1993/12/19 22:45:13 wollman Exp $
 #
 
 machine		"i386"
@@ -132,9 +132,12 @@ device		sio3	at isa? port "IO_COM4" tty irq 9 vector siointr
 pseudo-device	speaker
 #tw	device-driver
 controller	uha0	at isa? port "IO_UHA0" bio irq 14 drq 5 vector uhaintr
-controller	wd0	at isa? port "IO_WD1" bio irq 14 vector wdintr
-disk		wd0	at wd0 drive 0
-disk		wd1	at wd0 drive 1
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+disk		wd1	at wdc0 drive 1
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+disk		wd2	at wdc1 drive 0
+disk		wd3	at wdc1 drive 1
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 
 # Various sound card drivers.
