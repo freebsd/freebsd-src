@@ -138,7 +138,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/*
 	 * Allocate an sf buf
 	 */
-	sf = sf_buf_alloc(pp);
+	sf = sf_buf_alloc(pp, PCATCH);
 	if (!sf) {
 		vm_page_lock_queues();
 		vm_page_cowclear(pp);
