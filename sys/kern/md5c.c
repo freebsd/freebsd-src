@@ -46,11 +46,6 @@ __FBSDID("$FreeBSD$");
 
 static void MD5Transform(u_int32_t [4], const unsigned char [64]);
 
-#ifdef _KERNEL
-#define memset(x,y,z)	bzero(x,z);
-#define memcpy(x,y,z)	bcopy(y, x, z)
-#endif
-
 #if (BYTE_ORDER == LITTLE_ENDIAN)
 #define Encode memcpy
 #define Decode memcpy
