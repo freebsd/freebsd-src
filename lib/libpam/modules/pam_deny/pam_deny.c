@@ -43,6 +43,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Options processed");
 
+	PAM_VERBOSE_ERROR("Unconditional deny");
+
 	PAM_RETURN(PAM_AUTH_ERR);
 }
 
@@ -54,6 +56,8 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	pam_std_option(&options, NULL, argc, argv);
 
 	PAM_LOG("Options processed");
+
+	PAM_VERBOSE_ERROR("Unconditional deny");
 
 	PAM_RETURN(PAM_CRED_UNAVAIL);
 }
@@ -67,6 +71,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc ,const char **argv)
 
 	PAM_LOG("Options processed");
 
+	PAM_VERBOSE_ERROR("Unconditional deny");
+
 	PAM_RETURN(PAM_ACCT_EXPIRED);
 }
 
@@ -79,7 +85,9 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Options processed");
 
-	PAM_RETURN(PAM_AUTHTOK_ERR);
+	PAM_VERBOSE_ERROR("Unconditional deny");
+
+	PAM_RETURN(PAM_PERM_DENIED);
 }
 
 PAM_EXTERN int
@@ -91,7 +99,9 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Options processed");
 
-	PAM_RETURN(PAM_SYSTEM_ERR);
+	PAM_VERBOSE_ERROR("Unconditional deny");
+
+	PAM_RETURN(PAM_SESSION_ERR);
 }
 
 PAM_EXTERN int
@@ -103,7 +113,9 @@ pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Options processed");
 
-	PAM_RETURN(PAM_SYSTEM_ERR);
+	PAM_VERBOSE_ERROR("Unconditional deny");
+
+	PAM_RETURN(PAM_SESSION_ERR);
 }
 
 PAM_MODULE_ENTRY("pam_deny");
