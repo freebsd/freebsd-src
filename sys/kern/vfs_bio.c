@@ -2816,6 +2816,7 @@ allocbuf(struct buf *bp, int size)
 			vp = bp->b_vp;
 			obj = bp->b_object;
 
+			VM_OBJECT_LOCK(obj);
 			while (bp->b_npages < desiredpages) {
 				vm_page_t m;
 				vm_pindex_t pi;
@@ -2833,7 +2834,9 @@ allocbuf(struct buf *bp, int size)
 					if (m == NULL) {
 						atomic_add_int(&vm_pageout_deficit,
 						    desiredpages - bp->b_npages);
+						VM_OBJECT_UNLOCK(obj);
 						VM_WAIT;
+						VM_OBJECT_LOCK(obj);
 					} else {
 						vm_page_lock_queues();
 						vm_page_wakeup(m);
@@ -2876,6 +2879,7 @@ allocbuf(struct buf *bp, int size)
 				bp->b_pages[bp->b_npages] = m;
 				++bp->b_npages;
 			}
+			VM_OBJECT_UNLOCK(obj);
 
 			/*
 			 * Step 2.  We've loaded the pages into the buffer,
