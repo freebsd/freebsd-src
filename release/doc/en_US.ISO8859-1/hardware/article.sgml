@@ -525,50 +525,13 @@
 
     <para arch="i386">Compaq Intelligent Drive Array Controllers
       (&man.ida.4; driver)
-
-      <itemizedlist>
-	<listitem>
-	  <para>Compaq SMART Array 221</para>
-	</listitem>
-
-	<listitem>
-	  <para>Compaq Integrated SMART Array Controller</para>
-	</listitem>
-
-	<listitem>
-	  <para>Compaq SMART Array 4200, 4250ES Controllers</para>
-	</listitem>
-
-	<listitem>
-	  <para>Compaq SMART Array 3200, 3100ES Controller</para>
-	</listitem>
-
-	<listitem>
-	  <para>Compaq SMART-2/DH, SMART-2/SL, SMART-2/P, SMART-2E, and
-	    SMART Controllers</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">SCSI adapters utilizing the Command Interface
     for SCSI-3 Support (&man.ciss.4; driver)
-      <itemizedlist>
-	<listitem>
-	  <para>Compaq Smart Array 5* series (5300, 5i, 532)</para>
-	</listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Intel Integrated RAID Controllers (&man.iir.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>Intel RAID Controller SRCMR</para>
-        </listitem>
-        <listitem>
-	  <para>ICP Vortex SCSI RAID controllers (all Wide/Ultra160,
-	  32-bit/64-bit PCI models)</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
@@ -1270,23 +1233,6 @@
     </para>
 
     <para arch="i386">Intel 82586-based Ethernet NICs (&man.ie.4; driver)
-      <itemizedlist>
-        <listitem>
-	  <para>3Com 3C507 Etherlink 16/TP</para>
-        </listitem>
-        <listitem>
-	  <para>AT&amp;T Starlan 10 and Starlan Fiber</para>
-        </listitem>
-        <listitem>
-	  <para>EN100</para>
-        </listitem>
-        <listitem>
-	  <para>Intel EtherExpress 16</para>
-        </listitem>
-        <listitem>
-	  <para>RACAL Interlan NI5210</para>
-        </listitem>
-      </itemizedlist>
     </para>
 
     <para arch="i386,pc98">3Com 3C5x9 Etherlink III NICs (&man.ep.4; driver)</para>
