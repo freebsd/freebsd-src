@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#12 $
+ * $P4: //depot/projects/openpam/lib/openpam_impl.h#13 $
  */
 
 #ifndef _OPENPAM_IMPL_H_INCLUDED
@@ -105,6 +105,7 @@ struct pam_saved_cred {
 
 #define PAM_OTHER	"other"
 
+int		openpam_configure(pam_handle_t *, const char *);
 int		openpam_dispatch(pam_handle_t *, int, int);
 int		openpam_findenv(pam_handle_t *, const char *, size_t);
 int		openpam_add_module(pam_handle_t *, int, int,

@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/openpam/doc/man/pam_open_session.3#10 $
+.\" $P4: //depot/projects/openpam/doc/man/pam_open_session.3#11 $
 .\"
-.Dd April 8, 2002
+.Dd April 14, 2002
 .Dt PAM_OPEN_SESSION 3
 .Os
 .Sh NAME
@@ -46,7 +46,24 @@
 .Ft int
 .Fn pam_open_session "pam_handle_t *pamh" "int flags"
 .Sh DESCRIPTION
-No description available.
+The
+.Nm
+sets up a user session for a previously
+authenticated user.  The session should later be torn down by a call to
+.Xr pam_close_session 3 .
+.Pp
+The
+.Va flags
+argument is the binary or of zero or more of the following
+values:
+.Bl -tag -width 18n
+.It Dv PAM_SILENT
+Do not emit any messages.
+.El
+If any other bits are set,
+.Nm
+will return
+.Dv PAM_SYMBOL_ERR .
 .Sh RETURN VALUES
 The
 .Nm
@@ -64,11 +81,14 @@ Permission denied.
 Error in service module.
 .It Bq Er PAM_SESSION_ERR
 Session failure.
+.It Bq Er PAM_SYMBOL_ERR
+Invalid symbol.
 .It Bq Er PAM_SYSTEM_ERR
 System error.
 .El
 .Sh SEE ALSO
 .Xr pam 3 ,
+.Xr pam_close_session 3 ,
 .Xr pam_strerror 3
 .Sh STANDARDS
 .Rs
