@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.37 1998/06/07 17:11:45 dfr Exp $
+ *	$Id: uipc_socket2.c,v 1.38 1998/09/04 13:13:18 ache Exp $
  */
 
 #include <sys/param.h>
@@ -723,8 +723,7 @@ sbflush(sb)
 	while (sb->sb_mbcnt)
 		sbdrop(sb, (int)sb->sb_cc);
 	if (sb->sb_cc || sb->sb_mb)
-		panic("sbflush: cc %d || mb %p", sb->sb_cc,
-		    (void *)sb->sb_mb);
+		panic("sbflush: cc %ld || mb %p", sb->sb_cc, (void *)sb->sb_mb);
 }
 
 /*
