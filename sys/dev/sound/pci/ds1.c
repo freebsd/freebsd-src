@@ -116,7 +116,7 @@ struct sc_info {
 	struct resource *reg, *irq;
 	int		regid, irqid;
 	void		*ih;
-	void		*lock;
+	struct mtx	*lock;
 
 	void *regbase;
 	u_int32_t *pbase, pbankbase, pbanksize;

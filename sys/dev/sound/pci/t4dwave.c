@@ -81,7 +81,7 @@ struct tr_info {
 	int regtype, regid, irqid;
 	void *ih;
 
-	void *lock;
+	struct mtx *lock;
 
 	u_int32_t playchns;
 	unsigned int bufsz;
@@ -262,7 +262,7 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 		}
 	}
 	if (tr->type != ALI_PCI_ID || i > 0) {
-		for (i=TR_TIMEOUT_CDC; (i>0) && (j & trw); i--) 
+		for (i=TR_TIMEOUT_CDC; (i>0) && (j & trw); i--)
 			j=tr_rd(tr, treg, 4);
 		if (tr->type == ALI_PCI_ID && tr->rev > 0x01)
 		      	trw |= 0x0100;
