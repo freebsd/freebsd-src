@@ -4,8 +4,13 @@
 
 AWK=	awk
 UNAME=	uname
+RM=	rm
 
-usbdevs.h usbdevs_data.h: usbdevs devlist2h.awk
+# The targets are always remade.
+
+.PHONY=	all
+
+all:	usbdevs devlist2h.awk
 	/bin/rm -f usbdevs.h usbdevs_data.h
 	${AWK} -v type=USB -v os=`${UNAME} -s` -f devlist2h.awk usbdevs
 
