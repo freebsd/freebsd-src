@@ -215,10 +215,13 @@ ndis_attach(dev)
 	void			*img;
 	struct ndis_type	*t;
 	int			i, devidx = 0, defidx = 0;
+	struct resource_list	*rl;
+	struct resource_list_entry	*rle;
 
 
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
+	sc->ndis_dev = dev;
 
 	mtx_init(&sc->ndis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
@@ -228,66 +231,75 @@ ndis_attach(dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	/* Try to map iospace */
-
-	sc->ndis_io_rid = NDIS_PCI_LOIO;
-	sc->ndis_res_io = bus_alloc_resource(dev, SYS_RES_IOPORT,
-	    &sc->ndis_io_rid, 0, ~0, 1, RF_ACTIVE);
-
-	/*
-	 * Sometimes the iospace and memspace BARs are swapped.
-	 * Make one more try to map I/O space using a different
-	 * RID.
-	 */
-	if (sc->ndis_res_io == NULL) {
-		sc->ndis_io_rid = NDIS_PCI_LOMEM;
-		sc->ndis_res_io = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &sc->ndis_io_rid, 0, ~0, 1, RF_ACTIVE);
+	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
+	if (rl != NULL) {
+		SLIST_FOREACH(rle, rl, link) {
+			switch (rle->type) {
+			case SYS_RES_IOPORT:
+				sc->ndis_io_rid = rle->rid;
+				sc->ndis_res_io = bus_alloc_resource(dev,
+				    SYS_RES_IOPORT, &sc->ndis_io_rid,
+				    0, ~0, 1, RF_ACTIVE);
+				if (sc->ndis_res_io == NULL) {
+					printf("ndis%d: couldn't map "
+					    "iospace\n", unit);
+					error = ENXIO;
+					goto fail;
+				}
+				break;
+			case SYS_RES_MEMORY:
+				if (sc->ndis_res_altmem != NULL) {
+					printf ("ndis%d: too many memory "
+					    "resources", sc->ndis_unit);
+					error = ENXIO;
+					goto fail;
+				}
+				if (sc->ndis_res_mem == NULL) {
+					sc->ndis_mem_rid = rle->rid;
+					sc->ndis_res_mem =
+					    bus_alloc_resource(dev,
+					        SYS_RES_MEMORY,
+						&sc->ndis_mem_rid,
+						0, ~0, 1, RF_ACTIVE);
+					if (sc->ndis_res_mem == NULL) {
+						printf("ndis%d: couldn't map "
+						    "memory\n", unit);
+						error = ENXIO;
+						goto fail;
+					}
+				} else {
+					sc->ndis_altmem_rid = rle->rid;
+					sc->ndis_res_altmem =
+					    bus_alloc_resource(dev,
+					        SYS_RES_MEMORY,
+						&sc->ndis_altmem_rid,
+						0, ~0, 1, RF_ACTIVE);
+					if (sc->ndis_res_altmem == NULL) {
+						printf("ndis%d: couldn't map "
+						    "alt memory\n", unit);
+						error = ENXIO;
+						goto fail;
+					}
+				}
+				break;
+			case SYS_RES_IRQ:
+				rid = rle->rid;
+				sc->ndis_irq = bus_alloc_resource(dev,
+				    SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    			    RF_SHAREABLE | RF_ACTIVE);
+				if (sc->ndis_irq == NULL) {
+					printf("ndis%d: couldn't map "
+					    "interrupt\n", unit);
+					error = ENXIO;
+					goto fail;
+				}
+				break;
+			default:
+				break;
+			}
+			sc->ndis_rescnt++;
+		}
 	}
-
-	if (sc->ndis_res_io != NULL)
-		sc->ndis_rescnt++;
-
-	/* Now try to mem memory space */
-	sc->ndis_mem_rid = NDIS_PCI_LOMEM;
-	sc->ndis_res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &sc->ndis_mem_rid, 0, ~0, 1, RF_ACTIVE);
-
-	/*
-	 * If the first attempt fails, try again with another
-	 * BAR.
-	 */
-	if (sc->ndis_res_mem == NULL) {
-		sc->ndis_mem_rid = NDIS_PCI_LOIO;
-		sc->ndis_res_mem = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &sc->ndis_mem_rid, 0, ~0, 1, RF_ACTIVE);
-	}
-
-	if (sc->ndis_res_mem != NULL)
-		sc->ndis_rescnt++;
-
-	if (!sc->ndis_rescnt) {
-		printf("ndis%d: couldn't map ports/memory\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#ifdef notdef
-	sc->ndis_btag = rman_get_bustag(sc->ndis_res);
-	sc->ndis_bhandle = rman_get_bushandle(sc->ndis_res);
-#endif
-
-	/* Allocate interrupt */
-	rid = 0;
-	sc->ndis_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->ndis_irq == NULL) {
-		printf("ndis%d: couldn't map interrupt\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-
-	sc->ndis_rescnt++;
 
         /*
 	 * Hook interrupt early, since calling the driver's
@@ -321,7 +333,6 @@ ndis_attach(dev)
                 goto fail;
 
 	img = drv_data;
-	sc->ndis_dev = dev;
 	sc->ndis_regvals = ndis_regvals;
 	sc->ndis_iftype = PCIBus;
 
@@ -615,6 +626,9 @@ ndis_detach(dev)
 	if (sc->ndis_res_mem)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    sc->ndis_mem_rid, sc->ndis_res_mem);
+	if (sc->ndis_res_altmem)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->ndis_altmem_rid, sc->ndis_res_altmem);
 
 	if (sc->ndis_sc)
 		ndis_destroy_dma(sc);
