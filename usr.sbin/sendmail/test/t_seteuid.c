@@ -108,6 +108,7 @@ main()
 		exit(1);
 	}
 
+	printf("\nIt is safe to define USESETEUID on this system\n");
 	exit(0);
 }
 

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.14 (Berkeley) 11/5/95";
+static char sccsid[] = "@(#)makemap.c	8.17 (Berkeley) 9/25/96";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -45,6 +45,7 @@ static char sccsid[] = "@(#)makemap.c	8.14 (Berkeley) 11/5/95";
 #ifndef ISC_UNIX
 # include <sys/file.h>
 #endif
+#define NOT_SENDMAIL
 #include "useful.h"
 #include "conf.h"
 
@@ -95,6 +96,7 @@ main(argc, argv)
 	int lineno;
 	int st;
 	int mode;
+	int putflags;
 	enum type type;
 	int fd;
 	union
@@ -211,20 +213,33 @@ main(argc, argv)
 		bzero(&bti, sizeof bti);
 		if (allowdups)
 			bti.flags |= R_DUP;
+		if (allowdups || allowreplace)
+			putflags = 0;
+		else
+			putflags = R_NOOVERWRITE;
 		break;
 
 	  case T_HASH:
+		if (allowreplace)
+			putflags = 0;
+		else
+			putflags = R_NOOVERWRITE;
+		break;
 #endif
 #ifdef NDBM
 	  case T_DBM:
-#endif
 		if (allowdups)
 		{
 			fprintf(stderr, "%s: Type %s does not support -d (allow dups)\n",
 				progname, typename);
 			exit(EX_UNAVAILABLE);
 		}
+		if (allowreplace)
+			putflags = DBM_REPLACE;
+		else
+			putflags = DBM_INSERT;
 		break;
+#endif
 	}
 
 	/*
@@ -386,16 +401,14 @@ main(argc, argv)
 		{
 #ifdef NDBM
 		  case T_DBM:
-			st = dbm_store(dbp.dbm, key.dbm, val.dbm,
-					allowreplace ? DBM_REPLACE : DBM_INSERT);
+			st = dbm_store(dbp.dbm, key.dbm, val.dbm, putflags);
 			break;
 #endif
 
 #ifdef NEWDB
 		  case T_BTREE:
 		  case T_HASH:
-			st = (*dbp.db->put)(dbp.db, &key.db, &val.db,
-					allowreplace ? 0 : R_NOOVERWRITE);
+			st = (*dbp.db->put)(dbp.db, &key.db, &val.db, putflags);
 			break;
 #endif
 		}

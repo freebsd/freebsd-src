@@ -34,13 +34,13 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)hpux9.m4	8.10 (Berkeley) 11/13/95')
+VERSIONID(`@(#)hpux9.m4	8.12 (Berkeley) 9/25/96')
 
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
-ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /usr/lib/aliases)')dnl
+define(`ALIAS_FILE', /usr/lib/aliases)dnl
 ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/lib/sendmail.st)')dnl
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', `/bin/rmail')')dnl
-ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `m')')dnl
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `m9')')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `rmail -d $u')')dnl
 ifdef(`UUCP_MAILER_ARGS',, `define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gC $h!rmail ($u)')')dnl
 define(`confTIME_ZONE', `USE_TZ')dnl

@@ -34,9 +34,9 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)riscos4.5.m4	8.3 (Berkeley) 11/13/95')
+VERSIONID(`@(#)riscos4.5.m4	8.4 (Berkeley) 9/25/96')
 
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `rmail -d $u')')dnl
-ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', `/usr/lib/aliases')')dnl
+define(`ALIAS_FILE', `/usr/lib/aliases')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', `/usr/spool/mqueue')')dnl
 ifdef(`HELP_FILE',, `define(`HELP_FILE', `/usr/lib/sendmail.hf')')dnl

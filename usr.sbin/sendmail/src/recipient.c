@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995 Eric P. Allman
+ * Copyright (c) 1983, 1995, 1996 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.108.1.1 (Berkeley) 9/12/96";
+static char sccsid[] = "@(#)recipient.c	8.116 (Berkeley) 8/17/96";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -241,7 +241,7 @@ recipient(a, sendq, aliaslevel, e)
 	int i;
 	char *buf;
 	char buf0[MAXNAME + 1];		/* unquoted image of the user name */
-	extern int safefile();
+	extern void alias __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 
 	e->e_to = a->q_paddr;
 	m = a->q_mailer;
@@ -267,7 +267,7 @@ recipient(a, sendq, aliaslevel, e)
 	if (aliaslevel > MaxAliasRecursion)
 	{
 		a->q_status = "5.4.6";
-		usrerr("554 aliasing/forwarding loop broken (%d aliases deep; %d max",
+		usrerr("554 aliasing/forwarding loop broken (%d aliases deep; %d max)",
 			aliaslevel, MaxAliasRecursion);
 		return (a);
 	}
@@ -482,6 +482,8 @@ recipient(a, sendq, aliaslevel, e)
 	    ConfigLevel >= 2 && RewriteRules[5] != NULL &&
 	    bitnset(M_TRYRULESET5, m->m_flags))
 	{
+		extern void maplocaluser __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
+
 		maplocaluser(a, sendq, aliaslevel + 1, e);
 	}
 
@@ -495,7 +497,7 @@ recipient(a, sendq, aliaslevel, e)
 	{
 		auto bool fuzzy;
 		register struct passwd *pw;
-		extern struct passwd *finduser();
+		extern void forward __P((ADDRESS *, ADDRESS **, int, ENVELOPE *));
 
 		/* warning -- finduser may trash buf */
 		pw = finduser(buf, &fuzzy);
@@ -738,8 +740,7 @@ finduser(name, fuzzyp)
 		{
 			if (tTd(29, 4))
 				printf("found (case wrapped)\n");
-			*fuzzyp = TRUE;
-			return pw;
+			break;
 		}
 # endif
 
@@ -749,17 +750,22 @@ finduser(name, fuzzyp)
 			if (tTd(29, 4))
 				printf("fuzzy matches %s\n", pw->pw_name);
 			message("sending to login name %s", pw->pw_name);
-			*fuzzyp = TRUE;
-			return (pw);
+			break;
 		}
 	}
-	if (tTd(29, 4))
+	if (pw != NULL)
+		*fuzzyp = TRUE;
+	else if (tTd(29, 4))
 		printf("no fuzzy match found\n");
+# if DEC_OSF_BROKEN_GETPWENT	/* DEC OSF/1 3.2 or earlier */
+	endpwent();
+# endif
+	return pw;
 #else
 	if (tTd(29, 4))
 		printf("not found (fuzzy disabled)\n");
+	return NULL;
 #endif
-	return (NULL);
 }
 /*
 **  WRITABLE -- predicate returning if the file is writable.
@@ -1122,19 +1128,21 @@ resetuid:
 	/*
 	** Check to see if some bad guy can write this file
 	**
-	**	This should really do something clever with group
-	**	permissions; currently we just view world writable
-	**	as unsafe.  Also, we don't check for writable
+	**	Group write checking could be more clever, e.g.,
+	**	guessing as to which groups are actually safe ("sys"
+	**	may be; "user" probably is not).
+	**	Also, we don't check for writable
 	**	directories in the path.  We've got to leave
 	**	something for the local sysad to do.
 	*/
 
-	if (bitset(S_IWOTH, st.st_mode))
+	if (bitset(S_IWOTH | (UnsafeGroupWrites ? S_IWGRP : 0), st.st_mode))
 	{
 #ifdef LOG
 		if (LogLevel >= 12)
-			syslog(LOG_INFO, "%s: world writable %s file, marked unsafe",
+			syslog(LOG_INFO, "%s: %s writable %s file, marked unsafe",
 				shortenstring(fname, 203),
+				bitset(S_IWOTH, st.st_mode) ? "world" : "group",
 				forwarding ? "forward" : ":include:");
 #endif
 		ctladdr->q_flags |= QUNSAFEADDR;

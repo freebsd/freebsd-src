@@ -40,9 +40,10 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)mailstats.c	8.4 (Berkeley) 8/14/94";
+static char sccsid[] = "@(#)mailstats.c	8.8 (Berkeley) 9/25/96";
 #endif /* not lint */
 
+#define NOT_SENDMAIL
 #include <sendmail.h>
 #include <mailstats.h>
 #include <pathnames.h>
@@ -91,7 +92,8 @@ main(argc, argv)
 		  case '?':
 		  default:
   usage:
-			fputs("usage: mailstats [-C cffile] [-f stfile]\n", stderr);
+			fputs("usage: mailstats [-C cffile] [-f stfile] -o\n",
+				stderr);
 			exit(EX_USAGE);
 		}
 	}
@@ -189,13 +191,24 @@ main(argc, argv)
 		exit (EX_OSFILE);
 	}
 
-	if ((fd = open(sfile, O_RDONLY)) < 0) {
+	if ((fd = open(sfile, O_RDONLY)) < 0 ||
+	    (i = read(fd, &stat, sizeof stat)) < 0)
+	{
 		fputs("mailstats: ", stderr);
 		perror(sfile);
 		exit(EX_NOINPUT);
 	}
-	if (read(fd, &stat, sizeof(stat)) != sizeof(stat) ||
-	    stat.stat_size != sizeof(stat))
+	if (i == 0)
+	{
+		sleep(1);
+		i = read(fd, &stat, sizeof stat);
+		if (i == 0)
+		{
+			bzero((ARBPTR_T) &stat, sizeof stat);
+			(void) time(&stat.stat_itime);
+		}
+	}
+	else if (i != sizeof stat || stat.stat_size != sizeof(stat))
 	{
 		fputs("mailstats: file size changed.\n", stderr);
 		exit(EX_OSERR);

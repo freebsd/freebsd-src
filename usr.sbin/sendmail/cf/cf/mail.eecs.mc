@@ -42,7 +42,8 @@ divert(-1)
 #  This file is for the primary EECS mail server.
 #
 
-VERSIONID(`@(#)mail.eecs.mc	8.9 (Berkeley) 8/25/95')
+divert(0)dnl
+VERSIONID(`@(#)mail.eecs.mc	8.10 (Berkeley) 3/23/96')
 OSTYPE(ultrix4)dnl
 DOMAIN(EECS.Berkeley.EDU)dnl
 MASQUERADE_AS(EECS.Berkeley.EDU)dnl
