@@ -1059,7 +1059,7 @@ zone_ctor(void *mem, int size, void *udata)
 		zone_large_init(zone);
 	else
 		zone_small_init(zone);
-#ifdef UMA_MD_SMALL_ALLOC
+#ifdef UMA_MD_SMALL_ALLOC_broken
 	if (zone->uz_ppera == 1) {
 		zone->uz_allocf = uma_small_alloc;
 		zone->uz_freef = uma_small_free;
@@ -1255,7 +1255,7 @@ uma_startup(void *bootmem)
 
 	bucket_init();
 
-#ifdef UMA_MD_SMALL_ALLOC
+#ifdef UMA_MD_SMALL_ALLOC_broken
 	booted = 1;
 #endif
 
