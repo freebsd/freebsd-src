@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: gifconfig.c,v 1.12 2000/05/22 05:50:43 itojun Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -57,7 +58,9 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
+#endif /* __FreeBSD__ >= 3 */
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -91,9 +94,9 @@ int	flags;
 int	metric;
 int	mtu;
 int	setpsrc = 0;
+int	newaddr = 0;
 int	s;
 kvm_t	*kvmd;
-extern	int errno;
 
 #ifdef INET6
 char ntop_buf[INET6_ADDRSTRLEN];	/*inet_ntop()*/
@@ -102,7 +105,9 @@ char ntop_buf[INET6_ADDRSTRLEN];	/*inet_ntop()*/
 void setifpsrc __P((char *, int));
 void setifpdst __P((char *, int));
 void setifflags __P((char *, int));
-
+#ifdef SIOCDIFPHYADDR
+void delifaddrs __P((char *, int));
+#endif
 
 #define	NEXTARG		0xffffff
 
@@ -113,6 +118,9 @@ struct	cmd {
 } cmds[] = {
 	{ "up",		IFF_UP,		setifflags } ,
 	{ "down",	-IFF_UP,	setifflags },
+#ifdef SIOCDIFPHYADDR
+	{ "delete",	0,		delifaddrs },
+#endif
 	{ 0,		0,		setifpsrc },
 	{ 0,		0,		setifpdst },
 };
@@ -151,7 +159,7 @@ struct afswtch {
 	caddr_t af_addreq;
 	caddr_t af_req;
 } afs[] = {
-#define	C(x) ((caddr_t) &x)
+#define C(x) ((caddr_t) &x)
 	{ "inet", AF_INET, in_status, in_getaddr, 0,
 	     SIOCSIFPHYADDR, C(addreq), C(ifr) },
 #ifdef INET6
@@ -174,9 +182,9 @@ int	ifconfig __P((int argc, char *argv[], int af, struct afswtch *rafp));
  * configuration read via sysctl().
  */
 
-#define	ROUNDUP(a) \
+#define ROUNDUP(a) \
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-#define	ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
+#define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
 void
 rt_xaddrs(cp, cplim, rtinfo)
@@ -219,8 +227,14 @@ main(argc, argv)
 	int all;
 
 	if (argc < 2) {
-		fprintf(stderr, "usage: gifconfig interface %s",
-		    "[ af ] physsrc physdst\n");
+		fprintf(stderr,
+		    "usage: gifconfig interface [af] [physsrc physdst]\n");
+#ifdef SIOCDIFPHYADDR
+		fprintf(stderr,
+		    "       gifconfig interface delete\n");
+#endif
+		fprintf(stderr,
+		    "       gifconfig -a\n");
 		exit(1);
 	}
 	argc--, argv++;
@@ -335,7 +349,7 @@ main(argc, argv)
 
 	if (all == 0)
 		errx(1, "interface %s does not exist", name);
-
+	
 
 	exit (0);
 }
@@ -395,15 +409,18 @@ ifconfig(argc, argv, af, rafp)
 		}
 		argc--, argv++;
 	}
-	if (1 /*newaddr*/) {
+	if (newaddr) {
 		strncpy(rafp->af_addreq, name, sizeof ifr.ifr_name);
 		if (ioctl(s, rafp->af_pifaddr, rafp->af_addreq) < 0)
 			Perror("ioctl (SIOCSIFPHYADDR)");
 	}
+	else if (setpsrc) {
+		errx(1, "destination is not specified");
+	}
 	return(0);
 }
-#define	PSRC	0
-#define	PDST	1
+#define PSRC	0
+#define PDST	1
 
 /*ARGSUSED*/
 void
@@ -424,6 +441,7 @@ setifpdst(addr, param)
 {
 	param = 0;	/*fool gcc*/
 	(*afp->af_getaddr)(addr, PDST);
+	newaddr = 1;
 }
 
 void
@@ -447,6 +465,21 @@ setifflags(vname, value)
 	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0)
 		Perror(vname);
 }
+
+#ifdef SIOCDIFPHYADDR
+/* ARGSUSED */
+void
+delifaddrs(vname, param)
+	char *vname;
+	int param;
+{
+	param = 0;		/* fool gcc */
+	vname = NULL;		/* ditto */
+
+	if (ioctl(s, SIOCDIFPHYADDR, (caddr_t)&ifr) < 0)
+		err(1, "ioctl(SIOCDIFPHYADDR)");
+}
+#endif
 
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6NOTRAILERS\7RUNNING\10NOARP\
@@ -536,24 +569,35 @@ phys_status(force)
 	int flags = NI_NUMERICHOST;
 	struct ifreq *ifrp;
 	char *ver = "";
+#ifdef INET6
+	int s6;
+#endif
 
 	force = 0;	/*fool gcc*/
 
 	psrcaddr[0] = pdstaddr[0] = '\0';
 
 #ifdef INET6
-	srccmd = SIOCGIFPSRCADDR_IN6;
-	dstcmd = SIOCGIFPDSTADDR_IN6;
-	ifrp = (struct ifreq *)&in6_ifr;
+	s6 = socket(AF_INET6, SOCK_DGRAM, 0);
+	if (s6 < 0) {
+		ifrp = &ifr;
+		srccmd = SIOCGIFPSRCADDR;
+		dstcmd = SIOCGIFPDSTADDR;
+	} else {
+		close(s6);
+		srccmd = SIOCGIFPSRCADDR_IN6;
+		dstcmd = SIOCGIFPDSTADDR_IN6;
+		ifrp = (struct ifreq *)&in6_ifr;
+	}
 #else /* INET6 */
-	ifrp = ifr;
+	ifrp = &ifr;
 	srccmd = SIOCGIFPSRCADDR;
 	dstcmd = SIOCGIFPDSTADDR;
 #endif /* INET6 */
 
 	if (0 <= ioctl(s, srccmd, (caddr_t)ifrp)) {
 		getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
-			    hostname, NI_MAXHOST, 0, 0, flags);
+			    hostname, sizeof(hostname), 0, 0, flags);
 #ifdef INET6
 		if (ifrp->ifr_addr.sa_family == AF_INET6)
 			ver = "6";
@@ -562,7 +606,7 @@ phys_status(force)
 	}
 	if (0 <= ioctl(s, dstcmd, (caddr_t)ifrp)) {
 		getnameinfo(&ifrp->ifr_addr, ifrp->ifr_addr.sa_len,
-			    hostname, NI_MAXHOST, 0, 0, flags);
+			    hostname, sizeof(hostname), 0, 0, flags);
 		sprintf(pdstaddr, "%s", hostname);
 	}
 	printf("\tphysical address %s --> %s\n", psrcaddr, pdstaddr);
@@ -576,7 +620,7 @@ in_status(force)
 #if 0
 	char *inet_ntoa();
 #endif
-
+	
 	memset(&null_sin, 0, sizeof(null_sin));
 
 	sin = (struct sockaddr_in *)info.rti_info[RTAX_IFA];
@@ -616,12 +660,13 @@ in6_status(force)
 	int force;
 {
 	struct sockaddr_in6 *sin, null_sin;
-#if 0
-	char *inet_ntop();
-#endif
-
+	char hostname[NI_MAXHOST];
+	int niflags = NI_NUMERICHOST;
 
 	memset(&null_sin, 0, sizeof(null_sin));
+#ifdef NI_WITHSCOPEID
+	niflags |= NI_WITHSCOPEID;
+#endif
 
 	sin = (struct sockaddr_in6 *)info.rti_info[RTAX_IFA];
 	if (!sin || sin->sin6_family != AF_INET6) {
@@ -630,8 +675,17 @@ in6_status(force)
 		/* warnx("%s has no AF_INET6 IFA address!", name); */
 		sin = &null_sin;
 	}
-	printf("\tinet6 %s ", inet_ntop(AF_INET6, &sin->sin6_addr,
-				ntop_buf, sizeof(ntop_buf)));
+#ifdef __KAME__
+	if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
+		sin->sin6_scope_id =
+			ntohs(*(u_int16_t *)&sin->sin6_addr.s6_addr[2]);
+		sin->sin6_addr.s6_addr[2] = 0;
+		sin->sin6_addr.s6_addr[3] = 0;
+	}
+#endif
+	getnameinfo((struct sockaddr *)sin, sin->sin6_len,
+		    hostname, sizeof(hostname), 0, 0, niflags);
+	printf("\tinet6 %s ", hostname);
 
 	if (flags & IFF_POINTOPOINT) {
 		/* note RTAX_BRD overlap with IFF_BROADCAST */
@@ -641,10 +695,17 @@ in6_status(force)
 		 * address.
 		 */
 		if (sin->sin6_family == AF_INET6) {
-			if (!sin)
-				sin = &null_sin;
-			printf("--> %s ", inet_ntop(AF_INET6, &sin->sin6_addr,
-						ntop_buf, sizeof(ntop_buf)));
+#ifdef __KAME__
+			if (IN6_IS_ADDR_LINKLOCAL(&sin->sin6_addr)) {
+				sin->sin6_scope_id =
+					ntohs(*(u_int16_t *)&sin->sin6_addr.s6_addr[2]);
+				sin->sin6_addr.s6_addr[2] = 0;
+				sin->sin6_addr.s6_addr[3] = 0;
+			}
+#endif
+			getnameinfo((struct sockaddr *)sin, sin->sin6_len,
+				    hostname, sizeof(hostname), 0, 0, niflags);
+			printf("--> %s ", hostname);
 		}
 	}
 
@@ -684,8 +745,6 @@ void
 Perror(cmd)
 	char *cmd;
 {
-	extern int errno;
-
 	switch (errno) {
 
 	case ENXIO:
@@ -701,7 +760,7 @@ Perror(cmd)
 	}
 }
 
-#define	SIN(x) ((struct sockaddr_in *) &(x))
+#define SIN(x) ((struct sockaddr_in *) &(x))
 struct sockaddr_in *sintab[] = {
 SIN(addreq.ifra_addr), SIN(addreq.ifra_dstaddr)};
 
@@ -728,7 +787,7 @@ in_getaddr(s, which)
 }
 
 #ifdef INET6
-#define	SIN6(x) ((struct sockaddr_in6 *) &(x))
+#define SIN6(x) ((struct sockaddr_in6 *) &(x))
 struct sockaddr_in6 *sin6tab[] = {
 SIN6(in6_addreq.ifra_addr), SIN6(in6_addreq.ifra_dstaddr)};
 
