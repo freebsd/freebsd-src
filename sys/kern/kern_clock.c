@@ -69,6 +69,12 @@
 #include <sys/gmon.h>
 #endif
 
+#ifdef DEVICE_POLLING
+#include <net/netisr.h>		/* for NETISR_POLL */
+ 
+extern void ether_poll1(void);
+extern void hardclock_device_poll(void);
+#endif /* DEVICE_POLLING */
 
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
@@ -140,6 +146,9 @@ initclocks(dummy)
 	psdiv = pscnt = 1;
 	cpu_initclocks();
 
+#ifdef DEVICE_POLLING
+	register_netisr(NETISR_POLL, ether_poll1);
+#endif
 	/*
 	 * Compute profhz/stathz, and fix profhz if needed.
 	 */
@@ -212,6 +221,9 @@ hardclock(frame)
 		statclock(frame);
 
 	tc_windup();
+#ifdef DEVICE_POLLING
+	hardclock_device_poll();
+#endif /* DEVICE_POLLING */
 
 	/*
 	 * Process callouts at a very low cpu priority, so we don't keep the
