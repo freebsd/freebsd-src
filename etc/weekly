@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)weekly	5.14 (Berkeley) 6/23/91
-#
+#	$Id: $
 
 PATH=/bin:/sbin:/usr/sbin:/usr/bin:/usr/libexec
 export PATH
@@ -54,7 +54,7 @@ echo ""
 echo "Rebuilding whatis database:"
 MANPATH=${MANPATH:-/usr/share/man:/usr/X11R6/man:/usr/local/man}
 
-makewhatis "${MANPATH}"
+makewhatis.local "${MANPATH}"
 
 #echo ""
 #echo "Reformatting manual pages:"
