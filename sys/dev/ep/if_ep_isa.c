@@ -102,18 +102,21 @@ static struct isa_pnp_id ep_ids[] = {
  * read 16 times getting one bit of data with each read.
  */
 
-static int
+static u_int16_t
 get_eeprom_data(id_port, offset)
-    int id_port;
-    int offset;
+	int	id_port;
+	int	offset;
 {
-    int i, data = 0;
-    outb(id_port, 0x80 + offset);
-    for (i = 0; i < 16; i++) {
+	int		i;
+	u_int16_t	data = 0;
+
+	outb(id_port, EEPROM_CMD_RD|offset);
 	DELAY(BIT_DELAY_MULTIPLE * 1000);
-	data = (data << 1) | (inw(id_port) & 1);
-    }
-    return (data);
+	for (i = 0; i < 16; i++) {
+		DELAY(50);
+		data = (data << 1) | (inw(id_port) & 1);
+	}
+	return (data);
 }
 
 const char *
