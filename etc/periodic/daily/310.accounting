@@ -19,10 +19,20 @@ case "$daily_accounting_enable" in
 	    echo "Rotating accounting logs and gathering statistics:"
 
 	    cd /var/account
+
+	    rm -f acct.3.gz acct.3
+	    [ -f acct.2.gz ] && mv -f acct.2.gz acct.3.gz
 	    [ -f acct.2 ] && mv -f acct.2 acct.3
+	    [ -f acct.1.gz ] && mv -f acct.1.gz acct.2.gz
 	    [ -f acct.1 ] && mv -f acct.1 acct.2
+	    [ -f acct.0.gz ] && mv -f acct.0.gz acct.1.gz
 	    [ -f acct.0 ] && mv -f acct.0 acct.1
 	    cp -pf acct acct.0
 	    sa -s >/dev/null
+
+	    case "$daily_accounting_compress" in
+		[Yy][Ee][Ss])
+		    gzip -f acct.0;;
+	    esac
 	fi;;
 esac
