@@ -65,7 +65,7 @@
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
-static long *exec_copyout_strings __P((struct image_params *));
+static register_t *exec_copyout_strings __P((struct image_params *));
 
 static long ps_strings = PS_STRINGS;
 SYSCTL_LONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings, "");
@@ -103,7 +103,7 @@ execve(p, uap)
 	register struct execve_args *uap;
 {
 	struct nameidata nd, *ndp;
-	long *stack_base;
+	register_t *stack_base;
 	int error, len, i;
 	struct image_params image_params, *imgp;
 	struct vattr attr;
@@ -567,14 +567,14 @@ exec_extract_strings(imgp)
  *	new arg and env vector tables. Return a pointer to the base
  *	so that it can be used as the initial stack pointer.
  */
-long *
+register_t *
 exec_copyout_strings(imgp)
 	struct image_params *imgp;
 {
 	int argc, envc;
 	char **vectp;
 	char *stringp, *destp;
-	long *stack_base;
+	register_t *stack_base;
 	struct ps_strings *arginfo;
 	int szsigcode;
 
@@ -617,7 +617,7 @@ exec_copyout_strings(imgp)
 	/*
 	 * vectp also becomes our initial stack base
 	 */
-	stack_base = (long *)vectp;
+	stack_base = (register_t *)vectp;
 
 	stringp = imgp->stringbase;
 	argc = imgp->argc;
