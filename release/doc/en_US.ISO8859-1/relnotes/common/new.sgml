@@ -122,12 +122,12 @@
       can be disabled by the <literal>NODEVFS</literal> kernel
       option.</para>
 
-    <para>The DEVFS "rule" subsystem has been introduced.  DEVFS rules
-      permit the administrator to define certain properties of new devfs
-      nodes before they become visible to the userland.  Both static (e.g.,
-      <filename>/dev/speaker</filename>) and dynamic (e.g.,
+    <para>The &man.devfs.5; <quote>rule</quote> subsystem has been introduced.  DEVFS rules
+      permit the administrator to define certain properties of new device
+      nodes before they become visible to the userland.  Both static (e.g.
+      <filename>/dev/speaker</filename>) and dynamic (e.g.
       <filename>/dev/bpf*</filename>, some removable devices) nodes are
-      supported.  Each DEVFS mount may have a different ruleset assigned to
+      supported.  Each &man.devfs.5; mount may have a different ruleset assigned to
       it, permitting different policies to be implemented for things like
       jails.  Rules and rulesets are manipulated with the &man.devfs.8;
       utility.</para>
@@ -3207,7 +3207,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <filename role="package">net/freebsd-uucp</filename>.</para>
 
     <para>&man.unexpand.1; now supports a <option>-t</option> to
-      specify tabstabs analogous to &man.expand.1;. &merged;</para>
+      specify tabstops analogous to &man.expand.1;. &merged;</para>
 
     <para role="historic">&man.units.1; has received some updates and
       bugfixes. &merged;</para>
