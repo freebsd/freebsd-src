@@ -35,7 +35,7 @@
 .\" Enterprises.  To learn more about the Internet Software Consortium,
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
-.TH dhclient 8
+.TH dhclient-script 8
 .SH NAME
 dhclient-script - DHCP client network configuration script
 .SH DESCRIPTION
@@ -47,15 +47,49 @@ interface's final configuration once a lease has been acquired.  If no
 lease is acquired, the script is used to test predefined leases, if
 any, and also called once if no valid lease can be identified.
 .PP
-This script is not meant to be customized by the end user.  However,
-the script may not work on particular versions of particular operating
-systems (indeed, no standard script exists for some operating
-systems), so a pioneering user may well need to create a new script or
-modify an existing one.  In general, customizations specific to a
-particular computer should be done in the
-.B /etc/dhclient.conf
-script.   If you find that you can't make such a customization without
-customizing dhclient-script, please submit a bug report.
+This script is not meant to be customized by the end user.  If local
+customizations are needed, they should be possible using the enter and
+exit hooks provided (see HOOKS for details).   These hooks will allow the
+user to override the default behaviour of the client in creating a
+.B /etc/resolv.conf
+file.
+.PP
+No standard client script exists for some operating systems, even though
+the actual client may work, so a pioneering user may well need to create
+a new script or modify an existing one.  In general, customizations specific
+to a particular computer should be done in the
+.B /sbin/dhclient.conf
+file.   If you find that you can't make such a customization without
+customizing
+.B /sbin/dhclient.conf
+or using the enter and exit hooks, please submit a bug report.
+.SH HOOKS
+When it starts, the client script first defines a shell function,
+.B make_resolv_conf ,
+which is later used to create the
+.B /etc/resolv.conf
+file.   To override the default behaviour, redefine this function in
+the enter hook script.
+.PP
+On after defining the make_resolv_conf function, the client script checks
+for the presence of an executable
+.B /etc/dhclient-enter-hooks
+script, and if present, it invokes the script inline, using the Bourne
+shell '.' command.   The entire environment documented under OPERATION
+is available to this script, which may modify the environment if needed
+to change the behaviour of the script.   If an error occurs during the
+execution of the script, it can set the exit_status variable to a nonzero
+value, and
+.B /sbin/dhclient-script
+will exit with that error code immediately after the client script exits.
+.PP
+After all processing has completed,
+.B /sbin/dhclient-script
+checks for the presence of an executable
+.B /sbin/dhclient-exit-hooks
+script, which if present is invoked using the '.' command.   The exit status
+is passed in the exit_status shell variable, and will always be zero if the
+script succeeded at the task for which it was invoked.
 .SH OPERATION
 When dhclient needs to invoke the client configuration script, it
 writes a shell script into /tmp which defines a variety of variables.
@@ -177,7 +211,7 @@ the other.   Assuming the information provided by both servers is
 valid, this shouldn't cause any real problems, but it could be
 confusing.
 .SH SEE ALSO
-dhclient.conf(5), dhclient.leases(5), dhclient(8)
+dhclient.conf(5), dhclient.leases(5), dhclient(8), dhcpd(8), and dhcrelay(8).
 .SH AUTHOR
 .B dhclient-script(8)
 has been written for the Internet Software Consortium

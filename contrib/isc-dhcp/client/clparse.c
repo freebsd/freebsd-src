@@ -42,16 +42,13 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: clparse.c,v 1.13.2.2 1998/07/10 23:17:00 mellon Exp $ Copyright (c) 1997 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: clparse.c,v 1.13.2.4 1999/03/29 21:21:37 mellon Exp $ Copyright (c) 1997 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
 #include "dhctoken.h"
 
-static TIME parsed_time;
-
 struct client_config top_level_config;
-u_int32_t requested_lease_time;
 
 /* client-conf-file :== client-declarations EOF
    client-declarations :== <nil>
@@ -63,9 +60,7 @@ int read_client_conf ()
 	FILE *cfile;
 	char *val;
 	int token;
-	int declaration = 0;
 	struct client_config *config;
-	struct client_state *state;
 	struct interface_info *ip;
 
 	new_parse (path_dhclient_conf);
@@ -81,8 +76,8 @@ int read_client_conf ()
 	top_level_config.select_interval = 0;
 	top_level_config.reboot_timeout = 10;
 	top_level_config.retry_interval = 300;
-	top_level_config.backoff_cutoff = 120;
-	top_level_config.initial_interval = 10;
+	top_level_config.backoff_cutoff = 15;
+	top_level_config.initial_interval = 3;
 	top_level_config.bootp_policy = ACCEPT;
 	top_level_config.script_name = "/sbin/dhclient-script";
 	top_level_config.requested_options
@@ -106,11 +101,6 @@ int read_client_conf ()
 	top_level_config.requested_options
 		[top_level_config.requested_option_count++] =
 			DHO_HOST_NAME;
-	requested_lease_time = 7200;
-	top_level_config.send_options [DHO_DHCP_LEASE_TIME].data
-		= (unsigned char *)&requested_lease_time;
-	top_level_config.send_options [DHO_DHCP_LEASE_TIME].len
-		= sizeof requested_lease_time;
 
 	if ((cfile = fopen (path_dhclient_conf, "r")) != NULL) {
 		do {
@@ -333,7 +323,6 @@ int parse_X (cfile, buf, max)
 	int token;
 	char *val;
 	int len;
-	u_int8_t *s;
 
 	token = peek_token (&val, cfile);
 	if (token == NUMBER_OR_NAME || token == NUMBER) {
@@ -427,9 +416,7 @@ void parse_interface_declaration (cfile, outer_config)
 	int token;
 	char *val;
 
-	struct interface_info dummy_interface, *ip;
-	struct client_state dummy_state;
-	struct client_config dummy_config;
+	struct interface_info *ip;
 
 	token = next_token (&val, cfile);
 	if (token != STRING) {
@@ -664,7 +651,6 @@ void parse_client_lease_declaration (cfile, lease, ipp)
 {
 	int token;
 	char *val;
-	char *t, *n;
 	struct interface_info *ip;
 
 	switch (next_token (&val, cfile)) {
@@ -810,11 +796,6 @@ struct option *parse_option_decl (cfile, options)
 
 	/* Parse the option data... */
 	do {
-		/* Set a flag if this is an array of a simple type (i.e.,
-		   not an array of pairs of IP addresses, or something
-		   like that. */
-		int uniform = option -> format [1] == 'A';
-
 		for (fmt = option -> format; *fmt; fmt++) {
 			if (*fmt == 'A')
 				break;
