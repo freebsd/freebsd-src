@@ -30,11 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)pathnames.h	8.2 (Berkeley) 8/20/93
+ *	@(#)pathnames.h	8.4 (Berkeley) 6/19/95
  */
 
 #ifndef _PATH_SENDMAILCF
-# define _PATH_SENDMAILCF	"/etc/sendmail.cf"
+# if defined(USE_VENDOR_CF_PATH) && defined(_PATH_VENDOR_CF)
+#  define _PATH_SENDMAILCF	_PATH_VENDOR_CF
+# else
+#  define _PATH_SENDMAILCF	"/etc/sendmail.cf"
+# endif
 #endif
 
 #ifndef _PATH_SENDMAILPID
@@ -43,4 +47,8 @@
 # else
 #  define _PATH_SENDMAILPID	"/etc/sendmail.pid"
 # endif
+#endif
+
+#ifndef _PATH_HOSTS
+# define _PATH_HOSTS		"/etc/hosts"
 #endif

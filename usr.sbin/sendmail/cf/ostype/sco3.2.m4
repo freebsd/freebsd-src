@@ -34,12 +34,12 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)sco3.2.m4	8.1 (Berkeley) 11/27/93')
-define(`ALIAS_FILE', /usr/lib/mail/aliases)dnl
-define(`QUEUE_DIR', /usr/spool/mqueue)dnl
-define(`STATUS_FILE', /usr/lib/sendmail.st)dnl
-define(`UUCP_MAILER_PATH', /usr/bin/uux)dnl
-define(`LOCAL_MAILER_PATH', /usr/bin/lmail)dnl
-define(`LOCAL_MAILER_FLAGS', PuhCE)dnl
-define(`LOCAL_MAILER_ARGS', `lmail $u')dnl
-define(`LOCAL_SHELL_FLAGS', Peu)dnl
+VERSIONID(`@(#)sco3.2.m4	8.2 (Berkeley) 11/13/95')
+ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /usr/lib/mail/aliases)')dnl
+ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /usr/spool/mqueue)')dnl
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /usr/lib/sendmail.st)')dnl
+ifdef(`UUCP_MAILER_PATH',, `define(`UUCP_MAILER_PATH', /usr/bin/uux)')dnl
+ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /usr/bin/lmail)')dnl
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', PuhCE)')dnl
+ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `lmail $u')')dnl
+ifdef(`LOCAL_SHELL_FLAGS',, `define(`LOCAL_SHELL_FLAGS', Peu)')dnl

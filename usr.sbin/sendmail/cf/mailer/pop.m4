@@ -34,7 +34,7 @@ PUSHDIVERT(-1)
 #
 
 ifdef(`POP_MAILER_PATH',, `define(`POP_MAILER_PATH', /usr/lib/mh/spop)')
-ifdef(`POP_MAILER_FLAGS',, `define(`POP_MAILER_FLAGS', `eu')')
+ifdef(`POP_MAILER_FLAGS',, `define(`POP_MAILER_FLAGS', `Penu')')
 ifdef(`POP_MAILER_ARGS',, `define(`POP_MAILER_ARGS', `pop $u')')
 
 POPDIVERT
@@ -43,9 +43,9 @@ POPDIVERT
 ###   POP Mailer specification   ###
 ####################################
 
-VERSIONID(`@(#)pop.m4	8.2 (Berkeley) 2/19/94')
+VERSIONID(`@(#)pop.m4	8.5 (Berkeley) 4/23/95')
 
-Mpop,		P=POP_MAILER_PATH, F=CONCAT(`lsDFM', POP_MAILER_FLAGS), S=10, R=20/40,
+Mpop,		P=POP_MAILER_PATH, F=CONCAT(`lsDFM', POP_MAILER_FLAGS), S=10, R=20/40, T=DNS/RFC822/X-Unix,
 		A=POP_MAILER_ARGS
 
 LOCAL_CONFIG

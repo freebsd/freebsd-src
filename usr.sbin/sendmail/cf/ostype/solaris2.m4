@@ -34,10 +34,12 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)solaris2.m4	8.2 (Berkeley) 1/23/94')
+VERSIONID(`@(#)solaris2.m4	8.6 (Berkeley) 11/13/95')
 divert(-1)
 
-define(`ALIAS_FILE', /etc/mail/aliases)
-define(`HELP_FILE', /etc/mail/sendmail.hf)
-define(`STATUS_FILE', /etc/mail/sendmail.st)
-define(`LOCAL_MAILER_FLAGS', `fSn')
+ifdef(`ALIAS_FILE',, `define(`ALIAS_FILE', /etc/mail/aliases)')
+ifdef(`HELP_FILE',, `define(`HELP_FILE', /etc/mail/sendmail.hf)')
+ifdef(`STATUS_FILE',, `define(`STATUS_FILE', /etc/mail/sendmail.st)')
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `SnE')')
+ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -f $g -d $u')')
+define(`confCW_FILE', /etc/mail/sendmail.cw)
