@@ -50,7 +50,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/cpu.h>
 
-struct ithd *ithreads[NIRQ];
+static struct ithd *ithreads[NIRQ];
+static int intrcnt_tab[NIRQ];
+static int intrcnt_index = 0;
+static int last_printed = 0;
 struct arm_intr {
 	driver_intr_t *handler;
 	void *arg;
@@ -69,7 +72,8 @@ arm_intr_handler(void *arg)
 
 void	arm_handler_execute(void *, int);
 
-void arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg, 
+void
+arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg, 
     int irq, int flags, void **cookiep)
 {
 	struct ithd *cur_ith;
@@ -87,6 +91,14 @@ void arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg,
 		if (error)
 			return;
 		ithreads[irq] = cur_ith;
+		last_printed += 
+		    snprintf(intrnames + last_printed,
+		    MAXCOMLEN + 1,
+		    "irq%d: %s", irq, name);
+		last_printed++;
+		intrcnt_tab[irq] = intrcnt_index;
+		intrcnt_index++;
+		
 	}
 	if (!(flags & INTR_FAST)) {
 		intr->handler = hand;
@@ -120,6 +132,7 @@ arm_handler_execute(void *frame, int irqnb)
 	arm_mask_irqs(irqnb);
 	while (irqnb != 0) {
 		i = ffs(irqnb) - 1;
+		intrcnt[intrcnt_tab[i]]++;
 		irqnb &= ~(1U << i);
 		ithd = ithreads[i];
 		if (!ithd)
