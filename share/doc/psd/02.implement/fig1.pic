@@ -1,0 +1,68 @@
+.\" Copyright (c) 1986, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)fig1.pic	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.PS
+.ps 9
+[
+    PT: [
+	T: box invis ht .2i "Process Table"; move down .125i
+	A: box ht .25i; down
+	PTE: box "Process" "Table" "Entry"; down
+	C: box ht .25i
+    ]
+    move right 1.5i
+    TT: [
+	T: box invis ht .2i "Text Table"; move down .125i
+	A: box ht .25i; down
+	TTE: box "Text" "Table" "Entry"; down
+	C: box ht .25i
+    ]
+    move down 1i from TT.C.s
+    move right 0.5i
+    UTS: [
+	box ht 0.75i wid 0.75i "User" "Text" "Segment"
+    ]
+    move left 1.5i from UTS.w
+    DS: [
+    	SDS: box "System" "Data" "Segment" ; move down .5i from SDS.n ;
+    	UDS: box ht 0.75i "User" "Data" "Segment"
+    ]
+    move left 1i from DS.UDS.w
+    move down 0.25i
+    UAS: [
+	box invis "User" "Address" "Space"
+    ]
+    line from UAS.ne to UAS.se
+    line from UAS.nw to UAS.sw
+    line right 0.15i from UAS.nw
+    line right 0.15i from UAS.sw
+    line left 0.15i from UAS.ne
+    line left 0.15i from UAS.se
+    arrow from 1/4 of the way between PT.PTE.ne and PT.PTE.se right 1.875i
+    arrow from TT.TTE.e right .5i then down to UTS.n
+    arrow from PT.PTE.e right .875i then down to DS.SDS.n
+    arrow from 3/4 of the way between PT.PTE.ne and PT.PTE.se right .25i then down 1.5i then right .25i
+    arrow from 1/4 of the way between UAS.ne and UAS.se right .375i then up .25i then right .25i
+    arrow from 3/4 of the way between UAS.ne and UAS.se right 2.375i then up .875i then right .5i
+    move up 1.3175i from UAS.nw
+    move left .75i
+    line right 5.625i
+    move left 5.25i
+    move up .3125i
+    RS: [
+    	box invis ht 0.2i "Resident"
+    ]
+    move down .8i
+    SW: [
+    	box invis ht 0.2i "Swapped"
+    ]
+    arrow <-> from RS.s to SW.n
+]
+.PE
