@@ -170,6 +170,9 @@ ${KMOD}.kld: ${OBJS}
 .endif
 .endif
 
+.if !exists(/usr/sbin/kldxref)
+NO_XREF=yes
+.endif
 
 _ILINKS=@ machine
 
@@ -257,9 +260,7 @@ realinstall:
 	done; true
 .endif
 .if !defined(NO_XREF)
-	@echo "FAILURES HERE ARE OK"
 	-kldxref ${DESTDIR}${KMODDIR}
-	@echo "END OF SECTION WHERE FAILURES ARE OK"
 .endif
 .endif
 
@@ -345,5 +346,4 @@ ${OBJS}: ${SRCS:M*.h}
 .endif
 
 .include <bsd.obj.mk>
-
 .include <bsd.kern.mk>
