@@ -328,6 +328,15 @@ routing table entry is the
 entry, as reported by
 .Xr arp 8 .
 .Pp
+The optional
+.Fl genmask
+modifier specifies that a cloning mask is present.
+This specifies the mask applied when determining if a child route
+should be created.
+It is only applicable to network routes with the
+.Dv RTF_CLONING
+flag set.
+.Pp
 All symbolic names specified for a
 .Ar destination
 or
