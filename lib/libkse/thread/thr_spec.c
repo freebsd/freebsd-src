@@ -184,12 +184,12 @@ pthread_setspecific(pthread_key_t key, const void *value)
 	return (ret);
 }
 
-int
-pthread_getspecific(pthread_key_t key, void **p_data)
+void *
+pthread_getspecific(pthread_key_t key)
 {
 	pthread_t       pthread;
-	int             rval = 0;
 	int             status;
+	void		*data;
 
 	/* Block signals: */
 	_thread_kern_sig_block(&status);
@@ -207,31 +207,31 @@ pthread_getspecific(pthread_key_t key, void **p_data)
 	}
 
 	/* Check for errors: */
-	if (pthread == NULL || p_data == NULL) {
+	if (pthread == NULL) {
 		/* Return an invalid argument error: */
 		_thread_seterrno(_thread_run, EINVAL);
-		rval = -1;
+		data = NULL;
 	}
 	/* Check if there is specific data: */
 	else if (pthread->specific_data != NULL && (key < PTHREAD_KEYS_MAX) && (key_table)) {
 		/* Check if this key has been used before: */
 		if (key_table[key].count) {
 			/* Return the value: */
-			*p_data = (void *) pthread->specific_data[key];
+			data = (void *) pthread->specific_data[key];
 		} else {
 			/*
 			 * This key has not been used before, so return NULL
 			 * instead: 
 			 */
-			*p_data = NULL;
+			data = NULL;
 		}
 	} else {
 		/* No specific data has been created, so just return NULL: */
-		*p_data = NULL;
+		data = NULL;
 	}
 
 	/* Unblock signals: */
 	_thread_kern_sig_unblock(status);
-	return (rval);
+	return (data);
 }
 #endif
