@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.17 1996/03/28 14:28:35 scrappy Exp $
+ * $Id: asc.c,v 1.18 1996/04/08 19:40:54 smpatel Exp $
  */
 
 #include "asc.h"
@@ -180,7 +180,9 @@ struct asc_unit {
   void *devfs_ascd;
   void *devfs_ascpd;
 #endif
-} unittab[NASC];                                 
+};
+
+static struct asc_unit unittab[NASC];                                 
 
 /*** I could not find a reasonable buffer size limit other than by
  *** experiments. MAXPHYS is obviously too much, while DEV_BSIZE and
