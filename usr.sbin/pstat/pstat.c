@@ -570,8 +570,12 @@ swapmode_sysctl(void)
 			break;
 		if (xsw.xsw_version != XSWDEV_VERSION)
 			errx(1, "xswdev version mismatch");
-		snprintf(ksw.ksw_devname, sizeof ksw.ksw_devname,
-		    "/dev/%s", devname(xsw.xsw_dev, S_IFCHR));
+		if (xsw.xsw_dev == NODEV)
+			snprintf(ksw.ksw_devname, sizeof ksw.ksw_devname,
+			    "<NFSfile>");
+		else
+			snprintf(ksw.ksw_devname, sizeof ksw.ksw_devname,
+			    "/dev/%s", devname(xsw.xsw_dev, S_IFCHR));
 		ksw.ksw_used = xsw.xsw_used;
 		ksw.ksw_total = xsw.xsw_nblks;
 		ksw.ksw_flags = xsw.xsw_flags;
