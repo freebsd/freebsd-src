@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.69 1998/03/03 22:56:24 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.70 1998/03/07 20:16:49 tegge Exp $
  */
 
 #include "opt_smp.h"
@@ -1199,7 +1199,6 @@ isa_apic_pin(int isa_irq)
 	}
 	return -1;					/* NOT found */
 }
-#undef SRCBUSIRQ
 
 
 /*
@@ -1225,9 +1224,57 @@ pci_apic_pin(int pciBus, int pciDevice, int pciInt)
 
 	return -1;					/* NOT found */
 }
+
+int
+next_apic_pin(int pin) 
+{
+	int intr, ointr;
+	int bus, bustype;
+
+	bus = 0;
+	bustype = 0;
+	for (intr = 0; intr < nintrs; intr++) {
+		if (INTPIN(intr) != pin || INTTYPE(intr) != 0)
+			continue;
+		bus = SRCBUSID(intr);
+		bustype = apic_bus_type(bus);
+		if (bustype != ISA &&
+		    bustype != EISA &&
+		    bustype != PCI)
+			continue;
+		break;
+	}
+	if (intr >= nintrs) {
+		return -1;
+	}
+	for (ointr = intr + 1; ointr < nintrs; ointr++) {
+		if (INTTYPE(ointr) != 0)
+			continue;
+		if (bus != SRCBUSID(ointr))
+			continue;
+		if (bustype == PCI) {
+			if (SRCBUSDEVICE(intr) != SRCBUSDEVICE(ointr))
+				continue;
+			if (SRCBUSLINE(intr) != SRCBUSLINE(ointr))
+				continue;
+		}
+		if (bustype == ISA || bustype == EISA) {
+			if (SRCBUSIRQ(intr) != SRCBUSIRQ(ointr))
+				continue;
+		}
+		if (INTPIN(intr) == INTPIN(ointr))
+			continue;
+		break;
+	}
+	if (ointr >= nintrs) {
+		return -1;
+	}
+	return INTPIN(ointr);
+}
 #undef SRCBUSLINE
 #undef SRCBUSDEVICE
 #undef SRCBUSID
+#undef SRCBUSIRQ
 
 #undef INTPIN
 #undef INTTYPE
