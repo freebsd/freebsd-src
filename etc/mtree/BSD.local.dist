@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.local.dist,v 1.7 1994/09/19 01:40:35 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -10,6 +10,8 @@
     info           
     ..
     lib            
+    ..
+    libexec
     ..
     man            
         cat1            uname=man
@@ -50,5 +52,7 @@
         ..
         skel           
         ..
+    ..
+    sbin
     ..
 ..
