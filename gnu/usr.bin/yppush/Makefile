@@ -2,15 +2,10 @@
 #	$Id: Makefile,v 1.3 1995/04/02 01:10:08 wpaul Exp $
 
 PROG=	yppush
-SRCS=	yp_svc.c yp_clnt.c yppush.c
+SRCS=	yp_clnt.c yppush.c
 
 MAN8=	yppush.8
 CLEANFILES= yp_svc.c yp_clnt.c yp.h yp.x
-
-yp_svc.c: yp.h
-	rm -f yp.x
-	cp ${DESTDIR}/usr/include/rpcsvc/yp.x .
-	rpcgen  -m -o yp_svc.c yp.x
 
 yp_clnt.c: yp.h
 	rm -f yp.x
