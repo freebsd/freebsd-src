@@ -1,5 +1,6 @@
   Commands flagged with an asterisk (``*'') may be preceeded by a number.
-  Commands of the form ``^X'' are control characters, i.e. control-X.
+  Commands of the form ``^X'' are control characters, i.e. control-X.  The
+  arrow keys and page-up/down keys act as expected.  Additional keys are,
 
   h              Display this help.
 
@@ -12,6 +13,7 @@
   g            * Go to line N, default 1.
   G            * Go to line N, default the end of the file.
   p, %         * Position to N percent into the file.
+  HOME           Toggle horizontal scroll and line-wrap on and off
 
   r, ^L          Repaint screen.
   R              Repaint screen, discarding buffered input.
