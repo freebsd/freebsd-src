@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.46 1999/04/11 05:11:09 wpaul Exp $
+ *	$Id: if_pn.c,v 1.47 1999/04/12 02:44:28 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.46 1999/04/11 05:11:09 wpaul Exp $";
+	"$Id: if_pn.c,v 1.47 1999/04/12 02:44:28 wpaul Exp $";
 #endif
 
 /*
@@ -1943,6 +1943,7 @@ static void pn_init(xsc)
 	/*
 	 * Set cache alignment and burst length.
 	 */
+	CSR_WRITE_4(sc, PN_BUSCTL, PN_BURSTLEN_USECA);
 	switch(sc->pn_cachesize) {
 	case 32:
 		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_32LONG);
@@ -1958,7 +1959,6 @@ static void pn_init(xsc)
 		PN_SETBIT(sc, PN_BUSCTL, PN_CACHEALIGN_NONE);
 		break;
 	}
-	CSR_WRITE_4(sc, PN_BUSCTL, PN_BURSTLEN_USECA);
 
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_TX_IMMEDIATE);
 	PN_CLRBIT(sc, PN_NETCFG, PN_NETCFG_NO_RXCRC);
