@@ -170,8 +170,6 @@ pcic_isa_attach(device_t dev)
 	    ((rman_get_end(sc->mem_res) - rman_get_start(sc->mem_res) + 1) / 
 		PCIC_MEM_PAGESIZE)) - 1;
 
-	sc->pct = (pccard_chipset_tag_t) & pcic_isa_functions;
-
 	sc->irq_rid = 0;
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid,
 	    0, ~0, 1, RF_ACTIVE);
@@ -210,7 +208,7 @@ pcic_isa_attach(device_t dev)
 	    rman_get_start(sc->port_res), 
 	    rman_get_end(sc->port_res) - rman_get_end(sc->port_res) + 1);
 
-	pcic_attach_sockets(sc);
+	pcic_attach_sockets(dev);
 #endif
 	return 0;
  error:
@@ -232,14 +230,30 @@ pcic_isa_detach(device_t dev)
 	return 0;
 }
 
-
-
 static device_method_t pcic_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_isa_probe),
 	DEVMETHOD(device_attach,	pcic_isa_attach),
 	DEVMETHOD(device_detach,	pcic_isa_detach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
+	/* Bus Interface */
+	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
+	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+#if 0
+	/* pccard/cardbus interface */
+	DEVMETHOD(card_set_resource_attribute, pcic_set_resource_attribute),
+	DEVMETHOD(card_get_resource_attribute, pcic_get_resource_attribute),
+
+	/* Power Interface */
+	/* Not yet */
+#endif
 	{ 0, 0 }
 };
 
