@@ -63,7 +63,7 @@ and lines in both files.
 The filename ``-'' means the standard input.
 .Pp
 The following options are available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl 1
 Suppress printing of column 1.
 .It Fl 2
@@ -84,8 +84,9 @@ printed in column number three will have one.
 assumes that the files are lexically sorted; all characters
 participate in line comparisons.
 .Sh DIAGNOSTICS
-.Nm Comm
-exits 0 on success, >0 if an error occurred.
+The
+.Nm
+utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr cmp 1 ,
 .Xr diff 1 ,
