@@ -212,10 +212,15 @@ again:
 			syslog(LOG_ERR, "recvfrom: %m");
 			exit(1);
 		}
-		if (n < (ssize_t)sizeof(struct tsp)) {
+		/*
+		 * The 4.3BSD protocol spec had a 32-byte tsp_name field, and
+		 * this is still OS-dependent.  Demand that the packet is at
+		 * least long enough to hold a 4.3BSD packet.
+		 */
+		if (n < (ssize_t)(sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
 			syslog(LOG_NOTICE,
 			    "short packet (%u/%u bytes) from %s",
-			      n, sizeof(struct tsp),
+			      n, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 			      inet_ntoa(from.sin_addr));
 			continue;
 		}

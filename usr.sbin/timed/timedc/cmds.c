@@ -332,10 +332,15 @@ msite(argc, argv)
 				warn("recvfrom");
 				continue;
 			}
-			if (cc < sizeof(struct tsp)) {
+			/*
+			 * The 4.3BSD protocol spec had a 32-byte tsp_name field, and
+			 * this is still OS-dependent.  Demand that the packet is at
+			 * least long enough to hold a 4.3BSD packet.
+			 */
+			if (cc < (sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
 				fprintf(stderr, 
 				   "short packet (%u/%u bytes) from %s\n",
-				   cc, sizeof(struct tsp),
+				   cc, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 				   inet_ntoa(from.sin_addr));
 				continue;
 			}
@@ -484,9 +489,15 @@ tracing(argc, argv)
 			warn("recvfrom");
 			return;
 		}
-		if (cc < sizeof(struct tsp)) {
-			fprintf(stderr, "short pack (%u/%u bytes) from %s\n",
-			   cc, sizeof(struct tsp), inet_ntoa(from.sin_addr));
+		/*
+		 * The 4.3BSD protocol spec had a 32-byte tsp_name field, and
+		 * this is still OS-dependent.  Demand that the packet is at
+		 * least long enough to hold a 4.3BSD packet.
+		 */
+		if (cc < (sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
+			fprintf(stderr, "short packet (%u/%u bytes) from %s\n",
+			    cc, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
+			    inet_ntoa(from.sin_addr));
 			return;
 		}
 		bytehostorder(&msg);
