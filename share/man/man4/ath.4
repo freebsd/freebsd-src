@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+.\" Copyright (c) 2002-2004 Sam Leffler, Errno Consulting
 .\" All rights reserved.
 .\""
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"/
-.Dd August 26, 2004
+.Dd December 7, 2004
 .Dt ATH 4
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Cd "device ath"
 .Cd "device ath_hal"
+.Cd "device ath_rate_onoe"
 .Cd "device wlan"
 .Sh DESCRIPTION
 The
@@ -67,14 +68,15 @@ speeds as above for 802.11a operation and
 AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
 with transmit speeds appropriate to each.
 All chips also support an Atheros Turbo Mode (TM) that operates in
-the 802.11a frequency range with 2x the transmit speeds.
-(This mode is, however, only interoperable with other Atheros-based devices.)
+the 5Ghz frequency range with 2x the transmit speeds.
+Some chips also support Turbo mode in the 2.4Ghz range with 802.11g.
+(These modes are, however, only interoperable with other Atheros-based devices.)
 The actual transmit speed used is dependent on signal quality and the
 .Dq "rate control"
 algorithm employed by the driver.
 All chips support WEP encryption.
-AR5211 and AR5212 support the AES, TKIP, and Michael cryptographic
-operations required for WPA but at this time the driver does not support them.
+The AR5212 has hardware support for the AES-CCM, TKIP, and Michael cryptographic
+operations required for WPA.
 To enable encryption, use
 .Xr ifconfig 8
 as shown below.
@@ -258,13 +260,6 @@ the set of available channels.
 A problem occurred while querying the HAL to find the set of available
 channels for the device.
 This should not happen.
-.It "ath%d: %s: %dM -> %dM (%d ok, %d err, %d retr)"
-The driver's rate control algorithm changed the current rate for transmitting
-frames.
-This message is temporarily enabled for normal use to help in diagnosing
-and improving the rate control algorithm.
-The message indicates the new and old transmit rates and the statistics
-it used to decide on this change.
 .It "ath%d: failed to enable memory mapping"
 The driver was unable to enable memory-mapped I/O to the PCI device registers.
 This should not happen.
