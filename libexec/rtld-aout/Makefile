@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.18 1996/01/11 17:49:55 phk Exp $
+#	$Id: Makefile,v 1.19 1996/05/07 23:15:58 wosch Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -11,23 +11,12 @@ ASFLAGS+=-k
 DPADD+=	${LIBC:S/c.a/c_pic.a/} ${LIBC:S/c.a/gcc_pic.a/}
 LDADD+=	-lc_pic -lgcc_pic
 BINDIR= /usr/libexec
+INSTALLFLAGS+=	-fschg -C	# -C to install as atomically as possible
 MLINKS= rtld.1 ld.so.1
 
 .PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
 
 $(PROG): ${OBJS} ${DPADD}
 	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDADD)
-
-realinstall:
-	${INSTALL} ${COPY} ${STRIP} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${INSTALLFLAGS} ${PROG} ${DESTDIR}${BINDIR}/${PROG}.new
-	test -f ${DESTDIR}${BINDIR}/${PROG}.old && \
-		chflags noschg ${DESTDIR}${BINDIR}/${PROG}.old || \
-		:
-	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}
-	-ln -f ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
-	mv -f ${DESTDIR}${BINDIR}/${PROG}.new ${DESTDIR}${BINDIR}/${PROG}
-	chflags schg ${DESTDIR}${BINDIR}/${PROG}
-	-rm -f ${DESTDIR}${BINDIR}/${PROG}.old
 
 .include <bsd.prog.mk>
