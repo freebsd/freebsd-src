@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.10 1999/05/20 09:49:33 yokota Exp $
+ * $Id: atkbd.c,v 1.11 1999/05/30 16:51:30 phk Exp $
  */
 
 #include "atkbd.h"
@@ -355,6 +355,9 @@ atkbd_configure(int flags)
 	int arg[2];
 	int i;
 
+	/* probe the keyboard controller */
+	atkbdc_configure();
+
 	/* if the driver is disabled, unregister the keyboard if any */
 	if ((resource_int_value("atkbd", ATKBD_DEFAULT, "disabled", &i) == 0)
 	    && i != 0) {
@@ -363,16 +366,13 @@ atkbd_configure(int flags)
 			kbd = kbd_get_keyboard(i);
 			kbd_unregister(kbd);
 			kbd->kb_flags &= ~KB_REGISTERED;
-			return 0;
 		}
+		return 0;
 	}
 	
 	/* XXX: a kludge to obtain the device configuration flags */
 	if (resource_int_value("atkbd", ATKBD_DEFAULT, "flags", &i) == 0)
 		flags |= i;
-
-	/* probe the keyboard controller */
-	atkbdc_configure();
 
 	/* probe the default keyboard */
 	arg[0] = -1;
