@@ -7,7 +7,7 @@ INTERNALLIB=	true
 
 # XXX hack to pick up stand.h
 LIBSTANDDIR=	${.CURDIR}/../../../../lib/libstand
-CFLAGS=		-I${LIBSTANDDIR}
+CFLAGS+=	-I${LIBSTANDDIR}
 CFLAGS+=	-DDEBUG
 
 # Pick up the bootstrap header for some interface items
