@@ -221,7 +221,7 @@ main(int ac, char **av)
 					sig = strtol(*av, &ep, 10);
 					if (!*av || *ep)
 						errx(1, "illegal signal number: %s", *av);
-					if (sig < 0 || sig > NSIG)
+					if (sig < 0 || sig >= NSIG)
 						nosig(*av);
 				} else
 					nosig(*av);
