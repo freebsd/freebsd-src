@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 # POSIX thread man files
 

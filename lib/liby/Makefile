@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=		y
 SHLIB_MAJOR=	2

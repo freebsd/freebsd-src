@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$FreeBSD$")
+RCSID("$Id$")
 
 ENTRY(__ieee754_log)
 	fldln2

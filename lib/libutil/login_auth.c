@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <sys/types.h>

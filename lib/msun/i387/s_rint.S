@@ -35,7 +35,7 @@
 
 #include <machine/asmacros.h>
 
-RCSID("$FreeBSD$")
+RCSID("$Id$")
 
 ENTRY(rint)
 	fldl	4(%esp)

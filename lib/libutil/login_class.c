@@ -21,7 +21,7 @@
  *
  * High-level routines relating to use of the user capabilities database
  *
- *	$FreeBSD$
+ *	$Id$
  */
 
 #include <stdio.h>

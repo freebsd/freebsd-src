@@ -6,12 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $Id$
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 #endif				/* LIBC_SCCS and not lint */
 
 /*

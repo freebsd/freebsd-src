@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
 static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.20 1996/09/28 06:51:07 vixie Exp";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

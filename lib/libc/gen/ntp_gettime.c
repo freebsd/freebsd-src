@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>

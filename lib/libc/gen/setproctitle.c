@@ -14,7 +14,7 @@
  * 3. Absolutely no warranty of function or purpose is made by the author
  *    Peter Wemm.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #include <sys/types.h>

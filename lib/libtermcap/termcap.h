@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $Id$ */
 
 #ifndef _TERMCAP_H_
 #define _TERMCAP_H_
