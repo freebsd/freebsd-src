@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.20 1997/03/27 20:01:07 guido Exp $
+ * $Id: nfs_syscalls.c,v 1.21 1997/04/27 20:01:23 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -607,7 +607,8 @@ nfssvc_nfsd(nsd, argp, p)
 
 			sin = mtod(nam, struct sockaddr_in *);
 			port = ntohs(sin->sin_port);
-			if (port >= IPPORT_RESERVED) {
+			if (port >= IPPORT_RESERVED && 
+			    nd->nd_procnum != NFSPROC_NULL) {
 			    nd->nd_procnum = NFSPROC_NOOP;
 			    nd->nd_repstat = (NFSERR_AUTHERR | AUTH_TOOWEAK);
 			    cacherep = RC_DOIT;
