@@ -61,9 +61,11 @@ struct csa_softc {
 	device_t pcm; /* pcm device */
 	driver_intr_t* pcmintr; /* pcm intr */
 	void *pcmintr_arg; /* pcm intr arg */
+#if notyet
 	device_t midi; /* midi device */
 	driver_intr_t* midiintr; /* midi intr */
 	void *midiintr_arg; /* midi intr arg */
+#endif /* notyet */
 	void *ih; /* cookie */
 };
 
@@ -119,6 +121,7 @@ csa_probe(device_t dev)
 		func->func = SCF_PCM;
 		device_add_child(dev, "pcm", -1, func);
 
+#if notyet
 		/* Midi Interface */
 		func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
 		if (func == NULL)
@@ -126,6 +129,7 @@ csa_probe(device_t dev)
 		bzero(func, sizeof(*func));
 		func->func = SCF_MIDI;
 		device_add_child(dev, "midi", -1, func);
+#endif /* notyet */
 
 		return (0);
 	}
