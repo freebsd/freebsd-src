@@ -54,6 +54,10 @@ static void hpt_timing(struct ata_softc *, int, int);
 #undef vtophys
 #define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)va)
 #endif
+#define ATAPI_DEVICE(scp, device) \
+	((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) || \
+	 (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
+
 
 void *
 ata_dmaalloc(struct ata_softc *scp, int device)
@@ -718,18 +722,11 @@ via_82c586:
 	/* we could set PIO mode timings, but we assume the BIOS did that */
 	break;
 
-    case 0x4d33105a:	/* Promise Ultra/FastTrak 33 controllers */
-    case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
     case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
     case 0x0d30105a:	/* Promise OEM ATA100 controllers */
     case 0x4d68105a:	/* Promise TX2 ATA100 controllers */
-	/* the Promise can only do DMA on ATA disks not on ATAPI devices */
-	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
-	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
-	    break;
-
-	if (udmamode >= 5 && (scp->chiptype == 0x4d30105a || 
-	    scp->chiptype == 0x0d30105a || scp->chiptype == 0x4d68105a) &&
+    case 0x6268105a:	/* Promise TX2v2 ATA100 controllers */
+	if (!ATAPI_DEVICE(scp, device) && udmamode >= 5 && 
 	    !(pci_read_config(parent, 0x50, 2)&(scp->channel ? 1<<11 : 1<<10))){
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -743,9 +740,10 @@ via_82c586:
 		return;
 	    }
 	}
-	if (udmamode >= 4 &&
-	    (scp->chiptype == 0x4d38105a || scp->chiptype == 0x4d30105a ||
-	     scp->chiptype == 0x0d30105a || scp->chiptype == 0x4d68105a) &&
+	/* FALLTHROUGH */
+
+    case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
+	if (!ATAPI_DEVICE(scp, device) && udmamode >= 4 && 
 	    !(pci_read_config(parent, 0x50, 2)&(scp->channel ? 1<<11 : 1<<10))){
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -759,7 +757,10 @@ via_82c586:
 		return;
 	    }
 	}
-	if (udmamode >= 2) {
+	/* FALLTHROUGH */
+
+    case 0x4d33105a:	/* Promise Ultra/FastTrak 33 controllers */
+	if (!ATAPI_DEVICE(scp, device) && udmamode >= 2) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -772,7 +773,7 @@ via_82c586:
 		return;
 	    }
 	}
-	if (wdmamode >= 2 && apiomode >= 4) {
+	if (!ATAPI_DEVICE(scp, device) && wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -798,12 +799,8 @@ via_82c586:
 	return;
     
     case 0x00041103:	/* HighPoint HPT366/368/370 controllers */
-	/* no ATAPI devices for now */
-	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
-	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
-	    break;
-
-	if (udmamode >=5 && pci_get_revid(parent) >= 0x03 &&
+	if (!ATAPI_DEVICE(scp, device) &&
+	    udmamode >=5 && pci_get_revid(parent) >= 0x03 &&
 	    !(pci_read_config(parent, 0x5a, 1) & (scp->channel ? 0x01:0x02))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -817,7 +814,7 @@ via_82c586:
 		return;
 	    }
 	}
-	if (udmamode >=4 && 
+	if (!ATAPI_DEVICE(scp, device) && udmamode >=4 && 
 	    !(pci_read_config(parent, 0x5a, 1) & (scp->channel ? 0x01:0x02))) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -831,7 +828,7 @@ via_82c586:
 		return;
 	    }
 	}
-	if (udmamode >= 2) {
+	if (!ATAPI_DEVICE(scp, device) && udmamode >= 2) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -844,7 +841,7 @@ via_82c586:
 		return;
 	    }
 	}
-	if (wdmamode >= 2 && apiomode >= 4) {
+	if (!ATAPI_DEVICE(scp, device) && wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -1048,6 +1045,7 @@ promise_timing(struct ata_softc *scp, int devno, int mode)
     case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:  /* Promise OEM ATA 100 */
     case 0x4d68105a:  /* Promise TX2 ATA 100 */
+    case 0x6268105a:  /* Promise TX2v2 ATA 100 */
 	switch (mode) {
 	default:
 	case ATA_PIO0:  t->pa = 15; t->pb = 31; t->mb = 7; t->mc = 15; break;

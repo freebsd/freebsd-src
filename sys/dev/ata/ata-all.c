@@ -287,10 +287,9 @@ ata_resume(device_t dev)
 static int
 ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
-
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     device_t device;
-    int error = 0;
+    int error;
 
     if (cmd != IOCATA)
 	return ENOTTY;
@@ -304,15 +303,16 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     switch (iocmd->cmd) {
 	case ATAATTACH: {
 	    /* should enable channel HW on controller that can SOS XXX */   
-	    if (!(error = ata_probe(device)))
+	    error = ata_probe(device);
+	    if (!error)
 		error = ata_attach(device);
-	    break;
+	    return error;
 	}
 
 	case ATADETACH: {
 	    error = ata_detach(device);
 	    /* should disable channel HW on controller that can SOS XXX */   
-	    break;
+	    return error;
 	}
 
 	case ATAREINIT: {
@@ -329,7 +329,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
         	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
 	    error = ata_reinit(scp);
 	    splx(s);
-	    break;
+	    return error;
 	}
 
 	case ATAGMODE: {
@@ -346,7 +346,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		iocmd->u.mode.mode[SLAVE] = scp->mode[SLAVE];
 	    else
 		iocmd->u.mode.mode[SLAVE] = -1;
-	    break;
+	    return 0;
 	}
 
 	case ATASMODE: {
@@ -368,7 +368,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    }
 	    else
 		iocmd->u.mode.mode[SLAVE] = -1;
-	    break;
+	    return 0;
 	}
 
 	case ATAGPARM: {
@@ -394,13 +394,10 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    if (scp->dev_param[SLAVE])
 		bcopy(scp->dev_param[SLAVE], &iocmd->u.param.params[SLAVE],
 		      sizeof(struct ata_params));
-	    break;
+	    return 0;
 	}
-
-	default:
-	    error = ENOTTY;
     }
-    return error;
+    return ENOTTY;
 }
 
 static int

@@ -675,7 +675,7 @@ atapi_cmd2str(u_int8_t cmd)
 {
     switch (cmd) {
     case 0x00: return ("TEST_UNIT_READY");
-    case 0x01: return ("REWIND");
+    case 0x01: return ("REZERO");
     case 0x03: return ("REQUEST_SENSE");
     case 0x04: return ("FORMAT_UNIT");
     case 0x08: return ("READ");
