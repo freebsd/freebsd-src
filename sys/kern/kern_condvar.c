@@ -345,8 +345,17 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	if (p->p_sflag & PS_TIMEOUT) {
 		p->p_sflag &= ~PS_TIMEOUT;
 		rval = EWOULDBLOCK;
-	} else
-		callout_stop(&p->p_slpcallout);
+	} else if (p->p_sflag & PS_TIMOFAIL)
+		p->p_sflag &= ~PS_TIMOFAIL;
+	else if (callout_stop(&p->p_slpcallout) == 0) {
+		/*
+		 * Work around race with cv_timedwait_end similar to that
+		 * between msleep and endtsleep.
+		 */
+		p->p_sflag |= PS_TIMEOUT;
+		p->p_stats->p_ru.ru_nivcsw++;
+		mi_switch();
+	}
 
 	mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
@@ -407,8 +416,17 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	if (p->p_sflag & PS_TIMEOUT) {
 		p->p_sflag &= ~PS_TIMEOUT;
 		rval = EWOULDBLOCK;
-	} else
-		callout_stop(&p->p_slpcallout);
+	} else if (p->p_sflag & PS_TIMOFAIL)
+		p->p_sflag &= ~PS_TIMOFAIL;
+	else if (callout_stop(&p->p_slpcallout) == 0) {
+		/*
+		 * Work around race with cv_timedwait_end similar to that
+		 * between msleep and endtsleep.
+		 */
+		p->p_sflag |= PS_TIMEOUT;
+		p->p_stats->p_ru.ru_nivcsw++;
+		mi_switch();
+	}
 
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
@@ -538,12 +556,16 @@ cv_timedwait_end(void *arg)
 	CTR3(KTR_PROC, "cv_timedwait_end: proc %p (pid %d, %s)", p, p->p_pid,
 	    p->p_comm);
 	mtx_lock_spin(&sched_lock);
-	if (p->p_wchan != NULL) {
+	if (p->p_sflag & PS_TIMEOUT) {
+		p->p_sflag &= ~PS_TIMEOUT;
+		setrunqueue(p);
+	} else if (p->p_wchan != NULL) {
 		if (p->p_stat == SSLEEP)
 			setrunnable(p);
 		else
 			cv_waitq_remove(p);
 		p->p_sflag |= PS_TIMEOUT;
-	}
+	} else
+		p->p_sflag |= PS_TIMOFAIL;
 	mtx_unlock_spin(&sched_lock);
 }

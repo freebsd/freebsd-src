@@ -451,7 +451,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 		p->p_sflag &= ~PS_TIMEOUT;
 		if (sig == 0)
 			rval = EWOULDBLOCK;
-	} else if (timo && callout_stop(&p->p_slpcallout) == 0) {
+	} else if (p->p_sflag & PS_TIMOFAIL)
+		p->p_sflag &= ~PS_TIMOFAIL;
+	else if (timo && callout_stop(&p->p_slpcallout) == 0) {
 		/*
 		 * This isn't supposed to be pretty.  If we are here, then
 		 * the endtsleep() callout is currently executing on another
@@ -524,7 +526,8 @@ endtsleep(arg)
 		else
 			unsleep(p);
 		p->p_sflag |= PS_TIMEOUT;
-	}
+	} else
+		p->p_sflag |= PS_TIMOFAIL;
 	mtx_unlock_spin(&sched_lock);
 }
 
