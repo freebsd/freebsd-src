@@ -809,8 +809,16 @@ mac_test_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_test_check_pipe_op(struct ucred *cred, struct pipe *pipe,
-    struct label *pipelabel, int op)
+mac_test_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_pipe_read(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
 {
 
 	return (0);
@@ -819,6 +827,22 @@ mac_test_check_pipe_op(struct ucred *cred, struct pipe *pipe,
 static int
 mac_test_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
     struct label *pipelabel, struct label *newlabel)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
+{
+
+	return (0);
+}
+
+static int
+mac_test_check_pipe_write(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
 {
 
 	return (0);
@@ -1258,10 +1282,16 @@ static struct mac_policy_op_entry mac_test_ops[] =
 	    (macop_t)mac_test_check_mount_stat },
 	{ MAC_CHECK_PIPE_IOCTL,
 	    (macop_t)mac_test_check_pipe_ioctl },
-	{ MAC_CHECK_PIPE_OP,
-	    (macop_t)mac_test_check_pipe_op },
+	{ MAC_CHECK_PIPE_POLL,
+	    (macop_t)mac_test_check_pipe_poll },
+	{ MAC_CHECK_PIPE_READ,
+	    (macop_t)mac_test_check_pipe_read },
 	{ MAC_CHECK_PIPE_RELABEL,
 	    (macop_t)mac_test_check_pipe_relabel },
+	{ MAC_CHECK_PIPE_STAT,
+	    (macop_t)mac_test_check_pipe_stat },
+	{ MAC_CHECK_PIPE_WRITE,
+	    (macop_t)mac_test_check_pipe_write },
 	{ MAC_CHECK_PROC_DEBUG,
 	    (macop_t)mac_test_check_proc_debug },
 	{ MAC_CHECK_PROC_SCHED,
