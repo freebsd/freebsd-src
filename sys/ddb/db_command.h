@@ -23,11 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.h,v 1.5 1994/08/18 22:34:21 wollman Exp $
+ *	$Id: db_command.h,v 1.6 1995/05/30 07:56:54 rgrimes Exp $
  */
 
 #ifndef _DDB_DB_COMMAND_H_
-#define _DDB_DB_COMMAND_H_ 1
+#define	_DDB_DB_COMMAND_H_
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
@@ -41,7 +41,7 @@
 #include <sys/proc.h>
 #include <machine/db_machdep.h>
 
-extern void	db_command_loop();
+void	db_command_loop __P((void));
 
 extern db_addr_t	db_dot;		/* current location */
 extern db_addr_t	db_last_addr;	/* last explicit address typed */
@@ -50,5 +50,4 @@ extern db_addr_t	db_prev;	/* last address examined
 extern db_addr_t	db_next;	/* next address to be examined
 					   or written */
 
-
-#endif /* _DDB_DB_COMMAND_H_ */
+#endif /* !_DDB_DB_COMMAND_H_ */

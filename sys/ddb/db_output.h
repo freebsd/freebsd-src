@@ -23,11 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.h,v 1.6 1994/09/27 12:15:53 davidg Exp $
+ *	$Id: db_output.h,v 1.7 1995/05/30 07:57:04 rgrimes Exp $
  */
 
 #ifndef _DDB_DB_OUTPUT_H_
-#define _DDB_DB_OUTPUT_H_ 1
+#define	_DDB_DB_OUTPUT_H_
 
 /*
  * 	Author: David B. Golub, Carnegie Mellon University
@@ -38,7 +38,8 @@
  * Printing routines for kernel debugger.
  */
 
-extern void	db_force_whitespace();
-extern int	db_print_position();
-extern void	db_end_line();
-#endif /* _DDB_DB_OUTPUT_H_ */
+void	db_end_line __P((void));
+void	db_force_whitespace __P((void));
+int	db_print_position __P((void));
+
+#endif /* !_DDB_DB_OUTPUT_H_ */

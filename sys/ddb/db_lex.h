@@ -23,11 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.h,v 1.4 1994/08/18 22:34:24 wollman Exp $
+ *	$Id: db_lex.h,v 1.5 1995/05/30 07:57:01 rgrimes Exp $
  */
 
 #ifndef _DDB_DB_LEX_H_
-#define _DDB_DB_LEX_H_ 1
+#define	_DDB_DB_LEX_H_
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
@@ -36,13 +36,13 @@
 /*
  * Lexical analyzer.
  */
-extern int	db_read_line();
-extern void	db_flush_line();
-extern int	db_read_char();
-extern void	db_unread_char(/* char c */);
-extern int	db_read_token();
-extern void	db_unread_token(/* int t */);
-extern void	db_flush_lex();
+void	db_flush_lex __P((void));
+void	db_flush_line __P((void));
+int	db_read_char __P((void));
+int	db_read_line __P((void));
+int	db_read_token __P((void));
+void	db_unread_char __P((int c));
+void	db_unread_token __P((int t));
 
 extern int	db_tok_number;
 #define	TOK_STRING_SIZE		120
@@ -70,7 +70,4 @@ extern char	db_tok_string[TOK_STRING_SIZE];
 #define	tSHIFT_R	19
 #define	tDOTDOT		20
 
-
-
-
-#endif /* _DDB_DB_LEX_H_ */
+#endif /* !_DDB_DB_LEX_H_ */
