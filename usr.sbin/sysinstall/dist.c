@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.18 1995/05/24 09:00:17 jkh Exp $
+ * $Id: dist.c,v 1.19 1995/05/24 17:49:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,17 @@ unsigned int XF86ServerDists;
 unsigned int XF86FontDists;
 
 static int	distSetXF86(char *str);
+
+int
+distReset(char *str)
+{
+    Dists = 0;
+    SrcDists = 0;
+    XF86Dists = 0;
+    XF86ServerDists = 0;
+    XF86FontDists = 0;
+    return 0;
+}
 
 int
 distSetDeveloper(char *str)
