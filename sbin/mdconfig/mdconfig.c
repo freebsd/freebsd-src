@@ -84,7 +84,7 @@ main(int argc, char **argv)
 		case 'f':
 			if (cmdline != 2)
 				usage();
-			strncpy(mdio.md_file, optarg, sizeof(mdio.md_file) - 1);
+			mdio.md_file = optarg;
 			break;
 		case 'o':
 			if (cmdline != 2)
