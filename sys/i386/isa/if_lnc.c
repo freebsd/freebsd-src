@@ -1509,8 +1509,7 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 #ifdef INET
 		case AF_INET:
 			lnc_init(ifp->if_unit);
-			((struct arpcom *) ifp)->ac_ipaddr = IA_SIN(ifa)->sin_addr;
-			arpwhohas((struct arpcom *) ifp, &IA_SIN(ifa)->sin_addr);
+			arp_ifinit((struct arpcom *)ifp, ifa);
 			break;
 #endif
 		default:
