@@ -256,7 +256,7 @@ wi_attach(device_t dev)
 	 * NB: no locking is needed here; don't put it here
 	 *     unless you can prove it!
 	 */
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    wi_intr, sc, &sc->wi_intrhand);
 
 	if (error) {
