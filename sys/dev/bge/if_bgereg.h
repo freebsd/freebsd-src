@@ -217,6 +217,10 @@
 #define BGE_ASICREV_BCM5700_B2		0x71030000
 #define BGE_ASICREV_BCM5700_ALTIMA	0x71040000
 #define BGE_ASICREV_BCM5700_C0		0x72000000
+#define BGE_ASICREV_BCM5701_A0		0x00000000	/* grrrr */
+#define BGE_ASICREV_BCM5701_B0		0x01000000
+#define BGE_ASICREV_BCM5701_B2		0x01020000
+#define BGE_ASICREV_BCM5701_B5		0x01050000
 
 /* PCI DMA Read/Write Control register */
 #define BGE_PCIDMARWCTL_MINDMA		0x000000FF
@@ -2109,6 +2113,7 @@ struct bge_softc {
 	u_int8_t		bge_unit;	/* interface number */
 	u_int8_t		bge_extram;	/* has external SSRAM */
 	u_int8_t		bge_tbi;
+	u_int32_t		bge_asicrev;
 	struct bge_ring_data	*bge_rdata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
 	u_int16_t		bge_tx_saved_considx;

@@ -57,7 +57,7 @@
  * function in a 32-bit/64-bit 33/66Mhz bus, or a 64-bit/133Mhz bus.
  * 
  * The BCM5701 is a single-chip solution incorporating both the BCM5700
- * MAC and a BCM5401 10/100/1000 PHY. Unlike the BCM5700, the BCM5700
+ * MAC and a BCM5401 10/100/1000 PHY. Unlike the BCM5700, the BCM5701
  * does not support external SSRAM.
  *
  * Broadcom also produces a variation of the BCM5700 under the "Altima"
@@ -478,6 +478,9 @@ bge_miibus_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5701_B5 && phy != 1)
+		return(0);
 
 	if (ifp->if_flags & IFF_RUNNING)
 		BGE_CLRBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL);
@@ -1623,6 +1626,12 @@ bge_attach(dev)
 	ifp->if_capabilities = IFCAP_HWCSUM;
 	ifp->if_capenable = ifp->if_capabilities;
 
+	/* Save ASIC rev. */
+
+	sc->bge_asicrev =
+	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
+	    BGE_PCIMISCCTL_ASICREV;
+
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) == SK_SUBSYSID_9D41)
 		sc->bge_tbi = 1;
@@ -1981,9 +1990,11 @@ bge_intr(xsc)
 	/* Process link state changes. */
 	if (sc->bge_rdata->bge_status_block.bge_status &
 	    BGE_STATFLAG_LINKSTATE_CHANGED) {
-		sc->bge_link = 0;
-		untimeout(bge_tick, sc, sc->bge_stat_ch);
-		bge_tick(sc);
+		if (sc->bge_asicrev != BGE_ASICREV_BCM5701_B5) {
+			sc->bge_link = 0;
+			untimeout(bge_tick, sc, sc->bge_stat_ch);
+			bge_tick(sc);
+		}
 		/* ack the event to clear/reset it */
 		CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED|
 		    BGE_MACSTAT_CFG_CHANGED);
