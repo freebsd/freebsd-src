@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.63 1998/07/04 20:45:29 julian Exp $
+ *	$Id: vn.c,v 1.64 1998/07/04 22:30:14 julian Exp $
  */
 
 /*
@@ -200,7 +200,7 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	if (unit >= NVN) {
 		if (vn_options & VN_FOLLOW)
 			printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n",
-				dev, flags, mode, p);
+			    (u_long)dev, flags, mode, (void *)p);
 		return(ENOENT);
 	}
 
@@ -214,7 +214,8 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 	}
 
 	IFOPT(vn, VN_FOLLOW)
-		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", dev, flags, mode, p);
+		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n",
+		    (u_long)dev, flags, mode, (void *)p);
 
 	IFOPT(vn, VN_LABELS) {
 		if (vn->sc_flags & VNF_INITED) {
@@ -392,9 +393,10 @@ vnstrategy(struct buf *bp)
 			IFOPT(vn,VN_IO)
 				printf(
 			/* XXX no %qx in kernel.  Synthesize it. */
-			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%x\n",
-				       vn->sc_vp, vp, (long)(byten >> 32),
-				       (u_long)byten, nbn, sz);
+			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%lx\n",
+				   (void *)vn->sc_vp, (void *)vp,
+				   (u_long)(byten >> 32), (u_long)byten,
+				   (u_long)nbn, sz);
 
 			nbp->b_flags = flags;
 			nbp->b_bcount = sz;
@@ -565,9 +567,10 @@ nvsIOreq(void *private ,struct buf *bp)
 			IFOPT(vn,VN_IO)
 				printf(
 			/* XXX no %qx in kernel.  Synthesize it. */
-			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%x\n",
-				       vn->sc_vp, vp, (long)(byten >> 32),
-				       (u_long)byten, nbn, sz);
+			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%lx\n",
+				   (void *)vn->sc_vp, (void *)vp,
+				   (u_long)(byten >> 32), (u_long)byten,
+				   (u_long)nbn, sz);
 
 			nbp->b_flags = flags;
 			nbp->b_bcount = sz;
@@ -639,10 +642,10 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	sh_p	tp;
 #endif
 
-
 	IFOPT(vn,VN_FOLLOW)
-		printf("vnioctl(0x%lx, 0x%x, %p, 0x%x, %p): unit %d\n",
-		       dev, cmd, data, flag, p, vnunit(dev));
+		printf("vnioctl(0x%lx, 0x%lx, %p, 0x%x, %p): unit %d\n",
+		   (u_long)dev, cmd, (void *)data, flag, (void *)p,
+		   vnunit(dev));
 
 	switch (cmd) {
 	case VNIOCATTACH:

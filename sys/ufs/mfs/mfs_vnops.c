@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.35 1998/02/16 23:55:53 msmith Exp $
+ * $Id: mfs_vnops.c,v 1.36 1998/07/04 20:45:39 julian Exp $
  */
 
 #include <sys/param.h>
@@ -295,8 +295,8 @@ mfs_print(ap)
 {
 	register struct mfsnode *mfsp = VTOMFS(ap->a_vp);
 
-	printf("tag VT_MFS, pid %ld, base %p, size %ld\n", mfsp->mfs_pid,
-		mfsp->mfs_baseoff, mfsp->mfs_size);
+	printf("tag VT_MFS, pid %ld, base %p, size %ld\n",
+	    (long)mfsp->mfs_pid, (void *)mfsp->mfs_baseoff, mfsp->mfs_size);
 	return (0);
 }
 

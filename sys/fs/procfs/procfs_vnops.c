@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.59 1998/06/14 12:53:39 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.60 1998/06/25 16:54:41 dt Exp $
  */
 
 /*
@@ -380,8 +380,8 @@ procfs_print(ap)
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
 
-	printf("tag VT_PROCFS, type %s, pid %d, mode %x, flags %x\n",
-	    pfs->pfs_type, pfs->pfs_pid, pfs->pfs_mode, pfs->pfs_flags);
+	printf("tag VT_PROCFS, type %d, pid %ld, mode %x, flags %lx\n",
+	    pfs->pfs_type, (long)pfs->pfs_pid, pfs->pfs_mode, pfs->pfs_flags);
 	return (0);
 }
 

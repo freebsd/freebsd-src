@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.89 1998/06/17 14:13:14 bde Exp $
+ * $Id: st.c,v 1.90 1998/07/04 22:30:24 julian Exp $
  */
 
 /*
@@ -249,10 +249,10 @@ stattach(struct scsi_link *sc_link)
 		NULL, 0, 0)) {
 		printf("drive offline");
 	} else {
-		printf("density code 0x%lx, ", st->media_density);
+		printf("density code 0x%lx, ", (u_long)st->media_density);
 		if (!scsi_test_unit_ready(sc_link, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT)) {
 			if (st->media_blksiz) {
-				printf("%ld-byte", st->media_blksiz);
+				printf("%lu-byte", (u_long)st->media_blksiz);
 			} else {
 				printf("variable");
 			}
@@ -580,7 +580,7 @@ st_mount_tape(dev, flags)
 		}
 	}
 	if ( (errno = st_mode_select(unit, 0, NULL, 0)) ) {
-		printf("st%ld: Cannot set selected mode", unit);
+		printf("st%lu: Cannot set selected mode", (u_long)unit);
 		return errno;
 	}
 	st->flags &= ~ST_NEW_MOUNT;
@@ -639,7 +639,7 @@ st_decide_mode(unit, first_read)
 	 */
 	switch ((int)(st->quirks & (ST_Q_FORCE_FIXED_MODE | ST_Q_FORCE_VAR_MODE))) {
 	case (ST_Q_FORCE_FIXED_MODE | ST_Q_FORCE_VAR_MODE):
-		printf("st%ld: bad quirks\n", unit);
+		printf("st%lu: bad quirks\n", (u_long)unit);
 		return (EINVAL);
 	case ST_Q_FORCE_FIXED_MODE:	/*specified fixed, but not what size */
 		st->flags |= ST_FIXEDBLOCKS;
@@ -649,8 +649,8 @@ st_decide_mode(unit, first_read)
 			st->blksiz = st->media_blksiz;
 		else
 			st->blksiz = DEF_FIXED_BSIZE;
-		SC_DEBUG(sc_link, SDEV_DB3, ("Quirks force fixed mode(%ld)\n",
-			st->blksiz));
+		SC_DEBUG(sc_link, SDEV_DB3, ("Quirks force fixed mode(%lu)\n",
+			(u_long)st->blksiz));
 		goto done;
 	case ST_Q_FORCE_VAR_MODE:
 		st->flags &= ~ST_FIXEDBLOCKS;
@@ -666,7 +666,7 @@ st_decide_mode(unit, first_read)
 		st->flags |= ST_FIXEDBLOCKS;
 		st->blksiz = st->blkmin;
 		SC_DEBUG(sc_link, SDEV_DB3,
-		    ("blkmin == blkmax of %ld\n", st->blkmin));
+		    ("blkmin == blkmax of %lu\n", (u_long)st->blkmin));
 		goto done;
 	}
 	/*
@@ -715,7 +715,7 @@ st_decide_mode(unit, first_read)
 		}
 		st->blksiz = st->media_blksiz;
 		SC_DEBUG(sc_link, SDEV_DB3,
-		    ("Used media_blksiz of %ld\n", st->media_blksiz));
+		    ("Used media_blksiz of %lu\n", (u_long)st->media_blksiz));
 		goto done;
 	}
 	/*
@@ -795,8 +795,8 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
 	if (st->flags & ST_FIXEDBLOCKS) {
 		if (bp->b_bcount % st->blksiz) {
-			printf("st%ld: bad request, must be multiple of %ld\n",
-			    unit, st->blksiz);
+			printf("st%lu: bad request, must be multiple of %lu\n",
+			    (u_long)unit, (u_long)st->blksiz);
 			bp->b_error = EIO;
 			goto bad;
 		}
@@ -807,14 +807,17 @@ st_strategy(struct buf *bp, struct scsi_link *sc_link)
 	 */
 	else {
 		if ((bp->b_bcount < st->blkmin || bp->b_bcount > st->blkmax)) {
-			printf("st%ld: bad request, must be between %ld and %ld\n",
-		    		unit, st->blkmin, st->blkmax);
+			printf(
+			    "st%lu: bad request, must be between %lu and %lu\n",
+			    (u_long)unit, (u_long)st->blkmin,
+			    (u_long)st->blkmax);
 			bp->b_error = EIO;
 			goto bad;
 		}
 		if (len != bp->b_bcount) {
-			printf("st%ld: bad request, must be less than %ld bytes\n",
-				unit, bp->b_bcount + 1);
+			printf(
+			    "st%lu: bad request, must be less than %ld bytes\n",
+			    (u_long)unit, bp->b_bcount + 1);
 			bp->b_error = EIO;
 			goto bad;
 		}
@@ -987,7 +990,7 @@ ststart(unit, flags)
 			flags) == SUCCESSFULLY_QUEUED) {
 		} else {
 badnews:
-			printf("st%ld: oops not queued\n", unit);
+			printf("st%lu: oops not queued\n", (u_long)unit);
 			bp->b_flags |= B_ERROR;
 			bp->b_error = EIO;
 			biodone(bp);
@@ -1051,8 +1054,9 @@ struct proc *p, struct scsi_link *sc_link)
 	case MTIOCTOP:
 		{
 
-			SC_DEBUG(sc_link, SDEV_DB1, ("[ioctl: op=0x%x count=0x%lx]\n",
-				mt->mt_op, mt->mt_count));
+			SC_DEBUG(sc_link, SDEV_DB1,
+			    ("[ioctl: op=0x%x count=0x%lx]\n",
+			    mt->mt_op, (long)mt->mt_count));
 
 			/* compat: in U*x it is a short */
 			number = mt->mt_count;
@@ -1161,7 +1165,7 @@ try_new_value:
 	 * drive. If not, put it back the way it was.
 	 */
 	if ( (errcode = st_mode_select(unit, 0, NULL, 0)) ) {	/* put back as it was */
-		printf("st%ld: Cannot set selected mode", unit);
+		printf("st%lu: Cannot set selected mode", (u_long)unit);
 		st->density = hold_density;
 		st->blksiz = hold_blksiz;
 		if (st->blksiz) {
@@ -1280,7 +1284,8 @@ st_rd_blk_lim(unit, flags)
 	st->blkmax = scsi_3btou(&scsi_blkl.max_length_2);
 
 	SC_DEBUG(sc_link, SDEV_DB3,
-	    ("(%ld <= blksiz <= %ld)\n", st->blkmin, st->blkmax));
+	    ("(%lu <= blksiz <= %lu)\n",
+	    (u_long)st->blkmin, (u_long)st->blkmax));
 	return 0;
 }
 
@@ -1366,8 +1371,8 @@ st_mode_sense(unit, flags, page, pagelen, pagecode)
 		st->flags |= ST_READONLY;
 	}
 	SC_DEBUG(sc_link, SDEV_DB3,
-	    ("density code 0x%lx, %ld-byte blocks, write-%s, ",
-		st->media_density, st->media_blksiz,
+	    ("density code 0x%lx, %lu-byte blocks, write-%s, ",
+		(u_long)st->media_density, (u_long)st->media_blksiz,
 		st->flags & ST_READONLY ? "protected" : "enabled"));
 	SC_DEBUG(sc_link, SDEV_DB3, ("%sbuffered\n",
 		((dat.header.dev_spec & SMH_DSP_BUFF_MODE) ? "" : "un")));
@@ -1469,8 +1474,9 @@ u_int32_t unit,mode;
 		return retval;
 	}
 	if ( noisy_st)
-		printf("drive reports value of %d, setting %ld\n",
-			page.pages.configuration.data_compress_alg,mode);
+		printf("drive reports value of %d, setting %lu\n",
+		    page.pages.configuration.data_compress_alg,
+		    (u_long)mode);
 
 	page.pg_code &= ST_P_CODE;
 	page.pg_length = sizeof(page.pages.configuration);
@@ -1484,7 +1490,7 @@ u_int32_t unit,mode;
 		page.pages.configuration.data_compress_alg = 1;
 		break;
 	default:
-		printf("st%ld: bad value for compression mode\n",unit);
+		printf("st%lu: bad value for compression mode\n", (u_long)unit);
 		return EINVAL;
 	}
 	if ( (retval = st_mode_select(unit, 0, &page, pagesize)) )
@@ -1822,9 +1828,9 @@ st_interpret_sense(xs)
 				st->flags |= ST_EIO_PENDING;
 				if (sense->error_code & SSD_ERRCODE_VALID &&
 			    	!silent)
-					printf("st%ld: block wrong size"
-				    	", %ld blocks residual\n", unit
-				    	,info);
+					printf(
+			    "st%lu: block wrong size, %ld blocks residual\n",
+					    (u_long)unit, (long)info);
 				/*XXX*/ /* is this how it works ? */
 				/* check def of ILI for fixed blk tapes */
 
@@ -1870,9 +1876,10 @@ st_interpret_sense(xs)
 					 * the record was bigger than the read
 					 */
 					if (!silent)
-						printf("st%ld: %ld-byte record "
-					    	"too big\n", unit,
-					    	xs->datalen - info);
+						printf(
+					    "st%lu: %ld-byte record too big\n",
+						    (u_long)unit,
+						    (long)(xs->datalen - info));
 					return (EIO);
 				}
 				xs->resid = info;

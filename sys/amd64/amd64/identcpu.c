@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.49 1998/06/30 19:41:21 phk Exp $
+ *	$Id: identcpu.c,v 1.50 1998/07/11 05:59:34 bde Exp $
  */
 
 #include "opt_cpu.h"
@@ -470,15 +470,15 @@ printcpuinfo(void)
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
 	if(cpu_id)
-		printf("  Id = 0x%lx",cpu_id);
+		printf("  Id = 0x%x", cpu_id);
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
 		 ((cpu_id & 0xf00) > 5))) {
-		printf("  Stepping=%ld", cpu_id & 0xf);
+		printf("  Stepping=%u", cpu_id & 0xf);
 		if (strcmp(cpu_vendor, "CyrixInstead") == 0)
-			printf("  DIR=0x%04lx", cyrix_did);
+			printf("  DIR=0x%04x", cyrix_did);
 		if (cpu_high > 0) {
 			/*
 			 * Here we should probably set up flags indicating
@@ -525,9 +525,9 @@ printcpuinfo(void)
 			);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
-		printf("  DIR=0x%04lx", cyrix_did);
-		printf("  Stepping=%ld", (cyrix_did & 0xf000) >> 12);
-		printf("  Revision=%ld", (cyrix_did & 0x0f00) >> 8);
+		printf("  DIR=0x%04x", cyrix_did);
+		printf("  Stepping=%u", (cyrix_did & 0xf000) >> 12);
+		printf("  Revision=%u", (cyrix_did & 0x0f00) >> 8);
 #ifndef CYRIX_CACHE_REALLY_WORKS
 		if (cpu == CPU_M1 && (cyrix_did & 0xff00) < 0x1700)
 			printf("\n  CPU cache: write-through mode");

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.32 1998/05/17 22:12:13 tegge Exp $
+ * $Id: kern_shutdown.c,v 1.33 1998/06/07 17:11:35 dfr Exp $
  */
 
 #include "opt_ddb.h"
@@ -235,7 +235,11 @@ boot(howto)
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
 				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
 					nbusy++;
-					printf("%d: dev:%08x, flags:%08x, blkno:%d, lblkno:%d\n", nbusy, bp->b_dev, bp->b_flags, bp->b_blkno, bp->b_lblkno);
+					printf(
+			"%d: dev:%08lx, flags:%08lx, blkno:%ld, lblkno:%ld\n",
+					    nbusy, (u_long)bp->b_dev,
+					    bp->b_flags, (long)bp->b_blkno,
+					    (long)bp->b_lblkno);
 				}
 			}
 			DELAY(5000000);	/* 5 seconds */
@@ -357,7 +361,7 @@ dumpsys(void)
 	if (!(bdevsw[major(dumpdev)]->d_dump))
 		return;
 	dumpsize = Maxmem;
-	printf("\ndumping to dev %lx, offset %ld\n", dumpdev, dumplo);
+	printf("\ndumping to dev %lx, offset %ld\n", (u_long)dumpdev, dumplo);
 	printf("dump ");
 	switch ((*bdevsw[major(dumpdev)]->d_dump)(dumpdev)) {
 

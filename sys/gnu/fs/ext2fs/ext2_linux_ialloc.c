@@ -227,7 +227,8 @@ void ext2_free_inode (struct inode * inode)
 	bh = sb->s_inode_bitmap[bitmap_nr];
 	if (!clear_bit (bit, bh->b_data))	
 		printf ( "ext2_free_inode:"
-		      "bit already cleared for inode %lu", inode->i_number);
+		      "bit already cleared for inode %lu",
+		      (unsigned long)inode->i_number);
 	else {
 		gdp = get_group_desc (ITOV(inode)->v_mount, block_group, &bh2);
 		gdp->bg_free_inodes_count++;

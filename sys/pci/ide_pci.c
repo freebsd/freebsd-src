@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.11 1998/06/17 12:14:55 bde Exp $
+ *	$Id: ide_pci.c,v 1.12 1998/06/17 14:58:03 bde Exp $
  */
 
 #include "pci.h"
@@ -330,18 +330,18 @@ via_571_status(struct ide_pci_cookie *cookie)
 	printf("via_571_status: %s drive %d data setup=%d active=%d recovery=%d\n",
 	       unitno < 2 ? "primary" : "secondary", 
 	       unitno & 1,
-	       ((word40[3] >> ((3 - unitno) * 2)) & 3) + 1,
-	       ((word40[2] >> (((3 - unitno) * 8) + 4)) & 0x0f) + 1,
-	       ((word40[2] >> ((3 - unitno) * 8)) & 0x0f) + 1);
+	       ((u_int)(word40[3] >> ((3 - unitno) * 2)) & 3) + 1,
+	       ((u_int)(word40[2] >> (((3 - unitno) * 8) + 4)) & 0x0f) + 1,
+	       ((u_int)(word40[2] >> ((3 - unitno) * 8)) & 0x0f) + 1);
     
 	if (ctlr == 0)
 		printf("via_571_status: primary ctrl active=%d recovery=%d\n",
-		       ((word40[3] >> 28) & 0x0f) + 1,
-		       ((word40[2] >> 24) & 0x0f) + 1);
+		       ((u_int)(word40[3] >> 28) & 0x0f) + 1,
+		       ((u_int)(word40[2] >> 24) & 0x0f) + 1);
 	else
 		printf("via_571_status: secondary ctrl active=%d recovery=%d\n",
-		       ((word40[3] >> 20) & 0x0f) + 1,
-		       ((word40[2] >> 16) & 0x0f) + 1);
+		       ((u_int)(word40[3] >> 20) & 0x0f) + 1,
+		       ((u_int)(word40[2] >> 16) & 0x0f) + 1);
 
 	/* UltraDMA dump */
 	{
@@ -505,9 +505,12 @@ promise_status(struct ide_pci_cookie *cookie)
     lat_and_interrupt = pci_conf_read(tag, 0x3c);
 
     printf("promise_status: port0: 0x%lx, port0_alt: 0x%lx, port1: 0x%lx, port1_alt: 0x%lx\n",
-		port0_command, port0_altstatus, port1_command, port1_altstatus);
-	printf("promise_status: dma control blk address: 0x%lx, int: %d, irq: %d\n",
-		dma_block, (lat_and_interrupt >> 8) & 0xff, lat_and_interrupt & 0xff);
+	(u_long)port0_command, (u_long)port0_altstatus, (u_long)port1_command,
+	(u_long)port1_altstatus);
+    printf(
+	"promise_status: dma control blk address: 0x%lx, int: %d, irq: %d\n",
+	(u_long)dma_block, (u_int)(lat_and_interrupt >> 8) & 0xff,
+	(u_int)lat_and_interrupt & 0xff);
 
     for(i=0;i<4;i+=2) {
 		drivetiming = pci_conf_read(tag, 0x60 + i * 4);
@@ -1241,7 +1244,7 @@ ide_pci_dmaverify(void *xcp, char *vaddr, u_long count, int dir)
 #ifdef DIAGNOSTIC
 	if (badfu) {
 		printf("ide_pci: dmaverify odd vaddr or length, ");
-		printf("vaddr = %08x length = %08x\n", (int)vaddr, count);
+		printf("vaddr = %p length = %08lx\n", (void *)vaddr, count);
 	}
 #endif
 	return (!badfu);
@@ -1274,7 +1277,7 @@ ide_pci_dmasetup(void *xcp, char *vaddr, u_long vcount, int dir)
 
 	if (count == 0) {
 		printf("ide_pci: dmasetup 0-length transfer, ");
-		printf("vaddr = %08x length = %08x\n", (int)vaddr, count);
+		printf("vaddr = %p length = %08lx\n", (void *)vaddr, count);
 		return 1;
 	}
 
