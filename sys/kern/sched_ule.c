@@ -835,14 +835,25 @@ sched_class(struct ksegrp *kg, int class)
 void
 sched_exit(struct proc *p, struct proc *child)
 {
-	struct ksegrp *kg;
-	struct kse *ke;
-
 	/* XXX Need something better here */
 	mtx_assert(&sched_lock, MA_OWNED);
-	kg = FIRST_KSEGRP_IN_PROC(child);
-	ke = FIRST_KSE_IN_KSEGRP(kg);
-	kseq_rem(KSEQ_CPU(ke->ke_cpu), ke);
+	sched_exit_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(child));
+}
+
+void
+sched_exit_kse(struct kse *ke, struct kse *child)
+{
+	kseq_rem(KSEQ_CPU(child->ke_cpu), child);
+}
+
+void
+sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
+{
+}
+
+void
+sched_exit_thread(struct thread *td, struct thread *child)
+{
 }
 
 void
