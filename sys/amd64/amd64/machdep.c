@@ -1302,6 +1302,30 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 	pcpu->pc_acpi_id = 0xffffffff;
 }
 
+void
+spinlock_enter(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	if (td->td_md.md_spinlock_count == 0)
+		td->td_md.md_saved_flags = intr_disable();
+	td->td_md.md_spinlock_count++;
+	critical_enter();
+}
+
+void
+spinlock_exit(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	critical_exit();
+	td->td_md.md_spinlock_count--;
+	if (td->td_md.md_spinlock_count == 0)
+		intr_restore(td->td_md.md_saved_flags);
+}
+
 /*
  * Construct a PCB from a trapframe. This is called from kdb_trap() where
  * we want to start a backtrace from the function that caused us to enter

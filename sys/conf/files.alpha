@@ -43,7 +43,6 @@ alpha/alpha/busspace.c		standard
 alpha/alpha/clock.c		standard
 alpha/alpha/clock_if.m		standard
 alpha/alpha/cpuconf.c		standard
-alpha/alpha/critical.c		standard
 alpha/alpha/db_disasm.c		optional	ddb
 alpha/alpha/db_interface.c	optional	ddb
 alpha/alpha/db_trace.c		optional	ddb

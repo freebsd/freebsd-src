@@ -196,6 +196,8 @@ extern struct lock_class lock_class_mtx_sleep;
 extern struct lock_class lock_class_mtx_spin;
 extern struct lock_class lock_class_sx;
 
+void	spinlock_enter(void);
+void	spinlock_exit(void);
 void	witness_init(struct lock_object *);
 void	witness_destroy(struct lock_object *);
 int	witness_defineorder(struct lock_object *, struct lock_object *);

@@ -257,6 +257,10 @@ cpu_fork(td1, p2, td2, flags)
 	}
 	mtx_unlock_spin(&sched_lock);
 
+	/* Setup to release sched_lock in fork_exit(). */
+	td2->td_md.md_spinlock_count = 1;
+	td2->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
+
 	/*
 	 * Now, cpu_switch() can schedule the new process.
 	 * pcb_esp is loaded pointing to the cpu_switch() stack frame
@@ -423,6 +427,10 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * pcb2->pcb_ext:	cleared below.
 	 */
 	pcb2->pcb_ext = NULL;
+
+	/* Setup to release sched_lock in fork_exit(). */
+	td->td_md.md_spinlock_count = 1;
+	td->td_md.md_saved_flags = PSL_KERNEL | PSL_I;
 }
 
 /*

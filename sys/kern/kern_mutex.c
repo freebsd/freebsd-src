@@ -586,7 +586,7 @@ _mtx_lock_spin(struct mtx *m, struct thread *td, int opts, const char *file,
 			break;
 
 		/* Give interrupts a chance while we spin. */
-		critical_exit();
+		spinlock_exit();
 		while (m->mtx_lock != MTX_UNOWNED) {
 			if (i++ < 10000000) {
 				cpu_spinwait();
@@ -605,7 +605,7 @@ _mtx_lock_spin(struct mtx *m, struct thread *td, int opts, const char *file,
 			}
 			cpu_spinwait();
 		}
-		critical_enter();
+		spinlock_enter();
 	}
 
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))

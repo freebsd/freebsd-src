@@ -12,7 +12,6 @@ arm/arm/cpufunc_asm.S		standard
 arm/arm/cpufunc_asm_sa1.S 	standard
 arm/arm/cpufunc_asm_armv4.S 	standard
 arm/arm/cpufunc_asm_sa11x0.S 	standard
-arm/arm/critical.c		standard
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
