@@ -35,7 +35,14 @@ distribution: distrib-dirs
 	install -c -o root -g wheel -m 755 ${BIN3} ${DESTDIR}/etc
 	install -c -o root -g wheel -m 600 crontab ${DESTDIR}/var/cron/tabs/root
 	install -c -o root -g wheel -m 600 master.passwd ${DESTDIR}/etc
-	(cd ${DESTDIR}/etc; pwd_mkdb -p master.passwd)
+	#
+	# This is broken, it always does /etc. It IGNORES the $DESTDIR for 
+	# where to write the spwd.db pwd.db files.  
+	#(cd ${DESTDIR}/etc; pwd_mkdb -p master.passwd)
+	#
+	# Work around for above problem.
+	install -c -o root -g wheel -m 644 pwd.db ${DESTDIR}/etc
+	install -c -o root -g wheel -m 600 spwd.db ${DESTDIR}/etc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
