@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #define	PROMPT		"Password required for %s."
 #define	GUEST_PROMPT	"Guest login ok, send your e-mail address as password."
 
-#include <security/_pam_aconf.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
