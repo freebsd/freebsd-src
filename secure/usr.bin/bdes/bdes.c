@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	READ(buf, n)	fread(buf, sizeof(char), n, stdin)
 #define WRITE(buf,n)						\
-		if (fwrite(buf, sizeof(char), n, stdout) != (size_t)n)	\
+		if (fwrite(buf, sizeof(char), n, stdout) != n)	\
 			warnx("fwrite error at %d", n);
 
 /*
