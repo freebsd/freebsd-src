@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.63 1996/09/08 20:44:44 dyson Exp $
+ *	$Id: vm_page.c,v 1.64 1996/09/14 11:54:59 bde Exp $
  */
 
 /*
@@ -87,9 +87,8 @@
 #include <vm/vm_extern.h>
 
 static void	vm_page_queue_init __P((void));
-static vm_page_t
-		vm_page_select_free __P((vm_object_t object, vm_pindex_t pindex,
-					 int prefqueue));
+static vm_page_t vm_page_select_free __P((vm_object_t object,
+			vm_pindex_t pindex, int prefqueue));
 
 /*
  *	Associated with page of user-allocatable memory is a
@@ -436,6 +435,7 @@ vm_page_insert(m, object, pindex)
 
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
 	m->flags |= PG_TABLED;
+	m->object->page_hint = m;
 
 	/*
 	 * And show that the object has one more resident page.
@@ -462,6 +462,9 @@ vm_page_remove(m)
 
 	if (!(m->flags & PG_TABLED))
 		return;
+
+	if (m->object->page_hint == m)
+		m->object->page_hint = NULL;
 
 	/*
 	 * Remove from the object_object/offset hash table
@@ -513,6 +516,7 @@ vm_page_lookup(object, pindex)
 	for (m = TAILQ_FIRST(bucket); m != NULL; m = TAILQ_NEXT(m,hashq)) {
 		if ((m->object == object) && (m->pindex == pindex)) {
 			splx(s);
+			m->object->page_hint = m;
 			return (m);
 		}
 	}
@@ -550,11 +554,13 @@ vm_page_unqueue_nowakeup(m)
 	vm_page_t m;
 {
 	int queue = m->queue;
+	struct vpgqueues *pq;
 	if (queue != PQ_NONE) {
+		pq = &vm_page_queues[queue];
 		m->queue = PQ_NONE;
-		TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
-		--(*vm_page_queues[queue].cnt);
-		--(*vm_page_queues[queue].lcnt);
+		TAILQ_REMOVE(pq->pl, m, pageq);
+		--(*pq->cnt);
+		--(*pq->lcnt);
 	}
 }
 
@@ -566,11 +572,13 @@ vm_page_unqueue(m)
 	vm_page_t m;
 {
 	int queue = m->queue;
+	struct vpgqueues *pq;
 	if (queue != PQ_NONE) {
 		m->queue = PQ_NONE;
-		TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
-		--(*vm_page_queues[queue].cnt);
-		--(*vm_page_queues[queue].lcnt);
+		pq = &vm_page_queues[queue];
+		TAILQ_REMOVE(pq->pl, m, pageq);
+		--(*pq->cnt);
+		--(*pq->lcnt);
 		if ((m->queue - m->pc) == PQ_CACHE) {
 			if ((cnt.v_cache_count + cnt.v_free_count) <
 				(cnt.v_free_reserved + cnt.v_cache_min))
@@ -586,23 +594,16 @@ vm_page_t
 vm_page_list_find(basequeue, index)
 	int basequeue, index;
 {
+#if PQ_L2_SIZE > 1
+
 	int i,j;
 	vm_page_t m;
 	int hindex;
 
-#if PQ_L2_SIZE > 1
-	index &= PQ_L2_MASK;
-	/*
-	 * These are special cased because of clock-arithemetic
-	 */
-	for(i = 0; i < 2; i++) {
-		if (m = TAILQ_FIRST(vm_page_queues[basequeue +
-			((index + (i*PQ_L2_SIZE)/2)&PQ_L2_MASK)].pl))
-			return m;
-	}
-
 	for(j = 0; j < PQ_L1_SIZE; j++) {
-		for(i = PQ_L2_SIZE/PQ_L1_SIZE; i > 0; i -= PQ_L1_SIZE) {
+		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
+			i > 0;
+			i -= PQ_L1_SIZE) {
 			hindex = (index + (i+j)) & PQ_L2_MASK;
 			m = TAILQ_FIRST(vm_page_queues[basequeue + hindex].pl);
 			if (m)
@@ -622,6 +623,27 @@ vm_page_list_find(basequeue, index)
 }
 
 /*
+ * Find a page on the specified queue with color optimization.
+ */
+vm_page_t
+vm_page_select(object, pindex, basequeue)
+	vm_object_t object;
+	vm_pindex_t pindex;
+	int basequeue;
+{
+
+#if PQ_L2_SIZE > 1
+	int index;
+	index = (pindex + object->pg_color) & PQ_L2_MASK;
+	return vm_page_list_find(basequeue, index);
+
+#else
+	return TAILQ_FIRST(vm_page_queues[basequeue].pl);
+#endif
+
+}
+
+/*
  * Find a free or zero page, with specified preference.
  */
 static vm_page_t
@@ -630,15 +652,36 @@ vm_page_select_free(object, pindex, prefqueue)
 	vm_pindex_t pindex;
 	int prefqueue;
 {
-	int i,j,k;
+#if PQ_L2_SIZE > 1
+	int i,j;
 	vm_page_t m;
 	int index, hindex;
 	int oqueuediff;
+#endif
 
 	if (prefqueue == PQ_ZERO)
 		oqueuediff = PQ_FREE - PQ_ZERO;
 	else
 		oqueuediff = PQ_ZERO - PQ_FREE;
+
+	if (object->page_hint) {
+		 if (object->page_hint->pindex == (pindex - 1)) {
+			vm_offset_t last_phys;
+			if ((object->page_hint->flags & PG_FICTITIOUS) == 0) {
+				if ((object->page_hint < &vm_page_array[cnt.v_page_count-1]) &&
+					(object->page_hint >= &vm_page_array[0])) {
+					int queue;
+					last_phys = VM_PAGE_TO_PHYS(object->page_hint);
+					m = PHYS_TO_VM_PAGE(last_phys + PAGE_SIZE);
+					queue = m->queue - m->pc;
+					if (queue == PQ_FREE || queue == PQ_ZERO) {
+						return m;
+					}
+				}
+			}
+		}
+	}
+			
 
 #if PQ_L2_SIZE > 1
 
@@ -646,27 +689,22 @@ vm_page_select_free(object, pindex, prefqueue)
 	/*
 	 * These are special cased because of clock-arithemetic
 	 */
-	for(i = 0; i < 2; i++) {
-		hindex = prefqueue +
-			((index + (i*PQ_L2_SIZE/2)) & PQ_L2_MASK);
-		if (m = TAILQ_FIRST(vm_page_queues[hindex].pl))
-			return m;
-		if (m = TAILQ_FIRST(vm_page_queues[hindex + oqueuediff].pl))
-			return m;
-	}
-
 	for(j = 0; j < PQ_L1_SIZE; j++) {
-		for(i = PQ_L2_SIZE/PQ_L1_SIZE - PQ_L1_SIZE;
+		for(i = (PQ_L2_SIZE/2) - (PQ_L1_SIZE - 1);
 			(i + j) > 0;
 			i -= PQ_L1_SIZE) {
-			int iandj = i + j;
-			for(k = iandj; k >= -iandj; k -= 2*iandj) {
-				hindex = prefqueue + ((index + k) & PQ_L2_MASK);
-				if (m = TAILQ_FIRST(vm_page_queues[hindex].pl)) 
-					return m;
-				if (m = TAILQ_FIRST(vm_page_queues[hindex + oqueuediff].pl))
-					return m;
-			}
+
+			hindex = prefqueue + ((index + (i+j)) & PQ_L2_MASK);
+			if (m = TAILQ_FIRST(vm_page_queues[hindex].pl)) 
+				return m;
+			if (m = TAILQ_FIRST(vm_page_queues[hindex + oqueuediff].pl))
+				return m;
+
+			hindex = prefqueue + ((index - (i+j)) & PQ_L2_MASK);
+			if (m = TAILQ_FIRST(vm_page_queues[hindex].pl)) 
+				return m;
+			if (m = TAILQ_FIRST(vm_page_queues[hindex + oqueuediff].pl))
+				return m;
 		}
 	}
 #else
@@ -677,29 +715,6 @@ vm_page_select_free(object, pindex, prefqueue)
 #endif
 
 	return NULL;
-}
-
-/*
- * Find a page of the proper color for a given pindex.
- */
-vm_page_t
-vm_page_select(object, pindex, basequeue)
-	vm_object_t object;
-	vm_pindex_t pindex;
-	int basequeue;
-{
-	int index;
-
-	switch(basequeue) {
-case PQ_NONE:
-case PQ_INACTIVE:
-case PQ_ACTIVE:
-		return TAILQ_FIRST(vm_page_queues[basequeue].pl);
-
-default:	
-		index = (pindex + object->pg_color) & PQ_L2_MASK;
-		return vm_page_list_find(basequeue, index);
-	} 
 }
 
 /*
@@ -723,6 +738,7 @@ vm_page_alloc(object, pindex, page_req)
 	int page_req;
 {
 	register vm_page_t m;
+	struct vpgqueues *pq;
 	int queue;
 	int s;
 
@@ -743,8 +759,10 @@ vm_page_alloc(object, pindex, page_req)
 	case VM_ALLOC_NORMAL:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
 			m = vm_page_select_free(object, pindex, PQ_FREE);
+#if defined(DIAGNOSTIC)
 			if (m == NULL)
 				panic("vm_page_alloc(NORMAL): missing page on free queue\n");
+#endif
 		} else {
 			m = vm_page_select(object, pindex, PQ_CACHE);
 			if (m == NULL) {
@@ -762,8 +780,10 @@ vm_page_alloc(object, pindex, page_req)
 	case VM_ALLOC_ZERO:
 		if (cnt.v_free_count >= cnt.v_free_reserved) {
 			m = vm_page_select_free(object, pindex, PQ_ZERO);
+#if defined(DIAGNOSTIC)
 			if (m == NULL)
 				panic("vm_page_alloc(ZERO): missing page on free queue\n");
+#endif
 		} else {
 			m = vm_page_select(object, pindex, PQ_CACHE);
 			if (m == NULL) {
@@ -783,8 +803,10 @@ vm_page_alloc(object, pindex, page_req)
 		    ((cnt.v_cache_count == 0) &&
 		    (cnt.v_free_count >= cnt.v_interrupt_free_min))) {
 			m = vm_page_select_free(object, pindex, PQ_FREE);
+#if defined(DIAGNOSTIC)
 			if (m == NULL)
 				panic("vm_page_alloc(SYSTEM): missing page on free queue\n");
+#endif
 		} else {
 			m = vm_page_select(object, pindex, PQ_CACHE);
 			if (m == NULL) {
@@ -816,9 +838,10 @@ vm_page_alloc(object, pindex, page_req)
 	queue = m->queue;
 	if (queue == PQ_ZERO)
 		--vm_page_zero_count;
-	TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
-	--(*vm_page_queues[queue].cnt);
-	--(*vm_page_queues[queue].lcnt);
+	pq = &vm_page_queues[queue];
+	TAILQ_REMOVE(pq->pl, m, pageq);
+	--(*pq->cnt);
+	--(*pq->lcnt);
 	if ((m->queue - m->pc) == PQ_ZERO) {
 		m->flags = PG_ZERO|PG_BUSY;
 	} else if ((m->queue - m->pc) == PQ_CACHE) {
@@ -962,6 +985,7 @@ vm_page_free(m)
 	register vm_page_t m;
 {
 	int s;
+	struct vpgqueues *pq;
 
 	s = splvm();
 
@@ -973,8 +997,9 @@ vm_page_free(m)
 	}
 
 	m->queue = PQ_FREE + m->pc;
-	++(*vm_page_queues[m->queue].lcnt);
-	++(*vm_page_queues[m->queue].cnt);
+	pq = &vm_page_queues[m->queue];
+	++(*pq->lcnt);
+	++(*pq->cnt);
 	/*
 	 * If the pageout process is grabbing the page, it is likely
 	 * that the page is NOT in the cache.  It is more likely that
@@ -982,9 +1007,9 @@ vm_page_free(m)
 	 * explicitly freed.
 	 */
 	if (curproc == pageproc) {
-		TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m, pageq);
+		TAILQ_INSERT_TAIL(pq->pl, m, pageq);
 	} else {
-		TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
+		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
 	}
 	vm_page_free_wakeup();
 	splx(s);
@@ -995,6 +1020,7 @@ vm_page_free_zero(m)
 	register vm_page_t m;
 {
 	int s;
+	struct vpgqueues *pq;
 
 	s = splvm();
 
@@ -1006,10 +1032,11 @@ vm_page_free_zero(m)
 	}
 
 	m->queue = PQ_ZERO + m->pc;
-	++(*vm_page_queues[m->queue].lcnt);
-	++(*vm_page_queues[m->queue].cnt);
+	pq = &vm_page_queues[m->queue];
+	++(*pq->lcnt);
+	++(*pq->cnt);
 
-	TAILQ_INSERT_HEAD(vm_page_queues[m->queue].pl, m, pageq);
+	TAILQ_INSERT_HEAD(pq->pl, m, pageq);
 	++vm_page_zero_count;
 	vm_page_free_wakeup();
 	splx(s);
@@ -1255,8 +1282,7 @@ again:
 	 */
 	for (i = start; i < cnt.v_page_count; i++) {
 		phys = VM_PAGE_TO_PHYS(&pga[i]);
-		if (((pga[i].queue >= PQ_FREE) &&
-			(pga[i].queue < (PQ_FREE + PQ_L2_SIZE))) &&
+		if (((pga[i].queue - pga[i].pc) == PQ_FREE) &&
 		    (phys >= low) && (phys < high) &&
 		    ((phys & (alignment - 1)) == 0) &&
 		    (((phys ^ (phys + size - 1)) & ~(boundary - 1)) == 0))
@@ -1279,8 +1305,7 @@ again:
 	for (i = start + 1; i < (start + size / PAGE_SIZE); i++) {
 		if ((VM_PAGE_TO_PHYS(&pga[i]) !=
 		    (VM_PAGE_TO_PHYS(&pga[i - 1]) + PAGE_SIZE)) ||
-		    ((pga[i].queue < PQ_FREE) ||
-			(pga[i].queue >= (PQ_FREE + PQ_L2_SIZE)))) {
+		    ((pga[i].queue - pga[i].pc) != PQ_FREE)) {
 			start++;
 			goto again;
 		}
