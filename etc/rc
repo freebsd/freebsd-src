@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.52 1995/03/23 06:42:36 jkh Exp $
+#	$Id: rc,v 1.53 1995/03/24 00:01:20 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -124,10 +124,10 @@ vidadjust=NO
 	"X${font8x14}" != X"NO" -o "X${font8x8}" != X"NO" -o \
 	"X${blanktime}" != X"NO" ] && vidadjust=YES
 
-[ "X${kbdajust}" != X"NO" -o "X${vidajust}" != X"NO" -o \
+[ "X${kbdadjust}" != X"NO" -o "X${vidadjust}" != X"NO" -o \
 	"X${saver}" != X"NO" ] && echo "starting syscons:"
 
-[ "X${kbdajust}" != X"NO" ] && echo "kbdcontrol: "
+[ "X${kbdadjust}" != X"NO" ] && echo "kbdcontrol: "
 
 # keymap
 if [ "X${keymap}" != X"NO" ]; then
@@ -141,8 +141,8 @@ if [ "X${keyrate}" != X"NO" ]; then
 	kbdcontrol -r ${keyrate}
 fi
 
-[ "X${kbdajust}" != X"NO" ] && echo
-[ "X${vidajust}" != X"NO" ] && echo "vidcontrol: "
+[ "X${kbdadjust}" != X"NO" ] && echo
+[ "X${vidadjust}" != X"NO" ] && echo "vidcontrol: "
 
 # screen mapping
 if [ "X${scrnmap}" != X"NO" ]; then
@@ -174,7 +174,7 @@ if [ "X${blanktime}" != X"NO" ]; then
 	vidcontrol -t ${blanktime}
 fi
 
-[ "X${vidajust}" != X"NO" ] && echo
+[ "X${vidadjust}" != X"NO" ] && echo
 
 # screen saver
 if [ "X${saver}" != X"NO" ] ; then
