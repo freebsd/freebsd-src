@@ -57,6 +57,7 @@ static MALLOC_DEFINE(M_FDESCMNT, "FDESC mount", "FDESC mount structure");
 static vfs_mount_t	fdesc_mount;
 static vfs_unmount_t	fdesc_unmount;
 static vfs_statfs_t	fdesc_statfs;
+static vfs_root_t	fdesc_root;
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
@@ -124,7 +125,7 @@ fdesc_unmount(mp, mntflags, td)
 	return (0);
 }
 
-int
+static int
 fdesc_root(mp, vpp, td)
 	struct mount *mp;
 	struct vnode **vpp;
