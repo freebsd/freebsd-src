@@ -44,15 +44,7 @@ The function
 unloads a kld file from the kernel that was previously linked via
 .Xr kldload 2 .
 .Sh RETURN VALUES
-The function
-.Fn kldunload
-returns the fileid of the kld file which was previously loaded into memory via
-.Fn kldload .
-If an error occurs,
-.Fn kldunload
-will return -1 and set
-.Va errno
-to indicate the error.
+.Rv -std
 .Sh ERRORS
 The file referred to by
 .Fa fileid
