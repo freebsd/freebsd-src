@@ -371,6 +371,7 @@ _zget(vm_zone_t z)
 			(char *) item += z->zsize;
 		}
 		z->zfreecnt += nitems;
+		z->znalloc++;
 	} else if (z->zfreecnt > 0) {
 		item = z->zitems;
 		z->zitems = ((void **) item)[0];
@@ -380,6 +381,7 @@ _zget(vm_zone_t z)
 		((void **) item)[1] = 0;
 #endif
 		z->zfreecnt--;
+		z->znalloc++;
 	} else {
 		item = NULL;
 	}
