@@ -55,6 +55,7 @@ struct ifnet;
  */
 #define		IFNAMSIZ	16
 #define		IF_NAMESIZE	IFNAMSIZ
+#define		IF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
 /*
  * Structure describing a `cloning' interface.
@@ -63,13 +64,16 @@ struct if_clone {
 	LIST_ENTRY(if_clone) ifc_list;	/* on list of cloners */
 	const char *ifc_name;		/* name of device, e.g. `gif' */
 	size_t ifc_namelen;		/* length of name */
+	int ifc_maxunit;		/* maximum unit number */
+	unsigned char *ifc_units;	/* bitmap to handle units */
+	int ifc_bmlen;			/* bitmap length */
 
-	int	(*ifc_create)(struct if_clone *, int *);
+	int	(*ifc_create)(struct if_clone *, int);
 	int	(*ifc_destroy)(struct ifnet *);
 };
 
-#define IF_CLONE_INITIALIZER(name, create, destroy)			\
-	{ { 0 }, name, sizeof(name) - 1, create, destroy }
+#define IF_CLONE_INITIALIZER(name, create, destroy, maxunit)		\
+	{ { 0 }, name, sizeof(name) - 1, maxunit, NULL, 0, create, destroy }
 
 /*
  * Structure used to query names of interface cloners.

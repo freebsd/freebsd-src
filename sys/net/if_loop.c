@@ -99,21 +99,18 @@
 #endif
 
 #define LONAME	"lo"
-#define LOMAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
 
 struct lo_softc {
 	struct	ifnet sc_if;		/* network-visible interface */
 	LIST_ENTRY(lo_softc) sc_next;
-	struct resource *r_unit;
 };
 
 int		loioctl(struct ifnet *, u_long, caddr_t);
 static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
 		    struct sockaddr *dst, struct rtentry *rt);
-int		lo_clone_create(struct if_clone *, int *);
+int		lo_clone_create(struct if_clone *, int);
 int		lo_clone_destroy(struct ifnet *);
-static void	locreate(int, struct resource *);
 
 struct ifnet *loif = NULL;			/* Used externally */
 
@@ -122,41 +119,12 @@ static MALLOC_DEFINE(M_LO, LONAME, "Loopback Interface");
 static LIST_HEAD(lo_list, lo_softc) lo_list;
 
 struct if_clone lo_cloner =
-    IF_CLONE_INITIALIZER(LONAME, lo_clone_create, lo_clone_destroy);
-
-static struct rman lounits[1];
-
-int
-lo_clone_create(ifc, unit)
-	struct if_clone *ifc;
-	int *unit;
-{
-	struct resource *r;
-
-	if (*unit > LOMAXUNIT)
-		return (ENXIO);
-
-	if (*unit < 0) {
-		r = rman_reserve_resource(lounits, 0, LOMAXUNIT, 1,
-		    RF_ALLOCATED | RF_ACTIVE, NULL);
-		if (r == NULL)
-			return (ENOSPC);
-		*unit = rman_get_start(r);
-	} else {
-		r = rman_reserve_resource(lounits, *unit, *unit, 1,
-		    RF_ALLOCATED | RF_ACTIVE, NULL);
-		if (r == NULL)
-			return (EEXIST);
-	}
-	locreate(*unit, r);
-	return (0);
-}
+    IF_CLONE_INITIALIZER(LONAME, lo_clone_create, lo_clone_destroy, IF_MAXUNIT);
 
 int
 lo_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
-	int err;
 	struct lo_softc *sc;
 	
 	sc = ifp->if_softc;
@@ -167,9 +135,6 @@ lo_clone_destroy(ifp)
 	if (loif == ifp)
 		return (EINVAL);
 
-	err = rman_release_resource(sc->r_unit);
-	KASSERT(err == 0, ("Unexpected error freeing resource"));
-
 	bpfdetach(ifp);
 	if_detach(ifp);
 	LIST_REMOVE(sc, sc_next);
@@ -177,8 +142,10 @@ lo_clone_destroy(ifp)
 	return (0);
 }
 
-static void
-locreate(int unit, struct resource *r)
+int
+lo_clone_create(ifc, unit)
+	struct if_clone *ifc;
+	int unit;
 {
 	struct lo_softc *sc;
 
@@ -193,40 +160,27 @@ locreate(int unit, struct resource *r)
 	sc->sc_if.if_type = IFT_LOOP;
 	sc->sc_if.if_snd.ifq_maxlen = ifqmaxlen;
 	sc->sc_if.if_softc = sc;
-	sc->r_unit = r;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
 	LIST_INSERT_HEAD(&lo_list, sc, sc_next);
 	if (loif == NULL)
 		loif = &sc->sc_if;
+
+	return (0);
 }
 
 static int
 loop_modevent(module_t mod, int type, void *data) 
 { 
 	int err;
-	int unit;
 
 	switch (type) { 
 	case MOD_LOAD: 
-		lounits->rm_type = RMAN_ARRAY;
-		lounits->rm_descr = "configurable if_loop units";
-		err = rman_init(lounits);
-		if (err != 0)
-			return (err);
-		err = rman_manage_region(lounits, 0, LOMAXUNIT);
-		if (err != 0) {
-			printf("%s: lounits: rman_manage_region: Failed %d\n",
-			    LONAME, err);
-			rman_fini(lounits);
-			return (err);
-		}
 		LIST_INIT(&lo_list);
 		if_clone_attach(&lo_cloner);
 
 		/* Create lo0 */
-		unit = 0;
-		err = lo_clone_create(NULL, &unit);
+		err = if_clone_create("lo0", sizeof ("lo0"));
 		KASSERT(err == 0, ("%s: can't create lo0", __func__));
 		break; 
 	case MOD_UNLOAD: 
