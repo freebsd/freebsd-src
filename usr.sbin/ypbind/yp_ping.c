@@ -129,11 +129,8 @@ static struct timeval tottimeout = { 1, 0 };
  * Returns 0 if no map exists.
  */
 static u_short
-__pmap_getport(address, program, version, protocol)
-	struct sockaddr_in *address;
-	u_long program;
-	u_long version;
-	u_int protocol;
+__pmap_getport(struct sockaddr_in *address, u_long program, u_long version,
+    u_int protocol)
 {
 	u_short port = 0;
 	int sock = -1;
@@ -229,11 +226,8 @@ struct ping_req {
 	unsigned long		xid;
 };
 
-int __yp_ping(restricted_addrs, cnt, dom, port)
-	struct in_addr		*restricted_addrs;
-	int			cnt;
-	char			*dom;
-	short			*port;
+int
+__yp_ping(struct in_addr *restricted_addrs, int cnt, char *dom, short *port)
 {
 	struct timeval		tv = { 5, 0 };
 	struct ping_req		**reqs;

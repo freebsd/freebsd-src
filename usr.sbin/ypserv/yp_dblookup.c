@@ -89,7 +89,8 @@ struct circleq_entry {
 /*
  * Initialize the circular queue.
  */
-void yp_init_dbs()
+void
+yp_init_dbs(void)
 {
 	TAILQ_INIT(&qhead);
 	return;
@@ -99,7 +100,8 @@ void yp_init_dbs()
  * Dynamically allocate an entry for the circular queue.
  * Return a NULL pointer on failure.
  */
-static struct circleq_entry *yp_malloc_qent()
+static struct circleq_entry *
+yp_malloc_qent(void)
 {
 	register struct circleq_entry *q;
 
@@ -124,8 +126,8 @@ static struct circleq_entry *yp_malloc_qent()
  * Free a previously allocated circular queue
  * entry.
  */
-static void yp_free_qent(q)
-	struct circleq_entry *q;
+static void
+yp_free_qent(struct circleq_entry *q)
 {
 	/*
 	 * First, close the database. In theory, this is also
@@ -162,7 +164,8 @@ static void yp_free_qent(q)
  * all its resources. (This always removes the last entry
  * in the queue.)
  */
-static void yp_flush()
+static void
+yp_flush(void)
 {
 	register struct circleq_entry *qptr;
 
@@ -177,7 +180,8 @@ static void yp_flush()
 /*
  * Close all databases, erase all database names and empty the queue.
  */
-void yp_flush_all()
+void
+yp_flush_all(void)
 {
 	register struct circleq_entry *qptr;
 
@@ -196,8 +200,8 @@ static char *secure_string = "YP_SECURE";
 static int inter_sz = sizeof("YP_INTERDOMAIN") - 1;
 static int secure_sz = sizeof("YP_SECURE") - 1;
 
-static int yp_setflags(dbp)
-	DB *dbp;
+static int
+yp_setflags(DB *dbp)
 {
 	DBT key = { NULL, 0 }, data = { NULL, 0 };
 	int flags = 0;
@@ -217,10 +221,8 @@ static int yp_setflags(dbp)
 	return(flags);
 }
 
-int yp_testflag(map, domain, flag)
-	char *map;
-	char *domain;
-	int flag;
+int
+yp_testflag(char *map, char *domain, int flag)
 {
 	char buf[MAXPATHLEN + 2];
 	register struct circleq_entry *qptr;
@@ -256,10 +258,8 @@ int yp_testflag(map, domain, flag)
  * a new entry when all our slots are already filled, we have to kick
  * out the entry in the last slot to make room.
  */
-static int yp_cache_db(dbp, name, size)
-	DB *dbp;
-	char *name;
-	int size;
+static int
+yp_cache_db(DB *dbp, char *name, int size)
 {
 	register struct circleq_entry *qptr;
 
@@ -317,10 +317,8 @@ static int yp_cache_db(dbp, name, size)
  *   so that it will be easier to find if another request for
  *   the same database comes in later.
  */
-static DB *yp_find_db(name, key, size)
-	char *name;
-	char *key;
-	int size;
+static DB *
+yp_find_db(char *name, char *key, int size)
 {
 	register struct circleq_entry *qptr;
 
@@ -351,11 +349,9 @@ static DB *yp_find_db(name, key, size)
  * If so, we fetch the handle from the cache. If not, we try to open
  * the database and save the handle in the cache for later use.
  */
-DB *yp_open_db_cache(domain, map, key, size)
-	const char *domain;
-	const char *map;
-	const char *key;
-	const int size;
+DB *
+yp_open_db_cache(const char *domain, const char *map, const char *key,
+    const int size)
 {
 	DB *dbp = NULL;
 	char buf[MAXPATHLEN + 2];
@@ -387,9 +383,8 @@ DB *yp_open_db_cache(domain, map, key, size)
 /*
  * Open a DB database.
  */
-DB *yp_open_db(domain, map)
-	const char *domain;
-	const char *map;
+DB *
+yp_open_db(const char *domain, const char *map)
 {
 	DB *dbp = NULL;
 	char buf[MAXPATHLEN + 2];
@@ -455,16 +450,13 @@ again:
  */
 
 #ifdef DB_CACHE
-int yp_get_record(dbp,key,data,allow)
-	DB *dbp;
+int
+yp_get_record(DB *dbp, const DBT *key, DBT *data, int allow)
 #else
-int yp_get_record(domain,map,key,data,allow)
-	const char *domain;
-	const char *map;
+int
+yp_get_record(const char *domain, const char *map,
+    const DBT *key, DBT *data, int allow)
 #endif
-	const DBT *key;
-	DBT *data;
-	int allow;
 {
 #ifndef DB_CACHE
 	DB *dbp;
@@ -522,11 +514,8 @@ int yp_get_record(domain,map,key,data,allow)
 	return(YP_TRUE);
 }
 
-int yp_first_record(dbp,key,data,allow)
-	const DB *dbp;
-	DBT *key;
-	DBT *data;
-	int allow;
+int
+yp_first_record(const DB *dbp, DBT *key, DBT *data, int allow)
 {
 	int rval;
 #ifndef DB_CACHE
@@ -576,12 +565,8 @@ int yp_first_record(dbp,key,data,allow)
 	return(YP_TRUE);
 }
 
-int yp_next_record(dbp,key,data,all,allow)
-	const DB *dbp;
-	DBT *key;
-	DBT *data;
-	int all;
-	int allow;
+int
+yp_next_record(const DB *dbp, DBT *key, DBT *data, int all, int allow)
 {
 	static DBT lkey = { NULL, 0 };
 	static DBT ldata = { NULL, 0 };
@@ -672,11 +657,8 @@ int yp_next_record(dbp,key,data,all,allow)
 static DB *yp_currmap_db = NULL;
 static int yp_allow_db = 0;
 
-ypstat yp_select_map(map, domain, key, allow)
-	char *map;
-	char *domain;
-	keydat *key;
-	int allow;
+ypstat
+yp_select_map(char *map, char *domain, keydat *key, int allow)
 {
 	if (key == NULL)
 		yp_currmap_db = yp_open_db_cache(domain, map, NULL, 0);
@@ -689,9 +671,8 @@ ypstat yp_select_map(map, domain, key, allow)
 	return(yp_errno);
 }
 
-ypstat yp_getbykey(key, val)
-	keydat *key;
-	valdat *val;
+ypstat
+yp_getbykey(keydat *key, valdat *val)
 {
 	DBT db_key = { NULL, 0 }, db_val = { NULL, 0 };
 	ypstat rval;
@@ -710,9 +691,8 @@ ypstat yp_getbykey(key, val)
 	return(rval);
 }
 
-ypstat yp_firstbykey(key, val)
-	keydat *key;
-	valdat *val;
+ypstat
+yp_firstbykey(keydat *key, valdat *val)
 {
 	DBT db_key = { NULL, 0 }, db_val = { NULL, 0 };
 	ypstat rval;
@@ -729,9 +709,8 @@ ypstat yp_firstbykey(key, val)
 	return(rval);
 }
 
-ypstat yp_nextbykey(key, val)
-	keydat *key;
-	valdat *val;
+ypstat
+yp_nextbykey(keydat *key, valdat *val)
 {
 	DBT db_key = { NULL, 0 }, db_val = { NULL, 0 };
 	ypstat rval;

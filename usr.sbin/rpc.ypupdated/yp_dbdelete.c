@@ -48,9 +48,8 @@ static const char rcsid[] =
 #include <rpcsvc/yp.h>
 #include "ypxfr_extern.h"
 
-int yp_del_record(dbp,key)
-	DB *dbp;
-	DBT *key;
+int
+yp_del_record(DB *dbp, DBT *key)
 {
 	int rval;
 
