@@ -1,5 +1,5 @@
 #
-# $Id: rc.devfs,v 1.1 1998/09/14 09:14:46 sos Exp $
+# $Id: rc.devfs,v 1.2 1998/09/20 18:49:04 sos Exp $
 #
 # If there is a global system configuration file, suck it in.
 if [ -f /etc/rc.conf ]; then
@@ -8,7 +8,4 @@ fi
 
 # Setup DEVFS, ie permisisons, links etc.
 
-echo -n 'Setting up DEVFS: '
 ln -fs /dev/ttyv0 /dev/vga
-
-echo '.'
