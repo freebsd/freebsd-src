@@ -127,16 +127,16 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 					result = HOSTNAME_FOUND;
 					((struct sockinet *)addr)->si_port =
 						port;
-					if (res->ai_canonname == 0) {
+					if (ores->ai_canonname == 0) {
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					if (strlen(res->ai_canonname) > hsize &&
+					if (strlen(ores->ai_canonname) > hsize &&
 					    addr->sa_family == AF_INET) {
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					strncpy(host, res->ai_canonname,
+					strncpy(host, ores->ai_canonname,
 						hsize);
 					break;
 				}
@@ -158,12 +158,12 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 				    !memcmp(&in6->s6_addr[12], in,
 					    sizeof(*in))) {
 					result = HOSTNAME_FOUND;
-					if (res->ai_canonname == 0 ||
-					    strlen(res->ai_canonname) > hsize) {
+					if (ores->ai_canonname == 0 ||
+					    strlen(ores->ai_canonname) > hsize) {
 						freeaddrinfo(ores);
 						goto numeric;
 					}
-					strncpy(host, res->ai_canonname,
+					strncpy(host, ores->ai_canonname,
 						hsize);
 					break;
 				}
