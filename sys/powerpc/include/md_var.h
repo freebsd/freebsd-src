@@ -60,10 +60,12 @@ void	alpha_register_pci_scsi __P((int bus, int slot, struct cam_sim *sim));
 #ifdef _SYS_BUS_H_
 struct resource *alpha_platform_alloc_ide_intr(int chan);
 int	alpha_platform_release_ide_intr(int chan, struct resource *res);
-int	alpha_platform_setup_ide_intr(struct resource *res,
+int	alpha_platform_setup_ide_intr(struct device *dev,
+				      struct resource *res,
 				      driver_intr_t *fn, void *arg,
 				      void **cookiep);
-int	alpha_platform_teardown_ide_intr(struct resource *res, void *cookie);
+int	alpha_platform_teardown_ide_intr(struct device *dev,
+					 struct resource *res, void *cookie);
 int	alpha_platform_pci_setup_intr(device_t dev, device_t child,
 				      struct resource *irq,  int flags,
 				      driver_intr_t *intr, void *arg,

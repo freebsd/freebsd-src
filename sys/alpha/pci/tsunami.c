@@ -34,7 +34,9 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 #include <sys/malloc.h>
 
 #include <pci/pcivar.h>
@@ -302,6 +304,20 @@ tsunami_attach(device_t dev)
 	return 0;
 }
 
+static void
+tsunami_disable_intr_vec(int vector)
+{
+	int irq = (vector - 0x900) >> 4;
+	platform.pci_intr_disable(irq);
+}
+
+static void
+tsunami_enable_intr_vec(int vector)
+{
+	int irq = (vector - 0x900) >> 4;
+	platform.pci_intr_enable(irq);
+}
+
 static int
 tsunami_setup_intr(device_t dev, device_t child,
 	       struct resource *irq, int flags,
@@ -313,9 +329,11 @@ tsunami_setup_intr(device_t dev, device_t child,
 	if (error)
 		return error;
 
-	error = alpha_setup_intr(0x900 + (irq->r_start << 4),
-			intr, arg, cookiep,
-			&intrcnt[INTRCNT_EB164_IRQ + irq->r_start]);
+	error = alpha_setup_intr(device_get_nameunit(child ? child : dev),
+			0x900 + (irq->r_start << 4), intr, arg,
+			ithread_priority(flags), cookiep,
+			&intrcnt[INTRCNT_EB164_IRQ + irq->r_start],
+			tsunami_disable_intr_vec, tsunami_enable_intr_vec);
 	if (error)
 		return error;
 

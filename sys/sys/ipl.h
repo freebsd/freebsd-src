@@ -33,21 +33,44 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_IPL_H_
-#define	_MACHINE_IPL_H_
+#ifndef _SYS_IPL_H_
+#define	_SYS_IPL_H_
 
-#ifdef APIC_IO
-#include <i386/isa/apic_ipl.h>
-#else
-#include <i386/isa/icu_ipl.h>
-#endif
-
-#define	NSWI		7
+#include <machine/ipl.h>
 
 /*
- * astpending bits
+ * Software interrupt bit numbers in priority order.  The priority only
+ * determines which swi will be dispatched next; a higher priority swi
+ * may be dispatched when a nested h/w interrupt handler returns.
  */
-#define	AST_PENDING	0x00000001
-#define	AST_RESCHED	0x00000002
+#define	SWI_TTY		0
+#define	SWI_NET		1
+#define	SWI_CAMNET	2
+#define	SWI_CAMBIO	3
+#define	SWI_VM		4
+#define	SWI_TQ		5
+#define	SWI_CLOCK	6
 
-#endif /* !_MACHINE_IPL_H_ */
+/*
+ * Corresponding interrupt-pending bits for ipending.
+ */
+#define	SWI_TTY_PENDING		(1 << SWI_TTY)
+#define	SWI_NET_PENDING		(1 << SWI_NET)
+#define	SWI_CAMNET_PENDING	(1 << SWI_CAMNET)
+#define	SWI_CAMBIO_PENDING	(1 << SWI_CAMBIO)
+#define	SWI_VM_PENDING		(1 << SWI_VM)
+#define	SWI_TQ_PENDING		(1 << SWI_TQ)
+#define	SWI_CLOCK_PENDING	(1 << SWI_CLOCK)
+
+#ifndef	LOCORE
+/*
+ * spending and sdelayed are changed by interrupt handlers so they are
+ * volatile.
+ */
+
+extern	volatile u_int sdelayed;	/* interrupts to become pending */
+extern	volatile u_int spending;	/* pending software interrupts */
+
+#endif /* !LOCORE */
+
+#endif /* !_SYS_IPL_H_ */

@@ -33,7 +33,9 @@
 #include <sys/malloc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/proc.h>
 #include <sys/rman.h>
+#include <sys/interrupt.h>
 
 #include <machine/swiz.h>
 #include <machine/intr.h>
@@ -256,12 +258,74 @@ mcpcia_disable_intr(struct mcpcia_softc *sc, int irq)
 	alpha_mb();
 }
 
+static void
+mcpcia_disable_intr_vec(int vector)
+{
+	int gid, mid, irq;
+	vm_offset_t p;
+
+	printf("D<%03x>", vector);
+	if (vector == MCPCIA_VEC_NCR) {
+		mid = 5;
+		irq = 16;
+	} else {
+		irq = ((vector - 0x900) >> 4) - 8;
+		if (irq < 32)
+			mid = 4;
+		else {
+			irq -= 32;
+			mid = 5;
+		}
+	}
+
+	gid = MCBUS_GID_FROM_INSTANCE(0);
+	p = (MCBUS_IOSPACE | 
+	     (((u_int64_t) gid) << MCBUS_GID_SHIFT) |
+	     (((u_int64_t) mid) << MCBUS_MID_SHIFT) |
+	     MCPCIA_PCI_BRIDGE |
+	     _MCPCIA_INT_MASK0);
+
+	alpha_mb();
+	REGVAL(p) &= ~(1 << irq);
+	alpha_mb();
+}
+
+static void
+mcpcia_enable_intr_vec(int vector)
+{
+	int gid, mid, irq;
+	vm_offset_t p;
+
+	printf("E<%03x>", vector);
+	if (vector == MCPCIA_VEC_NCR) {
+		mid = 5;
+		irq = 16;
+	} else {
+		irq = ((vector - 0x900) >> 4) - 8;
+		if (irq < 32)
+			mid = 4;
+		else
+			mid = 5;
+	}
+
+	gid = MCBUS_GID_FROM_INSTANCE(0);
+	p = (MCBUS_IOSPACE | 
+	     (((u_int64_t) gid) << MCBUS_GID_SHIFT) |
+	     (((u_int64_t) mid) << MCBUS_MID_SHIFT) |
+	     MCPCIA_PCI_BRIDGE |
+	     _MCPCIA_INT_MASK0);
+
+	alpha_mb();
+	REGVAL(p) |= (1 << irq);
+	alpha_mb();
+}
+
 static int
 mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
        driver_intr_t *intr, void *arg, void **cp)
 {
 	struct mcpcia_softc *sc = MCPCIA_SOFTC(dev);
-	int slot, mid, gid, birq, irq, error, intpin, h;
+	int slot, mid, gid, birq, irq, error, intpin, h, pri;
 	
 	intpin = pci_get_intpin(child);
 	if (intpin == 0) {
@@ -290,7 +354,7 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 	} else if (slot >= 2 && slot <= 5) {
 		irq = (slot - 2) * 4;
 	} else {
-		device_printf(child, "wierd slot number (%d); can't make irq\n",
+		device_printf(child, "weird slot number (%d); can't make irq\n",
 		    slot);
 		return (ENXIO);
 	}
@@ -310,7 +374,10 @@ mcpcia_setup_intr(device_t dev, device_t child, struct resource *ir, int flags,
 		    ((intpin - 1) * MCPCIA_VECWIDTH_PER_INTPIN);
 	}
 	birq = irq + INTRCNT_KN300_IRQ;
-	error = alpha_setup_intr(h, intr, arg, cp, &intrcnt[birq]);
+	pri = ithread_priority(flags);
+	error = alpha_setup_intr(device_get_nameunit(child ? child : dev), h,
+	    intr, arg, pri, cp, &intrcnt[birq],
+	    mcpcia_disable_intr_vec, mcpcia_enable_intr_vec);
 	if (error)
 		return error;
 	mcpcia_enable_intr(sc, irq);

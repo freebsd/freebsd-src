@@ -31,6 +31,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/proc.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/interrupt.h>
@@ -97,17 +98,19 @@ alpha_platform_release_ide_intr(int chan, struct resource *res)
 }
 
 int
-alpha_platform_setup_ide_intr(struct resource *res,
+alpha_platform_setup_ide_intr(device_t dev,
+			      struct resource *res,
 			      driver_intr_t *fn, void *arg,
 			      void **cookiep)
 {
-	return isa_setup_intr(0, 0, res, INTR_TYPE_BIO, fn, arg, cookiep);
+	return isa_setup_intr(0, dev, res, INTR_TYPE_BIO, fn, arg, cookiep);
 }
 
 int
-alpha_platform_teardown_ide_intr(struct resource *res, void *cookie)
+alpha_platform_teardown_ide_intr(device_t dev,
+				 struct resource *res, void *cookie)
 {
-	return isa_teardown_intr(0, 0, res, cookie);
+	return isa_teardown_intr(0, dev, res, cookie);
 }
 #else
 struct resource *

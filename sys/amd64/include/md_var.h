@@ -95,6 +95,7 @@ u_long	kvtop __P((void *addr));
 void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 		    int selec));
 void	swi_vm __P((void));
+void	swi_net __P((void));
 void	userconfig __P((void));
 int     user_dbreg_trap __P((void));
 int	vm_page_zero_idle __P((void));

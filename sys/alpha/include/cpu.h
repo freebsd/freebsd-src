@@ -154,7 +154,6 @@ int	badaddr	__P((void *, size_t));
 int	badaddr_read __P((void *, size_t, void *));
 void	child_return __P((struct proc *p));
 u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
-void	do_sir __P((void));
 void	dumpconf __P((void));
 void	exception_return __P((void));				/* MAGIC */
 void	frametoreg __P((struct trapframe *, struct reg *));
