@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.11 1994/08/25 20:16:59 wollman Exp $
+ *	$Id: if_ie.c,v 1.12 1994/09/02 22:13:31 ats Exp $
  */
 
 /*
@@ -407,7 +407,9 @@ static int el_probe(dvp)
   
   c = inb(PORT + IE507_MADDR);
   if(c & 0x20) {
+#ifdef DEBUG
     printf("ie%d: can't map 3C507 RAM in high memory\n", unit);
+#endif
     return 0;
   }
   
