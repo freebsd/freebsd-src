@@ -229,6 +229,7 @@ struct syncache {
 #define sc_route	sc_inc.inc_route
 #define sc_route6	sc_inc.inc6_route
 	u_int32_t	sc_tsrecent;
+	u_int32_t	sc_flowlabel;		/* IPv6 flowlabel */
 	tcp_cc		sc_cc_send;		/* holds CC or CCnew */
 	tcp_cc		sc_cc_recv;
 	tcp_seq 	sc_irs;			/* seq from peer */

@@ -37,6 +37,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_random_ip_id.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -107,7 +108,7 @@ struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *, struct mbuf *);
 static struct 	 socket *syncache_socket(struct syncache *, struct socket *);
 static void	 syncache_timer(void *);
-static u_int32_t syncookie_generate(struct syncache *);
+static u_int32_t syncookie_generate(struct syncache *, u_int32_t *);
 static struct syncache *syncookie_lookup(struct in_conninfo *,
 		    struct tcphdr *, struct socket *);
 
@@ -638,6 +639,9 @@ syncache_socket(sc, lso)
 			goto abort;
 		}
 		FREE(sin6, M_SONAME);
+		/* Override flowlabel from in6_pcbconnect. */
+		inp->in6p_flowinfo &= ~IPV6_FLOWLABEL_MASK;
+		inp->in6p_flowinfo |= sc->sc_flowlabel;
 	} else
 #endif
 	{
@@ -822,6 +826,7 @@ syncache_add(inc, to, th, sop, m)
 	struct syncache_head *sch;
 	struct mbuf *ipopts = NULL;
 	struct rmxp_tao *taop;
+	u_int32_t flowtmp;
 	int i, s, win;
 
 	so = *sop;
@@ -928,10 +933,25 @@ syncache_add(inc, to, th, sop, m)
 	sc->sc_irs = th->th_seq;
 	sc->sc_flags = 0;
 	sc->sc_peer_mss = to->to_flags & TOF_MSS ? to->to_mss : 0;
-	if (tcp_syncookies)
-		sc->sc_iss = syncookie_generate(sc);
-	else
+	sc->sc_flowlabel = 0;
+	if (tcp_syncookies) {
+		sc->sc_iss = syncookie_generate(sc, &flowtmp);
+#ifdef INET6
+		if (inc->inc_isipv6 &&
+		    (sc->sc_tp->t_inpcb->in6p_flags & IN6P_AUTOFLOWLABEL)) {
+			sc->sc_flowlabel = flowtmp & IPV6_FLOWLABEL_MASK;
+		}
+#endif
+	} else {
 		sc->sc_iss = arc4random();
+#ifdef INET6
+		if (inc->inc_isipv6 &&
+		    (sc->sc_tp->t_inpcb->in6p_flags & IN6P_AUTOFLOWLABEL)) {
+			sc->sc_flowlabel =
+			    (htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
+		}
+#endif
+	}
 
 	/* Initial receive window: clip sbspace to [0 .. TCP_MAXWIN] */
 	win = sbspace(&so->so_rcv);
@@ -1126,7 +1146,8 @@ syncache_respond(sc, m)
 		ip6->ip6_dst = sc->sc_inc.inc6_faddr;
 		ip6->ip6_plen = htons(tlen - hlen);
 		/* ip6_hlim is set after checksum */
-		/* ip6_flow = ??? */
+		ip6->ip6_flow &= ~IPV6_FLOWLABEL_MASK;
+		ip6->ip6_flow |= sc->sc_flowlabel;
 
 		th = (struct tcphdr *)(ip6 + 1);
 	} else
@@ -1308,7 +1329,7 @@ CTASSERT(sizeof(struct md5_add) == 28);
  */
 
 static u_int32_t
-syncookie_generate(struct syncache *sc)
+syncookie_generate(struct syncache *sc, u_int32_t *flowid)
 {
 	u_int32_t md5_buffer[4];
 	u_int32_t data;
@@ -1348,6 +1369,7 @@ syncookie_generate(struct syncache *sc)
 	MD5Add(add);
 	MD5Final((u_char *)&md5_buffer, &syn_ctx);
 	data ^= (md5_buffer[0] & ~SYNCOOKIE_WNDMASK);
+	*flowid = md5_buffer[1];
 	return (data);
 }
 
@@ -1404,12 +1426,15 @@ syncookie_lookup(inc, th, so)
 	sc->sc_ipopts = NULL;
 	sc->sc_inc.inc_fport = inc->inc_fport;
 	sc->sc_inc.inc_lport = inc->inc_lport;
+	sc->sc_tp = sototcpcb(so);
 #ifdef INET6
 	sc->sc_inc.inc_isipv6 = inc->inc_isipv6;
 	if (inc->inc_isipv6) {
 		sc->sc_inc.inc6_faddr = inc->inc6_faddr;
 		sc->sc_inc.inc6_laddr = inc->inc6_laddr;
 		sc->sc_route6.ro_rt = NULL;
+		if (sc->sc_tp->t_inpcb->in6p_flags & IN6P_AUTOFLOWLABEL)
+			sc->sc_flowlabel = md5_buffer[1] & IPV6_FLOWLABEL_MASK;
 	} else
 #endif
 	{
