@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.7 1995/03/04 11:44:05 bde Exp $
+ *	$Id: diskslice_machdep.c,v 1.8 1995/03/15 16:25:08 bde Exp $
  */
 
 #include <stddef.h>
@@ -52,6 +52,13 @@
 
 static volatile u_char dsi_debug;
 
+static struct dos_partition historical_bogus_partition_table[NDOSPART] = {
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, },
+	{ 0x80, 0, 1, 0, DOSPTYP_386BSD, 255, 255, 255, 0, 50000, },
+};
+
 static int check_part __P((char *sname, struct dos_partition *dp,
 			   u_long offset, int nsectors, int ntracks));
 static void extended __P((char *dname, dev_t dev, d_strategy_t *strat,
@@ -67,6 +74,10 @@ check_part(sname, dp, offset, nsectors, ntracks)
 	int	nsectors;
 	int	ntracks;
 {
+	int	chs_ecyl;
+	int	chs_esect;
+	int	chs_scyl;
+	int	chs_ssect;
 	int	error;
 	u_long	esector;
 	u_long	esector1;
@@ -75,21 +86,51 @@ check_part(sname, dp, offset, nsectors, ntracks)
 	u_long	ssector1;
 
 	secpercyl = (u_long)nsectors * ntracks;
-	ssector = DPSECT(dp->dp_ssect) - 1 + dp->dp_shd * nsectors
-		  + DPCYL(dp->dp_scyl, dp->dp_ssect) * secpercyl;
+	chs_scyl = DPCYL(dp->dp_scyl, dp->dp_ssect);
+	chs_ssect = DPSECT(dp->dp_ssect);
+	ssector = chs_ssect - 1 + dp->dp_shd * nsectors + chs_scyl * secpercyl;
 	ssector1 = offset + dp->dp_start;
-	esector = DPSECT(dp->dp_esect) - 1 + dp->dp_ehd * nsectors
-		  + DPCYL(dp->dp_ecyl, dp->dp_esect) * secpercyl;
+
+	/*
+	 * If ssector1 is on a cylinder >= 1024, then ssector can't be right.
+	 * Allow the C/H/S for it to be 1023/ntracks-1/nsectors, or correct
+	 * apart from the cylinder being reduced modulo 1024.
+	 */
+	if (ssector < ssector1
+	    && ((chs_ssect == nsectors && dp->dp_shd == ntracks - 1
+		 && chs_scyl == 1023)
+		|| (ssector1 - ssector) % (1024 * secpercyl) == 0)) {
+		TRACE(("%s: C/H/S start %d/%d/%d, start %lu: allow\n",
+		       sname, chs_scyl, dp->dp_shd, chs_ssect, ssector1));
+		ssector = ssector1;
+	}
+
+	chs_ecyl = DPCYL(dp->dp_ecyl, dp->dp_esect);
+	chs_esect = DPSECT(dp->dp_esect);
+	esector = chs_esect - 1 + dp->dp_ehd * nsectors + chs_ecyl * secpercyl;
 	esector1 = ssector1 + dp->dp_size - 1;
-	error = ssector == ssector1 && esector == esector1 ? 0 : EINVAL;
+
+	/* Allow certain bogus C/H/S values for esector, as above. */
+	if (esector < esector1
+	    && ((chs_esect == nsectors && dp->dp_ehd == ntracks - 1
+		 && chs_ecyl == 1023)
+		|| (esector1 - esector) % (1024 * secpercyl) == 0)) {
+		TRACE(("%s: C/H/S end %d/%d/%d, end %lu: allow\n",
+		       sname, chs_ecyl, dp->dp_ehd, chs_esect, esector1));
+		esector = esector1;
+	}
+
+	error = (ssector == ssector1 && esector == esector1) ? 0 : EINVAL;
 	printf("%s: start %lu, end = %lu, size %lu%s\n",
-	       sname, ssector, esector, dp->dp_size, error ? "" : ": OK");
+	       sname, ssector1, esector1, dp->dp_size, error ? "" : ": OK");
 	if (ssector != ssector1)
-		printf("%s: C/H/S start %lu != start %lu: invalid\n",
-		       sname, ssector, ssector1);
+		printf("%s: C/H/S start %d/%d/%d (%lu) != start %lu: invalid\n",
+		       sname, chs_scyl, dp->dp_shd, chs_ssect,
+		       ssector, ssector1);
 	if (esector != esector1)
-		printf("%s: C/H/S end %lu != end %lu: invalid\n",
-		       sname, esector, esector1);
+		printf("%s: C/H/S end %d/%d/%d (%lu) != end %lu: invalid\n",
+		       sname, chs_ecyl, dp->dp_ehd, chs_esect,
+		       esector, esector1);
 	return (error);
 }
 
@@ -140,7 +181,7 @@ dsinit(dname, dev, strat, lp, sspp)
 	bp->b_flags = B_BUSY | B_READ;
 	(*strat)(bp);
 	if (biowait(bp) != 0) {
-		diskerr(bp, dname, "error reading partition table",
+		diskerr(bp, dname, "error reading primary partition table",
 			LOG_PRINTF, 0, lp);
 		printf("\n");
 		error = EIO;
@@ -149,10 +190,19 @@ dsinit(dname, dev, strat, lp, sspp)
 
 	/* Weakly verify it. */
 	cp = bp->b_un.b_addr;
+	sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+		       partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		diskerr(bp, dname, "invalid partition table",
-			LOG_PRINTF, 0, lp);
-		printf("\n");
+		printf("%s: invalid primary partition table: no magic\n",
+		       sname);
+		error = EINVAL;
+		goto done;
+	}
+	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
+	if (bcmp(dp0, historical_bogus_partition_table,
+		 sizeof historical_bogus_partition_table) == 0) {
+		TRACE(("%s: invalid primary partition table: historical\n",
+		       sname));
 		error = EINVAL;
 		goto done;
 	}
@@ -166,7 +216,6 @@ dsinit(dname, dev, strat, lp, sspp)
 	max_ncyls = 0;
 	max_nsectors = 0;
 	max_ntracks = 0;
-	dp0 = (struct dos_partition *)(cp + DOSPARTOFF);
 	for (dospart = 0, dp = dp0; dospart < NDOSPART; dospart++, dp++) {
 		int	nsectors;
 		int	ntracks;
@@ -312,9 +361,10 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	/* Weakly verify it. */
 	cp = bp->b_un.b_addr;
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
-		diskerr(bp, dname, "invalid extended partition table",
-			LOG_PRINTF, 0, lp);
-		printf("\n");
+		sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
+			       partname);
+		printf("%s: invalid extended partition table: no magic\n",
+		       sname);
 		goto done;
 	}
 
