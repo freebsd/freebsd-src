@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.30 1995/09/28 19:43:20 bde Exp $
+ *	$Id: ld.c,v 1.31 1995/10/24 06:47:57 ache Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -3592,6 +3592,17 @@ write_file_syms(entry, syms_written_addr)
 
 		if (!(lsp->flags & LS_WRITE))
 			continue;
+
+		if (discard_locals == DISCARD_ALL ||
+		    discard_locals == DISCARD_L && lsp->flags & LS_L_SYMBOL) {
+			/*
+			 * The user wants to discard this symbol, but it
+			 * is referenced by a relocation.  We can still
+			 * save some file space by suppressing the unique
+			 * renaming of the symbol.
+			 */
+			lsp->flags &= ~LS_RENAME;
+		}
 
 		if (p->n_un.n_strx == 0)
 			name = NULL;
