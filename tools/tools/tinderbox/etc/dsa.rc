@@ -1,0 +1,10 @@
+#
+# Tinderbox setup for dsa.des.no
+#
+# $FreeBSD$
+#
+
+comment		= Tinderbox development
+branches	= CURRENT
+targets		= update, world, lint, release
+platforms	= alpha
