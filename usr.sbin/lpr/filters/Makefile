@@ -6,4 +6,6 @@ BINDIR=	/usr/libexec/lpr
 PROG=	lpf
 NOMAN=	noman
 
+CFLAGS+= -I${.CURDIR}/../common_source
+
 .include <bsd.prog.mk>
