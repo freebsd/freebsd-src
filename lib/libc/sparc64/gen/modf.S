@@ -51,7 +51,8 @@
 #endif /* SYSLIBC_RCS and not lint */
 
 #include <machine/asm.h>
-#include <machine/fsr.h>
+
+#include "assym.s"
 
 /*
  * double modf(double val, double *iptr)
@@ -129,7 +130,7 @@ ENTRY(modf)
 	st	%fsr, [%fp + SPOFF - 4]	! %l5 = current FSR mode
 	set	FSR_RD_MASK, %l3	! %l3 = rounding direction mask
 	ld	[%fp + SPOFF - 4], %l5
-	set	FSR_RD(FSR_RD_Z), %l4
+	set	FSR_RD_RD_Z, %l4
 	andn	%l5, %l3, %l6
 	or	%l6, %l4, %l6		! round towards zero, please
 	and	%l5, %l3, %l5		! save original rounding mode
