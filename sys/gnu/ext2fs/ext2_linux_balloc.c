@@ -173,12 +173,13 @@ void ext2_free_blocks (struct mount * mp, unsigned long block,
 	unsigned long i;
 	int bitmap_nr;
 	struct ext2_group_desc * gdp;
-	struct ext2_super_block * es = sb->s_es;
+	struct ext2_super_block * es;
 
 	if (!sb) {
 		printf ("ext2_free_blocks: nonexistent device");
 		return;
 	}
+	es = sb->s_es;
 	lock_super (VFSTOEXT2(mp)->um_devvp);
 	if (block < es->s_first_data_block || 
 	    (block + count) > es->s_blocks_count) {
@@ -257,7 +258,7 @@ int ext2_new_block (struct mount * mp, unsigned long goal,
 	int i, j, k, tmp;
 	int bitmap_nr;
 	struct ext2_group_desc * gdp;
-	struct ext2_super_block * es = sb->s_es;
+	struct ext2_super_block * es;
 
 #ifdef EXT2FS_DEBUG
 	static int goal_hits = 0, goal_attempts = 0;
@@ -266,6 +267,7 @@ int ext2_new_block (struct mount * mp, unsigned long goal,
 		printf ("ext2_new_block: nonexistent device");
 		return 0;
 	}
+	es = sb->s_es;
 	lock_super (VFSTOEXT2(mp)->um_devvp);
 
         ext2_debug ("goal=%lu.\n", goal);
