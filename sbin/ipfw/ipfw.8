@@ -6,7 +6,7 @@
 .Os FreeBSD
 .Sh NAME
 .Nm ipfw
-.Nd controlling utility for IP firewall and traffic shaper
+.Nd IP firewall and traffic shaper control program
 .Sh SYNOPSIS
 .Nm
 .Op Fl q
@@ -492,7 +492,7 @@ This is a computationally semi-expensive check which should be used with care.
 The
 .Aq Ar address Ns / Ns Ar mask
 may be specified as:
-.Bl -tag -width indent
+.Bl -tag -width "ipno/bits"
 .It Ar ipno
 An IP number of the form 1.2.3.4.
 Only this exact IP number will match the rule.
@@ -1006,6 +1006,9 @@ Most connections need packets going in both directions.
 .It
 Remember to test very carefully.
 It is a good idea to be near the console when doing this.
+If you cannot be near the console,
+use an auto-recovery script such as the one in
+.Pa /usr/share/examples/ipfw/change_rules.sh .
 .It
 Don't forget the loopback interface.
 .El
