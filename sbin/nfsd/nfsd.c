@@ -81,6 +81,7 @@ static char sccsid[] = "@(#)nfsd.c	8.7 (Berkeley) 2/22/94";
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
+#include <libutil.h>
 
 /* Global defs */
 #ifdef DEBUG
@@ -91,8 +92,10 @@ int	debug = 0;
 #endif
 
 struct	nfsd_srvargs nsd;
+#ifdef OLD_SETPROCTITLE
 char	**Argv = NULL;		/* pointer to argument vector */
 char	*LastArg = NULL;	/* end of argv */
+#endif
 
 #ifdef KERBEROS
 char		lnam[ANAME_SZ];
@@ -103,7 +106,11 @@ char		inst[INST_SZ];
 
 void	nonfs __P((int));
 void	reapchild __P((int));
+#ifdef OLD_SETPROCTITLE
+#ifdef __FreeBSD__
 void	setproctitle __P((char *));
+#endif
+#endif
 void	usage __P((void));
 
 /*
@@ -157,6 +164,7 @@ main(argc, argv, envp)
 		errx(1, "NFS is not available in the running kernel");
 	}
 
+#ifdef OLD_SETPROCTITLE
 	/* Save start and extent of argv for setproctitle. */
 	Argv = argv;
 	if (envp == 0 || *envp == 0)
@@ -164,6 +172,7 @@ main(argc, argv, envp)
 	while (*envp)
 		envp++;
 	LastArg = envp[-1] + strlen(envp[-1]);
+#endif
 
 #define	MAXNFSDCNT	20
 #define	DEFNFSDCNT	 4
@@ -261,7 +270,7 @@ main(argc, argv, envp)
 			continue;
 		}
 
-		setproctitle("nfsd-srv");
+		setproctitle("server");
 		nfssvc_flag = NFSSVC_NFSD;
 		nsd.nsd_nfsd = NULL;
 #ifdef KERBEROS
@@ -492,7 +501,7 @@ main(argc, argv, envp)
 	if (connect_type_cnt == 0)
 		exit(0);
 
-	setproctitle("nfsd-master");
+	setproctitle("master");
 
 	/*
 	 * Loop forever accepting connections and passing the sockets
@@ -585,6 +594,8 @@ reapchild(signo)
 	while (wait3(NULL, WNOHANG, NULL));
 }
 
+#ifdef OLD_SETPROCTITLE
+#ifdef __FreeBSD__
 void
 setproctitle(a)
 	char *a;
@@ -593,9 +604,12 @@ setproctitle(a)
 	char buf[80];
 
 	cp = Argv[0];
-	(void)snprintf(buf, sizeof(buf), "%s", a);
+	(void)snprintf(buf, sizeof(buf), "nfsd-%s", a);
 	(void)strncpy(cp, buf, LastArg - cp);
 	cp += strlen(cp);
 	while (cp < LastArg)
 		*cp++ = '\0';
+	Argv[1] = NULL;
 }
+#endif	/* __FreeBSD__ */
+#endif
