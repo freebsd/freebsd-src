@@ -2,7 +2,9 @@
 
 .include "../Makefile.inc0"
 
-.PATH: ${SRCDIR}/binutils
+GDBDIR= ${.CURDIR}/../../../../contrib/gdb
+.PATH:  ${GDBDIR}/gdb ${GDBDIR}/gdb/cli ${GDBDIR}/gdb/mi
+.PATH:  ${SRCDIR}/opcodes ${SRCDIR}/binutils
 
 .if ${TARGET_ARCH} == "sparc64"
 GDB_CPU=	sparc
@@ -42,9 +44,7 @@ XSRCS=	annotate.c arch-utils.c ax-general.c ax-gdb.c bcache.c		\
 XSRCS+=	freebsd-uthread.c kvm-fbsd.c solib-fbsd-kld.c
 SRCS=	init.c ${XSRCS} nm.h tm.h xm.h gdbversion.c xregex.h
 
-.if exists(${.CURDIR}/Makefile.${TARGET_ARCH})
 .include "${.CURDIR}/Makefile.${TARGET_ARCH}"
-.endif
 
 WARNS=	0
 .if ${TARGET_ARCH} != ${MACHINE_ARCH}
@@ -52,33 +52,22 @@ CFLAGS+=	-DCROSS_COMPILE=1
 .endif
 CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${GDB_CPU}_arch
 CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
-CFLAGS+=	-I${SRCDIR}/binutils
-CFLAGS+=	-I${SRCDIR}/bfd
-CFLAGS+=	-I${GDBDIR}/gdb
-CFLAGS+=	-I${GDBDIR}/gdb/config
-DPADD=		${LIBKVM}
-DPADD+=		${LIBM}
-DPADD+=		${RELTOP}/libbfd/libbfd.a
-DPADD+=		${RELTOP}/libopcodes/libopcodes.a
+CFLAGS+=	-I${SRCDIR}/binutils -I${SRCDIR}/bfd
+CFLAGS+=	-I${GDBDIR}/gdb -I${GDBDIR}/gdb/config
+CFLAGS+=	-I$(.CURDIR) -I${DESTDIR}/usr/include/readline
+
+YFLAGS=
+
+DPADD=		${LIBKVM} ${LIBM}
+DPADD+=		${RELTOP}/libbfd/libbfd.a ${RELTOP}/libopcodes/libopcodes.a
 DPADD+=		${LIBGNUREGEX}
 DPADD+=		${RELTOP}/libiberty/libiberty.a
-DPADD+=		${LIBREADLINE}
-DPADD+=		${LIBTERMCAP}
-LDADD=		-lkvm
-LDADD+=		-lm
-LDADD+=		${RELTOP}/libbfd/libbfd.a
-LDADD+=		${RELTOP}/libopcodes/libopcodes.a
+DPADD+=		${LIBREADLINE} ${LIBTERMCAP}
+LDADD=		-lkvm -lm
+LDADD+=		${RELTOP}/libbfd/libbfd.a ${RELTOP}/libopcodes/libopcodes.a
 LDADD+=		-lgnuregex
 LDADD+=		${RELTOP}/libiberty/libiberty.a
-LDADD+=		-lreadline
-LDADD+=		-ltermcap
-
-GDBDIR=	${.CURDIR}/../../../../contrib/gdb
-.PATH:	${GDBDIR}/gdb ${GDBDIR}/gdb/cli
-.PATH:	${SRCDIR}/opcodes
-
-CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline
-YFLAGS=
+LDADD+=		-lreadline -ltermcap
 
 CLEANFILES=	init.c init.c-tmp nm.h tm.h xm.h gdbversion.c xregex.h
 
@@ -140,9 +129,9 @@ ${H:C/-.*$//}.h:
 GDB_VERSION=	"5.2.1 (FreeBSD)"
 gdbversion.c:
 	@echo '#include "version.h"'				> ${.TARGET}
-	@echo 'const char version[] = ${GDB_VERSION};'	>>${.TARGET}
-	@echo 'const char host_name[] = "${MACHINE_ARCH}-undermydesk-freebsd";'	>>${.TARGET}
-	@echo 'const char target_name[] = "${TARGET_ARCH}-undermydesk-freebsd";'	>>${.TARGET}
+	@echo 'const char version[] = ${GDB_VERSION};'		>>${.TARGET}
+	@echo 'const char host_name[] = "${MACHINE_ARCH}-undermydesk-freebsd";'			>>${.TARGET}
+	@echo 'const char target_name[] = "${TARGET_ARCH}-undermydesk-freebsd";'		>>${.TARGET}
 
 xregex.h:
 	@echo '#include <gnuregex.h>' >${.TARGET}
