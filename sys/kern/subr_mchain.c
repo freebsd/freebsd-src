@@ -269,7 +269,6 @@ mb_put_mbuf(struct mbchain *mbp, struct mbuf *m)
 
 /*
  * copies a uio scatter/gather list to an mbuf chain.
- * NOTE: can ony handle iovcnt == 1
  */
 int
 mb_put_uio(struct mbchain *mbp, struct uio *uiop, int size)
@@ -277,14 +276,17 @@ mb_put_uio(struct mbchain *mbp, struct uio *uiop, int size)
 	long left;
 	int mtype, error;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		MBPANIC("iovcnt != 1");
-#endif
 	mtype = (uiop->uio_segflg == UIO_SYSSPACE) ? MB_MSYSTEM : MB_MUSER;
 
-	while (size > 0) {
+	while (size > 0 && uiop->uio_resid) {
+		if (uiop->uio_iovcnt <= 0 || uiop->uio_iov == NULL)
+			return EFBIG;
 		left = uiop->uio_iov->iov_len;
+		if (left == 0) {
+			uiop->uio_iov++;
+			uiop->uio_iovcnt--;
+			continue;
+		}
 		if (left > size)
 			left = size;
 		error = mb_put_mem(mbp, uiop->uio_iov->iov_base, left, mtype);
@@ -526,10 +528,15 @@ md_get_uio(struct mdchain *mdp, struct uio *uiop, int size)
 	int mtype, error;
 
 	mtype = (uiop->uio_segflg == UIO_SYSSPACE) ? MB_MSYSTEM : MB_MUSER;
-	while (size > 0) {
+	while (size > 0 && uiop->uio_resid) {
 		if (uiop->uio_iovcnt <= 0 || uiop->uio_iov == NULL)
 			return EFBIG;
 		left = uiop->uio_iov->iov_len;
+		if (left == 0) {
+			uiop->uio_iov++;
+			uiop->uio_iovcnt--;
+			continue;
+		}
 		uiocp = uiop->uio_iov->iov_base;
 		if (left > size)
 			left = size;
@@ -538,13 +545,8 @@ md_get_uio(struct mdchain *mdp, struct uio *uiop, int size)
 			return error;
 		uiop->uio_offset += left;
 		uiop->uio_resid -= left;
-		if (uiop->uio_iov->iov_len <= size) {
-			uiop->uio_iovcnt--;
-			uiop->uio_iov++;
-		} else {
-			uiop->uio_iov->iov_base += left;
-			uiop->uio_iov->iov_len -= left;
-		}
+		uiop->uio_iov->iov_base += left;
+		uiop->uio_iov->iov_len -= left;
 		size -= left;
 	}
 	return 0;
