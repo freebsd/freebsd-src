@@ -346,38 +346,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	*(int *) CMAP1 = *(int *) CMAP2 = 0;
 	*(int *) PTD = 0;
 
-#ifdef SMP
-	if (cpu_apic_address == 0)
-		panic("pmap_bootstrap: no local apic!");
-
-	/* 0 = private page */
-	/* 1 = page table page */
-	/* 2 = local apic */
-	/* 16-31 = io apics */
-	SMP_prvpt[2] = PG_V | PG_RW | ((u_long)cpu_apic_address & PG_FRAME);
-
-	for (i = 0; i < mp_napics; i++) {
-		for (j = 0; j < 16; j++) {
-			/* same page frame as a previous IO apic? */
-			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) ==
-			    ((u_long)io_apic_address[0] & PG_FRAME)) {
-				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
-				break;
-			}
-			/* use this slot if available */
-			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
-				SMP_prvpt[j + 16] = PG_V | PG_RW |
-				    ((u_long)io_apic_address[i] & PG_FRAME);
-				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
-				break;
-			}
-		}
-		if (j == 16)
-			panic("no space to map IO apic %d!", i);
-	}
-#endif
-
-	invltlb();
 
 	pgeflag = 0;
 #if !defined(SMP)
@@ -424,6 +392,40 @@ pmap_bootstrap(firstaddr, loadaddr)
 #endif
 	}
 #endif
+
+#ifdef SMP
+	if (cpu_apic_address == 0)
+		panic("pmap_bootstrap: no local apic!");
+
+	/* 0 = private page */
+	/* 1 = page table page */
+	/* 2 = local apic */
+	/* 16-31 = io apics */
+	SMP_prvpt[2] = PG_V | PG_RW | pgeflag | ((u_long)cpu_apic_address & PG_FRAME);
+
+	for (i = 0; i < mp_napics; i++) {
+		for (j = 0; j < 16; j++) {
+			/* same page frame as a previous IO apic? */
+			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) ==
+			    ((u_long)io_apic_address[0] & PG_FRAME)) {
+				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
+				break;
+			}
+			/* use this slot if available */
+			if (((u_long)SMP_prvpt[j + 16] & PG_FRAME) == 0) {
+				SMP_prvpt[j + 16] = PG_V | PG_RW | pgeflag |
+				    ((u_long)io_apic_address[i] & PG_FRAME);
+				ioapic[i] = (ioapic_t *)&SMP_ioapic[j * PAGE_SIZE];
+				break;
+			}
+		}
+		if (j == 16)
+			panic("no space to map IO apic %d!", i);
+	}
+#endif
+
+	invltlb();
+
 }
 
 /*
