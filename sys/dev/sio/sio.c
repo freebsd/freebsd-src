@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.27 1994/02/06 11:59:35 ache Exp $
+ *	$Id: sio.c,v 1.28 1994/02/07 18:37:21 ache Exp $
  */
 
 #include "sio.h"
@@ -207,6 +207,8 @@ struct com_s {
 #define	CE_INPUT_OFFSET		RS_IBUFSIZE
 	u_char	ibuf1[2 * RS_IBUFSIZE];
 	u_char	ibuf2[2 * RS_IBUFSIZE];
+	int	do_timestamp;
+	struct timeval  timestamp;
 };
 
 /*
@@ -252,6 +254,8 @@ static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
 
 static	struct com_s	com_structs[NSIO];
+
+static  struct  timeval intr_timestamp;
 
 struct isa_driver	siodriver = {
 	sioprobe, sioattach, "sio"
@@ -778,6 +782,7 @@ comhardclose(com)
 
 	s = spltty();
 	iobase = com->iobase;
+	com->do_timestamp = 0;
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 	unit = com - &com_structs[0];
 #ifdef KGDB
@@ -844,6 +849,14 @@ siowrite(dev, uio, flag)
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
 
+/* Interrupt routine for timekeeping purposes */
+void
+siointrts(int unit)
+{
+	microtime(&intr_timestamp);
+	siointr(unit);
+}
+
 void
 siointr(unit)
 	int	unit;
@@ -892,6 +905,8 @@ comintr1(com)
 	u_char		*ioptr;
 	u_char		recv_data;
 
+	if(com->do_timestamp)
+		com->timestamp = intr_timestamp;
 	while (TRUE) {
 		line_status = inb(com->line_status_port);
 
@@ -1144,6 +1159,10 @@ sioioctl(dev, cmd, data, flag, p)
 		break;
 	case TIOCMGDTRWAIT:
 		*(int *)data = com->dtr_wait;
+		break;
+	case TIOCTIMESTAMP:
+		com->do_timestamp = 1;
+		*(struct timeval *)data = com->timestamp;
 		break;
 	default:
 		splx(s);
