@@ -9,6 +9,10 @@
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
 # $FreeBSD$
+#
+# Send new entries for this file to imp@freebsd.org.  He's volunteered
+# to act as coordinator for this file.
+#
 
 # Generally available IO ports
 io	0x240-0x360
