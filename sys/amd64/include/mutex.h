@@ -69,8 +69,7 @@ extern char STR_SIEN[];
 
 #define	_V(x)	__STRING(x)
 
-#if 0
-/* #ifndef I386_CPU */
+#ifndef I386_CPU
 
 /*
  * For 486 and newer processors.
@@ -78,15 +77,14 @@ extern char STR_SIEN[];
 
 /* Get a sleep lock, deal with recursion inline. */
 #define	_getlock_sleep(mtxp, tid, type) ({				\
-	int	_res;							\
+	int	_res = MTX_UNOWNED;					\
 									\
 	__asm __volatile (						\
-"	movl	$" _V(MTX_UNOWNED) ",%%eax;"	/* Unowned cookie */	\
 "	" MPLOCKED ""							\
 "	cmpxchgl %3,%1;"			/* Try */		\
 "	jz	1f;"				/* Got it */		\
-"	andl	$" _V(MTX_FLAGMASK) ",%%eax;"	/* turn off spec bits */ \
-"	cmpl	%%eax,%3;"			/* already have it? */	\
+"	andl	$" _V(MTX_FLAGMASK) ",%0;"	/* turn off spec bits */ \
+"	cmpl	%0,%3;"				/* already have it? */	\
 "	je	2f;"				/* yes, recurse */	\
 "	pushl	%4;"							\
 "	pushl	%5;"							\
@@ -99,23 +97,22 @@ extern char STR_SIEN[];
 "	incl	%2;"							\
 "1:"									\
 "# getlock_sleep"							\
-	: "=&a" (_res),				/* 0 (dummy output) */	\
+	: "+a" (_res),				/* 0 */			\
 	  "+m" (mtxp->mtx_lock), 		/* 1 */			\
 	  "+m" (mtxp->mtx_recurse) 		/* 2 */			\
 	: "r" (tid),				/* 3 (input) */		\
 	  "gi" (type),				/* 4 */			\
 	  "g" (mtxp)				/* 5 */			\
-	: "memory", "ecx", "edx"		/* used */ );		\
+	: "cc", "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /* Get a spin lock, handle recursion inline (as the less common case) */
 #define	_getlock_spin_block(mtxp, tid, type) ({				\
-	int	_res;							\
+	int	_res = MTX_UNOWNED;					\
 									\
 	__asm __volatile (						\
 "	pushfl;"							\
 "	cli;"								\
-"	movl	$" _V(MTX_UNOWNED) ",%%eax;"	/* Unowned cookie */	\
 "	" MPLOCKED ""							\
 "	cmpxchgl %3,%1;"			/* Try */		\
 "	jz	2f;"				/* got it */		\
@@ -127,13 +124,13 @@ extern char STR_SIEN[];
 "2:	popl	%2;"				/* save flags */	\
 "1:"									\
 "# getlock_spin_block"							\
-	: "=&a" (_res),				/* 0 (dummy output) */	\
+	: "+a" (_res),				/* 0 */			\
 	  "+m" (mtxp->mtx_lock),		/* 1 */			\
 	  "=m" (mtxp->mtx_saveintr)		/* 2 */			\
 	: "r" (tid),				/* 3 (input) */		\
 	  "gi" (type),				/* 4 */			\
 	  "g" (mtxp)				/* 5 */			\
-	: "memory", "ecx", "edx"		/* used */ );		\
+	: "cc", "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -141,10 +138,9 @@ extern char STR_SIEN[];
  * we can't get it inline.
  */
 #define	_getlock_norecurse(mtxp, tid, type) ({				\
-	int	_res;							\
+	int	_res = MTX_UNOWNED;					\
 									\
 	__asm __volatile (						\
-"	movl	$" _V(MTX_UNOWNED) ",%%eax;"	/* Unowned cookie */	\
 "	" MPLOCKED ""							\
 "	cmpxchgl %2,%1;"			/* Try */		\
 "	jz	1f;"				/* got it */		\
@@ -154,12 +150,12 @@ extern char STR_SIEN[];
 "	addl	$8,%%esp;"						\
 "1:"									\
 "# getlock_norecurse"							\
-	: "=&a" (_res),				/* 0 (dummy output) */	\
+	: "+a" (_res),				/* 0 */			\
 	  "+m" (mtxp->mtx_lock)			/* 1 */			\
 	: "r" (tid),				/* 2 (input) */		\
 	  "gi" (type),				/* 3 */			\
 	  "g" (mtxp)				/* 4 */			\
-	: "memory", "ecx", "edx"		/* used */ );		\
+	: "cc", "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -184,7 +180,7 @@ extern char STR_SIEN[];
 	: "gi" (type),				/* 2 (input) */		\
 	  "g" (mtxp),				/* 3 */			\
 	  "r" (MTX_UNOWNED)			/* 4 */			\
-	: "memory", "ecx", "edx"		/* used */ );		\
+	: "cc", "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -218,13 +214,13 @@ extern char STR_SIEN[];
 	: "gi" (type),				/* 3 (input) */		\
 	  "g" (mtxp),				/* 4 */			\
 	  "r" (MTX_UNOWNED)			/* 5 */			\
-	: "memory", "ecx", "edx"		/* used */ );		\
+	: "cc", "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
  * Release a spin lock (with possible recursion).
  *
- * We use cmpxchgl to clear lock (instead of simple store) to flush posting
+ * We use xchgl to clear lock (instead of simple store) to flush posting
  * buffers and make the change visible to other CPU's.
  */
 #define	_exitlock_spin(mtxp) ({						\
@@ -236,19 +232,17 @@ extern char STR_SIEN[];
 "	js	1f;"							\
 "	movl	%2,%1;"							\
 "	jmp	2f;"							\
-"1:	movl	%0,%2;"							\
-"	movl	$ " _V(MTX_UNOWNED) ",%%ecx;"				\
+"1:	movl	$ " _V(MTX_UNOWNED) ",%2;"				\
 "	pushl	%3;"							\
-"	" MPLOCKED ""							\
-"	cmpxchgl %%ecx,%0;"				  		\
+"	xchgl	%2,%0;"					  		\
 "	popfl;"								\
 "2:"									\
 "# exitlock_spin"							\
 	: "+m" (mtxp->mtx_lock),	/* 0 */				\
 	  "+m" (mtxp->mtx_recurse),	/* 1 */ 			\
-	  "=&a" (_res)			/* 2 */				\
+	  "=r" (_res)			/* 2 */				\
 	: "g"  (mtxp->mtx_saveintr)	/* 3 */				\
-	: "memory", "ecx"		/* used */ );			\
+	: "cc", "memory", "ecx"		/* used */ );			\
 })
 
 #endif	/* I386_CPU */
