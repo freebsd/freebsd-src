@@ -421,7 +421,7 @@
 299	NOPROTO	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
 ; syscall numbers for FreeBSD
 300	MNOPROTO { int modnext(int modid); }
-301	MNOPROTO { int modstat(int modid, struct module_stat* stat); }
+301	MSTD	{ int freebsd32_modstat(int modid, struct module_stat32* stat); }
 302	MNOPROTO { int modfnext(int modid); }
 303	MNOPROTO { int modfind(const char *name); }
 304	MNOPROTO { int kldload(const char *file); }
