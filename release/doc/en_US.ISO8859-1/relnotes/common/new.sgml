@@ -195,6 +195,11 @@
       is no longer needed when only a USB keyboard is connected.
       &merged;</para>
 
+    <para arch="i386">The &man.cx.4; driver for Cronyx Sigmal
+      serial interfaces has been overhauled.  As a part of this
+      update, the cxconfig userland configuration utility has been
+      replaced by a newer &man.sconfig.8; utility.</para>
+
     <para arch="i386,pc98">The DRM kernel modules have been updated from
       DRI CVS as of 12 November 2003.  Among other changes, this
       change includes a newly-ported SiS 300/305/540/630/730
@@ -343,9 +348,17 @@
 	to support serial ports on certain architectures, such as
 	ia64 and sparc64.</para>
 
+      <para>A new &man.utopia.4; driver supports 25MBit/sec,
+	155MBit/sec and 622MBit/sec ATM physical layer configuration,
+	status and statistics reporting for the most commonly use
+	ATM-PHY chips.</para>
+
       <para>The suspend/resume support for the &man.wi.4; driver
         now works correctly when the device is configured down.
         &merged;</para>
+
+      <para>The &man.wi.4; driver should once again work correctly
+	with Lucent 802.11b interfaces.</para>
 
       <para>The 802.11 support layer has been rewritten to allow for
 	future growth and new features.</para>
@@ -556,6 +569,11 @@
 	    ports.</para>
 	</listitem>
       </itemizedlist>
+
+      <para>Support for NFSv4 has been added with the import of the
+ 	University of Michigan's Citi NFSv4 client implementation.
+ 	More information can be found in the &man.mount.nfs4.8; and
+ 	&man.idmapd.8; manual pages.</para>
 
     </sect3>
 
@@ -842,6 +860,15 @@
 
     <para>The supported release of <application>KDE</application> has
       been updated from 3.1.2 to 3.1.4. &merged;</para>
+
+    <para>The versions of <application>GNOME</application> and
+      <application>KDE</application> included on release disc 1
+      (and installable from the &man.sysinstall.8; <quote>X
+      Desktops</quote> menu) are now <quote>Lite Edition</quote>,
+      packages, rather than the more full-featured meta-packages.
+      These packages are streamlined to provide users with the core
+      essentials for each desktop, while still fitting within the
+      space constraints of release disc 1.</para>
 
   </sect2>
 
