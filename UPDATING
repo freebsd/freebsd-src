@@ -135,7 +135,7 @@ ITEMS:'
 	before doing your next buildworld/installworld pair.  It certainly
 	won't hurt to remove it before the update procedure.  It will
 	break fetch until a new one is built, but ftp can be used in the
-	interrum if needed.
+	interim if needed.
 
 20000705:
 	The crypto packages have changed for the cvsup.  This has been done
@@ -186,7 +186,7 @@ ITEMS:'
 	that used to be required when updating.
 
 20000621:
-	Scott Flatman <sf@aracnet.com> sent in a decent writeup on
+	Scott Flatman <sf@aracnet.com> sent in a decent write-up on
 	the config file update procedure.
 		http://people.freebsd.org/~imp/config-upd.html
 	NOTE: LINT is gone.  It has been replaced with NOTES.  NOTES
@@ -254,7 +254,7 @@ ITEMS:'
 	acceptable to the binutils maintainers.  You will need to
 	rebrand your ELF binaries that aren't native.  One problem
 	binary is the Linux ldconfig.  After your make world, but
-	before you reboot, you'll neeed to issue:
+	before you reboot, you'll need to issue:
 		brandelf -t Linux /compat/linux/sbin/ldconfig
 	if you have Linux compatibility enabled on your machine.
 
