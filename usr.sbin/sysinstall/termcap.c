@@ -30,7 +30,6 @@ set_termcap(void)
     int		   stat;
 
     OnVTY = FALSE;
-
     term = getenv("TERM");
     stat = ioctl(STDERR_FILENO, GIO_COLOR, &ColorDisplay);
 
