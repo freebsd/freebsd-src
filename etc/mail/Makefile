@@ -43,7 +43,7 @@
 SENDMAIL_MC!=           hostname
 SENDMAIL_MC:=           ${SENDMAIL_MC}.mc
 
-${SENDMAIL_MC}: freebsd.mc
+${SENDMAIL_MC}:
 	cp freebsd.mc ${SENDMAIL_MC}
 .endif
 
