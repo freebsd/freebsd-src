@@ -1224,17 +1224,39 @@ unmount(td, uap)
 		int flags;
 	} */ *uap;
 {
-	register struct vnode *vp;
 	struct mount *mp;
-	int error;
-	struct nameidata nd;
+	char *pathbuf;
+	int error, id0, id1;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
-	if ((error = namei(&nd)) != 0)
+	pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+	error = copyinstr(uap->path, pathbuf, MNAMELEN, NULL);
+	if (error) {
+		free(pathbuf, M_TEMP);
 		return (error);
-	vp = nd.ni_vp;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	mp = vp->v_mount;
+	}
+	if (uap->flags & MNT_BYFSID) {
+		/* Decode the filesystem ID. */
+		if (sscanf(pathbuf, "FSID:%d:%d", &id0, &id1) != 2) {
+			free(pathbuf, M_TEMP);
+			return (EINVAL);
+		}
+
+		mtx_lock(&mountlist_mtx);
+		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list)
+			if (mp->mnt_stat.f_fsid.val[0] == id0 &&
+			    mp->mnt_stat.f_fsid.val[1] == id1)
+				break;
+		mtx_unlock(&mountlist_mtx);
+	} else {
+		mtx_lock(&mountlist_mtx);
+		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list)
+			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
+				break;
+		mtx_unlock(&mountlist_mtx);
+	}
+	free(pathbuf, M_TEMP);
+	if (mp == NULL)
+		return (ENOENT);
 
 	/*
 	 * Only root, or the user that did the original mount is
@@ -1242,28 +1264,15 @@ unmount(td, uap)
 	 */
 	if (mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
 		error = suser(td);
-		if (error) {
-			vput(vp);
+		if (error)
 			return (error);
-		}
 	}
 
 	/*
 	 * Don't allow unmounting the root filesystem.
 	 */
-	if (mp->mnt_flag & MNT_ROOTFS) {
-		vput(vp);
+	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EINVAL);
-	}
-
-	/*
-	 * Must be the root of the filesystem
-	 */
-	if ((vp->v_vflag & VV_ROOT) == 0) {
-		vput(vp);
-		return (EINVAL);
-	}
-	vput(vp);
 	return (dounmount(mp, uap->flags, td));
 }
 
