@@ -41,8 +41,8 @@
 	ALIGN_DATA
 
 /* interrupt mask enable (all h/w off) */
-	.globl	_imen
-_imen:	.long	HWI_MASK
+	.globl	imen
+imen:	.long	HWI_MASK
 
 	.text
 	SUPERALIGN_TEXT

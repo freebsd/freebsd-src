@@ -93,7 +93,7 @@ ENTRY(reg_u_sub)
 	cmpl	EXP_UNDER,EXP(%esi)
 	jg	xOp1_not_denorm
 
-	call	_denormal_operand
+	call	denormal_operand
 	orl	%eax,%eax
 	jnz	FPU_Arith_exit
 
@@ -101,7 +101,7 @@ xOp1_not_denorm:
 	cmpl	EXP_UNDER,EXP(%edi)
 	jg	xOp2_not_denorm
 
-	call	_denormal_operand
+	call	denormal_operand
 	orl	%eax,%eax
 	jnz	FPU_Arith_exit
 
@@ -351,7 +351,7 @@ L_exit:
 
 L_underflow:
 	push	%edi
-	call	_arith_underflow
+	call	arith_underflow
 	pop	%ebx
 	jmp	L_exit
 

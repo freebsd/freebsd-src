@@ -44,10 +44,10 @@
 	.data
 	ALIGN_DATA
 
-	.globl	_in_vm86call, _vm86pcb
+	.globl	in_vm86call, vm86pcb
 
-_in_vm86call:		.long	0
-_vm86pcb:		.long	0
+in_vm86call:		.long	0
+vm86pcb:		.long	0
 
 	.text
 
@@ -55,7 +55,7 @@ _vm86pcb:		.long	0
  * vm86_bioscall(struct trapframe_vm86 *vm86)
  */
 ENTRY(vm86_bioscall)
-	movl	_vm86pcb,%edx		/* scratch data area */
+	movl	vm86pcb,%edx		/* scratch data area */
 	movl	4(%esp),%eax
 	movl	%eax,SCR_ARGFRAME(%edx)	/* save argument pointer */
 	pushl	%ebx
@@ -74,7 +74,7 @@ ENTRY(vm86_bioscall)
 	movl	P_ADDR(%ecx),%ecx
 	addl	$PCB_SAVEFPU,%ecx
 	pushl	%ecx
-	call	_npxsave
+	call	npxsave
 	popl	%ecx
 	popl	%edx			/* recover our pcb */
 #endif
@@ -109,7 +109,7 @@ ENTRY(vm86_bioscall)
 
 	movl	%cr3,%eax
 	pushl	%eax			/* save address space */
-	movl	_IdlePTD,%ecx
+	movl	IdlePTD,%ecx
 	movl	%ecx,%ebx
 	addl	$KERNBASE,%ebx		/* va of Idle PTD */
 	movl	0(%ebx),%eax
@@ -124,22 +124,22 @@ ENTRY(vm86_bioscall)
 	movl	%ecx,%cr3		/* new page tables */
 	movl	SCR_VMFRAME(%edx),%esp	/* switch to new stack */
 	
-	call	_vm86_prepcall		/* finish setup */
+	call	vm86_prepcall		/* finish setup */
 
-	movl	$1,_in_vm86call		/* set flag for trap() */
+	movl	$1,in_vm86call		/* set flag for trap() */
 
 	/*
-	 * Return via _doreti
+	 * Return via doreti
 	 */
 	MEXITCOUNT
-	jmp	_doreti
+	jmp	doreti
 
 
 /*
  * vm86_biosret(struct trapframe_vm86 *vm86)
  */
 ENTRY(vm86_biosret)
-	movl	_vm86pcb,%edx		/* data area */
+	movl	vm86pcb,%edx		/* data area */
 
 	movl	4(%esp),%esi		/* source */
 	movl	SCR_ARGFRAME(%edx),%edi	/* destination */
@@ -155,7 +155,7 @@ ENTRY(vm86_biosret)
 	popl	%eax
 	movl	%eax,%cr3		/* install old page table */
 
-	movl	$0,_in_vm86call		/* reset trapflag */
+	movl	$0,in_vm86call		/* reset trapflag */
 
 	movl	PCPU(TSS_GDT),%ebx		/* entry in GDT */
 	movl	SCR_TSS0(%edx),%eax

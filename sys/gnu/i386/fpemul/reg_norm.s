@@ -125,13 +125,13 @@ L_zero:
 
 L_underflow:
 	push	%ebx
-	call	_arith_underflow
+	call	arith_underflow
 	pop	%ebx
 	jmp	L_exit
 
 L_overflow:
 	push	%ebx
-	call	_arith_overflow
+	call	arith_overflow
 	pop	%ebx
 	jmp	L_exit
 

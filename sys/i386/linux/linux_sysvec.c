@@ -199,7 +199,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 }
 
 extern int _ucodesel, _udatasel;
-extern unsigned long _linux_sznonrtsigcode;
+extern unsigned long linux_sznonrtsigcode;
 
 static void
 linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
@@ -329,7 +329,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 */
 	regs->tf_esp = (int)fp;
 	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) + 
-	    _linux_sznonrtsigcode;
+	    linux_sznonrtsigcode;
 	regs->tf_eflags &= ~PSL_VM;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
