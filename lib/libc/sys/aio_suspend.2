@@ -52,18 +52,14 @@ is an array of
 .Fa niocb
 pointers to asynchronous I/O requests.
 Array members containing
-NULL will be silently ignored.
+null pointers will be silently ignored.
 .Pp
 If
 .Fa timeout
-is not a
-.Dv NULL
-pointer, it specifies a maximum interval to suspend.
+is not a null pointer, it specifies a maximum interval to suspend.
 If
 .Fa timeout
-is a
-.Dv NULL
-pointer, the suspend blocks indefinitely.
+is a null pointer, the suspend blocks indefinitely.
 To effect a
 poll, the
 .Fa timeout
