@@ -92,6 +92,7 @@ struct	tty *constty;			/* pointer to console "window" tty */
 static void (*v_putc)(int) = cnputc;	/* routine to putc on virtual console */
 static void  msglogchar(int c, int pri);
 static void  msgaddchar(int c, void *dummy);
+static u_int msgbufcksum(char *cp, size_t size, u_int cksum);
 static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len);
 static void  snprintf_func(int ch, void *arg);
@@ -818,6 +819,7 @@ msgaddchar(int c, void *dummy)
 	if (!msgbufmapped)
 		return;
 	mbp = msgbufp;
+	mbp->msg_cksum += (u_char)c - (u_char)mbp->msg_ptr[mbp->msg_bufx];
 	mbp->msg_ptr[mbp->msg_bufx++] = c;
 	if (mbp->msg_bufx >= mbp->msg_size)
 		mbp->msg_bufx = 0;
@@ -852,17 +854,34 @@ msgbufinit(void *ptr, int size)
 	msgbufp = (struct msgbuf *) (cp + size);
 	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_size != size ||
 	    msgbufp->msg_bufx >= size || msgbufp->msg_bufx < 0 ||
-	    msgbufp->msg_bufr >= size || msgbufp->msg_bufr < 0) {
+	    msgbufp->msg_bufr >= size || msgbufp->msg_bufr < 0 ||
+	    msgbufcksum(cp, size, msgbufp->msg_cksum) != msgbufp->msg_cksum) {
 		bzero(cp, size);
 		bzero(msgbufp, sizeof(*msgbufp));
 		msgbufp->msg_magic = MSG_MAGIC;
-		msgbufp->msg_size = (char *)msgbufp - cp;
+		msgbufp->msg_size = size;
 	}
 	msgbufp->msg_ptr = cp;
 	if (msgbufmapped && oldp != msgbufp)
 		msgbufcopy(oldp);
 	msgbufmapped = 1;
 	oldp = msgbufp;
+}
+
+static u_int
+msgbufcksum(char *cp, size_t size, u_int cksum)
+{
+	u_int sum;
+	int i;
+
+	sum = 0;
+	for (i = 0; i < size; i++)
+		sum += (u_char)cp[i];
+	if (sum != cksum)
+		printf("msgbuf cksum mismatch (read %x, calc %x)\n", cksum,
+		    sum);
+
+	return (sum);
 }
 
 SYSCTL_DECL(_security_bsd);
@@ -913,6 +932,7 @@ sysctl_kern_msgbuf_clear(SYSCTL_HANDLER_ARGS)
 		/* Clear the buffer and reset write pointer */
 		bzero(msgbufp->msg_ptr, msgbufp->msg_size);
 		msgbufp->msg_bufr = msgbufp->msg_bufx = 0;
+		msgbufp->msg_cksum = 0;
 		msgbuf_clear = 0;
 	}
 	return (error);
@@ -933,9 +953,9 @@ DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
 		return;
 	}
 	db_printf("msgbufp = %p\n", msgbufp);
-	db_printf("magic = %x, size = %d, r= %d, w = %d, ptr = %p\n",
+	db_printf("magic = %x, size = %d, r= %d, w = %d, ptr = %p, cksum= %d\n",
 	    msgbufp->msg_magic, msgbufp->msg_size, msgbufp->msg_bufr,
-	    msgbufp->msg_bufx, msgbufp->msg_ptr);
+	    msgbufp->msg_bufx, msgbufp->msg_ptr, msgbufp->msg_cksum);
 	for (i = 0; i < msgbufp->msg_size; i++) {
 		j = (i + msgbufp->msg_bufr) % msgbufp->msg_size;
 		db_printf("%c", msgbufp->msg_ptr[j]);
