@@ -1,6 +1,6 @@
 .\" Copyright (c) 2001 Mark R V Murray
 .\" All rights reserved.
-.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001,2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" Portions of this software were developed for the FreeBSD Project by
@@ -49,6 +49,37 @@
 .Sh DESCRIPTION
 The echo service module for PAM displays its arguments to the user,
 separated by spaces, using the current conversation function.
+.Pp
+If the
+.Cm %
+character occurs anywhere in the arguments to
+.Nm ,
+it is assumed to introduce one of the following escape sequences:
+.Bl -tag -width 4n
+.It Cm %H
+The name of the host on which the client runs
+.Pq Dv PAM_RHOST .
+.\".It Cm %h
+.\"The name of the host on which the server runs.
+.It Cm %s
+The current service name
+.Pq Dv PAM_SERVICE .
+.It Cm %t
+The name of the controlling tty
+.Pq Dv PAM_TTY .
+.It Cm %U
+The applicant's user name
+.Pq Dv PAM_RUSER .
+.It Cm %u
+The target account's user name
+.Pq Dv PAM_USER .
+.El
+.Pp
+Any other two-character sequence beginning with
+.Cm %
+expands to the character following the
+.Cm %
+character.
 .Sh SEE ALSO
 .Xr pam.conf 5 ,
 .Xr pam 8
