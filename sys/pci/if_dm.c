@@ -91,6 +91,7 @@
 
 #include <pci/if_dmreg.h>
 
+/* "controller miibus0" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
 #ifndef lint
