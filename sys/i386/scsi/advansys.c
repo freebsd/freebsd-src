@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: advansys.c,v 1.1.1.1 1996/10/07 02:07:07 gibbs Exp $
  */
 /*
  * Ported from:
@@ -65,9 +65,6 @@
 
 static void	adv_scsi_cmd __P((struct scsi_xfer *xs));
 static void	advminphys __P((struct buf *bp));
-static void *	adv_get_cdb __P((void *adapter_softc, struct scsi_queue *sq));
-static void	adv_free_cdb __P((void *adapter_softc, struct scsi_queue *sq,
-				  void *cdb));
 static timeout_t
                 adv_timeout;
 static int	adv_qdone __P((struct adv_softc *adv));
@@ -79,13 +76,11 @@ struct adv_softc *advsoftcs[NADV];   /* XXX Config should handle this */
 
 static struct scsi_adapter adv_switch =
 {
-        adv_scsi_cmd,
-        advminphys,
-        0,
-        0,
-        adv_get_cdb,
-        adv_free_cdb,
-        "adv"
+	adv_scsi_cmd,
+	advminphys,
+	NULL,
+	NULL,
+	"adv"
 };
 
 static void
@@ -121,7 +116,7 @@ adv_scsi_cmd(xs)
 	scsiq.q2.tag_code = xs->tag_type;
 	scsiq.q2.vm_id = 0;
 	scsiq.sg_head = NULL;
-	scsiq.cdbptr = &xs->cmdstore;
+	scsiq.cdbptr = &xs->cmd;
 
 	if (xs->datalen) {
 		/*
@@ -190,10 +185,8 @@ adv_scsi_cmd(xs)
 	}
 	
 	if (adv_execute_scsi_queue(adv, &scsiq) != 0) {
-		/* XXX Add freeze queue functionality */
-		xs->error = XS_BUSY;
+		xs->error = XS_QUEUE_RESOURCE_SHORTAGE;
 		scsi_done(xs);
-		DELAY(20 * 1000 * 1000);
 	} else if ((xs->flags & SCSI_POLL) != 0) {
 		/*
 		 * If we can't use interrupts, poll for completion
@@ -217,22 +210,6 @@ advminphys(bp)
 {
 	if (bp->b_bcount > ((ADV_MAX_SG_LIST - 1) * PAGE_SIZE))
 		bp->b_bcount = ((ADV_MAX_SG_LIST - 1) * PAGE_SIZE);
-}
-
-static void *
-adv_get_cdb(adapter_softc, sq)
-	void *adapter_softc;
-	struct scsi_queue *sq;
-{
-	return ((void *)1);
-}
-
-static void
-adv_free_cdb(adapter_softc, sq, cdb)
-	void *adapter_softc;
-	struct scsi_queue *sq;
-	void *cdb;
-{
 }
 
 static void
@@ -691,8 +668,10 @@ adv_done(adv, qdonep)
 			break;
 		default:
 			/* QHSTA error occurred */
+#if 0
 			/* XXX Can I get more explicit information here? */
 			xs->error = XS_DRIVER_STUFFUP;
+#endif
 			break;
 		}
 		break;
@@ -700,7 +679,8 @@ adv_done(adv, qdonep)
 	case QD_WITH_ERROR:
 		switch (qdonep->d3.host_stat) {
 		case QHSTA_NO_ERROR:
-			if (qdonep->d3.scsi_stat == SCSI_CHECK) {
+			if ((qdonep->d3.scsi_stat == STATUS_CHECK_CONDITION)
+			 || (qdonep->d3.scsi_stat == STATUS_COMMAND_TERMINATED)) {
 				/* We have valid sense information to return */
 				xs->error = XS_SENSE;
 				if (adv->sense_buffers != NULL)
@@ -712,23 +692,28 @@ adv_done(adv, qdonep)
 			xs->error = XS_SELTIMEOUT;
 			break;
 		default:
+#if 0
 			/* XXX Can I get more explicit information here? */
 			xs->error = XS_DRIVER_STUFFUP;
+#endif
 			break;
 		}
 		break;
 
 	case QD_ABORTED_BY_HOST:
 		/* XXX Should have an explicit ABORTED error code */
-		xs->error = XS_DRIVER_STUFFUP;
+		xs->error = XS_ABORTED;
 		break;
 
 	default:
-		printf("adv_done: Unknown done status 0x%x\n", qdonep->d3.done_stat);
+#if 0
+		printf("adv_done: Unknown done status 0x%x\n",
+			qdonep->d3.done_stat);
 		xs->error = XS_DRIVER_STUFFUP;
+#endif
 		break;
 	}
-	xs->flags |= ITSDONE;
+	xs->flags |= SCSI_ITSDONE;
 	scsi_done(xs);
 	return;
 }
@@ -748,7 +733,7 @@ adv_poll(adv, xs)
 	do {
 		DELAY(1000);
 		adv_intr((void *)adv);
-	} while (--wait && ((xs->flags & ITSDONE) == 0));
+	} while (--wait && ((xs->flags & SCSI_ITSDONE) == 0));
 	if (wait == 0) {
 		printf("adv%d: board is not responding\n", adv->unit);
 		return (EIO);
