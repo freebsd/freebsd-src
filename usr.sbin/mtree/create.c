@@ -90,11 +90,16 @@ cwalk(void)
 	char dot[] = ".";
 	int indent = 0;
 
-	(void)time(&cl);
-	(void)gethostname(host, sizeof(host));
-	(void)printf(
-	    "#\t   user: %s\n#\tmachine: %s\n#\t   tree: %s\n#\t   date: %s",
-	    getlogin(), host, fullpath, ctime(&cl));
+	if (!nflag) {
+		(void)time(&cl);
+		(void)gethostname(host, sizeof(host));
+		(void)printf(
+		    "#\t   user: %s\n#\tmachine: %s\n",
+		    getlogin(), host);
+		(void)printf(
+		    "#\t   tree: %s\n#\t   date: %s",
+		    fullpath, ctime(&cl));
+	}
 
 	argv[0] = dot;
 	argv[1] = NULL;
