@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  * 
- * $Id:$
+ * $Id: ip.c,v 1.2 1995/02/26 12:17:33 amurai Exp $
  * 
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -75,7 +75,6 @@ static void
 RestartIdleTimer()
 {
   if (!(mode & MODE_DEDICATED) && ipKeepAlive ) {
-/*  StopTimer(&IdleTimer); */
     StartTimer(&IdleTimer);
     ipIdleSecs = 0;
   }
@@ -301,7 +300,7 @@ int direction;
     if (direction == 0) IcmpError(pip, pri);
     return(-1);
   } else {
-    if ( FilterCheck(pip, 3) & A_DENY ) {  /* Check Keep Alive filter */
+    if ( FilterCheck(pip, FL_KEEP ) & A_DENY ) {  /* Check Keep Alive filter */
 	ipKeepAlive = FALSE;
     } else {
 	ipKeepAlive = TRUE;
@@ -327,7 +326,7 @@ struct mbuf *bp;		/* IN: Pointer to IP pakcet */
     nb += wp->cnt;
   }
 
-  if (PacketCheck(tunbuff, nb, 0) < 0) {
+  if ( PacketCheck(tunbuff, nb, FL_IN ) < 0) {
     pfree(bp);
     return;
   }
@@ -355,7 +354,7 @@ int cnt;			/* IN: Length of packet */
   if (IpcpFsm.state != ST_OPENED)
     return;
 
-  pri = PacketCheck(ptr, cnt, 1);
+  pri = PacketCheck(ptr, cnt, FL_OUT);
   if (pri >= 0) {
     bp = mballoc(cnt, MB_IPIN);
     bcopy(ptr, MBUF_CTOP(bp), cnt);
@@ -378,6 +377,20 @@ int count;
   bp = mballoc(count, MB_IPQ);
   bcopy(ptr, MBUF_CTOP(bp), count);
   Enqueue(&IpOutputQueues[pri], bp);
+}
+
+int 
+IsIpEnqueued()
+{
+  struct mqueue *queue;
+  int    exist = FALSE;
+  for (queue = &IpOutputQueues[PRI_URGENT]; queue >= IpOutputQueues; queue--) {
+     if ( queue->qlen > 0 ) {
+       exist = TRUE;
+       break;
+     }
+  }
+  return( exist );
 }
 
 void

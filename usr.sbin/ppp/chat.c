@@ -18,11 +18,12 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  * 
- * $Id:$
+ * $Id: chat.c,v 1.2 1995/02/26 12:17:20 amurai Exp $
  * 
  *  TODO:
  *	o Support more UUCP compatible control sequences.
  *	o Dialing shoud not block monitor process.
+ *	o Reading modem by select should be unified into main.c
  */
 #include "defs.h"
 #include <ctype.h>

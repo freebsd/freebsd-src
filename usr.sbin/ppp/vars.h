@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.1.1.1 1995/01/31 06:29:55 amurai Exp $
+ * $Id: vars.h,v 1.2 1995/02/26 12:18:06 amurai Exp $
  *
  *	TODO:
  */
@@ -64,6 +64,8 @@ struct pppvars {
   #define LOCAL_AUTH	0x01
   #define LOCAL_NO_AUTH	0x02
   u_char lauth;			/* Local Authorized status */
+  #define DIALUP_REQ	0x01
+  #define DIALUP_DONE	0x02
   char   dial_script[200];	/* Dial script */
   char   login_script[200];	/* Login script */
   char   auth_key[50];		/* PAP/CHAP key */
