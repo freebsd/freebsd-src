@@ -82,8 +82,8 @@
 
 #include <machine/bus.h>
 
-#include <hme/if_hmereg.h>
-#include <hme/if_hmevar.h>
+#include <dev/hme/if_hmereg.h>
+#include <dev/hme/if_hmevar.h>
 
 static void	hme_start(struct ifnet *);
 static void	hme_stop(struct hme_softc *);
