@@ -33,9 +33,9 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-
 #include <sys/cons.h>
-#include <machine/console.h>
+#include <sys/consio.h>
+
 #include <machine/clock.h>
 
 #include <pc98/pc98/pc98.h>
