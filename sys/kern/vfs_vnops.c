@@ -852,25 +852,22 @@ debug_vn_lock(vp, flags, td, filename, line)
 			vp->v_iflag |= VI_XWANT;
 			msleep(vp, VI_MTX(vp), PINOD | PDROP,
 			    "vn_lock", 0);
-			/*
-			 * Since we're just going to return, unlock interlock.
-			 */
-			if ((flags & LK_RETRY) == 0)
-				VI_UNLOCK(vp);
 			error = ENOENT;
-		} else {
+			if ((flags & LK_RETRY) == 0) {
+				VI_UNLOCK(vp);
+				return (error);
+			}
+		} 
 #ifdef	DEBUG_LOCKS
-			vp->filename = filename;
-			vp->line = line;
+		vp->filename = filename;
+		vp->line = line;
 #endif
-			/*
-			 * lockmgr drops interlock before it will return for
-			 * any reason.  So force the code above to relock it.
-			 */
-			error = VOP_LOCK(vp,
-				    flags | LK_NOPAUSE | LK_INTERLOCK, td);
-			flags &= ~LK_INTERLOCK;
-		}
+		/*
+		 * lockmgr drops interlock before it will return for
+		 * any reason.  So force the code above to relock it.
+		 */
+		error = VOP_LOCK(vp, flags | LK_NOPAUSE | LK_INTERLOCK, td);
+		flags &= ~LK_INTERLOCK;
 	} while (flags & LK_RETRY && error != 0);
 	return (error);
 }
