@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 2, 2001
+.Dd June 4, 2004
 .Dt ACPI 4
 .Os
 .Sh NAME
@@ -359,10 +359,9 @@ Maximum value for CPU throttling, equal to 100% of the clock rate.
 Get or set the current throttling state, from 1 to
 .Va hw.acpi.cpu.throttle_max .
 This scales back the CPU clock rate and the corresponding power consumption.
-.It Va hw.acpi.cpu.cx_history
-Debugging information listing all sleep states and the number of
-long and short sleeps for each one.
-The counters are reset when
+.It Va hw.acpi.cpu.cx_usage
+Debugging information listing the percent of total usage for each sleep state.
+The values are reset when
 .Va hw.acpi.cpu.cx_lowest
 is modified.
 .It Va hw.acpi.cpu.cx_lowest
