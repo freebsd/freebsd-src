@@ -100,21 +100,18 @@ static const struct lc_time_T	_C_time_locale = {
 };
 
 struct lc_time_T *
-__get_current_time_locale(void) {
+__get_current_time_locale(void)
+{
 	return (_time_using_locale
 		? &_time_locale
 		: (struct lc_time_T *)&_C_time_locale);
 }
 
 int
-__time_load_locale(const char *name) {
-
-	int	ret;
-
-	ret = __part_load_locale(name, &_time_using_locale,
+__time_load_locale(const char *name)
+{
+	return (__part_load_locale(name, &_time_using_locale,
 			time_locale_buf, "LC_TIME",
 			LCTIME_SIZE, LCTIME_SIZE,
-			(const char **)&_time_locale);
-
-	return (ret);
+			(const char **)&_time_locale));
 }
