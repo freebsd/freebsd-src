@@ -1,4 +1,4 @@
-.\" 	$NetBSD: ftp.1,v 1.100 2003/08/07 11:13:54 agc Exp $
+.\" 	$NetBSD: ftp.1,v 1.101 2003/12/19 03:46:02 lukem Exp $
 .\"
 .\" Copyright (c) 1996-2003 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -64,7 +64,7 @@
 .\"
 .\"	@(#)ftp.1	8.3 (Berkeley) 10/9/94
 .\"
-.Dd July 31, 2003
+.Dd December 19, 2003
 .Dt FTP 1
 .Os
 .Sh NAME
@@ -224,7 +224,7 @@ Restrains
 .Nm
 from attempting
 .Dq auto-login
-upon initial connection.
+upon initial connection for non auto-fetch transfers.
 If auto-login is enabled,
 .Nm
 will check the
@@ -236,6 +236,8 @@ If no entry exists,
 will prompt for the remote machine login name (default is the user
 identity on the local machine), and, if necessary, prompt for a password
 and an account with which to login.
+To override the auto-login for auto-fetch transfers, specify the
+username (and optionally, password) as appropriate.
 .It Fl N Ar netrc
 Use
 .Ar netrc
