@@ -47,6 +47,7 @@
 #include <sparc64/pci/ofw_pci.h>
 
 #include <machine/ofw_bus.h>
+#include <machine/ver.h>
 
 #include "pcib_if.h"
 
@@ -54,16 +55,63 @@ u_int8_t pci_bus_cnt;
 phandle_t *pci_bus_map;
 int pci_bus_map_sz;
 
+#define	OPQ_NEED_SWIZZLE	1
+static struct ofw_pci_quirk {
+	char	*opq_model;
+	int	opq_quirks;
+} ofw_pci_quirks[] = {
+	{ "SUNW,UltraSPARC-IIi-cEngine", OPQ_NEED_SWIZZLE }
+};
+#define	OPQ_NENT	(sizeof(ofw_pci_quirks) / sizeof(ofw_pci_quirks[0]))
+
+static int pci_quirks;
+
+#define	OFW_PCI_PCIBUS	"pci"
 #define	PCI_BUS_MAP_INC	10
 
+int
+ofw_pci_orb_callback(phandle_t node, u_int8_t *pintptr, int pintsz,
+    u_int8_t *pregptr, int pregsz, u_int8_t **rintr, int *terminate)
+{
+	struct ofw_pci_register preg;
+	u_int32_t pintr, intr;
+	char type[32];
+
+	if ((pci_quirks & OPQ_NEED_SWIZZLE) != 0 &&
+	    pintsz == sizeof(u_int32_t) && pregsz >= sizeof(preg) &&
+	    OF_getprop(node, "device_type", type, sizeof(type)) != -1 &&
+	    strcmp(type, OFW_PCI_PCIBUS) == 0) {
+		/*
+		 * Handle a quirk found on some Netra t1 models: there exist
+		 * PCI bridges without interrupt maps, where we apparently must
+		 * do the PCI swizzle and continue to map on at the parent.
+		 */
+		bcopy(pintptr, &pintr, sizeof(pintr));
+		bcopy(pregptr, &preg, sizeof(preg));
+		intr = (OFW_PCI_PHYS_HI_DEVICE(preg.phys_hi) + pintr) % 4;
+		*rintr = malloc(sizeof(intr), M_OFWPROP, M_WAITOK);
+		bcopy(&intr, *rintr, sizeof(intr));
+		*terminate = 0;
+		return (sizeof(intr));
+	}
+	return (-1);
+}
+
 u_int32_t
-ofw_pci_route_intr(phandle_t node)
+ofw_pci_route_intr(phandle_t node, u_int32_t ign)
 {
 	u_int32_t rv;
 
-	rv = ofw_bus_route_intr(node, ORIP_NOINT);
+	rv = ofw_bus_route_intr(node, ORIP_NOINT, ofw_pci_orb_callback);
 	if (rv == ORIR_NOTFOUND)
 		return (255);
+	/*
+	 * Some machines (notably the SPARCengine Ultra AX) have no mappings
+	 * at all, but use complete interrupt vector number including the IGN.
+	 * Catch this case and remove the IGN.
+	 */
+	if (rv > ign)
+		rv -= ign;
 	return (rv);
 }
 
@@ -112,7 +160,6 @@ ofw_pci_binit(device_t busdev, struct ofw_pci_bdesc *obd)
 	    PCIR_SUBBUS_1, obd->obd_subbus, 1);
 }
 
-#define	OFW_PCI_PCIBUS	"pci"
 /*
  * Walk the PCI bus hierarchy, starting with the root PCI bus and descending
  * through bridges, and initialize the interrupt line and latency timer
@@ -120,14 +167,23 @@ ofw_pci_binit(device_t busdev, struct ofw_pci_bdesc *obd)
  * as well as the the bus numbers and ranges of the bridges.
  */
 void
-ofw_pci_init(device_t dev, phandle_t bushdl, struct ofw_pci_bdesc *obd)
+ofw_pci_init(device_t dev, phandle_t bushdl, u_int32_t ign,
+    struct ofw_pci_bdesc *obd)
 {
 	struct ofw_pci_register pcir;
 	struct ofw_pci_bdesc subobd, *tobd;
 	phandle_t node;
 	char type[32];
-	int intr, freemap;
+	int i, intr, freemap;
 	u_int slot, busno, func, sub, lat;
+
+	/* Initialize the quirk list. */
+	for (i = 0; i < OPQ_NENT; i++) {
+		if (strcmp(sparc64_model, ofw_pci_quirks[i].opq_model) == 0) {
+			pci_quirks = ofw_pci_quirks[i].opq_quirks;
+			break;
+		}
+	}
 
 	if ((node = OF_child(bushdl)) == 0)
 		return;
@@ -141,7 +197,7 @@ ofw_pci_init(device_t dev, phandle_t bushdl, struct ofw_pci_bdesc *obd)
 		else
 			type[sizeof(type) - 1] = '\0';
 		if (OF_getprop(node, "reg", &pcir, sizeof(pcir)) == -1)
-			panic("ofw_pci_route_intr: OF_getprop failed");
+			panic("ofw_pci_init: OF_getprop failed");
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
 		if (strcmp(type, OFW_PCI_PCIBUS) == 0) {
@@ -173,7 +229,7 @@ ofw_pci_init(device_t dev, phandle_t bushdl, struct ofw_pci_bdesc *obd)
 			device_printf(dev, "%s: descending to "
 			    "subordinate PCI bus\n", __func__);
 #endif /* OFW_PCI_DEBUG */
-			ofw_pci_init(dev, node, &subobd);
+			ofw_pci_init(dev, node, ign, &subobd);
 		} else {
 			/*
 			 * Initialize the latency timer register for
@@ -199,7 +255,7 @@ ofw_pci_init(device_t dev, phandle_t bushdl, struct ofw_pci_bdesc *obd)
 			}
 
 			/* Initialize the intline registers. */
-			if ((intr = ofw_pci_route_intr(node)) != 255) {
+			if ((intr = ofw_pci_route_intr(node, ign)) != 255) {
 #ifdef OFW_PCI_DEBUG
 				device_printf(dev, "%s: mapping intr for "
 				    "%d/%d/%d to %d (preset was %d)\n",

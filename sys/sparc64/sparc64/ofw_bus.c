@@ -151,15 +151,16 @@ ofw_bus_find_intr(u_int8_t *intr, int intrsz, u_int8_t *regs, int physsz,
  * the interrupt map of the next higher node. If there is no match or no such
  * propery, we go to the next higher node, using the 'reg' property of the node
  * that was just processed unusccessfully.
- * When a match occurs, we continue to search, using the new interrupt
- * specification that was just found.
+ * When a match occurs, we should continue to search, using the new interrupt
+ * specification that was just found; this is currently not performed
+ * (see below).
  * When the root node is reached with at least one successful mapping performed,
  * and the format is right, the interrupt number is returned.
  *
  * This should work for all bus systems.
  */
 u_int32_t
-ofw_bus_route_intr(phandle_t node, int intrp)
+ofw_bus_route_intr(phandle_t node, int intrp, obr_callback_t *cb)
 {
 	u_int8_t *reg, *intr, *tintr, *imap, *imapmsk;
 	phandle_t parent;
@@ -193,8 +194,22 @@ ofw_bus_route_intr(phandle_t node, int intrp)
 			panic("ofw_bus_route_intr: could not get reg property");
 		imapsz = OF_getprop_alloc(parent, "interrupt-map", 1,
 		    (void **)&imap);
-		if (imapsz == -1)
+		if (imapsz == -1) {
+			/*
+			 * Use the callback to allow caller-specific workarounds
+			 * for firmware bugs (missing properties).
+			 */
+			if (cb != NULL) {
+				tisz = cb(parent, intr, isz, reg, regsz, &tintr,
+				    &found);
+				if (tisz != -1) {
+					isz = tisz;
+					free(intr, M_OFWPROP);
+					intr = tintr;
+				}
+			}
 			continue;
+		}
 		if (OF_getprop(parent, "#address-cells", &addrc,
 		    sizeof(addrc)) == -1)
 			addrc = 2;
