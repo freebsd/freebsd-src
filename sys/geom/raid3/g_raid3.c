@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
-#include <sys/bitstring.h>
 #include <vm/uma.h>
 #include <machine/atomic.h>
 #include <geom/geom.h>
@@ -372,7 +371,7 @@ static int
 g_raid3_is_busy(struct g_raid3_softc *sc, struct g_consumer *cp)
 {
 
-	if (cp->nstart != cp->nend) {
+	if (cp->index > 0) {
 		G_RAID3_DEBUG(2,
 		    "I/O requests for %s exist, can't destroy it now.",
 		    cp->provider->name);
@@ -412,6 +411,7 @@ g_raid3_connect_disk(struct g_raid3_disk *disk, struct g_provider *pp)
 
 	disk->d_consumer = g_new_consumer(disk->d_softc->sc_geom);
 	disk->d_consumer->private = disk;
+	disk->d_consumer->index = 0;
 	error = g_attach(disk->d_consumer, pp);
 	if (error != 0)
 		return (error);
@@ -928,6 +928,7 @@ g_raid3_scatter(struct bio *pbp)
 		KASSERT(cp->acr > 0 && cp->ace > 0,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
 		    cp->acr, cp->acw, cp->ace));
+		cp->index++;
 		g_io_request(cbp, cp);
 	}
 }
@@ -1026,6 +1027,7 @@ g_raid3_gather(struct bio *pbp)
 		KASSERT(cp->acr > 0 && cp->ace > 0,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
 		    cp->acr, cp->acw, cp->ace));
+		cp->index++;
 		g_io_request(fbp, cp);
 		return;
 	}
@@ -1098,6 +1100,7 @@ g_raid3_regular_request(struct bio *cbp)
 
 	g_topology_assert_not();
 
+	cbp->bio_from->index--;
 	pbp = cbp->bio_parent;
 	sc = pbp->bio_to->geom->softc;
 	disk = cbp->bio_from->private;
@@ -1241,6 +1244,7 @@ g_raid3_sync_one(struct g_raid3_softc *sc)
 	disk->d_sync.ds_offset += bp->bio_length / (sc->sc_ndisks - 1);
 	bp->bio_to = sc->sc_provider;
 	G_RAID3_LOGREQ(3, bp, "Sending synchronization request.");
+	disk->d_sync.ds_consumer->index++;
 	g_io_request(bp, disk->d_sync.ds_consumer);
 }
 
@@ -1250,6 +1254,7 @@ g_raid3_sync_request(struct bio *bp)
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
 
+	bp->bio_from->index--;
 	sc = bp->bio_from->geom->softc;
 	disk = bp->bio_from->private;
 	if (disk == NULL) {
@@ -1314,6 +1319,7 @@ g_raid3_sync_request(struct bio *bp)
 		KASSERT(cp->acr == 0 && cp->acw == 1 && cp->ace == 1,
 		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
 		    cp->acr, cp->acw, cp->ace));
+		cp->index++;
 		g_io_request(bp, cp);
 		return;
 	    }
@@ -1514,6 +1520,7 @@ g_raid3_register_request(struct bio *pbp)
 			KASSERT(cp->acr > 0 && cp->ace > 0,
 			    ("Consumer %s not opened (r%dw%de%d).",
 			    cp->provider->name, cp->acr, cp->acw, cp->ace));
+			cp->index++;
 			g_io_request(cbp, cp);
 		}
 		break;
@@ -1822,6 +1829,7 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 	    sc->sc_name, g_raid3_get_diskname(disk)));
 	disk->d_sync.ds_consumer = g_new_consumer(sc->sc_sync.ds_geom);
 	disk->d_sync.ds_consumer->private = disk;
+	disk->d_sync.ds_consumer->index = 0;
 	error = g_attach(disk->d_sync.ds_consumer, disk->d_softc->sc_provider);
 	KASSERT(error == 0, ("Cannot attach to %s (error=%d).",
 	    disk->d_softc->sc_name, error));
