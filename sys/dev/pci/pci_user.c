@@ -37,6 +37,7 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/types.h>
 
@@ -87,10 +88,15 @@ struct cdevsw pcicdev = {
 static int
 pci_open(dev_t dev, int oflags, int devtype, struct thread *td)
 {
-	if ((oflags & FWRITE) && securelevel > 0) {
-		return EPERM;
+	int error;
+
+	if (oflags & FWRITE) {
+		error = securelevel_gt(td->td_proc->p_ucred, 0);
+		if (error)
+			return (error);
 	}
-	return 0;
+
+	return (0);
 }
 
 static int
