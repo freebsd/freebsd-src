@@ -247,10 +247,19 @@ static void
 parse_bus_info_block(u_int32_t *p, int info_len)
 {
 	int i;
+	struct bus_info *bi;
 
-	for (i = 0; i < info_len; i++) {
-		printf("bus_info%d: 0x%08x\n", i, *p++);
-	}
+	bi = (struct bus_info *)p;
+	printf("bus_name: 0x%04x\n"
+		"irmc:%d cmc:%d isc:%d bmc:%d pmc:%d\n"
+		"cyc_clk_acc:%d max_rec:%d max_rom:%d\n"
+		"generation:%d link_spd:%d\n"
+		"EUI64: 0x%08x 0x%08x\n",
+		bi->bus_name,
+		bi->irmc, bi->cmc, bi->isc, bi->bmc, bi->pmc,
+		bi->cyc_clk_acc, bi->max_rec, bi->max_rom,
+		bi->generation, bi->link_spd,
+		bi->eui64.hi, bi->eui64.lo);
 }
 
 static int
@@ -268,14 +277,13 @@ get_crom(int fd, int node, void *crom_buf, int len)
 	}
 	if (i == data->info_len)
 		errx(1, "no such node %d.", node);
-	else if (i == 0)
-		errx(1, "node %d is myself.", node);
 	else
 		buf.eui = data->dev[i].eui;
 	free((void *)data);
 
 	buf.len = len;
 	buf.ptr = crom_buf;
+	bzero(crom_buf, len);
 	if ((error = ioctl(fd, FW_GCROM, &buf)) < 0) {
        		err(1, "ioctl");
 	}

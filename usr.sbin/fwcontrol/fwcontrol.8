@@ -24,7 +24,6 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\"
 .Dd December 30, 2002
 .Dt FWCONTROL 8
 .Os
@@ -51,9 +50,10 @@ utility is designed to provide a way for users to access and control the
 FireWire subsystem.
 Without options,
 .Nm
-will output a list of devices those are/were connected to the bus.
+will output a list of devices that are/were connected to the bus.
 .Pp
-.Bl -tag -width indent 
+The following options are available:
+.Bl -tag -width indent
 .It Fl r
 Initiate bus reset.
 .It Fl t
@@ -63,72 +63,79 @@ Show the configuration ROM on the node.
 .It Fl d Ar node
 Hex dump of the configuration ROM.
 .It Fl o Ar node
-Send a link-on phy packet to the node.
+Send a link-on PHY packet to the node.
 .It Fl s Ar node
-Write to RESET_START register on the node.
+Write to
+.Dv RESET_START
+register on the node.
 .It Fl l Ar file
 Load hex dump file of the configuration ROM and parse it.
 .It Fl g Ar gap_count
-Broadcast gap_count by phy_config packet.
+Broadcast
+.Ar gap_count
+by phy_config packet.
 .It Fl i Ar pri_req
-Set PRIORITY_BUDGET register on all supported nodes.
+Set
+.Dv PRIORITY_BUDGET
+register on all supported nodes.
 .It Fl R Ar filename
-Receive DV stream and dump it to a file. Use Ctl-C to stop the receiving.
+Receive DV stream and dump it to a file.
+Use Ctrl-C to stop the receiving.
 Some DV cameras seem not to send the stream if a bus manager exits.
-If you cannot get the stream, try the following commands.
+If you cannot get the stream, try the following commands:
 .Bd -literal -offset indent
-sysctl hw.firewire.try_bmr=0; fwcontrol -r
+sysctl hw.firewire.try_bmr=0
+fwcontrol -r
 .Ed
 .Pp
 The resulting file contains raw DV data excluding isochronus header
-and CIP header. It can be handled by
-.Ic libdv
-in the ports collection.
+and CIP header.
+It can be handled by
+.Nm libdv
+in the
+.Fx
+Ports Collection.
 .It Fl S Ar filename
 Send a DV file as isochronus stream.
 .El
 .Sh EXAMPLES
 Each DV frame has fixed size and it is easy to edit those frame order.
-.Bd -literal -offset indent
-fwcontrol -R original.dv
-.Ed
+.Pp
+.Dl "fwcontrol -R original.dv"
 .Pp
 Receive stream.
-.Bd -literal -offset indent
-dd if=original.dv of=first.dv bs=120000 count=30
-.Ed
+.Pp
+.Dl "dd if=original.dv of=first.dv bs=120000 count=30"
 .Pp
 Get first 30 frames(NTSC).
-.Bd -literal -offset indent
-dd if=original.dv of=second.dv bs=120000 skip=30 count=30
-.Ed
+.Pp
+.Dl "dd if=original.dv of=second.dv bs=120000 skip=30 count=30"
 .Pp
 Get second 30 frames(NTSC).
-.Bd -literal -offset indent
-cat second.dv first.dv | fwcontrol -S /dev/stdin
-.Ed
+.Pp
+.Dl "cat second.dv first.dv | fwcontrol -S /dev/stdin"
 .Pp
 Swap first and second 30 frames and send them to DV recorder.
 .Pp
-For PAL, replace 'bs=120000' with 'bs=144000'.
-.Pp
+For PAL, replace
+.Dq Li bs=120000
+with
+.Dq Li bs=144000 .
 .Sh FILES
-.Bl -tag -width indent
+.Bl -tag
 .It Pa /dev/fw0
 .El
 .Sh SEE ALSO
 .Xr firewire 4 ,
+.Xr fwe 4 ,
 .Xr fwohci 4 ,
-.Xr sbp 4 ,
-.Xr fwe 4
+.Xr sbp 4
 .Sh HISTORY
 The
 .Nm
 utility first appeared in
 .Fx 5.0 .
-.Pp
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
 .Sh BUGS
 This utility is still under development and provided for debug purpose.
-.Pp
