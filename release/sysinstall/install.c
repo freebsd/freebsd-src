@@ -297,8 +297,6 @@ installFixit(char *str)
 int
 installExpress(char *str)
 {
-    char *cp;
-
     dialog_clear();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
@@ -321,18 +319,6 @@ installExpress(char *str)
     if (diskLabelEditor("express") == RET_FAIL)
 	return RET_FAIL;
 
-    /* If this is set, we have a power installation setup here.. */
-    cp = variable_get(VAR_DIST_SETS);
-    if (cp) {
-	/* These *ALL* have to be set at once.  Like I said - power installation setup */
-	if (sscanf(cp, "%x %x %x %x %x %x",
-		   &Dists, &DESDists, &SrcDists, &XF86Dists, &XF86ServerDists, &XF86FontDists) != 6) {
-	    dialog_clear();
-	    msgConfirm("Warning:  A %s variable was configured which did not set all\n"
-		       "distributions explicitly.  Some distributions will default to\n"
-		       "unselected as a result.", VAR_DIST_SETS);
-	}
-    }
     if (!Dists) {
 	dialog_clear();
 	msgConfirm("Now it is time to select an installation subset.  There are a number of\n"
