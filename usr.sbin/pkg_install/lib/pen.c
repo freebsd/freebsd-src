@@ -60,8 +60,8 @@ find_play_pen(char *pen, size_t sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
     else {
 	cleanup(0);
-	errx(2,
-"can't find enough temporary space to extract the files, please set your\n"
+	errx(2, __FUNCTION__
+": can't find enough temporary space to extract the files, please set your\n"
 "PKG_TMPDIR environment variable to a location with at least %d bytes\n"
 "free", sz);
 	return NULL;
@@ -77,7 +77,7 @@ static void
 pushPen(char *pen)
 {
     if (++pdepth == MAX_STACK)
-	errx(2, "stack overflow in pushPen().\n");
+	errx(2, __FUNCTION__ ": stack overflow.\n");
     pstack[pdepth] = strdup(pen);
 }
 
@@ -104,11 +104,11 @@ make_playpen(char *pen, size_t sz)
 
     if (!mkdtemp(pen)) {
 	cleanup(0);
-	errx(2, "can't mktemp '%s'", pen);
+	errx(2, __FUNCTION__ ": can't mktemp '%s'", pen);
     }
     if (chmod(pen, 0755) == FAIL) {
 	cleanup(0);
-	errx(2, "can't mkdir '%s'", pen);
+	errx(2, __FUNCTION__ ": can't mkdir '%s'", pen);
     }
 
     if (Verbose) {
@@ -119,7 +119,7 @@ make_playpen(char *pen, size_t sz)
     if (min_free(pen) < sz) {
 	rmdir(pen);
 	cleanup(0);
-	errx(2, "not enough free space to create '%s'.\n"
+	errx(2, __FUNCTION__ ": not enough free space to create '%s'.\n"
 	     "Please set your PKG_TMPDIR environment variable to a location\n"
 	     "with more space and\ntry the command again", pen);
     }
@@ -131,7 +131,7 @@ make_playpen(char *pen, size_t sz)
 
     if (chdir(pen) == FAIL) {
 	cleanup(0);
-	errx(2, "can't chdir to '%s'", pen);
+	errx(2, __FUNCTION__ ": can't chdir to '%s'", pen);
     }
 
     if (PenLocation[0])
@@ -152,7 +152,7 @@ leave_playpen()
     if (Previous[0]) {
 	if (chdir(Previous) == FAIL) {
 	    cleanup(0);
-	    errx(2, "can't chdir back to '%s'", Previous);
+	    errx(2, __FUNCTION__ ": can't chdir back to '%s'", Previous);
 	}
 	Previous[0] = '\0';
     }

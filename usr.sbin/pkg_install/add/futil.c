@@ -42,7 +42,7 @@ make_hierarchy(char *dir)
     else
 	cp1 = cp2 = dir;
     while (cp2) {
-	if ((cp2 = index(cp1, '/')) !=NULL )
+	if ((cp2 = strchr(cp1, '/')) !=NULL )
 	    *cp2 = '\0';
 	if (fexists(dir)) {
 	    if (!isdir(dir)) {
