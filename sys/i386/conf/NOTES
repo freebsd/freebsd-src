@@ -1010,7 +1010,7 @@ device		speaker		#Play IBM BASIC-style noises out your speaker
 device		gzip		#Exec gzipped a.out's
 device		md		#Memory/malloc disk
 device		snp		#Snoop device - to look at pty/vty/etc..
-device		ccd	4	#Concatenated disk driver
+device		ccd		#Concatenated disk driver
 
 # Configuring Vinum into the kernel is not necessary, since the kld
 # module gets started automatically when vinum(8) starts.  This
