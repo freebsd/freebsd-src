@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcpip.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcpip.h,v 1.6 1997/02/22 09:41:43 peter Exp $
  */
 
 #ifndef _NETINET_TCPIP_H_
@@ -54,8 +54,6 @@ struct full_tcpiphdr {
 	char	ti_o[TCP_MAXOLEN];	/* space for tcp options */
 };
 #endif /* notyet */
-#define	ti_next		ti_i.ih_next
-#define	ti_prev		ti_i.ih_prev
 #define	ti_x1		ti_i.ih_x1
 #define	ti_pr		ti_i.ih_pr
 #define	ti_len		ti_i.ih_len
