@@ -6,7 +6,7 @@ SRCS=	blocks.c disklabel.c chunk.c disk.c change.c \
 INCS=	libdisk.h
 
 # Remove KERN_DISKS_BROKEN when kern.disks sysctl returns disks in sorted order
-CFLAGS+= 	-Wall -DKERN_DISKS_BROKEN
+CFLAGS+= 	-Wall
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-DPC98
 .endif
