@@ -1429,7 +1429,7 @@ mcd_subchan(struct mcd_softc *sc, struct ioc_read_subchannel *sch, int nocopyout
 	if (nocopyout == 0)
 		return copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len));
 	bcopy(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len));
-	return (0)
+	return (0);
 }
 
 static int
