@@ -324,9 +324,21 @@ makeudev(int x, int y)
 }
 
 static void
-prep_cdevsw(struct cdevsw *devsw)
+find_major(struct cdevsw *devsw)
 {
 	int i;
+
+	for (i = NUMCDEVSW - 1; i > 0; i--)
+		if (reserved_majors[i] != i)
+			break;
+	KASSERT(i > 0, ("Out of major numbers (%s)", devsw->d_name));
+	devsw->d_maj = i;
+	reserved_majors[i] = i;
+}
+
+static void
+prep_cdevsw(struct cdevsw *devsw)
+{
 
 	if (devsw->d_open == NULL)	devsw->d_open = null_open;
 	if (devsw->d_close == NULL)	devsw->d_close = null_close;
@@ -339,12 +351,7 @@ prep_cdevsw(struct cdevsw *devsw)
 	if (devsw->d_dump == NULL)	devsw->d_dump = no_dump;
 	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = no_kqfilter;
 	if (devsw->d_maj == MAJOR_AUTO) {
-		for (i = NUMCDEVSW - 1; i > 0; i--)
-			if (reserved_majors[i] != i)
-				break;
-		KASSERT(i > 0, ("Out of major numbers (%s)", devsw->d_name));
-		devsw->d_maj = i;
-		reserved_majors[i] = i;
+		find_major(devsw);
 	} else {
 		if (devsw->d_maj == 256)	/* XXX: tty_cons.c is magic */
 			devsw->d_maj = 0;	
@@ -458,17 +465,22 @@ destroy_dev(dev_t dev)
 	}
 		
 	devfs_destroy(dev);
+	dev->si_flags &= ~SI_NAMED;
+
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
 		dev->si_flags &= ~SI_CHILD;
 	}
 	while (!LIST_EMPTY(&dev->si_children))
 		destroy_dev(LIST_FIRST(&dev->si_children));
+	if (dev->si_flags & SI_CLONELIST) {
+		LIST_REMOVE(dev, si_clone);
+		dev->si_flags &= ~SI_CLONELIST;
+	}
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
 	dev->si_devsw = 0;
 	bzero(&dev->__si_u, sizeof(dev->__si_u));
-	dev->si_flags &= ~SI_NAMED;
 	dev->si_flags &= ~SI_ALIAS;
 	freedev(dev);
 }
@@ -520,6 +532,115 @@ dev_stdclone(char *name, char **namep, const char *stem, int *unit)
 	if (name[i]) 
 		return (2);
 	return (1);
+}
+
+/*
+ * Helper functions for cloning device drivers.
+ *
+ * The objective here is to make it unnecessary for the device drivers to
+ * use rman or similar to manage their unit number space.  Due to the way
+ * we do "on-demand" devices, using rman or other "private" methods 
+ * will be very tricky to lock down properly once we lock down this file.
+ *
+ * Instead we give the drivers these routines which puts the dev_t's that
+ * are to be managed on their own list, and gives the driver the ability
+ * to ask for the first free unit number or a given specified unit number.
+ *
+ * In addition these routines support paired devices (pty, nmdm and similar)
+ * by respecting a number of "flag" bits in the minor number.
+ *
+ */
+
+struct clonedevs {
+	LIST_HEAD(,cdev)	head;
+};
+
+int
+clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, dev_t *dp, u_int extra)
+{
+	struct clonedevs *cd;
+	dev_t dev, dl, de;
+	int unit, low, u;
+
+	KASSERT(!(extra & CLONE_UNITMASK),
+	     ("Illegal extra bits (0x%x) in clone_create", extra));
+	KASSERT(*up <= CLONE_UNITMASK,
+	     ("Too high unit (0x%x) in clone_create", *up));
+
+	if (csw->d_maj == MAJOR_AUTO)
+		find_major(csw);
+	/* if clonedevs have not been initialized, we do it here */
+	cd = *cdp;
+	if (cd == NULL) {
+		cd = malloc(sizeof *cd, M_DEVBUF, M_WAITOK | M_ZERO);
+		LIST_INIT(&cd->head);
+		*cdp = cd;
+	}
+
+	/*
+	 * Search the list for a lot of things in one go:
+	 *   A preexisting match is returned immediately.
+	 *   The lowest free unit number if we are passed -1, and the place
+	 *	 in the list where we should insert that new element.
+	 *   The place to insert a specified unit number, if applicable
+	 *       the end of the list.
+	 */
+	unit = *up;
+	low = 0;
+	de = dl = NULL;
+	LIST_FOREACH(dev, &cd->head, si_clone) {
+		u = dev2unit(dev);
+		if (u == (unit | extra)) {
+			*dp = dev;
+			return (0);
+		}
+		if (unit == -1 && u == low) {
+			low++;
+			de = dev;
+			continue;
+		}
+		if (u > unit) {
+			dl = dev;
+			break;
+		}
+		de = dev;
+	}
+	if (unit == -1)
+		unit = low;
+	dev = makedev(csw->d_maj, unit2minor(unit | extra));
+	KASSERT(!(dev->si_flags & SI_CLONELIST),
+	    ("Dev %p should not be on clonelist", dev));
+	if (dl != NULL)
+		LIST_INSERT_BEFORE(dl, dev, si_clone);
+	else if (de != NULL)
+		LIST_INSERT_AFTER(de, dev, si_clone);
+	else
+		LIST_INSERT_HEAD(&cd->head, dev, si_clone);
+	dev->si_flags |= SI_CLONELIST;
+	*up = unit;
+	return (1);
+}
+
+/*
+ * Kill everything still on the list.  The driver should already have
+ * disposed of any softc hung of the dev_t's at this time.
+ */
+void
+clone_cleanup(struct clonedevs **cdp)
+{
+	dev_t dev, tdev;
+	struct clonedevs *cd;
+	
+	cd = *cdp;
+	if (cd == NULL)
+		return;
+	LIST_FOREACH_SAFE(dev, &cd->head, si_clone, tdev) {
+		KASSERT(dev->si_flags & SI_NAMED,
+		    ("Driver has goofed in cloning underways udev %x", dev->si_udev));
+		destroy_dev(dev);
+	}
+	free(cd, M_DEVBUF);
+	*cdp = NULL;
 }
 
 /*
