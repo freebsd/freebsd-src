@@ -550,7 +550,7 @@ main(argc, argv)
 	if (pwd->pw_change || pwd->pw_expire)
 		(void)gettimeofday(&tp, (struct timezone *)NULL);
 
-#define DEFAULT_WARN  (2L * 7L & 86400L)  /* Two weeks */
+#define DEFAULT_WARN  (2L * 7L * 86400L)  /* Two weeks */
 
 #ifdef LOGIN_CAP
 	warntime = login_getcaptime(lc, "warnpassword",
