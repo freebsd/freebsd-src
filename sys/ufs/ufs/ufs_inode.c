@@ -39,8 +39,8 @@
  * $FreeBSD$
  */
 
-#include "opt_ffs.h"
 #include "opt_quota.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/vnode.h>
@@ -83,7 +83,7 @@ ufs_inactive(ap)
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, 0);
 #endif
-#ifdef FFS_EXTATTR
+#ifdef UFS_EXTATTR
 		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_p);
 #endif
 		error = UFS_TRUNCATE(vp, (off_t)0, 0, NOCRED, p);
