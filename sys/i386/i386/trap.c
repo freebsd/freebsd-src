@@ -214,11 +214,6 @@ trap(frame)
 	}
 
 	eva = 0;
-
-#if defined(I586_CPU) && !defined(NO_F00F_HACK)
-restart:
-#endif
-
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 
@@ -294,8 +289,9 @@ restart:
 				 * f00f hack workaround has triggered, treat
 				 * as illegal instruction not page fault.
 				 */
-				frame.tf_trapno = T_PRIVINFLT;
-				goto restart;
+				ucode = T_PRIVINFLT;
+				i = SIGILL;
+				break;
 			}
 #endif
 			if (i == -1)
