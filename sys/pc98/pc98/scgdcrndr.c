@@ -120,8 +120,8 @@ gdc_txtdraw(scr_stat *scp, int from, int count, int flip)
 		p = sc_vtb_pointer(&scp->scr, from);
 		for (; count-- > 0; ++from) {
 			c = sc_vtb_getc(&scp->vtb, from);
-			a = sc_vtb_geta(&scp->vtb, from) ^ 0x4;
-			sc_vtb_putchar(&scp->scr, p, c, a);
+			a = sc_vtb_geta(&scp->vtb, from) ^ 0x0800;
+			p = sc_vtb_putchar(&scp->scr, p, c, a);
 		}
 	} else {
 		sc_vtb_copy(&scp->vtb, from, &scp->scr, from, count);
@@ -164,7 +164,7 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 	at = (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
 	sc_vtb_putc(&scp->scr, at,
 		    sc_vtb_getc(&scp->scr, at),
-		    sc_vtb_geta(&scp->scr, at) ^ 0x4);
+		    sc_vtb_geta(&scp->vtb, at) ^ 0x0800);
 }
 
 static void
