@@ -1,8 +1,8 @@
-# $Id: Makefile,v 1.3 1996/02/11 02:46:48 wpaul Exp $
+# $Id: Makefile,v 1.1.1.1 1996/02/12 15:09:01 wpaul Exp $
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
-	yp_clnt.c yp_dblookup.c yppasswd_private_xdr.c \
+	yp_clnt.c yp_dblookup.c yp_access.c yppasswd_private_xdr.c \
 	util.c yppasswdd_server.c yppasswd_comm.c yppasswdd_main.c
 
 .PATH:	${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
