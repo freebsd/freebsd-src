@@ -472,6 +472,7 @@ ndis_setattr_ex(adapter_handle, adapter_ctx, hangsecs,
 	block = (ndis_miniport_block *)adapter_handle;
 	block->nmb_miniportadapterctx = adapter_ctx;
 	block->nmb_checkforhangsecs = hangsecs;
+	block->nmb_flags = flags;
 
 	return(NDIS_STATUS_SUCCESS);
 }
