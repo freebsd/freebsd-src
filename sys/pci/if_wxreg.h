@@ -29,9 +29,20 @@
 
 #define WX_VENDOR_INTEL		0x8086
 #define WX_PRODUCT_82452	0x1000
+#define WX_PRODUCT_LIVENGOOD	0x1001
+#define	WX_PRODUCT_82452_SC	0x1003
 #define	WX_MMBA			0x10
 #define	MWI			0x10	/* Memory Write Invalidate */
 #define	WX_CACHELINE_SIZE	0x20
+
+/* Join PCI ID and revision into one value */
+#define	WX_WISEMAN_0		0x10000000
+#define	WX_WISEMAN_2_0		0x10000002
+#define	WX_WISEMAN_2_1		0x10000003
+#define	WX_LIVENGOOD		0x10010000
+
+#define	IS_WISEMAN(sc)		((sc)->wx_idnrev < WX_LIVENGOOD)
+#define	IS_LIVENGOOD(sc)	(!IS_WISEMAN(sc))
 
 /*
  * Information about this chipset gathered from a released Intel Linux driver,
@@ -107,6 +118,8 @@ typedef struct {
 #define	WXREG_DCR		0x00000000
 #define	WXREG_DSR		0x00000008
 #define	WXREG_EECDR		0x00000010
+#define	WXREG_EXCT		0x00000018
+#define	WXREG_MDIC		0x00000020
 #define	WXREG_FCAL		0x00000028
 #define	WXREG_FCAH		0x0000002C
 #define	WXREG_FCT		0x00000030
@@ -165,6 +178,11 @@ typedef struct {
 #define	WXDCR_LRST	0x8		/* Link Reset */
 #define	WXDCR_SLU	0x40		/* Set Link Up */
 #define	WXDCR_ILOS	0x80		/* Invert Loss-of-Signal */
+#define	WXDCR_100BT	0x100		/* LIVENGOOD: Set 100BaseT */
+#define	WXDCR_1000BT	0x200		/* LIVENGOOD: Set 1000BaseT */
+#define	WXDCR_BEM32	0x400		/* LIVENGOOD: Set Big Endian 32 (?) */
+#define	WXDCR_FRCSPD	0x800		/* LIVENGOOD: Force Speed (?) */
+#define	WXDCR_FRCDPX	0x1000		/* LIVENGOOD: Force Full Duplex */
 
 /*
  * General purpose I/O pins
@@ -201,6 +219,13 @@ typedef struct {
 #define	WXDSR_TXCLK	0x4		/* transmit clock running */
 #define	WXDSR_RBCLK	0x8		/* receive clock running */
 #define	WXDSR_TXOFF	0x10		/* transmit paused */
+#define	WXDSR_TBIMODE	0x20		/* LIVENGOOD: Fibre Mode */
+#define	WXDSR_100BT	0x40		/* LIVENGOOD: 100BaseT */
+#define	WXDSR_1000BT	0x80		/* LIVENGOOD: 1000BaseT */
+#define	WXDSR_ASDV	0x300		/* LIVENGOOD: ?? */
+#define	WXDSR_MTXCKOK	0x400		/* LIVENGOOD: ?? */
+#define	WXDSR_PCI66	0x800		/* LIVENGOOD: 66 MHz bus */
+#define	WXDSR_BUS64	0x1000		/* LIVENGOOD: In 64 bit slot */
 
 /*
  * EEPROM Register Defines
@@ -236,8 +261,10 @@ typedef struct {
 #define	WXISR_LSC	0x4		/* link status change */
 #define	WXISR_RXSEQ	0x8		/* receive sequence error */
 #define	WXISR_RXDMT0	0x10		/* receiver ring 0 getting empty */
+#define	WXISR_RXDMT1	0x20		/* receiver ring 1 getting empty */
 #define	WXISR_RXO	0x40		/* receiver overrun */
 #define	WXISR_RXT0	0x80		/* ring 0 receiver timer interrupt */
+#define	WXISR_RXT1	0x100		/* ring 1 receiver timer interrupt */
 #define	WXISR_PCIE	0x200		/* ?? Probably PCI interface error... */
 
 #define	WXIENABLE_DEFAULT	\
@@ -256,11 +283,16 @@ typedef struct {
 #define	WXRCTL_MPE	0x10		/* multicast promiscuous mode */
 #define	WXRCTL_LPE	0x20		/* large packet enable */
 #define	WXRCTL_BAM	0x8000		/* broadcast accept mode */
+#define	WXRCTL_BSEX	0x2000000	/* LIVENGOOD: Buffer Size Extension */
 
-#define	WXRCTL_2KRBUF	(0 << 16)	/* 2-Kbyte Receive Buffers */
-#define	WXRCTL_1KRBUF	(1 << 16)	/* 1-Kbyte Receive Buffers */
+#define	WXRCTL_2KRBUF	(0 << 16)	/* 2KB Receive Buffers */
+#define	WXRCTL_1KRBUF	(1 << 16)	/* 1KB Receive Buffers */
 #define	WXRCTL_512BRBUF	(2 << 16)	/* 512 Byte Receive Buffers */
 #define	WXRCTL_256BRBUF	(3 << 16)	/* 256 Byte Receive Buffers */
+
+#define	WXRCTL_4KRBUF	(3 << 16)	/* LIVENGOOD: 4KB Receive Buffers */
+#define	WXRCTL_8KRBUF	(2 << 16)	/* LIVENGOOD: 8KB Receive Buffers */
+#define	WXRCTL_16KRBUF	(1 << 16)	/* LIVENGOOD: 16KB Receive Buffers */
 
 
 /*
@@ -327,12 +359,17 @@ typedef struct {
 #define	WX_EEPROM_CTLR1_SWDPIO_SHIFT	5
 #define	WX_EEPROM_CTLR1_ILOS	(1 << 4)
 
+#define	WX_EEPROM_CTLR2_OFF	0xF
+#define	WX_EEPROM_CTLR2_SWDPIO	0xF0
+#define	WX_EEPROM_EXT_SHIFT	4
+
 
 #define	WX_XTIMER_DFLT		0x100
 #define	WX_RCV_FLOW_HI_DFLT	0x8000
 #define	WX_RCV_FLOW_LO_DFLT	0x4000
 
-#define	WX_TIPG_DFLT		(10 | (2 << 10) | (10 << 20))
+#define	WX_WISEMAN_TIPG_DFLT		(10 | (2 << 10) | (10 << 20))
+#define	WX_LIVENGOOD_TIPG_DFLT		(6 | (8 << 10) | (6 << 20))
 
 #define	WX_CRC_LENGTH		4
 
