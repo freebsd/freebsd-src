@@ -111,6 +111,9 @@ cpu		I686_CPU		# aka Pentium Pro(tm)
 #
 # CPU_FASTER_5X86_FPU enables faster FPU exception handler.
 #
+# CPU_GEODE is for the SC1100 Geode embedded processor.  This option
+# is necessary because the i8254 timecounter is toast.
+#
 # CPU_I486_ON_386 enables CPU cache on i486 based CPU upgrade products
 # for i386 machines.
 #
@@ -185,6 +188,7 @@ options 	CPU_ELAN_PPS
 options 	CPU_ENABLE_SSE
 #options 	CPU_DISABLE_SSE
 options 	CPU_FASTER_5X86_FPU
+options 	CPU_GEODE
 options 	CPU_I486_ON_386
 options 	CPU_IORT
 options 	CPU_L2_LATENCY=5
