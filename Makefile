@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.216 1998/09/09 06:07:32 jb Exp $
+#	$Id: Makefile,v 1.217 1998/09/10 20:44:55 ache Exp $
 #
 # The user-driven targets are:
 #
@@ -102,6 +102,9 @@ TGTS =	afterdistribute all buildworld clean cleandepend cleanobj depend \
 ${TGTS} : upgrade_checks
 	@cd ${.CURDIR}; \
 		make -f Makefile.inc0 -m ${.CURDIR}/share/mk ${.TARGET}
+
+# Set a reasonable default
+.MAIN:	all
 
 #
 # Perform a few tests to determine if the installed tools are adequate
