@@ -77,6 +77,23 @@ typedef struct Struct_Needed_Entry {
     unsigned long name;		/* Offset of name in string table */
 } Needed_Entry;
 
+/* Lock object */
+typedef struct Struct_LockInfo {
+    void *context;		/* Client context for creating locks */
+    void *thelock;		/* The one big lock */
+    /* Debugging aids. */
+    volatile int rcount;	/* Number of readers holding lock */
+    volatile int wcount;	/* Number of writers holding lock */
+    /* Methods */
+    void *(*lock_create)(void *context);
+    void (*rlock_acquire)(void *lock);
+    void (*wlock_acquire)(void *lock);
+    void (*rlock_release)(void *lock);
+    void (*wlock_release)(void *lock);
+    void (*lock_destroy)(void *lock);
+    void (*context_destroy)(void *context);
+} LockInfo;
+
 /*
  * Shared object descriptor.
  *
@@ -149,7 +166,6 @@ typedef struct Struct_Obj_Entry {
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
     ino_t ino;			/* Object's inode number */
-    unsigned long mark;		/* Set to "curmark" to avoid repeat visits */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a
@@ -170,10 +186,7 @@ unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, Obj_Entry *, const Obj_Entry **,
   bool);
 void init_pltgot(Obj_Entry *);
-void lockdflt_acquire(void *);
-void *lockdflt_create(void *);
-void lockdflt_destroy(void *);
-void lockdflt_release(void *);
+void lockdflt_init(LockInfo *);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *);
