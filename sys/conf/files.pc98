@@ -3,8 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.57 1998/03/14 02:31:00 kato Exp $
-#
+#	$Id: files.pc98,v 1.58 1998/03/24 08:26:02 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -162,7 +161,7 @@ i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/pnp.c			optional	pnp	device-driver
 i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/ppc.c			optional	ppc	device-driver
-pc98/pc98/psm.c			optional	psm	device-driver
+i386/isa/psm.c			optional	psm	device-driver
 i386/isa/random_machdep.c	standard
 i386/isa/rc.c			optional	rc	device-driver
 i386/isa/rp.c			optional	rp	device-driver
@@ -325,6 +324,3 @@ gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/dgb.c		optional	dgb	device-driver
 gnu/i386/isa/sound/awe_wave.c	optional	awe	device-driver
 pci/ide_pci.c			optional	wd	device-driver
-dev/dpt/dpt_control.c		optional        dpt	device-driver
-dev/dpt/dpt_scsi.c		optional        dpt	device-driver
-pci/dpt_pci.c			optional        dpt	device-driver
