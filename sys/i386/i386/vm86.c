@@ -46,6 +46,7 @@
 #include <machine/pcb_ext.h>	/* pcb.h included via sys/user.h */
 #include <machine/psl.h>
 #include <machine/specialreg.h>
+#include <machine/sysarch.h>
 
 extern int i386_extend_pcb	__P((struct proc *));
 extern int vm86pa;
