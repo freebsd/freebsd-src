@@ -304,6 +304,7 @@ int     auth_input_request_forwarding(struct passwd * pw);
 void    auth_input_open_request(int type, int plen, void *ctxt);
 
 /* XXX */
+void	auth_sock_cleanup_proc(void *pw);
 int	channel_connect_to(const char *host, u_short host_port);
 int	channel_connect_by_listen_adress(u_short listen_port);
 int	x11_connect_display(void);

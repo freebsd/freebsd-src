@@ -33,7 +33,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: session.c,v 1.74 2001/04/17 19:34:25 markus Exp $");
+RCSID("$OpenBSD: session.c,v 1.80 2001/06/04 21:59:43 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -108,6 +108,7 @@ void	do_login(Session *s, const char *command);
 void	do_child(Session *s, const char *command);
 void	do_motd(void);
 int	check_quietlogin(Session *s, const char *command);
+void	xauthfile_cleanup_proc(void *pw);
 
 void	do_authenticated1(Authctxt *authctxt);
 void	do_authenticated2(Authctxt *authctxt);
@@ -167,18 +168,26 @@ do_authenticated(Authctxt *authctxt)
 		do_authenticated2(authctxt);
 	else
 		do_authenticated1(authctxt);
+
+	/* remote user's local Xauthority file and agent socket */
+	if (xauthfile)
+		xauthfile_cleanup_proc(authctxt->pw);
+	if (auth_get_socket_name())
+		auth_sock_cleanup_proc(authctxt->pw);
 }
 
 /*
  * Remove local Xauthority file.
  */
 void
-xauthfile_cleanup_proc(void *ignore)
+xauthfile_cleanup_proc(void *_pw)
 {
-	debug("xauthfile_cleanup_proc called");
+	struct passwd *pw = _pw;
+	char *p;
 
+	debug("xauthfile_cleanup_proc called");
 	if (xauthfile != NULL) {
-		char *p;
+		temporarily_use_uid(pw);
 		unlink(xauthfile);
 		p = strrchr(xauthfile, '/');
 		if (p != NULL) {
@@ -187,6 +196,7 @@ xauthfile_cleanup_proc(void *ignore)
 		}
 		xfree(xauthfile);
 		xauthfile = NULL;
+		restore_uid();
 	}
 }
 
@@ -225,6 +235,7 @@ do_authenticated1(Authctxt *authctxt)
 	int success, type, fd, n_bytes, plen, screen_flag, have_pty = 0;
 	int compression_level = 0, enable_compression_after_reply = 0;
 	u_int proto_len, data_len, dlen;
+	struct stat st;
 
 	s = session_new();
 	s->pw = authctxt->pw;
@@ -307,7 +318,8 @@ do_authenticated1(Authctxt *authctxt)
 				packet_send_debug("X11 forwarding disabled in server configuration file.");
 				break;
 			}
-			if (!options.xauth_location) {
+			if (!options.xauth_location ||
+			    (stat(options.xauth_location, &st) == -1)) {
 				packet_send_debug("No xauth program; cannot forward with spoofing.");
 				break;
 			}
@@ -361,7 +373,7 @@ do_authenticated1(Authctxt *authctxt)
 			if (fd >= 0)
 				close(fd);
 			restore_uid();
-			fatal_add_cleanup(xauthfile_cleanup_proc, NULL);
+			fatal_add_cleanup(xauthfile_cleanup_proc, s->pw);
 			success = 1;
 			break;
 
@@ -415,9 +427,6 @@ do_authenticated1(Authctxt *authctxt)
 
 			if (command != NULL)
 				xfree(command);
-			/* Cleanup user's local Xauthority file. */
-			if (xauthfile)
-				xauthfile_cleanup_proc(NULL);
 			return;
 
 		default:
@@ -1321,10 +1330,11 @@ do_child(Session *s, const char *command)
 	if (!options.use_login) {
 		/* ignore _PATH_SSH_USER_RC for subsystems */
 		if (!s->is_subsystem && (stat(_PATH_SSH_USER_RC, &st) >= 0)) {
+			snprintf(cmd, sizeof cmd, "%s -c '%s %s'",
+			    shell, _PATH_BSHELL, _PATH_SSH_USER_RC);
 			if (debug_flag)
-				fprintf(stderr, "Running %s %s\n", _PATH_BSHELL,
-				    _PATH_SSH_USER_RC);
-			f = popen(_PATH_BSHELL " " _PATH_SSH_USER_RC, "w");
+				fprintf(stderr, "Running %s\n", cmd);
+			f = popen(cmd, "w");
 			if (f) {
 				if (do_xauth)
 					fprintf(f, "%s %s\n", s->auth_proto,
@@ -1645,12 +1655,18 @@ int
 session_x11_req(Session *s)
 {
 	int fd;
+	struct stat st;
 	if (no_x11_forwarding_flag) {
 		debug("X11 forwarding disabled in user configuration file.");
 		return 0;
 	}
 	if (!options.x11_forwarding) {
 		debug("X11 forwarding disabled in server configuration file.");
+		return 0;
+	}
+	if (!options.xauth_location ||
+	    (stat(options.xauth_location, &st) == -1)) {
+		packet_send_debug("No xauth program; cannot forward with spoofing.");
 		return 0;
 	}
 	if (xauthfile != NULL) {
@@ -1693,7 +1709,7 @@ session_x11_req(Session *s)
 	if (fd >= 0)
 		close(fd);
 	restore_uid();
-	fatal_add_cleanup(xauthfile_cleanup_proc, s);
+	fatal_add_cleanup(xauthfile_cleanup_proc, s->pw);
 	return 1;
 }
 
@@ -1989,6 +2005,4 @@ do_authenticated2(Authctxt *authctxt)
 {
 
 	server_loop2();
-	if (xauthfile)
-		xauthfile_cleanup_proc(NULL);
 }
