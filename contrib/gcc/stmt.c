@@ -2149,15 +2149,23 @@ resolve_operand_name_1 (p, outputs, inputs)
   /* Resolve the name to a number.  */
   for (op = 0, t = outputs; t ; t = TREE_CHAIN (t), op++)
     {
-      const char *c = IDENTIFIER_POINTER (TREE_PURPOSE (TREE_PURPOSE (t)));
-      if (strncmp (c, p + 1, len) == 0 && c[len] == '\0')
-	goto found;
+      tree id = TREE_PURPOSE (TREE_PURPOSE (t));
+      if (id)
+	{
+	  const char *c = IDENTIFIER_POINTER (id);
+	  if (strncmp (c, p + 1, len) == 0 && c[len] == '\0')
+	    goto found;
+	}
     }
   for (t = inputs; t ; t = TREE_CHAIN (t), op++)
     {
-      const char *c = IDENTIFIER_POINTER (TREE_PURPOSE (TREE_PURPOSE (t)));
-      if (strncmp (c, p + 1, len) == 0 && c[len] == '\0')
-	goto found;
+      tree id = TREE_PURPOSE (TREE_PURPOSE (t));
+      if (id)
+	{
+	  const char *c = IDENTIFIER_POINTER (id);
+	  if (strncmp (c, p + 1, len) == 0 && c[len] == '\0')
+	    goto found;
+	}
     }
 
   *q = '\0';
@@ -2295,10 +2303,6 @@ warn_if_unused_value (exp)
   if (VOID_TYPE_P (TREE_TYPE (exp)))
     return 0;
 
-  /* If this is an expression with side effects, don't warn.  */
-  if (TREE_SIDE_EFFECTS (exp))
-    return 0;
-
   switch (TREE_CODE (exp))
     {
     case PREINCREMENT_EXPR:
@@ -2358,7 +2362,7 @@ warn_if_unused_value (exp)
 	    || TREE_CODE (tem) == CALL_EXPR)
 	  return 0;
       }
-      goto warn;
+      goto maybe_warn;
 
     case INDIRECT_REF:
       /* Don't warn about automatic dereferencing of references, since
@@ -2381,7 +2385,11 @@ warn_if_unused_value (exp)
 	  && TREE_CODE_LENGTH (TREE_CODE (exp)) == 0)
 	return 0;
 
-    warn:
+    maybe_warn:
+      /* If this is an expression with side effects, don't warn.  */
+      if (TREE_SIDE_EFFECTS (exp))
+	return 0;
+
       warning_with_file_and_line (emit_filename, emit_lineno,
 				  "value computed is not used");
       return 1;
@@ -2396,12 +2404,16 @@ clear_last_expr ()
   last_expr_type = 0;
 }
 
-/* Begin a statement which will return a value.
-   Return the RTL_EXPR for this statement expr.
-   The caller must save that value and pass it to expand_end_stmt_expr.  */
+/* Begin a statement-expression, i.e., a series of statements which
+   may return a value.  Return the RTL_EXPR for this statement expr.
+   The caller must save that value and pass it to
+   expand_end_stmt_expr.  If HAS_SCOPE is nonzero, temporaries created
+   in the statement-expression are deallocated at the end of the
+   expression.  */
 
 tree
-expand_start_stmt_expr ()
+expand_start_stmt_expr (has_scope)
+     int has_scope;
 {
   tree t;
 
@@ -2409,7 +2421,10 @@ expand_start_stmt_expr ()
      so that rtl_expr_chain doesn't become garbage.  */
   t = make_node (RTL_EXPR);
   do_pending_stack_adjust ();
-  start_sequence_for_rtl_expr (t);
+  if (has_scope)
+    start_sequence_for_rtl_expr (t);
+  else
+    start_sequence ();
   NO_DEFER_POP;
   expr_stmts_for_value++;
   last_expr_value = NULL_RTX;
@@ -3658,9 +3673,7 @@ expand_nl_goto_receivers (thisblock)
   if (any_invalid)
     {
       expand_nl_goto_receiver ();
-      emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "abort"), LCT_NORETURN,
-			 VOIDmode, 0);
-      emit_barrier ();
+      expand_builtin_trap ();
     }
 
   nonlocal_goto_handler_labels = label_list;
@@ -3962,7 +3975,7 @@ expand_decl (decl)
 			   : GET_MODE_BITSIZE (DECL_MODE (decl)));
       DECL_USER_ALIGN (decl) = 0;
 
-      x = assign_temp (TREE_TYPE (decl), 1, 1, 1);
+      x = assign_temp (decl, 1, 1, 1);
       set_mem_attributes (x, decl, 1);
       SET_DECL_RTL (decl, x);
 
@@ -4161,6 +4174,23 @@ expand_decl_cleanup (decl, cleanup)
     }
   return 1;
 }
+
+/* Like expand_decl_cleanup, but maybe only run the cleanup if an exception
+   is thrown.  */
+
+int
+expand_decl_cleanup_eh (decl, cleanup, eh_only)
+     tree decl, cleanup;
+     int eh_only;
+{
+  int ret = expand_decl_cleanup (decl, cleanup);
+  if (cleanup && ret)
+    {
+      tree node = block_stack->data.block.cleanups;
+      CLEANUP_EH_ONLY (node) = eh_only;
+    }
+  return ret;
+}
 
 /* DECL is an anonymous union.  CLEANUP is a cleanup for DECL.
    DECL_ELTS is the list of elements that belong to DECL's type.
@@ -4192,6 +4222,11 @@ expand_anon_union_decl (decl, cleanup, decl_elts)
       tree decl_elt = TREE_VALUE (t);
       tree cleanup_elt = TREE_PURPOSE (t);
       enum machine_mode mode = TYPE_MODE (TREE_TYPE (decl_elt));
+
+      /* If any of the elements are addressable, so is the entire
+	 union.  */
+      if (TREE_USED (decl_elt))
+	TREE_USED (decl) = 1;
 
       /* Propagate the union's alignment to the elements.  */
       DECL_ALIGN (decl_elt) = DECL_ALIGN (decl);
@@ -4264,7 +4299,7 @@ expand_cleanups (list, dont_do, in_fixup, reachable)
 	    if (! in_fixup && using_eh_for_cleanups_p)
 	      expand_eh_region_end_cleanup (TREE_VALUE (tail));
 
-	    if (reachable)
+	    if (reachable && !CLEANUP_EH_ONLY (tail))
 	      {
 		/* Cleanups may be run multiple times.  For example,
 		   when exiting a binding contour, we expand the
@@ -4876,20 +4911,20 @@ add_case_node (low, high, label, duplicate)
 /* Returns the number of possible values of TYPE.
    Returns -1 if the number is unknown, variable, or if the number does not
    fit in a HOST_WIDE_INT.
-   Sets *SPARENESS to 2 if TYPE is an ENUMERAL_TYPE whose values
+   Sets *SPARSENESS to 2 if TYPE is an ENUMERAL_TYPE whose values
    do not increase monotonically (there may be duplicates);
    to 1 if the values increase monotonically, but not always by 1;
    otherwise sets it to 0.  */
 
 HOST_WIDE_INT
-all_cases_count (type, spareness)
+all_cases_count (type, sparseness)
      tree type;
-     int *spareness;
+     int *sparseness;
 {
   tree t;
   HOST_WIDE_INT count, minval, lastval;
 
-  *spareness = 0;
+  *sparseness = 0;
 
   switch (TREE_CODE (type))
     {
@@ -4928,11 +4963,12 @@ all_cases_count (type, spareness)
 	{
 	  HOST_WIDE_INT thisval = tree_low_cst (TREE_VALUE (t), 0);
 
-	  if (*spareness == 2 || thisval < lastval)
-	    *spareness = 2;
+	  if (*sparseness == 2 || thisval <= lastval)
+	    *sparseness = 2;
 	  else if (thisval != minval + count)
-	    *spareness = 1;
+	    *sparseness = 1;
 
+	  lastval = thisval;
 	  count++;
 	}
     }
@@ -5213,11 +5249,13 @@ free_case_nodes (cn)
 
 /* Terminate a case (Pascal) or switch (C) statement
    in which ORIG_INDEX is the expression to be tested.
+   If ORIG_TYPE is not NULL, it is the original ORIG_INDEX
+   type as given in the source before any compiler conversions.
    Generate the code to test it and jump to the right place.  */
 
 void
-expand_end_case (orig_index)
-     tree orig_index;
+expand_end_case_type (orig_index, orig_type)
+     tree orig_index, orig_type;
 {
   tree minval = NULL_TREE, maxval = NULL_TREE, range = NULL_TREE;
   rtx default_label = 0;
@@ -5241,6 +5279,8 @@ expand_end_case (orig_index)
   index_expr = thiscase->data.case_stmt.index_expr;
   index_type = TREE_TYPE (index_expr);
   unsignedp = TREE_UNSIGNED (index_type);
+  if (orig_type == NULL)
+    orig_type = TREE_TYPE (orig_index);
 
   do_pending_stack_adjust ();
 
@@ -5261,9 +5301,9 @@ expand_end_case (orig_index)
 	 No sense trying this if there's a default case, however.  */
 
       if (!thiscase->data.case_stmt.default_label
-	  && TREE_CODE (TREE_TYPE (orig_index)) == ENUMERAL_TYPE
+	  && TREE_CODE (orig_type) == ENUMERAL_TYPE
 	  && TREE_CODE (index_expr) != INTEGER_CST)
-	check_for_full_enumeration_handling (TREE_TYPE (orig_index));
+	check_for_full_enumeration_handling (orig_type);
 
       /* If we don't have a default-label, create one here,
 	 after the body of the switch.  */
@@ -5420,7 +5460,7 @@ expand_end_case (orig_index)
 		 default code is emitted.  */
 
 	      use_cost_table
-		= (TREE_CODE (TREE_TYPE (orig_index)) != ENUMERAL_TYPE
+		= (TREE_CODE (orig_type) != ENUMERAL_TYPE
 		   && estimate_case_costs (thiscase->data.case_stmt.case_list));
 	      balance_case_nodes (&thiscase->data.case_stmt.case_list, NULL);
 	      emit_case_nodes (index, thiscase->data.case_stmt.case_list,

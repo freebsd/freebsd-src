@@ -159,6 +159,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "output.h"
 #include "function.h"
 #include "expr.h" 
+#include "except.h"
 #include "ggc.h"
 #include "params.h"
 
@@ -696,6 +697,7 @@ static void delete_store		PARAMS ((struct ls_expr *,
 						 basic_block));
 static void free_store_memory		PARAMS ((void));
 static void store_motion		PARAMS ((void));
+static void free_insn_expr_list_list	PARAMS ((rtx *));
 static void clear_modify_mem_tables	PARAMS ((void));
 static void free_modify_mem_tables	PARAMS ((void));
 
@@ -903,7 +905,8 @@ gcse_main (f, file)
   end_alias_analysis ();
   allocate_reg_info (max_reg_num (), FALSE, FALSE);
 
-  if (!optimize_size && flag_gcse_sm)
+  /* Store motion disabled until it is fixed.  */
+  if (0 && !optimize_size && flag_gcse_sm)
     store_motion ();
   /* Record where pseudo-registers are set.  */
   return run_jump_opt_after_gcse;
@@ -1315,6 +1318,7 @@ want_to_gcse_p (x)
     case SUBREG:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case CALL:
       return 0;
 
@@ -1400,6 +1404,7 @@ oprs_unchanged_p (x, insn, avail_p)
     case CONST:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case LABEL_REF:
     case ADDR_VEC:
@@ -1634,6 +1639,22 @@ hash_expr_1 (x, mode, do_not_record_p)
 	hash += ((unsigned int) CONST_DOUBLE_LOW (x)
 		 + (unsigned int) CONST_DOUBLE_HIGH (x));
       return hash;
+
+    case CONST_VECTOR:
+      {
+	int units;
+	rtx elt;
+
+	units = CONST_VECTOR_NUNITS (x);
+
+	for (i = 0; i < units; ++i)
+	  {
+	    elt = CONST_VECTOR_ELT (x, i);
+	    hash += hash_expr_1 (elt, GET_MODE (elt), do_not_record_p);
+	  }
+
+	return hash;
+      }
 
       /* Assume there is only one rtx object for any given label.  */
     case LABEL_REF:
@@ -2171,6 +2192,10 @@ hash_scan_set (pat, insn, set_p)
 	  && regno >= FIRST_PSEUDO_REGISTER
 	  /* Don't GCSE something if we can't do a reg/reg copy.  */
 	  && can_copy_p [GET_MODE (dest)]
+	  /* GCSE commonly inserts instruction after the insn.  We can't
+	     do that easily for EH_REGION notes so disable GCSE on these
+	     for now.  */
+	  && !can_throw_internal (insn)
 	  /* Is SET_SRC something we want to gcse?  */
 	  && want_to_gcse_p (src)
 	  /* Don't CSE a nop.  */
@@ -2364,6 +2389,7 @@ canon_list_insert (dest, unused1, v_insn)
      void * v_insn;
 {
   rtx dest_addr, insn;
+  int bb;
 
   while (GET_CODE (dest) == SUBREG
       || GET_CODE (dest) == ZERO_EXTRACT
@@ -2381,12 +2407,13 @@ canon_list_insert (dest, unused1, v_insn)
   dest_addr = get_addr (XEXP (dest, 0));
   dest_addr = canon_rtx (dest_addr);
   insn = (rtx) v_insn;  
+  bb = BLOCK_NUM (insn);
 
-  canon_modify_mem_list[BLOCK_NUM (insn)] = 
-    alloc_INSN_LIST (dest_addr, canon_modify_mem_list[BLOCK_NUM (insn)]);
-  canon_modify_mem_list[BLOCK_NUM (insn)] = 
-    alloc_INSN_LIST (dest, canon_modify_mem_list[BLOCK_NUM (insn)]);
-  bitmap_set_bit (canon_modify_mem_list_set, BLOCK_NUM (insn));
+  canon_modify_mem_list[bb] = 
+    alloc_EXPR_LIST (VOIDmode, dest_addr, canon_modify_mem_list[bb]);
+  canon_modify_mem_list[bb] = 
+    alloc_EXPR_LIST (VOIDmode, dest, canon_modify_mem_list[bb]);
+  bitmap_set_bit (canon_modify_mem_list_set, bb);
 }
 
 /* Record memory modification information for INSN.  We do not actually care
@@ -2397,23 +2424,24 @@ static void
 record_last_mem_set_info (insn)
      rtx insn;
 {
+  int bb = BLOCK_NUM (insn);
+
   /* load_killed_in_block_p will handle the case of calls clobbering
      everything.  */
-  modify_mem_list[BLOCK_NUM (insn)] = 
-    alloc_INSN_LIST (insn, modify_mem_list[BLOCK_NUM (insn)]);
-  bitmap_set_bit (modify_mem_list_set, BLOCK_NUM (insn));
+  modify_mem_list[bb] = alloc_INSN_LIST (insn, modify_mem_list[bb]);
+  bitmap_set_bit (modify_mem_list_set, bb);
 
   if (GET_CODE (insn) == CALL_INSN)
     {
       /* Note that traversals of this loop (other than for free-ing)
 	 will break after encountering a CALL_INSN.  So, there's no
 	 need to insert a pair of items, as canon_list_insert does.  */
-      canon_modify_mem_list[BLOCK_NUM (insn)] = 
-        alloc_INSN_LIST (insn, canon_modify_mem_list[BLOCK_NUM (insn)]);
-      bitmap_set_bit (canon_modify_mem_list_set, BLOCK_NUM (insn));
+      canon_modify_mem_list[bb] = 
+        alloc_INSN_LIST (insn, canon_modify_mem_list[bb]);
+      bitmap_set_bit (canon_modify_mem_list_set, bb);
     }
   else
-    note_stores (PATTERN (insn), canon_list_insert, (void*) insn );
+    note_stores (PATTERN (insn), canon_list_insert, (void*) insn);
 }
 
 /* Called from compute_hash_table via note_stores to handle one
@@ -2689,6 +2717,27 @@ next_set (regno, expr)
   return expr;
 }
 
+/* Like free_INSN_LIST_list or free_EXPR_LIST_list, except that the node
+   types may be mixed.  */
+
+static void
+free_insn_expr_list_list (listp)
+     rtx *listp;
+{
+  rtx list, next;
+
+  for (list = *listp; list ; list = next)
+    {
+      next = XEXP (list, 1);
+      if (GET_CODE (list) == EXPR_LIST)
+	free_EXPR_LIST_node (list);
+      else
+	free_INSN_LIST_node (list);
+    }
+
+  *listp = NULL;
+}
+
 /* Clear canon_modify_mem_list and modify_mem_list tables.  */
 static void
 clear_modify_mem_tables ()
@@ -2696,14 +2745,13 @@ clear_modify_mem_tables ()
   int i;
 
   EXECUTE_IF_SET_IN_BITMAP
-    (canon_modify_mem_list_set, 0, i,
-     free_INSN_LIST_list (modify_mem_list + i));
-  bitmap_clear (canon_modify_mem_list_set);
+    (modify_mem_list_set, 0, i, free_INSN_LIST_list (modify_mem_list + i));
+  bitmap_clear (modify_mem_list_set);
 
   EXECUTE_IF_SET_IN_BITMAP
     (canon_modify_mem_list_set, 0, i,
-     free_INSN_LIST_list (canon_modify_mem_list + i));
-  bitmap_clear (modify_mem_list_set);
+     free_insn_expr_list_list (canon_modify_mem_list + i));
+  bitmap_clear (canon_modify_mem_list_set);
 }
 
 /* Release memory used by modify_mem_list_set and canon_modify_mem_list_set.  */
@@ -2756,6 +2804,7 @@ oprs_not_set_p (x, insn)
     case CONST:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case LABEL_REF:
     case ADDR_VEC:
@@ -3089,6 +3138,7 @@ expr_killed_p (x, bb)
     case CONST:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case LABEL_REF:
     case ADDR_VEC:
@@ -3789,6 +3839,7 @@ compute_transp (x, indx, bmap, set_p)
     case CONST:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case LABEL_REF:
     case ADDR_VEC:
@@ -4588,13 +4639,23 @@ insert_insn_end_bb (expr, bb, pre)
   pat = process_insert_insn (expr);
 
   /* If the last insn is a jump, insert EXPR in front [taking care to
-     handle cc0, etc. properly].  */
+     handle cc0, etc. properly].  Similary we need to care trapping
+     instructions in presence of non-call exceptions.  */
 
-  if (GET_CODE (insn) == JUMP_INSN)
+  if (GET_CODE (insn) == JUMP_INSN
+      || (GET_CODE (insn) == INSN
+	  && (bb->succ->succ_next || (bb->succ->flags & EDGE_ABNORMAL))))
     {
 #ifdef HAVE_cc0
       rtx note;
 #endif
+      /* It should always be the case that we can put these instructions
+	 anywhere in the basic block with performing PRE optimizations.
+	 Check this.  */
+      if (GET_CODE (insn) == INSN && pre
+	  && !TEST_BIT (antloc[bb->index], expr->bitmap_index)
+          && !TEST_BIT (transp[bb->index], expr->bitmap_index))
+	abort ();
 
       /* If this is a jump table, then we can't insert stuff here.  Since
 	 we know the previous real insn must be the tablejump, we insert
@@ -4624,7 +4685,8 @@ insert_insn_end_bb (expr, bb, pre)
 
   /* Likewise if the last insn is a call, as will happen in the presence
      of exception handling.  */
-  else if (GET_CODE (insn) == CALL_INSN)
+  else if (GET_CODE (insn) == CALL_INSN
+	   && (bb->succ->succ_next || (bb->succ->flags & EDGE_ABNORMAL)))
     {
       /* Keeping in mind SMALL_REGISTER_CLASSES and parameters in registers,
 	 we search backward and place the instructions before the first
@@ -6289,6 +6351,7 @@ store_ops_ok (x, bb)
     case CONST:
     case CONST_INT:
     case CONST_DOUBLE:
+    case CONST_VECTOR:
     case SYMBOL_REF:
     case LABEL_REF:
     case ADDR_VEC:
@@ -6490,21 +6553,7 @@ store_killed_in_insn (x, insn)
     {
       /* A normal or pure call might read from pattern,
 	 but a const call will not.  */
-      if (CONST_OR_PURE_CALL_P (insn))
-	{
-	  rtx link;
-
-	  for (link = CALL_INSN_FUNCTION_USAGE (insn);
-	       link;
-	       link = XEXP (link, 1))
-	    if (GET_CODE (XEXP (link, 0)) == USE
-		&& GET_CODE (XEXP (XEXP (link, 0), 0)) == MEM
-		&& GET_CODE (XEXP (XEXP (XEXP (link, 0), 0), 0)) == SCRATCH)
-	      return 1;
-	  return 0;
-	}
-      else
-	return 1;
+      return ! CONST_OR_PURE_CALL_P (insn) || pure_call_p (insn);
     }
   
   if (GET_CODE (PATTERN (insn)) == SET)

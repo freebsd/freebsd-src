@@ -1,5 +1,5 @@
 /* implic.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 2002 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -199,6 +199,7 @@ ffeimplic_establish_symbol (ffesymbol s)
 
   if (ffe_is_warn_implicit ())
     {
+      /* xgettext:no-c-format */
       ffebad_start_msg ("Implicit declaration of `%A' at %0",
 			FFEBAD_severityWARNING);
       ffebad_here (0, ffesymbol_where_line (s),

@@ -33,6 +33,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
       DECL_PRETTY_FUNCTION_P (in VAR_DECL)
       NEW_FOR_SCOPE_P (in FOR_STMT)
       ASM_INPUT_P (in ASM_STMT)
+      STMT_EXPR_NO_SCOPE (in STMT_EXPR)
    1: C_DECLARED_LABEL_FLAG (in LABEL_DECL)
       STMT_IS_FULL_EXPR_P (in _STMT)
    2: STMT_LINENO_FOR_FN_P (in _STMT)
@@ -538,6 +539,7 @@ extern char *get_directive_line			PARAMS ((void));
    and, if so, perhaps change them both back to their original type.  */
 extern tree shorten_compare			PARAMS ((tree *, tree *, tree *, enum tree_code *));
 
+extern tree pointer_int_sum			PARAMS ((enum tree_code, tree, tree));
 extern unsigned int min_precision		PARAMS ((tree, int));
 
 /* Add qualifiers to a type, in the fashion for C.  */
@@ -603,10 +605,12 @@ extern tree strip_array_types                   PARAMS ((tree));
 #define FOR_EXPR(NODE)          TREE_OPERAND (FOR_STMT_CHECK (NODE), 2)
 #define FOR_BODY(NODE)          TREE_OPERAND (FOR_STMT_CHECK (NODE), 3)
 
-/* SWITCH_STMT accessors. These give access to the condition and body
+/* SWITCH_STMT accessors. These give access to the condition, body and
+   original condition type (before any compiler conversions)
    of the switch statement, respectively.  */
 #define SWITCH_COND(NODE)       TREE_OPERAND (SWITCH_STMT_CHECK (NODE), 0)
 #define SWITCH_BODY(NODE)       TREE_OPERAND (SWITCH_STMT_CHECK (NODE), 1)
+#define SWITCH_TYPE(NODE)	TREE_OPERAND (SWITCH_STMT_CHECK (NODE), 2)
 
 /* CASE_LABEL accessors. These give access to the high and low values
    of a case label, respectively.  */
@@ -642,6 +646,10 @@ extern tree strip_array_types                   PARAMS ((tree));
 
 /* STMT_EXPR accessor.  */
 #define STMT_EXPR_STMT(NODE)    TREE_OPERAND (STMT_EXPR_CHECK (NODE), 0)
+
+/* Nonzero if this statement-expression does not have an associated scope.  */
+#define STMT_EXPR_NO_SCOPE(NODE) \
+   TREE_LANG_FLAG_0 (STMT_EXPR_CHECK (NODE))
 
 /* LABEL_STMT accessor. This gives access to the label associated with
    the given label statement.  */
@@ -693,6 +701,13 @@ extern tree strip_array_types                   PARAMS ((tree));
 /* Nonzero for an ASM_STMT if the assembly statement is volatile.  */
 #define ASM_VOLATILE_P(NODE)			\
   (ASM_CV_QUAL (ASM_STMT_CHECK (NODE)) != NULL_TREE)
+
+/* The VAR_DECL to clean up in a CLEANUP_STMT.  */
+#define CLEANUP_DECL(NODE) \
+  TREE_OPERAND (CLEANUP_STMT_CHECK (NODE), 0)
+/* The cleanup to run in a CLEANUP_STMT.  */
+#define CLEANUP_EXPR(NODE) \
+  TREE_OPERAND (CLEANUP_STMT_CHECK (NODE), 1)
 
 /* The filename we are changing to as of this FILE_STMT.  */
 #define FILE_STMT_FILENAME_NODE(NODE) \
@@ -749,7 +764,7 @@ extern void genrtl_compound_stmt                PARAMS ((tree));
 extern void genrtl_asm_stmt                     PARAMS ((tree, tree,
 							 tree, tree,
 							 tree, int));
-extern void genrtl_decl_cleanup                 PARAMS ((tree, tree));
+extern void genrtl_decl_cleanup                 PARAMS ((tree));
 extern int stmts_are_full_exprs_p               PARAMS ((void));
 extern int anon_aggr_type_p                     PARAMS ((tree));
 

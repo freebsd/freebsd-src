@@ -366,8 +366,13 @@ output_insn_data ()
 	    printf ("    \"");
 	    while (*p)
 	      {
-		if (*p == '\n' && prev != '\\')
-		  printf ("\\n\\\n");
+		if (IS_VSPACE (*p) && prev != '\\')
+		  {
+		    /* Preserve two consecutive \n's or \r's, but treat \r\n
+		       as a single newline.  */
+		    if (*p == '\n' && prev != '\r')
+		      printf ("\\n\\\n");
+		  }
 		else
 		  putchar (*p);
 		prev = *p;
@@ -530,7 +535,7 @@ scan_operands (d, part, this_address_p, this_strict_low)
     case MATCH_OP_DUP:
     case MATCH_PAR_DUP:
       ++num_dups;
-      return;
+      break;
 
     case ADDRESS:
       scan_operands (d, XEXP (part, 0), 1, 0);
@@ -694,11 +699,11 @@ process_template (d, template)
 
       for (i = 0, cp = &template[1]; *cp; )
 	{
-	  while (*cp == '\n' || *cp == ' ' || *cp== '\t')
+	  while (ISSPACE (*cp))
 	    cp++;
 
 	  printf ("  \"");
-	  while (*cp != '\n' && *cp != '\0')
+	  while (!IS_VSPACE (*cp) && *cp != '\0')
 	    {
 	      putchar (*cp);
 	      cp++;

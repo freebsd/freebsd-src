@@ -1,7 +1,7 @@
 /* Declarations for insn-output.c.  These functions are defined in recog.c,
    final.c, and varasm.c.
    Copyright (C) 1987, 1991, 1994, 1997, 1998,
-   1999, 2000, 2001 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -81,7 +81,7 @@ extern rtx alter_subreg PARAMS ((rtx *));
 
 /* Report inconsistency between the assembler template and the operands.
    In an `asm', it's the user's fault; otherwise, the compiler's fault.  */
-extern void output_operand_lossage  PARAMS ((const char *));
+extern void output_operand_lossage  PARAMS ((const char *, ...)) ATTRIBUTE_PRINTF_1;
 
 /* Output a string of assembler code, substituting insn operands.
    Defined in final.c.  */
@@ -231,6 +231,8 @@ extern void mergeable_constant_section	PARAMS ((enum machine_mode,
 
 /* Declare DECL to be a weak symbol.  */
 extern void declare_weak		PARAMS ((tree));
+/* Merge weak status.  */
+extern void merge_weak			PARAMS ((tree, tree));
 #endif /* TREE_CODE */
 
 /* Emit any pending weak declarations.  */
@@ -484,9 +486,6 @@ extern const char *user_label_prefix;
 #define STRIP_NAME_ENCODING(VAR,SYMBOL_NAME) \
   (VAR) = ((SYMBOL_NAME) + ((SYMBOL_NAME)[0] == '*'))
 #endif
-/* Assign unique numbers to labels generated for profiling.  */
-
-extern int profile_label_no;
 
 /* Default target function prologue and epilogue assembler output.  */
 extern void default_function_pro_epilogue PARAMS ((FILE *, HOST_WIDE_INT));
@@ -512,7 +511,8 @@ extern void no_asm_to_stream PARAMS ((FILE *));
 #define SECTION_MERGE	 0x08000	/* contains mergeable data */
 #define SECTION_STRINGS  0x10000	/* contains zero terminated strings without
 					   embedded zeros */
-#define SECTION_MACH_DEP 0x20000	/* subsequent bits reserved for target */
+#define SECTION_OVERRIDE 0x20000	/* allow override of default flags */
+#define SECTION_MACH_DEP 0x40000	/* subsequent bits reserved for target */
 
 extern unsigned int get_named_section_flags PARAMS ((const char *));
 extern bool set_named_section_flags	PARAMS ((const char *, unsigned int));

@@ -1773,7 +1773,7 @@ build_module_descriptor ()
 
     c_expand_expr_stmt (decelerator);
 
-    finish_function (0);
+    finish_function (0, 0);
 
     return XEXP (DECL_RTL (init_function_decl), 0);
   }
@@ -2393,6 +2393,13 @@ objc_copy_list (list, head)
   while (list)
     {
       tail = copy_node (list);
+
+      /* The following statement fixes a bug when inheriting instance
+	 variables that are declared to be bitfields. finish_struct
+	 expects to find the width of the bitfield in DECL_INITIAL.  */
+      if (DECL_BIT_FIELD (tail) && DECL_INITIAL (tail) == 0)
+	DECL_INITIAL (tail) = DECL_SIZE (tail);
+
       newlist = chainon (newlist, tail);
       list = TREE_CHAIN (list);
     }
@@ -7300,7 +7307,7 @@ void
 finish_method_def ()
 {
   lang_expand_function_end = objc_expand_function_end;
-  finish_function (0);
+  finish_function (0, 1);
   lang_expand_function_end = NULL;
 
   /* Required to implement _msgSuper. This must be done AFTER finish_function,
@@ -8323,7 +8330,7 @@ handle_impent (impent)
 
       string = (char *) alloca (strlen (class_name) + 30);
 
-      sprintf (string, "*%sobjc_class_name_%s",
+      sprintf (string, "%sobjc_class_name_%s",
                (flag_next_runtime ? "." : "__"), class_name);
     }
   else if (TREE_CODE (impent->imp_context) == CATEGORY_IMPLEMENTATION_TYPE)

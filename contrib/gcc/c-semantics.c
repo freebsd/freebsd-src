@@ -644,7 +644,7 @@ genrtl_switch_stmt (t)
   emit_line_note (input_filename, lineno);
   expand_start_case (1, cond, TREE_TYPE (cond), "switch statement");
   expand_stmt (SWITCH_BODY (t));
-  expand_end_case (cond);
+  expand_end_case_type (cond, SWITCH_TYPE (t));
 }
 
 /* Create a CASE_LABEL tree node and return it.  */
@@ -737,12 +737,12 @@ genrtl_asm_stmt (cv_qualifier, string, output_operands,
 /* Generate the RTL for a DECL_CLEANUP.  */
 
 void 
-genrtl_decl_cleanup (decl, cleanup)
-     tree decl;
-     tree cleanup;
+genrtl_decl_cleanup (t)
+     tree t;
 {
+  tree decl = CLEANUP_DECL (t);
   if (!decl || (DECL_SIZE (decl) && TREE_TYPE (decl) != error_mark_node))
-    expand_decl_cleanup (decl, cleanup);
+    expand_decl_cleanup_eh (decl, CLEANUP_EXPR (t), CLEANUP_EH_ONLY (t));
 }
 
 /* We're about to expand T, a statement.  Set up appropriate context
@@ -845,6 +845,10 @@ expand_stmt (t)
 
 	case SCOPE_STMT:
 	  genrtl_scope_stmt (t);
+	  break;
+
+	case CLEANUP_STMT:
+	  genrtl_decl_cleanup (t);
 	  break;
 
 	default:

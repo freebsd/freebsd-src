@@ -3265,16 +3265,6 @@ extern int flag_traditional;
 #endif
 #endif
 
-/* Define the architecture-dependent minimum instruction length (in bytes).
-   In this implementation of DWARF, this field is used for information
-   purposes only.  Since GCC generates assembly language, we have
-   no a priori knowledge of how many instruction bytes are generated
-   for each source line, and therefore can use only the  DW_LNE_set_address
-   and DW_LNS_fixed_advance_pc line information commands.  */
-#ifndef DWARF_LINE_MIN_INSTR_LENGTH
-#define DWARF_LINE_MIN_INSTR_LENGTH 4
-#endif
-
 /* Minimum line offset in a special line info. opcode.
    This value was chosen to give a reasonable range of values.  */
 #define DWARF_LINE_BASE  -10
@@ -3602,7 +3592,7 @@ static dw_loc_descr_ref loc_descriptor_from_tree PARAMS ((tree, int));
 static HOST_WIDE_INT ceiling		PARAMS ((HOST_WIDE_INT, unsigned int));
 static tree field_type			PARAMS ((tree));
 static unsigned int simple_type_align_in_bits PARAMS ((tree));
-static unsigned int simple_decl_align_in_bits PARAMS ((tree));
+static unsigned int simple_field_decl_align_in_bits PARAMS ((tree));
 static unsigned HOST_WIDE_INT simple_type_size_in_bits PARAMS ((tree));
 static HOST_WIDE_INT field_byte_offset	PARAMS ((tree));
 static void add_AT_location_description	PARAMS ((dw_die_ref,
@@ -4164,6 +4154,9 @@ dwarf_attr_name (attr)
       return "DW_AT_body_begin";
     case DW_AT_body_end:
       return "DW_AT_body_end";
+    case DW_AT_GNU_vector:
+      return "DW_AT_GNU_vector";
+
     case DW_AT_VMS_rtnbeg_pd_address:
       return "DW_AT_VMS_rtnbeg_pd_address";
 
@@ -5104,9 +5097,6 @@ static inline dw_die_ref
 lookup_type_die (type)
      tree type;
 {
-  if (TREE_CODE (type) == VECTOR_TYPE)
-    type = TYPE_DEBUG_REPRESENTATION_TYPE (type);
-
   return (dw_die_ref) TYPE_SYMTAB_POINTER (type);
 }
 
@@ -7031,8 +7021,17 @@ output_line_info ()
   dw2_asm_output_delta (DWARF_OFFSET_SIZE, p2, p1, "Prolog Length");
   ASM_OUTPUT_LABEL (asm_out_file, p1);
 
-  dw2_asm_output_data (1, DWARF_LINE_MIN_INSTR_LENGTH,
+  /* Define the architecture-dependent minimum instruction length (in
+   bytes).  In this implementation of DWARF, this field is used for
+   information purposes only.  Since GCC generates assembly language,
+   we have no a priori knowledge of how many instruction bytes are
+   generated for each source line, and therefore can use only the
+   DW_LNE_set_address and DW_LNS_fixed_advance_pc line information
+   commands.  Accordingly, we fix this as `1', which is "correct
+   enough" for all architectures, and don't let the target override.  */
+  dw2_asm_output_data (1, 1,
 		       "Minimum Instruction Length");
+
   dw2_asm_output_data (1, DWARF_LINE_DEFAULT_IS_STMT_START,
 		       "Default is_stmt_start flag");
   dw2_asm_output_data (1, DWARF_LINE_BASE,
@@ -7801,10 +7800,24 @@ mem_loc_descriptor (rtl, mode)
 	 by a different symbol.  */
       if (GET_CODE (rtl) == SYMBOL_REF && CONSTANT_POOL_ADDRESS_P (rtl))
 	{
-	  rtx tmp = get_pool_constant (rtl);
+	  bool marked;
+	  rtx tmp = get_pool_constant_mark (rtl, &marked);
 
 	  if (GET_CODE (tmp) == SYMBOL_REF)
-	    rtl = tmp;
+	    {
+	      rtl = tmp;
+	      if (CONSTANT_POOL_ADDRESS_P (tmp))
+		get_pool_constant_mark (tmp, &marked);
+	      else
+		marked = true;
+	    }
+
+	  /* If all references to this pool constant were optimized away,
+	     it was not output and thus we can't represent it.
+	     FIXME: might try to use DW_OP_const_value here, though
+	     DW_OP_piece complicates it.  */
+	  if (!marked)
+	    return 0;
 	}
 
       mem_loc_result = new_loc_descr (DW_OP_addr, 0, 0);
@@ -8342,10 +8355,28 @@ simple_type_align_in_bits (type)
 }
 
 static inline unsigned
-simple_decl_align_in_bits (decl)
-     tree decl;
+simple_field_decl_align_in_bits (field)
+     tree field;
 {
-  return (TREE_CODE (decl) != ERROR_MARK) ? DECL_ALIGN (decl) : BITS_PER_WORD;
+  unsigned align;
+
+  if (TREE_CODE (field) == ERROR_MARK)
+    return BITS_PER_WORD;
+
+  align = DECL_ALIGN (field);
+
+#ifdef BIGGEST_FIELD_ALIGNMENT
+  /* Some targets (i.e. i386) limit union field alignment
+     to a lower boundary than alignment of variables unless
+     it was overridden by attribute aligned.  */
+  if (! DECL_USER_ALIGN (field))
+    align = MIN (align, (unsigned) BIGGEST_FIELD_ALIGNMENT);
+#endif
+
+#ifdef ADJUST_FIELD_ALIGN
+  align = ADJUST_FIELD_ALIGN (field, align);
+#endif
+  return align;                          
 }
 
 /* Given a pointer to a tree node, assumed to be some kind of a ..._TYPE
@@ -8419,7 +8450,7 @@ field_byte_offset (decl)
 
   type_size_in_bits = simple_type_size_in_bits (type);
   type_align_in_bits = simple_type_align_in_bits (type);
-  decl_align_in_bits = simple_decl_align_in_bits (decl);
+  decl_align_in_bits = simple_field_decl_align_in_bits (decl);
 
   /* The GCC front-end doesn't make any attempt to keep track of the starting
      bit offset (relative to the start of the containing structure type) of the
@@ -8815,7 +8846,12 @@ rtl_for_decl_location (decl)
 	  && (CONSTANT_P (rtl)
 	      || (GET_CODE (rtl) == MEM
 	          && CONSTANT_P (XEXP (rtl, 0)))))
-	return rtl;
+	{
+#ifdef ASM_SIMPLIFY_DWARF_ADDR
+	  rtl = ASM_SIMPLIFY_DWARF_ADDR (rtl);
+#endif
+	  return rtl;
+	}
       rtl = NULL_RTX;
     }
   else if (TREE_CODE (decl) == PARM_DECL)
@@ -8884,9 +8920,48 @@ rtl_for_decl_location (decl)
      and will have been substituted directly into all expressions that use it.
      C does not have such a concept, but C++ and other languages do.  */
   else if (TREE_CODE (decl) == VAR_DECL && DECL_INITIAL (decl))
-    rtl = expand_expr (DECL_INITIAL (decl), NULL_RTX, VOIDmode,
-		       EXPAND_INITIALIZER);
+    {
+      /* If a variable is initialized with a string constant without embedded
+	 zeros, build CONST_STRING.  */
+      if (TREE_CODE (DECL_INITIAL (decl)) == STRING_CST
+	  && TREE_CODE (TREE_TYPE (decl)) == ARRAY_TYPE)
+	{
+	  tree arrtype = TREE_TYPE (decl);
+	  tree enttype = TREE_TYPE (arrtype);
+	  tree domain = TYPE_DOMAIN (arrtype);
+	  tree init = DECL_INITIAL (decl);
+	  enum machine_mode mode = TYPE_MODE (enttype);
 
+	  if (GET_MODE_CLASS (mode) == MODE_INT && GET_MODE_SIZE (mode) == 1
+	      && domain
+	      && integer_zerop (TYPE_MIN_VALUE (domain))
+	      && compare_tree_int (TYPE_MAX_VALUE (domain),
+				   TREE_STRING_LENGTH (init) - 1) == 0
+	      && ((size_t) TREE_STRING_LENGTH (init)
+		  == strlen (TREE_STRING_POINTER (init)) + 1))
+	    rtl = gen_rtx_CONST_STRING (VOIDmode, TREE_STRING_POINTER (init));
+	}
+
+#if 0
+      /* We mustn't actually emit anything here, as we might not get a
+         chance to emit any symbols we refer to.  For the release, don't
+         try to get this right.  */
+      if (rtl == NULL)
+	{
+	  rtl = expand_expr (DECL_INITIAL (decl), NULL_RTX, VOIDmode,
+			     EXPAND_INITIALIZER);
+	  /* If expand_expr returned a MEM, we cannot use it, since
+	     it won't be output, leading to unresolved symbol.  */
+	  if (rtl && GET_CODE (rtl) == MEM)
+	    rtl = NULL;
+	}
+#endif
+    }
+
+#ifdef ASM_SIMPLIFY_DWARF_ADDR
+  if (rtl)
+    rtl = ASM_SIMPLIFY_DWARF_ADDR (rtl);
+#endif
   return rtl;
 }
 
@@ -9693,6 +9768,16 @@ gen_array_type_die (type, context_die)
 #endif
 
   array_die = new_die (DW_TAG_array_type, scope_die, type);
+  add_name_attribute (array_die, type_tag (type));
+  equate_type_number_to_die (type, array_die);
+
+  if (TREE_CODE (type) == VECTOR_TYPE)
+    {
+      /* The frontend feeds us a representation for the vector as a struct
+	 containing an array.  Pull out the array type.  */
+      type = TREE_TYPE (TYPE_FIELDS (TYPE_DEBUG_REPRESENTATION_TYPE (type)));
+      add_AT_flag (array_die, DW_AT_GNU_vector, 1);
+    }
 
 #if 0
   /* We default the array ordering.  SDB will probably do
@@ -9713,9 +9798,6 @@ gen_array_type_die (type, context_die)
   else
 #endif
     add_subscript_info (array_die, type);
-
-  add_name_attribute (array_die, type_tag (type));
-  equate_type_number_to_die (type, array_die);
 
   /* Add representation of the type of the elements of this array type.  */
   element_type = TREE_TYPE (type);
@@ -10561,6 +10643,20 @@ gen_inlined_subroutine_die (stmt, context_die, depth)
       decls_for_scope (stmt, subr_die, depth);
       current_function_has_inlines = 1;
     }
+  else
+    /* We may get here if we're the outer block of function A that was
+       inlined into function B that was inlined into function C.  When
+       generating debugging info for C, dwarf2out_abstract_function(B)
+       would mark all inlined blocks as abstract, including this one.
+       So, we wouldn't (and shouldn't) expect labels to be generated
+       for this one.  Instead, just emit debugging info for
+       declarations within the block.  This is particularly important
+       in the case of initializers of arguments passed from B to us:
+       if they're statement expressions containing declarations, we
+       wouldn't generate dies for their abstract variables, and then,
+       when generating dies for the real variables, we'd die (pun
+       intended :-)  */
+    gen_lexical_block_die (stmt, context_die, depth);
 }
 
 /* Generate a DIE for a field in a record, or structure.  */
@@ -11044,7 +11140,7 @@ gen_type_die (type, context_die)
       break;
 
     case VECTOR_TYPE:
-      gen_type_die (TYPE_DEBUG_REPRESENTATION_TYPE (type), context_die);
+      gen_array_type_die (type, context_die);
       break;
 
     case ENUMERAL_TYPE:
@@ -11867,13 +11963,6 @@ dwarf2out_define (lineno, buffer)
      unsigned lineno ATTRIBUTE_UNUSED;
      const char *buffer ATTRIBUTE_UNUSED;
 {
-  static int initialized = 0;
-  if (!initialized)
-    {
-      dwarf2out_start_source_file (0, primary_filename);
-      initialized = 1;
-    }
-
   if (debug_info_level >= DINFO_LEVEL_VERBOSE)
     {
       named_section_flags (DEBUG_MACINFO_SECTION, SECTION_DEBUG);

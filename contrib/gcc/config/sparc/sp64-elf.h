@@ -33,7 +33,7 @@ Boston, MA 02111-1307, USA.  */
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT \
 (MASK_V9 + MASK_PTR64 + MASK_64BIT + MASK_HARD_QUAD \
- + MASK_APP_REGS + MASK_EPILOGUE + MASK_FPU + MASK_STACK_BIAS + MASK_LONG_DOUBLE_128)
+ + MASK_APP_REGS + MASK_FPU + MASK_STACK_BIAS + MASK_LONG_DOUBLE_128)
 
 #undef SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL CM_EMBMEDANY
@@ -71,7 +71,9 @@ crtbegin.o%s \
 "
 
 #undef ENDFILE_SPEC
-#define ENDFILE_SPEC "crtend.o%s"
+#define ENDFILE_SPEC \
+  "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
+   crtend.o%s"
 
 /* Use the default (for now).  */
 #undef LIB_SPEC
