@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.9.2.1 1996/11/12 11:28:47 phk Exp $
+ * $Id$
  */
 
 #include <sys/param.h>
@@ -476,6 +476,11 @@ fddi_input(ifp, fh, m)
 		else
 			m->m_flags |= M_MCAST;
 		ifp->if_imcasts++;
+	} else if ((ifp->if_flags & IFF_PROMISC)
+	    && bcmp(((struct arpcom *)ifp)->ac_enaddr, (caddr_t)fh->fddi_dhost,
+		    sizeof(fh->fddi_dhost)) != 0) {
+		m_freem(m);
+		return;
 	}
 
 #ifdef M_LINK0
