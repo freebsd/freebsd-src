@@ -510,6 +510,7 @@ struct proc {
 	TAILQ_HEAD(, thread) p_suspended; /* (td_runq) Suspended threads. */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Ptr to open files structure. */
+	struct filedesc_to_leader *p_fdtol; /* (b) Ptr to tracking node */
 					/* Accumulated stats for all KSEs? */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c*) Process limits. */

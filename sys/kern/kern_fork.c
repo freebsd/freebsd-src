@@ -139,13 +139,6 @@ rfork(td, uap)
 	/* Don't allow kernel only flags. */
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
-	/* 
-	 * Don't allow sharing of file descriptor table unless
-	 * RFTHREAD flag is supplied
-	 */
-	if ((uap->flags & (RFPROC | RFTHREAD | RFFDG | RFCFDG)) ==
-	    RFPROC)
-		return(EINVAL);
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
@@ -209,6 +202,7 @@ fork1(td, flags, pages, procp)
 	int ok;
 	static int pidchecked = 0;
 	struct filedesc *fd;
+	struct filedesc_to_leader *fdtol;
 	struct proc *p1 = td->td_proc;
 	struct thread *td2;
 	struct kse *ke2;
@@ -419,15 +413,40 @@ again:
 	/*
 	 * Copy filedesc.
 	 */
-	if (flags & RFCFDG)
+	if (flags & RFCFDG) {
 		fd = fdinit(td->td_proc->p_fd);
-	else if (flags & RFFDG) {
+		fdtol = NULL;
+	} else if (flags & RFFDG) {
 		FILEDESC_LOCK(p1->p_fd);
 		fd = fdcopy(td->td_proc->p_fd);
 		FILEDESC_UNLOCK(p1->p_fd);
-	} else
+		fdtol = NULL;
+	} else {
 		fd = fdshare(p1->p_fd);
-
+		if (p1->p_fdtol == NULL)
+			p1->p_fdtol =
+				filedesc_to_leader_alloc(NULL,
+							 NULL,
+							 p1->p_leader);
+		if ((flags & RFTHREAD) != 0) {
+			/*
+			 * Shared file descriptor table and
+			 * shared process leaders.
+			 */
+			fdtol = p1->p_fdtol;
+			FILEDESC_LOCK(p1->p_fd);
+			fdtol->fdl_refcount++;
+			FILEDESC_UNLOCK(p1->p_fd);
+		} else {
+			/* 
+			 * Shared file descriptor table, and
+			 * different process leaders 
+			 */
+			fdtol = filedesc_to_leader_alloc(p1->p_fdtol,
+							 p1->p_fd,
+							 p2);
+		}
+	}
 	/*
 	 * Make a proc table entry for the new process.
 	 * Start by zeroing the section of proc that is zero-initialized,
@@ -506,6 +525,7 @@ again:
 	if (p2->p_textvp)
 		VREF(p2->p_textvp);
 	p2->p_fd = fd;
+	p2->p_fdtol = fdtol;
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 
