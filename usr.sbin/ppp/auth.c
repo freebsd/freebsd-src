@@ -16,17 +16,68 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
+ * 
  * $Id:$
- *
+ * 
  *	TODO:
  *		o Imprement check against with registerd IP addresses.
  */
 #include "fsm.h"
+#include "lcpproto.h"
 #include "ipcp.h"
+#include "vars.h"
+#include "auth.h"
 
 extern FILE *OpenSecret();
 extern void CloseSecret();
+
+LOCAL_AUTH_VALID
+LocalAuthInit(void){
+
+  char *p;
+	
+  if ( gethostname( VarShortHost, sizeof(VarShortHost))) {
+  	return(1);
+  }
+  if ( p = strchr( VarShortHost, '.' ) )
+	*p = '\0';
+
+  return LocalAuthValidate( SECRETFILE, VarShortHost, "" );
+
+}
+
+LOCAL_AUTH_VALID
+LocalAuthValidate( char *fname, char *system, char *key) {
+  FILE *fp;
+  int n;
+  char *vector[20];	/* XXX */
+  char buff[200];	/* XXX */
+  LOCAL_AUTH_VALID rc;
+
+  rc = NOT_FOUND;		/* No system entry */
+  fp = OpenSecret(fname);
+  if (fp == NULL)
+    return( rc );
+  while (fgets(buff, sizeof(buff), fp)) {
+    if (buff[0] == '#')
+      continue;
+    buff[strlen(buff)-1] = 0;
+    bzero(vector, sizeof(vector));
+    n = MakeArgs(buff, &vector);
+    if (n < 1)
+      continue;
+    if (strcmp(vector[0], system) == 0) {
+      if ( vector[1] != (char *) NULL && strcmp(vector[1], key) == 0) {
+	rc = VALID;		/* Valid   */
+      } else {
+	rc = INVALID;		/* Invalid */
+      }
+      break;
+    }
+  }
+  CloseSecret(fp);
+  return( rc );
+}
 
 int
 AuthValidate(fname, system, key)
@@ -109,4 +160,43 @@ int len, setaddr;
   }
   CloseSecret(fp);
   return(NULL);		/* Invalid */
+}
+
+static void
+AuthTimeout(authp)
+struct authinfo *authp;
+{
+  struct pppTimer *tp;
+
+  tp = &authp->authtimer;
+  StopTimer(tp);
+  if (--authp->retry > 0) {
+    StartTimer(tp);
+    (authp->ChallengeFunc)(++authp->id);
+  }
+}
+
+void
+StartAuthChallenge(authp)
+struct authinfo *authp;
+{
+  struct pppTimer *tp;
+
+  tp = &authp->authtimer;
+  StopTimer(tp);
+  tp->func = AuthTimeout;
+  tp->load = VarRetryTimeout * SECTICKS;
+  tp->state = TIMER_STOPPED;
+  tp->arg = (void *)authp;
+  StartTimer(tp);
+  authp->retry = 3;
+  authp->id = 1;
+  (authp->ChallengeFunc)(authp->id);
+}
+
+void
+StopAuthTimer(authp)
+struct authinfo *authp;
+{
+  StopTimer(&authp->authtimer);
 }

@@ -19,9 +19,8 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *	TODO:
- *		o Imprement retransmission timer.
  */
 #include "fsm.h"
 #include "lcp.h"
@@ -30,15 +29,19 @@
 #include "hdlc.h"
 #include "lcpproto.h"
 #include "phase.h"
+#include "auth.h"
 
 static char *papcodes[] = {
   "???", "REQUEST", "ACK", "NAK"
 };
 
-static int papid;
+struct authinfo AuthPapInfo  = {
+  SendPapChallenge,
+};
 
 void
-SendPapChallenge()
+SendPapChallenge(papid)
+int papid;
 {
   struct fsmheader lh;
   struct mbuf *bp;
@@ -50,10 +53,10 @@ SendPapChallenge()
   plen = namelen + keylen + 2;
 #ifdef DEBUG
   logprintf("namelen = %d, keylen = %d\n", namelen, keylen);
-  LogPrintf(LOG_PHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
 #endif
+  LogPrintf(LOG_PHASE, "PAP: %s (%s)\n", VarAuthName, VarAuthKey);
   lh.code = PAP_REQUEST;
-  lh.id = ++papid;
+  lh.id = papid;
   lh.length = htons(plen + sizeof(struct fsmheader));
   bp = mballoc(plen + sizeof(struct fsmheader), MB_FSM);
   bcopy(&lh, MBUF_CTOP(bp), sizeof(struct fsmheader));
@@ -105,7 +108,9 @@ u_char *name, *key;
   klen = *key;
   *key++ = 0;
   key[klen] = 0;
+#ifdef DEBUG
   logprintf("name: %s (%d), key: %s (%d)\n", name, nlen, key, klen);
+#endif
   return(AuthValidate(SECRETFILE, name, key));
 }
 
@@ -139,6 +144,7 @@ struct mbuf *bp;
 	}
 	break;
       case PAP_ACK:
+	StopAuthTimer(&AuthPapInfo);
 	cp = (u_char *)(php + 1);
 	len = *cp++;
 	cp[len] = 0;
@@ -150,6 +156,7 @@ struct mbuf *bp;
 	}
 	break;
       case PAP_NAK:
+	StopAuthTimer(&AuthPapInfo);
 	cp = (u_char *)(php + 1);
 	len = *cp++;
 	cp[len] = 0;

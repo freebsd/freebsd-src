@@ -1,3 +1,5 @@
+/*	$NetBSD: if_tun.h,v 1.5 1994/06/29 06:36:27 cgd Exp $	*/
+
 /*
  * Copyright (c) 1988, Julian Onions <jpo@cs.nott.ac.uk>
  * Nottingham University 1987.
@@ -11,8 +13,7 @@
  * UCL. This driver is based much more on read/write/select mode of
  * operation though.
  * 
- * from: $Header: if_tnreg.h,v 1.1.2.1 1992/07/16 22:39:16 friedl Exp
- * $Id: if_tun.h,v 1.3 1993/12/13 14:27:01 deraadt Exp $
+ * : $Header: if_tnreg.h,v 1.1.2.1 1992/07/16 22:39:16 friedl Exp
  */
 
 #ifndef _NET_IF_TUN_H_
@@ -25,23 +26,16 @@ struct tun_softc {
 #define	TUN_RCOLL	0x0004
 #define	TUN_IASET	0x0008
 #define	TUN_DSTADDR	0x0010
-#ifdef notdef
-#define	TUN_READY	0x0020
-#else
-#define TUN_READY       (TUN_IASET|TUN_OPEN|TUN_DSTADDR)
-#endif
 #define	TUN_RWAIT	0x0040
 #define	TUN_ASYNC	0x0080
 #define	TUN_NBIO	0x0100
+
+#define	TUN_READY	(TUN_OPEN | TUN_INITED | TUN_IASET)
+
 	struct	ifnet tun_if;		/* the interface */
 	int	tun_pgrp;		/* the process group - if any */
-#if BSD < 199103
-	struct  proc    *tun_rsel;
-	struct  proc	*tun_wsel;
-#else
-	u_char		tun_pad;	/* explicit alignment */
-	struct selinfo  tun_sel;	/* bsd select info */
-#endif
+	struct	selinfo	tun_rsel;	/* read select */
+	struct	selinfo	tun_wsel;	/* write select (not used) */
 #if NBPFILTER > 0
 	caddr_t		tun_bpf;
 #endif
@@ -50,23 +44,17 @@ struct tun_softc {
 /* Maximum packet size */
 #define	TUNMTU		1500
 
+struct tuninfo {
+	int	baudrate;		/* linespeed */
+	short	mtu;			/* maximum transmission unit */
+	u_char	type;			/* ethernet, tokenring, etc. */
+	u_char	dummy;			/* place holder */
+};
+
 /* ioctl's for get/set debug */
-#ifdef __NetBSD__
 #define	TUNSDEBUG	_IOW('t', 90, int)
 #define	TUNGDEBUG	_IOR('t', 89, int)
 #define	TUNSIFINFO	_IOW('t', 91, struct tuninfo)
 #define	TUNGIFINFO	_IOR('t', 92, struct tuninfo)
-#else	/* Assume BSDI */
-#define	TUNSDEBUG	_IOW('T', 90, int)
-#define	TUNGDEBUG	_IOR('T', 89, int)
-#define	TUNSIFINFO	_IOW('T', 91, struct tuninfo)
-#define	TUNGIFINFO	_IOR('T', 92, struct tuninfo)
-#endif
 
-struct tuninfo {
-	int	tif_baudrate;		/* linespeed */
-	short	tif_mtu;		/* maximum transmission unit */
-	u_char	tif_type;		/* ethernet, tokenring, etc. */
-	u_char	tif_dummy;		/* place holder */
-};
 #endif /* !_NET_IF_TUN_H_ */

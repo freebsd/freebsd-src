@@ -18,20 +18,20 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  */
 #include "fsm.h"
 #include "hdlc.h"
 #include "lcp.h"
 #include "lcpproto.h"
 #include "modem.h"
+#include "vars.h"
 
 #define HDLCSIZE	(MAX_MRU*2+6)
 
 struct async_state {
   int mode;
   int length;
-  struct mbuf *hpacket;
   u_char hbuff[HDLCSIZE];	/* recv buffer */
   u_char xbuff[HDLCSIZE];	/* xmit buffer */
   u_long my_accmap;
@@ -47,6 +47,7 @@ AsyncInit()
   struct async_state *stp = &AsyncState;
 
   stp->mode = MODE_HUNT;
+  stp->length = 0;
   stp->my_accmap = stp->his_accmap = 0xffffffff;
 }
 
@@ -176,10 +177,17 @@ int cnt;
   struct mbuf *bp;
 
   OsAddInOctets(cnt);
-  while (cnt > 0) {
-    bp = AsyncDecode(*buff++);
-    if (bp)
-      HdlcInput(bp);
-    cnt--;
+  if (DEV_IS_SYNC) {
+    bp = mballoc(cnt, MB_ASYNC);
+    bcopy(buff, MBUF_CTOP(bp), cnt);
+    bp->cnt = cnt;
+    HdlcInput(bp);
+  } else {
+    while (cnt > 0) {
+      bp = AsyncDecode(*buff++);
+      if (bp)
+        HdlcInput(bp);
+      cnt--;
+    }
   }
 }

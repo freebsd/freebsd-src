@@ -18,7 +18,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id:$
- *
+ * 
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
  *		o Add signal handler for misc controls.
@@ -27,7 +27,6 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <termios.h>
-#include <sys/ioctl.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <errno.h>
@@ -40,6 +39,13 @@
 #include "lcp.h"
 #include "ipcp.h"
 #include "vars.h"
+#include "auth.h"
+
+#ifndef O_NONBLOCK
+#ifdef O_NDELAY
+#define	O_NONBLOCK O_NDELAY
+#endif
+#endif
 
 extern void VjInit(), AsyncInit();
 extern void AsyncInput(), IpOutput();
@@ -74,7 +80,7 @@ TtyInit()
   newtio.c_cc[VMIN] = 1;
   newtio.c_cc[VTIME] = 0;
   newtio.c_cflag |= CS8;
-  ioctl(0, TIOCSETA, &newtio);
+  tcsetattr(0, TCSADRAIN, &newtio);
   comtio = newtio;
 }
 
@@ -89,11 +95,11 @@ TtyCommandMode()
 
   if (!(mode & MODE_INTER))
     return;
-  ioctl(0, TIOCGETA, &newtio);
+  tcgetattr(0, &newtio);
   newtio.c_lflag |= (ECHO|ICANON);
   newtio.c_iflag = oldtio.c_iflag;
   newtio.c_oflag |= OPOST;
-  ioctl(0, TIOCSETA, &newtio);
+  tcsetattr(0, TCSADRAIN, &newtio);
   stat = fcntl(0, F_GETFL, 0);
   stat |= O_NONBLOCK;
   fcntl(0, F_SETFL, stat);
@@ -109,7 +115,7 @@ TtyTermMode()
 {
   int stat;
 
-  ioctl(0, TIOCSETA, &comtio);
+  tcsetattr(0, TCSADRAIN, &comtio);
   stat = fcntl(0, F_GETFL, 0);
   stat &= ~O_NONBLOCK;
   fcntl(0, F_SETFL, stat);
@@ -123,10 +129,12 @@ int excode;
   int stat;
 
   OsLinkdown();
+#ifdef notdef
   stat = fcntl(0, F_GETFL, 0);
   stat &= ~O_NONBLOCK;
   fcntl(0, F_SETFL, stat);
-  ioctl(0, TIOCSETA, &oldtio);
+  tcsetattr(0, TCSANOW, &oldtio);
+#endif
   OsCloseLink(1);
   sleep(1);
   if (mode & MODE_AUTO)
@@ -136,6 +144,12 @@ int excode;
   LogClose();
   if (server > 0)
     close(server);
+#ifndef notdef
+  stat = fcntl(0, F_GETFL, 0);
+  stat &= ~O_NONBLOCK;
+  fcntl(0, F_SETFL, stat);
+  tcsetattr(0, TCSANOW, &oldtio);
+#endif
 
   exit(excode);
 }
@@ -226,6 +240,16 @@ char **argv;
   if (LogOpen())
     exit(EX_START);
 
+  switch ( LocalAuthInit() ) {
+    case NOT_FOUND:
+    	fprintf(stderr, "Warning: No password entry in secret file\n");
+    	fprintf(stderr, "Warning: Anyone is allowd manipulating!!!\n");
+	VarLocalAuth = LOCAL_AUTH;
+	break;
+    default:
+	break;
+  }
+
   if (OpenTunnel(&tunno) < 0) {
     perror("open_tun");
     exit(EX_START);
@@ -244,12 +268,20 @@ char **argv;
     }
   }
 
-  ioctl(0, TIOCGETA, &oldtio);		/* Save original tty mode */
+  tcgetattr(0, &oldtio);		/* Save original tty mode */
 
   signal(SIGHUP, Hangup);
   signal(SIGTERM, CloseSession);
   signal(SIGINT, CloseSession);
+#ifdef SIGSEGV
   signal(SIGSEGV, Hangup);
+#endif
+#ifdef SIGPIPE
+  signal(SIGPIPE, Hangup);
+#endif
+#ifdef SIGALRM
+  signal(SIGALRM, SIG_IGN);
+#endif
 
   if (dstsystem) {
     if (SelectSystem(dstsystem, CONFFILE) < 0) {
@@ -298,7 +330,7 @@ char **argv;
     }
     LogPrintf(LOG_PHASE, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
-    if (mode & (MODE_DIRECT|MODE_DEDICATED)) {
+    if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
 #else
     if (mode & MODE_DIRECT) {
 #endif
@@ -371,12 +403,13 @@ ReadTty()
 #endif
   if (!TermMode) {
     n = read(netfd, linebuff, sizeof(linebuff)-1);
-    if (n > 0)
+    if (n > 0) {
       DecodeCommand(linebuff, n, 1);
-    else {
+    } else {
 #ifdef DEBUG
       logprintf("connection closed.\n");
 #endif
+      VarLocalAuth = LOCAL_NO_AUTH;
       close(netfd);
       netfd = -1;
       mode &= ~MODE_INTER;
@@ -455,10 +488,11 @@ ReadTty()
  */
 
 static char *FrameHeaders[] = {
-  "\176\177\175\043",
-  "\176\377\175\043",
-  "\176\175\137\175\043",
-  "\176\175\337\175\043",
+  "\176\377\003\300\041",
+  "\176\377\175\043\300\041",
+  "\176\177\175\043\100\041",
+  "\176\175\337\175\043\300\041",
+  "\176\175\137\175\043\100\041",
   NULL,
 };
 
@@ -467,12 +501,15 @@ HdlcDetect(cp, n)
 u_char *cp;
 int n;
 {
-  char *ptr, **hp;
+  char *ptr, *fp, **hp;
 
   cp[n] = '\0';	/* be sure to null terminated */
   ptr = NULL;
   for (hp = FrameHeaders; *hp; hp++) {
-    if (ptr = strstr((char *)cp, *hp))
+    fp = *hp;
+    if (DEV_IS_SYNC)
+      fp++;
+    if (ptr = strstr((char *)cp, fp))
       break;
   }
   return((u_char *)ptr);
@@ -509,6 +546,7 @@ DoLoop()
   int ssize = sizeof(hisaddr);
   u_char *cp;
   u_char rbuff[MAX_MRU];
+  struct itimerval itimer;
 
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
@@ -522,7 +560,14 @@ DoLoop()
   fflush(stdout);
 
   timeout.tv_sec = 0;;
+#ifdef SIGALRM
+  signal(SIGALRM, (void (*)(int))TimerService);
+  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
+  itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
+  setitimer(ITIMER_REAL, &itimer, NULL);
+#else
   timeout.tv_usec = 0;
+#endif
 
   for (;;) {
     IpStartOutput();
@@ -537,18 +582,23 @@ DoLoop()
      *  too big, it results loss of characters from modem and poor responce.
      *  If this values is too small, ppp process eats many CPU time.
      */
+#ifndef SIGALRM
     usleep(TICKUNIT);
     TimerService();
+#endif
 
     if (modem) {
       FD_SET(modem, &rfds);
       FD_SET(modem, &efds);
-      FD_SET(modem, &wfds);
+      if (ModemQlen() > 0) {
+	FD_SET(modem, &wfds);
+      }
     }
     if (netfd > -1) {
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
+#ifndef SIGALRM
     /*
      *  Normally, slect() will not block because modem is writable.
      *  In AUTO mode, select will block until we find packet from tun.
@@ -556,10 +606,16 @@ DoLoop()
      */
     tp = (RedialTimer.state == TIMER_RUNNING)? &timeout : NULL;
     i = select(tun_in+10, &rfds, &wfds, &efds, tp);
+#else
+    i = select(tun_in+10, &rfds, &wfds, &efds, NULL);
+#endif
     if (i == 0) {
       continue;
     }
+
     if (i < 0) {
+      if (errno == EINTR)
+	continue;
       perror("select");
       break;
     }
@@ -596,6 +652,8 @@ DoLoop()
 	 ModemStartOutput(modem);
       }
       if (FD_ISSET(modem, &rfds)) {	/* something to read from modem */
+	if (LcpFsm.state <= ST_CLOSED)
+	  usleep(10000);
 	n = read(modem, rbuff, sizeof(rbuff));
 	if ((mode & MODE_DIRECT) && n <= 0) {
 	  DownConnection();
@@ -668,12 +726,9 @@ DoLoop()
 
 	  if (DialModem()) {
 	    sleep(1);		/* little pause to allow peer starts */
-	    ModemTimeout();
+ 	    ModemTimeout();
 	    PacketMode();
 	  } else {
-#ifdef notdef
-	    Cleanup(EX_DIAL);
-#endif
 	    CloseModem();
 	    /* Dial failed. Keep quite during redial wait period. */
 	    /* XXX: We shoud implement re-dial */
@@ -689,5 +744,10 @@ DoLoop()
 	IpEnqueue(pri, rbuff, n);
     }
   }
+#ifdef SIGALRM
+  itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
+  setitimer(ITIMER_REAL, &itimer, NULL);
+  signal(SIGALRM, SIG_DFL);
+#endif
   logprintf("job done.\n");
 }

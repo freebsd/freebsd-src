@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- * $Id: filter.c,v 1.1.1.1 1995/01/31 06:29:57 amurai Exp $
- *
+ * 
+ * $Id:$
+ * 
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
 
@@ -326,9 +326,9 @@ struct filterent *ofp;
 	  argc--; argv++;
 	}
 	proto = ParseProto(argc, argv);
-      }
-      if (proto) {
-        argc--; argv++;
+	if (proto) {
+	  argc--; argv++;
+	}
       }
     } else {
       printf("Address/protocol expected.\n");
@@ -409,6 +409,19 @@ char **argv;
   return(1);
 }
 
+int
+SetAfilter(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  if (argc > 0)
+    (void) Parse(argc, argv, afilters);
+  else
+    printf("syntax error.\n");
+  return(1);
+}
+
 static char *protoname[] = {
   "none", "tcp", "udp", "icmp",
 };
@@ -472,5 +485,15 @@ int argc;
 char **argv;
 {
   ShowFilter(dfilters);
+  return(1);
+}
+
+int
+ShowAfilter(list, argc, argv)
+struct cmdtab *list;
+int argc;
+char **argv;
+{
+  ShowFilter(afilters);
   return(1);
 }

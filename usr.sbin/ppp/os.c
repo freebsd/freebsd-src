@@ -16,20 +16,15 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- *
- *
+ * 
  * $Id:$
- *
- *      TODO:
+ * 
  */
 #include "fsm.h"
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <net/route.h>
-#if __FreeBSD__ >= 2
-#include <osreldate.h>
-#endif
-#if defined(__NetBSD__) || _BSDI_VERSION >= 199312 || __FreeBSD_version >=199412
+#if BSD >= 199206 || _BSDI_VERSION >= 199312
 #include <sys/select.h>
 #endif
 #include <sys/ioctl.h>
@@ -39,6 +34,7 @@
 #include <errno.h>
 #include "ipcp.h"
 #include "os.h"
+#include "vars.h"
 
 static struct ifaliasreq ifra;
 static struct ifreq ifrq;
@@ -69,7 +65,10 @@ int updown;
   }
 
   if (updown == 0) {
+    if (Enabled(ConfProxy))
+      cifproxyarp(s, oldhis.s_addr);
     if (oldmine.s_addr == 0 && oldhis.s_addr == 0) {
+      close(s);
       return(0);
     }
     bzero(&ifra.ifra_addr, sizeof(ifra.ifra_addr));
@@ -80,6 +79,7 @@ int updown;
 #endif
     if (ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       perror("SIOCDIFADDR");
+      close(s);
       return(-1);
     }
 
@@ -147,8 +147,11 @@ int updown;
 #endif
     } else if (ioctl(s, SIOCAIFADDR, &ifra) < 0) {
       perror("SIOCAIFADDR");
+      close(s);
       return(-1);
     }
+    if (Enabled(ConfProxy))
+      sifproxyarp(s, hisaddr.s_addr);
   }
   close(s);
   return(0);
@@ -235,15 +238,10 @@ OsSetInterfaceParams(type, mtu, speed)
 int type, mtu, speed;
 {
   struct tuninfo info;
-#if __FreeBSD__ >= 2
-  info.tif_type = type;
-  info.tif_mtu = mtu;
-  info.tif_baudrate = speed;
-#else
-  info.if_type = type;
-  info.if_mtu = mtu;
-  info.if_baudrate = speed;
-#endif
+
+  info.type = type;
+  info.mtu = mtu;
+  info.baudrate = speed;
   if (ioctl(tun_out, TUNSIFINFO, &info) < 0)
     perror("TUNSIFINFO");
 }
