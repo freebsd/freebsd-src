@@ -34,6 +34,9 @@
  * $FreeBSD$
  */
 
+#ifndef	_EXTERN_H_
+#define	_EXTERN_H_
+
 extern char tbuf[1024];			/* Temp buffer for anybody. */
 extern int entries;			/* Number of people. */
 extern DB *db;				/* Database. */
@@ -58,3 +61,5 @@ PERSON	*palloc(void);
 char	*prphone(char *);
 void	 sflag_print(void);
 int	 show_text(const char *, const char *, const char *);
+
+#endif /* !_EXTERN_H_ */
