@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.62 1998/11/13 17:53:55 dg Exp $
+ * $Id: proc.h,v 1.63 1998/12/19 02:55:34 julian Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -94,6 +94,18 @@ struct	procsig {
 };
 
 #endif /* COMPAT_LINUX_THREADS */
+
+
+/*
+ * pasleep structure, used by asleep() syscall to hold requested priority and
+ * timeout values for await().
+ */
+
+struct  pasleep {
+	int	as_priority;		/* async priority       */
+	int	as_timo;		/* async timeout        */
+} pasleep;
+
 /*
  * Description of a process.
  *
@@ -232,6 +244,7 @@ struct	proc {
 	int	p_wakeup;	/* thread id */
 	struct proc *p_peers;	
 	struct proc *p_leader;
+	struct pasleep p_asleep; /* used by asleep()/await()    */
 };
 
 #define	p_session	p_pgrp->pg_session
