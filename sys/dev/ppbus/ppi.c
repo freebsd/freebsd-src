@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppi.c,v 1.10 1999/01/27 21:49:53 dillon Exp $
+ *	$Id: ppi.c,v 1.11 1999/01/30 15:35:39 nsouch Exp $
  *
  */
 #include "ppi.h"
@@ -529,49 +529,6 @@ ppiioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
     
 	return (error);
 }
-
-#ifdef PPI_MODULE
-
-MOD_DEV(ppi, LM_DT_CHAR, CDEV_MAJOR, &ppi_cdevsw);
-
-static int
-ppi_load(struct lkm_table *lkmtp, int cmd)
-{
-	struct ppb_data *ppb;
-	struct ppb_device *dev;
-	int i;
-
-	for (ppb = ppb_next_bus(NULL); ppb; ppb = ppb_next_bus(ppb)) {
-
-		dev = ppiprobe(ppb);
-		ppiattach(dev);
-
-		ppb_attach_device(dev);
-	}
-
-	return (0);
-}
-
-static int
-ppi_unload(struct lkm_table *lkmtp, int cmd)
-{
-	int i;
-
-	for (i = nppi-1; i > 0; i--) {
-		ppb_remove_device(&ppidata[i]->ppi_dev);
-		free(ppidata[i], M_TEMP);
-	}
-
-	return (0);
-}
-
-int
-ppi_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	DISPATCH(lkmtp, cmd, ver, ppi_load, ppi_unload, lkm_nullcmd);
-}
-
-#endif /* PPI_MODULE */
 
 static ppi_devsw_installed = 0;
 

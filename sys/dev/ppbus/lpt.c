@@ -47,7 +47,8 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.13 1999/01/27 20:09:19 dillon Exp $
+ *	From Id: nlpt.c,v 1.14 1999/02/08 13:55:43 des Exp
+ *	$Id$
  */
 
 /*
@@ -82,19 +83,19 @@
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
-#include <dev/ppbus/nlpt.h>
+#include <dev/ppbus/lpt.h>
 
-#include "opt_nlpt.h"
+#include "opt_lpt.h"
 
-#ifndef NLPT_DEBUG
-#define nlprintf(args)
+#ifndef LPT_DEBUG
+#define lprintf(args)
 #else
-#define nlprintf(args)						\
+#define lprintf(args)						\
 		do {						\
-			if (nlptflag)				\
+			if (lptflag)				\
 				printf args;			\
 		} while (0)
-static int volatile nlptflag = 1;
+static int volatile lptflag = 1;
 #endif
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
@@ -111,29 +112,29 @@ static int	nlpt = 0;
 #define MAXLPT	8			/* XXX not much better! */
 static struct lpt_data *lptdata[MAXLPT];
 
-#define LPT_NAME	"nlpt"		/* our official name */
+#define LPT_NAME	"lpt"		/* our official name */
 
-static timeout_t nlptout;
-static int	nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask);
-static int	nlpt_detect(struct lpt_data *sc);
+static timeout_t lptout;
+static int	lpt_port_test(struct lpt_data *sc, u_char data, u_char mask);
+static int	lpt_detect(struct lpt_data *sc);
 
 /*
  * Make ourselves visible as a ppbus driver
  */
 
-static struct ppb_device	*nlptprobe(struct ppb_data *ppb);
-static int			nlptattach(struct ppb_device *dev);
-static void			nlptintr(int unit);
-static void			nlpt_drvinit(void *unused);
+static struct ppb_device	*lptprobe(struct ppb_data *ppb);
+static int			lptattach(struct ppb_device *dev);
+static void			lptintr(int unit);
+static void			lpt_drvinit(void *unused);
 
-static void			nlpt_intr(int unit);	/* without spls */
+static void			lpt_intr(int unit);	/* without spls */
 
 #ifdef KERNEL
 
-static struct ppb_driver nlptdriver = {
-    nlptprobe, nlptattach, LPT_NAME
+static struct ppb_driver lptdriver = {
+    lptprobe, lptattach, LPT_NAME
 };
-DATA_SET(ppbdriver_set, nlptdriver);
+DATA_SET(ppbdriver_set, lptdriver);
 
 #endif /* KERNEL */
 
@@ -164,16 +165,16 @@ DATA_SET(ppbdriver_set, nlptdriver);
 #define	MAX_SPIN	20	/* Max delay for device ready in usecs */
 
 
-static	d_open_t	nlptopen;
-static	d_close_t	nlptclose;
-static	d_write_t	nlptwrite;
-static	d_read_t	nlptread;
-static	d_ioctl_t	nlptioctl;
+static	d_open_t	lptopen;
+static	d_close_t	lptclose;
+static	d_write_t	lptwrite;
+static	d_read_t	lptread;
+static	d_ioctl_t	lptioctl;
 
 #define CDEV_MAJOR 16
-static struct cdevsw nlpt_cdevsw = 
-	{ nlptopen,	nlptclose,	nlptread,	nlptwrite,	/*16*/
-	  nlptioctl,	nullstop,	nullreset,	nodevtotty,	/* lpt */
+static struct cdevsw lpt_cdevsw = 
+	{ lptopen,	lptclose,	lptread,	lptwrite,	/*16*/
+	  lptioctl,	nullstop,	nullreset,	nodevtotty,	/* lpt */
 	  seltrue,	nommap,		nostrat,	LPT_NAME,	NULL,	-1 };
 
 static int
@@ -201,10 +202,10 @@ lpt_release_ppbus(struct lpt_data *sc)
 }
 
 /*
- * Internal routine to nlptprobe to do port tests of one byte value
+ * Internal routine to lptprobe to do port tests of one byte value
  */
 static int
-nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
+lpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
 {
 	int	temp, timeout;
 
@@ -216,7 +217,7 @@ nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
 		temp = ppb_rdtr(&sc->lpt_dev) & mask;
 	}
 	while (temp != data && --timeout);
-	nlprintf(("out=%x\tin=%x\ttout=%d\n", data, temp, timeout));
+	lprintf(("out=%x\tin=%x\ttout=%d\n", data, temp, timeout));
 	return (temp == data);
 }
 
@@ -268,7 +269,7 @@ nlpt_port_test(struct lpt_data *sc, u_char data, u_char mask)
  *	Quick exit on fail added.
  */
 static int
-nlpt_detect(struct lpt_data *sc)
+lpt_detect(struct lpt_data *sc)
 {
 	static u_char	testbyte[18] = {
 		0x55,			/* alternating zeros */
@@ -289,7 +290,7 @@ nlpt_detect(struct lpt_data *sc)
 	}
 
 	for (i = 0; i < 18 && status; i++)
-		if (!nlpt_port_test(sc, testbyte[i], 0xff)) {
+		if (!lpt_port_test(sc, testbyte[i], 0xff)) {
 			status = 0;
 			goto end_probe;
 		}
@@ -305,10 +306,10 @@ end_probe:
 }
 
 /*
- * nlptprobe()
+ * lptprobe()
  */
 static struct ppb_device *
-nlptprobe(struct ppb_data *ppb)
+lptprobe(struct ppb_data *ppb)
 {
 	struct lpt_data *sc;
 
@@ -331,14 +332,14 @@ nlptprobe(struct ppb_data *ppb)
 	 * ppbus dependent initialisation.
 	 */
 	sc->lpt_dev.id_unit = sc->lpt_unit;
-	sc->lpt_dev.name = nlptdriver.name;
+	sc->lpt_dev.name = lptdriver.name;
 	sc->lpt_dev.ppb = ppb;
-	sc->lpt_dev.intr = nlptintr;
+	sc->lpt_dev.intr = lptintr;
 
 	/*
 	 * Now, try to detect the printer.
 	 */
-	if (!nlpt_detect(sc)) {
+	if (!lpt_detect(sc)) {
 		free(sc, M_TEMP);
 		return (0);
 	}
@@ -350,7 +351,7 @@ nlptprobe(struct ppb_data *ppb)
 }
 
 static int
-nlptattach(struct ppb_device *dev)
+lptattach(struct ppb_device *dev)
 {
 	struct lpt_data *sc = lptdata[dev->id_unit];
 	int error;
@@ -371,23 +372,23 @@ nlptattach(struct ppb_device *dev)
 	ppb_wctr(&sc->lpt_dev, LPC_NINIT);
 
 	/* check if we can use interrupt, should be done by ppc stuff */
-	nlprintf(("oldirq %x\n", sc->sc_irq));
+	lprintf(("oldirq %x\n", sc->sc_irq));
 	if (ppb_get_irq(&sc->lpt_dev)) {
 		sc->sc_irq = LP_HAS_IRQ | LP_USE_IRQ | LP_ENABLE_IRQ;
 		printf(LPT_NAME "%d: Interrupt-driven port\n", dev->id_unit);
 	} else {
 		sc->sc_irq = 0;
-		nlprintf((LPT_NAME "%d: Polled port\n", dev->id_unit));
+		lprintf((LPT_NAME "%d: Polled port\n", dev->id_unit));
 	}
-	nlprintf(("irq %x\n", sc->sc_irq));
+	lprintf(("irq %x\n", sc->sc_irq));
 
 	lpt_release_ppbus(sc);
 
 #ifdef DEVFS
-	sc->devfs_token = devfs_add_devswf(&nlpt_cdevsw,
+	sc->devfs_token = devfs_add_devswf(&lpt_cdevsw,
 		dev->id_unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d", dev->id_unit);
-	sc->devfs_token_ctl = devfs_add_devswf(&nlpt_cdevsw,
+	sc->devfs_token_ctl = devfs_add_devswf(&lpt_cdevsw,
 		dev->id_unit | LP_BYPASS, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, LPT_NAME "%d.ctl", dev->id_unit);
 #endif
@@ -396,17 +397,17 @@ nlptattach(struct ppb_device *dev)
 }
 
 static void
-nlptout(void *arg)
+lptout(void *arg)
 {
 	struct lpt_data *sc = arg;
 	int pl;
 
-	nlprintf(("T %x ", ppb_rstr(&sc->lpt_dev)));
+	lprintf(("T %x ", ppb_rstr(&sc->lpt_dev)));
 	if (sc->sc_state & OPEN) {
 		sc->sc_backoff++;
 		if (sc->sc_backoff > hz/LPTOUTMAX)
 			sc->sc_backoff = sc->sc_backoff > hz/LPTOUTMAX;
-		timeout(nlptout, (caddr_t)sc, sc->sc_backoff);
+		timeout(lptout, (caddr_t)sc, sc->sc_backoff);
 	} else
 		sc->sc_state &= ~TOUT;
 
@@ -418,7 +419,7 @@ nlptout(void *arg)
 	 */
 	if (sc->sc_xfercnt) {
 		pl = spltty();
-		nlpt_intr(sc->lpt_unit);
+		lpt_intr(sc->lpt_unit);
 		splx(pl);
 	} else {
 		sc->sc_state &= ~OBUSY;
@@ -427,13 +428,13 @@ nlptout(void *arg)
 }
 
 /*
- * nlptopen -- reset the printer, then wait until it's selected and not busy.
+ * lptopen -- reset the printer, then wait until it's selected and not busy.
  *	If LP_BYPASS flag is selected, then we do not try to select the
  *	printer -- this is just used for passing ioctls.
  */
 
 static	int
-nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
+lptopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_data *sc;
 
@@ -447,7 +448,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	sc = lptdata[unit];
 
 	if (sc->sc_state) {
-		nlprintf((LPT_NAME ": still open %x\n", sc->sc_state));
+		lprintf((LPT_NAME ": still open %x\n", sc->sc_state));
 		return(EBUSY);
 	} else
 		sc->sc_state |= LPTINIT;
@@ -465,7 +466,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		return (err);
 
 	s = spltty();
-	nlprintf((LPT_NAME " flags 0x%x\n", sc->sc_flags));
+	lprintf((LPT_NAME " flags 0x%x\n", sc->sc_flags));
 
 	/* set IRQ status according to ENABLE_IRQ flag */
 	if (sc->sc_irq & LP_ENABLE_IRQ)
@@ -491,7 +492,7 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 		if (trys++ >= LPINITRDY*4) {
 			splx(s);
 			sc->sc_state = 0;
-			nlprintf(("status %x\n", ppb_rstr(&sc->lpt_dev)));
+			lprintf(("status %x\n", ppb_rstr(&sc->lpt_dev)));
 
 			lpt_release_ppbus(sc);
 			return (EBUSY);
@@ -532,25 +533,25 @@ nlptopen(dev_t dev, int flags, int fmt, struct proc *p)
 	lpt_release_ppbus(sc);
 
 	/* only use timeout if using interrupt */
-	nlprintf(("irq %x\n", sc->sc_irq));
+	lprintf(("irq %x\n", sc->sc_irq));
 	if (sc->sc_irq & LP_USE_IRQ) {
 		sc->sc_state |= TOUT;
-		timeout(nlptout, (caddr_t)sc,
+		timeout(lptout, (caddr_t)sc,
 			 (sc->sc_backoff = hz/LPTOUTINITIAL));
 	}
 
-	nlprintf(("opened.\n"));
+	lprintf(("opened.\n"));
 	return(0);
 }
 
 /*
- * nlptclose -- close the device, free the local line buffer.
+ * lptclose -- close the device, free the local line buffer.
  *
  * Check for interrupted write call added.
  */
 
 static	int
-nlptclose(dev_t dev, int flags, int fmt, struct proc *p)
+lptclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
 	int err;
@@ -583,12 +584,12 @@ end_close:
 
 	sc->sc_state = 0;
 	sc->sc_xfercnt = 0;
-	nlprintf(("closed.\n"));
+	lprintf(("closed.\n"));
 	return(0);
 }
 
 /*
- * nlpt_pushbytes()
+ * lpt_pushbytes()
  *	Workhorse for actually spinning and writing bytes to printer
  *	Derived from lpa.c
  *	Originally by ?
@@ -596,12 +597,12 @@ end_close:
  *	This code is only used when we are polling the port
  */
 static int
-nlpt_pushbytes(struct lpt_data *sc)
+lpt_pushbytes(struct lpt_data *sc)
 {
 	int spin, err, tic;
 	char ch;
 
-	nlprintf(("p"));
+	lprintf(("p"));
 	/* loop for every character .. */
 	while (sc->sc_xfercnt > 0) {
 		/* printer data */
@@ -648,11 +649,11 @@ nlpt_pushbytes(struct lpt_data *sc)
 }
 
 /*
- * nlptread --retrieve printer status in IEEE1284 NIBBLE mode
+ * lptread --retrieve printer status in IEEE1284 NIBBLE mode
  */
 
 static int
-nlptread(dev_t dev, struct uio *uio, int ioflag)
+lptread(dev_t dev, struct uio *uio, int ioflag)
 {
 	struct lpt_data *sc = lptdata[LPTUNIT(minor(dev))];
 	int error = 0, len;
@@ -682,14 +683,14 @@ error:
 }
 
 /*
- * nlptwrite --copy a line from user space to a local buffer, then call
+ * lptwrite --copy a line from user space to a local buffer, then call
  * putc to get the chars moved to the output queue.
  *
  * Flagging of interrupted write added.
  */
 
 static	int
-nlptwrite(dev_t dev, struct uio *uio, int ioflag)
+lptwrite(dev_t dev, struct uio *uio, int ioflag)
 {
 	register unsigned n;
 	int pl, err;
@@ -732,16 +733,16 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 				return(err);
 			}
 		} else while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
-			nlprintf(("i"));
+			lprintf(("i"));
 			/* if the printer is ready for a char, */
 			/* give it one */
 			if ((sc->sc_state & OBUSY) == 0){
-				nlprintf(("\nC %d. ", sc->sc_xfercnt));
+				lprintf(("\nC %d. ", sc->sc_xfercnt));
 				pl = spltty();
-				nlpt_intr(sc->lpt_unit);
+				lpt_intr(sc->lpt_unit);
 				(void) splx(pl);
 			}
-			nlprintf(("W "));
+			lprintf(("W "));
 			if (sc->sc_state & OBUSY)
 				if ((err = tsleep((caddr_t)sc,
 					 LPPRI|PCATCH, LPT_NAME "write", 0))) {
@@ -752,9 +753,9 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 
 		/* check to see if we must do a polled write */
 		if(!(sc->sc_irq & LP_USE_IRQ) && (sc->sc_xfercnt)) {
-			nlprintf(("p"));
+			lprintf(("p"));
 
-			err = nlpt_pushbytes(sc);
+			err = lpt_pushbytes(sc);
 
 			if (err)
 				return(err);
@@ -768,14 +769,14 @@ nlptwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 /*
- * nlpt_intr -- handle printer interrupts which occur when the printer is
+ * lpt_intr -- handle printer interrupts which occur when the printer is
  * ready to accept another char.
  *
  * do checking for interrupted write call.
  */
 
 static void
-nlpt_intr(int unit)
+lpt_intr(int unit)
 {
 	struct lpt_data *sc = lptdata[unit];
 	int sts;
@@ -788,7 +789,7 @@ nlpt_intr(int unit)
 	/*
 	 * Is printer online and ready for output?
 	 *
-	 * Avoid falling back to nlptout() too quickly.  First spin-loop
+	 * Avoid falling back to lptout() too quickly.  First spin-loop
 	 * to see if the printer will become ready ``really soon now''.
 	 */
 	for (i = 0; i < 100 &&
@@ -800,7 +801,7 @@ nlpt_intr(int unit)
 
 		if (sc->sc_xfercnt) {
 			/* send char */
-			/*nlprintf(("%x ", *sc->sc_cp)); */
+			/*lprintf(("%x ", *sc->sc_cp)); */
 			ppb_wdtr(&sc->lpt_dev, *sc->sc_cp++) ;
 			ppb_wctr(&sc->lpt_dev, sc->sc_control|LPC_STB);
 			/* DELAY(X) */
@@ -818,31 +819,31 @@ nlpt_intr(int unit)
 
 		if(!(sc->sc_state & INTERRUPTED))
 			wakeup((caddr_t)sc);
-		nlprintf(("w "));
+		lprintf(("w "));
 		return;
 	} else	{	/* check for error */
 		if(((sts & (LPS_NERR | LPS_OUT) ) != LPS_NERR) &&
 				(sc->sc_state & OPEN))
 			sc->sc_state |= EERROR;
-		/* nlptout() will jump in and try to restart. */
+		/* lptout() will jump in and try to restart. */
 	}
-	nlprintf(("sts %x ", sts));
+	lprintf(("sts %x ", sts));
 }
 
 static void
-nlptintr(int unit)
+lptintr(int unit)
 {
 	/* call the interrupt at required spl level */
 	int s = spltty();
 
-	nlpt_intr(unit);
+	lpt_intr(unit);
 
 	splx(s);
 	return;
 }
 
 static	int
-nlptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
+lptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	int	error = 0;
         struct	lpt_data *sc;
@@ -903,18 +904,18 @@ nlptioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 	return(error);
 }
 
-static nlpt_devsw_installed = 0;
+static lpt_devsw_installed = 0;
 
 static void
-nlpt_drvinit(void *unused)
+lpt_drvinit(void *unused)
 {
 	dev_t dev;
 
-	if( ! nlpt_devsw_installed ) {
+	if( ! lpt_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&nlpt_cdevsw, NULL);
-		nlpt_devsw_installed = 1;
+		cdevsw_add(&dev,&lpt_cdevsw, NULL);
+		lpt_devsw_installed = 1;
     	}
 }
 
-SYSINIT(nlptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,nlpt_drvinit,NULL)
+SYSINIT(lptdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lpt_drvinit,NULL)
