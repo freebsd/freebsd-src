@@ -151,6 +151,7 @@ struct swdevt {
 	int	sw_flags;
 	int	sw_nblks;
 	int     sw_used;
+	udev_t	sw_udev;
 	void	*sw_id;
 	swblk_t	sw_first;
 	swblk_t	sw_end;
@@ -169,6 +170,7 @@ struct swblock {
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
+static struct mtx sw_dev_mtx;
 static TAILQ_HEAD(, swdevt) swtailq = TAILQ_HEAD_INITIALIZER(swtailq);
 static struct swdevt *swdevhd;	/* Allocate from here next */
 static int nswapdev;		/* Number of swap devices */
@@ -351,6 +353,7 @@ swap_pager_init(void)
 		TAILQ_INIT(&swap_pager_object_list[i]);
 	TAILQ_INIT(&swap_pager_un_object_list);
 	mtx_init(&sw_alloc_mtx, "swap_pager list", NULL, MTX_DEF);
+	mtx_init(&sw_dev_mtx, "swapdev", NULL, MTX_DEF);
 
 	/*
 	 * Device Stripe, in PAGE_SIZE'd blocks
@@ -573,6 +576,7 @@ swp_pager_getswapspace(int npages)
 	GIANT_REQUIRED;
 
 	blk = SWAPBLK_NONE;
+	mtx_lock(&sw_dev_mtx);
 	sp = swdevhd;
 	for (i = 0; i < nswapdev; i++) {
 		if (sp == NULL)
@@ -585,13 +589,15 @@ swp_pager_getswapspace(int npages)
 				sp->sw_used += npages;
 				swp_sizecheck();
 				swdevhd = TAILQ_NEXT(sp, sw_list);
+				mtx_unlock(&sw_dev_mtx);
 				return(blk);
 			}
 		}
 		sp = TAILQ_NEXT(sp, sw_list);
 	}
+	mtx_unlock(&sw_dev_mtx);
 	if (swap_pager_full != 2) {
-		printf("swap_pager_getswapspace: failed\n");
+		printf("swap_pager_getswapspace(%d): failed\n", npages);
 		swap_pager_full = 2;
 		swap_pager_almost_full = 1;
 	}
@@ -604,15 +610,14 @@ swp_pager_find_dev(daddr_t blk)
 {
 	struct swdevt *sp;
 
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
-		if (blk >= sp->sw_first && blk < sp->sw_end)
+		if (blk >= sp->sw_first && blk < sp->sw_end) {
+			mtx_unlock(&sw_dev_mtx);
 			return (sp);
+		}
 	}
-	printf("Failed to find swapdev blk %ju\n", (uintmax_t)blk);
-	TAILQ_FOREACH(sp, &swtailq, sw_list)
-		printf("has %ju...%ju\n",
-		    (uintmax_t)sp->sw_first, (uintmax_t)sp->sw_end);
-	return (NULL);
+	panic("Swapdev not found");
 }
 	
 static void
@@ -620,13 +625,15 @@ swp_pager_strategy(struct buf *bp)
 {
 	struct swdevt *sp;
 
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (bp->b_blkno >= sp->sw_first && bp->b_blkno < sp->sw_end) {
+			mtx_unlock(&sw_dev_mtx);
 			sp->sw_strategy(bp, sp);
 			return;
 		}
 	}
-	KASSERT(0 == 1, ("Swapdev not found"));
+	panic("Swapdev not found");
 }
 	
 
@@ -2094,9 +2101,9 @@ swapon(struct thread *td, struct swapon_args *uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
-	if (vn_isdisk(vp, &error))
+	if (vn_isdisk(vp, &error)) {
 		error = swapondev(td, vp);
-	else if (vp->v_type == VREG &&
+	} else if (vp->v_type == VREG &&
 	    (vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
 	    (error = VOP_GETATTR(vp, &attr, td->td_ucred, td)) == 0) {
 		/*
@@ -2117,13 +2124,14 @@ done2:
 }
 
 static void
-swaponsomething(struct vnode *vp, u_long nblks, sw_strategy_t *strategy)
+swaponsomething(void *vp, u_long nblks, sw_strategy_t *strategy, udev_t udev)
 {
 	struct swdevt *sp;
 	swblk_t dvbase;
 	u_long mblocks;
 
 	dvbase = 0;
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (sp->sw_end >= dvbase) {
 			/*
@@ -2134,6 +2142,7 @@ swaponsomething(struct vnode *vp, u_long nblks, sw_strategy_t *strategy)
 			dvbase = sp->sw_end + 1;
 		}
 	}
+	mtx_unlock(&sw_dev_mtx);
     
 	/*
 	 * If we go beyond this, we get overflows in the radix
@@ -2156,6 +2165,7 @@ swaponsomething(struct vnode *vp, u_long nblks, sw_strategy_t *strategy)
 
 	sp = malloc(sizeof *sp, M_VMPGDATA, M_WAITOK | M_ZERO);
 	sp->sw_id = vp;
+	sp->sw_udev = udev;
 	sp->sw_flags = 0;
 	sp->sw_nblks = nblks;
 	sp->sw_used = 0;
@@ -2170,7 +2180,9 @@ swaponsomething(struct vnode *vp, u_long nblks, sw_strategy_t *strategy)
 	 */
 	blist_free(sp->sw_blist, 2, nblks - 2);
 
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
+	mtx_unlock(&sw_dev_mtx);
 	nswapdev++;
 	swap_pager_avail += nblks;
 	swap_pager_full = 0;
@@ -2185,9 +2197,14 @@ swapondev(struct thread *td, struct vnode *vp)
 	off_t mediasize;
 	u_long nblks;
 
-	TAILQ_FOREACH(sp, &swtailq, sw_list)
-		if (sp->sw_id == vp)
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (sp->sw_id == vp) {
+			mtx_unlock(&sw_dev_mtx);
 			return (EBUSY);
+		}
+	}
+	mtx_unlock(&sw_dev_mtx);
     
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
@@ -2213,7 +2230,7 @@ swapondev(struct thread *td, struct vnode *vp)
 	 * XXX: it should be a power of two, no larger than the page size.
 	 */
 
-	swaponsomething(vp, nblks, swapdev_devstrategy);
+	swaponsomething(vp, nblks, swapdev_devstrategy, dev2udev(vp->v_rdev));
 	return (0);
 }
 
@@ -2226,9 +2243,14 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 
 	if (nblks == 0)
 		return (ENXIO);
-	TAILQ_FOREACH(sp, &swtailq, sw_list)
-		if (sp->sw_id == vp)
+	mtx_lock(&sw_dev_mtx);
+	TAILQ_FOREACH(sp, &swtailq, sw_list) {
+		if (sp->sw_id == vp) {
+			mtx_unlock(&sw_dev_mtx);
 			return (EBUSY);
+		}
+	}
+	mtx_unlock(&sw_dev_mtx);
     
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
@@ -2240,7 +2262,7 @@ swaponvp(struct thread *td, struct vnode *vp, u_long nblks)
 	if (error)
 		return (error);
 
-	swaponsomething(vp, nblks, swapdev_strategy);
+	swaponsomething(vp, nblks, swapdev_strategy, NOUDEV);
 	return (0);
 }
 
@@ -2285,13 +2307,16 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (sp->sw_id == vp)
 			goto found;
 	}
+	mtx_unlock(&sw_dev_mtx);
 	error = EINVAL;
 	goto done;
 found:
+	mtx_unlock(&sw_dev_mtx);
 #ifdef MAC
 	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = mac_check_system_swapoff(td->td_ucred, vp);
@@ -2334,7 +2359,9 @@ found:
 	VOP_CLOSE(vp, FREAD | FWRITE, td->td_ucred, td);
 	vrele(vp);
 	sp->sw_id = NULL;
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
+	mtx_unlock(&sw_dev_mtx);
 	if (swdevhd == sp)
 		swdevhd = NULL;
 	nswapdev--;
@@ -2356,10 +2383,12 @@ swap_pager_status(int *total, int *used)
 
 	*total = 0;
 	*used = 0;
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		*total += sp->sw_nblks;
 		*used += sp->sw_used;
 	}
+	mtx_unlock(&sw_dev_mtx);
 }
 
 static int
@@ -2369,20 +2398,17 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 	int	error, n;
 	struct xswdev xs;
 	struct swdevt *sp;
-	struct vnode *vp;
 
 	if (arg2 != 1) /* name length */
 		return (EINVAL);
 
 	n = 0;
+	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list) {
 		if (n == *name) {
+			mtx_unlock(&sw_dev_mtx);
 			xs.xsw_version = XSWDEV_VERSION;
-			vp = sp->sw_id;
-			if (vp->v_rdev != NULL)
-				xs.xsw_dev = dev2udev(vp->v_rdev);
-			else
-				xs.xsw_dev = NOUDEV;
+			xs.xsw_dev = sp->sw_udev;
 			xs.xsw_flags = sp->sw_flags;
 			xs.xsw_nblks = sp->sw_nblks;
 			xs.xsw_used = sp->sw_used;
@@ -2392,6 +2418,7 @@ sysctl_vm_swap_info(SYSCTL_HANDLER_ARGS)
 		}
 		n++;
 	}
+	mtx_unlock(&sw_dev_mtx);
 	return (ENOENT);
 }
 
