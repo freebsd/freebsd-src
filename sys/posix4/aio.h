@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: aio.h,v 1.1 1998/03/04 10:26:10 dufault Exp $
+ * $Id: aio.h,v 1.2 1998/03/08 17:25:11 dufault Exp $
  */
 
 /* aio.h: P1003.1B-1993 Asynchronous I/O */
@@ -91,15 +91,13 @@ __BEGIN_DECLS
 int aio_read __P((struct aiocb *));
 int aio_write __P((struct aiocb *));
 
-int lio_listio __P((int, aio_listio_ctl [_POSIX_AIO_LISTIO_MAX],
-	int, struct sigevent *));
+int lio_listio __P((int, aio_listio_ctl[], int, struct sigevent *));
 
 int aio_error __P((const struct aiocb *));
 ssize_t aio_return __P((struct aiocb *));
 int aio_cancel __P((int, struct aiocb *));
 
-int aio_suspend __P((caio_listio_ctl [_POSIX_AIO_LISTIO_MAX],
-	int, const struct timespec *));
+int aio_suspend __P((caio_listio_ctl[], int, const struct timespec *));
 
 int aio_fsync __P((int, struct aiocb *));
 __END_DECLS
