@@ -110,6 +110,7 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct session sess;
 	struct tty tty;
 	struct proc proc;
+	struct proc pproc;
 
 	for (; cnt < maxcnt && p != NULL; p = proc.p_list.le_next) {
 		if (KREAD(kd, (u_long)p, &proc)) {
@@ -155,6 +156,17 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				 proc.p_pgrp);
 			return (-1);
 		}
+		if (proc.p_oppid)
+		  eproc.e_ppid = proc.p_oppid;
+		else if (proc.p_pptr) {
+		  if (KREAD(kd, (u_long)proc.p_pptr, &pproc)) {
+			_kvm_err(kd, kd->program, "can't read pproc at %x",
+				 proc.p_pptr);
+			return (-1);
+		  }
+		  eproc.e_ppid = pproc.p_pid;
+		} else 
+		  eproc.e_ppid = 0;
 		eproc.e_sess = pgrp.pg_session;
 		eproc.e_pgid = pgrp.pg_id;
 		eproc.e_jobc = pgrp.pg_jobc;
