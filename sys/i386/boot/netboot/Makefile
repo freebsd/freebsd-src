@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.20 1998/11/26 11:11:29 joerg Exp $
+#	$Id: Makefile,v 1.21 1998/11/28 08:03:24 joerg Exp $
 #
 # Makefile for NETBOOT
 #
@@ -30,7 +30,6 @@ PROG=	nb8390.com nb3c509.com nb8390.rom nb3c509.rom
 # Order is very important on the SRCS line for this prog
 SRCS=	start2.S main.c misc.c bootmenu.c rpc.c
 
-BINDIR=		/usr/mdec
 BINMODE=	555
 #CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} -DASK_BOOT
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} # -DASK_BOOT
@@ -41,14 +40,12 @@ NS8390=	-DINCLUDE_NE
 #NS8390+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
 CLEANFILES+=	netboot.com
 CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
-ROMLDFLAGS=	${LDFLAGS} -N -T ${RELOCADDR} -e _start -nostdlib
+ROMLDFLAGS=	${LDFLAGS} -aout -N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
 MAN8=	netboot.8
-STRIP=
-STRIPCMD= strip -aout
 SIZE=	size -aout
-CFLAGS += -aout
-LDFLAGS += -aout
+STRIP=
+STRIPCMD=	strip -aout
 
 ROMSIZE=16384
 RELOCADDR=0x90000
