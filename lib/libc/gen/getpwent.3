@@ -32,13 +32,16 @@
 .\"     From: @(#)getpwent.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd September 20, 1994
+.Dd April 16, 2003
 .Dt GETPWENT 3
 .Os
 .Sh NAME
 .Nm getpwent ,
+.Nm getpwent_r ,
 .Nm getpwnam ,
+.Nm getpwnam_r ,
 .Nm getpwuid ,
+.Nm getpwuid_r ,
 .Nm setpassent ,
 .Nm setpwent ,
 .Nm endpwent
@@ -50,10 +53,16 @@
 .In pwd.h
 .Ft struct passwd *
 .Fn getpwent void
+.Ft int
+.Fn getpwent_r "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
 .Ft struct passwd *
 .Fn getpwnam "const char *login"
+.Ft int
+.Fn getpwnam_r "const char *name" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
 .Ft struct passwd *
 .Fn getpwuid "uid_t uid"
+.Ft int
+.Fn getpwuid_r "uid_t uid" "struct passwd *pwd" "char *buffer" "size_t bufsize" "struct passwd **result"
 .Ft int
 .Fn setpassent "int  stayopen"
 .Ft void
@@ -100,6 +109,35 @@ function
 sequentially reads the password database and is intended for programs
 that wish to process the complete list of users.
 .Pp
+The functions
+.Fn getpwent_r ,
+.Fn getpwnam_r ,
+and
+.Fn getpwuid_r
+are thread-safe versions of
+.Fn getpwent ,
+.Fn getpwnam ,
+and
+.Fn getpwuid ,
+respectively.
+The caller must provide storage for the results of the search in
+the
+.Fa pwd ,
+.Fa buffer ,
+.Fa bufsize ,
+and
+.Fa result
+arguments.
+When these functions are successful, the
+.Fa pwd
+argument will be filled-in, and a pointer to that argument will be
+stored in
+.Fa result .
+If an entry is not found or an error occurs,
+.Fa result
+will be set to
+.Dv NULL .
+.Pp
 The
 .Fn setpassent
 function
@@ -142,9 +180,26 @@ The functions
 .Fn getpwent ,
 .Fn getpwnam ,
 and
-.Fn getpwuid ,
+.Fn getpwuid
 return a valid pointer to a passwd structure on success
-and a null pointer if end-of-file is reached or an error occurs.
+or
+.Dv NULL
+if the entry is not found or if an error occurs.
+In the latter case,
+.Va errno
+will be set.
+The functions
+.Fn getpwent_r ,
+.Fn getpwnam_r ,
+and
+.Fn getpwuid_r
+return 0 if no error occurred, or an error number to indicate failure.
+It is not an error if a matching entry is not found.  (Thus, if
+.Fa result
+is
+.Dv NULL
+and the return value is 0, no matching entry exists.)
+.Pp
 The
 .Fn setpassent
 function returns 0 on failure and 1 on success.
@@ -154,6 +209,23 @@ and
 .Fn setpwent
 functions
 have no return value.
+.Sh ERRORS
+These routines may fail for any of the errors specified in
+.Xr open 2 ,
+.Xr dbopen 2 ,
+.Xr socket 2 ,
+and
+.Xr connect 2 ,
+in addition to the following:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The buffer specified by the
+.Fa buffer
+and
+.Fa bufsize
+arguments was insufficiently sized to store the result.
+The caller should retry with a larger buffer.
+.El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/pwd.db
@@ -187,6 +259,25 @@ The
 .Fn setpassent
 function appeared in
 .Bx 4.3 Reno .
+The
+.Fn getpwent_r ,
+.Fn getpwnam_r ,
+and
+.Fn getpwuid_r
+functions appeared in
+.Fx 5.1 .
+.Sh STANDARDS
+The
+.Fn getpwent ,
+.Fn getpwnam ,
+.Fn getpwnam_r ,
+.Fn getpwuid ,
+.Fn getpwuid_r ,
+.Fn setpwent ,
+and
+.Fn endpwent
+functions conform to
+.St -p1003.1-96 .
 .Sh COMPATIBILITY
 The historic function
 .Xr setpwfile 3 ,
@@ -206,6 +297,7 @@ will modify the same object.
 .Pp
 The functions
 .Fn getpwent ,
+.Fn getpwent_r ,
 .Fn endpwent ,
 .Fn setpassent ,
 and
@@ -214,7 +306,9 @@ are fairly useless in a networked environment and should be
 avoided, if possible.
 The
 .Fn getpwent
-function
-makes no attempt to suppress duplicate information if multiple
+and
+.Fn getpwent_r
+functions
+make no attempt to suppress duplicate information if multiple
 sources are specified in
 .Xr nsswitch.conf 5 .
