@@ -87,8 +87,6 @@ int ndis_suspend		(device_t);
 int ndis_resume			(device_t);
 void ndis_shutdown		(device_t);
 
-static void ndis_input			(void *);
-
 static __stdcall void ndis_txeof	(ndis_handle,
 	ndis_packet *, ndis_status);
 static __stdcall void ndis_rxeof	(ndis_handle,
@@ -773,20 +771,6 @@ ndis_resume(dev)
 	return(0);
 }
 
-static void
-ndis_input(arg)
-	void			*arg;
-{
-	struct mbuf		*m;
-	struct ifnet		*ifp;
-
-	m = arg;
-	ifp = m->m_pkthdr.rcvif;
-	(*ifp->if_input)(ifp, m);
-
-	return;
-}
-
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -805,13 +789,7 @@ ndis_input(arg)
  * wants to maintain ownership of the packet. In this case, we have to
  * copy the packet data into local storage and let the driver keep the
  * packet.
- *
- * We have to make sure not to try and return packets to the driver
- * until after this routine returns. The best way to do that is put the
- * call to (*ifp->if_input)() on the ndis swi work queue. In theory,
- * we could also copy the packet. I'm not sure which is faster.
  */
-
 __stdcall static void
 ndis_rxeof(adapter, packets, pktcnt)
 	ndis_handle		adapter;
@@ -859,6 +837,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 			} else
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m0->m_pkthdr.rcvif = ifp;
+			ifp->if_ipackets++;
 
 			/* Deal with checksum offload. */
 
@@ -880,18 +859,13 @@ ndis_rxeof(adapter, packets, pktcnt)
 				}
 			}
 
-			if (ndis_sched(ndis_input, m0, NDIS_SWI)) {
-				p->np_refcnt++;
-				m_freem(m0);
-				ifp->if_ierrors++;
-				p->np_oob.npo_status = NDIS_STATUS_SUCCESS;
-			} else
-				ifp->if_ipackets++;
+			(*ifp->if_input)(ifp, m0);
 		}
 	}
 
 	return;
 }
+
 /*
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.

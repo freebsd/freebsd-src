@@ -99,6 +99,7 @@ struct ndisproc {
 	int			np_state;
 };
 
+static void ndis_return(void *);
 static int ndis_create_kthreads(void);
 static void ndis_destroy_kthreads(void);
 static void ndis_stop_thread(int);
@@ -724,16 +725,37 @@ ndis_flush_sysctls(arg)
 	return(0);
 }
 
+static void
+ndis_return(arg)
+	void			*arg;
+{
+	struct ndis_softc	*sc;
+	__stdcall ndis_return_handler	returnfunc;
+	ndis_handle		adapter;
+	ndis_packet		*p;
+	uint8_t			irql;
+
+	p = arg;
+	sc = p->np_softc;
+	adapter = sc->ndis_block.nmb_miniportadapterctx;
+
+	if (adapter == NULL)
+		return;
+
+	returnfunc = sc->ndis_chars.nmc_return_packet_func;
+	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	returnfunc(adapter, p);
+	FASTCALL1(hal_lower_irql, irql);
+
+	return;
+}
+
 void
 ndis_return_packet(buf, arg)
 	void			*buf;	/* not used */
 	void			*arg;
 {
-	struct ndis_softc	*sc;
-	ndis_handle		adapter;
 	ndis_packet		*p;
-	__stdcall ndis_return_handler	returnfunc;
-	uint8_t			irql;
 
 	if (arg == NULL)
 		return;
@@ -747,14 +769,7 @@ ndis_return_packet(buf, arg)
 	if (p->np_refcnt)
 		return;
 
-	sc = p->np_softc;
-	returnfunc = sc->ndis_chars.nmc_return_packet_func;
-	adapter = sc->ndis_block.nmb_miniportadapterctx;
-	if (adapter != NULL) {
-		irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
-		returnfunc(adapter, p);
-		FASTCALL1(hal_lower_irql, irql);
-	}
+	ndis_sched(ndis_return, p, NDIS_SWI);
 
 	return;
 }
