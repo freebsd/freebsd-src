@@ -148,7 +148,7 @@ isp_attach(struct ispsoftc *isp)
 		/* XXX: LOCK VIOLATION */
 		cv_init(&isp->isp_osinfo.kthread_cv, "isp_kthread_cv");
 		if (kthread_create(isp_kthread, isp, &isp->isp_osinfo.kproc,
-		    RFHIGHPID, "%s: fc_thrd",
+		    RFHIGHPID, 0, "%s: fc_thrd",
 		    device_get_nameunit(isp->isp_dev))) {
 			xpt_bus_deregister(cam_sim_path(sim));
 			cam_sim_free(sim, TRUE);

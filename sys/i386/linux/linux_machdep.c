@@ -342,7 +342,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		ff |= RFFDG;
 
 	mtx_lock(&Giant);
-	error = fork1(td, ff, &p2);
+	error = fork1(td, ff, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;

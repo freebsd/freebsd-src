@@ -685,7 +685,7 @@ create_init(const void *udata __unused)
 	struct ucred *newcred, *oldcred;
 	int error;
 
-	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, &initproc);
+	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
 	/* divorce init's credentials from the kernel's */

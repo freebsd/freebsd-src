@@ -934,29 +934,39 @@ retry:
 	return m;
 }
 
+#ifndef KSTACK_MAX_PAGES
+#define KSTACK_MAX_PAGES 32
+#endif
+
 /*
  * Create the kernel stack (including pcb for i386) for a new thread.
  * This routine directly affects the fork perf for a process and
  * create performance for a thread.
  */
 void
-pmap_new_thread(struct thread *td)
+pmap_new_thread(struct thread *td, int pages)
 {
 	int i;
-	vm_page_t ma[KSTACK_PAGES];
+	vm_page_t ma[KSTACK_MAX_PAGES];
 	vm_object_t ksobj;
 	vm_page_t m;
 	vm_offset_t ks;
 
+	/* Bounds check */
+	if (pages <= 1)
+		pages = KSTACK_PAGES;
+	else if (pages > KSTACK_MAX_PAGES)
+		pages = KSTACK_MAX_PAGES;
+
 	/*
 	 * allocate object for the kstack
 	 */
-	ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+	ksobj = vm_object_allocate(OBJT_DEFAULT, pages);
 	td->td_kstack_obj = ksobj;
 
 	/* get a kernel virtual address for the kstack for this thread */
 #ifdef KSTACK_GUARD
-	ks = kmem_alloc_nofault(kernel_map, (KSTACK_PAGES + 1) * PAGE_SIZE);
+	ks = kmem_alloc_nofault(kernel_map, (pages + 1) * PAGE_SIZE);
 	if (ks == 0)
 		panic("pmap_new_thread: kstack allocation failed");
 	if (*vtopte(ks) != 0)
@@ -965,16 +975,22 @@ pmap_new_thread(struct thread *td)
 	td->td_kstack = ks;
 #else
 	/* get a kernel virtual address for the kstack for this thread */
-	ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+	ks = kmem_alloc_nofault(kernel_map, pages * PAGE_SIZE);
 	if (ks == 0)
 		panic("pmap_new_thread: kstack allocation failed");
 	td->td_kstack = ks;
 #endif
+	/*
+	 * Knowing the number of pages allocated is useful when you
+	 * want to deallocate them.
+	 */
+	td->td_kstack_pages = pages;
+
 	/* 
 	 * For the length of the stack, link in a real page of ram for each
 	 * page of stack.
 	 */
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	for (i = 0; i < pages; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
@@ -986,7 +1002,7 @@ pmap_new_thread(struct thread *td)
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-	pmap_qenter(ks, ma, KSTACK_PAGES);
+	pmap_qenter(ks, ma, pages);
 }
 
 /*
@@ -998,14 +1014,16 @@ pmap_dispose_thread(td)
 	struct thread *td;
 {
 	int i;
+	int pages;
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
 
+	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
-	pmap_qremove(ks, KSTACK_PAGES);
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	pmap_qremove(ks, pages);
+	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
@@ -1020,11 +1038,41 @@ pmap_dispose_thread(td)
 	 * address map.
 	 */
 #ifdef KSTACK_GUARD
-	kmem_free(kernel_map, ks - PAGE_SIZE, (KSTACK_PAGES + 1) * PAGE_SIZE);
+	kmem_free(kernel_map, ks - PAGE_SIZE, (pages + 1) * PAGE_SIZE);
 #else
-	kmem_free(kernel_map, ks, KSTACK_PAGES * PAGE_SIZE);
+	kmem_free(kernel_map, ks, pages * PAGE_SIZE);
 #endif
 	vm_object_deallocate(ksobj);
+}
+
+/*
+ * Set up a variable sized alternate kstack.  Though it may look MI, it may
+ * need to be different on certain arches like ia64.
+ */
+void
+pmap_new_altkstack(struct thread *td, int pages)
+{
+	/* shuffle the original stack */
+	td->td_altkstack_obj = td->td_kstack_obj;
+	td->td_altkstack = td->td_kstack;
+	td->td_altkstack_pages = td->td_kstack_pages;
+
+	pmap_new_thread(td, pages);
+}
+
+void
+pmap_dispose_altkstack(td)
+	struct thread *td;
+{
+	pmap_dispose_thread(td);
+
+	/* restore the original kstack */
+	td->td_kstack = td->td_altkstack;
+	td->td_kstack_obj = td->td_altkstack_obj;
+	td->td_kstack_pages = td->td_altkstack_pages;
+	td->td_altkstack = 0;
+	td->td_altkstack_obj = NULL;
+	td->td_altkstack_pages = 0;
 }
 
 /*
@@ -1035,14 +1083,16 @@ pmap_swapout_thread(td)
 	struct thread *td;
 {
 	int i;
+	int pages;
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
 
+	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
-	pmap_qremove(ks, KSTACK_PAGES);
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	pmap_qremove(ks, pages);
+	for (i = 0; i < pages; i++) {
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_swapout_thread: kstack already missing?");
@@ -1061,14 +1111,16 @@ pmap_swapin_thread(td)
 	struct thread *td;
 {
 	int i, rv;
-	vm_page_t ma[KSTACK_PAGES];
+	int pages;
+	vm_page_t ma[KSTACK_MAX_PAGES];
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
 
+	pages = td->td_kstack_pages;
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
-	for (i = 0; i < KSTACK_PAGES; i++) {
+	for (i = 0; i < pages; i++) {
 		m = vm_page_grab(ksobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(ksobj, &m, 1, 0);
@@ -1083,7 +1135,7 @@ pmap_swapin_thread(td)
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 	}
-	pmap_qenter(ks, ma, KSTACK_PAGES);
+	pmap_qenter(ks, ma, pages);
 }
 
 /***************************************************
