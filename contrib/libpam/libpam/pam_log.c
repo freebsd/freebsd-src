@@ -351,6 +351,7 @@ void pam_vsystem_log(const pam_handle_t *pamh,
 
     D(("pam_vsystem_log called"));
 
+#ifndef __FreeBSD__
     /* make sure we have a log state to use */
     if (NULL == log_state) {
 	if (NULL != pamh && NULL != pamh->pam_default_log.ident) {
@@ -366,9 +367,12 @@ void pam_vsystem_log(const pam_handle_t *pamh,
     } else {
 	openlog(log_state->ident, log_state->option, log_state->facility);
     }
+#endif
 
     vsyslog(priority, format, args);
+#ifndef __FreeBSD__
     closelog();
+#endif
 
     D(("done."));
 }
@@ -383,6 +387,7 @@ void pam_system_log(const pam_handle_t *pamh,
 
     D(("pam_system_log called"));
 
+#ifndef __FreeBSD__
     /* make sure we have a log state to use */
     if (NULL == log_state) {
 	if (NULL != pamh && NULL != pamh->pam_default_log.ident) {
@@ -398,11 +403,14 @@ void pam_system_log(const pam_handle_t *pamh,
     } else {
 	openlog(log_state->ident, log_state->option, log_state->facility);
     }
+#endif
 
     va_start(args, format);
     vsyslog(priority, format, args);
     va_end(args);
+#ifndef __FreeBSD__
     closelog();
+#endif
 
     D(("done."));
 }
