@@ -3366,7 +3366,7 @@ ray_res_alloc_am(struct ray_softc *sc)
 		RAY_PRINTF(sc, "fixing up AM card address from 0x%x to 0x0",
 		    offset);
 		error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev),
-		    sc->dev, sc->am_rid, 0);
+		    sc->dev, sc->am_rid, 0, NULL);
 		if (error) {
 			RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x",
 			    error);
@@ -3454,7 +3454,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 		RAY_PRINTF(sc, "fixing up CM card address from 0x%x to 0x0",
 		    offset);
 		error = CARD_SET_MEMORY_OFFSET(device_get_parent(sc->dev),
-		    sc->dev, sc->cm_rid, 0);
+		    sc->dev, sc->cm_rid, 0, NULL);
 		if (error) {
 			RAY_PRINTF(sc, "CARD_SET_MEMORY_OFFSET returned 0x%0x",
 			    error);

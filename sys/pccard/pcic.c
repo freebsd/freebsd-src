@@ -83,6 +83,7 @@ static struct pcic_slot {
 static struct slot_ctrl cinfo;
 
 static struct isa_pnp_id pcic_ids[] = {
+	{0x65374d24,			NULL},		/* IBM3765 */
 	{PCIC_PNP_82365,		NULL},		/* PNP0E00 */
 	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
 	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
@@ -977,13 +978,15 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 }
 
 static int
-pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset)
+pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset,
+    u_int32_t *deltap)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct mem_desc *mp = &devi->slt->mem[rid];
 
 	mp->card = offset;
-
+	if (deltap)
+		*deltap = 0;			/* XXX BAD XXX */
 	return (pcic_memory(devi->slt, rid));
 }
 
