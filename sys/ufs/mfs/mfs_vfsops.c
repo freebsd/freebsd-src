@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.46 1998/10/08 23:34:44 jkh Exp $
+ * $Id: mfs_vfsops.c,v 1.48 1998/10/09 06:21:12 jkh Exp $
  */
 
 
@@ -106,7 +106,7 @@ VFS_SET(mfs_vfsops, mfs, 0);
 static u_char mfs_root[MFS_ROOT_SIZE*1024] = "MFS Filesystem goes here";
 static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 
-#else	/* load it from module area */
+#else	/* load it from preload area */
 
 static u_char *
 mfs_getimage(void)
@@ -114,18 +114,13 @@ mfs_getimage(void)
 	caddr_t p;
 	vm_offset_t *q;
 
-	p = module_search_by_type("mfs_root");
+	p = preload_search_by_type("mfs_root");
 	if (!p)
 		return NULL;
-	q = (vm_offset_t *)module_search_info(p, MODINFO_ADDR);
+	q = (vm_offset_t *)preload_search_info(p, MODINFO_ADDR);
 	if (!q)
 		return NULL;
-	/* XXX this needs to change to the appropriate function or macro */
-#ifdef __alpha__
 	return (u_char *)*q;
-#else
-	return (u_char *)*q + 0xf0000000;
-#endif
 }
 
 #endif	/* MFS_ROOT_SIZE */
@@ -201,7 +196,7 @@ mfs_mount(mp, path, data, ndp, p)
 		/* Get it from compiled-in code */
 		base = mfs_root;
 #else
-		/* Get it from module area */
+		/* Get it from preload area */
 		base = mfs_getimage();
 		if (!base)
 		    panic("No module of type mfs_root loaded; can't continue!");
