@@ -49,6 +49,22 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "defs.h"
 
+static int nvectors;
+static int nentries;
+static short **froms;
+static short **tos;
+static short *tally;
+static short *width;
+static short *state_count;
+static short *order;
+static short *base;
+static short *pos;
+static int maxtable;
+static short *table;
+static short *check;
+static int lowzero;
+static int high;
+
 static int default_goto(int);
 static void free_itemsets(void);
 static void free_reductions(void);
@@ -77,21 +93,6 @@ static void token_actions(void);
 static int increase_maxtable(int);
 
 static const char line_format[] = "#line %d \"%s\"\n";
-static int nvectors;
-static int nentries;
-static short **froms;
-static short **tos;
-static short *tally;
-static short *width;
-static short *state_count;
-static short *order;
-static short *base;
-static short *pos;
-static int maxtable;
-static short *table;
-static short *check;
-static int lowzero;
-static int high;
 
 
 void
