@@ -63,15 +63,15 @@ to the file referenced to by
 or to the file descriptor
 .Fa fd ,
 respectively.
-Note that this function will fail on socket descriptors.
-For information on
-setting MAC labels on socket descriptors see
-.Xr setsockopt 2 .
+Note that when a file descriptor references a socket, label operations
+on the file descriptor act on the socket, not on the file that may
+have been used as a rendezvous when binding the socket.
 The
 .Fn mac_set_link
 function is the same as
 .Fn mac_set_file ,
 except that it does not follow symlinks.
+.Pp
 The
 .Fn mac_set_proc
 function associates the MAC label
@@ -99,7 +99,9 @@ is not a valid file descriptor.
 The
 .Fa label
 argument
-is not a valid MAC label.
+is not a valid MAC label, or the object referenced by
+.Fa fd
+is not appropriate for label operations.
 .It Bq Er EOPNOTSUPP
 Setting MAC labels is not supported
 by the file referenced by
