@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.64 1996/04/09 04:00:24 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.65 1996/04/09 04:14:09 gclarkii Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -196,6 +196,7 @@
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
+	  <item>Jian-Da Li &lt;jdli@FreeBSD.csie.NCTU.edu.tw&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
 	  <item>John Hay - &lt;jhay@mikom.csir.co.za&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
