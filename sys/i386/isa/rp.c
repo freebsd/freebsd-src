@@ -780,7 +780,11 @@ static struct pci_device rp_pcidevice = {
 	NULL
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (rp_pci, rp_pcidevice);
+#else
 DATA_SET (pcidevice_set, rp_pcidevice);
+#endif /* COMPAT_PCI_DRIVER */
 
 static timeout_t rpdtrwakeup;
 

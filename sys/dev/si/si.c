@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.78 1999/01/12 00:36:35 eivind Exp $
+ *	$Id: si.c,v 1.79 1999/01/30 12:17:34 phk Exp $
  */
 
 #ifndef lint
@@ -144,7 +144,11 @@ static struct pci_device sipcidev = {
 	NULL,
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (sipci, sipcidev);
+#else
 DATA_SET (pcidevice_set, sipcidev);
+#endif /* COMPAT_PCI_DRIVER */
 
 #endif
 

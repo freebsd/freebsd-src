@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.23 1999/03/31 13:50:52 nsayer Exp $ */
+/*	$Id: if_tx.c,v 1.24 1999/04/17 08:36:07 peter Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -392,7 +392,11 @@ static struct pci_device txdevice = {
 	NULL };
 
 /* Append this driver to pci drivers list */
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (tx, txdevice);
+#else
 DATA_SET ( pcidevice_set, txdevice );
+#endif /* COMPAT_PCI_DRIVER */
 
 /* Synopsis: Check if device id corresponds with SMC83C170 id.  */
 static const char*

@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: adv_pci.c,v 1.3 1998/12/14 06:32:54 dillon Exp $
+ *	$Id: adv_pci.c,v 1.4 1998/12/22 18:14:15 gibbs Exp $
  */
 
 #include <pci.h>
@@ -95,7 +95,11 @@ static struct  pci_device adv_pci_driver = {
 	NULL
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (adv_pci, adv_pci_driver);
+#else
 DATA_SET (pcidevice_set, adv_pci_driver);
+#endif /* COMPAT_PCI_DRIVER */
 
 static const char*
 advpciprobe(pcici_t tag, pcidi_t type)

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_pn.c,v 1.16 1999/04/14 19:40:07 wpaul Exp $
+ *	$Id: if_pn.c,v 1.17 1999/04/16 21:22:51 peter Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_pn.c,v 1.16 1999/04/14 19:40:07 wpaul Exp $";
+	"$Id: if_pn.c,v 1.17 1999/04/16 21:22:51 peter Exp $";
 #endif
 
 #ifdef __alpha__
@@ -2282,4 +2282,8 @@ static struct pci_device pn_device = {
 	&pn_count,
 	NULL
 };
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(pn, pn_device);
+#else
 DATA_SET(pcidevice_set, pn_device);
+#endif /* COMPAT_PCI_DRIVER */
