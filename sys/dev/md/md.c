@@ -384,9 +384,9 @@ mdstrategy(struct bio *bp)
 
 	if (md_debug > 1)
 		printf("mdstrategy(%p) %s %x, %lld, %ld, %p)\n",
-		    bp, devtoname(bp->bio_dev), bp->bio_flags, 
-		    (long long)bp->bio_blkno,
-		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
+		    (void *)bp, devtoname(bp->bio_dev), bp->bio_flags,
+		    (long long)bp->bio_blkno, bp->bio_bcount / DEV_BSIZE,
+		    (void *)bp->bio_data);
 
 	sc = bp->bio_dev->si_drv1;
 
