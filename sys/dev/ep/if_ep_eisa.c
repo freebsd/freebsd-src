@@ -38,8 +38,8 @@
 #include <net/if_arp.h>
 #include <net/if_media.h> 
 
-#include <dev/eisa/eisa_busreg.h>
-#include <dev/eisa/eisa_busvar.h>
+
+#include <dev/eisa/eisaconf.h>
 
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
@@ -122,8 +122,8 @@ ep_eisa_probe(device_t dev)
 	if ((inw(iobase + EP_W0_ADDRESS_CFG) & 0x1f) != 0x1f)
 	    return ENXIO;
 
-	eisa_add_iospace(dev, iobase, EP_EISA_IOSIZE);
-	eisa_add_iospace(dev, port, EP_IOSIZE);
+	eisa_add_iospace(dev, iobase, EP_EISA_IOSIZE, RESVADDR_NONE);
+	eisa_add_iospace(dev, port, EP_IOSIZE, RESVADDR_NONE);
 
 	conf = inw(iobase + EISA_IOCONF);
 	/* Determine our IRQ */
@@ -171,7 +171,7 @@ ep_eisa_probe(device_t dev)
 			break;
 	}
 			
-	eisa_add_irq(dev, irq, int_trig);
+	eisa_add_intr(dev, irq, int_trig);
 
 	return 0;
 }
