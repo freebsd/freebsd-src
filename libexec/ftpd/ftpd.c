@@ -294,14 +294,32 @@ main(int argc, char *argv[], char **envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-	while ((ch = getopt(argc, argv, "AdlDESURrt:T:u:vMOoa:p:46")) != -1) {
+	while ((ch = getopt(argc, argv, "46a:AdDElMoOp:rRSt:T:u:Uv")) != -1) {
 		switch (ch) {
-		case 'D':
-			daemon_mode++;
+		case '4':
+			enable_v4 = 1;
+			if (family == AF_UNSPEC)
+				family = AF_INET;
+			break;
+
+		case '6':
+			family = AF_INET6;
+			break;
+
+		case 'a':
+			bindname = optarg;
+			break;
+
+		case 'A':
+			anon_only = 1;
 			break;
 
 		case 'd':
 			ftpdebug++;
+			break;
+
+		case 'D':
+			daemon_mode++;
 			break;
 
 		case 'E':
@@ -310,6 +328,22 @@ main(int argc, char *argv[], char **envp)
 
 		case 'l':
 			logging++;	/* > 1 == extra logging */
+			break;
+
+		case 'M':
+			noguestmkd = 1;
+			break;
+
+		case 'o':
+			noretr = 1;
+			break;
+
+		case 'O':
+			noguestretr = 1;
+			break;
+
+		case 'p':
+			pid_file = optarg;
 			break;
 
 		case 'r':
@@ -324,28 +358,16 @@ main(int argc, char *argv[], char **envp)
 			stats++;
 			break;
 
-		case 'T':
-			maxtimeout = atoi(optarg);
-			if (timeout > maxtimeout)
-				timeout = maxtimeout;
-			break;
-
 		case 't':
 			timeout = atoi(optarg);
 			if (maxtimeout < timeout)
 				maxtimeout = timeout;
 			break;
 
-		case 'U':
-			restricted_data_ports = 0;
-			break;
-
-		case 'a':
-			bindname = optarg;
-			break;
-
-		case 'p':
-			pid_file = optarg;
+		case 'T':
+			maxtimeout = atoi(optarg);
+			if (timeout > maxtimeout)
+				timeout = maxtimeout;
 			break;
 
 		case 'u':
@@ -359,34 +381,12 @@ main(int argc, char *argv[], char **envp)
 				defumask = val;
 			break;
 		    }
-		case 'A':
-			anon_only = 1;
+		case 'U':
+			restricted_data_ports = 0;
 			break;
 
 		case 'v':
 			ftpdebug = 1;
-			break;
-
-		case '4':
-			enable_v4 = 1;
-			if (family == AF_UNSPEC)
-				family = AF_INET;
-			break;
-
-		case '6':
-			family = AF_INET6;
-			break;
-
-		case 'M':
-			noguestmkd = 1;
-			break;
-
-		case 'O':
-			noguestretr = 1;
-			break;
-
-		case 'o':
-			noretr = 1;
 			break;
 
 		default:
