@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt.c,v 1.5 1994/09/19 19:26:39 csgr Exp $
+ *	$Id$
  *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
@@ -58,10 +58,9 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <pwd.h>
+#include <string.h>
 
-#ifdef DEBUG
-# include <stdio.h>
-#endif
+char *crypt_md5(const char *pw, const char *salt);
 
 /* We can't always assume gcc */
 #ifdef __GNUC__
@@ -366,7 +365,7 @@ static int
 des_setkey(const char *key)
 {
 	u_long	k0, k1, rawkey0, rawkey1;
-	int	shifts, i, b, round;
+	int	shifts, round;
 
 	if (!des_initialised)
 		des_init();
@@ -413,7 +412,6 @@ des_setkey(const char *key)
 	shifts = 0;
 	for (round = 0; round < 16; round++) {
 		u_long	t0, t1;
-		int	bit;
 
 		shifts += key_shifts[round];
 
@@ -449,9 +447,9 @@ do_des(	u_long l_in, u_long r_in, u_long *l_out, u_long *r_out, int count)
 	/*
 	 *	l_in, r_in, l_out, and r_out are in pseudo-"big-endian" format.
 	 */
-	u_long	mask, rawl, rawr, l, r, *kl, *kr, *kl1, *kr1;
+	u_long	l, r, *kl, *kr, *kl1, *kr1;
 	u_long	f, r48l, r48r;
-	int	i, j, b, round;
+	int	round;
 
 	if (count == 0) {
 		return(1);
@@ -580,7 +578,6 @@ des_cipher(const char *in, char *out, long salt, int count)
 	return(retval);
 }
 
-
 char *
 crypt(char *key, char *setting)
 {
@@ -588,6 +585,9 @@ crypt(char *key, char *setting)
 	u_long		count, salt, l, r0, r1, keybuf[2];
 	u_char		*p, *q;
 	static u_char	output[21];
+
+	if (!strncmp(setting, "$1$", 3))
+		return crypt_md5(key, setting);
 
 	if (!des_initialised)
 		des_init();
@@ -599,7 +599,7 @@ crypt(char *key, char *setting)
 	 */
 	q = (u_char *) keybuf;
 	while (q - (u_char *) keybuf - 8) {
-		if (*q++ = *key << 1)
+		if ((*q++ = *key << 1))
 			key++;
 	}
 	if (des_setkey((u_char *) keybuf))
