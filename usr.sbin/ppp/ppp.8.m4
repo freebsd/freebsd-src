@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.111 1998/06/27 23:48:52 brian Exp $
+.\" $Id: ppp.8,v 1.112 1998/07/29 18:21:17 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2374,7 +2374,7 @@ command is used
 .Pq note the trailing Dq \&! ,
 .Nm
 will not complain if the route does not already exist.
-.It dial[!]|call[!] Op Ar label
+.It dial|call Op Ar label
 When used with no argument, this command is the same as the
 .Dq open
 command.  When
@@ -2428,7 +2428,7 @@ file.  If
 is not given, the
 .Ar default
 label is used.
-.It open[!] Op lcp|ccp|ipcp
+.It open Op lcp|ccp|ipcp
 This is the opposite of the
 .Dq close
 command.  Using
@@ -2458,11 +2458,6 @@ If the
 argument is used, the link will be brought up as normal, but if
 IPCP is already open, it will be renegotiated and the network
 interface will be reconfigured.
-.Pp
-If
-.Dq open!
-is used, any currently running redial timers are ignored and the open
-happens immediately.
 .Pp
 It is probably not good practice to re-open the PPP state machines
 like this as it's possible that the peer will not behave correctly.
