@@ -70,6 +70,23 @@ function will fail if:
 .Fa iocb
 does not reference an outstanding asynchronous I/O request.
 .El
+.Sh KERNEL OPTIONS
+The following kernel configuration option
+(see
+.Xr config 8 )
+is required:
+.Pp
+.Dl "options VFS_AIO"
+.Pp
+If you do not want AIO support included in the kernel, but
+want to use it occasionally, do not add the
+.Dv VFS_AIO
+option.  Instead, load the
+.Nm aio
+module as desired:
+.Pp
+.Dl kldload aio
+.Pp
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
 .Xr aio_read 2 ,
@@ -79,6 +96,9 @@ does not reference an outstanding asynchronous I/O request.
 .Xr fsync 2 ,
 .Xr read 2 ,
 .Xr write 2
+.Xr config 8 ,
+.Xr kldload 8 ,
+.Xr kldunload 8
 .Sh STANDARDS
 .Fn aio_error
 is expected to conform to the
