@@ -1173,12 +1173,8 @@ union_removed_upper(un)
 	 * the union node from cache, so that it will not be referrenced.
 	 */
 	union_newupper(un, NULLVP);
-	if (un->un_dircache != 0) {
-		for (vpp = un->un_dircache; *vpp != NULLVP; vpp++)
-			vrele(*vpp);
-		free(un->un_dircache, M_TEMP);
-		un->un_dircache = 0;
-	}
+	if (un->un_dircache != NULL)
+		union_dircache_free(un);
 
 	if (un->un_flags & UN_CACHED) {
 		un->un_flags &= ~UN_CACHED;
@@ -1227,19 +1223,17 @@ union_dircache_r(vp, vppp, cntp)
 		} else {
 			(*cntp)++;
 		}
-
-		return;
+	} else {
+		un = VTOUNION(vp);
+		if (un->un_uppervp != NULLVP)
+			union_dircache_r(un->un_uppervp, vppp, cntp);
+		if (un->un_lowervp != NULLVP)
+			union_dircache_r(un->un_lowervp, vppp, cntp);
 	}
-
-	un = VTOUNION(vp);
-	if (un->un_uppervp != NULLVP)
-		union_dircache_r(un->un_uppervp, vppp, cntp);
-	if (un->un_lowervp != NULLVP)
-		union_dircache_r(un->un_lowervp, vppp, cntp);
 }
 
 struct vnode *
-union_dircache(vp, td)
+union_dircache_get(vp, td)
 	struct vnode *vp;
 	struct thread *td;
 {
@@ -1305,6 +1299,17 @@ out:
 	return (nvp);
 }
 
+void
+union_dircache_free(struct union_node *un)
+{
+	struct vnode **vpp;
+
+	for (vpp = un->un_dircache; *vpp != NULLVP; vpp++)
+		vrele(*vpp);
+	free(un->un_dircache, M_TEMP);
+	un->un_dircache = NULL;
+}
+
 /*
  * Module glue to remove #ifdef UNION from vfs_syscalls.c
  */
@@ -1316,7 +1321,7 @@ union_dircheck(struct thread *td, struct vnode **vp, struct file *fp)
 	if ((*vp)->v_op == union_vnodeop_p) {
 		struct vnode *lvp;
 
-		lvp = union_dircache(*vp, td);
+		lvp = union_dircache_get(*vp, td);
 		if (lvp != NULLVP) {
 			struct vattr va;
 

@@ -108,7 +108,8 @@ extern int union_allocvp(struct vnode **, struct mount *,
 				struct componentname *, struct vnode *,
 				struct vnode *, int);
 extern int union_freevp(struct vnode *);
-extern struct vnode *union_dircache(struct vnode *, struct thread *);
+extern struct vnode *union_dircache_get(struct vnode *, struct thread *);
+extern void union_dircache_free(struct union_node *);
 extern int union_copyup(struct union_node *, int, struct ucred *,
 				struct thread *);
 extern int union_dowhiteout(struct union_node *, struct ucred *,
