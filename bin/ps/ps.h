@@ -31,11 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ps.h	8.1 (Berkeley) 5/31/93
- *	$Id: ps.h,v 1.4 1997/02/22 14:05:09 peter Exp $
+ *	$Id: ps.h,v 1.5 1997/04/29 05:26:05 jkh Exp $
  */
 
 #define	UNLIMITED	0	/* unlimited terminal width */
-enum type { CHAR, UCHAR, SHORT, USHORT, LONG, ULONG, KPTR };
+enum type { CHAR, UCHAR, SHORT, USHORT, INT, UINT, LONG, ULONG, KPTR };
 
 struct usave {
 	struct	timeval u_start;
