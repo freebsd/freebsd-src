@@ -48,8 +48,14 @@
  * XXX use an intermediate #define for the tag/handle
  */
 
+#ifdef __i386__
 #define ACPI_BUS_SPACE_IO	I386_BUS_SPACE_IO
 #define ACPI_BUS_HANDLE		0
+#endif
+#ifdef __ia64__
+#define ACPI_BUS_SPACE_IO	IA64_BUS_SPACE_IO
+#define ACPI_BUS_HANDLE		0
+#endif
 
 ACPI_STATUS
 AcpiOsReadPort (
