@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.128 1995/11/04 16:00:52 markm Exp $
+ *  $Id: syscons.c,v 1.129 1995/11/20 12:13:32 phk Exp $
  */
 
 #include "sc.h"
@@ -2001,7 +2001,7 @@ scinit(void)
 
     /*
      * Ensure a zero start address.  This is mainly to recover after
-     * switching from pcvt using userconfig().  The registers are r/o
+     * switching from pcvt using userconfig().  The registers are w/o
      * for old hardware so it's too hard to relocate the active screen
      * memory.
      */
