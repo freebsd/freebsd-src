@@ -134,11 +134,11 @@
 #define	PCIC_VPP_12V	0x02	/* 12 volts */
 
 /* For the Interrupt and General Control register (PCIC_INT_GEN) */
+#define	PCIC_INTR_ENA	0x10	/* PCI CSC Interrupt enable */
 #define PCIC_CARDTYPE	0x20	/* Card Type 0 = memory, 1 = I/O */
 #define		PCIC_IOCARD	0x20
 #define		PCIC_MEMCARD	0x00
 #define PCIC_CARDRESET	0x40	/* Card reset 0 = Reset, 1 = Normal */
-#define	PCIC_INTR_ENA	0x10	/* PCI CSC Interrupt enable */
 
 /* For the Card Status Change register (PCIC_STAT_CHG) */
 #define PCIC_CDTCH	0x08	/* Card Detect Change */
