@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -102,8 +104,14 @@ _thread_fd_table_init(int fd)
 
 			/* Make the file descriptor non-blocking: */
 			if (_thread_sys_fcntl(fd, F_SETFL,
-			    _thread_fd_table[fd]->flags | O_NONBLOCK) == -1)
-				ret = errno;
+			    _thread_fd_table[fd]->flags | O_NONBLOCK) == -1) {
+				/*
+				 * Some devices don't support
+				 * non-blocking calls (sigh):
+				 */
+				if (errno != ENODEV)
+					ret = errno;
+			}
 		}
 
 		/* Check if one of the fcntl calls failed: */
