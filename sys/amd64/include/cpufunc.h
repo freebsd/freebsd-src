@@ -463,9 +463,9 @@ rdr0(void)
 }
 
 static __inline void
-load_dr0(u_int sel)
+load_dr0(u_int dr0)
 {
-	__asm __volatile("movl %0,%%dr0" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr0" : : "r" (dr0));
 }
 
 static __inline u_int
@@ -477,9 +477,9 @@ rdr1(void)
 }
 
 static __inline void
-load_dr1(u_int sel)
+load_dr1(u_int dr1)
 {
-	__asm __volatile("movl %0,%%dr1" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr1" : : "r" (dr1));
 }
 
 static __inline u_int
@@ -491,9 +491,9 @@ rdr2(void)
 }
 
 static __inline void
-load_dr2(u_int sel)
+load_dr2(u_int dr2)
 {
-	__asm __volatile("movl %0,%%dr2" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr2" : : "r" (dr2));
 }
 
 static __inline u_int
@@ -505,9 +505,9 @@ rdr3(void)
 }
 
 static __inline void
-load_dr3(u_int sel)
+load_dr3(u_int dr3)
 {
-	__asm __volatile("movl %0,%%dr3" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr3" : : "r" (dr3));
 }
 
 static __inline u_int
@@ -519,9 +519,9 @@ rdr4(void)
 }
 
 static __inline void
-load_dr4(u_int sel)
+load_dr4(u_int dr4)
 {
-	__asm __volatile("movl %0,%%dr4" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr4" : : "r" (dr4));
 }
 
 static __inline u_int
@@ -533,9 +533,9 @@ rdr5(void)
 }
 
 static __inline void
-load_dr5(u_int sel)
+load_dr5(u_int dr5)
 {
-	__asm __volatile("movl %0,%%dr5" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr5" : : "r" (dr5));
 }
 
 static __inline u_int
@@ -547,9 +547,9 @@ rdr6(void)
 }
 
 static __inline void
-load_dr6(u_int sel)
+load_dr6(u_int dr6)
 {
-	__asm __volatile("movl %0,%%dr6" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr6" : : "r" (dr6));
 }
 
 static __inline u_int
@@ -561,9 +561,9 @@ rdr7(void)
 }
 
 static __inline void
-load_dr7(u_int sel)
+load_dr7(u_int dr7)
 {
-	__asm __volatile("movl %0,%%dr7" : : "r" (sel));
+	__asm __volatile("movl %0,%%dr7" : : "r" (dr7));
 }
 
 static __inline register_t
@@ -619,21 +619,21 @@ u_int	rgs(void);
 void	load_fs(u_int sel);
 void	load_gs(u_int sel);
 u_int	rdr0(void);
-void	load_dr0(u_int sel);
+void	load_dr0(u_int dr0);
 u_int	rdr1(void);
-void	load_dr1(u_int sel);
+void	load_dr1(u_int dr1);
 u_int	rdr2(void);
-void	load_dr2(u_int sel);
+void	load_dr2(u_int dr2);
 u_int	rdr3(void);
-void	load_dr3(u_int sel);
+void	load_dr3(u_int dr3);
 u_int	rdr4(void);
-void	load_dr4(u_int sel);
+void	load_dr4(u_int dr4);
 u_int	rdr5(void);
-void	load_dr5(u_int sel);
+void	load_dr5(u_int dr5);
 u_int	rdr6(void);
-void	load_dr6(u_int sel);
+void	load_dr6(u_int dr6);
 u_int	rdr7(void);
-void	load_dr7(u_int sel);
+void	load_dr7(u_int dr7);
 register_t	intr_disable(void);
 void	intr_restore(register_t ef);
 
