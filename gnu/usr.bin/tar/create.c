@@ -875,10 +875,20 @@ dump_file (p, curdev, toplevel)
 #if defined(S_IFBLK) || defined(S_IFCHR)
   if (type != LF_FIFO)
     {
-      to_oct ((long) major (hstat.st_rdev), 8,
-	      header->header.devmajor);
-      to_oct ((long) minor (hstat.st_rdev), 8,
-	      header->header.devminor);
+      if (checked_to_oct ((long) major (hstat.st_rdev), 8,
+			  header->header.devmajor))
+	{
+	  msg ("%s: major number too large; not dumped", p);
+	  critical_error = 1;
+	  goto badfile;
+	}
+      if (checked_to_oct ((long) minor (hstat.st_rdev), 8,
+			  header->header.devminor))
+	{
+	  msg ("%s: minor number too large; not dumped", p);
+	  critical_error = 1;
+	  goto badfile;
+	}
     }
 #endif
 
@@ -1393,6 +1403,22 @@ to_oct (value, digs, where)
   while (digs > 0)
     where[--digs] = ' ';
 
+}
+
+
+/*
+ * Call to_oct (), then return nonzero iff the conversion failed.
+ */
+int
+checked_to_oct (value, digs, where)
+  register long value;
+  register int digs;
+  register char *where;
+{
+  long from_oct ();
+
+  to_oct (value, digs, where);
+  return from_oct (digs, where) != value;
 }
 
 
