@@ -30,11 +30,14 @@ CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 # the location of libstand
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-.include <bsd.lib.mk>
-
 .if ${MACHINE_ARCH} == "amd64"
-${OBJS}: machine
 CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
+.endif
+
+.include <bsd.lib.mk>
+
+.if ${MACHINE_ARCH} == "amd64"
+beforedepend ${OBJS}: machine
 .endif
