@@ -1392,6 +1392,12 @@ bpfattach(ifp, dlt, hdrlen)
 {
 }
 
+void
+bpfdetach(ifp)
+	struct ifnet *ifp;
+{
+}
+
 u_int
 bpf_filter(pc, p, wirelen, buflen)
 	register const struct bpf_insn *pc;
