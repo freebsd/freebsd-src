@@ -214,6 +214,6 @@ static void
 usage()
 {
 
-	fprintf(stderr, "usage: md5 [-ptx] [-s string] [files ...]\n");
+	fprintf(stderr, "usage: md5 [-pqrtx] [-s string] [files ...]\n");
 	exit(1);
 }
