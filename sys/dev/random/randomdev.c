@@ -327,7 +327,7 @@ random_kthread(void *arg __unused)
 
 		if ((harvestring.tail == harvestring.head) ||
 			(random_systat.burst && burst == random_systat.burst)) {
-				tsleep(&harvestring, PUSER, "sleep", hz/10);
+				tsleep(&harvestring, PUSER, "-", hz/10);
 				burst = 0;
 
 		}
