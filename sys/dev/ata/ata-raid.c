@@ -428,7 +428,8 @@ ar_promise_conf(struct ad_softc *adp, struct ar_softc **raidp)
     u_int32_t cksum, *ckptr;
     int count, disk_number, array; 
 
-    lba = adp->total_secs - adp->sectors;
+    lba = ((adp->total_secs / (adp->heads * adp->sectors)) *
+	   adp->heads * adp->sectors) - adp->sectors;
 
     if (ar_read(adp, lba, 4 * DEV_BSIZE, (char *)&info)) {
 	if (bootverbose)
