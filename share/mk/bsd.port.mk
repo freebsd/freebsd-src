@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.259 1997/06/18 03:20:22 asami Exp $
+#	$Id: bsd.port.mk,v 1.260 1997/06/24 07:16:21 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -172,7 +172,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # EXTRACT_SUFX	- Suffix for archive names (default: .tar.gz).
 # EXTRACT_BEFORE_ARGS -
 #				  Arguments to ${EXTRACT_CMD} before filename
-#				  (default: -C ${WRKDIR} -xzf).
+#				  (default: -xzf).
 # EXTRACT_AFTER_ARGS -
 #				  Arguments to ${EXTRACT_CMD} following filename
 #				  (default: none).
