@@ -1,0 +1,18 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "sshd" service
+#
+
+# auth
+sshd	auth	required	pam_nologin.so	no_warn
+sshd	auth	required	pam_unix.so	no_warn try_first_pass
+
+# account
+sshd	account	required	pam_unix.so
+
+# session
+sshd	session	required	pam_permit.so
+
+# password
+sshd	password required	pam_permit.so

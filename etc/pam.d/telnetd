@@ -1,0 +1,12 @@
+#
+# $FreeBSD$
+#
+# PAM configuration for the "telnetd" service
+#
+
+# auth
+telnetd	auth	required	pam_nologin.so	no_warn
+telnetd	auth	required	pam_unix.so	no_warn try_first_pass
+
+# account
+telnetd	account	required	pam_unix.so
