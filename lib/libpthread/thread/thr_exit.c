@@ -102,6 +102,16 @@ pthread_exit(void *status)
 	long            l;
 	pthread_t       pthread;
 
+	/* Check if this thread is already in the process of exiting: */
+	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
+		char msg[128];
+		snprintf(msg,"Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",_thread_run);
+		PANIC(msg);
+	}
+
+	/* Flag this thread as exiting: */
+	_thread_run->flags |= PTHREAD_EXITING;
+
 	/* Save the return value: */
 	_thread_run->ret = status;
 
