@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.14 1995/05/30 08:05:58 rgrimes Exp $
+ *	$Id: sys_process.c,v 1.15 1995/11/12 06:43:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -359,3 +359,9 @@ trace_req(p)
 {
 	return 1;
 }
+#if 0
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+#include <sys/tty.h>
+#include "/sys/kern/aaa.c"
+#endif
