@@ -534,6 +534,10 @@ define defproc
     set $proc = allproc.lh_first
     while (--$nproc >= 0)
         if ($proc->p_pid == $arg0)
+	   set $pptr = $proc.p_pptr
+           if ($pptr == 0)
+              set $pptr = $proc
+           end
 	   set $myvectorproc = $proc
            if ($proc.p_stat)
                printf "%5d %08x %08x %4d %5d %5d  %06x %d  %-10s   ", \
