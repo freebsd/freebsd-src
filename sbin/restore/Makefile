@@ -16,7 +16,8 @@ MLINKS+=restore.8 rrestore.8
 .if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 .PATH:	${.CURDIR}/../../crypto/kerberosIV/appl/bsd
 SRCS+=	krcmd.c kcmd.c rcmd_util.c
-LDADD+=	-lkrb -ldes
+DPADD+=	${LIBKRB} ${LIBCRYPTO}
+LDADD+=	-lkrb -lcrypto
 CFLAGS+=-DKERBEROS -DHAVE_CONFIG_H \
 	-I${.CURDIR}/../../kerberosIV/include \
 	-I${.CURDIR}/../../crypto/kerberosIV/include \
