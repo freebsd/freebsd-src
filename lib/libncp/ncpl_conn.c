@@ -46,6 +46,8 @@
  * 
  */
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
