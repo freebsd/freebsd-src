@@ -10,8 +10,6 @@
  *    this list of conditions, and the following disclaimer.
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
- *
- * $FreeBSD$
  */
 
 /*
@@ -26,6 +24,9 @@
  *
  * see man buf(9) for more info.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

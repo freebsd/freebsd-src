@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$KAME: uipc_mbuf2.c,v 1.31 2001/11/28 11:08:53 itojun Exp $	*/
 /*	$NetBSD: uipc_mbuf.c,v 1.40 1999/04/01 00:23:25 thorpej Exp $	*/
 
@@ -30,7 +29,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-
 /*
  * Copyright (c) 1982, 1986, 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -65,6 +63,9 @@
  *
  *	@(#)uipc_mbuf.c	8.4 (Berkeley) 2/14/95
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*#define PULLDOWN_DEBUG*/
 

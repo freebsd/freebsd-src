@@ -32,15 +32,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
 /*
- * Developed by the TrustedBSD Project.
- *
  * Framework for extensible kernel access control.  Kernel and userland
  * interface to the framework, policy registration and composition.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_mac.h"
 #include "opt_devfs.h"
