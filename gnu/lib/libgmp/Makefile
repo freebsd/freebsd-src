@@ -37,6 +37,10 @@ CFLAGS+=	-I${GMPDIR}/mpn/m68k
 
 MPN_SRC_ASM=	add_n.S lshift.S rshift.S sub_n.S
 
+.elif ${MACHINE_ARCH} == "sparc" || ${MACHINE_ARCH} == "sparc64"
+.PATH:		${GMPDIR}/mpn/generic
+
+MPN_SRC_ASM=
 .endif
 
 CFLAGS+=	-I${GMPDIR} -I${GMPDIR}/mpn/generic
