@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /* include/config.h.  Generated automatically by configure.  */
 /* include/config.h.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -25,6 +26,9 @@
 
 /* Define if your struct stat has st_blksize.  */
 #define HAVE_ST_BLKSIZE 1
+
+/* Define as __inline if that's what the C compiler calls it.  */
+/* #undef inline */
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
@@ -69,105 +73,8 @@
 /* Define if the X Window System is missing or not being used.  */
 /* #undef X_DISPLAY_MISSING */
 
-/*  Define this if RETSIGTYPE == void  */
-#define VOID_RETSIGTYPE 1
-
-/*  Define this if struct utmp have ut_user  */
-/* #undef HAVE_UT_USER */
-
-/*  Define this if struct utmp have ut_host  */
-#define HAVE_UT_HOST 1
-
-/*  Define this if struct utmp have ut_addr  */
-/* #undef HAVE_UT_ADDR */
-
-/*  Define this if struct utmp have ut_type  */
-/* #undef HAVE_UT_TYPE */
-
-/*  Define this if struct utmp have ut_pid  */
-/* #undef HAVE_UT_PID */
-
-/*  Define this if struct utmp have ut_id  */
-/* #undef HAVE_UT_ID */
-
-/*  Define this if struct utmpx have ut_syslen  */
-/* #undef HAVE_UT_SYSLEN */
-
-/*  Define this if struct winsize is declared in sys/termios.h */
-#define HAVE_STRUCT_WINSIZE 1
-
-/*  Define this if struct winsize have ws_xpixel */
-#define HAVE_WS_XPIXEL 1
-
-/*  Define this if struct winsize have ws_ypixel */
-#define HAVE_WS_YPIXEL 1
-
-/*  Define this to be the directory where the dictionary for cracklib */
-/*  resides */
-/* #undef DICTPATH */
-
-/* Define this if you want to use SOCKS v5 */
-/* #undef SOCKS */
-
-/* Define this to the path of the mail spool directory */
-/* #undef KRB4_MAILDIR */
-
-/* Define this if `struct sockaddr' includes sa_len */
-#define SOCKADDR_HAS_SA_LEN 1
-
-/* Define this if `struct siaentity' includes ouid */
-/* #undef SIAENTITY_HAS_OUID */
-
-/* Define if getlogin has POSIX flavour, as opposed to BSD */
-/* #undef POSIX_GETLOGIN */
-
-/* Define if getpwnam_r has POSIX flavour */
-/* #undef POSIX_GETPWNAM_R */
-
-/* define if getcwd() is broken (such as in SunOS) */
-/* #undef BROKEN_GETCWD */
-
-/* define if the system is missing a prototype for crypt() */
-/* #undef NEED_CRYPT_PROTO */
-
-/* define if the system is missing a prototype for strtok_r() */
-/* #undef NEED_STRTOK_R_PROTO */
-
-/* define if /bin/ls takes -A */
-#define HAVE_LS_A 1
-
-/* define if you have h_errno */
-#define HAVE_H_ERRNO 1
-
-/* define if you have h_errlist but not hstrerror */
-#define HAVE_H_ERRLIST 1
-
-/* define if you have h_nerr but not hstrerror */
-#define HAVE_H_NERR 1
-
-/* define if your system doesn't declare h_errlist */
-/* #undef HAVE_H_ERRLIST_DECLARATION */
-
-/* define if your system doesn't declare h_nerr */
-/* #undef HAVE_H_NERR_DECLARATION */
-
-/* define this if you need a declaration for h_errno */
-#define HAVE_H_ERRNO_DECLARATION 1
-
-/* define if you need a declaration for optarg */
-/* #undef HAVE_OPTARG_DECLARATION */
-
-/* define if you need a declaration for optind */
-/* #undef HAVE_OPTIND_DECLARATION */
-
-/* define if you need a declaration for opterr */
-/* #undef HAVE_OPTERR_DECLARATION */
-
-/* define if you need a declaration for optopt */
-/* #undef HAVE_OPTOPT_DECLARATION */
-
-/* define if you need a declaration for __progname */
-/* #undef HAVE___PROGNAME_DECLARATION */
+/* Define if you have the XauFileName function.  */
+#define HAVE_XAUFILENAME 1
 
 /* Define if you have the XauReadAuth function.  */
 #define HAVE_XAUREADAUTH 1
@@ -182,7 +89,7 @@
 /* #undef HAVE__SCRSIZE */
 
 /* Define if you have the _setsid function.  */
-/* #undef HAVE__SETSID */
+#define HAVE__SETSID 1
 
 /* Define if you have the _stricmp function.  */
 /* #undef HAVE__STRICMP */
@@ -193,17 +100,32 @@
 /* Define if you have the asprintf function.  */
 #define HAVE_ASPRINTF 1
 
+/* Define if you have the atexit function.  */
+#define HAVE_ATEXIT 1
+
+/* Define if you have the cap_set_proc function.  */
+/* #undef HAVE_CAP_SET_PROC */
+
+/* Define if you have the cgetent function.  */
+#define HAVE_CGETENT 1
+
 /* Define if you have the chown function.  */
 #define HAVE_CHOWN 1
+
+/* Define if you have the chroot function.  */
+#define HAVE_CHROOT 1
+
+/* Define if you have the copyhostent function.  */
+/* #undef HAVE_COPYHOSTENT */
+
+/* Define if you have the crypt function.  */
+#define HAVE_CRYPT 1
 
 /* Define if you have the daemon function.  */
 #define HAVE_DAEMON 1
 
-/* Define if you have the dbm_firstkey function.  */
-#define HAVE_DBM_FIRSTKEY 1
-
-/* Define if you have the dbopen function.  */
-#define HAVE_DBOPEN 1
+/* Define if you have the dlopen function.  */
+/* #undef HAVE_DLOPEN */
 
 /* Define if you have the dn_expand function.  */
 #define HAVE_DN_EXPAND 1
@@ -217,6 +139,9 @@
 /* Define if you have the errx function.  */
 #define HAVE_ERRX 1
 
+/* Define if you have the fattach function.  */
+/* #undef HAVE_FATTACH */
+
 /* Define if you have the fchmod function.  */
 #define HAVE_FCHMOD 1
 
@@ -229,8 +154,14 @@
 /* Define if you have the flock function.  */
 #define HAVE_FLOCK 1
 
+/* Define if you have the fnmatch function.  */
+#define HAVE_FNMATCH 1
+
 /* Define if you have the forkpty function.  */
 #define HAVE_FORKPTY 1
+
+/* Define if you have the freehostent function.  */
+/* #undef HAVE_FREEHOSTENT */
 
 /* Define if you have the frevoke function.  */
 /* #undef HAVE_FREVOKE */
@@ -244,14 +175,32 @@
 /* Define if you have the getdtablesize function.  */
 #define HAVE_GETDTABLESIZE 1
 
+/* Define if you have the getegid function.  */
+#define HAVE_GETEGID 1
+
+/* Define if you have the geteuid function.  */
+#define HAVE_GETEUID 1
+
+/* Define if you have the getgid function.  */
+#define HAVE_GETGID 1
+
 /* Define if you have the gethostbyname function.  */
 #define HAVE_GETHOSTBYNAME 1
 
 /* Define if you have the gethostname function.  */
 #define HAVE_GETHOSTNAME 1
 
+/* Define if you have the getipnodebyaddr function.  */
+/* #undef HAVE_GETIPNODEBYADDR */
+
+/* Define if you have the getipnodebyname function.  */
+/* #undef HAVE_GETIPNODEBYNAME */
+
 /* Define if you have the getlogin function.  */
 #define HAVE_GETLOGIN 1
+
+/* Define if you have the getmsg function.  */
+/* #undef HAVE_GETMSG */
 
 /* Define if you have the getopt function.  */
 #define HAVE_GETOPT 1
@@ -265,6 +214,9 @@
 /* Define if you have the getpwnam_r function.  */
 /* #undef HAVE_GETPWNAM_R */
 
+/* Define if you have the getrlimit function.  */
+#define HAVE_GETRLIMIT 1
+
 /* Define if you have the getservbyname function.  */
 #define HAVE_GETSERVBYNAME 1
 
@@ -274,11 +226,11 @@
 /* Define if you have the getspnam function.  */
 /* #undef HAVE_GETSPNAM */
 
-/* Define if you have the getspuid function.  */
-/* #undef HAVE_GETSPUID */
-
 /* Define if you have the gettimeofday function.  */
 #define HAVE_GETTIMEOFDAY 1
+
+/* Define if you have the gettosbyname function.  */
+/* #undef HAVE_GETTOSBYNAME */
 
 /* Define if you have the getudbnam function.  */
 /* #undef HAVE_GETUDBNAM */
@@ -297,6 +249,12 @@
 
 /* Define if you have the inet_aton function.  */
 #define HAVE_INET_ATON 1
+
+/* Define if you have the inet_ntop function.  */
+#define HAVE_INET_NTOP 1
+
+/* Define if you have the inet_pton function.  */
+#define HAVE_INET_PTON 1
 
 /* Define if you have the initgroups function.  */
 #define HAVE_INITGROUPS 1
@@ -328,6 +286,12 @@
 /* Define if you have the odm_initialize function.  */
 /* #undef HAVE_ODM_INITIALIZE */
 
+/* Define if you have the on_exit function.  */
+/* #undef HAVE_ON_EXIT */
+
+/* Define if you have the parsetos function.  */
+/* #undef HAVE_PARSETOS */
+
 /* Define if you have the ptsname function.  */
 /* #undef HAVE_PTSNAME */
 
@@ -346,11 +310,23 @@
 /* Define if you have the readline function.  */
 #define HAVE_READLINE 1
 
+/* Define if you have the readv function.  */
+#define HAVE_READV 1
+
+/* Define if you have the recvmsg function.  */
+#define HAVE_RECVMSG 1
+
 /* Define if you have the res_search function.  */
 #define HAVE_RES_SEARCH 1
 
 /* Define if you have the revoke function.  */
 #define HAVE_REVOKE 1
+
+/* Define if you have the sa_family_t function.  */
+/* #undef HAVE_SA_FAMILY_T */
+
+/* Define if you have the sendmsg function.  */
+#define HAVE_SENDMSG 1
 
 /* Define if you have the setegid function.  */
 #define HAVE_SETEGID 1
@@ -403,11 +379,17 @@
 /* Define if you have the setutent function.  */
 /* #undef HAVE_SETUTENT */
 
-/* Define if you have the snprintf function.  */
-#define HAVE_SNPRINTF 1
+/* Define if you have the sgi_getcapabilitybyname function.  */
+/* #undef HAVE_SGI_GETCAPABILITYBYNAME */
+
+/* Define if you have the sigaction function.  */
+#define HAVE_SIGACTION 1
 
 /* Define if you have the socket function.  */
 #define HAVE_SOCKET 1
+
+/* Define if you have the socklen_t function.  */
+#define HAVE_SOCKLEN_T 1
 
 /* Define if you have the strcasecmp function.  */
 #define HAVE_STRCASECMP 1
@@ -421,20 +403,47 @@
 /* Define if you have the strftime function.  */
 #define HAVE_STRFTIME 1
 
+/* Define if you have the strlcat function.  */
+#define HAVE_STRLCAT 1
+
+/* Define if you have the strlcpy function.  */
+#define HAVE_STRLCPY 1
+
 /* Define if you have the strlwr function.  */
 /* #undef HAVE_STRLWR */
+
+/* Define if you have the strncasecmp function.  */
+#define HAVE_STRNCASECMP 1
+
+/* Define if you have the strndup function.  */
+/* #undef HAVE_STRNDUP */
 
 /* Define if you have the strnlen function.  */
 /* #undef HAVE_STRNLEN */
 
+/* Define if you have the strptime function.  */
+#define HAVE_STRPTIME 1
+
+/* Define if you have the strsep function.  */
+#define HAVE_STRSEP 1
+
 /* Define if you have the strtok_r function.  */
 #define HAVE_STRTOK_R 1
+
+/* Define if you have the struct_sockaddr_storage function.  */
+#define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
 /* Define if you have the strupr function.  */
 /* #undef HAVE_STRUPR */
 
 /* Define if you have the swab function.  */
 #define HAVE_SWAB 1
+
+/* Define if you have the sysconf function.  */
+#define HAVE_SYSCONF 1
+
+/* Define if you have the sysctl function.  */
+#define HAVE_SYSCTL 1
 
 /* Define if you have the syslog function.  */
 #define HAVE_SYSLOG 1
@@ -478,6 +487,9 @@
 /* Define if you have the vsnprintf function.  */
 #define HAVE_VSNPRINTF 1
 
+/* Define if you have the vsyslog function.  */
+#define HAVE_VSYSLOG 1
+
 /* Define if you have the vwarn function.  */
 #define HAVE_VWARN 1
 
@@ -489,6 +501,9 @@
 
 /* Define if you have the warnx function.  */
 #define HAVE_WARNX 1
+
+/* Define if you have the writev function.  */
+#define HAVE_WRITEV 1
 
 /* Define if you have the yp_get_default_domain function.  */
 #define HAVE_YP_GET_DEFAULT_DOMAIN 1
@@ -505,17 +520,23 @@
 /* Define if you have the <arpa/telnet.h> header file.  */
 #define HAVE_ARPA_TELNET_H 1
 
-/* Define if you have the <bind/bitypes.h> header file.  */
-/* #undef HAVE_BIND_BITYPES_H */
-
 /* Define if you have the <bsd/bsd.h> header file.  */
 /* #undef HAVE_BSD_BSD_H */
 
 /* Define if you have the <bsdsetjmp.h> header file.  */
 /* #undef HAVE_BSDSETJMP_H */
 
+/* Define if you have the <capability.h> header file.  */
+/* #undef HAVE_CAPABILITY_H */
+
 /* Define if you have the <crypt.h> header file.  */
 /* #undef HAVE_CRYPT_H */
+
+/* Define if you have the <curses.h> header file.  */
+#define HAVE_CURSES_H 1
+
+/* Define if you have the <db.h> header file.  */
+#define HAVE_DB_H 1
 
 /* Define if you have the <dbm.h> header file.  */
 /* #undef HAVE_DBM_H */
@@ -526,17 +547,32 @@
 /* Define if you have the <err.h> header file.  */
 #define HAVE_ERR_H 1
 
+/* Define if you have the <errno.h> header file.  */
+#define HAVE_ERRNO_H 1
+
 /* Define if you have the <fcntl.h> header file.  */
 #define HAVE_FCNTL_H 1
 
+/* Define if you have the <fnmatch.h> header file.  */
+#define HAVE_FNMATCH_H 1
+
 /* Define if you have the <grp.h> header file.  */
 #define HAVE_GRP_H 1
+
+/* Define if you have the <inttypes.h> header file.  */
+#define HAVE_INTTYPES_H 1
 
 /* Define if you have the <io.h> header file.  */
 /* #undef HAVE_IO_H */
 
 /* Define if you have the <lastlog.h> header file.  */
 /* #undef HAVE_LASTLOG_H */
+
+/* Define if you have the <libutil.h> header file.  */
+#define HAVE_LIBUTIL_H 1
+
+/* Define if you have the <limits.h> header file.  */
+#define HAVE_LIMITS_H 1
 
 /* Define if you have the <login.h> header file.  */
 /* #undef HAVE_LOGIN_H */
@@ -589,11 +625,14 @@
 /* Define if you have the <rpcsvc/dbm.h> header file.  */
 /* #undef HAVE_RPCSVC_DBM_H */
 
+/* Define if you have the <rpcsvc/ypclnt.h> header file.  */
+#define HAVE_RPCSVC_YPCLNT_H 1
+
 /* Define if you have the <sac.h> header file.  */
 /* #undef HAVE_SAC_H */
 
 /* Define if you have the <security/pam_modules.h> header file.  */
-/* #undef HAVE_SECURITY_PAM_MODULES_H */
+#define HAVE_SECURITY_PAM_MODULES_H 1
 
 /* Define if you have the <shadow.h> header file.  */
 /* #undef HAVE_SHADOW_H */
@@ -604,17 +643,20 @@
 /* Define if you have the <signal.h> header file.  */
 #define HAVE_SIGNAL_H 1
 
+/* Define if you have the <standards.h> header file.  */
+/* #undef HAVE_STANDARDS_H */
+
 /* Define if you have the <stropts.h> header file.  */
 /* #undef HAVE_STROPTS_H */
 
 /* Define if you have the <sys/bitypes.h> header file.  */
 /* #undef HAVE_SYS_BITYPES_H */
 
+/* Define if you have the <sys/capability.h> header file.  */
+/* #undef HAVE_SYS_CAPABILITY_H */
+
 /* Define if you have the <sys/category.h> header file.  */
 /* #undef HAVE_SYS_CATEGORY_H */
-
-/* Define if you have the <sys/cdefs.h> header file.  */
-#define HAVE_SYS_CDEFS_H 1
 
 /* Define if you have the <sys/file.h> header file.  */
 #define HAVE_SYS_FILE_H 1
@@ -639,6 +681,9 @@
 
 /* Define if you have the <sys/proc.h> header file.  */
 #define HAVE_SYS_PROC_H 1
+
+/* Define if you have the <sys/pty.h> header file.  */
+/* #undef HAVE_SYS_PTY_H */
 
 /* Define if you have the <sys/ptyio.h> header file.  */
 /* #undef HAVE_SYS_PTYIO_H */
@@ -712,6 +757,12 @@
 /* Define if you have the <syslog.h> header file.  */
 #define HAVE_SYSLOG_H 1
 
+/* Define if you have the <term.h> header file.  */
+#define HAVE_TERM_H 1
+
+/* Define if you have the <termcap.h> header file.  */
+#define HAVE_TERMCAP_H 1
+
 /* Define if you have the <termio.h> header file.  */
 /* #undef HAVE_TERMIO_H */
 
@@ -754,9 +805,6 @@
 /* Define if you have the <wait.h> header file.  */
 /* #undef HAVE_WAIT_H */
 
-/* Define if you have the <winsock.h> header file.  */
-/* #undef HAVE_WINSOCK_H */
-
 /* Define if you have the X11 library (-lX11).  */
 /* #undef HAVE_LIBX11 */
 
@@ -769,14 +817,20 @@
 /* Define if you have the cfg library (-lcfg).  */
 /* #undef HAVE_LIBCFG */
 
+/* Define if you have the crypt library (-lcrypt).  */
+#define HAVE_LIBCRYPT 1
+
+/* Define if you have the curses library (-lcurses).  */
+/* #undef HAVE_LIBCURSES */
+
+/* Define if you have the dl library (-ldl).  */
+/* #undef HAVE_LIBDL */
+
 /* Define if you have the edit library (-ledit).  */
 #define HAVE_LIBEDIT 1
 
-/* Define if you have the gdbm library (-lgdbm).  */
-/* #undef HAVE_LIBGDBM */
-
-/* Define if you have the ndbm library (-lndbm).  */
-/* #undef HAVE_LIBNDBM */
+/* Define if you have the ncurses library (-lncurses).  */
+/* #undef HAVE_LIBNCURSES */
 
 /* Define if you have the nsl library (-lnsl).  */
 /* #undef HAVE_LIBNSL */
@@ -805,6 +859,259 @@
 /* Define if you have the util library (-lutil).  */
 #define HAVE_LIBUTIL 1
 
+/* Name of package */
+#define PACKAGE "krb4"
+
+/* Version number of package */
+#define VERSION "1.0.2"
+
+/* Define to what version of SunOS you are running. */
+/* #undef SunOS */
+
+/* Define if you have the socks package. */
+/* #undef SOCKS */
+
+/* Define to enable old kdestroy behavior. */
+/* #undef LEGACY_KDESTROY */
+
+/* Define if you want to match subdomains. */
+/* #undef MATCH_SUBDOMAINS */
+
+/* Define this to be the directory where the 
+	dictionary for cracklib resides. */
+/* #undef DICTPATH */
+
+/* Define this to the path of the mail spool directory. */
+/* #undef KRB4_MAILDIR */
+
+/* Define this to the kerberos database directory. */
+/* #undef DB_DIR */
+
+/* Define to enable new master key code. */
+/* #undef RANDOM_MKEY */
+
+/* Define this to the location of the master key. */
+/* #undef MKEYFILE */
+
+/* Define to enable basic OSF C2 support. */
+/* #undef HAVE_OSFC2 */
+
+/* Define if you don't want to use mmap. */
+/* #undef NO_MMAP */
+
+/* Define if you don't wan't support for AFS. */
+/* #undef NO_AFS */
+
+/* Set this to the type of des-quad-cheksum to use. */
+#define DES_QUAD_DEFAULT DES_QUAD_GUESS
+
+/* Define if you have the readline package. */
+/* #undef READLINE */
+
+/* Define if you have the hesiod package. */
+/* #undef HESIOD */
+
+/* define if your compiler has __attribute__ */
+#define HAVE___ATTRIBUTE__ 1
+
+/* Huh? */
+/* #undef HAVE_STRANGE_INT8_T */
+
+/* Define if NDBM really is DB (creates files ending in .db). */
+#define HAVE_NEW_DB 1
+
+/* Define if you have NDBM (and not DBM) */
+#define NDBM 1
+
+/* define if you have a working snprintf */
+#define HAVE_SNPRINTF 1
+
+/* define if the system is missing a prototype for snprintf() */
+/* #undef NEED_SNPRINTF_PROTO */
+
+/* define if you have a glob() that groks 
+	GLOB_BRACE, GLOB_NOCHECK, GLOB_QUOTE, and GLOB_TILDE */
+#define HAVE_GLOB 1
+
+/* define if the system is missing a prototype for glob() */
+/* #undef NEED_GLOB_PROTO */
+
+/* Define if getpwnam_r has POSIX flavour. */
+/* #undef POSIX_GETPWNAM_R */
+
+/* Define if getlogin has POSIX flavour (and not BSD). */
+/* #undef POSIX_GETLOGIN */
+
+/* define if the system is missing a prototype for hstrerror() */
+/* #undef NEED_HSTRERROR_PROTO */
+
+/* define if the system is missing a prototype for gethostname() */
+/* #undef NEED_GETHOSTNAME_PROTO */
+
+/* define if the system is missing a prototype for mkstemp() */
+/* #undef NEED_MKSTEMP_PROTO */
+
+/* define if the system is missing a prototype for inet_aton() */
+/* #undef NEED_INET_ATON_PROTO */
+
+/* Define if realloc(NULL, X) doesn't work. */
+/* #undef BROKEN_REALLOC */
+
+/* Define if getcwd is broken (like in SunOS 4). */
+/* #undef BROKEN_GETCWD */
+
+/* define if prototype of gethostbyname is compatible with
+	struct hostent *gethostbyname(const char *) */
+#define GETHOSTBYNAME_PROTO_COMPATIBLE 1
+
+/* define if prototype of gethostbyaddr is compatible with
+	struct hostent *gethostbyaddr(const void *, size_t, int) */
+/* #undef GETHOSTBYADDR_PROTO_COMPATIBLE */
+
+/* define if prototype of getservbyname is compatible with
+	struct servent *getservbyname(const char *, const char *) */
+#define GETSERVBYNAME_PROTO_COMPATIBLE 1
+
+/* define if prototype of openlog is compatible with
+	void openlog(const char *, int, int) */
+#define OPENLOG_PROTO_COMPATIBLE 1
+
+/* define if the system is missing a prototype for crypt() */
+/* #undef NEED_CRYPT_PROTO */
+
+/* define if the system is missing a prototype for fclose() */
+/* #undef NEED_FCLOSE_PROTO */
+
+/* define if the system is missing a prototype for strtok_r() */
+/* #undef NEED_STRTOK_R_PROTO */
+
+/* define if the system is missing a prototype for strsep() */
+/* #undef NEED_STRSEP_PROTO */
+
+/* define if the system is missing a prototype for getusershell() */
+/* #undef NEED_GETUSERSHELL_PROTO */
+
+/* define if the system is missing a prototype for utime() */
+/* #undef NEED_UTIME_PROTO */
+
+/* define if you have h_errno */
+#define HAVE_H_ERRNO 1
+
+/* define if your system declares h_errno */
+#define HAVE_H_ERRNO_DECLARATION 1
+
+/* define if you have h_errlist */
+#define HAVE_H_ERRLIST 1
+
+/* define if your system declares h_errlist */
+/* #undef HAVE_H_ERRLIST_DECLARATION */
+
+/* define if you have h_nerr */
+#define HAVE_H_NERR 1
+
+/* define if your system declares h_nerr */
+/* #undef HAVE_H_NERR_DECLARATION */
+
+/* define if you have __progname */
+#define HAVE___PROGNAME 1
+
+/* define if your system declares __progname */
+/* #undef HAVE___PROGNAME_DECLARATION */
+
+/* define if your system declares optarg */
+#define HAVE_OPTARG_DECLARATION 1
+
+/* define if your system declares optind */
+#define HAVE_OPTIND_DECLARATION 1
+
+/* define if your system declares opterr */
+#define HAVE_OPTERR_DECLARATION 1
+
+/* define if your system declares optopt */
+#define HAVE_OPTOPT_DECLARATION 1
+
+/* define if your system declares environ */
+/* #undef HAVE_ENVIRON_DECLARATION */
+
+/* Define if RETSIGTYPE == void. */
+#define VOID_RETSIGTYPE 1
+
+/* Define if struct utmp has field ut_addr. */
+/* #undef HAVE_STRUCT_UTMP_UT_ADDR */
+
+/* Define if struct utmp has field ut_host. */
+#define HAVE_STRUCT_UTMP_UT_HOST 1
+
+/* Define if struct utmp has field ut_id. */
+/* #undef HAVE_STRUCT_UTMP_UT_ID */
+
+/* Define if struct utmp has field ut_pid. */
+/* #undef HAVE_STRUCT_UTMP_UT_PID */
+
+/* Define if struct utmp has field ut_type. */
+/* #undef HAVE_STRUCT_UTMP_UT_TYPE */
+
+/* Define if struct utmp has field ut_user. */
+/* #undef HAVE_STRUCT_UTMP_UT_USER */
+
+/* Define if struct utmpx has field ut_exit. */
+/* #undef HAVE_STRUCT_UTMPX_UT_EXIT */
+
+/* Define if struct utmpx has field ut_syslen. */
+/* #undef HAVE_STRUCT_UTMPX_UT_SYSLEN */
+
+/* Define if struct tm has field tm_gmtoff. */
+#define HAVE_STRUCT_TM_TM_GMTOFF 1
+
+/* Define if struct tm has field tm_zone. */
+#define HAVE_STRUCT_TM_TM_ZONE 1
+
+/* define if you have timezone */
+#define HAVE_TIMEZONE 1
+
+/* define if your system declares timezone */
+#define HAVE_TIMEZONE_DECLARATION 1
+
+/* define if you have struct spwd */
+/* #undef HAVE_STRUCT_SPWD */
+
+/* define if struct winsize is declared in sys/termios.h */
+#define HAVE_STRUCT_WINSIZE 1
+
+/* define if struct winsize has ws_xpixel */
+#define HAVE_WS_XPIXEL 1
+
+/* define if struct winsize has ws_ypixel */
+#define HAVE_WS_YPIXEL 1
+
+/* Define this to what the type ssize_t should be. */
+/* #undef ssize_t */
+
+/* Define this to what the type sig_atomic_t should be. */
+/* #undef sig_atomic_t */
+
+/* Define if struct sockaddr has field sa_len. */
+#define HAVE_STRUCT_SOCKADDR_SA_LEN 1
+
+/* Define if SIAENTITY has field ouid. */
+/* #undef HAVE_SIAENTITY_OUID */
+
+/* Define if you have a working getmsg. */
+/* #undef HAVE_GETMSG */
+
+/* Define if el_init takes four arguments. */
+/* #undef HAVE_FOUR_VALUED_EL_INIT */
+
+/* Define if you have a readline function. */
+#define HAVE_READLINE 1
+
+/* Define if you have working stream ptys. */
+/* #undef STREAMSPTY */
+
+/* Define if /bin/ls has a `-A' flag. */
+#define HAVE_LS_A 1
+
+
 #define HAVE_INT8_T 1
 #define HAVE_INT16_T 1
 #define HAVE_INT32_T 1
@@ -813,6 +1120,15 @@
 #define HAVE_U_INT16_T 1
 #define HAVE_U_INT32_T 1
 #define HAVE_U_INT64_T 1
+
+/* This for compat with heimdal (or something) */
+#define KRB_PUT_INT(f, t, l, s) krb_put_int((f), (t), (l), (s))
+
+#define HAVE_KRB_ENABLE_DEBUG 1
+
+#define HAVE_KRB_DISABLE_DEBUG 1
+
+#define HAVE_KRB_GET_OUR_IP_FOR_REALM 1
 
 #define RCSID(msg) \
 static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
@@ -851,19 +1167,14 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #define MaxHostNameLen (64+4)
 #define MaxPathLen (1024+4)
 
-/*
- * Define NDBM if you are using the 4.3 ndbm library (which is part of
- * libc).  If not defined, 4.2 dbm will be assumed.
- */
-#if defined(HAVE_DBM_FIRSTKEY)
-#define NDBM
-#endif
-
 /* ftp stuff -------------------------------------------------- */
 
 #define KERBEROS
 
 /* telnet stuff ----------------------------------------------- */
+
+/* define this for OTP support */
+#define OTP 1
 
 /* define this if you have kerberos 4 */
 #define KRB4 1
@@ -899,9 +1210,6 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 /* Used with login -p */
 /* #undef LOGIN_ARGS */
 
-/* Define if there are working stream ptys */
-/* #undef STREAMSPTY */
-
 /* set this to a sensible login */
 #ifndef LOGIN_PATH
 #define LOGIN_PATH BINDIR "/login"
@@ -910,27 +1218,10 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 
 /* ------------------------------------------------------------ */
 
-/*
- * Define this if your ndbm-library really is berkeley db and creates
- * files that ends in .db.
- */
-#define HAVE_NEW_DB 1
-
-/* Define this if you have a working getmsg */
-/* #undef HAVE_GETMSG */
-
-/* Define to enable new master key code */
-/* #undef RANDOM_MKEY */
-
-/* Location of the master key file, default value lives in <kdc.h> */
-/* #undef MKEYFILE */
-
-/* Define if you don't want support for afs, might be a good idea on
-   AIX if you don't have afs */
-#define NO_AFS 1
-
-/* Define if you have a readline compatible library */
-#define HAVE_READLINE 1
+#ifdef BROKEN_REALLOC
+#define realloc(X, Y) isoc_realloc((X), (Y))
+#define isoc_realloc(X, Y) ((X) ? realloc((X), (Y)) : malloc(Y))
+#endif
 
 #ifdef VOID_RETSIGTYPE
 #define SIGRETURN(x) return
@@ -938,37 +1229,25 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 #define SIGRETURN(x) return (RETSIGTYPE)(x)
 #endif
 
-/* Define this if your compiler supports '#pragma weak' */
-#define HAVE_PRAGMA_WEAK 1
-
 /* Temporary fixes for krb_{rd,mk}_safe */
 #define DES_QUAD_GUESS 0
 #define DES_QUAD_NEW 1
 #define DES_QUAD_OLD 2
 
-/* Set this to one of the constants above to specify default checksum
-   type to emit */
-#define DES_QUAD_DEFAULT DES_QUAD_GUESS
+/*
+ * All these are system-specific defines that I would rather not have at all.
+ */
 
 /*
  * AIX braindamage!
  */
 #if _AIX
 #define _ALL_SOURCE
-#define _POSIX_SOURCE
-/* this is left for hysteric reasons :-) */
-#define unix /* well, ok... */
-#endif
-
-/*
- * SunOS braindamage! (Sun include files are generally braindead)
- */
-#if (defined(sun) || defined(__sun))
-#if defined(__svr4__) || defined(__SVR4)
-#define SunOS 5
-#else
-#define SunOS 4
-#endif
+/* XXX this is gross, but kills about a gazillion warnings */
+struct ether_addr;
+struct sockaddr;
+struct sockaddr_dl;
+struct sockaddr_in;
 #endif
 
 #if defined(__sgi) || defined(sgi)
@@ -982,4 +1261,22 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 /* IRIX 4 braindamage */
 #if IRIX == 4 && !defined(__STDC__)
 #define __STDC__ 0
+#endif
+
+/*
+ * Defining this enables lots of useful (and used) extensions on
+ * glibc-based systems such as Linux
+ */
+
+#define _GNU_SOURCE
+
+/* some strange OS/2 stuff.  From <d96-mst@nada.kth.se> */
+
+#ifdef __EMX__
+#define _EMX_TCPIP
+#define MAIL_USE_SYSTEM_LOCK
+#endif
+
+#ifdef ROKEN_RENAME
+#include "roken_rename.h"
 #endif

@@ -2,7 +2,7 @@
 
 PROG=		kprop
 MAN8=		${KRB4DIR}/man/kprop.8
-SRCS=		kprop.c
+SRCS=		kprop.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \
 		-I${KRB4DIR}/lib/kdb \
