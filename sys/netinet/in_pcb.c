@@ -159,7 +159,7 @@ in_pcballoc(so, pcbinfo, p)
 	}
 #endif /*IPSEC*/
 #if defined(INET6)
-	if (INP_SOCKAF(so) == AF_INET6 && !ip6_mapped_addr_on)
+	if (INP_SOCKAF(so) == AF_INET6 && ip6_v6only)
 		inp->inp_flags |= IN6P_IPV6_V6ONLY;
 #endif
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
