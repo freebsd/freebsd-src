@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,18 +29,20 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Sun Oct 21 11:00:31 2001]
+ *      last edit-date: [Sun Mar 17 10:09:55 2002]
  *
  *---------------------------------------------------------------------------*/
 
 #ifndef _I4B_IOCTL_H_
 #define _I4B_IOCTL_H_
 
+#if 0
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #ifndef _MACHINE_TYPES_H_
 #include <machine/types.h>
 #endif /* _MACHINE_TYPES_H_ */
 #endif /* __FreeBSD__ */
+#endif
 
 /*---------------------------------------------------------------------------*
  *	version and release number for isdn4bsd package

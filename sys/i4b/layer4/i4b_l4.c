@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Thu Oct 18 13:31:22 2001]
+ *      last edit-date: [Sat Mar  9 19:46:26 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -43,46 +43,19 @@
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 
-#ifdef __NetBSD__
-#include <sys/types.h>
-#endif
-
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#if defined(__FreeBSD__)
 #include "i4bing.h"
-#endif
-
-#ifdef __bsdi__
-#define NI4BISPPP 0
-#include "ibc.h"
-#else
 #include "i4bisppp.h"
-#endif
-
 #include "i4brbch.h"
 #include "i4btel.h"
 
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_cause.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/layer4/i4b_l4.h>
-
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-#define memcpy(dst, src, len)	bcopy((src), (dst), (len))
-#endif
 
 unsigned int i4b_l4_debug = L4_DEBUG_DEFAULT;
 
@@ -96,6 +69,7 @@ static void i4b_idle_check_var_unit(call_desc_t *cd);
 static void i4b_l4_setup_timeout_fix_unit(call_desc_t *cd);
 static void i4b_l4_setup_timeout_var_unit(call_desc_t *cd);
 static time_t i4b_get_idletime(call_desc_t *cd);
+
 #if NI4BISPPP > 0
 extern time_t i4bisppp_idletime(int);
 #endif
@@ -654,7 +628,7 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
-#if defined(__bsdi__) && NIBC > 0
+#if NIBC > 0
 		case BDRV_IBC:
 			cd->dlt = ibc_ret_linktab(cd->driver_unit);
 			break;
@@ -708,7 +682,7 @@ i4b_link_bchandrvr(call_desc_t *cd)
 			break;
 #endif
 
-#if defined(__bsdi__) && NIBC > 0
+#if NIBC > 0
 		case BDRV_IBC:
 			ibc_set_linktab(cd->driver_unit, cd->ilt);
 			break;
@@ -1082,11 +1056,9 @@ i4b_idle_check_var_unit(call_desc_t *cd)
 	case IST_CHECK:
 		if( i4b_get_idletime(cd) > (SECOND - cd->shorthold_data.idle_time))
 		{	/* activity detected */
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
+			/* check again in one second */		
 			cd->idle_timeout_handle =
-#endif
-			/* check again in one second */
-			START_TIMER(cd->idle_timeout_handle, i4b_idle_check, cd, hz);
+				START_TIMER (cd->idle_timeout_handle, i4b_idle_check, cd, hz);
 			cd->timeout_active = 1;
 			cd->idletime_state = IST_CHECK;
 			NDBGL4(L4_TIMO, "%ld: outgoing-call, var idle timeout - activity at %ld, continuing", (long)SECOND, (long)i4b_get_idletime(cd));

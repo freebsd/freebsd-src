@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,15 +29,12 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jan 12 16:43:31 2001]
+ *      last edit-date: [Sat Mar  9 16:11:14 2002]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "i4bq921.h"
-#else
-#define NI4BQ921	1
-#endif
+
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
@@ -46,16 +43,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_l1l2.h>
 #include <i4b/include/i4b_l2l3.h>
@@ -276,29 +264,18 @@ i4b_mph_status_ind(int unit, int status, int parm)
 			l2sc->unit = unit;
 			l2sc->i_queue.ifq_maxlen = IQUEUE_MAXLEN;
 
-#if defined(__FreeBSD__) && __FreeBSD__ > 4
 			if(!mtx_initialized(&l2sc->i_queue.ifq_mtx))
 				mtx_init(&l2sc->i_queue.ifq_mtx, "i4b_l2sc", MTX_DEF);
-#endif
+
 			l2sc->ua_frame = NULL;
 			bzero(&l2sc->stat, sizeof(lapdstat_t));			
 			i4b_l2_unit_init(unit);
 			
-#if defined(__FreeBSD__)
 			/* initialize the callout handles for timeout routines */
 			callout_handle_init(&l2sc->T200_callout);
 			callout_handle_init(&l2sc->T202_callout);
 			callout_handle_init(&l2sc->T203_callout);
 			callout_handle_init(&l2sc->IFQU_callout);
-#endif
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-			/* initialize the callout handles for timeout routines */
-			callout_init(&l2sc->T200_callout);
-			callout_init(&l2sc->T202_callout);
-			callout_init(&l2sc->T203_callout);
-			callout_init(&l2sc->IFQU_callout);
-#endif
-
 			break;
 
 		case STI_L1STAT:	/* state of layer 1 */

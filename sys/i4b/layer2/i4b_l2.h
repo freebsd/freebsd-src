@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_l2.h - ISDN layer 2 (Q.921) definitions
  *	---------------------------------------------
  *
- *	$Id: i4b_l2.h,v 1.23 2000/08/24 11:48:58 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Sat Mar 18 10:28:22 2000]
+ *      last edit-date: [Sat Mar  9 16:12:20 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -63,18 +61,10 @@ typedef struct {
 	void(*T202func)(void *);/* function to be called when T202 expires */
 	int	T203;		/* max line idle time */
 
-#if defined(__FreeBSD__)
 	struct	callout_handle T200_callout;
 	struct	callout_handle T202_callout;
 	struct	callout_handle T203_callout;
 	struct	callout_handle IFQU_callout;	
-#endif
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-	struct	callout T200_callout;
-	struct	callout T202_callout;
-	struct	callout T203_callout;
-	struct	callout IFQU_callout;	
-#endif
 
 /*
  * i4b_iframe.c, i4b_i_frame_queued_up(): value of IFQU_DLY

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,19 +27,14 @@
  *	i4b_l2fsm.c - layer 2 FSM
  *	-------------------------
  *
- *	$Id: i4b_l2fsm.c,v 1.22 2000/08/24 11:48:58 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Tue May 30 15:48:20 2000]
+ *      last edit-date: [Sat Mar  9 16:14:07 2002]
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef __FreeBSD__
 #include "i4bq921.h"
-#else
-#define	NI4BQ921	1
-#endif
+
 #if NI4BQ921 > 0
 
 #include <sys/param.h>
@@ -47,17 +42,8 @@
 #include <sys/socket.h>
 #include <net/if.h>
 
-#if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
-#include <sys/callout.h>
-#endif
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#endif
 
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l2l3.h>

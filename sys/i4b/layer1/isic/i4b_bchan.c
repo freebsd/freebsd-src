@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Jan 24 09:07:12 2001]
+ *      last edit-date: [Sat Mar  9 16:00:56 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -89,10 +89,8 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4	
 	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
 		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_isic_rx", MTX_DEF);
-#endif
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
@@ -108,10 +106,8 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
 
-#if defined (__FreeBSD__) && __FreeBSD__ > 4	
 	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
 		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_isic_tx", MTX_DEF);
-#endif
 	
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 

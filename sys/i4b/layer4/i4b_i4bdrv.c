@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Wed Oct 17 13:37:56 2001]
+ *      last edit-date: [Sun Mar 17 09:54:22 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -44,66 +44,27 @@
 #if NI4B > 0
 
 #include <sys/param.h>
-
-#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/uio.h>
-#else
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
-#else
-#include <sys/select.h>
-#endif
 #include <net/if.h>
 
-#ifdef __NetBSD__
-#include <sys/types.h>
-#endif
-
-#if defined(__FreeBSD__)
 #include "i4bing.h"
-#endif
-
-#ifdef __bsdi__
-#include "ibc.h"
-#else
-#ifdef __FreeBSD__
 #include "i4bisppp.h"
-#else
-#include <net/if_sppp.h>
-#endif
-#endif
-
-#ifdef __FreeBSD__
-
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#include "opt_devfs.h"
-#endif
 
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
 
-#endif /* __FreeBSD__*/
-
-#ifdef __FreeBSD__
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_cause.h>
-#else
-#include <i4b/i4b_debug.h>
-#include <i4b/i4b_ioctl.h>
-#include <i4b/i4b_cause.h>
-#endif
 
 #include <i4b/include/i4b_l3l4.h>
 #include <i4b/include/i4b_mbuf.h>
@@ -111,9 +72,7 @@
 
 #include <i4b/layer4/i4b_l4.h>
 
-#ifdef OS_USES_POLL
 #include <sys/poll.h>
-#endif
 
 struct selinfo select_rd_info;
 
@@ -122,61 +81,21 @@ static int openflag = 0;
 static int selflag = 0;
 static int readflag = 0;
 
-#if defined(__FreeBSD__) && __FreeBSD__ == 3
-#ifdef DEVFS
-static void *devfs_token;
-#endif
-#endif
-
-#ifndef __FreeBSD__
-
-#define	PDEVSTATIC	/* - not static - */
-PDEVSTATIC void i4battach __P((void));
-PDEVSTATIC int i4bopen __P((dev_t dev, int flag, int fmt, struct thread *td));
-PDEVSTATIC int i4bclose __P((dev_t dev, int flag, int fmt, struct thread *td));
-PDEVSTATIC int i4bread __P((dev_t dev, struct uio *uio, int ioflag));
-
-#ifdef __bsdi__
-PDEVSTATIC int i4bioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td));
-#else
-PDEVSTATIC int i4bioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct thread *td));
-#endif
-
-#ifdef OS_USES_POLL
-PDEVSTATIC int i4bpoll __P((dev_t dev, int events, struct thread *td));
-#else
-PDEVSTATIC int i4bselect __P((dev_t dev, int rw, struct thread *td));
-#endif
-
-#endif /* #ifndef __FreeBSD__ */
-
-#if BSD > 199306 && defined(__FreeBSD__)
-
-#define PDEVSTATIC	static
-
-PDEVSTATIC	d_open_t	i4bopen;
-PDEVSTATIC	d_close_t	i4bclose;
-PDEVSTATIC	d_read_t	i4bread;
-PDEVSTATIC	d_ioctl_t	i4bioctl;
-
-#ifdef OS_USES_POLL
-PDEVSTATIC	d_poll_t	i4bpoll;
-#define POLLFIELD		i4bpoll
-#else
-PDEVSTATIC	d_select_t	i4bselect;
-#define POLLFIELD		i4bselect
-#endif
+static	d_open_t	i4bopen;
+static	d_close_t	i4bclose;
+static	d_read_t	i4bread;
+static	d_ioctl_t	i4bioctl;
+static	d_poll_t	i4bpoll;
 
 #define CDEV_MAJOR 60
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 static struct cdevsw i4b_cdevsw = {
 	/* open */      i4bopen,
 	/* close */     i4bclose,
 	/* read */      i4bread,
 	/* write */     nowrite,
 	/* ioctl */     i4bioctl,
-	/* poll */      POLLFIELD,
+	/* poll */      i4bpoll,
 	/* mmap */      nommap,
 	/* strategy */  nostrategy,
 	/* name */      "i4b",
@@ -185,97 +104,38 @@ static struct cdevsw i4b_cdevsw = {
 	/* psize */     nopsize,
 	/* flags */     0,
 };
-#else
-static struct cdevsw i4b_cdevsw = {
-	i4bopen,	i4bclose,	i4bread,	nowrite,
-	i4bioctl,	nostop,		nullreset,	nodevtotty,
-	POLLFIELD,	nommap,		NULL,		"i4b", NULL,	-1
-};
-#endif
 
-PDEVSTATIC void i4battach(void *);
+static void i4battach(void *);
 PSEUDO_SET(i4battach, i4b_i4bdrv);
 
 static void
 i4b_drvinit(void *unused)
 {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 4
 	cdevsw_add(&i4b_cdevsw);
-#else
-	static int i4b_devsw_installed = 0;
-	dev_t dev;
-
-	if( ! i4b_devsw_installed )
-	{
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&i4b_cdevsw,NULL);
-		i4b_devsw_installed = 1;
-	}
-#endif
 }
 
 SYSINIT(i4bdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,i4b_drvinit,NULL)
 
-#endif /* BSD > 199306 && defined(__FreeBSD__) */
-
-#ifdef __bsdi__
-#include <sys/device.h>
-int i4bmatch(struct device *parent, struct cfdata *cf, void *aux);
-void dummy_i4battach(struct device*, struct device *, void *);
-
-#define CDEV_MAJOR 65
-
-static struct cfdriver i4bcd =
-	{ NULL, "i4b", i4bmatch, dummy_i4battach, DV_DULL,
-	  sizeof(struct cfdriver) };
-struct devsw i4bsw = 
-	{ &i4bcd,
-	  i4bopen,	i4bclose,	i4bread,	nowrite,
-	  i4bioctl,	i4bselect,	nommap,		nostrat,
-	  nodump,	nopsize,	0,		nostop
-};
-
-int
-i4bmatch(struct device *parent, struct cfdata *cf, void *aux)
-{
-	printf("i4bmatch: aux=0x%x\n", aux);
-	return 1;
-}
-void
-dummy_i4battach(struct device *parent, struct device *self, void *aux)
-{
-	printf("dummy_i4battach: aux=0x%x\n", aux);
-}
-#endif /* __bsdi__ */
-
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC void
-#ifdef __FreeBSD__
+static void
 i4battach(void *dummy)
-#else
-i4battach()
-#endif
 {
 	printf("i4b: ISDN call control device attached\n");
 
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
 
-#if defined(__FreeBSD__) && __FreeBSD__ > 4	
 	if(!mtx_initialized(&i4b_rdqueue.ifq_mtx))
 		mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
-#endif
 
-#if defined(__FreeBSD__)
 	make_dev(&i4b_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4b");
-#endif
 }
 
 /*---------------------------------------------------------------------------*
  *	i4bopen - device driver open routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4bopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int x;
@@ -297,7 +157,7 @@ i4bopen(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	i4bclose - device driver close routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4bclose(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	int x = splimp();	
@@ -311,7 +171,7 @@ i4bclose(dev_t dev, int flag, int fmt, struct thread *td)
 /*---------------------------------------------------------------------------*
  *	i4bread - device driver read routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4bread(dev_t dev, struct uio *uio, int ioflag)
 {
 	struct mbuf *m;
@@ -326,13 +186,10 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
 	while(IF_QEMPTY(&i4b_rdqueue))
 	{
 		readflag = 1;
-#if defined (__FreeBSD__) && __FreeBSD__ > 4		
+
 		error = msleep((caddr_t) &i4b_rdqueue, &i4b_rdqueue.ifq_mtx,
 			(PZERO + 1) | PCATCH, "bird", 0);
-#else
-		error = tsleep((caddr_t) &i4b_rdqueue, (PZERO + 1) | PCATCH,
-			"bird", 0);
-#endif
+
 		if (error != 0) {
 			IF_UNLOCK(&i4b_rdqueue);
 			splx(x);
@@ -359,14 +216,8 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
 /*---------------------------------------------------------------------------*
  *	i4bioctl - device driver ioctl routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
-#if defined (__FreeBSD_version) && __FreeBSD_version >= 300003
+static int
 i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#elif defined(__bsdi__)
-i4bioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
-#else
-i4bioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
-#endif
 {
 	call_desc_t *cd;
 	int error = 0;
@@ -921,44 +772,10 @@ diag_done:
 	return(error);
 }
 
-#ifdef OS_USES_SELECT
-
-/*---------------------------------------------------------------------------*
- *	i4bselect - device driver select routine
- *---------------------------------------------------------------------------*/
-PDEVSTATIC int
-i4bselect(dev_t dev, int rw, struct thread *td)
-{
-	int x;
-	
-	if(minor(dev))
-		return(ENODEV);
-
-	switch(rw)
-	{
-		case FREAD:
-			if(!IF_QEMPTY(&i4b_rdqueue))
-				return(1);
-			x = splimp();
-			selrecord(td, &select_rd_info);
-			selflag = 1;
-			splx(x);
-			return(0);
-			break;
-
-		case FWRITE:
-			return(1);
-			break;
-	}
-	return(0);
-}
-
-#else /* OS_USES_SELECT */
-
 /*---------------------------------------------------------------------------*
  *	i4bpoll - device driver poll routine
  *---------------------------------------------------------------------------*/
-PDEVSTATIC int
+static int
 i4bpoll(dev_t dev, int events, struct thread *td)
 {
 	int x;
@@ -984,8 +801,6 @@ i4bpoll(dev_t dev, int events, struct thread *td)
 
 	return(0);
 }
-
-#endif /* OS_USES_SELECT */
 
 /*---------------------------------------------------------------------------*
  *	i4bputqueue - put message into queue to userland
