@@ -2,4 +2,4 @@
 # $FreeBSD$
 
 SRCS+=	_setjmp.S alloca.S fabs.S frexp.c infinity.c isinf.c ldexp.c modf.S \
-	setjmp.S sigsetjmp.S
+	rfork_thread.S setjmp.S sigsetjmp.S

@@ -7,6 +7,7 @@ SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \
 SRCS+=	sigsetjmp.S
 SRCS+=	__divqu.S __divq.S __divlu.S __divl.S
 SRCS+=	__remqu.S __remq.S __remlu.S __reml.S
+SRCS+=	rfork_thread.S
 
 CLEANFILES+=	__divqu.S __divq.S __divlu.S __divl.S
 CLEANFILES+=	__remqu.S __remq.S __remlu.S __reml.S
