@@ -667,12 +667,24 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			mpc->mpc_ops->mpo_check_pipe_ioctl =
 			    mpe->mpe_function;
 			break;
-		case MAC_CHECK_PIPE_OP:
-			mpc->mpc_ops->mpo_check_pipe_op =
+		case MAC_CHECK_PIPE_POLL:
+			mpc->mpc_ops->mpo_check_pipe_poll =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_PIPE_READ:
+			mpc->mpc_ops->mpo_check_pipe_read =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_PIPE_RELABEL:
 			mpc->mpc_ops->mpo_check_pipe_relabel =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_PIPE_STAT:
+			mpc->mpc_ops->mpo_check_pipe_stat =
+			    mpe->mpe_function;
+			break;
+		case MAC_CHECK_PIPE_WRITE:
+			mpc->mpc_ops->mpo_check_pipe_write =
 			    mpe->mpe_function;
 			break;
 		case MAC_CHECK_PROC_DEBUG:
@@ -2539,11 +2551,21 @@ mac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe, unsigned long cmd,
 }
 
 int
-mac_check_pipe_op(struct ucred *cred, struct pipe *pipe, int op)
+mac_check_pipe_poll(struct ucred *cred, struct pipe *pipe)
 {
 	int error;
 
-	MAC_CHECK(check_pipe_op, cred, pipe, pipe->pipe_label, op);
+	MAC_CHECK(check_pipe_poll, cred, pipe, pipe->pipe_label);
+
+	return (error);
+}
+
+int
+mac_check_pipe_read(struct ucred *cred, struct pipe *pipe)
+{
+	int error;
+
+	MAC_CHECK(check_pipe_read, cred, pipe, pipe->pipe_label);
 
 	return (error);
 }
@@ -2555,6 +2577,26 @@ mac_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 	int error;
 
 	MAC_CHECK(check_pipe_relabel, cred, pipe, pipe->pipe_label, newlabel);
+
+	return (error);
+}
+
+int
+mac_check_pipe_stat(struct ucred *cred, struct pipe *pipe)
+{
+	int error;
+
+	MAC_CHECK(check_pipe_stat, cred, pipe, pipe->pipe_label);
+
+	return (error);
+}
+
+int
+mac_check_pipe_write(struct ucred *cred, struct pipe *pipe)
+{
+	int error;
+
+	MAC_CHECK(check_pipe_write, cred, pipe, pipe->pipe_label);
 
 	return (error);
 }

@@ -181,19 +181,6 @@ int	__mac_set_proc(struct mac *_mac_p);
 #else /* _KERNEL */
 
 /*
- * MAC entry point operations
- */
-enum mac_ep_ops {
-	MAC_OP_VNODE_READ,
-	MAC_OP_VNODE_WRITE,
-	MAC_OP_VNODE_POLL,
-	MAC_OP_PIPE_READ,
-	MAC_OP_PIPE_WRITE,
-	MAC_OP_PIPE_STAT,
-	MAC_OP_PIPE_POLL
-};
-
-/*
  * Kernel functions to manage and evaluate labels.
  */
 struct bpf_d;
@@ -307,9 +294,12 @@ int	mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet);
 int	mac_check_cred_visible(struct ucred *u1, struct ucred *u2);
 int	mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *m);
 int	mac_check_mount_stat(struct ucred *cred, struct mount *mp);
-int	mac_check_pipe_op(struct ucred *cred, struct pipe *pipe, int op);
 int	mac_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 	    unsigned long cmd, void *data);
+int	mac_check_pipe_poll(struct ucred *cred, struct pipe *pipe);
+int	mac_check_pipe_read(struct ucred *cred, struct pipe *pipe);
+int	mac_check_pipe_stat(struct ucred *cred, struct pipe *pipe);
+int	mac_check_pipe_write(struct ucred *cred, struct pipe *pipe);
 int	mac_check_proc_debug(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_sched(struct ucred *cred, struct proc *proc);
 int	mac_check_proc_signal(struct ucred *cred, struct proc *proc,

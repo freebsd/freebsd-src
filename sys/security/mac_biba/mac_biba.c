@@ -1300,8 +1300,8 @@ mac_biba_check_pipe_ioctl(struct ucred *cred, struct pipe *pipe,
 }
 
 static int
-mac_biba_check_pipe_op(struct ucred *cred, struct pipe *pipe,
-    struct label *pipelabel, int op)
+mac_biba_check_pipe_poll(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
 {
 	struct mac_biba *subj, *obj;
 
@@ -1311,20 +1311,26 @@ mac_biba_check_pipe_op(struct ucred *cred, struct pipe *pipe,
 	subj = SLOT(&cred->cr_label);
 	obj = SLOT((pipelabel));
 
-	switch(op) {
-	case MAC_OP_PIPE_READ:
-	case MAC_OP_PIPE_STAT:
-	case MAC_OP_PIPE_POLL:
-		if (!mac_biba_dominate_single(obj, subj))
-			return (EACCES);
-		break;
-	case MAC_OP_PIPE_WRITE:
-		if (!mac_biba_dominate_single(subj, obj))
-			return (EACCES);
-		break;
-	default:
-		panic("mac_biba_check_pipe_op: invalid pipe operation");
-	}
+	if (!mac_biba_dominate_single(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_pipe_read(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT((pipelabel));
+
+	if (!mac_biba_dominate_single(obj, subj))
+		return (EACCES);
 
 	return (0);
 }
@@ -1359,6 +1365,42 @@ mac_biba_check_pipe_relabel(struct ucred *cred, struct pipe *pipe,
 	/*
 	 * XXX: Don't permit EQUAL in a label unless the subject has EQUAL.
 	 */
+
+	return (0);
+}
+
+static int
+mac_biba_check_pipe_stat(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT((pipelabel));
+
+	if (!mac_biba_dominate_single(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_pipe_write(struct ucred *cred, struct pipe *pipe,
+    struct label *pipelabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT((pipelabel));
+
+	if (!mac_biba_dominate_single(subj, obj))
+		return (EACCES);
 
 	return (0);
 }
@@ -2175,10 +2217,16 @@ static struct mac_policy_op_entry mac_biba_ops[] =
 	    (macop_t)mac_biba_check_mount_stat },
 	{ MAC_CHECK_PIPE_IOCTL,
 	    (macop_t)mac_biba_check_pipe_ioctl },
-	{ MAC_CHECK_PIPE_OP,
-	    (macop_t)mac_biba_check_pipe_op },
+	{ MAC_CHECK_PIPE_POLL,
+	    (macop_t)mac_biba_check_pipe_poll },
+	{ MAC_CHECK_PIPE_READ,
+	    (macop_t)mac_biba_check_pipe_read },
 	{ MAC_CHECK_PIPE_RELABEL,
 	    (macop_t)mac_biba_check_pipe_relabel },
+	{ MAC_CHECK_PIPE_STAT,
+	    (macop_t)mac_biba_check_pipe_stat },
+	{ MAC_CHECK_PIPE_WRITE,
+	    (macop_t)mac_biba_check_pipe_write },
 	{ MAC_CHECK_PROC_DEBUG,
 	    (macop_t)mac_biba_check_proc_debug },
 	{ MAC_CHECK_PROC_SCHED,
