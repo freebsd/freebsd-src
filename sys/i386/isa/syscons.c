@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.21 1997/07/07 13:40:23 brian Exp $
+ *  $Id: syscons.c,v 1.182.2.22 1997/07/08 13:40:57 brian Exp $
  */
 
 #include "sc.h"
@@ -808,6 +808,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_HISTORY:  	/* set history size */
 	if (*data) {
+            if (cur_console->status & BUFFER_SAVED)
+                return EBUSY;
 	    if (scp->history != NULL)
 		free(scp->history, M_DEVBUF);
 	    scp->history_size = *(int*)data;
