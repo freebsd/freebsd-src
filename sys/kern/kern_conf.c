@@ -56,11 +56,11 @@ static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 /* The number of dev_t's we can create before malloc(9) kick in.  */
 #define DEVT_STASH 50
 
-static struct specinfo devt_stash[DEVT_STASH];
+static struct cdev devt_stash[DEVT_STASH];
 
-static LIST_HEAD(, specinfo) dev_hash[DEVT_HASH];
+static LIST_HEAD(, cdev) dev_hash[DEVT_HASH];
 
-static LIST_HEAD(, specinfo) dev_free;
+static LIST_HEAD(, cdev) dev_free;
 
 devfs_create_t *devfs_create_hook;
 devfs_destroy_t *devfs_destroy_hook;
@@ -173,13 +173,13 @@ static dev_t
 allocdev(void)
 {
 	static int stashed;
-	struct specinfo *si;
+	struct cdev *si;
 
 	if (LIST_FIRST(&dev_free)) {
 		si = LIST_FIRST(&dev_free);
 		LIST_REMOVE(si, si_hash);
 	} else if (stashed >= DEVT_STASH) {
-		MALLOC(si, struct specinfo *, sizeof(*si), M_DEVT,
+		MALLOC(si, struct cdev *, sizeof(*si), M_DEVT,
 		    M_USE_RESERVE | M_ZERO);
 	} else {
 		si = devt_stash + stashed++;
@@ -194,7 +194,7 @@ allocdev(void)
 dev_t
 makedev(int x, int y)
 {
-	struct specinfo *si;
+	struct cdev *si;
 	udev_t	udev;
 	int hash;
 
