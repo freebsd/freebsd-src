@@ -8,7 +8,7 @@
 .Nm ipfw
 .Nd controlling utility for IP firewall and traffic shaper
 .Sh SYNOPSIS
-.Nm ipfw
+.Nm
 .Op Fl q
 .Oo
 .Fl p Ar preproc
@@ -21,41 +21,41 @@
 .Op Fl U Ar macro
 .Oc
 .Ar pathname
-.Nm ipfw
+.Nm
 .Op Fl f | q
 .Cm flush
-.Nm ipfw
+.Nm
 .Op Fl q
 .Es \&{ \&}
 .En Cm zero | resetlog | delete
 .Op Ar number ...
-.Nm ipfw
+.Nm
 .Op Fl s Op Ar field
 .Op Fl aftN
 .Es \&{ \&}
 .En Cm list | show
 .Op Ar number ...
-.Nm ipfw
+.Nm
 .Op Fl q
 .Cm add
 .Op Ar number
 .Ar rule-body
-.Nm ipfw
+.Nm
 .Cm pipe
 .Ar number
 .Cm config
 .Ar pipe-config-options
-.Nm ipfw
+.Nm
 .Cm pipe
 .Es \&{ \&}
 .En Cm delete | list | show
 .Op Ar number ...
-.Nm ipfw
+.Nm
 .Cm queue
 .Ar number
 .Cm config
 .Ar queue-config-options
-.Nm ipfw
+.Nm
 .Cm queue
 .Es \&{ \&}
 .En Cm delete | list | show
@@ -122,7 +122,7 @@ See the
 and
 .Sx EXAMPLES
 sections below for more information on the stateful behaviour of
-.Nm ipfw .
+.Nm .
 .Pp
 All rules (including dynamic ones) have a few associated counters:
 a packet count, a byte count, a log count and a timestamp
@@ -1105,7 +1105,7 @@ meaning:
 .Bl -tag -width indent
 .It Em net.inet.ip.fw.debug : No 1
 Controls debugging messages produced by
-.Nm ipfw .
+.Nm .
 .It Em net.inet.ip.fw.one_pass : No 1
 When set, the packet exiting from the
 .Xr dummynet 4

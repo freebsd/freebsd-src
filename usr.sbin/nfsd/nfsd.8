@@ -41,7 +41,7 @@
 .Tn NFS
 server
 .Sh SYNOPSIS
-.Nm nfsd
+.Nm
 .Op Fl arut
 .Op Fl n Ar num_servers
 .Op Fl h Ar bindip
@@ -51,7 +51,7 @@ runs on a server machine to service
 .Tn NFS
 requests from client machines.
 At least one
-.Nm nfsd
+.Nm
 must be running for a machine to operate as a server.
 .Pp
 Unless otherwise specified, four servers for
@@ -118,7 +118,7 @@ RFC1094 and
 .%T "NFS: Network File System Version 3 Protocol Specification" .
 .Pp
 If
-.Nm nfsd
+.Nm
 detects that 
 .Tn NFS
 is not loaded in the running kernel, it will attempt
@@ -131,11 +131,11 @@ by way of
 If this fails, or no
 .Tn NFS
 KLD is available,
-.Nm nfsd
+.Nm
 will exit with an error.
 .Pp
 If
-.Nm nfsd
+.Nm
 is to be run on a host with multiple interfaces or interface aliases, use
 of the
 .Fl h
@@ -148,7 +148,7 @@ would then be used to block nfs-related packets that come in on the outside
 interface.
 .Pp
 The
-.Nm nfsd
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
@@ -160,6 +160,6 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr ipfw 8
 .Sh HISTORY
 The
-.Nm nfsd
+.Nm
 utility first appeared in
 .Bx 4.4 .
