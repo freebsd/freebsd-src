@@ -934,6 +934,8 @@ wait_for_reply(sock, mhdr)
 	fdsn = howmany(sock + 1, NFDBITS) * sizeof(fd_mask);
 	if ((fdsp = (fd_set *)malloc(fdsn)) == NULL)
 		err(1, "malloc");
+	if (sock >= FD_SETSIZE)
+		errx(1, "descriptor too big");
 	memset(fdsp, 0, fdsn);
 	FD_SET(sock, fdsp);
 	wait.tv_sec = waittime; wait.tv_usec = 0;
