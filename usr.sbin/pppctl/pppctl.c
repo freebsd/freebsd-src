@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pppctl.c,v 1.1.2.3 1998/01/26 20:00:50 brian Exp $
  */
 
 #include <sys/types.h>
@@ -272,7 +272,7 @@ main(int argc, char **argv)
 
         memset(&ifsin, '\0', sizeof ifsin);
         if (strspn(host, "0123456789.") == hlen) {
-            if (!inet_aton(host, (struct in_addr *)&ifsin.sin_addr.s_addr)) {
+            if (!inet_aton(host, &ifsin.sin_addr)) {
                 fprintf(stderr, "Cannot translate %s\n", host);
                 return 1;
             }

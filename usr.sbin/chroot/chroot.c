@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)chroot.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: chroot.c,v 1.1.1.1.8.2 1997/09/16 06:46:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -64,7 +64,7 @@ main(argc, argv)
 	int ch;
 	char *shell;
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch(ch) {
 		case '?':
 		default:

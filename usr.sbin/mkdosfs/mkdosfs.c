@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkdosfs.c,v 1.2.2.2 1997/09/29 06:34:38 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -209,7 +209,7 @@ main(int argc, char **argv)
   int c, i, fd, format = 0, rootdirsize;
   const char *label = 0;
   
-  while((c = getopt(argc, argv, "f:L:")) !=  -1)
+  while((c = getopt(argc, argv, "f:L:")) != -1)
     switch(c)
       {
       case 'f':

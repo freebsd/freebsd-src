@@ -196,7 +196,7 @@ char *argv[];
 	int c;
 	int fd;
 
-	while( (c = getopt(argc, argv, "ac:d:f:HVlms:t:vp:18")) !=  -1)
+	while( (c = getopt(argc, argv, "ac:d:f:HVlms:t:vp:18")) != -1)
 	{
 		switch(c)
 		{

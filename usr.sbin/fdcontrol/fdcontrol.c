@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: fdcontrol.c,v 1.2.6.2 1997/09/18 06:29:16 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -68,7 +68,7 @@ main(int argc, char **argv)
   int fd, i;
   int debug = -1, settype = 1;
 
-  while((i = getopt(argc, argv, "d:s")) !=  -1)
+  while((i = getopt(argc, argv, "d:s")) != -1)
     switch(i)
       {
       case 'd':

@@ -33,7 +33,7 @@ static char copright[] =
 "@(#) Copyright (c) 1994 Christopher G. Demetriou\n\
  All rights reserved.\n";
 
-static char rcsid[] = "$Id: main.c,v 1.2 1995/05/30 03:51:39 rgrimes Exp $";
+static char rcsid[] = "$Id: main.c,v 1.3 1996/01/22 09:02:01 mpp Exp $";
 #endif
 
 /*
@@ -63,6 +63,7 @@ static int	cmp_avgdkio	__P((const DBT *, const DBT *));
 static int	cmp_cpumem	__P((const DBT *, const DBT *));
 static int	cmp_avgcpumem	__P((const DBT *, const DBT *));
 static int	cmp_calls	__P((const DBT *, const DBT *));
+static void	usage		__P((void));
 
 int aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 int Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
@@ -168,9 +169,7 @@ main(argc, argv)
 				break;
 			case '?':
 	                default:
-				(void)fprintf(stderr,
-				    "usage: sa [-abcdDfijkKlmnqrstu] [-v cutoff] [file ...]\n");
-				exit(1);
+				usage();
 		}
 
 	argc -= optind;
@@ -224,7 +223,7 @@ main(argc, argv)
 			}
 			if (unmask &&
 			    (sigprocmask(SIG_BLOCK, &nmask, &omask) == -1)) {
-				warn("couldn't set signal mask ");
+				warn("couldn't set signal mask");
 				unmask = 0;
 				error = 1;
 			}
@@ -286,6 +285,14 @@ main(argc, argv)
 	}
 
 	exit(error);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr,
+		"usage: sa [-abcdDfijkKlmnqrstu] [-v cutoff] [file ...]\n");
+	exit(1);
 }
 
 static int

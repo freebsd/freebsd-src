@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: manctl.8,v 1.3.2.1 1997/03/06 07:59:43 mpp Exp $
+.\" $Id: manctl.8,v 1.3.2.2 1997/09/29 06:32:23 charnier Exp $
 
 .Dd January 1, 1996
 .Dt MANCTL 8
@@ -39,13 +39,10 @@
 .Op Fl purge
 .Op Fl help
 .Ar path ...
-
 .Sh DESCRIPTION
 .Nm Manctl
 compress or uncompress manual pages in directory path. 
 If possible, .so's are replaced with hard links.
-
-
 .Sh OPTIONS
 .Bl -tag -width -indent
 .It Fl help
@@ -56,7 +53,6 @@ Compress uncompressed man pages (eliminating .so's).
 Uncompress compressed man pages.
 .It Fl purge
 Purge old formatted man pages (not implemented yet).
-
 .Sh SEE ALSO
 .Xr catman 1 ,
 .Xr man 1

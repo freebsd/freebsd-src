@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: rtprio.1,v 1.6.2.2 1997/03/07 07:45:39 mpp Exp $
+.\"	$Id: rtprio.1,v 1.6.2.3 1997/10/14 06:40:09 charnier Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 1
@@ -36,7 +36,7 @@
 .Sh NAME
 .Nm rtprio ,
 .Nm idprio
-.Nd execute, examine or modify a utilitys or process realtime 
+.Nd execute, examine or modify a utility's or process's realtime 
 or idletime scheduling priority
 .Sh SYNOPSIS
 .Nm [id|rt]prio
@@ -70,7 +70,7 @@ degradation, and will only be preempted by another process of equal or
 higher realtime priority.
 .Pp
 A process with an idle priority will run only when no other
-process is runnable and then only if it's idle priority is equal or
+process is runnable and then only if its idle priority is equal or
 greater than all other runnable idle priority processes.
 .Pp
 .Nm Rtprio 

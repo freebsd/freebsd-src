@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rndcontrol.c,v 1.4.4.2 1997/11/05 07:31:59 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -64,7 +64,7 @@ main(int argc, char *argv[])
 		return (1);
 	}
 	else {
-		while ((ch = getopt(argc, argv, "qs:c:")) !=  -1)
+		while ((ch = getopt(argc, argv, "qs:c:")) != -1)
 			switch (ch) {
 			case 'q':
 				verbose = 0;

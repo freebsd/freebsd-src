@@ -1,4 +1,3 @@
-
 .if !exists(${.CURDIR}/../Makefile.inc)
 error:
 	@echo
@@ -25,8 +24,8 @@ MAN5	=	man5/keycap.${MAN5EXT}
 #CLEANFILES+=	keycap.0 man5/keycap.0
 
 beforeinstall:
-	${INSTALL} -c -m ${LIBMODE} -o ${LIBOWN} -g ${LIBGRP} \
-	${.CURDIR}/${KEYCAPSRC} ${DESTDIR}${CAPPATH}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
+	    ${.CURDIR}/${KEYCAPSRC} ${DESTDIR}${CAPPATH}
 
 .include <bsd.lib.mk>
 

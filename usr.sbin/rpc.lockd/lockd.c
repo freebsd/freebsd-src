@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: lockd.c,v 1.2.2.1 1997/11/05 07:33:36 charnier Exp $";
 #endif /* not lint */
 
 /* main() function for NFS lock daemon.  Most of the code in this	*/
@@ -47,8 +47,8 @@ static const char rcsid[] =
 #include <rpc/pmap_clnt.h>
 #include "lockd.h"
 
-extern void nlm_prog_1 __P((struct svc_req, register SVCXPRT));
-extern void nlm_prog_3 __P((struct svc_req, register SVCXPRT));
+void nlm_prog_1 __P((struct svc_req *, SVCXPRT *));
+void nlm_prog_3 __P((struct svc_req *, SVCXPRT *));
 static void usage __P((void));
 
 int debug_level = 0;	/* Zero means no debugging syslog() calls	*/
