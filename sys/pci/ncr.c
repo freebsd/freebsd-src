@@ -3851,10 +3851,6 @@ ncr_attach (pcici_t config_id, int unit)
 		return;
 	}
 	
-#ifdef __alpha__
-	alpha_register_pci_scsi(config_id->bus, config_id->slot, np->sim);
-#endif	
-
 	if (xpt_create_path(&np->path, /*periph*/NULL,
 			    cam_sim_path(np->sim), CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {

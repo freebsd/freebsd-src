@@ -640,12 +640,6 @@ isp_pci_attach(pcici_t cfid, int unit)
 		}
 	}
 	ISP_UNLOCK(isp);
-#ifdef __alpha__
-	/*
-	 * THIS SHOULD NOT HAVE TO BE HERE
-	 */
-	alpha_register_pci_scsi(cfid->bus, cfid->slot, isp->isp_sim);
-#endif	
 }
 
 static u_int16_t
