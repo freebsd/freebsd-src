@@ -53,7 +53,6 @@
 #else
 #define NFR	0
 #endif
-#include "bpf.h"
 
 #include "sppp.h"
 #if NSPPP <= 0
@@ -71,9 +70,7 @@
 #include <net/if.h>
 #include <net/if_sppp.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/md_var.h>
 
@@ -848,9 +845,7 @@ srattach(struct sr_hardc *hc)
 
 		if_attach(ifp);
 
-#if NBPF > 0
 		bpfattach(ifp, DLT_PPP, PPP_HEADER_LEN);
-#endif
 	}
 
 	if (hc->mempages)
@@ -1119,10 +1114,8 @@ top_srstart:
 			   sc->unit, mtx, len);
 #endif
 
-#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, mtx);
-#endif
 
 		/*
 		 * We can perform a straight copy because the tranmit
@@ -2462,10 +2455,8 @@ sr_get_packets(struct sr_softc *sc)
 			 */
 			sr_copy_rxbuf(m, sc, len);	/* copy from DPRAM */
 
-#if NBPF > 0
 			if (ifp->if_bpf)
 				bpf_mtap(ifp, m);
-#endif
 
 #if BUGGY > 3
 			{

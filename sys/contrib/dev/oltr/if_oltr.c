@@ -37,7 +37,6 @@
 #include "pci.h"
 #include "oltr.h"
 #include "opt_inet.h"
-#include "bpf.h"
 
 #if (NOLTR + NPCI) > 0
 
@@ -90,9 +89,7 @@ char *AdapterName[] = {
 #include <net/iso88025.h>
 #include <net/if_media.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
  
 #if NPNP > 0
 #include <i386/isa/pnp.h>
@@ -632,9 +629,7 @@ oltr_attach_common(sc)
     if_attach(ifp);
     iso88025_ifattach(ifp);
 
-#if NBPF > 0
     bpfattach(ifp, DLT_IEEE802, sizeof(struct iso88025_header));
-#endif
 
     printf("oltr%d: Adapter modes - ", sc->unit);
     if (sc->config->mode & TRLLD_MODE_16M) printf("TRLLD_MODE_16M ");
@@ -949,10 +944,8 @@ restart:
         goto bad;
     }
 
-#if NBPF > 0
     if (ifp->if_bpf)
         bpf_mtap(ifp, m0);
-#endif
 
 bad:
 
@@ -1351,10 +1344,8 @@ DriverReceiveFrameCompleted(DriverHandle, ByteCount, FragmentCount, FragmentHand
             }
             ifp->if_ipackets++;
         
-#if NBPF > 0
             if (ifp->if_bpf)
                 bpf_mtap(ifp, m0);
-#endif
 
             if (ifp->if_flags & IFF_PROMISC)
                 if (bcmp(th->iso88025_dhost, etherbroadcastaddr, sizeof(th->iso88025_dhost)) != 0) {

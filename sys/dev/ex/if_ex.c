@@ -37,7 +37,6 @@
 
 #include "ex.h"
 #if NEX > 0
-#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -54,9 +53,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -283,9 +280,7 @@ int ex_attach(struct isa_device *dev)
 	/*
 	 * If BPF is in the kernel, call the attach for it
 	 */
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 	DODEBUG(Start_End, printf("ex_attach%d: finish\n", unit););
 	sc->arpcom.ac_if.if_snd.ifq_maxlen = ifqmaxlen;
 	return(1);
@@ -509,10 +504,8 @@ void ex_start(struct ifnet *ifp)
       sc->tx_last = dest;
       sc->tx_tail = next;
       
-#if NBPF > 0
       if (ifp->if_bpf != NULL)
 	bpf_mtap(ifp, opkt);
-#endif
       ifp->if_timer = 2;
       ifp->if_opackets++;
       m_freem(opkt);
@@ -716,7 +709,6 @@ void ex_rx_intr(int unit)
 	  } /* QQQ */
 	  }
 #endif
-#if NBPF > 0
 	if (ifp->if_bpf != NULL) {
 		bpf_mtap(ifp, ipkt);
 
@@ -733,7 +725,6 @@ void ex_rx_intr(int unit)
 			goto rx_another;
 		}
 	}
-#endif
 	m_adj(ipkt, sizeof(struct ether_header));
 	ether_input(ifp, eh, ipkt);
 	ifp->if_ipackets++;

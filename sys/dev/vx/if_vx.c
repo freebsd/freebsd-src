@@ -62,7 +62,6 @@
 #define NVX 4
 #endif
 
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,9 +75,7 @@
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 
@@ -216,9 +213,7 @@ vxattach(sc)
     if_attach(ifp);
     ether_ifattach(ifp);
 
-#if NBPF > 0
     bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
     sc->tx_start_thresh = 20;	/* probably a good starting point. */
 
@@ -496,11 +491,9 @@ startagain:
     outw(BASE + VX_COMMAND, SET_TX_START_THRESH |
 	((len / 4 + sc->tx_start_thresh) >> 2));
 
-#if NBPF > 0
     if (sc->arpcom.ac_if.if_bpf) {
 	bpf_mtap(&sc->arpcom.ac_if, m0);
     }
-#endif
 
     /*
      * Do the output at splhigh() so that an interrupt from another device
@@ -745,7 +738,6 @@ again:
     /* We assume the header fit entirely in one mbuf. */
     eh = mtod(m, struct ether_header *);
 
-#if NBPF > 0
     /*
      * Check if there's a BPF listener on this interface.
      * If so, hand off the raw packet to BPF.
@@ -753,7 +745,6 @@ again:
     if (sc->arpcom.ac_if.if_bpf) {
 	bpf_mtap(&sc->arpcom.ac_if, m);
     }
-#endif
 
     /*
      * XXX: Some cards seem to be in promiscous mode all the time.

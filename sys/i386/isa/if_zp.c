@@ -114,7 +114,6 @@ static char const zpdummy[] = "code to use the includes of card.h and pcic.h";
 
 #include "zp.h"
 
-#include "bpf.h"
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
@@ -134,9 +133,7 @@ static char const zpdummy[] = "code to use the includes of card.h and pcic.h";
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <machine/clock.h>
 #include <machine/md_var.h>
@@ -557,9 +554,7 @@ zpattach(isa_dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 #if NAPM > 0
 	sc->s_hook.ah_fun = zp_suspend;
 	sc->s_hook.ah_arg = (void *) isa_dev;
@@ -750,11 +745,9 @@ startagain:
 	while (pad--)
 		outb(BASE + EP_W1_TX_PIO_WR_1, 0);	/* Padding */
 
-#if NBPF > 0
 	if (sc->arpcom.ac_if.if_bpf) {
 		bpf_mtap(&sc->arpcom.ac_if, top);
 	}
-#endif
 
 	m_freem(top);
 	++sc->arpcom.ac_if.if_opackets;
@@ -964,7 +957,6 @@ zpread(sc)
 	outw(BASE + EP_COMMAND, RX_DISCARD_TOP_PACK);
 	while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 	++sc->arpcom.ac_if.if_ipackets;
-#if NBPF > 0
 	if (sc->arpcom.ac_if.if_bpf) {
 		bpf_mtap(&sc->arpcom.ac_if, top);
 
@@ -981,7 +973,6 @@ zpread(sc)
 			return;
 		}
 	}
-#endif
 	m_adj(top, sizeof(struct ether_header));
 	ether_input(&sc->arpcom.ac_if, eh, top);
 	return;

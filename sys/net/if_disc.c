@@ -51,7 +51,6 @@
 #include <net/route.h>
 #include <net/bpf.h>
 
-#include "bpf.h"
 #include "opt_inet.h"
 
 #ifdef TINY_DSMTU
@@ -85,9 +84,7 @@ discattach(dummy)
 	ifp->if_hdrlen = 0;
 	ifp->if_addrlen = 0;
 	if_attach(ifp);
-#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
-#endif
 }
 
 static int
@@ -99,7 +96,6 @@ discoutput(ifp, m, dst, rt)
 {
 	if ((m->m_flags & M_PKTHDR) == 0)
 		panic("discoutput no HDR");
-#if NBPF > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m, int *));
@@ -125,7 +121,6 @@ discoutput(ifp, m, dst, rt)
 
 		bpf_mtap(&discif, &m0);
 	}
-#endif
 	m->m_pkthdr.rcvif = ifp;
 
 	ifp->if_opackets++;

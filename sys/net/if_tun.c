@@ -12,6 +12,8 @@
  * roots in a similar driver written by Phil Cockcroft (formerly) at
  * UCL. This driver is based much more on read/write/poll mode of
  * operation though.
+ *
+ * $FreeBSD$
  */
 
 #include "tun.h"
@@ -50,10 +52,7 @@
 #include <netns/ns_if.h>
 #endif
 
-#include "bpf.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <net/if_tunvar.h>
 #include <net/if_tun.h>
@@ -136,9 +135,7 @@ tuncreate(dev)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_softc = sc;
 	if_attach(ifp);
-#if NBPF > 0
 	bpfattach(ifp, DLT_NULL, sizeof(u_int));
-#endif
 	dev->si_drv1 = sc;
 }
 
@@ -336,7 +333,6 @@ tunoutput(ifp, m0, dst, rt)
 		return EHOSTDOWN;
 	}
 
-#if NBPF > 0
 	/* BPF write needs to be handled specially */
 	if (dst->sa_family == AF_UNSPEC) {
 		dst->sa_family = *(mtod(m0, int *));
@@ -362,7 +358,6 @@ tunoutput(ifp, m0, dst, rt)
 
 		bpf_mtap(ifp, &m);
 	}
-#endif /* NBPF > 0 */
 
 	/* prepend sockaddr? this may abort if the mbuf allocation fails */
 	if (tp->tun_flags & TUN_LMODE) {
@@ -628,7 +623,6 @@ tunwrite(dev, uio, flag)
 	top->m_pkthdr.len = tlen;
 	top->m_pkthdr.rcvif = ifp;
 
-#if NBPF > 0
 	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
@@ -646,7 +640,6 @@ tunwrite(dev, uio, flag)
 
 		bpf_mtap(ifp, &m);
 	}
-#endif
 
 #ifdef INET
 	s = splimp();

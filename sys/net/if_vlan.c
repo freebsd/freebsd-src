@@ -57,7 +57,6 @@
 #include "vlan.h"
 #if NVLAN > 0
 #include "opt_inet.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -69,9 +68,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -176,9 +173,7 @@ vlaninit(void *dummy)
 		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 		if_attach(ifp);
 		ether_ifattach(ifp);
-#if NBPF > 0
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 		/* Now undo some of the damage... */
 		ifp->if_data.ifi_type = IFT_8021_VLAN;
 		ifp->if_data.ifi_hdrlen = EVL_ENCAPLEN;
@@ -209,10 +204,8 @@ vlan_start(struct ifnet *ifp)
 		IF_DEQUEUE(&ifp->if_snd, m);
 		if (m == 0)
 			break;
-#if NBPF > 0
 		if (ifp->if_bpf)
 			bpf_mtap(ifp, m);
-#endif /* NBPF > 0 */
 
 		/*
 		 * If the LINK0 flag is set, it means the underlying interface
@@ -304,7 +297,6 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 	 */
 	m->m_pkthdr.rcvif = &ifv->ifv_if;
 
-#if NBPF > 0
 	if (ifv->ifv_if.if_bpf) {
 		/*
 		 * Do the usual BPF fakery.  Note that we don't support
@@ -318,7 +310,6 @@ vlan_input_tag(struct ether_header *eh, struct mbuf *m, u_int16_t t)
 		m0.m_data = (char *)eh;
 		bpf_mtap(&ifv->ifv_if, &m0);
 	}
-#endif
 	ifv->ifv_if.if_ipackets++;
 	ether_input(&ifv->ifv_if, eh, m);
 	return;
@@ -356,7 +347,6 @@ vlan_input(struct ether_header *eh, struct mbuf *m)
 	m->m_len -= EVL_ENCAPLEN;
 	m->m_pkthdr.len -= EVL_ENCAPLEN;
 
-#if NBPF > 0
 	if (ifv->ifv_if.if_bpf) {
 		/*
 		 * Do the usual BPF fakery.  Note that we don't support
@@ -370,7 +360,6 @@ vlan_input(struct ether_header *eh, struct mbuf *m)
 		m0.m_data = (char *)eh;
 		bpf_mtap(&ifv->ifv_if, &m0);
 	}
-#endif
 	ifv->ifv_if.if_ipackets++;
 	ether_input(&ifv->ifv_if, eh, m);
 	return 0;

@@ -78,10 +78,7 @@
  */
 
 #include "opt_inet.h"
-#if NBPF > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
-#endif
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -229,9 +226,7 @@ am7990_config(sc)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-#if NBPF > 0
 	bpfattach(&ifp->if_bpf, ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 	switch (sc->sc_memsize) {
 	case 8192:
@@ -318,11 +313,9 @@ am7990_meminit(sc)
 	struct letmd tmd;
 	u_int8_t *myaddr;
 
-#if NBPF > 0
 	if (ifp->if_flags & IFF_PROMISC)
 		init.init_mode = LE_MODE_NORMAL | LE_MODE_PROM;
 	else
-#endif
 		init.init_mode = LE_MODE_NORMAL;
 	if (sc->sc_initmodemedia == 1)
 		init.init_mode |= LE_MODE_PSEL0;
@@ -565,7 +558,6 @@ am7990_read(sc, boff, len)
 	/* We assume that the header fit entirely in one mbuf. */
 	eh = mtod(m, struct ether_header *);
 
-#if NBPF > 0
 	/*
 	 * Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to BPF.
@@ -587,7 +579,6 @@ am7990_read(sc, boff, len)
 		}
 #endif
 	}
-#endif
 
 #ifdef LANCE_REVC_BUG
 	/*
@@ -923,14 +914,12 @@ am7990_start(ifp)
 		if (m == 0)
 			break;
 
-#if NBPF > 0
 		/*
 		 * If BPF is listening on this interface, let it see the packet
 		 * before we commit it to the wire.
 		 */
 		if (ifp->if_bpf)
 			bpf_mtap(ifp->if_bpf, m);
-#endif
 
 		/*
 		 * Copy the mbuf chain into the transmit buffer.

@@ -64,7 +64,6 @@
 #include "lnc.h"
 #if NLNC > 0
 
-#include "bpf.h"
 #include "opt_inet.h"
 
 /* Some defines that should really be in generic locations */
@@ -88,9 +87,7 @@
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include "opt_bdg.h"
 #ifdef BRIDGE
@@ -614,10 +611,8 @@ lnc_rint(struct lnc_softc *sc)
 
 				eh = (struct ether_header *) head->m_data;
 
-#if NBPF > 0
 				if (sc->arpcom.ac_if.if_bpf)
 					bpf_mtap(&sc->arpcom.ac_if, head);
-#endif
 #ifdef BRIDGE
 				if (do_bridge) {
 				    struct ifnet *bdg_ifp ;
@@ -1299,9 +1294,7 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 		printf("%s", ic_ident[sc->nic.ic]);
 	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
-#if NBPF > 0
 	bpfattach(&sc->arpcom.ac_if, DLT_EN10MB, sizeof(struct ether_header));
-#endif
 
 	return (1);
 }
@@ -1824,10 +1817,8 @@ lnc_start(struct ifnet *ifp)
 
 		ifp->if_timer = 2;
 
-#if NBPF > 0
 		if (sc->arpcom.ac_if.if_bpf)
 			bpf_mtap(&sc->arpcom.ac_if, head);
-#endif
 
 		if (sc->nic.mem_mode != DMA_MBUF)
 			m_freem(head);
