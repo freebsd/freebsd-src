@@ -146,7 +146,7 @@
       <option>-L</option> option, which uses &man.mksnap.ffs.8;.  Note
       that &man.mksnap.ffs.8; is normally only available to the
       superuser and members of the <groupname>operator</groupname>
-      group.  This bug has been fixed on the &os; &release.current;
+      group.  This bug has been fixed on the &os; &release.prev;
       security fix branch and in &os; &release.bugfix;.  For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
 
@@ -157,7 +157,7 @@
       attacker to gain unauthorized access to parts of kernel memory,
       possibly resulting in disclosure of sensitive information,
       bypass of access control mechanisms, or privilege escalation.
-      This bug has been fixed on the &os; &release.current;
+      This bug has been fixed on the &os; &release.prev;
       security fix branch and in &os; &release.bugfix;.
       More details, including bugfix and workaround information,
       can be found in security advisory <ulink
@@ -168,7 +168,7 @@
       environment to change its root directory to a different jail,
       giving it read and write access to the files and directories
       within.  This vulnerability has been closed on the &os;
-      &release.current; security fix branch and in &os;
+      &release.prev; security fix branch and in &os;
       &release.bugfix;.  Information on the bug fix can be found in
       security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.mail.asc">FreeBSD-SA-04:03</ulink>.</para>
