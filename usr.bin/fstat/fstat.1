@@ -79,7 +79,8 @@ which is the kernel image the system has booted from.
 Include memory-mapped files in the listing; normally these are excluded
 due to the extra processing required.
 .It Fl n
-Numerical format.  Print the device number (maj,min) of the file system
+Numerical format.
+Print the device number (maj,min) of the file system
 the file resides in rather than the mount point name; for special
 files, print the
 device number that the special device refers to rather than the filename
@@ -91,12 +92,15 @@ Report all files open by the specified process.
 .It Fl u
 Report all files open by the specified user.
 .It Fl v
-Verbose mode.  Print error messages upon failures to locate particular
-system data structures rather than silently ignoring them.  Most of
+Verbose mode.
+Print error messages upon failures to locate particular
+system data structures rather than silently ignoring them.
+Most of
 these data structures are dynamically created or deleted and it is
 possible for them to disappear while
 .Nm
-is running.  This
+is running.
+This
 is normal and  unavoidable since the rest of the system is running while
 .Nm
 itself is running.
@@ -145,7 +149,8 @@ major/minor number of the device that this file resides in.
 .It Li INUM
 The inode number of the file.
 .It Li MODE
-The mode of the file.  If the
+The mode of the file.
+If the
 .Fl n
 flag isn't specified, the mode is printed
 using a symbolic format (see
@@ -154,7 +159,8 @@ otherwise, the mode is printed
 as an octal number.
 .It Li SZ\&|DV
 If the file is not a character or block special, prints the size of
-the file in bytes.  Otherwise, if the
+the file in bytes.
+Otherwise, if the
 .Fl n
 flag is not specified, prints
 the name of the special file as located in
@@ -177,7 +183,8 @@ flag is not, then
 this field is present and is the name associated with the given file.
 Normally the name cannot be determined since there is no mapping
 from an open file back to the directory entry that was used to open
-that file.  Also, since different directory entries may reference
+that file.
+Also, since different directory entries may reference
 the same file (via
 .Xr ln 1 ) ,
 the name printed may not be the actual

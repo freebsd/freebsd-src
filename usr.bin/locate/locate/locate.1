@@ -77,7 +77,8 @@ As a special case, a pattern containing no globbing characters
 is matched as though it were
 .Dq *foo* .
 .Pp
-Historically, locate only stored characters between 32 and 127.  The
+Historically, locate only stored characters between 32 and 127.
+The
 current implementation store any character except newline
 .Pq Sq \en
 and NUL
@@ -99,7 +100,8 @@ Search in
 instead the default file name database.
 Multiple
 .Fl d
-options are allowed.  Each additional
+options are allowed.
+Each additional
 .Fl d
 option adds the specified database to the list
 of databases to be searched.
@@ -155,7 +157,8 @@ $ zcat database.gz | locate -d - pattern
 .Ed
 .Pp
 This might be useful on machines with a fast CPU and little RAM and slow
-I/O. Note: you can only use
+I/O.
+Note: you can only use
 .Ar one
 pattern for stdin.
 .It Fl i
@@ -212,11 +215,13 @@ option was specified.
 The
 .Nm
 program may fail to list some files that are present, or may
-list files that have been removed from the system.  This is because
+list files that have been removed from the system.
+This is because
 locate only reports files that are present in the database, which is
 typically only regenerated once a week by the
 .Pa /etc/periodic/weekly/310.locate
-script.  Use
+script.
+Use
 .Xr find 1
 to locate files that are of a more transitory nature.
 .Pp
@@ -233,7 +238,7 @@ group
 .Dq nobody ,
 or
 world.
-E.g. if your HOME directory is not world-readable, all your
+E.g.\& if your HOME directory is not world-readable, all your
 files are
 .Ar not
 in the database.

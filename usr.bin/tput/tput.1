@@ -48,7 +48,8 @@
 The
 .Nm
 utility makes terminal-dependent information available to users or shell
-applications.  When invoked as the
+applications.
+When invoked as the
 .Nm clear
 utility, the screen will be cleared as if
 .Dl tput clear
@@ -83,7 +84,7 @@ without further action.
 .Pp
 If an
 .Ar attribute
-is of type string, and takes arguments (e.g. cursor movement,
+is of type string, and takes arguments (e.g.\& cursor movement,
 the termcap
 .Dq cm
 sequence) the arguments are taken from the command line immediately
@@ -150,6 +151,8 @@ Some termcap entries depend upon having a
 .Sq %
 in them that is just a
 .Sq %
-and nothing more.  Right now we just warn about them if they don't
-have a valid type declaration.  These warnings are sent to
+and nothing more.
+Right now we just warn about them if they don't
+have a valid type declaration.
+These warnings are sent to
 stderr.

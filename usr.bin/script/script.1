@@ -81,10 +81,12 @@ Log keys sent to program as well as output.
 .It Fl q
 Run in quiet mode, omit the start and stop status messages.
 .It Fl t Ar time
-Specify time interval between flushing script output file.  A value of 0
+Specify time interval between flushing script output file.
+A value of 0
 causes
 .Nm
-to flush for every character I/O event.  The default interval is
+to flush for every character I/O event.
+The default interval is
 30 seconds.
 .El
 .Pp
@@ -150,6 +152,8 @@ because of argument parsing compatibility issues.
 .Pp
 When running in
 .Fl k
-mode, echo cancelling is far from ideal.  The slave terminal mode is checked
-for ECHO mode to check when to avoid manual echo logging.  This does not
+mode, echo cancelling is far from ideal.
+The slave terminal mode is checked
+for ECHO mode to check when to avoid manual echo logging.
+This does not
 work when in a raw mode where the program being run is doing manual echo.

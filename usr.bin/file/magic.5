@@ -105,15 +105,17 @@ The numeric types may optionally be followed by
 .Em &
 and a numeric value,
 to specify that the value is to be AND'ed with the
-numeric value before any comparisons are done.  Prepending a
+numeric value before any comparisons are done.
+Prepending a
 .Em u
 to the type indicates that ordered comparisons should be unsigned.
 .Bl -tag -width indent
 .It test
-The value to be compared with the value from the file.  If the type is
+The value to be compared with the value from the file.
+If the type is
 numeric, this value
 is specified in C form; if it is a string, it is specified as a C string
-with the usual escapes permitted (e.g. \en for new-line).
+with the usual escapes permitted (e.g.\& \en for new-line).
 .It ""
 Numeric values
 may be preceded by a character indicating the operation to be performed.
@@ -157,12 +159,14 @@ and
 .Em & )
 can be applied to strings.
 The length used for matching is that of the string argument
-in the magic file.  This means that a line can match any string, and
+in the magic file.
+This means that a line can match any string, and
 then presumably print that string, by doing
 .Em >\e0
 (because all strings are greater than the null string).
 .It message
-The message to be printed if the comparison succeeds.  If the string
+The message to be printed if the comparison succeeds.
+If the string
 contains a
 .Xr printf 3
 format specification, the value from the file (with any specified masking
@@ -170,9 +174,11 @@ performed) is printed using the message as the format string.
 .El
 .Pp
 Some file formats contain additional information which is to be printed
-along with the file type.  A line which begins with the character
+along with the file type.
+A line which begins with the character
 .Em >
-indicates additional tests and messages to be printed.  The number of
+indicates additional tests and messages to be printed.
+The number of
 .Em >
 on the line indicates the level of the test; a line with no
 .Em >
@@ -186,7 +192,8 @@ If the test on a line at level
 .Em n
 succeeds, the tests specified in all the subsequent lines at level
 .Em n+1
-are performed, and the messages printed if the tests succeed.  The next
+are performed, and the messages printed if the tests succeed.
+The next
 line at level
 .Em n
 terminates this.

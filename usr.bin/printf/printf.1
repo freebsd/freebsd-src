@@ -131,22 +131,26 @@ For
 .Cm c , d ,
 and
 .Cm s ,
-formats, this option has no effect.  For the
+formats, this option has no effect.
+For the
 .Cm o
 formats the precision of the number is increased to force the first
-character of the output string to a zero.  For the
+character of the output string to a zero.
+For the
 .Cm x
 .Pq Cm X
 format, a non-zero result has the string
 .Li 0x
 .Pq Li 0X
-prepended to it.  For
+prepended to it.
+For
 .Cm e , E , f , g ,
 and
 .Cm G ,
 formats, the result will always contain a decimal point, even if no
 digits follow the point (normally, a decimal point only appears in the
-results of those formats if a digit follows the decimal point).  For
+results of those formats if a digit follows the decimal point).
+For
 .Cm g
 and
 .Cm G
@@ -161,10 +165,12 @@ A `+' character specifying that there should always be
 a sign placed before the number when using signed formats.
 .It Sq \&\ \&
 A space specifying that a blank should be left before a positive number
-for a signed format.  A `+' overrides a space if both are used;
+for a signed format.
+A `+' overrides a space if both are used;
 .It Cm \&0
 A zero `0' character indicating that zero-padding should be used
-rather than blank-padding.  A `\-' overrides a `0' if both are used;
+rather than blank-padding.
+A `\-' overrides a `0' if both are used;
 .El
 .It "Field Width:"
 An optional digit string specifying a
@@ -324,7 +330,8 @@ then back again, floating-point precision may be lost.
 .Tn ANSI
 hexadecimal character constants were deliberately not provided.
 .Pp
-The escape sequence \e000 is the string terminator.  When present in the
+The escape sequence \e000 is the string terminator.
+When present in the
 .Ar format ,
 the
 .Ar format
