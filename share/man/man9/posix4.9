@@ -1,0 +1,119 @@
+.\" Copyright (c) 1998 HD Associates, Inc.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id: posix4.9,v 1.8 1998/01/02 19:22:52 alex Exp $
+.Dd March 1, 1998
+.Dt POSIX.4 9
+.Os FreeBSD 3.0
+.Sh NAME
+.Nm posix4
+.Nd "POSIX.4 extensions"
+.Sh DESCRIPTION
+POSIX.4 adds real time extensions and some commonly used
+Berkeley extensions to POSIX.1
+This section contains information about the the 
+POSIX.4 extensions to the system.
+.Sh STATUS
+March 1, 1998 adds the header file changes to 3.0.  There should be no
+visible differences as long as _POSIX_VERSION is left at 199009L and
+no one builds kernels with a POSIX4 option.
+.Pp
+If you are working with something defined in POSIX.4 then there is a good
+chance we conflict.  If you have the time then set
+_POSIX_VERSION to 199309L in /etc/make.conf and see that your work
+fits with mine.
+.Pp
+Since this only brings in the headers I'm only explaining the feature
+test options.
+.Sh SPECIFYING THE VERSION
+There are three manifest constants that set the version and programming interface
+for POSIX.4.
+.Bd -literal -offset 0i
+_POSIX_VERSION
+.Ed
+specifies the system for which the system is built.  The default
+is POSIX.1 and is 199009L.  POSIX.4 is 199309L.  This defines
+the base features of the operating system.
+.Bd -literal -offset 0i
+_POSIX_SOURCE
+.Ed
+is a macro from POSIX.1 that can 
+be defined to specify that only POSIX and ANSI functionality should occur
+in the name space.
+.Bd -literal -offset 0i
+_POSIX_C_SOURCE
+.Ed
+is a macro from POSIX.4 that can be defined to specify that only
+POSIX and ANSI functionality from a specific POSIX version should occur
+in the name space, i.e., if _POSIX_VERSION is 199309L (POSIX.4) but
+_POSIX_C_SOURCE is 199009L (POSIX.1) then only POSIX.1 features should
+appear.
+.Sh PROPERLY HIDING EXTENSIONS
+.Bd -literal -offset 0i
+POSIX4_VISIBLE
+.Ed
+is a test macro that tries to sort out when extensions should be
+visible.
+.Pp
+In normal C program development
+only _POSIX_VERSION is set, permitting BSD extensions to
+appear to the programs.  However, when adding new functionality mandated
+by POSIX.4, it
+is important to satisfy the requirements added by the
+new _POSIX_C_SOURCE macro.  POSIX4_VISIBLE (not a standard feature test macro)
+is defined in sys/unistd.h when the combination of _POSIX_VERSION,
+_POSIX_SOURCE, and _POSIX_C_SOURCE indicate the extensions are in scope.
+.Pp
+Since for POSIX to work you must include <unistd.h> which ultimately
+sets this up header files can always assume this is visible without
+including anything.
+.Pp
+Some traditional BSD headers (e.g., mmap.h) are now specified in POSIX.4.
+This means that functionality not present in POSIX.4 should now be
+hidden by testing _POSIX_SOURCE or _POSIX_C_SOURCE.  The safest thing
+is to hide them when _POSIX_C_SOURCE is defined and less than 199309L.
+Don't bracket the extensions with the POSIX.4 feature test macros.
+For example, don't conditionalize new memory locking flags with
+_POSIX_MEMLOCK.  It will be too easy for conflicting implementations
+that don't pay heed to the POSIX.4 flags to sneak into the system.
+.Sh NON STANDARD TEST MACROS
+.Bd -literal -offset 0i
+POSIX4_INCLUDE_MAYBES
+.Ed
+requests that all header files that the POSIX.4 spec says a standard
+header may include should be included.  Normally no non-required
+headers are included.  Setting this pre-processor definition should
+make any compliant program compile without issues of header file
+inclusion.
+.Bd -literal -offset 0i
+POSIX4
+.Ed
+is a config option and (currently) a request to build POSIX.4 by
+setting the _POSIX_VERSION to 199309L in sys/unistd.h.
+.Sh SEE ALSO
+.Sh HISTORY
+The
+.Nm posix4
+section manual page appeared in
+.Fx 3.0 .

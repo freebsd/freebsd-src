@@ -63,6 +63,11 @@ int	signanosleep __P((const struct timespec *, struct timespec *,
 int	sigpending __P((sigset_t *));
 int	sigprocmask __P((int, const sigset_t *, sigset_t *));
 int	sigsuspend __P((const sigset_t *));
+#ifdef POSIX4_VISIBLE
+int sigqueue __P((_BSD_PID_T_, int, const union sigval));
+int sigtimedwait __P((const sig_set_t *, siginfo_t *));
+int sigwaitinfo __P((const sig_set_t *, siginfo_t *));
+#endif
 #ifndef _POSIX_SOURCE
 int	killpg __P((_BSD_PID_T_, int));
 int	sigaltstack __P((const struct sigaltstack *, struct sigaltstack *)); 

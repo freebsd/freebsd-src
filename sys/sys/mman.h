@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.19 1997/12/02 21:30:03 dyson Exp $
+ * $Id: mman.h,v 1.20 1997/12/31 01:22:00 alex Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -63,6 +63,15 @@
 #define	MAP_NOEXTEND	 0x0100	/* for MAP_FILE, don't change file size */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
 
+#ifdef POSIX4_VISIBLE
+/*
+ * Process memory locking
+ */
+#define MCL_CURRENT	0x0001	/* Lock only current memory */
+#define MCL_FUTURE	0x0002	/* Lock all future memory as well */
+
+#endif /* POSIX4_VISIBLE */
+
 /*
  * Error return from mmap()
  */
@@ -74,6 +83,7 @@
 #define	MS_SYNC		0x0000	/* msync synchronously */
 #define MS_ASYNC	0x0001	/* return immediately */
 #define MS_INVALIDATE	0x0002	/* invalidate all cached data */
+
 
 /*
  * Mapping type
@@ -105,9 +115,12 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	madvise __P((void *, size_t, int));
-int	mincore __P((const void *, size_t, char *));
-int	minherit __P((void *, size_t, int));
+#ifdef POSIX4_VISIBLE
+int	mlockall __P((int));
+int	munlockall __P((void));
+int	shm_open __P((const char *, int, mode_t));
+int	shm_unlink __P((const char *));
+#endif /* POSIX4_VISIBLE */
 int	mlock __P((const void *, size_t));
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
@@ -117,6 +130,11 @@ int	mprotect __P((const void *, size_t, int));
 int	msync __P((void *, size_t, int));
 int	munlock __P((const void *, size_t));
 int	munmap __P((void *, size_t));
+#ifndef _POSIX_SOURCE
+int	madvise __P((void *, size_t, int));
+int	mincore __P((const void *, size_t, char *));
+int	minherit __P((void *, size_t, int));
+#endif
 __END_DECLS
 
 #endif /* !KERNEL */
