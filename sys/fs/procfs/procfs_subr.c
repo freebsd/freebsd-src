@@ -163,7 +163,9 @@ loop:
 		break;
 
 	case Pfile:
-		pfs->pfs_mode = (VREAD|VEXEC);
+		pfs->pfs_mode = (VREAD|VEXEC) |
+				(VREAD|VEXEC) >> 3 |
+				(VREAD|VEXEC) >> 6;
 		vp->v_type = VLNK;
 		break;
 
