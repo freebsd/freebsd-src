@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.51 1998/04/15 17:47:02 bde Exp $
+ *	$Id: if_fxp.c,v 1.52 1998/04/17 22:37:03 des Exp $
  */
 
 /*
@@ -1217,7 +1217,6 @@ fxp_init(xsc)
 	fxp_stop(sc);
 
 	prm = (ifp->if_flags & IFF_PROMISC) ? 1 : 0;
-	sc->promisc_mode = prm;
 
 	/*
 	 * Initialize base of CBL and RFA memory. Loading with zero
