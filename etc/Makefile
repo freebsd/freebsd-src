@@ -144,9 +144,9 @@ distribution:
 	    ${DESTDIR}/var/log/messages
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
 	    ${DESTDIR}/var/log/security
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g network -m 640 /dev/null \
 	    ${DESTDIR}/var/log/slip.log
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	${INSTALL} -c -o ${BINOWN} -g network -m 640 /dev/null \
 	    ${DESTDIR}/var/log/ppp.log
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/wtmp
