@@ -593,7 +593,7 @@ confirm_zone(const char *filename)
 
 	asprintf(&msg, "Does the abbreviation `%s' look reasonable?",
 		 tm->tm_zone);
-	rv = !dialog_yesno("Confirmation", msg, 4, 72);
+	rv = !dialog_yesno("Confirmation", msg, 5, 72);
 	free(msg);
 	return rv;
 }
