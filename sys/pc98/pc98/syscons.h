@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.7 1996/10/30 22:40:17 asami Exp $
+ *	$Id: syscons.h,v 1.7.2.1 1996/12/04 16:01:43 phk Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -229,7 +229,7 @@ typedef struct default_attr {
 void set_border(u_char color);
 void set_mode(scr_stat *scp);
 void copy_font(int operation, int font_type, char* font_image);
-void load_palette(void);
+void load_palette(char *palette);
 
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);
