@@ -243,7 +243,7 @@ See also <CODE>fetch-glue</CODE> above.
 <DT><CODE>rfc2308-type1</CODE>
 <DD>
 If <CODE>yes</CODE>, the server will send NS records along with the SOA
-record for negative answers.
+record for negative answers from the cache.
 You need to set this to <CODE>no</CODE> if you have an old BIND
 server using you as a forwarder that does not understand negative answers
 which contain both SOA and NS records or you have an old version of sendmail.
@@ -433,9 +433,8 @@ The default is
     query-source address * port *;
 </PRE>
 
-<P>Note: <CODE>query-source</CODE> currently applies only to UDP queries;
-TCP queries always use a wildcard IP address and a random unprivileged
-port.
+<P>Note: <CODE>query-source port</CODE> applies only to UDP queries,
+TCP queries always use a random unprivileged port.
 
 <A name="ZoneTransfers"><H4>Zone Transfers</H4></A>
 
@@ -813,7 +812,7 @@ request for the root servers to be accepted.  Default 2.
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: options.html,v 1.41 2000/11/29 11:49:09 marka Exp $
+Last Updated: $Id: options.html,v 1.43 2001/03/03 05:08:55 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>

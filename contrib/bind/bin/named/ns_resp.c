@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.149 2001/01/03 09:47:27 marka Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.152 2001/02/13 23:28:31 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -470,8 +470,10 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 			if (!haveComplained(ina_ulong(from.sin_addr),
 					    (u_long)"unexpected source")) {
 				ns_info(ns_log_default,
-					"Response from unexpected source (%s)",
-					sin_ntoa(from));
+					"Response from unexpected source (%s) for query \"%s %s %s\"",
+					sin_ntoa(from),
+                        		*(qp->q_name) ? qp->q_name : ".",
+					p_class(qp->q_class), p_type(qp->q_type));
 			}
 			/* 
 			 * We don't know who this response came from so it
@@ -508,7 +510,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 				 (tt.tv_usec - stp->tv_usec) / 1000);
 		}
 		
-		if (ns_wouldlog(ns_log_default,3)) {
+		if (ns_wouldlog(ns_log_default, 3)) {
 			ns_debug(ns_log_default, 3,
 				 "stime %lu/%lu  now %lu/%lu rtt %ld",
 				 (u_long)stp->tv_sec, (u_long)stp->tv_usec,
@@ -546,10 +548,11 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 		 */
 		if (ns && qs->ns && (qp->q_nusedns < NSMAX)) {
 			qp->q_usedns[qp->q_nusedns++] = qs->ns;
-			if (ns_wouldlog(ns_log_default,2)) {
+			if (ns_wouldlog(ns_log_default, 2)) {
 				ns_debug(ns_log_default, 2,
 					 "NS #%d addr %s used, rtt %d",
-					 n, sin_ntoa(qs->ns_addr), ns->d_nstime);
+					 n, sin_ntoa(qs->ns_addr),
+					 ns->d_nstime);
 			}
 		}
 
@@ -587,8 +590,9 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 			if (t > 65535)
 				t = 65535;
 			ns2->d_nstime = (u_int16_t)t;
-			if (ns_wouldlog(ns_log_default,2)) {
-				ns_debug(ns_log_default, 2, "NS #%d %s rtt now %d", n,
+			if (ns_wouldlog(ns_log_default, 2)) {
+				ns_debug(ns_log_default, 2,
+					 "NS #%d %s rtt now %d", n,
 					 sin_ntoa(qs->ns_addr),
 					 ns2->d_nstime);
 			}
@@ -1479,14 +1483,14 @@ tcp_retry:
 	unsched(qp);
 	schedretry(qp, retrytime(qp));
 	nsa = Q_NEXTADDR(qp, 0);
-	if (ns_wouldlog(ns_log_default,1)) {
-	    ns_debug(ns_log_default, 1,
-		     "resp: forw -> %s ds=%d nsid=%d id=%d %dms",
-		     sin_ntoa(*nsa), ds,
-		     ntohs(qp->q_nsid), ntohs(qp->q_id),
-		     (qp->q_addr[0].nsdata != NULL)
-			    ? qp->q_addr[0].nsdata->d_nstime
-			    : -1);
+	if (ns_wouldlog(ns_log_default, 1)) {
+		ns_debug(ns_log_default, 1,
+			 "resp: forw -> %s ds=%d nsid=%d id=%d %dms",
+			 sin_ntoa(*nsa), ds,
+			 ntohs(qp->q_nsid), ntohs(qp->q_id),
+			 (qp->q_addr[0].nsdata != NULL)
+				 ? qp->q_addr[0].nsdata->d_nstime
+				 : -1);
 	}
 #ifdef DEBUG
 	if (debug >= 10)
@@ -2459,11 +2463,13 @@ sysquery(const char *dname, int class, int type,
 	qp->q_addr[0].stime = tt;	/* XXX - why not every? */
 	nsa = Q_NEXTADDR(qp, 0);
 
-	ns_debug(ns_log_default, 1,
-		 "sysquery: send -> %s dfd=%d nsid=%d id=%d retry=%ld",
-		 sin_ntoa(*nsa), qp->q_dfd, 
-		 ntohs(qp->q_nsid), ntohs(qp->q_id),
-		 (long)qp->q_time);
+	if (ns_wouldlog(ns_log_default, 1)) {
+		ns_debug(ns_log_default, 1,
+			 "sysquery: send -> %s dfd=%d nsid=%d id=%d retry=%ld",
+			 sin_ntoa(*nsa), qp->q_dfd, 
+			 ntohs(qp->q_nsid), ntohs(qp->q_id),
+			 (long)qp->q_time);
+	}
 #ifdef DEBUG
 	if (debug >= 10)
 		res_pquery(&res, qp->q_msg, qp->q_msglen,
@@ -2733,7 +2739,7 @@ findns(struct namebuf **npp, int class,
 					return (NXDOMAIN);
 				} else {
 					/* XXX:	zone isn't loaded but we're
-					 *	primary or secondary for it.
+					 *	primary or slave for it.
 					 *	should we fwd this?
 					 */
 					return (SERVFAIL);

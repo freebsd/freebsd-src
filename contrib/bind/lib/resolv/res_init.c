@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 8.17 2000/11/08 06:47:37 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 8.19 2001/03/08 03:57:16 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -179,6 +179,9 @@ __res_vinit(res_state statp, int preinit) {
 	statp->qhook = NULL;
 	statp->rhook = NULL;
 	statp->_u._ext.nscount = 0;
+#ifdef RESOLVSORT
+	statp->nsort = 0;
+#endif
 
 	/* Allow user to override the local domain definition */
 	if ((cp = getenv("LOCALDOMAIN")) != NULL) {
@@ -343,7 +346,8 @@ __res_vinit(res_state statp, int preinit) {
 		    continue;
 		}
 	    }
-	    if (nserv > 1) 
+
+	    if (nserv > 1)
 		statp->nscount = nserv;
 #ifdef RESOLVSORT
 	    statp->nsort = nsort;
@@ -507,5 +511,4 @@ res_nclose(res_state statp) {
 			statp->_u._ext.nssocks[ns] = -1;
 		}
 	}
-	statp->_u._ext.nscount = 0;
 }
