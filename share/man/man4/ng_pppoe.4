@@ -190,11 +190,11 @@ you may have to do the following sysctl:
 .Bd -literal
 (kldload netgraph)
 (kldload ng_pppoe)
-sysctl net.graph.stupid_isp=1
+sysctl net.graph.nonstandard_pppoe=1
 .Ed
 .Pp
 to enable the alternate ethertypes. Then phone your ISP and ask them
-why you need to set option "stupid_isp" for you to be able to connect.
+why you need to set that option for you to be able to connect.
 .Sh EXAMPLES
 The following code uses
 .Dv libnetgraph
