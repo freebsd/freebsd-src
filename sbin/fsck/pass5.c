@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pass5.c	8.9 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: pass5.c,v 1.12 1998/06/28 19:23:02 bde Exp $";
+	"$Id: pass5.c,v 1.13 1998/08/04 09:19:03 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -127,9 +127,9 @@ pass5()
 		newcg->cg_btotoff =
 		     &newcg->cg_space[0] - (u_char *)(&newcg->cg_firstfield);
 		newcg->cg_boff =
-		    newcg->cg_btotoff + fs->fs_cpg * sizeof(long);
+		    newcg->cg_btotoff + fs->fs_cpg * sizeof(int32_t);
 		newcg->cg_iusedoff = newcg->cg_boff +
-		    fs->fs_cpg * fs->fs_nrpos * sizeof(short);
+		    fs->fs_cpg * fs->fs_nrpos * sizeof(u_int16_t);
 		newcg->cg_freeoff =
 		    newcg->cg_iusedoff + howmany(fs->fs_ipg, NBBY);
 		inomapsize = newcg->cg_freeoff - newcg->cg_iusedoff;
@@ -138,11 +138,11 @@ pass5()
 		blkmapsize = newcg->cg_nextfreeoff - newcg->cg_freeoff;
 		if (fs->fs_contigsumsize > 0) {
 			newcg->cg_clustersumoff = newcg->cg_nextfreeoff -
-			    sizeof(long);
+			    sizeof(u_int32_t);
 			newcg->cg_clustersumoff =
-			    roundup(newcg->cg_clustersumoff, sizeof(long));
+			    roundup(newcg->cg_clustersumoff, sizeof(u_int32_t));
 			newcg->cg_clusteroff = newcg->cg_clustersumoff +
-			    (fs->fs_contigsumsize + 1) * sizeof(long);
+			    (fs->fs_contigsumsize + 1) * sizeof(u_int32_t);
 			newcg->cg_nextfreeoff = newcg->cg_clusteroff +
 			    howmany(fs->fs_cpg * fs->fs_spc / NSPB(fs), NBBY);
 		}
