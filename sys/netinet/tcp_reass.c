@@ -2244,8 +2244,8 @@ dropafterack:
 		tcp_trace(TA_DROP, ostate, tp, (void *)tcp_saveipgen,
 			  &tcp_savetcp, 0);
 #endif
-	if (headlocked)
-		INP_INFO_WUNLOCK(&tcbinfo);
+	KASSERT(headlocked, ("headlocked should be 1"));
+	INP_INFO_WUNLOCK(&tcbinfo);
 	m_freem(m);
 	tp->t_flags |= TF_ACKNOW;
 	(void) tcp_output(tp);
