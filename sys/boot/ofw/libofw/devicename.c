@@ -185,6 +185,32 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     return(err);
 }
 
+/* hack to correctly parse bootpath for currdev. */
+int
+ofw_parseofwdev(struct ofw_devdesc *dev, const char *devspec)
+{
+	char *cp, *ep;
+	int i;
+	struct devsw *dv;
+
+	if ((cp = strrchr(devspec, '@')) == 0)
+	    return EINVAL;
+	cp++;
+	ep = cp;
+	dev->d_kind.ofwdisk.unit = strtol(cp, &cp, 10);
+	if (cp == ep)
+	    return EUNIT;
+	if (*cp != ',')
+	    return ESLICE;
+	ep = ++cp;
+	dev->d_kind.ofwdisk.slice = strtol(cp, &cp, 10) + 1;
+	if (cp == ep)
+	    return ESLICE;
+	if (*cp != ':')
+	    return EPART;
+	dev->d_kind.ofwdisk.partition = *++cp - 'a';
+}
+
 char *
 ofw_fmtdev(void *vdev)
 {
@@ -198,9 +224,9 @@ ofw_fmtdev(void *vdev)
 		break;
 
 	case DEVT_DISK:
-		/* XXX Insert stuff here */
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name,
-		    dev->d_kind.ofwdisk.unit);
+		sprintf(buf, "%s%ds%d%c:", dev->d_dev->dv_name,
+		    dev->d_kind.ofwdisk.unit, dev->d_kind.ofwdisk.slice,
+		    dev->d_kind.ofwdisk.partition + 'a');
 		break;
 
 	case DEVT_NET:
