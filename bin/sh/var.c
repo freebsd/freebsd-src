@@ -295,6 +295,7 @@ void
 setvareq(char *s, int flags)
 {
 	struct var *vp, **vpp;
+	int len;
 
 	if (aflag)
 		flags |= VEXPORT;
@@ -302,7 +303,7 @@ setvareq(char *s, int flags)
 	for (vp = *vpp ; vp ; vp = vp->next) {
 		if (varequal(s, vp->text)) {
 			if (vp->flags & VREADONLY) {
-				size_t len = strchr(s, '=') - s;
+				len = strchr(s, '=') - s;
 				error("%.*s: is read only", len, s);
 			}
 			INTOFF;
