@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.7 (Berkeley) 1/21/94
- * $Id: cdefs.h,v 1.6 1994/08/22 13:44:39 bde Exp $
+ * $Id: cdefs.h,v 1.7 1994/12/08 15:42:17 bde Exp $
  */
 
 #ifndef	_SYS_CDEFS_H_
@@ -96,7 +96,7 @@
 #define	signed
 #define	volatile
 #endif
-#endif	/* !__GNUC__ */
+#endif	/* !NO_ANSI_KEYWORDS */
 #endif	/* !(__STDC__ || __cplusplus) */
 
 /*
@@ -125,6 +125,24 @@
 #define __dead2		__attribute__((noreturn))
 #define __pure
 #define __pure2		__attribute__((const))
+#endif
+
+#ifdef __GNUC__
+#ifdef __STDC__
+#define __weak_reference(sym,alias)	\
+	__asm__(".stabs \"_" #alias "\",11,0,0,0");	\
+	__asm__(".stabs \"_" #sym "\",1,0,0,0")
+#define __warn_references(sym,msg)	\
+	__asm__(".stabs \"" msg "\",30,0,0,0");		\
+	__asm__(".stabs \"_" #sym "\",1,0,0,0")
+#else
+#define __weak_reference(sym,alias)	\
+	__asm__(".stabs \"_/**/alias\",11,0,0,0");	\
+	__asm__(".stabs \"_/**/sym\",1,0,0,0")
+#define __warn_references(sym,msg)	\
+	__asm__(".stabs msg,30,0,0,0");			\
+	__asm__(".stabs \"_/**/sym\",1,0,0,0")
+#endif
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */
