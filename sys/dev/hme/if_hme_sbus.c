@@ -222,7 +222,7 @@ hme_sbus_attach(device_t dev)
 
 	hsc->hsc_irid = 0;
 	hsc->hsc_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &hsc->hsc_irid, 0,
-	    ~0, 1, RF_ACTIVE);
+	    ~0, 1, RF_SHAREABLE | RF_ACTIVE);
 	if (hsc->hsc_ires == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		error = ENXIO;
