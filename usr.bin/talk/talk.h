@@ -33,7 +33,15 @@
  *	@(#)talk.h	8.1 (Berkeley) 6/6/93
  */
 
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <protocols/talkd.h>
 #include <curses.h>
+#include <unistd.h>
 
 extern	int sockt;
 extern	int curses_initialized;
@@ -56,3 +64,31 @@ typedef struct xwin {
 extern	xwin_t my_win;
 extern	xwin_t his_win;
 extern	WINDOW *line_win;
+
+extern	void	announce_invite __P((void));
+extern	int	check_local __P((void));
+extern	void	check_writeable __P((void));
+extern	void	ctl_transact __P((struct in_addr,CTL_MSG,int,CTL_RESPONSE *));
+extern	void	disp_msg __P((int));
+extern	void	display __P((xwin_t *, char *, int));
+extern	void	end_msgs __P((void));
+extern	void	get_addrs __P((char *, char *));
+extern	int	get_iface __P((struct in_addr *, struct in_addr *));
+extern	void	get_names __P((int, char **));
+extern	void	init_display __P((void));
+extern	void	invite_remote __P((void));
+extern	int	look_for_invite __P((CTL_RESPONSE *));
+extern	int	max __P((int, int));
+extern	void	message __P((char *));
+extern	void	open_ctl __P((void));
+extern	void	open_sockt __P((void));
+extern	void	p_error __P((char *));
+extern	void	print_addr __P((struct sockaddr_in));
+extern	void	quit __P((void));
+extern	int	readwin __P((WINDOW *, int, int));
+extern	void	re_invite __P((int));
+extern	void	send_delete __P((void));
+extern	void	set_edit_chars __P((void));
+extern	void	sig_sent __P((int));
+extern	void	start_msgs __P((void));
+extern	void	talk __P((void));

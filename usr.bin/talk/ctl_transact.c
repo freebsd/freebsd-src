@@ -35,12 +35,9 @@
 static char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <protocols/talkd.h>
 #include <errno.h>
+#include <string.h>
+#include "talk.h"
 #include "talk_ctl.h"
 
 #define CTL_WAIT 2	/* time to wait for a response, in seconds */
@@ -50,19 +47,22 @@ static char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
  * not recieved an acknowledgement within a reasonable amount
  * of time
  */
+void
 ctl_transact(target, msg, type, rp)
 	struct in_addr target;
 	CTL_MSG msg;
 	int type;
 	CTL_RESPONSE *rp;
 {
-	int read_mask, ctl_mask, nready, cc;
+	fd_set read_mask, ctl_mask;
+	int nready = 0, cc;
 	struct timeval wait;
 
 	msg.type = type;
 	daemon_addr.sin_addr = target;
 	daemon_addr.sin_port = daemon_port;
-	ctl_mask = 1 << ctl_sockt;
+	FD_ZERO(&ctl_mask);
+	FD_SET(ctl_sockt, &ctl_mask);
 
 	/*
 	 * Keep sending the message until a response of
