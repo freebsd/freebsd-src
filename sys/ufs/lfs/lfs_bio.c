@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.4 (Berkeley) 12/30/93
- * $Id: lfs_bio.c,v 1.5 1994/10/10 01:04:49 phk Exp $
+ * $Id: lfs_bio.c,v 1.6 1995/08/11 11:31:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,8 @@
 
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
+
+extern void	lfs_flush __P((void));
 
 /*
  * LFS block write function.

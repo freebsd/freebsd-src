@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.13 1995/08/16 16:14:13 bde Exp $
+ * $Id: lfs_segment.c,v 1.14 1995/09/04 00:21:01 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -60,7 +60,9 @@
 #include <ufs/lfs/lfs.h>
 #include <ufs/lfs/lfs_extern.h>
 
-extern int count_lock_queue __P((void));
+extern int	count_lock_queue __P((void));
+extern caddr_t	lfs_alloc_buffer __P((int size));
+extern void	lfs_reclaim_buffers __P((void));
 
 #define MAX_ACTIVE	10
 #define MAX_IO_BUFS 256
