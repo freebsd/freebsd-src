@@ -114,7 +114,7 @@ main(int argc, char **argv)
  * Construct the file name of a piece of a delta.
  */
 #define mk_piece_name(fn,d,p,n)	\
-    sprintf((fn), "%s/%s+%d-%d", piece_dir, (d), (p), (n))
+    sprintf((fn), "%s/%s+%03d-%03d", piece_dir, (d), (p), (n))
 
 /*
  * Construct the file name of an assembled delta.
