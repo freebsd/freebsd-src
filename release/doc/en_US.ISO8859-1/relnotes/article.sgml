@@ -580,8 +580,8 @@
       has been improved, by replacing the per-interface
       <varname>if_inaddr</varname> linear list with a hash table.</para>
 
-      <para>Network devices now automatically appear in
-      <filename>/dev</filename>.  Interface hardware ioctls (not
+      <para>Network devices now automatically appear as special files in
+      <filename>/dev/net</filename>.  Interface hardware ioctls (not
       protocol or routing) can be performed on these devices.  The
       <varname>SIOCGIFCONF</varname> ioctl may be performed on the
       special <filename>/dev/network</filename> node.</para>
