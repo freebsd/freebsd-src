@@ -353,7 +353,9 @@ long double	atanhl(long double);
 long double	atanl(long double);
 long double	cbrtl(long double);
 long double	ceill(long double);
+#endif
 long double	copysignl(long double, long double);
+#if 0
 long double	coshl(long double);
 long double	cosl(long double);
 long double	erfcl(long double);
