@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.263 1997/07/17 17:47:36 markm Exp $
+#	$Id: bsd.port.mk,v 1.264 1997/08/20 03:44:14 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -1696,6 +1696,9 @@ fake-pkg:
 		fi; \
 		if [ -f ${PKGDIR}/REQ ]; then \
 			${CP} ${PKGDIR}/REQ ${PKG_DBDIR}/${PKGNAME}/+REQ; \
+		fi; \
+		if [ -f ${PKGDIR}/MESSAGE ]; then \
+			${CP} ${PKGDIR}/MESSAGE ${PKG_DBDIR}/${PKGNAME}/+DISPLAY; \
 		fi; \
 		for dep in `make package-depends ECHO_MSG=/usr/bin/true | sort -u`; do \
 			if [ -d ${PKG_DBDIR}/$$dep ]; then \
