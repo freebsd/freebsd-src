@@ -21,6 +21,7 @@ LOCALES=	bg_BG.CP1251 \
 		la_LN.ISO8859-4 \
 		la_LN.US-ASCII \
 		lt_LT.ISO8859-4 \
+		lt_LT.ISO8859-13 \
 		pl_PL.ISO8859-2 \
 		ru_RU.CP866 \
 		ru_RU.ISO8859-5 \
@@ -68,6 +69,7 @@ la_LN.ISO8859-1.out:    map.ISO8859-1
 la_LN.ISO8859-2.out:    map.ISO8859-2
 la_LN.ISO8859-4.out:    map.ISO8859-4
 lt_LT.ISO8859-4.out:    map.ISO8859-4
+lt_LT.ISO8859-13.out:   map.ISO8859-13
 pl_PL.ISO8859-2.out:    map.ISO8859-2
 ru_RU.CP866.out:        map.CP866
 ru_RU.ISO8859-5.out:    map.ISO8859-5
