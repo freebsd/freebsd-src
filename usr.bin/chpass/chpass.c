@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.2 1995/01/14 23:14:25 wollman Exp $";
+	"$Id: chpass.c,v 1.3 1995/05/30 06:29:36 rgrimes Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -62,6 +62,9 @@ static char rcsid[] =
 #include <pw_scan.h>
 #include <pw_util.h>
 #include "pw_copy.h"
+#ifdef YP
+#include "pw_yp.h"
+#endif
 
 #include "chpass.h"
 #include "pathnames.h"
@@ -122,7 +125,6 @@ main(argc, argv)
 		default:
 			usage();
 		}
-
 	if (op == NEWSH) {
 		/* protect p_shell -- it thinks NULL is /bin/sh */
 		if (!arg[0])
@@ -148,6 +150,23 @@ main(argc, argv)
 		}
 		pw->pw_passwd = arg;
 	}
+
+#ifdef YP
+	/*
+	 * XXX The man page says the data returned by getpwent()
+	 * and friends is stored in static buffers that may be
+	 * overwritten after successive invokations. Unfortunately,
+	 * we need to call getpwent() more than once with NIS
+	 * enabled.
+	 */
+	pw->pw_name = strdup(pw->pw_name);
+	pw->pw_passwd = strdup(pw->pw_passwd);
+	pw->pw_class = strdup(pw->pw_class);
+	pw->pw_gecos = strdup(pw->pw_gecos);
+	pw->pw_shell = strdup(pw->pw_shell);
+	pw->pw_dir = strdup(pw->pw_dir);
+	_use_yp = use_yp(pw->pw_name);
+#endif /* YP */
 
 	/*
 	 * The temporary file/file descriptor usage is a little tricky here.
@@ -185,10 +204,19 @@ main(argc, argv)
 		tfd = pw_tmp();
 	}
 
+#ifdef YP
+	if (_use_yp) {
+		yp_submit(pw);
+		(void)unlink(tempname);
+	} else {
+#endif /* YP */
 	pw_copy(pfd, tfd, pw);
 
 	if (!pw_mkdb())
 		pw_error((char *)NULL, 0, 1);
+#ifdef YP
+	}
+#endif /* YP */
 	exit(0);
 }
 
