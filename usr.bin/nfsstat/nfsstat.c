@@ -142,12 +142,7 @@ main(argc, argv)
 		}
 	}
 #endif
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
 	if (nlistf != NULL || memf != NULL) {
-		setgid(getgid());
 		deadkernel = 1;
 
 		if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY,
