@@ -106,7 +106,7 @@ usage(const char *comm)
 	    "       %s rebuild [-v] name prov\n"
 	    "       %s insert [-hv] <-n number> name prov\n"
 	    "       %s remove [-v] <-n number> name\n"
-	    "       %s stop [-fv] name\n",
+	    "       %s stop [-fv] name [...]\n",
 	    comm, comm, comm, comm, comm, comm, comm, comm);
 	exit(EXIT_FAILURE);
 }
