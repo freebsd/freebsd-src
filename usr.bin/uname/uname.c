@@ -199,6 +199,7 @@ native_##var(void)				\
 	static char buf[1024];			\
 	char **varp = &(var);			\
 						\
+	len = sizeof buf;			\
 	if (sysctlbyname(name, &buf, &len, NULL,\
 	    0) == -1)				\
 		err(1, "sysctlbyname");
