@@ -816,7 +816,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		 * but for now do it every time.
 		 */
 		td->td_mailbox = (void *)fuword((caddr_t)td->td_kse->ke_mailbox
-		   + offsetof(struct kse_mailbox, kmbx_current_thread));
+		   + offsetof(struct kse_mailbox, km_curthread));
 		if ((td->td_mailbox == NULL) ||
 		   (td->td_mailbox == (void *)-1)) {
 			td->td_mailbox = NULL;  /* single thread it.. */
