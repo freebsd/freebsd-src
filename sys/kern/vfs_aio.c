@@ -1059,7 +1059,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	if (fp->f_type != DTYPE_VNODE) 
 		return (-1);
 
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 
 	/*
 	 * If its not a disk, we don't want to return a positive error.
@@ -1723,7 +1723,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		return (EBADF);
 
         if (fp->f_type == DTYPE_VNODE) {
-		vp = fp->f_data;
+		vp = fp->f_vnode;
 		
 		if (vn_isdisk(vp,&error)) {
 			td->td_retval[0] = AIO_NOTCANCELED;

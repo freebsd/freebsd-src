@@ -395,7 +395,7 @@ fdesc_setattr(ap)
 		}
 		return (error);
 	}
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0) {
 		fdrop(fp, ap->a_td);
 		return (error);
