@@ -1428,7 +1428,6 @@ swp_pager_async_iodone(struct buf *bp)
 	int i;
 	vm_object_t object = NULL;
 
-	GIANT_REQUIRED;
 	bp->b_flags |= B_DONE;
 
 	/*
@@ -2395,9 +2394,7 @@ swapgeom_done(struct bio *bp2)
 	bp = bp2->bio_caller2;
 	if (bp2->bio_error)
 		bp->b_ioflags |= BIO_ERROR;
-	mtx_lock(&Giant);
 	bufdone(bp);
-	mtx_unlock(&Giant);
 	g_destroy_bio(bp2);
 }
 

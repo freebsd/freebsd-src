@@ -3102,7 +3102,6 @@ bufdone(struct buf *bp)
 	int s;
 	void    (*biodone)(struct buf *);
 
-	GIANT_REQUIRED;
 
 	s = splbio();
 
