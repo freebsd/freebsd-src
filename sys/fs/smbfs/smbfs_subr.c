@@ -270,7 +270,7 @@ smb_fphelp(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *np,
 			return ENAMETOOLONG;
 		}
 		*npp++ = np;
-		np = np->n_parent;
+		np = VTOSMB(np->n_parent);
 	}
 /*	if (i == 0)
 		return smb_put_dmem(mbp, vcp, "\\", 2, caseopt);*/
