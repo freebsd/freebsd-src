@@ -76,7 +76,7 @@
 23	MSTD	{ int setuid(uid_t uid); }
 24	MSTD	{ uid_t getuid(void); }
 25	MSTD	{ uid_t geteuid(void); }
-26	STD	{ int ptrace(int req, pid_t pid, caddr_t addr, int data); }
+26	MSTD	{ int ptrace(int req, pid_t pid, caddr_t addr, int data); }
 27	MSTD	{ int recvmsg(int s, struct msghdr *msg, int flags); }
 28	MSTD	{ int sendmsg(int s, struct msghdr *msg, int flags); }
 29	MSTD	{ int recvfrom(int s, caddr_t buf, size_t len, int flags, \

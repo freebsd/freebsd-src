@@ -522,11 +522,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 		switch (req) {
 		case PT_STEP:
+			PROC_UNLOCK(p);
 			error = ptrace_single_step(td2);
 			if (error) {
-				_PRELE(p);
-				goto fail;
+				PRELE(p);
+				goto fail_noproc;
 			}
+			PROC_LOCK(p);
 			break;
 		case PT_TO_SCE:
 			p->p_stops |= S_PT_SCE;
@@ -540,11 +542,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		}
 
 		if (addr != (void *)1) {
+			PROC_UNLOCK(p);
 			error = ptrace_set_pc(td2, (u_long)(uintfptr_t)addr);
 			if (error) {
-				_PRELE(p);
-				goto fail;
+				PRELE(p);
+				goto fail_noproc;
 			}
+			PROC_LOCK(p);
 		}
 		_PRELE(p);
 
@@ -705,9 +709,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #ifdef __HAVE_PTRACE_MACHDEP
 		if (req >= PT_FIRSTMACH) {
 			_PHOLD(p);
-			error = cpu_ptrace(td2, req, addr, data);
-			_PRELE(p);
 			PROC_UNLOCK(p);
+			error = cpu_ptrace(td2, req, addr, data);
+			PRELE(p);
 			return (error);
 		}
 #endif
@@ -719,6 +723,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 fail:
 	PROC_UNLOCK(p);
+fail_noproc:
 	if (proctree_locked)
 		sx_xunlock(&proctree_lock);
 	return (error);
