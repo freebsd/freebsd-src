@@ -1144,13 +1144,14 @@ printconfig(FILE * of, char *comment)
     for (i = 0; i < vinum_conf.volumes_allocated; i++) {
 	get_volume_info(&vol, i);
 	if (vol.state != volume_unallocated) {
-	    if (vol.preferred_plex >= 0)		    /* preferences, */
+	    if (vol.preferred_plex >= 0) {		    /* preferences, */
+		get_plex_info(&plex, vol.plex[vol.preferred_plex]);
 		fprintf(of,
 		    "%svolume %s readpol prefer %s\n",
 		    comment,
 		    vol.name,
-		    vinum_conf.plex[vol.preferred_plex].name);
-	    else					    /* default round-robin */
+		    plex.name);
+	    } else					    /* default round-robin */
 		fprintf(of, "%svolume %s\n", comment, vol.name);
 	}
     }
@@ -1168,6 +1169,9 @@ printconfig(FILE * of, char *comment)
 	    if (plex.volno >= 0) {			    /* we have a volume */
 		get_volume_info(&vol, plex.volno);
 		fprintf(of, "vol %s ", vol.name);
+		if ((vol.preferred_plex >= 0)		    /* has a preferred plex */
+		&&vol.plex[vol.preferred_plex] == i)	    /* and it's us */
+		    fprintf(of, "preferred ");
 	    } else
 		fprintf(of, "detached ");
 	    fprintf(of, "\n");
