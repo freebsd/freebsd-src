@@ -13,11 +13,11 @@ NON_GPROF_ENTRY(svr4_sigcode)
 	jnz	1f
 #endif
 #endif
-	movl	SVR4_UC_FS(%eax),%ecx
 	movl	SVR4_UC_GS(%eax),%edx
-	movl	%cx,%fs
 	movl	%dx,%gs
 #if defined(__NetBSD__)	
+	movl	SVR4_UC_FS(%eax),%ecx
+	movl	%cx,%fs
 1:	pushl	%eax
 	pushl	$1			# setcontext(p) == syscontext(1, p) 
 	pushl	%eax			# junk to fake return address

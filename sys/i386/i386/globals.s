@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.8 1998/09/28 12:20:46 peter Exp $
+ * $Id: globals.s,v 1.9 1999/02/22 15:13:34 bde Exp $
  */
 
 #include "opt_vm86.h"
@@ -40,36 +40,50 @@
 	 * This is "constructed" in locore.s on the BSP and in mp_machdep.c
 	 * for each AP.  DO NOT REORDER THESE WITHOUT UPDATING THE REST!
 	 */
-	.globl	_SMP_prvstart
-	.set	_SMP_prvstart,(MPPTDI << PDRSHIFT)
+	.globl	_SMP_prvspace, _lapic
+	.set	_SMP_prvspace,(MPPTDI << PDRSHIFT)
+	.set	_lapic,_SMP_prvspace + (NPTEPG-1) * PAGE_SIZE
 
-	.globl	globaldata,_SMP_prvpt,_lapic,_SMP_ioapic
-	.globl	_prv_CPAGE1,_prv_CPAGE2,_prv_CPAGE3,_prv_PPAGE1
-	.globl	_idlestack,_idlestack_top
-
-	.set	globaldata,_SMP_prvstart + PS_GLOBALDATA
-	.set	_SMP_prvpt,_SMP_prvstart + PS_PRVPT
-	.set	_lapic,_SMP_prvstart + PS_LAPIC
-	.set	_idlestack,_SMP_prvstart + PS_IDLESTACK
-	.set	_idlestack_top,_SMP_prvstart + PS_IDLESTACK_TOP
-	.set	_prv_CPAGE1,_SMP_prvstart + PS_CPAGE1
-	.set	_prv_CPAGE2,_SMP_prvstart + PS_CPAGE2
-	.set	_prv_CPAGE3,_SMP_prvstart + PS_CPAGE3
-	.set	_prv_PPAGE1,_SMP_prvstart + PS_PPAGE1
-	.set	_SMP_ioapic,_SMP_prvstart + PS_IOAPICS
+	.globl  gd_idlestack,gd_idlestack_top
+	.set    gd_idlestack,PS_IDLESTACK
+	.set    gd_idlestack_top,PS_IDLESTACK_TOP
 #endif
 
 	/*
 	 * Define layout of the global data.  On SMP this lives in
 	 * the per-cpu address space, otherwise it's in the data segment.
 	 */
+	.globl	globaldata
 #ifndef SMP
 	.data
 	ALIGN_DATA
 globaldata:
 	.space	GD_SIZEOF		/* in data segment */
+#else
+	.set	globaldata,0
 #endif
-	.globl	_curproc,_curpcb,_npxproc,_common_tss,_switchtime,_switchticks
+	.globl	gd_curproc, gd_curpcb, gd_npxproc
+	.globl	gd_common_tss, gd_switchtime, gd_switchticks
+	.set	gd_curproc,globaldata + GD_CURPROC
+	.set	gd_curpcb,globaldata + GD_CURPCB
+	.set	gd_npxproc,globaldata + GD_NPXPROC
+	.set	gd_common_tss,globaldata + GD_COMMON_TSS
+	.set	gd_switchtime,globaldata + GD_SWITCHTIME
+	.set	gd_switchticks,globaldata + GD_SWITCHTICKS
+
+#ifdef VM86
+	.globl	gd_common_tssd
+	.set	gd_common_tssd,globaldata + GD_COMMON_TSSD
+#endif
+
+#ifdef USER_LDT
+	.globl	gd_currentldt
+	.set	gd_currentldt,globaldata + GD_CURRENTLDT
+#endif
+
+#ifndef SMP
+	.globl	_curproc, _curpcb, _npxproc
+	.globl	_common_tss, _switchtime, _switchticks
 	.set	_curproc,globaldata + GD_CURPROC
 	.set	_curpcb,globaldata + GD_CURPCB
 	.set	_npxproc,globaldata + GD_NPXPROC
@@ -78,15 +92,14 @@ globaldata:
 	.set	_switchticks,globaldata + GD_SWITCHTICKS
 
 #ifdef VM86
-	.globl	_common_tssd,_private_tss,_my_tr
+	.globl	_common_tssd
 	.set	_common_tssd,globaldata + GD_COMMON_TSSD
-	.set	_private_tss,globaldata + GD_PRIVATE_TSS
-	.set	_my_tr,globaldata + GD_MY_TR
 #endif
 
 #ifdef USER_LDT
 	.globl	_currentldt
 	.set	_currentldt,globaldata + GD_CURRENTLDT
+#endif
 #endif
 
 #ifdef SMP
@@ -94,20 +107,24 @@ globaldata:
 	 * The BSP version of these get setup in locore.s and pmap.c, while
 	 * the AP versions are setup in mp_machdep.c.
 	 */
-	.globl	_cpuid,_cpu_lockid,_other_cpus,_my_idlePTD,_ss_eflags
-	.globl	_prv_CMAP1,_prv_CMAP2,_prv_CMAP3,_prv_PMAP1
-	.globl	_inside_intr
+	.globl  gd_cpuid, gd_cpu_lockid, gd_other_cpus
+	.globl	gd_ss_eflags, gd_inside_intr
+	.globl  gd_prv_CMAP1, gd_prv_CMAP2, gd_prv_CMAP3, gd_prv_PMAP1
+	.globl  gd_prv_CADDR1, gd_prv_CADDR2, gd_prv_CADDR3, gd_prv_PADDR1
 
-	.set	_cpuid,globaldata + GD_CPUID
-	.set	_cpu_lockid,globaldata + GD_CPU_LOCKID
-	.set	_other_cpus,globaldata + GD_OTHER_CPUS
-	.set	_my_idlePTD,globaldata + GD_MY_IDLEPTD
-	.set	_ss_eflags,globaldata + GD_SS_EFLAGS
-	.set	_prv_CMAP1,globaldata + GD_PRV_CMAP1
-	.set	_prv_CMAP2,globaldata + GD_PRV_CMAP2
-	.set	_prv_CMAP3,globaldata + GD_PRV_CMAP3
-	.set	_prv_PMAP1,globaldata + GD_PRV_PMAP1
-	.set	_inside_intr,globaldata + GD_INSIDE_INTR
+	.set    gd_cpuid,globaldata + GD_CPUID
+	.set    gd_cpu_lockid,globaldata + GD_CPU_LOCKID
+	.set    gd_other_cpus,globaldata + GD_OTHER_CPUS
+	.set    gd_ss_eflags,globaldata + GD_SS_EFLAGS
+	.set    gd_inside_intr,globaldata + GD_INSIDE_INTR
+	.set    gd_prv_CMAP1,globaldata + GD_PRV_CMAP1
+	.set    gd_prv_CMAP2,globaldata + GD_PRV_CMAP2
+	.set    gd_prv_CMAP3,globaldata + GD_PRV_CMAP3
+	.set    gd_prv_PMAP1,globaldata + GD_PRV_PMAP1
+	.set    gd_prv_CADDR1,globaldata + GD_PRV_CADDR1
+	.set    gd_prv_CADDR2,globaldata + GD_PRV_CADDR2
+	.set    gd_prv_CADDR3,globaldata + GD_PRV_CADDR3
+	.set    gd_prv_PADDR1,globaldata + GD_PRV_PADDR1
 #endif
 
 #if defined(SMP) || defined(APIC_IO)

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.32 1999/01/27 23:45:38 dillon Exp $
+ *	$Id: db_trace.c,v 1.33 1999/01/28 01:59:50 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -47,8 +47,8 @@ struct db_variable db_regs[] = {
 	{ "cs",		&ddb_regs.tf_cs,  FCN_NULL },
 	{ "ds",		&ddb_regs.tf_ds,  FCN_NULL },
 	{ "es",		&ddb_regs.tf_es,  FCN_NULL },
-#if 0
 	{ "fs",		&ddb_regs.tf_fs,  FCN_NULL },
+#if 0
 	{ "gs",		&ddb_regs.tf_gs,  FCN_NULL },
 #endif
 	{ "ss",		&ddb_regs.tf_ss,  FCN_NULL },

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id: reg.h,v 1.16 1998/09/14 22:43:40 jdp Exp $
+ *	$Id: reg.h,v 1.17 1999/04/03 22:19:59 jdp Exp $
  */
 
 #ifndef _MACHINE_REG_H_
@@ -51,22 +51,23 @@
  * stopped accessing the registers in the trap frame via PT_{READ,WRITE}_U
  * and we can stop supporting the user area soon.
  */
-#define	tES	(0)
-#define	tDS	(1)
-#define	tEDI	(2)
-#define	tESI	(3)
-#define	tEBP	(4)
-#define	tISP	(5)
-#define	tEBX	(6)
-#define	tEDX	(7)
-#define	tECX	(8)
-#define	tEAX	(9)
-#define	tERR	(11)
-#define	tEIP	(12)
-#define	tCS	(13)
-#define	tEFLAGS	(14)
-#define	tESP	(15)
-#define	tSS	(16)
+#define	tFS	(0)
+#define	tES	(1)
+#define	tDS	(2)
+#define	tEDI	(3)
+#define	tESI	(4)
+#define	tEBP	(5)
+#define	tISP	(6)
+#define	tEBX	(7)
+#define	tEDX	(8)
+#define	tECX	(9)
+#define	tEAX	(10)
+#define	tERR	(12)
+#define	tEIP	(13)
+#define	tCS	(14)
+#define	tEFLAGS	(15)
+#define	tESP	(16)
+#define	tSS	(17)
 
 /*
  * Indices for registers in `struct regs' only.
@@ -75,13 +76,13 @@
  * other registers in application interfaces that copy all the registers
  * to or from a `struct regs'.
  */
-#define	tFS	(17)
 #define	tGS	(18)
 
 /*
  * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
 struct reg {
+	unsigned int	r_fs;
 	unsigned int	r_es;
 	unsigned int	r_ds;
 	unsigned int	r_edi;
@@ -99,7 +100,6 @@ struct reg {
 	unsigned int	r_eflags;
 	unsigned int	r_esp;
 	unsigned int	r_ss;
-	unsigned int	r_fs;
 	unsigned int	r_gs;
 };
 

@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.39 1999/01/28 01:59:50 dillon Exp $
+ *	$Id: sys_machdep.c,v 1.40 1999/04/27 11:14:33 phk Exp $
  *
  */
 
 #include "opt_user_ldt.h"
 #include "opt_vm86.h"
+#include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -54,6 +55,7 @@
 #include <machine/cpu.h>
 #include <machine/pcb_ext.h>	/* pcb.h included by sys/user.h */
 #include <machine/sysarch.h>
+#include <machine/smp.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
@@ -261,7 +263,11 @@ set_user_ldt(struct pcb *pcb)
 {
 	gdt_segs[GUSERLDT_SEL].ssd_base = (unsigned)pcb->pcb_ldt;
 	gdt_segs[GUSERLDT_SEL].ssd_limit = (pcb->pcb_ldt_len * sizeof(union descriptor)) - 1;
+#ifdef SMP
+	ssdtosd(&gdt_segs[GUSERLDT_SEL], &gdt[cpuid * NGDT + GUSERLDT_SEL].sd);
+#else
 	ssdtosd(&gdt_segs[GUSERLDT_SEL], &gdt[GUSERLDT_SEL].sd);
+#endif
 	lldt(GSEL(GUSERLDT_SEL, SEL_KPL));
 	currentldt = GSEL(GUSERLDT_SEL, SEL_KPL);
 }

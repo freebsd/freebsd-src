@@ -1,4 +1,4 @@
-/* $Id: linux_genassym.c,v 1.7 1998/02/01 18:47:56 bde Exp $ */
+/* $Id: linux_genassym.c,v 1.8 1998/07/29 15:50:41 bde Exp $ */
 
 #include <sys/param.h>
 
@@ -16,7 +16,6 @@ main()
 	printf("#define\tLINUX_SIGF_HANDLER %u\n",
 	    OS(linux_sigframe, sf_handler));
 	printf("#define\tLINUX_SIGF_SC %u\n", OS(linux_sigframe, sf_sc));
-	printf("#define\tLINUX_SC_FS %u\n", OS(linux_sigcontext, sc_fs));
 	printf("#define\tLINUX_SC_GS %u\n", OS(linux_sigcontext, sc_gs));
 	printf("#define\tLINUX_SC_EFLAGS %u\n",
 	    OS(linux_sigcontext, sc_eflags));

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.c,v 1.22 1999/03/18 04:37:18 jlemon Exp $
+ *	$Id: vm86.c,v 1.23 1999/03/18 18:43:03 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -49,7 +49,9 @@
 #include <machine/specialreg.h>
 
 extern int i386_extend_pcb	__P((struct proc *));
+#ifndef SMP
 extern struct segment_descriptor common_tssd;
+#endif
 extern int vm86paddr, vm86pa;
 extern struct pcb *vm86pcb;
 
@@ -411,8 +413,8 @@ vm86_initialize(void)
 	 * pcb_esp	=    stack frame pointer at time of switch
 	 * pcb_ebx	= va of vm86 page table
 	 * pcb_eip	=    argument pointer to initial call
-	 * pcb_fs	=    saved TSS descriptor, word 0
-	 * pcb_gs	=    saved TSS descriptor, word 1
+	 * pcb_spare[0]	=    saved TSS descriptor, word 0
+	 * pcb_space[1]	=    saved TSS descriptor, word 1
 	 */
 #define new_ptd		pcb_esi
 #define vm86_frame	pcb_ebp
@@ -614,7 +616,7 @@ vm86_prepcall(struct vm86frame vmf)
 		vmf.vmf_cs = 0;
 	}
 	vmf.vmf_sp = addr[1] - 2;              /* keep aligned */
-	vmf.kernel_es = vmf.kernel_ds = 0;
+	vmf.kernel_fs = vmf.kernel_es = vmf.kernel_ds = 0;
 	vmf.vmf_ss = 0;
 	vmf.vmf_eflags = PSL_VIF | PSL_VM | PSL_USER;
 	vm86_initflags(&vmf);

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86.h,v 1.8 1998/09/29 09:06:00 bde Exp $
+ *	$Id: vm86.h,v 1.9 1999/03/18 04:37:35 jlemon Exp $
  */
 
 #ifndef _MACHINE_VM86_H_
@@ -49,6 +49,7 @@ typedef union {
 /* layout must match definition of struct trapframe_vm86 in <machine/frame.h> */
 
 struct vm86frame {
+	int	kernel_fs;
 	int	kernel_es;
 	int	kernel_ds;
 	reg86_t	edi;

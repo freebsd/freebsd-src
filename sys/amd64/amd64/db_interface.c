@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.42 1998/12/14 05:34:33 dillon Exp $
+ *	$Id: db_interface.c,v 1.43 1998/12/28 23:02:56 msmith Exp $
  */
 
 /*
@@ -202,6 +202,7 @@ kdb_trap(type, code, regs)
 	regs->tf_esi    = ddb_regs.tf_esi;
 	regs->tf_edi    = ddb_regs.tf_edi;
 	regs->tf_es     = ddb_regs.tf_es & 0xffff;
+	regs->tf_fs     = ddb_regs.tf_fs & 0xffff;
 	regs->tf_cs     = ddb_regs.tf_cs & 0xffff;
 	regs->tf_ds     = ddb_regs.tf_ds & 0xffff;
 	return (1);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.45 1999/02/04 21:20:13 newton Exp $
+ *  $Id: linux_sysvec.c,v 1.46 1999/04/19 14:14:14 peter Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -249,8 +249,8 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 * Build the signal context to be used by sigreturn.
 	 */
 	frame.sf_sc.sc_mask   = mask;
-	__asm("movl %%gs,%w0" : "=r" (frame.sf_sc.sc_gs));
-	__asm("movl %%fs,%w0" : "=r" (frame.sf_sc.sc_fs));
+	frame.sf_sc.sc_gs     = rgs();
+	frame.sf_sc.sc_fs     = regs->tf_fs;
 	frame.sf_sc.sc_es     = regs->tf_es;
 	frame.sf_sc.sc_ds     = regs->tf_ds;
 	frame.sf_sc.sc_edi    = regs->tf_edi;
@@ -286,6 +286,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
+	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
 }
 
@@ -359,7 +360,8 @@ linux_sigreturn(p, args)
 	/*
 	 * Restore signal context.
 	 */
-	/* %fs and %gs were restored by the trampoline. */
+	/* %gs was restored by the trampoline. */
+	regs->tf_fs     = context.sc_fs;
 	regs->tf_es     = context.sc_es;
 	regs->tf_ds     = context.sc_ds;
 	regs->tf_edi    = context.sc_edi;

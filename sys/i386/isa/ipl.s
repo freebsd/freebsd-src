@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- *	$Id: ipl.s,v 1.24 1998/08/11 17:01:32 bde Exp $
+ *	$Id: ipl.s,v 1.25 1999/04/11 15:51:15 peter Exp $
  */
 
 
@@ -173,7 +173,7 @@ doreti_exit:
 	je	1f
 	testl	$PSL_VM,TF_EFLAGS(%esp)		/* going to VM86 mode? */
 	jne	doreti_stop
-	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)	/* to user mode? */
+	testb	$SEL_RPL_MASK,TF_CS(%esp)	/* to user mode? */
 	je	1f
 doreti_stop:
 	movl	$0,_cpl
@@ -192,6 +192,9 @@ doreti_stop:
 	add	$4, %esp
 #endif /* SMP */
 
+	.globl	doreti_popl_fs
+doreti_popl_fs:
+	popl	%fs
 	.globl	doreti_popl_es
 doreti_popl_es:
 	popl	%es
@@ -215,8 +218,11 @@ doreti_popl_ds_fault:
 	pushl	%es
 	.globl	doreti_popl_es_fault
 doreti_popl_es_fault:
-	movl	$0,4+4+32+4(%esp)	/* XXX should be the error code */
-	movl	$T_PROTFLT,4+4+32+0(%esp)
+	pushl	%fs
+	.globl	doreti_popl_fs_fault
+doreti_popl_fs_fault:
+	movl	$0,TF_ERR(%esp)	/* XXX should be the error code */
+	movl	$T_PROTFLT,TF_TRAPNO(%esp)
 	jmp	alltraps_with_regs_pushed
 
 	ALIGN_TEXT
@@ -343,10 +349,10 @@ swi_ast:
 	cmpl	$1,_in_vm86call
 	je	1f			/* stay in kernel mode */
 #endif
-	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
+	testb	$SEL_RPL_MASK,TF_CS(%esp)
 	je	swi_ast_phantom
 swi_ast_user:
-	movl	$T_ASTFLT,(2+8+0)*4(%esp)
+	movl	$T_ASTFLT,TF_TRAPNO(%esp)
 	movb	$0,_intr_nesting_level	/* finish becoming a trap handler */
 	call	_trap
 	subl	%eax,%eax		/* recover cpl|cml */

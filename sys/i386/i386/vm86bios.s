@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.7 1998/10/01 20:45:28 jlemon Exp $
+ *	$Id: vm86bios.s,v 1.8 1999/03/18 04:37:19 jlemon Exp $
  */
 
 #include "opt_vm86.h"
@@ -38,8 +38,8 @@
 #define SCR_STACK	PCB_ESP
 #define SCR_PGTABLE	PCB_EBX
 #define SCR_ARGFRAME	PCB_EIP
-#define SCR_TSS0	PCB_FS
-#define SCR_TSS1	PCB_GS
+#define SCR_TSS0	PCB_SPARE
+#define SCR_TSS1	(PCB_SPARE+4)
 
 	.data
 	ALIGN_DATA
@@ -62,7 +62,6 @@ ENTRY(vm86_bioscall)
 	pushl	%ebp
 	pushl	%esi
 	pushl	%edi
-	pushl	%fs
 	pushl	%gs
 
 #ifdef SMP	
@@ -99,7 +98,7 @@ ENTRY(vm86_bioscall)
 	pushl	%eax			/* save curpcb */
 	movl	%edx,_curpcb		/* set curpcb to vm86pcb */
 
-	movl	_my_tr,%esi
+	movl	$GPROC0_SEL,%esi
 	leal	_gdt(,%esi,8),%ebx	/* entry in GDT */
 	movl	0(%ebx),%eax
 	movl	%eax,SCR_TSS0(%edx)	/* save first word */
@@ -117,15 +116,9 @@ ENTRY(vm86_bioscall)
 
 	movl	%cr3,%eax
 	pushl	%eax			/* save address space */
-#ifdef SMP
-	movl	_cpuid, %ecx
-	movl	CNAME(IdlePTDS)(,%ecx,4), %ebx
-	movl	_my_idlePTD,%ecx
-#else
 	movl	_IdlePTD,%ecx
 	movl	%ecx,%ebx
 	addl	$KERNBASE,%ebx		/* va of Idle PTD */
-#endif
 	movl	0(%ebx),%eax
 	pushl	%eax			/* old ptde != 0 when booting */
 	pushl	%ebx			/* keep for reuse */
@@ -183,7 +176,7 @@ ENTRY(vm86_biosret)
 
 	movl	$0,_in_vm86call		/* reset trapflag */
 
-	movl	_my_tr,%esi
+	movl	$GPROC0_SEL,%esi
 	leal	_gdt(,%esi,8),%ebx	/* entry in GDT */
 	movl	SCR_TSS0(%edx),%eax
 	movl	%eax,0(%ebx)		/* restore first word */
@@ -197,7 +190,6 @@ ENTRY(vm86_biosret)
 	movl	TF_TRAPNO(%edx),%eax	/* return (trapno) */
 
 	popl	%gs
-	popl	%fs
 	popl	%edi
 	popl	%esi
 	popl	%ebp
