@@ -916,12 +916,12 @@ dosysctl(const char *name)
 	for (buf = NULL, bufsize = 1024; ; bufsize *= 2) {
 		if ((buf = realloc(buf, bufsize)) == NULL)
 			err(1, "realloc()");
-		if (mysysctl(name, buf, &bufsize, 0, NULL) == 0)
+		bufsize--;	/* Leave space for the kern.malloc fixup. */
+		if (mysysctl(name, buf, &bufsize, NULL, 0) == 0)
 			break;
-		bufsize *= 2;
 	}
-	buf[bufsize] = '\0'; /* play it safe */
-	(void)printf("%s\n\n", buf);
+	buf[bufsize] = '\0';	/* Fix up kern.malloc not returning a string. */
+	(void)printf("%s", buf);
 	free(buf);
 }
 
