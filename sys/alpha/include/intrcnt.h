@@ -71,11 +71,3 @@
 #	define	INTRCNT_KN300_NCR810	INTRCNT_KN300_IRQ + 16
 #	define	INTRCNT_KN300_I2C_CTRL	INTRCNT_KN300_IRQ + 17
 #	define	INTRCNT_KN300_I2C_BUS	INTRCNT_KN300_IRQ + 18
-
-#ifdef _KERNEL
-#ifndef _LOCORE
-extern volatile long intrcnt[];
-extern char intrnames[];
-extern char eintrnames[];
-#endif
-#endif

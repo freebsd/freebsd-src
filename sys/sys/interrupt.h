@@ -105,6 +105,12 @@ extern void	*net_ih;
 extern void	*softclock_ih;
 extern void	*vm_ih;
 
+/* Counts and names for statistics (defined in MD code). */
+extern u_long 	eintrcnt[];	/* end of intrcnt[] */
+extern char 	eintrnames[];	/* end of intrnames[] */
+extern u_long 	intrcnt[];	/* counts for for each device and stray */
+extern char 	intrnames[];	/* string table containing device names */
+
 int	ithread_create __P((struct ithd **ithread, int vector, int flags,
 	    void (*disable)(int), void (*enable)(int), const char *fmt, ...))
 	    __printflike(6, 7);
