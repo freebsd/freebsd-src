@@ -61,12 +61,11 @@
 #undef NFD
 #define NFD 2
 
-#define	FDUNIT(s)	((s>>3)&1)
-#define	FDTYPE(s)	((s)&7)
+#define FDUNIT(s)       (((s)>>6)&03)
+#define FDTYPE(s)       ((s)&077)
 
 #define b_cylin b_resid
 #define FDBLK 512
-#define NUMTYPES 5
 
 struct fd_type {
 	int	sectrac;		/* sectors per track         */
@@ -80,19 +79,25 @@ struct fd_type {
 	int	heads;			/* number of heads	     */
 };
 
+#define NUMTYPES 6
+
 /* This defines must match fd_types */
-#define FD144  0
-#define FD12   1
-#define FD720H 2
-#define FD360H 3
-#define FD360  4
+#define FD_1440         0
+#define FD_1200         1
+#define FD_360in1200    2
+#define FD_360          3
+#define FD_720in1440    4
+#define FD_720in1200 FD_720in1440
+#define FD_1722in1440   5
+
 struct fd_type fd_types[NUMTYPES] =
 {
  	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44 meg HD 3.5in floppy    */
 	{ 15,2,0xFF,0x1B,80,2400,1,0,2 }, /* 1.2 meg HD floppy           */
-	{ 9,2,0xFF,0x20,80,1440,1,1,2 }, /* 720k floppy in HD drive     */
 	{ 9,2,0xFF,0x23,40,720,2,1,2 },	/* 360k floppy in 1.2meg drive */
 	{ 9,2,0xFF,0x2A,40,720,1,1,2 },	/* 360k floppy in DD drive     */
+	{ 9,2,0xFF,0x20,80,1440,1,1,2 }, /* 720k floppy in HD drive     */
+	{ 21,2,0xFF,0x0C,82,3444,1,0,2 }, /* 1.722M floppy in HD 3.5in drive */
 };
 
 #define DRVS_PER_CTLR 2
@@ -290,22 +295,23 @@ fdattach(dev)
 		fd_data[fdu].fdsu = fdsu;
 		printf("fd%d: unit %d type ", fdcu, fdu);
 		
-		/* Fdopen can redefine ft field later */
-
-		if ((fdt & 0xf0) == RTCFDT_12M) {
+		switch (fdt & 0xf0) {
+		case RTCFDT_12M:
 			printf("1.2MB 5.25in\n");
-			fd_data[fdu].type = FD12;
-			fd_data[fdu].ft = fd_types + FD12;
-		}
-		if ((fdt & 0xf0) == RTCFDT_144M) {
+			fd_data[fdu].type = FD_1200;
+			break;
+		case RTCFDT_144M:
 			printf("1.44MB 3.5in\n");
-			fd_data[fdu].type = FD144;
-			fd_data[fdu].ft = fd_types + FD144;
-		}
-		if ((fdt & 0xf0) == RTCFDT_360K) {
+			fd_data[fdu].type = FD_1440;
+			break;
+		case RTCFDT_360K:
 			printf("360K 5.25in\n");
-			fd_data[fdu].type = FD360;
-			fd_data[fdu].ft = fd_types + FD360;
+			fd_data[fdu].type = FD_360;
+			break;
+		default:
+			printf("unknown\n");
+			fd_data[fdu].type = NO_TYPE;
+			break;
 		}
 
 		fdt <<= 4;
@@ -528,20 +534,29 @@ Fdopen(dev, flags)
 	/* check bounds */
 	if (fdu >= NFD || fd_data[fdu].fdc == NULL
 		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
-	if (type >= NUMTYPES) return(ENXIO);
-	switch (fd_data[fdu].type) {
-	case FD360:
-		if (type != FD360)
-			return(ENXIO);
-		break;
-	case FD12:
-		if (type == FD144 || type == FD360)
-			return(ENXIO);
-		break;
-	case FD144:
-		if (type == FD12 || type == FD360 || type == FD360H)
-			return(ENXIO);
-		break;
+	if (type > NUMTYPES) return(ENXIO);
+	if (type == 0)
+		type = fd_data[fdu].type;
+	else {
+		type--;
+		if (type != fd_data[fdu].type) {
+			switch (fd_data[fdu].type) {
+			case FD_360:
+				return(ENXIO);
+			case FD_1200:
+				if (   type != FD_720in1200
+				    && type != FD_360in1200
+				   )
+					return(ENXIO);
+				break;
+			case FD_1440:
+				if (   type != FD_1722in1440
+				    && type != FD_720in1440
+				   )
+					return(ENXIO);
+				break;
+			}
+		}
 	}
 	fd_data[fdu].ft = fd_types + type;
 	fd_data[fdu].flags |= FD_OPEN;
@@ -928,8 +943,12 @@ retrier(fdcu)
 		break;
 	default:
 		{
+			dev_t sav_b_dev = bp->b_dev;
+			/* Trick diskerr */
+			bp->b_dev = makedev(major(bp->b_dev), (FDUNIT(minor(bp->b_dev))<<3)|3);
 			diskerr(bp, "fd", "hard error", LOG_PRINTF,
 				fdc->fd->skip, (struct disklabel *)NULL);
+			bp->b_dev = sav_b_dev;
 			printf(" (ST0 %b ", fdc->status[0], NE7_ST0BITS);
 			printf(" ST1 %b ", fdc->status[1], NE7_ST1BITS);
 			printf(" ST2 %b ", fdc->status[2], NE7_ST2BITS);
