@@ -31,7 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)$Id$
+ *	@(#)ipx_pcb.h
+ *
+ * $Id: ipx_pcb.h,v 1.3 1995/10/31 23:36:35 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_PCB_H_

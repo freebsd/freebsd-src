@@ -31,7 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)$Id$
+ *	@(#)ipxip.h
+ *
+ * $Id: ipx_ip.h,v 1.2 1995/10/31 23:36:32 julian Exp $
  */
 
 #ifndef __NETIPX_IPXIP_H_

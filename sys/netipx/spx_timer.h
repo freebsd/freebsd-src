@@ -31,7 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)$Id$
+ *	@(#)spx_timer.h
+ *
+ * $Id: spx_timer.h,v 1.3 1995/10/31 23:36:45 julian Exp $
  */
 
 #ifndef _NETIPX_SPX_TIMER_H_
