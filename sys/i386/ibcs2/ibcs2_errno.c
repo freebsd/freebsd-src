@@ -29,9 +29,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/errno.h>
 #include <i386/ibcs2/ibcs2_errno.h>
 
-int bsd_to_ibcs2_errno[] = {
+int bsd_to_ibcs2_errno[ELAST + 1] = {
 	0,			/* 0 */
 	IBCS2_EPERM,		/* 1 */
 	IBCS2_ENOENT,		/* 2 */
@@ -116,5 +117,8 @@ int bsd_to_ibcs2_errno[] = {
 	0,			/* 81 */
 	IBCS2_EIDRM,		/* 82 */
 	IBCS2_ENOMSG,		/* 83 */
+	IBCS2_EOVERFLOW,	/* 84 */
+	0,			/* 85 */
+	IBCS2_EILSEQ,		/* 86 */
 };
 
