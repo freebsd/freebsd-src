@@ -129,6 +129,8 @@ const char	ctty[] = _PATH_CONSOLE;
 
 /*
  * Unix sockets.
+ * We have two default sockets, one with 666 permissions,
+ * and one for priveleged programs
  */
 struct funix {
 	int			s;
@@ -136,11 +138,13 @@ struct funix {
 	mode_t			mode;
 	STAILQ_ENTRY(funix)	next;
 };
-struct funix funix_default =	{ -1, _PATH_LOG, DEFFILEMODE,
+struct funix funix_secure =	{ -1, _PATH_LOG_PRIV, S_IRUSR | S_IWUSR,
 				{ NULL } };
+struct funix funix_default =	{ -1, _PATH_LOG, DEFFILEMODE,
+				{ &funix_secure } };
 
 STAILQ_HEAD(, funix) funixes =	{ &funix_default,
-				&(funix_default.next.stqe_next) };
+				&(funix_secure.next.stqe_next) };
 
 /*
  * Flags to logmsg().
@@ -504,7 +508,7 @@ main(int argc, char *argv[])
 					"cannot create %s", fx->name);
 			logerror(line);
 			dprintf("cannot create %s (%d)\n", fx->name, errno);
-			if (fx == &funix_default)
+			if (fx == &funix_default || fx == &funix_secure)
 				die(0);
 			else
 				STAILQ_REMOVE(&funixes, fx, funix, next);
