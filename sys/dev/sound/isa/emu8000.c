@@ -1910,30 +1910,39 @@ emu_status(sc_p scp, int reg, int chn)
 static int
 emu_allocres(sc_p scp, device_t dev)
 {
-	int iobase;
+	int i;
 
-	if (scp->io[0] == NULL) {
-		scp->io_rid[0] = 0;
-		scp->io[0] = bus_alloc_resource(dev, SYS_RES_IOPORT, &scp->io_rid[0], 0, ~0, 4, RF_ACTIVE);
-	}
-	if (scp->io[0] == NULL)
-		return (1);
-	iobase = rman_get_start(scp->io[0]);
-	if (scp->io[1] == NULL) {
-		scp->io_rid[1] = 1;
-		scp->io[1] = bus_alloc_resource(dev, SYS_RES_IOPORT, &scp->io_rid[1], iobase + 0x400, iobase + 0x400 + 3, 4, RF_ACTIVE);
-	}
-	if (scp->io[2] == NULL) {
-		scp->io_rid[2] = 2;
-		scp->io[2] = bus_alloc_resource(dev, SYS_RES_IOPORT, &scp->io_rid[2], iobase + 0x800, iobase + 0x800 + 3, 4, RF_ACTIVE);
+	/*
+	 * Attempt to allocate the EMU8000's three I/O port ranges.
+	 */
+	for (i = 0; i < 3; i++)
+	{
+		if (scp->io[i] == NULL)
+		{
+			scp->io_rid[i] = i;
+			scp->io[i] = bus_alloc_resource(dev, SYS_RES_IOPORT,
+							&(scp->io_rid[i]),
+							0, ~0, 4, RF_ACTIVE);
+		}
 	}
 
-	if (scp->io[0] == NULL || scp->io[1] == NULL || scp->io[2] == NULL) {
-		printf("emu_allocres: failed.\n");
-		return (1);
+	/*
+	 * Fail if any of the I/O ranges failed (I.e. weren't identified and
+	 * configured by PNP, which can happen if the ID of the card isn't
+	 * known by the PNP quirk-handling logic)
+	 */
+	if (scp->io[0] == NULL || scp->io[1] == NULL || scp->io[2] == NULL)
+	{
+		printf("emu%d: Resource alloc failed, pnp_quirks "
+		       "may need { 0x%08x, 0x%08x }\n",
+		       device_get_unit(dev),
+		       isa_get_vendorid(dev),
+		       isa_get_logicalid(dev));
+
+		return 1;
 	}
 
-	return (0);
+	return 0;
 }
 
 /* Releases resources. */
