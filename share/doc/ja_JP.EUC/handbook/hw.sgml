@@ -1,5 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: hw.sgml,v 1.2 1996/12/05 13:43:30 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.53 -->
 
 <!--
 <!DOCTYPE chapt PUBLIC "-//FreeBSD//DTD linuxdoc//EN"> -->
@@ -7,7 +8,6 @@
 <!--
 <p><em>原作: The FreeBSD Documentation Project .</em>
 -->
-<!-- Original revision: 1.51 -->
 
 <chapt><heading>PC ハードウェアコンパチビリティ<label id="hw"></heading>
 <p><em>訳: &a.yoshiaki; . <newline> 5 December 1996. </em>
@@ -349,8 +349,57 @@ name="FreeBSD POWERED hardwares">
             </descrip>
           </p>
 
-<sect1><heading>* CPU/FPU</heading>
-<sect1><heading>* メモリ</heading>
+<sect1><heading>CPU/FPU</heading>
+  <sect2><heading>* Pentium Pro クラス</heading>
+  <sect2><heading>Pentium クラス</heading>
+     <sect3><heading>クロックスピード</heading>
+     <p><em>原作  &a.rgrimes;.<newline>1 October 1996.</em></p>
+       <p>Pentium クラスのマシンはシステムのいくつかの部分で異なったク
+         ロックスピードを使っています. これは CPU, 外部メモリバス, PCI
+         バスです. 別々のクロックスピードが使われるために 「高速な」
+         CPUを使ったシステムが 「低速な」システムよりも必ず
+         しも速いとは限りません.
+	 それぞれの場合の違いを以下の表に示します.
+       <p>
+       <tscreen><verb>
+	CPUクロック  外部クロック  外部クロックと  PCIバス
+	             とメモリバス  内部クロック    クロック
+	 MHZ          MHZ**        の比            MHZ
+        
+	 60	      60	    1.0		   30
+	 66	      66	    1.0		   33
+	 75	      50	    1.5		   25
+	 90	      60	    1.5		   30
+	100	      50*	    2  		   25
+	100	      66	    1.5		   33
+	120	      60	    2  		   30
+	133	      66	    2  		   33
+	150	      60	    2.5		   30
+	166	      66	    2.5		   33
+	180	      60	    3  		   30
+	200	      66	    3  		   33
+
+         *  Pentium 100 は 50MHzの外部クロックの 2倍または
+	  66MHz の 1.5倍の両方で動かすことができます.
+         ** 66 Mhz はおそらく実際には 66.667 MHzでしょう. 
+	 しかし, そうだと決めつけてはいけません.
+       </verb></tscreen>
+       <p>3倍クロックの CPUではメモリアクセス速度が不足気味であるとい
+         う点を考えなければ 100, 133, 166, 200 MHzを使うのが最良でしょう.
+  <sect2><heading>* 486 クラス</heading>
+  <sect2><heading>* 386 クラス</heading>
+  <sect2><heading>286 クラス</heading>
+    <p>残念ながら, FreeBSDは 80286マシンでは動きません. 現在の巨大なフ
+       ルスペックの UNIXをこのようなハードウェアで動かすことはほとんど
+       不可能でしょう.
+
+<sect1><heading>メモリ</heading>
+  <p>FreeBSDをインストールするのに最低限必要なメモリ量は 5 MBです.
+    いったんシステムが起動して<ref id="kernelconfig:building"
+    name="カスタムカーネルを作る">ことができるならば, もっと少ないメモリ
+    で動かすこともできます.
+    boot4.flp を使えば 4 MB しかメモリがなくてもインストールできます.
+
 <sect1><heading>* BIOS</heading>
 
 <sect><heading>入力/出力デバイス<label id="hw:io"></heading>
