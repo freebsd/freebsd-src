@@ -62,12 +62,12 @@ file.
 .Bd -literal
 struct ttyent {
 	char	*ty_name;	/* terminal device name */
-	char	*ty_getty;	/* command to execute */
-	char	*ty_type;	/* terminal type */
-#define	TTY_ON		0x01	/* enable logins */
+	char	*ty_getty;	/* command to execute, usually getty */
+	char	*ty_type;	/* terminal type for termcap */
+#define	TTY_ON		0x01	/* enable logins (start ty_getty program) */
 #define	TTY_SECURE	0x02	/* allow uid of 0 to login */
-	int	ty_status;	/* flag values */
-	char	*ty_window;	/* command for window manager */
+	int	ty_status;	/* status flags */
+	char	*ty_window;	/* command to start up window manager */
 	char	*ty_comment;	/* comment field */
 	char	*ty_group;	/* tty group name */
 };
