@@ -9,6 +9,22 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20020404:
+	The sendmail startup code in /etc/rc has been changed to deal
+	with a non-set-user-ID sendmail binary.  Setting the rc.conf
+	variable sendmail_enable to "NO" no longer prevents any sendmail
+	daemons from starting.  Instead, set sendmail_enable to "NONE"
+	to prevent any MTA from being started at boot.
+
+20020404:
+	Due to the import of sendmail 8.12.2 (see 20020325 entry), a new
+	user and group are required in order for sendmail to run as a
+	set-group-ID binary.  A 'make installworld' will use the new user
+	and group to set the owner and group of /var/spool/clientmqueue
+	and will fail if the new user and group do not exist.  The 'smmsp'
+	user and group must be merged from src/etc/group and
+	src/etc/master.passwd before using 'make installworld'.
+
 20020325:
 	sendmail 8.12.2 has been imported.  The sendmail binary is no
 	longer a set-user-ID root binary and the infrastructure to support
