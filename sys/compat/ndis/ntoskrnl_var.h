@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -35,25 +35,109 @@
 #ifndef _NTOSKRNL_VAR_H_
 #define _NTOSKRNL_VAR_H_
 
+/*
+ * us_buf is really a wchar_t *, but it's inconvenient to include
+ * all the necessary header goop needed to define it, and it's a
+ * pointer anyway, so for now, just make it a uint16_t *.
+ */
+struct unicode_string {
+	uint16_t		us_len;
+	uint16_t		us_maxlen;
+	uint16_t		*us_buf;
+};
+
+typedef struct unicode_string unicode_string;
+
+/*
+ * Windows memory descriptor list. In Windows, it's possible for
+ * buffers to be passed between user and kernel contexts without
+ * copying. Buffers may also be allocated in either paged or
+ * non-paged memory regions. An MDL describes the pages of memory
+ * used to contain a particular buffer. Note that a single MDL
+ * may describe a buffer that spans multiple pages. An array of
+ * page addresses appears immediately after the MDL structure itself.
+ * MDLs are therefore implicitly variably sized, even though they
+ * don't look it.
+ *
+ * Note that in FreeBSD, we can take many shortcuts in the way
+ * we handle MDLs because:
+ *
+ * - We are only concerned with pages in kernel context. This means
+ *   we will only ever use the kernel's memory map, and remapping
+ *   of buffers is never needed.
+ *
+ * - Kernel pages can never be paged out, so we don't have to worry
+ *   about whether or not a page is actually mapped before going to
+ *   touch it.
+ */
+
+struct mdl {
+        struct mdl		*mdl_next;
+	uint16_t		mdl_size;
+	uint16_t		mdl_flags;
+	void			*mdl_process;
+	void			*mdl_mappedsystemva;
+	void			*mdl_startva;
+	uint32_t		mdl_bytecount;
+	uint32_t		mdl_byteoffset;
+};
+
+typedef struct mdl mdl, ndis_buffer;
+
+/* MDL flags */
+
+#define MDL_MAPPED_TO_SYSTEM_VA		0x0001
+#define MDL_PAGES_LOCKED		0x0002
+#define MDL_SOURCE_IS_NONPAGED_POOL	0x0004
+#define MDL_ALLOCATED_FIXED_SIZE	0x0008
+#define MDL_PARTIAL			0x0010
+#define MDL_PARTIAL_HAS_BEEN_MAPPED	0x0020
+#define MDL_IO_PAGE_READ		0x0040
+#define MDL_WRITE_OPERATION		0x0080
+#define MDL_PARENT_MAPPED_SYSTEM_VA	0x0100
+#define MDL_FREE_EXTRA_PTES		0x0200
+#define MDL_IO_SPACE			0x0800
+#define MDL_NETWORK_HEADER		0x1000
+#define MDL_MAPPING_CAN_FAIL		0x2000
+#define MDL_ALLOCATED_MUST_SUCCEED	0x4000
+
 /* Note: assumes x86 page size of 4K. */
+
+#if PAGE_SIZE == 4096
 #define PAGE_SHIFT	12
+#elif PAGE_SIZE == 8192
+#define PAGE_SHIFT	13
+#else
+#error PAGE_SHIFT undefined!
+#endif
+
 #define SPAN_PAGES(ptr, len)					\
-	((uint32_t)((((uintptr_t)(ptr) & (PAGE_SIZE -1)) +	\
+	((uint32_t)((((uintptr_t)(ptr) & (PAGE_SIZE - 1)) +	\
 	(len) + (PAGE_SIZE - 1)) >> PAGE_SHIFT))
+
 #define PAGE_ALIGN(ptr)						\
 	((void *)((uintptr_t)(ptr) & ~(PAGE_SIZE - 1)))
+
 #define BYTE_OFFSET(ptr)					\
 	((uint32_t)((uintptr_t)(ptr) & (PAGE_SIZE - 1)))
-#define MDL_INIT(b, baseva, len)					\
-	(b)->nb_next = NULL;						\
-	(b)->nb_size = (uint16_t)(sizeof(struct ndis_buffer) +		\
+
+#define MDL_PAGES(m)	(vm_offset_t *)(m + 1)
+
+#define MmInitializeMdl(b, baseva, len)					\
+	(b)->mdl_next = NULL;						\
+	(b)->mdl_size = (uint16_t)(sizeof(mdl) +			\
 		(sizeof(uint32_t) * SPAN_PAGES((baseva), (len))));	\
-	(b)->nb_flags = 0;						\
-	(b)->nb_startva = (void *)PAGE_ALIGN((baseva));			\
-	(b)->nb_byteoffset = BYTE_OFFSET((baseva));			\
-	(b)->nb_bytecount = (uint32_t)(len);
-#define MDL_VA(b)						\
-	((void *)((char *)((b)->nb_startva) + (b)->nb_byteoffset))
+	(b)->mdl_flags = 0;						\
+	(b)->mdl_startva = (void *)PAGE_ALIGN((baseva));		\
+	(b)->mdl_byteoffset = BYTE_OFFSET((baseva));			\
+	(b)->mdl_bytecount = (uint32_t)(len);
+
+#define MmGetMdlByteOffset(mdl)		((mdl)->mdl_byteoffset)
+#define MmGetMdlByteCount(mdl)		((mdl)->mdl_bytecount)
+#define MmGetMdlVirtualAddress(mdl)					\
+	((void *)((char *)((mdl)->mdl_startva) + (mdl)->mdl_byteoffset))
+#define MmGetMdlStartVa(mdl)		((mdl)->mdl_startva)
+#define MmGetMdlPfnArray(mdl)		MDL_PAGES(mdl)
 
 #define WDM_MAJOR		1
 #define WDM_MINOR_WIN98		0x00
@@ -270,7 +354,7 @@ struct kdpc {
 	uint8_t			k_num;
 	uint8_t			k_importance;
 	list_entry		k_dpclistentry;
-	kdpc_func		k_deferedfunc;
+	void			*k_deferedfunc;
 	void			*k_deferredctx;
 	void			*k_sysarg1;
 	void			*k_sysarg2;
@@ -405,6 +489,35 @@ struct thread_context {
 
 typedef struct thread_context thread_context;
 
+/* Forward declaration */
+struct driver_object;
+struct devobj_extension;
+
+struct driver_extension {
+	struct driver_object	*dre_driverobj;
+	void			*dre_adddevicefunc;
+	uint32_t		dre_reinitcnt;
+	unicode_string		dre_srvname;
+};
+
+typedef struct driver_extension driver_extension;
+
+/*
+ * In Windows, there are Physical Device Objects (PDOs) and
+ * Functional Device Objects (FDOs). Physical Device Objects are
+ * created and maintained by bus drivers. For example, the PCI
+ * bus driver might detect two PCI ethernet cards on a given
+ * bus. The PCI bus driver will then allocate two device_objects
+ * for its own internal bookeeping purposes. This is analagous
+ * to the device_t that the FreeBSD PCI code allocates and passes
+ * into each PCI driver's probe and attach routines.
+ *
+ * When an ethernet driver claims one of the ethernet cards
+ * on the bus, it will create its own device_object. This is
+ * the Functional Device Object. This object is analagous to the
+ * device-specific softc structure.
+ */
+
 struct device_object {
 	uint16_t		do_type;
 	uint16_t		do_size;
@@ -431,19 +544,371 @@ struct device_object {
 	struct nt_kevent	do_devlock;
 	uint16_t		do_sectorsz;
 	uint16_t		do_spare1;
-	void			*do_devobj_ext;
+	struct devobj_extension	*do_devobj_ext;
 	void			*do_rsvd;
 };
 
 typedef struct device_object device_object;
 
-struct irp {
-	uint32_t		i_dummy;
+struct devobj_extension {
+	uint16_t		dve_type;
+	uint16_t		dve_size;
+	device_object		*dve_devobj;
 };
+
+typedef struct devobj_extension devobj_extension;
+
+#define IO_NO_INCREMENT			0
+#define IO_CD_ROM_INCREMENT		1
+#define IO_DISK_INCREMENT		1
+#define IO_KEYBOARD_INCREMENT		6
+#define IO_MAILSLOT_INCREMENT		2
+#define IO_MOUSE_INCREMENT		6
+#define IO_NAMED_PIPE_INCREMENT		2
+#define IO_NETWORK_INCREMENT		2
+#define IO_PARALLEL_INCREMENT		1
+#define IO_SERIAL_INCREMENT		2
+#define IO_SOUND_INCREMENT		8
+#define IO_VIDEO_INCREMENT		1
+
+/* IRP major codes */
+
+#define IRP_MJ_CREATE                   0x00
+#define IRP_MJ_CREATE_NAMED_PIPE        0x01
+#define IRP_MJ_CLOSE                    0x02
+#define IRP_MJ_READ                     0x03
+#define IRP_MJ_WRITE                    0x04
+#define IRP_MJ_QUERY_INFORMATION        0x05
+#define IRP_MJ_SET_INFORMATION          0x06
+#define IRP_MJ_QUERY_EA                 0x07
+#define IRP_MJ_SET_EA                   0x08
+#define IRP_MJ_FLUSH_BUFFERS            0x09
+#define IRP_MJ_QUERY_VOLUME_INFORMATION 0x0a
+#define IRP_MJ_SET_VOLUME_INFORMATION   0x0b
+#define IRP_MJ_DIRECTORY_CONTROL        0x0c
+#define IRP_MJ_FILE_SYSTEM_CONTROL      0x0d
+#define IRP_MJ_DEVICE_CONTROL           0x0e
+#define IRP_MJ_INTERNAL_DEVICE_CONTROL  0x0f
+#define IRP_MJ_SHUTDOWN                 0x10
+#define IRP_MJ_LOCK_CONTROL             0x11
+#define IRP_MJ_CLEANUP                  0x12
+#define IRP_MJ_CREATE_MAILSLOT          0x13
+#define IRP_MJ_QUERY_SECURITY           0x14
+#define IRP_MJ_SET_SECURITY             0x15
+#define IRP_MJ_POWER                    0x16
+#define IRP_MJ_SYSTEM_CONTROL           0x17
+#define IRP_MJ_DEVICE_CHANGE            0x18
+#define IRP_MJ_QUERY_QUOTA              0x19
+#define IRP_MJ_SET_QUOTA                0x1a
+#define IRP_MJ_PNP                      0x1b
+#define IRP_MJ_PNP_POWER                IRP_MJ_PNP      // Obsolete....
+#define IRP_MJ_MAXIMUM_FUNCTION         0x1b
+#define IRP_MJ_SCSI                     IRP_MJ_INTERNAL_DEVICE_CONTROL
+
+/* IRP minor codes */
+
+#define IRP_MN_QUERY_DIRECTORY          0x01
+#define IRP_MN_NOTIFY_CHANGE_DIRECTORY  0x02
+#define IRP_MN_USER_FS_REQUEST          0x00
+
+#define IRP_MN_MOUNT_VOLUME             0x01
+#define IRP_MN_VERIFY_VOLUME            0x02
+#define IRP_MN_LOAD_FILE_SYSTEM         0x03
+#define IRP_MN_TRACK_LINK               0x04    // To be obsoleted soon
+#define IRP_MN_KERNEL_CALL              0x04
+
+#define IRP_MN_LOCK                     0x01
+#define IRP_MN_UNLOCK_SINGLE            0x02
+#define IRP_MN_UNLOCK_ALL               0x03
+#define IRP_MN_UNLOCK_ALL_BY_KEY        0x04
+
+#define IRP_MN_NORMAL                   0x00
+#define IRP_MN_DPC                      0x01
+#define IRP_MN_MDL                      0x02
+#define IRP_MN_COMPLETE                 0x04
+#define IRP_MN_COMPRESSED               0x08
+
+#define IRP_MN_MDL_DPC                  (IRP_MN_MDL | IRP_MN_DPC)
+#define IRP_MN_COMPLETE_MDL             (IRP_MN_COMPLETE | IRP_MN_MDL)
+#define IRP_MN_COMPLETE_MDL_DPC         (IRP_MN_COMPLETE_MDL | IRP_MN_DPC)
+
+#define IRP_MN_SCSI_CLASS               0x01
+
+#define IRP_MN_START_DEVICE                 0x00
+#define IRP_MN_QUERY_REMOVE_DEVICE          0x01
+#define IRP_MN_REMOVE_DEVICE                0x02
+#define IRP_MN_CANCEL_REMOVE_DEVICE         0x03
+#define IRP_MN_STOP_DEVICE                  0x04
+#define IRP_MN_QUERY_STOP_DEVICE            0x05
+#define IRP_MN_CANCEL_STOP_DEVICE           0x06
+
+#define IRP_MN_QUERY_DEVICE_RELATIONS       0x07
+#define IRP_MN_QUERY_INTERFACE              0x08
+#define IRP_MN_QUERY_CAPABILITIES           0x09
+#define IRP_MN_QUERY_RESOURCES              0x0A
+#define IRP_MN_QUERY_RESOURCE_REQUIREMENTS  0x0B
+#define IRP_MN_QUERY_DEVICE_TEXT            0x0C
+#define IRP_MN_FILTER_RESOURCE_REQUIREMENTS 0x0D
+
+#define IRP_MN_READ_CONFIG                  0x0F
+#define IRP_MN_WRITE_CONFIG                 0x10
+#define IRP_MN_EJECT                        0x11
+#define IRP_MN_SET_LOCK                     0x12
+#define IRP_MN_QUERY_ID                     0x13
+#define IRP_MN_QUERY_PNP_DEVICE_STATE       0x14
+#define IRP_MN_QUERY_BUS_INFORMATION        0x15
+#define IRP_MN_DEVICE_USAGE_NOTIFICATION    0x16
+#define IRP_MN_SURPRISE_REMOVAL             0x17
+#define IRP_MN_QUERY_LEGACY_BUS_INFORMATION 0x18
+
+#define IRP_MN_WAIT_WAKE                    0x00
+#define IRP_MN_POWER_SEQUENCE               0x01
+#define IRP_MN_SET_POWER                    0x02
+#define IRP_MN_QUERY_POWER                  0x03
+
+#define IRP_MN_QUERY_ALL_DATA               0x00
+#define IRP_MN_QUERY_SINGLE_INSTANCE        0x01
+#define IRP_MN_CHANGE_SINGLE_INSTANCE       0x02
+#define IRP_MN_CHANGE_SINGLE_ITEM           0x03
+#define IRP_MN_ENABLE_EVENTS                0x04
+#define IRP_MN_DISABLE_EVENTS               0x05
+#define IRP_MN_ENABLE_COLLECTION            0x06
+#define IRP_MN_DISABLE_COLLECTION           0x07
+#define IRP_MN_REGINFO                      0x08
+#define IRP_MN_EXECUTE_METHOD               0x09
+#define IRP_MN_REGINFO_EX                   0x0b
+
+/* IRP flags */
+
+#define IRP_NOCACHE                     0x00000001
+#define IRP_PAGING_IO                   0x00000002
+#define IRP_MOUNT_COMPLETION            0x00000002
+#define IRP_SYNCHRONOUS_API             0x00000004
+#define IRP_ASSOCIATED_IRP              0x00000008
+#define IRP_BUFFERED_IO                 0x00000010
+#define IRP_DEALLOCATE_BUFFER           0x00000020
+#define IRP_INPUT_OPERATION             0x00000040
+#define IRP_SYNCHRONOUS_PAGING_IO       0x00000040
+#define IRP_CREATE_OPERATION            0x00000080
+#define IRP_READ_OPERATION              0x00000100
+#define IRP_WRITE_OPERATION             0x00000200
+#define IRP_CLOSE_OPERATION             0x00000400
+#define IRP_DEFER_IO_COMPLETION         0x00000800
+#define IRP_OB_QUERY_NAME               0x00001000
+#define IRP_HOLD_DEVICE_QUEUE           0x00002000
+#define IRP_RETRY_IO_COMPLETION         0x00004000
+#define IRP_CLASS_CACHE_OPERATION       0x00008000
+#define IRP_SET_USER_EVENT              IRP_CLOSE_OPERATION
+
+/* IRP I/O control flags */
+
+#define IRP_QUOTA_CHARGED               0x01
+#define IRP_ALLOCATED_MUST_SUCCEED      0x02
+#define IRP_ALLOCATED_FIXED_SIZE        0x04
+#define IRP_LOOKASIDE_ALLOCATION        0x08
+
+struct io_status_block {
+	union {
+		uint32_t		isb_status;
+		void			*isb_ptr;
+	} u;
+	register_t		isb_info;
+};
+
+typedef struct io_status_block io_status_block;
+
+struct kapc {
+	uint16_t		apc_type;
+	uint16_t		apc_size;
+	uint32_t		apc_spare0;
+	void			*apc_thread;
+	list_entry		apc_list;
+	void			*apc_kernfunc;
+	void			*apc_rundownfunc;
+	void			*apc_normalfunc;
+	void			*apc_normctx;
+	void			*apc_sysarg1;
+	void			*apc_sysarg2;
+	uint8_t			apc_stateidx;
+	uint8_t			apc_cpumode;
+	uint8_t			apc_inserted;
+};
+
+typedef struct kapc kapc;
+
+struct io_stack_location {
+	uint8_t			isl_major;
+	uint8_t			isl_minor;
+	uint8_t			isl_flags;
+	uint8_t			isl_ctl;
+
+	/*
+	 * There's a big-ass union here in the actual Windows
+	 * definition of the stucture, but it contains stuff
+	 * that doesn't really apply to BSD, and defining it
+	 * all properly would require duplicating over a dozen
+	 * other structures that we'll never use. Since the
+	 * io_stack_location structure is opaque to drivers
+	 * anyway, I'm not going to bother with the extra crap.
+	 */
+
+	union {
+		struct {
+			void			*isl_arg1;
+			void			*isl_arg2;
+			void			*isl_arg3;
+			void			*isl_arg4;
+		} isl_others;
+	} isl_parameters;
+
+	void			*isl_devobj;
+	void			*isl_fileobj;
+	void			*isl_completionfunc;
+	void			*isl_completionctx;
+};
+
+typedef struct io_stack_location io_stack_location;
+
+/* Stack location control flags */
+
+#define SL_PENDING_RETURNED		0x01
+#define SL_INVOKE_ON_CANCEL		0x20
+#define SL_INVOKE_ON_SUCCESS		0x40
+#define SL_INVOKE_ON_ERROR		0x80
+
+struct irp {
+	uint16_t		irp_type;
+	uint16_t		irp_size;
+	mdl			*irp_mdl;
+	uint32_t		irp_flags;
+	union {
+		struct irp		*irp_master;
+		uint32_t		irp_irpcnt;
+		void			*irp_sysbuf;
+	} irp_assoc;
+	list_entry		irp_thlist;
+	io_status_block		irp_iostat;
+	uint8_t			irp_reqmode;
+	uint8_t			irp_pendingreturned;
+	uint8_t			irp_stackcnt;
+	uint8_t			irp_currentstackloc;
+	uint8_t			irp_cancel;
+	uint8_t			irp_cancelirql;
+	uint8_t			irp_apcenv;
+	uint8_t			irp_allocflags;
+	io_status_block		*irp_usriostat;
+	nt_kevent		irp_userevent;
+	union {
+		struct {
+			void			*irp_apcfunc;
+			void			*irp_apcctx;
+		} irp_asyncparms;
+		uint64_t			irp_allocsz;
+	} irp_overlay;
+	void			*irp_cancelfunc;
+	void			*irp_userbuf;
+
+	/* Windows kernel info */
+
+	union {
+		struct {
+			union {
+				kdevice_qentry			irp_dqe;
+				struct {
+					void 			*irp_drvctx[4];
+				} s1;
+			} u1;
+			void			*irp_thread;
+			char			*irp_auxbuf;
+			struct {
+				list_entry			irp_list;
+				union {
+					io_stack_location	*irp_csl;
+					uint32_t		irp_pkttype;
+				} u2;
+			} s2;
+			void			*irp_fileobj;
+		} irp_overlay;
+		kapc			irp_apc;
+		void			*irp_compkey;
+	} irp_tail;
+};
+
+#define irp_csl			s2.u2.irp_csl
+#define irp_pkttype		s2.u2.irp_pkttype
 
 typedef struct irp irp;
 
+#define IoGetCurrentIrpStackLocation(irp)				\
+	(irp)->irp_tail.irp_overlay.irp_csl
+
+#define IoGetNextIrpStackLocation(irp)					\
+	((irp)->irp_tail.irp_overlay.irp_csl - 1)
+
+#define IoSetCompletionRoutine(irp, func, ctx, ok, err, cancel)		\
+	do {								\
+		io_stack_location		*s;			\
+		s = IoGetNextIrpStackLocation((irp));			\
+		s->isl_completionfunc = (func);				\
+		s->isl_completionctx = (ctx);				\
+		s->isl_ctl = 0;						\
+		if (ok) irp->ctl = SL_INVOKE_ON_SUCCESS;		\
+		if (err) irp->ctl |= SL_INVOKE_ON_ERROR;		\
+		if (cancel) irp->ctl |= SL_INVOKE_ON_CANCEL;		\
+	} while(0)
+
+#define IoMarkIrpPending(irp)						\
+	IoGetCurrentIrpStackLocation(irp)->isl_ctl |= SL_PENDING_RETURNED
+
+#define IoSizeOfIrp(s)							\
+	((uint16_t) (sizeof(itp) + ((s) * (sizeof(io_stack_location)))))
+
+#define IoCopyCurrentIrpStackLocationToNext(irp)			\
+	do {								\
+		io_stack_location *src, *dst;				\
+		src = IoGetCurrentIrpStackLocation(irp);		\
+		dst = IoGetNextIrpStackLocation(irp);			\
+		bcopy((char *)src, (char *)dst,				\
+		    offsetof(io_stack_location, isl_completionfunc));	\
+	} while(0)
+
+#define IoSkipCurrentIrpStackLocation(irp)				\
+	do {								\
+		(irp)->irp_currentstackloc++;				\
+		(irp)->irp_tail.irp_overlay.irp_csl++;			\
+	} while(0)
+
 typedef uint32_t (*driver_dispatch)(device_object *, irp *);
+
+/*
+ * The driver_object is allocated once for each driver that's loaded
+ * into the system. A new one is allocated for each driver and
+ * populated a bit via the driver's DriverEntry function.
+ * In general, a Windows DriverEntry() function will provide a pointer
+ * to its AddDevice() method and set up the dispatch table.
+ * For NDIS drivers, this is all done behind the scenes in the
+ * NdisInitializeWrapper() and/or NdisMRegisterMiniport() routines.
+ */
+
+struct driver_object {
+	uint16_t		dro_type;
+	uint16_t		dro_size;
+	device_object		*dro_devobj;
+	uint32_t		dro_flags;
+	void			*dro_driverstart;
+	uint32_t		dro_driversize;
+	void			*dro_driversection;
+	driver_extension	dro_driverext;
+	unicode_string		dro_drivername;
+	unicode_string		*dro_hwdb;
+	void			*dro_pfastiodispatch;
+	void			*dro_driverinitfunc;
+	void			*dro_driverstartiofunc;
+	void			*dro_driverunloadfunc;
+	void			*dro_dispatch[IRP_MJ_MAXIMUM_FUNCTION + 1];
+};
+
+typedef struct driver_object driver_object;
 
 #define DEVPROP_DEVICE_DESCRIPTION	0x00000000
 #define DEVPROP_HARDWARE_ID		0x00000001
@@ -491,36 +956,41 @@ extern image_patch_table ntoskrnl_functbl[];
 __BEGIN_DECLS
 extern int ntoskrnl_libinit(void);
 extern int ntoskrnl_libfini(void);
-__stdcall extern void ntoskrnl_init_dpc(kdpc *, void *, void *);
-__stdcall extern uint8_t ntoskrnl_queue_dpc(kdpc *, void *, void *);
-__stdcall extern uint8_t ntoskrnl_dequeue_dpc(kdpc *);
-__stdcall extern void ntoskrnl_init_timer(ktimer *);
-__stdcall extern void ntoskrnl_init_timer_ex(ktimer *, uint32_t);
-__stdcall extern uint8_t ntoskrnl_set_timer(ktimer *, int64_t, kdpc *);  
-__stdcall extern uint8_t ntoskrnl_set_timer_ex(ktimer *, int64_t,
+__stdcall extern void KeInitializeDpc(kdpc *, void *, void *);
+__stdcall extern uint8_t KeInsertQueueDpc(kdpc *, void *, void *);
+__stdcall extern uint8_t KeRemoveQueueDpc(kdpc *);
+__stdcall extern void KeInitializeTimer(ktimer *);
+__stdcall extern void KeInitializeTimerEx(ktimer *, uint32_t);
+__stdcall extern uint8_t KeSetTimer(ktimer *, int64_t, kdpc *);  
+__stdcall extern uint8_t KeSetTimerEx(ktimer *, int64_t,
 	uint32_t, kdpc *);
-__stdcall extern uint8_t ntoskrnl_cancel_timer(ktimer *);
-__stdcall extern uint8_t ntoskrnl_read_timer(ktimer *);
-__stdcall extern uint32_t ntoskrnl_waitforobj(nt_dispatch_header *, uint32_t,
+__stdcall extern uint8_t KeCancelTimer(ktimer *);
+__stdcall extern uint8_t KeReadStateTimer(ktimer *);
+__stdcall extern uint32_t KeWaitForSingleObject(nt_dispatch_header *, uint32_t,
 	uint32_t, uint8_t, int64_t *);
-__stdcall extern void ntoskrnl_init_event(nt_kevent *, uint32_t, uint8_t);
-__stdcall extern void ntoskrnl_clear_event(nt_kevent *);
-__stdcall extern uint32_t ntoskrnl_read_event(nt_kevent *);
-__stdcall extern uint32_t ntoskrnl_set_event(nt_kevent *, uint32_t, uint8_t);
-__stdcall extern uint32_t ntoskrnl_reset_event(nt_kevent *);
-__stdcall extern void ntoskrnl_init_lock(kspin_lock *);
-__fastcall extern void ntoskrnl_lock_dpc(REGARGS1(kspin_lock *));
-__fastcall extern void ntoskrnl_unlock_dpc(REGARGS1(kspin_lock *));
+__stdcall extern void KeInitializeEvent(nt_kevent *, uint32_t, uint8_t);
+__stdcall extern void KeClearEvent(nt_kevent *);
+__stdcall extern uint32_t KeReadStateEvent(nt_kevent *);
+__stdcall extern uint32_t KeSetEvent(nt_kevent *, uint32_t, uint8_t);
+__stdcall extern uint32_t KeResetEvent(nt_kevent *);
+__fastcall extern void KefAcquireSpinLockAtDpcLevel(REGARGS1(kspin_lock *));
+__fastcall extern void KefReleaseSpinLockFromDpcLevel(REGARGS1(kspin_lock *));
+__stdcall extern void KeInitializeSpinLock(kspin_lock *);
+__fastcall extern uint32_t IofCallDriver(REGARGS2(device_object *, irp *));
+__fastcall extern void IofCompleteRequest(REGARGS2(irp *, uint8_t));
+
+#define IoCallDriver(a, b)		FASTCALL2(IofCallDriver, a, b)
+#define IoCompleteRequest(a, b)		FASTCALL2(IofCompleteRequest, a, b)
 
 /*
  * On the Windows x86 arch, KeAcquireSpinLock() and KeReleaseSpinLock()
  * routines live in the HAL. We try to imitate this behavior.
  */
 #ifdef __i386__
-#define ntoskrnl_acquire_spinlock(a, b)	*(b) = FASTCALL1(hal_lock, a)
-#define ntoskrnl_release_spinlock(a, b)	FASTCALL2(hal_unlock, a, b)
-#define ntoskrnl_raise_irql(a)		FASTCALL1(hal_raise_irql, a)
-#define ntoskrnl_lower_irql(a)		FASTCALL1(hal_lower_irql, a)
+#define KeAcquireSpinLock(a, b)	*(b) = FASTCALL1(KfAcquireSpinLock, a)
+#define KeReleaseSpinLock(a, b)	FASTCALL2(KfReleaseSpinLock, a, b)
+#define KeRaiseIrql(a)		FASTCALL1(KfRaiseIrql, a)
+#define KeLowerIrql(a)		FASTCALL1(KfLowerIrql, a)
 #endif /* __i386__ */
 __END_DECLS
 

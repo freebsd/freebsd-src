@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003
  *	Bill Paul <wpaul@windriver.com>.  All rights reserved.
  *
@@ -947,12 +947,13 @@ typedef void (*ndis_proc)(struct ndis_work_item *, void *);
 
 struct ndis_work_item {
 	void			*nwi_ctx;
-	ndis_proc		nwi_func;
+	void			*nwi_func;
 	uint8_t			nwi_wraprsvd[sizeof(void *) * 8];
 };
 
 typedef struct ndis_work_item ndis_work_item;
 
+#ifdef notdef
 struct ndis_buffer {
 	struct ndis_buffer	*nb_next;
 	uint16_t		nb_size;
@@ -965,6 +966,7 @@ struct ndis_buffer {
 };
 
 typedef struct ndis_buffer ndis_buffer;
+#endif
 
 struct ndis_sc_element {
 	ndis_physaddr		nse_addr;

@@ -1015,9 +1015,9 @@ ndis_intrtask(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = KeRaiseIrql(DISPATCH_LEVEL);
 	ndis_intrhand(sc);
-	FASTCALL1(hal_lower_irql, irql);
+	KeLowerIrql(irql);
 	mtx_lock(&sc->ndis_intrmtx);
 	ndis_enable_intr(sc);
 	mtx_unlock(&sc->ndis_intrmtx);
