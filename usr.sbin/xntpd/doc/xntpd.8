@@ -1,5 +1,5 @@
 .\"
-.\"	$Id$
+.\"	$Id: xntpd.8,v 1.6 1999/08/18 05:55:20 chris Exp $
 .\"
 .Dd December 21, 1993
 .Dt XNTPD 8
@@ -235,7 +235,7 @@ frequency to stabilize and the residual timing errors to subside. The
 file contains a single floating point value equal to the offset in
 parts-per-million (ppm). Note that the file is updated by first writing
 the current drift value into a temporary file and then using
-.Xr rename 3
+.Xr rename 2
 to replace the old version. This implies that
 .Nm
 must have write permission for the directory the drift file is located
