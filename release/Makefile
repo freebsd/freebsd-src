@@ -570,6 +570,12 @@ cdrom.1:
 	     cat ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} >> ${CD_DISC1}/$${i}; \
 	  fi; \
         done
+.if ${MACHINE_ARCH} == "alpha"
+	@echo "Setting up Alpha CD disc1 for booting"
+	@ln -f ${RD}/image.boot/kernel.gz ${CD_DISC1}
+	@cp -Rp ${RD}/image.boot/boot ${CD_DISC1}
+	@cp -p /boot/cdboot ${CD_DISC1}/boot/
+.endif
 .if !defined(NOPORTS)
 	@-rm -rf /usr/ports/distfiles/*
 	@mkdir -p ${CD_DISC1}/ports && \
