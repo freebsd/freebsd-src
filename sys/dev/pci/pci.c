@@ -99,6 +99,17 @@ static u_int32_t	pci_read_config_method(device_t dev, device_t child,
 					       int reg, int width);
 static void		pci_write_config_method(device_t dev, device_t child, 
 						int reg, u_int32_t val, int width);
+static void		pci_enable_busmaster_method(device_t dev,
+						    device_t child);
+static void		pci_disable_busmaster_method(device_t dev,
+						     device_t child);
+static void		pci_enable_io_method(device_t dev, device_t child,
+					     int space);
+static void		pci_disable_io_method(device_t dev, device_t child,
+					      int space);
+static int		pci_set_powerstate_method(device_t dev, device_t child,
+						  int state);
+static int		pci_get_powerstate_method(device_t dev, device_t child);
 static int		pci_modevent(module_t mod, int what, void *arg);
 
 static device_method_t pci_methods[] = {
@@ -130,6 +141,12 @@ static device_method_t pci_methods[] = {
 	/* PCI interface */
 	DEVMETHOD(pci_read_config,	pci_read_config_method),
 	DEVMETHOD(pci_write_config,	pci_write_config_method),
+	DEVMETHOD(pci_enable_busmaster,	pci_enable_busmaster_method),
+	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
+	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
+	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
+	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
+	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 
 	{ 0, 0 }
 };
@@ -435,16 +452,16 @@ pci_freecfg(struct pci_devinfo *dinfo)
 /*
  * PCI power manangement
  */
-int
-pci_set_powerstate(device_t dev, int state)
+static int
+pci_set_powerstate_method(device_t dev, device_t child, int state)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	u_int16_t status;
 	int result;
 
 	if (cfg->pp_cap != 0) {
-		status = pci_read_config(dev, cfg->pp_status, 2) & ~PCIM_PSTAT_DMASK;
+		status = PCI_READ_CONFIG(dev, child, cfg->pp_status, 2) & ~PCIM_PSTAT_DMASK;
 		result = 0;
 		switch (state) {
 		case PCI_POWERSTATE_D0:
@@ -471,23 +488,23 @@ pci_set_powerstate(device_t dev, int state)
 			result = EINVAL;
 		}
 		if (result == 0)
-			pci_write_config(dev, cfg->pp_status, status, 2);
+			PCI_WRITE_CONFIG(dev, child, cfg->pp_status, status, 2);
 	} else {
 		result = ENXIO;
 	}
 	return(result);
 }
 
-int
-pci_get_powerstate(device_t dev)
+static int
+pci_get_powerstate_method(device_t dev, device_t child)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	u_int16_t status;
 	int result;
 
 	if (cfg->pp_cap != 0) {
-		status = pci_read_config(dev, cfg->pp_status, 2);
+		status = PCI_READ_CONFIG(dev, child, cfg->pp_status, 2);
 		switch (status & PCIM_PSTAT_DMASK) {
 		case PCIM_PSTAT_D0:
 			result = PCI_POWERSTATE_D0;
@@ -517,59 +534,59 @@ pci_get_powerstate(device_t dev)
  */
 
 static __inline void
-pci_set_command_bit(device_t dev, u_int16_t bit)
+pci_set_command_bit(device_t dev, device_t child, u_int16_t bit)
 {
     u_int16_t	command;
 
-    command = pci_read_config(dev, PCIR_COMMAND, 2);
+    command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
     command |= bit;
-    pci_write_config(dev, PCIR_COMMAND, command, 2);
+    PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
 }
 
 static __inline void
-pci_clear_command_bit(device_t dev, u_int16_t bit)
+pci_clear_command_bit(device_t dev, device_t child, u_int16_t bit)
 {
     u_int16_t	command;
 
-    command = pci_read_config(dev, PCIR_COMMAND, 2);
+    command = PCI_READ_CONFIG(dev, child, PCIR_COMMAND, 2);
     command &= ~bit;
-    pci_write_config(dev, PCIR_COMMAND, command, 2);
+    PCI_WRITE_CONFIG(dev, child, PCIR_COMMAND, command, 2);
 }
 
-void
-pci_enable_busmaster(device_t dev)
+static void
+pci_enable_busmaster_method(device_t dev, device_t child)
 {
-    pci_set_command_bit(dev, PCIM_CMD_BUSMASTEREN);
+    pci_set_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
 }
 
-void
-pci_disable_busmaster(device_t dev)
+static void
+pci_disable_busmaster_method(device_t dev, device_t child)
 {
-    pci_clear_command_bit(dev, PCIM_CMD_BUSMASTEREN);
+    pci_clear_command_bit(dev, child, PCIM_CMD_BUSMASTEREN);
 }
 
-void
-pci_enable_io(device_t dev, int space)
+static void
+pci_enable_io_method(device_t dev, device_t child, int space)
 {
     switch(space) {
     case SYS_RES_IOPORT:
-	pci_set_command_bit(dev, PCIM_CMD_PORTEN);
+	pci_set_command_bit(dev, child, PCIM_CMD_PORTEN);
 	break;
     case SYS_RES_MEMORY:
-	pci_set_command_bit(dev, PCIM_CMD_MEMEN);
+	pci_set_command_bit(dev, child, PCIM_CMD_MEMEN);
 	break;
     }
 }
 
-void
-pci_disable_io(device_t dev, int space)
+static void
+pci_disable_io_method(device_t dev, device_t child, int space)
 {
     switch(space) {
     case SYS_RES_IOPORT:
-	pci_clear_command_bit(dev, PCIM_CMD_PORTEN);
+	pci_clear_command_bit(dev, child, PCIM_CMD_PORTEN);
 	break;
     case SYS_RES_MEMORY:
-	pci_clear_command_bit(dev, PCIM_CMD_MEMEN);
+	pci_clear_command_bit(dev, child, PCIM_CMD_MEMEN);
 	break;
     }
 }
