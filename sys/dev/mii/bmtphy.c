@@ -146,6 +146,9 @@ bmtphy_probe(device_t dev)
 	case MII_MODEL_BROADCOM_BCM5221:
 		device_set_desc(dev, MII_STR_BROADCOM_BCM5221);
 		break;
+	case MII_MODEL_BROADCOM_BCM4401:
+		device_set_desc(dev, MII_STR_BROADCOM_BCM4401);
+		break;
 	default:
 		return (ENXIO);
 	}
