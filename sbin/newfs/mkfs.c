@@ -123,8 +123,11 @@ mkfs(struct partition *pp, char *fsys, int fi, int fo)
 	int width;
 	char tmpbuf[100];	/* XXX this will break in about 2,500 years */
 
-	time(&utime);
-	if (!randinit) {
+	if (Rflag)
+		utime = 1000000000;
+	else 
+		time(&utime);
+	if (!Rflag && !randinit) {
 		randinit = 1;
 		srandomdev();
 	}
