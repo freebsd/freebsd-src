@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.63 1995/07/31 21:01:23 bde Exp $
+ * $Id: tty.c,v 1.64 1995/07/31 21:43:37 bde Exp $
  */
 
 /*-
@@ -1297,11 +1297,15 @@ ttymodem(tp, flag)
 	if (ISSET(tp->t_state, TS_CARR_ON) && ISSET(tp->t_cflag, MDMBUF)) {
 		/*
 		 * MDMBUF: do flow control according to carrier flag
+		 * XXX TS_CAR_OFLOW doesn't do anything yet.  TS_TTSTOP
+		 * works if IXON and IXANY are clear.
 		 */
 		if (flag) {
+			CLR(tp->t_state, TS_CAR_OFLOW);
 			CLR(tp->t_state, TS_TTSTOP);
 			ttstart(tp);
-		} else if (!ISSET(tp->t_state, TS_TTSTOP)) {
+		} else if (!ISSET(tp->t_state, TS_CAR_OFLOW)) {
+			SET(tp->t_state, TS_CAR_OFLOW);
 			SET(tp->t_state, TS_TTSTOP);
 #ifdef sun4c						/* XXX */
 			(*tp->t_stop)(tp, 0);

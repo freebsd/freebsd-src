@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.28 1995/07/31 19:17:19 bde Exp $
+ * $Id: tty.h,v 1.29 1995/07/31 21:02:00 bde Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -158,6 +158,13 @@ struct tty {
 #define	TS_SNOOP	0x040000	/* Device is being snooped on. */
 #define	TS_SO_OCOMPLETE	0x080000	/* Wake up when output completes. */
 #define	TS_ZOMBIE	0x100000	/* Connection lost. */
+
+/* Hardware flow-control-invoked bits. */
+#define	TS_CAR_OFLOW	0x200000	/* For MDMBUF (XXX handle in driver). */
+#ifdef notyet
+#define	TS_CTS_OFLOW	0x400000	/* For CCTS_OFLOW. */
+#define	TS_DSR_OFLOW	0x800000	/* For CDSR_OFLOW. */
+#endif
 
 /* Character type information. */
 #define	ORDINARY	0
