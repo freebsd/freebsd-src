@@ -21,12 +21,18 @@
 
 PATH=/bin:/usr/bin:$PATH
 db=whatis	# name of whatis data base
+grepopt=''
 
 # argument test
 case $# in 0)  
 	echo "usage: `basename $0` keyword ..." >&2
 	exit 1
 	;; 
+esac
+
+case "$0" in
+	*whatis) grepopt='-w';;	# run as whatis(1)
+	*)	 grepopt='';;	# otherwise run as apropos(1)
 esac
 
 # test manpath
@@ -62,7 +68,7 @@ esac
 
 for manpage
 do
-	if grep -hi "$manpage" $mandir; then :
+	if grep -hi $grepopt "$manpage" $mandir; then :
 	else
         	echo "$manpage: nothing appropriate"
 	fi
