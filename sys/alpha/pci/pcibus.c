@@ -207,8 +207,6 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rm = &port_rman;
 		break;
 
-	case SYS_RES_DENSE:
-	case SYS_RES_BWX:
 	case SYS_RES_MEMORY:
 		rm = &mem_rman;
 		break;
@@ -225,19 +223,12 @@ pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_MEMORY:
 		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
 		rman_set_bushandle(rv, rv->r_start);
-		rman_set_virtual(rv, (void *) rv->r_start); /* maybe NULL? */
-		break;
-
-	case SYS_RES_DENSE:
-		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
-		rman_set_bushandle(rv, rv->r_start);
-		rman_set_virtual(rv, pci_cvt_to_dense(rv->r_start));
-		break;
-
-	case SYS_RES_BWX:
-		rman_set_bustag(rv, ALPHA_BUS_SPACE_MEM);
-		rman_set_bushandle(rv, rv->r_start);
-		rman_set_virtual(rv, pci_cvt_to_bwx(rv->r_start));
+		if (flags & PCI_RF_DENSE)
+			rman_set_virtual(rv, pci_cvt_to_dense(rv->r_start));
+		else if (flags & PCI_RF_BWX)
+			rman_set_virtual(rv, pci_cvt_to_bwx(rv->r_start));
+		else
+			rman_set_virtual(rv, (void *) rv->r_start); /* maybe NULL? */
 		break;
 
 	case SYS_RES_IOPORT:

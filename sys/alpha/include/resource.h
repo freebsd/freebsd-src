@@ -40,7 +40,5 @@
 #define	SYS_RES_DRQ	2	/* isa dma lines */
 #define	SYS_RES_MEMORY	3	/* i/o memory */
 #define	SYS_RES_IOPORT	4	/* i/o ports */
-#define	SYS_RES_DENSE	5	/* i/o memory in dense space */
-#define	SYS_RES_BWX	6	/* i/i memory in bwx space */
 
 #endif /* !_MACHINE_RESOURCE_H_ */
