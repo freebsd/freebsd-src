@@ -1,5 +1,5 @@
 /* GNU Objective C Runtime selector related functions
-   Copyright (C) 1993, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1997 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
 
 This file is part of GNU CC.
@@ -31,14 +31,14 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define SELECTOR_HASH_SIZE 128
 
 /* Tables mapping selector names to uid and opposite */
-static struct sarray* __objc_selector_array = 0; /* uid -> sel */
-static struct sarray* __objc_selector_names = 0; /* uid -> name */
-static cache_ptr      __objc_selector_hash  = 0; /* name -> uid */
+static struct sarray* __objc_selector_array = 0; /* uid -> sel  !T:MUTEX */
+static struct sarray* __objc_selector_names = 0; /* uid -> name !T:MUTEX */
+static cache_ptr      __objc_selector_hash  = 0; /* name -> uid !T:MUTEX */
 
 static void register_selectors_from_list(MethodList_t);
 
 /* Number of selectors stored in each of the above tables */
-int __objc_selector_max_index = 0;
+int __objc_selector_max_index = 0;              /* !T:MUTEX */
 
 void __objc_init_selector_tables()
 {
@@ -88,6 +88,71 @@ register_selectors_from_list (MethodList_t method_list)
 }
 
 
+/* Register instance methods as class methods for root classes */
+void __objc_register_instance_methods_to_class(Class class)
+{
+  MethodList_t method_list;
+  MethodList_t class_method_list;
+  int max_methods_no = 16;
+  MethodList_t new_list;
+  Method_t curr_method;
+
+  /* Only if a root class. */
+  if(class->super_class)
+    return;
+
+  /* Allocate a method list to hold the new class methods */
+  new_list = objc_calloc(sizeof(struct objc_method_list)
+			    + sizeof(struct objc_method[max_methods_no]), 1);
+  method_list = class->methods;
+  class_method_list = class->class_pointer->methods;
+  curr_method = &new_list->method_list[0];
+
+  /* Iterate through the method lists for the class */
+  while (method_list)
+    {
+      int i;
+
+      /* Iterate through the methods from this method list */
+      for (i = 0; i < method_list->method_count; i++)
+	{
+	  Method_t mth = &method_list->method_list[i];
+	  if (mth->method_name
+	      && !search_for_method_in_list (class_method_list,
+					      mth->method_name))
+	    {
+	      /* This instance method isn't a class method. 
+		  Add it into the new_list. */
+	      *curr_method = *mth;
+  
+	      /* Reallocate the method list if necessary */
+	      if(++new_list->method_count == max_methods_no)
+		new_list =
+		  objc_realloc(new_list, sizeof(struct objc_method_list)
+				+ sizeof(struct 
+					objc_method[max_methods_no += 16]));
+	      curr_method = &new_list->method_list[new_list->method_count];
+	    }
+	}
+
+      method_list = method_list->method_next;
+    }
+
+  /* If we created any new class methods
+     then attach the method list to the class */
+  if (new_list->method_count)
+    {
+      new_list =
+ 	objc_realloc(new_list, sizeof(struct objc_method_list)
+		     + sizeof(struct objc_method[new_list->method_count]));
+      new_list->method_next = class->class_pointer->methods;
+      class->class_pointer->methods = new_list;
+    }
+
+    __objc_update_dispatch_table_for_class (class->class_pointer);
+}
+
+
 /* Returns YES iff t1 and t2 have same method types, but we ignore
    the argframe layout */
 BOOL
@@ -122,11 +187,16 @@ sel_get_typed_uid (const char *name, const char *types)
   struct objc_list *l;
   sidx i;
 
+  objc_mutex_lock(__objc_runtime_mutex);
+
   i = (sidx) hash_value_for_key (__objc_selector_hash, name);
   if (i == 0)
-    return 0;
+    {
+      objc_mutex_unlock(__objc_runtime_mutex);
+      return 0;
+    }
 
-  for (l = (struct objc_list*)sarray_get (__objc_selector_array, i);
+  for (l = (struct objc_list*)sarray_get_safe (__objc_selector_array, i);
        l; l = l->tail)
     {
       SEL s = (SEL)l->head;
@@ -134,15 +204,18 @@ sel_get_typed_uid (const char *name, const char *types)
 	{
 	  if (s->sel_types == types)
 	    {
+	      objc_mutex_unlock(__objc_runtime_mutex);
 	      return s;
 	    }
 	}
       else if (sel_types_match (s->sel_types, types))
 	{
+	  objc_mutex_unlock(__objc_runtime_mutex);
 	  return s;
 	}
     }
 
+  objc_mutex_unlock(__objc_runtime_mutex);
   return 0;
 }
 
@@ -152,20 +225,29 @@ sel_get_any_typed_uid (const char *name)
 {
   struct objc_list *l;
   sidx i;
-  SEL s;
+  SEL s = NULL;
+
+  objc_mutex_lock(__objc_runtime_mutex);
 
   i = (sidx) hash_value_for_key (__objc_selector_hash, name);
   if (i == 0)
-    return 0;
+    {
+      objc_mutex_unlock(__objc_runtime_mutex);
+      return 0;
+    }
 
-  for (l = (struct objc_list*)sarray_get (__objc_selector_array, i);
+  for (l = (struct objc_list*)sarray_get_safe (__objc_selector_array, i);
        l; l = l->tail)
     {
       s = (SEL) l->head;
       if (s->sel_types)
-	return s;
+	{
+	    objc_mutex_unlock(__objc_runtime_mutex);
+	    return s;
+	}
     }
 
+  objc_mutex_unlock(__objc_runtime_mutex);
   return s;
 }
 
@@ -176,11 +258,18 @@ sel_get_any_uid (const char *name)
   struct objc_list *l;
   sidx i;
 
+  objc_mutex_lock(__objc_runtime_mutex);
+
   i = (sidx) hash_value_for_key (__objc_selector_hash, name);
   if (soffset_decode (i) == 0)
-    return 0;
+    {
+      objc_mutex_unlock(__objc_runtime_mutex);
+      return 0;
+    }
 
-  l = (struct objc_list*)sarray_get (__objc_selector_array, i);
+  l = (struct objc_list*)sarray_get_safe (__objc_selector_array, i);
+  objc_mutex_unlock(__objc_runtime_mutex);
+
   if (l == 0)
     return 0;
 
@@ -199,11 +288,16 @@ sel_get_uid (const char *name)
 const char*
 sel_get_name (SEL selector)
 {
+  const char *ret;
+
+  objc_mutex_lock(__objc_runtime_mutex);
   if ((soffset_decode((sidx)selector->sel_id) > 0)
       && (soffset_decode((sidx)selector->sel_id) <= __objc_selector_max_index))
-    return sarray_get (__objc_selector_names, (sidx) selector->sel_id);
+    ret = sarray_get_safe (__objc_selector_names, (sidx) selector->sel_id);
   else
-    return 0;
+    ret = 0;
+  objc_mutex_unlock(__objc_runtime_mutex);
+  return ret;
 }
 
 BOOL
@@ -227,10 +321,15 @@ sel_get_type (SEL selector)
 extern struct sarray* __objc_uninstalled_dtable;
 
 /* Store the passed selector name in the selector record and return its
-   selector value (value returned by sel_get_uid). */
+   selector value (value returned by sel_get_uid).
+   Assumes that the calling function has locked down __objc_runtime_mutex. */
+/* is_const parameter tells us if the name and types parameters
+   are really constant or not.  If YES then they are constant and
+   we can just store the pointers.  If NO then we need to copy
+   name and types because the pointers may disappear later on. */
 SEL
 __sel_register_typed_name (const char *name, const char *types, 
-			   struct objc_selector *orig)
+			   struct objc_selector *orig, BOOL is_const)
 {
   struct objc_selector* j;
   sidx i;
@@ -239,7 +338,7 @@ __sel_register_typed_name (const char *name, const char *types,
   i = (sidx) hash_value_for_key (__objc_selector_hash, name);
   if (soffset_decode (i) != 0)
     {
-      for (l = (struct objc_list*)sarray_get (__objc_selector_array, i);
+      for (l = (struct objc_list*)sarray_get_safe (__objc_selector_array, i);
 	   l; l = l->tail)
 	{
 	  SEL s = (SEL)l->head;
@@ -270,11 +369,17 @@ __sel_register_typed_name (const char *name, const char *types,
       if (orig)
 	j = orig;
       else
-	j = __objc_xmalloc (sizeof (struct objc_selector));
+	j = objc_malloc (sizeof (struct objc_selector));
 
       j->sel_id = (void*)i;
-      j->sel_types = (const char*)types;
-      l = (struct objc_list*)sarray_get (__objc_selector_array, i);
+      /* Can we use the pointer or must copy types?  Don't copy if NULL */
+      if ((is_const) || (types == 0))
+	j->sel_types = (const char*)types;
+      else {
+	j->sel_types = (char *) objc_malloc(strlen(types)+1);
+	strcpy((char *)j->sel_types, types);
+      }
+      l = (struct objc_list*)sarray_get_safe (__objc_selector_array, i);
     }
   else
     {
@@ -283,10 +388,16 @@ __sel_register_typed_name (const char *name, const char *types,
       if (orig)
 	j = orig;
       else
-	j = __objc_xmalloc (sizeof (struct objc_selector));
+	j = objc_malloc (sizeof (struct objc_selector));
 	
       j->sel_id = (void*)i;
-      j->sel_types = (const char*)types;
+      /* Can we use the pointer or must copy types?  Don't copy if NULL */
+      if ((is_const) || (types == 0))
+	j->sel_types = (const char*)types;
+      else {
+	j->sel_types = (char *) objc_malloc(strlen(types)+1);
+	strcpy((char *)j->sel_types, types);
+      }
       l = 0;
     }
 
@@ -295,11 +406,21 @@ __sel_register_typed_name (const char *name, const char *types,
   
   {
     int is_new = (l == 0);
+    const char *new_name;
+
+    /* Can we use the pointer or must copy name?  Don't copy if NULL */
+    if ((is_const) || (name == 0))
+      new_name = name;
+    else {
+      new_name = (char *) objc_malloc(strlen(name)+1);
+      strcpy((char *)new_name, name);
+    }
+
     l = list_cons ((void*)j, l);
-    sarray_at_put_safe (__objc_selector_names, i, (void *) name);
+    sarray_at_put_safe (__objc_selector_names, i, (void *) new_name);
     sarray_at_put_safe (__objc_selector_array, i, (void *) l);
     if (is_new)
-      hash_add (&__objc_selector_hash, (void *) name, (void *) i);
+      hash_add (&__objc_selector_hash, (void *) new_name, (void *) i);
   }
 
   sarray_realloc(__objc_uninstalled_dtable, __objc_selector_max_index+1);
@@ -310,12 +431,28 @@ __sel_register_typed_name (const char *name, const char *types,
 SEL
 sel_register_name (const char *name)
 {
-  return __sel_register_typed_name (name, 0, 0);
+  SEL ret;
+    
+  objc_mutex_lock(__objc_runtime_mutex);
+  /* Assume that name is not constant static memory and needs to be
+     copied before put into a runtime structure.  is_const == NO */
+  ret = __sel_register_typed_name (name, 0, 0, NO);
+  objc_mutex_unlock(__objc_runtime_mutex);
+  
+  return ret;
 }
 
 SEL
 sel_register_typed_name (const char *name, const char *type)
 {
-  return __sel_register_typed_name (name, type, 0);
+  SEL ret;
+    
+  objc_mutex_lock(__objc_runtime_mutex);
+  /* Assume that name and type are not constant static memory and need to
+     be copied before put into a runtime structure.  is_const == NO */
+  ret = __sel_register_typed_name (name, type, 0, NO);
+  objc_mutex_unlock(__objc_runtime_mutex);
+  
+  return ret;
 }
 

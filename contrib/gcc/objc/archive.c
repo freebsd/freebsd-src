@@ -1,5 +1,5 @@
 /* GNU Objective C Runtime archiving
-   Copyright (C) 1993, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996, 1997 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
 
 This file is part of GNU CC.
@@ -24,9 +24,14 @@ Boston, MA 02111-1307, USA.  */
    however invalidate any other reasons why the executable file might be
    covered by the GNU General Public License.  */
 
+#include "config.h"
 #include "runtime.h"
 #include "typedstream.h"
 #include "encoding.h"
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
 
 extern int fflush(FILE*);
 
@@ -36,11 +41,6 @@ extern int fflush(FILE*);
 
 #define PTR2LONG(P) (((char*)(P))-(char*)0)
 #define LONG2PTR(L) (((char*)0)+(L))
-
-#define __objc_fatal(format, args...) \
- { fprintf(stderr, "archiving: "); \
-   fprintf(stderr, format, ## args); \
-   fprintf(stderr, "\n"); abort(); }
 
 /* Declare some functions... */
 
@@ -141,7 +141,8 @@ __objc_code_unsigned_short (unsigned char* buf, unsigned short val)
 }
 
 int
-objc_write_unsigned_short (struct objc_typed_stream* stream, unsigned short value)
+objc_write_unsigned_short (struct objc_typed_stream* stream, 
+			   unsigned short value)
 {
   unsigned char buf[sizeof (unsigned short)+1];
   int len = __objc_code_unsigned_short (buf, value);
@@ -252,7 +253,8 @@ __objc_code_unsigned_long (unsigned char* buf, unsigned long val)
 }
 
 int
-objc_write_unsigned_long (struct objc_typed_stream* stream, unsigned long value)
+objc_write_unsigned_long (struct objc_typed_stream* stream, 
+			  unsigned long value)
 {
   unsigned char buf[sizeof(unsigned long)+1];
   int len = __objc_code_unsigned_long (buf, value);
@@ -315,7 +317,8 @@ objc_write_string_atomic (struct objc_typed_stream* stream,
 }
 
 static int
-objc_write_register_common (struct objc_typed_stream* stream, unsigned long key)
+objc_write_register_common (struct objc_typed_stream* stream, 
+			    unsigned long key)
 {
   unsigned char buf[sizeof (unsigned long)+2];
   int len = __objc_code_unsigned_long (buf+1, key);
@@ -359,7 +362,11 @@ __objc_write_extension (struct objc_typed_stream* stream, unsigned char code)
       return (*stream->write)(stream->physical, &buf, 1);
     }
   else 
-    abort();
+    {
+      objc_error(nil, OBJC_ERR_BAD_OPCODE,
+		 "__objc_write_extension: bad opcode %c\n", code);
+      return -1;
+    }
 }
 
 __inline__ int
@@ -392,9 +399,10 @@ objc_write_object_reference (struct objc_typed_stream* stream, id object)
 int 
 objc_write_root_object (struct objc_typed_stream* stream, id object)
 {
-  int len;
+  int len = 0;
   if (stream->writing_root_p)
-    __objc_fatal ("objc_write_root_object called recursively")
+    objc_error (nil, OBJC_ERR_RECURSE_ROOT, 
+		"objc_write_root_object called recursively");
   else
     {
       stream->writing_root_p = 1;
@@ -425,12 +433,6 @@ objc_write_object (struct objc_typed_stream* stream, id object)
       return length;
     }
 }
-
-#ifdef __alpha__
-extern int atoi (const char*);
-extern size_t strlen(const char*);
-extern size_t strcpy(char*, const char*);
-#endif
 
 __inline__ int
 __objc_write_class (struct objc_typed_stream* stream, struct objc_class* class)
@@ -488,7 +490,8 @@ objc_write_selector (struct objc_typed_stream* stream, SEL selector)
   else
     {
       int length;
-      hash_add (&stream->stream_table, LONG2PTR(key=PTR2LONG(sel_name)), (char*)sel_name);
+      hash_add (&stream->stream_table, 
+		LONG2PTR(key=PTR2LONG(sel_name)), (char*)sel_name);
       if ((length = objc_write_register_common (stream, key)))
 	return __objc_write_selector (stream, selector);
       return length;
@@ -520,8 +523,9 @@ objc_read_char (struct objc_typed_stream* stream, char* val)
 	}
 
       else
-	__objc_fatal("expected 8bit signed int, got %dbit int",
-		     (int)(buf&_B_NUMBER)*8);
+	objc_error(nil, OBJC_ERR_BAD_DATA,
+		   "expected 8bit signed int, got %dbit int",
+		   (int)(buf&_B_NUMBER)*8);
     }
   return len;
 }
@@ -541,8 +545,9 @@ objc_read_unsigned_char (struct objc_typed_stream* stream, unsigned char* val)
 	len = (*stream->read)(stream->physical, val, 1);
 
       else
-	__objc_fatal("expected 8bit unsigned int, got %dbit int",
-		     (int)(buf&_B_NUMBER)*8);
+	objc_error(nil, OBJC_ERR_BAD_DATA,
+		   "expected 8bit unsigned int, got %dbit int",
+		   (int)(buf&_B_NUMBER)*8);
     }
   return len;
 }
@@ -562,7 +567,8 @@ objc_read_short (struct objc_typed_stream* stream, short* value)
 	  int pos = 1;
 	  int nbytes = buf[0] & _B_NUMBER;
 	  if (nbytes > sizeof (short))
-	    __objc_fatal("expected short, got bigger (%dbits)", nbytes*8);
+	    objc_error(nil, OBJC_ERR_BAD_DATA,
+		       "expected short, got bigger (%dbits)", nbytes*8);
 	  len = (*stream->read)(stream->physical, buf+1, nbytes);
 	  (*value) = 0;
 	  while (pos <= nbytes)
@@ -590,7 +596,8 @@ objc_read_unsigned_short (struct objc_typed_stream* stream,
 	  int pos = 1;
 	  int nbytes = buf[0] & _B_NUMBER;
 	  if (nbytes > sizeof (short))
-	    __objc_fatal("expected short, got int or bigger");
+	    objc_error(nil, OBJC_ERR_BAD_DATA,
+		       "expected short, got int or bigger");
 	  len = (*stream->read)(stream->physical, buf+1, nbytes);
 	  (*value) = 0;
 	  while (pos <= nbytes)
@@ -616,7 +623,7 @@ objc_read_int (struct objc_typed_stream* stream, int* value)
 	  int pos = 1;
 	  int nbytes = buf[0] & _B_NUMBER;
 	  if (nbytes > sizeof (int))
-	    __objc_fatal("expected int, got bigger");
+	    objc_error(nil, OBJC_ERR_BAD_DATA, "expected int, got bigger");
 	  len = (*stream->read)(stream->physical, buf+1, nbytes);
 	  (*value) = 0;
 	  while (pos <= nbytes)
@@ -643,7 +650,7 @@ objc_read_long (struct objc_typed_stream* stream, long* value)
 	  int pos = 1;
 	  int nbytes = buf[0] & _B_NUMBER;
 	  if (nbytes > sizeof (long))
-	    __objc_fatal("expected long, got bigger");
+	    objc_error(nil, OBJC_ERR_BAD_DATA, "expected long, got bigger");
 	  len = (*stream->read)(stream->physical, buf+1, nbytes);
 	  (*value) = 0;
 	  while (pos <= nbytes)
@@ -663,7 +670,7 @@ __objc_read_nbyte_uint (struct objc_typed_stream* stream,
   unsigned char buf[sizeof(unsigned int)+1];
 
   if (nbytes > sizeof (int))
-    __objc_fatal("expected int, got bigger");
+    objc_error(nil, OBJC_ERR_BAD_DATA, "expected int, got bigger");
 
   len = (*stream->read)(stream->physical, buf, nbytes);
   (*val) = 0;
@@ -699,7 +706,7 @@ __objc_read_nbyte_ulong (struct objc_typed_stream* stream,
   unsigned char buf[sizeof(unsigned long)+1];
 
   if (nbytes > sizeof (long))
-    __objc_fatal("expected long, got bigger");
+    objc_error(nil, OBJC_ERR_BAD_DATA, "expected long, got bigger");
 
   len = (*stream->read)(stream->physical, buf, nbytes);
   (*val) = 0;
@@ -747,7 +754,7 @@ objc_read_string (struct objc_typed_stream* stream,
       case _B_SSTR:
 	{
 	  int length = buf[0]&_B_VALUE;
-	  (*string) = (char*)__objc_xmalloc(length+1);
+	  (*string) = (char*)objc_malloc(length+1);
 	  if (key)
 	    hash_add (&stream->stream_table, LONG2PTR(key), *string);
 	  len = (*stream->read)(stream->physical, *string, length);
@@ -760,7 +767,7 @@ objc_read_string (struct objc_typed_stream* stream,
 	  char *tmp;
 	  len = __objc_read_nbyte_ulong(stream, (buf[0] & _B_VALUE), &key);
 	  tmp = hash_value_for_key (stream->stream_table, LONG2PTR (key));
-	  *string = __objc_xmalloc (strlen(tmp) + 1);
+	  *string = objc_malloc (strlen(tmp) + 1);
 	  strcpy (*string, tmp);
 	}
 	break;
@@ -770,7 +777,7 @@ objc_read_string (struct objc_typed_stream* stream,
 	  unsigned int nbytes = buf[0]&_B_VALUE;
 	  len = __objc_read_nbyte_uint(stream, nbytes, &nbytes);
 	  if (len) {
-	    (*string) = (char*)__objc_xmalloc(nbytes+1);
+	    (*string) = (char*)objc_malloc(nbytes+1);
 	    if (key)
 	      hash_add (&stream->stream_table, LONG2PTR(key), *string);
 	    len = (*stream->read)(stream->physical, *string, nbytes);
@@ -780,7 +787,8 @@ objc_read_string (struct objc_typed_stream* stream,
 	break;
 	
       default:
-	__objc_fatal("expected string, got opcode %c\n", (buf[0]&_B_CODE));
+	objc_error(nil, OBJC_ERR_BAD_DATA,
+		   "expected string, got opcode %c\n", (buf[0]&_B_CODE));
       }
     }
 
@@ -825,13 +833,14 @@ objc_read_object (struct objc_typed_stream* stream, id* object)
 	  /* check null-byte */
 	  len = (*stream->read)(stream->physical, buf, 1);
 	  if (buf[0] != '\0')
-	    __objc_fatal("expected null-byte, got opcode %c", buf[0]);
+	    objc_error(nil, OBJC_ERR_BAD_DATA,
+		       "expected null-byte, got opcode %c", buf[0]);
 	}
 
       else if ((buf[0]&_B_CODE) == _B_UCOMM)
 	{
 	  if (key)
-	    __objc_fatal("cannot register use upcode...");
+	    objc_error(nil, OBJC_ERR_BAD_KEY, "cannot register use upcode...");
 	  len = __objc_read_nbyte_ulong(stream, (buf[0] & _B_VALUE), &key);
 	  (*object) = hash_value_for_key (stream->object_table, LONG2PTR(key));
 	}
@@ -840,20 +849,24 @@ objc_read_object (struct objc_typed_stream* stream, id* object)
 	{
 	  struct objc_list* other;
 	  len = objc_read_unsigned_long (stream, &key);
-	  other = (struct objc_list*)hash_value_for_key (stream->object_refs, LONG2PTR(key));
-	  hash_add (&stream->object_refs, LONG2PTR(key), (void*)list_cons(object, other));
+	  other = (struct objc_list*)hash_value_for_key (stream->object_refs, 
+							 LONG2PTR(key));
+	  hash_add (&stream->object_refs, LONG2PTR(key), 
+		    (void*)list_cons(object, other));
 	}
 
       else if (buf[0] == (_B_EXT | _BX_OBJROOT)) /* a root object */
 	{
 	  if (key)
-	    __objc_fatal("cannot register root object...");
+	    objc_error(nil, OBJC_ERR_BAD_KEY,
+		       "cannot register root object...");
 	  len = objc_read_object (stream, object);
 	  __objc_finish_read_root_object (stream);
 	}
 
       else
-	__objc_fatal("expected object, got opcode %c", buf[0]);
+	objc_error(nil, OBJC_ERR_BAD_DATA,
+		   "expected object, got opcode %c", buf[0]);
     }
   return len;
 }
@@ -881,7 +894,7 @@ objc_read_class (struct objc_typed_stream* stream, Class* class)
 	  /* get class */
 	  len = objc_read_string (stream, &class_name);
 	  (*class) = objc_get_class(class_name);
-	  free (class_name);
+	  objc_free(class_name);
 
 	  /* register */
 	  if (key)
@@ -894,15 +907,17 @@ objc_read_class (struct objc_typed_stream* stream, Class* class)
       else if ((buf[0]&_B_CODE) == _B_UCOMM)
 	{
 	  if (key)
-	    __objc_fatal("cannot register use upcode...");
+	    objc_error(nil, OBJC_ERR_BAD_KEY, "cannot register use upcode...");
 	  len = __objc_read_nbyte_ulong(stream, (buf[0] & _B_VALUE), &key);
 	  (*class) = hash_value_for_key (stream->stream_table, LONG2PTR(key));
 	  if (!*class)
-	    __objc_fatal("cannot find class for key %lu", key);
+	    objc_error(nil, OBJC_ERR_BAD_CLASS,
+		       "cannot find class for key %lu", key);
 	}
 
       else
-	__objc_fatal("expected class, got opcode %c", buf[0]);
+	objc_error(nil, OBJC_ERR_BAD_DATA,
+		   "expected class, got opcode %c", buf[0]);
     }
   return len;
 }
@@ -936,7 +951,7 @@ objc_read_selector (struct objc_typed_stream* stream, SEL* selector)
 	    }
 	  else 
 	    (*selector) = sel_get_any_uid(selector_name);
-	  free (selector_name);
+	  objc_free(selector_name);
 
 	  /* register */
 	  if (key)
@@ -946,13 +961,15 @@ objc_read_selector (struct objc_typed_stream* stream, SEL* selector)
       else if ((buf[0]&_B_CODE) == _B_UCOMM)
 	{
 	  if (key)
-	    __objc_fatal("cannot register use upcode...");
+	    objc_error(nil, OBJC_ERR_BAD_KEY, "cannot register use upcode...");
 	  len = __objc_read_nbyte_ulong(stream, (buf[0] & _B_VALUE), &key);
-	  (*selector) = hash_value_for_key (stream->stream_table, LONG2PTR(key));
+	  (*selector) = hash_value_for_key (stream->stream_table, 
+					    LONG2PTR(key));
 	}
 
       else
-	__objc_fatal("expected selector, got opcode %c", buf[0]);
+	objc_error(nil, OBJC_ERR_BAD_DATA,
+		   "expected selector, got opcode %c", buf[0]);
     }
   return len;
 }
@@ -1019,13 +1036,15 @@ objc_write_type(TypedStream* stream, const char* type, const void* data)
     break;
 
   case _C_ATOM:
-    return objc_write_string_atomic (stream, *(char**)data, strlen(*(char**)data));
+    return objc_write_string_atomic (stream, *(char**)data, 
+				     strlen(*(char**)data));
     break;
 
   case _C_ARY_B:
     {
       int len = atoi(type+1);
-      while (isdigit(*++type));
+      while (isdigit(*++type))
+	;
       return objc_write_array (stream, type, len, data);
     }
     break; 
@@ -1034,8 +1053,9 @@ objc_write_type(TypedStream* stream, const char* type, const void* data)
     {
       int acc_size = 0;
       int align;
-      while (*type != _C_STRUCT_E && *type++ != '='); /* skip "<name>=" */
-      while (*type != _C_STRUCT_E);
+      while (*type != _C_STRUCT_E && *type++ != '=')
+	; /* skip "<name>=" */
+      while (*type != _C_STRUCT_E)
 	{
 	  align = objc_alignof_type (type);       /* padd to alignment */
 	  acc_size += ROUND (acc_size, align);
@@ -1047,8 +1067,11 @@ objc_write_type(TypedStream* stream, const char* type, const void* data)
     }
 
   default:
-    fprintf(stderr, "objc_write_type: cannot parse typespec: %s\n", type);
-    abort();
+    {
+      objc_error(nil, OBJC_ERR_BAD_TYPE,
+		 "objc_write_type: cannot parse typespec: %s\n", type);
+      return 0;
+    }
   }
 }
 
@@ -1116,7 +1139,8 @@ objc_read_type(TypedStream* stream, const char* type, void* data)
   case _C_ARY_B:
     {
       int len = atoi(type+1);
-      while (isdigit(*++type));
+      while (isdigit(*++type))
+	;
       return objc_read_array (stream, type, len, data);
     }
     break; 
@@ -1125,8 +1149,9 @@ objc_read_type(TypedStream* stream, const char* type, void* data)
     {
       int acc_size = 0;
       int align;
-      while (*type != _C_STRUCT_E && *type++ != '='); /* skip "<name>=" */
-      while (*type != _C_STRUCT_E);
+      while (*type != _C_STRUCT_E && *type++ != '=')
+	; /* skip "<name>=" */
+      while (*type != _C_STRUCT_E)
 	{
 	  align = objc_alignof_type (type);       /* padd to alignment */
 	  acc_size += ROUND (acc_size, align);
@@ -1138,8 +1163,11 @@ objc_read_type(TypedStream* stream, const char* type, void* data)
     }
 
   default:
-    fprintf(stderr, "objc_read_type: cannot parse typespec: %s\n", type);
-    abort();
+    {
+      objc_error(nil, OBJC_ERR_BAD_TYPE,
+		 "objc_read_type: cannot parse typespec: %s\n", type);
+      return 0;
+    }
   }
 }
 
@@ -1229,17 +1257,18 @@ objc_write_types (TypedStream* stream, const char* type, ...)
 	{
 	  int len = atoi(c+1);
 	  const char* t = c;
-	  while (isdigit(*++t));
+	  while (isdigit(*++t))
+	    ;
 	  res = objc_write_array (stream, t, len, va_arg(args, void*));
 	  t = objc_skip_typespec (t);
 	  if (*t != _C_ARY_E)
-	    __objc_fatal("expected `]', got: %s", t);
+	    objc_error(nil, OBJC_ERR_BAD_TYPE, "expected `]', got: %s", t);
 	}
 	break; 
 	
       default:
-	fprintf(stderr, "objc_write_types: cannot parse typespec: %s\n", type);
-	abort();
+	objc_error(nil, OBJC_ERR_BAD_TYPE, 
+		   "objc_write_types: cannot parse typespec: %s\n", type);
       }
     }
   va_end(args);
@@ -1320,17 +1349,18 @@ objc_read_types(TypedStream* stream, const char* type, ...)
 	{
 	  int len = atoi(c+1);
 	  const char* t = c;
-	  while (isdigit(*++t));
+	  while (isdigit(*++t))
+	    ;
 	  res = objc_read_array (stream, t, len, va_arg(args, void*));
 	  t = objc_skip_typespec (t);
 	  if (*t != _C_ARY_E)
-	    __objc_fatal("expected `]', got: %s", t);
+	    objc_error(nil, OBJC_ERR_BAD_TYPE, "expected `]', got: %s", t);
 	}
 	break; 
 	
       default:
-	fprintf(stderr, "objc_read_types: cannot parse typespec: %s\n", type);
-	abort();
+	objc_error(nil, OBJC_ERR_BAD_TYPE, 
+		   "objc_read_types: cannot parse typespec: %s\n", type);
       }
     }
   va_end(args);
@@ -1379,12 +1409,6 @@ objc_read_array (TypedStream* stream, const char* type,
   return 1;
 }
 
-static void
-__objc_free (void* p)
-{
-  free (p);
-}
-
 static int 
 __objc_fread(FILE* file, char* data, int len)
 {
@@ -1406,13 +1430,15 @@ __objc_feof(FILE* file)
 static int 
 __objc_no_write(FILE* file, char* data, int len)
 {
-  __objc_fatal ("TypedStream not open for writing");
+  objc_error (nil, OBJC_ERR_NO_WRITE, "TypedStream not open for writing");
+  return 0;
 }
 
 static int 
 __objc_no_read(FILE* file, char* data, int len)
 {
-  __objc_fatal ("TypedStream not open for reading");
+  objc_error (nil, OBJC_ERR_NO_READ, "TypedStream not open for reading");
+  return 0;
 }
 
 static int
@@ -1422,10 +1448,12 @@ __objc_read_typed_stream_signature (TypedStream* stream)
   int pos = 0;
   do
     (*stream->read)(stream->physical, buffer+pos, 1);
-  while (buffer[pos++] != '\0');
+  while (buffer[pos++] != '\0')
+    ;
   sscanf (buffer, "GNU TypedStream %d", &stream->version);
   if (stream->version != OBJC_TYPED_STREAM_VERSION)
-    __objc_fatal ("cannot handle TypedStream version %d", stream->version);
+    objc_error (nil, OBJC_ERR_STREAM_VERSION,
+		"cannot handle TypedStream version %d", stream->version);
   return 1;
 }
 
@@ -1450,11 +1478,12 @@ static void __objc_finish_write_root_object(struct objc_typed_stream* stream)
 static void __objc_finish_read_root_object(struct objc_typed_stream* stream)
 {
   node_ptr node;
-  struct objc_list* free_list;
   SEL awake_sel = sel_get_any_uid ("awake");
+  cache_ptr free_list = hash_new (64,
+				  (hash_func_type) hash_ptr,
+				  (compare_func_type) compare_ptrs);
 
   /* resolve object forward references */
-  free_list = list_cons(NULL, NULL);
   for (node = hash_next (stream->object_refs, NULL); node;
        node = hash_next (stream->object_refs, node))
     {
@@ -1464,13 +1493,19 @@ static void __objc_finish_read_root_object(struct objc_typed_stream* stream)
       while(reflist)
 	{
 	  *((id*)reflist->head) = object;
-          if (list_find(&free_list, reflist) == NULL)
-	    free_list = list_cons (reflist, free_list);
+	  if (hash_value_for_key (free_list,reflist) == NULL)
+	    hash_add (&free_list,reflist,reflist);
+
 	  reflist = reflist->tail;
 	}
     }
-  list_mapcar (free_list, __objc_free);
-  list_free (free_list);
+    
+  /* apply __objc_free to all objects stored in free_list */
+  for (node = hash_next (free_list, NULL); node;
+       node = hash_next (free_list, node))
+    objc_free ((void *) node->key);
+
+  hash_delete (free_list);
 
   /* empty object reference table */
   hash_delete (stream->object_refs);
@@ -1503,7 +1538,7 @@ static void __objc_finish_read_root_object(struct objc_typed_stream* stream)
 TypedStream* 
 objc_open_typed_stream (FILE* physical, int mode)
 {
-  TypedStream* s = (TypedStream*)__objc_xmalloc(sizeof(TypedStream));
+  TypedStream* s = (TypedStream*)objc_malloc(sizeof(TypedStream));
 
   s->mode = mode;
   s->physical = physical;
@@ -1590,7 +1625,7 @@ objc_close_typed_stream (TypedStream* stream)
   if (stream->type == (OBJC_MANAGED_STREAM | OBJC_FILE_STREAM))
     fclose ((FILE*)stream->physical);
 
-  free (stream);
+  objc_free(stream);
 }
 
 BOOL

@@ -39,7 +39,8 @@
 
 /* Minimum and maximum values a `signed short int' can hold.  */
 #undef SHRT_MIN
-#define SHRT_MIN (-32768)
+/* For the sake of 16 bit hosts, we may not use -32768 */
+#define SHRT_MIN (-32767-1)
 #undef SHRT_MAX
 #define SHRT_MAX 32767
 
@@ -63,7 +64,11 @@
 /* Minimum and maximum values a `signed long int' can hold.
    (Same as `int').  */
 #ifndef __LONG_MAX__
+#if defined (__alpha__) || (defined (__sparc_v9__) && defined (__arch64__))
+#define __LONG_MAX__ 9223372036854775807L
+#else
 #define __LONG_MAX__ 2147483647L
+#endif /* __alpha__ || sparc64 */
 #endif
 #undef LONG_MIN
 #define LONG_MIN (-LONG_MAX-1)

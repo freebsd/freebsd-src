@@ -1,5 +1,5 @@
 /* Generate attribute information (insn-attr.h) from machine description.
-   Copyright (C) 1991, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1994, 1996, 1998 Free Software Foundation, Inc.
    Contributed by Richard Kenner (kenner@vlsi1.ultra.nyu.edu)
 
 This file is part of GNU CC.
@@ -20,8 +20,13 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -31,12 +36,12 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free PROTO((void *));
-extern rtx read_rtx PROTO((FILE *));
-
 char *xmalloc PROTO((unsigned));
-static void fatal ();
+static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
 void fancy_abort PROTO((void));
+
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+char **insn_name_ptr = 0;
 
 /* A range of values.  */
 
@@ -60,6 +65,13 @@ struct function_unit
   struct range issue_delay;	/* Range of issue delay values.  */
 };
 
+static void extend_range PROTO((struct range *, int, int));
+static void init_range PROTO((struct range *));
+static void write_upcase PROTO((char *));
+static void gen_attr PROTO((rtx));
+static void write_units PROTO((int, struct range *, struct range *,
+			       struct range *, struct range *,
+			       struct range *));
 static void
 extend_range (range, min, max)
      struct range *range;
@@ -214,11 +226,22 @@ xrealloc (ptr, size)
 }
 
 static void
-fatal (s, a1, a2)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genattr: ");
-  fprintf (stderr, s, a1, a2);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   exit (FATAL_EXIT_CODE);
 }
@@ -274,14 +297,6 @@ from the machine description file `md'.  */\n\n");
 
   /* For compatibility, define the attribute `alternative', which is just
      a reference to the variable `which_alternative'.  */
-
-  printf("#ifndef PROTO\n");
-  printf("#if defined (USE_PROTOTYPES) ? USE_PROTOTYPES : defined (__STDC__)\n");
-  printf("#define PROTO(ARGS) ARGS\n");
-  printf("#else\n");
-  printf("#define PROTO(ARGS) ()\n");
-  printf("#endif\n");
-  printf("#endif\n");
 
   printf ("#define HAVE_ATTR_alternative\n");
   printf ("#define get_attr_alternative(insn) which_alternative\n");

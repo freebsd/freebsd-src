@@ -1,5 +1,5 @@
 /* Code for handling XREF output from GNU C++.
-   Copyright (C) 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93-97, 1998 Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -21,17 +21,13 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "config.h"
+#include "system.h"
 #include "tree.h"
-#include <stdio.h>
 #include "cp-tree.h"
 #include "input.h"
+#include "toplev.h"
 
-#include <ctype.h>
-
-extern char *getpwd ();
-
-extern char *index ();
-extern char *rindex ();
+extern char *getpwd PROTO((void));
 
 /* The character(s) used to join a directory specification (obtained with
    getwd or equivalent) with a non-absolute file name.  */
@@ -60,9 +56,6 @@ int flag_gnu_xref;
 #endif
 #ifndef FALSE
 #define FALSE 0
-#endif
-#ifndef NULL
-#define NULL 0
 #endif
 
 #define PALLOC(typ) ((typ *) calloc(1,sizeof(typ)))
@@ -128,30 +121,14 @@ static	tree		last_fndecl = NULL;
 /*	Forward definitions						*/
 /*									*/
 /************************************************************************/
-
-extern	void		GNU_xref_begin();
-extern	void		GNU_xref_end();
-extern	void		GNU_xref_file();
-extern	void		GNU_xref_start_scope();
-extern	void		GNU_xref_end_scope();
-extern	void		GNU_xref_ref();
-extern	void		GNU_xref_decl();
-extern	void		GNU_xref_call();
-extern	void		GNU_xref_function();
-extern	void		GNU_xref_assign();
-extern	void		GNU_xref_hier();
-extern	void		GNU_xref_member();
-
-static	void		gen_assign();
-static	XREF_FILE	find_file();
-static	char *		filename();
-static	char *		fctname();
-static	char *		declname();
-static	void		simplify_type();
-static	char *		fixname();
-static	void		open_xref_file();
-
-extern	char *		type_as_string();
+static	void		gen_assign PROTO((XREF_FILE, tree));
+static	XREF_FILE	find_file PROTO((char *));
+static	char *		filename PROTO((XREF_FILE));
+static	char *		fctname PROTO((tree));
+static	char *		declname PROTO((tree));
+static	void		simplify_type PROTO((char *));
+static	char *		fixname PROTO((char *, char *));
+static	void		open_xref_file PROTO((char *));
 
 /* Start cross referencing.  FILE is the name of the file we xref.  */
 
@@ -183,7 +160,7 @@ GNU_xref_end (ect)
   if (xf == NULL) return;
 
   while (cur_scope != NULL)
-    GNU_xref_end_scope(cur_scope->gid,0,0,0,0);
+    GNU_xref_end_scope(cur_scope->gid,0,0,0);
 
   doing_xref = 0;
 
@@ -275,10 +252,10 @@ GNU_xref_start_scope (id)
    TRNS is ???  */
 
 void
-GNU_xref_end_scope (id,inid,prm,keep,trns)
+GNU_xref_end_scope (id,inid,prm,keep)
    HOST_WIDE_INT id;
    HOST_WIDE_INT inid;
-   int prm,keep,trns;
+   int prm,keep;
 {
   XREF_FILE xf;
   XREF_SCOPE xs,lxs,oxs;
@@ -309,8 +286,10 @@ GNU_xref_end_scope (id,inid,prm,keep,trns)
   else if (keep == 2 || inid != 0) stype = "INTERN";
   else stype = "EXTERN";
 
-  fprintf (xref_file,"SCP %s %d %d %d %d %s\n",
-	   filename (xf), xs->start, lineno,xs->lid, inid, stype);
+  fprintf (xref_file, "SCP %s %d %d %d ",
+	   filename (xf), xs->start, lineno,xs->lid);
+  fprintf (xref_file, HOST_WIDE_INT_PRINT_DEC, inid);
+  fprintf (xref_file, " %s\n", stype);
 
   if (lxs == NULL) cur_scope = xs->outer;
   else lxs->outer = xs->outer;
@@ -343,7 +322,7 @@ GNU_xref_decl (fndecl,decl)
    tree decl;
 {
   XREF_FILE xf,xf1;
-  char *cls;
+  char *cls = 0;
   char *name;
   char buf[10240];
   int uselin;
@@ -400,7 +379,7 @@ GNU_xref_decl (fndecl,decl)
     }
   else if (TREE_CODE (decl) == TEMPLATE_DECL)
     {
-      if (DECL_TEMPLATE_IS_CLASS (decl))
+      if (TREE_CODE (DECL_RESULT (decl)) == TYPE_DECL)
 	cls = "CLASSTEMP";
       else if (TREE_CODE (DECL_RESULT (decl)) == FUNCTION_DECL)
 	cls = "FUNCTEMP";
@@ -562,6 +541,19 @@ gen_assign(xf, name)
     fprintf(xref_file, "ASG %s %d %s\n", filename(xf), lineno, s);
 }
 
+static char*
+classname (cls)
+     tree cls;
+{
+  if (cls && TREE_CODE_CLASS (TREE_CODE (cls)) == 't')
+    cls = TYPE_NAME (cls);
+  if (cls && TREE_CODE_CLASS (TREE_CODE (cls)) == 'd')
+    cls = DECL_NAME (cls);
+  if (cls && TREE_CODE (cls) == IDENTIFIER_NODE)
+    return IDENTIFIER_POINTER (cls);
+  return "?";
+}
+
 /* Output cross-reference info about a class hierarchy.
    CLS is the class type of interest.  BASE is a baseclass
    for CLS.  PUB and VIRT give the access info about
@@ -569,10 +561,11 @@ gen_assign(xf, name)
    of CLS.
 
    ??? Needs to handle nested classes.  */
+
 void
 GNU_xref_hier(cls, base, pub, virt, frnd)
-   char *cls;
-   char *base;
+   tree cls;
+   tree base;
    int pub;
    int virt;
    int frnd;
@@ -584,7 +577,8 @@ GNU_xref_hier(cls, base, pub, virt, frnd)
   if (xf == NULL) return;
 
   fprintf(xref_file, "HIE %s %d %s %s %d %d %d\n",
-	  filename(xf), lineno, cls, base, pub, virt, frnd);
+	  filename(xf), lineno, classname (cls), classname (base), 
+	  pub, virt, frnd);
 }
 
 /* Output cross-reference info about class members.  CLS
@@ -599,7 +593,9 @@ GNU_xref_member(cls, fld)
   char *prot;
   int confg, pure;
   char *d;
+#ifdef XREF_SHORT_MEMBER_NAMES
   int i;
+#endif
   char buf[1024], bufa[1024];
 
   if (!doing_xref) return;
@@ -621,8 +617,10 @@ GNU_xref_member(cls, fld)
     pure = 1;
 
   d = IDENTIFIER_POINTER(cls);
-  sprintf(buf, "%d%s", strlen(d), d);
+  sprintf(buf, "%d%s", (int) strlen(d), d);
+#ifdef XREF_SHORT_MEMBER_NAMES
   i = strlen(buf);
+#endif
   strcpy(bufa, declname(fld));
 
 #ifdef XREF_SHORT_MEMBER_NAMES
@@ -643,7 +641,7 @@ GNU_xref_member(cls, fld)
 	  filename(xf), fld->decl.linenum, d,  bufa,  prot,
 	  (TREE_CODE (fld) == FUNCTION_DECL ? 0 : 1),
 	  (DECL_INLINE (fld) ? 1 : 0),
-	  (DECL_FRIEND_P(fld) ? 1 : 0),
+	  (DECL_LANG_SPECIFIC(fld) && DECL_FRIEND_P(fld) ? 1 : 0),
 	  (DECL_VINDEX(fld) ? 1 : 0),
 	  (TREE_STATIC(fld) ? 1 : 0),
 	  pure, confg);
@@ -733,7 +731,7 @@ simplify_type(typ)
   int lvl, i;
 
   i = strlen(typ);
-  while (i > 0 && isspace(typ[i-1])) typ[--i] = 0;
+  while (i > 0 && ISSPACE(typ[i-1])) typ[--i] = 0;
 
   if (i > 7 && STREQL(&typ[i-5], "const"))
     {

@@ -1,5 +1,5 @@
 /* Expands front end tree to back end RTL for GNU C-Compiler
-   Copyright (C) 1987, 88, 89, 92, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 89, 92-97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -34,13 +34,12 @@ Boston, MA 02111-1307, USA.  */
    after parsing the then-clause.  */
 
 #include "config.h"
-
-#include <stdio.h>
-#include <ctype.h>
+#include "system.h"
 
 #include "rtl.h"
 #include "tree.h"
 #include "flags.h"
+#include "except.h"
 #include "function.h"
 #include "insn-flags.h"
 #include "insn-config.h"
@@ -51,16 +50,17 @@ Boston, MA 02111-1307, USA.  */
 #include "loop.h"
 #include "recog.h"
 #include "machmode.h"
-
-#include "bytecode.h"
-#include "bc-typecd.h"
-#include "bc-opcode.h"
-#include "bc-optab.h"
-#include "bc-emit.h"
+#include "toplev.h"
+#include "output.h"
 
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 struct obstack stmt_obstack;
+
+/* Assume that case vectors are not pc-relative.  */
+#ifndef CASE_VECTOR_PC_RELATIVE
+#define CASE_VECTOR_PC_RELATIVE 0
+#endif
 
 /* Filename and line number of last line-number note,
    whether we actually emitted it or not.  */
@@ -106,10 +106,6 @@ extern rtx cleanup_label;
 
 extern rtx return_label;
 
-/* List (chain of EXPR_LISTs) of pseudo-regs of SAVE_EXPRs.
-   So we can mark them all live at the end of the function, if nonopt.  */
-extern rtx save_expr_regs;
-
 /* Offset to end of allocated area of stack frame.
    If stack grows down, this is the address of the last stack slot allocated.
    If stack grows up, this is the address for the next slot.  */
@@ -131,15 +127,6 @@ extern rtx arg_pointer_save_area;
 
 /* Chain of all RTL_EXPRs that have insns in them.  */
 extern tree rtl_expr_chain;
-
-#if 0  /* Turned off because 0 seems to work just as well.  */
-/* Cleanup lists are required for binding levels regardless of whether
-   that binding level has cleanups or not.  This node serves as the
-   cleanup list whenever an empty list is required.  */
-static tree empty_cleanup_list;
-#endif
-
-extern void (*interim_eh_hook)	PROTO((tree));
 
 /* Functions and data structures for expanding case statements.  */
 
@@ -147,8 +134,9 @@ extern void (*interim_eh_hook)	PROTO((tree));
    statements.  We handle "range" labels; for a single-value label
    as in C, the high and low limits are the same.
 
-   A chain of case nodes is initially maintained via the RIGHT fields
-   in the nodes.  Nodes with higher case values are later in the list.
+   An AVL tree of case nodes is initially created, and later transformed
+   to a list linked via the RIGHT fields in the nodes.  Nodes with
+   higher case values are later in the list.
 
    Switch statements can be output in one of two forms.  A branch table
    is used if there are more than a few labels and the labels are dense
@@ -172,6 +160,7 @@ struct case_node
   tree			low;	/* Lowest index value for this label */
   tree			high;	/* Highest index value for this label */
   tree			code_label; /* Label to jump to when node matches */
+  int			balance;
 };
 
 typedef struct case_node case_node;
@@ -224,7 +213,7 @@ struct nesting
 	     and no `else' has been seen yet.  */
 	  rtx endif_label;
 	  /* Label for the end of this alternative.
-	     This may be the end of the if or the next else/elseif. */
+	     This may be the end of the if or the next else/elseif.  */
 	  rtx next_label;
 	} cond;
       /* For loops.  */
@@ -247,8 +236,7 @@ struct nesting
 	  /* Sequence number of this binding contour within the function,
 	     in order of entry.  */
 	  int block_start_count;
-	  /* Nonzero => value to restore stack to on exit.  Complemented by
-	     bc_stack_level (see below) when generating bytecodes. */
+	  /* Nonzero => value to restore stack to on exit.  */
 	  rtx stack_level;
 	  /* The NOTE that starts this contour.
 	     Used by expand_goto to check whether the destination
@@ -265,7 +253,7 @@ struct nesting
 	     as they were at the locus where this block appears.
 	     There is an element for each containing block,
 	     ordered innermost containing block first.
-	     The tail of this list can be 0 (was empty_cleanup_list),
+	     The tail of this list can be 0,
 	     if all remaining elements would be empty lists.
 	     The element's TREE_VALUE is the cleanup-list of that block,
 	     which may be null.  */
@@ -275,8 +263,28 @@ struct nesting
 	  struct label_chain *label_chain;
 	  /* Number of function calls seen, as of start of this block.  */
 	  int function_call_count;
-	  /* Bytecode specific: stack level to restore stack to on exit.  */
-	  int bc_stack_level;
+	  /* Nonzero if this is associated with a EH region.  */
+	  int exception_region;
+	  /* The saved target_temp_slot_level from our outer block.
+	     We may reset target_temp_slot_level to be the level of
+	     this block, if that is done, target_temp_slot_level
+	     reverts to the saved target_temp_slot_level at the very
+	     end of the block.  */
+	  int target_temp_slot_level;
+	  /* True if we are currently emitting insns in an area of
+	     output code that is controlled by a conditional
+	     expression.  This is used by the cleanup handling code to
+	     generate conditional cleanup actions.  */
+	  int conditional_code;
+	  /* A place to move the start of the exception region for any
+	     of the conditional cleanups, must be at the end or after
+	     the start of the last unconditional cleanup, and before any
+	     conditional branch points.  */
+	  rtx last_unconditional_cleanup;
+	  /* When in a conditional context, this is the specific
+	     cleanup list associated with last_unconditional_cleanup,
+	     where we place the conditionalized cleanups.  */
+	  tree *cleanup_ptr;
 	} block;
       /* For switch (C) or case (Pascal) statements,
 	 and also for dummies (see `expand_start_case_dummy').  */
@@ -285,14 +293,9 @@ struct nesting
 	  /* The insn after which the case dispatch should finally
 	     be emitted.  Zero for a dummy.  */
 	  rtx start;
-	  /* For bytecodes, the case table is in-lined right in the code.
-	     A label is needed for skipping over this block. It is only
-	     used when generating bytecodes. */
-	  rtx skip_label;
-	  /* A list of case labels, kept in ascending order by value
-	     as the list is built.
-	     During expand_end_case, this list may be rearranged into a
-	     nearly balanced binary tree.  */
+	  /* A list of case labels; it is first built as an AVL tree.
+	     During expand_end_case, this is converted to a list, and may be
+	     rearranged into a nearly balanced binary tree.  */
 	  struct case_node *case_list;
 	  /* Label to jump to if no case matches.  */
 	  tree default_label;
@@ -304,8 +307,10 @@ struct nesting
 	  int num_ranges;
 	  /* Name of this kind of statement, for warnings.  */
 	  char *printname;
-	  /* Nonzero if a case label has been seen in this case stmt.  */
-	  char seenlabel;
+	  /* Used to save no_line_numbers till we see the first case label.
+	     We set this to -1 when we see the first case label in this
+	     case statement.  */
+	  int line_number_status;
 	} case_stmt;
     } data;
 };
@@ -395,27 +400,12 @@ struct goto_fixup
   rtx stack_level;
   /* List of lists of cleanup expressions to be run by this goto.
      There is one element for each block that this goto is within.
-     The tail of this list can be 0 (was empty_cleanup_list),
+     The tail of this list can be 0,
      if all remaining elements would be empty.
      The TREE_VALUE contains the cleanup list of that block as of the
      time this goto was seen.
      The TREE_ADDRESSABLE flag is 1 for a block that has been exited.  */
   tree cleanup_list_list;
-
-  /* Bytecode specific members follow */
-
-  /* The label that this jump is jumping to, or 0 for break, continue
-     or return.  */
-  struct bc_label *bc_target;
-
-  /* The label we use for the fixup patch */
-  struct bc_label *label;
-
-  /* True (non-0) if fixup has been handled */
-  int bc_handled:1;
-
-  /* Like stack_level above, except refers to the interpreter stack */
-  int bc_stack_level;
 };
 
 static struct goto_fixup *goto_fixup_chain;
@@ -429,33 +419,21 @@ struct label_chain
   struct label_chain *next;
   tree label;
 };
+
+
+/* Non-zero if we are using EH to handle cleanus.  */
+static int using_eh_for_cleanups_p = 0;
+
+
 static void expand_goto_internal	PROTO((tree, rtx, rtx));
-static void bc_expand_goto_internal	PROTO((enum bytecode_opcode,
-					       struct bc_label *, tree));
 static int expand_fixup			PROTO((tree, rtx, rtx));
-static void bc_expand_fixup		PROTO((enum bytecode_opcode,
-					       struct bc_label *, int));
 static void fixup_gotos			PROTO((struct nesting *, rtx, tree,
 					       rtx, int));
-static void bc_fixup_gotos		PROTO((struct nesting *, int, tree,
-					       rtx, int));
-static void bc_expand_start_cond	PROTO((tree, int));
-static void bc_expand_end_cond		PROTO((void));
-static void bc_expand_start_else	PROTO((void));
-static void bc_expand_end_loop		PROTO((void));
-static void bc_expand_end_bindings	PROTO((tree, int, int));
-static void bc_expand_decl		PROTO((tree, tree));
-static void bc_expand_variable_local_init PROTO((tree));
-static void bc_expand_decl_init		PROTO((tree));
 static void expand_null_return_1	PROTO((rtx, int));
 static void expand_value_return		PROTO((rtx));
 static int tail_recursion_args		PROTO((tree, tree));
 static void expand_cleanups		PROTO((tree, tree, int, int));
-static void bc_expand_start_case	PROTO((struct nesting *, tree,
-					       tree, char *));
-static int bc_pushcase			PROTO((tree, tree));
-static void bc_check_for_full_enumeration_handling PROTO((tree));
-static void bc_expand_end_case		PROTO((tree));
+static void check_seenlabel		PROTO((void));
 static void do_jump_if_equal		PROTO((rtx, rtx, rtx, int));
 static int estimate_case_costs		PROTO((case_node_ptr));
 static void group_case_nodes		PROTO((case_node_ptr));
@@ -466,17 +444,20 @@ static int node_has_high_bound		PROTO((case_node_ptr, tree));
 static int node_is_bounded		PROTO((case_node_ptr, tree));
 static void emit_jump_if_reachable	PROTO((rtx));
 static void emit_case_nodes		PROTO((rtx, case_node_ptr, rtx, tree));
-
-extern rtx bc_allocate_local ();
-extern rtx bc_allocate_variable_array ();
+static int add_case_node		PROTO((tree, tree, tree, tree *));
+static struct case_node *case_tree2list	PROTO((case_node *, case_node *));
 
+void
+using_eh_for_cleanups ()
+{
+  using_eh_for_cleanups_p = 1;
+}
+
 void
 init_stmt ()
 {
   gcc_obstack_init (&stmt_obstack);
-#if 0
-  empty_cleanup_list = build_tree_list (NULL_TREE, NULL_TREE);
-#endif
+  init_eh ();
 }
 
 void
@@ -499,6 +480,8 @@ init_stmt_for_function ()
   /* We are not processing a ({...}) grouping.  */
   expr_stmts_for_value = 0;
   last_expr_type = 0;
+
+  init_eh_for_function ();
 }
 
 void
@@ -519,6 +502,7 @@ save_stmt_status (p)
   p->emit_filename = emit_filename;
   p->emit_lineno = emit_lineno;
   p->goto_fixup_chain = goto_fixup_chain;
+  save_eh_status (p);
 }
 
 void
@@ -539,6 +523,7 @@ restore_stmt_status (p)
   emit_filename = p->emit_filename;
   emit_lineno = p->emit_lineno;
   goto_fixup_chain = p->goto_fixup_chain;
+  restore_eh_status (p);
 }
 
 /* Emit a no-op instruction.  */
@@ -548,15 +533,12 @@ emit_nop ()
 {
   rtx last_insn;
 
-  if (!output_bytecode)
-    {
-      last_insn = get_last_insn ();
-      if (!optimize
-	  && (GET_CODE (last_insn) == CODE_LABEL
-	      || (GET_CODE (last_insn) == NOTE
-		  && prev_real_insn (last_insn) == 0)))
-	emit_insn (gen_nop ());
-    }
+  last_insn = get_last_insn ();
+  if (!optimize
+      && (GET_CODE (last_insn) == CODE_LABEL
+	  || (GET_CODE (last_insn) == NOTE
+	      && prev_real_insn (last_insn) == 0)))
+    emit_insn (gen_nop ());
 }
 
 /* Return the rtx-label that corresponds to a LABEL_DECL,
@@ -593,23 +575,20 @@ void
 expand_computed_goto (exp)
      tree exp;
 {
-  if (output_bytecode)
-    {
-      bc_expand_expr (exp);
-      bc_emit_instruction (jumpP);
-    }
-  else
-    {
-      rtx x = expand_expr (exp, NULL_RTX, VOIDmode, 0);
+  rtx x = expand_expr (exp, NULL_RTX, VOIDmode, 0);
 
 #ifdef POINTERS_EXTEND_UNSIGNED
-      x = convert_memory_address (Pmode, x);
+  x = convert_memory_address (Pmode, x);
 #endif
 
-      emit_queue ();
-      do_pending_stack_adjust ();
-      emit_indirect_jump (x);
-    }
+  emit_queue ();
+  /* Be sure the function is executable.  */
+  if (flag_check_memory_usage)
+    emit_library_call (chkr_check_exec_libfunc, 1,
+		       VOIDmode, 1, x, ptr_mode);
+
+  do_pending_stack_adjust ();
+  emit_indirect_jump (x);
 }
 
 /* Handle goto statements and the labels that they can go to.  */
@@ -630,15 +609,6 @@ expand_label (label)
      tree label;
 {
   struct label_chain *p;
-
-  if (output_bytecode)
-    {
-      if (! DECL_RTL (label))
-	DECL_RTL (label) = bc_gen_rtx ((char *) 0, 0, bc_get_bytecode_label ());
-      if (! bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (DECL_RTL (label))))
-	error ("multiply defined label");
-      return;
-    }
 
   do_pending_stack_adjust ();
   emit_label (label_rtx (label));
@@ -683,18 +653,12 @@ expand_goto (label)
 {
   tree context;
 
-  if (output_bytecode)
-    {
-      expand_goto_internal (label, label_rtx (label), NULL_RTX);
-      return;
-    }
-
   /* Check for a nonlocal goto to a containing function.  */
   context = decl_function_context (label);
   if (context != 0 && context != current_function_decl)
     {
       struct function *p = find_function_data (context);
-      rtx label_ref = gen_rtx (LABEL_REF, Pmode, label_rtx (label));
+      rtx label_ref = gen_rtx_LABEL_REF (Pmode, label_rtx (label));
       rtx temp;
 
       p->has_nonlocal_label = 1;
@@ -747,9 +711,9 @@ expand_goto (label)
 	  emit_move_insn (static_chain_rtx, label_ref);
 	  /* USE of hard_frame_pointer_rtx added for consistency; not clear if
 	     really needed.  */
-	  emit_insn (gen_rtx (USE, VOIDmode, hard_frame_pointer_rtx));
-	  emit_insn (gen_rtx (USE, VOIDmode, stack_pointer_rtx));
-	  emit_insn (gen_rtx (USE, VOIDmode, static_chain_rtx));
+	  emit_insn (gen_rtx_USE (VOIDmode, hard_frame_pointer_rtx));
+	  emit_insn (gen_rtx_USE (VOIDmode, stack_pointer_rtx));
+	  emit_insn (gen_rtx_USE (VOIDmode, static_chain_rtx));
 	  emit_indirect_jump (temp);
 	}
      }
@@ -770,16 +734,6 @@ expand_goto_internal (body, label, last_insn)
 {
   struct nesting *block;
   rtx stack_level = 0;
-
-  /* NOTICE!  If a bytecode instruction other than `jump' is needed,
-     then the caller has to call bc_expand_goto_internal()
-     directly. This is rather an exceptional case, and there aren't
-     that many places where this is necessary. */
-  if (output_bytecode)
-    {
-      expand_goto_internal (body, label, last_insn);
-      return;
-    }
 
   if (GET_CODE (label) != CODE_LABEL)
     abort ();
@@ -809,8 +763,9 @@ expand_goto_internal (body, label, last_insn)
 
       if (stack_level)
 	{
-	  /* Ensure stack adjust isn't done by emit_jump, as this would clobber
-	     the stack pointer.  This one should be deleted as dead by flow. */
+	  /* Ensure stack adjust isn't done by emit_jump, as this
+	     would clobber the stack pointer.  This one should be
+	     deleted as dead by flow.  */
 	  clear_pending_stack_adjust ();
 	  do_pending_stack_adjust ();
 	  emit_stack_restore (SAVE_BLOCK, stack_level, NULL_RTX);
@@ -831,78 +786,6 @@ expand_goto_internal (body, label, last_insn)
     }
 
   emit_jump (label);
-}
-
-/* Generate a jump with OPCODE to the given bytecode LABEL which is
-   found within BODY. */
-
-static void
-bc_expand_goto_internal (opcode, label, body)
-     enum bytecode_opcode opcode;
-     struct bc_label *label;
-     tree body;
-{
-  struct nesting *block;
-  int stack_level = -1;
-
-  /* If the label is defined, adjust the stack as necessary.
-     If it's not defined, we have to push the reference on the
-     fixup list. */
-
-  if (label->defined)
-    {
-
-      /* Find the innermost pending block that contains the label.
-	 (Check containment by comparing bytecode uids.)  Then restore the
-	 outermost stack level within that block.  */
-
-      for (block = block_stack; block; block = block->next)
-	{
-	  if (BYTECODE_BC_LABEL (block->data.block.first_insn)->uid < label->uid)
-	    break;
-	  if (block->data.block.bc_stack_level)
-	    stack_level = block->data.block.bc_stack_level;
-
-	  /* Execute the cleanups for blocks we are exiting.  */
-	  if (block->data.block.cleanups != 0)
-	    {
-	      expand_cleanups (block->data.block.cleanups, NULL_TREE, 1, 1);
-	      do_pending_stack_adjust ();
-	    }
-	}
-
-      /* Restore the stack level. If we need to adjust the stack, we
-	 must do so after the jump, since the jump may depend on
-	 what's on the stack.  Thus, any stack-modifying conditional
-	 jumps (these are the only ones that rely on what's on the
-	 stack) go into the fixup list. */
-
-      if (stack_level >= 0
-	  && stack_depth != stack_level
-	  && opcode != jump)
-
-	bc_expand_fixup (opcode, label, stack_level);
-      else
-	{
-	  if (stack_level >= 0)
-	    bc_adjust_stack (stack_depth - stack_level);
-
-	  if (body && DECL_BIT_FIELD (body))
-	    error ("jump to `%s' invalidly jumps into binding contour",
-		   IDENTIFIER_POINTER (DECL_NAME (body)));
-	  
-	  /* Emit immediate jump */
-	  bc_emit_bytecode (opcode);
-	  bc_emit_bytecode_labelref (label);
-	  
-#ifdef DEBUG_PRINT_CODE
-	  fputc ('\n', stderr);
-#endif
-	}
-    }
-  else
-    /* Put goto in the fixup list */
-    bc_expand_fixup (opcode, label, stack_level);
 }
 
 /* Generate if necessary a fixup for a goto
@@ -1002,29 +885,31 @@ expand_fixup (tree_label, rtl_label, last_insn)
 	 code which we might later insert at this point in the insn
 	 stream.  Also, the BLOCK node will be the parent (i.e. the
 	 `SUPERBLOCK') of any other BLOCK nodes which we might create
-	 later on when we are expanding the fixup code.  */
+	 later on when we are expanding the fixup code.
+
+	 Note that optimization passes (including expand_end_loop)
+	 might move the *_BLOCK notes away, so we use a NOTE_INSN_DELETED
+	 as a placeholder.  */
 
       {
         register rtx original_before_jump
           = last_insn ? last_insn : get_last_insn ();
+	rtx start;
 
         start_sequence ();
         pushlevel (0);
-        fixup->before_jump = emit_note (NULL_PTR, NOTE_INSN_BLOCK_BEG);
+        start = emit_note (NULL_PTR, NOTE_INSN_BLOCK_BEG);
+	fixup->before_jump = emit_note (NULL_PTR, NOTE_INSN_DELETED);
         last_block_end_note = emit_note (NULL_PTR, NOTE_INSN_BLOCK_END);
         fixup->context = poplevel (1, 0, 0);  /* Create the BLOCK node now! */
         end_sequence ();
-        emit_insns_after (fixup->before_jump, original_before_jump);
+        emit_insns_after (start, original_before_jump);
       }
 
       fixup->block_start_count = block_start_count;
       fixup->stack_level = 0;
       fixup->cleanup_list_list
-	= (((block->data.block.outer_cleanups
-#if 0
-	     && block->data.block.outer_cleanups != empty_cleanup_list
-#endif
-	     )
+	= ((block->data.block.outer_cleanups
 	    || block->data.block.cleanups)
 	   ? tree_cons (NULL_TREE, block->data.block.cleanups,
 			block->data.block.outer_cleanups)
@@ -1037,34 +922,6 @@ expand_fixup (tree_label, rtl_label, last_insn)
 }
 
 
-/* Generate bytecode jump with OPCODE to a fixup routine that links to LABEL.
-   Make the fixup restore the stack level to STACK_LEVEL.  */
-
-static void
-bc_expand_fixup (opcode, label, stack_level)
-     enum bytecode_opcode opcode;
-     struct bc_label *label;
-     int stack_level;
-{
-  struct goto_fixup *fixup
-    = (struct goto_fixup *) oballoc (sizeof (struct goto_fixup));
-
-  fixup->label  = bc_get_bytecode_label ();
-  fixup->bc_target = label;
-  fixup->bc_stack_level = stack_level;
-  fixup->bc_handled = FALSE;
-
-  fixup->next = goto_fixup_chain;
-  goto_fixup_chain = fixup;
-
-  /* Insert a jump to the fixup code */
-  bc_emit_bytecode (opcode);
-  bc_emit_bytecode_labelref (fixup->label);
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
-}
 
 /* Expand any needed fixups in the outputmost binding level of the
    function.  FIRST_INSN is the first insn in the function.  */
@@ -1098,15 +955,6 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
      int dont_jump_in;
 {
   register struct goto_fixup *f, *prev;
-
-  if (output_bytecode)
-    {
-      /* ??? The second arg is the bc stack level, which is not the same
-	 as STACK_LEVEL.  I have no idea what should go here, so I'll
-	 just pass 0.  */
-      bc_fixup_gotos (thisblock, 0, cleanup_list, first_insn, dont_jump_in);
-      return;
-    }
 
   /* F is the fixup we are considering; PREV is the previous one.  */
   /* We run this loop in two passes so that cleanups of exited blocks
@@ -1148,12 +996,12 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 	      && (after_label == 0
 		  || INSN_UID (first_insn) < INSN_UID (after_label))
 	      && INSN_UID (first_insn) > INSN_UID (f->before_jump)
-	      && ! DECL_REGISTER (f->target))
+	      && ! DECL_ERROR_ISSUED (f->target))
 	    {
 	      error_with_decl (f->target,
 			       "label `%s' used before containing binding contour");
 	      /* Prevent multiple errors for one label.  */
-	      DECL_REGISTER (f->target) = 1;
+	      DECL_ERROR_ISSUED (f->target) = 1;
 	    }
 
 	  /* We will expand the cleanups into a sequence of their own and
@@ -1213,7 +1061,7 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 
   /* For any still-undefined labels, do the cleanups for this block now.
      We must do this now since items in the cleanup list may go out
-     of scope when the block ends. */
+     of scope when the block ends.  */
   for (prev = 0, f = goto_fixup_chain; f; prev = f, f = f->next)
     if (f->before_jump != 0
 	&& PREV_INSN (f->target_rtl) == 0
@@ -1243,8 +1091,9 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 	      cleanup_insns = get_insns ();
 	      poplevel (1, 0, 0);
 	      end_sequence ();
-	      f->before_jump
-		= emit_insns_after (cleanup_insns, f->before_jump);
+	      if (cleanup_insns != 0)
+		f->before_jump
+		  = emit_insns_after (cleanup_insns, f->before_jump);
 
 	      f->cleanup_list_list = TREE_CHAIN (lists);
 	    }
@@ -1255,70 +1104,6 @@ fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
 }
 
 
-/* When exiting a binding contour, process all pending gotos requiring fixups.
-   Note: STACK_DEPTH is not altered.
-
-   The arguments are currently not used in the bytecode compiler, but we may
-   need them one day for languages other than C.
-
-   THISBLOCK is the structure that describes the block being exited.
-   STACK_LEVEL is the rtx for the stack level to restore exiting this contour.
-   CLEANUP_LIST is a list of expressions to evaluate on exiting this contour.
-   FIRST_INSN is the insn that began this contour.
-
-   Gotos that jump out of this contour must restore the
-   stack level and do the cleanups before actually jumping.
-
-   DONT_JUMP_IN nonzero means report error there is a jump into this
-   contour from before the beginning of the contour.
-   This is also done if STACK_LEVEL is nonzero.  */
-
-static void
-bc_fixup_gotos (thisblock, stack_level, cleanup_list, first_insn, dont_jump_in)
-     struct nesting *thisblock;
-     int stack_level;
-     tree cleanup_list;
-     rtx first_insn;
-     int dont_jump_in;
-{
-  register struct goto_fixup *f, *prev;
-  int saved_stack_depth;
-
-  /* F is the fixup we are considering; PREV is the previous one.  */
-
-  for (prev = 0, f = goto_fixup_chain; f; prev = f, f = f->next)
-    {
-      /* Test for a fixup that is inactive because it is already handled.  */
-      if (f->before_jump == 0)
-	{
-	  /* Delete inactive fixup from the chain, if that is easy to do.  */
-	  if (prev)
-	    prev->next = f->next;
-	}
-
-      /* Emit code to restore the stack and continue */
-      bc_emit_bytecode_labeldef (f->label);
-
-      /* Save stack_depth across call, since bc_adjust_stack () will alter
-         the perceived stack depth via the instructions generated. */
-
-      if (f->bc_stack_level >= 0)
-	{
-	  saved_stack_depth = stack_depth;
-	  bc_adjust_stack (stack_depth - f->bc_stack_level);
-	  stack_depth = saved_stack_depth;
-	}
-
-      bc_emit_bytecode (jump);
-      bc_emit_bytecode_labelref (f->bc_target);
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
-    }
-
-  goto_fixup_chain = NULL;
-}
 
 /* Generate RTL for an asm statement (explicit assembler code).
    BODY is a STRING_CST node containing the assembler code text,
@@ -1328,17 +1113,17 @@ void
 expand_asm (body)
      tree body;
 {
-  if (output_bytecode)
+  if (flag_check_memory_usage)
     {
-      error ("`asm' is invalid when generating bytecode");
+      error ("`asm' cannot be used with `-fcheck-memory-usage'");
       return;
     }
 
   if (TREE_CODE (body) == ADDR_EXPR)
     body = TREE_OPERAND (body, 0);
 
-  emit_insn (gen_rtx (ASM_INPUT, VOIDmode,
-		      TREE_STRING_POINTER (body)));
+  emit_insn (gen_rtx_ASM_INPUT (VOIDmode,
+				TREE_STRING_POINTER (body)));
   last_expr_type = 0;
 }
 
@@ -1368,17 +1153,25 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   rtx body;
   int ninputs = list_length (inputs);
   int noutputs = list_length (outputs);
+  int ninout = 0;
   int nclobbers;
   tree tail;
   register int i;
   /* Vector of RTX's of evaluated output operands.  */
   rtx *output_rtx = (rtx *) alloca (noutputs * sizeof (rtx));
+  int *inout_opnum = (int *) alloca (noutputs * sizeof (int));
+  enum machine_mode *inout_mode
+    = (enum machine_mode *) alloca (noutputs * sizeof (enum machine_mode));
   /* The insn we have emitted.  */
   rtx insn;
 
-  if (output_bytecode)
+  /* An ASM with no outputs needs to be treated as volatile, for now.  */
+  if (noutputs == 0)
+    vol = 1;
+
+  if (flag_check_memory_usage)
     {
-      error ("`asm' is invalid when generating bytecode");
+      error ("`asm' cannot be used with `-fcheck-memory-usage'");
       return;
     }
 
@@ -1401,9 +1194,9 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
     {
       tree val = TREE_VALUE (tail);
       tree type = TREE_TYPE (val);
-      tree val1;
       int j;
       int found_equal = 0;
+      int found_plus = 0;
       int allows_reg = 0;
 
       /* If there's an erroneous arg, emit no insn.  */
@@ -1419,15 +1212,23 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	switch (TREE_STRING_POINTER (TREE_PURPOSE (tail))[j])
 	  {
 	  case '+':
-	    error ("output operand constraint contains `+'");
-	    return;
+	    /* Make sure we can specify the matching operand.  */
+	    if (i > 9)
+	      {
+		error ("output operand constraint %d contains `+'", i);
+		return;
+	      }
+
+	    /* Replace '+' with '='.  */
+	    TREE_STRING_POINTER (TREE_PURPOSE (tail))[j] = '=';
+	    found_plus = 1;
+	    break;
 
 	  case '=':
 	    found_equal = 1;
 	    break;
 
 	  case '?':  case '!':  case '*':  case '%':  case '&':
-	  case '0':  case '1':  case '2':  case '3':  case '4':
 	  case 'V':  case 'm':  case 'o':  case '<':  case '>':
 	  case 'E':  case 'F':  case 'G':  case 'H':  case 'X':
 	  case 's':  case 'i':  case 'n':
@@ -1438,13 +1239,18 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 #endif
 	    break;
 
+	  case '0':  case '1':  case '2':  case '3':  case '4':
+	  case '5':  case '6':  case '7':  case '8':  case '9':
+	    error ("matching constraint not valid in output operand");
+	    break;
+
 	  case 'p':  case 'g':  case 'r':
 	  default:
 	    allows_reg = 1;
 	    break;
 	  }
 
-      if (! found_equal)
+      if (! found_equal && ! found_plus)
 	{
 	  error ("output operand constraint lacks `='");
 	  return;
@@ -1459,32 +1265,33 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	  || (TREE_CODE_CLASS (TREE_CODE (val)) == 'd'
 	      && ! (GET_CODE (DECL_RTL (val)) == REG
 		    && GET_MODE (DECL_RTL (val)) != TYPE_MODE (type)))
-	  || ! allows_reg)
+	  || ! allows_reg
+	  || found_plus)
 	{
 	  if (! allows_reg)
 	    mark_addressable (TREE_VALUE (tail));
 
 	  output_rtx[i]
-	    = expand_expr (TREE_VALUE (tail), NULL_RTX, VOIDmode, 0);
+	    = expand_expr (TREE_VALUE (tail), NULL_RTX, VOIDmode,
+			   EXPAND_MEMORY_USE_WO);
 
 	  if (! allows_reg && GET_CODE (output_rtx[i]) != MEM)
 	    error ("output number %d not directly addressable", i);
 	}
       else
 	{
-	  if (TYPE_MODE (type) == BLKmode)
-	    {
-	      output_rtx[i] = assign_stack_temp (BLKmode,
-						 int_size_in_bytes (type), 0);
-	      MEM_IN_STRUCT_P (output_rtx[i]) = AGGREGATE_TYPE_P (type);
-	    }
-	  else
-	    output_rtx[i] = gen_reg_rtx (TYPE_MODE (type));
-
+	  output_rtx[i] = assign_temp (type, 0, 0, 0);
 	  TREE_VALUE (tail) = make_tree (type, output_rtx[i]);
+	}
+
+      if (found_plus)
+	{
+	  inout_mode[ninout] = TYPE_MODE (TREE_TYPE (TREE_VALUE (tail)));
+	  inout_opnum[ninout++] = i;
 	}
     }
 
+  ninputs += ninout;
   if (ninputs + noutputs > MAX_RECOG_OPERANDS)
     {
       error ("more than %d operands in `asm'", MAX_RECOG_OPERANDS);
@@ -1496,9 +1303,10 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   argvec = rtvec_alloc (ninputs);
   constraints = rtvec_alloc (ninputs);
 
-  body = gen_rtx (ASM_OPERANDS, VOIDmode,
-		  TREE_STRING_POINTER (string), "", 0, argvec, constraints,
-		  filename, line);
+  body = gen_rtx_ASM_OPERANDS (VOIDmode,
+			       TREE_STRING_POINTER (string), "", 0, argvec,
+			       constraints, filename, line);
+
   MEM_VOLATILE_P (body) = vol;
 
   /* Eval the inputs and put them into ARGVEC.
@@ -1543,7 +1351,23 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 #endif
 	    break;
 
+	    /* Whether or not a numeric constraint allows a register is
+	       decided by the matching constraint, and so there is no need
+	       to do anything special with them.  We must handle them in
+	       the default case, so that we don't unnecessarily force
+	       operands to memory.  */
 	  case '0':  case '1':  case '2':  case '3':  case '4':
+	  case '5':  case '6':  case '7':  case '8':  case '9':
+	    if (TREE_STRING_POINTER (TREE_PURPOSE (tail))[j]
+		>= '0' + noutputs)
+	      {
+		error
+		  ("matching constraint references invalid operand number");
+		return;
+	      }
+
+	    /* ... fall through ... */
+
 	  case 'p':  case 'g':  case 'r':
 	  default:
 	    allows_reg = 1;
@@ -1575,28 +1399,39 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	      || GET_CODE (XVECEXP (body, 3, i)) == CONCAT))
 	{
 	  tree type = TREE_TYPE (TREE_VALUE (tail));
-	  rtx memloc = assign_stack_temp (TYPE_MODE (type),
-					  int_size_in_bytes (type), 1);
+	  rtx memloc = assign_temp (type, 1, 1, 1);
 
-	  MEM_IN_STRUCT_P (memloc) = AGGREGATE_TYPE_P (type);
 	  emit_move_insn (memloc, XVECEXP (body, 3, i));
 	  XVECEXP (body, 3, i) = memloc;
 	}
 	  
       XVECEXP (body, 4, i)      /* constraints */
-	= gen_rtx (ASM_INPUT, TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))),
-		   TREE_STRING_POINTER (TREE_PURPOSE (tail)));
+	= gen_rtx_ASM_INPUT (TYPE_MODE (TREE_TYPE (TREE_VALUE (tail))),
+			     TREE_STRING_POINTER (TREE_PURPOSE (tail)));
       i++;
     }
 
   /* Protect all the operands from the queue,
      now that they have all been evaluated.  */
 
-  for (i = 0; i < ninputs; i++)
+  for (i = 0; i < ninputs - ninout; i++)
     XVECEXP (body, 3, i) = protect_from_queue (XVECEXP (body, 3, i), 0);
 
   for (i = 0; i < noutputs; i++)
     output_rtx[i] = protect_from_queue (output_rtx[i], 1);
+
+  /* For in-out operands, copy output rtx to input rtx. */
+  for (i = 0; i < ninout; i++)
+    {
+      static char match[9+1][2]
+	= {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+      int j = inout_opnum[i];
+
+      XVECEXP (body, 3, ninputs - ninout + i)      /* argvec */
+	= output_rtx[j];
+      XVECEXP (body, 4, ninputs - ninout + i)      /* constraints */
+	= gen_rtx_ASM_INPUT (inout_mode[j], match[j]);
+    }
 
   /* Now, for each output, construct an rtx
      (set OUTPUT (asm_operands INSN OUTPUTNUMBER OUTPUTCONSTRAINT
@@ -1606,7 +1441,7 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
   if (noutputs == 1 && nclobbers == 0)
     {
       XSTR (body, 1) = TREE_STRING_POINTER (TREE_PURPOSE (outputs));
-      insn = emit_insn (gen_rtx (SET, VOIDmode, output_rtx[0], body));
+      insn = emit_insn (gen_rtx_SET (VOIDmode, output_rtx[0], body));
     }
   else if (noutputs == 0 && nclobbers == 0)
     {
@@ -1618,20 +1453,20 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
       rtx obody = body;
       int num = noutputs;
       if (num == 0) num = 1;
-      body = gen_rtx (PARALLEL, VOIDmode, rtvec_alloc (num + nclobbers));
+      body = gen_rtx_PARALLEL (VOIDmode, rtvec_alloc (num + nclobbers));
 
       /* For each output operand, store a SET.  */
 
       for (i = 0, tail = outputs; tail; tail = TREE_CHAIN (tail), i++)
 	{
 	  XVECEXP (body, 0, i)
-	    = gen_rtx (SET, VOIDmode,
-		       output_rtx[i],
-		       gen_rtx (ASM_OPERANDS, VOIDmode,
-				TREE_STRING_POINTER (string),
-				TREE_STRING_POINTER (TREE_PURPOSE (tail)),
-				i, argvec, constraints,
-				filename, line));
+	    = gen_rtx_SET (VOIDmode,
+			   output_rtx[i],
+			   gen_rtx_ASM_OPERANDS (VOIDmode,
+						 TREE_STRING_POINTER (string),
+						 TREE_STRING_POINTER (TREE_PURPOSE (tail)),
+						 i, argvec, constraints,
+						 filename, line));
 	  MEM_VOLATILE_P (SET_SRC (XVECEXP (body, 0, i))) = vol;
 	}
 
@@ -1656,19 +1491,19 @@ expand_asm_operands (string, outputs, inputs, clobbers, vol, filename, line)
 	      if (j == -4)	/* `memory', don't cache memory across asm */
 		{
 		  XVECEXP (body, 0, i++)
-		    = gen_rtx (CLOBBER, VOIDmode,
-			       gen_rtx (MEM, BLKmode,
-					gen_rtx (SCRATCH, VOIDmode, 0)));
+		    = gen_rtx_CLOBBER (VOIDmode,
+				       gen_rtx_MEM (BLKmode,
+						    gen_rtx_SCRATCH (VOIDmode)));
 		  continue;
 		}
 
-	      /* Ignore unknown register, error already signalled.  */
+	      /* Ignore unknown register, error already signaled.  */
 	      continue;
 	    }
 
 	  /* Use QImode since that's guaranteed to clobber just one reg.  */
 	  XVECEXP (body, 0, i++)
-	    = gen_rtx (CLOBBER, VOIDmode, gen_rtx (REG, QImode, j));
+	    = gen_rtx_CLOBBER (VOIDmode, gen_rtx_REG (QImode, j));
 	}
 
       insn = emit_insn (body);
@@ -1684,22 +1519,6 @@ void
 expand_expr_stmt (exp)
      tree exp;
 {
-  if (output_bytecode)
-    {
-      int org_stack_depth = stack_depth;
-
-      bc_expand_expr (exp);
-
-      /* Restore stack depth */
-      if (stack_depth < org_stack_depth)
-	abort ();
-      
-      bc_emit_instruction (drop);
-
-      last_expr_type = TREE_TYPE (exp);
-      return;
-    }
-
   /* If -W, warn about statements with no side effects,
      except for an explicit cast to void (e.g. for assert()), and
      except inside a ({...}) where they may be useful.  */
@@ -1720,7 +1539,9 @@ expand_expr_stmt (exp)
     exp = build1 (ADDR_EXPR, build_pointer_type (TREE_TYPE (exp)), exp);
 
   last_expr_type = TREE_TYPE (exp);
-  if (! flag_syntax_only)
+  if (flag_syntax_only && ! expr_stmts_for_value)
+    last_expr_value = 0;
+  else
     last_expr_value = expand_expr (exp,
 				   (expr_stmts_for_value
 				    ? NULL_RTX : const0_rtx),
@@ -1784,6 +1605,7 @@ warn_if_unused_value (exp)
     case CALL_EXPR:
     case METHOD_CALL_EXPR:
     case RTL_EXPR:
+    case TRY_CATCH_EXPR:
     case WITH_CLEANUP_EXPR:
     case EXIT_EXPR:
       /* We don't warn about COND_EXPR because it may be a useful
@@ -1843,7 +1665,7 @@ warn_if_unused_value (exp)
 	 the user cannot control it.  */
       if (TREE_CODE (TREE_TYPE (TREE_OPERAND (exp, 0))) == REFERENCE_TYPE)
 	return warn_if_unused_value (TREE_OPERAND (exp, 0));
-      /* ... fall through ... */
+      /* ... fall through ...  */
       
     default:
       /* Referencing a volatile value is a side effect, so don't warn.  */
@@ -1876,10 +1698,6 @@ expand_start_stmt_expr ()
   int momentary;
   tree t;
 
-  /* When generating bytecode just note down the stack depth */
-  if (output_bytecode)
-    return (build_int_2 (stack_depth, 0));
-
   /* Make the RTL_EXPR node temporary, not momentary,
      so that rtl_expr_chain doesn't become garbage.  */
   momentary = suspend_momentary ();
@@ -1908,38 +1726,6 @@ tree
 expand_end_stmt_expr (t)
      tree t;
 {
-  if (output_bytecode)
-    {
-      int i;
-      tree t;
-      
-      
-      /* At this point, all expressions have been evaluated in order.
-	 However, all expression values have been popped when evaluated,
-	 which means we have to recover the last expression value.  This is
-	 the last value removed by means of a `drop' instruction.  Instead
-	 of adding code to inhibit dropping the last expression value, it
-	 is here recovered by undoing the `drop'.  Since `drop' is
-	 equivalent to `adjustackSI [1]', it can be undone with `adjstackSI
-	 [-1]'. */
-      
-      bc_adjust_stack (-1);
-      
-      if (!last_expr_type)
-	last_expr_type = void_type_node;
-      
-      t = make_node (RTL_EXPR);
-      TREE_TYPE (t) = last_expr_type;
-      RTL_EXPR_RTL (t) = NULL;
-      RTL_EXPR_SEQUENCE (t) = NULL;
-      
-      /* Don't consider deleting this expr or containing exprs at tree level.  */
-      TREE_THIS_VOLATILE (t) = 1;
-      
-      last_expr_type = 0;
-      return t;
-    }
-
   OK_DEFER_POP;
 
   if (last_expr_type == 0)
@@ -2003,10 +1789,7 @@ expand_start_cond (cond, exitflag)
   cond_stack = thiscond;
   nesting_stack = thiscond;
 
-  if (output_bytecode)
-    bc_expand_start_cond (cond, exitflag);
-  else
-    do_jump (cond, thiscond->data.cond.next_label, NULL_RTX);
+  do_jump (cond, thiscond->data.cond.next_label, NULL_RTX);
 }
 
 /* Generate RTL between then-clause and the elseif-clause
@@ -2033,15 +1816,9 @@ expand_start_else ()
   if (cond_stack->data.cond.endif_label == 0)
     cond_stack->data.cond.endif_label = gen_label_rtx ();
 
-  if (output_bytecode)
-    {
-      bc_expand_start_else ();
-      return;
-    }
-
   emit_jump (cond_stack->data.cond.endif_label);
   emit_label (cond_stack->data.cond.next_label);
-  cond_stack->data.cond.next_label = 0;  /* No more _else or _elseif calls. */
+  cond_stack->data.cond.next_label = 0;  /* No more _else or _elseif calls.  */
 }
 
 /* After calling expand_start_else, turn this "else" into an "else if"
@@ -2063,76 +1840,17 @@ expand_end_cond ()
 {
   struct nesting *thiscond = cond_stack;
 
-  if (output_bytecode)
-    bc_expand_end_cond ();
-  else
-    {
-      do_pending_stack_adjust ();
-      if (thiscond->data.cond.next_label)
-	emit_label (thiscond->data.cond.next_label);
-      if (thiscond->data.cond.endif_label)
-	emit_label (thiscond->data.cond.endif_label);
-    }
+  do_pending_stack_adjust ();
+  if (thiscond->data.cond.next_label)
+    emit_label (thiscond->data.cond.next_label);
+  if (thiscond->data.cond.endif_label)
+    emit_label (thiscond->data.cond.endif_label);
 
   POPSTACK (cond_stack);
   last_expr_type = 0;
 }
 
 
-/* Generate code for the start of an if-then.  COND is the expression
-   whose truth is to be tested; if EXITFLAG is nonzero this conditional
-   is to be visible to exit_something.  It is assumed that the caller
-   has pushed the previous context on the cond stack. */
-
-static void
-bc_expand_start_cond (cond, exitflag)
-     tree cond;
-     int exitflag;
-{
-  struct nesting *thiscond = cond_stack;
-
-  thiscond->data.case_stmt.nominal_type = cond;
-  if (! exitflag)
-    thiscond->exit_label = gen_label_rtx ();
-  bc_expand_expr (cond);
-  bc_emit_bytecode (xjumpifnot);
-  bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (thiscond->exit_label));
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
-}
-
-/* Generate the label for the end of an if with
-   no else- clause.  */
-
-static void
-bc_expand_end_cond ()
-{
-  struct nesting *thiscond = cond_stack;
-
-  bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thiscond->exit_label));
-}
-
-/* Generate code for the start of the else- clause of
-   an if-then-else.  */
-
-static void
-bc_expand_start_else ()
-{
-  struct nesting *thiscond = cond_stack;
-
-  thiscond->data.cond.endif_label = thiscond->exit_label;
-  thiscond->exit_label = gen_label_rtx ();
-  bc_emit_bytecode (jump);
-  bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (thiscond->exit_label));
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
-
-  bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thiscond->data.cond.endif_label));
-}
 
 /* Generate RTL for the start of a loop.  EXIT_FLAG is nonzero if this
    loop should be exited by `exit_something'.  This is a loop for which
@@ -2159,12 +1877,6 @@ expand_start_loop (exit_flag)
   thisloop->exit_label = exit_flag ? thisloop->data.loop.end_label : 0;
   loop_stack = thisloop;
   nesting_stack = thisloop;
-
-  if (output_bytecode)
-    {
-      bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thisloop->data.loop.start_label));
-      return thisloop;
-    }
 
   do_pending_stack_adjust ();
   emit_queue ();
@@ -2194,35 +1906,10 @@ expand_start_loop_continue_elsewhere (exit_flag)
 void
 expand_loop_continue_here ()
 {
-  if (output_bytecode)
-    {
-      bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (loop_stack->data.loop.continue_label));
-      return;
-    }
   do_pending_stack_adjust ();
   emit_note (NULL_PTR, NOTE_INSN_LOOP_CONT);
   emit_label (loop_stack->data.loop.continue_label);
 }
-
-/* End a loop.  */
-
-static void
-bc_expand_end_loop ()
-{
-  struct nesting *thisloop = loop_stack;
-
-  bc_emit_bytecode (jump);
-  bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (thisloop->data.loop.start_label));
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
-
-  bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thisloop->exit_label));
-  POPSTACK (loop_stack);
-  last_expr_type = 0;
-}
-
 
 /* Finish a loop.  Generate a jump back to the top and the loop-exit label.
    Pop the block off of loop_stack.  */
@@ -2235,12 +1922,6 @@ expand_end_loop ()
   rtx last_test_insn = 0;
   int num_insns = 0;
     
-  if (output_bytecode)
-    {
-      bc_expand_end_loop ();
-      return;
-    }
-
   insn = get_last_insn ();
   start_label = loop_stack->data.loop.start_label;
 
@@ -2250,17 +1931,33 @@ expand_end_loop ()
 
   do_pending_stack_adjust ();
 
-  /* If optimizing, perhaps reorder the loop.  If the loop
-     starts with a conditional exit, roll that to the end
-     where it will optimize together with the jump back.
+  /* If optimizing, perhaps reorder the loop.  If the loop starts with
+     a loop exit, roll that to the end where it will optimize together
+     with the jump back.
 
-     We look for the last conditional branch to the exit that we encounter
-     before hitting 30 insns or a CALL_INSN.  If we see an unconditional
-     branch to the exit first, use it.
+     We look for the conditional branch to the exit, except that once
+     we find such a branch, we don't look past 30 instructions.
 
-     We must also stop at NOTE_INSN_BLOCK_BEG and NOTE_INSN_BLOCK_END notes
-     because moving them is not valid.  */
+     In more detail, if the loop presently looks like this (in pseudo-C):
 
+         start_label:
+         if (test) goto end_label;
+	 body;
+	 goto start_label;
+	 end_label;
+	 
+     transform it to look like:
+
+         goto start_label;
+         newstart_label:
+	 body;
+	 start_label:
+	 if (test) goto end_label;
+	 goto newstart_label;
+	 end_label;
+
+     Here, the `test' may actually consist of some reasonably complex
+     code, terminating in a test.  */
   if (optimize
       &&
       ! (GET_CODE (insn) == JUMP_INSN
@@ -2268,24 +1965,82 @@ expand_end_loop ()
 	 && SET_DEST (PATTERN (insn)) == pc_rtx
 	 && GET_CODE (SET_SRC (PATTERN (insn))) == IF_THEN_ELSE))
     {
+      int eh_regions = 0;
+
       /* Scan insns from the top of the loop looking for a qualified
 	 conditional exit.  */
       for (insn = NEXT_INSN (loop_stack->data.loop.start_label); insn;
 	   insn = NEXT_INSN (insn))
 	{
-	  if (GET_CODE (insn) == CALL_INSN || GET_CODE (insn) == CODE_LABEL)
-	    break;
+	  if (GET_CODE (insn) == NOTE) 
+	    {
+	      if (optimize < 2
+		  && (NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_BEG
+		      || NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_END))
+		/* The code that actually moves the exit test will
+		   carefully leave BLOCK notes in their original
+		   location.  That means, however, that we can't debug
+		   the exit test itself.  So, we refuse to move code
+		   containing BLOCK notes at low optimization levels.  */
+		break;
 
-	  if (GET_CODE (insn) == NOTE
-	      && (NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_BEG
-		  || NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_END))
-	    break;
+	      if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_EH_REGION_BEG)
+		++eh_regions;
+	      else if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_EH_REGION_END)
+		{
+		  --eh_regions;
+		  if (eh_regions < 0) 
+		    /* We've come to the end of an EH region, but
+		       never saw the beginning of that region.  That
+		       means that an EH region begins before the top
+		       of the loop, and ends in the middle of it.  The
+		       existence of such a situation violates a basic
+		       assumption in this code, since that would imply
+		       that even when EH_REGIONS is zero, we might
+		       move code out of an exception region.  */
+		    abort ();
+		}
+
+	      /* We already know this INSN is a NOTE, so there's no
+		 point in looking at it to see if it's a JUMP.  */
+	      continue;
+	    }
 
 	  if (GET_CODE (insn) == JUMP_INSN || GET_CODE (insn) == INSN)
 	    num_insns++;
 
 	  if (last_test_insn && num_insns > 30)
 	    break;
+
+	  if (eh_regions > 0) 
+	    /* We don't want to move a partial EH region.  Consider:
+
+		  while ( ( { try {
+				if (cond ()) 0;	
+				else {
+				  bar();
+				  1;
+				}
+			      } catch (...) { 
+				1;
+			      } )) {
+		     body;
+		  } 
+
+	        This isn't legal C++, but here's what it's supposed to
+	        mean: if cond() is true, stop looping.  Otherwise,
+	        call bar, and keep looping.  In addition, if cond
+	        throws an exception, catch it and keep looping. Such
+	        constructs are certainy legal in LISP.  
+
+		We should not move the `if (cond()) 0' test since then
+		the EH-region for the try-block would be broken up.
+		(In this case we would the EH_BEG note for the `try'
+		and `if cond()' but not the call to bar() or the
+		EH_END note.)  
+
+	        So we don't look for tests within an EH region.  */
+	    continue;
 
 	  if (GET_CODE (insn) == JUMP_INSN && GET_CODE (PATTERN (insn)) == SET
 	      && SET_DEST (PATTERN (insn)) == pc_rtx
@@ -2321,6 +2076,7 @@ expand_end_loop ()
 	     to jump to there.  */
 	  register rtx newstart_label = gen_label_rtx ();
 	  register rtx start_move = start_label;
+	  rtx next_insn;
 
 	  /* If the start label is preceded by a NOTE_INSN_LOOP_CONT note,
 	     then we want to move this note also.  */
@@ -2330,7 +2086,38 @@ expand_end_loop ()
 	    start_move = PREV_INSN (start_move);
 
 	  emit_label_after (newstart_label, PREV_INSN (start_move));
-	  reorder_insns (start_move, last_test_insn, get_last_insn ());
+
+	  /* Actually move the insns.  Start at the beginning, and
+	     keep copying insns until we've copied the
+	     last_test_insn.  */
+	  for (insn = start_move; insn; insn = next_insn)
+	    {
+	      /* Figure out which insn comes after this one.  We have
+		 to do this before we move INSN.  */
+	      if (insn == last_test_insn)
+		/* We've moved all the insns.  */
+		next_insn = NULL_RTX;
+	      else
+		next_insn = NEXT_INSN (insn);
+
+	      if (GET_CODE (insn) == NOTE
+		  && (NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_BEG
+		      || NOTE_LINE_NUMBER (insn) == NOTE_INSN_BLOCK_END))
+		/* We don't want to move NOTE_INSN_BLOCK_BEGs or
+		   NOTE_INSN_BLOCK_ENDs because the correct generation
+		   of debugging information depends on these appearing
+		   in the same order in the RTL and in the tree
+		   structure, where they are represented as BLOCKs.
+		   So, we don't move block notes.  Of course, moving
+		   the code inside the block is likely to make it
+		   impossible to debug the instructions in the exit
+		   test, but such is the price of optimization.  */
+		continue;
+
+	      /* Move the INSN.  */
+	      reorder_insns (insn, insn, get_last_insn ());
+	    }
+
 	  emit_jump_insn_after (gen_jump (start_label),
 				PREV_INSN (newstart_label));
 	  emit_barrier_after (PREV_INSN (newstart_label));
@@ -2391,35 +2178,26 @@ expand_exit_loop_if_false (whichloop, cond)
      struct nesting *whichloop;
      tree cond;
 {
+  rtx label = gen_label_rtx ();
+  rtx last_insn;
   last_expr_type = 0;
+
   if (whichloop == 0)
     whichloop = loop_stack;
   if (whichloop == 0)
     return 0;
-  if (output_bytecode)
-    {
-      bc_expand_expr (cond);
-      bc_expand_goto_internal (xjumpifnot,
-			       BYTECODE_BC_LABEL (whichloop->exit_label),
-			       NULL_TREE);
-    }
-  else
-    {
-      /* In order to handle fixups, we actually create a conditional jump
-	 around a unconditional branch to exit the loop.  If fixups are
-	 necessary, they go before the unconditional branch.  */
+  /* In order to handle fixups, we actually create a conditional jump
+     around a unconditional branch to exit the loop.  If fixups are
+     necessary, they go before the unconditional branch.  */
 
-      rtx label = gen_label_rtx ();
-      rtx last_insn;
 
-      do_jump (cond, NULL_RTX, label);
-      last_insn = get_last_insn ();
-      if (GET_CODE (last_insn) == CODE_LABEL)
-	whichloop->data.loop.alt_end_label = last_insn;
-      expand_goto_internal (NULL_TREE, whichloop->data.loop.end_label,
-			    NULL_RTX);
-      emit_label (label);
-    }
+  do_jump (cond, NULL_RTX, label);
+  last_insn = get_last_insn ();
+  if (GET_CODE (last_insn) == CODE_LABEL)
+    whichloop->data.loop.alt_end_label = last_insn;
+  expand_goto_internal (NULL_TREE, whichloop->data.loop.end_label,
+			NULL_RTX);
+  emit_label (label);
 
   return 1;
 }
@@ -2483,12 +2261,6 @@ expand_null_return ()
   struct nesting *block = block_stack;
   rtx last_insn = 0;
 
-  if (output_bytecode)
-    {
-      bc_emit_instruction (ret);
-      return;
-    }
-
   /* Does any pending block have cleanups?  */
 
   while (block && block->data.block.cleanups == 0)
@@ -2529,7 +2301,22 @@ expand_value_return (val)
     }
   if (GET_CODE (return_reg) == REG
       && REGNO (return_reg) < FIRST_PSEUDO_REGISTER)
-    emit_insn (gen_rtx (USE, VOIDmode, return_reg));
+    emit_insn (gen_rtx_USE (VOIDmode, return_reg));
+  /* Handle calls that return values in multiple non-contiguous locations.
+     The Irix 6 ABI has examples of this.  */
+  else if (GET_CODE (return_reg) == PARALLEL)
+    {
+      int i;
+
+      for (i = 0; i < XVECLEN (return_reg, 0); i++)
+	{
+	  rtx x = XEXP (XVECEXP (return_reg, 0, i), 0);
+
+	  if (GET_CODE (x) == REG
+	      && REGNO (x) < FIRST_PSEUDO_REGISTER)
+	    emit_insn (gen_rtx_USE (VOIDmode, x));
+	}
+    }
 
   /* Does any pending block have cleanups?  */
 
@@ -2603,17 +2390,7 @@ expand_return (retval)
   register rtx op0;
   tree retval_rhs;
   int cleanups;
-  struct nesting *block;
 
-  /* Bytecode returns are quite simple, just leave the result on the
-     arithmetic stack. */
-  if (output_bytecode)
-    {
-      bc_expand_expr (retval);
-      bc_emit_instruction (ret);
-      return;
-    }
-  
   /* If function wants no value, give it none.  */
   if (TREE_CODE (TREE_TYPE (TREE_TYPE (current_function_decl))) == VOID_TYPE)
     {
@@ -2665,14 +2442,14 @@ expand_return (retval)
       tree expr;
 
       do_jump (TREE_OPERAND (retval_rhs, 0), label, NULL_RTX);
-      expr = build (MODIFY_EXPR, TREE_TYPE (current_function_decl),
+      expr = build (MODIFY_EXPR, TREE_TYPE (TREE_TYPE (current_function_decl)),
 		    DECL_RESULT (current_function_decl),
 		    TREE_OPERAND (retval_rhs, 1));
       TREE_SIDE_EFFECTS (expr) = 1;
       expand_return (expr);
       emit_label (label);
 
-      expr = build (MODIFY_EXPR, TREE_TYPE (current_function_decl),
+      expr = build (MODIFY_EXPR, TREE_TYPE (TREE_TYPE (current_function_decl)),
 		    DECL_RESULT (current_function_decl),
 		    TREE_OPERAND (retval_rhs, 2));
       TREE_SIDE_EFFECTS (expr) = 1;
@@ -2718,29 +2495,55 @@ expand_return (retval)
     {
       /* If this is  return x == y;  then generate
 	 if (x == y) return 1; else return 0;
-	 if we can do it with explicit return insns and
-	 branches are cheap.  */
+	 if we can do it with explicit return insns and branches are cheap,
+	 but not if we have the corresponding scc insn.  */
+      int has_scc = 0;
       if (retval_rhs)
 	switch (TREE_CODE (retval_rhs))
 	  {
 	  case EQ_EXPR:
+#ifdef HAVE_seq
+	    has_scc = HAVE_seq;
+#endif
 	  case NE_EXPR:
+#ifdef HAVE_sne
+	    has_scc = HAVE_sne;
+#endif
 	  case GT_EXPR:
+#ifdef HAVE_sgt
+	    has_scc = HAVE_sgt;
+#endif
 	  case GE_EXPR:
+#ifdef HAVE_sge
+	    has_scc = HAVE_sge;
+#endif
 	  case LT_EXPR:
+#ifdef HAVE_slt
+	    has_scc = HAVE_slt;
+#endif
 	  case LE_EXPR:
+#ifdef HAVE_sle
+	    has_scc = HAVE_sle;
+#endif
 	  case TRUTH_ANDIF_EXPR:
 	  case TRUTH_ORIF_EXPR:
 	  case TRUTH_AND_EXPR:
 	  case TRUTH_OR_EXPR:
 	  case TRUTH_NOT_EXPR:
 	  case TRUTH_XOR_EXPR:
-	    op0 = gen_label_rtx ();
-	    jumpifnot (retval_rhs, op0);
-	    expand_value_return (const1_rtx);
-	    emit_label (op0);
-	    expand_value_return (const0_rtx);
-	    return;
+	    if (! has_scc)
+	      {
+		op0 = gen_label_rtx ();
+		jumpifnot (retval_rhs, op0);
+		expand_value_return (const1_rtx);
+		emit_label (op0);
+		expand_value_return (const0_rtx);
+		return;
+	      }
+	    break;
+
+	  default:
+	    break;
 	  }
     }
 #endif /* HAVE_return */
@@ -2763,7 +2566,7 @@ expand_return (retval)
       int n_regs = (bytes + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
       int bitsize = MIN (TYPE_ALIGN (TREE_TYPE (retval_rhs)),BITS_PER_WORD);
       rtx *result_pseudos = (rtx *) alloca (sizeof (rtx) * n_regs);
-      rtx result_reg, src, dst;
+      rtx result_reg, src = NULL_RTX, dst = NULL_RTX;
       rtx result_val = expand_expr (retval_rhs, NULL_RTX, VOIDmode, 0);
       enum machine_mode tmpmode, result_reg_mode;
 
@@ -2791,7 +2594,7 @@ expand_return (retval)
 	      result_pseudos[xbitpos / BITS_PER_WORD] = dst;
 
 	      /* Clobber the destination before we move anything into it.  */
-	      emit_insn (gen_rtx (CLOBBER, VOIDmode, dst));
+	      emit_insn (gen_rtx_CLOBBER (VOIDmode, dst));
 	    }
 
 	  /* We need a new source operand each time bitpos is on a word
@@ -2838,9 +2641,7 @@ expand_return (retval)
 	result_reg_mode = tmpmode;
       result_reg = gen_reg_rtx (result_reg_mode);
 
-      /* Now that the value is in pseudos, copy it to the result reg(s).  */
       emit_queue ();
-      free_temp_slots ();
       for (i = 0; i < n_regs; i++)
 	emit_move_insn (operand_subword (result_reg, i, 0, result_reg_mode),
 			result_pseudos[i]);
@@ -2856,10 +2657,10 @@ expand_return (retval)
       && GET_CODE (DECL_RTL (DECL_RESULT (current_function_decl))) == REG)
     {
       /* Calculate the return value into a pseudo reg.  */
-      val = expand_expr (retval_rhs, NULL_RTX, VOIDmode, 0);
+      val = gen_reg_rtx (DECL_MODE (DECL_RESULT (current_function_decl)));
+      val = expand_expr (retval_rhs, val, GET_MODE (val), 0);
+      val = force_not_mem (val);
       emit_queue ();
-      /* All temporaries have now been used.  */
-      free_temp_slots ();
       /* Return the calculated value, doing cleanups first.  */
       expand_value_return (val);
     }
@@ -2869,7 +2670,6 @@ expand_return (retval)
 	 calculate value into hard return reg.  */
       expand_expr (retval, const0_rtx, VOIDmode, 0);
       emit_queue ();
-      free_temp_slots ();
       expand_value_return (DECL_RTL (DECL_RESULT (current_function_decl)));
     }
 }
@@ -2909,7 +2709,8 @@ tail_recursion_args (actuals, formals)
 
   for (a = actuals, f = formals, i = 0; a && f; a = TREE_CHAIN (a), f = TREE_CHAIN (f), i++)
     {
-      if (TREE_TYPE (TREE_VALUE (a)) != TREE_TYPE (f))
+      if (TYPE_MAIN_VARIANT (TREE_TYPE (TREE_VALUE (a)))
+	  != TYPE_MAIN_VARIANT (TREE_TYPE (f)))
 	return 0;
       if (GET_CODE (DECL_RTL (f)) != REG || DECL_MODE (f) == BLKmode)
 	return 0;
@@ -2965,7 +2766,7 @@ expand_start_bindings (exit_flag)
      int exit_flag;
 {
   struct nesting *thisblock = ALLOC_NESTING ();
-  rtx note = output_bytecode ? 0 : emit_note (NULL_PTR, NOTE_INSN_BLOCK_BEG);
+  rtx note = emit_note (NULL_PTR, NOTE_INSN_BLOCK_BEG);
 
   /* Make an entry on block_stack for the block we are entering.  */
 
@@ -2975,22 +2776,13 @@ expand_start_bindings (exit_flag)
   thisblock->data.block.stack_level = 0;
   thisblock->data.block.cleanups = 0;
   thisblock->data.block.function_call_count = 0;
-#if 0
-  if (block_stack)
-    {
-      if (block_stack->data.block.cleanups == NULL_TREE
-	  && (block_stack->data.block.outer_cleanups == NULL_TREE
-	      || block_stack->data.block.outer_cleanups == empty_cleanup_list))
-	thisblock->data.block.outer_cleanups = empty_cleanup_list;
-      else
-	thisblock->data.block.outer_cleanups
-	  = tree_cons (NULL_TREE, block_stack->data.block.cleanups,
-		       block_stack->data.block.outer_cleanups);
-    }
-  else
-    thisblock->data.block.outer_cleanups = 0;
-#endif
-#if 1
+  thisblock->data.block.exception_region = 0;
+  thisblock->data.block.target_temp_slot_level = target_temp_slot_level;
+
+  thisblock->data.block.conditional_code = 0;
+  thisblock->data.block.last_unconditional_cleanup = note;
+  thisblock->data.block.cleanup_ptr = &thisblock->data.block.cleanups;
+
   if (block_stack
       && !(block_stack->data.block.cleanups == NULL_TREE
 	   && block_stack->data.block.outer_cleanups == NULL_TREE))
@@ -2999,7 +2791,6 @@ expand_start_bindings (exit_flag)
 		   block_stack->data.block.outer_cleanups);
   else
     thisblock->data.block.outer_cleanups = 0;
-#endif
   thisblock->data.block.label_chain = 0;
   thisblock->data.block.innermost_stack_block = stack_block_stack;
   thisblock->data.block.first_insn = note;
@@ -3008,11 +2799,93 @@ expand_start_bindings (exit_flag)
   block_stack = thisblock;
   nesting_stack = thisblock;
 
-  if (!output_bytecode)
+  /* Make a new level for allocating stack slots.  */
+  push_temp_slots ();
+}
+
+/* Specify the scope of temporaries created by TARGET_EXPRs.  Similar
+   to CLEANUP_POINT_EXPR, but handles cases when a series of calls to
+   expand_expr are made.  After we end the region, we know that all
+   space for all temporaries that were created by TARGET_EXPRs will be
+   destroyed and their space freed for reuse.  */
+
+void
+expand_start_target_temps ()
+{
+  /* This is so that even if the result is preserved, the space
+     allocated will be freed, as we know that it is no longer in use.  */
+  push_temp_slots ();
+
+  /* Start a new binding layer that will keep track of all cleanup
+     actions to be performed.  */
+  expand_start_bindings (0);
+
+  target_temp_slot_level = temp_slot_level;
+}
+
+void
+expand_end_target_temps ()
+{
+  expand_end_bindings (NULL_TREE, 0, 0);
+  
+  /* This is so that even if the result is preserved, the space
+     allocated will be freed, as we know that it is no longer in use.  */
+  pop_temp_slots ();
+}
+
+/* Mark top block of block_stack as an implicit binding for an
+   exception region.  This is used to prevent infinite recursion when
+   ending a binding with expand_end_bindings.  It is only ever called
+   by expand_eh_region_start, as that it the only way to create a
+   block stack for a exception region.  */
+
+void
+mark_block_as_eh_region ()
+{
+  block_stack->data.block.exception_region = 1;
+  if (block_stack->next
+      && block_stack->next->data.block.conditional_code)
     {
-      /* Make a new level for allocating stack slots.  */
-      push_temp_slots ();
+      block_stack->data.block.conditional_code
+	= block_stack->next->data.block.conditional_code;
+      block_stack->data.block.last_unconditional_cleanup
+	= block_stack->next->data.block.last_unconditional_cleanup;
+      block_stack->data.block.cleanup_ptr
+	= block_stack->next->data.block.cleanup_ptr;
     }
+}
+
+/* True if we are currently emitting insns in an area of output code
+   that is controlled by a conditional expression.  This is used by
+   the cleanup handling code to generate conditional cleanup actions.  */
+
+int
+conditional_context ()
+{
+  return block_stack && block_stack->data.block.conditional_code;
+}
+
+/* Mark top block of block_stack as not for an implicit binding for an
+   exception region.  This is only ever done by expand_eh_region_end
+   to let expand_end_bindings know that it is being called explicitly
+   to end the binding layer for just the binding layer associated with
+   the exception region, otherwise expand_end_bindings would try and
+   end all implicit binding layers for exceptions regions, and then
+   one normal binding layer.  */
+
+void
+mark_block_as_not_eh_region ()
+{
+  block_stack->data.block.exception_region = 0;
+}
+
+/* True if the top block of block_stack was marked as for an exception
+   region by mark_block_as_eh_region.  */
+
+int
+is_eh_region ()
+{
+  return block_stack && block_stack->data.block.exception_region;
 }
 
 /* Given a pointer to a BLOCK node, save a pointer to the most recently
@@ -3042,19 +2915,33 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
      int mark_ends;
      int dont_jump_in;
 {
-  register struct nesting *thisblock = block_stack;
+  register struct nesting *thisblock;
   register tree decl;
 
-  if (output_bytecode)
+  while (block_stack->data.block.exception_region)
     {
-      bc_expand_end_bindings (vars, mark_ends, dont_jump_in);
-      return;
+      /* Because we don't need or want a new temporary level and
+	 because we didn't create one in expand_eh_region_start,
+	 create a fake one now to avoid removing one in
+	 expand_end_bindings.  */
+      push_temp_slots ();
+
+      block_stack->data.block.exception_region = 0;
+
+      expand_end_bindings (NULL_TREE, 0, 0);
     }
+
+  /* Since expand_eh_region_start does an expand_start_bindings, we
+     have to first end all the bindings that were created by
+     expand_eh_region_start.  */
+     
+  thisblock = block_stack;
 
   if (warn_unused)
     for (decl = vars; decl; decl = TREE_CHAIN (decl))
       if (! TREE_USED (decl) && TREE_CODE (decl) == VAR_DECL
-	  && ! DECL_IN_SYSTEM_HEADER (decl))
+	  && ! DECL_IN_SYSTEM_HEADER (decl)
+	  && DECL_NAME (decl) && ! DECL_ARTIFICIAL (decl)) 
 	warning_with_decl (decl, "unused variable `%s'");
 
   if (thisblock->exit_label)
@@ -3099,7 +2986,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 
       start_sequence ();
       emit_move_insn (nonlocal_goto_handler_slot,
-		      gen_rtx (LABEL_REF, Pmode, handler_label));
+		      gen_rtx_LABEL_REF (Pmode, handler_label));
       insns = get_insns ();
       end_sequence ();
       emit_insns_before (insns, thisblock->data.block.first_insn);
@@ -3134,7 +3021,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	     This is the case on all known machines; if we don't make this
 	     assumption, we do unnecessary saving on many machines.  */
 	  static struct elims {int from, to;} elim_regs[] = ELIMINABLE_REGS;
-	  int i;
+	  size_t i;
 
 	  for (i = 0; i < sizeof elim_regs / sizeof elim_regs[0]; i++)
 	    if (elim_regs[i].from == ARG_POINTER_REGNUM
@@ -3159,6 +3046,11 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	}
 #endif
 
+#ifdef HAVE_nonlocal_goto_receiver
+      if (HAVE_nonlocal_goto_receiver)
+	emit_insn (gen_nonlocal_goto_receiver ());
+#endif
+
       /* The handler expects the desired label address in the static chain
 	 register.  It tests the address and does an appropriate jump
 	 to whatever label is desired.  */
@@ -3169,7 +3061,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	    rtx not_this = gen_label_rtx ();
 	    rtx this = gen_label_rtx ();
 	    do_jump_if_equal (static_chain_rtx,
-			      gen_rtx (LABEL_REF, Pmode, DECL_RTL (TREE_VALUE (link))),
+			      gen_rtx_LABEL_REF (Pmode, DECL_RTL (TREE_VALUE (link))),
 			      this, 0);
 	    emit_jump (not_this);
 	    emit_label (this);
@@ -3177,16 +3069,16 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	    emit_label (not_this);
 	  }
       /* If label is not recognized, abort.  */
-      emit_library_call (gen_rtx (SYMBOL_REF, Pmode, "abort"), 0,
+      emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "abort"), 0,
 			 VOIDmode, 0);
       emit_barrier ();
       emit_label (afterward);
     }
 
-  /* Don't allow jumping into a block that has cleanups or a stack level.  */
+  /* Don't allow jumping into a block that has a stack level.
+     Cleanups are allowed, though.  */
   if (dont_jump_in
-      || thisblock->data.block.stack_level != 0
-      || thisblock->data.block.cleanups != 0)
+      || thisblock->data.block.stack_level != 0)
     {
       struct label_chain *chain;
 
@@ -3197,7 +3089,7 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	  DECL_TOO_LATE (chain->label) = 1;
 	  /* If any goto without a fixup came to this label,
 	     that must be an error, because gotos without fixups
-	     come from outside all saved stack-levels and all cleanups.  */
+	     come from outside all saved stack-levels.  */
 	  if (TREE_ADDRESSABLE (chain->label))
 	    error_with_decl (chain->label,
 			     "label `%s' used before containing binding contour");
@@ -3271,6 +3163,9 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 	  use_variable (rtl);
       }
 
+  /* Restore the temporary level of TARGET_EXPRs.  */
+  target_temp_slot_level = thisblock->data.block.target_temp_slot_level;
+
   /* Restore block_stack level for containing block.  */
 
   stack_block_stack = thisblock->data.block.innermost_stack_block;
@@ -3281,33 +3176,6 @@ expand_end_bindings (vars, mark_ends, dont_jump_in)
 }
 
 
-/* End a binding contour.
-   VARS is the chain of VAR_DECL nodes for the variables bound
-   in this contour.  MARK_ENDS is nonzer if we should put a note
-   at the beginning and end of this binding contour.
-   DONT_JUMP_IN is nonzero if it is not valid to jump into this
-   contour.  */
-
-static void
-bc_expand_end_bindings (vars, mark_ends, dont_jump_in)
-     tree vars;
-     int mark_ends;
-     int dont_jump_in;
-{
-  struct nesting *thisbind = nesting_stack;
-  tree decl;
-
-  if (warn_unused)
-    for (decl = vars; decl; decl = TREE_CHAIN (decl))
-      if (! TREE_USED (TREE_VALUE (decl)) && TREE_CODE (TREE_VALUE (decl)) == VAR_DECL)
-	warning_with_decl (decl, "unused variable `%s'");
-
-  if (thisbind->exit_label)
-    bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thisbind->exit_label));
-
-  /* Pop block/bindings off stack */
-  POPSTACK (block_stack);
-}
 
 /* Generate RTL for the automatic variable declaration DECL.
    (Other kinds of declarations are simply ignored if seen here.)  */
@@ -3318,12 +3186,6 @@ expand_decl (decl)
 {
   struct nesting *thisblock = block_stack;
   tree type;
-
-  if (output_bytecode)
-    {
-      bc_expand_decl (decl, 0);
-      return;
-    }
 
   type = TREE_TYPE (decl);
 
@@ -3341,7 +3203,7 @@ expand_decl (decl)
   /* Create the RTL representation for the variable.  */
 
   if (type == error_mark_node)
-    DECL_RTL (decl) = gen_rtx (MEM, BLKmode, const0_rtx);
+    DECL_RTL (decl) = gen_rtx_MEM (BLKmode, const0_rtx);
   else if (DECL_SIZE (decl) == 0)
     /* Variable with incomplete type.  */
     {
@@ -3351,7 +3213,7 @@ expand_decl (decl)
       else
 	/* An initializer is going to decide the size of this array.
 	   Until we know the size, represent its address with a reg.  */
-	DECL_RTL (decl) = gen_rtx (MEM, BLKmode, gen_reg_rtx (Pmode));
+	DECL_RTL (decl) = gen_rtx_MEM (BLKmode, gen_reg_rtx (Pmode));
       MEM_IN_STRUCT_P (DECL_RTL (decl)) = AGGREGATE_TYPE_P (type);
     }
   else if (DECL_MODE (decl) != BLKmode
@@ -3361,36 +3223,29 @@ expand_decl (decl)
 		&& TREE_CODE (type) == REAL_TYPE)
 	   && ! TREE_THIS_VOLATILE (decl)
 	   && ! TREE_ADDRESSABLE (decl)
-	   && (DECL_REGISTER (decl) || ! obey_regdecls))
+	   && (DECL_REGISTER (decl) || ! obey_regdecls)
+	   /* if -fcheck-memory-usage, check all variables.  */
+	   && ! flag_check_memory_usage)
     {
       /* Automatic variable that can go in a register.  */
       int unsignedp = TREE_UNSIGNED (type);
       enum machine_mode reg_mode
 	= promote_mode (type, DECL_MODE (decl), &unsignedp, 0);
 
-      if (TREE_CODE (type) == COMPLEX_TYPE)
-	{
-	  rtx realpart, imagpart;
-	  enum machine_mode partmode = TYPE_MODE (TREE_TYPE (type));
+      DECL_RTL (decl) = gen_reg_rtx (reg_mode);
+      mark_user_reg (DECL_RTL (decl));
 
-	  /* For a complex type variable, make a CONCAT of two pseudos
-	     so that the real and imaginary parts
-	     can be allocated separately.  */
-	  realpart = gen_reg_rtx (partmode);
-	  REG_USERVAR_P (realpart) = 1;
-	  imagpart = gen_reg_rtx (partmode);
-	  REG_USERVAR_P (imagpart) = 1;
-	  DECL_RTL (decl) = gen_rtx (CONCAT, reg_mode, realpart, imagpart);
-	}
-      else
-	{
-	  DECL_RTL (decl) = gen_reg_rtx (reg_mode);
-	  if (TREE_CODE (type) == POINTER_TYPE)
-	    mark_reg_pointer (DECL_RTL (decl));
-	  REG_USERVAR_P (DECL_RTL (decl)) = 1;
-	}
+      if (POINTER_TYPE_P (type))
+	mark_reg_pointer (DECL_RTL (decl),
+			  (TYPE_ALIGN (TREE_TYPE (TREE_TYPE (decl)))
+			   / BITS_PER_UNIT));
     }
-  else if (TREE_CODE (DECL_SIZE (decl)) == INTEGER_CST)
+
+  else if (TREE_CODE (DECL_SIZE (decl)) == INTEGER_CST
+	   && ! (flag_stack_check && ! STACK_CHECK_BUILTIN
+		 && (TREE_INT_CST_HIGH (DECL_SIZE (decl)) != 0
+		     || (TREE_INT_CST_LOW (DECL_SIZE (decl))
+			 > STACK_CHECK_MAX_VAR_SIZE * BITS_PER_UNIT))))
     {
       /* Variable of fixed size that goes on the stack.  */
       rtx oldaddr = 0;
@@ -3437,6 +3292,8 @@ expand_decl (decl)
       if (flag_float_store && TREE_CODE (type) == REAL_TYPE)
 	MEM_VOLATILE_P (DECL_RTL (decl)) = 1;
 #endif
+
+      MEM_ALIAS_SET (DECL_RTL (decl)) = get_alias_set (decl);
     }
   else
     /* Dynamic-size object: must push space on the stack.  */
@@ -3461,12 +3318,15 @@ expand_decl (decl)
 			  NULL_RTX, VOIDmode, 0);
       free_temp_slots ();
 
-      /* Allocate space on the stack for the variable.  */
+      /* Allocate space on the stack for the variable.  Note that
+	 DECL_ALIGN says how the variable is to be aligned and we 
+	 cannot use it to conclude anything about the alignment of
+	 the size.  */
       address = allocate_dynamic_stack_space (size, NULL_RTX,
-					      DECL_ALIGN (decl));
+					      TYPE_ALIGN (TREE_TYPE (decl)));
 
       /* Reference the variable indirect through that rtx.  */
-      DECL_RTL (decl) = gen_rtx (MEM, DECL_MODE (decl), address);
+      DECL_RTL (decl) = gen_rtx_MEM (DECL_MODE (decl), address);
 
       /* If this is a memory ref that contains aggregate components,
 	 mark it as such for cse and loop optimize.  */
@@ -3500,50 +3360,6 @@ expand_decl (decl)
 }
 
 
-/* Generate code for the automatic variable declaration DECL.  For
-   most variables this just means we give it a stack offset.  The
-   compiler sometimes emits cleanups without variables and we will
-   have to deal with those too.  */
-
-static void
-bc_expand_decl (decl, cleanup)
-     tree decl;
-     tree cleanup;
-{
-  tree type;
-
-  if (!decl)
-    {
-      /* A cleanup with no variable.  */
-      if (!cleanup)
-	abort ();
-
-      return;
-    }
-
-  /* Only auto variables need any work.  */
-  if (TREE_CODE (decl) != VAR_DECL || TREE_STATIC (decl) || DECL_EXTERNAL (decl))
-    return;
-
-  type = TREE_TYPE (decl);
-
-  if (type == error_mark_node)
-    DECL_RTL (decl) = bc_gen_rtx ((char *) 0, 0, (struct bc_label *) 0);
-
-  else if (DECL_SIZE (decl) == 0)
-
-    /* Variable with incomplete type.  The stack offset herein will be
-       fixed later in expand_decl_init ().  */
-    DECL_RTL (decl) = bc_gen_rtx ((char *) 0, 0, (struct bc_label *) 0);
-
-  else if (TREE_CONSTANT (DECL_SIZE (decl)))
-    {
-      DECL_RTL (decl) = bc_allocate_local (TREE_INT_CST_LOW (DECL_SIZE (decl)) / BITS_PER_UNIT,
-					   DECL_ALIGN (decl));
-    }
-  else
-    DECL_RTL (decl) = bc_allocate_variable_array (DECL_SIZE (decl));
-}
 
 /* Emit code to perform the initialization of a declaration DECL.  */
 
@@ -3552,12 +3368,6 @@ expand_decl_init (decl)
      tree decl;
 {
   int was_used = TREE_USED (decl);
-
-  if (output_bytecode)
-    {
-      bc_expand_decl_init (decl);
-      return;
-    }
 
   /* If this is a CONST_DECL, we don't have to generate any code, but
      if DECL_INITIAL is a constant, call expand_expr to force TREE_CST_RTL
@@ -3581,8 +3391,9 @@ expand_decl_init (decl)
   if (DECL_INITIAL (decl) == error_mark_node)
     {
       enum tree_code code = TREE_CODE (TREE_TYPE (decl));
+
       if (code == INTEGER_TYPE || code == REAL_TYPE || code == ENUMERAL_TYPE
-	  || code == POINTER_TYPE)
+	  || code == POINTER_TYPE || code == REFERENCE_TYPE)
 	expand_assignment (decl, convert (TREE_TYPE (decl), integer_zero_node),
 			   0, 0);
       emit_queue ();
@@ -3602,92 +3413,13 @@ expand_decl_init (decl)
   free_temp_slots ();
 }
 
-/* Expand initialization for variable-sized types. Allocate array
-   using newlocalSI and set local variable, which is a pointer to the
-   storage. */
-
-static void
-bc_expand_variable_local_init (decl)
-     tree decl;
-{
-  /* Evaluate size expression and coerce to SI */
-  bc_expand_expr (DECL_SIZE (decl));
-
-  /* Type sizes are always (?) of TREE_CODE INTEGER_CST, so
-     no coercion is necessary (?) */
-
-/*  emit_typecode_conversion (preferred_typecode (TYPE_MODE (DECL_SIZE (decl)),
-						TREE_UNSIGNED (DECL_SIZE (decl))), SIcode); */
-
-  /* Emit code to allocate array */
-  bc_emit_instruction (newlocalSI);
-
-  /* Store array pointer in local variable. This is the only instance
-     where we actually want the address of the pointer to the
-     variable-size block, rather than the pointer itself.  We avoid
-     using expand_address() since that would cause the pointer to be
-     pushed rather than its address. Hence the hard-coded reference;
-     notice also that the variable is always local (no global
-     variable-size type variables). */
-
-  bc_load_localaddr (DECL_RTL (decl));
-  bc_emit_instruction (storeP);
-}
-
-
-/* Emit code to initialize a declaration.  */
-
-static void
-bc_expand_decl_init (decl)
-     tree decl;
-{
-  int org_stack_depth;
-
-  /* Statical initializers are handled elsewhere */
-
-  if (TREE_STATIC (decl))
-    return;
-
-  /* Memory original stack depth */
-  org_stack_depth = stack_depth;
-
-  /* If the type is variable-size, we first create its space (we ASSUME
-     it CAN'T be static).  We do this regardless of whether there's an
-     initializer assignment or not. */
-
-  if (TREE_CODE (DECL_SIZE (decl)) != INTEGER_CST)
-    bc_expand_variable_local_init (decl);
-
-  /* Expand initializer assignment */
-  if (DECL_INITIAL (decl) == error_mark_node)
-    {
-      enum tree_code code = TREE_CODE (TREE_TYPE (decl));
-
-      if (code == INTEGER_TYPE || code == REAL_TYPE || code == ENUMERAL_TYPE
-	  || code == POINTER_TYPE)
-
-	expand_assignment (TREE_TYPE (decl), decl, 0, 0);
-    }
-  else if (DECL_INITIAL (decl))
-    expand_assignment (TREE_TYPE (decl), decl, 0, 0);
-
-  /* Restore stack depth */
-  if (org_stack_depth > stack_depth)
-    abort ();
-
-  bc_adjust_stack (stack_depth - org_stack_depth);
-}
- 
-
 /* CLEANUP is an expression to be executed at exit from this binding contour;
    for example, in C++, it might call the destructor for this variable.
 
-   If CLEANUP contains any SAVE_EXPRs, then you must preevaluate them
-   either before or after calling `expand_decl_cleanup' but before compiling
-   any subsequent expressions.  This is because CLEANUP may be expanded
-   more than once, on different branches of execution.
-   For the same reason, CLEANUP may not contain a CALL_EXPR
-   except as its topmost node--else `preexpand_calls' would get confused.
+   We wrap CLEANUP in an UNSAVE_EXPR node, so that we can expand the
+   CLEANUP multiple times, and have the correct semantics.  This
+   happens in exception handling, for gotos, returns, breaks that
+   leave the current scope.
 
    If CLEANUP is nonzero and DECL is zero, we record a cleanup
    that is not associated with any particular variable.   */
@@ -3706,12 +3438,187 @@ expand_decl_cleanup (decl, cleanup)
 
   if (cleanup != 0)
     {
-      thisblock->data.block.cleanups
-	= temp_tree_cons (decl, cleanup, thisblock->data.block.cleanups);
-      /* If this block has a cleanup, it belongs in stack_block_stack.  */
-      stack_block_stack = thisblock;
-      (*interim_eh_hook) (NULL_TREE);
+      tree t;
+      rtx seq;
+      tree *cleanups = &thisblock->data.block.cleanups;
+      int cond_context = conditional_context ();
+
+      if (cond_context)
+	{
+	  rtx flag = gen_reg_rtx (word_mode);
+	  rtx set_flag_0;
+	  tree cond;
+
+	  start_sequence ();
+	  emit_move_insn (flag, const0_rtx);
+	  set_flag_0 = get_insns ();
+	  end_sequence ();
+
+	  thisblock->data.block.last_unconditional_cleanup
+	    = emit_insns_after (set_flag_0,
+				thisblock->data.block.last_unconditional_cleanup);
+
+	  emit_move_insn (flag, const1_rtx);
+
+	  /* All cleanups must be on the function_obstack.  */
+	  push_obstacks_nochange ();
+	  resume_temporary_allocation ();
+
+	  cond = build_decl (VAR_DECL, NULL_TREE, type_for_mode (word_mode, 1));
+	  DECL_RTL (cond) = flag;
+
+	  /* Conditionalize the cleanup.  */
+	  cleanup = build (COND_EXPR, void_type_node,
+			   truthvalue_conversion (cond),
+			   cleanup, integer_zero_node);
+	  cleanup = fold (cleanup);
+
+	  pop_obstacks ();
+
+	  cleanups = thisblock->data.block.cleanup_ptr;
+	}
+
+      /* All cleanups must be on the function_obstack.  */
+      push_obstacks_nochange ();
+      resume_temporary_allocation ();
+      cleanup = unsave_expr (cleanup);
+      pop_obstacks ();
+
+      t = *cleanups = temp_tree_cons (decl, cleanup, *cleanups);
+
+      if (! cond_context)
+	/* If this block has a cleanup, it belongs in stack_block_stack.  */
+	stack_block_stack = thisblock;
+
+      if (cond_context)
+	{
+	  start_sequence ();
+	}
+
+      /* If this was optimized so that there is no exception region for the
+	 cleanup, then mark the TREE_LIST node, so that we can later tell
+	 if we need to call expand_eh_region_end.  */
+      if (! using_eh_for_cleanups_p
+	  || expand_eh_region_start_tree (decl, cleanup))
+	TREE_ADDRESSABLE (t) = 1;
+      /* If that started a new EH region, we're in a new block.  */
+      thisblock = block_stack;
+
+      if (cond_context)
+	{
+	  seq = get_insns ();
+	  end_sequence ();
+	  if (seq)
+	    thisblock->data.block.last_unconditional_cleanup
+	      = emit_insns_after (seq,
+				  thisblock->data.block.last_unconditional_cleanup);
+	}
+      else
+	{
+	  thisblock->data.block.last_unconditional_cleanup
+	    = get_last_insn ();
+	  thisblock->data.block.cleanup_ptr = &thisblock->data.block.cleanups;
+	}
     }
+  return 1;
+}
+
+/* Like expand_decl_cleanup, but suppress generating an exception handler
+   to perform the cleanup.  */
+
+int
+expand_decl_cleanup_no_eh (decl, cleanup)
+     tree decl, cleanup;
+{
+  int save_eh = using_eh_for_cleanups_p;
+  int result;
+
+  using_eh_for_cleanups_p = 0;
+  result = expand_decl_cleanup (decl, cleanup);
+  using_eh_for_cleanups_p = save_eh;
+
+  return result;
+}
+
+/* Arrange for the top element of the dynamic cleanup chain to be
+   popped if we exit the current binding contour.  DECL is the
+   associated declaration, if any, otherwise NULL_TREE.  If the
+   current contour is left via an exception, then __sjthrow will pop
+   the top element off the dynamic cleanup chain.  The code that
+   avoids doing the action we push into the cleanup chain in the
+   exceptional case is contained in expand_cleanups.
+
+   This routine is only used by expand_eh_region_start, and that is
+   the only way in which an exception region should be started.  This
+   routine is only used when using the setjmp/longjmp codegen method
+   for exception handling.  */
+
+int
+expand_dcc_cleanup (decl)
+     tree decl;
+{
+  struct nesting *thisblock = block_stack;
+  tree cleanup;
+
+  /* Error if we are not in any block.  */
+  if (thisblock == 0)
+    return 0;
+
+  /* Record the cleanup for the dynamic handler chain.  */
+
+  /* All cleanups must be on the function_obstack.  */
+  push_obstacks_nochange ();
+  resume_temporary_allocation ();
+  cleanup = make_node (POPDCC_EXPR);
+  pop_obstacks ();
+
+  /* Add the cleanup in a manner similar to expand_decl_cleanup.  */
+  thisblock->data.block.cleanups
+    = temp_tree_cons (decl, cleanup, thisblock->data.block.cleanups);
+
+  /* If this block has a cleanup, it belongs in stack_block_stack.  */
+  stack_block_stack = thisblock;
+  return 1;
+}
+
+/* Arrange for the top element of the dynamic handler chain to be
+   popped if we exit the current binding contour.  DECL is the
+   associated declaration, if any, otherwise NULL_TREE.  If the current
+   contour is left via an exception, then __sjthrow will pop the top
+   element off the dynamic handler chain.  The code that avoids doing
+   the action we push into the handler chain in the exceptional case
+   is contained in expand_cleanups.
+
+   This routine is only used by expand_eh_region_start, and that is
+   the only way in which an exception region should be started.  This
+   routine is only used when using the setjmp/longjmp codegen method
+   for exception handling.  */
+
+int
+expand_dhc_cleanup (decl)
+     tree decl;
+{
+  struct nesting *thisblock = block_stack;
+  tree cleanup;
+
+  /* Error if we are not in any block.  */
+  if (thisblock == 0)
+    return 0;
+
+  /* Record the cleanup for the dynamic handler chain.  */
+
+  /* All cleanups must be on the function_obstack.  */
+  push_obstacks_nochange ();
+  resume_temporary_allocation ();
+  cleanup = make_node (POPDHC_EXPR);
+  pop_obstacks ();
+
+  /* Add the cleanup in a manner similar to expand_decl_cleanup.  */
+  thisblock->data.block.cleanups
+    = temp_tree_cons (decl, cleanup, thisblock->data.block.cleanups);
+
+  /* If this block has a cleanup, it belongs in stack_block_stack.  */
+  stack_block_stack = thisblock;
   return 1;
 }
 
@@ -3755,7 +3662,7 @@ expand_anon_union_decl (decl, cleanup, decl_elts)
 	    DECL_RTL (decl_elt) = x;
 	  else
 	    {
-	      DECL_RTL (decl_elt) = gen_rtx (MEM, mode, copy_rtx (XEXP (x, 0)));
+	      DECL_RTL (decl_elt) = gen_rtx_MEM (mode, copy_rtx (XEXP (x, 0)));
 	      MEM_IN_STRUCT_P (DECL_RTL (decl_elt)) = MEM_IN_STRUCT_P (x);
 	      RTX_UNCHANGING_P (DECL_RTL (decl_elt)) = RTX_UNCHANGING_P (x);
 	    }
@@ -3765,7 +3672,7 @@ expand_anon_union_decl (decl, cleanup, decl_elts)
 	  if (mode == GET_MODE (x))
 	    DECL_RTL (decl_elt) = x;
 	  else
-	    DECL_RTL (decl_elt) = gen_rtx (SUBREG, mode, x, 0);
+	    DECL_RTL (decl_elt) = gen_rtx_SUBREG (mode, x, 0);
 	}
       else
 	abort ();
@@ -3811,7 +3718,19 @@ expand_cleanups (list, dont_do, in_fixup, reachable)
 	else
 	  {
 	    if (! in_fixup)
-	      (*interim_eh_hook) (TREE_VALUE (tail));
+	      {
+		tree cleanup = TREE_VALUE (tail);
+
+		/* See expand_d{h,c}c_cleanup for why we avoid this.  */
+		if (TREE_CODE (cleanup) != POPDHC_EXPR
+		    && TREE_CODE (cleanup) != POPDCC_EXPR
+		    /* See expand_eh_region_start_tree for this case.  */
+		    && ! TREE_ADDRESSABLE (tail))
+		  {
+		    cleanup = protect_with_terminate (cleanup);
+		    expand_eh_region_end (cleanup);
+		  }
+	      }
 
 	    if (reachable)
 	      {
@@ -3823,11 +3742,49 @@ expand_cleanups (list, dont_do, in_fixup, reachable)
 		   the target.  Though the cleanups are expanded multiple
 		   times, the control paths are non-overlapping so the
 		   cleanups will not be executed twice.  */
+
+		/* We may need to protect fixups with rethrow regions.  */
+		int protect = (in_fixup && ! TREE_ADDRESSABLE (tail));
+
+		if (protect)
+		  expand_fixup_region_start ();
+
 		expand_expr (TREE_VALUE (tail), const0_rtx, VOIDmode, 0);
+		if (protect)
+		  expand_fixup_region_end (TREE_VALUE (tail));
 		free_temp_slots ();
 	      }
 	  }
       }
+}
+
+/* Mark when the context we are emitting RTL for as a conditional
+   context, so that any cleanup actions we register with
+   expand_decl_init will be properly conditionalized when those
+   cleanup actions are later performed.  Must be called before any
+   expression (tree) is expanded that is within a conditional context.  */
+
+void
+start_cleanup_deferral ()
+{
+  /* block_stack can be NULL if we are inside the parameter list.  It is
+     OK to do nothing, because cleanups aren't possible here.  */
+  if (block_stack)
+    ++block_stack->data.block.conditional_code;
+}
+
+/* Mark the end of a conditional region of code.  Because cleanup
+   deferrals may be nested, we may still be in a conditional region
+   after we end the currently deferred cleanups, only after we end all
+   deferred cleanups, are we back in unconditional code.  */
+
+void
+end_cleanup_deferral ()
+{
+  /* block_stack can be NULL if we are inside the parameter list.  It is
+     OK to do nothing, because cleanups aren't possible here.  */
+  if (block_stack)
+    --block_stack->data.block.conditional_code;
 }
 
 /* Move all cleanups from the current block_stack
@@ -3873,11 +3830,7 @@ any_pending_cleanups (this_contour)
   if (this_contour && block_stack->data.block.cleanups != NULL)
     return 1;
   if (block_stack->data.block.cleanups == 0
-      && (block_stack->data.block.outer_cleanups == 0
-#if 0
-	  || block_stack->data.block.outer_cleanups == empty_cleanup_list
-#endif
-	  ))
+      && block_stack->data.block.outer_cleanups == 0)
     return 0;
 
   for (block = block_stack->next; block; block = block->next)
@@ -3920,15 +3873,9 @@ expand_start_case (exit_flag, expr, type, printname)
   thiscase->data.case_stmt.default_label = 0;
   thiscase->data.case_stmt.num_ranges = 0;
   thiscase->data.case_stmt.printname = printname;
-  thiscase->data.case_stmt.seenlabel = 0;
+  thiscase->data.case_stmt.line_number_status = force_line_numbers ();
   case_stack = thiscase;
   nesting_stack = thiscase;
-
-  if (output_bytecode)
-    {
-      bc_expand_start_case (thiscase, expr, type, printname);
-      return;
-    }
 
   do_pending_stack_adjust ();
 
@@ -3938,32 +3885,8 @@ expand_start_case (exit_flag, expr, type, printname)
     emit_note (NULL_PTR, NOTE_INSN_DELETED);
 
   thiscase->data.case_stmt.start = get_last_insn ();
-}
 
-
-/* Enter a case statement. It is assumed that the caller has pushed
-   the current context onto the case stack. */
-
-static void
-bc_expand_start_case (thiscase, expr, type, printname)
-     struct nesting *thiscase;
-     tree expr;
-     tree type;
-     char *printname;
-{
-  bc_expand_expr (expr);
-  bc_expand_conversion (TREE_TYPE (expr), type);
-
-  /* For cases, the skip is a place we jump to that's emitted after
-     the size of the jump table is known.  */
-
-  thiscase->data.case_stmt.skip_label = gen_label_rtx ();
-  bc_emit_bytecode (jump);
-  bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (thiscase->data.case_stmt.skip_label));
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
+  start_cleanup_deferral ();
 }
 
 
@@ -3990,6 +3913,7 @@ expand_start_case_dummy ()
   thiscase->data.case_stmt.num_ranges = 0;
   case_stack = thiscase;
   nesting_stack = thiscase;
+  start_cleanup_deferral ();
 }
 
 /* End a dummy case statement.  */
@@ -3997,6 +3921,7 @@ expand_start_case_dummy ()
 void
 expand_end_case_dummy ()
 {
+  end_cleanup_deferral ();
   POPSTACK (case_stack);
 }
 
@@ -4011,6 +3936,43 @@ case_index_expr_type ()
   return 0;
 }
 
+static void
+check_seenlabel ()
+{
+  /* If this is the first label, warn if any insns have been emitted.  */
+  if (case_stack->data.case_stmt.line_number_status >= 0)
+    {
+      rtx insn;
+
+      restore_line_number_status
+	(case_stack->data.case_stmt.line_number_status);
+      case_stack->data.case_stmt.line_number_status = -1;
+
+      for (insn = case_stack->data.case_stmt.start;
+	   insn;
+	   insn = NEXT_INSN (insn))
+	{
+	  if (GET_CODE (insn) == CODE_LABEL)
+	    break;
+	  if (GET_CODE (insn) != NOTE
+	      && (GET_CODE (insn) != INSN || GET_CODE (PATTERN (insn)) != USE))
+	    {
+	      do
+		insn = PREV_INSN (insn);
+	      while (insn && (GET_CODE (insn) != NOTE || NOTE_LINE_NUMBER (insn) < 0));
+
+	      /* If insn is zero, then there must have been a syntax error.  */
+	      if (insn)
+		warning_with_file_and_line (NOTE_SOURCE_FILE(insn),
+					    NOTE_LINE_NUMBER(insn),
+					    "unreachable code at beginning of %s",
+					    case_stack->data.case_stmt.printname);
+	      break;
+	    }
+	}
+    }
+}
+
 /* Accumulate one case or default label inside a case or switch statement.
    VALUE is the value of the case (a null pointer, for a default label).
    The function CONVERTER, when applied to arguments T and V,
@@ -4021,7 +3983,7 @@ case_index_expr_type ()
    If VALUE is a duplicate or overlaps, return 2 and do nothing
    except store the (first) duplicate node in *DUPLICATE.
    If VALUE is out of range, return 3 and do nothing.
-   If we are jumping into the scope of a cleaup or var-sized array, return 5.
+   If we are jumping into the scope of a cleanup or var-sized array, return 5.
    Return 0 on success.
 
    Extended to handle range statements.  */
@@ -4033,13 +3995,8 @@ pushcase (value, converter, label, duplicate)
      register tree label;
      tree *duplicate;
 {
-  register struct case_node **l;
-  register struct case_node *n;
   tree index_type;
   tree nominal_type;
-
-  if (output_bytecode)
-    return bc_pushcase (value, label);
 
   /* Fail if not inside a real case statement.  */
   if (! (case_stack && case_stack->data.case_stmt.start))
@@ -4060,26 +4017,7 @@ pushcase (value, converter, label, duplicate)
   if (value != 0)
     value = (*converter) (nominal_type, value);
 
-  /* If this is the first label, warn if any insns have been emitted.  */
-  if (case_stack->data.case_stmt.seenlabel == 0)
-    {
-      rtx insn;
-      for (insn = case_stack->data.case_stmt.start;
-	   insn;
-	   insn = NEXT_INSN (insn))
-	{
-	  if (GET_CODE (insn) == CODE_LABEL)
-	    break;
-	  if (GET_CODE (insn) != NOTE
-	      && (GET_CODE (insn) != INSN || GET_CODE (PATTERN (insn)) != USE))
-	    {
-	      warning ("unreachable code at beginning of %s",
-		       case_stack->data.case_stmt.printname);
-	      break;
-	    }
-	}
-    }
-  case_stack->data.case_stmt.seenlabel = 1;
+  check_seenlabel ();
 
   /* Fail if this value is out of range for the actual type of the index
      (which may be narrower than NOMINAL_TYPE).  */
@@ -4097,46 +4035,20 @@ pushcase (value, converter, label, duplicate)
       case_stack->data.case_stmt.default_label = label;
     }
   else
-    {
-      /* Find the elt in the chain before which to insert the new value,
-	 to keep the chain sorted in increasing order.
-	 But report an error if this element is a duplicate.  */
-      for (l = &case_stack->data.case_stmt.case_list;
-	   /* Keep going past elements distinctly less than VALUE.  */
-	   *l != 0 && tree_int_cst_lt ((*l)->high, value);
-	   l = &(*l)->right)
-	;
-      if (*l)
-	{
-	  /* Element we will insert before must be distinctly greater;
-	     overlap means error.  */
-	  if (! tree_int_cst_lt (value, (*l)->low))
-	    {
-	      *duplicate = (*l)->code_label;
-	      return 2;
-	    }
-	}
-
-      /* Add this label to the chain, and succeed.
-	 Copy VALUE so it is on temporary rather than momentary
-	 obstack and will thus survive till the end of the case statement.  */
-      n = (struct case_node *) oballoc (sizeof (struct case_node));
-      n->left = 0;
-      n->right = *l;
-      n->high = n->low = copy_node (value);
-      n->code_label = label;
-      *l = n;
-    }
+    return add_case_node (value, value, label, duplicate);
 
   expand_label (label);
   return 0;
 }
 
-/* Like pushcase but this case applies to all values
-   between VALUE1 and VALUE2 (inclusive).
-   The return value is the same as that of pushcase
-   but there is one additional error code:
-   4 means the specified range was empty.  */
+/* Like pushcase but this case applies to all values between VALUE1 and
+   VALUE2 (inclusive).  If VALUE1 is NULL, the range starts at the lowest
+   value of the index type and ends at VALUE2.  If VALUE2 is NULL, the range
+   starts at VALUE1 and ends at the highest value of the index type.
+   If both are NULL, this case applies to all values.
+
+   The return value is the same as that of pushcase but there is one
+   additional error code: 4 means the specified range was empty.  */
 
 int
 pushcase_range (value1, value2, converter, label, duplicate)
@@ -4145,8 +4057,6 @@ pushcase_range (value1, value2, converter, label, duplicate)
      register tree label;
      tree *duplicate;
 {
-  register struct case_node **l;
-  register struct case_node *n;
   tree index_type;
   tree nominal_type;
 
@@ -4165,144 +4075,271 @@ pushcase_range (value1, value2, converter, label, duplicate)
   if (index_type == error_mark_node)
     return 0;
 
-  /* If this is the first label, warn if any insns have been emitted.  */
-  if (case_stack->data.case_stmt.seenlabel == 0)
-    {
-      rtx insn;
-      for (insn = case_stack->data.case_stmt.start;
-	   insn;
-	   insn = NEXT_INSN (insn))
-	{
-	  if (GET_CODE (insn) == CODE_LABEL)
-	    break;
-	  if (GET_CODE (insn) != NOTE
-	      && (GET_CODE (insn) != INSN || GET_CODE (PATTERN (insn)) != USE))
-	    {
-	      warning ("unreachable code at beginning of %s",
-		       case_stack->data.case_stmt.printname);
-	      break;
-	    }
-	}
-    }
-  case_stack->data.case_stmt.seenlabel = 1;
+  check_seenlabel ();
 
-  /* Convert VALUEs to type in which the comparisons are nominally done.  */
-  if (value1 == 0)  /* Negative infinity. */
-    value1 = TYPE_MIN_VALUE(index_type);
+  /* Convert VALUEs to type in which the comparisons are nominally done
+     and replace any unspecified value with the corresponding bound.  */
+  if (value1 == 0)
+    value1 = TYPE_MIN_VALUE (index_type);
+  if (value2 == 0)
+    value2 = TYPE_MAX_VALUE (index_type);
+
+  /* Fail if the range is empty.  Do this before any conversion since
+     we want to allow out-of-range empty ranges.  */
+  if (value2 && tree_int_cst_lt (value2, value1))
+    return 4;
+
   value1 = (*converter) (nominal_type, value1);
 
-  if (value2 == 0)  /* Positive infinity. */
-    value2 = TYPE_MAX_VALUE(index_type);
+  /* If the max was unbounded, use the max of the nominal_type we are 
+     converting to.  Do this after the < check above to suppress false
+     positives.  */
+  if (!value2)
+    value2 = TYPE_MAX_VALUE (nominal_type);
   value2 = (*converter) (nominal_type, value2);
 
   /* Fail if these values are out of range.  */
-  if (! int_fits_type_p (value1, index_type))
+  if (TREE_CONSTANT_OVERFLOW (value1)
+      || ! int_fits_type_p (value1, index_type))
     return 3;
 
-  if (! int_fits_type_p (value2, index_type))
+  if (TREE_CONSTANT_OVERFLOW (value2)
+      || ! int_fits_type_p (value2, index_type))
     return 3;
 
-  /* Fail if the range is empty.  */
-  if (tree_int_cst_lt (value2, value1))
-    return 4;
+  return add_case_node (value1, value2, label, duplicate);
+}
 
-  /* If the bounds are equal, turn this into the one-value case.  */
-  if (tree_int_cst_equal (value1, value2))
-    return pushcase (value1, converter, label, duplicate);
+/* Do the actual insertion of a case label for pushcase and pushcase_range
+   into case_stack->data.case_stmt.case_list.  Use an AVL tree to avoid
+   slowdown for large switch statements.  */
 
-  /* Find the elt in the chain before which to insert the new value,
-     to keep the chain sorted in increasing order.
-     But report an error if this element is a duplicate.  */
-  for (l = &case_stack->data.case_stmt.case_list;
-       /* Keep going past elements distinctly less than this range.  */
-       *l != 0 && tree_int_cst_lt ((*l)->high, value1);
-       l = &(*l)->right)
-    ;
-  if (*l)
+static int
+add_case_node (low, high, label, duplicate)
+     tree low, high;
+     tree label;
+     tree *duplicate;
+{
+  struct case_node *p, **q, *r;
+
+  q = &case_stack->data.case_stmt.case_list;
+  p = *q;
+
+  while ((r = *q))
     {
-      /* Element we will insert before must be distinctly greater;
-	 overlap means error.  */
-      if (! tree_int_cst_lt (value2, (*l)->low))
+      p = r;
+
+      /* Keep going past elements distinctly greater than HIGH.  */
+      if (tree_int_cst_lt (high, p->low))
+	q = &p->left;
+
+      /* or distinctly less than LOW.  */
+      else if (tree_int_cst_lt (p->high, low))
+	q = &p->right;
+
+      else
 	{
-	  *duplicate = (*l)->code_label;
+	  /* We have an overlap; this is an error.  */
+	  *duplicate = p->code_label;
 	  return 2;
 	}
     }
 
   /* Add this label to the chain, and succeed.
-     Copy VALUE1, VALUE2 so they are on temporary rather than momentary
+     Copy LOW, HIGH so they are on temporary rather than momentary
      obstack and will thus survive till the end of the case statement.  */
 
-  n = (struct case_node *) oballoc (sizeof (struct case_node));
-  n->left = 0;
-  n->right = *l;
-  n->low = copy_node (value1);
-  n->high = copy_node (value2);
-  n->code_label = label;
-  *l = n;
+  r = (struct case_node *) oballoc (sizeof (struct case_node));
+  r->low = copy_node (low);
 
-  expand_label (label);
+  /* If the bounds are equal, turn this into the one-value case.  */
 
-  case_stack->data.case_stmt.num_ranges++;
-
-  return 0;
-}
-
-
-/* Accumulate one case or default label; VALUE is the value of the
-   case, or nil for a default label.  If not currently inside a case,
-   return 1 and do nothing.  If VALUE is a duplicate or overlaps, return
-   2 and do nothing.  If VALUE is out of range, return 3 and do nothing.
-   Return 0 on success.  This function is a leftover from the earlier
-   bytecode compiler, which was based on gcc 1.37.  It should be
-   merged into pushcase. */
-
-static int
-bc_pushcase (value, label)
-     tree value;
-     tree label;
-{
-  struct nesting *thiscase = case_stack;
-  struct case_node *case_label, *new_label;
-
-  if (! thiscase)
-    return 1;
-
-  /* Fail if duplicate, overlap, or out of type range.  */
-  if (value)
-    {
-      value = convert (thiscase->data.case_stmt.nominal_type, value);
-      if (! int_fits_type_p (value, thiscase->data.case_stmt.nominal_type))
-	return 3;
-
-      for (case_label = thiscase->data.case_stmt.case_list;
-	   case_label->left; case_label = case_label->left)
-	if (! tree_int_cst_lt (case_label->left->high, value))
-	  break;
-
-      if (case_label != thiscase->data.case_stmt.case_list
-	  && ! tree_int_cst_lt (case_label->high, value)
-	  || case_label->left && ! tree_int_cst_lt (value, case_label->left->low))
-	return 2;
-
-      new_label = (struct case_node *) oballoc (sizeof (struct case_node));
-      new_label->low = new_label->high = copy_node (value);
-      new_label->code_label = label;
-      new_label->left = case_label->left;
-
-      case_label->left = new_label;
-      thiscase->data.case_stmt.num_ranges++;
-    }
+  if (tree_int_cst_equal (low, high))
+    r->high = r->low;
   else
     {
-      if (thiscase->data.case_stmt.default_label)
-	return 2;
-      thiscase->data.case_stmt.default_label = label;
+      r->high = copy_node (high);
+      case_stack->data.case_stmt.num_ranges++;
     }
 
+  r->code_label = label;
   expand_label (label);
+
+  *q = r;
+  r->parent = p;
+  r->left = 0;
+  r->right = 0;
+  r->balance = 0;
+
+  while (p)
+    {
+      struct case_node *s;
+
+      if (r == p->left)
+	{
+	  int b;
+
+	  if (! (b = p->balance))
+	    /* Growth propagation from left side.  */
+	    p->balance = -1;
+	  else if (b < 0)
+	    {
+	      if (r->balance < 0)
+		{
+		  /* R-Rotation */
+		  if ((p->left = s = r->right))
+		    s->parent = p;
+
+		  r->right = p;
+		  p->balance = 0;
+		  r->balance = 0;
+		  s = p->parent;
+		  p->parent = r;
+
+		  if ((r->parent = s))
+		    {
+		      if (s->left == p)
+			s->left = r;
+		      else
+			s->right = r;
+		    }
+		  else
+		    case_stack->data.case_stmt.case_list = r;
+		}
+	      else
+		/* r->balance == +1 */
+		{
+		  /* LR-Rotation */
+
+		  int b2;
+		  struct case_node *t = r->right;
+
+		  if ((p->left = s = t->right))
+		    s->parent = p;
+
+		  t->right = p;
+		  if ((r->right = s = t->left))
+		    s->parent = r;
+
+		  t->left = r;
+		  b = t->balance;
+		  b2 = b < 0;
+		  p->balance = b2;
+		  b2 = -b2 - b;
+		  r->balance = b2;
+		  t->balance = 0;
+		  s = p->parent;
+		  p->parent = t;
+		  r->parent = t;
+
+		  if ((t->parent = s))
+		    {
+		      if (s->left == p)
+			s->left = t;
+		      else
+			s->right = t;
+		    }
+		  else
+		    case_stack->data.case_stmt.case_list = t;
+		}
+	      break;
+	    }
+
+	  else
+	    {
+	      /* p->balance == +1; growth of left side balances the node.  */
+	      p->balance = 0;
+	      break;
+	    }
+	}
+      else
+	/* r == p->right */
+	{
+	  int b;
+
+	  if (! (b = p->balance))
+	    /* Growth propagation from right side.  */
+	    p->balance++;
+	  else if (b > 0)
+	    {
+	      if (r->balance > 0)
+		{
+		  /* L-Rotation */
+
+		  if ((p->right = s = r->left))
+		    s->parent = p;
+
+		  r->left = p;
+		  p->balance = 0;
+		  r->balance = 0;
+		  s = p->parent;
+		  p->parent = r;
+		  if ((r->parent = s))
+		    {
+		      if (s->left == p)
+			s->left = r;
+		      else
+			s->right = r;
+		    }
+
+		  else
+		    case_stack->data.case_stmt.case_list = r;
+		}
+
+	      else
+		/* r->balance == -1 */
+		{
+		  /* RL-Rotation */
+		  int b2;
+		  struct case_node *t = r->left;
+
+		  if ((p->right = s = t->left))
+		    s->parent = p;
+
+		  t->left = p;
+
+		  if ((r->left = s = t->right))
+		    s->parent = r;
+
+		  t->right = r;
+		  b = t->balance;
+		  b2 = b < 0;
+		  r->balance = b2;
+		  b2 = -b2 - b;
+		  p->balance = b2;
+		  t->balance = 0;
+		  s = p->parent;
+		  p->parent = t;
+		  r->parent = t;
+
+		  if ((t->parent = s))
+		    {
+		      if (s->left == p)
+			s->left = t;
+		      else
+			s->right = t;
+		    }
+
+		  else
+		    case_stack->data.case_stmt.case_list = t;
+		}
+	      break;
+	    }
+	  else
+	    {
+	      /* p->balance == -1; growth of right side balances the node.  */
+	      p->balance = 0;
+	      break;
+	    }
+	}
+
+      r = p;
+      p = p->parent;
+    }
+
   return 0;
 }
+
 
 /* Returns the number of possible values of TYPE.
    Returns -1 if the number is unknown or variable.
@@ -4317,7 +4354,7 @@ all_cases_count (type, spareness)
      tree type;
      int *spareness;
 {
-  HOST_WIDE_INT count, count_high = 0;
+  HOST_WIDE_INT count;
   *spareness = 0;
 
   switch (TREE_CODE (type))
@@ -4332,6 +4369,7 @@ all_cases_count (type, spareness)
     default:
     case INTEGER_TYPE:
       if (TREE_CODE (TYPE_MIN_VALUE (type)) != INTEGER_CST
+	  || TYPE_MAX_VALUE (type) == NULL
 	  || TREE_CODE (TYPE_MAX_VALUE (type)) != INTEGER_CST)
 	return -1;
       else
@@ -4339,7 +4377,7 @@ all_cases_count (type, spareness)
 	  /* count
 	     = TREE_INT_CST_LOW (TYPE_MAX_VALUE (type))
 	     - TREE_INT_CST_LOW (TYPE_MIN_VALUE (type)) + 1
-	     but with overflow checking. */
+	     but with overflow checking.  */
 	  tree mint = TYPE_MIN_VALUE (type);
 	  tree maxt = TYPE_MAX_VALUE (type);
 	  HOST_WIDE_INT lo, hi;
@@ -4384,11 +4422,11 @@ all_cases_count (type, spareness)
 
 
 #define BITARRAY_TEST(ARRAY, INDEX) \
-  ((ARRAY)[(unsigned)(INDEX) / HOST_BITS_PER_CHAR]\
-			  & (1 << ((unsigned)(INDEX) % HOST_BITS_PER_CHAR)))
+  ((ARRAY)[(unsigned) (INDEX) / HOST_BITS_PER_CHAR]\
+			  & (1 << ((unsigned) (INDEX) % HOST_BITS_PER_CHAR)))
 #define BITARRAY_SET(ARRAY, INDEX) \
-  ((ARRAY)[(unsigned)(INDEX) / HOST_BITS_PER_CHAR]\
-			  |= 1 << ((unsigned)(INDEX) % HOST_BITS_PER_CHAR))
+  ((ARRAY)[(unsigned) (INDEX) / HOST_BITS_PER_CHAR]\
+			  |= 1 << ((unsigned) (INDEX) % HOST_BITS_PER_CHAR))
 
 /* Set the elements of the bitstring CASES_SEEN (which has length COUNT),
    with the case values we have seen, assuming the case expression
@@ -4405,41 +4443,65 @@ mark_seen_cases (type, cases_seen, count, sparseness)
      long count;
      int sparseness;
 {
-  long i;
-
   tree next_node_to_try = NULL_TREE;
   long next_node_offset = 0;
 
-  register struct case_node *n;
+  register struct case_node *n, *root = case_stack->data.case_stmt.case_list;
   tree val = make_node (INTEGER_CST);
   TREE_TYPE (val) = type;
-  for (n = case_stack->data.case_stmt.case_list; n;
-       n = n->right)
+  if (! root)
+    ; /* Do nothing */
+  else if (sparseness == 2)
     {
-      TREE_INT_CST_LOW (val) = TREE_INT_CST_LOW (n->low);
-      TREE_INT_CST_HIGH (val) = TREE_INT_CST_HIGH (n->low);
-      while ( ! tree_int_cst_lt (n->high, val))
-	{
-	  /* Calculate (into xlo) the "offset" of the integer (val).
-	     The element with lowest value has offset 0, the next smallest
-	     element has offset 1, etc.  */
+      tree t;
+      HOST_WIDE_INT xlo;
 
-	  HOST_WIDE_INT xlo, xhi;
-	  tree t;
-	  if (sparseness == 2)
+      /* This less efficient loop is only needed to handle
+	 duplicate case values (multiple enum constants
+	 with the same value).  */
+      TREE_TYPE (val) = TREE_TYPE (root->low);
+      for (t = TYPE_VALUES (type), xlo = 0;  t != NULL_TREE;
+	   t = TREE_CHAIN (t), xlo++)
+	{
+	  TREE_INT_CST_LOW (val) = TREE_INT_CST_LOW (TREE_VALUE (t));
+	  TREE_INT_CST_HIGH (val) = TREE_INT_CST_HIGH (TREE_VALUE (t));
+	  n = root;
+	  do
 	    {
-	      /* This less efficient loop is only needed to handle
-		 duplicate case values (multiple enum constants
-		 with the same value).  */
-	      for (t = TYPE_VALUES (type), xlo = 0;  t != NULL_TREE;
-		   t = TREE_CHAIN (t), xlo++)
+	      /* Keep going past elements distinctly greater than VAL.  */
+	      if (tree_int_cst_lt (val, n->low))
+		n = n->left;
+	
+	      /* or distinctly less than VAL.  */
+	      else if (tree_int_cst_lt (n->high, val))
+		n = n->right;
+	
+	      else
 		{
-		  if (tree_int_cst_equal (val, TREE_VALUE (t)))
-		    BITARRAY_SET (cases_seen, xlo);
+		  /* We have found a matching range.  */
+		  BITARRAY_SET (cases_seen, xlo);
+		  break;
 		}
 	    }
-	  else
+	  while (n);
+	}
+    }
+  else
+    {
+      if (root->left)
+	case_stack->data.case_stmt.case_list = root = case_tree2list (root, 0);
+      for (n = root; n; n = n->right)
+	{
+	  TREE_INT_CST_LOW (val) = TREE_INT_CST_LOW (n->low);
+	  TREE_INT_CST_HIGH (val) = TREE_INT_CST_HIGH (n->low);
+	  while ( ! tree_int_cst_lt (n->high, val))
 	    {
+	      /* Calculate (into xlo) the "offset" of the integer (val).
+		 The element with lowest value has offset 0, the next smallest
+		 element has offset 1, etc.  */
+
+	      HOST_WIDE_INT xlo, xhi;
+	      tree t;
 	      if (sparseness && TYPE_VALUES (type) != NULL_TREE)
 		{
 		  /* The TYPE_VALUES will be in increasing order, so
@@ -4463,7 +4525,10 @@ mark_seen_cases (type, cases_seen, count, sparseness)
 		      xlo++;
 		      t = TREE_CHAIN (t);
 		      if (t == next_node_to_try)
-			break;
+			{
+			  xlo = -1;
+			  break;
+			}
 		    }
 		}
 	      else
@@ -4481,10 +4546,10 @@ mark_seen_cases (type, cases_seen, count, sparseness)
 	      
 	      if (xhi == 0 && xlo >= 0 && xlo < count)
 		BITARRAY_SET (cases_seen, xlo);
+	      add_double (TREE_INT_CST_LOW (val), TREE_INT_CST_HIGH (val),
+			  1, 0,
+			  &TREE_INT_CST_LOW (val), &TREE_INT_CST_HIGH (val));
 	    }
-	  add_double (TREE_INT_CST_LOW (val), TREE_INT_CST_HIGH (val),
-		      1, 0,
-		      &TREE_INT_CST_LOW (val), &TREE_INT_CST_HIGH (val));
 	}
     }
 }
@@ -4505,29 +4570,24 @@ check_for_full_enumeration_handling (type)
      tree type;
 {
   register struct case_node *n;
-  register struct case_node **l;
   register tree chain;
+#if 0  /* variable used by 'if 0'ed  code below. */
+  register struct case_node **l;
   int all_values = 1;
+#endif
 
-  /* True iff the selector type is a numbered set mode. */
+  /* True iff the selector type is a numbered set mode.  */
   int sparseness = 0;
 
-  /* The number of possible selector values. */
+  /* The number of possible selector values.  */
   HOST_WIDE_INT size;
 
   /* For each possible selector value. a one iff it has been matched
-     by a case value alternative. */
+     by a case value alternative.  */
   unsigned char *cases_seen;
 
-  /* The allocated size of cases_seen, in chars. */
+  /* The allocated size of cases_seen, in chars.  */
   long bytes_needed;
-  tree t;
-
-  if (output_bytecode)
-    {
-      bc_check_for_full_enumeration_handling (type);
-      return;
-    }
 
   if (! warn_switch)
     return;
@@ -4536,7 +4596,7 @@ check_for_full_enumeration_handling (type)
   bytes_needed = (size + HOST_BITS_PER_CHAR) / HOST_BITS_PER_CHAR;
 
   if (size > 0 && size < 600000
-      /* We deliberately use malloc here - not xmalloc. */
+      /* We deliberately use malloc here - not xmalloc.  */
       && (cases_seen = (unsigned char *) malloc (bytes_needed)) != NULL)
     {
       long i;
@@ -4546,7 +4606,7 @@ check_for_full_enumeration_handling (type)
       /* The time complexity of this code is normally O(N), where
 	 N being the number of members in the enumerated type.
 	 However, if type is a ENUMERAL_TYPE whose values do not
-	 increase monotonically, quadratic time may be needed. */
+	 increase monotonically, O(N*log(N)) time may be needed.  */
 
       mark_seen_cases (type, cases_seen, size, sparseness);
 
@@ -4563,8 +4623,12 @@ check_for_full_enumeration_handling (type)
   /* Now we go the other way around; we warn if there are case
      expressions that don't correspond to enumerators.  This can
      occur since C and C++ don't enforce type-checking of
-     assignments to enumeration variables. */
+     assignments to enumeration variables.  */
 
+  if (case_stack->data.case_stmt.case_list
+      && case_stack->data.case_stmt.case_list->left)
+    case_stack->data.case_stmt.case_list
+      = case_tree2list (case_stack->data.case_stmt.case_list, 0);
   if (warn_switch)
     for (n = case_stack->data.case_stmt.case_list; n; n = n->right)
       {
@@ -4576,11 +4640,11 @@ check_for_full_enumeration_handling (type)
 	if (!chain)
 	  {
 	    if (TYPE_NAME (type) == 0)
-	      warning ("case value `%d' not in enumerated type",
-		       TREE_INT_CST_LOW (n->low));
+	      warning ("case value `%ld' not in enumerated type",
+		       (long) TREE_INT_CST_LOW (n->low));
 	    else
-	      warning ("case value `%d' not in enumerated type `%s'",
-		       TREE_INT_CST_LOW (n->low),
+	      warning ("case value `%ld' not in enumerated type `%s'",
+		       (long) TREE_INT_CST_LOW (n->low),
 		       IDENTIFIER_POINTER ((TREE_CODE (TYPE_NAME (type))
 					    == IDENTIFIER_NODE)
 					   ? TYPE_NAME (type)
@@ -4596,11 +4660,11 @@ check_for_full_enumeration_handling (type)
 	    if (!chain)
 	      {
 		if (TYPE_NAME (type) == 0)
-		  warning ("case value `%d' not in enumerated type",
-			   TREE_INT_CST_LOW (n->high));
+		  warning ("case value `%ld' not in enumerated type",
+			   (long) TREE_INT_CST_LOW (n->high));
 		else
-		  warning ("case value `%d' not in enumerated type `%s'",
-			   TREE_INT_CST_LOW (n->high),
+		  warning ("case value `%ld' not in enumerated type `%s'",
+			   (long) TREE_INT_CST_LOW (n->high),
 			   IDENTIFIER_POINTER ((TREE_CODE (TYPE_NAME (type))
 						== IDENTIFIER_NODE)
 					       ? TYPE_NAME (type)
@@ -4632,46 +4696,6 @@ check_for_full_enumeration_handling (type)
 #endif /* 0 */
 }
 
-
-/* Check that all enumeration literals are covered by the case
-   expressions of a switch.  Also warn if there are any cases
-   that are not elements of the enumerated type.  */
-
-static void
-bc_check_for_full_enumeration_handling (type)
-     tree type;
-{
-  struct nesting *thiscase = case_stack;
-  struct case_node *c;
-  tree e;
-
-  /* Check for enums not handled.  */
-  for (e = TYPE_VALUES (type); e; e = TREE_CHAIN (e))
-    {
-      for (c = thiscase->data.case_stmt.case_list->left;
-	   c && tree_int_cst_lt (c->high, TREE_VALUE (e));
-	   c = c->left)
-	;
-      if (! (c && tree_int_cst_equal (c->low, TREE_VALUE (e))))
-	warning ("enumerated value `%s' not handled in switch",
-		 IDENTIFIER_POINTER (TREE_PURPOSE (e)));
-    }
-
-  /* Check for cases not in the enumeration.  */
-  for (c = thiscase->data.case_stmt.case_list->left; c; c = c->left)
-    {
-      for (e = TYPE_VALUES (type);
-	   e && !tree_int_cst_equal (c->low, TREE_VALUE (e));
-	   e = TREE_CHAIN (e))
-	;
-      if (! e)
-	warning ("case value `%d' not in enumerated type `%s'",
-		 TREE_INT_CST_LOW (c->low),
-		 IDENTIFIER_POINTER (TREE_CODE (TYPE_NAME (type)) == IDENTIFIER_NODE
-				     ? TYPE_NAME (type)
-				     : DECL_NAME (TYPE_NAME (type))));
-    }
-}
 
 /* Terminate a case (Pascal) or switch (C) statement
    in which ORIG_INDEX is the expression to be tested.
@@ -4684,7 +4708,7 @@ expand_end_case (orig_index)
   tree minval, maxval, range, orig_minval;
   rtx default_label = 0;
   register struct case_node *n;
-  int count;
+  unsigned int count;
   rtx index;
   rtx table_label;
   int ncases;
@@ -4695,18 +4719,21 @@ expand_end_case (orig_index)
   tree index_expr, index_type;
   int unsignedp;
 
-  if (output_bytecode)
-    {
-      bc_expand_end_case (orig_index);
-      return;
-    }
-
   table_label = gen_label_rtx ();
   index_expr = thiscase->data.case_stmt.index_expr;
   index_type = TREE_TYPE (index_expr);
   unsignedp = TREE_UNSIGNED (index_type);
 
   do_pending_stack_adjust ();
+
+  /* This might get an spurious warning in the presence of a syntax error;
+     it could be fixed by moving the call to check_seenlabel after the
+     check for error_mark_node, and copying the code of check_seenlabel that
+     deals with case_stack->data.case_stmt.line_number_status /
+     restore_line_number_status in front of the call to end_cleanup_deferral;
+     However, this might miss some useful warnings in the presence of
+     non-syntax errors.  */
+  check_seenlabel ();
 
   /* An ERROR_MARK occurs for various reasons including invalid data type.  */
   if (index_type != error_mark_node)
@@ -4720,22 +4747,6 @@ expand_end_case (orig_index)
 	  && TREE_CODE (index_expr) != INTEGER_CST)
 	check_for_full_enumeration_handling (TREE_TYPE (orig_index));
 
-      /* If this is the first label, warn if any insns have been emitted.  */
-      if (thiscase->data.case_stmt.seenlabel == 0)
-	{
-	  rtx insn;
-	  for (insn = get_last_insn ();
-	       insn != case_stack->data.case_stmt.start;
-	       insn = PREV_INSN (insn))
-	    if (GET_CODE (insn) != NOTE
-	        && (GET_CODE (insn) != INSN || GET_CODE (PATTERN (insn))!= USE))
-	      {
-		warning ("unreachable code at beginning of %s",
-			 case_stack->data.case_stmt.printname);
-		break;
-	      }
-	}
-
       /* If we don't have a default-label, create one here,
 	 after the body of the switch.  */
       if (thiscase->data.case_stmt.default_label == 0)
@@ -4747,6 +4758,11 @@ expand_end_case (orig_index)
       default_label = label_rtx (thiscase->data.case_stmt.default_label);
 
       before_case = get_last_insn ();
+
+      if (thiscase->data.case_stmt.case_list
+	  && thiscase->data.case_stmt.case_list->left)
+	thiscase->data.case_stmt.case_list
+	  = case_tree2list(thiscase->data.case_stmt.case_list, 0);
 
       /* Simplify the case-list before we count it.  */
       group_case_nodes (thiscase->data.case_stmt.case_list);
@@ -4791,6 +4807,8 @@ expand_end_case (orig_index)
       if (count != 0)
 	range = fold (build (MINUS_EXPR, index_type, maxval, minval));
 
+      end_cleanup_deferral ();
+
       if (count == 0)
 	{
 	  expand_expr (index_expr, const0_rtx, VOIDmode, 0);
@@ -4818,6 +4836,9 @@ expand_end_case (orig_index)
 	       || count < CASE_VALUES_THRESHOLD
 	       || ((unsigned HOST_WIDE_INT) (TREE_INT_CST_LOW (range))
 		   > 10 * count)
+#ifndef ASM_OUTPUT_ADDR_DIFF_ELT
+	       || flag_pic
+#endif
 	       || TREE_CODE (index_expr) == INTEGER_CST
 	       /* These will reduce to a constant.  */
 	       || (TREE_CODE (index_expr) == CALL_EXPR
@@ -5011,7 +5032,7 @@ expand_end_case (orig_index)
 	      while (1)
 		{
 		  labelvec[i]
-		    = gen_rtx (LABEL_REF, Pmode, label_rtx (n->code_label));
+		    = gen_rtx_LABEL_REF (Pmode, label_rtx (n->code_label));
 		  if (i + TREE_INT_CST_LOW (orig_minval)
 		      == TREE_INT_CST_LOW (n->high))
 		    break;
@@ -5022,24 +5043,19 @@ expand_end_case (orig_index)
 	  /* Fill in the gaps with the default.  */
 	  for (i = 0; i < ncases; i++)
 	    if (labelvec[i] == 0)
-	      labelvec[i] = gen_rtx (LABEL_REF, Pmode, default_label);
+	      labelvec[i] = gen_rtx_LABEL_REF (Pmode, default_label);
 
 	  /* Output the table */
 	  emit_label (table_label);
 
-	  /* This would be a lot nicer if CASE_VECTOR_PC_RELATIVE
-	     were an expression, instead of an #ifdef/#ifndef.  */
-	  if (
-#ifdef CASE_VECTOR_PC_RELATIVE
-	      1 ||
-#endif
-	      flag_pic)
-	    emit_jump_insn (gen_rtx (ADDR_DIFF_VEC, CASE_VECTOR_MODE,
-				     gen_rtx (LABEL_REF, Pmode, table_label),
-				     gen_rtvec_v (ncases, labelvec)));
+	  if (CASE_VECTOR_PC_RELATIVE || flag_pic)
+	    emit_jump_insn (gen_rtx_ADDR_DIFF_VEC (CASE_VECTOR_MODE,
+						   gen_rtx_LABEL_REF (Pmode, table_label),
+						   gen_rtvec_v (ncases, labelvec),
+						    const0_rtx, const0_rtx, 0));
 	  else
-	    emit_jump_insn (gen_rtx (ADDR_VEC, CASE_VECTOR_MODE,
-				     gen_rtvec_v (ncases, labelvec)));
+	    emit_jump_insn (gen_rtx_ADDR_VEC (CASE_VECTOR_MODE,
+					      gen_rtvec_v (ncases, labelvec)));
 
 	  /* If the case insn drops through the table,
 	     after the table we must jump to the default-label.
@@ -5055,6 +5071,8 @@ expand_end_case (orig_index)
       reorder_insns (before_case, get_last_insn (),
 		     thiscase->data.case_stmt.start);
     }
+  else
+    end_cleanup_deferral ();
 
   if (thiscase->exit_label)
     emit_label (thiscase->exit_label);
@@ -5064,109 +5082,27 @@ expand_end_case (orig_index)
   free_temp_slots ();
 }
 
+/* Convert the tree NODE into a list linked by the right field, with the left
+   field zeroed.  RIGHT is used for recursion; it is a list to be placed
+   rightmost in the resulting list.  */
 
-/* Terminate a case statement.  EXPR is the original index
-   expression.  */
-
-static void
-bc_expand_end_case (expr)
-     tree expr;
+static struct case_node *
+case_tree2list (node, right)
+     struct case_node *node, *right;
 {
-  struct nesting *thiscase = case_stack;
-  enum bytecode_opcode opcode;
-  struct bc_label *jump_label;
-  struct case_node *c;
+  struct case_node *left;
 
-  bc_emit_bytecode (jump);
-  bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (thiscase->exit_label));
+  if (node->right)
+    right = case_tree2list (node->right, right);
 
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
+  node->right = right;
+  if ((left = node->left))
+    {
+      node->left = 0;
+      return case_tree2list (left, node);
+    }
 
-  /* Now that the size of the jump table is known, emit the actual
-     indexed jump instruction.  */
-  bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thiscase->data.case_stmt.skip_label));
-
-  opcode = TYPE_MODE (thiscase->data.case_stmt.nominal_type) == SImode
-    ? TREE_UNSIGNED (thiscase->data.case_stmt.nominal_type) ? caseSU : caseSI
-      : TREE_UNSIGNED (thiscase->data.case_stmt.nominal_type) ? caseDU : caseDI;
-
-  bc_emit_bytecode (opcode);
-
-  /* Now emit the case instructions literal arguments, in order.
-     In addition to the value on the stack, it uses:
-     1.  The address of the jump table.
-     2.  The size of the jump table.
-     3.  The default label.  */
-
-  jump_label = bc_get_bytecode_label ();
-  bc_emit_bytecode_labelref (jump_label);
-  bc_emit_bytecode_const ((char *) &thiscase->data.case_stmt.num_ranges,
-			  sizeof thiscase->data.case_stmt.num_ranges);
-
-  if (thiscase->data.case_stmt.default_label)
-    bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (DECL_RTL (thiscase->data.case_stmt.default_label)));
-  else
-    bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (thiscase->exit_label));
-
-  /* Output the jump table.  */
-
-  bc_align_bytecode (3 /* PTR_ALIGN */);
-  bc_emit_bytecode_labeldef (jump_label);
-
-  if (TYPE_MODE (thiscase->data.case_stmt.nominal_type) == SImode)
-    for (c = thiscase->data.case_stmt.case_list->left; c; c = c->left)
-      {
-	opcode = TREE_INT_CST_LOW (c->low);
-	bc_emit_bytecode_const ((char *) &opcode, sizeof opcode);
-
-	opcode = TREE_INT_CST_LOW (c->high);
-	bc_emit_bytecode_const ((char *) &opcode, sizeof opcode);
-
-	bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (DECL_RTL (c->code_label)));
-      }
-  else
-    if (TYPE_MODE (thiscase->data.case_stmt.nominal_type) == DImode)
-      for (c = thiscase->data.case_stmt.case_list->left; c; c = c->left)
-	{
-	  bc_emit_bytecode_DI_const (c->low);
-	  bc_emit_bytecode_DI_const (c->high);
-
-	  bc_emit_bytecode_labelref (BYTECODE_BC_LABEL (DECL_RTL (c->code_label)));
-	}
-    else
-      /* Bad mode */
-      abort ();
-
-    
-  bc_emit_bytecode_labeldef (BYTECODE_BC_LABEL (thiscase->exit_label));
-
-  /* Possibly issue enumeration warnings.  */
-
-  if (!thiscase->data.case_stmt.default_label
-      && TREE_CODE (TREE_TYPE (expr)) == ENUMERAL_TYPE
-      && TREE_CODE (expr) != INTEGER_CST
-      && warn_switch)
-    check_for_full_enumeration_handling (TREE_TYPE (expr));
-
-
-#ifdef DEBUG_PRINT_CODE
-  fputc ('\n', stderr);
-#endif
-
-  POPSTACK (case_stack);
-}
-
-
-/* Return unique bytecode ID. */
-
-int 
-bc_new_uid ()
-{
-  static int bc_uid = 0;
-
-  return (++bc_uid);
+  return node;
 }
 
 /* Generate code to jump to LABEL if OP1 and OP2 are equal.  */
@@ -5234,11 +5170,11 @@ estimate_case_costs (node)
 
       for (i = 0; i < 128; i++)
 	{
-	  if (isalnum (i))
+	  if (ISALNUM (i))
 	    cost_table[i] = 16;
-	  else if (ispunct (i))
+	  else if (ISPUNCT (i))
 	    cost_table[i] = 8;
-	  else if (iscntrl (i))
+	  else if (ISCNTRL (i))
 	    cost_table[i] = -1;
 	}
 
@@ -5286,12 +5222,18 @@ group_case_nodes (head)
   while (node)
     {
       rtx lb = next_real_insn (label_rtx (node->code_label));
+      rtx lb2;
       case_node_ptr np = node;
 
       /* Try to group the successors of NODE with NODE.  */
       while (((np = np->right) != 0)
 	     /* Do they jump to the same place?  */
-	     && next_real_insn (label_rtx (np->code_label)) == lb
+	     && ((lb2 = next_real_insn (label_rtx (np->code_label))) == lb
+		 || (lb != 0 && lb2 != 0
+		     && simplejump_p (lb)
+		     && simplejump_p (lb2)
+		     && rtx_equal_p (SET_SRC (PATTERN (lb)),
+				     SET_SRC (PATTERN (lb2)))))
 	     /* Are their ranges consecutive?  */
 	     && tree_int_cst_equal (np->low,
 				    fold (build (PLUS_EXPR,
@@ -5322,7 +5264,7 @@ group_case_nodes (head)
    The transformation is performed by splitting the ordered
    list into two equal sections plus a pivot.  The parts are
    then attached to the pivot as left and right branches.  Each
-   branch is is then transformed recursively.  */
+   branch is then transformed recursively.  */
 
 static void
 balance_case_nodes (head, parent)
@@ -5498,6 +5440,11 @@ node_has_high_bound (node, index_type)
   tree high_plus_one;
   case_node_ptr pnode;
 
+  /* If there is no upper bound, obviously no test is needed.  */
+
+  if (TYPE_MAX_VALUE (index_type) == NULL)
+    return 1;
+
   /* If the upper bound of this node is the highest value in the type
      of the index expression, we need not test against it.  */
 
@@ -5566,7 +5513,7 @@ emit_jump_if_reachable (label)
    check for bounded nodes.  In this case conditional and/or
    unconditional jumps as a result of the boundary check for the
    current node are arranged to target the subordinates associated
-   code for out of bound conditions on the current node node.
+   code for out of bound conditions on the current node.
 
    We can assume that when control reaches the code generated here,
    the index value has already been compared with the parents
@@ -5600,7 +5547,7 @@ emit_case_nodes (index, node, default_label, index_type)
   else if (tree_int_cst_equal (node->low, node->high))
     {
       /* Node is single valued.  First see if the index expression matches
-	 this node and then check our children, if any. */
+	 this node and then check our children, if any.  */
 
       do_jump_if_equal (index, expand_expr (node->low, NULL_RTX, VOIDmode, 0),
 			label_rtx (node->code_label), unsignedp);
@@ -5857,7 +5804,10 @@ emit_case_nodes (index, node, default_label, index_type)
 /* These routines are used by the loop unrolling code.  They copy BLOCK trees
    so that the debugging info will be correct for the unrolled loop.  */
 
-/* Indexed by block number, contains a pointer to the N'th block node.  */
+/* Indexed by block number, contains a pointer to the N'th block node.
+
+  Allocated by the call to identify_blocks, then released after the call
+  to reorder_blocks in the function unroll_block_trees.  */
 
 static tree *block_vector;
 
@@ -5865,10 +5815,6 @@ void
 find_loop_tree_blocks ()
 {
   tree block = DECL_INITIAL (current_function_decl);
-
-  /* There first block is for the function body, and does not have
-     corresponding block notes.  Don't include it in the block vector.  */
-  block = BLOCK_SUBBLOCKS (block);
 
   block_vector = identify_blocks (block, get_insns ());
 }
@@ -5879,5 +5825,8 @@ unroll_block_trees ()
   tree block = DECL_INITIAL (current_function_decl);
 
   reorder_blocks (block_vector, block, get_insns ());
-}
 
+  /* Release any memory allocated by identify_blocks.  */
+  if (block_vector)
+    free (block_vector);
+}

@@ -1,5 +1,5 @@
 /* Allocate registers within a basic block, for GNU compiler.
-   Copyright (C) 1987, 88, 91, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 91, 93-97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -55,28 +55,23 @@ Boston, MA 02111-1307, USA.  */
    But this is currently disabled since tying in global_alloc is not
    yet implemented.  */
 
-#include <stdio.h>
+/* Pseudos allocated here cannot be reallocated by global.c if the hard
+   register is used as a spill register.  So we don't allocate such pseudos
+   here if their preferred class is likely to be used by spills.  */
+
 #include "config.h"
+#include "system.h"
 #include "rtl.h"
 #include "flags.h"
 #include "basic-block.h"
 #include "regs.h"
 #include "hard-reg-set.h"
 #include "insn-config.h"
+#include "insn-attr.h"
 #include "recog.h"
 #include "output.h"
+#include "toplev.h"
 
-/* Pseudos allocated here cannot be reallocated by global.c if the hard
-   register is used as a spill register.  So we don't allocate such pseudos
-   here if their preferred class is likely to be used by spills.
-
-   On most machines, the appropriate test is if the class has one
-   register, so we default to that.  */
-
-#ifndef CLASS_LIKELY_SPILLED_P
-#define CLASS_LIKELY_SPILLED_P(CLASS) (reg_class_size[(int) (CLASS)] == 1)
-#endif
-
 /* Next quantity number available for allocation.  */
 
 static int next_qty;
@@ -110,7 +105,7 @@ static HARD_REG_SET *qty_phys_sugg;
 
 static short *qty_phys_num_copy_sugg;
 
-/* Element Q is the number of suggested registers in qty_phys_sugg. */
+/* Element Q is the number of suggested registers in qty_phys_sugg.  */
 
 static short *qty_phys_num_sugg;
 
@@ -242,24 +237,28 @@ static int scratch_index;
 static int this_insn_number;
 static rtx this_insn;
 
+/* Used to communicate changes made by update_equiv_regs to
+   memref_referenced_p.  reg_equiv_replacement is set for any REG_EQUIV note
+   found or created, so that we can keep track of what memory accesses might
+   be created later, e.g. by reload.  */
+
+static rtx *reg_equiv_replacement;
+
 static void alloc_qty		PROTO((int, enum machine_mode, int, int));
 static void alloc_qty_for_scratch PROTO((rtx, int, rtx, int, int));
 static void validate_equiv_mem_from_store PROTO((rtx, rtx));
 static int validate_equiv_mem	PROTO((rtx, rtx, rtx));
+static int contains_replace_regs PROTO((rtx, char *));
 static int memref_referenced_p	PROTO((rtx, rtx));
 static int memref_used_between_p PROTO((rtx, rtx, rtx));
-static void optimize_reg_copy_1	PROTO((rtx, rtx, rtx));
-static void optimize_reg_copy_2	PROTO((rtx, rtx, rtx));
 static void update_equiv_regs	PROTO((void));
 static void block_alloc		PROTO((int));
 static int qty_sugg_compare    	PROTO((int, int));
-static int qty_sugg_compare_1	PROTO((int *, int *));
+static int qty_sugg_compare_1	PROTO((const GENERIC_PTR, const GENERIC_PTR));
 static int qty_compare    	PROTO((int, int));
-static int qty_compare_1	PROTO((int *, int *));
+static int qty_compare_1	PROTO((const GENERIC_PTR, const GENERIC_PTR));
 static int combine_regs		PROTO((rtx, rtx, int, int, rtx, int));
 static int reg_meets_class_p	PROTO((int, enum reg_class));
-static int reg_classes_overlap_p PROTO((enum reg_class, enum reg_class,
-					int));
 static void update_qty_class	PROTO((int, int));
 static void reg_is_set		PROTO((rtx, rtx));
 static void reg_is_born		PROTO((rtx, int));
@@ -291,11 +290,11 @@ alloc_qty (regno, mode, size, birth)
   qty_size[qty] = size;
   qty_mode[qty] = mode;
   qty_birth[qty] = birth;
-  qty_n_calls_crossed[qty] = reg_n_calls_crossed[regno];
+  qty_n_calls_crossed[qty] = REG_N_CALLS_CROSSED (regno);
   qty_min_class[qty] = reg_preferred_class (regno);
   qty_alternate_class[qty] = reg_alternate_class (regno);
-  qty_n_refs[qty] = reg_n_refs[regno];
-  qty_changes_size[qty] = reg_changes_size[regno];
+  qty_n_refs[qty] = REG_N_REFS (regno);
+  qty_changes_size[qty] = REG_CHANGES_SIZE (regno);
 }
 
 /* Similar to `alloc_qty', but allocates a quantity for a SCRATCH rtx
@@ -449,13 +448,12 @@ local_alloc ()
   qty_n_refs = (int *) alloca (max_qty * sizeof (int));
   qty_changes_size = (char *) alloca (max_qty * sizeof (char));
 
-  reg_qty = (int *) alloca (max_regno * sizeof (int));
-  reg_offset = (char *) alloca (max_regno * sizeof (char));
-  reg_next_in_qty = (int *) alloca (max_regno * sizeof (int));
+  reg_qty = (int *) xmalloc (max_regno * sizeof (int));
+  reg_offset = (char *) xmalloc (max_regno * sizeof (char));
+  reg_next_in_qty = (int *) xmalloc(max_regno * sizeof (int));
 
-  reg_renumber = (short *) oballoc (max_regno * sizeof (short));
-  for (i = 0; i < max_regno; i++)
-    reg_renumber[i] = -1;
+  /* Allocate the reg_renumber array */
+  allocate_reg_info (max_regno, FALSE, TRUE);
 
   /* Determine which pseudo-registers can be allocated by local-alloc.
      In general, these are the registers used only in a single block and
@@ -469,7 +467,7 @@ local_alloc ()
 
   for (i = FIRST_PSEUDO_REGISTER; i < max_regno; i++)
     {
-      if (reg_basic_block[i] >= 0 && reg_n_deaths[i] == 1
+      if (REG_BASIC_BLOCK (i) >= 0 && REG_N_DEATHS (i) == 1
 	  && (reg_alternate_class (i) == NO_REGS
 	      || ! CLASS_LIKELY_SPILLED_P (reg_preferred_class (i))))
 	reg_qty[i] = -2;
@@ -521,6 +519,10 @@ local_alloc ()
       alloca (0);
 #endif
     }
+
+  free (reg_qty);
+  free (reg_offset);
+  free (reg_next_in_qty);
 }
 
 /* Depth of loops we are in while in update_equiv_regs.  */
@@ -544,7 +546,7 @@ validate_equiv_mem_from_store (dest, set)
   if ((GET_CODE (dest) == REG
        && reg_overlap_mentioned_p (dest, equiv_mem))
       || (GET_CODE (dest) == MEM
-	  && true_dependence (dest, equiv_mem)))
+	  && true_dependence (dest, VOIDmode, equiv_mem, rtx_varies_p)))
     equiv_mem_modified = 1;
 }
 
@@ -601,6 +603,55 @@ validate_equiv_mem (start, reg, memref)
 
   return 0;
 }
+
+/* TRUE if X uses any registers for which reg_equiv_replace is true.  */
+
+static int
+contains_replace_regs (x, reg_equiv_replace)
+     rtx x;
+     char *reg_equiv_replace;
+{
+  int i, j;
+  char *fmt;
+  enum rtx_code code = GET_CODE (x);
+
+  switch (code)
+    {
+    case CONST_INT:
+    case CONST:
+    case LABEL_REF:
+    case SYMBOL_REF:
+    case CONST_DOUBLE:
+    case PC:
+    case CC0:
+    case HIGH:
+    case LO_SUM:
+      return 0;
+
+    case REG:
+      return reg_equiv_replace[REGNO (x)];
+
+    default:
+      break;
+    }
+
+  fmt = GET_RTX_FORMAT (code);
+  for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
+    switch (fmt[i])
+      {
+      case 'e':
+	if (contains_replace_regs (XEXP (x, i), reg_equiv_replace))
+	  return 1;
+	break;
+      case 'E':
+	for (j = XVECLEN (x, i) - 1; j >= 0; j--)
+	  if (contains_replace_regs (XVECEXP (x, i, j), reg_equiv_replace))
+	    return 1;
+	break;
+      }
+
+  return 0;
+}
 
 /* TRUE if X references a memory location that would be affected by a store
    to MEMREF.  */
@@ -616,7 +667,6 @@ memref_referenced_p (memref, x)
 
   switch (code)
     {
-    case REG:
     case CONST_INT:
     case CONST:
     case LABEL_REF:
@@ -628,8 +678,13 @@ memref_referenced_p (memref, x)
     case LO_SUM:
       return 0;
 
+    case REG:
+      return (reg_equiv_replacement[REGNO (x)]
+	      && memref_referenced_p (memref,
+				      reg_equiv_replacement[REGNO (x)]));
+
     case MEM:
-      if (true_dependence (memref, x))
+      if (true_dependence (memref, VOIDmode, x, rtx_varies_p))
 	return 1;
       break;
 
@@ -645,6 +700,9 @@ memref_referenced_p (memref, x)
 	return 1;
 
       return memref_referenced_p (memref, SET_SRC (x));
+      
+    default:
+      break;
     }
 
   fmt = GET_RTX_FORMAT (code);
@@ -685,256 +743,6 @@ memref_used_between_p (memref, start, end)
   return 0;
 }
 
-/* INSN is a copy from SRC to DEST, both registers, and SRC does not die
-   in INSN.
-
-   Search forward to see if SRC dies before either it or DEST is modified,
-   but don't scan past the end of a basic block.  If so, we can replace SRC
-   with DEST and let SRC die in INSN. 
-
-   This will reduce the number of registers live in that range and may enable
-   DEST to be tied to SRC, thus often saving one register in addition to a
-   register-register copy.  */
-
-static void
-optimize_reg_copy_1 (insn, dest, src)
-     rtx insn;
-     rtx dest;
-     rtx src;
-{
-  rtx p, q;
-  rtx note;
-  rtx dest_death = 0;
-  int sregno = REGNO (src);
-  int dregno = REGNO (dest);
-
-  if (sregno == dregno
-#ifdef SMALL_REGISTER_CLASSES
-      /* We don't want to mess with hard regs if register classes are small. */
-      || sregno < FIRST_PSEUDO_REGISTER || dregno < FIRST_PSEUDO_REGISTER
-#endif
-      /* We don't see all updates to SP if they are in an auto-inc memory
-	 reference, so we must disallow this optimization on them.  */
-      || sregno == STACK_POINTER_REGNUM || dregno == STACK_POINTER_REGNUM)
-    return;
-
-  for (p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
-    {
-      if (GET_CODE (p) == CODE_LABEL || GET_CODE (p) == JUMP_INSN
-	  || (GET_CODE (p) == NOTE
-	      && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-		  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-	break;
-
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
-	continue;
-
-      if (reg_set_p (src, p) || reg_set_p (dest, p)
-	  /* Don't change a USE of a register.  */
-	  || (GET_CODE (PATTERN (p)) == USE
-	      && reg_overlap_mentioned_p (src, XEXP (PATTERN (p), 0))))
-	break;
-
-      /* See if all of SRC dies in P.  This test is slightly more
-	 conservative than it needs to be. */
-      if ((note = find_regno_note (p, REG_DEAD, sregno)) != 0
-	  && GET_MODE (XEXP (note, 0)) == GET_MODE (src))
-	{
-	  int failed = 0;
-	  int length = 0;
-	  int d_length = 0;
-	  int n_calls = 0;
-	  int d_n_calls = 0;
-
-	  /* We can do the optimization.  Scan forward from INSN again,
-	     replacing regs as we go.  Set FAILED if a replacement can't
-	     be done.  In that case, we can't move the death note for SRC.
-	     This should be rare.  */
-
-	  /* Set to stop at next insn.  */
-	  for (q = next_real_insn (insn);
-	       q != next_real_insn (p);
-	       q = next_real_insn (q))
-	    {
-	      if (reg_overlap_mentioned_p (src, PATTERN (q)))
-		{
-		  /* If SRC is a hard register, we might miss some
-		     overlapping registers with validate_replace_rtx,
-		     so we would have to undo it.  We can't if DEST is
-		     present in the insn, so fail in that combination
-		     of cases.  */
-		  if (sregno < FIRST_PSEUDO_REGISTER
-		      && reg_mentioned_p (dest, PATTERN (q)))
-		    failed = 1;
-
-		  /* Replace all uses and make sure that the register
-		     isn't still present.  */
-		  else if (validate_replace_rtx (src, dest, q)
-			   && (sregno >= FIRST_PSEUDO_REGISTER
-			       || ! reg_overlap_mentioned_p (src,
-							     PATTERN (q))))
-		    {
-		      /* We assume that a register is used exactly once per
-			 insn in the updates below.  If this is not correct,
-			 no great harm is done.  */
-		      if (sregno >= FIRST_PSEUDO_REGISTER)
-			reg_n_refs[sregno] -= loop_depth;
-		      if (dregno >= FIRST_PSEUDO_REGISTER)
-			reg_n_refs[dregno] += loop_depth;
-		    }
-		  else
-		    {
-		      validate_replace_rtx (dest, src, q);
-		      failed = 1;
-		    }
-		}
-
-	      /* Count the insns and CALL_INSNs passed.  If we passed the
-		 death note of DEST, show increased live length.  */
-	      length++;
-	      if (dest_death)
-		d_length++;
-
-	      /* If the insn in which SRC dies is a CALL_INSN, don't count it
-		 as a call that has been crossed.  Otherwise, count it.  */
-	      if (q != p && GET_CODE (q) == CALL_INSN)
-		{
-		  n_calls++;
-		  if (dest_death)
-		    d_n_calls++;
-		}
-
-	      /* If DEST dies here, remove the death note and save it for
-		 later.  Make sure ALL of DEST dies here; again, this is
-		 overly conservative.  */
-	      if (dest_death == 0
-		  && (dest_death = find_regno_note (q, REG_DEAD, dregno)) != 0
-		  && GET_MODE (XEXP (dest_death, 0)) == GET_MODE (dest))
-		remove_note (q, dest_death);
-	    }
-
-	  if (! failed)
-	    {
-	      if (sregno >= FIRST_PSEUDO_REGISTER)
-		{
-		  reg_live_length[sregno] -= length;
-		  /* reg_live_length is only an approximation after combine
-		     if sched is not run, so make sure that we still have
-		     a reasonable value.  */
-		  if (reg_live_length[sregno] < 2)
-		    reg_live_length[sregno] = 2;
-		  reg_n_calls_crossed[sregno] -= n_calls;
-		}
-
-	      if (dregno >= FIRST_PSEUDO_REGISTER)
-		{
-		  reg_live_length[dregno] += d_length;
-		  reg_n_calls_crossed[dregno] += d_n_calls;
-		}
-
-	      /* Move death note of SRC from P to INSN.  */
-	      remove_note (p, note);
-	      XEXP (note, 1) = REG_NOTES (insn);
-	      REG_NOTES (insn) = note;
-	    }
-
-	  /* Put death note of DEST on P if we saw it die.  */
-	  if (dest_death)
-	    {
-	      XEXP (dest_death, 1) = REG_NOTES (p);
-	      REG_NOTES (p) = dest_death;
-	    }
-
-	  return;
-	}
-
-      /* If SRC is a hard register which is set or killed in some other
-	 way, we can't do this optimization.  */
-      else if (sregno < FIRST_PSEUDO_REGISTER
-	       && dead_or_set_p (p, src))
-	break;
-    }
-}
-
-/* INSN is a copy of SRC to DEST, in which SRC dies.  See if we now have
-   a sequence of insns that modify DEST followed by an insn that sets
-   SRC to DEST in which DEST dies, with no prior modification of DEST.
-   (There is no need to check if the insns in between actually modify
-   DEST.  We should not have cases where DEST is not modified, but
-   the optimization is safe if no such modification is detected.)
-   In that case, we can replace all uses of DEST, starting with INSN and
-   ending with the set of SRC to DEST, with SRC.  We do not do this
-   optimization if a CALL_INSN is crossed unless SRC already crosses a
-   call.
-
-   It is assumed that DEST and SRC are pseudos; it is too complicated to do
-   this for hard registers since the substitutions we may make might fail.  */
-
-static void
-optimize_reg_copy_2 (insn, dest, src)
-     rtx insn;
-     rtx dest;
-     rtx src;
-{
-  rtx p, q;
-  rtx set;
-  int sregno = REGNO (src);
-  int dregno = REGNO (dest);
-
-  for (p = NEXT_INSN (insn); p; p = NEXT_INSN (p))
-    {
-      if (GET_CODE (p) == CODE_LABEL || GET_CODE (p) == JUMP_INSN
-	  || (GET_CODE (p) == NOTE
-	      && (NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_BEG
-		  || NOTE_LINE_NUMBER (p) == NOTE_INSN_LOOP_END)))
-	break;
-
-      if (GET_RTX_CLASS (GET_CODE (p)) != 'i')
-	continue;
-
-      set = single_set (p);
-      if (set && SET_SRC (set) == dest && SET_DEST (set) == src
-	  && find_reg_note (p, REG_DEAD, dest))
-	{
-	  /* We can do the optimization.  Scan forward from INSN again,
-	     replacing regs as we go.  */
-
-	  /* Set to stop at next insn.  */
-	  for (q = insn; q != NEXT_INSN (p); q = NEXT_INSN (q))
-	    if (GET_RTX_CLASS (GET_CODE (q)) == 'i')
-	      {
-		if (reg_mentioned_p (dest, PATTERN (q)))
-		  {
-		    PATTERN (q) = replace_rtx (PATTERN (q), dest, src);
-
-		    /* We assume that a register is used exactly once per
-		       insn in the updates below.  If this is not correct,
-		       no great harm is done.  */
-		    reg_n_refs[dregno] -= loop_depth;
-		    reg_n_refs[sregno] += loop_depth;
-		  }
-
-
-	      if (GET_CODE (q) == CALL_INSN)
-		{
-		  reg_n_calls_crossed[dregno]--;
-		  reg_n_calls_crossed[sregno]++;
-		}
-	      }
-
-	  remove_note (p, find_reg_note (p, REG_DEAD, dest));
-	  reg_n_deaths[dregno]--;
-	  remove_note (insn, find_reg_note (insn, REG_DEAD, src));
-	  reg_n_deaths[sregno]--;
-	  return;
-	}
-
-      if (reg_set_p (src, p)
-	  || (GET_CODE (p) == CALL_INSN && reg_n_calls_crossed[sregno] == 0))
-	break;
-    }
-}
-	      
 /* Find registers that are equivalent to a single value throughout the
    compilation (either because they can be referenced in memory or are set once
    from a single constant).  Lower their priority for a register.
@@ -947,11 +755,18 @@ static void
 update_equiv_regs ()
 {
   rtx *reg_equiv_init_insn = (rtx *) alloca (max_regno * sizeof (rtx *));
-  rtx *reg_equiv_replacement = (rtx *) alloca (max_regno * sizeof (rtx *));
+  /* Set when an attempt should be made to replace a register with the
+     associated reg_equiv_replacement entry at the end of this function.  */
+  char *reg_equiv_replace
+    = (char *) alloca (max_regno * sizeof *reg_equiv_replace);
   rtx insn;
+  int block, depth;
+
+  reg_equiv_replacement = (rtx *) alloca (max_regno * sizeof (rtx *));
 
   bzero ((char *) reg_equiv_init_insn, max_regno * sizeof (rtx *));
   bzero ((char *) reg_equiv_replacement, max_regno * sizeof (rtx *));
+  bzero ((char *) reg_equiv_replace, max_regno * sizeof *reg_equiv_replace);
 
   init_alias_analysis ();
 
@@ -964,7 +779,7 @@ update_equiv_regs ()
     {
       rtx note;
       rtx set = single_set (insn);
-      rtx dest;
+      rtx dest, src;
       int regno;
 
       if (GET_CODE (insn) == NOTE)
@@ -980,48 +795,67 @@ update_equiv_regs ()
 	continue;
 
       dest = SET_DEST (set);
+      src = SET_SRC (set);
 
       /* If this sets a MEM to the contents of a REG that is only used
 	 in a single basic block, see if the register is always equivalent
 	 to that memory location and if moving the store from INSN to the
 	 insn that set REG is safe.  If so, put a REG_EQUIV note on the
-	 initializing insn.  */
+	 initializing insn.
+
+	 Don't add a REG_EQUIV note if the insn already has one.  The existing
+	 REG_EQUIV is likely more useful than the one we are adding.
+
+	 If one of the regs in the address is marked as reg_equiv_replace,
+	 then we can't add this REG_EQUIV note.  The reg_equiv_replace
+	 optimization may move the set of this register immediately before
+	 insn, which puts it after reg_equiv_init_insn[regno], and hence
+	 the mention in the REG_EQUIV note would be to an uninitialized
+	 pseudo.  */
 
       if (GET_CODE (dest) == MEM && GET_CODE (SET_SRC (set)) == REG
 	  && (regno = REGNO (SET_SRC (set))) >= FIRST_PSEUDO_REGISTER
-	  && reg_basic_block[regno] >= 0
+	  && REG_BASIC_BLOCK (regno) >= 0
 	  && reg_equiv_init_insn[regno] != 0
+	  && ! find_reg_note (insn, REG_EQUIV, NULL_RTX)
+	  && ! contains_replace_regs (XEXP (dest, 0), reg_equiv_replace)
 	  && validate_equiv_mem (reg_equiv_init_insn[regno], SET_SRC (set),
 				 dest)
 	  && ! memref_used_between_p (SET_DEST (set),
 				      reg_equiv_init_insn[regno], insn))
 	REG_NOTES (reg_equiv_init_insn[regno])
-	  = gen_rtx (EXPR_LIST, REG_EQUIV, dest,
-		     REG_NOTES (reg_equiv_init_insn[regno]));
+	  = gen_rtx_EXPR_LIST (REG_EQUIV, dest,
+			       REG_NOTES (reg_equiv_init_insn[regno]));
 
-      /* If this is a register-register copy where SRC is not dead, see if we
-	 can optimize it.  */
-      if (flag_expensive_optimizations && GET_CODE (dest) == REG
-	  && GET_CODE (SET_SRC (set)) == REG
-	  && ! find_reg_note (insn, REG_DEAD, SET_SRC (set)))
-	optimize_reg_copy_1 (insn, dest, SET_SRC (set));
-
-      /* Similarly for a pseudo-pseudo copy when SRC is dead.  */
-      else if (flag_expensive_optimizations && GET_CODE (dest) == REG
-	       && REGNO (dest) >= FIRST_PSEUDO_REGISTER
-	       && GET_CODE (SET_SRC (set)) == REG
-	       && REGNO (SET_SRC (set)) >= FIRST_PSEUDO_REGISTER
-	       && find_reg_note (insn, REG_DEAD, SET_SRC (set)))
-	optimize_reg_copy_2 (insn, dest, SET_SRC (set));
-
-      /* Otherwise, we only handle the case of a pseudo register being set
-	 once.  */
+      /* We only handle the case of a pseudo register being set
+	 once and only if neither the source nor the destination are
+	 in a register class that's likely to be spilled.  */
       if (GET_CODE (dest) != REG
 	  || (regno = REGNO (dest)) < FIRST_PSEUDO_REGISTER
-	  || reg_n_sets[regno] != 1)
+	  || REG_N_SETS (regno) != 1
+	  || CLASS_LIKELY_SPILLED_P (reg_preferred_class (REGNO (dest)))
+	  || (GET_CODE (src) == REG
+	      && REGNO (src) >= FIRST_PSEUDO_REGISTER
+	      && CLASS_LIKELY_SPILLED_P (reg_preferred_class (REGNO (src)))))
 	continue;
 
       note = find_reg_note (insn, REG_EQUAL, NULL_RTX);
+
+#ifdef DONT_RECORD_EQUIVALENCE
+      /* Allow the target to reject promotions of some REG_EQUAL notes to
+	 REG_EQUIV notes.
+
+	 In some cases this can improve register allocation if the existence
+	 of the REG_EQUIV note is likely to increase the lifetime of a register
+	 that is likely to be spilled.
+
+	 It may also be necessary if the target can't handle certain constant
+	 expressions appearing randomly in insns, but for whatever reason
+	 those expressions must be considered legitimate constant expressions
+	 to prevent them from being forced into memory.  */
+      if (note && DONT_RECORD_EQUIVALENCE (note))
+        note = NULL;
+#endif
 
       /* Record this insn as initializing this register.  */
       reg_equiv_init_insn[regno] = insn;
@@ -1048,71 +882,139 @@ update_equiv_regs ()
 	 
       note = find_reg_note (insn, REG_EQUIV, NULL_RTX);
 
-      if (note == 0 && reg_basic_block[regno] >= 0
+      if (note == 0 && REG_BASIC_BLOCK (regno) >= 0
 	  && GET_CODE (SET_SRC (set)) == MEM
 	  && validate_equiv_mem (insn, dest, SET_SRC (set)))
-	REG_NOTES (insn) = note = gen_rtx (EXPR_LIST, REG_EQUIV, SET_SRC (set),
-					   REG_NOTES (insn));
+	REG_NOTES (insn) = note = gen_rtx_EXPR_LIST (REG_EQUIV, SET_SRC (set),
+						     REG_NOTES (insn));
 
-      /* Don't mess with things live during setjmp.  */
-      if (note && reg_live_length[regno] >= 0)
+      if (note)
 	{
 	  int regno = REGNO (dest);
 
-	  /* Note that the statement below does not affect the priority
-	     in local-alloc!  */
-	  reg_live_length[regno] *= 2;
+	  reg_equiv_replacement[regno] = XEXP (note, 0);
 
-	  /* If the register is referenced exactly twice, meaning it is set
-	     once and used once, indicate that the reference may be replaced
-	     by the equivalence we computed above.  If the register is only
-	     used in one basic block, this can't succeed or combine would
-	     have done it.
+	  /* Don't mess with things live during setjmp.  */
+	  if (REG_LIVE_LENGTH (regno) >= 0)
+	    {
+	      /* Note that the statement below does not affect the priority
+		 in local-alloc!  */
+	      REG_LIVE_LENGTH (regno) *= 2;
 
-	     It would be nice to use "loop_depth * 2" in the compare
-	     below.  Unfortunately, LOOP_DEPTH need not be constant within
-	     a basic block so this would be too complicated.
 
-	     This case normally occurs when a parameter is read from memory
-	     and then used exactly once, not in a loop.  */
+	      /* If the register is referenced exactly twice, meaning it is
+		 set once and used once, indicate that the reference may be
+		 replaced by the equivalence we computed above.  If the
+		 register is only used in one basic block, this can't succeed
+		 or combine would have done it.
 
-	  if (reg_n_refs[regno] == 2
-	      && reg_basic_block[regno] < 0
-	      && rtx_equal_p (XEXP (note, 0), SET_SRC (set)))
-	    reg_equiv_replacement[regno] = SET_SRC (set);
+		 It would be nice to use "loop_depth * 2" in the compare
+		 below.  Unfortunately, LOOP_DEPTH need not be constant within
+		 a basic block so this would be too complicated.
+
+		 This case normally occurs when a parameter is read from
+		 memory and then used exactly once, not in a loop.  */
+
+		if (REG_N_REFS (regno) == 2
+		    && REG_BASIC_BLOCK (regno) < 0
+		    && rtx_equal_p (XEXP (note, 0), SET_SRC (set)))
+		  reg_equiv_replace[regno] = 1;
+	    }
 	}
     }
 
-  /* Now scan all regs killed in an insn to see if any of them are registers
-     only used that once.  If so, see if we can replace the reference with
-     the equivalent from.  If we can, delete the initializing reference
-     and this register will go away.  */
-  for (insn = next_active_insn (get_insns ());
-       insn;
-       insn = next_active_insn (insn))
+  /* Now scan all regs killed in an insn to see if any of them are
+     registers only used that once.  If so, see if we can replace the
+     reference with the equivalent from.  If we can, delete the
+     initializing reference and this register will go away.  If we
+     can't replace the reference, and the instruction is not in a
+     loop, then move the register initialization just before the use,
+     so that they are in the same basic block.  */
+  block = -1;
+  depth = 0;
+  for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
     {
       rtx link;
 
+      /* Keep track of which basic block we are in.  */
+      if (block + 1 < n_basic_blocks
+	  && basic_block_head[block + 1] == insn)
+	++block;
+
+      if (GET_RTX_CLASS (GET_CODE (insn)) != 'i')
+	{
+	  if (GET_CODE (insn) == NOTE)
+	    {
+	      if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_BEG)
+		++depth;
+	      else if (NOTE_LINE_NUMBER (insn) == NOTE_INSN_LOOP_END)
+		{
+		  --depth;
+		  if (depth < 0)
+		    abort ();
+		}
+	    }
+
+	  continue;
+	}
+
       for (link = REG_NOTES (insn); link; link = XEXP (link, 1))
-	if (REG_NOTE_KIND (link) == REG_DEAD
-	    /* Make sure this insn still refers to the register.  */
-	    && reg_mentioned_p (XEXP (link, 0), PATTERN (insn)))
-	  {
-	    int regno = REGNO (XEXP (link, 0));
+	{
+	  if (REG_NOTE_KIND (link) == REG_DEAD
+	      /* Make sure this insn still refers to the register.  */
+	      && reg_mentioned_p (XEXP (link, 0), PATTERN (insn)))
+	    {
+	      int regno = REGNO (XEXP (link, 0));
+	      rtx equiv_insn;
 
-	    if (reg_equiv_replacement[regno]
-		&& validate_replace_rtx (regno_reg_rtx[regno],
-					 reg_equiv_replacement[regno], insn))
-	      {
-		rtx equiv_insn = reg_equiv_init_insn[regno];
+	      if (! reg_equiv_replace[regno])
+		continue;
 
-		remove_death (regno, insn);
-		reg_n_refs[regno] = 0;
-		PUT_CODE (equiv_insn, NOTE);
-		NOTE_LINE_NUMBER (equiv_insn) = NOTE_INSN_DELETED;
-		NOTE_SOURCE_FILE (equiv_insn) = 0;
-	      }
-	  }
+	      equiv_insn = reg_equiv_init_insn[regno];
+
+	      if (validate_replace_rtx (regno_reg_rtx[regno],
+					reg_equiv_replacement[regno], insn))
+		{
+		  remove_death (regno, insn);
+		  REG_N_REFS (regno) = 0;
+		  PUT_CODE (equiv_insn, NOTE);
+		  NOTE_LINE_NUMBER (equiv_insn) = NOTE_INSN_DELETED;
+		  NOTE_SOURCE_FILE (equiv_insn) = 0;
+		}
+	      /* If we aren't in a loop, and there are no calls in
+		 INSN or in the initialization of the register, then
+		 move the initialization of the register to just
+		 before INSN.  Update the flow information.  */
+	      else if (depth == 0
+		       && GET_CODE (equiv_insn) == INSN
+		       && GET_CODE (insn) == INSN
+		       && REG_BASIC_BLOCK (regno) < 0)
+		{
+		  int l;
+
+		  emit_insn_before (copy_rtx (PATTERN (equiv_insn)), insn);
+		  REG_NOTES (PREV_INSN (insn)) = REG_NOTES (equiv_insn);
+
+		  PUT_CODE (equiv_insn, NOTE);
+		  NOTE_LINE_NUMBER (equiv_insn) = NOTE_INSN_DELETED;
+		  NOTE_SOURCE_FILE (equiv_insn) = 0;
+		  REG_NOTES (equiv_insn) = 0;
+
+		  if (block < 0)
+		    REG_BASIC_BLOCK (regno) = 0;
+		  else
+		    REG_BASIC_BLOCK (regno) = block;
+		  REG_N_CALLS_CROSSED (regno) = 0;
+		  REG_LIVE_LENGTH (regno) = 2;
+
+		  if (block >= 0 && insn == basic_block_head[block])
+		    basic_block_head[block] = PREV_INSN (insn);
+
+		  for (l = 0; l < n_basic_blocks; l++)
+		    CLEAR_REGNO_REG_SET (basic_block_live_at_start[l], regno);
+		}
+	    }
+	}
     }
 }
 
@@ -1156,11 +1058,7 @@ block_alloc (b)
 
   /* Initialize table of hardware registers currently live.  */
 
-#ifdef HARD_REG_SET
-  regs_live = *basic_block_live_at_start[b];
-#else
-  COPY_HARD_REG_SET (regs_live, basic_block_live_at_start[b]);
-#endif
+  REG_SET_TO_HARD_REG_SET (regs_live, basic_block_live_at_start[b]);
 
   /* This loop scans the instructions of the basic block
      and assigns quantities to registers.
@@ -1446,13 +1344,13 @@ block_alloc (b)
       if (qty_sugg_compare (1, 2) > 0)
 	EXCHANGE (2, 1);
 
-      /* ... Fall through ... */
+      /* ... Fall through ...  */
     case 2:
       /* Put the best one to allocate in qty_order[0].  */
       if (qty_sugg_compare (0, 1) > 0)
 	EXCHANGE (0, 1);
 
-      /* ... Fall through ... */
+      /* ... Fall through ...  */
 
     case 1:
     case 0:
@@ -1495,13 +1393,13 @@ block_alloc (b)
       if (qty_compare (1, 2) > 0)
 	EXCHANGE (2, 1);
 
-      /* ... Fall through ... */
+      /* ... Fall through ...  */
     case 2:
       /* Put the best one to allocate in qty_order[0].  */
       if (qty_compare (0, 1) > 0)
 	EXCHANGE (0, 1);
 
-      /* ... Fall through ... */
+      /* ... Fall through ...  */
 
     case 1:
     case 0:
@@ -1522,8 +1420,50 @@ block_alloc (b)
       q = qty_order[i];
       if (qty_phys_reg[q] < 0)
 	{
+#ifdef INSN_SCHEDULING
+	  /* These values represent the adjusted lifetime of a qty so
+	     that it conflicts with qtys which appear near the start/end
+	     of this qty's lifetime.
+
+	     The purpose behind extending the lifetime of this qty is to
+	     discourage the register allocator from creating false
+	     dependencies.
+ 
+	     The adjustment by the value +-3 indicates precisely that
+	     this qty conflicts with qtys in the instructions immediately
+	     before and after the lifetime of this qty.
+
+	     Experiments have shown that higher values tend to hurt
+	     overall code performance.
+
+	     If allocation using the extended lifetime fails we will try
+	     again with the qty's unadjusted lifetime.  */
+	  int fake_birth = MAX (0, qty_birth[q] - 3);
+	  int fake_death = MIN (insn_number * 2 + 1, qty_death[q] + 3);
+#endif
+
 	  if (N_REG_CLASSES > 1)
 	    {
+#ifdef INSN_SCHEDULING
+	      /* We try to avoid using hard registers allocated to qtys which
+		 are born immediately after this qty or die immediately before
+		 this qty.
+
+		 This optimization is only appropriate when we will run
+		 a scheduling pass after reload and we are not optimizing
+		 for code size.  */
+	      if (flag_schedule_insns_after_reload
+		  && !optimize_size
+		  && !SMALL_REGISTER_CLASSES)
+		{
+		
+		  qty_phys_reg[q] = find_free_reg (qty_min_class[q], 
+						   qty_mode[q], q, 0, 0,
+						   fake_birth, fake_death);
+		  if (qty_phys_reg[q] >= 0)
+		    continue;
+		}
+#endif
 	      qty_phys_reg[q] = find_free_reg (qty_min_class[q], 
 					       qty_mode[q], q, 0, 0,
 					       qty_birth[q], qty_death[q]);
@@ -1531,6 +1471,16 @@ block_alloc (b)
 		continue;
 	    }
 
+#ifdef INSN_SCHEDULING
+	  /* Similarly, avoid false dependencies.  */
+	  if (flag_schedule_insns_after_reload
+	      && !optimize_size
+	      && !SMALL_REGISTER_CLASSES
+	      && qty_alternate_class[q] != NO_REGS)
+	    qty_phys_reg[q] = find_free_reg (qty_alternate_class[q],
+					     qty_mode[q], q, 0, 0,
+					     fake_birth, fake_death);
+#endif
 	  if (qty_alternate_class[q] != NO_REGS)
 	    qty_phys_reg[q] = find_free_reg (qty_alternate_class[q],
 					     qty_mode[q], q, 0, 0,
@@ -1550,17 +1500,11 @@ block_alloc (b)
 	  {
 	    if (GET_CODE (qty_scratch_rtx[q]) == REG)
 	      abort ();
-	    PUT_CODE (qty_scratch_rtx[q], REG);
-	    REGNO (qty_scratch_rtx[q]) = qty_phys_reg[q];
-
+	    qty_scratch_rtx[q] = gen_rtx_REG (GET_MODE (qty_scratch_rtx[q]),
+					      qty_phys_reg[q]);
 	    scratch_block[scratch_index] = b;
 	    scratch_list[scratch_index++] = qty_scratch_rtx[q];
 
-	    /* Must clear the USED field, because it will have been set by
-	       copy_rtx_if_shared, but the leaf_register code expects that
-	       it is zero in all REG rtx.  copy_rtx_if_shared does not set the
-	       used bit for REGs, but does for SCRATCHes.  */
-	    qty_scratch_rtx[q]->used = 0;
 	  }
       }
 }
@@ -1575,51 +1519,37 @@ block_alloc (b)
    the same algorithm in both local- and global-alloc can speed up execution
    of some programs by as much as a factor of three!  */
 
+/* Note that the quotient will never be bigger than
+   the value of floor_log2 times the maximum number of
+   times a register can occur in one insn (surely less than 100).
+   Multiplying this by 10000 can't overflow.
+   QTY_CMP_PRI is also used by qty_sugg_compare.  */
+
+#define QTY_CMP_PRI(q)		\
+  ((int) (((double) (floor_log2 (qty_n_refs[q]) * qty_n_refs[q] * qty_size[q]) \
+	  / (qty_death[q] - qty_birth[q])) * 10000))
+
 static int
 qty_compare (q1, q2)
      int q1, q2;
 {
-  /* Note that the quotient will never be bigger than
-     the value of floor_log2 times the maximum number of
-     times a register can occur in one insn (surely less than 100).
-     Multiplying this by 10000 can't overflow.  */
-  register int pri1
-    = (((double) (floor_log2 (qty_n_refs[q1]) * qty_n_refs[q1] * qty_size[q1])
-	/ (qty_death[q1] - qty_birth[q1]))
-       * 10000);
-  register int pri2
-    = (((double) (floor_log2 (qty_n_refs[q2]) * qty_n_refs[q2] * qty_size[q2])
-	/ (qty_death[q2] - qty_birth[q2]))
-       * 10000);
-  return pri2 - pri1;
+  return QTY_CMP_PRI (q2) - QTY_CMP_PRI (q1);
 }
 
 static int
-qty_compare_1 (q1, q2)
-     int *q1, *q2;
+qty_compare_1 (q1p, q2p)
+     const GENERIC_PTR q1p;
+     const GENERIC_PTR q2p;
 {
-  register int tem;
+  register int q1 = *(int *)q1p, q2 = *(int *)q2p;
+  register int tem = QTY_CMP_PRI (q2) - QTY_CMP_PRI (q1);
 
-  /* Note that the quotient will never be bigger than
-     the value of floor_log2 times the maximum number of
-     times a register can occur in one insn (surely less than 100).
-     Multiplying this by 10000 can't overflow.  */
-  register int pri1
-    = (((double) (floor_log2 (qty_n_refs[*q1]) * qty_n_refs[*q1]
-		  * qty_size[*q1])
-	/ (qty_death[*q1] - qty_birth[*q1]))
-       * 10000);
-  register int pri2
-    = (((double) (floor_log2 (qty_n_refs[*q2]) * qty_n_refs[*q2]
-		  * qty_size[*q2])
-	/ (qty_death[*q2] - qty_birth[*q2]))
-       * 10000);
+  if (tem != 0)
+    return tem;
 
-  tem = pri2 - pri1;
-  if (tem != 0) return tem;
   /* If qtys are equally good, sort by qty number,
      so that the results of qsort leave nothing to chance.  */
-  return *q1 - *q2;
+  return q1 - q2;
 }
 
 /* Compare two quantities' priority for getting real registers.  This version
@@ -1629,71 +1559,45 @@ qty_compare_1 (q1, q2)
    number of preferences have the highest priority.  Of those, we use the same
    algorithm as above.  */
 
+#define QTY_CMP_SUGG(q)		\
+  (qty_phys_num_copy_sugg[q]		\
+    ? qty_phys_num_copy_sugg[q]	\
+    : qty_phys_num_sugg[q] * FIRST_PSEUDO_REGISTER)
+
 static int
 qty_sugg_compare (q1, q2)
      int q1, q2;
 {
-  register int sugg1 = (qty_phys_num_copy_sugg[q1]
-			? qty_phys_num_copy_sugg[q1]
-			: qty_phys_num_sugg[q1] * FIRST_PSEUDO_REGISTER);
-  register int sugg2 = (qty_phys_num_copy_sugg[q2]
-			? qty_phys_num_copy_sugg[q2]
-			: qty_phys_num_sugg[q2] * FIRST_PSEUDO_REGISTER);
-  /* Note that the quotient will never be bigger than
-     the value of floor_log2 times the maximum number of
-     times a register can occur in one insn (surely less than 100).
-     Multiplying this by 10000 can't overflow.  */
-  register int pri1
-    = (((double) (floor_log2 (qty_n_refs[q1]) * qty_n_refs[q1] * qty_size[q1])
-	/ (qty_death[q1] - qty_birth[q1]))
-       * 10000);
-  register int pri2
-    = (((double) (floor_log2 (qty_n_refs[q2]) * qty_n_refs[q2] * qty_size[q2])
-	/ (qty_death[q2] - qty_birth[q2]))
-       * 10000);
+  register int tem = QTY_CMP_SUGG (q1) - QTY_CMP_SUGG (q2);
 
-  if (sugg1 != sugg2)
-    return sugg1 - sugg2;
+  if (tem != 0)
+    return tem;
   
-  return pri2 - pri1;
+  return QTY_CMP_PRI (q2) - QTY_CMP_PRI (q1);
 }
 
 static int
-qty_sugg_compare_1 (q1, q2)
-     int *q1, *q2;
+qty_sugg_compare_1 (q1p, q2p)
+     const GENERIC_PTR q1p;
+     const GENERIC_PTR q2p;
 {
-  register int sugg1 = (qty_phys_num_copy_sugg[*q1]
-			? qty_phys_num_copy_sugg[*q1]
-			: qty_phys_num_sugg[*q1] * FIRST_PSEUDO_REGISTER);
-  register int sugg2 = (qty_phys_num_copy_sugg[*q2]
-			? qty_phys_num_copy_sugg[*q2]
-			: qty_phys_num_sugg[*q2] * FIRST_PSEUDO_REGISTER);
+  register int q1 = *(int *)q1p, q2 = *(int *)q2p;
+  register int tem = QTY_CMP_SUGG (q1) - QTY_CMP_SUGG (q2);
 
-  /* Note that the quotient will never be bigger than
-     the value of floor_log2 times the maximum number of
-     times a register can occur in one insn (surely less than 100).
-     Multiplying this by 10000 can't overflow.  */
-  register int pri1
-    = (((double) (floor_log2 (qty_n_refs[*q1]) * qty_n_refs[*q1]
-		  * qty_size[*q1])
-	/ (qty_death[*q1] - qty_birth[*q1]))
-       * 10000);
-  register int pri2
-    = (((double) (floor_log2 (qty_n_refs[*q2]) * qty_n_refs[*q2]
-		  * qty_size[*q2])
-	/ (qty_death[*q2] - qty_birth[*q2]))
-       * 10000);
+  if (tem != 0)
+    return tem;
 
-  if (sugg1 != sugg2)
-    return sugg1 - sugg2;
-  
-  if (pri1 != pri2)
-    return pri2 - pri1;
+  tem = QTY_CMP_PRI (q2) - QTY_CMP_PRI (q1);
+  if (tem != 0)
+    return tem;
 
   /* If qtys are equally good, sort by qty number,
      so that the results of qsort leave nothing to chance.  */
-  return *q1 - *q2;
+  return q1 - q2;
 }
+
+#undef QTY_CMP_SUGG
+#undef QTY_CMP_PRI
 
 /* Attempt to combine the two registers (rtx's) USEDREG and SETREG.
    Returns 1 if have done so, or 0 if cannot.
@@ -1767,7 +1671,7 @@ combine_regs (usedreg, setreg, may_save_copy, insn_number, insn, already_dead)
       || (offset > 0 && usize + offset > ssize)
       || (offset < 0 && usize + offset < ssize)
       /* Do not combine with a smaller already-assigned object
-	 if that smaller object is already combined with something bigger. */
+	 if that smaller object is already combined with something bigger.  */
       || (ssize > usize && ureg >= FIRST_PSEUDO_REGISTER
 	  && usize < qty_size[reg_qty[ureg]])
       /* Can't combine if SREG is not a register we can allocate.  */
@@ -1844,8 +1748,8 @@ combine_regs (usedreg, setreg, may_save_copy, insn_number, insn, already_dead)
       /* If we are not going to let any regs live across calls,
 	 don't tie a call-crossing reg to a non-call-crossing reg.  */
       || (current_function_has_nonlocal_label
-	  && ((reg_n_calls_crossed[ureg] > 0)
-	      != (reg_n_calls_crossed[sreg] > 0))))
+	  && ((REG_N_CALLS_CROSSED (ureg) > 0)
+	      != (REG_N_CALLS_CROSSED (sreg) > 0))))
     return 0;
 
   /* We don't already know about SREG, so tie it to UREG
@@ -1866,8 +1770,8 @@ combine_regs (usedreg, setreg, may_save_copy, insn_number, insn, already_dead)
       update_qty_class (sqty, sreg);
 
       /* Update info about quantity SQTY.  */
-      qty_n_calls_crossed[sqty] += reg_n_calls_crossed[sreg];
-      qty_n_refs[sqty] += reg_n_refs[sreg];
+      qty_n_calls_crossed[sqty] += REG_N_CALLS_CROSSED (sreg);
+      qty_n_refs[sqty] += REG_N_REFS (sreg);
       if (usize < ssize)
 	{
 	  register int i;
@@ -1899,29 +1803,6 @@ reg_meets_class_p (reg, class)
 	  || reg_class_subset_p (class, rclass));
 }
 
-/* Return 1 if the two specified classes have registers in common.
-   If CALL_SAVED, then consider only call-saved registers.  */
-
-static int
-reg_classes_overlap_p (c1, c2, call_saved)
-     register enum reg_class c1;
-     register enum reg_class c2;
-     int call_saved;
-{
-  HARD_REG_SET c;
-  int i;
-
-  COPY_HARD_REG_SET (c, reg_class_contents[(int) c1]);
-  AND_HARD_REG_SET (c, reg_class_contents[(int) c2]);
-
-  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
-    if (TEST_HARD_REG_BIT (c, i)
-	&& (! call_saved || ! call_used_regs[i]))
-      return 1;
-
-  return 0;
-}
-
 /* Update the class of QTY assuming that REG is being tied to it.  */
 
 static void
@@ -1937,7 +1818,7 @@ update_qty_class (qty, reg)
   if (reg_class_subset_p (rclass, qty_alternate_class[qty]))
     qty_alternate_class[qty] = rclass;
 
-  if (reg_changes_size[reg])
+  if (REG_CHANGES_SIZE (reg))
     qty_changes_size[qty] = 1;
 }
 
@@ -2105,6 +1986,9 @@ find_free_reg (class, mode, qty, accept_call_clobbered, just_try_suggested,
   else
     COPY_HARD_REG_SET (used, call_used_reg_set);
 
+  if (accept_call_clobbered)
+    IOR_HARD_REG_SET (used, losing_caller_save_reg_set);
+
   for (ins = born_index; ins < dead_index; ins++)
     IOR_HARD_REG_SET (used, regs_live_at[ins]);
 
@@ -2121,7 +2005,7 @@ find_free_reg (class, mode, qty, accept_call_clobbered, just_try_suggested,
     SET_HARD_REG_BIT (used, eliminables[i].from);
 #if FRAME_POINTER_REGNUM != HARD_FRAME_POINTER_REGNUM
   /* If FRAME_POINTER_REGNUM is not a real register, then protect the one
-     that it might be eliminated into. */
+     that it might be eliminated into.  */
   SET_HARD_REG_BIT (used, HARD_FRAME_POINTER_REGNUM);
 #endif
 #else
@@ -2303,8 +2187,12 @@ no_conflict_p (insn, r0, r1)
 	if (find_reg_note (p, REG_DEAD, r1))
 	  ok = 1;
 
-	if (reg_mentioned_p (r1, PATTERN (p))
-	    && ! find_reg_note (p, REG_NO_CONFLICT, r1))
+	/* There must be a REG_NO_CONFLICT note on every insn, otherwise
+	   some earlier optimization pass has inserted instructions into
+	   the sequence, and it is not safe to perform this optimization.
+	   Note that emit_no_conflict_block always ensures that this is
+	   true when these sequences are created.  */
+	if (! find_reg_note (p, REG_NO_CONFLICT, r1))
 	  return 0;
       }
       
@@ -2326,7 +2214,7 @@ requires_inout (p)
   int reg_allowed = 0;
   int num_matching_alts = 0;
 
-  while (c = *p++)
+  while ((c = *p++))
     switch (c)
       {
       case '=':  case '+':  case '?':

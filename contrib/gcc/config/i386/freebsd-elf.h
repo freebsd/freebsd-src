@@ -1,8 +1,8 @@
 /* Definitions for Intel 386 running FreeBSD with ELF format
-   Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1996 Free Software Foundation, Inc.
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu.
-   Adapted from Linux version by John Polstra.
+   Adapted from GNU/Linux version by John Polstra.
 
 This file is part of GNU CC.
 
@@ -21,31 +21,29 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* A lie, I guess, but the general idea behind FreeBSD/ELF is that we are
-   supposed to be outputting something that will assemble under SVr4.
-   This gets us pretty close.  */
-#include <i386/i386.h>	/* Base i386 target machine definitions */
-#include <i386/att.h>	/* Use the i386 AT&T assembler syntax */
-#include <linux.h>	/* some common stuff */
-
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (i386 FreeBSD/ELF)");
 
 /* The svr4 ABI for the i386 says that records and unions are returned
    in memory.  */
+/* On FreeBSD, we do not. */
 #undef DEFAULT_PCC_STRUCT_RETURN
-#define DEFAULT_PCC_STRUCT_RETURN 1
+#define DEFAULT_PCC_STRUCT_RETURN 0
+
+/* This gets defined in tm.h->linux.h->svr4.h, and keeps us from using
+   libraries compiled with the native cc, so undef it. */
+#undef NO_DOLLAR_IN_LABEL
 
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
    i386.md for an explanation of the expression this outputs. */
 #undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \
+#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
   fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
 
 /* Indicate that jump tables go in the text section.  This is
    necessary when compiling PIC code.  */
-#define JUMP_TABLES_IN_TEXT_SECTION
+#define JUMP_TABLES_IN_TEXT_SECTION (flag_pic)
 
 /* Copy this from the svr4 specifications... */
 /* Define the register numbers to be used in Dwarf debugging information.
@@ -147,14 +145,10 @@ Boston, MA 02111-1307, USA.  */
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
     
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -D__ELF__ -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Di386 -Dunix -D__ELF__ -D__FreeBSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
 #undef CPP_SPEC
-#if TARGET_CPU_DEFAULT == 2
-#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{!m386:-D__i486__} %{posix:-D_POSIX_SOURCE}"
-#else
-#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{m486:-D__i486__} %{posix:-D_POSIX_SOURCE}"
-#endif
+#define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE}"
 
 #undef	LIB_SPEC
 #if 1
@@ -196,4 +190,16 @@ Boston, MA 02111-1307, USA.  */
 	%{static:-static}}}"
 
 /* Get perform_* macros to build libgcc.a.  */
-#include "i386/perform.h"
+
+/* A C statement to output to the stdio stream FILE an assembler
+   command to advance the location counter to a multiple of 1<<LOG
+   bytes if it is within MAX_SKIP bytes.
+
+   This is used to align code labels according to Intel recommendations.  */
+
+#ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
+#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP) \
+  if ((LOG)!=0) \
+    if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
+    else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP))
+#endif

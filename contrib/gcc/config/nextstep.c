@@ -1,5 +1,5 @@
 /* Functions for generic NeXT as target machine for GNU C compiler.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1989, 90-93, 96, 1997 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -18,6 +18,11 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
+#include "config.h"
+#include <stdio.h>
+#include "flags.h"
+#include "tree.h"
+
 /* Make everything that used to go in the text section really go there.  */
 
 int flag_no_mach_text_sections = 0;
@@ -35,14 +40,17 @@ static int initial_optimize_flag;
 extern char *get_directive_line ();
 
 /* Called from check_newline via the macro HANDLE_PRAGMA.
-   FINPUT is the source file input stream.  */
+   FINPUT is the source file input stream.
+   CH is the first character after `#pragma'.
+   The result is 1 if the pragma was handled.  */
 
-void
-handle_pragma (finput, get_line_function)
+int
+handle_pragma (finput, node)
      FILE *finput;
-     char *(*get_line_function) ();
+     tree node;
 {
-  register char *p = (*get_line_function) (finput);
+  int retval = 0;
+  register char *pname;
 
   /* Record initial setting of optimize flag, so we can restore it.  */
   if (!pragma_initialized)
@@ -51,17 +59,24 @@ handle_pragma (finput, get_line_function)
       initial_optimize_flag = optimize;
     }
 
-  if (OPT_STRCMP ("CC_OPT_ON"))
+  if (TREE_CODE (node) != IDENTIFIER_NODE)
+    return 0;
+
+  pname = IDENTIFIER_POINTER (node);
+
+  if (strcmp (pname, "CC_OPT_ON") == 0)
     {
       optimize = 1, obey_regdecls = 0;
       warning ("optimization turned on");
+      retval = 1;
     }
-  else if (OPT_STRCMP ("CC_OPT_OFF"))
+  else if (strcmp (pname, "CC_OPT_OFF") == 0)
     {
       optimize = 0, obey_regdecls = 1;
       warning ("optimization turned off");
+      retval = 1;
     }
-  else if (OPT_STRCMP ("CC_OPT_RESTORE"))
+  else if (strcmp (pname, "CC_OPT_RESTORE") == 0)
     {
       extern int initial_optimize_flag;
 
@@ -74,11 +89,14 @@ handle_pragma (finput, get_line_function)
 	  optimize = initial_optimize_flag;
 	}
       warning ("optimization level restored");
+      retval = 1;
     }
-  else if (OPT_STRCMP ("CC_WRITABLE_STRINGS"))
-    flag_writable_strings = 1;
-  else if (OPT_STRCMP ("CC_NON_WRITABLE_STRINGS"))
-    flag_writable_strings = 0;
-  else if (OPT_STRCMP ("CC_NO_MACH_TEXT_SECTIONS"))
-    flag_no_mach_text_sections = 1;
+  else if (strcmp (pname, "CC_WRITABLE_STRINGS") == 0)
+    flag_writable_strings = retval = 1;
+  else if (strcmp (pname, "CC_NON_WRITABLE_STRINGS") == 0)
+    flag_writable_strings = 0, retval = 1;
+  else if (strcmp (pname, "CC_NO_MACH_TEXT_SECTIONS") == 0)
+    flag_no_mach_text_sections = retval = 1;
+
+  return retval;
 }

@@ -1,4 +1,4 @@
-@c Copyright (C) 1988, 1989, 1992, 1994 Free Software Foundation, Inc.
+@c Copyright (C) 1988, 89, 92, 94, 97, 1998 Free Software Foundation, Inc.
 @c This is part of the GCC manual.
 @c For copying conditions, see the file gcc.texi.
 
@@ -287,9 +287,9 @@ to access them.
 @section Flags in an RTL Expression
 @cindex flags in RTL expression
 
-RTL expressions contain several flags (one-bit bitfields) that are used
-in certain types of expression.  Most often they are accessed with the
-following macros:
+RTL expressions contain several flags (one-bit bitfields) and other
+values that are used in certain types of expression.  Most often they
+are accessed with the following macros:
 
 @table @code
 @findex MEM_VOLATILE_P
@@ -309,6 +309,15 @@ In @code{mem} expressions, nonzero for reference to an entire
 structure, union or array, or to a component of one.  Zero for
 references to a scalar variable or through a pointer to a scalar.
 Stored in the @code{in_struct} field and printed as @samp{/s}.
+
+@findex MEM_ALIAS_SET
+@item MEM_ALIAS_SET (@var{x})
+In @code{mem} expressions, the alias set to which @var{x} belongs.  If
+zero, @var{x} is not in any alias set, and may alias anything.  If
+nonzero, @var{x} may only alias objects in the same alias set.  This
+value is set (in a language-specific manner) by the front-end.  This
+field is not a bit-field; it is in an integer, found as the second
+argument to the @code{mem}.
 
 @findex REG_LOOP_TEST_P
 @cindex @code{reg} and @samp{/s}
@@ -380,8 +389,7 @@ other functions or by aliasing.)  Stored in the
 @cindex @code{integrated}, in @code{insn}
 @item RTX_INTEGRATED_P (@var{insn})
 Nonzero in an insn if it resulted from an in-line function call.
-Stored in the @code{integrated} field and printed as @samp{/i}.  This
-may be deleted; nothing currently depends on it.
+Stored in the @code{integrated} field and printed as @samp{/i}.
 
 @findex SYMBOL_REF_USED
 @cindex @code{used}, in @code{symbol_ref}
@@ -427,10 +435,12 @@ as @samp{/u}.
 @item INSN_FROM_TARGET_P (@var{insn})
 In an @code{insn} in a delay slot of a branch, indicates that the insn
 is from the target of the branch.  If the branch insn has
-@code{INSN_ANNULLED_BRANCH_P} set, this insn should only be executed if
-the branch is taken.  For annulled branches with this bit clear, the
-insn should be executed only if the branch is not taken.  Stored in the
-@code{in_struct} field and printed as @samp{/s}.
+@code{INSN_ANNULLED_BRANCH_P} set, this insn will only be executed if
+the branch is taken.  For annulled branches with
+@code{INSN_FROM_TARGET_P} clear, the insn will be executed only if the
+branch is not taken.  When @code{INSN_ANNULLED_BRANCH_P} is not set,
+this insn will always be executed.  Stored in the @code{in_struct}
+field and printed as @samp{/s}.
 
 @findex CONSTANT_POOL_ADDRESS_P 
 @cindex @code{symbol_ref} and @samp{/u}
@@ -1096,6 +1106,15 @@ The compilation parameter @code{WORDS_BIG_ENDIAN}, if set to 1, says
 that word number zero is the most significant part; otherwise, it is
 the least significant part.
 
+@cindex @code{FLOAT_WORDS_BIG_ENDIAN}, (lack of) effect on @code{subreg}
+On a few targets, @code{FLOAT_WORDS_BIG_ENDIAN} disagrees with
+@code{WORDS_BIG_ENDIAN}.
+However, most parts of the compiler treat floating point values as if
+they had the same endianness as integer values.  This works because
+they handle them solely as a collection of integer values, with no
+particular numerical value.  Only real.c and the runtime libraries
+care about @code{FLOAT_WORDS_BIG_ENDIAN}.
+
 @cindex combiner pass
 @cindex reload pass
 @cindex @code{subreg}, special reload handling
@@ -1212,6 +1231,14 @@ by incrementing it, but there is no need to mention this in the RTL.
 This RTX represents a reference to main memory at an address
 represented by the expression @var{addr}.  @var{m} specifies how large
 a unit of memory is accessed.
+
+@findex addressof
+@item (addressof:@var{m} @var{reg})
+This RTX represents a request for the address of register @var{reg}.  Its mode
+is always @code{Pmode}.  If there are any @code{addressof}
+expressions left in the function after CSE, @var{reg} is forced into the
+stack and the @code{addressof} expression is replaced with a @code{plus}
+expression for the address of its stack slot.
 @end table
 
 @node Arithmetic, Comparisons, Regs and Memory, RTL
@@ -1584,7 +1611,8 @@ option @code{BITS_BIG_ENDIAN} says which end of the memory unit
 If @var{loc} is in memory, its mode must be a single-byte integer mode.
 If @var{loc} is in a register, the mode to use is specified by the
 operand of the @code{insv} or @code{extv} pattern
-(@pxref{Standard Names}) and is usually a full-word integer mode.
+(@pxref{Standard Names}) and is usually a full-word integer mode,
+which is the default if none is specified.
 
 The mode of @var{pos} is machine-specific and is also specified
 in the @code{insv} or @code{extv} pattern.
@@ -1872,6 +1900,10 @@ it may not be apparent why this is so.  Therefore, the compiler will
 not attempt to delete previous instructions whose only effect is to
 store a value in @var{x}.  @var{x} must be a @code{reg} expression.
 
+During the reload phase, an insn that has a @code{use} as pattern
+can carry a reg_equal note.  These @code{use} insns will be deleted
+before the reload phase exits.
+
 During the delayed branch scheduling phase, @var{x} may be an insn.
 This indicates that @var{x} previously was located at this place in the
 code and its data dependencies need to be taken into account.  These
@@ -1986,11 +2018,15 @@ how much space is given to each address; normally @var{m} would be
 @code{Pmode}.
 
 @findex addr_diff_vec
-@item (addr_diff_vec:@var{m} @var{base} [@var{lr0} @var{lr1} @dots{}])
+@item (addr_diff_vec:@var{m} @var{base} [@var{lr0} @var{lr1} @dots{}] @var{min} @var{max} @var{flags})
 Represents a table of jump addresses expressed as offsets from
 @var{base}.  The vector elements @var{lr0}, etc., are @code{label_ref}
 expressions and so is @var{base}.  The mode @var{m} specifies how much
-space is given to each address-difference.@refill
+space is given to each address-difference.  @var{min} and @var{max}
+are set up by branch shortening and hold a label with a minimum and a
+maximum address, respectively.  @var{flags} indicates the relative
+position of @var{base}, @var{min} and @var{max} to the cointaining insn
+and of @var{min} and @var{max} to @var{base}.  See rtl.def for details.@refill
 @end table
 
 @node Incdec, Assembler, Side Effects, RTL
@@ -2290,6 +2326,14 @@ These types of notes indicate the position of the beginning and end
 of a level of scoping of variable names.  They control the output
 of debugging information.
 
+@findex NOTE_INSN_EH_REGION_BEG
+@findex NOTE_INSN_EH_REGION_END
+@item NOTE_INSN_EH_REGION_BEG
+@itemx NOTE_INSN_EH_REGION_END
+These types of notes indicate the position of the beginning and end of a
+level of scoping for exception handling.  @code{NOTE_BLOCK_NUMBER}
+identifies which @code{CODE_LABEL} is associated with the given region.
+
 @findex NOTE_INSN_LOOP_BEG
 @findex NOTE_INSN_LOOP_END
 @item NOTE_INSN_LOOP_BEG
@@ -2376,8 +2420,8 @@ nor a label may come between the related insns.
 @findex REG_NOTES
 @item REG_NOTES (@var{i})
 A list (chain of @code{expr_list} and @code{insn_list} expressions)
-giving miscellaneous information about the insn.  It is often information
-pertaining to the registers used in this insn.
+giving miscellaneous information about the insn.  It is often
+information pertaining to the registers used in this insn.
 @end table
 
 The @code{LOG_LINKS} field of an insn is a chain of @code{insn_list}
@@ -2402,11 +2446,11 @@ mode @code{VOIDmode}.
 
 The @code{REG_NOTES} field of an insn is a chain similar to the
 @code{LOG_LINKS} field but it includes @code{expr_list} expressions in
-addition to @code{insn_list} expressions.  There are several kinds
-of register notes, which are distinguished by the machine mode, which
-in a register note is really understood as being an @code{enum reg_note}.
+addition to @code{insn_list} expressions.  There are several kinds of
+register notes, which are distinguished by the machine mode, which in a
+register note is really understood as being an @code{enum reg_note}.
 The first operand @var{op} of the note is data whose meaning depends on
-the kind of note. 
+the kind of note.
 
 @findex REG_NOTE_KIND
 @findex PUT_REG_NOTE_KIND
@@ -2503,6 +2547,17 @@ a note of this kind records that the register is equivalent to the stack
 slot where the parameter was passed.  Although in this case the register
 may be set by other insns, it is still valid to replace the register
 by the stack slot throughout the function.
+
+A @code{REG_EQUIV} note is also used on an instruction which copies a
+register parameter into a pseudo-register at entry to a function, if
+there is a stack slot where that parameter could be stored.  Although
+other insns may set the pseudo-register, it is valid for the compiler to
+replace the pseudo-register by stack slot throughout the function,
+provided the compiler ensures that the stack slot is properly
+initialized by making the replacement in the initial copy instruction as
+well.  This is used on machines for which the calling convention
+allocates stack space for register parameters.  See
+@code{REG_PARM_STACK_SPACE} in @ref{Stack Arguments}.
 
 In the case of @code{REG_EQUAL}, the register that is set by this insn
 will be equal to @var{op} at run time at the end of this insn but not
@@ -2602,6 +2657,31 @@ This indicates an anti dependence (a write after read dependence).
 @findex REG_DEP_OUTPUT
 @item REG_DEP_OUTPUT
 This indicates an output dependence (a write after write dependence).
+@end table
+
+These notes describe information gathered from gcov profile data.  They
+are stored in the @code{REG_NOTES} field of an insn as an
+@code{expr_list}.
+
+@table @code
+@findex REG_EXEC_COUNT
+@item REG_EXEC_COUNT
+This is used to indicate the number of times a basic block was executed
+according to the profile data.  The note is attached to the first insn in
+the basic block.
+
+@findex REG_BR_PROB
+@item REG_BR_PROB
+This is used to specify the ratio of branches to non-branches of a
+branch insn according to the profile data.  The value is stored as a
+value between 0 and REG_BR_PROB_BASE; larger values indicate a higher
+probability that the branch will be taken.
+
+@findex REG_BR_PRED
+@item REG_BR_PRED
+These notes are found in JUMP insns after delayed branch scheduling
+has taken place.  They indicate both the direction and the likelyhood
+of the JUMP.  The format is a bitmask of ATTR_FLAG_* values.
 @end table
 
 For convenience, the machine mode in an @code{insn_list} or

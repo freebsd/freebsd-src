@@ -1,7 +1,7 @@
 /* Part of CPP library.  (memory allocation - xmalloc etc)
-   Copyright (C) 1986, 87, 89, 92, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1986, 87, 89, 92 - 95, 1998 Free Software Foundation, Inc.
    Written by Per Bothner, 1994.
-   Based on CCCP program by by Paul Rubin, June 1986
+   Based on CCCP program by Paul Rubin, June 1986
    Adapted to ANSI C, Richard Stallman, Jan 1987
 
 This program is free software; you can redistribute it and/or modify it
@@ -23,11 +23,15 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  what you give them.   Help stamp out software-hoarding!  */
 
 #include "config.h"
+#include "system.h"
+#include "gansidecl.h"
+#include "cpplib.h"
 
 static void
 memory_full ()
 {
-  fatal ("Memory exhausted.");
+  fprintf (stderr, "%s: Memory exhausted.\n", progname);
+  exit (FATAL_EXIT_CODE);
 }
 
 char *
@@ -35,10 +39,9 @@ xmalloc (size)
      unsigned size;
 {
   register char *ptr = (char *) malloc (size);
-  if (ptr != 0) return (ptr);
-  memory_full ();
-  /*NOTREACHED*/
-  return 0;
+  if (ptr == 0)
+    memory_full ();
+  return ptr;
 }
 
 char *
@@ -47,17 +50,6 @@ xrealloc (old, size)
      unsigned size;
 {
   register char *ptr = (char *) realloc (old, size);
-  if (ptr == 0)
-    memory_full ();
-  return ptr;
-}
-
-char *
-xcalloc (number, size)
-     unsigned number, size;
-{
-  register unsigned total = number * size;
-  register char *ptr = (char *) calloc (number, size);
   if (ptr == 0)
     memory_full ();
   return ptr;

@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    Intel 386 (OSF/1 with OSF/rose) version.
-   Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1992, 1993, 1996 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -36,16 +36,7 @@ Boston, MA 02111-1307, USA.  */
    -z* options (for the linker).  */
 
 #define SWITCH_TAKES_ARG(CHAR) \
-  (   (CHAR) == 'D' \
-   || (CHAR) == 'U' \
-   || (CHAR) == 'o' \
-   || (CHAR) == 'e' \
-   || (CHAR) == 'T' \
-   || (CHAR) == 'u' \
-   || (CHAR) == 'I' \
-   || (CHAR) == 'm' \
-   || (CHAR) == 'L' \
-   || (CHAR) == 'A' \
+  (DEFAULT_SWITCH_TAKES_ARG(CHAR) \
    || (CHAR) == 'h' \
    || (CHAR) == 'z')
 
@@ -99,10 +90,10 @@ Boston, MA 02111-1307, USA.  */
 
 /* Change default predefines.  */
 #undef	CPP_PREDEFINES
-#define CPP_PREDEFINES "-DOSF -DOSF1 -Dunix -Di386 -Asystem(unix) -Asystem(xpg4) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-DOSF -DOSF1 -Dunix -Asystem(xpg4)"
 
 #undef  CPP_SPEC
-#define CPP_SPEC "\
+#define CPP_SPEC "%(cpp_cpu) \
 %{!melf: -D__ROSE__ %{!pic-none: -D__SHARED__}} \
 %{melf: -D__ELF__ %{fpic: -D__SHARED__}} \
 %{mno-underscores: -D__NO_UNDERSCORES__} \
@@ -373,6 +364,12 @@ while (0)
   fprintf (FILE, "%s%s%d:\n", (TARGET_UNDERSCORES) ? "" : ".",		\
 	   PREFIX, NUM)
 
+/* The prefix to add to user-visible assembler symbols. */
+
+/* target_flags is not accessible by the preprocessor */
+#undef USER_LABEL_PREFIX
+#define USER_LABEL_PREFIX "_"
+
 /* This is how to output a reference to a user-level label named NAME.  */
 
 #undef	ASM_OUTPUT_LABELREF
@@ -384,7 +381,7 @@ while (0)
    i386.md for an explanation of the expression this outputs. */
 
 #undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \
+#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
   fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
 
 /* Output a definition */
@@ -407,10 +404,9 @@ while (0)
    alignment to be done at such a time.  Most machine descriptions do
    not currently define the macro.  */
 
-#undef	ASM_OUTPUT_ALIGN_CODE
-#define ASM_OUTPUT_ALIGN_CODE(STREAM)					\
-  fprintf (STREAM, "\t.align\t%d\n",					\
-	   (!TARGET_LARGE_ALIGN && i386_align_jumps > 2) ? 2 : i386_align_jumps)
+#undef	LABEL_ALIGN_AFTER_BARRIER
+#define LABEL_ALIGN_AFTER_BARRIER(LABEL) \
+  ((!TARGET_LARGE_ALIGN && i386_align_jumps > 2) ? 2 : i386_align_jumps)
 
 /* A C expression to output text to align the location counter in the
    way that is desirable at the beginning of a loop.
@@ -419,9 +415,8 @@ while (0)
    alignment to be done at such a time.  Most machine descriptions do
    not currently define the macro.  */
 
-#undef	ASM_OUTPUT_LOOP_ALIGN
-#define ASM_OUTPUT_LOOP_ALIGN(STREAM) \
-  fprintf (STREAM, "\t.align\t%d\n", i386_align_loops)
+#undef	LOOP_ALIGN
+#define LOOP_ALIGN(LABEL) (i386_align_loops)
 
 /* A C statement to output to the stdio stream STREAM an assembler
    command to advance the location counter to a multiple of 2 to the

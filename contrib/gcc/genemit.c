@@ -1,5 +1,5 @@
 /* Generate code from machine description to emit insns as rtl.
-   Copyright (C) 1987, 1988, 1991, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 91, 94, 95, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -19,8 +19,13 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -30,12 +35,12 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free ();
-extern rtx read_rtx ();
+char *xmalloc PROTO((unsigned));
+static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
+void fancy_abort PROTO((void));
 
-char *xmalloc ();
-static void fatal ();
-void fancy_abort ();
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+char **insn_name_ptr = 0;
 
 static int max_opno;
 static int max_dup_opno;
@@ -63,6 +68,17 @@ struct clobber_ent
   struct clobber_ent *next;
 };
 
+static void max_operand_1		PROTO((rtx));
+static int max_operand_vec		PROTO((rtx, int));
+static void print_code			PROTO((RTX_CODE));
+static void gen_exp			PROTO((rtx));
+static void gen_insn			PROTO((rtx));
+static void gen_expand			PROTO((rtx));
+static void gen_split			PROTO((rtx));
+static void output_add_clobbers		PROTO((void));
+static void output_init_mov_optab	PROTO((void));
+
+
 static void
 max_operand_1 (x)
      rtx x;
@@ -161,8 +177,11 @@ gen_exp (x)
       return;
 
     case MATCH_OP_DUP:
-      printf ("gen_rtx (GET_CODE (operand%d), GET_MODE (operand%d)",
-	      XINT (x, 0), XINT (x, 0));
+      printf ("gen_rtx (GET_CODE (operand%d), ", XINT (x, 0));
+      if (GET_MODE (x) == VOIDmode)
+	printf ("GET_MODE (operand%d)", XINT (x, 0));
+      else
+	printf ("%smode", GET_MODE_NAME (GET_MODE (x)));
       for (i = 0; i < XVECLEN (x, 1); i++)
 	{
 	  printf (",\n\t\t");
@@ -188,7 +207,7 @@ gen_exp (x)
       return;
 
     case MATCH_SCRATCH:
-      printf ("gen_rtx (SCRATCH, %smode, 0)", GET_MODE_NAME (GET_MODE (x)));
+      printf ("gen_rtx_SCRATCH (%smode)", GET_MODE_NAME (GET_MODE (x)));
       return;
 
     case ADDRESS:
@@ -212,24 +231,25 @@ gen_exp (x)
       else if (INTVAL (x) == STORE_FLAG_VALUE)
 	printf ("const_true_rtx");
       else
-	printf (
-#if HOST_BITS_PER_WIDE_INT == HOST_BITS_PER_INT	     
-		"GEN_INT (%d)",
-#else
-		"GEN_INT (%ld)",
-#endif
-		INTVAL (x));
+	{
+	  printf ("GEN_INT (");
+	  printf (HOST_WIDE_INT_PRINT_DEC, INTVAL (x));
+	  printf (")");
+	}
       return;
 
     case CONST_DOUBLE:
       /* These shouldn't be written in MD files.  Instead, the appropriate
 	 routines in varasm.c should be called.  */
       abort ();
+
+    default:
+      break;
     }
 
-  printf ("gen_rtx (");
+  printf ("gen_rtx_");
   print_code (code);
-  printf (", %smode", GET_MODE_NAME (GET_MODE (x)));
+  printf (" (%smode", GET_MODE_NAME (GET_MODE (x)));
 
   fmt = GET_RTX_FORMAT (code);
   len = GET_RTX_LENGTH (code);
@@ -272,7 +292,7 @@ gen_insn (insn)
 
   /* See if the pattern for this insn ends with a group of CLOBBERs of (hard)
      registers or MATCH_SCRATCHes.  If so, store away the information for
-     later. */
+     later.  */
 
   if (XVEC (insn, 1))
     {
@@ -368,7 +388,7 @@ gen_insn (insn)
     }
   else
     {
-      printf ("  return gen_rtx (PARALLEL, VOIDmode, gen_rtvec (%d", XVECLEN (insn, 1));
+      printf ("  return gen_rtx_PARALLEL (VOIDmode, gen_rtvec (%d", XVECLEN (insn, 1));
       for (i = 0; i < XVECLEN (insn, 1); i++)
 	{
 	  printf (",\n\t\t");
@@ -498,14 +518,13 @@ gen_expand (expand)
   /* Call `gen_sequence' to make a SEQUENCE out of all the
      insns emitted within this gen_... function.  */
 
-  printf (" _done:\n");
   printf ("  _val = gen_sequence ();\n");
-  printf (" _fail:\n");
   printf ("  end_sequence ();\n");
   printf ("  return _val;\n}\n\n");
 }
 
 /* Like gen_expand, but generates a SEQUENCE.  */
+
 static void
 gen_split (split)
      rtx split;
@@ -587,9 +606,7 @@ gen_split (split)
   /* Call `gen_sequence' to make a SEQUENCE out of all the
      insns emitted within this gen_... function.  */
 
-  printf (" _done:\n");
   printf ("  _val = gen_sequence ();\n");
-  printf (" _fail:\n");
   printf ("  end_sequence ();\n");
   printf ("  return _val;\n}\n\n");
 }
@@ -608,7 +625,6 @@ output_add_clobbers ()
   printf ("\n\nvoid\nadd_clobbers (pattern, insn_code_number)\n");
   printf ("     rtx pattern;\n     int insn_code_number;\n");
   printf ("{\n");
-  printf ("  int i;\n\n");
   printf ("  switch (insn_code_number)\n");
   printf ("    {\n");
 
@@ -642,7 +658,7 @@ output_init_mov_optab ()
 #ifdef EXTRA_CC_NAMES
   static char *cc_names[] = { EXTRA_CC_NAMES };
   char *p;
-  int i;
+  size_t i;
 
   printf ("\nvoid\ninit_mov_optab ()\n{\n");
 
@@ -691,11 +707,22 @@ xrealloc (ptr, size)
 }
 
 static void
-fatal (s, a1, a2)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genemit: ");
-  fprintf (stderr, s, a1, a2);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   exit (FATAL_EXIT_CODE);
 }
@@ -742,18 +769,21 @@ main (argc, argv)
 from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
+  printf ("#include \"system.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"expr.h\"\n");
   printf ("#include \"real.h\"\n");
+  printf ("#include \"flags.h\"\n");
   printf ("#include \"output.h\"\n");
   printf ("#include \"insn-config.h\"\n\n");
   printf ("#include \"insn-flags.h\"\n\n");
   printf ("#include \"insn-codes.h\"\n\n");
+  printf ("#include \"reload.h\"\n");
   printf ("extern char *insn_operand_constraint[][MAX_RECOG_OPERANDS];\n\n");
   printf ("extern rtx recog_operand[];\n");
   printf ("#define operands emit_operand\n\n");
-  printf ("#define FAIL goto _fail\n\n");
-  printf ("#define DONE goto _done\n\n");
+  printf ("#define FAIL do {end_sequence (); return _val;} while (0)\n");
+  printf ("#define DONE do {_val = gen_sequence (); end_sequence (); return _val;} while (0)\n");
 
   /* Read the machine description.  */
 

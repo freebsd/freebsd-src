@@ -1,9 +1,7 @@
 /* Specialized bits of code needed to support construction and
    destruction of file-scope objects in C++ code.
-
-   Written by Ron Guilmette (rfg@netcom.com) with help from Richard Stallman.
-
-Copyright (C) 1991, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1991, 94, 95, 96, 97, 1998 Free Software Foundation, Inc.
+   Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
 
@@ -54,6 +52,48 @@ Boston, MA 02111-1307, USA.  */
    do not apply.  */
 
 #include "tm.h"
+#include "defaults.h"
+#include <stddef.h>
+#include "frame.h"
+
+/* This really belongs in gansidecl.h, but for the egcs-1.1.x branch, the
+   only code which uses weak attributes is in this file and this file does
+   not include gansidecl.h.  */
+#ifndef TARGET_ATTRIBUTE_WEAK
+# if SUPPORTS_WEAK
+#  define TARGET_ATTRIBUTE_WEAK       __attribute__ ((weak))
+# else
+#  define TARGET_ATTRIBUTE_WEAK
+# endif
+#endif
+
+/* We do not want to add the weak attribute to the declarations of these
+   routines in frame.h because that will cause the definition of these
+   symbols to be weak as well.
+
+   This exposes a core issue, how to handle creating weak references vs
+   how to create weak definitions.  Either we have to have the definition
+   of TARGET_WEAK_ATTRIBUTE be conditional in the shared header files or
+   have a second declaration if we want a function's references to be weak,
+   but not its definition.
+
+   Making TARGET_WEAK_ATTRIBUTE conditional seems like a good solution until
+   one thinks about scaling to larger problems -- ie, the condition under
+   which TARGET_WEAK_ATTRIBUTE is active will eventually get far too
+   complicated.
+
+   So, we take an approach similar to #pragma weak -- we have a second
+   declaration for functions that we want to have weak references.
+
+   Neither way is particularly good.  */
+   
+/* References to __register_frame_info and __deregister_frame_info should
+   be weak in this file if at all possible.  */
+extern void __register_frame_info (void *, struct object *)
+				  TARGET_ATTRIBUTE_WEAK;
+
+extern void *__deregister_frame_info (void *)
+				     TARGET_ATTRIBUTE_WEAK;
 
 /* Provide default definitions for the pseudo-ops used to switch to the
    .ctors and .dtors sections.
@@ -76,6 +116,9 @@ Boston, MA 02111-1307, USA.  */
 #endif
 #ifndef DTORS_SECTION_ASM_OP
 #define DTORS_SECTION_ASM_OP	".section\t.dtors,\"aw\""
+#endif
+#if !defined (EH_FRAME_SECTION_ASM_OP) && defined (DWARF2_UNWIND_INFO) && defined(ASM_OUTPUT_SECTION_NAME)
+#define EH_FRAME_SECTION_ASM_OP	".section\t.eh_frame,\"aw\""
 #endif
 
 #ifdef OBJECT_FORMAT_ELF
@@ -113,19 +156,41 @@ typedef void (*func_ptr) (void);
    functions in each root executable and one in each shared library, but
    although they all have the same code, each one is unique in that it
    refers to one particular associated `__DTOR_LIST__' which belongs to the
-   same particular root executable or shared library file.  */
+   same particular root executable or shared library file.
 
+   On some systems, this routine is run more than once from the .fini,
+   when exit is called recursively, so we arrange to remember where in
+   the list we left off processing, and we resume at that point,
+   should we be re-invoked.  */
+
+static char __EH_FRAME_BEGIN__[];
 static func_ptr __DTOR_LIST__[];
 static void
 __do_global_dtors_aux ()
 {
-  func_ptr *p;
-  for (p = __DTOR_LIST__ + 1; *p; p++)
-    (*p) ();
+  static func_ptr *p = __DTOR_LIST__ + 1;
+  static int completed = 0;
+
+  if (completed)
+    return;
+
+  while (*p)
+    {
+      p++;
+      (*(p-1)) ();
+    }
+
+#ifdef EH_FRAME_SECTION_ASM_OP
+  if (__deregister_frame_info)
+    __deregister_frame_info (__EH_FRAME_BEGIN__);
+#endif
+  completed = 1;
 }
 
+
 /* Stick a call to __do_global_dtors_aux into the .fini section.  */
-static void
+
+static void __attribute__ ((__unused__))
 fini_dummy ()
 {
   asm (FINI_SECTION_ASM_OP);
@@ -136,6 +201,31 @@ fini_dummy ()
   asm (TEXT_SECTION_ASM_OP);
 }
 
+#ifdef EH_FRAME_SECTION_ASM_OP
+/* Stick a call to __register_frame_info into the .init section.  For some
+   reason calls with no arguments work more reliably in .init, so stick the
+   call in another function.  */
+
+static void
+frame_dummy ()
+{
+  static struct object object;
+  if (__register_frame_info)
+    __register_frame_info (__EH_FRAME_BEGIN__, &object);
+}
+
+static void __attribute__ ((__unused__))
+init_dummy ()
+{
+  asm (INIT_SECTION_ASM_OP);
+  frame_dummy ();
+#ifdef FORCE_INIT_SECTION_ALIGN
+  FORCE_INIT_SECTION_ALIGN;
+#endif
+  asm (TEXT_SECTION_ASM_OP);
+}
+#endif /* EH_FRAME_SECTION_ASM_OP */
+
 #else  /* OBJECT_FORMAT_ELF */
 
 /* The function __do_global_ctors_aux is compiled twice (once in crtbegin.o
@@ -144,6 +234,7 @@ fini_dummy ()
    function.  It is externally callable so that __main can invoke it when
    INVOKE__main is defined.  This has the additional effect of forcing cc1
    to switch to the .text section.  */
+
 static void __do_global_ctors_aux ();
 void __do_global_ctors ()
 {
@@ -163,7 +254,7 @@ asm (INIT_SECTION_ASM_OP);	/* cc1 doesn't know that we are switching! */
    crti.o may do something, such as bump the stack, which we have to 
    undo before we reach the function prologue code for __do_global_ctors 
    (directly below).  For such systems, define the macro INIT_SECTION_PREAMBLE
-   to expand into the code needed to undo the actions of the crti.o file. */
+   to expand into the code needed to undo the actions of the crti.o file.  */
 
 #ifdef INIT_SECTION_PREAMBLE
   INIT_SECTION_PREAMBLE;
@@ -186,10 +277,47 @@ __do_global_ctors_aux ()	/* prologue goes in .init section */
 }
 
 #endif /* OBJECT_FORMAT_ELF */
+
+#else /* defined(INIT_SECTION_ASM_OP) */
+
+#ifdef HAS_INIT_SECTION
+/* This case is used by the Irix 6 port, which supports named sections but
+   not an SVR4-style .fini section.  __do_global_dtors can be non-static
+   in this case because we protect it with -hidden_symbol.  */
+
+static char __EH_FRAME_BEGIN__[];
+static func_ptr __DTOR_LIST__[];
+void
+__do_global_dtors ()
+{
+  func_ptr *p;
+  for (p = __DTOR_LIST__ + 1; *p; p++)
+    (*p) ();
+
+#ifdef EH_FRAME_SECTION_ASM_OP
+  if (__deregister_frame_info)
+    __deregister_frame_info (__EH_FRAME_BEGIN__);
+#endif
+}
+
+#ifdef EH_FRAME_SECTION_ASM_OP
+/* Define a function here to call __register_frame.  crtend.o is linked in
+   after libgcc.a, and hence can't call libgcc.a functions directly.  That
+   can lead to unresolved function references.  */
+void
+__frame_dummy ()
+{
+  static struct object object;
+  if (__register_frame_info)
+    __register_frame_info (__EH_FRAME_BEGIN__, &object);
+}
+#endif
+#endif
+
 #endif /* defined(INIT_SECTION_ASM_OP) */
 
 /* Force cc1 to switch to .data section.  */
-static func_ptr force_to_data[0] = { };
+static func_ptr force_to_data[0] __attribute__ ((__unused__)) = { };
 
 /* NOTE:  In order to be able to support SVR4 shared libraries, we arrange
    to have one set of symbols { __CTOR_LIST__, __DTOR_LIST__, __CTOR_END__,
@@ -209,7 +337,8 @@ static func_ptr force_to_data[0] = { };
 CTOR_LIST_BEGIN;
 #else
 asm (CTORS_SECTION_ASM_OP);	/* cc1 doesn't know that we are switching! */
-STATIC func_ptr __CTOR_LIST__[1] = { (func_ptr) (-1) };
+STATIC func_ptr __CTOR_LIST__[1] __attribute__ ((__unused__))
+  = { (func_ptr) (-1) };
 #endif
 
 #ifdef DTOR_LIST_BEGIN
@@ -218,6 +347,17 @@ DTOR_LIST_BEGIN;
 asm (DTORS_SECTION_ASM_OP);	/* cc1 doesn't know that we are switching! */
 STATIC func_ptr __DTOR_LIST__[1] = { (func_ptr) (-1) };
 #endif
+
+#ifdef EH_FRAME_SECTION_ASM_OP
+/* Stick a label at the beginning of the frame unwind info so we can register
+   and deregister it with the exception handling library code.  */
+
+asm (EH_FRAME_SECTION_ASM_OP);
+#ifdef INIT_SECTION_ASM_OP
+STATIC
+#endif
+char __EH_FRAME_BEGIN__[] = { };
+#endif /* EH_FRAME_SECTION_ASM_OP */
 
 #endif /* defined(CRT_BEGIN) */
 
@@ -237,7 +377,8 @@ __do_global_ctors_aux ()
 }
 
 /* Stick a call to __do_global_ctors_aux into the .init section.  */
-static void
+
+static void __attribute__ ((__unused__))
 init_dummy ()
 {
   asm (INIT_SECTION_ASM_OP);
@@ -247,12 +388,12 @@ init_dummy ()
 #endif
   asm (TEXT_SECTION_ASM_OP);
 
-/* This is a kludge. The Linux dynamic linker needs  ___brk_addr, __environ
-   and atexit (). We have to make sure they are in the .dynsym section. We
-   accomplish it by making a dummy call here. This
-   code is never reached. */
+/* This is a kludge. The i386 GNU/Linux dynamic linker needs ___brk_addr,
+   __environ and atexit (). We have to make sure they are in the .dynsym
+   section. We accomplish it by making a dummy call here. This
+   code is never reached.  */
  
-#if defined(__linux__) && defined(__PIC__)
+#if defined(__linux__) && defined(__PIC__) && defined(__i386__)
   {
     extern void *___brk_addr;
     extern char **__environ;
@@ -284,7 +425,7 @@ init_dummy ()
    other libraries, etc.  That's because those other initializations may
    include setup operations for very primitive things (e.g. initializing
    the state of the floating-point coprocessor, etc.) which should be done
-   before we start to execute any of the user's code. */
+   before we start to execute any of the user's code.  */
 
 static void
 __do_global_ctors_aux ()	/* prologue goes in .text section */
@@ -294,12 +435,40 @@ __do_global_ctors_aux ()	/* prologue goes in .text section */
   ON_EXIT (__do_global_dtors, 0);
 }				/* epilogue and body go in .init section */
 
+#ifdef FORCE_INIT_SECTION_ALIGN
+FORCE_INIT_SECTION_ALIGN;
+#endif
+
+asm (TEXT_SECTION_ASM_OP);
+
 #endif /* OBJECT_FORMAT_ELF */
+
+#else /* defined(INIT_SECTION_ASM_OP) */
+
+#ifdef HAS_INIT_SECTION
+/* This case is used by the Irix 6 port, which supports named sections but
+   not an SVR4-style .init section.  __do_global_ctors can be non-static
+   in this case because we protect it with -hidden_symbol.  */
+static func_ptr __CTOR_END__[];
+#ifdef EH_FRAME_SECTION_ASM_OP
+extern void __frame_dummy (void);
+#endif
+void
+__do_global_ctors ()
+{
+  func_ptr *p;
+#ifdef EH_FRAME_SECTION_ASM_OP
+  __frame_dummy ();
+#endif
+  for (p = __CTOR_END__ - 1; *p != (func_ptr) -1; p--)
+    (*p) ();
+}
+#endif
 
 #endif /* defined(INIT_SECTION_ASM_OP) */
 
 /* Force cc1 to switch to .data section.  */
-static func_ptr force_to_data[0] = { };
+static func_ptr force_to_data[0] __attribute__ ((__unused__)) = { };
 
 /* Put a word containing zero at the end of each of our two lists of function
    addresses.  Note that the words defined here go into the .ctors and .dtors
@@ -318,7 +487,17 @@ STATIC func_ptr __CTOR_END__[1] = { (func_ptr) 0 };
 DTOR_LIST_END;
 #else
 asm (DTORS_SECTION_ASM_OP);	/* cc1 doesn't know that we are switching! */
-STATIC func_ptr __DTOR_END__[1] = { (func_ptr) 0 };
+STATIC func_ptr __DTOR_END__[1] __attribute__ ((__unused__))
+  = { (func_ptr) 0 };
 #endif
+
+#ifdef EH_FRAME_SECTION_ASM_OP
+/* Terminate the frame unwind info section with a 4byte 0 as a sentinel;
+   this would be the 'length' field in a real FDE.  */
+
+typedef unsigned int ui32 __attribute__ ((mode (SI)));
+asm (EH_FRAME_SECTION_ASM_OP);
+STATIC ui32 __FRAME_END__[] __attribute__ ((__unused__)) = { 0 };
+#endif /* EH_FRAME_SECTION */
 
 #endif /* defined(CRT_END) */

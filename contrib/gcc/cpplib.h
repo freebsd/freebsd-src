@@ -1,5 +1,5 @@
 /* Definitions for CPP library.
-   Copyright (C) 1995 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
    Written by Per Bothner, 1994-95.
 
 This program is free software; you can redistribute it and/or modify it
@@ -22,16 +22,18 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define STATIC_BUFFERS
-
 typedef unsigned char U_CHAR;
 
-struct parse_file;
 typedef struct cpp_reader cpp_reader;
 typedef struct cpp_buffer cpp_buffer;
 typedef struct cpp_options cpp_options;
@@ -72,15 +74,11 @@ enum cpp_token {
 };
 
 #ifndef PARAMS
-#ifdef __STDC
-#define PARAMS(P) P
-#else
-#define PARAMS(P) ()
-#endif
+#define PARAMS(P) PROTO(P)
 #endif /* !PARAMS */
 
-typedef enum cpp_token (*parse_underflow_t) PARAMS((cpp_reader*));
-typedef int (*parse_cleanup_t) PARAMS((cpp_buffer *, cpp_reader*));
+typedef enum cpp_token (*parse_underflow_t) PARAMS((cpp_reader *));
+typedef int (*parse_cleanup_t) PARAMS((cpp_buffer *, cpp_reader *));
 
 /* A parse_marker indicates a previous position,
    which we can backtrack to. */
@@ -91,16 +89,19 @@ struct parse_marker {
   int position;
 };
 
-extern void parse_set_mark PARAMS ((struct parse_marker*, cpp_reader*));
-extern void parse_clear_mark PARAMS ((struct parse_marker*));
-extern void parse_goto_mark PARAMS((struct parse_marker*, cpp_reader*));
-extern void parse_move_mark PARAMS((struct parse_marker*, cpp_reader*));
+extern void parse_set_mark PARAMS ((struct parse_marker *, cpp_reader *));
+extern void parse_clear_mark PARAMS ((struct parse_marker *));
+extern void parse_goto_mark PARAMS((struct parse_marker *, cpp_reader *));
+extern void parse_move_mark PARAMS((struct parse_marker *, cpp_reader *));
 
-extern int cpp_handle_options PARAMS ((cpp_reader*, int, char**));
-extern enum cpp_token cpp_get_token PARAMS ((struct parse_marker*));
-extern void cpp_skip_hspace PARAMS((cpp_reader*));
+extern int cpp_handle_option PARAMS ((cpp_reader *, int, char **));
+extern int cpp_handle_options PARAMS ((cpp_reader *, int, char **));
+extern enum cpp_token cpp_get_token PARAMS ((cpp_reader *));
+extern void cpp_skip_hspace PARAMS((cpp_reader *));
 extern enum cpp_token cpp_get_non_space_token PARAMS ((cpp_reader *));
 
+/* This frees resources used by PFILE. */
+extern void cpp_cleanup PARAMS ((cpp_reader *PFILE));
 
 /* Maintain and search list of included files, for #import.  */
 
@@ -134,9 +135,6 @@ struct cpp_buffer {
   long line_base;
   long lineno; /* Line number at CPP_LINE_BASE. */
   long colno; /* Column number at CPP_LINE_BASE. */
-#ifndef STATIC_BUFFERS
-  cpp_buffer *chain;
-#endif
   parse_underflow_t underflow;
   parse_cleanup_t cleanup;
   void *data;
@@ -150,7 +148,7 @@ struct cpp_buffer {
   char seen_eof;
 
   /* True if buffer contains escape sequences.
-     Currently there are are only two kind:
+     Currently there are three kinds:
      "@-" means following identifier should not be macro-expanded.
      "@ " means a token-separator.  This turns into " " in final output
           if not stringizing and needed to separate tokens; otherwise nothing.
@@ -165,25 +163,28 @@ struct file_name_map_list;
 typedef struct assertion_hashnode ASSERTION_HASHNODE;
 #define ASSERTION_HASHSIZE 37
 
-#ifdef STATIC_BUFFERS
 /* Maximum nesting of cpp_buffers.  We use a static limit, partly for
    efficiency, and partly to limit runaway recursion.  */
 #define CPP_STACK_MAX 200
-#endif
+
+/* A cpp_reader encapsulates the "state" of a pre-processor run.
+   Applying cpp_get_token repeatedly yields a stream of pre-processor
+   tokens.  Usually, there is only one cpp_reader object active. */
 
 struct cpp_reader {
-  unsigned char *limit;
   parse_underflow_t get_token;
   cpp_buffer *buffer;
-#ifdef STATIC_BUFFERS
   cpp_buffer buffer_stack[CPP_STACK_MAX];
-#endif
 
   int errors;			/* Error counter for exit code */
   void *data;
 
-  U_CHAR *token_buffer;
+  /* A buffer used for both for cpp_get_token's output, and also internally. */
+  unsigned char *token_buffer;
+  /* Allocated size of token_buffer.  CPP_RESERVE allocates space.  */
   int token_buffer_size;
+  /* End of the written part of token_buffer. */
+  unsigned char *limit;
 
   /* Line where a newline was first seen in a string constant.  */
   int multiline_string_line;
@@ -260,13 +261,25 @@ struct cpp_reader {
 
   /* Number of bytes since the last newline.  */
   int deps_column;
+
+#ifdef __cplusplus
+  ~cpp_reader () { cpp_cleanup (this); }
+#endif
 };
+
+#define CPP_FATAL_LIMIT 1000
+/* True if we have seen a "fatal" error. */
+#define CPP_FATAL_ERRORS(READER) ((READER)->errors >= CPP_FATAL_LIMIT)
 
 #define CPP_BUF_PEEK(BUFFER) \
   ((BUFFER)->cur < (BUFFER)->rlimit ? *(BUFFER)->cur : EOF)
 #define CPP_BUF_GET(BUFFER) \
   ((BUFFER)->cur < (BUFFER)->rlimit ? *(BUFFER)->cur++ : EOF)
 #define CPP_FORWARD(BUFFER, N) ((BUFFER)->cur += (N))
+
+/* Macros for manipulating the token_buffer. */
+
+#define CPP_OUT_BUFFER(PFILE) ((PFILE)->token_buffer)
 
 /* Number of characters currently in PFILE's output buffer. */
 #define CPP_WRITTEN(PFILE) ((PFILE)->limit - (PFILE)->token_buffer)
@@ -293,17 +306,14 @@ struct cpp_reader {
 #define CPP_ADJUST_WRITTEN(PFILE,DELTA) ((PFILE)->limit += (DELTA))
 #define CPP_SET_WRITTEN(PFILE,N) ((PFILE)->limit = (PFILE)->token_buffer + (N))
 
-#define CPP_OPTIONS(PFILE) ((cpp_options*)(PFILE)->data)
-#define CPP_BUFFER(PFILE) ((PFILE)->buffer)
-#ifdef STATIC_BUFFERS
-#define CPP_PREV_BUFFER(BUFFER) ((BUFFER)+1)
-#define CPP_NULL_BUFFER(PFILE) (&(PFILE)->buffer_stack[CPP_STACK_MAX])
-#else
-#define CPP_PREV_BUFFER(BUFFER) ((BUFFER)->chain)
-#define CPP_NULL_BUFFER(PFILE) ((cpp_buffer*)0)
-#endif
+#define CPP_OPTIONS(PFILE) ((cpp_options *) (PFILE)->data)
 
-/* Pointed to by parse_file::data. */
+#define CPP_BUFFER(PFILE) ((PFILE)->buffer)
+#define CPP_PREV_BUFFER(BUFFER) ((BUFFER)+1)
+/* The bottom of the buffer stack. */
+#define CPP_NULL_BUFFER(PFILE) (&(PFILE)->buffer_stack[CPP_STACK_MAX])
+
+/* Pointed to by cpp_reader::data. */
 struct cpp_options {
   char *in_fname;
 
@@ -402,6 +412,10 @@ struct cpp_options {
 
   char no_output;
 
+  /* Nonzero means we should look for header.gcc files that remap file
+     names.  */
+  char remap;
+
   /* Nonzero means don't output line number information.  */
 
   char no_line_commands;
@@ -415,20 +429,19 @@ struct cpp_options {
      so don't look for #include "foo" the source-file directory.  */
   char ignore_srcdir;
 
-/* Zero means dollar signs are punctuation.
-   -$ stores 0; -traditional may store 1.  Default is 1 for VMS, 0 otherwise.
-   This must be 0 for correct processing of this ANSI C program:
-	#define foo(a) #a
-	#define lose(b) foo (b)
-	#define test$
-	lose (test)	*/
+  /* Zero means dollar signs are punctuation.
+     This used to be needed for conformance to the C Standard,
+     before the C Standard was corrected.  */
   char dollars_in_ident;
-#ifndef DOLLARS_IN_IDENTIFIERS
-#define DOLLARS_IN_IDENTIFIERS 1
-#endif
 
   /* Nonzero means try to imitate old fashioned non-ANSI preprocessor.  */
   char traditional;
+
+  /* Nonzero means warn if undefined identifiers are evaluated in an #if.  */
+  char warn_undef;
+
+  /* Nonzero for the 1989 C Standard, including corrigenda and amendments.  */
+  char c89;
 
   /* Nonzero means give all the error messages the ANSI standard requires.  */
   char pedantic;
@@ -479,6 +492,10 @@ struct cpp_options {
    where they are defined.  */
   int debug_output;
 
+  /* Nonzero means pass #include lines through to the output,
+     even if they are ifdefed out.  */
+  int dump_includes;
+
   /* Pending -D, -U and -A options, in reverse order. */
   struct cpp_pending *pending;
 
@@ -491,6 +508,8 @@ struct cpp_options {
 };
 
 #define CPP_TRADITIONAL(PFILE) (CPP_OPTIONS(PFILE)-> traditional)
+#define CPP_WARN_UNDEF(PFILE) (CPP_OPTIONS(PFILE)->warn_undef)
+#define CPP_C89(PFILE) (CPP_OPTIONS(PFILE)->c89)
 #define CPP_PEDANTIC(PFILE) (CPP_OPTIONS (PFILE)->pedantic)
 #define CPP_PRINT_DEPS(PFILE) (CPP_OPTIONS (PFILE)->print_deps)
 
@@ -551,7 +570,7 @@ typedef struct macrodef MACRODEF;
 struct macrodef
 {
   struct definition *defn;
-  U_CHAR *symnam;
+  unsigned char *symnam;
   int symlen;
 };
 
@@ -582,7 +601,7 @@ struct definition {
   int length;			/* length of expansion string */
   int predefined;		/* True if the macro was builtin or */
 				/* came from the command line */
-  U_CHAR *expansion;
+  unsigned char *expansion;
   int line;			/* Line number of definition */
   char *file;			/* File of definition */
   char rest_args;		/* Nonzero if last arg. absorbs the rest */
@@ -602,11 +621,11 @@ struct definition {
        with comma-space between them.
        The only use of this is that we warn on redefinition
        if this differs between the old and new definitions.  */
-    U_CHAR *argnames;
+    unsigned char *argnames;
   } args;
 };
 
-extern U_CHAR is_idchar[256];
+extern unsigned char is_idchar[256];
 
 /* Stack of conditionals currently in progress
    (including both successful and failing conditionals).  */
@@ -617,34 +636,57 @@ struct if_stack {
   int lineno;			/* similarly */
   int if_succeeded;		/* true if a leg of this if-group
 				    has been passed through rescan */
-  U_CHAR *control_macro;	/* For #ifndef at start of file,
+  unsigned char *control_macro;	/* For #ifndef at start of file,
 				   this is the macro name tested.  */
   enum node_type type;		/* type of last directive seen in this group */
 };
 typedef struct if_stack IF_STACK_FRAME;
 
-extern void cpp_buf_line_and_col PARAMS((cpp_buffer*, long*, long*));
-extern cpp_buffer* cpp_file_buffer PARAMS((cpp_reader*));
-extern void cpp_define PARAMS ((cpp_reader*, U_CHAR*));
+extern void cpp_buf_line_and_col PARAMS((cpp_buffer *, long *, long *));
+extern cpp_buffer* cpp_file_buffer PARAMS((cpp_reader *));
+extern void cpp_define PARAMS ((cpp_reader*, unsigned char *));
 
-extern void cpp_error ();
-extern void cpp_warning ();
-extern void cpp_pedwarn ();
-extern void cpp_error_with_line ();
-extern void cpp_pedwarn_with_line ();
-extern void cpp_pedwarn_with_file_and_line ();
-extern void fatal ();
-extern void cpp_error_from_errno ();
-extern void cpp_perror_with_name ();
-extern void cpp_pfatal_with_name ();
+extern void cpp_error PVPROTO ((cpp_reader *, const char *, ...))
+  ATTRIBUTE_PRINTF_2;
+extern void cpp_warning PVPROTO ((cpp_reader *, const char *, ...))
+  ATTRIBUTE_PRINTF_2;
+extern void cpp_pedwarn PVPROTO ((cpp_reader *, const char *, ...))
+  ATTRIBUTE_PRINTF_2;
+extern void cpp_error_with_line PVPROTO ((cpp_reader *, int, int, const char *, ...))
+  ATTRIBUTE_PRINTF_4;
+extern void cpp_pedwarn_with_line PVPROTO ((cpp_reader *, int, int, const char *, ...))
+  ATTRIBUTE_PRINTF_4;
+extern void cpp_pedwarn_with_file_and_line PVPROTO ((cpp_reader *, char *, int, const char *, ...))
+  ATTRIBUTE_PRINTF_4;
+extern void cpp_message_from_errno PROTO ((cpp_reader *, int, const char *));
+extern void cpp_error_from_errno PROTO ((cpp_reader *, const char *));
+extern void cpp_perror_with_name PROTO ((cpp_reader *, const char *));
+extern void v_cpp_message PROTO ((cpp_reader *, int, const char *, va_list));
 
-extern void cpp_grow_buffer PARAMS ((cpp_reader*, long));
-extern int cpp_parse_escape PARAMS ((cpp_reader*, char**));
-extern cpp_buffer* cpp_push_buffer PARAMS ((cpp_reader *, U_CHAR*, long));
-extern cpp_buffer* cpp_pop_buffer PARAMS ((cpp_reader *));
+extern void cpp_grow_buffer PARAMS ((cpp_reader *, long));
+extern int cpp_parse_escape PARAMS ((cpp_reader *, char **));
+extern cpp_buffer *cpp_push_buffer PARAMS ((cpp_reader *,
+					    unsigned char *, long));
+extern cpp_buffer *cpp_pop_buffer PARAMS ((cpp_reader *));
 
-extern cpp_hashnode* cpp_lookup PARAMS ((cpp_reader*, const U_CHAR*,
+extern cpp_hashnode *cpp_lookup PARAMS ((cpp_reader *, const unsigned char *,
 					 int, int));
+extern void cpp_reader_init PARAMS ((cpp_reader *));
+extern void cpp_options_init PARAMS ((cpp_options *));
+extern int cpp_start_read PARAMS ((cpp_reader *, char *));
+extern int cpp_read_check_assertion PARAMS ((cpp_reader *));
+extern int scan_decls PARAMS ((cpp_reader *, int, char **));
+extern void skip_rest_of_line PARAMS ((cpp_reader *));
+extern void cpp_finish PARAMS ((cpp_reader *));
+
+/* From cpperror.c */
+extern void cpp_fatal PVPROTO ((cpp_reader *, const char *, ...))
+  ATTRIBUTE_PRINTF_2;
+extern void cpp_message PVPROTO ((cpp_reader *, int, const char *, ...))
+  ATTRIBUTE_PRINTF_3;
+extern void cpp_pfatal_with_name PROTO ((cpp_reader *, const char *));
+extern void cpp_file_line_for_message PROTO ((cpp_reader *, char *, int, int));
+extern void cpp_print_containing_files PROTO ((cpp_reader *));
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 /* Definitions for Intel 386 running SCO Unix System V,
    using dbx-in-coff encapsulation.
-   Copyright (C) 1992, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1995, 1996 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -50,10 +50,10 @@ Boston, MA 02111-1307, USA.  */
 /* Specify predefined symbols in preprocessor.  */
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -Di386 -DM_UNIX -DM_I386 -DM_COFF -DM_WORDSWAP -Asystem(unix) -Asystem(svr3) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-Dunix -DM_UNIX -DM_I386 -DM_COFF -DM_WORDSWAP -Asystem(svr3)"
 
 #undef CPP_SPEC
-#define CPP_SPEC "%{scointl:-DM_INTERNAT}"
+#define CPP_SPEC " -Acpu(i386) -Amachine(i386) %{scointl:-DM_INTERNAT}"
 
 /* This spec is used for telling cpp whether char is signed or not.  */
 
@@ -75,7 +75,7 @@ Boston, MA 02111-1307, USA.  */
 
 #undef RETURN_POPS_ARGS
 #define RETURN_POPS_ARGS(FUNDECL,FUNTYPE,SIZE)   \
-  (TREE_CODE (FUNTYPE) == IDENTIFIER_NODE ? 0			\
+  ((FUNDECL) && TREE_CODE (FUNDECL) == IDENTIFIER_NODE ? 0	\
    : (TARGET_RTD						\
       && (TYPE_ARG_TYPES (FUNTYPE) == 0				\
 	  || (TREE_VALUE (tree_last (TYPE_ARG_TYPES (FUNTYPE)))	\
