@@ -316,10 +316,9 @@ pipe(td, uap)
 	pp = uma_zalloc(pipe_zone, M_WAITOK);
 #ifdef MAC
 	/*
-	 * struct pipe represents a pipe endpoint.  The MAC label is shared
-	 * between the connected endpoints.  As a result mac_init_pipe() and
-	 * mac_create_pipe() should only be called on one of the endpoints
-	 * after they have been connected.
+	 * The MAC label is shared between the connected endpoints.  As a
+	 * result mac_init_pipe() and mac_create_pipe() are called once
+	 * for the pair, and not on the endpoints.
 	 */
 	mac_init_pipe(pp);
 	mac_create_pipe(td->td_ucred, pp);
@@ -1459,11 +1458,9 @@ pipeclose(cpipe)
 {
 	struct pipepair *pp;
 	struct pipe *ppipe;
-	int hadpeer;
 
 	KASSERT(cpipe != NULL, ("pipeclose: cpipe == NULL"));
 
-	hadpeer = 0;
 	PIPE_LOCK(cpipe);
 	pp = cpipe->pipe_pair;
 
@@ -1486,7 +1483,6 @@ pipeclose(cpipe)
 	 */
 	ppipe = cpipe->pipe_peer;
 	if (ppipe->pipe_present != 0) {
-		hadpeer++;
 		pipeselwakeup(ppipe);
 
 		ppipe->pipe_state |= PIPE_EOF;
