@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.50 1998/03/12 09:14:18 bde Exp $
+ *	$Id: mem.c,v 1.51 1998/06/07 17:10:02 dfr Exp $
  */
 
 /*
@@ -88,6 +88,7 @@ static struct cdevsw mem_cdevsw =
 	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
 	  mmpoll,	memmmap,	NULL,	"mem",	NULL, -1 };
 
+static struct random_softc random_softc[16];
 static caddr_t	zbuf;
 
 #ifdef DEVFS
@@ -398,83 +399,85 @@ memmmap(dev_t dev, int offset, int nprot)
 	}
 }
 
-/*
- * Allow userland to select which interrupts will be used in the muck
- * gathering business.
- */
 static int
-mmioctl(dev, cmd, cmdarg, flags, p)
+mmioctl(dev, cmd, data, flags, p)
 	dev_t dev;
 	u_long cmd;
-	caddr_t cmdarg;
+	caddr_t data;
 	int flags;
 	struct proc *p;
 {
-	static u_int16_t interrupt_allowed = 0;
-	u_int16_t interrupt_mask;
-	int error;
+	static intrmask_t interrupt_allowed;
+	intrmask_t interrupt_mask;
+	int error, intr;
+	struct random_softc *sc;
 
-	switch(minor(dev)) {
+	switch (minor(dev)) {
 	case 3:
 	case 4:
 		break;
-
 #ifdef PERFMON
 	case 32:
-		return perfmon_ioctl(dev, cmd, cmdarg, flags, p);
+		return perfmon_ioctl(dev, cmd, data, flags, p);
 #endif
 	default:
-		return ENODEV;
+		return (ENODEV);
 	}
 
-	if (*(u_int16_t *)cmdarg >= 16)
+	/*
+	 * We're the random or urandom device.  The only ioctls are for
+	 * selecting and inspecting which interrupts are used in the muck
+	 * gathering business.
+	 */
+	if (cmd != MEM_SETIRQ && cmd != MEM_CLEARIRQ && cmd != MEM_RETURNIRQ)
+		return (ENOTTY);
+
+	/*
+	 * Even inspecting the state is privileged, since it gives a hint
+	 * about how easily the randomness might be guessed.
+	 */
+	error = suser(p->p_ucred, &p->p_acflag);
+	if (error != 0)
+		return (error);
+
+	/*
+	 * XXX the data is 16-bit due to a historical botch, so we use
+	 * magic 16's instead of ICU_LEN and can't support 24 interrupts
+	 * under SMP.
+	 */
+	intr = *(int16_t *)data;
+	if (cmd != MEM_RETURNIRQ && (intr < 0 || intr >= 16))
 		return (EINVAL);
 
-	/* Only root can do this */
-	error = suser(p->p_ucred, &p->p_acflag);
-	if (error) {
-		return (error);
-	}
-	interrupt_mask = 1 << *(u_int16_t *)cmdarg;
-
+	interrupt_mask = 1 << intr;
+	sc = &random_softc[intr];
 	switch (cmd) {
-
-		case MEM_SETIRQ:
-			if (!(interrupt_allowed & interrupt_mask)) {
-				disable_intr();
-				interrupt_allowed |= interrupt_mask;
-				sec_intr_handler[*(u_int16_t *)cmdarg] =
-					intr_handler[*(u_int16_t *)cmdarg];
-				intr_handler[*(u_int16_t *)cmdarg] =
-					add_interrupt_randomness;
-				sec_intr_unit[*(u_int16_t *)cmdarg] =
-					intr_unit[*(u_int16_t *)cmdarg];
-				intr_unit[*(u_int16_t *)cmdarg] =
-					*(u_int16_t *)cmdarg;
-				enable_intr();
-			}
-			else return (EPERM);
+	case MEM_SETIRQ:
+		if (interrupt_allowed & interrupt_mask)
 			break;
-
-		case MEM_CLEARIRQ:
-			if (interrupt_allowed & interrupt_mask) {
-				disable_intr();
-				interrupt_allowed &= ~(interrupt_mask);
-				intr_handler[*(u_int16_t *)cmdarg] =
-					sec_intr_handler[*(u_int16_t *)cmdarg];
-				intr_unit[*(u_int16_t *)cmdarg] =
-					sec_intr_unit[*(u_int16_t *)cmdarg];
-				enable_intr();
-			}
-			else return (EPERM);
+		interrupt_allowed |= interrupt_mask;
+		sc->sc_intr = intr;
+		disable_intr();
+		sc->sc_handler = intr_handler[intr];
+		intr_handler[intr] = add_interrupt_randomness;
+		sc->sc_arg = intr_unit[intr];
+		intr_unit[intr] = sc;
+		enable_intr();
+		break;
+	case MEM_CLEARIRQ:
+		if (!(interrupt_allowed & interrupt_mask))
 			break;
-
-		case MEM_RETURNIRQ:
-			*(u_int16_t *)cmdarg = interrupt_allowed;
-			break;
-
-		default:
-			return (ENOTTY);
+		interrupt_allowed &= ~interrupt_mask;
+		disable_intr();
+		intr_handler[intr] = sc->sc_handler;
+		intr_unit[intr] = sc->sc_arg;
+		enable_intr();
+		break;
+	case MEM_RETURNIRQ:
+		*(u_int16_t *)data = interrupt_allowed;
+		break;
+	default:
+		return (ENOTTY);
 	}
 	return (0);
 }
