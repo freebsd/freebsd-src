@@ -40,23 +40,26 @@
 #include <dev/ic/ispmbox.h>
 #ifdef	ISP_TARGET_MODE
 #include <dev/ic/isp_target.h>
+#include <dev/ic/isp_tpublic.h>
 #endif
 #endif
 #ifdef	__FreeBSD__
 #include <dev/isp/ispmbox.h>
 #ifdef	ISP_TARGET_MODE
 #include <dev/isp/isp_target.h>
+#include <dev/isp/isp_tpublic.h>
 #endif
 #endif
 #ifdef	__linux__
 #include "ispmbox.h"
 #ifdef	ISP_TARGET_MODE
 #include "isp_target.h"
+#include "isp_tpublic.h"
 #endif
 #endif
 
 #define	ISP_CORE_VERSION_MAJOR	1
-#define	ISP_CORE_VERSION_MINOR	11
+#define	ISP_CORE_VERSION_MINOR	12
 
 /*
  * Vector for bus specific code to provide specific services.
@@ -370,6 +373,7 @@ struct ispsoftc {
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
 #define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
+#define	ISP_CFG_NPORT		0x04	/* try to force N- instead of L-Port */
 
 #define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
 #define	ISP_FW_REVX(xp)	((xp[0]<<24) | (xp[1] << 16) | xp[2])
@@ -391,16 +395,29 @@ struct ispsoftc {
 #define	ISP_HA_SCSI_1040A	0x5
 #define	ISP_HA_SCSI_1040B	0x6
 #define	ISP_HA_SCSI_1040C	0x7
-#define	ISP_HA_SCSI_1080	0xd
-#define	ISP_HA_SCSI_12X0	0xe
+#define	ISP_HA_SCSI_1240	0x8
+#define	ISP_HA_SCSI_1080	0x9
+#define	ISP_HA_SCSI_1280	0xa
+#define	ISP_HA_SCSI_12160	0xb
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 #define	ISP_HA_FC_2200		0x20
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
+#define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
 #define	IS_1080(isp)	(isp->isp_type == ISP_HA_SCSI_1080)
-#define	IS_12X0(isp)	(isp->isp_type == ISP_HA_SCSI_12X0)
+#define	IS_1280(isp)	(isp->isp_type == ISP_HA_SCSI_1280)
+#define	IS_12160(isp)	(isp->isp_type == ISP_HA_SCSI_12160)
+
+#define	IS_12X0(isp)	(IS_1240(isp) || IS_1280(isp))
+#define	IS_DUALBUS(isp)	(IS_12X0(isp) || IS_12160(isp))
+#define	IS_ULTRA2(isp)	(IS_1080(isp) || IS_1280(isp) || IS_12160(isp))
+#define	IS_ULTRA3(isp)	(IS_12160(isp))
+
 #define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
+#define	IS_2100(isp)	(isp->isp_type == ISP_HA_FC_2100)
+#define	IS_2200(isp)	(isp->isp_type == ISP_HA_FC_2200)
+
 
 /*
  * Function Prototypes
@@ -443,11 +460,9 @@ typedef enum {
 	ISPCTL_RESET_DEV,		/* Reset Device */
 	ISPCTL_ABORT_CMD,		/* Abort Command */
 	ISPCTL_UPDATE_PARAMS,		/* Update Operating Parameters */
-#ifdef	ISP_TARGET_MODE
-	ISPCTL_ENABLE_LUN,		/* enable a LUN */
-	ISPCTL_MODIFY_LUN,		/* enable a LUN */
-#endif
-	ISPCTL_FCLINK_TEST		/* Test FC Link Status */
+	ISPCTL_FCLINK_TEST,		/* Test FC Link Status */
+	ISPCTL_PDB_SYNC,		/* Synchronize Port Database */
+	ISPCTL_TOGGLE_TMODE		/* toggle target mode */
 } ispctl_t;
 int isp_control __P((struct ispsoftc *, ispctl_t, void *));
 
@@ -468,8 +483,9 @@ typedef enum {
 	ISPASYNC_PDB_CHANGED,		/* FC Port Data Base Changed */
 	ISPASYNC_CHANGE_NOTIFY,		/* FC SNS Change Notification */
 	ISPASYNC_FABRIC_DEV,		/* FC New Fabric Device */
-	ISPASYNC_TARGET_CMD,		/* New target command */
-	ISPASYNC_TARGET_EVENT		/* New target event */
+	ISPASYNC_TARGET_MESSAGE,	/* target message */
+	ISPASYNC_TARGET_EVENT,		/* target asynchronous event */
+	ISPASYNC_TARGET_ACTION		/* other target command action */
 } ispasync_t;
 int isp_async __P((struct ispsoftc *, ispasync_t, void *));
 

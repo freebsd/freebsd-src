@@ -36,7 +36,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	3
-#define	ISP_PLATFORM_VERSION_MINOR	1
+#define	ISP_PLATFORM_VERSION_MINOR	2
 
 
 #include <sys/param.h>
@@ -83,7 +83,31 @@
 #endif
 
 #define	ISP_SCSI_XFER_T		struct ccb_scsiio
+
+#ifdef	ISP_TARGET_MODE
+typedef struct tstate {
+	struct tstate *next;
+	struct cam_path *owner;
+	struct ccb_hdr_slist atios;
+	struct ccb_hdr_slist inots;
+	lun_id_t lun;
+	u_int32_t hold;
+} tstate_t;
+
+/*
+ * This should work very well for 100% of parallel SCSI cases, 100%
+ * of non-SCCLUN FC cases, and hopefully some larger fraction of the
+ * SCCLUN FC cases. Basically, we index by the low 5 bits of lun and
+ * then linear search. This has to be reasonably zippy, but not crucially
+ * so.
+ */
+#define	LUN_HASH_SIZE		32
+#define	LUN_HASH_FUNC(lun)	((lun) & 0x1f)
+
+#endif
+
 struct isposinfo {
+	struct ispsoftc *	next;
 	u_int64_t		default_wwn;
 	char			name[8];
 	int			unit;
@@ -92,6 +116,16 @@ struct isposinfo {
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	volatile char		simqfrozen;
+#ifdef	ISP_TARGET_MODE
+#define	TM_WANTED		0x01
+#define	TM_BUSY			0x02
+#define	TM_TMODE_ENABLED	0x80
+	u_int8_t		tmflags;
+	u_int8_t		rstatus;
+	u_int16_t		rollinfo;
+	tstate_t		tsdflt;
+	tstate_t		*lun_hash[LUN_HASH_SIZE];
+#endif
 };
 #define	SIMQFRZ_RESOURCE	0x1
 #define	SIMQFRZ_LOOPDOWN	0x2
@@ -213,7 +247,7 @@ extern void isp_uninit(struct ispsoftc *);
 
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= (u_int8_t) lev) printf x
 #define	PRINTF			printf
-#define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 0) printf
+#define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 1) printf
 
 #define	SYS_DELAY(x)	DELAY(x)
 
