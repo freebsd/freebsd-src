@@ -39,17 +39,17 @@
 
 struct msgbuf {
 #define	MSG_MAGIC	0x063062
-	unsigned int	msg_magic;
-	unsigned int	msg_size;		/* size of buffer area */
-	unsigned int	msg_bufx;		/* write pointer */
-	unsigned int	msg_bufr;		/* read pointer */
-	char * 		msg_ptr;		/* pointer to buffer */
+	u_int	msg_magic;
+	int	msg_size;		/* size of buffer area */
+	int	msg_bufx;		/* write pointer */
+	int	msg_bufr;		/* read pointer */
+	char	*msg_ptr;		/* pointer to buffer */
 };
 
 #ifdef _KERNEL
 extern int	msgbuftrigger;
 extern struct	msgbuf *msgbufp;
-void	msgbufinit(void *ptr, size_t size);
+void	msgbufinit(void *ptr, int size);
 
 #if !defined(MSGBUF_SIZE)
 #define	MSGBUF_SIZE	32768
