@@ -164,7 +164,6 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
-	truss \
 	tset \
 	tsort \
 	tty \
@@ -247,7 +246,7 @@ SUBDIR+=uac
 
 # Things which don't compile on new platforms yet:
 .if ${MACHINE_ARCH} != "ia64"
-SUBDIR+=xlint
+SUBDIR+=truss xlint
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
