@@ -213,13 +213,13 @@ struct msdosfs_args {
 	uid_t	uid;		/* uid that owns msdosfs files */
 	gid_t	gid;		/* gid that owns msdosfs files */
 	mode_t	mask;		/* file mask to be applied for msdosfs perms */
-	mode_t	dirmask;	/* dir  mask to be applied for msdosfs perms */
 	int	flags;		/* see below */
 	int magic;		/* version number */
 	u_int16_t u2w[128];     /* Local->Unicode table */
 	char	*cs_win;	/* Windows(Unicode) Charset */
 	char	*cs_dos;	/* DOS Charset */
 	char	*cs_local;	/* Local Charset */
+	mode_t  dirmask;        /* dir  mask to be applied for msdosfs perms */
 };
 
 /*
