@@ -175,7 +175,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		dev->si_flags |= SI_CANDELETE;
 	mtx_unlock(&Giant);
 	g_topology_lock();
-
+	dev->si_iosize_max = MAXPHYS;
 	dev->si_stripesize = pp->stripesize;
 	dev->si_stripeoffset = pp->stripeoffset;
 	gp->softc = dev;
