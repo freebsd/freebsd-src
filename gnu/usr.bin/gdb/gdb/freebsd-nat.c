@@ -93,11 +93,6 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   int bad_reg = -1;
   int offset = -reg_addr & (core_reg_size - 1);
 
-printf("offset: %08x\n", offset);
-printf("core_reg_sect: %08x\n", core_reg_sect);
-printf("core_reg_size: %08x\n", core_reg_size);
-printf("-reg_addr: %08x\n", -reg_addr);
-
   for (regno = 0; regno < NUM_REGS; regno++)
     {
       cregno = tregmap[regno];
