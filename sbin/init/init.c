@@ -59,6 +59,7 @@ static char sccsid[] = "@(#)init.c	8.1 (Berkeley) 7/15/93";
 #include <time.h>
 #include <ttyent.h>
 #include <unistd.h>
+#include <sys/reboot.h>
 
 #ifdef __STDC__
 #include <stdarg.h>
@@ -114,6 +115,7 @@ state_func_t catatonia __P((void));
 state_func_t death __P((void));
 
 enum { AUTOBOOT, FASTBOOT } runcom_mode = AUTOBOOT;
+int reboot = FALSE;
 
 void transition __P((state_t));
 state_t requested_transition = runcom;
@@ -229,11 +231,11 @@ main(argc, argv)
 	handle(badsys, SIGSYS, 0);
 	handle(disaster, SIGABRT, SIGFPE, SIGILL, SIGSEGV,
 	       SIGBUS, SIGXCPU, SIGXFSZ, 0);
-	handle(transition_handler, SIGHUP, SIGTERM, SIGTSTP, 0);
+	handle(transition_handler, SIGHUP, SIGINT, SIGTERM, SIGTSTP, 0);
 	handle(alrm_handler, SIGALRM, 0);
 	sigfillset(&mask);
 	delset(&mask, SIGABRT, SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGSYS,
-		SIGXCPU, SIGXFSZ, SIGHUP, SIGTERM, SIGTSTP, SIGALRM, 0);
+		SIGXCPU, SIGXFSZ, SIGHUP, SIGINT, SIGTERM, SIGTSTP, SIGALRM, 0);
 	sigprocmask(SIG_SETMASK, &mask, (sigset_t *) 0);
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
@@ -559,6 +561,15 @@ single_user()
 	 */
 	if (getsecuritylevel() > 0)
 		setsecuritylevel(0);
+
+	if (reboot) {
+		/* Instead of going single user, let's halt the machine */
+		sync();
+		alarm(2);
+		pause();
+		reboot(RB_AUTOBOOT);
+		_exit(0);
+	}
 
 	if ((pid = fork()) == 0) {
 		/*
@@ -1129,6 +1140,8 @@ transition_handler(sig)
 	case SIGHUP:
 		requested_transition = clean_ttys;
 		break;
+	case SIGINT:
+		reboot = TRUE;
 	case SIGTERM:
 		requested_transition = death;
 		break;
