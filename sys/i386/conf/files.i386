@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.220.2.8 1999/05/27 03:06:33 julian Exp $
+#	$Id: files.i386,v 1.220.2.9 1999/08/01 12:49:41 phk Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -64,6 +64,8 @@ i386/eisa/bt_eisa.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/eisa/if_fea.c		optional	fea	device-driver
+i386/i386/atomic.c		standard				\
+	compile-with	"${CC} -c ${CFLAGS} ${DEFINED_PROF:S/^$/-fomit-frame-pointer/} $<"
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
