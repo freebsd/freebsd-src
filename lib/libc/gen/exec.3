@@ -53,7 +53,7 @@
 .Ft int
 .Fn execlp "const char *file" "const char *arg" ...
 .Ft int
-.Fn execle "const char *path" "const char *arg" ...
+.Fn execle "const char *path" "const char *arg" ... NULL "char *const envp[]"
 .Ft int
 .Fn exect "const char *path" "char *const argv[]" "char *const envp[]"
 .Ft int
