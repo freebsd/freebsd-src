@@ -1680,7 +1680,11 @@ mesgin_sdptrs:
 	 */
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jz mesgin_sdptrs_full;
 	or	SCB_SGPTR, SG_LIST_NULL;
-	jmp	mesgin_done;
+	if ((ahc->features & AHC_ULTRA2) != 0) {
+		jmp	ITloop;
+	} else {
+		jmp	mesgin_done;
+	}
 
 mesgin_sdptrs_full:
 
@@ -2205,32 +2209,21 @@ dma_scb_hang_wait:
 			 * The PCI module no longer intends to perform
 			 * a PCI transaction.  Drain the fifo.
 			 */
-dma_scb_hang_empty_fifo:
-			/*
-			 * Skip lines not yet transfered into the FIFO.
-			 */
-			add	SINDEX, 7, HCNT;
-			shr	SINDEX, 3;
-
-			/*
-			 * Skip lines already copied out of the FIFO.
-			 */
-			add	A, A, SINDEX;
-
-			call	dma_scb_hang_dma_drain_fifo;
-
-			/*
-			 * Set the lines transferred to all but
-			 * those yet to reach the FIFO.
-			 */
-			not	SINDEX;
-			add	A, 5, SINDEX;
-			cmp	A, 4	je dma_finish_nowait;
+dma_scb_hang_dma_drain_fifo:
+			not	A, HCNT;
+			add	A, SCB_DOWNLOAD_SIZE+SCB_BASE+1;
+			and	A, ~0x7;
+			mov	DINDIR,DFDAT;
+			cmp	DINDEX, A jne . - 1;
+			cmp	DINDEX, SCB_DOWNLOAD_SIZE+SCB_BASE
+				je	dma_finish_nowait;
+			/* Restore A as the lines left to transfer. */
+			add	A, -SCB_BASE, DINDEX;
+			shr	A, 3;
 			jmp	dma_scb_hang_fifo;
 dma_scb_hang_dma_done:
 			and	DFCNTRL, ~HDMAEN;
 			test	DFCNTRL, HDMAEN jnz .;
-dma_scb_hang_dma_drain_fifo:
 			add	SEQADDR0, A;
 		} else {
 			call	dma_finish;

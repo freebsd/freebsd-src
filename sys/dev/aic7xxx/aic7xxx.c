@@ -1301,6 +1301,13 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 		seqaddr = ahc_inb(ahc, SEQADDR0)
 			| (ahc_inb(ahc, SEQADDR1) << 8);
 
+		/*
+		 * Seqaddr represents the next instruction to execute, 
+		 * so we are really executing the instruction just
+		 * before it.
+		 */
+		if (seqaddr != 0)
+			seqaddr -= 1;
 		cs = ahc->critical_sections;
 		for (i = 0; i < ahc->num_critical_sections; i++, cs++) {
 			
@@ -6229,6 +6236,10 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 	printf("%s: Dumping Card State %s, at SEQADDR 0x%x\n",
 	       ahc_name(ahc), ahc_lookup_phase_entry(last_phase)->phasemsg,
 	       ahc_inb(ahc, SEQADDR0) | (ahc_inb(ahc, SEQADDR1) << 8));
+	printf("ACCUM = 0x%x, SINDEX = 0x%x, DINDEX = 0x%x, ARG_2 = 0x%x\n",
+	       ahc_inb(ahc, ACCUM), ahc_inb(ahc, SINDEX), ahc_inb(ahc, DINDEX),
+	       ahc_inb(ahc, ARG_2));
+	printf("HCNT = 0x%x\n", ahc_inb(ahc, HCNT));
 	printf("SCSISEQ = 0x%x, SBLKCTL = 0x%x\n",
 	       ahc_inb(ahc, SCSISEQ), ahc_inb(ahc, SBLKCTL));
 	printf(" DFCNTRL = 0x%x, DFSTATUS = 0x%x\n",
@@ -6306,7 +6317,14 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 	LIST_FOREACH(scb, &ahc->pending_scbs, pending_links) {
 		if (i++ > 256)
 			break;
-		printf("%d ", scb->hscb->tag);
+		if (scb != LIST_FIRST(&ahc->pending_scbs))
+			printf(", ");
+		printf("%d", scb->hscb->tag);
+		if ((ahc->flags & AHC_PAGESCBS) == 0) {
+			ahc_outb(ahc, SCBPTR, scb->hscb->tag);
+			printf("(0x%x, 0x%x)", ahc_inb(ahc, SCB_CONTROL),
+			       ahc_inb(ahc, SCB_TAG));
+		}
 	}
 	printf("\n");
 
