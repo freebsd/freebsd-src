@@ -3,7 +3,7 @@
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\" 	All rights reserved.
 .\"
-.\" Author: Hartmut Brandt <harti@freebsd.org>
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -39,31 +39,33 @@
 .In netgraph/atm/ng_uni.h
 .Sh DESCRIPTION
 The
-.Nm
-netgraph node implements ATM Forum signalling 4.0.
+.Nm uni
+netgraph node type implements ATM Forum signalling 4.0.
 .Pp
 After creation of the node, the UNI instance must be created by sending
-an enable message to the node.
+an
+.Dq enable
+message to the node.
 If the node is enabled, the UNI parameters
-can be retrieved and modified and the protocol can be started.
+can be retrieved and modified, and the protocol can be started.
 .Pp
-The node is shutdown either by a
+The node is shut down either by an
 .Dv NGM_SHUTDOWN
-message or when all hooks are disconnected.
+message, or when all hooks are disconnected.
 .Sh HOOKS
 Each
-.Nm
+.Nm uni
 node has three hooks with fixed names:
-.Bl -tag -width xxx
-.It Dv lower
+.Bl -tag -width ".Va upper"
+.It Va lower
 This hook is the interface of the UNI protocol to the transport layer of
 the ATM control plane.
 The node expects the interface exported by
 .Xr ng_sscfu 4
 at this hook.
-.It Dv upper
+.It Va upper
 This hook is the
-.Ql user
+.Dq user
 interface of the UNI protocol.
 Because there is no standardized interface
 at this point, this implementation follows more or less the interface
@@ -72,18 +74,18 @@ Normally either a
 .Xr ng_ccatm 4
 or a switch CAC should be stacked at this interface.
 The message format at the
-.Dv upper
+.Va upper
 hook is described below.
 Because
-.Xt netgraph 4
+.Xr netgraph 4
 is functional, it makes sometimes sense to switch this hook to queueing mode
 from the peer node upon connection.
 .El
 .Pp
 The
-.Dv upper
+.Va upper
 interface of the
-.Nm
+.Nm uni
 node is loosely modelled after the interface specified in the ITU-T signalling
 standards.
 There is however one derivation from this: normally there exists
@@ -91,40 +93,40 @@ four kinds of signals: requests, responses, indications and confirmations.
 These signals are usually triggered either by external events (receiving a
 message) or internal events (a timer or another signal).
 This scheme works
-fine for user APIs that are entirely asynchronous and in cases, where
+fine for user APIs that are entirely asynchronous, and in cases where
 error handling is not taken into account.
 With synchronous APIs and error
-handling, however there is a problem.
+handling however, there is a problem.
 If, for example, the application
-issues a request to setup a connection.
-It may do it by sending a
+issues a request to set up a connection,
+it may do it by sending a
 .Dv SETUP.request
 signal to the UNI.
-Normally the UNI stack will send a SETUP message and
+Normally, the UNI stack will send a SETUP message and
 receive a message from the switch (a RELEASE, CONNECT, CALL PROCEEDING or
-ALERTING) or a timer in the UNI stack will time out.
-In any of these cases
-the UNI stack is supposed to report an event back to the application and
+ALERTING), or a timer in the UNI stack will time out.
+In any of these cases,
+the UNI stack is supposed to report an event back to the application, and
 the application will unblock (in the case of a synchronous API) and handle
 the event.
-The problem occurs, when an error happens.
+The problem occurs when an error happens.
 Suppose there is no
 memory to send the SETUP message and to start the timer.
-In this case the
-application will block forever, because no received message and no timer
+In this case, the
+application will block forever because no received message and no timer
 will wake it up.
 For this reason this implementation uses an additional message:
 for each signal sent from the application to the stack, the stack will
 respond with an error code.
 If this code is zero, the stack has accepted
-the signal and the application may block, if the code is non-zero, the signal
-is effectively ignored and the code describes, what was wrong.
+the signal and the application may block; if the code is non-zero, the signal
+is effectively ignored and the code describes what was wrong.
 This system
 makes it very easy to make a blocking interface out of the message based
 netgraph interface.
 .Pp
 The
-.Dv upper
+.Va upper
 interface uses the following structure:
 .Bd -literal
 struct uni_arg {
@@ -134,17 +136,17 @@ struct uni_arg {
 };
 .Ed
 The
-.Fa sig
-field contains the actual signal that is sent from the user to UNI or the
+.Va sig
+field contains the actual signal that is sent from the user to UNI or from
 UNI to the user.
 The
-.Fa cookie
+.Va cookie
 can be used by the user to correlate requests with events and responses.
 If an error response, a confirmation or an indication was triggered by
 a request or response, the cookie from that request or response is carried in
 the message from the stack to the user.
 The
-.Fa cookie
+.Va cookie
 field is followed by the actual data for the signal.
 .Pp
 The signal is one of the following:
@@ -209,7 +211,7 @@ enum uni_sig {
 .Pp
 The meaning of most of the signals can be deduced from the ITU-T SDLs.
 A number of signals, however, is unique to this implementation:
-.Bl -tag -width xxx
+.Bl -tag -width indent
 .It Dv UNIAPI_ERROR
 This is the error response, mentioned earlier.
 It carries an error code or
@@ -220,7 +222,7 @@ from the user requesting an outgoing SETUP.
 This may be used to synchronize
 the creation and destroying of call data between the UNI stack and the user.
 .It Dv UNIAPI_CALL_DESTROYED
-An call instance has been destroyed and all resources have been freed.
+A call instance has been destroyed and all resources have been freed.
 .It Dv UNIAPI_PARTY_CREATED
 A new party has been created for an existing point-to-multipoint call.
 This may be used to synchronize the creation and destroying of party data
@@ -228,7 +230,8 @@ between the UNI stack and the user.
 .It Dv UNIAPI_PARTY_DESTROYED
 A party has been destroyed and all resources have been freed.
 .It Dv UNIAPI_ABORT_CALL_request
-The requests the stack to destroy the call instance and free all it's resources
+This requests the stack to destroy the call instance
+and free all its resources,
 without sending any messages to the network.
 .It Dv UNIAPI_MAXSIG
 This is not a signal, but rather a definition to get the number of defined
@@ -236,12 +239,12 @@ signals.
 .El
 .Pp
 Each of the signals is followed by a fixed size structure defined in
-.Pa unidef.h .
+.In netnatm/sig/unidef.h .
 .Sh CONTROL MESSAGES
 The
-.Nm
-node understands the standard control messages plus the following:
-.Bl -tag -width xxx
+.Nm uni
+node understands the standard control messages, plus the following:
+.Bl -tag -width indent
 .It Dv NGM_UNI_SETDEBUG
 Set debugging facility levels.
 The UNI stack defines a number of debugging
@@ -256,13 +259,13 @@ struct ngm_uni_debug {
 .Ed
 .It Dv NGM_UNI_SETDEBUG
 Get debugging facility levels.
-This returns a
-.Fa ngm_uni_debug
+This returns an
+.Vt ngm_uni_debug
 structure.
 .It Dv NGM_UNI_GET_CONFIG
 Retrieve the current configuration of the UNI instance.
 This message returns a
-.Fa uni_config
+.Vt uni_config
 structure:
 .Bd -literal
 struct uni_config {
@@ -289,7 +292,7 @@ struct uni_config {
 .Ed
 .Pp
 The field
-.Fa proto
+.Va proto
 specifies one of the following protocols:
 .Bd -literal
 enum uni_proto {
@@ -300,7 +303,7 @@ enum uni_proto {
 .Ed
 .Pp
 Some protocols may have options which can be set in
-.Fa popt :
+.Va popt :
 .Bd -literal
 enum uni_popt {
 	UNIPROTO_GFP,		/* enable GFP */
@@ -308,7 +311,7 @@ enum uni_popt {
 .Ed
 .Pp
 The
-.Fa option
+.Va option
 field controls parsing and checking of messages:
 .Bd -literal
 enum uni_option {
@@ -321,7 +324,7 @@ enum uni_option {
 All timer values are given in milliseconds.
 Note, however, that the actual
 resolution of the timers depend on system configuration (see
-.Xr timeout 9 ).
+.Xr timeout 9 ) .
 .It Dv NGM_UNI_SET_CONFIG
 Change the UNI configuration.
 This takes a
@@ -338,17 +341,17 @@ struct ngm_uni_config_mask {
 .Ed
 .Pp
 The fields of the
-.Fa ngm_uni_config_mask
+.Vt ngm_uni_config_mask
 specify which configuration parameter to change.
 The
-.Fa mask
+.Va mask
 field contains bit definitions for all timers, retransmission counters
 and the
-.Fa proto
+.Va proto
 field,
-.Fa popt_mask
-selects which of the protocol options to change and
-.Fa option_mask
+.Va popt_mask
+selects which of the protocol options to change, and
+.Va option_mask
 specifies which options should be changed.
 The following bits are defined:
 .Bd -literal
@@ -373,14 +376,14 @@ enum uni_config_mask {
 };
 .Ed
 .Pp
-For the
-.Fa popt_mask
+For
+.Va popt_mask
 and
-.Fa option_mask
+.Va option_mask ,
 the definitions from
-.Fa "enum uni_popt"
+.Vt "enum uni_popt"
 and
-.Fa "enum uni_option"
+.Vt "enum uni_option"
 should be used.
 .It Dv NGM_UNI_ENABLE
 Create the UNI instance and enable processing.
@@ -407,9 +410,10 @@ More testing needed.
 PNNI not yet implemented.
 .It
 Need to implement connection modification and the Q.2931 amendments.
+.El
 .Sh AUTHORS
 The
-.Nm
+.Nm uni
 netgraph node
-and this manual page was written by
-.An Harti Brandt Aq harti@freebsd.org
+and this manual page were written by
+.An Harti Brandt Aq harti@FreeBSD.org
