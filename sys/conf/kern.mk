@@ -25,7 +25,9 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # per function call.  While the 16-byte alignment may benefit micro benchmarks, 
 # it is probably an overall loss as it makes the code bigger (less efficient
 # use of code cache tag lines) and uses more stack (less efficient use of data
-# cache tag lines)
+# cache tag lines).  Explicitly prohibit the use of SSE and other SIMD
+# operations inside the kernel itself.  These operations are exclusively
+# reserved for user applications.
 #
 .if ${MACHINE_ARCH} == "i386" && ${CC} != "icc"
 CFLAGS+=	-mno-align-long-strings -mpreferred-stack-boundary=2 \
@@ -66,7 +68,9 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# For AMD64, be excessively careful to not generate FPU code.
+# For AMD64, we explicitly prohibit the use of FPU, SSE and other SIMD
+# operations inside the kernel itself.  These operations are exclusively
+# reserved for user applications.
 #
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+=	-mcmodel=kernel -mno-red-zone \
