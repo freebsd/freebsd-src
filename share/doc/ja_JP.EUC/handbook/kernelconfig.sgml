@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-    <!-- Original revision: 1.25 -->
+    <!-- Original revision: 1.26 -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>FreeBSDカーネルのコンフィグレーション <label id="kernelconfig"></heading>
 
@@ -442,9 +442,8 @@
 		るシステムで (一人のユーザが) <tt>/home</tt>パーティショ
 		ン (全体) をあふれさせることができないようにそれぞれのユーザ
 		にディスククォータを発行することができます. 
-		このコードはいくらかバグがありますので必要のない場合は
-		使わないでください. ディスククォータについての詳しい内
-		容はマニュアルページの <tt>quota(1)</tt>を見てください. 
+		ディスククォータについての詳しい内容は<ref id="quotas" 
+		name="ディスク クォータ">の章を見てください.
 	  </descrip>
 
       <sect1><heading>基本的なコントローラとデバイス</heading>
