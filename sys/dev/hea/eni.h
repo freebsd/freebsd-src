@@ -478,6 +478,10 @@ struct eni_unit {
 
 	Eni_stats	eu_stats;	/* Statistics */
 
+	int		eu_type;
+#define	TYPE_UNKNOWN	0
+#define	TYPE_ENI	1
+#define	TYPE_ADP	2
 };
 typedef	struct eni_unit		Eni_unit;
 
