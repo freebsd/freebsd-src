@@ -41,6 +41,7 @@
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/ata.h>
 #include <dev/ata/ata-all.h>
 
 #include <dev/ofw/openfirm.h>
@@ -285,17 +286,16 @@ static driver_t ata_macio_sub_driver = {
 
 DRIVER_MODULE(ata, atamacio, ata_macio_sub_driver, ata_devclass, 0, 0);
 
-static int
-ata_macio_intrnoop(struct ata_channel *ch)
-{
-
-	return (1);
-}
- 
 static void
 ata_macio_locknoop(struct ata_channel *ch, int type)
 {
 	/* XXX SMP ? */
+}
+
+static void
+ata_macio_setmode(struct ata_device *atadev, int mode)
+{
+	atadev->mode = ATA_PIO;
 }
 
 static int
@@ -306,9 +306,13 @@ ata_macio_sub_probe(device_t dev)
 	ch = device_get_softc(dev);
 
 	ch->unit = 0; 
-	ch->flags = ATA_USE_16BIT;
-	ch->intr_func = ata_macio_intrnoop;
-	ch->lock_func = ata_macio_locknoop;
+	ch->flags |= ATA_USE_16BIT;
+	ch->locking = ata_macio_locknoop;
+	ch->device[MASTER].setmode = ata_macio_setmode;
+	ch->device[SLAVE].setmode = ata_macio_setmode;
 
 	return (ata_probe(dev));
 }
+
+
+
