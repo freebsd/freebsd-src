@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11.2.6 1997/02/28 03:27:30 mpp Exp $
+#	$Id: Makefile,v 1.11.2.7 1997/03/04 06:32:12 mpp Exp $
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 copy.9 \
 	devfs_add_devswf.9 cd.9 \
@@ -22,7 +22,7 @@ MLINKS+= at_exit.9 rm_at_exit.9
 MLINKS+= at_fork.9 rm_at_fork.9
 MLINKS+= psignal.9 pgsignal.9 psignal.9 gsignal.9
 MLINKS+= rtalloc.9 rtalloc_ign.9 rtalloc.9 rtalloc1.9
-MLINKS+= sleep.9 tsleep.9 sleep.9 wakeup.9
+MLINKS+= sleep.9 tsleep.9 sleep.9 wakeup.9 sleep.9 wakeup_one.9
 MLINKS+= spl.9 splbio.9 spl.9 splclock.9 spl.9 splhigh.9 spl.9 splimp.9
 MLINKS+= spl.9 splnet.9 spl.9 splsoftclock.9 spl.9 splsofttty.9
 MLINKS+= spl.9 splstatclock.9 spl.9 spltty.9 spl.9 splvm.9
