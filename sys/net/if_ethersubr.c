@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.18 1996/06/10 23:07:30 gpalmer Exp $
+ * $Id: if_ethersubr.c,v 1.19 1996/06/12 05:10:13 gpalmer Exp $
  */
 
 #include <sys/param.h>
@@ -164,12 +164,12 @@ ether_output(ifp, m0, dst, rt0)
 		if ((m->m_flags & M_BCAST) && (ifp->if_flags & IFF_SIMPLEX))
 			mcopy = m_copy(m, 0, (int)M_COPYALL);
 		off = m->m_pkthdr.len - m->m_len;
-		type = ETHERTYPE_IP;
+		type = htons(ETHERTYPE_IP);
 		break;
 #endif
 #ifdef IPX
 	case AF_IPX:
-		type = ETHERTYPE_IPX;
+		type = htons(ETHERTYPE_IPX);
  		bcopy((caddr_t)&(((struct sockaddr_ipx *)dst)->sipx_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
 		if (!bcmp((caddr_t)edst, (caddr_t)&ipx_thishost, sizeof(edst)))
@@ -211,15 +211,15 @@ ether_output(ifp, m0, dst, rt0)
 		bcopy(at_org_code, llc.llc_snap_org_code, sizeof(at_org_code));
 		llc.llc_snap_ether_type = htons( ETHERTYPE_AT );
 		bcopy(&llc, mtod(m, caddr_t), sizeof(struct llc));
-		type = m->m_pkthdr.len;
+		type = htons(m->m_pkthdr.len);
 	    } else {
-		type = ETHERTYPE_AT;
+		type = htons(ETHERTYPE_AT);
 	    }
 	    break;
 #endif NETATALK
 #ifdef NS
 	case AF_NS:
-		type = ETHERTYPE_NS;
+		type = htons(ETHERTYPE_NS);
  		bcopy((caddr_t)&(((struct sockaddr_ns *)dst)->sns_addr.x_host),
 		    (caddr_t)edst, sizeof (edst));
 		if (!bcmp((caddr_t)edst, (caddr_t)&ns_thishost, sizeof(edst)))
@@ -259,7 +259,7 @@ ether_output(ifp, m0, dst, rt0)
 		M_PREPEND(m, 3, M_DONTWAIT);
 		if (m == NULL)
 			return (0);
-		type = m->m_pkthdr.len;
+		type = htons(m->m_pkthdr.len);
 		l = mtod(m, struct llc *);
 		l->llc_dsap = l->llc_ssap = LLC_ISO_LSAP;
 		l->llc_control = LLC_UI;
@@ -295,7 +295,7 @@ ether_output(ifp, m0, dst, rt0)
 				      (caddr_t)eh->ether_shost, sizeof (edst));
 			}
 		}
-		type = m->m_pkthdr.len;
+		type = htons(m->m_pkthdr.len);
 #ifdef LLC_DEBUG
 		{
 			int i;
@@ -336,7 +336,6 @@ ether_output(ifp, m0, dst, rt0)
 	if (m == 0)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
-	type = htons((u_short)type);
 	(void)memcpy(&eh->ether_type, &type,
 		sizeof(eh->ether_type));
  	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
