@@ -1,9 +1,6 @@
 # ex:ts=8
 # $FreeBSD$
 
-# must be before -I${DESTDIR}/usr/include
-CFLAGS+= -I${DESTDIR}/usr/include/gnu
-
 .include "../Makefile.inc0"
 
 GDBDIR= ${.CURDIR}/../../../../contrib/gdb
@@ -61,6 +58,7 @@ CFLAGS+=	-DDEFAULT_BFD_ARCH=bfd_${GDB_CPU}_arch
 CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils -I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb -I${GDBDIR}/gdb/config
+CFLAGS+=	-I${DESTDIR}/usr/include/gnu
 CFLAGS+=        -I$(.CURDIR)
 
 YFLAGS=
