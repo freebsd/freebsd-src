@@ -54,15 +54,15 @@ phandle_t
 ofw_pci_find_node(device_t dev)
 {
 	phandle_t	node, nextnode;
-	u_int		reg[5];
+	struct		ofw_pci_register pcir;
 	int		l, b, s, f;
 
 	for (node = OF_peer(0); node; node = nextnode) {
-		l = OF_getprop(node, "assigned-addresses", reg, sizeof(reg));
+		l = OF_getprop(node, "reg", &pcir, sizeof(pcir));
 		if (l > 4) {
-			b = (reg[0] >> 16) & 0xff;
-			s = (reg[0] >> 11) & 0x1f;
-			f = (reg[0] >> 8) & 0x07;
+			b = OFW_PCI_PHYS_HI_BUS(pcir.phys_hi);
+			s = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
+			f = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
 
 			if (b == pci_get_bus(dev) && s == pci_get_slot(dev) &&
 			    f == pci_get_function(dev))
