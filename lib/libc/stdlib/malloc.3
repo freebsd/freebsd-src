@@ -446,12 +446,6 @@ and
 .Fn free
 functions conform to
 .St -isoC .
-.Sh BUGS
-The messages printed in case of problems provide no detail about the
-actual values.
-.Pp
-It can be argued that returning a null pointer when asked to
-allocate zero bytes is a silly response to a silly question.
 .Sh HISTORY
 The present allocation implementation started out as a filesystem for a
 drum attached to a 20bit binary challenged computer which was built 
@@ -466,3 +460,9 @@ function first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
+.Sh BUGS
+The messages printed in case of problems provide no detail about the
+actual values.
+.Pp
+It can be argued that returning a null pointer when asked to
+allocate zero bytes is a silly response to a silly question.
