@@ -1,13 +1,12 @@
 # $FreeBSD$
 
-.PATH:  ${.CURDIR}/../../../contrib/ipfilter/rules
-
+NOOBJ=	noobj
 BINDIR=	/usr/share/examples
 
 FILES=	README
 
 # dist sample files
-FILES+=	BASIC.NAT BASIC_1.FW BASIC_2.FW \
+DISTFILES= BASIC.NAT BASIC_1.FW BASIC_2.FW \
 	example.1 example.2 example.3 example.4 example.5 \
 	example.6 example.7 example.8 example.9 example.10 \
 	example.11 example.12 example.13 example.sr firewall \
@@ -24,10 +23,12 @@ FILES+=	ipf-howto.txt
 # http://coombs.anu.edu.au/~avalon/ sample files
 FILES+=	examples.txt rules.txt
 
-all:
-
-install: ${FILES}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
-	      ${.ALLSRC} ${DESTDIR}${BINDIR}/ipfilter
+beforeinstall:
+	cd ${.CURDIR}/../../../contrib/ipfilter/rules; \
+	    ${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+		${DISTFILES} ${DESTDIR}${BINDIR}/ipfilter
+	cd ${.CURDIR}; \
+	    ${INSTALL} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
+		${FILES} ${DESTDIR}${BINDIR}/ipfilter
 
 .include <bsd.prog.mk>
