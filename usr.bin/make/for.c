@@ -73,22 +73,20 @@ __FBSDID("$FreeBSD$");
  * then we evaluate the for loop for each variable in the varlist.
  */
 
-static int  	  forLevel = 0;  	/* Nesting level	*/
-static char	 *forVar;		/* Iteration variable	*/
-static Buffer	 *forBuf;		/* Commands in loop	*/
-static Lst	forLst;		/* List of items	*/
+static int	forLevel = 0;	/* Nesting level */
+static char	*forVar;	/* Iteration variable */
+static Buffer	*forBuf;	/* Commands in loop */
+static Lst	forLst;		/* List of items */
 
 /*
  * State of a for loop.
  */
 typedef struct _For {
-    Buffer	  *buf;			/* Unexpanded buffer	*/
-    char*	  var;			/* Index name		*/
-    Lst  	  lst;			/* List of variables	*/
-    int  	  lineno;		/* Line #		*/
+	Buffer	*buf;		/* Unexpanded buffer */
+	char	*var;		/* Index name */
+	Lst	lst;		/* List of variables */
+	int	lineno;		/* Line # */
 } For;
-
-static int ForExec(void *, void *);
 
 /*-
  *-----------------------------------------------------------------------
@@ -110,129 +108,143 @@ static int ForExec(void *, void *);
 int
 For_Eval(char *line)
 {
-    char	    *ptr = line, *sub, *wrd;
-    int	    	    level;  	/* Level at which to report errors. */
+	char	*ptr;
+	char	*sub;
+	char	*wrd;
+	int	level;	/* Level at which to report errors. */
 
-    level = PARSE_FATAL;
+	ptr = line;
+	level = PARSE_FATAL;
 
+	if (forLevel == 0) {
+		/*
+		 * maybe start of a for loop
+		 */
+		Buffer	*buf;
+		size_t	varlen;
 
-    if (forLevel == 0) {
-	Buffer	    *buf;
-	size_t varlen;
+		for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
+			;
+		/*
+		 * If we are not in a for loop quickly determine if
+		 * the statement is a for.
+		 */
+		if (ptr[0] != 'f' || ptr[1] != 'o' || ptr[2] != 'r' ||
+		    !isspace((unsigned char)ptr[3]))
+			return (FALSE);
+		ptr += 3;
 
-	for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
-	    continue;
-	/*
-	 * If we are not in a for loop quickly determine if the statement is
-	 * a for.
-	 */
-	if (ptr[0] != 'f' || ptr[1] != 'o' || ptr[2] != 'r' ||
-	    !isspace((unsigned char)ptr[3]))
-	    return (FALSE);
-	ptr += 3;
-
-	/*
-	 * we found a for loop, and now we are going to parse it.
-	 */
-	while (*ptr && isspace((unsigned char)*ptr))
-	    ptr++;
-
-	/*
-	 * Grab the variable
-	 */
-	buf = Buf_Init(0);
-	for (wrd = ptr; *ptr && !isspace((unsigned char)*ptr); ptr++)
-	    continue;
-	Buf_AppendRange(buf, wrd, ptr);
-
-	forVar = (char *)Buf_GetAll(buf, &varlen);
-	if (varlen == 0) {
-	    Parse_Error(level, "missing variable in for");
-	    return (0);
-	}
-	Buf_Destroy(buf, FALSE);
-
-	while (*ptr && isspace((unsigned char)*ptr))
-	    ptr++;
-
-	/*
-	 * Grab the `in'
-	 */
-	if (ptr[0] != 'i' || ptr[1] != 'n' ||
-	    !isspace((unsigned char)ptr[2])) {
-	    Parse_Error(level, "missing `in' in for");
-	    printf("%s\n", ptr);
-	    return (0);
-	}
-	ptr += 3;
-
-	while (*ptr && isspace((unsigned char)*ptr))
-	    ptr++;
-
-	/*
-	 * Make a list with the remaining words
-	 */
-	Lst_Init(&forLst);
-	buf = Buf_Init(0);
-	sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
-
-	for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
-	    continue;
-
-	for (wrd = ptr; *ptr; ptr++)
-	    if (isspace((unsigned char)*ptr)) {
-		Buf_AppendRange(buf, wrd, ptr);
-		Buf_AddByte(buf, (Byte)'\0');
-		Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
-		Buf_Destroy(buf, FALSE);
-		buf = Buf_Init(0);
+		/*
+		 * we found a for loop, and now we are going to parse it.
+		 */
 		while (*ptr && isspace((unsigned char)*ptr))
-		    ptr++;
-		wrd = ptr--;
-	    }
-	DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
-	if (ptr - wrd > 0) {
-	    Buf_AppendRange(buf, wrd, ptr);
-	    Buf_AddByte(buf, (Byte)'\0');
-	    Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
-	    Buf_Destroy(buf, FALSE);
-	} else {
-	    Buf_Destroy(buf, TRUE);
+			ptr++;
+
+		/*
+		 * Grab the variable
+		 */
+		buf = Buf_Init(0);
+		for (wrd = ptr; *ptr && !isspace((unsigned char)*ptr); ptr++)
+			;
+		Buf_AppendRange(buf, wrd, ptr);
+
+		forVar = (char *)Buf_GetAll(buf, &varlen);
+		if (varlen == 0) {
+			/* XXXHB Buf_Destroy(buf, TRUE) */
+			Parse_Error(level, "missing variable in for");
+			return (0);
+		}
+		Buf_Destroy(buf, FALSE);
+
+		while (*ptr && isspace((unsigned char)*ptr))
+			ptr++;
+
+		/*
+		 * Grab the `in'
+		 */
+		if (ptr[0] != 'i' || ptr[1] != 'n' ||
+		    !isspace((unsigned char)ptr[2])) {
+			/* XXXHB free(forVar) */
+			Parse_Error(level, "missing `in' in for");
+			printf("%s\n", ptr);
+			return (0);
+		}
+		ptr += 3;
+
+		while (*ptr && isspace((unsigned char)*ptr))
+			ptr++;
+
+		/*
+		 * Make a list with the remaining words
+		 */
+		Lst_Init(&forLst);
+		buf = Buf_Init(0);
+		sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
+
+		for (ptr = sub; *ptr && isspace((unsigned char)*ptr); ptr++)
+			;
+
+		for (wrd = ptr; *ptr; ptr++) {
+			if (isspace((unsigned char)*ptr)) {
+				Buf_AppendRange(buf, wrd, ptr);
+				Buf_AddByte(buf, (Byte)'\0');
+				Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
+				Buf_Destroy(buf, FALSE);
+				buf = Buf_Init(0);
+				while (*ptr && isspace((unsigned char)*ptr))
+					ptr++;
+				wrd = ptr--;
+			}
+		}
+		DEBUGF(FOR, ("For: Iterator %s List %s\n", forVar, sub));
+		if (ptr - wrd > 0) {
+			Buf_AppendRange(buf, wrd, ptr);
+			Buf_AddByte(buf, (Byte)'\0');
+			Lst_AtFront(&forLst, Buf_GetAll(buf, &varlen));
+			Buf_Destroy(buf, FALSE);
+		} else {
+			Buf_Destroy(buf, TRUE);
+		}
+		free(sub);
+
+		forBuf = Buf_Init(0);
+		forLevel++;
+		return (1);
 	}
-	free(sub);
 
-	forBuf = Buf_Init(0);
-	forLevel++;
-	return (1);
-    }
-    else if (*ptr == '.') {
+	if (*ptr == '.') {
+		/*
+		 * Need to check for 'endfor' and 'for' to find the end
+		 * of our loop or to find embedded for loops.
+		 */
+		for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
+			;
 
-	for (ptr++; *ptr && isspace((unsigned char)*ptr); ptr++)
-	    continue;
+		if (strncmp(ptr, "endfor", 6) == 0 &&
+		    (isspace((unsigned char)ptr[6]) || !ptr[6])) {
+			DEBUGF(FOR, ("For: end for %d\n", forLevel));
+			if (--forLevel < 0) {
+				Parse_Error(level, "for-less endfor");
+				return (0);
+			}
 
-	if (strncmp(ptr, "endfor", 6) == 0 &&
-	    (isspace((unsigned char)ptr[6]) || !ptr[6])) {
-	    DEBUGF(FOR, ("For: end for %d\n", forLevel));
-	    if (--forLevel < 0) {
-		Parse_Error(level, "for-less endfor");
-		return (0);
-	    }
+		} else if (strncmp(ptr, "for", 3) == 0 &&
+		    isspace((unsigned char)ptr[3])) {
+			forLevel++;
+			DEBUGF(FOR, ("For: new loop %d\n", forLevel));
+		}
 	}
-	else if (strncmp(ptr, "for", 3) == 0 &&
-		 isspace((unsigned char)ptr[3])) {
-	    forLevel++;
-	    DEBUGF(FOR, ("For: new loop %d\n", forLevel));
-	}
-    }
 
-    if (forLevel != 0) {
-	Buf_Append(forBuf, line);
-	Buf_AddByte(forBuf, (Byte)'\n');
-	return (1);
-    }
-    else {
+	if (forLevel != 0) {
+		/*
+		 * Still in loop - append the line
+		 */
+		Buf_Append(forBuf, line);
+		Buf_AddByte(forBuf, (Byte)'\n');
+		return (1);
+	}
+
 	return (0);
-    }
 }
 
 /*-
@@ -251,16 +263,16 @@ For_Eval(char *line)
 static int
 ForExec(void *namep, void *argp)
 {
-    char	*name = namep;
-    For		*arg = argp;
+	char	*name = namep;
+	For	*arg = argp;
 
-    Var_Set(arg->var, name, VAR_GLOBAL);
-    DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
-    Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, NULL),
-			       VAR_GLOBAL, FALSE), arg->lineno);
-    Var_Delete(arg->var, VAR_GLOBAL);
+	Var_Set(arg->var, name, VAR_GLOBAL);
+	DEBUGF(FOR, ("--- %s = %s\n", arg->var, name));
+	Parse_FromString(Var_Subst(arg->var, (char *)Buf_GetAll(arg->buf, NULL),
+	    VAR_GLOBAL, FALSE), arg->lineno);
+	Var_Delete(arg->var, VAR_GLOBAL);
 
-    return (0);
+	return (0);
 }
 
 /*-
@@ -279,24 +291,24 @@ ForExec(void *namep, void *argp)
 void
 For_Run(int lineno)
 {
-    For arg;
+	For arg;
 
-    if (forVar == NULL || forBuf == NULL)
-	return;
-    arg.var = forVar;
-    arg.buf = forBuf;
+	if (forVar == NULL || forBuf == NULL)
+		return;
+	arg.var = forVar;
+	arg.buf = forBuf;
 
-    /* move the forLst to the arg to get it free for nested for's */
-    Lst_Init(&arg.lst);
-    Lst_Concat(&arg.lst, &forLst, LST_CONCLINK);
+	/* move the forLst to the arg to get it free for nested for's */
+	Lst_Init(&arg.lst);
+	Lst_Concat(&arg.lst, &forLst, LST_CONCLINK);
 
-    arg.lineno = lineno;
-    forVar = NULL;
-    forBuf = NULL;
+	arg.lineno = lineno;
+	forVar = NULL;
+	forBuf = NULL;
 
-    Lst_ForEach(&arg.lst, ForExec, &arg);
+	Lst_ForEach(&arg.lst, ForExec, &arg);
 
-    free(arg.var);
-    Lst_Destroy(&arg.lst, free);
-    Buf_Destroy(arg.buf, TRUE);
+	free(arg.var);
+	Lst_Destroy(&arg.lst, free);
+	Buf_Destroy(arg.buf, TRUE);
 }
