@@ -75,16 +75,16 @@
 /* #undef WORDS_BIGENDIAN */
 
 /* Define if the X Window System is missing or not being used.  */
-/* #undef X_DISPLAY_MISSING */
+#define X_DISPLAY_MISSING 1
 
 /* Define if you have the XauFileName function.  */
-#define HAVE_XAUFILENAME 1
+/* #undef HAVE_XAUFILENAME */
 
 /* Define if you have the XauReadAuth function.  */
-#define HAVE_XAUREADAUTH 1
+/* #undef HAVE_XAUREADAUTH */
 
 /* Define if you have the XauWriteAuth function.  */
-#define HAVE_XAUWRITEAUTH 1
+/* #undef HAVE_XAUWRITEAUTH */
 
 /* Define if you have the _getpty function.  */
 /* #undef HAVE__GETPTY */
@@ -107,11 +107,20 @@
 /* Define if you have the atexit function.  */
 #define HAVE_ATEXIT 1
 
+/* Define if you have the cap_set_proc function.  */
+/* #undef HAVE_CAP_SET_PROC */
+
+/* Define if you have the cgetent function.  */
+#define HAVE_CGETENT 1
+
 /* Define if you have the chown function.  */
 #define HAVE_CHOWN 1
 
 /* Define if you have the chroot function.  */
 #define HAVE_CHROOT 1
+
+/* Define if you have the copyhostent function.  */
+/* #undef HAVE_COPYHOSTENT */
 
 /* Define if you have the crypt function.  */
 #define HAVE_CRYPT 1
@@ -155,6 +164,9 @@
 /* Define if you have the forkpty function.  */
 #define HAVE_FORKPTY 1
 
+/* Define if you have the freehostent function.  */
+#define HAVE_FREEHOSTENT 1
+
 /* Define if you have the frevoke function.  */
 /* #undef HAVE_FREVOKE */
 
@@ -181,6 +193,12 @@
 
 /* Define if you have the gethostname function.  */
 #define HAVE_GETHOSTNAME 1
+
+/* Define if you have the getipnodebyaddr function.  */
+#define HAVE_GETIPNODEBYADDR 1
+
+/* Define if you have the getipnodebyname function.  */
+#define HAVE_GETIPNODEBYNAME 1
 
 /* Define if you have the getlogin function.  */
 #define HAVE_GETLOGIN 1
@@ -212,9 +230,6 @@
 /* Define if you have the getspnam function.  */
 /* #undef HAVE_GETSPNAM */
 
-/* Define if you have the getspuid function.  */
-/* #undef HAVE_GETSPUID */
-
 /* Define if you have the gettimeofday function.  */
 #define HAVE_GETTIMEOFDAY 1
 
@@ -238,6 +253,12 @@
 
 /* Define if you have the inet_aton function.  */
 #define HAVE_INET_ATON 1
+
+/* Define if you have the inet_ntop function.  */
+#define HAVE_INET_NTOP 1
+
+/* Define if you have the inet_pton function.  */
+#define HAVE_INET_PTON 1
 
 /* Define if you have the initgroups function.  */
 #define HAVE_INITGROUPS 1
@@ -296,11 +317,20 @@
 /* Define if you have the readv function.  */
 #define HAVE_READV 1
 
+/* Define if you have the recvmsg function.  */
+#define HAVE_RECVMSG 1
+
 /* Define if you have the res_search function.  */
 #define HAVE_RES_SEARCH 1
 
 /* Define if you have the revoke function.  */
 #define HAVE_REVOKE 1
+
+/* Define if you have the sa_family_t function.  */
+#define HAVE_SA_FAMILY_T 1
+
+/* Define if you have the sendmsg function.  */
+#define HAVE_SENDMSG 1
 
 /* Define if you have the setegid function.  */
 #define HAVE_SETEGID 1
@@ -374,6 +404,12 @@
 /* Define if you have the strftime function.  */
 #define HAVE_STRFTIME 1
 
+/* Define if you have the strlcat function.  */
+#define HAVE_STRLCAT 1
+
+/* Define if you have the strlcpy function.  */
+#define HAVE_STRLCPY 1
+
 /* Define if you have the strlwr function.  */
 /* #undef HAVE_STRLWR */
 
@@ -386,11 +422,17 @@
 /* Define if you have the strnlen function.  */
 /* #undef HAVE_STRNLEN */
 
+/* Define if you have the strptime function.  */
+#define HAVE_STRPTIME 1
+
 /* Define if you have the strsep function.  */
 #define HAVE_STRSEP 1
 
 /* Define if you have the strtok_r function.  */
 #define HAVE_STRTOK_R 1
+
+/* Define if you have the struct_sockaddr_storage function.  */
+#define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
 /* Define if you have the strupr function.  */
 /* #undef HAVE_STRUPR */
@@ -768,7 +810,7 @@
 /* #undef HAVE_LIBX11 */
 
 /* Define if you have the Xau library (-lXau).  */
-#define HAVE_LIBXAU 1
+/* #undef HAVE_LIBXAU */
 
 /* Define if you have the c_r library (-lc_r).  */
 /* #undef HAVE_LIBC_R */
@@ -822,7 +864,7 @@
 #define PACKAGE "krb4"
 
 /* Version number of package */
-#define VERSION "0.10pre3"
+#define VERSION "1.0"
 
 /* Define to what version of SunOS you are running. */
 /* #undef SunOS */
@@ -847,10 +889,10 @@
 /* #undef DB_DIR */
 
 /* Define to enable new master key code. */
-#define RANDOM_MKEY 1
+/* #undef RANDOM_MKEY */
 
 /* Define this to the location of the master key. */
-#define MKEYFILE "file"
+/* #undef MKEYFILE */
 
 /* Define to enable basic OSF C2 support. */
 /* #undef HAVE_OSFC2 */
@@ -859,7 +901,7 @@
 /* #undef NO_MMAP */
 
 /* Define if you don't wan't support for AFS. */
-#define NO_AFS 1
+/* #undef NO_AFS */
 
 /* Set this to the type of des-quad-cheksum to use. */
 #define DES_QUAD_DEFAULT DES_QUAD_GUESS
@@ -978,16 +1020,16 @@
 /* #undef HAVE___PROGNAME_DECLARATION */
 
 /* define if your system declares optarg */
-/* #undef HAVE_OPTARG_DECLARATION */
+#define HAVE_OPTARG_DECLARATION 1
 
 /* define if your system declares optind */
-/* #undef HAVE_OPTIND_DECLARATION */
+#define HAVE_OPTIND_DECLARATION 1
 
 /* define if your system declares opterr */
-/* #undef HAVE_OPTERR_DECLARATION */
+#define HAVE_OPTERR_DECLARATION 1
 
 /* define if your system declares optopt */
-/* #undef HAVE_OPTOPT_DECLARATION */
+#define HAVE_OPTOPT_DECLARATION 1
 
 /* define if your system declares environ */
 /* #undef HAVE_ENVIRON_DECLARATION */
@@ -1018,6 +1060,18 @@
 
 /* Define if struct utmpx has field ut_syslen. */
 /* #undef HAVE_STRUCT_UTMPX_UT_SYSLEN */
+
+/* Define if struct tm has field tm_gmtoff. */
+#define HAVE_STRUCT_TM_TM_GMTOFF 1
+
+/* Define if struct tm has field tm_zone. */
+#define HAVE_STRUCT_TM_TM_ZONE 1
+
+/* define if you have timezone */
+#define HAVE_TIMEZONE 1
+
+/* define if your system declares timezone */
+#define HAVE_TIMEZONE_DECLARATION 1
 
 /* define if you have struct spwd */
 /* #undef HAVE_STRUCT_SPWD */
@@ -1072,6 +1126,8 @@
 
 #define HAVE_KRB_DISABLE_DEBUG 1
 
+#define HAVE_KRB_GET_OUR_IP_FOR_REALM 1
+
 #define RCSID(msg) \
 static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 
@@ -1080,6 +1136,13 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
  * by the 'kinit' program.  It may have spaces.
  */
 #define ORGANIZATION "FreeBSD Inc."
+
+#if 0
+#define BINDIR "/usr/bin" 
+#define LIBDIR "/usr/lib"
+#define LIBEXECDIR "/usr/libexec"
+#define SBINDIR "/usr/sbin"
+#endif
 
 #if 0
 #define KRB_CNF_FILES	{ "/etc/krb.conf",   "/etc/kerberosIV/krb.conf", 0}
@@ -1101,6 +1164,55 @@ static /**/const char *const rcsid[] = { (char *)rcsid, "\100(#)" msg }
 /* Maximum values on all known systems */
 #define MaxHostNameLen (64+4)
 #define MaxPathLen (1024+4)
+
+/* ftp stuff -------------------------------------------------- */
+
+#define KERBEROS
+
+/* telnet stuff ----------------------------------------------- */
+
+/* define this for OTP support */
+/* #undef OTP */
+
+/* define this if you have kerberos 4 */
+#define KRB4 1
+
+/* define this if you want encryption */
+#define ENCRYPTION 1
+
+/* define this if you want authentication */
+#define AUTHENTICATION 1
+
+#if defined(ENCRYPTION) && !defined(AUTHENTICATION)
+#define AUTHENTICATION 1
+#endif
+
+/* Set this if you want des encryption */
+#define DES_ENCRYPTION 1
+
+/* Set this to the default system lead string for telnetd 
+ * can contain %-escapes: %s=sysname, %m=machine, %r=os-release
+ * %v=os-version, %t=tty, %h=hostname, %d=date and time
+ */
+/* #undef USE_IM */
+
+/* define this if you want diagnostics in telnetd */
+#define DIAGNOSTICS 1
+
+/* define this if you want support for broken ENV_{VALUE,VAR} systems  */
+/* #undef ENV_HACK */
+
+/*  */
+#define OLD_ENVIRON 1
+
+/* Used with login -p */
+/* #undef LOGIN_ARGS */
+
+/* set this to a sensible login */
+#ifndef LOGIN_PATH
+#define LOGIN_PATH BINDIR "/login"
+#endif
+
 
 /* ------------------------------------------------------------ */
 

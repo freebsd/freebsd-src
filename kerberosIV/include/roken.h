@@ -21,12 +21,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -43,61 +38,138 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.113.2.1 1999/07/22 03:20:59 assar Exp $ */
+/* $Id: roken.h.in,v 1.125 1999/12/02 16:58:52 joda Exp $ */
 /* $FreeBSD$ */
 
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <netinet/in.h>
-#include <sys/uio.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-#include <err.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <grp.h>
-#include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
-#include <syslog.h>
-#include <termios.h>
-#include <time.h>
+#include <signal.h>
+#include <sys/param.h>
+#include <sys/types.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/uio.h>
+#include <grp.h>
+#include <sys/stat.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <syslog.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <err.h>
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+#include <time.h>
+
 #include <paths.h>
-#include <pwd.h>
+
 
 #define ROKEN_LIB_FUNCTION
 
 #include <roken-common.h>
 
-int strcpy_truncate (char *dst, const char *src, size_t dst_sz);
-int strcat_truncate (char *dst, const char *src, size_t dst_sz);
 
-struct passwd *k_getpwnam (char *user);
+
+
+
+
+
+
+
+
+int asnprintf (char **ret, size_t max_sz, const char *format, ...)
+     __attribute__ ((format (printf, 3, 4)));
+
+int vasnprintf (char **ret, size_t max_sz, const char *format, va_list ap)
+     __attribute__((format (printf, 3, 0)));
+
+
+char * strndup(const char *old, size_t sz);
+
+char * strlwr(char *);
+
+size_t strnlen(const char*, size_t);
+
+
+
+
+
+char * strupr(char *);
+
+
+
+
+
+
+
+
+
+
+
+#include <pwd.h>
+struct passwd *k_getpwnam (const char *user);
 struct passwd *k_getpwuid (uid_t uid);
 
 const char *get_default_username (void);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 time_t tm2time (struct tm tm, int local);
+
 int unix_verify_user(char *user, char *password);
+
 void inaddr2str(struct in_addr addr, char *s, size_t len);
+
 void mini_inetd (int port);
+
 int roken_concat (char *s, size_t len, ...);
+
 size_t roken_mconcat (char **s, size_t max_len, ...);
+
 int roken_vconcat (char *s, size_t len, va_list args);
+
 size_t roken_vmconcat (char **s, size_t max_len, va_list args);
+
 ssize_t net_write (int fd, const void *buf, size_t nbytes);
+
 ssize_t net_read (int fd, void *buf, size_t nbytes);
+
 int issuid(void);
+
+
 int get_window_size(int fd, struct winsize *);
-extern char *optarg;
-extern int optind;
-extern int opterr;
+
+
+
 extern const char *__progname;
+
 extern char **environ;
+
+
+
+
+struct hostent *
+copyhostent (const struct hostent *h);
+
 
 /*
  * kludges and such
