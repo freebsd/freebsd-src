@@ -507,7 +507,9 @@ default swap device
 .It Pa /dev/kmem
 default kernel memory
 .It Pa /dev/lomac
-interface used to query the LOMAC LKM
+interface used to query the
+.Xr lomac 4
+KLD
 .It Pa /var/run/dev.db
 /dev name database
 .It Pa /var/db/kvm_kernel.db
@@ -523,8 +525,8 @@ the mount point of
 .Xr w 1 ,
 .Xr kvm 3 ,
 .Xr strftime 3 ,
-.Xr procfs 5 ,
 .Xr lomac 4 ,
+.Xr procfs 5 ,
 .Xr pstat 8 ,
 .Xr sysctl 8 ,
 .Xr mutex 9
