@@ -52,9 +52,9 @@ static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
  */
 struct dirent *
 readdir(dirp)
-	register DIR *dirp;
+	DIR *dirp;
 {
-	register struct dirent *dp;
+	struct dirent *dp;
 
 	for (;;) {
 		if (dirp->dd_loc >= dirp->dd_size) {
