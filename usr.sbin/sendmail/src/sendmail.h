@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.242 (Berkeley) 8/2/97
+ *	@(#)sendmail.h	8.245 (Berkeley) 10/22/97
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.242		8/2/97";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.245		10/22/97";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -206,6 +206,7 @@ typedef struct address ADDRESS;
 # define QDELIVERED	0x00040000	/* DSN: successful final delivery */
 # define QDELAYED	0x00080000	/* DSN: message delayed */
 # define QTHISPASS	0x40000000	/* temp: address set this pass */
+# define QRCPTOK	0x80000000	/* recipient() processed address */
 
 # define Q_PINGFLAGS	(QPINGONSUCCESS|QPINGONFAILURE|QPINGONDELAY)
 
@@ -928,6 +929,7 @@ EXTERN int		NoRecipientAction;
 #define PXLF_NOTHINGSPECIAL	0	/* no special mapping */
 #define PXLF_MAPFROM		0x0001	/* map From_ to >From_ */
 #define PXLF_STRIP8BIT		0x0002	/* strip 8th bit */
+#define PXLF_HEADER		0x0004	/* map newlines in headers */
 /*
 **  Additional definitions
 */
@@ -1231,7 +1233,6 @@ EXTERN int	MaxRuleRecursion;	/* maximum depth of ruleset recursion */
 EXTERN char	*MustQuoteChars;	/* quote these characters in phrases */
 EXTERN char	*ServiceSwitchFile;	/* backup service switch */
 EXTERN char	*DefaultCharSet;	/* default character set for MIME */
-EXTERN int	DeliveryNiceness;	/* how nice to be during delivery */
 EXTERN char	*PostMasterCopy;	/* address to get errs cc's */
 EXTERN int	CheckpointInterval;	/* queue file checkpoint interval */
 EXTERN bool	DontPruneRoutes;	/* don't prune source routes */

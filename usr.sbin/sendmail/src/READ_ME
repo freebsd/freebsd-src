@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.148 (Berkeley) 8/1/97
+#	@(#)READ_ME	8.156 (Berkeley) 10/23/97
 #
 
 This directory contains the source files for sendmail.
@@ -148,9 +148,10 @@ The options are:
 
 NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
 		Digital UNIX 4.0) have this package pre-installed.  If your
-		system does not have NEWDB installed, get the latest version
+		system does not have NEWDB installed, get version 1.85
 		from http://www.sleepycat.com/packages/db.1.85.tar.gz.
-		DO NOT use the version from the Net2 distribution.  If you are
+		DO NOT use Berkeley DB version 2.X with sendmail.  DO NOT
+		use the version from the Net2 distribution.  If you are
 		still running BSD/386 1.x, you will also need to define
 		OLD_NEWDB.
 NDBM		The older NDBM implementation -- the very old V7 DBM
@@ -731,7 +732,13 @@ SunOS 4.1.3, 4.1.3_U1
 	101790-01 (SunOS 4.1.3_U1: TCP socket and reset problems).
 
 Solaris 2.x (SunOS 5.x)
-	To compile for Solaris, be sure you use -DSOLARIS.
+	To compile for Solaris, the Makefile chosen by makesendmail must
+	include a SOLARIS definition which reflects the Solaris version
+	(i.e. -DSOLARIS=20400 for 2.4 or -DSOLARIS=20501 for 2.5.1).
+	If you are using gcc, make sure -I/usr/include is not used (or
+	it might complain about TopFrame).  If you are using Sun's cc,
+	make sure /opt/SUNWspro/bin/cc is used instead of /usr/ucb/cc
+	(or it might complain about tm_zone).
 
 	To the best of my knowledge, Solaris does not have the
 	gethostbyname problem described above.  However, it does
@@ -828,22 +835,25 @@ Solaris 2.6 (SunOS 5.6)
 	incompatible snprintf(3s) calls.  This problem is fixed in sendmail
 	8.8.5.
 
-Solaris 2.5.1 (SunOS 5.5.1)
-	Apparently patch 103663-01 installs a new /usr/include/resolv.h
-	file that defines the __P macro without checking to see if it is
-	already defined.  This causes compile warnings such as:
+Solaris 2.5.1 (SunOS 5.5.1) and 2.6 (SunOS 5.6)
+	Apparently Solaris 2.5.1 patch 103663-01 installs a new
+	/usr/include/resolv.h file that defines the __P macro without
+	checking to see if it is already defined.  This new resolv.h is also
+	included in the Solaris 2.6 distribution. This causes compile
+	warnings such as:
 
 	   In file included from daemon.c:51:
 	   /usr/include/resolv.h:208: warning: `__P' redefined
 	   cdefs.h:58: warning: this is the location of the previous definition
 
-	If you are running with this patch, create a resolv.h file in the
-	obj.SunOS.5.5.1.* directory that reads:
+	These warnings can be safely ignored or you can create a resolv.h
+	file in the obj.SunOS.5.5.1.* or obj.SunOS.5.6.* directory that reads:
 
 	   #undef __P
 	   #include "/usr/include/resolv.h"
 
-	... And then file a bug report with Sun.
+	Sun is aware of the problem (Sun bug ID 4081053) and it will be fixed
+	in a to-be-released patch.
 
 Ultrix
 	By default, the IDENT protocol is turned off on Ultrix.  If you
@@ -852,7 +862,7 @@ Ultrix
 	IDENT on in the configuration file by setting the "ident" timeout
 	to 30 seconds.
 
-OSF/1
+Digital UNIX (formerly DEC OSF/1)
 	If you are compiling on OSF/1 (DEC Alpha), you must use
 	-L/usr/shlib (otherwise it core dumps on startup).  You may also
 	need -mld to get the nlist() function, although some versions
@@ -864,6 +874,19 @@ OSF/1
 	On DEC OSF/1 3.2 or earlier, the MatchGECOS option doesn't work
 	properly due to a bug in the getpw* routines.  If you want to use
 	this, use -DDEC_OSF_BROKEN_GETPWENT=1.  The problem is fixed in 3.2C.
+
+	On Digital UNIX 4.0 and later, Berkeley DB is included with the
+	operating system and already has the ndbm.o module removed.  However,
+	Digital has modified the original Berkeley DB db.h include file.
+	This results in the following warning while compiling map.c and udb.c:
+
+	cc: Warning: /usr/include/db.h, line 74: The redefinition of the macro
+	 "__signed" conflicts with a current definition because the replacement
+	 lists differ.  The redefinition is now in effect.
+	#define __signed        signed
+	------------------------^
+
+	This warning can be ignored.
 
 IRIX
 	The header files on SGI IRIX are completely prototyped, and as
@@ -1439,4 +1462,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.148, last update 8/1/97 16:41:54)
+(Version 8.156, last update 10/23/97 12:53:12)

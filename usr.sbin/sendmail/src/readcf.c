@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.200 (Berkeley) 8/2/97";
+static char sccsid[] = "@(#)readcf.c	8.201 (Berkeley) 10/1/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1521,6 +1521,10 @@ struct optioninfo
 #define O_DONTLOCK	0xa5
 	{ "DontLockFilesForRead",	O_DONTLOCK,	FALSE	},
 #endif
+#if _FFR_MAXALIASRECURSION_OPTION
+#define O_MAXALIASRCSN	0xa6
+	{ "MaxAliasRecursion",		O_MAXALIASRCSN,	FALSE	},
+#endif
 
 	{ NULL,				'\0',		FALSE	}
 };
@@ -2352,6 +2356,12 @@ setoption(opt, val, safe, sticky, e)
 #if _FFR_DONTLOCKFILESFORREAD_OPTION
 	  case O_DONTLOCK:
 		DontLockReadFiles = atobool(val);
+		break;
+#endif
+
+#if _FFR_MAXALIASRECURSION_OPTION
+	  case O_MAXALIASRCSN:
+		MaxAliasRecursion = atoi(val);
 		break;
 #endif
 

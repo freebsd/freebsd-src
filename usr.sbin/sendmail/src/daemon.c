@@ -37,9 +37,9 @@
 
 #ifndef lint
 #ifdef DAEMON
-static char sccsid[] = "@(#)daemon.c	8.186 (Berkeley) 8/2/97 (with daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.195 (Berkeley) 10/23/97 (with daemon mode)";
 #else
-static char sccsid[] = "@(#)daemon.c	8.186 (Berkeley) 8/2/97 (without daemon mode)";
+static char sccsid[] = "@(#)daemon.c	8.195 (Berkeley) 10/23/97 (without daemon mode)";
 #endif
 #endif /* not lint */
 
@@ -103,9 +103,7 @@ static char sccsid[] = "@(#)daemon.c	8.186 (Berkeley) 8/2/97 (without daemon mod
 **		e -- the current envelope.
 **
 **	Returns:
-**		TRUE -- if a "null server" should be used -- that is, one
-**			that rejects all commands.
-**		FALSE -- to use a normal server.
+**		none.
 **
 **	Side Effects:
 **		Waits until some interesting activity occurs.  When
@@ -122,7 +120,7 @@ int		ListenQueueSize = 10;		/* size of listen queue */
 int		TcpRcvBufferSize = 0;		/* size of TCP receive buffer */
 int		TcpSndBufferSize = 0;		/* size of TCP send buffer */
 
-bool
+void
 getrequests(e)
 	ENVELOPE *e;
 {
@@ -188,7 +186,7 @@ getrequests(e)
 	*/
 
 	if (tTd(15, 1))
-		printf("getrequests: port 0x%x\n", DaemonAddr.sin.sin_port);
+		printf("getrequests: port 0x%x\n", port);
 
 	/* get a socket for the SMTP connection */
 	socksize = opendaemonsocket(TRUE);
@@ -238,7 +236,7 @@ getrequests(e)
 
 		/* see if we are rejecting connections */
 		(void) blocksignal(SIGALRM);
-		if (refuseconnections(ntohs(DaemonAddr.sin.sin_port)))
+		if (refuseconnections(ntohs(port)))
 		{
 			if (DaemonSocket >= 0)
 			{
@@ -284,7 +282,7 @@ getrequests(e)
 
 		/* wait for a connection */
 		setproctitle("accepting connections on port %d",
-			     ntohs(DaemonAddr.sin.sin_port));
+			     ntohs(port));
 #if 0
 		/*
 		**  Andrew Sun <asun@ieps-sun.ml.com> claims that this will
@@ -372,7 +370,6 @@ getrequests(e)
 			char *p;
 			extern SIGFUNC_DECL intsig __P((int));
 			FILE *inchannel, *outchannel;
-			bool nullconn;
 
 			/*
 			**  CHILD -- return to caller.
@@ -437,13 +434,6 @@ getrequests(e)
 			/* open maps for check_relay ruleset */
 			initmaps(FALSE, e);
 
-			/* validate the connection */
-			HoldErrs = TRUE;
-			nullconn = !validate_connection(&RealHostAddr, RealHostName, e);
-			HoldErrs = FALSE;
-			if (nullconn)
-				break;
-
 #ifdef XLA
 			if (!xla_host_ok(RealHostName))
 			{
@@ -452,9 +442,7 @@ getrequests(e)
 			}
 #endif
 
-			if (tTd(15, 2))
-				printf("getreq: returning (normal server)\n");
-			return FALSE;
+			break;
 		}
 
 		/* parent -- keep track of children */
@@ -473,8 +461,8 @@ getrequests(e)
 			(void) close(pipefd[1]);
 	}
 	if (tTd(15, 2))
-		printf("getreq: returning (null server)\n");
-	return TRUE;
+		printf("getreq: returning\n");
+	return;
 }
 /*
 **  OPENDAEMONSOCKET -- open the SMTP socket
@@ -1265,7 +1253,7 @@ getauthinfo(fd)
 	int nleft;
 	struct hostent *hp;
 	char **ha;
-	bool may_be_forged;
+	volatile bool may_be_forged;
 	char ibuf[MAXNAME + 1];
 	static char hbuf[MAXNAME * 2 + 2];
 
@@ -1750,6 +1738,7 @@ host_map_lookup(map, name, av, statp)
 	}
 
 	/* found a match -- copy out */
+	hp->h_name = denlstring((char *) hp->h_name, TRUE, TRUE);
 	s->s_namecanon.nc_stat = *statp = EX_OK;
 	s->s_namecanon.nc_cname = newstr(hp->h_name);
 	if (bitset(MF_MATCHONLY, map->map_mflags))
@@ -2027,7 +2016,9 @@ hostnamebyanyaddr(sap)
 #endif /* NAMED_BIND */
 
 	if (hp != NULL && hp->h_name[0] != '[')
-		return (char *) hp->h_name;
+		return denlstring((char *) hp->h_name, TRUE, TRUE);
+	else if (sap->sa.sa_family == AF_UNIX && sap->sunix.sun_path[0] == '\0')
+		return "localhost";
 	else
 	{
 		/* produce a dotted quad */

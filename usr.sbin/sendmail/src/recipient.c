@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.130 (Berkeley) 5/29/97";
+static char sccsid[] = "@(#)recipient.c	8.133 (Berkeley) 10/19/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -263,6 +263,7 @@ recipient(a, sendq, aliaslevel, e)
 	/* break aliasing loops */
 	if (aliaslevel > MaxAliasRecursion)
 	{
+		a->q_flags |= QBADADDR;
 		a->q_status = "5.4.6";
 		usrerr("554 aliasing/forwarding loop broken (%d aliases deep; %d max)",
 			aliaslevel, MaxAliasRecursion);
@@ -327,7 +328,7 @@ recipient(a, sendq, aliaslevel, e)
 
 	for (pq = sendq; (q = *pq) != NULL; pq = &q->q_next)
 	{
-		if (sameaddr(q, a))
+		if (sameaddr(q, a) && bitset(QRCPTOK, q->q_flags))
 		{
 			if (tTd(26, 1))
 			{
@@ -641,7 +642,7 @@ recipient(a, sendq, aliaslevel, e)
 					a->q_paddr);
 		}
 	}
-
+	a->q_flags |= QRCPTOK;
 	return (a);
 }
 /*
@@ -922,7 +923,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	volatile int sfflags = SFF_REGONLY;
 	register char *p;
 	bool safechown = FALSE;
-	bool safedir = FALSE;
+	volatile bool safedir = FALSE;
 	struct stat st;
 	char buf[MAXLINE];
 	extern bool chownsafe();

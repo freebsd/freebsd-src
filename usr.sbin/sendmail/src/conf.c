@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)conf.c	8.374 (Berkeley) 8/2/97";
+static char sccsid[] = "@(#)conf.c	8.379 (Berkeley) 10/20/97";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -2063,7 +2063,6 @@ refuseconnections(port)
 	static time_t lastconn = (time_t) 0;
 	static int conncnt = 0;
 	extern bool enoughdiskspace();
-	extern void setproctitle __P((const char *, ...));
 
 #ifdef XLA
 	if (!xla_smtp_ok())
@@ -2222,7 +2221,7 @@ initsetproctitle(argc, argv, envp)
 	char **argv;
 	char **envp;
 {
-	register int i;
+	register int i, envpsize = 0;
 	extern char **environ;
 
 	/*
@@ -2231,7 +2230,7 @@ initsetproctitle(argc, argv, envp)
 	*/
 
 	for (i = 0; envp[i] != NULL; i++)
-		continue;
+		envpsize += strlen(envp[i]) + 1;
 	environ = (char **) xalloc(sizeof (char *) * (i + 1));
 	for (i = 0; envp[i] != NULL; i++)
 		environ[i] = newstr(envp[i]);
@@ -2242,6 +2241,16 @@ initsetproctitle(argc, argv, envp)
 	*/
 
 	Argv = argv;
+
+	/*
+	**  Find the last environment variable within sendmail's
+	**  process memory area.
+	*/
+	while (i > 0 && (envp[i - 1] < argv[0] ||
+			 envp[i - 1] > (argv[argc - 1] +
+					strlen(argv[argc - 1]) + 1 + envpsize)))
+		i--;
+
 	if (i > 0)
 		LastArgv = envp[i - 1] + strlen(envp[i - 1]);
 	else
@@ -2817,6 +2826,7 @@ char	*optarg = NULL;		/* argument associated with option */
 #define tell(s)	if (opterr) {fputs(*nargv,stderr);fputs(s,stderr); \
 		fputc(optopt,stderr);fputc('\n',stderr);return(BADCH);}
 
+int
 getopt(nargc,nargv,ostr)
 	int		nargc;
 	char *const	*nargv;
@@ -2824,7 +2834,7 @@ getopt(nargc,nargv,ostr)
 {
 	static char	*place = EMSG;	/* option letter processing */
 	static char	atend = 0;
-	register char	*oli;		/* option letter list index */
+	register char	*oli = NULL;	/* option letter list index */
 
 	if (atend) {
 		atend = 0;
@@ -3840,7 +3850,7 @@ chownsafe(fd, safedir)
 	bool safedir;
 {
 #if (!defined(_POSIX_CHOWN_RESTRICTED) || _POSIX_CHOWN_RESTRICTED != -1) && \
-    defined(_PC_CHOWN_RESTRICTED)
+    (defined(_PC_CHOWN_RESTRICTED) || defined(_GNU_TYPES_H))
 	int rval;
 
 	/* give the system administrator a chance to override */
