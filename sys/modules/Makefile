@@ -21,7 +21,6 @@ SUBDIR=	3dfx \
 	de \
 	digi \
 	ed \
-	ext2fs \
 	fdescfs \
 	fdc \
 	fs \
@@ -137,6 +136,10 @@ SUBDIR+=snc
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=osf1
+.endif
+
+.if defined(WANT_EXT2FS_MODULE)
+SUBDIR+=ext2fs
 .endif
 
 .if defined(MODULES_OVERRIDE)
