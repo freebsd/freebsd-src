@@ -121,7 +121,7 @@ struct rdp_softc {
 	/*
 	 * local stuff, somewhat sorted by memory alignment class
 	 */
-	u_short baseaddr;	/* IO port address */
+	u_int baseaddr;		/* IO port address */
 	u_short txsize;		/* tx size for next (buffered) packet,
 				 * there's only one additional packet
 				 * we can buffer, thus a single variable

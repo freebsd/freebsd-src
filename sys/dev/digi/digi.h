@@ -152,8 +152,8 @@ struct digi_softc {
 	const char *name;
 	enum digi_board_status status;
 	ushort numports;		/* number of ports on card */
-	ushort port;			/* I/O port */
-	ushort wport;			/* window select I/O port */
+	u_int port;			/* I/O port */
+	u_int wport;			/* window select I/O port */
 
 	struct {
 		struct resource *mem;
