@@ -476,6 +476,7 @@ udp_stats(off, name)
 	p1a(udps_hdrops, "\t%lu with incomplete header\n");
 	p1a(udps_badlen, "\t%lu with bad data length field\n");
 	p1a(udps_badsum, "\t%lu with bad checksum\n");
+	p1a(udps_nosum, "\t%lu with no checksum\n");
 	p1a(udps_noport, "\t%lu dropped due to no socket\n");
 	p(udps_noportbcast,
 	    "\t%lu broadcast/multicast datagram%s dropped due to no socket\n");
