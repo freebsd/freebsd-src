@@ -31,20 +31,13 @@
  */
 
 #include <dev/mpt/mpt_freebsd.h>
-#include <dev/mpt/mpt.h>
-#include <machine/stdarg.h>
-#include <sys/signal.h>
 
-#if 0
-static void mpt_cam_async(void *, u_int32_t, struct cam_path *, void *);
-static void mpt_intr_enable(void *);
-#endif
 static void mpt_poll(struct cam_sim *);
 static timeout_t mpttimeout;
 static void mpt_action(struct cam_sim *, union ccb *);
 
 void
-mpt_cam_attach(struct mpt_softc *mpt)
+mpt_cam_attach(mpt_softc_t *mpt)
 {
 	struct cam_devq *devq;
 	struct cam_sim *sim;
@@ -52,7 +45,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 
 	mpt->bus = 0;
 	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS)?
-	   mpt->mpt_global_credits : MPT_MAX_REQUESTS;
+	    mpt->mpt_global_credits : MPT_MAX_REQUESTS;
 
 
 	/*
@@ -74,19 +67,10 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		return;
 	}
 
-#if 0
-	mpt->mpt_osinfo.ehook.ich_func = mpt_intr_enable;
-	mpt->mpt_osinfo.ehook.ich_arg = mpt;
-	if (config_intrhook_establish(&mpt->mpt_osinfo.ehook) != 0) {
-		device_printf(mpt->dev,
-			"could not establish interrupt enable hook\n");
-		cam_sim_free(sim, TRUE);
-		return;
-	}
-#endif
+	/*
+	 * Register exactly the bus.
+	 */
 
-	/* Register exactly one bus */
-	/* (Duals look like two cards to us) */
 	if (xpt_bus_register(sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(sim, TRUE);
 		return;
@@ -98,22 +82,11 @@ mpt_cam_attach(struct mpt_softc *mpt)
 		cam_sim_free(sim, TRUE);
 		return;
 	}
-
-#if 0 /* GJA Don't think we care about lost devices */
-	struct ccb_setasync csa;
-
-	xpt_setup_ccb(&csa.ccb_h, mpt->path, 5);
-	csa.ccb_h.func_code = XPT_SASYNC_CB;
-	csa.event_enable = AC_LOST_DEVICE;
-	csa.callback = mpt_cam_async;
-	csa.callback_arg = sim;
-	xpt_action((union ccb *)&csa);
-#endif
 	mpt->sim = sim;
 }
 
 void
-mpt_cam_detach(struct mpt_softc *mpt)
+mpt_cam_detach(mpt_softc_t *mpt)
 {
 	if (mpt->sim != NULL) {
 		xpt_free_path(mpt->path);
@@ -123,59 +96,16 @@ mpt_cam_detach(struct mpt_softc *mpt)
 	}
 }
 
-#if 0
-/* Sample routine for processing async events from CAM */
-static void
-mpt_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
-{
-	struct cam_sim *sim;
-	struct mpt_softc *mpt;
-
-	sim = (struct cam_sim *)cbarg;
-	mpt = (struct mpt_softc *) cam_sim_softc(sim);
-	switch (code) {
-#if 0 /* GJA */
-	case AC_LOST_DEVICE:
-		if (IS_SCSI(mpt)) {
-			u_int16_t oflags, nflags;
-			sdparam *sdp = mpt->mpt_param;
-			int rvf, tgt;
-
-			tgt = xpt_path_target_id(path);
-			rvf = ISP_FW_REVX(mpt->mpt_fwrev);
-			ISP_LOCK(mpt);
-			sdp += cam_sim_bus(sim);
-			mpt->mpt_update |= (1 << cam_sim_bus(sim));
-			nflags = DPARM_SAFE_DFLT;
-			if (rvf >= ISP_FW_REV(7, 55, 0) ||
-			   (ISP_FW_REV(4, 55, 0) <= rvf &&
-			   (rvf < ISP_FW_REV(5, 0, 0)))) {
-				nflags |= DPARM_NARROW | DPARM_ASYNC;
-			}
-			oflags = sdp->mpt_devparam[tgt].dev_flags;
-			sdp->mpt_devparam[tgt].dev_flags = nflags;
-			sdp->mpt_devparam[tgt].dev_update = 1;
-			(void) mpt_control(mpt, ISPCTL_UPDATE_PARAMS, NULL);
-			sdp->mpt_devparam[tgt].dev_flags = oflags;
-			ISP_UNLOCK(mpt);
-		}
-		break;
-#endif /* 0 GJA */
-	default:
-		device_printf(mpt->dev,
-			"mpt Async Code 0x%x\n", code);
-		break;
-	}
-}
-#endif
-
 /* This routine is used after a system crash to dump core onto the
  * swap device.
  */
 static void
 mpt_poll(struct cam_sim *sim)
 {
-	mpt_intr((struct mpt_softc *) cam_sim_softc(sim));
+	mpt_softc_t *mpt = (mpt_softc_t *) cam_sim_softc(sim);
+	MPT_LOCK(mpt);
+	mpt_intr(mpt);
+	MPT_UNLOCK(mpt);
 }
 
 /*
@@ -186,16 +116,17 @@ static void
 mpttimeout(void *arg)
 {
 	request_t *req;
-	union	 ccb *ccb = arg;
-	struct	 mpt_softc *mpt;
+	union ccb *ccb = arg;
+	mpt_softc_t *mpt;
 
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
+	MPT_LOCK(mpt);
+
 	req = ccb->ccb_h.ccb_req_ptr;
-
 	mpt->timeouts++;
-
-	device_printf(mpt->dev, "time out on request index = 0x%02x sequence = 0x%08x\n",
-		req->index, req->sequence);
+	device_printf(mpt->dev,
+	    "time out on request index = 0x%02x sequence = 0x%08x\n",
+	    req->index, req->sequence);
         mpt_check_doorbell(mpt);
 	device_printf(mpt->dev, "Status %08X; Mask %08X; Doorbell %08X\n",
 		mpt_read(mpt, MPT_OFFSET_INTR_STATUS),
@@ -212,7 +143,9 @@ mpttimeout(void *arg)
 	req->ccb = NULL;
 	ccb->ccb_h.status = CAM_CMD_TIMEOUT;
 	ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
+	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 /*
@@ -225,10 +158,9 @@ mpttimeout(void *arg)
 static void
 mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
-	int s;
 	request_t *req;
 	union ccb *ccb;
-	struct mpt_softc *mpt;
+	mpt_softc_t *mpt;
 	MSG_SCSI_IO_REQUEST *mpt_req;
 	SGE_SIMPLE32 *se;
 
@@ -258,7 +190,9 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
+		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 	
@@ -389,18 +323,18 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
 	}
 
-	s = splcam();
 	/*
 	 * Last time we need to check if this CCB needs to be aborted.
 	 */
 	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
 		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0)
 			bus_dmamap_unload(mpt->buffer_dmat, req->dmap);
+		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
+		MPTLOCK_2_CAMLOCK(mpt);
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		xpt_done(ccb);
-		splx(s);
 		return;
 	}
 
@@ -412,13 +346,11 @@ mpt_execute_req(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	} else {
 		callout_handle_init(&ccb->ccb_h.timeout_ch);
 	}
-
 	if (mpt->verbose > 1)
 		mpt_print_scsi_io_request(mpt_req);
-
+	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
-
-	splx(s);
+	MPTLOCK_2_CAMLOCK(mpt);
 }
 
 /* Convert a CAM SCSI I/O ccb into a MPT request to pass the FC Chip */
@@ -436,9 +368,12 @@ mpt_start(union ccb *ccb)
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 
 	/* Get a request structure off the free list */
+	CAMLOCK_2_MPTLOCK(mpt);
 	if ((req = mpt_get_request(mpt)) == NULL) {
+		MPTLOCK_2_CAMLOCK(mpt);
 		return (CAM_REQUEUE_REQ);
 	}
+	MPTLOCK_2_CAMLOCK(mpt);
 
 	/* Link the ccb and the request structure so we can find */
 	/* the other knowing either the request or the ccb		 */
@@ -580,7 +515,7 @@ mpt_bus_reset(union ccb *ccb)
 {
 	int error;
 	request_t *req;
-	struct mpt_softc *mpt;
+	mpt_softc_t *mpt;
 	MSG_SCSI_TASK_MGMT *reset_req;
 
 	/* Get the pointer for the physical adapter */
@@ -630,7 +565,7 @@ mpt_bus_reset(union ccb *ccb)
  * Process an asynchronous event from the IOC.
  */
 void
-mpt_notify(struct mpt_softc *mpt, void *vmsg)
+mpt_notify(mpt_softc_t *mpt, void *vmsg, u_int32_t reply)
 {
 	MSG_DEFAULT_REPLY *dmsg = vmsg;
 
@@ -759,6 +694,7 @@ mpt_notify(struct mpt_softc *mpt, void *vmsg)
 		default:
 			device_printf(mpt->dev, "Unknown event %X\n", msg->Event);
 		}
+		mpt_free_reply(mpt, (reply << 1));
 	} else if (dmsg->Function == MPI_FUNCTION_PORT_ENABLE) {
 		MSG_PORT_ENABLE_REPLY *msg = vmsg;
 		int index = msg->MsgContext & ~0x80000000;
@@ -770,6 +706,17 @@ mpt_notify(struct mpt_softc *mpt, void *vmsg)
 			request_t *req = &mpt->requests[index];
 			req->debug = REQ_DONE;
 		}
+		mpt_free_reply(mpt, (reply << 1));
+	} else if (dmsg->Function == MPI_FUNCTION_CONFIG) {
+		MSG_CONFIG_REPLY *msg = vmsg;
+		int index = msg->MsgContext & ~0x80000000;
+		if (index >= 0 && index < MPT_MAX_REQUESTS) {
+			request_t *req = &mpt->requests[index];
+			req->debug = REQ_DONE;
+			req->sequence = reply;
+		} else {
+			mpt_free_reply(mpt, (reply << 1));
+		}
 	} else {
 		device_printf(mpt->dev, "unknown mpt_notify: %x\n",
 		    dmsg->Function);
@@ -777,7 +724,7 @@ mpt_notify(struct mpt_softc *mpt, void *vmsg)
 }
 
 void
-mpt_done(struct mpt_softc *mpt, u_int32_t reply)
+mpt_done(mpt_softc_t *mpt, u_int32_t reply)
 {
 	int index;
 	request_t *req;
@@ -817,8 +764,7 @@ mpt_done(struct mpt_softc *mpt, u_int32_t reply)
 	/* to process it then free it */
 	if ((index & 0x80000000) != 0) {
 		if (mpt_reply != NULL) {
-			mpt_notify(mpt, mpt_reply);
-			mpt_free_reply(mpt, (reply << 1));
+			mpt_notify(mpt, mpt_reply, reply);
 		} else {
 			device_printf(mpt->dev,
 			    "mpt_done: index 0x%x, NULL reply\n", index);
@@ -1016,7 +962,9 @@ mpt_done(struct mpt_softc *mpt, u_int32_t reply)
 	if ((mpt_reply->MsgFlags & 0x80) == 0) 
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 	ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
+	CAMLOCK_2_MPTLOCK(mpt);
 
 done:
 	/* If IOC done with this request free it up */
@@ -1032,12 +980,12 @@ static void
 mpt_action(struct cam_sim *sim, union ccb *ccb)
 {
 	int  tgt, error;
-	struct mpt_softc *mpt;
+	mpt_softc_t *mpt;
 	struct ccb_trans_settings *cts;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("mpt_action\n"));
 
-	mpt = (struct mpt_softc *)cam_sim_softc(sim);
+	mpt = (mpt_softc_t *)cam_sim_softc(sim);
 
 	ccb->ccb_h.ccb_mpt_ptr = mpt;
 
@@ -1045,16 +993,15 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_RESET_BUS:
 		if (mpt->verbose > 1)
 		    device_printf(mpt->dev, "XPT_RESET_BUS\n");
+		CAMLOCK_2_MPTLOCK(mpt);
 		error = mpt_bus_reset(ccb);
+		MPTLOCK_2_CAMLOCK(mpt);
 		switch (error) {
 		case CAM_REQ_INPROG:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			break;
 		case CAM_REQUEUE_REQ:
-			/* if (mpt->mpt_osinfo.simqfrozen == 0) */
-			{
-				xpt_freeze_simq(sim, 1);
-			}
+			xpt_freeze_simq(sim, 1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
@@ -1090,20 +1037,14 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
-		/* XXX GJA MPT_LOCK(mpt); */
 		error = mpt_start(ccb);
-		/* XXX GJA MPT_UNLOCK(mpt); */
 		switch (error) {
 		case CAM_REQ_INPROG:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			break;
 
 		case CAM_REQUEUE_REQ:
-			/* if (mpt->mpt_osinfo.simqfrozen == 0) */
-			{
-				xpt_freeze_simq(sim, 1);
-			}
-			/* mpt->mpt_osinfo.simqfrozen |= SIMQFRZ_RESOURCE; */
+			xpt_freeze_simq(sim, 1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
 			break;
@@ -1114,21 +1055,36 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 
 		default:
-			device_printf(mpt->dev, "What's this? 0x%x at %d in file %s\n",
-			     error, __LINE__, __FILE__);
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			xpt_done(ccb);
 		}
 		break;
 
 	case XPT_ABORT:
-		/* Probably ought to impliment this but no one actualy */
-		/* uses it for anything worthwile. XXX GJA             */
+		/*
+		 * XXX: Need to implement
+		 */
 		ccb->ccb_h.status = CAM_UA_ABORT;
 		xpt_done(ccb);
 		break;
-	
+
+#ifdef	CAM_NEW_TRAN_CODE
+#define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
+#else
+#define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
+#endif
+#define	DP_DISC		0x1
+#define	DP_TQING	0x2
+#define	DP_WIDE		0x4
+
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
+		cts = &ccb->cts;
+		if (!IS_CURRENT_SETTINGS(cts)) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
+		/* XXX: need to implement */
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1136,19 +1092,136 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
 		tgt = cts->ccb_h.target_id;
-		/*
-		 * a lot of normal SCSI things don't make sense.
-		 */
-		cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
-		cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-		/*
-		 * How do you measure the width of a high
-		 * speed serial bus? Well, in bytes.
-		 *
-		 * Offset and period make no sense, though, so we set
-		 * (above) a 'base' transfer speed to be gigabit.
-		 */
-		cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+		if (mpt->is_fc) {
+#ifndef	CAM_NEW_TRAN_CODE
+			/*
+			 * a lot of normal SCSI things don't make sense.
+			 */
+			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
+			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+			/*
+			 * How do you measure the width of a high
+			 * speed serial bus? Well, in bytes.
+			 *
+			 * Offset and period make no sense, though, so we set
+			 * (above) a 'base' transfer speed to be gigabit.
+			 */
+			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+#else
+			struct ccb_trans_settings_fc *fc =
+			    &cts->xport_specific.fc;
+
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_2;
+			cts->transport = XPORT_FC;
+			cts->transport_version = 0;
+
+			fc->valid = CTS_FC_VALID_SPEED;
+			fc->bitrate = 100000;	/* XXX: Need for 2Gb/s */
+			/* XXX: need a port database for each target */
+#endif
+		} else {
+#ifdef	CAM_NEW_TRAN_CODE
+			struct ccb_trans_settings_scsi *scsi =
+			    &cts->proto_specific.scsi;
+			struct ccb_trans_settings_spi *spi =
+			    &cts->xport_specific.spi;
+#endif
+			u_int8_t dval, pval, oval;
+
+			if (IS_CURRENT_SETTINGS(cts)) {
+				dval = 0;
+				if (mpt->mpt_dev_page0[tgt].
+				    NegotiatedParameters & 
+				    MPI_SCSIDEVPAGE0_NP_WIDE)
+					dval |= DP_WIDE;
+
+				if (mpt->mpt_port_page2.DeviceSettings[tgt].
+				    DeviceFlags &
+				    MPI_SCSIPORTPAGE2_DEVICE_DISCONNECT_ENABLE)
+					dval |= DP_DISC;
+
+				if (mpt->mpt_port_page2.DeviceSettings[tgt].
+				    DeviceFlags &
+				    MPI_SCSIPORTPAGE2_DEVICE_TAG_QUEUE_ENABLE)
+					dval |= DP_TQING;
+
+				oval = (mpt->mpt_dev_page0[tgt].
+				    NegotiatedParameters >> 16);
+				pval = (mpt->mpt_dev_page0[tgt].
+				    NegotiatedParameters >>  8);
+			} else {
+				/*
+				 * XXX: Fix wrt NVRAM someday. Attempts
+				 * XXX: to read port page2 device data
+				 * XXX: just returns zero in these areas.
+				 */
+				dval = DP_WIDE|DP_DISC|DP_TQING;
+				oval = (mpt->mpt_port_page0.Capabilities >> 16);
+				pval = (mpt->mpt_port_page0.Capabilities >>  8);
+			}
+#ifndef	CAM_NEW_TRAN_CODE
+			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
+			if (dval & DP_DISC) {
+				cts->flags |= CCB_TRANS_DISC_ENB;
+			}
+			if (dval & DP_TQING) {
+				cts->flags |= CCB_TRANS_TAG_ENB;
+			}
+			if (dval & DP_WIDE) {
+				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+			} else {
+				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+			}
+			cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
+			    CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+			if (oval) {
+				cts->sync_period = pval;
+				cts->sync_offset = oval;
+				cts->valid |=
+				    CCB_TRANS_SYNC_RATE_VALID |
+				    CCB_TRANS_SYNC_OFFSET_VALID;
+			}
+#else
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_2;
+			cts->transport = XPORT_SPI;
+			cts->transport_version = 2;
+
+			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+			if (dval & DP_DISC) {
+				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+			}
+			if (dval & DP_TQING) {
+				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+			}
+			if (oval && pval) {
+				spi->sync_offset = oval;
+				spi->sync_period = pval;
+				spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+				spi->valid |= CTS_SPI_VALID_SYNC_RATE;
+			}
+			spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
+			if (dval & DP_WIDE) {
+				spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+			} else {
+				spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+			}
+			if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
+				scsi->valid = CTS_SCSI_VALID_TQ;
+				spi->valid |= CTS_SPI_VALID_DISC;
+			} else {
+				scsi->valid = 0;
+			}
+#endif
+			if (mpt->verbose > 1) {
+				device_printf(mpt->dev, 
+				    "GET %s targ %d flags %x off %x per %x\n",
+				    IS_CURRENT_SETTINGS(cts)? "ACTIVE" :
+				    "NVRAM", tgt, dval, oval, pval);
+			}
+		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1161,10 +1234,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 		ccg = &ccb->ccg;
 		if (ccg->block_size == 0) {
-			device_printf(mpt->dev, "%d.%d XPT_CALC_GEOMETRY block size 0?\n",
-				ccg->ccb_h.target_id,
-				ccg->ccb_h.target_lun);
-
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			xpt_done(ccb);
 			break;
@@ -1200,7 +1269,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
 		} else {
-			cpi->initiator_id = 7;	/* XXX */
+			cpi->initiator_id = mpt->mpt_ini_id;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			cpi->hba_misc = 0;
