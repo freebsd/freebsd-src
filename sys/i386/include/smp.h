@@ -21,7 +21,7 @@
 #if defined(SMP) && !defined(APIC_IO)
 # error APIC_IO required for SMP, add "options APIC_IO" to your config file.
 #endif /* SMP && !APIC_IO */
-#if defined(SMP) && defined(CPU_DISABLE_CMPXCHG)
+#if defined(SMP) && defined(CPU_DISABLE_CMPXCHG) && !defined(COMPILING_LINT)
 #error SMP not supported with CPU_DISABLE_CMPXCHG
 #endif
 
