@@ -1,28 +1,47 @@
-# @(#)aic7xxx.seq 1.32 94/11/29 jda
-#
+##+M#########################################################################
 # Adaptec 274x/284x/294x device driver for Linux and FreeBSD.
-# Copyright (c) 1994 The University of Calgary Department of Computer Science.
-# 
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-# 
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #
-
+# Copyright (c) 1994 John Aycock
+#   The University of Calgary Department of Computer Science.
+#   All rights reserved.
+#
+# Modifications/enhancements:
+#   Copyright (c) 1994, 1995 Justin Gibbs. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions, and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+# 3. All advertising materials mentioning features or use of this software
+#    must display the following acknowledgement:
+#      This product includes software developed by the University of Calgary
+#      Department of Computer Science and its contributors.
+# 4. Neither the name of the University nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+# 
 # FreeBSD, Twin, Wide, 2 command per target support, tagged queuing and other 
 # optimizations provided by Justin T. Gibbs (gibbs@FreeBSD.org)
 #
+##-M#########################################################################
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.12 1995/04/01 19:51:40 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.13 1995/04/09 06:40:16 gibbs Exp $"
 
 SCBMASK		= 0x1f
 
@@ -702,8 +721,8 @@ p_mesginSDTR:
 	mvi	A		call inb_next	# REQ/ACK offset
 	mvi	INTSTAT,MSG_SDTR		# call driver to convert
 
-	test	RETURN_1,0x80	jz p_mesgin_done# Do we need to mk_sdtr?
-
+	test	RETURN_1,0xc0	jz p_mesgin_done# Do we need to mk_sdtr or rej?
+	test	RETURN_1,0x40	jnz p_mesginN	# Requested SDTR too small - rej
 	or	FLAGS,ACTIVE_MSG
 	mvi	DINDEX, MSG_START+0
 	mvi     MSG_START+0     call mk_sdtr
