@@ -67,8 +67,6 @@
 #include <netinet6/ip6_var.h>
 #endif /* INET6 */
 
-#include "faith.h"
-
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
@@ -894,11 +892,9 @@ in_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard,
 #endif
 			if (inp->inp_faddr.s_addr == INADDR_ANY &&
 			    inp->inp_lport == lport) {
-#if defined(NFAITH) && NFAITH > 0
 				if (ifp && ifp->if_type == IFT_FAITH &&
 				    (inp->inp_flags & INP_FAITH) == 0)
 					continue;
-#endif
 				if (inp->inp_laddr.s_addr == laddr.s_addr)
 					return (inp);
 				else if (inp->inp_laddr.s_addr == INADDR_ANY) {

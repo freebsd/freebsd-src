@@ -58,6 +58,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_types.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
@@ -83,11 +84,6 @@
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
-#endif
-
-#include "faith.h"
-#if defined(NFAITH) && NFAITH > 0
-#include <net/if_types.h>
 #endif
 
 int rsvp_on = 0;
@@ -527,6 +523,7 @@ pass:
 	 * the packets are received.
 	 */
 	checkif = ip_checkinterface && (ipforwarding == 0) && 
+	    m->m_pkthdr.rcvif != NULL &&
 	    ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) &&
 	    (ip_fw_fwd_addr == NULL);
 
@@ -610,7 +607,6 @@ pass:
 	if (ip->ip_dst.s_addr == INADDR_ANY)
 		goto ours;
 
-#if defined(NFAITH) && 0 < NFAITH
 	/*
 	 * FAITH(Firewall Aided Internet Translator)
 	 */
@@ -622,7 +618,7 @@ pass:
 		m_freem(m);
 		return;
 	}
-#endif
+
 	/*
 	 * Not for us; forward if possible and desirable.
 	 */
