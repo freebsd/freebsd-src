@@ -46,7 +46,7 @@
  *
  */
 
-#include <isa/sioreg.h>
+#include <dev/sio/sioreg.h>
 #include <dev/ic/ns16550.h>
 #include <dev/sound/midi/midi.h>
 
