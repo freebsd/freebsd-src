@@ -450,7 +450,7 @@ lapic_set_lvt_polarity(u_int apic_id, u_int pin, enum intr_polarity pol)
 			printf("lapic%u:", apic_id);
 	}
 	if (bootverbose)
-		printf(" LINT%u polarity: active-%s\n", pin,
+		printf(" LINT%u polarity: %s\n", pin,
 		    pol == INTR_POLARITY_HIGH ? "high" : "low");
 	return (0);
 }
