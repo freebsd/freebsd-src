@@ -55,8 +55,8 @@
 #include <machine/clock.h>		/* for DELAY() */
 #endif
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcireg.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>

@@ -52,8 +52,8 @@
 #include <sys/malloc.h>
 #include <sys/fbio.h>
 
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <machine/md_var.h>
 #include <machine/vm86.h>

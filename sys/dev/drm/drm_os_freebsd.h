@@ -61,10 +61,11 @@
 #include <sys/mman.h>
 #include <sys/rman.h>
 #include <sys/memrange.h>
-#include <pci/pcivar.h>
 #if __FreeBSD_version >= 500000
+#include <dev/pci/pcivar.h>
 #include <sys/selinfo.h>
 #else
+#include <pci/pcivar.h>
 #include <sys/select.h>
 #endif
 #include <sys/bus.h>
