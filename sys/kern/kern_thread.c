@@ -129,7 +129,7 @@ typedef u_long tid_bitmap_word;
 struct tid_bitmap_part {
 	STAILQ_ENTRY(tid_bitmap_part) bmp_next;
 	tid_bitmap_word	bmp_bitmap[TID_BITMAP_SIZE];
-	int		bmp_base;
+	lwpid_t		bmp_base;
 	int		bmp_free;
 };
 
@@ -176,7 +176,8 @@ thread_dtor(void *mem, int size, void *arg)
 {
 	struct thread *td;
 	struct tid_bitmap_part *bmp;
-	int bit, idx, tid;
+	lwpid_t tid;
+	int bit, idx;
 
 	td = (struct thread *)mem;
 
@@ -537,11 +538,12 @@ thread_free(struct thread *td)
 /*
  * Assign a thread ID.
  */
-int
+lwpid_t
 thread_new_tid(void)
 {
 	struct tid_bitmap_part *bmp, *new;
-	int bit, idx, tid;
+	lwpid_t tid;
+	int bit, idx;
 
 	mtx_lock(&tid_lock);
 	STAILQ_FOREACH(bmp, &tid_bitmap, bmp_next) {
