@@ -85,7 +85,8 @@ int
 package_extract(Device *dev, char *name, Boolean depended)
 {
     char path[511];
-    int fd, ret;
+    int ret;
+    FILE *fp;
 
     /* Check to make sure it's not already there */
     if (package_exists(name))
@@ -113,8 +114,8 @@ package_extract(Device *dev, char *name, Boolean depended)
 	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     else
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    fd = dev->get(dev, path, TRUE);
-    if (fd >= 0) {
+    fp = dev->get(dev, path, TRUE);
+    if (fp) {
 	int i, tot, pfd[2];
 	pid_t pid;
 
@@ -141,7 +142,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    tot = 0;
 	    (void)gettimeofday(&start, (struct timezone *)0);
 
-	    while (!sigpipe_caught && (i = read(fd, buf, BUFSIZ)) > 0) {
+	    while (!sigpipe_caught && (i = fread(buf, 1, BUFSIZ, fp)) > 0) {
 		int seconds;
 
 		tot += i;
@@ -162,7 +163,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 		}
 	    }
 	    close(pfd[1]);
-	    dev->close(dev, fd);
+	    fclose(fp);
 	    if (sigpipe_caught)
 		msgDebug("Caught SIGPIPE while trying to install the %s package.\n", name);
 	    else
@@ -189,7 +190,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	}
     }
     else {
-	msgDebug("pkg_extract: get operation returned %d\n", fd);
+	msgDebug("pkg_extract: get returned NULL\n");
 	dialog_clear_norefresh();
 	if (variable_get(VAR_NO_CONFIRM))
 	    msgNotify("Unable to fetch package %s from selected media.\n"

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.27 1996/09/15 23:55:23 jkh Exp $
+ * $Id: main.c,v 1.32 1996/12/12 08:33:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,7 +42,7 @@
 static void
 screech(int sig)
 {
-    fprintf(stderr, "\007Fatal signal %d caught!  I'm dead..\n", sig);
+    printf("\007Fatal signal %d caught!  I'm dead..\n", sig);
     if (RunningAsInit)
 	pause();
     else
@@ -79,9 +79,13 @@ main(int argc, char **argv)
     }
 
     /* Try to preserve our scroll-back buffer */
-    if (OnVTY)
+    if (OnVTY) {
 	for (curr = 0; curr < 25; curr++)
 	    putchar('\n');
+	/* Move stderr aside */
+	if (DebugFD)
+	    dup2(DebugFD, 2);
+    }
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
@@ -112,21 +116,20 @@ main(int argc, char **argv)
     }
 
     {
-	int fd;
-	Attribs attrs[512];
+	FILE *fp;
+	Attribs *attrs;
 
-	bzero(attrs, sizeof(attrs));
-
-	fd = open("install.cfg", O_RDONLY);
-	if (fd >= 0) {
+	attrs = alloca(sizeof(Attribs) * MAX_ATTRIBS);
+	fp = fopen("install.cfg", "r");
+	if (fp) {
 	    msgNotify("Loading pre-configuration file");
-	    if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
+	    if (DITEM_STATUS(attr_parse(attrs, fp)) == DITEM_SUCCESS) {
 		int i;
 
-		for (i = 0; *attrs[i].name; i++)
+		for (i = 0; attrs[i].name; i++)
 		    variable_set2(attrs[i].name, attrs[i].value);
 	    }
-	    close(fd);
+	    fclose(fp);
 	}
 
 #if defined(LOAD_CONFIG_FILE)
@@ -143,17 +146,17 @@ main(int argc, char **argv)
 		mediaDevice->init(mediaDevice)) {
 		int fd;
 
-		fd = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
-		if (fd > 0) {
+		fp = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
+		if (fp) {
 		    msgNotify("Loading %s pre-configuration file",
 			      LOAD_CONFIG_FILE);
-		    if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
+		    if (DITEM_STATUS(attr_parse(attrs, fp)) == DITEM_SUCCESS) {
 			int i;
 
-			for (i = 0; *attrs[i].name; i++)
+			for (i = 0; attrs[i].name; i++)
 			    variable_set2(attrs[i].name, attrs[i].value);
 		    }
-		    mediaDevice->close(mediaDevice, fd);
+		    fclose(fp);
 		}
 		mediaDevice->shutdown(mediaDevice);
 	    }

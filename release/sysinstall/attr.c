@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: attr.c,v 1.8 1996/09/08 01:39:23 jkh Exp $
+ * $Id: attr.c,v 1.12 1996/12/12 08:33:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -38,36 +38,36 @@
 
 #include "sysinstall.h"
 #include <ctype.h>
-#include <fcntl.h>
 #include <sys/errno.h>
 
 int
 attr_parse_file(Attribs *attr, char *file)
 {
-    int fd, status;
+    int status;
+    FILE *fp;
 
-    if ((fd = open(file, O_RDONLY)) == -1) {
+    if ((fp = fopen(file, "r")) == NULL) {
 	msgConfirm("Cannot open the information file `%s': %s (%d)", file, strerror(errno), errno);
 	return DITEM_FAILURE;
     }
-    status = attr_parse(attr, fd);
-    close(fd);
+    status = attr_parse(attr, fp);
+    fclose(fp);
     return status;
 }
 
 int
-attr_parse(Attribs *attr, int fd)
+attr_parse(Attribs *attr, FILE *fp)
 {
     char hold_n[MAX_NAME+1];
     char hold_v[MAX_VALUE+1];
     int n, v;
     enum { LOOK, COMMENT, NAME, VALUE, COMMIT } state;
     int lno, num_attribs;
-    char ch;
+    int ch;
 
     n = v = lno = num_attribs = 0;
     state = LOOK;
-    while (state == COMMIT || (read(fd, &ch, 1) == 1)) {
+    while (state == COMMIT || (fread(&ch, 1, 1, fp) == 1)) {
 	/* Count lines */
 	if (ch == '\n')
 	    ++lno;
@@ -116,7 +116,7 @@ attr_parse(Attribs *attr, int fd)
 		continue;
 	    else if (ch == '{') {
 		/* multiline value */
-		while (read(fd, &ch, 1) == 1 && ch != '}') {
+		while (fread(&ch, 1, 1, fp) == 1 && ch != '}') {
 		    if (v == MAX_VALUE)
 			msgFatal("Value length overflow at line %d", lno);
 		    hold_v[v++] = ch;
@@ -141,18 +141,19 @@ attr_parse(Attribs *attr, int fd)
 	    SAFE_STRCPY(attr[num_attribs].value, hold_v);
 	    state = LOOK;
 	    v = n = 0;
-	    ++num_attribs;
+	    if (++num_attribs >= MAX_ATTRIBS)
+		msgFatal("Attribute limit overflow; encountered a bad attributes file!");
 	    break;
-	    
+
 	default:
 	    msgFatal("Unknown state at line %d??", lno);
 	}
     }
-    attr[num_attribs].name[0] = '\0'; /* end marker */
-    attr[num_attribs].value[0] = '\0'; /* end marker */
+    attr[num_attribs].name[0] = NULL; /* end marker */
+    attr[num_attribs].value[0] = NULL; /* end marker */
     if (isDebug())
 	msgDebug("Finished parsing %d attributes.\n", num_attribs);
-	
+
     return DITEM_SUCCESS;
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.13 1996/07/08 08:54:25 jkh Exp $
+ * $Id: dos.c,v 1.14 1996/08/23 07:55:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,57 +44,53 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <grp.h>
+#include "dosio.h"
 
-#define MSDOSFS
-#include <sys/mount.h>
-#undef MSDOSFS
-
+static DOS_FS DOSFS;
 static Boolean DOSMounted;
 
 Boolean
 mediaInitDOS(Device *dev)
 {
-    struct msdosfs_args	args;
-
     if (!RunningAsInit || DOSMounted)
 	return TRUE;
 
-    if (DITEM_STATUS(Mkdir("/dos")) != DITEM_SUCCESS)
-	return FALSE;
-
-    memset(&args, 0, sizeof(args));
-    args.fspec = dev->devname;
-    args.uid = args.gid = 0;
-    args.mask = 0777;
-
-    if (mount(MOUNT_MSDOS, "/dos", MNT_RDONLY, (caddr_t)&args) == -1) {
-	msgConfirm("Error mounting %s on /dos: %s (%u)", args.fspec, strerror(errno), errno);
+    if (dos_mount(&DOSFS, dev->devname)) {
+	msgConfirm("Error mounting DOS partition %s : %s (%u)", dev->devname, strerror(errno), errno);
 	return FALSE;
     }
-    else
-	msgDebug("Mounted DOS device (%s) on /dos.\n", args.fspec);
     DOSMounted = TRUE;
+    if (isDebug())
+	msgDebug("DOS partition %s mounted\n", dev->devname);
     return TRUE;
 }
 
-int
+FILE *
 mediaGetDOS(Device *dev, char *file, Boolean probe)
 {
-    char		buf[PATH_MAX];
+    char buf[PATH_MAX];
+    FILE *fp;
+
+    if (!DOSMounted) {
+	msgDebug("Can't get DOS file %s - DOSFS currently unmounted!\n", file);
+	return NULL;
+    }
 
     if (isDebug())
 	msgDebug("Request for %s from DOS\n", file);
-    snprintf(buf, PATH_MAX, "/dos/freebsd/%s", file);
-    if (file_readable(buf))
-	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dos/freebsd/dists/%s", file);
-    if (file_readable(buf))
-	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dos/%s", file);
-    if (file_readable(buf))
-	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/dos/dists/%s", file);
-    return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/freebsd/%s", file);
+    if ((fp = dos_open(&DOSFS, buf)))
+	return fp;
+    snprintf(buf, PATH_MAX, "/freebsd/dists/%s", file);
+    if ((fp = dos_open(&DOSFS, buf)))
+	return fp;
+    snprintf(buf, PATH_MAX, "/%s", file);
+    if ((fp = dos_open(&DOSFS, buf)))
+	return fp;
+    snprintf(buf, PATH_MAX, "/dists/%s", file);
+    if ((fp = dos_open(&DOSFS, buf)))
+	return fp;
+    return NULL;
 }
 
 void
@@ -102,11 +98,10 @@ mediaShutdownDOS(Device *dev)
 {
     if (!RunningAsInit || !DOSMounted)
 	return;
-    msgDebug("Unmounting %s from /dos\n", dev->name);
-    if (unmount("/dos", MNT_FORCE) != 0)
-	msgConfirm("Could not unmount the DOS partition: %s", strerror(errno));
-    if (isDebug())
-	msgDebug("Unmount successful\n");
+    if (dos_unmount(&DOSFS))
+	msgConfirm("Could not unmount DOS partition %s : %s", dev->devname, strerror(errno));
+    else if (isDebug())
+	msgDebug("Unmount of DOS partition on %s successful\n", dev->devname);
     DOSMounted = FALSE;
     return;
 }

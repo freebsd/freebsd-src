@@ -1,467 +1,221 @@
 /*
- * ----------------------------------------------------------------------------
- * "THE BEER-WARE LICENSE" (Revision 42):
- * <phk@login.dknet.dk> wrote this file.  As long as you retain this notice you
- * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
- * ----------------------------------------------------------------------------
+ * The new sysinstall program.
  *
- * $Id: ftp.c,v 1.17 1996/07/08 10:08:00 jkh Exp $
+ * This is probably the last attempt in the `sysinstall' line, the next
+ * generation being slated to essentially a complete rewrite.
  *
- * Return values have been sanitized:
- *	-1	error, but you (still) have a session.
- *	-2	error, your session is dead.
- * 
+ * $Id: ftp.c,v 1.19 1996/12/11 09:34:59 jkh Exp $
+ *
+ * Copyright (c) 1995
+ *	Jordan Hubbard.  All rights reserved.
+ * Copyright (c) 1995
+ * 	Gary J Palmer. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer,
+ *    verbatim and that no modifications are made prior to this
+ *    point in the file.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY JORDAN HUBBARD ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL JORDAN HUBBARD OR HIS PETS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <stdarg.h>
-#include <string.h>
-#include <signal.h>
-#include <errno.h>
-#include <ctype.h>
-#include "ftp.h"
+#include "sysinstall.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/param.h>
+#include <sys/wait.h>
+#include <netdb.h>
+#include <ftpio.h>
 
-/* Handy global for us to stick the port # */
+Boolean ftpInitted = FALSE;
+static FILE *OpenConn;
 int FtpPort;
 
-/* How to see by a given code whether or not the connection has timed out */
-#define FTP_TIMEOUT(code)	(code == 421)
-
-#ifndef STANDALONE_FTP
-#include "sysinstall.h"
-#endif /*STANDALONE_FTP*/
-
-static int sigpipe_caught = 0;
-
-static void
-catch_pipe(int sig)
+Boolean
+mediaInitFTP(Device *dev)
 {
-    sigpipe_caught = TRUE;
-}
+    int i, code;
+    char *cp, *rel, *hostname, *dir;
+    char *user, *login_name, password[80];
 
-static void
-debug(FTP_t ftp, const char *fmt, ...)
-{
-    char p[BUFSIZ];
-    va_list ap;
-    va_start(ap, fmt);
-#ifdef STANDALONE_FTP
-    strcpy(p,"LIBFTP: ");
-    (void) vsnprintf(p + strlen(p), sizeof p - strlen(p), fmt, ap);
-    va_end(ap);
-    write(ftp->fd_debug, p, strlen(p));
-#else
-    if (isDebug()) {
-	(void) vsnprintf(p, sizeof p - strlen(p), fmt, ap);
-	msgDebug(p);
-    }	
-#endif
-}
+    if (ftpInitted)
+	return TRUE;
 
-static int
-writes(int fd, char *s)
-{
-    int i = strlen(s);
-
-    signal(SIGPIPE, catch_pipe);
-    if (i != write(fd, s, i) || sigpipe_caught) {
-	if (sigpipe_caught)
-	    msgDebug("sigpipe caught during write - connection invalid\n");
-	sigpipe_caught = FALSE;
-	return IO_ERROR;
-    }
-    return 0;
-}
-
-static __inline char*
-get_a_line(FTP_t ftp)
-{
-    static char buf[BUFSIZ];
-    int i,j;
-
-    signal(SIGPIPE, catch_pipe);
-    for(i = 0; i < BUFSIZ;) {
-	j = read(ftp->fd_ctrl, buf+i, 1);
-	if (j != 1 || sigpipe_caught) {
-	    if (sigpipe_caught)
-		msgDebug("sigpipe caught during read - connection invalid\n");
-	    sigpipe_caught = FALSE;
-	    return 0;
-	}
-	if (buf[i] == '\r' || buf[i] == '\n') {
-	    if (!i)
-		continue;
-	    buf[i] = '\0';
-	    debug(ftp, "received <%s>\n", buf);
-	    return buf;
-	}
-	i++;
-    }
-    return buf;
-}
-
-static int
-get_a_number(FTP_t ftp, char **q)
-{
-    char *p;
-    int i = -1,j;
-
-    while(1) {
-	p = get_a_line(ftp);
-	if (!p)
-	    return IO_ERROR;
-	if (!(isdigit(p[0]) && isdigit(p[1]) && isdigit(p[2])))
-	    continue;
-	if (i == -1 && p[3] == '-') {
-	    i = strtol(p, 0, 0);
-	    continue;
-	}
-	if (p[3] != ' ' && p[3] != '\t')
-	    continue;
-	j = strtol(p, 0, 0);
-	if (i == -1) {
-	    if (q) *q = p+4;
-	    return j;
-	} else if (j == i) {
-	    if (q) *q = p+4;
-	    return j;
-	}
-    }
-}
-
-static int
-zap(FTP_t ftp)
-{
-    int i;
-
-    i = writes(ftp->fd_ctrl,"QUIT\r\n");
     if (isDebug())
-	msgDebug("Zapping ftp connection on %d returns %d\n", ftp->fd_ctrl, i);
-    close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
-    close(ftp->fd_xfer); ftp->fd_xfer = -1;
-    ftp->state = init;
-    return IO_ERROR;
-}
+	msgDebug("Init routine for FTP called.\n");
 
-static int
-botch(FTP_t ftp, char *func, char *state)
-{
-    debug(ftp, "Botch: %s called outside state %s\n",func,state);
-    return IO_ERROR;
-}
-
-static int
-cmd(FTP_t ftp, const char *fmt, ...)
-{
-    char p[BUFSIZ];
-    int i;
-
-    va_list ap;
-    va_start(ap, fmt);
-    (void) vsnprintf(p, sizeof p, fmt, ap);
-    va_end(ap);
-
-    debug(ftp, "send <%s>\n", p);
-    strcat(p,"\r\n");
-    if (writes(ftp->fd_ctrl, p))
-	return IO_ERROR;
-    i = get_a_number(ftp, 0);
-    return i;
-}
-
-FTP_t
-FtpInit()
-{
-    FTP_t ftp;
-
-    ftp = malloc(sizeof *ftp);
-    if (!ftp)
-	return ftp;
-    memset(ftp, 0, sizeof *ftp);
-    ftp->fd_ctrl = -1;
-    ftp->fd_xfer = -1;
-    ftp->fd_debug = -1;
-    ftp->state = init;
-    return ftp;
-}
-
-#ifdef STANDALONE_FTP
-void
-FtpDebug(FTP_t ftp, int i)
-{
-    ftp->fd_debug = i;
-}
-#endif
-
-int
-FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
-{
-    struct hostent	*he = NULL;
-    struct sockaddr_in 	sin;
-    int 		s;
-    unsigned long 	temp;
-    int			i;
-
-    if (ftp->state != init)
-	return botch(ftp,"FtpOpen","init");
-
-    if (!user)
-	user = "ftp";
-
-    if (!passwd)
-	passwd = "??@??(FreeBSD:libftp)";	/* XXX */
-
-    debug(ftp, "FtpOpen(ftp, %s, %s, %s)\n", host, user, passwd);
-
-    temp = inet_addr(host);
-    if (temp != INADDR_NONE) {
-	debug(ftp, "Using dotted IP address `%s'\n", host);
-	ftp->addrtype = sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = temp;
+    if (OpenConn) {
+	fclose(OpenConn);
+	OpenConn = NULL;
     }
-    else {
-	debug(ftp, "Trying to resolve `%s'\n", host);
-	he = gethostbyname(host);
-	if (!he) {
-	    debug(ftp, "Lookup of `%s' failed!\n", host);
-	    return zap(ftp);
+
+try:
+    cp = variable_get(VAR_FTP_PATH);
+    if (!cp) {
+	if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE || (cp = variable_get(VAR_FTP_PATH)) == NULL)
+	return FALSE;
+    }
+
+    hostname = variable_get(VAR_FTP_HOST);
+    dir = variable_get(VAR_FTP_DIR);
+    if (!hostname || !dir)
+	msgFatal("Missing FTP host or directory specification - something's wrong!");
+
+    user = variable_get(VAR_FTP_USER);
+    if (!user || !*user)
+	login_name = "anonymous";
+    else
+	login_name = user;
+    if (variable_get(VAR_FTP_PASS))
+	SAFE_STRCPY(password, variable_get(VAR_FTP_PASS));
+    else
+	sprintf(password, "installer@%s", variable_get(VAR_HOSTNAME));
+    msgNotify("Logging in to %s@%s..", login_name, hostname);
+    if ((OpenConn = ftpLogin(hostname, login_name, password, FtpPort, isDebug(), &code)) == NULL) {
+	if (variable_get(VAR_NO_CONFIRM))
+	    msgNotify("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
+	else
+	    msgConfirm("Couldn't open FTP connection to %s, errcode = %d", hostname, code);
+	goto punt;
+    }
+
+    ftpPassive(OpenConn, !strcmp(variable_get(VAR_FTP_STATE), "passive"));
+    ftpBinary(OpenConn);
+    if (dir && *dir != '\0') {
+	if ((i = ftpChdir(OpenConn, dir)) != 0) {
+	    msgDebug("Attempt to chdir to distribution in %s returns error code %d\n", dir, i);
+	    goto punt;
 	}
-	ftp->addrtype = sin.sin_family = he->h_addrtype;
-	bcopy(he->h_addr, (char *)&sin.sin_addr, he->h_length);
     }
 
-    sin.sin_port = htons(FtpPort ? FtpPort : 21);
+    /* Give it a shot - can't hurt to try and zoom in if we can, unless the release is set to
+       __RELEASE or "none" which signifies that it's not set */
+    rel = variable_get(VAR_RELNAME);
+    if (strcmp(rel, "__RELEASE") && strcmp(rel, "none"))
+	i = ftpChdir(OpenConn, rel);
+    else
+	i = 0;
+    if (i) {
+	if (!msgYesNo("Warning:  Can't CD to `%s' distribution on this\n"
+		      "FTP server.  You may need to visit a different server for\n"
+		      "the release you're trying to fetch or go to the Options\n"
+		      "menu and to set the release name to explicitly match what's\n"
+		      "available on %s (or set to \"none\").\n\n"
+		      "Would you like to select another FTP server?",
+		      rel, hostname)) {
+	    variable_unset(VAR_FTP_PATH);
+	    if (DITEM_STATUS(mediaSetFTP(NULL)) == DITEM_FAILURE)
+		goto punt;
+	    else
+		goto try;
+	}
+	else
+	    goto punt;
+    }
+    if (isDebug())
+	msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
+    ftpInitted = TRUE;
+    return TRUE;
 
-    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
-    {
-	debug(ftp, "Socket open failed: %s (%i)\n", strerror(errno), errno);
-	return zap(ftp);
+punt:
+    if (OpenConn != NULL) {
+	fclose(OpenConn);
+	OpenConn = NULL;
+    }
+    variable_unset(VAR_FTP_PATH);
+    return FALSE;
+}
+
+FILE *
+mediaGetFTP(Device *dev, char *file, Boolean probe)
+{
+    int nretries = 1;
+    FILE *fp;
+    char *try, buf[PATH_MAX];
+
+    if (!OpenConn) {
+	msgDebug("No FTP connection open, can't get file %s\n", file);
+	return NULL;
     }
 
-    if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-	debug(ftp,"Connection failed: %s (%i)\n", strerror(errno), errno);
-	(void)close(s);
-	return zap(ftp);
+    try = file;
+    while ((fp = ftpGet(OpenConn, try, 0)) == NULL) {
+	/* If a hard fail, try to "bounce" the ftp server to clear it */
+	if (ftpErrno(OpenConn) != 550) {
+	    char *cp = variable_get(VAR_FTP_PATH);
+
+	    dev->shutdown(dev);
+	    variable_unset(VAR_FTP_PATH);
+	    /* If we can't re-initialize, just forget it */
+	    if (!dev->init(dev)) {
+		fclose(OpenConn);
+		OpenConn = NULL;
+		return NULL;
+	    }
+	    else
+		variable_set2(VAR_FTP_PATH, cp);
+	}
+	else if (probe)
+	    return NULL;
+	else {
+	    /* Try some alternatives */
+	    switch (nretries++) {
+	    case 1:
+		sprintf(buf, "dists/%s", file);
+		try = buf;
+		break;
+
+	    case 2:
+		sprintf(buf, "%s/%s", variable_get(VAR_RELNAME), file);
+		try = buf;
+		break;
+
+	    case 3:
+		sprintf(buf, "%s/dists/%s", variable_get(VAR_RELNAME), file);
+		try = buf;
+		break;
+
+	    case 4:
+		try = file;
+		break;
+	    }
+	}
     }
-
-    ftp->fd_ctrl = s;
-
-    debug(ftp, "open (%d)\n",get_a_number(ftp,0));
-
-    i = cmd(ftp, "USER %s", user);
-    if (i >= 300 && i < 400)
-	i = cmd(ftp,"PASS %s",passwd);
-    if (i >= 299 || i < 0) {
-	close(ftp->fd_ctrl);
-	ftp->fd_ctrl = -1;
-	return zap(ftp);
-    }
-    ftp->state = isopen;
-    return 0;
+    return fp;
 }
 
 void
-FtpClose(FTP_t ftp)
+mediaShutdownFTP(Device *dev)
 {
-    if (ftp->state != init)
+    /* Device *netdev = (Device *)dev->private; */
+
+    if (!ftpInitted)
 	return;
 
-    if (ftp->state != isopen)
-	botch(ftp,"FtpClose","open or init");
-
-    debug(ftp, "FtpClose(ftp)\n");
-    zap(ftp);
-}
-
-int
-FtpChdir(FTP_t ftp, char *dir)
-{
-    int i;
-
-    if (ftp->state != isopen)
-	return botch(ftp,"FtpChdir","open");
-    i = cmd(ftp, "CWD %s", dir);
-    if (i < 0)
-	return i;
-    else if (i != 250)
-	return -1;
-    return 0;
-}
-
-int
-FtpGet(FTP_t ftp, char *file)
-{
-    int i,s;
-    char *q;
-    unsigned char addr[64];
-    struct sockaddr_in sin;
-    u_long a;
-
-    debug(ftp, "FtpGet(ftp,%s)\n", file);
-    if (ftp->state != isopen)
-	return botch(ftp, "FtpGet", "open");
-    if (ftp->binary) {
-	i = cmd(ftp, "TYPE I");
-	if (i < 0 || FTP_TIMEOUT(i))
-	    return zap(ftp);
-	if (i > 299)
-	    return -1;
+    if (isDebug())
+	msgDebug("FTP shutdown called.  OpenConn = %x\n", OpenConn);
+    if (OpenConn != NULL) {
+	fclose(OpenConn);
+	OpenConn = NULL;
     }
-    else
-	return -1;
-
-    if ((s = socket(ftp->addrtype, SOCK_STREAM, 0)) < 0)
-	return zap(ftp);
-
-    if (ftp->passive) {
-	debug(ftp, "send <%s>\n", "PASV");
-	if (writes(ftp->fd_ctrl, "PASV\r\n"))
-	    return zap(ftp);
-	i = get_a_number(ftp, &q);
-	if (i < 0)
-	    return zap(ftp);
-	if (i != 227)
-	    return zap(ftp);
-	while (*q && !isdigit(*q))
-	    q++;
-	if (!*q)
-	    return zap(ftp);
-	q--;
-	for(i = 0; i < 6; i++) {
-	    q++;
-	    addr[i] = strtol(q, &q, 10);
-	}
-
-	sin.sin_family = ftp->addrtype;
-	bcopy(addr, (char *)&sin.sin_addr, 4);
-	bcopy(addr + 4, (char *)&sin.sin_port, 2);
-	debug(ftp, "Opening active socket to %s : %u\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
-
-	debug(ftp, "Connecting to %s:%u\n", inet_ntoa(sin.sin_addr), htons(sin.sin_port));
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-	    (void)close(s);
-	    debug(ftp, "connect: %s (%d)\n", strerror(errno), errno);
-	    return -1;
-	}
-	ftp->fd_xfer = s;
-	i = cmd(ftp,"RETR %s", file);
-	if (i < 0 || FTP_TIMEOUT(i))  {
-	    close(s);
-	    return zap(ftp);
-	}
-	else if (i > 299) {
-	    if (isDebug())
-		msgDebug("FTP: No such file %s, moving on.\n", file);
-	    close(s);
-	    return -1;
-	}
-	ftp->state = xfer;
-	return s;
-    } else {
-	i = sizeof sin;
-	getsockname(ftp->fd_ctrl, (struct sockaddr *)&sin, &i);
-	sin.sin_port = 0;
-	i = sizeof sin;
-	if (bind(s,(struct sockaddr *)&sin, i) < 0) {
-	    close (s);	
-	    debug(ftp, "bind failed %d\n", errno);
-	    return zap(ftp);
-	}
-	getsockname(s, (struct sockaddr *)&sin, &i);
-	if (listen(s, 1) < 0) {
-	    close (s);
-	    debug(ftp, "listen failed %d\n", errno);
-	    return zap(ftp);
-	}
-	a = ntohl(sin.sin_addr.s_addr);
-	i = cmd(ftp, "PORT %d,%d,%d,%d,%d,%d",
-		(a                   >> 24) & 0xff,
-		(a                   >> 16) & 0xff,
-		(a                   >>  8) & 0xff,
-		a                          & 0xff,
-		(ntohs(sin.sin_port) >>  8) & 0xff,
-		ntohs(sin.sin_port)        & 0xff);
-	if (i != 200)
-	    return -1;
-	i = cmd(ftp,"RETR %s", file);
-	if (i < 0) {
-	    close(s);
-	    return zap(ftp);
-	}
-	else if (i > 299 || FTP_TIMEOUT(i)) {
-	    if (isDebug())
-		msgDebug("FTP: No such file %s, moving on.\n", file);
-	    close(s);
-	    if (FTP_TIMEOUT(i))
-		return zap(ftp);
-	    else
-		return -1;
-        }
-	ftp->fd_xfer = accept(s, 0, 0);
-	if (ftp->fd_xfer < 0) {
-	    close(s);
-	    return zap(ftp);
-	}
-	ftp->state = xfer;
-	close(s);
-	return(ftp->fd_xfer);
-    }
+    /* (*netdev->shutdown)(netdev); */
+    ftpInitted = FALSE;
 }
-
-int
-FtpEOF(FTP_t ftp)
-{
-    int i;
-
-    if (ftp->state != xfer)
-	return botch(ftp, "FtpEOF", "xfer");
-    debug(ftp, "FtpEOF(ftp)\n");
-    close(ftp->fd_xfer);
-    ftp->fd_xfer = -1;
-    ftp->state = isopen;
-    i = get_a_number(ftp,0);
-    if (i < 0)
-	return zap(ftp);
-    else if (i != 250 && i != 226)
-	return -1;
-    else
-	return 0;
-}
-
-#ifdef STANDALONE_FTP
-
-/* main.c */
-int
-main(int argc, char **argv)
-{
-    FTP_t ftp;
-    int i;
-    char c;
-
-    ftp = FtpInit();
-    if (!ftp)
-	err(1, "FtpInit()");
-
-    FtpDebug(ftp, 1);
-    i = FtpOpen(ftp, "freefall.cdrom.com", "ftp", "phk-libftp@");
-    FtpBinary(ftp, 1);
-    FtpPassive(ftp, 0);
-    FtpChdir(ftp, "/pub");
-    FtpChdir(ftp, "FreeBSD");
-    i = FtpGet(ftp, "README");
-    while (1 == read(i, &c, 1))
-	putchar(c);
-    FtpEOF(ftp);
-    return 0;
-}
-
-#endif /*STANDALONE_FTP*/

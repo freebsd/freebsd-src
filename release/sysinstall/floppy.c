@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.15 1996/09/15 23:55:22 jkh Exp $
+ * $Id: floppy.c,v 1.16 1996/10/09 09:53:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -152,34 +152,34 @@ mediaInitFloppy(Device *dev)
     return TRUE;
 }
 
-int
+FILE *
 mediaGetFloppy(Device *dev, char *file, Boolean probe)
 {
-    char		buf[PATH_MAX];
-    int			fd;
-    int			nretries = 5;
+    char	buf[PATH_MAX];
+    FILE	*fp;
+    int		nretries = 5;
 
     snprintf(buf, PATH_MAX, "/dist/%s", file);
 
     msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
     if (!file_readable(buf)) {
 	if (probe)
-	    return -1;
+	    return NULL;
 	else {
 	    while (!file_readable(buf)) {
 		if (!--nretries) {
 		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", buf);
-		    return -1;
+		    return NULL;
 		}
 		distWanted = buf;
 		mediaShutdownFloppy(dev);
 		if (!mediaInitFloppy(dev))
-		    return -1;
+		    return NULL;
 	    }
 	}
     }
-    fd = open(buf, O_RDONLY);
-    return fd;
+    fp = fopen(buf, "r");
+    return fp;
 }
 
 void

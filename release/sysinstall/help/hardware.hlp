@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.1 1996/11/13 11:49:40 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.2 1996/11/29 19:48:56 phk Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -229,45 +229,6 @@ The allowable values for a given field are show in the Key Help area
 when the field is active.
 
 To finish configuring a driver, press 'Q'.
-
-
-Sample UserConfig session  
--------------------------
-
-Here is a walkthrough of a sample use of UserConfig.  The system in
-question has an IDE disk, two serial ports, a single printer port, a
-floppy drive and an NE2000 ethernet card set to I/O address 0x340 and
-IRQ 10.
-
-- At the 'config>' prompt, type 'v' and press Enter to activate
-  'visual' mode.
-
-- The fullscreen mode comes up, with the highlight bar in the Active Drivers
-  area over the 'Storage' group, which is Collapsed.  Press Enter to 
-  Expand the group.
-
-- Disable all of the drivers listed in this group except for the 
-  "Floppy disk controller" and "IDE/ESDI/MFM disk controller" by 
-  highlighting each in turn and pressing Del.
-
-- Move to the 'Network' group, Expand it, and disable all of the drivers
-  except for 'ed0', the first of the 
-  "NE1000,NE2000,3C503,WD/SMC80xx Ethernet adapters".
-
-- Move to the 'Communications' group, Expand it and disable the 'lpt1' and
-  'lpt2' drivers.
-
-- Disable the 'mse0' driver in the 'Input' group.
-
-- Go back to the 'Network' group, highlight the 'ed0' driver, and press
-  Enter to configure it.
-
-- Change the 'Port address' and 'IRQ number' fields to match the 
-  configuration of the card, ie. 0x340 and 10 respectively.
-
-- Press 'Q' to finish configuring the device, and then 'Q' again to
-  leave UserConfig.  Answer 'yes' to save the changes and continue to boot
-  using the new configuration.
 
 
 3.      LINT - other possible configurations
