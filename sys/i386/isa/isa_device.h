@@ -85,7 +85,7 @@ struct isa_driver {
 					/* test whether device is present */
 	int	(*attach)(struct isa_device *idp);
 					/* setup driver for a device */
-	char	*name;			/* device name */
+	const char *name;		/* device name */
 	int	sensitive_hw;		/* true if other probes confuse us */
 };
 
