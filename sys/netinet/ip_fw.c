@@ -1069,8 +1069,7 @@ ip_fw_chk(struct ip_fw_args *args)
 	struct ip *ip = mtod(*m, struct ip *);
 	struct ifnet *const rif = (*m)->m_pkthdr.rcvif;
 	struct ifnet *tif;
-	u_int hlen = ip->ip_hl << 2;
-	struct ether_header * eh = NULL;
+	u_int hlen = 0;
 
 	u_short ip_off=0, offset = 0;
 	/* local copy of addresses for faster matching */
@@ -1087,10 +1086,11 @@ ip_fw_chk(struct ip_fw_args *args)
 	/* Special hack for bridging (as usual) */
 #define BRIDGED		(args->eh != NULL)
 	if (BRIDGED) {	/* this is a bridged packet */
-		eh = args->eh;
 		if ( (*m)->m_pkthdr.len >= sizeof(struct ip) &&
-			    ntohs(eh->ether_type) == ETHERTYPE_IP)
+			    ntohs(args->eh->ether_type) == ETHERTYPE_IP)
 			hlen = ip->ip_hl << 2;
+		else
+			return 0; /* XXX ipfw1 always accepts non-ip pkts */
 	} else
 		hlen = ip->ip_hl << 2;
 
