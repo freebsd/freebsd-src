@@ -44,32 +44,100 @@
  *    sole CPU as 0.
  */
 
+#include "opt_ddb.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/linker_set.h>
+#include <sys/lock.h>
 #include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <ddb/ddb.h>
 
-static struct globaldata *cpuid_to_globaldata[MAXCPU];
+static struct pcpu *cpuid_to_pcpu[MAXCPU];
 struct cpuhead cpuhead = SLIST_HEAD_INITIALIZER(cpuhead);
 
 /*
- * Register a struct globaldata.
+ * Initialize the MI portions of a struct pcpu.
  */
 void
-globaldata_register(struct globaldata *globaldata)
+pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
 
-	KASSERT(globaldata->gd_cpuid >= 0 && globaldata->gd_cpuid < MAXCPU,
-	    ("globaldata_register: invalid cpuid"));
-	cpuid_to_globaldata[globaldata->gd_cpuid] = globaldata;
-	SLIST_INSERT_HEAD(&cpuhead, globaldata, gd_allcpu);
+	bzero(pcpu, size);
+	KASSERT(cpuid >= 0 && cpuid < MAXCPU,
+	    ("pcpu_init: invalid cpuid %d", cpuid));
+	pcpu->pc_cpuid = cpuid;
+	cpuid_to_pcpu[cpuid] = pcpu;
+	SLIST_INSERT_HEAD(&cpuhead, pcpu, pc_allcpu);
+	cpu_pcpu_init(pcpu, cpuid, size);
 }
 
 /*
- * Locate a struct globaldata by cpu id.
+ * Destroy a struct pcpu.
  */
-struct globaldata *
-globaldata_find(u_int cpuid)
+void
+pcpu_destroy(struct pcpu *pcpu)
 {
 
-	return (cpuid_to_globaldata[cpuid]);
+	SLIST_REMOVE(&cpuhead, pcpu, pcpu, pc_allcpu);
+	cpuid_to_pcpu[pcpu->pc_cpuid] = NULL;
 }
+
+/*
+ * Locate a struct pcpu by cpu id.
+ */
+struct pcpu *
+pcpu_find(u_int cpuid)
+{
+
+	return (cpuid_to_pcpu[cpuid]);
+}
+
+#ifdef DDB
+DB_SHOW_COMMAND(pcpu, db_show_pcpu)
+{
+	struct pcpu *pc;
+	struct thread *td;
+	int id;
+
+	if (have_addr)
+		id = ((addr >> 4) % 16) * 10 + (addr % 16);
+	else
+		id = PCPU_GET(cpuid);
+	pc = pcpu_find(id);
+	if (pc == NULL) {
+		db_printf("CPU %d not found\n", id);
+		return;
+	}
+	db_printf("cpuid        = %d\n", pc->pc_cpuid);
+	db_printf("curthread    = ");
+	td = pc->pc_curthread;
+	if (td != NULL)
+		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
+		    td->td_proc->p_comm);
+	else
+		db_printf("none\n");
+	db_printf("curpcb       = %p\n", pc->pc_curpcb);
+	db_printf("fpcurthread  = ");
+	td = pc->pc_fpcurthread;
+	if (td != NULL)
+		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
+		    td->td_proc->p_comm);
+	else
+		db_printf("none\n");
+	db_printf("idlethread   = ");
+	td = pc->pc_idlethread;
+	if (td != NULL)
+		db_printf("%p: pid %d \"%s\"\n", td, td->td_proc->p_pid,
+		    td->td_proc->p_comm);
+	else
+		db_printf("none\n");
+	db_show_mdpcpu(pc);
+		
+#ifdef WITNESS
+	db_printf("spin locks held:\n");
+	witness_list_locks(&pc->pc_spinlocks);
+#endif
+}
+#endif

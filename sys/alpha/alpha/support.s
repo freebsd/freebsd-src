@@ -72,7 +72,7 @@
 	beq	t1, fusufault
 
 	lda	t0, fusufault		/* trap faults */
-	ldq	t2, GD_CURTHREAD(globalp)
+	ldq	t2, PC_CURTHREAD(pcpup)
 	ldq	t2, TD_PCB(t2)
 	stq	t0, PCB_ONFAULT(t2)
 
@@ -92,7 +92,7 @@
 	beq	t1, fusufault
 
 	lda	t0, fusufault		/* trap faults */
-	ldq	t2, GD_CURTHREAD(globalp)
+	ldq	t2, PC_CURTHREAD(pcpup)
 	ldq	t2, TD_PCB(t2)
 	stq	t0, PCB_ONFAULT(t2)
 
@@ -117,7 +117,7 @@
 	beq	t1, fusufault
 
 	lda	t0, fusufault		/* trap faults */
-	ldq	t2, GD_CURTHREAD(globalp)
+	ldq	t2, PC_CURTHREAD(pcpup)
 	ldq	t2, TD_PCB(t2)
 	stq	t0, PCB_ONFAULT(t2)
 
@@ -136,7 +136,7 @@
 	beq	t1, fusufault
 
 	lda	t0, fusufault		/* trap faults */
-	ldq	t2, GD_CURTHREAD(globalp)
+	ldq	t2, PC_CURTHREAD(pcpup)
 	ldq	t2, TD_PCB(t2)
 	stq	t0, PCB_ONFAULT(t2)
 
@@ -154,7 +154,7 @@
 	END(suibyte)
 
 	LEAF(fusufault, 0)
-	ldq	t0, GD_CURTHREAD(globalp)
+	ldq	t0, PC_CURTHREAD(pcpup)
 	ldq	t0, TD_PCB(t0)
 	stq	zero, PCB_ONFAULT(t0)
 	ldiq	v0, -1
@@ -222,13 +222,13 @@ NESTED(copyinstr, 4, 16, ra, 0, 0)
 	beq	t1, copyerr			/* if it's not, error out.   */
 	lda	v0, copyerr			/* set up fault handler.     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)
+	ldq	at_reg, PC_CURTHREAD(pcpup)
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	v0, PCB_ONFAULT(at_reg)
 	.set at
 	CALL(copystr)				/* do the copy.		     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)	/* kill the fault handler.   */
+	ldq	at_reg, PC_CURTHREAD(pcpup)	/* kill the fault handler.   */
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	zero, PCB_ONFAULT(at_reg)
 	.set at
@@ -246,13 +246,13 @@ NESTED(copyoutstr, 4, 16, ra, 0, 0)
 	beq	t1, copyerr			/* if it's not, error out.   */
 	lda	v0, copyerr			/* set up fault handler.     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)
+	ldq	at_reg, PC_CURTHREAD(pcpup)
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	v0, PCB_ONFAULT(at_reg)
 	.set at
 	CALL(copystr)				/* do the copy.		     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)	/* kill the fault handler.   */
+	ldq	at_reg, PC_CURTHREAD(pcpup)	/* kill the fault handler.   */
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	zero, PCB_ONFAULT(at_reg)
 	.set at
@@ -514,13 +514,13 @@ NESTED(copyin, 3, 16, ra, 0, 0)
 	beq	t1, copyerr			/* if it's not, error out.   */
 	lda	v0, copyerr			/* set up fault handler.     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)
+	ldq	at_reg, PC_CURTHREAD(pcpup)
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	v0, PCB_ONFAULT(at_reg)
 	.set at
 	CALL(bcopy)				/* do the copy.		     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)	/* kill the fault handler.   */
+	ldq	at_reg, PC_CURTHREAD(pcpup)	/* kill the fault handler.   */
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	zero, PCB_ONFAULT(at_reg)
 	.set at
@@ -539,13 +539,13 @@ NESTED(copyout, 3, 16, ra, 0, 0)
 	beq	t1, copyerr			/* if it's not, error out.   */
 	lda	v0, copyerr			/* set up fault handler.     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)
+	ldq	at_reg, PC_CURTHREAD(pcpup)
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	v0, PCB_ONFAULT(at_reg)
 	.set at
 	CALL(bcopy)				/* do the copy.		     */
 	.set noat
-	ldq	at_reg, GD_CURTHREAD(globalp)	/* kill the fault handler.   */
+	ldq	at_reg, PC_CURTHREAD(pcpup)	/* kill the fault handler.   */
 	ldq	at_reg, TD_PCB(at_reg)
 	stq	zero, PCB_ONFAULT(at_reg)
 	.set at
@@ -556,7 +556,7 @@ NESTED(copyout, 3, 16, ra, 0, 0)
 	END(copyout)
 
 LEAF(copyerr, 0)
-	ldq	t0, GD_CURTHREAD(globalp)
+	ldq	t0, PC_CURTHREAD(pcpup)
 	ldq	t0, TD_PCB(t0)
 	stq	zero, PCB_ONFAULT(t0)		/* reset fault handler.	     */
 	ldq	ra, (16-8)(sp)			/* restore ra.		     */

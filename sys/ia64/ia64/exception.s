@@ -34,7 +34,7 @@
  * ar.k7 = curthread
  * ar.k6 = ksp
  * ar.k5 = kbsp
- * ar.k4 = globalp
+ * ar.k4 = pcpup
  */
 
 /*

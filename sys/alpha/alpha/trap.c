@@ -272,7 +272,7 @@ trap(a0, a1, a2, entry, framep)
 #ifdef SMP
 	s = critical_enter();
 #endif
-	globalp = (struct globaldata *) alpha_pal_rdval();
+	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
 	td->td_md.md_kernnest++;
@@ -674,7 +674,7 @@ syscall(code, framep)
 #ifdef SMP
 	s = critical_enter();
 #endif
-	globalp = (struct globaldata *) alpha_pal_rdval();
+	pcpup = (struct pcpu *) alpha_pal_rdval();
 	td = curthread;
 #ifdef SMP
 	td->td_md.md_kernnest++;

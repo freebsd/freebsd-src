@@ -103,6 +103,11 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	db_nofault = NULL;
 }
 
+void
+db_show_mdpcpu(struct pcpu *pc)
+{
+}
+
 DB_COMMAND(reboot, db_reboot)
 {
 	cpu_reset();

@@ -237,7 +237,7 @@ npx_intr(dummy)
 #endif
 
 	/*
-	 * npxthread is normally non-null here.  In that case, schedule an
+	 * fpcurthread is normally non-null here.  In that case, schedule an
 	 * AST to finish the exception handling in the correct context
 	 * (this interrupt may occur after the thread has entered the
 	 * kernel via a syscall or an interrupt).  Otherwise, the npx
@@ -248,7 +248,7 @@ npx_intr(dummy)
 	 * that caused it and it will repeat.  We will eventually (usually
 	 * soon) win the race to handle the interrupt properly.
 	 */
-	td = PCPU_GET(npxthread);
+	td = PCPU_GET(fpcurthread);
 	if (td != NULL) {
 		td->td_pcb->pcb_flags |= PCB_NPXTRAP;
 		mtx_lock_spin(&sched_lock);
@@ -513,7 +513,7 @@ npxinit(control)
 	/*
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
-	 * the fpu and sets npxthread = NULL as important side effects.
+	 * the fpu and sets fpcurthread = NULL as important side effects.
 	 */
 	savecrit = critical_enter();
 	npxsave(&dummy);
@@ -540,7 +540,7 @@ npxexit(td)
 	critical_t savecrit;
 
 	savecrit = critical_enter();
-	if (td == PCPU_GET(npxthread))
+	if (td == PCPU_GET(fpcurthread))
 		npxsave(&PCPU_GET(curpcb)->pcb_save);
 	critical_exit(savecrit);
 #ifdef NPX_DEBUG
@@ -758,8 +758,8 @@ npxtrap()
 	u_long *exstat;
 
 	if (!npx_exists) {
-		printf("npxtrap: npxthread = %p, curthread = %p, npx_exists = %d\n",
-		       PCPU_GET(npxthread), curthread, npx_exists);
+		printf("npxtrap: fpcurthread = %p, curthread = %p, npx_exists = %d\n",
+		       PCPU_GET(fpcurthread), curthread, npx_exists);
 		panic("npxtrap from nowhere");
 	}
 	savecrit = critical_enter();
@@ -769,7 +769,7 @@ npxtrap()
 	 * state to memory.  Fetch the relevant parts of the state from
 	 * wherever they are.
 	 */
-	if (PCPU_GET(npxthread) != curthread) {
+	if (PCPU_GET(fpcurthread) != curthread) {
 		control = GET_FPU_CW(curthread);
 		status = GET_FPU_SW(curthread);
 	} else {
@@ -779,7 +779,7 @@ npxtrap()
 
 	exstat = GET_FPU_EXSW_PTR(curthread->td_pcb);
 	*exstat = status;
-	if (PCPU_GET(npxthread) != curthread)
+	if (PCPU_GET(fpcurthread) != curthread)
 		GET_FPU_SW(curthread) &= ~0x80bf;
 	else
 		fnclex();
@@ -790,7 +790,7 @@ npxtrap()
 /*
  * Implement device not available (DNA) exception
  *
- * It would be better to switch FP context here (if curthread != npxthread)
+ * It would be better to switch FP context here (if curthread != fpcurthread)
  * and not necessarily for every context switch, but it is too hard to
  * access foreign pcb's.
  */
@@ -802,9 +802,9 @@ npxdna()
 
 	if (!npx_exists)
 		return (0);
-	if (PCPU_GET(npxthread) != NULL) {
-		printf("npxdna: npxthread = %p, curthread = %p\n",
-		       PCPU_GET(npxthread), curthread);
+	if (PCPU_GET(fpcurthread) != NULL) {
+		printf("npxdna: fpcurthread = %p, curthread = %p\n",
+		       PCPU_GET(fpcurthread), curthread);
 		panic("npxdna");
 	}
 	s = critical_enter();
@@ -812,7 +812,7 @@ npxdna()
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
-	PCPU_SET(npxthread, curthread);
+	PCPU_SET(fpcurthread, curthread);
 
 	exstat = GET_FPU_EXSW_PTR(PCPU_GET(curpcb));
 	*exstat = 0;
@@ -844,13 +844,13 @@ npxdna()
  * after the process has entered the kernel.  It may even be delivered after
  * the fnsave here completes.  A spurious IRQ13 for the fnsave is handled in
  * the same way as a very-late-arriving non-spurious IRQ13 from user mode:
- * it is normally ignored at first because we set npxthread to NULL; it is
+ * it is normally ignored at first because we set fpcurthread to NULL; it is
  * normally retriggered in npxdna() after return to user mode.
  *
  * npxsave() must be called with interrupts disabled, so that it clears
- * npxthread atomically with saving the state.  We require callers to do the
+ * fpcurthread atomically with saving the state.  We require callers to do the
  * disabling, since most callers need to disable interrupts anyway to call
- * npxsave() atomically with checking npxthread.
+ * npxsave() atomically with checking fpcurthread.
  *
  * A previous version of npxsave() went to great lengths to excecute fnsave
  * with interrupts enabled in case executing it froze the CPU.  This case
@@ -866,7 +866,7 @@ npxsave(addr)
 	fpusave(addr);
 
 	start_emulating();
-	PCPU_SET(npxthread, NULL);
+	PCPU_SET(fpcurthread, NULL);
 }
 
 static void

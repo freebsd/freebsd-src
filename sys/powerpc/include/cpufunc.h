@@ -141,10 +141,10 @@ powerpc_mb(void)
 	__asm __volatile("eieio; sync" : : : "memory");
 }
 
-static __inline struct globaldata *
-powerpc_get_globalp(void)
+static __inline struct pcpu *
+powerpc_get_pcpup(void)
 {
-	struct globaldata	*ret;
+	struct pcpu	*ret;
 
 	__asm ("mfsprg %0, 0" : "=r"(ret));
 

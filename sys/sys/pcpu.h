@@ -34,16 +34,59 @@
 #define _SYS_PCPU_H_
 
 #ifdef _KERNEL
-#include <machine/globaldata.h>
+#include <sys/queue.h>
+#include <machine/pcpu.h>
 
 #ifndef LOCORE
 
-SLIST_HEAD(cpuhead, globaldata);
+struct pcb;
+struct thread;
+
+/*
+ * This structure maps out the global data that needs to be kept on a
+ * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
+ * macros defined in <machine/pcpu.h>.
+ */
+struct pcpu {
+	struct thread	*pc_curthread;		/* Current thread */
+	struct thread	*pc_idlethread;		/* Idle thread */
+	struct thread	*pc_fpcurthread;	/* Fp state owner */
+	struct pcb	*pc_curpcb;		/* Current pcb */
+	struct timeval	pc_switchtime;	
+	int		pc_switchticks;
+	u_int		pc_cpuid;		/* This cpu number */
+	u_int		pc_other_cpus;		/* All other cpus */
+	SLIST_ENTRY(pcpu) pc_allcpu;
+	struct lock_list_entry *pc_spinlocks;
+#ifdef KTR_PERCPU
+	int		pc_ktr_idx;		/* Index into trace table */
+	char		*pc_ktr_buf;
+#endif
+	PCPU_MD_FIELDS;
+};
+
+SLIST_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
 
-void	globaldata_register(struct globaldata *gd);
-struct	globaldata *globaldata_find(u_int cpuid);
+#define	curthread	PCPU_GET(curthread)
+#define	CURPROC		(curthread->td_proc)
+#define	curproc		(curthread->td_proc)
+#define	curksegrp	(curthread->td_ksegrp)
+#define	curkse		(curthread->td_kse)
+
+/*
+ * Machine dependent callouts.  cpu_pcpu_init() is responsible for
+ * initializing machine dependent fields of struct pcpu, and
+ * db_show_mdpcpu() is responsible for handling machine dependent
+ * fields for the DDB 'show pcpu' command.
+ */
+void	cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
+void	db_show_mdpcpu(struct pcpu *pcpu);
+
+void	pcpu_destroy(struct pcpu *pcpu);
+struct	pcpu *pcpu_find(u_int cpuid);
+void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 
 #endif /* !LOCORE */
 #endif /* _KERNEL */

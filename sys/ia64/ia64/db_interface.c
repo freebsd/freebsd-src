@@ -510,3 +510,8 @@ db_skip_breakpoint(void)
 		ddb_regs.tf_cr_iip += 16;
 	}
 }
+
+void
+db_show_mdpcpu(struct pcpu *pc)
+{
+}

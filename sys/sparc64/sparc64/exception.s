@@ -1754,7 +1754,7 @@ tl1_breakpoint:
  * NOTE: We must be very careful setting up the per-cpu pointer.  We know that
  * it has been pre-set in alternate globals, so we read it from there and setup
  * the normal %g7 *before* enabling interrupts.  This avoids any possibility
- * of cpu migration and using the wrong globalp.
+ * of cpu migration and using the wrong pcpup.
  */
 ENTRY(tl0_trap)
 	/*
@@ -2097,7 +2097,7 @@ END(tl0_ret)
  * the outs don't need to be saved.
  *
  * NOTE: See comments above tl0_trap for song and dance about chip bugs and
- * setting up globalp.
+ * setting up pcpup.
  */
 ENTRY(tl1_trap)
 	sub	%sp, TF_SIZEOF, %sp

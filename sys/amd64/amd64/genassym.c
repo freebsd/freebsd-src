@@ -51,10 +51,6 @@
 #include <sys/socket.h>
 #include <sys/resourcevar.h>
 #include <sys/user.h>
-/* XXX */
-#ifdef KTR_PERCPU
-#include <sys/ktr.h>
-#endif
 #include <machine/bootinfo.h>
 #include <machine/tss.h>
 #include <sys/vmmeter.h>
@@ -75,7 +71,6 @@
 #endif
 #include <machine/cpu.h>
 #include <machine/sigframe.h>
-#include <machine/globaldata.h>
 #include <machine/vm86.h>
 #include <machine/proc.h>
 
@@ -177,27 +172,19 @@ ASSYM(BI_SIZE, offsetof(struct bootinfo, bi_size));
 ASSYM(BI_SYMTAB, offsetof(struct bootinfo, bi_symtab));
 ASSYM(BI_ESYMTAB, offsetof(struct bootinfo, bi_esymtab));
 ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
-ASSYM(GD_SIZEOF, sizeof(struct globaldata));
-ASSYM(GD_PRVSPACE, offsetof(struct globaldata, gd_prvspace));
-ASSYM(GD_CURTHREAD, offsetof(struct globaldata, gd_curthread));
-ASSYM(GD_NPXTHREAD, offsetof(struct globaldata, gd_npxthread));
-ASSYM(GD_IDLETHREAD, offsetof(struct globaldata, gd_idlethread));
-ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
-ASSYM(GD_COMMON_TSS, offsetof(struct globaldata, gd_common_tss));
-ASSYM(GD_SWITCHTIME, offsetof(struct globaldata, gd_switchtime));
-ASSYM(GD_SWITCHTICKS, offsetof(struct globaldata, gd_switchticks));
-ASSYM(GD_COMMON_TSSD, offsetof(struct globaldata, gd_common_tssd));
-ASSYM(GD_TSS_GDT, offsetof(struct globaldata, gd_tss_gdt));
-ASSYM(GD_CURRENTLDT, offsetof(struct globaldata, gd_currentldt));
-
-/* XXX */
-#ifdef KTR_PERCPU
-ASSYM(GD_KTR_IDX, offsetof(struct globaldata, gd_ktr_idx));
-ASSYM(GD_KTR_BUF, offsetof(struct globaldata, gd_ktr_buf));
-ASSYM(GD_KTR_BUF_DATA, offsetof(struct globaldata, gd_ktr_buf_data));
-#endif
-
-ASSYM(GD_CPUID, offsetof(struct globaldata, gd_cpuid));
+ASSYM(PC_SIZEOF, sizeof(struct pcpu));
+ASSYM(PC_PRVSPACE, offsetof(struct pcpu, pc_prvspace));
+ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
+ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
+ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
+ASSYM(PC_COMMON_TSS, offsetof(struct pcpu, pc_common_tss));
+ASSYM(PC_SWITCHTIME, offsetof(struct pcpu, pc_switchtime));
+ASSYM(PC_SWITCHTICKS, offsetof(struct pcpu, pc_switchticks));
+ASSYM(PC_COMMON_TSSD, offsetof(struct pcpu, pc_common_tssd));
+ASSYM(PC_TSS_GDT, offsetof(struct pcpu, pc_tss_gdt));
+ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
+ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 #ifdef SMP
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
