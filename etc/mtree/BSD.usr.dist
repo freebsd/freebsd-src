@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.53 1996/02/09 13:40:27 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.54 1996/02/17 19:46:43 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -14,6 +14,10 @@
     include
     ..
     lib
+    ..
+    libdata
+	lint
+	..
     ..
     libexec
         lpr
