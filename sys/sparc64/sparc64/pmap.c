@@ -93,6 +93,7 @@
 
 #include <machine/cache.h>
 #include <machine/frame.h>
+#include <machine/instr.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/smp.h>
@@ -146,6 +147,8 @@ vm_offset_t virtual_avail;
 vm_offset_t virtual_end;
 vm_offset_t kernel_vm_end;
 
+vm_offset_t vm_max_kernel_address;
+
 /*
  * Kernel pmap.
  */
@@ -159,6 +162,13 @@ static boolean_t pmap_initialized = FALSE;
 static vm_offset_t pmap_bootstrap_alloc(vm_size_t size);
 
 static vm_offset_t pmap_map_direct(vm_page_t m);
+
+extern int tl1_immu_miss_load_tsb[];
+extern int tl1_immu_miss_load_tsb_mask[];
+extern int tl1_dmmu_miss_load_tsb[];
+extern int tl1_dmmu_miss_load_tsb_mask[];
+extern int tl1_dmmu_prot_load_tsb[];
+extern int tl1_dmmu_prot_load_tsb_mask[];
 
 /*
  * If user pmap is processed with pmap_remove and with pmap_remove and the
@@ -267,18 +277,12 @@ pmap_bootstrap(vm_offset_t ekva)
 	vm_offset_t pa;
 	vm_offset_t va;
 	vm_size_t physsz;
+	vm_size_t virtsz;
 	ihandle_t pmem;
 	ihandle_t vmem;
 	int sz;
 	int i;
 	int j;
-
-	/*
-	 * Set the start and end of kva.  The kernel is loaded at the first
-	 * available 4 meg super page, so round up to the end of the page.
-	 */
-	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
-	virtual_end = VM_MAX_KERNEL_ADDRESS;
 
 	/*
 	 * Find out what physical memory is available from the prom and
@@ -309,17 +313,64 @@ pmap_bootstrap(vm_offset_t ekva)
 	}
 	physmem = btoc(physsz);
 
+	virtsz = roundup(physsz, PAGE_SIZE_4M << (PAGE_SHIFT - TTE_SHIFT));
+	vm_max_kernel_address = VM_MIN_KERNEL_ADDRESS + virtsz;
+	tsb_kernel_size = virtsz >> (PAGE_SHIFT - TTE_SHIFT);
+	tsb_kernel_mask = (tsb_kernel_size >> TTE_SHIFT) - 1;
+
 	/*
-	 * Allocate the kernel tsb and lock it in the tlb.
+	 * Set the start and end of kva.  The kernel is loaded at the first
+	 * available 4 meg super page, so round up to the end of the page.
 	 */
-	pa = pmap_bootstrap_alloc(KVA_PAGES * PAGE_SIZE_4M);
+	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
+	virtual_end = vm_max_kernel_address;
+
+	/*
+	 * Allocate the kernel tsb.
+	 */
+	pa = pmap_bootstrap_alloc(tsb_kernel_size);
 	if (pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: tsb unaligned\n");
 	tsb_kernel_phys = pa;
 	tsb_kernel = (struct tte *)virtual_avail;
-	virtual_avail += KVA_PAGES * PAGE_SIZE_4M;
+	virtual_avail += tsb_kernel_size;
+
+	/*
+	 * Patch the virtual address and the tsb mask into the trap table.
+	 */
+#define	SETHI_G4(x) \
+	EIF_OP(IOP_FORM2) | EIF_F2_RD(4) | EIF_F2_OP2(INS0_SETHI) | \
+	    EIF_IMM((x) >> 10, 22)
+#define	OR_G4_I_G4(x) \
+	EIF_OP(IOP_MISC) | EIF_F3_RD(4) | EIF_F3_OP3(INS2_OR) | \
+	    EIF_F3_RS1(4) | EIF_F3_I(1) | EIF_IMM(x, 10)
+
+	tl1_immu_miss_load_tsb[0] = SETHI_G4((vm_offset_t)tsb_kernel);
+	tl1_immu_miss_load_tsb_mask[0] = SETHI_G4(tsb_kernel_mask);
+	tl1_immu_miss_load_tsb_mask[1] = OR_G4_I_G4(tsb_kernel_mask);
+	flush(tl1_immu_miss_load_tsb);
+	flush(tl1_immu_miss_load_tsb_mask);
+	flush(tl1_immu_miss_load_tsb_mask + 1);
+
+	tl1_dmmu_miss_load_tsb[0] = SETHI_G4((vm_offset_t)tsb_kernel);
+	tl1_dmmu_miss_load_tsb_mask[0] = SETHI_G4(tsb_kernel_mask);
+	tl1_dmmu_miss_load_tsb_mask[1] = OR_G4_I_G4(tsb_kernel_mask);
+	flush(tl1_dmmu_miss_load_tsb);
+	flush(tl1_dmmu_miss_load_tsb_mask);
+	flush(tl1_dmmu_miss_load_tsb_mask + 1);
+
+	tl1_dmmu_prot_load_tsb[0] = SETHI_G4((vm_offset_t)tsb_kernel);
+	tl1_dmmu_prot_load_tsb_mask[0] = SETHI_G4(tsb_kernel_mask);
+	tl1_dmmu_prot_load_tsb_mask[1] = OR_G4_I_G4(tsb_kernel_mask);
+	flush(tl1_dmmu_prot_load_tsb);
+	flush(tl1_dmmu_prot_load_tsb_mask);
+	flush(tl1_dmmu_prot_load_tsb_mask + 1);
+
+	/*
+	 * Lock it in the tlb.
+	 */
 	pmap_map_tsb();
-	bzero(tsb_kernel, KVA_PAGES * PAGE_SIZE_4M);
+	bzero(tsb_kernel, tsb_kernel_size);
 
 	/*
 	 * Enter fake 8k pages for the 4MB kernel pages, so that
@@ -431,9 +482,9 @@ pmap_map_tsb(void)
 	/*
 	 * Map the 4mb tsb pages.
 	 */
-	for (i = 0; i < KVA_PAGES; i++) {
-		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
-		pa = tsb_kernel_phys + i * PAGE_SIZE_4M;
+	for (i = 0; i < tsb_kernel_size; i += PAGE_SIZE_4M) {
+		va = (vm_offset_t)tsb_kernel + i;
+		pa = tsb_kernel_phys + i;
 		/* XXX - cheetah */
 		data = TD_V | TD_4M | TD_PA(pa) | TD_L | TD_CP | TD_CV |
 		    TD_P | TD_W;
@@ -441,14 +492,6 @@ pmap_map_tsb(void)
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
 		stxa_sync(0, ASI_DTLB_DATA_IN_REG, data);
 	}
-
-	/*
-	 * Load the tsb registers.
-	 */
-	stxa(AA_DMMU_TSB, ASI_DMMU, (vm_offset_t)tsb_kernel);
-	stxa(AA_IMMU_TSB, ASI_IMMU, (vm_offset_t)tsb_kernel);
-	membar(Sync);
-	flush(tsb_kernel);
 
 	/*
 	 * Set the secondary context to be the kernel context (needed for

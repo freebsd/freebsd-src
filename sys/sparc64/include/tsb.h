@@ -43,12 +43,9 @@
 	(TSB_BSHIFT - TSB_BUCKET_SHIFT - TTE_SHIFT)
 #define	TSB_BUCKET_MASK			((1 << TSB_BUCKET_ADDRESS_BITS) - 1)
 
-#define	TSB_KERNEL_SIZE \
-	((KVA_PAGES * PAGE_SIZE_4M) / sizeof(struct tte))
-#define	TSB_KERNEL_MASK 		(TSB_KERNEL_SIZE - 1)
-#define	TSB_KERNEL_VA_MASK		(TSB_KERNEL_MASK << TTE_SHIFT)
-
 extern struct tte *tsb_kernel;
+extern vm_size_t tsb_kernel_mask;
+extern vm_size_t tsb_kernel_size;
 extern vm_offset_t tsb_kernel_phys;
 
 static __inline struct tte *
@@ -66,7 +63,7 @@ tsb_vtobucket(pmap_t pm, vm_offset_t va)
 static __inline struct tte *
 tsb_kvpntotte(vm_offset_t vpn)
 {
-	return (&tsb_kernel[vpn & TSB_KERNEL_MASK]);
+	return (&tsb_kernel[vpn & tsb_kernel_mask]);
 }
 
 static __inline struct tte *
