@@ -69,13 +69,7 @@ Mountd handles remote mount protocol (RFC1094, Appendix A) requests.
 .lp
 The nfsd master daemon forks off children that enter the kernel
 via. the nfssvc system call. The children normally remain kernel
-resident, providing a process context for the NFS RPC servers. The only
-exception to this is when a Kerberos [Steiner88]
-ticket is received and at that time
-the nfsd exits the kernel temporarily to verify the ticket via. the
-Kerberos libraries and then returns to the kernel with the results.
-(This only happens for Kerberos mount points as described further under
-Security.)
+resident, providing a process context for the NFS RPC servers.
 Meanwhile, the master nfsd waits to accept new connections from clients
 using connection oriented transport protocols and passes the new sockets down
 into the kernel.
@@ -390,35 +384,6 @@ All user ids can be mapped to a default set of credentials, typically that of
 the user nobody. This essentially gives world access to all
 users on the corresponding hosts.
 .pp
-There is also a non-standard BSD
-\fB-kerb\fR export option that requires the client provide
-a KerberosIV rcmd service ticket to authenticate the user on the server.
-If successful, the Kerberos principal is looked up in the server's password
-and group databases to get a set of credentials and a map of client userid to
-these credentials is then cached.
-The use of TCP transport is strongly recommended,
-since the scheme depends on the TCP connection to avert replay attempts.
-Unfortunately, this option is only usable
-between BSD clients and servers since it is
-not compatible with other known ``kerberized'' NFS systems.
-To enable use of this Kerberos option, both mount_nfs on the client and
-nfsd on the server must be rebuilt with the -DKERBEROS option and
-linked to KerberosIV libraries.
-The file system is then exported to the client(s) with the \fB-kerb\fR option
-in the exports file on the server
-and the client mount specifies the
-\fB-K\fR
-and
-\fB-T\fR
-options.
-The
-\fB-m=\fIrealm\fR
-mount option may be used to specify a Kerberos Realm for the ticket
-(it must be the Kerberos Realm of the server) that is other than
-the client's local Realm.
-To access files in a \fB-kerb\fR mount point, the user must have a valid
-TGT for the server's Realm, as provided by kinit or similar.
-.pp
 As well as the standard NFS Version 2 protocol (RFC1094) implementation, BSD
 systems can use a variant of the protocol called Not Quite NFS (NQNFS) that
 supports a variety of protocol extensions.
@@ -432,7 +397,7 @@ in an effort to provide full cache consistency and better performance.
 This protocol is available between 4.4BSD systems only and is used when
 the \fB-q\fR mount option is specified.
 It can be used with any of the aforementioned options for NFS, such as TCP
-transport (\fB-T\fR) and KerberosIV authentication (\fB-K\fR).
+transport (\fB-T\fR).
 Although this protocol is experimental, it is recommended over NFS for
 mounts between 4.4BSD systems.\**
 .(f

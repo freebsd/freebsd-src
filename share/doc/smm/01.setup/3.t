@@ -632,7 +632,6 @@ _	_	_
 	/etc/disklabels	directory for saving disklabels
 	/etc/exports	NFS list of export permissions
 	/etc/ftpwelcome	message displayed for ftp users; see ftpd(8)
-	/etc/kerberosIV	Kerberos directory; see below
 	/etc/man.conf	lists directories searched by \fIman\fP\|(1)
 	/etc/mtree	directory for local mtree files; see mtree(8)
 	/etc/netgroup	NFS group list used in \f(CW/etc/exports\fP
@@ -1591,49 +1590,44 @@ architectures from the same source tree
 (that may be mounted read-only).
 .Sh 4 "Kerberos"
 .PP
-The Kerberos authentication server from MIT (version 4)
+The Kerberos authentication system designed by MIT (version 5)
 is included in this release.
 See
-.Xr kerberos (1)
-for a general, if MIT-specific, introduction.
+.Xr kerberos (8)
+for a general introduction.
+Pluggable Authentication Modules (PAM) can use Kerberos
+at the system administrator's discretion.
 If it is configured,
+apps such as 
 .Xr login (1),
 .Xr passwd (1),
-.Xr rlogin (1)
+.Xr ftp (1)
 and
-.Xr rsh (1)
-will all begin to use it automatically.
+.Xr ssh (1)
+can use it automatically.
 The file
-.Pn /etc/kerberosIV/README
-describes the configuration.
 Each system needs the file
-.Pn /etc/kerberosIV/krb.conf
+.Pn /etc/krb5.conf
 to set its realm and local servers,
 and a private key stored in
-.Pn /etc/kerberosIV/srvtab
+.Pn /etc/krb5.keytab
 (see
-.Xr ext_srvtab (8)).
-The Kerberos server should be set up on a single, physically secure,
+.Xr ktutil (8)).
+The Kerberos server should be set up on a single,
+physically secure,
 server machine.
-Users and hosts may be added to the server database manually with
-.Xr kdb_edit (8),
-or users on authorized hosts can add themselves and a Kerberos
-password after verification of their ``local'' (passwd-file) password
-using the
-.Xr register (1)
-program.
+Users and hosts may be added and modified with
+.Xr kadmin (8).
 .PP
-Note that by default the password-changing program
+Note that the password-changing program
 .Xr passwd (1)
-changes the Kerberos password, that must exist.
+can change the Kerberos password,
+if configured by the administrator using PAM.
 The
 .Li \-l
 option to
 .Xr passwd (1)
 changes the ``local'' password if one exists.
-.PP
-Note that Version 5 of Kerberos will be released soon;
-Version 4 should probably be replaced at that time.
 .Sh 4 "Timezone support"
 .PP
 The timezone conversion code in the C library uses data files installed in
