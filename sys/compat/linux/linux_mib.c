@@ -36,8 +36,8 @@
 #include <sys/malloc.h>
 #include <sys/jail.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_mib.h>
+#include <machine/../linux/linux.h>
+#include <compat/linux/linux_mib.h>
 
 struct linux_prison {
 	char	pr_osname[LINUX_MAX_UTSNAME];
