@@ -1020,6 +1020,7 @@ get_exportlist()
 		    !strcmp(fsp->f_fstypename, "msdosfs") ||
 		    !strcmp(fsp->f_fstypename, "ntfs") ||
 		    !strcmp(fsp->f_fstypename, "cd9660")) {
+			bzero(&targs, sizeof targs);
 			targs.ua.fspec = NULL;
 			targs.ua.export.ex_flags = MNT_DELEXPORT;
 			if (mount(fsp->f_fstypename, fsp->f_mntonname,
