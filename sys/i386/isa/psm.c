@@ -20,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.53 1998/06/07 17:10:50 dfr Exp $
+ * $Id: psm.c,v 1.54 1998/07/06 16:10:06 eivind Exp $
  */
 
 /*
@@ -576,6 +576,7 @@ reinitialize(int unit, mousemode_t *mode)
 
     switch((i = test_aux_port(kbdc))) {
     case 1:	/* ignore this error */
+    case PSM_ACK:
 	if (verbose)
 	    log(LOG_DEBUG, "psm%d: strange result for test aux port (%d).\n",
 	        unit, i);
@@ -807,9 +808,11 @@ psmprobe(struct isa_device *dvp)
      * it has the perfectly functional aux port. We have to ignore this
      * error code. Even if the controller HAS error with the aux port,
      * it will be detected later...
+     * XXX: another incompatible controller returns PSM_ACK (0xfa)...
      */
     switch ((i = test_aux_port(sc->kbdc))) {
     case 1:	   /* ignore this error */
+    case PSM_ACK:
         if (verbose)
 	    printf("psm%d: strange result for test aux port (%d).\n",
 	        unit, i);
