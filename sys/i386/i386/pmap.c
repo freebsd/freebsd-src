@@ -1178,12 +1178,17 @@ _pmap_allocpte(pmap, ptepindex)
 	vm_page_t m;
 
 	/*
-	 * Find or fabricate a new pagetable page
+	 * Allocate a page table page.
 	 */
-	m = vm_page_alloc(NULL, ptepindex,
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_NOOBJ);
-	if (m == NULL)
-		return (m);
+	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+		VM_WAIT;
+		/*
+		 * Indicate the need to retry.  While waiting, the page table
+		 * page may have been allocated.
+		 */
+		return (NULL);
+	}
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
