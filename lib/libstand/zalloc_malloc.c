@@ -60,7 +60,7 @@ free_region(void *start, void *end)
 #endif
 
 void *
-malloc(size_t bytes)
+Malloc(size_t bytes, const char *file, int line)
 {
     Guard *res;
 
@@ -94,21 +94,31 @@ malloc(size_t bytes)
 }
 
 void
-free(void *ptr)
+Free(void *ptr, const char *file, int line)
 {
     size_t bytes;
 
     if (ptr != NULL) {
 	Guard *res = (void *)((char *)ptr - MALLOCALIGN);
 
+	if (file == NULL)
+		file = "unknown";
 #ifdef USEGUARD
+	if (res->ga_Magic == GAFREE) {
+	    printf("free: duplicate free @ %p from %s:%d\n", ptr, file, line);
+	    return;
+	}
 	if (res->ga_Magic != GAMAGIC)
-	    panic("free: guard1 fail @ %p", ptr);
-	res->ga_Magic = -1;
+	    panic("free: guard1 fail @ %p from %s:%p", ptr, file, line);
+	res->ga_Magic = GAFREE;
 #endif
 #ifdef USEENDGUARD
+	if (*((char *)res + res->ga_Bytes - 1) == -1) {
+	    printf("free: duplicate2 free @ %p from %s:%d\n", ptr, file, line);
+	    return;
+	}
 	if (*((char *)res + res->ga_Bytes - 1) != -2)
-	    panic("free: guard2 fail @ %p + %d", ptr, res->ga_Bytes - MALLOCALIGN);
+	    panic("free: guard2 fail @ %p + %d from %s:%d", ptr, res->ga_Bytes - MALLOCALIGN, file, line);
 	*((char *)res + res->ga_Bytes - 1) = -1;
 #endif
 
@@ -122,12 +132,12 @@ free(void *ptr)
 
 
 void *
-calloc(size_t n1, size_t n2)
+Calloc(size_t n1, size_t n2, const char *file, int line)
 {
     iaddr_t bytes = (iaddr_t)n1 * (iaddr_t)n2;
     void *res;
 
-    if ((res = malloc(bytes)) != NULL) {
+    if ((res = Malloc(bytes, file, line)) != NULL) {
 	bzero(res, bytes);
 #ifdef DMALLOCDEBUG
 	if (++MallocCount > MallocMax)
@@ -144,19 +154,19 @@ calloc(size_t n1, size_t n2)
  */
 
 void *
-realloc(void *ptr, size_t size)
+Realloc(void *ptr, size_t size, const char *file, int line)
 {
     void *res;
     size_t old;
 
-    if ((res = malloc(size)) != NULL) {
+    if ((res = Malloc(size, file, line)) != NULL) {
 	if (ptr) {
 	    old = *(size_t *)((char *)ptr - MALLOCALIGN) - MALLOCALIGN;
 	    if (old < size)
 		bcopy(ptr, res, old);
 	    else
 		bcopy(ptr, res, size);
-	    free(ptr);
+	    Free(ptr, file, line);
 	} else {
 #ifdef DMALLOCDEBUG
 	    if (++MallocCount > MallocMax)
@@ -174,12 +184,12 @@ realloc(void *ptr, size_t size)
 }
 
 void *
-reallocf(void *ptr, size_t size)
+Reallocf(void *ptr, size_t size, const char *file, int line)
 {
     void *res;
 
-    if ((res = realloc(ptr, size)) == NULL)
-	free(ptr);
+    if ((res = Realloc(ptr, size, file, line)) == NULL)
+	Free(ptr, file, line);
     return(res);
 }
 
