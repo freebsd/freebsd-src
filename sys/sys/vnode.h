@@ -369,6 +369,12 @@ extern	struct vattr va_null;		/* predefined null vattr structure */
 extern void	(*lease_updatetime)(int deltat);
 
 /* Requires interlock. */
+#define	VCANRECYCLE(vp)	\
+	(!((vp)->v_iflag & (VI_DOOMED|VI_DOINGINACT|VI_XLOCK)) && \
+	 ((vp)->v_iflag & VI_FREE) && \
+	 !(vp)->v_holdcnt && !(vp)->v_usecount)
+
+/* Requires interlock. */
 #define	VSHOULDFREE(vp)	\
 	(!((vp)->v_iflag & (VI_FREE|VI_DOOMED|VI_DOINGINACT)) && \
 	 !(vp)->v_holdcnt && !(vp)->v_usecount && \
