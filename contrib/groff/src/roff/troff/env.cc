@@ -3720,7 +3720,7 @@ void hyphen_trie::read_patterns_file(const char *name, int append,
     if (i > 0) {
       if (have_patterns || final_pattern || traditional) {
 	for (int j = 0; j < i; j++)
-	  buf[j] = hpf_code_table[buf[j]];
+	  buf[j] = hpf_code_table[(unsigned char)buf[j]];
 	insert_pattern(buf, i, num);
 	final_pattern = 0;
       }
