@@ -327,12 +327,7 @@ get_mountpoint(struct chunk *old)
 	tmp = old->private_data;
     else
 	tmp = NULL;
-    if (!old) {
-	DialogX = 14;
-	DialogY = 16;
-    }
     val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
-    DialogX = DialogY = 0;
     if (!val || !*val) {
 	if (!old)
 	    return NULL;
@@ -391,13 +386,10 @@ get_partition_type(void)
     };
     WINDOW *w = savescr();
 
-    DialogX = 7;
-    DialogY = 8;
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
 		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
-    DialogX = DialogY = 0;
     restorescr(w);
     if (!i) {
 	if (!strcmp(selection, "FS"))
@@ -908,13 +900,10 @@ diskLabel(Device *dev)
 		u_long flags = 0;
 
 		sprintf(osize, "%d", sz);
-		DialogX = 3;
-		DialogY = 2;
 		val = msgGetInput(osize,
 				  "Please specify the partition size in blocks or append a trailing M for\n"
 				  "megabytes or C for cylinders.  %d blocks (%dMB) are free.",
 				  sz, sz / ONE_MEG);
-		DialogX = DialogY = 0;
 		if (!val || (size = strtol(val, &cp, 0)) <= 0) {
 		    clear_wins();
 		    break;

@@ -564,11 +564,10 @@ configXSetup(dialogMenuItem *self)
 {
     char *config, *execfile, *style;
     char *moused;
-    WINDOW *w;
+    WINDOW *w = savescr();
     
     setenv("XWINHOME", "/usr/X11R6", 1);
 tryagain:
-    w = savescr();
     variable_unset(VAR_DESKSTYLE);
     variable_unset(VAR_XF86_CONFIG);
     dialog_clear_norefresh();
