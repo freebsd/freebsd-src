@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1995/02/12 02:35:35 phk Exp $
+#	$Id: Makefile,v 1.6 1995/03/15 01:33:05 wpaul Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -24,10 +24,6 @@ std_rqs.c:		${.CURDIR}/std_rqs.ct
 	-test -h std_rqs.ct && rm std_rqs.ct
 
 beforeinstall:
-	-if [ ! -d ${DESTDIR}/usr/include/ss ]; then \
-		rm -fr ${DESTDIR}/usr/include/ss && \
-		mkdir ${DESTDIR}/usr/include/ss; \
-	fi
 	-cd ${.CURDIR}; cmp -s ss.h ${DESTDIR}/usr/include/ss/ss.h || \
 	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ss.h \
 	    ${DESTDIR}/usr/include/ss
