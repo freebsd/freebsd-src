@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.208 1998/06/24 09:23:32 phk Exp $
+ *	$Id: sio.c,v 1.209 1998/07/15 12:18:14 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -70,6 +70,7 @@
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
@@ -78,6 +79,7 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/ipl.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -301,19 +303,6 @@ struct com_s {
 #endif
 };
 
-/*
- * XXX public functions in drivers should be declared in headers produced
- * by `config', not here.
- */
-
-/* Interrupt handling entry point. */
-void	siopoll		__P((void));
-
-/* Device switch entry points. */
-#define	sioreset	noreset
-#define	siommap		nommap
-#define	siostrategy	nostrategy
-
 #ifdef COM_ESP
 static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
 				     Port_t esp_port));
@@ -325,6 +314,7 @@ static	void	comhardclose	__P((struct com_s *com));
 static	void	siointr1	__P((struct com_s *com));
 static	int	commctl		__P((struct com_s *com, int bits, int how));
 static	int	comparam	__P((struct tty *tp, struct termios *t));
+static	swihand_t siopoll;
 static	int	sioprobe	__P((struct isa_device *dev));
 static	void	siosettimeout	__P((void));
 static	void	comstart	__P((struct tty *tp));
@@ -366,6 +356,7 @@ static	int	comconsole = -1;
 static	volatile speed_t	comdefaultrate = CONSPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
+static	bool_t	siopoll_registered;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
@@ -1102,6 +1093,10 @@ determined_type: ;
 		unit | CALLOUT_MASK | CONTROL_LOCK_STATE, DV_CHR,
 		UID_UUCP, GID_DIALER, 0660, "cuala%r", unit);
 #endif
+	if (!siopoll_registered) {
+		register_swi(SWI_TTY, siopoll);
+		siopoll_registered = TRUE;
+	}
 	com->id_flags = isdp->id_flags; /* Heritate id_flags for later */
 	return (1);
 }
@@ -1877,7 +1872,7 @@ sioioctl(dev, cmd, data, flag, p)
 	return (0);
 }
 
-void
+static void
 siopoll()
 {
 	int		unit;
