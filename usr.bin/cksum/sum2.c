@@ -40,15 +40,18 @@ static char sccsid[] = "@(#)sum2.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
 #include <unistd.h>
+#include <stdint.h>
 
 #include "extern.h"
 
 int
-csum2(int fd, u_int32_t *cval, u_int32_t *clen)
+csum2(int fd, uint32_t *cval, off_t *clen)
 {
-	u_int32_t lcrc, total;
+	uint32_t lcrc;
 	int nr;
+	off_t total;
 	u_char *p;
 	u_char buf[8192];
 
@@ -64,12 +67,12 @@ csum2(int fd, u_int32_t *cval, u_int32_t *clen)
 		for (total += nr, p = buf; nr--; ++p)
 			lcrc += *p;
 	if (nr < 0)
-		return(1);
+		return (1);
 
 	lcrc = (lcrc & 0xffff) + (lcrc >> 16);
 	lcrc = (lcrc & 0xffff) + (lcrc >> 16);
 
 	*cval = lcrc;
 	*clen = total;
-	return(0);
+	return (0);
 }
