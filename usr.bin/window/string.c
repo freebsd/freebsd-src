@@ -36,10 +36,11 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)string.c	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "@(#)$FreeBSD$";
 #endif /* not lint */
 
 #include <string.h> /* System string definitions. */
-#include "string.h" /* Local string definitions. */
+#include "mystring.h" /* Local string definitions. */
 
 char *malloc();
 
@@ -123,9 +124,9 @@ char *
 str_alloc(l)
 int l;
 {
-	register struct string *s;
+	register struct mystring *s;
 
-	s = (struct string *) malloc((unsigned)l + str_offset);
+	s = (struct mystring *) malloc((unsigned)l + str_offset);
 	if (s == 0)
 		return 0;
 	if (str_head.s_forw == 0)
@@ -140,7 +141,7 @@ int l;
 str_free(str)
 char *str;
 {
-	register struct string *s;
+	register struct mystring *s;
 
 	for (s = str_head.s_forw; s != &str_head && s->s_data != str;
 	     s = s->s_forw)
