@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufsmount.h	8.2 (Berkeley) 1/12/94
- * $Id: ufsmount.h,v 1.2 1994/08/02 07:55:04 davidg Exp $
+ * $Id: ufsmount.h,v 1.3 1994/08/21 07:16:18 paul Exp $
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
@@ -54,9 +54,12 @@ struct ufsmount {
 	union {					/* pointer to superblock */
 		struct	lfs *lfs;		/* LFS */
 		struct	fs *fs;			/* FFS */
+		struct	ext2_sb_info *e2fs;	/* EXT2FS */
 	} ufsmount_u;
 #define	um_fs	ufsmount_u.fs
 #define	um_lfs	ufsmount_u.lfs
+#define	um_e2fs	ufsmount_u.e2fs
+#define um_e2fsb ufsmount_u.e2fs->s_es
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	u_long	um_nindir;			/* indirect ptrs per block */
