@@ -170,8 +170,7 @@ build_package() {
     echo "##############################################" >>build.status
     echo "## `date` ">>build.status
     echo "##############################################" >>build.status
-    ./clean dial
-    for z in dial router net isp ; do
+    for z in bridge dial router net isp ; do
 	set_type ${z}
 	echo "---------------------------------------------">>build.status
 	echo "Building TYPE=${z}, SIZE=${MFS_SIZE}" >>build.status
