@@ -54,9 +54,8 @@ struct tseg_qent {
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_TSEGQ);
-#endif
+extern int	tcp_reass_qsize;
+extern struct uma_zone	*tcp_reass_zone;
 
 struct tcptemp {
 	u_char	tt_ipgen[40]; /* the size must be of max ip header, now IPv6 */
@@ -514,6 +513,7 @@ struct tcpcb *
 int	 tcp_output(struct tcpcb *);
 struct inpcb *
 	 tcp_quench(struct inpcb *, int);
+void	 tcp_reass_init(void);
 void	 tcp_respond(struct tcpcb *, void *,
 	    struct tcphdr *, struct mbuf *, tcp_seq, tcp_seq, int);
 int	 tcp_twrespond(struct tcptw *, struct socket *, struct mbuf *, int);

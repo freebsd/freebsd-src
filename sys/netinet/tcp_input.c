@@ -57,6 +57,8 @@
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
+#include <vm/uma.h>
+
 #include <net/if.h>
 #include <net/route.h>
 
@@ -97,8 +99,6 @@
 
 #include <machine/in_cksum.h>
 
-MALLOC_DEFINE(M_TSEGQ, "tseg_qent", "TCP segment queue entry");
-
 static const int tcprexmtthresh = 3;
 tcp_cc	tcp_ccgen;
 
@@ -133,6 +133,24 @@ static int tcp_do_rfc3390 = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
     &tcp_do_rfc3390, 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
+
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
+    "TCP Segment Reassembly Queue");
+
+static int tcp_reass_maxseg = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
+    &tcp_reass_maxseg, 0,
+    "Global maximum number of TCP Segments in Reassembly Queue");
+
+int tcp_reass_qsize = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
+    &tcp_reass_qsize, 0,
+    "Global number of TCP Segments currently in Reassembly Queue");
+
+static int tcp_reass_overflows = 0;
+SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
+    &tcp_reass_overflows, 0,
+    "Global number of TCP Segment Reassembly Queue Overflows");
 
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
@@ -174,6 +192,19 @@ do { \
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
 	    (tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
+/* Initialize TCP reassembly queue */
+uma_zone_t	tcp_reass_zone;
+void
+tcp_reass_init()
+{
+	tcp_reass_maxseg = nmbclusters / 16;
+	TUNABLE_INT_FETCH("net.inet.tcp.reass.maxsegments",
+	    &tcp_reass_maxseg);
+	tcp_reass_zone = uma_zcreate("tcpreass", sizeof (struct tseg_qent),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(tcp_reass_zone, tcp_reass_maxseg);
+}
+
 static int
 tcp_reass(tp, th, tlenp, m)
 	register struct tcpcb *tp;
@@ -184,7 +215,7 @@ tcp_reass(tp, th, tlenp, m)
 	struct tseg_qent *q;
 	struct tseg_qent *p = NULL;
 	struct tseg_qent *nq;
-	struct tseg_qent *te;
+	struct tseg_qent *te = NULL;
 	struct socket *so = tp->t_inpcb->inp_socket;
 	int flags;
 
@@ -195,9 +226,27 @@ tcp_reass(tp, th, tlenp, m)
 	if (th == 0)
 		goto present;
 
-	/* Allocate a new queue entry. If we can't, just drop the pkt. XXX */
-	MALLOC(te, struct tseg_qent *, sizeof (struct tseg_qent), M_TSEGQ,
-	       M_NOWAIT);
+	/*
+	 * Limit the number of segments in the reassembly queue to prevent
+	 * holding on to too many segments (and thus running out of mbufs).
+	 * Make sure to let the missing segment through which caused this
+	 * queue.  Always keep one global queue entry spare to be able to
+	 * process the missing segment.
+	 */
+	if (th->th_seq != tp->rcv_nxt &&
+	    tcp_reass_qsize + 1 >= tcp_reass_maxseg) {
+		tcp_reass_overflows++;
+		tcpstat.tcps_rcvmemdrop++;
+		m_freem(m);
+		return (0);
+	}
+	tcp_reass_qsize++;
+
+	/*
+	 * Allocate a new queue entry. If we can't, or hit the zone limit
+	 * just drop the pkt.
+	 */
+	te = uma_zalloc(tcp_reass_zone, M_NOWAIT);
 	if (te == NULL) {
 		tcpstat.tcps_rcvmemdrop++;
 		m_freem(m);
@@ -227,7 +276,8 @@ tcp_reass(tp, th, tlenp, m)
 				tcpstat.tcps_rcvduppack++;
 				tcpstat.tcps_rcvdupbyte += *tlenp;
 				m_freem(m);
-				FREE(te, M_TSEGQ);
+				uma_zfree(tcp_reass_zone, te);
+				tcp_reass_qsize--;
 				/*
 				 * Try to present any queued data
 				 * at the left window edge to the user.
@@ -262,7 +312,8 @@ tcp_reass(tp, th, tlenp, m)
 		nq = LIST_NEXT(q, tqe_q);
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
-		FREE(q, M_TSEGQ);
+		uma_zfree(tcp_reass_zone, q);
+		tcp_reass_qsize--;
 		q = nq;
 	}
 
@@ -296,7 +347,8 @@ present:
 			m_freem(q->tqe_m);
 		else
 			sbappendstream(&so->so_rcv, q->tqe_m);
-		FREE(q, M_TSEGQ);
+		uma_zfree(tcp_reass_zone, q);
+		tcp_reass_qsize--;
 		q = nq;
 	} while (q && q->tqe_th->th_seq == tp->rcv_nxt);
 	ND6_HINT(tp);
