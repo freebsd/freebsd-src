@@ -83,7 +83,7 @@ static char *rcsid = "$NetBSD: msgcat.c,v 1.11 1995/02/27 13:06:51 cgd Exp $";
 static nl_catd loadCat();
 static int loadSet();
 
-nl_catd 	_catopen( name, type)
+nl_catd 	catopen( name, type)
 __const char *name;
 int type;
 {
@@ -264,7 +264,7 @@ int msgId;
     return(msg);
 }
 
-char            *_catgets( catd, setId, msgId, dflt)
+char            *catgets( catd, setId, msgId, dflt)
 nl_catd catd;
 int setId;
 int msgId;
@@ -283,7 +283,7 @@ __const char *dflt;
 }
 
 
-int		_catclose( catd)
+int		catclose( catd)
 nl_catd catd;
 {
     MCCatT	*cat = (MCCatT *) catd;
