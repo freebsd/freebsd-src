@@ -72,30 +72,36 @@ struct sockopt;
  * In retrospect, it would be a lot nicer to use an interface
  * similar to the vnode VOP interface.
  */
+/* USE THESE FOR YOUR PROTOTYPES ! */
+typedef void	pr_input_t (struct mbuf *, int);
+typedef void	pr_in_input_t (struct mbuf *, int, int); /* XXX FIX THIS */
+typedef int	pr_output_t (struct mbuf *, struct socket *);
+typedef void	pr_ctlinput_t (int, struct sockaddr *, void *);
+typedef int	pr_ctloutput_t (struct socket *, struct sockopt *);
+typedef	void	pr_init_t (void);
+typedef	void	pr_fasttimo_t (void);
+typedef	void	pr_slowtimo_t (void);
+typedef	void	pr_drain_t (void);
+
+
 struct protosw {
 	short	pr_type;		/* socket type used for */
 	struct	domain *pr_domain;	/* domain protocol a member of */
 	short	pr_protocol;		/* protocol number */
 	short	pr_flags;		/* see below */
 /* protocol-protocol hooks */
-	void	(*pr_input) __P((struct mbuf *, int len));
-					/* input to protocol (from below) */
-	int	(*pr_output)	__P((struct mbuf *m, struct socket *so));
-					/* output to protocol (from above) */
-	void	(*pr_ctlinput)__P((int, struct sockaddr *, void *));
-					/* control input (from below) */
-	int	(*pr_ctloutput)__P((struct socket *, struct sockopt *));
-					/* control output (from above) */
+	pr_input_t *pr_input;		/* input to protocol (from below) */
+	pr_output_t *pr_output;		/* output to protocol (from above) */
+	pr_ctlinput_t *pr_ctlinput;	/* control input (from below) */
+	pr_ctloutput_t *pr_ctloutput;	/* control output (from above) */
 /* user-protocol hook */
 	void	*pr_ousrreq;
 /* utility hooks */
-	void	(*pr_init) __P((void));	/* initialization hook */
-	void	(*pr_fasttimo) __P((void));
-					/* fast timeout (200ms) */
-	void	(*pr_slowtimo) __P((void));
-					/* slow timeout (500ms) */
-	void	(*pr_drain) __P((void));
-					/* flush any excess space possible */
+	pr_init_t *pr_init;
+	pr_fasttimo_t *pr_fasttimo;	/* fast timeout (200ms) */
+	pr_slowtimo_t *pr_slowtimo;	/* slow timeout (500ms) */
+	pr_drain_t *pr_drain;		/* flush any excess space possible */
+
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
 	struct	pfil_head	pr_pfh;
 };
