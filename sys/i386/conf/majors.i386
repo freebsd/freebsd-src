@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.29 1998/02/17 10:52:56 jkh Exp $
+$Id: majors.i386,v 1.30 1998/02/18 13:43:43 msmith Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -131,3 +131,4 @@ chrdev	name		comments
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
 89	pps		Pulse-Per-Second timing interface
 90	wst		ATAPI tape client of "ata"
+91	vinum		RAID fs
