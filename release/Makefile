@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.444 1999/01/05 02:35:38 jkh Exp $
+#	$Id: Makefile,v 1.445 1999/01/05 03:44:08 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -676,7 +676,6 @@ doMFSKERN:
 	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
 	@echo "@load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
 	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
-	@echo "/boot/loader" >${RD}/image.${FSIMAGE}/boot.config
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
 .if defined(_MFSKERN)
