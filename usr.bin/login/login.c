@@ -394,7 +394,13 @@ main(argc, argv)
 	lc = login_getpwclass(pwd);
 
 	quietlog = login_getcapbool(lc, "hushlogin", 0);
-	/* Switching needed for NFS with root access disabled */
+	/*
+	 * Switching needed for NFS with root access disabled.
+	 *
+	 * XXX: This change fails to modify the additional groups for the
+	 * process, and as such, may restrict rights normally granted
+	 * through those groups.
+	 */
 	(void)setegid(pwd->pw_gid);
 	(void)seteuid(rootlogin ? 0 : pwd->pw_uid);
 	if (!*pwd->pw_dir || chdir(pwd->pw_dir) < 0) {
