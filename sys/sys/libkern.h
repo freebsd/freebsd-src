@@ -84,8 +84,6 @@ void	 srandom __P((u_long));
 char	*strcat __P((char *, const char *));
 int	 strcmp __P((const char *, const char *));
 char	*strcpy __P((char *, const char *));
-size_t	 strlcat __P((char *, const char *, size_t));
-size_t   strlcpy __P((char *, const char *, size_t));
 size_t	 strlen __P((const char *));
 int	 strncmp __P((const char *, const char *, size_t));
 char	*strncpy __P((char *, const char *, size_t));
