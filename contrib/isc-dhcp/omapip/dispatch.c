@@ -30,12 +30,14 @@
  * ``http://www.isc.org/''.  To learn more about Vixie Enterprises,
  * see ``http://www.vix.com''.   To learn more about Nominum, Inc., see
  * ``http://www.nominum.com''.
+ *
+ * $FreeBSD$
  */
 
 #include <omapip/omapip_p.h>
 
 static omapi_io_object_t omapi_io_states;
-u_int32_t cur_time;
+TIME cur_time;
 
 OMAPI_OBJECT_ALLOC (omapi_io,
 		    omapi_io_object_t, omapi_type_io_object)

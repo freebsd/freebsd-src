@@ -28,6 +28,8 @@
  * by Ted Lemon, as part of a project for Nominum, Inc.   To learn more
  * about Internet Systems Consortium, see http://www.isc.org/.  To
  * learn more about Nominum, Inc., see ``http://www.nominum.com''.
+ *
+ * $FreeBSD$
  */
 
 #include <omapip/omapip_p.h>
@@ -61,7 +63,7 @@ time_t trace_mr_time (time_t *);
 int trace_mr_select (int, fd_set *, fd_set *, fd_set *, struct timeval *);
 unsigned int trace_mr_res_randomid (unsigned int);
 
-extern time_t cur_time;
+extern TIME cur_time;
 
 #if defined (TRACING)
 void trace_mr_init ()
