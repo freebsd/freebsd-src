@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <machine/pcb.h>
 #include <vm/pmap.h>
+#include <machine/cpu.h>
 
 TAILQ_HEAD(, fiqhandler) fiqhandler_stack =
     TAILQ_HEAD_INITIALIZER(fiqhandler_stack);
@@ -73,7 +74,7 @@ fiq_installhandler(void *func, size_t size)
 	vector_page_setprot(VM_PROT_READ|VM_PROT_WRITE);
 #endif
 
-	memcpy(fiqvector, func, size);
+	memcpy(vector_page + fiqvector, func, size);
 
 #if !defined(__ARM_FIQ_INDIRECT)
 	vector_page_setprot(VM_PROT_READ);
