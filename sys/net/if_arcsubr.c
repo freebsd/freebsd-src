@@ -163,9 +163,9 @@ arc_output(ifp, m, dst, rt0)
 		}
 
 		if (m->m_flags & M_BCAST)
-			bcopy(ifp->if_broadcastaddr, adst, ARC_ADDR_LEN);
+			bcopy(ifp->if_broadcastaddr, &adst, ARC_ADDR_LEN);
 		else
-			bcopy(ar_tha(ah), adst, ARC_ADDR_LEN);
+			bcopy(ar_tha(ah), &adst, ARC_ADDR_LEN);
         
 	}
 	break;
