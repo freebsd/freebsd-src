@@ -16,7 +16,7 @@ CFLAGS+= -DRETSIGTYPE=void -DHAVE_SYS_MTIO_H=1 -DSTDC_HEADERS=1 \
 	 -DHAVE_SYS_PARAM_H=1
 
 SRCS =  copyin.c copyout.c copypass.c defer.c dirname.c dstring.c error.c \
-	filemode.c getopt.c getopt1.c global.c idcache.c main.c makepath.c \
+	filemode.c global.c idcache.c main.c makepath.c \
 	rtapelib.c stripslash.c tar.c userspec.c util.c version.c \
 	xmalloc.c xstrdup.c
 
