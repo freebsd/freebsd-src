@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.28.4.5 1996/10/16 02:16:05 jkh Exp $
+ **      $Id: userconfig.c,v 1.68 1996/11/12 20:00:24 bde Exp $
  **/
 
 /**
@@ -79,46 +79,46 @@
  ** - That the only tunable parameter for PCI devices are their flags.
  ** - That flags are _always_ editable.
  **
- ** Devices marked as disabled are imported as such.  It is possible to move
- ** a PCI device onto the inactive list, but it is not possible to actually
- ** prevent the device from being probed.  The ability to move is considered
- ** desirable in that people will complain otherwise 8)
+ ** Devices marked as disabled are imported as such.  PCI devices are 
+ ** listed under a seperate heading for informational purposes only.
+ ** To date, there is no means for changing the behaviour of PCI drivers
+ ** from UserConfig.
+ **
+ ** Note that some EISA devices probably fall into this category as well,
+ ** and in fact the actual bus supported by some drivers is less than clear.
+ ** A longer-term goal might be to list drivers by instance rather than
+ ** per bus-presence.
  ** 
  ** For this tool to be useful, the list of devices below _MUST_ be updated 
  ** when a new driver is brought into the kernel.  It is not possible to 
- ** extract this information from the drivers in the kernel, as the devconf
- ** structure for the device is not registered until the device is probed,
- ** which is too late.
+ ** extract this information from the drivers in the kernel.
  **
  ** XXX - TODO:
- ** 
- ** - FIX OPERATION WITH PCVT!
  ** 
  ** - Display _what_ a device conflicts with.
  ** - Implement page up/down (as what?)
  ** - Wizard mode (no restrictions)
  ** - Find out how to put syscons back into low-intensity mode so that the
  **   !b escape is useful on the console.
- ** - The min and max values used for editing parameters are probably 
- **   very bogus - fix?
  **
  ** - Only display headings with devices under them. (difficult)
  **/
 
+#include "pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <machine/md_var.h>
-#include <i386/i386/cons.h>
-#include <i386/include/clock.h>
-#include <i386/isa/isa_device.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
+
+#include <machine/cons.h>
+#include <machine/md_var.h>
+
+#include <i386/isa/isa_device.h>
+
 #include <pci/pcivar.h>
 
-static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
-				     isa_devtab_null, NULL };
-
-struct isa_device	*isa_devlist = NULL;	/* list read by dset to extract changes */
+static struct isa_device *isa_devlist;	/* list read by dset to extract changes */
 
 #ifdef USERCONFIG_BOOT
 char userconfig_from_boot[512] = "";
@@ -147,6 +147,12 @@ getchar(void)
 #endif /* USERCONFIG_BOOT */
 
 #define putchar(x)	cnputc(x)
+
+#ifdef VISUAL_USERCONFIG
+static struct isa_device *devtabs[] = { isa_devtab_bio, isa_devtab_tty, isa_devtab_net,
+				     isa_devtab_null, NULL };
+
+
 
 
 #ifndef FALSE
@@ -178,6 +184,7 @@ typedef struct
 #define CLS_COMMS	3		/* serial, parallel ports */
 #define CLS_INPUT	4		/* user input : mice, keyboards, joysticks etc */
 #define CLS_MMEDIA	5		/* "multimedia" devices (sound, video, etc) */
+#define CLS_PCI		254		/* PCI devices */
 #define CLS_MISC	255		/* none of the above */
 
 
@@ -193,6 +200,7 @@ static DEVCLASS_INFO devclass_names[] = {
 {	"Communications : ",	CLS_COMMS},
 {	"Input :          ",	CLS_INPUT},
 {	"Multimedia :     ",	CLS_MMEDIA},
+{	"PCI :            ",	CLS_PCI},
 {	"Miscellaneous :  ",	CLS_MISC},
 {	"",0}};
 
@@ -201,9 +209,10 @@ static DEVCLASS_INFO devclass_names[] = {
 
 /** Notes :
  ** 
- ** - PCI devices should be marked FLG_FIXED, not FLG_IMMUTABLE.  Whilst
- **   it's impossible to disable them, it should be possible to move them
- **   from one list to another for peace of mind.
+ ** - PCI devices should be marked FLG_IMMUTABLE.  They should not be movable
+ **   or editable, and have no attributes.  This is handled in getdevs() and
+ **   devinfo(), so drivers that have a presence on busses other than PCI
+ **   should have appropriate flags set below.
  ** - Devices that shouldn't be seen or removed should be marked FLG_INVISIBLE.
  ** - XXX The list below should be reviewed by the driver authors to verify
  **   that the correct flags have been set for each driver, and that the
@@ -234,10 +243,12 @@ static DEV_INFO device_info[] = {
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
 {"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
+{"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
 {"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
 {"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
 {"lnc",         "Isolan, Novell NE2100/NE32-VL Ethernet adapters",	0,CLS_NETWORK},
+{"vx",          "3COM 3C590/3C595 Ethernet adapters",		0,	CLS_NETWORK},
 {"ze",          "IBM/National Semiconductor PCMCIA Ethernet adapter",0,	CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter",	0,	CLS_NETWORK},
 {"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
@@ -247,9 +258,12 @@ static DEV_INFO device_info[] = {
 {"cx",          "Cronyx/Sigma multiport sync/async adapter",0,		CLS_COMMS},
 {"rc",          "RISCom/8 multiport async adapter",	0,		CLS_COMMS},
 {"cy",          "Cyclades multiport async adapter",	0,		CLS_COMMS},
+{"cyy",         "Cyclades Ye/PCI multiport async adapter",FLG_INVISIBLE,CLS_COMMS},
+{"dgb",         "Digiboard PC/Xe, PC/Xi async adapter",	0,		CLS_COMMS},
+{"si",          "Specialix SI/XIO async adapter",	0,		CLS_COMMS},
+{"stl",         "Stallion EasyIO/Easy Connection 8/32 async adapter",0,	CLS_COMMS},
+{"stli",        "Stallion intelligent async adapter"	,0,		CLS_COMMS},
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
-{"nic",         "ISDN driver",				0,		CLS_COMMS},
-{"nnic",        "ISDN driver",				0,		CLS_COMMS},
 {"gp",          "National Instruments AT-GPIB/TNT driver",	0,	CLS_COMMS},
 
 {"mse",         "Microsoft Bus Mouse",			0,		CLS_INPUT},
@@ -272,7 +286,10 @@ static DEV_INFO device_info[] = {
 {"pca",         "PC speaker PCM audio driver",		FLG_FIXED,	CLS_MMEDIA},
 {"ctx",         "Coretex-I frame grabber",		0,		CLS_MMEDIA},
 {"spigot",      "Creative Labs Video Spigot video capture",	0,	CLS_MMEDIA},
+{"scc",         "IBM Smart Capture Card",		0,		CLS_MMEDIA},
 {"gsc",         "Genius GS-4500 hand scanner",		0,		CLS_MMEDIA},
+{"asc",         "AmiScan scanner",			0,		CLS_MMEDIA},
+{"qcam",	"QuickCam parallel port camera",	0,		CLS_MMEDIA},
 
 {"apm",         "Advanced Power Management",		FLG_FIXED,	CLS_MISC},
 {"labpc",       "National Instruments Lab-PC/Lab-PC+",	0,		CLS_MISC},
@@ -280,6 +297,7 @@ static DEV_INFO device_info[] = {
 {"lkm",		"Loadable PCI driver support",		FLG_INVISIBLE,	CLS_MISC},
 {"vga",		"Catchall PCI VGA driver",		FLG_INVISIBLE,	CLS_MISC},
 {"chip",	"PCI chipset support",			FLG_INVISIBLE,	CLS_MISC},
+{"piix",        "Intel 82371 Bus-master IDE controller", FLG_INVISIBLE, CLS_MISC},
 {"","",0,0}};
 
 
@@ -323,6 +341,7 @@ typedef struct _devlist_struct
 static void redraw(void);
 static void insdev(DEV_LIST *dev, DEV_LIST *list);
 static int  devinfo(DEV_LIST *dev);
+static int  visuserconfig(void);
 
 static DEV_LIST	*active = NULL,*inactive = NULL;	/* driver lists */
 static DEV_LIST	*alist,*ilist;				/* visible heads of the driver lists */
@@ -347,7 +366,7 @@ static char spaces[] = "                                                        
 static void 
 setdev(DEV_LIST *dev, int enabled)
 {
-    if (!dev->device)							/* PCI device */
+    if (dev->iobase == -2)						/* PCI device */
 	return;
     dev->device->id_iobase = dev->iobase;				/* copy happy */
     dev->device->id_irq = (u_short)(dev->irq < 16 ? 1<<dev->irq : 0);	/* IRQ is bitfield */
@@ -398,23 +417,23 @@ getdevs(void)
     {
 	if (pcidevice_set.ls_items[i])
 	{
-	    if (((struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
+	    if (((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name)
 	    {
-		strcpy(scratch.dev,((struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
+		strcpy(scratch.dev,((const struct pci_device *)pcidevice_set.ls_items[i])->pd_name);
 		scratch.iobase = -2;			/* mark as PCI for future reference */
 		scratch.irq = -2;
 		scratch.drq = -2;
 		scratch.maddr = -2;
 		scratch.msize = -2;
 		scratch.flags = 0;
-		scratch.conflict_ok = 0;			/* shouldn't conflict */
-		scratch.comment = DEV_DEVICE;			/* is a device */
-		scratch.unit = 0;				/* arbitrary number of them */
+		scratch.conflict_ok = 0;		/* shouldn't conflict */
+		scratch.comment = DEV_DEVICE;		/* is a device */
+		scratch.unit = 0;			/* arbitrary number of them */
 		scratch.conflicts = 0;
 		scratch.device = NULL;	
 		scratch.changed = 0;
 
-		if (!devinfo(&scratch))
+		if (!devinfo(&scratch))			/* look up name, set class and flags */
 		    insdev(&scratch,active);		/* always active */
 	    }
 	}
@@ -431,6 +450,9 @@ getdevs(void)
  **
  ** If the device is marked "invisible", return nonzero; the caller should
  ** not insert any such device into either list.
+ **
+ ** PCI devices are always inserted into CLS_PCI, regardless of the class associated
+ ** with the driver type.
  **/
 static int
 devinfo(DEV_LIST *dev)
@@ -441,11 +463,16 @@ devinfo(DEV_LIST *dev)
     {
 	if (!strcmp(dev->dev,device_info[i].dev))
 	{
-	    if (device_info[i].attrib & FLG_INVISIBLE)
+	    if (device_info[i].attrib & FLG_INVISIBLE)	/* forget we ever saw this one */
 		return(1);
-	    strcpy(dev->name,device_info[i].name);
-	    dev->attrib = device_info[i].attrib;
-	    dev->class = device_info[i].class;
+	    strcpy(dev->name,device_info[i].name);	/* get the name */
+	    if (dev->iobase == -2) {			/* is this a PCI device? */
+		dev->attrib = FLG_IMMUTABLE;		/* dark green ones up the back... */
+		dev->class = CLS_PCI;
+	    } else {
+		dev->attrib = device_info[i].attrib;	/* light green ones up the front */
+		dev->class = device_info[i].class;
+	    }
 	    return(0);
 	}
     }
@@ -508,37 +535,42 @@ addev(DEV_LIST *dev, DEV_LIST **list)
 static DEV_LIST	*
 findspot(DEV_LIST *dev, DEV_LIST *list)
 {
-    DEV_LIST	*ap;
+    DEV_LIST	*ap = NULL;
 
-    for (ap = list; ap; ap = ap->next)
+    /* search for a previous instance of the same device */
+    if (dev->iobase != -2)	/* avoid PCI devices grouping with non-PCI devices */
     {
-	if (ap->comment != DEV_DEVICE)			/* ignore comments */
-	    continue;
-	if (!strcmp(dev->dev,ap->dev))			/* same base device */
+	for (ap = list; ap; ap = ap->next)
 	{
-	    if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
-		|| !ap->next)				/* or end of list */
+	    if (ap->comment != DEV_DEVICE)			/* ignore comments */
+		continue;
+	    if (!strcmp(dev->dev,ap->dev))			/* same base device */
 	    {
-		ap = ap->prev;				/* back up one */
-		break;					/* done here */
-	    }
-	    if (ap->next)				/* if the next item exists */
-	    {
-		if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
-		    break;
-		if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
-		    break;
+		if ((dev->unit <= ap->unit)			/* belongs before (equal is bad) */
+		    || !ap->next)				/* or end of list */
+		{
+		    ap = ap->prev;				/* back up one */
+		    break;					/* done here */
+		}
+		if (ap->next)					/* if the next item exists */
+		{
+		    if (ap->next->comment != DEV_DEVICE)	/* next is a comment */
+			break;
+		    if (strcmp(dev->dev,ap->next->dev))		/* next is a different device */
+			break;
+		}
 	    }
 	}
     }
 
-    if (!ap)
+    if (!ap)						/* not sure yet */
     {
+	/* search for a class that the device might belong to */
 	for (ap = list; ap; ap = ap->next)
 	{
 	    if (ap->comment != DEV_DEVICE)		/* look for simlar devices */
 		continue;
-	    if (dev->class != ap->class)			/* of same class too 8) */
+	    if (dev->class != ap->class)		/* of same class too 8) */
 		continue;
 	    if (strcmp(dev->dev,ap->dev) < 0)		/* belongs before the current entry */
 	    {
@@ -607,7 +639,7 @@ movedev(DEV_LIST *dev, DEV_LIST *list)
     dev->prev = ap;					/* point new to current */
     ap->next = dev;					/* and current to new */
 }
-	    
+
 
 /**
  ** Initlist
@@ -647,8 +679,11 @@ savelist(DEV_LIST *list, int active)
 
     while (list)
     {
-	if ((list->comment == DEV_DEVICE) && list->changed)
-	{
+	if ((list->comment == DEV_DEVICE) &&		/* is a device */
+	    (list->changed) &&				/* has been changed */
+	    (list->iobase != -2) &&			/* is not a PCI device */
+	    (list->device != NULL)) {			/* has an isa_device structure */
+
 	    setdev(list,active);			/* set the device itself */
 
 	    id_pn = NULL;
@@ -777,12 +812,13 @@ static int
 findconflict(DEV_LIST *list)
 {
     int		count = 0;			/* number of conflicts found */
-    int		ic;
     DEV_LIST	*dp,*sp;
 
     for (dp = list; dp; dp = dp->next)		/* over the whole list */
     {
 	if (dp->comment != DEV_DEVICE)		/* comments don't usually conflict */
+	    continue;
+	if (dp->iobase == -2)			/* it's a PCI device, not interested */
 	    continue;
 
 	dp->conflicts = 0;			/* assume the best */
@@ -790,6 +826,9 @@ findconflict(DEV_LIST *list)
 	{
 	    if (sp->comment != DEV_DEVICE)	/* likewise */
 		continue;
+	    if (dp->iobase == -2)		/* it's a PCI device, not interested */
+		continue;
+
 	    if (sp == dp)			/* always conflict with itself */
 		continue;
 	    if (sp->conflict_ok && dp->conflict_ok)
@@ -1329,6 +1368,7 @@ yesnocancel(char *str)
     for(;;)
 	switch(getchar())
 	{
+	case -1:
 	case 'n':
 	case 'N':
 	    return(0);
@@ -1374,7 +1414,11 @@ showparams(DEV_LIST *dev)
     {
 	sprintf(buf,"Port address : 0x%x",dev->iobase);
 	putxy(1,18,buf);
+    } else {
+	if (dev->iobase == -2)			/* a PCI device */
+	    putmsg(" PCI devices are automatically configured.");
     }
+	    
     if (dev->irq > 0)
     {
 	sprintf(buf,"IRQ number   : %d",dev->irq);
@@ -1439,7 +1483,7 @@ static int
 editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 {
     int		i = *val;			/* work with copy of the value */
-    char	buf[10],tc[8];			/* display buffer, text copy */
+    char	buf[2+11+1],tc[11+1];		/* display buffer, text copy */
     int		xp = 0;				/* cursor offset into text copy */
     int		delta = 1;			/* force redraw first time in */
     int		c;
@@ -1474,7 +1518,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    break;				/* nope, drop through */
 	
 	case 1:					/* there was an escape prefix */
-	    if (c == '[')			/* second character in sequence */
+	    if (c == '[' || c == 'O')		/* second character in sequence */
 	    {
 		extended = 2;
 		continue;
@@ -1512,6 +1556,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    VetRet(KEY_TAB);			/* verify and maybe return */
 	    break;
 
+	case -1:
 	case 'q':
 	case 'Q':
 	    VetRet(KEY_EXIT);
@@ -1527,7 +1572,7 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    }
 	    if (xp)				/* still something left to delete */
 	    {
-		i = i / (hex?0x10:10);		/* strip last digit */
+		i = (hex ? i/0x10u : i/10);	/* strip last digit */
 		delta = 1;			/* force update */
 	    }
 	    break;
@@ -1536,6 +1581,8 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    VetRet(KEY_UP);
 	    break;
 
+	case '\r':
+	case '\n':
 	case 596:
 	    VetRet(KEY_DOWN);
 	    break;
@@ -1672,7 +1719,7 @@ editparams(DEV_LIST *dev)
 	}
     ep_flags:
 	puthelp("  Device-specific flag values.");
-	ret = editval(18,20,5,1,0x0,0xffff,&(dev->flags),0);
+	ret = editval(18,20,8,1,INT_MIN,INT_MAX,&(dev->flags),0);
 	switch(ret)
 	{
 	case KEY_EXIT:
@@ -1876,6 +1923,7 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
 		break;
 		    
 	    case '[':				/* cheat : always preceeds cursor move */
+	    case 'O':				/* ANSI application key mode */
 		if (extended==1)
 		    extended=2;
 		else
@@ -1920,7 +1968,7 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
  ** 
  ** Do the fullscreen config thang
  **/
-int
+static int
 visuserconfig(void)
 {
     int	actofs = 0, inactofs = 0, mode = 0, ret = -1, i;
@@ -2001,12 +2049,14 @@ visuserconfig(void)
 		{
 		    if (dp->comment == DEV_DEVICE)	/* can't edit comments, zoom? */
 		    {
-			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
-			editparams(dp);
-			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
-			putxy(0,17,lines);
-			conflicts = findconflict(active);	/* update conflict tags */
-
+			if (dp->iobase != -2)		/* can't edit PCI devices */
+			{
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
+			    editparams(dp);
+			    masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
+			    putxy(0,17,lines);
+			    conflicts = findconflict(active);	/* update conflict tags */
+			}
 		    }else{				/* DO on comment = zoom */
 			switch(dp->comment)		/* Depends on current state */
 			{
@@ -2107,7 +2157,7 @@ visuserconfig(void)
 	}
 	if (ret == KEY_EXIT)
 	{
-	    i = yesnocancel(" Save these parameters and exit? (Yes/No/Cancel) ");
+	    i = yesnocancel(" Save these parameters before exiting? (Yes/No/Cancel) ");
 	    switch(i)
 	    {
 	    case 2:				/* cancel */
@@ -2128,6 +2178,7 @@ visuserconfig(void)
 	}
     }
 }
+#endif /* VISUAL_USERCONFIG */
 
 /*
  * Copyright (c) 1991 Regents of the University of California.
@@ -2171,12 +2222,12 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.28.4.5 1996/10/16 02:16:05 jkh Exp $
+ *      $Id: userconfig.c,v 1.68 1996/11/12 20:00:24 bde Exp $
  */
 
+#include "scbus.h"
 
 #include <scsi/scsiconf.h>
-#include "scbus.h"
 
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
@@ -2205,13 +2256,13 @@ static void lsscsi(void);
 static int list_scsi(CmdParm *);
 #endif
 
-static void lsdevtab(struct isa_device *);
+static int lsdevtab(struct isa_device *);
 static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
 static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
-unsigned long strtoul(const char *, char **, int);
+static unsigned long strtoul(const char *, char **, int);
 static int save_dev(struct isa_device *);
 
 static int list_devices(CmdParm *);
@@ -2269,23 +2320,27 @@ static Cmd CmdList[] = {
 #if NSCBUS > 0
     { "s",	list_scsi,		NULL },		/* scsi */
 #endif
+#ifdef VISUAL_USERCONFIG
     { "v",	(CmdFunc)visuserconfig,	NULL },		/* visual mode */
+#endif
     { NULL,	NULL,			NULL },
 };
 
 void
 userconfig(void)
 {
-    char command[80];
     char input[80];
     int rval;
-    struct isa_device *dt;
     Cmd *cmd;
 
     printf("\nFreeBSD Kernel Configuration Utility - Version 1.1\n"
-	   " Type \"help\" for help or \"visual\" to go to the visual\n"
+	   " Type \"help\" for help" 
+#ifdef VISUAL_USERCONFIG
+	   " or \"visual\" to go to the visual\n"
 	   " configuration interface (requires MGA/VGA display or\n"
-	   " serial terminal capable of displaying ANSI graphics).\n");
+	   " serial terminal capable of displaying ANSI graphics)"
+#endif
+	   ".\n");
 
 
     while (1) {
@@ -2394,10 +2449,10 @@ static int
 list_devices(CmdParm *parms)
 {
     lineno = 0;
-    lsdevtab(&isa_devtab_bio[0]);
-    lsdevtab(&isa_devtab_tty[0]);
-    lsdevtab(&isa_devtab_net[0]);
-    lsdevtab(&isa_devtab_null[0]);
+    if (lsdevtab(&isa_devtab_bio[0])) return 0;
+    if (lsdevtab(&isa_devtab_tty[0])) return 0;
+    if (lsdevtab(&isa_devtab_net[0])) return 0;
+    if (lsdevtab(&isa_devtab_null[0])) return 0;
     return 0;
 }
 
@@ -2483,6 +2538,36 @@ set_device_disable(CmdParm *parms)
     return 0;
 }
 
+static int
+quitfunc(CmdParm *parms)
+{
+    return 1;
+}
+
+static int
+helpfunc(CmdParm *parms)
+{
+    printf("Command\t\t\tDescription\n");
+    printf("-------\t\t\t-----------\n");
+    printf("ls\t\t\tList currently configured devices\n");
+    printf("port <devname> <addr>\tSet device port (i/o address)\n");
+    printf("irq <devname> <number>\tSet device irq\n");
+    printf("drq <devname> <number>\tSet device drq\n");
+    printf("iomem <devname> <addr>\tSet device maddr (memory address)\n");
+    printf("iosize <devname> <size>\tSet device memory size\n");
+    printf("flags <devname> <mask>\tSet device flags\n");
+    printf("enable <devname>\tEnable device\n");
+    printf("disable <devname>\tDisable device (will not be probed)\n");
+    printf("quit\t\t\tExit this configuration utility\n");
+    printf("reset\t\t\tReset CPU\n");
+#ifdef VISUAL_USERCONFIG
+    printf("visual\t\t\tGo to fullscreen mode.\n");
+#endif
+    printf("help\t\t\tThis message\n\n");
+    printf("Commands may be abbreviated to a unique prefix\n");
+    return 0;
+}
+
 #if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
 
 static void
@@ -2565,6 +2650,7 @@ introfunc(CmdParm *parms)
 		    extended = 0;
 		break;
 		
+	    case -1:
 	    case 'Q':
 	    case 'q':
 		clear();
@@ -2590,34 +2676,6 @@ introfunc(CmdParm *parms)
 #endif
 
 static int
-quitfunc(CmdParm *parms)
-{
-    return 1;
-}
-
-static int
-helpfunc(CmdParm *parms)
-{
-    printf("Command\t\t\tDescription\n");
-    printf("-------\t\t\t-----------\n");
-    printf("ls\t\t\tList currently configured devices\n");
-    printf("port <devname> <addr>\tSet device port (i/o address)\n");
-    printf("irq <devname> <number>\tSet device irq\n");
-    printf("drq <devname> <number>\tSet device drq\n");
-    printf("iomem <devname> <addr>\tSet device maddr (memory address)\n");
-    printf("iosize <devname> <size>\tSet device memory size\n");
-    printf("flags <devname> <mask>\tSet device flags\n");
-    printf("enable <devname>\tEnable device\n");
-    printf("disable <devname>\tDisable device (will not be probed)\n");
-    printf("quit\t\t\tExit this configuration utility\n");
-    printf("reset\t\t\tReset CPU\n");
-    printf("visual\t\t\tGo to fullscreen mode.\n");
-    printf("help\t\t\tThis message\n\n");
-    printf("Commands may be abbreviated to a unique prefix\n");
-    return 0;
-}
-
-static void
 lsdevtab(struct isa_device *dt)
 {
     for (; dt->id_id != 0; dt++) {
@@ -2626,7 +2684,10 @@ lsdevtab(struct isa_device *dt)
 
 	if (lineno >= 23) {
 		printf("<More> ");
-		(void)cngetc();
+		if (getchar() == 'q') {
+			printf("quit\n");
+			return (1);
+		}
 		printf("\n");
 		lineno = 0;
 	}
@@ -2661,6 +2722,7 @@ lsdevtab(struct isa_device *dt)
 	printf("%s\n", line);
 	++lineno;
     }
+    return(0);
 }
 
 static struct isa_device *
@@ -2690,13 +2752,13 @@ search_devtable(struct isa_device *dt, char *devname, int unit)
     return NULL;
 }
 
-void
+static void
 cngets(char *input, int maxin)
 {
     int c, nchars = 0;
 
     while (1) {
-	c = cngetc();
+	c = getchar();
 	/* Treat ^H or ^? as backspace */
 	if ((c == '\010' || c == '\177')) {
 	    	if (nchars) {
@@ -2714,7 +2776,7 @@ cngets(char *input, int maxin)
 		continue;
 	}
 	printf("%c", c);
-	if ((++nchars == maxin) || (c == '\n') || (c == '\r')) {
+	if ((++nchars == maxin) || (c == '\n') || (c == '\r') || ( c == -1)) {
 	    *input = '\0';
 	    break;
 	}
@@ -2745,7 +2807,7 @@ static int errno;
  * Ignores `locale' stuff.  Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
-unsigned long
+static unsigned long
 strtoul(nptr, endptr, base)
 	const char *nptr;
 	char **endptr;
