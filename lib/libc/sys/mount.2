@@ -32,7 +32,7 @@
 .\"     @(#)mount.2	8.3 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2004
+.Dd November 26, 2004
 .Dt MOUNT 2
 .Os
 .Sh NAME
@@ -130,9 +130,6 @@ Do not honor setuid or setgid bits on files when executing them.
 This flag is set automatically when the caller is not the super-user.
 .It Dv MNT_NOATIME
 Disable update of file access times.
-.It Dv MNT_NODEV
-Do not interpret special files on the file system.
-This flag is set automatically when the caller is not the super-user.
 .It Dv MNT_SNAPSHOT
 Create a snapshot of the file system.
 This is currently only supported on UFS2 file systems, see

@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 18, 1999
+.Dd November 29, 2004
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -630,16 +630,14 @@ and so forth, files that might fall outside the purview of the MD5 check.
 If you have a huge amount of user disk space it may take too long to run
 through every file on those partitions.
 In this case, setting mount
-flags to disallow SUID binaries and devices on those partitions is a good
+flags to disallow SUID binaries on those partitions is a good
 idea.
 The
-.Cm nodev
-and
 .Cm nosuid
-options
+option
 (see
 .Xr mount 8 )
-are what you want to look into.
+is what you want to look into.
 I would scan them anyway at least once a
 week, since the object of this layer is to detect a break-in whether or
 not the break-in is effective.
