@@ -39,10 +39,10 @@ static const char copyright[] =
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)fstat.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)fstat.c	8.3 (Berkeley) 5/2/95";
 #endif
 static const char rcsid[] =
-	"$Id: fstat.c,v 1.7.2.3 1997/08/31 01:31:07 alex Exp $";
+	"$Id: fstat.c,v 1.7.2.4 1997/09/18 23:19:00 dima Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,13 +65,11 @@ static const char rcsid[] =
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #undef KERNEL
-#define NFS
 #include <sys/mount.h>
 #include <nfs/nfsproto.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfs.h>
 #include <nfs/nfsnode.h>
-#undef NFS
 
 #include <net/route.h>
 #include <netinet/in.h>
@@ -83,6 +81,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <kvm.h>
+#include <limits.h>
 #include <nlist.h>
 #include <paths.h>
 #include <pwd.h>
@@ -168,12 +167,13 @@ main(argc, argv)
 	struct kinfo_proc *p, *plast;
 	int arg, ch, what;
 	char *memf, *nlistf;
+	char buf[_POSIX2_LINE_MAX];
 	int cnt;
 
 	arg = 0;
 	what = KERN_PROC_ALL;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "fnp:u:vN:M:")) !=  -1)
+	while ((ch = getopt(argc, argv, "fnp:u:vN:M:")) != -1)
 		switch((char)ch) {
 		case 'f':
 			fsflg = 1;
@@ -238,8 +238,8 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-	if ((kd = kvm_open(nlistf, memf, NULL, O_RDONLY, NULL)) == NULL)
-		errx(1, "%s", kvm_geterr(kd));
+	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf)) == NULL)
+		errx(1, "%s", buf);
 #ifdef notdef
 	if (kvm_nlist(kd, nl) != 0)
 		errx(1, "no namelist: %s", kvm_geterr(kd));
