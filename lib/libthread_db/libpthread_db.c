@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <link.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,9 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <proc_service.h>
 #include <thread_db.h>
 
-#include "rtld.h"
-
-#include "libpthread.h"
 #include "libpthread_db.h"
 
 #define P2T(c) ps2td(c)
@@ -132,7 +128,22 @@ pt_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 		goto error;				\
 	}
 
+#define	LOOKUP_VAL(proc, sym, val)			\
+	ret = ps_pglobal_lookup(proc, NULL, sym, &vaddr);\
+	if (ret != 0) {					\
+		TDBG("can not find symbol: %s\n", sym);	\
+		ret = TD_NOLIBTHREAD;			\
+		goto error;				\
+	}						\
+	ret = ps_pread(proc, vaddr, val, sizeof(int));	\
+	if (ret != 0) {					\
+		TDBG("can not read value of %s\n", sym);\
+		ret = TD_NOLIBTHREAD;			\
+		goto error;				\
+	}
+
 	td_thragent_t *ta;
+	psaddr_t vaddr;
 	int dbg;
 	int ret;
 
@@ -152,7 +163,23 @@ pt_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 	LOOKUP_SYM(ph, "_thread_activated",	&ta->thread_activated_addr);
 	LOOKUP_SYM(ph, "_thread_active_threads",&ta->thread_active_threads_addr);
 	LOOKUP_SYM(ph, "_thread_keytable",	&ta->thread_keytable_addr);
-
+	LOOKUP_VAL(ph, "_thread_off_dtv",	&ta->thread_off_dtv);
+	LOOKUP_VAL(ph, "_thread_off_kse_locklevel", &ta->thread_off_kse_locklevel);
+	LOOKUP_VAL(ph, "_thread_off_kse",	&ta->thread_off_kse);
+	LOOKUP_VAL(ph, "_thread_off_tlsindex",	&ta->thread_off_tlsindex);
+	LOOKUP_VAL(ph, "_thread_off_attr_flags",	&ta->thread_off_attr_flags);
+	LOOKUP_VAL(ph, "_thread_size_key",	&ta->thread_size_key);
+	LOOKUP_VAL(ph, "_thread_off_tcb",	&ta->thread_off_tcb);
+	LOOKUP_VAL(ph, "_thread_off_linkmap",	&ta->thread_off_linkmap);
+	LOOKUP_VAL(ph, "_thread_off_tmbx",	&ta->thread_off_tmbx);
+	LOOKUP_VAL(ph, "_thread_off_thr_locklevel",	&ta->thread_off_thr_locklevel);
+	LOOKUP_VAL(ph, "_thread_off_next",	&ta->thread_off_next);
+	LOOKUP_VAL(ph, "_thread_off_state",	&ta->thread_off_state);
+	LOOKUP_VAL(ph, "_thread_max_keys",	&ta->thread_max_keys);
+	LOOKUP_VAL(ph, "_thread_off_key_allocated", &ta->thread_off_key_allocated);
+	LOOKUP_VAL(ph, "_thread_off_key_destructor", &ta->thread_off_key_destructor);
+	LOOKUP_VAL(ph, "_thread_state_running", &ta->thread_state_running);
+	LOOKUP_VAL(ph, "_thread_state_zoombie", &ta->thread_state_zoombie);
 	dbg = getpid();
 	/*
 	 * If this fails it probably means we're debugging a core file and
@@ -211,13 +238,13 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 		 */
 		while (pt != 0) {
 			ret = ps_pread(ta->ph,
-			        pt + offsetof(struct pthread, tcb),
+			        pt + ta->thread_off_tcb,
 			        &tcb_addr, sizeof(tcb_addr));
 			if (ret != 0)
 				return (P2T(ret));
 			ret = ps_pread(ta->ph,
-			        tcb_addr + offsetof(struct tcb,
-				  tcb_tmbx.tm_lwp),
+			        tcb_addr + ta->thread_off_tmbx + 
+				offsetof(struct kse_thr_mailbox, tm_lwp),
 				&lwp, sizeof(lwp));
 			if (ret != 0)
 				return (P2T(ret));
@@ -231,7 +258,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 			}
 			/* get next thread */
 			ret = ps_pread(ta->ph,
-			        pt + offsetof(struct pthread, tle.tqe_next),
+			        pt + ta->thread_off_next,
 			        &pt, sizeof(pt));
 			if (ret != 0)
 				return (P2T(ret));
@@ -246,13 +273,13 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 	} else {
 		while (pt != 0 && ta->map[id].thr != pt) {
 			ret = ps_pread(ta->ph,
-				pt + offsetof(struct pthread, tcb),
+				pt + ta->thread_off_tcb,
 				&tcb_addr, sizeof(tcb_addr));
 			if (ret != 0)
 				return (P2T(ret));
 			/* get next thread */
 			ret = ps_pread(ta->ph,
-				pt + offsetof(struct pthread, tle.tqe_next),
+				pt + ta->thread_off_next,
 				&pt, sizeof(pt));
 			if (ret != 0)
 				return (P2T(ret));
@@ -285,11 +312,12 @@ pt_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwp, td_thrhandle_t *th)
 		return (P2T(ret));
 	pt = (psaddr_t)thread_list.tqh_first;
 	while (pt != 0) {
-		ret = ps_pread(ta->ph, pt + offsetof(struct pthread, tcb),
+		ret = ps_pread(ta->ph, pt + ta->thread_off_tcb,
 				&ptr, sizeof(ptr));
 		if (ret != 0)
 			return (P2T(ret));
-		ptr += offsetof(struct tcb, tcb_tmbx.tm_lwp);
+		ptr += ta->thread_off_tmbx +
+		       offsetof(struct kse_thr_mailbox, tm_lwp);
 		ret = ps_pread(ta->ph, ptr, &tmp_lwp, sizeof(lwpid_t));
 		if (ret != 0)
 			return (P2T(ret));
@@ -304,7 +332,7 @@ pt_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwp, td_thrhandle_t *th)
 
 		/* get next thread */
 		ret = ps_pread(ta->ph,
-		           pt + offsetof(struct pthread, tle.tqe_next), 
+		           pt + ta->thread_off_next,
 		           &pt, sizeof(pt));
 		if (ret != 0)
 			return (P2T(ret));
@@ -350,7 +378,7 @@ pt_ta_thr_iter(const td_thragent_t *ta,
 			return (TD_DBERR);
 		/* get next thread */
 		pserr = ps_pread(ta->ph,
-		    pt + offsetof(struct pthread, tle.tqe_next), &pt,
+		    pt + ta->thread_off_next, &pt,
 		    sizeof(pt));
 		if (pserr != PS_OK)
 			return (P2T(pserr));
@@ -361,23 +389,33 @@ pt_ta_thr_iter(const td_thragent_t *ta,
 static td_err_e
 pt_ta_tsd_iter(const td_thragent_t *ta, td_key_iter_f *ki, void *arg)
 {
-	struct pthread_key keytable[PTHREAD_KEYS_MAX];
-	int i, ret;
+	char *keytable;
+	void *destructor;
+	int i, ret, allocated;
 
 	TDBG_FUNC();
 
+	keytable = malloc(ta->thread_max_keys * ta->thread_size_key);
+	if (keytable == NULL)
+		return (TD_MALLOC);
 	ret = ps_pread(ta->ph, (psaddr_t)ta->thread_keytable_addr, keytable,
-	                sizeof(keytable));
+	               ta->thread_max_keys * ta->thread_size_key);
 	if (ret != 0)
 		return (P2T(ret));
-
-	for (i = 0; i < PTHREAD_KEYS_MAX; i++) {
-		if (keytable[i].allocated) {
-			ret = (ki)(i, keytable[i].destructor, arg);
-			if (ret != 0)
+	for (i = 0; i < ta->thread_max_keys; i++) {
+		allocated = *(int *)(keytable + i * ta->thread_size_key +
+			ta->thread_off_key_allocated);
+		destructor = *(void **)(keytable + i * ta->thread_size_key +
+			ta->thread_off_key_destructor);
+		if (allocated) {
+			ret = (ki)(i, destructor, arg);
+			if (ret != 0) {
+				free(keytable);
 				return (TD_DBERR);
+			}
 		}
 	}
+	free(keytable);
 	return (TD_OK);
 }
 
@@ -433,16 +471,16 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 	}
 
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-		offsetof(struct pthread, attr.flags),
+		ta->thread_off_attr_flags,
 		&attrflags, sizeof(attrflags));
 	if (ret != 0)
 		return (P2T(ret));
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-	                offsetof(struct pthread, tcb),
-	                &tcb_addr, sizeof(tcb_addr));
+	               ta->thread_off_tcb,
+	               &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
-	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
 	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
 	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
 	if (ret != 0)
@@ -450,25 +488,24 @@ pt_dbsuspend(const td_thrhandle_t *th, int suspend)
 
 	if (lwp != 0) {
 		/* don't suspend signal thread */
-		if (attrflags & THR_SIGNAL_THREAD)
+		if (attrflags & 0x200)
 			return (0);
 		if (attrflags & PTHREAD_SCOPE_SYSTEM) {
 			/*
 			 * don't suspend system scope thread if it is holding
 			 * some low level locks
 			 */
-			ptr = ta->map[th->th_tid].thr +
-	                	offsetof(struct pthread, kse);
+			ptr = ta->map[th->th_tid].thr + ta->thread_off_kse;
 			ret = ps_pread(ta->ph, ptr, &ptr, sizeof(ptr));
 			if (ret != 0)
 				return (P2T(ret));
-			ret = ps_pread(ta->ph, ptr + offsetof(struct kse,
-				k_locklevel), &locklevel, sizeof(int));
+			ret = ps_pread(ta->ph, ptr + ta->thread_off_kse_locklevel,
+				&locklevel, sizeof(int));
 			if (ret != 0)
 				return (P2T(ret));
 			if (locklevel <= 0) {
 				ptr = ta->map[th->th_tid].thr +
-					offsetof(struct pthread, locklevel);
+					ta->thread_off_thr_locklevel;
 				ret = ps_pread(ta->ph, ptr, &locklevel,
 					sizeof(int));
 				if (ret != 0)
@@ -548,9 +585,10 @@ static td_err_e
 pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 {
 	const td_thragent_t *ta = th->th_ta;
-	struct pthread pt;
-	int ret;
+	psaddr_t tcb_addr;
 	uint32_t dflags;
+	int state;
+	int ret;
 
 	TDBG_FUNC();
 
@@ -567,59 +605,34 @@ pt_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *info)
 		info->ti_type = TD_THR_SYSTEM;
 		return (TD_OK);
 	}
-
-	ret = ps_pread(ta->ph, (psaddr_t)(ta->map[th->th_tid].thr),
-	                &pt, sizeof(pt));
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_tcb,
+	               &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
-	if (pt.magic != THR_MAGIC)
-		return (TD_BADTH);
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_state,
+	               &state, sizeof(state));
 	ret = ps_pread(ta->ph,
-	        ((psaddr_t)pt.tcb) + offsetof(struct tcb, tcb_tmbx.tm_lwp),
+	        tcb_addr + ta->thread_off_tmbx +
+		 offsetof(struct kse_thr_mailbox, tm_lwp),
 	        &info->ti_lid, sizeof(lwpid_t));
 	if (ret != 0)
 		return (P2T(ret));
 	ret = ps_pread(ta->ph,
-		((psaddr_t)pt.tcb) + offsetof(struct tcb, tcb_tmbx.tm_dflags),
+		tcb_addr + ta->thread_off_tmbx +
+		 offsetof(struct kse_thr_mailbox, tm_dflags),
 		&dflags, sizeof(dflags));
 	if (ret != 0)
 		return (P2T(ret));
 	info->ti_ta_p = th->th_ta;
 	info->ti_tid = th->th_tid;
-	info->ti_tls = (char *)pt.specific; 
-	info->ti_startfunc = (psaddr_t)pt.start_routine;
-	info->ti_stkbase = (psaddr_t) pt.attr.stackaddr_attr;
-	info->ti_stksize = pt.attr.stacksize_attr;
-	switch (pt.state) {
-	case PS_RUNNING:
+	if (state == ta->thread_state_running)
 		info->ti_state = TD_THR_RUN;
-		break;
-	case PS_LOCKWAIT:
-	case PS_MUTEX_WAIT:
-	case PS_COND_WAIT:
-	case PS_SIGSUSPEND:
-	case PS_SIGWAIT:
-	case PS_JOIN:
-	case PS_SUSPENDED:
-	case PS_DEADLOCK:
-	case PS_SLEEP_WAIT:
-		info->ti_state = TD_THR_SLEEP;
-		break;
-	case PS_DEAD:
+	else if (state == ta->thread_state_zoombie)
 		info->ti_state = TD_THR_ZOMBIE;
-		break;
-	default:
-		info->ti_state = TD_THR_UNKNOWN;
-		break;
-	}
-
+	else
+		info->ti_state = TD_THR_SLEEP;
 	info->ti_db_suspended = ((dflags & TMDF_SUSPEND) != 0);
 	info->ti_type = TD_THR_USER;
-	info->ti_pri = pt.active_priority;
-	info->ti_sigmask = pt.sigmask;
-	info->ti_traceme = 0; 
-	info->ti_pending = pt.sigpend;
-	info->ti_events = 0;
 	return (0);
 }
 
@@ -643,12 +656,11 @@ pt_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *fpregs)
 		return (P2T(ret));
 	}
 
-	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-	               offsetof(struct pthread, tcb),
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_tcb,
 	               &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
-	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
 	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
 	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
 	if (ret != 0)
@@ -686,12 +698,11 @@ pt_thr_getgregs(const td_thrhandle_t *th, prgregset_t gregs)
 		return (P2T(ret));
 	}
 
-	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-	                offsetof(struct pthread, tcb),
+	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + ta->thread_off_tcb,
 			&tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
-	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
 	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
 	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
 	if (ret != 0)
@@ -728,11 +739,11 @@ pt_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
 	}
 
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-	                offsetof(struct pthread, tcb),
+	                ta->thread_off_tcb,
                         &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
-	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
 	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
 	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
 	if (ret != 0)
@@ -775,11 +786,11 @@ pt_thr_setgregs(const td_thrhandle_t *th, const prgregset_t gregs)
 	}
 
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-	                offsetof(struct pthread, tcb),
+	                ta->thread_off_tcb,
 	                &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
-	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
 	ptr = tmbx_addr + offsetof(struct kse_thr_mailbox, tm_lwp);
 	ret = ps_pread(ta->ph, ptr, &lwp, sizeof(lwpid_t));
 	if (ret != 0)
@@ -850,33 +861,39 @@ pt_thr_sstep(const td_thrhandle_t *th, int step)
 		return (TD_BADTH);
 
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr + 
-	                offsetof(struct pthread, tcb),
+	                ta->thread_off_tcb,
 	                &tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
 
 	/* Clear or set single step flag in thread mailbox */
-	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb,
-			 tcb_tmbx.tm_dflags), &dflags, sizeof(uint32_t));
+	ret = ps_pread(ta->ph,
+		tcb_addr + ta->thread_off_tmbx +
+		 offsetof(struct kse_thr_mailbox, tm_dflags),
+		&dflags, sizeof(uint32_t));
 	if (ret != 0)
 		return (P2T(ret));
 	if (step != 0)
 		dflags |= TMDF_SSTEP;
 	else
 		dflags &= ~TMDF_SSTEP;
-	ret = ps_pwrite(ta->ph, tcb_addr + offsetof(struct tcb,
-	                 tcb_tmbx.tm_dflags), &dflags, sizeof(uint32_t));
+	ret = ps_pwrite(ta->ph,
+		tcb_addr + ta->thread_off_tmbx +
+		 offsetof(struct kse_thr_mailbox, tm_dflags),
+	        &dflags, sizeof(uint32_t));
 	if (ret != 0)
 		return (P2T(ret));
 	/* Get lwp */
-	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb,
-	                tcb_tmbx.tm_lwp), &lwp, sizeof(lwpid_t));
+	ret = ps_pread(ta->ph,
+		tcb_addr + ta->thread_off_tmbx +
+		 offsetof(struct kse_thr_mailbox, tm_lwp),
+		&lwp, sizeof(lwpid_t));
 	if (ret != 0)
 		return (P2T(ret));
 	if (lwp != 0)
 		return (0);
 
-	tmbx_addr = tcb_addr + offsetof(struct tcb, tcb_tmbx);
+	tmbx_addr = tcb_addr + ta->thread_off_tmbx;
 	/*
 	 * context is in userland, some architectures store
 	 * single step status in registers, we should change
@@ -922,48 +939,33 @@ td_err_e
 pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
 		    void **address)
 {
-#if 0
-	Obj_Entry *obj_entry;
+	char *obj_entry;
 	const td_thragent_t *ta = th->th_ta;
 	psaddr_t tcb_addr, *dtv_addr, tcb_tp;
 	int tls_index, ret;
 
 	/* linkmap is a member of Obj_Entry */
-	obj_entry = (Obj_Entry *)
-		(((char *)_linkmap) - offsetof(Obj_Entry, linkmap));
+	obj_entry = (char *)_linkmap - ta->thread_off_linkmap;
 
 	/* get tlsindex of the object file */
 	ret = ps_pread(ta->ph,
-		((char *)obj_entry) + offsetof(Obj_Entry, tlsindex),
+		obj_entry + ta->thread_off_tlsindex,
 		&tls_index, sizeof(tls_index));
 	if (ret != 0)
 		return (P2T(ret));
 
 	/* get thread tcb */
 	ret = ps_pread(ta->ph, ta->map[th->th_tid].thr +
-		offsetof(struct pthread, tcb),
+		ta->thread_off_tcb,
 		&tcb_addr, sizeof(tcb_addr));
 	if (ret != 0)
 		return (P2T(ret));
 
-#ifdef TLS_DTV_AT_TCB
 	/* get dtv array address */
-	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb, tcb_dtv),
+	ret = ps_pread(ta->ph, tcb_addr + ta->thread_off_dtv,
 		&dtv_addr, sizeof(dtv_addr));
 	if (ret != 0)
 		return (P2T(ret));
-#else
- #ifdef TLS_DTV_AT_TP
-	ret = ps_pread(ta->ph, tcb_addr + offsetof(struct tcb, tcb_tp),
-		&tcb_tp, sizeof(tcb_tp));
-	if (ret != 0)
-		return (P2T(ret));
-	ret = ps_pread(ta->ph, tcb_tp + offsetof(struct tp, tp_dtv),
-		&dtv_addr, sizeof(dtv_addr));
- #else
-	#error "Either TLS_DTV_AT_TP or TLS_DTV_AT_TCB must be defined."
- #endif
-#endif
 	/* now get the object's tls block base address */
 	ret = ps_pread(ta->ph, &dtv_addr[tls_index+1], address,
 		sizeof(*address));
@@ -971,7 +973,6 @@ pt_thr_tls_get_addr(const td_thrhandle_t *th, void *_linkmap, size_t offset,
 		return (P2T(ret));
 
 	*address += offset;
-#endif
 	return (TD_OK);
 }
 
