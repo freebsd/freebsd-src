@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.388
+    Original revision: 1.22.2.420
 -->
 
 <articleinfo>
@@ -11,14 +11,16 @@
 
   <pubdate>$FreeBSD$</pubdate>
 
-  <corpauthor>FreeBSD プロジェクト</corpauthor>
+  <corpauthor>&os; プロジェクト</corpauthor>
 
   <copyright>
     <year>2000</year>
     <year>2001</year>
     <year>2002</year>
     <year>2003</year>
-    <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+    <year>2004</year>
+    <year>2005</year>
+    <holder role="mailto:doc@FreeBSD.org">&os; ドキュメンテーションプロジェクト</holder>
   </copyright>
 
   <abstract>
@@ -183,8 +185,7 @@
   <sect2 id="contrib">
     <title>寄贈ソフトウェア</title>
 
-    <para><application>sendmail</application> がバージョン
-      8.12.10 に更新されました。</para>
+    <para></para>
 
   </sect2>
 

@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.1.2.117
+    Original revision: 1.1.2.126
 -->
 
 <!-- 
@@ -19,18 +19,8 @@
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-<!ENTITY % ja-authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//JA">
-%ja-authors;
-<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-<!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
-%ja-mlists;
-<!ENTITY % ja-trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//JA">
-%ja-trademarks;
-<!ENTITY % trademarks PUBLIC "-//FreeBSD//ENTITIES DocBook Trademark Entities//EN">
-%trademarks;
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
 ]>
@@ -56,7 +46,9 @@
       <year>2001</year>
       <year>2002</year>
       <year>2003</year>
-      <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーションプロジェクト</holder>
+      <year>2004</year>
+      <year>2005</year>
+      <holder role="mailto:doc@FreeBSD.org">&os; ドキュメンテーションプロジェクト</holder>
     </copyright>
 
     <legalnotice id="trademarks" role="trademarks">
@@ -153,53 +145,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-
-    <para>(2003 年 10 月 28 日) リリース工程の終盤で、
-      &intel; プロセッサの
-      HyperThreading (HTT) 対応機能を
-      SMP カーネルではデフォルトで有効とする変更が行われました。
-      その結果、不要となったカーネルオプション
-      <literal>HTT</literal> は削除されました。
-      HTT 機能で有効化された論理 CPU は
-      割り込みを処理できるように常に起動されますが、
-      デフォルトではユーザプロセスを実行できないようになっています。
-      論理 CPU がユーザプロセスを実行できるようにするには、
-      &man.sysctl.8; 変数 <varname>machdep.hlt_logical_cpus</varname> を
-      <literal>1</literal> から <literal>0</literal> に変更してください。
-      loader で、この変数を同じ名前で設定することもできます。
-      この動作は &os; 5.<replaceable>X</replaceable> と同一です。</para>
-
-    <para>(2003 年 10 月 29 日)
-      一つ目の CD-ROM に収録されている packages のいくつかが、
-      それぞれ異なる (共存できない) バージョンの
-      <application>OpenLDAP</application> に依存していました。
-      この問題により、packages を利用して
-      <filename role="package">x11/gnome2</filename> と
-      <filename role="package">x11/kde3</filename> の両方を
-      インストールすることはできないということが判明しています。</para>
-
-    <para>(2003 年 10 月 30 日)
-      &os; のベースシステム全体を正しく機能させるために
-      <filename>crypto</filename> 配布物は必須のようです。
-      少なくとも、&man.pkg.add.1; の実行には
-      <filename>crypto</filename> 配布物にあるライブラリが必要です。</para>
-
-    <para>(2003 年 10 月 30 日)
-      ごく最近の i386 マシンでは El Torito CDROM
-      のエミュレーションモードによる起動に対応していないことがわかっています。
-      この結果、&os; &release.current; は
-      CDROM からの起動に失敗してしまいます。
-      回避方法として、フロッピディスクイメージをダウンロードして
-      &man.sysinstall.8; を起動してから、CDROM でインストールを行ってください。
-      この文章を書いている時点では、この問題はそれほど発生していないようです。
-
-      <note>
-	<para>&os; 5.<replaceable>X</replaceable> は、デフォルトでは
-	  El Torito CDROM エミュレーションモードによる起動方法を
-	  使用していません。そのため、エミュレーションモードにしか
-	  対応していない古い i386 マシンでは起動することができません。</para>
-      </note></para>
-
+    <para>最新情報はありません。</para>
 ]]>
   </sect1>
 </article>
