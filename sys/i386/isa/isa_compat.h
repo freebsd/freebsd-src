@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isa_compat.h,v 1.1 1999/04/16 21:22:23 peter Exp $
  */
 
 #include "vt.h"
@@ -49,6 +49,7 @@
 #include "ze.h"
 #include "zp.h"
 #include "oltr.h"
+#include "pcm.h"
 #include "pas.h"
 #include "sb.h"
 #include "sbxvi.h"
@@ -117,6 +118,7 @@ extern struct isa_driver  wldriver;
 extern struct isa_driver  zedriver;
 extern struct isa_driver  zpdriver;
 extern struct isa_driver oltrdriver;
+extern struct isa_driver pcmdriver;
 extern struct isa_driver pasdriver;
 extern struct isa_driver  sbdriver;
 extern struct isa_driver sbxvidriver;
@@ -321,13 +323,16 @@ static struct old_isa_driver old_drivers[] = {
 #if NOLTR > 0
 	{ DRIVER_TYPE_MISC, &oltrdriver },
 #endif
+#if NPCM > 0
+	{ DRIVER_TYPE_MISC, &pcmdriver },
+#endif
 #if NPAS > 0
 	{ DRIVER_TYPE_MISC, &pasdriver },
 #endif
 #if NSB > 0
 	{ DRIVER_TYPE_MISC, &sbdriver },
 #endif
-#if NSBVXI > 0
+#if NSBXVI > 0
 	{ DRIVER_TYPE_MISC, &sbxvidriver },
 #endif
 #if NSBMIDI > 0
