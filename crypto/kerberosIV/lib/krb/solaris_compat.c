@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 #include "krb_locl.h"
 
@@ -42,7 +43,7 @@ RCSID("$Id: solaris_compat.c,v 1.4 1999/12/02 16:58:44 joda Exp $");
 
 int32_t
 _C0095C2A(void *in, void *out, u_int32_t length, 
-	  struct des_ks_struct *schedule, des_cblock *key, 
+	  des_key_schedule schedule, des_cblock *key, 
 	  struct sockaddr_in *sender, struct sockaddr_in *receiver)
 {
     return krb_mk_priv (in, out, length, schedule, key, sender, receiver);
@@ -50,7 +51,7 @@ _C0095C2A(void *in, void *out, u_int32_t length,
 
 int32_t
 _C0095C2B(void *in, u_int32_t in_length, 
-	  struct des_ks_struct *schedule, des_cblock *key, 
+	  des_key_schedule schedule, des_cblock *key, 
 	  struct sockaddr_in *sender, struct sockaddr_in *receiver, 
 	  MSG_DAT *m_data)
 {
