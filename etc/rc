@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.169 1999/01/20 12:30:13 jkh Exp $
+#	$Id: rc,v 1.170 1999/01/25 04:40:53 dillon Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -24,8 +24,8 @@ export PATH
 
 # BOOTP diskless boot.  We have to run the rc file early in order to
 # handle read-only NFS mounts, where the various config files
-# in /etc often don't apply.  rc.diskless may terminate the rc script
-# early or it may fall through, depending on the case.
+# in /etc often don't apply.   rc.diskless typically sets skip_diskconf=YES
+# on return.
 #
 if [ -f /etc/rc.diskless ]; then
 	if [ `/sbin/sysctl -n vfs.nfs.diskless_valid` != 0 ]; then
@@ -34,7 +34,7 @@ if [ -f /etc/rc.diskless ]; then
 fi
 
 # Configure ccd devices.
-if [ -f /etc/ccd.conf ]; then
+if [ "X$skip_diskconf" != "XYES" -a -f /etc/ccd.conf ]; then
 	ccdconfig -C
 fi
 
@@ -47,9 +47,11 @@ if [ -n "$vinum_slices" ]; then
 	fi
 fi
 
-swapon -a
+if [ "X$skip_diskconf" != "XYES" ]; then
+	swapon -a
+fi
 
-if [ $1x = autobootx ]; then
+if [ "X$skip_diskconf" != "XYES" -a $1x = autobootx ]; then
 	echo Automatic reboot in progress...
 	fsck -p
 	case $? in
@@ -86,25 +88,41 @@ fi
 
 trap "echo 'Reboot interrupted'; exit 1" 3
 
-# root must be read/write for NFS diskless before proceeding any further.
-mount -u -o rw /
-if [ $? != 0 ]; then
-	echo "Filesystem mount failed, startup aborted"
-	exit 1
-fi
+# root normally must be read/write, but if this is a BOOTP NFS
+# diskless boot it does not have to be.
+#
 
-umount -a >/dev/null 2>&1
+if [ "X$skip_diskconf" != "XYES" ]; then
+	mount -u -o rw /
 
-mount -a -t nonfs
-if [ $? != 0 ]; then
-	echo "Filesystem mount failed, startup aborted"
-	exit 1
+	if [ $? != 0 ]; then
+		echo "Filesystem mount failed, startup aborted"
+		exit 1
+	fi
+
+	umount -a >/dev/null 2>&1
+
+	mount -a -t nonfs
+	if [ $? != 0 ]; then
+		echo "Filesystem mount failed, startup aborted"
+		exit 1
+	fi
 fi
 
 # If there is a global system configuration file, suck it in.
+#
+
 if [ -f /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
+
+# Run custom disk mounting function here
+#
+
+if [ "X$diskless_mount_func" != "X" ]; then
+        $diskless_mount_func
+fi
+
 
 # If old file exists, whine until they fix it.
 if [ -f /etc/sysconfig ]; then
@@ -400,10 +418,13 @@ fi
 # ---- rc.local  ----
 #
 
-if [ -f /etc/rc.local ]; then
-    echo -n 'starting local daemons:'
-    sh /etc/rc.local
-    echo '.'
+# Do traditional rc.local file if it exists. 
+# 
+
+if [ -f $conf_dir/rc.local ]; then
+	echo -n 'starting local daemons:'
+        sh $conf_dir/rc.local
+	echo '.'
 fi
 
 # Raise kernel security level.  This should be done only after `fsck' has
