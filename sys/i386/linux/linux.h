@@ -230,7 +230,7 @@ struct l_new_utsname {
 #define	LINUX_SIGIO		29
 #define	LINUX_SIGPOLL		LINUX_SIGIO
 #define	LINUX_SIGPWR		30
-#define	LINUX_SIGUNUSED		31
+#define	LINUX_SIGSYS		31
 
 #define	LINUX_SIGTBLSZ		31
 #define	LINUX_NSIG_WORDS	2
