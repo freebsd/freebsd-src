@@ -15,7 +15,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.21 1996/02/24 13:39:46 phk Exp $
+ * $Id: ipfw.c,v 1.22 1996/04/02 11:43:28 phk Exp $
  *
  */
 
@@ -78,7 +78,7 @@ show_ipfw(chain)
 		printf("%10lu %10lu ",chain->fw_pcnt,chain->fw_bcnt);
 
 	if (chain->fw_flg & IP_FW_F_ACCEPT)
-		printf("accept");
+		printf("allow");
 	else if (chain->fw_flg & IP_FW_F_ICMPRPL)
 		printf("reject");
 	else if (chain->fw_flg & IP_FW_F_COUNT)
@@ -218,11 +218,11 @@ show_ipfw(chain)
 		if (chain->fw_ipnopt & IP_FW_IPOPT_TS)   PRINTOPT("!ts");
 	} 
 
-	if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
+	if (chain->fw_tcpf & IP_FW_TCPF_ESTAB) 
+		printf(" established");
+	else if (chain->fw_tcpf == IP_FW_TCPF_SYN &&
 	    chain->fw_tcpnf == IP_FW_TCPF_ACK)
 		printf(" setup");
-	else if (chain->fw_tcpnf == IP_FW_TCPF_SYN && !chain->fw_tcpf)
-		printf(" established");
 	else if (chain->fw_tcpf || chain->fw_tcpnf) {
 		int 	_flg_printed = 0;
 #define PRINTFLG(x)	{if (_flg_printed) printf(",");\
@@ -474,6 +474,8 @@ add(ac,av)
 	/* Action */
 	if (ac && !strncmp(*av,"accept",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
+	} else if (ac && !strncmp(*av,"allow",strlen(*av))) {
+		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
 	} else if (ac && !strncmp(*av,"pass",strlen(*av))) {
 		rule.fw_flg |= IP_FW_F_ACCEPT; av++; ac--;
 	} else if (ac && !strncmp(*av,"count",strlen(*av))) {
@@ -566,7 +568,7 @@ add(ac,av)
 		}
 		if ((rule.fw_flg & IP_FW_F_KIND) == IP_FW_F_TCP) {
 			if (!strncmp(*av,"established",strlen(*av))) { 
-				rule.fw_tcpnf  |= IP_FW_TCPF_SYN;
+				rule.fw_tcpf  |= IP_FW_TCPF_ESTAB;
 				av++; ac--; continue;
 			}
 			if (!strncmp(*av,"setup",strlen(*av))) { 
