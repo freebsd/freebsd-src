@@ -1233,7 +1233,9 @@ struct md5_add {
 	u_int16_t lport, fport;
 };
 
+#ifdef CTASSERT
 CTASSERT(sizeof(struct md5_add) == 28);
+#endif
 
 /*
  * Consider the problem of a recreated (and retransmitted) cookie.  If the
