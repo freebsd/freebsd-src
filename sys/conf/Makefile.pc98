@@ -39,7 +39,7 @@ OBJCOPY?=	objcopy
 
 COPTFLAGS?=-O -pipe
 .if !defined(NO_CPU_COPTFLAGS)
-COPTFLAGS+= ${_CFLAGS}
+COPTFLAGS+= ${_CPUCFLAGS}
 .endif
 INCLUDES= -nostdinc -I- -I. -I$S
 # This hack is to allow kernel compiles to succeed on machines w/out srcdist
