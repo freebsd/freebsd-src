@@ -1202,6 +1202,7 @@ groupmember(gid, cred)
 int	suser_enabled = 1;
 SYSCTL_INT(_kern_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
     &suser_enabled, 0, "processes with uid 0 have privilege");
+TUNABLE_INT("kern.security.bsd.suser_enabled", &suser_enabled);
 
 /*
  * Test whether the specified credentials imply "super-user" privilege.
