@@ -29,11 +29,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.6 1995/12/18 02:47:43 davidg Exp $
+ *	$Id: if_fxp.c,v 1.7 1996/01/03 05:22:32 davidg Exp $
  */
 
 /*
- * Intel EtherExpress Pro/100 PCI Fast Ethernet driver
+ * Intel EtherExpress Pro/100B PCI Fast Ethernet driver
  */
 
 #include "bpfilter.h"
@@ -211,7 +211,7 @@ fxp_probe(config_id, device_id)
 {
 	if (((device_id & 0xffff) == FXP_VENDORID_INTEL) &&
 	    ((device_id >> 16) & 0xffff) == FXP_DEVICEID_i82557)
-		return ("Intel EtherExpress Pro/100 Fast Ethernet");
+		return ("Intel EtherExpress Pro/100B Fast Ethernet");
 
 	return NULL;
 }
