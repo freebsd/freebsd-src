@@ -206,6 +206,58 @@ reloc_nonplt_object(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
 		 */
 		break;
 
+	case R_PPC_DTPMOD32:
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		    false, cache);
+
+		if (def == NULL)
+			return (-1);
+
+		*where = (Elf_Addr) defobj->tlsindex;
+
+		break;
+
+	case R_PPC_TPREL32:
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		    false, cache);
+
+		if (def == NULL)
+			return (-1);
+
+		/*
+		 * We lazily allocate offsets for static TLS as we
+		 * see the first relocation that references the
+		 * TLS block. This allows us to support (small
+		 * amounts of) static TLS in dynamically loaded
+		 * modules. If we run out of space, we generate an
+		 * error.
+		 */
+		if (!defobj->tls_done) {
+			if (!allocate_tls_offset((Obj_Entry*) defobj)) {
+				_rtld_error("%s: No space available for static "
+				    "Thread Local Storage", obj->path);
+				return (-1);
+			}
+		}
+
+		*(Elf_Addr **)where = *where * sizeof(Elf_Addr)
+		    + (Elf_Addr *)(def->st_value + rela->r_addend 
+		    + defobj->tlsoffset - TLS_TP_OFFSET - TLS_TCB_SIZE);
+		
+		break;
+		
+	case R_PPC_DTPREL32:
+		def = find_symdef(ELF_R_SYM(rela->r_info), obj, &defobj,
+		    false, cache);
+
+		if (def == NULL)
+			return (-1);
+
+		*where += (Elf_Addr)(def->st_value + rela->r_addend 
+		    - TLS_DTV_OFFSET);
+
+		break;
+		
 	default:
 		_rtld_error("%s: Unsupported relocation type %d"
 			    " in non-PLT relocations\n", obj->path,
@@ -494,6 +546,7 @@ void
 allocate_initial_tls(Obj_Entry *list)
 {
 	register Elf_Addr **tp __asm__("r2");
+	Elf_Addr **_tp;
 
 	/*
 	* Fix the size of the static TLS block by using the maximum
@@ -503,7 +556,14 @@ allocate_initial_tls(Obj_Entry *list)
 
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-	tp = (Elf_Addr **) ((char *) allocate_tls(list, 0, 8, 8) + 0x7008);
+	_tp = (Elf_Addr **) ((char *) allocate_tls(list, 0, 8, 8) 
+	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
+
+	/*
+	 * XXX gcc seems to ignore 'tp = _tp;' 
+	 */
+	 
+	__asm __volatile("mr %0,%1" : "=r"(tp) : "r"(_tp));
 }
 
 void*
@@ -512,6 +572,8 @@ __tls_get_addr(tls_index* ti)
 	register Elf_Addr **tp __asm__("r2");
 	char *p;
 
-	p = tls_get_addr_common(tp, ti->ti_module, ti->ti_offset);
-	return p + 0x8000;
+	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tp - TLS_TP_OFFSET 
+	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset);
+
+	return (p + TLS_DTV_OFFSET);
 }
