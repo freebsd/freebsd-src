@@ -64,7 +64,7 @@ readpassphrase(prompt, buf, bufsiz, flags)
 	 * Read and write to /dev/tty if available.  If not, read from
 	 * stdin and write to stderr unless a tty is required.
 	 */
-	if ((input = output = open(_PATH_TTY, O_RDWR)) == -1) {
+	if ((input = output = _open(_PATH_TTY, O_RDWR)) == -1) {
 		if (flags & RPP_REQUIRE_TTY) {
 			errno = ENOTTY;
 			return(NULL);
@@ -81,7 +81,7 @@ readpassphrase(prompt, buf, bufsiz, flags)
 	sigemptyset(&nset);
 	sigaddset(&nset, SIGINT);
 	sigaddset(&nset, SIGTSTP);
-	(void)sigprocmask(SIG_BLOCK, &nset, &oset);
+	(void)_sigprocmask(SIG_BLOCK, &nset, &oset);
 
 	/* Turn off echo if possible. */
 	if (tcgetattr(input, &oterm) == 0) {
@@ -96,9 +96,9 @@ readpassphrase(prompt, buf, bufsiz, flags)
 		memset(&oterm, 0, sizeof(oterm));
 	}
 
-	(void)write(output, prompt, strlen(prompt));
+	(void)_write(output, prompt, strlen(prompt));
 	end = buf + bufsiz - 1;
-	for (p = buf; read(input, &ch, 1) == 1 && ch != '\n' && ch != '\r';) {
+	for (p = buf; _read(input, &ch, 1) == 1 && ch != '\n' && ch != '\r';) {
 		if (p < end) {
 			if ((flags & RPP_SEVENBIT))
 				ch &= 0x7f;
@@ -113,14 +113,14 @@ readpassphrase(prompt, buf, bufsiz, flags)
 	}
 	*p = '\0';
 	if (!(term.c_lflag & ECHO))
-		(void)write(output, "\n", 1);
+		(void)_write(output, "\n", 1);
 
 	/* Restore old terminal settings and signal mask. */
 	if (memcmp(&term, &oterm, sizeof(term)) != 0)
 		(void)tcsetattr(input, TCSAFLUSH|TCSASOFT, &oterm);
-	(void)sigprocmask(SIG_SETMASK, &oset, NULL);
+	(void)_sigprocmask(SIG_SETMASK, &oset, NULL);
 	if (input != STDIN_FILENO)
-		(void)close(input);
+		(void)_close(input);
 	return(buf);
 }
 
