@@ -427,8 +427,6 @@ diskpsize(dev_t dev)
 	return (dssize(dev, &dp->d_slice));
 }
 
-SYSCTL_DECL(_debug_sizeof);
-
 SYSCTL_INT(_debug_sizeof, OID_AUTO, disklabel, CTLFLAG_RD, 
     0, sizeof(struct disklabel), "sizeof(struct disklabel)");
 
