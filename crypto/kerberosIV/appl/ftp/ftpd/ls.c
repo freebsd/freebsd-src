@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
 
 #include "ftpd_locl.h"
 
-RCSID("$Id: ls.c,v 1.13 1999/11/20 20:49:41 assar Exp $");
+RCSID("$Id: ls.c,v 1.13.2.2 2000/06/23 02:51:09 assar Exp $");
 
 struct fileinfo {
     struct stat st;
@@ -164,9 +164,10 @@ make_fileinfo(const char *filename, struct fileinfo *file, int flags)
 
     {
 	time_t t = time(NULL);
-	struct tm *tm = localtime(&st->st_mtime);
-	if((t - st->st_mtime > 6*30*24*60*60) ||
-	   (st->st_mtime - t > 6*30*24*60*60))
+	time_t mtime = st->st_mtime;
+	struct tm *tm = localtime(&mtime);
+	if((t - mtime > 6*30*24*60*60) ||
+	   (mtime - t > 6*30*24*60*60))
 	    strftime(buf, sizeof(buf), "%b %e  %Y", tm);
 	else
 	    strftime(buf, sizeof(buf), "%b %e %H:%M", tm);

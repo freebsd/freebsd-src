@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -41,7 +41,7 @@
 
 #include "kauth.h"
 
-RCSID("$Id: kauth.c,v 1.97 1999/12/02 16:58:31 joda Exp $");
+RCSID("$Id: kauth.c,v 1.97.2.1 2000/02/28 03:42:51 assar Exp $");
 
 krb_principal princ;
 static char srvtab[MaxPathLen];
@@ -233,7 +233,6 @@ main(int argc, char **argv)
 	case 'd':
 	    krb_enable_debug();
 	    _kafs_debug = 1;
-	    aflag++;
 	    break;
 	case 'f':
 	    strlcpy(srvtab, optarg, sizeof(srvtab));
