@@ -152,7 +152,7 @@
 
     <para>Linux emulation now supports the kernel functionality
     required by the
-    <port>emulators/linux_base-7</port> (RedHat 7.X emulation)
+    <filename role="package">emulators/linux_base-7</filename> (RedHat 7.X emulation)
     port. &merged;</para>
 
     <para>Linux emulation now requires <literal>options
@@ -612,7 +612,7 @@
 
       <para arch="i386">The sbni driver, for supporting the Granch
       SBNI12 series of ISA and PCI point-to-point communications
-      interfaces, has been added.  The <port>sysutils/sbniconfig</port>
+      interfaces, has been added.  The <filename role="package">sysutils/sbniconfig</filename>
       port in the &os; Ports Collection can be used for configuring
       these devices. &merged;</para>
 
@@ -922,7 +922,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       as CD devices.  Note that change affects only random-access
       writeable devices, not sequential-only writeable devices such as
       CD-R drives, which are supported by &man.cdrecord.1; (a part of 
-      <port>sysutils/cdrtools</port> in the Ports Collection. &merged;</para>
+      <filename role="package">sysutils/cdrtools</filename> in the Ports Collection. &merged;</para>
 
       <para arch="i386">The ciss driver, for devices utilizing the Common
       Interface for SCSI-3 Support, has been added.  This driver
@@ -1019,7 +1019,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>The ISO-9660 filesystem now has a hook that supports a loadable
       character conversion routine.  The
-      <port>sysutils/cd9660_unicode</port> port
+      <filename role="package">sysutils/cd9660_unicode</filename> port
       contains a set of common conversions.</para>
 
       <para>&man.kernfs.5; is obsolete and has been retired.</para>
@@ -2160,7 +2160,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.rdist.1; has been retired from the base system, but is still
     available from &os; Ports Collection as 
-    <port>net/44bsd-rdist</port>.</para>
+    <filename role="package">net/44bsd-rdist</filename>.</para>
 
     <para>The &man.resolver.3; in &os; now implements EDNS0 support,
     which will be necessary when working with IPv6 transport-ready
@@ -2206,7 +2206,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     algorithm.  As a
     result, the native <application>OpenSSL</application>
     implementation of the RSA algorithm is now activated by default,
-    and the <port>security/rsaref</port> port and the
+    and the <filename role="package">security/rsaref</filename> port and the
     <filename>librsaUSA</filename> and <filename>librsaINTL</filename>
     libraries are
     no longer required for USA and non-USA residents respectively. &merged;</para>
@@ -2392,7 +2392,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para><application>UUCP</application> has been removed from the
     base system.  It can be found in
-    the Ports Collection, in <port>net/freebsd-uucp</port>.</para>
+    the Ports Collection, in <filename role="package">net/freebsd-uucp</filename>.</para>
 
     <para>&man.units.1; has received some updates and bugfixes. &merged;</para>
 
@@ -2413,7 +2413,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.vidcontrol.1; now supports a <option>-p</option> option to
     take a snapshot of a &man.syscons.4; video buffer.  These
     snapshots can be manipulated by the
-    <port>graphics/scr2png</port> utility in the Ports
+    <filename role="package">graphics/scr2png</filename> utility in the Ports
     Collection. &merged;</para>
 
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option
@@ -2651,13 +2651,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<para><application>CVSup</application>, a frequently used
 	utility in the &os; Ports Collection, was formerly installable
 	using several ports and packages.  The
-	<port>net/cvsup-bin</port> and <port>net/cvsupd-bin</port>
+	<filename role="package">net/cvsup-bin</filename> and <filename role="package">net/cvsupd-bin</filename>
 	ports/packages are no longer necessary or available; the
-	<port>net/cvsup</port> port should be used instead. &merged;</para>
+	<filename role="package">net/cvsup</filename> port should be used instead. &merged;</para>
 
 	<para><application>CVSup</application> has been updated to
 	16.1_3, which is available in the &os; Ports Collection as
-	<port>net/cvsup</port>.  This update fixes a long-standing
+	<filename role="package">net/cvsup</filename>.  This update fixes a long-standing
 	(but only recently encountered) bug which affects the
 	timestamps on all files after Sun Sep 9 01:46:40 UTC 2001
 	(1,000,000,000 seconds after the UNIX epoch). &merged;</para>
@@ -2688,8 +2688,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
         <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
         restrictive licensing conditions.  These programs are available
-        in the ports collection as <port>net/pim6dd</port> and
-        <port>net/pim6sd</port>. &merged;</para>
+        in the ports collection as <filename role="package">net/pim6dd</filename> and
+        <filename role="package">net/pim6sd</filename>. &merged;</para>
 
 	<para>&man.route6d.8; now supports an <option>-n</option> flag
 	to avoid updating the kernel forwarding table. &merged;</para>
@@ -2832,7 +2832,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	Previously, if the <username>mailnull</username> user did not
 	exist, the <username>daemon</username> user was used.  This
 	change may generate some permissions issues when mailing to
-	files or to programs (such as <port>mail/majordomo</port>).
+	files or to programs (such as <filename role="package">mail/majordomo</filename>).
 	&merged; The previous behavior can be restored by adding the
 	following line to a system's
 	<filename><replaceable>*</replaceable>.mc</filename>
