@@ -69,25 +69,23 @@
  * This card is unusual in that it uses both common and attribute
  * memory whilst working. It should use common memory and an IO port.
  *
- * The 3.x branch of FreeBSD has a real problem managing and setting
- * up the correct memory maps. However, this driver should reset the
- * memory maps correctly - it works around for the brain deadness of
- * pccardd (where it reads the CIS for common memory, sets it all up
- * and then throws it all away assuming the card is an ed driver...).
- * Note that this could be dangerous (because it doesn't interact with
- * pccardd) if you use other memory mapped cards at the same time.
+ * The bus resource allocations need to work around the brain deadness
+ * of pccardd (where it reads the CIS for common memory, sets it all
+ * up and then throws it all away assuming the card is an ed
+ * driver...). Note that this could be dangerous (because it doesn't
+ * interact with pccardd) if you use other memory mapped cards in the
+ * same pccard slot as currently old mappings are not cleaned up very well
+ * by the bus_release_resource methods or pccardd.
  *
  * There is no support for running this driver on 4.0.
- *
- * For >4.1 and -cuurent things are a lot better.
  *
  * Ad-hoc and infra-structure modes
  * ================================
  * 
- * At present only the ad-hoc mode is being worked on.
+ * At present only the ad-hoc mode is tested.
  *
- * I hope to start work on support for infrastructure when an AP arrives
- * from FreeBSD Labs.
+ * I have received an AP from Raylink and will be working on
+ * infrastructure mode.
  *
  * The Linux driver also seems to have the capability to act as an AP.
  * I wonder what facilities the "AP" can provide within a driver? We can
@@ -227,7 +225,8 @@
 /*
  * XXX build options - move to LINT
  */
-#define RAY_NEED_CM_REMAPPING	1	/* Needed until pccard maps more than one memory area */
+#define RAY_CM_RID		2	/* pccardd abuses windows 0 and 1 */
+#define RAY_AM_RID		3	/* pccardd abuses windows 0 and 1 */
 #define RAY_COM_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
 #define RAY_TX_TIMEOUT		(hz/2)	/* Timeout for rescheduling TX */
 /*
@@ -342,12 +341,6 @@ static void	ray_com_ecf_check	(struct ray_softc *sc, size_t ccs, char *mesg);
 #if RAY_DEBUG & RAY_DBG_MBUF
 static void	ray_dump_mbuf		(struct ray_softc *sc, struct mbuf *m, char *s);
 #endif /* RAY_DEBUG & RAY_DBG_MBUF */
-#if RAY_NEED_CM_REMAPPING
-static void	ray_attr_mapam		(struct ray_softc *sc);
-static void	ray_attr_mapcm		(struct ray_softc *sc);
-static u_int8_t	ray_attr_read_1		(struct ray_softc *sc, off_t offset);
-static void	ray_attr_write_1	(struct ray_softc *sc, off_t offset, u_int8_t byte);
-#endif /* RAY_NEED_CM_REMAPPING */
 
 /*
  * PC-Card (PCMCIA) driver definition
@@ -1371,9 +1364,7 @@ ray_tx(struct ifnet *ifp)
 	}
 	eh = mtod(m0, struct ether_header *);
 
-	for (pktlen = 0, m = m0; m != NULL; m = m->m_next) {
-		pktlen += m->m_len;
-	}
+	pktlen = m0->m_pkthdr.len;
 	if (pktlen > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		RAY_RECERR(sc, "mbuf too long %d", pktlen);
 		RAY_CCS_FREE(sc, ccs);
@@ -1417,7 +1408,7 @@ ray_tx(struct ifnet *ifp)
 	 *
 	 */
 	if (m0->m_len < sizeof(struct ether_header))
-		m0 = m_pullup(m, sizeof(struct ether_header));
+		m0 = m_pullup(m0, sizeof(struct ether_header));
 	if (m0 == NULL) {
 		RAY_RECERR(sc, "could not pullup ether");
 		RAY_CCS_FREE(sc, ccs);
@@ -2186,7 +2177,7 @@ ray_intr(void *xsc)
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	size_t ccs;
 	u_int8_t cmd;
-	int ccsi, count;
+	int ccsi;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
@@ -2198,10 +2189,7 @@ ray_intr(void *xsc)
 	 * Check that the interrupt was for us, if so get the rcs/ccs
 	 * and vector on the command contained within it.
 	 */
-	if (!RAY_HCS_INTR(sc))
-		count = 0;
-	else {
-		count = 1;
+	if (RAY_HCS_INTR(sc)) {
 		ccsi = SRAM_READ_1(sc, RAY_SCB_RCSI);
 		ccs = RAY_CCS_ADDRESS(ccsi);
 		cmd = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd);
@@ -2211,17 +2199,13 @@ ray_intr(void *xsc)
 			ray_intr_rcs(sc, cmd, ccs);
 		else
 		    RAY_RECERR(sc, "bad ccs index 0x%x", ccsi);
-	}
-
-	if (count)
 		RAY_HCS_CLEAR_INTR(sc);
-
-	RAY_DPRINTF(sc, RAY_DBG_RX, "interrupt %s handled", count?"was":"not");
+		RAY_DPRINTF(sc, RAY_DBG_RX, "interrupt was handled");
+	}
 
 	/* Send any packets lying around and update error counters */
 	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
 		ray_tx(ifp);
-
 	if ((++sc->sc_checkcounters % 32) == 0)
 		ray_intr_updt_errcntrs(sc);
 }
@@ -3326,7 +3310,7 @@ ray_res_alloc_am(struct ray_softc *sc)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
-	sc->am_rid = 1;		/* pccard uses 0 */
+	sc->am_rid = RAY_AM_RID;
 	start = bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid);
 	count = bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid);
 	error = CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
@@ -3374,7 +3358,7 @@ ray_res_alloc_am(struct ray_softc *sc)
 		}
 	}
 	if (!(flags & 0x10) /* XXX MDF_ATTR */) {
-		RAY_PRINTF(sc, "fixing up AM flags from 0x%lx to 0x10",
+		RAY_PRINTF(sc, "fixing up AM flags from 0x%lx to 0x50",
 		    flags);
 		error = CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
 		    SYS_RES_MEMORY, sc->am_rid, PCCARD_A_MEM_ATTR);
@@ -3414,7 +3398,7 @@ ray_res_alloc_cm(struct ray_softc *sc)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
-	sc->cm_rid = 0;		/* pccard uses 0 */
+	sc->cm_rid = RAY_CM_RID;
 	start = bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid);
 	count = bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid);
 	error = CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
@@ -3546,76 +3530,6 @@ ray_res_release(struct ray_softc *sc)
 		sc->cm_res = 0;
 	}
 }
-
-/*
- * Hacks for working around the PCCard layer problems.
- *
- * For NEWBUS kludge and OLDCARD.
- *
- * We just call the pccard layer to change and restore the mapping each
- * time we use the attribute memory.
- *
- * XXX These could become marcos around bus_activate_resource, but
- * XXX the functions do made hacking them around safer.
- *
- */
-#if RAY_NEED_CM_REMAPPING
-static void
-ray_attr_mapam(struct ray_softc *sc)
-{
-	bus_activate_resource(sc->dev, SYS_RES_MEMORY, sc->am_rid, sc->am_res);
-#if RAY_DEBUG & RAY_DBG_CM
-	{
-		u_long flags = 0xffff;
-		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    sys_res_memory, SC->AM_RID, &FLAGS);
-		RAY_PRINTF(sc, "attribute memory\n"
-		    ".  start 0x%0lx count 0x%0lx flags 0x%0lx",
-		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
-		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid),
-		    flags);
-	}
-#endif /* RAY_DEBUG & RAY_DBG_CM */
-}
-
-static void
-ray_attr_mapcm(struct ray_softc *sc)
-{
-	bus_activate_resource(sc->dev, SYS_RES_MEMORY, sc->cm_rid, sc->cm_res);
-#if RAY_DEBUG & RAY_DBG_CM
-	{
-		u_long flags = 0xffff;
-		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
-		    SYS_RES_MEMORY, sc->cm_rid, &flags);
-		RAY_PRINTF(sc, "common memory\n"
-		    ".  start 0x%0lx count 0x%0lx flags 0x%0lx",
-		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
-		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
-		    flags);
-	}
-#endif /* RAY_DEBUG & RAY_DBG_CM */
-}
-
-static u_int8_t
-ray_attr_read_1(struct ray_softc *sc, off_t offset)
-{
-	u_int8_t byte;
-
-	ray_attr_mapam(sc);
-	byte = (u_int8_t)bus_space_read_1(sc->am_bst, sc->am_bsh, offset);
-	ray_attr_mapcm(sc);
-
-	return (byte);
-}
-
-static void
-ray_attr_write_1(struct ray_softc *sc, off_t offset, u_int8_t byte)
-{
-	ray_attr_mapam(sc);
-	bus_space_write_1(sc->am_bst, sc->am_bsh, offset, byte);
-	ray_attr_mapcm(sc);
-}
-#endif /* RAY_NEED_CM_REMAPPING */
 
 /*
  * mbuf dump
