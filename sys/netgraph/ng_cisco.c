@@ -443,20 +443,31 @@ cisco_disconnect(hook_p hook)
 static int
 cisco_input(sc_p sc, item_p item)
 {
-	struct cisco_header *h;
-	struct cisco_packet *p;
+	const struct cisco_header *h;
+	struct cisco_header hdrbuf;
 	struct protoent *pep;
 	int error = 0;
 	struct mbuf *m;
 
+	/* Get data */
 	m = NGI_M(item);
-	if (m->m_pkthdr.len <= CISCO_HEADER_LEN)
+
+	/* Sanity check header length */
+	if (m->m_pkthdr.len < sizeof(*h)) {
+		error = EINVAL;
 		goto drop;
+	}
 
-	/* Strip off cisco header */
-	h = mtod(m, struct cisco_header *);
-	m_adj(m, CISCO_HEADER_LEN);
+	/* Get cisco header */
+	if (m->m_len >= sizeof(*h))			/* the common case */
+		h = mtod(m, const struct cisco_header *);
+	else {
+		m_copydata(m, 0, sizeof(*h), (caddr_t)&hdrbuf);
+		h = &hdrbuf;
+	}
+	m_adj(m, sizeof(*h));
 
+	/* Check header address */
 	switch (h->address) {
 	default:		/* Invalid Cisco packet. */
 		goto drop;
@@ -467,7 +478,25 @@ cisco_input(sc_p sc, item_p item)
 		default:
 			goto drop;
 		case CISCO_KEEPALIVE:
-			p = mtod(m, struct cisco_packet *);
+		    {
+			const struct cisco_packet *p;
+			struct cisco_packet pktbuf;
+
+			/* Sanity check packet length */
+			if (m->m_pkthdr.len < sizeof(*p)) {
+				error = EINVAL;
+				goto drop;
+			}
+
+			/* Get cisco packet */
+			if (m->m_len >= sizeof(*p))	/* the common case */
+				p = mtod(m, const struct cisco_packet *);
+			else {
+				m_copydata(m, 0, sizeof(*p), (caddr_t)&pktbuf);
+				p = &pktbuf;
+			}
+
+			/* Check packet type */
 			switch (ntohl(p->type)) {
 			default:
 				log(LOG_WARNING,
@@ -512,6 +541,7 @@ cisco_input(sc_p sc, item_p item)
 			    }
 			}
 			goto drop;
+		    }
 		case ETHERTYPE_IP:
 			pep = &sc->inet;
 			break;
@@ -526,6 +556,12 @@ cisco_input(sc_p sc, item_p item)
 			break;
 		}
 		break;
+	}
+
+	/* Drop if payload is empty */
+	if (m->m_pkthdr.len == 0) {
+		error = EINVAL;
+		goto drop;
 	}
 
 	/* Send it on */
