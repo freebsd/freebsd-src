@@ -53,9 +53,13 @@
 
 #ifdef _KERNEL
 
+#include <sys/tree.h>
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MSDOSFSMNT);
 #endif
+
+struct msdosfs_fileno;
 
 /*
  * Layout of the mount control block for a msdos filesystem.
@@ -99,7 +103,20 @@ struct msdosfsmount {
 	void *pm_w2u;	/* Unicode->Local iconv handle */
 	void *pm_u2d;	/* Unicode->DOS iconv handle */
 	void *pm_d2u;	/* DOS->Local iconv handle */
+	u_int32_t pm_nfileno;	/* next 32-bit fileno */
+	RB_HEAD(msdosfs_filenotree, msdosfs_fileno) pm_filenos; /* 64<->32-bit fileno mapping */
 };
+
+/*
+ * A 64-bit file number and the 32-bit file number to which it is mapped,
+ * in a red-black tree node.
+ */
+struct msdosfs_fileno {
+	RB_ENTRY(msdosfs_fileno)	mf_tree;
+	uint32_t			mf_fileno32;
+	uint64_t			mf_fileno64;
+};
+
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	((cn) * (pmp)->pm_fatmult / (pmp)->pm_fatdiv)
 
@@ -202,6 +219,10 @@ int msdosfs_init(struct vfsconf *vfsp);
 int msdosfs_uninit(struct vfsconf *vfsp);
 int msdosfs_mountroot(void);
 
+void msdosfs_fileno_init(struct mount *);
+void msdosfs_fileno_free(struct mount *);
+uint32_t msdosfs_fileno_map(struct mount *, uint64_t);
+
 #endif /* _KERNEL */
 
 /*
@@ -219,7 +240,7 @@ struct msdosfs_args {
 	char	*cs_win;	/* Windows(Unicode) Charset */
 	char	*cs_dos;	/* DOS Charset */
 	char	*cs_local;	/* Local Charset */
-	mode_t  dirmask;        /* dir  mask to be applied for msdosfs perms */
+	mode_t	dirmask;	/* dir  mask to be applied for msdosfs perms */
 };
 
 /*
@@ -236,6 +257,7 @@ struct msdosfs_args {
 #define	MSDOSFSMNT_RONLY	0x80000000	/* mounted read-only	*/
 #define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
+#define	MSDOSFS_LARGEFS		0x10000000	/* perform fileno mapping */
 
 #define MSDOSFS_ARGSMAGIC	0xe4eff300
 
