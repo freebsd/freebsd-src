@@ -370,7 +370,7 @@ reread_mbr:
 
 
 #ifdef PC98
-		ncyls = lp->d_secpercyl;
+		ncyls = lp->d_ncylinders;
 #else
 		ncyls = DPCYL(dp->dp_ecyl, dp->dp_esect) + 1;
 #endif
