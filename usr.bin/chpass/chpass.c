@@ -166,7 +166,7 @@ main(int argc, char *argv[])
 	}
 
 #ifdef YP
-	if ((pw->pw_fields & _PWF_SOURCE) == _PWF_NIS) {
+	if (pw != NULL && (pw->pw_fields & _PWF_SOURCE) == _PWF_NIS) {
 		ypclnt = ypclnt_new(yp_domain, "passwd.byname", yp_host);
 		master_mode = (ypclnt != NULL &&
 		    ypclnt_connect(ypclnt) != -1 &&
