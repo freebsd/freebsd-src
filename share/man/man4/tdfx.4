@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Feb 19, 2001
+.Dd February 19, 2001
 .Dt 3DFX 4
 .Os
 .Sh NAME
@@ -11,18 +11,21 @@
 .Cd device tdfx
 .Pp
 .Cd options TDFX_LINUX
-.Pp
 .Sh DESCRIPTION
-This driver creates a entry in /dev that allows programs (mostly
+This driver creates an entry in
+.Pa /dev
+that allows programs (mostly
 .Em GLIDE-based software )
 to access the device memory of the Voodoo Graphics and
-VoodooII 3D accellerators created by
-.Em 3Dfx, Inc.
+VoodooII 3D accelerators created by
+.Em 3Dfx, Inc .
 This provides an interface
 for applications based on the
 .Em GLIDE API
 or that simply use the API
-provided by the linux /dev/3dfx device to use the video device.
+provided by the linux
+.Pa /dev/3dfx
+device to use the video device.
 .Pp
 Supports all cards based on the following chipsets:
 .Bd -unfilled -offset indent
@@ -37,20 +40,18 @@ Specifically, the following cards should work:
 .Ed
 .Pp
 Note that this driver does not currently have support for the Voodoo
-Banshee, Voodoo3, Voodoo5, or Voodoo6 based cards. It also does not
-currently support the Voodoo Rush. It also does not yet handle the SLI
-feature of the Voodoo II boards. You can only use each of them
-separately.
+Banshee, Voodoo3, Voodoo5, or Voodoo6 based cards.
+It also does not currently support the Voodoo Rush.
+It also does not yet handle the SLI feature of the Voodoo II boards.
+You can only use each of them separately.
 .Pp
 The following kernel configuration options are available:
 .Pp
-.Em options LINUX_TDFX
+.Cd options LINUX_TDFX
 .Pp
 Enable the linux ioctl code for this driver, where the only supported
 applications currently reside.
-.Pp
 .Sh FILES
-.Pp
 .Bl -tag -width /dev/voodoo* -compact
 .It Pa /dev/3dfx
 Symlinked to default
@@ -59,25 +60,31 @@ board
 .It Pa /dev/3dfx*
 .Em Character Device
 programming interface
-.El
 .Pp
-.Bl -tag -width /dev/voodoo* -compact
 .It Pa /dev/voodoo
 Mirrors of above interfaces
 .It Pa /dev/voodoo*
-(Some apps use /dev/voodoo)
+(Some apps use
+.Pa /dev/voodoo )
 .El
-.Pp
 .Sh AUTHORS
-The driver was developed by Coleman Kane <cokane@micro.ti.com> after
-the linux version of this driver by Darryll Straus, John Taylor, Jens
-Axboe, Carlo Wood <carlo@alinoe.com> and Joseph Kain <joseph@3dfx.com>
+.An -nosplit
+The driver was developed by
+.An Coleman Kane Aq cokane@micro.ti.com
+after the linux version of this driver by
+.An Darryll Straus ,
+.An John Taylor ,
+.An Jens Axboe ,
+.An Carlo Wood Aq carlo@alinoe.com
+and
+.An Joseph Kain Aq joseph@3dfx.com
 to be directly compatible with it and support the many GLIDE based games
-available for Linux and UNIX.
+available for Linux and
+.Ux .
 .Sh HISTORY
 The
 .Nm
 driver appeared in
-.Fx 5.0.
+.Fx 5.0 ,
 and was originally developed for Linux kernel 2.0.x, later written for
 2.2.x and 2.4.x.
