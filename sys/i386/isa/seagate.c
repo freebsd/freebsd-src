@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.25 1997/08/25 23:06:29 bde Exp $
+ * $Id: seagate.c,v 1.26 1997/09/21 21:41:35 gibbs Exp $
  */
 
 /*
@@ -291,16 +291,16 @@ static adapter_t seadata[NSEA];
  * Print the message on timeout.
  */
 #define WAITFOR(condition,message) {\
-	register u_long cnt = 100000; char *msg = message;\
+	register u_long cnt = 100000; char *_msg = message;\
 	while (cnt-- && ! (condition)) continue;\
-	if (cnt == -1 && msg)\
-		printf ("sea: %s timeout\n", msg); }
+	if (cnt == -1 && _msg)\
+		printf ("sea: %s timeout\n", _msg); }
 
 #define WAITFOR10(condition,message) {\
-	register u_long cnt = 1000000; char *msg = message;\
+	register u_long cnt = 1000000; char *_msg = message;\
 	while (cnt-- && ! (condition)) continue;\
-	if (cnt == -1 && msg)\
-		printf ("sea: %s timeout\n", msg); }
+	if (cnt == -1 && _msg)\
+		printf ("sea: %s timeout\n", _msg); }
 
 /*
  * Seagate adapter does not support in hardware

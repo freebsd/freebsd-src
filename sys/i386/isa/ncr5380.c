@@ -203,10 +203,10 @@ static adapter_t ncadata[NNCA];
  * Print the message on timeout.
  */
 #define WAITFOR(condition,count,message) {\
-	register u_long cnt = count; char *msg = message;\
+	register u_long cnt = count; char *_msg = message;\
 	while (cnt-- && ! (condition)) continue;\
-	if (cnt == -1 && msg)\
-		printf ("nca: %s timeout\n", msg); }
+	if (cnt == -1 && _msg)\
+		printf ("nca: %s timeout\n", _msg); }
 
 static int nca_probe (struct isa_device *dev);
 static int nca_attach (struct isa_device *dev);
