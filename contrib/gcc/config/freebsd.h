@@ -60,7 +60,7 @@ Boston, MA 02111-1307, USA.  */
    the final CPP_PREDEFINES value.  */
 
 #define FBSD_CPP_PREDEFINES \
-  " -D__FreeBSD__=4 -D__FreeBSD_cc_version=430000 -Dunix -Asystem(unix) -Asystem(FreeBSD) "
+  " -D__FreeBSD__=4 -D__FreeBSD_cc_version=440000 -Dunix -Asystem(unix) -Asystem(FreeBSD) "
 
 #define FBSD_CPP_SPEC "							\
   %(cpp_cpu)								\
