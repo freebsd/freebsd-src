@@ -374,15 +374,21 @@ extern struct devsw	*devsw[];
 /*
  * Expose byteorder(3) functions.
  */
-#define	htonl(x)	__htonl(x)
-#define	htons(x)	__htons(x)
-#define	ntohl(x)	__ntohl(x)
-#define	ntohs(x)	__ntohs(x)
-
+#ifndef _BYTEORDER_PROTOTYPED
+#define	_BYTEORDER_PROTOTYPED
 extern uint32_t		htonl(uint32_t);
 extern uint16_t		htons(uint16_t);
 extern uint32_t		ntohl(uint32_t);
 extern uint16_t		ntohs(uint16_t);
+#endif
+
+#ifndef _BYTEORDER_FUNC_DEFINED
+#define	_BYTEORDER_FUNC_DEFINED
+#define	htonl(x)	__htonl(x)
+#define	htons(x)	__htons(x)
+#define	ntohl(x)	__ntohl(x)
+#define	ntohs(x)	__ntohs(x)
+#endif
 
 #if 0
 

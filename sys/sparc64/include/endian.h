@@ -45,16 +45,50 @@
 #define _QUAD_HIGHWORD 0
 #define _QUAD_LOWWORD 1
 
+#ifndef _POSIX_SOURCE
 /*
  * Definitions for byte order, according to byte significance from low
  * address to high.
  */
-#ifndef _POSIX_SOURCE
 #define	LITTLE_ENDIAN	1234	/* LSB first: i386, vax */
 #define	BIG_ENDIAN	4321	/* MSB first: 68000, ibm, net */
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long */
 
 #define	BYTE_ORDER	BIG_ENDIAN
 #endif /* !_POSIX_SOURCE */
+
+#ifdef __GNUC__
+
+static __inline __uint16_t
+__bswap16(__uint16_t _x)
+{
+
+	return ((_x >> 8) | ((_x << 8) & 0xff00));
+}
+
+static __inline __uint32_t
+__bswap32(__uint32_t _x)
+{
+
+	return ((_x >> 24) | ((_x >> 8) & 0xff00) | ((_x << 8) & 0xff0000) |
+	    ((_x << 24) & 0xff000000));
+}
+
+static __inline __uint64_t
+__bswap64(__uint64_t _x)
+{
+
+	return ((_x >> 56) | ((_x >> 40) & 0xff00) | ((_x >> 24) & 0xff0000) |
+	    ((_x >> 8) & 0xff000000) | ((_x << 8) & ((__uint64_t)0xff << 32)) |
+	    ((_x << 24) & ((__uint64_t)0xff << 40)) |
+	    ((_x << 40) & ((__uint64_t)0xff << 48)) | ((_x << 56)));
+}
+
+#endif /* __GNUC__ */
+
+#define	__htonl(x)	((__uint32_t)(x))
+#define	__htons(x)	((__uint16_t)(x))
+#define	__ntohl(x)	((__uint32_t)(x))
+#define	__ntohs(x)	((__uint16_t)(x))
 
 #endif /* !_MACHINE_ENDIAN_H_ */

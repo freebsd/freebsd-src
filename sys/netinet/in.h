@@ -498,6 +498,16 @@ char	*inet_ntoa_r __P((struct in_addr ina, char *buf)); /* in libkern */
 
 #else /* !_KERNEL */
 
+#ifndef _BYTEORDER_PROTOTYPED
+#define	_BYTEORDER_PROTOTYPED
+__BEGIN_DECLS
+__uint32_t	htonl __P((__uint32_t));
+__uint16_t	htons __P((__uint16_t));
+__uint32_t	ntohl __P((__uint32_t));
+__uint16_t	ntohs __P((__uint16_t));
+__END_DECLS
+#endif
+
 #ifndef _BYTEORDER_FUNC_DEFINED
 #define	_BYTEORDER_FUNC_DEFINED
 #define	htonl(x)	__htonl(x)
@@ -505,13 +515,6 @@ char	*inet_ntoa_r __P((struct in_addr ina, char *buf)); /* in libkern */
 #define	ntohl(x)	__ntohl(x)
 #define	ntohs(x)	__ntohs(x)
 #endif
-
-__BEGIN_DECLS
-__uint32_t	htonl __P((__uint32_t));
-__uint16_t	htons __P((__uint16_t));
-__uint32_t	ntohl __P((__uint32_t));
-__uint16_t	ntohs __P((__uint16_t));
-__END_DECLS
 
 #endif /* _KERNEL */
 
