@@ -41,7 +41,6 @@
  * Functions internal to the math package, yet not static.
  */
 extern double	__exp__E();
-extern double	__log__L();
 
 struct Double {double a, b;};
 double __exp__D(double, double);
