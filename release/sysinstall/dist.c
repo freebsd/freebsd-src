@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35 1995/05/30 08:28:31 rgrimes Exp $
+ * $Id: dist.c,v 1.35.2.1 1995/05/31 07:13:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -192,7 +192,7 @@ static Distribution XF86DistTable[] = {
 { "X311pex",	"/usr",			&XF86Dists,	DIST_XF86_PEX,		NULL		},
 { "X311lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
 { "X311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
-{ "X311xdmcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
+{ "X311xdcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
 { "XF86311",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { "XF86-xc",	"/usr/X11R6/src",	&XF86Dists,	DIST_SRC_XF86,		NULL		},
 { "XF86-co",	"/usr/X11R6/src",	&XF86Dists,	DIST_SRC_XF86,		NULL		},
