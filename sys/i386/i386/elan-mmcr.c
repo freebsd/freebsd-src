@@ -8,13 +8,57 @@
  *
  * $FreeBSD$
  *
+ * The AMD Elan sc520 is a system-on-chip gadget which is used in embedded
+ * kind of things, see www.soekris.com for instance, and it has a few quirks
+ * we need to deal with.
+ * Unfortunately we cannot identify the gadget by CPUID output because it
+ * depends on strapping options and only the stepping field may be useful
+ * and those are undocumented from AMDs side.
+ *
+ * So instead we recognize the on-chip host-PCI bridge and call back from
+ * sys/i386/pci/pci_bus.c to here if we find it.
  */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/sysctl.h>
+#include <sys/timetc.h>
+#include <sys/proc.h>
 
 #include <machine/md_var.h>
+
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+uint16_t *elan_mmcr;
+
+void
+init_AMD_Elan_sc520(void)
+{
+	u_int new;
+	int i;
+
+	printf("Doing h0h0magic for AMD Elan sc520\n");
+	elan_mmcr = pmap_mapdev(0xfffef000, 0x1000);
+	printf("MMCR at %p\n", elan_mmcr);
+
+	/*-
+	 * The i8254 is driven with a nonstandard frequency which is
+	 * derived thusly:
+	 *   f = 32768 * 45 * 25 / 31 = 1189161.29...
+	 * We use the sysctl to get the timecounter etc into whack.
+	 */
+	
+	new = 1189161;
+	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq", 
+	    NULL, 0, 
+	    &new, sizeof new, 
+	    NULL);
+	printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
+}
+
 
 /*
  * Device driver initialization stuff
@@ -79,5 +123,4 @@ elan_drvinit(void)
 	return;
 }
 
- 
 SYSINIT(elan, SI_SUB_PSEUDO, SI_ORDER_MIDDLE+CDEV_MAJOR,elan_drvinit,NULL);
