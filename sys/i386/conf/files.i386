@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.248 1999/06/22 14:13:36 yokota Exp $
+#	$Id: files.i386,v 1.249 1999/06/29 16:14:20 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -252,6 +252,7 @@ i386/isa/sound/ad1848.c		optional	gusxvi	device-driver
 i386/isa/sound/ad1848.c		optional	mss	device-driver
 i386/isa/sound/ad1848.c		optional	sscape	device-driver
 i386/isa/sound/ad1848.c		optional	trix	device-driver
+i386/isa/sound/ad1848.c		optional	sscape_mss	device-driver
 i386/isa/sound/adlib_card.c	optional	opl	device-driver
 i386/isa/sound/adlib_card.c	optional	trix	device-driver
 i386/isa/sound/audio.c		optional	snd	device-driver
