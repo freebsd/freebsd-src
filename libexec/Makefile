@@ -7,7 +7,7 @@ SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	rpc.rstatd rpc.rusersd rpc.rwalld rpc.sprayd rshd talkd tftpd uucpd \
 	xtend ypxfr
 
-.if !(exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto)) || defined(NOSECURE) || !defined(MAKE_EBONES)
+.if !(exists(${.CURDIR}/../kerberosIV) && exists(${.CURDIR}/../crypto)) || defined(NOSECURE) || !defined(MAKE_KERBEROS4)
 SUBDIR+=telnetd
 .else
 .if defined(RELEASEDIR)
