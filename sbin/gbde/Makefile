@@ -8,7 +8,8 @@ SRCS+=	rijndael-api-fst.c
 SRCS+=	g_bde_lock.c
 
 CFLAGS+= -I/sys
-VPATH += ${.CURDIR}/../../sys/geom:${.CURDIR}/../../sys/geom/bde:${.CURDIR}/../../sys/crypto/rijndael
+.PATH: ${.CURDIR}/../../sys/geom ${.CURDIR}/../../sys/geom/bde \
+	${.CURDIR}/../../sys/crypto/rijndael
 
 CLEANFILES+= template.c
 
