@@ -63,6 +63,13 @@ struct mac_policy_ops {
 	void	(*mpo_init)(struct mac_policy_conf *mpc);
 
 	/*
+	 * General policy-directed security system call so that policies
+	 * may implement new services without reserving explicit
+	 * system call numbers.
+	 */
+	int	(*mpo_syscall)(struct thread *td, int call, void *arg);
+
+	/*
 	 * Label operations.
 	 */
 	void	(*mpo_init_bpfdesc)(struct bpf_d *, struct label *label);
@@ -342,6 +349,7 @@ enum mac_op_constant {
 	MAC_OP_LAST,
 	MAC_DESTROY,
 	MAC_INIT,
+	MAC_SYSCALL,
 	MAC_INIT_BPFDESC,
 	MAC_INIT_CRED,
 	MAC_INIT_DEVFSDIRENT,
