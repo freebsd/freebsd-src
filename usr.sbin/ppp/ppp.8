@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.177 1999/06/23 16:48:24 brian Exp $
+.\" $Id: ppp.8,v 1.178 1999/07/17 10:33:57 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -1424,7 +1424,7 @@ or
 is a numeric value between
 .Sq 0
 and
-.Sq 19
+.Sq 39
 specifying the rule number.  Rules are specified in numeric order according to
 .Ar rule-no ,
 but only if rule
@@ -1438,6 +1438,10 @@ or
 .Sq deny .
 If a given packet
 matches the rule, the associated action is taken immediately.
+.Ar Action
+can also be specified as
+.Sq clear
+to clear the action associated with that particular rule.
 .It
 .Op Ar src_addr Ns Op / Ns Ar width
 and
