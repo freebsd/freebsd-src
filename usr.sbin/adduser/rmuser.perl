@@ -47,7 +47,6 @@ $group_file = "/etc/group";
 $new_group_file = "${group_file}.new.$$";
 $mail_dir = "/var/mail";
 $crontab_dir = "/var/cron/tabs";
-$atjob_dir = "/var/at/jobs";
 $affirm = 0;
 
 #$debug = 1;
@@ -200,7 +199,7 @@ if (-e "$crontab_dir/$login_name") {
 # Remove the user's at jobs, if any
 # (probably also needs to be done before password databases are updated)
 
-&remove_at_jobs($login_name, $uid);
+&remove_at_jobs($login_name);
 
 #
 # Kill all the user's processes
@@ -476,32 +475,75 @@ sub remove_files_from_dir {
     printf STDERR " done.\n";
 }
 
-sub remove_at_jobs {
-    local($login_name, $uid) = @_;
-    local($i, $owner, $found);
 
-    $found = 0;
-    opendir(ATDIR, $atjob_dir) || return;
-    while ($i = readdir(ATDIR)) {
-	next if $i eq '.';
-	next if $i eq '..';
-	next if $i eq '.lockfile';
-
-	$owner = (stat("$atjob_dir/$i"))[4]; # UID
-	if ($uid == $owner) {
-	    if (!$found) {
-		print STDERR "Removing user's at jobs:";
-		$found = 1;
-	    }
-	    # Use atrm to remove the job
-	    print STDERR " $i";
-	    system('/usr/bin/atrm', $i);
+sub invoke_atq {
+    local *ATQ;
+    my($user) = (shift || "");
+    my($path_atq) = "/usr/bin/atq";
+    my(@at) = ();
+    my($pid, $line);
+    
+    return @at if ($user eq "");
+    
+    if (!defined($pid = open(ATQ, "-|"))) {
+	die("creating pipe to atq: $!\n");
+    } elsif ($pid == 0) {
+	exec($path_atq, $user);
+	die("executing $path_atq: $!\n");
+    }
+    
+    while(defined($_ = <ATQ>)) {
+	chomp;
+	if (/^\d\d:\d\d:\d\d\s+\d\d\/\d\d\/\d\d\s+(\S+)\s+\S+\s+(\d+)$/) {
+	    push(@at, $2) if ($1 eq $user);
 	}
     }
-    closedir(ATDIR);
-    if ($found) {
-	print STDERR " done.\n";
+    close ATQ;
+    return @at;
+}
+
+sub invoke_atrm {
+    local *ATRM;
+    my($user) = (shift || "");
+    my($path_atrm) = "/usr/bin/atrm";
+    my(@jobs) = @_;
+    my($pid);
+    my($txt) = "";
+    
+    return "Invalid arguments" if (($user eq "") || ($#jobs == -1));
+    
+    if (!defined($pid = open(ATRM, "-|"))) {
+	die("creating pipe to atrm: $!\n");
+    } elsif ($pid == 0) {
+	exec($path_atrm, $user, @jobs);
     }
+    
+    while(defined($_ = <ATRM>)) {
+	$txt .= $_;
+    }
+    close ATRM;
+    return $txt;
+}
+
+sub remove_at_jobs {
+    my($user) = (shift || "");
+    my(@at, $atrm);
+    
+    return 1 if ($user eq "");
+    
+    print STDERR "Removing user's at jobs:";
+    @at = invoke_atq($user);
+    return 0 if ($#at == -1);
+    
+    print STDERR " @at:";
+    $atrm = invoke_atrm($user, @at);
+    if ($atrm ne "") {
+	print STDERR " -- $atrm\n";
+	return 1;
+    }
+    
+    print STDERR "done.\n";
+    return 0;
 }
 
 sub resolvelink {
