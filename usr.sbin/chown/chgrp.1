@@ -50,7 +50,7 @@
 .Op Fl f
 .Op Fl h
 .Ar group
-.Ar files ...
+.Ar
 .Sh DESCRIPTION
 The
 .Nm
@@ -60,8 +60,8 @@ operand to the
 .Ar group
 ID specified by the group operand.
 .Pp
-Options:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl H
 If the
 .Fl R
@@ -108,7 +108,7 @@ The user invoking
 .Nm
 must belong to the specified group and be the owner of the file,
 or be the super-user.
-.Pp
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
@@ -117,7 +117,7 @@ In previous versions of this system, symbolic links did not have groups.
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group
-Group ID file
+group ID file
 .El
 .Sh SEE ALSO
 .Xr chown 2 ,
