@@ -151,7 +151,7 @@ extern pt_entry_t PTmap[], APTmap[];
 extern pd_entry_t PTD[], APTD[];
 extern pd_entry_t PTDpde, APTDpde;
 
-extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
+extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
 #ifdef _KERNEL
