@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.5 1995/05/30 03:50:30 rgrimes Exp $
+ * $Id: command.c,v 1.9 1995/09/02 17:20:50 amurai Exp $
  *
  */
 #include <ctype.h>
@@ -36,6 +36,7 @@
 #include <arpa/inet.h>
 #include <net/route.h>
 #include "os.h"
+#include <paths.h>
 
 extern int  MakeArgs();
 extern void Cleanup(), TtyTermMode(), PacketMode();
@@ -46,6 +47,7 @@ extern int  LoadCommand(), SaveCommand();
 extern int  ChangeParity(char *);
 extern int  SelectSystem();
 extern int  ShowRoute();
+extern void TtyOldMode(), TtyCommandMode();
 extern struct pppvars pppVars;
 
 struct in_addr ifnetmask;
@@ -53,6 +55,7 @@ struct in_addr ifnetmask;
 static int ShowCommand(), TerminalCommand(), QuitCommand();
 static int CloseCommand(), DialCommand(), DownCommand();
 static int SetCommand(), AddCommand(), DeleteCommand();
+static int ShellCommand();
 
 static int
 HelpCommand(list, argc, argv, plist)
@@ -93,11 +96,11 @@ IsInteractive()
   char *mes = NULL;
 
   if (mode & MODE_AUTO)
-    mes = "Working as auto mode.";
+    mes = "Working in auto mode.";
   else if (mode & MODE_DIRECT)
-    mes = "Working as direct mode.";
+    mes = "Working in direct mode.";
   else if (mode & MODE_DEDICATED)
-    mes = "Workring as dedicated mode.";
+    mes = "Working in dedicated mode.";
   if (mes) {
     printf("%s\n", mes);
     return(0);
@@ -137,6 +140,66 @@ char **argv;
   return(1);
 }
 
+static int
+ShellCommand(cmdlist, argc, argv)
+struct cmdtab *cmdlist;
+int argc;
+char **argv;
+{
+  const char *shell;
+  pid_t shpid;
+  
+  if((shell = getenv("SHELL")) == 0) {
+    shell = _PATH_BSHELL;
+  }
+
+#ifndef HAVE_SHELL_CMD_WITH_ANY_MODE
+  if( mode != MODE_INTER) {
+     fprintf(stdout,
+             "Can start an shell only in interactive mode\n");
+     return(1);
+  }
+#else
+  if(argc == 0 && !(mode & MODE_INTER)) {
+      fprintf(stderr,
+             "Can start an interactive shell only in interactive mode\n");
+      return(1);
+  }
+#endif /* HAVE_SHELL_CMD_WITH_ANY_MODE */
+
+  if((shpid = fork()) == 0) {
+     int i;
+     for(i = 3; i < getdtablesize(); i++)
+	(void)close(i);
+
+     /*
+      * We are running setuid, we should change to
+      * real user for avoiding security problems.
+      */
+     setgid( getgid() );
+     setuid( getuid() );
+
+     TtyOldMode();
+     if(argc > 0)
+       execvp(argv[0], argv);
+     else
+       execl(shell, shell, NULL);
+      
+     fprintf(stdout, "exec() of %s failed\n", argc > 0? argv[0]: shell);
+     exit(255);
+  }
+  if( shpid == (pid_t)-1 ) {
+    fprintf(stdout, "Fork failed\n");
+  } else {
+    int status;
+    (void)waitpid(shpid, &status, 0);
+  }
+  
+  TtyCommandMode(1);
+      
+  return(0);
+}
+
 static char StrOption[] = "option ..";
 static char StrRemote[] = "[remote]";
 char StrNull[] = "";
@@ -168,6 +231,8 @@ struct cmdtab Commands[] = {
   	"Save settings", StrNull},
   { "set",     "setup", SetCommand,	LOCAL_AUTH,
   	"Set parameters",  "var value"},
+  { "shell",   "!",     ShellCommand,   LOCAL_AUTH,
+	"Run a subshell",  "[sh command]"},
   { "show",    NULL,    ShowCommand,	LOCAL_AUTH,
   	"Show status and statictics", "var"},
   { "term",    NULL,    TerminalCommand,LOCAL_AUTH,

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.5 1995/05/30 03:50:47 rgrimes Exp $
+ * $Id: main.c,v 1.10 1995/09/18 12:41:52 bde Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -59,6 +59,7 @@ extern void DecodeCommand(), Prompt();
 extern int IsInteractive();
 extern struct in_addr ifnetmask;
 static void DoLoop(void);
+static void TerminalStop();
 
 static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
@@ -91,8 +92,9 @@ TtyInit()
 /*
  *  Set tty into command mode. We allow canonical input and echo processing.
  */
-static void
-TtyCommandMode()
+void
+TtyCommandMode(prompt)
+int prompt;
 {
   struct termios newtio;
   int stat;
@@ -100,7 +102,7 @@ TtyCommandMode()
   if (!(mode & MODE_INTER))
     return;
   tcgetattr(0, &newtio);
-  newtio.c_lflag |= (ECHO|ICANON);
+  newtio.c_lflag |= (ECHO|ISIG|ICANON);
   newtio.c_iflag = oldtio.c_iflag;
   newtio.c_oflag |= OPOST;
   tcsetattr(0, TCSADRAIN, &newtio);
@@ -108,7 +110,7 @@ TtyCommandMode()
   stat |= O_NONBLOCK;
   fcntl(0, F_SETFL, stat);
   TermMode = 0;
-  Prompt(0);
+  if(prompt) Prompt(0);
 }
 
 /*
@@ -127,18 +129,23 @@ TtyTermMode()
 }
 
 void
+TtyOldMode()
+{
+  int stat;
+
+  stat = fcntl(0, F_GETFL, 0);
+  stat &= ~O_NONBLOCK;
+  fcntl(0, F_SETFL, stat);
+  tcsetattr(0, TCSANOW, &oldtio);
+}
+
+void
 Cleanup(excode)
 int excode;
 {
   int stat;
 
   OsLinkdown();
-#ifdef notdef
-  stat = fcntl(0, F_GETFL, 0);
-  stat &= ~O_NONBLOCK;
-  fcntl(0, F_SETFL, stat);
-  tcsetattr(0, TCSANOW, &oldtio);
-#endif
   OsCloseLink(1);
   sleep(1);
   if (mode & MODE_AUTO)
@@ -148,12 +155,7 @@ int excode;
   LogClose();
   if (server > 0)
     close(server);
-#ifndef notdef
-  stat = fcntl(0, F_GETFL, 0);
-  stat &= ~O_NONBLOCK;
-  fcntl(0, F_SETFL, stat);
-  tcsetattr(0, TCSANOW, &oldtio);
-#endif
+  TtyOldMode();
 
   exit(excode);
 }
@@ -162,7 +164,6 @@ static void
 Hangup()
 {
   LogPrintf(LOG_PHASE, "SIGHUP\n");
-  signal(SIGHUP, Hangup);
   Cleanup(EX_HANGUP);
 }
 
@@ -174,10 +175,30 @@ CloseSession()
   Cleanup(EX_TERM);
 }
 
+
+static void
+TerminalCont()
+{
+  (void)signal(SIGCONT, SIG_DFL);
+  (void)signal(SIGTSTP, TerminalStop);
+  TtyCommandMode(getpgrp() == tcgetpgrp(0));
+}
+
+static void
+TerminalStop(signo)
+int signo;
+{
+  (void)signal(SIGCONT, TerminalCont);
+  TtyOldMode();
+  signal(SIGTSTP, SIG_DFL);
+  kill(getpid(), signo);
+}
+
+
 void
 Usage()
 {
-  fprintf(stderr, "Usage: ppp [-auto | -direct -dedicated] [system]\n");
+  fprintf(stderr, "Usage: ppp [-auto | -direct | -dedicated] [system]\n");
   exit(EX_START);
 }
 
@@ -280,6 +301,7 @@ char **argv;
   signal(SIGHUP, Hangup);
   signal(SIGTERM, CloseSession);
   signal(SIGINT, CloseSession);
+  signal(SIGQUIT, CloseSession);
 #ifdef SIGSEGV
   signal(SIGSEGV, Hangup);
 #endif
@@ -289,6 +311,18 @@ char **argv;
 #ifdef SIGALRM
   signal(SIGALRM, SIG_IGN);
 #endif
+  if(mode & MODE_INTER)
+    {
+#ifdef SIGTSTP
+      signal(SIGTSTP, TerminalStop);
+#endif
+#ifdef SIGTTIN
+      signal(SIGTTIN, TerminalStop);
+#endif
+#ifdef SIGTTOU
+      signal(SIGTTOU, SIG_IGN);
+#endif
+    }
 
   if (dstsystem) {
     if (SelectSystem(dstsystem, CONFFILE) < 0) {
@@ -348,7 +382,7 @@ char **argv;
   } else {
     server = -1;
     TtyInit();
-    TtyCommandMode();
+    TtyCommandMode(1);
   }
   LogPrintf(LOG_PHASE, "PPP Started.\n");
 
@@ -383,7 +417,7 @@ PacketMode()
   else
     LcpOpen(VarOpenMode);
   if ((mode & (MODE_INTER|MODE_AUTO)) == MODE_INTER) {
-    TtyCommandMode();
+    TtyCommandMode(1);
     fprintf(stderr, "Packet mode.\r\n");
   }
 }
@@ -391,7 +425,7 @@ PacketMode()
 static void
 ShowHelp()
 {
-  fprintf(stderr, "Following commands are available\r\n");
+  fprintf(stderr, "The following commands are available:\r\n");
   fprintf(stderr, " ~p\tEnter to Packet mode\r\n");
   fprintf(stderr, " ~.\tTerminate program\r\n");
 }
@@ -475,7 +509,7 @@ ReadTty()
 #endif
       case '.':
 	TermMode = 1;
-	TtyCommandMode();
+	TtyCommandMode(1);
 	break;
       default:
 	if (write(modem, &ch, n) < 0)
@@ -554,6 +588,9 @@ DoLoop()
   u_char rbuff[MAX_MRU];
   int dial_up;
   int qlen;
+  pid_t pgroup;
+
+  pgroup = getpgrp();
 
   if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
@@ -624,17 +661,15 @@ DoLoop()
     usleep(TICKUNIT);
     TimerService();
 #endif
-    if ( qlen < 20 ) {
-      /*
-       *  If there are many packets queued, wait until they are drained.
-       */
-        FD_SET(tun_in, &rfds);
-    }
+
+    /* If there are aren't many packets queued, look for some more. */
+    if (qlen < 20)
+      FD_SET(tun_in, &rfds);
+
     if (netfd > -1) {
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
-
 
 #ifndef SIGALRM
     /*
@@ -699,7 +734,8 @@ DoLoop()
       Prompt(0);
     }
 
-    if ((mode & MODE_INTER) && FD_ISSET(netfd, &rfds)) {
+    if ((mode & MODE_INTER) && FD_ISSET(netfd, &rfds) &&
+	((mode & MODE_AUTO) || pgroup == tcgetpgrp(0))) {
       /* something to read from tty */
       ReadTty();
     }

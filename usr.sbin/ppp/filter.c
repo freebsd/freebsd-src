@@ -17,15 +17,17 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.3 1995/02/26 12:17:25 amurai Exp $
+ * $Id: filter.c,v 1.5 1995/09/17 16:14:45 amurai Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -108,6 +110,38 @@ char **argv;
   return(proto);
 }
 
+static int
+ParsePort(service, proto)
+char *service;
+int proto;
+{
+  char *protocol_name, *cp;
+  struct servent *servent;
+  int port;
+
+  switch (proto) {
+  case P_UDP:
+    protocol_name = "udp";
+    break;
+  case P_TCP:
+    protocol_name = "tcp";
+    break;
+  default:
+    protocol_name = 0;
+  }
+
+  servent = getservbyname (service, protocol_name);
+  if (servent != 0)
+    return(ntohs(servent->s_port));
+
+  port = strtol(service, &cp, 0);
+  if (cp == service) {
+    printf("%s is not a port name or number.\n", service);
+    return(0);
+  }
+  return(port);
+}
+
 /*
  *	ICMP Syntax:	src eq icmp_message_type
  */
@@ -161,9 +195,10 @@ char *cp;
  *	UDP Syntax: [src op port] [dst op port]
  */
 static int
-ParseUdp(argc, argv)
+ParseUdpOrTcp(argc, argv, proto)
 int argc;
 char **argv;
+int proto;
 {
   int port;
   char *cp;
@@ -179,78 +214,42 @@ char **argv;
 #endif
     return(0);
   }
-  if (STREQ(*argv, "src")) {
+  if (argc >= 3 && STREQ(*argv, "src")) {
     filterdata.opt.srcop = ParseOp(argv[1]);
     if (filterdata.opt.srcop == OP_NONE) {
       printf("bad operation\n");
       return(0);
     }
-    port = strtol(argv[2], &cp, 0);
-    if (cp == argv[2]) {
-      printf("expect port number.\n");
+    filterdata.opt.srcport = ParsePort(argv[2], proto);
+    if (filterdata.opt.srcport == 0)
       return(0);
-    }
-    filterdata.opt.srcport = port;
     argc -= 3; argv += 3;
     if (argc == 0)
       return(1);
   }
-
   if (argc >= 3 && STREQ(argv[0], "dst")) {
     filterdata.opt.dstop = ParseOp(argv[1]);
     if (filterdata.opt.dstop == OP_NONE) {
       printf("bad operation\n");
       return(0);
     }
-    port = strtol(argv[2], &cp, 0);
-    if (cp == argv[2]) {
-      printf("port number is expected.\n");
+    filterdata.opt.dstport = ParsePort(argv[2], proto);
+    if (filterdata.opt.dstport == 0)
       return(0);
-    }
-    filterdata.opt.dstport = port;
-    return(1);
-  }
-  if (argc == 1 && STREQ(argv[0], "estab"))
-    return(1);
-  printf("no src/dst port.\n");
-  return(0);
-}
-
-/*
- *  TCP Syntax: [src op port] [dst op port] [estab]
- */
-static int
-ParseTcp(argc, argv)
-int argc;
-char **argv;
-{
-  int val;
-
-  val = ParseUdp(argc, argv);
-  if (val) {
-    if (argc == 0) return(1);	/* Will permit/deny all tcp traffic */
     argc -= 3; argv += 3;
-    if (argc > 1) {
-      argc -= 3; argv += 3;
+    if (argc == 0)
+      return(1);
+  }
+  if (argc == 1) {
+    if (STREQ(*argv, "estab")) {
+      filterdata.opt.estab = 1;
+      return(1);
     }
-    if (argc < 0 || argc > 1) {
-      printf("bad tcp syntax.\n");
-      return(0);
-    }
-    if (argc == 1) {
-checkestab:
-      if (STREQ(*argv, "estab")) {
-	filterdata.opt.estab = 1;
-	return(1);
-      }
-      printf("estab is expected.\n");
-      return(0);
-    }
-
-    return(1);
-  } else if (argc == 1)
-    goto checkestab;
-  printf("bad port syntax (val = %d, argc = %d.\n", val, argc);
+    printf("estab is expected: %s\n", *argv);
+    return(0);
+  }
+  if (argc > 0)
+    printf("bad %s src/dst port syntax: %s\n", *argv);
   return(0);
 }
 
@@ -343,10 +342,10 @@ struct filterent *ofp;
 
   switch (proto) {
   case P_TCP:
-    val = ParseTcp(argc, argv);
+    val = ParseUdpOrTcp(argc, argv, P_TCP);
     break;
   case P_UDP:
-    val = ParseUdp(argc, argv);
+    val = ParseUdpOrTcp(argc, argv, P_UDP);
     break;
   case P_ICMP:
     val = ParseIcmp(argc, argv);

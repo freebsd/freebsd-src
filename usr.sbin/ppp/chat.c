@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.3 1995/03/11 15:18:37 amurai Exp $
+ * $Id: chat.c,v 1.5 1995/09/02 17:20:50 amurai Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -373,7 +373,11 @@ char *str;
     } else {
       (void) ExpandString(str, buff+2, 1);
     }
-    LogPrintf(LOG_CHAT, "sending: %s\n", buff+2);
+    if (strstr(str, "\\P")) { /* Do not log the password itself. */
+      LogPrintf(LOG_CHAT, "sending: %s\n", str);
+    } else {
+      LogPrintf(LOG_CHAT, "sending: %s\n", buff+2);
+    }
     cp = buff;
     if (DEV_IS_SYNC)
       bcopy("\377\003", buff, 2);	/* Prepend HDLC header */

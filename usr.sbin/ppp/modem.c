@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.6 1995/05/30 03:50:51 rgrimes Exp $
+ * $Id: modem.c,v 1.9 1995/09/02 17:20:53 amurai Exp $
  *
  *  TODO:
  */
@@ -767,6 +767,7 @@ ShowModemStatus()
   ioctl(modem, TIOCOUTQ, &nb);
   printf("outq: %d\n", nb);
 #endif
+  printf("outqlen: %d\n", ModemQlen());
   printf("DialScript  = %s\n", VarDialScript);
   printf("LoginScript = %s\n", VarLoginScript);
   printf("PhoneNumber = %s\n", VarPhone);
