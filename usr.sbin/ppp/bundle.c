@@ -1654,7 +1654,6 @@ bundle_setsid(struct bundle *bundle, int holdsession)
         signal(SIGQUIT, SIG_DFL);
         for (fd = getdtablesize(); fd >= 0; fd--)
           close(fd);
-        setuid(geteuid());
         /*
          * Reap the intermediate process.  As we're not exiting but the
          * intermediate is, we don't want it to become defunct.
@@ -1662,6 +1661,7 @@ bundle_setsid(struct bundle *bundle, int holdsession)
         waitpid(pid, &status, 0);
         /* Tweak our process arguments.... */
         ID0setproctitle("session owner");
+        setuid(geteuid());
         /*
          * Hang around for a HUP.  This should happen as soon as the
          * ppp that we passed our ctty descriptor to closes it.
