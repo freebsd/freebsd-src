@@ -1142,7 +1142,7 @@ SBP_DEBUG(1)
 END_DEBUG
 	if (xfer->resp != 0) {
 		/* XXX */
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 	}
 	sbp_xfer_free(xfer);
 	sdev->flags &= ~ORB_POINTER_ACTIVE;
@@ -1208,7 +1208,7 @@ SBP_DEBUG(1)
 END_DEBUG
 	if (xfer->resp != 0) {
 		/* XXX */
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 	}
 	sbp_xfer_free(xfer);
 	return;
@@ -1573,7 +1573,7 @@ printf("sbp %08x %08x %08x %08x\n", ntohl(ld[8]), ntohl(ld[9]), ntohl(ld[10]), n
 */
 	sbp = (struct sbp_softc *)xfer->sc;
 	if (xfer->resp != 0){
-		printf("sbp_recv: xfer->resp != 0\n");
+		printf("sbp_recv: xfer->resp = %d\n", xfer->resp);
 		goto done0;
 	}
 	if (xfer->recv.payload == NULL){

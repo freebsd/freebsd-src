@@ -471,7 +471,7 @@ sbp_targ_free_orbi(struct fw_xfer *xfer)
 	orbi = (struct orb_info *)xfer->sc;
 	if (xfer->resp != 0) {
 		/* XXX */
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 	}
 	free(orbi, M_SBP_TARG);
 	fw_xfer_free(xfer);
@@ -589,7 +589,7 @@ sbp_targ_cam_done(struct fw_xfer *xfer)
 			xfer->resp, orbi->refcount);
 
 	if (xfer->resp != 0) {
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
 		orbi->status.status = htonl(OBJ_DATA | SBE_TIMEOUT /*XXX*/);
 		orbi->status.dead = 1;
@@ -734,7 +734,7 @@ sbp_targ_pt_done(struct fw_xfer *xfer)
 		return;
 	}
 	if (xfer->resp != 0) {
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
 		orbi->status.status = htonl(OBJ_PT | SBE_TIMEOUT /*XXX*/);
 		orbi->status.dead = 1;
@@ -1013,7 +1013,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 
 	orbi = (struct orb_info *)xfer->sc;
 	if (xfer->resp != 0) {
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
 		orbi->status.status = htonl(OBJ_ORB | SBE_TIMEOUT /*XXX*/);
 		orbi->status.dead = 1;
@@ -1126,7 +1126,7 @@ sbp_targ_mgm_handler(struct fw_xfer *xfer)
 
 	orbi = (struct orb_info *)xfer->sc;
 	if (xfer->resp != 0) {
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		orbi->status.resp = SBP_TRANS_FAIL;
 		orbi->status.status = htonl(OBJ_ORB | SBE_TIMEOUT /*XXX*/);
 		orbi->status.dead = 1;
@@ -1203,7 +1203,7 @@ sbp_targ_pointer_handler(struct fw_xfer *xfer)
 
 	orbi = (struct orb_info *)xfer->sc;
 	if (xfer->resp != 0) {
-		printf("%s: xfer->resp != 0\n", __FUNCTION__);
+		printf("%s: xfer->resp = %d\n", __FUNCTION__, xfer->resp);
 		goto done;
 	}
 
