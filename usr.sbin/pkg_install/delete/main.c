@@ -87,7 +87,7 @@ main(int argc, char **argv)
 
     /* Get all the remaining package names, if any */
     while (*argv) {
-	while ((pkgs_split = rindex(*argv, (int)'/')) != NULL) {
+	while ((pkgs_split = strrchr(*argv, (int)'/')) != NULL) {
 	    *pkgs_split++ = '\0';
 	    /*
 	     * If character after the '/' is alphanumeric, then we've found the

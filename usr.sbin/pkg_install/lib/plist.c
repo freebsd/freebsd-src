@@ -252,7 +252,7 @@ read_plist(Package *pkg, FILE *fp)
 	    cmd = plist_cmd(pline + 1, &cp);
 	    if (cmd == FAIL) {
 		cleanup(0);
-		errx(2, "bad command '%s'", pline);
+		errx(2, __FUNCTION__ ": bad command '%s'", pline);
 	    }
 	    if (*cp == '\0')
 		cp = NULL;
@@ -338,7 +338,7 @@ write_plist(Package *pkg, FILE *fp)
 
 	default:
 	    cleanup(0);
-	    errx(2, "unknown command type %d (%s)", plist->type, plist->name);
+	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", plist->type, plist->name);
 	    break;
 	}
 	plist = plist->next;
@@ -489,7 +489,7 @@ delete_hierarchy(char *dir, Boolean ign_err, Boolean nukedirs)
     if (!nukedirs)
 	return 0;
     while (cp2) {
-	if ((cp2 = rindex(cp1, '/')) != NULL)
+	if ((cp2 = strrchr(cp1, '/')) != NULL)
 	    *cp2 = '\0';
 	if (!isemptydir(dir))
 	    return 0;

@@ -83,7 +83,7 @@ suffix(char *str, char *suff)
     char *idx;
     Boolean ret = FALSE;
 
-    idx = rindex(str, '.');
+    idx = strrchr(str, '.');
     if (idx && !strcmp(idx + 1, suff))
 	ret = TRUE;
     return ret;
@@ -95,7 +95,7 @@ nuke_suffix(char *str)
 {
     char *idx;
 
-    idx = rindex(str, '.');
+    idx = strrchr(str, '.');
     if (idx)
 	*idx = '\0';  /* Yow!  Don't try this on a const! */
 }
