@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/ctype.h>
 
 #include <net/ethernet.h>
