@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.169 1998/08/13 08:09:07 dfr Exp $
+ * $Id: vfs_bio.c,v 1.170 1998/08/24 08:39:38 dfr Exp $
  */
 
 /*
@@ -457,10 +457,6 @@ bdwrite(struct buf * bp)
 
 	if (bp->b_flags & B_INVAL) {
 		brelse(bp);
-		return;
-	}
-	if (bp->b_flags & B_TAPE) {
-		bawrite(bp);
 		return;
 	}
 	bp->b_flags &= ~(B_READ|B_RELBUF);
