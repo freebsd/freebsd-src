@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.26 1999/06/02 15:58:51 brian Exp $
+ *	$Id: alias_cmd.c,v 1.27 1999/06/10 00:17:26 brian Exp $
  */
 
 #include <sys/param.h>
@@ -371,7 +371,7 @@ alias_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
                 u_short *proto)
 {
   struct ip *pip, *piip;
-  int ret;
+  int ret, len;
   struct mbuf **last;
   char *fptr;
 
@@ -412,8 +412,9 @@ alias_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
       last = &bp->pnext;
       while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
 	PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
-        *last = mbuf_Alloc(ntohs(((struct ip *)fptr)->ip_len), MB_ALIASIN);
-        memcpy(MBUF_CTOP(*last), fptr, (*last)->cnt);
+        len = ntohs(((struct ip *)fptr)->ip_len);
+        *last = mbuf_Alloc(len, MB_ALIASIN);
+        memcpy(MBUF_CTOP(*last), fptr, len);
         free(fptr);
         last = &(*last)->pnext;
       }
