@@ -104,7 +104,7 @@ from denying attribute service.
 .Pp
 This file should not exist before running
 .Cm initattr .
-.It Cm enable Ar path Ar namespace Ar attrname Ar attrfile
+.It Cm enable Ar path namespace attrname attrfile
 Enable an attribute named
 .Ar attrname
 in the namespace
@@ -119,7 +119,7 @@ The backing file must have been initialized using
 before its first use.
 Attributes must have been started on the file system prior to the
 enabling of any attributes.
-.It Cm disable Ar path Ar namespace Ar attrname
+.It Cm disable Ar path namespace attrname
 Disable the attributed named
 .Ar attrname
 in namespace
