@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.21 1998/01/23 02:46:51 ShimonR Exp ShimonR $"
+#ident "$Id: dpt_control.c,v 1.1 1998/01/26 06:11:17 julian Exp $"
 
 #include "opt_dpt.h"
 
@@ -71,7 +71,7 @@
 
 extern char     osrelease[];
 
-dpt_sysinfo_t   dpt_sysinfo;
+static dpt_sysinfo_t   dpt_sysinfo;
 
 /* Entry points and other prototypes */
 static vm_offset_t dpt_physmap(u_int32_t paddr, vm_size_t size);
@@ -81,11 +81,11 @@ static void     dpt_get_sysinfo(void);
 static INLINE dpt_softc_t *dpt_minor2softc(int minor_no);
 static INLINE int dpt_minor2unit(int minor_no);
 
-int             dpt_open(dev_t dev, int flags, int fmt, struct proc * p);
-int             dpt_close(dev_t dev, int flags, int fmt, struct proc * p);
-int             dpt_write(dev_t dev, struct uio * uio, int ioflag);
-int             dpt_read(dev_t dev, struct uio * uio, int ioflag);
-int             dpt_ioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc * p);
+static int      dpt_open(dev_t dev, int flags, int fmt, struct proc * p);
+static int      dpt_close(dev_t dev, int flags, int fmt, struct proc * p);
+static int      dpt_write(dev_t dev, struct uio * uio, int ioflag);
+static int      dpt_read(dev_t dev, struct uio * uio, int ioflag);
+static int      dpt_ioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc * p);
 
 
 /* This has to be modified as the processor and CPU are not known yet */
@@ -416,7 +416,7 @@ dpt_get_sysinfo(void)
 	dpt_sysinfo.flags |= SI_OSversionValid;
 }
 
-int
+static int
 dpt_open(dev_t dev, int flags, int fmt, struct proc * p)
 {
 	int             minor_no;
@@ -454,7 +454,7 @@ dpt_open(dev_t dev, int flags, int fmt, struct proc * p)
 	return (0);
 }
 
-int
+static int
 dpt_close(dev_t dev, int flags, int fmt, struct proc * p)
 {
 	int             minor_no;
@@ -472,7 +472,7 @@ dpt_close(dev_t dev, int flags, int fmt, struct proc * p)
 	}
 }
 
-int
+static int
 dpt_write(dev_t dev, struct uio * uio, int ioflag)
 {
 	int             minor_no;
@@ -529,7 +529,7 @@ dpt_write(dev_t dev, struct uio * uio, int ioflag)
 	return (error);
 }
 
-int
+static int
 dpt_read(dev_t dev, struct uio * uio, int ioflag)
 {
 	dpt_softc_t    *dpt;
@@ -676,7 +676,7 @@ dpt_read(dev_t dev, struct uio * uio, int ioflag)
  * if not totally syntatically so.
  */
 
-int
+static int
 dpt_ioctl(dev_t dev, int cmd, caddr_t cmdarg, int flags, struct proc * p)
 {
 	int             minor_no;
