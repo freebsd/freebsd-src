@@ -37,6 +37,7 @@ MINIMALDOCPORTS= \
 	ports/graphics/scr2png \
 	ports/textproc/scr2txt \
 	ports/graphics/tiff \
+	ports/lang/perl5 \
 	ports/print/freetype2 \
 	ports/print/ghostscript-gnu \
 	ports/textproc/docbook \
@@ -61,7 +62,7 @@ MINIMALDOCPORTS= \
 .if ${OSVERSION} < 460101 || ( ${OSVERSION} >= 500000 && ${OSVERSION} < 500036 )
 MINIMALDOCPORTS+=	ports/textproc/sed_inplace
 .endif
-.if ${MACHINE_ARCH} == "alpha"
+.if ${MACHINE_ARCH} != "i386"
 MINIMALDOCPORTS+=	ports/textproc/openjade
 .else
 MINIMALDOCPORTS+=	ports/textproc/jade
