@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_tunvar.h,v 1.2 1998/11/11 10:04:10 truckman Exp $
+ *	$Id: if_tunvar.h,v 1.3 1998/11/11 10:56:05 truckman Exp $
  */
 
 #ifndef _NET_IF_TUNVAR_H_
@@ -36,6 +36,7 @@ struct tun_softc {
 #define	TUN_RCOLL	0x0004
 #define	TUN_IASET	0x0008
 #define	TUN_DSTADDR	0x0010
+#define	TUN_LMODE	0x0020
 #define	TUN_RWAIT	0x0040
 #define	TUN_ASYNC	0x0080
 
