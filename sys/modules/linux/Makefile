@@ -40,6 +40,7 @@ GENSYSCALL=	linux_sysent.c linux_syscall.h linux_proto.h
 SRCS+= ${GENSYSCALL}
 CLEANFILES+= ${GENSYSCALL}
 
+.ORDER: ${GENSYSCALL}
 ${GENSYSCALL}: @/kern/makesyscalls.sh \
 	    @/${MACHINE_ARCH}/linux/syscalls.master \
 		@/${MACHINE_ARCH}/linux/syscalls.conf
