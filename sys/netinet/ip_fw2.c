@@ -29,7 +29,7 @@
 #define        DDB(x) x
 
 /*
- * Implement IP packet firewall
+ * Implement IP packet firewall (new version)
  */
 
 #if !defined(KLD_MODULE)
@@ -42,6 +42,8 @@
 #endif /* INET */
 #endif
 
+#define IPFW2	1
+#if IPFW2
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -75,8 +77,8 @@
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
-static int fw_verbose = 0;
-static int verbose_limit = 0;
+static int fw_verbose;
+static int verbose_limit;
 
 #define	IPFW_DEFAULT_RULE	65535
 
@@ -164,9 +166,9 @@ static u_int32_t dyn_short_lifetime = 5;
  */
 static u_int32_t dyn_grace_time = 10;
 
-static u_int32_t static_count = 0;	/* # of static rules */
-static u_int32_t static_len = 0;	/* size in bytes of static rules */
-static u_int32_t dyn_count = 0;		/* # of dynamic rules */
+static u_int32_t static_count;	/* # of static rules */
+static u_int32_t static_len;	/* size in bytes of static rules */
+static u_int32_t dyn_count;		/* # of dynamic rules */
 static u_int32_t dyn_max = 1000;	/* max # of dynamic rules */
 
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_buckets, CTLFLAG_RW,
@@ -206,7 +208,7 @@ ip_dn_ruledel_t *ip_dn_ruledel_ptr = NULL;	/* hook into dummynet */
  */
 #define	L3HDR(T, ip) ((T *)((u_int32_t *)(ip) + (ip)->ip_hl))
 
-static int
+static __inline int
 icmptype_match(struct ip *ip, ipfw_insn_u32 *cmd)
 {
 	int type = L3HDR(struct icmp,ip)->icmp_type;
@@ -379,16 +381,18 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd)
 static u_int64_t norule_counter;	/* counter for ipfw_log(NULL...) */
 
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
+#define SNP(buf) buf, sizeof(buf)
 /*
  * We enter here when we have a rule with O_LOG.
+ * XXX this function alone takes about 2Kbytes of code!
  */
 static void
 ipfw_log(struct ip_fw *f, u_int hlen, struct ether_header *eh,
 	struct mbuf *m, struct ifnet *oif)
 {
 	char *action;
-	char action2[32], proto[47], fragment[27];
 	int limit_reached = 0;
+	char action2[40], proto[48], fragment[28];
 
 	fragment[0] = '\0';
 	proto[0] = '\0';
@@ -1367,6 +1371,7 @@ again:
 		skip_or = 0;
 		for (l = f->cmd_len, cmd = f->cmd ; l > 0 ;
 		    l -= cmdlen, cmd += cmdlen) {
+			int match;
 
 			/*
 			 * check_body is a jump target used when we find a
@@ -1388,15 +1393,24 @@ check_body:
 					skip_or = 0;	/* next one is good */
 				continue;
 			}
-			switch (cmd->opcode) {
-			case O_NOP:
-				goto cmd_match;	/* That's easy */
+			match = 0; /* set to 1 if we succeed */
 
-			case O_IPPRE:
+			switch (cmd->opcode) {
+			/*
+			 * The first set of opcodes compares the packet's
+			 * fields with some pattern, setting 'match' if a
+			 * match is found. At the end of the loop there is
+			 * logic to deal with F_NOT and F_OR flags associated
+			 * with the opcode.
+			 */
+			case O_NOP:
+				match = 1;
+				break;
+
 			case O_FORWARD_MAC:
 				printf("ipfw: opcode %d unimplemented\n",
 				    cmd->opcode);
-				goto cmd_fail;
+				break;
 
 			case O_GID:
 			case O_UID:
@@ -1406,7 +1420,7 @@ check_body:
 				 * packet with the ports info.
 				 */
 				if (offset!=0)
-					goto cmd_fail;
+					break;
 			    {
 				struct inpcbinfo *pi;
 				int wildcard;
@@ -1419,7 +1433,7 @@ check_body:
 					wildcard = 1;
 					pi = &udbinfo;
 				} else
-					goto cmd_fail;
+					break;
 
 				pcb =  (oif) ?
 					in_pcblookup_hash(pi,
@@ -1432,42 +1446,35 @@ check_body:
 					    wildcard, NULL);
 
 				if (pcb == NULL || pcb->inp_socket == NULL)
-					goto cmd_fail;
-				if (cmd->opcode == O_UID) {
-#if __FreeBSD_version >= 500034
-					if (socheckuid(pcb->inp_socket,
-					    (uid_t)((ipfw_insn_u32 *)cmd)->d[0]
-					    ))
-#else
-					if (pcb->inp_socket->so_cred->cr_uid !=
-					    (uid_t)((ipfw_insn_u32 *)cmd)->d[0])
+					break;
+#if __FreeBSD_version < 500034
+#define socheckuid(a,b)	((a)->so_cred->cr_uid == (b))
 #endif
-						goto cmd_match;
+				if (cmd->opcode == O_UID) {
+					match =
+					  socheckuid(pcb->inp_socket,
+					   (uid_t)((ipfw_insn_u32 *)cmd)->d[0]);
 				} else  {
-					if (groupmember(
+					match = groupmember(
 					    (uid_t)((ipfw_insn_u32 *)cmd)->d[0],
-					    pcb->inp_socket->so_cred))
-						goto cmd_match;
+					    pcb->inp_socket->so_cred);
 				}
 			    }
-				goto cmd_fail;
+				break;
 
 			case O_RECV:
-				if (iface_match(m->m_pkthdr.rcvif,
-				    (ipfw_insn_if *)cmd))
-					goto cmd_match;
-				goto cmd_fail;
+				match = iface_match(m->m_pkthdr.rcvif,
+				    (ipfw_insn_if *)cmd);
+				break;
 
 			case O_XMIT:
-				if (iface_match(oif, (ipfw_insn_if *)cmd))
-					goto cmd_match;
-				goto cmd_fail;
+				match = iface_match(oif, (ipfw_insn_if *)cmd);
+				break;
 
 			case O_VIA:
-				if (iface_match(oif ? oif : m->m_pkthdr.rcvif,
-						(ipfw_insn_if *)cmd))
-					goto cmd_match;
-				goto cmd_fail;
+				match = iface_match(oif ? oif :
+				    m->m_pkthdr.rcvif, (ipfw_insn_if *)cmd);
+				break;
 
 			case O_MACADDR2:
 				if (args->eh != NULL) {	/* have MAC header */
@@ -1477,128 +1484,108 @@ check_body:
 						((ipfw_insn_mac *)cmd)->mask;
 					u_int32_t *hdr = (u_int32_t *)args->eh;
 
-					if ( want[0] == (hdr[0] & mask[0]) &&
-					     want[1] == (hdr[1] & mask[1]) &&
-					     want[2] == (hdr[2] & mask[2]) )
-						goto cmd_match;
+					match =
+					    ( want[0] == (hdr[0] & mask[0]) &&
+					      want[1] == (hdr[1] & mask[1]) &&
+					      want[2] == (hdr[2] & mask[2]) );
 				}
-				goto cmd_fail;
+				break;
 
 			case O_MAC_TYPE:
 				if (args->eh != NULL) {
-					u_int16_t type =
+					u_int16_t t =
 					    ntohs(args->eh->ether_type);
 					u_int16_t *p =
 					    ((ipfw_insn_u16 *)cmd)->ports;
 					int i;
 
-					for (i = cmdlen - 1; i>0; i--)
-						if (type>=p[0] && type<=p[1])
-							goto cmd_match;
-						else
-							p += 2;
+					for (i = cmdlen - 1; !match && i>0;
+					    i--, p += 2)
+						match = (t>=p[0] && t<=p[1]);
 				}
-				goto cmd_fail;
+				break;
 
 			case O_FRAG:
-				/* XXX check this -- MF bit ? */
-				if (hlen == 0 || offset != 0)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 && offset != 0);
+				break;
 
 			case O_IN:	/* "out" is "not in" */
-				if (oif != NULL)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (oif == NULL);
+				break;
 
 			case O_LAYER2:
-				if (args->eh == NULL)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (args->eh != NULL);
+				break;
 
 			case O_PROTO:
 				/*
 				 * We do not allow an arg of 0 so the
 				 * check of "proto" only suffices.
 				 */
-				if (proto == cmd->arg1)
-					goto cmd_match;
-				goto cmd_fail;
+				match = (proto == cmd->arg1);
+				break;
 
 			case O_IP_SRC:
-				if (hlen > 0 &&
+				match = (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				    src_ip.s_addr)
-					goto cmd_match;
-				goto cmd_fail;
+				    src_ip.s_addr);
+				break;
 		
 			case O_IP_SRC_MASK:
-				if (hlen > 0 &&
+				match = (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				    (src_ip.s_addr &
-				     ((ipfw_insn_ip *)cmd)->mask.s_addr))
-					goto cmd_match;
-				goto cmd_fail;
+				     (src_ip.s_addr &
+				     ((ipfw_insn_ip *)cmd)->mask.s_addr));
+				break;
 
 			case O_IP_SRC_ME:
-				if (hlen == 0)
-					goto cmd_fail;
-			    {
-				struct ifnet *tif;
+				if (hlen > 0) {
+					struct ifnet *tif;
 
-
-				INADDR_TO_IFP(src_ip, tif);
-				if (tif != NULL)
-					goto cmd_match;
-			    }
-				goto cmd_fail;
+					INADDR_TO_IFP(src_ip, tif);
+					match = (tif != NULL);
+				}
+				break;
 		
 			case O_IP_DST_SET:
 			case O_IP_SRC_SET:
-				if (hlen == 0)
-					goto cmd_fail;
-			    {
-				u_int32_t *d = (u_int32_t *)(cmd+1);
-				u_int32_t a =
-				    cmd->opcode == O_IP_DST_SET ?
-				    args->f_id.src_ip : args->f_id.dst_ip;
+				if (hlen > 0) {
+					u_int32_t *d = (u_int32_t *)(cmd+1);
+					u_int32_t addr =
+					    cmd->opcode == O_IP_DST_SET ?
+						args->f_id.src_ip :
+						args->f_id.dst_ip;
 
-				if (a < d[0])
-					goto cmd_fail;
-				a -= d[0];
-				if (a >= cmd->arg1)
-					goto cmd_fail;
-				if (d[ 1 + (a>>5)] & (1<<(a & 0x1f)) )
-					goto cmd_match;
-			    }
-				goto cmd_fail;
+					    if (addr < d[0])
+						    break;
+					    addr -= d[0]; /* subtract base */
+					    match = (addr < cmd->arg1) &&
+						( d[ 1 + (addr>>5)] &
+						  (1<<(addr & 0x1f)) );
+				}
+				break;
 
 			case O_IP_DST:
-				if (hlen > 0 &&
+				match = (hlen > 0 &&
 				    ((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				    dst_ip.s_addr)
-					goto cmd_match;
-				goto cmd_fail;
+				    dst_ip.s_addr);
+				break;
 
 			case O_IP_DST_MASK:
-				if (hlen == 0)
-					goto cmd_fail;
-				if (((ipfw_insn_ip *)cmd)->addr.s_addr ==
-				    (dst_ip.s_addr &
-				     ((ipfw_insn_ip *)cmd)->mask.s_addr))
-					goto cmd_match;
-				goto cmd_fail;
+				match = (hlen > 0) &&
+				    (((ipfw_insn_ip *)cmd)->addr.s_addr ==
+				     (dst_ip.s_addr &
+				     ((ipfw_insn_ip *)cmd)->mask.s_addr));
+				break;
 
 			case O_IP_DST_ME:
-				if (hlen == 0)
-					goto cmd_fail;
-			    {
-				struct ifnet *tif;
-				INADDR_TO_IFP(dst_ip, tif);
-				if (tif != NULL)
-					goto cmd_match;
-			    }
-				goto cmd_fail;
+				if (hlen > 0) {
+					struct ifnet *tif;
+
+					INADDR_TO_IFP(dst_ip, tif);
+					match = (tif != NULL);
+				}
+				break;
 		
 			case O_IP_SRCPORT:
 			case O_IP_DSTPORT:
@@ -1607,180 +1594,206 @@ check_body:
 				 * to guarantee that we have an IPv4
 				 * packet with port info.
 				 */
-				if (offset != 0)
-					goto cmd_fail;
-				if (proto==IPPROTO_UDP ||
-				    proto==IPPROTO_TCP) {
-					u_int16_t port =
+				if ((proto==IPPROTO_UDP || proto==IPPROTO_TCP)
+				    && offset == 0) {
+					u_int16_t x =
 					    (cmd->opcode == O_IP_SRCPORT) ?
-					    src_port : dst_port ;
+						src_port : dst_port ;
 					u_int16_t *p =
 					    ((ipfw_insn_u16 *)cmd)->ports;
 					int i;
 
-					for (i = cmdlen - 1; i>0; i--)
-						if (port>=p[0] && port<=p[1])
-							goto cmd_match;
-						else
-							p += 2;
+					for (i = cmdlen - 1; !match && i>0;
+					    i--, p += 2)
+						match = (x>=p[0] && x<=p[1]);
 				}
-				goto cmd_fail;
+				break;
 
 			case O_ICMPTYPE:
-				if (offset > 0 ||
-				    proto != IPPROTO_ICMP ||
-				    !icmptype_match(ip, (ipfw_insn_u32 *)cmd) )
-					goto cmd_fail;
-				goto cmd_match;
+				match = (offset == 0 && proto==IPPROTO_ICMP &&
+				    icmptype_match(ip, (ipfw_insn_u32 *)cmd) );
+				break;
 
 			case O_IPOPT:
-				if (hlen == 0 ||
-				    !ipopts_match(ip, cmd) )
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 && ipopts_match(ip, cmd) );
+				break;
 
 			case O_IPVER:
-				if (hlen == 0 || cmd->arg1 != ip->ip_v)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 && cmd->arg1 == ip->ip_v);
+				break;
 
 			case O_IPTTL:
-				if (hlen == 0 || cmd->arg1 != ip->ip_ttl)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 && cmd->arg1 == ip->ip_ttl);
+				break;
 
 			case O_IPID:
-				if (hlen == 0 || cmd->arg1 != ntohs(ip->ip_id))
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 &&
+				    cmd->arg1 == ntohs(ip->ip_id));
+				break;
 
 			case O_IPLEN:
-				if (hlen == 0 || cmd->arg1 != ip_len)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 && cmd->arg1 == ip_len);
+				break;
 
 			case O_IPPRECEDENCE:
-				if (hlen == 0 ||
-				    (cmd->arg1 != (ip->ip_tos & 0xe0)) )
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 &&
+				    (cmd->arg1 == (ip->ip_tos & 0xe0)) );
+				break;
 
 			case O_IPTOS:
-				if (hlen == 0 ||
-				    !flags_match(cmd, ip->ip_tos))
-					goto cmd_fail;
-				goto cmd_match;
+				match = (hlen > 0 &&
+				    flags_match(cmd, ip->ip_tos));
+				break;
 
 			case O_TCPFLAGS:
-				if (proto != IPPROTO_TCP ||
-				    offset > 0 ||
-				    !flags_match(cmd,
-					L3HDR(struct tcphdr,ip)->th_flags))
-					goto cmd_fail;
-				goto cmd_match;
+				match = (proto == IPPROTO_TCP && offset == 0 &&
+				    flags_match(cmd,
+					L3HDR(struct tcphdr,ip)->th_flags));
+				break;
 
 			case O_TCPOPTS:
-				if (proto != IPPROTO_TCP ||
-				    offset > 0 ||
-				    !tcpopts_match(ip, cmd))
-					goto cmd_fail;
-				goto cmd_match;
+				match = (proto == IPPROTO_TCP && offset == 0 &&
+				    tcpopts_match(ip, cmd));
+				break;
 
 			case O_TCPSEQ:
-				if (proto != IPPROTO_TCP || offset > 0 ||
-				    ((ipfw_insn_u32 *)cmd)->d[0] !=
-					L3HDR(struct tcphdr,ip)->th_seq)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (proto == IPPROTO_TCP && offset == 0 &&
+				    ((ipfw_insn_u32 *)cmd)->d[0] ==
+					L3HDR(struct tcphdr,ip)->th_seq);
+				break;
 
 			case O_TCPACK:
-				if (proto != IPPROTO_TCP || offset > 0 ||
-				    ((ipfw_insn_u32 *)cmd)->d[0] !=
-					L3HDR(struct tcphdr,ip)->th_ack)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (proto == IPPROTO_TCP && offset == 0 &&
+				    ((ipfw_insn_u32 *)cmd)->d[0] ==
+					L3HDR(struct tcphdr,ip)->th_ack);
+				break;
 
 			case O_TCPWIN:
-				if (proto != IPPROTO_TCP || offset > 0 ||
-				    cmd->arg1 !=
-					L3HDR(struct tcphdr,ip)->th_win)
-					goto cmd_fail;
-				goto cmd_match;
+				match = (proto == IPPROTO_TCP && offset == 0 &&
+				    cmd->arg1 ==
+					L3HDR(struct tcphdr,ip)->th_win);
+				break;
 
 			case O_ESTAB:
-				if (proto != IPPROTO_TCP || offset > 0)
-					goto cmd_fail;
-
 				/* reject packets which have SYN only */
-				if ((L3HDR(struct tcphdr,ip)->th_flags &
-				    (TH_RST | TH_ACK | TH_SYN)) == TH_SYN)
-					goto cmd_fail;
-				goto cmd_match;
+				/* XXX should i also check for TH_ACK ? */
+				match = (proto == IPPROTO_TCP && offset == 0 &&
+				    (L3HDR(struct tcphdr,ip)->th_flags &
+				     (TH_RST | TH_ACK | TH_SYN)) != TH_SYN);
+				break;
 
 			case O_LOG:
 				ipfw_log(f, hlen, args->eh, m, oif);
-				goto cmd_match;
+				match = 1;
+				break;
 
 			case O_PROB:
-				if (random() < ((ipfw_insn_u32 *)cmd)->d[0] )
-					goto cmd_match;
-				goto cmd_fail;
+				match = (random()<((ipfw_insn_u32 *)cmd)->d[0]);
+				break;
 
+			/*
+			 * The second set of opcodes represents 'actions',
+			 * i.e. the terminal part of a rule once the packet
+			 * matches all previous patterns.
+			 * Typically there is only one action for each rule,
+			 * and the opcode is stored at the end of the rule
+			 * (but there are exceptions -- see below).
+			 *
+			 * In general, here we set retval and terminate the
+			 * outer loop (would be a 'break 3' in some language,
+			 * but we need to do a 'goto done').
+			 *
+			 * Exceptions:
+			 * O_COUNT and O_SKIPTO actions:
+			 *   instead of terminating, we jump to the next rule
+			 *   ('goto next_rule', equivalent to a 'break 2'),
+			 *   or to the SKIPTO target ('goto again' after
+			 *   having set f, cmd and l), respectively.
+			 *
+			 * O_LIMIT and O_KEEP_STATE: these opcodes are
+			 *   not real 'actions', and are stored right
+			 *   before the 'action' part of the rule.
+			 *   These opcodes try to install an entry in the
+			 *   state tables; if successful, we continue with
+			 *   the next opcode (match=1; break;), otherwise
+			 *   the packet *   must be dropped
+			 *   ('goto done' after setting retval);
+			 *
+			 * O_PROBE_STATE and O_CHECK_STATE: these opcodes
+			 *   cause a lookup of the state table, and a jump
+			 *   to the 'action' part of the parent rule
+			 *   ('goto check_body') if an entry is found, or
+			 *   (CHECK_STATE only) a jump to the next rule if
+			 *   the entry is not found ('goto next_rule').
+			 *   The result of the lookup is cached to make
+			 *   further instances of these opcodes are
+			 *   effectively NOPs.
+			 */
 			case O_LIMIT:
 			case O_KEEP_STATE:
 				if (install_state(f,
-				    (ipfw_insn_limit *)cmd, args))
-					goto deny; /* error/limit violation */
-				goto cmd_match;
+				    (ipfw_insn_limit *)cmd, args)) {
+					retval = IP_FW_PORT_DENY_FLAG;
+					goto done; /* error/limit violation */
+				}
+				match = 1;
+				break;
 
 			case O_PROBE_STATE:
 			case O_CHECK_STATE:
 				/*
 				 * dynamic rules are checked at the first
-				 * keep-state or check-state occurrence.
-				 * The compiler introduces a probe-state
+				 * keep-state or check-state occurrence,
+				 * with the result being stored in dyn_dir.
+				 * The compiler introduces a PROBE_STATE
 				 * instruction for us when we have a
-				 * keep-state (because probe-state needs
+				 * KEEP_STATE (because PROBE_STATE needs
 				 * to be run first).
 				 */
-				if (dyn_dir == MATCH_UNKNOWN) {
-					q = lookup_dyn_rule(&args->f_id,
-					    &dyn_dir);
-					if (q != NULL) {
-						f = q->rule;
-						q->pcnt++;
-						q->bcnt += ip_len;
-						/* go to ACTION */
-						cmd = ACTION_PTR(f);
-						l = f->cmd_len - f->act_ofs;
-						goto check_body;
-					}
+				if (dyn_dir == MATCH_UNKNOWN &&
+				    (q = lookup_dyn_rule(&args->f_id,
+				     &dyn_dir)) != NULL) {
+					/*
+					 * Found dynamic entry, update stats
+					 * and jump to the 'action' part of
+					 * the parent rule.
+					 */
+					q->pcnt++;
+					q->bcnt += ip_len;
+					f = q->rule;
+					cmd = ACTION_PTR(f);
+					l = f->cmd_len - f->act_ofs;
+					goto check_body;
 				}
+				/*
+				 * Dynamic entry not found. If CHECK_STATE,
+				 * skip to next rule, if PROBE_STATE just
+				 * ignore and continue with next opcode.
+				 */
 				if (cmd->opcode == O_CHECK_STATE)
 					goto next_rule;
-				else
-					goto cmd_match;
+				match = 1;
+				break;
 
 			case O_ACCEPT:
 				retval = 0;	/* accept */
-				goto accept;
+				goto done;
 
 			case O_PIPE:
 			case O_QUEUE:
 				args->rule = f; /* report matching rule */
 				retval = cmd->arg1 | IP_FW_PORT_DYNT_FLAG;
-				goto accept;
+				goto done;
 			
 			case O_DIVERT:
 			case O_TEE:
 				if (args->eh) /* not on layer 2 */
-					goto cmd_fail;
+					break;
 				args->divert_rule = f->rulenum;
-				if (cmd->opcode == O_DIVERT)
-					retval = cmd->arg1;
-				else
-					retval = cmd->arg1|IP_FW_PORT_TEE_FLAG;
-				goto accept;
+				retval = (cmd->opcode == O_DIVERT) ?
+				    cmd->arg1 :
+				    cmd->arg1 | IP_FW_PORT_TEE_FLAG;
+				goto done;
 
 			case O_COUNT:
 			case O_SKIPTO:
@@ -1810,67 +1823,42 @@ check_body:
 					    offset,ip_len);
 					m = args->m;
 				}
-				goto deny;
+				/* FALLTHROUGH */
+			case O_DENY:
+				retval = IP_FW_PORT_DENY_FLAG;
+				goto done;
 
 			case O_FORWARD_IP:
 				if (args->eh)	/* not valid on layer2 pkts */
-					goto cmd_fail;
+					break;
 				if (!q || dyn_dir == MATCH_FORWARD)
 					args->next_hop =
 					    &((ipfw_insn_sa *)cmd)->sa;
 				retval = 0;
-				goto accept;
-
-			case O_DENY:
-				goto deny;
+				goto done;
 
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
-			}
-			panic("ipfw_chk: end of inner loop");
+			} /* end of switch() on opcodes */
 
-			/*
-			 * This code is a bit spaghetti, but we have
-			 * 4 cases to handle:
-			 * INSN FAIL, no F_NOT           --> insn_fail
-			 * INSN FAIL, but we have F_NOT  --> cmd_success
-			 * INSN MATCH, no F_NOT          --> cmd_success
-			 * INSN MATCH, but we have F_NOT --> insn_fail
-			 *
-			 * after this:
-			 * cmd_success, F_OR        --> set skip_or
-			 * cmd_success, not F_OR    --> try next insn
-			 * insn_fail, F_OR          --> try next insn
-			 * insn_fail, not F_OR      --> rule does not match
-			 */
-cmd_fail:
-			if (cmd->len & F_NOT) /* NOT fail is a success */
-				goto cmd_success;
-			else
-				goto insn_fail;
+			if (cmd->len & F_NOT)
+				match = !match;
 
-cmd_match:
-			if (cmd->len & F_NOT) {	/* NOT match is a failure.  */
-insn_fail:
-				if (cmd->len & F_OR) /* If an or block      */
-					continue;    /* try next insn       */
-				else
-					break;	     /* otherwise next rule */
+			if (match) {
+				if (cmd->len & F_OR)
+					skip_or = 1;
+			} else {
+				if (!(cmd->len & F_OR)) /* not an OR block, */
+					break;		/* try next rule    */
 			}
 
-cmd_success:
-			if (cmd->len & F_OR)
-				skip_or = 1;
 		}	/* end of inner for, scan opcodes */
 
 next_rule:;		/* try next rule		*/
 	    
 	}		/* end of outer for, scan rules */
 
-deny:
-	retval = IP_FW_PORT_DENY_FLAG;
-
-accept:
+done:
 	/* Update statistics */
 	f->pcnt++;
 	f->bcnt += ip_len;
@@ -2155,13 +2143,13 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 	ipfw_insn *cmd;
 
 	if (size < sizeof(*rule)) {
-		printf("kipfw: rule too short\n");
+		printf("ipfw: rule too short\n");
 		return (EINVAL);
 	}
 	/* first, check for valid size */
 	l = RULESIZE(rule);
 	if (l != size) {
-		printf("kipfw: size mismatch (have %d want %d)\n", size, l);
+		printf("ipfw: size mismatch (have %d want %d)\n", size, l);
 		return (EINVAL);
 	}
 	/*
@@ -2172,11 +2160,11 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			l > 0 ; l -= cmdlen, cmd += cmdlen) {
 		cmdlen = F_LEN(cmd);
 		if (cmdlen > l) {
-			printf("kipfw: opcode %d size truncated\n",
+			printf("ipfw: opcode %d size truncated\n",
 			    cmd->opcode);
 			return EINVAL;
 		}
-		DEB(printf("kipfw: opcode %d\n", cmd->opcode);)
+		DEB(printf("ipfw: opcode %d\n", cmd->opcode);)
 		switch (cmd->opcode) {
 		case O_NOP:
 		case O_PROBE_STATE:
@@ -2190,7 +2178,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPOPT:
 		case O_IPLEN:
 		case O_IPID:
-		case O_IPPRE:
 		case O_IPTOS:
 		case O_IPPRECEDENCE:
 		case O_IPTTL:
@@ -2234,7 +2221,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_ip))
 				goto bad_size;
 			if (((ipfw_insn_ip *)cmd)->mask.s_addr == 0) {
-				printf("kipfw: opcode %d, useless rule\n",
+				printf("ipfw: opcode %d, useless rule\n",
 					cmd->opcode);
 				return EINVAL;
 			}
@@ -2243,7 +2230,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IP_SRC_SET:
 		case O_IP_DST_SET:
 			if (cmd->arg1 == 0 || cmd->arg1 > 256) {
-				printf("kipfw: invalid set size %d\n",
+				printf("ipfw: invalid set size %d\n",
 					cmd->arg1);
 				return EINVAL;
 			}
@@ -2295,33 +2282,33 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 				goto bad_size;
 check_action:
 			if (have_action) {
-				printf("kipfw: opcode %d, multiple actions"
+				printf("ipfw: opcode %d, multiple actions"
 					" not allowed\n",
 					cmd->opcode);
 				return EINVAL;
 			}
 			have_action = 1;
 			if (l != cmdlen) {
-				printf("kipfw: opcode %d, action must be"
+				printf("ipfw: opcode %d, action must be"
 					" last opcode\n",
 					cmd->opcode);
 				return EINVAL;
 			}
 			break;
 		default:
-			printf("kipfw: opcode %d, unknown opcode\n",
+			printf("ipfw: opcode %d, unknown opcode\n",
 				cmd->opcode);
 			return EINVAL;
 		}
 	}
 	if (have_action == 0) {
-		printf("kipfw: missing action\n");
+		printf("ipfw: missing action\n");
 		return EINVAL;
 	}
 	return 0;
 
 bad_size:
-	printf("kipfw: opcode %d size %d wrong\n",
+	printf("ipfw: opcode %d size %d wrong\n",
 		cmd->opcode, cmdlen);
 	return EINVAL;
 }
@@ -2591,3 +2578,4 @@ static moduledata_t ipfwmod = {
 };
 DECLARE_MODULE(ipfw, ipfwmod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(ipfw, 1);
+#endif /* IPFW2 */
