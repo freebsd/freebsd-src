@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.53 1996/04/26 18:19:36 jkh Exp $
+ * $Id: menus.c,v 1.54 1996/04/27 07:04:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -113,6 +113,22 @@ clearX11Servers(dialogMenuItem *self)
 }
 
 static int
+setX11Fonts(dialogMenuItem *self)
+{
+    XF86Dists |= DIST_XF86_FONTS;
+    XF86FontDists = DIST_XF86_FONTS_ALL;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
+clearX11Fonts(dialogMenuItem *self)
+{
+    XF86Dists &= ~DIST_XF86_FONTS;
+    XF86FontDists = 0;
+    return DITEM_SUCCESS | DITEM_REDRAW;
+}
+
+static int
 checkDistDeveloper(dialogMenuItem *self)
 {
     return (Dists == _DIST_DEVELOPER && SrcDists == DIST_SRC_ALL);
@@ -121,10 +137,8 @@ checkDistDeveloper(dialogMenuItem *self)
 static int
 checkDistXDeveloper(dialogMenuItem *self)
 {
-    return (Dists == _DIST_DEVELOPER | DIST_XF86 && SrcDists == DIST_SRC_ALL &&
-	    XF86Dists == DIST_XF86_BIN | DIST_XF86_LIB | DIST_XF86_PROG | DIST_XF86_MAN |
-	    DIST_XF86_SERVER | DIST_XF86_FONTS && (XF86ServerDists & DIST_XF86_SERVER_SVGA) &&
-	    (XF86FontDists & DIST_XF86_FONTS_MISC));
+    return (Dists == (_DIST_DEVELOPER | DIST_XF86) && SrcDists == DIST_SRC_ALL &&
+	    (XF86Dists & _DIST_XDEV) == _DIST_XDEV && XF86ServerDists && XF86FontDists);
 }
 
 static int
@@ -210,7 +224,7 @@ option by pressing [ENTER].",				/* prompt */
   { "7 Fixit",	"Go into repair mode with CDROM or floppy",		NULL, dmenuSubmenu, NULL, &MenuFixit },
   { "8 Upgrade","Upgrade an existing 2.0.5 system",			NULL, installUpgrade },
   { "9 Configure","Do post-install configuration of FreeBSD",		NULL, dmenuSubmenu, NULL, &MenuConfigure },
-  { "0 Exit",	"Exit this menu (and the installation)",		NULL, dmenuCancel },
+  { "0 Exit",	"Exit this menu (and the installation)",		NULL, dmenuExit },
   { NULL } },
 };
 
@@ -249,7 +263,7 @@ consult the README file.",
   { "4 Copyright","The FreeBSD Copyright notices.",			NULL, dmenuDisplayFile,	NULL, "COPYRIGHT" },
   { "5 Release","The release notes for this version of FreeBSD.",	NULL, dmenuDisplayFile, NULL, "relnotes" },
   { "6 HTML Docs","Go to the HTML documentation menu (post-install).",	NULL, docBrowser },
-  { "0 Exit",	"Exit this menu (returning to previous)",		NULL, dmenuCancel },
+  { "0 Exit",	"Exit this menu (returning to previous)",		NULL, dmenuExit },
   { NULL } },
 };
 
@@ -533,8 +547,8 @@ DMenu MenuDistributions = {
 These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose the\n\
 list of distributions yourself, simply select \"Custom\".  You can also\n\
-pick a canned distribution set and then fine-tune it with the Custom item.\n\
-When you are finished, select Cancel or chose Exit.",
+pick a canned distribution set and then fine-tune it with the Custom item.\n\n\
+When you are finished chose the Exit item or Cancel to abort.",
     "Press F1 for more information on these options.",
     "distributions",
 { { "1 Developer",	"Full sources, binaries and doc but no games [180MB]",
@@ -549,14 +563,14 @@ When you are finished, select Cancel or chose Exit.",
     checkDistXUser, distSetXUser },
   { "6 Minimal",	"The smallest configuration possible [44MB]",
     checkDistMinimum, distSetMinimum },
-  { "7 Custom",		"Specify your own distribution set [?]",
-    checkTrue, dmenuSubmenu, NULL, &MenuSubDistributions, '-', '-', '-' },
-  { "8 All",		"All sources, binaries and XFree86 binaries [700MB]",
+  { "7 All",		"All sources, binaries and XFree86 binaries [700MB]",
     checkDistEverything, distSetEverything },
+  { "8 Custom",		"Specify your own distribution set [?]",
+    NULL, dmenuSubmenu, NULL, &MenuSubDistributions, ' ', ' ', ' ' },
   { "9 Clear",		"Reset selected distribution list to nothing [0MB]",
     NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
   { "0 Exit",		"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -599,11 +613,11 @@ DES distribution out of the U.S.!  It is for U.S. customers only.",
   { "xperimnt",		"Experimental work in progress!",
     dmenuFlagCheck, dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_EXPERIMENTAL },
   { "All",		"All sources, binaries and XFree86 binaries [700MB]",
-    NULL, distSetEverything	},
+    NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
   { "Clear",		"Reset all of the above [0MB]",
     NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -626,7 +640,7 @@ software, please consult the release notes.",
   { "ssecure",	"Sources for DES [1MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &DESDists, '[', 'X', ']', DIST_DES_SSECURE },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -670,11 +684,11 @@ you wish to install.",
   { "smailcf",	"/usr/src/usr.sbin (sendmail config macros) [341K]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &SrcDists, '[', 'X', ']', DIST_SRC_SMAILCF },
   { "All",	"Select all of the above [120MB]",
-    checkSrc, setSrc },
+    NULL, setSrc, NULL, NULL, ' ', ' ', ' ' },
   { "Clear",	"Reset all of the above [0MB]",
     NULL, clearSrc, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -697,7 +711,7 @@ component set and at least one entry from the Server and Font set menus.",
   { "Clear",	"Reset XFree86 distribution list",
     NULL, clearX11All },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -739,7 +753,7 @@ Bin, lib, xicf, and xdcf are recommended for a minimum installaion.",
   { "Clear",	"Reset all of the above [0MB]",
     NULL, clearX11Misc, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -764,8 +778,12 @@ install.  At the minimum, you should install the standard\n\
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_NON },
   { "server",	"Font server [0.3MB]",
     dmenuFlagCheck, dmenuSetFlag, NULL, &XF86FontDists, '[', 'X', ']', DIST_XF86_FONTS_SERVER },
+  { "All",	"All fonts [10MB]",
+    NULL, setX11Fonts, NULL, NULL, ' ', ' ', ' ' },
+  { "Clear",	"Reset font selections [0MB]",
+    NULL, clearX11Fonts, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -807,7 +825,7 @@ Mono servers are particularly well-suited to most LCD displays).",
   { "Clear",	"Reset all of the above [0MB]",
     NULL, clearX11Servers, NULL, NULL, ' ', ' ', ' ' },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -857,7 +875,7 @@ to install it from and how you wish to allocate disk storage to FreeBSD.",
   { "5 Media",		"Choose the installation media type",	NULL, dmenuSubmenu, NULL, &MenuMedia },
   { "6 Commit",		"Perform any pending Partition/Label/Extract actions", NULL, installCommit },
   { "7 Extract",	"Just do distribution extract step",	NULL, distExtractAll },
-  { "0 Exit",		"Exit this menu (returning to previous)", NULL, dmenuCancel },
+  { "0 Exit",		"Exit this menu (returning to previous)", NULL, dmenuExit },
   { NULL } },
 };
 
@@ -920,7 +938,7 @@ software not provided in the base distributions.",
   { "C XFree86",	"Configure XFree86",
     NULL, configXFree86 },
   { "0 Exit",		"Exit this menu (returning to previous)",
-    NULL, dmenuCancel },
+    NULL, dmenuExit },
   { NULL } },
 };
 
@@ -958,7 +976,7 @@ aspects of your system's network configuration.",
   { "PCNFSD",		"Run authentication server for clients with PC-NFS.",
     NULL, configPCNFSD },
   { "Exit",	"Exit this menu (returning to previous)",
-    checkTrue, dmenuCancel, NULL, NULL, '<', '<', '<' },
+    checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
   { NULL } },
 };
 
@@ -1025,7 +1043,7 @@ When you are done setting configuration options, select Cancel.",
 { { "Keymap",	"Choose an alternate keyboard map",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeymap },
   { "Repeat",	"Set the rate at which keys repeat",	NULL, dmenuSubmenu, NULL, &MenuSysconsKeyrate },
   { "Saver",	"Configure the screen saver",		NULL, dmenuSubmenu, NULL, &MenuSysconsSaver },
-  { "Exit",	"Exit this menu (returning to previous)", NULL, dmenuCancel },
+  { "Exit",	"Exit this menu (returning to previous)", NULL, dmenuExit },
   { NULL } },
 };
 

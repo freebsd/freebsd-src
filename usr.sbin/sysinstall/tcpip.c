@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.35 1996/04/13 13:32:12 jkh Exp $
+ * $Id: tcpip.c,v 1.36 1996/04/23 01:29:35 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -545,6 +545,9 @@ tcpDeviceSelect(void)
 	/* If we're running in user mode, assume network already up */
 	if (RunningAsInit)
 	    tcpOpenDialog(devs[0]);
+	else
+	    msgConfirm("Since you're running multi-user, we'll assume\n"
+		       "that the network is already up.");
 	mediaDevice = devs[0];
 	status = TRUE;
     }
@@ -564,5 +567,5 @@ tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
     configResolv();
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RECREATE | DITEM_RESTORE;
 }

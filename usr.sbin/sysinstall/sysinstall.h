@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.51 1996/04/23 01:29:32 jkh Exp $
+ * $Id: sysinstall.h,v 1.52 1996/04/25 17:31:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -400,7 +400,7 @@ extern int	dmenuDisplayFile(dialogMenuItem *tmp);
 extern int	dmenuSubmenu(dialogMenuItem *tmp);
 extern int	dmenuSystemCommand(dialogMenuItem *tmp);
 extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
-extern int	dmenuCancel(dialogMenuItem *tmp);
+extern int	dmenuExit(dialogMenuItem *tmp);
 extern int	dmenuSetVariable(dialogMenuItem *tmp);
 extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
