@@ -863,7 +863,7 @@ kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *oldle
 		req.oldptr= old;
 	}
 
-	if (newlen) {
+	if (new != NULL) {
 		req.newlen = newlen;
 		req.newptr = new;
 	}
@@ -1102,7 +1102,7 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 		req.oldptr= old;
 	}
 
-	if (newlen) {
+	if (new != NULL) {
 		if (!useracc(new, req.newlen, VM_PROT_READ))
 			return (EFAULT);
 		req.newlen = newlen;
