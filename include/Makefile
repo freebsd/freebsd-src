@@ -26,6 +26,8 @@ ARPAFILES=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
 
 PROTOFILES=	dumprestore.h routed.h rwhod.h talkd.h timed.h
 
+NETSMBFILES=	nb_lib.h smb_lib.h smb_rap.h
+
 MFILES=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
@@ -115,6 +117,11 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/netinet
+.endif
+.if exists(${.CURDIR}/../sys/contrib/netsmb/include/netsmb)
+	cd ${.CURDIR}/../sys/contrib/netsmb/include/netsmb; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${NETSMBFILES} \
+		${DESTDIR}/usr/include/netsmb
 .endif
 .if exists(${.CURDIR}/../sys/security/lomac)
 	cd ${.CURDIR}/../sys/security/lomac; \

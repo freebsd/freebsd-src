@@ -134,6 +134,7 @@ SUBDIR=	apply \
 	sed \
 	shar \
 	showmount \
+	smbutil \
 	sockstat \
 	soelim \
 	split \
