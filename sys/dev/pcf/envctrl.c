@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/resource.h>
 #include <sys/uio.h>
 
@@ -191,6 +192,6 @@ envctrl_detach(device_t dev)
 	return (0);
 }
 
-DRIVER_MODULE(pcf, ebus, envctrl_driver, envctrl_devclass, 0, 0);
-MODULE_DEPEND(pcf, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
-MODULE_VERSION(pcf, PCF_MODVER);
+DRIVER_MODULE(envctrl, ebus, envctrl_driver, envctrl_devclass, 0, 0);
+MODULE_DEPEND(envctrl, iicbus, PCF_MINVER, PCF_PREFVER, PCF_MAXVER);
+MODULE_VERSION(envctrl, PCF_MODVER);
