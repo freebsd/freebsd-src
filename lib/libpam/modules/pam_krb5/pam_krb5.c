@@ -262,13 +262,13 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	krb5_context pam_context;
 	krb5_creds creds;
 	krb5_principal princ;
-	krb5_ccache ccache, ccache_check;
+	krb5_ccache ccache;
 	krb5_get_init_creds_opt opts;
 	struct options options;
 	struct passwd *pwd;
 	int retval;
 	const char *sourceuser, *user, *pass, *service;
-	char *principal, *princ_name, *cache_name, luser[32], *srvdup;
+	char *principal, *princ_name, *ccache_name, luser[32], *srvdup;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -403,13 +403,11 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got TGT");
 
-	/* Generate a unique cache_name */
-	asprintf(&cache_name, "MEMORY:/tmp/%s.%d", service, getpid());
-	krbret = krb5_cc_resolve(pam_context, cache_name, &ccache);
-	free(cache_name);
+	/* Generate a temporary cache */
+	krbret = krb5_cc_gen_new(pam_context, &krb5_mcc_ops, &ccache);
 	if (krbret != 0) {
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
-		PAM_LOG("Error krb5_cc_resolve(): %s",
+		PAM_LOG("Error krb5_cc_gen_new(): %s",
 		    krb5_get_err_text(pam_context, krbret));
 		retval = PAM_SERVICE_ERR;
 		goto cleanup;
@@ -451,7 +449,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Credentials stash verified");
 
-	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_check);
+	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_name);
 	if (retval == PAM_SUCCESS) {
 		krb5_cc_destroy(pam_context, ccache);
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
@@ -461,7 +459,14 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Credentials stash not pre-existing");
 
-	retval = pam_set_data(pamh, "ccache", ccache, cleanup_cache);
+	asprintf(&ccache_name, "%s:%s", krb5_cc_get_type(pam_context,
+		ccache), krb5_cc_get_name(pam_context, ccache));
+	if (ccache_name == NULL) {
+		PAM_VERBOSE_ERROR("Kerberos 5 error");
+		retval = PAM_BUF_ERR;
+		goto cleanup;
+	}
+	retval = pam_set_data(pamh, "ccache", ccache_name, cleanup_cache);
 	if (retval != 0) {
 		krb5_cc_destroy(pam_context, ccache);
 		PAM_VERBOSE_ERROR("Kerberos 5 error");
@@ -549,10 +554,16 @@ pam_sm_setcred(pam_handle_t *pamh, int flags,
 
 	PAM_LOG("Got euid, egid: %d %d", euid, egid);
 
-	/* Retrieve the cache name */
-	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_temp);
+	/* Retrieve the temporary cache */
+	retval = pam_get_data(pamh, "ccache", (const void **)&cache_name);
 	if (retval != PAM_SUCCESS)
 		goto cleanup3;
+	krbret = krb5_cc_resolve(pam_context, cache_name, &ccache_temp);
+	if (krbret != 0) {
+		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", cache_name,
+		    krb5_get_err_text(pam_context, krbret));
+		goto cleanup3;
+	}
 
 	/* Get the uid. This should exist. */
 	pwd = getpwnam(user);
@@ -741,7 +752,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	krb5_principal princ;
 	struct options options;
 	int retval;
-	const char *user;
+	const char *user, *ccache_name;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -753,12 +764,6 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = pam_get_data(pamh, "ccache", (const void **)&ccache);
-	if (retval != PAM_SUCCESS)
-		return (PAM_SUCCESS);
-
-	PAM_LOG("Got ccache");
-
 	krbret = krb5_init_context(&pam_context);
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_init_context() failed");
@@ -766,6 +771,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	}
 
 	PAM_LOG("Context initialised");
+
+	retval = pam_get_data(pamh, "ccache", (const void **)&ccache_name);
+	if (retval != PAM_SUCCESS)
+		return (PAM_SUCCESS);
+	krbret = krb5_cc_resolve(pam_context, ccache_name, &ccache);
+	if (krbret != 0) {
+		PAM_LOG("Error krb5_cc_resolve(\"%s\"): %s", ccache_name,
+		    krb5_get_err_text(pam_context, krbret));
+		krb5_free_context(pam_context);
+		return (PAM_PERM_DENIED);
+	}
+
+	PAM_LOG("Got ccache %s", ccache_name);
+
 
 	krbret = krb5_cc_get_principal(pam_context, ccache, &princ);
 	if (krbret != 0) {
@@ -1063,13 +1082,16 @@ cleanup_cache(pam_handle_t *pamh __unused, void *data, int pam_end_status __unus
 {
 	krb5_context pam_context;
 	krb5_ccache ccache;
+	krb5_error_code krbret;
 
 	if (krb5_init_context(&pam_context))
 		return;
 
-	ccache = (krb5_ccache)data;
-	krb5_cc_destroy(pam_context, ccache);
+	krbret = krb5_cc_resolve(pam_context, data, &ccache);
+	if (krbret == 0)
+		krb5_cc_destroy(pam_context, ccache);
 	krb5_free_context(pam_context);
+	free(data);
 }
 
 #ifdef COMPAT_HEIMDAL
