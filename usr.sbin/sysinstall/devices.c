@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.18 1995/05/18 13:18:34 jkh Exp $
+ * $Id: devices.c,v 1.19 1995/05/19 02:31:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,6 +93,8 @@ static struct {
     { DEVICE_TYPE_DISK,  "wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_FLOPPY, "fd0a",	"Floppy disk drive (unit A)"				},
     { DEVICE_TYPE_FLOPPY, "fd1a",	"Floppy disk drive (unit B)"				},
+    { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"		},
+    { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP device"		},
     { DEVICE_TYPE_NETWORK, "lo",	"Loop-back (local) network interface"			},
     { DEVICE_TYPE_NETWORK, "sl",	"Serial-line IP (SLIP) interface"			},
     { DEVICE_TYPE_NETWORK, "ppp",	"Point-to-Point Protocol (PPP) interface"		},
@@ -105,8 +107,6 @@ static struct {
     { DEVICE_TYPE_NETWORK, "lnc",	"Lance/PCnet cards (Isolan/Novell NE2100/NE32-VL)"	},
     { DEVICE_TYPE_NETWORK, "ze",	"IBM/National Semiconductor PCMCIA ethernet"		},
     { DEVICE_TYPE_NETWORK, "zp",	"3Com PCMCIA Etherlink III"				},
-    { DEVICE_TYPE_NETWORK, "cuaa0",	"Serial port (COM1) - possible PPP device"		},
-    { DEVICE_TYPE_NETWORK, "cuaa1",	"Serial port (COM2) - possible PPP device"		},
     { NULL },
 };
 
@@ -124,9 +124,8 @@ new_device(char *name)
 }
 
 static int
-deviceTry(char *name)
+deviceTry(char *name, char *try)
 {
-    char try[FILENAME_MAX];
     int fd;
 
     snprintf(try, FILENAME_MAX, "/dev/%s", name);
@@ -134,7 +133,7 @@ deviceTry(char *name)
     if (fd > 0)
 	return fd;
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
-    fd = open(try, O_RDWR);
+    fd = open(try, O_RDONLY);
     return fd;
 }
 
@@ -181,15 +180,18 @@ deviceGetAll(void)
      * second stage of the installation.
      */
     for (i = 0; device_names[i].name; i++) {
+	char try[FILENAME_MAX];
+
 	switch(device_names[i].type) {
 	case DEVICE_TYPE_CDROM:
-	    fd = deviceTry(device_names[i].name);
-	    if (fd > 0) {
+	    fd = deviceTry(device_names[i].name, try);
+	    if (fd >= 0) {
 		close(fd);
 		CHECK_DEVS;
 		Devices[numDevs] = new_device(device_names[i].name);
 		Devices[numDevs]->type = DEVICE_TYPE_CDROM;
 		Devices[numDevs]->description = device_names[i].description;
+		Devices[numDevs]->devname = strdup(try);
 		Devices[numDevs]->enabled = TRUE;	/* XXX check for FreeBSD disk later XXX */
 		Devices[numDevs]->init = mediaInitCDROM;
 		Devices[numDevs]->get = mediaGetCDROM;
@@ -202,12 +204,13 @@ deviceGetAll(void)
 	    break;
 
 	case DEVICE_TYPE_TAPE:
-	    fd = deviceTry(device_names[i].name);
-	    if (fd > 0) {
+	    fd = deviceTry(device_names[i].name, try);
+	    if (fd >= 0) {
 		close(fd);
 		CHECK_DEVS;
 		Devices[numDevs] = new_device(device_names[i].name);
 		Devices[numDevs]->type = DEVICE_TYPE_TAPE;
+		Devices[numDevs]->devname = strdup(try);
 		Devices[numDevs]->enabled = TRUE;
 		Devices[numDevs]->init = mediaInitTape;
 		Devices[numDevs]->get = mediaGetTape;
@@ -219,12 +222,13 @@ deviceGetAll(void)
 	    break;
 
 	case DEVICE_TYPE_FLOPPY:
-	    fd = deviceTry(device_names[i].name);
-	    if (fd > 0) {
+	    fd = deviceTry(device_names[i].name, try);
+	    if (fd >= 0) {
 		close(fd);
 		CHECK_DEVS;
 		Devices[numDevs] = new_device(device_names[i].name);
 		Devices[numDevs]->type = DEVICE_TYPE_FLOPPY;
+		Devices[numDevs]->devname = strdup(try);
 		Devices[numDevs]->enabled = TRUE;
 		Devices[numDevs]->init = mediaInitFloppy;
 		Devices[numDevs]->get = mediaGetFloppy;
@@ -236,12 +240,13 @@ deviceGetAll(void)
 	    break;
 
 	case DEVICE_TYPE_NETWORK:
-	    fd = deviceTry(device_names[i].name);
-	    if (fd > 0) {
+	    fd = deviceTry(device_names[i].name, try);
+	    if (fd >= 0) {
 		close(fd);
 		CHECK_DEVS;
 		Devices[numDevs] = new_device(device_names[i].name);
 		Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
+		Devices[numDevs]->devname = strdup(try);
 		Devices[numDevs]->enabled = FALSE;
 		Devices[numDevs]->init = mediaInitNetwork;
 		Devices[numDevs]->get = mediaGetNetwork;
@@ -283,6 +288,7 @@ deviceGetAll(void)
 	CHECK_DEVS;
 	Devices[numDevs] = new_device(ifptr->ifr_name);
 	Devices[numDevs]->type = DEVICE_TYPE_NETWORK;
+	Devices[numDevs]->devname = NULL;
 	Devices[numDevs]->enabled = FALSE;
 	Devices[numDevs]->init = mediaInitNetwork;
 	Devices[numDevs]->get = mediaGetNetwork;
@@ -320,6 +326,17 @@ deviceFind(char *name, DeviceType class)
     }
     found[j] = NULL;
     return j ? found : NULL;
+}
+
+int
+deviceCount(Device **devs)
+{
+    int i;
+
+    if (!devs)
+	return 0;
+    for (i = 0; devs[i]; i++);
+    return i;
 }
 
 /*
