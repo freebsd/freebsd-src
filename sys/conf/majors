@@ -1,0 +1,107 @@
+Hopefully, this list will one day be obsoleted by DEVFS, but for now
+this is the current allocation of device major numbers.
+
+For local use, you are encouraged to use the reserved numbers.
+
+If you intend the driver to be available, send email to the
+hackers@freebsd.org mailing list to see about having a number
+reserved for you.
+
+blkdev	name		comments
+0	wd
+1	no
+2	fd
+3	wt
+4	sd
+5	st
+6	cd
+7	mcd
+8	lkm
+9	lkm
+10	lkm
+11	lkm
+12	lkm
+13	lkm
+14	??		reserved for local use
+15	vn
+16	scd
+17	matcd
+18	ata
+19	wcdb
+20	od
+
+chrdev	name		comments
+0	cn
+1	ctty
+2	mm
+3	wd
+4	swap		/dev/drum
+5	pts
+6	ptc
+7	log
+8	bqu
+9	fd
+10	wt
+11	spigot
+12	sc
+13	sd
+14	st
+15	cd
+16	lpt
+17	ch
+18	su
+19	tw
+20	??		reserved for local use
+21	psm
+22	fd		(/dev/stdin etc)
+23	bpf
+24	pca
+25	??		was vat
+26	spkr
+27	mse
+28	sio
+29	mcd
+30	snd
+31	uk
+32	lkmc
+33	lkm
+34	lkm
+35	lkm
+36	lkm
+37	lkm
+38	lkm
+39	apm
+40	ctx		cortex
+41	??		was socksys
+42	cx		cronyx
+43	vn
+44	gp		GPIB
+45	scd		sony cd
+46	matcd		SB cd
+47	gsc
+48	cy		cyclades
+49	ssc		scsi super
+50	crd		pcmcia
+51	joy		joystick
+52	tun		IP tunnel device
+53	snp		tty snoop
+54	nic
+55	isdn
+56	ity
+57	itel
+58	dgb		digiboard
+59	ispy
+60	nnic
+61	pt
+62	worm
+63	rc
+64	??		talisman
+65	sctarg		scsi target
+66	labpc
+67	meteor
+68	si		specialix
+69	wcd		atapi cd
+70	od
+71	asc
+72	???		stallion (see ungar)
+73	qcam		quickcam
