@@ -436,6 +436,10 @@ are refused if the number of unauthenticated connections reaches
 .It Cm PasswordAuthentication
 Specifies whether password authentication is allowed.
 The default is
+.Dq no ,
+unless
+.Nm sshd
+was built without PAM support, in which case the default is
 .Dq yes .
 Note that if
 .Cm ChallengeResponseAuthentication
