@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.43.2.14 1995/06/09 14:33:36 jkh Exp $
+ * $Id: system.c,v 1.44 1995/06/11 19:30:10 rgrimes Exp $
  *
  * Jordan Hubbard
  *
@@ -59,9 +59,6 @@ systemInitialize(int argc, char **argv)
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
     }
-
-    for(i = 0; i < 256; i++)
-	default_scrnmap[i] = i;
 
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
@@ -146,60 +143,13 @@ systemDisplayFile(char *file)
 char *
 systemHelpFile(char *file, char *buf)
 {
-    char *cp;
-    static char oldfile[64];	/* Should be FILENAME_MAX but I don't feel like wasting that much space */
-    static char oldlang[64];
-    char extract[64], *default_lang = "en_US.ISO8859-1";
-    int i;
-
     if (!file)
 	return NULL;
 
-    if ((cp = getenv("LANG")) == NULL) 
-	cp = default_lang;
-
-    for (i = 0; i < 2; i++) {
-	snprintf(buf, FILENAME_MAX, "/stand/%s/%s", cp, file);
-	if (file_readable(buf)) 
-	    return buf;
-	if (*oldfile) {
-	    int i;
-
-	    i = unlink(oldfile);
-	    if (isDebug())
-		msgDebug("Unlink(%s) = %d\n", oldfile, i);
-	    i = rmdir(oldlang);
-	    if (isDebug())
-		msgDebug("rmdir(%s) = %d\n", oldlang, i);
-	    oldfile[0] = '\0';
-	}
-	snprintf(extract, 64, "%s/%s", cp, file);
-	vsystem("cd /stand && zcat help.tgz | cpio --format=tar -idv %s > /dev/null 2>&1", extract);
-	if (file_readable(buf)) {
-	    strcpy(oldfile, buf);
-	    sprintf(oldlang, "/stand/%s", cp);
-	    return buf;
-	}
-	if (cp == default_lang)
-	    break;
-	cp = default_lang;
-    }
+    snprintf(buf, FILENAME_MAX, "/stand/help/%s.hlp", file);
+    if (file_readable(buf)) 
+	return buf;
     return NULL;
-}
-
-void
-systemChangeFont(const u_char font[])
-{
-    if (OnVTY && ColorDisplay) {
-	if (ioctl(0, PIO_FONT8x16, font) < 0)
-	    msgConfirm("Sorry!  Unable to load font for %s", getenv("LANG"));
-    }
-}
-
-void
-systemChangeLang(char *lang)
-{
-    variable_set2("LANG", lang);
 }
 
 void
@@ -229,16 +179,6 @@ systemChangeTerminal(char *color, const u_char c_term[],
     clear();
     refresh();
     dialog_clear();
-}
-
-void
-systemChangeScreenmap(const u_char newmap[])
-{
-    if (OnVTY) {
-	if (ioctl(0, PIO_SCRNMAP, newmap) < 0)
-	    msgConfirm("Sorry!  Unable to load the screenmap for %s",
-		       getenv("LANG"));
-    }
 }
 
 int

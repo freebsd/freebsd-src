@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.41 1995/06/10 07:58:37 jkh Exp $
+ * $Id: install.c,v 1.71.2.1 1995/07/21 10:53:54 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,11 +47,11 @@
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 Boolean SystemWasInstalled = FALSE;
 
-static Boolean	make_filesystems(void);
 static Boolean	copy_self(void);
 static Boolean	root_extract(void);
 
@@ -122,7 +122,7 @@ checkLabels(void)
 	return FALSE;
     }
     else if (rootdev->name[strlen(rootdev->name) - 1] != 'a') {
-	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot block code.  Please correct this and\ntry again.");
+	msgConfirm("Invalid placement of root partition.  For now, we only support\nmounting root partitions on \"a\" partitions due to limitations\nin the FreeBSD boot code.  Please correct this and\ntry again.");
 	return FALSE;
     }
     if (!swapdev) {
@@ -137,11 +137,6 @@ checkLabels(void)
 static Boolean
 installInitial(void)
 {
-    extern u_char boot1[], boot2[];
-    extern u_char mbr[], bteasy17[];
-    u_char *mbrContents;
-    Device **devs;
-    int i;
     static Boolean alreadyDone = FALSE;
 
     if (alreadyDone)
@@ -158,67 +153,22 @@ installInitial(void)
     if (!checkLabels())
 	return FALSE;
 
-    /* Figure out what kind of MBR the user wants */
-    if (!dmenuOpenSimple(&MenuMBRType))
-	return FALSE;
-
-    switch (BootMgr) {
-    case 0:
-	mbrContents = bteasy17;
-	break;
-
-    case 1:
-	mbrContents = mbr;
-	break;
-
-    case 2:
-    default:
-	mbrContents = NULL;
-    }
-
     /* If we refuse to proceed, bail. */
     if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
 	return FALSE;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    for (i = 0; devs[i]; i++) {
-	Chunk *c1;
-	Disk *d = (Disk *)devs[i]->private;
+    (void)diskPartitionWrite(NULL);
 
-	if (!devs[i]->enabled)
-	    continue;
-
-	if (mbrContents) {
-	    Set_Boot_Mgr(d, mbrContents);
-	    mbrContents = NULL;
-	}
-	Set_Boot_Blocks(d, boot1, boot2);
-	msgNotify("Writing partition information to drive %s", d->name);
-	Write_Disk(d);
-
-	/* Now scan for bad blocks, if necessary */
-	for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	    if (c1->flags & CHUNK_BAD144) {
-		int ret;
-
-		msgNotify("Running bad block scan on partition %s", c1->name);
-		ret = vsystem("bad144 -v /dev/r%s 1234", c1->name);
-		if (ret)
-		    msgConfirm("Bad144 init on %s returned status of %d!", c1->name, ret);
-		ret = vsystem("bad144 -v -s /dev/r%s", c1->name);
-		if (ret)
-		    msgConfirm("Bad144 scan on %s returned status of %d!", c1->name, ret);
-	    }
-	}
-    }
-    if (!make_filesystems()) {
+    if (!installFilesystems()) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
-	return 0;
+	return FALSE;
     }
+
     if (!copy_self()) {
 	msgConfirm("Couldn't clone the boot floppy onto the root file system.\nAborting.");
-	return 0;
+	return FALSE;
     }
+
     dialog_clear();
     chroot("/mnt");
     chdir("/");
@@ -247,11 +197,50 @@ installInitial(void)
     return TRUE;
 }
 
+int
+installExpress(char *str)
+{
+    msgConfirm("In the next menu, you will need to set up a DOS-style\n"
+	       "partitioning scheme for your hard disk.  If you don't\n"
+	       "want to do anything special, just type `A' to use the\n"
+	       "whole disk and then `Q' to quit.");
+    diskPartitionEditor("express");
+    
+    msgConfirm("Next, you need to lay out BSD partitions inside of the\n"
+	       "DOS-style partition just created.  If you don't want to\n"
+	       "do anything special, just type `A' to use the default\n"
+	       "partitioning scheme and then `Q' to quit.");
+    diskLabelEditor("express");
+    
+    msgConfirm("Now it is time to select an installation subset.  There\n"
+	       "are two basic configurations: Developer and Router.  The\n"
+	       "Developer subset includes sources, documentation, and\n"
+	       "binaries for almost everything.  The Router subset\n"
+	       "includes the same binaries and documentation, but no\n"
+	       "sources.  You can also install absolutely everything,\n"
+	       "or select a custom software set.");
+    
+    while(!Dists) {
+	dmenuOpenSimple(&MenuInstallType);
+    }
+    
+    msgConfirm("Finally, you must specify an installation medium.");
+    
+    dmenuOpenSimple(&MenuMedia);
+    
+    installCommit("express");
+    
+    dmenuOpenSimple(&MenuConfigure);
+    return 0;
+}
+
 /*
- * What happens when we select "Install".  This is broken into a 3 stage installation so that
- * the user can do a full installation but come back here again to load more distributions,
- * perhaps from a different media type.  This would allow, for example, the user to load the
- * majority of the system from CDROM and then use ftp to load just the DES dist.
+ * What happens when we select "Commit" in the custom installation menu.
+ *
+ * This is broken into multiple stages so that the user can do a full installation but come
+ * back here again to load more distributions, perhaps from a different media type.
+ * This would allow, for example, the user to load the majority of the system from CDROM
+ * and then use ftp to load just the DES dist.
  */
 int
 installCommit(char *str)
@@ -263,6 +252,7 @@ installCommit(char *str)
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
     }
+
     if (!mediaVerify())
 	return 0;
 
@@ -271,7 +261,7 @@ installCommit(char *str)
 	    return 0;
 	configFstab();
     }
-    if (!SystemWasInstalled && !root_extract()) {
+    if (RunningAsInit && !SystemWasInstalled && !root_extract()) {
 	msgConfirm("Failed to load the ROOT distribution.  Please correct\nthis problem and try again.");
 	return 0;
     }
@@ -280,7 +270,7 @@ installCommit(char *str)
     if (Dists & DIST_BIN)
 	SystemWasInstalled = FALSE;
 
-    distExtractAll();
+    (void)distExtractAll(NULL);
 
     if (!SystemWasInstalled && access("/kernel", R_OK)) {
 	if (vsystem("ln -f /kernel.GENERIC /kernel")) {
@@ -290,7 +280,7 @@ installCommit(char *str)
     }
 
     /* Resurrect /dev after bin distribution screws it up */
-    if (!SystemWasInstalled) {
+    if (RunningAsInit && !SystemWasInstalled) {
 	msgNotify("Remaking all devices.. Please wait!");
 	if (vsystem("cd /dev; sh MAKEDEV all"))
 	    msgConfirm("MAKEDEV returned non-zero status");
@@ -319,23 +309,26 @@ installCommit(char *str)
     /* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
     /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
     if (file_readable("/usr/X11R6"))
-	(void)system("chmod 755 /usr/X11R6");
+	chmod("/usr/X11R6", 0755);
 
     /* BOGON #2: We leave /etc in a bad state */
-    (void)system("chmod 755 /etc");
+    chmod("/etc", 0755);
 
     dialog_clear();
-    if (Dists)
-	msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
-    else
-	msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    /* We get a NULL value for str if run from installExpress(), in which case we don't want to print the following */
+    if (str) {
+	if (Dists)
+	    msgConfirm("Installation completed with some errors.  You may wish\nto scroll through the debugging messages on ALT-F2 with the scroll-lock\nfeature.  Press [ENTER] to return to the installation menu.");
+	else
+	    msgConfirm("Installation completed successfully, now  press [ENTER] to return\nto the main menu. If you have any network devices you have not yet\nconfigured, see the Interface configuration item on the\nConfiguration menu.");
+    }
     SystemWasInstalled = TRUE;
     return 0;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
-static Boolean
-make_filesystems(void)
+Boolean
+installFilesystems(void)
 {
     int i;
     Disk *disk;
