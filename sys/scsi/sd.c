@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.29 1994/08/31 06:17:45 davidg Exp $
+ *      $Id: sd.c,v 1.30 1994/09/02 04:12:23 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -524,7 +524,11 @@ sdstart(unit)
 		 */
 		p = sd->disklabel.d_partitions + PARTITION(bp->b_dev);
 		blkno = bp->b_blkno + p->p_offset;
-		nblk = (bp->b_bcount + 511) >> 9;
+		if (bp->b_bcount & 511) 
+		{
+		    goto bad;
+		}
+		nblk = bp->b_bcount >> 9;
 
 		/*
 		 *  Fill out the scsi command
