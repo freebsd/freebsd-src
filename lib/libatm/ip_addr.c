@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <stdio.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -118,7 +119,7 @@ get_ip_addr(const char *p)
 const char *
 format_ip_addr(const struct in_addr *addr)
 {
-	static char	host_name[128];
+	static char	host_name[MAXHOSTNAMELEN + 18];
 	char		*ip_num;
 	struct hostent	*ip_host;
 
@@ -143,16 +144,13 @@ format_ip_addr(const struct in_addr *addr)
 	 * Look up name in DNS
 	 */
 	ip_host = gethostbyaddr((const char *)addr, sizeof(addr), AF_INET);
-	if (ip_host && ip_host->h_name &&
-			strlen(ip_host->h_name)) {
+	if (ip_host && ip_host->h_name && strlen(ip_host->h_name)) {
 		/*
 		 * Return host name followed by dotted decimal address
 		 */
-		strcpy(host_name, ip_host->h_name);
-		strcat(host_name, " (");
-		strcat(host_name, ip_num);
-		strcat(host_name, ")");
-		return(host_name);
+		snprintf(host_name, sizeof(host_name), "%s (%s)", 
+		    ip_host->h_name, ip_num);
+		return (host_name);
 	} else {
 		/*
 		 * No host name -- just return dotted decimal address
