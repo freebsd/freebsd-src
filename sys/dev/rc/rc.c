@@ -264,6 +264,12 @@ rcattach(dvp)
 		tp->t_lflag = tp->t_iflag = tp->t_oflag = 0;
 		tp->t_cflag = TTYDEF_CFLAG;
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		make_dev(&rc_cdevsw, chan + CD180_NCHAN * rcb->rcb_unit,
+		    UID_ROOT, GID_WHEEL, 0600, "ttym%d", chan + CD180_NCHAN *
+		    rcb->rcb_unit);
+		make_dev(&rc_cdevsw, chan + CD180_NCHAN * rcb->rcb_unit + 128,
+		    UID_UUCP, GID_DIALER, 0660, "cuam%d", chan + CD180_NCHAN *
+		    rcb->rcb_unit + 128);
 	}
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_started) {
