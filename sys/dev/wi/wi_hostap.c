@@ -819,7 +819,7 @@ wihap_deauth_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	sta = wihap_sta_find(whi, rxfrm->wi_addr2);
 	if (sta == NULL) {
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-			printf("wihap_deauth_req: unknown station: 6D\n",
+			printf("wihap_deauth_req: unknown station: %6D\n",
 			    rxfrm->wi_addr2, ":");
 	}
 	else
@@ -848,7 +848,7 @@ wihap_disassoc_req(struct wi_softc *sc, struct wi_frame *rxfrm,
 	sta = wihap_sta_find(whi, rxfrm->wi_addr2);
 	if (sta == NULL) {
 		if (sc->arpcom.ac_if.if_flags & IFF_DEBUG)
-			printf("wihap_disassoc_req: unknown station: 6D\n",
+			printf("wihap_disassoc_req: unknown station: %6D\n",
 			    rxfrm->wi_addr2, ":");
 	}
 	else if (!(sta->flags & WI_SIFLAGS_AUTHEN)) {

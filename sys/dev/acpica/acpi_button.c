@@ -133,13 +133,11 @@ acpi_button_notify_pressed_for_sleep(void *arg)
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
-	ACPI_VPRINT(sc->button_dev, acpi_sc,
-	    "power button pressed\n", sc->button_type);
+	ACPI_VPRINT(sc->button_dev, acpi_sc, "power button pressed\n");
 	acpi_eventhandler_power_button_for_sleep((void *)acpi_sc);
 	break;
     case ACPI_SLEEP_BUTTON:
-	ACPI_VPRINT(sc->button_dev, acpi_sc,
-	    "sleep button pressed\n", sc->button_type);
+	ACPI_VPRINT(sc->button_dev, acpi_sc, "sleep button pressed\n");
 	acpi_eventhandler_sleep_button_for_sleep((void *)acpi_sc);
 	break;
     default:
@@ -164,13 +162,11 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
-	ACPI_VPRINT(sc->button_dev, acpi_sc,
-	    "wakeup by power button\n", sc->button_type);
+	ACPI_VPRINT(sc->button_dev, acpi_sc, "wakeup by power button\n");
 	acpi_eventhandler_power_button_for_wakeup((void *)acpi_sc);
 	break;
     case ACPI_SLEEP_BUTTON:
-	ACPI_VPRINT(sc->button_dev, acpi_sc,
-	    "wakeup by sleep button\n", sc->button_type);
+	ACPI_VPRINT(sc->button_dev, acpi_sc, "wakeup by sleep button\n");
 	acpi_eventhandler_sleep_button_for_wakeup((void *)acpi_sc);
 	break;
     default:
