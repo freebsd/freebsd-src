@@ -21,7 +21,7 @@
 #define YDEPTH  7
 
 /* it won't be */
-long now; /* yeah! */
+time_t now; /* yeah! */
 struct tm *tm;
 
 short disp[11] = {
