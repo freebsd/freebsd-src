@@ -40,7 +40,7 @@
 .Nd send and receive mail
 .Sh SYNOPSIS
 .Nm
-.Op Fl iInv
+.Op Fl EiInv
 .Op Fl s Ar subject
 .Op Fl c Ar cc-addr
 .Op Fl b Ar bcc-addr
@@ -50,11 +50,11 @@
 .Ar sendmail-option ...
 .Oc
 .Nm
-.Op Fl iInNv
+.Op Fl EiInNv
 .Fl f
 .Op Ar name
 .Nm
-.Op Fl iInNv
+.Op Fl EiInNv
 .Op Fl u Ar user
 .Sh INTRODUCTION
 .Nm Mail
@@ -68,6 +68,9 @@ with lines replaced by messages.
 Verbose mode.
 The details of
 delivery are displayed on the user's terminal.
+.It Fl E
+Don't send messages with an empty body. This is useful
+for piping errors from cron scripts.
 .It Fl i
 Ignore tty interrupt signals.
 This is

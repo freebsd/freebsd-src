@@ -93,7 +93,7 @@ main(argc, argv)
 	bcc = NULL;
 	smopts = NULL;
 	subject = NULL;
-	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) != -1) {
+	while ((i = getopt(argc, argv, "EINT:b:c:dfins:u:v")) != -1) {
 		switch (i) {
 		case 'T':
 			/*
@@ -181,13 +181,19 @@ main(argc, argv)
 			 */
 			bcc = cat(bcc, nalloc(optarg, GBCC));
 			break;
+		case 'E':
+			/*
+			 * Don't send empty files.
+			 */
+			assign("dontsendempty", "");
+			break;
 		case '?':
 			fprintf(stderr, "\
-Usage: %s [-iInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
+Usage: %s [-EiInv] [-s subject] [-c cc-addr] [-b bcc-addr] to-addr ...\n\
        %*s [- sendmail-options ...]\n\
-       %s [-iInNv] -f [name]\n\
-       %s [-iInNv] [-u user]\n",__progname, strlen(__progname), "", __progname,
-				__progname);
+       %s [-EiInNv] -f [name]\n\
+       %s [-EiInNv] [-u user]\n",__progname, strlen(__progname), "",
+			    __progname, __progname);
 			exit(1);
 		}
 	}
