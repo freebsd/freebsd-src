@@ -35,76 +35,82 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2001
-.Dt PAM_OPIE 8
+.Dd January 21, 2002
+.Dt PAM_OPIEACCESS 8
 .Os
 .Sh NAME
-.Nm pam_opie
-.Nd OPIE PAM module
+.Nm pam_opieaccess
+.Nd OPIEAccess PAM module
 .Sh SYNOPSIS
 .Op Ar service-name
 .Ar module-type
 .Ar control-flag
-.Pa pam_opie
+.Pa pam_self
 .Op Ar options
 .Sh DESCRIPTION
-The OPIE authentication service module for PAM,
+The
+.Nm 
+module is used in conjunction with the
+.Xr pam_opie 8
+PAM module to ascertain that authentication can proceed by other means
+(such as the
+.Xr pam_unix 8
+module) even if OPIE authentication failed.
+To properly use this module,
+.Xr pam_opie 8
+should be marked
+.Dq Li sufficient ,
+and
 .Nm
-provides functionality for only one PAM category:
-that of authentication.
+should be listed right below it and marked
+.Dq Li requisite .
+.Pp
+The
+.Nm
+module provides functionality for only one PAM category:
+authentication.
 In terms of the
 .Ar module-type
 parameter, this is the
 .Dq Li auth
 feature.
-It also provides a null function for session management.
-.Pp
-Note that this module does not enforce
-.Xr opieaccess 5
-checks.
-There is a separate module,
-.Xr pam_opieaccess 8 ,
-for this purpose.
-.Ss OPIE Authentication Module
-The OPIE authentication component
-provides functions to verify the identity of a user
+It also provides null functions for the remaining module types.
+.Ss OPIEAccess Authentication Module
+The authentication component
 .Pq Fn pam_sm_authenticate ,
-which obtains the relevant
-.Xr opie 4
-credentials.
-It provides the user with an OPIE challenge,
-and verifies that this is correct with
-.Xr opiechallenge 3 .
+returns
+.Dv PAM_IGNORE
+in two cases:
+.Bl -enum
+.It
+The user does not have OPIE enabled.
+.It
+The user has OPIE enabled, and the remote host is listed as a trusted
+host in
+.Pa /etc/opieaccess ,
+and the user does not have a file named
+.Pa opiealways
+in his home directory.
+.El
+.Pp
+Otherwise, it returns
+.Dv PAM_AUTH_ERR .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width ".Cm auth_as_self"
+.Bl -tag -width ".Cm no_warn"
 .It Cm debug
 .Xr syslog 3
 debugging information at
 .Dv LOG_DEBUG
 level.
-.It Cm auth_as_self
-This option will require the user
-to authenticate themself as the user
-given by
-.Xr getlogin 2 ,
-not as the account they are attempting to access.
-This is primarily for services like
-.Xr su 1 ,
-where the user's ability to retype
-their own password
-might be deemed sufficient.
-.El
-.Sh FILES
-.Bl -tag -width ".Pa /etc/opiekeys" -compact
-.It Pa /etc/opiekeys
-default OPIE password database.
+.It Cm no_warn
+suppress warning messages to the user.
+These messages include reasons why the user's authentication attempt
+was declined.
 .El
 .Sh SEE ALSO
-.Xr passwd 1 ,
-.Xr getlogin 2 ,
-.Xr opiechallenge 3 ,
-.Xr syslog 3 ,
 .Xr opie 4 ,
+.Xr opieaccess 5 ,
+.Xr pam_opie 8 ,
 .Xr pam.conf 5 ,
 .Xr pam 8
