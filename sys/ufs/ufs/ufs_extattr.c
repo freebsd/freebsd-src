@@ -823,7 +823,7 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
  * Vnode operating to retrieve a named extended attribute.
  */
 int
-ufs_vop_getextattr(struct vop_getextattr_args *ap)
+ufs_getextattr(struct vop_getextattr_args *ap)
 /*
 vop_getextattr {
 	IN struct vnode *a_vp;
@@ -1000,7 +1000,7 @@ vopunlock_exit:
  * Vnode operation to set a named attribute.
  */
 int
-ufs_vop_setextattr(struct vop_setextattr_args *ap)
+ufs_setextattr(struct vop_setextattr_args *ap)
 /*
 vop_setextattr {
 	IN struct vnode *a_vp;
