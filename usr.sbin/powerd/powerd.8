@@ -1,0 +1,128 @@
+.\" Copyright (c) 2005 Nate Lawson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2005
+.Dt POWERD 8
+.Os
+.Sh NAME
+.Nm powerd
+.Nd system power control utility
+.Sh SYNOPSIS
+.Nm
+.Op Fl a mode
+.Op Fl b mode
+.Op Fl i percent
+.Op Fl n mode
+.Op Fl p ival
+.Op Fl r percent
+.Op Fl v
+.Sh DESCRIPTION
+The
+.Nm
+utility monitors the system state and sets various power control options
+accordingly.
+It offers three modes (max, min, and adaptive) that can be
+individually selected while on AC power or batteries.
+.Pp
+Maximum mode chooses the highest performance values.
+Minimum mode selects the lowest performance values to get the most power
+savings.
+Adaptive mode attempts to strike a balance by degrading performance when
+the system appears idle and increasing it when the system is busy.
+It offers a good balance between a small performance loss for greatly
+increased power savings.
+The default mode is
+adaptive.
+.Pp
+The
+.Nm
+utility recognizes the following runtime options:
+.Bl -tag -width -i_percent
+.It Fl a Ar mode
+Selects the
+.Ar mode
+to use while on AC power.
+.It Fl b Ar mode
+Selects the
+.Ar mode
+to use while on battery power.
+.It Fl i Ar percent
+Specifies the CPU idle percent level when
+adaptive
+mode should begin to degrade performance to save power.
+The default is 75% or higher.
+.It Fl n Ar mode
+Selects the
+.Ar mode
+to use normally when the AC line state is unknown.
+.It Fl p Ar ival
+Specifies a different polling interval (in milliseconds) for AC line state
+and system idle levels.
+The default is 500 ms.
+.It Fl r Ar percent
+Specifies the CPU idle percent level where
+adaptive
+mode should consider the CPU running and increase performance.
+The default is 50% or lower.
+.It Fl v
+Verbose mode.
+Messages about power changes will be printed to stdout and
+.Nm
+will operate in the foreground.
+.El
+.Sh SEE ALSO
+.Xr acpi 4 ,
+.Xr apm 4 ,
+.Xr cpufreq 4
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.5 .
+.Sh AUTHORS
+.An Colin Percival
+first wrote
+.Pa estctrl ,
+the utility that
+.Nm
+is based on.
+.An Nate Lawson
+then updated it for
+.Xr cpufreq 4 ,
+added features, and wrote this man page.
+.Sh BUGS
+The
+.Nm
+utility should also power down idle disks and other components besides the CPU.
+.Pp
+If
+.Nm
+is used with power_profile, they may override each other.
+.Pp
+.Nm
+should probably use the
+.Xr devctl 4
+interface instead of polling for AC line state.
