@@ -2,7 +2,7 @@
 # Sample driver information file for KernelDriver.  See the top of
 # the KernelDriver script for a more exact definition of the syntax.
 #
-# $Id: sample.drvinfo,v 1.2 1998/05/04 03:31:03 doconnor Exp $
+# $Id: sample.drvinfo,v 1.2 1998/05/06 05:45:17 msmith Exp $
 
 # Device driver name
 #
@@ -39,6 +39,6 @@ linttext
 #
 # This driver causes your system to emit occasional digestive noises.
 #
-device	blorg0 at isa? port 0x123 irq 10 flags 0x10 drq 2 vector blorgintr
-device	blorg1 at isa? port 0x234 irq 11 flags 0x10 drq 2 vector blorgintr
+device	blorg0 at isa? port 0x123 irq 10 flags 0x10 drq 2
+device	blorg1 at isa? port 0x234 irq 11 flags 0x10 drq 2
 end
