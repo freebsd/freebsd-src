@@ -132,7 +132,7 @@ irongate_check_abort(void)
 		irongate_check_abort();			\
 		return ~0;				\
 	}						\
-	data = ##op##(va);				\
+	data = op(va);					\
 	if (irongate_check_abort())			\
 		return ~0;				\
 	return data;					\
@@ -144,7 +144,7 @@ irongate_check_abort(void)
 	irongate_clear_abort();				\
 	if (badaddr((caddr_t)va, width))		\
 		return;					\
-	##op##(va, data);				\
+	op(va, data);					\
 	irongate_check_abort();				\
 } while (0)
 
