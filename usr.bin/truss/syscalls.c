@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: syscalls.c,v 1.5 1998/07/06 21:01:48 bde Exp $";
+	"$Id: syscalls.c,v 1.7 1999/08/05 12:03:50 des Exp $";
 #endif /* not lint */
 
 /*
@@ -79,6 +79,7 @@ struct syscall syscalls[] = {
 	  { { Int, 0}, { Ioctl, 1 }, { Hex, 2 }}},
 	{ "break", 1, 1, { { Hex, 0 }}},
 	{ "exit", 0, 1, { { Hex, 0 }}},
+	{ "access", 1, 2, { { String | IN, 0 }, { Int, 1 }}},
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
