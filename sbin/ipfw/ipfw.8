@@ -1,5 +1,5 @@
 .\"
-.\" $Id: ipfw.8,v 1.52 1999/05/29 08:12:37 kris Exp $
+.\" $Id: ipfw.8,v 1.53 1999/06/15 12:56:38 ru Exp $
 .\"
 .Dd July 20, 1996
 .Dt IPFW 8
@@ -384,6 +384,18 @@ Skip all subsequent rules numbered less than
 The search continues with the first rule numbered
 .Ar number
 or higher.
+.It Ar uid user
+Match all TCP or UDP packets sent by or received for a
+.Ar user .
+A
+.Ar user
+may be matched by name or identification number.
+.It Ar gid group
+Match all TCP or UDP packets sent by or received for a
+.Ar group .
+A
+.Ar group
+may be matched by name or identification number.
 .El
 .Pp
 If a packet matches more than one
