@@ -45,8 +45,6 @@
 #include <isa/sioreg.h>
 #include <isa/ic/ns16550.h>
 
-#define MPU_USEMICROTIMER 0
-
 static devclass_t midi_devclass;
 
 #ifndef DDB
@@ -128,14 +126,14 @@ struct mpu_softc {
 	device_t dev; /* device information */
 	mididev_info *devinfo; /* midi device information */
 
+	struct mtx mtx; /* Mutex to protect the device. */
+
 	struct resource *io; /* Base of io port */
 	int io_rid; /* Io resource ID */
 	u_long irq_val; /* Irq value */
 	struct resource *irq; /* Irq */
 	int irq_rid; /* Irq resource ID */
 	void *ih; /* Interrupt cookie */
-
-	struct callout_handle dh; /* Callout handler for delay */
 
 	int fflags; /* File flags */
 };
@@ -145,10 +143,6 @@ typedef struct mpu_softc *sc_p;
 /* These functions are local. */
 static void mpu_startplay(sc_p scp);
 static void mpu_xmit(sc_p scp);
-#if MPU_USEMICROTIMER
-static void mpu_timeout(sc_p scp);
-static timeout_t mpu_timer;
-#endif /* MPU_USEMICROTIMER */
 static int mpu_resetmode(sc_p scp);
 static int mpu_uartmode(sc_p scp);
 static int mpu_waitack(sc_p scp);
@@ -171,10 +165,7 @@ static mididev_info mpu_op_desc = {
 
 	NULL,
 	NULL,
-	NULL,
-	NULL,
 	mpu_ioctl,
-	NULL,
 
 	mpu_callback,
 
@@ -362,12 +353,10 @@ mpu_attach(device_t dev)
 {
 	sc_p scp;
 	mididev_info *devinfo;
-	int unit;
 
 	scp = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
-	DEB(printf("mpu%d: attaching.\n", unit));
+	DEB(printf("mpu: attaching.\n"));
 
 	/* Allocate the resources, switch to uart mode. */
 	if (mpu_allocres(scp, dev) || mpu_uartmode(scp)) {
@@ -379,14 +368,10 @@ mpu_attach(device_t dev)
 
 	/* Fill the softc. */
 	scp->dev = dev;
-	scp->devinfo = devinfo = create_mididev_info_unit(&unit, MDT_MIDI);
-	callout_handle_init(&scp->dh);
+	mtx_init(&scp->mtx, "mpumid", MTX_DEF);
+	scp->devinfo = devinfo = create_mididev_info_unit(MDT_MIDI, &mpu_op_desc, &midisynth_op_desc);
 
 	/* Fill the midi info. */
-	bcopy(&mpu_op_desc, devinfo, sizeof(mpu_op_desc));
-	midiinit(devinfo, dev);
-	devinfo->flags = 0;
-	bcopy(&midisynth_op_desc, &devinfo->synth, sizeof(midisynth_op_desc));
 	if (scp->irq != NULL)
 		snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x irq %d",
 			 (u_int)rman_get_start(scp->io), (int)rman_get_start(scp->irq));
@@ -394,17 +379,14 @@ mpu_attach(device_t dev)
 		snprintf(devinfo->midistat, sizeof(devinfo->midistat), "at 0x%x",
 			 (u_int)rman_get_start(scp->io));
 
-	/* Init the queue. */
-	devinfo->midi_dbuf_in.unit_size = devinfo->midi_dbuf_out.unit_size = 1;
-	midibuf_init(&devinfo->midi_dbuf_in);
-	midibuf_init(&devinfo->midi_dbuf_out);
+	midiinit(devinfo, dev);
 
 	/* Now we can handle the interrupts. */
 	if (scp->irq != NULL)
 		bus_setup_intr(dev, scp->irq, INTR_TYPE_TTY, mpu_intr, scp,
 			       &scp->ih);
 
-	DEB(printf("mpu%d: attached.\n", unit));
+	DEB(printf("mpu: attached.\n"));
 
 	return (0);
 }
@@ -475,23 +457,34 @@ mpu_intr(void *arg)
 	scp = (sc_p)arg;
 	devinfo = scp->devinfo;
 
+	MIDI_DROP_GIANT_NOSWITCH();
+
+	mtx_lock(&devinfo->flagqueue_mtx);
+	mtx_lock(&scp->mtx);
+
 	/* Read the received data. */
 	while ((mpu_status(scp) & MPU_INPUTBUSY) == 0) {
 		/* Receive the data. */
 		c = mpu_readdata(scp);
+		mtx_unlock(&scp->mtx);
 		/* Queue into the passthru buffer and start transmitting if we can. */
 		if ((devinfo->flags & MIDI_F_PASSTHRU) != 0 && ((devinfo->flags & MIDI_F_BUSY) == 0 || (devinfo->fflags & FWRITE) == 0)) {
 			midibuf_input_intr(&devinfo->midi_dbuf_passthru, &c, sizeof(c));
 			devinfo->callback(devinfo, MIDI_CB_START | MIDI_CB_WR);
 		}
 		/* Queue if we are reading. Discard an active sensing. */
-		if ((devinfo->flags & MIDI_F_READING) != 0 && c != 0xfe)
+		if ((devinfo->flags & MIDI_F_READING) != 0 && c != 0xfe) {
 			midibuf_input_intr(&devinfo->midi_dbuf_in, &c, sizeof(c));
+		}
+		mtx_lock(&scp->mtx);
 	}
+	mtx_unlock(&scp->mtx);
+	mtx_unlock(&devinfo->flagqueue_mtx);
 
 	/* Invoke the upper layer. */
 	midi_intr(devinfo);
 
+	MIDI_PICKUP_GIANT();
 }
 
 static int
@@ -499,6 +492,8 @@ mpu_callback(mididev_info *d, int reason)
 {
 	int unit;
 	sc_p scp;
+
+	mtx_assert(&d->flagqueue_mtx, MA_OWNED);
 
 	if (d == NULL) {
 		DEB(printf("mpu_callback: device not configured.\n"));
@@ -537,7 +532,6 @@ mpu_callback(mididev_info *d, int reason)
 
 /*
  * Starts to play the data in the output queue.
- * Call this at >=splclock.
  */
 static void
 mpu_startplay(sc_p scp)
@@ -546,16 +540,14 @@ mpu_startplay(sc_p scp)
 
 	devinfo = scp->devinfo;
 
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
 	/* Can we play now? */
 	if (devinfo->midi_dbuf_out.rl == 0)
 		return;
 
 	devinfo->flags |= MIDI_F_WRITING;
-#if MPU_USEMICROTIMER
-	mpu_timeout(scp);
-#else
 	mpu_xmit(scp);
-#endif /* MPU_USEMICROTIMER */
 }
 
 static void
@@ -567,6 +559,8 @@ mpu_xmit(sc_p scp)
 
 	devinfo = scp->devinfo;
 
+	mtx_assert(&devinfo->flagqueue_mtx, MA_OWNED);
+
 	/* See which source to use. */
 	if ((devinfo->flags & MIDI_F_PASSTHRU) == 0 || ((devinfo->flags & MIDI_F_BUSY) != 0 && (devinfo->fflags & FWRITE) != 0))
 		dbuf = &devinfo->midi_dbuf_out;
@@ -574,59 +568,24 @@ mpu_xmit(sc_p scp)
 		dbuf = &devinfo->midi_dbuf_passthru;
 
 	/* Transmit the data in the queue. */
-#if MPU_USEMICROTIMER
-	while ((devinfo->flags & MIDI_F_WRITING) != 0 && (mpu_status(scp) & MPU_OUTPUTBUSY) == 0) {
-		/* Do we have the data to transmit? */
-		if (dbuf->rl == 0) {
-			/* Stop playing. */
-			devinfo->flags &= ~MIDI_F_WRITING;
-			break;
-		} else {
-			/* Send the data. */
-			midibuf_output_intr(dbuf, &c, sizeof(c));
-			mpu_writedata(scp, c);
-			/* We are playing now. */
-			devinfo->flags |= MIDI_F_WRITING;
+	while ((devinfo->flags & MIDI_F_WRITING) != 0) {
+		if (dbuf->rl > 0) {
+			mtx_lock(&scp->mtx);
+			/* XXX Wait until we can write the data. */
+			if ((mpu_status(scp) & MPU_OUTPUTBUSY) == 0) {
+				/* Send the data. */
+				midibuf_output_intr(dbuf, &c, sizeof(c));
+				mpu_writedata(scp, c);
+				/* We are playing now. */
+				devinfo->flags |= MIDI_F_WRITING;
+			}
+			mtx_unlock(&scp->mtx);
 		}
-	}
-
-	/* De we have still more? */
-	if ((devinfo->flags & MIDI_F_WRITING) != 0)
-		/* Handle them on the next interrupt. */
-		mpu_timeout(scp);
-#else
-	while ((devinfo->flags & MIDI_F_WRITING) != 0 && dbuf->rl > 0) {
-		/* XXX Wait until we can write the data. */
-		while ((mpu_status(scp) & MPU_OUTPUTBUSY) != 0);
-		/* Send the data. */
-		midibuf_output_intr(dbuf, &c, sizeof(c));
-		mpu_writedata(scp, c);
-		/* We are playing now. */
-		devinfo->flags |= MIDI_F_WRITING;
 	}
 	/* Stop playing. */
 	devinfo->flags &= ~MIDI_F_WRITING;
-#endif /* MPU_USEMICROTIMER */
 }
 
-#if MPU_USEMICROTIMER
-/* Arm a timer. */
-static void
-mpu_timeout(sc_p scp)
-{
-	microtimeout(mpu_timer, scp, hz * hzmul / 3125);
-}
-
-/* Called when a timer has beeped. */
-static void
-mpu_timer(void *arg)
-{
-	sc_p scp;
-
-	scp = arg;
-	mpu_xmit(scp);
-}
-#endif /* MPU_USEMICROTIMER */
 
 /* Reset mpu. */
 static int
@@ -636,11 +595,13 @@ mpu_resetmode(sc_p scp)
 
 	/* Reset the mpu. */
 	resp = 0;
+	mtx_lock(&scp->mtx);
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
 		resp = mpu_command(scp, MPU_RESET);
 		if (resp == 0)
 			break;
 	}
+	mtx_unlock(&scp->mtx);
 	if (resp != 0)
 		return (1);
 
@@ -656,11 +617,13 @@ mpu_uartmode(sc_p scp)
 
 	/* Switch to uart mode. */
 	resp = 0;
+	mtx_lock(&scp->mtx);
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
 		resp = mpu_command(scp, MPU_UART);
 		if (resp == 0)
 			break;
 	}
+	mtx_unlock(&scp->mtx);
 	if (resp != 0)
 		return (1);
 
@@ -675,11 +638,13 @@ mpu_waitack(sc_p scp)
 	int i, resp;
 
 	resp = 0;
+	mtx_lock(&scp->mtx);
 	for (i = 0 ; i < MPU_TRYDATA ; i++) {
 		resp = mpu_readdata(scp);
 		if (resp >= 0)
 			break;
 	}
+	mtx_unlock(&scp->mtx);
 	if (resp != MPU_ACK)
 		return (1);
 

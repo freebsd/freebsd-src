@@ -67,6 +67,16 @@ typedef int (mdsy_volumemethod_t)(mididev_info *md, int mode);
 typedef int (mdsy_readraw_t)(mididev_info *md, u_char *buf, int len, int nonblock);
 typedef int (mdsy_writeraw_t)(mididev_info *md, u_char *buf, int len, int nonblock);
 
+/*
+ * The order of mutex lock (from the first to the last)
+ *
+ * 1. sequencer flags, queues, timer and devlice list
+ * 2. midi synth voice and channel
+ * 3. midi synth status
+ * 4. generic midi flags and queues
+ * 5. midi device
+ */
+
 /* This is a midi synthesizer interface and state. */
 struct _synthdev_info {
 	mdsy_killnote_t *killnote;
@@ -88,10 +98,13 @@ struct _synthdev_info {
 	mdsy_readraw_t *readraw;
 	mdsy_writeraw_t *writeraw;
 
+	/* Voice and channel */
+	struct mtx vc_mtx; /* Mutex to protect voice and channel. */
 	struct voice_alloc_info alloc; /* Voice allocation. */
 	struct channel_info chn_info[16]; /* Channel information. */
 
-	u_char prev_out_status; /* Previous status. */
+	/* Status */
+	struct mtx status_mtx; /* Mutex to protect status. */
 	int sysex_state; /* State of sysex transmission. */
 };
 typedef struct _synthdev_info synthdev_info;
