@@ -34,9 +34,7 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 #include <net/if_var.h>
-#endif /* __FreeBSD__ >= 3 */
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -65,12 +63,6 @@ extern struct rainfo *ralist;
 
 static char *ether_str __P((struct sockaddr_dl *));
 static void if_dump __P((void));
-
-#ifdef __FreeBSD__		/* XXX: see PORTABILITY */
-#define LONGLONG "%qu"
-#else
-#define LONGLONG "%llu"
-#endif
 
 static char *rtpref_str[] = {
 	"medium",		/* 00 */
@@ -130,11 +122,11 @@ if_dump()
 
 		/* statistics */
 		fprintf(fp, "  statistics: RA(out/in/inconsistent): "
-		    LONGLONG "/" LONGLONG "/" LONGLONG ", ",
+		    "%llu/%llu/%llu, ",
 		    (unsigned long long)rai->raoutput,
 		    (unsigned long long)rai->rainput,
 		    (unsigned long long)rai->rainconsistent);
-		fprintf(fp, "RS(input): " LONGLONG "\n",
+		fprintf(fp, "RS(input): %llu\n",
 		    (unsigned long long)rai->rsinput);
 
 		/* interface information */
