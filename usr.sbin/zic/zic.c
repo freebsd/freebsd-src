@@ -1,8 +1,4 @@
-#ifndef lint
-#ifndef NOID
-static const char	elsieid[] = "@(#)zic.c	7.96";
-#endif /* !defined NOID */
-#endif /* !defined lint */
+static const char	elsieid[] = "@(#)zic.c	7.116";
 
 #ifndef lint
 static const char rcsid[] =
@@ -16,6 +12,8 @@ static const char rcsid[] =
 #include <sys/stat.h>			/* for umask manifest constants */
 #include <sys/types.h>
 #include <unistd.h>
+
+#define MKDIR_UMASK (S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
 /*
 ** On some ancient hosts, predicates like `isspace(C)' are defined
@@ -437,7 +435,7 @@ static void
 usage P((void))
 {
 	(void) fprintf(stderr, "%s\n%s\n",
-_("usage: zic [-s] [-v] [-l localtime] [-p posixrules] [-d directory]"),
+_("usage: zic [--version] [-s] [-v] [-l localtime] [-p posixrules] [-d directory]"),
 _("           [-L leapseconds] [-y yearistype] [filename ... ]"));
 	(void) exit(EXIT_FAILURE);
 }
@@ -473,6 +471,10 @@ char *	argv[];
 #endif /* defined TEXTDOMAINDIR */
 	(void) textdomain(TZ_DOMAIN);
 #endif /* HAVE_GETTEXT - 0 */
+	for (i = 1; i < argc; ++i)
+		if (strcmp(argv[i], "--version") == 0) {
+			errx(EXIT_SUCCESS, "%s", elsieid);
+		}
 	while ((c = getopt(argc, argv, "Dd:g:l:m:p:L:u:vsy:")) != -1)
 		switch (c) {
 			default:
@@ -568,12 +570,18 @@ _("more than one -L option specified"));
 	/*
 	** Make links.
 	*/
-	for (i = 0; i < nlinks; ++i)
+	for (i = 0; i < nlinks; ++i) {
+		eat(links[i].l_filename, links[i].l_linenum);
 		dolink(links[i].l_from, links[i].l_to);
-	if (lcltime != NULL)
+	}
+	if (lcltime != NULL) {
+		eat("command line", 1);
 		dolink(lcltime, TZDEFAULT);
-	if (psxrules != NULL)
+	}
+	if (psxrules != NULL) {
+		eat("command line", 1);
 		dolink(psxrules, TZDEFRULES);
+	}
 	return (errors == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
@@ -610,12 +618,22 @@ const char * const	tofile;
 
 		if (mkdirs(toname) != 0)
 			(void) exit(EXIT_FAILURE);
+
 		result = link(fromname, toname);
-#if (HAVE_SYMLINK - 0) 
-		if (result != 0) {
-			result = symlink(fromname, toname);
+#if (HAVE_SYMLINK - 0)
+		if (result != 0 &&
+		    access(fromname, F_OK) == 0 &&
+		    !itsdir(fromname)) {
+		        const char *s = tofile;
+		        register char * symlinkcontents = NULL;
+		        while ((s = strchr(s+1, '/')) != NULL)
+			        symlinkcontents = ecatalloc(symlinkcontents, "../");
+			symlinkcontents = ecatalloc(symlinkcontents, fromfile);
+
+			result = symlink(symlinkcontents, toname);
 			if (result == 0)
 warning(_("hard link failed, symbolic link used"));
+			ifree(symlinkcontents);
 		}
 #endif
 		if (result != 0) {
@@ -893,6 +911,8 @@ const int		signable;
 			error(errstring);
 			return 0;
 	}
+	if (noise && hh == HOURSPERDAY)
+		warning(_("24:00 not handled by pre-1998 versions of zic"));
 	return eitol(sign) *
 		(eitol(hh * MINSPERHOUR + mm) *
 		eitol(SECSPERMIN) + eitol(ss));
@@ -1117,14 +1137,15 @@ const int		nfields;
 		error(_("time before zero"));
 		return;
 	}
-	t = (time_t) dayoff * SECSPERDAY;
-	/*
-	** Cheap overflow check.
-	*/
-	if (t / SECSPERDAY != dayoff) {
-		error(_("time overflow"));
+	if (dayoff < min_time / SECSPERDAY) {
+		error(_("time too small"));
 		return;
 	}
+	if (dayoff > max_time / SECSPERDAY) {
+		error(_("time too large"));
+		return;
+	}
+	t = (time_t) dayoff * SECSPERDAY;
 	tod = gethms(fields[LP_TIME], _("invalid time of day"), FALSE);
 	cp = fields[LP_CORR];
 	{
@@ -1273,9 +1294,9 @@ const char * const		timep;
 		return;
 	} else if (noise) {
 		if (rp->r_loyear < min_year_representable)
-			warning(_("starting year too low to be represented"));
+			warning(_("ending year too low to be represented"));
 		else if (rp->r_loyear > max_year_representable)
-			warning(_("starting year too high to be represented"));
+			warning(_("ending year too high to be represented"));
 	}
 	if (rp->r_loyear > rp->r_hiyear) {
 		error(_("starting year greater than ending year"));
@@ -1562,16 +1583,16 @@ const int			zonecount;
 	typecnt = 0;
 	charcnt = 0;
 	/*
-	** A guess that may well be corrected later.
-	*/
-	stdoff = 0;
-	/*
 	** Thanks to Earl Chew (earl@dnd.icp.nec.com.au)
 	** for noting the need to unconditionally initialize startttisstd.
 	*/
 	startttisstd = FALSE;
 	startttisgmt = FALSE;
 	for (i = 0; i < zonecount; ++i) {
+		/*
+		** A guess that may well be corrected later.
+		*/
+		stdoff = 0;
 		zp = &zpfirst[i];
 		usestart = i > 0 && (zp - 1)->z_untiltime > min_time;
 		useuntil = i < (zonecount - 1);
@@ -1591,8 +1612,7 @@ const int			zonecount;
 			if (usestart) {
 				addtt(starttime, type);
 				usestart = FALSE;
-			}
-			else if (stdoff != 0)
+			} else if (stdoff != 0)
 				addtt(min_time, type);
 		} else for (year = min_year; year <= max_year; ++year) {
 			if (useuntil && year > zp->z_untilrule.r_hiyear)
@@ -1869,10 +1889,12 @@ const char * const	type;
 	buf = erealloc(buf, (int) (132 + strlen(yitcommand) + strlen(type)));
 	(void) sprintf(buf, "%s %d %s", yitcommand, year, type);
 	result = system(buf);
-	if (result == 0)
-		return TRUE;
-	if (result == (1 << 8))
-		return FALSE;
+	if (WIFEXITED(result)) switch (WEXITSTATUS(result)) {
+		case 0:
+			return TRUE;
+		case 1:
+			return FALSE;
+	}
 	error(_("wild result from command execution"));
 	warnx(_("command was '%s', result was %d"), buf, result);
 	for ( ; ; )
@@ -2088,18 +2110,17 @@ register const int			wantedy;
 				--i;
 			}
 		if (i < 0 || i >= len_months[isleap(y)][m]) {
-			error(_("no day in month matches rule"));
-			(void) exit(EXIT_FAILURE);
+			if (noise)
+				warning(_("rule goes past start/end of month--will not work with pre-2004 versions of zic"));
 		}
 	}
 	if (dayoff < 0 && !TYPE_SIGNED(time_t))
 		return min_time;
+	if (dayoff < min_time / SECSPERDAY)
+		return min_time;
+	if (dayoff > max_time / SECSPERDAY)
+		return max_time;
 	t = (time_t) dayoff * SECSPERDAY;
-	/*
-	** Cheap overflow check.
-	*/
-	if (t / SECSPERDAY != dayoff)
-		return (dayoff > 0) ? max_time : min_time;
 	return tadd(t, rp->r_tod);
 }
 
@@ -2147,9 +2168,7 @@ char * const	argname;
 			** created by some other multiprocessor, so we get
 			** to do extra checking.
 			*/
-			if (mkdir(name, (S_IRUSR | S_IWUSR | S_IXUSR 
-					 | S_IRGRP | S_IXGRP | S_IROTH
-					 | S_IXOTH)) != 0
+			if (mkdir(name, MKDIR_UMASK) != 0
 				&& (errno != EEXIST || !itsdir(name))) {
 				warn(_("can't create directory %s"), name);
 				ifree(name);
@@ -2228,5 +2247,5 @@ setuser(flag, name)
 }
 
 /*
-** UNIX was a registered trademark of UNIX System Laboratories in 1993.
+** UNIX was a registered trademark of The Open Group in 2003.
 */
