@@ -385,7 +385,6 @@ statclock(frame)
 	struct rusage *ru;
 	struct vmspace *vm;
 	struct thread *td;
-	struct kse *ke;
 	struct proc *p;
 	long rss;
 
@@ -393,7 +392,6 @@ statclock(frame)
 	p = td->td_proc;
 
 	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
-	ke = td->td_kse;
 	if (CLKF_USERMODE(frame)) {
 		/*
 		 * Charge the time as appropriate.
@@ -401,7 +399,7 @@ statclock(frame)
 		if (p->p_flag & P_SA)
 			thread_statclock(1);
 		p->p_uticks++;
-		if (ke->ke_ksegrp->kg_nice > NZERO)
+		if (td->td_ksegrp->kg_nice > NZERO)
 			cp_time[CP_NICE]++;
 		else
 			cp_time[CP_USER]++;
@@ -433,7 +431,7 @@ statclock(frame)
 		}
 	}
 
-	sched_clock(ke);
+	sched_clock(td);
 
 	/* Update resource usage integrals and maximums. */
 	if ((pstats = p->p_stats) != NULL &&

@@ -441,14 +441,14 @@ sched_rr_interval(void)
  * run much recently, and to round-robin among other processes.
  */
 void
-sched_clock(struct kse *ke)
+sched_clock(struct thread *td)
 {
 	struct ksegrp *kg;
-	struct thread *td;
+	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	kg = ke->ke_ksegrp;
-	td = ke->ke_thread;
+	kg = td->td_ksegrp;
+	ke = td->td_kse;
 
 	ke->ke_sched->ske_cpticks++;
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
@@ -620,8 +620,11 @@ sched_wakeup(struct thread *td)
 }
 
 void
-sched_add(struct kse *ke)
+sched_add(struct thread *td)
 {
+	struct kse *ke;
+
+	ke = td->td_kse;
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((ke->ke_thread != NULL), ("runq_add: No thread on KSE"));
 	KASSERT((ke->ke_thread->td_kse != NULL),
@@ -638,8 +641,11 @@ sched_add(struct kse *ke)
 }
 
 void
-sched_rem(struct kse *ke)
+sched_rem(struct thread *td)
 {
+	struct kse *ke;
+
+	ke = td->td_kse;
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("runq_remove: process swapped out"));
 	KASSERT((ke->ke_state == KES_ONRUNQ), ("KSE not on run queue"));
@@ -714,7 +720,7 @@ sched_sizeof_thread(void)
 }
 
 fixpt_t
-sched_pctcpu(struct kse *ke)
+sched_pctcpu(struct thread *td)
 {
-	return (ke->ke_pctcpu);
+	return (td->td_kse->ke_pctcpu);
 }
