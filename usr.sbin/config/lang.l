@@ -78,6 +78,7 @@ struct kt {
 	{ "minor",	MINOR },
 	{ "net",	NET },		/* XXX going away */
 	{ "nexus",	NEXUS },
+	{ "option",	OPTIONS },
 	{ "options",	OPTIONS },
 	{ "port",	PORT },
 	{ "priority",	PRIORITY },
@@ -149,7 +150,7 @@ ID	[A-Za-z_][-A-Za-z_0-9]*
 			tprintf("id(%s) ", yytext+1);
 			return ID;
 		}
-<TOEOL>[^#\n]*	{
+<TOEOL>[^# \t\n]*	{
 			BEGIN 0;
 			yylval.str = strdup(yytext);
 			tprintf("id(%s) ", yytext);
