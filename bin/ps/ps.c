@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: ps.c,v 1.24 1998/05/15 06:29:17 charnier Exp $";
+	"$Id: ps.c,v 1.25 1998/06/30 21:34:14 phk Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -98,6 +98,9 @@ static void	 scanvars __P((void));
 static void	 dynsizevars __P((KINFO *));
 static void	 sizevars __P((void));
 static void	 usage __P((void));
+#ifdef __alpha__
+static int	 get_uarea __P((struct proc *, struct pstats *));
+#endif
 
 char dfmt[] = "pid tt state time command";
 char jfmt[] = "user pid ppid pgid sess jobc state tt time command";
@@ -453,6 +456,35 @@ fmt(fn, ki, comm, maxlen)
 	return (s);
 }
 
+#ifdef __alpha__
+/*
+ * This is a kludge to work around the fact that on the alpha,
+ * the uarea is not mapped into the process address space.
+ */
+static int get_uarea(p, pstats)
+	struct proc		*p;
+	struct pstats		*pstats;
+{
+	size_t			offset;
+	static struct user	ubuf;
+	kvm_t			*mkd;
+	int			len;
+
+	offset = (size_t)p->p_addr;
+	mkd = kvm_open(NULL, NULL, NULL, 0, NULL);
+	if (mkd == NULL)
+		return(0);
+	len = kvm_read(mkd, offset, (char *)&ubuf, sizeof(struct user));
+	kvm_close(mkd);
+	if (len != sizeof(struct user))
+		return(0);
+
+	bcopy((char *)&ubuf.u_stats, (char *)pstats, sizeof(struct pstats));
+
+	return(sizeof(struct pstats));
+}
+#endif
+
 #define UREADOK(ki)	(forceuread || (KI_PROC(ki)->p_flag & P_INMEM))
 
 static void
@@ -461,11 +493,18 @@ saveuser(ki)
 {
 	struct pstats pstats;
 	struct usave *usp;
+#ifndef __alpha__
 	struct user *u_addr = (struct user *)USRSTACK;
+#endif
 
 	usp = &ki->ki_u;
+
+#ifdef __alpha__
+	if (UREADOK(ki) && get_uarea(KI_PROC(ki), &pstats) == sizeof(pstats)) {
+#else
 	if (UREADOK(ki) && kvm_uread(kd, KI_PROC(ki), (unsigned long)&u_addr->u_stats,
 	    (char *)&pstats, sizeof(pstats)) == sizeof(pstats)) {
+#endif
 		/*
 		 * The u-area might be swapped out, and we can't get
 		 * at it because we have a crashdump and no swap.
