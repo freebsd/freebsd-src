@@ -28,12 +28,8 @@
  *	$Id: syscons.h,v 1.2 1995/02/25 20:09:21 pst Exp $
  */
 
-/*
- * The APM stuff is -not- under conditional compilation because we don't want
- * the size of the scr_stat structure to vary depending upon if APM has been
- * compiled in or not,  that can cause utilities and lkms to crash!
- */
-#include <machine/apm_bios.h>
+#ifndef SYSCONS_H
+#define SYSCONS_H
 
 /* vm things */
 #define	ISMAPPED(pa, width) \
@@ -42,7 +38,7 @@
 #define	pa_to_va(pa)	(KERNBASE + (pa))	/* works if ISMAPPED(pa...) */
 
 /* printable chars */
-#define PRINTABLE(ch)	(ch>0x1B || (ch>0x0d && ch<0x1b) || ch<0x07)
+#define PRINTABLE(ch)	((ch)>0x1B || ((ch)>0x0d && (ch)<0x1b) || (ch)<0x07)
 
 /* status flags */
 #define LOCK_KEY_MASK	0x0000F
@@ -175,7 +171,7 @@ void scintr(int unit);
 int pcmmap(dev_t dev, int offset, int nprot);
 static void scinit(void);
 static u_int scgetc(int noblock);
-struct tty *scdevtotty(dev_t dev);
+       struct tty *scdevtotty(dev_t dev);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp();
 static void init_scp(scr_stat *scp);
@@ -206,3 +202,5 @@ static void save_palette(void);
        void load_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static void blink_screen(scr_stat *scp);
+
+#endif /* SYSCONS_H */
