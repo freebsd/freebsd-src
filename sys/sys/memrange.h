@@ -10,6 +10,7 @@
 #define MDF_WRITETHROUGH	(1<<2)	/* write-through cached */
 #define MDF_WRITEBACK		(1<<3)	/* write-back cached */
 #define MDF_WRITEPROTECT	(1<<4)	/* read-only region */
+#define MDF_UNKNOWN		(1<<5)	/* any state we don't understand */
 #define MDF_ATTRMASK		(0x00ffffff)
 
 #define MDF_FIXBASE		(1<<24)	/* fixed base */
