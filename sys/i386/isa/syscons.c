@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.138 1995/12/14 22:03:03 bde Exp $
+ *  $Id: syscons.c,v 1.139 1996/01/04 21:11:43 wollman Exp $
  */
 
 #include "sc.h"
@@ -3162,16 +3162,18 @@ load_palette(void)
 static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
-    if (scp == cur_console) {
-	if (configuration & VISUAL_BELL) {
-	    if (blink_in_progress)
-		return;
-	    blink_in_progress = 4;
-	    blink_screen(scp);
-	    timeout((timeout_func_t)blink_screen, scp, hz/10);
-	}
-	else
-	    sysbeep(pitch, duration);
+    if (configuration & VISUAL_BELL) {
+	if (blink_in_progress)
+	    return;
+	blink_in_progress = 4;
+	if (scp != cur_console)
+	    blink_in_progress += 2;
+	blink_screen(cur_console);
+	timeout((timeout_func_t)blink_screen, cur_console, hz/10);
+    } else {
+	if (scp != cur_console)
+	    pitch *= 2;
+	sysbeep(pitch, duration);
     }
 }
 
