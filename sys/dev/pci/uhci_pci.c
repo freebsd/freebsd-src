@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.5 1998/12/14 09:40:14 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.6 1999/01/06 12:31:28 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -72,10 +72,17 @@
 #define PCI_VENDOR(d)		((d)&0xffff)
 #define PCI_DEVICE(d)		(((d)>>8)&0xffff)
 
+#define PCI_UHCI_VENDORID_INTEL		0x8086
+#define PCI_UHCI_VENDORID_VIA		0x1106
+
 #define PCI_UHCI_DEVICEID_PIIX3         0x70208086ul
+static const char *uhci_device_piix3 = "Intel 82371SB USB Host Controller";
 #define PCI_UHCI_DEVICEID_PIIX4         0x71128086ul
 #define PCI_UHCI_DEVICEID_PIIX4E        0x71128086ul    /* no separate step */
+static const char *uhci_device_piix4 = "Intel 82371AB/EB USB Host Controller";
 #define PCI_UHCI_DEVICEID_VT83C572	0x30381106ul
+static const char *uhci_device_vt83c572 = "VIA 83C572 USB Host Controller";
+static const char *uhci_device_generic = "UHCI USB Controller (generic)";
 
 #define PCI_UHCI_BASE_REG               0x20
 
@@ -100,18 +107,18 @@ uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
 {
 	u_int32_t class;
 
-	if (device_id == PCI_UHCI_DEVICEID_PIIX3)
-		return ("Intel 82371SB USB Host Controller");
-	else if (device_id == PCI_UHCI_DEVICEID_PIIX4)
-		return ("Intel 82371AB/EB USB Host Controller");
-	else if (device_id == PCI_UHCI_DEVICEID_VT83C572)
-		return ("Via Techn. 83C572 USB Host Controller");
-	else {
+	if (device_id == PCI_UHCI_DEVICEID_PIIX3) {
+		return (uhci_device_piix3);
+	} else if (device_id == PCI_UHCI_DEVICEID_PIIX4) {
+		return (uhci_device_piix4);
+	} else if (device_id == PCI_UHCI_DEVICEID_VT83C572) {
+		return (uhci_device_vt83c572);
+	} else {
 		class = pci_conf_read(config_id, PCI_CLASS_REG);
 		if (   PCI_CLASS(class)	    == PCI_CLASS_SERIALBUS
 		    && PCI_SUBCLASS(class)  == PCI_SUBCLASS_SERIALBUS_USB
 		    && PCI_INTERFACE(class) == PCI_INTERFACE_UHCI) {
-			return ("UHCI USB Host Controller (generic)");
+			return (uhci_device_generic);
 		}
 	}
 
@@ -165,10 +172,12 @@ uhci_pci_attach(pcici_t config_id, int unit)
 
 	/* Figure out vendor for root hub descriptor. */
 	id = pci_conf_read(config_id, PCI_ID_REG);
-	if (PCI_VENDOR(id) == 0x8086)
+	if (PCI_VENDOR(id) == PCI_UHCI_VENDORID_INTEL)
 		sprintf(sc->sc_vendor, "Intel");
+	else if (PCI_VENDOR(id) == PCI_UHCI_VENDORID_VIA)
+		sprintf(sc->sc_vendor, "VIA");
 	else
-		sprintf(sc->sc_vendor, "Vendor 0x%04x", PCI_VENDOR(id));
+		sprintf(sc->sc_vendor, "(0x%04x)", PCI_VENDOR(id));
 
 	/* We add a child to the root bus. After PCI configuration
 	 * has completed the root bus will start to probe and
@@ -200,20 +209,19 @@ uhci_pci_attach(pcici_t config_id, int unit)
 		return;
 	}
 
-
-	id = pci_conf_read(config_id, PCI_ID_REG);
 	switch (id) {
 	case PCI_UHCI_DEVICEID_PIIX3:
-		device_set_desc(sc->sc_bus.bdev, "Intel 82371SB USB Host Controller");
+		device_set_desc(sc->sc_bus.bdev, uhci_device_piix3);
 		break;
 	case PCI_UHCI_DEVICEID_PIIX4:
-		device_set_desc(sc->sc_bus.bdev, "Intel 82371AB/EB USB Host Controller");
+		device_set_desc(sc->sc_bus.bdev, uhci_device_piix4);
 		break;
 	case PCI_UHCI_DEVICEID_VT83C572:
-		device_set_desc(sc->sc_bus.bdev, "Via Techn. 83C572 USB Host Controller");
+		device_set_desc(sc->sc_bus.bdev, uhci_device_vt83c572);
 		break;
 	default:
-		device_set_desc(sc->sc_bus.bdev, "UHCI USB Host Controller (generic)");
+		printf("(New UHCI DeviceId=0x%08x)\n", id);
+		device_set_desc(sc->sc_bus.bdev, uhci_device_generic);
 	}
 
 	return;
