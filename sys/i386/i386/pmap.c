@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.237 1999/06/01 18:19:44 jlemon Exp $
+ *	$Id: pmap.c,v 1.238 1999/06/05 16:16:37 luoqi Exp $
  */
 
 /*
@@ -908,7 +908,7 @@ pmap_new_proc(p)
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	if ((up = p->p_addr) == NULL) {
-		up = (struct user *) kmem_alloc_pageable(kernel_map,
+		up = (struct user *) kmem_alloc_nofault(kernel_map,
 				UPAGES * PAGE_SIZE);
 #if !defined(MAX_PERF)
 		if (up == NULL)
