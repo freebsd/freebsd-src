@@ -33,12 +33,13 @@
 .\"     from: @(#)fabs.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd October 25, 2003
 .Dt FABS 3
 .Os
 .Sh NAME
 .Nm fabs ,
-.Nm fabsf
+.Nm fabsf ,
+.Nm fabsl
 .Nd floating-point absolute value functions
 .Sh LIBRARY
 .Lb libm
@@ -48,18 +49,24 @@
 .Fn fabs "double x"
 .Ft float
 .Fn fabsf "float x"
+.Ft long double
+.Fn fabsl "long double x"
 .Sh DESCRIPTION
 The
-.Fn fabs
-and the
+.Fn fabs ,
+the
 .Fn fabsf
+and the
+.Fn fabsl
 functions compute the absolute value of a floating-point number
 .Fa x .
 .Sh RETURN VALUES
 The
-.Fn fabs
-and the
+.Fn fabs ,
+the
 .Fn fabsf
+and the
+.Fn fabsl
 functions return the absolute value of
 .Fa x .
 .Sh SEE ALSO
@@ -74,3 +81,9 @@ The
 .Fn fabs
 function conforms to
 .St -isoC .
+The
+.Fn fabsf
+and the
+.Fn fabsl
+functions conform to
+.St -isoC-99 .
