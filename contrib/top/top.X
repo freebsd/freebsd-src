@@ -20,6 +20,8 @@ top \- display and update information about the top cpu processes
 ] [
 .BI \-U username
 ] [
+.BI \-m io | cpu
+] [
 .I number
 ]
 .SH DESCRIPTION
@@ -86,6 +88,9 @@ By default, top displays both active and idle processes.
 Do not display the
 .I top
 process.
+.TP
+.BI \-m display
+Display either 'cpu' or 'io' statistics.  Default is 'cpu'.
 .TP
 .B \-n
 Use \*(lqnon-interactive\*(rq mode.  This is identical to \*(lqbatch\*(rq
@@ -213,6 +218,9 @@ Remember that the next display counts as one, so typing
 will make
 .I top
 show one final display and then immediately exit.
+.TP
+.B m
+Toggle the display between 'cpu' and 'io' modes.
 .TP
 .B n or #
 Change the number of processes to display (prompt for new number).
