@@ -1,0 +1,52 @@
+Index: Makefile
+===================================================================
+RCS file: /host/cvs/usr/home/ncvs/ports/x11/XFree86/Makefile,v
+retrieving revision 1.97
+diff -u -r1.97 Makefile
+--- Makefile	2001/04/26 20:27:16	1.97
++++ Makefile	2001/08/29 21:01:47
+@@ -69,6 +69,8 @@
+ .if defined(BUILD_XDIST)
+ 	@${CP} ${WRKSRC}/programs/Xserver/hw/xfree86/LinkKit/README \
+ 		${WRKSRC}/programs/Xserver/hw/xfree86/doc/sgml
++	@${MV} ${WRKSRC}/programs/Xserver/hw/xfree86/doc/sgml/DGux.sgml \
++		${WRKSRC}/programs/Xserver/hw/xfree86/doc/sgml/DGUX.sgml
+ .endif
+ 	@if [ -r ${FILESDIR}/config ]; then \
+ 		${ECHO} Using your existing ${FILESDIR}/config ; \
+Index: distinfo
+===================================================================
+RCS file: /host/cvs/usr/home/ncvs/ports/x11/XFree86/distinfo,v
+retrieving revision 1.26
+diff -u -r1.26 distinfo
+--- distinfo	2001/04/05 16:21:30	1.26
++++ distinfo	2001/08/28 21:28:52
+@@ -1,4 +1,4 @@
+ MD5 (xc/X336src-1.tgz) = bbfa360d10ce91ab37f24f197a31b485
+ MD5 (xc/X336src-2.tgz) = 897daa223b5b67b8314ed8835cc17539
++MD5 (xc/X336src-3.tgz) = 4b1d9d353f8b4cba678f7c156b872330
+ MD5 (xc/3.3.6-3.3.6a.diffs.gz) = 6268d7e4b4ed5c189dbcb8af2c560615
+-MD5 (xc/Wraphelp.c) = IGNORE
+Index: files/patch-build-bindist
+===================================================================
+RCS file: patch-build-bindist
+diff -N patch-build-bindist
+--- /dev/null	Wed Aug 29 14:34:53 2001
++++ patch-build-bindist	Wed Aug 29 15:07:54 2001
+@@ -0,0 +1,16 @@
++--- programs/Xserver/hw/xfree86/etc/bindist/build-bindist.orig	Wed Aug 29 13:52:27 2001
+++++ programs/Xserver/hw/xfree86/etc/bindist/build-bindist	Wed Aug 29 14:12:28 2001
++@@ -45,10 +45,10 @@
++ DIRFILE=dir
++ BINDIR=bindist
++ EXTRASFILE=extras
++-TAR="gnu-tar"
++-EXTRACT="extract"
+++TAR="tar"
+++EXTRACT="tar"
++ TAROPTS="-c -v -z"
++-EXTRACTLOPTS="-t -v"
+++EXTRACTLOPTS="-t -v -z -f"
++ SUMFILE=SUMS.md5
++ LISTFILE=FILES
++ 
