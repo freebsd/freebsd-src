@@ -137,27 +137,7 @@ will enforce rules for.
 The port access control list is specified in the following format:
 .Pp
 .Sm off
-.Bd -literal -offset indent
-.Ar idtype
-.Li :
-.Ar id
-.Li :
-.Ar protocol
-.Li :
-.Ar port
-.Oo
-.Li ,
-.Ar idtype
-.Li :
-.Ar id
-.Li :
-.Ar protocol
-.Li :
-.Ar port
-.Li ,
-.Ar ...
-.Oc
-.Ed
+.D1 Ar idtype : id : protocol : port Op , Ar idtype : id : protocol : port , ...
 .Sm on
 .Pp
 .Bl -tag -width ".Ar protocol"
