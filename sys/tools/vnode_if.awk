@@ -65,6 +65,8 @@ function printh(s) {print s > hfile;}
 
 function add_debug_code(name, arg, pos)
 {
+	if (arg == "vpp")
+		arg = "*vpp";
 	if (lockdata[name, arg, pos]) {
 		printh("\tASSERT_VI_UNLOCKED("arg", \""uname"\");");
 		# Add assertions for locking
