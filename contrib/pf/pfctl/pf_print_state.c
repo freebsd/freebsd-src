@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_print_state.c,v 1.33 2003/07/06 22:01:28 deraadt Exp $	*/
+/*	$OpenBSD: pf_print_state.c,v 1.39 2004/02/10 17:48:08 henning Exp $	*/
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -50,9 +50,24 @@ void	print_name(struct pf_addr *, sa_family_t);
 void
 print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 {
-	switch(addr->type) {
+	switch (addr->type) {
 	case PF_ADDR_DYNIFTL:
-		printf("(%s)", addr->v.ifname);
+		printf("(%s", addr->v.ifname);
+		if (addr->iflags & PFI_AFLAG_NETWORK)
+			printf(":network");
+		if (addr->iflags & PFI_AFLAG_BROADCAST)
+			printf(":broadcast");
+		if (addr->iflags & PFI_AFLAG_PEER)
+			printf(":peer");
+		if (addr->iflags & PFI_AFLAG_NOALIAS)
+			printf(":0");
+		if (verbose) {
+			if (addr->p.dyncnt <= 0)
+				printf(":*");
+			else
+				printf(":%d", addr->p.dyncnt);
+		}
+		printf(")");
 		break;
 	case PF_ADDR_TABLE:
 		if (verbose)
@@ -85,7 +100,10 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 		printf("?");
 		return;
 	}
-	if (! PF_AZERO(&addr->v.a.mask, af)) {
+
+	/* mask if not _both_ address and mask are zero */
+	if (!(PF_AZERO(&addr->v.a.addr, AF_INET6) &&
+	    PF_AZERO(&addr->v.a.mask, AF_INET6))) {
 		int bits = unmask(&addr->v.a.mask, af);
 
 		if (bits != (af == AF_INET ? 32 : 128))
@@ -140,8 +158,10 @@ print_host(struct pf_state_host *h, sa_family_t af, int opts)
 		aw.v.a.addr = h->addr;
 		if (af == AF_INET)
 			aw.v.a.mask.addr32[0] = 0xffffffff;
-		else
+		else {
 			memset(&aw.v.a.mask, 0xff, sizeof(aw.v.a.mask));
+			af = AF_INET6;
+		}
 		print_addr(&aw, af, opts & PF_OPT_VERBOSE2);
 	}
 
@@ -177,6 +197,7 @@ print_state(struct pf_state *s, int opts)
 		src = &s->dst;
 		dst = &s->src;
 	}
+	printf("%s ", s->u.ifname);
 	if ((p = getprotobynumber(s->proto)) != NULL)
 		printf("%s ", p->p_name);
 	else
@@ -256,7 +277,15 @@ print_state(struct pf_state *s, int opts)
 			printf(", anchor %u", s->anchor.nr);
 		if (s->rule.nr != -1)
 			printf(", rule %u", s->rule.nr);
+		if (s->src_node != NULL)
+			printf(", source-track");
+		if (s->nat_src_node != NULL)
+			printf(", sticky-address");
 		printf("\n");
+	}
+	if (opts & PF_OPT_VERBOSE2) {
+		printf("   id: %016llx creatorid: %08x\n",
+		    betoh64(s->id), ntohl(s->creatorid));
 	}
 }
 
