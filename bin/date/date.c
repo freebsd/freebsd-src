@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: date.c,v 1.2 1994/09/24 02:54:36 davidg Exp $
  */
 
 #ifndef lint
@@ -76,13 +76,19 @@ main(argc, argv)
 	struct timezone tz;
 	int ch, rflag;
 	char *format, buf[1024];
+	char *endptr;
+	int set_timezone;
 
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
+	set_timezone = 0;
 	while ((ch = getopt(argc, argv, "d:nr:ut:")) != EOF)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
-			tz.tz_dsttime = atoi(optarg) ? 1 : 0;
+			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
+			if (endptr == optarg || *endptr != '\0')
+				usage();
+			set_timezone = 1;
 			break;
 		case 'n':		/* don't set network */
 			nflag = 1;
@@ -96,11 +102,11 @@ main(argc, argv)
 			break;
 		case 't':		/* minutes west of GMT */
 					/* error check; don't allow "PST" */
-			if (isdigit(*optarg)) {
-				tz.tz_minuteswest = atoi(optarg);
-				break;
-			}
-			/* FALLTHROUGH */
+			tz.tz_minuteswest = strtol(optarg, &endptr, 10);
+			if (endptr == optarg || *endptr != '\0')
+				usage();
+			set_timezone = 1;
+			break;
 		default:
 			usage();
 		}
@@ -111,9 +117,8 @@ main(argc, argv)
 	 * If -d or -t, set the timezone or daylight savings time; this
 	 * doesn't belong here, there kernel should not know about either.
 	 */
-	if ((tz.tz_minuteswest || tz.tz_dsttime) &&
-	    settimeofday(NULL, &tz))
-		err(1, "settimeofday");
+	if (set_timezone && settimeofday((struct timeval *)NULL, &tz))
+		err(1, "settimeofday (timezone)");
 
 	if (!rflag && time(&tval) == -1)
 		err(1, "time");
@@ -210,10 +215,8 @@ setthetime(p)
 		logwtmp("|", "date", "");
 		tv.tv_sec = tval;
 		tv.tv_usec = 0;
-		if (settimeofday(&tv, NULL)) {
-			perror("date: settimeofday");
-			exit(1);
-		}
+		if (settimeofday(&tv, (struct timezone *)NULL))
+			err(1, "settimeofday (timeval)");
 		logwtmp("{", "date", "");
 	}
 
