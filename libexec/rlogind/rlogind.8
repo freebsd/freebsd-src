@@ -164,6 +164,13 @@ Transport-level keepalive messages are enabled unless the
 option is present.
 The use of keepalive messages allows sessions to be timed out
 if the client crashes or becomes unreachable.
+.Sh FILES
+.Bl -tag -width /etc/hostsxxxxxxxx -compact
+.It Pa /etc/hosts
+.It Pa /etc/hosts.equiv
+.It Ev $HOME Ns Pa /.rhosts
+.It Pa /var/run/nologin
+.El
 .Sh DIAGNOSTICS
 All initial diagnostic messages are indicated
 by a leading byte with a value of 1,
@@ -186,13 +193,13 @@ by the server failed.
 .Xr nologin 5 ,
 .Xr services 5 ,
 .Xr rshd 8
-.Sh FILES
-.Bl -tag -width /etc/hostsxxxxxxxx -compact
-.It Pa /etc/hosts
-.It Pa /etc/hosts.equiv
-.It Ev $HOME Ns Pa /.rhosts
-.It Pa /var/run/nologin
-.El
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.2 .
+.Pp
+IPv6 support was added by WIDE/KAME project.
 .Sh BUGS
 The authentication procedure used here assumes the integrity
 of each client machine and the connecting medium.
@@ -205,10 +212,3 @@ A facility to allow all data exchanges to be encrypted should be
 present.
 .Pp
 A more extensible protocol should be used.
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Bx 4.2 .
-.Pp
-IPv6 support was added by WIDE/KAME project.

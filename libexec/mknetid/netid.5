@@ -72,18 +72,18 @@ The second type contains information about hosts:
 The third type refers to records from a
 .Nm
 file other than the two types above.
-.Sh EXAMPLES
-A configuration file might look like the following:
-.Bd -literal
-unix.10714@kaka 10714:400,10
-unix.jodie@kaka 0:jodie
-.Ed
 .Sh FILES
 .Bl -tag -width ".Pa /etc/netid" -compact
 .It Pa /etc/netid
 for lines not generated automatically by
 .Xr mknetid 8
 .El
+.Sh EXAMPLES
+A configuration file might look like the following:
+.Bd -literal
+unix.10714@kaka 10714:400,10
+unix.jodie@kaka 0:jodie
+.Ed
 .Sh SEE ALSO
 .Xr mknetid 8 ,
 .Xr yp 8
