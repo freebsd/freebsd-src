@@ -304,6 +304,8 @@ i386/svr4/svr4_machdep.c	optional	compat_svr4
 #
 # isdn4bsd, needed for isic | iwic | ifpi | ifpi2 | ihfc | ifpnp | itjc
 #
+i4b/layer1/i4b_hdlc.c	          	optional        itjc
+i4b/layer1/i4b_hdlc.c	          	optional        ihfc
 i4b/layer1/i4b_l1dmux.c         	optional        isic
 i4b/layer1/i4b_l1lib.c          	optional        isic
 i4b/layer1/i4b_l1dmux.c         	optional        iwic
