@@ -98,7 +98,7 @@ CFLAGS+=-I${.CURDIR}/../libc/${MACHINE_ARCH}
 
 # decompression functionality from libbz2
 .PATH:	${.CURDIR}/../../contrib/bzip2
-CFLAGS+=-I${.CURDIR} -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+CFLAGS+=-I. -DBZ_NO_STDIO -DBZ_NO_COMPRESS
 SRCS+=	_bzlib.c _crctable.c _decompress.c _huffman.c _randtable.c _bzlib.h \
 	_bzlib_private.h
 
