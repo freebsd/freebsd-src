@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.38 1995/11/16 09:55:57 bde Exp $
+ *	$Id: lpt.c,v 1.39 1995/11/28 09:41:18 julian Exp $
  */
 
 /*
@@ -100,7 +100,6 @@
  */
 
 #include "lpt.h"
-#if NLPT > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -257,7 +256,7 @@ static u_char *txmith;
 
 /* Functions for the lp# interface */
 static void lpattach(struct lpt_softc *,int);
-static int lpinittables();
+static int lpinittables(void);
 static int lpioctl(struct ifnet *, int, caddr_t);
 static int lpoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 	struct rtentry *);
@@ -1175,4 +1174,3 @@ static void 	lpt_devsw_install()
 	}
 }
 #endif /* JREMOD */
-#endif	/* NLPT */
