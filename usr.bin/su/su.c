@@ -1,6 +1,13 @@
 /*
  * Copyright (c) 1988, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -117,7 +124,7 @@ main(int argc, char *argv[])
 	union {
 		const char	**a;
 		char		* const *b;
-	} 		np;
+	}		np;
 	uid_t		ruid;
 	gid_t		gid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
@@ -317,7 +324,7 @@ main(int argc, char *argv[])
 				child_pgrp = tcgetpgrp(1);
 				kill(getpid(), SIGSTOP);
 				tcsetpgrp(1, child_pgrp);
-				kill(child_pid, SIGCONT); 
+				kill(child_pid, SIGCONT);
 				statusp = 1;
 				continue;
 			}
