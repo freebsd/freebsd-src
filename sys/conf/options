@@ -1,4 +1,4 @@
-#	$Id: options,v 1.18 1996/10/28 11:32:55 phk Exp $
+#	$Id: options,v 1.19 1996/12/15 16:35:54 se Exp $
 
 # Option name	filename
 
@@ -74,6 +74,8 @@ SCSI_NCR_DEBUG		opt_ncr.h
 # Resource limits.
 CHILD_MAX	opt_rlimit.h
 OPEN_MAX	opt_rlimit.h
+MAXDSIZ		opt_rlimit.h
+DFLDSIZ		opt_rlimit.h
 
 # Net stuff.
 MROUTING		opt_mrouting.h
