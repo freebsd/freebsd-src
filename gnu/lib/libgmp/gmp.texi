@@ -1,0 +1,1291 @@
+\input texinfo    @c -*-texinfo-*-
+@comment %**start of header
+@setfilename gmp.info
+@settitle GNU MP 1.3.2
+@synindex tp fn
+@c footnotestyle separate
+@c paragraphindent 2
+@comment %**end of header
+
+@c smallbook
+
+@iftex
+@finalout
+@end iftex
+
+@c Note: the edition number is listed in *three* places; please update
+@c all three.  Also, update the month and year where appropriate.
+
+@c ==> Update edition number for settitle and subtitle, and in the
+@c ==> following paragraph; update date, too.
+
+@ifinfo
+This file documents GNU MP, a library for arbitrary-precision integer
+and rational number arithmetic.
+
+This is a draft edition of the documentation, last updated May 20 1993.
+
+Copyright (C) 1991, 1993 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+
+@setchapternewpage odd
+@titlepage
+@c  use the new format for titles
+
+@title GNU MP
+@subtitle The GNU Multiple Precision Arithmetic Library
+@subtitle Edition 1.3.2
+@subtitle May 1993
+
+@author by Torbj@"orn Granlund
+
+@comment   Include the Distribution inside the titlepage so
+@c that headings are turned off.
+
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1991, 1993 Free Software Foundation, Inc.
+
+@sp 2
+
+Published by the Free Software Foundation @*
+675 Massachusetts Avenue, @*
+Cambridge, MA 02139 USA @*
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end titlepage
+
+@ifinfo
+@node Top, Copying, (dir), (dir)
+@end ifinfo
+
+@menu
+* Copying::                  GMP Copying Conditions.
+* Intro::                    Introduction to GMP.
+* Nomenclature::             Terminology and basic data types.
+* Initialization::           Initialization of multi-precision number objects.
+* Integer Functions::        Functions for arithmetic on signed integers.
+* Rational Number Functions:: Functions for arithmetic on rational numbers.
+* Low-level Functions::      Fast functions for natural numbers.
+* BSD Compatible Functions:: All functions found in BSD MP (somewhat faster).
+* Miscellaneous Functions::  Functions that do particular things.
+* Custom Allocation::        How to customize the internal allocation.
+* Reporting Bugs::           Help us to improve this library.
+
+* References::
+* Concept Index::
+* Function Index::
+@end menu
+
+@node Copying, Intro, Top, Top
+@comment  node-name, next, previous,  up
+@unnumbered GNU MP Copying Conditions
+@cindex Copying conditions
+@cindex Conditions for copying GNU MP
+
+This library is @dfn{free}; this means that everyone is free to use it
+and free to redistribute it on a free basis.  The library is not in the
+public domain; it is copyrighted and there are restrictions on its
+distribution, but these restrictions are designed to permit everything
+that a good cooperating citizen would want to do.  What is not allowed
+is to try to prevent others from further sharing any version of this
+library that they might get from you.@refill
+
+  Specifically, we want to make sure that you have the right to give
+away copies of the library, that you receive source code or else can get
+it if you want it, that you can change this library or use pieces of it
+in new free programs, and that you know you can do these things.@refill
+
+  To make sure that everyone has such rights, we have to forbid you to
+deprive anyone else of these rights.  For example, if you distribute
+copies of the GMP library, you must give the recipients all the rights
+that you have.  You must make sure that they, too, receive or can get
+the source code.  And you must tell them their rights.@refill
+
+  Also, for our own protection, we must make certain that everyone finds
+out that there is no warranty for the GMP library.  If it is modified by
+someone else and passed on, we want their recipients to know that what
+they have is not what we distributed, so that any problems introduced by
+others will not reflect on our reputation.@refill
+
+  The precise conditions of the license for the GMP library are found in
+the General Public License that accompany the source code.@refill
+
+@node Intro, Initialization, Copying, Top
+@comment  node-name,  next,  previous,  up
+@chapter Introduction to MP
+@cindex Introduction
+@cindex Overview
+
+GNU MP is a portable library for arbitrary precision integer and
+rational number arithmetic.@footnote{The limit of the precision is set by the
+available memory in your computer.}  It aims to provide the fastest
+possible arithmetic for all applications that need more than two words
+of integer precision.
+
+Most often, applications tend to use just a few words of precision;
+but some applications may need thousands of words.  GNU MP is designed
+to give good performance for both kinds of applications, by choosing
+algorithms based on the sizes of the operands.
+
+There are five groups of functions in the MP library:
+
+@enumerate
+@item
+Functions for signed integer arithmetic, with names
+beginning with @code{mpz_}.
+
+@item
+Functions for rational number arithmetic, with names beginning with
+@code{mpq_}.
+
+@item
+Functions compatible with Berkeley MP, such as @code{itom}, @code{madd},
+and @code{mult}.
+
+@item
+Fast low-level functions that operate on natural numbers.  These are
+used by the functions in the preceding groups, and you can also call
+them directly from very time-critical user programs.  These functions'
+names begin with @code{mpn_}.
+
+@item
+Miscellaneous functions.
+@end enumerate
+
+As a general rule, all MP functions expect output arguments before input
+arguments.  This notation is based on an analogy with the assignment
+operator.  (The BSD MP compatibility functions disobey this rule, having
+the output argument(s) last.)  Multi-precision numbers, whether
+output or input, are always passed as addresses to the declared type.
+
+@menu
+* Nomenclature::
+* Thanks::
+@end menu
+
+@node Nomenclature, Thanks, Intro, Intro
+@comment  node-name,  next,  previous,  up
+@section Nomenclature and Data Types
+@cindex nomenclature
+
+@cindex integer
+@tindex @code{MP_INT}
+In this manual, @dfn{integer} means a multiple precision integer, as
+used in the MP package.  The C data type for such integers is
+@code{MP_INT}.  For example:
+
+@example
+MP_INT sum;
+
+struct foo @{ MP_INT x, y; @};
+
+MP_INT vec[20];
+@end example
+
+@cindex rational number
+@tindex @code{MP_RAT}
+@dfn{Rational number} means a multiple precision fraction.  The C data
+type for these fractions is @code{MP_RAT}.  For example:
+
+@example
+MP_RAT quotient;
+@end example
+
+@cindex limb
+A @dfn{limb} means the part of a multi-precision number that fits in a
+single word.  (We chose this word because a limb of the human body is
+analogous to a digit, only larger, and containing several digits.)
+Normally a limb contains 32 bits.
+
+@node Thanks,, Nomenclature, Intro
+@comment  node-name,  next,  previous,  up
+@section Thanks
+
+I would like to thank Gunnar Sjoedin and Hans Riesel for their help with
+mathematical problems, Richard Stallman for his help with design issues
+and for revising this manual, Brian Beuning and Doug Lea for their
+testing of various versions of the library, and Joachim Hollman for
+his many valuable suggestions.
+
+Special thanks to Brian Beuning, he has shaked out many bugs from early
+versions of the code!
+
+John Amanatides of York University in Canada contributed the function
+@code{mpz_probab_prime_p}.
+
+@node Initialization, Integer Functions, Intro, Top
+@comment  node-name,  next,  previous,  up
+@chapter Initialization
+
+Before you can use a variable or object of type @code{MP_INT} or
+@code{MP_RAT}, you must initialize it.  This fills in the components
+that point to dynamically allocated space for the limbs of the number.
+
+When you are finished using the object, you should clear out the object.
+This frees the dynamic space that it points to, so the space can be used
+again.
+
+Once you have initialized the object, you need not be concerned about
+allocating additional space.  The functions in the MP package
+automatically allocate additional space when the object does not already
+have enough space.  They do not, however, reduce the space in use when a
+smaller number is stored in the object.  Most of the time, this policy
+is best, since it avoids frequent re-allocation.  If you want to reduce
+the space in an object to the minimum needed, you can do
+@code{_mpz_realloc (&@var{object}, mpz_size (&@var{object}))}.
+
+The functions to initialize numbers are @code{mpz_init} (for @code{MP_INT}) and
+@code{mpq_init} (for @code{MP_RAT}).
+
+@code{mpz_init} allocates space for the limbs, and stores a pointer
+to that space in the @code{MP_INT} object.  It also stores the value 0
+in the object.
+
+In the same manner, @code{mpq_init} allocates space for the numerator
+and denominator limbs, and stores pointers to these spaces in the @code{MP_RAT}
+object.
+
+To clear out a number object, use @code{mpz_clear} and @code{mpq_clear},
+respectively.
+
+Here is an example of use:
+
+@example
+@{
+  MP_INT temp;
+  mpz_init (&temp);
+
+  @dots{} @r{store and read values in @code{temp} zero or more times} @dots{}
+
+  mpz_clear (&temp):
+@}
+@end example
+
+You might be tempted to copy an integer from one object to another like
+this:
+
+@example
+MP_INT x, y;
+
+x = y;
+@end example
+
+Although valid C, @strong{this is an error.} Rather than copying the
+integer value from @code{y} to @code{x} it will make the two variables
+share storage.  Subsequent assignments to one variable would change the
+other mysteriously.  And if you were to clear out both variables
+subsequently, you would confuse @code{malloc} and cause your program to
+crash.
+
+To copy the value properly, you must use the function @code{mpz_set}.
+(@pxref{Assigning Integers})
+
+@node Integer Functions, Rational Number Functions, Initialization, Top
+@comment  node-name,  next,  previous,  up
+@chapter Integer Functions
+@cindex Integer functions
+
+This chapter describes the MP functions for performing integer arithmetic.
+
+The integer functions use arguments and values of type
+pointer-to-@code{MP_INT} (@pxref{Nomenclature}).  The type @code{MP_INT}
+is a structure, but applications should not refer directly to its
+components.  Include the header @file{gmp.h} to get the definition of
+@code{MP_INT}.
+
+@menu
+* Initializing Integers::
+* Assigning Integers::
+* Simultaneous Integer Init & Assign::
+* Converting Integers::
+* Integer Arithmetic::
+* Logic on Integers::
+* I/O of Integers::
+@end menu
+
+@node Initializing Integers, Assigning Integers, , Integer Functions
+@comment  node-name,  next,  previous,  up
+@section Initializing Integer Objects
+
+Most of the functions for integer arithmetic assume that the output is
+stored in an object already initialized.  For example, @code{mpz_add}
+stores the result of addition (@pxref{Integer Arithmetic}).  Thus, you
+must initialize the object before storing the first value in it.  You
+can do this separately by calling the function @code{mpz_init}.
+
+@deftypefun void mpz_init (MP_INT *@var{integer})
+Initialize @var{integer} with limb space and set the initial numeric
+value to 0.  Each variable should normally only be initialized once,
+or at least cleared out (using @code{mpz_clear}) between each initialization.
+@end deftypefun
+
+Here is an example of using @code{mpz_init}:
+
+@example
+@{
+  MP_INT integ;
+  mpz_init (&integ);
+  @dots{}
+  mpz_add (&integ, @dots{});
+  @dots{}
+  mpz_sub (&integ, @dots{});
+
+  /* Unless you are now exiting the program, do ... */
+  mpz_clear (&integ);
+@}
+@end example
+
+@noindent
+As you can see, you can store new values any number of times, once an
+object is initialized.
+
+@deftypefun void mpz_clear (MP_INT *@var{integer})
+Free the limb space occupied by @var{integer}.  Make sure to call this
+function for all @code{MP_INT} variables when you are done with them.
+@end deftypefun
+
+@deftypefun {void *} _mpz_realloc (MP_INT *@var{integer}, mp_size @var{new_alloc})
+Change the limb space allocation to @var{new_alloc} limbs.  This
+function is not normally called from user code, but it can be used to
+give memory back to the heap, or to increase the space of a variable to
+avoid repeated automatic re-allocation.
+@end deftypefun
+
+@deftypefun void mpz_array_init (MP_INT @var{integer_array}[], size_t @var{array_size}, mp_size @var{fixed_num_limbs})
+Allocate @strong{fixed} limb space for all @var{array_size} integers in
+@var{integer_array}.  The fixed allocation for each integer in the array
+is @var{fixed_num_limbs}.  This function is useful for decreasing the
+working set for some algorithms that use large integer arrays.  If the
+fixed space will be insufficient for storing the result of a subsequent
+calculation, the result is unpredictable.
+
+There is no way to de-allocate the storage allocated by this function.  Don't
+call @code{mpz_clear}!
+@end deftypefun
+
+
+@node Assigning Integers, Simultaneous Integer Init & Assign, Initializing Integers, Integer Functions
+@comment  node-name,  next,  previous,  up
+@subsection Integer Assignment Functions
+@cindex Integer assignment functions
+
+These functions assign new values to already initialized integers
+(@pxref{Initializing Integers}).
+
+@deftypefun void mpz_set (MP_INT *@var{dest_integer}, MP_INT *@var{src_integer})
+Assign @var{dest_integer} from @var{src_integer}.
+@end deftypefun
+
+@deftypefun void mpz_set_ui (MP_INT *@var{integer}, unsigned long int @var{initial_value})
+Set the value of @var{integer} from @var{initial_value}.
+@end deftypefun
+
+@deftypefun void mpz_set_si (MP_INT *@var{integer}, signed long int @var{initial_value})
+Set the value of @var{integer} from @var{initial_value}.
+@end deftypefun
+
+@deftypefun int mpz_set_str (MP_INT *@var{integer}, char *@var{initial_value}, int @var{base})
+Set the value of @var{integer} from @var{initial_value},
+a '\0'-terminated C string in base @var{base}.  White space is allowed in
+the string, and is simply ignored.  The base may vary from 2 to 36.  If
+@var{base} is 0, the actual base is determined from the leading characters: if
+the first two characters are `0x' or `0X', hexadecimal is assumed,
+otherwise if the first character is `0', octal is assumed, otherwise
+decimal is assumed.
+
+This function returns 0 if the entire string up to the '\0' is a valid
+number in base @var{base}.  Otherwise it returns @minus{}1.
+@end deftypefun
+
+
+@node Simultaneous Integer Init & Assign, Converting Integers, Assigning Integers, Integer Functions
+@comment  node-name,  next,  previous,  up
+@subsection Combined Initialization and Assignment Functions
+@cindex Initialization and assignment functions, combined
+
+For your convenience, MP provides a parallel series of
+initialize-and-set arithmetic functions which initialize the output and
+then store the value there.  These functions' names have the form
+@code{mpz_init_set@dots{}}.
+
+Here is an example of using one:
+
+@example
+@{
+  MP_INT integ;
+  mpz_init_set_str (&integ, "3141592653589793238462643383279502884", 10);
+  @dots{}
+  mpz_sub (&integ, @dots{});
+
+  mpz_clear (&integ);
+@}
+@end example
+
+Once the integer has been initialized by any of the
+@code{mpz_init_set@dots{}} functions, it can be used as the source or
+destination operand for the ordinary integer functions.  Don't use an
+initialize-and-set function on a variable already initialized!
+
+@deftypefun void mpz_init_set (MP_INT *@var{dest_integer}, MP_INT *@var{src_integer})
+Initialize @var{dest_integer} with limb space and set the initial numeric
+value from @var{src_integer}.
+@end deftypefun
+
+@deftypefun void mpz_init_set_ui (MP_INT *@var{dest_integer}, unsigned long int @var{src_ulong})
+Initialize @var{dest_integer} with limb space and set the initial numeric
+value from @var{src_ulong}.
+@end deftypefun
+
+@deftypefun void mpz_init_set_si (MP_INT *@var{dest_integer}, signed long int @var{src_slong})
+Initialize @var{dest_integer} with limb space and set the initial numeric
+value from @var{src_slong}.
+@end deftypefun
+
+@deftypefun int mpz_init_set_str (MP_INT *@var{dest_integer}, char *@var{src_cstring}, int @var{base})
+Initialize @var{dest_integer} with limb space and set the initial
+numeric value from @var{src_cstring}, a '\0'-terminated C string in base
+@var{base}.  The base may vary from 2 to 36.  There may be white space
+in the string.
+
+If the string is a correct base @var{base} number, the function returns
+0; if an error occurs it returns @minus{}1.  @var{dest_integer} is
+initialized even if an error occurs.  (I.e., you have to call mpz_clear
+for it.)
+@end deftypefun
+
+
+@node Converting Integers,  Integer Arithmetic, Simultaneous Integer Init & Assign, Integer Functions
+@comment  node-name,  next,  previous,  up
+@section Conversion Functions
+@cindex Conversion functions
+
+@deftypefun {unsigned long int} mpz_get_ui (MP_INT *@var{src_integer})
+Return the least significant limb from @var{src_integer}.  This
+function together with @*
+@code{mpz_div_2exp(@dots{}, @var{src_integer}, CHAR_BIT*sizeof(unsigned
+long int))} can be used to extract the limbs of an integer efficiently.
+@end deftypefun
+
+@deftypefun {signed long int} mpz_get_si (MP_INT *@var{src_integer})
+If @var{src_integer} fits into a @code{signed long int} return the value
+of @var{src_integer}.  Otherwise return the least significant bits of
+@var{src_integer}, with the same sign as @var{src_integer}.
+@end deftypefun
+
+@deftypefun {char *} mpz_get_str (char *@var{string}, int @var{base}, MP_INT *@var{integer})
+Convert @var{integer} to a '\0'-terminated C string in @var{string},
+using base @var{base}.  The base may vary from 2 to 36.  If @var{string}
+is NULL, space for the string is allocated using the default allocation
+function.
+
+If @var{string} is not NULL, it should point to a block of storage
+enough large for the result.  To find out the right amount of space to
+provide for @var{string}, use @code{mpz_sizeinbase (@var{integer},
+@var{base}) + 2}.  The "+ 2" is for a possible minus sign, and for the
+terminating null character.  (@pxref{Miscellaneous Functions}).
+
+This function returns a pointer to the result string.
+@end deftypefun
+
+
+@node     Integer Arithmetic, Logic on Integers, Converting Integers, Integer Functions
+@comment  node-name,  next,  previous,  up
+@section Integer Arithmetic Functions
+@cindex Integer arithmetic functions
+@cindex Arithmetic functions
+
+@deftypefun void mpz_add (MP_INT *@var{sum}, MP_INT *@var{addend1}, MP_INT *@var{addend2})
+@end deftypefun
+@deftypefun void mpz_add_ui (MP_INT *@var{sum}, MP_INT *@var{addend1}, unsigned long int @var{addend2})
+Set @var{sum} to @var{addend1} + @var{addend2}.
+@end deftypefun
+
+@deftypefun void mpz_sub (MP_INT *@var{difference}, MP_INT *@var{minuend}, MP_INT *@var{subtrahend})
+@end deftypefun
+@deftypefun void mpz_sub_ui (MP_INT *@var{difference}, MP_INT *@var{minuend}, unsigned long int @var{subtrahend})
+Set @var{difference} to @var{minuend} @minus{} @var{subtrahend}.
+@end deftypefun
+
+@deftypefun void mpz_mul (MP_INT *@var{product}, MP_INT *@var{multiplicator}, MP_INT *@var{multiplicand})
+@end deftypefun
+@deftypefun void mpz_mul_ui (MP_INT *@var{product}, MP_INT *@var{multiplicator}, unsigned long int @var{multiplicand})
+Set @var{product} to @var{multiplicator} times @var{multiplicand}.
+@end deftypefun
+
+Division is undefined if the divisor is zero, and passing a zero divisor
+to the divide or modulo functions, as well passing a zero mod argument
+to the powm functions, will make these functions intentionally divide by
+zero.  This gives the user the possibility to handle arithmetic
+exceptions in these functions in the same manner as other arithmetic
+exceptions.
+
+@deftypefun void mpz_div (MP_INT *@var{quotient}, MP_INT *@var{dividend}, MP_INT *@var{divisor})
+@end deftypefun
+@deftypefun void mpz_div_ui (MP_INT *@var{quotient}, MP_INT *@var{dividend}, unsigned long int @var{divisor})
+Set @var{quotient} to @var{dividend} / @var{divisor}.  The quotient is
+rounded towards 0.
+@end deftypefun
+
+@deftypefun void mpz_mod (MP_INT *@var{remainder}, MP_INT *@var{divdend}, MP_INT *@var{divisor})
+@end deftypefun
+@deftypefun void mpz_mod_ui (MP_INT *@var{remainder}, MP_INT *@var{divdend}, unsigned long int @var{divisor})
+Divide @var{dividend} and @var{divisor} and put the remainder in
+@var{remainder}.  The remainder has the same sign as the dividend, and
+its absolute value is less than the absolute value of the divisor.
+@end deftypefun
+
+@deftypefun void mpz_divmod (MP_INT *@var{quotient}, MP_INT *@var{remainder}, MP_INT *@var{dividend}, MP_INT *@var{divisor})
+@end deftypefun
+@deftypefun void mpz_divmod_ui (MP_INT *@var{quotient}, MP_INT *@var{remainder}, MP_INT *@var{dividend}, unsigned long int @var{divisor})
+Divide @var{dividend} and @var{divisor} and put the quotient in
+@var{quotient} and the remainder in @var{remainder}.  The quotient is
+rounded towards 0.  The remainder has the same sign as the dividend,
+and its absolute value is less than the absolute value of the divisor.
+
+If @var{quotient} and @var{remainder} are the same variable, the results
+are not defined.
+@end deftypefun
+
+@deftypefun void mpz_mdiv (MP_INT *@var{quotient}, MP_INT *@var{dividend}, MP_INT *@var{divisor})
+@end deftypefun
+@deftypefun void mpz_mdiv_ui (MP_INT *@var{quotient}, MP_INT *@var{dividend}, unsigned long int @var{divisor})
+Set @var{quotient} to @var{dividend} / @var{divisor}.  The quotient is
+rounded towards @minus{}infinity.
+@end deftypefun
+
+@deftypefun void mpz_mmod (MP_INT *@var{remainder}, MP_INT *@var{divdend}, MP_INT *@var{divisor})
+@end deftypefun
+@deftypefun {unsigned long int} mpz_mmod_ui (MP_INT *@var{remainder}, MP_INT *@var{divdend}, unsigned long int @var{divisor})
+Divide @var{dividend} and @var{divisor} and put the remainder in
+@var{remainder}.  The remainder is always positive, and its value is
+less than the value of the divisor.
+
+For @code{mpz_mmod_ui} the remainder is returned, and if @var{remainder} is
+not NULL, also stored there.
+@end deftypefun
+
+@deftypefun void mpz_mdivmod (MP_INT *@var{quotient}, MP_INT *@var{remainder}, MP_INT *@var{dividend}, MP_INT *@var{divisor})
+@end deftypefun
+@deftypefun {unsigned long int} mpz_mdivmod_ui (MP_INT *@var{quotient}, MP_INT *@var{remainder}, MP_INT *@var{dividend}, unsigned long int @var{divisor})
+Divide @var{dividend} and @var{divisor} and put the quotient in
+@var{quotient} and the remainder in @var{remainder}.  The quotient is
+rounded towards @minus{}infinity.  The remainder is always positive, and its
+value is less than the value of the divisor.
+
+For @code{mpz_mdivmod_ui} the remainder is small enough to fit in an
+@code{unsigned long int}, and is therefore returned.  If @var{remainder}
+is not NULL, the remainder is also stored there.
+
+If @var{quotient} and @var{remainder} are the same variable, the results
+are not defined.
+@end deftypefun
+
+@deftypefun void mpz_sqrt (MP_INT *@var{root}, MP_INT *@var{operand})
+Set @var{root} to the square root of @var{operand}.  The result is
+rounded towards zero.
+@end deftypefun
+
+@deftypefun void mpz_sqrtrem (MP_INT *@var{root}, MP_INT *@var{remainder}, MP_INT *@var{operand})
+Set @var{root} to the square root of @var{operand}, as with
+@code{mpz_sqrt}.  Set @var{remainder} to
+@ifinfo
+@var{operand}@minus{}@var{root}*@var{root},
+@end ifinfo
+@iftex
+@tex
+$operand - root^2$,
+@end tex
+@end iftex
+(i.e@. zero if @var{operand} is a perfect square).
+
+If @var{root} and @var{remainder} are the same variable, the results are
+not defined.
+@end deftypefun
+
+@deftypefun int mpz_perfect_square_p (MP_INT *@var{square})
+Return non-zero if @var{square} is perfect, i.e@. if the square root of
+@var{square} is integral.  Return zero otherwise.
+@end deftypefun
+
+@deftypefun int mpz_probab_prime_p (MP_INT *@var{n}, int @var{reps})
+An implementation of the probabilistic primality test found in Knuth's
+Seminumerical Algorithms book.  If the function
+@code{mpz_probab_prime_p(@var{n}, @var{reps})} returns 0 then @var{n} is
+not prime.  If it returns 1, then @var{n} is `probably' prime.  The
+probability of a false positive is (1/4)**@var{reps}, where @var{reps}
+is the number of internal passes of the probabilistic algorithm.  Knuth
+indicates that 25 passes are reasonable.
+@end deftypefun
+
+@deftypefun void mpz_powm (MP_INT *@var{res}, MP_INT *@var{base}, MP_INT *@var{exp}, MP_INT *@var{mod})
+@end deftypefun
+@deftypefun void mpz_powm_ui (MP_INT *@var{res}, MP_INT *@var{base}, unsigned long int @var{exp}, MP_INT *@var{mod})
+Set @var{res} to (@var{base} raised to @var{exp}) modulo @var{mod}.
+If @var{exp} is negative, the result is undefined.
+@end deftypefun
+
+@deftypefun void mpz_pow_ui (MP_INT *@var{res}, MP_INT *@var{base}, unsigned long int @var{exp})
+Set @var{res} to @var{base} raised to @var{exp}.
+@end deftypefun
+
+@deftypefun void mpz_fac_ui (MP_INT *@var{res}, unsigned long int @var{n})
+Set @var{res} @var{n}!, the factorial of n.
+@end deftypefun
+
+@deftypefun void mpz_gcd (MP_INT *@var{res}, MP_INT *@var{operand1}, MP_INT *@var{operand2})
+Set @var{res} to the greatest common divisor of @var{operand1} and
+@var{operand2}.
+@end deftypefun
+
+@deftypefun void mpz_gcdext (MP_INT *@var{g}, MP_INT *@var{s}, MP_INT *@var{t}, MP_INT *@var{a}, MP_INT *@var{b})
+Compute @var{g}, @var{s}, and @var{t}, such that @var{a}@var{s} +
+@var{b}@var{t} = @var{g} = @code{gcd} (@var{a}, @var{b}).  If @var{t} is
+NULL, that argument is not computed.
+@end deftypefun
+
+@deftypefun void mpz_neg (MP_INT *@var{negated_operand}, MP_INT *@var{operand})
+Set @var{negated_operand} to @minus{}@var{operand}.
+@end deftypefun
+
+@deftypefun void mpz_abs (MP_INT *@var{positive_operand}, MP_INT *@var{signed_operand})
+Set @var{positive_operand} to the absolute value of @var{signed_operand}.
+@end deftypefun
+
+@deftypefun int mpz_cmp (MP_INT *@var{operand1}, MP_INT *@var{operand2})
+@end deftypefun
+@deftypefun int mpz_cmp_ui (MP_INT *@var{operand1}, unsigned long int @var{operand2})
+@end deftypefun
+@deftypefun int mpz_cmp_si (MP_INT *@var{operand1}, signed long int @var{operand2})
+Compare @var{operand1} and @var{operand2}.  Return a positive value if
+@var{operand1} > @var{operand2}, zero if @var{operand1} = @var{operand2},
+and a negative value if @var{operand1} < @var{operand2}.
+@end deftypefun
+
+@deftypefun void mpz_mul_2exp (MP_INT *@var{product}, MP_INT *@var{multiplicator}, unsigned long int @var{exponent_of_2})
+Set @var{product} to @var{multiplicator} times 2 raised to
+@var{exponent_of_2}.  This operation can also be defined as a left shift,
+@var{exponent_of_2} steps.
+@end deftypefun
+
+@deftypefun void mpz_div_2exp (MP_INT *@var{quotient}, MP_INT *@var{dividend}, unsigned long int @var{exponent_of_2})
+Set @var{quotient} to @var{dividend} divided by 2 raised to
+@var{exponent_of_2}.  This operation can also be defined as a right
+shift, @var{exponent_of_2} steps, but unlike the >> operator in
+C, the result is rounded towards 0.
+@end deftypefun
+
+@deftypefun void mpz_mod_2exp (MP_INT *@var{remainder}, MP_INT *@var{dividend}, unsigned long int @var{exponent_of_2})
+Set @var{remainder} to @var{dividend} mod (2 raised to
+@var{exponent_of_2}).  The sign of @var{remainder} will have the same sign
+as @var{dividend}.
+
+This operation can also be defined as a masking of the
+@var{exponent_of_2} least significant bits.
+@end deftypefun
+
+@node Logic on Integers, I/O of Integers, Integer Arithmetic, Integer Functions
+@comment  node-name,  next,  previous,  up
+@section Logical Functions
+@cindex Logical functions
+
+@deftypefun void mpz_and (MP_INT *@var{conjunction}, MP_INT *@var{operand1}, MP_INT *@var{operand2})
+Set @var{conjunction} to @var{operand1} logical-and @var{operand2}.
+@end deftypefun
+
+@deftypefun void mpz_ior (MP_INT *@var{disjunction}, MP_INT *@var{operand1}, MP_INT *@var{operand2})
+Set @var{disjunction} to @var{operand1} inclusive-or @var{operand2}.
+@end deftypefun
+
+@deftypefun void mpz_xor (MP_INT *@var{disjunction}, MP_INT *@var{operand1}, MP_INT *@var{operand2})
+Set @var{disjunction} to @var{operand1} exclusive-or @var{operand2}.
+
+This function is missing in the current release.
+@end deftypefun
+
+@deftypefun void mpz_com (MP_INT *@var{complemented_operand}, MP_INT *@var{operand})
+Set @var{complemented_operand} to the one's complement of @var{operand}.
+@end deftypefun
+
+@node I/O of Integers,, Logic on Integers, Integer Functions
+@comment  node-name,  next,  previous,  up
+@section Input and Output Functions
+@cindex Input and output functions
+@cindex Output functions
+@cindex I/O functions
+
+Functions that perform input from a standard I/O stream, and functions for
+output conversion.
+
+@deftypefun void mpz_inp_raw (MP_INT *@var{integer}, FILE *@var{stream})
+Input from standard I/O stream @var{stream} in the format written by
+@code{mpz_out_raw}, and put the result in @var{integer}.
+@end deftypefun
+
+@deftypefun void mpz_inp_str (MP_INT *@var{integer}, FILE *@var{stream}, int @var{base})
+Input a string in base @var{base} from standard I/O stream @var{stream},
+and put the read integer in @var{integer}.  The base may vary from 2 to
+36.  If @var{base} is 0, the actual base is determined from the leading
+characters: if the first two characters are `0x' or `0X', hexadecimal is
+assumed, otherwise if the first character is `0', octal is assumed,
+otherwise decimal is assumed.
+@end deftypefun
+
+
+@deftypefun void mpz_out_raw (FILE *@var{stream}, MP_INT *@var{integer})
+Output @var{integer} on standard I/O stream @var{stream}, in raw binary
+format.  The integer is written in a portable format, with 4 bytes of
+size information, and that many bytes of limbs.  Both the size and the
+limbs are written in decreasing significance order.
+@end deftypefun
+
+@deftypefun void mpz_out_str (FILE *@var{stream}, int @var{base}, MP_INT *@var{integer})
+Output @var{integer} on standard I/O stream @var{stream}, as a string of
+digits in base @var{base}.  The base may vary from 2 to 36.
+@end deftypefun
+
+
+@node Rational Number Functions, Low-level Functions, Integer Functions, Top
+@comment  node-name,  next,  previous,  up
+@chapter Rational Number Functions
+@cindex Rational number functions
+
+All rational arithmetic functions canonicalize the result, so that the
+denominator and the numerator have no common factors.  Zero has the
+unique representation 0/1.
+
+The set of functions is quite small.  Maybe it will be extended in a
+future release.
+
+@deftypefun void mpq_init (MP_RAT *@var{dest_rational})
+Initialize @var{dest_rational} with limb space and set the initial
+numeric value to 0/1.  Each variable should normally only be initialized
+once, or at least cleared out (using the function @code{mpq_clear})
+between each initialization.
+@end deftypefun
+
+@deftypefun void mpq_clear (MP_RAT *@var{rational_number})
+Free the limb space occupied by @var{rational_number}.  Make sure to
+call this function for all @code{MP_RAT} variables when you are done
+with them.
+@end deftypefun
+
+@deftypefun void mpq_set (MP_RAT *@var{dest_rational}, MP_RAT *@var{src_rational})
+Assign @var{dest_rational} from @var{src_rational}.
+@end deftypefun
+
+@deftypefun void mpq_set_ui (MP_RAT *@var{rational_number}, unsigned long int @var{numerator}, unsigned long int @var{denominator})
+Set the value of @var{rational_number} to
+@var{numerator}/@var{denominator}.  If @var{numerator} and
+@var{denominator} have common factors, they are divided out before
+@var{rational_number} is assigned.
+@end deftypefun
+
+@deftypefun void mpq_set_si (MP_RAT *@var{rational_number}, signed long int @var{numerator}, unsigned long int @var{denominator})
+Like @code{mpq_set_ui}, but @var{numerator} is signed.
+@end deftypefun
+
+@deftypefun void mpq_add (MP_RAT *@var{sum}, MP_RAT *@var{addend1}, MP_RAT *@var{addend2})
+Set @var{sum} to @var{addend1} + @var{addend2}.
+@end deftypefun
+
+@deftypefun void mpq_sub (MP_RAT *@var{difference}, MP_RAT *@var{minuend}, MP_RAT *@var{subtrahend})
+Set @var{difference} to @var{minuend} @minus{} @var{subtrahend}.
+@end deftypefun
+
+@deftypefun void mpq_mul (MP_RAT *@var{product}, MP_RAT *@var{multiplicator}, MP_RAT *@var{multiplicand})
+Set @var{product} to @var{multiplicator} * @var{multiplicand}
+@end deftypefun
+
+@deftypefun void mpq_div (MP_RAT *@var{quotient}, MP_RAT *@var{dividend}, MP_RAT *@var{divisor})
+Set @var{quotient} to @var{dividend} / @var{divisor}.
+@end deftypefun
+
+@deftypefun void mpq_neg (MP_RAT *@var{negated_operand}, MP_RAT *@var{operand})
+Set @var{negated_operand} to @minus{}@var{operand}.
+@end deftypefun
+
+@deftypefun int mpq_cmp (MP_RAT *@var{operand1}, MP_RAT *@var{operand2})
+Compare @var{operand1} and @var{operand2}.  Return a positive value if
+@var{operand1} > @var{operand2}, zero if @var{operand1} = @var{operand2},
+and a negative value if @var{operand1} < @var{operand2}.
+@end deftypefun
+
+@deftypefun void mpq_inv (MP_RAT *@var{inverted_number}, MP_RAT *@var{number})
+Invert @var{number} by swapping the numerator and denominator.  If the
+new denominator becomes zero, this routine will divide by zero.
+@end deftypefun
+
+@deftypefun void mpq_set_num (MP_RAT *@var{rational_number}, MP_INT *@var{numerator})
+Make @var{numerator} become the numerator of @var{rational_number} by
+copying.
+@end deftypefun
+
+@deftypefun void mpq_set_den (MP_RAT *@var{rational_number}, MP_INT *@var{denominator})
+Make @var{denominator} become the denominator of @var{rational_number}
+by copying.  If @var{denominator} < 0 the denominator of
+@var{rational_number} is set to the absolute value of @var{denominator},
+and the sign of the numerator of @var{rational_number} is changed.
+@end deftypefun
+
+@deftypefun void mpq_get_num (MP_INT *@var{numerator}, MP_RAT *@var{rational_number})
+Copy the numerator of @var{rational_number} to the integer
+@var{numerator}, to prepare for integer operations on the numerator.
+@end deftypefun
+
+@deftypefun void mpq_get_den (MP_INT *@var{denominator}, MP_RAT *@var{rational_number})
+Copy the denominator of @var{rational_number} to the integer
+@var{denominator}, to prepare for integer operations on the denominator.
+@end deftypefun
+
+
+@node Low-level Functions, BSD Compatible Functions, Rational Number Functions, Top
+@comment  node-name,  next,  previous,  up
+@chapter Low-level Functions
+@cindex Low-level functions
+
+@c 1. Some of these function clobber input operands.
+@c 
+
+@strong{The next release of the GNU MP library (2.0) will include
+changes to some mpn functions.  Programs that use these functions
+according to the descriptions below will therefore not work with the
+next release.}
+
+The low-level function layer is designed to be as fast as possible,
+@strong{not} to provide a coherent calling interface.  The different
+functions have similar interfaces, but there are variations that might
+be confusing.  These functions do as little as possible apart from the
+real multiple precision computation, so that no time is spent on things
+that not all callers need.
+
+A source operand is specified by a pointer to the least significant limb
+and a limb count.  A destination operand is specified by just a pointer.
+It is the responsability of the caller to ensure that the destination
+has enough space for storing the result.
+
+With this way of specifying source operands, it is possible to perform
+computations on subranges of an argument, and store the result into a
+subrange of a destination.
+
+All these functions require that the operands are normalized in the
+sense that the most significant limb must be non-zero.  (A future release
+of might drop this requirement.)
+
+The low-level layer is the base for the implementation of the
+@code{mpz_} and @code{mpq_} layers.
+
+The code below adds the number beginning at @var{src1_ptr} and the
+number beginning at @var{src2_ptr} and writes the sum at @var{dest_ptr}.
+A constraint for @code{mpn_add} is that @var{src1_size} must not be
+smaller that @var{src2_size}.
+
+@example
+mpn_add (dest_ptr, src1_ptr, src1_size, src2_ptr, src2_size)
+@end example
+
+In the description below, a source operand is identified by the pointer
+to the least significant limb, and the limb count in braces.
+
+@deftypefun mp_size mpn_add (mp_ptr @var{dest_ptr}, mp_srcptr @var{src1_ptr}, mp_size @var{src1_size}, mp_srcptr @var{src2_ptr}, mp_size @var{src2_size})
+Add @{@var{src1_ptr}, @var{src1_size}@} and @{@var{src2_ptr},
+@var{src2_size}@}, and write the @var{src1_size} least significant limbs
+of the result to @var{dest_ptr}.  Carry-out, either 0 or 1, is returned.
+
+This function requires that @var{src1_size} is greater than or equal to
+@var{src2_size}.
+@end deftypefun
+
+@deftypefun mp_size mpn_sub (mp_ptr @var{dest_ptr}, mp_srcptr @var{src1_ptr}, mp_size @var{src1_size}, mp_srcptr @var{src2_ptr}, mp_size @var{src2_size})
+Subtarct @{@var{src2_ptr}, @var{src2_size}@} from @{@var{src1_ptr},
+@var{src1_size}@}, and write the result to @var{dest_ptr}.
+
+Return 1 if the minuend < the subtrahend.  Otherwise, return the
+negative difference between the number of words in the result and the
+minuend.  I.e@. return 0 if the result has @var{src1_size} words, @minus{}1 if
+it has @var{src1_size} @minus{} 1 words, etc.
+
+This function requires that @var{src1_size} is greater than or equal to
+@var{src2_size}.
+@end deftypefun
+
+@deftypefun mp_size mpn_mul (mp_ptr @var{dest_ptr}, mp_srcptr @var{src1_ptr}, mp_size @var{src1_size}, mp_srcptr @var{src2_ptr}, mp_size @var{src2_size})
+Multiply @{@var{src1_ptr}, @var{src1_size}@} and @{@var{src2_ptr},
+@var{src2_size}@}, and write the result to @var{dest_ptr}.  The exact
+size of the result is returned.
+
+The destination has to have space for @var{src1_size} + @var{src1_size}
+limbs, even if the result might be one limb smaller.
+
+This function requires that @var{src1_size} is greater than or equal to
+@var{src2_size}.  The destination must be distinct from either input
+operands.
+@end deftypefun
+
+@deftypefun mp_size mpn_div (mp_ptr @var{dest_ptr}, mp_ptr @var{src1_ptr}, mp_size @var{src1_size}, mp_srcptr @var{src2_ptr}, mp_size @var{src2_size})
+Divide @{@var{src1_ptr}, @var{src1_size}@} by @{@var{src2_ptr},
+@var{src2_size}@}, and write the quotient to @var{dest_ptr}, and the
+remainder to @var{src1_ptr}.
+
+Return 0 if the quotient size is at most (@var{src1_size} @minus{}
+@var{src2_size}), and 1 if the quotient size is at most (@var{src1_size}
+@minus{} @var{src2_size} + 1).  The caller has to check the most significant limb
+to find out the exact size.
+
+The most significant bit of the most significant limb of the divisor
+has to be set.
+
+This function requires that @var{src1_size} is greater than or equal to
+@var{src2_size}.  The quotient, pointed to by @var{dest_ptr}, must be
+distinct from either input operands.
+@end deftypefun
+
+@deftypefun mp_limb mpn_lshift (mp_ptr @var{dest_ptr}, mp_srcptr @var{src_ptr}, mp_size @var{src_size}, unsigned long int @var{count})
+Shift @{@var{src_ptr}, @var{src_size}@} @var{count} bits to the left, and
+write the @var{src_size} least significant limbs of the result to
+@var{dest_ptr}.  @var{count} might be in the range 1 to n @minus{} 1, on an n-bit
+machine. The limb shifted out is returned.
+
+Overlapping of the destination space and the source space is allowed in this
+function, provdied @var{dest_ptr} >= @var{src_ptr}.
+@end deftypefun
+
+@deftypefun mp_size mpn_rshift (mp_ptr @var{dest_ptr}, mp_srcptr @var{src_ptr}, mp_size @var{src_size}, unsigned long int @var{count})
+Shift @{@var{src_ptr}, @var{src_size}@} @var{count} bits to the right, and
+write the @var{src_size} least significant limbs of the result to
+@var{dest_ptr}.  @var{count} might be in the range 1 to n @minus{} 1, on an n-bit
+machine. The size of the result is returned.
+
+Overlaping of the destination space and the source space is allowed in this
+function, provdied @var{dest_ptr} <= @var{src_ptr}.
+@end deftypefun
+
+@deftypefun mp_size mpn_rshiftci (mp_ptr @var{dest_ptr}, mp_srcptr @var{src_ptr}, mp_size @var{src_size}, unsigned long int @var{count}, mp_limb @var{inlimb})
+Like mpn_rshift, but use @var{inlimb} to feed the least significant end
+of the destination.
+@end deftypefun
+
+@deftypefun int mpn_cmp (mp_srcptr @var{src1_ptr}, mp_srcptr @var{src2_ptr}, mp_size @var{size})
+Compare @{@var{src1_ptr}, @var{size}@} and @{@var{src2_ptr}, @var{size}@}
+and return a positive value if src1 > src2, 0 of they are equal,
+and a negative value if src1 < src2.
+@end deftypefun
+
+
+@node BSD Compatible Functions, Miscellaneous Functions, Low-level Functions, Top
+@comment  node-name,  next,  previous,  up
+@chapter Berkeley MP Compatible Functions
+@cindex BSD MP compatible functions
+
+These functions are intended to be fully compatible with the Berkeley MP
+library which is available on many BSD derived U*ix systems.
+
+The original Berkeley MP library has a usage restriction: you cannot use
+the same variable as both source and destination in a single function
+call.  The compatible functions in GNU MP do not share this
+restriction---inputs and outputs may overlap.
+
+It is not recommended that new programs are written using these
+functions.  Apart from the incomplete set of functions, the interface
+for initializing @code{MINT} objects is more error prone, and the
+@code{pow} function collides with @code{pow} in @file{libm.a}.
+
+Include the header @file{mp.h} to get the definition of the necessary
+types and functions.  If you are on a BSD derived system, make sure to
+include GNU @file{mp.h} if you are going to link the GNU @file{libmp.a}
+to you program.  This means that you probably need to give the -I<dir>
+option to the compiler, where <dir> is the directory where you have GNU
+@file{mp.h}.
+
+@deftypefun {MINT *} itom (signed short int @var{initial_value})
+Allocate an integer consisting of a @code{MINT} object and dynamic limb
+space.  Initialize the integer to @var{initial_value}.  Return a pointer
+to the @code{MINT} object.
+@end deftypefun
+
+@deftypefun {MINT *} xtom (char *@var{initial_value})
+Allocate an integer consisting of a @code{MINT} object and dynamic limb
+space.  Initialize the integer from @var{initial_value}, a hexadecimal,
+'\0'-terminate C string.  Return a pointer to the @code{MINT} object.
+@end deftypefun
+
+@deftypefun void move (MINT *@var{src}, MINT *@var{dest})
+Set @var{dest} to @var{src} by copying.  Both variables must be
+previously initialized.
+@end deftypefun
+
+@deftypefun void madd (MINT *@var{src_1}, MINT *@var{src_2}, MINT *@var{destination})
+Add @var{src_1} and @var{src_2} and put the sum in @var{destination}.
+@end deftypefun
+
+@deftypefun void msub (MINT *@var{src_1}, MINT *@var{src_2}, MINT *@var{destination})
+Subtract @var{src_2} from @var{src_1} and put the difference in
+@var{destination}.
+@end deftypefun
+
+@deftypefun void mult (MINT *@var{src_1}, MINT *@var{src_2}, MINT *@var{destination})
+Multiply @var{src_1} and @var{src_2} and put the product in
+@var{destination}.
+@end deftypefun
+
+@deftypefun void mdiv (MINT *@var{dividend}, MINT *@var{divisor}, MINT *@var{quotient}, MINT *@var{remainder})
+@end deftypefun
+@deftypefun void sdiv (MINT *@var{dividend}, signed short int @var{divisor}, MINT *@var{quotient}, signed short int *@var{remainder})
+Set @var{quotient} to @var{dividend} / @var{divisor}, and
+@var{remainder} to @var{dividend} mod @var{divisor}.  The quotient is
+rounded towards zero; the remainder has the same sign as the dividend.
+
+Some implementations of this function return a remainder whose sign is
+inverted if the divisor is negative.  Such a definition makes little
+sense from a mathematical point of view.  GNU MP might be considered
+incompatible with the traditional MP in this respect.
+@end deftypefun
+
+@deftypefun void msqrt (MINT *@var{operand}, MINT *@var{root}, MINT *@var{remainder})
+Set @var{root} to the square root of @var{operand}, as with
+@code{mpz_sqrt}.  Set @var{remainder} to
+@ifinfo
+@var{operand}-@var{root}*@var{root},
+@end ifinfo
+@iftex
+@tex
+$operand - root^2$,
+@end tex
+@end iftex
+(i.e@. zero if @var{operand} is a perfect square).
+@end deftypefun
+
+@deftypefun void pow (MINT *@var{base}, MINT *@var{exp}, MINT *@var{mod}, MINT *@var{dest})
+Set @var{dest} to (@var{base} raised to @var{exp}) modulo @var{mod}.
+@end deftypefun
+
+@deftypefun void rpow (MINT *@var{base}, signed short int @var{exp}, MINT *@var{dest})
+Set @var{dest} to @var{base} raised to @var{exp}.
+@end deftypefun
+
+@deftypefun void gcd (MINT *@var{operand1}, MINT *@var{operand2}, MINT *@var{res})
+Set @var{res} to the greatest common divisor of @var{operand1} and
+@var{operand2}.
+@end deftypefun
+
+@deftypefun int mcmp (MINT *@var{operand1}, MINT *@var{operand2})
+Compare @var{operand1} and @var{operand2}.  Return a positive value if
+@var{operand1} > @var{operand2}, zero if @var{operand1} =
+@var{operand2}, and a negative value if @var{operand1} < @var{operand2}.
+@end deftypefun
+
+@deftypefun void min (MINT *@var{dest})
+Input a decimal string from stdin, and put the read integer in
+@var{dest}.  SPC and TAB are allowed in the number string, and are
+ignored.
+@end deftypefun
+
+@deftypefun void mout (MINT *@var{src})
+Output @var{src} to stdout, as a decimal string.  Also output a newline.
+@end deftypefun
+
+@deftypefun {char *} mtox (MINT *@var{operand})
+Convert @var{operand} to a hexadecimal string, and return a pointer to
+the string.  The returned string is allocated using the default memory
+allocation function, @code{malloc} by default. (@xref{Initialization},
+for an explanation of the memory allocation in MP).
+@end deftypefun
+
+@deftypefun void mfree (MINT *@var{operand})
+De-allocate, the space used by @var{operand}.  @strong{This function
+should only be passed a value returned by @code{itom} or @code{xtom}.}
+@end deftypefun
+
+@node Miscellaneous Functions, Custom Allocation, BSD Compatible Functions, Top
+@comment  node-name,  next,  previous,  up
+@chapter Miscellaneous Functions
+@cindex Miscellaneous functions
+
+@deftypefun void mpz_random (MP_INT *@var{random_integer}, mp_size @var{max_size})
+Generate a random integer of at most @var{max_size} limbs.  The generated
+random number doesn't satisfy any particular requirements of randomness.
+@end deftypefun
+
+@deftypefun void mpz_random2 (MP_INT *@var{random_integer}, mp_size @var{max_size})
+Generate a random integer of at most @var{max_size} limbs, with long
+strings of zeros and ones in the binary representation.  Useful for
+testing functions and algorithms, since this kind of random numbers have
+proven to be more likely to trigger bugs.
+@end deftypefun
+
+@deftypefun size_t mpz_size (MP_INT *@var{integer})
+Return the size of @var{integer} measured in number of limbs.  If
+@var{integer} is zero, the returned value will be zero, if @var{integer}
+has one limb, the returned value will be one, etc.
+(@xref{Nomenclature}, for an explanation of the concept @dfn{limb}.)
+@end deftypefun
+
+@deftypefun size_t mpz_sizeinbase (MP_INT *@var{integer}, int @var{base})
+Return the size of @var{integer} measured in number of digits in base
+@var{base}.  The base may vary from 2 to 36.  The returned value will be
+exact or 1 too big.  If @var{base} is a power of 2, the returned value
+will always be exact.
+
+This function is useful in order to allocate the right amount of space
+before converting @var{integer} to a string.  The right amount of
+allocation is normally two more than the value returned by
+@code{mpz_sizeinbase} (one extra for a minus sign and one for the
+terminating '\0').
+@end deftypefun
+
+@node Custom Allocation, Reporting Bugs, Miscellaneous Functions, Top
+@comment  node-name,  next,  previous,  up
+@section Custom Allocation
+
+By default, the initialization functions use @code{malloc},
+@code{realloc}, and @code{free} to do their work.  If @code{malloc} or
+@code{realloc} fails, the MP package terminates execution after a
+printing fatal error message on standard error.
+
+In some applications, you may wish to allocate memory in other ways, or
+you may not want to have a fatal error when there is no more memory
+available.  To accomplish this, you can specify alternative functions
+for allocating and de-allocating memory.  Use
+@code{mp_set_memory_functions} to do this.
+
+@findex mp_set_memory_functions
+@code{mp_set_memory_functions} has three arguments,
+@var{allocate_function}, @var{reallocate_function}, and
+@var{deallocate_function}, in that order.  If an argument is NULL,
+the corresponding default function is retained.
+
+The functions you supply should fit the following declarations:
+
+@table @code
+@item void * @var{allocate_function} (size_t @var{alloc_size})
+This function should return a pointer to newly allocated space with at
+least @var{alloc_size} storage units.
+
+@item void * @var{reallocate_function} (void *@var{ptr}, size_t @var{old_size}, size_t @var{new_size})
+This function should return a pointer to newly allocated space of at
+least @var{new_size} storage units, after copying the first
+@var{old_size} storage units from @var{ptr}.  It should also de-allocate the
+space at @var{ptr}.
+
+You can assume that the space at @var{ptr} was formely returned from
+@var{allocate_function} or @var{reallocate_function}, for a
+request for @var{old_size} storage units.
+
+@item void @var{deallocate_function} (void *@var{ptr}, size_t @var{size})
+De-allocate the space pointed to by @var{ptr}.
+
+You can assume that the space at @var{ptr} was formely returned from
+@var{allocate_function} or @var{reallocate_function}, for a
+request for @var{size} storage units.
+@end table
+
+(A @dfn{storage unit} is the unit in which the @code{sizeof} operator
+returns the size of an object, normally an 8 bit byte.)
+
+@strong{NOTE: call @code{mp_set_memory_functions} only before calling
+any other MP functions.} Otherwise, the user-defined allocation
+functions may be asked to re-allocate or de-allocate something
+previously allocated by the default allocation functions.
+
+@node Reporting Bugs, , Custom Allocation, Top
+@comment  node-name,  next,  previous,  up
+@chapter Reporting Bugs
+@cindex Reporting bugs
+
+If you think you have found a bug in the GNU MP library, please
+investigate it and report it.  We have made this library available to
+you, and it is not to ask too much from you, to ask you to report the
+bugs that you find.
+
+Please make sure that the bug is really in the GNU MP library.
+
+You have to send us a test case that makes it possible for us to
+reproduce the bug.
+
+You also have to explain what is wrong; if you get a crash, or if the
+results printed are not good and in that case, in what way.
+
+Make sure that the bug report includes all information you would
+need to fix this kind of bug for someone else.  Think twice.
+
+If your bug report is good, we will do our best to help you to get a
+corrected version of the library; if the bug report is poor, we won't do
+anything about it (aside of chiding you to send better bug reports).
+
+Send your bug report to: tege@@gnu.ai.mit.edu.
+
+If you think something in this manual is unclear, or downright
+incorrect, or if the language needs to be improved, please send a note
+to the same address.
+
+
+@node References, , , Top
+@comment  node-name,  next,  previous,  up
+@unnumbered References
+
+@itemize @bullet
+
+@item
+Donald E@. Knuth, "The Art of Computer Programming", vol 2,
+"Seminumerical Algorithms", 2nd edition, Addison-Wesley, 1981.
+
+@item
+John D@. Lipson, "Elements of Algebra and Algebraic Computing",
+The Benjamin Cummins Publishing Company Inc, 1981.
+
+@item
+Richard M@. Stallman, "Using and Porting GCC", Free Software Foundation,
+1993.
+
+@item
+Peter L@. Montgomery, "Modular Multiplication Without Trial Division",
+Mathematics of Computation, volume 44, number 170, April 1985.
+
+@end itemize
+
+@node Concept Index, , , Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Concept Index
+@printindex cp
+
+@node Function Index, , , Top
+@comment  node-name,  next,  previous,  up
+@unnumbered Function and Type Index
+@printindex fn
+
+
+@contents
+@bye
