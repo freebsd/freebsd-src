@@ -59,6 +59,7 @@ static char sccsid[] = "@(#)commands.c	8.2 (Berkeley) 12/15/93";
 #include <errno.h>
 
 #include <arpa/telnet.h>
+#include <arpa/inet.h>
 
 #include "general.h"
 
@@ -2093,8 +2094,6 @@ ayt_status()
 }
 #endif
 
-unsigned long inet_addr();
-
 int
 tn(argc, argv)
     int argc;
@@ -2104,7 +2103,6 @@ tn(argc, argv)
     struct sockaddr_in sin;
     struct servent *sp = 0;
     unsigned long temp;
-    extern char *inet_ntoa();
 #if	defined(IP_OPTIONS) && defined(IPPROTO_IP)
     char *srp = 0, *strrchr();
     unsigned long sourceroute(), srlen;
