@@ -595,6 +595,8 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			u_int32_t id;
 			u_int8_t class, subclass, busnum;
 			const char *s;
+			device_t *devs;
+			int ndevs, i;
 
 			id = nexus_pcib_read_config(0, bus, slot, func,
 						    PCIR_DEVVENDOR, 4);
@@ -608,26 +610,48 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			s = nexus_pcib_is_host_bridge(bus, slot, func,
 						      id, class, subclass,
 						      &busnum);
-			if (s) {
-				/*
-				 * Add at priority 100 to make sure we
-				 * go after any motherboard resources
-				 */
-				child = BUS_ADD_CHILD(parent, 100,
-						      "pcib", busnum);
-				device_set_desc(child, s);
+			if (s == NULL)
+				continue;
 
-				ivar = malloc(sizeof ivar[0], M_DEVBUF,
-					      M_NOWAIT);
-				if (ivar == NULL)
-					panic("out of memory");
-				device_set_ivars(child, ivar);
-				ivar[0] = busnum;
-
-				found = 1;
-				if (id == 0x12258086)
-					found824xx = 1;
+			/*
+			 * Check to see if the physical bus has already
+			 * been seen.  Eg: hybrid 32 and 64 bit host
+			 * bridges to the same logical bus.
+			 */
+			if (device_get_children(parent, &devs, &ndevs) == 0) {
+				for (i = 0; s != NULL && i < ndevs; i++) {
+					if (strcmp(device_get_name(devs[i]),
+					    "pcib") != 0)
+						continue;
+					ivar = device_get_ivars(devs[i]);
+					if (ivar == NULL)
+						continue;
+					if (busnum == *ivar)
+						s = NULL;
+				}
+				free(devs, M_TEMP);
 			}
+
+			if (s == NULL)
+				continue;
+			/*
+			 * Add at priority 100 to make sure we
+			 * go after any motherboard resources
+			 */
+			child = BUS_ADD_CHILD(parent, 100,
+					      "pcib", busnum);
+			device_set_desc(child, s);
+
+			ivar = malloc(sizeof ivar[0], M_DEVBUF,
+				      M_NOWAIT);
+			if (ivar == NULL)
+				panic("out of memory");
+			device_set_ivars(child, ivar);
+			ivar[0] = busnum;
+
+			found = 1;
+			if (id == 0x12258086)
+				found824xx = 1;
 		}
 	}
 	if (found824xx && bus == 0) {
@@ -733,6 +757,52 @@ static driver_t nexus_pcib_driver = {
 };
 
 DRIVER_MODULE(pcib, nexus, nexus_pcib_driver, pcib_devclass, 0, 0);
+
+
+/*
+ * Provide a device to "eat" the host->pci bridges that we dug up above
+ * and stop them showing up twice on the probes.  This also stops them
+ * showing up as 'none' in pciconf -l.
+ */
+static int
+pci_hostb_probe(device_t dev)
+{
+
+	if (pci_get_class(dev) == PCIC_BRIDGE &&
+	    pci_get_subclass(dev) == PCIS_BRIDGE_HOST) {
+		device_set_desc(dev, "Host to PCI bridge");
+		device_quiet(dev);
+		return 0;
+	}
+	return ENXIO;
+}
+
+static int
+pci_hostb_attach(device_t dev)
+{
+
+	return 0;
+}
+
+static device_method_t pci_hostb_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		pci_hostb_probe),
+	DEVMETHOD(device_attach,	pci_hostb_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	{ 0, 0 }
+};
+static driver_t pci_hostb_driver = {
+	"hostb",
+	pci_hostb_methods,
+	1,
+};
+static devclass_t pci_hostb_devclass;
+
+DRIVER_MODULE(hostb, pci, pci_hostb_driver, pci_hostb_devclass, 0, 0);
+
 
 /*
  * Install placeholder to claim the resources owned by the
