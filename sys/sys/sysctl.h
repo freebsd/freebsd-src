@@ -342,7 +342,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_BOOTTIME		21	/* struct: time kernel was booted */
 #define KERN_NISDOMAINNAME	22	/* string: YP domain name */
 #define KERN_UPDATEINTERVAL	23	/* int: update process sleep time */
-#define KERN_OSRELDATE		24	/* int: OS release date */
+#define KERN_OSRELDATE		24	/* int: kernel release date */
 #define KERN_NTP_PLL		25	/* node: NTP PLL control */
 #define	KERN_BOOTFILE		26	/* string: name of booted kernel */
 #define	KERN_MAXFILESPERPROC	27	/* int: max open files per proc */
