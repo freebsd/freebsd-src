@@ -893,7 +893,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	/* Copy the bus tag and handle from the pre-allocated resource. */
 	rman_set_bustag(res, rman_get_bustag(rle->res));
-	rman_set_bushandle(res, rman_get_bushandle(res));
+	rman_set_bushandle(res, rman_get_start(res));
 
 	/* If requested, activate the resource using the parent's method. */
 	if (flags & RF_ACTIVE)
