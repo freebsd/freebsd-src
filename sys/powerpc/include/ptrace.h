@@ -31,11 +31,19 @@
  * SUCH DAMAGE.
  *
  *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
- * $Id$
+ * $Id: ptrace.h,v 1.2 1994/08/02 07:38:57 davidg Exp $
  */
+
+#ifndef _MACHINE_PTRACE_H_
+#define _MACHINE_PTRACE_H_
 
 /*
  * Machine dependent trace commands.
- *
- * None for the i386 at this time.
  */
+#define PT_GETREGS      (PT_FIRSTMACH + 1)
+#define PT_SETREGS      (PT_FIRSTMACH + 2)
+#define PT_GETFPREGS    (PT_FIRSTMACH + 3)
+#define PT_SETFPREGS    (PT_FIRSTMACH + 4)
+
+#endif
+
