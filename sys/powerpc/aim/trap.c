@@ -467,7 +467,7 @@ trap_pfault(struct trapframe *frame, int user)
 			return (SIGSEGV);
 		map = kernel_map;
 	} else {
-		sr_t user_sr;
+		u_int user_sr;
 
 		if (p->p_vmspace == NULL)
 			return (SIGSEGV);

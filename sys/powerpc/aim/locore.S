@@ -64,7 +64,7 @@
 
 #include <machine/trap.h>
 #include <machine/param.h>
-#include <machine/pmap.h>
+#include <machine/sr.h>
 #include <machine/psl.h>
 #include <machine/asm.h>
 
@@ -984,7 +984,7 @@ s_dsitrap:
 	mfctr	31			/* & CTR */
 	mfdar	3
 s_pte_spill:
-	bl	pte_spill		/* try a spill */
+	bl	pmap_pte_spill		/* try a spill */
 	or.	3,3,3
 	mtctr	31			/* restore CTR */
 	mtlr	30			/* and trap type */
@@ -1071,8 +1071,8 @@ s_isitrap:
 	stw	4,12(1);						\
 	stw	3,8(1);							\
 /* interrupts are recoverable here, and enable translation */		\
-	lis	3,(KERNEL_SEGMENT|SR_SUKEY|SR_PRKEY)@h;			\
-	ori	3,3,(KERNEL_SEGMENT|SR_SUKEY|SR_PRKEY)@l;		\
+	lis	3,(KERNEL_SEGMENT|SR_KS|SR_KP)@h;			\
+	ori	3,3,(KERNEL_SEGMENT|SR_KS|SR_KP)@l;			\
 	mtsr	KERNEL_SR,3;						\
 	mfmsr	5;							\
 	ori	5,5,(PSL_IR|PSL_DR|PSL_RI);				\
