@@ -634,7 +634,7 @@ ia64_print_I19(const char *name, u_int64_t ins, db_addr_t loc)
 {
 	union ia64_instruction u;
 	u.ins = ins;
-	db_printf("%s %x",
+	db_printf("%s 0x%x",
 		  name,
 		  (u.I19.i << 20) | u.I19.imm20a);
 }
@@ -1420,7 +1420,7 @@ ia64_print_B9(const char *name, u_int64_t ins, db_addr_t loc)
 {
 	union ia64_instruction u;
 	u.ins = ins;
-	db_printf("%s %x",
+	db_printf("%s 0x%x",
 		  name,
 		  (u.B9.i << 20) | u.B9.imm20a);
 }
@@ -1710,7 +1710,7 @@ static struct ia64_opcode A_opcodes[] = {
 
 	/* Table 4-9 */
 	{"add",		OPX2aVeX4X2b(8,0,0,0,0),	ia64_print_A1},
-	{"add",		OPX2aVeX4X2b(8,0,0,0,0),	ia64_print_A1_comma1},
+	{"add",		OPX2aVeX4X2b(8,0,0,0,1),	ia64_print_A1_comma1},
 	{"sub",		OPX2aVeX4X2b(8,0,0,1,0),	ia64_print_A1_comma1},
 	{"sub",		OPX2aVeX4X2b(8,0,0,1,1),	ia64_print_A1},
 	{"addp4",	OPX2aVeX4X2b(8,0,0,2,0),	ia64_print_A1},
