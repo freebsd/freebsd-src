@@ -135,21 +135,31 @@ pci_cfgregopen(void)
 
     /*
      * Look for the interrupt routing table.
+     *
+     * We use PCI BIOS's PIR table if it's available $PIR is the
+     * standard way to do this.  Sadly, some machines are not
+     * standards conforming and have _PIR instead.  We shrug and cope
+     * by looking for both.
      */
-    /* We use PCI BIOS's PIR table if it's available */
-    if (pcibios_get_version() >= 0x0210 && pt == NULL && 
-      (sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0)) != 0) {
-	pt = (struct PIR_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
-	for (cv = (u_int8_t *)pt, ck = 0, i = 0; i < (pt->pt_header.ph_length); i++) {
-	    ck += cv[i];
-	}
-	if (ck == 0) {
-	    pci_route_table = pt;
-	    pci_route_count = (pt->pt_header.ph_length - sizeof(struct PIR_header)) / sizeof(struct PIR_entry);
-	    printf("Using $PIR table, %d entries at %p\n", pci_route_count, pci_route_table);
+    if (pcibios_get_version() >= 0x0210 && pt == NULL) {
+	sigaddr = bios_sigsearch(0, "$PIR", 4, 16, 0);
+	if (sigaddr == 0)
+	    sigaddr = bios_sigsearch(0, "_PIR", 4, 16, 0);
+	if (sigaddr != 0) {
+	    pt = (struct PIR_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
+	    for (cv = (u_int8_t *)pt, ck = 0, i = 0;
+	      i < (pt->pt_header.ph_length); i++) {
+		ck += cv[i];
+	    }
+	    if (ck == 0) {
+		pci_route_table = pt;
+		pci_route_count = (pt->pt_header.ph_length -
+		  sizeof(struct PIR_header)) / sizeof(struct PIR_entry);
+		printf("Using $PIR table, %d entries at %p\n",
+		  pci_route_count, pci_route_table);
+	    }
 	}
     }
-
     opened = 1;
     return(1);
 }
@@ -263,7 +273,6 @@ pci_cfgintr(int bus, int device, int pin)
 	    irq = pci_cfgintr_unique(pe, pin);
 	if (irq == 255)
 	    irq = pci_cfgintr_virgin(pe, pin);
-
 	if (irq == 255)
 	    break;
 
