@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
+ * $Id: msg.c,v 1.2 1995/05/01 21:56:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,20 +44,45 @@
 #include "sysinstall.h"
 #include <stdarg.h>
 
-/* Whack up an informational message on the status line */
+/* Whack up an informational message on the status line, in stand-out */
 void
-msgInfo(char *fmt, ...)
+msgYap(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    int attrs;
 
     errstr = (char *)malloc(FILENAME_MAX);
     errstr[0] = '\0';
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
     va_end(args);
-    move(25, 0);
-    addstr(errstr);
+    attrs = getattrs(stdscr);
+    attrset(A_BOLD);
+    mvaddstr(23, 0, errstr);
+    attrset(attrs);
+    refresh();
+    free(errstr);
+}
+
+/* Whack up an informational message on the status line */
+void
+msgInfo(char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+    int attrs;
+
+    errstr = (char *)malloc(FILENAME_MAX);
+    errstr[0] = '\0';
+    va_start(args, fmt);
+    vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
+    va_end(args);
+    attrs = getattrs(stdscr);
+    attrset(A_NORMAL);
+    mvaddstr(23, 0, errstr);
+    attrset(attrs);
+    refresh();
     free(errstr);
 }
 
@@ -67,17 +92,19 @@ msgWarn(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    int attrs;
 
     errstr = (char *)malloc(FILENAME_MAX);
     strcpy(errstr, "Warning: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
     va_end(args);
-    move(25, 0);
+    attrs = getattrs(stdscr);
     beep();
-    standout();
-    addstr(errstr);
-    standend();
+    attrset(A_BOLD);
+    mvaddstr(23, 0, errstr);
+    attrset(attrs);
+    refresh();
     free(errstr);
 }
 
@@ -87,17 +114,19 @@ msgError(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    int attrs;
 
     errstr = (char *)malloc(FILENAME_MAX);
     strcpy(errstr, "Error: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
     va_end(args);
-    move(25, 0);
     beep();
-    standout();
-    addstr(errstr);
-    standend();
+    attrs = getattrs(stdscr);
+    attrset(A_BOLD);
+    mvaddstr(23, 0, errstr);
+    attrset(attrs);
+    refresh();
     free(errstr);
 }
 
@@ -107,23 +136,25 @@ msgFatal(char *fmt, ...)
 {
     va_list args;
     char *errstr;
+    int attrs;
 
     errstr = (char *)malloc(FILENAME_MAX);
     strcpy(errstr, "Fatal Error: ");
     va_start(args, fmt);
     vsnprintf((char *)(errstr + strlen(errstr)), FILENAME_MAX, fmt, args);
     va_end(args);
-    move(25, 0);
     beep();
-    standout();
-    addstr(errstr);
+    attrs = getattrs(stdscr);
+    attrset(A_BOLD);
+    mvaddstr(23, 0, errstr);
     addstr(" - ");
     addstr("PRESS ANY KEY TO ");
     if (getpid() == 1)
 	addstr("REBOOT");
     else
 	addstr("QUIT");
-    standend();
+    attrset(attrs);
+    refresh();
     free(errstr);
     getch();
     systemShutdown();
@@ -164,3 +195,29 @@ msgYesNo(char *fmt, ...)
     free(errstr);
     return ret;
 }
+
+/* Put up a message in an input box and return the value */
+char *
+msgGetInput(char *buf, char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+    char *ret;
+    static input_buffer[256];
+    int rval;
+
+    errstr = (char *)malloc(FILENAME_MAX);
+    va_start(args, fmt);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
+    va_end(args);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    strcpy(input_buffer, buf);
+    rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
+    free(errstr);
+    if (!rval)
+	return input_buffer;
+    else
+	return NULL;
+}
+
