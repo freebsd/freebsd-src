@@ -3130,8 +3130,8 @@ cdsetspeed(struct cam_periph *periph, u_int32_t rdspeed, u_int32_t wrspeed)
 	scsi_ulto2b(rdspeed, scsi_cmd->readspeed);
 	scsi_ulto2b(wrspeed, scsi_cmd->writespeed);
 
-	error = cdrunccb(ccb, cderror, /*cam_flags*/CAM_RETRY_SELTO,
-			 /*sense_flags*/SF_RETRY_UA);
+	error = cdrunccb(ccb, cderror, /*cam_flags*/0,
+			 /*sense_flags*/SF_RETRY_UA | SF_RETRY_SELTO);
 
 	xpt_release_ccb(ccb);
 
