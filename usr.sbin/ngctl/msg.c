@@ -51,9 +51,7 @@ const struct ngcmd msg_cmd = {
 	"The msg command constructs a netgraph control message from the"
 	" command name and ASCII arguments (if any) and sends that message"
 	" to the node.  It does this by first asking the node to convert"
-	" the ASCII message into binary format, and resending the result."
-	" The typecookie used for the message is assumed to be the typecookie"
-	" corresponding to the target node's type.",
+	" the ASCII message into binary format, and resending the result.",
 	{ "cmd" }
 };
 
