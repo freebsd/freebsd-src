@@ -206,20 +206,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/mbuf.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
 #include <sys/uio.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/mman.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
@@ -496,8 +489,6 @@ static struct {
 /*
  * i2c things:
  */
-
-#define TEST_PAL
 
 /* PLL on a Temic NTSC tuner: 4032FY5 */
 #define TEMIC_NTSC_WADDR	0xc0
@@ -3402,6 +3393,13 @@ const struct CARDTYPE cards[] = {
 
 /*
  * the data for each type of tuner
+ *
+ * if probeCard() fails to detect the proper tuner on boot you can
+ * override it by setting the following define to the tuner present:
+ *
+#define OVERRIDE_TUNER	<tuner type>
+ *
+ * where <tuner type> is one of the following tuner defines.
  */
 
 /* indexes into tuners[] */
@@ -3558,6 +3556,11 @@ probeCard( bktr_ptr_t bktr, int verbose )
 	bktr->card = cards[ (card = CARD_MIRO) ];
 
 checkTuner:
+#if defined( OVERRIDE_TUNER )
+	bktr->card.tuner = &tuners[ OVERRIDE_TUNER ];
+	goto checkDBX;
+#endif
+
 	/* differentiate type of tuner */
 	if ( i2cRead( bktr, TEMIC_NTSC_RADDR ) != ABSENT ) {
 		bktr->card.tuner = &tuners[ TEMIC_NTSC ];
@@ -3568,20 +3571,22 @@ checkTuner:
 		bktr->card.tuner = &tuners[ PHILIPS_NTSC ];
 		goto checkDBX;
 	}
-#if defined( TEST_PAL )
-/** WARNING: this is a test */
+
 	if ( card == CARD_HAUPPAUGE ) {
 		if ( i2cRead( bktr, TEMIC_PALI_RADDR ) != ABSENT ) {
 			bktr->card.tuner = &tuners[ TEMIC_PAL ];
 			goto checkDBX;
 		}
 	}
-#endif /* TEST_PAL */
 
 	/* no tuner found */
 	bktr->card.tuner = &tuners[ NO_TUNER ];
 
 checkDBX:
+#if defined( OVERRIDE_DBX )
+	bktr->card.dbx = OVERRIDE_DBX;
+	goto end;
+#endif
 	/* probe for BTSC (dbx) chips */
 	if ( i2cRead( bktr, TDA9850_RADDR ) != ABSENT )
 		bktr->card.dbx = 1;
@@ -3673,11 +3678,28 @@ int	irccable[] = {
 
 /*
  * North American Cable Channels, HRC:
+ *
+ * 2:   54 mHz  - 4:    66 mHz
+ * 5:   78 mHz  - 6:    84 mHz
+ * 7:  174 mHz  - 13:  210 mHz
+ * 14: 120 mHz  - 22:  168 mHz
+ * 23: 216 mHz  - 94:  642 mHz
+ * 95:  90 mHz  - 99:  114 mHz
+ *
+ * IF freq: 45.75 mHz
  */
-int	hrccable[] = {
-	0, 0, 0,
+#define OFFSET  6.00
+int     hrccable[] = {
+	99,	(int)( 45.75 * FREQFACTOR),     0,
+	95,	(int)( 90.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	23,	(int)(216.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	14,	(int)(120.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	7,	(int)(174.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	5,	(int)( 78.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	2,	(int)( 54.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	0
 };
+#undef OFFSET
 
 /*
  * Western European broadcast channels:
