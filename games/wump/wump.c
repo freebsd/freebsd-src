@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 /* some defines to spec out what our wumpus cave should look like */
@@ -112,11 +113,34 @@ int arrow_num = NUMBER_OF_ARROWS;	/* arrow inventory */
 
 char answer[20];			/* user input */
 
+int 	bats_nearby(void);
+void 	cave_init(void);
+void 	clear_things_in_cave(void);
+void 	display_room_stats __P((void));
+int 	getans __P((char *prompt));
+void 	initialize_things_in_cave(void);
+void 	instructions(void);
+int 	int_compare __P((const void *va, const void *vb));
+void 	jump(int where);
+void 	kill_wump(void);
+int 	move_to __P((char *room_number));
+void 	move_wump(void);
+void 	no_arrows(void);
+void 	pit_kill(void);
+int 	pit_nearby(void);
+void 	pit_survive(void);
+int 	shoot __P((char *room_list));
+void 	shoot_self(void);
+int 	take_action(void);
+void 	usage(void);
+void 	wump_kill(void);
+int 	wump_nearby(void);
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
 	int c;
 
 	/* revoke */
@@ -225,8 +249,10 @@ quiver holds %d custom super anti-evil Wumpus arrows.  Good luck.\n",
 			cave_init();
 	}
 	/* NOTREACHED */
+	exit(EXIT_SUCCESS);
 }
 
+void
 display_room_stats()
 {
 	int i;
@@ -256,6 +282,7 @@ display_room_stats()
 	(void)printf("and %d.\n", cave[player_loc].tunnel[link_num - 1]);
 }
 
+int
 take_action()
 {
 	/*
@@ -284,6 +311,7 @@ take_action()
 	return(0);
 }
 
+int
 move_to(room_number)
 	char *room_number;
 {
@@ -375,12 +403,13 @@ move_to(room_number)
 	return(0);
 }
 
+int
 shoot(room_list)
 	char *room_list;
 {
 	int chance, next, roomcnt;
 	int j, arrow_location, link, ok;
-	char *p, *strtok();
+	char *p;
 
 	/*
 	 * Implement shooting arrows.  Arrows are shot by the player indicating
@@ -487,10 +516,11 @@ The arrow is weakly shot and can go no further!\n");
 	return(0);
 }
 
+void
 cave_init()
 {
 	int i, j, k, link;
-	int delta, int_compare();
+	int delta;
 
 	/*
 	 * This does most of the interesting work in this program actually!
@@ -560,6 +590,7 @@ try_again:		link = (random() % room_num) + 1;
 #endif
 }
 
+void
 clear_things_in_cave()
 {
 	int i;
@@ -572,6 +603,7 @@ clear_things_in_cave()
 		cave[i].has_a_bat = cave[i].has_a_pit = 0;
 }
 
+void
 initialize_things_in_cave()
 {
 	int i, loc;
@@ -611,6 +643,7 @@ initialize_things_in_cave()
 	    (link_num / room_num < 0.4 ? wump_nearby() : 0) : 0));
 }
 
+int
 getans(prompt)
 	char *prompt;
 {
@@ -636,6 +669,7 @@ getans(prompt)
 	/* NOTREACHED */
 }
 
+int
 bats_nearby()
 {
 	int i;
@@ -647,6 +681,7 @@ bats_nearby()
 	return(0);
 }
 
+int
 pit_nearby()
 {
 	int i;
@@ -658,6 +693,7 @@ pit_nearby()
 	return(0);
 }
 
+int
 wump_nearby()
 {
 	int i, j;
@@ -674,17 +710,25 @@ wump_nearby()
 	return(0);
 }
 
+void
 move_wump()
 {
 	wumpus_loc = cave[wumpus_loc].tunnel[random() % link_num];
 }
 
-int_compare(a, b)
-	int *a, *b;
+int
+int_compare(va, vb)
+	const void *va, *vb;
 {
-	return(*a < *b ? -1 : 1);
+	const int	*a, *b;
+
+	a = (const int *)va;
+	b = (const int *)vb;
+
+	return(a < b ? -1 : 1);
 }
 
+void
 instructions()
 {
 	const char *pager;
@@ -728,6 +772,7 @@ puff of greasy black smoke! (poof)\n");
 	}
 }
 
+void
 usage()
 {
 	(void)fprintf(stderr,
@@ -737,6 +782,7 @@ usage()
 
 /* messages */
 
+void
 wump_kill()
 {
 	(void)printf(
@@ -748,6 +794,7 @@ so long since the evil Wumpus cleaned his teeth that you immediately\n\
 passed out from the stench!\n");
 }
 
+void
 kill_wump()
 {
 	(void)printf(
@@ -759,6 +806,7 @@ dead Wumpus is also quite well known, a stench plenty enough to slay the\n\
 mightiest adventurer at a single whiff!!\n");
 }
 
+void
 no_arrows()
 {
 	(void)printf(
@@ -768,6 +816,7 @@ with its psychic powers, the evil Wumpus rampagees through the cave, finds\n\
 you, and with a mighty *ROAR* eats you alive!\n");
 }
 
+void
 shoot_self()
 {
 	(void)printf(
@@ -778,6 +827,7 @@ and immediately rushes to your side, not to help, alas, but to EAT YOU!\n\
 (*CHOMP*)\n");
 }
 
+void
 jump(where)
 	int where;
 {
@@ -787,6 +837,7 @@ notice that the walls are shimmering and glowing.  Suddenly you feel\n\
 a very curious, warm sensation and find yourself in room %d!!\n", where);
 }
 
+void
 pit_kill()
 {
 	(void)printf(
@@ -798,6 +849,7 @@ you fall many miles to the core of the earth.  Look on the bright side;\n\
 you can at least find out if Jules Verne was right...\n");
 }
 
+void
 pit_survive()
 {
 	(void)printf(

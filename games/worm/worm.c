@@ -84,9 +84,20 @@ int score = 0;
 int start_len = LENGTH;
 char lastch;
 char outbuf[BUFSIZ];
+ 
+void crash __P((void));
+void display __P((struct body *, char));
+void leave __P((int));
+void life __P((void));
+void newpos __P((struct body *));
+void prize __P((void));
+void process __P((char));
+long rnd __P((int));
+void setup __P((void));
+void suspend __P((int));
+void wake __P((int));
 
-void leave(), wake(), suspend();
-
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -139,11 +150,13 @@ main(argc, argv)
 	}
 }
 
+void
 life()
 {
 	struct body *bp, *np;
 	int i;
 
+	np = NULL;
 	head = newlink();
 	head->x = start_len+2;
 	head->y = 12;
@@ -161,6 +174,7 @@ life()
 	tail->prev = NULL;
 }
 
+void
 display(pos, chr)
 struct body *pos;
 char chr;
@@ -170,25 +184,29 @@ char chr;
 }
 
 void
-leave()
+leave(sig)
+int sig;
 {
 	endwin();
 	exit(0);
 }
 
 void
-wake()
+wake(sig)
+int sig;
 {
 	signal(SIGALRM, wake);
 	fflush(stdout);
 	process(lastch);
 }
 
+long
 rnd(range)
 {
 	return random() % range;
 }
 
+void
 newpos(bp)
 struct body * bp;
 {
@@ -199,6 +217,7 @@ struct body * bp;
 	} while(winch(tv) != ' ');
 }
 
+void
 prize()
 {
 	int value;
@@ -209,6 +228,7 @@ prize()
 	wrefresh(tv);
 }
 
+void
 process(ch)
 char ch;
 {
@@ -229,7 +249,7 @@ char ch;
 		case 'K': y--; running = RUNLEN/2; ch = tolower(ch); break;
 		case 'L': x++; running = RUNLEN; ch = tolower(ch); break;
 		case '\f': setup(); return;
-		case CNTRL('Z'): suspend(); return;
+		case CNTRL('Z'): suspend(0); return;
 		case CNTRL('C'): crash(); return;
 		case CNTRL('D'): crash(); return;
 		default: if (! running) alarm(1);
@@ -272,6 +292,7 @@ char ch;
 		alarm(1);
 }
 
+void
 crash()
 {
 	sleep(2);
@@ -280,14 +301,13 @@ crash()
 	refresh();
 	printf("Well, you ran into something and the game is over.\n");
 	printf("Your final score was %d\n", score);
-	leave();
+	leave(0);
 }
 
 void
-suspend()
+suspend(sig)
+int sig;
 {
-	char *sh;
-
 	move(LINES-1, 0);
 	refresh();
 	endwin();
@@ -299,6 +319,7 @@ suspend()
 	setup();
 }
 
+void
 setup()
 {
 	clear();
