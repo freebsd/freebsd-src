@@ -39,7 +39,7 @@ struct tun_softc {
 };
 
 /* Maximum packet size */
-#define	TUNMTU		1600
+#define	TUNMTU		1500
 
 struct tuninfo {
 	int	baudrate;		/* linespeed */
