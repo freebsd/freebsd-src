@@ -8,7 +8,7 @@
 # being perfomed on a machine for which this config file is inappropriate,
 # it should be replaced with a suitable one prior to performing the upgrade.
 #
-#	$Id$
+#	$Id: GENERICupgrade,v 1.1 1998/08/30 03:06:23 jb Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -29,7 +29,7 @@ options		FFS_ROOT		#FFS usable as root device [keep this!]
 options		NFS_ROOT		#NFS usable as root device
 options		PROCFS			#Process filesystem
 options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
-options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
+options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
@@ -89,11 +89,9 @@ controller	sea0	at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 
 controller	scbus0
 
-device		sd0
+device		da0
 
-device		od0	#See LINT for possible `od' options.
-
-device		st0
+device		sa0
 
 device		cd0	#Only need one of these, the code dynamically grows
 
