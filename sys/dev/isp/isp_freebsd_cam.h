@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd_cam.h,v 1.14 1999/02/09 01:09:03 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: isp_freebsd_cam.h,v 1.15 1999/03/17 05:04:39 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------

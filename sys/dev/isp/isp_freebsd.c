@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.c,v 1.12 1999/02/09 01:08:38 mjacob Exp $ */
-/* release_03_16_99 */
+/* $Id: isp_freebsd.c,v 1.13 1999/03/17 05:04:38 mjacob Exp $ */
+/* release_03_25_99 */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -329,7 +329,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 			/*
 			 * Note that these operations affect the
-			 * the permanent flags (dev_flags)- not
+			 * the goal flags (dev_flags)- not
 			 * the current state flags. Then we mark
 			 * things so that the next operation to
 			 * this HBA will cause the update to occur.
@@ -371,8 +371,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
-			IDPRINTF(3, ("%s: set target %d period %d offset %d "
-			    "dev_flags 0x%x\n", isp->isp_name, tgt,
+			IDPRINTF(3, ("%s: %d set %s period 0x%x offset 0x%x"
+			    " flags 0x%x\n", isp->isp_name, tgt,
+			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    "current" : "user", 
 			    sdp->isp_devparam[tgt].sync_period,
 			    sdp->isp_devparam[tgt].sync_offset,
 			    sdp->isp_devparam[tgt].dev_flags));
@@ -407,12 +409,17 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 		} else {
 			sdparam *sdp = isp->isp_param;
-			u_int16_t dval;
+			u_int16_t dval, pval, oval;
 
-			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS)
+			if (cts->flags & CCB_TRANS_CURRENT_SETTINGS) {
 				dval = sdp->isp_devparam[tgt].cur_dflags;
-			else
+				oval = sdp->isp_devparam[tgt].cur_offset;
+				pval = sdp->isp_devparam[tgt].cur_period;
+			} else {
 				dval = sdp->isp_devparam[tgt].dev_flags;
+				oval = sdp->isp_devparam[tgt].sync_offset;
+				pval = sdp->isp_devparam[tgt].sync_period;
+			}
 
 			s = splcam();
 			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
@@ -431,17 +438,18 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
 			    CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
 
-			if ((dval & DPARM_SYNC) &&
-			    (sdp->isp_devparam[tgt].sync_offset)) {
-				cts->sync_period =
-				    sdp->isp_devparam[tgt].sync_period;
-				cts->sync_offset =
-				    sdp->isp_devparam[tgt].sync_offset;
+			if ((dval & DPARM_SYNC) && oval != 0) {
+				cts->sync_period = pval;
+				cts->sync_offset = oval;
 				cts->valid |=
 				    CCB_TRANS_SYNC_RATE_VALID |
 				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
 			splx(s);
+			IDPRINTF(3, ("%s: %d get %s period 0x%x offset 0x%x"
+			    " flags 0x%x\n", isp->isp_name, tgt,
+			    (cts->flags & CCB_TRANS_CURRENT_SETTINGS)?
+			    "current" : "user", pval, oval, dval));
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -503,9 +511,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 		cpi->target_sprt = 0;
-		cpi->hba_misc = 0;
 		cpi->hba_eng_cnt = 0;
-		if (isp->isp_type & ISP_HA_FC) {
+		if (IS_FC(isp)) {
+			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->max_target = MAX_FC_TARG-1;
 			cpi->initiator_id =
 			    ((fcparam *)isp->isp_param)->isp_loopid;
@@ -515,6 +523,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->max_lun = (1 << 4) - 1;
 #endif
 		} else {
+			cpi->hba_misc = 0;
 			cpi->initiator_id =
 			    ((sdparam *)isp->isp_param)->isp_initiator_id;
 			cpi->max_target =  MAX_TARGETS-1;
@@ -612,7 +621,7 @@ isp_async(isp, cmd, arg)
 				break;
 			}
 
-			flags = sdp->isp_devparam[tgt].dev_flags;
+			flags = sdp->isp_devparam[tgt].cur_dflags;
 			neg.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
 			if (flags & DPARM_DISC) {
 				neg.flags |= CCB_TRANS_DISC_ENB;
@@ -623,14 +632,15 @@ isp_async(isp, cmd, arg)
 			neg.valid |= CCB_TRANS_BUS_WIDTH_VALID;
 			neg.bus_width = (flags & DPARM_WIDE)?
 			    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
-			neg.sync_period = sdp->isp_devparam[tgt].sync_period;
-			neg.sync_offset = sdp->isp_devparam[tgt].sync_offset;
+			neg.sync_period = sdp->isp_devparam[tgt].cur_period;
+			neg.sync_offset = sdp->isp_devparam[tgt].cur_offset;
 			if (flags & DPARM_SYNC) {
-				neg.valid |= CCB_TRANS_SYNC_RATE_VALID |
-						CCB_TRANS_SYNC_OFFSET_VALID;
+				neg.valid |=
+				    CCB_TRANS_SYNC_RATE_VALID |
+				    CCB_TRANS_SYNC_OFFSET_VALID;
 			}
-			IDPRINTF(3, ("%s: new params target %d period %d "
-			    "offset %d flags 0x%x\n", isp->isp_name, tgt,
+			IDPRINTF(3, ("%s: New params tgt %d period 0x%x "
+			    "offset 0x%x flags 0x%x\n", isp->isp_name, tgt,
 			    neg.sync_period, neg.sync_offset, flags));
 			xpt_setup_ccb(&neg.ccb_h, tmppath, 1);
 			xpt_async(AC_TRANSFER_NEG, tmppath, &neg);
@@ -676,55 +686,48 @@ isp_async(isp, cmd, arg)
 		}
 		break;
 	case ISPASYNC_PDB_CHANGE_COMPLETE:
-	if (isp->isp_type & ISP_HA_FC) {
-		int i;
+	if (IS_FC(isp)) {
+		long i = (long) arg;
 		static char *roles[4] = {
 		    "No", "Target", "Initiator", "Target/Initiator"
 		};
-		for (i = 0; i < MAX_FC_TARG; i++)  {
-			isp_pdb_t *pdbp =
-			    &((fcparam *)isp->isp_param)->isp_pdb[i];
-			if (pdbp->pdb_options == INVALID_PDB_OPTIONS)
-				continue;
-			printf("%s: Loop ID %d, %s role\n",
-			    isp->isp_name, pdbp->pdb_loopid,
-			    roles[(pdbp->pdb_prli_svc3 >> 4) & 0x3]);
-			printf("     Node Address 0x%x WWN 0x"
+		isp_pdb_t *pdbp = &((fcparam *)isp->isp_param)->isp_pdb[i];
+		if (pdbp->pdb_options == INVALID_PDB_OPTIONS) {
+			break;
+		}
+		printf("%s: Loop ID %d, %s role\n", isp->isp_name,
+		    pdbp->pdb_loopid, roles[(pdbp->pdb_prli_svc3 >> 4) & 0x3]);
+		printf("     Node Address 0x%x WWN 0x"
+		    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		    BITS2WORD(pdbp->pdb_portid_bits),
+		    pdbp->pdb_portname[0], pdbp->pdb_portname[1],
+		    pdbp->pdb_portname[2], pdbp->pdb_portname[3],
+		    pdbp->pdb_portname[4], pdbp->pdb_portname[5],
+		    pdbp->pdb_portname[6], pdbp->pdb_portname[7]);
+		if (pdbp->pdb_options & PDB_OPTIONS_ADISC)
+			printf("     Hard Address 0x%x WWN 0x"
 			    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
-			    BITS2WORD(pdbp->pdb_portid_bits),
-			    pdbp->pdb_portname[0], pdbp->pdb_portname[1],
-			    pdbp->pdb_portname[2], pdbp->pdb_portname[3],
-			    pdbp->pdb_portname[4], pdbp->pdb_portname[5],
-			    pdbp->pdb_portname[6], pdbp->pdb_portname[7]);
-			if (pdbp->pdb_options & PDB_OPTIONS_ADISC)
-				printf("     Hard Address 0x%x WWN 0x"
-				    "%02x%02x%02x%02x%02x%02x%02x%02x\n",
-				    BITS2WORD(pdbp->pdb_hardaddr_bits),
-				    pdbp->pdb_nodename[0],
-				    pdbp->pdb_nodename[1],
-				    pdbp->pdb_nodename[2],
-				    pdbp->pdb_nodename[3],
-				    pdbp->pdb_nodename[4],
-				    pdbp->pdb_nodename[5],
-				    pdbp->pdb_nodename[6],
-				    pdbp->pdb_nodename[7]);
-			switch (pdbp->pdb_prli_svc3 & SVC3_ROLE_MASK) {
-			case SVC3_TGT_ROLE|SVC3_INI_ROLE:
-				printf("     Master State=%s, Slave State=%s\n",
-				    isp2100_pdb_statename(pdbp->pdb_mstate),
-				    isp2100_pdb_statename(pdbp->pdb_sstate));
-				break;
-			case SVC3_TGT_ROLE:
-				printf("     Master State=%s\n",
-				    isp2100_pdb_statename(pdbp->pdb_mstate));
-				break;
-			case SVC3_INI_ROLE:
-				printf("     Slave State=%s\n",
-				    isp2100_pdb_statename(pdbp->pdb_sstate));
-				break;
-			default:
-				break;
-			}
+			    BITS2WORD(pdbp->pdb_hardaddr_bits),
+			    pdbp->pdb_nodename[0], pdbp->pdb_nodename[1],
+			    pdbp->pdb_nodename[2], pdbp->pdb_nodename[3],
+			    pdbp->pdb_nodename[4], pdbp->pdb_nodename[5],
+			    pdbp->pdb_nodename[6], pdbp->pdb_nodename[7]);
+		switch (pdbp->pdb_prli_svc3 & SVC3_ROLE_MASK) {
+		case SVC3_TGT_ROLE|SVC3_INI_ROLE:
+			printf("     Master State=%s, Slave State=%s\n",
+			    isp2100_pdb_statename(pdbp->pdb_mstate),
+			    isp2100_pdb_statename(pdbp->pdb_sstate));
+			break;
+		case SVC3_TGT_ROLE:
+			printf("     Master State=%s\n",
+			    isp2100_pdb_statename(pdbp->pdb_mstate));
+			break;
+		case SVC3_INI_ROLE:
+			printf("     Slave State=%s\n",
+			    isp2100_pdb_statename(pdbp->pdb_sstate));
+			break;
+		default:
+			break;
 		}
 		break;
 	}
@@ -945,15 +948,34 @@ isp_async(isp, cmd, arg)
 		if (isp->isp_type & ISP_HA_SCSI) {
 			sdparam *sdp = isp->isp_param;
 			char *wt;
-			int ns, flags, tgt;
+			int mhz, flags, tgt, period;
 
 			tgt = *((int *) arg);
-	
-			flags = sdp->isp_devparam[tgt].dev_flags;
-			if (flags & DPARM_SYNC) {
-				ns = sdp->isp_devparam[tgt].sync_period * 4;
+
+			flags = sdp->isp_devparam[tgt].cur_dflags;
+			period = sdp->isp_devparam[tgt].cur_period;
+			if ((flags & DPARM_SYNC) && period &&
+			    (sdp->isp_devparam[tgt].cur_offset) != 0) {
+				if (sdp->isp_lvdmode) {
+					switch (period) {
+					case 0xa:
+						mhz = 40;
+						break;
+					case 0xb:
+						mhz = 33;
+						break;
+					case 0xc:
+						mhz = 25;
+						break;
+					default:
+						mhz = 1000 / (period * 4);
+						break;
+					}
+				} else {
+					mhz = 1000 / (period * 4);
+				}
 			} else {
-				ns = 0;
+				mhz = 0;
 			}
 			switch (flags & (DPARM_WIDE|DPARM_TQING)) {
 			case DPARM_WIDE:
@@ -969,10 +991,10 @@ isp_async(isp, cmd, arg)
 				wt = "\n";
 				break;
 			}
-			if (ns) {
+			if (mhz) {
 				printf("%s: Target %d at %dMHz Max Offset %d%s",
-				    isp->isp_name, tgt, 1000 / ns,
-				    sdp->isp_devparam[tgt].sync_offset, wt);
+				    isp->isp_name, tgt, mhz,
+				    sdp->isp_devparam[tgt].cur_offset, wt);
 			} else {
 				printf("%s: Target %d Async Mode%s",
 				    isp->isp_name, tgt, wt);
