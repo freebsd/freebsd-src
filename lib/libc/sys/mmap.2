@@ -213,13 +213,13 @@ was specified and insufficient memory was available.
 
 .Sh BUGS
 .Ar len
-is limit to 2GB.  Mmapping slightly more than 2GB doesn't work, but
-mapping a window of size (filesize % 2GB) for file sizes of slightly
-less than 2G, 4GB, 6GB and 8GB.
+is limited to 2GB.  Mmapping slightly more than 2GB doesn't work, but
+it is possible to map a window of size (filesize % 2GB) for file sizes 
+of slightly less than 2G, 4GB, 6GB and 8GB.
 
 The limit is imposed for a variety of reasons. Most of them have to do
 with FreeBSD not wanting to use 64 bit offsets in the VM system due to
-the extreme performance penalty. So FreeBSD use 32bit page indexes and
+the extreme performance penalty. So FreeBSD uses 32bit page indexes and
 this gives FreeBSD a maximum of 8TB filesizes. It's actually bugs in
 the filesystem code that causes the limit to be further restricted to
 1TB (loss of precision when doing blockno calculations).
