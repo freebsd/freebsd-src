@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/endian.h>
 #include <sys/elf64.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
@@ -37,14 +38,14 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 
 struct exec {
-	u_int	a_magic;
-	u_int	a_text;
-	u_int	a_data;
-	u_int	a_bss;
-	u_int	a_syms;
-	u_int	a_entry;
-	u_int	a_trsize;
-	u_int	a_drsize;
+	u_int32_t	a_magic;
+	u_int32_t	a_text;
+	u_int32_t	a_data;
+	u_int32_t	a_bss;
+	u_int32_t	a_syms;
+	u_int32_t	a_entry;
+	u_int32_t	a_trsize;
+	u_int32_t	a_drsize;
 };
 #define A_MAGIC 0x01030107
 
