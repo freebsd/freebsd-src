@@ -116,10 +116,9 @@ main(int argc, char *argv[])
 int
 dumpfs(const char *name)
 {
-	ssize_t n;
 	time_t time;
 	int64_t fssize;
-	int c, i, j, k, size;
+	int i;
 
 	if (ufs_disk_fillout(&disk, name) == -1)
 			goto err;
@@ -240,7 +239,7 @@ dumpfs(const char *name)
 err:	ufs_disk_close(&disk);
 	warn("%s", name);
 	return (1);
-};
+}
 
 int
 dumpcg(const char *name, int fd, int c)
@@ -300,7 +299,7 @@ dumpcg(const char *name, int fd, int c)
 	printf("blks free:\t");
 	pbits(cg_blksfree(&acg), afs.fs_fpg);
 	return (0);
-};
+}
 
 void
 pbits(void *vp, int max)
