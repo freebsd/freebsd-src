@@ -1696,7 +1696,11 @@ typedef struct {
 	u_int32_t		bge_addr_hi;
 	u_int32_t		bge_addr_lo;
 } bge_hostaddr;
-#define BGE_HOSTADDR(x)	((x).bge_addr_lo)
+#define BGE_HOSTADDR(x, y)						\
+	do {								\
+		(x).bge_addr_lo = ((u_int64_t) (y) & 0xffffffff);	\
+		(x).bge_addr_hi = ((u_int64_t) (y) >> 32);		\
+	} while(0)
 
 /* Ring control block structure */
 struct bge_rcb {
