@@ -284,7 +284,7 @@ Non empty lines either are environment variables
 or commands which configure devices.
 Any line which has an \fB=\fP before any white space is considered to be
 an environment variable assignment and is added to the DOS environment.
-The rest of the lines are one the of the following
+The rest of the lines are one of the following
 .Bl -tag -width XXXXX
 .\"
 .\"
@@ -293,7 +293,7 @@ The rest of the lines are one the of the following
 Set the device to boot from.
 By default
 .Cm A:
-is first tried, it if is defined, and if that fails,
+is first tried, if it is defined, and if that fails,
 .Cm C:
 is tried.
 .\"
@@ -425,7 +425,7 @@ only refers to part of a disk.
 Assign the tty or pty specified by
 .Ar path
 to be used as the specified com port.
-It's base address will emulated at
+It's base address will be emulated at
 .Ar port
 at interrupt specified by
 .Ar irq .
@@ -450,7 +450,7 @@ If not already assigned,
 will be assigned to the root directory (/) and the current directory
 for
 .Cm C:
-will be set the the actual current directory.
+will be set to the actual current directory.
 Note that this means that invocations such as:
 .sp
 	doscmd ../foo
@@ -684,7 +684,7 @@ them add lines to your .doscmdrc such as:
 assign D: /usr/dos
 assign P: -ro /usr/prb
 .Ed
-Not that you will not always be able to access every file due to
+Note that you will not always be able to access every file due to
 naming problems.
 .El
 .Sh DIAGNOSTICS
