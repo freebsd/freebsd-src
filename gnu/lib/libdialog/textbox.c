@@ -653,7 +653,7 @@ static int get_search_term(WINDOW *win, unsigned char *search_term, int height, 
 
   first = 1;
   while (key != ESC) {
-    key = line_edit(win, y+1, x+1, box_width, searchbox_attr, first, search_term);
+    key = line_edit(win, y+1, x+1, -1, box_width, searchbox_attr, first, search_term);
     first = 0;
     switch (key) {
       case '\n':
