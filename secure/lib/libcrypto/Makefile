@@ -368,28 +368,18 @@ beforeinstall:  openssl/opensslconf.h openssl/evp.h
 
 .include <bsd.lib.mk>
 
-# If we don't want 686/586 asm, use the "386" modifier to the perl scripts to give
-# compatible output
-.if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
-.if ${MACHINE_CPU:Mi686} || ${MACHINE_CPU:Mi586}
-CPUTYPE=
-.elif ${MACHINE_CPU:Mi386}
-CPUTYPE=	386
-.endif
-.endif
-
 .if !defined(NOPERL) && ${MACHINE_ARCH} == "i386"
 .SUFFIXES:	.o .pl
 .SUFFIXES:	.po .pl
 .SUFFIXES:	.So .pl
 .pl.o:
-	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
+	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
 
 .pl.po:
-	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
+	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
 
 .pl.So:
-	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
+	perl -I${PERLPATH} $(.ALLSRC) elf ${CPUTYPE:Mi386:S/i//} > $(.PREFIX).pl.s ; ${AS} ${AFLAGS} $(.PREFIX).pl.s -o $(.TARGET)
 .endif
 
 afterinstall:
