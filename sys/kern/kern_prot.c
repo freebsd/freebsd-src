@@ -1392,6 +1392,25 @@ SYSCTL_INT(_security_bsd, OID_AUTO, see_other_uids, CTLFLAG_RW,
     "Unprivileged processes may see subjects/objects with different real uid");
 
 /*-
+ * Determine if u1 "can see" the subject specified by u2, according to the
+ * 'see_other_uids' policy.
+ * Returns: 0 for permitted, ESRCH otherwise
+ * Locks: none
+ * References: *u1 and *u2 must not change during the call
+ *             u1 may equal u2, in which case only one reference is required
+ */
+static int
+cr_seeotheruids(struct ucred *u1, struct ucred *u2)
+{
+
+	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
+		if (suser_xxx(u1, NULL, PRISON_ROOT) != 0)
+			return (ESRCH);
+	}
+	return (0);
+}
+
+/*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
  * Locks: none
@@ -1405,10 +1424,8 @@ cr_cansee(struct ucred *u1, struct ucred *u2)
 
 	if ((error = prison_check(u1, u2)))
 		return (error);
-	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
-		if (suser_xxx(u1, NULL, PRISON_ROOT) != 0)
-			return (ESRCH);
-	}
+	if ((error = cr_seeotheruids(u1, u2)))
+		return (error);
 	return (0);
 }
 
@@ -1444,6 +1461,9 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	 * same jail as cred, if cred is in jail.
 	 */
 	error = prison_check(cred, proc->p_ucred);
+	if (error)
+		return (error);
+	error = cr_seeotheruids(cred, proc->p_ucred);
 	if (error)
 		return (error);
 
@@ -1539,6 +1559,8 @@ p_cansched(struct proc *p1, struct proc *p2)
 		return (0);
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
 		return (error);
+	if ((error = cr_seeotheruids(p1->p_ucred, p2->p_ucred)))
+		return (error);
 	if (p1->p_ucred->cr_ruid == p2->p_ucred->cr_ruid)
 		return (0);
 	if (p1->p_ucred->cr_uid == p2->p_ucred->cr_ruid)
@@ -1591,6 +1613,8 @@ p_candebug(struct proc *p1, struct proc *p2)
 	if (p1 == p2)
 		return (0);
 	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+		return (error);
+	if ((error = cr_seeotheruids(p1->p_ucred, p2->p_ucred)))
 		return (error);
 
 	/*
