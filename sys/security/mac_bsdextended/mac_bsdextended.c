@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999, 2000, 2001, 2002 Robert N. M. Watson
- * Copyright (c) 2001, 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2001, 2002, 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -418,6 +418,22 @@ mac_bsdextended_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+mac_bsdextended_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+    struct label *label, int attrnamespace, const char *name)
+{
+	struct vattr vap;
+	int error;
+
+	if (!mac_bsdextended_enabled)
+		return (0);
+
+	error = VOP_GETATTR(vp, &vap, cred, curthread);
+	if (error)
+		return (error);
+	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, VWRITE));
+}
+
+static int
 mac_bsdextended_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *label, struct image_params *imgp,
     struct label *execlabel)
@@ -492,6 +508,22 @@ mac_bsdextended_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 	if (error)
 		return (error);
 	return (0);
+}
+
+static int
+mac_bsdextended_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+    struct label *label, int attrnamespace)
+{
+	struct vattr vap;
+	int error;
+
+	if (!mac_bsdextended_enabled)
+		return (0);
+
+	error = VOP_GETATTR(vp, &vap, cred, curthread);
+	if (error)
+		return (error);
+	return (mac_bsdextended_check(cred, vap.va_uid, vap.va_gid, VREAD));
 }
 
 static int
@@ -752,10 +784,12 @@ static struct mac_policy_ops mac_bsdextended_ops =
 	.mpo_check_vnode_create = mac_bsdextended_check_create_vnode,
 	.mpo_check_vnode_delete = mac_bsdextended_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = mac_bsdextended_check_vnode_deleteacl,
+	.mpo_check_vnode_deleteextattr = mac_bsdextended_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = mac_bsdextended_check_vnode_exec,
 	.mpo_check_vnode_getacl = mac_bsdextended_check_vnode_getacl,
 	.mpo_check_vnode_getextattr = mac_bsdextended_check_vnode_getextattr,
 	.mpo_check_vnode_link = mac_bsdextended_check_vnode_link,
+	.mpo_check_vnode_listextattr = mac_bsdextended_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = mac_bsdextended_check_vnode_lookup,
 	.mpo_check_vnode_open = mac_bsdextended_check_vnode_open,
 	.mpo_check_vnode_readdir = mac_bsdextended_check_vnode_readdir,
