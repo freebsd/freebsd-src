@@ -31,7 +31,6 @@ COMM=	${SYS}/conf/*.[ch] \
 	${SYS}/isofs/cd9660/*.[ch] \
 	${SYS}/kern/*.[ch] \
 	${SYS}/miscfs/deadfs/*.[ch] \
-	${SYS}/miscfs/devfs/*.[ch] \
 	${SYS}/miscfs/fdesc/*.[ch] \
 	${SYS}/miscfs/fifofs/*.[ch] \
 	${SYS}/miscfs/nullfs/*.[ch] \
