@@ -504,10 +504,10 @@ readmap(pid_t pid)
 
 		len = 0;
 		n = sscanf(mapbuf + pos, "%x %x %*d %*d %*x %3[-rwx]"
-		    " %*d %*d %*x %*s %*s %16s%*[\n]%n",
+		    " %*d %*d %*x %*s %*s %16s %*s%*[\n]%n",
 		    &start, &end, prot, type, &len);
-		if (n != 4)
-			errx(1, "ill-formed line in %s", mapname);
+		if (n != 4 || len == 0)
+			errx(1, "ill-formed line in %s starting at character %d", mapname, pos + 1);
 		pos += len;
 
 		/* Ignore segments of the wrong kind, and unwritable ones */
