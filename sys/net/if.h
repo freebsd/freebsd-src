@@ -103,6 +103,7 @@ struct if_data {
 	u_long	ifi_hwassist;		/* HW offload capabilities */
 	u_long	ifi_unused;		/* XXX was ifi_xmittiming */
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
+	struct	timeval ifi_epoch;	/* time of creation or stat reset */
 };
 
 #define	IFF_UP		0x1		/* interface is up */
