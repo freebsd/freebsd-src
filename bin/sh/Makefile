@@ -23,7 +23,7 @@ builtins.h builtins.c: ${.CURDIR}/mkbuiltins ${.CURDIR}/builtins
 	cd ${.CURDIR}; sh mkbuiltins
 
 init.c: mkinit ${SRCS}
-	./mkinit '${CC} -c ${CFLAGS} init.c' ${.ALLSRC}
+	./mkinit '${CC} -c ${CFLAGS} ${LDFLAGS} init.c' ${.ALLSRC}
 
 mkinit: ${.CURDIR}/mkinit.c
 	${CC} ${CFLAGS} ${LDFLAGS} ${.CURDIR}/mkinit.c -o $@
