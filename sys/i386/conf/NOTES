@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.63 1994/04/23 12:13:27 ache Exp $
+#	$Id: LINT,v 1.64 1994/04/23 21:39:02 wollman Exp $
 #
 
 machine		"i386"
@@ -15,6 +15,10 @@ timezone	8 dst
 maxusers	10
 maxfdescs	2048			#Max file descriptors per process
 options		MATH_EMULATE		#Support for x87 emulation
+
+# Do not use in binary distributions
+#options        GPL_MATH_EMULATE        #Support for x87 emualtion via
+                                        #new math emulator 
 
 config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
