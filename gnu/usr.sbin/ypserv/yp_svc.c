@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id: yp_svc.c,v 1.4 1995/07/04 21:58:38 wpaul Exp $
+ *	$Id: yp_svc.c,v 1.5 1995/07/08 21:42:59 ats Exp $
  */
 
 #include "system.h"
@@ -26,7 +26,9 @@
 #include <signal.h>
 
 extern int errno;
-extern void Perror();
+extern void Perror __P((char *, ...));
+extern void my_svc_run __P((void));
+extern void reapchild __P((int));
 
 #ifdef __STDC__
 #define SIG_PF void(*)(int)
@@ -263,6 +265,7 @@ int main(int argc, char **argv)
     struct sockaddr_in	socket_address;
     int			result;
     int			sunos_4_kludge = 0;
+    struct sigaction	sa;
 
     progname = strrchr (argv[0], '/');
     if (progname == (char *) NULL)
@@ -319,7 +322,10 @@ int main(int argc, char **argv)
      * Ignore SIGPIPEs. They can hurt us if someone does a ypcat
      * and then hits CTRL-C before it terminates.
      */
-    signal(SIGPIPE, SIG_IGN);
+    sa.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &sa, NULL);
+    sa.sa_handler = reapchild;
+    sigaction(SIGCHLD, &sa, NULL);
 
     (void) pmap_unset(YPPROG, YPVERS);
     if (sunos_4_kludge)
@@ -411,7 +417,7 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    svc_run();
+    my_svc_run();
     Perror("svc_run returned");
     exit(1);
     /* NOTREACHED */
