@@ -42,7 +42,6 @@
 .Sh NAME
 .Nm compress ,
 .Nm uncompress ,
-.Nm zcat
 .Nd compress and expand data
 .Sh SYNOPSIS
 .Nm
@@ -51,8 +50,6 @@
 .Op Ar
 .Nm uncompress
 .Op Fl cfv
-.Op Ar
-.Nm zcat
 .Op Ar
 .Sh DESCRIPTION
 .Nm Compress
@@ -73,10 +70,6 @@ restores the compressed files to their original form, renaming the
 files by deleting the
 .Dq .Z
 extension.
-.Pp
-.Nm Zcat
-is an alias for
-.Dq "uncompress -c" .
 .Pp
 If renaming the files would cause files to be overwritten and the standard
 input device is a terminal, the user is prompted (on the standard error
@@ -153,8 +146,14 @@ coding (as used in the historical command pack), or adaptive Huffman
 coding (as used in the historical command compact), and takes less
 time to compute.
 .Sh DIAGNOSTICS
-.Ex -std compress uncompress zcat
+.Ex -std compress uncompress
 .Sh SEE ALSO
+.Xr gunzip 1 ,
+.Xr gzexe 1 ,
+.Xr gzip 1 ,
+.Xr zcat 1 ,
+.Xr zmore 1 ,
+.Xr znew 1
 .Rs
 .%A Welch, Terry A.
 .%D June, 1984
