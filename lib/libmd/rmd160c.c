@@ -55,12 +55,13 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- *	$Id$
+ *	$Id: rmd160c.c,v 1.1 1999/02/26 18:41:45 wollman Exp $
  */
 
 #include <sys/types.h>
 
 #include <stdio.h>
+#inlcude <string.h>
 
 #if 0
 #include <machine/ansi.h>	/* we use the __ variants of bit-sized types */

@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- *	$Id$
+ *	$Id: sha0c.c,v 1.1 1999/02/26 04:24:56 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -117,7 +117,7 @@ SHA_CTX *c;
 void SHA_Update(c, data, len)
 SHA_CTX *c;
 const unsigned char *data;
-u_int32_t len;
+size_t len;
 	{
 	register u_int32_t *p;
 	int ew,ec,sw,sc;
