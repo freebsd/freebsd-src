@@ -65,11 +65,13 @@ static union aml_object	*aml_eval_fieldobject(struct aml_environ *env,
 static union aml_object *
 aml_eval_fieldobject(struct aml_environ *env, struct aml_name *name)
 {
+	int	num;
 	struct	aml_name *oname,*wname;
 	struct	aml_field *field;
 	struct	aml_opregion *or;
 	union	aml_object tobj;
 
+	num = 0;
 	/* CANNOT OCCUR! */
 	if (name == NULL || name->property == NULL ||
 	    name->property->type != aml_t_field) {
@@ -116,7 +118,10 @@ aml_eval_fieldobject(struct aml_environ *env, struct aml_name *name)
 		tobj.num.number = field->bitoffset / 8;/* AccessType Boundary */
 		aml_store_to_name(env, &tobj, wname);
 		wname = aml_search_name(env, field->f.ifld.dataname);
-		aml_eval_name(env, wname);
+		num = aml_objtonum(env, aml_eval_name(env, wname));
+		env->tempobject.type = aml_t_num;
+		env->tempobject.num.number = (num >> (field->bitoffset & 7)) &
+		    ((1 << field->bitlen) - 1);
 	}
 	env->curname = oname;
 	return (&env->tempobject);
