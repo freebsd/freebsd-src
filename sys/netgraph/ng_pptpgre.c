@@ -60,9 +60,6 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <sys/socket.h>
-#include <sys/syslog.h>
-#include <sys/ctype.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
