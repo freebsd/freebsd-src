@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.55 1995/12/30 13:56:28 joerg Exp $
+ *      $Id: cd.c,v 1.56 1996/01/05 20:12:39 wollman Exp $
  */
 
 #include "opt_bounce.h"
@@ -741,7 +741,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		}
 		break;
 	case CDIOREADTOCHEADER:
-		{		/* ??? useless bcopy? XXX */
+		{
 			struct ioc_toc_header th;
 			error = cd_read_toc(unit, 0, 0,
 					(struct cd_toc_entry *)&th, sizeof th);
@@ -755,28 +755,51 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 		{
 			struct cd_toc {
 				struct ioc_toc_header header;
-				struct cd_toc_entry entries[65];
+				struct cd_toc_entry entries[100];
 			} data;
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
-			u_int32 len = te->data_len;
-			th = &data.header;
+			u_int32 len;
+			u_int32 starting_track = te->starting_track;
 
-			if (len > sizeof(data.entries) || len < sizeof(struct cd_toc_entry)) {
+			if (   te->data_len < sizeof(struct cd_toc_entry)
+			    || (te->data_len % sizeof(struct cd_toc_entry)) != 0
+			    || te->address_format != CD_MSF_FORMAT
+			    && te->address_format != CD_LBA_FORMAT
+			   ) {
+				error = EINVAL;
+				break;
+			}
+			th = &data.header;
+			error = cd_read_toc(unit, 0, 0,
+					(struct cd_toc_entry *)th, sizeof *th);
+			if (error)
+				break;
+			if (starting_track == 0)
+				starting_track = th->starting_track;
+			else if (starting_track == 170)
+				starting_track = th->ending_track + 1;
+			else if (starting_track < th->starting_track ||
+				 starting_track > th->ending_track + 1) {
+				error = EINVAL;
+				break;
+			}
+			len = ((th->ending_track + 1 - starting_track) + 1) *
+				sizeof(struct cd_toc_entry);
+			if (te->data_len < len)
+				len = te->data_len;
+			if (len > sizeof(data.entries)) {
 				error = EINVAL;
 				break;
 			}
 			error = cd_read_toc(unit, te->address_format,
-				te->starting_track,
+				starting_track,
 				(struct cd_toc_entry *)&data,
 				len + sizeof(struct ioc_toc_header));
 			if (error)
 				break;
-			len = min(len, ((((th->len & 0xff) << 8) + ((th->len >> 8))) - (sizeof(th->starting_track) + sizeof(th->ending_track))));
-			if (copyout(data.entries, te->data, len) != 0) {
-				error = EFAULT;
-			}
+			error = copyout(data.entries, te->data, len);
 		}
 		break;
 	case CDIOCSETPATCH:
