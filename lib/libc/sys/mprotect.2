@@ -38,6 +38,8 @@
 .Nm mprotect
 .Nd control the protection of pages
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <sys/mman.h>
 .Fn mprotect "caddr_t addr" "int len" "int prot"
 .Sh DESCRIPTION
 The
