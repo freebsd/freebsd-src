@@ -27,7 +27,7 @@
 .Nd reverse ARP daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl afsv
+.Op Fl adfsv
 .Op Ar interface
 .Sh DESCRIPTION
 .Nm
@@ -76,6 +76,17 @@ Listen on all the Ethernets attached to the system.
 If
 .Fl a
 is omitted, an interface must be specified.
+.It Fl d
+If
+.Fl f
+is also specified,
+.Nm
+logs messages to
+.Em stdout
+and
+.Em stderr
+instead of via
+.Xr syslog 3 .
 .It Fl f
 Run in the foreground.
 .It Fl s
