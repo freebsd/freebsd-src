@@ -579,8 +579,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 	IP6_EXTHDR_GET(ch, struct carp_header *, m, *offp, sizeof(*ch));
 	if (ch == NULL) {
 		carpstats.carps_badlen++;
-		CARP_LOG("carp6_input: packet size %u too small on %s\n", len,
-		    m->m_pkthdr.rcvif->if_xname);
+		CARP_LOG("carp6_input: packet size %u too small\n", len);
 		return (IPPROTO_DONE);
 	}
 
