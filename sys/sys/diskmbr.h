@@ -69,7 +69,6 @@ CTASSERT(sizeof (struct dos_partition) == 16);
 #define	DPSECT(s) ((s) & 0x3f)		/* isolate relevant bits of sector */
 #define	DPCYL(c, s) ((c) + (((s) & 0xc0)<<2)) /* and those that are cylinder */
 
-#define DIOCGMBR 	_IOR('M', 128, u_char[512])
 #define DIOCSMBR 	_IOW('M', 129, u_char[512])
 
 
