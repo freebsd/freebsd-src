@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	slstat
+WARNS?=	2
 MAN=	slstat.8
 
 .include <bsd.prog.mk>
