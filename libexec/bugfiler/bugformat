@@ -1,0 +1,32 @@
+Subject: Short summary of the problem (please make this meaningful!)
+Index: folder 4.4BSD-alpha
+
+Description:
+	Detailed description of the problem, suggestion, or complaint.
+Repeat-By:
+	Describe the sequence of events that causes the problem
+	to occur.
+Fix:
+	Description of how to fix the problem.  If you don't know a
+	fix for the problem, don't include this section.
+
+-------- Remove this line and what's below it, for reference only. --------
+
+To ensure that your bug report is handled correctly by bugfiler(8),
+you must replace "folder" (on the line above starting with "Index:")
+with one of the following values:
+
+	folder  ::= bin | doc | etc | games | ideas | include | lib
+			| local | man | misc | new | sys | ucb
+			| usr.bin | usr.lib
+
+If you're not running 4.3BSD, you should also replace "4.3BSD" on
+the same line with one of the following values.
+
+	version ::= 4.3BSD | 4.3BSD-tahoe | 4.3BSD-reno | net2
+			   | 4.4BSD-alpha
+
+For example, if your bug concerns the program "/usr/bin/file" and
+you're currently running 4.3BSD-Reno, you should replace "folder"
+with "usr.bin/file", and "4.4BSD-alpha" with "4.3BSD-Reno".  The folder
+"ideas" is for suggestions.
