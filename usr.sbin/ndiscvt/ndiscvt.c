@@ -236,25 +236,33 @@ main(int argc, char *argv[])
 		fclose(fp);
 	}
 
-	fprintf(outfp, "\n\nunsigned char drv_data[] = { \n");
+	fprintf(outfp, "\n\nextern unsigned char drv_data[];\n\n");
+
+	fprintf(outfp, "__asm__(\".data\");\n");
+	fprintf(outfp, "__asm__(\".type   drv_data, @object\");\n");
+	fprintf(outfp, "__asm__(\".size   drv_data, %d\");\n", fsize);
+	fprintf(outfp, "__asm__(\"drv_data:\");\n");
 
 	ptr = img;
 	cnt = 0;
 	while(cnt < fsize) {
-		for (i = 0; i < 12; i++) {
+		fprintf (outfp, "__asm__(\".byte ");
+		for (i = 0; i < 10; i++) {
 			cnt++;
 			if (cnt == fsize) {
-				fprintf(outfp, "0x%.2X\n", ptr[i]);
+				fprintf(outfp, "0x%.2X\");\n", ptr[i]);
 				goto done;
-			} else
-				fprintf(outfp, "0x%.2X, ", ptr[i]);
+			} else {
+				if (i == 9)
+					fprintf(outfp, "0x%.2X\");\n", ptr[i]);
+				else
+					fprintf(outfp, "0x%.2X, ", ptr[i]);
+			}
 		}
-		fprintf(outfp, "\n");
-		ptr += 12;
+		ptr += 10;
 	}
 
 done:
-	fprintf(outfp, "};\n");
 
 	if (fp != NULL)
 		fclose(fp);
