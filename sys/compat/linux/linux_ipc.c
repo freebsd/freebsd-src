@@ -556,7 +556,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	case LINUX_SETALL:
 		/* FALLTHROUGH */
 	default:
-		uprintf("linux: 'ipc' typ=%d not implemented\n",
+		linux_msg(td, "ipc type %d is not implemented",
 		  args->cmd & ~LINUX_IPC_64);
 		return EINVAL;
 	}
@@ -783,8 +783,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
     case LINUX_SHM_LOCK:
     case LINUX_SHM_UNLOCK:
     default:
-	uprintf("linux: 'ipc' typ=%d not implemented\n",
-	  args->cmd & ~LINUX_IPC_64);
+	linux_msg(td, "ipc typ=%d not implemented", args->cmd & ~LINUX_IPC_64);
 	return EINVAL;
     }
 }
