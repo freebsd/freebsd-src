@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkfs.c	8.11 (Berkeley) 5/3/95";
 #endif
 static const char rcsid[] =
-	"$Id: mkfs.c,v 1.25 1998/08/12 06:07:43 charnier Exp $";
+	"$Id: mkfs.c,v 1.26 1998/08/27 07:38:33 dfr Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
@@ -90,6 +91,8 @@ extern void srandomdev __P((void));
  * variables set up by front end.
  */
 extern int	mfs;		/* run as the memory based filesystem */
+extern char	*mfs_mtpt;	/* mount point for mfs          */ 
+extern struct stat mfs_mtstat;	/* stat prior to mount          */
 extern int	Nflag;		/* run mkfs without writing file system */
 extern int	Oflag;		/* format as an 4.3BSD file system */
 extern int	fssize;		/* file system size */
@@ -161,6 +164,8 @@ caddr_t malloc __P((u_long));
 caddr_t realloc __P((char *, u_long));
 #endif
 
+int mfs_ppid = 0;
+
 void
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
@@ -173,7 +178,7 @@ mkfs(pp, fsys, fi, fo)
 	off_t usedb;
 	long mapcramped, inodecramped;
 	long postblsize, rotblsize, totalsbsize;
-	int ppid = 0, status, fd;
+	int status, fd;
 	time_t utime;
 	quad_t sizepb;
 	void started();
@@ -190,7 +195,7 @@ mkfs(pp, fsys, fi, fo)
 	}
 #endif
 	if (mfs) {
-		ppid = getpid();
+		mfs_ppid = getpid();
 		(void) signal(SIGUSR1, started);
 		if ((i = fork())) {
 			if (i == -1)
@@ -726,7 +731,7 @@ next:
 	 * Dissociate from session and tty.
 	 */
 	if (mfs) {
-		kill(ppid, SIGUSR1);
+		kill(mfs_ppid, SIGUSR1);
 		(void) setsid();
 		(void) close(0);
 		(void) close(1);
@@ -1149,11 +1154,29 @@ iput(ip, ino)
 
 /*
  * Notify parent process that the filesystem has created itself successfully.
+ *
+ * We have to wait until the mount has actually completed!
  */
 void
 started()
 {
+	int retry = 100;	/* 10 seconds, 100ms */
 
+	while (mfs_ppid && retry) {
+		struct stat st;
+
+		if (
+		    stat(mfs_mtpt, &st) < 0 ||
+		    st.st_dev != mfs_mtstat.st_dev
+		) {
+			break;
+		}
+		usleep(100*1000);
+		--retry;
+	}
+	if (retry == 0) {
+		fatal("mfs mount failed waiting for mount to go active");
+	}
 	exit(0);
 }
 
