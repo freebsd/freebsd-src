@@ -31,6 +31,7 @@
 #include "log.h"
 #include "servconf.h"
 #include "canohost.h"
+#include "uidswap.h"
 
 #include <sia.h>
 #include <siad.h>
@@ -83,7 +84,7 @@ session_setup_sia(struct passwd *pw, char *tty)
 
 	host = get_canonical_hostname(options.use_dns);
 
-	if (sia_ses_init(&ent, saved_argc, saved_argv, host, pw->pw_name, 
+	if (sia_ses_init(&ent, saved_argc, saved_argv, host, pw->pw_name,
 	    tty, 0, NULL) != SIASUCCESS)
 		fatal("sia_ses_init failed");
 
@@ -100,11 +101,11 @@ session_setup_sia(struct passwd *pw, char *tty)
 	if (sia_ses_launch(sia_collect_trm, ent) != SIASUCCESS)
 		fatal("Couldn't launch session for %s from %s",
 		    pw->pw_name, host);
-	
+
 	sia_ses_release(&ent);
 
-	if (setreuid(geteuid(), geteuid()) < 0)
-		fatal("setreuid: %s", strerror(errno));
+	setuid(0);
+	permanently_set_uid(pw);
 }
 
 #endif /* HAVE_OSF_SIA */

@@ -1,3 +1,5 @@
+/* OPENBSD ORIGINAL: lib/libc/gen/basename.c */
+
 /*	$OpenBSD: basename.c,v 1.11 2003/06/17 21:56:23 millert Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-/*	$OpenBSD: gss-serv.c,v 1.3 2003/08/31 13:31:57 markus Exp $	*/
+/*	$OpenBSD: gss-serv.c,v 1.5 2003/11/17 11:06:07 markus Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -232,9 +232,9 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 	return (ctx->major);
 }
 
-/* As user - called through fatal cleanup hook */
+/* As user - called on fatal/exit */
 void
-ssh_gssapi_cleanup_creds(void *ignored)
+ssh_gssapi_cleanup_creds(void)
 {
 	if (gssapi_client.store.filename != NULL) {
 		/* Unlink probably isn't sufficient */
@@ -249,8 +249,6 @@ ssh_gssapi_storecreds(void)
 {
 	if (gssapi_client.mech && gssapi_client.mech->storecreds) {
 		(*gssapi_client.mech->storecreds)(&gssapi_client);
-		if (options.gss_cleanup_creds)
-			fatal_add_cleanup(ssh_gssapi_cleanup_creds, NULL);
 	} else
 		debug("ssh_gssapi_storecreds: Not a GSSAPI mechanism");
 }
@@ -287,6 +285,16 @@ ssh_gssapi_userok(char *user)
 	else
 		debug("ssh_gssapi_userok: Unknown GSSAPI mechanism");
 	return (0);
+}
+
+/* Priviledged */
+OM_uint32
+ssh_gssapi_checkmic(Gssctxt *ctx, gss_buffer_t gssbuf, gss_buffer_t gssmic)
+{
+	ctx->major = gss_verify_mic(&ctx->minor, ctx->context,
+	    gssbuf, gssmic, NULL);
+
+	return (ctx->major);
 }
 
 #endif

@@ -76,19 +76,19 @@ function add(str) {
       skip=1
       ext=1
       if(length(line)&&!(match(line," $")||prenl))
-        add(OFS)
+	add(OFS)
     } else if(match(words[w],"^Xc$")) {
       skip=1
       ext=0
       if(!extopt)
-        prenl++
+	prenl++
       w=nwords
     } else if(match(words[w],"^Bd$")) {
       skip=1
       if(match(words[w+1],"-literal")) {
-        literal=1
-        prenl++
-        w=nwords
+	literal=1
+	prenl++
+	w=nwords
       }
     } else if(match(words[w],"^Ed$")) {
       skip=1
@@ -96,7 +96,7 @@ function add(str) {
     } else if(match(words[w],"^Ns$")) {
       skip=1
       if(!nospace)
-        nospace=1
+	nospace=1
       sub(" $","",line)
     } else if(match(words[w],"^No$")) {
       skip=1
@@ -107,20 +107,20 @@ function add(str) {
       add("``")
       add(words[++w])
       while(w<nwords&&!match(words[w+1],"^[\\.,]"))
-        add(OFS words[++w])
+	add(OFS words[++w])
       add("''")
       if(!nospace&&match(words[w+1],"^[\\.,]"))
-        nospace=1
+	nospace=1
     } else if(match(words[w],"^Sq|Ql$")) {
       skip=1
       add("`" words[++w] "'")
       if(!nospace&&match(words[w+1],"^[\\.,]"))
-        nospace=1
+	nospace=1
     } else if(match(words[w],"^Oo$")) {
       skip=1
       extopt=1
       if(!nospace)
-        nospace=1
+	nospace=1
       add("[")
     } else if(match(words[w],"^Oc$")) {
       skip=1
@@ -129,9 +129,9 @@ function add(str) {
     }
     if(!skip) {
       if(!nospace&&length(line)&&!(match(line," $")||prenl))
-        add(OFS)
+	add(OFS)
       if(nospace==1)
-        nospace=0
+	nospace=0
     }
     if(match(words[w],"^Dd$")) {
       date=wtail()
@@ -158,69 +158,69 @@ function add(str) {
     } else if(match(words[w],"^Re$")) {
       prenl++
       for(i=nrefauthors-1;i>0;i--) {
-        add(refauthors[i])
-        if(i>1)
-          add(", ")
+	add(refauthors[i])
+	if(i>1)
+	  add(", ")
       }
       if(nrefauthors>1)
-        add(" and ")
+	add(" and ")
       add(refauthors[0] ", \\fI" reftitle "\\fP")
       if(length(refissue))
-        add(", " refissue)
+	add(", " refissue)
       if(length(refdate))
-        add(", " refdate)
+	add(", " refdate)
       if(length(refopt))
-        add(", " refopt)
+	add(", " refopt)
       add(".")
       reference=0
     } else if(reference) {
       if(match(words[w],"^%A$")) { refauthors[nrefauthors++]=wtail() }
       if(match(words[w],"^%T$")) {
-        reftitle=wtail()
-        sub("^\"","",reftitle)
-        sub("\"$","",reftitle)
+	reftitle=wtail()
+	sub("^\"","",reftitle)
+	sub("\"$","",reftitle)
       }
       if(match(words[w],"^%N$")) { refissue=wtail() }
       if(match(words[w],"^%D$")) { refdate=wtail() }
       if(match(words[w],"^%O$")) { refopt=wtail() }
     } else if(match(words[w],"^Nm$")) {
       if(synopsis) {
-        add(".br")
-        prenl++
+	add(".br")
+	prenl++
       }
       n=words[++w]
       if(!length(name))
-        name=n
+	name=n
       if(!length(n))
-        n=name
+	n=name
       add("\\fB" n "\\fP")
       if(!nospace&&match(words[w+1],"^[\\.,]"))
-        nospace=1
+	nospace=1
     } else if(match(words[w],"^Nd$")) {
       add("\\- " wtail())
     } else if(match(words[w],"^Fl$")) {
       add("\\fB\\-" words[++w] "\\fP")
       if(!nospace&&match(words[w+1],"^[\\.,]"))
-        nospace=1
+	nospace=1
     } else if(match(words[w],"^Ar$")) {
       add("\\fI")
       if(w==nwords)
-        add("file ...\\fP")
+	add("file ...\\fP")
       else {
-        add(words[++w] "\\fP")
-        while(match(words[w+1],"^\\|$"))
-          add(OFS words[++w] " \\fI" words[++w] "\\fP")
+	add(words[++w] "\\fP")
+	while(match(words[w+1],"^\\|$"))
+	  add(OFS words[++w] " \\fI" words[++w] "\\fP")
       }
       if(!nospace&&match(words[w+1],"^[\\.,]"))
-        nospace=1
+	nospace=1
     } else if(match(words[w],"^Cm$")) {
       add("\\fB" words[++w] "\\fP")
       while(w<nwords&&match(words[w+1],"^[\\.,:;)]"))
-        add(words[++w])
+	add(words[++w])
     } else if(match(words[w],"^Op$")) {
       option=1
       if(!nospace)
-        nospace=1
+	nospace=1
       add("[")
     } else if(match(words[w],"^Pp$")) {
       prenl++
@@ -232,10 +232,10 @@ function add(str) {
       add("\\fI")
       w++
       if(match(words[w],"^\\."))
-        add("\\&")
+	add("\\&")
       add(words[w] "\\fP")
       while(w<nwords&&match(words[w+1],"^[\\.,:;)]"))
-        add(words[++w])
+	add(words[++w])
     } else if(match(words[w],"^Dv$")) {
       add(".BR")
     } else if(match(words[w],"^Em|Ev$")) {
@@ -254,69 +254,69 @@ function add(str) {
       plain=1
       add("\\fB")
       while(w<nwords) {
-        w++
-        if(match(words[w],"^Op$")) {
-          w++
-          add("[")
-          words[nwords]=words[nwords] "]"
-        }
-        if(match(words[w],"^Ar$")) {
-          add("\\fI" words[++w] "\\fP")
-        } else if(match(words[w],"^[\\.,]")) {
-          sub(" $","",line)
-          if(plain) {
-            add("\\fP")
-            plain=0
-          }
-          add(words[w])
-        } else {
-          if(!plain) {
-            add("\\fB")
-            plain=1
-          }
-          add(words[w])
-        }
-        if(!nospace)
-          add(OFS)
+	w++
+	if(match(words[w],"^Op$")) {
+	  w++
+	  add("[")
+	  words[nwords]=words[nwords] "]"
+	}
+	if(match(words[w],"^Ar$")) {
+	  add("\\fI" words[++w] "\\fP")
+	} else if(match(words[w],"^[\\.,]")) {
+	  sub(" $","",line)
+	  if(plain) {
+	    add("\\fP")
+	    plain=0
+	  }
+	  add(words[w])
+	} else {
+	  if(!plain) {
+	    add("\\fB")
+	    plain=1
+	  }
+	  add(words[w])
+	}
+	if(!nospace)
+	  add(OFS)
       }
       sub(" $","",line)
       if(plain)
-        add("\\fP")
+	add("\\fP")
     } else if(match(words[w],"^Bl$")) {
       oldoptlist=optlist
       if(match(words[w+1],"-bullet"))
-        optlist=1
+	optlist=1
       else if(match(words[w+1],"-enum")) {
-        optlist=2
-        enum=0
+	optlist=2
+	enum=0
       } else if(match(words[w+1],"-tag"))
-        optlist=3
+	optlist=3
       else if(match(words[w+1],"-item"))
-        optlist=4
+	optlist=4
       else if(match(words[w+1],"-bullet"))
-        optlist=1
+	optlist=1
       w=nwords
     } else if(match(words[w],"^El$")) {
       optlist=oldoptlist
     } else if(match(words[w],"^It$")&&optlist) {
       if(optlist==1)
-        add(".IP \\(bu")
+	add(".IP \\(bu")
       else if(optlist==2)
-        add(".IP " ++enum ".")
+	add(".IP " ++enum ".")
       else if(optlist==3) {
-        add(".TP")
-        prenl++
-        if(match(words[w+1],"^Pa|Ev$")) {
-          add(".B")
-          w++
-        }
+	add(".TP")
+	prenl++
+	if(match(words[w+1],"^Pa|Ev$")) {
+	  add(".B")
+	  w++
+	}
       } else if(optlist==4)
-        add(".IP")
+	add(".IP")
     } else if(match(words[w],"^Sm$")) {
       if(match(words[w+1],"off"))
-        nospace=2
+	nospace=2
       else if(match(words[w+1],"on"))
-        nospace=0
+	nospace=0
       w++
     } else if(!skip) {
       add(words[w])
