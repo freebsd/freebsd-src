@@ -67,7 +67,7 @@ static int oiks_debug = 1;	/* 0 disable, 1 printf, 2 enter debugger */
 SYSCTL_INT(_kern_threads, OID_AUTO, oiks, CTLFLAG_RW,
 	&oiks_debug, 0, "OIKS thread debug");
 
-static int max_threads_per_proc = 4;
+static int max_threads_per_proc = 6;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_per_proc, CTLFLAG_RW,
 	&max_threads_per_proc, 0, "Limit on threads per proc");
 
@@ -330,7 +330,10 @@ thread_export_context(struct thread *td)
 	void *addr2;
 	int error;
 	ucontext_t uc;
+	int unbound;
 
+	unbound = (td->td_flags & TDF_UNBOUND);
+	td->td_flags &= ~TDF_UNBOUND;	
 #ifdef __ia64__
 	td2_mbx = 0;		/* pacify gcc (!) */
 #endif
@@ -365,6 +368,7 @@ thread_export_context(struct thread *td)
 		error = suword(addr1, (u_long)td->td_mailbox);
 	if (error == -1)
 		error = EFAULT;
+	td->td_flags |= unbound;
 	return (error);
 }
 
@@ -574,9 +578,10 @@ signal_upcall(struct proc *p, int sig)
  * no other completed threads.
  */
 static int
-thread_consider_upcalling(struct proc *p, struct ksegrp *kg, struct kse *ke,
-    struct thread *td, struct trapframe *frame)
+thread_consider_upcalling(struct thread *td)
 {
+	struct proc *p;
+	struct ksegrp *kg;
 	int error;
 
 	/*
@@ -597,7 +602,14 @@ thread_consider_upcalling(struct proc *p, struct ksegrp *kg, struct kse *ke,
 	 * Decide whether to perfom an upcall now.
 	 */
 	/* Make sure there are no other threads waiting to run. */
-	if (TAILQ_FIRST(&kg->kg_runq)) {
+	p = td->td_proc;
+	kg = td->td_ksegrp;
+	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
+	/* bogus test, ok for testing though */
+	if (TAILQ_FIRST(&kg->kg_runq) && 
+	    (TAILQ_LAST(&kg->kg_runq, threadqueue) 
+		!= kg->kg_last_assigned)) {
 		/*
 		 * Another thread in this KSEG needs to run.
 		 * Switch to it instead of performing an upcall,
@@ -621,8 +633,6 @@ thread_consider_upcalling(struct proc *p, struct ksegrp *kg, struct kse *ke,
 		 * the next upcall to any KSE in this KSEG.
 		 *
 		 */
-		PROC_LOCK(p);
-		mtx_lock_spin(&sched_lock);
 		thread_exit(); /* Abandon current thread. */
 		/* NOTREACHED */
 	} else
@@ -633,6 +643,8 @@ thread_consider_upcalling(struct proc *p, struct ksegrp *kg, struct kse *ke,
 		 * nested in the kernel.
 		 */
 		td->td_flags |= TDF_UPCALLING;
+	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -649,11 +661,11 @@ thread_consider_upcalling(struct proc *p, struct ksegrp *kg, struct kse *ke,
  * We will clear it here.
  */
 int
-thread_userret(struct proc *p, struct ksegrp *kg, struct kse *ke,
-    struct thread *td, struct trapframe *frame)
+thread_userret(struct thread *td, struct trapframe *frame)
 {
 	int error;
 
+#if 0
 	/*
 	 * Ensure that we have a spare thread available.
 	 */
@@ -662,19 +674,18 @@ thread_userret(struct proc *p, struct ksegrp *kg, struct kse *ke,
 		ke->ke_tdspare = thread_alloc();
 		mtx_unlock(&Giant);
 	}
-
+#endif
 	/*
 	 * Bound threads need no additional work.
 	 */
 	if ((td->td_flags & TDF_UNBOUND) == 0)
 		return (0);
 	error = 0;
-
 	/*
 	 * Decide whether or not we should perform an upcall now.
 	 */
 	if (((td->td_flags & TDF_UPCALLING) == 0) && td->td_mailbox) {
-		error = thread_consider_upcalling(p, kg, ke, td, frame);
+		error = thread_consider_upcalling(td);
 		if (error != 0)
 			/*
 			 * Failing to do the KSE operation just defaults
@@ -694,7 +705,8 @@ thread_userret(struct proc *p, struct ksegrp *kg, struct kse *ke,
 		/*
 		 * Set user context to the UTS.
 		 */
-		cpu_set_upcall_kse(td, ke);
+		td->td_flags &= ~TDF_UNBOUND;
+		cpu_set_upcall_kse(td, td->td_kse);
 		if (error)
 			/*
 			 * Failing to do the KSE operation just defaults
