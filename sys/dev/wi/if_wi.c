@@ -203,7 +203,7 @@ static driver_t wi_pci_driver = {
 	sizeof(struct wi_softc)
 };
 
-struct {
+static struct {
 	unsigned int vendor,device;
 	char *desc;
 } pci_ids[] = {
