@@ -739,8 +739,8 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 	*(int *)arg = d->dbuf_in.rl;
 	break;
 
-    case FIOASYNC: /*set/clear async i/o */
-	printf("FIOASYNC\n");
+    case FIOASYNC: /* set/clear async i/o */
+	/* do nothing, this is called from kern_descrip.c for fcntl() */
 	break;
 
     case SNDCTL_DSP_NONBLOCK :
