@@ -1696,10 +1696,10 @@ vm_map_unwire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			goto done;
 		}
 		/*
-		 * Require that the entry is wired.
+		 * If system unwiring, require that the entry is system wired.
 		 */
-		if (entry->wired_count == 0 || (user_unwire &&
-		    (entry->eflags & MAP_ENTRY_USER_WIRED) == 0)) {
+		if (!user_unwire && entry->wired_count < ((entry->eflags &
+		    MAP_ENTRY_USER_WIRED) ? 2 : 1)) {
 			end = entry->end;
 			rv = KERN_INVALID_ARGUMENT;
 			goto done;
@@ -1718,7 +1718,8 @@ done:
 	}
 	entry = first_entry;
 	while (entry != &map->header && entry->start < end) {
-		if (rv == KERN_SUCCESS) {
+		if (rv == KERN_SUCCESS && (!user_unwire ||
+		    (entry->eflags & MAP_ENTRY_USER_WIRED))) {
 			if (user_unwire)
 				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
 			entry->wired_count--;
