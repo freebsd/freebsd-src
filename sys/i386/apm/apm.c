@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.12.4.11 1996/04/23 16:08:53 nate Exp $
+ *	$Id: apm.c,v 1.12.4.12 1996/04/23 19:59:52 nate Exp $
  */
 
 #include "apm.h"
@@ -676,7 +676,7 @@ apmattach(struct isa_device *dvp)
 #ifdef APM_DSVALUE_BUG
 	caddr_t apm_bios_work;
 
-	apm_bioswork = (caddr_t)malloc(apm_ds_limit, M_DEVBUG, M_NOWAIT);
+	apm_bio_swork = (caddr_t)malloc(apm_ds_limit, M_DEVBUG, M_NOWAIT);
 	bcopy((caddr_t)((apm_ds_base << 4) + APM_KERNBASE), apm_bios_work,
 		apm_ds_limit);
 #endif /* APM_DSVALUE_BUG */
