@@ -111,7 +111,7 @@ linux_setgroups16(struct proc *p, struct linux_setgroups16_args *args)
 	if ((error = suser_xxx(oldcred, NULL, PRISON_ROOT)) != 0)
 		return (error);
 
-	if (ngrp >= NGROUPS)
+	if (ngrp < 0 || ngrp >= NGROUPS)
 		return (EINVAL);
 
 	newcred = crdup(oldcred);
