@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.53 1998/09/03 21:01:22 nsouch Exp $
+ *	$Id: isa_device.h,v 1.54 1998/09/15 10:04:08 gibbs Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -73,11 +73,12 @@ struct isa_device {
 /*
  * Bits to specify the type and amount of conflict checking.
  */
-#define CC_ATTACH       (1 << 0)
-#define CC_DRQ          (1 << 1)
-#define CC_IOADDR       (1 << 2)
-#define CC_IRQ          (1 << 3)
-#define CC_MEMADDR      (1 << 4)
+#define	CC_ATTACH	(1 << 0)
+#define	CC_DRQ		(1 << 1)
+#define	CC_IOADDR	(1 << 2)
+#define	CC_IRQ		(1 << 3)
+#define	CC_MEMADDR	(1 << 4)
+#define	CC_QUIET	(1 << 5)
 
 /*
  * Per-driver structure.
