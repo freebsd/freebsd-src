@@ -56,7 +56,19 @@
 #define	stqe_next		sqe_next
 #endif
 
-#define	AHC_NSEG	256	/* number of dma segments supported */
+#define AHC_NSEG	32	/* The number of dma segments supported.
+				 * AHC_NSEG can be maxed out at 256 entries,
+				 * but the kernel will never need to transfer
+				 * such a large (1MB) request.  To reduce the
+				 * driver's memory consumption, we reduce the
+				 * max to 32.  16 would work if all transfers
+				 * are paged alined since the kernel will only
+				 * generate at most a 64k transfer, but to
+				 * handle non-page aligned transfers, you need
+				 * 17, so we round to the next power of two
+				 * to make allocating SG space easy and
+				 * efficient.
+				 */
 
 #define AHC_SCB_MAX	255	/*
 				 * Up to 255 SCBs on some types of aic7xxx
