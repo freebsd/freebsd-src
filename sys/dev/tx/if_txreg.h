@@ -50,6 +50,8 @@
 #define RX_RING_MASK		(RX_RING_SIZE - 1)
 #define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
 
+#define	EPIC_MAX_MTU		1600	/* This is experiment-derived value */
+
 /* PCI aux configuration registers */
 #if defined(__FreeBSD__)
 #define	PCIR_BASEIO	(PCIR_MAPS + 0x0)	/* Base IO Address */
