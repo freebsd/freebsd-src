@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: commands.c,v 1.2 1998/09/03 02:10:07 msmith Exp $
+ *	$Id: commands.c,v 1.3 1998/09/18 02:01:38 msmith Exp $
  */
 
 #include <stand.h>
@@ -43,7 +43,7 @@ command_help(int argc, char *argv[])
     char	helppath[80];	/* XXX buffer size? */
 
     /* page the help text from our load path */
-    sprintf(helppath, "%s/boot.help", getenv("loaddev"));
+    sprintf(helppath, "%s/boot/boot.help", getenv("loaddev"));
     printf("%s\n", helppath);
     if (pager_file(helppath) == -1)
 	printf("Verbose help not available, use '?' to list commands\n");
@@ -177,3 +177,62 @@ command_echo(int argc, char *argv[])
     return(CMD_OK);
 }
 
+/*
+ * A passable emulation of the sh(1) command of the same name.
+ */
+
+COMMAND_SET(read, "read", NULL, command_read);
+
+static int
+command_read(int argc, char *argv[])
+{
+    char	*prompt;
+    int		timeout;
+    time_t	when;
+    char	*cp;
+    char	*name;
+    char	buf[256];		/* XXX size? */
+    int		c;
+    
+    timeout = -1;
+    prompt = NULL;
+    optind = 1;
+    while ((c = getopt(argc, argv, "p:t:")) != -1) {
+	switch(c) {
+	    
+	case 'p':
+	    prompt = optarg;
+	    break;
+	case 't':
+	    timeout = strtol(optarg, &cp, 0);
+	    if (cp == optarg) {
+		sprintf(command_errbuf, "bad timeout '%s'", optarg);
+		return(CMD_ERROR);
+	    }
+	    break;
+	default:
+	    return(CMD_OK);
+	}
+    }
+
+    argv += (optind);
+    argc -= (optind);
+    name = (argc > 0) ? argv[0]: NULL;
+	
+    if (prompt != NULL)
+	printf(prompt);
+    if (timeout >= 0) {
+	when = time(NULL) + timeout;
+	while (!ischar())
+	    if (time(NULL) >= when)
+		return(CMD_OK);		/* is timeout an error? */
+    }
+
+    ngets(buf, sizeof(buf));
+
+    printf("read name '%s' value '%s'\n", name, buf);
+
+    if (name != NULL)
+	setenv(name, buf, 1);
+    return(CMD_OK);
+}

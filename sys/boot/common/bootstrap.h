@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.9 1998/09/30 19:25:26 peter Exp $
+ *	$Id: bootstrap.h,v 1.10 1998/10/02 08:04:56 peter Exp $
  */
 
 #include <sys/types.h>
@@ -62,6 +62,7 @@ extern int	parse(int *argc, char ***argv, char *str);
 
 /* boot.c */
 extern int	autoboot(int delay, char *prompt);
+extern void	autoboot_maybe(void);
 
 /* misc.c */
 extern char	*unargv(int argc, char *argv[]);
