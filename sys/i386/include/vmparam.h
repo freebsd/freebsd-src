@@ -84,6 +84,13 @@
 
 
 /*
+ * Kernel physical load address.
+ */
+#ifndef KERNLOAD
+#define	KERNLOAD		(1 << PDRSHIFT)
+#endif
+
+/*
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  * Because of the page that is both a PD and PT, it looks a little

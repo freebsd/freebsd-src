@@ -195,8 +195,8 @@ vm_paddr_t avail_end;	/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
-static int pgeflag;		/* PG_G or-in */
-static int pseflag;		/* PG_PS or-in */
+int pgeflag = 0;		/* PG_G or-in */
+int pseflag = 0;		/* PG_PS or-in */
 
 static int nkpt;
 vm_offset_t kernel_vm_end;
@@ -260,8 +260,6 @@ static void *pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wai
 static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
 #endif
 
-static pd_entry_t pdir4mb;
-
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
 
@@ -285,7 +283,7 @@ pmap_kmem_choose(vm_offset_t addr)
 #endif
 #ifndef DISABLE_PSE
 	if (cpu_feature & CPUID_PSE)
-		newaddr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
+		newaddr = (addr + PDRMASK) & ~PDRMASK;
 #endif
 	return newaddr;
 }
@@ -397,11 +395,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	for (i = 0; i < NKPT; i++)
 		PTD[i] = 0;
 
-	pgeflag = 0;
-#ifndef DISABLE_PG_G
-	if (cpu_feature & CPUID_PGE)
-		pgeflag = PG_G;
-#endif
 #ifdef I686_CPU_not	/* Problem seems to have gone away */
 	/* Deal with un-resolved Pentium4 issues */
 	if (cpu_class == CPUCLASS_686 &&
@@ -411,21 +404,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 		pgeflag = 0;
 	}
 #endif
-	
-/*
- * Initialize the 4MB page size flag
- */
-	pseflag = 0;
-/*
- * The 4MB page version of the initial
- * kernel page mapping.
- */
-	pdir4mb = 0;
 
-#ifndef DISABLE_PSE
-	if (cpu_feature & CPUID_PSE)
-		pseflag = PG_PS;
-#endif
 #ifdef I686_CPU_not	/* Problem seems to have gone away */
 	/* Deal with un-resolved Pentium4 issues */
 	if (cpu_class == CPUCLASS_686 &&
@@ -435,26 +414,10 @@ pmap_bootstrap(firstaddr, loadaddr)
 		pseflag = 0;
 	}
 #endif
-#ifndef DISABLE_PSE
-	if (pseflag) {
-		pd_entry_t ptditmp;
-		/*
-		 * Note that we have enabled PSE mode
-		 */
-		ptditmp = *(PTmap + i386_btop(KERNBASE));
-		ptditmp &= ~(NBPDR - 1);
-		ptditmp |= PG_V | PG_RW | PG_PS | PG_U | pgeflag;
-		pdir4mb = ptditmp;
-	}
-#endif
-#ifndef SMP
-	/*
-	 * Turn on PGE/PSE.  SMP does this later on since the
-	 * 4K page tables are required for AP boot (for now).
-	 * XXX fixme.
-	 */
-	pmap_set_opt();
-#endif
+
+	/* Turn on PG_G on kernel page(s) */
+	pmap_set_pg();
+
 #ifdef SMP
 	if (cpu_apic_address == 0)
 		panic("pmap_bootstrap: no local apic! (non-SMP hardware?)");
@@ -467,55 +430,41 @@ pmap_bootstrap(firstaddr, loadaddr)
 }
 
 /*
- * Enable 4MB page mode for MP startup.  Turn on PG_G support.
- * BSP will run this after all the AP's have started up.
+ * Set PG_G on kernel pages.  Only the BSP calls this when SMP is turned on.
  */
 void
-pmap_set_opt(void)
+pmap_set_pg(void)
 {
+	pd_entry_t pdir;
 	pt_entry_t *pte;
 	vm_offset_t va, endva;
+	int i; 
 
-	if (pgeflag && (cpu_feature & CPUID_PGE)) {
-		load_cr4(rcr4() | CR4_PGE);
-		invltlb();		/* Insurance */
-	}
-#ifndef DISABLE_PSE
-	if (pseflag && (cpu_feature & CPUID_PSE)) {
-		load_cr4(rcr4() | CR4_PSE);
-		invltlb();		/* Insurance */
-	}
-#endif
-	if (PCPU_GET(cpuid) == 0) {
-#ifndef DISABLE_PSE
-		if (pdir4mb) {
-			kernel_pmap->pm_pdir[KPTDI] = PTD[KPTDI] = pdir4mb;
-			invltlb();	/* Insurance */
+	if (pgeflag == 0)
+		return;
+
+	i = KERNLOAD/NBPDR;
+	endva = KERNBASE + KERNend;
+
+	if (pseflag) {
+		va = KERNBASE + KERNLOAD;
+		while (va  < endva) {
+			pdir = kernel_pmap->pm_pdir[KPTDI+i];
+			pdir |= pgeflag;
+			kernel_pmap->pm_pdir[KPTDI+i] = PTD[KPTDI+i] = pdir;
+			invltlb();	/* Play it safe, invltlb() every time */
+			i++;
+			va += NBPDR;
 		}
-#endif
-		if (pgeflag) {
-			/* Turn on PG_G for text, data, bss pages. */
-			va = (vm_offset_t)btext;
-#ifndef DISABLE_PSE
-			if (pseflag && (cpu_feature & CPUID_PSE)) {
-				if (va < KERNBASE + (1 << PDRSHIFT))
-					va = KERNBASE + (1 << PDRSHIFT);
-			}
-#endif
-			endva = KERNBASE + KERNend;
-			while (va < endva) {
-				pte = vtopte(va);
-				if (*pte)
-					*pte |= pgeflag;
-				va += PAGE_SIZE;
-			}
-			invltlb();	/* Insurance */
+	} else {
+		va = (vm_offset_t)btext;
+		while (va < endva) {
+			pte = vtopte(va);
+			if (*pte)
+				*pte |= pgeflag;
+			invltlb();	/* Play it safe, invltlb() every time */
+			va += PAGE_SIZE;
 		}
-		/*
-		 * We do not need to broadcast the invltlb here, because
-		 * each AP does it the moment it is released from the boot
-		 * lock.  See ap_init().
-		 */
 	}
 }
 
@@ -3156,7 +3105,7 @@ pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size)
 		return addr;
 	}
 
-	addr = (addr + (NBPDR - 1)) & ~(NBPDR - 1);
+	addr = (addr + PDRMASK) & ~PDRMASK;
 	return addr;
 }
 
