@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.25 1995/05/20 20:30:12 jkh Exp $
+ * $Id: sysinstall.h,v 1.26 1995/05/21 15:40:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,6 +70,15 @@
 #define DEV_MAX			200	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 
+/*
+ * I make some pretty gross assumptions about having a max of 50 chunks
+ * total - 8 slices and 42 partitions.  I can't easily display many more
+ * than that on the screen at once!
+ *
+ * For 2.1 I'll revisit this and try to make it more dynamic, but since
+ * this will catch 99.99% of all possible cases, I'm not too worried.
+ */
+#define MAX_CHUNKS	50
 
 /* Internal flag variables */
 #define DISK_PARTITIONED	"_diskPartitioned"
@@ -226,6 +235,11 @@ extern void	command_execute(void);
 extern void	command_shell_add(char *key, char *fmt, ...);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
+/* config.c */
+extern void	config_fstab(void);
+extern void	config_sysconfig(void);
+extern void	config_resolv(void);
+
 /* decode.c */
 extern DMenuItem *decode(DMenu *menu, char *name);
 extern Boolean	dispatch(DMenuItem *tmp, char *name);
@@ -302,32 +316,30 @@ extern int	mediaSetDOS(char *str);
 extern int	mediaSetTape(char *str);
 extern int	mediaSetFTP(char *str);
 extern int	mediaSetFS(char *str);
-extern int	mediaOpen(char *parent, char *me);
 extern Boolean	mediaGetType(void);
-extern Boolean	mediaExtractDist(char *dir, int fd);
+extern Boolean	mediaExtractDist(char *distname, char *dir, int fd);
 extern Boolean	mediaVerify(void);
-extern void	mediaClose(void);
 
 /* media_strategy.c */
-extern Boolean	mediaInitUFS(Device *dev);
-extern Boolean	mediaGetUFS(char *dist);
 extern Boolean	mediaInitCDROM(Device *dev);
 extern Boolean	mediaInitDOS(Device *dev);
-extern Boolean	mediaGetFloppy(char *dist);
 extern Boolean	mediaInitFloppy(Device *dev);
-extern Boolean	mediaGetCDROM(char *dist);
-extern Boolean	mediaGetDOS(char *dist);
-extern Boolean	mediaInitTape(Device *dev);
-extern Boolean	mediaGetTape(char *dist);
 extern Boolean	mediaInitFTP(Device *dev);
 extern Boolean	mediaInitNetwork(Device *dev);
-extern Boolean	mediaGetFTP(char *dist);
-extern void	mediaCloseTape(Device *dev);
+extern Boolean	mediaInitTape(Device *dev);
+extern Boolean	mediaInitUFS(Device *dev);
+extern int	mediaGetCDROM(char *dist);
+extern int	mediaGetDOS(char *dist);
+extern int	mediaGetFloppy(char *dist);
+extern int	mediaGetFTP(char *dist);
+extern int	mediaGetTape(char *dist);
+extern int	mediaGetUFS(char *dist);
 extern void	mediaCloseCDROM(Device *dev);
 extern void	mediaCloseDOS(Device *dev);
 extern void	mediaCloseFTP(Device *dev);
 extern void	mediaCloseFloppy(Device *dev);
 extern void	mediaCloseNetwork(Device *dev);
+extern void	mediaCloseTape(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
@@ -354,6 +366,7 @@ extern void	msgError(char *fmt, ...);
 extern void	msgFatal(char *fmt, ...);
 extern void	msgConfirm(char *fmt, ...);
 extern void	msgNotify(char *fmt, ...);
+extern void	msgWeHaveOutput(char *fmt, ...);
 extern int	msgYesNo(char *fmt, ...);
 extern char	*msgGetInput(char *buf, char *fmt, ...);
 

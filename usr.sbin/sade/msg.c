@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.21 1995/05/20 19:12:12 phk Exp $
+ * $Id: msg.c,v 1.22 1995/05/22 14:10:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,21 +73,32 @@ msgInfo(char *fmt, ...)
 {
     va_list args;
     char *errstr;
-    int attrs;
+    int i, attrs;
+    char line[81];
 
+    attrs = getattrs(stdscr);
     /* NULL is a special convention meaning "erase the old stuff" */
     if (!fmt) {
 	move(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0);
+	attrset(A_REVERSE);
 	clrtoeol();
+	attrset(attrs);
 	return;
     }
     errstr = (char *)safe_malloc(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    attrs = getattrs(stdscr);
-    attrset(A_NORMAL);
-    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, errstr);
+    memset(line, ' ', 80);
+    for (i = 0; i < 80; i++) {
+	if (errstr[i])
+	    line[i] = errstr[i];
+	else
+	    break;
+    }
+    line[80] = '\0';
+    attrset(A_REVERSE);
+    mvaddstr(OnVTY ? VTY_STATLINE : TTY_STATLINE, 0, line);
     attrset(attrs);
     refresh();
     if (OnVTY) {
@@ -302,4 +313,25 @@ msgDebug(char *fmt, ...)
     va_end(args);
     write(DebugFD, dbg, strlen(dbg));
     free(dbg);
+}
+
+/* Tell the user there's some output to go look at */
+void
+msgWeHaveOutput(char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+
+    errstr = (char *)safe_malloc(FILENAME_MAX);
+    va_start(args, fmt);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
+    va_end(args);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    msgDebug("Notify: %s\n", errstr);
+    dialog_clear();
+    dialog_msgbox("Information Dialog", errstr, -1, -1, 0);
+    free(errstr);
+    if (OnVTY)
+	msgInfo("Command output is on debugging screen - type ALT-F2 to see it");
 }

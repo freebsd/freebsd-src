@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.20 1995/05/21 18:24:33 jkh Exp $
+ * $Id: label.c,v 1.21 1995/05/22 14:10:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,16 +51,6 @@
 
 /* A nice message we use a lot in the disklabel editor */
 #define MSG_NOT_APPLICABLE	"That option is not applicable here"
-
-/*
- * I make some pretty gross assumptions about having a max of 50 chunks
- * total - 8 slices and 42 partitions.  I can't easily display many more
- * than that on the screen at once!
- *
- * For 2.1 I'll revisit this and try to make it more dynamic, but since
- * this will catch 99.99% of all possible cases, I'm not too worried.
- */
-#define MAX_CHUNKS	50
 
 /* Where to start printing the freebsd slices */
 #define CHUNK_SLICE_START_ROW		2
@@ -348,10 +338,9 @@ print_label_chunks(void)
 		pcol = PART_OFF;
 		prow = CHUNK_PART_START_ROW;
 	    }
-	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name,
-		   strlen(label_chunk_info[i].c->name));
+	    memcpy(onestr + PART_PART_COL, label_chunk_info[i].c->name, strlen(label_chunk_info[i].c->name));
 	    /* If it's a filesystem, display the mountpoint */
-	    if (label_chunk_info[i].type == PART_FILESYSTEM) {
+	    if (label_chunk_info[i].type == PART_FILESYSTEM || label_chunk_info[i].type == PART_FAT) {
 		if (label_chunk_info[i].c->private == NULL) {
 		    static int mnt = 0;
 		    char foo[10];
@@ -361,23 +350,21 @@ print_label_chunks(void)
 		     * Fill in a fake mountpoint and register it
 		     */
 		    sprintf(foo, "/mnt%d", mnt++);
-		    label_chunk_info[i].c->private = 
-			new_part(foo, FALSE,label_chunk_info[i].c->size);
+		    label_chunk_info[i].c->private = new_part(foo, FALSE, label_chunk_info[i].c->size);
 		    label_chunk_info[i].c->private_free = safe_free;
 		}
 		mountpoint = ((PartInfo *)label_chunk_info[i].c->private)->mountpoint;
-		newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "Y" : "N";
+		if (label_chunk_info[i].type == PART_FAT)
+		    newfs = "DOS";
+		else
+		    newfs = ((PartInfo *)label_chunk_info[i].c->private)->newfs ? "Y" : "N";
 	    }
 	    else if (label_chunk_info[i].type == PART_SWAP) {
 		mountpoint = "swap";
 		newfs = " ";
 	    }
-	    else if (label_chunk_info[i].type == PART_FAT) {
-		mountpoint = "DOS FAT";
-		newfs = "*";
-	    }
 	    else {
-		mountpoint = "<unknown>";
+		mountpoint = "<NONE>";
 		newfs = "*";
 	    }
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
@@ -481,13 +468,12 @@ diskLabelEditor(char *str)
 		break;
 	    }
 	    {
-		char *val, *cp, tmpb[20];
+		char *val, *cp;
 		int size;
 		struct chunk *tmp;
 		u_long flags = 0;
 
-		snprintf(tmpb, 20, "%d", sz);
-		val = msgGetInput(tmpb, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).");
+		val = msgGetInput(NULL, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).\nSpace free: %d blocks (%dMB)", sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0)
 		    break;
 
@@ -517,10 +503,8 @@ diskLabelEditor(char *str)
 			msgConfirm("This region cannot be used for your root partition as\nthe FreeBSD boot code cannot deal with a root partition created in\nsuch a location.  Please choose another location for your root\npartition and try again!");
 			break;
 		    }
-		    if (size < ROOT_MIN_SIZE) {
-			msgConfirm("This is too small a size for a root partition.  For a variety of\nreasons, root partitions should be at least %dMB in size", ROOT_MIN_SIZE / ONE_MEG);
-			break;
-		    }
+		    if (size < ROOT_MIN_SIZE)
+			msgConfirm("Warning: This is smaller than the recommended size for a\nroot partition.  For a variety of reasons, root\npartitions should usually be at least %dMB in size", ROOT_MIN_SIZE / ONE_MEG);
 		}
 		tmp = Create_Chunk_DWIM(label_chunk_info[here].d,
 					label_chunk_info[here].c,
@@ -554,7 +538,7 @@ diskLabelEditor(char *str)
 		break;
 	    }
 	    else if (label_chunk_info[here].type == PART_FAT) {
-		msg = "Use the Disk Partition Editor to delete this";
+		msg = "Use the Disk Partition Editor to delete DOS partitions";
 		break;
 	    }
 	    Delete_Chunk(label_chunk_info[here].d, label_chunk_info[here].c);
