@@ -31,6 +31,8 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -780,6 +782,8 @@ acpi_tz_thread(void *arg)
     for (;;) {
 	tsleep(&acpi_tz_proc, PZERO, "nothing", hz * acpi_tz_polling_rate);
 
+	mtx_lock(&Giant);
+
 	if (devcount == 0)
 	    devclass_get_devices(acpi_tz_devclass, &devs, &devcount);
 
@@ -787,5 +791,7 @@ acpi_tz_thread(void *arg)
 	for (i = 0; i < devcount; i++)
 	    acpi_tz_timeout(device_get_softc(devs[i]));
 	ACPI_UNLOCK;
+
+	mtx_unlock(&Giant);
     }
 }
