@@ -64,6 +64,7 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/if_media.h>
 
 #include <isa/isavar.h>
 #include <isa/pnpvar.h>
@@ -138,6 +139,7 @@ an_detach_isa(device_t dev)
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
 
 	an_stop(sc);
+	ifmedia_removeall(&sc->an_ifmedia);
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
 	an_release_resources(dev);

@@ -34,8 +34,8 @@
 
 #define AN_TIMEOUT	65536
 
-/* Default network name: ANY */
-#define AN_DEFAULT_NETNAME	"ANY"
+/* Default network name: <empty string> */
+#define AN_DEFAULT_NETNAME	""
 
 /* The nodename must be less than 16 bytes */
 #define AN_DEFAULT_NODENAME	"FreeBSD"
@@ -532,7 +532,7 @@ struct an_ltv_status {
 	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
 	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
 	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
-	u_int16_t		an_spare[3];
+	u_int16_t		an_spare[5];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
@@ -845,6 +845,7 @@ struct an_softc	{
 #endif
 	struct callout_handle	an_stat_ch;
 	device_t		an_dev;
+	struct ifmedia		an_ifmedia;
 };
 
 void	an_release_resources	__P((device_t));

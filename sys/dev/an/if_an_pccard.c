@@ -62,6 +62,7 @@
 #include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/if_media.h>
 
 #ifndef lint
 static const char rcsid[] =
@@ -109,6 +110,7 @@ an_pccard_detach(device_t dev)
 		return(0);
 	}
 	an_stop(sc);
+	ifmedia_removeall(&sc->an_ifmedia);
 	ifp->if_flags &= ~IFF_RUNNING;
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 	sc->an_gone = 1;

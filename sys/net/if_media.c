@@ -401,6 +401,12 @@ struct ifmedia_description ifm_subtype_fddi_descriptions[] =
 struct ifmedia_description ifm_subtype_fddi_option_descriptions[] =
     IFM_SUBTYPE_FDDI_OPTION_DESCRIPTIONS;
 
+struct ifmedia_description ifm_subtype_ieee80211_descriptions[] =
+    IFM_SUBTYPE_IEEE80211_DESCRIPTIONS;
+
+struct ifmedia_description ifm_subtype_ieee80211_option_descriptions[] =
+    IFM_SUBTYPE_IEEE80211_OPTION_DESCRIPTIONS;
+
 struct ifmedia_description ifm_subtype_shared_descriptions[] =
     IFM_SUBTYPE_SHARED_DESCRIPTIONS;
 
@@ -425,6 +431,10 @@ struct ifmedia_type_to_subtype ifmedia_types_to_subtypes[] = {
 	{
 	  &ifm_subtype_fddi_descriptions[0],
 	  &ifm_subtype_fddi_option_descriptions[0]
+	},
+	{
+	  &ifm_subtype_ieee80211_descriptions[0],
+	  &ifm_subtype_ieee80211_option_descriptions[0]
 	},
 };
 

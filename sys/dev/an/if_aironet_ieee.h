@@ -336,6 +336,7 @@ struct an_ltv_genconfig {
 	u_int8_t		an_magic_packet_ctl;	/* 0x99 */
 	u_int16_t		an_rsvd9;
 };
+#endif
 
 #define AN_OPMODE_IBSS_ADHOC			0x0000
 #define AN_OPMODE_INFRASTRUCTURE_STATION	0x0001
@@ -395,6 +396,7 @@ struct an_ltv_genconfig {
 #define AN_HOME_NETWORK				0x0001
 #define AN_HOME_INSTALL_AP			0x0002
 
+#ifndef _KERNEL
 struct an_ltv_ssidlist {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
@@ -526,7 +528,7 @@ struct an_ltv_status {
 	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
 	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
 	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
-	u_int16_t		an_spare[3];
+	u_int16_t		an_spare[5];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
