@@ -2698,14 +2698,8 @@ vgonel(vp, td)
 	 * if it is on one.
 	 */
 	VI_LOCK(vp);
-	if (vp->v_type == VCHR && vp->v_rdev != NULL) {
-		dev_lock();
-		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
-		vp->v_rdev->si_usecount -= vp->v_usecount;
-		dev_rel(vp->v_rdev);
-		vp->v_rdev = NULL;
-		dev_unlock();
-	}
+	if (vp->v_type == VCHR && vp->v_rdev != NULL) 
+		dev_rel(vp);
 
 	/*
 	 * If it is on the freelist and not already at the head,
