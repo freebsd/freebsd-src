@@ -94,7 +94,6 @@ To do a fast search for a file, try
 
 locate uses a database that is updated every saturday (assuming your computer
 is running FreeBSD at the time) to quickly find files based on name only.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 In order to search for a string in some files, use 'grep' like this:
 
@@ -102,19 +101,16 @@ In order to search for a string in some files, use 'grep' like this:
 
 This will print out the lines in the files that contain the string.  grep can
 also do a lot more advanced searches - type 'man grep' for details.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 You can use the 'fetch' command to retrieve files over ftp or http.
 
 	 fetch http://www.freebsd.org/index.html
 
 will download the front page of the FreeBSD web site.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 In order to make fetch (the FreeBSD downloading tool) ask for
 username/password when it encounter a password-protected web page, you can set
 the environment variable HTTP_AUTH to 'basic:*'.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 You can permanently set environment variables for your shell by putting them
 in a startup file for the shell.  The name of the startup file varies
@@ -122,7 +118,6 @@ depending on the shell - csh and tcsh uses .cshrc, bash uses .bashrc, zsh uses
 .zshrc, ksh uses .kshrc, and the Bourne shell (/bin/sh) uses .profile (and
 through a little bit of trickery in .profile also .shrc)
 Other shells will often also read .profile
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 If you are running xterm, the default TERM variable will be 'xterm'.  If you
 set this environment variable to 'xterm-color' instead, a lot of programs will
@@ -135,7 +130,6 @@ in Bourne-derived shells, and
 	setenv TERM xterm-color
 
 in csh-derived shells.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 If you accidently drop into /bin/sh (e.g, due to a computer failure where you
 end up in single user mode), you can make the cursor keys work by typing
@@ -143,26 +137,21 @@ end up in single user mode), you can make the cursor keys work by typing
 	set -E
 
 The E represents the initial E in Emacs (for emacs keys).
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 If you do not want to get beeps in X11 (X Windows), you can turn them off with
 
 	xset b off
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 You can look through a file in a nice text-based interface by typing
 
 	less filename
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 The default editor in FreeBSD is vi, which is efficient to use when you have
 learned it, but somewhat user-unfriendly.  To use ee (an easier but less
 powerful editor) instead, set the environment variable EDITOR to /usr/bin/ee
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 If you accidently end up inside vi, you can quit it by pressing Escape, colon
 (:), q (q), bang (!) and pressing return.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 You can use aliases to decrease the amount of typing you need to do to get
 commands you commonly use.  Examples of fairly popular aliases include (in
@@ -180,17 +169,14 @@ In csh or tcsh, these would be
 
 To remove an alias, you can usually use 'unalias aliasname'.  To list all
 aliases, you can usually type just 'alias'.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 In order to support national characters for european languages in tools like
 less without creating other nationalisation aspects, set the environment
 variable LC_ALL to 'en_US.ISO8859-1'.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 You can search for documentation on a keyword by typing
 
 	apropos keyword
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 Man pages are divided into section depending on topic.  There are 9 different
 sections numbered from 1 (General Commands) to 9 (Kernel Developer's Manual).
@@ -201,19 +187,16 @@ You can get an introduction to each topic by typing
 In other words, to get the intro to general commands, type
 
 	man 1 intro
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 FreeBSD is started up by the program 'init'.  The first thing init does when
 starting multiuser mode (ie, starting the computer up for normal use) is to
 run the shell script /etc/rc.  By reading /etc/rc, you can learn a lot about
 how the system is put together, which again will make you more confident about
 what happens when you do something with it.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 If you want to play CDs with FreeBSD, a utility for this is already included.
 Type 'cdcontrol' then 'help' to learn more.  (You may need to set the CDROM
 environment variable in order to make cdcontrol want to start.)
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 If you have a CD-ROM drive in your machine, you can make the CD-ROM that is
 presently inserted available by typing 'mount /cdrom' as root.   The CD-ROM
@@ -222,7 +205,6 @@ removing the CD-ROM (it will usually not be possible to remove the CD-ROM
 without doing this.)
 
 Note: This tip may not work in all configurations.
-		--  Eivind Eklund <eivind@FreeBSD.org>
 %
 You can install extra packages for FreeBSD by using the ports system.
 If you have installed it, you can download, compile, and install software by
@@ -241,7 +223,6 @@ want after all by typing
 	# make deinstall
 
 as root.
-		-- Eivind Eklund <eivind@FreeBSD.org>
 %
 Nice bash prompt: PS1='(\[$(tput md)\]\t <\w>\[$(tput me)\]) $(echo $?) \$ '
 		-- Mathieu <mathieu@hal.interactionvirtuelle.com>
@@ -300,3 +281,40 @@ the section of the manual the man page is in.  "man man" will tell you more.
 %
 "man firewall" will give advice for building a FreeBSD firewall
 		-- David Scheidt <dscheidt@tumbolia.com>
+%
+You can often get answers to your questions about FreeBSD by searching in the
+FreeBSD mailing list archives at
+
+	http://www.freebsd.org/search.html
+%
+You can adjust the volume of various parts of the sound system in your
+computer by typing 'mixer <type> <volume>'.  To get a list of what you can
+adjust, just type 'mixer'.
+%
+You can automatically download and install binary packages by doing
+
+	pkg_add -r <URL>
+
+where you replace <URL> with the URL to the package.  This will also
+automatically install the packages the package you download is dependent on
+(ie, the packages it needs in order to work.)
+%
+You can get a good standard workstation install by using the
+instant-workstation port/package.  If you have ports installed, you can
+install it by doing
+
+	# cd /usr/ports/misc/instant-workstation
+	# make install && make clean
+
+as root.  This will install a collection of packages that is convenient to
+have on a workstation.
+%
+You can get a good generic server install by using the
+instant-server port/package.  If you have ports installed, you can
+install it by doing
+
+	# cd /usr/ports/misc/instant-server
+	# make install && make clean
+
+as root.  This will install a collection of packages that is appropriate for
+running a "generic" server.
