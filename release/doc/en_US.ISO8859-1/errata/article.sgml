@@ -183,6 +183,25 @@
       <filename>libdescrypt</filename>; the new unified
       library is called <filename>libcrypt</filename>.</para>
 
+    <para>A problem has been noted with an increasing number of device
+      drivers that make heavy use of and, in some cases, can overflow,
+      the kernel stack.  This problem has an easily-identifable
+      signature; processes randomly receive a
+      <literal>SIGPROF</literal> signal and may die with the message
+      <errorname>Profiling time alarm</errorname>.  For those users
+      experiencing this problem, a workaround is to edit
+      <filename>/src/sys/i386/include/param.h</filename> and change
+      the line which reads:
+
+      <programlisting>#define UPAGES  2</programlisting>
+
+      to read:
+
+      <programlisting>#define UPAGES  3</programlisting>
+
+      It will be necessary to recompile the kernel and reboot for the
+      change to take effect.  This problem has been fixed in &os;
+      &release.current;.</para>
 ]]>
   </sect1>
 </article>
