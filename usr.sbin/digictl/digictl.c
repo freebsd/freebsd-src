@@ -32,10 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
+#include <sys/digiio.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-
-#include "dev/digi/digiio.h"
 
 static int
 usage(const char *prog)
