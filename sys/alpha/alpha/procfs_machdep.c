@@ -37,7 +37,7 @@
  *	@(#)procfs_machdep.c	8.3 (Berkeley) 1/27/94
  *
  * From:
- *	$Id: procfs_machdep.c,v 1.10 1997/07/20 08:37:22 bde Exp $
+ *	$Id: procfs_machdep.c,v 1.1 1998/06/10 10:53:04 dfr Exp $
  */
 
 /*
@@ -112,15 +112,7 @@ procfs_read_fpregs(p, fpregs)
 {
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
-
-	if (p == fpcurproc) {
-		alpha_pal_wrfen(1);
-		savefpstate(&p->p_addr->u_pcb.pcb_fp);
-		alpha_pal_wrfen(0);
-	}
-
-	bcopy(&p->p_addr->u_pcb.pcb_fp, fpregs, sizeof *fpregs);
-	return (0);
+	return (fill_fpregs(p, fpregs));
 }
 
 int
@@ -130,12 +122,7 @@ procfs_write_fpregs(p, fpregs)
 {
 	if ((p->p_flag & P_INMEM) == 0)
 		return (EIO);
-
-	if (p == fpcurproc)
-		fpcurproc = NULL;
-
-	bcopy(fpregs, &p->p_addr->u_pcb.pcb_fp, sizeof *fpregs);
-	return (0);
+	return (set_fpregs(p, fpregs));
 }
 
 int
