@@ -40,19 +40,10 @@
 .Nd alter priority of running processes
 .Sh SYNOPSIS
 .Nm
-.Ar priority
-.Oo
-.Op Fl p
-.Ar pid ...
-.Oc
-.Oo
-.Op Fl g
-.Ar pgrp ...
-.Oc
-.Oo
-.Op Fl u
-.Ar user ...
-.Oc
+.Op Ar priority | Op Fl n Ar increment
+.Op Oo Fl p Oc Ar pid ...
+.Op Oo Fl g Oc Ar pgrp ...
+.Op Oo Fl u Oc Ar user ...
 .Sh DESCRIPTION
 .Nm Renice
 alters the
@@ -60,7 +51,7 @@ scheduling priority of one or more running processes.
 The following
 .Ar who
 parameters are interpreted as process ID's, process group
-ID's, or user names.
+ID's, user ID's or user names.
 .Nm Renice Ns 'ing
 a process group causes all processes in the process group
 to have their scheduling priority altered.
@@ -77,10 +68,14 @@ Options supported by
 Force
 .Ar who
 parameters to be interpreted as process group ID's.
+.It Fl n
+Instead of changing the specified processes to the given priority,
+interpret the following argument as an increment to be applied to
+the current priority of each process.
 .It Fl u
 Force the
 .Ar who
-parameters to be interpreted as user names.
+parameters to be interpreted as user names or user ID's.
 .It Fl p
 Resets the
 .Ar who
@@ -88,9 +83,8 @@ interpretation to be (the default) process ID's.
 .El
 .Pp
 For example,
-.Bd -literal -offset
-renice +1 987 -u daemon root -p 32
-.Ed
+.Pp
+.Dl "renice +1 987 -u daemon root -p 32"
 .Pp
 would change the priority of process ID's 987 and 32, and
 all processes owned by users daemon and root.
@@ -124,11 +118,16 @@ to map user names to user ID's
 .Xr rtprio 1 ,
 .Xr getpriority 2 ,
 .Xr setpriority 2
-.Sh BUGS
-Non super-users cannot increase scheduling priorities of their own processes,
-even if they were the ones that decreased the priorities in the first place.
+.Sh STANDARDS
+The
+.Nm
+utility conforms to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Bx 4.0 .
+.Sh BUGS
+Non super-users cannot increase scheduling priorities of their own processes,
+even if they were the ones that decreased the priorities in the first place.

@@ -51,13 +51,15 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pwd.h>
 
-int donice __P((int, int, int));
-static void usage __P((void));
+static int	donice(int, int, int, int);
+static int	getnum(const char *, const char *, int *);
+static void	usage(void);
 
 /*
  * Change the priority (nice) of processes
@@ -65,21 +67,27 @@ static void usage __P((void));
  * running.
  */
 int
-main(argc, argv)
-	char **argv;
+main(int argc, char *argv[])
 {
-	int which = PRIO_PROCESS;
-	int who = 0, prio, errs = 0;
+	struct passwd *pwd;
+	int errs, incr, prio, which, who;
 
+	errs = 0;
+	incr = 0;
+	which = PRIO_PROCESS;
+	who = 0;
 	argc--, argv++;
 	if (argc < 2)
 		usage();
-	prio = atoi(*argv);
+	if (strcmp(*argv, "-n") == 0) {
+		incr = 1;
+		argc--, argv++;
+		if (argc < 2)
+			usage();
+	}
+	if (getnum("priority", *argv, &prio))
+		return (1);
 	argc--, argv++;
-	if (prio > PRIO_MAX)
-		prio = PRIO_MAX;
-	if (prio < PRIO_MIN)
-		prio = PRIO_MIN;
 	for (; argc > 0; argc--, argv++) {
 		if (strcmp(*argv, "-g") == 0) {
 			which = PRIO_PGRP;
@@ -94,48 +102,84 @@ main(argc, argv)
 			continue;
 		}
 		if (which == PRIO_USER) {
-			register struct passwd *pwd = getpwnam(*argv);
-
-			if (pwd == NULL) {
-				warnx("%s: unknown user", *argv);
+			if ((pwd = getpwnam(*argv)) != NULL)
+				who = pwd->pw_uid;
+			else if (getnum("uid", *argv, &who)) {
+				errs++;
+				continue;
+			} else if (who < 0) {
+				warnx("%s: bad value", *argv);
+				errs++;
 				continue;
 			}
-			who = pwd->pw_uid;
 		} else {
-			who = atoi(*argv);
+			if (getnum("pid", *argv, &who)) {
+				errs++;
+				continue;
+			}
 			if (who < 0) {
 				warnx("%s: bad value", *argv);
+				errs++;
 				continue;
 			}
 		}
-		errs += donice(which, who, prio);
+		errs += donice(which, who, prio, incr);
 	}
 	exit(errs != 0);
+}
+
+static int
+donice(int which, int who, int prio, int incr)
+{
+	int oldprio;
+
+	errno = 0;
+	oldprio = getpriority(which, who);
+	if (oldprio == -1 && errno) {
+		warn("%d: getpriority", who);
+		return (1);
+	}
+	if (incr)
+		prio = oldprio + prio;
+	if (prio > PRIO_MAX)
+		prio = PRIO_MAX;
+	if (prio < PRIO_MIN)
+		prio = PRIO_MIN;
+	if (setpriority(which, who, prio) < 0) {
+		warn("%d: setpriority", who);
+		return (1);
+	}
+	fprintf(stderr, "%d: old priority %d, new priority %d\n", who,
+	    oldprio, prio);
+	return (0);
+}
+
+static int
+getnum(const char *com, const char *str, int *val)
+{
+	long v;
+	char *ep;
+
+	errno = 0;
+	v = strtol(str, &ep, 10);
+	if (v < INT_MIN || v > INT_MAX || errno == ERANGE) {
+		warnx("%s argument %s is out of range.", com, str);
+		return (1);
+	}
+	if (ep == str || *ep != '\0' || errno != 0) {
+		warnx("Bad %s argument: %s.", com, str);
+		return (1);
+	}
+
+	*val = (int)v;
+	return (0);
 }
 
 static void
 usage()
 {
-	fprintf(stderr,
-"usage: renice priority [ [ -p ] pids ] [ [ -g ] pgrps ] [ [ -u ] users ]\n");
+	fprintf(stderr, "%s\n%s\n",
+"usage: renice [priority | [-n incr]] [[-p] pid ...] [[-g] pgrp ...]",
+"              [[-u] user ...]");
 	exit(1);
-}
-
-int
-donice(which, who, prio)
-	int which, who, prio;
-{
-	int oldprio;
-
-	errno = 0, oldprio = getpriority(which, who);
-	if (oldprio == -1 && errno) {
-		warn("%d: getpriority", who);
-		return (1);
-	}
-	if (setpriority(which, who, prio) < 0) {
-		warn("%d: setpriority", who);
-		return (1);
-	}
-	printf("%d: old priority %d, new priority %d\n", who, oldprio, prio);
-	return (0);
 }
