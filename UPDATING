@@ -20,7 +20,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 20031103:
 	The i386 APIC_IO kernel option has been replaced by
         'device apic'.  The ACPI module has also been temporarily
-	disabled, so APCI must be statically compiled into your
+	disabled, so ACPI must be statically compiled into your
 	kernel using 'device acpi' if you wish to use the ACPI driver.
 
 20031031:
