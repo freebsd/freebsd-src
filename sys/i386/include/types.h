@@ -49,7 +49,7 @@ typedef	struct label_t {
 
 typedef	unsigned int	vm_offset_t;
 typedef	__int64_t	vm_ooffset_t;
-typedef	unsigned int	vm_pindex_t;
+typedef	__uint64_t	vm_pindex_t;
 typedef	unsigned int	vm_size_t;
 
 typedef	__int32_t	register_t;
