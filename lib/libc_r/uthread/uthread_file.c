@@ -256,7 +256,8 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			_thread_kern_sig_undefer();
 
 			if (((_thread_run->cancelflags & PTHREAD_CANCEL_NEEDED) != 0) && 
-				(_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) {
+			    (_thread_run->cancelflags & PTHREAD_CANCEL_DISABLE) != 0) {
+				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 				_thread_exit_cleanup();
 				pthread_exit(PTHREAD_CANCELED);
 			}

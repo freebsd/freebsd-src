@@ -398,12 +398,13 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 		}
 
 		/* Check the file descriptor and lock types: */
-		if (lock_type == FD_WRITE || lock_type == FD_RDWR) {
+		if (_thread_run->interrupted == 0 &&
+		    (lock_type == FD_WRITE || lock_type == FD_RDWR)) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked for write for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for write for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->w_owner != _thread_run) {
+			if (_thread_fd_table[fd]->w_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -483,6 +484,7 @@ _thread_fd_lock(int fd, int lock_type, struct timespec * timeout)
 				ret = -1;
 				errno = EINTR;
 			} else {
+				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 				_thread_exit_cleanup();
 				pthread_exit(PTHREAD_CANCELED);
 			}
@@ -639,10 +641,10 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 		/* Check the file descriptor and lock types: */
 		if (lock_type == FD_READ || lock_type == FD_RDWR) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked    for read for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for read for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->r_owner != _thread_run) {
+			if (_thread_fd_table[fd]->r_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -691,6 +693,10 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
 
+					if (_thread_run->interrupted != 0) {
+						FDQ_REMOVE(&_thread_fd_table[fd]->r_queue,
+						    _thread_run);
+					}
 				} else {
 					/*
 					 * The running thread now owns the
@@ -713,17 +719,19 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				}
 			}
 
-			/* Increment the read lock count: */
-			_thread_fd_table[fd]->r_lockcount++;
+			if (_thread_fd_table[fd]->r_owner == _thread_run)
+				/* Increment the read lock count: */
+				_thread_fd_table[fd]->r_lockcount++;
 		}
 
 		/* Check the file descriptor and lock types: */
-		if (lock_type == FD_WRITE || lock_type == FD_RDWR) {
+		if (_thread_run->interrupted == 0 &&
+		    (lock_type == FD_WRITE || lock_type == FD_RDWR)) {
 			/*
-			 * Enter a loop to wait for the file descriptor to be
-			 * locked for write for the current thread: 
+			 * Wait for the file descriptor to be locked
+			 * for write for the current thread: 
 			 */
-			while (_thread_fd_table[fd]->w_owner != _thread_run) {
+			if (_thread_fd_table[fd]->w_owner != _thread_run) {
 				/*
 				 * Check if the file descriptor is locked by
 				 * another thread: 
@@ -771,6 +779,11 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 					 * table entry again:
 					 */
 					_SPINLOCK(&_thread_fd_table[fd]->lock);
+
+					if (_thread_run->interrupted != 0) {
+						FDQ_REMOVE(&_thread_fd_table[fd]->w_queue,
+						    _thread_run);
+					}
 				} else {
 					/*
 					 * The running thread now owns the
@@ -794,8 +807,9 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				}
 			}
 
-			/* Increment the write lock count: */
-			_thread_fd_table[fd]->w_lockcount++;
+			if (_thread_fd_table[fd]->w_owner == _thread_run)
+				/* Increment the write lock count: */
+				_thread_fd_table[fd]->w_lockcount++;
 		}
 
 		/* Unlock the file descriptor table entry: */
@@ -806,6 +820,7 @@ _thread_fd_lock_debug(int fd, int lock_type, struct timespec * timeout,
 				ret = -1;
 				errno = EINTR;
 			} else {
+				_thread_run->cancelflags &= ~PTHREAD_CANCEL_NEEDED;
 				_thread_exit_cleanup();
 				pthread_exit(PTHREAD_CANCELED);
 			}
