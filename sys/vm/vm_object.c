@@ -90,10 +90,10 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
-#include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/uma.h>
 
 #define EASY_SCAN_FACTOR       8
 
@@ -148,7 +148,7 @@ static long object_collapses;
 static long object_bypasses;
 static int next_index;
 static int object_hash_rand;
-static vm_zone_t obj_zone;
+static uma_zone_t obj_zone;
 #define VM_OBJECTS_INIT 256
 
 static void vm_object_zinit(void *mem, int size);
@@ -347,7 +347,7 @@ vm_object_allocate(objtype_t type, vm_size_t size)
 
 	GIANT_REQUIRED;
 
-	result = (vm_object_t) zalloc(obj_zone);
+	result = (vm_object_t) uma_zalloc(obj_zone, M_WAITOK);
 	_vm_object_allocate(type, size, result);
 
 	return (result);
@@ -605,7 +605,7 @@ vm_object_terminate(vm_object_t object)
 	/*
 	 * Free the space for the object.
 	 */
-	zfree(obj_zone, object);
+	uma_zfree(obj_zone, object);
 }
 
 /*
@@ -1517,7 +1517,7 @@ vm_object_collapse(vm_object_t object)
 			    object_list
 			);
 
-			zfree(obj_zone, backing_object);
+			uma_zfree(obj_zone, backing_object);
 
 			object_collapses++;
 		} else {
