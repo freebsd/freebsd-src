@@ -43,7 +43,7 @@
 .Nd filter reverse line feeds from input
 .Sh SYNOPSIS
 .Nm
-.Op Fl bfx
+.Op Fl bfhx
 .Op Fl l Ar num
 .Sh DESCRIPTION
 .Nm Col
@@ -67,6 +67,8 @@ written to each column position.
 Forward half line feeds are permitted (``fine'' mode).
 Normally characters printed on a half line boundary are printed
 on the following line.
+.It Fl h
+Don't output multiple spaces instead of tabs (default).
 .It Fl x
 Output multiple spaces instead of tabs.
 .It Fl l Ar num
