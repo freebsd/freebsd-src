@@ -82,7 +82,7 @@ afd_attach(struct ata_device *atadev)
     fdp->lun = ata_get_lun(&afd_lun_map);
     ata_set_name(atadev, "afd", fdp->lun);
     bioq_init(&fdp->queue);
-    mtx_init(&fdp->queue_mtx, "ATAPI FD bioqueue lock", MTX_DEF, 0);  
+    mtx_init(&fdp->queue_mtx, "ATAPI FD bioqueue lock", NULL, MTX_DEF);  
 
     if (afd_sense(fdp)) {
 	free(fdp, M_AFD);
