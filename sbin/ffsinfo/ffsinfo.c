@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $TSHeader: src/sbin/ffsinfo/ffsinfo.c,v 1.3 2000/12/09 15:12:31 tomsoft Exp $
+ * $TSHeader: src/sbin/ffsinfo/ffsinfo.c,v 1.4 2000/12/12 19:30:55 tomsoft Exp $
  * $FreeBSD$
  *
  */
@@ -55,22 +55,16 @@ static const char rcsid[] =
 /* ********************************************************** INCLUDES ***** */
 #include <sys/param.h>
 #include <sys/disklabel.h>
-#include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 
 #include <stdio.h>
 #include <paths.h>
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <ufs/ufs/dinode.h>
-#include <ufs/ffs/fs.h>
-#include <machine/param.h>
 
 #include "debug.h"
 
@@ -101,7 +95,7 @@ static struct csum	*fscs;
 
 /* ******************************************************** PROTOTYPES ***** */
 static void	rdfs(daddr_t, int, char *, int);
-static void	usage(char *);
+static void	usage(void);
 static struct disklabel	*get_disklabel(int);
 static struct dinode	*ginode(ino_t, int);
 static void	dump_whole_inode(ino_t, int, int);
@@ -119,13 +113,11 @@ rdfs(daddr_t bno, int size, char *bf, int fsi)
 	DBG_ENTER;
 
 	if (lseek(fsi, (off_t)bno * DEV_BSIZE, 0) < 0) {
-		fprintf(stderr, "seek error: %ld\n", (long)bno);
-		err(33, "rdfs");
+		err(33, "rdfs: seek error: %ld", (long)bno);
 	}
 	n = read(fsi, bf, (size_t)size);
 	if (n != size) {
-		fprintf(stderr, "read error: %ld\n", (long)bno);
-		err(34, "rdfs");
+		err(34, "rdfs: read error: %ld", (long)bno);
 	}
 
 	DBG_LEAVE;
@@ -149,7 +141,7 @@ int
 main(int argc, char **argv)
 {
 	DBG_FUNC("main")
-	char	*a0, *device, *special, *cp;
+	char	*device, *special, *cp;
 	char	ch;
 	size_t	len;
 	struct stat	st;
@@ -172,8 +164,10 @@ main(int argc, char **argv)
 	cfg_in=-2;
 	cfg_cg=-2;
 	out_file=strdup("/var/tmp/ffsinfo");
-	
-	a0=*argv;	/* save argv[0] for usage() */
+	if(out_file == NULL) {
+		errx(1, "strdup failed");
+	}
+
 	while ((ch=getopt(argc, argv, "Lg:i:l:o:")) != -1) {
 		switch(ch) {
 		case 'L':
@@ -182,36 +176,39 @@ main(int argc, char **argv)
 		case 'g':
 			cfg_cg=atol(optarg);
 			if(cfg_cg < -1) {
-				usage(a0);
+				usage();
 			}
 			break;
 		case 'i':
 			cfg_in=atol(optarg);
 			if(cfg_in < 0) {
-				usage(a0);
+				usage();
 			}
 			break; 
 		case 'l':
 			cfg_lv=atol(optarg);
 			if(cfg_lv < 0x1||cfg_lv > 0x3ff) {
-				usage(a0);
+				usage();
 			}
 			break;
 		case 'o':
 			free(out_file);
 			out_file=strdup(optarg);
+			if(out_file == NULL) {
+				errx(1, "strdup failed");
+			}
 			break;
 		case '?':
 			/* FALLTHROUGH */
 		default:
-			usage(a0);
+			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
 
 	if(argc != 1) {
-		usage(a0);
+		usage();
 	}
 	device=*argv;
 	
@@ -231,6 +228,9 @@ main(int argc, char **argv)
 		 */
 		len=strlen(device)+strlen(_PATH_DEV)+2+strlen("vinum/");
 		special=(char *)malloc(len);
+		if(special == NULL) {
+			errx(1, "malloc failed");
+		}
 		snprintf(special, len, "%sr%s", _PATH_DEV, device);
 		if (stat(special, &st) == -1) {
 			snprintf(special, len, "%s%s", _PATH_DEV, device);
@@ -254,8 +254,7 @@ main(int argc, char **argv)
 	 */
 	fsi = open(device, O_RDONLY);
 	if (fsi < 0) {
-		fprintf(stderr, "%s: %s\n", device, strerror(errno));
-		exit(-1);
+		err(1, "%s", device);
 	}
 
 	stat(device, &st);
@@ -280,20 +279,17 @@ main(int argc, char **argv)
 		} else if (*cp>='a' && *cp<='h') {
 			pp = &lp->d_partitions[*cp - 'a'];
 		} else {
-			fprintf(stderr, "unknown device\n");
-			exit(-1);
+			errx(1, "unknown device");
 		}
 	
 		/*
 		 * Check if that partition looks suited for dumping.
 		 */
 		if (pp->p_size < 1) {
-			fprintf(stderr, "partition is unavailable\n");
-			exit(-1);
+			errx(1, "partition is unavailable");
 		}
 		if (pp->p_fstype != FS_BSDFFS) {
-			fprintf(stderr, "partition not 4.2BSD\n");
-			exit(-1);
+			errx(1, "partition not 4.2BSD");
 		}
 	}
 
@@ -302,14 +298,14 @@ main(int argc, char **argv)
 	 */
 	rdfs((daddr_t)(SBOFF/DEV_BSIZE), SBSIZE, (char *)&(sblock), fsi);
 	if (sblock.fs_magic != FS_MAGIC) {
-		fprintf(stderr, "superblock not recognized\n");
-		exit(-1);
+		errx(1, "superblock not recognized");
 	}
 
 	DBG_OPEN(out_file); /* already here we need a superblock */
 
 	if(cfg_lv & 0x001) {
-		DBG_DUMP_FS(&sblock, "primary sblock");
+		DBG_DUMP_FS(&sblock,
+		    "primary sblock");
 	}
 
 	/*
@@ -331,6 +327,9 @@ main(int argc, char **argv)
 
 	if (cfg_lv & 0x004) {
 		fscs = (struct csum *)calloc(1, (size_t)sblock.fs_cssize);
+		if(fscs == NULL) {
+			errx(1, "calloc failed");
+		}
 
 		/*
 		 * Get the cylinder summary into the memory ...
@@ -349,7 +348,9 @@ main(int argc, char **argv)
 		for(dbg_csc=0; dbg_csc<sblock.fs_ncg; dbg_csc++) {
 			snprintf(dbg_line, 80, "%d. csum in fscs",
 			    dbg_csc);
-			DBG_DUMP_CSUM(&sblock, dbg_line, dbg_csp++);
+			DBG_DUMP_CSUM(&sblock,
+			    dbg_line,
+			    dbg_csp++);
 		}
 	}
 
@@ -364,7 +365,8 @@ main(int argc, char **argv)
 			 */
 			rdfs(fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 			    SBSIZE, (char *)&osblock, fsi);
-			DBG_DUMP_FS(&osblock, dbg_line);
+			DBG_DUMP_FS(&osblock,
+			    dbg_line);
 		}
 		/*
 		 * ... read the cylinder group and dump whatever was requested.
@@ -372,20 +374,32 @@ main(int argc, char **argv)
 		rdfs(fsbtodb(&sblock, cgtod(&sblock, cylno)), sblock.fs_cgsize,
 		    (char *)&acg, fsi);
 		if(cfg_lv & 0x008) {
-			DBG_DUMP_CG(&sblock, dbg_line, &acg);
+			DBG_DUMP_CG(&sblock,
+			    dbg_line,
+			    &acg);
 		}
 		if(cfg_lv & 0x010) {
-			DBG_DUMP_INMAP(&sblock, dbg_line, &acg);
+			DBG_DUMP_INMAP(&sblock,
+			    dbg_line,
+			    &acg);
 		}
 		if(cfg_lv & 0x020) {
-			DBG_DUMP_FRMAP(&sblock, dbg_line, &acg);
+			DBG_DUMP_FRMAP(&sblock,
+			    dbg_line,
+			    &acg);
 		}
 		if(cfg_lv & 0x040) {
-			DBG_DUMP_CLMAP(&sblock, dbg_line, &acg);
-			DBG_DUMP_CLSUM(&sblock, dbg_line, &acg);
+			DBG_DUMP_CLMAP(&sblock,
+			    dbg_line,
+			    &acg);
+			DBG_DUMP_CLSUM(&sblock,
+			    dbg_line,
+			    &acg);
 		}
 		if(cfg_lv & 0x080) {
-			DBG_DUMP_SPTBL(&sblock, dbg_line, &acg);
+			DBG_DUMP_SPTBL(&sblock,
+			    dbg_line,
+			    &acg);
 		}
 	}
 	/*
@@ -440,7 +454,9 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 	 */
 	snprintf(comment, 80, "Inode 0x%08x", inode);
 	if (level & 0x100) {
-		DBG_DUMP_INO(&sblock, comment, ino);
+		DBG_DUMP_INO(&sblock,
+		    comment,
+		    ino);
 	}
 
 	if (!(level & 0x200)) {
@@ -459,7 +475,10 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 		rdfs(fsbtodb(&sblock, ino->di_ib[0]), sblock.fs_bsize, i1blk,
 		    fsi);
 		snprintf(comment, 80, "Inode 0x%08x: indirect 0", inode);
-		DBG_DUMP_IBLK(&sblock, comment, i1blk, (size_t)rb);
+		DBG_DUMP_IBLK(&sblock,
+		    comment,
+		    i1blk,
+		    (size_t)rb);
 		rb-=howmany(sblock.fs_bsize, sizeof(ufs_daddr_t));
 	}
 	if(rb>0) {
@@ -469,8 +488,10 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 		rdfs(fsbtodb(&sblock, ino->di_ib[1]), sblock.fs_bsize, i2blk,
 		    fsi);
 		snprintf(comment, 80, "Inode 0x%08x: indirect 1", inode);
-		DBG_DUMP_IBLK(&sblock, comment, i2blk, howmany(rb,
-		    howmany(sblock.fs_bsize, sizeof(ufs_daddr_t))));
+		DBG_DUMP_IBLK(&sblock,
+		    comment,
+		    i2blk,
+		    howmany(rb, howmany(sblock.fs_bsize, sizeof(ufs_daddr_t))));
 		for(ind2ctr=0; ((ind2ctr < howmany(sblock.fs_bsize,
 		    sizeof(ufs_daddr_t)))&&(rb>0)); ind2ctr++) {
 			ind2ptr=&((ufs_daddr_t *)&i2blk)[ind2ctr];
@@ -479,7 +500,10 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 			    i1blk, fsi);
 			snprintf(comment, 80, "Inode 0x%08x: indirect 1->%d",
 			    inode, ind2ctr);
-			DBG_DUMP_IBLK(&sblock, comment, i1blk, (size_t)rb);
+			DBG_DUMP_IBLK(&sblock,
+			    comment,
+			    i1blk,
+			    (size_t)rb);
 			rb-=howmany(sblock.fs_bsize, sizeof(ufs_daddr_t));
 		}
 	}
@@ -491,8 +515,11 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 		    fsi);
 		snprintf(comment, 80, "Inode 0x%08x: indirect 2", inode);
 #define SQUARE(a) ((a)*(a))
-		DBG_DUMP_IBLK(&sblock, comment, i3blk, howmany(rb,
-		    SQUARE(howmany(sblock.fs_bsize, sizeof(ufs_daddr_t)))));
+		DBG_DUMP_IBLK(&sblock,
+		    comment,
+		    i3blk,
+		    howmany(rb,
+		      SQUARE(howmany(sblock.fs_bsize, sizeof(ufs_daddr_t)))));
 #undef SQUARE
 		for(ind3ctr=0; ((ind3ctr < howmany(sblock.fs_bsize,
 		    sizeof(ufs_daddr_t)))&&(rb>0)); ind3ctr ++) {
@@ -502,8 +529,11 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 			    i2blk, fsi);
 			snprintf(comment, 80, "Inode 0x%08x: indirect 2->%d",
 			    inode, ind3ctr);
-			DBG_DUMP_IBLK(&sblock, comment, i2blk, howmany(rb,
-			    howmany(sblock.fs_bsize, sizeof(ufs_daddr_t))));
+			DBG_DUMP_IBLK(&sblock,
+			    comment,
+			    i2blk,
+			    howmany(rb,
+			      howmany(sblock.fs_bsize, sizeof(ufs_daddr_t))));
 			for(ind2ctr=0; ((ind2ctr < howmany(sblock.fs_bsize,
 			    sizeof(ufs_daddr_t)))&&(rb>0)); ind2ctr ++) {
 				ind2ptr=&((ufs_daddr_t *)&i2blk)[ind2ctr];
@@ -513,7 +543,10 @@ dump_whole_inode(ino_t inode, int fsi, int level)
 				snprintf(comment, 80,
 				    "Inode 0x%08x: indirect 2->%d->%d", inode,
 				    ind3ctr, ind3ctr);
-				DBG_DUMP_IBLK(&sblock, comment, i1blk, (size_t)rb);
+				DBG_DUMP_IBLK(&sblock,
+				    comment,
+				    i1blk,
+				    (size_t)rb);
 				rb-=howmany(sblock.fs_bsize,
 				    sizeof(ufs_daddr_t));
 			}
@@ -538,11 +571,10 @@ get_disklabel(int fd)
 
 	lab=(struct disklabel *)malloc(sizeof(struct disklabel));
 	if (!lab) {
-		fprintf(stderr, "malloc failed\n");
-		exit(-1);
+		errx(1, "malloc failed");
 	}
 	if (ioctl(fd, DIOCGDINFO, (char *)lab) < 0) {
-		fprintf(stderr, "DIOCGDINFO failed\n");
+		errx(1, "DIOCGDINFO failed");
 		exit(-1);
 	}
 
@@ -556,26 +588,19 @@ get_disklabel(int fd)
  * Dump a line of usage.
  */
 void
-usage(char *name)
+usage(void)
 {
 	DBG_FUNC("usage")	
-	char	*basename;
 
 	DBG_ENTER;
 
-	basename=strrchr(name, '/');
-	if(!basename) {
-		basename=name;
-	} else {
-		basename++;
-	}
 	fprintf(stderr,
-	    "usage:\t%s\t[-L] [-g cylgrp] [-i inode] [-l level] [-o outfile]\n"
-	    "\t\t< special | file >\n",
-	    basename);
+	    "usage: ffsinfo [-L] [-g cylgrp] [-i inode] [-l level] "
+	    "[-o outfile]\n"
+	    "               special | file\n");
 
 	DBG_LEAVE;
-	exit(-1);
+	exit(1);
 }
 
 /* ************************************************************ ginode ***** */
@@ -583,7 +608,7 @@ usage(char *name)
  * This function provides access to an individual inode. We find out in which
  * block  the  requested inode is located, read it from disk if  needed,  and
  * return  the pointer into that block. We maintain a cache of one  block  to
- * not  read  the same block again and again if we iterate lineary  over  all
+ * not  read the same block again and again if we iterate linearly  over  all
  * inodes.
  */
 struct dinode *
