@@ -82,9 +82,15 @@
 
 \ Crude structure support
 
-: structure: create here 0 , 0 does> create @ allot ;
+: structure:
+  create here 0 , ['] drop , 0
+  does> create here swap dup @ allot cell+ @ execute
+;
 : member: create dup , over , + does> cell+ @ + ;
 : ;structure swap ! ;
+: constructor! >body cell+ ! ;
+: constructor: over :noname ;
+: ;constructor postpone ; swap cell+ ! ; immediate
 : sizeof ' >body @ state @ if postpone literal then ; immediate
 : offsetof ' >body cell+ @ state @ if postpone literal then ; immediate
 : ptr 1 cells member: ;
@@ -95,7 +101,12 @@
 structure: string
 	ptr .addr
 	int .len
+	constructor:
+	  0 over .addr !
+	  0 swap .len !
+	;constructor
 ;structure
+
 
 \ Module options linked list
 
@@ -111,12 +122,85 @@ structure: module
 	ptr module.next
 ;structure
 
+\ Internal loader structures
+structure: preloaded_file
+	ptr pf.name
+	ptr pf.type
+	ptr pf.args
+	ptr pf.metadata	\ file_metadata
+	int pf.loader
+	int pf.addr
+	int pf.size
+	ptr pf.modules	\ kernel_module
+	ptr pf.next	\ preloaded_file
+;structure
+
+structure: kernel_module
+	ptr km.name
+	\ ptr km.args
+	ptr km.fp	\ preloaded_file
+	ptr km.next	\ kernel_module
+;structure
+
+structure: file_metadata
+	int		md.size
+	2 member:	md.type	\ this is not ANS Forth compatible (XXX)
+	ptr		md.next	\ file_metadata
+	0 member:	md.data	\ variable size
+;structure
+
+structure: config_resource
+	ptr cf.name
+	int cf.type
+0 constant RES_INT
+1 constant RES_STRING
+2 constant RES_LONG
+	2 cells member: u
+;structure
+
+structure: config_device
+	ptr cd.name
+	int cd.unit
+	int cd.resource_count
+	ptr cd.resources	\ config_resource
+;structure
+
+structure: STAILQ_HEAD
+	ptr stqh_first	\ type*
+	ptr stqh_last	\ type**
+;structure
+
+structure: STAILQ_ENTRY
+	ptr stqe_next	\ type*
+;structure
+
+structure: pnphandler
+	ptr pnph.name
+	ptr pnph.enumerate
+;structure
+
+structure: pnpident
+	ptr pnpid.ident					\ char*
+	sizeof STAILQ_ENTRY cells member: pnpid.link	\ pnpident
+;structure
+
+structure: pnpinfo
+	ptr pnpi.desc
+	int pnpi.revision
+	ptr pnpi.module				\ (char*) module args
+	int pnpi.argc
+	ptr pnpi.argv
+	ptr pnpi.handler			\ pnphandler
+	sizeof STAILQ_HEAD member: pnpi.ident	\ pnpident
+	sizeof STAILQ_ENTRY member: pnpi.link	\ pnpinfo
+;structure
+
 \ Global variables
 
 string conf_files
 string password
-create module_options sizeof module.next allot
-create last_module_option sizeof module.next allot
+create module_options sizeof module.next allot 0 module_options !
+create last_module_option sizeof module.next allot 0 last_module_option !
 0 value verbose?
 
 \ Support string functions
@@ -191,16 +275,32 @@ only forth also support-functions definitions
 string name_buffer
 string value_buffer
 
+\ Line by line file reading functions
+\
+\ exported:
+\	line_buffer
+\	end_of_file?
+\	fd
+\	read_line
+\	reset_line_reading
+
+vocabulary line-reading
+also line-reading definitions also
+
 \ File data temporary storage
 
-string line_buffer
 string read_buffer
 0 value read_buffer_ptr
 
 \ File's line reading function
 
+support-functions definitions
+
+string line_buffer
 0 value end_of_file?
 variable fd
+
+line-reading definitions
 
 : skip_newlines
   begin
@@ -276,8 +376,17 @@ variable fd
 ;
 
 : reset_line_buffer
+  line_buffer .addr @ ?dup if
+    free-memory
+  then
   0 line_buffer .addr !
   0 line_buffer .len !
+;
+
+support-functions definitions
+
+: reset_line_reading
+  0 to read_buffer_ptr
 ;
 
 : read_line
@@ -291,6 +400,8 @@ variable fd
   repeat
 ;
 
+only forth also support-functions definitions
+
 \ Conf file line parser:
 \ <line> ::= <spaces><name><spaces>'='<spaces><value><spaces>[<comment>] |
 \            <spaces>[<comment>]
@@ -298,11 +409,26 @@ variable fd
 \ <value> ::= '"'{<character_set>|'\'<anything>}'"' | <name>
 \ <character_set> ::= ASCII 32 to 126, except '\' and '"'
 \ <comment> ::= '#'{<anything>}
+\
+\ exported:
+\	line_pointer
+\	process_conf
+
+0 value line_pointer
+
+vocabulary file-processing
+also file-processing definitions
+
+\ parser functions
+\
+\ exported:
+\	get_assignment
+
+vocabulary parser
+also parser definitions also
 
 0 value parsing_function
-
 0 value end_of_line
-0 value line_pointer
 
 : end_of_line?
   line_pointer end_of_line =
@@ -482,6 +608,8 @@ variable fd
   end_of_line? 0= if syntax_error throw then
 ;
 
+file-processing definitions
+
 : get_assignment
   line_buffer .addr @ line_buffer .len @ + to end_of_line
   line_buffer .addr @ to line_pointer
@@ -496,6 +624,8 @@ variable fd
   parsing_function ['] white_space_4 =
   or or 0= if syntax_error throw then
 ;
+
+only forth also support-functions also file-processing definitions also
 
 \ Process line
 
@@ -764,10 +894,9 @@ variable fd
 \ not allocated, it's value (0) is used as flag.
 
 : free_buffers
-  line_buffer .addr @ dup if free then
   name_buffer .addr @ dup if free then
   value_buffer .addr @ dup if free then
-  or or if free_error throw then
+  or if free_error throw then
 ;
 
 : reset_assignment_buffers
@@ -778,6 +907,8 @@ variable fd
 ;
 
 \ Higher level file processing
+
+support-functions definitions
 
 : process_conf
   begin
@@ -792,6 +923,8 @@ variable fd
   repeat
 ;
 
+only forth also support-functions definitions
+
 : create_null_terminated_string  { addr len -- addr' len }
   len char+ allocate if out_of_memory throw then
   >r
@@ -804,7 +937,7 @@ variable fd
 
 : load_conf  ( addr len -- )
   0 to end_of_file?
-  0 to read_buffer_ptr
+  reset_line_reading
   create_null_terminated_string
   over >r
   fopen fd !
@@ -813,15 +946,6 @@ variable fd
   ['] process_conf catch
   fd @ fclose
   throw
-;
-
-: initialize_support
-  0 read_buffer .addr !
-  0 conf_files .addr !
-  0 password .addr !
-  0 module_options !
-  0 last_module_option !
-  0 to verbose?
 ;
 
 : print_line
@@ -1097,7 +1221,6 @@ variable current_conf_files
 \ Additional functions used in "start"
 
 : initialize  ( addr len -- )
-  initialize_support
   strdup conf_files .len ! conf_files .addr !
 ;
 
