@@ -45,8 +45,8 @@ struct devinfo_i_dev {
 	char				dd_name[DEVINFO_STRLEN];
 	char				dd_desc[DEVINFO_STRLEN];
 	char				dd_drivername[DEVINFO_STRLEN];
-	char				dd_pnpinfo[DEVINFO_STRLEN * 2];
-	char				dd_location[DEVINFO_STRLEN * 2];
+	char				dd_pnpinfo[DEVINFO_STRLEN * 4];
+	char				dd_location[DEVINFO_STRLEN * 4];
 	uint32_t			dd_devflags;
 	uint16_t			dd_flags;
 	device_state_t			dd_state;
