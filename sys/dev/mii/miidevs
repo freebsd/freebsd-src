@@ -67,6 +67,9 @@ oui XAQTI			0x00e0ae	XaQti Corp.
 /* in the 79c873, AMD uses another OUI (which matches Davicom!) */
 oui xxAMD			0x00606e	Advanced Micro Devices
 
+/* Intel 82553 A/B steppings */
+oui xxINTEL			0x00f800	Intel
+
 /* some vendors have the bits swapped within bytes
 	(ie, ordered as on the wire) */
 oui xxALTIMA			0x000895	Altima Communications
@@ -108,6 +111,8 @@ model xxDAVICOM DM9101		0x0000 DM9101 10/100 media interface
 model xxICS 1890		0x0002 ICS1890 10/100 media interface
 
 /* Intel PHYs */
+model xxINTEL I82553AB		0x0000 i83553 10/100 media interface
+model INTEL I82553C		0x0035 i82553 10/100 media interface
 model INTEL I82555		0x0015 i82555 10/100 media interface
 
 /* Level 1 PHYs */
