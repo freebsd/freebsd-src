@@ -70,11 +70,6 @@ extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 /* XXX debugging */
 extern char end[];
 
-/* XXX - I dont know why we have to do this, but it helps. */
-#if defined(LOADER_NFS_SUPPORT) || defined(LOADER_TFTP_SUPPORT)
-char	Heap[200*1024];
-#endif
-
 void
 main(void)
 {
@@ -91,12 +86,7 @@ main(void)
      */
     bios_getmem();
 
-    /* XXX - I dont know why we have to do this, but it helps PXE. */
-#if defined(LOADER_NFS_SUPPORT) || defined(LOADER_TFTP_SUPPORT)
-    setheap(Heap, Heap+sizeof(Heap));
-#else
     setheap((void *)end, (void *)bios_basemem);
-#endif
 
     /* 
      * XXX Chicken-and-egg problem; we want to have console output early, but some
