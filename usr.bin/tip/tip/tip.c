@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tip.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tip.c,v 1.2.2.1 1997/08/20 07:06:44 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -88,7 +88,7 @@ void setparity __P((char *));
 void pwrite __P((int, char *, int));
 char escape __P((void));
 void tipin __P((void));
-int prompt __P((char *, char *));
+int prompt __P((char *, char *, int));
 void unraw __P((void));
 void shell_uid __P((void));
 void daemon_uid __P((void));
@@ -377,9 +377,10 @@ static	jmp_buf promptbuf;
  *  normal erase and kill characters.
  */
 int
-prompt(s, p)
+prompt(s, p, sz)
 	char *s;
 	register char *p;
+	int sz;
 {
 	register char *b = p;
 	sig_t oint, oquit;
@@ -390,7 +391,7 @@ prompt(s, p)
 	unraw();
 	printf("%s", s);
 	if (setjmp(promptbuf) == 0)
-		while ((*p = getchar()) != EOF && *p != '\n')
+		while ((*p = getchar()) != EOF && *p != '\n' && --sz > 0)
 			p++;
 	*p = '\0';
 
