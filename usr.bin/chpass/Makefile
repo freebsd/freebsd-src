@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
+# $FreeBSD$
 
 PROG=	chpass
 CFLAGS+=-Wall -DPASSWD_IGNORE_COMMENTS
@@ -26,8 +27,8 @@ COPTS+=	-DYP -I. -I${.CURDIR}/../../libexec/ypxfr \
 #Some people need this, uncomment to activate
 #COPTS+= -DRESTRICT_FULLNAME_CHANGE
 
-DPADD=	${LIBRPCSVC} ${LIBCRYPT}
-LDADD+=	-lrpcsvc -lcrypt
+DPADD=	${LIBRPCSVC} ${LIBCRYPT} ${LIBMD}
+LDADD+=	-lrpcsvc -lcrypt -lmd
 
 CLEANFILES= ${GENSRCS}
 
