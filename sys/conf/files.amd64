@@ -32,7 +32,9 @@ dev/syscons/sysmouse.c		optional	sc
 isa/atkbd_isa.c			optional	atkbd
 
 libkern/ffs.c			standard
+kern/subr_disklabel.c		standard
 kern/subr_diskmbr.c		standard
+kern/subr_diskslice.c		standard
 
 x86_64/x86_64/autoconf.c	standard
 x86_64/x86_64/bios.c		standard
