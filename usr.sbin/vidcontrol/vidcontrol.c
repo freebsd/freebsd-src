@@ -50,9 +50,13 @@ static const char rcsid[] =
 #define _VESA_800x600_DFL_ROWS 25
 #define _VESA_800x600_DFL_FNSZ 16
 
-#define DUMP_RAW	0
-#define DUMP_TXT	1
-
+/* Screen dump modes */
+#define DUMP_FMT_RAW	1
+#define DUMP_FMT_TXT	2
+/* Screen dump options */
+#define DUMP_FBF	0
+#define DUMP_ALL	1
+/* Screen dump file format revision */
 #define DUMP_FMT_REV	1
 
 char 	legal_colors[16][16] = {
@@ -73,7 +77,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
-"usage: vidcontrol [-CdLPpx] [-b color] [-c appearance] [-f [size] file]",
+"usage: vidcontrol [-CdHLPpx] [-b color] [-c appearance] [-f [size] file]",
 "                  [-g geometry] [-h size] [-i adapter | mode] [-l screen_map]",
 "                  [-M char] [-m on | off] [-r foreground background]",
 "                  [-S on | off] [-s number] [-t N | off] [mode]",
@@ -668,7 +672,7 @@ test_frame()
  * text format.
  */
 void
-dump_screen(int mode)
+dump_screen(int mode, int opt)
 {
 	scrshot_t shot;
 	vid_info_t info;
@@ -679,20 +683,24 @@ dump_screen(int mode)
 		return;
 	}
 
-	shot.buf = alloca(info.mv_csz * info.mv_rsz * sizeof(u_int16_t));
+	shot.x = shot.y = 0;
+	shot.xsize = info.mv_csz;
+	shot.ysize = info.mv_rsz;
+	if (opt == DUMP_ALL)
+		shot.ysize += info.mv_hsz;
+
+	shot.buf = alloca(shot.xsize * shot.ysize * sizeof(u_int16_t));
 	if (shot.buf == NULL) {
 		warn("failed to allocate memory for dump");
 		return;
 	}
 
-	shot.xsize = info.mv_csz;
-	shot.ysize = info.mv_rsz;
 	if (ioctl(0, CONS_SCRSHOT, &shot) == -1) {
 		warn("failed to get dump of the screen");
 		return;
 	}
 
-	if (mode == DUMP_RAW) {
+	if (mode == DUMP_FMT_RAW) {
 		printf("SCRSHOT_%c%c%c%c", DUMP_FMT_REV, 2,
 		       shot.xsize, shot.ysize);
 		fflush(stdout);
@@ -758,7 +766,7 @@ int
 main(int argc, char **argv)
 {
 	char	*font, *type;
-	int	opt;
+	int	dumpmod, dumpopt, opt;
 
 
 	info.size = sizeof(info);
@@ -767,7 +775,9 @@ main(int argc, char **argv)
 		/* Not reached */
 	if (ioctl(0, CONS_GETINFO, &info) < 0)
 		err(1, "must be on a virtual console");
-	while((opt = getopt(argc, argv, "b:Cc:df:g:h:i:l:LM:m:pPr:S:s:t:x")) != -1)
+	dumpmod = 0;
+	dumpopt = DUMP_FBF;
+	while((opt = getopt(argc, argv, "b:Cc:df:g:h:Hi:l:LM:m:pPr:S:s:t:x")) != -1)
 		switch(opt) {
 		case 'b':
 			set_border_color(optarg);
@@ -800,6 +810,9 @@ main(int argc, char **argv)
 		case 'h':
 			set_history(optarg);
 			break;
+		case 'H':
+			dumpopt = DUMP_ALL;
+			break;
 		case 'i':
 			show_info(optarg);
 			break;
@@ -816,10 +829,10 @@ main(int argc, char **argv)
 			set_mouse(optarg);
 			break;
 		case 'p':
-			dump_screen(DUMP_RAW);
+			dumpmod = DUMP_FMT_RAW;
 			break;
 		case 'P':
-			dump_screen(DUMP_TXT);
+			dumpmod = DUMP_FMT_TXT;
 			break;
 		case 'r':
 			set_reverse_colors(argc, argv, &optind);
@@ -839,6 +852,8 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+	if (dumpmod != 0)
+		dump_screen(dumpmod, dumpopt);
 	video_mode(argc, argv, &optind);
 	set_normal_colors(argc, argv, &optind);
 	if (optind < argc && !strcmp(argv[optind], "show")) {
