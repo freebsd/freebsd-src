@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.71 1996/05/09 07:16:00 phk Exp $
+ *	$Id: locore.s,v 1.72 1996/05/27 06:51:46 phk Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -116,7 +116,7 @@ _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
-upa:	.long	0				/* phys addr of proc0's UPAGES */
+p0upa:	.long	0				/* phys addr of proc0's UPAGES */
 p0upt:	.long	0				/* phys addr of proc0's UPAGES page table */
 
 	.globl	_IdlePTD
@@ -233,10 +233,10 @@ NON_GPROF_ENTRY(btext)
 
 /* clear bss */
 /*
- * XXX this should be done a little earlier. (bde)
+ * XXX this should be done a little earlier.
  *
- * XXX we don't check that there is memory for our bss or page tables
- * before using it. (bde)
+ * XXX we don't check that there is memory for our bss and page tables
+ * before using it.
  *
  * XXX the boot program somewhat bogusly clears the bss.  We still have
  * to do it in case we were unzipped by kzipboot.  Then the boot program
@@ -245,7 +245,7 @@ NON_GPROF_ENTRY(btext)
  * XXX the gdt and idt are still somewhere in the boot program.  We
  * depend on the convention that the boot program is below 1MB and we
  * are above 1MB to keep the gdt and idt  away from the bss and page
- * tables.  The idT is only used if BDE_DEBUGGER is enabled.
+ * tables.  The idt is only used if BDE_DEBUGGER is enabled.
  */
 	movl	$R(_end),%ecx
 	movl	$R(_edata),%edi
@@ -283,7 +283,7 @@ NON_GPROF_ENTRY(btext)
 #ifdef BDE_DEBUGGER
 /*
  * Complete the adjustments for paging so that we can keep tracing through
- * initi386() after the low (physical) addresses for the gdt and idT become
+ * initi386() after the low (physical) addresses for the gdt and idt become
  * invalid.
  */
 	call	bdb_commit_paging
@@ -718,7 +718,7 @@ over_symalloc:
 
 /* Allocate UPAGES */
 	ALLOCPAGES(UPAGES)
-	movl	%esi,R(upa)
+	movl	%esi,R(p0upa)
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
@@ -753,13 +753,13 @@ map_read_write:
 	movl	$1, %ecx
 	fillkptphys(PG_RW)
 
-/* Map proc0's page table for the UPAGES the physical way.  */
+/* Map proc0's page table for the UPAGES. */
 	movl	R(p0upt), %eax
 	movl	$1, %ecx
 	fillkptphys(PG_RW)
 
-/* Map proc0s UPAGES the physical way */
-	movl	R(upa), %eax
+/* Map proc0's UPAGES in the physical way ... */
+	movl	R(p0upa), %eax
 	movl	$UPAGES, %ecx
 	fillkptphys(PG_RW)
 
@@ -768,13 +768,13 @@ map_read_write:
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkptphys(PG_RW|PG_N)
 
-/* Map proc0s UPAGES in the special page table for this purpose. */
-	movl	R(upa), %eax
+/* Map proc0s UPAGES in the special page table for this purpose ... */
+	movl	R(p0upa), %eax
 	movl	$KSTKPTEOFF, %ebx
 	movl	$UPAGES, %ecx
 	fillkpt(R(p0upt), PG_RW)
 
-/* and put the page table in the pde. */
+/* ... and put the page table in the pde. */
 	movl	R(p0upt), %eax
 	movl	$KSTKPTDI, %ebx
 	movl	$1, %ecx
