@@ -1,0 +1,28 @@
+This directory contains virgin copies of the original distribution files
+on a "vendor" branch.  Do not, under any circumstances, attempt to upgrade
+the files in this directory via patches and a cvs commit.
+
+To upgrade to a newer version of tcpdump, when it is available:
+	1. Unpack the new version into an empty directory.
+	   [Do not make ANY changes to the files.]
+
+	2. Use the command:
+		cvs import -m 'Virgin import of LBL tcpdump v<version>' \
+			/usr/src/contrib/tcpdump LBL v<version>
+
+	   For example, to do the import of version 3.2.1, I typed:
+		cvs import -m 'Virgin import of LBL tcpdump v3.2.1' \
+			/usr/src/contrib/tcpdump LBL v3_2_1
+
+	3. Follow the instructions printed out in step 2 to resolve any
+	   conflicts between local FreeBSD changes and the newer version.
+
+Do not, under any circumstances, deviate from this procedure.
+
+To make local changes to tcpdump, simply patch and commit to the main
+branch (aka HEAD).  Never make local changes on the LBL branch.
+
+All local changes should be submitted to "tcpdump@ee.lbl.gov" for
+inclusion in the next vendor release.
+
+pst@freebsd.org - 19 Aug 1996
