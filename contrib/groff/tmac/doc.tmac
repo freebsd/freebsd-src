@@ -2696,10 +2696,8 @@
 .    nr doc-display-ft-stack\n[doc-display-depth] \n[.f]
 .    nr doc-display-ps-stack\n[doc-display-depth] \n[.ps]
 .
-.    ie t \{\
-.      nop \*[doc-Li-font]\c
+.    ie t \
 .      ta T 9n
-.    \}
 .    el \
 .      ta T 8n
 .    nf
@@ -2746,6 +2744,10 @@
 .
 .  if !\n[doc-is-compact] \
 .    sp \n[doc-display-vertical]u
+.
+.  if "\*[doc-display-type-stack\n[doc-display-depth]]"literal" \
+.    if t \
+.      nop \*[doc-Li-font]\c
 .
 .  if !\n[cR] \
 .    ne 2v
