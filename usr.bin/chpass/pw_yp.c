@@ -34,35 +34,37 @@
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Center for Telecommunications Research
  * Columbia University, New York City
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #ifdef YP
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <netdb.h>
-#include <time.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pwd.h>
-#include <errno.h>
-#include <err.h>
-#include <unistd.h>
-#include <db.h>
-#include <fcntl.h>
-#include <utmp.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/param.h>
-#include <limits.h>
+#include <sys/stat.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
-struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
+
+#include <db.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <netdb.h>
 #include <pw_util.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>  
+#include <time.h>
+#include <unistd.h>
+#include <utmp.h>
+
 #include "pw_yp.h"
 #include "ypxfr_extern.h"
 #include "yppasswd_private.h"
@@ -76,6 +78,10 @@ static HASHINFO openinfo = {
         NULL,           /* hash */
         0,              /* lorder */
 };
+
+static char passwdbyname[] = "passwd.byname";
+static char localhost[] = "localhost";
+static char blank[] = "";
 
 int force_old = 0;
 int _use_yp = 0;
@@ -139,7 +145,7 @@ copy_yp_pass(char *p, int x, int m)
 	return;
 }
 
-void
+static void
 copy_local_pass(char *p, int m)
 {
 	register char *t;
@@ -178,7 +184,7 @@ copy_local_pass(char *p, int m)
  * environment.
  */
 static int
-my_yp_match(char *server, char *domain, char *map, char *key,
+my_yp_match(char *server, char *domain, const char *map, char *key,
     unsigned long keylen, char **result, unsigned long *resultlen)
 {
 	ypreq_key ypkey;
@@ -194,27 +200,17 @@ my_yp_match(char *server, char *domain, char *map, char *key,
 	 * the record we were looking for. Letting use_yp() know
 	 * that the lookup failed is sufficient.
 	 */
-	if ((clnt = clnt_create(server, YPPROG,YPVERS,"udp")) == NULL) {
+	if ((clnt = clnt_create(server, YPPROG,YPVERS,"udp")) == NULL)
 		return(1);
-#ifdef notdef
-		warnx("failed to create UDP handle: %s",
-					clnt_spcreateerror(server));
-		pw_error(tempname, 0, 1);
-#endif
-	}
 
 	ypkey.domain = domain;
-	ypkey.map = map;
+	ypkey.map = strdup(map);
 	ypkey.key.keydat_len = keylen;
 	ypkey.key.keydat_val = key;
 
 	if ((ypval = ypproc_match_2(&ypkey, clnt)) == NULL) {
 		clnt_destroy(clnt);
 		return(1);
-#ifdef notdef
-		warnx("%s",clnt_sperror(clnt,"YPPROC_MATCH failed"));
-		pw_error(tempname, 0, 1);
-#endif
 	}
 
 	clnt_destroy(clnt);
@@ -222,16 +218,6 @@ my_yp_match(char *server, char *domain, char *map, char *key,
 	if (ypval->stat != YP_TRUE) {
 		xdr_free(xdr_ypresp_val, (char *)ypval);
 		return(1);
-#ifdef notdef
-		int stat = ypval->stat;
-		xdr_free(xdr_ypresp_val, (char *)ypval);
-		if (stat == YP_NOMAP && strstr(map, "master.passwd"))
-			return(1);
-		if (stat == YP_NOKEY)
-			return(1);
-		warnx("ypmatch failed: %s", yperr_string(ypprot_err(stat)));
-		pw_error(tempname, 0, 1);
-#endif
 	}
 
 
@@ -366,7 +352,7 @@ get_yp_master(int getserver)
 
 	/* Get master server of passwd map. */
 
-	if ((mastername = ypxfr_get_master(yp_domain, "passwd.byname",
+	if ((mastername = ypxfr_get_master(yp_domain, passwdbyname,
 				yp_server, yp_server ? 0 : 1)) == NULL) {
 		warnx("can't get name of master NIS server");
 		pw_error(tempname, 0, 1);
@@ -394,11 +380,11 @@ get_yp_master(int getserver)
 	}
 
 	/* See if _we_ are the master server. */
-	if (!force_old && !getuid() && (localport = getrpcport("localhost",
+	if (!force_old && !getuid() && (localport = getrpcport(localhost,
 		YPPASSWDPROG, YPPASSWDPROC_UPDATE, IPPROTO_UDP)) != 0) {
 		if (localport == rval) {
 			suser_override = 1;
-			mastername = "localhost";
+			mastername = localhost;
 		}
 	}
 
@@ -427,7 +413,7 @@ yp_submit(struct passwd *pw)
 	CLIENT *clnt;
 	char *master, *password;
 	int *status = NULL;
-	struct rpc_err err;
+	struct rpc_err lerr;
 
 	nconf = NULL;
 	_use_yp = 1;
@@ -449,9 +435,10 @@ yp_submit(struct passwd *pw)
 		master_yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
 		master_yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
 		master_yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		master_yppasswd.newpw.pw_class = pw->pw_class != NULL ?
-						strdup(pw->pw_class) : "";
-		master_yppasswd.oldpass = ""; /* not really needed */
+		master_yppasswd.newpw.pw_class = pw->pw_class != NULL
+						? strdup(pw->pw_class)
+						: blank;
+		master_yppasswd.oldpass = blank; /* not really needed */
 		master_yppasswd.domain = yp_domain;
 	} else {
 		yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
@@ -461,7 +448,7 @@ yp_submit(struct passwd *pw)
 		yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
 		yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
 		yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		yppasswd.oldpass = "";
+		yppasswd.oldpass = blank;
 	}
 
 	/* Get the user's password for authentication purposes. */
@@ -519,15 +506,15 @@ yp_submit(struct passwd *pw)
 	else
 		status = yppasswdproc_update_1(&yppasswd, clnt);
 
-	clnt_geterr(clnt, &err);
+	clnt_geterr(clnt, &lerr);
 
 	auth_destroy(clnt->cl_auth);
 	clnt_destroy(clnt);
 
 	/* Call failed: signal the error. */
 
-	if (err.re_status != RPC_SUCCESS || status == NULL || *status) {
-		warnx("NIS update failed: %s", clnt_sperrno(err.re_status));
+	if (lerr.re_status != RPC_SUCCESS || status == NULL || *status) {
+		warnx("NIS update failed: %s", clnt_sperrno(lerr.re_status));
 		pw_error(NULL, 0, 1);
 	}
 

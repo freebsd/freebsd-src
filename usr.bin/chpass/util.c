@@ -32,12 +32,11 @@
  */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)util.c	8.4 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
+static const char sccsid[] = "@(#)util.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -52,14 +51,13 @@ static const char rcsid[] =
 #include "chpass.h"
 #include "pathnames.h"
 
-static char *months[] =
+static const char *months[] =
 	{ "January", "February", "March", "April", "May", "June",
 	  "July", "August", "September", "October", "November",
 	  "December", NULL };
 
 char *
-ttoa(tval)
-	time_t tval;
+ttoa(time_t tval)
 {
 	struct tm *tp;
 	static char tbuf[50];
@@ -75,12 +73,11 @@ ttoa(tval)
 }
 
 int
-atot(p, store)
-	char *p;
-	time_t *store;
+atot(char *p, time_t *store)
 {
 	static struct tm *lt;
-	char *t, **mp;
+	char *t;
+	const char **mp;
 	time_t tval;
 	int day, month, year;
 
@@ -136,8 +133,7 @@ bad:		return (1);
 }
 
 char *
-ok_shell(name)
-	char *name;
+ok_shell(char *name)
 {
 	char *p, *sh;
 

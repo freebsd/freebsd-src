@@ -29,13 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
 static const char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -62,8 +63,7 @@ static const char sccsid[] = "@(#)edit.c	8.3 (Berkeley) 4/2/94";
 extern char *tempname;
 
 void
-edit(pw)
-	struct passwd *pw;
+edit(struct passwd *pw)
 {
 	struct stat begin, end;
 	char *begin_sum, *end_sum;
@@ -95,12 +95,10 @@ edit(pw)
  *	set conditional flag if the user gets to edit the shell.
  */
 void
-display(fd, pw)
-	int fd;
-	struct passwd *pw;
+display(int fd, struct passwd *pw)
 {
 	FILE *fp;
-	char *bp, *p, *ttoa();
+	char *bp, *p;
 
 	if (!(fp = fdopen(fd, "w")))
 		pw_error(tempname, 1, 1);
@@ -181,8 +179,7 @@ display(fd, pw)
 }
 
 int
-verify(pw)
-	struct passwd *pw;
+verify(struct passwd *pw)
 {
 	ENTRY *ep;
 	char *p;
@@ -260,7 +257,7 @@ bad:					(void)fclose(fp);
 	    pw->pw_name, pw->pw_passwd, (unsigned long)pw->pw_uid, 
 	    (unsigned long)pw->pw_gid, pw->pw_class, (long)pw->pw_change,
 	    (long)pw->pw_expire, pw->pw_gecos, pw->pw_dir,
-	    pw->pw_shell) >= sizeof(buf)) {
+	    pw->pw_shell) >= (int)sizeof(buf)) {
 		warnx("entries too long");
 		free(p);
 		return (0);

@@ -37,6 +37,9 @@
 static const char sccsid[] = "@(#)pw_copy.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * This module is used to copy the master password file, replacing a single
  * record, by chpass(1) and passwd(1).
@@ -78,11 +81,8 @@ pw_equal(char *buf, struct passwd *pw)
 	    && strcmp(pw->pw_shell, buf_pw.pw_shell) == 0);
 }
 
-
 void
-pw_copy(ffd, tfd, pw, old_pw)
-	int ffd, tfd;
-	struct passwd *pw, *old_pw;
+pw_copy(int ffd, int tfd, struct passwd *pw, struct passwd *old_pw)
 {
 	FILE *from, *to;
 	int done;

@@ -35,6 +35,9 @@
 static const char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/stat.h>
 
@@ -51,12 +54,11 @@ static const char sccsid[] = "@(#)field.c	8.4 (Berkeley) 4/2/94";
 #include "chpass.h"
 #include "pathnames.h"
 
+static char blank[] = "";
+
 /* ARGSUSED */
 int
-p_login(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_login(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!*p) {
 		warnx("empty login field");
@@ -82,13 +84,10 @@ p_login(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_passwd(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_passwd(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!*p)
-		pw->pw_passwd = "";	/* "NOLOGIN"; */
+		pw->pw_passwd = blank;	/* "NOLOGIN"; */
 	else if (!(pw->pw_passwd = strdup(p))) {
 		warnx("can't save password entry");
 		return (1);
@@ -99,10 +98,7 @@ p_passwd(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_uid(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_uid(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	uid_t id;
 	char *np;
@@ -127,10 +123,7 @@ p_uid(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_gid(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_gid(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	struct group *gr;
 	gid_t id;
@@ -160,13 +153,10 @@ p_gid(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_class(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_class(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!*p)
-		pw->pw_class = "";
+		pw->pw_class = blank;
 	else if (!(pw->pw_class = strdup(p))) {
 		warnx("can't save entry");
 		return (1);
@@ -177,10 +167,7 @@ p_class(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_change(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_change(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!atot(p, &pw->pw_change))
 		return (0);
@@ -190,10 +177,7 @@ p_change(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_expire(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_expire(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!atot(p, &pw->pw_expire))
 		return (0);
@@ -203,13 +187,10 @@ p_expire(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_gecos(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_gecos(char *p, struct passwd *pw __unused, ENTRY *ep __unused)
 {
 	if (!*p)
-		ep->save = "";
+		ep->save = blank;
 	else if (!(ep->save = strdup(p))) {
 		warnx("can't save entry");
 		return (1);
@@ -219,10 +200,7 @@ p_gecos(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_hdir(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_hdir(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
 	if (!*p) {
 		warnx("empty home directory field");
@@ -237,16 +215,13 @@ p_hdir(p, pw, ep)
 
 /* ARGSUSED */
 int
-p_shell(p, pw, ep)
-	char *p;
-	struct passwd *pw;
-	ENTRY *ep;
+p_shell(char *p, struct passwd *pw, ENTRY *ep __unused)
 {
-	char *t, *ok_shell();
+	char *t;
 	struct stat sbuf;
 
 	if (!*p) {
-		pw->pw_shell = _PATH_BSHELL;
+		pw->pw_shell = strdup(_PATH_BSHELL);
 		return (0);
 	}
 	/* only admin can change from or to "restricted" shells */

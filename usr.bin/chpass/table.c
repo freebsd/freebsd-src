@@ -35,6 +35,9 @@
 static const char sccsid[] = "@(#)table.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <stddef.h>
 #include "chpass.h"
@@ -43,23 +46,23 @@ char e1[] = ": ";
 char e2[] = ":,";
 
 ENTRY list[] = {
-	{ "login",		p_login,  1,   5, e1,   },
-	{ "password",		p_passwd, 1,   8, e1,   },
-	{ "uid",		p_uid,    1,   3, e1,   },
-	{ "gid",		p_gid,    1,   3, e1,   },
-	{ "class",		p_class,  1,   5, e1,   },
-	{ "change",		p_change, 1,   6, NULL, },
-	{ "expire",		p_expire, 1,   6, NULL, },
+	{ "login",		p_login,  1,   5, e1,   NULL },
+	{ "password",		p_passwd, 1,   8, e1,   NULL },
+	{ "uid",		p_uid,    1,   3, e1,   NULL },
+	{ "gid",		p_gid,    1,   3, e1,   NULL },
+	{ "class",		p_class,  1,   5, e1,   NULL },
+	{ "change",		p_change, 1,   6, NULL, NULL },
+	{ "expire",		p_expire, 1,   6, NULL, NULL },
 #ifdef RESTRICT_FULLNAME_CHANGE		/* do not allow fullname changes */
-	{ "full name",		p_gecos,  1,   9, e2,   },
+	{ "full name",		p_gecos,  1,   9, e2,   NULL },
 #else
-	{ "full name",		p_gecos,  0,   9, e2,   },
+	{ "full name",		p_gecos,  0,   9, e2,   NULL },
 #endif
-	{ "office phone",	p_gecos,  0,  12, e2,   },
-	{ "home phone",		p_gecos,  0,  10, e2,   },
-	{ "office location",	p_gecos,  0,  15, e2,   },
-	{ "other information",	p_gecos,  0,  11, e1,   },
-	{ "home directory",	p_hdir,   1,  14, e1,   },
-	{ "shell",		p_shell,  0,   5, e1,   },
-	{ NULL, 0, },
+	{ "office phone",	p_gecos,  0,  12, e2,   NULL },
+	{ "home phone",		p_gecos,  0,  10, e2,   NULL },
+	{ "office location",	p_gecos,  0,  15, e2,   NULL },
+	{ "other information",	p_gecos,  0,  11, e1,   NULL },
+	{ "home directory",	p_hdir,   1,  14, e1,   NULL },
+	{ "shell",		p_shell,  0,   5, e1,   NULL },
+	{ NULL, NULL, 0, 0, NULL, NULL },
 };
