@@ -1620,9 +1620,8 @@ key_sp2msg(sp)
 			p += isr->saidx.src.ss_len;
 
 			xisr->sadb_x_ipsecrequest_len =
-				PFKEY_ALIGN8(sizeof(*xisr)
-					+ isr->saidx.src.ss_len
-					+ isr->saidx.dst.ss_len);
+			    PFKEY_ALIGN8(sizeof(*xisr) +
+			    isr->saidx.src.ss_len + isr->saidx.dst.ss_len);
 		}
 	}
 
@@ -3940,7 +3939,8 @@ key_ismyaddr(sa)
 	case AF_INET:
 		sin = (struct sockaddr_in *)sa;
 		for (ia = in_ifaddrhead.tqh_first; ia;
-		     ia = ia->ia_link.tqe_next) {
+		     ia = ia->ia_link.tqe_next)
+		{
 			if (sin->sin_family == ia->ia_addr.sin_family &&
 			    sin->sin_len == ia->ia_addr.sin_len &&
 			    sin->sin_addr.s_addr == ia->ia_addr.sin_addr.s_addr)
