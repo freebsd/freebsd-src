@@ -104,8 +104,8 @@ struct skey *mp;
 const char *name;
 {
 	int found;
-	int len;
-	long recstart;
+	size_t len;
+	long recstart = 0;
 	char *cp, *p;
 	struct stat statbuf;
 	mode_t oldmask;
