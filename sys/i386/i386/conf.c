@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.99 1995/10/10 08:10:53 swallace Exp $
+ *	$Id: conf.c,v 1.100 1995/10/12 23:28:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,7 +78,7 @@ d_rdwr_t rawread, rawwrite;
 #define nxstop		(d_stop_t *)enxio
 #define nxreset		(d_reset_t *)enxio
 #define nxselect	(d_select_t *)enxio
-#define nxmmap		(d_mmap_t *)enxio
+#define nxmmap		nommap		/* must return -1, not ENXIO */
 #define	nxdevtotty	(d_ttycv_t *)nullop
 
 #define zerosize	(d_psize_t *)0
