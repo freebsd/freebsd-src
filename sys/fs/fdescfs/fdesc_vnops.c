@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.16 1996/06/12 03:37:02 davidg Exp $
+ * $Id: fdesc_vnops.c,v 1.17 1996/06/12 05:09:52 gpalmer Exp $
  */
 
 /*
@@ -48,6 +48,7 @@
 #include <sys/kernel.h>	/* boottime */
 #include <sys/resourcevar.h>
 #include <sys/filedesc.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/file.h>

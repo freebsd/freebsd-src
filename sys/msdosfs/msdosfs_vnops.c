@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.30 1995/12/07 12:47:20 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.31 1996/06/14 11:01:41 asami Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -53,11 +53,11 @@
 #include <sys/namei.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
-#include <sys/file.h>		/* define FWRITE ... */
 #include <sys/stat.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/malloc.h>
