@@ -1145,7 +1145,7 @@ int
 in_fdc(fdcu_t fdcu)
 {
 	int baseport = fdc_data[fdcu].baseport;
-	int i, j = 1000000;
+	int i, j = 100000;
 	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
 		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
@@ -1168,13 +1168,11 @@ static int
 fd_in(fdcu_t fdcu, int *ptr)
 {
 	int baseport = fdc_data[fdcu].baseport;
-	int i, j = 1000000;
+	int i, j = 100000;
 	while ((i = inb(baseport+FDSTS) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0) {
-		DELAY(10);
+		!= (NE7_DIO|NE7_RQM) && j-- > 0)
 		if (i == NE7_RQM)
 			return fdc_err(fdcu, "ready for output in input\n");
-	}
 	if (j <= 0)
 		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
 #ifdef	DEBUG
@@ -1197,21 +1195,18 @@ out_fdc(fdcu_t fdcu, int x)
 	int i;
 
 	/* Check that the direction bit is set */
-	i = 1000000;
-	while ((inb(baseport+FDSTS) & NE7_DIO) && i-- > 0)
-		DELAY(10);
+	i = 100000;
+	while ((inb(baseport+FDSTS) & NE7_DIO) && i-- > 0);
 	if (i <= 0) return fdc_err(fdcu, "direction bit not set\n");
 
 	/* Check that the floppy controller is ready for a command */
-	i = 1000000;
-	while ((inb(baseport+FDSTS) & NE7_RQM) == 0 && i-- > 0)
-		DELAY(10);
+	i = 100000;
+	while ((inb(baseport+FDSTS) & NE7_RQM) == 0 && i-- > 0);
 	if (i <= 0)
 		return fdc_err(fdcu, bootverbose? "output ready timeout\n": 0);
 
 	/* Send the command and return */
 	outb(baseport+FDDATA, x);
-	DELAY(10);
 	TRACE1("[0x%x->FDDATA]", x);
 	return (0);
 }
@@ -1853,7 +1848,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			sec = sec % sectrac + 1;
 			fd->hddrv = ((head&1)<<2)+fdu;
 
-			if (nrdsec++ >= nrd_sec()) 
+			if (nrdsec++ >= nrd_sec())
 				nrdaddr = (nrd_t)(fd->track * 8	+ head * 4);
 			nrdsec = sec;
 			fdc->state = IOCOMPLETE;
