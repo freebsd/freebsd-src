@@ -45,7 +45,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/devconf.h>
 
 #include <machine/clock.h>

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.46 1995/11/29 14:41:04 julian Exp $
+ * $Id: st.c,v 1.47 1995/11/30 07:43:47 pst Exp $
  */
 
 /*
@@ -38,7 +38,6 @@
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/mtio.h>
 
 #include <scsi/scsi_all.h>

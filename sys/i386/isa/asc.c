@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * $Id: asc.c,v 1.7 1995/11/29 10:47:24 julian Exp $
+ * $Id: asc.c,v 1.8 1995/11/29 14:39:31 julian Exp $
  */
 
 #include "asc.h"
@@ -43,7 +43,6 @@
 #include "param.h"
 #include "systm.h"
 #include "proc.h"
-#include "user.h"
 #include "buf.h"
 #include "malloc.h"
 #include "kernel.h"
@@ -60,8 +59,8 @@
 #else
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>

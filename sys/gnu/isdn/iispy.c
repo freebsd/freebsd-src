@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.5 1995/11/29 10:47:07 julian Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.6 1995/11/29 14:39:10 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,10 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.5 1995/11/29 10:47:07 julian E
  *
  *******************************************************************************
  * $Log: iispy.c,v $
+ * Revision 1.6  1995/11/29  14:39:10  julian
+ * If you're going to mechanically replicate something in 50 files
+ * it's best to not have a (compiles cleanly) typo in it! (sigh)
+ *
  * Revision 1.5  1995/11/29  10:47:07  julian
  * OK, that's it..
  * That's EVERY SINGLE driver that has an entry in conf.c..
@@ -46,10 +50,10 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.5 1995/11/29 10:47:07 julian E
 #include "param.h"
 #include "buf.h"
 #include "systm.h"
+#include "conf.h"
 #include "ioctl.h"
 #include "tty.h"
 #include "proc.h"
-#include "user.h"
 #include "uio.h"
 #include <sys/kernel.h>
 /*#include "malloc.h"*/

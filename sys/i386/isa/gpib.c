@@ -29,7 +29,7 @@
 #include "systm.h"
 #include "sys/ioctl.h"
 #include "proc.h"
-#include "user.h"
+#include "conf.h"
 #include "uio.h"
 #include "kernel.h"
 #include "malloc.h"
