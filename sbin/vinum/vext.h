@@ -120,6 +120,7 @@ extern int verbose;					    /* set verbose operation */
 extern int Verbose;					    /* very verbose operation */
 extern int recurse;					    /* set recursion */
 extern int stats;					    /* show statistics */
+extern int dowait;					    /* wait for children to exit */
 
 /* Structures to read kernel data into */
 extern struct _vinum_conf vinum_conf;			    /* configuration information */
