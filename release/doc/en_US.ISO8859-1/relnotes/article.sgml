@@ -128,10 +128,11 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:17.procfs.asc">FreeBSD-SA-04:17.procfs</ulink>.
       &merged;</para>
 
-    <para>A buffer overflow in the TELNET client program, which could
-      allow an attacker to cause the execution of arbitrary code with
-      the privileges of the user invoking &man.telnet.1;, has been
-      fixed.  More information can be found in security advisory
+    <para>Two buffer overflows in the TELNET client program have been
+      corrected.  They could have allowed a malicious TELNET server or
+      an active network attacker to cause &man.telnet.1; to execute
+      arbitrary code with the privileges of the user running it.
+      More information can be found in security advisory
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
       &merged;</para>
 
