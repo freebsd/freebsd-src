@@ -95,9 +95,7 @@ file, prepared by the
 .Xr ldconfig 8
 utility, in which the full path specification of the shared objects can be
 looked up by hashing on the 3-tuple
-.Ao
-library-name, major-version-number, minor-version-number
-.Ac \&.
+.Aq library-name , major-version-number , minor-version-number .
 .Pp
 .Nm
 recognizes a number of environment variables that can be used to modify
