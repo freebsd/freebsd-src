@@ -55,6 +55,7 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
+#include <sys/syslog.h>
 
 #include <machine/limits.h>
 
@@ -701,7 +702,7 @@ debug_vn_lock(vp, flags, td, filename, line)
 			error = ENOENT;
 		} else {
 			if (vp->v_vxproc != NULL)
-				printf("VXLOCK interlock avoided in vn_lock\n");
+				log(LOG_INFO, "VXLOCK interlock avoided in vn_lock\n");
 #ifdef	DEBUG_LOCKS
 			vp->filename = filename;
 			vp->line = line;
