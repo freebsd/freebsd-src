@@ -95,7 +95,7 @@ char version[] = "${VERSION} #${v}: ${t}\\n    ${u}@${h}:${d}\\n";
 char ostype[] = "${TYPE}";
 char osrelease[] = "${RELEASE}";
 int osreldate = ${RELDATE};
-char ident[] = "${i}";
+char kern_ident[] = "${i}";
 EOF
 
 echo `expr ${v} + 1` > version
