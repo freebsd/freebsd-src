@@ -90,7 +90,7 @@ typedef struct ipstate {
 	} is_ps;
 	u_32_t	is_group;
 	char	is_ifname[4][IFNAMSIZ];
-#if SOLARIS || defined(__sgi)
+#if SOLARIS || defined(__sgi) || (__FreeBSD_version >= 500043)
 	kmutex_t	is_lock;
 #endif
 } ipstate_t;
