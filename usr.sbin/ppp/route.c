@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.36 1997/12/27 13:45:57 brian Exp $
+ * $Id: route.c,v 1.37 1997/12/27 19:23:13 brian Exp $
  *
  */
 
@@ -67,7 +67,8 @@ void
 OsSetRoute(int cmd,
 	   struct in_addr dst,
 	   struct in_addr gateway,
-	   struct in_addr mask)
+	   struct in_addr mask,
+	   int bang)
 {
   struct rtmsg rtmes;
   int s, nb, wb;
@@ -75,7 +76,10 @@ OsSetRoute(int cmd,
   const char *cmdstr;
   struct sockaddr_in rtdata;
 
-  cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
+  if (bang)
+    cmdstr = (cmd == RTM_ADD ? "Add!" : "Delete!");
+  else
+    cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
   s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
@@ -145,25 +149,29 @@ OsSetRoute(int cmd,
     LogPrintf(LogTCPIP, "OsSetRoute:  Dst = %s\n", inet_ntoa(dst));
     LogPrintf(LogTCPIP, "OsSetRoute:  Gateway = %s\n", inet_ntoa(gateway));
     LogPrintf(LogTCPIP, "OsSetRoute:  Mask = %s\n", inet_ntoa(mask));
-    switch (rtmes.m_rtm.rtm_errno) {
-    case EEXIST:
-      LogPrintf(LogWARN, "Add route failed: %s already exists\n",
-                inet_ntoa(dst));
-      break;
-    case ESRCH:
-      LogPrintf(LogWARN, "Del route failed: %s: Non-existent\n",
-                inet_ntoa(dst));
-      break;
-    case 0:
+failed:
+    if (cmd == RTM_ADD && (rtmes.m_rtm.rtm_errno == EEXIST ||
+                           (rtmes.m_rtm.rtm_errno == 0 && errno == EEXIST)))
+      if (!bang)
+        LogPrintf(LogWARN, "Add route failed: %s already exists\n",
+                  inet_ntoa(dst));
+      else {
+        rtmes.m_rtm.rtm_type = cmd = RTM_CHANGE;
+        if ((wb = ID0write(s, &rtmes, nb)) < 0)
+          goto failed;
+      }
+    else if (cmd == RTM_DELETE &&
+             (rtmes.m_rtm.rtm_errno == ESRCH ||
+              (rtmes.m_rtm.rtm_errno == 0 && errno == ESRCH))) {
+      if (!bang)
+        LogPrintf(LogWARN, "Del route failed: %s: Non-existent\n",
+                  inet_ntoa(dst));
+    } else if (rtmes.m_rtm.rtm_errno == 0)
       LogPrintf(LogWARN, "%s route failed: %s: errno: %s\n", cmdstr,
                 inet_ntoa(dst), strerror(errno));
-      break;
-    case ENOBUFS:
-    default:
+    else
       LogPrintf(LogWARN, "%s route failed: %s: %s\n",
 		cmdstr, inet_ntoa(dst), strerror(rtmes.m_rtm.rtm_errno));
-      break;
-    }
   }
   LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
             wb, cmdstr, dst.s_addr, gateway.s_addr);
@@ -502,7 +510,7 @@ DeleteIfRoutes(int all)
           if ((pass == 0 && (rtm->rtm_flags & RTF_WASCLONED)) ||
               (pass == 1 && !(rtm->rtm_flags & RTF_WASCLONED))) {
             LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it (pass %d)\n", pass);
-            OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none);
+            OsSetRoute(RTM_DELETE, sa_dst, sa_none, sa_none, 0);
           } else
             LogPrintf(LogDEBUG, "DeleteIfRoutes: Skip it (pass %d)\n", pass);
         } else

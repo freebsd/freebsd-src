@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.120 1997/12/27 13:45:45 brian Exp $
+ * $Id: command.c,v 1.121 1997/12/29 22:23:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -345,7 +345,9 @@ static struct cmdtab const Commands[] = {
   {"accept", NULL, AcceptCommand, LOCAL_AUTH,
   "accept option request", "accept option .."},
   {"add", NULL, AddCommand, LOCAL_AUTH,
-  "add route", "add dest mask gateway"},
+  "add route", "add dest mask gateway", NULL},
+  {"add!", NULL, AddCommand, LOCAL_AUTH,
+  "add or change route", "add! dest mask gateway", (void *)1},
   {"allow", "auth", AllowCommand, LOCAL_AUTH,
   "Allow ppp access", "allow users|modes ...."},
   {"bg", "!bg", BgShellCommand, LOCAL_AUTH,
@@ -353,7 +355,9 @@ static struct cmdtab const Commands[] = {
   {"close", NULL, CloseCommand, LOCAL_AUTH,
   "Close connection", "close"},
   {"delete", NULL, DeleteCommand, LOCAL_AUTH,
-  "delete route", "delete dest"},
+  "delete route", "delete dest", NULL},
+  {"delete!", NULL, DeleteCommand, LOCAL_AUTH,
+  "delete a route if it exists", "delete! dest", (void *)1},
   {"deny", NULL, DenyCommand, LOCAL_AUTH,
   "Deny option request", "deny option .."},
   {"dial", "call", DialCommand, LOCAL_AUTH,
@@ -1528,7 +1532,7 @@ AddCommand(struct cmdargs const *arg)
     gateway.s_addr = INADDR_ANY;
   else
     gateway = GetIpAddr(arg->argv[gw]);
-  OsSetRoute(RTM_ADD, dest, gateway, netmask);
+  OsSetRoute(RTM_ADD, dest, gateway, netmask, arg->data ? 1 : 0);
   return 0;
 }
 
@@ -1548,7 +1552,7 @@ DeleteCommand(struct cmdargs const *arg)
       else
         dest = GetIpAddr(arg->argv[0]);
       none.s_addr = INADDR_ANY;
-      OsSetRoute(RTM_DELETE, dest, none, none);
+      OsSetRoute(RTM_DELETE, dest, none, none, arg->data ? 1 : 0);
     }
   else
     return -1;

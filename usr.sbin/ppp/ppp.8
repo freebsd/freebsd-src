@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.90 1997/12/21 03:16:14 brian Exp $
+.\" $Id: ppp.8,v 1.91 1997/12/27 07:22:12 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1557,7 +1557,7 @@ not to make any utmp or wtmp entries.  This is usually only necessary if
 you require the user to both login and authenticate themselves.
 .El
 .Pp
-.It add dest mask gateway
+.It add[!] dest mask gateway
 .Ar Dest
 is the destination IP address and
 .Ar mask
@@ -1586,6 +1586,16 @@ is replaced with the current interface address.  If the current interface
 address has not yet been assigned, the current
 .Sq INTERFACE
 is used instead.
+.Pp
+If the
+.Ar add!
+command is used
+.Pq note the following Dq \&! ,
+then if the route already exists, it will be updated as with the
+.Sq route change
+command (see
+.Xr route 8
+for further details).
 .It allow .....
 This command controls access to
 .Nm
@@ -1717,7 +1727,7 @@ while the command executes, use the
 command instead.
 .It close
 Close the current connection (but don't quit).
-.It delete dest
+.It delete[!] dest
 This command deletes the route with the given
 .Ar dest
 IP address.  If
@@ -1732,6 +1742,13 @@ representing the actual link.  If
 is specified as
 .Sq default ,
 the default route is deleted.
+.Pp
+If the
+.Ar delete!
+command is used
+.Pq note the following Dq \&! ,
+.Nm
+will not complain if the route does not already exist.
 .It dial|call [remote]
 If
 .Dq remote
@@ -2403,6 +2420,7 @@ Get port number if port number is using service name.
 .Xr ping 8 ,
 .Xr pppctl 8 ,
 .Xr pppd 8 ,
+.Xr route 8 ,
 .Xr syslog 3 ,
 .Xr syslog.conf 5 ,
 .Xr syslogd 8 ,
