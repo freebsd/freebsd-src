@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.2 1995/04/12 02:42:22 ache Exp $
+#	$Id: Makefile,v 1.3 1996/02/06 23:47:32 wosch Exp $
 
 .include "${.CURDIR}/Makefile.inc"
 
@@ -20,7 +20,7 @@ MANDEPEND = ${MAN1}
 .include <bsd.prog.mk>
 
 ${MAN1}: at.man
-	@echo Making ${.TARGET:T} from ${.ALLSRC:T}; \
+	@${ECHO} Making ${.TARGET:T} from ${.ALLSRC:T}; \
 	sed -e \
 		"s@_ATSPOOL_DIR@$(ATSPOOL_DIR)@g; \
 		s@_ATJOB_DIR@$(ATJOB_DIR)@g; \
