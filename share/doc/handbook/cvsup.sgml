@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: cvsup.sgml,v 1.1 1996/12/19 20:23:05 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -144,7 +144,8 @@ augmented in mid-supfile by additional "*default" lines.
 for receiving and updating the main source tree of <ref id="current"
 name="FreeBSD-current">.
 
-<sect2><heading>Which files do you want to receive?<label id="cvsup:config:files"></heading>
+<itemize>
+<item>Which files do you want to receive?<label id="cvsup:config:files">
 
 <p>As with sup, the files available via CVSup are organized into named
 groups called "collections".  The collections making up the FreeBSD
@@ -164,7 +165,7 @@ simply list these collections, one per line:
   src-secure
 </verb>
 
-<sect2><heading>Which version(s) of them do you want?<label id="cvsup:config:vers"></heading>
+<p><item>Which version(s) of them do you want?<label id="cvsup:config:vers">
 
 <p>With CVSup, you can receive virtually any version of the sources
 that ever existed.  That is possible because the cvsupd server works
@@ -233,7 +234,7 @@ their systems, they gain the ability to browse the revision histories
 and examine past versions of files.  This gain is achieved at a large
 cost in terms of disk space, however.
 
-<sect2><heading>Where do you want to get them from?<label id="cvsup:config:where"></heading>
+<p><item>Where do you want to get them from?<label id="cvsup:config:where">
 
 <p>This one is easy.  We use the "host=" field to tell cvsup to get
 its updates from the primary FreeBSD distribution site,
@@ -246,7 +247,7 @@ its updates from the primary FreeBSD distribution site,
 <p>On any particular run of cvsup, we can override this setting on the
 command line, with "-h hostname".
 
-<sect2><heading>Where do you want to put them on your own machine?<label id="cvsup:config:dest"></heading>
+<p><item>Where do you want to put them on your own machine?<label id="cvsup:config:dest">
 
 <p>The "prefix=" field tells cvsup where to put the files it receives.
 In this example, we'll put the source files directly into our main
@@ -258,7 +259,7 @@ specification:
   *default prefix=/usr
 </verb>
 
-<sect2><heading>Where should cvsup maintain its status files?<label id="cvsup:config:status"></heading>
+<p><item>Where should cvsup maintain its status files?<label id="cvsup:config:status">
 
 <p>The cvsup client maintains certain status files in what is called
 the "base" directory.  These files help CVSup to work more
@@ -277,7 +278,7 @@ supfile, so we actually don't need the above line.
 time to create it.  The cvsup client will refuse to run if the base
 directory doesn't exist.
 
-<sect2><heading>Miscellaneous supfile settings</heading>
+<p><item>Miscellaneous supfile settings:
 
 <p>There is one more line of boiler plate that normally needs to be
 present in the supfile:
@@ -306,7 +307,7 @@ communication channel.  If your network link is T1 speed or faster,
 you probably shouldn't use compression.  Otherwise, it helps
 substantially.
 
-<sect2><heading>Putting it all together</heading>
+<p><item>Putting it all together:
 
 <p>Here is the entire supfile for our example:
 
@@ -320,6 +321,7 @@ substantially.
   src-eBones
   src-secure
 </verb>
+</itemize>
 
 <sect1><heading>Running CVSup</heading>
 
