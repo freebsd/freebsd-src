@@ -3,9 +3,9 @@
 #	example of a configuration file for the isdn daemon
 #	---------------------------------------------------
 #
-#	$Id: isdnd.rc,v 1.11 1998/12/18 17:17:57 hm Exp $
+#	$Id: isdnd.rc,v 1.1 1999/01/10 14:30:47 hm Exp $
 #
-#	last edit-date: [Fri Dec 18 18:05:57 1998]
+#	last edit-date: [Tue Jan 19 16:30:12 1999]
 #
 #	NOTICE:
 #	=======
@@ -32,7 +32,7 @@ useacctfile	= yes			# generate accouting info to file
 # monitor
 # -------
 
-monitor-allowed	= yes			# global switch: monitor on/off
+monitor-allowed	= no			# global switch: monitor on/off
 monitor-port	= 451			# default monitor TCP port
 
 # Monitor rights are granted due to the most specific host/net spec, i.e. in 
@@ -71,8 +71,8 @@ ratesfile	= /etc/isdn/isdnd.rates	# name & location of rates file
 # regular expression pattern matching
 # -----------------------------------
 
-#regexpr	= "connected.*KTS"	# look for matches in log messages
-#regprog	= connectKTS		# execute program when match is found
+#regexpr	= "connected.*XXX"	# look for matches in log messages
+#regprog	= connectXXX		# execute program when match is found
 
 # realtime priority section
 # -------------------------
@@ -147,11 +147,11 @@ usedown			= off		# set i/f down
 downtries		= 5		# retry cycles before set down
 downtime		= 30		# time to be in down before going up
 
-connectprog		= "ip-up"	# run /etc/isdn/ip-up when an interface
+#connectprog		= "ip-up"	# run /etc/isdn/ip-up when an interface
 					# has established its network connection.
 					# example parameters are:
 					# /etc/isdn/ip-up -d isp0 -f up -a 192.110.12.14
-disconnectprog		= "ip-down"	# like connectprog, but run after the connection
+#disconnectprog		= "ip-down"	# like connectprog, but run after the connection
 					# is closed (ISDN layer down). The actual
 					# interface address might not be known
 					# any more. example parameters are:
