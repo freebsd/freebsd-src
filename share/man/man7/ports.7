@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: ports.7,v 1.9.2.4 1999/07/12 07:53:39 obrien Exp $
+.\" $Id: ports.7,v 1.15 1999/08/21 17:22:29 hoek Exp $
 .\"
 .Dd January 25, 1998
 .Dt PORTS 7
@@ -137,7 +137,7 @@ The following targets are not run during the normal install process.
 .Bl -tag -width fetch-list
 .It Ar fetch-list
 Show list of files needed to be fetched in order to build the port.
-.It Ar depends-list package-depends
+.It Ar pretty-print-run-depends-list pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
 of those dependencies.
 .It Ar clean
