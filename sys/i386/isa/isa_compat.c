@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa_compat.c,v 1.11 1999/05/24 18:50:41 dfr Exp $
+ *	$Id: isa_compat.c,v 1.12 1999/05/30 11:04:31 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -178,7 +178,7 @@ isa_compat_probe(device_t dev)
 		dvp->id_drq = -1;
 	if (ISA_GET_RESOURCE(parent, dev, SYS_RES_MEMORY,
 			     0, &start, &count) == 0) {
-		dvp->id_maddr = (void *)start;
+		dvp->id_maddr = (void *)(uintptr_t)start;
 		dvp->id_msize = count;
 	} else {
 		dvp->id_maddr = NULL;
