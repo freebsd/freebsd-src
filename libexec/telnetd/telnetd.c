@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
 static const char sccsid[] = "@(#)telnetd.c	8.4 (Berkeley) 5/30/95";
 #endif
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "telnetd.h"
 #include "pathnames.h"
@@ -71,7 +71,7 @@ int terminaltypeok(char *);
 
 int	hostinfo = 1;			/* do we print login banner? */
 
-int debug = 0;
+static int debug = 0;
 int keepalive = 1;
 const char *altlogin;
 

@@ -31,13 +31,13 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-
-__FBSDID("$FreeBSD$");
-
+#if 0
 #ifndef lint
 static const char sccsid[] = "@(#)main.c	8.3 (Berkeley) 5/30/95";
 #endif
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -180,7 +180,7 @@ main(int argc, char *argv[])
 			skiprc = 1;
 			break;
 		case 'd':
-			debug = 1;
+			telnet_debug = 1;
 			break;
 		case 'e':
 			set_escape_char(optarg);
