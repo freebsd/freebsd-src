@@ -58,8 +58,8 @@ ${PROG}: ${OBJS}
 
 .if	!defined(MAN1) && !defined(MAN2) && !defined(MAN3) && \
 	!defined(MAN4) && !defined(MAN5) && !defined(MAN6) && \
-	!defined(MAN7) && !defined(MAN8) && !defined(NOMAN) && \
-	!defined(MAN1aout)
+	!defined(MAN7) && !defined(MAN8) && !defined(MAN9) && \
+	!defined(NOMAN) && !defined(MAN1aout)
 MAN1=	${PROG}.1
 .endif
 .endif
