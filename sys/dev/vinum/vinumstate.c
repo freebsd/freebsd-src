@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.10 1999/01/17 06:19:23 grog Exp grog $
+ * $Id: vinumstate.c,v 2.11 1999/03/13 04:47:09 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -901,7 +901,7 @@ setstate(struct vinum_ioctl_msg *msg)
 	    plex = &PLEX[msg->index];
 	    if ((msg->index >= vinum_conf.plexes_used)
 		|| (plex->state == plex_unallocated)) {
-		sprintf(ioctl_reply->msg, "Invalid subdisk %d", msg->index);
+		sprintf(ioctl_reply->msg, "Invalid plex %d", msg->index);
 		ioctl_reply->error = EFAULT;
 		return;
 	    }
