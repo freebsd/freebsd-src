@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt OPENPAM_FREE_DATA 3
 .Os
 .Sh NAME
@@ -50,10 +50,11 @@
 .Sh DESCRIPTION
 The
 .Nm
-is a cleanup function suitable for passing to
+function is a cleanup function suitable for
+passing to
 .Xr pam_set_data 3 .
 It simply releases the data by passing its
-.Va data
+.Fa data
 argument to
 .Xr free 3 .
 .Sh SEE ALSO
@@ -70,7 +71,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#10 $
+ * $P4: //depot/projects/openpam/lib/openpam_restore_cred.c#11 $
  */
 
 #include <sys/param.h>
@@ -87,7 +87,7 @@ openpam_restore_cred(pam_handle_t *pamh)
  * The =openpam_restore_cred function restores the credentials saved by
  * =openpam_borrow_cred.
  *
- * >setegid
- * >seteuid
- * >setgroups
+ * >setegid 2
+ * >seteuid 2
+ * >setgroups 2
  */

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_log.c#23 $
+ * $P4: //depot/projects/openpam/lib/openpam_log.c#24 $
  */
 
 #include <ctype.h>
@@ -122,27 +122,31 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 #endif
 
 /**
- * The =openpam_log function logs messages using =syslog.  It is primarily
- * intended for internal use by the library and modules.
+ * The =openpam_log function logs messages using =syslog.
+ * It is primarily intended for internal use by the library and modules.
  *
- * The =level argument indicates the importance of the message.  The
- * following levels are defined:
+ * The =level argument indicates the importance of the message.
+ * The following levels are defined:
  *
  *	=PAM_LOG_DEBUG:
- *		Debugging messages.  These messages are normally not
- *		logged unless the global integer variable :_openpam_debug
- *		is set to a non-zero value, in which case they are logged
- *		with a =syslog priority of =LOG_DEBUG.
+ *		Debugging messages.
+ *		These messages are normally not logged unless the global
+ *		integer variable :_openpam_debug is set to a non-zero
+ *		value, in which case they are logged with a =syslog
+ *		priority of =LOG_DEBUG.
  *	=PAM_LOG_VERBOSE:
  *		Information about the progress of the authentication
- *		process, or other non-essential messages.  These messages
- *		are logged with a =syslog priority of =LOG_INFO.
+ *		process, or other non-essential messages.
+ *		These messages are logged with a =syslog priority of
+ *		=LOG_INFO.
  *	=PAM_LOG_NOTICE:
- *		Messages relating to non-fatal errors.  These messages are
- *		logged with a =syslog priority of =LOG_NOTICE.
+ *		Messages relating to non-fatal errors.
+ *		These messages are logged with a =syslog priority of
+ *		=LOG_NOTICE.
  *	=PAM_LOG_ERROR:
- *		Messages relating to serious errors.  These messages are
- *		logged with a =syslog priority of =LOG_ERR.
+ *		Messages relating to serious errors.
+ *		These messages are logged with a =syslog priority of
+ *		=LOG_ERR.
  *
  * The remaining arguments are a =printf format string and the
  * corresponding arguments.

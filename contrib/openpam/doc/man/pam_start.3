@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt PAM_START 3
 .Os
 .Sh NAME
@@ -52,14 +52,14 @@ The
 function creates and initializes a PAM context.
 .Pp
 The
-.Va service
+.Fa service
 argument specifies the name of the policy to apply, and is
 stored in the
 .Dv PAM_SERVICE
 item in the created context.
 .Pp
 The
-.Va user
+.Fa user
 argument specifies the name of the target user - the user the
 created context will serve to authenticate.
 It is stored in the
@@ -67,12 +67,12 @@ It is stored in the
 item in the created context.
 .Pp
 The
-.Va pam_conv
+.Fa pam_conv
 argument points to a
 .Vt struct pam_conv
 describing the
 conversation function to use; see
-.Va pam_conv
+.Fa pam_conv
 for details.
 .Pp
 .Sh RETURN VALUES
@@ -102,7 +102,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

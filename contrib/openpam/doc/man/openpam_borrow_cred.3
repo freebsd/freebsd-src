@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd February 10, 2004
+.Dd February 1, 2005
 .Dt OPENPAM_BORROW_CRED 3
 .Os
 .Sh NAME
@@ -52,10 +52,11 @@ The
 .Nm
 function saves the current credentials and
 switches to those of the user specified by its
-.Va pwd
-argument.  The
-affected credentials are the effective UID, the effective GID, and the
-group access list.  The original credentials can be restored using
+.Fa pwd
+argument.
+The affected credentials are the effective UID, the effective GID, and
+the group access list.
+The original credentials can be restored using
 .Xr openpam_restore_cred 3 .
 .Pp
 .Sh RETURN VALUES
@@ -71,12 +72,12 @@ Permission denied.
 System error.
 .El
 .Sh SEE ALSO
+.Xr setegid 2 ,
+.Xr seteuid 2 ,
+.Xr setgroups 2 ,
 .Xr openpam_restore_cred 3 ,
 .Xr pam 3 ,
-.Xr pam_strerror 3 ,
-.Xr setegid 3 ,
-.Xr seteuid 3 ,
-.Xr setgroups 3
+.Xr pam_strerror 3
 .Sh STANDARDS
 The
 .Nm
@@ -87,7 +88,7 @@ The
 function and this manual page were developed for the
 .Fx
 Project by ThinkSec AS and Network Associates Laboratories, the
-Security Research Division of Network Associates, Inc.  under
+Security Research Division of Network Associates, Inc.& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

@@ -1,7 +1,9 @@
 #! /bin/sh
-
 # depcomp - compile a program generating dependencies as side-effects
-# Copyright 1999, 2000 Free Software Foundation, Inc.
+
+scriptversion=2004-04-25.13
+
+# Copyright (C) 1999, 2000, 2003, 2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,13 +27,52 @@
 
 # Originally written by Alexandre Oliva <oliva@dcc.unicamp.br>.
 
+case $1 in
+  '')
+     echo "$0: No command.  Try \`$0 --help' for more information." 1>&2
+     exit 1;
+     ;;
+  -h | --h*)
+    cat <<\EOF
+Usage: depcomp [--help] [--version] PROGRAM [ARGS]
+
+Run PROGRAMS ARGS to compile a file, generating dependencies
+as side-effects.
+
+Environment variables:
+  depmode     Dependency tracking mode.
+  source      Source file read by `PROGRAMS ARGS'.
+  object      Object file output by `PROGRAMS ARGS'.
+  depfile     Dependency file to output.
+  tmpdepfile  Temporary file to use when outputing dependencies.
+  libtool     Whether libtool is used (yes/no).
+
+Report bugs to <bug-automake@gnu.org>.
+EOF
+    exit 0
+    ;;
+  -v | --v*)
+    echo "depcomp $scriptversion"
+    exit 0
+    ;;
+esac
+
 if test -z "$depmode" || test -z "$source" || test -z "$object"; then
   echo "depcomp: Variables source, object and depmode must be set" 1>&2
   exit 1
 fi
 # `libtool' can also be set to `yes' or `no'.
 
-depfile=${depfile-`echo "$object" | sed 's,\([^/]*\)$,.deps/\1,;s/\.\([^.]*\)$/.P\1/'`}
+if test -z "$depfile"; then
+   base=`echo "$object" | sed -e 's,^.*/,,' -e 's,\.\([^.]*\)$,.P\1,'`
+   dir=`echo "$object" | sed 's,/.*$,/,'`
+   if test "$dir" = "$object"; then
+      dir=
+   fi
+   # FIXME: should be _deps on DOS.
+   depfile="$dir.deps/$base"
+fi
+
 tmpdepfile=${tmpdepfile-`echo "$depfile" | sed 's/\.\([^.]*\)$/.T\1/'`}
 
 rm -f "$tmpdepfile"
@@ -163,19 +204,25 @@ sgi)
 
 aix)
   # The C for AIX Compiler uses -M and outputs the dependencies
-  # in a .u file.  This file always lives in the current directory.
-  # Also, the AIX compiler puts `$object:' at the start of each line;
-  # $object doesn't have directory information.
-  stripped=`echo "$object" | sed -e 's,^.*/,,' -e 's/\(.*\)\..*$/\1/'`
+  # in a .u file.  In older versions, this file always lives in the
+  # current directory.  Also, the AIX compiler puts `$object:' at the
+  # start of each line; $object doesn't have directory information.
+  # Version 6 uses the directory in both cases.
+  stripped=`echo "$object" | sed 's/\(.*\)\..*$/\1/'`
   tmpdepfile="$stripped.u"
-  outname="$stripped.o"
   if test "$libtool" = yes; then
     "$@" -Wc,-M
   else
     "$@" -M
   fi
-
   stat=$?
+
+  if test -f "$tmpdepfile"; then :
+  else
+    stripped=`echo "$stripped" | sed 's,^.*/,,'`
+    tmpdepfile="$stripped.u"
+  fi
+
   if test $stat -eq 0; then :
   else
     rm -f "$tmpdepfile"
@@ -183,6 +230,7 @@ aix)
   fi
 
   if test -f "$tmpdepfile"; then
+    outname="$stripped.o"
     # Each line is of the form `foo.o: dependent.h'.
     # Do two passes, one to just change these to
     # `$object: dependent.h' and one to simply `dependent.h:'.
@@ -197,37 +245,86 @@ aix)
   rm -f "$tmpdepfile"
   ;;
 
+icc)
+  # Intel's C compiler understands `-MD -MF file'.  However on
+  #    icc -MD -MF foo.d -c -o sub/foo.o sub/foo.c
+  # ICC 7.0 will fill foo.d with something like
+  #    foo.o: sub/foo.c
+  #    foo.o: sub/foo.h
+  # which is wrong.  We want:
+  #    sub/foo.o: sub/foo.c
+  #    sub/foo.o: sub/foo.h
+  #    sub/foo.c:
+  #    sub/foo.h:
+  # ICC 7.1 will output
+  #    foo.o: sub/foo.c sub/foo.h
+  # and will wrap long lines using \ :
+  #    foo.o: sub/foo.c ... \
+  #     sub/foo.h ... \
+  #     ...
+
+  "$@" -MD -MF "$tmpdepfile"
+  stat=$?
+  if test $stat -eq 0; then :
+  else
+    rm -f "$tmpdepfile"
+    exit $stat
+  fi
+  rm -f "$depfile"
+  # Each line is of the form `foo.o: dependent.h',
+  # or `foo.o: dep1.h dep2.h \', or ` dep3.h dep4.h \'.
+  # Do two passes, one to just change these to
+  # `$object: dependent.h' and one to simply `dependent.h:'.
+  sed "s,^[^:]*:,$object :," < "$tmpdepfile" > "$depfile"
+  # Some versions of the HPUX 10.20 sed can't process this invocation
+  # correctly.  Breaking it into two sed invocations is a workaround.
+  sed 's,^[^:]*: \(.*\)$,\1,;s/^\\$//;/^$/d;/:$/d' < "$tmpdepfile" |
+    sed -e 's/$/ :/' >> "$depfile"
+  rm -f "$tmpdepfile"
+  ;;
+
 tru64)
-   # The Tru64 AIX compiler uses -MD to generate dependencies as a side
+   # The Tru64 compiler uses -MD to generate dependencies as a side
    # effect.  `cc -MD -o foo.o ...' puts the dependencies into `foo.o.d'.
-   # At least on Alpha/Redhat 6.1, Compaq CCC V6.2-504 seems to put 
+   # At least on Alpha/Redhat 6.1, Compaq CCC V6.2-504 seems to put
    # dependencies in `foo.d' instead, so we check for that too.
    # Subdirectories are respected.
+   dir=`echo "$object" | sed -e 's|/[^/]*$|/|'`
+   test "x$dir" = "x$object" && dir=
+   base=`echo "$object" | sed -e 's|^.*/||' -e 's/\.o$//' -e 's/\.lo$//'`
 
-   tmpdepfile1="$object.d"
-   tmpdepfile2=`echo "$object" | sed -e 's/.o$/.d/'` 
    if test "$libtool" = yes; then
+      # Dependencies are output in .lo.d with libtool 1.4.
+      # They are output in .o.d with libtool 1.5.
+      tmpdepfile1="$dir.libs/$base.lo.d"
+      tmpdepfile2="$dir.libs/$base.o.d"
+      tmpdepfile3="$dir.libs/$base.d"
       "$@" -Wc,-MD
    else
+      tmpdepfile1="$dir$base.o.d"
+      tmpdepfile2="$dir$base.d"
+      tmpdepfile3="$dir$base.d"
       "$@" -MD
    fi
 
    stat=$?
    if test $stat -eq 0; then :
    else
-      rm -f "$tmpdepfile1" "$tmpdepfile2"
+      rm -f "$tmpdepfile1" "$tmpdepfile2" "$tmpdepfile3"
       exit $stat
    fi
 
    if test -f "$tmpdepfile1"; then
       tmpdepfile="$tmpdepfile1"
-   else
+   elif test -f "$tmpdepfile2"; then
       tmpdepfile="$tmpdepfile2"
+   else
+      tmpdepfile="$tmpdepfile3"
    fi
    if test -f "$tmpdepfile"; then
       sed -e "s,^.*\.[a-z]*:,$object:," < "$tmpdepfile" > "$depfile"
-      # That's a space and a tab in the [].
-      sed -e 's,^.*\.[a-z]*:[ 	]*,,' -e 's,$,:,' < "$tmpdepfile" >> "$depfile"
+      # That's a tab and a space in the [].
+      sed -e 's,^.*\.[a-z]*:[	 ]*,,' -e 's,$,:,' < "$tmpdepfile" >> "$depfile"
    else
       echo "#dummy" > "$depfile"
    fi
@@ -240,34 +337,42 @@ tru64)
 
 dashmstdout)
   # Important note: in order to support this mode, a compiler *must*
-  # always write the proprocessed file to stdout, regardless of -o,
-  # because we must use -o when running libtool.
-  test -z "$dashmflag" && dashmflag=-M
-  ( IFS=" "
-    case " $* " in
-    *" --mode=compile "*) # this is libtool, let us make it quiet
-      for arg
-      do # cycle over the arguments
-        case "$arg" in
-	"--mode=compile")
-	  # insert --quiet before "--mode=compile"
-	  set fnord "$@" --quiet
-	  shift # fnord
-	  ;;
-	esac
-	set fnord "$@" "$arg"
-	shift # fnord
-	shift # "$arg"
-      done
+  # always write the preprocessed file to stdout, regardless of -o.
+  "$@" || exit $?
+
+  # Remove the call to Libtool.
+  if test "$libtool" = yes; then
+    while test $1 != '--mode=compile'; do
+      shift
+    done
+    shift
+  fi
+
+  # Remove `-o $object'.
+  IFS=" "
+  for arg
+  do
+    case $arg in
+    -o)
+      shift
+      ;;
+    $object)
+      shift
+      ;;
+    *)
+      set fnord "$@" "$arg"
+      shift # fnord
+      shift # $arg
       ;;
     esac
-    "$@" $dashmflag | sed 's:^[^:]*\:[ 	]*:'"$object"'\: :' > "$tmpdepfile"
-  ) &
-  proc=$!
-  "$@"
-  stat=$?
-  wait "$proc"
-  if test "$stat" != 0; then exit $stat; fi
+  done
+
+  test -z "$dashmflag" && dashmflag=-M
+  # Require at least two characters before searching for `:'
+  # in the target name.  This is to cope with DOS-style filenames:
+  # a dependency such as `c:/foo/bar' could be seen as target `c' otherwise.
+  "$@" $dashmflag |
+    sed 's:^[  ]*[^: ][^:][^:]*\:[    ]*:'"$object"'\: :' > "$tmpdepfile"
   rm -f "$depfile"
   cat < "$tmpdepfile" > "$depfile"
   tr ' ' '
@@ -285,36 +390,40 @@ dashXmstdout)
   ;;
 
 makedepend)
-  # X makedepend
-  (
-    shift
-    cleared=no
-    for arg in "$@"; do
-      case $cleared in no)
-        set ""; shift
-	cleared=yes
-      esac
-      case "$arg" in
-        -D*|-I*)
-	  set fnord "$@" "$arg"; shift;;
-	-*)
-	  ;;
-	*)
-	  set fnord "$@" "$arg"; shift;;
-      esac
+  "$@" || exit $?
+  # Remove any Libtool call
+  if test "$libtool" = yes; then
+    while test $1 != '--mode=compile'; do
+      shift
     done
-    obj_suffix="`echo $object | sed 's/^.*\././'`"
-    touch "$tmpdepfile"
-    ${MAKEDEPEND-makedepend} 2>/dev/null -o"$obj_suffix" -f"$tmpdepfile" "$@"
-  ) &
-  proc=$!
-  "$@"
-  stat=$?
-  wait "$proc"
-  if test "$stat" != 0; then exit $stat; fi
+    shift
+  fi
+  # X makedepend
+  shift
+  cleared=no
+  for arg in "$@"; do
+    case $cleared in
+    no)
+      set ""; shift
+      cleared=yes ;;
+    esac
+    case "$arg" in
+    -D*|-I*)
+      set fnord "$@" "$arg"; shift ;;
+    # Strip any option that makedepend may not understand.  Remove
+    # the object too, otherwise makedepend will parse it as a source file.
+    -*|$object)
+      ;;
+    *)
+      set fnord "$@" "$arg"; shift ;;
+    esac
+  done
+  obj_suffix="`echo $object | sed 's/^.*\././'`"
+  touch "$tmpdepfile"
+  ${MAKEDEPEND-makedepend} -o"$obj_suffix" -f"$tmpdepfile" "$@"
   rm -f "$depfile"
   cat < "$tmpdepfile" > "$depfile"
-  tail +3 "$tmpdepfile" | tr ' ' '
+  sed '1,2d' "$tmpdepfile" | tr ' ' '
 ' | \
 ## Some versions of the HPUX 10.20 sed can't process this invocation
 ## correctly.  Breaking it into two sed invocations is a workaround.
@@ -324,35 +433,39 @@ makedepend)
 
 cpp)
   # Important note: in order to support this mode, a compiler *must*
-  # always write the proprocessed file to stdout, regardless of -o,
-  # because we must use -o when running libtool.
-  ( IFS=" "
-    case " $* " in
-    *" --mode=compile "*)
-      for arg
-      do # cycle over the arguments
-        case $arg in
-	"--mode=compile")
-	  # insert --quiet before "--mode=compile"
-	  set fnord "$@" --quiet
-	  shift # fnord
-	  ;;
-	esac
-	set fnord "$@" "$arg"
-	shift # fnord
-	shift # "$arg"
-      done
+  # always write the preprocessed file to stdout.
+  "$@" || exit $?
+
+  # Remove the call to Libtool.
+  if test "$libtool" = yes; then
+    while test $1 != '--mode=compile'; do
+      shift
+    done
+    shift
+  fi
+
+  # Remove `-o $object'.
+  IFS=" "
+  for arg
+  do
+    case $arg in
+    -o)
+      shift
+      ;;
+    $object)
+      shift
+      ;;
+    *)
+      set fnord "$@" "$arg"
+      shift # fnord
+      shift # $arg
       ;;
     esac
-    "$@" -E |
+  done
+
+  "$@" -E |
     sed -n '/^# [0-9][0-9]* "\([^"]*\)".*/ s:: \1 \\:p' |
     sed '$ s: \\$::' > "$tmpdepfile"
-  ) &
-  proc=$!
-  "$@"
-  stat=$?
-  wait "$proc"
-  if test "$stat" != 0; then exit $stat; fi
   rm -f "$depfile"
   echo "$object : \\" > "$depfile"
   cat < "$tmpdepfile" >> "$depfile"
@@ -362,34 +475,27 @@ cpp)
 
 msvisualcpp)
   # Important note: in order to support this mode, a compiler *must*
-  # always write the proprocessed file to stdout, regardless of -o,
+  # always write the preprocessed file to stdout, regardless of -o,
   # because we must use -o when running libtool.
-  ( IFS=" "
-    case " $* " in
-    *" --mode=compile "*)
-      for arg
-      do # cycle over the arguments
-        case $arg in
-	"--mode=compile")
-	  # insert --quiet before "--mode=compile"
-	  set fnord "$@" --quiet
-	  shift # fnord
-	  ;;
-	esac
+  "$@" || exit $?
+  IFS=" "
+  for arg
+  do
+    case "$arg" in
+    "-Gm"|"/Gm"|"-Gi"|"/Gi"|"-ZI"|"/ZI")
+	set fnord "$@"
+	shift
+	shift
+	;;
+    *)
 	set fnord "$@" "$arg"
-	shift # fnord
-	shift # "$arg"
-      done
-      ;;
+	shift
+	shift
+	;;
     esac
-    "$@" -E |
-    sed -n '/^#line [0-9][0-9]* "\([^"]*\)"/ s::echo "`cygpath -u \\"\1\\"`":p' | sort | uniq > "$tmpdepfile"
-  ) &
-  proc=$!
-  "$@"
-  stat=$?
-  wait "$proc"
-  if test "$stat" != 0; then exit $stat; fi
+  done
+  "$@" -E |
+  sed -n '/^#line [0-9][0-9]* "\([^"]*\)"/ s::echo "`cygpath -u \\"\1\\"`":p' | sort | uniq > "$tmpdepfile"
   rm -f "$depfile"
   echo "$object : \\" > "$depfile"
   . "$tmpdepfile" | sed 's% %\\ %g' | sed -n '/^\(.*\)$/ s::	\1 \\:p' >> "$depfile"
@@ -409,3 +515,12 @@ none)
 esac
 
 exit 0
+
+# Local Variables:
+# mode: shell-script
+# sh-indentation: 2
+# eval: (add-hook 'write-file-hooks 'time-stamp)
+# time-stamp-start: "scriptversion="
+# time-stamp-format: "%:y-%02m-%02d.%02H"
+# time-stamp-end: "$"
+# End:
