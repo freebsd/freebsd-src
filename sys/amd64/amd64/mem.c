@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
@@ -58,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <machine/specialreg.h>
+#include <machine/vmparam.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -65,6 +67,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/memdev.h>
 
+/*
+ * Used in /dev/mem drivers and elsewhere
+ */
+MALLOC_DEFINE(M_MEMDESC, "memdesc", "memory range descriptors");
 struct mem_range_softc mem_range_softc;
 
 /* ARGSUSED */
