@@ -28,10 +28,10 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_LINUX_LINUX_H_
-#define	_I386_LINUX_LINUX_H_
+#ifndef _ALPHA_LINUX_LINUX_H_
+#define	_ALPHA_LINUX_LINUX_H_
 
-#include <i386/linux/linux_syscall.h>
+#include <alpha/linux/linux_syscall.h>
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
@@ -55,19 +55,19 @@ MALLOC_DECLARE(M_LINUX);
 #define	LINUX_RLIMIT_STACK	3
 #define	LINUX_RLIMIT_CORE	4
 #define	LINUX_RLIMIT_RSS	5
-#define	LINUX_RLIMIT_NPROC	6
-#define	LINUX_RLIMIT_NOFILE	7
-#define	LINUX_RLIMIT_MEMLOCK	8
-#define	LINUX_RLIMIT_AS		9       /* address space limit */
+#define	LINUX_RLIMIT_NPROC	8
+#define	LINUX_RLIMIT_NOFILE	6
+#define	LINUX_RLIMIT_AS		7       /* address space limit */
+#define	LINUX_RLIMIT_MEMLOCK	9
 
 #define	LINUX_RLIM_NLIMITS	10
 
 /* mmap options */
 #define	LINUX_MAP_SHARED	0x0001
 #define	LINUX_MAP_PRIVATE	0x0002
-#define	LINUX_MAP_FIXED		0x0010
-#define	LINUX_MAP_ANON		0x0020
-#define	LINUX_MAP_GROWSDOWN	0x0100
+#define	LINUX_MAP_FIXED		0x0100
+#define	LINUX_MAP_ANON		0x0010
+#define	LINUX_MAP_GROWSDOWN	0x1000
 
 typedef char *	linux_caddr_t;
 typedef long	linux_clock_t;
@@ -79,12 +79,12 @@ typedef u_short	linux_mode_t;
 typedef u_short	linux_nlink_t;
 typedef long	linux_off_t;
 typedef int	linux_pid_t;
-typedef u_int	linux_size_t;
+/*typedef u_int	linux_size_t; */
 typedef long	linux_time_t;
 typedef u_short	linux_uid_t;
 
 typedef struct {
-	long	val[2];
+	int	val[2];
 } linux_fsid_t;
 
 struct linux_new_utsname {
@@ -137,15 +137,17 @@ struct linux_new_utsname {
 #define	LINUX_SIGTBLSZ		31
 
 /* sigaction flags */
-#define	LINUX_SA_NOCLDSTOP	0x00000001
-#define	LINUX_SA_NOCLDWAIT	0x00000002
-#define	LINUX_SA_SIGINFO	0x00000004
+#define	LINUX_SA_NOCLDSTOP	0x00000004
+#define	LINUX_SA_NOCLDWAIT	0x00000020
+#define	LINUX_SA_SIGINFO	0x00000040
 #define	LINUX_SA_RESTORER	0x04000000
-#define	LINUX_SA_ONSTACK	0x08000000
-#define	LINUX_SA_RESTART	0x10000000
+#define	LINUX_SA_ONSTACK	0x00000001
+#define	LINUX_SA_RESTART	0x00000002
 #define	LINUX_SA_INTERRUPT	0x20000000
-#define	LINUX_SA_NOMASK		0x40000000
-#define	LINUX_SA_ONESHOT	0x80000000
+#define	LINUX_SA_NOMASK		LINUX_SA_NODEFER
+#define	LINUX_SA_ONESHOT	LINUX_SA_RESETHAND
+#define	LINUX_SA_NODEFER	0x00000008
+#define	LINUX_SA_RESETHAND	0x00000010
 
 /* sigprocmask actions */
 #define	LINUX_SIG_BLOCK		0
@@ -157,14 +159,12 @@ struct linux_new_utsname {
 #define	LINUX_SIGISMEMBER(set, sig)	SIGISMEMBER(set, sig)
 #define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
 
-/* sigaltstack */
-#define LINUX_MINSIGSTKSZ	2048
-
 typedef void	(*linux_handler_t)(int);
 typedef u_long	linux_osigset_t;
 
 typedef struct {
 	u_int	__bits[2];
+/*	u_long	__bits[1];*/
 } linux_sigset_t;
 
 typedef struct {
@@ -181,36 +181,36 @@ typedef struct {
 	linux_sigset_t	lsa_mask;
 } linux_sigaction_t;
 
+#if 0
 typedef struct {
 	void	*ss_sp;
 	int	ss_flags;
 	linux_size_t ss_size;
 } linux_stack_t;
+#endif
 
-/* The Linux sigcontext, pretty much a standard 386 trapframe. */
+/*
+ * The Linux sigcontext
+ */
 struct linux_sigcontext {
-	int	sc_gs;
-	int	sc_fs;
-	int     sc_es;
-	int     sc_ds;
-	int     sc_edi;
-	int     sc_esi;
-	int     sc_ebp;
-	int	sc_esp;
-	int     sc_ebx;
-	int     sc_edx;
-	int     sc_ecx;
-	int     sc_eax;
-	int     sc_trapno;
-	int     sc_err;
-	int     sc_eip;
-	int     sc_cs;
-	int     sc_eflags;
-	int     sc_esp_at_signal;
-	int     sc_ss;
-	int	sc_387;
-	int	sc_mask;
-	int	sc_cr2;
+	long	sc_onstack;
+	long	sc_mask;
+	long	sc_pc;
+	long	sc_ps;
+	long	sc_regs[32];
+	long	sc_ownedfp;
+	long	sc_fpregs[32];
+	u_long	sc_fpcr;
+	u_long	sc_fp_control;
+	u_long	sc_reserved1, sc_reserved2;
+	u_long	sc_ssize;
+	char *	sc_sbase;
+	u_long	sc_traparg_a0;
+	u_long	sc_traparg_a1;
+	u_long	sc_traparg_a2;
+	u_long	sc_fp_trap_pc;
+	u_long	sc_fp_trigger_sum;
+	u_long	sc_fp_trigger_inst;
 };
 
 /*
@@ -225,8 +225,6 @@ struct linux_sigframe {
 	linux_handler_t sf_handler;
 };
 
-extern int bsd_to_linux_signal[];
-extern int linux_to_bsd_signal[];
 extern struct sysentvec linux_sysvec;
 extern struct sysentvec elf_linux_sysvec;
 
@@ -255,14 +253,14 @@ int	linux_ioctl_unregister_handlers(struct linker_set *s);
 #define	LINUX_O_RDONLY		00
 #define	LINUX_O_WRONLY		01
 #define	LINUX_O_RDWR		02
-#define	LINUX_O_CREAT		0100
-#define	LINUX_O_EXCL		0200
-#define	LINUX_O_NOCTTY		0400
-#define	LINUX_O_TRUNC		01000
-#define	LINUX_O_APPEND		02000
-#define	LINUX_O_NONBLOCK	04000
+#define	LINUX_O_CREAT		01000
+#define	LINUX_O_EXCL		04000
+#define	LINUX_O_NOCTTY		010000
+#define	LINUX_O_TRUNC		02000
+#define	LINUX_O_APPEND		010
+#define	LINUX_O_NONBLOCK	04
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
-#define	LINUX_O_SYNC		010000
+#define	LINUX_O_SYNC		040000
 #define	LINUX_FASYNC		020000
 
 #define	LINUX_F_DUPFD		0
@@ -411,11 +409,23 @@ struct linux_ifreq {
 		int	ifru_mtu;
 		struct	linux_ifmap ifru_map;
 		char	ifru_slave[LINUX_IFNAMSIZ]; /* Just fits the size */
-		linux_caddr_t ifru_data;
+		/* linux_caddr_t ifru_data; */
+		caddr_t	ifru_data;
 	} ifr_ifru;
 };
 
 #define	ifr_name	ifr_ifrn.ifrn_name	/* interface name */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
 
-#endif /* !_I386_LINUX_LINUX_H_ */
+
+extern char linux_sigcode[];
+extern int linux_szsigcode;
+/*extern const char linux_emul_path[];*/
+
+extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
+
+/* dummy struct definitions */
+struct image_params;
+struct trapframe;
+
+#endif /* !_ALPHA_LINUX_LINUX_H_ */
