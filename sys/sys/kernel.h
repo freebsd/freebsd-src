@@ -52,9 +52,6 @@
 /* for intrhook below */
 #include <sys/queue.h>
 
-/* THIS MUST DIE! */
-#include <sys/module.h>
-
 /* Global variables for the kernel. */
 
 /* 1.1 */
