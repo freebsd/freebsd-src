@@ -1793,8 +1793,7 @@
 	  <para>Standard keyboards</para>
 	</listitem>
         <listitem arch="i386,pc98,alpha,amd64">
-	  <para>USB keyboards (specific instances are listed in the
-	  section describing <link linkend="usb">USB devices</link>)</para>
+	  <para>USB keyboards (&man.ukbd.4; driver)</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -1812,8 +1811,7 @@
 	  <para>Serial mice and compatible devices</para>
 	</listitem>
         <listitem arch="i386,pc98,alpha,amd64">
-	  <para>USB mice (specific instances are listed in the
-	  section describing <link linkend="usb">USB devices</link>)</para>
+	  <para>USB mice (&man.ums.4; driver)</para>
 	</listitem>
       </itemizedlist>
 
