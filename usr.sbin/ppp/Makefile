@@ -11,6 +11,7 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
 NOATM=		true
+NODES=		true
 NOI4B=		true
 NONAT=		true
 NOKLDLOAD=	true
