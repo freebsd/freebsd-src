@@ -1276,7 +1276,7 @@ pmap_lazyfix_self(u_int mymask)
 static void
 pmap_lazyfix(pmap_t pmap)
 {
-	u_int mymask = PCPU_GET(cpumask);
+	u_int mymask;
 	u_int mask;
 	register u_int spins;
 
@@ -1289,6 +1289,7 @@ pmap_lazyfix(pmap_t pmap)
 #else
 		lazyptd = vtophys(pmap->pm_pdir);
 #endif
+		mymask = PCPU_GET(cpumask);
 		if (mask == mymask) {
 			lazymask = &pmap->pm_active;
 			pmap_lazyfix_self(mymask);
