@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.70 1997/05/01 03:06:31 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.71 1997/05/02 02:20:25 ache Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -143,12 +143,23 @@ name="FreeBSD FTP server"> or one of the numerous
 <!-- ************************************************************ -->	      
 
     <part><heading>Advanced topics</heading>
-    &current;
-    &stable;
-    &synching; 
+    <chapt><heading>The Cutting Edge: FreeBSD-current and FreeBSD-stable</>
+    <p>FreeBSD is under constant development between releases.  For
+    people who want to be on the cutting edge, there are several
+    easy mechanisms for keeping your system in sync with the latest
+    developments.  Be warned: the cutting edge is not for everyone!
+    This chapter will help you decide if you want to track the development
+    system, or stick with one of the released versions.</p>
+
+      &current;
+      &stable;
+      &synching; 
+    </chapt>
+
     &submitters;
-    &kerneldebug;
+    &policies;
     &kernelopts;
+    &kerneldebug;
     &linuxemu;
     <chapt><heading>FreeBSD internals</heading>
       &booting;
@@ -164,7 +175,6 @@ name="FreeBSD FTP server"> or one of the numerous
     &bibliography;
     &eresources;
     &contrib;
-    &policies;
     &pgpkeys;
 
 <!--    &glossary; -->

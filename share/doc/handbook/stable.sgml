@@ -1,8 +1,8 @@
-<!-- $Id: stable.sgml,v 1.9 1997/02/22 12:59:27 peter Exp $ -->
+<!-- $Id: stable.sgml,v 1.10 1997/03/19 03:22:29 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
-<chapt><heading>Staying stable with FreeBSD<label id="stable"></heading>
+<sect><heading>Staying stable with FreeBSD<label id="stable"></heading>
 
 <p><em>Contributed by &a.jkh;.</em>
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1997/02/22 12:59:27 $
+Last updated: $Date: 1997/03/19 03:22:29 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
@@ -18,14 +18,14 @@ and states some prerequisites for making sure the process goes as
 smoothly as possible.
 -->
 
-<sect><heading>What is FreeBSD-stable?</heading>
+<sect1><heading>What is FreeBSD-stable?</heading>
 
 <p>FreeBSD-stable is our development branch for a more low-key and
 conservative set of changes intended for our next mainstream release.
 Changes of an experimental or untested nature do not go into this
 branch (see <ref id="current" name="FreeBSD-current">).
 
-<sect><heading>Who needs FreeBSD-stable?</heading>
+<sect1><heading>Who needs FreeBSD-stable?</heading>
 
 <p>If you are a commercial user or someone who puts maximum stability of
 their FreeBSD system before all other concerns, you should consider tracking
@@ -43,7 +43,7 @@ our tests fail to catch every case.  If something breaks for you in
 <em>stable</em>, please let us know <em>immediately!</em> (see
 next section).
 
-<sect><heading>Using FreeBSD-stable</heading>
+<sect1><heading>Using FreeBSD-stable</heading>
 
     <p><enum><item> Join the &a.stable .  This will
     keep you informed of build-dependencies that may appear in
