@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.445 1999/01/05 03:44:08 jkh Exp $
+#	$Id: Makefile,v 1.446 1999/01/05 03:53:14 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -522,7 +522,7 @@ cdrom.1:
 	@mkdir -p ${CD_DISC1} ${CD_DISC2}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
-	@ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
+	@ln -f ${RD}/kernels/MFSKERNEL.boot ${CD_DISC1}/kernel
 	@for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
