@@ -354,7 +354,7 @@ char *argv[];
 		}
 		break;
 
-	      case 'm':		/* select sort order */
+	      case 'm':		/* select display mode */
 		if (strcmp(optarg, "io") == 0) {
 			displaymode = DISP_IO;
 		} else if (strcmp(optarg, "cpu") == 0) {
