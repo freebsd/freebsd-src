@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.7 (Berkeley) 1/21/94
- * $Id: ufs_readwrite.c,v 1.21 1996/06/25 03:00:44 davidg Exp $
+ * $Id: ufs_readwrite.c,v 1.22 1996/09/03 07:09:11 davidg Exp $
  */
 
 #ifdef LFS_READWRITE
@@ -334,6 +334,7 @@ ffs_getpages(ap)
 	off_t foff, physoffset;
 	int i, size, bsize;
 	struct vnode *dp;
+	vm_object_t obj;
 	int bbackwards, bforwards;
 	int pbackwards, pforwards;
 	int firstpage;
@@ -343,6 +344,7 @@ ffs_getpages(ap)
 	int pcount;
 	int rtval;
 	int pagesperblock;
+
 
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
 	/*
@@ -357,6 +359,44 @@ ffs_getpages(ap)
 		}
 		return VM_PAGER_OK;
 	}
+
+	obj = ap->a_m[ap->a_reqpage]->object;
+
+	if (obj->behavior == OBJ_SEQUENTIAL) {
+		struct uio auio;
+		struct iovec aiov;
+		int error;
+		vm_page_t m;
+
+		for (i = 0; i < pcount; i++) {
+			if (i != ap->a_reqpage) {
+				vnode_pager_freepage(ap->a_m[i]);
+			}
+		}
+		m = ap->a_m[ap->a_reqpage];
+
+		m->busy++;
+		m->flags &= ~PG_BUSY;
+
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		aiov.iov_base = 0;
+		aiov.iov_len = MAXBSIZE;
+		auio.uio_resid = MAXBSIZE;
+		auio.uio_offset = IDX_TO_OFF(m->pindex);
+		auio.uio_segflg = UIO_NOCOPY;
+		auio.uio_rw = UIO_READ;
+		auio.uio_procp = curproc;
+		error = VOP_READ(ap->a_vp, &auio, 0, curproc->p_ucred);
+
+		m->flags |= PG_BUSY;
+		m->busy--;
+
+		if (error && (auio.uio_resid == MAXBSIZE))
+			return VM_PAGER_ERROR;
+		return 0;
+	}
+
 
 	bsize = ap->a_vp->v_mount->mnt_stat.f_iosize;
 
