@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.46 1996/06/14 21:28:35 nate Exp $
+ *  $Id: if_ep.c,v 1.47 1996/06/14 22:11:35 nate Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -677,7 +677,7 @@ ep_attach(sc)
 	p[i] = htons(sc->epb->eth_addr[i]);
 	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
     }
-    printf(" address %6D\n", sc->arpcom.ac_enaddr);
+    printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
     ifp->if_softc = sc;
     ifp->if_unit = sc->unit;
