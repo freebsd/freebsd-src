@@ -1103,7 +1103,7 @@ rl_detach(dev)
 	struct ifnet		*ifp;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->rl_mtx), "rl mutex not initialized");
+	KASSERT(mtx_initialized(&sc->rl_mtx), ("rl mutex not initialized"));
 	RL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 

@@ -2319,7 +2319,7 @@ dc_detach(dev)
 	struct dc_mediainfo	*m;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->dc_mtx), "dc mutex not initialized");
+	KASSERT(mtx_initialized(&sc->dc_mtx), ("dc mutex not initialized"));
 	DC_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
