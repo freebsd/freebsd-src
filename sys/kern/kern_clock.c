@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.39 1997/09/02 20:05:37 bde Exp $
+ * $Id: kern_clock.c,v 1.40 1997/09/07 05:25:43 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -86,9 +86,11 @@ static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
 /* Exported to machdep.c. */
-struct callout *callfree, *callout;
+struct callout *callout;
+struct callout_list callfree;
+int callwheelsize, callwheelbits, callwheelmask;
+struct callout_tailq *callwheel;
 
-static struct callout calltodo;
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 static long cp_time[CPUSTATES];
@@ -154,8 +156,10 @@ int	stathz;
 int	profhz;
 static int profprocs;
 int	ticks;
-static int psdiv, pscnt;	/* prof => stat divider */
-int psratio;			/* ratio: prof / stat */
+static int softticks;			/* Like ticks, but for softclock(). */
+static struct callout *nextsoftcheck;	/* Next callout to be checked. */
+static int psdiv, pscnt;		/* prof => stat divider */
+int psratio;				/* ratio: prof / stat */
 
 volatile struct	timeval time;
 volatile struct	timeval mono_time;
@@ -452,26 +456,6 @@ hardclock(frame)
 {
 	register struct callout *p1;
 	register struct proc *p;
-	register int needsoft;
-
-	/*
-	 * Update real-time timeout queue.
-	 * At front of queue are some number of events which are ``due''.
-	 * The time to these is <= 0 and if negative represents the
-	 * number of ticks which have passed since it was supposed to happen.
-	 * The rest of the q elements (times > 0) are events yet to happen,
-	 * where the time for each is given as a delta from the previous.
-	 * Decrementing just the first of these serves to decrement the time
-	 * to all events.
-	 */
-	needsoft = 0;
-	for (p1 = calltodo.c_next; p1 != NULL; p1 = p1->c_next) {
-		if (--p1->c_time > 0)
-			break;
-		needsoft = 1;
-		if (p1->c_time == 0)
-			break;
-	}
 
 	p = curproc;
 	if (p) {
@@ -677,7 +661,7 @@ hardclock(frame)
 	 * Process callouts at a very low cpu priority, so we don't keep the
 	 * relatively high clock interrupt priority any longer than necessary.
 	 */
-	if (needsoft) {
+	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) != NULL) {
 		if (CLKF_BASEPRI(frame)) {
 			/*
 			 * Save the overhead of a software interrupt;
@@ -687,9 +671,22 @@ hardclock(frame)
 			softclock();
 		} else
 			setsoftclock();
+	} else if (softticks + 1 == ticks) {
+		++softticks;
 	}
 }
 
+/*
+ * The callout mechanism is based on the work of Adam M. Costello and 
+ * George Varghese, published in a technical report entitled "Redesigning
+ * the BSD Callout and Timer Facilities" and modified slightly for inclusion
+ * in FreeBSD by Justin T. Gibbs.  The original work on the data structures
+ * used in this implementation was published by G.Varghese and A. Lauck in
+ * the paper "Hashed and Hierarchical Timing Wheels: Data Structures for
+ * the Efficient Implementation of a Timer Facility" in the Proceedings of
+ * the 11th ACM Annual Symposium on Operating Systems Principles,
+ * Austin, Texas Nov 1987.
+ */
 /*
  * Software (low priority) clock interrupt.
  * Run periodic events from timeout queue.
@@ -699,21 +696,52 @@ void
 softclock()
 {
 	register struct callout *c;
-	register void *arg;
-	register void (*func) __P((void *));
 	register int s;
+	register int steps;	/*
+				 * Number of steps taken since
+				 * we last allowed interrupts.
+				 */
 
+	#ifndef MAX_SOFTCLOCK_STEPS
+	#define MAX_SOFTCLOCK_STEPS 100 /* Maximum allowed value of steps. */
+	#endif /* MAX_SOFTCLOCK_STEPS */
+
+	steps = 0;
 	s = splhigh();
-	while ((c = calltodo.c_next) != NULL && c->c_time <= 0) {
-		func = c->c_func;
-		arg = c->c_arg;
-		calltodo.c_next = c->c_next;
-		c->c_next = callfree;
-		callfree = c;
-		splx(s);
-		(*func)(arg);
-		(void) splhigh();
+	while (softticks != ticks) {
+		c = TAILQ_FIRST(&callwheel[++softticks & callwheelmask]);
+		while (c) {
+			if (c->c_time > 0) {
+				c->c_time--;
+				c = TAILQ_NEXT(c, c_links.tqe);
+				++steps;
+				if (steps >= MAX_SOFTCLOCK_STEPS) {
+					nextsoftcheck = c;
+					splx(s);
+					/* Give hardclock() a chance. */
+					s = splhigh();
+					c = nextsoftcheck;
+					steps = 0;
+				}
+			} else {
+				void (*c_func)(void *);
+				void *c_arg;
+
+				nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
+				TAILQ_REMOVE(c->c_bucket, c, c_links.tqe);
+				c_func = c->c_func;
+				c_arg = c->c_arg;
+				c->c_func = NULL;
+				SLIST_INSERT_HEAD(&callfree, c, c_links.sle);
+				splx(s);
+				c_func(c_arg);
+				s = splhigh();
+				steps = 0;
+				c = nextsoftcheck;
+			}
+		}
 	}
+	nextsoftcheck = NULL;
 	splx(s);
 }
 
@@ -724,78 +752,84 @@ softclock()
  * untimeout --
  *	Cancel previous timeout function call.
  *
+ * callout_handle_init --
+ *	Initialize a handle so that using it with untimeout is benign.
+ *
  *	See AT&T BCI Driver Reference Manual for specification.  This
- *	implementation differs from that one in that no identification
- *	value is returned from timeout, rather, the original arguments
- *	to timeout are used to identify entries for untimeout.
+ *	implementation differs from that one in that although an 
+ *	identification value is returned from timeout, the original
+ *	arguments to timeout as well as the identifier are used to
+ *	identify entries for untimeout.
  */
-void
-timeout(ftn, arg, ticks)
+struct callout_handle
+timeout(ftn, arg, to_ticks)
 	timeout_t ftn;
 	void *arg;
-	register int ticks;
+	register int to_ticks;
 {
-	register struct callout *new, *p, *t;
-	register int s;
+	int s;
+	struct callout *new;
+	struct callout_handle handle;
 
-	if (ticks <= 0)
-		ticks = 1;
+	if (to_ticks <= 0)
+		to_ticks = 1;
 
 	/* Lock out the clock. */
 	s = splhigh();
 
 	/* Fill in the next free callout structure. */
-	if (callfree == NULL)
+	new = SLIST_FIRST(&callfree);
+	if (new == NULL)
+		/* XXX Attempt to malloc first */
 		panic("timeout table full");
-	new = callfree;
-	callfree = new->c_next;
+
+	SLIST_REMOVE_HEAD(&callfree, c_links.sle);
 	new->c_arg = arg;
 	new->c_func = ftn;
+	new->c_time = to_ticks >> callwheelbits;
+	new->c_bucket = &callwheel[(ticks + to_ticks) & callwheelmask];
+	TAILQ_INSERT_TAIL(new->c_bucket, new, c_links.tqe);
 
-	/*
-	 * The time for each event is stored as a difference from the time
-	 * of the previous event on the queue.  Walk the queue, correcting
-	 * the ticks argument for queue entries passed.  Correct the ticks
-	 * value for the queue entry immediately after the insertion point
-	 * as well.  Watch out for negative c_time values; these represent
-	 * overdue events.
-	 */
-	for (p = &calltodo;
-	    (t = p->c_next) != NULL && ticks > t->c_time; p = t)
-		if (t->c_time > 0)
-			ticks -= t->c_time;
-	new->c_time = ticks;
-	if (t != NULL)
-		t->c_time -= ticks;
-
-	/* Insert the new entry into the queue. */
-	p->c_next = new;
-	new->c_next = t;
 	splx(s);
+	handle.callout = new;
+	return (handle);
 }
 
 void
-untimeout(ftn, arg)
+untimeout(ftn, arg, handle)
 	timeout_t ftn;
 	void *arg;
+	struct callout_handle handle;
 {
 	register struct callout *p, *t;
 	register int s;
 
-	s = splhigh();
-	for (p = &calltodo; (t = p->c_next) != NULL; p = t)
-		if (t->c_func == ftn && t->c_arg == arg) {
-			/* Increment next entry's tick count. */
-			if (t->c_next && t->c_time > 0)
-				t->c_next->c_time += t->c_time;
+	/*
+	 * Check for a handle that was initialized
+	 * by callout_handle_init, but never used
+	 * for a real timeout.
+	 */
+	if (handle.callout == NULL)
+		return;
 
-			/* Move entry from callout queue to callfree queue. */
-			p->c_next = t->c_next;
-			t->c_next = callfree;
-			callfree = t;
-			break;
+	s = splhigh();
+	if ((handle.callout->c_func == ftn)
+	 && (handle.callout->c_arg == arg)) {
+		if (nextsoftcheck == handle.callout) {
+			nextsoftcheck = TAILQ_NEXT(handle.callout, c_links.tqe);
 		}
+		TAILQ_REMOVE(handle.callout->c_bucket,
+			     handle.callout, c_links.tqe);
+		handle.callout->c_func = NULL;
+		SLIST_INSERT_HEAD(&callfree, handle.callout, c_links.sle);
+	}
 	splx(s);
+}
+
+void
+callout_handle_init(struct callout_handle *handle)
+{
+	handle->callout = NULL;
 }
 
 void

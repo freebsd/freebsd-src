@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.33 1997/08/26 00:40:04 bde Exp $
+ * $Id: kern_time.c,v 1.34 1997/09/02 20:05:49 bde Exp $
  */
 
 #include <sys/param.h>
@@ -586,10 +586,12 @@ setitimer(p, uap, retval)
 		return (EINVAL);
 	s = splclock();
 	if (uap->which == ITIMER_REAL) {
-		untimeout(realitexpire, (caddr_t)p);
+		if (timerisset(&p->p_realtimer.it_value))
+			untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
 		if (timerisset(&aitv.it_value)) {
 			timevaladd(&aitv.it_value, &time);
-			timeout(realitexpire, (caddr_t)p, hzto(&aitv.it_value));
+			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
+						hzto(&aitv.it_value));
 		}
 		p->p_realtimer = aitv;
 	} else
@@ -628,8 +630,9 @@ realitexpire(arg)
 		timevaladd(&p->p_realtimer.it_value,
 		    &p->p_realtimer.it_interval);
 		if (timercmp(&p->p_realtimer.it_value, &time, >)) {
-			timeout(realitexpire, (caddr_t)p,
-			    hzto(&p->p_realtimer.it_value) - 1);
+			p->p_ithandle =
+			    timeout(realitexpire, (caddr_t)p,
+				    hzto(&p->p_realtimer.it_value) - 1);
 			splx(s);
 			return;
 		}
