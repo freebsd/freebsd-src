@@ -78,9 +78,8 @@ int tickfixinterval;
 int	adjkerntz;		/* local offset	from GMT in seconds */
 int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
+u_int64_t itm_reload;		/* reload ticks for clock */
 static	int	beeping = 0;
-
-extern u_int64_t itc_frequency;
 
 #ifndef SMP
 static timecounter_get_t	ia64_get_timecount;
@@ -192,7 +191,8 @@ cpu_initclocks()
 	tc_init(&ia64_timecounter);
 #endif
 
-	ia64_set_itm(ia64_get_itc() + (itc_frequency + hz/2) / hz);
+	itm_reload = (itc_frequency + hz/2) / hz;
+	ia64_set_itm(ia64_get_itc() + itm_reload);
 	ia64_set_itv(255);	/* highest priority class */
 
 	stathz = 128;

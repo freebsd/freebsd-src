@@ -48,6 +48,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
@@ -83,6 +84,14 @@ dummy_perf(unsigned long vector, struct trapframe *framep)
 
 void (*perf_irq)(unsigned long, struct trapframe *) = dummy_perf;
 
+static unsigned int ints[MAXCPU];
+static unsigned int clks[MAXCPU];
+static unsigned int asts[MAXCPU];
+static unsigned int rdvs[MAXCPU];
+SYSCTL_OPAQUE(_debug, OID_AUTO, ints, CTLFLAG_RW, &ints, sizeof(ints), "IU","");
+SYSCTL_OPAQUE(_debug, OID_AUTO, clks, CTLFLAG_RW, &clks, sizeof(clks), "IU","");
+SYSCTL_OPAQUE(_debug, OID_AUTO, asts, CTLFLAG_RW, &asts, sizeof(asts), "IU","");
+SYSCTL_OPAQUE(_debug, OID_AUTO, rdvs, CTLFLAG_RW, &rdvs, sizeof(rdvs), "IU","");
 
 static u_int schedclk2;
 
@@ -115,16 +124,33 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		intrcnt[INTRCNT_CLOCK]++;
 #endif
 		critical_enter();
-		handleclock(framep);
-
-		/* divide hz (1024) by 8 to get stathz (128) */
-		if((++schedclk2 & 0x7) == 0)
-			statclock((struct clockframe *)framep);
+#ifdef SMP
+		clks[PCPU_GET(cpuid)]++;
+		/* Only the BSP runs the real clock */
+		if (PCPU_GET(cpuid) == 0) {
+#endif
+			handleclock(framep);
+			/* divide hz (1024) by 8 to get stathz (128) */
+			if ((++schedclk2 & 0x7) == 0)
+				statclock((struct clockframe *)framep);
+#ifdef SMP
+		} else {
+			ia64_set_itm(ia64_get_itc() + itm_reload);
+			mtx_lock_spin(&sched_lock);
+			hardclock_process(curthread, TRAPF_USERMODE(framep));
+			if ((schedclk2 & 0x7) == 0)
+				statclock_process(curkse, TRAPF_PC(framep),
+				    TRAPF_USERMODE(framep));
+			mtx_unlock_spin(&sched_lock);
+		}
+#endif
 		critical_exit();
 #ifdef SMP
 	} else if (vector == ipi_vector[IPI_AST]) {
+		asts[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_AST, cpuid=%d", PCPU_GET(cpuid));
 	} else if (vector == ipi_vector[IPI_RENDEZVOUS]) {
+		rdvs[PCPU_GET(cpuid)]++;
 		CTR1(KTR_SMP, "IPI_RENDEZVOUS, cpuid=%d", PCPU_GET(cpuid));
 		smp_rendezvous_action();
 	} else if (vector == ipi_vector[IPI_STOP]) {
@@ -146,8 +172,10 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		CTR1(KTR_SMP, "IPI_TEST, cpuid=%d", PCPU_GET(cpuid));
 		mp_ipi_test++;
 #endif
-	} else
+	} else {
+		ints[PCPU_GET(cpuid)]++;
 		ia64_dispatch_intr(framep, vector);
+	}
 
  out:
 	atomic_subtract_int(&td->td_intr_nesting_level, 1);
@@ -185,8 +213,6 @@ static int ia64_sapic_count;
 static struct mtx ia64_intrs_lock;
 static struct ia64_intr *ia64_intrs[256];
 
-static void	ithds_init(void *dummy);
-
 static void
 ithds_init(void *dummy)
 {
@@ -198,6 +224,7 @@ SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
 void
 ia64_add_sapic(struct sapic *sa)
 {
+
 	ia64_sapics[ia64_sapic_count++] = sa;
 }
 

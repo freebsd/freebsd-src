@@ -116,6 +116,11 @@ ia64_ap_startup(void)
 	PCPU_SET(switchticks, ticks);
 
 	mtx_lock_spin(&sched_lock);
+
+	/* kick off the clock on this AP */
+	ia64_set_itm(ia64_get_itc() + itm_reload);
+	ia64_set_itv(255);
+	ia64_set_tpr(0);
 	cpu_throw();
 	panic("ia64_ap_startup: cpu_throw() returned");
 }
