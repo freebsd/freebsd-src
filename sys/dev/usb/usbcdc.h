@@ -1,4 +1,4 @@
-/*	$NetBSD: usbcdc.h,v 1.3 1999/01/03 01:09:18 augustss Exp $	*/
+/*	$NetBSD: usbcdc.h,v 1.4 1999/08/16 20:20:19 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -41,24 +41,16 @@
 #ifndef _USBCDC_H_
 #define _USBCDC_H_
 
-#define UDESCSUB_CDC_HEADER	0x00	/* Header */
-#define UDESCSUB_CDC_CM		0x01	/* Call Management */
-#define UDESCSUB_CDC_ACM	0x02	/* Abstract Control Model */
-#define UDESCSUB_CDC_DLM	0x03	/* Direct Line Management */
-#define UDESCSUB_CDC_TRF	0x04	/* Telephone Ringer */
-#define UDESCSUB_CDC_TCLSR	0x05	/* Tel. Call and Line State Rep. Cap. */
-#define UDESCSUB_CDC_UNION	0x06	/* Union */
-#define UDESCSUB_CDC_CS		0x07	/* Country Selection */
-#define UDESCSUB_CDC_TOM	0x08	/* Telephone Operational Modes */
-#define UDESCSUB_CDC_USBT	0x09	/* USB Terminal */
-#define UDESCSUB_CDC_NCT	0x0a	/* Network Channel Terminal */
-#define UDESCSUB_CDC_PU		0x0b	/* Protocol Unit */
-#define UDESCSUB_CDC_EU		0x0c	/* Extention Unit */
-#define UDESCSUB_CDC_MCM	0x0d	/* Multi-Channel Management */
-#define UDESCSUB_CDC_CCM	0x0e	/* CAPI Control Management */
-#define UDESCSUB_CDC_EN		0x0f	/* Ethernet Networking */
-#define UDESCSUB_CDC_AN		0x10	/* ATM Networking */
-
+#define UDESCSUB_CDC_HEADER	0
+#define UDESCSUB_CDC_CM		1 /* Call Management */
+#define UDESCSUB_CDC_ACM	2 /* Abstract Control Model */
+#define UDESCSUB_CDC_DLM	3 /* Direct Line Management */
+#define UDESCSUB_CDC_TRF	4 /* Telephone Ringer */
+#define UDESCSUB_CDC_TCLSR	5 /* Telephone Call ... */
+#define UDESCSUB_CDC_UNION	6
+#define UDESCSUB_CDC_CS		7 /* Country Selection */
+#define UDESCSUB_CDC_TOM	8 /* Telephone Operational Modes */
+#define UDESCSUB_CDC_USBT	9 /* USB Terminal */
 
 typedef struct {
 	uByte		bLength;
@@ -100,17 +92,24 @@ typedef struct {
 #define UCDC_GET_ENCAPSULATED_RESPONSE	0x01
 #define UCDC_SET_COMM_FEATURE		0x02
 #define UCDC_GET_COMM_FEATURE		0x03
-#define UCDC_CLEAR_COMM_FEATURE		0x04
 #define  UCDC_ABSTRACT_STATE		0x01
 #define  UCDC_COUNTRY_SETTING		0x02
+#define UCDC_CLEAR_COMM_FEATURE		0x04
 #define UCDC_SET_LINE_CODING		0x20
 #define UCDC_GET_LINE_CODING		0x21
+#define UCDC_SET_CONTROL_LINE_STATE	0x22
+#define  UCDC_LINE_DTR			0x0001
+#define  UCDC_LINE_RTS			0x0002
+#define UCDC_SEND_BREAK			0x23
+#define  UCDC_BREAK_ON			0xffff
+#define  UCDC_BREAK_OFF			0x0000
 
 typedef struct {
 	uWord	wState;
 #define UCDC_IDLE_SETTING		0x0001
 #define UCDC_DATA_MULTIPLEXED		0x0002
 } usb_cdc_abstract_state_t;
+#define UCDC_ABSTRACT_STATE_LENGTH 2
 
 typedef struct {
 	uDWord	dwDTERate;
@@ -126,6 +125,7 @@ typedef struct {
 #define UCDC_PARITY_SPACE		4
 	uByte	bDataBits;
 } usb_cdc_line_state_t;
+#define UCDC_LINE_STATE_LENGTH 7
 
 typedef struct {
 	uByte	bmRequestType;
