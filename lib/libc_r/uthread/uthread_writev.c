@@ -134,7 +134,9 @@ _writev(int fd, const struct iovec * iov, int iovcnt)
 						 * for the next write:
 						 */
 						p_iov[idx].iov_len -= cnt;
-						p_iov[idx].iov_base += cnt;
+						p_iov[idx].iov_base =
+						    (char *)p_iov[idx].iov_base
+						    + cnt;
 						cnt = 0;
 					}
 				}
