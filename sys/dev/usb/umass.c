@@ -938,7 +938,7 @@ USB_ATTACH(umass)
 #endif
 
 	if (sc->quirks & ALT_IFACE_1) {
-		err = usbd_set_interface(0, 1);
+		err = usbd_set_interface(uaa->iface, 1);
 		if (err) {
 			DPRINTF(UDMASS_USB, ("%s: could not switch to "
 				"Alt Interface %d\n",
@@ -2236,15 +2236,16 @@ umass_cam_rescan(void *addr)
 {
 	struct umass_softc *sc = (struct umass_softc *) addr;
 	struct cam_path *path;
-	union ccb *ccb = malloc(sizeof(union ccb), M_USBDEV, M_WAITOK);
-
-	memset(ccb, 0, sizeof(union ccb));
+	union ccb *ccb;
 
 	DPRINTF(UDMASS_SCSI, ("scbus%d: scanning for %s:%d:%d:%d\n",
 		cam_sim_path(sc->umass_sim),
 		USBDEVNAME(sc->sc_dev), cam_sim_path(sc->umass_sim),
 		USBDEVUNIT(sc->sc_dev), CAM_LUN_WILDCARD));
 
+	ccb = malloc(sizeof(union ccb), M_USBDEV, M_NOWAIT | M_ZERO);
+	if (ccb == NULL)
+		return;
 	if (xpt_create_path(&path, xpt_periph, cam_sim_path(sc->umass_sim),
 			    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
 	    != CAM_REQ_CMP)
