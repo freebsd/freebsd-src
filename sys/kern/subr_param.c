@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.2 (Berkeley) 1/21/94
- * $Id: param.c,v 1.5 1995/01/09 16:04:20 davidg Exp $
+ * $Id: param.c,v 1.6 1995/01/12 03:38:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -91,11 +91,21 @@ int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
  * Values in support of System V compatible shared memory.	XXX
  */
 #ifdef SYSVSHM
+#ifndef SHMMAX
 #define	SHMMAX	(SHMMAXPGS*NBPG)
+#endif
+#ifndef SHMMIN
 #define	SHMMIN	1
+#endif
+#ifndef SHMMNI
 #define	SHMMNI	32			/* <= SHMMMNI in shm.h */
+#endif
+#ifndef SHMSEG
 #define	SHMSEG	8
+#endif
+#ifndef SHMALL
 #define	SHMALL	(SHMMAXPGS/CLSIZE)
+#endif
 
 struct	shminfo shminfo = {
 	SHMMAX,
