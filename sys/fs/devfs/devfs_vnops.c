@@ -811,23 +811,24 @@ devfs_open(ap)
 	if (error)
 		return (error);
 
-	if (ap->a_fdidx >= 0) {
-		/*
-		 * This is a pretty disgustingly long chain, but I am not
-		 * sure there is any better way.  Passing the fdidx into
-		 * VOP_OPEN() offers us more information than just passing
-		 * the file *.
-		 */
-		fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
-		if (fp->f_ops == &badfileops) {
-#if 0
-			printf("devfs_open(%s)\n", devtoname(dev));
+#if 0	/* /dev/console */
+	KASSERT(ap->a_fdidx >= 0,
+	     ("Could not vnode bypass device on fd %d", ap->a_fdidx));
+#else
+	if(ap->a_fdidx < 0)
+		return (error);
 #endif
-			fp->f_ops = &devfs_ops_f;
-			fp->f_data = dev;
-		}
-	}
-
+	/*
+	 * This is a pretty disgustingly long chain, but I am not
+	 * sure there is any better way.  Passing the fdidx into
+	 * VOP_OPEN() offers us more information than just passing
+	 * the file *.
+	 */
+	fp = ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx];
+	KASSERT(fp->f_ops == &badfileops,
+	     ("Could not vnode bypass device on fdops %p", fp->f_ops));
+	fp->f_ops = &devfs_ops_f;
+	fp->f_data = dev;
 	return (error);
 }
 
