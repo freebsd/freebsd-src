@@ -50,19 +50,38 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
+#define	ATEXIT_FN_EMPTY	0
+#define	ATEXIT_FN_STD	1
+#define	ATEXIT_FN_CXA	2
+
 static pthread_mutex_t atexit_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #define _MUTEX_LOCK(x)		if (__isthreaded) _pthread_mutex_lock(x)
 #define _MUTEX_UNLOCK(x)	if (__isthreaded) _pthread_mutex_unlock(x)
 
-struct atexit *__atexit;	/* points to head of LIFO stack */
+struct atexit {
+	struct atexit *next;			/* next in list */
+	int ind;				/* next index in this table */
+	struct atexit_fn {
+		int fn_type;			/* ATEXIT_? from above */
+		union {
+			void (*std_func)(void);
+			void (*cxa_func)(void *);
+		} fn_ptr;			/* function pointer */
+		void *fn_arg;			/* argument for CXA callback */
+		void *fn_dso;			/* shared module handle */
+	} fns[ATEXIT_SIZE];			/* the table itself */
+};
+
+static struct atexit *__atexit;		/* points to head of LIFO stack */
 
 /*
- * Register a function to be performed at exit.
+ * Register the function described by 'fptr' to be called at application
+ * exit or owning shared object unload time. This is a helper function
+ * for atexit and __cxa_atexit.
  */
-int
-atexit(fn)
-	void (*fn)();
+static int
+atexit_register(struct atexit_fn *fptr)
 {
 	static struct atexit __atexit0;	/* one guaranteed table */
 	struct atexit *p;
@@ -89,7 +108,82 @@ atexit(fn)
 		p->next = __atexit;
 		__atexit = p;
 	}
-	p->fns[p->ind++] = fn;
+	p->fns[p->ind++] = *fptr;
 	_MUTEX_UNLOCK(&atexit_mutex);
-	return (0);
+	return 0;
+}
+
+/*
+ * Register a function to be performed at exit.
+ */
+int
+atexit(void (*func)(void))
+{
+	struct atexit_fn fn;
+	int error;
+
+	fn.fn_type = ATEXIT_FN_STD;
+	fn.fn_ptr.std_func = func;;
+	fn.fn_arg = NULL;
+	fn.fn_dso = NULL;
+
+ 	error = atexit_register(&fn);	
+	return (error);
+}
+
+/*
+ * Register a function to be performed at exit or when an shared object
+ * with given dso handle is unloaded dynamically.
+ */
+int
+__cxa_atexit(void (*func)(void *), void *arg, void *dso)
+{
+	struct atexit_fn fn;
+	int error;
+
+	fn.fn_type = ATEXIT_FN_CXA;
+	fn.fn_ptr.cxa_func = func;;
+	fn.fn_arg = arg;
+	fn.fn_dso = dso;
+
+ 	error = atexit_register(&fn);	
+	return (error);
+}
+
+/*
+ * Call all handlers registered with __cxa_atexit for the shared
+ * object owning 'dso'.  Note: if 'dso' is NULL, then all remaining
+ * handlers are called.
+ */
+void
+__cxa_finalize(void *dso)
+{
+	struct atexit *p;
+	struct atexit_fn fn;
+	int n;
+
+	_MUTEX_LOCK(&atexit_mutex);
+	for (p = __atexit; p; p = p->next) {
+		for (n = p->ind; --n >= 0;) {
+			if (p->fns[n].fn_type == ATEXIT_FN_EMPTY)
+				continue; /* already been called */
+			if (dso != NULL && dso != p->fns[n].fn_dso)
+				continue; /* wrong DSO */
+			fn = p->fns[n];
+			/*
+			  Mark entry to indicate that this particular handler
+			  has already been called.
+			*/
+			p->fns[n].fn_type = ATEXIT_FN_EMPTY;
+		        _MUTEX_UNLOCK(&atexit_mutex);
+		
+			/* Call the function of correct type. */
+			if (fn.fn_type == ATEXIT_FN_CXA)
+				fn.fn_ptr.cxa_func(fn.fn_arg);
+			else if (fn.fn_type == ATEXIT_FN_STD)
+				fn.fn_ptr.std_func();
+			_MUTEX_LOCK(&atexit_mutex);
+		}
+	}
+	_MUTEX_UNLOCK(&atexit_mutex);
 }
