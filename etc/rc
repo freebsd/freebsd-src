@@ -216,9 +216,13 @@ case ${early_nfs_mounts} in
 *)
 	case $1 in
 	autoboot)
-		if [ -f /var/db/mounttab ]; then
-			rpc.umntall -k
-		fi
+		case ${nfs_client_enable} in
+		[Yy][Ee][Ss])
+			if [ -f /var/db/mounttab ]; then
+				rpc.umntall -k
+			fi
+			;;
+		esac
 		;;
 	esac
 	mount -a -t nfs
