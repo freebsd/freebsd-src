@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.103.2.2 1999/04/01 14:56:17 nsayer Exp $
+ *	$Id: ip_fw.c,v 1.103.2.3 1999/04/26 14:59:02 luigi Exp $
  */
 
 /*
@@ -1169,6 +1169,9 @@ ip_fw_ctl(struct sockopt *sopt)
 		     fcp = ip_fw_chain.lh_first) {
 			s = splnet();
 			LIST_REMOVE(fcp, chain);
+#ifdef DUMMYNET
+			dn_rule_delete(fcp);
+#endif
 			FREE(fcp->rule, M_IPFW);
 			FREE(fcp, M_IPFW);
 			splx(s);
