@@ -1,6 +1,6 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.4 1996/06/28 22:03:18 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.5 1996/07/01 02:43:43 jkh Exp $
 
-Contents last changed:  June 28th, 1996
+Contents last changed:  July 4th, 1996
 
 Table of Contents
 -----------------
@@ -165,7 +165,6 @@ press [ENTER].  The help message looks something like this:
 
 Command                 Description
 -------                 -----------
-attach <devname>        Return results of device attach
 ls                      List currently configured devices
 port <devname> <addr>   Set device port (i/o address)
 irq <devname> <number>  Set device irq
@@ -174,7 +173,6 @@ iomem <devname> <addr>  Set device maddr (memory address)
 iosize <devname> <size> Set device memory size
 flags <devname> <mask>  Set device flags
 enable <devname>        Enable device
-probe <devname>         Return results of device probe
 disable <devname>       Disable device (will not be probed)
 visual                  Go to visual mode
 quit                    Exit this configuration utility
@@ -278,12 +276,10 @@ The LINT file contains prototype entries for all of the below which you
 can easily cut-and-paste into your own file (or simply copy LINT and edit
 it to taste):
 
-apm:    Laptop Advanced Power Management (experimental)
 ctx:    Cortex-I frame grabber
 cx:     Cronyx/Sigma multiport sync/async
 cy:     Cyclades high-speed serial driver
 el:     3Com 3C501
-fe:     Fujitsu MB86960A/MB86965A Ethernet cards
 fea:    DEV DEFEA EISA FDDI adater
 fpa:    DEC DEFPA PCI FDDI adapter
 gp:     National Instruments AT-GPIB and AT-GPIB/TNT board
@@ -292,6 +288,7 @@ gus:    Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
 gusxvi: Gravis Ultrasound 16-bit PCM
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
+meteor:	Matrox Meteor frame-grabber card
 mpu:    Roland MPU-401 stand-alone card
 mse:    Logitech & ATI InPort bus mouse ports
 mss:    Microsoft Sound System
