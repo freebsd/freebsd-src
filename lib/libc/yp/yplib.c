@@ -509,7 +509,7 @@ skipit:
 			*(u_short *)&ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port;
 gotit:
 		ysd->dom_vers = YPVERS;
-		_strlcpy(ysd->dom_domain, dom, sizeof(ysd->dom_domain));
+		strlcpy(ysd->dom_domain, dom, sizeof(ysd->dom_domain));
 	}
 
 	/* Don't rebuild the connection to the server unless we have to. */

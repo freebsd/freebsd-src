@@ -37,14 +37,13 @@ static char sccsid[] = "@(#)confstr.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "namespace.h"
 #include <sys/param.h>
+
 #include <errno.h>
 #include <limits.h>
 #include <paths.h>
 #include <string.h>
 #include <unistd.h>
-#include "un-namespace.h"
 
 
 size_t
@@ -115,7 +114,7 @@ confstr(int name, char *buf, size_t len)
 
 docopy:
 		if (len != 0 && buf != NULL)
-			_strlcpy(buf, p, len);
+			strlcpy(buf, p, len);
 		return (strlen(p) + 1);
 
 	default:

@@ -43,8 +43,6 @@
 #define		err				_err
 #define		warn				_warn
 #define		nsdispatch			_nsdispatch
-#define		strlcat				_strlcat
-#define		strlcpy				_strlcpy
 
 /*
  * Prototypes for syscalls/functions that need to be overridden

@@ -584,7 +584,7 @@ files_passwd(void *retval, void *mdata, va_list ap)
 			/* MAXLOGNAME includes NUL byte, but we do not
 			 * include the NUL byte in the key.
 			 */
-			namesize = _strlcpy(&keybuf[1], name, sizeof(keybuf)-1);
+			namesize = strlcpy(&keybuf[1], name, sizeof(keybuf)-1);
 			if (namesize >= sizeof(keybuf)-1) {
 				*errnop = EINVAL;
 				rv = NS_NOTFOUND;
@@ -897,7 +897,7 @@ dns_passwd(void *retval, void *mdata, va_list ap)
 			hes = NULL;
 			continue;
 		}
-		linesize = _strlcpy(buffer, hes[0], bufsize);
+		linesize = strlcpy(buffer, hes[0], bufsize);
 		if (linesize >= bufsize) {
 			*errnop = ERANGE;
 			rv = NS_RETURN;
@@ -1055,7 +1055,7 @@ nis_passwd(void *retval, void *mdata, va_list ap)
 		rv = NS_NOTFOUND;
 		switch (how) {
 		case nss_lt_name:
-			if (_strlcpy(buffer, name, bufsize) >= bufsize)
+			if (strlcpy(buffer, name, bufsize) >= bufsize)
 				goto erange;
 			break;
 		case nss_lt_id:
@@ -1215,7 +1215,7 @@ compat_use_template(struct passwd *pwd, struct passwd *template, char *buffer,
 		hold.field = NULL;			\
 	else {						\
 		hold.field = p;				\
-		p += _strlcpy(p, pwd->field, eob-p) + 1; \
+		p += strlcpy(p, pwd->field, eob-p) + 1;	\
 	}						\
 } while (0)
 	COPY(pw_name);
@@ -1233,7 +1233,7 @@ compat_use_template(struct passwd *pwd, struct passwd *template, char *buffer,
 		pwd->field = NULL;					 \
 	else {								 \
 		pwd->field = p;						 \
-		if ((n = _strlcpy(p, q, eob-p)) >= eob-p) {		 \
+		if ((n = strlcpy(p, q, eob-p)) >= eob-p) {		 \
 			free(copy);					 \
 			return (ERANGE);				 \
 		}							 \
