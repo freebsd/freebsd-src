@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH: ${.CURDIR}/../cc_tools ${GCCDIR}			${GCCDIR}/../libiberty
+.PATH: ${.CURDIR}/../cc_tools ${GCCDIR}
 
 PROG=	protoize
 NOMAN=
