@@ -2081,14 +2081,12 @@ re_init(xsc)
 
 	/*
 	 * Enable C+ RX and TX mode, as well as VLAN stripping and
-	 * RX checksum offload. Only enable dual-address cycle if
-	 * we're on a 64-bit bus. We must configure the C+ register
+	 * RX checksum offload. We must configure the C+ register
 	 * before all others.
 	 */
 	CSR_WRITE_2(sc, RL_CPLUS_CMD, RL_CPLUSCMD_RXENB|
 	    RL_CPLUSCMD_TXENB|RL_CPLUSCMD_PCI_MRW|
-	    (CSR_READ_1(sc, RL_CFG2) & RL_BUSWIDTH_64BITS ?
-	    RL_CPLUSCMD_PCI_DAC : 0)|RL_CPLUSCMD_VLANSTRIP|
+	    RL_CPLUSCMD_VLANSTRIP|
 	    (ifp->if_capenable & IFCAP_RXCSUM ?
 	    RL_CPLUSCMD_RXCSUM_ENB : 0));
 
