@@ -286,7 +286,7 @@ struct rtentry *
 	 rtalloc1 __P((struct sockaddr *, int, u_long));
 void	 rtfree __P((struct rtentry *));
 int	 rtinit __P((struct ifaddr *, int, int));
-int	 rtioctl __P((int, caddr_t, struct proc *));
+int	 rtioctl __P((int, caddr_t));
 void	 rtredirect __P((struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, struct rtentry **));
 int	 rtrequest __P((int, struct sockaddr *,
