@@ -15,7 +15,7 @@ NCURSES_MINOR!=egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9
 NCURSES_PATCH!=egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES}/dist.mk | sed -e 's%^[^0-9]*%%'
 
 # From autoconf (!)
-NCURSES_CONST=	/* nothing */
+NCURSES_CONST=	const
 NCURSES_XNAMES=	1
 NCURSES_OSPEED=	short
 BUILTIN_BOOL=	1
