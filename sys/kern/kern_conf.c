@@ -295,6 +295,15 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 		printf("Allocating major#%d to \"%s\"\n", i, devsw->d_name);
 		devsw->d_maj = i;
 		reserved_majors[i] = i;
+	} else {
+		KASSERT(devsw->d_maj >= 0 && devsw->d_maj < 256,
+		    ("Invalid major (%d) in make_dev", devsw->d_maj));
+		if (reserved_majors[devsw->d_maj] != devsw->d_maj) {
+			printf("WARNING: driver \"%s\" used %s %d\n",
+			    devsw->d_name, "unreserved major device number",
+			    devsw->d_maj);
+			reserved_majors[devsw->d_maj] = devsw->d_maj;
+		}
 	}
 
 	if (!ready_for_devs) {
