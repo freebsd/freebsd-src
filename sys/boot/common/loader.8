@@ -532,14 +532,12 @@ This is the STRING word set's
 .El
 .Ss FREEBSD EXTRA WORDS
 .Bl -tag -width XXXXXXXX -offset indent
+.It Ic \&$ Pq --
+Evaluates the remainder of the input buffer, after having printed it first.
 .It Ic \&% Pq --
 Evaluates the remainder of the input buffer under a
 .Ic catch
 exception guard.
-.It Ic \&$ Pq --
-Evaluates the remainder of the input buffer, after having printed it first.
-.It Ic inb Pq Ar port -- char
-Reads a byte from a port.
 .It Ic fclose Pq Ar fd --
 Closes a file.
 .It Ic fkey Pq Ar fd -- char
@@ -561,6 +559,8 @@ into buffer
 .Em addr .
 Returns the actual number of bytes read, or -1 in case of error or end of
 file.
+.It Ic inb Pq Ar port -- char
+Reads a byte from a port.
 .It Ic key Pq -- Ar char
 Reads a single character from the console.
 .It Ic key? Pq -- Ar flag
