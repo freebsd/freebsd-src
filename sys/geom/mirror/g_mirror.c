@@ -288,6 +288,25 @@ g_mirror_nrequests(struct g_mirror_softc *sc, struct g_consumer *cp)
 	return (nreqs);
 }
 
+static int
+g_mirror_is_busy(struct g_mirror_softc *sc, struct g_consumer *cp)
+{
+
+	if (cp->nstart != cp->nend) {
+		G_MIRROR_DEBUG(2,
+		    "I/O requests for %s exist, can't destroy it now.",
+		    cp->provider->name);
+		return (1);
+	}
+	if (g_mirror_nrequests(sc, cp) > 0) {
+		G_MIRROR_DEBUG(2,
+		    "I/O requests for %s in queue, can't destroy it now.",
+		    cp->provider->name);
+		return (1);
+	}
+	return (0);
+}
+
 static void
 g_mirror_kill_consumer(struct g_mirror_softc *sc, struct g_consumer *cp)
 {
@@ -295,18 +314,8 @@ g_mirror_kill_consumer(struct g_mirror_softc *sc, struct g_consumer *cp)
 	g_topology_assert();
 
 	cp->private = NULL;
-	if (cp->nstart != cp->nend) {
-		G_MIRROR_DEBUG(2,
-		    "I/O requests for %s exist, can't destroy it now.",
-		    cp->provider->name);
+	if (g_mirror_is_busy(sc, cp))
 		return;
-	}
-	if (g_mirror_nrequests(sc, cp) > 0) {
-		G_MIRROR_DEBUG(2,
-		    "I/O requests for %s in queue, can't destroy it now.",
-		    cp->provider->name);
-		return;
-	}
 	G_MIRROR_DEBUG(2, "Consumer %s destroyed.", cp->provider->name);
 	g_detach(cp);
 	g_destroy_consumer(cp);
@@ -331,25 +340,22 @@ g_mirror_connect_disk(struct g_mirror_disk *disk, struct g_provider *pp)
 }
 
 static void
-g_mirror_disconnect_disk(struct g_mirror_disk *disk)
+g_mirror_disconnect_consumer(struct g_mirror_softc *sc, struct g_consumer *cp)
 {
-	struct g_consumer *cp;
 
 	g_topology_assert();
 
-	cp = disk->d_consumer;
 	if (cp == NULL)
 		return;
 	if (cp->provider != NULL) {
-		G_MIRROR_DEBUG(2, "Disk %s disconnected.",
-		    g_mirror_get_diskname(disk));
+		G_MIRROR_DEBUG(2, "Disk %s disconnected.", cp->provider->name);
 		if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0) {
 			G_MIRROR_DEBUG(2, "Access %s r%dw%de%d = %d",
 			    cp->provider->name, -cp->acr, -cp->acw, -cp->ace,
 			    0);
 			g_access(cp, -cp->acr, -cp->acw, -cp->ace);
 		}
-		g_mirror_kill_consumer(disk->d_softc, cp);
+		g_mirror_kill_consumer(sc, cp);
 	} else {
 		g_destroy_consumer(cp);
 	}
@@ -395,7 +401,7 @@ fail:
 	if (errorp != NULL)
 		*errorp = error;
 	if (disk != NULL) {
-		g_mirror_disconnect_disk(disk);
+		g_mirror_disconnect_consumer(sc, disk->d_consumer);
 		free(disk, M_MIRROR);
 	}
 	return (NULL);
@@ -420,7 +426,7 @@ g_mirror_destroy_disk(struct g_mirror_disk *disk)
 	case G_MIRROR_DISK_STATE_NEW:
 	case G_MIRROR_DISK_STATE_STALE:
 	case G_MIRROR_DISK_STATE_ACTIVE:
-		g_mirror_disconnect_disk(disk);
+		g_mirror_disconnect_consumer(sc, disk->d_consumer);
 		free(disk, M_MIRROR);
 		break;
 	default:
@@ -436,7 +442,7 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	struct g_mirror_disk *disk;
 	struct g_mirror_event *ep;
 	struct g_geom *gp;
-	struct g_consumer *cp;
+	struct g_consumer *cp, *tmpcp;
 
 	g_topology_assert();
 
@@ -462,16 +468,12 @@ g_mirror_destroy_device(struct g_mirror_softc *sc)
 	callout_drain(&sc->sc_callout);
 	gp->softc = NULL;
 	uma_zdestroy(sc->sc_sync.ds_zone);
-	while ((cp = LIST_FIRST(&sc->sc_sync.ds_geom->consumer)) != NULL) {
-		if (cp->provider != NULL) {
-			if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
-				g_access(cp, -cp->acr, -cp->acw, -cp->ace);
-			g_detach(cp);
-		}
-		g_destroy_consumer(cp);
+
+	LIST_FOREACH_SAFE(cp, &sc->sc_sync.ds_geom->consumer, consumer, tmpcp) {
+		g_mirror_disconnect_consumer(sc, cp);
 	}
 	sc->sc_sync.ds_geom->softc = NULL;
-	g_destroy_geom(sc->sc_sync.ds_geom);
+	g_wither_geom(sc->sc_sync.ds_geom, ENXIO);
 	mtx_destroy(&sc->sc_queue_mtx);
 	mtx_destroy(&sc->sc_events_mtx);
 	G_MIRROR_DEBUG(0, "Device %s destroyed.", gp->name);
@@ -1310,6 +1312,56 @@ g_mirror_register_request(struct bio *bp)
 	}
 }
 
+static int
+g_mirror_can_destroy(struct g_mirror_softc *sc)
+{
+	struct g_geom *gp;
+	struct g_consumer *cp;
+
+	g_topology_assert();
+	gp = sc->sc_geom;
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (g_mirror_is_busy(sc, cp))
+			return (0);
+	}
+	gp = sc->sc_sync.ds_geom;
+	LIST_FOREACH(cp, &gp->consumer, consumer) {
+		if (g_mirror_is_busy(sc, cp))
+			return (0);
+	}
+	G_MIRROR_DEBUG(2, "No I/O requests for %s, it can be destroyed.",
+	    sc->sc_name);
+	return (1);
+}
+
+static int
+g_mirror_try_destroy(struct g_mirror_softc *sc)
+{
+
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_WAIT) != 0) {
+		g_topology_lock();
+		if (!g_mirror_can_destroy(sc)) {
+			g_topology_unlock();
+			return (0);
+		}
+		g_topology_unlock();
+		G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__,
+		    &sc->sc_worker);
+		wakeup(&sc->sc_worker);
+		sc->sc_worker = NULL;
+	} else {
+		g_topology_lock();
+		if (!g_mirror_can_destroy(sc)) {
+			g_topology_unlock();
+			return (0);
+		}
+		g_mirror_destroy_device(sc);
+		g_topology_unlock();
+		free(sc, M_MIRROR);
+	}
+	return (1);
+}
+
 /*
  * Worker thread.
  */
@@ -1366,20 +1418,8 @@ g_mirror_worker(void *arg)
 			}
 			if ((sc->sc_flags &
 			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
-end:
-				if ((sc->sc_flags &
-				    G_MIRROR_DEVICE_FLAG_WAIT) != 0) {
-					G_MIRROR_DEBUG(4, "%s: Waking up %p.",
-					    __func__, &sc->sc_worker);
-					wakeup(&sc->sc_worker);
-					sc->sc_worker = NULL;
-				} else {
-					g_topology_lock();
-					g_mirror_destroy_device(sc);
-					g_topology_unlock();
-					free(sc, M_MIRROR);
-				}
-				kthread_exit(0);
+				if (g_mirror_try_destroy(sc))
+					kthread_exit(0);
 			}
 			G_MIRROR_DEBUG(5, "%s: I'm here 1.", __func__);
 			continue;
@@ -1394,7 +1434,9 @@ end:
 			if ((sc->sc_flags &
 			    G_MIRROR_DEVICE_FLAG_DESTROY) != 0) {
 				mtx_unlock(&sc->sc_queue_mtx);
-				goto end;
+				if (g_mirror_try_destroy(sc))
+					kthread_exit(0);
+				mtx_lock(&sc->sc_queue_mtx);
 			}
 		}
 		if (sc->sc_sync.ds_ndisks > 0 &&
@@ -2445,6 +2487,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, boolean_t force)
 
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
 	sc->sc_flags |= G_MIRROR_DEVICE_FLAG_WAIT;
+	g_topology_unlock();
 	G_MIRROR_DEBUG(4, "%s: Waking up %p.", __func__, sc);
 	mtx_lock(&sc->sc_queue_mtx);
 	wakeup(sc);
@@ -2453,6 +2496,7 @@ g_mirror_destroy(struct g_mirror_softc *sc, boolean_t force)
 	while (sc->sc_worker != NULL)
 		tsleep(&sc->sc_worker, PRIBIO, "m:destroy", hz / 5);
 	G_MIRROR_DEBUG(4, "%s: Woken up %p.", __func__, &sc->sc_worker);
+	g_topology_lock();
 	g_mirror_destroy_device(sc);
 	free(sc, M_MIRROR);
 	return (0);
