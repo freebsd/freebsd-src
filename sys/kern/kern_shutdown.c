@@ -523,7 +523,7 @@ dumpsys(void)
 }
 
 int
-dumpstatus(vm_offset_t addr, long count)
+dumpstatus(vm_offset_t addr, off_t count)
 {
 	int c;
 
@@ -532,7 +532,7 @@ dumpstatus(vm_offset_t addr, long count)
 		if (wdog_tickler)
 			(*wdog_tickler)();
 #endif   
-		printf("%ld ", count / (1024 * 1024));
+		printf("%ld ", (long)(count / (1024 * 1024)));
 	}
 
 	if ((c = cncheckc()) == 0x03)
