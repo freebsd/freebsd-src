@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.140 1995/04/19 18:00:04 phk Exp $
+#	$Id: Makefile,v 1.141 1995/04/20 06:48:30 phk Exp $
 #
 # How to roll a release:
 #
@@ -9,6 +9,12 @@
 # the "cdrom" and "ftp" directories.
 # I also need to "make ports" and install those, but I'm not going to do
 # that on a 14.4 line just yet...
+
+# SET THIS !!!
+BUILDNAME=SOME_RANDOM_BUILD
+
+# If this is a RELEASE, then set
+#RELEASETAG=something
 
 # Things which without too much trouble can be considered variables
 
@@ -77,6 +83,9 @@ release:
 .else
 	cd ${CHROOTDIR}/usr ; cvs export -r ${RELEASETAG} src
 .endif
+	( cd ${CHROOTDIR}/usr/src/sys/conf && \
+	mv newvers.sh foo && \
+	sed "s/^RELEASE=.*/RELEASE=${BUILDNAME}/" foo > newvers.sh )
 	# To be used in development...
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
