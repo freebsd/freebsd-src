@@ -46,7 +46,6 @@
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
-#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/un.h>

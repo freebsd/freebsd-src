@@ -41,7 +41,12 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/uio.h>
+
+#if __FreeBSD_version >= 500014
+#include <sys/selinfo.h>
+#else
 #include <sys/select.h>
+#endif
 
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
