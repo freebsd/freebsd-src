@@ -114,6 +114,7 @@ extern struct domain inet6domain;
 
 struct icmp6stat icmp6stat;
 
+extern struct inpcbinfo ripcbinfo;
 extern struct inpcbhead ripcb;
 extern int icmp6errppslim;
 static int icmp6errpps_count = 0;
