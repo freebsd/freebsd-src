@@ -62,7 +62,7 @@ static char sccsid[] = "@(#)register.c	8.1 (Berkeley) 6/1/93";
 #define	SERVICE		"krbupdate"	/* service to add to KDC's database */
 #define	PROTOCOL	"tcp"
 
-void die(void);
+void die(int);
 void type_info(void);
 void setup_key(struct sockaddr_in local);
 void cleanup(void);
@@ -88,7 +88,7 @@ main(argc, argv)
 	u_char		code;
 	static struct rlimit rl = { 0, 0 };
 
-	signal(SIGPIPE, (__sighandler_t *)die);
+	signal(SIGPIPE, die);
 
 	if (setrlimit(RLIMIT_CORE, &rl) < 0) {
 		perror("rlimit");
@@ -306,7 +306,8 @@ type_info()
 }
 
 void
-die()
+die(sig)
+	int sig;
 {
 	fprintf(stderr, "\nServer no longer listening\n");
 	fflush(stderr);
