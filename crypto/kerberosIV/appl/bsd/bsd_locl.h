@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2000 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -396,3 +396,5 @@ void prepare_utmp (struct utmp *utmp, char *tty, char *username,
 #endif
 
 int do_osfc2_magic(uid_t);
+
+void paranoid_setuid (uid_t uid);
