@@ -263,6 +263,7 @@ DEV_MODULE(prom, prom_modevent, 0);
 
 CONS_DRIVER(prom, NULL, NULL, NULL, promcngetc, promcncheckc, promcnputc, NULL);
 
+static int promcn_attached = 0;
 void
 promcnattach(int alpha_console)
 {
@@ -270,8 +271,17 @@ promcnattach(int alpha_console)
 	prom_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
 	make_dev(&prom_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "promcons");
 	cnadd(&prom_consdev);
+	promcn_attached = 1;
 }
 
+void
+promcndetach(void)
+{
+	if (promcn_attached) {
+		cnremove(&prom_consdev);
+		promcn_attached = 0;
+	}
+}
 /*
  * promcnputc, promcngetc and promchcheckc in prom.c for layering reasons
  */
