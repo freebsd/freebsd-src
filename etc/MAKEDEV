@@ -52,11 +52,6 @@
 #       ttyd*   dialin ports
 #       cua*    dialout ports
 #       tty*    hardwired terminals
-#	com*	standard PC COM ports (really makes tty* entries for com)
-#		Note that the `com' driver is not configured in the 
-#		supplied kernels and is usually not what you want.  In
-#		a future release it may be completely desupported.  Fair
-#		warning.
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
@@ -74,7 +69,7 @@
 #	snd*	various sound cards
 #	pcaudio PCM audio driver 
 #
-#	$Id: MAKEDEV,v 1.38 1994/09/03 22:46:43 csgr Exp $
+#	$Id: MAKEDEV,v 1.39 1994/09/07 21:35:52 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -106,6 +101,7 @@ std)
 	mknod stdin	c 22 0; chmod 666 stdin;	chown root.wheel stdin
 	mknod stdout	c 22 1; chmod 666 stdout;	chown root.wheel stdout
 	mknod stderr	c 22 2; chmod 666 stderr;	chown root.wheel stderr
+	mknod lkm	c 32 0;	chmod 644 lkm;		chown root.wheel lkm
 	rm -f fd/*
 	mkdir fd > null 2>&1
 	(cd fd && eval `echo "" | awk ' BEGIN { \
@@ -301,12 +297,6 @@ uk*)
 	unit=`expr $i : 'uk\(.*\)'`
 	rm -f uk$unit
 	mknod uk$unit c 27 $unit
-	;;
-
-com*)
-	unit=`expr $i : '...\(.*\)'`
-	rm -f tty0$unit
-	mknod tty0$unit c 8 $unit
 	;;
 
 pty*)
