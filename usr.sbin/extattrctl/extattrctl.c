@@ -91,7 +91,10 @@ initattr(int argc, char *argv[])
 			overwrite = 1;
 			break;
 		case 'p':
-			fs_path = strdup(optarg);
+			if ((fs_path = strdup(optarg)) == NULL) {
+				perror("strdup");
+				return(-1);
+			}
 			break;
 		case '?':
 		default:
