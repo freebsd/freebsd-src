@@ -1637,7 +1637,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va)
 #if defined(PMAP_DIAGNOSTIC)
 			if (pmap_nw_modified((pt_entry_t) oldpte)) {
 				printf(
-	"pmap_remove: modified page not writable: va: 0x%x, pte: 0x%x\n",
+	"pmap_remove: modified page not writable: va: 0x%lx, pte: 0x%lx\n",
 				    va, oldpte);
 			}
 #endif
@@ -1782,7 +1782,7 @@ pmap_remove_all(vm_page_t m)
 	 * XXX This makes pmap_remove_all() illegal for non-managed pages!
 	 */
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS)) {
-		panic("pmap_remove_all: illegal for unmanaged page, va: 0x%x",
+		panic("pmap_remove_all: illegal for unmanaged page, va: 0x%lx",
 		    VM_PAGE_TO_PHYS(m));
 	}
 #endif
@@ -1804,7 +1804,7 @@ pmap_remove_all(vm_page_t m)
 #if defined(PMAP_DIAGNOSTIC)
 			if (pmap_nw_modified((pt_entry_t) tpte)) {
 				printf(
-	"pmap_remove_all: modified page not writable: va: 0x%x, pte: 0x%x\n",
+	"pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n",
 				    pv->pv_va, tpte);
 			}
 #endif
@@ -1942,7 +1942,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (va > VM_MAX_KERNEL_ADDRESS)
 		panic("pmap_enter: toobig");
 	if ((va >= UPT_MIN_ADDRESS) && (va < UPT_MAX_ADDRESS))
-		panic("pmap_enter: invalid to pmap_enter page table pages (va: 0x%x)", va);
+		panic("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)", va);
 #endif
 
 	mpte = NULL;
@@ -1997,7 +1997,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 #if defined(PMAP_DIAGNOSTIC)
 		if (pmap_nw_modified((pt_entry_t) origpte)) {
 			printf(
-	"pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x\n",
+	"pmap_enter: modified page not writable: va: 0x%lx, pte: 0x%lx\n",
 			    va, origpte);
 		}
 #endif
@@ -2631,7 +2631,7 @@ pmap_is_modified(vm_page_t m)
 			continue;
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%x\n", pv->pv_va);
+			printf("Null pmap (tb) at va: 0x%lx\n", pv->pv_va);
 			continue;
 		}
 #endif
@@ -2697,7 +2697,7 @@ pmap_clear_ptes(vm_page_t m, int bit)
 
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%x\n", pv->pv_va);
+			printf("Null pmap (cb) at va: 0x%lx\n", pv->pv_va);
 			continue;
 		}
 #endif
