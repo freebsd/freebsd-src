@@ -161,6 +161,27 @@ struct aac_interface aac_rx_interface = {
 	aac_rx_set_interrupts
 };
 
+/* Rocket/MIPS interface */	
+static int	aac_rkt_get_fwstatus(struct aac_softc *sc);
+static void	aac_rkt_qnotify(struct aac_softc *sc, int qbit);
+static int	aac_rkt_get_istatus(struct aac_softc *sc);
+static void	aac_rkt_clear_istatus(struct aac_softc *sc, int mask);
+static void	aac_rkt_set_mailbox(struct aac_softc *sc, u_int32_t command,
+				    u_int32_t arg0, u_int32_t arg1,
+				    u_int32_t arg2, u_int32_t arg3);
+static int	aac_rkt_get_mailbox(struct aac_softc *sc, int mb);
+static void	aac_rkt_set_interrupts(struct aac_softc *sc, int enable);
+
+struct aac_interface aac_rkt_interface = {
+	aac_rkt_get_fwstatus,
+	aac_rkt_qnotify,
+	aac_rkt_get_istatus,
+	aac_rkt_clear_istatus,
+	aac_rkt_set_mailbox,
+	aac_rkt_get_mailbox,
+	aac_rkt_set_interrupts
+};
+
 /* Debugging and Diagnostics */
 static void	aac_describe_controller(struct aac_softc *sc);
 static char	*aac_describe_code(struct aac_code_lookup *table,
@@ -1634,6 +1655,11 @@ aac_init(struct aac_softc *sc)
 	case AAC_HWIF_I960RX:
 		AAC_SETREG4(sc, AAC_RX_ODBR, ~0);
 		break;
+	case AAC_HWIF_RKT:
+		AAC_SETREG4(sc, AAC_RKT_ODBR, ~0);
+		break;
+	default:
+		break;
 	}
 
 	/*
@@ -2020,6 +2046,14 @@ aac_fa_get_fwstatus(struct aac_softc *sc)
 	return (val);
 }
 
+static int
+aac_rkt_get_fwstatus(struct aac_softc *sc)
+{
+	debug_called(3);
+
+	return(AAC_GETREG4(sc, AAC_RKT_FWSTATUS));
+}
+
 /*
  * Notify the controller of a change in a given queue
  */
@@ -2047,6 +2081,14 @@ aac_fa_qnotify(struct aac_softc *sc, int qbit)
 
 	AAC_SETREG2(sc, AAC_FA_DOORBELL1, qbit);
 	AAC_FA_HACK(sc);
+}
+
+static void
+aac_rkt_qnotify(struct aac_softc *sc, int qbit)
+{
+	debug_called(3);
+
+	AAC_SETREG4(sc, AAC_RKT_IDBR, qbit);
 }
 
 /*
@@ -2079,6 +2121,14 @@ aac_fa_get_istatus(struct aac_softc *sc)
 	return (val);
 }
 
+static int
+aac_rkt_get_istatus(struct aac_softc *sc)
+{
+	debug_called(3);
+
+	return(AAC_GETREG4(sc, AAC_RKT_ODBR));
+}
+
 /*
  * Clear some interrupt reason bits
  */
@@ -2105,6 +2155,14 @@ aac_fa_clear_istatus(struct aac_softc *sc, int mask)
 
 	AAC_SETREG2(sc, AAC_FA_DOORBELL0_CLEAR, mask);
 	AAC_FA_HACK(sc);
+}
+
+static void
+aac_rkt_clear_istatus(struct aac_softc *sc, int mask)
+{
+	debug_called(3);
+
+	AAC_SETREG4(sc, AAC_RKT_ODBR, mask);
 }
 
 /*
@@ -2154,6 +2212,19 @@ aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
 	AAC_FA_HACK(sc);
 }
 
+static void
+aac_rkt_set_mailbox(struct aac_softc *sc, u_int32_t command, u_int32_t arg0,
+		    u_int32_t arg1, u_int32_t arg2, u_int32_t arg3)
+{
+	debug_called(4);
+
+	AAC_SETREG4(sc, AAC_RKT_MAILBOX, command);
+	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 4, arg0);
+	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 8, arg1);
+	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 12, arg2);
+	AAC_SETREG4(sc, AAC_RKT_MAILBOX + 16, arg3);
+}
+
 /*
  * Fetch the immediate command status word
  */
@@ -2182,6 +2253,14 @@ aac_fa_get_mailbox(struct aac_softc *sc, int mb)
 
 	val = AAC_GETREG4(sc, AAC_FA_MAILBOX + (mb * 4));
 	return (val);
+}
+
+static int
+aac_rkt_get_mailbox(struct aac_softc *sc, int mb)
+{
+	debug_called(4);
+
+	return(AAC_GETREG4(sc, AAC_RKT_MAILBOX + (mb * 4)));
 }
 
 /*
@@ -2222,6 +2301,18 @@ aac_fa_set_interrupts(struct aac_softc *sc, int enable)
 	} else {
 		AAC_SETREG2((sc), AAC_FA_MASK0, ~0);
 		AAC_FA_HACK(sc);
+	}
+}
+
+static void
+aac_rkt_set_interrupts(struct aac_softc *sc, int enable)
+{
+	debug(2, "%sable interrupts", enable ? "en" : "dis");
+
+	if (enable) {
+		AAC_SETREG4(sc, AAC_RKT_OIMR, ~AAC_DB_INTERRUPTS);
+	} else {
+		AAC_SETREG4(sc, AAC_RKT_OIMR, ~0);
 	}
 }
 
