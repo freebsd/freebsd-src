@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.36 1999/08/14 11:40:42 phk Exp $
+ * $Id: kern_physio.c,v 1.37 1999/08/21 06:48:16 phk Exp $
  */
 
 #include <sys/param.h>
@@ -97,11 +97,11 @@ physio(bp, dev, rw, minp, uio)
 			 */
 			bp->b_saveaddr = sa;
 			blockno = uio->uio_offset >> DEV_BSHIFT;
-			bp->b_blkno = blockno;
-			if (bp->b_blkno != blockno) {
+			if ((daddr_t)blockno != blockno) {
 				error = EINVAL;
 				goto doerror;
 			}
+			bp->b_blkno = blockno;
 			bp->b_offset = uio->uio_offset;
 
 			if (uio->uio_segflg == UIO_USERSPACE) {
