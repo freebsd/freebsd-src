@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)inetd.8	8.3 (Berkeley) 4/13/94
-.\"	$Id: inetd.8,v 1.3 1994/09/11 11:16:30 csgr Exp $
+.\"	$Id: inetd.8,v 1.4 1994/12/21 19:08:41 wollman Exp $
 .\"
 .Dd April 13, 1994
 .Dt INETD 8
@@ -77,7 +77,7 @@ Turns on debugging.
 Turns on logging.
 .It Fl R Ar rate
 Specifies the maximum number of times a service can be invoked
-in one minute; the default is 1000.
+in one minute; the default is 256.
 .El
 .Pp
 Upon execution,
