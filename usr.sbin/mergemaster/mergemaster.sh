@@ -5,8 +5,8 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2000 Douglas Barton
-# Doug@gorean.org
+# Copyright 1998-2001 Douglas Barton
+# DougB@FreeBSD.org
 
 # $FreeBSD$
 
@@ -211,6 +211,12 @@ diff_loop () {
 #
 TEMPROOT='/var/tmp/temproot'
 
+# Read /etc/mergemaster.rc first so the one in $HOME can override
+#
+if [ -r /etc/mergemaster.rc ]; then
+  . /etc/mergemaster.rc
+fi
+
 # Read .mergemasterrc before command line so CLI can override
 #
 if [ -r "$HOME/.mergemasterrc" ]; then
@@ -341,6 +347,10 @@ DIFF_FLAG=${DIFF_FLAG:--u}
 # Assign the source directory
 #
 SOURCEDIR=${SOURCEDIR:-/usr/src/etc}
+
+# Define what CVS $Id tag to look for to aid portability.
+#
+CVS_ID_TAG=FreeBSD
 
 case "${RERUN}" in
 '')
@@ -681,16 +691,11 @@ for COMPFILE in `find . -type f -size +0`; do
     # If the files have the same $Id, delete the one in temproot so the
     # user will have less to wade through if files are left to merge by hand.
     #
-    # Reduce complexity and improve portability by using ident
-    #
-    CVSID1=`ident ${DESTDIR}${COMPFILE#.} 2>&1`
-    CVSID1="${CVSID1#${DESTDIR}}"
-    CVSID2=`ident ${COMPFILE} 2>&1`
+    CVSID1=`grep "[$]${CVS_ID_TAG}:" ${DESTDIR}${COMPFILE#.} 2>/dev/null`
+    CVSID2=`grep "[$]${CVS_ID_TAG}:" ${COMPFILE} 2>/dev/null`
 
     case "${CVSID2}" in
-    *'no id keywords'*)
-      ;;
-    ."${CVSID1}")
+    "${CVSID1}")
       echo " *** Temp ${COMPFILE} and installed have the same CVS Id, deleting"
       rm "${COMPFILE}"
       ;;
@@ -763,14 +768,48 @@ esac
 case "${AUTO_INSTALLED_FILES}" in
 '') ;;
 *)
-  (
+  case "${AUTO_RUN}" in
+  '')
+    (
+      echo ''
+      echo '*** You chose the automatic install option for files that did not exist'
+      echo '    on your system.  The following files were installed for you:'
+      echo "${AUTO_INSTALLED_FILES}"
+    ) | ${PAGER}
+    ;;
+  *)
     echo ''
     echo '*** You chose the automatic install option for files that did not exist'
     echo '    on your system.  The following files were installed for you:'
     echo "${AUTO_INSTALLED_FILES}"
-  ) | ${PAGER}
+    ;;
+  esac
   ;;
 esac
+
+run_it_now () {
+  case "${AUTO_RUN}" in
+  '')
+    unset YES_OR_NO
+    echo ''
+    echo -n '    Would you like to run it now? [y or n] '
+    read YES_OR_NO
+
+    echo ''
+
+    case "${YES_OR_NO}" in
+    y)
+      echo "      Running ${1}"
+      eval "${1}"
+      ;;
+    *)
+      echo "      Make sure to run ${1} yourself"
+      ;;
+    esac
+    ;;
+  *) ;;
+  esac
+}
 
 case "${NEED_MAKEDEV}" in
 '') ;;
@@ -778,6 +817,7 @@ case "${NEED_MAKEDEV}" in
   echo ''
   echo "*** You installed a new /dev/MAKEDEV script, so make sure that you run"
   echo "    'cd /dev && /bin/sh MAKEDEV all' to rebuild your devices"
+  run_it_now 'cd /dev && /bin/sh MAKEDEV all'
   ;;
 esac
 
@@ -786,7 +826,8 @@ case "${NEED_NEWALIASES}" in
 *)
   echo ''
   echo "*** You installed a new aliases file, so make sure that you run"
-  echo "    'newaliases' to rebuild your aliases database"
+  echo "    '/usr/bin/newaliases' to rebuild your aliases database"
+  run_it_now '/usr/bin/newaliases'
   ;;
 esac
 
@@ -795,7 +836,8 @@ case "${NEED_CAP_MKDB}" in
 *)
   echo ''
   echo "*** You installed a login.conf file, so make sure that you run"
-  echo "    'cap_mkdb /etc/login.conf' to rebuild your login.conf database"
+  echo "    '/usr/bin/cap_mkdb /etc/login.conf' to rebuild your login.conf database"
+  run_it_now '/usr/bin/cap_mkdb /etc/login.conf'
   ;;
 esac
 
@@ -804,7 +846,8 @@ case "${NEED_PWD_MKDB}" in
 *)
   echo ''
   echo "*** You installed a new master.passwd file, so make sure that you run"
-  echo "    'pwd_mkdb -p /etc/master.passwd' to rebuild your password files"
+  echo "    '/usr/sbin/pwd_mkdb -p /etc/master.passwd' to rebuild your password files"
+  run_it_now '/usr/sbin/pwd_mkdb -p /etc/master.passwd'
   ;;
 esac
 
