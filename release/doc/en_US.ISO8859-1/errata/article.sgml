@@ -204,6 +204,21 @@ MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisti
       upgrades.  &man.login.conf.5; has more details on the format and
       usage of the login capabilities database.</para>
 
+    <para>A file that is a part of
+      the <filename
+      role="port">multimedia/gstreamer-plugins</filename> port may
+      appear to have a corrupted filename when the ports collection is
+      installed using &man.sysinstall.8;.  This should not
+      affect building the port or installing the corresponding
+      package.  However, it is recommended to rename the file in
+      question, to prevent problems during any future updates to the
+      installed ports collection:</para>
+
+    <screen>&prompt.root; <userinput>cd /usr/ports/multimedia/gstreamer-plugins/files</userinput>
+&prompt.root; <userinput>mv patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_i \
+patch-gst-libs_ext_ffmpeg_ffmpeg_libavcodec_alpha_simple_idct_alpha.c
+</userinput></screen>
+
 ]]>
   </sect1>
 </article>
