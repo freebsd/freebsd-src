@@ -37,6 +37,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -44,6 +46,14 @@ static char sccsid[] = "@(#)isctype.c	8.3 (Berkeley) 2/24/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <ctype.h>
+
+#undef digittoint
+int
+digittoint(c)
+	int c;
+{
+	return (__maskrune((c), 0xFF));
+}
 
 #undef isalnum
 int
@@ -101,12 +111,44 @@ isgraph(c)
 	return (__istype((c), _G));
 }
 
+#undef ishexnumber 
+int
+ishexnumber(c)
+	int c;
+{
+	return (__istype((c), _X));
+}
+
+#undef isideogram
+int
+isideogram(c)
+	int c;
+{
+	return (__istype((c), _I));
+}
+
 #undef islower
 int
 islower(c)
 	int c;
 {
 	return (__istype((c), _L));
+}
+
+#undef isnumber
+int
+isnumber(c)
+	int c;
+{
+	return (__istype((c), _D));
+}
+
+#undef isphonogram	
+int
+isphonogram(c)
+	int c;
+{
+	return (__istype((c), _Q));
 }
 
 #undef isprint
@@ -125,12 +167,28 @@ ispunct(c)
 	return (__istype((c), _P));
 }
 
+#undef isrune
+int
+isrune(c)
+	int c;
+{
+	return (__istype((c), 0xFFFFFF00L));
+}
+
 #undef isspace
 int
 isspace(c)
 	int c;
 {
 	return (__istype((c), _S));
+}
+
+#undef isspecial
+int
+isspecial(c)
+	int c;
+{
+	return (__istype((c), _T));
 }
 
 #undef isupper
@@ -173,10 +231,3 @@ toupper(c)
         return (__toupper(c));
 }
 
-#undef digittoint
-int
-digittoint(c)
-	int c;
-{
-	return (__maskrune((c), 0xFF));
-}
