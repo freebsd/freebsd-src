@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 M. Warner Losh.
+ * Copyright (c) 2002-2003 M. Warner Losh.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -572,6 +572,8 @@ config::chop_var(char *&buffer, char *&lhs, char *&rhs)
 			*walker++ = '\0';
 		rhs[-1] = '\0';
 	}
+	while (isspace(*walker))
+		walker++;
 	buffer = walker;
 	return (true);
 }
@@ -645,12 +647,21 @@ process_event(char *buffer)
 			return;	/* Can't happen? */
 		*sp++ = '\0';
 		cfg.set_variable("device-name", buffer);
+		if (strncmp(sp, "at ", 3) == 0)
+			sp += 3;
+		sp = cfg.set_vars(sp);
+		if (strncmp(sp, "on ", 3) == 0)
+			cfg.set_variable("bus", sp + 3);
+	} else {
+		//?vars at location on bus
+		sp = cfg.set_vars(sp);
+		if (strncmp(sp, "at ", 3) == 0)
+			sp += 3;
+		sp = cfg.set_vars(sp);
+		if (strncmp(sp, "on ", 3) == 0)
+			cfg.set_variable("bus", sp + 3);
 	}
-	if (strncmp(sp, "at ", 3) == 0)
-		sp += 3;
-	sp = cfg.set_vars(sp);
-	if (strncmp(sp, "on ", 3) == 0)
-		cfg.set_variable("bus", sp + 3);
+	
 	cfg.find_and_execute(type);
 	cfg.pop_var_table();
 }
