@@ -276,6 +276,7 @@ extern Lst     	dirSearchPath; 	/* The list of directories to search when
 extern Lst	parseIncPath;	/* The list of directories to search when
 				 * looking for includes */
 
+extern Boolean	jobsRunning;	/* True if jobs are running */
 extern Boolean	compatMake;	/* True if we are make compatible */
 extern Boolean	ignoreErrors;  	/* True if should ignore all errors */
 extern Boolean  beSilent;    	/* True if should print no commands */

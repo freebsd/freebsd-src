@@ -58,21 +58,6 @@ __FBSDID("$FreeBSD$");
  *				treats them as if they were given when first
  *				invoked. Used by the parse module to implement
  *				the .MFLAGS target.
- *
- *	Error			Print a tagged error message. The global
- *				MAKE variable must have been defined. This
- *				takes a format string and two optional
- *				arguments for it.
- *
- *	Fatal			Print an error message and exit. Also takes
- *				a format string and two arguments.
- *
- *	Punt			Aborts all jobs and exits with a message. Also
- *				takes a format string and two arguments.
- *
- *	Finish			Finish things up by printing the number of
- *				errors which occured, as passed to it, and
- *				exiting.
  */
 
 #include <sys/types.h>
@@ -135,7 +120,7 @@ Boolean			beVerbose;	/* -v flag */
 Boolean			oldVars;	/* variable substitution style */
 Boolean			checkEnvFirst;	/* -e flag */
 Lst			envFirstVars;	/* (-E) vars to override from env */
-static Boolean		jobsRunning;	/* TRUE if the jobs might be running */
+Boolean			jobsRunning;	/* TRUE if the jobs might be running */
 
 static void		MainParseArgs(int, char **);
 char *			chdir_verify_path(char *, char *);
@@ -1138,215 +1123,6 @@ bad:
     *res = '\0';
     return res;
 }
- 
-/*-
- * Debug --
- *	Print a debugging message given its format.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The message is printed.
- */
-/* VARARGS */
-void
-Debug(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fflush(stderr);
-}
-
-/*-
- * Error --
- *	Print an error message given its format.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The message is printed.
- */
-/* VARARGS */
-void
-Error(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	(void)fflush(stderr);
-}
-
-/*-
- * Fatal --
- *	Produce a Fatal error message. If jobs are running, waits for them
- *	to finish.
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	The program exits
- */
-/* VARARGS */
-void
-Fatal(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	if (jobsRunning)
-		Job_Wait();
-
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	(void)fflush(stderr);
-
-	if (DEBUG(GRAPH2))
-		Targ_PrintGraph(2);
-	exit(2);		/* Not 1 so -q can distinguish error */
-}
-
-/*
- * Punt --
- *	Major exception once jobs are being created. Kills all jobs, prints
- *	a message and exits.
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	All children are killed indiscriminately and the program Lib_Exits
- */
-/* VARARGS */
-void
-Punt(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	(void)fprintf(stderr, "make: ");
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	(void)fflush(stderr);
-
-	DieHorribly();
-}
-
-/*-
- * DieHorribly --
- *	Exit without giving a message.
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	A big one...
- */
-void
-DieHorribly(void)
-{
-	if (jobsRunning)
-		Job_AbortAll();
-	if (DEBUG(GRAPH2))
-		Targ_PrintGraph(2);
-	exit(2);		/* Not 1, so -q can distinguish error */
-}
-
-/*
- * Finish --
- *	Called when aborting due to errors in child shell to signal
- *	abnormal exit, with the number of errors encountered in Make_Make.
- *
- * Results:
- *	None
- *
- * Side Effects:
- *	The program exits
- */
-void
-Finish(int errors)
-{
-	Fatal("%d error%s", errors, errors == 1 ? "" : "s");
-}
-
-/*
- * emalloc --
- *	malloc, but die on error.
- */
-void *
-emalloc(size_t len)
-{
-	void *p;
-
-	if ((p = malloc(len)) == NULL)
-		enomem();
-	return(p);
-}
-
-/*
- * estrdup --
- *	strdup, but die on error.
- */
-char *
-estrdup(const char *str)
-{
-	char *p;
-
-	if ((p = strdup(str)) == NULL)
-		enomem();
-	return(p);
-}
-
-/*
- * erealloc --
- *	realloc, but die on error.
- */
-void *
-erealloc(void *ptr, size_t size)
-{
-	if ((ptr = realloc(ptr, size)) == NULL)
-		enomem();
-	return(ptr);
-}
-
-/*
- * enomem --
- *	die when out of memory.
- */
-void
-enomem(void)
-{
-	err(2, NULL);
-}
-
-/*
- * enunlink --
- *	Remove a file carefully, avoiding directories.
- */
-int
-eunlink(const char *file)
-{
-	struct stat st;
-
-	if (lstat(file, &st) == -1)
-		return -1;
-
-	if (S_ISDIR(st.st_mode)) {
-		errno = EISDIR;
-		return -1;
-	}
-	return unlink(file);
-}
 
 /*
  * usage --
@@ -1360,12 +1136,4 @@ usage(void)
 "            [-I directory] [-j max_jobs] [-m directory] [-V variable]",
 "            [variable=value] [target ...]");
 	exit(2);
-}
-
-
-int
-PrintAddr(void *a, void *b __unused)
-{
-    printf("%p ", a);
-    return 0;
 }
