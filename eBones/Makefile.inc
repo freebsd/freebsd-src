@@ -3,8 +3,8 @@
 
 DISTRIBUTION=	krb
 
-.if exists(${.CURDIR}/../../lib/libtelnet/obj)
-TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet/obj
+.if exists(${.OBJDIR}/../../lib/libtelnet)
+TELNETOBJDIR=	${.OBJDIR}/../../lib/libtelnet
 .else
 TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet
 .endif
