@@ -6,5 +6,3 @@ DPADD+=			${DESTDIR}/${LIBDIR}/libstand.a
 LIBSTANDDIR=		${.CURDIR}/../../../../lib/libstand
 LIBSTAND=		-lstand
 LIBALPHA=		${.OBJDIR}/../libalpha/libalpha.a
-
-BINDIR=			/usr/mdec
