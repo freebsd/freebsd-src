@@ -484,11 +484,9 @@ nmdmstop(tp, flush)
 	wakeup_other(tp, flag);
 }
 
+#if 0
 static int
-nmdmpoll(dev, events, p)
-	dev_t dev;
-	int events;
-	struct proc *p;
+nmdmpoll(dev_t dev, int events, struct proc *p)
 {
 	register struct tty *tp = dev->si_tty;
 	register struct tty *tp2;
@@ -547,6 +545,7 @@ nmdmpoll(dev, events, p)
 
 	return (revents);
 }
+#endif	/* 0 */
 
 /*ARGSUSED*/
 static	int
