@@ -7,6 +7,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/types.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
