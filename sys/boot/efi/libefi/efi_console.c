@@ -69,17 +69,23 @@ int
 efi_cons_getchar()
 {
 	EFI_INPUT_KEY key;
+	EFI_STATUS status;
 	UINTN junk;
 
-	BS->WaitForEvent(1, &conin->WaitForKey, &junk);
-	conin->ReadKeyStroke(conin, &key);
-	return key.UnicodeChar;
+	/* Try to read a key stroke. We wait for one if none is pending. */
+	status = conin->ReadKeyStroke(conin, &key);
+	if (status == EFI_NOT_READY) {
+		BS->WaitForEvent(1, &conin->WaitForKey, &junk);
+		status = conin->ReadKeyStroke(conin, &key);
+	}
+	return (key.UnicodeChar);
 }
 
 int
 efi_cons_poll()
 {
-	return BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS;
+	/* This can clear the signaled state. */
+	return (BS->CheckEvent(conin->WaitForKey) == EFI_SUCCESS);
 }
 
 struct console efi_console = {
