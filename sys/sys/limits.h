@@ -72,22 +72,24 @@
 #define	LLONG_MIN	__LLONG_MIN	/* min for a long long */
 #endif
 
-#if !defined(_ANSI_SOURCE)
-#define	SSIZE_MAX	__SSIZE_MAX	/* max value for a ssize_t */
+#if __POSIX_VISIBLE || __XSI_VISIBLE
+#define	SSIZE_MAX	__SSIZE_MAX	/* max value for an ssize_t */
+#endif
 
-#if !defined(_POSIX_SOURCE) && !defined(_XOPEN_SOURCE)
+#if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE
 #define	SIZE_T_MAX	__SIZE_T_MAX	/* max value for a size_t */
 
-#define	OFF_MAX		__OFF_MAX	/* max value for a off_t */
-#define	OFF_MIN		__OFF_MIN	/* min value for a off_t */
+#define	OFF_MAX		__OFF_MAX	/* max value for an off_t */
+#define	OFF_MIN		__OFF_MIN	/* min value for an off_t */
+#endif
 
+#if __BSD_VISIBLE
 #define	UQUAD_MAX	(__UQUAD_MAX)	/* max value for a uquad_t */
 #define	QUAD_MAX	(__QUAD_MAX)	/* max value for a quad_t */
 #define	QUAD_MIN	(__QUAD_MIN)	/* min value for a quad_t */
-#endif /* !_POSIX_SOURCE && !_XOPEN_SOURCE */
-#endif /* !_ANSI_SOURCE */
+#endif
 
-#if defined(__BSD_VISIBLE) || defined(__XSI_VISIBLE)
+#if __XSI_VISIBLE
 #define	LONG_BIT	__LONG_BIT
 #define	WORD_BIT	__WORD_BIT
 #endif

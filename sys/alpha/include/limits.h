@@ -35,7 +35,7 @@
  * $FreeBSD$
  */
 
-#ifndef	_MACHINE_LIMITS_H_
+#ifndef _MACHINE_LIMITS_H_
 #define	_MACHINE_LIMITS_H_
 
 #if __GNUC__
