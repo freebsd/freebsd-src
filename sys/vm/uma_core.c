@@ -261,6 +261,13 @@ bucket_enable(void)
 		bucketdisable = 0;
 }
 
+/*
+ * Initialize bucket_zones, the array of zones of buckets of various sizes.
+ *
+ * For each zone, calculate the memory required for each bucket, consisting
+ * of the header and an array of pointers.  Initialize bucket_size[] to point
+ * the range of appropriate bucket sizes at the zone.
+ */
 static void
 bucket_init(void)
 {
@@ -281,12 +288,24 @@ bucket_init(void)
 	}
 }
 
+/*
+ * Given a desired number of entries for a bucket, return the zone from which
+ * to allocate the bucket.
+ */
+static struct uma_bucket_zone *
+bucket_zone_lookup(int entries)
+{
+	int idx;
+
+	idx = howmany(entries, 1 << BUCKET_SHIFT);
+	return (&bucket_zones[bucket_size[idx]]);
+}
+
 static uma_bucket_t
 bucket_alloc(int entries, int bflags)
 {
 	struct uma_bucket_zone *ubz;
 	uma_bucket_t bucket;
-	int idx;
 
 	/*
 	 * This is to stop us from allocating per cpu buckets while we're
@@ -294,11 +313,10 @@ bucket_alloc(int entries, int bflags)
 	 * boot pages.  This also prevents us from allocating buckets in
 	 * low memory situations.
 	 */
-
 	if (bucketdisable)
 		return (NULL);
-	idx = howmany(entries, 1 << BUCKET_SHIFT);
-	ubz = &bucket_zones[bucket_size[idx]];
+
+	ubz = bucket_zone_lookup(entries);
 	bucket = uma_zalloc_internal(ubz->ubz_zone, NULL, bflags);
 	if (bucket) {
 #ifdef INVARIANTS
@@ -315,10 +333,8 @@ static void
 bucket_free(uma_bucket_t bucket)
 {
 	struct uma_bucket_zone *ubz;
-	int idx;
 
-	idx = howmany(bucket->ub_entries, 1 << BUCKET_SHIFT);
-	ubz = &bucket_zones[bucket_size[idx]];
+	ubz = bucket_zone_lookup(bucket->ub_entries);
 	uma_zfree_internal(ubz->ubz_zone, bucket, NULL, SKIP_NONE);
 }
 
