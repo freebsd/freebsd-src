@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.26 1997/12/26 23:28:12 imp Exp $";
+	"$Id: mount_nfs.c,v 1.27 1998/02/01 21:53:19 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -104,6 +104,10 @@ static const char rcsid[] =
 #define ALTF_TCP	0x1000
 #define ALTF_PORT	0x2000
 #define ALTF_NFSV2	0x4000
+#define ALTF_ACREGMIN	0x8000
+#define ALTF_ACREGMAX	0x10000
+#define ALTF_ACDIRMIN	0x20000
+#define ALTF_ACDIRMAX	0x40000
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
@@ -129,6 +133,10 @@ struct mntopt mopts[] = {
 	{ "tcp", 0, ALTF_TCP, 1 },
 	{ "port=", 0, ALTF_PORT, 1 },
 	{ "nfsv2", 0, ALTF_NFSV2, 1 },
+	{ "acregmin=", 0, ALTF_ACREGMIN, 1 },
+	{ "acregmax=", 0, ALTF_ACREGMAX, 1 },
+	{ "acdirmin=", 0, ALTF_ACDIRMIN, 1 },
+	{ "acdirmax=", 0, ALTF_ACDIRMAX, 1 },
 	{ NULL }
 };
 
@@ -151,6 +159,11 @@ struct nfs_args nfsdefargs = {
 	NQ_DEFLEASE,
 	NQ_DEADTHRESH,
 	(char *)0,
+	/* args version 4 */
+	NFS_MINATTRTIMO,
+	NFS_MAXATTRTIMO,
+	NFS_MINDIRATTRTIMO,
+	NFS_MAXDIRATTRTIMO,
 };
 
 struct nfhret {
@@ -374,6 +387,18 @@ main(argc, argv)
 				mountmode = V2;
 			if(altflags & ALTF_NFSV3)
 				mountmode = V3;
+			if(altflags & ALTF_ACREGMIN)
+				nfsargsp->acregmin = atoi(strstr(optarg,
+				    "acregmin=") + 9);
+			if(altflags & ALTF_ACREGMAX)
+				nfsargsp->acregmax = atoi(strstr(optarg,
+				    "acregmax=") + 9);
+			if(altflags & ALTF_ACDIRMIN)
+				nfsargsp->acdirmin = atoi(strstr(optarg,
+				    "acdirmin=") + 9);
+			if(altflags & ALTF_ACDIRMAX)
+				nfsargsp->acdirmax = atoi(strstr(optarg,
+				    "acdirmax=") + 9);
 			break;
 		case 'P':
 			/* obsolete for NFSMNT_RESVPORT, now default */

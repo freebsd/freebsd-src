@@ -31,7 +31,7 @@
 .\"
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\"
-.\" $Id: mount_nfs.8,v 1.10 1997/10/19 16:39:59 joerg Exp $
+.\" $Id: mount_nfs.8,v 1.11 1998/05/01 13:52:17 peter Exp $
 .\""
 .Dd March 29, 1995
 .Dt MOUNT_NFS 8
@@ -187,6 +187,17 @@ The following NFS specific option is also available:
 .It port=<port_number>
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
+.It acregmin=<seconds>
+.It acregmax=<seconds>
+.It acdirmin=<seconds>
+.It acdirmax=<seconds>
+When attributes of files are cached, a timeout caclulated to determine
+whether a given cache entry has expired.  These four values determine the
+upper and lower bounds of the timeouts for ``directory'' attributes and
+``regular'' (ie: everything else).  The default values are 3 -> 60 seconds
+for regular files, and 30 -> 60 seconds for directories.  The algorithm to
+calculate the timeout is based on the age of the file.  The older the file,
+the longer the cache is considered valid, subject to the limits above.
 .El
 .Pp
 .Bl -tag -width "dumbtimerXX"
