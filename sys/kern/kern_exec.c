@@ -98,12 +98,6 @@ SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW,
 int ps_argsopen = 1;
 SYSCTL_INT(_kern, OID_AUTO, ps_argsopen, CTLFLAG_RW, &ps_argsopen, 0, "");
 
-#ifdef __ia64__
-/* XXX HACK */
-static int regstkpages = 256;
-SYSCTL_INT(_machdep, OID_AUTO, regstkpages, CTLFLAG_RW, &regstkpages, 0, "");
-#endif
-
 static int
 sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
 {
