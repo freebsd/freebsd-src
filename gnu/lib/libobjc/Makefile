@@ -14,7 +14,7 @@ SRCS=   archive.c class.c encoding.c gc.c hash.c init.c misc.c \
 	thr.c thr-single.c \
 	NXConstStr.m Object.m Protocol.m linking.m
 
-HDRS=	encoding.h hash.h objc-act.h objc-api.h objc-list.h objc.h runtime.h \
+HDRS=	encoding.h hash.h objc-api.h objc-list.h objc.h runtime.h \
 	sarray.h thr.h typedstream.h NXConstStr.h Object.h Protocol.h
 
 CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} -I.
