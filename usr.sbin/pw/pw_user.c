@@ -468,7 +468,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			gid_t newgid = (gid_t) GETGRNAM(cnf->default_group)->gr_gid;
 			if (newgid != pwd->pw_gid) {
 				edited = 1;
-				pwd->pw_gid = pwd->pw_gid;
+				pwd->pw_gid = newgid;
 			}
 		}
 
