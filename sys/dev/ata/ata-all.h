@@ -345,7 +345,7 @@ struct atapi_sense {
 /* externs */
 extern devclass_t ata_devclass;
 extern struct intr_config_hook *ata_delayed_attach;
-extern int ata_dma, ata_wc, atapi_dma;
+extern int ata_wc;
  
 /* public prototypes */
 /* ata-all.c: */
