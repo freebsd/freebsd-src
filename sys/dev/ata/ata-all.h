@@ -345,6 +345,7 @@ int ata_wait(struct ata_softc *, int, u_int8_t);
 int ata_command(struct ata_softc *, int, u_int8_t, u_int16_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t, int);
 int ata_printf(struct ata_softc *, int, const char *, ...) __printflike(3, 4);
 int ata_get_lun(u_int32_t *);
+int ata_test_lun(u_int32_t *, int);
 void ata_free_lun(u_int32_t *, int);
 char *ata_mode2str(int);
 int ata_pio2mode(int);
