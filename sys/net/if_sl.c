@@ -198,10 +198,11 @@ sl_modevent(module_t mod, int type, void *data)
 { 
 	switch (type) { 
 	case MOD_LOAD: 
-		linesw[SLIPDISC] = slipdisc;
+		ldisc_register(SLIPDISC, &slipdisc);
 		LIST_INIT(&sl_list);
 		break; 
 	case MOD_UNLOAD: 
+		ldisc_deregister(SLIPDISC);
 		printf("if_sl module unload - not possible for this module type\n"); 
 		return EINVAL; 
 	} 
