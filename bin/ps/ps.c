@@ -193,7 +193,7 @@ main(int argc, char *argv[])
 			prtheader = ws.ws_row > 5 ? ws.ws_row : 22;
 			break;
 		case 'j':
-			parsefmt(jfmt);
+			parsefmt(jfmt, 0);
 			_fmt = 1;
 			jfmt[0] = '\0';
 			break;
@@ -201,7 +201,7 @@ main(int argc, char *argv[])
 			showkey();
 			exit(0);
 		case 'l':
-			parsefmt(lfmt);
+			parsefmt(lfmt, 0);
 			_fmt = 1;
 			lfmt[0] = '\0';
 			break;
@@ -217,14 +217,14 @@ main(int argc, char *argv[])
 			dropgid = 1;
 			break;
 		case 'O':
-			parsefmt(o1);
-			parsefmt(optarg);
-			parsefmt(o2);
+			parsefmt(o1, 1);
+			parsefmt(optarg, 1);
+			parsefmt(o2, 1);
 			o1[0] = o2[0] = '\0';
 			_fmt = 1;
 			break;
 		case 'o':
-			parsefmt(optarg);
+			parsefmt(optarg, 1);
 			_fmt = 1;
 			break;
 #if defined(LAZY_PS)
@@ -270,13 +270,13 @@ main(int argc, char *argv[])
 			xflg++;		/* XXX: intuitive? */
 			break;
 		case 'u':
-			parsefmt(ufmt);
+			parsefmt(ufmt, 0);
 			sortby = SORTCPU;
 			_fmt = 1;
 			ufmt[0] = '\0';
 			break;
 		case 'v':
-			parsefmt(vfmt);
+			parsefmt(vfmt, 0);
 			sortby = SORTMEM;
 			_fmt = 1;
 			vfmt[0] = '\0';
@@ -292,7 +292,7 @@ main(int argc, char *argv[])
 			xflg = 1;
 			break;
 		case 'Z':
-			parsefmt(Zfmt);
+			parsefmt(Zfmt, 0);
 			Zfmt[0] = '\0';
 			break;
 		case '?':
@@ -325,7 +325,7 @@ main(int argc, char *argv[])
 		errx(1, "%s", errbuf);
 
 	if (!_fmt)
-		parsefmt(dfmt);
+		parsefmt(dfmt, 0);
 
 	/* XXX - should be cleaner */
 	if (!all && ttydev == NODEV && pid == -1 && !nuids) {
@@ -454,6 +454,18 @@ getuids(const char *arg, int *nuids)
 		errx(1, "No users specified");
 
 	return uids;
+}
+
+VARENT *
+find_varentry(VAR *v)
+{
+	struct varent *vent;
+
+	for (vent = vhead; vent; vent = vent->next) {
+		if (strcmp(vent->var->name, v->name) == 0)
+			return vent;
+	}
+	return NULL;
 }
 
 static void
