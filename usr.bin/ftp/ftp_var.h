@@ -76,6 +76,7 @@ int	trace;			/* trace packets exchanged */
 int	hash;			/* print # for each buffer transferred */
 int	mark;			/* number of bytes between hashes */
 int	sendport;		/* use PORT cmd for each data connection */
+int	epsv4;			/* use EPSV/EPRT cmds on IPv4 ftp */
 int	verbose;		/* print messages coming back from server */
 int	connected;		/* 1 = connected to server, -1 = logged in */
 int	fromatty;		/* input is from a terminal */

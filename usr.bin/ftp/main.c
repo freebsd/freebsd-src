@@ -99,6 +99,8 @@ main(argc, argv)
 	interactive = 1;
 	autologin = 1;
 	passivemode = 0;
+	epsv4 = 1;
+	try_epsv = epsv4;	/* so status w/o connection isn't bogus */
 	restricted_data_ports = 1;
 	preserve = 1;
 	verbose = 0;

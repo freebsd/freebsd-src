@@ -684,6 +684,8 @@ status(argc, argv)
 	printf("Hash mark printing: %s; Mark count: %d; Progress bar: %s.\n",
 	    onoff(hash), mark, onoff(progress));
 	printf("Use of PORT cmds: %s.\n", onoff(sendport));
+	printf("Use of EPSV/EPRT cmds for IPv4: %s%s.\n", onoff(epsv4),
+	    (!try_epsv && epsv4) ? " (but disabled for this connection)" : "");
 #ifndef SMALL
 	printf("Command line editing: %s.\n", onoff(editing));
 #endif /* !SMALL */
@@ -1953,6 +1955,16 @@ setpassive(argc, argv)
 
 	code = togglevar(argc, argv, &passivemode,
 	    verbose ? "Passive mode" : NULL);
+}
+
+void
+setepsv4(argc, argv)
+	int argc;
+	char *argv[];
+{
+	code = togglevar(argc, argv, &epsv4,
+	    verbose ? "Use of EPSV/EPRT on IPv4 ftp" : NULL);
+	try_epsv = epsv4;
 }
 
 void

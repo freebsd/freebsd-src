@@ -131,6 +131,7 @@ void	setcase __P((int, char **));
 void	setcr __P((int, char **));
 void	setdebug __P((int, char **));
 void	setedit __P((int, char **));
+void	setepsv4 __P((int, char **));
 void	setform __P((int, char **));
 void	setftmode __P((int, char **));
 void	setgate __P((int, char **));
