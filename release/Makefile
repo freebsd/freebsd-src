@@ -909,7 +909,7 @@ iso.1:
 	@echo "Creating ISO images..."
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    fbsd_miniinst \
-	    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
+	    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    fbsd_livefs \
 	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}
