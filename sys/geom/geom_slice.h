@@ -60,14 +60,14 @@ struct g_slicer {
 };
 
 g_dumpconf_t g_slice_dumpconf;
-struct g_provider * g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, u_int sectorsize, char *fmt, ...);
-int g_slice_config(struct g_geom *gp, u_int index, int how, off_t offset, off_t length, u_int sectorsize, char *fmt, ...);
+struct g_provider * g_slice_addslice(struct g_geom *gp, int idx, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...);
+int g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...);
 #define G_SLICE_CONFIG_CHECK	0
 #define G_SLICE_CONFIG_SET	1
 #define G_SLICE_CONFIG_FORCE	2
 struct g_geom * g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start);
 
-int g_slice_conf_hot(struct g_geom *gp, u_int index, off_t offset, off_t length);
+int g_slice_conf_hot(struct g_geom *gp, u_int idx, off_t offset, off_t length);
 void g_slice_finish_hot(struct bio *bp);
 
 #endif /* _GEOM_GEOM_SLICE_H_ */

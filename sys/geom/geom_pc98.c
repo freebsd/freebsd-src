@@ -57,7 +57,7 @@
 static void
 g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 {
-	int i;
+	u_int u;
 
 	d->dp_mid = ptr[0];
 	d->dp_sid = ptr[1];
@@ -72,8 +72,8 @@ g_dec_dos_partition(u_char *ptr, struct dos_partition *d)
 	d->dp_esect = ptr[12];
 	d->dp_ehd = ptr[13];
 	d->dp_ecyl = g_dec_le2(ptr + 14);
-	for (i = 0; i < sizeof(d->dp_name); i++)
-		d->dp_name[i] = ptr[16 + i];
+	for (u = 0; u < sizeof(d->dp_name); u++)
+		d->dp_name[u] = ptr[16 + u];
 }
 
 struct g_pc98_softc {
@@ -88,25 +88,25 @@ g_pc98_start(struct bio *bp)
 	struct g_geom *gp;
 	struct g_pc98_softc *mp;
 	struct g_slicer *gsp;
-	int index;
+	int idx;
 
 	pp = bp->bio_to;
-	index = pp->index;
+	idx = pp->index;
 	gp = pp->geom;
 	gsp = gp->softc;
 	mp = gsp->softc;
 	if (bp->bio_cmd == BIO_GETATTR) {
-		if (g_handleattr_int(bp, "PC98::type", mp->type[index]))
+		if (g_handleattr_int(bp, "PC98::type", mp->type[idx]))
 			return (1);
 		if (g_handleattr_off_t(bp, "PC98::offset",
-				       gsp->slices[index].offset))
+				       gsp->slices[idx].offset))
 			return (1);
 	}
 	return (0);
 }
 
 static void
-g_pc98_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp,
+g_pc98_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		struct g_consumer *cp __unused, struct g_provider *pp)
 {
 	struct g_pc98_softc *mp;
