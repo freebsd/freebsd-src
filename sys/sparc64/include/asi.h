@@ -63,6 +63,7 @@
 
 #define	ASI_INTR_DISPATCH_STATUS		0x48
 #define	ASI_INTR_RECEIVE			0x49
+#define	ASI_UPA_CONFIG_REG			0x4a
 
 #define	ASI_IMMU_TAG_TARGET_REG			0x50
 #define	ASI_IMMU				0x50
@@ -116,6 +117,7 @@
 #define		AA_SDB_INTR_D0			0x40
 #define		AA_SDB_INTR_D1			0x50
 #define		AA_SDB_INTR_D2			0x60
+#define		AA_INTR_SEND			0x70
 
 #define	ASI_BLK_AIUPL				0x78
 #define	ASI_BLK_AIUSL				0x79
