@@ -94,6 +94,7 @@ soalloc(waitok)
 		bzero(so, sizeof *so);
 		so->so_gencnt = ++so_gencnt;
 		so->so_zone = socket_zone;
+		TAILQ_INIT(&so->so_aiojobq);
 	}
 	return so;
 }
