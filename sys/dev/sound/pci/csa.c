@@ -360,15 +360,6 @@ csa_detach(device_t dev)
 	return bus_generic_detach(dev);
 }
 
-static int
-csa_resume(device_t dev)
-{
-	csa_detach(dev);
-	csa_attach(dev);
-
-	return 0;
-}
-
 static struct resource *
 csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		      u_long start, u_long end, u_long count, u_int flags)
@@ -1032,7 +1023,7 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_detach,	csa_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	csa_resume),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
