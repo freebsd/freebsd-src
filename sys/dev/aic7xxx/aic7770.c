@@ -37,17 +37,16 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#32 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic7770.c#34 $
  */
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #ifdef __linux__
 #include "aic7xxx_osm.h"
 #include "aic7xxx_inline.h"
 #include "aic7xxx_93cx6.h"
 #else
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include <dev/aic7xxx/aic7xxx_osm.h>
 #include <dev/aic7xxx/aic7xxx_inline.h>
 #include <dev/aic7xxx/aic7xxx_93cx6.h>
@@ -176,7 +175,7 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 	case 15:
 		break;
 	default:
-		printf("aic7770_config: illegal irq setting %d\n", intdef);
+		printf("aic7770_config: invalid irq setting %d\n", intdef);
 		return (ENXIO);
 	}
 
