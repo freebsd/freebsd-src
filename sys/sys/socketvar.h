@@ -62,10 +62,10 @@ struct socket {
  * Variables for connection queuing.
  * Socket where accepts occur is so_head in all subsidiary sockets.
  * If so_head is 0, socket is not related to an accept.
- * For head socket so_q0 queues partially completed connections,
- * while so_q is a queue of connections ready to be accepted.
+ * For head socket so_incomp queues partially completed connections,
+ * while so_comp is a queue of connections ready to be accepted.
  * If a connection is aborted and it has so_head set, then
- * it has to be pulled out of either so_q0 or so_q.
+ * it has to be pulled out of either so_incomp or so_comp.
  * We allow connections to queue up based on current queue lengths
  * and limit on number of queued connections for this socket.
  */
@@ -114,10 +114,10 @@ struct socket {
 	/* NB: generation count must not be first; easiest to make it last. */
 	so_gen_t so_gencnt;		/* generation count */
 	void	*so_emuldata;		/* private data for emulators */
-	struct  so_accf { 
-		struct  accept_filter *so_accept_filter;
-		void    *so_accept_filter_arg;  /* saved filter args */
-		char    *so_accept_filter_str;  /* saved user args */
+	struct	so_accf { 
+		struct	accept_filter *so_accept_filter;
+		void	*so_accept_filter_arg;	/* saved filter args */
+		char	*so_accept_filter_str;	/* saved user args */
 	} *so_accf;
 };
 
@@ -285,7 +285,7 @@ struct accept_filter {
 		__P((struct socket *so, char *arg));
 	void	(*accf_destroy)
 		__P((struct socket *so));
-	SLIST_ENTRY(accept_filter) accf_next;   /* next on the list */
+	SLIST_ENTRY(accept_filter) accf_next;	/* next on the list */
 };
 
 #ifdef MALLOC_DECLARE
