@@ -11,11 +11,13 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.h,v 1.1 1997/05/09 17:46:45 archie Exp $
+ *	$Id: ip_fw.h,v 1.27 1997/06/02 05:02:36 julian Exp $
  */
 
 #ifndef _IP_FW_H
 #define _IP_FW_H
+
+#include <net/if.h>
 
 /*
  * This union structure identifies an interface, either explicitly
@@ -33,7 +35,7 @@
 union ip_fw_if {
     struct in_addr fu_via_ip;	/* Specified by IP address */
     struct {			/* Specified by interface name */
-#define FW_IFNLEN	6	/* To keep structure on 2^x boundary */
+#define FW_IFNLEN     IFNAMSIZ
 	    char  name[FW_IFNLEN];
 	    short unit;		/* -1 means match any unit */
     } fu_via_if;
@@ -58,7 +60,7 @@ struct ip_fw {
     u_short fw_pts[IP_FW_MAX_PORTS];	/* Array of port numbers to match */
     u_char fw_ipopt,fw_ipnopt;		/* IP options set/unset */
     u_char fw_tcpf,fw_tcpnf;		/* TCP flags set/unset */
-#define IP_FW_ICMPTYPES_DIM (256 / (sizeof(unsigned) * 8))
+#define IP_FW_ICMPTYPES_DIM (32 / (sizeof(unsigned) * 8))
     unsigned fw_icmptypes[IP_FW_ICMPTYPES_DIM]; /* ICMP types bitmap */
     long timestamp;			/* timestamp (tv_sec) of last match */
     union ip_fw_if fw_in_if, fw_out_if;	/* Incoming and outgoing interfaces */
