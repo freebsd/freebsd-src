@@ -122,7 +122,9 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			_thread_critical_exit(curthread);
 			THREAD_LIST_UNLOCK;
 			DEAD_LIST_UNLOCK;
-			_thread_suspend(curthread, NULL);
+			ret = _thread_suspend(curthread, NULL);
+			if (ret != 0 && ret != EAGAIN && ret != EINTR)
+				PANIC("Unable to suspend in join.");
 
 			/*
 			 * XXX - For correctness reasons.

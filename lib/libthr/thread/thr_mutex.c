@@ -1396,6 +1396,8 @@ get_muncontested(pthread_mutex_t mutexp, int nonblock)
 static void
 get_mcontested(pthread_mutex_t mutexp)
 {
+	int error;
+
 	_thread_critical_enter(curthread);
 
 	/*
@@ -1410,7 +1412,9 @@ get_mcontested(pthread_mutex_t mutexp)
 		curthread->data.mutex = mutexp;
 		_thread_critical_exit(curthread);
 		_SPINUNLOCK(&mutexp->lock);
-		_thread_suspend(curthread, NULL);
+		error = _thread_suspend(curthread, NULL);
+		if (error != 0 && error != EAGAIN && error != EINTR)
+			PANIC("Cannot suspend on mutex.");
 
 		_SPINLOCK(&mutexp->lock);
 		_thread_critical_enter(curthread);
