@@ -1040,6 +1040,10 @@ psmprobe(device_t dev)
 	/*
 	 * NOTE: some controllers appears to hang the `keyboard' when the aux
 	 * port doesn't exist and `PSMC_RESET_DEV' is issued.
+	 *
+	 * Attempt to reset the controller twice -- this helps
+	 * pierce through some KVM switches. The second reset
+	 * is non-fatal.
 	 */
 	if (!reset_aux_dev(sc->kbdc)) {
             recover_from_error(sc->kbdc);
@@ -1047,6 +1051,11 @@ psmprobe(device_t dev)
             if (verbose)
         	printf("psm%d: failed to reset the aux device.\n", unit);
             endprobe(ENXIO);
+	} else if (!reset_aux_dev(sc->kbdc)) {
+	    recover_from_error(sc->kbdc);
+	    if (verbose >= 2)
+        	printf("psm%d: failed to reset the aux device (2).\n",
+        	    unit);
 	}
     }
 
