@@ -1248,7 +1248,6 @@ fildesc_drvinit(void *unused)
 {
 	int fd;
 
-	cdevsw_add(&fildesc_cdevsw);
 	for (fd = 0; fd < NUMFDESC; fd++)
 		make_dev(&fildesc_cdevsw, fd,
 		    UID_BIN, GID_BIN, 0666, "fd/%d", fd);
