@@ -57,7 +57,7 @@ template i386_optab[] = {
 {"push", 1, 0x50, _, ShortForm, WordReg,0,0 },
 {"push", 1, 0xff, 0x6,  Modrm, WordReg|WordMem, 0, 0 },
 {"push", 1, 0x6a, _, NoModrm, Imm8S, 0, 0},
-{"push", 1, 0x68, _, NoModrm, Imm32, 0, 0},
+{"push", 1, 0x68, _, NoModrm, Imm16|Imm32, 0, 0},
 {"push", 1, 0x06, _,  Seg2ShortForm, SReg2,0,0 },
 {"push", 1, 0x0fa0, _, Seg3ShortForm, SReg3,0,0 },
 /* push all */
