@@ -60,6 +60,7 @@
 #define	_PATH_ETC	"/etc"
 #define	_PATH_FTPUSERS	"/etc/ftpusers"
 #define	_PATH_KMEM	"/dev/kmem"
+#define	_PATH_LIBMAP_CONF	"/etc/libmap.conf"
 #define	_PATH_LOGIN	"/usr/bin/login"
 #define	_PATH_MAILDIR	"/var/mail"
 #define	_PATH_MAN	"/usr/share/man"
