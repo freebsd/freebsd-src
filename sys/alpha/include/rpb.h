@@ -73,6 +73,7 @@ struct rpb {
 #define	ST_EB164		26		/* EB164 (PCI/ISA) */
 #define	ST_DEC_1000A		27		/* "Noritake" (?) */
 #define	ST_DEC_ALPHAVME_224	28		/* "Cortex" (?) */
+#define	ST_DEC_550		30		/* "Miata" (PCI/ISA) */
 #define	ST_DEC_EV56_PBP		32		/* "Takara" (?) */
 #define	ST_DEC_ALPHAVME_320	33		/* "Yukon" (VME?) */
 
@@ -201,6 +202,9 @@ struct rpb {
 	vm_offset_t	rpb_dsrdb_off;		/* 138: HWRPB + DSRDB offset */
 	u_int64_t	rpb_tbhint[8];		/* 149: TB hint block */
 };
+
+#define	LOCATE_PCS(h,cpunumber) ((struct pcs *)	\
+	((char *)(h) + (h)->rpb_pcs_off + ((cpunumber) * (h)->rpb_pcs_size)))
 
 /*
  * PCS: Per-CPU information.
