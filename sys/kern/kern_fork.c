@@ -681,17 +681,21 @@ again:
 	EVENTHANDLER_INVOKE(process_fork, p1, p2, flags);
 
 	/*
+	 * Set the child start time and mark the process as being complete.
+	 */
+	microuptime(&p2->p_stats->p_start);
+	mtx_lock_spin(&sched_lock);
+	p2->p_state = PRS_NORMAL;
+
+	/*
 	 * If RFSTOPPED not requested, make child runnable and add to
 	 * run queue.
 	 */
-	microuptime(&p2->p_stats->p_start);
 	if ((flags & RFSTOPPED) == 0) {
-		mtx_lock_spin(&sched_lock);
-		p2->p_state = PRS_NORMAL;
 		TD_SET_CAN_RUN(td2);
 		setrunqueue(td2);
-		mtx_unlock_spin(&sched_lock);
 	}
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * Now can be swapped.
@@ -776,7 +780,7 @@ fork_exit(callout, arg, frame)
 	td = curthread;
 	p = td->td_proc;
 	td->td_oncpu = PCPU_GET(cpuid);
-	p->p_state = PRS_NORMAL;
+	KASSERT(p->p_state == PRS_NORMAL, ("executing process is still new"));
 
 	/*
 	 * Finish setting up thread glue so that it begins execution in a
