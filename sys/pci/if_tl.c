@@ -1161,12 +1161,6 @@ tl_attach(dev)
 		    0, ~0, 1, RF_ACTIVE);
 	}
 #else
-	if (!(command & PCIM_CMD_MEMEN)) {
-		device_printf(dev, "failed to enable memory mapping!\n");
-		error = ENXIO;
-		goto fail;
-	}
-
 	rid = TL_PCI_LOMEM;
 	sc->tl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	    0, ~0, 1, RF_ACTIVE);
@@ -2110,6 +2104,8 @@ tl_init(xsc)
 			mii = device_get_softc(sc->tl_miibus);
 			mii_mediachg(mii);
 		}
+	} else {
+		tl_ifmedia_upd(ifp);
 	}
 
 	/* Send the RX go command */
