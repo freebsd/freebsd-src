@@ -14,10 +14,10 @@ MLINKS=	rc.8 rc.serial.8 rc.8 rc.pccard.8 rc.8 rc.network.8 \
 
 # XXX NOT IMPORTED:	man8.hp300 man8.tahoe man8.vax
 .if ${MACHINE_ARCH} == "i386"
-MLINKS+=	rc.8 rc.i386.8
+MLINKS+=	rc.8 i386/rc.i386.8
 SUBDIR=	man8.i386
 .elif ${MACHINE_ARCH} == "alpha"
-MLINKS+=	rc.8 rc.alpha.8
+MLINKS+=	rc.8 alpha/rc.alpha.8
 SUBDIR=	man8.alpha
 .endif
 
