@@ -483,6 +483,7 @@ static void
 run(char **argv)
 {
 	pid_t pid;
+	int fd;
 	char **avec;
 
 	/*
@@ -521,13 +522,16 @@ exec:
 	case -1:
 		err(1, "vfork");
 	case 0:
-		close(0);
 		if (oflag) {
-			if (open("/dev/tty", O_RDONLY) == -1)
-				err(1, "open /dev/tty");
+			if ((fd = open(_PATH_TTY, O_RDONLY)) == -1)
+				err(1, "can't open /dev/tty");
 		} else {
-			if (open("/dev/null", O_RDONLY) == -1)
-				err(1, "open /dev/null");
+			fd = open(_PATH_DEVNULL, O_RDONLY);
+		}
+		if (fd > STDIN_FILENO) {
+			if (dup2(fd, STDIN_FILENO) != 0)
+				err(1, "can't dup2 to stdin");
+			close(fd);
 		}
 		execvp(argv[0], argv);
 		childerr = errno;
