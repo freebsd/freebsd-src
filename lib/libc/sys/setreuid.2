@@ -56,6 +56,11 @@ Unprivileged users may change the real user
 ID to the effective user ID and vice-versa; only the super-user may
 make other changes.
 .Pp
+If the real user ID is changed (i.e.
+.Fa ruid
+is not -1) or the effective user ID is changed to something other than
+the real user ID, then the saved user ID will be set to the effective user ID.
+.Pp
 The
 .Fn setreuid
 function has been used to swap the real and effective user IDs
