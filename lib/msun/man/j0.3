@@ -32,7 +32,7 @@
 .\"     from: @(#)j0.3	6.7 (Berkeley) 4/19/91
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1991
+.Dd January 14, 2005
 .Dt J0 3
 .Os
 .Sh NAME
@@ -134,22 +134,6 @@ value
 .Sh RETURN VALUES
 If these functions are successful,
 the computed value is returned.
-On the
-.Tn VAX
-and
-.Tn Tahoe
-architectures,
-for the Bessel functions of the second kind,
-a negative
-or zero
-.Fa x
-value
-results in an error; the global
-variable
-.Va errno
-is set to
-.Er EDOM
-and a reserve operand fault is generated.
 .Sh SEE ALSO
 .Xr math 3
 .Sh HISTORY
