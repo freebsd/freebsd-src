@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.38 1994/10/23 21:27:04 wollman Exp $
+ *      $Id: aha1542.c,v 1.39 1995/01/08 13:41:28 dufault Exp $
  */
 
 /*
@@ -196,21 +196,6 @@ struct aha_ccb {
 #define AHA_INIT_RESID_CCB	0x03	/* SCSI Initiator CCB */
 #define AHA_INIT_SG_RESID_CCB	0x04	/* SCSI initiator with scatter gather */
 
-/* Which CCBs to use.  If you use the "RESID" ones then the
- * host adapter will return the DATA OVER/UNDERRUN condition
- * on short reads and writes.
- *
- * This apparently FAILS on old 1542s.  Perhaps we can auto configure
- * it somehow using an inquiry for a long string?
- */
-#if 1
-#define INITIATOR_CCB       AHA_INIT_RESID_CCB
-#define INIT_SCAT_GATH_CCB  AHA_INIT_SG_RESID_CCB
-#else
-#define INITIATOR_CCB       AHA_INITIATOR_CCB
-#define INIT_SCAT_GATH_CCB  AHA_INIT_SCAT_GATH_CCB
-#endif
-
 /*
  * aha_ccb.host_stat values
  */
@@ -257,15 +242,15 @@ struct aha_config {
 struct	aha_inquire
 {
 	u_char	boardid;		/* type of board */
-					/* 0x20 = BusLogic 545, but it gets
+					/* 0x20 (' ') = BusLogic 545, but it gets
 					   the command wrong, only returns
 					   one byte */
-					/* 0x31 = AHA-1540 */
-					/* 0x41 = AHA-1540A/1542A/1542B */
-					/* 0x42 = AHA-1640 */
-					/* 0x43 = AHA-1542C */
-					/* 0x44 = AHA-1542CF */
-					/* 0x45 = AHA-1542CF, BIOS v2.01 */
+					/* 0x31 ('1') = AHA-1540 */
+					/* 0x41 ('A') = AHA-1540A/1542A/1542B */
+					/* 0x42 ('B') = AHA-1640 */
+					/* 0x43 ('C') = AHA-1542C */
+					/* 0x44 ('D') = AHA-1542CF */
+					/* 0x45 ('E') = AHA-1542CF, BIOS v2.01 */
 	u_char	spec_opts;		/* special options ID */
 					/* 0x41 = Board is standard model */
 	u_char	revision_1;		/* firmware revision [0-9A-Z] */
@@ -319,6 +304,12 @@ struct aha_data {
 	int     aha_int;	/* irq level        */
 	int     aha_dma;	/* DMA req channel  */
 	int     aha_scsi_dev;	/* scsi bus address  */
+
+	/* We use different op codes for different revs of the board
+	 * if we think residual codes will work.
+	 */
+	short	init_opcode;	/* Command to use for initiator */
+	short	sg_opcode;	/* Command to use for scatter/gather */
 	struct scsi_link sc_link;	/* prototype for subdevs */
 } *ahadata[NAHA];
 
@@ -907,6 +898,13 @@ aha_init(unit)
 	struct	aha_inquire inquire;
 	struct	aha_extbios extbios;
 
+	/* Assume that residual codes don't work.  If they
+	 * do we enable that after we figure out what kind of
+	 * board it is.
+	 */
+	aha->init_opcode = AHA_INITIATOR_CCB;
+	aha->sg_opcode = AHA_INIT_SCAT_GATH_CCB;
+
 	/*
 	 * reset board, If it doesn't respond, assume 
 	 * that it's not there.. good for the probe
@@ -984,13 +982,24 @@ aha_init(unit)
 	if ((inquire.boardid == 0x43) || (inquire.boardid == 0x44) ||
 		(inquire.boardid == 0x45) || (inquire.boardid == 0x41
 		&& inquire.revision_1 == 0x31 && inquire.revision_2 == 0x34)) {
+		static char *revs[] =
+		{"154xB-3.2", "1640", "154xC", "154xCF", "154xCF-2.01"};
 		aha_cmd(unit, 0, sizeof(extbios), 0, &extbios, AHA_EXT_BIOS);
 #ifdef	AHADEBUG
 		printf("aha%d: extended bios flags %x\n", unit, extbios.flags);
 #endif	/* AHADEBUG */
-		printf("aha%d: 1542C/CF detected, unlocking mailbox\n", unit);
+
+		/* Say exactly what we think this is in case we ever get rev
+		 * dependent problems:
+		 */
+		printf("aha%d is a %s-V%c.%c: enabling mailbox and residuals\n",
+		unit, revs[inquire.boardid - 0x41], inquire.revision_1,
+		inquire.revision_2);
 		aha_cmd(unit, 2, 0, 0, 0, AHA_MBX_ENABLE,
 			0, extbios.mailboxlock);
+
+		aha->init_opcode = AHA_INIT_RESID_CCB;
+		aha->sg_opcode = AHA_INIT_SG_RESID_CCB;
 	}
 
 	/*
@@ -1164,8 +1173,8 @@ aha_scsi_cmd(xs)
 	} else {
 		/* can't use S/G if zero length */
 		ccb->opcode = (xs->datalen ?
-		    INIT_SCAT_GATH_CCB
-		    : INITIATOR_CCB);
+		    ahadata[unit]->sg_opcode
+		    : ahadata[unit]->init_opcode);
 	}
 	ccb->target = sc_link->target;
 	ccb->data_out = 0;
