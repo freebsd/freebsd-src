@@ -9,13 +9,18 @@
 ** FICL_ROBUST is enabled. This may require some consideration
 ** in firmware systems since assert often
 ** assumes stderr/stdout.  
-** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
+** $Id: sysdep.h,v 1.11 2001/12/05 07:21:34 jsadler Exp $
 *******************************************************************/
 /*
 ** Copyright (c) 1997-2001 John Sadler (john_sadler@alum.mit.edu)
 ** All rights reserved.
 **
 ** Get the latest Ficl release at http://ficl.sourceforge.net
+**
+** I am interested in hearing from anyone who uses ficl. If you have
+** a problem, a success story, a defect, an enhancement request, or
+** if you would like to contribute to the ficl release, please
+** contact me by email at the address above.
 **
 ** L I C E N S E  and  D I S C L A I M E R
 ** 
@@ -39,11 +44,6 @@
 ** LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 ** OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 ** SUCH DAMAGE.
-**
-** I am interested in hearing from anyone who uses ficl. If you have
-** a problem, a success story, a defect, an enhancement request, or
-** if you would like to contribute to the ficl release, please send
-** contact me by email at the address above.
 **
 ** $Id: sysdep.h,v 1.6 2001-04-26 21:41:55-07 jsadler Exp jsadler $
 */
@@ -74,7 +74,6 @@
 #if !defined FALSE
 #define FALSE 0
 #endif
-
 
 /*
 ** System dependent data type declarations...
@@ -162,6 +161,7 @@ typedef struct
 #endif
 #if (FICL_MINIMAL)
 #define FICL_WANT_SOFTWORDS  0
+#define FICL_WANT_FILE       0
 #define FICL_WANT_FLOAT      0
 #define FICL_WANT_USER       0
 #define FICL_WANT_LOCALS     0
@@ -181,6 +181,17 @@ typedef struct
 #define FICL_PLATFORM_EXTEND 1
 #endif
 
+
+/*
+** FICL_WANT_FILE
+** Includes the FILE and FILE-EXT wordset and associated code. Turn this off if you do not
+** have a file system!
+** Contributed by Larry Hastings
+*/
+#if !defined (FICL_WANT_FILE)
+#define FICL_WANT_FILE 0
+#endif
+
 /*
 ** FICL_WANT_FLOAT
 ** Includes a floating point stack for the VM, and words to do float operations.
@@ -196,6 +207,14 @@ typedef struct
 */
 #if !defined (FICL_WANT_DEBUGGER)
 #define FICL_WANT_DEBUGGER 1
+#endif
+
+/*
+** FICL_EXTENDED_PREFIX enables a bunch of extra prefixes in prefix.c and prefix.fr (if
+** included as part of softcore.c)
+*/
+#if !defined FICL_EXTENDED_PREFIX
+#define FICL_EXTENDED_PREFIX 0
 #endif
 
 /*
@@ -341,14 +360,6 @@ typedef struct
 #endif
 
 /*
-** FICL_EXTENDED_PREFIX enables a bunch of extra prefixes in prefix.c and prefix.fr (if
-** included as part of softcore.c)
-*/
-#if !defined FICL_EXTENDED_PREFIX
-#define FICL_EXTENDED_PREFIX 0
-#endif
-
-/*
 ** FICL_ALIGN is the power of two to which the dictionary
 ** pointer address must be aligned. This value is usually
 ** either 1 or 2, depending on the memory architecture
@@ -408,5 +419,16 @@ int ficlLockDictionary(short fLock);
 */
 DPUNS ficlLongMul(FICL_UNS x, FICL_UNS y);
 UNSQR ficlLongDiv(DPUNS    q, FICL_UNS y);
+
+
+/*
+** FICL_HAVE_FTRUNCATE indicates whether the current OS supports
+** the ftruncate() function (available on most UNIXes).  This
+** function is necessary to provide the complete File-Access wordset.
+*/
+#if !defined (FICL_HAVE_FTRUNCATE)
+#define FICL_HAVE_FTRUNCATE 0
+#endif
+
 
 #endif /*__SYSDEP_H__*/
