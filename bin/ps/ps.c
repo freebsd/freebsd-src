@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "lomac.h"
 #include "ps.h"
 
 #define SEP ", \t"		/* username separators */
@@ -108,7 +107,7 @@ static char   o1[] = "pid";
 static char   o2[] = "tt,state,time,command";
 static char ufmt[] = "user,pid,%cpu,%mem,vsz,rss,tt,state,start,time,command";
 static char vfmt[] = "pid,state,time,sl,re,pagein,vsz,rss,lim,tsiz,%cpu,%mem,command";
-static char Zfmt[] = "lvl";
+static char Zfmt[] = "label";
 
 static kvm_t *kd;
 
@@ -410,7 +409,6 @@ main(int argc, char *argv[])
 		}
 	}
 	free(uids);
-	lomac_stop();
 
 	exit(eval);
 }
@@ -653,7 +651,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ps [-aChjlmrSTuvwx] [-O|o fmt] [-p pid] [-t tty] [-U user]",
+	    "usage: ps [-aChjlmrSTuvwxZ] [-O|o fmt] [-p pid] [-t tty] [-U user]",
 	    "          [-M core] [-N system]",
 	    "       ps [-L]");
 	exit(1);

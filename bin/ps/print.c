@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 
+#include <sys/mac.h>
 #include <sys/user.h>
 #include <sys/sysctl.h>
 
@@ -62,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <vis.h>
 
-#include "lomac.h"
 #include "ps.h"
 
 #define	ps_pgtok(a)	(((a) * getpagesize()) / 1024)
@@ -726,10 +726,53 @@ rvar(KINFO *k, VARENT *ve)
 }
 
 void
-lattr(KINFO *k, VARENT *ve)
+label(KINFO *k, VARENT *ve)
 {
+	char *string;
+	mac_t label;
+	int error;
 	VAR *v;
 
 	v = ve->var;
-	(void)printf("%-*d", v->width, get_lattr(k->ki_p->ki_pid));
+	string = NULL;
+
+	if (mac_prepare_process_label(&label) == -1) {
+		perror("mac_prepare_process_label");
+		goto out;
+	}
+
+	error = mac_get_pid(k->ki_p->ki_pid, label);
+	if (error == 0) {
+		if (mac_to_text(label, &string) == -1)
+			string = NULL;
+	}
+	mac_free(label);
+
+out:
+	if (string != NULL) {
+		(void)printf("%-*s", v->width, string);
+		free(string);
+	} else
+		(void)printf("%-*s", v->width, "");
+	return;
+}
+
+int
+s_label(KINFO *k)
+{
+	char *string = NULL;
+	mac_t label;
+	int error, size = 0;
+
+	if (mac_prepare_process_label(&label) == -1) {
+		perror("mac_prepare_process_label");
+		return (0);
+	}
+	error = mac_get_pid(k->ki_p->ki_pid, label);
+	if (error == 0 && mac_to_text(label, &string) == 0) {
+		size = strlen(string);
+		free(string);
+	}
+	mac_free(label);
+	return (size);
 }
