@@ -28,16 +28,26 @@
 #
 # /etc/rc.diskless1 - general BOOTP startup
 #
-# BOOTP has mounted / for us.  Assume a read-only mount.  We must then
-# - figure out our IP by querying the interface
-# - copy /etc temporarily out of the way to /tmp/etc
-# - mount /etc as an MFS
-# - repopulate /etc with the saved off copy
-# - override files in /etc with files from /conf/*/etc where
-#   '*' is default, netmask of client, ip-address of client
+# We assume that the shared readonly partition has been created with
+# the script /usr/share/examples/diskless/clone_root or similar
+# methods.
 #
-# WARNING: i thing you should not change /etc/rc or strange things could
-# happen.
+# BOOTP has mounted / for us.  We assume a read-only mount, and that the
+# /conf subdirectory contains the following:
+#   + /conf/base/etc
+#	a copy of /etc, prepared by e.g. the clone_root script
+#   + /conf/default
+#	default files that override the ones in the readonly root
+#   + /conf/${ipba}	(${ipba} is the subnet broadcast address for the host)
+#	subnet-specific files that override the ones in the readonly root
+#   + /conf/${ip}	(${ip} is the ip address for the host)
+#	host-specific files that override the ones in the readonly root
+#
+# Now we need to do the following:
+#   + figure out our IP by querying the interface
+#   + mount /etc as an MFS
+#   + populate /etc from /conf/base/etc
+#   + override files in /etc with files from /conf/{default,${ipba},${ip}/etc
 #
 # The operator is in charge of setting /conf/*/etc/* things as appropriate.
 # Typically rc.conf and fstab need to be changed, but possibly
@@ -63,7 +73,7 @@ chkerr() {
 }
 
 mount_md() {
-	/sbin/mount_mfs -s $1 -T qp120at dummy $2
+	/sbin/mount_mfs -s $1 -T qp120at -b 4096 -f 1024 dummy $2
 }
 
 # DEBUGGING
@@ -97,24 +107,18 @@ echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
 # Create an MFS /tmp to temporarily hold files from /etc until we
 # can bootstrap /etc as an MFS.
 
-mount_md 4096 /etc 0
+mount_md 8192 /etc 0
 chkerr $? "MFS mount on /etc"
 /bin/chmod 755 /etc
 
-/bin/cp -Rp /conf/default/etc/* /etc
-chkerr $? "cp /conf/default/etc to /etc MFS"
+# Populate /etc, and then override the base setup with increasingly
+# specific files.
+# TODO:
+#   + find a way to assign a 'group' identifier to a machine
+#	so we can use group-specific configurations;
+#   + implement a way to _delete_ files when overriding configs.
 
-# Allow for override files to replace files in /etc.  Use /conf/*/etc
-# to find the override files.  First choice is default files that
-# always override, then files that from the directory that matches the
-# client's broadcast address, finally followed by overrides that match
-# the client's IP address.
-#
-# This way we have some flexibility to handle clusters of machines
-# on separate subnets.
-#
-
-for i in ${bootp_ipbca} ${bootp_ipa} ; do
+for i in base default ${bootp_ipbca} ${bootp_ipa} ; do
 	if [ -d /conf/${i}/etc ]; then
 		cp -Rp /conf/${i}/etc/* /etc
 	fi
@@ -125,9 +129,6 @@ done
 # else.
 #
 # This script is responsible for setting up the
-# diskless mount environment.  This can be
-# overriden by /conf/ME/rc.conf.local if, for
-# example, you do not want to run the standard
-# system /etc/rc.diskless2
+# diskless mount environment.
 
 diskless_mount="/etc/rc.diskless2"
