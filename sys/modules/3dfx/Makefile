@@ -8,7 +8,7 @@ INCSRC		= ../../sys
 
 # This line enables linux ioctl handling by default
 # comment out if you don't want it
-CFLAGS += -DTDFX_LINUX
+TDFX_OPTS = "\#define TDFX_LINUX"
 # Uncomment this for debugging messages
 #CFLAGS += -DDEBUG
 
@@ -17,5 +17,6 @@ pci.h:
 
 opt_tdfx.h:
 	touch opt_tdfx.h
+	echo $(TDFX_OPTS) >> opt_tdfx.h
 
 .include <bsd.kmod.mk>
