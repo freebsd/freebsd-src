@@ -404,8 +404,6 @@ setpgid(struct thread *td, register struct setpgid_args *uap)
 	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
 		if ((targp = pfind(uap->pid)) == NULL) {
-			if (targp)
-				PROC_UNLOCK(targp);
 			error = ESRCH;
 			goto done;
 		}
