@@ -130,7 +130,7 @@ pkg_do(char *pkg)
 
     if (!isemptyfile(REQUIRED_BY_FNAME)) {
 	char buf[512];
-	warnx("package `%s' is required by these other packages\n"
+	warnx("package '%s' is required by these other packages\n"
 		"and may not be deinstalled%s:",
 		pkg, Force ? " (but I'll delete it anyway)" : "" );
 	cfile = fopen(REQUIRED_BY_FNAME, "r");
@@ -139,7 +139,7 @@ pkg_do(char *pkg)
 		fprintf(stderr, "%s", buf);
 	    fclose(cfile);
 	} else
-	    warnx("cannot open requirements file `%s'", REQUIRED_BY_FNAME);
+	    warnx("cannot open requirements file '%s'", REQUIRED_BY_FNAME);
 	if (!Force)
 	    return 1;
     }
@@ -258,7 +258,7 @@ pkg_do(char *pkg)
 	if (p->type != PLIST_PKGDEP)
 	    continue;
 	if (Verbose)
-	    printf("Attempting to remove dependency on package `%s'\n", p->name);
+	    printf("Attempting to remove dependency on package '%s'\n", p->name);
 	if (!Fake)
 	    undepend(p, pkg);
     }
@@ -295,21 +295,21 @@ undepend(PackingList p, char *pkgname)
 	     p->name, REQUIRED_BY_FNAME);
      fp = fopen(fname, "r");
      if (fp == NULL) {
-	 warnx("couldn't open dependency file `%s'", fname);
+	 warnx("couldn't open dependency file '%s'", fname);
 	 return;
      }
      sprintf(ftmp, "%s.XXXXXX", fname);
      s = mkstemp(ftmp);
      if (s == -1) {
 	 fclose(fp);
-	 warnx("couldn't open temp file `%s'", ftmp);
+	 warnx("couldn't open temp file '%s'", ftmp);
 	 return;
      }
      fpwr = fdopen(s, "w");
      if (fpwr == NULL) {
 	 close(s);
 	 fclose(fp);
-	 warnx("couldn't fdopen temp file `%s'", ftmp);
+	 warnx("couldn't fdopen temp file '%s'", ftmp);
 	 remove(ftmp);
 	 return;
      }
@@ -321,18 +321,18 @@ undepend(PackingList p, char *pkgname)
      }
      (void) fclose(fp);
      if (fchmod(s, 0644) == FAIL) {
-	 warnx("error changing permission of temp file `%s'", ftmp);
+	 warnx("error changing permission of temp file '%s'", ftmp);
 	 fclose(fpwr);
 	 remove(ftmp);
 	 return;
      }
      if (fclose(fpwr) == EOF) {
-	 warnx("error closing temp file `%s'", ftmp);
+	 warnx("error closing temp file '%s'", ftmp);
 	 remove(ftmp);
 	 return;
      }
      if (rename(ftmp, fname) == -1)
-	 warnx("error renaming `%s' to `%s'", ftmp, fname);
+	 warnx("error renaming '%s' to '%s'", ftmp, fname);
      remove(ftmp);			/* just in case */
      return;
 }
