@@ -497,7 +497,7 @@ dpt_get_conf(dpt_softc_t *dpt, dpt_ccb_t *dccb, u_int32_t dccb_busaddr,
 	int	   result;
 
 	cp = &dccb->eata_ccb;
-	bzero((void *)dpt->sp, sizeof(*dpt->sp));
+	bzero((void *)(uintptr_t)(volatile void *)dpt->sp, sizeof(*dpt->sp));
 
 	cp->Interpret = 1;
 	cp->DataIn = 1;
@@ -608,7 +608,7 @@ dpt_detect_cache(dpt_softc_t *dpt, dpt_ccb_t *dccb, u_int32_t dccb_busaddr,
 	dpt->cache_size = 0;
 
 	cp = &dccb->eata_ccb;
-	bzero((void *)dpt->sp, sizeof(dpt->sp));
+	bzero((void *)(uintptr_t)(volatile void *)dpt->sp, sizeof(dpt->sp));
 	bzero(buff, 512);
 
 	/* Setup the command structure */
@@ -1292,7 +1292,7 @@ dpt_init(struct dpt_softc *dpt)
 		goto error_exit;
 
 	dpt->sp = (volatile dpt_sp_t *)sg_map->sg_vaddr;
-	dccb = (struct dpt_ccb *)&dpt->sp[1];
+	dccb = (struct dpt_ccb *)(uintptr_t)(volatile void *)&dpt->sp[1];
 	bzero(dccb, sizeof(*dccb));
 	dpt->sp_physaddr = sg_map->sg_physaddr;
 	dccb->eata_ccb.cp_dataDMA =
