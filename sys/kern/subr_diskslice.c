@@ -357,7 +357,6 @@ dsioctl(dev, cmd, data, flags, sspp)
 	int	slice;
 	struct diskslice *sp;
 	struct diskslices *ssp;
-	struct partition *pp;
 
 	slice = dkslice(dev);
 	ssp = *sspp;
