@@ -23,18 +23,19 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.8 1998/10/02 03:42:19 yokota Exp $
+ * $Id: vesa.c,v 1.9 1998/12/07 21:58:24 archie Exp $
  */
 
 #include "sc.h"
 #include "opt_vesa.h"
 #include "opt_vm86.h"
 
-#if (NSC > 0 && defined(VESA) && defined(VM86)) || defined(VESA_MODULE)
+#if (NSC > 0 && defined(VESA) && defined(VM86)) || defined(KLD_MODULE)
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -46,14 +47,6 @@
 #include <machine/pc/vesa.h>
 
 #include <i386/isa/videoio.h>
-
-#ifdef VESA_MODULE
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
-
-MOD_MISC(vesa);
-#endif
 
 /* VESA video adapter state buffer stub */
 struct adp_state {
@@ -759,7 +752,7 @@ vesa_diag(int level)
 	struct vesa_mode vmode;
 	int i;
 
-#ifndef VESA_MODULE
+#ifndef KLD_MODULE
 	/* call the previous handler first */
 	(*prevvidsw.diag)(level);
 #endif
@@ -831,17 +824,15 @@ vesa_diag(int level)
 
 /* module loading */
 
-#ifdef VESA_MODULE
-static int
-vesa_load(struct lkm_table *lkmtp, int cmd)
-#else
+#ifdef KLD_MODULE
+static
+#endif
 int
 vesa_load(void)
-#endif
 {
 	int adapters;
 	int error;
-#ifdef VESA_MODULE
+#ifdef KLD_MODULE
 	int s;
 #endif
 	int i;
@@ -878,7 +869,7 @@ vesa_load(void)
 				     V_INFO_COLOR : 0);
 	}
 
-#ifdef VESA_MODULE
+#ifdef KLD_MODULE
 	s = spltty();
 #endif
 	if ((error = vesa_load_ioctl()) == 0) {
@@ -886,7 +877,7 @@ vesa_load(void)
 		bcopy(&vesavidsw, &biosvidsw, sizeof(vesavidsw));
 		vesa_init_done = TRUE;
 	}
-#ifdef VESA_MODULE
+#ifdef KLD_MODULE
 	splx(s);
 
 	if (error == 0)
@@ -896,10 +887,10 @@ vesa_load(void)
 	return error;
 }
 
-#ifdef VESA_MODULE
+#ifdef KLD_MODULE
 
 static int
-vesa_unload(struct lkm_table *lkmtp, int cmd)
+vesa_unload(void)
 {
 	int error;
 	int s;
@@ -923,13 +914,28 @@ vesa_unload(struct lkm_table *lkmtp, int cmd)
 	return error;
 }
 
-int
-vesa_mod(struct lkm_table *lkmtp, int cmd, int ver)
+static int
+vesa_mod_event(module_t mod, int type, void *data)
 {
-	MOD_DISPATCH(vesa, lkmtp, cmd, ver,
-		vesa_load, vesa_unload, lkm_nullcmd);
+	switch (type) {
+	case MOD_LOAD:
+		return vesa_load();
+	case MOD_UNLOAD:
+		return vesa_unload();
+	default:
+		break;
+	}
+	return 0;
 }
 
-#endif /* VESA_MODULE */
+static moduledata_t vesa_mod = {
+	"vesa",
+	vesa_mod_event,
+	NULL,
+};
 
-#endif /* (NSC > 0 && VESA && VM86) || VESA_MODULE */
+DECLARE_MODULE(vesa, vesa_mod, SI_SUB_PSEUDO, SI_ORDER_MIDDLE);
+
+#endif /* KLD_MODULE */
+
+#endif /* (NSC > 0 && VESA && VM86) || KLD_MODULE */
