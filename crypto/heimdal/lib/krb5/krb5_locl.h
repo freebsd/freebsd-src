@@ -110,9 +110,6 @@ struct sockaddr_dl;
 #include <parse_time.h>
 #include <base64.h>
 
-<<<<<<< krb5_locl.h
-#include <openssl/des.h>
-=======
 #ifdef HAVE_OPENSSL_DES_H
 #include <openssl/des.h>
 #else
@@ -121,7 +118,6 @@ struct sockaddr_dl;
 #ifdef HAVE_OPENSSL_MD4_H
 #include <openssl/md4.h>
 #else
->>>>>>> 1.1.1.2
 #include <md4.h>
 #endif
 #ifdef HAVE_OPENSSL_MD5_H
