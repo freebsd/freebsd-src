@@ -568,14 +568,20 @@ pnpbios_identify(driver_t *driver, device_t parent)
     args.seg.data.limit = 0xffff;
     args.entry = pt->pmentryoffset;
     
-    if ((error = bios16(&args, PNP_COUNT_DEVNODES, &ndevs, &bigdev)) || (args.r.eax & 0xff))
+    if ((error = bios16(&args, PNP_COUNT_DEVNODES, &ndevs, &bigdev)) || (args.r.eax & 0xff)) {
 	printf("pnpbios: error %d/%x getting device count/size limit\n", error, args.r.eax);
+	return;
+    }
     ndevs &= 0xff;				/* clear high byte garbage */
     if (bootverbose)
 	printf("pnpbios: %d devices, largest %d bytes\n", ndevs, bigdev);
 
     devnodebuf = malloc(bigdev + (sizeof(struct pnp_sysdevargs) - sizeof(struct pnp_sysdev)),
 			M_DEVBUF, M_NOWAIT);
+    if (devnodebuf == NULL) {
+	printf("pnpbios: cannot allocate memory, bailing\n");
+	return;
+    }
     pda = (struct pnp_sysdevargs *)devnodebuf;
     pd = &pda->node;
 
