@@ -55,6 +55,7 @@
 .Op Fl w Ar retry_pause
 .Op Fl K Ar keepalive
 .Op Fl O Ar outfill
+.Op Fl S Ar unit
 .Ar device user passwd
 .Sh DESCRIPTION
 .Pp
@@ -172,6 +173,10 @@ Set SLIP "out fill" timeout in seconds. It cause at least one FRAME_END
 will be sended during this timeout.
 Needed for "keep alive" timeout on other side.
 Default value is no timeout.
+.It Fl S Ar unit
+Set SLIP unit number directly. Use with caution, no check for two
+interfaces with same number made.
+Default is dynamic assignment.
 .El
 .Sh FILES
 .Bl -tag -width /var/run/startslip.<device>.pid -compact
