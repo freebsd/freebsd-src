@@ -6,5 +6,5 @@
 
 comment		= Experimental platforms
 branches	= CURRENT
-targets		= update, world, generic, lint
+env		= NOLIBC_R=YES, NOFORTH=YES
 platforms	= powerpc
