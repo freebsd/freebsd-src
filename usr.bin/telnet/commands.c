@@ -2331,7 +2331,7 @@ tn(argc, argv)
     res0 = res;
  af_again:
     if (srcroute != 0) {
-        char hostbuf[BUFSIZ];
+        static char hostbuf[BUFSIZ];
 
 	if (af_error == 0) { /* save intermediate hostnames for retry */
 		strncpy(hostbuf, hostp, BUFSIZ - 1);
