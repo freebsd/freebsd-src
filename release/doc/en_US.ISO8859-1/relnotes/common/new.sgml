@@ -399,7 +399,7 @@
       added. &merged;</para>
 
     <para arch="i386,pc98">The ubsa driver has been added to support
-      the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
+      the Belkin F5U103 (and compatible) USB-to-serial adaptors. &merged;</para>
 
     <para arch="i386,pc98" role="historic">The &man.umodem.4; driver for USB modems
       has been added. Support is provided for the 3Com 5605 and
@@ -683,6 +683,9 @@
 	(PXE) was added to the &os; boot loader.  Due to API
 	differences, the older PXE versions are not supported.  This
 	allow network booting using DHCP. &merged;</para>
+
+      <para arch="pc98">The PC98 bootloader now has support for
+        booting from SCSI MO media. &merged;</para>
 
       <!-- Above this line, order bootloader changes by keyword-->
 
@@ -3026,6 +3029,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       the &os; and OpenBSD/NetBSD &man.make.1; programs.
       &merged;</para>
 
+    <para>&man.make.1; now supports a <option>-C</option> flag to
+      change to a given directory before building its
+      target(s). &merged;</para>
+
     <para role="historic">Bugs in &man.make.1;, among which include broken null suffix
       behavior, bad assumptions about current directory permissions,
       and potential buffer overflows, have been fixed. &merged;</para>
@@ -3356,6 +3363,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The pseudo-random number generator implemented by
       &man.rand.3; has been improved to provide less biased
       results.</para>
+
+    <para>&man.rarpd.8; now accepts a <option>-t</option> flag to
+      specify an alternative directory to
+      <filename>/tftpboot</filename>. &merged</para>
 
     <para role="historic">&man.rc.8; now has a framework for handling dependencies
       between &man.rc.conf.5; variables. &merged;</para>
