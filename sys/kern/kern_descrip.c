@@ -978,7 +978,7 @@ close(td, uap)
 	return (error);
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 /*
  * Return status information about a file descriptor.
  */
@@ -1015,7 +1015,7 @@ ofstat(td, uap)
 done2:
 	return (error);
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 /*
  * Return status information about a file descriptor.

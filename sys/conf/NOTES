@@ -210,12 +210,6 @@ options 	MUTEX_PROFILING
 #
 options 	COMPAT_43
 
-#
-# Be compatible with SunOS.  The COMPAT_43 option above pulls in most
-# (all?) of the changes that this option turns on.
-#
-options 	COMPAT_SUNOS
-
 # Enable FreeBSD4 compatibility syscalls
 options 	COMPAT_FREEBSD4
 

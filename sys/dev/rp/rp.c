@@ -1236,7 +1236,7 @@ rpioctl(dev, cmd, data, flag, td)
 	int	error = 0;
 	int	arg, flags, result, ChanStatus;
 	struct	termios *t;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	u_long	oldcmd;
 	struct	termios term;
 #endif
@@ -1284,7 +1284,7 @@ rpioctl(dev, cmd, data, flag, td)
 	tp = rp->rp_tty;
 	cp = &rp->rp_channel;
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	term = tp->t_termios;
 	oldcmd = cmd;
 	error = ttsetcompat(tp, &cmd, data, &term);

@@ -235,7 +235,7 @@ sigonstack(size_t sp)
 	struct thread *td = curthread;
 
 	return ((td->td_pflags & TDP_ALTSTACK) ?
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 	    ((td->td_sigstk.ss_size == 0) ?
 		(td->td_sigstk.ss_flags & SS_ONSTACK) :
 		((sp - (size_t)td->td_sigstk.ss_sp) < td->td_sigstk.ss_size))
@@ -347,12 +347,6 @@ kern_sigaction(td, sig, act, oact, flags)
 			SIGADDSET(ps->ps_signodefer, sig);
 		else
 			SIGDELSET(ps->ps_signodefer, sig);
-#ifdef COMPAT_SUNOS
-		if (act->sa_flags & SA_USERTRAMP)
-			SIGADDSET(ps->ps_usertramp, sig);
-		else
-			SIGDELSET(ps->ps_usertramp, sig);
-#endif
 		if (sig == SIGCHLD) {
 			if (act->sa_flags & SA_NOCLDSTOP)
 				ps->ps_flag |= PS_NOCLDSTOP;
@@ -1000,7 +994,7 @@ osigpending(td, uap)
 }
 #endif /* COMPAT_43 */
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 /*
  * Generalized interface signal handler, 4.3-compatible.
  */
@@ -1037,9 +1031,6 @@ osigvec(td, uap)
 		OSIG2SIG(vec.sv_mask, nsap->sa_mask);
 		nsap->sa_flags = vec.sv_flags;
 		nsap->sa_flags ^= SA_RESTART;	/* opposite of SV_INTERRUPT */
-#ifdef COMPAT_SUNOS
-		nsap->sa_flags |= SA_USERTRAMP;
-#endif
 	}
 	error = kern_sigaction(td, uap->signum, nsap, osap, KSA_OSIGSET);
 	if (osap && !error) {
@@ -1048,9 +1039,6 @@ osigvec(td, uap)
 		vec.sv_flags = osap->sa_flags;
 		vec.sv_flags &= ~SA_NOCLDWAIT;
 		vec.sv_flags ^= SA_RESTART;
-#ifdef COMPAT_SUNOS
-		vec.sv_flags &= ~SA_NOCLDSTOP;
-#endif
 		error = copyout(&vec, uap->osv, sizeof(vec));
 	}
 	return (error);
@@ -1106,7 +1094,7 @@ osigsetmask(td, uap)
 	PROC_UNLOCK(p);
 	return (0);
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 /*
  * Suspend process until signal, providing mask to be set
@@ -1200,7 +1188,7 @@ osigsuspend(td, uap)
 }
 #endif /* COMPAT_43 */
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #ifndef _SYS_SYSPROTO_H_
 struct osigstack_args {
 	struct	sigstack *nss;
@@ -1237,7 +1225,7 @@ osigstack(td, uap)
 
 	return (error);
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 #ifndef _SYS_SYSPROTO_H_
 struct sigaltstack_args {
@@ -1416,7 +1404,7 @@ kill(td, uap)
 	/* NOTREACHED */
 }
 
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+#if defined(COMPAT_43)
 #ifndef _SYS_SYSPROTO_H_
 struct okillpg_args {
 	int	pgid;
@@ -1437,7 +1425,7 @@ okillpg(td, uap)
 		return (EINVAL);
 	return (killpg1(td, uap->signum, uap->pgid, 0));
 }
-#endif /* COMPAT_43 || COMPAT_SUNOS */
+#endif /* COMPAT_43 */
 
 /*
  * Send a signal to a process group.
