@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.145 1999/01/31 14:09:25 julian Exp $
+ * $Id: vm_map.c,v 1.146 1999/02/01 08:49:30 dillon Exp $
  */
 
 /*
@@ -488,15 +488,16 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	 * neighbors.  Or at least extend the object.
 	 */
 
-	if ((object == NULL) &&
+	if (
+	    (object == NULL) &&
 	    (prev_entry != &map->header) &&
-	    (( prev_entry->eflags & (MAP_ENTRY_IS_A_MAP | MAP_ENTRY_IS_SUB_MAP)) == 0) &&
+	    ((prev_entry->eflags & (MAP_ENTRY_IS_A_MAP | MAP_ENTRY_IS_SUB_MAP)) == 0) &&
 		((prev_entry->object.vm_object == NULL) ||
-			(prev_entry->object.vm_object->type == OBJT_DEFAULT)) &&
+		 (prev_entry->object.vm_object->type == OBJT_DEFAULT) ||
+		 (prev_entry->object.vm_object->type == OBJT_SWAP)) &&
 	    (prev_entry->end == start) &&
-	    (prev_entry->wired_count == 0)) {
-		
-
+	    (prev_entry->wired_count == 0)
+	) {
 		if ((protoeflags == prev_entry->eflags) &&
 		    ((cow & MAP_NOFAULT) ||
 		     vm_object_coalesce(prev_entry->object.vm_object,
