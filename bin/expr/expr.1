@@ -66,7 +66,7 @@ If
 .Fl e
 is not specified, arithmetic operations and parsing of integer
 arguments will overflow silently according to the rules of the C
-standard, and integer computations will be performed using the
+standard, using the
 .Ql long
 data type.
 .Pp
@@ -139,6 +139,20 @@ including the one in previous versions of
 will not permit this syntax.
 See the examples below for portable ways to guarantee the correct
 interpretation.
+The
+.Ev EXPR_COMPAT
+variable is intended for use as a transition and debugging aid, when
+.Nm
+is used in complex scripts which cannot easily be recast to avoid the
+non-portable usage.
+Defining
+.Ev EXPR_COMPAT
+also implicitly enables the
+.Fl e
+option, since this matches the historic behavior of
+.Nm
+in
+.Fx .
 .Pp
 The
 .Nm
@@ -161,6 +175,8 @@ If set,
 will emulate historic
 .Nm
 implementations which did not obey the Utility Syntax Guidelines.
+Implies
+.Fl e .
 .El
 .Sh EXAMPLES
 .Bl -bullet
