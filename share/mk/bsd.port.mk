@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.159 1995/05/12 07:43:48 asami Exp $
+# $Id: bsd.port.mk,v 1.160 1995/05/12 08:44:12 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -243,6 +243,12 @@ MTREE_LOCAL=	/etc/mtree/BSD.local.dist
 .endif
 MTREE_CMD?=	mtree
 MTREE_ARGS?=	-U -f ${MTREE_LOCAL} -d -e -p
+
+# The user can override the NO_PACKAGE by specifying this from
+# the make command line
+.if defined(FORCE_PACKAGE)
+.undef NO_PACKAGE
+.endif
 
 PKG_CMD?=		pkg_create
 .if !defined(PKG_ARGS)
