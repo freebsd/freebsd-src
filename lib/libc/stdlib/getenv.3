@@ -34,6 +34,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
+.\" $FreeBSD$
 .\"
 .Dd December 11, 1993
 .Dt GETENV 3
@@ -138,6 +139,21 @@ The
 .Fn getenv
 function conforms to
 .St -ansiC .
+.Sh BUGS
+Successive calls to
+.Fn setenv
+or
+.Fn putenv
+assigning a differently sized
+.Ar value
+to the same
+.Ar name
+will result in a memory leak.  The FreeBSD semantics for these functions
+(namely, that the contents of
+.Ar value
+are copied and that old values remain accessible indefinitely) make this
+bug unavoidable.  Future versions may eliminate one or both of these
+semantic guarantees in order to fix the bug.
 .Sh HISTORY
 The functions
 .Fn setenv
