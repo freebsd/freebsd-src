@@ -530,14 +530,11 @@ stf_checkaddr6(sc, in6, inifp)
 }
 
 void
-#if __STDC__
-in_stf_input(struct mbuf *m, ...)
-#else
-in_stf_input(m, va_alist)
+in_stf_input(m, off)
 	struct mbuf *m;
-#endif
+	int off;
 {
-	int off, proto;
+	int proto;
 	struct stf_softc *sc;
 	struct ip *ip;
 	struct ip6_hdr *ip6;
@@ -545,12 +542,8 @@ in_stf_input(m, va_alist)
 	int len, isr;
 	struct ifqueue *ifq = NULL;
 	struct ifnet *ifp;
-	va_list ap;
 
-	va_start(ap, m);
-	off = va_arg(ap, int);
 	proto = mtod(m, struct ip *)->ip_p;
-	va_end(ap);
 
 	if (proto != IPPROTO_IPV6) {
 		m_freem(m);

@@ -49,7 +49,7 @@ struct encaptab {
 };
 
 void	encap_init __P((void));
-void	encap4_input __P((struct mbuf *, ...));
+void	encap4_input __P((struct mbuf *, int));
 int	encap6_input __P((struct mbuf **, int *, int));
 const struct encaptab *encap_attach __P((int, int, const struct sockaddr *,
 	const struct sockaddr *, const struct sockaddr *,
