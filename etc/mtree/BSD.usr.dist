@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.40 1995/05/17 09:31:13 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.40.4.1 1995/09/18 03:37:50 davidg Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -203,7 +203,7 @@
         locale
             ja_JP.EUC
             ..
-            lt_LN.ISO8859-1
+	    lt_LN.ISO_8859-1
             ..
             ru_SU.CP866
             ..
@@ -269,55 +269,55 @@
         nls
 	    C
 	    ..
-            da_DK.ISO8859-1
+	    da_DK.ISO_8859-1
             ..
-            de_AT.ISO8859-1
+	    de_AT.ISO_8859-1
             ..
-            de_CH.ISO8859-1
+	    de_CH.ISO_8859-1
             ..
-            de_DE.ISO8859-1
+	    de_DE.ISO_8859-1
             ..
-            en_AU.ISO8859-1
+	    en_AU.ISO_8859-1
             ..
-            en_CA.ISO8859-1
+	    en_CA.ISO_8859-1
             ..
-            en_GB.ISO8859-1
+	    en_GB.ISO_8859-1
             ..
-            en_US.ISO8859-1
+	    en_US.ISO_8859-1
             ..
-            es_ES.ISO8859-1
+	    es_ES.ISO_8859-1
             ..
-            fi_FI.ISO8859-1
+	    fi_FI.ISO_8859-1
             ..
-            fr_BE.ISO8859-1
+	    fr_BE.ISO_8859-1
             ..
-            fr_CA.ISO8859-1
+	    fr_CA.ISO_8859-1
             ..
-            fr_CH.ISO8859-1
+	    fr_CH.ISO_8859-1
             ..
-            fr_FR.ISO8859-1
+	    fr_FR.ISO_8859-1
             ..
-            is_IS.ISO8859-1
+	    is_IS.ISO_8859-1
             ..
-            it_CH.ISO8859-1
+	    it_CH.ISO_8859-1
             ..
-            it_IT.ISO8859-1
+	    it_IT.ISO_8859-1
             ..
             ja_JP.EUC
             ..
-            lt_LN.ISO8859-1
+	    lt_LN.ISO_8859-1
             ..
-            nl_BE.ISO8859-1
+	    nl_BE.ISO_8859-1
             ..
-            nl_NL.ISO8859-1
+	    nl_NL.ISO_8859-1
             ..
-            no_NO.ISO8859-1
+	    no_NO.ISO_8859-1
             ..
-            pt_PT.ISO8859-1
+	    pt_PT.ISO_8859-1
             ..
             ru_SU.KOI8-R
             ..
-            sv_SE.ISO8859-1
+	    sv_SE.ISO_8859-1
             ..
         ..
         perl
