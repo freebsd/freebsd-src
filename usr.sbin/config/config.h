@@ -122,8 +122,10 @@ struct opt_list {
 } *otab;
 
 extern char	*ident;
+extern char	*env;
 extern char	*hints;
 extern int	do_trace;
+extern int	envmode;
 extern int	hintmode;
 
 char	*get_word(FILE *);

@@ -9,6 +9,7 @@
 %token	CONFIG
 %token	CPU
 %token	DEVICE
+%token	ENV
 %token	EQUALS
 %token	HINTS
 %token	IDENT
@@ -75,6 +76,8 @@ static struct	device *curp = 0;
 
 struct  device *dtab;
 char	*ident;
+char	*env;
+int	envmode;
 char	*hints;
 int	hintmode;
 int	yyline;
@@ -145,6 +148,11 @@ Config_spec:
 	      = { maxusers = $2; } |
 	PROFILE NUMBER
 	      = { profiling = $2; } |
+	ENV ID
+	      = {
+		      env = $2;
+		      envmode = 1;
+		} |
 	HINTS ID
 	      = {
 		      hints = $2;

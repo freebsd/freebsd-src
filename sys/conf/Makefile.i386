@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	500007
+%VERSREQ=	500008
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
@@ -91,10 +91,10 @@ NORMAL_M= perl5 $S/kern/makeobjops.pl -c $<; \
 	  ${CC} -c ${CFLAGS} ${PROF} ${.PREFIX}.c
 
 GEN_CFILES= $S/$M/$M/genassym.c
-SYSTEM_CFILES= vnode_if.c hints.c config.c
+SYSTEM_CFILES= vnode_if.c hints.c env.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} hints.o config.o hack.So
+SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} hints.o env.o config.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/conf/ldscript.$M \
 	-export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -313,6 +313,9 @@ vers.o:
 	${NORMAL_C}
 
 hints.o:	hints.c
+	${NORMAL_C}
+
+env.o:	env.c
 	${NORMAL_C}
 
 vnode_if.c: $S/kern/vnode_if.pl $S/kern/vnode_if.src

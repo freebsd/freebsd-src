@@ -178,6 +178,8 @@ char	*getenv __P((const char *name));
 int	getenv_int __P((const char *name, int *data));
 quad_t	getenv_quad __P((const char *name, quad_t *data));
 extern char *kern_envp;
+extern char *static_env;
+extern int envmode;
 
 #ifdef APM_FIXUP_CALLTODO 
 void	adjust_timeout_calltodo __P((struct timeval *time_change)); 
