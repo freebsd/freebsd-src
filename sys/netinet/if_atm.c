@@ -39,10 +39,11 @@
 #include "opt_inet.h"
 #include "opt_natm.h"
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
