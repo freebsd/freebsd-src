@@ -351,15 +351,15 @@ sendit:
 	if (ip_fw_chk_ptr) {
 #ifdef IPDIVERT
 		ip_divert_port = (*ip_fw_chk_ptr)(&ip,
-		    hlen, ifp, ip_divert_ignore, &m);
-		ip_divert_ignore = 0;
+		    hlen, ifp, &ip_divert_cookie, &m);
 		if (ip_divert_port) {		/* Divert packet */
 			(*inetsw[ip_protox[IPPROTO_DIVERT]].pr_input)(m, 0);
 			goto done;
 		}
 #else
+		u_int16_t	dummy = 0;
 		/* If ipfw says divert, we have to just drop packet */
-		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, 0, &m)) {
+		if ((*ip_fw_chk_ptr)(&ip, hlen, ifp, &dummy, &m)) {
 			m_freem(m);
 			goto done;
 		}

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.24.2.3 1997/09/16 12:03:45 ache Exp $
+ *	$Id: ip_var.h,v 1.24.2.4 1998/06/05 21:38:12 julian Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -206,13 +206,7 @@ void	div_input __P((struct mbuf *, int));
 int	div_usrreq __P((struct socket *,
 		int, struct mbuf *, struct mbuf *, struct mbuf *));
 extern u_short ip_divert_port;
-#ifndef IPFW_DIVERT_RESTART
-extern u_short ip_divert_ignore;
-#else
-extern u_short ip_divert_in_cookie;
-extern u_short ip_divert_out_cookie;
-
-#endif /* IPFW_DIVERT_RESTART */
+extern u_short ip_divert_cookie;
 #endif /* IPDIVERT */
 
 #endif /* KERNEL */

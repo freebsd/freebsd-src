@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1.2.8 1998/06/05 21:38:06 julian Exp $
+ *	$Id: ip_divert.c,v 1.1.2.9 1998/06/12 03:02:08 julian Exp $
  */
 
 #include "opt_ipfw.h"
@@ -96,13 +96,7 @@ u_short ip_divert_port;
  * 0 will restart processing at the beginning. 
  * #endif 
  */
-#ifndef IPFW_DIVERT_RESTART
-u_short ip_divert_ignore;
-#else
-
-u_short ip_divert_in_cookie;
-u_short ip_divert_out_cookie;
-#endif /* IPFW_DIVERT_RESTART */
+u_short ip_divert_cookie;
 
 /* Internal variables */
 
@@ -166,8 +160,7 @@ div_input(struct mbuf *m, int hlen)
 #ifndef IPFW_DIVERT_RESTART
 	divsrc.sin_port = htons(ip_divert_port);
 #else
-	divsrc.sin_port = ip_divert_in_cookie;
-	ip_divert_in_cookie = 0;
+	divsrc.sin_port = ip_divert_cookie;
 #endif /* IPFW_DIVERT_RESTART */
 
 	/* Restore packet header fields */
@@ -273,19 +266,15 @@ div_output(so, m, addr, control)
 		sin = mtod(addr, struct sockaddr_in *);
 
 	/* Loopback avoidance */
+	if (sin) {
 #ifndef IPFW_DIVERT_RESTART
-	if (sin) {
-		ip_divert_ignore = ntohs(sin->sin_port);
-	} else {
-		ip_divert_ignore = 0;
-	}
+		ip_divert_cookie = ntohs(sin->sin_port);
 #else
-	if (sin) {
-		ip_divert_out_cookie = sin->sin_port;
-	} else {
-		ip_divert_out_cookie = 0;
-	}
+		ip_divert_cookie = sin->sin_port;
 #endif /* IPFW_DIVERT_RESTART */
+	} else {
+		ip_divert_cookie = 0;
+	}
 
 	if (sin) {
 		int	len = 0;
@@ -342,19 +331,11 @@ div_output(so, m, addr, control)
 	}
 
 	/* Reset for next time (and other packets) */
-#ifndef IPFW_DIVERT_RESTART
-	ip_divert_ignore = 0;
-#else
-	ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+	ip_divert_cookie = 0;
 	return error;
 
 cantsend:
-#ifndef IPFW_DIVERT_RESTART
-	ip_divert_ignore = 0;
-#else
-	ip_divert_out_cookie = 0;
-#endif /* IPFW_DIVERT_RESTART */
+	ip_divert_cookie = 0;
 	m_freem(m);
 	return error;
 }
