@@ -91,5 +91,6 @@ struct url_ent	*fetchList(struct url *, char *);
 
 /* Last error code */
 extern int	 fetchLastErrCode;
+extern int	 fetchTimeout;
 
 #endif

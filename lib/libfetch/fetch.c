@@ -41,6 +41,7 @@
 
 
 int fetchLastErrCode;
+int fetchTimeout;
 
 
 /*** Local data **************************************************************/
