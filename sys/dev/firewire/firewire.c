@@ -913,9 +913,14 @@ fw_xfer_unload(struct fw_xfer* xfer)
 		splx(s);
 	}
 	if (xfer->fc != NULL) {
-#if 1 /* this could happen if we call fwohci_arcv() before fwohci_txd() */
+#if 1
 		if(xfer->state == FWXF_START)
-			panic("fw_xfer_free FWXF_START\n");
+			/*
+			 * This could happen if:
+			 *  1. We call fwohci_arcv() before fwohci_txd().
+			 *  2. firewire_watch() is called.
+			 */
+			printf("fw_xfer_free FWXF_START\n");
 #endif
 		fw_tl_free(xfer->fc, xfer);
 	}
