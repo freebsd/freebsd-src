@@ -57,346 +57,481 @@
 .\" 	Created.
 .\" 	[90/08/30            dbg]
 .\" 
-.TH ddb 4
-.SH NAME
-ddb \- kernel debugger
-.de XX
-.sp
-.ti -4n
-\\$1
-.br
-.sp
-..
-.de XS
-.nr )R +\\$1
-..
-.de XE
-.nr )R -\\$1
-..
-.SH DESCRIPTION
-.br
-.sp
-The kernel debugger has most of the features of the old kdb,
-but with a more rational (gdb-like) syntax.
-.sp
-The current location is called 'dot'.  The 'dot' is displayed with
+.\" $Id$
+.Dd January 16, 1996
+.Dt DDB 4
+.Os FreeBSD
+.Sh NAME
+.Nm ddb
+.Nd interactive kernel debugger
+.Sh SYNOPSIS
+.Cd options DDB
+.Sh DESCRIPTION
+The
+.Nm
+kernel debugger has most of the features of the old kdb,
+but with a more rational syntax
+inspired by
+.Xr gdb 1 .
+.Pp
+The current location is called `dot'.  The `dot' is displayed with
 a hexadecimal format at a prompt.
-Examine and write commands update 'dot' to the address of the last line
-examined or the last location modified, and set 'next' to the address of
+Examine and write commands update `dot' to the address of the last line
+examined or the last location modified, and set `next' to the address of
 the next location to be examined or changed.
-Other commands don't change 'dot', and set 'next' to be the same as 'dot'.
-.sp
+Other commands don't change `dot', and set `next' to be the same as `dot'.
+.Pp
 The general command syntax is:
-.sp
-.ti +4n
-\fIcommand[/modifier] address [,count]\fR
-.sp
-A blank line repeats from the address 'next' with count 1 and no modifiers.
-Specifying 'address' sets 'dot' to the address.
-Omitting 'address' uses 'dot'.
-A missing 'count' is taken to be 1 for printing commands or infinity
-for stack traces.
-.sp
-"\fBddb\fR" has a feature like a command "\fBmore\fR"
-for the output.  If an output line exceeds the number set in the $lines
-variable, it displays "\fI--db_more--\fR"
+.Cm command Ns Op Li \&/ Ns Ar modifier
+.Ar address Ns Op Li , Ns Ar count
+.Pp
+A blank line repeats the previous command from the address `next' with
+count 1 and no modifiers.  Specifying 
+.Ar address
+sets `dot' to the
+address.  Omitting 
+.Ar address
+uses `dot'.  A missing 
+.Ar count
+is taken
+to be 1 for printing commands or infinity for stack traces.
+.Pp
+The
+.Nm
+debugger has a feature like the
+.Xr more 1
+command
+for the output.  If an output line exceeds the number set in the 
+.Li \&$lines
+variable, it displays
+.Dq Em --db_more--
 and waits for a response.
 The valid responses for it are:
-.XS 4n
-.IP \fI\<space>\fR 10n
+.Pp
+.Bl -tag -compact -width SPC
+.It Li SPC
 one more page
-.IP \fI\<return>\fR 10n
+.It Li RET
 one more line
-.IP \fB\q\fR 10n
-abort the current command, and return to the command input mode.
-.LP
-.sp
-.XE 4n
-.LP
-.B COMMANDS
-.sp
-.XS 4n
-.LP
-.XX "\fBexamine(x) \fI[/<modifier>] <addr>[,<count>]\fR"
+.It Li q
+abort the current command, and return to the command input mode
+.El
+.Sh COMMANDS
+.Bl -ohang -compact
+.It Cm examine
+.It Cm x
 Display the addressed locations according to the formats in the modifier.
 Multiple modifier formats display multiple locations.
 If no format is specified, the last formats specified for this command
 is used.
-.br
-The format characters are
-.sp
-.LP
-.XS 2n
-.IP b 5n
-look at by bytes(8 bits)
-.IP h 5n
-look at by half words(16 bits)
-.IP l 5n
-look at by long words(32 bits)
-.IP a 5n
+.Pp
+The format characters are:
+.Bl -tag -compact -width indent
+.It Li b
+look at by bytes (8 bits)
+.It Li h
+look at by half words (16 bits)
+.It Li l
+look at by long words (32 bits)
+.It Li a
 print the location being displayed
-.IP A 5n
+.It Li A
 print the location with a line number if possible
-.IP x 5n
+.It Li x
 display in unsigned hex
-.IP z 5n
+.It Li z
 display in signed hex
-.IP o 5n
+.It Li o
 display in unsigned octal
-.IP d 5n
+.It Li d
 display in signed decimal
-.IP u 5n
+.It Li u
 display in unsigned decimal
-.IP r 5n
+.It Li r
 display in current radix, signed
-.IP c 5n
+.It Li c
 display low 8 bits as a character.
-Non-printing characters are displayed as an octal escape code (e.g. '\\000').
-.IP s 5n
+Non-printing characters are displayed as an octal escape code (e.g., `\e000').
+.It Li s
 display the null-terminated string at the location.
 Non-printing characters are displayed as octal escapes.
-.IP m 5n
+.It Li m
 display in unsigned hex with character dump at the end of each line.
 The location is also displayed in hex at the beginning of each line.
-.IP i 5n
+.It Li i
 display as an instruction
-.IP I 5n
+.It Li I
 display as an instruction with possible alternate formats depending on the
 machine:
-.XE 2n
-.LP
-.XS 5n
-.LP
-.IP vax 6n
+.Bl -tag -width MIPS -compact
+.It Tn VAX
 don't assume that each external label is a procedure entry mask
-.IP i386 6n
+.It Tn i386
 don't round to the next long word boundary
-.IP mips 6n
+.It Tn MIPS
 print register contents
-.LP
-.XE 5n
-.LP
-.XX xf
-Examine forward.
-It executes an examine command with the last specified parameters to it
+.El
+.El
+
+.It Cm xf
+Examine forward:
+Execute an examine command with the last specified parameters to it
 except that the next address displayed by it is used as the start address.
-.XX xb
-Examine backward.
-It executes an examine command with the last specified parameters to it
+
+.It Cm xb
+Examine backward:
+Execute an examine command with the last specified parameters to it
 except that the last start address subtracted by the size displayed by it
 is used as the start address.
-.XX "\fBprint[/axzodurc] \fI<addr1> [ <addr2> ... ]\fR"
-Print 'addr's according to the modifier character.
-Valid formats are: a x z o d u r c.
-If no modifier is specified, the last one specified to it is used.  'addr'
-can be a string, and it is printed as it is.  For example,
-.br
-.sp
-.ti +4n
-print/x "eax = " $eax "\\necx = " $ecx "\\n"
-.br
-.sp
-will print like
-.sp
-.in +4n
+
+.It Cm print Ns Op Cm /acdoruxz
+Print 
+.No Ar addr Ns s
+according to the modifier character (as described above for
+.Li examine ) .
+Valid formats are:
+.Li a ,
+.Li x ,
+.Li z ,
+.Li o ,
+.Li d ,
+.Li u ,
+.Li r ,
+and
+.Li c .
+If no modifier is specified, the last one specified to it is used.
+.Ar addr
+can be a string, in which case it is printed as it is.  For example:
+.Bd -literal -offset indent
+print/x \&"eax = \&" $eax \&"\enecx = \&" $ecx \&"\en\&"
+.Ed
+.Pp
+will print like:
+.Bd -literal -offset indent
 eax = xxxxxx
-.br
 ecx = yyyyyy
-.in -4n
-.sp
-.br
-.XX "\fBwrite[/bhl] \fI<addr> <expr1> [ <expr2> ... ]\fR"
-Write the expressions at succeeding locations.
+.Ed
+
+.It Xo
+.Cm write Ns Op Cm /bhl
+.No Ar addr Ar expr1 Op Ar "expr2 ..."
+.Xc
+Write the expressions specified after
+.Ar addr
+on the command line at succeeding locations starting with
+.Ar addr
 The write unit size can be specified in the modifier with a letter
-b (byte), h (half word) or l(long word) respectively.  If omitted,
+.Li b
+(byte), 
+.Li h
+(half word) or
+.Li l
+(long word) respectively.  If omitted,
 long word is assumed.
-.br
-Warning: since there is no delimiter between expressions, strange
+.Pp
+.Sy Warning :
+since there is no delimiter between expressions, strange
 things may happen.
 It's best to enclose each expression in parentheses.
-.XX "\fBset \fI$<variable> [=] <expr>\fR"
-Set the named variable or register with the value of 'expr'.
+
+.It Xo
+.Cm set
+.No Li \&$ Ns Ar variable
+.Op Li =
+.Ar expr
+.Xc
+Set the named variable or register with the value of 
+.Ar expr .
 Valid variable names are described below.
-.XX "\fBbreak[/u] \fI<addr>[,<count>]\fR"
-Set a break point at 'addr'.
-If count is supplied, continues (count-1) times before stopping at the
+
+.It Cm break Ns Op Cm /u
+Set a break point at
+.Ar addr .
+If
+.Ar count
+is supplied, continues 
+.Ar count 
+- 1 times before stopping at the
 break point.  If the break point is set, a break point number is
-printed with '#'.  This number can be used in deleting the break point
+printed with
+.Sq Li \&# .
+This number can be used in deleting the break point
 or adding conditions to it.
-.LP
-.XS 2n
-.IP u 5n
-Set a break point in user space address. Without 'u' option,
-the address is considered in the kernel space, and wrong space address
-is rejected with an error message.
-This option can be used only if it is supported by machine dependent
+.Pp
+If the
+.Li u
+modifier is specified, this command sets a break point in user space
+address.  Without the
+.Li u
+option, the address is considered in the kernel
+space, and wrong space address is rejected with an error message.
+This modifier can be used only if it is supported by machine dependent
 routines.
-.LP
-.XE 2n
-Warning: if a user text is shadowed by a normal user space debugger,
+.Pp
+.Sy Warning :
+If a user text is shadowed by a normal user space debugger,
 user space break points may not work correctly.  Setting a break
 point at the low-level code paths may also cause strange behavior.
-.XX "\fBdelete \fI<addr>|#<number>\fR"
+
+.It Cm delete Ar addr
+.It Cm delete Li \&# Ns Ar number
 Delete the break point.  The target break point can be specified by a
-break point number with '#', or by 'addr' like specified in 'break'
+break point number with 
+.Li # ,
+or by using the same
+.Ar addr
+specified in the original
+.Cm break
 command.
-.XX "\fBstep[/p] \fI[,<count>]\fR"
-Single step 'count' times.
-If 'p' option is specified, print each instruction at each step.
+
+.It Cm step Ns Op Cm /p
+Single step 
+.Ar count
+times (the comma is a mandatory part of the syntax).
+If the
+.Li p
+modifier is specified, print each instruction at each step.
 Otherwise, only print the last instruction.
-.br
-.sp
-Warning: depending on machine type, it may not be possible to
+.Pp
+.Sy Warning :
+depending on machine type, it may not be possible to
 single-step through some low-level code paths or user space code.
 On machines with software-emulated single-stepping (e.g., pmax),
 stepping through code executed by interrupt handlers will probably
 do the wrong thing.
-.XX "\fBcontinue[/c]\fR"
+
+.It Cm continue Ns Op Cm /c
 Continue execution until a breakpoint or watchpoint.
-If /c, count instructions while executing.
+If the
+.Li c
+modifier is specified, count instructions while executing.
 Some machines (e.g., pmax) also count loads and stores.
-.br
-.sp
-Warning: when counting, the debugger is really silently single-stepping.
+.Pp
+.Sy Warning :
+when counting, the debugger is really silently single-stepping.
 This means that single-stepping on low-level code may cause strange
 behavior.
-.XX "\fBuntil[/p]\fR"
+
+.It Cm until Ns Op Cm /p
 Stop at the next call or return instruction.
-If 'p' option is specified, print the call nesting depth and the
+If the
+.Li p
+modifier is specified, print the call nesting depth and the
 cumulative instruction count at each call or return.  Otherwise,
 only print when the matching return is hit.
-.XX "\fBnext[/p]\fR"
+
+.It Cm next Ns Op Cm /p
+.It Cm match Ns Op Cm /p
 Stop at the matching return instruction.
-If 'p' option is specified, print the call nesting depth and the
+If the
+.Li p
+modifier is specified, print the call nesting depth and the
 cumulative instruction count at each call or return.  Otherwise,
 only print when the matching return is hit.
-.XX "\fBmatch[/p]\fR"
-A synonym for 'next'.
-.XX "\fBtrace[/u] \fI[ <frame_addr> ][,<count>]\fR"
-Stack trace.  'u' option traces user space; if omitted, only traces
-kernel space. 'count' is the number of frames to be traced. 
-If the 'count' is omitted, all frames are printed.
-.br
-.sp
-Warning: User space stack trace is valid
+
+.It Xo
+.No Cm trace Ns Op Cm /u
+.Op Ar frame
+.Op Ar ,count
+.Xc
+Stack trace.  The
+.Li u
+option traces user space; if omitted, 
+.Cm trace
+only traces
+kernel space.
+.Ar count
+is the number of frames to be traced. 
+If 
+.Ar count
+is omitted, all frames are printed.
+.Pp
+.Sy Warning :
+User space stack trace is valid
 only if the machine dependent code supports it.
-.XX "\fBsearch[/bhl] \fI<addr> <value> [<mask>] [,<count>]\fR"
-Search memory for a value. This command might fail in interesting
+
+.It Xo
+.No Cm search Ns Op Cm /bhl
+.Ar addr
+.Ar value
+.Op Ar mask
+.Op Ar ,count
+.Xc
+Search memory for
+.Ar value .
+This command might fail in interesting
 ways if it doesn't find the searched-for value.  This is because
 ddb doesn't always recover from touching bad memory.  The optional
-count argument limits the search.
-.XX "\fBshow all procs[/m]\fR"
+.Ar count
+argument limits the search.
+
+.It Cm show all procs Ns Op Cm /m
+.It Cm ps Ns Op Cm /m
 Display all process information.
-This version of "\fBddb\fR"
-prints more information than previous one.
-It shows process information like "ps".
 The process information may not be shown if it is not
 supported in the machine, or the bottom of the stack of the
 target process is not in the main memory at that time.
-The 'm' options will alter the 'ps' display to show vm_map
+The 
+.Li m
+modifier will alter the display to show VM map
 addresses for the process and not show other info.
-.br
-.XX "\fBps[/m]\fR"
-A synonym for 'show all procs'.
-.XX "\fBshow registers\fR"
+
+.It Cm show registers Ns Op Cm /u
 Display the register set.
-If 'u' option is specified, it displays user registers instead of
+If the
+.Li u
+option is specified, it displays user registers instead of
 kernel or currently saved one.
-.br
-.sp
-Warning: The support of 'u' option depends on the machine.  If
+.Pp
+.Sy Warning :
+The support of the
+.Li u
+modifier depends on the machine.  If
 not supported, incorrect information will be displayed.
-.XX "\fBshow map[/f] \fI<addr>\fR"
-Prints the vm_map at 'addr'. If the 'f' option is specified the
+
+.It Xo
+.Cm show map Ns Op Cm /f 
+.Ar addr
+.Xc
+Prints the VM map at 
+.Ar addr .
+If the 
+.Li f
+modifier is specified the
 complete map is printed.
-.XX "\fBshow object[/f]  \fI<addr>\fR"
-Prints the vm_object at 'addr'. If the 'f' option is specified the
+
+.It Xo
+.Cm show object Ns Op Cm /f
+.Ar addr
+.Xc
+Prints the VM object at
+.Ar addr .
+If the
+.Li f
+option is specified the
 complete object is printed.
-.XX "\fBshow watches\fR"
+
+.It Cm "show watches"
 Displays all watchpoints.
-.XX "\fBwatch \fI<addr>,<size>\fR"
+
+.It Xo
+.Cm watch
+.No Ar addr Ns Li \&, Ns Ar size
+.Xc
 Set a watchpoint for a region.  Execution stops
 when an attempt to modify the region occurs.
-The 'size' argument defaults to 4.
-.br
+The
+.Ar size
+argument defaults to 4.
 If you specify a wrong space address, the request is rejected
 with an error message.
-.br
-.sp
-Warning: Attempts to watch wired kernel memory
+.Pp
+.Sy Warning :
+Attempts to watch wired kernel memory
 may cause unrecoverable error in some systems such as i386.
 Watchpoints on user addresses work best.
-.br
-.LP
-.XE 4n
-.LP
-.sp
-.B VARIABLES
-.sp
+.El
+
+.Sh VARIABLES
 The debugger accesses registers and variables as
-.I $<name>.
-Register names are as in the "\fBshow registers\fR"
+.No Li \&$ Ns Em name .
+Register names are as in the
+.Dq Cm show registers
 command.
 Some variables are suffixed with numbers, and may have some modifier
 following a colon immediately after the variable name.
-For example, register variables can have 'u' modifier to indicate
-user register (e.g. $eax:u).
-.br
-.sp
+For example, register variables can have a
+.Li u
+modifier to indicate user register (e.g.,
+.Li $eax:u ) .
+.Pp
 Built-in variables currently supported are:
-.sp
-.IP radix 12n
+.Bl -tag -width tabstops -compact
+.It Li radix
 Input and output radix
-.IP maxoff 12n
+.It Li maxoff
 Addresses are printed as 'symbol'+offset unless offset is greater than maxoff.
-.IP maxwidth 12n
+.It Li maxwidth
 The width of the displayed line.
-.IP lines 12n
+.It Li lines
 The number of lines.  It is used by "more" feature.
-.IP tabstops 12n
+.It Li tabstops
 Tab stop width.
-.IP work\fIxx\fR
+.It Li work Ns Ar xx
 Work variable.
-.I 'xx'
+.Ar xx
 can be 0 to 31.
-.LP
-.LP
-.sp
-.B EXPRESSIONS
-.sp
-Almost all expression operators in C are supported except '~', '^',
-and unary '&'.
-Special rules in "\fBddb\fR"
+.El
+.Sh EXPRESSIONS
+Almost all expression operators in C are supported except 
+.Sq Li \&~ ,
+.Sq Li \&^ ,
+and unary
+.Sq Li \&& .
+Special rules in
+.Nm
 are:
-.br
-.IP "<identifier>" 15n
-name of a symbol.  It is translated to the address(or value) of it.  '.'
-and ':' can be used in the identifier.  If supported by an object format
-dependent routine,
-[\fI<file_name>\fR:]\fI<func>\fR[:\fI<line_number>\fR]
-[\fI<file_name>\fR:]\fI<variable>\fR, and
-\fI<file_name>\fR[:\fI<line_number>\fR]
+.Bl -tag -width Identifiers
+.It Em Identifiers
+The name of a symbol is translated to the value of the symbol, which
+is the address of the corresponding object.
+.Sq Li \&.
+and
+.Sq Li \&:
+can be used in the identifier.
+If supported by an object format dependent routine,
+.No Xo
+.Op Em filename Ns Li \&:
+.Em func Ns Li \&: Ns Em lineno
+.Xc ,
+.No Xo
+.Op Em filename Ns Li \&:
+.Em variable
+.Xc ,
+and
+.No Xo
+.Op Em filename Ns Li \&:
+.Em lineno
+.Xc
 can be accepted as a symbol.
-The symbol may be prefixed with '\fI<symbol_table_name>\fR::'
-like 'emulator::mach_msg_trap' to specify other than kernel symbols.
-.IP "<number>" 15n
-radix is determined by the first two letters:
-0x: hex, 0o: octal, 0t: decimal, otherwise, follow current radix.
-.IP \. 15n
-\'dot'
-.IP \+ 15n
-\'next'
-.IP \.. 15n
+.It Em Numbers
+Radix is determined by the first two letters:
+.Li 0x :
+hex,
+.Li 0o :
+octal,
+.Li 0t :
+decimal; otherwise, follow current radix.
+.It Li \&.
+`dot'
+.It Li \&+
+`next'
+.It Li \&..
 address of the start of the last line examined.
-Unlike 'dot' or 'next', this is only changed by "examine" or
-"write" command.
-.IP \' 15n
+Unlike `dot' or `next', this is only changed by
+.Dq Li examine
+or
+.Dq Li write
+command.
+.It Li \&'
 last address explicitly specified.
-.IP "$<variable>" 15n
-register name or variable.  It is translated to the value of it.
-It may be followed by a ':' and modifiers as described above.
-.IP # 15n
+.It Li \&$ Ns Em variable
+Translated to the value of the specified variable.
+It may be followed by a
+.Li :
+and modifiers as described above.
+.It Em a Ns Li \&# Ns Em b
 a binary operator which rounds up the left hand side to the next
 multiple of right hand side.
-.IP "*<expr>" 15n
-indirection.  It may be followed by a ':' and  modifiers as described above.
+.It Li \&* Ns Em expr
+indirection.  It may be followed by a
+.Sq Li :
+and modifiers as described above.
+.El
+.Sh HISTORY
+The
+.Nm
+debugger was developed for Mach, and ported to 386BSD 0.1 by Julian Elischer.
+This manual page translated from
+.Fl man
+macros by Garrett Wollman.
