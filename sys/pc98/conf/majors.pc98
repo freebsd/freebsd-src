@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.13 1997/08/28 14:21:12 kato Exp $
+$Id: majors.pc98,v 1.14 1997/09/24 08:20:33 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -88,7 +88,7 @@ chrdev	name		comments
 47	gsc		Genius Scanner
 48	cy		Cyclades
 49	ssc		SCSI super device
-50	crd		pcmcia cards
+50	card		pcmcia cards
 51	joy		joystick
 52	tun		IP tunnel device
 53	snp		tty snoop
