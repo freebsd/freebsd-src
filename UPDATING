@@ -5,6 +5,23 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000711:
+	If you use CVSUP or CTM to get CVS trees, AND you used to get 
+	the old crypto files from internat.freebsd.org AND you check
+	out files from the CVS tree with the cvs command, please read
+		http://people.freebsd.org/~imp/internat.txt
+	for details on potential problems that you might have and how
+	to get around them.
+
+	If you are merely a mirror, or don't answer yes to each of the
+	clauses above, you needn't worry.
+
+20000711:
+	/etc/security has been updated to print the inode number of
+	setuid programs that have changed.  You will see a large spike
+	in the number of changed programs the first time when you run
+	mergemaster to get a new /etc/security.
+
 20000710:
 	/dev/random now has good entropy collection (from the keyboard
 	and sysmouse drivers). Please ensure that either `options
