@@ -1,10 +1,11 @@
-# $Id: Makefile,v 1.8 1997/02/25 04:53:50 hanai Exp $
+# $Id: Makefile,v 1.9 1997/05/09 23:09:56 max Exp $
 # Original revision: 1.22
 # The FreeBSD Japanese Documentation Project
 
 DOC=	handbook
 DOCDIR=${SHAREDIR}/doc/ja_JP.EUC
 FORMATS= html roff
+SGMLOPTS+=-e EUC-JP
 
 SRCS= authors.sgml basics.sgml bibliography.sgml boothelp.sgml
 SRCS+= booting.sgml contrib.sgml crypt.sgml ctm.sgml current.sgml cvsup.sgml
