@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.3 1994/08/02 07:41:17 davidg Exp $
+ * $Id: cd9660_lookup.c,v 1.4 1994/09/15 19:45:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -139,7 +139,7 @@ cd9660_lookup(ap)
 	 */
 	if (vdp->v_type != VDIR)
 	    return (ENOTDIR);
-	if (error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc))
+	if ((error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc)))
 		return (error);
 	
 	/*
@@ -149,7 +149,7 @@ cd9660_lookup(ap)
 	 * check the name cache to see if the directory/name pair
 	 * we are looking for is known already.
 	 */
-	if (error = cache_lookup(vdp, vpp, cnp)) {
+	if ((error = cache_lookup(vdp, vpp, cnp))) {
 		int vpid;	/* capability number of vnode */
 
 		if (error == ENOENT)
@@ -202,7 +202,8 @@ cd9660_lookup(ap)
 	/*
 	 * A leading `=' means, we are looking for an associated file
 	 */
-	if (assoc = (imp->iso_ftype != ISO_FTYPE_RRIP && *name == ASSOCCHAR)) {
+	if ((assoc = (imp->iso_ftype != ISO_FTYPE_RRIP && *name == ASSOCCHAR)))
+	{
 		len--;
 		name++;
 	}
@@ -227,7 +228,7 @@ cd9660_lookup(ap)
 		dp->i_offset = dp->i_diroff;
 		entryoffsetinblock = iso_blkoff(imp, dp->i_offset);
 		if (entryoffsetinblock != 0) {
-			if (error = iso_blkatoff(dp, dp->i_offset, &bp))
+			if ((error = iso_blkatoff(dp, dp->i_offset, &bp)))
 				return (error);
 		}
 		numdirpasses = 2;
@@ -245,7 +246,7 @@ searchloop:
 		if (iso_blkoff(imp, dp->i_offset) == 0) {
 			if (bp != NULL)
 				brelse(bp);
-			if (error = iso_blkatoff(dp, dp->i_offset, &bp))
+			if ((error = iso_blkatoff(dp, dp->i_offset, &bp)))
 				return (error);
 			entryoffsetinblock = 0;
 		}
@@ -341,7 +342,7 @@ foundino:
 			    != iso_lblkno(imp,saveoffset)) {
 				if (bp != NULL)
 					brelse(bp);
-				if (error = iso_blkatoff(dp, saveoffset, &bp))
+				if ((error = iso_blkatoff(dp, saveoffset, &bp)))
 					return (error);
 			}
 			ep = (struct iso_directory_record *)(bp->b_un.b_addr
@@ -412,9 +413,9 @@ found:
 	 */
 	if (flags & ISDOTDOT) {
 		ISO_IUNLOCK(pdp);	/* race to get the inode */
-		if (error = iso_iget(dp,dp->i_ino,
+		if ((error = iso_iget(dp,dp->i_ino,
 				     dp->i_ino != ino,
-				     &tdp,ep)) {
+				     &tdp,ep))) {
 			ISO_ILOCK(pdp);
 			return (error);
 		}
@@ -425,7 +426,7 @@ found:
 		VREF(vdp);	/* we want ourself, ie "." */
 		*vpp = vdp;
 	} else {
-		if (error = iso_iget(dp,dp->i_ino,dp->i_ino!=ino,&tdp,ep))
+		if ((error = iso_iget(dp,dp->i_ino,dp->i_ino!=ino,&tdp,ep)))
 			return (error);
 		if (!lockparent || !(flags & ISLASTCN))
 			ISO_IUNLOCK(pdp);
@@ -458,7 +459,7 @@ iso_blkatoff(ip, offset, bpp)
 	struct buf *bp;
 	int error;
 	
-	if (error = bread(ITOV(ip),lbn,bsize,NOCRED,&bp)) {
+	if ((error = bread(ITOV(ip),lbn,bsize,NOCRED,&bp))) {
 		brelse(bp);
 		*bpp = 0;
 		return (error);
