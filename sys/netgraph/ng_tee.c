@@ -304,7 +304,7 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	hinfo->stats.inFrames++;
 
 	/* Duplicate packet and meta info if requried */
-	if (dup != NULL) {
+	if (dup && dup->hook) {
 		struct mbuf *m2;
 		meta_p meta2;
 
@@ -336,8 +336,10 @@ ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	}
 
 	/* Deliver frame out destination hook */
-	dest->stats.outOctets += m->m_pkthdr.len;
-	dest->stats.outFrames++;
+	if (dest->hook != NULL) {
+		dest->stats.outOctets += m->m_pkthdr.len;
+		dest->stats.outFrames++;
+	}
 	NG_SEND_DATA(error, dest->hook, m, meta);
 	return (error);
 }
