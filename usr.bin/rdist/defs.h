@@ -149,7 +149,7 @@ extern struct linkbuf *ihead;	/* list of files with more than one link */
 extern struct passwd *pw;	/* pointer to static area used by getpwent */
 extern struct group *gr;	/* pointer to static area used by getgrent */
 extern char host[];		/* host name of master copy */
-extern char buf[];		/* general purpose buffer */
+extern char buf[BUFSIZ];	/* general purpose buffer */
 
 int	 any __P((int, char *));
 char	*colon __P((char *));
