@@ -121,6 +121,30 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
 	"Default TCP Maximum Segment Size for IPv6");
 #endif
 
+/*
+ * Minimum MSS we accept and use. This prevents DoS attacks where
+ * we are forced to a ridiculous low MSS like 20 and send hundreds
+ * of packets instead of one. The effect scales with the available
+ * bandwidth and quickly saturates the CPU and network interface
+ * with packet generation and sending. Set to zero to disable MINMSS
+ * checking. This setting prevents us from sending too small packets.
+ */
+int	tcp_minmss = TCP_MINMSS;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
+    &tcp_minmss , 0, "Minmum TCP Maximum Segment Size");
+/*
+ * Number of TCP segments per second we accept from remote host
+ * before we start to calculate average segment size. If average
+ * segment size drops below the minimum TCP MSS we assume a DoS
+ * attack and reset+drop the connection. Care has to be taken not to
+ * set this value too small to not kill interactive type connections
+ * (telnet, SSH) which send many small packets.
+ */
+int     tcp_minmssoverload = TCP_MINMSSOVERLOAD;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmssoverload, CTLFLAG_RW,
+    &tcp_minmssoverload , 0, "Number of TCP Segments per Second allowed to"
+    "be under the MINMSS Size");
+
 #if 0
 static int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt, CTLFLAG_RW, 

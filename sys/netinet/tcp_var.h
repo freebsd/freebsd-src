@@ -179,6 +179,10 @@ struct tcpcb {
 	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
 	u_long	t_badrxtwin;		/* window for retransmit recovery */
 	u_char	snd_limited;		/* segments limited transmitted */
+/* anti DoS counters */
+	u_long	rcv_second;		/* start of interval second */
+	u_long	rcv_pps;		/* received packets per second */
+	u_long	rcv_byps;		/* received bytes per second */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
@@ -332,6 +336,7 @@ struct	tcpstat {
 	u_long	tcps_connects;		/* connections established */
 	u_long	tcps_drops;		/* connections dropped */
 	u_long	tcps_conndrops;		/* embryonic connections dropped */
+	u_long	tcps_minmssdrops;	/* average minmss too low drops */
 	u_long	tcps_closed;		/* conn. closed (includes drops) */
 	u_long	tcps_segstimed;		/* segs where we tried to get rtt */
 	u_long	tcps_rttupdated;	/* times we succeeded */
@@ -473,6 +478,8 @@ extern	struct inpcbhead tcb;		/* head of queue of active tcpcb's */
 extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
 extern	int tcp_mssdflt;	/* XXX */
+extern	int tcp_minmss;
+extern	int tcp_minmssoverload;
 extern	int tcp_delack_enabled;
 extern	int tcp_do_newreno;
 extern	int path_mtu_discovery;
