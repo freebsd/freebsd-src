@@ -175,7 +175,7 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 	if (!callout_active(&tcp_syncache.tt_timerq[slot]))		\
 		callout_reset(&tcp_syncache.tt_timerq[slot],		\
 		    TCPTV_RTOBASE * tcp_backoff[slot],			\
-		    syncache_timer, (void *)((int)slot));		\
+		    syncache_timer, (void *)((intptr_t)slot));		\
 } while (0)
 
 static void
@@ -351,7 +351,7 @@ static void
 syncache_timer(xslot)
 	void *xslot;
 {
-	int slot = (int)xslot;
+	intptr_t slot = (intptr_t)xslot;
 	struct syncache *sc, *nsc;
 	struct inpcb *inp;
 	int s;
