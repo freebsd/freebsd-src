@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 14, 1995
+.Dd March 13, 2003
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -48,37 +48,43 @@
 The
 .Tn TCP
 protocol provides reliable, flow-controlled, two-way
-transmission of data.  It is a byte-stream protocol used to
+transmission of data.
+It is a byte-stream protocol used to
 support the
 .Dv SOCK_STREAM
-abstraction.  TCP uses the standard
+abstraction.
+.Tn TCP
+uses the standard
 Internet address format and, in addition, provides a per-host
 collection of
-.Dq port addresses .
+.Dq "port addresses" .
 Thus, each address is composed
-of an Internet address specifying the host and network, with
-a specific
+of an Internet address specifying the host and network,
+with a specific
 .Tn TCP
 port on the host identifying the peer entity.
 .Pp
-Sockets utilizing the tcp protocol are either
+Sockets utilizing the
+.Tn TCP
+protocol are either
 .Dq active
 or
 .Dq passive .
 Active sockets initiate connections to passive
-sockets.  By default
+sockets.
+By default,
 .Tn TCP
 sockets are created active; to create a
-passive socket the
+passive socket, the
 .Xr listen 2
 system call must be used
 after binding the socket with the
 .Xr bind 2
-system call.  Only
-passive sockets may use the
+system call.
+Only passive sockets may use the
 .Xr accept 2
-call to accept incoming connections.  Only active sockets may
-use the
+call to accept incoming connections.
+Only active sockets may use the
 .Xr connect 2
 call to initiate connections.
 .Tn TCP
@@ -90,30 +96,32 @@ which is described in
 Passive sockets may
 .Dq underspecify
 their location to match
-incoming connection requests from multiple networks.  This
-technique, termed
-.Dq wildcard addressing ,
+incoming connection requests from multiple networks.
+This technique, termed
+.Dq "wildcard addressing" ,
 allows a single
 server to provide service to clients on multiple networks.
 To create a socket which listens on all networks, the Internet
 address
 .Dv INADDR_ANY
-must be bound.  The
+must be bound.
+The
 .Tn TCP
 port may still be specified
-at this time; if the port is not specified the system will assign one.
-Once a connection has been established the socket's address is
-fixed by the peer entity's location.   The address assigned the
+at this time; if the port is not specified, the system will assign one.
+Once a connection has been established, the socket's address is
+fixed by the peer entity's location.
+The address assigned to the
 socket is the address associated with the network interface
-through which packets are being transmitted and received.  Normally
-this address corresponds to the peer entity's network.
+through which packets are being transmitted and received.
+Normally, this address corresponds to the peer entity's network.
 .Pp
 .Tn TCP
 supports a number of socket options which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width TCP_NODELAYx
+.Bl -tag -width ".Dv TCP_NODELAY"
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -128,9 +136,11 @@ The boolean option
 .Dv TCP_NODELAY
 defeats this algorithm.
 .It Dv TCP_MAXSEG
-By default, a sender\- and receiver-TCP
+By default, a sender- and
+.No receiver- Ns Tn TCP
 will negotiate among themselves to determine the maximum segment size
-to be used for each connection.  The
+to be used for each connection.
+The
 .Dv TCP_MAXSEG
 option allows the user to determine the result of this negotiation,
 and to reduce it if desired.
@@ -139,17 +149,18 @@ and to reduce it if desired.
 usually sends a number of options in each packet, corresponding to
 various
 .Tn TCP
-extensions which are provided in this implementation.  The boolean
-option
+extensions which are provided in this implementation.
+The boolean option
 .Dv TCP_NOOPT
 is provided to disable
 .Tn TCP
 option use on a per-connection basis.
 .It Dv TCP_NOPUSH
-By convention, the sender-TCP
+By convention, the
+.No sender- Ns Tn TCP
 will set the
 .Dq push
-bit and begin transmission immediately (if permitted) at the end of
+bit, and begin transmission immediately (if permitted) at the end of
 every user call to
 .Xr write 2
 or
@@ -157,9 +168,10 @@ or
 The
 .Dv TCP_NOPUSH
 option is provided to allow servers to easily make use of Transaction
-TCP (see
+.Tn TCP
+(see
 .Xr ttcp 4 ) .
-When the option is set to a non-zero value,
+When this option is set to a non-zero value,
 .Tn TCP
 will delay sending any data at all until either the socket is closed,
 or the internal send buffer is filled.
@@ -184,65 +196,74 @@ see
 .Xr ip 4 .
 Incoming connection requests that are source-routed are noted,
 and the reverse source route is used in responding.
-.Sh MIB VARIABLES
+.Ss MIB Variables
 The
-.Nm
+.Tn TCP
 protocol implements a number of variables in the
-.Li net.inet
+.Va net.inet.tcp
 branch of the
 .Xr sysctl 3
 MIB.
-.Bl -tag -width TCPCTL_DO_RFC1644
+.Bl -tag -width ".Va TCPCTL_DO_RFC1644"
 .It Dv TCPCTL_DO_RFC1323
-.Pq tcp.rfc1323
+.Pq Va rfc1323
 Implement the window scaling and timestamp options of RFC 1323
-(default true).
+(default is true).
 .It Dv TCPCTL_DO_RFC1644
-.Pq tcp.rfc1644
+.Pq Va rfc1644
 Implement Transaction
 .Tn TCP ,
 as described in RFC 1644.
 .It Dv TCPCTL_MSSDFLT
-.Pq tcp.mssdflt
+.Pq Va mssdflt
 The default value used for the maximum segment size
 .Pq Dq MSS
 when no advice to the contrary is received from MSS negotiation.
 .It Dv TCPCTL_SENDSPACE
-.Pq tcp.sendspace
-Maximum TCP send window.
+.Pq Va sendspace
+Maximum
+.Tn TCP
+send window.
 .It Dv TCPCTL_RECVSPACE
-.Pq tcp.recvspace
-Maximum TCP receive window.
-.It tcp.log_in_vain
+.Pq Va recvspace
+Maximum
+.Tn TCP
+receive window.
+.It Va log_in_vain
 Log any connection attempts to ports where there is not a socket
 accepting connections.
-The value of 1 limits the logging to SYN (connection establishment)
-packets only.
-That of 2 results in any TCP packets to closed ports being logged.
+The value of 1 limits the logging to
+.Tn SYN
+(connection establishment) packets only.
+That of 2 results in any
+.Tn TCP
+packets to closed ports being logged.
 Any value unlisted above disables the logging
 (default is 0, i.e., the logging is disabled).
-.It tcp.slowstart_flightsize
+.It Va slowstart_flightsize
 The number of packets allowed to be in-flight during the
 .Tn TCP
 slow-start phase on a non-local network.
-.It tcp.local_slowstart_flightsize
+.It Va local_slowstart_flightsize
 The number of packets allowed to be in-flight during the
 .Tn TCP
 slow-start phase to local machines in the same subnet.
-.It tcp.msl
+.It Va msl
 The Maximum Segment Lifetime, in milliseconds, for a packet.
-.It tcp.keepinit
-Timeout, in milliseconds, for new, non-established TCP connections.
-.It tcp.keepidle
+.It Va keepinit
+Timeout, in milliseconds, for new, non-established
+.Tn TCP
+connections.
+.It Va keepidle
 Amount of time, in milliseconds, that the connection must be idle
 before keepalive probes (if enabled) are sent.
-.It tcp.keepintvl
+.It Va keepintvl
 The interval, in milliseconds, between keepalive probes sent to remote
 machines.
 After
 .Dv TCPTV_KEEPCNT
 (default 8) probes are sent, with no response, the connection is dropped.
-.It tcp.always_keepalive
+.It Va always_keepalive
 Assume that
 .Dv SO_KEEPALIVE
 is set on all
@@ -250,34 +271,36 @@ is set on all
 connections, the kernel will
 periodically send a packet to the remote host to verify the connection
 is still up.
-.It tcp.icmp_may_rst
+.It Va icmp_may_rst
 Certain
 .Tn ICMP
 unreachable messages may abort connections in
 .Tn SYN-SENT
 state.
-.It tcp.do_tcpdrain
+.It Va do_tcpdrain
 Flush packets in the
 .Tn TCP
 reassembly queue if the system is low on mbufs.
-.It tcp.blackhole
+.It Va blackhole
 If enabled, disable sending of RST when a connection is attempted
 to a port where there is not a socket accepting connections.
 See
 .Xr blackhole 4 .
-.It tcp.delayed_ack
+.It Va delayed_ack
 Delay ACK to try and piggyback it onto a data packet.
-.It tcp.delacktime
+.It Va delacktime
 Maximum amount of time, in milliseconds, before a delayed ACK is sent.
-.It tcp.newreno
-Enable TCP NewReno Fast Recovery algorithm,
+.It Va newreno
+Enable
+.Tn TCP
+NewReno Fast Recovery algorithm,
 as described in RFC 2582.
-.It tcp.path_mtu_discovery
-Enable Path MTU Discovery
-.It tcp.tcbhashsize
+.It Va path_mtu_discovery
+Enable Path MTU Discovery.
+.It Va tcbhashsize
 Size of the
 .Tn TCP
-control-block hashtable
+control-block hash table
 (read-only).
 This may be tuned using the kernel option
 .Dv TCBHASHSIZE
@@ -285,14 +308,22 @@ or by setting
 .Va net.inet.tcp.tcbhashsize
 in the
 .Xr loader 8 .
-.It tcp.pcbcount
+.It Va pcbcount
 Number of active process control blocks
 (read-only).
-.It tcp.syncookies
-Determines whether or not syn cookies should be generated for
-outbound syn-ack packets.  Syn cookies are a great help during
-syn flood attacks, and are enabled by default.
-.It tcp.isn_reseed_interval
+.It Va syncookies
+Determines whether or not
+.Tn SYN
+cookies should be generated for outbound
+.Tn SYN-ACK
+packets.
+.Tn SYN
+cookies are a great help during
+.Tn SYN
+flood attacks, and are enabled by default.
+(See
+.Xr syncookies 4 . )
+.It Va isn_reseed_interval
 The interval (in seconds) specifying how often the secret data used in
 RFC 1948 initial sequence number calculations should be reseeded.
 By default, this variable is set to zero, indicating that
@@ -300,84 +331,120 @@ no reseeding will occur.
 Reseeding should not be necessary, and will break
 .Dv TIME_WAIT
 recycling for a few minutes.
-.It tcp.inet.tcp.rexmit_{min,slop}
-Adjust the retransmit timer calculation for TCP.  The slop is
+.It Va rexmit_min , rexmit_slop
+Adjust the retransmit timer calculation for
+.Tn TCP .
+The slop is
 typically added to the raw calculation to take into account
-occasional variances that the SRTT (smoothed round trip time)
+occasional variances that the
+.Tn SRTT
+(smoothed round-trip time)
 is unable to accomodate, while the minimum specifies an
-absolute minimum.  While a number of TCP RFCs suggest a 1
-second minimum these RFCs tend to focus on streaming behavior
+absolute minimum.
+While a number of
+.Tn TCP
+RFCs suggest a 1
+second minimum, these RFCs tend to focus on streaming behavior,
 and fail to deal with the fact that a 1 second minimum has severe
 detrimental effects over lossy interactive connections, such
 as a 802.11b wireless link, and over very fast but lossy
 connections for those cases not covered by the fast retransmit
-code.  For this reason we use 200ms of slop and a near-0
-minimum, which gives us an effective minimum of 200ms (similar to Linux).
-.It tcp.inflight_enable
+code.
+For this reason, we use 200ms of slop and a near-0
+minimum, which gives us an effective minimum of 200ms (similar to
+.Tn Linux ) .
+.It Va inflight_enable
 Enable
 .Tn TCP
-bandwidth delay product limiting.  An attempt will be made to calculate
-the bandwidth delay product for each individual TCP connection and limit
-the amount of inflight data being transmitted to avoid building up
-unnecessary packets in the network.  This option is recommended if you
+bandwidth-delay product limiting.
+An attempt will be made to calculate
+the bandwidth-delay product for each individual
+.Tn TCP
+connection, and limit
+the amount of inflight data being transmitted, to avoid building up
+unnecessary packets in the network.
+This option is recommended if you
 are serving a lot of data over connections with high bandwidth-delay
 products, such as modems, GigE links, and fast long-haul WANs, and/or
-you have configured your machine to accomodate large TCP windows.  In such
+you have configured your machine to accomodate large
+.Tn TCP
+windows.
+In such
 situations, without this option, you may experience high interactive
 latencies or packet loss due to the overloading of intermediate routers
-and switches.  Note that bandwidth delay product limiting only effects
-the transmit side of a TCP connection.
-.It tcp.inflight_debug
-Enable debugging for the bandwidth delay product algorithm.  This may
-default to on (1) so if you enable the algorithm you should probably also
+and switches.
+Note that bandwidth-delay product limiting only effects
+the transmit side of a
+.Tn TCP
+connection.
+.It Va inflight_debug
+Enable debugging for the bandwidth-delay product algorithm.
+This may
+default to on (1), so if you enable the algorithm,
+you should probably also
 disable debugging by setting this variable to 0.
-.It tcp.inflight_min
-This puts a lower bound on the bandwidth delay product window, in bytes.
-A value of 1024 is typically used for debugging.  6000-16000 is more typical
-in a production installation.  Setting this value too low may result in
-slow ramp-up times for bursty connections.  Setting this value too high
-effectively disables the algorithm.
-.It tcp.inflight_max
-This puts an upper bound on the bandwidth delay product window, in bytes.
-This value should not generally be modified but may be used to set a
+.It Va inflight_min
+This puts a lower bound on the bandwidth-delay product window, in bytes.
+A value of 1024 is typically used for debugging.
+6000-16000 is more typical in a production installation.
+Setting this value too low may result in
+slow ramp-up times for bursty connections.
+Setting this value too high effectively disables the algorithm.
+.It Va inflight_max
+This puts an upper bound on the bandwidth-delay product window, in bytes.
+This value should not generally be modified, but may be used to set a
 global per-connection limit on queued data, potentially allowing you to
-intentionally set a less than optimum limit to smooth data flow over a
-network while still being able to specify huge internal TCP buffers.
-.It tcp.inflight_stab
-The bandwidth delay product algorithm requires a slightly larger window
-than it otherwise calculates for stability.  This parameter determines the
-extra window in maximal packets / 10.  The default value of 20 represents
-2 maximal packets.  Reducing this value is not recommended but you may
-come across a situation with very slow links where the ping time
-reduction of the default inflight code is not sufficient.  If this case
-occurs, you should first try reducing
-.Va tcp.inflight_min
+intentionally set a less than optimum limit, to smooth data flow over a
+network while still being able to specify huge internal
+.Tn TCP
+buffers.
+.It Va inflight_stab
+The bandwidth-delay product algorithm requires a slightly larger window
+than it otherwise calculates for stability.
+This parameter determines the extra window in maximal packets / 10.
+The default value of 20 represents 2 maximal packets.
+Reducing this value is not recommended, but you may
+come across a situation with very slow links where the
+.Xr ping 8
+time
+reduction of the default inflight code is not sufficient.
+If this case occurs, you should first try reducing
+.Va inflight_min
 and, if that does not
 work, reduce both
-.Va tcp.inflight_min
+.Va inflight_min
 and
-.Va tcp.inflight_stab ,
+.Va inflight_stab ,
 trying values of
-15, 10, or 5 for the latter.  Never use a value less than 5.  Reducing
-.Va tcp.inflight_stab
+15, 10, or 5 for the latter.
+Never use a value less than 5.
+Reducing
+.Va inflight_stab
 can lead to upwards of a 20% underutilization of the link
 as well as reducing the algorithm's ability to adapt to changing
 situations and should only be done as a last resort.
-.It tcp.rfc3042
-Enable the Limited Transmit algorithm as described in RFC 3042.  It
+.It Va rfc3042
+Enable the Limited Transmit algorithm as described in RFC 3042.
+It
 helps avoid timeouts on lossy links and also when the congestion window
-is small, as happens on short transfers.  This is a standards track RFC
+is small, as happens on short transfers.
+This is a standards track RFC
 and is off by default.
-.It tcp.rfc3390
+.It Va rfc3390
 Enable support for RFC 3390, which allows for a variable-sized
 starting congestion window on new connections, depending on the
-maximum segment size.  This helps throughput in general, but
+maximum segment size.
+This helps throughput in general, but
 particularly affects short transfers and high-bandwidth large
-propagation-delay connections.  This is a standards track RFC and
+propagation-delay connections.
+This is a standards track RFC and
 support for it is off by default.
 .Pp
-When this feature is enabled, the slowstart_flightsize and
-local_slowstart_flightsize settings are not observed for new
+When this feature is enabled, the
+.Va slowstart_flightsize
+and
+.Va local_slowstart_flightsize
+settings are not observed for new
 connection slow starts, but they are still used for slow starts
 that occur when the connection has been idle and starts sending
 again.
@@ -408,7 +475,7 @@ allocated;
 .It Bq Er EADDRNOTAVAIL
 when an attempt is made to create a
 socket with a network address for which no network interface
-exists.
+exists;
 .It Bq Er EAFNOSUPPORT
 when an attempt is made to bind or connect a socket to a multicast
 address.
@@ -424,20 +491,20 @@ address.
 .Xr syncache 4 ,
 .Xr ttcp 4
 .Rs
-.%A V. Jacobson
-.%A R. Braden
-.%A D. Borman
+.%A "V. Jacobson"
+.%A "R. Braden"
+.%A "D. Borman"
 .%T "TCP Extensions for High Performance"
-.%O RFC 1323
+.%O "RFC 1323"
 .Re
 .Rs
-.%A R. Braden
+.%A "R. Braden"
 .%T "T/TCP \- TCP Extensions for Transactions"
-.%O RFC 1644
+.%O "RFC 1644"
 .Re
 .Sh HISTORY
 The
-.Nm
+.Tn TCP
 protocol appeared in
 .Bx 4.2 .
 The RFC 1323 extensions for window scaling and timestamps were added
