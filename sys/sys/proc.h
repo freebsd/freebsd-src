@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.50 1997/12/06 04:11:14 sef Exp $
+ * $Id: proc.h,v 1.51 1997/12/12 04:00:48 dyson Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -342,6 +342,7 @@ int		fork1 __P((struct proc *, int));
 int	trace_req __P((struct proc *));
 void	cpu_wait __P((struct proc *));
 int	cpu_coredump __P((struct proc *, struct vnode *, struct ucred *));
+void		setsugid __P((struct proc *p));
 #endif	/* KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */
