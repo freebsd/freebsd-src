@@ -1426,8 +1426,9 @@ AAA
 	case	PPPOE_SREQ:
 		m0 = m_copypacket(sp->neg->m, M_DONTWAIT);
 		NG_SEND_DATA( error, privp->ethernet_hook, m0, dummy);
-		neg->timeout_handle = timeout(pppoe_ticker, hook, hz);
-		neg->timeout = 2;
+		neg->timeout_handle = timeout(pppoe_ticker, hook,
+					(hz * PPPOE_INITIAL_TIMEOUT));
+		neg->timeout = PPPOE_INITIAL_TIMEOUT * 2;
 		break;
 
 	default:
