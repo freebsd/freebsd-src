@@ -66,6 +66,8 @@ struct g_class g_disk_class = {
 	G_CLASS_INITIALIZER
 };
 
+DECLARE_GEOM_CLASS(g_disk_class, g_disk);
+
 static int
 g_disk_access(struct g_provider *pp, int r, int w, int e)
 {
@@ -203,36 +205,39 @@ g_disk_start(struct bio *bp)
 	return;
 }
 
-dev_t
-disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
+static void
+g_disk_create(void *arg)
 {
-	static int once;
 	struct g_geom *gp;
 	struct g_provider *pp;
 	dev_t dev;
 
-	mtx_unlock(&Giant);
-	if (!once) {
-		g_add_class(&g_disk_class);
-		once++;
-	}
+	g_topology_assert();
+	dev = arg;
+	gp = g_new_geomf(&g_disk_class, dev->si_name);
+	gp->start = g_disk_start;
+	gp->access = g_disk_access;
+	gp->softc = dev->si_disk;
+	dev->si_disk->d_softc = gp;
+	pp = g_new_providerf(gp, "%s", gp->name);
+	g_error_provider(pp, 0);
+}
+
+
+
+dev_t
+disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
+{
+	dev_t dev;
+
 	dev = g_malloc(sizeof *dev, M_WAITOK | M_ZERO);
 	dp->d_dev = dev;
 	dp->d_devsw = cdevsw;
 	dev->si_devsw = cdevsw;
 	dev->si_disk = dp;
 	dev->si_udev = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-	g_topology_lock();
-	gp = g_new_geomf(&g_disk_class, "%s%d", cdevsw->d_name, unit);
-	strcpy(dev->si_name, gp->name);
-	gp->start = g_disk_start;
-	gp->access = g_disk_access;
-	gp->softc = dp;
-	dp->d_softc = gp;
-	pp = g_new_providerf(gp, "%s", gp->name);
-	g_error_provider(pp, 0);
-	g_topology_unlock();
-	mtx_lock(&Giant);
+	sprintf(dev->si_name, "%s%d", cdevsw->d_name, unit);
+	g_call_me(g_disk_create, dev);
 	return (dev);
 }
 
