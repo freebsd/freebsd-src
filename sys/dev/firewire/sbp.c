@@ -642,9 +642,11 @@ sbp_probe_lun(struct sbp_dev *sdev)
 	crom_next(cc);
 	crom_parse_text(cc, sdev->vendor, sizeof(sdev->vendor));
 	/* skip to the unit directory for SBP-2 */
-	while ((reg = crom_search_key(cc, CSRKEY_VER)) != NULL)
+	while ((reg = crom_search_key(cc, CSRKEY_VER)) != NULL) {
 		if (reg->val == CSRVAL_T10SBP2)
 			break;
+		crom_next(cc);
+	}
 	/* get firmware revision */
 	reg = crom_search_key(cc, CSRKEY_FIRM_VER);
 	if (reg != NULL)
