@@ -1437,13 +1437,9 @@ vm_page_t
 vm_page_grab(vm_object_t object, vm_pindex_t pindex, int allocflags)
 {
 	vm_page_t m;
-	int s, generation, is_object_locked;
+	int s, generation;
 
-	/*
-	 * Remove is_object_locked after vm_object locking is finished.
-	 */
-	if (!(is_object_locked = VM_OBJECT_LOCKED(object)))
-		GIANT_REQUIRED;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 retrylookup:
 	if ((m = vm_page_lookup(object, pindex)) != NULL) {
 		vm_page_lock_queues();
@@ -1454,11 +1450,9 @@ retrylookup:
 			while ((object->generation == generation) &&
 					(m->busy || (m->flags & PG_BUSY))) {
 				vm_page_flag_set(m, PG_WANTED | PG_REFERENCED);
-				if (is_object_locked)
-					VM_OBJECT_UNLOCK(object);
+				VM_OBJECT_UNLOCK(object);
 				msleep(m, &vm_page_queue_mtx, PDROP | PVM, "pgrbwt", 0);
-				if (is_object_locked)
-					VM_OBJECT_LOCK(object);
+				VM_OBJECT_LOCK(object);
 				if ((allocflags & VM_ALLOC_RETRY) == 0) {
 					splx(s);
 					return NULL;
@@ -1479,11 +1473,9 @@ retrylookup:
 
 	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_RETRY);
 	if (m == NULL) {
-		if (is_object_locked)
-			VM_OBJECT_UNLOCK(object);
+		VM_OBJECT_UNLOCK(object);
 		VM_WAIT;
-		if (is_object_locked)
-			VM_OBJECT_LOCK(object);
+		VM_OBJECT_LOCK(object);
 		if ((allocflags & VM_ALLOC_RETRY) == 0)
 			return NULL;
 		goto retrylookup;
