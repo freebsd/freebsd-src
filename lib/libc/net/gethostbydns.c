@@ -67,6 +67,7 @@ static char rcsid[] = "$FreeBSD$";
 #include <arpa/nameser.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <netdb.h>
@@ -96,11 +97,7 @@ static u_char host_addr[16];	/* IPv4 or IPv6 */
 static void addrsort __P((char **, int));
 #endif
 
-#if PACKETSZ > 1024
-#define	MAXPACKET	PACKETSZ
-#else
-#define	MAXPACKET	1024
-#endif
+#define MAXPACKET	(64*1024)
 
 typedef union {
     HEADER hdr;
@@ -480,10 +477,11 @@ _gethostbydnsname(name, af)
 	const char *name;
 	int af;
 {
-	querybuf buf;
+	querybuf *buf;
 	register const char *cp;
 	char *bp;
 	int n, size, type, len;
+	struct hostent *hp;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
@@ -584,15 +582,23 @@ _gethostbydnsname(name, af)
 				break;
 		}
 
-	n = res_search(name, C_IN, type, buf.buf, sizeof(buf.buf));
+	if ((buf = malloc(sizeof(*buf))) == NULL) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
+	n = res_search(name, C_IN, type, buf->buf, sizeof(buf->buf));
 	if (n < 0) {
+		free(buf);
 		dprintf("res_search failed (%d)\n", n);
 		return (NULL);
-	} else if (n > sizeof(buf.buf)) {
+	} else if (n > sizeof(buf->buf)) {
+		free(buf);
 		dprintf("static buffer is too small (%d)\n", n);
 		return (NULL);
 	}
-	return (gethostanswer(&buf, n, name, type));
+	hp = gethostanswer(buf, n, name, type);
+	free(buf);
+	return (hp);
 }
 
 struct hostent *
@@ -604,7 +610,7 @@ _gethostbydnsaddr(addr, len, af)
 	static const u_char mapped[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0xff,0xff };
 	static const u_char tunnelled[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 };
 	int n, size;
-	querybuf buf;
+	querybuf *buf;
 	register struct hostent *hp;
 	char qbuf[MAXDNAME+1], *qp;
 #ifdef SUNSECURITY
@@ -664,17 +670,26 @@ _gethostbydnsaddr(addr, len, af)
 	default:
 		abort();
 	}
-	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf.buf, sizeof buf.buf);
+	if ((buf = malloc(sizeof(*buf))) == NULL) {
+		h_errno = NETDB_INTERNAL;
+		return (NULL);
+	}
+	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf->buf, sizeof buf->buf);
 	if (n < 0) {
+		free(buf);
 		dprintf("res_query failed (%d)\n", n);
 		return (NULL);
 	}
-	if (n > sizeof buf.buf) {
+	if (n > sizeof buf->buf) {
+		free(buf);
 		dprintf("static buffer is too small (%d)\n", n);
 		return (NULL);
 	}
-	if (!(hp = gethostanswer(&buf, n, qbuf, T_PTR)))
+	if (!(hp = gethostanswer(buf, n, qbuf, T_PTR))) {
+		free(buf);
 		return (NULL);	/* h_errno was set by gethostanswer() */
+	}
+	free(buf);
 #ifdef SUNSECURITY
 	if (af == AF_INET) {
 	    /*
