@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: state.c,v 2.6 1998/08/19 08:04:47 grog Exp grog $
+ * $Id: state.c,v 2.7 1998/11/01 04:46:13 grog Exp grog $
  */
 
 #define REALLYKERNEL
@@ -54,14 +54,18 @@ set_drive_state(int driveno, enum drivestate state, int flags)
 
     if (state != oldstate) {				    /* don't change it if it's not different */
 	if (state == drive_down) {			    /* the drive's going down */
-	    if (flags || (drive->opencount == 0)) {	    /* we can do it */
-		close_drive(drive);
-		drive->state = state;
-		printf("vinum: drive %s is %s\n", drive->label.name, drive_state(drive->state));
+	    if ((flags & setstate_force) || (drive->opencount == 0)) { /* we can do it */
+		/* We can't call close() from an interrupt
+		 * context.  Instead, we do it when we
+		 * next call strategy().  This will change
+		 * when the vinum daemon comes onto the scene */
+		if (!(flags & setstate_noupdate))	    /* we can close it */
+		    close_drive(drive);
 	    } else
 		return 0;				    /* don't do it */
 	}
 	drive->state = state;				    /* set the state */
+	printf("vinum: drive %s is %s\n", drive->label.name, drive_state(drive->state));
 	if (((drive->state == drive_up)
 		|| ((drive->state == drive_coming_up)))
 	    && (drive->vp == NULL))			    /* should be open, but we're not */
@@ -72,9 +76,12 @@ set_drive_state(int driveno, enum drivestate state, int flags)
 		if (SD[sdno].driveno == driveno)	    /* belongs to this drive */
 		    set_sd_state(sdno, sd_down, setstate_force | setstate_recursing); /* take it down */
 	    }
-	    save_config();				    /* and save the updated configuration */
-	    return 1;
 	}
+	if (flags & setstate_noupdate)			    /* don't update now, */
+	    vinum_conf.flags |= VF_DIRTYCONFIG;		    /* wait until later */
+	else
+	    save_config();				    /* yes: save the updated configuration */
+	return 1;
     }
     return 0;
 }
@@ -115,7 +122,7 @@ set_sd_state(int sdno, enum sdstate state, enum setstateflags flags)
 	    if (DRIVE[sd->driveno].state != drive_up)	    /* can't bring the sd up if the drive isn't, */
 		return 0;				    /* not even by force */
 	    switch (sd->state) {
-	    case sd_obsolete:
+	    case sd_crashed:
 	    case sd_down:				    /* been down, no data lost */
 		if ((sd->plexno)			    /* we're associated with a plex */
 		&&(((PLEX[sd->plexno].state < plex_firstup) /* and it's not up */
@@ -464,16 +471,37 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 
 	case volplex_otherup:				    /* another plex is up */
 	case volplex_otherupdown:			    /* other plexes are up and down */
-	    if ((statemap == sd_upstate)		    /* subdisks all up */
-	    ||(statemap == sd_emptystate)		    /* or all empty */
-	    ) {
+	    {
+		int sdno;
+		struct sd *sd;
+
 		/* Is the data in all subdisks valid? */
-		if (statemap == statemap & (sd_downstate | sd_rebornstate | sd_upstate))
-		    break;				    /* yes, we can bring the plex up */
-		plex->state = plex_reviving;		    /* we need reviving */
-		return EAGAIN;
-	    } else
-		plex->state = plex_faulty;		    /* still in error */
+		/* XXX At the moment, subdisks make false
+		 * claims about their validity.  Replace this
+		 * when they tell the truth */
+		/* No: we have invalid or down subdisks */
+		for (sdno = 0; sdno < plex->subdisks; sdno++) {	/* look at these subdisks more carefully */
+		    set_sd_state(plex->sdnos[sdno],	    /* try to get it up */
+			sd_up,
+			setstate_norecurse | setstate_noupdate);
+		    sd = &SD[plex->sdnos[sdno]];	    /* point to subdisk */
+							    /* we can make a stale subdisk up here, because
+		     * we're in the process of bringing it up.
+		     * This wouldn't work in set_sd_state, because
+		     * it would allow bypassing the revive */
+		    if (((sd->state == sd_stale)
+			    || (sd->state == sd_obsolete))
+			&& (DRIVE[sd->driveno].state == drive_up))
+			sd->state = sd_up;
+		}
+		statemap = sdstatemap(plex, &sddowncount);  /* get the new state map */
+		/* Do we need reborn?  They should now all be up */
+		if (statemap == (statemap & (sd_upstate | sd_rebornstate))) { /* got something we can use */
+		    plex->state = plex_reviving;	    /* we need reviving */
+		    return EAGAIN;
+		} else
+		    plex->state = plex_down;		    /* still in error */
+	    }
 	    break;
 
 	case volplex_allup:				    /* all plexes are up */
@@ -529,8 +557,12 @@ set_plex_state(int plexno, enum plexstate state, enum setstateflags flags)
 		set_volume_state(plex->volno, volume_up, setstate_recursing); /* bring our volume up */
 	}
     }
-    if ((flags & (setstate_configuring | setstate_recursing)) == 0) /* save config now */
-	save_config();
+    if ((flags & (setstate_configuring | setstate_recursing)) == 0) { /* save config now */
+	if (flags & setstate_noupdate)			    /* don't update now, */
+	    vinum_conf.flags |= VF_DIRTYCONFIG;		    /* wait until later */
+	else
+	    save_config();				    /* yes: save the updated configuration */
+    }
     return 1;
 }
 
@@ -577,8 +609,12 @@ set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
 	if (plexstatemap & plex_upstate) {		    /* we have a plex which is completely up */
 	    vol->state = volume_up;			    /* did it */
 	    printf("vinum: volume %s is %s\n", vol->name, volume_state(vol->state));
-	    if ((flags & (setstate_configuring | setstate_recursing)) == 0) /* save config now */
-		save_config();
+	    if ((flags & (setstate_configuring | setstate_recursing)) == 0) { /* save config now */
+		if (flags & setstate_noupdate)		    /* don't update now, */
+		    vinum_conf.flags |= VF_DIRTYCONFIG;	    /* wait until later */
+		else
+		    save_config();			    /* yes: save the updated configuration */
+	    }
 	    return 1;
 	}
 	/* Here we should check whether we have enough
@@ -588,8 +624,12 @@ set_volume_state(int volno, enum volumestate state, enum setstateflags flags)
 	||(flags & setstate_force != 0)) {		    /* or we're forcing */
 	    vol->state = volume_down;
 	    printf("vinum: volume %s is %s\n", vol->name, volume_state(vol->state));
-	    if ((flags & (setstate_configuring | setstate_recursing)) == 0) /* save config now */
-		save_config();
+	    if ((flags & (setstate_configuring | setstate_recursing)) == 0) { /* save config now */
+		if (flags & setstate_noupdate)		    /* don't update now, */
+		    vinum_conf.flags |= VF_DIRTYCONFIG;	    /* wait until later */
+		else
+		    save_config();			    /* yes: save the updated configuration */
+	    }
 	    return 1;
 	}
     }
