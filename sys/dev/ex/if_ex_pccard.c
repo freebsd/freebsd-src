@@ -89,6 +89,9 @@ static int
 ex_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
+	int error;
+	uint32_t	fcn = PCCARD_FUNCTION_UNSPEC;
+
 	/* Make sure we're a network function */
 	error = pccard_get_function(dev, &fcn);
 	if (error != 0)
