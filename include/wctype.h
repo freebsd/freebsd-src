@@ -85,6 +85,7 @@ wint_t	iswnumber(wint_t);
 wint_t	iswphonogram(wint_t);
 wint_t	iswrune(wint_t);
 wint_t	iswspecial(wint_t);
+wint_t	nextwctype(wint_t, wctype_t);
 #endif
 __END_DECLS
 
