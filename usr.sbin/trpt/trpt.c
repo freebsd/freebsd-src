@@ -82,34 +82,31 @@ static const char rcsid[] =
 #include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-struct nlist nl[] = {
+struct nlist nl[3];
 #define	N_TCP_DEBUG	0
-	{ "_tcp_debug" },
 #define	N_TCP_DEBX	1
-	{ "_tcp_debx" },
-	{ "" },
-};
 
 static caddr_t tcp_pcbs[TCP_NDEBUG];
 static n_time ntime;
 static int aflag, kflag, memf, follow, sflag, tflag;
 
-void dotrace __P((caddr_t));
-void klseek __P((int, off_t, int));
-int numeric __P((const void *, const void *));
-void tcp_trace __P((short, short, struct tcpcb *, struct tcpcb *,
-			int, void *, struct tcphdr *, int));
-static void usage __P((void));
+void dotrace(caddr_t);
+void klseek(int, off_t, int);
+int numeric(const void *, const void *);
+void tcp_trace(short, short, struct tcpcb *, int, void *, struct tcphdr *, int);
+static void usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int ch, i, jflag, npcbs;
-	char *system, *core;
+	const char *core, *syst;
+
+	nl[0].n_name = strdup("_tcp_debug");
+	nl[1].n_name = strdup("_tcp_debx");
 
 	jflag = npcbs = 0;
 	while ((ch = getopt(argc, argv, "afjp:st")) != -1)
@@ -144,7 +141,7 @@ main(argc, argv)
 
 	core = _PATH_KMEM;
 	if (argc > 0) {
-		system = *argv;
+		syst = *argv;
 		argc--, argv++;
 		if (argc > 0) {
 			core = *argv;
@@ -158,10 +155,10 @@ main(argc, argv)
 		setgid(getgid());
 	}
 	else
-		system = (char *)getbootfile();
+		syst = getbootfile();
 
-	if (nlist(system, nl) < 0 || !nl[0].n_value)
-		errx(1, "%s: no namelist", system);
+	if (nlist(syst, nl) < 0 || !nl[0].n_value)
+		errx(1, "%s: no namelist", syst);
 	if ((memf = open(core, O_RDONLY)) < 0)
 		err(2, "%s", core);
 	setgid(getgid());
@@ -200,7 +197,7 @@ main(argc, argv)
 	qsort(tcp_pcbs, npcbs, sizeof(caddr_t), numeric);
 	if (jflag) {
 		for (i = 0;;) {
-			printf("%x", tcp_pcbs[i]);
+			printf("%p", (void *)tcp_pcbs[i]);
 			if (++i == npcbs)
 				break;
 			fputs(", ", stdout);
@@ -245,14 +242,12 @@ again:	if (--tcp_debx < 0)
 		switch(family) {
 		case AF_INET:
 			tcp_trace(td->td_act, td->td_ostate,
-				  (struct tcpcb *)td->td_tcb,
 				  &td->td_cb, td->td_family, &td->td_ti.ti_i,
 				  &td->td_ti.ti_t, td->td_req);
 			break;
 #ifdef INET6
 		case AF_INET6:
 			tcp_trace(td->td_act, td->td_ostate,
-				  (struct tcpcb *)td->td_tcb,
 				  &td->td_cb, td->td_family, &td->td_ti6.ip6,
 				  &td->td_ti6.th, td->td_req);
 			break;
@@ -274,14 +269,12 @@ again:	if (--tcp_debx < 0)
 		switch(family) {
 		case AF_INET:
 			tcp_trace(td->td_act, td->td_ostate,
-				  (struct tcpcb *)td->td_tcb,
 				  &td->td_cb, td->td_family, &td->td_ti.ti_i,
 				  &td->td_ti.ti_t, td->td_req);
 			break;
 #ifdef INET6
 		case AF_INET6:
 			tcp_trace(td->td_act, td->td_ostate,
-				  (struct tcpcb *)td->td_tcb,
 				  &td->td_cb, td->td_family, &td->td_ti6.ip6,
 				  &td->td_ti6.th, td->td_req);
 			break;
@@ -312,9 +305,9 @@ done:	if (follow) {
  */
 /*ARGSUSED*/
 void
-tcp_trace(act, ostate, atp, tp, family, ip, th, req)
+tcp_trace(act, ostate, tp, family, ip, th, req)
 	short act, ostate;
-	struct tcpcb *atp, *tp;
+	struct tcpcb *tp;
 	int family;
 	void *ip;
 	struct tcphdr *th;
@@ -347,7 +340,7 @@ tcp_trace(act, ostate, atp, tp, family, ip, th, req)
 #else
 	ip4 = (struct ip *)ip;
 #endif
-	printf("%03ld %s:%s ",(ntime/10) % 1000, tcpstates[ostate],
+	printf("%03ld %s:%s ", (long)((ntime/10) % 1000), tcpstates[ostate],
 	    tanames[act]);
 	switch (act) {
 	case TA_INPUT:
@@ -394,15 +387,15 @@ tcp_trace(act, ostate, atp, tp, family, ip, th, req)
 		if (act == TA_OUTPUT)
 			len -= sizeof(struct tcphdr);
 		if (len)
-			printf("[%lx..%lx)", seq, seq + len);
+			printf("[%lx..%lx)", (u_long)seq, (u_long)(seq + len));
 		else
-			printf("%lx", seq);
-		printf("@%lx", ack);
+			printf("%lx", (u_long)seq);
+		printf("@%lx", (u_long)ack);
 		if (win)
 			printf("(win=%x)", win);
 		flags = th->th_flags;
 		if (flags) {
-			register char *cp = "<";
+			const char *cp = "<";
 #define	pf(flag, string) { \
 	if (th->th_flags&flag) { \
 		(void)printf("%s%s", cp, string); \
@@ -430,11 +423,13 @@ tcp_trace(act, ostate, atp, tp, family, ip, th, req)
 	/* print out internal state of tp !?! */
 	printf("\n");
 	if (sflag) {
-		printf("\trcv_nxt %lx rcv_wnd %x snd_una %lx snd_nxt %lx snd_max %lx\n",
-		    tp->rcv_nxt, tp->rcv_wnd, tp->snd_una, tp->snd_nxt,
-		    tp->snd_max);
-		printf("\tsnd_wl1 %lx snd_wl2 %lx snd_wnd %x\n", tp->snd_wl1,
-		    tp->snd_wl2, tp->snd_wnd);
+		printf("\trcv_nxt %lx rcv_wnd %lx snd_una %lx snd_nxt %lx snd_max %lx\n",
+		    (u_long)tp->rcv_nxt, tp->rcv_wnd,
+		    (u_long)tp->snd_una, (u_long)tp->snd_nxt,
+		    (u_long)tp->snd_max);
+		printf("\tsnd_wl1 %lx snd_wl2 %lx snd_wnd %lx\n",
+		    (u_long)tp->snd_wl1,
+		    (u_long)tp->snd_wl2, tp->snd_wnd);
 	}
 	/* print out timers? */
 #if 0
