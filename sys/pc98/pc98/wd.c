@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.61 1998/08/23 20:16:34 phk Exp $
+ *	$Id: wd.c,v 1.62 1998/09/14 19:56:40 sos Exp $
  */
 
 /* TODO:
@@ -78,6 +78,7 @@
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
 #include <sys/buf.h>
+#include <sys/devicestat.h>
 #include <sys/malloc.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
@@ -96,7 +97,6 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wdreg.h>
 #include <sys/syslog.h>
-#include <sys/dkstat.h>
 #include <vm/vm.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
@@ -206,12 +206,13 @@ struct disk {
 				 */
 #define DKFL_LBA	0x02000	/* use LBA for data transfers */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
-	int	dk_dkunit;	/* disk stats unit number */
 	unsigned int	dk_multi;	/* multi transfers */
-	u_int	dk_currentiosize;	/* current io size */
+	int	dk_currentiosize;	/* current io size */
 	struct diskgeom dk_dd;	/* device configuration data */
 	struct diskslices *dk_slices;	/* virtual drives */
 	void	*dk_dmacookie;	/* handle for DMA services */
+
+	struct devstat dk_stats;	/* devstat entry */
 #ifdef PC98
 	short single_sector;
 #endif
@@ -612,19 +613,14 @@ wdattach(struct isa_device *dvp)
 						       "rwd%d", lunit);
 #endif
 
-			if (dk_ndrive < DK_NDRIVE) {
-				sprintf(dk_names[dk_ndrive], "wd%d", lunit);
-				/*
-				 * XXX we don't know the transfer rate of the
-				 * drive.  Guess the maximum ISA rate of
-				 * 4MB/sec.  `wpms' is words per _second_
-				 * according to iostat.
-				 */
-				dk_wpms[dk_ndrive] = 4 * 1024 * 1024 / 2;
-				du->dk_dkunit = dk_ndrive++;
-			} else {
-				du->dk_dkunit = -1;
-			}
+			/*
+			 * Export the drive to the devstat interface.
+			 */
+			devstat_add_entry(&du->dk_stats, "wd", 
+					  lunit, du->dk_dd.d_secsize,
+					  DEVSTAT_NO_ORDERED_TAGS,
+					  DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE);
+
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
@@ -770,21 +766,8 @@ wdstrategy(register struct buf *bp)
 #endif
 		wdstart(du->dk_ctrlr);	/* start controller */
 
-	if (du->dk_dkunit >= 0) {
-		/*
-		 * XXX perhaps we should only count successful transfers.
-		 */
-		dk_xfer[du->dk_dkunit]++;
-		/*
-		 * XXX we can't count seeks correctly but we can do better
-		 * than this.  E.g., assume that the geometry is correct
-		 * and count 1 seek if the starting cylinder of this i/o
-		 * differs from the starting cylinder of the previous i/o,
-		 * or count 1 seek if the starting bn of this i/o doesn't
-		 * immediately follow the ending bn of the previos i/o.
-		 */
-		dk_seek[du->dk_dkunit]++;
-	}
+	/* Tell devstat that we have started a transaction on this drive */
+	devstat_start_transaction(&du->dk_stats);
 
 	splx(s);
 	return;
@@ -1051,9 +1034,6 @@ wdstart(int ctrlr)
 				wdunwedge(du);
 			}
 		}
-		if(du->dk_dkunit >= 0) {
-			dk_busy |= 1 << du->dk_dkunit;
-		}
 
 		if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
 			wddma[du->dk_interface].wdd_dmaprep(du->dk_dmacookie,
@@ -1152,16 +1132,6 @@ wdstart(int ctrlr)
 		      (count * DEV_BSIZE) / sizeof(short));
 		
 	du->dk_bc -= DEV_BSIZE * count;
-	if (du->dk_dkunit >= 0) {
-		/*
-		 * `wd's are blocks of 32 16-bit `word's according to
-		 * iostat.  dk_wds[] is the one disk i/o statistic that
-		 * we can record correctly.
-		 * XXX perhaps we shouldn't record words for failed
-		 * transfers.
-		 */
-		dk_wds[du->dk_dkunit] += (count * DEV_BSIZE) >> 6;
-	}
 }
 
 /* Interrupt routine for the controller.  Acknowledge the interrupt, check for
@@ -1353,8 +1323,6 @@ oops:
 			chk += sizeof(short);
 		}
 
-		if (du->dk_dkunit >= 0)
-			dk_wds[du->dk_dkunit] += chk >> 6;
 	}
 
 	/* final cleanup on DMA */
@@ -1367,8 +1335,6 @@ oops:
 
 		du->dk_bc -= iosize;
 
-		if (du->dk_dkunit >= 0)
-			dk_wds[du->dk_dkunit] += iosize >> 6;
 	}
 
 outt:
@@ -1408,11 +1374,14 @@ done: ;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
 		du->dk_skip = 0;
-		biodone(bp);
-	}
 
-	if(du->dk_dkunit >= 0) {
-		dk_busy &= ~(1 << du->dk_dkunit);
+		/* Update device stats */
+		devstat_end_transaction(&du->dk_stats,
+					bp->b_bcount - bp->b_resid,
+					DEVSTAT_TAG_NONE,
+					(bp->b_flags & B_READ) ? DEVSTAT_READ : DEVSTAT_WRITE);
+
+		biodone(bp);
 	}
 
 	/* controller idle */
