@@ -62,6 +62,15 @@ Show the de-install script (if any) for each package.
 .TP
 .B \-r
 Show the requirements script (if any) for each package.
+.TP
+.BI "\-l\ " str
+Prefix each catagory of information shown with
+.I str.
+This is primarily of use to front-end programs who want to request a
+lot of different information fields at once for a package, but don't
+necessary want the output intermingled in such a way that they can't
+organize it.  This lets you add a special token to the start of
+each field.
 .PP
 .SH "TECHNICAL DETAILS"
 Package info is either extracted from files supplied on the

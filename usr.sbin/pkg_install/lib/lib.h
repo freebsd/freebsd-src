@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.4 1993/08/24 09:24:07 jkh Exp $ */
+/* $Id: lib.h,v 1.5 1993/09/04 05:06:49 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -123,10 +123,12 @@ Boolean		y_or_n(Boolean, const char *, ...);
 /* Packing list */
 PackingList	new_plist_entry(void);
 PackingList	last_plist(Package *);
+Boolean		in_plist(Package *, plist_t);
 void		free_plist(Package *);
 void		mark_plist(Package *);
 void		csum_plist_entry(char *, PackingList);
-void		add_plist(Package *, int, char *);
+void		add_plist(Package *, plist_t, char *);
+void		add_plist_top(Package *, plist_t, char *);
 void		write_plist(Package *, FILE *);
 void		read_plist(Package *, FILE *);
 int		plist_cmd(char *, char **);
