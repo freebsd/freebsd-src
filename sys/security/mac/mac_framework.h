@@ -90,6 +90,7 @@ int		 mac_prepare(mac_t *_label, char *_elements);
 int		 mac_prepare_file_label(mac_t *_label);
 int		 mac_prepare_ifnet_label(mac_t *_label);
 int		 mac_prepare_process_label(mac_t *_label);
+int		 mac_prepare_type(mac_t *_label, const char *_type);
 int		 mac_set_fd(int _fildes, const mac_t _label);
 int		 mac_set_file(const char *_path, mac_t _label);
 int		 mac_set_link(const char *_path, mac_t _label);
