@@ -609,7 +609,7 @@ struct rl_stats {
  * Tx/Rx count must be equal.  Shared code like re_dma_map_desc assumes this.
  */
 #define RL_TX_DESC_CNT		64
-#define RL_RX_DESC_CNT		RL_RX_DESC_CNT
+#define RL_RX_DESC_CNT		RL_TX_DESC_CNT
 #define RL_RX_LIST_SZ		(RL_RX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_TX_LIST_SZ		(RL_TX_DESC_CNT * sizeof(struct rl_desc))
 #define RL_RING_ALIGN		256
