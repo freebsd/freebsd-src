@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.7 1995/05/07 03:38:03 jkh Exp $
+ * $Id: system.c,v 1.8 1995/05/08 06:06:29 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -72,7 +72,7 @@ systemInitialize(int argc, char **argv)
 	    close(1); dup(0);
 	    close(2); dup(0);
 	}
-	msgInfo("%s running as init", argv[0]);
+	printf("%s running as init\n", argv[0]);
 
 	ioctl(0, TIOCSCTTY, (char *)NULL);
 	setlogin("root");
@@ -81,8 +81,10 @@ systemInitialize(int argc, char **argv)
 	setbuf(stderr, 0);
     }
 
-    if (set_termcap() == -1)
-	msgFatal("Can't find terminal entry");
+    if (set_termcap() == -1) {
+	printf("Can't find terminal entry\n");
+	exit(-1);
+    }
 
     /* XXX - libdialog has particularly bad return value checking */
     init_dialog();
