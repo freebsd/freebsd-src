@@ -2441,12 +2441,8 @@ ndis_close_file(filehandle)
 __stdcall static uint8_t
 ndis_cpu_cnt()
 {
-#ifdef SMP
 	return(mp_ncpus);
-#else
-	return(1);
-#endif
-};
+}
 
 typedef void (*ndis_statusdone_handler)(ndis_handle);
 typedef void (*ndis_status_handler)(ndis_handle, ndis_status,
