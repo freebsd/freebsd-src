@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.101 1995/06/28 17:58:14 ache Exp $
+ *	$Id: sio.c,v 1.102 1995/07/05 14:30:07 bde Exp $
  */
 
 #include "sio.h"
@@ -46,9 +46,7 @@
 #include <sys/systm.h>
 #include <sys/reboot.h>
 #include <sys/ioctl.h>
-#define	TTYDEFCHARS		/* XXX TK2.0 */
 #include <sys/tty.h>
-#undef	TTYDEFCHARS
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/conf.h>
@@ -74,14 +72,6 @@
 #define	TSA_CARR_ON(tp)		((void *)&(tp)->t_rawq)
 #define	TSA_OCOMPLETE(tp)	((void *)&(tp)->t_outq)
 #define	TSA_OLOWAT(tp)		((void *)&(tp)->t_outq)
-static	void	termioschars	__P((struct termios *t));
-static void
-termioschars(t)
-	struct termios *t;
-{
-
-	bcopy(ttydefchars, t->c_cc, sizeof t->c_cc);
-}
 
 #define	LOTS_OF_EVENTS	64	/* helps separate urgent events from input */
 #define	RB_I_HIGH_WATER	(TTYHOG - 2 * RS_IBUFSIZE)
