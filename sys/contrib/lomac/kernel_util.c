@@ -61,7 +61,7 @@
 #include "kernel_monitor.h"
 #include "lomacfs.h"
 
-#include "syscall_gate/syscall_gate.h"
+#include "syscall_gate.h"
 
 #define	AS(name) (sizeof(struct name) / sizeof(register_t))
 
