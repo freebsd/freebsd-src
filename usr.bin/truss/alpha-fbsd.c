@@ -229,10 +229,10 @@ alpha_syscall_entry(struct trussinfo *trussinfo, int nargs) {
     for (i = 0; i < fsc.nargs; i++) {
 #if DEBUG
       fprintf(stderr, "0x%x%s",
-	     sc
-	     ? fsc.args[sc->args[i].offset]
-	     : fsc.args[i],
-	     i < (fsc.nargs -1) ? "," : "");
+	      sc
+	      ? fsc.args[sc->args[i].offset]
+	      : fsc.args[i],
+	      i < (fsc.nargs - 1) ? "," : "");
 #endif
       if (sc && !(sc->args[i].type & OUT)) {
 	fsc.s_args[i] = print_arg(Procfd, &sc->args[i], fsc.args);
