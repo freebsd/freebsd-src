@@ -265,7 +265,6 @@ again1:
 					start++;
 					goto again0;
 				}
-				vm_page_busy(m);
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
 			}
@@ -472,7 +471,6 @@ cleanup_freed:
 					VM_OBJECT_UNLOCK(object);
 					goto retry;
 				}
-				vm_page_busy(m);
 				vm_page_free(m);
 				VM_OBJECT_UNLOCK(object);
 			}
