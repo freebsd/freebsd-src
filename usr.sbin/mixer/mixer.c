@@ -22,11 +22,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#ifdef __FreeBSD__
-#include <machine/soundcard.h>
-#else
 #include <sys/soundcard.h>
-#endif
 
 char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
