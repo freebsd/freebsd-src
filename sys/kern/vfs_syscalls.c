@@ -107,12 +107,21 @@ struct mount_args {
 int
 mount(p, uap)
 	struct proc *p;
-	register struct mount_args /* {
+	struct mount_args *uap;
+{
+	return (mount1(p, uap, UIO_USERSPACE));
+}
+
+int
+mount1(p, uap, segflag)
+	struct proc *p;
+	struct mount_args /* {
 		syscallarg(char *) type;
 		syscallarg(char *) path;
 		syscallarg(int) flags;
 		syscallarg(caddr_t) data;
 	} */ *uap;
+	int segflag;
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -140,8 +149,7 @@ mount(p, uap)
 	/*
 	 * Get vnode to be covered
 	 */
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    SCARG(uap, path), p);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, segflag, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -209,7 +217,8 @@ mount(p, uap)
 		vput(vp);
 		return (ENOTDIR);
 	}
-	if ((error = copyinstr(SCARG(uap, type), fstypename, MFSNAMELEN, NULL)) != 0) {
+	if ((error = copyinstrfrom(SCARG(uap, type),
+	     fstypename, MFSNAMELEN, NULL, segflag)) != 0) {
 		vput(vp);
 		return (error);
 	}
