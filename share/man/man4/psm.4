@@ -37,7 +37,12 @@
 .Cd "options KBD_MAXWAIT=N"
 .Cd "options PSM_DEBUG=N"
 .Cd "options KBDIO_DEBUG=N"
-.Cd "device psm0 at atkbdc? irq 12"
+.Cd "device psm"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.psm.0.at="atkbdc"
+.Cd hint.psm.0.irq="12"
 .Sh DESCRIPTION
 The
 .Nm
@@ -230,11 +235,11 @@ for debug logging.
 The
 .Nm
 driver accepts the following driver flags.
-Set them in the
-kernel configuration file or in the User Configuration Menu at
-the boot time
+Set them in
+.Pa /boot/device.hints
 (see
-.Xr boot 8 ) .
+.Sx EXAMPLES
+below).
 .Pp
 .Bl -tag -width MOUSE
 .It bit 0..3 RESOLUTION
@@ -627,16 +632,33 @@ movement counts as described in
 .Em devfs .
 .El
 .Sh EXAMPLES
-.Dl "device psm0 at atkbdc? irq 12 flags 0x2000"
-.Pp
-Add the
+In order to install the
 .Nm
-driver to the kernel with the optional code to stimulate the pointing device
+driver, you need to add
+.Pp
+.Dl "device atkbdc"
+.Dl "device psm"
+.Pp
+to your kernel configuration file, and put the following lines to
+.Pa /boot/device.hints .
+.Pp
+.Dl hint.atkbdc.0.at="isa"
+.Dl hint.atkbdc.0.port="0x060"
+.Dl hint.psm.0.at="atkbdc"
+.Dl hint.psm.0.irq="12"
+.Pp
+If you add the following statement to
+.Pa /boot/device.hints ,
+.Pp
+.Dl hint.psm.0.flags="0x2000"
+.Pp
+you will add the optional code to stimulate the pointing device
 after the `resume' event.
 .Pp
-.Dl "device psm0 at atkbdc? flags 0x024 irq 12"
+.Dl hint.psm.0.flags="0x24"
 .Pp
-Set the device resolution high (4) and the acceleration factor to 2.
+The above line will set the device resolution high (4)
+and the acceleration factor to 2.
 .Sh DIAGNOSTICS
 At debug level 0, little information is logged except for the following
 line during boot process:

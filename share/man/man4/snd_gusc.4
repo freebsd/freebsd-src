@@ -32,11 +32,16 @@
 .Nm gusc
 .Nd Gravis UltraSound ISA bridge device driver
 .Sh SYNOPSIS
-For PnP cards:
+.Cd "device pcm"
 .Cd "device gusc"
 .Pp
-For non-PnP cards:
-.Cd "device gusc0 at isa? port 0x220 irq 5 drq 1 flags 0x13"
+For non-PnP cards, add the following lines in
+.Pa /boot/device.hints .
+.Cd hint.gusc.0.at="isa"
+.Cd hint.gusc.0.port="0x220"
+.Cd hint.gusc.0.irq="5"
+.Cd hint.gusc.0.drq="1"
+.Cd hint.gusc.0.flags="0x13"
 .Sh DESCRIPTION
 The
 .Nm

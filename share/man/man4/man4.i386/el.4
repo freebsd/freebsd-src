@@ -30,7 +30,13 @@
 .Nm el
 .Nd Ethernet driver for 3Com Etherlink 3C501 device driver
 .Sh SYNOPSIS
-.Cd "device el0 at isa? port 0x300 irq 9"
+.Cd "device el 1"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.el.0.at="isa"
+.Cd hint.el.0.port="0x300"
+.Cd hint.el.0.irq="9"
 .Sh DESCRIPTION
 The
 .Nm

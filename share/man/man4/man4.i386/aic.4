@@ -30,7 +30,11 @@
 .Nm aic
 .Nd Adaptec AIC-6260 and AIC-6360 SCSI driver
 .Sh SYNOPSIS
-.Cd "device aic0 at isa? port 0x340 irq 11"
+.Cd "device aic"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.aic.0.at="isa"
 .Sh DESCRIPTION
 The
 .Nm

@@ -33,8 +33,12 @@
 .Nm aha
 .Nd Adaptec SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd device "aha0 at isa? port ? irq ? drq 5"
-.Cd device scbus0 at aha0
+.Cd device aha
+.Cd device scbus
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.aha.0.at="isa"
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI

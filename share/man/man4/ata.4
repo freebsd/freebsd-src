@@ -39,8 +39,16 @@
 .Sh SYNOPSIS
 For ISA based ATA/ATAPI support:
 .Cd device isa
-.Cd device ata0 at isa? port IO_WD1 irq 14
-.Cd device ata1 at isa? port IO_WD2 irq 15
+.Cd device ata
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.ata.0.at="isa"
+.Cd hint.ata.0.port="0x1f0"
+.Cd hint.ata.0.irq="14"
+.Cd hint.ata.1.at="isa"
+.Cd hint.ata.1.port="0x170"
+.Cd hint.ata.1.irq="15"
 .Pp
 For PCI based ATA/ATAPI support:
 .Cd device pci

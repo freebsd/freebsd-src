@@ -11,7 +11,18 @@
 .Nm ie
 .Nd ethernet device driver
 .Sh SYNOPSIS
-.Cd "device ie0 at isa? port 0x360 irq 7 iomem 0xd0000"
+.Cd "device ie 2"
+.Pp
+In
+.Pa /boot/device.hints :
+.Cd hint.ie.0.at="isa"
+.Cd hint.ie.0.port="0x300"
+.Cd hint.ie.0.irq="5"
+.Cd hint.ie.0.maddr="0xd0000"
+.Cd hint.ie.1.at="isa"
+.Cd hint.ie.1.port="0x360"
+.Cd hint.ie.1.irq="7"
+.Cd hint.ie.1.maddr="0xd0000"
 .Sh DESCRIPTION
 The
 .Nm
