@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumutil.c,v 1.14 1999/12/30 07:04:02 grog Exp grog $
+ * $Id: vinumutil.c,v 1.17 2003/04/28 02:54:43 grog Exp $
  * $FreeBSD$
  */
 
@@ -227,27 +227,37 @@ sizespec(char *spec)
 	throw_rude_remark(EINVAL, "Invalid length specification: %s", spec);
 #else
 	fprintf(stderr, "Invalid length specification: %s", spec);
-	longjmp(command_fail, -1);
+	longjmp(command_fail, 1);
 #endif
     }
 #ifdef _KERNEL
     throw_rude_remark(EINVAL, "Missing length specification");
 #else
     fprintf(stderr, "Missing length specification");
-    longjmp(command_fail, -1);
+    longjmp(command_fail, 1);
 #endif
     /* NOTREACHED */
     return -1;
 }
 
 /*
- * Extract the volume number from a device number.
- * Perform no checking.
+ * Extract the volume number from a device number.  Check that it's
+ * the correct type, and that it isn't one of the superdevs.
  */
 int
 Volno(dev_t dev)
 {
-    return (minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT;
+    int volno = minor(dev);
+
+    if (OBJTYPE(dev) != VINUM_VOLUME_TYPE)
+	return -1;
+    else
+	volno = ((volno & 0x3fff0000) >> 8) | (volno & 0xff);
+    if ((volno == VINUM_SUPERDEV_VOL)
+	|| (volno == VINUM_DAEMON_VOL))
+	return -1;
+    else
+	return volno;
 }
 
 /*
@@ -258,24 +268,12 @@ Volno(dev_t dev)
 int
 Plexno(dev_t dev)
 {
-    switch (DEVTYPE(dev)) {
-    case VINUM_VOLUME_TYPE:
-    case VINUM_DRIVE_TYPE:
-    case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
-    case VINUM_RAWSD_TYPE:
+    int plexno = minor(dev);
+
+    if (OBJTYPE(dev) != VINUM_PLEX_TYPE)
 	return -1;
-
-    case VINUM_PLEX_TYPE:
-    case VINUM_SD_TYPE:
-	return VOL[Volno(dev)].plex[(minor(dev) >> VINUM_PLEX_SHIFT) & (MASK(VINUM_PLEX_WIDTH))];
-
-    case VINUM_RAWPLEX_TYPE:
-	return ((minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((minor(dev) >> VINUM_RAWPLEX_SHIFT)
-	    & (MASK(VINUM_RAWPLEX_WIDTH)
-		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
-    }
-    return 0;						    /* compiler paranoia */
+    else
+	return ((plexno & 0x3fff0000) >> 8) | (plexno & 0xff);
 }
 
 /*
@@ -286,21 +284,20 @@ Plexno(dev_t dev)
 int
 Sdno(dev_t dev)
 {
-    switch (DEVTYPE(dev)) {
-    case VINUM_VOLUME_TYPE:
-    case VINUM_DRIVE_TYPE:
-    case VINUM_SUPERDEV_TYPE:				    /* ordinary super device */
-    case VINUM_PLEX_TYPE:
-    case VINUM_RAWPLEX_TYPE:
+    int sdno = minor(dev);
+
+    /*
+     * Care: VINUM_SD_TYPE is 2 or 3, which is why we use < instead of
+     * !=.  It's not clear that this makes any sense abstracting it to
+     * this level.
+     */
+    if (OBJTYPE(dev) < VINUM_SD_TYPE)
 	return -1;
-
-    case VINUM_SD_TYPE:
-	return PLEX[Plexno(dev)].sdnos[(minor(dev) >> VINUM_SD_SHIFT) & (MASK(VINUM_SD_WIDTH))];
-
-    case VINUM_RAWSD_TYPE:
-	return ((minor(dev) & MASK(VINUM_VOL_WIDTH)) >> VINUM_VOL_SHIFT) /* low order 8 bits */
-	|((minor(dev) >> VINUM_RAWPLEX_SHIFT) & (MASK(VINUM_RAWPLEX_WIDTH)
-		<< (VINUM_VOL_SHIFT + VINUM_VOL_WIDTH)));   /* upper 12 bits */
-    }
-    return -1;						    /* compiler paranoia */
+    else
+/*
+ * Note that the number we return includes the low-order bit of the
+ * type field.  This gives us twice as many potential subdisks as
+ * plexes or volumes.
+ */
+	return ((sdno & 0x7fff0000) >> 8) | (sdno & 0xff);
 }
