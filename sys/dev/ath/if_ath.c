@@ -3133,8 +3133,10 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 		if (wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_QOS) {
 			u_int pri = M_WME_GETAC(m0);
 			txq = sc->sc_ac2q[pri];
-			if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[pri].wmep_noackPolicy)
-				 flags |= HAL_TXDESC_NOACK;
+			if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[pri].wmep_noackPolicy) {
+				flags |= HAL_TXDESC_NOACK;
+				sc->sc_stats.ast_tx_noack++;
+			}
 		} else
 			txq = sc->sc_ac2q[WME_AC_BE];
 		break;
