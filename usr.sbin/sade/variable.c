@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.8 1996/04/13 13:32:15 jkh Exp $
+ * $Id: variable.c,v 1.9 1996/04/23 01:29:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,6 +49,8 @@ make_variable(char *var, char *value)
     /* Now search to see if it's already in the list */
     for (newvar = VarHead; newvar; newvar = newvar->next) {
 	if (!strcmp(newvar->name, var)) {
+	    if (isDebug())
+		msgDebug("variable %s was %s, now %s\n", newvar->name, newvar->value, value);
 	    strncpy(newvar->value, value, VAR_VALUE_MAX);
 	    return;
 	}
