@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ldconfig.8,v 1.14 1997/08/22 04:42:12 peter Exp $
+.\"	$Id: ldconfig.8,v 1.15 1998/01/01 02:31:47 alex Exp $
 .\"
 .Dd October 3, 1993
 .Dt LDCONFIG 8
@@ -37,6 +37,7 @@
 .Nd configure the shared library cache
 .Sh SYNOPSIS
 .Nm ldconfig
+.Op Fl aout | Fl elf
 .Op Fl Rmrsv
 .Op Fl f Ar hints_file
 .Op Ar directory | file Ar ...
@@ -44,25 +45,21 @@
 .Nm
 is used to prepare a set of
 .Dq hints
-for use by the run-time linker
-.Xr ld.so 1
+for use by the dynamic linker
 to facilitate quick lookup of shared libraries available in multiple
 directories.  It scans a set of built-in system directories and any
 .Ar directories
-specified on the command line (in the given order) looking for shared
-libraries and stores the results in the file
-.Pa /var/run/ld.so.hints
-to forestall the overhead that would otherwise result from the
-directory search operations
-.Xr ld.so 1
-would have to perform to load the required shared libraries.
+specified on the command line (in the given order) looking for
+shared libraries and stores the results in a system file to forestall
+the overhead that would otherwise result from the directory search
+operations the dynamic linker would have to perform to load the
+required shared libraries.
 .Pp
 Files named on the command line are expected to contain directories
 to scan for shared libraries.  Each directory's pathname must start on a new
 line.  Blank lines and lines starting with the comment character
 .Ql \&#
-are ignored.  A standard name for this file is
-.Xr /etc/ld.so.conf.
+are ignored.
 .Pp
 The shared libraries so found will be automatically available for loading
 if needed by the program being prepared for execution. This obviates the need
@@ -77,7 +74,7 @@ directories where shared libraries might be found.
 is a
 .Sq \:
 separated list of directory paths which are searched by
-.Xr ld.so 1
+the dynamic linker
 when it needs to load a shared library. It can be viewed as the run-time
 equivalent of the
 .Fl L
@@ -90,13 +87,16 @@ is typically run as part of the boot sequence.
 The following options recognized by
 .Nm ldconfig:
 .Bl -tag -width indent
+.It Fl aout
+Generate the hints for a.out format shared libraries.
+.It Fl elf
+Generate the hints for ELF format shared libraries.
 .It Fl R
 Rescan the previously configured directories.  This opens the previous hints
 file and fetches the directory list from the header.  Any additional pathnames
 on the command line are also processed.
 .It Fl f Ar hints_file
-Read and/or update the specified hints file, instead of
-.Pa /var/run/ld.so.hints .
+Read and/or update the specified hints file, instead of the standard file.
 This option is provided primarily for testing.
 .It Fl m
 Instead of replacing the contents of the hints file
@@ -121,7 +121,7 @@ Special care must be taken when loading shared libraries into the address
 space of
 .Ev set-user-Id
 programs. Whenever such a program is run,
-.Nm ld.so
+the dynamic linker
 will only load shared libraries from the hints
 file. In particular, the
 .Ev LD_LIBRARY_PATH
@@ -131,12 +131,44 @@ specify the trusted collection of directories from which shared objects can
 be safely loaded. It is presumed that the set of directories specified to
 .Nm ldconfig
 are under control of the system's administrator.
+.Sh ENVIRONMENT
+.Bl -tag -width OBJFORMATxxx -compact
+.It Ev OBJFORMAT
+Overrides
+.Pa /etc/objformat
+(see below) to determine whether
+.Fl aout
+or
+.Fl elf
+is the default.  If set, its value should be either
+.Ql aout
+or
+.Ql elf .
+.El
 .Sh FILES
-.Bl -tag -width /var/run/ld.so.hintsxxx -compact
+.Bl -tag -width /var/run/ld-elf.so.hintsxxx -compact
 .It Pa /var/run/ld.so.hints
-Default
-.Dq hints
-file.
+Standard hints file for the a.out dynamic linker.
+.It Pa /var/run/ld-elf.so.hints
+Standard hints file for the ELF dynamic linker.
+.It Pa /etc/ld.so.conf
+Conventional configuration file containing directory names for
+invocations with
+.Fl aout .
+.It Pa /etc/ld-elf.so.conf
+Conventional configuration file containing directory names for
+invocations with
+.Fl elf .
+.It Pa /etc/objformat
+Determines whether
+.Fl aout
+or
+.Fl elf
+is the default.  If present, it must consist of a single line
+containing either
+.Ql OBJFORMAT=aout
+or
+.Ql OBJFORMAT=elf .
 .Sh SEE ALSO
 .Xr ld 1 ,
 .Xr link 5
