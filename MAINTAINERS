@@ -59,3 +59,4 @@ libpam		des	Pre-commit review requested.
 lpr		gad	Pre-commit review requested, particularly for
 			lpd/recvjob.c and lpd/printjob.c.
 patch		gad	I have a WIP which will change the src a lot.
+vinum		grog	Recommends pre-commit review.
