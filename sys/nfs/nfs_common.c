@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.24 1995/10/29 15:33:08 phk Exp $
+ * $Id: nfs_subs.c,v 1.25 1995/12/07 12:47:26 davidg Exp $
  */
 
 /*
@@ -93,8 +93,13 @@ u_long nfs_prog, nqnfs_prog, nfs_true, nfs_false;
 
 /* And other global data */
 static u_long nfs_xid = 0;
-enum vtype nv2tov_type[8] = { VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON, VNON };
-enum vtype nv3tov_type[8]={ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO };
+static enum vtype nv2tov_type[8]= {
+	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VNON,  VNON 
+};
+enum vtype nv3tov_type[8]= {
+	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO
+};
+
 int nfs_ticks;
 
 struct nfs_reqq nfs_reqq;

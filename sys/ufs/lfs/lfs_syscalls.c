@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_syscalls.c	8.5 (Berkeley) 4/20/94
- * $Id: lfs_syscalls.c,v 1.12 1995/09/04 00:21:02 dyson Exp $
+ * $Id: lfs_syscalls.c,v 1.13 1995/11/12 06:43:17 bde Exp $
  */
 
 #include <sys/param.h>
@@ -65,8 +65,8 @@
 if (sp->sum_bytes_left < (s)) {		\
 	(void) lfs_writeseg(fs, sp);	\
 }
-struct buf *lfs_fakebuf __P((struct vnode *, int, size_t, caddr_t));
-int lfs_fastvget __P((struct mount *, ino_t, daddr_t, struct vnode **,
+static struct buf *lfs_fakebuf __P((struct vnode *, int, size_t, caddr_t));
+static int lfs_fastvget __P((struct mount *, ino_t, daddr_t, struct vnode **,
 		     struct dinode *));
 
 /*
@@ -448,7 +448,7 @@ lfs_segwait(p, uap, retval)
  * processing IINFO structures, it may have the ondisk inode already, so
  * don't go retrieving it again.
  */
-int
+static int
 lfs_fastvget(mp, ino, daddr, vpp, dinp)
 	struct mount *mp;
 	ino_t ino;
@@ -557,7 +557,7 @@ lfs_fastvget(mp, ino, daddr, vpp, dinp)
 	*vpp = vp;
 	return (0);
 }
-struct buf *
+static struct buf *
 lfs_fakebuf(vp, lbn, size, uaddr)
 	struct vnode *vp;
 	int lbn;

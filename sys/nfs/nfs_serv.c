@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.25 1995/10/29 15:32:59 phk Exp $
+ * $Id: nfs_serv.c,v 1.26 1995/12/07 12:47:25 davidg Exp $
  */
 
 /*
@@ -70,6 +70,7 @@
 #include <sys/dirent.h>
 #include <sys/stat.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <ufs/ufs/dir.h>
 
 #include <vm/vm.h>
@@ -95,11 +96,14 @@ nfstype nfsv3_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFSOCK,
 		      NFFIFO, NFNON };
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
 
-#ifdef NFS_ASYNC
-int nfs_async = 1;
-#else
 int nfs_async;
-#endif
+SYSCTL_INT(_fs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
+
+
+static int nfsrv_access __P((struct vnode *,int,struct ucred *,int,
+		struct proc *));
+static void nfsrvw_coalesce __P((struct nfsrv_descript *,
+		struct nfsrv_descript *));
 
 /*
  * nfs v3 access service
@@ -1198,7 +1202,7 @@ loop1:
  * - put nfsd on owp's nd_coalesce list
  * NB: Must be called at splsoftclock().
  */
-void
+static void
 nfsrvw_coalesce(owp, nfsd)
         register struct nfsrv_descript *owp;
         register struct nfsrv_descript *nfsd;
@@ -3390,7 +3394,7 @@ nfsrv_noop(nfsd, slp, procp, mrq)
  *     this because it opens a security hole, but since the nfs server opens
  *     a security hole the size of a barn door anyhow, what the heck.
  */
-int
+static int
 nfsrv_access(vp, flags, cred, rdonly, p)
 	register struct vnode *vp;
 	int flags;

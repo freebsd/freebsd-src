@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.19 1995/12/03 10:02:52 bde Exp $
+ * $Id: nfs_bio.c,v 1.20 1995/12/07 12:47:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -58,7 +58,7 @@
 #include <nfs/nqnfs.h>
 #include <nfs/nfsnode.h>
 
-extern struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
+static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 					struct proc *p));
 
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
@@ -613,7 +613,7 @@ again:
  * interrupted by a signal for an interruptible mount point, return
  * NULL.
  */
-struct buf *
+static struct buf *
 nfs_getcacheblk(vp, bn, size, p)
 	struct vnode *vp;
 	daddr_t bn;

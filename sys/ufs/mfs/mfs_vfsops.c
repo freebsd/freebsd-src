@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.18 1995/12/14 14:25:03 peter Exp $
+ * $Id: mfs_vfsops.c,v 1.19 1995/12/14 20:16:15 bde Exp $
  */
 
 #include <sys/param.h>
@@ -68,15 +68,23 @@
 # include <i386/i386/cons.h>	/* console IO */
 #endif
 
-extern int	mfs_imageload __P((dev_t dev, caddr_t addr, int size));
+static int	mfs_imageload __P((dev_t dev, caddr_t addr, int size));
 extern int	mfs_initminiroot __P((caddr_t base));
 
-caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
-u_long	mfs_rootsize;	/* size of mini-root in bytes */
+static caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
+static u_long	mfs_rootsize;	/* size of mini-root in bytes */
 
 static	int mfs_minor;	/* used for building internal dev_t */
 
 extern vop_t **mfs_vnodeop_p;
+
+static int	mfs_mount __P((struct mount *mp,
+			char *path, caddr_t data, struct nameidata *ndp, 
+			struct proc *p));
+static int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
+static int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, 
+			struct proc *p));
+static int	mfs_init __P((void));
 
 /*
  * mfs vfs operations.
@@ -99,8 +107,8 @@ VFS_SET(mfs_vfsops, mfs, MOUNT_MFS, 0);
 
 #ifdef MFS_ROOT
 
-u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
-u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
+static u_char mfs_root[MFS_ROOT*1024] = "MFS Filesystem goes here";
+static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
 
 #ifdef MFS_AUTOLOAD
 /*
@@ -114,7 +122,7 @@ u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
  */
 #define IMAGE_BLOCKING (32 * 1024)
 
-int
+static int
 mfs_imageload (dev, addr, size)
 	dev_t dev;
 	caddr_t	addr;
@@ -211,7 +219,7 @@ out:
  *		namei() if it is a genuine NULL from the user.
  */
 /* ARGSUSED */
-int
+static int
 mfs_mount(mp, path, data, ndp, p)
 	register struct mount *mp;
 	char *path;
@@ -421,7 +429,7 @@ success:
 }
 
 
-int	mfs_pri = PWAIT | PCATCH;		/* XXX prob. temp */
+static int	mfs_pri = PWAIT | PCATCH;		/* XXX prob. temp */
 
 /*
  * Used to grab the process and keep it in the kernel to service
@@ -432,7 +440,7 @@ int	mfs_pri = PWAIT | PCATCH;		/* XXX prob. temp */
  * address space.
  */
 /* ARGSUSED */
-int
+static int
 mfs_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -476,7 +484,7 @@ mfs_start(mp, flags, p)
 /*
  * Get file system statistics.
  */
-int
+static int
 mfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -487,4 +495,13 @@ mfs_statfs(mp, sbp, p)
 	error = ffs_statfs(mp, sbp, p);
 	sbp->f_type = MOUNT_MFS;
 	return (error);
+}
+
+/*
+ * Memory based filesystem initialization.
+ */
+static int
+mfs_init()
+{
+	return (0);
 }

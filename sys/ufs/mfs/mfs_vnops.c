@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.11 1995/10/31 10:45:48 peter Exp $
+ * $Id: mfs_vnops.c,v 1.12 1995/11/09 08:14:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -57,11 +57,20 @@ struct map mfsmap[MFS_MAPSIZE];
 extern char mfsiobuf[];
 #endif
 
+static int	mfs_badop __P((void));
+static int	mfs_bmap __P((struct vop_bmap_args *));
+static int	mfs_close __P((struct vop_close_args *));
+static int	mfs_ioctl __P((struct vop_ioctl_args *));
+static int	mfs_inactive __P((struct vop_inactive_args *)); /* XXX */
+static int	mfs_open __P((struct vop_open_args *));
+static int	mfs_print __P((struct vop_print_args *)); /* XXX */
+static int	mfs_reclaim __P((struct vop_reclaim_args *)); /* XXX */
+static int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
 /*
  * mfs vnode operations.
  */
 vop_t **mfs_vnodeop_p;
-struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
+static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)mfs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)mfs_create },	/* create */
@@ -105,7 +114,7 @@ struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)mfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc mfs_vnodeop_opv_desc =
+static struct vnodeopv_desc mfs_vnodeop_opv_desc =
 	{ &mfs_vnodeop_p, mfs_vnodeop_entries };
 
 VNODEOP_SET(mfs_vnodeop_opv_desc);
@@ -118,7 +127,7 @@ VNODEOP_SET(mfs_vnodeop_opv_desc);
  * so we can tell when we are doing I/O to ourself.
  */
 /* ARGSUSED */
-int
+static int
 mfs_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -139,7 +148,7 @@ mfs_open(ap)
  * Ioctl operation.
  */
 /* ARGSUSED */
-int
+static int
 mfs_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -157,7 +166,7 @@ mfs_ioctl(ap)
 /*
  * Pass I/O requests to the memory filesystem process.
  */
-int
+static int
 mfs_strategy(ap)
 	struct vop_strategy_args /* {
 		struct buf *a_bp;
@@ -215,7 +224,7 @@ mfs_doio(bp, base)
 /*
  * This is a noop, simply returning what one has been given.
  */
-int
+static int
 mfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -239,7 +248,7 @@ mfs_bmap(ap)
  * Memory filesystem close routine
  */
 /* ARGSUSED */
-int
+static int
 mfs_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -288,7 +297,7 @@ mfs_close(ap)
  * Memory filesystem inactive routine
  */
 /* ARGSUSED */
-int
+static int
 mfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -305,7 +314,7 @@ mfs_inactive(ap)
 /*
  * Reclaim a memory filesystem devvp so that it can be reused.
  */
-int
+static int
 mfs_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -320,7 +329,7 @@ mfs_reclaim(ap)
 /*
  * Print out the contents of an mfsnode.
  */
-int
+static int
 mfs_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -336,7 +345,7 @@ mfs_print(ap)
 /*
  * Block device bad operation
  */
-int
+static int
 mfs_badop()
 {
 
@@ -344,11 +353,3 @@ mfs_badop()
 	/* NOTREACHED */
 }
 
-/*
- * Memory based filesystem initialization.
- */
-int
-mfs_init()
-{
-	return (0);
-}
