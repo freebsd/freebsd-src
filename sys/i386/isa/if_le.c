@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.18 1995/07/29 13:00:17 paul Exp $
+ * $Id: if_le.c,v 1.19 1995/09/19 18:55:12 bde Exp $
  */
 
 /*
@@ -393,8 +393,7 @@ le_attach(
 	   sc->le_prodname,
 	   ether_sprintf(sc->le_ac.ac_enaddr));
 
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
-    ifp->if_flags  |= IFF_MULTICAST;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
     ifp->if_output = ether_output;
     ifp->if_ioctl = le_ioctl;
     ifp->if_type = IFT_ETHER;
