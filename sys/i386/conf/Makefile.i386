@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.70 1995/11/19 19:49:43 davidg Exp $
+#	$Id: Makefile.i386,v 1.71 1995/12/16 01:57:17 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -62,9 +62,9 @@ PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o
-SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS} libkern.a
+SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS}
 SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
-SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
+SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o
 .if ${CFLAGS:M-g} == ""
 SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
@@ -84,30 +84,8 @@ SYSTEM_LD_TAIL= @echo rearranging symbols; \
 
 %CLEAN
 
-# This is slightly different from before in that if you define PROF
-# to anything, it will assume profiling.  Don't do "PROF=" to turn
-# profiling off!
-.if exists($S/libkern/obj)
-LIBKERNP=$S/libkern/obj
-.else
-LIBKERNP=$S/libkern
-.endif
-
-.if defined(PROF)
-LIBKERN=${LIBKERNP}/libkern_p.a
-.else
-LIBKERN=${LIBKERNP}/libkern.a
-.endif
-
-libkern.a: ${LIBKERN}
-	@rm -f libkern.a
-	ln -s ${LIBKERN} libkern.a
-
-${LIBKERN}:
-	@(cd $S/libkern; make)
-
 clean:
-	rm -f *.o *.s eddep errs genassym kernel libkern.a linterrs \
+	rm -f *.o *.s eddep errs genassym kernel linterrs \
 	      makelinks param.c symbols.exclude symbols.sort tags \
 	      vers.c vnode_if.c vnode_if.h ${CLEAN}
 
