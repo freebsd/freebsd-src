@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.3 1995/05/30 08:07:47 rgrimes Exp $ */
+/*	$Id: msdosfsmount.h,v 1.4 1995/11/07 14:06:45 phk Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
 
 /*-
@@ -168,18 +168,4 @@ struct msdosfsmount {
 #define	de_clcount(pmp, size) \
 	(((size) + (pmp)->pm_bpcluster - 1) >> (pmp)->pm_cnshift)
 
-/*
- * Prototypes for MSDOSFS virtual filesystem operations
- */
-static int msdosfs_mount __P((struct mount *, char *, caddr_t, struct nameidata *, struct proc *));
-static int msdosfs_start __P((struct mount *, int, struct proc *));
-static int msdosfs_unmount __P((struct mount *, int, struct proc *));
-static int msdosfs_root __P((struct mount *, struct vnode **));
-static int msdosfs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
-static int msdosfs_statfs __P((struct mount *, struct statfs *, struct proc *));
-static int msdosfs_sync __P((struct mount *, int, struct ucred *, struct proc *));
-static int msdosfs_fhtovp __P((struct mount *, struct fid *, struct mbuf *, struct vnode **, int *, struct ucred **));
-static int msdosfs_vptofh __P((struct vnode *, struct fid *));
-int msdosfs_init __P(());
-
-static int mountmsdosfs __P((struct vnode *devvp, struct mount *mp, struct proc *p));
+int msdosfs_init __P((void));
