@@ -38,8 +38,6 @@ LDIRS=	cam net netatalk netatm netgraph netinet netinet6 \
 	netipx netkey netnatm netncp netns netsmb nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
-LNOHEADERDIRS=	dev fs isofs security ufs
-
 LSUBDIRS=	cam/scsi dev/ic dev/ppbus dev/usb dev/wi dev/an fs/devfs \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
@@ -128,11 +126,8 @@ symlinks:
 	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
-.for i in ${LNOHEADERDIRS}
-	rm -rf ${DESTDIR}/usr/include/$i
-	mkdir ${DESTDIR}/usr/include/$i
-.endfor
 .for i in ${LSYMSUBDIRS}
+	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
 	rm -rf ${DESTDIR}/usr/include/machine
