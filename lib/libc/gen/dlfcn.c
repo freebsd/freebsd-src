@@ -108,6 +108,14 @@ dlsym(void *handle, const char *name)
 	return NULL;
 }
 
+#pragma weak dlinfo
+int
+dlinfo(void *handle, int request, void *p)
+{
+	_rtld_error(sorry);
+	return NULL;
+}
+
 #else /* a.out format */
 
 #include <sys/types.h>
