@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.17 1995/05/16 11:37:25 jkh Exp $
+ * $Id: sysinstall.h,v 1.18 1995/05/17 14:39:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,10 +279,9 @@ extern const char	termcap_cons25r[];
 extern const char	termcap_cons25r_m[];
 extern const char	termcap_cons25l1[];
 extern const char	termcap_cons25l1_m[];
-extern const u_char	font_iso_8x14[];
-extern const u_char	font_cp850_8x14[];
-extern const u_char	font_koi8_r_8x14[];
-extern const u_char	koi8_r2cp866[];
+extern const u_char	font_iso_8x16[];
+extern const u_char	font_cp850_8x16[];
+extern const u_char	font_koi8_r_8x16[];
 
 /* media.c */
 extern int	mediaSetCDROM(char *str);
