@@ -495,6 +495,19 @@ from a directory with just the distribution files in it.  Make sure
 that you remember to put CKSUMS, do_cksum.sh, and extract.sh files
 in this directory as well!
 
+If you wish to install multiple *dist releases from one tape, do the
+following:
+
+1. cd to the parent directory of the distributions and put them on tape
+   like so:
+		tar cvf /dev/rwt0 (or /dev/rst0) bindist srcdist ...
+
+2. Install the first distribution on the tape using the tape installation
+   method as normal.  Afterwards, *do not* erase the contents of the temporary
+   directory.  Get a shell with ESC-ESC and cd to the temporary directory
+   yourself.  For each additional *dist you want to load, cd to its
+   subdirectory and type `sh ./extract.sh'.
+
 
 5. Reporting problems, making suggestions, submitting code.
 -----------------------------------------------------------
@@ -608,4 +621,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.19 1994/11/28 21:52:15 ats Exp $
+$Id: RELNOTES.FreeBSD,v 1.20 1994/11/30 11:59:53 jkh Exp $
