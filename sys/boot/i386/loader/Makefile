@@ -1,8 +1,9 @@
-# $Id: Makefile,v 1.29 1999/02/24 01:37:23 msmith Exp $
+# $Id: Makefile,v 1.30 1999/03/10 03:34:14 dcs Exp $
 
 BASE=		loader
 PROG=		${BASE}
-NOMAN=
+MAN8=		loader.8
+#NOMAN=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader"
 BINDIR?=	/boot
