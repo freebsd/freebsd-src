@@ -35,7 +35,7 @@
  */
 
 /*
- * $Id: vext.h,v 1.18 2000/05/31 07:03:45 grog Exp grog $
+ * $Id: vext.h,v 1.19 2001/05/23 23:00:12 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -43,6 +43,7 @@
 #define PLEXINITSIZE 65536				    /* init in this size chunks */
 #define MAXPLEXINITSIZE 65536				    /* max chunk size to use for init */
 #define MAXDATETEXT 128					    /* date text in history (far too much) */
+#define VINUMDEBUG					    /* for including kernel headers */
 
 enum {
     KILOBYTE = 1024,
@@ -142,9 +143,7 @@ void vinum_checkparity(int argc, char *argv[], char *argv0[]);
 void vinum_rebuildparity(int argc, char *argv[], char *argv0[]);
 void parityops(int argc, char *argv[], enum parityop op);
 void start_daemon(void);
-#ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
-#endif
 void make_devices(void);
 void make_vol_dev(int, int);
 void make_plex_dev(int, int);
