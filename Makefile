@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.189 1998/05/29 05:15:47 jkh Exp $
+#	$Id: Makefile,v 1.190 1998/05/30 07:32:28 jhay Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -586,6 +586,7 @@ includes:
 #
 # XXX gperf is required for cc
 # XXX a new ld and tsort is required for cc
+# XXX ldconfig is required at the end of reinstall/installworld.
 lib-tools:
 .for d in				\
 		gnu/usr.bin/gperf	\
@@ -599,6 +600,7 @@ lib-tools:
 		usr.bin/mk_cmds		\
 		usr.bin/nm		\
 		usr.bin/ranlib		\
+		usr.bin/reinstall	\
 		usr.bin/strip		\
 		usr.bin/env		\
 		gnu/usr.bin/binutils	\
