@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.24 1995/12/03 17:27:18 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.25 1996/01/02 23:31:25 jfieber Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -770,6 +770,26 @@ device    psm0    at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # Options for psm:
 options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 </verb>
+
+	<p>
+	  See <a href="/handbook/kernelconfig.html">configuring the kernel</a>
+	  if you've no experience with building kernels.
+
+	  Once you have a kernel detecting psm0 correctly at boot time,
+	  make sure that an entry for psm0 exists in /dev.  You can do this
+	  by typing:
+<verb>
+	cd /dev; sh MAKEDEV psm0
+</verb>
+	  When logged in as root.
+	<p>
+	  <strong>Note: </strong> Some PS/2 mouse controllers have a problem
+	  where the presence of the psm0 driver will cause the keyboard to
+	  lock up (which is why this driver is not present by default in the
+	  GENERIC kernel).  This can sometimes be fixed by bouncing the
+	  <strong>NumLock</strong> key during the boot process.  The real
+	  fix is, of course, to merge the PS/2 mouse driver with syscons.
+	  Any volunteers? :)
 
       <sect1>
 	<heading>What types of tape drives are supported under FreeBSD?</heading>
