@@ -562,7 +562,7 @@ __ivaliduser_af(hostf, raddr, luser, ruser, af, len)
 	while (fgets(buf, sizeof(buf), hostf)) {
 		p = buf;
 		/* Skip lines that are too long. */
-		if (strchr(p, '\n') == NULL && !feof(hostf)) {
+		if (strchr(p, '\n') == NULL) {
 			while ((ch = getc(hostf)) != '\n' && ch != EOF);
 			continue;
 		}
