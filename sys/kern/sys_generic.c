@@ -535,38 +535,29 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 		bzero(data, size);
 	}
 
-	switch (com) {
-
-	case FIONBIO:
+	if (com == FIONBIO) {
 		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
 			fp->f_flag |= FNONBLOCK;
 		else
 			fp->f_flag &= ~FNONBLOCK;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
-		break;
-
-	case FIOASYNC:
+		data = (void *)&tmp;
+	} else if (com == FIOASYNC) {
 		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
 			fp->f_flag |= FASYNC;
 		else
 			fp->f_flag &= ~FASYNC;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIOASYNC, &tmp, td->td_ucred, td);
-		break;
-
-	default:
-		error = fo_ioctl(fp, com, data, td->td_ucred, td);
-		/*
-		 * Copy any data to user, size was
-		 * already set and checked above.
-		 */
-		if (error == 0 && (com&IOC_OUT) && size)
-			error = copyout(data, uap->data, (u_int)size);
-		break;
+		data = (void *)&tmp;
 	}
+
+	error = fo_ioctl(fp, com, data, td->td_ucred, td);
+
+	if (error == 0 && (com & IOC_OUT))
+		error = copyout(data, uap->data, (u_int)size);
+
 	if (memp != NULL)
 		free(memp, M_IOCTLOPS);
 	fdrop(fp, td);
