@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)dol.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: dol.c,v 1.7 1998/05/06 06:50:39 charnier Exp $";
+	"$Id: dol.c,v 1.8 1998/05/13 07:28:52 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -605,11 +605,12 @@ Dgetdol()
 	    stderror(ERR_SYNTAX);
     }
     else {
-	if (subscr > 0)
+	if (subscr > 0) {
 	    if (subscr > upb)
 		lwb = 1, upb = 0;
 	    else
 		lwb = upb = subscr;
+	}
 	unDredc(c);
     }
     if (dimen) {
