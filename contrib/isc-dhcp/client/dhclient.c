@@ -60,8 +60,6 @@ static char ocopyright[] =
 "$FreeBSD$\n";
 #endif /* not lint */
 
-/* $FreeBSD$ */
-
 #include "dhcpd.h"
 #include "version.h"
 
