@@ -541,7 +541,8 @@ madt_parse_interrupt_override(INTERRUPT_SOURCE_OVERRIDE *intr)
 		    &old_pin) != 0)
 			printf("MADT: Could not find APIC for source IRQ %d\n",
 			    intr->Source);
-		else
+		else if (ioapic_get_vector(old_ioapic, old_pin) ==
+		    intr->Source)
 			ioapic_disable_pin(old_ioapic, old_pin);
 	}
 	ioapic_set_triggermode(new_ioapic, new_pin,
