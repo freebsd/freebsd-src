@@ -482,4 +482,5 @@ struct sysent sysent[] = {
 	{ SYF_MPSAFE | AS(getaudit_addr_args), (sy_call_t *)lkmressys },	/* 451 = getaudit_addr */
 	{ SYF_MPSAFE | AS(setaudit_addr_args), (sy_call_t *)lkmressys },	/* 452 = setaudit_addr */
 	{ SYF_MPSAFE | AS(auditctl_args), (sy_call_t *)lkmressys },	/* 453 = auditctl */
+	{ SYF_MPSAFE | AS(_umtx_op_args), (sy_call_t *)_umtx_op },	/* 454 = _umtx_op */
 };
