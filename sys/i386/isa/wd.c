@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.64 1995/01/25 21:40:47 bde Exp $
+ *	$Id: wd.c,v 1.65 1995/02/04 19:39:36 phk Exp $
  */
 
 /* TODO:
@@ -73,12 +73,14 @@ static int wdtest = 0;
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/disklabel.h>
+#include <sys/diskslice.h>
 #include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/devconf.h>
-#include <machine/cpu.h>
 #include <machine/bootinfo.h>
+#include <machine/clock.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/wdreg.h>
@@ -1406,7 +1408,7 @@ again:
 
 /* ARGSUSED */
 int
-wdclose(dev_t dev, int flags, int fmt)
+wdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	register struct disk *du;
 	int	part = wdpart(dev), mask = 1 << part;
@@ -1430,7 +1432,7 @@ wdclose(dev_t dev, int flags, int fmt)
 }
 
 int
-wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
+wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 {
 	int	lunit = wdunit(dev);
 	register struct disk *du;
@@ -1445,7 +1447,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	switch (cmd) {
 
 	case DIOCSBAD:
-		if ((flag & FWRITE) == 0)
+		if ((flags & FWRITE) == 0)
 			error = EBADF;
 		else {
 			du->dk_bad = *(struct dkbad *)addr;
@@ -1466,7 +1468,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		break;
 
 	case DIOCSDINFO:
-		if ((flag & FWRITE) == 0)
+		if ((flags & FWRITE) == 0)
 			error = EBADF;
 		else
 			error = setdisklabel(&du->dk_dd,
@@ -1491,7 +1493,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 
 	case DIOCWLABEL:
 		du->dk_flags &= ~DKFL_WRITEPROT;
-		if ((flag & FWRITE) == 0)
+		if ((flags & FWRITE) == 0)
 			error = EBADF;
 		else
 			du->dk_wlabel = *(int *)addr;
@@ -1499,7 +1501,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 
 	case DIOCWDINFO:
 		du->dk_flags &= ~DKFL_WRITEPROT;
-		if ((flag & FWRITE) == 0)
+		if ((flags & FWRITE) == 0)
 			error = EBADF;
 		else if ((error = setdisklabel(&du->dk_dd,
 					       (struct disklabel *)addr,
@@ -1529,7 +1531,7 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		break;
 
 	case DIOCWFORMAT:
-		if ((flag & FWRITE) == 0)
+		if ((flags & FWRITE) == 0)
 			error = EBADF;
 		else {
 			register struct format_op *fop;
