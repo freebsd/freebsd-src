@@ -36,6 +36,7 @@ LIBGCC_PIC?=	${DESTDIR}${LIBDIR}/libgcc_pic.a
 LIBGMP?=	${DESTDIR}${LIBDIR}/libgmp.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBHISTORY?=	${DESTDIR}${LIBDIR}/libhistory.a
+LIBIPSEC?=	${DESTDIR}${LIBDIR}/libipsec.a
 LIBIPX?=	${DESTDIR}${LIBDIR}/libipx.a
 LIBKDB?=	${DESTDIR}${LIBDIR}/libkdb.a	# XXX in secure dist, not base
 LIBKRB?=	${DESTDIR}${LIBDIR}/libkrb.a	# XXX in secure dist, not base
