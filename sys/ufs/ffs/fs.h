@@ -108,7 +108,7 @@
 /*
  * There is a 128-byte region in the superblock reserved for in-core
  * pointers to summary information. Originally this included an array
- * of pointers to blocks of struct csum; now there are just three
+ * of pointers to blocks of struct csum; now there are just a few
  * pointers and the remaining space is padded with fs_ocsp[].
  *
  * NOCSPTRS determines the size of this padding. One pointer (fs_csp)
@@ -116,9 +116,11 @@
  * all cylinder groups; a second (fs_maxcluster) points to an array
  * of cluster sizes that is computed as cylinder groups are inspected,
  * and the third points to an array that tracks the creation of new
- * directories.
+ * directories. A fourth pointer, fs_active, is used when creating
+ * snapshots; it points to a bitmap of cylinder groups for which the
+ * free-block bitmap has changed since the snapshot operation began.
  */
-#define	NOCSPTRS	((128 / sizeof(void *)) - 3)
+#define	NOCSPTRS	((128 / sizeof(void *)) - 4)
 
 /*
  * A summary of contiguous blocks of various sizes is maintained
@@ -290,13 +292,13 @@ struct fs {
 	u_int8_t *fs_contigdirs;	/* # of contiguously allocated dirs */
 	struct csum *fs_csp;		/* cg summary info buffer for fs_cs */
 	int32_t	*fs_maxcluster;		/* max cluster in each cyl group */
+	u_int8_t *fs_active;		/* used by snapshots to track fs */
 	int32_t	 fs_cpc;		/* cyl per cycle in postbl */
 	int16_t	 fs_opostbl[16][8];	/* old rotation block list head */
 	int32_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
 	int32_t	 fs_avgfilesize;	/* expected average file size */
 	int32_t	 fs_avgfpdir;		/* expected # of files per directory */
-	u_int8_t *fs_active;		/* used by snapshots to track fs */
-	int32_t	 fs_sparecon[25];	/* reserved for future constants */
+	int32_t	 fs_sparecon[26];	/* reserved for future constants */
 	int32_t	 fs_pendingblocks;	/* blocks in process of being freed */
 	int32_t	 fs_pendinginodes;	/* inodes in process of being freed */
 	int32_t	 fs_contigsumsize;	/* size of cluster summary array */ 
