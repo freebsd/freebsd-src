@@ -16,7 +16,7 @@
  *
  * From: Version 1.7, Wed Jun  7 22:12:02 MSD 1995
  *
- * $Id$
+ * $Id: if_sppp.h,v 1.5 1997/05/19 22:03:08 joerg Exp $
  */
 
 #ifndef _NET_IF_HDLC_H_
@@ -63,6 +63,7 @@ struct sppp {
 	/* NB: pp_if _must_ be first */
 	struct  ifnet pp_if;    /* network interface data */
 	struct  ifqueue pp_fastq; /* fast output queue */
+	struct	ifqueue pp_cpq;	/* PPP control protocol queue */
 	struct  sppp *pp_next;  /* next interface in keepalive list */
 	u_int   pp_flags;       /* use Cisco protocol instead of PPP */
 	u_short pp_alivecnt;    /* keepalive packets counter */
