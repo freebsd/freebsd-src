@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:29  rpd
- *	$Id: start.S,v 1.10 1997/02/22 09:30:13 peter Exp $
+ *	$Id: start.S,v 1.11 1998/07/02 15:36:35 wpaul Exp $
  */
 
 /*
@@ -200,7 +200,7 @@ load:
  * Finally write the block back to disk with the zero'd out entry..
  * I hate writing at this stage but we need this to be persistant.
  * If the boot fails, then the next boot will get the next string.
- * /etc/rc will regenerate a complete block2 iff teh boot succeeds.
+ * /etc/rc will regenerate a complete block2 iff the boot succeeds.
  *
  * Format of block 2 is:
  * [NAMEBLOCKMAGIC] <--0xdeafc0de
