@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.32 1996/07/25 13:12:25 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.33 1996/08/09 15:33:31 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -157,7 +157,7 @@ Boot:
 	serial cards is also provided.
 
 	A minimum of four megabytes of RAM is required to run FreeBSD.
-	To run the X-window system, eight megabytes of RAM is the
+	To run the X Window System, eight megabytes of RAM is the
 	recommended minimum.
 
 	Following is a list of all disk controllers and Ethernet
