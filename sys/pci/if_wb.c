@@ -820,7 +820,6 @@ wb_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int32_t		command;
 	struct wb_softc		*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
@@ -859,23 +858,6 @@ wb_attach(dev)
 	 * Map control/status registers.
 	 */
 	pci_enable_busmaster(dev);
-	pci_enable_io(dev, SYS_RES_IOPORT);
-	pci_enable_io(dev, SYS_RES_MEMORY);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-#ifdef WB_USEIOSPACE
-	if (!(command & PCIM_CMD_PORTEN)) {
-		printf("wb%d: failed to enable I/O ports!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#else
-	if (!(command & PCIM_CMD_MEMEN)) {
-		printf("wb%d: failed to enable memory mapping!\n", unit);
-		error = ENXIO;
-		goto fail;
-	}
-#endif
 
 	rid = WB_RID;
 	sc->wb_res = bus_alloc_resource(dev, WB_RES, &rid,

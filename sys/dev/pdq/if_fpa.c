@@ -119,21 +119,6 @@ pdq_pci_attach(device_t dev)
      * Map control/status registers.
      */
     pci_enable_busmaster(dev);
-    pci_enable_io(dev, SYS_RES_IOPORT);
-    pci_enable_io(dev, SYS_RES_MEMORY);
-    command = pci_read_config(dev, PCIR_COMMAND, 4);
-
-    if (!(command & PCIM_CMD_PORTEN)) {
-	device_printf(dev, "Failed to enable PCI I/O ports.\n");
-	error = ENXIO;
-	goto bad;
-    }
-
-    if (!(command & PCIM_CMD_MEMEN)) {
-	device_printf(dev, "Failed to enable PCI memory mapping.\n");
-	error = ENXIO;
-	goto bad;
-    }
 
     command = pci_read_config(dev, PCIR_LATTIMER, 1);
     if (command < DEFPA_LATENCY) {

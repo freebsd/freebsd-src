@@ -685,7 +685,6 @@ ich_pci_attach(device_t dev)
 		pci_write_config(dev, PCIR_ICH_LEGACY, ICH_LEGACY_ENABLE, 1);
 	}
 
-	pci_enable_io(dev, SYS_RES_IOPORT);
 	/*
 	 * Enable bus master. On ich4 this may prevent the detection of
 	 * the primary codec becoming ready in ich_init().
