@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 2000, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	isdnd - holiday file handling
  *      =============================
  *
- *      $Id: holiday.c,v 1.1 2000/10/09 11:17:07 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Oct 10 15:24:49 2000]
+ *      last edit-date: [Wed May  2 09:42:56 2001]
  *
  *	Format:
  *
@@ -42,8 +40,6 @@
  *
  *	23.4.2000	Ostersonntag
  *	3.10		Tag der deutschen Einheit
- *
- *	
  *
  *----------------------------------------------------------------------------*/
 
@@ -79,7 +75,7 @@ init_holidays(char *filename)
 	
 	if((fp = fopen(filename, "r")) == NULL)
 	{
-		log(LL_WRN, "init_holiday: error opening holidayfile %s: %s!", filename, strerror(errno));
+		DBGL(DL_VALID, (log(LL_DBG, "init_holiday: error opening holidayfile %s: %s!", filename, strerror(errno))));
 		return;
 	}
 
@@ -112,11 +108,11 @@ init_holidays(char *filename)
 
 		if(year)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "init_holidays: add %d.%d.%d", day, month, year)));
+			DBGL(DL_VALID, (log(LL_DBG, "init_holidays: add %d.%d.%d", day, month, year)));
 		}
 		else
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "init_holidays: add %d.%d", day, month)));
+			DBGL(DL_VALID, (log(LL_DBG, "init_holidays: add %d.%d", day, month)));
 		}
 		
 		newh->day = day;
@@ -181,12 +177,12 @@ isholiday(int d, int m, int y)
 		{
 			if(ch->year == 0)
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "isholiday: %d.%d is a holiday!", d, m)));
+				DBGL(DL_VALID, (log(LL_DBG, "isholiday: %d.%d is a holiday!", d, m)));
 				return(1);
 			}
 			else if(ch->year == y)
 			{
-				DBGL(DL_MSG, (log(LL_DBG, "isholiday: %d.%d.%d is a holiday!", d, m, y)));
+				DBGL(DL_VALID, (log(LL_DBG, "isholiday: %d.%d.%d is a holiday!", d, m, y)));
 				return(1);
 			}
 		}

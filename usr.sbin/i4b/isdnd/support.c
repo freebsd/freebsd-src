@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- *	$Id: support.c,v 1.66 2000/10/09 11:17:07 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Jan 16 14:07:12 2001]
+ *      last edit-date: [Wed May  2 09:36:02 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -954,14 +952,14 @@ isvalidtime(cfg_entry_t *cep)
 	{
 		if(isholiday(tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900))
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: holiday %d.%d.%d", tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900)));
+			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: holiday %d.%d.%d", tp->tm_mday, (tp->tm_mon)+1, (tp->tm_year)+1900)));
 			goto dayok;
 		}
 	}
 	
 	if(cep->day & (1 << tp->tm_wday))
 	{
-		DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: day match")));	
+		DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: day match")));	
 		goto dayok;
 	}
 
@@ -970,7 +968,7 @@ isvalidtime(cfg_entry_t *cep)
 dayok:
 	if(cep->fromhr==0 && cep->frommin==0 && cep->tohr==0 && cep->tomin==0)
 	{
-		DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: no time specified, match!")));
+		DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: no time specified, match!")));
 		return(1);
 	}
 
@@ -981,7 +979,7 @@ dayok:
 		if( (tp->tm_hour > cep->fromhr) ||
 		    (tp->tm_hour == cep->fromhr && tp->tm_min > cep->frommin) )
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: t<f-1, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: t<f-1, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
@@ -994,7 +992,7 @@ dayok:
 		if( (tp->tm_hour < cep->tohr) ||
 		    (tp->tm_hour == cep->tohr && tp->tm_min < cep->tomin) )
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: t<f-2, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: t<f-2, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
@@ -1006,7 +1004,7 @@ dayok:
 	{
 		if(tp->tm_min >= cep->frommin && tp->tm_min < cep->tomin)
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: f=t, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: f=t, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
@@ -1020,14 +1018,14 @@ dayok:
 		   (tp->tm_hour == cep->fromhr && tp->tm_min >= cep->frommin) ||
 		   (tp->tm_hour == cep->tohr && tp->tm_min < cep->tomin) )
 		{
-			DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: t>f, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
+			DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: t>f, spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, match!",
 				cep->fromhr, cep->frommin,
 				cep->tohr, cep->tomin,
 				tp->tm_hour, tp->tm_min)));
 			return(1);
 		}
 	}
-	DBGL(DL_MSG, (log(LL_DBG, "isvalidtime: spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, no match!",
+	DBGL(DL_VALID, (log(LL_DBG, "isvalidtime: spec=%02d:%02d-%02d:%02d, curr=%02d:%02d, no match!",
 			cep->fromhr, cep->frommin,
 			cep->tohr, cep->tomin,
 			tp->tm_hour, tp->tm_min)));
