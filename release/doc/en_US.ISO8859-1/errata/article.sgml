@@ -137,11 +137,19 @@
       reason, were not removed from the distribution files.  They are
       harmless.</para>
 
-    <para>The <filename role="port">databases/rdfdb</filename> and
-      <filename role="port">mail/ssmtp</filename> packages
+    <para>The <filename role="package">databases/rdfdb</filename> and
+      <filename role="package">mail/ssmtp</filename> packages
       included in the &release.prev; package set cannot be
       installed correctly.  A workaround is to build and install these
       programs using the Ports Collection.</para>
+
+    <para>The <filename role="package">net/gnomeicu</filename> package
+      included in the &release.prev; package set may not run
+      correctly, due to a missing dependency on the <filename
+      role="package">net/gnet</filename> package.  To work around this
+      problem, install <filename role="package">net/net</filename> either
+      from a package or the Ports Collection, preferably before
+      installing <filename role="package">net/gnomeicu</filename>.</para>
 
 ]]>
   </sect1>
