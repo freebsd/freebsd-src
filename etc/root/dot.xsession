@@ -14,9 +14,8 @@ MANPATH="$MANPATH:/usr/local/interviews/man"
 export CPU
 
 # 8-bit locale (germany)
-#ENABLE_STARTUP_LOCALE=
-#LANG=de_DE.ISO8859-1
-#export ENABLE_STARTUP_LOCALE LANG
+#LANG=de_DE.ISO_8859-1
+#export LANG
 
 # A rightous umask
 umask 22
