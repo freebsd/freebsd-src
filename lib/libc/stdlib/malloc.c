@@ -267,7 +267,7 @@ static void *malloc_brk;
 static struct pgfree *px;
 
 /* compile-time options */
-char *_malloc_options;
+const char *_malloc_options;
 
 /* Name of the current public function */
 static char *malloc_func;
