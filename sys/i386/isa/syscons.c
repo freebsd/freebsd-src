@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.9 1997/01/20 08:14:33 sos Exp $
+ *  $Id: syscons.c,v 1.182.2.10 1997/01/20 19:59:31 sos Exp $
  */
 
 #include "sc.h"
@@ -842,7 +842,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		/* process button presses */
 		if (cur_console->mouse_buttons != mouse->u.data.buttons) {
 		    cur_console->mouse_buttons = mouse->u.data.buttons;
-		    if (!(scp->status & UNKNOWN_MODE)) {
+		    if (!(cur_console->status & UNKNOWN_MODE)) {
 			if (cur_console->mouse_buttons & LEFT_BUTTON)
 			    mouse_cut_start(cur_console);
 			else
