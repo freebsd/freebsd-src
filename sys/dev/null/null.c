@@ -65,6 +65,7 @@ static struct cdevsw null_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
+	/* kqfilter */	NULL
 };
 
 static struct cdevsw zero_cdevsw = {
@@ -81,6 +82,7 @@ static struct cdevsw zero_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	D_MMAP_ANON,
+	/* kqfilter */	NULL
 };
 
 static void *zbuf;
