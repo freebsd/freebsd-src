@@ -595,6 +595,7 @@ product EPSON 1240		0x010b	Perfection 1240U / 1240Photo scanner
 product EPSON 640U		0x010c	Perfection 640U scanner
 product EPSON 1650		0x0110	Perfection 1650 scanner
 product EPSON GT9700F		0x0112	GT-9700F scanner
+product EPSON 1260		0x011d	Perfection 1260 scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial port
