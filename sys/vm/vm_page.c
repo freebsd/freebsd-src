@@ -382,7 +382,7 @@ vm_page_protect(vm_page_t mem, int prot)
 {
 	if (prot == VM_PROT_NONE) {
 		if (pmap_page_is_mapped(mem) || (mem->flags & PG_WRITEABLE)) {
-			pmap_page_protect(mem, VM_PROT_NONE);
+			pmap_remove_all(mem);
 			vm_page_flag_clear(mem, PG_WRITEABLE);
 		}
 	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
@@ -878,7 +878,7 @@ loop:
 		}
 		KASSERT(m->dirty == 0, ("Found dirty cache page %p", m));
 		vm_page_busy(m);
-		pmap_page_protect(m, VM_PROT_NONE);
+		pmap_remove_all(m);
 		vm_page_free(m);
 		vm_page_unlock_queues();
 		goto loop;
@@ -1384,7 +1384,7 @@ vm_page_try_to_free(vm_page_t m)
 	if (m->dirty)
 		return (0);
 	vm_page_busy(m);
-	pmap_page_protect(m, VM_PROT_NONE);
+	pmap_remove_all(m);
 	vm_page_free(m);
 	return (1);
 }
@@ -1413,7 +1413,7 @@ vm_page_cache(vm_page_t m)
 	 * Remove all pmaps and indicate that the page is not
 	 * writeable or mapped.
 	 */
-	pmap_page_protect(m, VM_PROT_NONE);
+	pmap_remove_all(m);
 	if (m->dirty != 0) {
 		panic("vm_page_cache: caching a dirty page, pindex: %ld",
 			(long)m->pindex);

@@ -513,7 +513,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 				if ((p->flags & PG_REFERENCED) == 0) {
 					p->act_count -= min(p->act_count, ACT_DECLINE);
 					if (!remove_mode && (vm_pageout_algorithm || (p->act_count == 0))) {
-						pmap_page_protect(p, VM_PROT_NONE);
+						pmap_remove_all(p);
 						vm_page_deactivate(p);
 					} else {
 						vm_pageq_requeue(p);
@@ -526,7 +526,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 					vm_pageq_requeue(p);
 				}
 			} else if (p->queue == PQ_INACTIVE) {
-				pmap_page_protect(p, VM_PROT_NONE);
+				pmap_remove_all(p);
 			}
 			p = next;
 		}
@@ -619,7 +619,7 @@ vm_pageout_page_free(vm_page_t m) {
 	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
 		vm_object_reference(object);
 	vm_page_busy(m);
-	pmap_page_protect(m, VM_PROT_NONE);
+	pmap_remove_all(m);
 	vm_page_free(m);
 	cnt.v_dfree++;
 	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
@@ -1073,7 +1073,7 @@ rescan0:
 			    m->act_count == 0) {
 				page_shortage--;
 				if (m->object->ref_count == 0) {
-					pmap_page_protect(m, VM_PROT_NONE);
+					pmap_remove_all(m);
 					if (m->dirty == 0)
 						vm_page_cache(m);
 					else
@@ -1308,7 +1308,7 @@ vm_pageout_page_stats()
 				 * operations would be higher than the value
 				 * of doing the operation.
 				 */
-				pmap_page_protect(m, VM_PROT_NONE);
+				pmap_remove_all(m);
 				vm_page_deactivate(m);
 			} else {
 				m->act_count -= min(m->act_count, ACT_DECLINE);
