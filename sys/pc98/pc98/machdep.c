@@ -1332,10 +1332,8 @@ getmemsize(int first)
 	 * allocated we simply change the mapping.
 	 */
 	for (pa = trunc_page(basemem * 1024);
-	     pa < ISA_HOLE_START; pa += PAGE_SIZE) {
-		pte = vtopte(pa + KERNBASE);
-		*pte = pa | PG_RW | PG_V;
-	}
+	     pa < ISA_HOLE_START; pa += PAGE_SIZE)
+		pmap_kenter(KERNBASE + pa, pa);
 
 	/*
 	 * if basemem != 640, map pages r/w into vm86 page table so 
@@ -1350,8 +1348,7 @@ getmemsize(int first)
 	 * map page 1 R/W into the kernel page table so we can use it
 	 * as a buffer.  The kernel will unmap this page later.
 	 */
-	pte = vtopte(KERNBASE + (1 << PAGE_SHIFT));
-	*pte = (1 << PAGE_SHIFT) | PG_RW | PG_V;
+	pmap_kenter(KERNBASE + (1 << PAGE_SHIFT), 1);
 
 	/*
 	 * get memory map with INT 15:E820
@@ -1546,11 +1543,7 @@ physmap_done:
 	pa_indx = 0;
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
-#if 0
-	pte = vtopte(KERNBASE);
-#else
 	pte = CMAP1;
-#endif
 
 	/*
 	 * physmap is in bytes, so when converting to page boundaries,
@@ -1564,11 +1557,7 @@ physmap_done:
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad;
-#if 0
-			int *ptr = 0;
-#else
 			int *ptr = (int *)CADDR1;
-#endif
 
 			/*
 			 * block out kernel memory as not available.
