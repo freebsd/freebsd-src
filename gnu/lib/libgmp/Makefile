@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.16 1998/03/12 13:03:05 bde Exp $
+# $Id: Makefile,v 1.17 1998/05/15 06:42:01 jb Exp $
 #
 
 LIB=	gmp
@@ -128,9 +128,9 @@ CLEANFILES+=	sysdep.h asm-syntax.h
 mpz mpf mpq:
 	mkdir ${.TARGET}
 
-CLEANDIRS+=	${.OBJDIR}/mpz ${.CURDIR}/mpz \
-		${.OBJDIR}/mpf ${.CURDIR}/mpf \
-		${.OBJDIR}/mpq ${.CURDIR}/mpq
+CLEANDIRS+=	${.OBJDIR}/mpz \
+		${.OBJDIR}/mpf \
+		${.OBJDIR}/mpq
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
