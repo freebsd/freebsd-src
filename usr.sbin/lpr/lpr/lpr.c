@@ -326,6 +326,7 @@ main(argc, argv)
 	seteuid(uid);
 	card('H', host);
 	card('P', person);
+	card('C', class);
 	if (hdr && !pp->no_header) {
 		if (jobname == NULL) {
 			if (argc == 0)
@@ -335,7 +336,6 @@ main(argc, argv)
 					   ? arg + 1 : argv[0]);
 		}
 		card('J', jobname);
-		card('C', class);
 		card('L', person);
 	}
 	if (format != 'p' && Zflag != 0)
