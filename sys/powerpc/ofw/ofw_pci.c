@@ -84,26 +84,10 @@ ofw_pci_find_node(device_t dev)
 void
 ofw_pci_fixup(device_t dev, u_int bus, phandle_t parentnode)
 {
-	phandle_t	node, nextnode, childnode;
-	u_int32_t	busrange[2];
-	int		sz;
-	
-	for (node = parentnode; node; node = nextnode) {
-		sz = OF_getprop(node, "bus-range", busrange, 8);
-		if (sz != 8 || busrange[0] != device_get_unit(dev)) {
-			for (childnode = OF_child(node); childnode;
-			    childnode = OF_peer(childnode)) {
-				fixup_node(dev, childnode);
-			}
-		}
+	phandle_t	node;
 
-		if ((nextnode = OF_child(node)) != 0)
-			continue;
-		while ((nextnode = OF_peer(node)) == 0) {
-			node = OF_parent(node);
-			if (node == parentnode)
-				return;
-		}
+	for (node = OF_child(parentnode); node; node = OF_peer(node)) {
+		fixup_node(dev, node);
 	}
 }
 
