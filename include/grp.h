@@ -42,6 +42,9 @@
 #ifndef _GRP_H_
 #define	_GRP_H_
 
+#include <sys/types.h>
+#include <sys/cdefs.h>
+
 #ifndef _POSIX_SOURCE
 #define	_PATH_GROUP		"/etc/group"
 #endif
@@ -52,8 +55,6 @@ struct group {
 	gid_t	gr_gid;			/* group id */
 	char	**gr_mem;		/* group members */
 };
-
-#include <sys/cdefs.h>
 
 __BEGIN_DECLS
 struct group *getgrgid __P((gid_t));
