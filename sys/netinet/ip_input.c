@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.30 1995/12/14 09:53:41 phk Exp $
+ * $Id: ip_input.c,v 1.31 1995/12/19 20:46:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -77,9 +77,6 @@ struct socket *ip_rsvpd;
 #ifndef	IPSENDREDIRECTS
 #define	IPSENDREDIRECTS	1
 #endif
-#ifndef	DIRECTED_BROADCAST
-#define	DIRECTED_BROADCAST	0
-#endif
 
 static int	ipforwarding = IPFORWARDING;
 SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
@@ -88,10 +85,6 @@ SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
 static int	ipsendredirects = IPSENDREDIRECTS;
 SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
 	&ipsendredirects, 0, "");
-
-static int	ipdirbroadcast = DIRECTED_BROADCAST;
-SYSCTL_INT(_net_inet_ip, IPCTL_DIRECTEDBROADCAST, directed_broadcast,
-	CTLFLAG_RW, &ipdirbroadcast, 0, "");
 
 int	ip_defttl = IPDEFTTL;
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
@@ -309,15 +302,17 @@ next:
 
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
 			goto ours;
-		if ((!ipdirbroadcast || ia->ia_ifp == m->m_pkthdr.rcvif) &&
-		    (ia->ia_ifp->if_flags & IFF_BROADCAST)) {
+		if (ia->ia_ifp->if_flags & IFF_BROADCAST) {
+#if 1
 			u_long t;
+#endif
 
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr)
 				goto ours;
 			if (ip->ip_dst.s_addr == ia->ia_netbroadcast.s_addr)
 				goto ours;
+#if 1 /* XXX - this should go away */
 			/*
 			 * Look for all-0's host part (old broadcast addr),
 			 * either for subnet or net.
@@ -327,6 +322,7 @@ next:
 				goto ours;
 			if (t == ia->ia_net)
 				goto ours;
+#endif /* compatibility cruft */
 		}
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
@@ -1169,11 +1165,8 @@ ip_forward(m, srcrt)
 		}
 	}
 
-	error = ip_output(m, (struct mbuf *)0, &ipforward_rt, IP_FORWARDING
-#ifdef DIRECTED_BROADCAST
-			    | IP_ALLOWBROADCAST
-#endif
-						, 0);
+	error = ip_output(m, (struct mbuf *)0, &ipforward_rt, 
+			  IP_FORWARDING, 0);
 	if (error)
 		ipstat.ips_cantforward++;
 	else {
