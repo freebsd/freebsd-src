@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.35 1995/03/21 01:11:42 davidg Exp $
+ * $Id: vm_object.c,v 1.36 1995/03/22 08:08:44 davidg Exp $
  */
 
 /*
@@ -242,6 +242,7 @@ vm_object_deallocate(object)
 	vm_object_t object;
 {
 	vm_object_t temp;
+	vm_pager_t pager;
 
 	while (object != NULL) {
 
@@ -312,35 +313,40 @@ vm_object_deallocate(object)
 			return;
 		}
 
+		pager = object->pager;
+
+		if (pager && pager->pg_type == PG_VNODE) {
+			vn_pager_t vnp = (vn_pager_t) pager->pg_data;
+
+			vnp->vnp_vp->v_flag &= ~VTEXT;
+		}
+
 		/*
 		 * See if this object can persist and has some resident
 		 * pages.  If so, enter it in the cache.
 		 */
-		if ((object->flags & OBJ_CANPERSIST) &&
-		    (object->resident_page_count != 0)) {
-			vm_pager_t pager = object->pager;
-			vn_pager_t vnp = (vn_pager_t) pager->pg_data;
+		if (object->flags & OBJ_CANPERSIST) {
+			if (object->resident_page_count != 0) {
+				TAILQ_INSERT_TAIL(&vm_object_cached_list, object,
+				    cached_list);
+				vm_object_cached++;
+				vm_object_cache_unlock();
 
-			if (pager->pg_type == PG_VNODE) {
-				vnp->vnp_vp->v_flag &= ~VTEXT;
+				vm_object_unlock(object);
+
+				vm_object_cache_trim();
+				return;
+			} else {
+				object->flags &= ~OBJ_CANPERSIST;
 			}
-
-			TAILQ_INSERT_TAIL(&vm_object_cached_list, object,
-			    cached_list);
-			vm_object_cached++;
-			vm_object_cache_unlock();
-
-			vm_object_unlock(object);
-
-			vm_object_cache_trim();
-			return;
 		}
 
 		/*
 		 * Make sure no one can look us up now.
 		 */
 		object->flags |= OBJ_DEAD;
-		vm_object_remove(object->pager);
+		if (pager != NULL && (object->flags & OBJ_INTERNAL) == 0)
+			vm_object_remove(pager);
 		vm_object_cache_unlock();
 
 		temp = object->shadow;
@@ -434,7 +440,7 @@ vm_object_terminate(object)
 	 */
 	if (vp != NULL) {
 		VOP_UNLOCK(vp);
-		(void) vm_object_page_clean(object, 0, 0, TRUE, TRUE);
+		vm_object_page_clean(object, 0, 0, TRUE);
 		VOP_LOCK(vp);
 		vinvalbuf(vp, 0, NOCRED, NULL, 0, 0);
 		VOP_UNLOCK(vp);
@@ -484,15 +490,13 @@ vm_object_terminate(object)
  *	Odd semantics: if start == end, we clean everything.
  *
  *	The object must be locked.
- *	Returns true
  */
-boolean_t
-vm_object_page_clean(object, start, end, syncio, de_queue)
+void
+vm_object_page_clean(object, start, end, syncio)
 	register vm_object_t object;
 	register vm_offset_t start;
 	register vm_offset_t end;
 	boolean_t syncio;
-	boolean_t de_queue;
 {
 	register vm_page_t p, nextp;
 	int size;
@@ -540,8 +544,7 @@ again:
 			}
 		}
 	}
-	wakeup((caddr_t) object);
-	return 1;
+	return;
 }
 
 /*
