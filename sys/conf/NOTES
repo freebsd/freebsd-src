@@ -1797,12 +1797,6 @@ hint.gusc.0.flags="0x13"
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
 # nmdm: nullmodem terminal driver (see nmdm(4))
 
-# Notes on the Digiboard driver:
-#
-# The following flag values have special meanings in dgb:
-#	0x01 - alternate layout of pins
-#	0x02 - use the windowed PC/Xe in 64K mode
-
 # Notes on the Comtrol Rocketport driver:
 #
 # The exact values used for rp0 depend on how many boards you have

@@ -524,6 +524,7 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
 # spigot: The Creative Labs Video Spigot video-acquisition board
+# dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # asc: GI1904-based hand scanners, e.g. the Trust Amiscan Grey
 # gsc: Genius GS-4500 hand scanner.
@@ -532,7 +533,6 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
-# dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -588,6 +588,11 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 #               
 # The NDGBPORTS option specifies the number of ports controlled by the
 # dgb(4) driver.  The default value is 16 ports per device.
+#
+# The following flag values have special meanings in dgb:
+#	0x01 - alternate layout of pins
+#	0x02 - use the windowed PC/Xe in 64K mode
+
 
 device		wt	1
 hint.wt.0.at="isa"
@@ -613,6 +618,11 @@ device		gsc	1
 hint.gsc.0.at="isa"
 hint.gsc.0.port="0x270"
 hint.gsc.0.drq="3"
+device		dgb	1   
+options		NDGBPORTS=17
+hint.dgb.0.at="isa"
+hint.dgb.0.port="0x220"
+hint.dgb.0.maddr="0xfc000"
 device		rc
 hint.rc.0.at="isa"
 hint.rc.0.port="0x220"
@@ -640,11 +650,6 @@ hint.stli.0.port="0x2a0"
 hint.stli.0.maddr="0xcc000"
 hint.stli.0.flags="23"
 hint.stli.0.msize="0x1000"
-device		dgb	1   
-options		NDGBPORTS=17
-hint.dgb.0.at="isa"
-hint.dgb.0.port="0x220"
-hint.dgb.0.maddr="0xfc000"
 # You are unlikely to have the hardware for loran <phk@FreeBSD.org>
 device		loran
 hint.loran.0.at="isa"
