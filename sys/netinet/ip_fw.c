@@ -1141,7 +1141,7 @@ again:
 			continue;
 		if (f->fw_ipflg & IP_FW_IF_IPLEN && f->fw_iplen != ip->ip_len)
 			continue;
-		if (f->fw_ipflg & IP_FW_IF_IPID && f->fw_ipid != ip->ip_id)
+		if (f->fw_ipflg & IP_FW_IF_IPID && f->fw_ipid != ntohs(ip->ip_id))
 			continue;
 		if (f->fw_ipflg & IP_FW_IF_IPTOS && !iptos_match(ip, f))
 			continue;
