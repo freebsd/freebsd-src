@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.5 1994/11/26 08:57:41 phk Exp $
+ * $Id: ctm_pass2.c,v 1.6 1995/02/04 19:20:48 phk Exp $
  *
  */
 
@@ -124,7 +124,7 @@ Pass2(FILE *fd)
 				if(Force)
 				    fprintf(stderr,"  Can and will force.\n");
 				else
-				    fprintf(stderr,"  Could have forced.n");
+				    fprintf(stderr,"  Could have forced.\n");
 				ret |= Exit_Forcible;
 			    } else {
 				ret |= Exit_NotOK;
