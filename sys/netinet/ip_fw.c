@@ -152,6 +152,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, verbose_limit, CTLFLAG_RW,
 static struct ipfw_dyn_rule **ipfw_dyn_v = NULL ;
 static u_int32_t dyn_buckets = 256 ; /* must be power of 2 */
 static u_int32_t curr_dyn_buckets = 256 ; /* must be power of 2 */
+
 /*
  * timeouts for various events in handing dynamic rules.
  */
@@ -161,6 +162,7 @@ static u_int32_t dyn_fin_lifetime = 1 ;
 static u_int32_t dyn_rst_lifetime = 1 ;
 static u_int32_t dyn_udp_lifetime = 10 ;
 static u_int32_t dyn_short_lifetime = 5 ;
+
 /*
  * after reaching 0, dynamic rules are considered still valid for
  * an additional grace time, unless there is lack of resources.
@@ -196,7 +198,7 @@ SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime, CTLFLAG_RW,
 SYSCTL_INT(_net_inet_ip_fw, OID_AUTO, dyn_grace_time, CTLFLAG_RD,
     &dyn_grace_time, 0, "Grace time for dyn. rules");
 
-#endif
+#endif /* SYSCTL_NODE */
 
 #define dprintf(a)	do {						\
 				if (fw_debug)				\
@@ -217,8 +219,8 @@ static __inline int
 static int	tcpflg_match (struct tcphdr *tcp, struct ip_fw *f);
 static int	icmptype_match (struct icmp *  icmp, struct ip_fw * f);
 static void	ipfw_report (struct ip_fw *f, struct ip *ip, int offset,
-				 int ip_len, struct ifnet *rif,
-				 struct ifnet *oif);
+				int ip_len, struct ifnet *rif,
+				struct ifnet *oif);
 
 static void	flush_rule_ptrs(void);
 
@@ -676,6 +678,7 @@ remove_dyn_rule(struct ip_fw *rule, int force)
     if (force == 0 && last_remove == time_second)
 	return ;
     last_remove = time_second ;
+
     /*
      * because DYN_LIMIT refer to parent rules, during the first pass only
      * remove child and mark any pending LIMIT_PARENT, and remove
@@ -1010,7 +1013,7 @@ install_state(struct ip_fw *rule)
  * rule...
  */ 
 static struct ip_fw * lookup_next_rule(struct ip_fw *me);
- 
+
 static struct ip_fw *
 lookup_next_rule(struct ip_fw *me)
 {
@@ -1157,6 +1160,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 	     */
 	    if (fw_one_pass) /* just accept if fw_one_pass is set */
 		return 0;
+
 	    f = (*flow_id)->next_rule_ptr ;
 	    if (f == NULL)
 		f = (*flow_id)->next_rule_ptr = lookup_next_rule(*flow_id);
@@ -1712,26 +1716,26 @@ zero_entry(struct ip_fw *frwl, int log_only)
 	int cleared = 0;
 	number = frwl->fw_number ;
 	/*
-	* It's possible to insert multiple chain entries with the
-	* same number, so we don't stop after finding the first
-	* match if zeroing a specific entry.
-	*/
+	 * It is possible to insert multiple chain entries with the
+	 * same number, so we don't stop after finding the first
+	 * match if zeroing a specific entry.
+	 */
 	LIST_FOREACH(rule, &ip_fw_chain_head, next)
-	if (number == rule->fw_number) {
-	    s = splimp();
-	    while (rule && number == rule->fw_number) {
-		if (log_only == 0) {
-		    rule->fw_bcnt = rule->fw_pcnt = 0;
-		    rule->timestamp = 0;
+	    if (number == rule->fw_number) {
+		s = splimp();
+		while (rule && number == rule->fw_number) {
+		    if (log_only == 0) {
+			rule->fw_bcnt = rule->fw_pcnt = 0;
+			rule->timestamp = 0;
+		    }
+		    rule->fw_loghighest = rule->fw_pcnt+ rule->fw_logamount;
+		    rule = LIST_NEXT(rule, next);
 		}
-		rule->fw_loghighest = rule->fw_pcnt+ rule->fw_logamount;
-		rule = LIST_NEXT(rule, next);
+		splx(s);
+		cleared = 1;
+		break;
 	    }
-	    splx(s);
-	    cleared = 1;
-	    break;
-	}
-	if (!cleared)   /* we didn't find any matching rules */
+	if (!cleared)	/* we did not find any matching rules */
 	    return (EINVAL);
 	msg = log_only ? "Entry %d logging count reset.\n" :
 			"ipfw: Entry %d cleared.\n";
@@ -1905,15 +1909,15 @@ ip_fw_ctl(struct sockopt *sopt)
 		 */
 		buf = malloc(size, M_TEMP, M_WAITOK);
 		if (buf == 0) {
-			splx(s);
-			error = ENOBUFS;
-			break;
+		    splx(s);
+		    error = ENOBUFS;
+		    break;
 		}
 
 		bp = buf ;
 		LIST_FOREACH(fcp, &ip_fw_chain_head, next) {
-			bcopy(fcp, bp, sizeof *fcp);
-			bp++;
+		    bcopy(fcp, bp, sizeof *fcp);
+		    bp++;
 		}
 		if (ipfw_dyn_v) {
 		    int i ;

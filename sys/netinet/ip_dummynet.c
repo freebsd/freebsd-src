@@ -831,12 +831,11 @@ create_queue(struct dn_flow_set *fs, int i)
 	if ( fs->rq[i] != NULL )
 	    return fs->rq[i] ;
     }
-    q = malloc(sizeof(*q), M_DUMMYNET, M_DONTWAIT | M_ZERO) ;
+    q = malloc(sizeof(*q), M_DUMMYNET, M_DONTWAIT | M_ZERO);
     if (q == NULL) {
 	printf("sorry, cannot allocate queue for new flow\n");
 	return NULL ;
     }
-    bzero(q, sizeof(*q) );     /* needed */
     q->fs = fs ;
     q->hash_slot = i ;
     q->next = fs->rq[i] ;
@@ -1092,7 +1091,7 @@ dummynet_io(int pipe_nr, int dir,	/* pipe_nr can also be a fs_nr */
     if ( fs->flags_fs & DN_IS_RED && red_drops(fs, q, len) )
 	goto dropit ;
 
-    /* XXX expensive, see if we can remove it*/
+    /* XXX expensive to zero, see if we can remove it*/
     pkt = (struct dn_pkt *)malloc(sizeof (*pkt), M_DUMMYNET, M_NOWAIT|M_ZERO);
     if ( pkt == NULL )
 	goto dropit ;		/* cannot allocate packet header	*/
@@ -1904,8 +1903,8 @@ dummynet_modevent(module_t mod, int type, void *data)
 
 	case MOD_UNLOAD:
 #if !defined(KLD_MODULE)
-                printf("dummynet statically compiled, cannot unload\n");
-                return EINVAL ;
+		printf("dummynet statically compiled, cannot unload\n");
+		return EINVAL ;
 #else
 		s = splimp();
 		untimeout(dummynet, NULL, dn_timeout);
