@@ -1062,11 +1062,12 @@ ip_insertoptions(m, opt, phlen)
 			*phlen = 0;
 			return (m);
 		}
+		M_MOVE_PKTHDR(n, m);
 		n->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
 		mac_create_mbuf_from_mbuf(m, n);
 #endif
-		n->m_pkthdr.len = m->m_pkthdr.len + optlen;
+		n->m_pkthdr.len += optlen;
 		m->m_len -= sizeof(struct ip);
 		m->m_data += sizeof(struct ip);
 		n->m_next = m;
