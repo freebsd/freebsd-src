@@ -687,8 +687,7 @@ register struct nspcb *nsp;
 		 firstbad = m;
 		 /*for (;;) {*/
 			/* calculate length */
-			for (m0 = m, len = 0; m ; m = m->m_next)
-				len += m->m_len;
+			len = m_length(m, NULL);
 			if (len > cb->s_mtu) {
 			}
 		/* FINISH THIS

@@ -451,12 +451,7 @@ nfssvc_nfsd(struct thread *td)
 			nfsrv_updatecache(nd, TRUE, mreq);
 			nd->nd_mrep = NULL;
 		    case RC_REPLY:
-			m = mreq;
-			siz = 0;
-			while (m) {
-				siz += m->m_len;
-				m = m->m_next;
-			}
+			siz = m_length(mreq, NULL);
 			if (siz <= 0 || siz > NFS_MAXPACKET) {
 				printf("mbuf siz=%d\n",siz);
 				panic("Bad nfs svc reply");

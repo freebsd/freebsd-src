@@ -498,11 +498,11 @@ sbappend(sb, m)
 #ifdef SOCKBUF_DEBUG
 void
 sbcheck(sb)
-	register struct sockbuf *sb;
+	struct sockbuf *sb;
 {
-	register struct mbuf *m;
-	register struct mbuf *n = 0;
-	register u_long len = 0, mbcnt = 0;
+	struct mbuf *m;
+	struct mbuf *n = 0;
+	u_long len = 0, mbcnt = 0;
 
 	for (m = sb->sb_mb; m; m = n) {
 	    n = m->m_nextpkt;
@@ -610,22 +610,18 @@ sbinsertoob(sb, m0)
  */
 int
 sbappendaddr(sb, asa, m0, control)
-	register struct sockbuf *sb;
+	struct sockbuf *sb;
 	struct sockaddr *asa;
 	struct mbuf *m0, *control;
 {
-	register struct mbuf *m, *n;
+	struct mbuf *m, *n;
 	int space = asa->sa_len;
 
 	if (m0 && (m0->m_flags & M_PKTHDR) == 0)
 		panic("sbappendaddr");
 	if (m0)
 		space += m0->m_pkthdr.len;
-	for (n = control; n; n = n->m_next) {
-		space += n->m_len;
-		if (n->m_next == 0)	/* keep pointer to last control buf */
-			break;
-	}
+	space += m_length(control, &n);
 	if (space > sbspace(sb))
 		return (0);
 	if (asa->sa_len > MLEN)
@@ -657,19 +653,12 @@ sbappendcontrol(sb, m0, control)
 	struct sockbuf *sb;
 	struct mbuf *control, *m0;
 {
-	register struct mbuf *m, *n;
-	int space = 0;
+	struct mbuf *m, *n;
+	int space;
 
 	if (control == 0)
 		panic("sbappendcontrol");
-	for (m = control; ; m = m->m_next) {
-		space += m->m_len;
-		if (m->m_next == 0)
-			break;
-	}
-	n = m;			/* save pointer to last control buffer */
-	for (m = m0; m; m = m->m_next)
-		space += m->m_len;
+	space = m_length(control, &n) + m_length(m0, NULL);
 	if (space > sbspace(sb))
 		return (0);
 	n->m_next = m0;			/* concatenate data to control */

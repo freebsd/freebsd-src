@@ -421,9 +421,7 @@ smb_t2_placedata(struct mbuf *mtop, u_int16_t offset, u_int16_t count,
 	m0 = m_split(mtop, offset, M_TRYWAIT);
 	if (m0 == NULL)
 		return EBADRPC;
-	for(len = 0, m = m0; m->m_next; m = m->m_next)
-		len += m->m_len;
-	len += m->m_len;
+	len = m_length(m0, &m);
 	m->m_len -= len - count;
 	if (mdp->md_top == NULL) {
 		md_initm(mdp, m0);
