@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#55 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#56 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -190,6 +190,7 @@ register CLRINT {
 	field	CLRHWERRINT	0x80 /* Rev B or greater */
 	field	CLRBRKADRINT	0x40
 	field	CLRSWTMINT	0x20
+	field	CLRPCIINT	0x10
 	field	CLRSCSIINT	0x08
 	field	CLRSEQINT	0x04
 	field	CLRCMDINT	0x02
@@ -1168,7 +1169,7 @@ register MSIPCISTAT {
  * PCI Status for Target
  */
 register TARGPCISTAT {
-	address			0x0A6
+	address			0x0A7
 	access_mode	RW
 	modes		M_CFG
 	field	DPE		0x80
