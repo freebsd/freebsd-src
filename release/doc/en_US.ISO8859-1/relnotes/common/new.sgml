@@ -226,14 +226,12 @@
     <title>Kernel Changes</title>
 
     <para arch="i386">The &man.acpi.asus.4; driver has been added
-      to use ACPI-controlled hardware features  such as hot keys and
-      LCD on ASUSTek laptops.</para>
+      to use ACPI-controlled hardware features, such as hot keys and
+      LEDs on ASUSTek laptops.</para>
 
     <para arch="i386">The &man.acpi.toshiba.4; driver has been added
       to use Toshiba's Hardware Control Interface to manipulate
-      certain hardware features on Toshiba laptops.</para>
-
-    <para arch="i386">The &man.acpi.toshiba.4; driver now supports
+      certain hardware features on Toshiba laptops, such as
       video output switching.</para>
 
     <para>The &man.acpi.video.4; driver has been added to provide
@@ -245,13 +243,13 @@
       for instance) to allow users to set whether or not a given
       device can wake the system.</para>
 
-    <para arch="i386">The &man.acpi.4; driver has been updated to
-      be disabled automatically when the machine has well-known broken BIOS.
-      This behavior can be disabled by setting a loader tunable
+    <para arch="i386">The &man.acpi.4; driver will now
+      be disabled automatically when the machine has a well-known broken BIOS.
+      This behavior can be overridden by setting the loader tunable
       <varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
 
-    <para>The &man.bus.dma.9; now supports transparently honoring
-      the alignment and boundary constraints in the dma tag
+    <para>The &man.bus.dma.9; interface now supports transparently honoring
+      the alignment and boundary constraints in the DMA tag
       when loading buffers, and <function>bus_dmamap_load()</function>
       will automatically use bounce buffers when needed.
       In addition, a set of sysctls <varname>hw.busdma.*</varname>
@@ -293,7 +291,7 @@
       events to the user space.  Currently, mount, unmount, and up/down
       status of NFS are signaled.</para>
 
-    <para>KDB, a new debugger framework has been added.
+    <para>KDB, a new debugger framework, has been added.
       This consists of a new GDB backend, which has been rewritten to support
       threading, run-length encoding compression, and so on, and
       the frontend that provides a framework in which multiple, different
@@ -304,7 +302,7 @@
     <itemizedlist>
       <listitem>
 	<para>KDB is enabled by default
-	  via a kernel option <literal>options KDB</literal>,
+	  via the kernel options <literal>options KDB</literal>,
 	  <literal>options GDB</literal>, and <literal>options DDB</literal>.
 	  Both <literal>DDB</literal> and
 	  <literal>GDB</literal> specify which KDB backends to include.</para>
@@ -340,7 +338,7 @@
       </listitem>
     </itemizedlist>
 
-    <para>The KDB also serves as the single point of contact for any and
+    <para>KDB also serves as the single point of contact for any and
       all code that wants to make use of the debugger functions,
       such as entering the debugger or handling of the
       alternate break sequence.
@@ -378,17 +376,17 @@
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.  &merged;</para>
 
-    <para>&man.nmdm.4; has been rewritten to improve the reliability.</para>
+    <para>&man.nmdm.4; has been rewritten to improve its reliability.</para>
 
-    <para>The raid(4), RAIDframe disk driver from NetBSD has been removed.
-      This is currently non-functional, and would require some amount of work
+    <para>The raid(4) driver (RAIDframe disk driver from NetBSD) has been removed.
+      It is currently non-functional, and would require some amount of work
       to make it work under the &man.geom.4; API in 5-CURRENT.</para>
 
     <para>The &man.pcm.4; driver has been modified to read
       <filename>/boot/device.hints</filename> on startup, to allow setting
       of default values for mixer channels.</para>
 
-    <para arch="sparc64">The &man.sab.4; now supports
+    <para arch="sparc64">The &man.sab.4; driver now supports the
       <literal>BREAK_TO_DEBUGGER</literal> kernel option.</para>
 
     <para>The drivers for various sound cards has been reorganized;
@@ -396,7 +394,7 @@
       and <literal>device snd_*</literal> are device-specific sound drivers.</para>
 
     <para arch="i386,pc98">The sx driver, which supports Specialix I/O8+ and I/O4+
-      intelligent multiport serial controllers has been added.</para>
+      intelligent multiport serial controllers, has been added.</para>
 
     <para>A devclass level has been added to the dev sysctl tree,
       in order to support per-class variables in addition to
@@ -410,9 +408,9 @@
       has been moved to <varname>kern.sched.quantum</varname>
       for consistency.</para>
 
-    <para arch="alpha,amd64,i386">For the &man.uart.4; device
-      <varname>hw.uart.console</varname> and
-      <varname>hw.uart.dbgport</varname> environment variables
+    <para arch="alpha,amd64,i386">For the &man.uart.4; device,
+      the <varname>hw.uart.console</varname> and
+      <varname>hw.uart.dbgport</varname> kernel environment variables
       have been added.  They can be used to select a serial console and
       debug port respectively, as well as the attributes.</para>
 
@@ -448,7 +446,7 @@
       interfaces named <devicename>stf0</devicename>,
       <devicename>stf</devicename>, or <devicename>6to4</devicename>.
       Note that this breaks backward compatibility; for example,
-      now <command>ifconfig stf</command> creates
+      <command>ifconfig stf</command> now creates
       the interface named <devicename>stf</devicename>,
       not <devicename>stf0</devicename>, and does not print
       <devicename>stf0</devicename> to stdout.</para>
