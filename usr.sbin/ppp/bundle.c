@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.10 1998/05/28 23:17:31 brian Exp $
+ *	$Id: bundle.c,v 1.11 1998/05/29 18:32:09 brian Exp $
  */
 
 #include <sys/param.h>
@@ -682,7 +682,7 @@ bundle_UnlockTun(struct bundle *bundle)
 }
 
 struct bundle *
-bundle_Create(const char *prefix, int type)
+bundle_Create(const char *prefix, int type, const char **argv)
 {
   int s, enoentcount, err;
   struct ifreq ifrq;
@@ -718,6 +718,7 @@ bundle_Create(const char *prefix, int type)
   }
 
   log_SetTun(bundle.unit);
+  bundle.argv = argv;
 
   s = socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -1654,6 +1655,9 @@ bundle_setsid(struct bundle *bundle, int holdsession)
          * intermediate is, we don't want it to become defunct.
          */
         waitpid(pid, &status, 0);
+        /* Tweak our process arguments.... */
+        bundle->argv[0] = "session owner";
+        bundle->argv[1] = NULL;
         /*
          * Hang around for a HUP.  This should happen as soon as the
          * ppp that we passed our ctty descriptor to closes it.
