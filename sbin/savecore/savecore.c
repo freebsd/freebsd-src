@@ -31,9 +31,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/disk.h>
@@ -103,7 +104,7 @@ DoFile(const char *device)
 	if (!error)
 		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
 	if (error) {
-		warn("Couldn't find media and/or sector size of %s)", device);
+		warn("couldn't find media and/or sector size of %s", device);
 		goto closefd;
 	}
 
@@ -116,18 +117,18 @@ DoFile(const char *device)
 	lseek(fd, lasthd, SEEK_SET);
 	error = read(fd, &kdhl, sizeof kdhl);
 	if (error != sizeof kdhl) {
-		warn("Error reading last dump header at offset %lld in %s",
+		warn("error reading last dump header at offset %lld in %s",
 		    (long long)lasthd, device);
 		goto closefd;
 	}
 	if (memcmp(kdhl.magic, KERNELDUMPMAGIC, sizeof kdhl.magic)) {
 		if (verbose)
-			warnx("Magic mismatch on last dump header on %s",
+			warnx("magic mismatch on last dump header on %s",
 			    device);
 		goto closefd;
 	}
 	if (dtoh32(kdhl.version) != KERNELDUMPVERSION) {
-		warnx("Unknown version (%d) in last dump header on %s",
+		warnx("unknown version (%d) in last dump header on %s",
 		    dtoh32(kdhl.version), device);
 		goto closefd;
 	}
@@ -137,7 +138,7 @@ DoFile(const char *device)
 		goto nuke;
 
 	if (kerneldump_parity(&kdhl)) {
-		warnx("Parity error on last dump header on %s", device);
+		warnx("parity error on last dump header on %s", device);
 		goto closefd;
 	}
 	dumpsize = dtoh64(kdhl.dumplength);
@@ -145,12 +146,12 @@ DoFile(const char *device)
 	lseek(fd, firsthd, SEEK_SET);
 	error = read(fd, &kdhf, sizeof kdhf);
 	if (error != sizeof kdhf) {
-		warn("Error reading first dump header at offset %lld in %s",
+		warn("error reading first dump header at offset %lld in %s",
 		    (long long)firsthd, device);
 		goto closefd;
 	}
 	if (memcmp(&kdhl, &kdhf, sizeof kdhl)) {
-		warn("First and last dump headers disagree on %s", device);
+		warn("first and last dump headers disagree on %s", device);
 		goto closefd;
 	}
 	md5 = MD5Data((unsigned char *)&kdhl, sizeof kdhl, NULL);
@@ -168,7 +169,7 @@ DoFile(const char *device)
 			goto closefd;
 		}
 	} else if (errno != ENOENT) {
-		warn("Error while checking for pre-saved core file");
+		warn("error while checking for pre-saved core file");
 		goto closefd;
 	}
 
@@ -203,12 +204,12 @@ DoFile(const char *device)
 			wl = dumpsize;
 		error = read(fd, buf, wl);
 		if (error != wl) {
-			warn("Read error on %s", device);
+			warn("read error on %s", device);
 			goto closeall;
 		}
 		error = write(fdcore, buf, wl);
 		if (error != wl) {
-			warn("Write error on %s.core file", md5);
+			warn("write error on %s.core file", md5);
 			goto closeall;
 		}
 		dumpsize -= wl;
@@ -227,7 +228,7 @@ DoFile(const char *device)
 		lseek(fd, lasthd, SEEK_SET);
 		error = write(fd, &kdhl, sizeof kdhl);
 		if (error != sizeof kdhl)
-			warn("Error while clearing the dump header");
+			warn("error while clearing the dump header");
 	}
 	close(fd);
 	return;
@@ -243,7 +244,7 @@ DoFile(const char *device)
 static void
 usage(void)
 {
-	errx(1, "usage: savecore [-cfkv] [directory [device...]]");
+	fprintf(stderr, "usage: savecore [-cfkv] [directory [device...]]\n");
 	exit (1);
 }
 
