@@ -147,6 +147,7 @@ makemsg(fname)
 	int fd;
 	char *p, *tty, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
 	const char *whom;
+	gid_t egid;
 
 	(void)snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
 	if ((fd = mkstemp(tmpname)) == -1 || !(fp = fdopen(fd, "r+")))
@@ -183,8 +184,13 @@ makemsg(fname)
 	}
 	(void)fprintf(fp, "%79s\r\n", " ");
 
-	if (fname && !(freopen(fname, "r", stdin)))
-		err(1, "can't read %s", fname);
+	if (fname) {
+		egid = getegid();
+		setegid(getgid());
+	       	if (freopen(fname, "r", stdin) == NULL)
+			err(1, "can't read %s", fname);
+		setegid(egid);
+	}
 	while (fgets(lbuf, sizeof(lbuf), stdin))
 		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
 			if (ch == '\r') {
