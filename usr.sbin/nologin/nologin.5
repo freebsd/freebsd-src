@@ -39,13 +39,19 @@
 .Nm nologin
 .Nd disallow logins
 .Sh DESCRIPTION
-.Nm Nologin
-disallows logins if the file 
+Programs such as 
+.Xr login 1
+disallow logins if the file 
 .Pa /var/run/nologin
 exists. 
 Programs display the contents of
 .Pa /var/run/nologin
 to the user and exit.
+This makes it simple to temporarily prevent incoming logins systemwide.
+.Pp
+To disable logins on a per-account basis,
+investigate
+.Xr nologin 8 .
 .Sh SECURITY
 Ignored by 
 .Xr login 1
