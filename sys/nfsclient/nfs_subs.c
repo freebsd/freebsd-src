@@ -478,7 +478,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
-	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1);
+	cp2 = nfsm_disct(mdp, dposp, NFSX_FATTR(v3), t1, M_TRYWAIT);
 	if (cp2 == NULL)
 		return EBADRPC;
 	fp = (struct nfs_fattr *)cp2;
