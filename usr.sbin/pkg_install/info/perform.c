@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.17 1995/07/30 01:44:38 ache Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.18 1995/10/25 15:38:31 jkh Exp $";
 #endif
 
 /*
@@ -41,35 +41,29 @@ pkg_perform(char **pkgs)
     if (!tmp)
 	tmp = DEF_LOG_DIR;
     /* Overriding action? */
-    if (AllInstalled || CheckPkg) {
-	if (isdir(tmp)) {
-	    DIR *dirp;
-	    struct dirent *dp;
+    if (CheckPkg) {
+	char buf[FILENAME_MAX];
 
-	    dirp = opendir(tmp);
-	    if (dirp) {
-		for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp)) {
-		    if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, "..")) {
-			if (CheckPkg) {
-			    if (!strcmp(dp->d_name, CheckPkg))
-				return 0;
-			}
-			else
-			    err_cnt += pkg_do(dp->d_name);
-		    }
-		}
-		(void)closedir(dirp);
-		if (CheckPkg)
-		    return 1;
-	    }
-	    else
-		++err_cnt;
-	} else if (CheckPkg)
-	    return 1;			/* no dir -> not installed! */
-
+	snprintf(buf, FILENAME_MAX, "%s/%s", tmp, CheckPkg);
+	return abs(access(buf, R_OK));
     }
-    for (i = 0; pkgs[i]; i++)
-	err_cnt += pkg_do(pkgs[i]);
+    else if (AllInstalled) {
+	DIR *dirp;
+	struct dirent *dp;
+
+	if (!isdir(tmp))
+	    return 1;
+	dirp = opendir(tmp);
+	if (dirp) {
+	    for (dp = readdir(dirp); dp != NULL; dp = readdir(dirp))
+		if (strcmp(dp->d_name, ".") && strcmp(dp->d_name, ".."))
+		    err_cnt += pkg_do(dp->d_name);
+	    (void)closedir(dirp);
+	}
+    }
+    else
+	for (i = 0; pkgs[i]; i++)
+	    err_cnt += pkg_do(pkgs[i]);
     return err_cnt;
 }
 
