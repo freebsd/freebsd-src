@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.37 1997/02/22 09:37:01 peter Exp $
+ * $Id: psm.c,v 1.38 1997/03/23 03:34:56 bde Exp $
  */
 
 /*
@@ -475,6 +475,7 @@ reinitialize(dev_t dev, mousemode_t *mode)
 				--verbose;   				\
                             kbdc_set_device_mask(sc->kbdc, mask);	\
 			    kbdc_lock(sc->kbdc, FALSE);			\
+ 	                    free(sc, M_DEVBUF);                         \
 			    return (v);	     				\
 			}
 
@@ -506,6 +507,7 @@ psmprobe(struct isa_device *dvp)
         printf("psm%d: unable to lock the controller.\n", unit);
         if (bootverbose)
             --verbose;
+        free(sc, M_DEVBUF);
 	return (0);
     }
 
@@ -553,7 +555,6 @@ psmprobe(struct isa_device *dvp)
         /* CONTROLLER ERROR */
         printf("psm%d: unable to get the current command byte value.\n",
             unit);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -571,7 +572,6 @@ psmprobe(struct isa_device *dvp)
 	 */
         restore_controller(sc->kbdc, command_byte);
         printf("psm%d: unable to set the command byte.\n", unit);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -606,7 +606,6 @@ psmprobe(struct isa_device *dvp)
         if (verbose)
             printf("psm%d: the aux port is not functioning (%d).\n",
                 unit, i);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -619,7 +618,6 @@ psmprobe(struct isa_device *dvp)
         restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: failed to reset the aux device.\n", unit);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
     /*
@@ -633,7 +631,6 @@ psmprobe(struct isa_device *dvp)
         restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: failed to enable the aux device.\n", unit);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -658,7 +655,6 @@ psmprobe(struct isa_device *dvp)
         restore_controller(sc->kbdc, command_byte);
         if (verbose)
             printf("psm%d: unknown device type (%d).\n", unit, sc->hw.hwid);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
     switch (sc->hw.hwid) {
@@ -713,7 +709,6 @@ psmprobe(struct isa_device *dvp)
 	 */
         restore_controller(sc->kbdc, command_byte);
         printf("psm%d: unable to set the command byte.\n", unit);
- 	free(sc, M_DEVBUF);
         endprobe(0);
     }
 
@@ -751,8 +746,11 @@ psmattach(struct isa_device *dvp)
         DV_CHR, 0, 0, 0666, "npsm%d", unit);
 #endif
 
-    printf("psm%d: device ID %d, %d buttons\n",
-	unit, sc->hw.hwid, sc->hw.buttons);
+    if (verbose)
+        printf("psm%d: device ID %d, %d buttons\n",
+	    unit, sc->hw.hwid, sc->hw.buttons);
+    else
+        printf("psm%d: device ID %d\n", unit, sc->hw.hwid);
 
     if (bootverbose)
         --verbose;
