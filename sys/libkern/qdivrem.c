@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: qdivrem.c,v 1.6 1997/02/22 09:39:57 peter Exp $
  */
 
 /*
@@ -213,9 +213,9 @@ __qdivrem(uq, vq, arq)
 			rhat = uj1;
 			goto qhat_too_big;
 		} else {
-			u_long n = COMBINE(uj0, uj1);
-			qhat = n / v1;
-			rhat = n % v1;
+			u_long nn = COMBINE(uj0, uj1);
+			qhat = nn / v1;
+			rhat = nn % v1;
 		}
 		while (v2 * qhat > COMBINE(rhat, uj2)) {
 	qhat_too_big:

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.236 1997/10/26 07:36:13 yokota Exp $
+ *  $Id: syscons.c,v 1.237 1997/11/07 08:52:42 phk Exp $
  */
 
 #include "sc.h"
@@ -1087,15 +1087,15 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    	cur_console->status |= MOUSE_VISIBLE;
 	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
 		u_char buf[5];
-		int i;
+		int j;
 
 		buf[0] = 0x80 | ((~mouse->u.data.buttons) & 0x07);
 		buf[1] = (mouse->u.data.x & 0x1fe >> 1);
 		buf[3] = (mouse->u.data.x & 0x1ff) - buf[1];
 		buf[2] = -(mouse->u.data.y & 0x1fe >> 1);
 		buf[4] = -(mouse->u.data.y & 0x1ff) - buf[2];
-		for (i=0; i<5; i++)
-	    		(*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[i],MOUSE_TTY);
+		for (j=0; j<5; j++)
+	    		(*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[j],MOUSE_TTY);
 	    }
 	    if (cur_console->mouse_signal) {
 		cur_console->mouse_buttons = mouse->u.data.buttons;

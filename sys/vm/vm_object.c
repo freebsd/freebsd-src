@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.98 1997/09/21 04:24:22 dyson Exp $
+ * $Id: vm_object.c,v 1.99 1997/10/24 23:41:00 dyson Exp $
  */
 
 /*
@@ -406,16 +406,16 @@ vm_object_terminate(object)
 	 */
 	if (object->type == OBJT_VNODE) {
 		struct vnode *vp = object->handle;
-		struct proc *p = curproc;	/* XXX */
+		struct proc *cp = curproc;	/* XXX */
 		int waslocked;
 
 		waslocked = VOP_ISLOCKED(vp);
 		if (!waslocked)
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, cp);
 		vm_object_page_clean(object, 0, 0, TRUE, FALSE);
 		vinvalbuf(vp, V_SAVE, NOCRED, NULL, 0, 0);
 		if (!waslocked)
-			VOP_UNLOCK(vp, 0, p);
+			VOP_UNLOCK(vp, 0, cp);
 	}
 
 	/*

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.269 1997/10/12 20:23:17 phk Exp $
+ *	$Id: machdep.c,v 1.270 1997/11/06 19:28:02 phk Exp $
  */
 
 #include "apm.h"
@@ -228,10 +228,10 @@ cpu_startup(dummy)
 
 		printf("Physical memory chunk(s):\n");
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			int size = phys_avail[indx + 1] - phys_avail[indx];
+			int size1 = phys_avail[indx + 1] - phys_avail[indx];
 
 			printf("0x%08lx - 0x%08lx, %d bytes (%d pages)\n", phys_avail[indx],
-			    phys_avail[indx + 1] - 1, size, size / PAGE_SIZE);
+			    phys_avail[indx + 1] - 1, size1, size1 / PAGE_SIZE);
 		}
 	}
 
