@@ -1,0 +1,561 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.33 -->
+
+<chapt><heading>FreeBSD への貢献<label id="submitters"></heading>
+
+<p><em>原作: &a.jkh;.</em>
+<p><em>訳: &a.iwasaki;.</em>
+
+<p>あなたも何か FreeBSD のために貢献したくなりましたか? 素晴らしい!
+私たちは常に支援を受ける用意がありますし, FreeBSD は生き残るためにユー
+ザベースの貢献に<em>頼る</em>ようなシステムの一つです. あなたの貢献は
+感謝されるだけではなく, FreeBSD が成長し続けるために極めて重要なものな
+のです!
+
+<p>一部の人達が言っているのとは逆に, 貢献を受け付けてもらうために腕利
+きのプログラマーになるとか FreeBSD コアチームの人と親友になる必要はあ
+りません. FreeBSD プロジェクトの開発は, 多くのそして益々増加する世界中
+の貢献者達によってなされており, 彼らの年齢, 専門技術分野は多岐に渡りま
+す. そして手の空いている人よりも成されるべき仕事の方が常に多いのです. 
+
+<p>FreeBSD プロジェクトがカーネルや散在しているユーティリティよりも, 
+オペレーティングシステム環境 (と, そのインストール) に対して責任を持つ
+ようになったため, 私たちの「TODO」リストはドキュメンテーション, ベータテ
+スト, 高度に専門化されたタイプのカーネル開発の好例を紹介するなど非常に
+広い範囲のタスクに渡ります. あなたの技能レベルに関わらず, プロジェクト
+を支援できることが必ず何かあります!
+
+<p>FreeBSD 関連の事業に従事している商業団体が私たちにコンタクトすること
+も歓迎します. あなたの製品を (FreeBSD 上で) 動作させるには, 特別な拡張
+が必要ではありませんか? あまりにも風変わりな要求でなければ, それを受け
+入れる用意が私たちにあるとわかるはずです. 
+付加価値のある製品ですか? 私たちに知らせてください! 多分私たちは, ある
+面において共同して作業をすることができるでしょう. フリーソフトウェア界
+は, ソフトウェアがそのライフサイクルを通してどのように開発され, 売られ, 
+保守されていくかについて, 既存の仮説に挑戦しています. 少なくとももう一
+度考慮してみることを私たちは強くお奨めします. 
+
+<sect><heading>何が必要?</heading>
+
+<p>次のタスクとサブプロジェクトのリストは, コアチームの色々な TODO リ
+ストと最近2ヶ月で集めたユーザリクエストを合わせたものです. 可能なとこ
+ろでは, 緊急度によってタスクがランクづけされています. もしここにあるタ
+スクの実行に興味があるのでしたら, コーディネータの名前をクリックしてメー
+ルを送ってください. もしコーディネータが決まっていなければ, あなたがボ
+ランティアしてみませんか?
+
+<sect1><heading>優先度の高いタスク</heading>
+<p>次のタスクは通常, ひどく壊れているとか, とても必要とされている何かを
+表しているため, 急務と考えられています:
+
+<enum>
+<item>第3ステージ・ブート問題. 全体コーディネーション:
+&a.hackers
+
+<p><itemize>
+<item>64MB を越えるメモリの正しい自動検出. 
+
+<item>userconfig (-c) の 第3ステージ・ブートへの移動. 
+
+<item>第3ステージがディスクの BIOS ジオメトリの正確なマッピングを提供
+できるように WinNT コンパチブルなドライブの追跡をおこなう. 
+
+</itemize>
+<item>ファイルシステム問題. 全体コーディネーション:
+&a.fs
+
+<itemize>
+<item>MSDOS ファイルシステムの修正. 
+
+<item>nullfs ファイルシステムコードのクリーンアップと
+ドキュメンテーション. コーディネータ: &a.gibbs
+
+<item>union ファイルシステムの修正. コーディネータ: &a.dyson
+
+<item>LFS ファイルシステムの修正. コーディネータ: &a.dyson
+
+</itemize>
+<item>カーネル vm86 及びユーザ vm86 サポート実装. コーディネータ:
+&a.hackers
+
+<item>Int13 vm86 ディスクドライバの実装. コーディネータ: &a.hackers
+
+<item>SCSI ドライバ問題. 全体コーディネーション: &a.hackers
+
+<p><itemize>
+<item>タグキューイングの一般的なサポート. 私たちのおこなっている
+コマンドキューイング方法の書換えが必要だが, とにかく優先度付けされた 
+I/O にはこれが必要 (CD-R ライタ / スキャナ). 
+
+<item>エラー処理の改善 (ビジー・ステータスおよびリトライ). 
+
+<item>統合された Scatter-Gather リスト生成コード. 
+
+</itemize>
+<item>カーネル問題.  全体コーディネーション:
+&a.hackers
+
+<p><itemize>
+<item>すべての現存ドライバの eisaconf 変換の達成. 
+
+<item>すべての割り込みルーチンをユニット番号を使う代わりに (void *) を
+取るように変更. 
+
+<item>EISA/PCI/ISAの割り込み登録コードの統合. 
+
+<item>PCI/EISA/ISA デバイス検出を bt742a.c(WIP) のようなドライバから分割. 
+
+<item>syscons の ALT-TAB/vt 切替えによるハングの修正.  コーディネータ:
+&a.sos
+
+<item>syscons 用のマウスサポート. 
+
+<item>すべてのコンソールドライバ用のキーボードコードの統合. 
+
+<item>Intel Etherexpress 16 ドライバの書換え. 
+
+<item>3c509と3c590 ドライバの統合 (本質的には PCI デバイス検出の ep.c 
+への提供). 
+
+<item> Adaptec 3985 (シンプルな3チャネル SCSI カードとしては最初のもの)
+のサポート. コーディネータ: &a.gibbs
+
+<item>Advansys SCSI コントローラ製品のサポート. コーディネータ:
+&a.gibbs
+
+</itemize>
+</enum>
+
+<sect1><heading>優先度がさほど高くないタスク</heading>
+<p>次のタスクはやっておくべきではありますが, 特にさし迫っているわけで
+はありません:
+
+<enum>
+<item>DOS エミュレータ (DOS の実行ファイル用) コーディネータ:
+<tt><htmlurl url="mailto:jr@jrw.org" name="J.R. Westmoreland"></tt>
+
+<item>AFS (Andrew ファイルシステム) の FreeBSD への移植 コーディネータ:
+<tt><htmlurl url="mailto:ajones@ctron.com" name="Alexander Seth
+Jones"></tt>
+
+<item>MCA サポート?  これは続けるにしても止めてしまうにしても結論を出
+すべき. 
+
+<item>完全な LKM ベースのドライバのサポート / コンフィグレーションマネー
+ジャ. 
+
+<p><itemize>
+<item>ld なしですべての LKM の登録をおこなう方法を考案する. これは
+カーネル中にある種のシンボルテーブルを持たせることを意味します. 
+
+<item>穏やかな方法でハードウェアを検知するコンフィグレーションマネージャ
+の作成 (第3ステージ・ブートの中に?). ハードウェアが必要とする LKM だけを
+残す等. 
+
+</itemize>
+<item>PCMCIA/PCCARD. コーディネータ: &a.nate と &a.phk
+<itemize>
+<item>ドキュメンテーション!
+<item>pcic ドライバの信頼性のある操作 (テスト要). 
+
+<item>sio.c のリコグナイザとハンドラ (ほぼ完了). 
+
+<item>ed.c のリコグナイザとハンドラ (ほぼ完了). 
+
+<item>ep.c のリコグナイザとハンドラ (ほぼ完了). 
+
+<item>User-mode のリコグナイザとハンドラ (部分的に完了). 
+
+</itemize>
+<item>先進的なパワーマネージメント. コーディネータ: &a.nate と
+&a.phk
+
+<itemize>
+<item>APM サブドライバ (ほぼ完了). 
+
+<item>IDE/ATA ディスクサブドライバ (部分的に完了). 
+
+<item>syscons/pcvt サブドライバ. 
+
+<item>PCMCIA/PCCARD ドライバ群との統合 (サスペンド / レジューム). 
+
+</itemize>
+</enum>
+
+<sect1><heading>優先度の低いタスク</heading>
+<p>次のタスクは全くのあら隠し, または誰もすぐにおこないそうもない投資
+のような仕事を表します:
+
+<p>最初の20項目は Terry Lambert &lt;terry@lambert.org&gt からのもので
+す. 
+
+<enum>
+<item>プロセッサ上で V86 モードを使用して, プロテクトモードからの BIOS 
+コールができるようにし, マップされた割り込み IPC 機構を経由してプロテ
+クトモードの呼出し元に結果を返すようにする. 
+
+<item>DOS と同じように, 実際の下位ハードウェアから独立になるよう, BIOS 
+コール機構を使用したカーネルの中に組み込まれたドライバ. これは DOS ベー
+スのローダプログラムで BSD がロードされる前に DOS にロードされていたネッ
+トワークドライバや ASPI ドライバも含みます. このことは潜在的なポーリン
+グ, つまりプロテクトモードカーネルによる V86 マシンのための 
+DOS-not-busy 割り込みの生成を意味します. 
+
+<item>ハードウェア固有のプロテクトモードのドライバがロードされて活性化
+された後で, デフォルトのカーネル実行形式の中の, そのようなドライバデー
+タとテキストエリアを追跡して, カーネルアドレス空間のその部分が回復され
+るようにするためのイメージ形式. 
+これは個々の BIOS ベースのドライバを互いに分離することを含みます. なぜ
+なら全く実行しないよりも, すべてのケースにおいて BIOS ベースのドライバ
+と共に実行した方が良いためです. 
+
+<item>バスインタフェース機構の抽象化. 現在のところ, PCMCIA, EISA そし
+て PCI バスはブリッジで ISA バスに接続されていると仮定しています. こう
+いった仮定はおこなうべきではありません.
+
+<item>パワーマネージメントイベント, カードの挿入, 取り出し, そしてバス 
+(PNPISA と PCMCIA とのブリッジチップ) 対カードのレベルのイベント管理を
+含む PNP イベントを解釈するコンフィグレーションマネージャ.
+
+<item>固定デバイスによる他の再割当可・不可のデバイス空間リソースの使用
+と衝突しない, 再割当可能なアドレスの割り当てのためのトポロジカルソート
+機構. 
+
+<item>ハードウェアサービス登録のための登録ベースの機構. 特にタイマ, 
+サウンドおよび他のシステムクリティカルなサービス供給源のためのデバイス
+中心の登録機構. 単一の独立していないサービス供給源の一つの例として 
+Timer2, Timer0 そしてスピーカサービスを考慮する必要があります. 
+
+<item>配置転換とシンボル空間操作をおこなう LKM ローダ機構からアクセス
+可能な, カーネルのデータ空間内にあるエキスポートされたシンボル空間. こ
+のインタフェースの目的は, 必要な時にカーネルモジュールをロードして, 必
+要がなくなればアンロードできる能力をサポートすることです. 
+
+<item>ネットワークカードと一緒に提供される ODI カードドライバを使用で
+きるようにする, NetWare サーバ (プロテクトモードの ODI ドライバ) ロー
+ダとサブサービス. NDIS ドライバと NetWare の SCSI ドライバについても同
+様.
+
+<item>前のリビジョンの FreeBSD マシンではなく, Linux マシンで動作する
+「アップグレード システム」オプション. 
+
+<item>移植を簡単にするためと, X, ThinkPad, PS/2マウス, LED, コンソール
+スイッチング, しつこい NumLock などの問題を全部一度に片付けるためのコ
+ンソールドライバの抽象レイヤへの分割.
+
+<item>機会が許したら, 他の外部ドライバのための他のカーネルのエミュレー
+ション環境. SCO と Solaris は UnixWare などに続く良い候補です. 
+
+<item>異なるアーキテクチャのバイナリの実行のためのプロセッサエミュレー
+ション環境. これはシステムコールインタフェースがあまり変わらなければ, 
+思ったより簡単です. 
+
+<item>商用のストリームドライバを使用可能にするためのストリーム機構. 
+
+<item>カーネルのマルチスレッド化 (カーネルのプリエンプションが必要). 
+
+<item>カーネルのプリエンプション付き対称マルチプロセッシング (カーネル
+のプリエンプションが必要). 
+
+<item>ポータブルコンピュータのサポートにおける協調の試み. 
+これは PCMCIA ブリッジング規則と電源管理イベント処理の変更により, いく
+らかは処理できます. しかし, 内蔵ディスプレイと外部ディスプレイの検出, 
+この2種類のディスプレイがあるという事実に基づく異なる解像度の選択, マ
+シンがドックにある場合にはディスクのモータ停止を防止すること, マシンの
+ブート能力に影響を与えずにドックベースのカードの消滅を可能にすること 
+(PCMCIA と同じ問題) などの問題があります.
+
+<item>マルチプラットフォームへの移植のためのソースツリーの再組織化. 
+
+<item>「make world」できちんと「世界を創造する」ができるようにする. 
+(もし「make regress 訳注: 後退する」と呼び方が適当であれば, そのように
+名前を変える)
+
+<item>最小必要メモリ 4MB 化 (もっと小さければなお良し!). 
+
+</enum>
+
+<sect><heading>貢献の仕方</heading>
+
+<p>一般的に, システムへの貢献は次の6つのカテゴリの1つ以上に分類されま
+す:
+
+<sect1><heading>バグ報告と一般的な論評</heading>
+<p>報告するべきバグがあったり, 提案したいことがあれば:
+
+<itemize>
+	<item>一般的な技術的関心事に関するアイデアや提案は 
+      &a.hackers; へメールしてください.
+          同様に, このような事柄に興味のある (そして<em>膨大な</em>メー
+      ル! に耐えられる) 人は, &a.majordomo; へメールを送って hackers 
+      メーリングリストに参加すると良いでしょう. 情報については <ref
+      id="eresources:mail" name="メーリングリスト"> を参照してください.
+
+      <item>実際のバグ報告は <tt>send-pr(1)</tt> プログラムを使用して
+      提出してください. これは色々な項目について質問してきます.
+      単に <tt>&lt;&gt;</tt> の辺りで, そこで示されているものの
+      代わりにあなた固有の情報を入力するだけです. あなたはバグ報告の確
+      認とトラッキング番号を受け取るはずです. このトラッキング番号を覚
+      えておいて, 後々の連絡に使用してください. もしタイムリに (あなた
+      の電子メール接続形態にもよりますが, 3日から1週間) 確認を受けとれ
+      ないとか, 何らかの理由で <tt>send-pr(1)</tt> コマンドが使用でき
+      ない場合には, &a.bugs へメールを送ってバグ報告を提出してください.
+
+</itemize>
+
+<sect1><heading>文書の変更</heading>
+
+<p>文書の変更は &a.doc; が監督しています. 一般的にこれは「現存のソース
+コードの変更」のカテゴリで考慮されるべきマニュアルページの変更は含ん
+でいません. 
+
+<sect1><heading>現存のソースコードの変更</heading>
+<p>現存のソースコードへの追加または変更は, いくらかトリッキーな仕事で
+   あり, core の FreeBSD 開発の現状にあなたがどれだけ通じているかに大
+   きく依存します. 「FreeBSD-current」として知られる FreeBSD の特別な
+   継続的リリースがあります. FreeBSD-current は開発者の積極的な活動の
+   便宜のために, 色々な方法で利用可能になっています. FreeBSD-current 
+   の入手と使用方法についての詳しい情報については <ref id="current"
+   name="最新の FreeBSD を追いかける"> を参照してください. 
+
+   不幸にして古いソースをもとに仕事をすることは, 時々あなたの変更が時
+   代遅れ, または FreeBSD への簡単な再統合に合わなくなっていることを意
+   味します. システムの現状に関する議論がおこなわれている &a.announce と
+   &a.current へ参加することで, この可能性を最小限にすることができます.
+
+   完全な最新のソースを変更のベースにできることが確実になったと仮定し
+   て, 次のステップは FreeBSD の保守担当者へ送る差分ファイルの生成です. 
+   これは <tt>diff(1)</tt> コマンドを使用しておこないますが, 「context
+   diff」形式が好まれるようです. 例えば:
+<tscreen><verb>
+diff -c oldfile newfile
+</verb></tscreen>
+または
+<tscreen><verb>
+diff -c -r olddir newdir
+</verb></tscreen>
+
+   これで指定されたソースファイルまたはディレクトリ階層に対するコンテ
+   キスト形式の差分が生成されます. 詳しい説明は <tt>diff(1)</tt> のマ
+   ニュアルページを参照してください.
+
+   差分ファイル (<tt>patch(1)</tt> コマンドでテストできます) を作った
+   ら, それらを電子メールのメッセージにバンドルして, 差分ファイルの目
+   的の簡単な説明と一緒に &a.hackers; へ送ってください. 誰かが24時間以
+   内にあなたにコンタクトを取ってくるでしょう. もちろん, あなたの差分
+   ファイルが興味深いものであると仮定していますが! :-)
+
+   あなたの変更が差分ファイル単独でそれ自身を良く表現できない場合は 
+   (例えば, ファイルの追加, 削除または名称変更が必要など), 新たなファ
+   イルをまとめて出した方が良いでしょう. 差分ファイルと他のファイルの
+   削除 / 名称変更の指示を <tt>tar</tt> ファイルに格納し, 
+   <tt>uuencode(1)</tt> プログラムにかけてから &a.hackers; へ送ってく
+   ださい. このファイルのバンドル方法に関する詳しい情報については,
+   <tt>tar(1)</tt> と <tt>uuencode(1)</tt> のマニュアルページを参照し
+   てください.
+
+   例えばあなたがそれ自身のさらなる配布を管理するコピーライト問題を良
+   く分かっていないとか, 単に厳しいレビューをおこなっておらず, リリース
+   する準備ができていないなど, あなたの変更が潜在的に不安定な性質をも
+   つものである場合, &a.hackers よりむしろ &a.core; 
+   へ送ってください. コアチームメーリングリスト宛のメールは, 日々の仕
+   事のほとんどを FreeBSD でおこなっている人たちの, より小さなグルー
+   プに届きます. このグループもまた<em>とても忙しい</em> ことに注意し
+   て, hackers への投稿が本当に実際的でない場合に, コアチームの彼らに
+   メールを送るだけにしてください.
+
+<sect1><heading>新たなコードやメジャーな付加価値の高いパッケージ</heading>
+
+<p>重要な大きい仕事の寄贈や, 重要な新しいフィーチャーを FreeBSD に追加
+   する場合には, 変更点を tar/uuencode したファイルにして送るか, それ
+   らを私たちの ftp サイト <url
+   url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/incoming"> へアップロードす
+   ることのどちらかが通常必要になります.
+
+   大量のコードを伴った仕事の場合, コピーライトの神経過敏な問題が常に
+   出てきます. FreeBSD に含めるコードのコピーライトとして受け入れるこ
+   とができるのは, 以下の二つです:
+
+<enum>
+	<item>BSD コピーライト. このコピーライトは「権利に縛られない」性格
+	    と商用企業にとって一般的な魅力をもつために最も好まれま
+	    す. FreeBSD プロジェクトは商用利用を阻んだりせず, 何かを 
+	    FreeBSD へ投資する気になった商業関係者による参加を積極的に奨励
+	    します.
+
+	<item>GNU一般公有使用許諾, または「GPL」. このライセンスはコード
+	    を商用目的に使用する場合に余分な努力が求められるため, 私たち
+	    にあまり評判が良いというわけではありません. しかし, 私たちは
+	    既に GPL 下の高品質なコード (コンパイラ, アセンブラ, テキスト
+	    フォーマッタ等) の提供を受けており, 私たちは現在それを必要と
+	    しています. そのため, このライセンスによる新たな貢献を拒絶す
+	    るというのは愚かなことでしょう. GPL 下のコードはソースツリー
+	    の別の部分, 現在のところ <tt>/sys/gnu</tt> か
+	    <tt>/usr/src/gnu</tt> に入っています. そのため, GPL が問題と
+	    なるような人は, 誰でも簡単にそれとわかるようになっています.
+</enum>
+
+<p>これ以外のタイプのコピーライトによる寄贈は, FreeBSD へ含めることを
+   考慮する前に, 注意深いレビューを受けなければなりません. 作者が独自
+   のチャネルを通して配布しており, そのような変更をおこなうことを常に
+   奨励している場合でも, 特に限定的な商用のコピーライトが適用される寄
+   贈は一般に拒否されます.
+
+   あなたの作品に「BSD-スタイル」のコピーライトを付けるには, 保護した
+   いソースコードファイルすべての一番最初に以下のテキストを入れて,
+   `<tt>%%</tt>' の間を適切な情報に置き換えください. 
+
+<tscreen><verb>
+Copyright (c) %%適切な年%%
+	%%あなたの名前%%, %%あなたの州%%  %%郵便番号%%.  All rights reserved. 
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer as
+   the first lines of this file unmodified. 
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution. 
+
+THIS SOFTWARE IS PROVIDED BY %%あなたの名前%% ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+IN NO EVENT SHALL %%あなたの名前%% BE LIABLE FOR ANY DIRECT, INDIRECT, 
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+
+       $Id: submitters.sgml,v 1.33 1996/10/04 22:54:16 wosch Exp $
+</verb></tscreen>
+便宜をはかるため, このテキストのコピーは次の場所に置いてあります. 
+<tt>/usr/share/examples/etc/bsd-style-copyright</tt>. 
+		      
+        &porting;
+
+<sect1><heading>金銭, ハードウェアまたはインターネットアクセス</heading>
+<p>FreeBSD プロジェクトの目的を進めるための寄付や, 私たちと同じような
+ボランティアの細く長い ! 努力を, 私たちは常に喜んで受け入れています. 
+また一般的に私たちは自分達で周辺機器を買う資金が不足しているため, 
+周辺機器のサポートを充実させるのにハードウェアの寄付はとても重要です. 
+
+<sect2><heading>資金の寄付</heading>
+<p>FreeBSD プロジェクトは501(C3) (非営利) 企業ではないため, いかなる寄
+付に対しても特別な税金の優遇措置を提供することができません. このような
+寄付はプロジェクトを代表して FreeBSD, Inc により感謝をもって受け入れら
+れるでしょう. 
+
+<p>FreeBSD, Inc.は FreeBSD プロジェクトの推進とプロジェクトに企業とし
+ての最小限の体裁を持たせることを目的として, 1995年の初めに &a.jkh と 
+&a.davidg により設立されました. 寄付されたすべての資金は (最終的に
+FreeBSD, Inc.によりもたらされるであろうすべての利益も同様に) プロジェク
+トの目標を推進するためだけに使われるでしょう.
+
+支払い先を FreeBSD, Inc. とした小切手を, 次の住所気付けで送ってください:
+<tscreen><verb>
+FreeBSD, Inc. 
+c/o Jordan Hubbard
+4041 Pike Lane, suite #D. 
+Concord CA, 94520
+
+[私書箱が開設されるまで一時的に Walnut Creek CDROM の住所を使用]
+</verb></tscreen>
+
+電信振替は次の所まで直接送れるでしょう:
+
+<tscreen><verb>
+Bank Of America
+Concord Main Office 
+P.O. Box 37176
+San Francisco CA, 94137-5176
+ 
+Routing #: 121-000-358
+Account #: 01411-07441 (FreeBSD, Inc.)
+</verb></tscreen>
+
+もし <ref id="donors" name="寄贈者ギャラリー"> の節で匿名を希望される
+方は, 寄付の際にその旨お伝えください. Thanks!
+
+<sect2><heading>ハードウェアの寄贈</heading>
+
+<p>FreeBSD プロジェクトは, 次の3つのカテゴリのどんなハードウェアの寄贈
+も, 喜んで受け付けます:
+
+<itemize>
+<item>ディスクドライブ, メモリまたは完全なシステムといった一般用途のハー
+ドウェアは, <em>資金の寄付</em>の節にある FreeBSD, Inc. の住所まで送っ
+てください. 
+
+<item>進行中の受け入れテストのためのハードウェアが必要とされていま
+す. 新たなリリース毎に適切な逆行テストができるように, 私たちは現在, 
+FreeBSD がサポートするすべてのコンポーネントのテストラボを設置しよう
+としています. 私たちにはまだ, たくさんの重要な部品 (ネットワークカード, 
+マザーボードなど) が不足していますので, このような寄贈をしたいと思って
+いるならば, &a.davidg へコンタクトしてどの部品がまだ必要とされているか
+の情報を得てください. 
+
+<item>現在 FreeBSD にサポートされていないハードウェアで, サポートに追
+加して欲しいもの. 私たちがそれらの荷物を受けとる前にそのタスクを引き受け
+てくれる開発者を探す必要があるため, その部品を送る前に &a.core; 
+にコンタクトを取ってください.
+
+</itemize>
+
+<sect2><heading>インターネットアクセスの寄付</heading>
+
+<p>私たちは常に FTP, WWW や sup の新しいミラーサイトを募集しています. 
+ミラーサイトになりたい場合には <htmlurl url="mailto:admin@FreeBSD.ORG"
+name="the FreeBSD project administrators"> にコンタクトを取って, 詳し
+い情報を手に入れてください.
+
+<sect><heading>寄贈者ギャラリー<label id="donors"></heading>
+
+<p>FreeBSD プロジェクトは次の寄贈者に恩義を受けており, ここに公表して
+感謝の意を表したいと思います. 
+
+<itemize>
+	<item><htmlurl url="mailto:ANDRSN@HOOVER.STANFORD.EDU"
+	name="Annelise Anderson">
+
+    は, FreeBSD のさらなる開発のための資金を気前良く寄付してくださいま
+    した. 
+
+	</item>
+
+	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
+        Technology Corporation"> は, FreeBSD の開発のための資金を気前
+        良く寄付してくださいました. 
+
+        </item>
+
+	<item><htmlurl url="mailto:gmarco@masternet.it" name="Gianmarco
+	Giovannelli"> は, FreeBSD の開発のための資金を気前良く寄付して
+	くださいました.
+
+	</item>
+
+        <item>日本の<htmlurl url="http://www.iijnet.or.jp/laser5/"
+        name="Laser5"> は, FreeBSD の NEC PC98 への移植である 
+        <em>FreeBSD for PC98</em> CD の販売利益の一部を, 気前良く寄付
+	してくださいました.
+
+        </item>
+
+	<item><htmlurl url="http://www.cdrom.com" name="Walnut Creek CDROM"> 
+	は, 言い表せないほど多くの寄付をしてくださいました (詳細は<ref
+	id="history" name="FreeBSD 小史">を参照). 
+	特に, 私たちのプライマリ開発マシンである
+	<em>freefall.FreeBSD.ORG</em>, 私たちのテストおよびビルドマシン
+	である<em>thud.FreeBSD.ORG</em> で使用しているハードウェアに対し
+	感謝したいと思います.
+	また彼らには, 数年にわたる色々な貢献者への資金提供や, インターネッ
+	トへの T1 コネクションの無制限使用を提供してもらったという恩義があり
+	ます. 
+
+	</item>
+</itemize>

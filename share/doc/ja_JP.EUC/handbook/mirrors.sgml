@@ -1,0 +1,569 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.41 -->
+
+<!--
+<!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
+-->
+
+<chapt><heading>FreeBSD の入手方法<label id="mirrors"></heading>
+
+<p>FreeBSD の公式な情報は anonymous FTP によって以下の場所から
+入手できます:
+<quote>
+<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
+name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
+</quote> 
+また Walnut Creek CDROM から出ている CD-ROM からも入手できます:
+<quote>
+ Walnut Creek CDROM<newline>
+ 1547 Palos Verdes Mall, Suite 260<newline>
+ Walnut Creek CA 94596 USA<newline>
+ Phone: +1 510 674-0783<newline>
+ Fax: +1 510 674-0821<newline>
+ Email: <url url="mailto:info@cdrom.com" name="info@cdrom.com"><newline>
+ WWW: <url url="http://www.cdrom.com/" name="http://www.cdrom.com/">
+</quote>
+
+<p>さらに, FreeBSD は以下のミラーサイトから anonymous FTP によって
+	入手できます. もし FreeBSD を anonymous FTP によって手にいれる場合は,
+	近くのサイトを利用するようにしてください. 
+
+<ref id="mirrors-au" name="Australia">, 
+<ref id="mirrors-br" name="Brazil">, 
+<ref id="mirrors-ca" name="Canada">,
+<ref id="mirrors-cz" name="Czech Republic">,
+<ref id="mirrors-ee" name="Estonia">,
+<ref id="mirrors-fi" name="Finland">,
+<ref id="mirrors-fr" name="France">,
+<ref id="mirrors-de" name="Germany">,
+<ref id="mirrors-hk" name="Hong Kong">,
+<ref id="mirrors-ie" name="Ireland">,
+<ref id="mirrors-il" name="Israel">,
+<ref id="mirrors-jp" name="Japan">,
+<ref id="mirrors-kr" name="Korea">,
+<ref id="mirrors-nl" name="Netherlands">,
+<ref id="mirrors-pl" name="Poland">,
+<ref id="mirrors-pt" name="Portugal">,
+<ref id="mirrors-ru" name="Russia">,
+<ref id="mirrors-za" name="South Africa">,
+<ref id="mirrors-se" name="Sweden">,
+<ref id="mirrors-tw" name="Taiwan">,
+<ref id="mirrors-th" name="Thailand">,
+<ref id="mirrors-us" name="USA">,
+<ref id="mirrors-uk" name="UK">.
+
+
+<descrip>
+<tag><label id="mirrors-au">オーストラリア</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@au.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.au.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.au.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.au.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp4.au.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.au.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-br">ブラジル</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@br.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+<item>
+<url url="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp4.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp5.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp6.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp7.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp7.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+</itemize>
+
+<tag><label id="mirrors-ca">カナダ</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@ca.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ca.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.ca.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-cz">チェコ</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"
+	name="ftp://sunsite.mff.cuni.cz/OS/FreeBSD"><newline>
+	連絡先: <url url="jj@sunsite.mff.cuni.cz"
+	name="jj@sunsite.mff.cuni.cz">.
+
+</itemize>
+
+<tag><label id="mirrors-ee">エストニア</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@ee.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ee.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.ee.freebsd.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-fi">フィンランド</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@fi.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.fi.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.fi.freebsd.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-fr">フランス</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ibp.fr/pub/FreeBSD"
+	name="ftp://ftp.ibp.fr/pub/FreeBSD"><newline>
+	連絡先: <url url="mailto:Remy.Card@ibp.fr"
+	name="Remy.Card@ibp.fr">.
+
+</itemize>
+
+<tag><label id="mirrors-de">ドイツ</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@de.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp4.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp5.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp6.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp7.de.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp7.de.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-hk">香港</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.hk.super.net/pub/FreeBSD"
+	name="ftp://ftp.hk.super.net/pub/FreeBSD"><newline>
+	連絡先: <url url="mailto:ftp-admin@HK.Super.NET"
+	name="ftp-admin@HK.Super.NET">.
+
+</itemize>
+
+<tag><label id="mirrors-ie">アイルランド</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@ie.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ie.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.ie.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-il">イスラエル</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@il.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.il.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.il.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.il.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.il.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-jp">日本</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@jp.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp4.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp5.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp6.jp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.jp.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-kr">韓国</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@kr.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.kr.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.kr.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.kr.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.kr.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-nl">オランダ</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@nl.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.nl.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.nl.freebsd.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-pl">ポーランド</tag>
+
+<itemize>
+ 
+<item>
+<url url="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"
+	name="ftp://SunSITE.icm.edu.pl/pub/FreeBSD"><newline>
+	連絡先: <url url="mailto:ftp@SunSITE.icm.edu.pl"
+	name="ftp@SunSITE.icm.edu.pl">.
+
+</itemize>
+
+<tag><label id="mirrors-pt">ポルトガル</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.ua.pt/pub/misc/FreeBSD"
+	name="ftp://ftp.ua.pt/pub/misc/FreeBSD"><newline>
+	連絡先: <url url="mailto:archie@ua.pt"
+	name="archie@ua.pt">.
+
+</itemize>
+
+<tag><label id="mirrors-ru">ロシア</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.kiae.su/FreeBSD"
+	name="ftp://ftp.kiae.su/FreeBSD"><newline>
+	連絡先: <url url="mailto:ftp@ftp.kiae.su"
+	name="ftp@ftp.kiae.su">.
+
+</itemize>
+
+<tag><label id="mirrors-za">南アフリカ</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@za.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.za.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.za.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.za.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.za.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.za.FreeBSD.ORG/FreeBSD"
+	name="ftp://ftp3.za.FreeBSD.ORG/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-se">スウェーデン</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@se.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.se.freebsd.ORG/pub/FreeBSD"
+	name="ftp://ftp.se.freebsd.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-tw">台湾</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@tw.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.tw.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.tw.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.tw.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.tw.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.tw.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.tw.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-th">タイ</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.nectec.or.th/pub/FreeBSD"
+	name="ftp://ftp.nectec.or.th/pub/FreeBSD"><newline>
+	連絡先: <url url="mailto:ftpadmin@ftp.nectec.or.th"
+	name="ftpadmin@ftp.nectec.or.th">.
+
+</itemize>
+
+<tag><label id="mirrors-us">アメリカ</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp3.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp4.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp4.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp5.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp5.FreeBSD.ORG/pub/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp6.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp6.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag><label id="mirrors-uk">イギリス</tag>
+
+何か問題がある場合は, このドメインの
+<url url="mailto:hostmaster@uk.FreeBSD.ORG" name="hostmaster">
+に連絡してください. 
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.uk.FreeBSD.ORG/packages/unix/FreeBSD"
+	name="ftp://ftp.uk.FreeBSD.ORG/packages/unix/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"
+	name="ftp://ftp2.uk.FreeBSD.ORG/pub/walnut.creek/FreeBSD"><newline>
+<item>
+<url url="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"
+	name="ftp://ftp3.uk.FreeBSD.ORG/pub/BSD/FreeBSD"><newline>
+
+</itemize>
+
+</descrip>
+
+FreeBSD (2.0C またはそれ以降) の輸出規制コード (eBones と secure) の
+最新のバージョンは以下の場所から入手できます. 
+もしあなたがアメリカやカナダ以外にいるのであれば, 
+secure (DES) と eBones (Kerberos) を
+以下の外国向けの配布サイトから手にいれてください:
+
+<descrip>
+
+<tag>南アフリカ</tag>
+
+このドメインの
+<url url="mailto:hostmaster@internat.FreeBSD.ORG" name="Hostmaster">
+.
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.internat.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.internat.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+<item>
+<url url="ftp://ftp2.internat.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp2.internat.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag>ブラジル</tag>
+
+このドメインの
+<url url="mailto:hostmaster@br.FreeBSD.ORG" name="Hostmaster">
+.
+
+<itemize>
+
+<item>
+<url url="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"
+	name="ftp://ftp.br.FreeBSD.ORG/pub/FreeBSD"><newline>
+
+</itemize>
+
+<tag>フィンランド</tag>
+
+<itemize>
+
+<item>
+<url url="ftp://nic.funet.fi/pub/unix/FreeBSD/eurocrypt"
+	name="ftp://nic.funet.fi/pub/unix/FreeBSD/eurocrypt"><newline>
+	連絡先: <url url="mailto:count@nic.funet.fi"
+	name="count@nic.funet.fi">.
+
+</itemize>
+
+</descrip>
+
+<label id="mirrors-ctm">
+<p>CTM/FreeBSD は以下のミラーサイトから anonymous FTP によって
+      入手できます. もし CTM を anonymous FTP によって手にいれる場合は,
+      近くのサイトを利用するようにしてください. 
+
+何か問題がある場合は, &a.phk;に連絡してください. 
+
+<descrip>
+<tag>カリフォルニア</tag>
+
+<itemize>
+<item>
+<url url="ftp://freefall.freebsd.org/pub/CTM"
+	name="ftp://freefall.freebsd.org/pub/CTM"><newline>
+</itemize>
+
+
+<tag>デンマーク</tag>
+
+<itemize>
+<item>
+<url url="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"
+	name="ftp://sunsite.auc.dk/mirrors/freefall.freebsd.org/pub/CTM"><newline>
+</itemize>
+
+
+<tag>ドイツ</tag>
+
+<itemize>
+<item>
+<url url="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"
+	name="ftp://ftp6.de.freebsd.org/pub/bsd/CTM/FreeBSD"><newline>
+</itemize>
+
+
+<tag>台湾</tag>
+
+<itemize>
+<item>
+<url url="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"
+	name="ftp://ftp.iii.org.tw/OS/FreeBSD/00MIRROR/freefall.freebsd.org/CTM"><newline>
+</itemize>
+
+</descrip>
+
+
+近くにミラーサイトがない場合やミラーが不完全な場合は,
+<url url="http://ftpsearch.ntnu.no/ftpsearch/"
+	name="http://ftpsearch.ntnu.no/ftpsearch"> の 
+<url url="http://ftpsearch.ntnu.no/" name="FTP search"> を試してください.
+FTP search はノルウェーの Trondheim にある, フリーの素晴らしい アーカイブサーバです.

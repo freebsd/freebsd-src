@@ -1,0 +1,161 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Japanese Documentation Project -->
+<!-- Original revision: 1.16 -->
+
+<chapt><heading>最新のFreeBSDを追いかける<label id="current"></heading>
+
+<p><em>原作: &a.jkh;.</em>
+
+<p><em>訳: &a.hanai;<newline>6 November 1996.</em>
+
+<!--
+
+                        THE FREEBSD CURRENT POLICY 
+
+Last updated: $Date: 1996/09/09 23:21:27 $
+
+This document attempts to explain the rationale behind
+FreeBSD-current, what you should expect should you decide to run it,
+and states some prerequisites for making sure the process goes as
+smoothly as possible.
+-->
+
+<sect><heading>FreeBSD-currentってなに?</heading>
+
+<p>FreeBSD-currentとは，文字通りに，日々変更されているFreeBSDのソース
+のスナップショット以外の何ものでもありません．中には現在開発途上の
+ソフトウェア, 実験的な変更、あるいは過渡的な機能などが含まれています.
+また, この中に入っている機能がすべて次の公式リリースに入るとはかぎりません.
+FreeBSD-currentをソースからほとんど毎日コンパイルしている人はたくさん
+いますが, 時期によってはFreeBSD-currentはコンパイルさえできない状態に
+なっていることもあります. これらの問題は一般的には可能な限り素早く解決
+されますが, FreeBSD-currentのソースが不幸をもたらすか, それとも非常に
+素晴らしい機能をもたらすかというのは文字通り, ある与えられた24時間の間
+のどの部分であなたがソースを手に入れたか, による場合もあります.
+
+必要があるときには, 時折 FreeBSD-current の一部をバイナリとして提供する
+こともありますが, それはただ何かをテストしてほしいためであって,
+我々が current をバイナリリリースとして提供することにしたわけではありません.
+我々が提供していないならば, 要求しないで下さい!
+これは普段から行なうにはあまりにも時間がかかり過ぎるのです．
+
+<sect><heading>誰がFreeBSD-currentを必要としてるの?</heading>
+
+<p>FreeBSD-currentは次の3つのどれかにあてはまる人のために一般に公開してい
+ます.
+<enum>
+    <item>  ソースツリーの，ある部分または別の部分に関して活発に作業して
+        いるFreeBSDグループのメンバ．彼らにとっては`最新のもの'に維持して
+        おくことは絶対的な要求なのです．
+
+    <item>  FreeBSD-currentが出来るだけ健全である時間の割合を増やすために
+        様々な問題と戦うのに時間を費やすのを厭わず活発にテストを行なっている
+        FreeBSDグループのメンバ．彼らはまた様々な変更に関する提案やFreeBSD
+        の大まかな方向付けを行ないたいと思っている人々でもあります．
+        
+    <item>  単に，様々な事に目を向け，参考のために(例えば，動かすためではなく
+        <em>読むため</em>に)最新のソースを使いたいと思っているFreeBSD(または
+        他の)グループのまわりにいるメンバ．これらの人々はまた時によってコメ
+        ントをしたりコードを寄稿したりします．
+</enum>
+
+<sect><heading>FreeBSD-currentに期待しては<em>いけない</em>ことは?</heading>
+
+<p><enum>
+    <item>  あなたが何か新しいカッコイイモノがあると聞き, あなたの
+        周りで最初にそれを持ちたいためにリリース前のコードの断片を
+        追いかけること.
+
+    <item>  バグを修正するための素早い方法.
+
+    <item>  いずれにしても我々によって``公式にサポートされている''.
+
+        私たちは3つの「公式な」FreeBSD-currentのグループの一つに実際に属する
+        人々を助けるのにベストを尽くしますが, 技術的なサポートを行なうには
+        単に「時間が足りない」のです.
+        これは我々が外の人を助けるのが好きではないケチで意地悪い人間だと
+        いうことではなく(もしそうなら FreeBSD なんかやっていません), 文字通り
+        我々は一日に400ものメッセージに答え<em>かつ</em> FreeBSD の作業をする
+        ことなど出来ない! ということなのです. もし, たくさんの質問に答えるか
+        それとも FreeBSD を良くする作業を続けるかという選択が与えられた場合,
+        あなた方のほとんどは後者を支持する, と私は確信しています.
+</enum>
+
+<sect><heading>FreeBSD-currentを使う</heading>
+
+<p><enum> <item> &a.current;と&a.cvsall;に加わって下さい.
+    これは単に良い考えであるというだけでなく, <em>必須の</em>ことなのです.
+    もし<em>FreeBSD-current</em>メーリングリストに入っていなければ,
+    様々な人がシステムの現在の状態について述べているコメントを決して見ることは
+    ありませんし, 従って他の人が既に見つけて解決している多くの問題に戸惑っ
+    てあきらめてしまうでしょう. さらに言うと, 非常に不可欠な情報
+    (例えば, 「やぁ, みんな! <tt>/usr/src</tt>を作り直す前にカーネルの
+    再構築を<em>やらないといけないよ</em>, さもないととんでもないクラッシュが起きるぜ!」)を見逃してしまうでしょう.
+
+    <em>cvs-all</em>メーリングリストはそれぞれの変更についてそれに関して起
+    こり得る情報を見ることが出来ます.
+
+        これらのメーリングリストに入るには, &a.majordomo;へ
+<verb>
+subscribe freebsd-current
+subscribe cvs-all
+</verb>
+        と書いたメールを送って下さい.
+        オプションとして本文に`help'と書けば Majordomo はあなたへ我々がサポ
+        ートする様々なメーリングリストに参加/脱退する方法に関する詳しい
+        ヘルプを送ります.
+
+    <item>  ftp.FreeBSD.ORGからのソースの入手. 以下の3つの方法で行なうこと
+        が出来ます.
+
+    <enum>
+	<item> 下に述べられている<ref id="ctm" name="CTM">を用いる.
+            均一なレートの, 良質の TCP/IP 接続を持っていない人には,
+	    これが一番いい方法でしょう.
+
+        <item>  CMUの<ref id="sup" name="sup">プログラム(Software Update
+            Protocol)を用いる.
+            これも後で述べられています.
+            これは2番目に推薦される方法です. なぜなら, supによって一度全体
+            を入手し, 後は変更されたところだけを入手することが出来るからです.
+	    たくさんの人がsupをcronから起動し, 自動的にソースを最新のもの
+            に保っています.
+
+        <item>  ftpを使う. FreeBSD-currentのソースツリーは常に
+            <htmlurl url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current"
+            name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FreeBSD-current">
+            に公開されています.
+            我々はまた全体をcompress/tarして入手できる `wu-ftpd' を使ってい
+            ます. 例えば,
+<verb>
+            usr.bin/lex
+</verb>
+            があったとすると,
+<verb>
+            ftp> cd usr.bin
+            ftp> get lex.tar.Z
+</verb>
+            とすることにより, ディレクトリ全体(この場合, usr.bin/lex以下全体)
+            をcompressされたtarファイルとして入手することができます.
+    </enum>
+
+    <item> 以上のことをまとめると, 必要に応じて迅速なアクセスをする必要があり,
+    接続のバンド幅が問題ではなければsupかftpを使いましょう. そうではなければ
+    CTMを使いましょう.
+
+    <item>  もしソースを, 眺めるだけでなく走らせるために入手しているので
+    あれば, 一部だけ選ぶのではなく,
+    current の<em>全体</em>を手に入れてください.
+    なぜなら, ソースの様々な部分が他の部分の更新に依存しており, 一部のみを
+    コンパイルしようとすると, ほぼ間違いなくトラブルを起こすからです.
+
+    <item>  current をコンパイルする前に /usr/src にある Makefile
+        をよく読んでください. アップグレードの処理の一部として, 
+        少なくとも一回は最初に `make world' を行なうべきでしょう.
+        &a.current;を読めば, 次のリリースへ向けて, 時々必要になる
+        他のブートストラップの方法に関して常に最新情報を得ることが出来ます.
+
+    <item>  アクティブになって下さい! もしFreeBSD-currentを走らせているなら
+        我々はそれに関するコメント, 特に拡張やバグ潰しに関する提案, を欲して
+        います. コードを伴う提案はもっとも歓迎されるものです!
+</enum>
