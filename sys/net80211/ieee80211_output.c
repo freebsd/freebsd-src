@@ -239,7 +239,7 @@ ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
 			return NULL;
 		}
 		KASSERT(needed_space <= MHLEN,
-		    ("not enough room, need %u got %u\n", needed_space, MHLEN));
+		    ("not enough room, need %u got %zu\n", needed_space, MHLEN));
 		/*
 		 * Setup new mbuf to have leading space to prepend the
 		 * 802.11 header and any crypto header bits that are
@@ -712,7 +712,7 @@ ieee80211_setup_wpa_ie(struct ieee80211com *ic, u_int8_t *ie)
 	/* calculate element length */
 	ie[1] = frm - ie - 2;
 	KASSERT(ie[1]+2 <= sizeof(struct ieee80211_ie_wpa),
-		("WPA IE too big, %u > %u",
+		("WPA IE too big, %u > %zu",
 		ie[1]+2, sizeof(struct ieee80211_ie_wpa)));
 	return frm;
 #undef ADDSHORT
@@ -796,7 +796,7 @@ ieee80211_setup_rsn_ie(struct ieee80211com *ic, u_int8_t *ie)
 	/* calculate element length */
 	ie[1] = frm - ie - 2;
 	KASSERT(ie[1]+2 <= sizeof(struct ieee80211_ie_wpa),
-		("RSN IE too big, %u > %u",
+		("RSN IE too big, %u > %zu",
 		ie[1]+2, sizeof(struct ieee80211_ie_wpa)));
 	return frm;
 #undef ADDSELECTOR
