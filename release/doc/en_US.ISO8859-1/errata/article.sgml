@@ -24,7 +24,7 @@
 <article>
   <articleinfo>
     <title>&os;
-    &release.current;
+    &release.next;
     Errata</title>
 
     <corpauthor>
@@ -44,7 +44,7 @@
 
   <abstract>
     <para>This document lists errata items for &os; 
-      &release.current;,
+      &release.next;,
       containing significant information discovered after the release.
       This information includes security advisories, as well as news
       relating to the software or documentation that could affect its
@@ -53,8 +53,8 @@
       &os;.</para>
 
     <para>This errata document for &os; 
-      &release.current;
-      will be maintained until the release of &os; &release.next;.</para>
+      &release.next;
+      will be maintained until the release of &os; 5.1-RELEASE.</para>
   </abstract>
 
   <sect1 id="intro">
@@ -62,7 +62,7 @@
 
     <para>This errata document contains <quote>late-breaking news</quote>
       about &os;
-      &release.current;.
+      &release.next;.
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
