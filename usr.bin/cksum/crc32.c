@@ -18,6 +18,8 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 
+#include "extern.h"
+
 #define CRC(crc, ch)	 (crc = (crc >> 8) ^ crctab[(crc ^ (ch)) & 0xff])
 
 /* generated using the AUTODIN II polynomial
@@ -99,10 +101,10 @@ u_int32_t crc32_total = 0 ;
 
 int
 crc32(fd, cval, clen)
-    register int fd;
+    int fd;
     u_int32_t *cval, *clen;
 {
-    u_int32_t crc = ~0;
+    u_int32_t lcrc = ~0;
     char buf[BUFSIZ], *p ;
     int len, nr ;
 	
@@ -110,14 +112,14 @@ crc32(fd, cval, clen)
     crc32_total = ~crc32_total ;
     while ((nr = read(fd, buf, sizeof(buf))) > 0)
         for (len += nr, p = buf; nr--; ++p) {
-	    CRC(crc, *p) ;
+	    CRC(lcrc, *p) ;
 	    CRC(crc32_total, *p) ;
 	}
     if (nr < 0)
         return 1 ;
 
     *clen = len ;
-    *cval = ~crc ;
+    *cval = ~lcrc ;
     crc32_total = ~crc32_total ;
     return 0 ;
 }

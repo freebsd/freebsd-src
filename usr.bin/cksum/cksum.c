@@ -66,7 +66,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int ch, fd, rval;
+	int ch, fd, rval;
 	u_int32_t len, val;
 	char *fn, *p;
 	int (*cfncn) __P((int, u_int32_t *, u_int32_t *));
