@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.4 (Berkeley) 1/4/94
- * $Id: kern_proc.c,v 1.5 1994/09/01 05:12:39 davidg Exp $
+ * $Id: kern_proc.c,v 1.6 1994/09/25 19:33:41 phk Exp $
  */
 
 #include <sys/param.h>
@@ -53,6 +53,7 @@
 
 struct prochd qs[NQS];		/* as good a place as any... */
 struct prochd rtqs[NQS];	/* Space for REALTIME queues too */
+struct prochd idqs[NQS];	/* Space for IDLE queues too */
 
 volatile struct proc *allproc;	/* all processes */
 struct proc *zombproc;		/* just zombies */

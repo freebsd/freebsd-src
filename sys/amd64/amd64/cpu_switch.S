@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.13 1994/09/02 05:58:51 davidg Exp $
+ *	$Id: swtch.s,v 1.14 1994/10/01 02:56:03 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
@@ -59,10 +59,11 @@
  * queues.
  */
 	.data
-	.globl	_curpcb, _whichqs, _whichrtqs
+	.globl	_curpcb, _whichqs, _whichrtqs, _whichidqs
 _curpcb:	.long	0			/* pointer to curproc's PCB area */
 _whichqs:	.long	0			/* which run queues have data */
 _whichrtqs:	.long	0			/* which realtime run queues have data */
+_whichidqs:	.long	0			/* which idletime run queues have data */
 
 	.globl	_qs,_cnt,_panic
 	.comm	_noproc,4
@@ -84,10 +85,15 @@ ENTRY(setrunqueue)
 	pushl	$set2
 	call	_panic
 set1:
-	cmpl	$RTPRIO_RTOFF,P_RTPRIO(%eax)	/* Realtime process ? */
-	je	set1_nort
+	cmpw	$RTP_PRIO_NORMAL,P_RTPRIO_TYPE(%eax) /* normal priority process? */
+	je	set_nort
 
-	movl	P_RTPRIO(%eax),%edx
+	movzwl	P_RTPRIO_PRIO(%eax),%edx
+
+	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* realtime priority? */
+	jne	set_id				/* must be idle priority */
+	
+set_rt:
 	btsl	%edx,_whichrtqs			/* set q full bit */
 	shll	$3,%edx
 	addl	$_rtqs,%edx			/* locate q hdr */
@@ -97,7 +103,19 @@ set1:
 	movl	%eax,P_BACK(%edx)
 	movl	%eax,P_FORW(%ecx)
 	ret
-set1_nort:                    
+
+set_id:	
+	btsl	%edx,_whichidqs			/* set q full bit */
+	shll	$3,%edx
+	addl	$_idqs,%edx			/* locate q hdr */
+	movl	%edx,P_FORW(%eax)		/* link process on tail of q */
+	movl	P_BACK(%edx),%ecx
+	movl	%ecx,P_BACK(%eax)
+	movl	%eax,P_BACK(%edx)
+	movl	%eax,P_FORW(%ecx)
+	ret
+
+set_nort:                    			/*  Normal (RTOFF) code */
 	movzbl	P_PRI(%eax),%edx
 	shrl	$2,%edx
 	btsl	%edx,_whichqs			/* set q full bit */
@@ -119,13 +137,17 @@ set2:	.asciz	"setrunqueue"
  */
 ENTRY(remrq)
 	movl	4(%esp),%eax
-	cmpl	$RTPRIO_RTOFF,P_RTPRIO(%eax)	/* Realtime process ? */
+	cmpw	$RTP_PRIO_NORMAL,P_RTPRIO_TYPE(%eax) /* normal priority process? */
 	je	rem_nort
 
-	movl	P_RTPRIO(%eax),%edx
+	movzwl	P_RTPRIO_PRIO(%eax),%edx
+
+	cmpw	$RTP_PRIO_REALTIME,P_RTPRIO_TYPE(%eax) /* normal priority process? */
+	jne	rem_id
+		
 	btrl	%edx,_whichrtqs			/* clear full bit, panic if clear already */
 	jb	rem1rt
-	pushl	$rem3
+	pushl	$rem3rt
 	call	_panic
 rem1rt:
 	pushl	%edx
@@ -146,6 +168,31 @@ rem1rt:
 rem2rt:
 	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
 	ret
+rem_id:
+	btrl	%edx,_whichidqs			/* clear full bit, panic if clear already */
+	jb	rem1id
+	pushl	$rem3id
+	call	_panic
+rem1id:
+	pushl	%edx
+	movl	P_FORW(%eax),%ecx		/* unlink process */
+	movl	P_BACK(%eax),%edx
+	movl	%edx,P_BACK(%ecx)
+	movl	P_BACK(%eax),%ecx
+	movl	P_FORW(%eax),%edx
+	movl	%edx,P_FORW(%ecx)
+	popl	%edx
+	movl	$_idqs,%ecx
+	shll	$3,%edx
+	addl	%edx,%ecx
+	cmpl	P_FORW(%ecx),%ecx		/* q still has something? */
+	je	rem2id
+	shrl	$3,%edx				/* yes, set bit as still full */
+	btsl	%edx,_whichidqs
+rem2id:
+	movl	$0,P_BACK(%eax)			/* zap reverse link to indicate off list */
+	ret
+
 rem_nort:     
 	movzbl	P_PRI(%eax),%edx
 	shrl	$2,%edx
@@ -174,6 +221,8 @@ rem2:
 	ret
 
 rem3:	.asciz	"remrq"
+rem3rt:	.asciz	"remrq.rt"
+rem3id:	.asciz	"remrq.id"
 sw0:	.asciz	"cpu_switch"
 
 /*
@@ -200,10 +249,12 @@ _idle:
 	ALIGN_TEXT
 idle_loop:
 	cli
-	cmpl	$0,_whichrtqs
+	cmpl	$0,_whichrtqs			/* real-time queue */
 	jne	sw1a
-	cmpl	$0,_whichqs
+	cmpl	$0,_whichqs			/* normal queue */
 	jne	nortqr
+	cmpl	$0,_whichidqs			/* 'idle' queue */
+	jne	idqr
 #ifdef APM
 	call	_apm_cpu_idle
 	call	_apm_cpu_busy
@@ -269,7 +320,6 @@ sw1a:
 	testl	%edi,%edi
 	jz	nortqr				/* no realtime procs */
 
-rt2:
 	/* XXX - bsf is sloow */
 	bsfl	%edi,%ebx			/* find a full q */
 	jz	nortqr				/* no proc on rt q - try normal ... */
@@ -298,12 +348,13 @@ rt3:
 	jmp	swtch_com
 
 	/* old sw1a */
+/* Normal process priority's */
 nortqr:
 	movl	_whichqs,%edi
 2:
 	/* XXX - bsf is sloow */
 	bsfl	%edi,%ebx			/* find a full q */
-	jz	_idle				/* if none, idle */
+	jz	idqr				/* if none, idle */
 
 	/* XX update whichqs? */
 	btrl	%ebx,%edi			/* clear q full status */
@@ -326,6 +377,36 @@ nortqr:
 	btsl	%ebx,%edi			/* nope, set to indicate not empty */
 3:
 	movl	%edi,_whichqs			/* update q status */
+	jmp	swtch_com
+
+idqr: /* was sw1a */
+	movl    _whichidqs,%edi			/* pick next p. from idqs */
+
+	/* XXX - bsf is sloow */
+	bsfl	%edi,%ebx			/* find a full q */
+	jz	_idle				/* no proc, idle */
+
+	/* XX update whichqs? */
+	btrl	%ebx,%edi			/* clear q full status */
+	leal	_idqs(,%ebx,8),%eax		/* select q */
+	movl	%eax,%esi
+
+#ifdef        DIAGNOSTIC
+	cmpl	P_FORW(%eax),%eax		/* linked to self? (e.g. not on list) */
+	je	badsw				/* not possible */
+#endif
+
+	movl	P_FORW(%eax),%ecx		/* unlink from front of process q */
+	movl	P_FORW(%ecx),%edx
+	movl	%edx,P_FORW(%eax)
+	movl	P_BACK(%ecx),%eax
+	movl	%eax,P_BACK(%edx)
+
+	cmpl	P_FORW(%ecx),%esi		/* q empty */
+	je	id3
+	btsl	%ebx,%edi			/* nope, set to indicate not empty */
+id3:
+	movl	%edi,_whichidqs			/* update q status */
 
 swtch_com:
 	movl	$0,%eax
