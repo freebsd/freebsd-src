@@ -967,8 +967,6 @@ DMenu MenuSubDistributions = {
 #endif
       { " crypto",	"Basic encryption services",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_CRYPTO, },
-      { " krb5",	"Kerberos5 authentication services",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &CRYPTODists, '[', 'X', ']', DIST_CRYPTO_KERBEROS5 },
       { " dict",	"Spelling checker dictionary files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_DICT },
       { " doc",		"Miscellaneous FreeBSD online docs",
