@@ -45,12 +45,16 @@ struct tcb;
 struct tdv;	/* We don't know what this is yet? */
 
 /*
- * tp points to one of these.
+ * tp points to one of these. We define the static TLS as an array
+ * of long double to enforce 16-byte alignment of the TLS memory,
+ * struct ia64_tp, struct tcb and also struct kcb. Both static and
+ * dynamic allocation of any of these structures will result in a
+ * valid, well-aligned thread pointer.
  */
 struct ia64_tp {
 	struct tdv		*tp_tdv;	/* dynamic TLS */
 	struct tcb		*tp_self;
-	char			tp_tls[0];	/* static TLS */
+	long double		tp_tls[0];	/* static TLS */
 };
 
 struct tcb {
