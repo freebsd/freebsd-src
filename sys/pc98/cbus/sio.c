@@ -1191,7 +1191,7 @@ sioprobe(dev)
 	idev = dev;
 	mcr_image = MCR_IENABLE;
 #ifdef COM_MULTIPORT
-	if (COM_ISMULTIPORT(flags) && !COM_NOTAST4(flags)) {
+	if (COM_ISMULTIPORT(flags)) {
 		Port_t xiobase;
 		u_long io;
 
@@ -1202,14 +1202,18 @@ sioprobe(dev)
 			idev = dev;
 		}
 #ifndef PC98
-		if (bus_get_resource(idev, SYS_RES_IOPORT, 0, &io, NULL) == 0) {
-			xiobase = io;
-			if (bus_get_resource(idev, SYS_RES_IRQ, 0, NULL, NULL))
-				outb(xiobase + com_scr, 0x80);	/* no irq */
-			else
-				outb(xiobase + com_scr, 0);
+		if (!COM_NOTAST4(flags)) {
+			if (bus_get_resource(idev, SYS_RES_IOPORT, 0, &io,
+					     NULL) == 0) {
+				xiobase = io;
+				if (bus_get_resource(idev, SYS_RES_IRQ, 0,
+				    NULL, NULL) == 0)
+					outb(xiobase + com_scr, 0x80);
+				else
+					outb(xiobase + com_scr, 0);
+			}
+			mcr_image = 0;
 		}
-		mcr_image = 0;
 #endif
 	}
 #endif /* COM_MULTIPORT */
@@ -1678,7 +1682,7 @@ sioattach(dev)
 	com->cfcr_image = CFCR_8BITS;
 	com->dtr_wait = 3 * hz;
 	com->loses_outints = COM_LOSESOUTINTS(flags) != 0;
-	com->no_irq = bus_get_resource(dev, SYS_RES_IRQ, 0, NULL, NULL);
+	com->no_irq = bus_get_resource(dev, SYS_RES_IRQ, 0, NULL, NULL) != 0;
 	com->tx_fifo_size = 1;
 	com->obufs[0].l_head = com->obuf1;
 	com->obufs[1].l_head = com->obuf2;
@@ -1937,13 +1941,13 @@ determined_type: ;
 
 		com->multiport = TRUE;
 		printf(" (multiport");
-		masterdev = devclass_get_device(sio_devclass,
-		    COM_MPMASTER(flags));
-		com->no_irq = bus_get_resource(masterdev, SYS_RES_IRQ, 0, NULL,
-		    NULL);
 		if (unit == COM_MPMASTER(flags))
 			printf(" master");
 		printf(")");
+		masterdev = devclass_get_device(sio_devclass,
+		    COM_MPMASTER(flags));
+		com->no_irq = (masterdev == NULL || bus_get_resource(masterdev,
+		    SYS_RES_IRQ, 0, NULL, NULL) != 0);
 	 }
 #endif /* COM_MULTIPORT */
 #ifdef PC98
