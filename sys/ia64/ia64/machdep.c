@@ -278,13 +278,22 @@ cpu_halt()
 	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
 }
 
-void
-cpu_idle()
+static void
+cpu_idle_default(void)
 {
 	struct ia64_pal_result res;
 
 	res = ia64_call_pal_static(PAL_HALT_LIGHT, 0, 0, 0);
 }
+
+void
+cpu_idle()
+{
+	(*cpu_idle_hook)();
+}
+
+/* Other subsystems (e.g., ACPI) can hook this later. */
+void (*cpu_idle_hook)(void) = cpu_idle_default;
 
 void
 cpu_reset()
