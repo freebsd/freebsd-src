@@ -2372,7 +2372,7 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	printf("    flags (%s)\n", buf + 1);
 	if (mtx_owned(VI_MTX(vp)))
 		printf(" VI_LOCKed");
-	if (vp->v_object != NULL);
+	if (vp->v_object != NULL)
 		printf("    v_object %p ref %d pages %d\n",
 		    vp->v_object, vp->v_object->ref_count,
 		    vp->v_object->resident_page_count);
