@@ -101,7 +101,6 @@ static int string1[NCHARS] = {
 STR s1 = { STRING1, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 STR s2 = { STRING2, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 
-static int charcoll(const void *, const void *);
 static void setup(int *, char *, STR *, int, int);
 static void usage(void);
 
@@ -224,20 +223,55 @@ main(int argc, char **argv)
 	if (!next(&s2))
 		errx(1, "empty string2");
 
-	ch = s2.lastch;
-	/* If string2 runs out of characters, use the last one specified. */
-	if (sflag)
-		while (next(&s1)) {
-			string1[s1.lastch] = ch = s2.lastch;
-			string2[ch] = 1;
-			(void)next(&s2);
-		}
-	else
-		while (next(&s1)) {
-			string1[s1.lastch] = ch = s2.lastch;
-			(void)next(&s2);
-		}
+	/*
+	 * For -s result will contain only those characters defined
+	 * as the second characters in each of the toupper or tolower
+	 * pairs.
+	 */
 
+	/* If string2 runs out of characters, use the last one specified. */
+	while (next(&s1)) {
+	again:
+		if (s1.state == SET_LOWER &&
+		    s2.state == SET_UPPER &&
+		    s1.cnt == 1 && s2.cnt == 1) {
+			do {
+				string1[s1.lastch] = ch = toupper(s1.lastch);
+				if (sflag && isupper(ch))
+					string2[ch] = 1;
+				if (!next(&s1))
+					goto endloop;
+			} while (s1.state == SET_LOWER && s1.cnt > 1);
+			/* skip upper set */
+			do {
+				if (!next(&s2))
+					break;
+			} while (s2.state == SET_UPPER && s2.cnt > 1);
+			goto again;
+		} else if (s1.state == SET_UPPER &&
+			   s2.state == SET_LOWER &&
+			   s1.cnt == 1 && s2.cnt == 1) {
+			do {
+				string1[s1.lastch] = ch = tolower(s1.lastch);
+				if (sflag && islower(ch))
+					string2[ch] = 1;
+				if (!next(&s1))
+					goto endloop;
+			} while (s1.state == SET_UPPER && s1.cnt > 1);
+			/* skip lower set */
+			do {
+				if (!next(&s2))
+					break;
+			} while (s2.state == SET_LOWER && s2.cnt > 1);
+			goto again;
+		} else {
+			string1[s1.lastch] = s2.lastch;
+			if (sflag)
+				string2[s2.lastch] = 1;
+		}
+		(void)next(&s2);
+	}
+endloop:
 	if (cflag || Cflag) {
 		s2.str = argv[1];
 		s2.state = NORMAL;
@@ -294,15 +328,18 @@ setup(int *string, char *arg, STR *str, int cflag, int Cflag)
 			string[cnt] = !string[cnt] && ISCHAR(cnt);
 }
 
-static int
+int
 charcoll(const void *a, const void *b)
 {
-	char sa[2], sb[2];
+	static char sa[2], sb[2];
+	int r;
 
 	sa[0] = *(const int *)a;
 	sb[0] = *(const int *)b;
-	sa[1] = sb[1] = '\0';
-	return (strcoll(sa, sb));
+	r = strcoll(sa, sb);
+	if (r == 0)
+		r = *(const int *)a - *(const int *)b;
+	return (r);
 }
 
 static void

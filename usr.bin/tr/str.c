@@ -106,6 +106,8 @@ next(s)
 		}
 		return (1);
 	case SET:
+	case SET_UPPER:
+	case SET_LOWER:
 		if ((s->lastch = s->set[s->cnt++]) == OOBCH) {
 			s->state = NORMAL;
 			return (next(s));
@@ -194,7 +196,7 @@ genclass(s)
 {
 	int cnt, (*func)(int);
 	CLASS *cp, tmp;
-	int *p;
+	int *p, n;
 
 	tmp.name = s->str;
 	if ((cp = (CLASS *)bsearch(&tmp, classes, sizeof(classes) /
@@ -208,10 +210,18 @@ genclass(s)
 		if ((func)(cnt))
 			*p++ = cnt;
 	*p = OOBCH;
+	n = p - cp->set;
 
 	s->cnt = 0;
-	s->state = SET;
 	s->set = cp->set;
+	if (strcmp(s->str, "upper") == 0)
+		s->state = SET_UPPER;
+	else if (strcmp(s->str, "lower") == 0) {
+		s->state = SET_LOWER;
+	} else
+		s->state = SET;
+	if ((s->state == SET_LOWER || s->state == SET_UPPER) && n > 1)
+		mergesort(s->set, n, sizeof(*(s->set)), charcoll);
 }
 
 static int
