@@ -49,9 +49,12 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
       case KEY_UP:
       case KEY_DOWN:
       case ESC:
+      case '\r':
       case '\n':
 	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
 	  instr[i] = '\0';
+	if (key == '\r')
+	  key = '\n';
 	goto ret;
       case KEY_HOME:
 	input_x = scroll = 0;

@@ -166,19 +166,21 @@ void attr_clear(WINDOW *win, int height, int width, chtype attr)
  * string may contain "\n" to represent a newline character or the real
  * newline '\n', but in that case, auto wrap around will be disabled.
  */
-void print_autowrap(WINDOW *win, unsigned char *prompt, int width, int y, int x)
+void print_autowrap(WINDOW *win, unsigned char *prompt, int height, int width, int maxwidth, int y, int x, int center, int rawmode)
 {
-  int first = 1, cur_x, cur_y;
+  int first = 1, cur_x, cur_y, i;
   unsigned char tempstr[MAX_LEN+1], *word, *tempptr, *tempptr1;
+  chtype ostuff[132], attrs = 0, init_bottom = 0;
+
+  wsetscrreg(win, y, height);
+  getyx(win, cur_y, cur_x);
 
   strcpy(tempstr, prompt);
-  if ((strstr(tempstr, "\\n") != NULL) ||
+  if ((!rawmode && strstr(tempstr, "\\n") != NULL) ||
       (strchr(tempstr, '\n') != NULL)) {    /* Prompt contains "\n" or '\n' */
     word = tempstr;
-    cur_y = y;
-    wmove(win, cur_y, x);
     while (1) {
-      tempptr = strstr(word, "\\n");
+      tempptr = rawmode ? NULL : strstr(word, "\\n");
       tempptr1 = strchr(word, '\n');
       if (tempptr == NULL && tempptr1 == NULL)
         break;
@@ -203,25 +205,99 @@ void print_autowrap(WINDOW *win, unsigned char *prompt, int width, int y, int x)
 
       waddstr(win, word);
       word = tempptr + 1;
-      wmove(win, ++cur_y, x);
+      if (++cur_y > height) {
+	cur_y--;
+	if (!init_bottom) {
+	  for (i = 0; i < x; i++)
+	    ostuff[i] = mvwinch(win, cur_y, i);
+	  for (i = width; i < maxwidth; i++)
+	    ostuff[i] = mvwinch(win, cur_y, i);
+	  attrs = getattrs(win);
+	  init_bottom = 1;
+	}
+	scrollok(win, TRUE);
+	scroll(win);
+	scrollok(win, FALSE);
+	wmove(win, cur_y, 0);
+	for (i = 0; i < x; i++) {
+	  wattrset(win, ostuff[i]&A_ATTRIBUTES);
+	  waddch(win, ostuff[i]);
+	}
+	wattrset(win, attrs);
+	for ( ; i < width; i++)
+	  waddch(win, ' ');
+	for ( ; i < maxwidth; i++) {
+	  wattrset(win, ostuff[i]&A_ATTRIBUTES);
+	  waddch(win, ostuff[i]);
+	}
+	wattrset(win, attrs);
+	wrefresh(win);
+      }
+      wmove(win, cur_y, cur_x = x);
     }
     waddstr(win, word);
   }
-  else if (strlen(tempstr) <= width-x*2) {    /* If prompt is short */
-    wmove(win, y, (width - strlen(tempstr)) / 2);
+  else if (center && strlen(tempstr) <= width-x*2) {    /* If prompt is short */
+    wmove(win, cur_y, (width - strlen(tempstr)) / 2);
+    waddstr(win, tempstr);
+  }
+  else if (!center && strlen(tempstr) <= width-cur_x) {    /* If prompt is short */
     waddstr(win, tempstr);
   }
   else {
-    cur_x = x;
-    cur_y = y;
     /* Print prompt word by word, wrap around if necessary */
-    while ((word = strtok(first ? tempstr : NULL, " ")) != NULL) {
+    while ((word = strtok(first ? tempstr : NULL, "\t\n ")) != NULL) {
+      int loop;
+      unsigned char sc;
+
       if (first)    /* First iteration */
         first = 0;
-      if (cur_x+strlen(word) >= width) {    /* wrap around to next line */
-        cur_y++;
-        cur_x = x;
+      do {
+	loop = 0;
+	if (cur_x+strlen(word) >= width+1) {    /* wrap around to next line */
+	  if (x+strlen(word) >= width+1) {
+	    sc = word[width-cur_x-1];
+	    word[width-cur_x-1] = '\0';
+	    wmove(win, cur_y, cur_x);
+	    waddstr(win, word);
+	    word[width-cur_x-1] = sc;
+	    word += width-cur_x-1;
+	    getyx(win, cur_y, cur_x);
+	    loop = 1;
+	  }
+	  cur_y++;
+	  cur_x = x;
+	  if (cur_y > height) {
+	    cur_y--;
+	    if (!init_bottom) {
+	      for (i = 0; i < x; i++)
+		ostuff[i] = mvwinch(win, cur_y, i);
+	      for (i = width; i < maxwidth; i++)
+		ostuff[i] = mvwinch(win, cur_y, i);
+	      attrs = getattrs(win);
+	      init_bottom = 1;
+	    }
+	    scrollok(win, TRUE);
+	    scroll(win);
+	    scrollok(win, FALSE);
+	    wmove(win, cur_y, 0);
+	    for (i = 0; i < x; i++) {
+	      wattrset(win, ostuff[i]&A_ATTRIBUTES);
+	      waddch(win, ostuff[i]);
+	    }
+	    wattrset(win, attrs);
+	    for ( ; i < width; i++)
+	      waddch(win, ' ');
+	    for ( ; i < maxwidth; i++) {
+	      wattrset(win, ostuff[i]&A_ATTRIBUTES);
+	      waddch(win, ostuff[i]);
+	    }
+	    wattrset(win, attrs);
+	    wrefresh(win);
+	  }
+	}
       }
+      while(loop);
       wmove(win, cur_y, cur_x);
       waddstr(win, word);
       getyx(win, cur_y, cur_x);

@@ -130,7 +130,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   wmove(dialog, cur_y, cur_x);    /* Restore cursor position */
   wrefresh(dialog);
 
-  while ((key != ESC) && (key != '\n')) {
+  while ((key != ESC) && (key != '\n') && (key != '\r')) {
     key = wgetch(dialog);
     switch (key) {
       case 'E':    /* Exit */
