@@ -672,9 +672,11 @@ mountmsdosfs(devvp, mp, p, argp)
 		if (!bcmp(fp->fsisig1, "RRaA", 4)
 		    && !bcmp(fp->fsisig2, "rrAa", 4)
 		    && !bcmp(fp->fsisig3, "\0\0\125\252", 4)
-		    && !bcmp(fp->fsisig4, "\0\0\125\252", 4))
+		    && !bcmp(fp->fsisig4, "\0\0\125\252", 4)) {
 			pmp->pm_nxtfree = getulong(fp->fsinxtfree);
-		else
+			if (pmp->pm_nxtfree == 0xffffffff)
+				pmp->pm_nxtfree = CLUST_FIRST;
+		} else
 			pmp->pm_fsinfo = 0;
 		brelse(bp);
 		bp = NULL;
