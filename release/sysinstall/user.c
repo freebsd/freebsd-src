@@ -421,6 +421,10 @@ verifyUserSettings(WINDOW *ds_win)
 	    return 0;
 	}
     }
+    if ((homedir[0]!=0) && (homedir[0]!='/')) {
+	feepout("The pathname for home directories must begin with a '/'.");
+	return 0;
+    }
     if (strlen(shell) > 0) {
 	while((cp = getusershell()) != NULL)
 	    if (strcmp(cp, shell) == 0)
@@ -655,7 +659,7 @@ userAddUser(dialogMenuItem *self)
     WINDOW              *ds_win, *save;
     ComposeObj          *obj = NULL;
     int                 n = 0, cancel = FALSE, ret;
-    int			max, firsttime = TRUE;
+    int			max, firsttime = TRUE, filled=0;
 
     if (RunningAsInit && !strstr(variable_get(SYSTEM_STATE), "install")) {
         msgConfirm("This option may only be used after the system is installed, sorry!");
@@ -705,7 +709,17 @@ reenter:
 	firsttime = FALSE;
     }
 
-    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel));
+    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel)) {
+	/* Prevent this from being irritating if user really means NO */
+	if (filled < 3) {
+	  if ((uname[0]) && !homedir[0]) {
+	      SAFE_STRCPY(homedir,"/home/");
+	      strcat(homedir,uname);
+	      RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
+	      ++filled;
+	    }
+	}
+    };
 
     if (!cancel && !verifyUserSettings(ds_win))
 	goto reenter;
