@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.18 1994/09/16 20:24:15 wollman Exp $
+#	$Id: Makefile,v 1.19 1994/09/19 05:32:31 phk Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib 
@@ -27,7 +27,8 @@ SUBDIR+= bin
 SUBDIR+= contrib
 .endif
 .if exists(etc)
-SUBDIR+= etc
+# XXX until etc vs release conversion is done
+# SUBDIR+= etc
 .endif
 .if exists(games)
 SUBDIR+= games
@@ -94,7 +95,7 @@ CLEANDIR=	clean
 CLEANDIR=	cleandir
 .endif
 
-world:	directories cleandist mk includes libraries tools
+world:	hieriarchy cleandist mk includes libraries tools
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding ${DESTDIR} The whole thing"
 	@echo "--------------------------------------------------------------"
@@ -103,11 +104,11 @@ world:	directories cleandist mk includes libraries tools
 	cd ${.CURDIR}/share/man &&		${MAKE} makedb
 
 
-directories:
+hieriarchy:
 	@echo "--------------------------------------------------------------"
-	@echo " Making directories"
+	@echo " Making hieriarchy"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/etc &&			${MAKE} distrib-dirs
+	cd ${.CURDIR}/release &&		${MAKE} hieriarchy
 
 update:
 .if defined(SUP_UPDATE)
