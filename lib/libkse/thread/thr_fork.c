@@ -39,9 +39,14 @@
 #include <pthread.h>
 #include <spinlock.h>
 #include <sys/signalvar.h>
+
+#include "libc_private.h"
 #include "thr_private.h"
 
-extern spinlock_t *__malloc_lock;
+/*
+ * For a while, allow libpthread to work with a libc that doesn't
+ * export the malloc lock.
+ */
 #pragma weak __malloc_lock
 
 __weak_reference(_fork, fork);
