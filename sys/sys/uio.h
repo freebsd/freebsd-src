@@ -88,7 +88,6 @@ struct vm_object;
 void	uio_yield(void);
 int	uiomove(void *, int, struct uio *);
 int	uiomoveco(void *, int, struct uio *, struct vm_object *, int);
-int	uioread(int, struct uio *, struct vm_object *, int *);
 int	copyinfrom(const void *src, void *dst, size_t len, int seg);
 int	copyinstrfrom(const void *src, void *dst, size_t len,
 	    size_t *copied, int seg);

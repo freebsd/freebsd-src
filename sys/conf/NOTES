@@ -756,21 +756,6 @@ options 	EXT2FS
 # unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
 
-# Enable the code UFS IO optimization through the VM system.  This allows
-# use VM operations instead of copying operations when possible.
-# 
-# Even with this enabled, actual use of the code is still controlled by the
-# sysctl vfs.ioopt.  0 gives no optimization, 1 gives normal (use VM
-# operations if a request happens to fit), 2 gives agressive optimization
-# (the operations are split to do as much as possible through the VM system.)
-#
-# Enabling this will probably not give an overall speedup except for
-# special workloads.
-#
-# WARNING: Do not enable this, it is known to be broken, and will result
-# in system instability, as well as possible data loss.
-options 	ENABLE_VFS_IOOPT
-
 # Cryptographically secure random number generator; /dev/[u]random
 device		random
 
