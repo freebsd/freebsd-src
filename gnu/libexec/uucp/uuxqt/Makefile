@@ -1,10 +1,10 @@
 # Makefile for uuxqt
-# $Id$
+# $Id: Makefile,v 1.9 1999/03/13 17:35:18 torstenb Exp $
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)
 BINGRP=         $(group)
-BINMODE=        4550
+BINMODE=        6550
 
 PROG=		uuxqt
 SRCS=		uuxqt.c util.c log.c copy.c
