@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.433 1998/05/19 23:23:09 julian Exp $
+#	$Id: LINT,v 1.434 1998/05/21 03:22:20 wpaul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1252,7 +1252,10 @@ device		asc0	at isa? port IO_ASC1 tty drq 3 irq 10 vector ascintr
 device		bqu0	at isa? port 0x150
 device		stl0	at isa? port 0x2a0 tty irq 10 vector stlintr
 device		stli0	at isa? port 0x2a0 tty iomem 0xcc000 flags 23 iosiz 0x1000
+# You are unlikely to have the hardware for loran0 <phk@FreeBSD.org>
 device		loran0	at isa? port ? tty irq 5 vector loranintr
+# HOT1 Xilinx 6200 card (www.vcc.com)
+device		xrpu0
 
 #
 # EISA devices:
