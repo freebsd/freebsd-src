@@ -1,10 +1,10 @@
-# @(#)africa	7.13
+# @(#)africa	7.15
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
 # tz@elsie.nci.nih.gov for general use in the future).
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1996-09-03):
 #
 # A good source for time zone historical data outside the U.S. is
 # Thomas G. Shanks, The International Atlas (3rd edition),
@@ -61,64 +61,95 @@
 #	Omit `.' from abbreviations in names, e.g. prefer `St_Helena'
 #		to `St._Helena'.
 #
-# We typically use traditional English time zone abbreviations,
-# and assume that applications translate them to other languages
-# as part of the normal localization process.
+# For time zone abbreviations like `EST' I used the following rules,
+# in decreasing order of importance:
 #
-# I made up the following time zone abbreviations; corrections are welcome!
+#	Use abbreviations that consist of 3 or more upper-case Ascii letters,
+#		except use "___" for locations while uninhabited.
+#		Posix.1 requires at least 3 characters, and the restriction to
+#		upper-case Ascii letters follows most traditions.
+#		Previous editions of this database also used characters like
+#		' ' and '?', but these characters have a special meaning to
+#		the shell and cause commands like
+#			set `date`
+#		to have unexpected effects.  In theory, the character set could
+#		be !%./@A-Z^_a-z{}, but these tables use only upper-case
+#		Ascii letters (and "___").
+#	Use abbreviations that are in common use among English-speakers,
+#		e.g. `EST' for Eastern Standard Time in North America.
+#		We assume that applications translate them to other languages
+#		as part of the normal localization process; for example,
+#		a French application might translate `EST' to `HNE'.
+#	For zones whose times are taken from a city's longitude, use the
+#		traditional xMT notation, e.g. `PMT' for Paris Mean Time.
+#		The only name like this in current use is `GMT'.
+#	If there is no common English abbreviation, abbreviate the English
+#		translation of the usual phrase used by native speakers.
+#		If this is not available or is a phrase mentioning the country
+#		(e.g. ``Cape Verde Time''), then:
+#
+#		When a country has a single or principal time zone region,
+#			append `T' to the country's ISO	code, e.g. `CVT' for
+#			Cape Verde Time.  For summer time append `ST';
+#			for double summer time append `DST'; etc.
+#		When a country has multiple time zones, take the first three
+#			letters of an English place name identifying each zone
+#			and then append `T', `ST', etc. as before;
+#			e.g. `MOSST' for MOScow Summer Time.
+#
+#
+# For Africa I invented the following time zone abbreviations.
 #		LMT	Local Mean Time
-#	-2:00	CVT	Cape Verde Time (no longer used)
-#	-1:00	AAT	Atlantic Africa Time
+#	-1:00	AAT	Atlantic Africa Time (no longer used)
 #	 0:00	WAT	West Africa Time
 #	 1:00	CAT	Central Africa Time
 #	 2:00	SAT	South Africa Time
 #	 3:00	EAT	East Africa Time
-#	 4:00	SMT	Seychelles and Mascarene Time
 # The final `T' is replaced by `ST' for summer time, e.g. `SAST'.
 # BEAT is British East Africa Time, which was 2:30 before 1948 and 2:45 after.
 
 
 # Algeria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Algeria	1916	only	-	Jun	14	23:00s	1:00	" DST"
+Rule	Algeria	1916	only	-	Jun	14	23:00s	1:00	S
 Rule	Algeria	1916	1919	-	Oct	Sun<=7	23:00s	0	-
-Rule	Algeria	1917	only	-	Mar	24	23:00s	1:00	" DST"
-Rule	Algeria	1918	only	-	Mar	 9	23:00s	1:00	" DST"
-Rule	Algeria	1919	only	-	Mar	 1	23:00s	1:00	" DST"
-Rule	Algeria	1920	only	-	Feb	14	23:00s	1:00	" DST"
+Rule	Algeria	1917	only	-	Mar	24	23:00s	1:00	S
+Rule	Algeria	1918	only	-	Mar	 9	23:00s	1:00	S
+Rule	Algeria	1919	only	-	Mar	 1	23:00s	1:00	S
+Rule	Algeria	1920	only	-	Feb	14	23:00s	1:00	S
 Rule	Algeria	1920	only	-	Oct	23	23:00s	0	-
-Rule	Algeria	1921	only	-	Mar	14	23:00s	1:00	" DST"
+Rule	Algeria	1921	only	-	Mar	14	23:00s	1:00	S
 Rule	Algeria	1921	only	-	Jun	21	23:00s	0	-
-Rule	Algeria	1939	only	-	Sep	11	23:00s	1:00	" DST"
+Rule	Algeria	1939	only	-	Sep	11	23:00s	1:00	S
 Rule	Algeria	1939	only	-	Nov	19	 1:00	0	-
-Rule	Algeria	1944	1945	-	Apr	Mon<=7	 2:00	1:00	" DST"
+Rule	Algeria	1944	1945	-	Apr	Mon<=7	 2:00	1:00	S
 Rule	Algeria	1944	only	-	Oct	 8	 2:00	0	-
 Rule	Algeria	1945	only	-	Sep	16	 1:00	0	-
-Rule	Algeria	1971	only	-	Apr	25	23:00s	1:00	" DST"
+Rule	Algeria	1971	only	-	Apr	25	23:00s	1:00	S
 Rule	Algeria	1971	only	-	Sep	26	23:00s	0	-
-Rule	Algeria	1977	only	-	May	 6	 0:00	1:00	" DST"
+Rule	Algeria	1977	only	-	May	 6	 0:00	1:00	S
 Rule	Algeria	1977	only	-	Oct	21	 0:00	0	-
-Rule	Algeria	1978	only	-	Mar	24	 1:00	1:00	" DST"
+Rule	Algeria	1978	only	-	Mar	24	 1:00	1:00	S
 Rule	Algeria	1978	only	-	Sep	22	 3:00	0	-
-Rule	Algeria	1980	only	-	Apr	25	 0:00	1:00	" DST"
+Rule	Algeria	1980	only	-	Apr	25	 0:00	1:00	S
 Rule	Algeria	1980	only	-	Oct	31	 2:00	0	-
 # Shanks gives 0:09 for Paris Mean Time; go with Howse's more precise 0:09:21.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Algiers	0:12:12 -	LMT	1891 Mar 15 0:01
 			0:09:21	-	PMT	1911 Mar 11    # Paris Mean Time
-			0:00	Algeria	WET%s	1940 Feb 25 2:00
-			1:00	Algeria	MET%s	1946 Oct  7
+			0:00	Algeria	WE%sT	1940 Feb 25 2:00
+			1:00	Algeria	CE%sT	1946 Oct  7
 			0:00	-	WET	1956 Jan 29
-			1:00	-	MET	1963 Apr 14
-			0:00	Algeria	WET%s	1977 Oct 21
-			1:00	Algeria	MET%s	1979 Oct 26
-			0:00	Algeria	WET%s	1981 May
-			1:00	-	MET
+			1:00	-	CET	1963 Apr 14
+			0:00	Algeria	WE%sT	1977 Oct 21
+			1:00	Algeria	CE%sT	1979 Oct 26
+			0:00	Algeria	WE%sT	1981 May
+			1:00	-	CET
 
 # Angola
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Luanda	0:52:56	-	LMT	1892
-			0:52	-	LMT	1911 May 26 # Luanda Mean Time
+			0:52:04	-	LMT	1911 May 26 # Luanda Mean Time?
 			1:00	-	CAT
 
 # Bassas da India
@@ -160,7 +191,7 @@ Zone Atlantic/Cape_Verde -1:34:04 -	LMT	1907			# Praia
 			-2:00	-	CVT	1942 Sep
 			-2:00	1:00	CVST	1945 Oct 15
 			-2:00	-	CVT	1975 Nov 25 2:00
-			-1:00	-	AAT
+			-1:00	-	CVT
 
 # Central African Republic
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -198,41 +229,41 @@ Zone	Africa/Djibouti	2:52:36 -	LMT	1911 Jul
 
 # Egypt
 
-# From Bob Devine (January 28, 1988):
+# From Bob Devine (1988-01-28):
 # Egypt: DST from first day of May to first of October (ending may
 # also be on Sept 30th not 31st -- you might want to ask one of the
 # soc.* groups, you might hit someone who could ask an embassy).
 # DST since 1960 except for 1981-82.
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # EGYPT               2 H  AHEAD OF UTC
 # EGYPT               3 H  AHEAD OF UTC  MAY 17 - SEP 30 (AFTER
 # EGYPT                                  RAMADAN)
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Egypt	1940	only	-	Jul	15	0:00	1:00	" DST"
+Rule	Egypt	1940	only	-	Jul	15	0:00	1:00	S
 Rule	Egypt	1940	only	-	Oct	 1	0:00	0	-
-Rule	Egypt	1941	only	-	Apr	15	0:00	1:00	" DST"
+Rule	Egypt	1941	only	-	Apr	15	0:00	1:00	S
 Rule	Egypt	1941	only	-	Sep	16	0:00	0	-
-Rule	Egypt	1942	1944	-	Apr	 1	0:00	1:00	" DST"
+Rule	Egypt	1942	1944	-	Apr	 1	0:00	1:00	S
 Rule	Egypt	1942	only	-	Oct	27	0:00	0	-
 Rule	Egypt	1943	1945	-	Nov	 1	0:00	0	-
-Rule	Egypt	1945	only	-	Apr	16	0:00	1:00	" DST"
-Rule	Egypt	1957	only	-	May	10	0:00	1:00	" DST"
+Rule	Egypt	1945	only	-	Apr	16	0:00	1:00	S
+Rule	Egypt	1957	only	-	May	10	0:00	1:00	S
 Rule	Egypt	1957	1958	-	Oct	 1	0:00	0	-
-Rule	Egypt	1958	only	-	May	 1	0:00	1:00	" DST"
-Rule	Egypt	1959	1981	-	May	 1	1:00	1:00	" DST"
+Rule	Egypt	1958	only	-	May	 1	0:00	1:00	S
+Rule	Egypt	1959	1981	-	May	 1	1:00	1:00	S
 Rule	Egypt	1959	1965	-	Sep	30	3:00	0	-
 Rule	Egypt	1966	max	-	Oct	 1	3:00	0	-
-Rule	Egypt	1982	only	-	Jul	25	1:00	1:00	" DST"
-Rule	Egypt	1983	only	-	Jul	12	1:00	1:00	" DST"
-Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	" DST"
-Rule	Egypt	1989	only	-	May	 6	1:00	1:00	" DST"
-Rule	Egypt	1990	max	-	May	 1	1:00	1:00	" DST"
+Rule	Egypt	1982	only	-	Jul	25	1:00	1:00	S
+Rule	Egypt	1983	only	-	Jul	12	1:00	1:00	S
+Rule	Egypt	1984	1988	-	May	 1	1:00	1:00	S
+Rule	Egypt	1989	only	-	May	 6	1:00	1:00	S
+Rule	Egypt	1990	max	-	May	 1	1:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Cairo	2:05:00 -	LMT	1900 Oct
-			2:00	Egypt	EET%s
+			2:00	Egypt	EE%sT
 
 # Equatorial Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -243,14 +274,14 @@ Zone	Africa/Malabo	0:35:08 -	LMT	1912
 # Eritrea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Asmera	2:35:32 -	LMT	1870
-			2:36	-	AMT	1890	      # Asmera Mean Time
-			2:35	-	AAMT	1936 May 5    # Addis Ababa MT
+			2:35:32	-	AMT	1890	      # Asmera Mean Time
+			2:35:20	-	AAMT	1936 May 5    # Addis Ababa MT?
 			3:00	-	EAT
 
 # Ethiopia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Addis_Ababa	2:34:48 -	LMT	1870
-			2:35	-	AAMT	1936 May 5    # Addis Ababa MT
+			2:35:20	-	AAMT	1936 May 5    # Addis Ababa MT?
 			3:00	-	EAT
 
 # Europa Island
@@ -264,17 +295,17 @@ Zone Africa/Libreville	0:37:48 -	LMT	1912
 # Gambia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Banjul	-1:06:36 -	LMT	1912
-			-1:07	-	BMT	1935	# Banjul Mean Time
+			-1:06:36 -	BMT	1935	# Banjul Mean Time
 			-1:00	-	AAT	1964
 			 0:00	-	WAT
 
 # Ghana
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
-# WATDT is my invention for ``West Africa one-Third Daylight Time''.
+# From Paul Eggert <eggert@twinsun.com> (1996-09-03):
+# WATST is my invention for ``West Africa one-Third Summer Time''.
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # Whitman says DST was observed from 1931 to ``the present''; go with Shanks.
-Rule	Ghana	1936	1942	-	Sep	 1	0:00	0:20	WATDT
+Rule	Ghana	1936	1942	-	Sep	 1	0:00	0:20	WATST
 Rule	Ghana	1936	1942	-	Dec	31	0:00	0	WAT
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Accra	-0:00:52 -	LMT	1918
@@ -300,7 +331,7 @@ Zone	Africa/Bissau	-1:02:20 -	LMT	1911 May 26
 # uninhabited
 
 # Kenya
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # Shanks says the transition to 2:45 was in 1940, but it must have been 1948.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Nairobi	2:27:16	-	LMT	1928 Jul
@@ -317,7 +348,7 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 			2:00	-	SAT
 
 # Liberia
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # In 1972 Liberia was the last country to switch
 # from a GMT offset that was not a multiple of 15 minutes.
 # Howse reports that it was in honor of their president's birthday.
@@ -329,7 +360,7 @@ Zone	Africa/Maseru	1:50:00 -	LMT	1903 Mar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 			-0:43:08 -	MMT	1919 Mar # Monrovia Mean Time
-			-0:44:30 -	LST	1972 May # Liberia Standard Time
+			-0:44:30 -	LRT	1972 May # Liberia Time
 			 0:00	-	WAT
 
 ###############################################################################
@@ -339,34 +370,34 @@ Zone	Africa/Monrovia	-0:43:08 -	LMT	1882
 # From Bob Devine (January 28 1988):
 # Libya: Since 1982 April 1st to September 30th (?)
 
-# From U. S. Naval Observatory (January 19, 1989):
+# From U. S. Naval Observatory (1989-01-19):
 # LIBYAN ARAB         1 H  AHEAD OF UTC  JAMAHIRIYA/LIBYA
 # LIBYAN ARAB         2 H  AHEAD OF UTC  APR 1 - SEP 30 JAMAHIRIYA/LIBYA
 
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Libya	1951	only	-	Oct	14	2:00	1:00	" DST"
+Rule	Libya	1951	only	-	Oct	14	2:00	1:00	S
 Rule	Libya	1952	only	-	Jan	 1	0:00	0	-
-Rule	Libya	1953	only	-	Oct	 9	2:00	1:00	" DST"
+Rule	Libya	1953	only	-	Oct	 9	2:00	1:00	S
 Rule	Libya	1954	only	-	Jan	 1	0:00	0	-
-Rule	Libya	1955	only	-	Sep	30	0:00	1:00	" DST"
+Rule	Libya	1955	only	-	Sep	30	0:00	1:00	S
 Rule	Libya	1956	only	-	Jan	 1	0:00	0	-
-Rule	Libya	1982	1984	-	Apr	 1	0:00	1:00	" DST"
+Rule	Libya	1982	1984	-	Apr	 1	0:00	1:00	S
 Rule	Libya	1982	1985	-	Oct	 1	0:00	0	-
-Rule	Libya	1985	only	-	Apr	 6	0:00	1:00	" DST"
-Rule	Libya	1986	only	-	Apr	 4	0:00	1:00	" DST"
+Rule	Libya	1985	only	-	Apr	 6	0:00	1:00	S
+Rule	Libya	1986	only	-	Apr	 4	0:00	1:00	S
 Rule	Libya	1986	only	-	Oct	 3	0:00	0	-
-Rule	Libya	1987	1989	-	Apr	 1	0:00	1:00	" DST"
+Rule	Libya	1987	1989	-	Apr	 1	0:00	1:00	S
 Rule	Libya	1987	1990	-	Oct	 1	0:00	0	-
-Rule	Libya	1990	only	-	May	 4	0:00	1:00	" DST"
+Rule	Libya	1990	only	-	May	 4	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tripoli	0:52:44 -	LMT	1920
-			1:00	Libya	MET%s	1959
+			1:00	Libya	CE%sT	1959
 			2:00	-	EET	1982
 # From Paul Eggert <eggert@twinsun.com> (1995-12-19):
 # usno1995 (from OAG) says Libya uses 2:00 all year, as they did before 1982.
 # We don't know when they switched back.  We'll guess 1991.
-			1:00	Libya	MET%s	1991
+			1:00	Libya	CE%sT	1991
 			2:00	-	EET
 
 # Madagascar
@@ -401,7 +432,7 @@ Zone Africa/Nouakchott	-1:03:48 -	LMT	1912
 # Mauritius
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Indian/Mauritius	3:50:00 -	LMT	1907		# Port Louis
-			4:00	-	SMT
+			4:00	-	MUT	# Mauritius Time
 # Agalega Is, Rodriguez
 # no information; probably like Indian/Mauritius
 
@@ -411,29 +442,31 @@ Zone	Indian/Mayotte	3:00:56 -	LMT	1911 Jul	# Mamoutzou
 			3:00	-	EAT
 
 # Morocco
-# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	" DST"
+# rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Morocco	1939	only	-	Sep	12	 0:00	1:00	S
 Rule	Morocco	1939	only	-	Nov	19	 0:00	0	-
-Rule	Morocco	1940	only	-	Feb	25	 0:00	1:00	" DST"
+Rule	Morocco	1940	only	-	Feb	25	 0:00	1:00	S
 Rule	Morocco	1945	only	-	Nov	18	 0:00	0	-
-Rule	Morocco	1950	only	-	Jun	11	 0:00	1:00	" DST"
+Rule	Morocco	1950	only	-	Jun	11	 0:00	1:00	S
 Rule	Morocco	1950	only	-	Oct	29	 0:00	0	-
-Rule	Morocco	1967	only	-	Jun	 3	12:00	1:00	" DST"
+Rule	Morocco	1967	only	-	Jun	 3	12:00	1:00	S
 Rule	Morocco	1967	only	-	Oct	 1	 0:00	0	-
-Rule	Morocco	1974	only	-	Jun	24	 0:00	1:00	" DST"
+Rule	Morocco	1974	only	-	Jun	24	 0:00	1:00	S
 Rule	Morocco	1974	only	-	Sep	 1	 0:00	0	-
-Rule	Morocco	1976	1977	-	May	 1	 0:00	1:00	" DST"
+Rule	Morocco	1976	1977	-	May	 1	 0:00	1:00	S
 Rule	Morocco	1976	only	-	Aug	 1	 0:00	0	-
 Rule	Morocco	1977	only	-	Sep	28	 0:00	0	-
-Rule	Morocco	1978	only	-	Jun	 1	 0:00	1:00	" DST"
+Rule	Morocco	1978	only	-	Jun	 1	 0:00	1:00	S
 Rule	Morocco	1978	only	-	Aug	 4	 0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Casablanca	-0:30:20 -	LMT	1913 Oct 26
-			 0:00	Morocco	WET%s	1984 Mar 16
-			 1:00	-	MET	1986
+			 0:00	Morocco	WE%sT	1984 Mar 16
+			 1:00	-	CET	1986
 			 0:00	-	WET
-# The following are controlled by Spain, and are like Europe/Madrid:
-# Alboran, Alhucemas Is, Ceuta, Chafarinas Is, Melilla.
+# Western Sahara
+Zone Africa/El_Aaiun	-0:52:48 -	LMT	1934 Jan
+			-1:00	-	AAT	1976 Apr 14
+			 0:00	-	WET
 
 # Mozambique
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -463,7 +496,7 @@ Zone	Africa/Lagos	0:13:36 -	LMT	1919 Sep
 # Reunion
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Reunion	3:41:52 -	LMT	1911 Jun	# Saint-Denis
-			4:00	-	SMT
+			4:00	-	RET	# Reunion Time
 
 # Rwanda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -473,7 +506,7 @@ Zone	Africa/Kigali	2:00:16 -	LMT	1935 Jun
 # St Helena
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890		# Jamestown
-			-0:06	-	?MT	1951	# a typo in Shanks?
+			-0:06	-	SHT	1951	# St Helena Time (?)
 			 0:00	-	GMT
 # The other parts of the St Helena territory are similar:
 #	Tristan da Cunha: on GMT, says Whitman
@@ -483,7 +516,7 @@ Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890		# Jamestown
 # Sao Tome and Principe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Sao_Tome	 0:26:56 -	LMT	1884
-			-0:37	-	?MT	1912	# a typo in Shanks?
+			-0:36:32 -	LMT	1912	# Lisbon Mean Time
 			 0:00	-	WAT
 
 # Senegal
@@ -495,7 +528,7 @@ Zone	Africa/Dakar	-1:09:44 -	LMT	1912
 # Seychelles
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Mahe	3:41:48 -	LMT	1906 Jun	# Victoria
-			4:00	-	SMT
+			4:00	-	SCT	# Seychelles Time
 
 # Sierra Leone
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -506,12 +539,12 @@ Rule	SL	1957	1962	-	Jun	 1	0:00	1:00	S
 Rule	SL	1957	1962	-	Sep	 1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Freetown	-0:53:00 -	LMT	1882
-			-0:53	-	FMT	1913 Jun
+			-0:53:00 -	FMT	1913 Jun # Freetown Mean Time
 			-1:00	SL	AA%sT	1957
 			 0:00	SL	WA%sT
 
 # Somalia
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1993-11-18):
 # Shanks omits the 1948 transition to 2:45; this is probably a typo.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Mogadishu	3:01:28 -	LMT	1893 Nov
@@ -532,18 +565,18 @@ Zone Africa/Johannesburg 1:52:00 -	LMT	1892 Feb 8
 # no information
 
 # Sudan
-# From Michael Ross <mross@antigone.com> (November 15, 1995):
+# From Michael Ross <mross@antigone.com> (1995-11-15):
 # Sudan no longer observes any form of daylight time change.
 # I verified this today by telephone with the Sudan Mission to the
 # United Nations: 212-573-6033
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Sudan	1970	only	-	May	 1	0:00	1:00	" DST"
+Rule	Sudan	1970	only	-	May	 1	0:00	1:00	S
 Rule	Sudan	1970	1985	-	Oct	15	0:00	0	-
-Rule	Sudan	1971	only	-	Apr	30	0:00	1:00	" DST"
-Rule	Sudan	1972	1985	-	Apr	lastSun	0:00	1:00	" DST"
+Rule	Sudan	1971	only	-	Apr	30	0:00	1:00	S
+Rule	Sudan	1972	1985	-	Apr	lastSun	0:00	1:00	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Khartoum	2:10:08 -	LMT	1931
-			2:00	Sudan	EET%s
+			2:00	Sudan	EE%sT
 
 # Swaziland
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -567,34 +600,34 @@ Zone	Africa/Lome	0:04:52 -	LMT	1893
 
 # Tunisia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Tunisia	1939	only	-	Apr	15	23:00s	1:00	" DST"
+Rule	Tunisia	1939	only	-	Apr	15	23:00s	1:00	S
 Rule	Tunisia	1939	only	-	Nov	18	23:00s	0	-
-Rule	Tunisia	1940	only	-	Feb	25	23:00s	1:00	" DST"
+Rule	Tunisia	1940	only	-	Feb	25	23:00s	1:00	S
 Rule	Tunisia	1941	only	-	Oct	 6	 0:00	0	-
-Rule	Tunisia	1942	only	-	Mar	 9	 0:00	1:00	" DST"
+Rule	Tunisia	1942	only	-	Mar	 9	 0:00	1:00	S
 Rule	Tunisia	1942	only	-	Nov	 2	 3:00	0	-
-Rule	Tunisia	1943	only	-	Mar	29	 2:00	1:00	" DST"
+Rule	Tunisia	1943	only	-	Mar	29	 2:00	1:00	S
 Rule	Tunisia	1943	only	-	Apr	17	 2:00	0	-
-Rule	Tunisia	1943	only	-	Apr	25	 2:00	1:00	" DST"
+Rule	Tunisia	1943	only	-	Apr	25	 2:00	1:00	S
 Rule	Tunisia	1943	only	-	Oct	 4	 2:00	0	-
-Rule	Tunisia	1944	1945	-	Apr	Mon>=1	 2:00	1:00	" DST"
+Rule	Tunisia	1944	1945	-	Apr	Mon>=1	 2:00	1:00	S
 Rule	Tunisia	1944	only	-	Oct	 8	 0:00	0	-
 Rule	Tunisia	1945	only	-	Sep	16	 0:00	0	-
-Rule	Tunisia	1977	only	-	Apr	30	 0:00s	1:00	" DST"
+Rule	Tunisia	1977	only	-	Apr	30	 0:00s	1:00	S
 Rule	Tunisia	1977	only	-	Sep	24	 0:00s	0	-
-Rule	Tunisia	1978	only	-	May	 1	 0:00s	1:00	" DST"
+Rule	Tunisia	1978	only	-	May	 1	 0:00s	1:00	S
 Rule	Tunisia	1978	only	-	Oct	 1	 0:00s	0	-
-Rule	Tunisia	1988	only	-	Jun	 1	 0:00s	1:00	" DST"
+Rule	Tunisia	1988	only	-	Jun	 1	 0:00s	1:00	S
 Rule	Tunisia	1988	max	-	Sep	lastSun	 0:00s	0	-
-Rule	Tunisia	1989	only	-	Mar	26	 0:00s	1:00	" DST"
-Rule	Tunisia	1990	only	-	May	 1	 0:00s	1:00	" DST"
-Rule	Tunisia	1991	max	-	Mar	lastSun	 0:00s	1:00	" DST"
+Rule	Tunisia	1989	only	-	Mar	26	 0:00s	1:00	S
+Rule	Tunisia	1990	only	-	May	 1	 0:00s	1:00	S
+Rule	Tunisia	1991	max	-	Mar	lastSun	 0:00s	1:00	S
 # Shanks gives 0:09 for Paris Mean Time; go with Howse's more precise 0:09:21.
 # Shanks says the 1911 switch occurred on Mar 9; go with Howse's Mar 11.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Africa/Tunis	0:40:44 -	LMT	1881 May 12
 			0:09:21	-	PMT	1911 Mar 11    # Paris Mean Time
-			1:00	Tunisia	MET%s
+			1:00	Tunisia	CE%sT
 
 # Uganda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -608,7 +641,7 @@ Zone	Africa/Kampala	2:09:40 -	LMT	1928 Jul
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Africa/Kinshasa	1:01:12 -	LMT	1897 Nov 9
 			1:00	-	CAT
-Zone Africa/Lumumbashi	1:49:52 -	LMT	1897 Nov 9
+Zone Africa/Lubumbashi	1:49:52 -	LMT	1897 Nov 9
 			2:00	-	SAT
 
 # Zambia
