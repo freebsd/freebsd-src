@@ -114,7 +114,7 @@ static const struct ng_cmdlist ng_netflow_cmds[] = {
 	NGM_NETFLOW_COOKIE,
 	NGM_NETFLOW_IFINFO,
 	"ifinfo",
-	&ng_parse_uint8_type,
+	&ng_parse_uint16_type,
 	&ng_netflow_ifinfo_type
        },
        {
@@ -277,12 +277,14 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 		case NGM_NETFLOW_IFINFO:
 		{
 			struct ng_netflow_ifinfo *i;
-			const uint8_t *index;
+			const uint16_t *index;
 
-			if (msg->header.arglen != sizeof(uint8_t))
+			if (msg->header.arglen != sizeof(uint16_t))
 				 ERROUT(EINVAL);
 
-			index  = (uint8_t *)msg->data;
+			index  = (uint16_t *)msg->data;
+			if (*index > NG_NETFLOW_MAXIFACES)
+				ERROUT(EINVAL);
 
 			/* connected iface? */
 			if (priv->ifaces[*index].hook == NULL)
@@ -305,6 +307,8 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setdlt *)msg->data;
+			if (set->iface > NG_NETFLOW_MAXIFACES)
+				ERROUT(EINVAL);
 			iface = &priv->ifaces[set->iface];
 
 			/* connected iface? */
@@ -332,6 +336,8 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 
 			set = (struct ng_netflow_setifindex *)msg->data;
+			if (set->iface > NG_NETFLOW_MAXIFACES)
+				ERROUT(EINVAL);
 			iface = &priv->ifaces[set->iface];
 
 			/* connected iface? */
