@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.5 1998/09/28 22:01:20 peter Exp $
+ *	$Id: conf.c,v 1.6 1998/09/30 19:48:42 peter Exp $
  */
 
 #include <stand.h>
@@ -50,9 +50,7 @@ struct devsw *devsw[] = {
 
 struct fs_ops *file_system[] = {
     &ufs_fsops,
-#if notyet
     &dosfs_fsops,
-#endif
     &zipfs_fsops,
     NULL
 };
