@@ -2858,3 +2858,20 @@ ttyldoptim(struct tty *tp)
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
 	return (linesw[tp->t_line]->l_hotchar);
 }
+
+
+/*
+ * Record the relationship between the serial ports notion of modem control
+ * signals and the one used in certain ioctls in a way the compiler can enforce
+ * XXX: We should define TIOCM_* in terms of SER_ if we can limit the
+ * XXX: consequences of the #include work that would take.
+ */
+CTASSERT(SER_DTR == TIOCM_DTR / 2);
+CTASSERT(SER_RTS == TIOCM_RTS / 2);
+CTASSERT(SER_STX == TIOCM_ST / 2);
+CTASSERT(SER_SRX == TIOCM_SR / 2);
+CTASSERT(SER_CTS == TIOCM_CTS / 2);
+CTASSERT(SER_DCD == TIOCM_DCD / 2);
+CTASSERT(SER_RI == TIOCM_RI / 2);
+CTASSERT(SER_DSR == TIOCM_DSR / 2);
+
