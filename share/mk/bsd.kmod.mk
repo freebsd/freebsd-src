@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.37 1997/06/18 03:10:31 asami Exp $
+#	$Id: bsd.kmod.mk,v 1.38 1997/06/21 15:40:32 jkh Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -94,18 +94,6 @@ MODUNLOAD?=	/sbin/modunload
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
 #
-# A temporary fix to survive SMP changes.   
-#
-CFLAGS+=	-I.
-CLEANFILES+=	${SMPHDRS}
-SMPHDRS=	opt_smp.h
-
-beforedepend: ${SMPHDRS}
-
-${SMPHDRS}:
-	touch ${.TARGET}
-
-#
 # Assume that we are in /usr/src/foo/bar, so /sys is
 # ${.CURDIR}/../../sys.  We don't bother adding a .PATH since nothing
 # actually lives in /sys directly.
@@ -144,9 +132,6 @@ ${PROG}: ${DPSRCS} ${OBJS} ${DPADD}
 	@rm -f symb.tmp
 .endif
 	mv tmp.o ${.TARGET}
-
-# Temporary SMP fix continued.
-${OBJS}: ${SMPHDRS}
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
