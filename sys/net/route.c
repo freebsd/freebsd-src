@@ -735,6 +735,7 @@ rtrequest1(req, info, ret_nrt)
 		 */
 		if (req == RTM_RESOLVE) {
 			rt->rt_rmx = (*ret_nrt)->rt_rmx; /* copy metrics */
+			rt->rt_rmx.rmx_pksent = 0; /* reset packet counter */
 			if ((*ret_nrt)->rt_flags & (RTF_CLONING | RTF_PRCLONING)) {
 				rt->rt_parent = (*ret_nrt);
 				(*ret_nrt)->rt_refcnt++;
