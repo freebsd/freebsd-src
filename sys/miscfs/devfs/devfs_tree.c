@@ -2,23 +2,20 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.33 1996/11/21 07:18:57 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.34 1997/02/12 16:19:04 mpp Exp $
  */
 
 #include "opt_devfs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
-#include <sys/file.h>		/* define FWRITE ... */
 #include <sys/conf.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
+#include <sys/time.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <sys/dir.h>		/* defines dirent structure		*/
 #include <sys/devfsext.h>
 
 #include <machine/stdarg.h>
