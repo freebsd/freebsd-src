@@ -119,8 +119,8 @@ enum sysinit_sub_id {
 	SI_SUB_VM_CONF		= 0x2100000,	/* config VM, set limits*/
 	SI_SUB_RUN_QUEUE	= 0x2200000,	/* the run queue*/
 	SI_SUB_CREATE_INIT	= 0x2300000,	/* create the init process */
-	SI_SUB_MBUF		= 0x2700000,	/* mbuf subsystem */
-	SI_SUB_DRIVERS		= 0x3100000,	/* Let Drivers initialize */
+	SI_SUB_MBUF		= 0x2380000,	/* mbuf subsystem */
+	SI_SUB_DRIVERS		= 0x2400000,	/* Let Drivers initialize */
 	SI_SUB_CONFIGURE	= 0x3800000,	/* Configure devices */
 	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
 	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
