@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.88 1999/01/20 04:24:22 jkh Exp $
+ *	$Id: mp_machdep.c,v 1.89 1999/01/28 01:59:50 dillon Exp $
  */
 
 #include "opt_smp.h"
@@ -2390,8 +2390,7 @@ forwarded_statclock(int id, int pscnt, int *astmap)
 			ru->ru_ixrss += vm->vm_tsize * PAGE_SIZE / 1024;
 			ru->ru_idrss += vm->vm_dsize * PAGE_SIZE / 1024;
 			ru->ru_isrss += vm->vm_ssize * PAGE_SIZE / 1024;
-			rss = vm->vm_pmap.pm_stats.resident_count *
-				PAGE_SIZE / 1024;
+			rss = vmspace_resident_count(vm) * PAGE_SIZE / 1024;
 			if (ru->ru_maxrss < rss)
 				ru->ru_maxrss = rss;
         	}

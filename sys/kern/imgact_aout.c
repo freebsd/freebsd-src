@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.44 1999/01/01 14:41:51 bde Exp $
+ *	$Id: imgact_aout.c,v 1.45 1999/01/29 22:59:43 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -200,7 +200,7 @@ exec_aout_imgact(imgp)
 			return (error);
 	}
 
-	pmap_object_init_pt(&vmspace->vm_pmap, virtual_offset,
+	pmap_object_init_pt(vmspace_pmap(vmspace), virtual_offset,
 		object, (vm_pindex_t) OFF_TO_IDX(file_offset),
 		a_out->a_text + a_out->a_data, 0);
 

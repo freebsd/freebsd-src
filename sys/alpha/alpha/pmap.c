@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.13 1999/01/21 08:29:02 dillon Exp $
+ *	$Id: pmap.c,v 1.14 1999/01/24 06:04:50 dillon Exp $
  */
 
 /*
@@ -781,7 +781,7 @@ pmap_get_asn(pmap_t pmap)
 				for (p = allproc.lh_first;
 				     p != 0; p = p->p_list.le_next) {
 					if (p->p_vmspace) {
-						tpmap = &p->p_vmspace->vm_pmap;
+						tpmap = vmspace_pmap(p->p_vmspace);
 						tpmap->pm_asngen = 0;
 					}
 				}
@@ -1604,7 +1604,7 @@ pmap_growkernel(vm_offset_t addr)
 
 			for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 				if (p->p_vmspace) {
-					pmap = &p->p_vmspace->vm_pmap;
+					pmap = vmspace_pmap(p->p_vmspace);
 					*pmap_lev1pte(pmap, kernel_vm_end) = newlev1;
 				}
 			}
@@ -2399,7 +2399,7 @@ pmap_prefault(pmap, addra, entry)
 	vm_page_t m, mpte;
 	vm_object_t object;
 
-	if (!curproc || (pmap != &curproc->p_vmspace->vm_pmap))
+	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace)))
 		return;
 
 	object = entry->object.vm_object;
@@ -2626,7 +2626,7 @@ pmap_remove_pages(pmap, sva, eva)
 	int s;
 
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
-	if (!curproc || (pmap != &curproc->p_vmspace->vm_pmap)) {
+	if (!curproc || (pmap != vmspace_pmap(curproc->p_vmspace))) {
 		printf("warning: pmap_remove_pages called with non-current pmap\n");
 		return;
 	}
@@ -3115,7 +3115,7 @@ pmap_activate(struct proc *p)
 {
 	pmap_t pmap;
 
-	pmap = &p->p_vmspace->vm_pmap;
+	pmap = vmspace_pmap(p->p_vmspace);
 
 	if (pmap_active && pmap != pmap_active) {
 		pmap_active->pm_active = 0;
@@ -3142,7 +3142,7 @@ void
 pmap_deactivate(struct proc *p)
 {
 	pmap_t pmap;
-	pmap = &p->p_vmspace->vm_pmap;
+	pmap = vmspace_pmap(p->p_vmspace);
 	pmap->pm_active = 0;
 	pmap_active = 0;
 }
@@ -3167,7 +3167,7 @@ pmap_pid_dump(int pid) {
 		if (p->p_vmspace) {
 			int i,j;
 			index = 0;
-			pmap = &p->p_vmspace->vm_pmap;
+			pmap = vmspace_pmap(p->p_vmspace);
 			for(i=0;i<1024;i++) {
 				pd_entry_t *pde;
 				pt_entry_t *pte;

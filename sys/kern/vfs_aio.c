@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.41 1999/01/29 08:29:04 bde Exp $
+ * $Id: vfs_aio.c,v 1.42 1999/01/29 23:18:49 dillon Exp $
  */
 
 /*
@@ -631,7 +631,7 @@ aio_daemon(const void *uproc)
 		 */
 		if (myvm->vm_shm)
 			shmexit(mycp);
-		pmap_remove_pages(&myvm->vm_pmap, 0, USRSTACK);
+		pmap_remove_pages(vmspace_pmap(myvm), 0, USRSTACK);
 		vm_map_remove(&myvm->vm_map, 0, USRSTACK);
 		myvm->vm_tsize = 0;
 		myvm->vm_dsize = 0;

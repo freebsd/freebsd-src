@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.34 1999/01/26 02:49:52 julian Exp $
+ * $Id: vm_map.h,v 1.35 1999/02/07 21:48:22 dillon Exp $
  */
 
 /*
@@ -281,6 +281,18 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 #define		vm_map_min(map)		((map)->min_offset)
 #define		vm_map_max(map)		((map)->max_offset)
 #define		vm_map_pmap(map)	((map)->pmap)
+
+static __inline struct pmap *
+vmspace_pmap(struct vmspace *vmspace)
+{
+	return &vmspace->vm_pmap;
+}
+
+static __inline long
+vmspace_resident_count(struct vmspace *vmspace)
+{
+	return pmap_resident_count(vmspace_pmap(vmspace));
+}
 
 /* XXX: number of kernel maps and entries to statically allocate */
 #define MAX_KMAP	10
