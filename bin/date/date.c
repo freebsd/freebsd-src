@@ -234,9 +234,9 @@ setthetime(const char *fmt, const char *p, int jflag, int nflag)
 		case 10:				/* yy */
 			if (century)
 				lt->tm_year += ATOI2(p);
-			else {				/* hack for 2000 ;-} */
+			else {
 				lt->tm_year = ATOI2(p);
-				if (lt->tm_year < 69)
+				if (lt->tm_year < 69)	/* hack for 2000 ;-} */
 					lt->tm_year += 2000 - TM_YEAR_BASE;
 				else
 					lt->tm_year += 1900 - TM_YEAR_BASE;
