@@ -52,7 +52,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/conf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>

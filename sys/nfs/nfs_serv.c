@@ -85,6 +85,7 @@
 #include <sys/stat.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 
 #include <vm/vm.h>

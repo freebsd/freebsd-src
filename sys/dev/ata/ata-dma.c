@@ -31,7 +31,7 @@
 #include "pci.h"
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/malloc.h> 
 #include <sys/bus.h>
 #include <sys/disk.h>

@@ -46,6 +46,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/disklabel.h>

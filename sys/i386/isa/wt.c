@@ -62,7 +62,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/mtio.h>

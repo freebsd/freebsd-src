@@ -49,7 +49,7 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/cdio.h>
 #include <sys/disklabel.h>
 #include <sys/kernel.h>

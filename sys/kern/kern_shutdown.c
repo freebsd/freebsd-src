@@ -47,6 +47,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/reboot.h>
 #include <sys/proc.h>

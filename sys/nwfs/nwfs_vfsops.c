@@ -45,6 +45,7 @@
 #include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 
 #include <netncp/ncp.h>
