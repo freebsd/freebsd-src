@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.7 1995/05/18 13:18:35 jkh Exp $
+ * $Id: tcpip.c,v 1.8 1995/05/18 16:36:14 gpalmer Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -415,41 +415,6 @@ tcpOpenDialog(char *str)
 	case SEL_CR:
 	    /* Has the user selected a new interface? */
 	    if (strcmp(old_iface, iface)) {
-		/* Moved to a different condition for better handling */
-#if 0
-		/* First, find the old value */
-		n_iface = 0;
-		while (strcmp(old_iface, iface_names[n_iface]) &&
-		       (iface_names[n_iface] != NULL))
-		    ++n_iface;
-		
-		if (iface_names[n_iface] == NULL)
-		    msgFatal("Erk - run off the end of the list of interfaces!");
-
-		/* Sanity check what the user supplied - this could probably
-		   be better :-( */
-		
-		if (!verifyIP(ipaddr)) {
-		    feepout("Invalid or missing IP address!");
-		    strcpy(iface, old_iface);
-		    n = LAYOUT_IFACE;
-		    obj = (((first->next)->next)->next)->next;
-		    RefreshListObj(layout[LAYOUT_IFACE].obj);
-		}
-
-		if (netmask[0] < '0' || netmask[0] > '9') {
-		    feepout("Invalid or missing netmask!");
-		    strcpy(iface, old_iface);
-		    n = LAYOUT_IFACE;
-		    obj = (((first->next)->next)->next)->next;
-		    RefreshListObj(layout[LAYOUT_IFACE].obj);
-		}
-		
-		strcpy(if_list[n_iface].ipaddr, ipaddr);
-		strcpy(if_list[n_iface].netmask, netmask);
-		strcpy(if_list[n_iface].extras, extras);
-		if_list[n_iface].valid = TRUE;
-#endif /* if 0 */
 		/* Now go find the new location */
 		n_iface = 0;
 		while (strcmp(iface, iface_names[n_iface]) &&
