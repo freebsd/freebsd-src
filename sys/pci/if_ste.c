@@ -383,6 +383,9 @@ static int ste_miibus_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 
+	if ( sc->ste_one_phy && phy != 0 )
+		return (0);
+
 	bzero((char *)&frame, sizeof(frame));
 
 	frame.mii_phyaddr = phy;
@@ -911,6 +914,13 @@ static int ste_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct ste_softc));
 	sc->ste_dev = dev;
+
+	/*
+	 * Only use the first PHY since this chip reports multiple
+	 */
+	if (pci_get_vendor(dev) == DL_VENDORID &&
+	    pci_get_device(dev) == DL_DEVICEID_550TX )
+		sc->ste_one_phy = 1;
 
 	/*
 	 * Handle power management nonsense.
