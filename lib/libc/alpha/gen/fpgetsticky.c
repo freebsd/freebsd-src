@@ -41,11 +41,12 @@ __FBSDID("$FreeBSD$");
 fp_except_t
 fpgetsticky()
 {
-	double fpcrval;
-	u_int64_t old;
+	union {
+		double fpcrval;
+		u_int64_t intval;
+	} u;
 
-	GET_FPCR(fpcrval);
-	old = *(u_int64_t *)&fpcrval;
-	return (((old >> IEEE_STATUS_TO_FPCR_SHIFT) & IEEE_STATUS_MASK)
+	GET_FPCR(u.fpcrval);
+	return (((u.intval >> IEEE_STATUS_TO_FPCR_SHIFT) & IEEE_STATUS_MASK)
 					 >> IEEE_STATUS_TO_EXCSUM_SHIFT);
 }
