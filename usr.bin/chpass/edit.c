@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: edit.c,v 1.12 1998/12/06 22:58:14 archie Exp $
+ *	$Id: edit.c,v 1.13 1999/02/23 02:41:26 ghelmer Exp $
  */
 
 #ifndef lint
@@ -120,7 +120,7 @@ display(fd, pw)
 		    *pw->pw_shell ? pw->pw_shell : _PATH_BSHELL);
 	}
 	/* Only admin can change "restricted" shells. */
-#ifdef 0
+#if 0
 	else if (ok_shell(pw->pw_shell))
 		/*
 		 * Make shell a restricted field.  Ugly with a
