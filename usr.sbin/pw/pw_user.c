@@ -1046,7 +1046,7 @@ pw_getrand(u_char *buf, int len)	/* cryptographically secure rng */
 			MD5Update (&md5_ctx, (u_char*)&tv, sizeof tv);
 		} while (n++<20 || tv.tv_usec-tvo.tv_usec<100*1000);
 		MD5Final (ubuf, &md5_ctx);
-		memcpy(buf+i, ubuf, MIN(16, len-n));
+		memcpy(buf+i, ubuf, MIN(16, len-i));
 	}
 	return buf;
 }
