@@ -7,6 +7,9 @@
  * Copyright (c) 1990, 1991, William F. Jolitz
  * Copyright (c) 1990, The Regents of the University of California
  *
+ * 3Com 3C507 support:
+ * Copyright (c) 1993, 1994, Charles M. Hannum
+ *
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,7 +25,8 @@
  *	This product includes software developed by the University of
  *	Vermont and State Agricultural College and Garrett A. Wollman,
  *	by William F. Jolitz, by the University of California,
- *	Berkeley, by Larwence Berkeley Laboratory, and its contributors.
+ *	Berkeley, by Larwence Berkeley Laboratory, by Charles M. Hannum,
+ *	and their contributors.
  * 4. Neither the names of the Universities nor the names of the authors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -39,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.9 1994/08/13 03:50:05 wollman Exp $
+ *	$Id: if_ie.c,v 1.10 1994/08/24 22:32:43 ats Exp $
  */
 
 /*
@@ -302,14 +306,15 @@ struct ie_softc {
 static int sl_probe(struct isa_device *);
 static int el_probe(struct isa_device *);
 
+/* This routine written by Charles Martin Hannum. */
 int ieprobe(dvp)
      struct isa_device *dvp;
 {
-	int ret;
+  int ret;
 
-	ret = sl_probe(dvp);
-	if(!ret) ret = el_probe(dvp);
-	return(ret);
+  ret = sl_probe(dvp);
+  if(!ret) ret = el_probe(dvp);
+  return(ret);
 }
 
 static int sl_probe(dvp)
@@ -376,93 +381,94 @@ static int sl_probe(dvp)
   return 1;
 }
 
+/* This routine written by Charles Martin Hannum. */
 static int el_probe(dvp)
 	struct isa_device *dvp;
 {
-	struct ie_softc *sc = &ie_softc[dvp->id_unit];
-	u_char c;
-	int i;
-	u_char signature[] = "*3COM*";
-	int unit = dvp->id_unit;
-
-	sc->port = dvp->id_iobase;
-	sc->iomembot = dvp->id_maddr;
-
-	/* Need this for part of the probe. */
-	sc->ie_reset_586 = el_reset_586;
-	sc->ie_chan_attn = el_chan_attn;
-
-	/* Reset and put card in CONFIG state without changing address. */
-	elink_reset();
-	outb(ELINK_ID_PORT, 0x00);
-	elink_idseq(ELINK_507_POLY);
-	elink_idseq(ELINK_507_POLY);
-	outb(ELINK_ID_PORT, 0xff);
-
-	c = inb(PORT + IE507_MADDR);
-	if(c & 0x20) {
-		printf("ie%d: can't map 3C507 RAM in high memory\n", unit);
-		return 0;
-	}
-
-	/* go to RUN state */
-	outb(ELINK_ID_PORT, 0x00);
-	elink_idseq(ELINK_507_POLY);
-	outb(ELINK_ID_PORT, 0x00);
-
-	outb(PORT + IE507_CTRL, EL_CTRL_NRST);
-
-	for (i = 0; i < 6; i++)
-		if (inb(PORT + i) != signature[i])
-		return 0;
-
-	c = inb(PORT + IE507_IRQ) & 0x0f;
-
-	if (dvp->id_irq != (1 << c)) {
-		printf("ie%d: kernel configured irq %d doesn't match board configured irq %d\n",
-		unit, ffs(dvp->id_irq) - 1, c);
-		return 0;
-	}
-
-	c = (inb(PORT + IE507_MADDR) & 0x1c) + 0xc0;
-
-	if (kvtop(dvp->id_maddr) != ((int)c << 12)) {
-		printf("ie%d: kernel configured maddr %x doesn't match board configured maddr %x\n",
-			unit, kvtop(dvp->id_maddr),(int)c << 12);
-		return 0;
-	}
-
-	outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
-
-	sc->hard_type = IE_3C507;
-	sc->hard_vers = 0;	/* 3C507 has no version number. */
-
-	/*
-	 * Divine memory size on-board the card.
-	 */
-	find_ie_mem_size(dvp->id_unit);
-
-	if (!sc->iosize) {
-		printf("ie%d: can't find shared memory\n", unit);
-		outb(PORT + IE507_CTRL, EL_CTRL_NRST);
-		return 0;
-	}
-
-	if(!dvp->id_msize)
-		dvp->id_msize = sc->iosize;
-	else if (dvp->id_msize != sc->iosize) {
-		printf("ie%d: kernel configured msize %d doesn't match board configured msize %d\n",
-			unit, dvp->id_msize, sc->iosize);
-		outb(PORT + IE507_CTRL, EL_CTRL_NRST);
-		return 0;
-	}
-
-	sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
-
-	/* Clear the interrupt latch just in case. */
-	outb(PORT + IE507_ICTRL, 1);
-
-	return 16;
+  struct ie_softc *sc = &ie_softc[dvp->id_unit];
+  u_char c;
+  int i;
+  u_char signature[] = "*3COM*";
+  int unit = dvp->id_unit;
+  
+  sc->port = dvp->id_iobase;
+  sc->iomembot = dvp->id_maddr;
+  
+  /* Need this for part of the probe. */
+  sc->ie_reset_586 = el_reset_586;
+  sc->ie_chan_attn = el_chan_attn;
+  
+  /* Reset and put card in CONFIG state without changing address. */
+  elink_reset();
+  outb(ELINK_ID_PORT, 0x00);
+  elink_idseq(ELINK_507_POLY);
+  elink_idseq(ELINK_507_POLY);
+  outb(ELINK_ID_PORT, 0xff);
+  
+  c = inb(PORT + IE507_MADDR);
+  if(c & 0x20) {
+    printf("ie%d: can't map 3C507 RAM in high memory\n", unit);
+    return 0;
+  }
+  
+  /* go to RUN state */
+  outb(ELINK_ID_PORT, 0x00);
+  elink_idseq(ELINK_507_POLY);
+  outb(ELINK_ID_PORT, 0x00);
+  
+  outb(PORT + IE507_CTRL, EL_CTRL_NRST);
+  
+  for (i = 0; i < 6; i++)
+    if (inb(PORT + i) != signature[i])
+      return 0;
+  
+  c = inb(PORT + IE507_IRQ) & 0x0f;
+  
+  if (dvp->id_irq != (1 << c)) {
+    printf("ie%d: kernel configured irq %d doesn't match board configured irq %d\n",
+	   unit, ffs(dvp->id_irq) - 1, c);
+    return 0;
+  }
+  
+  c = (inb(PORT + IE507_MADDR) & 0x1c) + 0xc0;
+  
+  if (kvtop(dvp->id_maddr) != ((int)c << 12)) {
+    printf("ie%d: kernel configured maddr %x doesn't match board configured maddr %x\n",
+	   unit, kvtop(dvp->id_maddr),(int)c << 12);
+    return 0;
+  }
+  
+  outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
+  
+  sc->hard_type = IE_3C507;
+  sc->hard_vers = 0;	/* 3C507 has no version number. */
+  
+  /*
+   * Divine memory size on-board the card.
+   */
+  find_ie_mem_size(dvp->id_unit);
+  
+  if (!sc->iosize) {
+    printf("ie%d: can't find shared memory\n", unit);
+    outb(PORT + IE507_CTRL, EL_CTRL_NRST);
+    return 0;
+  }
+  
+  if(!dvp->id_msize)
+    dvp->id_msize = sc->iosize;
+  else if (dvp->id_msize != sc->iosize) {
+    printf("ie%d: kernel configured msize %d doesn't match board configured msize %d\n",
+	   unit, dvp->id_msize, sc->iosize);
+    outb(PORT + IE507_CTRL, EL_CTRL_NRST);
+    return 0;
+  }
+  
+  sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
+  
+  /* Clear the interrupt latch just in case. */
+  outb(PORT + IE507_ICTRL, 1);
+  
+  return 16;
 }
 
 /*
@@ -533,11 +539,12 @@ int ieintr(unit)
 
   status = ie->scb->ie_status;
 
+  /* This if statement written by Charles Martin Hannum. */
   if ((status & IE_ST_WHENCE) == 0) {
-	/* Clear the interrupt latch on the 3C507. */
-	if (ie->hard_type == IE_3C507 &&
-		(inb(PORT + IE507_CTRL) & EL_CTRL_INTL))
-			outb(PORT + IE507_ICTRL, 1);
+    /* Clear the interrupt latch on the 3C507. */
+    if (ie->hard_type == IE_3C507 &&
+	(inb(PORT + IE507_CTRL) & EL_CTRL_INTL))
+      outb(PORT + IE507_ICTRL, 1);
   }
 
 loop:
@@ -585,9 +592,10 @@ loop:
   if((status = ie->scb->ie_status) & IE_ST_WHENCE)
     goto loop;
 
+  /* This comment and if statement written by Charles Martin Hannum. */
   /* Clear the interrupt latch on the 3C507. */
   if (ie->hard_type == IE_3C507)
-	outb(PORT + IE507_ICTRL, 1);
+    outb(PORT + IE507_ICTRL, 1);
 
   return unit;
 }
@@ -1377,10 +1385,10 @@ static void find_ie_mem_size(unit)
 void el_reset_586(unit)
 	int unit;
 {
-	outb(PORT + IE507_CTRL, EL_CTRL_RESET);
-	DELAY(100);
-	outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
-	DELAY(100);
+  outb(PORT + IE507_CTRL, EL_CTRL_RESET);
+  DELAY(100);
+  outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
+  DELAY(100);
 }
 
 void sl_reset_586(unit)
@@ -1390,9 +1398,9 @@ void sl_reset_586(unit)
 }
 
 void el_chan_attn(unit)
-	int unit;
+     int unit;
 {
-	 outb(PORT + IE507_ATTN, 1);
+  outb(PORT + IE507_ATTN, 1);
 }
 
 void sl_chan_attn(unit)
