@@ -51,13 +51,14 @@ __FBSDID("$FreeBSD$");
 static const u_int32_t uma_junk = 0xdeadc0de;
 
 /*
- * Checks an item to make sure it hasn't been overwritten since freed.
+ * Checks an item to make sure it hasn't been overwritten since it was freed,
+ * prior to subsequent reallocation.
  *
  * Complies with standard ctor arg/return
  *
  */
-void
-trash_ctor(void *mem, int size, void *arg)
+int
+trash_ctor(void *mem, int size, void *arg, int flags)
 {
 	int cnt;
 	u_int32_t *p;
@@ -68,6 +69,7 @@ trash_ctor(void *mem, int size, void *arg)
 		if (*p != uma_junk)
 			panic("Memory modified after free %p(%d) val=%x @ %p\n",
 			    mem, size, *p, p);
+	return (0);
 }
 
 /*
@@ -94,10 +96,11 @@ trash_dtor(void *mem, int size, void *arg)
  * Complies with standard init arg/return
  *
  */
-void
-trash_init(void *mem, int size)
+int
+trash_init(void *mem, int size, int flags)
 {
 	trash_dtor(mem, size, NULL);
+	return (0);
 }
 
 /*
@@ -109,17 +112,11 @@ trash_init(void *mem, int size)
 void
 trash_fini(void *mem, int size)
 {
-	trash_ctor(mem, size, NULL);
+	(void)trash_ctor(mem, size, NULL, 0);
 }
 
-/*
- * Checks an item to make sure it hasn't been overwritten since freed.
- *
- * Complies with standard ctor arg/return
- *
- */
-void
-mtrash_ctor(void *mem, int size, void *arg)
+int
+mtrash_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct malloc_type **ksp;
 	u_int32_t *p = mem;
@@ -137,6 +134,7 @@ mtrash_ctor(void *mem, int size, void *arg)
 			panic("Most recently used by %s\n", (*ksp == NULL)?
 			    "none" : (*ksp)->ks_shortdesc);
 		}
+	return (0);
 }
 
 /*
@@ -164,8 +162,8 @@ mtrash_dtor(void *mem, int size, void *arg)
  * Complies with standard init arg/return
  *
  */
-void
-mtrash_init(void *mem, int size)
+int
+mtrash_init(void *mem, int size, int flags)
 {
 	struct malloc_type **ksp;
 
@@ -174,10 +172,12 @@ mtrash_init(void *mem, int size)
 	ksp = (struct malloc_type **)mem;
 	ksp += (size / sizeof(struct malloc_type *)) - 1;
 	*ksp = NULL;
+	return (0);
 }
 
 /*
- * Checks an item to make sure it hasn't been overwritten since it was freed.
+ * Checks an item to make sure it hasn't been overwritten since it was freed,
+ * prior to freeing it back to available memory.
  *
  * Complies with standard fini arg/return
  *
@@ -185,7 +185,7 @@ mtrash_init(void *mem, int size)
 void
 mtrash_fini(void *mem, int size)
 {
-	mtrash_ctor(mem, size, NULL);
+	(void)mtrash_ctor(mem, size, NULL, 0);
 }
 
 static uma_slab_t

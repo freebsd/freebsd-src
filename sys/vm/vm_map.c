@@ -137,9 +137,9 @@ static uma_zone_t kmapentzone;
 static uma_zone_t mapzone;
 static uma_zone_t vmspace_zone;
 static struct vm_object kmapentobj;
-static void vmspace_zinit(void *mem, int size);
+static int vmspace_zinit(void *mem, int size, int flags);
 static void vmspace_zfini(void *mem, int size);
-static void vm_map_zinit(void *mem, int size);
+static int vm_map_zinit(void *mem, int ize, int flags);
 static void vm_map_zfini(void *mem, int size);
 static void _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max);
 
@@ -179,15 +179,16 @@ vmspace_zfini(void *mem, int size)
 	vm_map_zfini(&vm->vm_map, sizeof(vm->vm_map));
 }
 
-static void
-vmspace_zinit(void *mem, int size)
+static int
+vmspace_zinit(void *mem, int size, int flags)
 {
 	struct vmspace *vm;
 
 	vm = (struct vmspace *)mem;
 
-	vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map));
+	(void)vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map), flags);
 	pmap_pinit(vmspace_pmap(vm));
+	return (0);
 }
 
 static void
@@ -200,8 +201,8 @@ vm_map_zfini(void *mem, int size)
 	sx_destroy(&map->lock);
 }
 
-static void
-vm_map_zinit(void *mem, int size)
+static int
+vm_map_zinit(void *mem, int size, int flags)
 {
 	vm_map_t map;
 
@@ -211,6 +212,7 @@ vm_map_zinit(void *mem, int size)
 	map->infork = 0;
 	mtx_init(&map->system_mtx, "system map", NULL, MTX_DEF | MTX_DUPOK);
 	sx_init(&map->lock, "user map");
+	return (0);
 }
 
 #ifdef INVARIANTS

@@ -437,25 +437,21 @@ en_dump_packet(struct en_softc *sc, struct mbuf *m)
  *
  * LOCK: any, not needed
  */
-static void
-en_map_ctor(void *mem, int size, void *arg)
+static int
+en_map_ctor(void *mem, int size, void *arg, int flags)
 {
 	struct en_softc *sc = arg;
 	struct en_map *map = mem;
 	int err;
 
-	if (map->sc == NULL)
-		map->sc = sc;
-
-	if (!(map->flags & ENMAP_ALLOC)) {
-		err = bus_dmamap_create(sc->txtag, 0, &map->map);
-		if (err != 0)
-			if_printf(&sc->ifatm.ifnet,
-			    "cannot create DMA map %d\n", err);
-		else
-			map->flags |= ENMAP_ALLOC;
+	err = bus_dmamap_create(sc->txtag, 0, &map->map);
+	if (err != 0) {
+		if_printf(&sc->ifatm.ifnet, "cannot create DMA map %d\n", err);
+		return (err);
 	}
-	map->flags &= ~ENMAP_LOADED;
+	map->flags = ENMAP_ALLOC;
+	map->sc = sc;
+	return (0);
 }
 
 /*
@@ -490,8 +486,7 @@ en_map_fini(void *mem, int size)
 {
 	struct en_map *map = mem;
 
-	if (map->flags & ENMAP_ALLOC)
-		bus_dmamap_destroy(map->sc->txtag, map->map);
+	bus_dmamap_destroy(map->sc->txtag, map->map);
 }
 
 /*********************************************************************/
@@ -1041,11 +1036,9 @@ en_start(struct ifnet *ifp)
 		 * locks.
 		 */
 		map = uma_zalloc_arg(sc->map_zone, sc, M_NOWAIT);
-		if (map == NULL || !(map->flags & ENMAP_ALLOC)) {
+		if (map == NULL) {
 			/* drop that packet */
 			EN_COUNT(sc->stats.txnomap);
-			if (map != NULL)
-				uma_zfree(sc->map_zone, map);
 			EN_UNLOCK(sc);
 			m_freem(m);
 			continue;
@@ -2330,13 +2323,11 @@ en_service(struct en_softc *sc)
 	if (m != NULL) {
 		/* M_NOWAIT - called from interrupt context */
 		map = uma_zalloc_arg(sc->map_zone, sc, M_NOWAIT);
-		if (map == NULL || !(map->flags & ENMAP_ALLOC)) {
+		if (map == NULL) {
 			rx.post_skip += mlen;
 			m_freem(m);
 			DBG(sc, SERV, ("rx%td: out of maps",
 			    slot - sc->rxslot));
-			if (map->map != NULL)
-				uma_zfree(sc->map_zone, map);
 			goto skip;
 		}
 		rx.m = m;

@@ -111,13 +111,13 @@ uma_zone_t	zone_pack;
 /*
  * Local prototypes.
  */
-static void	mb_ctor_mbuf(void *, int, void *);
-static void	mb_ctor_clust(void *, int, void *);
-static void	mb_ctor_pack(void *, int, void *);
+static int	mb_ctor_mbuf(void *, int, void *, int);
+static int	mb_ctor_clust(void *, int, void *, int);
+static int	mb_ctor_pack(void *, int, void *, int);
 static void	mb_dtor_mbuf(void *, int, void *);
 static void	mb_dtor_clust(void *, int, void *);	/* XXX */
 static void	mb_dtor_pack(void *, int, void *);	/* XXX */
-static void	mb_init_pack(void *, int);
+static int	mb_init_pack(void *, int, int);
 static void	mb_fini_pack(void *, int);
 
 static void	mb_reclaim(void *);
@@ -180,19 +180,20 @@ mbuf_init(void *dummy)
  * contains call-specific information required to support the
  * mbuf allocation API.
  */
-static void
-mb_ctor_mbuf(void *mem, int size, void *arg)
+static int
+mb_ctor_mbuf(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 	struct mb_args *args;
+#ifdef MAC
+	int error;
+#endif
 	int flags;
-	int how;
 	short type;
 
 	m = (struct mbuf *)mem;
 	args = (struct mb_args *)arg;
 	flags = args->flags;
-	how = args->how;
 	type = args->type;
 
 	m->m_type = type;
@@ -206,17 +207,14 @@ mb_ctor_mbuf(void *mem, int size, void *arg)
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
-		if (mac_init_mbuf(m, how) != 0) {
-			m_free(m);
-/* XXX*/		panic("mb_ctor_mbuf(): can't deal with failure!");
-/*			return 0; */
-		}
+		error = mac_init_mbuf(m, how);
+		if (error)
+			return (error);
 #endif
 	} else
 		m->m_data = m->m_dat;
 	mbstat.m_mbufs += 1;	/* XXX */
-/*	return 1;
-*/
+	return (0);
 }
 
 /*
@@ -252,8 +250,8 @@ mb_dtor_pack(void *mem, int size, void *arg)
  * Here the 'arg' pointer points to the Mbuf which we
  * are configuring cluster storage for.
  */
-static void
-mb_ctor_clust(void *mem, int size, void *arg)
+static int
+mb_ctor_clust(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 
@@ -269,8 +267,7 @@ mb_ctor_clust(void *mem, int size, void *arg)
 	    m->m_ext.ext_buf);
 	*(m->m_ext.ref_cnt) = 1;
 	mbstat.m_mclusts += 1;	/* XXX */
-/*	return 1;
-*/
+	return (0);
 }
 
 /* XXX */
@@ -284,17 +281,18 @@ mb_dtor_clust(void *mem, int size, void *arg)
  * The Packet secondary zone's init routine, executed on the
  * object's transition from keg slab to zone cache.
  */
-static void
-mb_init_pack(void *mem, int size)
+static int
+mb_init_pack(void *mem, int size, int how)
 {
 	struct mbuf *m;
 
 	m = (struct mbuf *)mem;
 	m->m_ext.ext_buf = NULL;
-	uma_zalloc_arg(zone_clust, m, M_NOWAIT);
-	if (m->m_ext.ext_buf == NULL)	/* XXX */
-		panic("mb_init_pack(): Can't deal with failure yet.");
+	uma_zalloc_arg(zone_clust, m, how);
+	if (m->m_ext.ext_buf == NULL)
+		return (ENOMEM);
 	mbstat.m_mclusts -= 1;	/* XXX */
+	return (0);
 }
 
 /*
@@ -315,19 +313,21 @@ mb_fini_pack(void *mem, int size)
 /*
  * The "packet" keg constructor.
  */
-static void
-mb_ctor_pack(void *mem, int size, void *arg)
+static int
+mb_ctor_pack(void *mem, int size, void *arg, int how)
 {
 	struct mbuf *m;
 	struct mb_args *args;
-	int flags, how;
+#ifdef MAC
+	int error;
+#endif
+	int flags;
 	short type;
 
 	m = (struct mbuf *)mem;
 	args = (struct mb_args *)arg;
 	flags = args->flags;
 	type = args->type;
-	how = args->how;
 
 	m->m_type = type;
 	m->m_next = NULL;
@@ -346,17 +346,14 @@ mb_ctor_pack(void *mem, int size, void *arg)
 		SLIST_INIT(&m->m_pkthdr.tags);
 #ifdef MAC
 		/* If the label init fails, fail the alloc */
-		if (mac_init_mbuf(m, how) != 0) {
-			m_free(m);
-/* XXX*/		panic("mb_ctor_pack(): can't deal with failure!");
-/*			return 0; */
-		}
+		error = mac_init_mbuf(m, how);
+		if (error)
+			return (error);
 #endif
 	}
 	mbstat.m_mbufs += 1;	/* XXX */
 	mbstat.m_mclusts += 1;	/* XXX */
-/*	return 1;
-*/
+	return (0);
 }
 
 /*
