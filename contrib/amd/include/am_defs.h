@@ -1381,10 +1381,13 @@ extern u_int ualarm(u_int usecs, u_int interval);
 extern int wait3(int *statusp, int options, struct rusage *rusage);
 #endif /* defined(HAVE_WAIT3) && !defined(HAVE_EXTERN_WAIT3) */
 
+#if defined(HAVE_VSNPRINTF) && !defined(HAVE_EXTERN_VSNPRINTF)
+extern int vsnprintf(char *, int, const char *, ...);
+#endif /* defined(HAVE_VSNPRINTF) && !defined(HAVE_EXTERN_VSNPRINTF) */
+
 #ifndef HAVE_EXTERN_XDR_OPAQUE_AUTH
 extern bool_t xdr_opaque_auth(XDR *xdrs, struct opaque_auth *auth);
 #endif /* not HAVE_EXTERN_XDR_OPAQUE_AUTH */
-
 
 /****************************************************************************/
 /*
