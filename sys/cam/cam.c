@@ -360,3 +360,28 @@ cam_error_print(struct cam_device *device, union ccb *ccb,
 }
 
 #endif /* _KERNEL/!_KERNEL */
+
+/*
+ * Common calculate geometry fuction
+ *
+ * Caller should set ccg->volume_size and block_size.
+ * The extended parameter should be zero if extended translation
+ * should not be used.
+ */
+void
+cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
+{
+	uint32_t size_mb, secs_per_cylinder;
+
+	size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
+	if (size_mb > 1024 && extended) {
+		ccg->heads = 255;
+		ccg->secs_per_track = 63;
+	} else {
+		ccg->heads = 64;
+		ccg->secs_per_track = 32;
+	}
+	secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+	ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+	ccg->ccb_h.status = CAM_REQ_CMP;
+}
