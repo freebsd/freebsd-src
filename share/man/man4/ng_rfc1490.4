@@ -62,7 +62,10 @@ hooks are used to transmit and receive raw IP frames and PPP frames,
 respectively. PPP frames are transmitted and received according to
 RFC 1973; in particular, frames appearing on the
 .Dv ppp
-hook begin with the PPP protocol number.
+hook begin with the PPP protocol number.  The
+.Dv ethernet
+hook can be used to transmit and receive Ethernet frames (without a
+checksum) in RFC 1490's bridging format.
 .Pp
 Typically the
 .Dv inet
@@ -77,6 +80,8 @@ This node type supports the following hooks:
 .Bl -tag -width foobarbazum
 .It Dv downstream
 Connects to the RFC 1490 peer entity.
+.It Dv ethernet
+Transmits and receives bridged raw Ethernet frames, without a checksum.
 .It Dv inet
 Transmits and receives raw IP frames.
 .It Dv ppp
