@@ -153,10 +153,10 @@ static struct nlist nl[] = {
 	{ "_nmbclusters" },
 #define N_NMBUFS	41
 	{ "_nmbufs" },
-#define	N_MBLIM		42
-	{ "_mbuf_limit" },
-#define	N_CLLIM		43
-	{ "_clust_limit" },
+#define	N_MBHI		42
+	{ "_mbuf_hiwm" },
+#define	N_CLHI		43
+	{ "_clust_hiwm" },
 #define	N_NCPUS		44
 	{ "_smp_cpus" },
 #define	N_PAGESZ	45
@@ -165,6 +165,10 @@ static struct nlist nl[] = {
 	{ "_mb_statpcpu" },
 #define	N_RTTRASH	47
 	{ "_rttrash" },
+#define	N_MBLO		48
+	{ "_mbuf_lowm" },
+#define	N_CLLO		49
+	{ "_clust_lowm" },
 	{ "" },
 };
 
@@ -500,13 +504,15 @@ main(int argc, char *argv[])
 				    nl[N_MBTYPES].n_value,
 				    nl[N_NMBCLUSTERS].n_value,
 				    nl[N_NMBUFS].n_value,
-				    nl[N_MBLIM].n_value,
-				    nl[N_CLLIM].n_value,
+				    nl[N_MBHI].n_value,
+				    nl[N_CLHI].n_value,
+				    nl[N_MBLO].n_value,
+				    nl[N_CLLO].n_value,
 				    nl[N_NCPUS].n_value,
 				    nl[N_PAGESZ].n_value,
 				    nl[N_MBPSTAT].n_value);
 		} else
-			mbpr(0, 0, 0, 0, 0, 0, 0, 0, 0);
+			mbpr(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 		exit(0);
 	}
 #if 0

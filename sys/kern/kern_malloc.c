@@ -399,8 +399,7 @@ kmeminit(dummy)
 	 * amount to slightly more address space than we need for the submaps,
 	 * but it never hurts to have an extra page in kmem_map.
 	 */
-	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + nmbcnt *
-	    sizeof(u_int) + vm_kmem_size) / PAGE_SIZE;
+	npg = (nmbufs*MSIZE + nmbclusters*MCLBYTES + vm_kmem_size) / PAGE_SIZE; 
 
 	kmem_map = kmem_suballoc(kernel_map, (vm_offset_t *)&kmembase,
 		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * PAGE_SIZE));
