@@ -52,6 +52,7 @@ options 	SYSVSEM			#SYSV-style semaphores
 options 	P1003_1B		#Posix P1003_1B real-time extensions
 options 	_KPOSIX_PRIORITY_SCHEDULING
 options		ICMP_BANDLIM		#Rate limit bad replies
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
@@ -113,7 +114,7 @@ device		mlx		# Mylex DAC960 family
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
-device		atkbd0	at atkbdc? irq 1
+device		atkbd0	at atkbdc? irq 1 flags 0x1
 device		psm0	at atkbdc? irq 12
 
 device		vga0	at isa?
@@ -122,7 +123,7 @@ device		vga0	at isa?
 pseudo-device	splash
 
 # syscons is the default console driver, resembling an SCO console
-device		sc0	at isa?
+device		sc0	at isa? flags 0x100
 
 # Enable this for the pcvt (VT220 compatible) console driver
 #device		vt0	at isa?
@@ -218,18 +219,18 @@ pseudo-device	faith	1	# IPv6-to-IPv4 relaying (translation)
 pseudo-device	bpf		# Berkeley packet filter
 
 # USB support
-#device		uhci		# UHCI PCI->USB interface
-#device		ohci		# OHCI PCI->USB interface
-#device		usb		# USB Bus (required)
+device		uhci		# UHCI PCI->USB interface
+device		ohci		# OHCI PCI->USB interface
+device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
-#device		ugen		# Generic
-#device		uhid		# "Human Interface Devices"
-#device		ukbd		# Keyboard
-#device		ulpt		# Printer
-#device		umass		# Disks/Mass storage - Requires scbus and da
-#device		ums		# Mouse
-#device		urio		# Diamond Rio 500 MP3 player
+device		ugen		# Generic
+device		uhid		# "Human Interface Devices"
+device		ukbd		# Keyboard
+device		ulpt		# Printer
+device		umass		# Disks/Mass storage - Requires scbus and da
+device		ums		# Mouse
+device		urio		# Diamond Rio 500 MP3 player
 # USB Ethernet, requires mii
-#device		aue		# ADMtek USB ethernet
-#device		cue		# CATC USB ethernet
-#device		kue		# Kawasaki LSI USB ethernet
+device		aue		# ADMtek USB ethernet
+device		cue		# CATC USB ethernet
+device		kue		# Kawasaki LSI USB ethernet
