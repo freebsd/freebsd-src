@@ -48,6 +48,12 @@ struct fwip_softc {
 	struct fw_pkt last_hdr;
 	struct task start_send;
 	STAILQ_HEAD(, fw_xfer) xferlist;
+	struct crom_chunk unit4;	/* unit directory for IPv4 */
+	struct crom_chunk spec4;	/* specifier description IPv4 */
+	struct crom_chunk ver4;		/* version description IPv4 */
+	struct crom_chunk unit6;	/* unit directory for IPv6 */
+	struct crom_chunk spec6;	/* specifier description IPv6 */
+	struct crom_chunk ver6;		/* version description IPv6 */
 	struct fwip_eth_softc {
 		/* XXX this must be the first for if_fwsubr.c */
 		struct fw_com	fwcom;	/* firewire common data      */
