@@ -73,3 +73,11 @@ STATICMETHOD int load_file {
     const char*		filename;
     linker_file_t*	result;
 };
+STATICMETHOD int link_preload {
+    linker_class_t	cls;
+    const char*		filename;
+    linker_file_t*	result;
+};
+STATICMETHOD int link_preload_finish {
+    linker_file_t	file;
+};
