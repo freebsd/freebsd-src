@@ -1,5 +1,5 @@
 #	from: Makefile.inc,v 1.1 1993/09/03 19:04:23 jtc Exp
-#	$Id: Makefile.inc,v 1.8 1998/03/09 07:36:56 jb Exp $
+#	$Id: Makefile.inc,v 1.9 1998/04/30 09:30:50 jb Exp $
 
 SRCS+=	i386_get_ldt.c i386_set_ldt.c
 
@@ -8,8 +8,7 @@ MDASM=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S \
 	sigprocmask.S sigreturn.S sigsuspend.S syscall.S
 
 # Don't generate default code for these syscalls:
-NOASM=	__semctl.o __thread_create.o \
-	break.o exit.o ftruncate.o getdomainname.o getlogin.o \
+NOASM=	__semctl.o break.o exit.o ftruncate.o getdomainname.o getlogin.o \
 	lseek.o mlockall.o mmap.o msgctl.o msgget.o msgrcv.o msgsnd.o \
 	munlockall.o openbsd_poll.o semconfig.o semget.o semop.o \
 	setdomainname.o shmat.o shmctl.o shmdt.o shmget.o sstk.o \
