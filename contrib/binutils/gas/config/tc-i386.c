@@ -19,6 +19,8 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /*
   Intel 80386 machine specific gas.
   Written by Eliot Dresselhaus (eliot@mgm.mit.edu).
@@ -2139,15 +2141,8 @@ i386_operand (operand_string)
       SKIP_WHITESPACE ();
       exp_seg = expression (exp);
       if (*input_line_pointer != '\0')
-	{
-	  /* This should be as_bad, but some versions of gcc, up to
-             about 2.8 and egcs 1.01, generate a bogus @GOTOFF(%ebx)
-             in certain cases.  Oddly, the code in question turns out
-             to work correctly anyhow, so we make this just a warning
-             until those versions of gcc are obsolete.  */
-	  as_warn ("warning: unrecognized characters `%s' in expression",
-		   input_line_pointer);
-	}
+	as_bad ("warning: unrecognized characters `%s' in expression",
+		input_line_pointer);
       input_line_pointer = save_input_line_pointer;
 
       if (exp->X_op == O_absent)
