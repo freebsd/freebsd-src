@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.32 1996/05/23 16:34:24 jkh Exp $
+ * $Id: config.c,v 1.33 1996/05/29 01:35:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -473,6 +473,7 @@ configPackages(dialogMenuItem *self)
 	    }
 	}
 	else {
+	    dialog_clear();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
