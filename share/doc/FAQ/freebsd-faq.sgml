@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.7 1995/07/29 18:12:50 roberto Exp $
+<date> $Id: freebsd-faq.sgml,v 1.8 1995/07/29 22:35:40 roberto Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -21,9 +21,10 @@ Any entries with a &lt;XXX&gt; are under construction.
         later, unless specifically indicated).  If there's something you're
         having trouble with and you just don't see it here, then please
         send mail to:
-        <verb>
-          questions@FreeBSD.ORG
-        </verb>
+
+        <url url="mailto:questions@FreeBSD.ORG" name="FreeBSD-questions
+          Mailling list"> or to <url url="mailto:faq@FreeBSD.ORG"
+          name="FreeBSD FAQ mailing list">
 
         The latest released version is FreeBSD 2.0.5R. FreeBSD-current
         refers to the future FreeBSD 2.2. The 2.1 release will be issued
@@ -31,13 +32,14 @@ Any entries with a &lt;XXX&gt; are under construction.
         even more stable version of 2.0.5.
 
         There are regular snapshots extracted from 2.2-CURRENT. Check on
-        <tt>ftp.FreeBSD.ORG in <tt>/pub/FreeBSD/*-SNAP*</tt>.
+        <tt>ftp.FreeBSD.ORG</tt> in <tt>/pub/FreeBSD/*-SNAP*</tt>.
 
         The current snapshot is 2.1.0-950726-SNAP.
 
         This version of the FAQ use the <tt>linuxdoc-sgml</tt> utility
-        written for Linux by Matt Welsh. The initial SGML translation was made 
-        by Ollivier Robert <tt/&lt;roberto@FreeBSD.ORG&gt;/
+        written for Linux by Matt Welsh. The initial SGML translation was
+        made by Ollivier Robert <url url="mailto:roberto@FreeBSD.ORG"
+        name="roberto@FreeBSD.ORG">
 
         Some of the instructions here will also refer to auxiliary
         utilities in the <tt>/usr/src/share/FAQ directory</tt>.  If you do
@@ -159,18 +161,19 @@ Any entries with a &lt;XXX&gt; are under construction.
       <sect1>What are the various FreeBSD news groups?
 
         <p>
-	  There are two newsgroups currently dedicated to FreeBSD:
-	  <descrip>
-	    <tag/comp.unix.bsd.freebsd.announce/ For announcements
-	    <tag/comp.unix.bsd.freebsd.misc/ General discussion
-	  </descrip>
-	  The following newsgroups may also be of interest to
-	  general BSD enthusiasts:
-	  <descrip>
-	    <tag/Comp.unix.bsd/ General BSD topics
-	  </descrip>
+          There are two newsgroups currently dedicated to FreeBSD:
+          <descrip>
+            <tag/comp.unix.bsd.freebsd.announce/ For announcements
+            <tag/comp.unix.bsd.freebsd.misc/ General discussion
+          </descrip>
+          The following newsgroups may also be of interest to
+          general BSD enthusiasts:
+          <descrip>
+            <tag><tt/comp.unix.bsd/</tag>
+              General BSD topics
+          </descrip>
       </sect1>
-
+      
       <sect1>Books on FreeBSD
         <p> 
           There currently aren't any books written specifically for
@@ -212,11 +215,11 @@ Any entries with a &lt;XXX&gt; are under construction.
  
           A good book on system administration is:
  
-          Evi Nemeth, Garth Snyder, Scott Seebass, & Trent R. Hein,<newline>
-          "Unix System Administraion Handbook", Prentice-Hall, 1995,<newline>
+          Evi Nemeth, Garth Snyder, Scott Seebass &amp; Trent R. Hein,<newline>
+          ``Unix System Administration Handbook'', Prentice-Hall, 1995<newline>
           ISBN: 0-13-151051-7<newline>
 
-          <bf/Note/ make sure you get the second edition, with a red cover,
+          <bf/NOTE/ make sure you get the second edition, with a red cover,
           instead of the first edition.
  
           This book covers the basics, as well as TCP/IP, DNS, NFS,
@@ -301,7 +304,7 @@ Any entries with a &lt;XXX&gt; are under construction.
  
       <sect1>Help!  I can't install from tape!  The install fails with a
           ``record too big'' error! <label id="install-tape">
- 
+        <p> 
           If you are installing 2.0.5R from tape, you  must create the tape
           using a  tar blocksize  of  10  (5120  bytes).  The  default  tar
           blocksize is 20  (10240   bytes), and  tapes  created using  this
@@ -780,18 +783,22 @@ sea32550N|Seagate 32550N:\
       <sect1>Where can I get Motif for FreeBSD?
 
         <p>
-          You can purchase Motif 1.2.3 for FreeBSD (SWiM) from the ACC
-          Bookstore, P.O. Box 3364, Westport CT. 06880.  1-800-546-7274 or
+          You can purchase Motif 1.2.3 for FreeBSD (SWiM) from:
+
+          ACC Bookstore, <newline>
+          P.O. Box 3364, <newline>
+          Westport CT. 06880. <newline>
+          1-800-546-7274 or <newline>
           FAX: 1-203-454-2582
 
           This software works flawlessly for for FreeBSD 1.1.5 but has
-          shown one problem with 2.0 in that the "uil" program core dumps.
-          This is apparently because of the way uil is installed, and it's
-          quite possible that ACC will have a fixed version by the time you
-          read this.  No other compatibility problems with the programs or
-          libraries have been found, and ACC can hardly be blamed for
-          failing to work perfectly with a brand-new release they haven't
-          even seen yet! :)
+          shown one problem with 2.0 in that the ``<tt/uil/'' program core
+          dumps.  This is apparently because of the way <tt/uil/ is
+          installed, and it's quite possible that ACC will have a fixed
+          version by the time you read this.  No other compatibility
+          problems with the programs or libraries have been found, and ACC
+          can hardly be blamed for failing to work perfectly with a
+          brand-new release they haven't even seen yet! :)
 
       <sect1>Are there any commercial X servers for some of the high-end
           graphics cards like the Matrox or &num;9 I-128, or offering
@@ -818,7 +825,7 @@ sea32550N|Seagate 32550N:\
               <url url="ftp://ftp.xinside.com/accelx/1.1/prodinfo.txt"
               name="Products information">
             <tag/or/
-              email &lt;<tt/info@xinside.com/&gt;
+              <url url="mailto:info@xinside.com" name="Info E-mail address">
             <tag/or/
               phone +1(303)384-9999
           </descrip>
@@ -827,9 +834,12 @@ sea32550N|Seagate 32550N:\
 
         <p>
           RenderMorphics, Ltd. sells a high-speed 3D rendering package for
-          FreeBSD called ``Reality Lab'' (tm).  Send email to
-          <tt/info@render.com/ or call: +44(0)71-251-4411 / FAX:
-          +44(0)71-251-0939
+          FreeBSD called ``Reality Lab'' (tm).
+
+          Send email to <url url="mailto:info@render.com"
+          name="info@render.com">
+
+          or call: +44(0)71-251-4411 / FAX: +44(0)71-251-0939
 
           This package is also for FreeBSD 1.1.5 but has been tested and
           shown to run under FreeBSD 2.0 with the ``<tt/compat1xdist/''
@@ -851,7 +861,7 @@ sea32550N|Seagate 32550N:\
 
         <p>
           First, get the XFree86(tm) distribution of X11R6 from
-          XFree86.cdrom.com The version you want for FreeBSD 2.X and
+          <tt/XFree86.cdrom.com/ The version you want for FreeBSD 2.X and
           later is <tt/XFree86 3.1.1/.  Follow the instructions for
           installation carefully. You may then wish to read the
           documentation for the <tt/ConfigXF86/ tool, which assists you in
@@ -905,7 +915,7 @@ sea32550N|Seagate 32550N:\
       <p>
       <sect1>Hey!  Chmod doesn't change the  file permissions of  symlinked
           files!  What's going on?
- 
+        <p>
           You have to use either ``<tt/-H/'' or ``<tt/-L/'' together with
           the ``<tt/-R/'' option to make this work.  See the <tt/chmod(1)/
           and <tt/symlink(7)/ man pages for more info.
@@ -947,7 +957,7 @@ sea32550N|Seagate 32550N:\
             mount -t cd9660 /dev/cd0c /mnt
           </verb>
 
-          Note that your device name (``<tt//dev/cd0c</tt>'' in this
+          Note that your device name (``<tt>/dev/cd0c</tt>'' in this
           example) could be different, depending on the CDROM interface.
           Note that the ``<tt/-t cd9660/'' option just causes the
           ``<tt/mount&lowbar;cd9660/'' command to be executed, and so the
@@ -964,7 +974,7 @@ sea32550N|Seagate 32550N:\
   
       <sect1>My programs occasionally die with ``Signal 11'' errors.
           What's going on?
- 
+        <p>
           This can be caused by bad hardware (memory, motherboard, etc.).
           Try running a memory-testing program on your PC.  Note that, even
           though every memory testing program you try will report your
@@ -1126,8 +1136,8 @@ sea32550N|Seagate 32550N:\
         <p>
           The entire process of creating installation disks and source and
           binary archives is automated by various targets in
-          <tt>/usr/src/etc/Makefile</tt>.  The information there should be
-          enough to get you started.
+          <tt>/usr/src/release/Makefile</tt>.  The information there should
+          be enough to get you started.
 
       <sect1>How do I re-build my system without clobbering the existing
           installed binaries?
@@ -1349,7 +1359,7 @@ disk        fd1   at fdc0 drive 1
           Several different groups have expressed interest in working on
           multi-architecture support for FreeBSD.  If you are interested in
           doing so, please contact the developers at
-          <tt>&lt;hackers@FreeBSD.ORG&gt;</tt> for more information on our
+          <tt>&lt;platforms@FreeBSD.ORG&gt;</tt> for more information on our
           strategy for porting.
 
       <sect1>I just wrote a device driver for a Foobar Systems, Inc.
@@ -1401,15 +1411,15 @@ disk        fd1   at fdc0 drive 1
           <verb>
             kbdcontrol -l uk.iso
           </verb>
+
           Both the <tt>/usr/share/syscons/keymaps</tt> and the <tt/.kbd/
           extension are assumed by <tt/kbdcontrol(1)/.
 
-          This could be run at boot time by adding the command to
-          <tt>/etc/rc.local</tt>
+          This can be configured in <tt>/etc/sysconfig</tt>. See the
+          appropriate comments in tis file.
 
-          <tt>/etc/rc.local</tt> also has a comment at the end of it
-          relating to loading fonts/keyboard examples. See
-          <tt>/usr/share/examples/syscons</tt>.
+          In 2.0.5R, everything related to text fonts, keyboard mapping is
+          in <tt>/usr/share/examples/syscons</tt>.
 
           The following mappings are currently supported:
           <itemize>
@@ -1419,6 +1429,7 @@ disk        fd1   at fdc0 drive 1
             <item>Russian
             <item>Swedish (both ISO and cp850),
             <item>U.K. (both ISO and cp850),
+            <item>Spain
             <item>U.S.A. (ISO only).
           </itemize>
       </sect1>
@@ -1430,7 +1441,11 @@ disk        fd1   at fdc0 drive 1
           having a local disk?
 
         <p>
-          Please read <tt>/sys/i386/boot/netboot/netboot.doc</tt>.
+          Please read the diskless section in the Handbook. It is in
+          <tt>/usr/share/doc/handbook</tt> or use the following WWW link:
+
+          <url url="http://www.FreeBSD.ORG/How/handbook/diskless.html"
+            name="Handbook's section on diskless boot">
 
       <sect1>I've heard that you can use a FreeBSD box as a dedicated
           network router - is there any easy support for this?
@@ -1439,12 +1454,17 @@ disk        fd1   at fdc0 drive 1
           Internet standards and good engineering practice prohibit us from
           providing packet forwarding by default in FreeBSD.  You can
           enable this support by adding ``<tt/options GATEWAY/'' to your
-          kernel configuration file and recompiling.  In most cases, you
-          will also need to run a routing process to tell other systems on
-          your network about your router; FreeBSD comes with the standard
-          BSD routing daemon <tt/routed(8)/, or for more complex situations
-          you may want to try <em/GaTeD/ (available by FTP from
-          <tt/gated.Cornell.edu/) which supports FreeBSD as of 3_5Alpha7.
+          kernel configuration file and recompiling.  
+
+          This kernel option will put the <tt/sysctl/ variable
+          <tt/net.inet.ip.forwarding/ to <tt/1/.
+
+          In most cases, you will also need to run a routing process to
+          tell other systems on your network about your router; FreeBSD
+          comes with the standard BSD routing daemon <tt/routed(8)/, or for
+          more complex situations you may want to try <em/GaTeD/ (available
+          by FTP from <tt/gated.Cornell.edu/) which supports FreeBSD as of
+          3_5Alpha7.
 
           It is our duty to warn you that, even when FreeBSD is configured
           in this way, it does not completely comply with the Internet
@@ -1462,6 +1482,13 @@ disk        fd1   at fdc0 drive 1
 
           <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/FAQ/Text/Slip.FAQ"
             name="SLIP FAQ">
+
+          You can also have a look at the SLIP/PPP/Use PPP sections of the
+          handbook in <tt>/usr/share/doc/handbook</tt> or use the following
+          link:
+
+          <url url="http://www.FreeBSD.ORG/How/handbook" name="FreeBSD's
+            Handbook">
 
       <sect1>How do I get my network set up? I don't see how to make my
           <tt>/dev/ed0</tt> device!
@@ -1780,7 +1807,7 @@ vat_nv_record	Recording tools for vat	ftp.sics.se:archive/vat_nv_record.tar.Z
           communication problem.  Try <tt/ATS7=45&amp;W/.
 
           Actually, as shipped <tt/tip/ doesn't yet support it fully. The
-          solution is to edit the file <tt/tipconf.h> in the directory
+          solution is to edit the file <tt/tipconf.h/ in the directory
           <tt>/usr/src/usr.bin/tip/tip</tt> Obviously you need the source
           distribution to do this.
 
