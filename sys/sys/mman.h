@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.1 (Berkeley) 6/2/93
- * $Id: mman.h,v 1.3 1994/08/02 15:06:58 davidg Exp $
+ * $Id: mman.h,v 1.4 1994/08/21 04:41:52 paul Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -61,6 +61,12 @@
 #define	MAP_INHERIT	 0x0080	/* region is retained after exec */
 #define	MAP_NOEXTEND	 0x0100	/* for MAP_FILE, don't change file size */
 #define	MAP_HASSEMAPHORE 0x0200	/* region may contain semaphores */
+
+/*
+ * msync() flags
+ */
+#define MS_ASYNC	0x0001	/* return immediately */
+#define MS_INVALIDATE	0x0002	/* invalidate all cached data */
 
 /*
  * Mapping type; default is map from file.
