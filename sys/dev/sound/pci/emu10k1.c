@@ -38,6 +38,7 @@
 
 #define EMU10K1_PCI_ID 	0x00021102
 #define EMU_BUFFSIZE	4096
+#define EMU_CHANS	4
 #undef EMUDEBUG
 
 struct emu_memblk {
@@ -55,7 +56,7 @@ struct emu_mem {
 
 struct emu_voice {
 	int vnum;
-	int b16:1, stereo:1, busy:1, running:1, ismaster:1, istracker:1;
+	int b16:1, stereo:1, busy:1, ismaster:1, istracker:1;
 	int speed;
 	int start, end, vol;
 	u_int32_t buf;
@@ -66,9 +67,17 @@ struct emu_voice {
 struct sc_info;
 
 /* channel registers */
-struct sc_chinfo {
-	int spd, dir, fmt;
+struct sc_pchinfo {
+	int spd, fmt, run;
 	struct emu_voice *master, *slave, *tracker;
+	snd_dbuf *buffer;
+	pcm_channel *channel;
+	struct sc_info *parent;
+};
+
+struct sc_rchinfo {
+	int spd, fmt, run, num;
+	u_int32_t idxreg, basereg, sizereg, setupreg, irqmask;
 	snd_dbuf *buffer;
 	pcm_channel *channel;
 	struct sc_info *parent;
@@ -88,9 +97,11 @@ struct sc_info {
 	int		regtype, regid, irqid;
 	void		*ih;
 
+	int pnum, rnum;
 	struct emu_mem mem;
 	struct emu_voice voice[64];
-	struct sc_chinfo pch, rch;
+	struct sc_pchinfo pch[EMU_CHANS];
+	struct sc_rchinfo rch[2];
 };
 
 /* -------------------------------------------------------------------- */
@@ -100,14 +111,24 @@ struct sc_info {
  */
 
 /* channel interface */
-static void *emuchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int emuchan_setdir(void *data, int dir);
-static int emuchan_setformat(void *data, u_int32_t format);
-static int emuchan_setspeed(void *data, u_int32_t speed);
-static int emuchan_setblocksize(void *data, u_int32_t blocksize);
-static int emuchan_trigger(void *data, int go);
-static int emuchan_getptr(void *data);
-static pcmchan_caps *emuchan_getcaps(void *data);
+static void *emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int emupchan_setdir(void *data, int dir);
+static int emupchan_setformat(void *data, u_int32_t format);
+static int emupchan_setspeed(void *data, u_int32_t speed);
+static int emupchan_setblocksize(void *data, u_int32_t blocksize);
+static int emupchan_trigger(void *data, int go);
+static int emupchan_getptr(void *data);
+static pcmchan_caps *emupchan_getcaps(void *data);
+
+/* channel interface */
+static void *emurchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
+static int emurchan_setdir(void *data, int dir);
+static int emurchan_setformat(void *data, u_int32_t format);
+static int emurchan_setspeed(void *data, u_int32_t speed);
+static int emurchan_setblocksize(void *data, u_int32_t blocksize);
+static int emurchan_trigger(void *data, int go);
+static int emurchan_getptr(void *data);
+static pcmchan_caps *emurchan_getcaps(void *data);
 
 /* talk to the codec - called from ac97.c */
 static u_int32_t emu_rdcd(void *, int);
@@ -132,10 +153,10 @@ static void emu_wr(struct sc_info *, int, u_int32_t, int);
 
 /* -------------------------------------------------------------------- */
 
-static pcmchan_caps emu_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static pcmchan_caps emu_reccaps[3] = {
+	{8000, 48000, AFMT_STEREO | AFMT_S16_LE, AFMT_STEREO | AFMT_S16_LE},
+	{8000, 8000, AFMT_U8, AFMT_U8},
+	{48000, 48000, AFMT_STEREO | AFMT_S16_LE, AFMT_STEREO | AFMT_S16_LE},
 };
 
 static pcmchan_caps emu_playcaps = {
@@ -145,15 +166,28 @@ static pcmchan_caps emu_playcaps = {
 };
 
 static pcm_channel emu_chantemplate = {
-	emuchan_init,
-	emuchan_setdir,
-	emuchan_setformat,
-	emuchan_setspeed,
-	emuchan_setblocksize,
-	emuchan_trigger,
-	emuchan_getptr,
-	emuchan_getcaps,
+	emupchan_init,
+	emupchan_setdir,
+	emupchan_setformat,
+	emupchan_setspeed,
+	emupchan_setblocksize,
+	emupchan_trigger,
+	emupchan_getptr,
+	emupchan_getcaps,
 };
+
+static pcm_channel emur_chantemplate = {
+	emurchan_init,
+	emurchan_setdir,
+	emurchan_setformat,
+	emurchan_setspeed,
+	emurchan_setblocksize,
+	emurchan_trigger,
+	emurchan_getptr,
+	emurchan_getcaps,
+};
+
+static int adcspeed[8] = {48000, 44100, 32000, 24000, 22050, 16000, 11025, 8000};
 
 /* -------------------------------------------------------------------- */
 /* Hardware */
@@ -271,6 +305,16 @@ emu_enastop(struct sc_info *sc, char channel, int enable)
 	emu_wrptr(sc, 0, reg, enable);
 }
 
+static int
+emu_recval(int speed) {
+	int val;
+
+	val = 0;
+	while (val < 7 && speed < adcspeed[val])
+		val++;
+	return val;
+}
+
 /* ac97 codec */
 static u_int32_t
 emu_rdcd(void *devinfo, int regno)
@@ -371,13 +415,16 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s, struct e
 	buf = emu_memalloc(sc, sz);
 	if (buf == NULL)
 		return -1;
+	if (c != NULL) {
+		c->buffer.buf = buf;
+		c->buffer.bufsize = sz;
+	}
 	m->start = emu_memstart(sc, buf) * EMUPAGESIZE;
 	m->end = m->start + sz;
 	m->channel = NULL;
 	m->speed = 0;
 	m->b16 = 0;
 	m->stereo = 0;
-	m->running = 0;
 	m->ismaster = 1;
 	m->istracker = 0;
 	m->vol = 0xff;
@@ -391,7 +438,6 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s, struct e
 		s->speed = 0;
 		s->b16 = 0;
 		s->stereo = 0;
-		s->running = 0;
 		s->ismaster = 0;
 		s->istracker = 0;
 		s->vol = m->vol;
@@ -406,7 +452,6 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s, struct e
 		t->speed = 0;
 		t->b16 = 0;
 		t->stereo = 0;
-		t->running = 0;
 		t->ismaster = 0;
 		t->istracker = 1;
 		t->vol = 0;
@@ -414,15 +459,11 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s, struct e
 		t->slave = NULL;
 		t->tracker = NULL;
 	}
-	if (c != NULL) {
-		c->buffer.buf = buf;
-		c->buffer.bufsize = sz;
-	}
 	return 0;
 }
 
 static void
-emu_vsetup(struct sc_chinfo *ch)
+emu_vsetup(struct sc_pchinfo *ch)
 {
 	struct emu_voice *v = ch->master;
 
@@ -520,6 +561,7 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, Z2, 0);
 
 	silent_page = ((u_int32_t)v->buf << 1) | (v->start / EMUPAGESIZE);
+	/* silent_page = ((u_int32_t)vtophys(sc->mem.silent_page) << 1) | MAP_PTI_MASK; */
 	emu_wrptr(sc, v->vnum, MAPA, silent_page);
 	emu_wrptr(sc, v->vnum, MAPB, silent_page);
 
@@ -579,9 +621,11 @@ emu_vtrigger(struct sc_info *sc, struct emu_voice *v, int go)
 static int
 emu_vpos(struct sc_info *sc, struct emu_voice *v)
 {
-	int s;
+	int s, ptr;
+
 	s = (v->b16? 1 : 0) + (v->stereo? 1 : 0);
-	return ((emu_rdptr(sc, v->vnum, CCCA_CURRADDR) >> s) - v->start);
+	ptr = (emu_rdptr(sc, v->vnum, CCCA_CURRADDR) << s) - v->start;
+	return ptr;
 }
 
 #ifdef EMUDEBUG
@@ -612,12 +656,13 @@ emu_vdump(struct sc_info *sc, struct emu_voice *v)
 
 /* channel interface */
 void *
-emuchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+emupchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
-	struct sc_chinfo *ch;
+	struct sc_pchinfo *ch;
 
-	ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
+	KASSERT(dir == PCMDIR_PLAY, ("emupchan_init: bad direction"));
+	ch = &sc->pch[sc->pnum++];
 	ch->buffer = b;
 	ch->parent = sc;
 	ch->channel = c;
@@ -631,42 +676,39 @@ emuchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-emuchan_setdir(void *data, int dir)
+emupchan_setdir(void *data, int dir)
 {
-	struct sc_chinfo *ch = data;
-
-	ch->dir = dir;
 	return 0;
 }
 
 static int
-emuchan_setformat(void *data, u_int32_t format)
+emupchan_setformat(void *data, u_int32_t format)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 
 	ch->fmt = format;
 	return 0;
 }
 
 static int
-emuchan_setspeed(void *data, u_int32_t speed)
+emupchan_setspeed(void *data, u_int32_t speed)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 
 	ch->spd = speed;
 	return ch->spd;
 }
 
 static int
-emuchan_setblocksize(void *data, u_int32_t blocksize)
+emupchan_setblocksize(void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 static int
-emuchan_trigger(void *data, int go)
+emupchan_trigger(void *data, int go)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 	struct sc_info *sc  = ch->parent;
 
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
@@ -684,25 +726,172 @@ emuchan_trigger(void *data, int go)
 		emu_vdump(sc, ch->slave);
 #endif
 	}
-	emu_vtrigger(sc, ch->master, (go == PCMTRIG_START)? 1 : 0);
+	ch->run = (go == PCMTRIG_START)? 1 : 0;
+	emu_vtrigger(sc, ch->master, ch->run);
 	return 0;
 }
 
 static int
-emuchan_getptr(void *data)
+emupchan_getptr(void *data)
 {
-	struct sc_chinfo *ch = data;
+	struct sc_pchinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 
 	return emu_vpos(sc, ch->master);
 }
 
 static pcmchan_caps *
-emuchan_getcaps(void *data)
+emupchan_getcaps(void *data)
 {
-	struct sc_chinfo *ch = data;
+	return &emu_playcaps;
+}
 
-	return (ch->dir == PCMDIR_PLAY)? &emu_playcaps : &emu_reccaps;
+/* channel interface */
+static void *
+emurchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+{
+	struct sc_info *sc = devinfo;
+	struct sc_rchinfo *ch;
+
+	KASSERT(dir == PCMDIR_REC, ("emupchan_init: bad direction"));
+	ch = &sc->rch[sc->rnum];
+	ch->buffer = b;
+	ch->buffer->bufsize = EMU_BUFFSIZE;
+	ch->parent = sc;
+	ch->channel = c;
+	ch->fmt = AFMT_U8;
+	ch->spd = 8000;
+	ch->num = sc->rnum;
+	switch(sc->rnum) {
+	case 0:
+		ch->idxreg = ADCIDX;
+		ch->basereg = ADCBA;
+		ch->sizereg = ADCBS;
+		ch->setupreg = ADCCR;
+		ch->irqmask = INTE_ADCBUFENABLE;
+		break;
+
+	case 1:
+		ch->idxreg = MICIDX;
+		ch->basereg = MICBA;
+		ch->sizereg = MICBS;
+		ch->setupreg = 0;
+		ch->irqmask = INTE_MICBUFENABLE;
+		break;
+
+	case 2:
+		ch->idxreg = FXIDX;
+		ch->basereg = FXBA;
+		ch->sizereg = FXBS;
+		ch->setupreg = FXWC;
+		ch->irqmask = INTE_EFXBUFENABLE;
+		break;
+	}
+	sc->rnum++;
+	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+		return NULL;
+	else {
+		emu_wrptr(sc, 0, ch->basereg, vtophys(ch->buffer->buf));
+		emu_wrptr(sc, 0, ch->sizereg, 0); /* off */
+		return ch;
+	}
+}
+
+static int
+emurchan_setdir(void *data, int dir)
+{
+	return 0;
+}
+
+static int
+emurchan_setformat(void *data, u_int32_t format)
+{
+	struct sc_rchinfo *ch = data;
+
+	ch->fmt = format;
+	return 0;
+}
+
+static int
+emurchan_setspeed(void *data, u_int32_t speed)
+{
+	struct sc_rchinfo *ch = data;
+
+	if (ch->num == 0)
+		speed = adcspeed[emu_recval(speed)];
+	if (ch->num == 1)
+		speed = 8000;
+	if (ch->num == 2)
+		speed = 48000;
+	ch->spd = speed;
+	return ch->spd;
+}
+
+static int
+emurchan_setblocksize(void *data, u_int32_t blocksize)
+{
+	return blocksize;
+}
+
+/* semantic note: must start at beginning of buffer */
+static int
+emurchan_trigger(void *data, int go)
+{
+	struct sc_rchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+	u_int32_t val;
+
+	switch(go) {
+	case PCMTRIG_START:
+		ch->run = 1;
+		emu_wrptr(sc, 0, ch->sizereg, ADCBS_BUFSIZE_4096);
+		if (ch->num == 0) {
+			val = ADCCR_LCHANENABLE;
+			if (ch->fmt & AFMT_STEREO)
+				val |= ADCCR_RCHANENABLE;
+			val |= emu_recval(ch->spd);
+			emu_wrptr(sc, 0, ch->setupreg, val);
+		}
+		val = emu_rd(sc, INTE, 4);
+		val |= ch->irqmask;
+		emu_wr(sc, INTE, val, 4);
+		break;
+
+	case PCMTRIG_STOP:
+	case PCMTRIG_ABORT:
+		ch->run = 0;
+		emu_wrptr(sc, 0, ch->sizereg, 0);
+		if (ch->setupreg)
+			emu_wrptr(sc, 0, ch->setupreg, 0);
+		val = emu_rd(sc, INTE, 4);
+		val &= ~ch->irqmask;
+		emu_wr(sc, INTE, val, 4);
+		break;
+
+	case PCMTRIG_EMLDMAWR:
+	case PCMTRIG_EMLDMARD:
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int
+emurchan_getptr(void *data)
+{
+	struct sc_rchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
+
+	return emu_rdptr(sc, 0, ch->idxreg) & 0x0000ffff;
+}
+
+static pcmchan_caps *
+emurchan_getcaps(void *data)
+{
+	struct sc_rchinfo *ch = data;
+
+	return &emu_reccaps[ch->num];
 }
 
 /* The interrupt handler */
@@ -710,35 +899,83 @@ static void
 emu_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
-	u_int32_t stat, i;
+	u_int32_t stat, ack, i;
 
-	do {
+	while (1) {
 		stat = emu_rd(sc, IPR, 4);
+		if (stat == 0)
+			break;
+		ack = 0;
 
 		/* process irq */
-		for (i = 0; i < 64; i++) {
-			if (emu_testint(sc, i)) {
-				if (sc->voice[i].channel)
-					chn_intr(sc->voice[i].channel);
-				else
-					device_printf(sc->dev, "bad irq voice %d\n", i);
-				emu_clrint(sc, i);
+		if (stat & IPR_CHANNELLOOP) {
+			ack |= IPR_CHANNELLOOP | (stat & IPR_CHANNELNUMBERMASK);
+			for (i = 0; i < 64; i++) {
+				if (emu_testint(sc, i)) {
+					if (sc->voice[i].channel)
+						chn_intr(sc->voice[i].channel);
+					else {
+						device_printf(sc->dev, "bad irq voice %d\n", i);
+						emu_enaint(sc, i, 0);
+					}
+					emu_clrint(sc, i);
+				}
 			}
 		}
 
+		if (stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL)) {
+			ack |= stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL);
+			if (sc->rch[0].channel)
+				chn_intr(sc->rch[0].channel);
+		}
+		if (stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL)) {
+			ack |= stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL);
+			if (sc->rch[1].channel)
+				chn_intr(sc->rch[1].channel);
+		}
+		if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
+			ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
+			if (sc->rch[2].channel)
+				chn_intr(sc->rch[2].channel);
+		}
+		if (stat & IPR_PCIERROR) {
+			ack |= IPR_PCIERROR;
+			device_printf(sc->dev, "pci error\n");
+		}
+
+		if (stat & ~ack)
+			device_printf(sc->dev, "dodgy irq: %x\n", stat & ~ack);
+
 		emu_wr(sc, IPR, stat, 4);
-	} while (stat);
+	}
 }
 
 /* -------------------------------------------------------------------- */
 
+static void
+emu_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
+{
+	void **phys = arg;
+
+	*phys = error? 0 : (void *)segs->ds_addr;
+
+	if (bootverbose) {
+		printf("emu: setmap (%lx, %lx), nseg=%d, error=%d\n",
+		       (unsigned long)segs->ds_addr, (unsigned long)segs->ds_len,
+		       nseg, error);
+	}
+}
+
 static void *
 emu_malloc(struct sc_info *sc, u_int32_t sz)
 {
-	void *buf;
+	void *buf, *phys = 0;
 	bus_dmamap_t map;
 
 	if (bus_dmamem_alloc(sc->parent_dmat, &buf, BUS_DMA_NOWAIT, &map))
+		return NULL;
+	if (bus_dmamap_load(sc->parent_dmat, map, buf, sz, emu_setmap, &phys, 0)
+	    || !phys)
 		return NULL;
 	return buf;
 }
@@ -950,7 +1187,7 @@ emu_init(struct sc_info *sc)
 	emu_wrptr(sc, 0, ADCBA, 0);
 
 	/* disable channel interrupt */
-	emu_wr(sc, INTE, DISABLE, 4);
+	emu_wr(sc, INTE, INTE_SAMPLERATETRACKER | INTE_PCIERRORENABLE, 4);
 	emu_wrptr(sc, 0, CLIEL, 0);
 	emu_wrptr(sc, 0, CLIEH, 0);
 	emu_wrptr(sc, 0, SOLEL, 0);
@@ -991,8 +1228,10 @@ emu_init(struct sc_info *sc)
 
 		sc->voice[ch].vnum = ch;
 		sc->voice[ch].slave = NULL;
+		sc->voice[ch].tracker = NULL;
 		sc->voice[ch].busy = 0;
-		sc->voice[ch].running = 0;
+		sc->voice[ch].ismaster = 0;
+		sc->voice[ch].istracker = 0;
 		sc->voice[ch].b16 = 0;
 		sc->voice[ch].stereo = 0;
 		sc->voice[ch].speed = 0;
@@ -1000,6 +1239,7 @@ emu_init(struct sc_info *sc)
 		sc->voice[ch].end = 0;
 		sc->voice[ch].channel = NULL;
        }
+       sc->pnum = sc->rnum = 0;
 
 	/*
 	 *  Init to 0x02109204 :
@@ -1111,6 +1351,7 @@ emu_pci_attach(device_t dev)
 	}
 
 	bzero(sc, sizeof(*sc));
+	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
 	sc->rev = pci_get_revid(dev);
 
@@ -1120,7 +1361,6 @@ emu_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	mapped = 0;
-	/* Xemu dfr: is this strictly necessary? */
 	for (i = 0; (mapped == 0) && (i < PCI_MAXMAPS_0); i++) {
 		sc->regid = PCIR_MAPS + i*4;
 		sc->regtype = SYS_RES_MEMORY;
@@ -1176,9 +1416,11 @@ emu_pci_attach(device_t dev)
 		 (sc->regtype == SYS_RES_IOPORT)? "io" : "memory",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq));
 
-	if (pcm_register(dev, sc, 1, 0)) goto bad;
-	pcm_addchan(dev, PCMDIR_PLAY, &emu_chantemplate, sc);
-	/* pcm_addchan(dev, PCMDIR_REC, &emu_chantemplate, sc); */
+	if (pcm_register(dev, sc, EMU_CHANS, 3)) goto bad;
+	for (i = 0; i < EMU_CHANS; i++)
+		pcm_addchan(dev, PCMDIR_PLAY, &emu_chantemplate, sc);
+	for (i = 0; i < 3; i++)
+		pcm_addchan(dev, PCMDIR_REC, &emur_chantemplate, sc);
 
 	pcm_setstatus(dev, status);
 
@@ -1209,3 +1451,43 @@ static driver_t emu_driver = {
 static devclass_t pcm_devclass;
 
 DRIVER_MODULE(emu, pci, emu_driver, pcm_devclass, 0, 0);
+
+static int
+emujoy_pci_probe(device_t dev)
+{
+	char *s = NULL;
+
+	switch (pci_get_devid(dev)) {
+	case 0x70021102:
+		s = "Creative EMU10K1 Joystick";
+		device_quiet(dev);
+		break;
+	}
+
+	if (s) device_set_desc(dev, s);
+	return s? 0 : ENXIO;
+}
+
+static int
+emujoy_pci_attach(device_t dev)
+{
+	return 0;
+}
+
+static device_method_t emujoy_methods[] = {
+	DEVMETHOD(device_probe,		emujoy_pci_probe),
+	DEVMETHOD(device_attach,	emujoy_pci_attach),
+
+	{ 0, 0 }
+};
+
+static driver_t emujoy_driver = {
+	"emujoy",
+	emujoy_methods,
+	8,
+};
+
+static devclass_t emujoy_devclass;
+
+DRIVER_MODULE(emujoy, pci, emujoy_driver, emujoy_devclass, 0, 0);
+
