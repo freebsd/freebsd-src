@@ -1276,6 +1276,8 @@ send_recv(dst, type, code, tries, save, callback)
 	 * Wait for response, discarding false alarms
 	 */
 	while (TRUE) {
+	    if (igmp_socket >= FD_SETSIZE)
+		    log(LOG_ERR, 0, "descriptor too big");
 	    FD_ZERO(&fds);
 	    FD_SET(igmp_socket, &fds);
 	    gettimeofday(&tv, 0);
