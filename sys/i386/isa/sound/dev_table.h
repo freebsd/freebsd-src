@@ -111,6 +111,7 @@ struct dma_buffparms {
 	int             mapping_flags;
 #define			DMA_MAP_MAPPED		0x00000001
 	char            neutral_byte;
+        int             dma_chan;
 };
 
 /*
