@@ -26,27 +26,24 @@
 .\" $FreeBSD$
 .\"
 .Dd March 10, 2001
-.Dt ACL_GET_PERMSET 3
+.Dt ACL_SET_PERMSET 3
 .Os
 .Sh NAME
-.Nm acl_get_permset
-.Nd Retrieve permset from an ACL entry
+.Nm acl_set_permset
+.Nd set the permissions of an ACL entry
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
 .Ft int
-.Fn acl_get_permset "acl_entry_t entry_d" "acl_permset_t *permset_p"
+.Fn acl_set_permset "acl_entry_t entry_d" "acl_permset_t permset_d"
 .Sh DESCRIPTION
-.Fn acl_get_permset
-is a POSIX.1e call that returns via
-.Ar permset_p
-a descriptor to the permission set in the ACL entry
-.Ar entry_d .
-Subsequent operations using the returned permission set operate
-on the permission set within the ACL entry.
-.Ar perm .
+.Fn acl_set_permset
+is a POSIX.1e call that sets the permissions of ACL entry
+.Fa entry_d
+with the permissions contained in
+.Fa permset_d .
 .Sh RETURN VALUES
 Upon successful completion, the function will return a value of
 .Va 0 .
@@ -57,7 +54,7 @@ will be returned, and
 will be set to indicate the error.
 .Sh ERRORS
 If the following condition occurs, the
-.Fn acl_get_permset
+.Fn acl_set_permset
 function will return a value of
 .Va -1
 and set
@@ -66,7 +63,7 @@ to the corresponding value:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar entry_d
+.Fa entry_d
 is not a valid descriptor for an ACL entry.
 .El
 .Sh SEE ALSO
@@ -74,7 +71,7 @@ is not a valid descriptor for an ACL entry.
 .Xr acl_add_perm 3 ,
 .Xr acl_clear_perms 3 ,
 .Xr acl_delete_perm 3 ,
-.Xr acl_set_permset 3 ,
+.Xr acl_get_permset 3 ,
 .Xr posix1e 3
 .Sh STANDARDS
 POSIX.1e is described in IEEE POSIX.1e draft 17.
@@ -82,11 +79,11 @@ POSIX.1e is described in IEEE POSIX.1e draft 17.
 POSIX.1e support was introduced in
 .Fx 4.0 .
 The
-.Fn acl_get_permset
+.Fn acl_set_permset
 function was added in
 .Fx 5.0 .
 .Sh AUTHORS
 The
-.Fn acl_get_permset
+.Fn acl_set_permset
 function was written by
 .An Chris D. Faulhaber Aq jedgar@fxp.org .

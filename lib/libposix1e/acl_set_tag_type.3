@@ -26,26 +26,24 @@
 .\" $FreeBSD$
 .\"
 .Dd March 10, 2001
-.Dt ACL_GET_TAG_TYPE 3
+.Dt ACL_SET_TAG_TYPE 3
 .Os
 .Sh NAME
-.Nm acl_get_tag_type
-.Nd Calculate and set ACL mask permissions
+.Nm acl_set_tag_type
+.Nd set the tag type of an ACL entry
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
 .Ft int
-.Fn acl_get_tag_type "acl_entry_t entry_d, acl_tag_t *tag_type_p"
+.Fn acl_set_tag_type "acl_entry_t entry_d" "acl_tag_t tag_type"
 .Sh DESCRIPTION
-.Fn acl_get_tag_type
-is a POSIX.1e call that returs the tag type for the ACL entry
-.Ar entry_d .
-Upon successful completion, the location referred to by the argument
-.Ar tag_type_p
-shall be set to the tag type of the ACL entry
-.Ar entry_d .
+.Fn acl_set_tag_type
+is a POSIX.1e call that sets the ACL tag type of ACL entry
+.Fa entry_d
+to the value of
+.Fa tag_type .
 .Sh RETURN VALUES
 Upon successful completion, the function will return a value of
 .Va 0 .
@@ -56,7 +54,7 @@ will be returned, and
 will be set to indicate the error.
 .Sh ERRORS
 If any of the following conditions occur, the
-.Fn acl_get_tag_type
+.Fn acl_set_tag_type
 function will return a value of
 .Va -1
 and set
@@ -65,8 +63,10 @@ to the corresponding value:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar entry_d
-is not a valid descriptor for an ACL entry;
+.Fa entry_d
+is not a valid descriptor for an ACL entry.  Argument
+.Fa tag_type
+is not a valid ACL tag type.
 .El
 .Sh SEE ALSO
 .Xr acl 3 ,
@@ -78,11 +78,11 @@ POSIX.1e is described in IEEE POSIX.1e draft 17.
 POSIX.1e support was introduced in
 .Fx 4.0 .
 The
-.Fn acl_get_tag_type
+.Fn acl_set_tag_type
 function was added in
 .Fx 5.0 .
 .Sh AUTHORS
 The
-.Fn acl_get_tag_type
+.Fn acl_set_tag_type
 function was written by
 .An Chris D. Faulhaber Aq jedgar@fxp.org .
