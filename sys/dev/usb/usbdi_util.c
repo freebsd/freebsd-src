@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.c,v 1.13 1999/01/08 11:58:26 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.c,v 1.19 1999/08/22 20:12:40 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -43,6 +43,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/device.h>
 #if defined(__FreeBSD__)
 #include <sys/bus.h>
 #endif
@@ -76,7 +77,7 @@ usbd_get_desc(dev, type, index, len, desc)
 	USETW2(req.wValue, type, index);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, len);
-	return (usbd_do_request_flags(dev, &req, desc, USBD_SHORT_XFER_OK, NULL));
+	return (usbd_do_request(dev, &req, desc));
 }
 
 usbd_status
@@ -180,6 +181,36 @@ usbd_get_port_status(dev, port, ps)
 	USETW(req.wIndex, port);
 	USETW(req.wLength, sizeof *ps);
 	return (usbd_do_request(dev, &req, ps));
+}
+
+usbd_status
+usbd_clear_hub_feature(dev, sel)
+	usbd_device_handle dev;
+	int sel;
+{
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_WRITE_CLASS_DEVICE;
+	req.bRequest = UR_CLEAR_FEATURE;
+	USETW(req.wValue, sel);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	return (usbd_do_request(dev, &req, 0));
+}
+
+usbd_status
+usbd_set_hub_feature(dev, sel)
+	usbd_device_handle dev;
+	int sel;
+{
+	usb_device_request_t req;
+
+	req.bmRequestType = UT_WRITE_CLASS_DEVICE;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, sel);
+	USETW(req.wIndex, 0);
+	USETW(req.wLength, 0);
+	return (usbd_do_request(dev, &req, 0));
 }
 
 usbd_status
@@ -408,7 +439,7 @@ usbd_alloc_report_desc(ifc, descp, sizep, mem)
 	usbd_interface_handle ifc;
 	void **descp;
 	int *sizep;
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 	int mem;
 #elif defined(__FreeBSD__)
 	struct malloc_type *mem;
@@ -470,21 +501,20 @@ usbd_bulk_transfer_cb(reqh, priv, status)
 }
 
 usbd_status
-usbd_bulk_transfer(reqh, pipe, flags, buf, size, lbl)
+usbd_bulk_transfer(reqh, pipe, flags, timeout, buf, size, lbl)
 	usbd_request_handle reqh;
 	usbd_pipe_handle pipe;
 	u_int16_t flags;
+	u_int32_t timeout;
 	void *buf;
 	u_int32_t *size;
 	char *lbl;
 {
-	usbd_private_handle priv;
-	void *buffer;
 	usbd_status r;
 	int s, error;
 
 	r = usbd_setup_request(reqh, pipe, 0, buf, *size,
-			       flags, USBD_NO_TIMEOUT, usbd_bulk_transfer_cb);
+			       flags, timeout, usbd_bulk_transfer_cb);
 	if (r != USBD_NORMAL_COMPLETION)
 		return (r);
 	DPRINTFN(1, ("usbd_bulk_transfer: start transfer %d bytes\n", *size));
@@ -497,10 +527,11 @@ usbd_bulk_transfer(reqh, pipe, flags, buf, size, lbl)
 	error = tsleep((caddr_t)reqh, PZERO | PCATCH, lbl, 0);
 	splx(s);
 	if (error) {
+		DPRINTF(("usbd_bulk_transfer: tsleep=%d\n", error));
 		usbd_abort_pipe(pipe);
 		return (USBD_INTERRUPTED);
 	}
-	usbd_get_request_status(reqh, &priv, &buffer, size, &r);
+	usbd_get_request_status(reqh, 0, 0, size, &r);
 	DPRINTFN(1,("usbd_bulk_transfer: transferred %d\n", *size));
 	if (r != USBD_NORMAL_COMPLETION) {
 		DPRINTF(("usbd_bulk_transfer: error=%d\n", r));
@@ -509,3 +540,21 @@ usbd_bulk_transfer(reqh, pipe, flags, buf, size, lbl)
 	return (r);
 }
 
+void
+usb_detach_wait(dv)
+	bdevice *dv;
+{
+	DPRINTF(("usb_detach_wait: waiting for %s\n", USBDEVNAME(*dv)));
+	if (tsleep(dv, PZERO, "usbdet", hz * 60))
+		printf("usb_detach_wait: %s didn't detach\n",
+		        USBDEVNAME(*dv));
+	DPRINTF(("usb_detach_wait: %s done\n", USBDEVNAME(*dv)));
+}       
+
+void
+usb_detach_wakeup(dv)
+	bdevice *dv;
+{
+	DPRINTF(("usb_detach_wakeup: for %s\n", USBDEVNAME(*dv)));
+	wakeup(dv);
+}       

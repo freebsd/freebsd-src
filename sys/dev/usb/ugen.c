@@ -473,7 +473,8 @@ ugenread(dev, uio, flag)
 		while ((n = min(UGEN_BBSIZE, uio->uio_resid)) != 0) {
 			DPRINTFN(1, ("ugenread: start transfer %d bytes\n", n));
 			tn = n;
-			r = usbd_bulk_transfer(reqh, sce->pipeh, 0, buf, 
+			r = usbd_bulk_transfer(reqh, sce->pipeh, 0,
+					       UBSD_NO_TIMEOUT, buf,
 					       &tn, "ugenrb");
 			if (r != USBD_NORMAL_COMPLETION) {
 				if (r == USBD_INTERRUPTED)
@@ -538,7 +539,8 @@ ugenwrite(dev, uio, flag)
 			if (error)
 				break;
 			DPRINTFN(1, ("ugenwrite: transfer %d bytes\n", n));
-			r = usbd_bulk_transfer(reqh, sce->pipeh, 0, buf, 
+			r = usbd_bulk_transfer(reqh, sce->pipeh, 0,
+					       USBD_NO_TIMEOUT, buf, 
 					       &n, "ugenwb");
 			if (r != USBD_NORMAL_COMPLETION) {
 				if (r == USBD_INTERRUPTED)
