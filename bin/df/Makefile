@@ -11,4 +11,6 @@ CFLAGS+= -I${MOUNT}
 DPADD=	${LIBM}
 LDADD=	-lm
 
+WARNS=	2
+
 .include <bsd.prog.mk>
