@@ -51,6 +51,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <err.h>
 #if !defined(MAKE_BOOTSTRAP) && defined(BSD)
 #include <sys/cdefs.h>
 #else
@@ -108,7 +109,7 @@ typedef struct GNode {
     Boolean         make;      	/* TRUE if this target needs to be remade */
     enum {
 	UNMADE, BEINGMADE, MADE, UPTODATE, ERROR, ABORTED,
-	CYCLE, ENDCYCLE,
+	CYCLE, ENDCYCLE
     }	    	    made;    	/* Set to reflect the state of processing
 				 * on this node:
 				 *  UNMADE - Not examined yet
@@ -360,6 +361,8 @@ extern int debug;
 #endif /* __STDC__ */
 
 #define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
+#define ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
+#define ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
 
 /*
  * Since there are so many, all functions that return non-integer values are

@@ -156,9 +156,6 @@ signal(s, a)) ()
 #ifndef DEV_DEV_COMPARE
 # define DEV_DEV_COMPARE(a, b) ((a) == (b))
 #endif
-#define ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))
-#define ISDOTDOT(c) ((c)[0] == '.' && ISDOT(&((c)[1])))
-
 
 /* strrcpy():
  *	Like strcpy, going backwards and returning the new pointer
@@ -219,13 +216,13 @@ getwd(pathname)
 
 	/* open the parent directory */
 	if (stat(nextpathptr, &st_dotdot) == -1) {
-	    (void) sprintf(pathname,
+	    snprintf(pathname, sizeof(pathname),
 			    "getwd: Cannot stat directory \"%s\" (%s)",
 			    nextpathptr, strerror(errno));
 	    return (NULL);
 	}
 	if ((dp = opendir(nextpathptr)) == NULL) {
-	    (void) sprintf(pathname,
+	     snprintf(pathname, sizeof(pathname),
 			    "getwd: Cannot open directory \"%s\" (%s)",
 			    nextpathptr, strerror(errno));
 	    return (NULL);
@@ -248,7 +245,7 @@ getwd(pathname)
 		    continue;
 		(void) strcpy(cur_name_add, d->d_name);
 		if (lstat(nextpathptr, &st_next) == -1) {
-		    (void) sprintf(pathname, "getwd: Cannot stat \"%s\" (%s)",
+		    snprintf(pathname, sizeof(pathname), "getwd: Cannot stat \"%s\" (%s)",
 				    d->d_name, strerror(errno));
 		    (void) closedir(dp);
 		    return (NULL);
