@@ -5,6 +5,7 @@
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
+ * $FreeBSD$
  */
 
 /*
@@ -2178,7 +2179,8 @@ PP(pp_ucfirst)
 	else
 	    *s = toUPPER(*s);
     }
-
+    if (SvSMAGICAL(sv))
+	mg_set(sv);
     RETURN;
 }
 
@@ -2207,6 +2209,8 @@ PP(pp_lcfirst)
     }
 
     SETs(sv);
+    if (SvSMAGICAL(sv))
+	mg_set(sv);
     RETURN;
 }
 
@@ -2239,6 +2243,8 @@ PP(pp_uc)
 		*s = toUPPER(*s);
 	}
     }
+    if (SvSMAGICAL(sv))
+	mg_set(sv);
     RETURN;
 }
 
@@ -2271,6 +2277,8 @@ PP(pp_lc)
 		*s = toLOWER(*s);
 	}
     }
+    if (SvSMAGICAL(sv))
+	mg_set(sv);
     RETURN;
 }
 
@@ -2298,6 +2306,8 @@ PP(pp_quotemeta)
     else
 	sv_setpvn(TARG, s, len);
     SETs(TARG);
+    if (SvSMAGICAL(TARG))
+	mg_set(TARG);
     RETURN;
 }
 
