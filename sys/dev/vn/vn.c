@@ -326,7 +326,6 @@ vnstrategy(struct buf *bp)
 			nbp->b_proc = bp->b_proc;
 			nbp->b_iodone = vniodone;
 			nbp->b_vp = vp;
-			nbp->b_pfcent = (int) bp;	/* XXX */
 			nbp->b_rcred = vn->sc_cred;	/* XXX crdup? */
 			nbp->b_wcred = vn->sc_cred;	/* XXX crdup? */
 			nbp->b_dirtyoff = bp->b_dirtyoff;
