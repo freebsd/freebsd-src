@@ -36,7 +36,7 @@
 .Op Fl bh
 .Fl a Ar address
 .Fl c Ar channel
-.Fl t Ar tty
+.Op Fl t Ar tty
 .Sh DESCRIPTION
 The
 .Nm
@@ -47,9 +47,12 @@ server and
 .Ar channel .
 Once connection is established, the
 .Nm
-utility provides access to the server's remote serial port via
+utility provides access to the server's remote serial port via stdin/stdout
+or via
 .Xr pty 4
-interface.
+interface if
+.Fl t
+option was specified.
 .Pp
 The
 .Nm
@@ -87,6 +90,10 @@ the server.
 Display usage message and exit.
 .It Fl t Ar tty
 Slave pseudo tty name.
+If not set stdin/stdout will be used.
+This option is required if
+.Fl b
+option was specified.
 .El
 .Sh EXAMPLES
 .Dl "rfcomm_sppd -a 00:01:02:03:04:05 -c 1 -t /dev/ttyp1"
