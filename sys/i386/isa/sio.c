@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.147.2.5 1996/12/23 19:59:08 bde Exp $
+ *	$Id: sio.c,v 1.147.2.6 1997/01/29 21:41:02 bde Exp $
  */
 
 #include "opt_comconsole.h"
@@ -899,14 +899,15 @@ sioattach(isdp)
 	}
 #ifdef COM_ESP
 	if (com->esp) {
-		outb(iobase + com_fifo,
-		     FIFO_DMA_MODE | FIFO_ENABLE | FIFO_RCV_RST | FIFO_XMT_RST
-		     | FIFO_RX_MEDH);
-
-		/* Set 16550 compatibility mode. */
+		/*
+		 * Set 16550 compatibility mode.
+		 * We don't use the ESP_MODE_SCALE bit to increase the
+		 * fifo trigger levels because we can't handle large
+		 * bursts of input.
+		 * XXX flow control should be set in comparam(), not here.
+		 */
 		outb(com->esp_port + ESP_CMD1, ESP_SETMODE);
-		outb(com->esp_port + ESP_CMD2,
-		     ESP_MODE_SCALE | ESP_MODE_RTS | ESP_MODE_FIFO);
+		outb(com->esp_port + ESP_CMD2, ESP_MODE_RTS | ESP_MODE_FIFO);
 
 		/* Set RTS/CTS flow control. */
 		outb(com->esp_port + ESP_CMD1, ESP_SETFLOWTYPE);
@@ -1077,11 +1078,22 @@ open_top:
 				outb(iobase + com_fifo,
 				     FIFO_RCV_RST | FIFO_XMT_RST
 				     | com->fifo_image);
-				DELAY(100);
+				/*
+				 * XXX the delays are for superstitious
+				 * historical reasons.  It must be less than
+				 * the character time at the maximum
+				 * supported speed (87 usec at 115200 bps
+				 * 8N1).  Otherwise we might loop endlessly
+				 * if data is streaming in.  We used to use
+				 * delays of 100.  That usually worked
+				 * because DELAY(100) used to usually delay
+				 * for about 85 usec instead of 100.
+				 */
+				DELAY(50);
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
 					break;
 				outb(iobase + com_fifo, 0);
-				DELAY(100);
+				DELAY(50);
 				(void) inb(com->data_port);
 			}
 		}
@@ -1187,7 +1199,8 @@ comhardclose(com)
 	s = spltty();
 	com->poll = FALSE;
 	com->poll_output = FALSE;
-	com->do_timestamp = 0;
+	com->do_timestamp = FALSE;
+	com->do_dcd_timestamp = FALSE;
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 	{
 		outb(iobase + com_ier, 0);
@@ -1918,6 +1931,15 @@ comparam(tp, t)
 		 */
 		com->fifo_image = t->c_ospeed <= 4800
 				  ? FIFO_ENABLE : FIFO_ENABLE | FIFO_RX_HIGH;
+#ifdef COM_ESP
+		/*
+		 * The Hayes ESP card needs the fifo DMA mode bit set
+		 * in compatibility mode.  If not, it will interrupt
+		 * for each character received.
+		 */
+		if (com->esp)
+			com->fifo_image |= FIFO_DMA_MODE;
+#endif
 		outb(iobase + com_fifo, com->fifo_image);
 	}
 
@@ -2129,6 +2151,10 @@ siostop(tp, rw)
 	if (rw & FWRITE) {
 #ifdef COM_ESP_BUG_FIXED
 		if (com->hasfifo)
+#ifdef COM_ESP
+		    /* XXX avoid h/w bug. */
+		    if (!com->esp)
+#endif
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_XMT_RST | com->fifo_image);
@@ -2143,6 +2169,10 @@ siostop(tp, rw)
 	if (rw & FREAD) {
 #ifdef COM_ESP_BUG_FIXED
 		if (com->hasfifo)
+#ifdef COM_ESP
+		    /* XXX avoid h/w bug. */
+		    if (!com->esp)
+#endif
 			/* XXX does this flush everything? */
 			outb(com->iobase + com_fifo,
 			     FIFO_RCV_RST | com->fifo_image);
