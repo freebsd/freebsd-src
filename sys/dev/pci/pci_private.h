@@ -68,5 +68,7 @@ struct pci_devinfo *pci_read_device(device_t pcib, int b, int s, int f,
 		    size_t size);
 void		pci_print_verbose(struct pci_devinfo *dinfo);
 int		pci_freecfg(struct pci_devinfo *dinfo);
-
+void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
+					pcicfgregs *cfg);
+void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
 #endif /* _PCI_PRIVATE_H_ */
