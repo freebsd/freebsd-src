@@ -172,7 +172,7 @@ tapmodevent(mod, type, data)
 				ether_ifdetach(ifp, 1);
 				splx(s);
 				destroy_dev(tp->tap_dev);
-				FREE(tp, M_TAP);
+				free(tp, M_TAP);
 			}
 			else
 				unit ++;

@@ -393,7 +393,7 @@ bpfclose(dev, flags, fmt, p)
 	splx(s);
 	bpf_freed(d);
 	dev->si_drv1 = 0;
-	FREE(d, M_BPF);
+	free(d, M_BPF);
 
 	return (0);
 }
