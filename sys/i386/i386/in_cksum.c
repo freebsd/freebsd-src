@@ -411,5 +411,5 @@ in_cksum_finalize(psum)
 {
 	in_psum_t sum = psum;
 	REDUCE;
-	return (sum & 0xffff);
+	return (~sum & 0xffff);
 }
