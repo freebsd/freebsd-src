@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1994/08/26 19:11:14 wollman Exp $
+#	$Id: Makefile,v 1.12 1994/08/28 18:48:32 bde Exp $
 
 PROG=	ld.so
 SRCS=	mdprologue.S rtld.c malloc.c shlib.c etc.c md.c
@@ -19,9 +19,13 @@ INSTALLFLAGS+=	-fschg
 .PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
 
 $(PROG): ${OBJS} ${DPADD}
-	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDADD)
+	$(LD) -o $(PROG) $(LDFLAGS) $(OBJS) $(LDDESTDIR) $(LDADD)
 
 .S.o:
+.if defined(DESTDIR)
+	${CPP} -I${DESTDIR}/usr/include ${.IMPSRC} | ${AS} ${ASFLAGS} -o ${.TARGET} -
+.else
 	${CPP} ${.IMPSRC} | ${AS} ${ASFLAGS} -o ${.TARGET} -
+.endif
 
 .include <bsd.prog.mk>
