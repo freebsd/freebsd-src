@@ -522,7 +522,7 @@ loop:
 			vput(vp);
 			return (error);
 		}
-		ffs_load_inode(bp, ip, NULL, fs, ip->i_number);
+		ffs_load_inode(bp, ip, fs, ip->i_number);
 		ip->i_effnlink = ip->i_nlink;
 		brelse(bp);
 		vput(vp);
@@ -1303,7 +1303,13 @@ ffs_vget(mp, ino, flags, vpp)
 		*vpp = NULL;
 		return (error);
 	}
-	ffs_load_inode(bp, ip, M_FFSNODE, fs, ino);
+	if (ip->i_ump->um_fstype == UFS1)
+		MALLOC(ip->i_din1, struct ufs1_dinode *,
+		    sizeof(struct ufs1_dinode), M_FFSNODE, M_WAITOK);
+	else
+		MALLOC(ip->i_din2, struct ufs2_dinode *,
+		    sizeof(struct ufs2_dinode), M_FFSNODE, M_WAITOK);
+	ffs_load_inode(bp, ip, fs, ino);
 	if (DOINGSOFTDEP(vp))
 		softdep_load_inodeblock(ip);
 	else
