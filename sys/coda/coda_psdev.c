@@ -1,35 +1,35 @@
 /*
-
-            Coda: an Experimental Distributed File System
-                             Release 3.1
-
-          Copyright (c) 1987-1998 Carnegie Mellon University
-                         All Rights Reserved
-
-Permission  to  use, copy, modify and distribute this software and its
-documentation is hereby granted,  provided  that  both  the  copyright
-notice  and  this  permission  notice  appear  in  all  copies  of the
-software, derivative works or  modified  versions,  and  any  portions
-thereof, and that both notices appear in supporting documentation, and
-that credit is given to Carnegie Mellon University  in  all  documents
-and publicity pertaining to direct or indirect use of this code or its
-derivatives.
-
-CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
-SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
-FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
-DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
-RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
-ANY DERIVATIVE WORK.
-
-Carnegie  Mellon  encourages  users  of  this  software  to return any
-improvements or extensions that  they  make,  and  to  grant  Carnegie
-Mellon the rights to redistribute these changes without encumbrance.
-*/
-
-/* $Header: /afs/cs/project/coda-src/cvs/coda/kernel-src/vfs/freebsd/cfs/cfs_psdev.c,v 1.9 1998/08/28 18:12:17 rvb Exp $ */
-
-#define CTL_C
+ * 
+ *             Coda: an Experimental Distributed File System
+ *                              Release 3.1
+ * 
+ *           Copyright (c) 1987-1998 Carnegie Mellon University
+ *                          All Rights Reserved
+ * 
+ * Permission  to  use, copy, modify and distribute this software and its
+ * documentation is hereby granted,  provided  that  both  the  copyright
+ * notice  and  this  permission  notice  appear  in  all  copies  of the
+ * software, derivative works or  modified  versions,  and  any  portions
+ * thereof, and that both notices appear in supporting documentation, and
+ * that credit is given to Carnegie Mellon University  in  all  documents
+ * and publicity pertaining to direct or indirect use of this code or its
+ * derivatives.
+ * 
+ * CODA IS AN EXPERIMENTAL SOFTWARE SYSTEM AND IS  KNOWN  TO  HAVE  BUGS,
+ * SOME  OF  WHICH MAY HAVE SERIOUS CONSEQUENCES.  CARNEGIE MELLON ALLOWS
+ * FREE USE OF THIS SOFTWARE IN ITS "AS IS" CONDITION.   CARNEGIE  MELLON
+ * DISCLAIMS  ANY  LIABILITY  OF  ANY  KIND  FOR  ANY  DAMAGES WHATSOEVER
+ * RESULTING DIRECTLY OR INDIRECTLY FROM THE USE OF THIS SOFTWARE  OR  OF
+ * ANY DERIVATIVE WORK.
+ * 
+ * Carnegie  Mellon  encourages  users  of  this  software  to return any
+ * improvements or extensions that  they  make,  and  to  grant  Carnegie
+ * Mellon the rights to redistribute these changes without encumbrance.
+ * 
+ * 	@(#) src/sys/cfs/cfs_psdev.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
+ *  $Id: $
+ * 
+ */
 
 /* 
  * Mach Operating System
@@ -43,20 +43,19 @@ Mellon the rights to redistribute these changes without encumbrance.
  * University.  Contributers include David Steere, James Kistler, and
  * M. Satyanarayanan.  */
 
-/* ************************************************** */
-/* These routines define the psuedo device for communication between
+/* 
+ * These routines define the psuedo device for communication between
  * Coda's Venus and Minicache in Mach 2.6. They used to be in cfs_subr.c, 
  * but I moved them to make it easier to port the Minicache without 
  * porting coda. -- DCS 10/12/94
  */
 
-/* 
- * Renamed to cfs_psdev: pseudo-device driver.
- */
-
 /*
  * HISTORY
  * $Log: cfs_psdev.c,v $
+ * Revision 1.1.1.1  1998/08/29 21:14:52  rvb
+ * Very Preliminary Coda
+ *
  * Revision 1.9  1998/08/28 18:12:17  rvb
  * Now it also works on FreeBSD -current.  This code will be
  * committed to the FreeBSD -current and NetBSD -current
@@ -153,40 +152,28 @@ Mellon the rights to redistribute these changes without encumbrance.
 extern int cfsnc_initialized;    /* Set if cache has been initialized */
 
 #include <vcfs.h>
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/file.h>
-#ifdef	__FreeBSD_version
 #include <sys/ioccom.h>
-#else
-#include <sys/ioctl.h>
-#endif
-#ifdef	NetBSD1_3
 #include <sys/poll.h>
-#endif
-#ifdef	__FreeBSD_version
-#include <sys/poll.h>
-#else
-#include <sys/select.h>
-#endif
+#include <sys/conf.h>
 
 #include <cfs/coda.h>
 #include <cfs/cnode.h>
 #include <cfs/cfsnc.h>
 #include <cfs/cfsio.h>
 
+#define CTL_C
+
 int cfs_psdev_print_entry = 0;
 
-#ifdef __GNUC__
-#define ENTRY    \
-    if(cfs_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
-#else
-#define ENTRY
-#endif 
+#define ENTRY if(cfs_psdev_print_entry) myprintf(("Entered %s\n",__FUNCTION__))
 
 void vcfsattach(int n);
 int vc_nb_open(dev_t dev, int flag, int mode, struct proc *p);
@@ -194,11 +181,7 @@ int vc_nb_close (dev_t dev, int flag, int mode, struct proc *p);
 int vc_nb_read(dev_t dev, struct uio *uiop, int flag);
 int vc_nb_write(dev_t dev, struct uio *uiop, int flag);
 int vc_nb_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p);
-#if	defined(NetBSD1_3) || defined(__FreeBSD_version)
 int vc_nb_poll(dev_t dev, int events, struct proc *p);
-#else
-int vc_nb_select(dev_t dev, int flag, struct proc *p);
-#endif
 
 struct vmsg {
     struct queue vm_chain;
@@ -222,9 +205,6 @@ vcfsattach(n)
 {
 }
 
-/* 
- * These functions are written for NetBSD.
- */
 int 
 vc_nb_open(dev, flag, mode, p)    
     dev_t        dev;      
@@ -289,14 +269,6 @@ vc_nb_close (dev, flag, mode, p)
     if (mi->mi_rootvp) {
 	/* Let unmount know this is for real */
 	VTOC(mi->mi_rootvp)->c_flags |= C_UNMOUNTING;
-#ifdef	NEW_LOCKMGR
-#ifdef	__FreeBSD_version
-	/* dounmount is different ... probably wrong ... */
-#else
-	if (vfs_busy(mi->mi_vfsp, 0, 0))
-	    return (EBUSY);
-#endif
-#endif
 	cfs_unmounting(mi->mi_vfsp);
 	err = dounmount(mi->mi_vfsp, flag, p);
 	if (err)
@@ -523,7 +495,6 @@ vc_nb_ioctl(dev, cmd, addr, flag, p)
     }
 }
 
-#if	defined(NetBSD1_3) || defined(__FreeBSD_version)
 int
 vc_nb_poll(dev, events, p)         
     dev_t         dev;    
@@ -551,33 +522,6 @@ vc_nb_poll(dev, events, p)
     
     return(0);
 }
-#else
-int
-vc_nb_select(dev, flag, p)         
-    dev_t         dev;    
-    int           flag;   
-    struct proc  *p;
-{
-    register struct vcomm *vcp;
-    
-    ENTRY;
-    
-    if (minor(dev) >= NVCFS || minor(dev) < 0)
-	return(ENXIO);
-    
-    vcp = &cfs_mnttbl[minor(dev)].mi_vcomm;
-    
-    if (flag != FREAD)
-	return(0);
-    
-    if (!EMPTY(vcp->vc_requests))
-	return(1);
-    
-    selrecord(p, &(vcp->vc_selproc));
-    
-    return(0);
-}
-#endif
 
 /*
  * Statistics
@@ -593,7 +537,6 @@ struct cfs_clstat cfs_clstat;
  * (e.g. kill -9).  
  */
 
-/* If you want this to be interruptible, set this to > PZERO */
 int cfscall_sleep = PZERO - 1;
 #ifdef	CTL_C
 int cfs_pcatch = PCATCH;

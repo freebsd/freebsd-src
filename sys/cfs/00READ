@@ -1,8 +1,3 @@
-NOTE:	Please do not edit any files in this directory
-	until this NOTE is removed.
-	In the next week, I want to clear out all the 
-	platform and release #ifdefs from the code.
-
 NOTE:	The matching user level code has not been released
 	yet.  It will be available soon.  The existing released
 	Coda code is not quite ready for current.  We'll
@@ -14,8 +9,8 @@ BUG:	There is a bug in file mapping/executing.  When a file is
 	you can run the file just fine.  I haven't had time to look
 	for this problem yet.
 
-
-WARNING:A version of this code has run on stable for a while now.
+WARNING:
+	A version of this code has run on stable for a while now.
 	The code has been recently ported to current.  It is mostly
 	working, but hasn't been run long enough to be sure all the
 	bugs are sorted out.  Let me know if there are any problems.
