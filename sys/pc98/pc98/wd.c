@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.62 1998/09/14 19:56:40 sos Exp $
+ *	$Id: wd.c,v 1.63 1998/09/15 14:07:08 kato Exp $
  */
 
 /* TODO:
@@ -2407,7 +2407,7 @@ out:
 		while (blkcnt != 0) {
 			if (is_physical_memory((vm_offset_t)addr))
 				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
-					   trunc_page(addr), VM_PROT_READ, TRUE);
+					   trunc_page((vm_offset_t)addr), VM_PROT_READ, TRUE);
 			else
 				pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
 					   trunc_page(0), VM_PROT_READ, TRUE);
