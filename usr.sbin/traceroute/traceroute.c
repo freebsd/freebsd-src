@@ -1,6 +1,6 @@
 #ifndef lint
 static char *rcsid =
-    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.8 1996/08/17 10:37:28 peter Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/traceroute/traceroute.c,v 1.9 1996/08/21 04:31:28 peter Exp $ (LBL)";
 #endif
 
 /*
@@ -619,6 +619,15 @@ main(int argc, char **argv)
 					case ICMP_UNREACH_HOST_PROHIB:
 						++unreachable;
 						Printf(" !C");
+						break;
+					case ICMP_UNREACH_FILTER_PROHIB:
+						++unreachable;
+						Printf(" !F");
+						break;
+					default:	/* unknown */
+						Printf(" !<%d>", i - 1);
+						break;
+					case -2:	/* normal reply */
 						break;
 					}
 					break;
