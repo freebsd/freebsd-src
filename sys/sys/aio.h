@@ -123,37 +123,11 @@ int	aio_waitcomplete(struct aiocb **, struct timespec *);
 __END_DECLS
 
 #else
-/*
- * Job queue item
- */
-
-#define AIOCBLIST_CANCELLED     0x1
-#define AIOCBLIST_RUNDOWN       0x4
-#define AIOCBLIST_ASYNCFREE     0x8
-#define AIOCBLIST_DONE          0x10
-
-struct aiocblist {
-        TAILQ_ENTRY(aiocblist) list;	/* List of jobs */
-        TAILQ_ENTRY(aiocblist) plist;	/* List of jobs for proc */
-        int	jobflags;
-        int	jobstate;
-        int	inputcharge, outputcharge;
-	struct	callout_handle timeouthandle;
-        struct	buf *bp;		/* Buffer pointer */
-        struct	proc *userproc;		/* User process */ /* Not td! */
-        struct	file *fd_file;		/* Pointer to file structure */ 
-	struct	aiothreadlist *jobaiothread;  /* AIO process descriptor */
-        struct	aio_liojob *lio;	/* Optional lio job */
-        struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
-	struct	klist klist;		/* list of knotes */
-        struct	aiocb uaiocb;		/* Kernel I/O control block */
-};
 
 /* Forward declarations for prototypes below. */
 struct socket;
 struct sockbuf;
 
-void	aio_swake_cb(struct socket *, struct sockbuf *);
 extern void (*aio_swake)(struct socket *, struct sockbuf *);
 
 #endif
