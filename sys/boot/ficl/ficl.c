@@ -221,8 +221,10 @@ int ficlExec(FICL_VM *pVM, char *pText)
         break;
 
     case VM_OUTOFTEXT:
+#ifdef TESTMAIN
         if ((pVM->state != COMPILE) && (pVM->sourceID.i == 0))
             ficlTextOut(pVM, FICL_PROMPT, 0);
+#endif
         break;
 
     case VM_USEREXIT:
