@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.27 1997/12/22 13:46:08 eivind Exp $
+ * $Id: startslip.c,v 1.28 1998/06/28 20:40:51 bde Exp $
  */
 
 #ifndef lint
@@ -251,7 +251,8 @@ restart:
 		sleep(5);
 	}
 	if (logged_in) {
-		syslog(LOG_INFO, "%s: connection time elapsed: %ld secs", username, conn_time);
+		syslog(LOG_INFO, "%s: connection time elapsed: %ld secs",
+		    username, (long)conn_time);
 		sprintf(buf, "LINE=%d %s %s down",
 		diali ? (dialc - 1) % diali : 0,
 		downscript ? downscript : "/sbin/ifconfig" , unitname);

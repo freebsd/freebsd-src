@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mountd.c,v 1.32 1998/07/15 06:21:40 charnier Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -492,7 +492,7 @@ mntsrv(rqstp, transp)
 		else if (log)
 			syslog(LOG_NOTICE,
 			    "dump request succeeded from %s",
-			    inet_ntoa(saddrin), dirpath);
+			    inet_ntoa(saddrin));
 		return;
 	case RPCMNT_UMOUNT:
 		if (sport >= IPPORT_RESERVED && resvport_only) {
