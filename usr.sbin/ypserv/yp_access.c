@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yp_access.c,v 1.15 1997/10/29 07:25:02 charnier Exp $";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -147,7 +147,8 @@ void load_securenets()
 	while(fgets(linebuf, LINEBUFSZ, fp)) {
 		char addr1[20], addr2[20];
 
-		if (linebuf[0] == '#')
+		if ((linebuf[0] == '#')
+		    || (strspn(linebuf, " \t\r\n") == strlen(linebuf)))
 			continue;
 		if (sscanf(linebuf, "%s %s", addr1, addr2) < 2) {
 			yp_error("badly formatted securenets entry: %s",
