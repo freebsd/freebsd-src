@@ -8,6 +8,6 @@
 .error "The ACPI module is only for i386"
 .endif
 
-SUBDIR=		acpi acpi_asus acpi_panasonic acpi_sony acpi_toshiba acpi_video
+SUBDIR= acpi acpi_asus acpi_ibm acpi_panasonic acpi_sony acpi_toshiba acpi_video 
 
 .include <bsd.subdir.mk>
