@@ -304,6 +304,8 @@ main(int argc, char **argv)
   struct prompt *prompt;
   struct switches sw;
 
+  probe_Init();
+
   /*
    * We open 3 descriptors to ensure that STDIN_FILENO, STDOUT_FILENO and
    * STDERR_FILENO are always open.  These are closed before DoLoop(),
@@ -531,9 +533,6 @@ DoLoop(struct bundle *bundle)
 {
   fd_set *rfds, *wfds, *efds;
   int i, nfds, nothing_done;
-  struct probe probe;
-
-  probe_Init(&probe);
 
   if ((rfds = mkfdset()) == NULL) {
     log_Printf(LogERROR, "DoLoop: Cannot create fd_set\n");
