@@ -99,13 +99,16 @@ TGTS=	all all-man buildkernel buildworld checkdpadd clean \
 	libraries lint maninstall mk most obj objlink regress \
 	reinstallkernel rerelease tags update
 
+BITGTS=	files
+BITGTS:=${BITGTS} ${BITGTS:S/^/build/} ${BITGTS:S/^/install/}
+
 PATH=	/sbin:/bin:/usr/sbin:/usr/bin
 MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
 
 #
 # Handle the user-driven targets, using the source relative mk files.
 #
-${TGTS}: upgrade_checks
+${TGTS} ${BITGTS}: upgrade_checks
 	@cd ${.CURDIR}; \
 		${MAKE} ${.TARGET}
 
