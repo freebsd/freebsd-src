@@ -56,7 +56,7 @@
  * 28 Jul 93	Jordan K. Hubbard	Free codrv's slot again
  *
  */
-static char rcsid[] = "$Header: /freefall/a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.2 1993/07/30 00:57:06 jkh Exp $";
+static char rcsid[] = "$Header: /freefall/a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.3 1993/08/09 06:16:38 rgrimes Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -79,20 +79,6 @@ int	wddump(),wdsize();
 #define	wdioctl		enxio
 #define	wddump		enxio
 #define	wdsize		NULL
-#endif
-
-#include "as.h"
-#if NAS > 0
-int	asopen(),asclose(),asstrategy(),asioctl();
-int	/*asdump(),*/assize();
-#define	asdump		enxio
-#else
-#define	asopen		enxio
-#define	asclose		enxio
-#define	asstrategy	enxio
-#define	asioctl		enxio
-#define	asdump		enxio
-#define	assize		NULL
 #endif
 
 #include "sd.h"
@@ -187,13 +173,8 @@ struct bdevsw	bdevsw[] =
 	  fddump,	fdsize,		NULL },
 	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
 	  wtdump,	wtsize,		B_TAPE },
-#if NSD > 0
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
 	  sddump,	sdsize,		NULL },
-#else NSD > 0
-	{ asopen,	asclose,	asstrategy,	asioctl,	/*4*/
-	  asdump,	assize,		NULL },
-#endif NSD > 0
 	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
 	  stdump,	stsize,		NULL },
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
@@ -392,15 +373,9 @@ struct cdevsw	cdevsw[] =
 	{ pcopen,	pcclose,	pcread,		pcwrite,	/*12*/
 	  pcioctl,	nullop,		nullop,		&pccons, /* pc */
 	  ttselect,	pcmmap,		NULL },
-#if	NSD > 0
 	{ sdopen,	sdclose,	rawread,	rawwrite,	/*13*/
 	  sdioctl,	enodev,		nullop,		NULL,	/* sd */
 	  seltrue,	enodev,		sdstrategy },
-#else	NSD > 0
-	{ asopen,	asclose,	rawread,	rawwrite,	/*13*/
-	  asioctl,	enodev,		nullop,		NULL,	/* as */
-	  seltrue,	enodev,		asstrategy },
-#endif	NSD > 0
 	{ stopen,	stclose,	rawread,	rawwrite,	/*14*/
 	  stioctl,	enodev,		nullop,		NULL,	/* st */
 	  seltrue,	enodev,		ststrategy },
