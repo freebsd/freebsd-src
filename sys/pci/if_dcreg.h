@@ -1171,9 +1171,17 @@ struct dc_eblock_hdr {
 struct dc_eblock_sia {
 	struct dc_eblock_hdr	dc_sia_hdr;
 	u_int8_t		dc_sia_code;
-	u_int8_t		dc_sia_mediaspec[6]; /* CSR13, CSR14, CSR15 */
-	u_int8_t		dc_sia_gpio_ctl[2];
-	u_int8_t		dc_sia_gpio_dat[2];
+	union {
+		struct dc_sia_ext { /* if (dc_sia_code & DC_SIA_CODE_EXT) */
+			u_int8_t dc_sia_mediaspec[6]; /* CSR13, CSR14, CSR15 */
+			u_int8_t dc_sia_gpio_ctl[2];
+			u_int8_t dc_sia_gpio_dat[2];
+		} dc_sia_ext;
+		struct dc_sia_noext { 
+			u_int8_t dc_sia_gpio_ctl[2];
+			u_int8_t dc_sia_gpio_dat[2];
+		} dc_sia_noext;
+	} dc_un;
 };
 
 #define DC_SIA_CODE_10BT	0x00
