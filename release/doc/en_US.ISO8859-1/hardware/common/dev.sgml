@@ -1745,6 +1745,9 @@
 	<para>NEC Wireless Card CMZ-RT-WP</para>
 	</listitem>
 	<listitem>
+	<para>Netgear MA401</para>
+	</listitem>
+	<listitem>
 	<para>PLANEX GeoWave/GW-NS110</para>
 	</listitem>
 	<listitem>
@@ -1871,7 +1874,7 @@
     </para>
     <para arch="i386">Compaq Microcom 610 ISDN (Compaq series PSB2222I) ISA PnP</para>
     <para arch="i386">Dr. Neuhaus Niccy Go@ and compatibles</para>
-    <para arch="i386">Dynalink IS64PH</para>
+    <para arch="i386">Dynalink IS64PPH, IS64PPH+</para>
     <para arch="i386">Eicon Diehl DIVA 2.0 and 2.02</para>
     <para arch="i386">ELSA
       <itemizedlist>
