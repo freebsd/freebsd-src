@@ -13,6 +13,7 @@ CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${SRCDIR} -I${SRCDIR}/gas -I${SRCDIR}/gas/config
 DPADD=	${RELTOP}/libiberty/libiberty.a
 LDADD=	${DPADD}
+CLEANFILES= gasp+%FIXED.c
 
 gasp+%FIXED.c: gasp.c
 	sed -e 's|xregex\.h|gnuregex.h|g' ${.ALLSRC} >${.TARGET}
