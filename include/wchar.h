@@ -105,6 +105,7 @@ typedef	_BSD_WINT_T_	wint_t;
 #endif
 
 __BEGIN_DECLS
+wint_t	btowc(int);
 #if 0
 /* XXX: not implemented */
 size_t	mbrlen(const char * __restrict, size_t, mbstate_t * __restrict);
@@ -120,6 +121,8 @@ wchar_t	*wcschr(const wchar_t *, wchar_t);
 int	wcscmp(const wchar_t *, const wchar_t *);
 wchar_t	*wcscpy(wchar_t * __restrict, const wchar_t * __restrict);
 size_t	wcscspn(const wchar_t *, const wchar_t *);
+size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
+size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 size_t	wcslen(const wchar_t *);
 wchar_t	*wcsncat(wchar_t * __restrict, const wchar_t * __restrict,
 	    size_t);
@@ -134,22 +137,17 @@ size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 #endif
 size_t	wcsspn(const wchar_t *, const wchar_t *);
 wchar_t	*wcsstr(const wchar_t *, const wchar_t *);
-wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t);
-int	wmemcmp(const wchar_t *, const wchar_t *, size_t);
-wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
-wchar_t	*wmemmove(wchar_t *, const wchar_t *, size_t);
-wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
-
-size_t	wcslcat(wchar_t *, const wchar_t *, size_t);
-size_t	wcslcpy(wchar_t *, const wchar_t *, size_t);
 #if 0
 /* XXX: not implemented */
 int	wcswidth(const wchar_t *, size_t);
 int	wcwidth(wchar_t);
 #endif
-
 int	wctob(wint_t);
-wint_t	btowc(int);
+wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t);
+int	wmemcmp(const wchar_t *, const wchar_t *, size_t);
+wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
+wchar_t	*wmemmove(wchar_t *, const wchar_t *, size_t);
+wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
 __END_DECLS
 
 #endif /* !_WCHAR_H_ */
