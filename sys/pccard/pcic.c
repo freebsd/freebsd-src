@@ -854,7 +854,7 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 
 	switch(cmd) {
 	default:
-		return(EINVAL);
+		return(ENOTTY);
 	/*
 	 * Get/set PCIC registers
 	 */
