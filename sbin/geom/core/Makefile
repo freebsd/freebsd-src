@@ -10,6 +10,6 @@ DPADD=	${LIBGEOM} ${LIBSBUF} ${LIBBSDXML}
 LDADD=	-lgeom -lsbuf -lbsdxml
 WARNS?=	6
 CFLAGS+=-I${.CURDIR}/../../../sys -I${.CURDIR} -I${.CURDIR}/..
-CFLAGS+=-DCLASSDIR=\"${LIBDIR}\"
+CFLAGS+=-DCLASSDIR=\"${CLASSDIR}\"
 
 .include <bsd.prog.mk>

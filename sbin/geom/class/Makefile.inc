@@ -2,6 +2,7 @@
 
 .include "../Makefile.inc"
 
+LIBDIR?=${CLASSDIR}
 SHLIB_MAJOR=1
 
 SRCS=   geom_${CLASS}.c subr.c
