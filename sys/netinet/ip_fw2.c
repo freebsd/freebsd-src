@@ -3127,10 +3127,14 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_TEE:
 			if (ip_divert_ptr == NULL)
 				return EINVAL;
+			else
+				goto check_size;
 		case O_NETGRAPH:
 		case O_NGTEE:
 			if (!NG_IPFW_LOADED)
 				return EINVAL;
+			else
+				goto check_size;
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
@@ -3138,6 +3142,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_DENY:
 		case O_REJECT:
 		case O_SKIPTO:
+check_size:
 			if (cmdlen != F_INSN_SIZE(ipfw_insn))
 				goto bad_size;
 check_action:
