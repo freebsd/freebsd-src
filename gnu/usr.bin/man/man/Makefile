@@ -24,6 +24,8 @@ CFLAGS+= -DDO_COMPRESS -DALT_SYSTEMS -DSETREUID -DCATMODE=0644
 CLEANFILES+=	${MAN1}
 MANDEPEND+=	${MAN1}
 
+.PATH:	${.CURDIR}/../manpath
+
 ${MAN1}: ${.CURDIR}/man.man
 	@${ECHO} echo Making ${.TARGET:T} from ${.ALLSRC:T}; \
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
