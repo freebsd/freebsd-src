@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.11 1998/11/15 18:11:21 dfr Exp $
+ *	$Id: subr_bus.c,v 1.12 1998/12/12 11:30:04 n_hibma Exp $
  */
 
 #include <sys/param.h>
@@ -1453,8 +1453,6 @@ print_driver_list(driver_list_t drivers, int indent)
 static void
 print_devclass_short(devclass_t dc, int indent)
 {
-	device_t dev;
-
 	if ( !dc )
 		return;
 
