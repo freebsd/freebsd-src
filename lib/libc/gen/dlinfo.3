@@ -37,7 +37,7 @@
 .In link.h
 .In dlfcn.h
 .Ft int
-.Fn dlinfo "void * __restrict handle" "int request" "void * __restrict p"
+.Fn dlinfo "void * restrict handle" "int request" "void * restrict p"
 .Sh DESCRIPTION
 The
 .Fn dlinfo
@@ -50,154 +50,168 @@ argument depend on value of the
 .Fa request
 argument provided by caller.
 .Pp
-A
+The
 .Fa handle
-argument is either the value returned from a
-.Fn dlopen
+argument is either the value returned from the
+.Xr dlopen 3
 function call or special handle
 .Dv RTLD_SELF .
-If handle is the value returned from
-.Fn dlopen
-call, the information returned by the
+If
+.Fa handle
+is the value returned from
+.Xr dlopen 3 ,
+the information returned by the
 .Fn dlinfo
-function is pertains the specified object.
+function pertains to the specified object.
 If handle is the special handle
 .Dv RTLD_SELF ,
 the information returned pertains to the caller itself.
 .Pp
-The following are possible values for
+Possible values for the
 .Fa request
-argument to be passed into
-.Fn dlinfo :
-.Bl -tag -width Ds
-.It RTLD_DI_LINKMAP
-Retrieve the Link_map (or
-.Ft struct link_map )
-structure pointer for
-.Fa handle
-specified.
-On successful return the
+argument are:
+.Bl -tag -width indent
+.It Dv RTLD_DI_LINKMAP
+Retrieve the
+.Vt Link_map
+.Pq Vt "struct link_map"
+structure pointer for the specified
+.Fa handle .
+On successful return, the
 .Fa p
-argument is filled with pointer to Link_map structure
-.Ft ( Link_map **p )
-describing shared object specified by
+argument is filled with the pointer to the
+.Vt Link_map
+structure
+.Pq Fa "Link_map **p"
+describing a shared object specified by the
 .Fa handle
 argument.
-.Ft Link_map
-stuctures are maintained as double-linked list by
-.Xr ld.so 1 
-in same order as
-.Fn dlopen
+The
+.Vt Link_map
+stuctures are maintained as a doubly linked list by
+.Xr ld.so 1 ,
+in the same order as
+.Xr dlopen 3
 and
-.Fn dlclose
+.Xr dlclose 3
 are called.
 See
-.Sx EXAMPLES
-(Example 1.)
+.Sx EXAMPLES ,
+example 1.
 .Pp
 The
-.Ft Link_map
-structure is defined in <link.h> and have following members:
-.Pp
-.Bd -literal
-  caddr_t         l_addr;    /* Base Address of library */
-  const char      *l_name;   /* Absolute Path to Library */
-  const void      *l_ld;     /* Pointer to .dynamic in memory */
-  struct link_map *l_next,   /* linked list of of mapped libs */
-                  *l_prev;     
+.Vt Link_map
+structure is defined in
+.Aq Pa link.h
+and has the following members:
+.Bd -literal -offset indent
+caddr_t         l_addr;    /* Base Address of library */
+const char      *l_name;   /* Absolute Path to Library */
+const void      *l_ld;     /* Pointer to .dynamic in memory */
+struct link_map *l_next,   /* linked list of mapped libs */
+                *l_prev;
 .Ed
-.Bl -tag -width Ds
-.It l_addr
+.Bl -tag -width ".Va l_addr"
+.It Va l_addr
 The base address of the object loaded into memory.
-.It l_name
-The full name of loaded shared object.
-.It l_ld
-The address of dynamic linking information segment
-.Dv ( PT_DYNAMIC )
+.It Va l_name
+The full name of the loaded shared object.
+.It Va l_ld
+The address of the dynamic linking information segment
+.Pq Dv PT_DYNAMIC
 loaded into memory.
-.It l_next
-The next Link_map structure on the link-map list.
-.It l_prev
-The previous Link_map structure on the link-map list.
+.It Va l_next
+The next
+.Vt Link_map
+structure on the link-map list.
+.It Va l_prev
+The previous
+.Vt Link_map
+structure on the link-map list.
 .El
-.It RTLD_DI_SERINFO
-Retrieve the library search paths associated with given
+.It Dv RTLD_DI_SERINFO
+Retrieve the library search paths associated with the given
 .Fa handle
 argument.
 The
 .Fa p
 argument should point to
-.Ft Dl_serinfo
+.Vt Dl_serinfo
 structure buffer
-.Fa ( Dl_serinfo *p ) .
-.Ft Dl_serinfo
-structure must be initialized first with a
+.Pq Fa "Dl_serinfo *p" .
+The
+.Vt Dl_serinfo
+structure must be initialized first with the
 .Dv RTLD_DI_SERINFOSIZE
 request.
 .Pp
 The returned
-.Ft Dl_serinfo
+.Vt Dl_serinfo
 structure contains
-.Dv dls_cnt
-.Ft Dl_serpath
+.Va dls_cnt
+.Vt Dl_serpath
 entries.
 Each entry's
-.Dv dlp_name
+.Va dlp_name
 field points to the search path.
 The corresponding
-.Dv dlp_info
+.Va dlp_info
 field contains one of more flags indicating the origin of the path (see the
 .Dv LA_SER_*
-flags defined in <link.h> header file.)
+flags defined in the
+.Aq Pa link.h
+header file).
 See
-.Sx EXAMPLES
-(Example 2) for usage example.
-.It RTLD_DI_SERINFOSIZE
+.Sx EXAMPLES ,
+example 2, for a usage example.
+.It Dv RTLD_DI_SERINFOSIZE
 Initialize a
-.Ft Dl_serinfo
+.Vt Dl_serinfo
 structure for use in a
 .Dv RTLD_DI_SERINFO
 request.
 Both the
-.Dv dls_cnt
+.Va dls_cnt
 and
-.Dv dls_size
+.Va dls_size
 fields are returned to indicate the number of search paths applicable
 to the handle, and the total size of a
-.Ft Dl_serinfo
+.Vt Dl_serinfo
 buffer required to hold
-.Dv dls_cnt
-.Ft Dl_serpath
+.Va dls_cnt
+.Vt Dl_serpath
 entries and the associated search path strings.
 See
-.Sx EXAMPLES
-(Example 2) for usage example.
-.It RTLD_DI_ORIGIN
+.Sx EXAMPLES ,
+example 2, for a usage example.
+.It Va RTLD_DI_ORIGIN
 Retrieve the origin of the dynamic object associated with the handle.
-On successful return
+On successful return,
 .Fa p
-argument is filled with
-.Ft char
+argument is filled with the
+.Vt char
 pointer
-.Ft ( char *p ) .
+.Pq Fa "char *p" .
 .El
 .Sh EXAMPLES
 Example 1: Using
 .Fn dlinfo
-to retrieve Link_map structure.
+to retrieve
+.Vt Link_map
+structure.
 .Pp
 The following example shows how dynamic library can detect the list
 of shared libraries loaded after caller's one.
 For simplicity, error checking has been omitted.
-.Bd -literal
-     Link_map *map;
+.Bd -literal -offset indent
+Link_map *map;
 
-     dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &map);
+dlinfo(RTLD_SELF, RTLD_DI_LINKMAP, &map);
 
-     while (map != NULL) {
-         printf("%p: %s\\n", map->l_addr, map->l_name);
-         map = map->l_next;
-     }
+while (map != NULL) {
+	printf("%p: %s\\n", map->l_addr, map->l_name);
+	map = map->l_next;
+}
 .Ed
 .Pp
 Example 2: Using
@@ -206,37 +220,37 @@ to retrieve the library search paths.
 .Pp
 The following example shows how a dynamic object can inspect the library
 search paths that would be used to locate a simple filename with
-.Fn dlopen .
+.Xr dlopen 3 .
 For simplicity, error checking has been omitted.
-.Bd -literal
-      Dl_serinfo     _info, *info = &_info;
-      Dl_serpath     *path;
-      unsigned int    cnt;
+.Bd -literal -offset indent
+Dl_serinfo	 _info, *info = &_info;
+Dl_serpath	*path;
+unsigned int	 cnt;
 
-      /* determine search path count and required buffer size */
-      dlinfo(RTLD_SELF, RTLD_DI_SERINFOSIZE, (void *)info);
+/* determine search path count and required buffer size */
+dlinfo(RTLD_SELF, RTLD_DI_SERINFOSIZE, (void *)info);
 
-      /* allocate new buffer and initialize */
-      info = malloc(_info.dls_size);
-      info->dls_size = _info.dls_size;
-      info->dls_cnt = _info.dls_cnt;
+/* allocate new buffer and initialize */
+info = malloc(_info.dls_size);
+info->dls_size = _info.dls_size;
+info->dls_cnt = _info.dls_cnt;
 
-      /* obtain sarch path information */
-      dlinfo(RTLD_SELF, RTLD_DI_SERINFO, (void *)info);
+/* obtain sarch path information */
+dlinfo(RTLD_SELF, RTLD_DI_SERINFO, (void *)info);
 
-      path = &info->dls_serpath[0];
+path = &info->dls_serpath[0];
 
-      for (cnt = 1; cnt <= info->dls_cnt; cnt++, path++) {
-          (void) printf("%2d: %s\\n", cnt, path->dls_name);
-      }
+for (cnt = 1; cnt <= info->dls_cnt; cnt++, path++) {
+	(void) printf("%2d: %s\\n", cnt, path->dls_name);
+}
 .Ed
 .Sh RETURN VALUES
 The
 .Fn dlinfo
-function returns 0 on success, or -1 if error occured.
+function returns 0 on success, or \-1 if an error occured.
 Whenever an error has been detected, a message detailing it can
 be retrieved via a call to
-.Fn dlerror .
+.Xr dlerror 3 .
 .Sh SEE ALSO
 .Xr rtld 1 ,
 .Xr dladdr 3 ,
@@ -247,13 +261,14 @@ The
 .Fn dlinfo
 function first appeared in the Solaris operating system.
 In
-.Fx
+.Fx ,
 it first appeared in
 .Fx 4.8 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Fx
-implementation of
+implementation of the
 .Fn dlinfo
 function was originally written by
 .An Alexey Zelkin
