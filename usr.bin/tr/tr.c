@@ -101,6 +101,7 @@ static int string1[NCHARS] = {
 STR s1 = { STRING1, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 STR s2 = { STRING2, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 
+static int charcoll(const void *, const void *);
 static void setup(int *, char *, STR *, int, int);
 static void usage(void);
 
@@ -109,6 +110,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	static int collorder[NCHARS], tmpmap[NCHARS];
 	int ch, cnt, lastch, *p;
 	int Cflag, cflag, dflag, sflag, isstring2;
 
@@ -249,6 +251,19 @@ main(argc, argv)
 				*p = cnt;
 		}
 	}
+	if (Cflag) {
+		/*
+		 * Generate a table for locale single-byte collating element
+		 * ordering and use it to reorder string1 as required by
+		 * IEEE Std. 1003.1-2001.
+		 */
+		for (ch = 0; ch < NCHARS; ch++)
+			collorder[ch] = ch;
+		mergesort(collorder, NCHARS, sizeof(*collorder), charcoll);
+		for (ch = 0; ch < NCHARS; ch++)
+			tmpmap[ch] = string1[collorder[ch]];
+		memcpy(string1, tmpmap, sizeof(tmpmap));
+	}
 
 	if (sflag)
 		for (lastch = OOBCH; (ch = getchar()) != EOF;) {
@@ -284,6 +299,17 @@ setup(string, arg, str, cflag, Cflag)
 	else if (Cflag)
 		for (cnt = 0; cnt < NCHARS; cnt++)
 			string[cnt] = !string[cnt] && ISCHAR(cnt);
+}
+
+static int
+charcoll(const void *a, const void *b)
+{
+	char sa[2], sb[2];
+
+	sa[0] = *(const int *)a;
+	sb[0] = *(const int *)b;
+	sa[1] = sb[1] = '\0';
+	return (strcoll(sa, sb));
 }
 
 static void
