@@ -34,13 +34,13 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1991, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)logname.c	8.2 (Berkeley) 4/3/94";
+static const char sccsid[] = "@(#)logname.c	8.2 (Berkeley) 4/3/94";
 #endif /* not lint */
 
 #include <err.h>
@@ -55,7 +55,7 @@ void usage __P((void));
 int
 main(argc, argv)
 	int argc;
-	char *argv[];
+	char *argv[] __unused;
 {
 	char *p;
 
