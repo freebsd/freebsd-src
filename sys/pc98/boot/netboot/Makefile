@@ -36,7 +36,6 @@ PROG=	nb8390.com nb8390.rom
 # Order is very important on the SRCS line for this prog
 SRCS=	start2.S main.c misc.c bootmenu.c rpc.c
 
-BINDIR=		/usr/mdec
 BINMODE=	555
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} -DASK_BOOT
 CFLAGS+=	-DPC98
@@ -48,14 +47,12 @@ CFLAGS+=	-DPC98
 NS8390=	-DINCLUDE_EGY -DNE_BASE=0xd0
 CLEANFILES+=	netboot.com
 CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
-ROMLDFLAGS=	${LDFLAGS} -N -T ${RELOCADDR} -e _start -nostdlib
+ROMLDFLAGS=	${LDFLAGS} -aout -N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
 NOMAN=
-STRIP=
-STRIPCMD= strip -aout
 SIZE=	size -aout
-CFLAGS += -aout
-LDFLAGS += -aout
+STRIP=
+STRIPCMD=	strip -aout
 
 ROMSIZE=16384
 RELOCADDR=0x90000
