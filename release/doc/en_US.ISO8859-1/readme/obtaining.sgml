@@ -29,9 +29,9 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
 
     <para>A list of the CDROM and DVD
     publishers known to the project are listed in the <ulink
-    url="http://www.freebsd.org/handbook/mirrors.html"><quote>Obtaining
+    url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
     FreeBSD</quote></ulink> appendix to the <ulink
-    url="http://www.freebsd.org/handbook/">FreeBSD
+    url="http://www.FreeBSD.org/handbook/">FreeBSD
     Handbook</ulink>.</para>
   </sect2>
 
@@ -40,13 +40,13 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
 
     <para>You can use FTP to retrieve &os; and any or all of its
     optional packages from <ulink
-    url="ftp://ftp.freebsd.org/"></ulink>, which
+    url="ftp://ftp.FreeBSD.org/"></ulink>, which
     is the
     official &os; release site, or any of its <quote>mirrors</quote>.</para>
 
     <para>Lists of locations that mirror &os;
     can be found in the <ulink
-    url="http://www.freebsd.org/handbook/mirrors.html#mirrors-ftp">FTP
+    url="http://www.FreeBSD.org/handbook/mirrors.html#mirrors-ftp">FTP
     Sites</ulink> section of the Handbook, or on the
     <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
     Finding a close (in networking terms) mirror from which to

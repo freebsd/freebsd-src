@@ -66,7 +66,7 @@
     date by definition, but other copies are kept updated on the Internet and
     should be consulted as the <quote>current errata</quote> for this
     release.  These other copies of the errata are located at <ulink
-    url="http://www.freebsd.org/releases/"></ulink>,
+    url="http://www.FreeBSD.org/releases/"></ulink>,
     plus any sites which keep up-to-date mirrors of this
     location.</para>
 
@@ -78,8 +78,8 @@
     &a.stable;.</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-    url="http://www.freebsd.org/security/"></ulink> or <ulink
-    url="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/"></ulink>.</para>
+    url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
   </sect1>
 
@@ -123,7 +123,7 @@
     <filename>.shosts</filename> authentication may not work
     <quote>out of the box</quote>.  Both temporary and permanent fixes
     are described in <ulink
-    url="http://www.freebsd.org/doc/en_US.ISO_8859-1/books/faq/admin.html#SSH-SHOSTS">an item in the FAQ</ulink>.</para>
+    url="http://www.FreeBSD.org/doc/en_US.ISO_8859-1/books/faq/admin.html#SSH-SHOSTS">an item in the FAQ</ulink>.</para>
 
   </sect1>
 </article>
