@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.24 1998/09/15 10:03:43 gibbs Exp $
+ *	$Id: swapgeneric.c,v 1.25 1998/10/25 19:26:18 bde Exp $
  */
 
 #include <sys/param.h>
@@ -96,8 +96,8 @@ struct	genericconf {
 void setconf(void)
 {
 	register struct genericconf *gc;
-	int bd;
-	int unit, swaponroot = 0;
+	char *cp;
+	int bd, unit;
 
 	if (rootdev != NODEV)
 		return;
@@ -106,21 +106,33 @@ void setconf(void)
 retry:
 		printf("root device? ");
 		gets(name);
-		for (gc = genericconf; gc->gc_name; gc++)
-			if (gc->gc_name[0] == name[0] &&
-			    gc->gc_name[1] == name[1])
+		cp = name;
+		while (cp != '\0' && (*cp < '0' || *cp > '9'))
+			cp++;
+		if (cp == name) {
+			printf("missing device name\n");
+			goto bad;
+		}
+		if (*cp == '\0') {
+			printf("missing unit number\n");
+			goto bad;
+		}
+		unit = *cp - '0';
+		*cp++ = '\0';
+		for (bd = 0; bd < nblkdev; bd++)
+			if (bdevsw[bd] != NULL &&
+			    strcmp(bdevsw[bd]->d_name, name) == 0)
 				goto gotit;
 		goto bad;
 gotit:
-		if (name[3] == '*') {
-			name[3] = name[4];
-			swaponroot++;
+		while (*cp >= '0' && *cp <= '9')
+			unit += 10 * unit + *cp++ - '0';
+		if (*cp != '\0') {
+			printf("junk after unit number\n");
+			goto bad;
 		}
-		if (name[2] >= '0' && name[2] <= '7' && name[3] == 0) {
-			unit = name[2] - '0';
-			goto found;
-		}
-		printf("bad/missing unit number\n");
+		rootdev = makedev(bd, dkmakeminor(unit, 0, 0));
+		return;
 bad:
 		printf("use dk%%d\n");
 		goto retry;
