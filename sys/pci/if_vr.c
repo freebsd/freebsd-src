@@ -1090,6 +1090,15 @@ static void vr_txeof(sc)
 		cur_tx = sc->vr_cdata.vr_tx_head;
 		txstat = cur_tx->vr_ptr->vr_status;
 
+		if ((txstat & VR_TXSTAT_ABRT) ||
+		    (txstat & VR_TXSTAT_UDF)) {
+			while (CSR_READ_2(sc, VR_COMMAND) & VR_CMD_TX_ON)
+				;	/* Wait for chip to shutdown */
+			VR_TXOWN(cur_tx) = VR_TXSTAT_OWN;
+			CSR_WRITE_4(sc, VR_TXADDR, vtophys(cur_tx->vr_ptr));
+			break;
+		}
+
 		if (txstat & VR_TXSTAT_OWN)
 			break;
 
@@ -1198,24 +1207,27 @@ static void vr_intr(arg)
 			vr_rxeoc(sc);
 		}
 
-		if (status & VR_ISR_TX_OK) {
-			vr_txeof(sc);
-			vr_txeoc(sc);
-		}
-
-		if ((status & VR_ISR_TX_UNDERRUN)||(status & VR_ISR_TX_ABRT)){ 
-			ifp->if_oerrors++;
-			vr_txeof(sc);
-			if (sc->vr_cdata.vr_tx_head != NULL) {
-				VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON);
-				VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_GO);
-			}
-		}
-
-		if (status & VR_ISR_BUSERR) {
+		if ((status & VR_ISR_BUSERR) || (status & VR_ISR_TX_UNDERRUN)) {
 			vr_reset(sc);
 			vr_init(sc);
+			break;
 		}
+
+		if ((status & VR_ISR_TX_OK) || (status & VR_ISR_TX_ABRT) ||
+		    (status & VR_ISR_TX_ABRT2) || (status & VR_ISR_UDFI)) {
+			vr_txeof(sc);
+			if ((status & VR_ISR_UDFI) ||
+			    (status & VR_ISR_TX_ABRT2) ||
+			    (status & VR_ISR_TX_ABRT)) {
+				ifp->if_oerrors++;
+				if (sc->vr_cdata.vr_tx_head != NULL) {
+					VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_ON);
+					VR_SETBIT16(sc, VR_COMMAND, VR_CMD_TX_GO);
+				}
+			} else
+				vr_txeoc(sc);
+		}
+
 	}
 
 	/* Re-enable interrupts. */
@@ -1400,6 +1412,20 @@ static void vr_init(xsc)
 	 */
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		CSR_WRITE_1(sc, VR_PAR0 + i, sc->arpcom.ac_enaddr[i]);
+	
+	/* Set DMA size */
+	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_DMA_LENGTH);
+	VR_SETBIT(sc, VR_BCR0, VR_BCR0_DMA_STORENFWD);
+
+	/* 
+	 * BCR0 and BCR1 can override the RXCFG and TXCFG registers,
+	 * so we must set both.
+	 */
+	VR_CLRBIT(sc, VR_BCR0, VR_BCR0_RX_THRESH);
+	VR_SETBIT(sc, VR_BCR0, VR_BCR0_RXTHRESHSTORENFWD);
+
+	VR_CLRBIT(sc, VR_BCR1, VR_BCR1_TX_THRESH);
+	VR_SETBIT(sc, VR_BCR1, VR_BCR1_TXTHRESHSTORENFWD);
 
 	VR_CLRBIT(sc, VR_RXCFG, VR_RXCFG_RX_THRESH);
 	VR_SETBIT(sc, VR_RXCFG, VR_RXTHRESH_STORENFWD);
