@@ -48,8 +48,8 @@ security provisions such as file permissions and superuser checks.
 .Pp
 Currently, the following MAC policy modules are shipped with
 .Fx :
-.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy" ".Em Labeling" "boot only"
-.It Em Name Ta Em Description Ta Em Labeling Ta Em "Load time"
+.Bl -column ".Xr mac_seeotheruids 4" "low-watermark mac policy " ".Em Labeling" "boot only"
+.It Sy Name Ta Sy Description Ta Sy Labeling Ta Sy "Load time"
 .It Xr mac_biba 4 Ta "Biba integrity policy" Ta yes Ta boot only
 .It Xr mac_bsdextended 4 Ta "File system firewall" Ta no Ta any time
 .It Xr mac_ifoff 4 Ta "Interface silencing" Ta no Ta any time
@@ -128,8 +128,8 @@ files
 .Ss Setting MAC labels
 From the command line, each type of system object has its own means for setting
 and modifying its MAC policy label.
-.Bl -column "user login process" "Xr login.conf 5" -offset indent
-.It Em "Subject/Object" Ta Em "Utility"
+.Bl -column "user (by login class)" "Xr login.conf 5" -offset indent
+.It Sy "Subject/Object" Ta Sy "Utility"
 .It "File system object" Ta Xr setfmac 8
 .It "Network interface" Ta Xr ifconfig 8
 .It "TTY (by login class)" Ta Xr login.conf 5
