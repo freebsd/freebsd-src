@@ -221,7 +221,7 @@ static struct cdevsw sc_cdevsw = {
 	.d_mmap =	scmmap,
 	.d_name =	"sc",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY | D_KQFILTER,
+	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter
 };
 

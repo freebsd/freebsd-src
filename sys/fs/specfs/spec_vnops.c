@@ -392,8 +392,6 @@ spec_kqfilter(ap)
 
 	dev = ap->a_vp->v_rdev;
 	dsw = devsw(dev);
-	if (!(dsw->d_flags & D_KQFILTER))
-		return (1);
 	if (dsw->d_flags & D_NOGIANT) {
 		DROP_GIANT();
 		error = dsw->d_kqfilter(dev, ap->a_kn);
