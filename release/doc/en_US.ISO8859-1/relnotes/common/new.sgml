@@ -2064,6 +2064,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
       &merged;</para>
 
+    <para>A bug that could allow applications using
+      <filename>libkvm</filename> to leak sensitive file descriptors
+      has been corrected.  (See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
+      for more details.)
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
