@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $Id: kern_fork.c,v 1.21 1996/05/02 11:38:05 peter Exp $
+ * $Id: kern_fork.c,v 1.22 1996/06/12 05:07:30 gpalmer Exp $
  */
 
 #include "opt_ktrace.h"
@@ -205,7 +205,6 @@ again:
 	p2->p_stat = SIDL;			/* protect against others */
 	p2->p_pid = nextpid;
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
-	p2->p_forw = p2->p_back = NULL;		/* shouldn't be necessary */
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 
 	/*

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_synch.c	8.9 (Berkeley) 5/19/95
- * $Id: kern_synch.c,v 1.19 1996/03/11 05:48:57 hsu Exp $
+ * $Id: kern_synch.c,v 1.20 1996/04/07 13:35:58 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -260,11 +260,8 @@ updatepri(p)
  * of 2.  Shift right by 8, i.e. drop the bottom 256 worth.
  */
 #define TABLESIZE	128
+TAILQ_HEAD(slpquehead, proc) slpque[TABLESIZE];
 #define LOOKUP(x)	(((long)(x) >> 8) & (TABLESIZE - 1))
-struct slpque {
-	struct proc *sq_head;
-	struct proc **sq_tailp;
-} slpque[TABLESIZE];
 
 /*
  * During autoconfiguration or after a panic, a sleep will simply
@@ -276,6 +273,15 @@ struct slpque {
  * higher to block network software interrupts after panics.
  */
 int safepri;
+
+void
+sleepinit()
+{
+	int i;
+
+	for (i = 0; i < TABLESIZE; i++)
+		TAILQ_INIT(&slpque[i]);
+}
 
 /*
  * General sleep call.  Suspends the current process until a wakeup is
@@ -294,10 +300,8 @@ tsleep(ident, priority, wmesg, timo)
 	int priority, timo;
 	char *wmesg;
 {
-	register struct proc *p = curproc;
-	register struct slpque *qp;
-	register s;
-	int sig, catch = priority & PCATCH;
+	struct proc *p = curproc;
+	int s, sig, catch = priority & PCATCH;
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_CSW))
@@ -316,19 +320,14 @@ tsleep(ident, priority, wmesg, timo)
 		return (0);
 	}
 #ifdef DIAGNOSTIC
-	if (ident == NULL || p->p_stat != SRUN || p->p_back)
+	if (ident == NULL || p->p_stat != SRUN)
 		panic("tsleep");
 #endif
 	p->p_wchan = ident;
 	p->p_wmesg = wmesg;
 	p->p_slptime = 0;
 	p->p_priority = priority & PRIMASK;
-	qp = &slpque[LOOKUP(ident)];
-	if (qp->sq_head == 0)
-		qp->sq_head = p;
-	else
-		*qp->sq_tailp = p;
-	*(qp->sq_tailp = &p->p_forw) = 0;
+	TAILQ_INSERT_TAIL(&slpque[LOOKUP(ident)], p, p_procq);
 	if (timo)
 		timeout(endtsleep, (void *)p, timo);
 	/*
@@ -413,68 +412,6 @@ endtsleep(arg)
 	splx(s);
 }
 
-#if 0
-/*
- * Short-term, non-interruptable sleep.
- */
-void
-sleep(ident, priority)
-	void *ident;
-	int priority;
-{
-	register struct proc *p = curproc;
-	register struct slpque *qp;
-	register s;
-
-#ifdef DIAGNOSTIC
-	if (priority > PZERO) {
-		printf("sleep called with priority %d > PZERO, wchan: %p\n",
-		    priority, ident);
-		panic("old sleep");
-	}
-#endif
-	s = splhigh();
-	if (cold || panicstr) {
-		/*
-		 * After a panic, or during autoconfiguration,
-		 * just give interrupts a chance, then just return;
-		 * don't run any other procs or panic below,
-		 * in case this is the idle process and already asleep.
-		 */
-		splx(safepri);
-		splx(s);
-		return;
-	}
-#ifdef DIAGNOSTIC
-	if (ident == NULL || p->p_stat != SRUN || p->p_back)
-		panic("sleep");
-#endif
-	p->p_wchan = ident;
-	p->p_wmesg = NULL;
-	p->p_slptime = 0;
-	p->p_priority = priority;
-	qp = &slpque[LOOKUP(ident)];
-	if (qp->sq_head == 0)
-		qp->sq_head = p;
-	else
-		*qp->sq_tailp = p;
-	*(qp->sq_tailp = &p->p_forw) = 0;
-	p->p_stat = SSLEEP;
-	p->p_stats->p_ru.ru_nvcsw++;
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 1, 0);
-#endif
-	mi_switch();
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_CSW))
-		ktrcsw(p->p_tracep, 0, 0);
-#endif
-	curpriority = p->p_usrpri;
-	splx(s);
-}
-#endif
-
 /*
  * Remove a process from its wait queue
  */
@@ -482,18 +419,11 @@ void
 unsleep(p)
 	register struct proc *p;
 {
-	register struct slpque *qp;
-	register struct proc **hp;
 	int s;
 
 	s = splhigh();
 	if (p->p_wchan) {
-		hp = &(qp = &slpque[LOOKUP(p->p_wchan)])->sq_head;
-		while (*hp != p)
-			hp = &(*hp)->p_forw;
-		*hp = p->p_forw;
-		if (qp->sq_tailp == &p->p_forw)
-			qp->sq_tailp = hp;
+		TAILQ_REMOVE(&slpque[LOOKUP(p->p_wchan)], p, p_procq);
 		p->p_wchan = 0;
 	}
 	splx(s);
@@ -506,46 +436,84 @@ void
 wakeup(ident)
 	register void *ident;
 {
-	register struct slpque *qp;
-	register struct proc *p, **q;
+	register struct slpquehead *qp;
+	register struct proc *p;
 	int s;
 
 	s = splhigh();
 	qp = &slpque[LOOKUP(ident)];
 restart:
-	for (q = &qp->sq_head; *q; ) {
-		p = *q;
+	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
 #ifdef DIAGNOSTIC
-		if (p->p_back || (p->p_stat != SSLEEP && p->p_stat != SSTOP))
+		if (p->p_stat != SSLEEP && p->p_stat != SSTOP)
 			panic("wakeup");
 #endif
 		if (p->p_wchan == ident) {
+			TAILQ_REMOVE(qp, p, p_procq);
 			p->p_wchan = 0;
-			*q = p->p_forw;
-			if (qp->sq_tailp == &p->p_forw)
-				qp->sq_tailp = q;
 			if (p->p_stat == SSLEEP) {
 				/* OPTIMIZED EXPANSION OF setrunnable(p); */
 				if (p->p_slptime > 1)
 					updatepri(p);
 				p->p_slptime = 0;
 				p->p_stat = SRUN;
-				if (p->p_flag & P_INMEM)
+				if (p->p_flag & P_INMEM) {
 					setrunqueue(p);
-				/*
-				 * Since curpriority is a user priority,
-				 * p->p_priority is always better than
-				 * curpriority.
-				 */
-				if ((p->p_flag & P_INMEM) == 0)
-					wakeup((caddr_t)&proc0);
-				else
 					need_resched();
+				} else {
+					wakeup((caddr_t)&proc0);
+				}
 				/* END INLINE EXPANSION */
 				goto restart;
 			}
-		} else
-			q = &p->p_forw;
+		}
+	}
+	splx(s);
+}
+
+/*
+ * Make one process sleeping on the specified identifier runnable.
+ */
+void
+wakeup_one(ident)
+	register void *ident;
+{
+	register struct slpquehead *qp;
+	register struct proc *p;
+	int s;
+
+	s = splhigh();
+	qp = &slpque[LOOKUP(ident)];
+
+	for (p = qp->tqh_first; p != NULL; p = p->p_procq.tqe_next) {
+#ifdef DIAGNOSTIC
+		if (p->p_stat != SSLEEP && p->p_stat != SSTOP)
+			panic("wakeup_one");
+#endif
+		if (p->p_wchan == ident) {
+			TAILQ_REMOVE(qp, p, p_procq);
+			p->p_wchan = 0;
+			if (p->p_stat == SSLEEP) {
+				/* OPTIMIZED EXPANSION OF setrunnable(p); */
+				if (p->p_slptime > 1)
+					updatepri(p);
+				p->p_slptime = 0;
+				p->p_stat = SRUN;
+				/*
+				 * XXX Perhaps we should only terminate the
+				 * loop if the process being awoken is memory
+				 * resident (i.e. actually runnable)?
+				 */
+				if (p->p_flag & P_INMEM) {
+					setrunqueue(p);
+					need_resched();
+				} else {
+					wakeup((caddr_t)&proc0);
+				}
+				/* END INLINE EXPANSION */
+				break;
+			}
+		}
 	}
 	splx(s);
 }
