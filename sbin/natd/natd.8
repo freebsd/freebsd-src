@@ -1,5 +1,5 @@
 .\" manual page [] for natd 1.4
-.\"	$Id: natd.8,v 1.18 1999/05/13 16:58:30 brian Exp $
+.\"	$Id: natd.8,v 1.19 1999/06/21 07:58:25 brian Exp $
 .Dd 15 April 1997
 .Os FreeBSD
 .Dt NATD 8
@@ -139,13 +139,6 @@ be sent to the telnet port on the inside1 machine.
 will redirect incoming connections on ports 3300-3399 to host
 inside2, ports 2300-2399.
 The mapping is 1:1 meaning port 3300 maps to 2300, 3301 maps to 2301, etc.
-
-.Pp
-It should be noted that only
-.Em incoming
-packets are affected.  Data going from one internal network to another
-will not be processed by
-.Nm natd .
 
 .It Fl redirect_address Ar localIP publicIP
 Redirect traffic for public IP address to a machine on the local
