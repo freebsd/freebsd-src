@@ -277,7 +277,8 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 	case 0x12258086:
 		s = "Intel 824?? host to PCI bridge";
 		/* XXX This is a guess */
-		*busnum = pci_cfgread(cfg, 0x41, 1);
+		/* *busnum = pci_cfgread(cfg, 0x41, 1); */
+		*busnum = cfg->bus;
 		break;
 	case 0x71208086:
 		s = "Intel 82810 (i810 GMCH) Host To Hub bridge";
@@ -437,11 +438,13 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	u_int8_t  hdrtype;
 	int found = 0;
 	int pcifunchigh;
+	int found824xx = 0;
 
 	if (pci_cfgopen() == 0)
 		return;
 	probe.hose = 0;
 	probe.bus = 0;
+ retry:
 	for (probe.slot = 0; probe.slot <= PCI_SLOTMAX; probe.slot++) {
 		probe.func = 0;
 		hdrtype = pci_cfgread(&probe, PCIR_HEADERTYPE, 1);
@@ -478,8 +481,14 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 						      "pcib", busnum);
 				device_set_desc(child, s);
 				found = 1;
+				if (id == 0x12258086)
+					found824xx = 1;
 			}
 		}
+	}
+	if (found824xx && probe.bus == 0) {
+		probe.bus++;
+		goto retry;
 	}
 
 	/*
