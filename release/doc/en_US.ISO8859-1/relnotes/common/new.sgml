@@ -132,6 +132,8 @@
       <para arch="i386">The cm driver has been added to support SMC
 	COM90cx6 ARCNET network adapters.</para>
 
+      <para>The &man.dc.4; driver now has support for VLANs.</para>
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
       <para>Selected network drivers now implement a
@@ -200,6 +202,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>The functionality of <filename>/etc/security</filename> has
+      been been moved into a set of scripts under the &man.periodic.8;
+      framework, to make local customization easier and more
+      maintainable.  These scripts now reside in
+      <filename>/etc/periodic/security/</filename>.</para>
 
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
