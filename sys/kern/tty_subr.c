@@ -24,13 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tty_subr.c,v 1.21 1996/01/04 21:12:23 wollman Exp $
+ * $Id: tty_subr.c,v 1.22 1996/04/08 01:22:00 davidg Exp $
  */
 
 /*
  * clist support routines
  */
-#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -57,11 +56,11 @@ static void cblock_alloc_cblocks __P((int number));
 static void cblock_free __P((struct cblock *cblockp));
 static void cblock_free_cblocks __P((int number));
 
+#include "opt_ddb.h"
 #ifdef DDB
-static void DDB_cbstat __P((void));
+#include <ddb/ddb.h>
 
-static void
-DDB_cbstat()
+DB_SHOW_COMMAND(cbstat, cbstat)
 {
 	printf(
 	"tot = %d (active = %d, free = %d (reserved = %d, slush = %d))\n",
