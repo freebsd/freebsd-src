@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.34 1997/04/13 01:48:33 dyson Exp $
+ * $Id: vm_extern.h,v 1.35 1997/12/06 02:23:27 dyson Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -82,7 +82,7 @@ void vm_fault_unwire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 int vm_fault_user_wire __P((vm_map_t, vm_offset_t, vm_offset_t));
 void vm_fork __P((struct proc *, struct proc *, int));
-int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, caddr_t, vm_ooffset_t));
+int vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t, vm_prot_t, vm_prot_t, int, void *, vm_ooffset_t));
 vm_offset_t vm_page_alloc_contig __P((vm_offset_t, vm_offset_t, vm_offset_t, vm_offset_t));
 void vm_set_page_size __P((void));
 void vmmeter __P((void));
