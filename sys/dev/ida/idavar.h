@@ -119,7 +119,8 @@ struct ida_access {
 /*
  * flags for the controller 
  */
-#define IDA_ATTACHED	0x01			/* attached, interrupts okay */
+#define IDA_ATTACHED	0x01		/* attached, interrupts okay */
+#define IDA_FIRMWARE	0x02		/* firmware must be started */
 
 struct ida_softc {
 	device_t	dev;
@@ -169,7 +170,8 @@ struct idad_softc {
 	struct 		ida_softc *controller;
 	struct		disk disk;
 	struct		devstat stats;
-	int		unit;
+	int		drive;			/* per controller */
+	int		unit;			/* global */
 	int		cylinders;
 	int		heads;
 	int		sectors;
