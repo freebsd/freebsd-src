@@ -409,19 +409,22 @@ ngmn_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 		pos += sprintf(r + pos, "  Last Rx: ");
 		if (sch->last_recv)
-			pos += sprintf(r + pos, "%lu s", time_second - sch->last_recv);
+			pos += sprintf(r + pos, "%lu s",
+			    (unsigned long)(time_second - sch->last_recv));
 		else
 			pos += sprintf(r + pos, "never");
 
 		pos += sprintf(r + pos, ", last RxErr: ");
 		if (sch->last_rxerr)
-			pos += sprintf(r + pos, "%lu s", time_second - sch->last_rxerr);
+			pos += sprintf(r + pos, "%lu s",
+			    (unsigned long)(time_second - sch->last_rxerr));
 		else
 			pos += sprintf(r + pos, "never");
 
 		pos += sprintf(r + pos, ", last Tx: ");
 		if (sch->last_xmit)
-			pos += sprintf(r + pos, "%lu s\n", time_second - sch->last_xmit);
+			pos += sprintf(r + pos, "%lu s\n",
+			    (unsigned long)(time_second - sch->last_xmit));
 		else
 			pos += sprintf(r + pos, "never\n");
 
