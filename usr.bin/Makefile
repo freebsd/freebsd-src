@@ -27,10 +27,15 @@ _lex=	lex
 _yacc=	yacc
 .endif
 
+.if !defined(NOATM)
+_atm=	atm
+.endif
+
 SUBDIR=	alias \
 	apply \
 	asa \
 	at \
+	${_atm} \
 	awk \
 	banner \
 	basename \
