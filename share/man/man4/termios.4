@@ -994,6 +994,8 @@ and are composed of the following masks:
 /* map NL to CR-NL (ala
 .Dv CRMOD )
 */
+.It Dv OCRNL
+/* map CR to NL */
 .It Dv OXTABS
 /* expand tabs to spaces */
 .It Dv ONOEOT
@@ -1001,6 +1003,10 @@ and are composed of the following masks:
 .Dv EOT Ns 's
 .Ql \&^D
 on output) */
+.It Dv ONOCR
+/* do not transmit CRs on column 0 */
+.It Dv ONLRET
+/* on the termianl NL performs the CR function */
 .El
 .Pp
 If
@@ -1013,6 +1019,10 @@ If
 is set, newlines are translated to carriage return, linefeeds.
 .Pp
 If
+.Dv OCRNL
+is set, carriage returns are translated to newlines.
+.Pp
+If
 .Dv OXTABS
 is set, tabs are expanded to the appropriate number of
 spaces (assuming 8 column tab stops).
@@ -1023,6 +1033,15 @@ is set,
 .Tn ASCII
 .Dv EOT Ns 's
 are discarded on output.
+.Pp
+If
+.Dv ONOCR
+is set, no CR character is transmitted when at column 0 (first position).
+.Pp
+If
+.Dv ONLRET
+is set, the NL character is assumed to do the carriage-return function;
+the column pointer will be set to 0.
 .Ss Control Modes
 Values of the
 .Fa c_cflag

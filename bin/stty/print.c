@@ -148,7 +148,10 @@ print(tp, wp, ldisc, fmt)
 	binit("oflags");
 	put("-opost", OPOST, 1);
 	put("-onlcr", ONLCR, 1);
+	put("-ocrnl", OCRNL, 0);
 	put("-oxtabs", OXTABS, 1);
+	put("-onocr", OXTABS, 0);
+	put("-onlret", OXTABS, 0);
 
 	/* control flags (hardware state) */
 	tmp = tp->c_cflag;
