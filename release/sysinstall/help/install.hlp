@@ -58,10 +58,9 @@ important data first!  We really mean it!
 
 FreeBSD requires a 386 or better processor to run (sorry, there is no
 support for '286 processors), 5 megs of RAM to install and 4 megs of
-ram to run. You will need at least 80 megs of hard drive space free
-on either a dedicated disk or a "primary," (not extended partition,
-to use the DOS terminology). See below for ways to shrink existing
-DOS partitions to install FreeBSD.
+ram to run. You will need at least 80 megs of free hard drive space.
+See below for ways of shrinking existing DOS partitions in order to
+install FreeBSD.
 
 
 0.1     Installing FreeBSD from CDROM or the Internet
@@ -232,15 +231,14 @@ you'll be prompted for the rest.
 
 To prepare for installation from an MS-DOS partition you should simply
 copy the files from the distribution into a directory called
-"FREEBSD".  For example, to do a minimal installation of FreeBSD from
-DOS using files copied from the CDROM, you might do something like
-this:
+"FREEBSD" on the Primary DOS partition ("Drive C:").  For example, to do
+a minimal installation of FreeBSD from DOS using files copied from the
+CDROM, you might do something like this:
 
-        C> MD C:\FREEBSD
-        C> XCOPY /S E:\BIN C:\FREEBSD\BIN
+        C:\> MD C:\FREEBSD
+        C:\> XCOPY /S E:\BIN C:\FREEBSD\BIN
 
-Assuming that `C:' was where you had free space and `E:' was where
-your CD was mounted.
+Assuming that `E:' was where your CD was mounted.
 
 For as many `DISTS' as you wish to install from DOS (and you have free
 space for), install each one in a directory under `C:\FREEBSD' - the
@@ -479,7 +477,7 @@ the filesystem you leave uncompressed.  The rest of the filesystem
 will show up as one large file (the stacked/dblspaced file!).  DO NOT
 REMOVE THAT FILE as you will probably regret it greatly!
 
-It is probably better to create another uncompressed DOS primary
+It is probably better to create another uncompressed DOS extended
 partition and use this for communications between DOS and FreeBSD if
 such is your desire.
 
@@ -500,12 +498,11 @@ mount -t msdos /dev/sd0s5 /dos_d
 2.4     Can I run DOS binaries under FreeBSD?
 ---     -------------------------------------
 
-Not yet!  We'd like to add support for this someday, but are still
-lacking anyone to actually do the work.  Ongoing work with BSDI's
-doscmd utility is bringing this much closer to being a reality in
-FreeBSD-current (AKA 3.0) and you should send mail to
-freebsd-hackers@FreeBSD.org if you're interested in joining this
-effort!
+Ongoing work with BSDI's doscmd utility is bringing this much closer to
+being a reality in FreeBSD 3.0, though it still has some rough edges.
+If you're interested in working on this, please send mail to
+emulation@FreeBSD.org and indicate that you're interested in joining
+this ongoing effort!
 
 There is also a neat utility called "pcemu" in the ports collection
 which emulates an 8088 and enough BIOS services to run DOS text mode

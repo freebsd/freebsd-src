@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.51.2.63 1998/03/23 09:18:30 jkh Exp $
+ * $Id: config.c,v 1.51.2.64 1998/07/23 19:21:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -532,7 +532,7 @@ configXEnvironment(dialogMenuItem *self)
 	    moused = variable_get(VAR_MOUSED);
 	}
 	if (moused && !strcmp(moused, "YES"))
-	    msgConfirm("You have configured and been running the mouse daemon.\n"
+	    msgConfirm("You have configured and are now running the mouse daemon.\n"
 	   	       "Choose \"/dev/sysmouse\" as the mouse port and \"SysMouse\" or\n"
 		       "\"MouseSystems\" as the mouse protocol in the X configuration\n"
 		       "utility.");
@@ -577,7 +577,10 @@ skip:
     if (!fp)
 	return;
     /* Add an entry for localhost */
-    fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
+    if (dp)
+	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp);
+    else
+	fprintf(fp, "127.0.0.1\t\tlocalhost\n");
     /* Now the host entries, if applicable */
     if (cp && cp[0] != '0' && hp) {
 	char cp2[255];
@@ -720,28 +723,6 @@ configPackages(dialogMenuItem *self)
     index_init(NULL, &plist);
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
-
-#ifdef NETCON_EXTENTIONS
-/* Load novell client/server package */
-int
-configNovell(dialogMenuItem *self)
-{
-    int ret = DITEM_SUCCESS;
-
-    if (!RunningAsInit) {
-	msgConfirm("This package can only be installed in multi-user mode.");
-	return ret;
-    }
-    if (variable_get(VAR_NOVELL))
-	variable_unset(VAR_NOVELL);
-    else {
-	ret = package_add(PACKAGE_NETCON);
-	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
-	    variable_set2(VAR_NOVELL, "YES");
-    }
-    return ret | DITEM_RESTORE;
-}
-#endif
 
 /* Load pcnfsd package */
 int

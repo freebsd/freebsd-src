@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.62.2.18 1997/08/11 13:15:25 jkh Exp $
+ * $Id: media.c,v 1.62.2.19 1998/02/19 02:22:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -204,6 +204,8 @@ mediaSetFloppy(dialogMenuItem *self)
     }
     else
 	mediaDevice = devs[0];
+    if (mediaDevice)
+	mediaDevice->private = "/dist";
     return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
@@ -396,7 +398,7 @@ mediaSetFTP(dialogMenuItem *self)
 	    return DITEM_FAILURE | what;
 	}
 	else
-	    msgDebug("Found DNS entry for %s successfully..", hostname);
+	    msgDebug("Found DNS entry for %s successfully..\n", hostname);
     }
     variable_set2(VAR_FTP_HOST, hostname);
     variable_set2(VAR_FTP_DIR, dir ? dir : "/");
