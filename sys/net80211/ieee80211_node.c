@@ -547,23 +547,23 @@ ieee80211_node_compare(struct ieee80211com *ic,
 	    (b->ni_capinfo & IEEE80211_CAPINFO_PRIVACY))
 		return -1;
 
-	/* best/max rate preferred if signal level close enough XXX */
-	maxa = maxrate(a);
-	maxb = maxrate(b);
 	rssia = ic->ic_node_getrssi(a);
 	rssib = ic->ic_node_getrssi(b);
-	if (maxa != maxb && abs(rssib - rssia) < 5)
-		return maxa - maxb;
-
-	/* XXX use freq for channel preference */
-	/* for now just prefer 5Ghz band to all other bands */
-	if (IEEE80211_IS_CHAN_5GHZ(a->ni_chan) &&
-	   !IEEE80211_IS_CHAN_5GHZ(b->ni_chan))
-		return 1;
-	if (!IEEE80211_IS_CHAN_5GHZ(a->ni_chan) &&
-	     IEEE80211_IS_CHAN_5GHZ(b->ni_chan))
-		return -1;
-
+	if (abs(rssib - rssia) < 5) {
+		/* best/max rate preferred if signal level close enough XXX */
+		maxa = maxrate(a);
+		maxb = maxrate(b);
+		if (maxa != maxb)
+			return maxa - maxb;
+		/* XXX use freq for channel preference */
+		/* for now just prefer 5Ghz band to all other bands */
+		if (IEEE80211_IS_CHAN_5GHZ(a->ni_chan) &&
+		   !IEEE80211_IS_CHAN_5GHZ(b->ni_chan))
+			return 1;
+		if (!IEEE80211_IS_CHAN_5GHZ(a->ni_chan) &&
+		     IEEE80211_IS_CHAN_5GHZ(b->ni_chan))
+			return -1;
+	}
 	/* all things being equal, use signal level */
 	return rssia - rssib;
 }
