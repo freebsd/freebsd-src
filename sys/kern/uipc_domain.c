@@ -97,6 +97,34 @@ struct pr_usrreqs nousrreqs = {
 	.pru_sosetlabel =	pru_sosetlabel_null
 };
 
+static void
+protosw_init(struct protosw *pr)
+{
+	struct pr_usrreqs *pu;
+
+	pu = pr->pr_usrreqs;
+	KASSERT(pu != NULL, ("protosw_init: %ssw[%d] has no usrreqs!",
+	    pr->pr_domain->dom_name,
+	    (int)(pr - pr->pr_domain->dom_protosw)));
+
+#define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
+	DEFAULT(pu->pru_accept, pru_accept_notsupp);
+	DEFAULT(pu->pru_connect, pru_connect_notsupp);
+	DEFAULT(pu->pru_connect2, pru_connect2_notsupp);
+	DEFAULT(pu->pru_control, pru_control_notsupp);
+	DEFAULT(pu->pru_listen, pru_listen_notsupp);
+	DEFAULT(pu->pru_rcvd, pru_rcvd_notsupp);
+	DEFAULT(pu->pru_rcvoob, pru_rcvoob_notsupp);
+	DEFAULT(pu->pru_sense, pru_sense_null);
+	DEFAULT(pu->pru_sosend, sosend);
+	DEFAULT(pu->pru_soreceive, soreceive);
+	DEFAULT(pu->pru_sopoll, sopoll);
+	DEFAULT(pu->pru_sosetlabel, pru_sosetlabel_null);
+#undef DEFAULT
+	if (pr->pr_init)
+		(*pr->pr_init)();
+}
+
 /*
  * Add a new protocol domain to the list of supported domains
  * Note: you cant unload it again because a socket may be using it.
@@ -106,33 +134,11 @@ static void
 net_init_domain(struct domain *dp)
 {
 	struct protosw *pr;
-	struct pr_usrreqs *pu;
 
 	if (dp->dom_init)
 		(*dp->dom_init)();
-	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
-		pu = pr->pr_usrreqs;
-		KASSERT(pu != NULL, 
-		    ("domaininit: %ssw[%d] has no usrreqs!",
-		    dp->dom_name, (int)(pr - dp->dom_protosw)));
-#define DEFAULT(foo, bar)	if ((foo) == NULL)  (foo) = (bar)
-		DEFAULT(pu->pru_accept, pru_accept_notsupp);
-		DEFAULT(pu->pru_connect, pru_connect_notsupp);
-		DEFAULT(pu->pru_connect2, pru_connect2_notsupp);
-		DEFAULT(pu->pru_control, pru_control_notsupp);
-		DEFAULT(pu->pru_listen, pru_listen_notsupp);
-		DEFAULT(pu->pru_rcvd, pru_rcvd_notsupp);
-		DEFAULT(pu->pru_rcvoob, pru_rcvoob_notsupp);
-		DEFAULT(pu->pru_sense, pru_sense_null);
-		DEFAULT(pu->pru_sosend, sosend);
-		DEFAULT(pu->pru_soreceive, soreceive);
-		DEFAULT(pu->pru_sopoll, sopoll);
-		DEFAULT(pu->pru_sosetlabel, pru_sosetlabel_null);
-#undef DEFAULT
-
-		if (pr->pr_init)
-			(*pr->pr_init)();
-	}
+	for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++)
+		protosw_init(pr);
 	/*
 	 * update global information about maximums
 	 */
@@ -298,8 +304,7 @@ found:
 	mtx_unlock(&Giant);
 
 	/* Initialize and activate the protocol. */
-	if (fpr->pr_init)
-		(fpr->pr_init)();
+	protosw_init(fpr);
 
 	return (0);
 }
