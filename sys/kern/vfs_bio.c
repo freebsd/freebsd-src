@@ -671,7 +671,10 @@ vfs_backgroundwritedone(bp)
 	/*
 	 * Clear the BX_BKGRDINPROG flag in the original buffer
 	 * and awaken it if it is waiting for the write to complete.
+	 * If BX_BKGRDINPROG is not set in the original buffer it must
+	 * have been released and re-instantiated - which is not legal.
 	 */
+	KASSERT((origbp->b_xflags & BX_BKGRDINPROG), ("backgroundwritedone: lost buffer2"));
 	origbp->b_xflags &= ~BX_BKGRDINPROG;
 	if (origbp->b_xflags & BX_BKGRDWAIT) {
 		origbp->b_xflags &= ~BX_BKGRDWAIT;
@@ -972,8 +975,7 @@ brelse(struct buf * bp)
 	if ((bp->b_flags & B_VMIO)
 	    && !(bp->b_vp->v_tag == VT_NFS &&
 		 !vn_isdisk(bp->b_vp, NULL) &&
-		 (bp->b_flags & B_DELWRI) &&
-		 (bp->b_xflags & BX_BKGRDINPROG))
+		 (bp->b_flags & B_DELWRI))
 	    ) {
 
 		int i, j, resid;
@@ -1007,25 +1009,31 @@ brelse(struct buf * bp)
 		for (i = 0; i < bp->b_npages; i++) {
 			m = bp->b_pages[i];
 			vm_page_flag_clear(m, PG_ZERO);
+			/*
+			 * If we hit a bogus page, fixup *all* of them
+			 * now.
+			 */
 			if (m == bogus_page) {
-
 				obj = (vm_object_t) vp->v_object;
 				poff = OFF_TO_IDX(bp->b_offset);
 
 				for (j = i; j < bp->b_npages; j++) {
-					m = bp->b_pages[j];
-					if (m == bogus_page) {
-						m = vm_page_lookup(obj, poff + j);
-						if (!m) {
+					vm_page_t mtmp;
+
+					mtmp = bp->b_pages[j];
+					if (mtmp == bogus_page) {
+						mtmp = vm_page_lookup(obj, poff + j);
+						if (!mtmp) {
 							panic("brelse: page missing\n");
 						}
-						bp->b_pages[j] = m;
+						bp->b_pages[j] = mtmp;
 					}
 				}
 
 				if ((bp->b_flags & B_INVAL) == 0) {
 					pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
 				}
+				m = bp->b_pages[i];
 			}
 			if (bp->b_flags & (B_NOCACHE|B_ERROR)) {
 				int poffset = foff & PAGE_MASK;
@@ -1036,7 +1044,7 @@ brelse(struct buf * bp)
 				vm_page_set_invalid(m, poffset, presid);
 			}
 			resid -= PAGE_SIZE - (foff & PAGE_MASK);
-			foff = (foff + PAGE_SIZE) & ~PAGE_MASK;
+			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
 
 		if (bp->b_flags & (B_INVAL | B_RELBUF))
@@ -2642,7 +2650,7 @@ biodone(register struct buf * bp)
 		(*bioops.io_complete)(bp);
 
 	if (bp->b_flags & B_VMIO) {
-		int i, resid;
+		int i;
 		vm_ooffset_t foff;
 		vm_page_t m;
 		vm_object_t obj;
@@ -2691,16 +2699,26 @@ biodone(register struct buf * bp)
 
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
+			int resid;
+
+			resid = ((foff + PAGE_SIZE) & ~(off_t)PAGE_MASK) - foff;
+			if (resid > iosize)
+				resid = iosize;
+
+			/*
+			 * cleanup bogus pages, restoring the originals
+			 */
 			m = bp->b_pages[i];
 			if (m == bogus_page) {
 				bogusflag = 1;
 				m = vm_page_lookup(obj, OFF_TO_IDX(foff));
 				if (!m) {
-#if defined(VFS_BIO_DEBUG)
 					printf("biodone: page disappeared\n");
-#endif
 					vm_object_pip_subtract(obj, 1);
 					bp->b_flags &= ~B_CACHE;
+					foff = (foff + PAGE_SIZE) & 
+					    ~(off_t)PAGE_MASK;
+					iosize -= resid;
 					continue;
 				}
 				bp->b_pages[i] = m;
@@ -2713,9 +2731,6 @@ biodone(register struct buf * bp)
 				    (unsigned long)foff, m->pindex);
 			}
 #endif
-			resid = IDX_TO_OFF(m->pindex + 1) - foff;
-			if (resid > iosize)
-				resid = iosize;
 
 			/*
 			 * In the write case, the valid and clean bits are
@@ -2753,7 +2768,7 @@ biodone(register struct buf * bp)
 			}
 			vm_page_io_finish(m);
 			vm_object_pip_subtract(obj, 1);
-			foff += resid;
+			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 			iosize -= resid;
 		}
 		if (obj)
@@ -2829,7 +2844,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 	 * of the buffer.
 	 */
 	soff = off;
-	eoff = (off + PAGE_SIZE) & ~PAGE_MASK;
+	eoff = (off + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 	if (eoff > bp->b_offset + bp->b_bcount)
 		eoff = bp->b_offset + bp->b_bcount;
 
@@ -2914,7 +2929,7 @@ retry:
 				bp->b_pages[i] = bogus_page;
 				bogus++;
 			}
-			foff = (foff + PAGE_SIZE) & ~PAGE_MASK;
+			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 		}
 		if (bogus)
 			pmap_qenter(trunc_page((vm_offset_t)bp->b_data), bp->b_pages, bp->b_npages);
@@ -2942,7 +2957,7 @@ vfs_clean_pages(struct buf * bp)
 		    ("vfs_clean_pages: no buffer offset"));
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
-			vm_ooffset_t noff = (foff + PAGE_SIZE) & ~PAGE_MASK;
+			vm_ooffset_t noff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 			vm_ooffset_t eoff = noff;
 
 			if (eoff > bp->b_offset + bp->b_bufsize)
