@@ -65,9 +65,6 @@ static int		pci_maptype(unsigned mapreg);
 static int		pci_mapsize(unsigned testval);
 static int		pci_maprange(unsigned mapreg);
 static void		pci_fixancient(pcicfgregs *cfg);
-static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
-					pcicfgregs *cfg);
-static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
 
 static int		pci_porten(device_t pcib, int b, int s, int f);
 static int		pci_memen(device_t pcib, int b, int s, int f);
@@ -294,7 +291,7 @@ pci_fixancient(pcicfgregs *cfg)
 
 /* extract header type specific config data */
 
-static void
+void
 pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
@@ -392,7 +389,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 #undef REG
 }
 
-static void
+void
 pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
@@ -451,7 +448,6 @@ pci_freecfg(struct pci_devinfo *dinfo)
 
 	devlist_head = &pci_devq;
 
-	/* XXX this hasn't been tested */
 	STAILQ_REMOVE(devlist_head, dinfo, pci_devinfo, pci_links);
 	free(dinfo, M_DEVBUF);
 
@@ -1337,7 +1333,7 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 	rle = resource_list_find(rl, type, rid);
 	if (rle) {
 		if (rle->res) {
-			if (rle->res->r_dev != dev ||
+			if (rman_get_device(rle->res) != dev ||
 			    rman_get_flags(rle->res) & RF_ACTIVE) {
 				device_printf(dev, "delete_resource: "
 				    "Resource still owned by child, oops. "
