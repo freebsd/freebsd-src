@@ -315,8 +315,8 @@ static driver_t dc_driver = {
 static devclass_t dc_devclass;
 #ifdef __i386__
 static int dc_quick = 1;
-SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW,
-	&dc_quick,0,"do not mdevget in dc driver");
+SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW, &dc_quick, 0,
+    "do not mdevget in dc driver");
 #endif
 
 DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
@@ -2289,7 +2289,10 @@ dc_list_tx_init(struct dc_softc *sc)
 	cd = &sc->dc_cdata;
 	ld = sc->dc_ldata;
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
-		nexti = (i == (DC_TX_LIST_CNT - 1)) ? 0 : i+1;
+		if (i == DC_TX_LIST_CNT - 1)
+			nexti = 0;
+		else
+			nexti = i + 1;
 		ld->dc_tx_list[i].dc_next = vtophys(&ld->dc_tx_list[nexti]);
 		cd->dc_tx_chain[i] = NULL;
 		ld->dc_tx_list[i].dc_data = 0;
@@ -2320,7 +2323,10 @@ dc_list_rx_init(struct dc_softc *sc)
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
 		if (dc_newbuf(sc, i, NULL) == ENOBUFS)
 			return (ENOBUFS);
-		nexti = (i == (DC_RX_LIST_CNT - 1)) ? 0 : i+1;
+		if (i == DC_RX_LIST_CNT - 1)
+			nexti = 0;
+		else
+			nexti = i + 1;
 		ld->dc_rx_list[i].dc_next = vtophys(&ld->dc_rx_list[nexti]);
 	}
 
@@ -3492,13 +3498,17 @@ dc_watchdog(struct ifnet *ifp)
 static void
 dc_stop(struct dc_softc *sc)
 {
-	int i;
 	struct ifnet *ifp;
+	struct dc_list_data *ld;
+	struct dc_chain_data *cd;
+	int i;
 
 	DC_LOCK(sc);
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
+	ld = sc->dc_ldata;
+	cd = &sc->dc_cdata;
 
 	callout_stop(&sc->dc_stat_ch);
 
@@ -3517,29 +3527,27 @@ dc_stop(struct dc_softc *sc)
 	 * Free data in the RX lists.
 	 */
 	for (i = 0; i < DC_RX_LIST_CNT; i++) {
-		if (sc->dc_cdata.dc_rx_chain[i] != NULL) {
+		if (cd->dc_rx_chain[i] != NULL) {
 			m_freem(sc->dc_cdata.dc_rx_chain[i]);
 			sc->dc_cdata.dc_rx_chain[i] = NULL;
 		}
 	}
-	bzero(&sc->dc_ldata->dc_rx_list, sizeof(sc->dc_ldata->dc_rx_list));
+	bzero(&ld->dc_rx_list, sizeof(ld->dc_rx_list));
 
 	/*
 	 * Free the TX list buffers.
 	 */
 	for (i = 0; i < DC_TX_LIST_CNT; i++) {
-		if (sc->dc_cdata.dc_tx_chain[i] != NULL) {
-			if (sc->dc_ldata->dc_tx_list[i].dc_ctl &
-			    DC_TXCTL_SETUP) {
-				sc->dc_cdata.dc_tx_chain[i] = NULL;
+		if (cd->dc_tx_chain[i] != NULL) {
+			if (ld->dc_tx_list[i].dc_ctl & DC_TXCTL_SETUP) {
+				cd->dc_tx_chain[i] = NULL;
 				continue;
 			}
 			m_freem(sc->dc_cdata.dc_tx_chain[i]);
-			sc->dc_cdata.dc_tx_chain[i] = NULL;
+			cd->dc_tx_chain[i] = NULL;
 		}
 	}
-
-	bzero(&sc->dc_ldata->dc_tx_list, sizeof(sc->dc_ldata->dc_tx_list));
+	bzero(&ld->dc_tx_list, sizeof(ld->dc_tx_list));
 
 	DC_UNLOCK(sc);
 }
