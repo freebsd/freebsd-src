@@ -56,38 +56,12 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fnmatch.h>
 #include <fts.h>
-#include <math.h>
+#include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#define	KILO_SZ(n) (n)
-#define	MEGA_SZ(n) ((n) * (n))
-#define	GIGA_SZ(n) ((n) * (n) * (n))
-#define	TERA_SZ(n) ((n) * (n) * (n) * (n))
-#define	PETA_SZ(n) ((n) * (n) * (n) * (n) * (n))
-
-#define	KILO_2_SZ (KILO_SZ(1024ULL))
-#define	MEGA_2_SZ (MEGA_SZ(1024ULL))
-#define	GIGA_2_SZ (GIGA_SZ(1024ULL))
-#define	TERA_2_SZ (TERA_SZ(1024ULL))
-#define	PETA_2_SZ (PETA_SZ(1024ULL))
-
-#define	KILO_SI_SZ (KILO_SZ(1000ULL))
-#define	MEGA_SI_SZ (MEGA_SZ(1000ULL))
-#define	GIGA_SI_SZ (GIGA_SZ(1000ULL))
-#define	TERA_SI_SZ (TERA_SZ(1000ULL))
-#define	PETA_SI_SZ (PETA_SZ(1000ULL))
-
-unsigned long long vals_si [] = {1, KILO_SI_SZ, MEGA_SI_SZ, GIGA_SI_SZ, TERA_SI_SZ, PETA_SI_SZ};
-unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
-unsigned long long *valp;
-
-typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
-
-int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 SLIST_HEAD(ignhead, ignentry) ignores;
 struct ignentry {
@@ -97,8 +71,7 @@ struct ignentry {
 
 static int	linkchk(FTSENT *);
 static void	usage(void);
-void		prthumanval(double);
-unit_t		unit_adjust(double *);
+void		prthumanval(int64_t);
 void		ignoreadd(const char *);
 void		ignoreclean(void);
 int		ignorep(FTSENT *);
@@ -162,7 +135,6 @@ main(int argc, char *argv[])
 			case 'h':
 				putenv("BLOCKSIZE=512");
 				hflag = 1;
-				valp = vals_base2;
 				break;
 			case 'k':
 				hflag = 0;
@@ -441,47 +413,17 @@ linkchk(FTSENT *p)
 	return (0);
 }
 
-/*
- * Output in "human-readable" format.  Uses 3 digits max and puts
- * unit suffixes at the end.  Makes output compact and easy to read,
- * especially on huge disks.
- *
- */
-unit_t
-unit_adjust(double *val)
-{
-	double abval;
-	unit_t unit;
-	unsigned int unit_sz;
-
-	abval = fabs(*val);
-
-	unit_sz = abval ? ilogb(abval) / 10 : 0;
-
-	if (unit_sz >= UNIT_MAX) {
-		unit = NONE;
-	} else {
-		unit = unitp[unit_sz];
-		*val /= (double)valp[unit_sz];
-	}
-
-	return (unit);
-}
-
 void
-prthumanval(double bytes)
+prthumanval(int64_t bytes)
 {
-	unit_t unit;
+	char buf[5];
 
-	bytes *= 512;
-	unit = unit_adjust(&bytes);
+	bytes *= DEV_BSIZE;
 
-	if (bytes == 0)
-		(void)printf("  0B");
-	else if (bytes > 10)
-		(void)printf("%3.0f%c", bytes, "BKMGTPE"[unit]);
-	else
-		(void)printf("%3.1f%c", bytes, "BKMGTPE"[unit]);
+	humanize_number(buf, sizeof(buf), bytes, "", HN_AUTOSCALE,
+	    HN_B | HN_NOSPACE | HN_DECIMAL);
+
+	(void)printf("%4s", buf);
 }
 
 static void
