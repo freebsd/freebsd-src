@@ -451,19 +451,14 @@ Compat_RunCommand(char *cmd, GNode *gn)
  * CompatMake --
  *	Make a target, given the parent, to abort if necessary.
  *
- * Results:
- *	0
- *
  * Side Effects:
  *	If an error is detected and not being ignored, the process exits.
  *
  *-----------------------------------------------------------------------
  */
 static int
-CompatMake(void *gnp, void *pgnp)
+CompatMake(GNode *gn, GNode *pgn)
 {
-	GNode	*gn = gnp;
-	GNode	*pgn = pgnp;
 	LstNode	*ln;
 
 	if (gn->type & OP_USE) {
@@ -481,7 +476,8 @@ CompatMake(void *gnp, void *pgnp)
 		gn->make = TRUE;
 		gn->made = BEINGMADE;
 		Suff_FindDeps(gn);
-		Lst_ForEach(&gn->children, CompatMake, gn);
+		LST_FOREACH(ln, &gn->children)
+			CompatMake(Lst_Datum(ln), gn);
 		if (!gn->make) {
 			gn->made = ABORTED;
 			pgn->make = FALSE;
