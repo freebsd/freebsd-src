@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.1 1995/03/26 10:21:55 jkh Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.2 1995/03/26 19:32:24 ache Exp $";
 #endif
 
 /*
@@ -37,6 +37,9 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.1 19
 
 /*
  * $Log: strhash.c,v $
+ * Revision 1.2  1995/03/26  19:32:24  ache
+ * Hash 8bit chars without sign extension
+ *
  * Revision 1.1  1995/03/26  10:21:55  jkh
  * Add the strhash family of routines.  They provide a number of features
  * that the db/hash functions don't, and they're much simpler to use for
@@ -83,6 +86,7 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.1 19
  */
 
 
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
 #include <strhash.h>
@@ -238,7 +242,7 @@ void *
 hash_search(hash_table *table, caddr_t key, void *datum,
 	    void (*replace_func)())
 {
-    int bucket = hash(table->size, key);
+    int bucket = _hash(table->size, key);
     hash_node *found = list_find(key, table->buckets[bucket]);
 
     if (found){
@@ -346,8 +350,7 @@ hash_purge(hash_table *table, void (*purge_func)(char *p1, void *p2))
     } 
 }
 
-#ifdef HASH_STATS
-#include <stdio.h>
+#undef min
 #define min(a, b) (a) < (b) ? (a) : (b)
 
 /*
@@ -416,4 +419,3 @@ hash_stats(hash_table *table, int verbose)
     }
     return;
 }
-#endif /* HASH_STATS */
