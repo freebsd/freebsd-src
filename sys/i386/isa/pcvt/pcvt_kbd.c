@@ -1558,9 +1558,9 @@ loop:
 					 * happen "recently", i.e. before
 					 * less than half a second
 					 */
-					gettime(&now);
+					getmicrotime(&now);
 					timevalsub(&now, &mouse.lastmove);
-					mouse.lastmove = time;
+					getmicrotime(&mouse.lastmove);
 					accel = (now.tv_sec == 0
 						 && now.tv_usec
 						 < mousedef.acceltime);
