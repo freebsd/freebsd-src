@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfscanf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfscanf.c,v 1.3.2.2 1997/03/07 09:12:11 joerg Exp $";
+		"$Id: vfscanf.c,v 1.3.2.3 1997/08/17 15:07:56 joerg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -64,7 +64,7 @@ static const char rcsid[] =
  * Flags used during conversion.
  */
 #define	LONG		0x01	/* l: long or double */
-#define	LONGDBL		0x02	/* L: long double; unimplemented */
+#define	LONGDBL		0x02	/* L: long double */
 #define	SHORT		0x04	/* h: short */
 #define	SUPPRESS	0x08	/* suppress assignment */
 #define	POINTER		0x10	/* weird %p pointer (`fake hex') */
@@ -655,8 +655,11 @@ literal:
 				double res;
 
 				*p = 0;
-				res = strtod(buf,(char **) NULL);
-				if (flags & LONG)
+				/* XXX this loses precision for long doubles. */
+				res = strtod(buf, (char **) NULL);
+				if (flags & LONGDBL)
+					*va_arg(ap, long double *) = res;
+				else if (flags & LONG)
 					*va_arg(ap, double *) = res;
 				else
 					*va_arg(ap, float *) = res;
