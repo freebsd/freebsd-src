@@ -4,7 +4,7 @@ set CTMname	cvs-cur
 set CTMref	/u1/CVS-FreeBSD
 set CTMdest	/u4/ftp/pub/CTM
 set CTMprefix	.
-set CTMdont	{^/CVSROOT/history.*$|^/src/secure|^/src/eBones|^/sup/}
+set CTMdont	{.*\.core$|^/CVSROOT/history.*$|^/src/secure|^/src/eBones|^/sup/}
 
 set CTMcopy	/u1/CTM/$CTMname
 set CTMtmp	/u1/CTM/tmp/_tmp_$CTMname
