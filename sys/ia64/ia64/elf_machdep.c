@@ -42,7 +42,6 @@ elf_reloc(linker_file_t lf, const void *data, int type, const char *sym)
 {
 	Elf_Addr relocbase = (Elf_Addr) lf->address;
 	Elf_Addr *where;
-	Elf_Addr addr;
 	Elf_Addr addend;
 	Elf_Word rtype;
 	const Elf_Rel *rel;
