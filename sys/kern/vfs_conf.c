@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  * Copyright (c) 1995 Artisoft, Inc.  All Rights Reserved.
  *
@@ -61,26 +61,33 @@
 /*
  * GLOBALS
  */
-int (*mountroot) __P((void *));
-struct vnode *rootvnode;
-struct vfsops	*mountrootvfsops;
 
+/*
+ *  These define the root filesystem, device, and root filesystem type.
+ */
+struct mount *rootfs;
+struct vnode *rootvnode;
+char *mountrootfsname;
+
+/*
+ * vfs_init() will set maxvfsconf
+ * to the highest defined type number.
+ */
+int maxvfsconf;
+struct vfsconf *vfsconf;
 
 /*
  * Common root mount code shared by all filesystems
  */
-#define ROOTDIR		"/"
 #define ROOTNAME	"root_device"
 
-
-
 /*
- * vfs_mountroot
+ * vfs_mountrootfs
  *
  * Common entry point for root mounts
  *
  * PARAMETERS:
- *		data	pointer to the vfs_ops for the FS type mounting
+ *		fsname	name of the filesystem
  *
  * RETURNS:	0	Success
  *		!0	error number (errno.h)
@@ -97,67 +104,44 @@ struct vfsops	*mountrootvfsops;
  *		fixing the other file systems, not this code!
  */
 int
-vfs_mountroot(data)
-	void			*data;
+vfs_mountrootfs(fsname)
+	char			*fsname;
 {
 	struct mount		*mp;
-	u_int			size;
 	int			err = 0;
 	struct proc		*p = curproc;	/* XXX */
-	struct vfsops		*mnt_op = (struct vfsops *)data;
 
 	/*
 	 *  New root mount structure
 	 */
-	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
-	bzero((char *)mp, (u_long)sizeof(struct mount));
-	mp->mnt_op		= mnt_op;
-	mp->mnt_flag		= MNT_ROOTFS;
-	mp->mnt_vnodecovered	= NULLVP;
-
-	/*
-	 * Lock mount point
-	 */
-	if( ( err = vfs_lock(mp)) != 0)
-		goto error_1;
-
-	/* Save "last mounted on" info for mount point (NULL pad)*/
-	copystr(	ROOTDIR,			/* mount point*/
-			mp->mnt_stat.f_mntonname,	/* save area*/
-			MNAMELEN - 1,			/* max size*/
-			&size);				/* real size*/
-	bzero( mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
-
-	/* Save "mounted from" info for mount point (NULL pad)*/
-	copystr(	ROOTNAME,			/* device name*/
-			mp->mnt_stat.f_mntfromname,	/* save area*/
-			MNAMELEN - 1,			/* max size*/
-			&size);				/* real size*/
-	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
+	err = vfs_rootmountalloc(fsname, ROOTNAME, &mp);
+	if (err)
+		return (err);
+	mp->mnt_flag		|= MNT_ROOTFS;
 
 	/*
 	 * Attempt the mount
 	 */
-	err = VFS_MOUNT( mp, NULL, NULL, NULL, p);
-	if( err)
+	err = VFS_MOUNT(mp, NULL, NULL, NULL, p);
+	if (err)
 		goto error_2;
 
+	simple_lock(&mountlist_slock);
 	/* Add fs to list of mounted file systems*/
-	CIRCLEQ_INSERT_TAIL( &mountlist, mp, mnt_list);
+	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	simple_unlock(&mountlist_slock);
 
-	/* Unlock mount point*/
-	vfs_unlock(mp);
+	vfs_unbusy(mp, p);
 
 	/* root mount, update system time from FS specific data*/
-	inittodr( mp->mnt_time);
+	inittodr(mp->mnt_time);
 
 	goto success;
 
 
 error_2:	/* mount error*/
 
-	/* unlock before failing*/
-	vfs_unlock( mp);
+	vfs_unbusy(mp, p);
 
 error_1:	/* lock error*/
 

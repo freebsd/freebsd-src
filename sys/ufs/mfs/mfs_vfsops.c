@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
+ *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
  * $FreeBSD$
  */
 
@@ -84,7 +84,7 @@ static int	mfs_mount __P((struct mount *mp,
 static int	mfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	mfs_statfs __P((struct mount *mp, struct statfs *sbp, 
 			struct proc *p));
-static int	mfs_init __P((void));
+static int	mfs_init __P((struct vfsconf *));
 
 /*
  * mfs vfs operations.
@@ -230,8 +230,8 @@ mfs_mount(mp, path, data, ndp, p)
 	struct vnode *devvp;
 	struct mfs_args args;
 	struct ufsmount *ump;
-	register struct fs *fs;
-	register struct mfsnode *mfsp;
+	struct fs *fs;
+	struct mfsnode *mfsp;
 	u_int size;
 	int flags, err;
 
@@ -282,8 +282,10 @@ mfs_mount(mp, path, data, ndp, p)
 
 
 		/* Get vnode for root device*/
-		if( bdevvp( rootdev, &rootvp))
-			panic("mfs_mountroot: can't setup bdevvp for rootdev");
+		if (error = bdevvp( rootdev, &rootvp)) {
+			printf("mfs_mountroot: can't setup bdevvp for rootdev");
+			return (error);
+		}
 
 		/*
 		 * FS specific handling
@@ -342,12 +344,7 @@ mfs_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp)) {
-				err = EBUSY;
-				goto error_1;
-			}
 			err = ffs_flushfiles(mp, flags, p);
-			vfs_unbusy(mp);
 			if (err)
 				goto error_1;
 		}
@@ -503,7 +500,7 @@ mfs_statfs(mp, sbp, p)
 	int error;
 
 	error = ffs_statfs(mp, sbp, p);
-	sbp->f_type = MOUNT_MFS;
+	sbp->f_type = mp->mnt_vfc->vfc_typenum;
 	return (error);
 }
 
@@ -511,7 +508,8 @@ mfs_statfs(mp, sbp, p)
  * Memory based filesystem initialization.
  */
 static int
-mfs_init()
+mfs_init(vfsp)
+	struct vfsconf *vfsp;
 {
 	return (0);
 }

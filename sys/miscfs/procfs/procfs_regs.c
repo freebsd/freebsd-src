@@ -34,8 +34,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_regs.c	8.3 (Berkeley) 1/27/94
+ *	@(#)procfs_regs.c	8.4 (Berkeley) 6/15/94
  *
+ * From:
  *	$FreeBSD$
  */
 

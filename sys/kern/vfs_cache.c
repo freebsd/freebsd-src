@@ -1,8 +1,9 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 1995
- *	Poul-Henning Kamp.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Poul-Henning Kamp of the FreeBSD Project.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -58,9 +59,8 @@
  * obtained from (vp, name) where vp refers to the directory
  * containing name.
  *
- * If it is a "negative" entry, (that we know a name to >not< exist)
- * we point out entry at our own "nchENOENT", to avoid too much special
- * casing in the inner loops of lookup.
+ * If it is a "negative" entry, (i.e. for a name that is known NOT to
+ * exist) the vnode pointer will be NULL.
  *
  * For simplicity (and economy of storage), names longer than
  * a maximum length of NCHNAMLEN are not cached; they occur
@@ -74,15 +74,15 @@
 /*
  * Structures associated with name cacheing.
  */
+#define NCHHASH(dvp, cnp) \
+	(&nchashtbl[((dvp)->v_id + (cnp)->cn_hash) & nchash])
 static LIST_HEAD(nchashhead, namecache) *nchashtbl;	/* Hash Table */
-static TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
-static u_long	nchash;			/* size of hash table */
-struct nchstats nchstats;		/* cache effectiveness statistics */
-static struct vnode nchENOENT;		/* our own "novnode" */
-static int doingcache = 1;		/* 1 => enable the cache */
+static u_long nchash;			/* size of hash table - 1 */
+static int doingcache = 1;			/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0, "");
-static u_long	numcache;
-u_long	numvnodes;
+static u_long numcache;			/* number of cache entries allocated */
+static TAILQ_HEAD(, namecache) nclruhead;	/* LRU chain */
+struct	nchstats nchstats;		/* cache effectiveness statistics */
 
 #ifdef NCH_STATISTICS
 u_long	nchnbr;
@@ -93,32 +93,42 @@ u_long	nchnbr;
 #define NCHHIT(ncp)
 #endif
 
+/*
+ * Delete an entry from its hash list and move it to the front
+ * of the LRU list for immediate reuse.
+ */
 #define PURGE(ncp)  {						\
 	LIST_REMOVE(ncp, nc_hash);				\
 	ncp->nc_hash.le_prev = 0;				\
 	TAILQ_REMOVE(&nclruhead, ncp, nc_lru);			\
-	TAILQ_INSERT_HEAD(&nclruhead, ncp, nc_lru); }
-
-#define TOUCH(ncp)  {						\
-	if (ncp->nc_lru.tqe_next == 0) { } else {		\
-		TAILQ_REMOVE(&nclruhead, ncp, nc_lru);		\
-		TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);	\
-		NCHNBR(ncp); } }
+	TAILQ_INSERT_HEAD(&nclruhead, ncp, nc_lru);		\
+}
 
 /*
- * Lookup an entry in the cache
+ * Move an entry that has been used to the tail of the LRU list
+ * so that it will be preserved for future use.
+ */
+#define TOUCH(ncp)  {						\
+	if (ncp->nc_lru.tqe_next != 0) {			\
+		TAILQ_REMOVE(&nclruhead, ncp, nc_lru);		\
+		TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);	\
+		NCHNBR(ncp);					\
+	}							\
+}
+
+/*
+ * Lookup an entry in the cache 
  *
- * We don't do this if the segment name is long, simply so the cache
+ * We don't do this if the segment name is long, simply so the cache 
  * can avoid holding long names (which would either waste space, or
  * add greatly to the complexity).
  *
  * Lookup is called with dvp pointing to the directory to search,
- * cnp pointing to the name of the entry being sought.
- * If the lookup succeeds, the vnode is returned in *vpp, and a status
- * of -1 is returned.
- * If the lookup determines that the name does not exist (negative cacheing),
- * a status of ENOENT is returned.
- * If the lookup fails, a status of zero is returned.
+ * cnp pointing to the name of the entry being sought. If the lookup
+ * succeeds, the vnode is returned in *vpp, and a status of -1 is
+ * returned. If the lookup determines that the name does not exist
+ * (negative cacheing), a status of ENOENT is returned. If the lookup
+ * fails, a status of zero is returned.
  */
 
 int
@@ -127,7 +137,7 @@ cache_lookup(dvp, vpp, cnp)
 	struct vnode **vpp;
 	struct componentname *cnp;
 {
-	register struct namecache *ncp,*nnp;
+	register struct namecache *ncp, *nnp;
 	register struct nchashhead *ncpp;
 
 	if (!doingcache) {
@@ -141,12 +151,12 @@ cache_lookup(dvp, vpp, cnp)
 		return (0);
 	}
 
-	ncpp = &nchashtbl[(dvp->v_id + cnp->cn_hash) % nchash];
+	ncpp = NCHHASH(dvp, cnp);
 	for (ncp = ncpp->lh_first; ncp != 0; ncp = nnp) {
 		nnp = ncp->nc_hash.le_next;
 		/* If one of the vp's went stale, don't bother anymore. */
 		if ((ncp->nc_dvpid != ncp->nc_dvp->v_id) ||
-		    (ncp->nc_vpid  != ncp->nc_vp->v_id)) {
+		    (ncp->nc_vp && ncp->nc_vpid != ncp->nc_vp->v_id)) {
 			nchstats.ncs_falsehits++;
 			PURGE(ncp);
 			continue;
@@ -155,12 +165,15 @@ cache_lookup(dvp, vpp, cnp)
 		if (ncp->nc_dvp == dvp &&
 		    ncp->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(ncp->nc_name, cnp->cn_nameptr, (u_int)ncp->nc_nlen))
-			goto found;	/* Fanatism considered bad. */
+			break;
 	}
-	nchstats.ncs_miss++;
-	return (0);
 
-    found:
+	/* We failed to find an entry */
+	if (ncp == 0) {
+		nchstats.ncs_miss++;
+		return (0);
+	}
+
 	NCHHIT(ncp);
 
 	/* We don't want to have an entry, so dump it */
@@ -168,10 +181,10 @@ cache_lookup(dvp, vpp, cnp)
 		nchstats.ncs_badhits++;
 		PURGE(ncp);
 		return (0);
-	}
+	} 
 
 	/* We found a "positive" match, return the vnode */
-        if (ncp->nc_vp != &nchENOENT) {
+        if (ncp->nc_vp) {
 		nchstats.ncs_goodhits++;
 		TOUCH(ncp);
 		*vpp = ncp->nc_vp;
@@ -187,16 +200,19 @@ cache_lookup(dvp, vpp, cnp)
 		return (0);
 	}
 
-	/* The name does not exists */
+	/*
+	 * We found a "negative" match, ENOENT notifies client of this match.
+	 * The nc_vpid field records whether this is a whiteout.
+	 */
 	nchstats.ncs_neghits++;
 	TOUCH(ncp);
+	cnp->cn_flags |= ncp->nc_vpid;
 	return (ENOENT);
 }
 
 /*
  * Add an entry to the cache.
  */
-
 void
 cache_enter(dvp, vp, cnp)
 	struct vnode *dvp;
@@ -209,12 +225,21 @@ cache_enter(dvp, vp, cnp)
 	if (!doingcache)
 		return;
 
+#ifdef DIAGNOSTIC
 	if (cnp->cn_namelen > NCHNAMLEN) {
 		printf("cache_enter: name too long");
 		return;
 	}
+#endif
 
-	if (numcache < numvnodes) {
+	/*
+	 * We allocate a new entry if we are less than the maximum
+	 * allowed and the one at the front of the LRU list is in use.
+	 * Otherwise we use the one at the front of the LRU list.
+	 */
+	if (numcache < desiredvnodes &&
+	    ((ncp = nclruhead.tqh_first) == NULL ||
+	    ncp->nc_hash.le_prev != 0)) {
 		/* Add one more entry */
 		ncp = (struct namecache *)
 			malloc((u_long)sizeof *ncp, M_CACHE, M_WAITOK);
@@ -231,52 +256,51 @@ cache_enter(dvp, vp, cnp)
 		/* give up */
 		return;
 	}
-
-	/* If vp is NULL this is a "negative" cache entry */
-	if (!vp)
-		vp = &nchENOENT;
-
-	/* fill in cache info */
+	/*
+	 * Fill in cache info, if vp is NULL this is a "negative" cache entry.
+	 * For negative entries, we have to record whether it is a whiteout.
+	 * the whiteout flag is stored in the nc_vpid field which is
+	 * otherwise unused.
+	 */
 	ncp->nc_vp = vp;
-	if (vp->v_usage < MAXVNODEUSE)
-		++vp->v_usage;
-	ncp->nc_vpid = vp->v_id;
+	if (vp) {
+		ncp->nc_vpid = vp->v_id;
+		if (vp->v_usage < MAXVNODEUSE)
+			++vp->v_usage;
+	} else
+		ncp->nc_vpid = cnp->cn_flags & ISWHITEOUT;
 	ncp->nc_dvp = dvp;
 	ncp->nc_dvpid = dvp->v_id;
 	ncp->nc_nlen = cnp->cn_namelen;
 	bcopy(cnp->cn_nameptr, ncp->nc_name, (unsigned)ncp->nc_nlen);
 	TAILQ_INSERT_TAIL(&nclruhead, ncp, nc_lru);
-	ncpp = &nchashtbl[(dvp->v_id + cnp->cn_hash) % nchash];
+	ncpp = NCHHASH(dvp, cnp);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 }
 
 /*
  * Name cache initialization, from vfs_init() when we are booting
  */
-
 void
 nchinit()
 {
-
 	TAILQ_INIT(&nclruhead);
 	nchashtbl = phashinit(desiredvnodes, M_CACHE, &nchash);
-	cache_purge(&nchENOENT);	/* Initialize v_id */
 }
 
 /*
- * Invalidate all entries to a particular vnode.
- *
- * We actually just increment the v_id, that will do it.  The stale entries 
- * will be purged by lookup as they get found.
- * If the v_id wraps around, we need to ditch the entire cache, to avoid
- * confusion.
- * No valid vnode will ever have (v_id == 0).
+ * Invalidate all entries to particular vnode.
+ * 
+ * We actually just increment the v_id, that will do it. The stale entries
+ * will be purged by lookup as they get found. If the v_id wraps around, we
+ * need to ditch the entire cache, to avoid confusion. No valid vnode will
+ * ever have (v_id == 0).
  */
-
 void
 cache_purge(vp)
 	struct vnode *vp;
 {
+	struct namecache *ncp;
 	struct nchashhead *ncpp;
 	static u_long nextvnodeid;
 
@@ -284,10 +308,9 @@ cache_purge(vp)
 	if (nextvnodeid != 0)
 		return;
 	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
-		while(ncpp->lh_first)
-			PURGE(ncpp->lh_first);
+		while (ncp = ncpp->lh_first)
+			PURGE(ncp);
 	}
-	nchENOENT.v_id = ++nextvnodeid;
 	vp->v_id = ++nextvnodeid;
 }
 
@@ -296,29 +319,22 @@ cache_purge(vp)
  *
  * Since we need to check it anyway, we will flush all the invalid
  * entries at the same time.
- *
- * If we purge anything, we scan the hash-bucket again.  There is only
- * a handful of entries, so it cheap and simple.
  */
-
 void
 cache_purgevfs(mp)
 	struct mount *mp;
 {
 	struct nchashhead *ncpp;
-	struct namecache *ncp;
+	struct namecache *ncp, *nnp;
 
 	/* Scan hash tables for applicable entries */
 	for (ncpp = &nchashtbl[nchash - 1]; ncpp >= nchashtbl; ncpp--) {
-		ncp = ncpp->lh_first;
-		while(ncp) {
+		for (ncp = ncpp->lh_first; ncp != 0; ncp = nnp) {
+			nnp = ncp->nc_hash.le_next;
 			if (ncp->nc_dvpid != ncp->nc_dvp->v_id ||
-			    ncp->nc_vpid != ncp->nc_vp->v_id ||
+			    (ncp->nc_vp && ncp->nc_vpid != ncp->nc_vp->v_id) ||
 			    ncp->nc_dvp->v_mount == mp) {
 				PURGE(ncp);
-				ncp = ncpp->lh_first;
-			} else {
-				ncp = ncp->nc_hash.le_next;
 			}
 		}
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1991, 1993
+ * Copyright (c) 1989, 1991, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
+ *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
  * $FreeBSD$
  */
 
@@ -1925,6 +1925,9 @@ nfs_getreq(nd, nfsd, has_header)
 	struct mbuf *mrep, *md;
 	register struct nfsuid *nuidp;
 	struct timeval tvin, tvout;
+#if 0				/* until encrypted keys are implemented */
+	NFSKERBKEYSCHED_T keys;	/* stores key schedule */
+#endif
 
 	mrep = nd->nd_mrep;
 	md = nd->nd_md;

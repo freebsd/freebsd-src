@@ -79,7 +79,7 @@
 #include <vm/vm_param.h>
 #include <vm/vm_inherit.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
@@ -424,9 +424,11 @@ retry:
 			vm_map_reference(&vm->vm_map);
 			/*
 			 * do not swapout a process that is waiting for VM
-			 * datastructures there is a possible deadlock.
+			 * data structures there is a possible deadlock.
 			 */
-			if (!lock_try_write(&vm->vm_map.lock)) {
+			if (lockmgr(&vm->vm_map.lock,
+					LK_EXCLUSIVE | LK_NOWAIT,
+					(void *)0, curproc)) {
 				vm_map_deallocate(&vm->vm_map);
 				vmspace_free(vm);
 				continue;

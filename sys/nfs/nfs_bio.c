@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
+ *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
  * $FreeBSD$
  */
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -64,19 +65,6 @@ static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 
 extern int nfs_numasync;
 extern struct nfsstats nfsstats;
-
-/*
- * Ifdefs for FreeBSD-current's merged VM/buffer cache. It is unfortunate
- * that this isn't done inside getblk() and brelse() so these calls
- * wouldn't need to be here.
- */
-#ifdef B_VMIO
-#define vnode_pager_uncache(vp)
-#else
-#define vfs_busy_pages(bp, f)
-#define vfs_unbusy_pages(bp)
-#define vfs_dirty_pages(bp)
-#endif
 
 /*
  * Vnode op for read using bio
@@ -195,7 +183,7 @@ nfs_bioread(vp, uio, ioflag, cred)
 		case VDIR:
 			break;
 		default:
-			printf(" NQNFSNONCACHE: type %x unexpected\n",
+			printf(" NQNFSNONCACHE: type %x unexpected\n",	
 				vp->v_type);
 		};
 	    }
@@ -225,9 +213,8 @@ nfs_bioread(vp, uio, ioflag, cred)
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
 				}
-			    } else {
+			    } else
 				brelse(rabp);
-			    }
 			}
 		    }
 		}
@@ -270,6 +257,7 @@ again:
 		if (not_readin && n > 0) {
 			if (on < bp->b_validoff || (on + n) > bp->b_validend) {
 				bp->b_flags |= B_NOCACHE;
+				bp->b_flags |= B_INVAFTERWRITE;
 				if (bp->b_dirtyend > 0) {
 				    if ((bp->b_flags & B_DELWRI) == 0)
 					panic("nfsbioread");
@@ -475,10 +463,6 @@ nfs_write(ap)
 	 */
 	biosize = vp->v_mount->mnt_stat.f_iosize;
 	do {
-
-		/*
-		 * XXX make sure we aren't cached in the VM page cache
-		 */
 		/*
 		 * Check for a valid write lease.
 		 */

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
+ *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
  * $FreeBSD$
  */
 
@@ -50,12 +50,6 @@
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfsiom.h>
 #include <ufs/mfs/mfs_extern.h>
-
-#if !defined(hp300) && !defined(i386) && !defined(mips) && !defined(sparc) && !defined(luna68k)
-static int mfsmap_want;		/* 1 => need kernel I/O resources */
-struct map mfsmap[MFS_MAPSIZE];
-extern char mfsiobuf[];
-#endif
 
 static int	mfs_badop __P((void));
 static int	mfs_bmap __P((struct vop_bmap_args *));
@@ -84,6 +78,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)mfs_write },	/* write */
 	{ &vop_ioctl_desc, (vop_t *)mfs_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)mfs_select },	/* select */
+	{ &vop_revoke_desc, (vop_t *)mfs_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)mfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)mfs_seek },		/* seek */
@@ -227,9 +222,9 @@ static int
 mfs_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
-		daddr_t  a_bn;
+		ufs_daddr_t  a_bn;
 		struct vnode **a_vpp;
-		daddr_t *a_bnp;
+		ufs_daddr_t *a_bnp;
 		int *a_runp;
 	} */ *ap;
 {
@@ -300,13 +295,16 @@ static int
 mfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
-	register struct mfsnode *mfsp = VTOMFS(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
+	struct mfsnode *mfsp = VTOMFS(vp);
 
 	if (!TAILQ_EMPTY(&mfsp->buf_queue))
 		panic("mfs_inactive: not inactive (next buffer %p)",
 			TAILQ_FIRST(&mfsp->buf_queue));
+	VOP_UNLOCK(vp, 0, ap->a_p);
 	return (0);
 }
 
@@ -319,9 +317,10 @@ mfs_reclaim(ap)
 		struct vnode *a_vp;
 	} */ *ap;
 {
+	register struct vnode *vp = ap->a_vp;
 
-	FREE(ap->a_vp->v_data, M_MFSNODE);
-	ap->a_vp->v_data = NULL;
+	FREE(vp->v_data, M_MFSNODE);
+	vp->v_data = NULL;
 	return (0);
 }
 
@@ -351,4 +350,3 @@ mfs_badop()
 	panic("mfs_badop called");
 	/* NOTREACHED */
 }
-

@@ -82,7 +82,7 @@ struct	getpid_args {
 	int dummy;
 };
 struct	mount_args {
-	int type;
+	char * type;
 	char * path;
 	int flags;
 	caddr_t data;
@@ -655,6 +655,9 @@ struct	utrace_args {
 	caddr_t addr;
 	size_t len;
 };
+struct	undelete_args {
+	char * path;
+};
 struct	__semctl_args {
 	int semid;
 	int semnum;
@@ -777,7 +780,7 @@ int	revoke __P((struct proc *, struct revoke_args *, int []));
 int	symlink __P((struct proc *, struct symlink_args *, int []));
 int	readlink __P((struct proc *, struct readlink_args *, int []));
 int	execve __P((struct proc *, struct execve_args *, int []));
-mode_t	umask __P((struct proc *, struct umask_args *, int []));
+int	umask __P((struct proc *, struct umask_args *, int []));
 int	chroot __P((struct proc *, struct chroot_args *, int []));
 int	msync __P((struct proc *, struct msync_args *, int []));
 int	vfork __P((struct proc *, struct vfork_args *, int []));
@@ -876,6 +879,7 @@ int	__sysctl __P((struct proc *, struct sysctl_args *, int []));
 int	mlock __P((struct proc *, struct mlock_args *, int []));
 int	munlock __P((struct proc *, struct munlock_args *, int []));
 int	utrace __P((struct proc *, struct utrace_args *, int []));
+int	undelete __P((struct proc *, struct undelete_args *, int []));
 int	lkmnosys __P((struct proc *, struct nosys_args *, int []));
 int	__semctl __P((struct proc *, struct __semctl_args *, int []));
 int	semget __P((struct proc *, struct semget_args *, int []));

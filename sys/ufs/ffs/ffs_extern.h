@@ -30,13 +30,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
+ *	@(#)ffs_extern.h	8.6 (Berkeley) 3/30/95
  * $FreeBSD$
  */
 
 #ifndef _UFS_FFS_EXTERN_H
 #define	_UFS_FFS_EXTERN_H
 
+/*
+ * Sysctl values for the fast filesystem.
+ */
+#define FFS_CLUSTERREAD		1	/* cluster reading enabled */
+#define FFS_CLUSTERWRITE	2	/* cluster writing enabled */
+#define FFS_REALLOCBLKS		3	/* block reallocation enabled */
+#define FFS_ASYNCFREE		4	/* asynchronous block freeing enabled */
+#define	FFS_MAXID		5	/* number of valid ffs ids */
+
+#define FFS_NAMES { \
+	{ 0, 0 }, \
+	{ "doclusterread", CTLTYPE_INT }, \
+	{ "doclusterwrite", CTLTYPE_INT }, \
+	{ "doreallocblks", CTLTYPE_INT }, \
+	{ "doasyncfree", CTLTYPE_INT }, \
+}
+
+struct buf;
 struct fid;
 struct fs;
 struct inode;
@@ -44,29 +62,28 @@ struct mbuf;
 struct mount;
 struct statfs;
 struct vnode;
+struct mbuf;
 
 int	ffs_alloc __P((struct inode *,
-	    daddr_t, daddr_t, int, struct ucred *, daddr_t *));
+	    ufs_daddr_t, ufs_daddr_t, int, struct ucred *, ufs_daddr_t *));
 int	ffs_balloc __P((struct inode *,
-	    daddr_t, int, struct ucred *, struct buf **, int));
+	    ufs_daddr_t, int, struct ucred *, struct buf **, int));
 int	ffs_blkatoff __P((struct vop_blkatoff_args *));
-void	ffs_blkfree __P((struct inode *, daddr_t, long));
-daddr_t	ffs_blkpref __P((struct inode *, daddr_t, int, daddr_t *));
+void	ffs_blkfree __P((struct inode *, ufs_daddr_t, long));
+ufs_daddr_t ffs_blkpref __P((struct inode *, ufs_daddr_t, int, ufs_daddr_t *));
 int	ffs_bmap __P((struct vop_bmap_args *));
-void	ffs_clrblock __P((struct fs *, u_char *, daddr_t));
+void	ffs_clrblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_fhtovp __P((struct mount *, struct fid *, struct mbuf *,
 	    struct vnode **, int *, struct ucred **));
-int	ffs_flushfiles __P((struct mount *, int, struct proc *));
-void	ffs_fragacct __P((struct fs *, int, long [], int));
-int	ffs_init __P((void));
-int	ffs_isblock __P((struct fs *, u_char *, daddr_t));
+void	ffs_fragacct __P((struct fs *, int, int32_t [], int));
+int	ffs_isblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_mountfs __P((struct vnode *, struct mount *, struct proc *));
 int	ffs_mountroot __P((void));
 int	ffs_reallocblks __P((struct vop_reallocblks_args *));
 int	ffs_realloccg __P((struct inode *,
-	    daddr_t, daddr_t, int, int, struct ucred *, struct buf **));
+	    ufs_daddr_t, ufs_daddr_t, int, int, struct ucred *, struct buf **));
 int	ffs_reclaim __P((struct vop_reclaim_args *));
-void	ffs_setblock __P((struct fs *, u_char *, daddr_t));
+void	ffs_setblock __P((struct fs *, u_char *, ufs_daddr_t));
 int	ffs_statfs __P((struct mount *, struct statfs *, struct proc *));
 int	ffs_sync __P((struct mount *, int, struct ucred *, struct proc *));
 int	ffs_truncate __P((struct vop_truncate_args *));

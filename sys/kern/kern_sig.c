@@ -67,7 +67,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/user.h>		/* for coredump */
@@ -660,7 +660,7 @@ gsignal(pgid, signum)
 }
 
 /*
- * Send a signal to a  process group.  If checktty is 1,
+ * Send a signal to a process group.  If checktty is 1,
  * limit to members which have a controlling terminal.
  */
 void
@@ -1255,7 +1255,7 @@ coredump(p)
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
-	LEASE_CHECK(vp, p, cred, LEASE_WRITE);
+	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, p);
 	p->p_acflag |= ACORE;
 	bcopy(p, &p->p_addr->u_kproc.kp_proc, sizeof(struct proc));
@@ -1272,7 +1272,7 @@ coredump(p)
 		    (off_t)ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
 		    IO_NODELOCKED|IO_UNIT, cred, (int *) NULL, p);
 out:
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, p);
 	error1 = vn_close(vp, FWRITE, cred, p);
 	if (error == 0)
 		error = error1;

@@ -214,7 +214,7 @@ coff_load_file(struct proc *p, char *name)
 	 * Lose the lock on the vnode. It's no longer needed, and must not
 	 * exist for the pagefault paging to work below.
 	 */
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, p);
 
   	if (error = vm_mmap(kernel_map,
 			    (vm_offset_t *) &ptr,

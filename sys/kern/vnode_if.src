@@ -30,8 +30,33 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)vnode_if.src	8.3 (Berkeley) 2/3/94
-# $FreeBSD$
+#	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
+# $Id: vnode_if.src,v 1.9.2000.1 1996/09/17 14:32:01 peter Exp $
+#
+
+#
+# Above each of the vop descriptors is a specification of the locking
+# protocol used by each vop call.  The first column is the name of
+# the variable, the remaining three columns are in, out and error
+# respectively.  The "in" column defines the lock state on input,
+# the "out" column defines the state on succesful return, and the
+# "error" column defines the locking state on error exit.
+#
+# The locking value can take the following values:
+# L: locked.
+# U: unlocked/
+# -: not applicable.  vnode does not yet (or no longer) exists.
+# =: the same on input and output, may be either L or U.
+# X: locked if not nil.
+#
+
+#
+#% lookup	dvp	L ? ?
+#% lookup	vpp	- L -
+#
+# XXX - the lookup locking protocol defies simple description and depends
+#	on the flags and operation fields in the (cnp) structure.  Note
+#	especially that *vpp may equal dvp and both may be locked.
 #
 vop_lookup {
 	IN struct vnode *dvp;
@@ -39,6 +64,10 @@ vop_lookup {
 	IN struct componentname *cnp;
 };
 
+#
+#% create	dvp	L U U
+#% create	vpp	- L -
+#
 vop_create {
 	IN WILLRELE struct vnode *dvp;
 	OUT struct vnode **vpp;
@@ -46,6 +75,21 @@ vop_create {
 	IN struct vattr *vap;
 };
 
+#
+#% whiteout	dvp	L L L
+#% whiteout	cnp	- - -
+#% whiteout	flag	- - -
+#
+vop_whiteout {
+	IN WILLRELE struct vnode *dvp;
+	IN struct componentname *cnp;
+	IN int flags;
+};
+
+#
+#% mknod	dvp	L U U
+#% mknod	vpp	- X -
+#
 vop_mknod {
 	IN WILLRELE struct vnode *dvp;
 	OUT WILLRELE struct vnode **vpp;
@@ -53,6 +97,9 @@ vop_mknod {
 	IN struct vattr *vap;
 };
 
+#
+#% open		vp	L L L
+#
 vop_open {
 	IN struct vnode *vp;
 	IN int mode;
@@ -60,6 +107,9 @@ vop_open {
 	IN struct proc *p;
 };
 
+#
+#% close	vp	U U U
+#
 vop_close {
 	IN struct vnode *vp;
 	IN int fflag;
@@ -67,6 +117,9 @@ vop_close {
 	IN struct proc *p;
 };
 
+#
+#% access	vp	L L L
+#
 vop_access {
 	IN struct vnode *vp;
 	IN int mode;
@@ -74,6 +127,9 @@ vop_access {
 	IN struct proc *p;
 };
 
+#
+#% getattr	vp	= = =
+#
 vop_getattr {
 	IN struct vnode *vp;
 	IN struct vattr *vap;
@@ -81,6 +137,9 @@ vop_getattr {
 	IN struct proc *p;
 };
 
+#
+#% setattr	vp	L L L
+#
 vop_setattr {
 	IN struct vnode *vp;
 	IN struct vattr *vap;
@@ -88,6 +147,9 @@ vop_setattr {
 	IN struct proc *p;
 };
 
+#
+#% read		vp	L L L
+#
 vop_read {
 	IN struct vnode *vp;
 	INOUT struct uio *uio;
@@ -95,6 +157,9 @@ vop_read {
 	IN struct ucred *cred;
 };
 
+#
+#% write	vp	L L L
+#
 vop_write {
 	IN struct vnode *vp;
 	INOUT struct uio *uio;
@@ -102,16 +167,33 @@ vop_write {
 	IN struct ucred *cred;
 };
 
+#
+#% lease	vp	= = =
+#
+vop_lease {
+	IN struct vnode *vp;
+	IN struct proc *p;
+	IN struct ucred *cred;
+	IN int flag;
+};
+
+#
+#% ioctl	vp	U U U
+#
 vop_ioctl {
 	IN struct vnode *vp;
-	IN int command;
+	IN u_long command;
 	IN caddr_t data;
 	IN int fflag;
 	IN struct ucred *cred;
 	IN struct proc *p;
 };
 
+#
+#% select	vp	U U U
+#
 # Needs work?  (fflags)
+#
 vop_select {
 	IN struct vnode *vp;
 	IN int which;
@@ -120,6 +202,17 @@ vop_select {
 	IN struct proc *p;
 };
 
+#
+#% revoke	vp	U U U
+#
+vop_revoke {
+	IN struct vnode *vp;
+	IN int flags;
+};
+
+#
+# XXX - not used
+#
 vop_mmap {
 	IN struct vnode *vp;
 	IN int fflags;
@@ -127,6 +220,9 @@ vop_mmap {
 	IN struct proc *p;
 };
 
+#
+#% fsync	vp	L L L
+#
 vop_fsync {
 	IN struct vnode *vp;
 	IN struct ucred *cred;
@@ -134,7 +230,10 @@ vop_fsync {
 	IN struct proc *p;
 };
 
-# Needs word: Is newoff right?  What's it mean?
+#
+# XXX - not used
+# Needs work: Is newoff right?  What's it mean?
+#
 vop_seek {
 	IN struct vnode *vp;
 	IN off_t oldoff;
@@ -142,18 +241,32 @@ vop_seek {
 	IN struct ucred *cred;
 };
 
+#
+#% remove	dvp	L U U
+#% remove	vp	L U U
+#
 vop_remove {
 	IN WILLRELE struct vnode *dvp;
 	IN WILLRELE struct vnode *vp;
 	IN struct componentname *cnp;
 };
 
+#
+#% link		vp	U U U
+#% link		tdvp	L U U
+#
 vop_link {
 	IN WILLRELE struct vnode *tdvp;
 	IN struct vnode *vp;
 	IN struct componentname *cnp;
 };
 
+#
+#% rename	fdvp	U U U
+#% rename	fvp	U U U
+#% rename	tdvp	L U U
+#% rename	tvp	X U U
+#
 vop_rename {
 	IN WILLRELE struct vnode *fdvp;
 	IN WILLRELE struct vnode *fvp;
@@ -163,6 +276,10 @@ vop_rename {
 	IN struct componentname *tcnp;
 };
 
+#
+#% mkdir	dvp	L U U
+#% mkdir	vpp	- L -
+#
 vop_mkdir {
 	IN WILLRELE struct vnode *dvp;
 	OUT struct vnode **vpp;
@@ -170,12 +287,24 @@ vop_mkdir {
 	IN struct vattr *vap;
 };
 
+#
+#% rmdir	dvp	L U U
+#% rmdir	vp	L U U
+#
 vop_rmdir {
 	IN WILLRELE struct vnode *dvp;
 	IN WILLRELE struct vnode *vp;
 	IN struct componentname *cnp;
 };
 
+#
+#% symlink	dvp	L U U
+#% symlink	vpp	- U -
+#
+# XXX - note that the return vnode has already been VRELE'ed
+#	by the filesystem layer.  To use it you must use vget,
+#	possibly with a further namei.
+#
 vop_symlink {
 	IN WILLRELE struct vnode *dvp;
 	OUT WILLRELE struct vnode **vpp;
@@ -184,42 +313,73 @@ vop_symlink {
 	IN char *target;
 };
 
+#
+#% readdir	vp	L L L
+#
 vop_readdir {
 	IN struct vnode *vp;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
 	INOUT int *eofflag;
-	INOUT int *ncookies;
-	INOUT u_int **cookies;
+	OUT int *ncookies;
+	INOUT u_long **cookies;
 };
 
+#
+#% readlink	vp	L L L
+#
 vop_readlink {
 	IN struct vnode *vp;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
 };
 
+#
+#% abortop	dvp	= = =
+#
 vop_abortop {
 	IN struct vnode *dvp;
 	IN struct componentname *cnp;
 };
 
+#
+#% inactive	vp	L U U
+#
 vop_inactive {
 	IN struct vnode *vp;
+	IN struct proc *p;
 };
 
+#
+#% reclaim	vp	U U U
+#
 vop_reclaim {
 	IN struct vnode *vp;
+	IN struct proc *p;
 };
 
+#
+#% lock		vp	U L U
+#
 vop_lock {
 	IN struct vnode *vp;
+	IN int flags;
+	IN struct proc *p;
 };
 
+#
+#% unlock	vp	L U L
+#
 vop_unlock {
 	IN struct vnode *vp;
+	IN int flags;
+	IN struct proc *p;
 };
 
+#
+#% bmap		vp	L L L
+#% bmap		vpp	- U -
+#
 vop_bmap {
 	IN struct vnode *vp;
 	IN daddr_t bn;
@@ -229,24 +389,39 @@ vop_bmap {
 	OUT int *runb;
 };
 
+#
+# Needs work: no vp?
+#
 #vop_strategy {
 #	IN struct buf *bp;
 #};
 
+#
+#% print	vp	= = =
+#
 vop_print {
 	IN struct vnode *vp;
 };
 
+#
+#% islocked	vp	= = =
+#
 vop_islocked {
 	IN struct vnode *vp;
 };
 
+#
+#% pathconf	vp	L L L
+#
 vop_pathconf {
 	IN struct vnode *vp;
 	IN int name;
-	OUT int *retval;
+	OUT register_t *retval;
 };
 
+#
+#% advlock	vp	U U U
+#
 vop_advlock {
 	IN struct vnode *vp;
 	IN caddr_t id;
@@ -255,6 +430,9 @@ vop_advlock {
 	IN int flags;
 };
 
+#
+#% blkatoff	vp	L L L
+#
 vop_blkatoff {
 	IN struct vnode *vp;
 	IN off_t offset;
@@ -262,6 +440,9 @@ vop_blkatoff {
 	OUT struct buf **bpp;
 };
 
+#
+#% valloc	pvp	L L L
+#
 vop_valloc {
 	IN struct vnode *pvp;
 	IN int mode;
@@ -269,17 +450,26 @@ vop_valloc {
 	OUT struct vnode **vpp;
 };
 
+#
+#% reallocblks	vp	L L L
+#
 vop_reallocblks {
 	IN struct vnode *vp;
 	IN struct cluster_save *buflist;
 };
 
+#
+#% vfree	pvp	L L L
+#
 vop_vfree {
 	IN struct vnode *pvp;
 	IN ino_t ino;
 	IN int mode;
 };
 
+#
+#% truncate	vp	L L L
+#
 vop_truncate {
 	IN struct vnode *vp;
 	IN off_t length;
@@ -288,6 +478,9 @@ vop_truncate {
 	IN struct proc *p;
 };
 
+#
+#% update	vp	L L L
+#
 vop_update {
 	IN struct vnode *vp;
 	IN struct timeval *access;
@@ -312,7 +505,9 @@ vop_putpages {
 	IN vm_ooffset_t offset;
 };
 
+#
 # Needs work: no vp?
+#
 #vop_bwrite {
 #	IN struct buf *bp;
 #};

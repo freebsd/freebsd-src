@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
+ *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
  * $FreeBSD$
  */
+
 
 /*
  * vnode op calls for Sun NFS version 2 and 3
@@ -151,14 +152,10 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)nfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)nfs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)nfs_write },	/* write */
-#ifdef HAS_VOPLEASE
 	{ &vop_lease_desc, (vop_t *)nfs_lease_check },	/* lease */
-#endif
 	{ &vop_ioctl_desc, (vop_t *)nfs_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)nfs_select },	/* select */
-#ifdef HAS_VOPREVOKE
 	{ &vop_revoke_desc, (vop_t *)nfs_revoke },	/* revoke */
-#endif
 	{ &vop_mmap_desc, (vop_t *)nfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)nfs_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)nfs_seek },		/* seek */
@@ -212,14 +209,10 @@ static struct vnodeopv_entry_desc spec_nfsv2nodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)nfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)nfsspec_read },	/* read */
 	{ &vop_write_desc, (vop_t *)nfsspec_write },	/* write */
-#ifdef HAS_VOPLEASE
 	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
-#endif
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
-#ifdef HAS_VOPREVOKE
 	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
-#endif
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)nfs_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)spec_seek },		/* seek */
@@ -270,14 +263,10 @@ static struct vnodeopv_entry_desc fifo_nfsv2nodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)nfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)nfsfifo_read },	/* read */
 	{ &vop_write_desc, (vop_t *)nfsfifo_write },	/* write */
-#ifdef HAS_VOPLEASE
 	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
-#endif
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
-#ifdef HAS_VOPREVOKE
 	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
-#endif
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)nfs_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)fifo_seek },		/* seek */
@@ -469,7 +458,7 @@ nfs_open(ap)
 			if ((error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 				ap->a_p, 1)) == EINTR)
 				return (error);
-			(void) vnode_pager_uncache(vp);
+			(void) vnode_pager_uncache(vp, ap->a_p);
 			np->n_brev = np->n_lrev;
 		    }
 		}
@@ -588,7 +577,7 @@ nfs_getattr(ap)
 	int error = 0;
 	struct mbuf *mreq, *mrep, *md, *mb, *mb2;
 	int v3 = NFS_ISV3(vp);
-
+	
 	/*
 	 * Update local times for special files.
 	 */
@@ -634,7 +623,7 @@ nfs_setattr(ap)
 	/*
 	 * Disallow write attempts if the filesystem is mounted read-only.
 	 */
-	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+  	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
 	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.tv_sec != VNOVAL ||
 	    vap->va_mtime.tv_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
 	    (vp->v_mount->mnt_flag & MNT_RDONLY))
@@ -645,6 +634,8 @@ nfs_setattr(ap)
  			return (EISDIR);
  		case VCHR:
  		case VBLK:
+ 		case VSOCK:
+ 		case VFIFO:
 			if (vap->va_mtime.tv_sec == VNOVAL &&
 			    vap->va_atime.tv_sec == VNOVAL &&
 			    vap->va_mode == (u_short)VNOVAL &&
@@ -660,20 +651,22 @@ nfs_setattr(ap)
 			 */
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
- 			if (vap->va_size == 0)
+ 			if (np->n_flag & NMODIFIED) {
+ 			    if (vap->va_size == 0)
  				error = nfs_vinvalbuf(vp, 0,
  					ap->a_cred, ap->a_p, 1);
- 			else
+ 			    else
  				error = nfs_vinvalbuf(vp, V_SAVE,
  					ap->a_cred, ap->a_p, 1);
- 			if (error)
+ 			    if (error)
  				return (error);
+ 			}
  			tsize = np->n_size;
  			np->n_size = np->n_vattr.va_size = vap->va_size;
  			vnode_pager_setsize(vp, (u_long)np->n_size);
   		};
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
-		vap->va_atime.tv_sec != VNOVAL) &&
+		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
 		vp->v_type == VREG &&
   		(error = nfs_vinvalbuf(vp, V_SAVE, ap->a_cred,
 		 ap->a_p, 1)) == EINTR)
@@ -826,6 +819,7 @@ nfs_lookup(ap)
 	struct nfsnode *np;
 	int lockparent, wantparent, error = 0, attrflag, fhsize;
 	int v3 = NFS_ISV3(dvp);
+	struct proc *p = cnp->cn_proc;
 
 	if ((flags & ISLASTCN) && (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
@@ -851,18 +845,18 @@ nfs_lookup(ap)
 			VREF(newvp);
 			error = 0;
 		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(dvp);
-			error = vget(newvp, 1);
+			VOP_UNLOCK(dvp, 0, p);
+			error = vget(newvp, LK_EXCLUSIVE, p);
 			if (!error && lockparent && (flags & ISLASTCN))
-				error = VOP_LOCK(dvp);
+				error = vn_lock(dvp, LK_EXCLUSIVE, p);
 		} else {
-			error = vget(newvp, 1);
+			error = vget(newvp, LK_EXCLUSIVE, p);
 			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(dvp);
+				VOP_UNLOCK(dvp, 0, p);
 		}
 		if (!error) {
 			if (vpid == newvp->v_id) {
-			   if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, cnp->cn_proc)
+			   if (!VOP_GETATTR(newvp, &vattr, cnp->cn_cred, p)
 			    && vattr.va_ctime.tv_sec == VTONFS(newvp)->n_ctime) {
 				nfsstats.lookupcache_hits++;
 				if (cnp->cn_nameiop != LOOKUP &&
@@ -874,9 +868,9 @@ nfs_lookup(ap)
 			}
 			vput(newvp);
 			if (lockparent && dvp != newvp && (flags & ISLASTCN))
-				VOP_UNLOCK(dvp);
+				VOP_UNLOCK(dvp, 0, p);
 		}
-		error = VOP_LOCK(dvp);
+		error = vn_lock(dvp, LK_EXCLUSIVE, p);
 		if (error)
 			return (error);
 		*vpp = NULLVP;
@@ -920,20 +914,20 @@ nfs_lookup(ap)
 		m_freem(mrep);
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(dvp);
+			VOP_UNLOCK(dvp, 0, p);
 		return (0);
 	}
 
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(dvp);
+		VOP_UNLOCK(dvp, 0, p);
 		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
 		if (error) {
-			VOP_LOCK(dvp);
+			vn_lock(dvp, LK_EXCLUSIVE + LK_RETRY, p);
 			return (error);
 		}
 		newvp = NFSTOV(np);
 		if (lockparent && (flags & ISLASTCN) &&
-		    (error = VOP_LOCK(dvp))) {
+		    (error = vn_lock(dvp, LK_EXCLUSIVE, p))) {
 		    	vput(newvp);
 			return (error);
 		}
@@ -946,7 +940,7 @@ nfs_lookup(ap)
 			return (error);
 		}
 		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(dvp);
+			VOP_UNLOCK(dvp, 0, p);
 		newvp = NFSTOV(np);
 	}
 	if (v3) {
@@ -969,7 +963,7 @@ nfs_lookup(ap)
 		if ((cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME) &&
 		    (flags & ISLASTCN) && error == ENOENT) {
 			if (!lockparent)
-				VOP_UNLOCK(dvp);
+				VOP_UNLOCK(dvp, 0, p);
 			if (dvp->v_mount->mnt_flag & MNT_RDONLY)
 				error = EROFS;
 			else
@@ -2110,7 +2104,7 @@ nfs_readdirrpc(vp, uiop, cred)
 		}
 		nfsm_dissect(tl, u_long *, NFSX_UNSIGNED);
 		more_dirs = fxdr_unsigned(int, *tl);
-
+	
 		/* loop thru the dir entries, doctoring them to 4bsd form */
 		while (more_dirs && bigenough) {
 			if (v3) {
@@ -2923,6 +2917,9 @@ loop:
 			}
 		}
 		if (vp->v_dirtyblkhd.lh_first && commit) {
+#ifndef DIAGNOSTIC
+			vprint("nfs_fsync: dirty", vp);
+#endif
 			goto loop;
 		}
 	}
@@ -3131,7 +3128,7 @@ nfs_writebp(bp, force)
 	 * an actual write will have to be scheduled via. VOP_STRATEGY().
 	 * If B_WRITEINPROG is already set, then push it with a write anyhow.
 	 */
-	if (oldflags & (B_NEEDCOMMIT | B_WRITEINPROG) == B_NEEDCOMMIT) {
+	if ((oldflags & (B_NEEDCOMMIT | B_WRITEINPROG)) == B_NEEDCOMMIT) {
 		off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		bp->b_flags |= B_WRITEINPROG;
 		retv = nfs_commit(bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
@@ -3205,7 +3202,7 @@ nfsspec_access(ap)
 	if (cred->cr_uid == 0)
 		return (0);
 	vap = &vattr;
-	error = VOP_GETATTR(ap->a_vp, vap, cred, ap->a_p);
+	error = VOP_GETATTR(vp, vap, cred, ap->a_p);
 	if (error)
 		return (error);
 	/*

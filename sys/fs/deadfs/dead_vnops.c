@@ -77,11 +77,11 @@ static int	dead_select __P((struct vop_select_args *));
 #define dead_inactive ((int (*) __P((struct  vop_inactive_args *)))nullop)
 #define dead_reclaim ((int (*) __P((struct  vop_reclaim_args *)))nullop)
 static int	dead_lock __P((struct vop_lock_args *));
-#define dead_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
+#define dead_unlock ((int (*) __P((struct vop_unlock_args *)))vop_nounlock)
 static int	dead_bmap __P((struct vop_bmap_args *));
 static int	dead_strategy __P((struct vop_strategy_args *));
 static int	dead_print __P((struct vop_print_args *));
-#define dead_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define dead_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define dead_pathconf ((int (*) __P((struct  vop_pathconf_args *)))dead_ebadf)
 #define dead_advlock ((int (*) __P((struct  vop_advlock_args *)))dead_ebadf)
 #define dead_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))dead_badop)
@@ -191,11 +191,20 @@ dead_read(ap)
 
 	if (chkvnlock(ap->a_vp))
 		panic("dead_read: lock");
+#if 0
+	/* Lite2 behaviour */
+	/*
+	 * Return EOF for tty devices, EIO for others
+	 */
+	if ((ap->a_vp->v_flag & VISTTY) == 0)
+		return (EIO);
+#else
 	/*
 	 * Return EOF for character devices, EIO for others
 	 */
 	if (ap->a_vp->v_type != VCHR)
 		return (EIO);
+#endif
 	return (0);
 }
 
@@ -282,12 +291,23 @@ static int
 dead_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
 
-	if (!chkvnlock(ap->a_vp))
+	/*
+	 * Since we are not using the lock manager, we must clear
+	 * the interlock here.
+	 */
+	if (ap->a_flags & LK_INTERLOCK) {
+		simple_unlock(&vp->v_interlock);
+		ap->a_flags &= ~LK_INTERLOCK;
+	}
+	if (!chkvnlock(vp))
 		return (0);
-	return (VCALL(ap->a_vp, VOFFSET(vop_lock), ap));
+	return (VCALL(vp, VOFFSET(vop_lock), ap));
 }
 
 /*

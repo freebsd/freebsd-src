@@ -76,8 +76,6 @@ extern struct linker_set vfs_opv_descs_;
 #define vfs_opv_descs ((struct vnodeopv_desc **)vfs_opv_descs_.ls_items)
 
 extern struct linker_set vfs_set;
-struct vfsops *vfssw[MOUNT_MAXTYPE + 1];
-struct vfsconf *vfsconf[MOUNT_MAXTYPE + 1];
 
 extern struct vnodeop_desc *vfs_op_descs[];
 				/* and the operations they perform */
@@ -239,23 +237,8 @@ static void
 vfsinit(dummy)
 	void *dummy;
 {
-	struct vfsops **vfsp;
 	struct vfsconf **vfc;
-	int i;
-
-	/*
-	 * Initialize the VFS switch table
-	 */
-	for(i = 0; i < MOUNT_MAXTYPE + 1; i++) {
-		vfsconf[i] = &void_vfsconf;
-	}
-
-	vfc = (struct vfsconf **)vfs_set.ls_items;
-	while(*vfc) {
-		vfssw[(**vfc).vfc_index] = (**vfc).vfc_vfsops;
-		vfsconf[(**vfc).vfc_index] = *vfc;
-		vfc++;
-	}
+	int maxtypenum;
 
 	/*
 	 * Initialize the vnode table
@@ -274,11 +257,20 @@ vfsinit(dummy)
 	 * Initialize each file system type.
 	 */
 	vattr_null(&va_null);
-	for (vfsp = &vfssw[0]; vfsp <= &vfssw[MOUNT_MAXTYPE]; vfsp++) {
-		if (*vfsp == NULL)
-			continue;
-		(*(*vfsp)->vfs_init)();
+	maxtypenum = 0;
+	vfc = (struct vfsconf **)vfs_set.ls_items;
+	vfsconf = *vfc;		/* simulate Lite2 vfsconf array */
+	while (*vfc) {
+		struct vfsconf *vfsp = *vfc;
+
+		vfc++;
+		vfsp->vfc_next = *vfc;
+		if (maxtypenum <= vfsp->vfc_typenum)
+			maxtypenum = vfsp->vfc_typenum + 1;
+		(*vfsp->vfc_vfsops->vfs_init)(vfsp);
 	}
+	/* next vfc_typenum to be used */
+	maxvfsconf = maxtypenum;
 }
 
 /*
@@ -286,29 +278,81 @@ vfsinit(dummy)
  */
 
 static int
-sysctl_vfs_vfsconf SYSCTL_HANDLER_ARGS
+sysctl_vfs_conf SYSCTL_HANDLER_ARGS
 {
-	int i, error;
+	int error;
+	struct vfsconf *vfsp;
 
 	if (req->newptr)
 		return EINVAL;
-	for(i = 0; i < MOUNT_MAXTYPE + 1; i++) {
-		error = SYSCTL_OUT(req, vfsconf[i], sizeof *vfsconf[i]);
-		if(error)
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+		error = SYSCTL_OUT(req, vfsp, sizeof *vfsp);
+		if (error)
 			return error;
 	}
-	return (error);
-
+	return 0;
 }
 
 SYSCTL_PROC(_vfs, VFS_VFSCONF, vfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_vfs_vfsconf, "S,vfsconf", "");
+	0, 0, sysctl_vfs_conf, "S,vfsconf", "");
+
+#ifdef COMPAT_PRELITE2
+
+#define OVFS_MAXNAMELEN 32
+struct ovfsconf {
+	void *vfc_vfsops;
+	char vfc_name[OVFS_MAXNAMELEN];
+	int vfc_index;
+	int vfc_refcount;
+	int vfc_flags;
+};
+
+static int
+sysctl_ovfs_conf SYSCTL_HANDLER_ARGS
+{
+	int error;
+	struct vfsconf *vfsp;
+
+	if (req->newptr)
+		return EINVAL;
+	for (vfsp = vfsconf; vfsp; vfsp = vfsp->vfc_next) {
+		struct ovfsconf ovfs;
+		ovfs.vfc_vfsops = NULL;
+		strcpy(ovfs.vfc_name, vfsp->vfc_name);
+		ovfs.vfc_index = vfsp->vfc_typenum;
+		ovfs.vfc_refcount = vfsp->vfc_refcount;
+		ovfs.vfc_flags = vfsp->vfc_flags;
+		error = SYSCTL_OUT(req, &ovfs, sizeof ovfs);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
+SYSCTL_PROC(_vfs, VFS_OVFSCONF, ovfsconf, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_ovfs_conf, "S,ovfsconf", "");
+
+#endif /* COMPAT_PRELITE2 */
 
 /*
  * This goop is here to support a loadable NFS module... grumble...
  */
-void (*lease_check) __P((struct vnode *, struct proc *, struct ucred *, int))
+int (*lease_check_hook) __P((struct vop_lease_args *))
      = 0;
 void (*lease_updatetime) __P((int))
      = 0;
 
+int
+lease_check(ap)
+	struct vop_lease_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+		struct ucred *a_cred;
+		int a_flag;
+	} */ *ap;
+{
+    if (lease_check_hook)
+	return (*lease_check_hook)(ap);
+    else
+	return 0;
+}

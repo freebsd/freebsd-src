@@ -100,6 +100,7 @@ enum vtype nv3tov_type[8]= {
 	VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO
 };
 
+int nfs_mount_type;
 int nfs_ticks;
 
 struct nfs_reqq nfs_reqq;
@@ -1093,7 +1094,8 @@ nfsm_strtmbuf(mb, bpos, cp, siz)
  * Called once to initialize data structures...
  */
 int
-nfs_init()
+nfs_init(vfsp)
+	struct vfsconf *vfsp;
 {
 	register int i;
 
@@ -1116,6 +1118,7 @@ nfs_init()
 		printf("struct nfsuid bloated (> %dbytes)\n",NFS_UIDALLOC);
 		printf("Try unionizing the nu_nickname and nu_flag fields\n");
 	}
+	nfs_mount_type = vfsp->vfc_typenum;
 	nfsrtt.pos = 0;
 	rpc_vers = txdr_unsigned(RPC_VER2);
 	rpc_call = txdr_unsigned(RPC_CALL);
@@ -1170,10 +1173,10 @@ nfs_init()
 	 * of the system can call us, if we are loadable.
 	 */
 #ifndef NFS_NOSERVER
-	lease_check = nfs_lease_check;
+	lease_check_hook = nqnfs_vop_lease_check;
 #endif
 	lease_updatetime = nfs_lease_updatetime;
-	vfsconf[MOUNT_NFS]->vfc_refcount++; /* make us non-unloadable */
+	vfsp->vfc_refcount++; /* make us non-unloadable */
 #ifdef VFS_LKM
 	sysent[SYS_nfssvc].sy_narg = 2;
 	sysent[SYS_nfssvc].sy_call = nfssvc;
@@ -1212,7 +1215,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	register struct vattr *vap;
 	register struct nfs_fattr *fp;
 	register struct nfsnode *np;
-	register struct nfsnodehashhead *nhpp;
 	register long t1;
 	caddr_t cp2;
 	int error = 0, rdev;
@@ -1222,6 +1224,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 	struct timespec mtime;
 	struct vnode *nvp;
 	int v3 = NFS_ISV3(vp);
+	struct proc *p = curproc;
 
 	md = *mdp;
 	t1 = (mtod(md, caddr_t) + md->m_len) - *dposp;
@@ -1284,7 +1287,7 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		 * then release it here.
 		 */
 		if (vtyp != VREG && VOP_ISLOCKED(vp))
-			VOP_UNLOCK(vp);
+			VOP_UNLOCK(vp, 0, p);
 		vp->v_type = vtyp;
 		if (vp->v_type == VFIFO) {
 			vp->v_op = fifo_nfsv2nodeop_p;
@@ -1295,8 +1298,11 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 			if (nvp) {
 				/*
 				 * Discard unneeded vnode, but save its nfsnode.
+				 * Since the nfsnode does not have a lock, its
+				 * vnode lock has to be carried over.
 				 */
-				LIST_REMOVE(np, n_hash);
+				nvp->v_vnlock = vp->v_vnlock;
+				vp->v_vnlock = NULL;
 				nvp->v_data = vp->v_data;
 				vp->v_data = NULL;
 				vp->v_op = spec_vnodeop_p;
@@ -1306,8 +1312,6 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 				 * Reinitialize aliased node.
 				 */
 				np->n_vnode = nvp;
-				nhpp = NFSNOHASH(nfs_hash(np->n_fhp, np->n_fhsize));
-				LIST_INSERT_HEAD(nhpp, np, n_hash);
 				*vpp = vp = nvp;
 			}
 		}
@@ -1714,13 +1718,14 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	int *rdonlyp;
 	int kerbflag;
 {
+	struct proc *p = curproc; /* XXX */
 	register struct mount *mp;
 	register int i;
 	struct ucred *credanon;
 	int error, exflags;
 
 	*vpp = (struct vnode *)0;
-	mp = getvfs(&fhp->fh_fsid);
+	mp = vfs_getvfs(&fhp->fh_fsid);
 	if (!mp)
 		return (ESTALE);
 	error = VFS_FHTOVP(mp, &fhp->fh_fid, nam, vpp, &exflags, &credanon);
@@ -1751,7 +1756,7 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	nfsrv_object_create(*vpp);
 
 	if (!lockflag)
-		VOP_UNLOCK(*vpp);
+		VOP_UNLOCK(*vpp, 0, p);
 	return (0);
 }
 
@@ -1947,3 +1952,4 @@ nfsrv_object_create(struct vnode *vp) {
 	return vfs_object_create(vp, curproc, curproc?curproc->p_ucred:NULL, 1);
 }
 #endif /* NFS_NOSERVER */
+

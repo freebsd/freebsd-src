@@ -165,7 +165,7 @@ static d_strategy_t	ststrategy;
 static struct cdevsw st_cdevsw;
 static struct bdevsw st_bdevsw = 
 	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
-	  nodump,	nopsize,	0,	"st",	&st_cdevsw,	-1 };
+	  nodump,	nopsize,	D_TAPE,	"st",	&st_cdevsw,	-1 };
 
 SCSI_DEVICE_ENTRIES(st)
 

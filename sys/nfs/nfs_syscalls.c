@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_syscalls.c	8.3 (Berkeley) 1/4/94
+ *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
  * $FreeBSD$
  */
 
@@ -96,7 +96,6 @@ static int	nfssvc_iod __P((struct proc *));
 #define	FALSE	0
 
 static int nfs_asyncdaemon[NFS_MAXASYNCDAEMON];
-
 
 #ifndef NFS_NOSERVER
 int nfsd_waiting = 0;
@@ -1051,6 +1050,7 @@ nfsmout:
 }
 
 #ifndef NFS_NOSERVER
+
 /*
  * Derefence a server socket structure. If it has no more references and
  * is no longer valid, you can throw it away.

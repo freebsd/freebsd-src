@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1990, 1993
+ * Copyright (c) 1982, 1986, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
+ *	@(#)ufs_quota.c	8.5 (Berkeley) 5/20/95
  * $FreeBSD$
  */
 
@@ -379,8 +379,8 @@ quotaon(p, mp, type, fname)
 	register int type;
 	caddr_t fname;
 {
-	register struct ufsmount *ump = VFSTOUFS(mp);
-	register struct vnode *vp, **vpp;
+	struct ufsmount *ump = VFSTOUFS(mp);
+	struct vnode *vp, **vpp;
 	struct vnode *nextvp;
 	struct dquot *dq;
 	int error;
@@ -392,14 +392,10 @@ quotaon(p, mp, type, fname)
 	if (error)
 		return (error);
 	vp = nd.ni_vp;
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, p);
 	if (vp->v_type != VREG) {
 		(void) vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
 		return (EACCES);
-	}
-	if (vfs_busy(mp)) {
-		(void) vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
-		return (EBUSY);
 	}
 	if (*vpp != vp)
 		quotaoff(p, mp, type);
@@ -432,7 +428,7 @@ again:
 		nextvp = vp->v_mntvnodes.le_next;
 		if (vp->v_writecount == 0)
 			continue;
-		if (vget(vp, 1))
+		if (vget(vp, LK_EXCLUSIVE, p))
 			goto again;
 		error = getinoquota(VTOI(vp));
 		if (error) {
@@ -446,7 +442,6 @@ again:
 	ump->um_qflags[type] &= ~QTF_OPENING;
 	if (error)
 		quotaoff(p, mp, type);
-	vfs_unbusy(mp);
 	return (error);
 }
 
@@ -459,15 +454,13 @@ quotaoff(p, mp, type)
 	struct mount *mp;
 	register int type;
 {
-	register struct vnode *vp;
+	struct vnode *vp;
 	struct vnode *qvp, *nextvp;
 	struct ufsmount *ump = VFSTOUFS(mp);
-	register struct dquot *dq;
-	register struct inode *ip;
+	struct dquot *dq;
+	struct inode *ip;
 	int error;
 
-	if ((mp->mnt_flag & MNT_MPBUSY) == 0)
-		panic("quotaoff: not busy");
 	if ((qvp = ump->um_quotas[type]) == NULLVP)
 		return (0);
 	ump->um_qflags[type] |= QTF_CLOSING;
@@ -478,7 +471,7 @@ quotaoff(p, mp, type)
 again:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
 		nextvp = vp->v_mntvnodes.le_next;
-		if (vget(vp, 1))
+		if (vget(vp, LK_EXCLUSIVE, p))
 			goto again;
 		ip = VTOI(vp);
 		dq = ip->i_dquot[type];
@@ -641,16 +634,15 @@ qsync(mp)
 	struct mount *mp;
 {
 	struct ufsmount *ump = VFSTOUFS(mp);
-	register struct vnode *vp, *nextvp;
-	register struct dquot *dq;
-	register int i;
+	struct proc *p = curproc;		/* XXX */
+	struct vnode *vp, *nextvp;
+	struct dquot *dq;
+	int i, error;
 
 	/*
 	 * Check if the mount point has any quotas.
 	 * If not, simply return.
 	 */
-	if ((mp->mnt_flag & MNT_MPBUSY) == 0)
-		panic("qsync: not busy");
 	for (i = 0; i < MAXQUOTAS; i++)
 		if (ump->um_quotas[i] != NULLVP)
 			break;
@@ -660,36 +652,48 @@ qsync(mp)
 	 * Search vnodes associated with this mount point,
 	 * synchronizing any modified dquot structures.
 	 */
+	simple_lock(&mntvnode_slock);
 again:
 	for (vp = mp->mnt_vnodelist.lh_first; vp != NULL; vp = nextvp) {
-		nextvp = vp->v_mntvnodes.le_next;
-		if (VOP_ISLOCKED(vp))
-			continue;
-		if (vget(vp, 1))
+		if (vp->v_mount != mp)
 			goto again;
+		nextvp = vp->v_mntvnodes.le_next;
+		simple_lock(&vp->v_interlock);
+		simple_unlock(&mntvnode_slock);
+		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, p);
+		if (error) {
+			simple_lock(&mntvnode_slock);
+			if (error == ENOENT)
+				goto again;
+			continue;
+		}
 		for (i = 0; i < MAXQUOTAS; i++) {
 			dq = VTOI(vp)->i_dquot[i];
 			if (dq != NODQUOT && (dq->dq_flags & DQ_MOD))
 				dqsync(vp, dq);
 		}
 		vput(vp);
-		if (vp->v_mntvnodes.le_next != nextvp || vp->v_mount != mp)
+		simple_lock(&mntvnode_slock);
+		if (vp->v_mntvnodes.le_next != nextvp)
 			goto again;
 	}
+	simple_unlock(&mntvnode_slock);
 	return (0);
 }
 
 /*
  * Code pertaining to management of the in-core dquot data structures.
  */
-static struct dquot **dqhashtbl;
+#define DQHASH(dqvp, id) \
+	(&dqhashtbl[((((int)(dqvp)) >> 8) + id) & dqhash])
+static LIST_HEAD(dqhash, dquot) *dqhashtbl;
 static u_long dqhash;
 
 /*
  * Dquot free list.
  */
 #define	DQUOTINC	5	/* minimum free dquots desired */
-static struct dquot *dqfreel, **dqback = &dqfreel;
+TAILQ_HEAD(dqfreelist, dquot) dqfreelist;
 static long numdquot, desireddquot = DQUOTINC;
 
 /*
@@ -700,6 +704,7 @@ dqinit()
 {
 
 	dqhashtbl = hashinit(desiredvnodes, M_DQUOT, &dqhash);
+	TAILQ_INIT(&dqfreelist);
 }
 
 /*
@@ -714,8 +719,10 @@ dqget(vp, id, ump, type, dqp)
 	register int type;
 	struct dquot **dqp;
 {
-	register struct dquot *dq, *dp, **dpp;
-	register struct vnode *dqvp;
+	struct proc *p = curproc;		/* XXX */
+	struct dquot *dq;
+	struct dqhash *dqh;
+	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
 	int error;
@@ -728,8 +735,8 @@ dqget(vp, id, ump, type, dqp)
 	/*
 	 * Check the cache first.
 	 */
-	dpp = &dqhashtbl[((((int)(dqvp)) >> 8) + id) & dqhash];
-	for (dq = *dpp; dq; dq = dq->dq_forw) {
+	dqh = DQHASH(dqvp, id);
+	for (dq = dqh->lh_first; dq; dq = dq->dq_hash.le_next) {
 		if (dq->dq_id != id ||
 		    dq->dq_ump->um_quotas[dq->dq_type] != dqvp)
 			continue;
@@ -737,13 +744,8 @@ dqget(vp, id, ump, type, dqp)
 		 * Cache hit with no references.  Take
 		 * the structure off the free list.
 		 */
-		if (dq->dq_cnt == 0) {
-			if ((dp = dq->dq_freef) != NODQUOT)
-				dp->dq_freeb = dq->dq_freeb;
-			else
-				dqback = dq->dq_freeb;
-			*dq->dq_freeb = dp;
-		}
+		if (dq->dq_cnt == 0)
+			TAILQ_REMOVE(&dqfreelist, dq, dq_freelist);
 		DQREF(dq);
 		*dqp = dq;
 		return (0);
@@ -751,43 +753,30 @@ dqget(vp, id, ump, type, dqp)
 	/*
 	 * Not in cache, allocate a new one.
 	 */
-	if (dqfreel == NODQUOT && numdquot < MAXQUOTAS * desiredvnodes)
+	if (dqfreelist.tqh_first == NODQUOT &&
+	    numdquot < MAXQUOTAS * desiredvnodes)
 		desireddquot += DQUOTINC;
 	if (numdquot < desireddquot) {
 		dq = (struct dquot *)malloc(sizeof *dq, M_DQUOT, M_WAITOK);
 		bzero((char *)dq, sizeof *dq);
 		numdquot++;
 	} else {
-		if ((dq = dqfreel) == NULL) {
+		if ((dq = dqfreelist.tqh_first) == NULL) {
 			tablefull("dquot");
 			*dqp = NODQUOT;
 			return (EUSERS);
 		}
 		if (dq->dq_cnt || (dq->dq_flags & DQ_MOD))
 			panic("free dquot isn't");
-		if ((dp = dq->dq_freef) != NODQUOT)
-			dp->dq_freeb = &dqfreel;
-		else
-			dqback = &dqfreel;
-		dqfreel = dp;
-		dq->dq_freef = NULL;
-		dq->dq_freeb = NULL;
-		dp = dq->dq_forw;
-		if (dp)
-			dp->dq_back = dq->dq_back;
-		*dq->dq_back = dp;
+		TAILQ_REMOVE(&dqfreelist, dq, dq_freelist);
+		LIST_REMOVE(dq, dq_hash);
 	}
 	/*
 	 * Initialize the contents of the dquot structure.
 	 */
 	if (vp != dqvp)
-		VOP_LOCK(dqvp);
-	dp = *dpp;
-	if (dp)
-		dp->dq_back = &dq->dq_forw;
-	dq->dq_forw = dp;
-	dq->dq_back = dpp;
-	*dpp = dq;
+		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY, p);
+	LIST_INSERT_HEAD(dqh, dq, dq_hash);
 	DQREF(dq);
 	dq->dq_flags = DQ_LOCK;
 	dq->dq_id = id;
@@ -806,7 +795,7 @@ dqget(vp, id, ump, type, dqp)
 	if (auio.uio_resid == sizeof(struct dqblk) && error == 0)
 		bzero((caddr_t)&dq->dq_dqb, sizeof(struct dqblk));
 	if (vp != dqvp)
-		VOP_UNLOCK(dqvp);
+		VOP_UNLOCK(dqvp, 0, p);
 	if (dq->dq_flags & DQ_WANT)
 		wakeup((caddr_t)dq);
 	dq->dq_flags = 0;
@@ -815,12 +804,7 @@ dqget(vp, id, ump, type, dqp)
 	 * quota structure and reflect problem to caller.
 	 */
 	if (error) {
-		dp = dq->dq_forw;
-		if (dp)
-			dp->dq_back = dq->dq_back;
-		*dq->dq_back = dp;
-		dq->dq_forw = NULL;
-		dq->dq_back = NULL;
+		LIST_REMOVE(dq, dq_hash);
 		dqrele(vp, dq);
 		*dqp = NODQUOT;
 		return (error);
@@ -874,15 +858,7 @@ dqrele(vp, dq)
 		(void) dqsync(vp, dq);
 	if (--dq->dq_cnt > 0)
 		return;
-	if (dqfreel != NODQUOT) {
-		*dqback = dq;
-		dq->dq_freeb = dqback;
-	} else {
-		dqfreel = dq;
-		dq->dq_freeb = &dqfreel;
-	}
-	dq->dq_freef = NODQUOT;
-	dqback = &dq->dq_freef;
+	TAILQ_INSERT_TAIL(&dqfreelist, dq, dq_freelist);
 }
 
 /*
@@ -891,8 +867,9 @@ dqrele(vp, dq)
 static int
 dqsync(vp, dq)
 	struct vnode *vp;
-	register struct dquot *dq;
+	struct dquot *dq;
 {
+	struct proc *p = curproc;		/* XXX */
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
@@ -905,13 +882,13 @@ dqsync(vp, dq)
 	if ((dqvp = dq->dq_ump->um_quotas[dq->dq_type]) == NULLVP)
 		panic("dqsync: file");
 	if (vp != dqvp)
-		VOP_LOCK(dqvp);
+		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY, p);
 	while (dq->dq_flags & DQ_LOCK) {
 		dq->dq_flags |= DQ_WANT;
 		(void) tsleep((caddr_t)dq, PINOD+2, "dqsync", 0);
 		if ((dq->dq_flags & DQ_MOD) == 0) {
 			if (vp != dqvp)
-				VOP_UNLOCK(dqvp);
+				VOP_UNLOCK(dqvp, 0, p);
 			return (0);
 		}
 	}
@@ -932,7 +909,7 @@ dqsync(vp, dq)
 		wakeup((caddr_t)dq);
 	dq->dq_flags &= ~(DQ_MOD|DQ_LOCK|DQ_WANT);
 	if (vp != dqvp)
-		VOP_UNLOCK(dqvp);
+		VOP_UNLOCK(dqvp, 0, p);
 	return (error);
 }
 
@@ -943,26 +920,22 @@ static void
 dqflush(vp)
 	register struct vnode *vp;
 {
-	register struct dquot *dq, *dp, **dpp, *nextdq;
+	register struct dquot *dq, *nextdq;
+	struct dqhash *dqh;
 
 	/*
 	 * Move all dquot's that used to refer to this quota
 	 * file off their hash chains (they will eventually
 	 * fall off the head of the free list and be re-used).
 	 */
-	for (dpp = &dqhashtbl[dqhash]; dpp >= dqhashtbl; dpp--) {
-		for (dq = *dpp; dq; dq = nextdq) {
-			nextdq = dq->dq_forw;
+	for (dqh = &dqhashtbl[dqhash]; dqh >= dqhashtbl; dqh--) {
+		for (dq = dqh->lh_first; dq; dq = nextdq) {
+			nextdq = dq->dq_hash.le_next;
 			if (dq->dq_ump->um_quotas[dq->dq_type] != vp)
 				continue;
 			if (dq->dq_cnt)
 				panic("dqflush: stray dquot");
-			dp = dq->dq_forw;
-			if (dp)
-				dp->dq_back = dq->dq_back;
-			*dq->dq_back = dp;
-			dq->dq_forw = NULL;
-			dq->dq_back = NULL;
+			LIST_REMOVE(dq, dq_hash);
 			dq->dq_ump = (struct ufsmount *)0;
 		}
 	}

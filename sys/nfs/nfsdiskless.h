@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsdiskless.h	8.1 (Berkeley) 6/10/93
+ *	@(#)nfsdiskless.h	8.2 (Berkeley) 3/30/95
  * $FreeBSD$
  */
+
 
 #ifndef _NFS_NFSDISKLESS_H_
 #define _NFS_NFSDISKLESS_H_
@@ -46,8 +47,8 @@
  * vnodes plus do a partial ifconfig(8) and route(8) so that the critical net
  * interface can communicate with the server.
  * The primary bootstrap is expected to fill in the appropriate fields before
- * starting the kernel. Whether or not the swap area is nfs mounted is determined
- * by the value in swdevt[0]. (equal to NODEV --> swap over nfs)
+ * starting the kernel. Whether or not the swap area is nfs mounted is
+ * determined by the value in swdevt[0]. (equal to NODEV --> swap over nfs)
  * Currently only works for AF_INET protocols.
  * NB: All fields are stored in net byte order to avoid hassles with
  * client/server byte ordering differences.
