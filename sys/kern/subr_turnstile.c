@@ -471,6 +471,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 #if defined(SMP) && defined(ADAPTIVE_MUTEXES)
 	struct thread *owner;
 #endif
+#ifdef KTR
+	int cont_logged = 0;
+#endif
 
 	if ((m->mtx_lock & MTX_FLAGMASK) == (uintptr_t)td) {
 		m->mtx_recurse++;
@@ -588,6 +591,16 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			else
 				TAILQ_INSERT_TAIL(&m->mtx_blocked, td, td_blkq);
 		}
+#ifdef KTR
+		if (!cont_logged) {
+			CTR6(KTR_CONTENTION,
+			    "contention: %p at %s:%d wants %s, taken by %s:%d",
+			    td, file, line, m->mtx_object.lo_name,
+			    WITNESS_FILE(&m->mtx_object),
+			    WITNESS_LINE(&m->mtx_object));
+			cont_logged = 1;
+		}
+#endif
 
 		/*
 		 * Save who we're blocked on.
@@ -613,6 +626,13 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		mtx_unlock_spin(&sched_lock);
 	}
 
+#ifdef KTR
+	if (cont_logged) {
+		CTR4(KTR_CONTENTION,
+		    "contention end: %s acquired by %p at %s:%d",
+		    m->mtx_object.lo_name, td, file, line);
+	}
+#endif
 	return;
 }
 
