@@ -1,0 +1,79 @@
+.\" This module is believed to contain source code proprietary to AT&T.
+.\" Use and redistribution is subject to the Berkeley Software License
+.\" Agreement and your Software Agreement with AT&T (Western Electric).
+.\"
+.\"	@(#)tt00	8.1 (Berkeley) 6/8/93
+.\"
+.\" $FreeBSD$
+.EH 'USD:22-%''A TROFF Tutorial'
+.OH 'A TROFF Tutorial''USD:22-%'
+.\".RP
+.....TM 76-1273-7 39199 39199-11
+.TL
+A TROFF Tutorial
+.AU "MH 2C-518" 6021
+Brian W. Kernighan
+(updated for 4.3BSD by Mark Seiden)
+.AI
+.MH
+.OK
+\"Typesetting
+\"Text formatting
+\"NROFF
+.AB
+.PP
+.UL troff
+is a text-formatting program for
+typesetting on the
+.UX
+operating system.
+This device is capable of producing high quality
+text;
+this paper is an example of
+.UL troff
+output.
+.PP
+The phototypesetter itself normally runs with four fonts,
+containing roman, italic and bold letters 
+(as on this page),
+a full greek alphabet, and a substantial number of
+special characters and mathematical symbols.
+Characters can be printed in a range of sizes,
+and placed anywhere on the page.
+.PP
+.UL troff
+allows the user full control over fonts,
+sizes, and character positions,
+as well as the usual features of a formatter _
+right-margin justification, automatic hyphenation,
+page titling and numbering, and so on.
+It also provides macros, arithmetic variables and operations,
+and conditional testing, for complicated formatting tasks.
+.PP
+This document is an introduction to the most basic use of
+.UL troff .
+It presents just enough information to enable the user
+to do simple formatting
+tasks like making viewgraphs,
+and to make incremental changes to existing packages
+of
+.UL troff
+commands.
+In most respects, the 
+.UC UNIX
+formatter
+.UL nroff
+and a more recent version
+.ul
+(device-independent 
+.UL troff)
+are identical to
+the version described here, so this document also serves as a tutorial for
+them as well.
+.AE
+.nr LL 6.5i
+.nr LT 6.5i
+.CS 13 1 14 0 0 5
+.if t .2C
+.nr PS 9
+.nr VS 11
