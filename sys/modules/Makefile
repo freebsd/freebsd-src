@@ -3,7 +3,7 @@
 # XXX present but broken: ip_mroute_mod pcic
 
 SUBDIR=	aha amr an aue ccd cd9660 coda cue dc fdesc fxp if_disc if_ef if_ppp \
-	if_sl if_tun ipfilter ipfw joy kernfs kue \
+	if_sl if_tun ipfilter ipfw joy kernfs kue linprocfs \
 	md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
 	nwfs portal procfs rl sf sis sk ste syscons ti tl twe \
 	ugen uhid ukbd ulpt umapfs umass umodem ums union usb vn vpo vr wb xl
