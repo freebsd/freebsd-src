@@ -72,9 +72,9 @@ rune_map	types = { { 0 }, NULL };
 _RuneLocale	new_locale = { "", "", NULL, NULL, 0, {}, {}, {},
 	{0, NULL}, {0, NULL}, {0, NULL}, NULL, 0 };
 
-void set_map __P((rune_map *, rune_list *, unsigned long));
-void set_digitmap __P((rune_map *, rune_list *));
-void add_map __P((rune_map *, rune_list *, unsigned long));
+void set_map(rune_map *, rune_list *, unsigned long);
+void set_digitmap(rune_map *, rune_list *);
+void add_map(rune_map *, rune_list *, unsigned long);
 %}
 
 %union	{
