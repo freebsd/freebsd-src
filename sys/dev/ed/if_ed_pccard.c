@@ -155,6 +155,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0), NE2000DVF_DL10019},
 	{ PCMCIA_CARD(NETGEAR, FA411, 0), NE2000DVF_AX88190},
 	{ PCMCIA_CARD(NEXTCOM, NEXTHAWK, 0), 0},
+	{ PCMCIA_CARD(OEM2, ETHERNET, 0), 0},
 	{ PCMCIA_CARD(PLANET, SMARTCOM2000, 0), 0 },
 	{ PCMCIA_CARD(PREMAX, PE200, 0), 0},
 	{ PCMCIA_CARD(RACORE, ETHERNET, 0), 0},
@@ -167,7 +168,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(SOCKET, LP_ETH_10_100_CF, 0), NE2000DVF_DL10019},
 	{ PCMCIA_CARD(SVEC, COMBOCARD, 0), 0},
 	{ PCMCIA_CARD(SVEC, LANCARD, 0), 0},
-	{ PCMCIA_CARD(SYNERGY21, S21810, 0), 0},
+	{ PCMCIA_CARD(TAMARACK, ETHERNET, 0), 0},
 	{ PCMCIA_CARD(TDK, LAK_CD031, 0), 0},
 	{ PCMCIA_CARD(TELECOMDEVICE, TCD_HPC100, 0), NE2000DVF_AX88190 },
 	{ PCMCIA_CARD(XIRCOM, CFE_10, 0), 0},
@@ -237,10 +238,34 @@ end2:
 }
 
 static int
+ed_pccard_rom_mac(device_t dev, uint8_t *enaddr)
+{
+	struct ed_softc *sc = device_get_softc(dev);
+	uint8_t romdata[16];
+	int i;
+
+	/*
+	 * Read in the rom data at location 0.  We should see one of
+	 * two patterns.  Either you'll see odd locations 0xff and
+	 * even locations data, or you'll see odd and even locations
+	 * mirror each other.  In addition, the last two even locations
+	 * should be 0.  If they aren't 0, then we'll assume that
+	 * there's no valid ROM data on this card and try another method
+	 * to recover the MAC address.  Since there are no NE-1000
+	 * based PC Card devices, we'll assume we're 16-bit.
+	 */
+	ed_pio_readmem(sc, 0, romdata, 16);
+	if (romdata[12] != 0 || romdata[14] != 0)
+		return 0;
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
+		enaddr[i] = romdata[i * 2];
+	return 1;
+}
+
+static int
 ed_pccard_attach(device_t dev)
 {
-	int error;
-	int i;
+	int error, i;
 	struct ed_softc *sc = device_get_softc(dev);
 	u_char sum;
 	u_char enaddr[ETHER_ADDR_LEN];
@@ -265,12 +290,14 @@ ed_pccard_attach(device_t dev)
 	}	      
 
 	/*
-	 * For the older cards, we have to get the MAC address from the
-	 * card in some way.  Let's try the standard way first.  If that
-	 * fails, check to see if the card has a hint about where to look
-	 * in its CIS.  If that fails, maybe we should look at some default
-	 * value.  In all fails, we should fail the attach, but don't right
-	 * now.
+	 * For the older cards, we have to get the MAC address from
+	 * the card in some way.  Let's try the standard PCMCIA way
+	 * first.  If that fails, then check to see if we have valid
+	 * data from the standard NE-2000 data roms.  If that fails,
+	 * check to see if the card has a hint about where to look in
+	 * its CIS.  If that fails, maybe we should look at some
+	 * default value.  In all fails, we should fail the attach,
+	 * but don't right now.
 	 */
 	if (sc->chip_type == ED_CHIP_TYPE_DP8390) {
 		pccard_get_ether(dev, enaddr);
@@ -278,6 +305,12 @@ ed_pccard_attach(device_t dev)
 			device_printf(dev, "CIS MAC %6D\n", enaddr, ":");
 		for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
 			sum |= enaddr[i];
+		if (sum == 0 && ed_pccard_rom_mac(dev, enaddr)) {
+			if (bootverbose)
+				device_printf(dev, "ROM mac %6D\n", enaddr,
+				    ":");
+			sum++;
+		}
 		if (sum == 0 && pp->flags & NE2000DVF_ENADDR) {
 			for (i = 0; i < ETHER_ADDR_LEN; i++) {
 				ed_pccard_memread(dev, pp->enoff + i * 2,
