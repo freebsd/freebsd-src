@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: fp_emulate.c,v 1.1 1998/12/04 10:52:47 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -208,6 +208,17 @@ static fp_register_t fp_reserved(union alpha_instruction ins,
     return GETREG(fpregs, ins.f_format.fc);
 }
 
+static fp_register_t fp_cvtql(union alpha_instruction ins,
+				 int src, int rnd,
+				 u_int64_t control, u_int64_t *status,
+				 struct fpreg *fpregs)
+
+{
+    fp_register_t fb = GETREG(fpregs, ins.f_format.fb);
+    *status |= FPCR_INV;
+    return ((fb.q & 0xc0000000) << 32 | (fb.q & 0x3fffffff) << 29);
+}
+
 static int fp_emulate(union alpha_instruction ins, struct proc *p)
 {
 	u_int64_t control = p->p_addr->u_pcb.pcb_fp_control;
@@ -235,11 +246,13 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
 	u_int64_t status;
 
 	/*
-	 * Only attempt to emulate ieee instructions.
+	 * Only attempt to emulate ieee instructions & integer overflow
 	 */
-	if (ins.common.opcode != op_flti)
+	if ((ins.common.opcode != op_flti) &&
+	    (ins.f_format.function != fltl_cvtqlsv)){
+		printf("fp_emulate: unhandled opcode = 0x%x, fun = 0x%x\n",ins.common.opcode,ins.f_format.function);
 		return 0;
-
+	}
 	/*
 	 * Dump the float registers into the pcb so we can get at
 	 * them.
@@ -259,10 +272,15 @@ static int fp_emulate(union alpha_instruction ins, struct proc *p)
 	if (rnd == 3)
 		rnd = (fpregs->fpr_cr >> FPCR_DYN_SHIFT) & 3;
 	status = 0;
-	result = ops[ins.f_format.function & 0xf](ins, src, rnd,
-						  control, &status,
-						  fpregs);
-
+	if (ins.common.opcode == op_fltl
+	   && ins.f_format.function == fltl_cvtqlsv)
+		result = fp_cvtql(ins, src, rnd, control, &status,
+				  fpregs);
+	else
+		result = ops[ins.f_format.function & 0xf](ins, src, rnd,
+							  control, &status,
+							  fpregs);
+	
 	/*
 	 * Handle exceptions.
 	 */

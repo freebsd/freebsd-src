@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: machdep.c,v 1.27 1998/12/16 16:28:56 bde Exp $
+ *	$Id: machdep.c,v 1.28 1998/12/23 11:50:50 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -1474,11 +1474,11 @@ setregs(struct proc *p, u_long entry, u_long stack)
 
 	bzero(tfp->tf_regs, FRAME_SIZE * sizeof tfp->tf_regs[0]);
 	bzero(&p->p_addr->u_pcb.pcb_fp, sizeof p->p_addr->u_pcb.pcb_fp);
-	p->p_addr->u_pcb.pcb_fp_control = (IEEE_TRAP_ENABLE_INV
-					   | IEEE_TRAP_ENABLE_DZE
-					   | IEEE_TRAP_ENABLE_OVF);
+	p->p_addr->u_pcb.pcb_fp_control = 0;
 	p->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
-					  | FPCR_INED | FPCR_UNFD);
+					  | FPCR_INVD | FPCR_DZED
+					  | FPCR_OVFD | FPCR_INED
+					  | FPCR_UNFD);
 
 	alpha_pal_wrusp(stack);
 	tfp->tf_regs[FRAME_PS] = ALPHA_PSL_USERSET;
