@@ -62,10 +62,6 @@ ENTRY(vm86_bioscall)
 	pushl	%edi
 	pushl	%gs
 
-	pushl	%edx
-	call	__mtx_enter_giant_def	/* Get global lock */
-	popl	%edx
-
 #if NNPX > 0
 	movl	_curproc,%ecx
 	cmpl	%ecx,_npxproc		/* do we need to save fp? */
@@ -135,7 +131,6 @@ ENTRY(vm86_bioscall)
 	 */
 	subl	$4,%esp			/* dummy unit */
 	incb	_intr_nesting_level
-	call	__mtx_exit_giant_def
 	MEXITCOUNT
 	jmp	_doreti
 
