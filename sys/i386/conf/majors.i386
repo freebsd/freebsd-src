@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.9.2.5 1998/01/16 22:28:40 pst Exp $
+$Id: majors.i386,v 1.9.2.6 1998/02/13 22:50:07 pst Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -37,6 +37,9 @@ blkdev	name		comments
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 23	worm		SCSI "worm type"
+24	??		(wstb in 3.x)
+25	??		(vinum RAID fs in 3.x)
+26	sw		VM internal swap device
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
