@@ -489,7 +489,7 @@ MAIN:{
     # Build a release if requested
     if ($cmds{'release'}) {
 	logstage("building a release");
-	cd("$sandbox/src");
+	cd("$sandbox/src/release");
 	make('release')
 	    or error("failed to build release");
     }
