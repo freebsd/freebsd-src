@@ -301,7 +301,6 @@ vm_waitproc(p)
 /* XXXKSE by here there should not be any threads left! */
 	FOREACH_THREAD_IN_PROC(p, td) {
 		panic("vm_waitproc: Survivor thread!");
-		pmap_dispose_thread(td);
 	}
 	vmspace_exitfree(p);		/* and clean-out the vmspace */
 }
