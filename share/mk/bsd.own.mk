@@ -29,7 +29,7 @@
 #		stripped/not-stripped using a single knob. [-s]
 #
 # OBJFORMAT	Default object format that selects which set of tools to run.
-#		[elf on alpha, aout otherwise]
+#		[elf]
 #
 # BINOWN	Binary owner. [root]
 #
@@ -60,11 +60,11 @@
 # KMODDIR	Base path for loadable kernel modules
 #		(see kld(4)). [/modules]
 #
-# KMODOWN	LKM owner. [${BINOWN}]
+# KMODOWN	KLD owner. [${BINOWN}]
 #
-# KMODGRP	LKM group. [${BINGRP}]
+# KMODGRP	KLD group. [${BINGRP}]
 #
-# KMODMODE	LKM mode. [${BINMODE}]
+# KMODMODE	KLD mode. [${BINMODE}]
 #
 #
 # SHAREDIR	Base path for architecture-independent ascii
@@ -124,7 +124,7 @@ MACHINE_ARCH?=	i386
 #
 # The build tools are indirected by /usr/bin/objformat which determines the
 # object format from the OBJFORMAT environment variable and if this is not
-# defined, it reads /etc/objectformat.
+# defined, it reads /etc/objformat.
 #
 .if exists(/etc/objformat) && !defined(OBJFORMAT)
 .include "/etc/objformat"
