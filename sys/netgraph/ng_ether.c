@@ -193,6 +193,7 @@ static struct ng_type ng_ether_typestruct = {
 	ng_ether_disconnect,
 	ng_ether_cmdlist,
 };
+MODULE_VERSION(ng_ether, 1);
 NETGRAPH_INIT(ether, &ng_ether_typestruct);
 
 /******************************************************************
