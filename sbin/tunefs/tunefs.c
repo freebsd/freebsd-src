@@ -231,7 +231,7 @@ void
 usage()
 {
 
-	fprintf(stderr, "Usage: tunefs tuneup-options special-device\n");
+	fprintf(stderr, "usage: tunefs tuneup-options special-device\n");
 	fprintf(stderr, "where tuneup-options are:\n");
 	fprintf(stderr, "\t-a maximum contiguous blocks\n");
 	fprintf(stderr, "\t-d rotational delay between contiguous blocks\n");
