@@ -2692,7 +2692,11 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: ping6 [-dfHmnNqvwW"
+	    "usage: ping6 [-dfH"
+#ifdef IPV6_USE_MIN_MTU
+	    "m"
+#endif
+	    "nNqtvwW"
 #ifdef IPV6_REACHCONF
 	    "R"
 #endif
