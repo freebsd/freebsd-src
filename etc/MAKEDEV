@@ -71,7 +71,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.48 1994/11/10 02:32:29 phk Exp $
+#	$Id: MAKEDEV,v 1.49 1994/11/12 15:48:54 ache Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -422,7 +422,7 @@ tw*)
 	unit=`expr $i : 'tw\(.*\)'`
 	rm -f tw$unit
 	mknod tw$unit c 19 $unit
-	chown root.wheel tw$unit
+	chown bin.bin tw$unit
 	;;
 
 # hv 22-apr-93 use this to create the necessary video device for
@@ -466,7 +466,7 @@ speaker)
 
 cua0?|cua?|ttyd?)
 	unit=`expr $i : '...[d0]*\(.\)$'`
-	rm -f tty*0$unit cua*0$unit tty*d$unit
+	rm -f cua*0$unit tty*d$unit
 	case $unit in
 	[0-9]) m=$unit;;
 	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
@@ -487,7 +487,7 @@ cua0?|cua?|ttyd?)
 
 tty0?|tty?)
 	unit=`expr $i : 'tty0*\(.\)$'`
-	rm -f tty*0$unit cua*0$unit tty*d$unit
+	rm -f tty*0$unit
 	case $unit in
 	[0-9]) m=$unit;;
 	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
