@@ -107,6 +107,8 @@ static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *cont
 static void	acpi_shutdown_pre_sync(void *arg, int howto);
 static void	acpi_shutdown_final(void *arg, int howto);
 
+static void	acpi_enable_fixed_events(struct acpi_softc *sc);
+
 #ifdef ACPI_DEBUG
 static void	acpi_set_debugging(void);
 #endif
@@ -306,19 +308,7 @@ acpi_attach(device_t dev)
     sc->acpi_sleep_button_sx = ACPI_SLEEP_BUTTON_DEFAULT_SX;
     sc->acpi_lid_switch_sx = ACPI_LID_SWITCH_DEFAULT_SX;
 
-    /* Enable and clear fixed events and install handlers. */
-    if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->PwrButton == 0) {
-	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
-	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
-	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON, acpi_eventhandler_power_button_for_sleep, sc);
-	device_printf(dev, "power button is handled as a fixed feature programming model.\n");
-    }
-    if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->SleepButton == 0) {
-	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
-	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
-	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON, acpi_eventhandler_sleep_button_for_sleep, sc);
-	device_printf(dev, "sleep button is handled as a fixed feature programming model.\n");
-    }
+    acpi_enable_fixed_events(sc);
 
     /*
      * Scan the namespace and attach/initialise children.
@@ -668,6 +658,35 @@ acpi_shutdown_final(void *arg, int howto)
     }
 }
 
+static void
+acpi_enable_fixed_events(struct acpi_softc *sc)
+{
+	static int	first_time = 1;
+#define MSGFORMAT "%s button is handled as a fixed feature programming model.\n"
+
+	/* Enable and clear fixed events and install handlers. */
+	if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->PwrButton == 0) {
+		AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
+		AcpiClearEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
+		AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
+		    acpi_eventhandler_power_button_for_sleep, sc);
+		if (first_time) {
+			device_printf(sc->acpi_dev, MSGFORMAT, "power");
+		}
+	}
+	if (AcpiGbl_FADT != NULL && AcpiGbl_FADT->SleepButton == 0) {
+		AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
+		AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
+		AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
+		    acpi_eventhandler_sleep_button_for_sleep, sc);
+		if (first_time) {
+			device_printf(sc->acpi_dev, MSGFORMAT, "sleep");
+		}
+	}
+
+	first_time = 0;
+}
+
 /*
  * Match a HID string against a device
  */
@@ -765,6 +784,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	}
 	DEVICE_RESUME(root_bus);
 	sc->acpi_sstate = ACPI_STATE_S0;
+	acpi_enable_fixed_events(sc);
 	break;
 
     case ACPI_STATE_S5:
