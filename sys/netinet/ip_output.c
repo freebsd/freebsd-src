@@ -348,18 +348,6 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 				ip->ip_src = IA_SIN(ia)->sin_addr;
 		}
 
-		if (ip_mrouter && (flags & IP_FORWARDING) == 0) {
-			/*
-			 * XXX
-			 * delayed checksums are not currently
-			 * compatible with IP multicast routing
-			 */
-			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-				in_delayed_cksum(m);
-				m->m_pkthdr.csum_flags &=
-					~CSUM_DELAY_DATA;
-			}
-		}
 		IN_LOOKUP_MULTI(pkt_dst, ifp, inm);
 		if (inm != NULL &&
 		   (imo == NULL || imo->imo_multicast_loop)) {
@@ -2226,8 +2214,10 @@ ip_mloopback(ifp, m, dst, hlen)
 		copym->m_pkthdr.rcvif = ifp;
 		ip_input(copym);
 #else
-		/* if the checksum hasn't been computed, mark it as valid */
+		/* If needed, compute the checksum and mark it as valid. */
 		if (copym->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			in_delayed_cksum(copym);
+			copym->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 			copym->m_pkthdr.csum_flags |=
 			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 			copym->m_pkthdr.csum_data = 0xffff;
