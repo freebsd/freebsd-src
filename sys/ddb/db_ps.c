@@ -43,8 +43,8 @@
 #include <vm/pmap.h>
 
 #include <ddb/ddb.h>
-static void
-dumpthread(volatile struct proc *p, volatile struct thread *td);
+
+static void	dumpthread(volatile struct proc *p, volatile struct thread *td);
 
 void
 db_ps(dummy1, dummy2, dummy3, dummy4)
@@ -138,6 +138,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
     	}
 	/* sx_sunlock(&allproc_lock); */
 }
+
 static void
 dumpthread(volatile struct proc *p, volatile struct thread *td)
 {
