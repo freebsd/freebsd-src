@@ -1132,6 +1132,7 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 		xerror = hp->fn(cmd, addr, hp->arg);
 		if (xerror != 0)
 		    error = xerror;
+		goto out;
 	    }
 	}
     }
@@ -1168,6 +1169,8 @@ acpiioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 	    error = EINVAL;
 	break;
     }
+
+out:
     return(error);
 }
 
