@@ -33,14 +33,14 @@
 
 #if !defined(BUILTIN) && !defined(SHELL)
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 #endif
 
 #ifndef lint
-static char sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
+static char const sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -51,6 +51,7 @@ static char sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef SHELL
 #define main printfcmd
@@ -100,7 +101,7 @@ main(argc, argv)
 	int ch, end, fieldwidth, precision;
 	char convch, nextch, *format, *fmt, *start;
 
-	while ((ch = getopt(argc, argv, "")) !=  -1)
+	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
 		case '?':
 		default:

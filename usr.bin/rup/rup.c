@@ -33,7 +33,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: rup.c,v 1.4 1995/11/21 05:43:27 wpaul Exp $";
+	"$Id: rup.c,v 1.4.2.1 1997/08/08 12:06:41 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -48,7 +48,6 @@ static char rcsid[] =
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
 #include <arpa/inet.h>
-
 #undef FSHIFT			/* Use protocol's shift and scale values */
 #undef FSCALE
 #include <rpcsvc/rstat.h>
@@ -158,6 +157,7 @@ onehost(char *host)
 	statstime host_stat;
 	struct sockaddr_in addr;
 	struct hostent *hp;
+	struct timeval tv;
 
 	hp = gethostbyname(host);
 	if (hp == NULL) {
@@ -172,7 +172,9 @@ onehost(char *host)
 	}
 
 	bzero((char *)&host_stat, sizeof(host_stat));
-	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, NULL) != RPC_SUCCESS) {
+	tv.tv_sec = 15;	/* XXX ??? */
+	tv.tv_usec = 0;
+	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, tv) != RPC_SUCCESS) {
 		warnx("%s: %s", host, clnt_sperror(rstat_clnt, host));
 		return(-1);
 	}
@@ -190,7 +192,7 @@ allhosts()
 
 	clnt_stat = clnt_broadcast(RSTATPROG, RSTATVERS_TIME, RSTATPROC_STATS,
 				   xdr_void, NULL,
-				   xdr_statstime, &host_stat, rstat_reply);
+				   xdr_statstime, (char *)&host_stat, rstat_reply);
 	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
 		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
