@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.16 1995/08/23 11:43:45 jkh Exp $
+ *	$Id: diskslice_machdep.c,v 1.17 1995/10/28 15:38:55 phk Exp $
  */
 
 #include <stddef.h>
@@ -221,7 +221,7 @@ reread_mbr:
 			if (bootverbose)
 				printf(
 	    "%s: Found \"Ontrack Disk Manager\" on this disk.\n", sname);
-			bp->b_flags = B_INVAL | B_AGE;
+			bp->b_flags |= B_INVAL | B_AGE;
 			brelse(bp);
 			mbr_offset = 63;
 			goto reread_mbr;
@@ -342,7 +342,7 @@ reread_mbr:
 				 max_nsectors, max_ntracks, mbr_offset);
 
 done:
-	bp->b_flags = B_INVAL | B_AGE;
+	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 	if (error == EINVAL)
 		error = 0;
@@ -447,6 +447,6 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 				 mbr_offset);
 
 done:
-	bp->b_flags = B_INVAL | B_AGE;
+	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 }
