@@ -2,12 +2,12 @@ dnl	This file is an input file used by the GNU "autoconf" program to
 dnl	generate the file "configure", which is run during Tcl installation
 dnl	to configure the system for the local environment.
 AC_INIT(../generic/tcl.h)
-# SCCS: @(#) configure.in 1.135 97/06/10 17:28:19
+# SCCS: @(#) configure.in 1.140 97/08/12 10:36:18
 
 TCL_VERSION=8.0
 TCL_MAJOR_VERSION=8
 TCL_MINOR_VERSION=0
-TCL_PATCH_LEVEL=b2
+TCL_PATCH_LEVEL=""
 VERSION=${TCL_VERSION}
 
 if test "${prefix}" = "NONE"; then
@@ -34,7 +34,13 @@ AC_C_CROSS
 #	set flags so Tcl uses alternate procedures.
 #--------------------------------------------------------------------
 
-AC_REPLACE_FUNCS(getcwd opendir strstr)
+# Check if Posix compliant getcwd exists, if not we'll use getwd.
+AC_CHECK_FUNCS(getcwd, , AC_DEFINE(USEGETWD))
+# Nb: if getcwd uses popen and pwd(1) (like Solaris) we should really
+# define USEGETWD even if the posix getcwd exists. Add a test ?
+
+AC_REPLACE_FUNCS(opendir strstr)
+
 AC_REPLACE_FUNCS(strtol tmpnam waitpid)
 AC_CHECK_FUNC(strerror, , AC_DEFINE(NO_STRERROR))
 AC_CHECK_FUNC(getwd, , AC_DEFINE(NO_GETWD))
@@ -646,7 +652,7 @@ TCL_LIB_VERSIONS_OK=ok
 case $system in
     AIX-4.[[2-9]])
 	SHLIB_CFLAGS=""
-	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512"
+	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry"
 	SHLIB_LD_LIBS='${LIBS}'
 	SHLIB_SUFFIX=".so"
 	DL_OBJS="tclLoadDl.o"
@@ -658,7 +664,7 @@ case $system in
 	;;
     AIX-*)
 	SHLIB_CFLAGS=""
-	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512"
+	SHLIB_LD="$fullSrcDir/ldAix /bin/ld -bhalt:4 -bM:SRE -bE:lib.exp -H512 -T512 -bnoentry"
 	SHLIB_LD_LIBS='${LIBS}'
 	SHLIB_SUFFIX=".so"
 	DL_OBJS="tclLoadDl.o tclLoadAix.o"
@@ -1136,6 +1142,7 @@ AC_ARG_ENABLE(shared,
     [  --enable-shared         build libtcl as a shared library],
     [tcl_ok=$enableval], [tcl_ok=no])
 if test "$tcl_ok" = "yes" -a "${SHLIB_SUFFIX}" != "" ; then
+    TCL_SHARED_BUILD=1
     TCL_SHLIB_CFLAGS="${SHLIB_CFLAGS}"
     TCL_LD_SEARCH_FLAGS="${LD_SEARCH_FLAGS}"
     eval "TCL_LIB_FILE=libtcl${TCL_SHARED_LIB_SUFFIX}"
@@ -1146,6 +1153,7 @@ if test "$tcl_ok" = "yes" -a "${SHLIB_SUFFIX}" != "" ; then
 	RANLIB=":"
     fi
 else
+    TCL_SHARED_BUILD=0
     case $system in
         BSD/OS*)
 	    ;;
@@ -1209,6 +1217,7 @@ AC_SUBST(TCL_MINOR_VERSION)
 AC_SUBST(TCL_PACKAGE_PATH)
 AC_SUBST(TCL_PATCH_LEVEL)
 AC_SUBST(TCL_SHARED_LIB_SUFFIX)
+AC_SUBST(TCL_SHARED_BUILD)
 AC_SUBST(TCL_SHLIB_CFLAGS)
 AC_SUBST(TCL_SRC_DIR)
 AC_SUBST(TCL_UNSHARED_LIB_SUFFIX)

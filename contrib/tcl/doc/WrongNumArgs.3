@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) @(#) WrongNumArgs.3 1.3 97/03/18 11:53:25
+'\" SCCS: @(#) @(#) WrongNumArgs.3 1.5 97/07/30 16:20:07
 '\" 
 .so man.macros
 .TH Tcl_WrongNumArgs 3 8.0 Tcl "Tcl Library Procedures"
@@ -30,7 +30,7 @@ Arguments to command that had the wrong number of arguments.
 .AP char *message in
 Additional error information to print after leading arguments
 from \fIobjv\fR.  This typically gives the acceptable syntax
-of the command.
+of the command.  This argument may be NULL.
 .BE
 
 .SH DESCRIPTION
@@ -52,8 +52,28 @@ If \fIobjc\fR is 2, the result will be set to the following string:
 .CS
 wrong # args: should be "foo bar fileName count"
 .CE
-\fIObjc\fR is usually 1, but may be 2 or more for commands like \fBstring\fR
-and the Tk widget commands, which use the first argument as a subcommand.
+\fIObjc\fR is usually 1, but may be 2 or more for commands like
+\fBstring\fR and the Tk widget commands, which use the first argument
+as a subcommand.  
+.PP
+Some of the objects in the \fIobjv\fR array may be abbreviations for
+a subcommand.  The command
+\fBTcl_GetIndexFromObj\fR will convert the abbreviated string object
+into an \fIindexObject\fR.  If an error occurs in the parsing of the
+subcommand we would like to use the full subcommand name rather than
+the abbreviation.  If the \fBTcl_WrongNumArgs\fR command finds any
+\fIindexObjects\fR in the \fIobjv\fR array it will use the full subcommand
+name in the error message instead of the abbreviated name that was
+origionally passed in.  Using the above example, lets assume that
+\fIbar\fR is actually an abbreviation for \fIbarfly\fR and the object
+is now an indexObject becasue it was passed to
+\fBTcl_GetIndexFromObj\fR.  In this case the error message would be:
+.CS
+wrong # args: should be "foo barfly fileName count"
+.CE
+
+.SH "SEE ALSO"
+Tcl_GetIndexFromObj
 
 .SH KEYWORDS
 command, error message, wrong number of arguments

@@ -2,9 +2,15 @@
 # tests.  Execute it by invoking "source all" when running tclTest
 # in this directory.
 #
-# SCCS: @(#) all 1.7 96/02/16 08:55:38
+# SCCS: @(#) all 1.8 97/08/01 11:07:14
 
-foreach i [lsort [glob *.test]] {
+if {$tcl_platform(os) == "Win32s"} {
+    set files [glob *.tes]
+} else {
+    set files [glob *.test]
+}
+
+foreach i [lsort $files] {
     if [string match l.*.test $i] {
 	# This is an SCCS lock file;  ignore it.
 	continue

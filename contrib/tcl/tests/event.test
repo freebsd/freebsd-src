@@ -8,7 +8,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# "@(#) event.test 1.27 97/06/23 18:21:18"
+# "@(#) event.test 1.35 97/08/11 11:58:38"
 
 if {[string compare test [info procs test]] == 1} then {source defs}
 
@@ -46,7 +46,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
 	testfilehandler close
 	set result
     } {{0 1} {0 2} {0 2}}
-    test event-1.3 {Tcl_DeleteFileHandler} {
+    test event-1.3 {Tcl_DeleteFileHandler} {nonPortable} {
 	testfilehandler close
 	testfilehandler create 2 disabled disabled
 	testfilehandler create 1 readable writable
@@ -66,7 +66,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
 	set result
     } {{0 1} {1 1} {1 2} {0 0}}
 
-    test event-2.1 {Tcl_DeleteFileHandler} {
+    test event-2.1 {Tcl_DeleteFileHandler} {nonPortable} {
 	testfilehandler close
 	testfilehandler create 2 disabled disabled
 	testfilehandler create 1 readable writable
@@ -84,7 +84,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
 	testfilehandler close
 	set result
     } {{0 1} {1 1} {1 2} {0 0}}
-    test event-2.2 {Tcl_DeleteFileHandler, fd reused & events still pending} {
+    test event-2.2 {Tcl_DeleteFileHandler, fd reused & events still pending} {nonPortable} {
 	testfilehandler close
 	testfilehandler create 0 readable writable
 	testfilehandler fillpartial 0
@@ -109,7 +109,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
 	set result
     } {0 0}
 
-    test event-4.1 {FileHandlerEventProc, race between event and disabling } {
+    test event-4.1 {FileHandlerEventProc, race between event and disabling} {nonPortable} {
 	update
 	testfilehandler close
 	testfilehandler create 2 disabled disabled
@@ -128,7 +128,7 @@ if {[catch {testfilehandler create 0 off off}] == 0 } {
 	testfilehandler close
 	set result
     } {{0 1} {1 1} {1 2} {0 0}}
-    test event-4.2 {FileHandlerEventProc, TCL_FILE_EVENTS off } {
+    test event-4.2 {FileHandlerEventProc, TCL_FILE_EVENTS off} {nonPortable} {
 	update
 	testfilehandler close
 	testfilehandler create 1 readable writable
@@ -208,70 +208,75 @@ test event-6.1 {BgErrorDeleteProc procedure} {
 } {Unmodified
 }
 
-test event-7.1 {tkerror/bgerror backwards compabitility} {
-    catch {rename bgerror {}}
-    proc tkerror {x y} {
-	return [expr $x + $y]
+test event-7.1 {bgerror / regular} {
+    set errRes {}
+    proc bgerror {err} {
+	global errRes;
+	set errRes $err;
     }
-    list [tkerror 4 7] [bgerror 8 -3]
-} {11 5}
-test event-7.2 {tkerror/bgerror backwards compabitility} {
-    proc bgerror {x y} {
-	return [expr 1 + $x + $y]
+    after 0 {error err1}
+    vwait errRes;
+    set errRes;
+} err1
+
+test event-7.2 {bgerror / accumulation} {
+    set errRes {}
+    proc bgerror {err} {
+	global errRes;
+	lappend errRes $err;
     }
-    list [tkerror 6 -2] [bgerror 7 2]
-} {5 10}
-test event-7.3 {tkerror/bgerror backwards compabitility} {
-    proc bgerror {x y} {
-	return [expr 1 + $x + $y]
+    after 0 {error err1}
+    after 0 {error err2}
+    after 0 {error err3}
+    update
+    set errRes;
+} {err1 err2 err3}
+
+test event-7.3 {bgerror / accumulation / break} {
+    set errRes {}
+    proc bgerror {err} {
+	global errRes;
+	lappend errRes $err;
+	return -code break "skip!";
     }
-    set result [list [info commands bgerror] [info commands tkerror]]
+    after 0 {error err1}
+    after 0 {error err2}
+    after 0 {error err3}
+    update
+    set errRes;
+} err1
+
+test event-7.4 {tkerror is nothing special anymore to tcl} {
+    set errRes {}
+    # we don't just rename bgerror to empty because it could then
+    # be autoloaded...
+    proc bgerror {err} {
+	global errRes;
+	lappend errRes "bg:$err";
+    }
+    proc tkerror {err} {
+	global errRes;
+	lappend errRes "tk:$err";
+    }
+    after 0 {error err1}
+    update
     rename tkerror {}
-    lappend result [info commands bgerror] [info commands tkerror]
-} {bgerror tkerror {} {}}
-test event-7.4 {tkerror/bgerror backwards compabitility} {
-    proc tkerror {x y} {
-	return [expr 1 + $x + $y]
-    }
-    set result [list [info commands bgerror] [info commands tkerror]]
-    rename bgerror {}
-    lappend result [info commands bgerror] [info commands tkerror]
-} {bgerror tkerror {} {}}
-test event-7.5 {tkerror/bgerror backwards compabitility} {
-    proc tkerror {x y} {
-	return [expr 1 + $x + $y]
-    }
-    rename tkerror foo
-    list [info commands bgerror] [info commands tkerror] [foo 4 3]
-} {{} {} 8}
-test event-7.6 {tkerror/bgerror backwards compabitility} {
-    proc bgerror {x y} {
-	return [expr 1 + $x + $y]
-    }
-    catch {rename foo {}}
-    rename bgerror foo
-    list [info commands bgerror] [info commands tkerror] [foo 4 3]
-} {{} {} 8}
-test event-7.7 {tkerror/bgerror backwards compabitility} {
-    proc foo args {return $args}
-    catch {rename tkerror {}}
-    rename foo tkerror
-    list [info commands bgerror] [info commands tkerror] [info commands foo] [tkerror a b c d]
-} {bgerror tkerror {} {a b c d}}
-test event-7.8 {tkerror/bgerror backwards compabitility} {
-    proc foo args {return $args}
-    catch {rename bgerror {}}
-    rename foo bgerror
-    list [info commands bgerror] [info commands tkerror] [info commands foo] [tkerror a b c d]
-} {bgerror tkerror {} {a b c d}}
-test event-7.9 {tkerror/bgerror backwards compabitility} {
-    proc bgerror args {return $args}
-    list [catch {rename bgerror tkerror} msg] $msg
-} {1 {can't rename to "tkerror": command already exists}}
+    set errRes
+} bg:err1
+
+# someday : add a test checking that 
+# when there is no bgerror, an error msg goes to stderr
+# ideally one would use sub interp and transfer a fake stderr
+# to it, unfortunatly the current interp tcl API does not allow
+# that. the other option would be to use fork a test but it
+# then becomes more a file/exec test than a bgerror test.
+
+# end of bgerror tests
 catch {rename bgerror {}}
 
+
 if {[info commands testexithandler] != ""} {
-    test event-8.1 {Tcl_CreateExitHandler procedure} {unixOrPc} {
+    test event-8.1 {Tcl_CreateExitHandler procedure} {stdio} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; exit"
@@ -284,7 +289,7 @@ even 4
 odd 41
 }
 
-    test event-9.1 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.1 {Tcl_DeleteExitHandler procedure} {stdio} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; testexithandler delete 41"
@@ -297,7 +302,7 @@ odd 41
 even 6
 even 4
 }
-    test event-9.2 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.2 {Tcl_DeleteExitHandler procedure} {stdio} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; testexithandler delete 4"
@@ -310,7 +315,7 @@ even 4
 even 6
 odd 41
 }
-    test event-9.3 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.3 {Tcl_DeleteExitHandler procedure} {stdio} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler create 4"
 	puts $child "testexithandler create 6; testexithandler delete 6"
@@ -323,7 +328,7 @@ odd 41
 even 4
 odd 41
 }
-    test event-9.4 {Tcl_DeleteExitHandler procedure} {unixOrPc} {
+    test event-9.4 {Tcl_DeleteExitHandler procedure} {stdio} {
 	set child [open |[list [info nameofexecutable]] r+]
 	puts $child "testexithandler create 41; testexithandler delete 41"
 	puts $child "testexithandler create 16; exit"
@@ -335,7 +340,7 @@ odd 41
 }
 }
 
-test event-10.1 {Tcl_Exit procedure} {unixOrPc} {
+test event-10.1 {Tcl_Exit procedure} {stdio} {
     set child [open |[list [info nameofexecutable]] r+]
     puts $child "exit 3"
     list [catch {close $child} msg] $msg [lindex $errorCode 0] \
@@ -357,6 +362,7 @@ test event-11.4 {Tcl_VwaitCmd procedure} {
     foreach i [after info] {
 	after cancel $i
     }
+    after 10; update; # On Mac make sure update won't take long
     after 100 {set x x-done}
     after 200 {set y y-done}
     after 300 {set z z-done}
@@ -372,7 +378,7 @@ foreach i [after info] {
     after cancel $i
 }
 
-test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {
+test event-11.5 {Tcl_VwaitCmd procedure: round robin scheduling, 2 sources} {socket} {
     set f1 [open test1 w]
     proc accept {s args} {
 	puts $s foobar
@@ -435,8 +441,9 @@ test event-12.4 {Tcl_UpdateCmd procedure} {
     foreach i [after info] {
 	after cancel $i
     }
+    after 10; update; # On Mac make sure update won't take long
     after 200 {set x x-done}
-    after 500 {set y y-done}
+    after 600 {set y y-done}
     after idle {set z z-done}
     set x before
     set y before

@@ -10,7 +10,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# @(#) obj.test 1.10 97/05/19 14:38:29
+# @(#) obj.test 1.11 97/08/06 08:56:09
 
 if {[info commands testobj] == {}} {
     puts "This application hasn't been compiled with the \"testobj\""
@@ -171,7 +171,7 @@ test obj-12.1 {SetBooleanFromAny, int to boolean special case} {
 } {1234 0 boolean}
 test obj-12.2 {SetBooleanFromAny, double to boolean special case} {
     set result ""
-    lappend result [format %.6g [testdoubleobj set 1 3.14159]]
+    lappend result [testdoubleobj set 1 3.14159]
     lappend result [testbooleanobj not 1]    ;# converts with SetBooleanFromAny
     lappend result [testobj type 1]
 } {3.14159 0 boolean}
@@ -219,10 +219,10 @@ test obj-13.1 {UpdateStringOfBoolean} {
 test obj-14.1 {Tcl_NewDoubleObj} {
     set result ""
     lappend result [testobj freeallvars]
-    lappend result [format %.6g [testdoubleobj set 1 3.1459]]
+    lappend result [testdoubleobj set 1 3.1459]
     lappend result [testobj type 1]
     lappend result [testobj refcount 1]
-} {{} 3.1459 double 1}
+} {{} 3.1459 double 2}
 
 test obj-15.1 {Tcl_SetDoubleObj, existing "empty string" object} {
     set result ""
@@ -236,20 +236,20 @@ test obj-15.2 {Tcl_SetDoubleObj, existing non-"empty string" object} {
     set result ""
     lappend result [testobj freeallvars]
     lappend result [testintobj set 1 98765]
-    lappend result [format %.6g [testdoubleobj set 1 27.56]]  ;# makes existing obj double
+    lappend result [testdoubleobj set 1 27.56]  ;# makes existing obj double
     lappend result [testobj type 1]
     lappend result [testobj refcount 1]
-} {{} 98765 27.56 double 1}
+} {{} 98765 27.56 double 2}
 
 test obj-16.1 {Tcl_GetDoubleFromObj, existing double object} {
     set result ""
-    lappend result [format %.6g [testdoubleobj set 1 16.1]]
+    lappend result [testdoubleobj set 1 16.1]
     lappend result [testdoubleobj mult10 1]   ;# gets existing double rep
 } {16.1 161.0}
 test obj-16.2 {Tcl_GetDoubleFromObj, convert to double} {
     set result ""
     lappend result [testintobj set 1 477]
-    lappend result [format %.6g [testdoubleobj div10 1]]    ;# must convert to bool
+    lappend result [testdoubleobj div10 1]    ;# must convert to bool
     lappend result [testobj type 1]
 } {477 47.7 double}
 test obj-16.3 {Tcl_GetDoubleFromObj, error converting to double} {
@@ -267,9 +267,9 @@ test obj-16.4 {Tcl_GetDoubleFromObj, error converting from "empty string"} {
 
 test obj-17.1 {DupDoubleInternalRep} {
     set result ""
-    lappend result [format %.6g [testdoubleobj set 1 17.1]]
-    lappend result [format %.6g [testobj duplicate 1 2]]      ;# uses DupDoubleInternalRep
-    lappend result [format %.6g [testdoubleobj get 2]]
+    lappend result [testdoubleobj set 1 17.1]
+    lappend result [testobj duplicate 1 2]      ;# uses DupDoubleInternalRep
+    lappend result [testdoubleobj get 2]
 } {17.1 17.1 17.1}
 
 test obj-18.1 {SetDoubleFromAny, int to double special case} {
@@ -312,9 +312,9 @@ test obj-18.6 {SetDoubleFromAny, error converting from "empty string"} {
 
 test obj-19.1 {UpdateStringOfDouble} {
     set result ""
-    lappend result [format %.6g [testdoubleobj set 1 3.14159]]
-    lappend result [format %.6g [testdoubleobj mult10 1]]
-    lappend result [format %.6g [testdoubleobj get 1]]   ;# must update string rep
+    lappend result [testdoubleobj set 1 3.14159]
+    lappend result [testdoubleobj mult10 1]
+    lappend result [testdoubleobj get 1]   ;# must update string rep
 } {3.14159 31.4159 31.4159}
 
 test obj-20.1 {Tcl_NewIntObj} {

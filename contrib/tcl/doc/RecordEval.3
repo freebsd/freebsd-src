@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1989-1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) RecordEval.3 1.17 96/08/26 12:59:47
+'\" SCCS: @(#) RecordEval.3 1.18 97/07/29 18:25:13
 '\" 
 .so man.macros
 .TH Tcl_RecordAndEval 3 7.4 Tcl "Tcl Library Procedures"
@@ -17,7 +17,7 @@ Tcl_RecordAndEval \- save command on history list before evaluating
 \fB#include <tcl.h>\fR
 .sp
 int
-\fBTcl_RecordAndEval\fR(\fIinterp, cmd, eval\fR)
+\fBTcl_RecordAndEval\fR(\fIinterp, cmd, flags\fR)
 .SH ARGUMENTS
 .AS Tcl_Interp *interp;
 .AP Tcl_Interp *interp in
@@ -44,6 +44,14 @@ commands typed by the user, since the purpose of history is to
 allow the user to re-issue recently-invoked commands.
 If the \fIflags\fR argument contains the TCL_NO_EVAL bit then
 the command is recorded without being evaluated.
+.PP
+Note that \fBTcl_RecordAndEval\fR has been largely replaced by the
+object-based procedure \fBTcl_RecordAndEvalObj\fR.
+That object-based procedure records and optionally executes
+a command held in a Tcl object instead of a string.
+
+.SH "SEE ALSO"
+Tcl_RecordAndEvalObj
 
 .SH KEYWORDS
 command, event, execute, history, interpreter, record

@@ -13,7 +13,7 @@
 # See the file "license.terms" for information on usage and redistribution
 # of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 #
-# SCCS: @(#) var.test 1.8 97/06/25 09:02:03
+# SCCS: @(#) var.test 1.10 97/07/28 18:31:47
 #
 
 if {[string compare test [info procs test]] == 1} then {source defs}
@@ -277,8 +277,8 @@ test var-7.2 {Tcl_VariableObjCmd, if new and no value, leave undefined} {
     namespace eval test_ns_var {
         variable two
     }
-    list [info vars test_ns_var::*] [catch {set test_ns_var::two} msg] $msg
-} {::test_ns_var::one 1 {can't read "test_ns_var::two": no such variable}}
+    list [info exists test_ns_var::two] [catch {set test_ns_var::two} msg] $msg
+} {0 1 {can't read "test_ns_var::two": no such variable}}
 test var-7.3 {Tcl_VariableObjCmd, "define" var already created above} {
     namespace eval test_ns_var {
         variable two 2
@@ -333,7 +333,37 @@ test var-7.8 {Tcl_VariableObjCmd, if var already exists and no value is given, l
     }
     set a
 } {8 8}
-test var-7.9 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
+test var-7.9 {Tcl_VariableObjCmd, mark as namespace var so var persists until namespace is destroyed or var is unset} {
+    catch {namespace delete test_ns_var2}
+    set a ""
+    namespace eval test_ns_var2 {
+        variable x 123
+        variable y
+        variable z
+    }
+    lappend a [info vars test_ns_var2::*]
+    lappend a [info exists test_ns_var2::x] [info exists test_ns_var2::y] \
+        [info exists test_ns_var2::z]
+    lappend a [list [catch {set test_ns_var2::y} msg] $msg]
+    lappend a [info vars test_ns_var2::*]
+    lappend a [info exists test_ns_var2::y] [info exists test_ns_var2::z]
+    lappend a [set test_ns_var2::y hello]
+    lappend a [info exists test_ns_var2::y] [info exists test_ns_var2::z]
+    lappend a [list [catch {unset test_ns_var2::y} msg] $msg]
+    lappend a [info vars test_ns_var2::*]
+    lappend a [info exists test_ns_var2::y] [info exists test_ns_var2::z]
+    lappend a [list [catch {unset test_ns_var2::z} msg] $msg]
+    lappend a [namespace delete test_ns_var2]
+    set a
+} {{::test_ns_var2::x ::test_ns_var2::y ::test_ns_var2::z} 1 0 0\
+{1 {can't read "test_ns_var2::y": no such variable}}\
+{::test_ns_var2::x ::test_ns_var2::y ::test_ns_var2::z} 0 0\
+hello 1 0\
+{0 {}}\
+{::test_ns_var2::x ::test_ns_var2::z} 0 0\
+{1 {can't unset "test_ns_var2::z": no such variable}}\
+{}}
+test var-7.10 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
     namespace eval test_ns_var {
         proc p {} {
             variable eight
@@ -342,14 +372,14 @@ test var-7.9 {Tcl_VariableObjCmd, variable cmd inside proc creates local link va
         p
     }
 } {8 eight}
-test var-7.10 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
+test var-7.11 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
     proc p {} {   ;# note this proc is at global :: scope
         variable test_ns_var::eight
         list [set eight] [info vars]
     }
     p
 } {8 eight}
-test var-7.11 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
+test var-7.12 {Tcl_VariableObjCmd, variable cmd inside proc creates local link var} {
     namespace eval test_ns_var {
         variable {} {My name is empty}
     }
@@ -402,18 +432,18 @@ test var-9.6 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
 	set arr(1) 1;
 	list [catch {testsetnoerr arr 2} res] $res;
 } {1 {before set}}
-test var-9.6 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+test var-9.7 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
 	catch {unset arr}
 	set arr(1) 1;
 	list [catch {testsetnoerr arr 2} res] $res;
 } {1 {before set}}
-test var-9.7 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+test var-9.8 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
     # this test currently fails, should not...
     # (some namespace function resets the interp while it should not)
     catch {namespace delete ns}
     list [catch {testsetnoerr ns::v 1} res] $res;
 } {1 {before set}}
-test var-9.8 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
+test var-9.9 {behaviour of TclSetVar without TCL_LEAVE_ERR_MSG flag} {
     proc readonly args {error "read-only"}
     set v 456
     trace var v w readonly
@@ -426,6 +456,7 @@ catch {unset v}
 
 catch {rename p ""}
 catch {namespace delete test_ns_var}
+catch {namespace delete test_ns_var2}
 catch {unset xx}
 catch {unset x}
 catch {unset y}

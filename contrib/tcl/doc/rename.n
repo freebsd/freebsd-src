@@ -1,11 +1,11 @@
 '\"
 '\" Copyright (c) 1993 The Regents of the University of California.
-'\" Copyright (c) 1994-1996 Sun Microsystems, Inc.
+'\" Copyright (c) 1994-1997 Sun Microsystems, Inc.
 '\"
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) rename.n 1.5 96/03/25 20:22:11
+'\" SCCS: @(#) rename.n 1.6 97/07/30 17:37:26
 '\" 
 .so man.macros
 .TH rename n "" Tcl "Tcl Built-In Commands"
@@ -20,9 +20,13 @@ rename \- Rename or delete a command
 .SH DESCRIPTION
 .PP
 Rename the command that used to be called \fIoldName\fR so that it
-is now called \fInewName\fR.  If \fInewName\fR is an empty string
-then \fIoldName\fR is deleted.  The \fBrename\fR command
-returns an empty string as result.
+is now called \fInewName\fR.
+If \fInewName\fR is an empty string then \fIoldName\fR is deleted.
+\fIoldName\fR and \fInewName\fR may include namespace qualifiers
+(names of containing namespaces).
+If a command is renamed into a different namespace,
+future invocations of it will execute in the new namespace.
+The \fBrename\fR command returns an empty string as result.
 
 .SH KEYWORDS
-command, delete, rename
+command, delete, namespace, rename

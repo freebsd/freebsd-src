@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclUnixFile.c 1.45 97/05/14 13:24:19
+ * SCCS: @(#) tclUnixFile.c 1.48 97/07/07 16:38:11
  */
 
 #include "tclInt.h"
@@ -169,6 +169,16 @@ TclGetCwd(interp)
             currentDirExitHandlerSet = 1;
             Tcl_CreateExitHandler(FreeCurrentDir, (ClientData) NULL);
         }
+#ifdef USEGETWD
+	if ((int)getwd(buffer) == (int)NULL) {
+	    if (interp != NULL) {
+		Tcl_AppendResult(interp,
+			"error getting working directory name: ",
+			buffer, (char *)NULL);
+	    }
+	    return NULL;
+	}
+#else
 	if (getcwd(buffer, MAXPATHLEN+1) == NULL) {
 	    if (interp != NULL) {
 		if (errno == ERANGE) {
@@ -183,6 +193,7 @@ TclGetCwd(interp)
 	    }
 	    return NULL;
 	}
+#endif
 	currentDir = (char *) ckalloc((unsigned) (strlen(buffer) + 1));
 	strcpy(currentDir, buffer);
     }
@@ -272,6 +283,9 @@ Tcl_FindExecutable(argv0)
 		&& S_ISREG(statBuf.st_mode)) {
 	    name = Tcl_DStringValue(&buffer);
 	    goto gotName;
+	}
+	if (*p == 0) {
+	    break;
 	}
 	p++;
     }

@@ -4,7 +4,7 @@
 '\" See the file "license.terms" for information on usage and redistribution
 '\" of this file, and for a DISCLAIMER OF ALL WARRANTIES.
 '\" 
-'\" SCCS: @(#) CrtSlave.3 1.22 97/06/10 17:52:33
+'\" SCCS: @(#) CrtSlave.3 1.26 97/07/31 18:00:14
 '\" 
 .so man.macros
 .TH Tcl_CreateSlave 3 7.6 Tcl "Tcl Library Procedures"
@@ -107,7 +107,8 @@ called function.
 .AP char *cmdName in
 Name of an exposed command to hide or create.
 .AP char *hiddenCmdName in
-Name of a hidden command to create or expose.
+Name under which a hidden command is stored and with which it can be
+exposed or invoked.
 .VE
 .BE
 
@@ -187,9 +188,11 @@ returns a pointer to a vector of Tcl_Obj structures instead of a vector of
 strings.
 .PP
 \fBTcl_ExposeCommand\fR moves the command named \fIhiddenCmdName\fR from
-the set of hidden commands to the set of exposed commands, renaming it to
-\fIcmdName\fR. \fIHiddenCmdName\fR must be the name of an existing hidden
-command, or the operation will return \fBTCL_ERROR\fR and deposit an error
+the set of hidden commands to the set of exposed commands, putting
+it under the name
+\fIcmdName\fR. 
+\fIHiddenCmdName\fR must be the name of an existing hidden
+command, or the operation will return \fBTCL_ERROR\fR and leave an error
 message in the \fIresult\fR field in \fIinterp\fR.
 If an exposed command named \fIcmdName\fR already exists,
 the operation returns \fBTCL_ERROR\fR and leaves an error message in the
@@ -199,11 +202,18 @@ After executing this command, attempts to use \fIcmdName\fR in a call to
 \fBTcl_Eval\fR or with the Tcl \fBeval\fR command will again succeed.
 .PP
 \fBTcl_HideCommand\fR moves the command named \fIcmdName\fR from the set of
-exposed commands to the set of hidden commands, renaming it to
-\fIhiddenCmdName\fR. \fICmdName\fR must be the name of an existing exposed
+exposed commands to the set of hidden commands, under the name
+\fIhiddenCmdName\fR.
+\fICmdName\fR must be the name of an existing exposed
 command, or the operation will return \fBTCL_ERROR\fR and leave an error
 message in the object result of \fIinterp\fR.
-If a hidden command named \fIhiddenCmdName\fR already
+Currently both \fIcmdName\fR and \fIhiddenCmdName\fR must not contain
+namespace qualifiers, or the operation will return \fBTCL_ERROR\fR and
+leave an error message in the object result of \fIinterp\fR.
+The \fICmdName\fR will be looked up in the global namespace, and not
+relative to the current namespace, even if the current namespace is not the
+global one.
+If a hidden command whose name is \fIhiddenCmdName\fR already
 exists, the operation also returns \fBTCL_ERROR\fR and the \fIresult\fR
 field in \fIinterp\fR contains an error message.
 If the operation succeeds, it returns \fBTCL_OK\fR.

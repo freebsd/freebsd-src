@@ -9,7 +9,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclListObj.c 1.44 97/06/13 18:25:32
+ * SCCS: @(#) tclListObj.c 1.47 97/08/12 19:02:02
  */
 
 #include "tclInt.h"
@@ -413,7 +413,7 @@ Tcl_ListObjAppendElement(interp, listPtr, objPtr)
 {
     register List *listRepPtr;
     register Tcl_Obj **elemPtrs;
-    int numElems;
+    int numElems, numRequired;
     
     if (Tcl_IsShared(listPtr)) {
 	panic("Tcl_ListObjAppendElement called with shared object");
@@ -428,14 +428,14 @@ Tcl_ListObjAppendElement(interp, listPtr, objPtr)
     listRepPtr = (List *) listPtr->internalRep.otherValuePtr;
     elemPtrs = listRepPtr->elements;
     numElems = listRepPtr->elemCount;
+    numRequired = numElems + 1 ;
     
     /*
      * If there is no room in the current array of element pointers,
      * allocate a new, larger array and copy the pointers to it.
      */
 
-    if (numElems >= listRepPtr->maxElemCount) {
-	int numRequired = (numElems + 1);
+    if (numRequired > listRepPtr->maxElemCount) {
 	int newMax = (2 * numRequired);
 	Tcl_Obj **newElemPtrs = (Tcl_Obj **)
 	    ckalloc((unsigned) (newMax * sizeof(Tcl_Obj *)));
@@ -639,7 +639,7 @@ Tcl_ListObjReplace(interp, listPtr, first, count, objc, objv)
     }
     
     numRequired = (numElems - count + objc);
-    if (numRequired < listRepPtr->maxElemCount) {
+    if (numRequired <= listRepPtr->maxElemCount) {
 	/*
 	 * Enough room in the current array. First "delete" count
 	 * elements starting at first.
@@ -941,7 +941,7 @@ SetListFromAny(interp, objPtr)
 
 	s = ckalloc((unsigned) elemSize + 1);
 	if (hasBrace) {
-	    strncpy(s, elemStart, (size_t) elemSize);
+	    memcpy((VOID *) s, (VOID *) elemStart,  (size_t) elemSize);
 	    s[elemSize] = 0;
 	} else {
 	    elemSize = TclCopyAndCollapse(elemSize, elemStart, s);

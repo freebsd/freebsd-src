@@ -11,7 +11,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS: @(#) tclBasic.c 1.280 97/05/20 19:09:26
+ * SCCS: @(#) tclBasic.c 1.305 97/08/13 10:34:43
  */
 
 #include "tclInt.h"
@@ -89,11 +89,9 @@ static CmdInfo builtInCmds[] = {
         TclCompileForCmd,		1},
     {"foreach",		(Tcl_CmdProc *) NULL,	Tcl_ForeachObjCmd,
         TclCompileForeachCmd,		1},
-    {"format",		Tcl_FormatCmd,		(Tcl_ObjCmdProc *) NULL,
+    {"format",		(Tcl_CmdProc *) NULL,	Tcl_FormatObjCmd,
         (CompileProc *) NULL,		1},
     {"global",		(Tcl_CmdProc *) NULL,	Tcl_GlobalObjCmd,
-        (CompileProc *) NULL,		1},
-    {"history",		Tcl_HistoryCmd,		(Tcl_ObjCmdProc *) NULL,
         (CompileProc *) NULL,		1},
     {"if",		Tcl_IfCmd,		(Tcl_ObjCmdProc *) NULL,
         TclCompileIfCmd,		1},
@@ -143,7 +141,7 @@ static CmdInfo builtInCmds[] = {
         (CompileProc *) NULL,		1},
     {"set",		Tcl_SetCmd,		(Tcl_ObjCmdProc *) NULL,    
         TclCompileSetCmd,		1},
-    {"split",		Tcl_SplitCmd,		(Tcl_ObjCmdProc *) NULL,
+    {"split",		(Tcl_CmdProc *) NULL,	Tcl_SplitObjCmd,
         (CompileProc *) NULL,		1},
     {"string",		(Tcl_CmdProc *) NULL,	Tcl_StringObjCmd,
         (CompileProc *) NULL,		1},
@@ -169,15 +167,15 @@ static CmdInfo builtInCmds[] = {
      */
 
 #ifndef TCL_GENERIC_ONLY
-    {"after",		Tcl_AfterCmd,		(Tcl_ObjCmdProc *) NULL,
+    {"after",		(Tcl_CmdProc *) NULL,	Tcl_AfterObjCmd,
         (CompileProc *) NULL,		1},
-    {"cd",		Tcl_CdCmd,		(Tcl_ObjCmdProc *) NULL,
+    {"cd",		(Tcl_CmdProc *) NULL,	Tcl_CdObjCmd,
         (CompileProc *) NULL,		0},
-    {"close",		Tcl_CloseCmd,		(Tcl_ObjCmdProc *) NULL,
+    {"close",		(Tcl_CmdProc *) NULL,	Tcl_CloseObjCmd,
         (CompileProc *) NULL,		1},
-    {"eof",		Tcl_EofCmd,		(Tcl_ObjCmdProc *) NULL,
+    {"eof",		(Tcl_CmdProc *) NULL,	Tcl_EofObjCmd,
         (CompileProc *) NULL,		1},
-    {"fblocked",	Tcl_FblockedCmd,	(Tcl_ObjCmdProc *) NULL,
+    {"fblocked",	(Tcl_CmdProc *) NULL,	Tcl_FblockedObjCmd,
         (CompileProc *) NULL,		1},
     {"fconfigure",	Tcl_FconfigureCmd,	(Tcl_ObjCmdProc *) NULL,
         (CompileProc *) NULL,		0},
@@ -210,7 +208,7 @@ static CmdInfo builtInCmds[] = {
     {"update",		Tcl_UpdateCmd,		(Tcl_ObjCmdProc *) NULL,
         (CompileProc *) NULL,		1},
     {"vwait",		Tcl_VwaitCmd,		(Tcl_ObjCmdProc *) NULL,
-        (CompileProc *) NULL,		0},
+        (CompileProc *) NULL,		1},
     
 #ifdef MAC_TCL
     {"beep",		(Tcl_CmdProc *) NULL,	Tcl_BeepObjCmd,
@@ -272,6 +270,7 @@ Tcl_CreateInterp()
      */  
 
     if (sizeof(Tcl_CallFrame) != sizeof(CallFrame)) {
+	/*NOTREACHED*/
         panic("Tcl_CallFrame and CallFrame are not the same size");
     }
 
@@ -298,14 +297,6 @@ Tcl_CreateInterp()
     iPtr->returnCode = TCL_OK;
     iPtr->errorInfo = NULL;
     iPtr->errorCode = NULL;
-    iPtr->numEvents = 0;
-    iPtr->events = NULL;
-    iPtr->curEvent = 0;
-    iPtr->curEventNum = 0;
-    iPtr->revPtr = NULL;
-    iPtr->historyFirst = NULL;
-    iPtr->revDisables = 1;
-    iPtr->evalFirst = iPtr->evalLast = NULL;
     iPtr->appendResult = NULL;
     iPtr->appendAvl = 0;
     iPtr->appendUsed = 0;
@@ -399,18 +390,45 @@ Tcl_CreateInterp()
 	}
     }
 
+    /*
+     *  Initialize/Create "errorInfo" and "errorCode" global vars
+     *  (because some part of the C code assume they exists
+     *   and we can get a seg fault otherwise (in multiple 
+     *   interps loading of extensions for instance) --dl)
+     */
+     /*
+      *  We can't assume that because we initialize 
+      *  the variables here, they won't be unset later.
+      *  so we had 2 choices:
+      *    + Check every place where a GetVar of those is used 
+      *      and the NULL result is not checked (like in tclLoad.c)
+      *    + Make SetVar,... NULL friendly
+      *  We choosed the second option because :
+      *    + It is easy and low cost to check for NULL pointer before
+      *      calling strlen()
+      *    + It can be helpfull to other people using those API
+      *    + Passing a NULL value to those closest 'meaning' is empty string
+      *      (specially with the new objects where 0 bytes strings are ok)
+      * So the following init is commented out:              -- dl
+      */
+    /*
+      (void)Tcl_SetVar2((Tcl_Interp *)iPtr, "errorInfo", (char *) NULL, "",
+         TCL_GLOBAL_ONLY);
+      (void)Tcl_SetVar2((Tcl_Interp *)iPtr, "errorCode", (char *) NULL, "NONE",
+	    TCL_GLOBAL_ONLY);
+     */
+
 #ifndef TCL_GENERIC_ONLY
     TclSetupEnv((Tcl_Interp *) iPtr);
 #endif
 
     /*
-     * Do Safe-Tcl init stuff
+     * Do Multiple/Safe Interps Tcl init stuff
      */
-
     (void) TclInterpInit((Tcl_Interp *)iPtr);
 
     /*
-     * Set up variables such as tcl_library and tcl_precision.
+     * Set up variables such as tcl_version.
      */
 
     TclPlatformInit((Tcl_Interp *)iPtr);
@@ -418,6 +436,9 @@ Tcl_CreateInterp()
 	    TCL_GLOBAL_ONLY);
     Tcl_SetVar((Tcl_Interp *) iPtr, "tcl_version", TCL_VERSION,
 	    TCL_GLOBAL_ONLY);
+    Tcl_TraceVar2((Tcl_Interp *) iPtr, "tcl_precision", (char *) NULL,
+	    TCL_GLOBAL_ONLY|TCL_TRACE_READS|TCL_TRACE_WRITES|TCL_TRACE_UNSETS,
+	    TclPrecTraceProc, (ClientData) NULL);
 
     /*
      * Compute the byte order of this machine.
@@ -425,7 +446,7 @@ Tcl_CreateInterp()
 
     order.s = 1;
     Tcl_SetVar2((Tcl_Interp *) iPtr, "tcl_platform", "byteOrder",
-	    (order.c[0] == 1) ? "litteEndian" : "bigEndian",
+	    (order.c[0] == 1) ? "littleEndian" : "bigEndian",
 	    TCL_GLOBAL_ONLY);
 
     /*
@@ -818,20 +839,6 @@ DeleteInterpProc(interp)
 	ckfree(iPtr->errorCode);
         iPtr->errorCode = NULL;
     }
-    if (iPtr->events != NULL) {
-	for (i = 0; i < iPtr->numEvents; i++) {
-	    ckfree(iPtr->events[i].command);
-	}
-	ckfree((char *) iPtr->events);
-        iPtr->events = NULL;
-    }
-    while (iPtr->revPtr != NULL) {
-	HistoryRev *nextPtr = iPtr->revPtr->nextPtr;
-
-	ckfree(iPtr->revPtr->newBytes);
-	ckfree((char *) iPtr->revPtr);
-	iPtr->revPtr = nextPtr;
-    }
     if (iPtr->appendResult != NULL) {
 	ckfree(iPtr->appendResult);
         iPtr->appendResult = NULL;
@@ -964,10 +971,6 @@ HiddenCmdsDeleteProc(clientData, interp)
     Command *cmdPtr;
 
     hiddenCmdTblPtr = (Tcl_HashTable *) clientData;
-    hPtr = Tcl_FindHashEntry(hiddenCmdTblPtr, "tkerror");
-    if (hPtr != NULL) {
-	Tcl_DeleteHashEntry(hPtr);
-    }
     for (hPtr = Tcl_FirstHashEntry(hiddenCmdTblPtr, &hSearch);
 	     hPtr != NULL;
              hPtr = Tcl_FirstHashEntry(hiddenCmdTblPtr, &hSearch)) {
@@ -1023,7 +1026,18 @@ HiddenCmdsDeleteProc(clientData, interp)
         if (cmdPtr->hPtr != NULL) {
             Tcl_DeleteHashEntry(cmdPtr->hPtr);
         }
-        ckfree((char *) cmdPtr);
+	
+        /*
+	 * Now free the Command structure, unless there is another reference
+	 * to it from a CmdName Tcl object in some ByteCode code
+	 * sequence. In that case, delay the cleanup until all references
+	 * are either discarded (when a ByteCode is freed) or replaced by a
+	 * new reference (when a cached CmdName Command reference is found
+	 * to be invalid and TclExecuteByteCode looks up the command in the
+	 * command hashtable).
+	 */
+	
+	TclCleanupCommand(cmdPtr);
     }
     Tcl_DeleteHashTable(hiddenCmdTblPtr);
     ckfree((char *) hiddenCmdTblPtr);
@@ -1042,24 +1056,24 @@ HiddenCmdsDeleteProc(clientData, interp)
  *	if an error occurs.
  *
  * Side effects:
- *	Moves a command from the command table to the hidden command
- *	table.
+ *	Removes a command from the command table and create an entry
+ *      into the hidden command table under the specified token name.
  *
  *----------------------------------------------------------------------
  */
 
 int
-Tcl_HideCommand(interp, cmdName, hiddenCmdName)
+Tcl_HideCommand(interp, cmdName, hiddenCmdToken)
     Tcl_Interp *interp;		/* Interpreter in which to hide command. */
-    char *cmdName;		/* Name of hidden command. */
-    char *hiddenCmdName;	/* Name of to-be-hidden command. */
+    char *cmdName;		/* Name of command to hide. */
+    char *hiddenCmdToken;	/* Token name of the to-be-hidden command. */
 {
     Interp *iPtr = (Interp *) interp;
     Tcl_Command cmd;
     Command *cmdPtr;
     Tcl_HashTable *hTblPtr;
-    Tcl_HashEntry *hPtr, *tkErrorHPtr;
-    int isBgerror, new;
+    Tcl_HashEntry *hPtr;
+    int new;
 
     if (iPtr->flags & DELETED) {
 
@@ -1071,38 +1085,57 @@ Tcl_HideCommand(interp, cmdName, hiddenCmdName)
         return TCL_ERROR;
     }
 
-    if (strstr(hiddenCmdName, "::") != NULL) {
+    /*
+     * Disallow hiding of commands that are currently in a namespace or
+     * renaming (as part of hiding) into a namespace.
+     *
+     * (because the current implementation with a single global table
+     *  and the needed uniqueness of names cause problems with namespaces)
+     *
+     * we don't need to check for "::" in cmdName because the real check is
+     * on the nsPtr below.
+     *
+     * hiddenCmdToken is just a string which is not interpreted in any way.
+     * It may contain :: but the string is not interpreted as a namespace
+     * qualifier command name. Thus, hiding foo::bar to foo::bar and then
+     * trying to expose or invoke ::foo::bar will NOT work; but if the
+     * application always uses the same strings it will get consistent
+     * behaviour.
+     *
+     * But as we currently limit ourselves to the global namespace only
+     * for the source, in order to avoid potential confusion,
+     * lets prevent "::" in the token too.  --dl
+     */
+
+    if (strstr(hiddenCmdToken, "::") != NULL) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                "hidden command names can't have namespace qualifiers",
-                (char *) NULL);
+                "cannot use namespace qualifiers as hidden command",
+		"token (rename)", (char *) NULL);
         return TCL_ERROR;
     }
 
     /*
      * Find the command to hide. An error is returned if cmdName can't
-     * be found.
+     * be found. Look up the command only from the global namespace.
+     * Full path of the command must be given if using namespaces.
      */
 
     cmd = Tcl_FindCommand(interp, cmdName, (Tcl_Namespace *) NULL,
-	    /*flags*/ TCL_LEAVE_ERR_MSG);
+	    /*flags*/ TCL_LEAVE_ERR_MSG | TCL_GLOBAL_ONLY);
     if (cmd == (Tcl_Command) NULL) {
 	return TCL_ERROR;
     }
     cmdPtr = (Command *) cmd;
 
     /*
-     * If this command is the "bgerror" command in the global namespace,
-     * make note of it now. We'll need to know this later so that we can
-     * handle its "tkerror" twin below.
+     * Check that the command is really in global namespace
      */
-    
-    isBgerror = 0;
-    if (cmdPtr->hPtr != NULL) {
-        char *tail = Tcl_GetHashKey(cmdPtr->hPtr->tablePtr, cmdPtr->hPtr);
-        if ((*tail == 'b') && (strcmp(tail, "bgerror") == 0)
-	        && (cmdPtr->nsPtr == iPtr->globalNsPtr)) {
-            isBgerror = 1;
-        }
+
+    if ( cmdPtr->nsPtr != iPtr->globalNsPtr ) {
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+                "can only hide global namespace commands",
+		" (use rename then hide)", (char *) NULL);
+        return TCL_ERROR;
     }
     
     /*
@@ -1121,17 +1154,24 @@ Tcl_HideCommand(interp, cmdName, hiddenCmdName)
 
     /*
      * It is an error to move an exposed command to a hidden command with
-     * hiddenCmdName if a hidden command with the name hiddenCmdName already
+     * hiddenCmdToken if a hidden command with the name hiddenCmdToken already
      * exists.
      */
     
-    hPtr = Tcl_CreateHashEntry(hTblPtr, hiddenCmdName, &new);
+    hPtr = Tcl_CreateHashEntry(hTblPtr, hiddenCmdToken, &new);
     if (!new) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                "hidden command named \"", hiddenCmdName, "\" already exists",
+                "hidden command named \"", hiddenCmdToken, "\" already exists",
                 (char *) NULL);
         return TCL_ERROR;
     }
+
+    /*
+     * Nb : This code is currently 'like' a rename to a specialy set apart
+     * name table. Changes here and in TclRenameCommand must
+     * be kept in synch untill the common parts are actually
+     * factorized out.
+     */
 
     /*
      * Remove the hash entry for the command from the interpreter command
@@ -1146,28 +1186,8 @@ Tcl_HideCommand(interp, cmdName, hiddenCmdName)
     }
 
     /*
-     * If we are creating a hidden command named "bgerror", share the
-     * command data structure with another command named "tkerror". This
-     * code should eventually be removed.
-     */
-
-    if (isBgerror) {
-        tkErrorHPtr = Tcl_CreateHashEntry(hTblPtr, "tkerror", &new);
-        if (!new) {
-            panic("Tcl_HideCommand: hiding bgerror while tkerror is already hidden!");
-        }
-        Tcl_SetHashValue(tkErrorHPtr, (ClientData) cmdPtr);
-        tkErrorHPtr = Tcl_FindHashEntry(&(iPtr->globalNsPtr->cmdTable),
-                "tkerror");
-        if (tkErrorHPtr != (Tcl_HashEntry *) NULL) {
-            Tcl_DeleteHashEntry(tkErrorHPtr);
-        }
-    }
-
-    /*
-     * Now link the hash table entry with the command structure. Keep the
-     * containing namespace the same. After all, the command really
-     * "belongs" to that namespace.
+     * Now link the hash table entry with the command structure.
+     * We ensured above that the nsPtr was right.
      */
     
     cmdPtr->hPtr = hPtr;
@@ -1207,19 +1227,18 @@ Tcl_HideCommand(interp, cmdName, hiddenCmdName)
  */
 
 int
-Tcl_ExposeCommand(interp, hiddenCmdName, cmdName)
+Tcl_ExposeCommand(interp, hiddenCmdToken, cmdName)
     Tcl_Interp *interp;		/* Interpreter in which to make command
                                  * callable. */
-    char *hiddenCmdName;	/* Name of hidden command. */
+    char *hiddenCmdToken;	/* Name of hidden command. */
     char *cmdName;		/* Name of to-be-exposed command. */
 {
     Interp *iPtr = (Interp *) interp;
     Command *cmdPtr;
-    Namespace *nsPtr, *dummy1, *dummy2;
-    Tcl_HashEntry *hPtr, *tkErrorHPtr;
+    Namespace *nsPtr;
+    Tcl_HashEntry *hPtr;
     Tcl_HashTable *hTblPtr;
-    char *tail;
-    int new, result;
+    int new;
 
     if (iPtr->flags & DELETED) {
         /*
@@ -1227,6 +1246,20 @@ Tcl_ExposeCommand(interp, hiddenCmdName, cmdName)
          * structures, because it is not safe to modify the interpreter.
          */
         
+        return TCL_ERROR;
+    }
+
+    /*
+     * Check that we have a regular name for the command
+     * (that the user is not trying to do an expose and a rename
+     *  (to another namespace) at the same time)
+     */
+
+    if (strstr(cmdName, "::") != NULL) {
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+                "can not expose to a namespace ",
+		"(use expose to toplevel, then rename)",
+                 (char *) NULL);
         return TCL_ERROR;
     }
 
@@ -1239,7 +1272,7 @@ Tcl_ExposeCommand(interp, hiddenCmdName, cmdName)
             NULL);
     if (hTblPtr == NULL) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                "unknown hidden command \"", hiddenCmdName,
+                "unknown hidden command \"", hiddenCmdToken,
                 "\"", (char *) NULL);
         return TCL_ERROR;
     }
@@ -1248,45 +1281,42 @@ Tcl_ExposeCommand(interp, hiddenCmdName, cmdName)
      * Get the command from the hidden command table:
      */
 
-    hPtr = Tcl_FindHashEntry(hTblPtr, hiddenCmdName);
+    hPtr = Tcl_FindHashEntry(hTblPtr, hiddenCmdToken);
     if (hPtr == (Tcl_HashEntry *) NULL) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                "unknown hidden command \"", hiddenCmdName,
+                "unknown hidden command \"", hiddenCmdToken,
                 "\"", (char *) NULL);
         return TCL_ERROR;
     }
     cmdPtr = (Command *) Tcl_GetHashValue(hPtr);
+    
 
     /*
-     * Normally, the command will go right back into its containing
-     * namespace. But if the exposed command name has "::" namespace
-     * qualifiers, it is being moved to another context.
+     * Check that we have a true global namespace
+     * command (enforced by Tcl_HideCommand() but let's double
+     * check. (If it was not, we would not really know how to
+     * handle it).
      */
-    
-    if (strstr(cmdName, "::") != NULL) {
-	result = TclGetNamespaceForQualName(interp, cmdName,
-		iPtr->globalNsPtr,
-		(CREATE_NS_IF_UNKNOWN | TCL_LEAVE_ERR_MSG),
-                &nsPtr, &dummy1, &dummy2, &tail);
-        if (result != TCL_OK) {
-            return result;
-        }
-        if ((nsPtr == NULL) || (tail == NULL)) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                    "bad command name \"", cmdName, "\"", (char *) NULL);
-            return TCL_ERROR;
-        }
-    } else {
-        nsPtr = cmdPtr->nsPtr;
-        tail = cmdName;
+    if ( cmdPtr->nsPtr != iPtr->globalNsPtr ) {
+	/* 
+	 * This case is theoritically impossible,
+	 * we might rather panic() than 'nicely' erroring out ?
+	 */
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+                "trying to expose a non global command name space command",
+		(char *) NULL);
+        return TCL_ERROR;
     }
+    
+    /* This is the global table */
+    nsPtr = cmdPtr->nsPtr;
 
     /*
      * It is an error to overwrite an existing exposed command as a result
      * of exposing a previously hidden command.
      */
 
-    hPtr = Tcl_CreateHashEntry(&nsPtr->cmdTable, tail, &new);
+    hPtr = Tcl_CreateHashEntry(&nsPtr->cmdTable, cmdName, &new);
     if (!new) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
                 "exposed command \"", cmdName,
@@ -1305,35 +1335,22 @@ Tcl_ExposeCommand(interp, hiddenCmdName, cmdName)
     }
 
     /*
-     * If we are creating a command named "bgerror", share the command
-     * data structure with another command named "tkerror". This code
-     * should eventually be removed.
-     */
-
-    if ((*tail == 'b') && (strcmp(tail, "bgerror") == 0)
-	    && (nsPtr == iPtr->globalNsPtr)) {
-        tkErrorHPtr = Tcl_CreateHashEntry(&iPtr->globalNsPtr->cmdTable,
-                "tkerror", &new);
-        if (!new) {
-            panic("Tcl_ExposeCommand: exposing bgerror while tkerror is already exposed!");
-        }
-        Tcl_SetHashValue(tkErrorHPtr, (ClientData) cmdPtr);
-        tkErrorHPtr = Tcl_FindHashEntry(hTblPtr, "tkerror");
-        if (tkErrorHPtr != NULL) {
-            Tcl_DeleteHashEntry(tkErrorHPtr);
-        }
-    }
-
-    /*
      * Now link the hash table entry with the command structure.
      * This is like creating a new command, so deal with any shadowing
      * of commands in the global namespace.
      */
     
     cmdPtr->hPtr = hPtr;
-    cmdPtr->nsPtr = nsPtr;
+
     Tcl_SetHashValue(hPtr, (ClientData) cmdPtr);
-    TclResetShadowedCmdRefs(interp, cmdPtr);
+
+    /*
+     * Not needed as we are only in the global namespace
+     * (but would be needed again if we supported namespace command hiding)
+     *
+     * TclResetShadowedCmdRefs(interp, cmdPtr);
+     */
+
 
     /*
      * If the command being exposed has a compile procedure, increment
@@ -1421,18 +1438,6 @@ Tcl_CreateCommand(interp, cmdName, proc, clientData, deleteProc)
 	tail = cmdName;
     }
     
-    /*
-     * The code below was added in 11/95 to preserve backwards compatibility
-     * when "tkerror" was renamed "bgerror":  if anyone attempts to define
-     * "tkerror" as a command, it is actually created as "bgerror".  This
-     * code should eventually be removed.
-     */
-
-    if ((*tail == 't') && (strcmp(tail, "tkerror") == 0)
-	    && (nsPtr == iPtr->globalNsPtr)) {
-	tail = "bgerror";
-    }
-
     hPtr = Tcl_CreateHashEntry(&nsPtr->cmdTable, tail, &new);
     if (!new) {
 	/*
@@ -1467,23 +1472,6 @@ Tcl_CreateCommand(interp, cmdName, proc, clientData, deleteProc)
     cmdPtr->deleteData = clientData;
     cmdPtr->deleted = 0;
     cmdPtr->importRefPtr = NULL;
-
-    /*
-     * The code below provides more backwards compatibility for the
-     * renaming of "tkerror" to "bgerror". Like the code above, this
-     * code should eventually become unnecessary.
-     */
-
-    if ((*tail == 'b') && (strcmp(tail, "bgerror") == 0)
-	    && (nsPtr == iPtr->globalNsPtr)) {
-	/*
-	 * We're currently creating the "bgerror" command; create
-	 * a "tkerror" command that shares the same Command structure.
-	 */
-
-	hPtr = Tcl_CreateHashEntry(&nsPtr->cmdTable, "tkerror", &new);
-	Tcl_SetHashValue(hPtr, cmdPtr);
-    }
 
     /*
      * We just created a command, so in its namespace and all of its parent
@@ -1574,18 +1562,6 @@ Tcl_CreateObjCommand(interp, cmdName, proc, clientData, deleteProc)
 	tail = cmdName;
     }
 
-    /*
-     * The code below was added in 11/95 to preserve backwards compatibility
-     * when "tkerror" was renamed "bgerror":  if anyone attempts to define
-     * "tkerror" as a command, it is actually created as "bgerror".  This
-     * code should eventually be removed.
-     */
-
-    if ((*tail == 't') && (strcmp(tail, "tkerror") == 0)
-	    && (nsPtr == iPtr->globalNsPtr)) {
-	tail = "bgerror";
-    }
-
     hPtr = Tcl_CreateHashEntry(&nsPtr->cmdTable, tail, &new);
     if (!new) {
 	cmdPtr = (Command *) Tcl_GetHashValue(hPtr);
@@ -1601,7 +1577,7 @@ Tcl_CreateObjCommand(interp, cmdName, proc, clientData, deleteProc)
 	    cmdPtr->objClientData = clientData;
             cmdPtr->deleteProc = deleteProc;
             cmdPtr->deleteData = clientData;
-	    goto checkForBgerror;
+	    return (Tcl_Command) cmdPtr;
 	}
 
 	Tcl_DeleteCommandFromToken(interp, (Tcl_Command) cmdPtr);
@@ -1632,23 +1608,6 @@ Tcl_CreateObjCommand(interp, cmdName, proc, clientData, deleteProc)
     cmdPtr->deleted = 0;
     cmdPtr->importRefPtr = NULL;
     
-    /*
-     * The code below provides more backwards compatibility for the
-     * renaming of "tkerror" to "bgerror".  Like the code above, this
-     * code should eventually become unnecessary.
-     */
-
-    checkForBgerror:
-    if ((*tail == 'b') && (strcmp(tail, "bgerror") == 0)
-	    && (nsPtr == iPtr->globalNsPtr)) {
-	/*
-	 * We're currently creating the "bgerror" command; create
-	 * a "tkerror" command that shares the same Command structure.
-	 */
-
-	hPtr = Tcl_CreateHashEntry(&nsPtr->cmdTable, "tkerror", &new);
-	Tcl_SetHashValue(hPtr, cmdPtr);
-    }
     return (Tcl_Command) cmdPtr;
 }
 
@@ -1830,7 +1789,8 @@ TclInvokeObjectCommand(clientData, interp, argc, argv)
  *      Called to give an existing Tcl command a different name. Both the
  *      old command name and the new command name can have "::" namespace
  *      qualifiers. If the new command has a different namespace context,
- *      the command is automatically moved to that namespace.
+ *      the command will be moved to that namespace and will execute in
+ *	the context of that new namespace.
  *
  *      If the new command name is NULL or the null string, the command is
  *      deleted.
@@ -1852,12 +1812,12 @@ TclRenameCommand(interp, oldName, newName)
     char *newName;                      /* New command name. */
 {
     Interp *iPtr = (Interp *) interp;
-    char *cmdTail, *newTail;
+    char *newTail;
     Namespace *cmdNsPtr, *newNsPtr, *dummy1, *dummy2;
     Tcl_Command cmd;
     Command *cmdPtr;
     Tcl_HashEntry *hPtr, *oldHPtr;
-    int new, isSrcBgerror, isDestBgerror, result;
+    int new, result;
 
     /*
      * Find the existing command. An error is returned if cmdName can't
@@ -1869,11 +1829,10 @@ TclRenameCommand(interp, oldName, newName)
     cmdPtr = (Command *) cmd;
     if (cmdPtr == NULL) {
 	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "can't ",
-                ((newName == NULL) || (*newName == '\0'))? "delete":"rename",
+                ((newName == NULL)||(*newName == '\0'))? "delete":"rename",
                 " \"", oldName, "\": command doesn't exist", (char *) NULL);
 	return TCL_ERROR;
     }
-    cmdTail = Tcl_GetHashKey(cmdPtr->hPtr->tablePtr, cmdPtr->hPtr);
     cmdNsPtr = cmdPtr->nsPtr;
 
     /*
@@ -1912,35 +1871,17 @@ TclRenameCommand(interp, oldName, newName)
         return TCL_ERROR;
     }
 
+
     /*
-     * The code below was added in 11/95 to preserve backwards compatibility
-     * when "tkerror" was renamed "bgerror":  we guarantee that the hash
-     * table entries for both commands refer to a single shared Command
-     * structure.  This code should eventually become unnecessary.
+     * Warning: any changes done in the code here are likely
+     * to be needed in Tcl_HideCommand() code too.
+     * (until the common parts are extracted out)     --dl
      */
 
-    if ((*cmdTail == 't') && (strcmp(cmdTail, "tkerror") == 0)
-	    && (cmdNsPtr == iPtr->globalNsPtr)) {
-	cmdTail = "bgerror";
-    }
-    isSrcBgerror = ((*cmdTail == 'b') && (strcmp(cmdTail, "bgerror") == 0)
-	    && (cmdNsPtr == iPtr->globalNsPtr));
-
-    if ((*newTail == 't') && (strcmp(newTail, "tkerror") == 0)
-	    && (newNsPtr == iPtr->globalNsPtr)) {
-	newTail = "bgerror";
-    }
-    isDestBgerror = ((*newTail == 'b') && (strcmp(newTail, "bgerror") == 0)
-            && (newNsPtr == iPtr->globalNsPtr));
-
     /*
-     * Put the command in the new namespace, so we can check for an alias
+     * Put the command in the new namespace so we can check for an alias
      * loop. Since we are adding a new command to a namespace, we must
      * handle any shadowing of the global commands that this might create.
-     * Note that the renamed command has a different hashtable pointer than
-     * it used to have. This allows the command caching code in tclExecute.c
-     * to recognize that a command pointer it has cached for this command is
-     * now invalid.
      */
     
     oldHPtr = cmdPtr->hPtr;
@@ -1951,8 +1892,8 @@ TclRenameCommand(interp, oldName, newName)
     TclResetShadowedCmdRefs(interp, cmdPtr);
 
     /*
-     * Everything is in place so we can check for an alias loop. If we
-     * detect one, put everything back the way it was and report the error.
+     * Now check for an alias loop. If we detect one, put everything back
+     * the way it was and report the error.
      */
 
     result = TclPreventAliasLoop(interp, interp, (Tcl_Command) cmdPtr);
@@ -1983,32 +1924,6 @@ TclRenameCommand(interp, oldName, newName)
 	iPtr->compileEpoch++;
     }
 
-    /*
-     * The code below provides more backwards compatibility for the
-     * "tkerror" => "bgerror" renaming. As with the other compatibility
-     * code above, it should eventually be removed.
-     */
-
-    if (isSrcBgerror) {
-	/*
-	 * The source command is "bgerror": delete the hash table entry for
-	 * "tkerror" if it exists.
-	 */
-	
-	hPtr = Tcl_FindHashEntry(&cmdNsPtr->cmdTable, "tkerror");
-        if (hPtr != NULL) {
-	    Tcl_DeleteHashEntry(hPtr);
-        }
-    }
-    if (isDestBgerror) {
-	/*
-	 * The destination command is "bgerror"; create a "tkerror"
-	 * command that shares the same Command structure.
-	 */
-	
-	hPtr = Tcl_CreateHashEntry(&newNsPtr->cmdTable, "tkerror", &new);
-	Tcl_SetHashValue(hPtr, (ClientData) cmdPtr);
-    }
     return TCL_OK;
 }
 
@@ -2283,15 +2198,8 @@ Tcl_DeleteCommandFromToken(interp, cmd)
 {
     Interp *iPtr = (Interp *) interp;
     Command *cmdPtr = (Command *) cmd;
-    char *cmdName;
-    int isBgerror;
     ImportRef *refPtr, *nextRefPtr;
     Tcl_Command importCmd;
-    Tcl_HashEntry *tkErrorHPtr;
-
-    cmdName = Tcl_GetHashKey(cmdPtr->hPtr->tablePtr, cmdPtr->hPtr);
-    isBgerror = ((*cmdName == 'b') && (strcmp(cmdName, "bgerror") == 0)
-	    && (cmdPtr->nsPtr == iPtr->globalNsPtr));
 
     /*
      * The code here is tricky.  We can't delete the hash table entry
@@ -2357,29 +2265,6 @@ Tcl_DeleteCommandFromToken(interp, cmd)
 	nextRefPtr = refPtr->nextPtr;
 	importCmd = (Tcl_Command) refPtr->importedCmdPtr;
         Tcl_DeleteCommandFromToken(interp, importCmd);
-    }
-
-    /*
-     * The code below provides more backwards compatibility for the
-     * renaming of "tkerror" to "bgerror". Like the code above, this
-     * code should eventually become unnecessary.
-     */
-
-    if (isBgerror) {
-	/*
-	 * When the "bgerror" command is deleted, delete "tkerror"
-	 * as well.  It shared the same Command structure as "bgerror",
-	 * so all we have to do is throw away the hash table entry.
-         * NOTE: we have to be careful since tkerror may already have
-         * been deleted before bgerror.
-	 */
-
-        tkErrorHPtr = Tcl_FindHashEntry(cmdPtr->hPtr->tablePtr,
-            "tkerror");
-
-        if (tkErrorHPtr != (Tcl_HashEntry *) NULL) {
-            Tcl_DeleteHashEntry(tkErrorHPtr);
-        }
     }
 
     /*
@@ -2588,6 +2473,19 @@ Tcl_EvalObj(interp, objPtr)
     }
 
     /*
+     * On the Mac, we will never reach the default recursion limit before blowing
+     * the stack. So we need to do a check here.
+     */
+    
+    if (TclpCheckStackSpace() == 0) {
+	/*NOTREACHED*/
+    	iPtr->numLevels--;
+    	Tcl_AppendToObj(Tcl_GetObjResult(interp),
+    		"too many nested calls to Tcl_EvalObj (infinite loop?)", -1);
+    	return TCL_ERROR;
+    }
+
+    /*
      * If the interpreter has been deleted, return an error.
      */
     
@@ -2639,16 +2537,6 @@ Tcl_EvalObj(interp, objPtr)
 
     flags = iPtr->evalFlags;
     iPtr->evalFlags = 0;
-
-    /*
-     * Save information for the history module, if needed.
-     * BTL: setting these NULL disables history revisions.
-     */
-
-    if (flags & TCL_RECORD_BOUNDS) {
-	iPtr->evalFirst = NULL;
-	iPtr->evalLast = NULL;
-    }
 
     /*
      * Execute the commands. If the code was compiled from an empty string,
@@ -2723,25 +2611,6 @@ Tcl_EvalObj(interp, objPtr)
 	int length;
 
 	/*
-	 * Compute the line number where the error occurred.
-	 * BTL: no line # information yet.
-	 */
-
-	iPtr->errorLine = 1;
-#ifdef NOT_YET
-	for (p = cmd; p != cmdStart; p++) {
-	    if (*p == '\n') {
-		iPtr->errorLine++;
-	    }
-	}
-	for ( ; isspace(UCHAR(*p)) || (*p == ';'); p++) {
-	    if (*p == '\n') {
-		iPtr->errorLine++;
-	    }
-	}
-#endif
-	
-	/*
 	 * Figure out how much of the command to print in the error
 	 * message (up to a certain number of characters, or up to
 	 * the first new-line).
@@ -2813,7 +2682,6 @@ Tcl_ExprLong(interp, string, ptr)
     if (length > 0) {
 	exprPtr = Tcl_NewStringObj(string, length);
 	Tcl_IncrRefCount(exprPtr);
-	
 	result = Tcl_ExprObj(interp, exprPtr, &resultPtr);
 	if (result == TCL_OK) {
 	    /*
@@ -2868,7 +2736,6 @@ Tcl_ExprDouble(interp, string, ptr)
     if (length > 0) {
 	exprPtr = Tcl_NewStringObj(string, length);
 	Tcl_IncrRefCount(exprPtr);
-	
 	result = Tcl_ExprObj(interp, exprPtr, &resultPtr);
 	if (result == TCL_OK) {
 	    /*
@@ -2923,7 +2790,6 @@ Tcl_ExprBoolean(interp, string, ptr)
     if (length > 0) {
 	exprPtr = Tcl_NewStringObj(string, length);
 	Tcl_IncrRefCount(exprPtr);
-	
 	result = Tcl_ExprObj(interp, exprPtr, &resultPtr);
 	if (result == TCL_OK) {
 	    /*
@@ -3312,7 +3178,7 @@ TclObjInvoke(interp, objc, objv, flags)
         hTblPtr = (Tcl_HashTable *)
 	        Tcl_GetAssocData(interp, "tclHiddenCmds", NULL);
         if (hTblPtr == (Tcl_HashTable *) NULL) {
-            badHiddenCmdName:
+            badhiddenCmdToken:
 	    Tcl_ResetResult(interp);
 	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
 		     "invalid hidden command name \"", cmdName, "\"",
@@ -3326,7 +3192,7 @@ TclObjInvoke(interp, objc, objv, flags)
          */
         
         if (hPtr == NULL) {
-            goto badHiddenCmdName;
+            goto badhiddenCmdToken;
         }
 	cmdPtr = (Command *) Tcl_GetHashValue(hPtr);
     } else {
@@ -3462,7 +3328,7 @@ Tcl_ExprString(interp, string)
     if (length > 0) {
 	TclNewObj(exprPtr);
 	TclInitStringRep(exprPtr, string, length);
-	Tcl_DecrRefCount(exprPtr);
+	Tcl_IncrRefCount(exprPtr);
 
 	result = Tcl_ExprObj(interp, exprPtr, &resultPtr);
 	if (result == TCL_OK) {
@@ -3554,7 +3420,7 @@ Tcl_ExprObj(interp, objPtr, resultPtrPtr)
     Interp dummy;
     Tcl_Obj *saveObjPtr;
     char *string;
-    int result = TCL_OK;
+    int result;
     int i;
 
     /*
@@ -3920,12 +3786,14 @@ Tcl_AddObjErrorInfo(interp, message, length)
      * Now append "message" to the end of errorInfo.
      */
 
-    messagePtr = Tcl_NewStringObj(message, length);
-    Tcl_IncrRefCount(messagePtr);
-    Tcl_ObjSetVar2(interp, namePtr, (Tcl_Obj *) NULL, messagePtr,
-	    (TCL_GLOBAL_ONLY | TCL_APPEND_VALUE));
-    Tcl_DecrRefCount(messagePtr); /* free msg object appended above */
-    
+    if (length != 0) {
+	messagePtr = Tcl_NewStringObj(message, length);
+	Tcl_IncrRefCount(messagePtr);
+	Tcl_ObjSetVar2(interp, namePtr, (Tcl_Obj *) NULL, messagePtr,
+		(TCL_GLOBAL_ONLY | TCL_APPEND_VALUE));
+	Tcl_DecrRefCount(messagePtr); /* free msg object appended above */
+    }
+
     Tcl_DecrRefCount(namePtr);    /* free the name object */
 }
 
