@@ -42,7 +42,7 @@
 .Nm tgoto ,
 .Nm tputs ,
 .Nm tparm ,
-.Nm _set_ospeed
+.Nm __set_ospeed
 .Nd terminal independent operation routines
 .Sh SYNOPSIS
 .Fd #include <termcap.h>
@@ -60,12 +60,12 @@
 .Fn tgetstr "const char *id" "char **area"
 .Ft char *
 .Fn tgoto "const char *cm" "int destcol" "int destline"
-.Ft void
+.Ft int
 .Fn tputs "const char *cp" "int affcnt" "int (*outc)(int)"
 .Ft char *
 .Fn tparm "const char *cp" "..."
 .Ft void
-.Fn _set_ospeed "long speed"
+.Fn __set_ospeed "long speed"
 .Sh DESCRIPTION
 These functions extract and use capabilities from a terminal capability data
 base, usually
@@ -232,17 +232,6 @@ not applicable,
 .Fa outc
 is a routine which is called with each character in turn.
 The external variable
-.Va ospeed
-should contain the output speed of the terminal as encoded by
-.Xr stty 3 .
-The
-.Fn _set_ospeed
-functions converts any (not exactly matched only) numeric speed to
-.Xr stty 3
-encoded speed and set
-.Va ospeed
-variable.
-The external variable
 .Va PC
 should contain a pad character to be used (from the
 .SY pc
@@ -250,13 +239,25 @@ capability)
 if a null
 .Pq Sy ^@
 is inappropriate.
+The external variable
+.Va ospeed
+should contain the output speed of the terminal as encoded by
+.Xr stty 3 .
+The
+.Fn __set_ospeed
+function converts the speed in cps
+.Fa speed
+to the closest
+.Xr stty 3
+encoded speed and stores the result in
+.Va ospeed .
 .Pp
 The
 .Fn tparm
 function
 instantiates the string
 .Fa cp
-with given parameters.
+with the given parameters.
 A pointer is returned which points to
 the result of
 .Fa cp
