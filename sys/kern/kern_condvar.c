@@ -250,7 +250,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 
 	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_set_timeout(cvp, timo);
-	rval = sleepq_timedwait(cvp, 0);
+	rval = sleepq_timedwait(cvp);
 
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))

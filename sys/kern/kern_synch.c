@@ -236,7 +236,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (timo && catch)
 		rval = sleepq_timedwait_sig(ident, sig != 0);
 	else if (timo)
-		rval = sleepq_timedwait(ident, sig != 0);
+		rval = sleepq_timedwait(ident);
 	else if (catch)
 		rval = sleepq_wait_sig(ident);
 	else {
