@@ -21,7 +21,7 @@
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsi_tape.h,v 1.13 1995/05/30 08:13:43 rgrimes Exp $
+ *	$Id: scsi_tape.h,v 1.14 1995/11/30 07:43:46 pst Exp $
  */
 #ifndef	SCSI_SCSI_TAPE_H
 #define SCSI_SCSI_TAPE_H 1
@@ -40,7 +40,7 @@ struct scsi_rw_tape
 #define	SRWT_FIXED	0x01
 	u_char	len[3];
 	u_char	control;
-} rw_tape;
+};
 
 struct scsi_space
 {
@@ -49,7 +49,7 @@ struct scsi_space
 #define	SS_CODE	0x03
 	u_char	number[3];
 	u_char	control;
-} space;
+};
 #define SP_BLKS	0
 #define SP_FILEMARKS 1
 #define SP_SEQ_FILEMARKS 2
@@ -61,7 +61,7 @@ struct scsi_write_filemarks
 	u_char	byte2;
 	u_char	number[3];
 	u_char	control;
-} write_filemarks;
+};
 
 struct scsi_rewind
 {
@@ -70,7 +70,7 @@ struct scsi_rewind
 #define	SR_IMMED	0x01
 	u_char	unused[3];
 	u_char	control;
-} rewind;
+};
 
 /*
 ** Tape erase - AKL: Andreas Klemm <andreas@knobel.gun.de>
@@ -87,7 +87,7 @@ struct scsi_erase
 #define	SE_IMMED	0x02
 	u_char	unused[3];
 	u_char	control;
-} erase;
+};
 
 struct scsi_load
 {
@@ -97,7 +97,7 @@ struct scsi_load
 	u_char	unused[2];
 	u_char	how;
 	u_char	control;
-} load;
+};
 #define LD_UNLOAD 0
 #define LD_LOAD 1
 #define LD_RETEN 2
@@ -109,7 +109,7 @@ struct scsi_blk_limits
 	u_char	byte2;
 	u_char	unused[3];
 	u_char	control;
-} blk_limits;
+};
 
 /*
  * Opcodes
