@@ -63,9 +63,9 @@
 #define CLR_FLAG(dev, bit) device_set_flags(dev, device_get_flags(dev) & ~(bit))
 #endif /* PC98 */
 
-int	sioattach __P((device_t dev, int xrid, u_long rclk));
-int	siodetach __P((device_t dev));
-int	sioprobe __P((device_t dev, int xrid, u_long rclk, int noprobe));
+int	sioattach(device_t dev, int xrid, u_long rclk);
+int	siodetach(device_t dev);
+int	sioprobe(device_t dev, int xrid, u_long rclk, int noprobe);
 
 extern	devclass_t	sio_devclass;
 extern	char		sio_driver_name[];

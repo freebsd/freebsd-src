@@ -44,8 +44,8 @@
 
 #include <dev/ed/if_edvar.h>
 
-static int ed_isa_probe		__P((device_t));
-static int ed_isa_attach	__P((device_t));
+static int ed_isa_probe		(device_t);
+static int ed_isa_attach	(device_t);
 
 static struct isa_pnp_id ed_ids[] = {
 	{ 0x1684a34d,	NULL },		/* SMC8416 */

@@ -73,17 +73,17 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Typedef local functions
  */
-static const char	*eni_pci_probe __P((pcici_t, pcidi_t));
-static void	eni_pci_attach __P((pcici_t, int));
-static int 	eni_get_ack __P((Eni_unit *));
-static int	eni_get_sebyte __P((Eni_unit *));
-static void	eni_read_seeprom __P((Eni_unit *));
+static const char	*eni_pci_probe(pcici_t, pcidi_t);
+static void	eni_pci_attach(pcici_t, int);
+static int 	eni_get_ack(Eni_unit *);
+static int	eni_get_sebyte(Eni_unit *);
+static void	eni_read_seeprom(Eni_unit *);
 #if BSD < 199506
-static int	eni_pci_shutdown __P((struct kern_devconf *, int));
+static int	eni_pci_shutdown(struct kern_devconf *, int);
 #else
-static void	eni_pci_shutdown __P((void *, int));
+static void	eni_pci_shutdown(void *, int);
 #endif
-static void	eni_pci_reset __P((Eni_unit *));
+static void	eni_pci_reset(Eni_unit *);
 
 /*
  * Used by kernel to return number of claimed devices

@@ -297,7 +297,7 @@ extern UINT32		acpi_eventhandler_sleep_button_for_wakeup(void *context);
 #define ACPI_EVENT_PRI_DEFAULT    10000
 #define ACPI_EVENT_PRI_LAST       20000
 
-typedef void (*acpi_event_handler_t) __P((void *, int));
+typedef void (*acpi_event_handler_t)(void *, int);
 
 EVENTHANDLER_DECLARE(acpi_sleep_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);

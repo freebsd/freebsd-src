@@ -102,9 +102,9 @@ struct tlphy_softc {
 	int sc_need_acomp;
 };
 
-static int tlphy_probe		__P((device_t));
-static int tlphy_attach		__P((device_t));
-static int tlphy_detach		__P((device_t));
+static int tlphy_probe		(device_t);
+static int tlphy_attach		(device_t);
+static int tlphy_detach		(device_t);
 
 static device_method_t tlphy_methods[] = {
 	/* device interface */
@@ -125,10 +125,10 @@ static driver_t tlphy_driver = {
 
 DRIVER_MODULE(tlphy, miibus, tlphy_driver, tlphy_devclass, 0, 0);
 
-static int	tlphy_service __P((struct mii_softc *, struct mii_data *, int));
-static int	tlphy_auto __P((struct tlphy_softc *, int));
-static void	tlphy_acomp __P((struct tlphy_softc *));
-static void	tlphy_status __P((struct tlphy_softc *));
+static int	tlphy_service(struct mii_softc *, struct mii_data *, int);
+static int	tlphy_auto(struct tlphy_softc *, int);
+static void	tlphy_acomp(struct tlphy_softc *);
+static void	tlphy_status(struct tlphy_softc *);
 
 static int tlphy_probe(dev)
 	device_t		dev;

@@ -204,28 +204,28 @@ static struct tty dgb_tty[NDGBPORTS];
  */
 
 /* Interrupt handling entry points. */
-static void	dgbpoll		__P((void *unit_c));
+static void	dgbpoll		(void *unit_c);
 
 /* Device switch entry points. */
 #define	dgbreset	noreset
 #define	dgbmmap		nommap
 #define	dgbstrategy	nostrategy
 
-static	int	dgbattach	__P((struct isa_device *dev));
-static	int	dgbprobe	__P((struct isa_device *dev));
+static	int	dgbattach	(struct isa_device *dev);
+static	int	dgbprobe	(struct isa_device *dev);
 
 static void fepcmd(struct dgb_p *port, unsigned cmd, unsigned op1, unsigned op2,
 	unsigned ncmds, unsigned bytecmd);
 
-static	void	dgbstart	__P((struct tty *tp));
-static	void	dgbstop		__P((struct tty *tp, int rw));
-static	int	dgbparam	__P((struct tty *tp, struct termios *t));
-static	void	dgbhardclose	__P((struct dgb_p *port));
-static	void	dgb_drain_or_flush	__P((struct dgb_p *port));
-static	int	dgbdrain	__P((struct dgb_p *port));
-static	void	dgb_pause	__P((void *chan));
-static	void	wakeflush	__P((void *p));
-static	void	disc_optim	__P((struct tty	*tp, struct termios *t));
+static	void	dgbstart	(struct tty *tp);
+static	void	dgbstop		(struct tty *tp, int rw);
+static	int	dgbparam	(struct tty *tp, struct termios *t);
+static	void	dgbhardclose	(struct dgb_p *port);
+static	void	dgb_drain_or_flush	(struct dgb_p *port);
+static	int	dgbdrain	(struct dgb_p *port);
+static	void	dgb_pause	(void *chan);
+static	void	wakeflush	(void *p);
+static	void	disc_optim	(struct tty	*tp, struct termios *t);
 
 
 struct isa_driver	dgbdriver = {
@@ -339,10 +339,10 @@ static int dgbdebug=0;
 SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW, &dgbdebug, 0, "");
 #endif
 
-static __inline int setwin __P((struct dgb_softc *sc, unsigned addr));
-static __inline int setinitwin __P((struct dgb_softc *sc, unsigned addr));
-static __inline void hidewin __P((struct dgb_softc *sc));
-static __inline void towin __P((struct dgb_softc *sc, int win));
+static __inline int setwin(struct dgb_softc *sc, unsigned addr);
+static __inline int setinitwin(struct dgb_softc *sc, unsigned addr);
+static __inline void hidewin(struct dgb_softc *sc);
+static __inline void towin(struct dgb_softc *sc, int win);
 
 /*Helg: to allow recursive dgb...() calls */
 typedef struct

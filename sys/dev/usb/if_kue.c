@@ -125,36 +125,36 @@ Static struct kue_type kue_devs[] = {
 
 Static struct usb_qdat kue_qdat;
 
-Static int kue_match		__P((device_t));
-Static int kue_attach		__P((device_t));
-Static int kue_detach		__P((device_t));
-Static void kue_shutdown		__P((device_t));
-Static int kue_tx_list_init	__P((struct kue_softc *));
-Static int kue_rx_list_init	__P((struct kue_softc *));
-Static int kue_newbuf		__P((struct kue_softc *, struct kue_chain *,
-				    struct mbuf *));
-Static int kue_encap		__P((struct kue_softc *, struct mbuf *, int));
-Static void kue_rxeof		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
-Static void kue_txeof		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
-Static void kue_start		__P((struct ifnet *));
-Static void kue_rxstart		__P((struct ifnet *));
-Static int kue_ioctl		__P((struct ifnet *, u_long, caddr_t));
-Static void kue_init		__P((void *));
-Static void kue_stop		__P((struct kue_softc *));
-Static void kue_watchdog		__P((struct ifnet *));
+Static int kue_match		(device_t);
+Static int kue_attach		(device_t);
+Static int kue_detach		(device_t);
+Static void kue_shutdown		(device_t);
+Static int kue_tx_list_init	(struct kue_softc *);
+Static int kue_rx_list_init	(struct kue_softc *);
+Static int kue_newbuf		(struct kue_softc *, struct kue_chain *,
+				    struct mbuf *);
+Static int kue_encap		(struct kue_softc *, struct mbuf *, int);
+Static void kue_rxeof		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
+Static void kue_txeof		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
+Static void kue_start		(struct ifnet *);
+Static void kue_rxstart		(struct ifnet *);
+Static int kue_ioctl		(struct ifnet *, u_long, caddr_t);
+Static void kue_init		(void *);
+Static void kue_stop		(struct kue_softc *);
+Static void kue_watchdog		(struct ifnet *);
 
-Static void kue_setmulti	__P((struct kue_softc *));
-Static void kue_reset		__P((struct kue_softc *));
+Static void kue_setmulti	(struct kue_softc *);
+Static void kue_reset		(struct kue_softc *);
 
 Static usbd_status kue_do_request
-				__P((usbd_device_handle,
-				    usb_device_request_t *, void *));
-Static usbd_status kue_ctl	__P((struct kue_softc *, int, u_int8_t,
-				    u_int16_t, char *, int));
-Static usbd_status kue_setword	__P((struct kue_softc *, u_int8_t, u_int16_t));
-Static int kue_load_fw		__P((struct kue_softc *));
+				(usbd_device_handle,
+				    usb_device_request_t *, void *);
+Static usbd_status kue_ctl	(struct kue_softc *, int, u_int8_t,
+				    u_int16_t, char *, int);
+Static usbd_status kue_setword	(struct kue_softc *, u_int8_t, u_int16_t);
+Static int kue_load_fw		(struct kue_softc *);
 
 Static device_method_t kue_methods[] = {
 	/* Device interface */

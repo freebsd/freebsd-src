@@ -115,7 +115,7 @@ struct puc_softc {
         struct {
 		struct device	*dev;
 		/* filled in by bus_setup_intr() */
-		void		(*ihand) __P((void *));
+		void		(*ihand)(void *);
 		void		*ihandarg;
         } sc_ports[PUC_MAX_PORTS];
 };

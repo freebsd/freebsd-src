@@ -95,18 +95,18 @@ static int	ep_media2if_media[] =
 	{ IFM_10_T, IFM_10_5, IFM_NONE, IFM_10_2, IFM_NONE };
 
 /* if functions */
-static void	ep_if_init	__P((void *));
-static int	ep_if_ioctl	__P((struct ifnet *, u_long, caddr_t));
-static void	ep_if_start	__P((struct ifnet *));
-static void	ep_if_watchdog	__P((struct ifnet *));
+static void	ep_if_init	(void *);
+static int	ep_if_ioctl	(struct ifnet *, u_long, caddr_t);
+static void	ep_if_start	(struct ifnet *);
+static void	ep_if_watchdog	(struct ifnet *);
 
 /* if_media functions */
-static int	ep_ifmedia_upd	__P((struct ifnet *));
-static void	ep_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static int	ep_ifmedia_upd	(struct ifnet *);
+static void	ep_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static void	epstop		__P((struct ep_softc *));
-static void	epread		__P((struct ep_softc *));
-static int	eeprom_rdy	__P((struct ep_softc *));
+static void	epstop		(struct ep_softc *);
+static void	epread		(struct ep_softc *);
+static int	eeprom_rdy	(struct ep_softc *);
 
 #define EP_FTST(sc, f)	(sc->stat &   (f))
 #define EP_FSET(sc, f)	(sc->stat |=  (f))

@@ -128,50 +128,49 @@ Static struct aue_type aue_devs[] = {
 
 Static struct usb_qdat aue_qdat;
 
-Static int aue_match		__P((device_t));
-Static int aue_attach		__P((device_t));
-Static int aue_detach		__P((device_t));
+Static int aue_match		(device_t);
+Static int aue_attach		(device_t);
+Static int aue_detach		(device_t);
 
-Static void aue_reset_pegasus_II __P((struct aue_softc *));
-Static int aue_tx_list_init	__P((struct aue_softc *));
-Static int aue_rx_list_init	__P((struct aue_softc *));
-Static int aue_newbuf		__P((struct aue_softc *, struct aue_chain *,
-				    struct mbuf *));
-Static int aue_encap		__P((struct aue_softc *, struct mbuf *, int));
+Static void aue_reset_pegasus_II(struct aue_softc *);
+Static int aue_tx_list_init	(struct aue_softc *);
+Static int aue_rx_list_init	(struct aue_softc *);
+Static int aue_newbuf		(struct aue_softc *, struct aue_chain *,
+				    struct mbuf *);
+Static int aue_encap		(struct aue_softc *, struct mbuf *, int);
 #ifdef AUE_INTR_PIPE
-Static void aue_intr		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
+Static void aue_intr		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
 #endif
-Static void aue_rxeof		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
-Static void aue_txeof		__P((usbd_xfer_handle,
-				    usbd_private_handle, usbd_status));
-Static void aue_tick		__P((void *));
-Static void aue_rxstart		__P((struct ifnet *));
-Static void aue_start		__P((struct ifnet *));
-Static int aue_ioctl		__P((struct ifnet *, u_long, caddr_t));
-Static void aue_init		__P((void *));
-Static void aue_stop		__P((struct aue_softc *));
-Static void aue_watchdog		__P((struct ifnet *));
-Static void aue_shutdown		__P((device_t));
-Static int aue_ifmedia_upd	__P((struct ifnet *));
-Static void aue_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+Static void aue_rxeof		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
+Static void aue_txeof		(usbd_xfer_handle,
+				    usbd_private_handle, usbd_status);
+Static void aue_tick		(void *);
+Static void aue_rxstart		(struct ifnet *);
+Static void aue_start		(struct ifnet *);
+Static int aue_ioctl		(struct ifnet *, u_long, caddr_t);
+Static void aue_init		(void *);
+Static void aue_stop		(struct aue_softc *);
+Static void aue_watchdog		(struct ifnet *);
+Static void aue_shutdown		(device_t);
+Static int aue_ifmedia_upd	(struct ifnet *);
+Static void aue_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-Static void aue_eeprom_getword	__P((struct aue_softc *, int, u_int16_t *));
-Static void aue_read_eeprom	__P((struct aue_softc *, caddr_t, int,
-							int, int));
-Static int aue_miibus_readreg	__P((device_t, int, int));
-Static int aue_miibus_writereg	__P((device_t, int, int, int));
-Static void aue_miibus_statchg	__P((device_t));
+Static void aue_eeprom_getword	(struct aue_softc *, int, u_int16_t *);
+Static void aue_read_eeprom	(struct aue_softc *, caddr_t, int, int, int);
+Static int aue_miibus_readreg	(device_t, int, int);
+Static int aue_miibus_writereg	(device_t, int, int, int);
+Static void aue_miibus_statchg	(device_t);
 
-Static void aue_setmulti	__P((struct aue_softc *));
-Static u_int32_t aue_crc	__P((caddr_t));
-Static void aue_reset		__P((struct aue_softc *));
+Static void aue_setmulti	(struct aue_softc *);
+Static u_int32_t aue_crc	(caddr_t);
+Static void aue_reset		(struct aue_softc *);
 
-Static int csr_read_1		__P((struct aue_softc *, int));
-Static int csr_write_1		__P((struct aue_softc *, int, int));
-Static int csr_read_2		__P((struct aue_softc *, int));
-Static int csr_write_2		__P((struct aue_softc *, int, int));
+Static int csr_read_1		(struct aue_softc *, int);
+Static int csr_write_1		(struct aue_softc *, int, int);
+Static int csr_read_2		(struct aue_softc *, int);
+Static int csr_write_2		(struct aue_softc *, int, int);
 
 Static device_method_t aue_methods[] = {
 	/* Device interface */

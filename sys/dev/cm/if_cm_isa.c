@@ -52,8 +52,8 @@
 
 #include <dev/cm/smc90cx6var.h>
 
-static int cm_isa_probe		__P((device_t));
-static int cm_isa_attach	__P((device_t));
+static int cm_isa_probe		(device_t);
+static int cm_isa_attach	(device_t);
 
 static int
 cm_isa_probe(dev)

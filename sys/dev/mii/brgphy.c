@@ -62,9 +62,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int brgphy_probe		__P((device_t));
-static int brgphy_attach		__P((device_t));
-static int brgphy_detach		__P((device_t));
+static int brgphy_probe		(device_t);
+static int brgphy_attach		(device_t);
+static int brgphy_detach		(device_t);
 
 static device_method_t brgphy_methods[] = {
 	/* device interface */
@@ -87,8 +87,8 @@ DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
 
 static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
 static void	brgphy_status(struct mii_softc *);
-static int	brgphy_mii_phy_auto __P((struct mii_softc *, int));
-extern void	mii_phy_auto_timeout __P((void *));
+static int	brgphy_mii_phy_auto(struct mii_softc *, int);
+extern void	mii_phy_auto_timeout(void *);
 
 static int brgphy_probe(dev)
 	device_t		dev;

@@ -72,9 +72,9 @@ struct mlphy_softc	{
 	int			ml_linked;
 };
 
-static int mlphy_probe		__P((device_t));
-static int mlphy_attach		__P((device_t));
-static int mlphy_detach		__P((device_t));
+static int mlphy_probe		(device_t);
+static int mlphy_attach		(device_t);
+static int mlphy_detach		(device_t);
 
 static device_method_t mlphy_methods[] = {
 	/* device interface */
@@ -95,9 +95,9 @@ static driver_t mlphy_driver = {
 
 DRIVER_MODULE(mlphy, miibus, mlphy_driver, mlphy_devclass, 0, 0);
 
-static int	mlphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void	mlphy_reset __P((struct mii_softc *));
-static void	mlphy_status __P((struct mii_softc *));
+static int	mlphy_service(struct mii_softc *, struct mii_data *, int);
+static void	mlphy_reset(struct mii_softc *);
+static void	mlphy_status(struct mii_softc *);
 
 static int mlphy_probe(dev)
 	device_t		dev;

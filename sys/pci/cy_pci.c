@@ -68,8 +68,8 @@
 extern int cyattach_common(void *, int); /* Not exactly correct */
 extern void cyintr(int);
 
-static int	cy_pci_attach __P((device_t dev));
-static int	cy_pci_probe __P((device_t dev));
+static int	cy_pci_attach(device_t dev);
+static int	cy_pci_probe(device_t dev);
 
 static device_method_t cy_pci_methods[] = {
 	/* Device interface. */

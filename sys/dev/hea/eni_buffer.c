@@ -54,7 +54,7 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-static int	eni_test_memory __P((Eni_unit *));
+static int	eni_test_memory(Eni_unit *);
 
 /*
  * The host is going to manage (that is, allocate and free) buffers

@@ -45,10 +45,10 @@
 
 #include <dev/sio/siovar.h>
 
-static	int	sio_pccard_attach __P((device_t dev));
-static	int	sio_pccard_detach __P((device_t dev));
-static	int	sio_pccard_match __P((device_t self));
-static	int	sio_pccard_probe __P((device_t dev));
+static	int	sio_pccard_attach(device_t dev);
+static	int	sio_pccard_detach(device_t dev);
+static	int	sio_pccard_match(device_t self);
+static	int	sio_pccard_probe(device_t dev);
 
 static device_method_t sio_pccard_methods[] = {
 	/* Device interface */

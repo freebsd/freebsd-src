@@ -93,9 +93,9 @@ static const char rcsid[] =
  */
 #define COMPAQ_PRESARIO_ID	0xb0bb0e11
 
-static int dcphy_probe		__P((device_t));
-static int dcphy_attach		__P((device_t));
-static int dcphy_detach		__P((device_t));
+static int dcphy_probe		(device_t);
+static int dcphy_attach		(device_t);
+static int dcphy_detach		(device_t);
 
 static device_method_t dcphy_methods[] = {
 	/* device interface */
@@ -116,10 +116,10 @@ static driver_t dcphy_driver = {
 
 DRIVER_MODULE(dcphy, miibus, dcphy_driver, dcphy_devclass, 0, 0);
 
-static int	dcphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void	dcphy_status __P((struct mii_softc *));
-static void	dcphy_reset __P((struct mii_softc *));
-static int	dcphy_auto __P((struct mii_softc *, int));
+static int	dcphy_service(struct mii_softc *, struct mii_data *, int);
+static void	dcphy_status(struct mii_softc *);
+static void	dcphy_reset(struct mii_softc *);
+static int	dcphy_auto(struct mii_softc *, int);
 
 static int dcphy_probe(dev)
 	device_t		dev;

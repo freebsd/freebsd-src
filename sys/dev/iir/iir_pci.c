@@ -125,17 +125,17 @@
                                 /* DPRAM struct. */
 #define GDT_MPR_SZ      (0x3000 - GDT_SRAM_SZ)
 
-static int      iir_pci_probe __P((device_t dev));
-static int      iir_pci_attach __P((device_t dev));
+static int      iir_pci_probe(device_t dev);
+static int      iir_pci_attach(device_t dev);
 
-void            gdt_pci_enable_intr __P((struct gdt_softc *));
+void            gdt_pci_enable_intr(struct gdt_softc *);
 
-void            gdt_mpr_copy_cmd __P((struct gdt_softc *, struct gdt_ccb *));
-u_int8_t        gdt_mpr_get_status __P((struct gdt_softc *));
-void            gdt_mpr_intr __P((struct gdt_softc *, struct gdt_intr_ctx *));
-void            gdt_mpr_release_event __P((struct gdt_softc *));
-void            gdt_mpr_set_sema0 __P((struct gdt_softc *));
-int             gdt_mpr_test_busy __P((struct gdt_softc *));
+void            gdt_mpr_copy_cmd(struct gdt_softc *, struct gdt_ccb *);
+u_int8_t        gdt_mpr_get_status(struct gdt_softc *);
+void            gdt_mpr_intr(struct gdt_softc *, struct gdt_intr_ctx *);
+void            gdt_mpr_release_event(struct gdt_softc *);
+void            gdt_mpr_set_sema0(struct gdt_softc *);
+int             gdt_mpr_test_busy(struct gdt_softc *);
 
 static device_method_t iir_pci_methods[] = {
         /* Device interface */

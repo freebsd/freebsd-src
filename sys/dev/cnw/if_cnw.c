@@ -184,11 +184,11 @@ int cnw_skey = CNW_SCRAMBLEKEY;		/* Scramble key */
  */
 #define MEMORY_MAPPED
 
-int	cnw_match __P((struct device *, struct cfdata *, void *));
-void	cnw_attach __P((struct device *, struct device *, void *));
-int	cnw_detach __P((struct device *, int));
+int	cnw_match(struct device *, struct cfdata *, void *);
+void	cnw_attach(struct device *, struct device *, void *);
+int	cnw_detach(struct device *, int);
 
-int	cnw_activate __P((struct device *, enum devact));
+int	cnw_activate(struct device *, enum devact);
 
 struct cnw_softc {
 	struct device sc_dev;		    /* Device glue (must be first) */
@@ -309,15 +309,15 @@ struct cnw_softc {
 };
 
 
-static void cnw_freebsd_init	__P((void *));
-static void cnw_stop		__P((struct cnw_softc *));
+static void cnw_freebsd_init	(void *);
+static void cnw_stop		(struct cnw_softc *);
 
-static int cnw_pccard_probe	__P((device_t));
-static int cnw_pccard_attach	__P((device_t));
-static int cnw_pccard_detach	__P((device_t));
-static void cnw_shutdown	__P((device_t));
-static int cnw_alloc		__P((device_t));
-static void cnw_free		__P((device_t));
+static int cnw_pccard_probe	(device_t);
+static int cnw_pccard_attach	(device_t);
+static int cnw_pccard_detach	(device_t);
+static void cnw_shutdown	(device_t);
+static int cnw_alloc		(device_t);
+static void cnw_free		(device_t);
 
 static device_method_t cnw_pccard_methods[] = {
 	/* Device interface */
@@ -341,33 +341,33 @@ DRIVER_MODULE(if_cnw, pccard, cnw_pccard_driver, cnw_pccard_devclass, 0, 0);
 
 #endif /* !defined(__FreeBSD__) */
 
-void cnw_reset __P((struct cnw_softc *));
-void cnw_init __P((struct cnw_softc *));
+void cnw_reset(struct cnw_softc *);
+void cnw_init(struct cnw_softc *);
 #if !defined(__FreeBSD__)
-int cnw_enable __P((struct cnw_softc *sc));
-void cnw_disable __P((struct cnw_softc *sc));
-void cnw_config __P((struct cnw_softc *sc, u_int8_t *));
+int cnw_enable(struct cnw_softc *sc);
+void cnw_disable(struct cnw_softc *sc);
+void cnw_config(struct cnw_softc *sc, u_int8_t *);
 #endif
-void cnw_start __P((struct ifnet *));
-void cnw_transmit __P((struct cnw_softc *, struct mbuf *));
-struct mbuf *cnw_read __P((struct cnw_softc *));
-void cnw_recv __P((struct cnw_softc *));
+void cnw_start(struct ifnet *);
+void cnw_transmit(struct cnw_softc *, struct mbuf *);
+struct mbuf *cnw_read(struct cnw_softc *);
+void cnw_recv(struct cnw_softc *);
 #if !defined(__FreeBSD__)
-int cnw_intr __P((void *arg));
+int cnw_intr(void *arg);
 #else
-void cnw_intr __P((void *arg));
+void cnw_intr(void *arg);
 #endif
-int cnw_ioctl __P((struct ifnet *, u_long, caddr_t));
-void cnw_watchdog __P((struct ifnet *));
-static int cnw_setdomain __P((struct cnw_softc *, int));
-static int cnw_setkey __P((struct cnw_softc *, int));
+int cnw_ioctl(struct ifnet *, u_long, caddr_t);
+void cnw_watchdog(struct ifnet *);
+static int cnw_setdomain(struct cnw_softc *, int);
+static int cnw_setkey(struct cnw_softc *, int);
 
 /* ---------------------------------------------------------------- */
 
 /* Help routines */
-static int wait_WOC __P((struct cnw_softc *, int));
-static int read16 __P((struct cnw_softc *, int));
-static int cnw_cmd __P((struct cnw_softc *, int, int, int, int));
+static int wait_WOC(struct cnw_softc *, int);
+static int read16(struct cnw_softc *, int);
+static int cnw_cmd(struct cnw_softc *, int, int, int, int);
 
 /* 
  * Wait until the WOC (Write Operation Complete) bit in the 

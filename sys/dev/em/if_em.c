@@ -91,53 +91,52 @@ static char *em_strings[] = {
 /*********************************************************************
  *  Function prototypes            
  *********************************************************************/
-static int em_probe     __P((device_t));
-static int em_attach        __P((device_t));
-static int em_detach        __P((device_t));
-static int em_shutdown        __P((device_t));
-static void em_intr __P((void *));
-static void em_start __P((struct ifnet *));
-static int em_ioctl __P((struct ifnet *, IOCTL_CMD_TYPE, caddr_t));
-static void em_watchdog __P((struct ifnet *));
-static void em_init __P((void *));
-static void em_stop __P((void *));
-static void em_media_status __P((struct ifnet *, struct ifmediareq *));
-static int em_media_change __P((struct ifnet *));
-static void em_identify_hardware __P((struct adapter *));
-static int em_allocate_pci_resources __P((struct adapter *));
-static void em_free_pci_resources __P((struct adapter *));
-static void em_local_timer __P((void *));
-static int em_hardware_init __P((struct adapter *));
-static void em_read_mac_address __P((struct adapter *, u_int8_t *));
-static void em_setup_interface __P((device_t, struct adapter *));
-static int em_setup_transmit_structures __P((struct adapter *));
-static void em_initialize_transmit_unit __P((struct adapter *));
-static int em_setup_receive_structures __P((struct adapter *));
-static void em_initialize_receive_unit __P((struct adapter *));
-static void EnableInterrupts __P((struct adapter *));
-static void DisableInterrupts __P((struct adapter *));
-static void em_free_transmit_structures __P((struct adapter *));
-static void em_free_receive_structures __P((struct adapter *));
-static void em_update_stats_counters __P((struct adapter *));
-static void em_clean_transmit_interrupts __P((struct adapter *));
-static int em_allocate_receive_structures __P((struct adapter *));
-static int em_allocate_transmit_structures __P((struct adapter *));
-static void em_process_receive_interrupts __P((struct adapter *));
-static void em_receive_checksum __P((struct adapter *, 
+static int em_probe(device_t);
+static int em_attach(device_t);
+static int em_detach(device_t);
+static int em_shutdown(device_t);
+static void em_intr(void *);
+static void em_start(struct ifnet *);
+static int em_ioctl(struct ifnet *, IOCTL_CMD_TYPE, caddr_t);
+static void em_watchdog(struct ifnet *);
+static void em_init(void *);
+static void em_stop(void *);
+static void em_media_status(struct ifnet *, struct ifmediareq *);
+static int em_media_change(struct ifnet *);
+static void em_identify_hardware(struct adapter *);
+static int em_allocate_pci_resources(struct adapter *);
+static void em_free_pci_resources(struct adapter *);
+static void em_local_timer(void *);
+static int em_hardware_init(struct adapter *);
+static void em_read_mac_address(struct adapter *, u_int8_t *);
+static void em_setup_interface(device_t, struct adapter *);
+static int em_setup_transmit_structures(struct adapter *);
+static void em_initialize_transmit_unit(struct adapter *);
+static int em_setup_receive_structures(struct adapter *);
+static void em_initialize_receive_unit(struct adapter *);
+static void EnableInterrupts(struct adapter *);
+static void DisableInterrupts(struct adapter *);
+static void em_free_transmit_structures(struct adapter *);
+static void em_free_receive_structures(struct adapter *);
+static void em_update_stats_counters(struct adapter *);
+static void em_clean_transmit_interrupts(struct adapter *);
+static int em_allocate_receive_structures(struct adapter *);
+static int em_allocate_transmit_structures(struct adapter *);
+static void em_process_receive_interrupts(struct adapter *);
+static void em_receive_checksum(struct adapter *, 
                                      struct em_rx_desc * RxDescriptor,
-                                     struct mbuf *));
-static void em_transmit_checksum_setup __P((struct adapter *,
+                                     struct mbuf *);
+static void em_transmit_checksum_setup(struct adapter *,
                                             struct mbuf *,
                                             struct em_tx_buffer *,
                                             u_int32_t *,
-                                            u_int32_t *));
-static void em_set_promisc __P((struct adapter *));
-static void em_disable_promisc __P((struct adapter *));
-static void em_set_multi __P((struct adapter *));
-static void em_print_hw_stats __P((struct adapter *));
-static void em_print_link_status __P((struct adapter *));
-static int em_get_buf __P((struct em_rx_buffer *, struct adapter *,
-                           struct mbuf *));
+                                            u_int32_t *);
+static void em_set_promisc(struct adapter *);
+static void em_disable_promisc(struct adapter *);
+static void em_set_multi(struct adapter *);
+static void em_print_hw_stats(struct adapter *);
+static void em_print_link_status(struct adapter *);
+static int em_get_buf(struct em_rx_buffer *, struct adapter *, struct mbuf *);
 /*********************************************************************
  *  FreeBSD Device Interface Entry Points                    
  *********************************************************************/

@@ -87,16 +87,16 @@ struct cm_softc {
 	u_char	sc_retransmits[2];	/* unused at the moment */
 };
 
-int	cm_attach __P((struct cm_softc *, int unit));
-void	cmintr __P((void *));
+int	cm_attach(struct cm_softc *, int unit);
+void	cmintr(void *);
 
-int	cm_probe __P((device_t dev));
-void	cm_stop __P((struct cm_softc *sc));
+int	cm_probe(device_t dev);
+void	cm_stop(struct cm_softc *sc);
 
-int	cm_alloc_port __P((device_t dev, int rid, int size));
-int	cm_alloc_memory __P((device_t dev, int rid, int size));
-int	cm_alloc_irq __P((device_t dev, int rid));
-void	cm_release_resources __P((device_t dev));
+int	cm_alloc_port(device_t dev, int rid, int size);
+int	cm_alloc_memory(device_t dev, int rid, int size);
+int	cm_alloc_irq(device_t dev, int rid);
+void	cm_release_resources(device_t dev);
 
 extern	devclass_t cm_devclass;
 

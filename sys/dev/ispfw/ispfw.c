@@ -50,9 +50,9 @@
 #define	PCI_PRODUCT_QLOGIC_ISP2300	0x2300
 #define	PCI_PRODUCT_QLOGIC_ISP2312	0x2312
 
-typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
+typedef void ispfwfunc(int, int, int, const u_int16_t **);
 extern ispfwfunc *isp_get_firmware_p;
-static void isp_get_firmware __P((int, int, int, const u_int16_t **));
+static void isp_get_firmware(int, int, int, const u_int16_t **);
 
 static int ncallers = 0;
 static const u_int16_t ***callp = NULL;

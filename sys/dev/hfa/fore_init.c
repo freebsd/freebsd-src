@@ -70,7 +70,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	fore_get_prom __P((Fore_unit *));
+static void	fore_get_prom(Fore_unit *);
 
 
 /*
@@ -105,7 +105,7 @@ fore_initialize(fup)
 		 * Try again later
 		 */
 		fup->fu_thandle = 
-			timeout((KTimeout_ret(*) __P((void *)))fore_initialize,
+			timeout((KTimeout_ret(*)(void *))fore_initialize,
 				(void *)fup, hz);
 		return;
 	} else

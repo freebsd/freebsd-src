@@ -182,8 +182,8 @@ struct gem_softc {
 	int		sc_flags;
 
 	/* Special hardware hooks */
-	void	(*sc_hwreset) __P((struct gem_softc *));
-	void	(*sc_hwinit) __P((struct gem_softc *));
+	void	(*sc_hwreset)(struct gem_softc *);
+	void	(*sc_hwinit)(struct gem_softc *);
 };
 
 #define	GEM_DMA_READ(sc, v)	(((sc)->sc_pci) ? le64toh(v) : be64toh(v))
@@ -222,19 +222,19 @@ do {									\
 #ifdef _KERNEL
 extern devclass_t gem_devclass;
 
-int	gem_attach __P((struct gem_softc *));
-int	gem_detach __P((struct gem_softc *));
-void	gem_intr __P((void *));
+int	gem_attach(struct gem_softc *);
+int	gem_detach(struct gem_softc *);
+void	gem_intr(void *);
 
-int	gem_mediachange __P((struct ifnet *));
-void	gem_mediastatus __P((struct ifnet *, struct ifmediareq *));
+int	gem_mediachange(struct ifnet *);
+void	gem_mediastatus(struct ifnet *, struct ifmediareq *);
 
-void	gem_reset __P((struct gem_softc *));
+void	gem_reset(struct gem_softc *);
 
 /* MII methods & callbacks */
-int	gem_mii_readreg __P((device_t, int, int));
-int	gem_mii_writereg __P((device_t, int, int, int));
-void	gem_mii_statchg __P((device_t));
+int	gem_mii_readreg(device_t, int, int);
+int	gem_mii_writereg(device_t, int, int, int);
+void	gem_mii_statchg(device_t);
 
 #endif /* _KERNEL */
 

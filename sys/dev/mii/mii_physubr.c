@@ -63,7 +63,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-void	mii_phy_auto_timeout __P((void *));
+void	mii_phy_auto_timeout(void *);
 
 int
 mii_phy_auto(mii, waitfor)

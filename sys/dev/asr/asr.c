@@ -443,48 +443,48 @@ STATIC Asr_softc_t * Asr_softc;
 #define ATTACH_RETURN(retval) return
 #endif
 /* I2O HDM interface */
-STATIC PROBE_RET      asr_probe __P((PROBE_ARGS));
-STATIC ATTACH_RET     asr_attach __P((ATTACH_ARGS));
+STATIC PROBE_RET      asr_probe(PROBE_ARGS);
+STATIC ATTACH_RET     asr_attach(ATTACH_ARGS);
 /* DOMINO placeholder */
-STATIC PROBE_RET      domino_probe __P((PROBE_ARGS));
-STATIC ATTACH_RET     domino_attach __P((ATTACH_ARGS));
+STATIC PROBE_RET      domino_probe(PROBE_ARGS);
+STATIC ATTACH_RET     domino_attach(ATTACH_ARGS);
 /* MODE0 adapter placeholder */
-STATIC PROBE_RET      mode0_probe __P((PROBE_ARGS));
-STATIC ATTACH_RET     mode0_attach __P((ATTACH_ARGS));
+STATIC PROBE_RET      mode0_probe(PROBE_ARGS);
+STATIC ATTACH_RET     mode0_attach(ATTACH_ARGS);
 
-STATIC Asr_softc_t  * ASR_get_sc __P((
-                        IN dev_t dev));
-STATIC int            asr_ioctl __P((
+STATIC Asr_softc_t  * ASR_get_sc(
+                        IN dev_t dev);
+STATIC int            asr_ioctl(
                         IN dev_t      dev,
                         IN u_long     cmd,
                         INOUT caddr_t data,
                         int           flag,
-                        struct thread * td));
-STATIC int            asr_open __P((
+                        struct thread * td);
+STATIC int            asr_open(
                         IN dev_t         dev,
                         int32_t          flags,
                         int32_t          ifmt,
-                        IN struct thread * td));
-STATIC int            asr_close __P((
+                        IN struct thread * td);
+STATIC int            asr_close(
                         dev_t         dev,
                         int           flags,
                         int           ifmt,
-                        struct thread * td));
-STATIC int            asr_intr __P((
-                        IN Asr_softc_t * sc));
-STATIC void           asr_timeout __P((
-                        INOUT void * arg));
-STATIC int            ASR_init __P((
-                        IN Asr_softc_t * sc));
-STATIC INLINE int     ASR_acquireLct __P((
-                        INOUT Asr_softc_t * sc));
-STATIC INLINE int     ASR_acquireHrt __P((
-                        INOUT Asr_softc_t * sc));
-STATIC void           asr_action __P((
+                        struct thread * td);
+STATIC int            asr_intr(
+                        IN Asr_softc_t * sc);
+STATIC void           asr_timeout(
+                        INOUT void * arg);
+STATIC int            ASR_init(
+                        IN Asr_softc_t * sc);
+STATIC INLINE int     ASR_acquireLct(
+                        INOUT Asr_softc_t * sc);
+STATIC INLINE int     ASR_acquireHrt(
+                        INOUT Asr_softc_t * sc);
+STATIC void           asr_action(
                         IN struct cam_sim * sim,
-                        IN union ccb      * ccb));
-STATIC void           asr_poll __P((
-                        IN struct cam_sim * sim));
+                        IN union ccb      * ccb);
+STATIC void           asr_poll(
+                        IN struct cam_sim * sim);
 
 /*
  *      Here is the auto-probe structure used to nest our tests appropriately
@@ -593,8 +593,8 @@ STATIC struct cdevsw asr_cdevsw = {
 };
 
 #ifdef ASR_MEASURE_PERFORMANCE
-STATIC u_int32_t         asr_time_delta __P((IN struct timeval start,
-                                             IN struct timeval end));
+STATIC u_int32_t         asr_time_delta(IN struct timeval start,
+                                             IN struct timeval end);
 #endif
 
 #ifdef ASR_VERY_BROKEN
@@ -942,9 +942,9 @@ ASR_prstring (
 /*
  * Prototypes
  */
-STATIC INLINE int ASR_queue __P((
+STATIC INLINE int ASR_queue(
         IN Asr_softc_t             * sc,
-        IN PI2O_MESSAGE_FRAME Message));
+        IN PI2O_MESSAGE_FRAME Message);
 /*
  *      Send a message synchronously and without Interrupt to a ccb.
  */
