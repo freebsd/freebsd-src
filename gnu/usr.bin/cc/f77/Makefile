@@ -7,6 +7,9 @@
 PROG=	f77
 SRCS=	gcc.c g77spec.c version.c
 
+CFLAGS+= -DDEFAULT_TARGET_VERSION=\"$(version)\"
+CFLAGS+= -DDEFAULT_TARGET_MACHINE=\"$(target)\"
+
 DPADD+=	${LIBCC_INT} ${LIBCC_FBSD}
 LDADD+=	${LIBCC_INT} ${LIBCC_FBSD}
 
