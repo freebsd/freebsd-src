@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.2 1998/10/02 08:04:56 peter Exp $
+ *	$Id: load_elf.c,v 1.3 1998/10/09 23:18:43 peter Exp $
  */
 
 #include <sys/param.h>
@@ -155,7 +155,8 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	mp->m_name = strdup(filename);
     mp->m_type = strdup(kernel ? elf_kerneltype : elf_moduletype);
 
-    printf("%s entry at %p\n", filename, (void *) dest);
+    if (kernel)
+	printf("%s entry at %p\n", filename, (void *) dest);
 
     mp->m_size = elf_loadimage(mp, fd, dest, &ehdr, kernel);
     if (mp->m_size == 0 || mp->m_addr == 0)
@@ -189,15 +190,12 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     int 	i, j;
     Elf_Phdr	*phdr;
     Elf_Shdr	*shdr;
-    Elf_Ehdr	local_ehdr;
     int		ret;
     vm_offset_t firstaddr;
     vm_offset_t lastaddr;
     void	*buf;
     size_t	resid, chunk;
     vm_offset_t	dest;
-    char	*secname;
-    vm_offset_t	shdrpos;
     vm_offset_t	ssym, esym;
     Elf_Dyn	*dp;
     int		ndp;
@@ -207,6 +205,9 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     int		len;
     char	*strtab;
     size_t	strsz;
+    int		symstrindex;
+    int		symtabindex;
+    long	size;
 
     dp = NULL;
     shdr = NULL;
@@ -239,10 +240,17 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	if (phdr[i].p_type != PT_LOAD)
 	    continue;
 
+#ifdef ELF_VERBOSE
 	printf("Segment: 0x%lx@0x%lx -> 0x%lx-0x%lx",
 	    (long)phdr[i].p_filesz, (long)phdr[i].p_offset,
 	    (long)(phdr[i].p_vaddr + off),
 	    (long)(phdr[i].p_vaddr + off + phdr[i].p_memsz - 1));
+#else
+	if ((phdr[i].p_flags & PF_W) == 0)
+	    printf(" text=0x%lx", (long)phdr[i].p_filesz);
+	else
+	    printf(" data=0x%lx", (long)phdr[i].p_filesz);
+#endif
 
 	if (lseek(fd, phdr[i].p_offset, SEEK_SET) == -1) {
 	    printf("\nelf_loadexec: cannot seek\n");
@@ -255,9 +263,13 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	}
 	/* clear space from oversized segments; eg: bss */
 	if (phdr[i].p_filesz < phdr[i].p_memsz) {
+#ifdef ELF_VERBOSE
 	    printf(" (bss: 0x%lx-0x%lx)",
 		(long)(phdr[i].p_vaddr + off + phdr[i].p_filesz),
 		(long)(phdr[i].p_vaddr + off + phdr[i].p_memsz - 1));
+#else
+	    printf(" bss=0x%lx", (long)(phdr[i].p_memsz -phdr[i].p_filesz));
+#endif
 
 	    /* no archsw.arch_bzero */
 	    buf = malloc(PAGE_SIZE);
@@ -272,79 +284,40 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	    }
 	    free(buf);
 	}
+#ifdef ELF_VERBOSE
 	printf("\n");
+#endif
 
 	if (firstaddr == 0 || firstaddr > (phdr[i].p_vaddr + off))
 	    firstaddr = phdr[i].p_vaddr + off;
 	if (lastaddr == 0 || lastaddr < (phdr[i].p_vaddr + off + phdr[i].p_memsz))
 	    lastaddr = phdr[i].p_vaddr + off + phdr[i].p_memsz;
     }
+    lastaddr = roundup(lastaddr, sizeof(long));
 
     /*
      * Now grab the symbol tables.  This isn't easy if we're reading a
      * .gz file.  I think the rule is going to have to be that you must
      * strip a file to remove symbols before gzipping it so that we do not
-     * try to lseek() on it.  The layout is a bit wierd, but it's what
-     * the NetBSD-derived ddb/db_elf.c wants.
+     * try to lseek() on it.
      */
-    lastaddr = roundup(lastaddr, sizeof(long));
     chunk = ehdr->e_shnum * ehdr->e_shentsize;
     shdr = malloc(chunk);
     if (shdr == NULL)
 	goto nosyms;
-    ssym = lastaddr;
-    printf("Symbols: ELF Ehdr @ 0x%x; ", lastaddr);
-    lastaddr += sizeof(*ehdr);
-    lastaddr = roundup(lastaddr, sizeof(long));
-    /* Copy out executable header modified for base offsets */
-    local_ehdr = *ehdr;
-    local_ehdr.e_phoff = 0;
-    local_ehdr.e_phentsize = 0;
-    local_ehdr.e_phnum = 0;
-    local_ehdr.e_shoff = lastaddr - ssym;
-    archsw.arch_copyin(&local_ehdr, ssym, sizeof(*ehdr));
     if (lseek(fd, ehdr->e_shoff, SEEK_SET) == -1) {
-	printf("elf_loadimage: cannot lseek() to section headers\n");
-	lastaddr = ssym;	/* wind back */
-	ssym = 0;
+	printf("\nelf_loadimage: cannot lseek() to section headers\n");
 	goto nosyms;
     }
     if (read(fd, shdr, chunk) != chunk) {
-	printf("elf_loadimage: read section headers failed\n");
-	lastaddr = ssym;	/* wind back */
-	ssym = 0;
+	printf("\nelf_loadimage: read section headers failed\n");
 	goto nosyms;
     }
-    shdrpos = lastaddr;
-    printf("Section table: 0x%x@0x%x\n", chunk, shdrpos);
-    lastaddr += chunk;
-    lastaddr = roundup(lastaddr, sizeof(long));
+    symtabindex = -1;
+    symstrindex = -1;
     for (i = 0; i < ehdr->e_shnum; i++) {
-	/* Explicitly skip string table for section names */
-	if (i == ehdr->e_shstrndx)
+	if (shdr[i].sh_type != SHT_SYMTAB)
 	    continue;
-	switch(shdr[i].sh_type) {
-	    /*
-	     * These are the symbol tables.  Their names are relative to
-	     * an arbitary string table.
-	     */
-	    case SHT_SYMTAB:		/* Symbol table */
-		secname = "symtab";
-		break;
-	    case SHT_DYNSYM:		/* Dynamic linking symbol table */
-		secname = "dynsym";
-		break;
-	    /*
-	     * And here are the string tables.  These can be referred to from
-	     * a number of sources, including the dynsym, the section table
-	     * names itself, etc.
-	     */
-	    case SHT_STRTAB:		/* String table */
-		secname = "strtab";
-		break;
-	    default:			/* Skip it */
-		continue;
-	}
 	for (j = 0; j < ehdr->e_phnum; j++) {
 	    if (phdr[j].p_type != PT_LOAD)
 		continue;
@@ -358,31 +331,72 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	}
 	if (shdr[i].sh_offset == 0 || shdr[i].sh_size == 0)
 	    continue;		/* alread loaded in a PT_LOAD above */
+	/* Save it for loading below */
+	symtabindex = i;
+	symstrindex = shdr[i].sh_link;
+    }
+    if (symtabindex < 0 || symstrindex < 0)
+	goto nosyms;
 
+    /* Ok, committed to a load. */
+#ifndef ELF_VERBOSE
+    printf(" symbols=[");
+#endif
+    ssym = lastaddr;
+    for (i = symtabindex; i >= 0; i = symstrindex) {
+#ifdef ELF_VERBOSE
+	char	*secname;
+
+	switch(shdr[i].sh_type) {
+	    case SHT_SYMTAB:		/* Symbol table */
+		secname = "symtab";
+		break;
+	    case SHT_STRTAB:		/* String table */
+		secname = "strtab";
+		break;
+	    default:
+		secname = "WHOA!!";
+		break;
+	}
+#endif
+
+	size = shdr[i].sh_size;
+	archsw.arch_copyin(&size, lastaddr, sizeof(size));
+	lastaddr += sizeof(long);
+
+#ifdef ELF_VERBOSE
 	printf("%s: 0x%x@0x%x -> 0x%x-0x%x\n", secname,
 	    shdr[i].sh_size, shdr[i].sh_offset,
 	    lastaddr, lastaddr + shdr[i].sh_size);
-	  
+#else
+	printf("0x%x+0x%lx", sizeof(size), size);
+#endif
+
 	if (lseek(fd, shdr[i].sh_offset, SEEK_SET) == -1) {
 	    printf("\nelf_loadimage: could not seek for symbols - skipped!\n");
-	    shdr[i].sh_offset = 0;
-	    shdr[i].sh_size = 0;
-	    continue;
+	    lastaddr = ssym;
+	    ssym = 0;
+	    goto nosyms;
 	}
 	if (archsw.arch_readin(fd, lastaddr, shdr[i].sh_size) !=
 	    shdr[i].sh_size) {
 	    printf("\nelf_loadimage: could not read symbols - skipped!\n");
-	    shdr[i].sh_offset = 0;
-	    shdr[i].sh_size = 0;
-	    continue;
+	    lastaddr = ssym;
+	    ssym = 0;
+	    goto nosyms;
 	}
 	/* Reset offsets relative to ssym */
-	shdr[i].sh_offset = lastaddr - ssym;
 	lastaddr += shdr[i].sh_size;
 	lastaddr = roundup(lastaddr, sizeof(long));
+	if (i == symtabindex)
+	    symtabindex = -1;
+	else if (i == symstrindex)
+	    symstrindex = -1;
     }
-    archsw.arch_copyin(shdr, lastaddr, sizeof(*ehdr));
     esym = lastaddr;
+#ifndef ELF_VERBOSE
+    printf("]\n");
+#endif
 
     mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
     mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
