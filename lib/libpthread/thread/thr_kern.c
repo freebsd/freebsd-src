@@ -623,7 +623,6 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 
 	/* We're in the scheduler, 5 by 5: */
 	curkse = _get_curkse();
-	_tcb_set(curkse->k_kcb, NULL);
 
 	curthread->need_switchout = 1;	/* The thread yielded on its own. */
 	curthread->critical_yield = 0;	/* No need to yield anymore. */
@@ -672,6 +671,7 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 
 			/* Switchout the current thread. */
 			kse_switchout_thread(curkse, curthread);
+			_tcb_set(curkse->k_kcb, NULL);
 
 		 	/* Choose another thread to run. */
 			td = KSE_RUNQ_FIRST(curkse);
@@ -699,7 +699,8 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 			td->curframe = NULL;
 
 			/*
-			 * Continue the thread at its current frame:
+			 * Continue the thread at its current frame.
+			 * Note: TCB is set in _thread_switch
 			 */
 			ret = _thread_switch(curkse->k_kcb, td->tcb, 0);
 			/* This point should not be reached. */
@@ -782,7 +783,14 @@ kse_sched_single(struct kse_mailbox *kmbx)
 		 * to be cleared.
 		 */
 		(void)_kse_critical_enter();
- 	}
+ 	} else {
+		/*
+		 * Bound thread always has tcb set, this prevent some
+		 * code from blindly setting bound thread tcb to NULL,
+		 * buggy code ?
+		 */
+		_tcb_set(curkse->k_kcb, curthread->tcb);
+	}
 
 	curthread->critical_yield = 0;
 	curthread->need_switchout = 0;
@@ -949,6 +957,12 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 		curkse->k_flags |= KF_INITIALIZED;
 	}
 
+	/*
+	 * No current thread anymore, calling _get_curthread in UTS
+	 * should dump core
+	 */
+	_tcb_set(curkse->k_kcb, NULL);
+
 	/* This may have returned from a kse_release(). */
 	if (KSE_WAITING(curkse)) {
 		DBG_MSG("Entered upcall when KSE is waiting.");
@@ -956,11 +970,8 @@ kse_sched_multi(struct kse_mailbox *kmbx)
 	}
 
 	/* If this is an upcall; take the scheduler lock. */
-	if (curkse->k_switch == 0) {
-		/* Set fake kcb */
-		_tcb_set(curkse->k_kcb, NULL);
+	if (curkse->k_switch == 0)
 		KSE_SCHED_LOCK(curkse, curkse->k_kseg);
-	}
 	curkse->k_switch = 0;
 
 	/*
