@@ -93,21 +93,11 @@ function collectline(f, line) {
 }
 BEGIN {
 	nproducts = nvendors = 0
-	dfile="pccarddevs_data.h"
 	hfile="pccarddevs.h"
 }
 NR == 1 {
 	VERSION = $0
 	gsub("\\$", "", VERSION)
-
-	printf("/*\t\$FreeBSD\$\t*/\n\n") > dfile
-	printf("/*\n") > dfile
-	printf(" * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.\n") \
-	    > dfile
-	printf(" *\n") > dfile
-	printf(" * generated from:\n") > dfile
-	printf(" *\t%s\n", VERSION) > dfile
-	printf(" */\n") > dfile
 
 	printf("/*\t\$FreeBSD\$\t*/\n\n") > hfile
 	printf("/*\n") > hfile
@@ -125,6 +115,8 @@ $1 == "vendor" {
 
 	vendorindex[$2] = nvendors;		# record index for this name, for later.
 	vendors[nvendors, 1] = $2;		# name
+	if ($3 == "-1")
+		$3 = "0xffffffff";
 	vendors[nvendors, 2] = $3;		# id
 	printf("#define\tPCMCIA_VENDOR_%s\t%s\t", vendors[nvendors, 1],
 	    vendors[nvendors, 2]) > hfile
@@ -136,13 +128,15 @@ $1 == "product" {
 	nproducts++
 
 	products[nproducts, 1] = $2;		# vendor name
+	if ($3 == "-1")
+		$3 = "0xffffffff";
 	products[nproducts, 2] = $3;		# product id
 	products[nproducts, 3] = $4;		# id
 
 	f = 5;
 
 	if ($4 == "{") {
-		products[nproducts, 3] = -1
+		products[nproducts, 3] = "0xffffffff";
 		z = "{ "
 		for (i = 0; i < 4; i++) {
 			if (f <= NF) {
@@ -180,47 +174,5 @@ $1 == "product" {
 	next
 }
 {
-	if ($0 == "")
-		blanklines++
 	print $0 > hfile
-	if (blanklines < 2)
-		print $0 > dfile
-}
-END {
-	# print out the match tables
-
-	printf("\n") > dfile
-
-	printf("struct pccard_knowndev pccard_knowndevs[] = {\n") > dfile
-	for (i = 1; i <= nproducts; i++) {
-		printf("\t{\n") > dfile
-		if (products[i, 3] == -1) {
-			printf("\t    PCMCIA_VENDOR_UNKNOWN, PCMCIA_PRODUCT_%s_%s,\n",
-			    products[i, 1], products[i, 2]) > dfile
-		} else {
-			printf("\t    PCMCIA_VENDOR_%s, PCMCIA_PRODUCT_%s_%s,\n",
-			    products[i, 1], products[i, 1], products[i, 2]) > dfile
-		}
-		printf("\t    PCMCIA_CIS_%s_%s,\n", 
-		    products[i, 1], products[i, 2]) > dfile
-		printf("\t    ") > dfile
-		printf("0") > dfile
-		printf(",\n") > dfile
-
-		vendi = vendorindex[products[i, 1]];
-		printf("\t    \"%s\",\n", vendors[vendi, 3]) > dfile
-		printf("\t    \"%s\"\t},\n", products[i, 5]) > dfile
-		printf("\t},\n") > dfile
-	}
-	for (i = 1; i <= nvendors; i++) {
-		printf("\t{\n") > dfile
-		printf("\t    PCMCIA_VENDOR_%s, 0,\n", vendors[i, 1]) > dfile
-		printf("\t    PCMCIA_KNOWNDEV_NOPROD,\n") > dfile
-		printf("\t    PCMCIA_CIS_INVALID,\n") > dfile
-		printf("\t    \"%s\",\n", vendors[i, 3]) > dfile
-		printf("\t    NULL,\n") > dfile
-		printf("\t},\n") > dfile
-	}
-	printf("\t{ 0, 0, { NULL, NULL, NULL, NULL }, 0, NULL, NULL, }\n") > dfile
-	printf("};\n") > dfile
 }
