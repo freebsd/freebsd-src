@@ -29,7 +29,6 @@
 
 #define ESC 27
 
-
 /***********************************************************************
  *
  * Obj routines
@@ -239,6 +238,22 @@ DelObj(ComposeObj *Obj)
  *
  ***********************************************************************/
 
+static void
+outstr(WINDOW *win, char *str, int attrs)
+{
+    if (attrs & DITEM_NO_ECHO) {
+	char *cpy;
+	int n = strlen(str);
+
+	cpy = alloca(n + 1);
+	memset(cpy, '*', n);
+	cpy[n] = '\0';
+	waddstr(win, cpy);
+    }
+    else
+	waddstr(win, str);
+}
+
 void
 RefreshStringObj(StringObj *so)
 /*
@@ -256,9 +271,9 @@ RefreshStringObj(StringObj *so)
     wmove(so->win, so->y+2, so->x+1);
     if (strlen(so->s) > so->w-2) {
 	strncpy(tmp, (char *) so->s + strlen(so->s) - so->w + 2, so->w - 1);
-	waddstr(so->win, tmp);
+	outstr(so->win, tmp, so->attr_mask);
     } else {
-	waddstr(so->win, so->s);
+	outstr(so->win, so->s, so->attr_mask);
     }
 
     return;
@@ -292,6 +307,7 @@ NewStringObj(WINDOW *win, char *title, char *s, int y, int x, int w, int len)
     so->w = w;
     so->len = len;
     so->win = win;
+    so->attr_mask = DialogInputAttrs;	/* Grossly use a global to avoid changing API */
 
     /* Draw it on the screen */
     RefreshStringObj(so);
@@ -310,7 +326,7 @@ SelectStringObj(StringObj *so)
 
     strcpy(tmp, so->s);
     key = line_edit(so->win, so->y+2, so->x+1,
-		    so->len, so->w-2, inputbox_attr, TRUE, tmp);
+		    so->len, so->w-2, inputbox_attr, TRUE, tmp, so->attr_mask);
     if ((key == '\n') || (key == '\r') || (key == '\t') || key == (KEY_BTAB) ) {
 	strcpy(so->s, tmp);
     }
