@@ -247,13 +247,7 @@ nmdmopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	tp2 = sp->other->nm_tty;
 
 	if ((tp->t_state & TS_ISOPEN) == 0) {
-		ttychars(tp);		/* Set up default chars */
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_lflag = 0;
-		tp->t_cflag = TTYDEF_CFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		ttyinitmode(tp, 0, 0);
 		ttsetwater(tp); /* XXX ? */
 	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
 		return (EBUSY);

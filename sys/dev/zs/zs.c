@@ -276,12 +276,8 @@ zstty_attach(device_t dev)
 	tp->t_modem = zsttymodem;
 	tp->t_break = zsttybreak;
 	tp->t_stop = zsttystop;
-	tp->t_iflag = TTYDEF_IFLAG;
-	tp->t_oflag = TTYDEF_OFLAG;
-	tp->t_lflag = TTYDEF_LFLAG;
+	ttyinitmode(tp, 0, 0);
 	tp->t_cflag = CREAD | CLOCAL | CS8;
-	tp->t_ospeed = TTYDEF_SPEED;
-	tp->t_ispeed = TTYDEF_SPEED;
 
 	if (zstty_console(dev, mode, sizeof(mode))) {
 		ttychars(tp);
@@ -472,19 +468,10 @@ zsttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 		sc->sc_preg[1] |= ZSWR1_RIE | ZSWR1_SIE;
 		sc->sc_iput = sc->sc_iget = sc->sc_ibuf;
 
-		/*
-		 * Initialize the termios status to the defaults.  Add in the
-		 * sticky bits from TIOCSFLAGS.
-		 */
-		t.c_ispeed = 0;
-		t.c_ospeed = tp->t_ospeed;
-		t.c_cflag = TTYDEF_CFLAG;
+		ttyconsolemode(t, 0);
 		/* Make sure zstty_param() will do something. */
 		tp->t_ospeed = 0;
 		(void)zstty_param(sc, tp, &t);
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
 		ttychars(tp);
 		ttsetwater(tp);
 

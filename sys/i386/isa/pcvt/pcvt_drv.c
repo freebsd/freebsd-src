@@ -297,12 +297,7 @@ pcvt_open(struct cdev *dev, int flag, int mode, struct thread *td)
 
 	if ((tp->t_state & TS_ISOPEN) == 0)
 	{
-		ttychars(tp);
-		tp->t_iflag = TTYDEF_IFLAG;
-		tp->t_oflag = TTYDEF_OFLAG;
-		tp->t_cflag = TTYDEF_CFLAG;
-		tp->t_lflag = TTYDEF_LFLAG;
-		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
+		ttyinitmode(tp, 1, 0);
 		pcvt_param(tp, &tp->t_termios);
 		ttyld_modem(tp, 1);	/* fake connection */
 		winsz = 1;			/* set winsize later */
