@@ -23,6 +23,19 @@ LIBFICL=	${.CURDIR}/../../ficl/libficl.a
 LIBFICL=
 .endif
 
+# where to get libstand from
+.if exists(${.OBJDIR}/../../../../lib/libstand/libstand.a)
+LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
+.else
+LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
+.endif
+
+.if exists(${.OBJDIR}/../libefi/libefi.a)
+LIBEFI=		${.OBJDIR}/../libefi/libefi.a
+.else
+LIBEFI=		${.CURDIR}/../libefi/libefi.a
+.endif
+
 # Always add MI sources 
 .PATH: ${.CURDIR}/../../common
 .include <${.CURDIR}/../../common/Makefile.inc>
@@ -85,9 +98,8 @@ machine:
 
 .include <bsd.prog.mk>
 
-${BASE}.sym: ${OBJS} ${LIBEFI} ${CRT} vers.o
+${BASE}.sym: ${OBJS} ${LIBFICL} ${LIBEFI} ${LIBSTAND} ${CRT} vers.o
 	${LD} ${LDFLAGS} -o ${BASE}.sym -M ${CRT} ${OBJS} vers.o \
-	    ${LIBFICL}  ${LIBEFI} -L${DESTDIR}${LIBDIR} ${LIBSTAND} \
-	    > ${.OBJDIR}/${BASE}.list
+	    ${LIBFICL} ${LIBEFI} ${LIBSTAND} > ${.OBJDIR}/${BASE}.list
 
 beforedepend ${OBJS}: machine
