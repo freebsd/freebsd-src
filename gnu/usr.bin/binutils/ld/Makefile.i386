@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.i386,v 1.2 1998/03/30 02:21:20 jdp Exp $
+# $Id: Makefile.i386,v 1.3 1998/05/04 21:29:54 jb Exp $
 #
 
 .if	${MACHINE_ARCH} == "i386"
@@ -12,8 +12,6 @@ LDSCRIPTS+=	elf_i386.x elf_i386.xbn elf_i386.xn elf_i386.xr \
 		elf_i386.xs elf_i386.xu
 SRCS+=		eelf_i386.c
 CLEANFILES+=	eelf_i386.c
-
-beforedepend: eelf_i386.c
 
 eelf_i386.c:	emulparams/elf_i386.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
