@@ -131,6 +131,9 @@ cd9660_access(ap)
 	struct iso_node *ip = VTOI(vp);
 	mode_t mode = ap->a_mode;
 
+	if (vp->v_type == VREG || vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
 	/*
 	 * Disallow write attempts unless the file is a socket,
 	 * fifo, or a block or character device resident on the
@@ -228,6 +231,9 @@ cd9660_ioctl(ap)
 	struct vnode *vp = ap->a_vp;
 	struct iso_node *ip = VTOI(vp);
 
+	if (vp->v_type == VREG || vp->v_type == VBLK)
+		return (EOPNOTSUPP);
+
 	switch (ap->a_command) {
 
 	case FIOGETLBA:
@@ -260,6 +266,9 @@ cd9660_read(ap)
 	int rasize, error = 0;
 	int seqcount;
 	long size, n, on;
+
+	if (vp->v_type == VREG || vp->v_type == VBLK)
+		return (EOPNOTSUPP);
 
 	seqcount = ap->a_ioflag >> IO_SEQSHIFT;
 
@@ -799,19 +808,6 @@ VNODEOP_SET(cd9660_vnodeop_opv_desc);
 /*
  * Special device vnode ops
  */
-vop_t **cd9660_specop_p;
-static struct vnodeopv_entry_desc cd9660_specop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) spec_vnoperate },
-	{ &vop_access_desc,		(vop_t *) cd9660_access },
-	{ &vop_getattr_desc,		(vop_t *) cd9660_getattr },
-	{ &vop_inactive_desc,		(vop_t *) cd9660_inactive },
-	{ &vop_reclaim_desc,		(vop_t *) cd9660_reclaim },
-	{ &vop_setattr_desc,		(vop_t *) cd9660_setattr },
-	{ NULL, NULL }
-};
-static struct vnodeopv_desc cd9660_specop_opv_desc =
-	{ &cd9660_specop_p, cd9660_specop_entries };
-VNODEOP_SET(cd9660_specop_opv_desc);
 
 vop_t **cd9660_fifoop_p;
 static struct vnodeopv_entry_desc cd9660_fifoop_entries[] = {
