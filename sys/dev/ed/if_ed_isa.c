@@ -125,9 +125,9 @@ ed_isa_attach(dev)
 	int error;
 	
 	if (sc->port_used > 0)
-		ed_alloc_port(dev, sc->port_rid, 1);
+		ed_alloc_port(dev, sc->port_rid, sc->port_used);
 	if (sc->mem_used)
-		ed_alloc_memory(dev, sc->mem_rid, 1);
+		ed_alloc_memory(dev, sc->mem_rid, sc->mem_used);
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 		
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
