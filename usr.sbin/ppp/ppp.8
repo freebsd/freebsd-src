@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.121 1998/08/29 23:02:42 brian Exp $
+.\" $Id: ppp.8,v 1.122 1998/08/29 23:02:43 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1658,7 +1658,7 @@ locally.
 .Sh SIGNAL HANDLING
 .Nm Ppp
 deals with the following signals:
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It INT
 Receipt of this signal causes the termination of the current connection
 (if any).  This will cause
@@ -1848,7 +1848,7 @@ session, from a configuration file or from a
 or
 .Xr telnet 1
 session.
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It accept|deny|enable|disable Ar option....
 These directives tell
 .Nm
@@ -1866,7 +1866,7 @@ means that the option will not be requested by us.
 .Pp
 .Dq Option
 may be one of the following:
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It acfcomp
 Default: Enabled and Accepted.  ACFComp stands for Address and Control
 Field Compression.  Non LCP packets usually have very similar address
@@ -2043,7 +2043,7 @@ header compression will be used.
 .Pp
 The following options are not actually negotiated with the peer.
 Therefore, accepting or denying them makes no sense.
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It idcheck
 Default: Enabled.  When
 .Nm
@@ -2223,7 +2223,7 @@ in
 mode.
 .Pp
 User id 0 is immune to these commands.
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It allow user[s] Ar logname...
 By default, only user id 0 is allowed access to
 .Nm ppp .
@@ -2277,7 +2277,7 @@ facilities that are built into
 .Nm ppp .
 If aliasing is enabled on your system (it may be omitted at compile time),
 the following commands are possible:
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It alias enable [yes|no]
 This command either switches aliasing on or turns it off.
 The
@@ -2596,7 +2596,7 @@ may make the log file more readable.
 This option is not (yet) implemented.
 .It set[up] Ar var value
 This option allows the setting of any of the following variables:
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It set accmap Ar hex-value
 ACCMap stands for Asynchronous Control Character Map.  This is always
 negotiated with the peer, and defaults to a value of 00000000 in hex.
@@ -3392,7 +3392,7 @@ will not continue running until this process has exited.  Use the
 command if you wish processing to happen in the background.
 .It show Ar var
 This command allows the user to examine the following:
-.Bl -tag -width 20
+.Bl -tag -width XX
 .It show bundle
 Show the current bundle settings.
 .It show ccp
@@ -3481,7 +3481,7 @@ and
 These files are placed in the
 .Pa /etc/ppp
 directory.
-.Bl -tag -width flag
+.Bl -tag -width XX
 .It Pa /etc/ppp/ppp.conf
 System default configuration file.
 .It Pa /etc/ppp/ppp.secret
