@@ -117,7 +117,7 @@ acpi_acad_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     device_t dev = context;
 
     ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		"Notify %d\n", notify);
+		"Notify 0x%x\n", notify);
 
     switch (notify) {
     case ACPI_DEVICE_CHECK_PNP:
