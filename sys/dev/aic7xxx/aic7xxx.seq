@@ -83,7 +83,9 @@ poll_for_work:
 		xor	SBLKCTL,SELBUSB;	/* Toggle to the other bus */
 		test	SCSISEQ, ENSELO		jnz poll_for_selection;
 	}
+BEGIN_CRITICAL;
 	cmp	WAITING_SCBH,SCB_LIST_NULL jne start_waiting;
+END_CRITICAL;
 poll_for_work_loop:
 	if ((ahc->features & AHC_TWIN) != 0) {
 		xor	SBLKCTL,SELBUSB;	/* Toggle to the other bus */
@@ -141,13 +143,13 @@ BEGIN_CRITICAL;
 		inc	QINPOS;
 	}
 	and	SEQ_FLAGS2, ~SCB_DMA;
-END_CRITICAL;
 start_waiting:
 	/*
 	 * Start the first entry on the waiting SCB list.
 	 */
 	mov	SCBPTR, WAITING_SCBH;
 	call	start_selection;
+END_CRITICAL;
 
 poll_for_selection:
 	/*
@@ -355,6 +357,7 @@ abort_qinscb:
 	call	add_scb_to_free_list;
 	jmp	poll_for_work_loop;
 
+BEGIN_CRITICAL;
 start_selection:
 	/*
 	 * If bus reset interrupts have been disabled (from a previous
@@ -388,6 +391,7 @@ initialize_scsiid:
 	} else {
 		mov	SCSISEQ, SCSISEQ_TEMPLATE ret;
 	}
+END_CRITICAL;
 
 /*
  * Initialize transfer settings with SCB provided settings.
