@@ -1,7 +1,9 @@
 /*
- * Compact Disc Control Utility by Serge V. Vakulenko, <vak@cronyx.ru>.
+ * Compact Disc Control Utility by Serge V. Vakulenko <vak@cronyx.ru>.
  * Based on the non-X based CD player by Jean-Marc Zucconi and
  * Andrey A. Chernov.
+ *
+ * $Id$
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,7 +14,7 @@
 #include <sys/cdio.h>
 #include <sys/ioctl.h>
 
-#define VERSION "1.1"
+#define VERSION "2.0"
 
 /*
  * Audio Status Codes
@@ -30,29 +32,39 @@ struct cmdtab {
 	char *args;
 } cmdtab[] = {
 #define CMD_DEBUG       1
-	{ CMD_DEBUG,    "Debug",        "[ on | off | reset ]", },
+	{ CMD_DEBUG,    "Debug",        "on | off", },
 #define CMD_EJECT       2
 	{ CMD_EJECT,    "Eject",        "", },
 #define CMD_HELP        3
 	{ CMD_HELP,     "?",            0, },
 	{ CMD_HELP,     "Help",         "", },
 #define CMD_INFO        4
-	{ CMD_INFO,     "INFo",         "", },
+	{ CMD_INFO,     "I",            0, },
+	{ CMD_INFO,     "Info",         "", },
 #define CMD_INJECT      5
 	{ CMD_INJECT,   "INJect",       "", },
 #define CMD_PAUSE       6
 	{ CMD_PAUSE,    "PAuse",        "", },
 #define CMD_PLAY        7
-	{ CMD_PLAY,     "PLay",        "min1:sec1[.fr1] [min2:sec2[.fr2]]", },
-	{ CMD_PLAY,     "PLay",        "track1[.index1] [track2.[index2]]", },
-	{ CMD_PLAY,     "PLay",        "[#block [len]]", },
+	{ CMD_PLAY,     "P",            0, },
+	{ CMD_PLAY,     "Play",        "min1:sec1[.fr1] [min2:sec2[.fr2]]", },
+	{ CMD_PLAY,     "Play",        "track1[.index1] [track2.[index2]]", },
+	{ CMD_PLAY,     "Play",        "[#block [len]]", },
 #define CMD_QUIT        8
 	{ CMD_QUIT,     "Quit",         "", },
-#define CMD_RESUME      9
+#define CMD_RESET       9
+	{ CMD_RESET,    "RESEt",        "", },
+#define CMD_RESUME      10
+	{ CMD_RESUME,   "R",            0, },
 	{ CMD_RESUME,   "Resume",       "", },
-#define CMD_STOP        10
-	{ CMD_STOP,     "Stop",         "", },
-#define CMD_VOLUME      11
+#define CMD_SET         11
+	{ CMD_SET,      "SEt",         "msf | lba", },
+#define CMD_STATUS      12
+	{ CMD_STATUS,   "S",            0, },
+	{ CMD_STATUS,   "Status",       "", },
+#define CMD_STOP        13
+	{ CMD_STOP,     "STOp",         "", },
+#define CMD_VOLUME      14
 	{ CMD_VOLUME,   "Volume",       "<l> <r> | left | right | mute | mono | stereo", },
 	{ 0,            0, },
 };
@@ -62,6 +74,7 @@ struct cd_toc_entry toc_buffer[100];
 char *cdname;
 int fd = -1;
 int verbose = 1;
+int msf = 1;
 
 extern char *optarg;
 extern int optind;
@@ -75,6 +88,7 @@ int status (int *, int *, int *, int *);
 int open_cd (void);
 int play (char *arg);
 int info (char *arg);
+int pstatus (char *arg);
 char *input (int*);
 void prtrack (struct cd_toc_entry *e, int lastflag);
 void lba2msf (int lba, u_char *m, u_char *s, u_char *f);
@@ -205,6 +219,10 @@ int run (int cmd, char *arg)
 		if (fd<0 && ! open_cd ()) return (0);
 		return info (arg);
 
+	case CMD_STATUS:
+		if (fd<0 && ! open_cd ()) return (0);
+		return pstatus (arg);
+
 	case CMD_PAUSE:
 		if (fd<0 && ! open_cd ()) return (0);
 		return ioctl (fd, CDIOCPAUSE);
@@ -217,14 +235,21 @@ int run (int cmd, char *arg)
 		if (fd<0 && ! open_cd ()) return (0);
 		return ioctl (fd, CDIOCSTOP);
 
+	case CMD_RESET:
+		if (fd<0 && ! open_cd ()) return (0);
+		rc = ioctl (fd, CDIOCRESET);
+		if (rc < 0)
+			return rc;
+		close(fd);
+		fd = -1;
+		return (0);
+
 	case CMD_DEBUG:
 		if (fd<0 && ! open_cd ()) return (0);
 		if (strcasecmp (arg, "on") == 0)
 			return ioctl (fd, CDIOCSETDEBUG);
 		if (strcasecmp (arg, "off") == 0)
 			return ioctl (fd, CDIOCCLRDEBUG);
-		if (strcasecmp (arg, "reset") == 0)
-			return ioctl (fd, CDIOCRESET);
 		printf ("Invalid command arguments\n");
 		return (0);
 
@@ -248,6 +273,15 @@ int run (int cmd, char *arg)
 	case CMD_PLAY:
 		if (fd<0 && ! open_cd ()) return (0);
 		return play (arg);
+
+	case CMD_SET:
+		if (strcasecmp (arg, "msf") == 0)
+			msf = 1;
+		else if (strcasecmp (arg, "lba") == 0)
+			msf = 0;
+		else
+			printf ("Invalid command arguments\n");
+		return (0);
 
 	case CMD_VOLUME:
 		if (fd<0 && ! open_cd ()) return (0);
@@ -360,11 +394,10 @@ char *strstatus (int sts)
 	}
 }
 
-int info (char *arg)
+int pstatus (char *arg)
 {
-	struct ioc_toc_header h;
 	struct ioc_vol v;
-	int rc, i, n, trk, m, s, f;
+	int rc, trk, m, s, f;
 
 	rc = status (&trk, &m, &s, &f);
 	if (rc >= 0)
@@ -384,7 +417,14 @@ int info (char *arg)
 		else
 			printf ("%d %d\n", v.vol[0], v.vol[1]);
 	else
-		printf ("No volume info\n");
+		printf ("No volume level info\n");
+	return(0);
+}
+
+int info (char *arg)
+{
+	struct ioc_toc_header h;
+	int rc, i, n;
 
 	rc = ioctl (fd, CDIOREADTOCHEADER, &h);
 	if (rc >= 0)
@@ -436,20 +476,30 @@ void prtrack (struct cd_toc_entry *e, int lastflag)
 	int block, next, len;
 	u_char m, s, f;
 
-	/* Print track start */
-	printf ("%2d:%02d.%02d  ", e->addr.msf.minute,
-		e->addr.msf.second, e->addr.msf.frame);
+	if (msf) {
+		/* Print track start */
+		printf ("%2d:%02d.%02d  ", e->addr.msf.minute,
+			e->addr.msf.second, e->addr.msf.frame);
 
-	block = msf2lba (e->addr.msf.minute, e->addr.msf.second,
-		e->addr.msf.frame);
+		block = msf2lba (e->addr.msf.minute, e->addr.msf.second,
+			e->addr.msf.frame);
+	} else {
+		block = ntohl(e->addr.lba);
+		lba2msf(block, &m, &s, &f);
+		/* Print track start */
+		printf ("%2d:%02d.%02d  ", m, s, f);
+	}
 	if (lastflag) {
 		/* Last track -- print block */
 		printf ("       -  %6d       -      -\n", block);
 		return;
 	}
 
-	next = msf2lba (e[1].addr.msf.minute, e[1].addr.msf.second,
-		e[1].addr.msf.frame);
+	if (msf)
+		next = msf2lba (e[1].addr.msf.minute, e[1].addr.msf.second,
+			e[1].addr.msf.frame);
+	else
+		next = ntohl(e[1].addr.lba);
 	len = next - block;
 	lba2msf (len, &m, &s, &f);
 
@@ -493,7 +543,7 @@ int read_toc_entrys (int len)
 {
 	struct ioc_read_toc_entry t;
 
-	t.address_format = CD_MSF_FORMAT;
+	t.address_format = msf ? CD_MSF_FORMAT : CD_LBA_FORMAT;
 	t.starting_track = 0;
 	t.data_len = len;
 	t.data = toc_buffer;
@@ -518,18 +568,27 @@ int status (int *trk, int *min, int *sec, int *frame)
 {
 	struct ioc_read_subchannel s;
 	struct cd_sub_channel_info data;
+	u_char mm, ss, ff;
 
 	bzero (&s, sizeof (s));
 	s.data = &data;
 	s.data_len = sizeof (data);
-	s.address_format = CD_MSF_FORMAT;
+	s.address_format = msf ? CD_MSF_FORMAT : CD_LBA_FORMAT;
 	s.data_format = CD_CURRENT_POSITION;
 	if (ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &s) < 0)
 		return -1;
 	*trk = s.data->what.position.track_number;
-	*min = s.data->what.position.reladdr.msf.minute;
-	*sec = s.data->what.position.reladdr.msf.second;
-	*frame = s.data->what.position.reladdr.msf.frame;
+	if (msf) {
+		*min = s.data->what.position.reladdr.msf.minute;
+		*sec = s.data->what.position.reladdr.msf.second;
+		*frame = s.data->what.position.reladdr.msf.frame;
+	} else {
+		lba2msf(ntohl(s.data->what.position.reladdr.lba),
+			&mm, &ss, &ff);
+		*min = mm;
+		*sec = ss;
+		*frame = ff;
+	}
 	return s.data->header.audio_status;
 }
 
