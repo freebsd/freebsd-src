@@ -47,11 +47,14 @@
 #include <net/if.h>
 #include <net/route.h>
 
+#include <netinet/in.h>
+
 #include <netipx/ipx.h>
 #include <netipx/ipx_pcb.h>
 #include <netipx/ipx_if.h>
 #include <netipx/ipx_var.h>
 #include <netipx/ipx_error.h>
+#include <netipx/ipx_ip.h>
 
 /*
  * IPX protocol implementation.
