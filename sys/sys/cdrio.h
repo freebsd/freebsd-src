@@ -71,6 +71,17 @@ struct cdr_cue_entry {
 struct cdr_cuesheet {
     	int32_t len;
 	struct cdr_cue_entry *entries;
+	int session_format;
+#define CDR_SESS_CDROM          0x00
+#define CDR_SESS_CDI            0x10
+#define CDR_SESS_CDROM_XA       0x20
+
+	int session_type;
+#define CDR_SESS_NONE           0x00
+#define CDR_SESS_FINAL          0x01
+#define CDR_SESS_RESERVED       0x02
+#define CDR_SESS_MULTI          0x03
+
 	int test_write;
 };
 
