@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2002 Alfred Perlstein <alfred@FreeBSD.org>
+ * Copyright (c) 2005 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <posix4/semaphore.h>
 #include <posix4/_semaphore.h>
 
+static int sem_count_proc(struct proc *p);
 static struct ksem *sem_lookup_byname(const char *name);
 static int sem_create(struct thread *td, const char *name,
     struct ksem **ksret, mode_t mode, unsigned int value);
@@ -61,6 +63,8 @@ static int sem_perm(struct thread *td, struct ksem *ks);
 static void sem_enter(struct proc *p, struct ksem *ks);
 static int sem_leave(struct proc *p, struct ksem *ks);
 static void sem_exithook(void *arg, struct proc *p);
+static void sem_forkhook(void *arg, struct proc *p1, struct proc *p2,
+    int flags);
 static int sem_hasopen(struct thread *td, struct ksem *ks);
 
 static int kern_sem_close(struct thread *td, semid_t id);
@@ -118,7 +122,7 @@ static int nsems = 0;
 SYSCTL_DECL(_p1003_1b);
 SYSCTL_INT(_p1003_1b, OID_AUTO, nsems, CTLFLAG_RD, &nsems, 0, "");
 
-static eventhandler_tag sem_exit_tag, sem_exec_tag;
+static eventhandler_tag sem_exit_tag, sem_exec_tag, sem_fork_tag;
 
 #ifdef SEM_DEBUG
 #define DP(x)	printf x
@@ -830,6 +834,112 @@ err:
 	return (error);
 }
 
+/*
+ * Count the number of kusers associated with a proc, so as to guess at how
+ * many to allocate when forking.
+ */
+static int
+sem_count_proc(p)
+	struct proc *p;
+{
+	struct ksem *ks;
+	struct kuser *ku;
+	int count;
+
+	mtx_assert(&sem_lock, MA_OWNED);
+
+	count = 0;
+	LIST_FOREACH(ks, &ksem_head, ks_entry) {
+		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
+			if (ku->ku_pid == p->p_pid)
+				count++;
+		}
+	}
+	LIST_FOREACH(ks, &ksem_deadhead, ks_entry) {
+		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
+			if (ku->ku_pid == p->p_pid)
+				count++;
+		}
+	}
+	return (count);
+}
+
+/*
+ * When a process forks, the child process must gain a reference to each open
+ * semaphore in the parent process, whether it is unlinked or not.  This
+ * requires allocating a kuser structure for each semaphore reference in the
+ * new process.  Because the set of semaphores in the parent can change while
+ * the fork is in progress, we have to handle races -- first we attempt to
+ * allocate enough storage to acquire references to each of the semaphores,
+ * then we enter the semaphores and release the temporary references.
+ */
+static void
+sem_forkhook(arg, p1, p2, flags)
+	void *arg;
+	struct proc *p1;
+	struct proc *p2;
+	int flags;
+{
+	struct ksem *ks, **sem_array;
+	int count, i, new_count;
+	struct kuser *ku;
+
+	mtx_lock(&sem_lock);
+	count = sem_count_proc(p1);
+race_lost:
+	mtx_assert(&sem_lock, MA_OWNED);
+	mtx_unlock(&sem_lock);
+	sem_array = malloc(sizeof(struct ksem *) * count, M_TEMP, M_WAITOK);
+	mtx_lock(&sem_lock);
+	new_count = sem_count_proc(p1);
+	if (count < new_count) {
+		/* Lost race, repeat and allocate more storage. */
+		free(sem_array, M_TEMP);
+		count = new_count;
+		goto race_lost;
+	}
+	/*
+	 * Given an array capable of storing an adequate number of semaphore
+	 * references, now walk the list of semaphores and acquire a new
+	 * reference for any semaphore opened by p1.
+	 */
+	count = new_count;
+	i = 0;
+	LIST_FOREACH(ks, &ksem_head, ks_entry) {
+		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
+			if (ku->ku_pid == p1->p_pid) {
+				sem_ref(ks);
+				sem_array[i] = ks;
+				break;
+			}
+		}
+	}
+	LIST_FOREACH(ks, &ksem_deadhead, ks_entry) {
+		LIST_FOREACH(ku, &ks->ks_users, ku_next) {
+			if (ku->ku_pid == p1->p_pid) {
+				sem_ref(ks);
+				sem_array[i] = ks;
+				break;
+			}
+		}
+	}
+	mtx_unlock(&sem_lock);
+	KASSERT(i + 1 == count, ("sem_forkhook: i != count (%d, %d)", i,
+	    count));
+	/*
+	 * Now cause p2 to enter each of the referenced semaphores, then
+	 * release our temporary reference.  This is pretty inefficient.
+	 * Finally, free our temporary array.
+	 */
+	for (i = 0; i < count; i++) {
+		sem_enter(p2, sem_array[i]);
+		mtx_lock(&sem_lock);
+		sem_rel(sem_array[i]);
+		mtx_unlock(&sem_lock);
+	}
+	free(sem_array, M_TEMP);
+}
+
 static void
 sem_exithook(arg, p)
 	void *arg;
@@ -867,6 +977,7 @@ sem_modload(struct module *module, int cmd, void *arg)
 		    NULL, EVENTHANDLER_PRI_ANY);
 		sem_exec_tag = EVENTHANDLER_REGISTER(process_exec, sem_exithook,
 		    NULL, EVENTHANDLER_PRI_ANY);
+		sem_fork_tag = EVENTHANDLER_REGISTER(process_fork, sem_forkhook, NULL, EVENTHANDLER_PRI_ANY);
                 break;
         case MOD_UNLOAD:
 		if (nsems != 0) {
@@ -875,6 +986,7 @@ sem_modload(struct module *module, int cmd, void *arg)
 		}
 		EVENTHANDLER_DEREGISTER(process_exit, sem_exit_tag);
 		EVENTHANDLER_DEREGISTER(process_exec, sem_exec_tag);
+		EVENTHANDLER_DEREGISTER(process_fork, sem_fork_tag);
 		mtx_destroy(&sem_lock);
                 break;
         case MOD_SHUTDOWN:
