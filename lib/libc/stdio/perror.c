@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include "un-namespace.h"
+#include "libc_private.h"
+#include "local.h"
 
 void
 perror(s)
@@ -70,5 +72,9 @@ perror(s)
 	v++;
 	v->iov_base = "\n";
 	v->iov_len = 1;
-	(void)_writev(STDERR_FILENO, iov, (v - iov) + 1);
+	FLOCKFILE(stderr);
+	__sflush(stderr);
+	(void)_writev(stderr->_file, iov, (v - iov) + 1);
+	stderr->_flags &= ~__SOFF;
+	FUNLOCKFILE(stderr);
 }
