@@ -1,4 +1,4 @@
-.\" $Id: tsig.3,v 8.2 1999/01/08 18:54:28 vixie Exp $
+.\" $Id: tsig.3,v 8.3 2001/08/08 07:50:19 marka Exp $
 .\"
 .\"Copyright (c) 1995-1999 by Internet Software Consortium
 .\"
@@ -80,7 +80,7 @@ and
 .Fn ns_verify_tcp
 are used to sign/verify TCP messages that may be split into multiple packets,
 such as zone transfers, and
-.Fn ns_sign_tcp_init,
+.Fn ns_sign_tcp_init ,
 .Fn ns_verify_tcp_init
 initialize the state structure necessary for TCP operations.
 .Fn ns_find_tsig

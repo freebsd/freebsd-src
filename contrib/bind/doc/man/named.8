@@ -92,7 +92,7 @@ or
 .Dq Fl c
 flags.
 .Pp
-.Sy NOTE:
+.Sy NOTE :
 Several of 
 .Nm named Ns 's
 options, and much more of its behaviour, can be controlled in the configuration 
@@ -111,7 +111,7 @@ is a number determines the level of messages printed.  If negative,
 is set to 
 .Dq 1 .
 .Pp
-.Sy NOTE:
+.Sy NOTE :
 The new debugging framework is considerably more sophisticated than it
 was in older versions of 
 .Nm @INDOT@named .
@@ -131,7 +131,7 @@ the port number returned by
 for service 
 .Dq Li domain .
 .Pp
-.Sy NOTE:
+.Sy NOTE :
 Previously, the syntax
 .Dq Fl p Ar port# Ns Op Ar \&/localport#
 was supported; the first port was that used when contacting 
@@ -169,7 +169,7 @@ has been compiled with
 .Li QRYLOG 
 defined.  
 .Pp
-.Sy NOTE: 
+.Sy NOTE :
 This option is deprecated in favor of the
 .Dq Li queries
 .Em logging category 
@@ -183,7 +183,7 @@ Turns recursion off in the server.  Answers can come only from local
 (primary or secondary) zones.  This can be used on root servers.
 The default is to use recursion.
 .Pp
-.Sy NOTE: 
+.Sy NOTE :
 This option can be overridden by and is deprecated in favor of the
 .Dq Li recursion 
 clause of the configuration file's
@@ -242,7 +242,7 @@ where:
 .Bl -tag -width "opt_domain  " 
 .It Ar domain
 is 
-.Dq Li \&. 
+.Dq Li .\&
 for root, 
 .Dq Li @ 
 for the current origin, or a standard domain name. If
@@ -252,7 +252,7 @@ is a standard domain name that does
 end with 
 .Dq Li \&. , 
 the current origin is appended to the domain. Domain names ending with 
-.Dq Li \&.
+.Dq Li .\&
 are unmodified.
 .It Ar opt_domain
 This field is used to define an origin for the data in an included file.
@@ -270,7 +270,7 @@ an explicit ttl.
 .It Ar opt_ttl
 An optional integer number for the time-to-live field.
 If not set the ttl is taken from the last $TTL statement.
-If no $TTL statement has occured then the SOA minimum value is used and a
+If no $TTL statement has occurred then the SOA minimum value is used and a
 warning is generated.
 .It Ar opt_class
 The object address type; currently only one type is supported,
@@ -310,7 +310,7 @@ Resource records normally end at the end of a line,
 but may be continued across lines between opening and closing parentheses.
 Comments are introduced by semicolons and continue to the end of the line.
 .Pp
-.Sy NOTE:
+.Sy NOTE :
 There are other resource record types not shown here.  You should
 consult the 
 .Sy BIND 
@@ -400,19 +400,21 @@ Saves any modified dynamic zones to the file system, and shuts down the server.
 Turns on debugging; each 
 .Dv SIGUSR1 
 increments debug level.
-.Po Dv SIGEMT 
+.Po
+.Dv SIGEMT
 on older systems without 
 .Dv SIGUSR1 .
 .Pc 
 .It Dv SIGUSR2
 Turns off debugging completely.
-.Po Dv SIGFPE 
+.Po
+.Dv SIGFPE
 on older systems without 
 .Dv SIGUSR2 .
 .Pc
 .It Dv SIGWINCH
 Toggles logging of all incoming queries via 
-.Xr syslog @SYS_OPS_EXT@
+.Xr syslog @LIB_C_EXT@
 (requires server to have been built with the 
 .Li QRYLOG 
 option).
@@ -431,12 +433,13 @@ debug output
 nameserver statistics data
 .El
 .Sh SEE ALSO
+.Xr named.conf @FORMAT_EXT@ ,
 .Xr gethostbyname @LIB_NETWORK_EXT@ ,
 .Xr hostname @DESC_EXT@ ,
 .Xr kill @CMD_EXT@ ,
 .Xr resolver @LIB_NETWORK_EXT@ , 
 .Xr resolver @FORMAT_EXT@ , 
-.Xr signal @SYSCALL_EXT@ ,
+.Xr signal @LIB_C_EXT@ ,
 RFC 882, RFC 883, RFC 973, RFC 974, RFC 1033, RFC 1034, RFC 1035, RFC 1123,
 RFC 2308
 .Dq Name Server Operations Guide for Sy BIND
