@@ -26,14 +26,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: sig.c,v 1.2 1997/02/22 16:10:51 peter Exp $
+ * $Id: sig.c,v 1.3 1997/02/23 20:01:19 brian Exp $
  *
  *  TODO:
  *
  */
 
+#include <sys/cdefs.h>
 #include "sig.h"
 #include <sys/types.h>
+#include <signal.h>
 #include "mbuf.h"
 #include "log.h"
 
