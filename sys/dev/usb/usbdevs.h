@@ -78,6 +78,7 @@
 #define	USB_VENDOR_AGILER	0x056e		/* Agiler */
 #define	USB_VENDOR_ROCKFIRE	0x0583		/* Rockfire */
 #define	USB_VENDOR_IOMEGA	0x059b		/* Iomega */
+#define	USB_VENDOR_OMNIVISION	0x05a9		/* OmniVision */
 #define	USB_VENDOR_BELKIN	0x05ab		/* Belkin */
 #define	USB_VENDOR_LOGITECH	0x05ac		/* Logitech */
 #define	USB_VENDOR_EIZONANAO	0x05e7		/* EIZO Nanao */
@@ -179,6 +180,9 @@
 
 /* Iomega products */
 #define	USB_PRODUCT_IOMEGA_ZIP100	0x0001		/* Zip 100 */
+
+/* OmniVision Technologies Inc. products */
+#define	USB_PRODUCT_OMNIVISION_OV511	0x0511		/* OV511 Camera */
 
 /* Belkin products */
 #define	USB_PRODUCT_BELKIN_F5U002	0x0002		/* Parallel printer adapter */
