@@ -125,7 +125,7 @@ SUBDIR+=ipfilter
 #	ncp \
 #	nwfs \
 # XXX some of these can move to the general case when de-i386'ed
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE} == "i386"
 SUBDIR+=aac \
 	acpi \
 	aic \
@@ -178,6 +178,50 @@ SUBDIR+=aac \
 	xe
 .endif
 
+.if ${MACHINE} == "pc98"
+SUBDIR+=aic \
+	aout \
+	ar \
+	arcnet \
+	apm \
+	atspeaker \
+	bktr \
+	cam \
+	cd9660 \
+	coff \
+	em \
+	fe \
+	firewire \
+	fpu \
+	gnufpu \
+	hea \
+	hfa \
+	ibcs2 \
+	linprocfs \
+	linux \
+	lomac \
+	ncv \
+	nsp \
+	netgraph \
+	oltr \
+	pecoff \
+	pmc \
+	ray \
+	sbni \
+	scsi_low \
+	smbfs \
+	snc \
+	sound \
+	splash \
+	sppp \
+	sr \
+	stg \
+	streams \
+	vinum \
+	wi \
+	xe
+.endif
+
 .if ${MACHINE_ARCH} == "ia64"
 SUBDIR+=aic \
 	arcnet \
@@ -197,12 +241,6 @@ SUBDIR+=aic \
 	streams \
 	wi \
 	xe
-.endif
-
-.if ${MACHINE} == "pc98"
-SUBDIR+=pmc \
-	firewire \
-	snc
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
