@@ -7,12 +7,14 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <locale.h>
 #include <ctype.h>
 #include <err.h>
+#include <regex.h>
   
 enum valtype {
 	integer, numeric_string, string
@@ -22,7 +24,7 @@ struct val {
 	enum valtype type;
 	union {
 		char *s;
-		int   i;
+		quad_t i;
 	} u;
 } ;
 
@@ -87,7 +89,7 @@ expr:	TOKEN
 
 struct val *
 make_integer (i)
-int i;
+quad_t i;
 {
 	struct val *vp;
 
@@ -139,11 +141,11 @@ struct val *vp;
 }
 
 
-int
+quad_t
 to_integer (vp)
 struct val *vp;
 {
-	int i;
+	quad_t i;
 
 	if (vp->type == integer)
 		return 1;
@@ -152,7 +154,7 @@ struct val *vp;
 		return 0;
 
 	/* vp->type == numeric_string, make it numeric */
-	i  = atoi(vp->u.s);
+	i  = strtoq(vp->u.s, (char**)NULL, 10);
 	free (vp->u.s);
 	vp->u.i = i;
 	vp->type = integer;
@@ -173,7 +175,7 @@ struct val *vp;
 		errx (2, "malloc() failed");
 	}
 
-	sprintf (tmp, "%d", vp->u.i);
+	sprintf (tmp, "%qd", vp->u.i);
 	vp->type = string;
 	vp->u.s  = tmp;
 }
@@ -239,7 +241,7 @@ char **argv;
 	yyparse ();
 
 	if (result->type == integer)
-		printf ("%d\n", result->u.i);
+		printf ("%qd\n", result->u.i);
 	else
 		printf ("%s\n", result->u.s);
 
@@ -274,7 +276,7 @@ struct val *a, *b;
 	if (is_zero_or_null (a) || is_zero_or_null (b)) {
 		free_value (a);
 		free_value (b);
-		return (make_integer (0));
+		return (make_integer ((quad_t)0));
 	} else {
 		free_value (b);
 		return (a);
@@ -290,11 +292,11 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);	
-		r = make_integer (strcoll (a->u.s, b->u.s) == 0);
+		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) == 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer (a->u.i == b->u.i);
+		r = make_integer ((quad_t)(a->u.i == b->u.i));
 	}
 
 	free_value (a);
@@ -311,11 +313,11 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcoll (a->u.s, b->u.s) > 0);
+		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) > 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r= make_integer (a->u.i > b->u.i);
+		r = make_integer ((quad_t)(a->u.i > b->u.i));
 	}
 
 	free_value (a);
@@ -332,11 +334,11 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcoll (a->u.s, b->u.s) < 0);
+		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) < 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer (a->u.i < b->u.i);
+		r = make_integer ((quad_t)(a->u.i < b->u.i));
 	}
 
 	free_value (a);
@@ -353,11 +355,11 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcoll (a->u.s, b->u.s) >= 0);
+		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) >= 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer (a->u.i >= b->u.i);
+		r = make_integer ((quad_t)(a->u.i >= b->u.i));
 	}
 
 	free_value (a);
@@ -374,11 +376,11 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcoll (a->u.s, b->u.s) <= 0);
+		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) <= 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer (a->u.i <= b->u.i);
+		r = make_integer ((quad_t)(a->u.i <= b->u.i));
 	}
 
 	free_value (a);
@@ -395,11 +397,11 @@ struct val *a, *b;
 	if (isstring (a) || isstring (b)) {
 		to_string (a);
 		to_string (b);
-		r = make_integer (strcoll (a->u.s, b->u.s) != 0);
+		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) != 0));
 	} else {
 		(void)to_integer(a);
 		(void)to_integer(b);
-		r = make_integer (a->u.i != b->u.i);
+		r = make_integer ((quad_t)(a->u.i != b->u.i));
 	}
 
 	free_value (a);
@@ -417,7 +419,7 @@ struct val *a, *b;
 		errx (2, "non-numeric argument");
 	}
 
-	r = make_integer (a->u.i + b->u.i);
+	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
 	free_value (a);
 	free_value (b);
 	return r;
@@ -433,7 +435,7 @@ struct val *a, *b;
 		errx (2, "non-numeric argument");
 	}
 
-	r = make_integer (a->u.i - b->u.i);
+	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
 	free_value (a);
 	free_value (b);
 	return r;
@@ -449,7 +451,7 @@ struct val *a, *b;
 		errx (2, "non-numeric argument");
 	}
 
-	r = make_integer (a->u.i * b->u.i);
+	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
 	free_value (a);
 	free_value (b);
 	return (r);
@@ -469,7 +471,7 @@ struct val *a, *b;
 		errx (2, "division by zero");
 	}
 
-	r = make_integer (a->u.i / b->u.i);
+	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
 	free_value (a);
 	free_value (b);
 	return r;
@@ -489,15 +491,12 @@ struct val *a, *b;
 		errx (2, "division by zero");
 	}
 
-	r = make_integer (a->u.i % b->u.i);
+	r = make_integer (/*(quad_t)*/(a->u.i % b->u.i));
 	free_value (a);
 	free_value (b);
 	return r;
 }
 	
-#include <sys/types.h>
-#include <regex.h>
-
 struct val *
 op_colon (a, b)
 struct val *a, *b;
@@ -526,11 +525,11 @@ struct val *a, *b;
 			v = make_str (a->u.s + rm[1].rm_so);
 
 		} else {
-			v = make_integer (rm[0].rm_eo - rm[0].rm_so);
+			v = make_integer ((quad_t)(rm[0].rm_eo - rm[0].rm_so));
 		}
 	} else {
 		if (rp.re_nsub == 0) {
-			v = make_integer (0);
+			v = make_integer ((quad_t)0);
 		} else {
 			v = make_str ("");
 		}
