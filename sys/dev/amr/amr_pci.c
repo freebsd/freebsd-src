@@ -83,7 +83,7 @@ static driver_t amr_pci_driver = {
 	sizeof(struct amr_softc)
 };
 
-devclass_t	amr_devclass;
+static devclass_t	amr_devclass;
 DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
 
 static struct 
