@@ -1100,10 +1100,10 @@ u_cansee(struct ucred *u1, struct ucred *u2)
 }
 
 /*
- * p_cansee(p1, p2): determine of p1 "can see" the subject specified by p2
+ * p_cansee(p1, p2): determine if p1 "can see" the subject specified by p2
  * Arguments: processes p1 and p2
  * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protection p1->p_ucred and p2->p_cured must
+ * Locks: Sufficient locks to protect p1->p_ucred and p2->p_cured must
  *        be held.  Normally, p1 will be curproc, and a lock must be held
  *        for p2.
  * References: p1 and p2 must be valid for the lifetime of the call
