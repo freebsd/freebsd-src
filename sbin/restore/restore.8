@@ -42,32 +42,32 @@
 .Sh SYNOPSIS
 .Nm
 .Fl i
-.Op Fl chkmNuvy
+.Op Fl cdhkmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm
 .Fl R
-.Op Fl ckNuvy
+.Op Fl cdkNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm
 .Fl r
-.Op Fl ckNuvy
+.Op Fl cdkNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Nm
 .Fl t
-.Op Fl chkNuvy
+.Op Fl cdhkNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
 .Op Ar
 .Nm
 .Fl x
-.Op Fl chkmNuvy
+.Op Fl cdhkmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file
 .Op Fl s Ar fileno
@@ -278,6 +278,8 @@ old (pre-4.4) or new format file system.  The
 .Fl c
 flag disables this check, and only allows reading a dump in the old
 format.
+.It Fl d
+Sends verbose debugging output to the standard error.
 .It Fl f Ar file
 Read the backup from
 .Ar file ;
