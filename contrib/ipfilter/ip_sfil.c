@@ -9,7 +9,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "%W% %G% (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.1.3 1997/02/04 14:49:15 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.2.3 1997/03/27 13:45:13 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -40,8 +40,8 @@ static	char	rcsid[] = "$Id: ip_sfil.c,v 2.0.1.3 1997/02/04 14:49:15 darrenr Exp 
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include "ip_fil.h"
 #include "ip_compat.h"
+#include "ip_fil.h"
 #include "ip_state.h"
 #include "ip_frag.h"
 #include "ip_nat.h"
@@ -54,21 +54,21 @@ extern	fr_flags, fr_active;
 
 int	ipfr_timer_id = 0;
 int	ipl_unreach = ICMP_UNREACH_HOST;
-int	send_reset();
+int	send_reset __P((struct tcpiphdr *, qif_t *, queue_t *));
+u_short	ipf_cksum __P((u_short *, int));
+static	void	frzerostats __P((caddr_t));
 
 #ifdef	IPFILTER_LOG
-int	ipllog();
-static	void	frflush();
-char	iplbuf[IPLLOGSIZE];
-caddr_t	iplh = iplbuf, iplt = iplbuf;
-static	int	iplused = 0;
+int	ipllog __P((u_int, int, ip_t *, fr_info_t *, mblk_t *));
+static	void	frflush __P((caddr_t));
+char	iplbuf[3][IPLLOGSIZE];
+caddr_t	iplh[3], iplt[3];
+static	int	iplused[3] = {0, 0, 0};
 #endif /* IPFILTER_LOG */
-static	int	frrequest();
+static	int	frrequest __P((int, caddr_t, int));
 kmutex_t	ipl_mutex, ipf_mutex, ipfs_mutex;
 kmutex_t	ipf_frag, ipf_state, ipf_nat;
 kcondvar_t	iplwait;
-
-extern	void	ipfr_slowtimer();
 
 
 int ipldetach()
@@ -91,8 +91,15 @@ int ipldetach()
 }
 
 
-int iplattach()
+int iplattach __P((void))
 {
+	int	i;
+
+	for (i = 0; i <= 2; i++) {
+		iplt[i] = iplbuf[i];
+		iplh[i] = iplbuf[i];
+	}
+
 	bzero((char *)nat_table, sizeof(nat_t *) * NAT_SIZE * 2);
 	mutex_init(&ipl_mutex, "ipf log mutex", MUTEX_DRIVER, NULL);
 	mutex_init(&ipf_mutex, "ipf filter mutex", MUTEX_DRIVER, NULL);
@@ -175,12 +182,14 @@ caddr_t data;
 int iplioctl(dev, cmd, data, mode, cp, rp)
 dev_t dev;
 int cmd;
-caddr_t data;
+int data;
 int mode;
 cred_t *cp;
 int *rp;
 {
-	int error = 0;
+	int error = 0, unit;
+
+	unit = getminor(dev);
 
 	switch (cmd) {
 	case SIOCFRENB :
@@ -189,18 +198,18 @@ int *rp;
 
 		if (!(mode & FWRITE))
 			return EPERM;
-		IRCOPY(data, (caddr_t)&enable, sizeof(enable));
+		IRCOPY((caddr_t)data, (caddr_t)&enable, sizeof(enable));
 		break;
 	}
 	case SIOCSETFF :
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		IRCOPY(data, (caddr_t)&fr_flags, sizeof(fr_flags));
+		IRCOPY((caddr_t)data, (caddr_t)&fr_flags, sizeof(fr_flags));
 		mutex_exit(&ipf_mutex);
 		break;
 	case SIOCGETFF :
-		IWCOPY((caddr_t)&fr_flags, data, sizeof(fr_flags));
+		IWCOPY((caddr_t)&fr_flags, (caddr_t)data, sizeof(fr_flags));
 		break;
 	case SIOCINAFR :
 	case SIOCRMAFR :
@@ -209,7 +218,7 @@ int *rp;
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		error = frrequest(cmd, data, fr_active);
+		error = frrequest(cmd, (caddr_t)data, fr_active);
 		mutex_exit(&ipf_mutex);
 		break;
 	case SIOCINIFR :
@@ -218,7 +227,7 @@ int *rp;
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		error = frrequest(cmd, data, 1 - fr_active);
+		error = frrequest(cmd, (caddr_t)data, 1 - fr_active);
 		mutex_exit(&ipf_mutex);
 		break;
 	case SIOCSWAPA :
@@ -247,29 +256,30 @@ int *rp;
 		fio.f_acctout[1] = ipacct[1][1];
 		fio.f_active = fr_active;
 		mutex_exit(&ipf_mutex);
-		IWCOPY((caddr_t)&fio, data, sizeof(fio));
+		IWCOPY((caddr_t)&fio, (caddr_t)data, sizeof(fio));
 		break;
 	}
 	case SIOCFRZST :
 		if (!(mode & FWRITE))
 			return EPERM;
-		frzerostats(data);
+		frzerostats((caddr_t)data);
 		break;
 #ifdef	IPFILTER_LOG
 	case	SIOCIPFFL :
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipf_mutex);
-		frflush(data);
+		frflush((caddr_t)data);
 		mutex_exit(&ipf_mutex);
 		break;
 	case	SIOCIPFFB :
 		if (!(mode & FWRITE))
 			return EPERM;
 		mutex_enter(&ipl_mutex);
-		IWCOPY((caddr_t)&iplused, data, sizeof(iplused));
-		iplh = iplt = iplbuf;
-		iplused = 0;
+		IWCOPY((caddr_t)&iplused[unit], (caddr_t)data,
+		       sizeof(iplused[unit]));
+		iplh[unit] = iplt[unit] = iplbuf[unit];
+		iplused[unit] = 0;
 		mutex_exit(&ipl_mutex);
 		break;
 #endif /* IPFILTER_LOG */
@@ -284,13 +294,15 @@ int *rp;
 	case SIOCGNATL :
 	case SIOCFLNAT :
 	case SIOCCNATL :
-		error = nat_ioctl(data, cmd, mode);
+		error = nat_ioctl((caddr_t)data, cmd, mode);
 		break;
 	case SIOCGFRST :
-		IWCOPY((caddr_t)ipfr_fragstats(), data, sizeof(ipfrstat_t));
+		IWCOPY((caddr_t)ipfr_fragstats(), (caddr_t)data,
+		       sizeof(ipfrstat_t));
 		break;
 	case SIOCGIPST :   
-		IWCOPY((caddr_t)fr_statetstats(), data, sizeof(ips_stat_t));
+		IWCOPY((caddr_t)fr_statetstats(), (caddr_t)data,
+		       sizeof(ips_stat_t));
 		break;
 	default :
 		error = EINVAL;
@@ -418,7 +430,8 @@ caddr_t data;
 		if (f)
 			error = EEXIST;
 		else {
-			if ((f = (struct frentry *)KMALLOC(sizeof(*f)))) {
+			KMALLOC(f, frentry_t *, sizeof(*f));
+			if (f != NULL) {
 				bcopy((char *)fp, (char *)f, sizeof(*f));
 				f->fr_hits = 0;
 				f->fr_next = *ftail;
@@ -443,8 +456,7 @@ cred_t *cred;
 
 	if (!(otype & OTYP_CHR))
 		return ENXIO;
-	if (min)
-		min = ENXIO;
+	min = (2 < min || min < 0) ? ENXIO : 0;
 	return min;
 }
 
@@ -456,8 +468,7 @@ cred_t *cred;
 {
 	u_int	min = getminor(dev);
 
-	if (min)
-		min = ENXIO;
+	min = (2 < min || min < 0) ? ENXIO : 0;
 	return min;
 }
 
@@ -476,7 +487,9 @@ cred_t *cp;
 	register int ret;
 	register size_t sz, sx;
 	char *h, *t;
-	int error, used, usedo, copied;
+	int error, used, usedo, copied, unit;
+
+	unit = getminor(dev);
 
 	if (!uio->uio_resid)
 		return 0;
@@ -488,16 +501,16 @@ cred_t *cp;
 	 * if the log is empty.
 	 */
 	mutex_enter(&ipl_mutex);
-	while (!iplused) {
+	while (!iplused[unit]) {
 		error = cv_wait_sig(&iplwait, &ipl_mutex);
 		if (!error) {
 			mutex_exit(&ipl_mutex);
 			return EINTR;
 		}
 	}
-	h = iplh;
-	t = iplt;
-	used = iplused;
+	h = iplh[unit];
+	t = iplt[unit];
+	used = iplused[unit];
 	mutex_exit(&ipl_mutex);
 	usedo = used;
 
@@ -507,14 +520,14 @@ cred_t *cp;
 	 */
 	sx = sz = MIN(uio->uio_resid, used);
 	if (h <= t)
-		sz = MIN(sz, IPLLOGSIZE + iplbuf - t);
+		sz = MIN(sz, IPLLOGSIZE + iplbuf[unit] - t);
 
 	if (!(ret = uiomove(t, sz, UIO_READ, uio))) {
 		t += sz;
 		sx -= sz;
 		used -= sz;
-		if ((h < t) && (t >= iplbuf + IPLLOGSIZE))
-			t = iplbuf;
+		if ((h < t) && (t >= iplbuf[unit] + IPLLOGSIZE))
+			t = iplbuf[unit];
 
 		if (sx && !(ret = uiomove(t, sx, UIO_READ, uio)))
 			used -= sx;
@@ -525,24 +538,25 @@ cred_t *cp;
 	 */
 	mutex_enter(&ipl_mutex);
 	copied = usedo - used;
-	iplused -= copied;
+	iplused[unit] -= copied;
 
-	if (!iplused)	/* minimise wrapping around the end */
-		iplh = iplt = iplbuf;
+	if (!iplused[unit])	/* minimise wrapping around the end */
+		iplh[unit] = iplt[unit] = iplbuf[unit];
 	else {
-		iplt += copied;
-		if (iplt >= iplbuf + IPLLOGSIZE)
-			iplt -= IPLLOGSIZE;
-		if (iplt == iplbuf + IPLLOGSIZE)
-			iplt = iplbuf;
+		iplt[unit] += copied;
+		if (iplt[unit] >= iplbuf[unit] + IPLLOGSIZE)
+			iplt[unit] -= IPLLOGSIZE;
+		if (iplt[unit] == iplbuf[unit] + IPLLOGSIZE)
+			iplt[unit] = iplbuf[unit];
 	}
 	mutex_exit(&ipl_mutex);
 	return ret;
 }
 
 
-int ipllog(flags, ip, fin, m)
+int ipllog(flags, dev, ip, fin, m)
 u_int flags;
+int dev;
 ip_t *ip;
 fr_info_t *fin;
 mblk_t *m;
@@ -575,11 +589,11 @@ mblk_t *m;
 	mlen = (flags & FR_LOGBODY) ? MIN(msgdsize(m) - hlen, 128) : 0;
 	len = hlen + sizeof(iplci) + mlen;
 	mutex_enter(&ipl_mutex);
-	if ((iplused + len) > IPLLOGSIZE) {
+	if ((iplused[dev] + len) > IPLLOGSIZE) {
 		mutex_exit(&ipl_mutex);
 		return 0;
 	}
-	iplused += len;
+	iplused[dev] += len;
 
 	uniqtime((struct timeval *)&iplci);
 	iplci.flags = flags;
@@ -592,14 +606,14 @@ mblk_t *m;
 	/*
 	 * Gauranteed to succeed from above
 	 */
-	(void) fr_copytolog(&iplci, sizeof(iplci));
+	(void) fr_copytolog(dev, (char *)&iplci, sizeof(iplci));
 	len -= sizeof(iplci);
 
 	if (len && m) {
 		s = m->b_rptr;
 		do {
 			if ((hlen = MIN(m->b_wptr - s, len))) {
-				if (fr_copytolog(s, hlen))
+				if (fr_copytolog(dev, s, hlen))
 					break;
 				len -= hlen;
 			}
@@ -725,7 +739,7 @@ struct	in_addr	src;
 	bcopy((char *)ip, (char *)&icmp->icmp_ip, sizeof(*ip));
 	bcopy((char *)ip + (ip->ip_hl << 2),
 	      (char *)&icmp->icmp_ip + sizeof(*ip), 8);	/* 64 bits */
-	icmp->icmp_cksum = ipf_cksum(icmp, sizeof(*icmp) + 8);
+	icmp->icmp_cksum = ipf_cksum((u_short *)icmp, sizeof(*icmp) + 8);
 	ip_wput(qif->qf_ill->ill_wq, mb);
 	return 0;
 }

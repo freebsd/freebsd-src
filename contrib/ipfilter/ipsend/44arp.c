@@ -19,6 +19,11 @@
 #include <errno.h>
 #include <nlist.h>
 #include <stdio.h>
+#include <netinet/in.h>
+#include <netinet/ip_var.h>
+#include <netinet/tcp.h>
+#include "ipsend.h"
+
 
 /*
  * lookup host and return

@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_frag.c	1.11 3/24/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_frag.c,v 2.0.1.2 1997/02/16 06:17:35 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_frag.c,v 2.0.2.5 1997/04/02 12:23:21 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -17,12 +17,19 @@ static	char	rcsid[] = "$Id: ip_frag.c,v 2.0.1.2 1997/02/16 06:17:35 darrenr Exp 
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/file.h>
+#if defined(__FreeBSD__) && (__FreeBSD__ >= 3)
+#include <sys/ioccom.h>
+#include <sys/filio.h>
+#include <sys/fcntl.h>
+#else
 #include <sys/ioctl.h>
+#endif
 #include <sys/uio.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#ifdef	_KERNEL
+#ifdef _KERNEL
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -47,8 +54,8 @@ static	char	rcsid[] = "$Id: ip_frag.c,v 2.0.1.2 1997/02/16 06:17:35 darrenr Exp 
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include "ip_fil.h"
 #include "ip_compat.h"
+#include "ip_fil.h"
 #include "ip_frag.h"
 #include "ip_nat.h"
 #include "ip_state.h"
@@ -69,6 +76,13 @@ extern	kmutex_t	ipf_frag;
 # endif
 #endif
 
+#ifdef __FreeBSD__
+# if BSD < 199306
+int ipfr_slowtimer __P((void));
+# else
+void ipfr_slowtimer __P((void));
+# endif
+#endif /* __FreeBSD__ */
 
 ipfrstat_t *ipfr_fragstats()
 {
@@ -114,7 +128,8 @@ int pass;
 			return -1;
 		}
 
-	if (!(fr = (ipfr_t *)KMALLOC(sizeof(*fr)))) {
+	KMALLOC(fr, ipfr_t *, sizeof(*fr));
+	if (fr == NULL) {
 		ipfr_stats.ifs_nomem++;
 		MUTEX_EXIT(&ipf_frag);
 		return -1;
@@ -230,10 +245,10 @@ void ipfr_unload()
  * Slowly expire held state for fragments.  Timeouts are set * in expectation
  * of this being called twice per second.
  */
-# if BSD < 199306
-int ipfr_slowtimer()
-# else
+# if (BSD >= 199306) || SOLARIS
 void ipfr_slowtimer()
+# else
+int ipfr_slowtimer()
 # endif
 {
 	ipfr_t	**fp, *fr;

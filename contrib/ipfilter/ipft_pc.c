@@ -30,7 +30,7 @@
 #include "pcap.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
-static	char	rcsid[] = "$Id: ipft_pc.c,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipft_pc.c,v 2.0.2.3 1997/03/10 08:10:26 darrenr Exp $";
 #endif
 
 struct	llc	{
@@ -59,7 +59,11 @@ static	struct	llc	llcs[DLT_MAX+1] = {
 	{ 0, 0, 0 }	/* DLT_FDDI */
 };
 
-static	int	pcap_open(), pcap_close(), pcap_readip();
+static	int	pcap_open __P((char *));
+static	int	pcap_close __P((void));
+static	int	pcap_readip __P((char *, int, char **, int *));
+static	void	swap_hdr __P((pcaphdr_t *));
+static	int	pcap_read_rec __P((struct pcap_pkthdr *));
 
 static	int	pfd = -1, s_type = -1, swapped = 0;
 

@@ -38,7 +38,8 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
-#include <netinet/tcpip.h>
+
+#include "ipsend.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	snitid[] = "@(#)snit.c	1.5 1/11/96 (C)1995 Darren Reed";

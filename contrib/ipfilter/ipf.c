@@ -13,14 +13,10 @@
 #if !defined(__SVR4) && !defined(__GNUC__)
 #include <strings.h>
 #endif
-#if !defined(__SVR4) && defined(__GNUC__)
-extern	char	*index();
-#endif
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <stddef.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -28,31 +24,40 @@ extern	char	*index();
 #include <netinet/in_systm.h>
 #include <net/if.h>
 #include <netinet/ip.h>
-#include "ip_fil.h"
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <resolv.h>
+#include "ip_compat.h"
+#include "ip_fil.h"
 #include "ipf.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ipf.c,v 2.0.1.2 1997/02/04 14:37:46 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipf.c,v 2.0.2.5 1997/03/31 10:05:33 darrenr Exp $";
 #endif
 
 #if	SOLARIS
-void	frsync(), blockunknown();
+static	void	frsync __P((void));
+static	void	blockunknown __P((void));
 #endif
-void	zerostats();
+#if !defined(__SVR4) && defined(__GNUC__)
+extern	char	*index __P((const char *, int));
+#endif
 
 extern	char	*optarg;
+
+void	zerostats __P((void));
+int	main __P((int, char *[]));
 
 int	opts = 0;
 
 static	int	fd = -1;
 
-static	void	procfile(), flushfilter(), set_state();
-static	void	packetlogon(), swapactive(), showstats();
-static	char   *getline();
+static	void	procfile __P((char *, char *)), flushfilter __P((char *));
+static	void	set_state __P((u_int)), showstats __P((friostat_t *));
+static	void	packetlogon __P((char *)), swapactive __P((void));
+static	int	opendevice __P((void));
+static	char	*getline __P((char *, size_t, FILE *));
 
 int main(argc,argv)
 int argc;
@@ -64,10 +69,10 @@ char *argv[];
 		switch (c)
 		{
 		case 'E' :
-			set_state(1);
+			set_state((u_int)1);
 			break;
 		case 'D' :
-			set_state(0);
+			set_state((u_int)0);
 			break;
 		case 'A' :
 			opts &= ~OPT_INACTIVE;
@@ -208,9 +213,11 @@ char	*name, *file;
 			if (opts & OPT_ZERORULEST)
 				add = SIOCZRLST;
 			else if (opts & OPT_INACTIVE)
-				add = fr->fr_hits ? SIOCINIFR : SIOCADIFR;
+				add = (u_int)fr->fr_hits ? SIOCINIFR :
+							   SIOCADIFR;
 			else
-				add = fr->fr_hits ? SIOCINAFR : SIOCADAFR;
+				add = (u_int)fr->fr_hits ? SIOCINAFR :
+							   SIOCADAFR;
 			if (fr->fr_hits)
 				fr->fr_hits--;
 			if (fr && (opts & OPT_VERBOSE))
@@ -226,7 +233,11 @@ char	*name, *file;
 				if (ioctl(fd, add, fr) == -1)
 					perror("ioctl(SIOCZRLST)");
 				else {
+#ifdef	USE_QUAD_T
+					printf("hits %qd bytes %qd ",
+#else
 					printf("hits %ld bytes %ld ",
+#endif
 						fr->fr_hits, fr->fr_bytes);
 					printfr(fr);
 				}
@@ -347,7 +358,7 @@ static void swapactive()
 
 
 #if defined(sun) && (defined(__SVR4) || defined(__svr4__))
-void frsync()
+static void frsync()
 {
 	if (opendevice() != -2 && ioctl(fd, SIOCFRSYN, 0) == -1)
 		perror("SIOCFRSYN");
@@ -405,7 +416,7 @@ friostat_t	*fp;
 
 
 #if SOLARIS
-void blockunknown()
+static void blockunknown()
 {
 	int	flag;
 

@@ -7,12 +7,13 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: fil.c,v 2.0.1.7 1997/02/18 10:53:47 darrenr Exp $";
+static	char	rcsid[] = "$Id: fil.c,v 2.0.2.7 1997/04/02 12:23:15 darrenr Exp $";
 #endif
 
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #if defined(_KERNEL) || defined(KERNEL)
@@ -44,8 +45,8 @@ static	char	rcsid[] = "$Id: fil.c,v 2.0.1.7 1997/02/18 10:53:47 darrenr Exp $";
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include "ip_fil.h"
 #include "ip_compat.h"
+#include "ip_fil.h"
 #include "ip_nat.h"
 #include "ip_frag.h"
 #include "ip_state.h"
@@ -54,46 +55,48 @@ static	char	rcsid[] = "$Id: fil.c,v 2.0.1.7 1997/02/18 10:53:47 darrenr Exp $";
 #endif
 
 #ifndef	_KERNEL
-#include "ipf.h"
+# include "ipf.h"
+# include "ipt.h"
 extern	int	opts;
-extern	void	debug(), verbose();
 
-#define	FR_IFVERBOSE(ex,second,verb_pr)	if (ex) { verbose verb_pr; second; }
-#define	FR_IFDEBUG(ex,second,verb_pr)	if (ex) { debug verb_pr; second; }
-#define	FR_VERBOSE(verb_pr)	verbose verb_pr
-#define	FR_DEBUG(verb_pr)	debug verb_pr
-#define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi)
+# define	FR_IFVERBOSE(ex,second,verb_pr)	if (ex) { verbose verb_pr; \
+							  second; }
+# define	FR_IFDEBUG(ex,second,verb_pr)	if (ex) { debug verb_pr; \
+							  second; }
+# define	FR_VERBOSE(verb_pr)			verbose verb_pr
+# define	FR_DEBUG(verb_pr)			debug verb_pr
+# define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
+# define	SEND_RESET(ip, qif, q, if)		send_reset(ip, if)
+# define	IPLLOG(a, c, d, e)		ipllog()
 # if SOLARIS
+#  define	ICMP_ERROR(b, ip, t, c, if, src) 	icmp_error(ip)
 #  define	bcmp	memcmp
-# endif
-#else
-#define	FR_IFVERBOSE(ex,second,verb_pr)	;
-#define	FR_IFDEBUG(ex,second,verb_pr)	;
-#define	FR_VERBOSE(verb_pr)
-#define	FR_DEBUG(verb_pr)
-#define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
-extern	int	send_reset();
-# if SOLARIS
-extern	int	icmp_error(), ipfr_fastroute();
-extern	kmutex_t	ipf_mutex, ipl_mutex;
 # else
-extern	void	ipfr_fastroute();
+#  define	ICMP_ERROR(b, ip, t, c, if, src) 	icmp_error(b, ip, if)
 # endif
-extern	int	ipl_unreach, ipllog();
-#endif
 
-#if SOLARIS
-# define	SEND_RESET(ip, if, q)		send_reset(ip, qif, q)
-# define	ICMP_ERROR(b, ip, t, c, if, src) \
+#else /* #ifndef _KERNEL */
+# define	FR_IFVERBOSE(ex,second,verb_pr)	;
+# define	FR_IFDEBUG(ex,second,verb_pr)	;
+# define	FR_VERBOSE(verb_pr)
+# define	FR_DEBUG(verb_pr)
+# define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
+# define	IPLLOG(a, c, d, e)		ipllog(a, IPL_LOGIPF, c, d, e)
+# if SOLARIS
+extern	kmutex_t	ipf_mutex;
+#  define	SEND_RESET(ip, qif, q, if)	send_reset(ip, qif, q)
+#  define	ICMP_ERROR(b, ip, t, c, if, src) \
 			icmp_error(b, ip, t, c, if, src)
-#else
-# define	SEND_RESET(ip, if, q)		send_reset(ip)
-# if BSD < 199103
-#  define	ICMP_ERROR(b, ip, t, c, if, src) \
-			icmp_error(mtod(b, ip_t *), t, c, if, src)
 # else
-#  define	ICMP_ERROR(b, ip, t, c, if, src) \
+#  define	FR_SCANLIST(p, ip, fi, m)	fr_scanlist(p, ip, fi, m)
+#  define	SEND_RESET(ip, qif, q, if)	send_reset((struct tcpiphdr *)ip)
+#  if BSD < 199103
+#   define	ICMP_ERROR(b, ip, t, c, if, src) \
+			icmp_error(mtod(b, ip_t *), t, c, if, src)
+#  else
+#   define	ICMP_ERROR(b, ip, t, c, if, src) \
 			icmp_error(b, t, c, (src).s_addr, if)
+#  endif
 # endif
 #endif
 
@@ -103,7 +106,7 @@ extern	int	ipl_unreach, ipllog();
 #ifdef	IPF_DEFAULT_PASS
 #define	IPF_NOMATCH	(IPF_DEFAULT_PASS|FR_NOMATCH)
 #else
-#define	IPF_NOMATCH	(FR_NOMATCH)
+#define	IPF_NOMATCH	(FR_PASS|FR_NOMATCH)
 #endif
 
 struct	filterstats frstats[2] = {{0,0,0,0,0},{0,0,0,0,0}};
@@ -112,6 +115,10 @@ struct	frentry	*ipfilter[2][2] = { { NULL, NULL }, { NULL, NULL } },
 int	fr_flags = IPF_LOGGING, fr_active = 0;
 
 fr_info_t	frcache[2];
+
+static	void	fr_makefrip __P((int, ip_t *, fr_info_t *));
+static	int	fr_tcpudpchk __P((frentry_t *, fr_info_t *));
+static	int	fr_scanlist __P((int, ip_t *, fr_info_t *, void *));
 
 
 /*
@@ -159,7 +166,7 @@ struct	optlist	secopt[8] = {
  * compact the IP header into a structure which contains just the info.
  * which is useful for comparing IP headers with.
  */
-void	fr_makefrip(hlen, ip, fin)
+static	void	fr_makefrip(hlen, ip, fin)
 int hlen;
 ip_t *ip;
 fr_info_t *fin;
@@ -278,7 +285,7 @@ getports:
 /*
  * check an IP packet for TCP/UDP characteristics such as ports and flags.
  */
-int fr_tcpudpchk(fr, fin)
+static int fr_tcpudpchk(fr, fin)
 frentry_t *fr;
 fr_info_t *fin;
 {
@@ -371,7 +378,7 @@ fr_info_t *fin;
  * Could be per interface, but this gets real nasty when you don't have
  * kernel sauce.
  */
-int fr_scanlist(pass, ip, fin, m)
+static int fr_scanlist(pass, ip, fin, m)
 int pass;
 ip_t *ip;
 register fr_info_t *fin;
@@ -404,8 +411,7 @@ void *m;
 		if (opts & (OPT_VERBOSE|OPT_DEBUG))
 			printf("\n");
 		FR_VERBOSE(("%c", (pass & FR_PASS) ? 'p' : 'b'));
-		if (fin->fin_ifp && *fr->fr_ifname &&
-		    strcasecmp((char *)fin->fin_ifp, fr->fr_ifname))
+		if (fr->fr_ifa && fr->fr_ifa != fin->fin_ifp)
 			continue;
 		FR_VERBOSE((":i"));
 #endif
@@ -467,7 +473,7 @@ void *m;
 			pass = (*fr->fr_func)(pass, ip, fin);
 #ifdef  IPFILTER_LOG
 		if ((pass & FR_LOGMASK) == FR_LOG) {
-			if (!ipllog(fr->fr_flags, ip, fin, m))
+			if (!IPLLOG(fr->fr_flags, ip, fin, m))
 				frstats[fin->fin_out].fr_skip++;
 			frstats[fin->fin_out].fr_pkl++;
 		}
@@ -475,7 +481,7 @@ void *m;
 		FR_DEBUG(("pass %#x\n", pass));
 		fr->fr_hits++;
 		if (pass & FR_ACCOUNT)
-			fr->fr_bytes += ip->ip_len;
+			fr->fr_bytes += (U_QUAD_T)ip->ip_len;
 		else
 			fin->fin_icode = fr->fr_icode;
 		fin->fin_rule = rulen;
@@ -504,7 +510,8 @@ mblk_t **mp;
 struct mbuf **mp;
 # endif
 #else
-)
+, mp)
+char *mp;
 #endif
 ip_t *ip;
 int hlen;
@@ -518,8 +525,12 @@ int out;
 	register fr_info_t *fin = &frinfo;
 	frentry_t *fr = NULL;
 	int pass, changed;
+#ifndef	_KERNEL
+	char	*mc = mp, *m = mp;
+#endif
 
-#if !defined(__SVR4) && !defined(__svr4__) && defined(_KERNEL)
+#ifdef	_KERNEL
+# if !defined(__SVR4) && !defined(__svr4__)
 	register struct mbuf *m = *mp;
 	struct mbuf *mc = NULL;
 
@@ -538,9 +549,10 @@ int out;
 			}
 		}
 	}
-#endif
-#if SOLARIS && defined(_KERNEL)
+# endif
+# if SOLARIS
 	mblk_t *mc = NULL, *m = qif->qf_m;
+# endif
 #endif
 	fr_makefrip(hlen, ip, fin);
 	fin->fin_ifp = ifp;
@@ -608,7 +620,7 @@ int out;
 		}
 	}
 
-	if (fr && fr->fr_func)
+	if (fr && fr->fr_func && !(pass & FR_CALLNOW))
 		pass = (*fr->fr_func)(pass, ip, fin);
 
 	if (out) {
@@ -639,7 +651,7 @@ int out;
 				pass |= FF_LOGBLOCK;
 			frstats[out].fr_bpkl++;
 logit:
-			if (!ipllog(pass, ip, fin, m)) {
+			if (!IPLLOG(pass, ip, fin, m)) {
 				frstats[out].fr_skip++;
 				if ((pass & (FR_PASS|FR_LOGORBLOCK)) ==
 				    (FR_PASS|FR_LOGORBLOCK))
@@ -676,7 +688,7 @@ logit:
 				frstats[0].fr_ret++;
 			} else if ((pass & FR_RETRST) &&
 				   !(fin->fin_fi.fi_fl & FI_SHORT)) {
-				if (SEND_RESET(ip, qif, q) == 0)
+				if (SEND_RESET(ip, qif, q, ifp) == 0)
 					frstats[1].fr_ret++;
 			}
 #else
@@ -736,37 +748,32 @@ logit:
 
 
 #ifdef	IPFILTER_LOG
-# if !(defined(_KERNEL))
-static void ipllog()
-{
-	verbose("l");
-}
-# endif
-
-
-int fr_copytolog(buf, len)
+int fr_copytolog(dev, buf, len)
+int dev;
 char *buf;
 int len;
 {
-	int	clen, tail;
+	register char	*bufp = iplbuf[dev], *tp = iplt[dev], *hp = iplh[dev];
+	register int	clen, tail;
 
-	tail = (iplh >= iplt) ? (iplbuf + IPLLOGSIZE - iplh) : (iplt - iplh);
+	tail = (hp >= tp) ? (bufp + IPLLOGSIZE - hp) : (tp - hp);
 	clen = MIN(tail, len);
-	bcopy(buf, iplh, clen);
+	bcopy(buf, hp, clen);
 	len -= clen;
 	tail -= clen;
-	iplh += clen;
+	hp += clen;
 	buf += clen;
-	if (iplh == iplbuf + IPLLOGSIZE) {
-		iplh = iplbuf;
-		tail = iplt - iplh;
+	if (hp == bufp + IPLLOGSIZE) {
+		hp = bufp;
+		tail = tp - hp;
 	}
 	if (len && tail) {
 		clen = MIN(tail, len);
-		bcopy(buf, iplh, clen);
+		bcopy(buf, hp, clen);
 		len -= clen;
-		iplh += clen;
+		hp += clen;
 	}
+	iplh[dev] = hp;
 	return len;
 }
 #endif

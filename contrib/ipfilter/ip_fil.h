@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $Id: ip_fil.h,v 2.0.1.2 1997/01/10 00:28:15 darrenr Exp $
+ * $Id: ip_fil.h,v 2.0.2.9 1997/04/02 12:23:20 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__
@@ -19,20 +19,12 @@
 #if defined(KERNEL) && !defined(_KERNEL)
 #define	_KERNEL
 #endif
-#if SOLARIS
-# include <sys/ioccom.h>
-# include <sys/sysmacros.h>
-# ifdef	_KERNEL
-#  include <inet/common.h>
-/*
- * because Solaris 2 defines these in two places :-/
- */
-#undef	IPOPT_EOL
-#undef	IPOPT_NOP
-#undef	IPOPT_LSRR
-#undef	IPOPT_RR
-#undef	IPOPT_SSRR
-#  include <inet/ip.h>
+
+#ifndef	__P
+# ifdef	__STDC__
+#  define	__P(x)	x
+# else
+#  define	__P(x)	()
 # endif
 #endif
 
@@ -118,9 +110,12 @@ typedef	struct	frdest	{
 typedef	struct	frentry {
 	struct	frentry	*fr_next;
 	struct	ifnet	*fr_ifa;
-	u_long	fr_hits;
-	u_long	fr_bytes;	/* this is only incremented when a packet */
-				/* matches this rule and it is the last match*/
+	/*
+	 * There are only incremented when a packet  matches this rule and
+	 * it is the last match
+	 */
+	U_QUAD_T	fr_hits;
+	U_QUAD_T	fr_bytes;
 	/*
 	 * Fields after this may not change whilst in the kernel.
 	 */
@@ -140,7 +135,7 @@ typedef	struct	frentry {
 	u_short	fr_stop;	/* top port for <> and >< */
 	u_short	fr_dtop;	/* top port for <> and >< */
 	u_long	fr_flags;	/* per-rule flags && options (see below) */
-	int	(*fr_func)();	/* call this function */
+	int	(*fr_func) __P((int, struct ip *, fr_info_t *));	/* call this function */
 	char	fr_icode;	/* return ICMP code */
 	char	fr_ifname[IFNAMSIZ];
 	struct	frdest	fr_tif;	/* "to" interface */
@@ -162,7 +157,7 @@ typedef	struct	frentry {
 
 /*
  * fr_flags
-*/
+ */
 #define	FR_BLOCK	0x00001
 #define	FR_PASS		0x00002
 #define	FR_OUTQUE	0x00004
@@ -276,18 +271,100 @@ typedef	struct ipl_ci	{
 #define	IPMINLEN(i, h)	((i)->ip_len >= ((i)->ip_hl * 4 + sizeof(struct h)))
 #define	IPLLOGSIZE	8192
 
-extern	int	fr_check();
-extern	int	fr_copytolog();
-extern	fr_info_t	frcache[];
-extern	char	*iplh, *iplt;
-extern	char	iplbuf[IPLLOGSIZE];
-
-#ifdef _KERNEL
-
-extern struct frentry *ipfilter[2][2], *ipacct[2][2];
-extern struct filterstats frstats[];
+/*
+ * Device filenames.  Use ipf on Solaris2 because ipl is already a name used
+ * by something else.
+ */
+#ifndef	IPL_NAME
 # if	SOLARIS
-extern	int	ipfsync();
+#  define	IPL_NAME	"/dev/ipf"
+# else
+#  define	IPL_NAME	"/dev/ipl"
 # endif
+#endif
+#define	IPL_NAT		"/dev/ipnat"
+#define	IPL_STATE	"/dev/ipstate"
+#define	IPL_LOGIPF	0	/* Minor device #'s for accessing logs */
+#define	IPL_LOGNAT	1
+#define	IPL_LOGSTATE	2
+
+#if !defined(CDEV_MAJOR) && defined (__FreeBSD_version) && \
+    (__FreeBSD_version >= 220000)
+# define	CDEV_MAJOR	79
+#endif
+
+#ifndef	_KERNEL
+extern	int	fr_check __P((struct ip *, int, struct ifnet *, int, char *));
+extern	int	(*fr_checkp) __P((struct ip *, int, struct ifnet *,
+				  int, char *));
+extern	int	send_reset __P((struct ip *, struct ifnet *));
+extern	int	icmp_error __P((struct ip *, struct ifnet *));
+extern	void    ipllog __P((void));
+extern	void	ipfr_fastroute __P((struct ip *, fr_info_t *, frdest_t *));
+#else
+# if	SOLARIS
+extern	int	fr_check __P((struct ip *, int, struct ifnet *, int, qif_t *,
+			      queue_t *, mblk_t **));
+extern	int	(*fr_checkp) __P((struct ip *, int, struct ifnet *,
+				  int, qif_t *, queue_t *, mblk_t *));
+extern	int	icmp_error __P((queue_t *, ip_t *, int, int, qif_t *,
+				struct in_addr));
+# else
+extern	int	fr_check __P((struct ip *, int, struct ifnet *, int,
+			      struct mbuf **));
+extern	int	(*fr_checkp) __P((struct ip *, int, struct ifnet *, int,
+				  struct mbuf **));
+extern	int	send_reset __P((struct tcpiphdr *));
+extern	int	ipllog __P((u_int, int, struct ip *, fr_info_t *, struct mbuf *));
+extern	void	ipfr_fastroute __P((struct mbuf *, fr_info_t *, frdest_t *));
+# endif
+#endif
+extern	int	fr_copytolog __P((int, char *, int));
+extern	int	ipl_unreach;
+extern	fr_info_t	frcache[];
+extern	char	*iplh[3], *iplt[3];
+extern	char	iplbuf[3][IPLLOGSIZE];
+extern	int	iplused[3];
+extern	struct frentry *ipfilter[2][2], *ipacct[2][2];
+extern	struct filterstats frstats[];
+
+#ifndef	_KERNEL
+extern	int	iplioctl __P((dev_t, int, caddr_t, int));
+extern	int	iplopen __P((dev_t, int));
+extern	int	iplclose __P((dev_t, int));
+#else
+extern	int	iplattach __P((void));
+extern	int	ipldetach __P((void));
+# if SOLARIS
+extern	int	iplioctl __P((dev_t, int, int, int, cred_t *, int *));
+extern	int	iplopen __P((dev_t *, int, int, cred_t *));
+extern	int	iplclose __P((dev_t, int, int, cred_t *));
+extern	int	ipfsync __P((void));
+#  ifdef	IPFILTER_LOG
+extern	int	iplread __P((dev_t, struct uio *, cred_t *));
+#  endif
+# else
+#  ifdef	IPFILTER_LKM
+extern	int	iplidentify __P((char *));
+#  endif
+#  if (_BSDI_VERSION >= 199510) || (__FreeBSD_version >= 199612)
+extern	int	iplioctl __P((dev_t, int, caddr_t, int, struct proc *));
+extern	int	iplopen __P((dev_t, int, int, struct proc *));
+extern	int	iplclose __P((dev_t, int, int, struct proc *));
+#  else
+extern	int	iplioctl __P((dev_t, int, caddr_t, int));
+extern	int	iplopen __P((dev_t, int));
+extern	int	iplclose __P((dev_t, int));
+#  endif /* (_BSDI_VERSION >= 199510) */
+#  ifdef IPFILTER_LOG
+#   if	BSD >= 199306
+extern	int	iplread __P((dev_t, struct uio *, int));
+#   else
+extern	int	iplread __P((dev_t, struct uio *));
+#   endif /* BSD >= 199306 */
+#  else
+#   define	iplread	noread
+#  endif /* IPFILTER_LOG */
+# endif /* SOLARIS */
 #endif /* _KERNEL */
 #endif	/* __IP_FIL_H__ */
