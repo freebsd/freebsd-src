@@ -35,6 +35,9 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(skey.c).
+
+$FreeBSD$
+
 */
 #include "opie_cfg.h"
 
@@ -138,7 +141,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   char *slash;
   int hex = 0;
   int type = RESPONSE_STANDARD;
-  int force;
+  int force = 0;
 
   if (slash = strchr(argv[0], '/'))
     slash++;
