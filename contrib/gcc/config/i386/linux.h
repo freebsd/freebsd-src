@@ -151,13 +151,21 @@ Boston, MA 02111-1307, USA.  */
 #define CPP_PREDEFINES "-D__ELF__ -Dunix -Di386 -Dlinux -Asystem(unix) -Asystem(posix) -Acpu(i386) -Amachine(i386)"
 
 #undef CPP_SPEC
+#ifdef USE_GNULIBC_1
 #if TARGET_CPU_DEFAULT == 2
 #define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{!m386:-D__i486__} %{posix:-D_POSIX_SOURCE}"
 #else
 #define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{m486:-D__i486__} %{posix:-D_POSIX_SOURCE}"
 #endif
+#else /* not USE_GNULIBC_1 */
+#define CPP_SPEC "%(cpp_cpu) %[cpp_cpu] %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
+#endif /* not USE_GNULIBC_1 */
+
+#undef LIBGCC_SPEC
+#define LIBGCC_SPEC "-lgcc"
 
 #undef	LIB_SPEC
+#ifdef USE_GNULIBC_1
 #if 1
 /* We no longer link with libc_p.a or libg.a by default. If you
  * want to profile or debug the Linux C library, please add
@@ -172,6 +180,11 @@ Boston, MA 02111-1307, USA.  */
      %{mieee-fp:-lieee} %{p:-lgmon -lc_p} %{pg:-lgmon -lc_p} \
        %{!p:%{!pg:%{!g*:-lc} %{g*:-lg}}}}"
 #endif
+#else
+#define LIB_SPEC \
+  "%{!shared: %{mieee-fp:-lieee} %{pthread:-lpthread} \
+	%{profile:-lc_p} %{!profile: -lc}}"
+#endif /* not USE_GNULIBC_1 */
 
 /* Provide a LINK_SPEC appropriate for Linux.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -190,6 +203,7 @@ Boston, MA 02111-1307, USA.  */
 /* If ELF is the default format, we should not use /lib/elf. */
 
 #undef	LINK_SPEC
+#ifdef USE_GNULIBC_1
 #ifndef LINUX_DEFAULT_ELF
 #define LINK_SPEC "-m elf_i386 %{shared:-shared} \
   %{!shared: \
@@ -207,6 +221,15 @@ Boston, MA 02111-1307, USA.  */
 	%{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.1}} \
 	%{static:-static}}}"
 #endif
+#else /* not USE_GNULIBC_1 */
+#define LINK_SPEC "-m elf_i386 %{shared:-shared} \
+  %{!shared: \
+    %{!ibcs: \
+      %{!static: \
+	%{rdynamic:-export-dynamic} \
+	%{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
+	%{static:-static}}}"
+#endif /* not USE_GNULIBC_1 */
 
 /* Get perform_* macros to build libgcc.a.  */
 #include "i386/perform.h"
