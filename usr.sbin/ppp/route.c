@@ -695,6 +695,19 @@ struct rtmsg {
   char m_space[256];
 };
 
+static size_t
+memcpy_roundup(char *cp, const void *data, size_t len)
+{
+  size_t padlen;
+
+  padlen = ROUNDUP(len);
+  memcpy(cp, data, len);
+  if (padlen > len)
+    memset(cp + len, '\0', padlen - len);
+
+  return padlen;
+}
+
 int
 rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
        const struct ncpaddr *gw, int bang, int quiet)
@@ -737,8 +750,7 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
   ncprange_getsa(dst, &sadst, &samask);
 
   cp = rtmes.m_space;
-  memcpy(cp, &sadst, sadst.ss_len);
-  cp += sadst.ss_len;
+  cp += memcpy_roundup(cp, &sadst, sadst.ss_len);
   if (cmd == RTM_ADD) {
     if (gw == NULL) {
       log_Printf(LogERROR, "rt_Set: Program error\n");
@@ -753,15 +765,13 @@ rt_Set(struct bundle *bundle, int cmd, const struct ncprange *dst,
       close(s);
       return result;
     } else {
-      memcpy(cp, &sagw, sagw.ss_len);
-      cp += sagw.ss_len;
+      cp += memcpy_roundup(cp, &sagw, sagw.ss_len);
       rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
     }
   }
 
   if (!ncprange_ishost(dst)) {
-    memcpy(cp, &samask, samask.ss_len);
-    cp += samask.ss_len;
+    cp += memcpy_roundup(cp, &samask, samask.ss_len);
     rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
   }
 
@@ -855,8 +865,7 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
 
   if (dst) {
     rtmes.m_rtm.rtm_addrs |= RTA_DST;
-    memcpy(p, dst, dst->sa_len);
-    p += dst->sa_len;
+    p += memcpy_roundup(p, dst, dst->sa_len);
   }
 
 #ifdef __FreeBSD__
@@ -876,12 +885,10 @@ rt_Update(struct bundle *bundle, const struct sockaddr *dst,
 #endif
   {
     rtmes.m_rtm.rtm_addrs |= RTA_GATEWAY;
-    memcpy(p, gw, gw->sa_len);
-    p += gw->sa_len;
+    p += memcpy_roundup(p, gw, gw->sa_len);
     if (mask) {
       rtmes.m_rtm.rtm_addrs |= RTA_NETMASK;
-      memcpy(p, mask, mask->sa_len);
-      p += mask->sa_len;
+      p += memcpy_roundup(p, mask, mask->sa_len);
     }
   }
 
