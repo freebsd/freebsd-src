@@ -122,6 +122,18 @@ struct vnode	*rootvnode;
  */
 
 /*
+ * Global opts, taken by all filesystems
+ */
+static const char *global_opts[] = {
+	"fstype",
+	"fspath",
+	"ro",
+	"suid",
+	"exec",
+	NULL
+};
+
+/*
  * The root specifiers we will try if RB_CDROM is specified.
  */
 static char *cdrom_rootdevnames[] = {
@@ -1382,6 +1394,41 @@ DB_SHOW_COMMAND(disk, db_getdiskbyname)
 #endif
 
 /*
+ * ---------------------------------------------------------------------
+ * Functions for querying mount options/arguments from filesystems.
+ */
+
+/*
+ * Check that no unknown options are given
+ */
+int
+vfs_filteropt(struct vfsoptlist *opts, const char **legal)
+{
+	struct vfsopt *opt;
+	const char **t, *p;
+	
+
+	TAILQ_FOREACH(opt, opts, link) {
+		p = opt->name;
+		if (p[0] == 'n' && p[1] == 'o')
+			p += 2;
+		for(t = global_opts; *t != NULL; t++)
+			if (!strcmp(*t, p))
+				break;
+		if (*t != NULL)
+			continue;
+		for(t = legal; *t != NULL; t++)
+			if (!strcmp(*t, p))
+				break;
+		if (*t != NULL)
+			continue;
+		printf("mount option <%s> is unknown\n", p);
+		return (EINVAL);
+	}
+	return (0);
+}
+
+/*
  * Get a mount option by its name.
  *
  * Return 0 if the option was found, ENOENT otherwise.
@@ -1412,6 +1459,62 @@ vfs_getopt(opts, name, buf, len)
 	return (ENOENT);
 }
 
+char *
+vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
+{
+	struct vfsopt *opt;
+
+	*error = 0;
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		if (((char *)opt->value)[opt->len - 1] != '\0') {
+			*error = EINVAL;
+			return (NULL);
+		}
+		return (opt->value);
+	}
+	return (NULL);
+}
+
+int
+vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val)
+{
+	struct vfsopt *opt;
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) == 0) {
+			if (w != NULL)
+				*w |= val;
+			return (1);
+		}
+	}
+	if (w != NULL)
+		*w &= ~val;
+	return (0);
+}
+
+int
+vfs_scanopt(struct vfsoptlist *opts, const char *name, const char *fmt, ...)
+{
+	va_list ap;
+	struct vfsopt *opt;
+	int ret;
+
+	KASSERT(opts != NULL, ("vfs_getopt: caller passed 'opts' as NULL"));
+
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) != 0)
+			continue;
+		if (((char *)opt->value)[opt->len - 1] != '\0')
+			return (0);
+		va_start(ap, fmt);
+		ret = vsscanf(opt->value, fmt, ap);
+		va_end(ap);
+		return (ret);
+	}
+	return (0);
+}
 /*
  * Find and copy a mount option.
  *
@@ -1479,6 +1582,15 @@ __vfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	if (sbp != &mp->mnt_stat)
 		memcpy(sbp, &mp->mnt_stat, sizeof sbp);
 	return (error);
+}
+
+void
+vfs_mountedfrom(struct mount *mp, const char *from)
+{
+
+	bzero(mp->mnt_stat.f_mntfromname, sizeof mp->mnt_stat.f_mntfromname);
+	strlcpy(mp->mnt_stat.f_mntfromname, from,
+	    sizeof mp->mnt_stat.f_mntfromname);
 }
 
 /*
