@@ -185,7 +185,7 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 			__sys_write(fd, s, strlen(s));
 			for (i = _SIG_WORDS - 1; i >= 0; i--) {
 				snprintf(s, sizeof(s), "%08x ",
-				    ~pthread->sigmask.__bits[i]);
+				    pthread->data.sigwait->waitset->__bits[i]);
 				__sys_write(fd, s, strlen(s));
 			}
 			snprintf(s, sizeof(s), "(lo)\n");
