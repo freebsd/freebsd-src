@@ -82,9 +82,9 @@ void	nlm_prog_3 __P((struct svc_req *, SVCXPRT *));
 void	nlm_prog_4 __P((struct svc_req *, SVCXPRT *));
 void	usage __P((void));
 
-void sigalarm_handler __P((int));
+void sigalarm_handler __P((void));
 
-char *transports[] = { "udp", "tcp", "udp6", "tcp6" };
+const char *transports[] = { "udp", "tcp", "udp6", "tcp6" };
 
 int
 main(argc, argv)
@@ -196,7 +196,7 @@ main(argc, argv)
 		    strerror(errno));
 		exit(1);
 	}
-	sigalarm.sa_handler = sigalarm_handler;
+	sigalarm.sa_handler = (sig_t) sigalarm_handler;
 	sigemptyset(&sigalarm.sa_mask);
 	sigalarm.sa_flags = SA_RESETHAND; /* should only happen once */
 	sigalarm.sa_flags |= SA_RESTART;
@@ -206,11 +206,7 @@ main(argc, argv)
 		exit(1);
 	}
 	grace_expired = 0;
-	if (alarm(10) < 0) {
-		syslog(LOG_WARNING, "alarm failed: %s",
-		    strerror(errno));
-		exit(1);
-	}
+	alarm(10);
 
 	init_nsm();
 
@@ -221,9 +217,9 @@ main(argc, argv)
 }
 
 void
-sigalarm_handler(s)
-	int s;
+sigalarm_handler(void)
 {
+
 	grace_expired = 1;
 }
 

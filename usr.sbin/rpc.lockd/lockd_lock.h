@@ -3,11 +3,15 @@
 
 /* Headers and function declarations for file-locking utilities */
 
-struct nlm4_holder * testlock __P((struct nlm4_lock *, int, int));
+struct nlm4_holder *	testlock(struct nlm4_lock *lock, bool_t exclusive,
+    int flags);
+enum nlm_stats	getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp,
+    const int flags);
+enum nlm_stats	unlock(nlm4_lock *lock, const int flags);
+int	lock_answer(int pid, netobj *netcookie, int result, int *pid_p,
+    int version);
 
-enum nlm_stats getlock __P((nlm4_lockargs *, struct svc_req *, int));
-enum nlm_stats unlock __P((nlm4_lock *, int));
-void notify __P((char *, int));
+void notify(const char *hostname, const int state);
 
 /* flags for testlock, getlock & unlock */
 #define LOCK_ASYNC	0x01 /* async version (getlock only) */
