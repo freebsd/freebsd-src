@@ -269,7 +269,7 @@ badaddr_read(addr, size, rptr)
 	/* disallow further machine checks */
 	mc_expected = 0;
 
-	if (rptr) {
+	if (rptr && mc_received == 0) {
 		switch (size) {
 		case sizeof (u_int8_t):
 			*(volatile u_int8_t *)rptr = rcpt;
