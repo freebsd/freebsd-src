@@ -16,4 +16,7 @@ if ($?prompt) then
 	set history = 100
 	set savehist = 100
 	set mail = (/var/mail/$USER)
+
+	# make mail(1) happy:
+	setenv	crt	24
 endif
