@@ -843,7 +843,7 @@ loop:
 		if (req & VM_ALLOC_ZERO)
 			flags = PG_ZERO | PG_BUSY;
 	}
-	if (req & VM_ALLOC_NOOBJ)
+	if (req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ))
 		flags &= ~PG_BUSY;
 	m->flags = flags;
 	if (req & VM_ALLOC_WIRED) {
@@ -1420,7 +1420,8 @@ retrylookup:
 		} else {
 			if (allocflags & VM_ALLOC_WIRED)
 				vm_page_wire(m);
-			vm_page_busy(m);
+			if ((allocflags & VM_ALLOC_NOBUSY) == 0)
+				vm_page_busy(m);
 			vm_page_unlock_queues();
 			return (m);
 		}
