@@ -76,21 +76,6 @@ struct sc_info {
  * prototypes
  */
 
-/* channel interface */
-static void *nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int nmchan_free(void *data);
-static int nmchan_setformat(void *data, u_int32_t format);
-static int nmchan_setspeed(void *data, u_int32_t speed);
-static int nmchan_setblocksize(void *data, u_int32_t blocksize);
-static int nmchan_trigger(void *data, int go);
-static int nmchan_getptr(void *data);
-static pcmchan_caps *nmchan_getcaps(void *data);
-
-static int 	 nm_waitcd(struct sc_info *sc);
-/* talk to the codec - called from ac97.c */
-static u_int32_t nm_rdcd(void *, int);
-static void  	 nm_wrcd(void *, int, u_int32_t);
-
 /* stuff */
 static int 	 nm_loadcoeff(struct sc_info *sc, int dir, int num);
 static int	 nm_setch(struct sc_chinfo *ch);
@@ -133,25 +118,6 @@ static u_int32_t nm_fmt[] = {
 	0
 };
 static pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
-
-static pcm_channel nm_chantemplate = {
-	nmchan_init,
-	NULL, 			/* setdir */
-	nmchan_setformat,
-	nmchan_setspeed,
-	nmchan_setblocksize,
-	nmchan_trigger,
-	nmchan_getptr,
-	nmchan_getcaps,
-	nmchan_free, 		/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
 
 /* -------------------------------------------------------------------- */
 
@@ -230,6 +196,7 @@ nm_wrbuf(struct sc_info *sc, int regno, u_int32_t data, int size)
 	}
 }
 
+/* -------------------------------------------------------------------- */
 /* ac97 codec */
 static int
 nm_waitcd(struct sc_info *sc)
@@ -246,7 +213,7 @@ nm_waitcd(struct sc_info *sc)
 }
 
 static u_int32_t
-nm_initcd(void *devinfo)
+nm_initcd(kobj_t obj, void *devinfo)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 
@@ -257,8 +224,8 @@ nm_initcd(void *devinfo)
 	return 1;
 }
 
-static u_int32_t
-nm_rdcd(void *devinfo, int regno)
+static int
+nm_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	u_int32_t x;
@@ -269,12 +236,12 @@ nm_rdcd(void *devinfo, int regno)
 		return x;
 	} else {
 		device_printf(sc->dev, "ac97 codec not ready\n");
-		return 0xffffffff;
+		return -1;
 	}
 }
 
-static void
-nm_wrcd(void *devinfo, int regno, u_int32_t data)
+static int
+nm_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	int cnt = 3;
@@ -284,12 +251,23 @@ nm_wrcd(void *devinfo, int regno, u_int32_t data)
 			nm_wr(sc, sc->ac97_base + regno, data, 2);
 			if (!nm_waitcd(sc)) {
 				DELAY(1000);
-				return;
+				return 0;
 			}
 		}
 	}
 	device_printf(sc->dev, "ac97 codec not ready\n");
+	return -1;
 }
+
+static kobj_method_t nm_ac97_methods[] = {
+    	KOBJMETHOD(ac97_init,		nm_initcd),
+    	KOBJMETHOD(ac97_read,		nm_rdcd),
+    	KOBJMETHOD(ac97_write,		nm_wrcd),
+	{ 0, 0 }
+};
+AC97_DECLARE(nm_ac97);
+
+/* -------------------------------------------------------------------- */
 
 static void
 nm_ackint(struct sc_info *sc, u_int32_t num)
@@ -351,7 +329,7 @@ nm_setch(struct sc_chinfo *ch)
 
 /* channel interface */
 static void *
-nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+nmchan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct sc_info *sc = devinfo;
 	struct sc_chinfo *ch;
@@ -360,8 +338,7 @@ nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	chnbuf = (dir == PCMDIR_PLAY)? sc->pbuf : sc->rbuf;
 	ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
 	ch->buffer = b;
-	ch->buffer->bufsize = NM_BUFFSIZE;
-	ch->buffer->buf = (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf;
+	sndbuf_setup(ch->buffer, (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
 	if (bootverbose)
 		device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)?
 			      "play" : "rec", ch->buffer->buf);
@@ -372,13 +349,13 @@ nmchan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-nmchan_free(void *data)
+nmchan_free(kobj_t obj, void *data)
 {
 	return 0;
 }
 
 static int
-nmchan_setformat(void *data, u_int32_t format)
+nmchan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sc_chinfo *ch = data;
 
@@ -387,7 +364,7 @@ nmchan_setformat(void *data, u_int32_t format)
 }
 
 static int
-nmchan_setspeed(void *data, u_int32_t speed)
+nmchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
 
@@ -396,13 +373,13 @@ nmchan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-nmchan_setblocksize(void *data, u_int32_t blocksize)
+nmchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	return blocksize;
 }
 
 static int
-nmchan_trigger(void *data, int go)
+nmchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -444,7 +421,7 @@ nmchan_trigger(void *data, int go)
 }
 
 static int
-nmchan_getptr(void *data)
+nmchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -456,10 +433,23 @@ nmchan_getptr(void *data)
 }
 
 static pcmchan_caps *
-nmchan_getcaps(void *data)
+nmchan_getcaps(kobj_t obj, void *data)
 {
 	return &nm_caps;
 }
+
+static kobj_method_t nmchan_methods[] = {
+    	KOBJMETHOD(channel_init,		nmchan_init),
+    	KOBJMETHOD(channel_free,		nmchan_free),
+    	KOBJMETHOD(channel_setformat,		nmchan_setformat),
+    	KOBJMETHOD(channel_setspeed,		nmchan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	nmchan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		nmchan_trigger),
+    	KOBJMETHOD(channel_getptr,		nmchan_getptr),
+    	KOBJMETHOD(channel_getcaps,		nmchan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(nmchan);
 
 /* The interrupt handler */
 static void
@@ -626,9 +616,9 @@ nm_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	codec = ac97_create(dev, sc, nm_initcd, nm_rdcd, nm_wrcd);
+	codec = AC97_CREATE(dev, sc, nm_ac97);
 	if (codec == NULL) goto bad;
-	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
@@ -644,8 +634,8 @@ nm_pci_attach(device_t dev)
 		 rman_get_start(sc->irq));
 
 	if (pcm_register(dev, sc, 1, 1)) goto bad;
-	pcm_addchan(dev, PCMDIR_REC, &nm_chantemplate, sc);
-	pcm_addchan(dev, PCMDIR_PLAY, &nm_chantemplate, sc);
+	pcm_addchan(dev, PCMDIR_REC, &nmchan_class, sc);
+	pcm_addchan(dev, PCMDIR_PLAY, &nmchan_class, sc);
 	pcm_setstatus(dev, status);
 
 	return 0;

@@ -31,13 +31,15 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/isa/ad1816.h>
 
+#include "mixer_if.h"
+
 struct ad1816_info;
 
 struct ad1816_chinfo {
 	struct ad1816_info *parent;
 	pcm_channel *channel;
 	snd_dbuf *buffer;
-	int dir;
+	int dir, blksz;
 };
 
 struct ad1816_info {
@@ -64,28 +66,7 @@ static int      	ad1816_wait_init(struct ad1816_info *ad1816, int x);
 static u_short		ad1816_read(struct ad1816_info *ad1816, u_int reg);
 static void     	ad1816_write(struct ad1816_info *ad1816, u_int reg, u_short data);
 
-static int ad1816mix_init(snd_mixer *m);
-static int ad1816mix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int ad1816mix_setrecsrc(snd_mixer *m, u_int32_t src);
-static snd_mixer ad1816_mixer = {
-    	"ad1816 mixer",
-    	ad1816mix_init,
-	NULL,
-    	ad1816mix_set,
-    	ad1816mix_setrecsrc,
-};
-
 static devclass_t pcm_devclass;
-
-/* channel interface */
-static void *ad1816chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int ad1816chan_setdir(void *data, int dir);
-static int ad1816chan_setformat(void *data, u_int32_t format);
-static int ad1816chan_setspeed(void *data, u_int32_t speed);
-static int ad1816chan_setblocksize(void *data, u_int32_t blocksize);
-static int ad1816chan_trigger(void *data, int go);
-static int ad1816chan_getptr(void *data);
-static pcmchan_caps *ad1816chan_getcaps(void *data);
 
 static u_int32_t ad1816_fmt[] = {
 	AFMT_U8,
@@ -100,25 +81,6 @@ static u_int32_t ad1816_fmt[] = {
 };
 
 static pcmchan_caps ad1816_caps = {4000, 55200, ad1816_fmt, 0};
-
-static pcm_channel ad1816_chantemplate = {
-	ad1816chan_init,
-	ad1816chan_setdir,
-	ad1816chan_setformat,
-	ad1816chan_setspeed,
-	ad1816chan_setblocksize,
-	ad1816chan_trigger,
-	ad1816chan_getptr,
-	ad1816chan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
 
 #define AD1816_MUTE 31		/* value for mute */
 
@@ -169,12 +131,12 @@ ad1816_intr(void *arg)
 		c &= AD1816_INTRCI | AD1816_INTRPI;
     	}
     	/* check for capture interupt */
-    	if (ad1816->rch.buffer->dl && (c & AD1816_INTRCI)) {
+    	if (sndbuf_runsz(ad1816->rch.buffer) && (c & AD1816_INTRCI)) {
 		chn_intr(ad1816->rch.channel);
 		served |= AD1816_INTRCI;		/* cp served */
     	}
     	/* check for playback interupt */
-    	if (ad1816->pch.buffer->dl && (c & AD1816_INTRPI)) {
+    	if (sndbuf_runsz(ad1816->pch.buffer) && (c & AD1816_INTRPI)) {
 		chn_intr(ad1816->pch.channel);
 		served |= AD1816_INTRPI;		/* pb served */
     	}
@@ -230,6 +192,8 @@ ad1816_write(struct ad1816_info *ad1816, unsigned int reg, unsigned short data)
     	io_wr(ad1816, AD1816_HIGH, (data & 0x0000ff00) >> 8);
     	splx(flags);
 }
+
+/* -------------------------------------------------------------------- */
 
 static int
 ad1816mix_init(snd_mixer *m)
@@ -328,9 +292,18 @@ ad1816mix_setrecsrc(snd_mixer *m, u_int32_t src)
     	return src;
 }
 
+static kobj_method_t ad1816mixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		ad1816mix_init),
+    	KOBJMETHOD(mixer_set,		ad1816mix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	ad1816mix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(ad1816mixer);
+
+/* -------------------------------------------------------------------- */
 /* channel interface */
 static void *
-ad1816chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+ad1816chan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct ad1816_info *ad1816 = devinfo;
 	struct ad1816_chinfo *ch = (dir == PCMDIR_PLAY)? &ad1816->pch : &ad1816->rch;
@@ -338,25 +311,23 @@ ad1816chan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = ad1816;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = DSP_BUFFSIZE;
-	if (chn_allocbuf(ch->buffer, ad1816->parent_dmat) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, ad1816->parent_dmat, DSP_BUFFSIZE) == -1) return NULL;
 	return ch;
 }
 
 static int
-ad1816chan_setdir(void *data, int dir)
+ad1816chan_setdir(kobj_t obj, void *data, int dir)
 {
 	struct ad1816_chinfo *ch = data;
   	struct ad1816_info *ad1816 = ch->parent;
 
-	ch->buffer->chan = rman_get_start((dir == PCMDIR_PLAY)?
-		ad1816->drq1 : ad1816->drq2);
+	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? ad1816->drq1 : ad1816->drq2);
 	ch->dir = dir;
 	return 0;
 }
 
 static int
-ad1816chan_setformat(void *data, u_int32_t format)
+ad1816chan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct ad1816_chinfo *ch = data;
   	struct ad1816_info *ad1816 = ch->parent;
@@ -398,7 +369,7 @@ ad1816chan_setformat(void *data, u_int32_t format)
 }
 
 static int
-ad1816chan_setspeed(void *data, u_int32_t speed)
+ad1816chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct ad1816_chinfo *ch = data;
     	struct ad1816_info *ad1816 = ch->parent;
@@ -409,13 +380,16 @@ ad1816chan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-ad1816chan_setblocksize(void *data, u_int32_t blocksize)
+ad1816chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct ad1816_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
-ad1816chan_trigger(void *data, int go)
+ad1816chan_trigger(kobj_t obj, void *data, int go)
 {
 	struct ad1816_chinfo *ch = data;
     	struct ad1816_info *ad1816 = ch->parent;
@@ -424,14 +398,14 @@ ad1816chan_trigger(void *data, int go)
 	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
-	buf_isadma(ch->buffer, go);
+	sndbuf_isadma(ch->buffer, go);
     	wr = (ch->dir == PCMDIR_PLAY);
     	reg = wr? AD1816_PLAY : AD1816_CAPT;
     	switch (go) {
     	case PCMTRIG_START:
 		/* start only if not already running */
 		if (!(io_rd(ad1816, reg) & AD1816_ENABLE)) {
-	    		int cnt = ((ch->buffer->dl) >> 2) - 1;
+	    		int cnt = ((ch->blksz) >> 2) - 1;
 	    		ad1816_write(ad1816, wr? 8 : 10, cnt); /* count */
 	    		ad1816_write(ad1816, wr? 9 : 11, 0); /* reset cur cnt */
 	    		ad1816_write(ad1816, 1, ad1816_read(ad1816, 1) |
@@ -465,17 +439,32 @@ ad1816chan_trigger(void *data, int go)
 }
 
 static int
-ad1816chan_getptr(void *data)
+ad1816chan_getptr(kobj_t obj, void *data)
 {
 	struct ad1816_chinfo *ch = data;
-	return buf_isadmaptr(ch->buffer);
+	return sndbuf_isadmaptr(ch->buffer);
 }
 
 static pcmchan_caps *
-ad1816chan_getcaps(void *data)
+ad1816chan_getcaps(kobj_t obj, void *data)
 {
 	return &ad1816_caps;
 }
+
+static kobj_method_t ad1816chan_methods[] = {
+    	KOBJMETHOD(channel_init,		ad1816chan_init),
+    	KOBJMETHOD(channel_setdir,		ad1816chan_setdir),
+    	KOBJMETHOD(channel_setformat,		ad1816chan_setformat),
+    	KOBJMETHOD(channel_setspeed,		ad1816chan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	ad1816chan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		ad1816chan_trigger),
+    	KOBJMETHOD(channel_getptr,		ad1816chan_getptr),
+    	KOBJMETHOD(channel_getcaps,		ad1816chan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(ad1816chan);
+
+/* -------------------------------------------------------------------- */
 
 static void
 ad1816_release_resources(struct ad1816_info *ad1816, device_t dev)
@@ -595,7 +584,8 @@ ad1816_attach(device_t dev)
 
     	if (!ad1816_alloc_resources(ad1816, dev)) goto no;
     	ad1816_init(ad1816, dev);
-    	mixer_init(dev, &ad1816_mixer, ad1816);
+    	if (mixer_init(dev, &ad1816mixer_class, ad1816)) goto no;
+
 	bus_setup_intr(dev, ad1816->irq, INTR_TYPE_TTY, ad1816_intr, ad1816, &ad1816->ih);
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
@@ -616,8 +606,8 @@ ad1816_attach(device_t dev)
 		rman_get_start(ad1816->drq2));
 
     	if (pcm_register(dev, ad1816, 1, 1)) goto no;
-    	pcm_addchan(dev, PCMDIR_REC, &ad1816_chantemplate, ad1816);
-    	pcm_addchan(dev, PCMDIR_PLAY, &ad1816_chantemplate, ad1816);
+    	pcm_addchan(dev, PCMDIR_REC, &ad1816chan_class, ad1816);
+    	pcm_addchan(dev, PCMDIR_PLAY, &ad1816chan_class, ad1816);
     	pcm_setstatus(dev, status);
 
     	return 0;

@@ -139,6 +139,10 @@
 #define PORT_HWVOL_VOICE	0x1d	/* BYTE RW */
 #define PORT_HWVOL_MASTER_SHADOW 0x1e	/* BYTE RW */
 #define PORT_HWVOL_MASTER	0x1f	/* BYTE RW */
+#define HWVOL_NOP		0x88
+#define HWVOL_MUTE		0x99
+#define HWVOL_UP		0xaa
+#define HWVOL_DOWN		0x66
 
 /* CODEC */
 #define	PORT_CODEC_CMD	0x30	/* BYTE W */

@@ -49,15 +49,6 @@
  * ftp://ftp.alsa-project.org/pub/manuals/ad/AD1881_0.pdf (example AC'97 codec)
  */
 
-struct via_dma_op {
-        u_int32_t ptr;
-        u_int32_t flags;
-#define VIA_DMAOP_EOL         0x80000000
-#define VIA_DMAOP_FLAG        0x40000000
-#define VIA_DMAOP_STOP        0x20000000
-#define VIA_DMAOP_COUNT(x)    ((x)&0x00FFFFFF)
-};
-
 #define VIA_PCICONF_MISC      0x41
 #define         VIA_PCICONF_ACLINKENAB 0x80     /* ac link enab */
 #define         VIA_PCICONF_ACNOTRST   0x40     /* ~(ac reset) */
@@ -101,8 +92,5 @@ struct via_dma_op {
 #define         AC97_ENAB_MICVRA                0x0008
 #define AC97_REG_EXT_DAC_RATE           0x2C
 #define AC97_REG_EXT_ADC_RATE           0x32
-
-#define TIMEOUT	50
-#define	VIA_BUFFSIZE	0x4000
 
 #endif /* _VIA_H */

@@ -33,6 +33,8 @@
 #include  <dev/sound/isa/sb.h>
 #include  <dev/sound/chip.h>
 
+#include "mixer_if.h"
+
 #define ESS_BUFFSIZE (16384)
 #define ABS(x) (((x) < 0)? -(x) : (x))
 
@@ -41,15 +43,6 @@
 
 /* more accurate clocks and split audio1/audio2 rates */
 #define ESS18XX_NEWSPEED
-
-/* channel interface for ESS */
-static void *esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir);
-static int esschan_setformat(void *data, u_int32_t format);
-static int esschan_setspeed(void *data, u_int32_t speed);
-static int esschan_setblocksize(void *data, u_int32_t blocksize);
-static int esschan_trigger(void *data, int go);
-static int esschan_getptr(void *data);
-static pcmchan_caps *esschan_getcaps(void *data);
 
 static u_int32_t ess_playfmt[] = {
 	AFMT_U8,
@@ -80,25 +73,6 @@ static u_int32_t ess_recfmt[] = {
 };
 static pcmchan_caps ess_reccaps = {5000, 49000, ess_recfmt, 0};
 
-static pcm_channel ess_chantemplate = {
-	esschan_init,
-	NULL, 			/* setdir */
-	esschan_setformat,
-	esschan_setspeed,
-	esschan_setblocksize,
-	esschan_trigger,
-	esschan_getptr,
-	esschan_getcaps,
-	NULL, 			/* free */
-	NULL, 			/* nop1 */
-	NULL, 			/* nop2 */
-	NULL, 			/* nop3 */
-	NULL, 			/* nop4 */
-	NULL, 			/* nop5 */
-	NULL, 			/* nop6 */
-	NULL, 			/* nop7 */
-};
-
 struct ess_info;
 
 struct ess_chinfo {
@@ -106,7 +80,7 @@ struct ess_chinfo {
 	pcm_channel *channel;
 	snd_dbuf *buffer;
 	int dir, hwch, stopping;
-	u_int32_t fmt, spd;
+	u_int32_t fmt, spd, blksz;
 };
 
 struct ess_info {
@@ -140,18 +114,6 @@ static int ess_stop(struct ess_chinfo *ch);
 static int ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir);
 static int ess_dmapos(struct ess_info *sc, int ch);
 static int ess_dmatrigger(struct ess_info *sc, int ch, int go);
-
-static int essmix_init(snd_mixer *m);
-static int essmix_set(snd_mixer *m, unsigned dev, unsigned left, unsigned right);
-static int essmix_setrecsrc(snd_mixer *m, u_int32_t src);
-
-static snd_mixer ess_mixer = {
-    	"ESS mixer",
-    	essmix_init,
-	NULL,
-    	essmix_set,
-    	essmix_setrecsrc,
-};
 
 static devclass_t pcm_devclass;
 
@@ -515,7 +477,7 @@ ess_start(struct ess_chinfo *ch)
 	struct ess_info *sc = ch->parent;
 
 	DEB(printf("ess_start\n"););
-	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->buffer->dl);
+	ess_setupch(sc, ch->hwch, ch->dir, ch->spd, ch->fmt, ch->blksz);
 	ch->stopping = 0;
 	if (ch->hwch == 1) {
 		ess_write(sc, 0xb8, ess_read(sc, 0xb8) | 0x01);
@@ -545,9 +507,10 @@ ess_stop(struct ess_chinfo *ch)
 	return 0;
 }
 
+/* -------------------------------------------------------------------- */
 /* channel interface for ESS18xx */
 static void *
-esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
+esschan_init(kobj_t obj, void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 {
 	struct ess_info *sc = devinfo;
 	struct ess_chinfo *ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
@@ -556,9 +519,8 @@ esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 	ch->parent = sc;
 	ch->channel = c;
 	ch->buffer = b;
-	ch->buffer->bufsize = ESS_BUFFSIZE;
 	ch->dir = dir;
-	if (chn_allocbuf(ch->buffer, sc->parent_dmat) == -1)
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ESS_BUFFSIZE) == -1)
 		return NULL;
 	ch->hwch = 1;
 	if ((dir == PCMDIR_PLAY) && (sc->duplex))
@@ -567,7 +529,7 @@ esschan_init(void *devinfo, snd_dbuf *b, pcm_channel *c, int dir)
 }
 
 static int
-esschan_setformat(void *data, u_int32_t format)
+esschan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct ess_chinfo *ch = data;
 
@@ -576,7 +538,7 @@ esschan_setformat(void *data, u_int32_t format)
 }
 
 static int
-esschan_setspeed(void *data, u_int32_t speed)
+esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
@@ -590,13 +552,16 @@ esschan_setspeed(void *data, u_int32_t speed)
 }
 
 static int
-esschan_setblocksize(void *data, u_int32_t blocksize)
+esschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
-	return blocksize;
+	struct ess_chinfo *ch = data;
+
+	ch->blksz = blocksize;
+	return ch->blksz;
 }
 
 static int
-esschan_trigger(void *data, int go)
+esschan_trigger(kobj_t obj, void *data, int go)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
@@ -607,7 +572,7 @@ esschan_trigger(void *data, int go)
 
 	switch (go) {
 	case PCMTRIG_START:
-		ess_dmasetup(sc, ch->hwch, vtophys(ch->buffer->buf), ch->buffer->bufsize, ch->dir);
+		ess_dmasetup(sc, ch->hwch, vtophys(sndbuf_getbuf(ch->buffer)), sndbuf_getsize(ch->buffer), ch->dir);
 		ess_dmatrigger(sc, ch->hwch, 1);
 		ess_start(ch);
 		break;
@@ -622,7 +587,7 @@ esschan_trigger(void *data, int go)
 }
 
 static int
-esschan_getptr(void *data)
+esschan_getptr(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
@@ -631,12 +596,24 @@ esschan_getptr(void *data)
 }
 
 static pcmchan_caps *
-esschan_getcaps(void *data)
+esschan_getcaps(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
 
 	return (ch->dir == PCMDIR_PLAY)? &ess_playcaps : &ess_reccaps;
 }
+
+static kobj_method_t esschan_methods[] = {
+    	KOBJMETHOD(channel_init,		esschan_init),
+    	KOBJMETHOD(channel_setformat,		esschan_setformat),
+    	KOBJMETHOD(channel_setspeed,		esschan_setspeed),
+    	KOBJMETHOD(channel_setblocksize,	esschan_setblocksize),
+    	KOBJMETHOD(channel_trigger,		esschan_trigger),
+    	KOBJMETHOD(channel_getptr,		esschan_getptr),
+    	KOBJMETHOD(channel_getcaps,		esschan_getcaps),
+	{ 0, 0 }
+};
+CHANNEL_DECLARE(esschan);
 
 /************************************************************/
 
@@ -748,6 +725,14 @@ essmix_setrecsrc(snd_mixer *m, u_int32_t src)
 	return src;
 }
 
+static kobj_method_t solomixer_methods[] = {
+    	KOBJMETHOD(mixer_init,		essmix_init),
+    	KOBJMETHOD(mixer_set,		essmix_set),
+    	KOBJMETHOD(mixer_setrecsrc,	essmix_setrecsrc),
+	{ 0, 0 }
+};
+MIXER_DECLARE(solomixer);
+
 /************************************************************/
 
 static int
@@ -797,7 +782,7 @@ ess_dmapos(struct ess_info *sc, int ch)
 					i, p);
 			i = port_rd(sc->vc, 0x4, 2) + 1;
 			p = port_rd(sc->vc, 0x4, 2) + 1;
-		} while ((p > sc->dmasz[ch -1 ] || i < p || (p - i) > 0x8) && j++ < 1000);
+		} while ((p > sc->dmasz[ch - 1] || i < p || (p - i) > 0x8) && j++ < 1000);
 		ess_dmatrigger(sc, ch, 1);
 	}
 	else if (ch == 2)
@@ -941,7 +926,8 @@ ess_attach(device_t dev)
 
     	if (ess_reset_dsp(sc))
 		goto no;
-    	mixer_init(dev, &ess_mixer, sc);
+    	if (mixer_init(dev, &solomixer_class, sc))
+		goto no;
 
 	port_wr(sc->io, 0x7, 0xb0, 1); /* enable irqs */
 #ifdef ESS18XX_DUPLEX
@@ -979,8 +965,8 @@ ess_attach(device_t dev)
 
     	if (pcm_register(dev, sc, 1, 1))
 		goto no;
-      	pcm_addchan(dev, PCMDIR_REC, &ess_chantemplate, sc);
-	pcm_addchan(dev, PCMDIR_PLAY, &ess_chantemplate, sc);
+      	pcm_addchan(dev, PCMDIR_REC, &esschan_class, sc);
+	pcm_addchan(dev, PCMDIR_PLAY, &esschan_class, sc);
 	pcm_setstatus(dev, status);
 
     	return 0;
