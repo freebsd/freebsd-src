@@ -75,14 +75,6 @@ static const char rcsid[] =
 #include <varargs.h>
 #endif
 
-#include "mntopts.h"
-
-struct mntopt mopts[] = {
-	MOPT_STDOPTS,
-	MOPT_ASYNC,
-	{ NULL },
-};
-
 #if __STDC__
 void	fatal(const char *fmt, ...) __printflike(1, 2);
 #else
