@@ -43,7 +43,7 @@ acl_init(int count)
 
 	if (count > ACL_MAX_ENTRIES) {
 		errno = ENOMEM;
-		return (0);
+		return (NULL);
 	}
 
 	acl = (struct acl *) malloc(sizeof(struct acl));
