@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.49 1998/10/09 23:37:37 peter Exp $
+ * $Id: mfs_vfsops.c,v 1.50 1998/10/10 08:12:24 jkh Exp $
  */
 
 
@@ -62,8 +62,7 @@
 
 MALLOC_DEFINE(M_MFSNODE, "MFS node", "MFS vnode private part");
 
-static int	mfs_imageload __P((dev_t dev, caddr_t addr, int size));
-extern int	mfs_initminiroot __P((caddr_t base));
+u_char *	mfs_getimage __P((void));
 
 static caddr_t	mfs_rootbase;	/* address of mini-root in kernel virtual memory */
 static u_long	mfs_rootsize;	/* size of mini-root in bytes */
