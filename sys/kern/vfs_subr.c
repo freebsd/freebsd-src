@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.202 1999/06/16 23:27:32 mckusick Exp $
+ * $Id: vfs_subr.c,v 1.203 1999/06/26 02:46:10 mckusick Exp $
  */
 
 /*
@@ -50,6 +50,7 @@
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
@@ -907,12 +908,12 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 
 struct  proc *updateproc;
 static void sched_sync __P((void));
-static const struct kproc_desc up_kp = {
+static struct kproc_desc up_kp = {
 	"syncer",
 	sched_sync,
 	&updateproc
 };
-SYSINIT_KT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
+SYSINIT(syncer, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &up_kp)
 
 /*
  * System filesystem synchronizer daemon.
