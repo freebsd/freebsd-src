@@ -1,38 +1,68 @@
 #	@(#)bsd.README	8.2 (Berkeley) 4/2/94
 # $FreeBSD$
 
-XXX This document is seriously out of date, it is currenly being revised.
-
-This is the README file for the new make "include" files for the BSD
-source tree.  The files are installed in /usr/share/mk, and are, by
-convention, named with the suffix ".mk".
-
-bsd.dep.mk		- handle Makefile dependencies
-bsd.doc.mk		- building troff system documents
-bsd.info.mk		- building GNU Info hypertext system
-bsd.kmod.mk		- building loadable kernel modules
-bsd.lib.mk		- support for building libraries
-bsd.libnames.mk		- define library names
-bsd.man.mk		- installing manual pages and their links
-bsd.obj.mk		- creating 'obj' directories and cleaning up
-bsd.own.mk		- define common variables
-bsd.port.mk		- building ports
-bsd.port.subdir.mk	- targets for building subdirectories for ports
-bsd.prog.mk		- building programs from source files
-bsd.subdir.mk		- targets for building subdirectories
-
+This is the README file for the "include" files for the FreeBSD
+source tree.  The files are installed in /usr/share/mk, and are by
+convention, named with the suffix ".mk".  These files store several
+build options and should be handled with caution.
 
 Note, this file is not intended to replace reading through the .mk
 files for anything tricky.
 
-See also make(1), mkdep(1) and `PMake - A Tutorial', 
-located in /usr/share/doc/psd/12.make.
+There are two main types of make include files.  One type is the generally
+usable make include files, such as bsd.prog.mk and bsd.lib.mk.  The other is
+the internal make include files, such as bsd.files.mk and bsd.man.mk, which
+can not/should not be used directly but are used by the other make include
+files.  In most cases it is only interesting to include bsd.prog.mk or
+bsd.lib.mk.
+
+bsd.cpu.mk		- sets CPU/arch-related variables
+bsd.dep.mk		- handle Makefile dependencies
+bsd.doc.mk		- building troff system documents
+bsd.files.mk		- install of general purpose files
+bsd.incs.mk		- install of include files
+bsd.info.mk		- building GNU Info hypertext system
+bsd.init.mk		- initialization for the make include files
+bsd.kmod.mk		- building loadable kernel modules
+bsd.lib.mk		- support for building libraries
+bsd.libnames.mk		- define library names
+bsd.links.mk		- install of links (sym/hard)
+bsd.man.mk		- install of manual pages and their links
+bsd.nls.mk		- build and install of NLS catalogs
+bsd.obj.mk		- creating 'obj' directories and cleaning up
+bsd.own.mk		- define common variables
+bsd.port.mk		- building ports
+bsd.port.post.mk	- building ports
+bsd.port.pre.mk		- building ports
+bsd.port.subdir.mk	- targets for building subdirectories for ports
+bsd.prog.mk		- building programs from source files
+bsd.subdir.mk		- targets for building subdirectories
+bsd.sys.mk		- common settings used for building FreeBSD sources
+sys.mk			- default rules for all makes
+
+This file does not document bsd.port*.mk.  They are documented in ports(7).
+
+See also make(1), mkdep(1), style.Makefile(5) and `PMake - A
+Tutorial', located in /usr/share/doc/psd/12.make.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+Random things worth knowing about this document:
+
+If appropriate when documenting the variables the default value is
+indicated using square brackets e.g. [gzip].
+In some cases the default value depend on other values (e.g. system
+architecture).  In these cases the most common value is indicated.
+
+This document contains some simple examples of the usage of the BSD make
+include files.  For more examples look at the makefiles in the FreeBSD
+source tree.
 
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 RANDOM THINGS WORTH KNOWING:
 
-The files are simply C-style #include files, and pretty much behave like
+The files are like C-style #include files, and pretty much behave like
 you'd expect.  The syntax is slightly different in that a single '.' is
 used instead of the hash mark, i.e. ".include <bsd.prog.mk>".
 
