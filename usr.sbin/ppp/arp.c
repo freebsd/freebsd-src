@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.24 1998/01/21 12:52:14 brian Exp $
+ * $Id: arp.c,v 1.25 1998/01/23 21:37:27 brian Exp $
  *
  */
 
@@ -299,6 +299,7 @@ get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
         LogPrintf(LogDEBUG, "%.*s interface is a candidate for proxy\n",
                   dl->sdl_nlen, dl->sdl_data);
       b = 1;
+      ifa = mask = NULL;
       while (b < (RTA_NETMASK|RTA_IFA) && sa < (struct sockaddr *)ptr) {
         switch (b) {
         case RTA_IFA:
