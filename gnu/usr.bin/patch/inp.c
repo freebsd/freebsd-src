@@ -1,6 +1,9 @@
-/* $Header: inp.c,v 2.0.1.1 88/06/03 15:06:13 lwall Locked $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.1.1.1 1993/06/19 14:21:52 paul Exp $
  *
- * $Log:	inp.c,v $
+ * $Log: inp.c,v $
+ * Revision 1.1.1.1  1993/06/19  14:21:52  paul
+ * b-maked patch-2.10
+ *
  * Revision 2.0.1.1  88/06/03  15:06:13  lwall
  * patch10: made a little smarter about sccs files
  * 
@@ -81,14 +84,20 @@ char *filename;
     Reg2 LINENUM iline;
     char lbuf[MAXLINELEN];
     int output_elsewhere = strcmp(filename, outname);
+    extern int check_patch;
 
     statfailed = stat(filename, &filestat);
     if (statfailed && ok_to_create_file) {
 	if (verbose)
 	    say2("(Creating file %s...)\n",filename);
+	if (check_patch)
+	  return TRUE;
 	makedirs(filename, TRUE);
 	close(creat(filename, 0666));
 	statfailed = stat(filename, &filestat);
+    }
+    if (statfailed && check_patch) {
+	fatal2("%s not found and in check_patch mode.", filename);
     }
     /* For nonexistent or read-only files, look for RCS or SCCS versions.  */
     if (statfailed
