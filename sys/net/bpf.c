@@ -1307,6 +1307,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	struct bpf_hdr *hp;
 	int totlen, curlen;
 	int hdrlen = d->bd_bif->bif_hdrlen;
+	int do_wakeup = 0;
 
 	/*
 	 * Figure out how many bytes to move.  If the packet is
@@ -1337,7 +1338,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 			return;
 		}
 		ROTATE_BUFFERS(d);
-		bpf_wakeup(d);
+		do_wakeup = 1;
 		curlen = 0;
 	}
 	else if (d->bd_immediate || d->bd_state == BPF_TIMED_OUT)
@@ -1346,7 +1347,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 		 * already expired during a select call.  A packet
 		 * arrived, so the reader should be woken up.
 		 */
-		bpf_wakeup(d);
+		do_wakeup = 1;
 
 	/*
 	 * Append the bpf header.
@@ -1360,6 +1361,9 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	 */
 	(*cpfn)(pkt, (u_char *)hp + hdrlen, (hp->bh_caplen = totlen - hdrlen));
 	d->bd_slen = curlen + totlen;
+
+	if (do_wakeup)
+		bpf_wakeup(d);
 }
 
 /*
