@@ -35,16 +35,18 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: revnetgroup.c,v 1.1.1.1 1995/10/26 16:25:29 wpaul Exp $
+ *	$Id: revnetgroup.c,v 1.2 1996/05/12 17:17:45 wpaul Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <err.h>
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: revnetgroup.c,v 1.2 1996/05/12 17:17:45 wpaul Exp $";
 #endif
 
 #define LINSIZ 1024
@@ -120,8 +122,7 @@ main(argc, argv)
 
 	if (strcmp(netgroup, "-")) {
 		if ((fp = fopen(netgroup, "r")) == NULL) {
-			perror(netgroup);
-			exit(1);
+			err(1,netgroup);
 		}
 	} else {
 		fp = stdin;
