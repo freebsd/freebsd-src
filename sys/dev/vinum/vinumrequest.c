@@ -45,6 +45,8 @@
 #include <dev/vinum/request.h>
 #include <sys/resourcevar.h>
 
+#define abs(x)	(((x) < 0) ? -(x) : (x))
+
 enum requeststatus bre(struct request *rq,
     int plexno,
     daddr_t * diskstart,
