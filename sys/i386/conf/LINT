@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.238 1996/02/06 20:57:46 wollman Exp $
+#	$Id: LINT,v 1.239 1996/02/13 18:16:18 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -191,9 +191,6 @@ pseudo-device	tun	1		#Tunnel driver(user process ppp)
 # IPFIREWALL enables support for IP firewall construction, in
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE does
 # the obvious thing.
-# IPFIREWALL_ORDER_RULES makes the ipfw code sort the rules.  You
-# don't want that, it's only there to be backward compatible.
-# IPACCT enables IP accounting.
 #
 # TCPDEBUG is undocumented.
 #
@@ -202,8 +199,6 @@ options		MROUTING		# Multicast routing
 options         IPFIREWALL              #firewall
 options         IPFIREWALL_VERBOSE      #print information about
 					# dropped packets
-options		IPFIREWALL_ORDER_RULES	# bogusly sort rules.
-options		IPACCT			#ipaccounting
 options		TCPDEBUG
 
 
