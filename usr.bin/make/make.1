@@ -320,10 +320,11 @@ dependencies may be followed by a creation script, unless the
 .Sq Ic ::
 operator is used.
 .Pp
-If the first or first two characters of the command line are
-.Sq Ic @
-and/or
+If the first characters of the command line are
+.Sq Ic @ ,
 .Sq Ic \- ,
+and/or
+.Sq Ic + ,
 the command is treated specially.
 A
 .Sq Ic @
@@ -331,6 +332,11 @@ causes the command not to be echoed before it is executed.
 A
 .Sq Ic \-
 causes any non-zero exit status of the command line to be ignored.
+A
+.Sq Ic +
+causes the command to be executed even if
+.Fl n
+is specified on the command line.
 .Sh VARIABLE ASSIGNMENTS
 Variables in
 .Nm
