@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.9 1995/06/28 07:06:46 davidg Exp $
+ * $Id: union_vnops.c,v 1.10 1995/08/01 18:50:53 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -476,7 +476,7 @@ union_open(ap)
 					error = union_copyfile(p, cred,
 						       tvp, un->un_uppervp);
 					VOP_UNLOCK(tvp);
-					(void) VOP_CLOSE(tvp, FREAD);
+					(void) VOP_CLOSE(tvp, FREAD, cred, p);
 				} else {
 					VOP_UNLOCK(tvp);
 				}
@@ -503,7 +503,7 @@ union_open(ap)
 			 * Ignoring error returns is not righ, either.
 			 */
 			for (i = 0; i < un->un_openl; i++) {
-				(void) VOP_CLOSE(tvp, FREAD);
+				(void) VOP_CLOSE(tvp, FREAD, cred, p);
 				(void) VOP_OPEN(un->un_uppervp, FREAD, cred, p);
 			}
 			un->un_openl = 0;
