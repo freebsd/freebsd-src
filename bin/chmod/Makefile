@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	chmod
-WFORMAT=0
 
 .include <bsd.prog.mk>
