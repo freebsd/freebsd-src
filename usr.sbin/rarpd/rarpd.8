@@ -19,7 +19,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.Dd July 19, 1993
+.Dd November 16, 2001
 .Dt RARPD 8
 .Os
 .Sh NAME
@@ -28,10 +28,12 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl adfsv
+.Op Fl t Ar directory
 .Op Ar interface
 .Sh DESCRIPTION
+The
 .Nm
-services Reverse ARP requests on the Ethernet connected to
+utility services Reverse ARP requests on the Ethernet connected to
 .Ar interface .
 Upon receiving a request,
 .Nm
@@ -93,8 +95,19 @@ Run in the foreground.
 Supply a response to any RARP request for which an ethernet to IP address
 mapping exists; do not depend on the existence of
 .Pa /tftpboot/\fIipaddr\fP* .
+.It Fl t
+Supply an alternate tftp root directory to
+.Pa /tftpboot ,
+similar to the
+.Fl s
+option of
+.Xr tftpd 8 .
+This permits
+.Nm
+to selectively respond to RARP requests, but use an alternate directory
+for IP checking.
 .It Fl v
-Enable verbose sysloging.
+Enable verbose syslogging.
 .El
 .Sh FILES
 .Bl -tag -width /etc/ethers -compact
@@ -120,8 +133,9 @@ and
 .An Steven McCanne Aq mccanne@ee.lbl.gov .
 Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
 .Sh BUGS
+The
 .Nm
-can depend on the DNS to resolve the name discovered from
+utility can depend on the DNS to resolve the name discovered from
 .Pa /etc/ethers .
 If this name is not in the DNS but is in
 .Pa /etc/hosts ,
