@@ -348,11 +348,11 @@ assign_driver(struct card *cp)
 			return (conf);
 		}
 	/*
-	 * New driver must be allocated. Find one that matches the
-	 * any configurations not in use.
+	 * New driver must be allocated. Find the first configuration
+	 * not in use.
 	 */
 	for (conf = cp->config; conf; conf = conf->next)
-		if (conf->inuse == 0 && conf->driver->card == 0)
+		if (conf->inuse == 0 && conf->driver->inuse/*card*/ == 0)
 			break;
 	if (conf == 0) {
 		logmsg("No free configuration for card %s", cp->manuf);
