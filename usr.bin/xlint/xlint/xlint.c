@@ -344,7 +344,7 @@ main(int argc, char *argv[])
 	appcstrg(&cflags, "-undef");
 #endif
 	appcstrg(&cflags, "-Wp,-$");
-	appcstrg(&cflags, "-Wp,-CC");
+	appcstrg(&cflags, "-Wp,-C");
 	appcstrg(&cflags, "-Wcomment");
 	appcstrg(&cflags, "-D__LINT__");
 	appcstrg(&cflags, "-Dlint");		/* XXX don't def. with -s */
