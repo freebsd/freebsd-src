@@ -990,7 +990,9 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_socket = 0;
 		lockdestroy(vp->v_vnlock);
 		lockinit(vp->v_vnlock, PVFS, tag, VLKTIMEOUT, LK_NOPAUSE);
+		KASSERT(vp->v_cleanbufcnt == 0, ("cleanbufcnt not 0"));
 		KASSERT(vp->v_cleanblkroot == NULL, ("cleanblkroot not NULL"));
+		KASSERT(vp->v_dirtybufcnt == 0, ("dirtybufcnt not 0"));
 		KASSERT(vp->v_dirtyblkroot == NULL, ("dirtyblkroot not NULL"));
 	} else {
 		numvnodes++;
@@ -1470,6 +1472,7 @@ buf_vlist_remove(struct buf *bp)
 		}
 		vp->v_dirtyblkroot = root;
 		TAILQ_REMOVE(&vp->v_dirtyblkhd, bp, b_vnbufs);
+		vp->v_dirtybufcnt--;
 	} else {
 		/* KASSERT(bp->b_xflags & BX_VNCLEAN, ("bp wasn't clean")); */
 		if (bp != vp->v_cleanblkroot) {
@@ -1484,6 +1487,7 @@ buf_vlist_remove(struct buf *bp)
 		}
 		vp->v_cleanblkroot = root;
 		TAILQ_REMOVE(&vp->v_cleanblkhd, bp, b_vnbufs);
+		vp->v_cleanbufcnt--;
 	}
 	bp->b_xflags &= ~(BX_VNDIRTY | BX_VNCLEAN);
 }
@@ -1522,6 +1526,7 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
 			TAILQ_INSERT_AFTER(&vp->v_dirtyblkhd, 
 			    root, bp, b_vnbufs);
 		}
+		vp->v_dirtybufcnt++;
 		vp->v_dirtyblkroot = bp;
 	} else {
 		/* KASSERT(xflags & BX_VNCLEAN, ("xflags not clean")); */
@@ -1544,6 +1549,7 @@ buf_vlist_add(struct buf *bp, struct vnode *vp, b_xflags_t xflags)
 			TAILQ_INSERT_AFTER(&vp->v_cleanblkhd, 
 			    root, bp, b_vnbufs);
 		}
+		vp->v_cleanbufcnt++;
 		vp->v_cleanblkroot = bp;
 	}
 }

@@ -124,6 +124,12 @@ SYSCTL_INT(_vfs, OID_AUTO, lorunningspace, CTLFLAG_RW, &lorunningspace, 0,
 static int hirunningspace;
 SYSCTL_INT(_vfs, OID_AUTO, hirunningspace, CTLFLAG_RW, &hirunningspace, 0,
     "Maximum amount of space to use for in-progress I/O");
+static int dirtybufferflushes;
+SYSCTL_INT(_vfs, OID_AUTO, dirtybufferflushes, CTLFLAG_RW, &dirtybufferflushes,
+    0, "Number of bdwrite to bawrite conversions to limit dirty buffers");
+static int altbufferflushes;
+SYSCTL_INT(_vfs, OID_AUTO, altbufferflushes, CTLFLAG_RW, &altbufferflushes,
+    0, "Number of fsync flushes to limit dirty buffers");
 static int numdirtybuffers;
 SYSCTL_INT(_vfs, OID_AUTO, numdirtybuffers, CTLFLAG_RD, &numdirtybuffers, 0,
     "Number of buffers that are dirty (has unwritten changes) at the moment");
@@ -133,6 +139,9 @@ SYSCTL_INT(_vfs, OID_AUTO, lodirtybuffers, CTLFLAG_RW, &lodirtybuffers, 0,
 static int hidirtybuffers;
 SYSCTL_INT(_vfs, OID_AUTO, hidirtybuffers, CTLFLAG_RW, &hidirtybuffers, 0,
     "When the number of dirty buffers is considered severe");
+static int dirtybufthresh;
+SYSCTL_INT(_vfs, OID_AUTO, dirtybufthresh, CTLFLAG_RW, &dirtybufthresh,
+    0, "Number of bdwrite to bawrite conversions to clear dirty buffers");
 static int numfreebuffers;
 SYSCTL_INT(_vfs, OID_AUTO, numfreebuffers, CTLFLAG_RD, &numfreebuffers, 0,
     "Number of free buffers");
@@ -584,6 +593,7 @@ bufinit(void)
  * of delayed-write dirty buffers we allow to stack up.
  */
 	hidirtybuffers = nbuf / 4 + 20;
+	dirtybufthresh = hidirtybuffers * 9 / 10;
 	numdirtybuffers = 0;
 /*
  * To support extreme low-memory systems, make sure hidirtybuffers cannot
@@ -993,6 +1003,10 @@ vfs_backgroundwritedone(bp)
 void
 bdwrite(struct buf * bp)
 {
+	struct thread *td = curthread;
+	struct vnode *vp;
+	struct buf *nbp;
+
 	GIANT_REQUIRED;
 
 	if (BUF_REFCNT(bp) == 0)
@@ -1002,8 +1016,47 @@ bdwrite(struct buf * bp)
 		brelse(bp);
 		return;
 	}
-	bdirty(bp);
 
+	/*
+	 * If we have too many dirty buffers, don't create any more.
+	 * If we are wildly over our limit, then force a complete
+	 * cleanup. Otherwise, just keep the situation from getting
+	 * out of control.
+	 */
+	vp = bp->b_vp;
+	VI_LOCK(vp);
+	if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh + 10) {
+		VI_UNLOCK(vp);
+		(void) VOP_FSYNC(vp, td->td_ucred, MNT_NOWAIT, td);
+		VI_LOCK(vp);
+		altbufferflushes++;
+	} else if (vp != NULL && vp->v_dirtybufcnt > dirtybufthresh) {
+		/*
+		 * Try to find a buffer to flush.
+		 */
+		TAILQ_FOREACH(nbp, &vp->v_dirtyblkhd, b_vnbufs) {
+			if ((nbp->b_xflags & BX_BKGRDINPROG) ||
+			    buf_countdeps(nbp, 0) ||
+			    BUF_LOCK(nbp, LK_EXCLUSIVE | LK_NOWAIT))
+				continue;
+			if (bp == nbp)
+				panic("bdwrite: found ourselves");
+			VI_UNLOCK(vp);
+			if (nbp->b_flags & B_CLUSTEROK) {
+				BUF_UNLOCK(nbp);
+				vfs_bio_awrite(nbp);
+			} else {
+				bremfree(nbp);
+				bawrite(nbp);
+			}
+			VI_LOCK(vp);
+			dirtybufferflushes++;
+			break;
+		}
+	}
+	VI_UNLOCK(vp);
+
+	bdirty(bp);
 	/*
 	 * Set B_CACHE, indicating that the buffer is fully valid.  This is
 	 * true even of NFS now.
@@ -1019,8 +1072,8 @@ bdwrite(struct buf * bp)
 	 * requesting a sync -- there might not be enough memory to do
 	 * the bmap then...  So, this is important to do.
 	 */
-	if (bp->b_vp->v_type != VCHR && bp->b_lblkno == bp->b_blkno) {
-		VOP_BMAP(bp->b_vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
+	if (vp->v_type != VCHR && bp->b_lblkno == bp->b_blkno) {
+		VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
 	}
 
 	/*
