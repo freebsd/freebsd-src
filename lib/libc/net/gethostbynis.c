@@ -24,8 +24,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.3 1996/07/12 18:54:35 jkh Exp $";
-static char rcsid[] = "$Id: gethostbynis.c,v 1.3 1996/07/12 18:54:35 jkh Exp $";
+static char sccsid[] = "@(#)$Id: gethostbynis.c,v 1.4 1996/08/29 20:07:54 peter Exp $";
+static char rcsid[] = "$Id: gethostbynis.c,v 1.4 1996/08/29 20:07:54 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -85,6 +85,7 @@ _gethostbynis(name, map, af)
 
 	/* avoid potential memory leak */
 	bcopy((char *)result, (char *)&ypbuf, resultlen);
+	ypbuf[resultlen] = '\0';
 	free(result);
 	result = (char *)&ypbuf;
 
