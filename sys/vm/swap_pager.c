@@ -597,23 +597,23 @@ swp_pager_getswapspace(int npages)
 			blk = blist_alloc(sp->sw_blist, npages);
 			if (blk != SWAPBLK_NONE) {
 				blk += sp->sw_first;
-				swap_pager_avail -= npages;
 				sp->sw_used += npages;
+				swap_pager_avail -= npages;
 				swp_sizecheck();
 				swdevhd = TAILQ_NEXT(sp, sw_list);
-				mtx_unlock(&sw_dev_mtx);
-				return(blk);
+				goto done;
 			}
 		}
 		sp = TAILQ_NEXT(sp, sw_list);
 	}
-	mtx_unlock(&sw_dev_mtx);
 	if (swap_pager_full != 2) {
 		printf("swap_pager_getswapspace(%d): failed\n", npages);
 		swap_pager_full = 2;
 		swap_pager_almost_full = 1;
 	}
 	swdevhd = NULL;
+done:
+	mtx_unlock(&sw_dev_mtx);
 	return (blk);
 }
 
@@ -2174,9 +2174,9 @@ swaponsomething(struct vnode *vp, void *id, u_long nblks, sw_strategy_t *strateg
 	sp->sw_end = dvbase + nblks;
 	TAILQ_INSERT_TAIL(&swtailq, sp, sw_list);
 	nswapdev++;
-	mtx_unlock(&sw_dev_mtx);
 	swap_pager_avail += nblks;
-	swap_pager_full = 0;
+	swp_sizecheck();
+	mtx_unlock(&sw_dev_mtx);
 }
 
 /*
@@ -2278,9 +2278,9 @@ found:
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_REMOVE(&swtailq, sp, sw_list);
 	nswapdev--;
-	mtx_unlock(&sw_dev_mtx);
 	if (swdevhd == sp)
 		swdevhd = NULL;
+	mtx_unlock(&sw_dev_mtx);
 	blist_destroy(sp->sw_blist);
 	free(sp, M_VMPGDATA);
 
