@@ -174,7 +174,7 @@ cb_dumphdr(EFI_MEMORY_DESCRIPTOR *mdp, int seqnr, void *arg)
 	phdr.p_memsz = mdp->NumberOfPages << EFI_PAGE_SHIFT;
 	phdr.p_align = EFI_PAGE_SIZE;
 
-	error = buf_write(di->priv, (char*)&phdr, sizeof(phdr));
+	error = buf_write(di, (char*)&phdr, sizeof(phdr));
 	fileofs += phdr.p_filesz;
 	return (error);
 }
