@@ -2157,7 +2157,7 @@ sk_intr(xsc)
 			if (sc->sk_type == SK_GENESIS)
 				sk_intr_xmac(sc_if1);
 			else
-				sk_intr_yukon(sc_if0);
+				sk_intr_yukon(sc_if1);
 		}
 
 		if (status & SK_ISR_EXTERNAL_REG) {
