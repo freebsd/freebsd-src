@@ -85,7 +85,8 @@ static int an_probe_isa		__P((device_t));
 static int an_attach_isa	__P((device_t));
 static int an_detach_isa	__P((device_t));
 
-static int an_probe_isa(dev)
+static int
+an_probe_isa(dev)
 	device_t		dev;
 {
 	int			error = 0;
@@ -103,7 +104,7 @@ static int an_probe_isa(dev)
 	an_release_resources(dev);
 	if (!error)
 		device_set_desc(dev, "Aironet ISA4500/ISA4800");
-	return (error);	
+	return (error);
 }
 
 static int
@@ -113,10 +114,10 @@ an_attach_isa(dev)
 	struct an_softc *sc = device_get_softc(dev);
 	int flags = device_get_flags(dev);
 	int error;
-	
+
 	an_alloc_port(dev, sc->port_rid, 1);
 	an_alloc_irq(dev, sc->irq_rid, 0);
-		
+
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
 			       an_intr, sc, &sc->irq_handle);
 	if (error) {
@@ -129,7 +130,7 @@ an_attach_isa(dev)
 	sc->an_dev = dev;
 
 	return an_attach(sc, device_get_unit(dev), flags);
-} 
+}
 
 static int
 an_detach_isa(device_t dev)

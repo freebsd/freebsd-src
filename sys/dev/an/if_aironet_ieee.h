@@ -111,7 +111,7 @@ struct an_req {
 #define AN_STYPE_MGMT_AUTH	0x00B0	/* authentication */
 #define AN_STYPE_MGMT_DEAUTH	0x00C0	/* deauthentication */
 
-/* 
+/*
  * Aironet IEEE signal strength cache
  *
  * driver keeps cache of last
@@ -539,7 +539,7 @@ struct an_ltv_status {
 	u_int16_t		an_cur_signal_quality;	/* 0x6C */
 	u_int16_t		an_current_tx_rate;	/* 0x6E */
 	u_int16_t		an_ap_device;		/* 0x70 */
-	u_int16_t		an_normalized_rssi;	/* 0x72 */ 
+	u_int16_t		an_normalized_rssi;	/* 0x72 */
 	u_int16_t		an_short_pre_in_use;	/* 0x74 */
 	u_int8_t		an_ap_ip_addr[4];	/* 0x76 */
 	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
@@ -592,9 +592,9 @@ struct an_ltv_wepkey {
 #define AN_RID_AP_INFO		0xFF01	/* Access point info */
 #define AN_RID_RADIO_INFO	0xFF02	/* Radio info */
 #define AN_RID_STATUS		0xFF50	/* Current status info */
-#define AN_RID_BEACONS_HST	0xFF51	
-#define AN_RID_BUSY_HST		0xFF52	
-#define AN_RID_RETRIES_HST	0xFF53	
+#define AN_RID_BEACONS_HST	0xFF51
+#define AN_RID_BUSY_HST		0xFF52
+#define AN_RID_RETRIES_HST	0xFF53
 
 /*
  * Statistics

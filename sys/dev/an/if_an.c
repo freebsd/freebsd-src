@@ -75,7 +75,7 @@
  *
  * Note that some PCMCIA controller software packages for Windows NT
  * fail to set the voltages as well.
- * 
+ *
  * The Aironet devices can operate in both station mode and access point
  * mode. Typically, when programmed for station mode, the card can be set
  * to automatically perform encapsulation/decapsulation of Ethernet II
@@ -180,11 +180,11 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 {
 	int	error, r, last;
 	char 	*s = an_conf;
-    
+
 	last = an_dump;
 	bzero(an_conf, sizeof(an_conf));
 
-	switch (an_dump){
+	switch (an_dump) {
 	case 0:
 		strcat(an_conf, "off");
 		break;
@@ -201,24 +201,24 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 
 	error = sysctl_handle_string(oidp, an_conf, sizeof(an_conf), req);
 
-	if (strncmp(an_conf,"off", 4) == 0){
+	if (strncmp(an_conf,"off", 4) == 0) {
 		an_dump = 0;
  	}
-	if (strncmp(an_conf,"dump", 4) == 0){
+	if (strncmp(an_conf,"dump", 4) == 0) {
 		an_dump = 1;
 	}
-	if (strncmp(an_conf,"type", 4) == 0){
+	if (strncmp(an_conf,"type", 4) == 0) {
 		an_dump = 2;
 	}
-	if (*s == 'f'){
+	if (*s == 'f') {
 		r = 0;
-		for(;;s++){
-			if((*s >= '0') && (*s <= '9')){
+		for (;;s++) {
+			if ((*s >= '0') && (*s <= '9')) {
 				r = r * 16 + (*s - '0');
-			}else if ((*s >= 'a') && (*s <= 'f')) {
+			} else if ((*s >= 'a') && (*s <= 'f')) {
 				r = r * 16 + (*s - 'a' + 10);
-			}else{
-			break;
+			} else {
+				break;
 			}
 		}
 		an_dump = r;
@@ -232,13 +232,14 @@ sysctl_an_dump(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_machdep, OID_AUTO, an_dump, CTLTYPE_STRING | CTLFLAG_RW,
             0, sizeof(an_conf), sysctl_an_dump, "A", "");
 
-/* 
+/*
  * We probe for an Aironet 4500/4800 card by attempting to
  * read the default SSID list. On reset, the first entry in
  * the SSID list will contain the name "tsunami." If we don't
  * find this, then there's no card present.
  */
-int an_probe(dev)
+int
+an_probe(dev)
 	device_t		dev;
 {
         struct an_softc *sc = device_get_softc(dev);
@@ -282,7 +283,7 @@ int an_probe(dev)
 	/* See if the ssid matches what we expect ... but doesn't have to */
 	if (strcmp(ssid.an_ssid1, AN_DEF_SSID))
 		return(0);
-	
+
 	return(AN_IOSIZ);
 }
 
@@ -353,7 +354,8 @@ an_release_resources(dev)
 	}
 }
 
-int an_attach(sc, unit, flags)
+int
+an_attach(sc, unit, flags)
 	struct an_softc *sc;
 	int unit;
 	int flags;
@@ -489,7 +491,7 @@ int an_attach(sc, unit, flags)
 	return(0);
 }
 
-static void 
+static void
 an_rxeof(sc)
 	struct an_softc *sc;
 {
@@ -519,18 +521,18 @@ an_rxeof(sc)
 			return;
 		}
 
-		/* 
-		 * skip beacon by default since this increases the 
+		/*
+		 * skip beacon by default since this increases the
 		 * system load a lot
 		 */
-		   
-		if(!(sc->an_monitor & AN_MONITOR_INCLUDE_BEACON) &&
-		    (rx_frame.an_frame_ctl & IEEE80211_FC0_SUBTYPE_BEACON)){
+
+		if (!(sc->an_monitor & AN_MONITOR_INCLUDE_BEACON) &&
+		    (rx_frame.an_frame_ctl & IEEE80211_FC0_SUBTYPE_BEACON)) {
 			return;
 		}
 
-		if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER){
-			len = rx_frame.an_rx_payload_len 
+		if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER) {
+			len = rx_frame.an_rx_payload_len
 				+ sizeof(rx_frame);
 			/* Check for insane frame length */
 			if (len > sizeof(sc->buf_802_11)) {
@@ -546,7 +548,7 @@ an_rxeof(sc)
 			error = an_read_data(sc, id, sizeof(rx_frame),
 					     (caddr_t)bpf_buf+sizeof(rx_frame),
 					     rx_frame.an_rx_payload_len);
-		}else{
+		} else {
 			fc1=rx_frame.an_frame_ctl >> 8;
 			ieee80211_header_len = sizeof(struct ieee80211_frame);
 			if ((fc1 & IEEE80211_FC1_DIR_TODS) &&
@@ -554,7 +556,7 @@ an_rxeof(sc)
 				ieee80211_header_len += ETHER_ADDR_LEN;
 			}
 
-			len = rx_frame.an_rx_payload_len 
+			len = rx_frame.an_rx_payload_len
 				+ ieee80211_header_len;
 			/* Check for insane frame length */
 			if (len > sizeof(sc->buf_802_11)) {
@@ -569,7 +571,7 @@ an_rxeof(sc)
 			bcopy((char *)&rx_frame.an_frame_ctl,
 			      (char *)ih, ieee80211_header_len);
 
-			error = an_read_data(sc, id, sizeof(rx_frame) + 
+			error = an_read_data(sc, id, sizeof(rx_frame) +
 					     rx_frame.an_gaplen,
 					     (caddr_t)ih +ieee80211_header_len,
 					     rx_frame.an_rx_payload_len);
@@ -645,7 +647,8 @@ an_rxeof(sc)
 	}
 }
 
-static void an_txeof(sc, status)
+static void
+an_txeof(sc, status)
 	struct an_softc		*sc;
 	int			status;
 {
@@ -682,7 +685,8 @@ static void an_txeof(sc, status)
  * the NIC has synchronized to the current cell (either as the master
  * in an ad-hoc group, or as a station connected to an access point).
  */
-void an_stats_update(xsc)
+void
+an_stats_update(xsc)
 	void			*xsc;
 {
 	struct an_softc		*sc;
@@ -718,7 +722,8 @@ void an_stats_update(xsc)
 	return;
 }
 
-void an_intr(xsc)
+void
+an_intr(xsc)
 	void			*xsc;
 {
 	struct an_softc		*sc;
@@ -783,7 +788,8 @@ void an_intr(xsc)
 	return;
 }
 
-static int an_cmd(sc, cmd, val)
+static int
+an_cmd(sc, cmd, val)
 	struct an_softc		*sc;
 	int			cmd;
 	int			val;
@@ -830,12 +836,13 @@ static int an_cmd(sc, cmd, val)
  * most reliable method I've found to really kick the NIC in the
  * head and force it to reboot correctly.
  */
-static void an_reset(sc)
+static void
+an_reset(sc)
 	struct an_softc		*sc;
 {
 	if (sc->an_gone)
 		return;
-        
+
 	an_cmd(sc, AN_CMD_ENABLE, 0);
 	an_cmd(sc, AN_CMD_FW_RESTART, 0);
 	an_cmd(sc, AN_CMD_NOOP2, 0);
@@ -851,7 +858,8 @@ static void an_reset(sc)
 /*
  * Read an LTV record from the NIC.
  */
-static int an_read_record(sc, ltv)
+static int
+an_read_record(sc, ltv)
 	struct an_softc		*sc;
 	struct an_ltv_gen	*ltv;
 {
@@ -908,7 +916,8 @@ static int an_read_record(sc, ltv)
 /*
  * Same as read, except we inject data instead of reading it.
  */
-static int an_write_record(sc, ltv)
+static int
+an_write_record(sc, ltv)
 	struct an_softc		*sc;
 	struct an_ltv_gen	*ltv;
 {
@@ -921,7 +930,7 @@ static int an_write_record(sc, ltv)
 
 	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_READ, ltv->an_type))
 		return(EIO);
-		
+
 	if (an_seek(sc, ltv->an_type, 0, AN_BAP1))
 		return(EIO);
 
@@ -930,7 +939,7 @@ static int an_write_record(sc, ltv)
 	 */
 	len = ltv->an_len - 2;
 	CSR_WRITE_2(sc, AN_DATA1, len);
-	
+
 	len -= 2;	/* skip the type */
 	ptr = &ltv->an_val;
 	for (i = len; i > 1; i -= 2)
@@ -946,7 +955,8 @@ static int an_write_record(sc, ltv)
 	return(0);
 }
 
-static void an_dump_record(sc, ltv, string)
+static void
+an_dump_record(sc, ltv, string)
 	struct an_softc		*sc;
 	struct an_ltv_gen	*ltv;
 	char			*string;
@@ -958,7 +968,7 @@ static void an_dump_record(sc, ltv, string)
 	char			buf[17], temp;
 
 	len = ltv->an_len - 4;
-	printf("an%d: RID %4x, Length %4d, Mode %s\n", 
+	printf("an%d: RID %4x, Length %4d, Mode %s\n",
 		sc->an_unit, ltv->an_type, ltv->an_len - 4, string);
 
 	if (an_dump == 1 || (an_dump == ltv->an_type)) {
@@ -990,7 +1000,8 @@ static void an_dump_record(sc, ltv, string)
 	}
 }
 
-static int an_seek(sc, id, off, chan)
+static int
+an_seek(sc, id, off, chan)
 	struct an_softc		*sc;
 	int			id, off, chan;
 {
@@ -1025,7 +1036,8 @@ static int an_seek(sc, id, off, chan)
 	return(0);
 }
 
-static int an_read_data(sc, id, off, buf, len)
+static int
+an_read_data(sc, id, off, buf, len)
 	struct an_softc		*sc;
 	int			id, off;
 	caddr_t			buf;
@@ -1051,7 +1063,8 @@ static int an_read_data(sc, id, off, buf, len)
 	return(0);
 }
 
-static int an_write_data(sc, id, off, buf, len)
+static int
+an_write_data(sc, id, off, buf, len)
 	struct an_softc		*sc;
 	int			id, off;
 	caddr_t			buf;
@@ -1081,7 +1094,8 @@ static int an_write_data(sc, id, off, buf, len)
  * Allocate a region of memory inside the NIC and zero
  * it out.
  */
-static int an_alloc_nicmem(sc, len, id)
+static int
+an_alloc_nicmem(sc, len, id)
 	struct an_softc		*sc;
 	int			len;
 	int			*id;
@@ -1114,7 +1128,8 @@ static int an_alloc_nicmem(sc, len, id)
 	return(0);
 }
 
-static void an_setdef(sc, areq)
+static void
+an_setdef(sc, areq)
 	struct an_softc		*sc;
 	struct an_req		*areq;
 {
@@ -1159,13 +1174,13 @@ static void an_setdef(sc, areq)
 	case AN_RID_WEP_PERM:
 		/* Disable the MAC. */
 		an_cmd(sc, AN_CMD_DISABLE, 0);
-	
+
 		/* Write the key */
 		an_write_record(sc, (struct an_ltv_gen *)areq);
-		
-		/* Turn the MAC back on. */   
+
+		/* Turn the MAC back on. */
 		an_cmd(sc, AN_CMD_ENABLE, 0);
-		
+
 		break;
 	case AN_RID_MONITOR_MODE:
 		cfg = (struct an_ltv_genconfig *)areq;
@@ -1174,16 +1189,16 @@ static void an_setdef(sc, areq)
 			(*ng_ether_detach_p) (ifp);
 		sc->an_monitor = cfg->an_len;
 
-		if (sc->an_monitor & AN_MONITOR){
-			if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER){
-				bpfattach(ifp, DLT_AIRONET_HEADER, 
+		if (sc->an_monitor & AN_MONITOR) {
+			if (sc->an_monitor & AN_MONITOR_AIRONET_HEADER) {
+				bpfattach(ifp, DLT_AIRONET_HEADER,
 					sizeof(struct ether_header));
 			} else {
-				bpfattach(ifp, DLT_IEEE802_11, 
+				bpfattach(ifp, DLT_IEEE802_11,
 					sizeof(struct ether_header));
 			}
 		} else {
-			bpfattach(ifp, DLT_EN10MB, 
+			bpfattach(ifp, DLT_EN10MB,
 				  sizeof(struct ether_header));
 			if (ng_ether_attach_p != NULL)
 				(*ng_ether_attach_p) (ifp);
@@ -1207,22 +1222,24 @@ static void an_setdef(sc, areq)
  * Derived from Linux driver to enable promiscious mode.
  */
 
-static void an_promisc(sc, promisc)
+static void
+an_promisc(sc, promisc)
 	struct an_softc		*sc;
 	int			promisc;
 {
-	if(sc->an_was_monitor)
+	if (sc->an_was_monitor)
 		an_reset(sc);
-	if (sc->an_monitor ||sc->an_was_monitor )
+	if (sc->an_monitor || sc->an_was_monitor)
 		an_init(sc);
 
 	sc->an_was_monitor = sc->an_monitor;
 	an_cmd(sc, AN_CMD_SET_MODE, promisc ? 0xffff : 0);
-  
+
 	return;
 }
 
-static int an_ioctl(ifp, command, data)
+static int
+an_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -1257,7 +1274,7 @@ static int an_ioctl(ifp, command, data)
 		goto out;
 	}
 
-	switch(command) {
+	switch (command) {
 	case SIOCSIFADDR:
 	case SIOCGIFADDR:
 	case SIOCSIFMTU:
@@ -1327,7 +1344,7 @@ static int an_ioctl(ifp, command, data)
 		break;
 	case SIOCG80211:
 		areq.an_len = sizeof(areq);
-		switch(ireq->i_type) {
+		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
 			if (ireq->i_val == -1) {
 				areq.an_type = AN_RID_STATUS;
@@ -1388,7 +1405,6 @@ static int an_ioctl(ifp, command, data)
 					ireq->i_val = IEEE80211_WEP_MIXED;
 				else
 					ireq->i_val = IEEE80211_WEP_ON;
-				
 			} else {
 				ireq->i_val = IEEE80211_WEP_OFF;
 			}
@@ -1533,7 +1549,7 @@ static int an_ioctl(ifp, command, data)
 			}
 			ireq->i_val = config->an_listen_interval;
 			break;
-		}	
+		}
 		break;
 	case SIOCS80211:
 		if ((error = suser(p)))
@@ -1554,7 +1570,7 @@ static int an_ioctl(ifp, command, data)
 				break;
 			}
 		}
-		switch(ireq->i_type) {
+		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
 			areq.an_type = AN_RID_SSIDLIST;
 			if (an_read_record(sc,
@@ -1717,7 +1733,8 @@ out:
 	return(error != 0);
 }
 
-static int an_init_tx_ring(sc)
+static int
+an_init_tx_ring(sc)
 	struct an_softc		*sc;
 {
 	int			i;
@@ -1740,7 +1757,8 @@ static int an_init_tx_ring(sc)
 	return(0);
 }
 
-static void an_init(xsc)
+static void
+an_init(xsc)
 	void			*xsc;
 {
 	struct an_softc		*sc = xsc;
@@ -1844,7 +1862,8 @@ static void an_init(xsc)
 	return;
 }
 
-static void an_start(ifp)
+static void
+an_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct an_softc		*sc;
@@ -1867,7 +1886,7 @@ static void an_start(ifp)
 		return;
 
 	if (sc->an_monitor && (ifp->if_flags & IFF_PROMISC)) {
-		for(;;) {
+		for (;;) {
 			IF_DEQUEUE(&ifp->if_snd, m0);
 			if (m0 == NULL)
 				break;
@@ -1878,7 +1897,7 @@ static void an_start(ifp)
 	idx = sc->an_rdata.an_tx_prod;
 	bzero((char *)&tx_frame_802_3, sizeof(tx_frame_802_3));
 
-	while(sc->an_rdata.an_tx_ring[idx] == 0) {
+	while (sc->an_rdata.an_tx_ring[idx] == 0) {
 		IF_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == NULL)
 			break;
@@ -1890,7 +1909,7 @@ static void an_start(ifp)
 		    (char *)&tx_frame_802_3.an_tx_dst_addr, ETHER_ADDR_LEN);
 		bcopy((char *)&eh->ether_shost,
 		    (char *)&tx_frame_802_3.an_tx_src_addr, ETHER_ADDR_LEN);
- 
+
 		tx_frame_802_3.an_tx_802_3_payload_len =
 		  m0->m_pkthdr.len - 12;  /* minus src/dest mac & type */
 
@@ -1902,15 +1921,15 @@ static void an_start(ifp)
 		/* write the txcontrol only */
 		an_write_data(sc, id, 0x08, (caddr_t)&txcontrol,
 			      sizeof(txcontrol));
-		
+
 		/* 802_3 header */
 		an_write_data(sc, id, 0x34, (caddr_t)&tx_frame_802_3,
 			      sizeof(struct an_txframe_802_3));
-			
+
 		/* in mbuf header type is just before payload */
 		an_write_data(sc, id, 0x44, (caddr_t)&sc->an_txbuf,
 			    tx_frame_802_3.an_tx_802_3_payload_len);
-		
+
 		/*
 		 * If there's a BPF listner, bounce a copy of
 		 * this frame to him.
@@ -1941,7 +1960,8 @@ static void an_start(ifp)
 	return;
 }
 
-void an_stop(sc)
+void
+an_stop(sc)
 	struct an_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -1972,7 +1992,8 @@ void an_stop(sc)
 	return;
 }
 
-static void an_watchdog(ifp)
+static void
+an_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct an_softc		*sc;
@@ -1996,7 +2017,8 @@ static void an_watchdog(ifp)
 	return;
 }
 
-void an_shutdown(dev)
+void
+an_shutdown(dev)
 	device_t		dev;
 {
 	struct an_softc		*sc;
@@ -2025,7 +2047,7 @@ void an_shutdown(dev)
  *	quality, noise)
  *
  * No apologies for storing IP src here.  It's easy and saves much
- * trouble elsewhere.  The cache is assumed to be INET dependent, 
+ * trouble elsewhere.  The cache is assumed to be INET dependent,
  * although it need not be.
  *
  * Note: the Aironet only has a single byte of signal strength value
@@ -2048,33 +2070,33 @@ int an_nextitem;                                /*  index/# of entries */
  * want to measure signal strength anth unicast ping packets
  * on a pt. to pt. ant. setup.
  */
-/* set true if you want to limit cache items to broadcast/mcast 
+/* set true if you want to limit cache items to broadcast/mcast
  * only packets (not unicast).  Useful for mobile-ip beacons which
  * are broadcast/multicast at network layer.  Default is all packets
  * so ping/unicast anll work say anth pt. to pt. antennae setup.
  */
 static int an_cache_mcastonly = 0;
-SYSCTL_INT(_machdep, OID_AUTO, an_cache_mcastonly, CTLFLAG_RW, 
+SYSCTL_INT(_machdep, OID_AUTO, an_cache_mcastonly, CTLFLAG_RW,
 	&an_cache_mcastonly, 0, "");
 
 /* set true if you want to limit cache items to IP packets only
 */
 static int an_cache_iponly = 1;
-SYSCTL_INT(_machdep, OID_AUTO, an_cache_iponly, CTLFLAG_RW, 
+SYSCTL_INT(_machdep, OID_AUTO, an_cache_iponly, CTLFLAG_RW,
 	&an_cache_iponly, 0, "");
 
 /*
  * an_cache_store, per rx packet store signal
  * strength in MAC (src) indexed cache.
  */
-static  
-void an_cache_store (sc, eh, m, rx_quality)
+static void
+an_cache_store (sc, eh, m, rx_quality)
 	struct an_softc *sc;
 	struct ether_header *eh;
 	struct mbuf *m;
 	unsigned short rx_quality;
 {
-	struct ip *ip = 0; 
+	struct ip *ip = 0;
 	int i;
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;       /* next "free" cache entry */
@@ -2085,12 +2107,12 @@ void an_cache_store (sc, eh, m, rx_quality)
 	 * 2. configurable filter to throw out unicast packets,
 	 * keep multicast only.
 	 */
- 
+
 	if ((ntohs(eh->ether_type) == 0x800)) {
 		saanp = 1;
 	}
 
-	/* filter for ip packets only 
+	/* filter for ip packets only
 	*/
 	if ( an_cache_iponly && !saanp) {
 		return;
@@ -2108,13 +2130,13 @@ void an_cache_store (sc, eh, m, rx_quality)
 #endif
 
 	/* find the ip header.  we want to store the ip_src
-	 * address.  
+	 * address.
 	 */
 	if (saanp) {
 		ip = mtod(m, struct ip *);
 	}
-        
-	/* do a linear search for a matching MAC address 
+
+	/* do a linear search for a matching MAC address
 	 * in the cache table
 	 * . MAC address is 6 bytes,
 	 * . var w_nextitem holds total number of entries already cached
@@ -2125,7 +2147,7 @@ void an_cache_store (sc, eh, m, rx_quality)
 			 * so we already have this entry,
 			 * update the data
 			 */
-			break;	
+			break;
 		}
 	}
 
@@ -2133,21 +2155,21 @@ void an_cache_store (sc, eh, m, rx_quality)
 	 * if yes, then overwrite a previously existing cache entry
 	 */
 	if (i < sc->an_nextitem )   {
-		cache_slot = i; 
+		cache_slot = i;
 	}
 	/* else, have a new address entry,so
 	 * add this new entry,
 	 * if table full, then we need to replace LRU entry
 	 */
-	else    {                          
+	else    {
 
-		/* check for space in cache table 
+		/* check for space in cache table
 		 * note: an_nextitem also holds number of entries
-		 * added in the cache table 
+		 * added in the cache table
 		 */
 		if ( sc->an_nextitem < MAXANCACHE ) {
 			cache_slot = sc->an_nextitem;
-			sc->an_nextitem++;                 
+			sc->an_nextitem++;
 			sc->an_sigitems = sc->an_nextitem;
 		}
         	/* no space found, so simply wrap anth wrap index
@@ -2187,7 +2209,8 @@ void an_cache_store (sc, eh, m, rx_quality)
 }
 #endif
 
-static int an_media_change(ifp)
+static int
+an_media_change(ifp)
 	struct ifnet		*ifp;
 {
 	struct an_softc *sc = ifp->if_softc;
@@ -2224,7 +2247,8 @@ static int an_media_change(ifp)
 	return(0);
 }
 
-static void an_media_status(ifp, imr)
+static void
+an_media_status(ifp, imr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*imr;
 {
@@ -2243,7 +2267,7 @@ static void an_media_status(ifp, imr)
 		imr->ifm_active = IFM_IEEE80211|IFM_AUTO;
 		if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
 			imr->ifm_active |= IFM_IEEE80211_ADHOC;
-		switch(status.an_current_tx_rate) {
+		switch (status.an_current_tx_rate) {
 		case AN_RATE_1MBPS:
 			imr->ifm_active |= IFM_IEEE80211_DS1;
 			break;
