@@ -109,7 +109,7 @@
 	or	pat, %g1, pat ; \
 	sllx	pat, 32, %g1 ; \
 	or	pat, %g1, pat ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 1:	deccc	1, len ; \
 	bl,pn	%xcc, 5f ; \
 	 btst	7, dst ; \
@@ -118,7 +118,7 @@
 	ST(b, da) pat, [dst] dasi ; \
 	b	%xcc, 1b ; \
 	 inc	dst ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 2:	deccc	32, len ; \
 	bl,a,pn	%xcc, 3f ; \
 	 inc	32, len ; \
@@ -128,14 +128,14 @@
 	ST(x, da) pat, [dst + 24] dasi ; \
 	b	%xcc, 2b ; \
 	 inc	32, dst ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 3:	deccc	8, len ; \
 	bl,a,pn	%xcc, 4f ; \
 	 inc	8, len ; \
 	ST(x, da) pat, [dst] dasi ; \
 	b	%xcc, 3b ; \
 	 inc	8, dst ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 4:	deccc	1, len ; \
 	bl,a,pn	%xcc, 5f ; \
 	 nop ; \
@@ -171,12 +171,12 @@
 	inc	1, src ; \
 	b	%xcc, 1b ; \
 	 inc	1, dst ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 2:	btst	7, src ; \
 	bz,a,pt	%xcc, 3f ; \
 	 nop ; \
 	b,a	%xcc, 5f ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 3:	deccc	32, len ; \
 	bl,a,pn	%xcc, 4f ; \
 	 inc	32, len ; \
@@ -191,7 +191,7 @@
 	inc	32, src ; \
 	b	%xcc, 3b ; \
 	 inc	32, dst ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 4:	deccc	8, len ; \
 	bl,a,pn	%xcc, 5f ; \
 	 inc	8, len ; \
@@ -200,7 +200,7 @@
 	inc	8, src ; \
 	b	%xcc, 4b ; \
 	 inc	8, dst ; \
-	.align	16 ; \
+	_ALIGN_TEXT ; \
 5:	deccc	1, len ; \
 	bl,a,pn	%xcc, 6f ; \
 	 nop ; \
@@ -501,12 +501,12 @@ ENTRY(suword64)
 	SU_BYTES(stxa, 8, .Lfsfault)
 END(suword64)
 
-	.align 16
+	_ALIGN_TEXT
 .Lfsalign:
 	retl
 	 mov	-1, %o0
 
-	.align 16
+	_ALIGN_TEXT
 .Lfsfault:
 	CATCH_END()
 	retl
@@ -584,3 +584,62 @@ ENTRY(openfirmware_exit)
 	 mov	%i0, %o0
 	! never to return
 END(openfirmware_exit)
+
+#ifdef GUPROF
+
+/*
+ * XXX including sys/gmon.h in genassym.c is not possible due to uintfptr_t
+ * badness.
+ */
+#define	GM_STATE	0x0
+#define	GMON_PROF_OFF	3
+#define	GMON_PROF_HIRES	4
+
+	_ALIGN_TEXT
+	.globl  __cyg_profile_func_enter
+	.type   __cyg_profile_func_enter,@function
+__cyg_profile_func_enter:
+	SET(_gmonparam, %o3, %o2)
+	lduw    [%o2 + GM_STATE], %o3
+	cmp     %o3, GMON_PROF_OFF
+	be,a,pn %icc, 1f
+	 nop
+	SET(mcount, %o3, %o2)
+	jmpl	%o2, %g0
+	 nop
+1:      retl
+	 nop
+	.size	__cyg_profile_func_enter, . - __cyg_profile_func_enter
+
+	_ALIGN_TEXT
+	.globl  __cyg_profile_func_exit
+	.type   __cyg_profile_func_exit,@function
+__cyg_profile_func_exit:
+	SET(_gmonparam, %o3, %o2)
+	lduw    [%o2 + GM_STATE], %o3
+	cmp     %o3, GMON_PROF_HIRES
+	be,a,pn %icc, 1f
+	 nop
+	SET(mexitcount, %o3, %o2)
+	jmpl	%o2, %g0
+	 nop
+1:      retl
+	 nop
+	.size	__cyg_profile_func_exit, . - __cyg_profile_func_exit
+
+ENTRY(user)
+	nop
+
+ENTRY(btrap)
+	nop
+
+ENTRY(etrap)
+	nop
+
+ENTRY(bintr)
+	nop
+
+ENTRY(eintr)
+	nop
+
+#endif
