@@ -19,13 +19,23 @@
 
 #include <sys/queue.h>
 
+#ifndef _SYS_CONF_H_
+#include <sys/conf.h>	/* XXX: temporary to avoid breakage */
+#endif
+
 struct g_geom;
 
 struct disk {
 	u_int			d_flags;
-	u_int			d_dsflags;
 	struct cdevsw		*d_devsw;
+	d_open_t		*d_open;
+	d_close_t		*d_close;
+	d_strategy_t		*d_strategy;
+	d_ioctl_t		*d_ioctl;
+	dumper_t		*d_dump;
 	dev_t			d_dev;
+	u_int			d_unit;
+	const char		*d_name;
 
 	/* These four fields must be valid while opened */
 	u_int			d_sectorsize;
@@ -35,6 +45,10 @@ struct disk {
 
 	struct g_geom		*d_softc;
 };
+
+#define DISKFLAG_NOGIANT	0x1
+#define DISKFLAG_OPEN		0x2
+#define DISKFLAG_CANDELETE	0x4
 
 dev_t disk_create(int unit, struct disk *disk, int flags, struct cdevsw *cdevsw, void *unused);
 void disk_destroy(dev_t dev);
