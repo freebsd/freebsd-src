@@ -8,7 +8,7 @@ BINOWN=	root
 BINGRP=	daemon
 BINMODE= 6555
 
-CFLAGS+= -I${.CURDIR}/../common_source ${CWARNFLAGS}
+CFLAGS+= -I${.CURDIR}/../common_source
 
 DPADD=	${LIBLPR}
 LDADD=	${LIBLPR}
