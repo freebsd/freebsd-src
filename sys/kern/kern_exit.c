@@ -438,18 +438,17 @@ retry:
 	mtx_unlock_spin(&sched_lock);
 	ruadd(p->p_ru, &p->p_stats->p_cru);
 
+	mtx_unlock(&Giant);	
 	/*
 	 * Notify interested parties of our demise.
 	 */
-	KNOTE(&p->p_klist, NOTE_EXIT);
-	mtx_unlock(&Giant);	
+	KNOTE_LOCKED(&p->p_klist, NOTE_EXIT);
 	/*
 	 * Just delete all entries in the p_klist. At this point we won't
 	 * report any more events, and there are nasty race conditions that
 	 * can beat us if we don't.
 	 */
-	while (SLIST_FIRST(&p->p_klist))
-		SLIST_REMOVE_HEAD(&p->p_klist, kn_selnext);
+	knlist_clear(&p->p_klist, 1);
 
 	/*
 	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
@@ -531,6 +530,12 @@ retry:
 
 	cnt.v_swtch++;
 	sched_exit(p->p_pptr, td);
+
+	/*
+	 * hopefully no one will try to deliver a signal to the process this
+	 * late in the game.
+	 */
+	knlist_destroy(&p->p_klist);
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.

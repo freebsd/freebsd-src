@@ -725,7 +725,7 @@ ffs_write(ap)
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}
 	if (resid > uio->uio_resid)
-		VN_KNOTE(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));
+		VN_KNOTE_UNLOCKED(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));
 	if (error) {
 		if (ioflag & IO_UNIT) {
 			(void)UFS_TRUNCATE(vp, osize,

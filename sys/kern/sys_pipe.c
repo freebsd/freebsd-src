@@ -504,7 +504,7 @@ pipeselwakeup(cpipe)
 	}
 	if ((cpipe->pipe_state & PIPE_ASYNC) && cpipe->pipe_sigio)
 		pgsigio(&cpipe->pipe_sigio, SIGIO, 0);
-	KNOTE(&cpipe->pipe_sel.si_note, 0);
+	KNOTE_LOCKED(&cpipe->pipe_sel.si_note, 0);
 }
 
 /*
@@ -524,6 +524,7 @@ pipe_create(pipe)
 		error = pipespace_new(pipe, SMALL_PIPE_SIZE);
 	else
 		error = pipespace_new(pipe, PIPE_SIZE);
+	knlist_init(&pipe->pipe_sel.si_note, PIPE_MTX(pipe));
 	return (error);
 }
 
@@ -1424,7 +1425,7 @@ pipeclose(cpipe)
 
 		ppipe->pipe_state |= PIPE_EOF;
 		wakeup(ppipe);
-		KNOTE(&ppipe->pipe_sel.si_note, 0);
+		KNOTE_LOCKED(&ppipe->pipe_sel.si_note, 0);
 	}
 
 	/*
@@ -1438,6 +1439,8 @@ pipeclose(cpipe)
 	PIPE_LOCK(cpipe);
 	cpipe->pipe_present = 0;
 	pipeunlock(cpipe);
+	knlist_clear(&cpipe->pipe_sel.si_note, 1);
+	knlist_destroy(&cpipe->pipe_sel.si_note);
 
 	/*
 	 * If both endpoints are now closed, release the memory for the
@@ -1476,10 +1479,10 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 		break;
 	default:
 		PIPE_UNLOCK(cpipe);
-		return (1);
+		return (EINVAL);
 	}
 
-	SLIST_INSERT_HEAD(&cpipe->pipe_sel.si_note, kn, kn_selnext);
+	knlist_add(&cpipe->pipe_sel.si_note, kn, 1);
 	PIPE_UNLOCK(cpipe);
 	return (0);
 }
@@ -1497,7 +1500,7 @@ filt_pipedetach(struct knote *kn)
 		}
 		cpipe = cpipe->pipe_peer;
 	}
-	SLIST_REMOVE(&cpipe->pipe_sel.si_note, kn, knote, kn_selnext);
+	knlist_remove(&cpipe->pipe_sel.si_note, kn, 1);
 	PIPE_UNLOCK(cpipe);
 }
 
@@ -1507,6 +1510,7 @@ filt_piperead(struct knote *kn, long hint)
 {
 	struct pipe *rpipe = kn->kn_fp->f_data;
 	struct pipe *wpipe = rpipe->pipe_peer;
+	int ret;
 
 	PIPE_LOCK(rpipe);
 	kn->kn_data = rpipe->pipe_buffer.cnt;
@@ -1519,8 +1523,9 @@ filt_piperead(struct knote *kn, long hint)
 		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
+	ret = kn->kn_data > 0;
 	PIPE_UNLOCK(rpipe);
-	return (kn->kn_data > 0);
+	return ret;
 }
 
 /*ARGSUSED*/

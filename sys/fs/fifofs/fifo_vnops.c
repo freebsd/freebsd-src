@@ -432,7 +432,7 @@ fifo_kqfilter(ap)
 	ap->a_kn->kn_hook = (caddr_t)so;
 
 	SOCKBUF_LOCK(sb);
-	SLIST_INSERT_HEAD(&sb->sb_sel.si_note, ap->a_kn, kn_selnext);
+	knlist_add(&sb->sb_sel.si_note, ap->a_kn, 1);
 	sb->sb_flags |= SB_KNOTE;
 	SOCKBUF_UNLOCK(sb);
 
@@ -445,8 +445,8 @@ filt_fifordetach(struct knote *kn)
 	struct socket *so = (struct socket *)kn->kn_hook;
 
 	SOCKBUF_LOCK(&so->so_rcv);
-	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, knote, kn_selnext);
-	if (SLIST_EMPTY(&so->so_rcv.sb_sel.si_note))
+	knlist_remove(&so->so_rcv.sb_sel.si_note, kn, 1);
+	if (knlist_empty(&so->so_rcv.sb_sel.si_note))
 		so->so_rcv.sb_flags &= ~SB_KNOTE;
 	SOCKBUF_UNLOCK(&so->so_rcv);
 }
@@ -479,8 +479,8 @@ filt_fifowdetach(struct knote *kn)
 	struct socket *so = (struct socket *)kn->kn_hook;
 
 	SOCKBUF_LOCK(&so->so_snd);
-	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, knote, kn_selnext);
-	if (SLIST_EMPTY(&so->so_snd.sb_sel.si_note))
+	knlist_remove(&so->so_snd.sb_sel.si_note, kn, 1);
+	if (knlist_empty(&so->so_snd.sb_sel.si_note))
 		so->so_snd.sb_flags &= ~SB_KNOTE;
 	SOCKBUF_UNLOCK(&so->so_snd);
 }

@@ -397,7 +397,7 @@ ufs_setacl(ap)
 		ip->i_flag |= IN_CHANGE;
 	}
 
-	VN_KNOTE(ap->a_vp, NOTE_ATTRIB);
+	VN_KNOTE_UNLOCKED(ap->a_vp, NOTE_ATTRIB);
 	return (0);
 }
 
