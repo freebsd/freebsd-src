@@ -9,11 +9,17 @@
 void    cpu_halt(void);
 void    swi_vm(void *);
 
+#ifdef _KERNEL
 static __inline uint64_t
 get_cyclecount(void)
 {
-	return (0);
+	struct bintime bt;
+
+	binuptime(&bt);
+	return (bt.frac ^ bt.sec);
+			
 }
+#endif
 
 #define CPU_CONSDEV 1
 #define CPU_ADJKERNTZ           2       /* int: timezone offset (seconds) */
