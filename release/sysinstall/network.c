@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.12 1995/06/07 07:21:48 jkh Exp $
+ * $Id: network.c,v 1.6.2.13 1995/06/07 07:51:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -151,23 +151,41 @@ mediaShutdownNetwork(Device *dev)
 static pid_t
 startPPP(Device *devp)
 {
-    int fd, fd2;
+    int vfd, fd2;
     FILE *fp;
     char *val;
     pid_t pid;
-    char myaddr[16], provider[16], netmask[16];
+    char myaddr[16], provider[16], speed[16];
 
-    fd = open("/dev/ttyv2", O_RDWR);
-    if (fd == -1)
+    /* We're going over to VTY2 */
+    vfd = open("/dev/ttyv2", O_RDWR);
+    if (vfd == -1)
 	return 0;
+
+    /* These are needed to make ppp work */
     Mkdir("/var/log", NULL);
     Mkdir("/var/spool/lock", NULL);
     Mkdir("/etc/ppp", NULL);
+
+    /* Get any important user values */
+    val = msgGetInput("115200",
+"Enter the baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
+    strcpy(speed, val ? val : "115200");
+
+    strcpy(provider, getenv(VAR_GATEWAY) ? getenv(VAR_GATEWAY) : "0");
+    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
+    strcpy(provider, val ? val : "0");
+
+    if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
+	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
+    else
+	strcpy(myaddr, "0");
+
     fp = fopen("/etc/ppp/ppp.linkup", "w");
     if (fp != NULL) {
-        strcpy(netmask, getenv("netmask") ? getenv("netmask") : "0xffffffff");
 	fprintf(fp, "MYADDR:\n");
-        fprintf(fp, " add 0 %s %s\n", netmask, provider);
+	fprintf(fp, " delete ALL\n");
+        fprintf(fp, " add 0 0 HISADDR\n");
 	fchmod(fileno(fp), 0755);
 	fclose(fp);
     }
@@ -182,21 +200,9 @@ startPPP(Device *devp)
 	return 0;
     }
     fprintf(fp, "default:\n");
+    fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
-    val = msgGetInput("115200",
-"Enter the baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
-    if (!val)
-	val = "115200";
-    fprintf(fp, " set speed %s\n", val);
-    strcpy(provider, getenv(VAR_GATEWAY) ? getenv(VAR_GATEWAY) : "0");
-    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
-    if (!val)
-	val = "0";
-    if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
-	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
-    else
-	strcpy(myaddr, "0");
-    fprintf(fp, " set ifaddr %s %s\n", myaddr, val);
+    fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
     fclose(fp);
 
     if (isDebug())
@@ -206,9 +212,9 @@ startPPP(Device *devp)
 	return 0;
     }
     if (!(pid = fork())) {
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
+	dup2(vfd, 0);
+	dup2(vfd, 1);
+	dup2(vfd, 2);
 	execl("/stand/ppp", "/stand/ppp", (char *)NULL);
 	exit(1);
     }
