@@ -226,8 +226,8 @@ static int	filt_aioattach(struct knote *kn);
 static void	filt_aiodetach(struct knote *kn);
 static int	filt_aio(struct knote *kn, long hint);
 
-static vm_zone_t kaio_zone = 0, aiop_zone = 0, aiocb_zone = 0, aiol_zone = 0;
-static vm_zone_t aiolio_zone = 0;
+static vm_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone;
+static vm_zone_t aiolio_zone;
 
 static struct filterops aio_filtops =
 	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
@@ -1574,12 +1574,11 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 			} else
 				td->td_retval[0] = EFAULT;
 			if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
-				curproc->p_stats->p_ru.ru_oublock +=
+				p->p_stats->p_ru.ru_oublock +=
 				    cb->outputcharge;
 				cb->outputcharge = 0;
 			} else if (cb->uaiocb.aio_lio_opcode == LIO_READ) {
-				curproc->p_stats->p_ru.ru_inblock +=
-				    cb->inputcharge;
+				p->p_stats->p_ru.ru_inblock += cb->inputcharge;
 				cb->inputcharge = 0;
 			}
 			aio_free_entry(cb);
@@ -2073,13 +2072,13 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 					    == jobref) {
 						if (cb->uaiocb.aio_lio_opcode
 						    == LIO_WRITE) {
-							curproc->p_stats->p_ru.ru_oublock
+							p->p_stats->p_ru.ru_oublock
 							    +=
 							    cb->outputcharge;
 							cb->outputcharge = 0;
 						} else if (cb->uaiocb.aio_lio_opcode
 						    == LIO_READ) {
-							curproc->p_stats->p_ru.ru_inblock
+							p->p_stats->p_ru.ru_inblock
 							    += cb->inputcharge;
 							cb->inputcharge = 0;
 						}
@@ -2255,12 +2254,11 @@ aio_waitcomplete(struct thread *td, struct aio_waitcomplete_args *uap)
 			suword(uap->aiocbp, (uintptr_t)cb->uuaiocb);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.status;
 			if (cb->uaiocb.aio_lio_opcode == LIO_WRITE) {
-				curproc->p_stats->p_ru.ru_oublock +=
+				p->p_stats->p_ru.ru_oublock +=
 				    cb->outputcharge;
 				cb->outputcharge = 0;
 			} else if (cb->uaiocb.aio_lio_opcode == LIO_READ) {
-				curproc->p_stats->p_ru.ru_inblock +=
-				    cb->inputcharge;
+				p->p_stats->p_ru.ru_inblock += cb->inputcharge;
 				cb->inputcharge = 0;
 			}
 			aio_free_entry(cb);
