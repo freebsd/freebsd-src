@@ -35,28 +35,21 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-#include <sys/ioctl_compat.h>
-#endif
-#endif
-#include <sys/tty.h>
+#include <sys/callout.h>
+#include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/dkstat.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/serial.h>
 #include <sys/sysctl.h>
+#include <sys/tty.h>
+
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <machine/resource.h>
-
-#include <machine/clock.h>
-
-#include <vm/vm.h>
-#include <vm/pmap.h>
 
 #include <machine/stdarg.h>
 
@@ -67,44 +60,22 @@
 
 #define SX_BROKEN_CTS
 
-enum sx_mctl { GET, SET, BIS, BIC };
 
-static int sx_modem(struct sx_softc *, struct sx_port *, enum sx_mctl, int);
-static void sx_write_enable(struct sx_port *, int);
+static t_modem_t sx_modem;
 static void sx_start(struct tty *);
 static void sx_stop(struct tty *, int);
-static void sxhardclose(struct sx_port *pp);
-static void sxdtrwakeup(void *chan);
+static t_close_t sxclose;
+static t_open_t	sxopen;
 static void sx_shutdown_chan(struct sx_port *);
 
-#ifdef SX_DEBUG
-static char	*sx_mctl2str(enum sx_mctl cmd);
-#endif
+static t_break_t sxbreak;
 
 static int	sxparam(struct tty *, struct termios *);
 
 static void sx_modem_state(struct sx_softc *sc, struct sx_port *pp, int card);
 
-static	d_open_t	sxopen;
-static	d_close_t	sxclose;
-static	d_write_t	sxwrite;
-static	d_ioctl_t	sxioctl;
-
-#define	CDEV_MAJOR	185
-static struct cdevsw sx_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_open =	sxopen,
-	.d_close = 	sxclose,
-	.d_write = 	sxwrite,
-	.d_ioctl = 	sxioctl,
-	.d_name = 	"sx",
-	.d_flags = 	D_TTY | D_NEEDGIANT,
-};
-
 static int sx_debug = 0; /* DBG_ALL|DBG_PRINTF|DBG_MODEM|DBG_IOCTL|DBG_PARAM;e */
 SYSCTL_INT(_machdep, OID_AUTO, sx_debug, CTLFLAG_RW, &sx_debug, 0, "");
-
-static struct tty *sx__tty;
 
 static int sx_numunits;
 
@@ -186,7 +157,7 @@ sxattach(
 	struct sx_softc *sc;
 	struct tty *tp;
 	struct speedtab *spt;
-	int chip, x, y;
+	int chip, x;
 	char rev;
 	int error;
 
@@ -262,33 +233,22 @@ sxattach(
 	}
 	bzero(sc->sc_ports, sizeof(struct sx_port) * SX_NUMCHANS);
 	/*
-	 * Allocate tty structures for the channels.
-	 */
-	tp = (struct tty *)malloc(sizeof(struct tty) * SX_NUMCHANS,
-				  M_DEVBUF,
-				  M_NOWAIT);
-	if (tp == NULL) {
-		free(sc->sc_ports, M_DEVBUF);
-		printf("sx%d:  No memory for tty structs!\n", unit);
-		return(EINVAL);
-	}
-	bzero(tp, sizeof(struct tty) * SX_NUMCHANS);
-	sx__tty = tp;
-	/*
 	 * Initialize the channels.
 	 */
 	for (x = 0; x < SX_NUMCHANS; x++) {
-		sc->sc_ports[x].sp_chan = x;
-		sc->sc_ports[x].sp_tty = tp++;
+		tp = ttyalloc();
+		tp->t_oproc = sx_start;
+		tp->t_stop = sx_stop;
+		tp->t_param = sxparam;
+		tp->t_break = sxbreak;
+		tp->t_open = sxopen;
+		tp->t_close = sxclose;
+		sc->sc_ports[x].sp_tty = tp;
 		sc->sc_ports[x].sp_state = 0;	/* internal flag */
-		sc->sc_ports[x].sp_iin.c_iflag = TTYDEF_IFLAG;
-		sc->sc_ports[x].sp_iin.c_oflag = TTYDEF_OFLAG;
-		sc->sc_ports[x].sp_iin.c_cflag = TTYDEF_CFLAG;
-		sc->sc_ports[x].sp_iin.c_lflag = TTYDEF_LFLAG;
-		termioschars(&sc->sc_ports[x].sp_iin);
-		sc->sc_ports[x].sp_iin.c_ispeed = TTYDEF_SPEED;;
-		sc->sc_ports[x].sp_iin.c_ospeed = TTYDEF_SPEED;;
-		sc->sc_ports[x].sp_iout = sc->sc_ports[x].sp_iin;
+		sc->sc_ports[x].sp_chan = x;
+		sc->sc_ports[x].sp_sc = sc;
+		tp->t_sc = &sc->sc_ports[x];
+		ttycreate(tp, NULL, 0, MINOR_CALLOUT, "G%r%r", unit, x);
 	}
 	if (done_chartimes == 0) {
 		for (spt = chartimes ; spt->sp_speed != -1; spt++) {
@@ -297,63 +257,13 @@ sxattach(
 		}
 		done_chartimes = 1;
 	}
-	/*
-	 * Set up the known devices.
-	 */
-	y = unit * (1 << SX_CARDSHIFT);
-	for (x = 0; x < SX_NUMCHANS; x++) {
-		register int num;
-
-					/* DTR/RTS -> RTS devices.            */
-		num = x + y;
-		make_dev(&sx_cdevsw, x, 0, 0, 0600, "ttyG%02d", x+y);
-		make_dev(&sx_cdevsw, x + 0x00080, 0, 0, 0600, "cuaG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x10000, 0, 0, 0600, "ttyiG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x10080, 0, 0, 0600, "cuaiG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x20000, 0, 0, 0600, "ttylG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x20080, 0, 0, 0600, "cualG%02d", num);
-					/* DTR/RTS -> DTR devices.            */
-		num += SX_NUMCHANS;
-		make_dev(&sx_cdevsw, x + 0x00008, 0, 0, 0600, "ttyG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x00088, 0, 0, 0600, "cuaG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x10008, 0, 0, 0600, "ttyiG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x10088, 0, 0, 0600, "cuaiG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x20008, 0, 0, 0600, "ttylG%02d", num);
-		make_dev(&sx_cdevsw, x + 0x20088, 0, 0, 0600, "cualG%02d", num);
-	}
 	return (0);
 }
 
-/*
- * sxopen()
- *	Open a port on behalf of a user.
- *
- * Description:
- *	This is the standard open routine.
- */
 static int
-sxopen(
-	struct cdev *dev,
-	int flag,
-	int mode,
-	d_thread_t *p)
+sxopen(struct tty *tp, struct cdev *dev)
 {
-	int oldspl, error;
-	int card, chan;
-	struct sx_softc *sc;
-	struct tty *tp;
-	struct sx_port *pp;
-	int mynor = minor(dev);
 
-	card = SX_MINOR2CARD(mynor);
-	if ((sc = devclass_get_softc(sx_devclass, card)) == NULL)
-		return (ENXIO);
-	chan = SX_MINOR2CHAN(mynor);
-	if (chan >= SX_NUMCHANS) {
-		DPRINT((0, DBG_OPEN|DBG_FAIL, "sx%d: nchans %d\n",
-			card, SX_NUMCHANS));
-		return(ENXIO);
-	}
 #ifdef	POLL
 	/*
 	 * We've now got a device, so start the poller.
@@ -363,202 +273,11 @@ sxopen(
 		init_finished = 1;
 	}
 #endif
-	/* initial/lock device */
-	if (DEV_IS_STATE(mynor)) {
-		return(0);
-	}
-	pp = &(sc->sc_ports[chan]);
-	tp = pp->sp_tty;		/* the "real" tty */
-	dev->si_tty = tp;
-	DPRINT((pp, DBG_ENTRY|DBG_OPEN, "sxopen(%s,%x,%x,%x)\n",
-		devtoname(dev), flag, mode, p));
-
-	oldspl = spltty();		/* Keep others out */
-	error = 0;
-	/*
-	 * The minor also indicates whether the DTR pin on this port is wired
-	 * as DTR or as RTS.  Default is zero, wired as RTS.
-	 */
-	if (DEV_DTRPIN(mynor))
-		pp->sp_state |= SX_SS_DTRPIN;
-	else
-		pp->sp_state &= ~SX_SS_DTRPIN;
-	pp->sp_state &= SX_SS_XMIT;	/* Turn off "transmitting" flag.      */
-open_top:
-	/*
-	 * If DTR is off and we actually do have a DTR pin, sleep waiting for
-	 * it to assert.
-	 */
-	while (pp->sp_state & SX_SS_DTR_OFF && SX_DTRPIN(pp)) {
-		error = tsleep(&tp->t_dtr_wait, TTIPRI|PCATCH, "sxdtr", 0);
-		if (error != 0)
-			goto out;
-	}
-
-	if (tp->t_state & TS_ISOPEN) {
-		/*
-		 * The device is open, so everything has been initialized.
-		 * Handle conflicts.
-		 */
-		if (DEV_IS_CALLOUT(mynor)) {
-			if (!pp->sp_active_out) {
-				error = EBUSY;
-				goto out;
-			}
-		}
-		else {
-			if (pp->sp_active_out) {
-				if (flag & O_NONBLOCK) {
-					error = EBUSY;
-					goto out;
-				}
-				error = tsleep(&pp->sp_active_out,
-					       TTIPRI|PCATCH,
-					       "sxbi", 0);
-				if (error != 0)
-					goto out;
-				goto open_top;
-			}
-		}
-		if (tp->t_state & TS_XCLUDE && suser(p)) {
-			DPRINT((pp, DBG_OPEN|DBG_FAIL,
-				"already open and EXCLUSIVE set\n"));
-			error = EBUSY;
-			goto out;
-		}
-	} else {
-		/*
-		 * The device isn't open, so there are no conflicts.
-		 * Initialize it. Avoid sleep... :-)
-		 */
-		DPRINT((pp, DBG_OPEN, "first open\n"));
-		tp->t_oproc = sx_start;
-		tp->t_stop = sx_stop;
-		tp->t_param = sxparam;
-		tp->t_dev = dev;
-		tp->t_termios = mynor & SX_CALLOUT_MASK
-				? pp->sp_iout : pp->sp_iin;
-
-		(void)sx_modem(sc, pp, SET, TIOCM_DTR|TIOCM_RTS);
-
-		++pp->sp_wopeners;	/* in case of sleep in sxparam */
-
-		error = sxparam(tp, &tp->t_termios);
-
-		--pp->sp_wopeners;
-		if (error != 0)
-			goto out;
-		/* XXX: we should goto_top if sxparam slept */
-
-		/* set initial DCD state */
-		if (DEV_IS_CALLOUT(mynor) ||
-					(sx_modem(sc, pp, GET, 0) & TIOCM_CD)) {
-			ttyld_modem(tp, 1);
-		}
-	}
-	/* whoops! we beat the close! */
-	if (pp->sp_state & SX_SS_CLOSING) {
-		/* try and stop it from proceeding to bash the hardware */
-		pp->sp_state &= ~SX_SS_CLOSING;
-	}
-	/*
-	 * Wait for DCD if necessary
-	 */
-	if (!(tp->t_state & TS_CARR_ON) && !DEV_IS_CALLOUT(mynor) &&
-	    !(tp->t_cflag & CLOCAL) && !(flag & O_NONBLOCK)) {
-		++pp->sp_wopeners;
-		DPRINT((pp, DBG_OPEN, "sleeping for carrier\n"));
-		error = tsleep(TSA_CARR_ON(tp), TTIPRI|PCATCH, "sxdcd", 0);
-		--pp->sp_wopeners;
-		if (error != 0)
-			goto out;
-		goto open_top;
-	}
-
-	error = ttyld_open(tp, dev);
-	ttyldoptim(tp);
-	if (tp->t_state & TS_ISOPEN && DEV_IS_CALLOUT(mynor))
-		pp->sp_active_out = TRUE;
-
-	pp->sp_state |= SX_SS_OPEN;	/* made it! */
-
-out:
-	splx(oldspl);
-
-	DPRINT((pp, DBG_OPEN, "leaving sxopen\n"));
-
-	if (!(tp->t_state & TS_ISOPEN) && pp->sp_wopeners == 0)
-		sxhardclose(pp);
-
-	return(error);
+	return (0);
 }
 
 /*
  * sxclose()
- *	Close a port for a user.
- *
- * Description:
- *	This is the standard close routine.
- */
-static int
-sxclose(
-	struct cdev *dev,
-	int flag,
-	int mode,
-	d_thread_t *p)
-{
-	struct sx_port *pp;
-	struct tty *tp;
-	int oldspl;
-	int error = 0;
-	int mynor = minor(dev);
-
-	if (DEV_IS_SPECIAL(mynor))
-		return(0);
-
-	oldspl = spltty();
-
-	pp = MINOR2PP(mynor);
-	tp = pp->sp_tty;
-
-	DPRINT((pp, DBG_ENTRY|DBG_CLOSE, "sxclose(%s,%x,%x,%x) sp_state:%x\n",
-		devtoname(dev), flag, mode, p, pp->sp_state));
-
-	/* did we sleep and lose a race? */
-	if (pp->sp_state & SX_SS_CLOSING) {
-		/* error = ESOMETING? */
-		goto out;
-	}
-
-	/* begin race detection.. */
-	pp->sp_state |= SX_SS_CLOSING;
-
-	sx_write_enable(pp, 0);		/* block writes for ttywait() */
-
-	/* THIS MAY SLEEP IN TTYWAIT!!! */
-	ttyld_close(tp, flag);
-
-	sx_write_enable(pp, 1);
-
-	/* did we sleep and somebody started another open? */
-	if (!(pp->sp_state & SX_SS_CLOSING)) {
-		/* error = ESOMETING? */
-		goto out;
-	}
-	/* ok. we are now still on the right track.. nuke the hardware */
-
-	sxhardclose(pp);
-	tty_close(tp);
-	pp->sp_state &= ~SX_SS_OPEN;
-
-out:
-	DPRINT((pp, DBG_CLOSE|DBG_EXIT, "sxclose out\n"));
-	splx(oldspl);
-	return(error);
-}
-
-/*
- * sxhardclose()
  *	Do hard-close processing.
  *
  * Description:
@@ -567,21 +286,20 @@ out:
  *	the hardware.
  */
 static void
-sxhardclose(
-	struct sx_port *pp)
+sxclose(struct tty *tp)
 {
+	struct sx_port *pp;
 	struct sx_softc *sc;
-	struct tty *tp;
 	int oldspl, dcd;
 
 	oldspl = spltty();
 
+	pp = tp->t_sc;
 	DPRINT((pp, DBG_CLOSE, "sxhardclose sp_state:%x\n", pp->sp_state));
-	tp = pp->sp_tty;
-	sc = PP2SC(pp);
-	dcd = sx_modem(sc, pp, GET, 0) & TIOCM_CD;
+	sc = pp->sp_sc;
+	dcd = sx_modem(tp, 0, 0) & SER_DCD;
 	if (tp->t_cflag & HUPCL ||
-	    (!pp->sp_active_out && !dcd && !(pp->sp_iin.c_cflag && CLOCAL)) ||
+	    (!tp->t_actout && !dcd && !(tp->t_init_in.c_cflag && CLOCAL)) ||
 	    !(tp->t_state & TS_ISOPEN)) {
 		disable_intr();
 		sx_cd1865_out(sc, CD1865_CAR, pp->sp_chan);
@@ -597,301 +315,50 @@ sxhardclose(
 		else {
 			enable_intr();
 		}
-		(void)sx_modem(sc, pp, BIC, TIOCM_DTR|TIOCM_RTS);
-		/*
-		 * If we should hold DTR off for a bit and we actually have a
-		 * DTR pin to hold down, schedule sxdtrwakeup().
-		 */
-		if (tp->t_dtr_wait != 0 && SX_DTRPIN(pp)) {
-			timeout(sxdtrwakeup, pp, tp->t_dtr_wait);
-			pp->sp_state |= SX_SS_DTR_OFF;
-		}
+		(void)sx_modem(tp, 0, SER_DTR | SER_RTS);
 
 	}
 	(void)sx_shutdown_chan(pp);	/* Turn off the hardware.             */
-	pp->sp_active_out = FALSE;
-	wakeup((caddr_t)&pp->sp_active_out);
+	tp->t_actout = FALSE;
+	wakeup((caddr_t)&tp->t_actout);
 	wakeup(TSA_CARR_ON(tp));
 
 	splx(oldspl);
 }
 
 
-/*
- * called at splsoftclock()...
- */
 static void
-sxdtrwakeup(void *chan)
+sxbreak(struct tty *tp, int sig)
 {
 	struct sx_port *pp;
-	int oldspl;
 
-	oldspl = spltty();
-	pp = (struct sx_port *)chan;
-	pp->sp_state &= ~SX_SS_DTR_OFF;
-	wakeup(&pp->sp_tty->t_dtr_wait);
-	splx(oldspl);
-}
-
-/*
- * sxwrite()
- *	Handle a write to a port on the I/O8+.
- *
- * Description:
- *	This just hands processing off to the line discipline.
- */
-static int
-sxwrite(
-	struct cdev *dev,
-	struct uio *uio,
-	int flag)
-{
-	struct sx_softc *sc;
-	struct sx_port *pp;
-	struct tty *tp;
-	int error = 0;
-	int mynor = minor(dev);
-	int oldspl;
-
-	pp = MINOR2PP(mynor);
-	sc = PP2SC(pp);
-	tp = pp->sp_tty;
-	DPRINT((pp, DBG_WRITE, "sxwrite %s %x %x\n", devtoname(dev), uio, flag));
-
-	oldspl = spltty();
-	/*
-	 * If writes are currently blocked, wait on the "real" tty
-	 */
-	while (pp->sp_state & SX_SS_BLOCKWRITE) {
-		pp->sp_state |= SX_SS_WAITWRITE;
-		DPRINT((pp, DBG_WRITE, "sxwrite sleep on SX_SS_BLOCKWRITE\n"));
-		if ((error = ttysleep(tp,
-				      (caddr_t)pp,
-				      TTOPRI|PCATCH,
-				      "sxwrite",
-				      tp->t_timeout))) {
-			if (error == EWOULDBLOCK)
-				error = EIO;
-			goto out;
+	pp = tp->t_sc;
+	if (sig) {
+		/*
+		 * If there's already a break state change pending or
+		 * we're already sending a break, just ignore this.
+		 * Otherwise, just set our flag and start the
+		 * transmitter.
+		 */
+		if (!SX_DOBRK(pp) && !SX_BREAK(pp)) {
+			pp->sp_state |= SX_SS_DOBRK;
+			sx_start(tp);
+		}
+	} else {
+		/*
+		 * If a break is going, set our flag so we turn it off
+		 * when we can, then kick the transmitter.  If a break
+		 * isn't going and the flag is set, turn it off.
+		 */
+		if (SX_BREAK(pp)) {
+			pp->sp_state |= SX_SS_DOBRK;
+			sx_start(tp);
+		}
+		else {
+			if (SX_DOBRK(pp))
+				pp->sp_state &= SX_SS_DOBRK;
 		}
 	}
-	error = ttyld_write(tp, uio, flag);
-out:	splx(oldspl);
-	DPRINT((pp, DBG_WRITE, "sxwrite out\n"));
-	return (error);
-}
-
-/*
- * sxioctl()
- *	Handle ioctl() processing.
- *
- * Description:
- *	This is the standard serial ioctl() routine.  It was cribbed almost
- *	entirely from the si(4) driver.  Thanks, Peter.
- */
-static int
-sxioctl(
-	struct cdev *dev,
-	u_long cmd,
-	caddr_t data,
-	int flag,
-	d_thread_t *p)
-{
-	struct sx_softc *sc;
-	struct sx_port *pp;
-	struct tty *tp;
-	int error;
-	int mynor = minor(dev);
-	int oldspl;
-	int blocked = 0;
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	u_long oldcmd;        
-	
-	struct termios term;
-#endif
-#endif
-
-	pp = MINOR2PP(mynor);
-	tp = pp->sp_tty;
-
-	DPRINT((pp, DBG_ENTRY|DBG_IOCTL, "sxioctl %s %lx %x %x\n",
-		devtoname(dev), cmd, data, flag));
-	if (DEV_IS_STATE(mynor)) {
-		struct termios *ct;
-
-		switch (mynor & SX_STATE_MASK) {
-			case SX_INIT_STATE_MASK:
-				ct = DEV_IS_CALLOUT(mynor) ? &pp->sp_iout :
-							     &pp->sp_iin;
-				break;
-			case SX_LOCK_STATE_MASK:
-				ct = DEV_IS_CALLOUT(mynor) ? &pp->sp_lout :
-							     &pp->sp_lin;
-				break;
-			default:
-				return(ENODEV);
-		}
-		switch (cmd) {
-			case TIOCSETA:
-				error = suser(p);
-				if (error != 0)
-					return(error);
-				*ct = *(struct termios *)data;
-				return(0);
-			case TIOCGETA:
-				*(struct termios *)data = *ct;
-				return(0);
-			case TIOCGETD:
-				*(int *)data = TTYDISC;
-				return(0);
-			case TIOCGWINSZ:
-				bzero(data, sizeof(struct winsize));
-				return(0);
-			default:
-				return(ENOTTY);
-		}
-	}
-	/*
-	 * Do the old-style ioctl compat routines...
-	 */
-#ifndef BURN_BRIDGES
-#if defined(COMPAT_43)
-	term = tp->t_termios;
-	oldcmd = cmd;
-	error = ttsetcompat(tp, &cmd, data, &term);
-	if (error != 0)
-		return(error);
-	if (cmd != oldcmd)
-		data = (caddr_t)&term;
-#endif
-#endif
-	/*
-	 * Do the initial / lock state business
-	 */
-	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
-		int     cc;
-		struct termios *dt = (struct termios *)data;
-		struct termios *lt = mynor & SX_CALLOUT_MASK
-				     ? &pp->sp_lout : &pp->sp_lin;
-
-		dt->c_iflag = (tp->t_iflag & lt->c_iflag) |
-			(dt->c_iflag & ~lt->c_iflag);
-		dt->c_oflag = (tp->t_oflag & lt->c_oflag) |
-			(dt->c_oflag & ~lt->c_oflag);
-		dt->c_cflag = (tp->t_cflag & lt->c_cflag) |
-			(dt->c_cflag & ~lt->c_cflag);
-		dt->c_lflag = (tp->t_lflag & lt->c_lflag) |
-			(dt->c_lflag & ~lt->c_lflag);
-		for (cc = 0; cc < NCCS; ++cc)
-			if (lt->c_cc[cc] != 0)
-				dt->c_cc[cc] = tp->t_cc[cc];
-		if (lt->c_ispeed != 0)
-			dt->c_ispeed = tp->t_ispeed;
-		if (lt->c_ospeed != 0)
-			dt->c_ospeed = tp->t_ospeed;
-	}
-
-	/*
-	 * Block user-level writes to give the ttywait()
-	 * a chance to completely drain for commands
-	 * that require the port to be in a quiescent state.
-	 */
-	switch (cmd) {
-	case TIOCSETAW:
-	case TIOCSETAF:
-	case TIOCDRAIN:
-#ifndef BURN_BRIDGES
-#ifdef COMPAT_43
-	case TIOCSETP:
-#endif
-#endif
-		blocked++;	/* block writes for ttywait() and sxparam() */
-		sx_write_enable(pp, 0);
-	}
-
-	error = ttyioctl(dev, cmd, data, flag, p);
-	ttyldoptim(tp);
-	if (error != ENOTTY)
-		goto out;
-
-	oldspl = spltty();
-
-	sc = PP2SC(pp);			/* Need this to do I/O to the card.   */
-	error = 0;
-	switch (cmd) {
-		case TIOCSBRK:		/* Send BREAK.                        */
-			DPRINT((pp, DBG_IOCTL, "sxioctl %s BRK S\n",
-				devtoname(dev)));
-			/*
-			 * If there's already a break state change pending or
-			 * we're already sending a break, just ignore this.
-			 * Otherwise, just set our flag and start the
-			 * transmitter.
-			 */
-			if (!SX_DOBRK(pp) && !SX_BREAK(pp)) {
-				pp->sp_state |= SX_SS_DOBRK;
-				sx_start(tp);
-			}
-			break;
-		case TIOCCBRK:		/* Stop sending BREAK.                */
-			DPRINT((pp, DBG_IOCTL, "sxioctl %s BRK E\n",
-				devtoname(dev)));
-			/*
-			 * If a break is going, set our flag so we turn it off
-			 * when we can, then kick the transmitter.  If a break
-			 * isn't going and the flag is set, turn it off.
-			 */
-			if (SX_BREAK(pp)) {
-				pp->sp_state |= SX_SS_DOBRK;
-				sx_start(tp);
-			}
-			else {
-				if (SX_DOBRK(pp))
-					pp->sp_state &= SX_SS_DOBRK;
-			}
-			break;
-		case TIOCSDTR:		/* Assert DTR.                        */
-			DPRINT((pp, DBG_IOCTL, "sxioctl %s +DTR\n",
-				devtoname(dev)));
-			if (SX_DTRPIN(pp)) /* Using DTR?                      */
-				(void)sx_modem(sc, pp, SET, TIOCM_DTR);
-			break;
-		case TIOCCDTR:		/* Clear DTR.                         */
-			DPRINT((pp, DBG_IOCTL, "sxioctl(%s) -DTR\n",
-				devtoname(dev)));
-			if (SX_DTRPIN(pp)) /* Using DTR?                      */
-				(void)sx_modem(sc, pp, SET, 0);
-			break;
-		case TIOCMSET:		/* Force all modem signals.           */
-			DPRINT((pp, DBG_IOCTL, "sxioctl %s =%x\n",
-				devtoname(dev), *(int *)data));
-			(void)sx_modem(sc, pp, SET, *(int *)data);
-			break;
-		case TIOCMBIS:		/* Set (some) modem signals.          */
-			DPRINT((pp, DBG_IOCTL, "sxioctl %s +%x\n",
-				devtoname(dev), *(int *)data));
-			(void)sx_modem(sc, pp, BIS, *(int *)data);
-			break;
-		case TIOCMBIC:		/* Clear (some) modem signals.        */
-			DPRINT((pp, DBG_IOCTL, "sxioctl %s -%x\n",
-				devtoname(dev), *(int *)data));
-			(void)sx_modem(sc, pp, BIC, *(int *)data);
-			break;
-		case TIOCMGET:		/* Get state of modem signals.        */
-			*(int *)data = sx_modem(sc, pp, GET, 0);
-			DPRINT((pp, DBG_IOCTL, "sxioctl(%s) got signals 0x%x\n",
-				devtoname(dev), *(int *)data));
-			break;
-		default:
-			error = ENOTTY;
-	}
-	splx(oldspl);
-
-out:	DPRINT((pp, DBG_IOCTL|DBG_EXIT, "sxioctl out %d\n", error));
-	if (blocked)
-		sx_write_enable(pp, 1);
-	return(error);
 }
 
 /*
@@ -912,14 +379,14 @@ sxparam(
 	struct termios *t)
 {
 	struct sx_softc *sc;
-	struct sx_port *pp = TP2PP(tp);
+	struct sx_port *pp = tp->t_sc;
 	int oldspl, cflag, iflag, oflag, lflag;
 	int error = 0;
 	int ispd = 0;
 	int ospd = 0;
 	unsigned char val, cor1, cor2, cor3, ier;
 
-	sc = PP2SC(pp);
+	sc = pp->sp_sc;
 	DPRINT((pp, DBG_ENTRY|DBG_PARAM, "sxparam %x/%x\n", tp, t));
 	cflag = t->c_cflag;
 	iflag = t->c_iflag;
@@ -1008,7 +475,6 @@ sxparam(
 		if (sx_cd1865_in(sc, CD1865_MSVR|SX_EI) & CD1865_MSVR_CTS) {
 			enable_intr();
 			pp->sp_state |= SX_SS_OSTOP;
-			sx_write_enable(pp, 0); /* Block writes.              */
 		}
 		else {
 			enable_intr();
@@ -1052,13 +518,13 @@ sxparam(
 	sx_cd1865_wait_CCR(sc, SX_EI);
 	enable_intr();
 	if (SX_DTRPIN(pp))
-		val = TIOCM_DTR;
+		val = SER_DTR;
 	else
-		val = TIOCM_RTS;
+		val = SER_RTS;
 	if (t->c_ospeed == 0)		/* Clear DTR/RTS if we're hung up.    */
-		(void)sx_modem(sc, pp, BIC, val);
+		(void)sx_modem(tp, 0, val);
 	else				/* If we were hung up, we may have to */
-		(void)sx_modem(sc, pp, BIS, val); /* re-enable the signal.    */
+		(void)sx_modem(tp, 0, val);
 	/*
 	 * Last, enable the receiver and transmitter and turn on the
 	 * interrupts we need (receive, carrier-detect and possibly CTS
@@ -1074,39 +540,6 @@ sxparam(
 	DPRINT((pp, DBG_PARAM, "sxparam out\n"));
 	splx(oldspl);
 	return(error);
-}
-
-/*
- * sx_write_enable()
- *	Enable/disable writes to a card channel.
- *
- * Description:
- *	Set or clear the SX_SS_BLOCKWRITE flag in sp_state to block or allow
- *	writes to a serial port on the card.  When we enable writes, we
- *	wake up anyone sleeping on SX_SS_WAITWRITE for this channel.
- *
- * Parameters:
- *	flag	0 - disable writes.
- *		1 - enable writes.
- */
-static void
-sx_write_enable(
-	struct sx_port *pp,
-	int flag)
-{
-	int oldspl;
-
-	oldspl = spltty();		/* Keep interrupts out.               */
-	if (flag) {			/* Enable writes to the channel?      */
-		pp->sp_state &= ~SX_SS_BLOCKWRITE; /* Clear our flag.         */
-		if (pp->sp_state & SX_SS_WAITWRITE) { /* Sleepers?            */
-			pp->sp_state &= ~SX_SS_WAITWRITE; /* Clear their flag */
-			wakeup((caddr_t)pp); /* & wake them up.               */
-		}
-	}
-	else				/* Disabling writes.                  */
-		pp->sp_state |= SX_SS_BLOCKWRITE; /* Set our flag.            */
-	splx(oldspl);
 }
 
 /*
@@ -1126,7 +559,7 @@ sx_shutdown_chan(
 	struct sx_softc *sc;
 
 	DPRINT((pp, DBG_ENTRY, "sx_shutdown_chan %x %x\n", pp, pp->sp_state));
-	sc = PP2SC(pp);
+	sc = pp->sp_sc;
 	s = spltty();
 	disable_intr();
 	sx_cd1865_out(sc, CD1865_CAR, pp->sp_chan); /* Select channel.        */
@@ -1149,16 +582,15 @@ sx_shutdown_chan(
  *	RTS through the DTR pin.
  */
 static int
-sx_modem(
-	struct sx_softc *sc,
-	struct sx_port *pp,
-	enum sx_mctl cmd,
-	int bits)
+sx_modem(struct tty *tp, int sigon, int sigoff)
 {
 	int s, x;
+	struct sx_softc *sc;
+	struct sx_port *pp;
 
-	DPRINT((pp, DBG_ENTRY|DBG_MODEM, "sx_modem %x/%s/%x\n",
-		pp, sx_mctl2str(cmd), bits));
+	pp = tp->t_sc;
+	sc = pp->sp_sc;
+
 	s = spltty();			/* Block interrupts.                  */
 	disable_intr();
 	sx_cd1865_out(sc, CD1865_CAR|SX_EI, pp->sp_chan); /* Select our port. */
@@ -1170,39 +602,25 @@ sx_modem(
 		sx_cd1865_in(sc, CD1865_SRSR|SX_EI)));
 #endif
 	enable_intr();			/* Allow other interrupts.            */
-	switch (cmd) {
-		case GET:
-			bits = TIOCM_LE;
-			if ((x & CD1865_MSVR_CD) == 0)
-				bits |= TIOCM_CD;
-			if ((x & CD1865_MSVR_CTS) == 0)
-				bits |= TIOCM_CTS;
-			if ((x & CD1865_MSVR_DTR) == 0) {
-				if (SX_DTRPIN(pp)) /* Odd pin is DTR?         */
-					bits |= TIOCM_DTR; /* Report DTR.     */
-				else		   /* Odd pin is RTS.         */
-					bits |= TIOCM_RTS; /* Report RTS.     */
-			}
-			splx(s);
-			return(bits);
-		case SET:
-			x = CD1865_MSVR_OFF;
-			if ((bits & TIOCM_RTS && !SX_DTRPIN(pp)) ||
-			    (bits & TIOCM_DTR && SX_DTRPIN(pp)))
-				x &= ~CD1865_MSVR_DTR;
-			break;
-		case BIS:
-			if ((bits & TIOCM_RTS && !SX_DTRPIN(pp)) ||
-			    (bits & TIOCM_DTR && SX_DTRPIN(pp)))
-				x &= ~CD1865_MSVR_DTR;
-			break;
-		case BIC:
-			if ((bits & TIOCM_RTS && !SX_DTRPIN(pp)) ||
-			    (bits & TIOCM_DTR && SX_DTRPIN(pp)))
-				x |= CD1865_MSVR_DTR;
-			break;
+	if (sigon == 0 && sigoff == 0) {
+		if ((x & CD1865_MSVR_CD) == 0)
+			sigon |= SER_DCD;
+		if ((x & CD1865_MSVR_CTS) == 0)
+			sigon |= SER_CTS;
+		if ((x & CD1865_MSVR_DTR) == 0) {
+			if (SX_DTRPIN(pp)) /* Odd pin is DTR?         */
+				sigon |= SER_DTR; /* Report DTR.     */
+			else		   /* Odd pin is RTS.         */
+				sigon |= SER_RTS; /* Report RTS.     */
+		}
+		return (sigon);
 	}
-	DPRINT((pp, DBG_MODEM, "sx_modem MSVR=0x%x\n", x));
+	if ((sigon & SER_RTS && !SX_DTRPIN(pp)) ||
+	    (sigon & SER_DTR && SX_DTRPIN(pp)))
+		x &= ~CD1865_MSVR_DTR;
+	if ((sigoff & SER_RTS && !SX_DTRPIN(pp)) ||
+	    (sigoff & SER_DTR && SX_DTRPIN(pp)))
+		x |= CD1865_MSVR_DTR;
 	disable_intr();
 	/*
 	 * Set the new modem signals.
@@ -1367,7 +785,7 @@ sx_modem_state(
 		else {			/* CD went down.                      */
 			DPRINT((pp, DBG_INTR, "modem carr off\n"));
 			if (ttyld_modem(tp, 0))
-				(void)sx_modem(sc, pp, SET, 0);
+				(void)sx_modem(tp, 0, SER_DTR | SER_RTS);
 		}
 	}
 #ifdef SX_BROKEN_CTS
@@ -1375,12 +793,10 @@ sx_modem_state(
 		if (sx_cd1865_in(sc, CD1865_MSVR|SX_EI) & CD1865_MSVR_CTS) {
 			pp->sp_state |= SX_SS_OSTOP;
 			sx_cd1865_bic(sc, CD1865_IER|SX_EI, CD1865_IER_TXRDY);
-			sx_write_enable(pp, 0); /* Block writes.              */
 		}
 		else {
 			pp->sp_state &= ~SX_SS_OSTOP;
 			sx_cd1865_bis(sc, CD1865_IER|SX_EI, CD1865_IER_TXRDY);
-			sx_write_enable(pp, 1); /* Unblock writes.            */
 		}
 	}
 #endif /* SX_BROKEN_CTS */
@@ -1445,7 +861,7 @@ sx_receive(
 	 */
 	if (tp->t_state & TS_TBLOCK) {
 		if (!SX_DTRPIN(pp) && SX_IFLOW(pp)) {
-			(void)sx_modem(sc, pp, BIC, TIOCM_RTS);
+			(void)sx_modem(tp, 0, SER_RTS);
 			pp->sp_state |= SX_SS_ISTOP;
 		}
 		pp->sp_state &= ~SX_SS_IRCV;
@@ -1715,7 +1131,7 @@ sx_start(
 	int count = CD1865_TFIFOSZ;
 
 	s = spltty();
-	pp = TP2PP(tp);
+	pp = tp->t_sc;
 	qp = &tp->t_outq;
 	DPRINT((pp, DBG_ENTRY|DBG_START,
 		"sx_start %x st %x sp %x cc %d\n",
@@ -1730,7 +1146,7 @@ sx_start(
 		DPRINT((pp, DBG_EXIT|DBG_START, "sx_start out\n", tp->t_state));
 		return;
 	}
-	sc = TP2SC(tp);
+	sc = pp->sp_sc;
 	/*
 	 * If we're not transmitting, we may have been called to crank up the
 	 * transmitter and start things rolling or we may have been called to
@@ -1749,7 +1165,7 @@ sx_start(
 		 */
 		if (SX_ISTOP(pp) && !(tp->t_state & TS_TBLOCK)) {
 			if (!SX_DTRPIN(pp) && SX_IFLOW(pp))
-				(void)sx_modem(sc, pp, BIS, TIOCM_RTS);
+				(void)sx_modem(tp, SER_RTS, 0);
 			pp->sp_state &= ~SX_SS_ISTOP;
 		}
 		/*
@@ -1757,7 +1173,7 @@ sx_start(
 		 */
 		if (tp->t_state & TS_TBLOCK) {
 			if (!SX_DTRPIN(pp) && SX_IFLOW(pp))
-				(void)sx_modem(sc, pp, BIC, TIOCM_RTS);
+				(void)sx_modem(tp, 0, SER_RTS);
 			pp->sp_state |= SX_SS_ISTOP;
 		}
 		if ((qp->c_cc > 0 && !SX_OSTOP(pp)) || SX_DOBRK(pp)) {
@@ -1890,9 +1306,9 @@ sx_stop(
 	struct sx_port *pp;
 	int s;
 
-	sc = TP2SC(tp);
-	pp = TP2PP(tp);
-	DPRINT((TP2PP(tp), DBG_ENTRY|DBG_STOP, "sx_stop(%x,%x)\n", tp, rw));
+	pp = tp->t_sc;
+	sc = pp->sp_sc;
+	DPRINT((pp, DBG_ENTRY|DBG_STOP, "sx_stop(%x,%x)\n", tp, rw));
 
 	s = spltty();
 	/* XXX: must check (rw & FWRITE | FREAD) etc flushing... */
@@ -1943,11 +1359,9 @@ sx_dprintf(
 	if ((pp == NULL && (sx_debug&flags)) ||
 	    (pp != NULL && ((pp->sp_debug&flags) || (sx_debug&flags)))) {
 		if (pp != NULL &&
-		    pp->sp_tty != NULL &&
-		    pp->sp_tty->t_dev != NULL) {
-			n = snprintf(linebuf, 256, "%cx%d(%d): ", 's',
-				(int)SX_MINOR2CARD(minor(pp->sp_tty->t_dev)),
-				(int)SX_MINOR2CHAN(minor(pp->sp_tty->t_dev)));
+		    pp->sp_tty != NULL) {
+			n = snprintf(linebuf, 256, "sx%d(%d): ",
+				(int)pp->sp_sc->sc_unit, (int)pp->sp_chan);
 			if (n > 256)
 				n = 256;
 			lbuf += n;
@@ -1969,22 +1383,6 @@ sx_dprintf(
 		if (sx_debug & DBG_PRINTF)
 			printf("%s", linebuf);
 	}
-}
-
-static char *
-sx_mctl2str(enum sx_mctl cmd)
-{
-	switch (cmd) {
-	case GET:
-		return("GET");
-	case SET:
-		return("SET");
-	case BIS:
-		return("BIS");
-	case BIC:
-		return("BIC");
-	}
-	return("BAD");
 }
 
 #endif	/* DEBUG */
