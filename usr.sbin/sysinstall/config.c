@@ -463,6 +463,7 @@ configUsers(dialogMenuItem *self)
     return DITEM_SUCCESS;
 }
 
+#ifdef WITH_LINUX
 int
 configLinux(dialogMenuItem *self)
 {
@@ -477,6 +478,18 @@ configLinux(dialogMenuItem *self)
     restorescr(w);
     return i;
 }
+#endif
+
+#ifdef __alpha__
+int
+configOSF1(dialogMenuItem *self)
+{
+
+    variable_set2(VAR_OSF1_ENABLE, "YES", 1);
+    Mkdir("/compat/osf1");
+    return DITEM_SUCCESS;
+}
+#endif
 
 int
 configSecurity(dialogMenuItem *self)
