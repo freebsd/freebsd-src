@@ -66,8 +66,8 @@ things that you can do with it:
 3) Mount the snapshot as a frozen image of the filesystem.
    To mount the snapshot /var/snapshot/snap1:
 
-	vnconfig -c vn0c /var/snapshot/snap1
-	mount -r /dev/vn0c /mnt
+	mdconfig -a -t vnode -f /var/snapshot/snap1 -u 4
+	mount -r /dev/md4 /mnt
 
    You can now cruise around your frozen /var filesystem
    at /mnt. Everything will be in the same state that it
@@ -76,7 +76,7 @@ things that you can do with it:
    files. When you are done with the mounted snapshot:
 
 	umount /mnt
-	vnconfig -u vn0c
+	mdconfig -d -u 4
 
    Note that under some circumstances, the process accessing
    the frozen filesystem may deadlock. I am aware of this
