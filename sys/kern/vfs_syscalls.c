@@ -278,6 +278,7 @@ mount(p, uap)
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
+	mp->mnt_nvnodelistsize = 0;
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	mp->mnt_op = vfsp->vfc_vfsops;

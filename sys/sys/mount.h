@@ -132,6 +132,7 @@ struct mount {
 	time_t		mnt_time;		/* last time written*/
 	u_int		mnt_iosize_max;		/* max IO request size */
 	struct vnodelst	mnt_reservedvnlist;	/* (future) dirty vnode list */
+	int		mnt_nvnodelistsize;	/* # of vnodes on this mount */
 };
 #endif /* _KERNEL */
 
