@@ -77,7 +77,6 @@ static struct	ifqueue rtsintrq;
 SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
 SYSCTL_INT(_net_route, OID_AUTO, netisr_maxqlen, CTLFLAG_RW,
     &rtsintrq.ifq_maxlen, 0, "maximum routing socket dispatch queue length");
-TUNABLE_INT("net.route.netisr_maxqlen", &rtsintrq.ifq_maxlen);
 
 struct walkarg {
 	int	w_tmemsize;
@@ -105,8 +104,11 @@ static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
 static void
 rts_init(void)
 {
+	int tmp;
 
 	rtsintrq.ifq_maxlen = 256;
+	if (TUNABLE_INT_FETCH("net.route.netisr_maxqlen", &tmp))
+		rtsintrq.ifq_maxlen = tmp;
 	mtx_init(&rtsintrq.ifq_mtx, "rts_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_ROUTE, rts_input, &rtsintrq, NETISR_MPSAFE);
 }
