@@ -248,6 +248,8 @@ ata_reinit(struct ata_channel *ch)
     while (ch->locking(ch, ATA_LF_LOCK) != ch->unit)
 	tsleep(&devices, PRIBIO, "atarint", 1);
 
+    ata_catch_inflight(ch);
+
     /* grap the channel lock no matter what */
     mtx_lock(&ch->state_mtx);
     ch->state = ATA_ACTIVE;
@@ -258,7 +260,6 @@ ata_reinit(struct ata_channel *ch)
     else
 	ch->flags |= ATA_IMMEDIATE_MODE;
 
-    ata_catch_inflight(ch);
     devices = ch->devices;
 
     ch->hw.reset(ch);
@@ -270,15 +271,15 @@ ata_reinit(struct ata_channel *ch)
     if ((misdev = devices & ~ch->devices)) {
 	if ((misdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
 	    ch->device[MASTER].detach) {
-	    ch->device[MASTER].detach(&ch->device[MASTER]);
 	    ata_fail_requests(ch, &ch->device[MASTER]);
+	    ch->device[MASTER].detach(&ch->device[MASTER]);
 	    free(ch->device[MASTER].param, M_ATA);
 	    ch->device[MASTER].param = NULL;
 	}
 	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
 	    ch->device[SLAVE].detach) {
-	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
 	    ata_fail_requests(ch, &ch->device[SLAVE]);
+	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
 	    free(ch->device[SLAVE].param, M_ATA);
 	    ch->device[SLAVE].param = NULL;
 	}
@@ -291,15 +292,15 @@ ata_reinit(struct ata_channel *ch)
     if ((misdev = devices & ~ch->devices)) {
 	if ((misdev & (ATA_ATA_MASTER | ATA_ATAPI_MASTER)) &&
 	    ch->device[MASTER].detach) {
-	    ch->device[MASTER].detach(&ch->device[MASTER]);
 	    ata_fail_requests(ch, &ch->device[MASTER]);
+	    ch->device[MASTER].detach(&ch->device[MASTER]);
 	    free(ch->device[MASTER].param, M_ATA);
 	    ch->device[MASTER].param = NULL;
 	}
 	if ((misdev & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE)) &&
 	    ch->device[SLAVE].detach) {
-	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
 	    ata_fail_requests(ch, &ch->device[SLAVE]);
+	    ch->device[SLAVE].detach(&ch->device[SLAVE]);
 	    free(ch->device[SLAVE].param, M_ATA);
 	    ch->device[SLAVE].param = NULL;
 	}
@@ -391,55 +392,51 @@ static void
 ata_interrupt(void *data)
 {
     struct ata_channel *ch = (struct ata_channel *)data;
-    struct ata_request *request = ch->running;
-    int gotit = 0;
-
-    /* ignore interrupt if there is no running request */
-    if (!request) 
-	return;
-
-    ATA_DEBUG_RQ(request, "interrupt");
-
-    /* ignore interrupt if device is busy */
-    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
-    	DELAY(100);
-	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
-	    return;
-    }
-
-    ATA_DEBUG_RQ(request, "interrupt accepted");
+    struct ata_request *request;
 
     mtx_lock(&ch->state_mtx);
-    if (ch->state == ATA_ACTIVE) {
-	ch->state = ATA_INTERRUPT;
-	gotit = 1;
-    }
-    else
-	ata_printf(ch, -1,
-		   "unexpected state in ata_interrupt 0x%02x\n", ch->state);
-    mtx_unlock(&ch->state_mtx);
+    do {
+	/* do we have a running request */
+	if (!(request = ch->running))
+	    break;
 
-    /* if we got our locks finish up this request */
-    if (gotit) {
-	request->flags |= ATA_R_INTR_SEEN;
-	if (ch->hw.end_transaction(request) == ATA_OP_CONTINUES) {
-	    request->flags &= ~ATA_R_INTR_SEEN;
-	    mtx_lock(&ch->state_mtx);
-	    ch->state = ATA_ACTIVE;
-	    mtx_unlock(&ch->state_mtx);
+	ATA_DEBUG_RQ(request, "interrupt");
+
+	/* ignore interrupt if device is busy */
+	if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY) {
+	    DELAY(100);
+	    if (ATA_IDX_INB(ch, ATA_ALTSTAT) & ATA_S_BUSY)
+		break;
+	}
+
+	/* check for the right state */
+	if (ch->state == ATA_ACTIVE) {
+	    request->flags |= ATA_R_INTR_SEEN;
+	    ch->state = ATA_INTERRUPT;
 	}
 	else {
+	    ata_prtdev(request->device,
+		       "interrupt state=%d unexpected\n", ch->state);
+	    break;
+	}
+
+	if (ch->hw.end_transaction(request) == ATA_OP_FINISHED) {
 	    ch->running = NULL;
-	    mtx_lock(&ch->state_mtx);
 	    if (ch->flags & ATA_IMMEDIATE_MODE)
-	        ch->state = ATA_ACTIVE;
+		ch->state = ATA_ACTIVE;
 	    else
 		ch->state = ATA_IDLE;
 	    mtx_unlock(&ch->state_mtx);
 	    ch->locking(ch, ATA_LF_UNLOCK);
 	    ata_finish(request);
+	    return;
 	}
-    }
+	else {
+	    request->flags &= ~ATA_R_INTR_SEEN;
+	    ch->state = ATA_ACTIVE;
+	}
+    } while (0);
+    mtx_unlock(&ch->state_mtx);
 }
 
 /*
