@@ -510,7 +510,6 @@ getsecuritylevel()
 #ifdef KERN_SECURELVL
 	int name[2], curlevel;
 	size_t len;
-	extern int errno;
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_SECURELVL;
@@ -535,7 +534,6 @@ setsecuritylevel(newlevel)
 {
 #ifdef KERN_SECURELVL
 	int name[2], curlevel;
-	extern int errno;
 
 	curlevel = getsecuritylevel();
 	if (newlevel == curlevel)
