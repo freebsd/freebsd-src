@@ -216,6 +216,7 @@ struct mbpstat {
 	u_long	mb_mbpgs;
 	u_long	mb_clfree;
 	u_long	mb_clpgs;
+	short	mb_active;
 };
 
 /*
