@@ -19,7 +19,7 @@ command_args="-e enable"
 apm_precmd()
 {
 	case `${SYSCTL_N} hw.machine_arch` in
-	i386)
+	i386|amd64)
 		return 0
 		;;
 	esac
