@@ -679,7 +679,6 @@ do_wake(struct thread *td, void *uaddr, int n_wake)
 	ret = umtxq_signal(&key, n_wake);
 	umtxq_unlock(&key);
 	umtx_key_release(&key);
-	td->td_retval[0] = ret;
 	return (0);
 }
 
@@ -712,15 +711,20 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		else {
 			error = copyin(uap->uaddr2, &abstime, sizeof(abstime));
 			if (error != 0)
-				return (error);
+				break;
+			printf("uap->abstime: %d.%ld\n", abstime.tv_sec, abstime.tv_nsec);	
 			if (abstime.tv_nsec >= 1000000000 ||
-			    abstime.tv_nsec < 0)
-				return (EINVAL);
+			    abstime.tv_nsec < 0) {
+				error = EINVAL;
+				break;
+			}
 			ts = &abstime;
 		}
-		return do_lock(td, uap->umtx, uap->id, ts);
+		error = do_lock(td, uap->umtx, uap->id, ts);
+		break;
 	case UMTX_OP_UNLOCK:
-		return do_unlock(td, uap->umtx, uap->id);
+		error = do_unlock(td, uap->umtx, uap->id);
+		break;
 	case UMTX_OP_WAIT:
 		/* Allow a null timespec (wait forever). */
 		if (uap->uaddr2 == NULL)
@@ -728,16 +732,23 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 		else {
 			error = copyin(uap->uaddr2, &abstime, sizeof(abstime));
 			if (error != 0)
-				return (error);
+				break;
 			if (abstime.tv_nsec >= 1000000000 ||
-			    abstime.tv_nsec < 0)
-				return (EINVAL);
+			    abstime.tv_nsec < 0) {
+				error = EINVAL;
+				break;
+			}
 			ts = &abstime;
 		}
-		return do_wait(td, uap->umtx, uap->id, ts);
+		error = do_wait(td, uap->umtx, uap->id, ts);
+		break;
 	case UMTX_OP_WAKE:
-		return do_wake(td, uap->umtx, uap->id);
+		error = do_wake(td, uap->umtx, uap->id);
+		break;
 	default:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	}
+	td->td_retval[0] = -error;
+	return (0);
 }
