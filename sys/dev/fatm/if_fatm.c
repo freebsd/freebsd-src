@@ -2195,7 +2195,7 @@ fatm_waitvcc(struct fatm_softc *sc, struct cmdqueue *q)
  * Start to open a VCC. This just initiates the operation.
  */
 static int
-fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op, int wait)
+fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op)
 {
 	uint32_t cmd;
 	int error;
@@ -2261,8 +2261,8 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op, int wait)
 		cmd |= (5 << 8);
 
 	q = fatm_start_vcc(sc, op->param.vpi, op->param.vci, cmd, 1,
-	    (wait && !(op->param.flags & ATMIO_FLAG_ASYNC)) ?
-	    fatm_cmd_complete : fatm_open_complete);
+	    (op->param.flags & ATMIO_FLAG_ASYNC) ?
+	    fatm_open_complete : fatm_cmd_complete);
 	if (q == NULL) {
 		error = EIO;
 		goto done;
@@ -2272,7 +2272,7 @@ fatm_open_vcc(struct fatm_softc *sc, struct atmio_openvcc *op, int wait)
 	sc->vccs[op->param.vci] = vc;
 	sc->open_vccs++;
 
-	if (wait && !(op->param.flags & ATMIO_FLAG_ASYNC)) {
+	if (!(op->param.flags & ATMIO_FLAG_ASYNC)) {
 		error = fatm_waitvcc(sc, q);
 		if (error != 0) {
 			sc->vccs[op->param.vci] = NULL;
@@ -2336,7 +2336,7 @@ fatm_close_complete(struct fatm_softc *sc, struct cmdqueue *q)
  * Initiate closing a VCC
  */
 static int
-fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl, int wait)
+fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl)
 {
 	int error;
 	struct cmdqueue *q;
@@ -2360,8 +2360,8 @@ fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl, int wait)
 
 	q = fatm_start_vcc(sc, cl->vpi, cl->vci, 
 	    FATM_OP_DEACTIVATE_VCIN | FATM_OP_INTERRUPT_SEL, 1,
-	    (wait && !(vc->param.flags & ATMIO_FLAG_ASYNC)) ?
-	    fatm_cmd_complete : fatm_close_complete);
+	    (vc->param.flags & ATMIO_FLAG_ASYNC) ?
+	    fatm_close_complete : fatm_cmd_complete);
 	if (q == NULL) {
 		error = EIO;
 		goto done;
@@ -2370,7 +2370,7 @@ fatm_close_vcc(struct fatm_softc *sc, struct atmio_closevcc *cl, int wait)
 	vc->vflags &= ~(FATM_VCC_OPEN | FATM_VCC_TRY_OPEN);
 	vc->vflags |= FATM_VCC_TRY_CLOSE;
 
-	if (wait && !(vc->param.flags & ATMIO_FLAG_ASYNC)) {
+	if (!(vc->param.flags & ATMIO_FLAG_ASYNC)) {
 		error = fatm_waitvcc(sc, q);
 		if (error != 0)
 			goto done;
@@ -2395,40 +2395,17 @@ fatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t arg)
 	struct ifreq *ifr = (struct ifreq *)arg;
 	struct atmio_closevcc *cl = (struct atmio_closevcc *)arg;
 	struct atmio_openvcc *op = (struct atmio_openvcc *)arg;
-	struct atm_pseudoioctl *pa = (struct atm_pseudoioctl *)arg;
 	struct atmio_vcctable *vtab;
-	struct atmio_openvcc ena;
-	struct atmio_closevcc dis;
 
 	error = 0;
 	switch (cmd) {
 
-	  case SIOCATMENA:	/* internal NATM use */
-		bzero(&ena, sizeof(ena));
-		ena.param.flags = ATM_PH_FLAGS(&pa->aph) &
-		    (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
-		ena.param.vpi = ATM_PH_VPI(&pa->aph);
-		ena.param.vci = ATM_PH_VCI(&pa->aph);
-		ena.param.aal = (ATM_PH_FLAGS(&pa->aph) & ATM_PH_AAL5) ?
-		    ATMIO_AAL_5 : ATMIO_AAL_0;
-		ena.param.traffic = ATMIO_TRAFFIC_UBR;
-		ena.rxhand = pa->rxhand;
-		error = fatm_open_vcc(sc, &ena, 0);
+	  case SIOCATMOPENVCC:		/* kernel internal use */
+		error = fatm_open_vcc(sc, op);
 		break;
 
-	  case SIOCATMDIS:	/* internal NATM use */
-		bzero(&dis, sizeof(dis));
-		dis.vpi = ATM_PH_VPI(&pa->aph);
-		dis.vci = ATM_PH_VCI(&pa->aph);
-		error = fatm_close_vcc(sc, &dis, 0);
-		break;
-
-	  case SIOCATMOPENVCC:
-		error = fatm_open_vcc(sc, op, 1);
-		break;
-
-	  case SIOCATMCLOSEVCC:
-		error = fatm_close_vcc(sc, cl, 1);
+	  case SIOCATMCLOSEVCC:		/* kernel internal use */
+		error = fatm_close_vcc(sc, cl);
 		break;
 
 	  case SIOCSIFADDR:

@@ -219,7 +219,7 @@ struct atm_pseudohdr {
 }
 
 /* use AAL5? (0 == aal0) */
-#define	ATM_PH_AAL5    0x01
+#define	ATM_PH_AAL5	0x01
 /* use the LLC SNAP encoding (iff aal5) */
 #define	ATM_PH_LLCSNAP ATMIO_FLAG_LLCSNAP
 
@@ -230,13 +230,6 @@ struct atm_pseudohdr {
 				/* XXX: could be 9188 with LLC/SNAP according
 					to comer */
 
-/* atm_pseudoioctl: turns on and off RX VCIs  [for internal use only!] */
-struct atm_pseudoioctl {
-	struct atm_pseudohdr aph;
-	void		*rxhand;
-};
-#define	SIOCATMENA	_IOWR('a', 123, struct atm_pseudoioctl) /* enable */
-#define	SIOCATMDIS	_IOWR('a', 124, struct atm_pseudoioctl) /* disable */
 #define	SIOCATMGETVCCS	_IOW('a', 125, struct atmio_vcctable)
 #define	SIOCATMOPENVCC	_IOR('a', 126, struct atmio_openvcc)
 #define	SIOCATMCLOSEVCC _IOR('a', 127, struct atmio_closevcc)

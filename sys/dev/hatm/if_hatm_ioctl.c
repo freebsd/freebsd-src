@@ -184,39 +184,6 @@ hatm_open_vcc(struct hatm_softc *sc, struct atmio_openvcc *arg)
 }
 
 /*
- * Enable ioctl for NATM. Map to an open ioctl.
- */
-static int
-hatm_open_vcc1(struct hatm_softc *sc, struct atm_pseudoioctl *ph)
-{
-	struct atmio_openvcc *v;
-	int error;
-
-	if ((v = malloc(sizeof(*v), M_TEMP, M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
-
-	v->param.flags = ATM_PH_FLAGS(&ph->aph) &
-	    (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
-	v->param.flags |= ATMIO_FLAG_ASYNC;
-	v->param.vpi = ATM_PH_VPI(&ph->aph);
-	v->param.vci = ATM_PH_VCI(&ph->aph);
-	v->param.aal = (ATM_PH_FLAGS(&ph->aph) & ATM_PH_AAL5)
-	    ? ATMIO_AAL_5 : ATMIO_AAL_0;
-	v->param.traffic = hatm_natm_traffic;
-	v->rxhand = ph->rxhand;
-	if ((v->param.tparam.pcr = hatm_natm_pcr) == 0 ||
-	    hatm_natm_pcr > sc->ifatm.mib.pcr)
-		v->param.tparam.pcr = sc->ifatm.mib.pcr;
-	v->param.tparam.mcr = 0;
-
-	error = hatm_open_vcc(sc, v);
-
-	free(v, M_TEMP);
-
-	return (error);
-}
-
-/*
  * VCC has been finally closed.
  */
 void
@@ -291,17 +258,6 @@ hatm_close_vcc(struct hatm_softc *sc, struct atmio_closevcc *arg)
 	return (error);
 }
 
-static int
-hatm_close_vcc1(struct hatm_softc *sc, struct atm_pseudoioctl *ph)
-{
-	struct atmio_closevcc v;
-
-	v.vpi = ATM_PH_VPI(&ph->aph);
-	v.vci = ATM_PH_VCI(&ph->aph);
-
-	return (hatm_close_vcc(sc, &v));
-}
-
 /*
  * IOCTL handler
  */
@@ -373,14 +329,6 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		free(vtab, M_DEVBUF);
 		break;
 
-	  case SIOCATMENA:	/* NATM internal use */
-		error = hatm_open_vcc1(sc, (struct atm_pseudoioctl *)data);
-		break;
-
-	  case SIOCATMDIS:	/* NATM internal use */
-		error = hatm_close_vcc1(sc, (struct atm_pseudoioctl *)data);
-		break;
-
 	  case SIOCATMGETVCCS:	/* netgraph internal use */
 		vtab = atm_getvccs((struct atmio_vcc **)sc->vccs,
 		    HE_MAX_VCCS, sc->open_vccs, &sc->mtx, 0);
@@ -391,11 +339,11 @@ hatm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		*(void **)data = vtab;
 		break;
 
-	  case SIOCATMOPENVCC:		/* netgraph/harp internal use */
+	  case SIOCATMOPENVCC:		/* kernel internal use */
 		error = hatm_open_vcc(sc, (struct atmio_openvcc *)data);
 		break;
 
-	  case SIOCATMCLOSEVCC:		/* netgraph and HARP internal use */
+	  case SIOCATMCLOSEVCC:		/* kernel internal use */
 		error = hatm_close_vcc(sc, (struct atmio_closevcc *)data);
 		break;
 
