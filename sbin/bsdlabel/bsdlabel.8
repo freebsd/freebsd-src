@@ -47,29 +47,30 @@
 .Ar disk
 .Nm
 .Fl w
-.Op Fl nA
+.Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
-.Ar disk 
+.Ar disk
 .Op Ar type
 .Nm
 .Fl e
-.Op Fl nA
+.Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
 .Ar disk
 .Nm
 .Fl R
-.Op Fl nA
+.Op Fl \&An
 .Op Fl B Op Fl b Ar boot
 .Op Fl m Ar machine
 .Ar disk protofile
-.Pp
 .Sh DESCRIPTION
 The
 .Nm
 utility
-installs, examines or modifies the BSD label on a disk partition.
+installs, examines or modifies the
+.Bx
+label on a disk partition.
 In addition,
 .Nm
 can install bootstrap code.
@@ -81,10 +82,12 @@ path prefix may be omitted;
 the
 .Nm
 utility will automatically prepend it.
-.Ss General options
-The 
+.Ss General Options
+The
 .Fl A
-option enables processing of the historical parts of the BSD label.
+option enables processing of the historical parts of the
+.Bx
+label.
 If the option is not given, suitable values are set for these fields.
 .Pp
 The
@@ -120,31 +123,31 @@ To write a standard label, use the form
 .Pp
 .Nm
 .Fl w
-.Op Fl nA
+.Op Fl \&An
 .Op Fl m Ar machine
 .Ar disk
 .Op Ar type
 .Pp
-If the drive type if specified the entry of that name in the
+If the drive type is specified, the entry of that name in the
 .Xr disktab 5
-file is used, otherwise a default layout is used.
+file is used; otherwise a default layout is used.
 .Ss Editing an Existing Disk Label
 To edit an existing disk label, use the form
 .Pp
 .Nm
 .Fl e
-.Op Fl nA
+.Op Fl \&An
 .Op Fl m Ar machine
 .Ar disk
 .Pp
-This command opens the disklabel in the default editor and when the editor
-exits the label is validated and if OK written to disk.
+This command opens the disk label in the default editor, and when the editor
+exits, the label is validated and if OK written to disk.
 .Ss Restoring a Disk Label From a File
 To restore a disk label from a file, use the form
 .Pp
 .Nm
 .Fl R
-.Op Fl nA
+.Op Fl \&An
 .Op Fl m Ar machine
 .Ar disk protofile
 .Pp
@@ -360,7 +363,7 @@ option to restore the label at a later date.
 .Dl "bsdlabel -w /dev/da0s1"
 .Pp
 Create a label for
-.Pa da0s1
+.Pa da0s1 .
 .Pp
 .Dl "bsdlabel -e da0s1"
 .Pp
@@ -460,10 +463,10 @@ which could be used as a source file for
   g:      *        *    4.2BSD
 .Ed
 .Sh SEE ALSO
-.Xr geom 4 ,
 .Xr ccd 4 ,
+.Xr geom 4 ,
 .Xr md 4 ,
-.Xr disklabel 5 ,
+.\" Xr bsdlabel 5 ,
 .Xr disktab 5 ,
 .Xr boot0cfg 8 ,
 .Xr fdisk 8
