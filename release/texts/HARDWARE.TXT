@@ -335,14 +335,18 @@ ATA controllers:
     CMD 646
     Cypress 82C693
     HighPoint HPT366
+    HighPoint HPT370
     Intel PIIX
     Intel PIIX3
     Intel PIIX4
     Intel ICH
+    Intel ICH2
     Promise Fasttrak-33
     Promise Fasttrak-66
+    Promise Fasttrak-100
     Promise Ultra-33
     Promise Ultra-66
+    Promise Ultra-100
     SiS 5591
     VIA 82C586
     VIA 82C686
