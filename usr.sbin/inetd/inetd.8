@@ -47,7 +47,7 @@
 .Op Fl W
 .Op Fl c Ar maximum
 .Op Fl C Ar rate
-.Op Fl a Ar address|hostname
+.Op Fl a Ar address | hostname
 .Op Fl p Ar filename
 .Op Fl R Ar rate
 .Op Ar configuration file
@@ -104,7 +104,7 @@ Specify the maximum number of times a service can be invoked
 in one minute; the default is 256.
 A rate of 0 allows an unlimited number of invocations.
 .It Fl a
-Specify a specific IP address to bind to.
+Specify one specific IP address to bind to.
 Alternatively, a hostname can be specified,
 in which case the IPv4 or IPv6 address
 which corresponds to that hostname is used.
@@ -250,9 +250,8 @@ TCPMUX services must use
 .Pp
 The
 .Em protocol
-must be a valid protocol as given in
-.Pa /etc/protocols .
-Examples might be
+must be a valid protocol.
+Examples are
 .Dq tcp
 or
 .Dq udp ,
@@ -456,7 +455,9 @@ If the real
 service is disabled,
 return this username for every request.
 This is primarily useful when running this service on a NAT machine.
-.It Fl t Ar sec[.usec]
+.It Fl t Xo
+.Ar sec Ns Op . Ns Ar usec
+.Xc
 Specify a timeout for the service.
 The default timeout is 10.0 seconds.
 .It Fl r
@@ -469,6 +470,16 @@ If the file
 .Pa .fakeid
 exists in the home directory of the identified user, report the username
 found in that file instead of the real username.
+If the the username found in 
+.Pa .fakeid
+is that of an existing user,
+then the real username is reported.
+.It Fl F
+same as 
+.Fl f
+but without the restriction that the username in
+.Pa .fakeid
+must not match an existing user.
 .It Fl g
 Instead of returning the user's name to the ident requester, report a
 username made up of random alphanumeric characters, e.g.

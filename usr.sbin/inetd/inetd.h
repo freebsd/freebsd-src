@@ -84,7 +84,7 @@ struct	servtab {
 #define se_ctrladdr	se_un.se_un_ctrladdr
 #define se_ctrladdr4	se_un.se_un_ctrladdr4
 #define se_ctrladdr6	se_un.se_un_ctrladdr6
-  	int	se_ctrladdr_size;
+  	socklen_t	se_ctrladdr_size;
 	u_char	se_type;		/* type: normal, mux, or mux+ */
 	u_char	se_checked;		/* looked at during merge */
 	u_char	se_accept;		/* i.e., wait/nowait mode */
@@ -109,7 +109,7 @@ struct	servtab {
 void		chargen_dg __P((int, struct servtab *));
 void		chargen_stream __P((int, struct servtab *));
 void		close_sep __P((struct servtab *));
-void		flag_signal __P((char));
+void		flag_signal __P((int));
 void		flag_config __P((int));
 void		config __P((void));
 void		daytime_dg __P((int, struct servtab *));
@@ -147,6 +147,7 @@ char	       *skip __P((char **));
 struct servtab *tcpmux __P((int));
 int		cpmip __P((struct servtab *, int));
 void		inetd_setproctitle __P((char *, int));
+int		check_loop __P((struct sockaddr *, struct servtab *sep));
 
 void		unregisterrpc __P((register struct servtab *sep));
 

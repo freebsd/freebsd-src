@@ -71,7 +71,7 @@ static const char rcsid[] =
  *	service name			must be in /etc/services or must
  *					name a tcpmux service
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			must be in /etc/protocols
+ *	protocol			tcp[4][6][/faith,ttcp], udp[4][6]
  *	wait/nowait			single-threaded/multi-threaded
  *	user				user to run daemon as
  *	server program			full path name
@@ -95,7 +95,7 @@ static const char rcsid[] =
  * For RPC services
  *	service name/version		must be in /etc/rpc
  *	socket type			stream/dgram/raw/rdm/seqpacket
- *	protocol			must be in /etc/protocols
+ *	protocol			rpc/tcp, rpc/udp
  *	wait/nowait			single-threaded/multi-threaded
  *	user				user to run daemon as
  *	server program			full path name
@@ -275,7 +275,6 @@ main(argc, argv, envp)
 	struct request_info req;
 	int denied;
 	char *service = NULL;
-	char *pnm;
 	union {
 		struct sockaddr peer_un;
 		struct sockaddr_in peer_un4;
@@ -491,12 +490,12 @@ main(argc, argv, envp)
 	    }
 	    /* handle any queued signal flags */
 	    if (FD_ISSET(signalpipe[0], &readable)) {
-		int n;
-		if (ioctl(signalpipe[0], FIONREAD, &n) != 0) {
+		int nsig;
+		if (ioctl(signalpipe[0], FIONREAD, &nsig) != 0) {
 		    syslog(LOG_ERR, "ioctl: %m");
 		    exit(EX_OSERR);
 		}
-		while (--n >= 0) {
+		while (--nsig >= 0) {
 		    char c;
 		    if (read(signalpipe[0], &c, 1) != 1) {
 			syslog(LOG_ERR, "read: %m");
@@ -527,7 +526,7 @@ main(argc, argv, envp)
 			    if (ioctl(sep->se_fd, FIONBIO, &i) < 0)
 				    syslog(LOG_ERR, "ioctl (FIONBIO, 1): %m");
 			    ctrl = accept(sep->se_fd, (struct sockaddr *)0,
-				(int *)0);
+				(socklen_t *)0);
 			    if (debug)
 				    warnx("accept, ctrl %d", ctrl);
 			    if (ctrl < 0) {
@@ -552,23 +551,22 @@ main(argc, argv, envp)
 		    } else
 			    ctrl = sep->se_fd;
 		    if (log && !ISWRAP(sep)) {
-			    char pname[INET6_ADDRSTRLEN];
-			    pnm = "unknown";
-			    i = sizeof peermax;
+			    char pname[INET6_ADDRSTRLEN] = "unknown";
+			    socklen_t sl;
+			    sl = sizeof peermax;
 			    if (getpeername(ctrl, (struct sockaddr *)
-					    &peermax, &i)) {
-				    i = sizeof peermax;
+					    &peermax, &sl)) {
+				    sl = sizeof peermax;
 				    if (recvfrom(ctrl, buf, sizeof(buf),
 					MSG_PEEK,
 					(struct sockaddr *)&peermax,
-					&i) >= 0) {
+					&sl) >= 0) {
 				      getnameinfo((struct sockaddr *)&peermax,
 						  peer.sa_len,
 						  pname, sizeof(pname),
 						  NULL, 0, 
 						  NI_NUMERICHOST|
 						  NI_WITHSCOPEID);
-				      pnm = pname;
 				    }
 			    } else {
 			            getnameinfo((struct sockaddr *)&peermax,
@@ -577,9 +575,8 @@ main(argc, argv, envp)
 						NULL, 0, 
 						NI_NUMERICHOST|
 						NI_WITHSCOPEID);
-				    pnm = pname;
 			    }
-			    syslog(LOG_INFO,"%s from %s", sep->se_service, pnm);
+			    syslog(LOG_INFO,"%s from %s", sep->se_service, pname);
 		    }
 		    (void) sigblock(SIGBLOCK);
 		    pid = 0;
@@ -784,9 +781,11 @@ main(argc, argv, envp)
  */
 
 void flag_signal(c)
-    char c;
+    int c;
 {
-	if (write(signalpipe[1], &c, 1) != 1) {
+	char ch = c;
+
+	if (write(signalpipe[1], &ch, 1) != 1) {
 		syslog(LOG_ERR, "write: %m");
 		_exit(EX_OSERR);
 	}
@@ -1060,7 +1059,7 @@ void config()
 		if (sep->se_rpc && sep->se_rpc_prog > 0)
 			unregisterrpc(sep);
 		freeconfig(sep);
-		free((char *)sep);
+		free(sep);
 	}
 	(void) sigsetmask(omask);
 }
@@ -1183,7 +1182,8 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		return;
 	}
         if (sep->se_rpc) {
-                int i, len = sep->se_ctrladdr_size;
+		int i;
+		socklen_t len = sep->se_ctrladdr_size;
 
 		if (sep->se_family != AF_INET) {
                         syslog(LOG_ERR,
@@ -1350,7 +1350,8 @@ enter(cp)
 }
 
 void
-enable(struct servtab *sep)
+enable(sep)
+	struct servtab *sep;
 {
 	if (debug)
 		warnx(
@@ -1379,7 +1380,8 @@ enable(struct servtab *sep)
 }
 
 void
-disable(struct servtab *sep)
+disable(sep)
+	struct servtab *sep;
 {
 	if (debug)
 		warnx(
@@ -1487,7 +1489,7 @@ more:
 	 * clear the static buffer, since some fields (se_ctrladdr,
 	 * for example) don't get initialized here.
 	 */
-	memset((caddr_t)sep, 0, sizeof *sep);
+	memset(sep, 0, sizeof *sep);
 	arg = skip(&cp);
 	if (cp == NULL) {
 		/* got an empty line containing just blanks/tabs. */
@@ -1890,7 +1892,7 @@ inetd_setproctitle(a, s)
 	char *a;
 	int s;
 {
-	int size;
+	socklen_t size;
 	struct sockaddr_storage ss;
 	char buf[80], pbuf[INET6_ADDRSTRLEN];
 
@@ -2011,7 +2013,7 @@ cpmip(sep, ctrl)
 	int ctrl;
 {
 	struct sockaddr_storage rss;
-	int rssLen = sizeof(rss);
+	socklen_t rssLen = sizeof(rss);
 	int r = 0;
 
 	/*
