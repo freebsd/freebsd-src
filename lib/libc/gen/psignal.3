@@ -57,7 +57,9 @@ If the argument
 .Fa s
 is
 .Pf non- Dv NULL
-it is written to the standard error file descriptor
+and does not point to the null character,
+.Fa s
+is written to the standard error file descriptor
 prior to the message string,
 immediately followed by a colon and a space.
 If the signal number is not recognized
