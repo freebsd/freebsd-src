@@ -78,6 +78,7 @@ struct puc_device_description {
 		int	bar;
 		int	offset;
 		u_int	serialfreq;
+		u_int	flags;
 	} ports[PUC_MAX_PORTS];
 };
 

@@ -282,6 +282,8 @@ puc_attach(device_t dev, const struct puc_device_description *desc)
 		    sc->sc_desc->ports[i].offset);
 		puc_print_resource_list(&pdev->resources);
 #endif
+		device_set_flags(sc->sc_ports[i].dev,
+		    sc->sc_desc->ports[i].flags);
 		if (device_probe_and_attach(sc->sc_ports[i].dev) != 0) {
 			if (sc->barmuxed) {
 				bus_space_unmap(rman_get_bustag(rle->res),
