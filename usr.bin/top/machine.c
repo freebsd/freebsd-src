@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.14 1998/08/12 09:58:15 wosch Exp $
+ * $Id: machine.c,v 1.15 1998/09/11 14:38:12 dt Exp $
  */
 
 
@@ -628,8 +628,8 @@ char *(*get_userid)();
 	    status,
 	    smpmode ? PP(pp, p_lastcpu) : 0,
 	    format_time(cputime),
-	    10000.0 * weighted_cpu(pct, pp) / hz,
-	    10000.0 * pct / hz,
+	    100.0 * weighted_cpu(pct, pp),
+	    100.0 * pct,
 	    cmdlength,
 	    printable(PP(pp, p_comm)));
 
@@ -734,7 +734,7 @@ static unsigned char sorted_state[] =
  
 
 #define ORDERKEY_PCTCPU \
-  if (lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu), \
+  if (lresult = (long) PP(p2, p_pctcpu) - (long) PP(p1, p_pctcpu), \
      (result = lresult > 0 ? 1 : lresult < 0 ? -1 : 0) == 0)
 
 #define ORDERKEY_CPTICKS \
