@@ -984,6 +984,15 @@ mptable_pass2(void)
 					logical_cpus_mask |= (1 << cpu);
 					cpu++;
 				}
+			} else {
+				u_int id = ((proc_entry_ptr)position)->apic_id;
+
+				/*
+				 * If this is an already-enumerated logical
+				 * CPU, add it to the bitmap.
+				 */
+				if (id % logical_cpus != 0)
+					logical_cpus_mask |= (1 << ID_TO_CPU(id));
 			}
 			break;
 		case 1:
