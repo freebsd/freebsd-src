@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.41 1996/09/08 02:50:17 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.42 1996/09/22 15:40:16 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -65,17 +65,28 @@ Slippery when wet.  Beware of dog.
     <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
      name="P55TP4XE">
     motherboard appears to be a good choice for mid-to-high range Pentium
-    server and workstation systems.  If you're really looking for performance,
-    be also sure to get the <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html" name="pipelined burst cache module">.  I feel that it's worth
-    the extra cost.  If you're looking for a 486 class motherboard, you might
-    also investigate ASUS's <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt" name="486SP3G"> offering (Note:  These have become
-    increasingly hard to get as ASUS apparently no longer manufactures them).
+    server and workstation systems, though the newer Triton-II boards (see
+    below) have largely supplanted them.  If you buy one of these boards,
+    be also sure to get it with the
+    <htmlurl url="http://asustek.asus.com.tw/Products/TB/mem-0002.html"
+    name="pipelined burst cache module">.  If you're looking for a 486 class
+    motherboard, you might also investigate ASUS's
+    <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pvi-486sp3.txt"
+    name="486SP3G"> offering (Note:  These have become increasingly hard to
+    get as ASUS apparently no longer manufactures them).
 
-    NOTE:  The Intel <htmlurl url="http://asustek.asus.com.tw/Products/TB/triton-intro.html" name="Triton"> chip-set based motherboards do not offer memory
+    NOTE:  The Intel <htmlurl
+    url="http://asustek.asus.com.tw/Products/TB/triton-intro.html"
+    name="Triton"> chip-set based motherboards do not offer memory
     parity logic, making it almost impossible to detect when a memory error
     has occurred.  Those wishing to build more fault-tolerant systems should
     therefore buy one of the newer Triton II based motherboards, which offer
-    both better performance and parity checking.
+    both better performance, parity checking and ECC.  I'm also told that
+    if you are using ECC memory, be sure to get a motherboard with uses the
+    A2 or later steppings of the 82439HX Triton-II chipset.  Don't get this
+    confused with the 82371SB stepping - you have an A2 stepping if the
+    82439HX chip has a marking of "SU102."  You have an A1 stepping if it's
+    not marked with an S-number or if the number is "SU087."
 
     <p>At the even higher end, the Intel/Venus Pro (<ref id="hw:mb:pci"
     name="VS440FX">) motherboard appears to work very well with FreeBSD,
@@ -83,7 +94,16 @@ Slippery when wet.  Beware of dog.
     drops (plummets might be a more accurate term) have dropped P6 systems
     into a very affordable price bracket, at least in the United States,
     and for serious server applications you may wish to look no further than
-    one of these.
+    the Pentium Pro.
+
+    NOTE: The Intel motherboards are designed to a different form-factor
+    and hence require <em>an entirely different PC case</em>, the so-called
+    "ATX" case design.  Consider this fact carefully if you're thinking of
+    upgrading an existing system - all the commonly available ATX cases
+    I've seen so far have been in the "midi-tower" class, with limited space
+    for drives or other internal peripherals available.  On the plus side,
+    most ATX cases appear to be of much higher quality than their typical PC
+    counterparts.
 
   <sect2><heading>Disk Controllers</heading>
     <p>This one is a bit trickier, and while I used to recommend the
@@ -95,7 +115,7 @@ Slippery when wet.  Beware of dog.
     <p>If you should find that you need more than one SCSI controller in a
     PCI machine, you may wish to consider conserving your scarce PCI
     bus resources by buying the Adaptec 3940 card, which puts two SCSI
-    controllers (and busses) in a single slot.
+    controllers (and internal busses) in a single slot.
 
   <sect2><heading>Disk drives</heading>
     <p>In this particular game of Russian roulette, I'll make few specific
@@ -118,6 +138,11 @@ Slippery when wet.  Beware of dog.
     seen have been of pretty solid construction (probably because they don't 
     occupy the lower end of the market, due to their higher price) and you
     probably won't go wrong with an HP or NEC SCSI CDROM drive either.
+
+    NOTE:  SCSI CDROM prices appear to have dropped considerably in the
+    last few months and are now quite competetive with IDE CDROMs while
+    remaining the technically superior solution.
+
 
   <sect2><heading>CD Recordable (WORM) drives</heading>
     <p>At the time of this writing, FreeBSD supports 3 types of CDR drives
@@ -148,7 +173,7 @@ Slippery when wet.  Beware of dog.
     <htmlurl url="http://www.xinside.com/" name="X Inside"> then I
     can heartily recommend the <htmlurl url="http://www.matrox.com/"
     name="Matrox"> <htmlurl url="http://www.matrox.com/mgaweb/brochure.htm"
-    name="Millenium"> card.  If free X servers are more to your
+    name="Millenium"> card,  If free X servers are more to your
     liking, you certainly can't go wrong with one of <htmlurl url="http://www.nine.com/" name="Number 9's"> cards - their S3 Vision 868 and 968 based cards 
     (the 9FX series) are pretty fast cards as well, and are supported by
     <htmlurl url="http://www.xfree86.org" name="XFree86">'s S3 server.
@@ -172,6 +197,11 @@ Slippery when wet.  Beware of dog.
     will generally work as well.  For 100Mbit networking, either the
     SMC SMC9332DST 10/100MB or Intel EtherExpress Pro/100B cards will do
     a fine job.
+
+    If what you're looking for is, on the other hand, the cheapest possible
+    solution which will still work reasonably well, then almost any NE2000
+    clone is a good choice.
+
 
    <sect2><heading>Serial</heading>
     <p>If you're looking for high-speed serial networking solutions, then
