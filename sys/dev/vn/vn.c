@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.83 1999/08/08 22:01:50 phk Exp $
+ *	$Id: vn.c,v 1.84 1999/08/14 11:40:38 phk Exp $
  */
 
 /*
@@ -134,6 +134,7 @@ static struct cdevsw vn_cdevsw = {
 	free((caddr_t)(bp), M_DEVBUF)
 
 struct vn_softc {
+	int		sc_unit;
 	int		sc_flags;	/* flags 			*/
 	int		sc_size;	/* size of vn, sc_secsize scale	*/
 	int		sc_secsize;	/* sector size			*/
@@ -173,23 +174,46 @@ vnclose(dev_t dev, int flags, int mode, struct proc *p)
 	return (0);
 }
 
-static	int
-vnopen(dev_t dev, int flags, int mode, struct proc *p)
+static struct vn_softc *
+vnfindvn(dev_t dev)
 {
-	int unit = dkunit(dev);
+	int unit;
 	struct vn_softc *vn;
 
+	unit = dkunit(dev);
 	vn = dev->si_drv1;
+	if (!vn) {
+		SLIST_FOREACH(vn, &vn_list, sc_list) {
+			if (vn->sc_unit == unit) {
+				dev->si_drv1 = vn;
+				break;
+			}
+		}
+	}
 	if (!vn) {
 		vn = malloc(sizeof *vn, M_DEVBUF, M_WAITOK);
 		if (!vn)
-			return (ENOMEM);
+			return (NULL);
 		bzero(vn, sizeof *vn);
+		vn->sc_unit = unit;
 		dev->si_drv1 = vn;
 		make_dev(&vn_cdevsw, 0, 
 		    UID_ROOT, GID_OPERATOR, 0640, "vn%d", unit);
 		SLIST_INSERT_HEAD(&vn_list, vn, sc_list);
 	}
+	return (vn);
+}
+
+static	int
+vnopen(dev_t dev, int flags, int mode, struct proc *p)
+{
+	int unit;
+	struct vn_softc *vn;
+
+	unit = dkunit(dev);
+	vn = dev->si_drv1;
+	if (!vn)
+		vn = vnfindvn(dev);
 
 	IFOPT(vn, VN_FOLLOW)
 		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n",
@@ -236,13 +260,18 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 static	void
 vnstrategy(struct buf *bp)
 {
-	int unit = dkunit(bp->b_dev);
-	struct vn_softc *vn = bp->b_dev->si_drv1;
+	int unit;
+	struct vn_softc *vn;
 	int error;
 	int isvplocked = 0;
 	long sz;
 	struct uio auio;
 	struct iovec aiov;
+
+	unit = dkunit(bp->b_dev);
+	vn = bp->b_dev->si_drv1;
+	if (!vn)
+		vn = vnfindvn(bp->b_dev);
 
 	IFOPT(vn, VN_DEBUG)
 		printf("vnstrategy(%p): unit %d\n", bp, unit);
