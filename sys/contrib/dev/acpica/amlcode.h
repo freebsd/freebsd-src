@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 40 $
+ *       $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -201,10 +201,11 @@
 #define AML_LEQUAL_OP               (UINT16) 0x93
 #define AML_LGREATER_OP             (UINT16) 0x94
 #define AML_LLESS_OP                (UINT16) 0x95
-#define AML_BUFF_OP                 (UINT16) 0x96     /* ACPI 2.0 */
-#define AML_DEC_STR_OP              (UINT16) 0x97     /* ACPI 2.0 */
-#define AML_HEX_STR_OP              (UINT16) 0x98     /* ACPI 2.0 */
-#define AML_INT_OP                  (UINT16) 0x99     /* ACPI 2.0 */
+#define AML_TO_BUFFER_OP            (UINT16) 0x96     /* ACPI 2.0 */
+#define AML_TO_DECSTRING_OP         (UINT16) 0x97     /* ACPI 2.0 */
+#define AML_TO_HEXSTRING_OP         (UINT16) 0x98     /* ACPI 2.0 */
+#define AML_TO_INTEGER_OP           (UINT16) 0x99     /* ACPI 2.0 */
+#define AML_TO_STRING_OP            (UINT16) 0x9c     /* ACPI 2.0 */
 #define AML_COPY_OP                 (UINT16) 0x9d     /* ACPI 2.0 */
 #define AML_MID_OP                  (UINT16) 0x9e     /* ACPI 2.0 */
 #define AML_CONTINUE_OP             (UINT16) 0x9f     /* ACPI 2.0 */
@@ -465,25 +466,19 @@ typedef enum
 #define METHOD_FLAGS_SERIALIZED 0x08
 
 
+
+
 /* Array sizes.  Used for range checking also */
 
-#define NUM_REGION_TYPES        5
+#define NUM_REGION_TYPES        7
 #define NUM_ACCESS_TYPES        7
 #define NUM_UPDATE_RULES        3
 #define NUM_MATCH_OPS           7
 #define NUM_OPCODES             256
 #define NUM_FIELD_NAMES         2
 
-/* External declarations of the AML tables */
 
-extern UINT8                    AcpiGbl_Aml             [NUM_OPCODES];
-extern UINT16                   AcpiGbl_Pfx             [NUM_OPCODES];
-extern NATIVE_CHAR              *AcpiGbl_RegionTypes    [NUM_REGION_TYPES];
-extern NATIVE_CHAR              *AcpiGbl_MatchOps       [NUM_MATCH_OPS];
-extern NATIVE_CHAR              *AcpiGbl_AccessTypes    [NUM_ACCESS_TYPES];
-extern NATIVE_CHAR              *AcpiGbl_UpdateRules    [NUM_UPDATE_RULES];
-extern NATIVE_CHAR              *AcpiGbl_FENames        [NUM_FIELD_NAMES];
-
+#define USER_REGION_BEGIN       0x80
 
 /*
  * AML tables
@@ -491,61 +486,10 @@ extern NATIVE_CHAR              *AcpiGbl_FENames        [NUM_FIELD_NAMES];
 
 #ifdef DEFINE_AML_GLOBALS
 
-/* Data used in keeping track of fields */
+/* External declarations of the AML tables */
 
-NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
-{
-    "skip",
-    "?access?"
-};              /* FE = Field Element */
-
-
-/* Region type decoding */
-
-NATIVE_CHAR *AcpiGbl_RegionTypes[NUM_REGION_TYPES] =
-{
-    "SystemMemory",
-    "SystemIO",
-    "PCIConfig",
-    "EmbeddedControl",
-    "SMBus"
-};
-
-
-NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
-{
-    "Error",
-    "MTR",
-    "MEQ",
-    "MLE",
-    "MLT",
-    "MGE",
-    "MGT"
-};
-
-
-/* Access type decoding */
-
-NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
-{
-    "AnyAcc",
-    "ByteAcc",
-    "WordAcc",
-    "DWordAcc",
-    "BlockAcc",
-    "SMBSendRecvAcc",
-    "SMBQuickAcc"
-};
-
-
-/* Update rule decoding */
-
-NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
-{
-    "Preserve",
-    "WriteAsOnes",
-    "WriteAsZeros"
-};
+extern UINT8                    AcpiGbl_Aml             [NUM_OPCODES];
+extern UINT16                   AcpiGbl_Pfx             [NUM_OPCODES];
 
 
 #endif /* DEFINE_AML_GLOBALS */

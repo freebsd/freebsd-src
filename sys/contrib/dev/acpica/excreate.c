@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amcreate - Named object creation
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -520,7 +520,7 @@ ACPI_STATUS
 AcpiAmlExecCreateRegion (
     UINT8                   *AmlPtr,
     UINT32                  AmlLength,
-    UINT32                  RegionSpace,
+    UINT8                   RegionSpace,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_STATUS             Status;
@@ -531,21 +531,19 @@ AcpiAmlExecCreateRegion (
     FUNCTION_TRACE ("AmlExecCreateRegion");
 
 
-    if (RegionSpace >= NUM_REGION_TYPES)
+    /* 
+     * Space ID must be one of the predefined IDs, or in the user-defined 
+     * range
+     */
+    if ((RegionSpace >= NUM_REGION_TYPES) &&
+        (RegionSpace < USER_REGION_BEGIN))
     {
-        /* TBD: [Future] In ACPI 2.0, valid region space
-         *  includes types 0-6 (Adding CMOS and PCIBARTarget).
-         *  Also, types 0x80-0xff are defined as "OEM Region
-         *  Space handler"
-         *
-         * Should this return an error, or should we just keep
-         * going?  How do we handle the OEM region handlers?
-         */
-        REPORT_WARNING (("Invalid AddressSpace type %X\n", RegionSpace));
+        REPORT_ERROR (("Invalid AddressSpace type %X\n", RegionSpace));
+        return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
     }
 
-    DEBUG_PRINT (TRACE_LOAD, ("AmlDoNode: Region Type [%s]\n",
-                    AcpiGbl_RegionTypes[RegionSpace]));
+    DEBUG_PRINT (TRACE_LOAD, ("AmlExecCreateRegion: Region Type - %s (%X)\n",
+                    AcpiCmGetRegionName (RegionSpace), RegionSpace));
 
 
     /* Get the Node from the object stack  */
@@ -583,7 +581,7 @@ AcpiAmlExecCreateRegion (
 
     /* Init the region from the operands */
 
-    ObjDesc->Region.SpaceId       = (UINT8) RegionSpace;
+    ObjDesc->Region.SpaceId       = RegionSpace;
     ObjDesc->Region.Address       = 0;
     ObjDesc->Region.Length        = 0;
 

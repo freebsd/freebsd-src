@@ -3,7 +3,7 @@
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI
  *                       control and status registers.
- *              $Revision: 81 $
+ *              $Revision: 84 $
  *
  ******************************************************************************/
 
@@ -533,7 +533,7 @@ AcpiHwRegisterBitAccess (
          */
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM1_CONTROL);
 
-        DEBUG_PRINT (TRACE_IO, ("PM1 control: Read 0x%X\n", RegisterValue));
+        DEBUG_PRINT (TRACE_IO, ("PM1 control: Read %X\n", RegisterValue));
 
         if (ReadWrite == ACPI_WRITE)
         {
@@ -547,10 +547,13 @@ AcpiHwRegisterBitAccess (
              * than any other control Registers with
              * respect to A and B Registers.  The value
              * for A may be different than the value for B
+             *
+             * Therefore, pass the RegisterId, not just generic PM1_CONTROL,
+             * because we need to do different things. Yuck.
              */
 
             AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
-                PM1_CONTROL, (UINT16) RegisterValue);
+                RegisterId, (UINT16) RegisterValue);
         }
         break;
 
@@ -570,7 +573,7 @@ AcpiHwRegisterBitAccess (
 
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, PM2_CONTROL);
 
-        DEBUG_PRINT (TRACE_IO, ("PM2 control: Read 0x%X from 0x%X\n",
+        DEBUG_PRINT (TRACE_IO, ("PM2 control: Read %X from %p\n",
                         RegisterValue, AcpiGbl_FADT->XPm2CntBlk.Address));
 
         if (ReadWrite == ACPI_WRITE)
@@ -581,7 +584,7 @@ AcpiHwRegisterBitAccess (
             RegisterValue  |= Value;
 
             DEBUG_PRINT (TRACE_IO,
-                ("About to write %04X to %04X\n", RegisterValue,
+                ("About to write %04X to %p\n", RegisterValue,
                 AcpiGbl_FADT->XPm2CntBlk.Address));
 
             AcpiHwRegisterWrite (ACPI_MTX_DO_NOT_LOCK,
@@ -595,7 +598,7 @@ AcpiHwRegisterBitAccess (
         Mask = TMR_VAL_MASK;
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK,
                                             PM_TIMER);
-        DEBUG_PRINT (TRACE_IO, ("PM_TIMER: Read 0x%X from 0x%X\n",
+        DEBUG_PRINT (TRACE_IO, ("PM_TIMER: Read %X from %p\n",
                         RegisterValue, AcpiGbl_FADT->XPmTmrBlk.Address));
 
         break;
@@ -637,7 +640,7 @@ AcpiHwRegisterBitAccess (
         /* Now get the current Enable Bits in the selected Reg */
 
         RegisterValue = AcpiHwRegisterRead (ACPI_MTX_DO_NOT_LOCK, RegisterId);
-        DEBUG_PRINT (TRACE_IO, ("GPE Enable bits: Read 0x%X from 0x%X\n",
+        DEBUG_PRINT (TRACE_IO, ("GPE Enable bits: Read %X from %X\n",
                                 RegisterValue, RegisterId));
 
         if (ReadWrite == ACPI_WRITE)
@@ -676,7 +679,7 @@ AcpiHwRegisterBitAccess (
     RegisterValue &= Mask;
     RegisterValue >>= AcpiHwGetBitShift (Mask);
 
-    DEBUG_PRINT (TRACE_IO, ("Register I/O: returning 0x%X\n", RegisterValue));
+    DEBUG_PRINT (TRACE_IO, ("Register I/O: returning %X\n", RegisterValue));
     return_VALUE (RegisterValue);
 }
 
@@ -701,7 +704,6 @@ AcpiHwRegisterRead (
     UINT32                  RegisterId)
 {
     UINT32                  Value       = 0;
-    UINT32                  Offset      = REGISTER_OFFSET (RegisterId);
     UINT32                  BankOffset;
 
     FUNCTION_TRACE ("AcpiHwRegisterRead");
@@ -716,16 +718,16 @@ AcpiHwRegisterRead (
     {
     case PM1_STS: /* 16-bit access */
 
-        Value =  AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1aEvtBlk, Offset);
-        Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1bEvtBlk, Offset);
+        Value =  AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1aEvtBlk, 0);
+        Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1bEvtBlk, 0);
         break;
 
 
     case PM1_EN: /* 16-bit access*/
 
         BankOffset  = DIV_2 (AcpiGbl_FADT->Pm1EvtLen);
-        Value =  AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1aEvtBlk, BankOffset + Offset);
-        Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1bEvtBlk, BankOffset + Offset);
+        Value =  AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1aEvtBlk, BankOffset);
+        Value |= AcpiHwLowLevelRead (16, &AcpiGbl_FADT->XPm1bEvtBlk, BankOffset);
         break;
 
 
@@ -745,39 +747,39 @@ AcpiHwRegisterRead (
 
     case PM2_CONTROL: /* 8-bit access */
 
-        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XPm2CntBlk, Offset);
+        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XPm2CntBlk, 0);
         break;
 
 
     case PM_TIMER: /* 32-bit access */
 
-        Value =  AcpiHwLowLevelRead (32, &AcpiGbl_FADT->XPmTmrBlk, Offset);
+        Value =  AcpiHwLowLevelRead (32, &AcpiGbl_FADT->XPmTmrBlk, 0);
         break;
 
 
     case GPE0_STS_BLOCK: /* 8-bit access */
 
-        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe0Blk, Offset);
+        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe0Blk, 0);
         break;
 
 
     case GPE0_EN_BLOCK: /* 8-bit access */
 
         BankOffset  = DIV_2 (AcpiGbl_FADT->Gpe0BlkLen);
-        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe0Blk, BankOffset + Offset);
+        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe0Blk, BankOffset);
         break;
 
 
     case GPE1_STS_BLOCK: /* 8-bit access */
 
-        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe1Blk, Offset);
+        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe1Blk, 0);
         break;
 
 
     case GPE1_EN_BLOCK: /* 8-bit access */
 
         BankOffset  = DIV_2 (AcpiGbl_FADT->Gpe1BlkLen);
-        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe1Blk, BankOffset + Offset);
+        Value =  AcpiHwLowLevelRead (8, &AcpiGbl_FADT->XGpe1Blk, BankOffset);
         break;
 
 
@@ -822,7 +824,6 @@ AcpiHwRegisterWrite (
     UINT32                  RegisterId,
     UINT32                  Value)
 {
-    UINT32                  Offset      = REGISTER_OFFSET (RegisterId);
     UINT32                  BankOffset;
 
     FUNCTION_TRACE ("AcpiHwRegisterWrite");
@@ -838,16 +839,16 @@ AcpiHwRegisterWrite (
     {
     case PM1_STS: /* 16-bit access */
 
-        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aEvtBlk, Offset);
-        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bEvtBlk, Offset);
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aEvtBlk, 0);
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bEvtBlk, 0);
         break;
 
 
     case PM1_EN: /* 16-bit access*/
 
         BankOffset = DIV_2 (AcpiGbl_FADT->Pm1EvtLen);
-        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aEvtBlk, BankOffset + Offset);
-        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bEvtBlk, BankOffset + Offset);
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aEvtBlk, BankOffset);
+        AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bEvtBlk, BankOffset);
         break;
 
 
@@ -859,11 +860,11 @@ AcpiHwRegisterWrite (
          */
         if (RegisterId == SLP_TYPE_A)
         {
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, Offset);
+            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, 0);
         }
         else if (RegisterId == SLP_TYPE_B)
         {
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, Offset);
+            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, 0);
         }
         else
         {
@@ -873,8 +874,8 @@ AcpiHwRegisterWrite (
                 disable();
             }
 
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, Offset);
-            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, Offset);
+            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1aCntBlk, 0);
+            AcpiHwLowLevelWrite (16, Value, &AcpiGbl_FADT->XPm1bCntBlk, 0);
 
             if (RegisterId == SLP_EN)
             {
@@ -887,39 +888,39 @@ AcpiHwRegisterWrite (
 
     case PM2_CONTROL: /* 8-bit access */
 
-        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XPm2CntBlk, Offset);
+        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XPm2CntBlk, 0);
         break;
 
 
     case PM_TIMER: /* 32-bit access */
 
-        AcpiHwLowLevelWrite (32, Value, &AcpiGbl_FADT->XPmTmrBlk, Offset);
+        AcpiHwLowLevelWrite (32, Value, &AcpiGbl_FADT->XPmTmrBlk, 0);
         break;
 
 
     case GPE0_STS_BLOCK: /* 8-bit access */
 
-        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe0Blk, Offset);
+        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe0Blk, 0);
         break;
 
 
     case GPE0_EN_BLOCK: /* 8-bit access */
 
         BankOffset  = DIV_2 (AcpiGbl_FADT->Gpe0BlkLen);
-        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe0Blk, BankOffset + Offset);
+        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe0Blk, BankOffset);
         break;
 
 
     case GPE1_STS_BLOCK: /* 8-bit access */
 
-        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe1Blk, Offset);
+        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe1Blk, 0);
         break;
 
 
     case GPE1_EN_BLOCK: /* 8-bit access */
 
         BankOffset  = DIV_2 (AcpiGbl_FADT->Gpe1BlkLen);
-        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe1Blk, BankOffset + Offset);
+        AcpiHwLowLevelWrite (8, Value, &AcpiGbl_FADT->XGpe1Blk, BankOffset);
         break;
 
 
@@ -1159,5 +1160,3 @@ AcpiHwLowLevelWrite (
         break;
     }
 }
-
-

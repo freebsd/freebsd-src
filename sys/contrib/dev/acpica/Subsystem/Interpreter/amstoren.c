@@ -3,7 +3,7 @@
  *
  * Module Name: amstoren - AML Interpreter object store support,
  *                         Store to Node (namespace object)
- *              $Revision: 23 $
+ *              $Revision: 24 $
  *
  *****************************************************************************/
 
@@ -328,7 +328,7 @@ AcpiAmlStoreObjectToNode (
          *  There is no existing object attached to this Node
          */
         DEBUG_PRINT (ACPI_ERROR,
-            ("AmlStoreObjectToNte: Internal error - no destination object for %4.4s type %d\n",
+            ("AmlStoreObjectToNte: Internal error - no destination object for %4.4s type %X\n",
             &Node->Name, DestinationType));
         Status = AE_AML_INTERNAL;
         goto CleanUpAndBailOut;
@@ -340,7 +340,7 @@ AcpiAmlStoreObjectToNode (
     if (DestDesc->Common.Type != (UINT8) DestinationType)
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("AmlStoreObjectToNte: Internal error - Name %4.4s type %d does not match value-type %d at %p\n",
+            ("AmlStoreObjectToNte: Internal error - Name %4.4s type %X does not match value-type %X at %p\n",
             &Node->Name, AcpiNsGetType (Node),
             DestDesc->Common.Type, DestDesc));
         Status = AE_AML_INTERNAL;
@@ -531,7 +531,7 @@ AcpiAmlStoreObjectToNode (
              */
             MEMCPY(DestDesc->Buffer.Pointer, Buffer, DestDesc->Buffer.Length);
             DEBUG_PRINT (ACPI_INFO,
-                ("AmlStoreObjectToNte: Truncating src buffer from %d to %d\n",
+                ("AmlStoreObjectToNte: Truncating src buffer from %X to %X\n",
                 Length, DestDesc->Buffer.Length));
         }
         break;
@@ -601,7 +601,7 @@ AcpiAmlStoreObjectToNode (
 
             if (DestDesc->FieldUnit.Container)
             {
-                DEBUG_PRINT_RAW (ACPI_ERROR, (" Type %d",
+                DEBUG_PRINT_RAW (ACPI_ERROR, (" Type %X",
                     DestDesc->FieldUnit.Container->Common.Type));
             }
             DEBUG_PRINT_RAW (ACPI_ERROR, ("\n"));
@@ -641,7 +641,7 @@ AcpiAmlStoreObjectToNode (
                             << DestDesc->FieldUnit.BitOffset);
 
         DEBUG_PRINT (TRACE_EXEC,
-            ("** Store %lx in buffer %p byte %ld bit %d width %d addr %p mask %08lx\n",
+            ("** Store %lx in buffer %p byte %ld bit %X width %d addr %p mask %08lx\n",
             ValDesc->Number.Value,
             DestDesc->FieldUnit.Container->Buffer.Pointer,
             DestDesc->FieldUnit.Offset, DestDesc->FieldUnit.BitOffset,

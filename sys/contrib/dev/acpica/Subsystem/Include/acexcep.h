@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 36 $
+ *       $Revision: 37 $
  *
  *****************************************************************************/
 
@@ -206,8 +206,9 @@
 #define AE_AML_BAD_NAME                 (ACPI_STATUS) (0x000F | AE_CODE_AML)
 #define AE_AML_NAME_NOT_FOUND           (ACPI_STATUS) (0x0010 | AE_CODE_AML)
 #define AE_AML_INTERNAL                 (ACPI_STATUS) (0x0011 | AE_CODE_AML)
+#define AE_AML_INVALID_SPACE_ID         (ACPI_STATUS) (0x0012 | AE_CODE_AML)
 
-#define AE_CODE_AML_MAX                 0x0011
+#define AE_CODE_AML_MAX                 0x0012
 
 /*
  * Internal exceptions used for control
@@ -291,6 +292,7 @@ static NATIVE_CHAR          *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_BAD_NAME",
     "AE_AML_NAME_NOT_FOUND",
     "AE_AML_INTERNAL",
+    "AE_AML_INVALID_SPACE_ID",
 };
 
 static NATIVE_CHAR          *AcpiGbl_ExceptionNames_Ctrl[] =

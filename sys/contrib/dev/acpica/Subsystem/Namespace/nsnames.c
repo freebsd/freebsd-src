@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsnames - Name manipulation and search
- *              $Revision: 49 $
+ *              $Revision: 51 $
  *
  ******************************************************************************/
 
@@ -210,7 +210,7 @@ AcpiNsGetTablePathname (
     if (Size != 0)
     {
         DEBUG_PRINT (ACPI_ERROR,
-            ("NsGetTablePathname:  Bad pointer returned; size = %d\n", Size));
+            ("NsGetTablePathname:  Bad pointer returned; size=%X\n", Size));
     }
 
     return_PTR (NameBuffer);
@@ -278,6 +278,13 @@ AcpiNsHandleToPathname (
         Size += PATH_SEGMENT_LENGTH;
     }
 
+    /* Special case for size still 0 - no parent for "special" nodes */
+
+    if (!Size)
+    {
+        Size = PATH_SEGMENT_LENGTH;
+    }
+
     /* Set return length to the required path length */
 
     PathLength = Size + 1;
@@ -324,7 +331,7 @@ AcpiNsHandleToPathname (
     UserBuffer[Size] = '\\';
 
     DEBUG_PRINT (TRACE_EXEC,
-        ("NsHandleToPathname: Len=%d, %s \n",
+        ("NsHandleToPathname: Len=%X, %s \n",
         PathLength, UserBuffer));
 
 Exit:

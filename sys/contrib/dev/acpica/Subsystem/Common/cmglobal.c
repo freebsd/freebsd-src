@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmglobal - Global variables for the ACPI subsystem
- *              $Revision: 110 $
+ *              $Revision: 112 $
  *
  *****************************************************************************/
 
@@ -121,6 +121,7 @@
 #include "acevents.h"
 #include "acnamesp.h"
 #include "acinterp.h"
+#include "amlcode.h"
 
 
 #define _COMPONENT          MISCELLANEOUS
@@ -242,10 +243,8 @@ UINT8                       AcpiGbl_NsProperties[] =
     NSP_NORMAL,                 /* 30 While            */
     NSP_NEWSCOPE,               /* 31 Scope            */
     NSP_LOCAL,                  /* 32 DefAny           */
-    NSP_NORMAL,                 /* 33 Method Arg       */
-    NSP_NORMAL,                 /* 34 Method Local     */
-    NSP_NORMAL,                 /* 35 Extra            */
-    NSP_NORMAL                  /* 36 Invalid          */
+    NSP_NORMAL,                 /* 33 Extra            */
+    NSP_NORMAL                  /* 34 Invalid          */
 };
 
 
@@ -286,6 +285,8 @@ ACPI_TABLE_SUPPORT          AcpiGbl_AcpiTableData[NUM_ACPI_TABLES] =
  ******************************************************************************/
 
 NATIVE_CHAR                 *MsgAcpiErrorBreak = "*** Break on ACPI_ERROR ***\n";
+
+
 
 
 /*****************************************************************************
@@ -361,10 +362,8 @@ static NATIVE_CHAR          *AcpiGbl_NsTypeNames[] =    /* printable names of AC
     /* 30 */ "While",
     /* 31 */ "Scope",
     /* 32 */ "DefAny",
-    /* 33 */ "MethodArg",
-    /* 34 */ "MethodLcl",
-    /* 35 */ "Extra",
-    /* 36 */ "Invalid"
+    /* 33 */ "Extra",
+    /* 34 */ "Invalid"
 };
 
 
@@ -393,7 +392,105 @@ AcpiCmGetTypeName (
     return (AcpiGbl_NsTypeNames[Type]);
 }
 
+
+
+
+
+/* Region type decoding */
+
+NATIVE_CHAR *AcpiGbl_RegionTypes[NUM_REGION_TYPES] =
+{
+    "SystemMemory",
+    "SystemIO",
+    "PCIConfig",
+    "EmbeddedControl",
+    "SMBus",
+    "CMOS",
+    "PCIBarTarget",
+};
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiCmGetRegionName
+ *
+ * PARAMETERS:  None.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Translate a Space ID into a name string (Debug only)
+ *
+ ****************************************************************************/
+
+NATIVE_CHAR *
+AcpiCmGetRegionName (
+    UINT8                   SpaceId)
+{
+
+    if (SpaceId >= USER_REGION_BEGIN)
+    {
+        return ("UserDefinedRegion");
+    }
+
+    else if (SpaceId >= NUM_REGION_TYPES)
+    {
+        return ("InvalidSpaceID");
+    }
+
+    return (AcpiGbl_RegionTypes[SpaceId]);
+}
+
+
+
+
+
+/* Data used in keeping track of fields */
+
+NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
+{
+    "skip",
+    "?access?"
+};              /* FE = Field Element */
+
+
+
+NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
+{
+    "Error",
+    "MTR",
+    "MEQ",
+    "MLE",
+    "MLT",
+    "MGE",
+    "MGT"
+};
+
+
+/* Access type decoding */
+
+NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
+{
+    "AnyAcc",
+    "ByteAcc",
+    "WordAcc",
+    "DWordAcc",
+    "BlockAcc",
+    "SMBSendRecvAcc",
+    "SMBQuickAcc"
+};
+
+
+/* Update rule decoding */
+
+NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
+{
+    "Preserve",
+    "WriteAsOnes",
+    "WriteAsZeros"
+};
+
 #endif
+
 
 
 /*****************************************************************************

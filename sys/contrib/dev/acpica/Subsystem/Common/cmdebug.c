@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: cmdebug - Debug print routines
- *              $Revision: 60 $
+ *              $Revision: 61 $
  *
  *****************************************************************************/
 
@@ -210,7 +210,7 @@ FunctionTracePtr (
 
     AcpiGbl_NestingLevel++;
     DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Entered Function: %s, 0x%p\n",
+                " %2.2ld Entered Function: %s, %p\n",
                 AcpiGbl_NestingLevel, FunctionName, Pointer);
 }
 
@@ -276,7 +276,7 @@ FunctionTraceU32 (
 
     AcpiGbl_NestingLevel++;
     DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Entered Function: %s, 0x%lX\n",
+                " %2.2ld Entered Function: %s, %lX\n",
                 AcpiGbl_NestingLevel, FunctionName, Integer);
 }
 
@@ -377,7 +377,7 @@ FunctionValueExit (
 {
 
     DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Exiting Function: %s, 0x%X\n",
+                " %2.2ld Exiting Function: %s, %X\n",
                 AcpiGbl_NestingLevel, FunctionName, Value);
 
     AcpiGbl_NestingLevel--;
@@ -411,7 +411,7 @@ FunctionPtrExit (
 {
 
     DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Exiting Function: %s, 0x%p\n",
+                " %2.2ld Exiting Function: %s, %p\n",
                 AcpiGbl_NestingLevel, FunctionName, Ptr);
 
     AcpiGbl_NestingLevel--;

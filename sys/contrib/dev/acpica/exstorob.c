@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amstorob - AML Interpreter object store support, store to object
- *              $Revision: 17 $
+ *              $Revision: 18 $
  *
  *****************************************************************************/
 
@@ -408,7 +408,7 @@ AcpiAmlStoreObjectToObject (
              */
             MEMCPY(DestDesc->Buffer.Pointer, Buffer, DestDesc->Buffer.Length);
             DEBUG_PRINT (ACPI_INFO,
-                ("AmlStoreObjectToObject: Truncating src buffer from %d to %d\n",
+                ("AmlStoreObjectToObject: Truncating src buffer from %X to %X\n",
                 Length, DestDesc->Buffer.Length));
         }
         break;
