@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.115 1999/01/08 17:31:27 eivind Exp $
+ *	$Id: vm_page.c,v 1.116 1999/01/10 01:58:29 eivind Exp $
  */
 
 /*
@@ -83,6 +83,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 
 static void	vm_page_queue_init __P((void));
@@ -95,7 +96,7 @@ static vm_page_t vm_page_select_cache __P((vm_object_t, vm_pindex_t));
  *	page structure.
  */
 
-static struct pglist *vm_page_buckets;	/* Array of buckets */
+static struct vm_page **vm_page_buckets; /* Array of buckets */
 static int vm_page_bucket_count;	/* How big is array? */
 static int vm_page_hash_mask;		/* Mask for hash function */
 static volatile int vm_page_bucket_generation;
@@ -162,7 +163,6 @@ static u_short vm_page_dev_bsize_chunks[] = {
 };
 
 static __inline int vm_page_hash __P((vm_object_t object, vm_pindex_t pindex));
-static int vm_page_freechk_and_unqueue __P((vm_page_t m));
 static void vm_page_free_wakeup __P((void));
 
 /*
@@ -206,7 +206,7 @@ vm_page_startup(starta, enda, vaddr)
 {
 	register vm_offset_t mapped;
 	register vm_page_t m;
-	register struct pglist *bucket;
+	register struct vm_page **bucket;
 	vm_size_t npages, page_range;
 	register vm_offset_t new_start;
 	int i;
@@ -256,24 +256,30 @@ vm_page_startup(starta, enda, vaddr)
 	 *
 	 * The number of buckets MUST BE a power of 2, and the actual value is
 	 * the next power of 2 greater than the number of physical pages in
-	 * the system.
+	 * the system.  
+	 *
+	 * We make the hash table approximately 2x the number of pages to
+	 * reduce the chain length.  This is about the same size using the 
+	 * singly-linked list as the 1x hash table we were using before 
+	 * using TAILQ but the chain length will be smaller.
 	 *
 	 * Note: This computation can be tweaked if desired.
 	 */
-	vm_page_buckets = (struct pglist *) vaddr;
+	vm_page_buckets = (struct vm_page **)vaddr;
 	bucket = vm_page_buckets;
 	if (vm_page_bucket_count == 0) {
 		vm_page_bucket_count = 1;
 		while (vm_page_bucket_count < atop(total))
 			vm_page_bucket_count <<= 1;
 	}
+	vm_page_bucket_count <<= 1;
 	vm_page_hash_mask = vm_page_bucket_count - 1;
 
 	/*
 	 * Validate these addresses.
 	 */
 
-	new_start = start + vm_page_bucket_count * sizeof(struct pglist);
+	new_start = start + vm_page_bucket_count * sizeof(struct vm_page *);
 	new_start = round_page(new_start);
 	mapped = round_page(vaddr);
 	vaddr = pmap_map(mapped, start, new_start,
@@ -283,7 +289,7 @@ vm_page_startup(starta, enda, vaddr)
 	bzero((caddr_t) mapped, vaddr - mapped);
 
 	for (i = 0; i < vm_page_bucket_count; i++) {
-		TAILQ_INIT(bucket);
+		*bucket = NULL;
 		bucket++;
 	}
 
@@ -353,13 +359,18 @@ vm_page_startup(starta, enda, vaddr)
  *
  *	NOTE:  This macro depends on vm_page_bucket_count being a power of 2.
  *	This routine may not block.
+ *
+ *	We try to randomize the hash based on the object to spread the pages
+ *	out in the hash table without it costing us too much.
  */
 static __inline int
 vm_page_hash(object, pindex)
 	vm_object_t object;
 	vm_pindex_t pindex;
 {
-	return ((((uintptr_t) object) >> 5) + (pindex >> 1)) & vm_page_hash_mask;
+	int i = ((uintptr_t)object + pindex) ^ object->hash_rand;
+
+	return(i & vm_page_hash_mask);
 }
 
 /*
@@ -382,7 +393,7 @@ vm_page_insert(m, object, pindex)
 	register vm_object_t object;
 	register vm_pindex_t pindex;
 {
-	register struct pglist *bucket;
+	register struct vm_page **bucket;
 
 	if (m->object != NULL)
 		panic("vm_page_insert: already inserted");
@@ -399,7 +410,8 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
-	TAILQ_INSERT_TAIL(bucket, m, hashq);
+	m->hnext = *bucket;
+	*bucket = m;
 	vm_page_bucket_generation++;
 
 	/*
@@ -407,7 +419,9 @@ vm_page_insert(m, object, pindex)
 	 */
 
 	TAILQ_INSERT_TAIL(&object->memq, m, listq);
+#if 0
 	m->object->page_hint = m;
+#endif
 	m->object->generation++;
 
 	if (m->wire_count)
@@ -417,50 +431,48 @@ vm_page_insert(m, object, pindex)
 		object->cache_count++;
 
 	/*
-	 * And show that the object has one more resident page.
+	 * show that the object has one more resident page.
 	 */
 
 	object->resident_page_count++;
 }
 
 /*
- *	vm_page_remove:		[ internal use only ]
+ *	vm_page_remove:
  *				NOTE: used by device pager as well -wfj
  *
  *	Removes the given mem entry from the object/offset-page
- *	table and the object page list.
+ *	table and the object page list, but do not invalidate/terminate
+ *	the backing store.
  *
  *	The object and page must be locked, and at splhigh.
+ *	The underlying pmap entry (if any) is NOT removed here.
  *	This routine may not block.
- *
- *	I do not think the underlying pmap entry (if any) is removed here.
  */
 
-void
+vm_object_t
 vm_page_remove(m)
-	register vm_page_t m;
+	vm_page_t m;
 {
-	register struct pglist *bucket;
+	register struct vm_page **bucket;
 	vm_object_t object;
 
 	if (m->object == NULL)
-		return;
+		return(NULL);
 
 #if !defined(MAX_PERF)
 	if ((m->flags & PG_BUSY) == 0) {
 		panic("vm_page_remove: page not busy");
 	}
 #endif
-	
-	vm_page_flag_clear(m, PG_BUSY);
-	if (m->flags & PG_WANTED) {
-		vm_page_flag_clear(m, PG_WANTED);
-		wakeup(m);
-	}
+
+	/*
+	 * Basically destroy the page.
+	 */
+
+	vm_page_wakeup(m);
 
 	object = m->object;
-	if (object->page_hint == m)
-		object->page_hint = NULL;
 
 	if (m->wire_count)
 		object->wire_count--;
@@ -469,11 +481,23 @@ vm_page_remove(m)
 		object->cache_count--;
 
 	/*
-	 * Remove from the object_object/offset hash table
+	 * Remove from the object_object/offset hash table.  The object
+	 * must be on the hash queue, we will panic if it isn't
+	 *
+	 * Note: we must NULL-out m->hnext to prevent loops in detached
+	 * buffers with vm_page_lookup().
 	 */
 
 	bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
-	TAILQ_REMOVE(bucket, m, hashq);
+	while (*bucket != m) {
+#if !defined(MAX_PERF)
+		if (*bucket == NULL)
+			panic("vm_page_remove(): page not found in hash");
+#endif
+		bucket = &(*bucket)->hnext;
+	}
+	*bucket = m->hnext;
+	m->hnext = NULL;
 	vm_page_bucket_generation++;
 
 	/*
@@ -490,6 +514,8 @@ vm_page_remove(m)
 	object->generation++;
 
 	m->object = NULL;
+
+	return(object);
 }
 
 /*
@@ -498,8 +524,14 @@ vm_page_remove(m)
  *	Returns the page associated with the object/offset
  *	pair specified; if none is found, NULL is returned.
  *
+ *	NOTE: the code below does not lock.  It will operate properly if
+ *	an interrupt makes a change, but the generation algorithm will not 
+ *	operate properly in an SMP environment where both cpu's are able to run
+ *	kernel code simultaniously.
+ *
  *	The object must be locked.  No side effects.
  *	This routine may not block.
+ *	This is a critical path routine
  */
 
 vm_page_t
@@ -508,25 +540,29 @@ vm_page_lookup(object, pindex)
 	register vm_pindex_t pindex;
 {
 	register vm_page_t m;
-	register struct pglist *bucket;
+	register struct vm_page **bucket;
 	int generation;
 
 	/*
 	 * Search the hash table for this object/offset pair
 	 */
 
+#if 0
 	if (object->page_hint && (object->page_hint->pindex == pindex) &&
 		(object->page_hint->object == object))
 		return object->page_hint;
+#endif
 
 retry:
 	generation = vm_page_bucket_generation;
 	bucket = &vm_page_buckets[vm_page_hash(object, pindex)];
-	for (m = TAILQ_FIRST(bucket); m != NULL; m = TAILQ_NEXT(m,hashq)) {
+	for (m = *bucket; m != NULL; m = m->hnext) {
 		if ((m->object == object) && (m->pindex == pindex)) {
 			if (vm_page_bucket_generation != generation)
 				goto retry;
+#if 0
 			m->object->page_hint = m;
+#endif
 			return (m);
 		}
 	}
@@ -545,6 +581,16 @@ retry:
  *	This routine may not block.
  *
  *	Note: this routine will raise itself to splvm(), the caller need not. 
+ *
+ *	Note: swap associated with the page must be invalidated by the move.  We
+ *	      have to do this for several reasons:  (1) we aren't freeing the
+ *	      page, (2) we are dirtying the page, (3) the VM system is probably
+ *	      moving the page from object A to B, and will then later move
+ *	      the backing store from A to B and we can't have a conflict.
+ *
+ *	Note: we *always* dirty the page.  It is necessary both for the
+ *	      fact that we moved it, and because we may be invalidating
+ *	      swap.
  */
 
 void
@@ -558,6 +604,7 @@ vm_page_rename(m, new_object, new_pindex)
 	s = splvm();
 	vm_page_remove(m);
 	vm_page_insert(m, new_object, new_pindex);
+	m->dirty = VM_PAGE_BITS_ALL;
 	splx(s);
 }
 
@@ -624,6 +671,12 @@ vm_page_unqueue(m)
  *	vm_page_list_find:
  *
  *	Find a page on the specified queue with color optimization.
+ *
+ *	The page coloring optimization attempts to locate a page
+ *	that does not overload other nearby pages in the object in
+ *	the cpu's L1 or L2 caches.  We need this optmization because 
+ *	cpu caches tend to be physical caches, while object spaces tend 
+ *	to be virtual.
  *
  *	This routine must be called at splvm().
  *	This routine may not block.
@@ -759,7 +812,10 @@ vm_page_select_free(object, pindex, prefqueue)
 	int i,j;
 	int index, hindex;
 #endif
-	vm_page_t m, mh;
+	vm_page_t m;
+#if 0
+	vm_page_t mh;
+#endif
 	int oqueuediff;
 	struct vpgqueues *pq;
 
@@ -768,6 +824,7 @@ vm_page_select_free(object, pindex, prefqueue)
 	else
 		oqueuediff = PQ_ZERO - PQ_FREE;
 
+#if 0
 	if (mh = object->page_hint) {
 		 if (mh->pindex == (pindex - 1)) {
 			if ((mh->flags & PG_FICTITIOUS) == 0) {
@@ -785,6 +842,7 @@ vm_page_select_free(object, pindex, prefqueue)
 			}
 		}
 	}
+#endif
 
 	pq = &vm_page_queues[prefqueue];
 
@@ -857,6 +915,8 @@ vm_page_select_free(object, pindex, prefqueue)
  *	Additional special handling is required when called from an
  *	interrupt (VM_ALLOC_INTERRUPT).  We are not allowed to mess with
  *	the page cache in this case.
+ *
+ *	vm_page_alloc() 
  */
 vm_page_t
 vm_page_alloc(object, pindex, page_req)
@@ -864,7 +924,7 @@ vm_page_alloc(object, pindex, page_req)
 	vm_pindex_t pindex;
 	int page_req;
 {
-	register vm_page_t m;
+	register vm_page_t m = NULL;
 	struct vpgqueues *pq;
 	vm_object_t oldobject;
 	int queue, qtype;
@@ -873,12 +933,17 @@ vm_page_alloc(object, pindex, page_req)
 	KASSERT(!vm_page_lookup(object, pindex),
 		("vm_page_alloc: page already allocated"));
 
+	/*
+	 * The pager is allowed to eat deeper into the free page list.
+	 */
+
 	if ((curproc == pageproc) && (page_req != VM_ALLOC_INTERRUPT)) {
 		page_req = VM_ALLOC_SYSTEM;
 	};
 
 	s = splvm();
 
+loop:
 	switch (page_req) {
 
 	case VM_ALLOC_NORMAL:
@@ -961,20 +1026,36 @@ vm_page_alloc(object, pindex, page_req)
 
 	queue = m->queue;
 	qtype = queue - m->pc;
-	if (qtype == PQ_ZERO)
-		vm_page_zero_count--;
+
+	/*
+	 * Cache pages must be formally freed (and doubly so with the
+	 * new pagerops functions).  We free the page and try again.
+	 *
+	 * This also has the side effect of ensuring that the minfreepage 
+	 * wall is held more tightly verses the old code.
+	 */
+
+	if (qtype == PQ_CACHE) {
+#if !defined(MAX_PERF)
+		if (m->dirty)
+			panic("found dirty cache page %p", m);
+			
+#endif
+		vm_page_busy(m);
+		vm_page_protect(m, VM_PROT_NONE);
+		vm_page_free(m);
+		goto loop;
+	}
+
 	pq = &vm_page_queues[queue];
 	TAILQ_REMOVE(pq->pl, m, pageq);
 	(*pq->cnt)--;
 	(*pq->lcnt)--;
 	oldobject = NULL;
+
 	if (qtype == PQ_ZERO) {
+		vm_page_zero_count--;
 		m->flags = PG_ZERO | PG_BUSY;
-	} else if (qtype == PQ_CACHE) {
-		oldobject = m->object;
-		vm_page_busy(m);
-		vm_page_remove(m);
-		m->flags = PG_BUSY;
 	} else {
 		m->flags = PG_BUSY;
 	}
@@ -1004,6 +1085,12 @@ vm_page_alloc(object, pindex, page_req)
 			(cnt.v_free_count < cnt.v_pageout_free_min))
 		pagedaemon_wakeup();
 
+#if 0
+	/*
+	 * (code removed - was previously a manual breakout of the act of
+	 * freeing a page from cache.  We now just call vm_page_free() on
+	 * a cache page an loop so this code no longer needs to be here)
+	 */
 	if ((qtype == PQ_CACHE) &&
 		((page_req == VM_ALLOC_NORMAL) || (page_req == VM_ALLOC_ZERO)) &&
 		oldobject && (oldobject->type == OBJT_VNODE) &&
@@ -1017,6 +1104,7 @@ vm_page_alloc(object, pindex, page_req)
 			}
 		}
 	}
+#endif
 	splx(s);
 
 	return (m);
@@ -1048,6 +1136,33 @@ vm_wait()
 }
 
 /*
+ *	vm_await:	(also see VM_AWAIT macro)
+ *
+ *	asleep on an event that will signal when free pages are available
+ *	for allocation.
+ */
+
+void
+vm_await()
+{
+	int s;
+
+	s = splvm();
+	if (curproc == pageproc) {
+		vm_pageout_pages_needed = 1;
+		asleep(&vm_pageout_pages_needed, PSWP, "vmwait", 0);
+	} else {
+		if (!vm_pages_needed) {
+			vm_pages_needed++;
+			wakeup(&vm_pages_needed);
+		}
+		asleep(&cnt.v_free_count, PVM, "vmwait", 0);
+	}
+	splx(s);
+}
+
+#if 0
+/*
  *	vm_page_sleep:
  *
  *	Block until page is no longer busy.
@@ -1068,6 +1183,38 @@ vm_page_sleep(vm_page_t m, char *msg, char *busy) {
 	}
 	return slept;
 }
+
+#endif
+
+#if 0
+
+/*
+ *	vm_page_asleep:
+ *
+ *	Similar to vm_page_sleep(), but does not block.  Returns 0 if
+ *	the page is not busy, or 1 if the page is busy.
+ *
+ *	This routine has the side effect of calling asleep() if the page
+ *	was busy (1 returned).
+ */
+
+int
+vm_page_asleep(vm_page_t m, char *msg, char *busy) {
+	int slept = 0;
+	if ((busy && *busy) || (m->flags & PG_BUSY)) {
+		int s;
+		s = splvm();
+		if ((busy && *busy) || (m->flags & PG_BUSY)) {
+			vm_page_flag_set(m, PG_WANTED);
+			asleep(m, PVM, msg, 0);
+			slept = 1;
+		}
+		splx(s);
+	}
+	return slept;
+}
+
+#endif
 
 /*
  *	vm_page_activate:
@@ -1111,13 +1258,49 @@ vm_page_activate(m)
  *
  * This routine may not block.
  */
-static int
-vm_page_freechk_and_unqueue(m)
-	vm_page_t m;
+static __inline void
+vm_page_free_wakeup()
 {
-	vm_object_t oldobject;
+	/*
+	 * if pageout daemon needs pages, then tell it that there are
+	 * some free.
+	 */
+	if (vm_pageout_pages_needed) {
+		wakeup(&vm_pageout_pages_needed);
+		vm_pageout_pages_needed = 0;
+	}
+	/*
+	 * wakeup processes that are waiting on memory if we hit a
+	 * high water mark. And wakeup scheduler process if we have
+	 * lots of memory. this process will swapin processes.
+	 */
+	if (vm_pages_needed &&
+		((cnt.v_free_count + cnt.v_cache_count) >= cnt.v_free_min)) {
+		wakeup(&cnt.v_free_count);
+		vm_pages_needed = 0;
+	}
+}
 
-	oldobject = m->object;
+/*
+ *	vm_page_free_toq:
+ *
+ *	Returns the given page to the PQ_FREE or PQ_ZERO list,
+ *	disassociating it with any VM object.
+ *
+ *	Object and page must be locked prior to entry.
+ *	This routine may not block.
+ */
+
+void
+vm_page_free_toq(vm_page_t m, int queue)
+{
+	int s;
+	struct vpgqueues *pq;
+	vm_object_t object = m->object;
+
+	s = splvm();
+
+	cnt.v_tfree++;
 
 #if !defined(MAX_PERF)
 	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
@@ -1133,11 +1316,24 @@ vm_page_freechk_and_unqueue(m)
 	}
 #endif
 
+	/*
+	 * unqueue, then remove page.  Note that we cannot destroy
+	 * the page here because we do not want to call the pager's
+	 * callback routine until after we've put the page on the
+	 * appropriate free queue.
+	 */
+
 	vm_page_unqueue_nowakeup(m);
 	vm_page_remove(m);
 
+	/*
+	 * If fictitious remove object association and
+	 * return, otherwise delay object association removal.
+	 */
+
 	if ((m->flags & PG_FICTITIOUS) != 0) {
-		return 0;
+		splx(s);
+		return;
 	}
 
 	m->valid = 0;
@@ -1156,10 +1352,17 @@ vm_page_freechk_and_unqueue(m)
 		cnt.v_wire_count--;
 	}
 
-	if (oldobject && (oldobject->type == OBJT_VNODE) &&
-		((oldobject->flags & OBJ_DEAD) == 0)) {
-		struct vnode *vp;
-		vp = (struct vnode *) oldobject->handle;
+	/*
+	 * If we've exhausted the object's resident pages we want to free
+	 * it up.
+	 */
+
+	if (object && 
+	    (object->type == OBJT_VNODE) &&
+	    ((object->flags & OBJ_DEAD) == 0)
+	) {
+		struct vnode *vp = (struct vnode *)object->handle;
+
 		if (vp && VSHOULDFREE(vp)) {
 			if ((vp->v_flag & (VTBFREE|VDOOMED|VFREE)) == 0) {
 				TAILQ_INSERT_TAIL(&vnode_tobefree_list, vp, v_freelist);
@@ -1172,107 +1375,31 @@ vm_page_freechk_and_unqueue(m)
 	pmap_page_is_free(m);
 #endif
 
-	return 1;
-}
-
-/*
- * helper routine for vm_page_free and vm_page_free_zero.
- *
- * This routine may not block.
- */
-static __inline void
-vm_page_free_wakeup()
-{
-	
-/*
- * if pageout daemon needs pages, then tell it that there are
- * some free.
- */
-	if (vm_pageout_pages_needed) {
-		wakeup(&vm_pageout_pages_needed);
-		vm_pageout_pages_needed = 0;
-	}
-	/*
-	 * wakeup processes that are waiting on memory if we hit a
-	 * high water mark. And wakeup scheduler process if we have
-	 * lots of memory. this process will swapin processes.
-	 */
-	if (vm_pages_needed &&
-		((cnt.v_free_count + cnt.v_cache_count) >= cnt.v_free_min)) {
-		wakeup(&cnt.v_free_count);
-		vm_pages_needed = 0;
-	}
-}
-
-/*
- *	vm_page_free:
- *
- *	Returns the given page to the free list,
- *	disassociating it with any VM object.
- *
- *	Object and page must be locked prior to entry.
- *	This routine may not block.
- */
-void
-vm_page_free(m)
-	register vm_page_t m;
-{
-	int s;
-	struct vpgqueues *pq;
-
-	s = splvm();
-
-	cnt.v_tfree++;
-
-	if (!vm_page_freechk_and_unqueue(m)) {
-		splx(s);
-		return;
-	}
-
-	m->queue = PQ_FREE + m->pc;
+	m->queue = queue + m->pc;
 	pq = &vm_page_queues[m->queue];
 	++(*pq->lcnt);
 	++(*pq->cnt);
-	/*
-	 * If the pageout process is grabbing the page, it is likely
-	 * that the page is NOT in the cache.  It is more likely that
-	 * the page will be partially in the cache if it is being
-	 * explicitly freed.
-	 */
-	if (curproc == pageproc) {
-		TAILQ_INSERT_TAIL(pq->pl, m, pageq);
-	} else {
+
+	if (queue == PQ_ZERO) {
 		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
+		++vm_page_zero_count;
+	} else {
+		/*
+		 * If the pageout process is grabbing the page, it is likely
+		 * that the page is NOT in the cache.  It is more likely that
+		 * the page will be partially in the cache if it is being
+		 * explicitly freed.
+		 */
+
+		if (curproc == pageproc) {
+			TAILQ_INSERT_TAIL(pq->pl, m, pageq);
+		} else {
+			TAILQ_INSERT_HEAD(pq->pl, m, pageq);
+		}
 	}
 
 	vm_page_free_wakeup();
-	splx(s);
-}
 
-void
-vm_page_free_zero(m)
-	register vm_page_t m;
-{
-	int s;
-	struct vpgqueues *pq;
-
-	s = splvm();
-
-	cnt.v_tfree++;
-
-	if (!vm_page_freechk_and_unqueue(m)) {
-		splx(s);
-		return;
-	}
-
-	m->queue = PQ_ZERO + m->pc;
-	pq = &vm_page_queues[m->queue];
-	++(*pq->lcnt);
-	++(*pq->cnt);
-
-	TAILQ_INSERT_HEAD(pq->pl, m, pageq);
-	++vm_page_zero_count;
-	vm_page_free_wakeup();
 	splx(s);
 }
 
@@ -1310,6 +1437,17 @@ vm_page_wire(m)
  *
  *	Release one wiring of this page, potentially
  *	enabling it to be paged again.
+ *
+ *	Many pages placed on the inactive queue should actually go
+ *	into the cache, but it is difficult to figure out which.  What
+ *	we do instead, if the inactive target is well met, is to put
+ *	clean pages at the head of the inactive queue instead of the tail.
+ *	This will cause them to be moved to the cache more quickly and
+ *	if not actively re-referenced, freed more quickly.  If we just
+ *	stick these pages at the end of the inactive queue, heavy filesystem
+ *	meta-data accesses can cause an unnecessary paging load on memory bound 
+ *	processes.  This optimization causes one-time-use metadata to be
+ *	reused more quickly.
  *
  *	The page queues must be locked.
  *	This routine may not block.
@@ -1351,7 +1489,8 @@ vm_page_unwire(m, activate)
 
 
 /*
- * Move the specified page to the inactive queue.
+ * Move the specified page to the inactive queue.  If the page has
+ * any associated swap, the swap is deallocated.
  *
  * This routine may not block.
  */
@@ -1383,7 +1522,8 @@ vm_page_deactivate(m)
 /*
  * vm_page_cache
  *
- * Put the specified page onto the page cache queue (if appropriate). 
+ * Put the specified page onto the page cache queue (if appropriate).
+ *
  * This routine may not block.
  */
 void
@@ -1624,7 +1764,7 @@ again1:
 				}
 
 				next = TAILQ_NEXT(m, pageq);
-				if (vm_page_sleep(m, "vpctw0", &m->busy))
+				if (vm_page_sleep_busy(m, TRUE, "vpctw0"))
 					goto again1;
 				vm_page_test_dirty(m);
 				if (m->dirty) {
@@ -1652,7 +1792,7 @@ again1:
 				}
 
 				next = TAILQ_NEXT(m, pageq);
-				if (vm_page_sleep(m, "vpctw1", &m->busy))
+				if (vm_page_sleep_busy(m, TRUE, "vpctw1"))
 					goto again1;
 				vm_page_test_dirty(m);
 				if (m->dirty) {

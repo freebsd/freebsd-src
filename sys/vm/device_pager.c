@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $Id: device_pager.c,v 1.36 1998/12/07 21:58:50 archie Exp $
+ * $Id: device_pager.c,v 1.37 1999/01/08 17:31:23 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -200,7 +200,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	int prot;
 
 	dev = (dev_t) (uintptr_t) object->handle;
-	offset = m[reqpage]->pindex + OFF_TO_IDX(object->paging_offset);
+	offset = m[reqpage]->pindex;
 	prot = PROT_READ;	/* XXX should pass in? */
 	mapfunc = cdevsw[major(dev)]->d_mmap;
 

@@ -28,7 +28,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: default_pager.c,v 1.15 1998/02/06 12:14:20 eivind Exp $
+ * The default pager is responsible for supplying backing store to unbacked
+ * storage.  The backing store is usually swap so we just fall through to
+ * the swap routines.  However, since swap metadata has not been assigned,
+ * the swap routines assign and manage the swap backing store through the
+ * vm_page->swapblk field.  The object is only converted when the page is 
+ * physically freed after having been cleaned and even then vm_page->swapblk
+ * is maintained whenever a resident page also has swap backing store.
+ *
+ *	$Id: default_pager.c,v 1.16 1998/10/13 08:24:42 dg Exp $
  */
 
 #include <sys/param.h>
@@ -78,6 +86,14 @@ default_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	return vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(round_page(offset + size)));
 }
 
+/*
+ * deallocate resources associated with default objects.   The default objects
+ * have no special resources allocated to them, but the vm_page's being used
+ * in this object might.  Still, we do not have to do anything - we will free
+ * the swapblk in the underlying vm_page's when we free the vm_page or
+ * garbage collect the vm_page cache list.
+ */
+
 static void
 default_pager_dealloc(object)
 	vm_object_t object;
@@ -88,9 +104,11 @@ default_pager_dealloc(object)
 }
 
 /*
- * The default pager has no backing store, so we always return
- * failure.
+ * Load pages from backing store.  Since OBJT_DEFAULT is converted to
+ * OBJT_SWAP at the time a swap-backed vm_page_t is freed, we will never
+ * see a vm_page with assigned swap here.
  */
+
 static int
 default_pager_getpages(object, m, count, reqpage)
 	vm_object_t object;
@@ -101,6 +119,13 @@ default_pager_getpages(object, m, count, reqpage)
 	return VM_PAGER_FAIL;
 }
 
+/*
+ * Store pages to backing store.  We should assign swap and initiate
+ * I/O.  We do not actually convert the object to OBJT_SWAP here.  The
+ * object will be converted when the written-out vm_page_t is moved from the
+ * cache to the free list.
+ */
+
 static int
 default_pager_putpages(object, m, c, sync, rtvals)
 	vm_object_t object;
@@ -109,25 +134,21 @@ default_pager_putpages(object, m, c, sync, rtvals)
 	boolean_t sync;
 	int *rtvals;
 {
-	int i;
-
-	/*
-	 * Try to convert the object type into a OBJT_SWAP.
-	 * If the swp structure allocation fails, convert it
-	 * back to OBJT_DEFAULT and return failure. Otherwise
-	 * pass this putpages to the swap pager.
-	 */
-	object->type = OBJT_SWAP;
-
-	if (swap_pager_swp_alloc(object, M_KERNEL) != 0) {
-		object->type = OBJT_DEFAULT;
-		for (i = 0; i < c; i++)
-			rtvals[i] = VM_PAGER_FAIL;
-		return VM_PAGER_FAIL;
-	}
-
 	return swap_pager_putpages(object, m, c, sync, rtvals);
 }
+
+/*
+ * Tell us whether the backing store for the requested (object,index) is
+ * synchronized.  i.e. tell us whether we can throw the page away and 
+ * reload it later.  So, for example, if we are in the process of writing
+ * the page to its backing store, or if no backing store has been assigned,
+ * it is not yet synchronized.
+ *
+ * It is possible to have fully-synchronized swap assigned without the
+ * object having been converted.  We just call swap_pager_haspage() to
+ * deal with it since it must already deal with it plus deal with swap
+ * meta-data structures.
+ */
 
 static boolean_t
 default_pager_haspage(object, pindex, before, after)
@@ -137,26 +158,5 @@ default_pager_haspage(object, pindex, before, after)
 	int *after;
 {
 	return FALSE;
-}
-
-void
-default_pager_convert_to_swap(object)
-	vm_object_t object;
-{
-	object->type = OBJT_SWAP;
-	if (swap_pager_swp_alloc(object, M_KERNEL) != 0) {
-		object->type = OBJT_DEFAULT;
-	}
-}
-
-void
-default_pager_convert_to_swapq(object)
-	vm_object_t object;
-{
-	if (object &&
-		(object->type == OBJT_DEFAULT) &&
-		(object != kernel_object && object != kmem_object) &&
-		(object->size > ((cnt.v_page_count - cnt.v_wire_count) / 4)))
-		default_pager_convert_to_swap(object);
 }
 

@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.38 1998/08/24 08:39:38 dfr Exp $ */
+/*	$Id: sysv_shm.c,v 1.39 1998/10/13 08:24:40 dg Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -52,6 +52,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_object.h>
 #include <vm/vm_map.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_inherit.h>
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.64 1998/12/07 21:58:43 archie Exp $
+ * $Id: nfs_bio.c,v 1.65 1998/12/14 17:51:30 dt Exp $
  */
 
 
@@ -68,6 +68,7 @@ static struct buf *nfs_getcacheblk __P((struct vnode *vp, daddr_t bn, int size,
 static void nfs_prot_buf __P((struct buf *bp, int off, int n));
 
 extern int nfs_numasync;
+extern int nfs_pbuf_freecnt;
 extern struct nfsstats nfsstats;
 
 /*
@@ -113,7 +114,7 @@ nfs_getpages(ap)
 	 * We use only the kva address for the buffer, but this is extremely
 	 * convienient and fast.
 	 */
-	bp = getpbuf();
+	bp = getpbuf(&nfs_pbuf_freecnt);
 
 	npages = btoc(count);
 	kva = (vm_offset_t) bp->b_data;
@@ -132,10 +133,16 @@ nfs_getpages(ap)
 	error = nfs_readrpc(vp, &uio, cred);
 	pmap_qremove(kva, npages);
 
-	relpbuf(bp);
+	relpbuf(bp, &nfs_pbuf_freecnt);
 
-	if (error && (uio.uio_resid == count))
+	if (error && (uio.uio_resid == count)) {
+		printf("nfs_getpages: error %d\n", error);
+		for (i = 0; i < npages; ++i) {
+			if (i != ap->a_reqpage)
+				vnode_pager_freepage(pages[i]);
+		}
 		return VM_PAGER_ERROR;
+	}
 
 	size = count - uio.uio_resid;
 
@@ -228,7 +235,7 @@ nfs_putpages(ap)
 	 * We use only the kva address for the buffer, but this is extremely
 	 * convienient and fast.
 	 */
-	bp = getpbuf();
+	bp = getpbuf(&nfs_pbuf_freecnt);
 
 	kva = (vm_offset_t) bp->b_data;
 	pmap_qenter(kva, pages, npages);
@@ -251,7 +258,7 @@ nfs_putpages(ap)
 	error = nfs_writerpc(vp, &uio, cred, &iomode, &must_commit);
 
 	pmap_qremove(kva, npages);
-	relpbuf(bp);
+	relpbuf(bp, &nfs_pbuf_freecnt);
 
 	if (!error) {
 		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
@@ -439,6 +446,7 @@ again:
 		bp = nfs_getcacheblk(vp, lbn, bufsize, p);
 		if (!bp)
 			return (EINTR);
+
 		/*
 		 * If we are being called from nfs_getpages, we must
 		 * make sure the buffer is a vmio buffer.  The vp will
@@ -779,6 +787,7 @@ again:
 		 * area, just update the b_dirtyoff and b_dirtyend,
 		 * otherwise force a write rpc of the old dirty area.
 		 */
+
 		if (bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
 			bp->b_proc = p;
@@ -1254,17 +1263,24 @@ nfs_doio(bp, cr, p)
 		 * write rpc with iomode == NFSV3WRITE_FILESYNC before
 		 * the block is reused. This is indicated by setting
 		 * the B_DELWRI and B_NEEDCOMMIT flags.
+		 *
+		 * If the buffer is marked B_PAGING, it does not reside on
+		 * the vp's paging queues so we do not ( and cannot ) reassign
+		 * it.  XXX numdirtybuffers should be integrated into 
+		 * reassignbuf() call.
 		 */
     		if (error == EINTR
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 
 			bp->b_flags &= ~(B_INVAL|B_NOCACHE);
-			++numdirtybuffers;
-			bp->b_flags |= B_DELWRI;
-			s = splbio();
-			reassignbuf(bp, vp);
-			splx(s);
+			if ((bp->b_flags & B_PAGING) == 0) {
+			    ++numdirtybuffers;
+			    bp->b_flags |= B_DELWRI;
+			    s = splbio();
+			    reassignbuf(bp, vp);
+			    splx(s);
+			}
 			if ((bp->b_flags & B_ASYNC) == 0)
 			    bp->b_flags |= B_EINTR;
 	    	} else {

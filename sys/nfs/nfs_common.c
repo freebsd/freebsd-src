@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.69 1998/12/14 18:54:03 dt Exp $
+ * $Id: nfs_subs.c,v 1.70 1999/01/05 18:49:58 eivind Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ enum vtype nv3tov_type[8]= {
 };
 
 int nfs_ticks;
+int nfs_pbuf_freecnt = -1;	/* start out unlimited */
 
 struct nfs_reqq nfs_reqq;
 struct nfssvc_sockhead nfssvc_sockhead;
@@ -1190,6 +1191,8 @@ nfs_init(vfsp)
 	nfs_prev_getfh_sy_call = sysent[SYS_getfh].sy_call;
 	sysent[SYS_getfh].sy_call = (sy_call_t *)getfh;
 #endif
+
+	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 
 	return (0);
 }

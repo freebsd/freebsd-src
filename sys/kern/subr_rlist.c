@@ -13,7 +13,7 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This software is a component of "386BSD" developed by
-	William F. Jolitz, TeleMuse.
+ *	William F. Jolitz, TeleMuse.
  * 4. Neither the name of the developer nor the name "386BSD"
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -54,8 +54,12 @@
  * functioning of this software, nor does the author assume any responsibility
  * for damages incurred with its use.
  *
- *	$Id: subr_rlist.c,v 1.28 1999/01/08 17:31:12 eivind Exp $
+ *	--------- DEPRECIATED ---------
+ *
+ *	$Id: subr_rlist.c,v 1.29 1999/01/10 01:58:25 eivind Exp $
  */
+
+#if 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -307,3 +311,6 @@ rlist_destroy (rlh)
 		rlist_mfree(lp);
 	}
 }
+
+#endif
+

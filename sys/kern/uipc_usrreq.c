@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)uipc_usrreq.c	8.3 (Berkeley) 1/4/94
- *	$Id: uipc_usrreq.c,v 1.36 1998/07/15 02:32:12 bde Exp $
+ *	$Id: uipc_usrreq.c,v 1.37 1998/10/25 17:44:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -1114,8 +1114,11 @@ unp_gc()
 	/* 
 	 * for each FD on our hit list, do the following two things
 	 */
-	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
-		sorflush((struct socket *)(*fpp)->f_data);
+	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp) {
+		struct file *tfp = *fpp;
+		if (tfp->f_type == DTYPE_SOCKET && tfp->f_data != NULL)
+			sorflush((struct socket *)(tfp->f_data));
+	}
 	for (i = nunref, fpp = extra_ref; --i >= 0; ++fpp)
 		closef(*fpp, (struct proc *) NULL);
 	free((caddr_t)extra_ref, M_FILE);
