@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.53 1997/08/26 00:11:55 bde Exp $
+ * $Id: kern_exit.c,v 1.54 1997/09/02 20:05:38 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -294,8 +294,22 @@ exit1(p, rv)
 	ruadd(p->p_ru, &p->p_stats->p_cru);
 
 	/*
-	 * Notify parent that we're gone.
+	 * Notify parent that we're gone.  If parent has the P_NOCLDWAIT
+	 * flag set, notify process 1 instead (and hope it will handle
+	 * this situation).
 	 */
+	if (p->p_pptr->p_flag & P_NOCLDWAIT) {
+		struct proc *pp = p->p_pptr;
+		proc_reparent(p, initproc);
+		/*
+		 * If this was the last child of our parent, notify
+		 * parent, so in case he was wait(2)ing, he will
+		 * continue.
+		 */
+		if (LIST_EMPTY(&pp->p_children))
+			wakeup((caddr_t)pp);
+	}
+
 	psignal(p->p_pptr, SIGCHLD);
 	wakeup((caddr_t)p->p_pptr);
 #if defined(tahoe)

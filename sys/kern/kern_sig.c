@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.32 1997/08/26 00:31:04 bde Exp $
+ * $Id: kern_sig.c,v 1.33 1997/09/02 20:05:41 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -123,6 +123,8 @@ sigaction(p, uap, retval)
 			sa->sa_flags |= SA_NODEFER;
 		if (signum == SIGCHLD && p->p_flag & P_NOCLDSTOP)
 			sa->sa_flags |= SA_NOCLDSTOP;
+		if (signum == SIGCHLD && p->p_flag & P_NOCLDWAIT)
+			sa->sa_flags |= SA_NOCLDWAIT;
 		if ((error = copyout((caddr_t)sa, (caddr_t)uap->osa,
 		    sizeof (vec))))
 			return (error);
@@ -182,6 +184,19 @@ setsigvec(p, signum, sa)
 			p->p_flag |= P_NOCLDSTOP;
 		else
 			p->p_flag &= ~P_NOCLDSTOP;
+		if (sa->sa_flags & SA_NOCLDWAIT) {
+			/*
+			 * Paranoia: since SA_NOCLDWAIT is implemented by
+			 * reparenting the dying child to PID 1 (and
+			 * trust it to reap the zombie), PID 1 itself is
+			 * forbidden to set SA_NOCLDWAIT.
+			 */
+			if (p->p_pid == 1)
+				p->p_flag &= ~P_NOCLDWAIT;
+			else
+				p->p_flag |= P_NOCLDWAIT;
+		} else
+			p->p_flag &= ~P_NOCLDWAIT;
 	}
 	/*
 	 * Set bit in p_sigignore for signals that are set to SIG_IGN,
