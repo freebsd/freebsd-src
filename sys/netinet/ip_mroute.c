@@ -1734,6 +1734,12 @@ encap_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
     struct ip *ip_copy;
     int i, len = ip->ip_len;
 
+    /* Take care of delayed checksums */
+    if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+	in_delayed_cksum(m);
+	m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
+    }
+
     /*
      * copy the old packet & pullup its IP header into the
      * new mbuf so we can modify it.  Try to fill the new
@@ -2696,15 +2702,17 @@ bw_meter_process()
      * processed to the current one. On entry, i points to the last bucket
      * visited, so we need to increment i at the beginning of the loop.
      */
-    for (i = (now.tv_sec - loops + 1) % BW_METER_BUCKETS; loops > 0; loops--) {
+    for (i = (now.tv_sec - loops) % BW_METER_BUCKETS; loops > 0; loops--) {
 	struct bw_meter *x, *tmp_list;
 	
 	if (++i >= BW_METER_BUCKETS)
 	    i = 0;
 	
+	/* Disconnect the list of bw_meter entries from the bin */
 	tmp_list = bw_meter_timers[i];
 	bw_meter_timers[i] = NULL;
 	
+	/* Process the list of bw_meter entries */
 	while (tmp_list != NULL) {
 	    x = tmp_list;
 	    tmp_list = tmp_list->bm_time_next;
@@ -2717,9 +2725,18 @@ bw_meter_process()
 		int time_hash;
 		
 		BW_METER_TIMEHASH(x, time_hash);
+		if (time_hash == i && process_endtime.tv_sec == now.tv_sec) {
+		    /*
+		     * XXX: somehow the bin processing is a bit ahead of time.
+		     * Put the entry in the next bin.
+		     */
+		    if (++time_hash >= BW_METER_BUCKETS)
+			time_hash = 0;
+		}
 		x->bm_time_next = bw_meter_timers[time_hash];
 		bw_meter_timers[time_hash] = x;
 		x->bm_time_hash = time_hash;
+		
 		continue;
 	    }
 	    
@@ -2825,16 +2842,12 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
     struct mbuf *mb_copy = NULL;
     int mtu;
     
-    /*
-     * XXX: take care of delayed checksums.
-     * XXX: if network interfaces are capable of computing checksum for
-     * encapsulated multicast data packets, we need to reconsider this.
-     */
+    /* Take care of delayed checksums */
     if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 	in_delayed_cksum(m);
 	m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
     }
-    
+
     /*
      * Copy the old packet & pullup its IP header into the
      * new mbuf so we can modify it.
@@ -2852,9 +2865,19 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
     
     /* Compute the MTU after the PIM Register encapsulation */
     mtu = 0xffff - sizeof(pim_encap_iphdr) - sizeof(pim_encap_pimhdr);
-    if (ip_fragment(ip, &mb_copy, mtu, 0, 0) != 0) {
-	m_freem(mb_copy);
-	return NULL;
+    
+    if (ip->ip_len <= mtu) {
+	/* Turn the IP header into a valid one */
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
+	ip->ip_sum = 0;
+	ip->ip_sum = in_cksum(mb_copy, ip->ip_hl << 2);
+    } else {
+	/* Fragment the packet */
+	if (ip_fragment(ip, &mb_copy, mtu, 0, CSUM_DELAY_IP) != 0) {
+	    m_freem(mb_copy);
+	    return NULL;
+	}
     }
     return mb_copy;
 }
