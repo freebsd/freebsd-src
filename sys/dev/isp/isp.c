@@ -1,5 +1,5 @@
-/* $Id: isp.c,v 1.7 1998/12/05 01:33:57 mjacob Exp $ */
-/* isp.c 1.28 */
+/* $Id: $ */
+/* release_12_28_98_A */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -52,7 +52,7 @@
 #include <dev/isp/isp_freebsd.h>
 #endif
 #ifdef	__linux__
-#include <isp_linux.h>
+#include "isp_linux.h"
 #endif
 
 /*
@@ -870,29 +870,6 @@ isp_fibre_init(isp)
 		    isp->isp_name);
 	}
 }
-
-/*
- * Free any associated resources prior to decommissioning and
- * set the card to a known state (so it doesn't wake up and kick
- * us when we aren't expecting it to).
- *
- * Locks are held before coming here.
- */
-void
-isp_uninit(isp)
-	struct ispsoftc *isp;
-{
-	/*
-	 * Leave with interrupts disabled.
-	 */
-	DISABLE_INTS(isp);
-
-	/*
-	 * Stop the watchdog timer (if started).
-	 */
-	STOP_WATCHDOG(isp_watch, isp);
-}
-
 
 /*
  * Start a command. Locking is assumed done in the caller.
@@ -3099,49 +3076,6 @@ isp_restart(isp)
 		XS_SETERR(xs, HBA_BUSRESET);
 		XS_CMD_DONE(xs);
 	}
-}
-
-void
-isp_watch(arg)
-	void *arg;
-{
-	int i;
-	struct ispsoftc *isp = arg;
-	ISP_SCSI_XFER_T *xs;
-	ISP_LOCKVAL_DECL;
-
-	/*
-	 * Look for completely dead commands (but not polled ones).
-	 */
-	ISP_ILOCK(isp);
-	for (i = 0; i < RQUEST_QUEUE_LEN; i++) {
-		if ((xs = (ISP_SCSI_XFER_T *) isp->isp_xflist[i]) == NULL) {
-			continue;
-		}
-		if (XS_TIME(xs) == 0) {
-			continue;
-		}
-		XS_TIME(xs) -= (WATCH_INTERVAL * 1000);
-		/*
-		 * Avoid later thinking that this
-		 * transaction is not being timed.
-		 * Then give ourselves to watchdog
-		 * periods of grace.
-		 */
-		if (XS_TIME(xs) == 0)
-			XS_TIME(xs) = 1;
-		else if (XS_TIME(xs) > -(2 * WATCH_INTERVAL * 1000)) {
-			continue;
-		}
-		if (isp_control(isp, ISPCTL_ABORT_CMD, xs)) {
-			PRINTF("%s: isp_watch failed to abort command\n",
-			    isp->isp_name);
-			isp_restart(isp);
-			break;
-		}
-	}
-	ISP_IUNLOCK(isp);
-	RESTART_WATCHDOG(isp_watch, isp);
 }
 
 /*

@@ -1,5 +1,5 @@
 /* $Id: $ */
-/* isp_freebsd_cam.h 1.10 */
+/* release_12_28_98_A */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (CAM version)
  *---------------------------------------
@@ -69,7 +69,6 @@ struct isposinfo {
 	int			unit;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
-	struct callout_handle	watchid;
 	volatile char		simqfrozen;
 };
 
@@ -97,6 +96,7 @@ struct isposinfo {
 #endif
 
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
+#define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
 #define	ISP_LOCK(isp)		isp_spl_save = splcam()
 #define	ISP_ILOCK(isp)		ISP_LOCK(isp)
@@ -171,14 +171,8 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_QUEUED		2
 
 #define	SYS_DELAY(x)	DELAY(x)
-
-#define	WATCH_INTERVAL		30
-#define	START_WATCHDOG(f, s)	\
-	(s)->isp_osinfo.watchid = timeout(f, s, WATCH_INTERVAL * hz), \
-	s->isp_dogactive = 1
-#define	STOP_WATCHDOG(f, s)	untimeout(f, s, (s)->isp_osinfo.watchid),\
-	(s)->isp_dogactive = 0
-#define	RESTART_WATCHDOG(f, s)	START_WATCHDOG(f, s)
+#define	STOP_WATCHDOG(f, s)
 extern void isp_attach __P((struct ispsoftc *));
+extern void isp_uninit __P((struct ispsoftc *));
 
 #endif	/* _ISP_FREEBSD_CAM_H */
