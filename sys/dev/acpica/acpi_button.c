@@ -83,12 +83,12 @@ acpi_button_probe(device_t dev)
     if (acpi_get_type(dev) == ACPI_TYPE_DEVICE) {
 	if (!acpi_disabled("button")) {
 	    if (acpi_MatchHid(dev, "PNP0C0C")) {
-		device_set_desc(dev, "Control Method Power Button Device");
+		device_set_desc(dev, "Power Button");
 		sc->button_type = ACPI_POWER_BUTTON;
 		return(0);
 	    }
 	    if (acpi_MatchHid(dev, "PNP0C0E")) {
-		device_set_desc(dev, "Control Method Sleep Button Device");
+		device_set_desc(dev, "Sleep Button");
 		sc->button_type = ACPI_SLEEP_BUTTON;
 		return(0);
 	    }
@@ -133,9 +133,11 @@ acpi_button_notify_pressed_for_sleep(void *arg)
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
+	device_printf(sc->button_dev, "power button pressed\n", sc->button_type);
 	acpi_eventhandler_power_button_for_sleep((void *)acpi_sc);
 	break;
     case ACPI_SLEEP_BUTTON:
+	device_printf(sc->button_dev, "sleep button pressed\n", sc->button_type);
 	acpi_eventhandler_sleep_button_for_sleep((void *)acpi_sc);
 	break;
     default:
@@ -160,9 +162,11 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
 
     switch (sc->button_type) {
     case ACPI_POWER_BUTTON:
+	device_printf(sc->button_dev, "wakeup by power button\n", sc->button_type);
 	acpi_eventhandler_power_button_for_wakeup((void *)acpi_sc);
 	break;
     case ACPI_SLEEP_BUTTON:
+	device_printf(sc->button_dev, "wakeup by sleep button\n", sc->button_type);
 	acpi_eventhandler_sleep_button_for_wakeup((void *)acpi_sc);
 	break;
     default:
@@ -185,11 +189,9 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_button_notify_pressed_for_sleep, sc);
-	device_printf(sc->button_dev, "pressed for sleep, button type: %d\n", sc->button_type);
 	break;   
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_WAKEUP:
 	AcpiOsQueueForExecution(OSD_PRIORITY_LO, acpi_button_notify_pressed_for_wakeup, sc);
-	device_printf(sc->button_dev, "pressed for wakeup, button type: %d\n", sc->button_type);
 	break;   
     default:
 	break;		/* unknown notification value */
