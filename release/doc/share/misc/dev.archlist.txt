@@ -60,9 +60,11 @@ cx	i386
 dc	i386,pc98,alpha,sparc64,amd64
 de	i386,pc98,alpha,amd64
 dpt	i386,amd64
+ex	i386,amd64
 fe	i386,pc98,amd64
 gem	sparc64
 ida	i386
+ie	i386
 iir	i386,amd64
 ips	i386,amd64
 ixgb	i386,amd64
