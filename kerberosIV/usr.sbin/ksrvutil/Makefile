@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.4 1998/03/20 17:48:14 markm Exp $
 
 PROG=		ksrvutil
 MAN8=		${KRB4DIR}/man/ksrvutil.8
@@ -16,9 +16,10 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRBOBJDIR} \
 		-I${.CURDIR}/../include
 LDADD=		-L${ROKENOBJDIR} -lroken -L${KADMOBJDIR} -lkadm \
-		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes -lcom_err
+		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes -lcom_err \
+		-lcrypt
 DPADD=		${LIBROKEN} ${LIBKADM} ${LIBKDB} ${LIBKRB} \
-		${LIBDES} ${LIBCOM_ERR}
+		${LIBDES} ${LIBCOM_ERR} ${LIBCRYPT}
 
 .include <bsd.prog.mk>
 
