@@ -104,12 +104,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/malloc.h>
 
 #include <machine/clock.h>
 #include <machine/bus.h>
@@ -165,7 +164,7 @@ struct lpt_softc {
 #define LP_PRIMEOPEN	0x20	/* prime on every open */
 #define LP_AUTOLF	0x40	/* tell printer to do an automatic lf */
 #define LP_BYPASS	0x80	/* bypass  printer ready checks */
-	struct	buf *sc_inbuf;
+	void	*sc_inbuf;
 	short	sc_xfercnt ;
 	char	sc_primed;
 	char	*sc_cp ;
@@ -551,7 +550,7 @@ lptopen (dev_t dev, int flags, int fmt, struct thread *td)
 #endif
 
 	sc->sc_state = OPEN;
-	sc->sc_inbuf = geteblk(BUFSIZE);
+	sc->sc_inbuf = malloc(BUFSIZE, M_DEVBUF, M_WAITOK);
 	sc->sc_xfercnt = 0;
 	splx(s);
 
@@ -633,7 +632,7 @@ lptclose(dev_t dev, int flags, int fmt, struct thread *td)
 
 	outb(sc->sc_port+lpt_control, LPC_NINIT);
 #endif
-	brelse(sc->sc_inbuf);
+	free(sc->sc_inbuf, M_DEVBUF);
 
 end_close:
 	sc->sc_state = 0;
@@ -732,7 +731,7 @@ lptwrite(dev_t dev, struct uio * uio, int ioflag)
 
 	sc->sc_state &= ~INTERRUPTED;
 	while ((n = min(BUFSIZE, uio->uio_resid)) != 0) {
-		sc->sc_cp = sc->sc_inbuf->b_data ;
+		sc->sc_cp = sc->sc_inbuf;
 		uiomove(sc->sc_cp, n, uio);
 		sc->sc_xfercnt = n ;
 		while ((sc->sc_xfercnt > 0)&&(sc->sc_irq & LP_USE_IRQ)) {
