@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.34 1996/05/10 16:11:01 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.35 1996/05/21 18:32:22 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -254,9 +254,10 @@ select2:
 	mov	SCSIRATE,SINDIR
 
 /*
- * Initialize Ultra mode setting.  ndx_dtr has left our target mask
- * in A.
+ * Initialize Ultra mode setting.
  */
+	mov	FUNCTION1,SCSIID
+	mov	A,FUNCTION1
 	and	SINDEX,0xdf,SXFRCTL0		/* default to Ultra disabled */
 	test	SCSIID, 0x80	 jnz ultra_b	/* Target ID > 7 */
 	test	SBLKCTL, SELBUSB jnz ultra_b	/* Second channel device */
