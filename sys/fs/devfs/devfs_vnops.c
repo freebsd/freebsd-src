@@ -602,8 +602,8 @@ devfs_readdir(ap)
 		MALLOC(cookiebuf, u_long *, ncookies * sizeof(u_long),
                        M_TEMP, M_WAITOK);
 		cookiep = cookiebuf;
-		dps = (struct dirent *) 
-			(uio->uio_iov->iov_base - (uio->uio_offset - oldoff));
+		dps = (struct dirent *)((char *)uio->uio_iov->iov_base -
+		    (uio->uio_offset - oldoff));
 		dpe = (struct dirent *) uio->uio_iov->iov_base;
 		for( dp = dps; 
 			dp < dpe; 

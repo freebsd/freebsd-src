@@ -123,7 +123,7 @@ vop_readdir(struct vnode *vp, struct uio *uio, struct ucred *cred,
 	 * Parse the stuff just read into the uio.
 	 */
 	dpStart = (struct dirent *)
-	    (uio->uio_iov->iov_base - (uio->uio_offset - off));
+	    ((char *)uio->uio_iov->iov_base - (uio->uio_offset - off));
 	dpEnd = (struct dirent *) uio->uio_iov->iov_base;
 
 	/*
