@@ -1,7 +1,7 @@
 /******************************************************************************
  *
- * Module Name: evregion - ACPI AddressSpace / OpRegion handler dispatch
- *              $Revision: 85 $
+ * Module Name: evregion - ACPI AddressSpace (OpRegion) handler dispatch
+ *              $Revision: 88 $
  *
  *****************************************************************************/
 
@@ -211,7 +211,7 @@ AcpiEvInstallDefaultAddressSpaceHandlers (
  *
  *************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiEvExecuteRegMethod (
     ACPI_OPERAND_OBJECT    *RegionObj,
     UINT32                  Function)
@@ -289,7 +289,7 @@ ACPI_STATUS
 AcpiEvAddressSpaceDispatch (
     ACPI_OPERAND_OBJECT     *RegionObj,
     UINT32                  Function,
-    ACPI_INTEGER            Address,
+    ACPI_PHYSICAL_ADDRESS   Address,
     UINT32                  BitWidth,
     UINT32                  *Value)
 {

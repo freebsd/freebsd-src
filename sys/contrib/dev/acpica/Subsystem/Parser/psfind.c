@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 17 $
+ *              $Revision: 18 $
  *
  *****************************************************************************/
 
@@ -138,7 +138,7 @@
  *
  ******************************************************************************/
 
-ACPI_PARSE_OBJECT*
+static ACPI_PARSE_OBJECT*
 AcpiPsGetParent (
     ACPI_PARSE_OBJECT       *Op)
 {
@@ -183,7 +183,7 @@ AcpiPsGetParent (
  *
  ******************************************************************************/
 
-ACPI_PARSE_OBJECT *
+static ACPI_PARSE_OBJECT *
 AcpiPsFindName (
     ACPI_PARSE_OBJECT       *Scope,
     UINT32                  Name,

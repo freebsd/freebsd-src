@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: amdyadic - ACPI AML (p-code) execution for dyadic operators
- *              $Revision: 65 $
+ *              $Revision: 67 $
  *
  *****************************************************************************/
 
@@ -272,7 +272,6 @@ AcpiAmlExecDyadic2R (
     ACPI_OPERAND_OBJECT     *RetDesc    = NULL;
     ACPI_OPERAND_OBJECT     *RetDesc2   = NULL;
     ACPI_STATUS             Status      = AE_OK;
-    ACPI_INTEGER            Remainder;
     UINT32                  NumOperands = 3;
     NATIVE_CHAR             *NewBuf;
 
@@ -399,7 +398,7 @@ AcpiAmlExecDyadic2R (
 
     case AML_DIVIDE_OP:
 
-        if ((UINT32) 0 == ObjDesc2->Number.Value)
+        if (!ObjDesc2->Number.Value)
         {
             REPORT_ERROR
                 (("AmlExecDyadic2R/DivideOp: Divide by zero\n"));
@@ -415,14 +414,15 @@ AcpiAmlExecDyadic2R (
             goto Cleanup;
         }
 
-        Remainder               = ObjDesc->Number.Value %
-                                  ObjDesc2->Number.Value;
-        RetDesc->Number.Value   = Remainder;
+        /* Remainder (modulo) */
+
+        RetDesc->Number.Value   = ACPI_MODULO (ObjDesc->Number.Value,
+                                                ObjDesc2->Number.Value);
 
         /* Result (what we used to call the quotient) */
 
-        RetDesc2->Number.Value  = ObjDesc->Number.Value /
-                                    ObjDesc2->Number.Value;
+        RetDesc2->Number.Value  = ACPI_DIVIDE (ObjDesc->Number.Value,
+                                                ObjDesc2->Number.Value);
         break;
 
 

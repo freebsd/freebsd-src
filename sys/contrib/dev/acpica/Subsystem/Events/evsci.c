@@ -2,7 +2,7 @@
  *
  * Module Name: evsci - System Control Interrupt configuration and
  *                      legacy to ACPI mode state transition functions
- *              $Revision: 60 $
+ *              $Revision: 67 $
  *
  ******************************************************************************/
 
@@ -150,7 +150,7 @@
  *
  ******************************************************************************/
 
-UINT32
+static UINT32
 AcpiEvSciHandler (void *Context)
 {
     UINT32                  InterruptHandled = INTERRUPT_NOT_HANDLED;
@@ -163,7 +163,7 @@ AcpiEvSciHandler (void *Context)
      * Make sure that ACPI is enabled by checking SCI_EN.  Note that we are
      * required to treat the SCI interrupt as sharable, level, active low.
      */
-    if (!AcpiHwRegisterAccess (ACPI_READ, ACPI_MTX_DO_NOT_LOCK, SCI_EN))
+    if (!AcpiHwRegisterBitAccess (ACPI_READ, ACPI_MTX_DO_NOT_LOCK, SCI_EN))
     {
         /* ACPI is not enabled;  this interrupt cannot be for us */
 
@@ -209,7 +209,7 @@ AcpiEvInstallSciHandler (void)
     FUNCTION_TRACE ("EvInstallSciHandler");
 
 
-    Except = AcpiOsInstallInterruptHandler ((UINT32) AcpiGbl_FACP->SciInt,
+    Except = AcpiOsInstallInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
                                             AcpiEvSciHandler,
                                             NULL);
 
@@ -269,7 +269,7 @@ AcpiEvRemoveSciHandler (void)
 
 #endif
 
-    AcpiOsRemoveInterruptHandler ((UINT32) AcpiGbl_FACP->SciInt,
+    AcpiOsRemoveInterruptHandler ((UINT32) AcpiGbl_FADT->SciInt,
                                     AcpiEvSciHandler);
 
     return_ACPI_STATUS (AE_OK);
@@ -347,21 +347,11 @@ AcpiEvRestoreAcpiState (void)
     {
         /* Restore the fixed events */
 
-        if (AcpiOsIn16 (AcpiGbl_FACP->Pm1aEvtBlk + 2) !=
-            AcpiGbl_Pm1EnableRegisterSave)
-        {
-            AcpiOsOut16 ((AcpiGbl_FACP->Pm1aEvtBlk + 2),
-                          AcpiGbl_Pm1EnableRegisterSave);
-        }
-
-        if (AcpiGbl_FACP->Pm1bEvtBlk)
-        {
-            if (AcpiOsIn16 (AcpiGbl_FACP->Pm1bEvtBlk + 2) !=
+        if (AcpiHwRegisterRead (ACPI_MTX_LOCK, PM1_EN) !=
                 AcpiGbl_Pm1EnableRegisterSave)
-            {
-                AcpiOsOut16 ((AcpiGbl_FACP->Pm1bEvtBlk + 2),
-                              AcpiGbl_Pm1EnableRegisterSave);
-            }
+        {
+            AcpiHwRegisterWrite (ACPI_MTX_LOCK, PM1_EN,
+                AcpiGbl_Pm1EnableRegisterSave);
         }
 
 
@@ -372,29 +362,27 @@ AcpiEvRestoreAcpiState (void)
 
         /* Now restore the GPEs */
 
-        for (Index = 0; Index < DIV_2 (AcpiGbl_FACP->Gpe0BlkLen); Index++)
+        for (Index = 0; Index < DIV_2 (AcpiGbl_FADT->Gpe0BlkLen); Index++)
         {
-            if (AcpiOsIn8 (AcpiGbl_FACP->Gpe0Blk +
-                DIV_2 (AcpiGbl_FACP->Gpe0BlkLen)) !=
-                AcpiGbl_Gpe0EnableRegisterSave[Index])
+            if (AcpiHwRegisterRead (ACPI_MTX_LOCK, GPE0_EN_BLOCK | Index) !=
+                    AcpiGbl_Gpe0EnableRegisterSave[Index])
             {
-                AcpiOsOut8 ((AcpiGbl_FACP->Gpe0Blk +
-                             DIV_2 (AcpiGbl_FACP->Gpe0BlkLen)),
-                             AcpiGbl_Gpe0EnableRegisterSave[Index]);
+                AcpiHwRegisterWrite (ACPI_MTX_LOCK, GPE0_EN_BLOCK | Index,
+                    AcpiGbl_Gpe0EnableRegisterSave[Index]);
             }
         }
 
-        if (AcpiGbl_FACP->Gpe1Blk && AcpiGbl_FACP->Gpe1BlkLen)
+        /* GPE 1 present? */
+
+        if (AcpiGbl_FADT->Gpe1BlkLen)
         {
-            for (Index = 0; Index < DIV_2 (AcpiGbl_FACP->Gpe1BlkLen); Index++)
+            for (Index = 0; Index < DIV_2 (AcpiGbl_FADT->Gpe1BlkLen); Index++)
             {
-                if (AcpiOsIn8 (AcpiGbl_FACP->Gpe1Blk +
-                    DIV_2 (AcpiGbl_FACP->Gpe1BlkLen)) !=
+                if (AcpiHwRegisterRead (ACPI_MTX_LOCK, GPE1_EN_BLOCK | Index) !=
                     AcpiGbl_Gpe1EnableRegisterSave[Index])
                 {
-                    AcpiOsOut8 ((AcpiGbl_FACP->Gpe1Blk +
-                                 DIV_2 (AcpiGbl_FACP->Gpe1BlkLen)),
-                                 AcpiGbl_Gpe1EnableRegisterSave[Index]);
+                    AcpiHwRegisterWrite (ACPI_MTX_LOCK, GPE1_EN_BLOCK | Index,
+                        AcpiGbl_Gpe1EnableRegisterSave[Index]);
                 }
             }
         }

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 31 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -217,8 +217,8 @@ AcpiDsResultStackPop (
 
     if (WalkState->NumResults == 0)
     {
-        DEBUG_PRINT (ACPI_ERROR,
-            ("DsResultStackPop: Underflow! State=%p Cur=%X Num=%X\n",
+        DEBUG_PRINT (TRACE_EXEC,
+            ("DsResultStackPop: Underflow - State=%p Cur=%X Num=%X\n",
             WalkState, WalkState->CurrentResult, WalkState->NumResults));
         return (AE_AML_NO_OPERAND);
     }
@@ -574,7 +574,7 @@ AcpiDsGetCurrentWalkState (
  *
  ******************************************************************************/
 
-void
+static void
 AcpiDsPushWalkState (
     ACPI_WALK_STATE         *WalkState,
     ACPI_WALK_LIST          *WalkList)
@@ -703,7 +703,9 @@ AcpiDsCreateWalkState (
 
     /* Init the method args/local */
 
+#ifndef _ACPI_ASL_COMPILER
     AcpiDsMethodDataInit (WalkState);
+#endif
 
     /* Put the new state at the head of the walk list */
 

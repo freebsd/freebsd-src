@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: amstorob - AML Interpreter object store support, store to object
- *              $Revision: 16 $
+ *              $Revision: 17 $
  *
  *****************************************************************************/
 
@@ -416,6 +416,10 @@ AcpiAmlStoreObjectToObject (
     case ACPI_TYPE_NUMBER:
 
         DestDesc->Number.Value = ValDesc->Number.Value;
+
+        /* Truncate value if we are executing from a 32-bit ACPI table */
+
+        AcpiAmlTruncateFor32bitTable (DestDesc, WalkState);
         break;
 
     default:

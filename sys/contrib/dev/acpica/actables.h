@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: actables.h - ACPI table management
- *       $Revision: 22 $
+ *       $Revision: 27 $
  *
  *****************************************************************************/
 
@@ -128,6 +128,23 @@ AcpiTbHandleToObject (
     UINT16                  TableId,
     ACPI_TABLE_DESC         **TableDesc);
 
+/*
+ * tbconvrt - Table conversion routines
+ */
+
+ACPI_STATUS
+AcpiTbConvertToXsdt (
+    ACPI_TABLE_DESC         *TableInfo,
+    UINT32                  *NumberOfTables);
+
+ACPI_STATUS
+AcpiTbConvertTableFadt (
+    void);
+
+ACPI_STATUS
+AcpiTbBuildCommonFacs (
+    ACPI_TABLE_DESC         *TableInfo);
+
 
 /*
  * tbget - Table "get" routines
@@ -141,13 +158,13 @@ AcpiTbGetTablePtr (
 
 ACPI_STATUS
 AcpiTbGetTable (
-    void                    *PhysicalAddress,
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
     ACPI_TABLE_HEADER       *BufferPtr,
     ACPI_TABLE_DESC         *TableInfo);
 
 ACPI_STATUS
 AcpiTbVerifyRsdp (
-    void                    *RSDP_PhysicalAddress);
+    ACPI_PHYSICAL_ADDRESS   RSDP_PhysicalAddress);
 
 ACPI_STATUS
 AcpiTbGetTableFacs (
@@ -238,7 +255,7 @@ AcpiTbSystemTablePointer (
 
 ACPI_STATUS
 AcpiTbMapAcpiTable (
-    void                    *PhysicalAddress,
+    ACPI_PHYSICAL_ADDRESS   PhysicalAddress,
     UINT32                  *Size,
     void                    **LogicalAddress);
 

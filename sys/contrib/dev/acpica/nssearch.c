@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nssearch - Namespace search
- *              $Revision: 58 $
+ *              $Revision: 59 $
  *
  ******************************************************************************/
 
@@ -284,7 +284,7 @@ AcpiNsSearchNode (
  *
  ******************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AcpiNsSearchParentTree (
     UINT32                  TargetName,
     ACPI_NAMESPACE_NODE     *Node,

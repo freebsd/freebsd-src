@@ -3,7 +3,7 @@
  *
  * Module Name: amstoren - AML Interpreter object store support,
  *                         Store to Node (namespace object)
- *              $Revision: 22 $
+ *              $Revision: 23 $
  *
  *****************************************************************************/
 
@@ -669,7 +669,12 @@ AcpiAmlStoreObjectToNode (
 
     case ACPI_TYPE_NUMBER:
 
+
         DestDesc->Number.Value = ValDesc->Number.Value;
+
+        /* Truncate value if we are executing from a 32-bit ACPI table */
+
+        AcpiAmlTruncateFor32bitTable (DestDesc, WalkState);
         break;
 
 
