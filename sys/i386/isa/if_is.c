@@ -11,7 +11,7 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: if_is.c,v 1.28 1994/10/19 01:59:02 wollman Exp $
+ * $Id: if_is.c,v 1.29 1994/10/23 21:27:21 wollman Exp $
  */
 
 /* TODO
@@ -106,8 +106,13 @@ static int is_ioctl(struct ifnet *, int, caddr_t);
 static void is_init(int);
 static void is_start(struct ifnet *);
 static void istint(int);
+#ifdef ISDEBUG
 static void recv_print(int, int);
 static void xmit_print(int, int);
+#endif ISDEBUG
+static int ne2100_probe(int);
+static int bicc_probe(int);
+static int lance_probe(int);
 
 
 
@@ -167,7 +172,6 @@ is_probe(isa_dev)
 	int unit = isa_dev->id_unit ;
 	int nports;
 
-int i;
 	is_softc[unit].iobase = isa_dev->id_iobase;
 
 	/*
@@ -189,9 +193,11 @@ int i;
 	printf("\n");
 #endif	/* DEBUG*/
 
-	if (nports = bicc_probe(unit))
+	nports = bicc_probe(unit);
+	if (nports)
 		return (nports);
-	if (nports = ne2100_probe(unit))
+	nports = ne2100_probe(unit);
+	if (nports)
 		return (nports);
 
 
@@ -208,7 +214,8 @@ int i;
 	is->rap = is->iobase + NE2100_RAP;
 	is->rdp = is->iobase + NE2100_RDP;
 
-	if (is->ic_type = lance_probe(unit)) {
+	is->ic_type = lance_probe(unit);
+	if (is->ic_type) {
 		is->card_type = NE2100;
 		/* 
 		 * Extract the physical MAC address from ROM
@@ -235,7 +242,8 @@ int i;
 	is->rap = is->iobase + BICC_RAP;
 	is->rdp = is->iobase + BICC_RDP;
 
-	if (is->ic_type = lance_probe(unit)) {
+	is->ic_type = lance_probe(unit);
+	if (is->ic_type) {
 		is->card_type = BICC;
 
 		/*
@@ -303,9 +311,6 @@ int type=0;
 static void
 is_reset(int unit)
 {
-	int s;
-	struct is_softc *is = &is_softc[unit];
-
 	if (unit >= NIS)
 		return;
 	printf("is%d: reset\n", unit);
@@ -367,7 +372,8 @@ is_attach(isa_dev)
 	 */
 
 	if ((u_long)is->init_block & 0x3) 
-		printf("is%d: memory allocated not quadword aligned\n");
+		printf("is%d: memory allocated not quadword aligned\n",
+			isa_dev->id_unit);
 
 	/* Set up DMA */
 	isa_dmacascade(isa_dev->id_drq);
@@ -564,7 +570,6 @@ is_start(ifp)
 	struct mbuf *m0, *m;
 	unsigned char *buffer;
 	u_short len;
-	int i;
 	struct mds *cdm;
 
 
@@ -849,7 +854,6 @@ isread(struct is_softc *is, unsigned char *buf, int len)
         register struct ether_header *eh;
         struct mbuf *m;
         int off, resid;
-        register struct ifqueue *inq;
 
         /*
          * Deal with trailer protocol: if type is trailer type
@@ -930,7 +934,7 @@ isget(buf, totlen, off0, ifp)
         int totlen, off0;
         struct ifnet *ifp;
 {
-        struct mbuf *top, **mp, *m, *p;
+        struct mbuf *top, **mp, *m;
         int off = off0, len;
         register caddr_t cp = buf;
         char *epkt;
@@ -1003,7 +1007,6 @@ is_ioctl(ifp, cmd, data)
 {
 	register struct ifaddr *ifa = (struct ifaddr *)data;
 	int unit = ifp->if_unit;
-	struct is_softc *is = &is_softc[unit];
 	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
 
@@ -1130,7 +1133,7 @@ is_ioctl(ifp, cmd, data)
 }
 
 #ifdef ISDEBUG
-void
+staic void
 recv_print(unit,no)
 	int unit,no;
 {
@@ -1153,7 +1156,7 @@ recv_print(unit,no)
 		printf("\n");
 }
 
-void
+static void
 xmit_print(unit,no)
 	int unit,no;
 {
