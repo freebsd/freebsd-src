@@ -32,7 +32,7 @@ BINGRP=	kmem
 BINMODE=6555
 
 beforeinstall:
-#	install -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
+#	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 #	    ${DESTDIR}/etc/sendmail.fc
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/log/sendmail.st

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.4 1995/06/29 19:43:00 wollman Exp $
+#	$Id: Makefile,v 1.5 1995/06/29 19:45:46 wollman Exp $
 
 .SUFFIXES: .x
 
@@ -22,13 +22,13 @@ install: all
 	@${ECHO} "Installing RPC service header and definition files"
 .for i in $(EVERYTHING)
 	@cd ${.CURDIR}; cmp -s $i $(RPCDIR)/$i || \
-		(install -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+		(${INSTALL} -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
 			$i ${RPCDIR}; \
 			$(ECHO) $i)
 .endfor
 .for i in $(HDRS)
 	@cmp -s $i $(RPCDIR)/$i || \
-		(install -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
+		(${INSTALL} -c -m ${BINMODE} -o ${BINOWN} -g ${BINGRP} \
 			$i ${RPCDIR}; \
 			$(ECHO) $i)
 .endfor

@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.15 1995/03/30 06:40:31 phk Exp $
+#	$Id: Makefile,v 1.16 1995/06/30 15:30:35 wollman Exp $
 
 CFLAGS+=	-DLIBC_SCCS -DDYNAMIC
 OBJS=		crt0.o gcrt0.o c++rt0.o
@@ -32,13 +32,14 @@ gcrt0.o: crt0.o
 
 beforeinstall:
 	cmp -s ${.CURDIR}/dlfcn.h ${DESTDIR}/usr/include/dlfcn.h || \
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/dlfcn.h ${DESTDIR}/usr/include
 
 realinstall:
 .for i in ${OBJS}
 	cmp -s $i ${DESTDIR}/usr/lib/$i || \
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 $i ${DESTDIR}/usr/lib
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+		$i ${DESTDIR}/usr/lib
 .endfor
 
 depend:	.depend

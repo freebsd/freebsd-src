@@ -6,7 +6,7 @@ MAN8=	rbootd.8
 
 # XXX BROKEN:	afterinstall:
 XXXafterinstall:
-	(cd ${.CURDIR}/bootdir && install -c -o ${BINOWN} -g ${BINGRP} \
+	(cd ${.CURDIR}/bootdir && ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
 	    -m 444 * ${DESTDIR}/usr/mdec/)
 
 .include <bsd.prog.mk>
