@@ -1537,8 +1537,9 @@ _pmap_allocpte(pmap, ptepindex)
 		bzero((caddr_t) ALPHA_PHYS_TO_K0SEG(ptepa), PAGE_SIZE);
 
 	m->valid = VM_PAGE_BITS_ALL;
-	vm_page_flag_clear(m, PG_ZERO | PG_BUSY);
+	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_flag_set(m, PG_MAPPED);
+	vm_page_wakeup(m);
 
 	return m;
 }
