@@ -2,14 +2,8 @@
 /*
  * sock.c (C) 1995-1998 Darren Reed
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.1 2000/12/16 21:05:44 darrenr Exp $";
-#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -67,6 +61,12 @@ static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.1 2000/12/16 21:05:44 darre
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include "ipsend.h"
+
+#if !defined(lint)
+static const char sccsid[] = "@(#)sock.c	1.2 1/11/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: sock.c,v 2.1.4.3 2001/07/15 22:00:14 darrenr Exp $";
+#endif
+
 
 int	nproc;
 struct	proc	*proc;

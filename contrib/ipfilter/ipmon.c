@@ -1,14 +1,8 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
-#if !defined(lint)
-static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
-#endif
 
 #ifndef SOLARIS
 #define SOLARIS (defined(__SVR4) || defined(__svr4__)) && defined(sun)
@@ -37,7 +31,9 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 # include <sys/filio.h>
 # include <sys/byteorder.h>
 #endif
-#include <strings.h>
+#if !defined(__SVR4) && !defined(__GNUC__)
+# include <strings.h>
+#endif
 #include <signal.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -69,6 +65,12 @@ static const char rcsid[] = "@(#)$FreeBSD$";
 #include "netinet/ip_proxy.h"
 #include "netinet/ip_nat.h"
 #include "netinet/ip_state.h"
+
+#if !defined(lint)
+static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-2000 Darren Reed";
+/* static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.12.2.13 2001/07/19 12:24:59 darrenr Exp $"; */
+static const char rcsid[] = "@(#)$FreeBSD$";
+#endif
 
 
 #if	defined(sun) && !defined(SOLARIS2)
@@ -121,6 +123,7 @@ static	void	print_statelog __P((FILE *, char *, int));
 static	void	dumphex __P((FILE *, u_char *, int));
 static	int	read_log __P((int, int *, char *, int));
 static	void	write_pid __P((char *));
+static	char	*icmpname __P((u_int, u_int));
 
 char	*hostname __P((int, int, u_32_t *));
 char	*portname __P((int, char *, u_int));
@@ -133,7 +136,7 @@ static	char	*getproto __P((u_int));
 static	char	**protocols = NULL;
 static	char	**udp_ports = NULL;
 static	char	**tcp_ports = NULL;
-
+static  char	*argv0 = "ipmon";
 
 #define	OPT_SYSLOG	0x001
 #define	OPT_RESOLVE	0x002
@@ -155,7 +158,49 @@ static	char	**tcp_ports = NULL;
 #endif
 
 
-void handlehup(sig)
+#define	ICMPUNREACHNAMES	14
+static char *icmpunreachnames[ICMPUNREACHNAMES] = {
+	"net",
+	"host",
+	"protocol",
+	"port",
+	"needfrag",
+	"srcfail",
+	"net_unknown",
+	"host_unknown",
+	"isolated",
+	"net_prohib",
+	"host_prohib",
+	"tosnet",
+	"toshost",
+	"admin_prohibit"
+};
+
+#define	ICMPTYPES	19
+static char *icmptypes[ICMPTYPES] = {
+	"echoreply",
+	NULL,
+	NULL,
+	"unreach",
+	"sourcequench",
+	"redirect",
+	NULL,
+	NULL,
+	"echo",
+	"routeradvert",
+	"routersolicit",
+	"timxceed",
+	"paramprob",
+	"timestamp",
+	"timestampreply",
+	"inforeq",
+	"inforeply",
+	"maskreq",
+	"maskreply"
+};
+
+
+static void handlehup(sig)
 int sig;
 {
 	FILE	*fp;
@@ -265,6 +310,8 @@ char	*hostname(res, v, ip)
 int	res, v;
 u_32_t	*ip;
 {
+# define MAX_INETA	16
+	static char hname[MAXHOSTNAMELEN + MAX_INETA + 3];
 #ifdef	USE_INET6
 	static char hostbuf[MAXHOSTNAMELEN+1];
 #endif
@@ -278,8 +325,8 @@ u_32_t	*ip;
 		hp = gethostbyaddr((char *)ip, sizeof(ip), AF_INET);
 		if (!hp)
 			return inet_ntoa(ipa);
-		return hp->h_name;
-
+		sprintf(hname, "%.*s[%s]", MAXHOSTNAMELEN, hp->h_name, inet_ntoa(ipa));
+		return hname;
 	}
 #ifdef	USE_INET6
 	(void) inet_ntop(AF_INET6, ip, hostbuf, sizeof(hostbuf) - 1);
@@ -312,6 +359,67 @@ u_int	port;
 	if (s == NULL)
 		s = pname;
 	return s;
+}
+
+
+#define	TYPECODE(x,y)	(((x) << 8) | (y))
+
+static	char	*icmpname(type, code)
+u_int	type;
+u_int	code;
+{
+	static char name[80];
+	char codeval[8], *s;
+	u_int typecode;
+
+	sprintf(codeval, "%d", code);
+
+	s = NULL;
+	if (type < ICMPTYPES)
+		s = icmptypes[type];
+	if (s == NULL)
+		sprintf(name, "icmptype(%d)/", type);
+	else
+		sprintf(name, "%s/", s);
+
+	if (type == ICMP_UNREACH) {
+		if (code >= ICMPUNREACHNAMES)
+			sprintf(name + strlen(name), "%d", code);
+		else
+			strcat(name, icmpunreachnames[code]);
+	} else {
+		typecode = (type << 8) | code;
+
+		switch (typecode)
+		{
+		case TYPECODE(ICMP_REDIRECT, ICMP_REDIRECT_NET) :
+			strcat(name, "net");
+			break;
+		case TYPECODE(ICMP_REDIRECT, ICMP_REDIRECT_HOST) :
+			strcat(name, "host");
+			break;
+		case TYPECODE(ICMP_REDIRECT, ICMP_REDIRECT_TOSNET) :
+			strcat(name, "tosnet");
+			break;
+		case TYPECODE(ICMP_REDIRECT, ICMP_REDIRECT_TOSHOST) :
+			strcat(name, "toshost");
+			break;
+		case TYPECODE(ICMP_TIMXCEED, ICMP_TIMXCEED_INTRANS) :
+			strcat(name, "intrans");
+			break;
+		case TYPECODE(ICMP_TIMXCEED, ICMP_TIMXCEED_REASS) :
+			strcat(name, "reass");
+			break;
+		case TYPECODE(ICMP_PARAMPROB, ICMP_PARAMPROB_OPTABSENT) :
+			strcat(name, "optabsent");
+			break;
+		default:
+			strcat(name, codeval);
+			break;
+		}
+	}
+
+	return name;
 }
 
 
@@ -739,9 +847,9 @@ int	blen;
 		ic = (struct icmp *)((char *)ip + hl);
 		(void) sprintf(t, "%s -> ", hostname(res, v, s));
 		t += strlen(t);
-		(void) sprintf(t, "%s PR icmp len %hu %hu icmp %d/%d",
+		(void) sprintf(t, "%s PR icmp len %hu %hu icmp %s",
 			hostname(res, v, d), hl, plen,
-			ic->icmp_type, ic->icmp_code);
+			icmpname((u_int) ic->icmp_type, (u_int) ic->icmp_code));
 		if (ic->icmp_type == ICMP_UNREACH ||
 		    ic->icmp_type == ICMP_SOURCEQUENCH ||
 		    ic->icmp_type == ICMP_PARAMPROB ||
@@ -879,7 +987,7 @@ FILE *log;
 
 	if ((fd = open(file, O_RDWR)) == -1) {
 		(void) fprintf(stderr, "%s: open: %s\n", file,STRERROR(errno));
-		exit(-1);
+		exit(1);
 	}
 
 	if (ioctl(fd, SIOCIPFFB, &flushed) == 0) {
@@ -942,7 +1050,7 @@ char *argv[];
 	int	fd[3], doread, n, i;
 	int	tr, nr, regular[3], c;
 	int	fdt[3], devices = 0, make_daemon = 0;
-	char	buf[512], *iplfile[3], *s;
+	char	buf[512], *iplfile[3];
 	extern	int	optind;
 	extern	char	*optarg;
 
@@ -951,6 +1059,12 @@ char *argv[];
 	iplfile[0] = IPL_NAME;
 	iplfile[1] = IPNAT_NAME;
 	iplfile[2] = IPSTATE_NAME;
+
+	argv0 = strrchr(argv[0], '/');
+	if (argv0 == NULL)
+		argv0 = argv[0];
+	else
+		argv0++;
 
 	while ((c = getopt(argc, argv, "?abDf:FhnN:o:O:pP:sS:tvxX")) != -1)
 		switch (c)
@@ -1002,14 +1116,9 @@ char *argv[];
 			pidfile = optarg;
 			break;
 		case 's' :
-			s = strrchr(argv[0], '/');
-			if (s == NULL)
-				s = argv[0];
-			else
-				s++;
-			openlog(s, LOG_NDELAY|LOG_PID, LOGFAC);
-			s = NULL;
+			openlog(argv0, LOG_NDELAY|LOG_PID, LOGFAC);
 			opts |= OPT_SYSLOG;
+			log = NULL;
 			break;
 		case 'S' :
 			opts |= OPT_STATE;
@@ -1031,7 +1140,7 @@ char *argv[];
 		default :
 		case 'h' :
 		case '?' :
-			usage(argv[0]);
+			usage(argv0);
 		}
 
 	init_tabs();
@@ -1052,13 +1161,14 @@ char *argv[];
 				(void) fprintf(stderr,
 					       "%s: open: %s\n", iplfile[i],
 					       STRERROR(errno));
-				exit(-1);
+				exit(1);
+				/* NOTREACHED */
 			}
-
 			if (fstat(fd[i], &sb) == -1) {
 				(void) fprintf(stderr, "%d: fstat: %s\n",fd[i],
 					       STRERROR(errno));
-				exit(-1);
+				exit(1);
+				/* NOTREACHED */
 			}
 			if (!(regular[i] = !S_ISCHR(sb.st_mode)))
 				devices++;
@@ -1069,25 +1179,36 @@ char *argv[];
 		logfile = argv[optind];
 		log = logfile ? fopen(logfile, "a") : stdout;
 		if (log == NULL) {
-			
 			(void) fprintf(stderr, "%s: fopen: %s\n", argv[optind],
 				STRERROR(errno));
-			exit(-1);
+			exit(1);
+			/* NOTREACHED */
 		}
 		setvbuf(log, NULL, _IONBF, 0);
 	} else
 		log = NULL;
 
 	if (make_daemon && ((log != stdout) || (opts & OPT_SYSLOG))) {
-		if (fork() > 0)
+#if BSD
+		daemon(0, !(opts & OPT_SYSLOG));
+#else
+		int pid;
+		if ((pid = fork()) > 0)
 			exit(0);
-		write_pid(pidfile);
+		if (pid < 0) {
+			(void) fprintf(stderr, "%s: fork() failed: %s\n", argv0,
+				       STRERROR(errno));
+			exit(1);
+			/* NOTREACHED */
+		}
+		setsid();
+		if ((opts & OPT_SYSLOG))
+			close(2);
+#endif /* !BSD */
 		close(0);
 		close(1);
-		close(2);
-		setsid();
-	} else
-		write_pid(pidfile);
+	}
+	write_pid(pidfile);
 
 	signal(SIGHUP, handlehup);
 
@@ -1100,8 +1221,12 @@ char *argv[];
 				continue;
 			if (!regular[i]) {
 				if (ioctl(fd[i], FIONREAD, &tr) == -1) {
-					perror("ioctl(FIONREAD)");
-					exit(-1);
+					if (opts & OPT_SYSLOG)
+						syslog(LOG_CRIT, "ioctl(FIONREAD): %m");
+					else
+						perror("ioctl(FIONREAD)");
+					exit(1);
+					/* NOTREACHED */
 				}
 			} else {
 				tr = (lseek(fd[i], 0, SEEK_CUR) < sb.st_size);
@@ -1126,14 +1251,14 @@ char *argv[];
 			{
 			case -1 :
 				if (opts & OPT_SYSLOG)
-					syslog(LOG_ERR, "read: %m\n");
+					syslog(LOG_CRIT, "read: %m\n");
 				else
 					perror("read");
 				doread = 0;
 				break;
 			case 1 :
 				if (opts & OPT_SYSLOG)
-					syslog(LOG_ERR, "aborting logging\n");
+					syslog(LOG_CRIT, "aborting logging\n");
 				else
 					fprintf(log, "aborting logging\n");
 				doread = 0;
