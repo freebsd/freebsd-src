@@ -1346,6 +1346,51 @@ emu_init(struct sc_info *sc)
 }
 
 static int
+emu_uninit(struct sc_info *sc)
+{
+	u_int32_t ch;
+
+	emu_wr(sc, INTE, 0, 4);
+	for (ch = 0; ch < NUM_G; ch++)
+		emu_wrptr(sc, ch, DCYSUSV, ENV_OFF);
+	for (ch = 0; ch < NUM_G; ch++) {
+		emu_wrptr(sc, ch, VTFT, 0);
+		emu_wrptr(sc, ch, CVCF, 0);
+		emu_wrptr(sc, ch, PTRX, 0);
+		emu_wrptr(sc, ch, CPF, 0);
+       }
+
+   	/* disable audio and lock cache */
+	emu_wr(sc, HCFG, HCFG_LOCKSOUNDCACHE | HCFG_LOCKTANKCACHE | HCFG_MUTEBUTTONENABLE, 4);
+
+	emu_wrptr(sc, 0, PTB, 0);
+	/* reset recording buffers */
+	emu_wrptr(sc, 0, MICBS, ADCBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, MICBA, 0);
+	emu_wrptr(sc, 0, FXBS, ADCBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, FXBA, 0);
+	emu_wrptr(sc, 0, FXWC, 0);
+	emu_wrptr(sc, 0, ADCBS, ADCBS_BUFSIZE_NONE);
+	emu_wrptr(sc, 0, ADCBA, 0);
+	emu_wrptr(sc, 0, TCB, 0);
+	emu_wrptr(sc, 0, TCBS, 0);
+
+	/* disable channel interrupt */
+	emu_wrptr(sc, 0, CLIEL, 0);
+	emu_wrptr(sc, 0, CLIEH, 0);
+	emu_wrptr(sc, 0, SOLEL, 0);
+	emu_wrptr(sc, 0, SOLEH, 0);
+
+	/* init envelope engine */
+	if (!SLIST_EMPTY(&sc->mem.blocks))
+		device_printf(sc->dev, "warning: memblock list not empty\n");
+	emu_free(sc, sc->mem.ptb_pages);
+	emu_free(sc, sc->mem.silent_page);
+
+	return 0;
+}
+
+static int
 emu_pci_probe(device_t dev)
 {
 	char *s = NULL;
@@ -1458,11 +1503,34 @@ bad:
 	return ENXIO;
 }
 
-/* add suspend, resume, unload */
+static int
+emu_pci_detach(device_t dev)
+{
+	int r;
+	struct sc_info *sc;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sc = pcm_getdevinfo(dev);
+	/* shutdown chip */
+	emu_uninit(sc);
+
+	bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	free(sc, M_DEVBUF);
+
+	return 0;
+}
+
+/* add suspend, resume */
 static device_method_t emu_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		emu_pci_probe),
 	DEVMETHOD(device_attach,	emu_pci_attach),
+	DEVMETHOD(device_detach,	emu_pci_detach),
 
 	{ 0, 0 }
 };
@@ -1502,9 +1570,16 @@ emujoy_pci_attach(device_t dev)
 	return 0;
 }
 
+static int
+emujoy_pci_detach(device_t dev)
+{
+	return 0;
+}
+
 static device_method_t emujoy_methods[] = {
 	DEVMETHOD(device_probe,		emujoy_pci_probe),
 	DEVMETHOD(device_attach,	emujoy_pci_attach),
+	DEVMETHOD(device_detach,	emujoy_pci_detach),
 
 	{ 0, 0 }
 };
