@@ -1023,7 +1023,7 @@ ns_print(sns)
 	struct ns_addr work;
 	union { union ns_net net_e; u_long long_e; } net;
 	u_short port;
-	static char mybuf[50], cport[10], chost[25];
+	static char mybuf[50+MAXHOSTNAMELEN], cport[10], chost[25];
 	char *host = "";
 	register char *p;
 	register u_char *q;
@@ -1056,7 +1056,8 @@ ns_print(sns)
 	else
 		*cport = 0;
 
-	(void) sprintf(mybuf,"%lxH.%s%s", (unsigned long)ntohl(net.long_e),
+	(void) snprintf(mybuf, sizeof(mybuf), "%lxH.%s%s", 
+                    (unsigned long)ntohl(net.long_e),
 		       host, cport);
 	return (mybuf);
 }
