@@ -139,10 +139,9 @@ struct atapi_softc {
     int8_t			*devname;	/* this devices name */
     int8_t			cmd;		/* last cmd executed */
     u_int32_t			flags;		/* drive flags */
-#define		ATAPI_F_DMA_ENABLED	0x0001
-#define		ATAPI_F_DMA_USED	0x0002
-#define		ATAPI_F_DSC_USED	0x0004
-#define		ATAPI_F_MEDIA_CHANGED	0x0008
+#define		ATAPI_F_DMA_USED	0x0001
+#define		ATAPI_F_DSC_USED	0x0002
+#define		ATAPI_F_MEDIA_CHANGED	0x0004
 
 };
 
