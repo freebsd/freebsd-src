@@ -49,12 +49,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/param.h>
-#ifdef BSD
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <paths.h>
-#endif
 #include <sys/ioctl.h>
 
 #include "shell.h"
@@ -83,7 +81,7 @@ int njobs;			/* size of array */
 MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 #if JOBS
 struct job *jobmru;		/* most recently used job list */
-int initialpgrp;		/* pgrp of shell on invocation */
+pid_t initialpgrp;		/* pgrp of shell on invocation */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
 int in_dowait = 0;		/* are we in dowait()? */
@@ -95,11 +93,8 @@ STATIC void restartjob(struct job *);
 #endif
 STATIC void freejob(struct job *);
 STATIC struct job *getjob(char *);
-STATIC int dowait(int, struct job *);
-#if SYSV
-STATIC int onsigchild(void);
-#endif
-STATIC int waitproc(int, int *);
+STATIC pid_t dowait(int, struct job *);
+STATIC pid_t waitproc(int, int *);
 STATIC void cmdtxt(union node *);
 STATIC void cmdputs(char *);
 #if JOBS
@@ -112,10 +107,6 @@ STATIC void showjob(struct job *, pid_t, int, int);
 
 /*
  * Turn job control on and off.
- *
- * Note:  This code assumes that the third arg to ioctl is a character
- * pointer, which is true on Berkeley systems but not System V.  Since
- * System V doesn't have job control yet, this isn't a problem now.
  */
 
 MKINIT int jobctl;
@@ -196,7 +187,7 @@ int
 fgcmd(int argc __unused, char **argv)
 {
 	struct job *jp;
-	int pgrp;
+	pid_t pgrp;
 	int status;
 
 	jp = getjob(argv[1]);
@@ -268,6 +259,7 @@ jobscmd(int argc, char *argv[])
 	int ch, sformat, lformat;
 
 	optind = optreset = 1;
+	opterr = 0;
 	sformat = lformat = 0;
 	while ((ch = getopt(argc, argv, "ls")) != -1) {
 		switch (ch) {
@@ -315,7 +307,7 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 #endif
 	for (ps = jp->ps ; ; ps++) {	/* for each process */
 		if (sformat) {
-			out1fmt("%d\n", ps->pid);
+			out1fmt("%d\n", (int)ps->pid);
 			goto skip;
 		}
 		if (!lformat && ps != jp->ps && pid == 0)
@@ -335,7 +327,7 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 		out1str(s);
 		col = strlen(s);
 		if (lformat) {
-			fmtstr(s, 64, "%d ", ps->pid);
+			fmtstr(s, 64, "%d ", (int)ps->pid);
 			out1str(s);
 			col += strlen(s);
 		}
@@ -500,7 +492,7 @@ jobidcmd(int argc __unused, char **argv)
 
 	jp = getjob(argv[1]);
 	for (i = 0 ; i < jp->nprocs ; ) {
-		out1fmt("%d", jp->ps[i].pid);
+		out1fmt("%d", (int)jp->ps[i].pid);
 		out1c(++i < jp->nprocs? ' ' : '\n');
 	}
 	return 0;
@@ -517,7 +509,7 @@ getjob(char *name)
 {
 	int jobno;
 	struct job *found, *jp;
-	int pid;
+	pid_t pid;
 	int i;
 
 	if (name == NULL) {
@@ -571,7 +563,7 @@ currentjob:	if ((jp = getcurjob(NULL)) == NULL)
 				return found;
 		}
 	} else if (is_number(name)) {
-		pid = number(name);
+		pid = (pid_t)number(name);
 		for (jp = jobtab, i = njobs ; --i >= 0 ; jp++) {
 			if (jp->used && jp->nprocs > 0
 			 && jp->ps[jp->nprocs - 1].pid == pid)
@@ -726,11 +718,11 @@ getcurjob(struct job *nj)
  * in a pipeline).
  */
 
-int
+pid_t
 forkshell(struct job *jp, union node *n, int mode)
 {
-	int pid;
-	int pgrp;
+	pid_t pid;
+	pid_t pgrp;
 
 	TRACE(("forkshell(%%%d, 0x%lx, %d) called\n", jp - jobtab, (long)n,
 	    mode));
@@ -746,12 +738,9 @@ forkshell(struct job *jp, union node *n, int mode)
 		int wasroot;
 		int i;
 
-		TRACE(("Child shell %d\n", getpid()));
+		TRACE(("Child shell %d\n", (int)getpid()));
 		wasroot = rootshell;
 		rootshell = 0;
-		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
-			if (p->used)
-				freejob(p);
 		closescript();
 		INTON;
 		clear_traps();
@@ -793,6 +782,11 @@ forkshell(struct job *jp, union node *n, int mode)
 			}
 		}
 #endif
+		INTOFF;
+		for (i = njobs, p = jobtab ; --i >= 0 ; p++)
+			if (p->used)
+				freejob(p);
+		INTON;
 		if (wasroot && iflag) {
 			setsignal(SIGINT);
 			setsignal(SIGQUIT);
@@ -822,7 +816,7 @@ forkshell(struct job *jp, union node *n, int mode)
 #endif
 	}
 	INTON;
-	TRACE(("In parent shell:  child = %d\n", pid));
+	TRACE(("In parent shell:  child = %d\n", (int)pid));
 	return pid;
 }
 
@@ -851,7 +845,7 @@ int
 waitforjob(struct job *jp, int *origstatus)
 {
 #if JOBS
-	int mypgrp = getpgrp();
+	pid_t mypgrp = getpgrp();
 #endif
 	int status;
 	int st;
@@ -899,10 +893,10 @@ waitforjob(struct job *jp, int *origstatus)
  * Wait for a process to terminate.
  */
 
-STATIC int
+STATIC pid_t
 dowait(int block, struct job *job)
 {
-	int pid;
+	pid_t pid;
 	int status;
 	struct procstat *sp;
 	struct job *jp;
@@ -916,7 +910,7 @@ dowait(int block, struct job *job)
 	TRACE(("dowait(%d) called\n", block));
 	do {
 		pid = waitproc(block, &status);
-		TRACE(("wait returns %d, status=%d\n", pid, status));
+		TRACE(("wait returns %d, status=%d\n", (int)pid, status));
 	} while ((pid == -1 && errno == EINTR && breakwaitcmd == 0) ||
 	    (WIFSTOPPED(status) && !iflag));
 	in_dowait--;
@@ -937,7 +931,8 @@ dowait(int block, struct job *job)
 					continue;
 				if (sp->pid == pid) {
 					TRACE(("Changing status of proc %d from 0x%x to 0x%x\n",
-						   pid, sp->status, status));
+						   (int)pid, sp->status,
+						   status));
 					sp->status = status;
 					thisjob = jp;
 				}
@@ -973,13 +968,8 @@ dowait(int block, struct job *job)
 				sig = WTERMSIG(status);
 		}
 		if (sig != 0 && sig != SIGINT && sig != SIGPIPE) {
-			if (jp->foreground) {
-#if JOBS
-				if (WIFSTOPPED(status)) 
-					i = WSTOPSIG(status);
-				else
-#endif
-					i = WTERMSIG(status);
+			if (thisjob->foreground && !WIFSTOPPED(status)) {
+				i = WTERMSIG(status);
 				if ((i & 0x7F) < NSIG && sys_siglist[i & 0x7F])
 					out1str(sys_siglist[i & 0x7F]);
 				else
@@ -988,7 +978,7 @@ dowait(int block, struct job *job)
 					out1str(" (core dumped)");
 				out1c('\n');
 			} else
-				showjob(thisjob, pid, 0, 1);
+				showjob(thisjob, pid, 0, 0);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
@@ -1004,44 +994,10 @@ dowait(int block, struct job *job)
  * Do a wait system call.  If job control is compiled in, we accept
  * stopped processes.  If block is zero, we return a value of zero
  * rather than blocking.
- *
- * System V doesn't have a non-blocking wait system call.  It does
- * have a SIGCLD signal that is sent to a process when one of it's
- * children dies.  The obvious way to use SIGCLD would be to install
- * a handler for SIGCLD which simply bumped a counter when a SIGCLD
- * was received, and have waitproc bump another counter when it got
- * the status of a process.  Waitproc would then know that a wait
- * system call would not block if the two counters were different.
- * This approach doesn't work because if a process has children that
- * have not been waited for, System V will send it a SIGCLD when it
- * installs a signal handler for SIGCLD.  What this means is that when
- * a child exits, the shell will be sent SIGCLD signals continuously
- * until is runs out of stack space, unless it does a wait call before
- * restoring the signal handler.  The code below takes advantage of
- * this (mis)feature by installing a signal handler for SIGCLD and
- * then checking to see whether it was called.  If there are any
- * children to be waited for, it will be.
- *
- * If neither SYSV nor BSD is defined, we don't implement nonblocking
- * waits at all.  In this case, the user will not be informed when
- * a background process until the next time she runs a real program
- * (as opposed to running a builtin command or just typing return),
- * and the jobs command may give out of date information.
  */
-
-#ifdef SYSV
-STATIC sig_atomic_t gotsigchild;
-
-STATIC int onsigchild() {
-	gotsigchild = 1;
-}
-#endif
-
-
-STATIC int
+STATIC pid_t
 waitproc(int block, int *status)
 {
-#ifdef BSD
 	int flags;
 
 #if JOBS
@@ -1052,24 +1008,6 @@ waitproc(int block, int *status)
 	if (block == 0)
 		flags |= WNOHANG;
 	return wait3(status, flags, (struct rusage *)NULL);
-#else
-#ifdef SYSV
-	int (*save)();
-
-	if (block == 0) {
-		gotsigchild = 0;
-		save = signal(SIGCLD, onsigchild);
-		signal(SIGCLD, save);
-		if (gotsigchild == 0)
-			return 0;
-	}
-	return wait(status);
-#else
-	if (block == 0)
-		return 0;
-	return wait(status);
-#endif
-#endif
 }
 
 /*

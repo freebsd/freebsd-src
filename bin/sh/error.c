@@ -211,7 +211,7 @@ STATIC const struct errname errormsg[] = {
 	{ EMFILE,	ALL,	"too many open files" },
 #endif
 	{ ENFILE,	ALL,	"file table overflow" },
-	{ ENOSPC,	ALL,	"filesystem full" },
+	{ ENOSPC,	ALL,	"file system full" },
 #ifdef EDQUOT
 	{ EDQUOT,	ALL,	"disk quota exceeded" },
 #endif
@@ -219,11 +219,8 @@ STATIC const struct errname errormsg[] = {
 	{ ENOSR,	ALL,	"no streams resources" },
 #endif
 	{ ENXIO,	ALL,	"no such device or address" },
-	{ EROFS,	ALL,	"read-only filesystem" },
+	{ EROFS,	ALL,	"read-only file system" },
 	{ ETXTBSY,	ALL,	"text busy" },
-#ifdef SYSV
-	{ EAGAIN,	E_EXEC,	"not enough memory" },
-#endif
 	{ ENOMEM,	ALL,	"not enough memory" },
 #ifdef ENOLINK
 	{ ENOLINK,	ALL,	"remote access failed" },

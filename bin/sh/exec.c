@@ -100,9 +100,6 @@ int exerrno = 0;			/* Last exec error */
 
 
 STATIC void tryexec(char *, char **, char **);
-#ifndef BSD
-STATIC void execinterp(char **, char **);
-#endif
 STATIC void printentry(struct tblentry *, int);
 STATIC struct tblentry *cmdlookup(char *, int);
 STATIC void delete_cmd_entry(void);
@@ -155,115 +152,19 @@ STATIC void
 tryexec(char *cmd, char **argv, char **envp)
 {
 	int e;
-#ifndef BSD
-	char *p;
-#endif
 
-#ifdef SYSV
-	do {
-		execve(cmd, argv, envp);
-	} while (errno == EINTR);
-#else
 	execve(cmd, argv, envp);
-#endif
 	e = errno;
 	if (e == ENOEXEC) {
 		initshellproc();
 		setinputfile(cmd, 0);
 		commandname = arg0 = savestr(argv[0]);
-#ifndef BSD
-		pgetc(); pungetc();		/* fill up input buffer */
-		p = parsenextc;
-		if (parsenleft > 2 && p[0] == '#' && p[1] == '!') {
-			argv[0] = cmd;
-			execinterp(argv, envp);
-		}
-#endif
 		setparam(argv + 1);
 		exraise(EXSHELLPROC);
 		/*NOTREACHED*/
 	}
 	errno = e;
 }
-
-
-#ifndef BSD
-/*
- * Execute an interpreter introduced by "#!", for systems where this
- * feature has not been built into the kernel.  If the interpreter is
- * the shell, return (effectively ignoring the "#!").  If the execution
- * of the interpreter fails, exit.
- *
- * This code peeks inside the input buffer in order to avoid actually
- * reading any input.  It would benefit from a rewrite.
- */
-
-#define NEWARGS 5
-
-STATIC void
-execinterp(char **argv, char **envp)
-{
-	int n;
-	char *inp;
-	char *outp;
-	char c;
-	char *p;
-	char **ap;
-	char *newargs[NEWARGS];
-	int i;
-	char **ap2;
-	char **new;
-
-	n = parsenleft - 2;
-	inp = parsenextc + 2;
-	ap = newargs;
-	for (;;) {
-		while (--n >= 0 && (*inp == ' ' || *inp == '\t'))
-			inp++;
-		if (n < 0)
-			goto bad;
-		if ((c = *inp++) == '\n')
-			break;
-		if (ap == &newargs[NEWARGS])
-bad:		  error("Bad #! line");
-		STARTSTACKSTR(outp);
-		do {
-			STPUTC(c, outp);
-		} while (--n >= 0 && (c = *inp++) != ' ' && c != '\t' && c != '\n');
-		STPUTC('\0', outp);
-		n++, inp--;
-		*ap++ = grabstackstr(outp);
-	}
-	if (ap == newargs + 1) {	/* if no args, maybe no exec is needed */
-		p = newargs[0];
-		for (;;) {
-			if (equal(p, "sh") || equal(p, "ash")) {
-				return;
-			}
-			while (*p != '/') {
-				if (*p == '\0')
-					goto break2;
-				p++;
-			}
-			p++;
-		}
-break2:;
-	}
-	i = (char *)ap - (char *)newargs;		/* size in bytes */
-	if (i == 0)
-		error("Bad #! line");
-	for (ap2 = argv ; *ap2++ != NULL ; );
-	new = ckmalloc(i + ((char *)ap2 - (char *)argv));
-	ap = newargs, ap2 = new;
-	while ((i -= sizeof (char **)) >= 0)
-		*ap2++ = *ap++;
-	ap = argv;
-	while (*ap2++ = *ap++);
-	shellexec(new, envp, pathval(), 0);
-}
-#endif
-
-
 
 /*
  * Do a path search.  The variable path (passed by reference) should be
@@ -478,11 +379,7 @@ loop:
 			TRACE(("searchexec \"%s\": no change\n", name));
 			goto success;
 		}
-		while (stat(fullname, &statb) < 0) {
-#ifdef SYSV
-			if (errno == EINTR)
-				continue;
-#endif
+		if (stat(fullname, &statb) < 0) {
 			if (errno != ENOENT && errno != ENOTDIR)
 				e = errno;
 			goto loop;

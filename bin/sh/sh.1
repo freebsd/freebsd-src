@@ -43,7 +43,7 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefIimnpsTuVvx
+.Op Fl /+abCEefIimnPpsTuVvx
 .Op Fl /+o Ar longname
 .Op Fl c Ar string
 .Op Ar arg ...
@@ -225,6 +225,17 @@ Turn on job control (set automatically when interactive).
 If not interactive, read commands but do not
 execute them.  This is useful for checking the
 syntax of shell scripts.
+.It Fl P Li physical
+Change the default for the
+.Ic cd
+and
+.Ic pwd
+commands from
+.Fl L
+(logical directory layout)
+to
+.Fl P
+(physical directory layout).
 .It Fl p Li privileged
 Turn on privileged mode.  This mode is enabled on startup
 if either the effective user or group id is not equal to the
@@ -1271,16 +1282,20 @@ built-in command prints the names and values of all defined aliases
 (see
 .Ic unalias ) .
 Alias values are written with appropriate quoting so that they are
-suitable for reinput to the shell.
+suitable for re-input to the shell.
 .It Ic bg Op Ar job ...
 Continue the specified jobs
 (or the current job if no jobs are given)
 in the background.
-.It Ic command Ar cmd Op Ar arg ...
+.It Ic builtin Ar cmd Op Ar arg ...
 Execute the specified built-in command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a built-in command.
+.It Ic bind Oo Fl aeklrsv Oc Oo Ar key Oo Ar command Oc Oc
+List or alter key bindings for the line editor.
+This command is documented in
+.Xr editrc 5 .
 .It Ic cd Oo Fl LP Oc Op Ar directory
 Switch to the specified
 .Ar directory ,
@@ -1292,7 +1307,7 @@ is specified.
 If
 .Ar directory
 does not begin with
-.Pa / , . ,
+.Pa / , \&. ,
 or
 .Pa .. ,
 then the directories listed in the
@@ -1334,11 +1349,20 @@ This is the default.
 A synonym for the
 .Ic cd
 built-in command.
-.It Xo
-.Ic echo
-.Op Fl e | Fl n
-.Op Ar string
-.Xc
+.It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
+Execute the specified
+.Ar utility
+as a simple command (see the
+.Sx Simple Commands
+section).
+.Pp
+If the
+.Fl p
+option is specified, the command search is performed using a
+default value of
+.Ev PATH
+that is guaranteed to find all of the standard utilities.
+.It Ic echo Oo Fl e | n Oc Op Ar string
 Print
 .Ar string
 to the standard output with a newline appended.
@@ -1420,11 +1444,7 @@ If
 is given
 it is used as the exit status of the shell;
 otherwise the exit status of the preceding command is used.
-.It Xo
-.Ic export
-.Op Fl p
-.Op Ar name ...
-.Xc
+.It Ic export Oo Fl p Oc Op Ar name ...
 The specified names are exported so that they will
 appear in the environment of subsequent commands.
 The only way to un-export a variable is to
@@ -1595,11 +1615,7 @@ Print the process id's of the processes in the specified
 If the
 .Ar job
 argument is omitted, use the current job.
-.It Xo
-.Ic jobs
-.Op Fl ls
-.Op Ar job ...
-.Xc
+.It Ic jobs Oo Fl ls Oc Op Ar job ...
 Print information about the specified jobs, or all jobs if no
 .Ar job
 argument is given.
@@ -1610,7 +1626,7 @@ If the
 option is specified, the PID of each job is also printed.
 If the
 .Fl s
-option is specified, only the PID's of the jobs are printed, one per line.
+option is specified, only the PIDs of the jobs are printed, one per line.
 .It Ic pwd Op Fl LP
 Print the path of the current directory.  The built-in command may
 differ from the program of the same name because the
@@ -1685,11 +1701,7 @@ is assumed.
 The
 .Fl e
 option exists only for backward compatibility with older scripts.
-.It Xo
-.Ic readonly
-.Op Fl p
-.Op Ar name ...
-.Xc
+.It Ic readonly Oo Fl p Oc Op Ar name ...
 Each specified
 .Ar name
 is marked as read only,
@@ -1876,11 +1888,7 @@ is specified, the shell removes that alias.
 If
 .Fl a
 is specified, all aliases are removed.
-.It Xo
-.Ic unset
-.Op Fl fv
-.Ar name ...
-.Xc
+.It Ic unset Oo Fl fv Oc Ar name ...
 The specified variables or functions are unset and unexported.
 If the
 .Fl v

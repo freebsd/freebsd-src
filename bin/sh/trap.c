@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "trap.h"
 #include "mystring.h"
+#include "myhistedit.h"
 
 
 /*
@@ -81,6 +82,7 @@ static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG]; 
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
+volatile sig_atomic_t gotwinch;
 
 static int getsigaction(int, sig_t *);
 
@@ -246,6 +248,12 @@ setsignal(int signo)
 				action = S_IGN;
 			break;
 #endif
+#ifndef NO_HISTORY
+		case SIGWINCH:
+			if (rootshell && iflag)
+				action = S_CATCH;
+			break;
+#endif
 		}
 	}
 
@@ -281,10 +289,8 @@ setsignal(int signo)
 	}
 	*t = action;
 	sig = signal(signo, sigact);
-#ifdef BSD
 	if (sig != SIG_ERR && action == S_CATCH)
 		siginterrupt(signo, 1);
-#endif
 }
 
 
@@ -340,9 +346,6 @@ void
 onsig(int signo)
 {
 
-#ifndef BSD
-	signal(signo, onsig);
-#endif
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
 		onint();
 		return;
@@ -364,6 +367,11 @@ onsig(int signo)
 	    ! trap[signo][0] == '\0' &&
 	    ! (trap[signo][0] == ':' && trap[signo][1] == '\0'))
 		breakwaitcmd = 1;
+
+#ifndef NO_HISTORY
+	if (signo == SIGWINCH)
+		gotwinch = 1;
+#endif
 }
 
 
@@ -419,6 +427,9 @@ setinteractive(int on)
 	setsignal(SIGINT);
 	setsignal(SIGQUIT);
 	setsignal(SIGTERM);
+#ifndef NO_HISTORY
+	setsignal(SIGWINCH);
+#endif
 	is_interactive = on;
 }
 

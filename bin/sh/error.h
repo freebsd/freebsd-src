@@ -101,7 +101,5 @@ char *errmsg(int, int);
  * so we use _setjmp instead.
  */
 
-#ifdef BSD
 #define setjmp(jmploc)	_setjmp(jmploc)
 #define longjmp(jmploc, val)	_longjmp(jmploc, val)
-#endif

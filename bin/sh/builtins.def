@@ -49,7 +49,8 @@
 #
 # NOTE: bltincmd must come first!
 
-bltincmd	command
+bltincmd	builtin
+commandcmd	command
 #alloccmd	alloc
 bgcmd -j	bg
 breakcmd	break continue
@@ -91,3 +92,4 @@ waitcmd		wait
 aliascmd	alias
 ulimitcmd	ulimit
 testcmd		test [
+bindcmd		bind
