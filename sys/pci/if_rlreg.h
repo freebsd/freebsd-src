@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rlreg.h,v 1.16 1999/02/23 06:42:42 wpaul Exp $
+ *	$Id: if_rlreg.h,v 1.17 1999/04/06 01:10:59 wpaul Exp $
  */
 
 /*
@@ -104,14 +104,19 @@
  * TX config register bits
  */
 #define RL_TXCFG_CLRABRT	0x00000001	/* retransmit aborted pkt */
-#define RL_TXCFG_MXDMA0		0x00000100	/* max DMA burst size */
-#define RL_TXCFG_MXDMA1		0x00000200
-#define RL_TXCFG_MXDMA2		0x00000400
+#define RL_TXCFG_MAXDMA		0x00000700	/* max DMA burst size */
 #define RL_TXCFG_CRCAPPEND	0x00010000	/* CRC append (0 = yes) */
-#define RL_TXCFG_LOOPBKTST0	0x00020000	/* loopback test */
-#define RL_TXCFG_LOOPBKTST1	0x00040000	/* loopback test */
-#define RL_TXCFG_IFG0		0x01000000	/* interframe gap */
-#define RL_TXCFG_IFG1		0x02000000	/* interframe gap */
+#define RL_TXCFG_LOOPBKTST	0x00060000	/* loopback test */
+#define RL_TXCFG_IFG		0x03000000	/* interframe gap */
+
+#define RL_TXDMA_16BYTES	0x00000000
+#define RL_TXDMA_32BYTES	0x00000100
+#define RL_TXDMA_64BYTES	0x00000200
+#define RL_TXDMA_128BYTES	0x00000300
+#define RL_TXDMA_256BYTES	0x00000400
+#define RL_TXDMA_512BYTES	0x00000500
+#define RL_TXDMA_1024BYTES	0x00000600
+#define RL_TXDMA_2048BYTES	0x00000700
 
 /*
  * Transmit descriptor status register bits.
@@ -165,15 +170,33 @@
 #define RL_RXCFG_RX_RUNT	0x00000010
 #define RL_RXCFG_RX_ERRPKT	0x00000020
 #define RL_RXCFG_WRAP		0x00000080
-#define RL_RXCFG_MAXDMA		(0x00000100|0x00000200|0x00000400)
-#define RL_RXCFG_BUFSZ		(0x00000800|0x00001000)
-#define RL_RXCFG_FIFOTHRESH	(0x00002000|0x00004000|0x00008000)
-#define RL_RXCFG_EARLYTHRESH	(0x01000000|0x02000000|0x04000000)
+#define RL_RXCFG_MAXDMA		0x00000700
+#define RL_RXCFG_BUFSZ		0x00001800
+#define RL_RXCFG_FIFOTHRESH	0x0000E000
+#define RL_RXCFG_EARLYTHRESH	0x07000000
+
+#define RL_RXDMA_16BYTES	0x00000000
+#define RL_RXDMA_32BYTES	0x00000100
+#define RL_RXDMA_64BYTES	0x00000200
+#define RL_RXDMA_128BYTES	0x00000300
+#define RL_RXDMA_256BYTES	0x00000400
+#define RL_RXDMA_512BYTES	0x00000500
+#define RL_RXDMA_1024BYTES	0x00000600
+#define RL_RXDMA_UNLIMITED	0x00000700
 
 #define RL_RXBUF_8		0x00000000
 #define RL_RXBUF_16		0x00000800
 #define RL_RXBUF_32		0x00001000
-#define RL_RXBUF_64		(0x00001000|0x00000800)
+#define RL_RXBUF_64		0x00001800
+
+#define RL_RXFIFO_16BYTES	0x00000000
+#define RL_RXFIFO_32BYTES	0x00002000
+#define RL_RXFIFO_64BYTES	0x00004000
+#define RL_RXFIFO_128BYTES	0x00006000
+#define RL_RXFIFO_256BYTES	0x00008000
+#define RL_RXFIFO_512BYTES	0x0000A000
+#define RL_RXFIFO_1024BYTES	0x0000C000
+#define RL_RXFIFO_NOTHRESH	0x0000E000
 
 /*
  * Bits in RX status header (included with RX'ed packet
@@ -276,27 +299,30 @@
 #define RL_RXBUFLEN		(1 << ((RL_RX_BUF_SZ >> 11) + 13))
 #define RL_TX_LIST_CNT		4
 #define RL_MIN_FRAMELEN		60
-#define RL_TX_EARLYTHRESH	0x80000		/* 256 << 11 */
-#define RL_RX_FIFOTHRESH	0x8000		/* 4 << 13 */
-#define RL_RX_MAXDMA		0x00000400
+#define RL_TX_EARLYTHRESH	0x00300000	/* 1536 << 11 */
+#define RL_RX_FIFOTHRESH	RL_RXFIFO_NOTHRESH
+#define RL_RX_MAXDMA		RL_RXDMA_64BYTES
+#define RL_TX_MAXDMA		RL_TXDMA_64BYTES
 
-#define RL_RXCFG_CONFIG (RL_RX_FIFOTHRESH|RL_RX_BUF_SZ)
-
-struct rl_chain {
-	char			rl_desc;	/* descriptor register idx */
-	struct mbuf		*rl_mbuf;
-	struct rl_chain		*rl_next;
-};
+#define RL_RXCFG_CONFIG (RL_RX_FIFOTHRESH|RL_RX_MAXDMA|RL_RX_BUF_SZ)
+#define RL_TXCFG_CONFIG	(RL_TXCFG_IFG|RL_TX_MAXDMA)
 
 struct rl_chain_data {
 	u_int16_t		cur_rx;
 	caddr_t			rl_rx_buf;
-	struct rl_chain		rl_tx_chain[RL_TX_LIST_CNT];
 
-	int			rl_tx_cnt;
-	struct rl_chain		*rl_tx_cur;
-	struct rl_chain		*rl_tx_free;
+	struct mbuf		*rl_tx_chain[RL_TX_LIST_CNT];
+	u_int8_t		last_tx;
+	u_int8_t		cur_tx;
 };
+
+#define RL_INC(x)		(x = (x + 1) % RL_TX_LIST_CNT)
+#define RL_CUR_TXADDR(x)	((x->rl_cdata.cur_tx * 4) + RL_TXADDR0)
+#define RL_CUR_TXSTAT(x)	((x->rl_cdata.cur_tx * 4) + RL_TXSTAT0)
+#define RL_CUR_TXMBUF(x)	(x->rl_cdata.rl_tx_chain[x->rl_cdata.cur_tx])
+#define RL_LAST_TXADDR(x)	((x->rl_cdata.last_tx * 4) + RL_TXADDR0)
+#define RL_LAST_TXSTAT(x)	((x->rl_cdata.last_tx * 4) + RL_TXSTAT0)
+#define RL_LAST_TXMBUF(x)	(x->rl_cdata.rl_tx_chain[x->rl_cdata.last_tx])
 
 struct rl_type {
 	u_int16_t		rl_vid;
