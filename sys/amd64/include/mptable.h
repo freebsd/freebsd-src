@@ -2036,6 +2036,14 @@ void
 putfmtrr() {
 	if (cpu_class == CPUCLASS_686) {
 		wbinvd();
+		/*
+		 * Set memory between 0-640K to be WB
+		 */
+		wrmsr(0x250, 0x0606060606060606LL);
+		wrmsr(0x258, 0x0606060606060606LL);
+		/*
+		 * Set normal, PC video memory to be WC
+		 */
 		wrmsr(0x259, 0x0101010101010101LL);
 	}
 }
