@@ -1,5 +1,4 @@
 /**************************************************************************
-**************************************************************************
 
 Copyright (c) 2001 Intel Corporation
 All rights reserved.
@@ -32,9 +31,9 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGE.
 
-$FreeBSD$
-***************************************************************************
 ***************************************************************************/
+
+/*$FreeBSD$*/
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_
@@ -93,7 +92,6 @@ $FreeBSD$
 #define EM_CHECKSUM_FEATURES            (CSUM_TCP | CSUM_UDP)
 #define EM_MAX_INTR                     3
 #define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
-#define EM_JUMBO_ENABLE_DEFAULT         0
 
 
 #define EM_VENDOR_ID                    0x8086
@@ -103,12 +101,9 @@ $FreeBSD$
 #define EM_DEFAULT_PBA                  0x00000030
 
 #define IOCTL_CMD_TYPE                  u_long
-#define ETH_LENGTH_OF_ADDRESS           ETHER_ADDR_LEN
-#define PCI_COMMAND_REGISTER            PCIR_COMMAND
 #define MAX_NUM_MULTICAST_ADDRESSES     128
 #define PCI_ANY_ID                      (~0U)
 #define ETHER_ALIGN                     2
-#define CMD_MEM_WRT_INVALIDATE          0x0010
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -151,29 +146,6 @@ $FreeBSD$
 #define EM_RXBUFFER_4096        4096
 #define EM_RXBUFFER_8192        8192
 #define EM_RXBUFFER_16384      16384
-
-
-/* Jumbo Frame */
-#define EM_JSLOTS                   384
-#define EM_JUMBO_FRAMELEN          9018
-#define EM_JUMBO_MTU               (EM_JUMBO_FRAMELEN - ETHER_HDR_LEN - ETHER_CRC_LEN)
-#define EM_JRAWLEN (EM_JUMBO_FRAMELEN + ETHER_ALIGN + sizeof(u_int64_t))
-#define EM_JLEN (EM_JRAWLEN + (sizeof(u_int64_t) - \
-                              (EM_JRAWLEN % sizeof(u_int64_t))))
-#define EM_JPAGESZ PAGE_SIZE
-#define EM_RESID (EM_JPAGESZ - (EM_JLEN * EM_JSLOTS) % EM_JPAGESZ)
-#define EM_JMEM ((EM_JLEN * EM_JSLOTS) + EM_RESID)
-
-struct em_jslot {
-        caddr_t                 em_buf;
-        int                     em_inuse;
-};
-
-struct em_jpool_entry {
-        int                             slot;
-        SLIST_ENTRY(em_jpool_entry)     em_jpool_entries;
-};
-
 
 
 /* ******************************************************************************
@@ -222,10 +194,10 @@ struct adapter {
         struct arpcom   interface_data;
         struct adapter *next;
         struct adapter *prev;
+        struct em_shared_adapter shared;
 
         /* FreeBSD operating-system-specific structures */
-        bus_space_tag_t bus_space_tag;
-        bus_space_handle_t bus_space_handle;
+        struct em_osdep osdep;
         struct device   *dev;
         struct resource *res_memory;
         struct resource *res_interrupt;
@@ -240,65 +212,29 @@ struct adapter {
         u_int8_t        RevId;
         u_int16_t       SubVendorId;
         u_int16_t       SubSystemId;
-        u_int16_t       PciCommandWord;
 
-        /* PCI Bus Info */
-        E1000_BUS_TYPE_ENUM BusType;
-        E1000_BUS_SPEED_ENUM BusSpeed;
-        E1000_BUS_WIDTH_ENUM BusWidth;
 
         /* Info about the board itself */
-        u_int8_t        MacType;
-        u_int8_t        MediaType;
-        u_int32_t       PhyId;
-        u_int32_t       PhyAddress;
-        uint8_t         CurrentNetAddress[ETH_LENGTH_OF_ADDRESS];
         uint8_t         PermNetAddress[ETH_LENGTH_OF_ADDRESS];
         u_int32_t       PartNumber;
 
-        u_int8_t        AdapterStopped;
-        u_int8_t        DmaFairness;
-        u_int8_t        ReportTxEarly;
-        u_int32_t       MulticastFilterType;
-        u_int32_t       NumberOfMcAddresses;
         u_int8_t        MulticastAddressList[MAX_NUM_MULTICAST_ADDRESSES][ETH_LENGTH_OF_ADDRESS];
-
-        u_int8_t        GetLinkStatus;
         u_int8_t        LinkStatusChanged;
         u_int8_t        LinkIsActive;
-        u_int32_t       AutoNegFailed;
-        u_int8_t        AutoNeg;
-        u_int16_t       AutoNegAdvertised;
-        u_int8_t        WaitAutoNegComplete;
-        u_int8_t        ForcedSpeedDuplex;
         u_int16_t       LineSpeed;
         u_int16_t       FullDuplex;
-        u_int8_t        TbiCompatibilityEnable;
-        u_int8_t        TbiCompatibilityOn;
-        u_int32_t       TxcwRegValue;
-        u_int32_t       OriginalFlowControl;
-        u_int32_t       FlowControl;
-        u_int16_t       FlowControlHighWatermark;
-        u_int16_t       FlowControlLowWatermark;
-        u_int16_t       FlowControlPauseTime;
-        u_int8_t        FlowControlSendXon;
-
-        u_int32_t       MaxFrameSize;
         u_int32_t       TxIntDelay;
         u_int32_t       RxIntDelay;
 
         u_int8_t        RxChecksum;
         XSUM_CONTEXT_T  ActiveChecksumContext;
 
-        u_int8_t        MdiX;
-        u_int8_t        DisablePolarityCorrection;
-
         /* Transmit definitions */
-        struct _E1000_TRANSMIT_DESCRIPTOR *FirstTxDescriptor;
-        struct _E1000_TRANSMIT_DESCRIPTOR *LastTxDescriptor;
-        struct _E1000_TRANSMIT_DESCRIPTOR *NextAvailTxDescriptor;
-        struct _E1000_TRANSMIT_DESCRIPTOR *OldestUsedTxDescriptor;
-        struct _E1000_TRANSMIT_DESCRIPTOR *TxDescBase;
+        struct em_tx_desc *FirstTxDescriptor;
+        struct em_tx_desc *LastTxDescriptor;
+        struct em_tx_desc *NextAvailTxDescriptor;
+        struct em_tx_desc *OldestUsedTxDescriptor;
+        struct em_tx_desc *TxDescBase;
         volatile u_int16_t NumTxDescriptorsAvail;
         u_int16_t       NumTxDescriptors;
         u_int32_t       TxdCmd;
@@ -307,10 +243,10 @@ struct adapter {
         STAILQ_HEAD(__em_tx_buffer_used, em_tx_buffer)  UsedSwTxPacketList;
 
         /* Receive definitions */
-        struct _E1000_RECEIVE_DESCRIPTOR *FirstRxDescriptor;
-        struct _E1000_RECEIVE_DESCRIPTOR *LastRxDescriptor;
-        struct _E1000_RECEIVE_DESCRIPTOR *NextRxDescriptorToCheck;
-        struct _E1000_RECEIVE_DESCRIPTOR *RxDescBase;
+        struct em_rx_desc *FirstRxDescriptor;
+        struct em_rx_desc *LastRxDescriptor;
+        struct em_rx_desc *NextRxDescriptorToCheck;
+        struct em_rx_desc *RxDescBase;
         u_int16_t       NumRxDescriptors;
         u_int16_t       NumRxDescriptorsEmpty;
         u_int16_t       NextRxDescriptorToFill;
@@ -319,11 +255,8 @@ struct adapter {
         STAILQ_HEAD(__em_rx_buffer, em_rx_buffer)  RxSwPacketList;
 
         /* Jumbo frame */
-        u_int8_t               JumboEnable;
-        struct em_jslot        em_jslots[EM_JSLOTS];
-        void                  *em_jumbo_buf;
-        SLIST_HEAD(__em_jfreehead, em_jpool_entry)      em_jfree_listhead;
-        SLIST_HEAD(__em_jinusehead, em_jpool_entry)     em_jinuse_listhead;
+        struct mbuf     *fmp;
+        struct mbuf     *lmp;
 
 
         /* Misc stats maintained by the driver */
@@ -341,69 +274,7 @@ struct adapter {
         unsigned long   NoTxBufferAvail2;
 #endif
 
-        /* Statistics registers present in the 82542 */
-        unsigned long   Crcerrs;
-        unsigned long   Symerrs;
-        unsigned long   Mpc;
-        unsigned long   Scc;
-        unsigned long   Ecol;
-        unsigned long   Mcc;
-        unsigned long   Latecol;
-        unsigned long   Colc;
-        unsigned long   Dc;
-        unsigned long   Sec;
-        unsigned long   Rlec;
-        unsigned long   Xonrxc;
-        unsigned long   Xontxc;
-        unsigned long   Xoffrxc;
-        unsigned long   Xofftxc;
-        unsigned long   Fcruc;
-        unsigned long   Prc64;
-        unsigned long   Prc127;
-        unsigned long   Prc255;
-        unsigned long   Prc511;
-        unsigned long   Prc1023;
-        unsigned long   Prc1522;
-        unsigned long   Gprc;
-        unsigned long   Bprc;
-        unsigned long   Mprc;
-        unsigned long   Gptc;
-        unsigned long   Gorcl;
-        unsigned long   Gorch;
-        unsigned long   Gotcl;
-        unsigned long   Gotch;
-        unsigned long   Rnbc;
-        unsigned long   Ruc;
-        unsigned long   Rfc;
-        unsigned long   Roc;
-        unsigned long   Rjc;
-        unsigned long   Torcl;
-        unsigned long   Torch;
-        unsigned long   Totcl;
-        unsigned long   Totch;
-        unsigned long   Tpr;
-        unsigned long   Tpt;
-        unsigned long   Ptc64;
-        unsigned long   Ptc127;
-        unsigned long   Ptc255;
-        unsigned long   Ptc511;
-        unsigned long   Ptc1023;
-        unsigned long   Ptc1522;
-        unsigned long   Mptc;
-        unsigned long   Bptc;
-        /* Statistics registers added in the 82543 */
-        unsigned long   Algnerrc;
-        unsigned long   Rxerrc;
-        unsigned long   Tuc;
-        unsigned long   Tncrs;
-        unsigned long   Cexterr;
-        unsigned long   Rutec;
-        unsigned long   Tsctc;
-        unsigned long   Tsctfc;
-
+        struct em_shared_stats stats;
 };
-
-extern void em_adjust_tbi_accepted_stats(struct adapter * Adapter,
-                                            u32 FrameLength, u8 * MacAddress);
 
 #endif                                                  /* _EM_H_DEFINED_ */
