@@ -43,6 +43,7 @@
  *
  *	@(#)ufs_vnops.c 8.27 (Berkeley) 5/27/95
  *	@(#)ext2_vnops.c	8.7 (Berkeley) 2/3/94
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"
@@ -262,14 +263,18 @@ ext2_mknod(ap)
 		ip->i_rdev = vap->va_rdev;
 	}
 	/*
-	 * Remove inode so that it will be reloaded by VFS_VGET and
+	 * Remove inode, then reload it through VFS_VGET so it is
 	 * checked to see if it is an alias of an existing entry in
 	 * the inode cache.
 	 */
 	vput(*vpp);
 	(*vpp)->v_type = VNON;
 	vgone(*vpp);
-	*vpp = 0;
+	error = VFS_VGET(ap->a_dvp->v_mount, ip->i_ino, vpp);
+	if (error) {
+		*vpp = NULL;
+		return (error);
+	}
 	return (0);
 }
 

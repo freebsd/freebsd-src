@@ -1142,6 +1142,9 @@ mknod(p, uap)
 		} else {
 			error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp,
 						&nd.ni_cnd, &vattr);
+			if (error == 0) {
+			    vput(nd.ni_vp);
+			}
 			vput(nd.ni_dvp);
 		}
 	} else {
@@ -1197,6 +1200,9 @@ mkfifo(p, uap)
 	vattr.va_mode = (SCARG(uap, mode) & ALLPERMS) &~ p->p_fd->fd_cmask;
 	VOP_LEASE(nd.ni_dvp, p, p->p_ucred, LEASE_WRITE);
 	error = VOP_MKNOD(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
+	if (error == 0) {
+	    vput(nd.ni_vp);
+	}
 	vput(nd.ni_dvp);
 	return (error);
 }
