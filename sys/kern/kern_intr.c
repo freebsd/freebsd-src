@@ -258,7 +258,7 @@ start_softintr(dummy)
 {
 	net_ih = sinthand_add("net", NULL, swi_net, NULL, SWI_NET, 0);
 	softclock_ih = 
-	    sinthand_add("clock", &clk_ithd, softclock, NULL, SWI_CLOCK, 0);
+	    sinthand_add("clock", &clk_ithd, softclock, NULL, SWI_CLOCK, INTR_MPSAFE);
 	vm_ih = sinthand_add("vm", NULL, swi_vm, NULL, SWI_VM, 0);
 }
 

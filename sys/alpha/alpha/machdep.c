@@ -387,6 +387,8 @@ again:
 		TAILQ_INIT(&callwheel[i]);
 	}
 
+	mtx_init(&callout_lock, "callout", MTX_SPIN);
+
 #if defined(USERCONFIG)
 #if defined(USERCONFIG_BOOT)
 	if (1)
