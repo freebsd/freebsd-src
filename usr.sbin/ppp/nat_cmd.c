@@ -316,30 +316,6 @@ nat_ProxyRule(struct cmdargs const *arg)
 }
 
 int
-nat_Pptp(struct cmdargs const *arg)
-{
-  struct in_addr addr;
-
-  if (arg->argc == arg->argn) {
-    addr.s_addr = INADDR_NONE;
-    PacketAliasPptp(addr);
-    return 0;
-  }
-
-  if (arg->argc != arg->argn + 1)
-    return -1;
-
-  addr = GetIpAddr(arg->argv[arg->argn]);
-  if (addr.s_addr == INADDR_NONE) {
-    log_Printf(LogWARN, "%s: invalid address\n", arg->argv[arg->argn]);
-    return 1;
-  }
-
-  PacketAliasPptp(addr);
-  return 0;
-}
-
-int
 nat_SetTarget(struct cmdargs const *arg)
 {
   struct in_addr addr;
