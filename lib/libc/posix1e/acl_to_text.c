@@ -177,9 +177,10 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 				    effective_perm_buf);
 				if (error)
 					goto error_label;
-				len = asprintf(&tmpbuf, "%sgroup::%s\t\t# "
+				len = asprintf(&tmpbuf, "%sgroup:%s:%s\t\t# "
 				    "effective: %s\n",
-				    buf, perm_buf, effective_perm_buf);
+				    buf, name_buf, perm_buf,
+				    effective_perm_buf);
 			} else {
 				len = asprintf(&tmpbuf, "%sgroup:%s:%s\n", buf,
 				    name_buf, perm_buf);
