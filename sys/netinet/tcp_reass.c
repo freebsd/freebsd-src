@@ -991,6 +991,7 @@ after_listen:
 					    SEQ_GT(th->th_ack, tp->t_rtseq))
 					tcp_xmit_timer(tp,
 							ticks - tp->t_rtttime);
+				tcp_xmit_bandwidth_limit(tp, th->th_ack);
 				acked = th->th_ack - tp->snd_una;
 				tcpstat.tcps_rcvackpack++;
 				tcpstat.tcps_rcvackbyte += acked;
@@ -1810,6 +1811,7 @@ process_ACK:
 			tcp_xmit_timer(tp, ticks - to.to_tsecr + 1);
 		else if (tp->t_rtttime && SEQ_GT(th->th_ack, tp->t_rtseq))
 			tcp_xmit_timer(tp, ticks - tp->t_rtttime);
+		tcp_xmit_bandwidth_limit(tp, th->th_ack);
 
 		/*
 		 * If all outstanding data is acked, stop retransmit
@@ -2438,6 +2440,8 @@ tcp_xmit_timer(tp, rtt)
 		delta -= tp->t_rttvar >> (TCP_RTTVAR_SHIFT - TCP_DELTA_SHIFT);
 		if ((tp->t_rttvar += delta) <= 0)
 			tp->t_rttvar = 1;
+		if (tp->t_rttbest > tp->t_srtt + tp->t_rttvar)
+		    tp->t_rttbest = tp->t_srtt + tp->t_rttvar;
 	} else {
 		/*
 		 * No rtt measurement yet - use the unsmoothed rtt.
@@ -2446,6 +2450,7 @@ tcp_xmit_timer(tp, rtt)
 		 */
 		tp->t_srtt = rtt << TCP_RTT_SHIFT;
 		tp->t_rttvar = rtt << (TCP_RTTVAR_SHIFT - 1);
+		tp->t_rttbest = tp->t_srtt + tp->t_rttvar;
 	}
 	tp->t_rtttime = 0;
 	tp->t_rxtshift = 0;
@@ -2573,6 +2578,7 @@ tcp_mss(tp, offer)
 		if (rt->rt_rmx.rmx_locks & RTV_RTT)
 			tp->t_rttmin = rtt / (RTM_RTTUNIT / hz);
 		tp->t_srtt = rtt / (RTM_RTTUNIT / (hz * TCP_RTT_SCALE));
+		tp->t_rttbest = tp->t_srtt + TCP_RTT_SCALE;
 		tcpstat.tcps_usedrtt++;
 		if (rt->rt_rmx.rmx_rttvar) {
 			tp->t_rttvar = rt->rt_rmx.rmx_rttvar /
