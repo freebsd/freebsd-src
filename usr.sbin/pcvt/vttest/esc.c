@@ -256,7 +256,7 @@ ttybin(bin) int bin; {
   static int arglst[] = {
     _IOPIM,
     `TTY`,
-    0    
+    0
   };
   arglst[0] = bin ? _IOPIM : _IOASC;
   v = uuo(OPEN, 1, &arglst[0]);

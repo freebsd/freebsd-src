@@ -82,7 +82,7 @@ chompheader(line, def, e)
 	{
 		/* have some */
 		register char *q = strchr(p + 1, *p);
-		
+
 		if (q != NULL)
 		{
 			*q++ = '\0';
@@ -1187,6 +1187,6 @@ copyheader(header)
 		header = header->h_link;
 	}
 	*tail = NULL;
-	
+
 	return ret;
 }

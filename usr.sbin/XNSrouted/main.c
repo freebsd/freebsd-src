@@ -60,7 +60,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 int	supplier = -1;		/* process should supply updates */
 extern int gateway;
 
-struct	rip *msg = (struct rip *) &packet[sizeof (struct idp)]; 
+struct	rip *msg = (struct rip *) &packet[sizeof (struct idp)];
 void	hup(), fkexit(), timer();
 
 main(argc, argv)
@@ -70,7 +70,7 @@ main(argc, argv)
 	int cc;
 	struct sockaddr from;
 	u_char retry;
-	
+
 	argv0 = argv;
 	argv++, argc--;
 	while (argc > 0 && **argv == '-') {
@@ -93,7 +93,7 @@ main(argc, argv)
 			tracepackets++;
 			argv++, argc--;
 			ftrace = stderr;
-			tracing = 1; 
+			tracing = 1;
 			continue;
 		}
 		if (strcmp(*argv, "-g") == 0) {
@@ -110,8 +110,8 @@ main(argc, argv)
 			"usage: xnsrouted [ -s ] [ -q ] [ -t ] [ -g ] [ -l ]\n");
 		exit(1);
 	}
-	
-	
+
+
 #ifndef DEBUG
 	if (!tracepackets)
 		daemon(0, 0);
@@ -161,11 +161,11 @@ main(argc, argv)
 	signal(SIGINT, hup);
 	signal(SIGEMT, fkexit);
 	timer();
-	
 
-	for (;;) 
+
+	for (;;)
 		process(s);
-	
+
 }
 
 process(fd)
@@ -185,7 +185,7 @@ process(fd)
 	    fprintf(ftrace,"rcv %d bytes on %s ", cc, xns_ntoa(&idp->idp_dna));
 	    fprintf(ftrace," from %s\n", xns_ntoa(&idp->idp_sna));
 	}
-	
+
 	if (noteremoterequests && !ns_neteqnn(idp->idp_sna.x_net, ns_zeronet)
 		&& !ns_neteq(idp->idp_sna, idp->idp_dna))
 	{
@@ -194,7 +194,7 @@ process(fd)
 		       xns_nettoa(idp->idp_dna.x_net),
 		       xns_nettoa(idp->idp_sna.x_net));
 	}
-			
+
 	/* We get the IDP header in front of the RIF packet*/
 	cc -= sizeof (struct idp);
 #define	mask(s)	(1<<((s)-1))
@@ -204,7 +204,7 @@ process(fd)
 }
 
 getsocket(type, proto, sns)
-	int type, proto; 
+	int type, proto;
 	struct sockaddr_ns *sns;
 {
 	int domain = sns->sns_family;

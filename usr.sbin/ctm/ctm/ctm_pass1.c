@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass1.c,v 1.8 1995/03/04 20:36:46 phk Exp $
+ * $Id: ctm_pass1.c,v 1.9 1995/03/26 20:09:52 phk Exp $
  *
  */
 
@@ -27,15 +27,15 @@ Pass1(FILE *fd, unsigned applied)
     struct CTM_Syntax *sp;
     int slashwarn=0;
     unsigned current;
-    
-    if(Verbose>3) 
+
+    if(Verbose>3)
 	printf("Pass1 -- Checking integrity of incoming CTM-patch\n");
     MD5Init (&ctx);
 
     GETFIELD(p,' ');				/* CTM_BEGIN */
     if(strcmp(p,"CTM_BEGIN")) {
 	Fatal("Probably not a CTM-patch at all.");
-	if(Verbose>3) 
+	if(Verbose>3)
 	    fprintf(stderr,"Expected \"CTM_BEGIN\" got \"%s\".\n",p);
 	return 1;
     }
@@ -43,7 +43,7 @@ Pass1(FILE *fd, unsigned applied)
     GETFIELDCOPY(Version,' ');				/* <Version> */
     if(strcmp(Version,VERSION)) {
 	Fatal("CTM-patch is wrong version.");
-	if(Verbose>3) 
+	if(Verbose>3)
 	    fprintf(stderr,"Expected \"%s\" got \"%s\".\n",VERSION,p);
 	return 1;
     }
@@ -60,7 +60,7 @@ Pass1(FILE *fd, unsigned applied)
 		    current);
 	return Exit_Version;
     }
-    
+
     for(;;) {
 	if(md5)		{Free(md5), md5 = 0;}
 	if(trash)	{Free(trash), trash = 0;}

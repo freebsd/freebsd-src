@@ -102,7 +102,7 @@ vax_ioconf()
 				continue;
 			}
 			if (dp->d_slave != UNKNOWN) {
-				printf("can't specify slave number for %s%d\n", 
+				printf("can't specify slave number for %s%d\n",
 				    dp->d_name, dp->d_unit);
 				continue;
 			}
@@ -865,7 +865,7 @@ scbus_devtab(fp, dev_idp)
 			 "%s%s which is not fixed at a single adapter.\n",
 			 mp->d_name, wnum(mp->d_unit));
 		}
-		
+
 		fprintf(fp, "{ ");
 		fprintf(fp, "\"%s\", ", dp->d_name);
 		id_put(fp, dp->d_unit, ", ");

@@ -92,7 +92,7 @@ xnnet_netmatch(sxn1, sxn2)
 xnnet_portmatch(sns)
 	register struct sockaddr_ns *sns;
 {
-	
+
 	return (ntohs(sns->sns_addr.x_port) == IDPPORT_RIF );
 }
 
@@ -116,7 +116,7 @@ xnnet_output(flags, sns, size)
 		sns->sns_addr.x_port = htons(IDPPORT_RIF);
 #ifdef DEBUG
 	if(do_output || ntohs(msg->rip_cmd) == RIPCMD_REQUEST)
-#endif	
+#endif
 	/*
 	 * Kludge to allow us to get routes out to machines that
 	 * don't know their addresses yet; send to that address on
@@ -125,16 +125,16 @@ xnnet_output(flags, sns, size)
 	 if (ns_neteqnn(sns->sns_addr.x_net, ns_zeronet)) {
 	 	extern  struct interface *ifnet;
 	 	register struct interface *ifp;
-		
+
 		for (ifp = ifnet; ifp; ifp = ifp->int_next) {
-			sns->sns_addr.x_net = 
+			sns->sns_addr.x_net =
 				satons_addr(ifp->int_addr).x_net;
 			(void) sendto(s, msg, size, flags,
 			    (struct sockaddr *)sns, sizeof (*sns));
 		}
 		return;
 	}
-	
+
 	(void) sendto(s, msg, size, flags,
 	    (struct sockaddr *)sns, sizeof (*sns));
 }
@@ -149,7 +149,7 @@ xnnet_checkhost(sns)
 {
 	register struct interface *ifp = if_ifwithnet(sns);
 	/*
-	 * We want this route if there is no more than one 
+	 * We want this route if there is no more than one
 	 * point to point interface with this network.
 	 */
 	if (ifp == 0 || (ifp->int_flags & IFF_POINTOPOINT)==0) return (1);

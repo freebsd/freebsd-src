@@ -58,23 +58,23 @@ static char sccsid[] = "@(#)portmap.c 1.32 87/08/06 Copyr 1984 Sun Micro";
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -227,7 +227,7 @@ find_service(prog, vers, prot)
 	return (hit);
 }
 
-/* 
+/*
  * 1 OK, 0 not
  */
 void
@@ -239,7 +239,7 @@ reg_service(rqstp, xprt)
 	struct pmaplist *pml, *prevpml, *fnd;
 	int ans, port;
 	caddr_t t;
-	
+
 	/*
 	 * Later wrappers change the logging severity on the fly. Reset to
 	 * defaults before handling the next request.
@@ -270,11 +270,11 @@ reg_service(rqstp, xprt)
 			svcerr_decode(xprt);
 		else {
 			/* reject non-local requests, protect priv. ports */
-			if (!check_setunset(svc_getcaller(xprt), 
+			if (!check_setunset(svc_getcaller(xprt),
 			    rqstp->rq_proc, reg.pm_prog, reg.pm_port)) {
 				ans = 0;
 				goto done;
-			} 
+			}
 			/*
 			 * check to see if already used
 			 * find_service returns a hit even if
@@ -291,7 +291,7 @@ reg_service(rqstp, xprt)
 					goto done;
 				}
 			} else {
-				/* 
+				/*
 				 * add to END of list
 				 */
 				pml = (struct pmaplist *)
@@ -325,7 +325,7 @@ reg_service(rqstp, xprt)
 		else {
 			ans = 0;
 			/* reject non-local requests */
-			if (!check_setunset(svc_getcaller(xprt), 
+			if (!check_setunset(svc_getcaller(xprt),
 			    rqstp->rq_proc, reg.pm_prog, (u_long) 0))
 				goto done;
 			for (prevpml = NULL, pml = pmaplist; pml != NULL; ) {
@@ -338,9 +338,9 @@ reg_service(rqstp, xprt)
 				}
 				/* found it; pml moves forward, prevpml stays */
 				/* privileged port check */
-				if (!check_privileged_port(svc_getcaller(xprt), 
-				    rqstp->rq_proc, 
-				    reg.pm_prog, 
+				if (!check_privileged_port(svc_getcaller(xprt),
+				    rqstp->rq_proc,
+				    reg.pm_prog,
 				    pml->pml_map.pm_port)) {
 					ans = 0;
 					break;
@@ -370,8 +370,8 @@ reg_service(rqstp, xprt)
 			svcerr_decode(xprt);
 		else {
 			/* remote host authorization check */
-			if (!check_default(svc_getcaller(xprt), 
-			    rqstp->rq_proc, 
+			if (!check_default(svc_getcaller(xprt),
+			    rqstp->rq_proc,
 			    reg.pm_prog)) {
 				ans = 0;
 				goto done;
@@ -398,7 +398,7 @@ reg_service(rqstp, xprt)
 		else {
 			/* remote host authorization check */
 			struct pmaplist *p;
-			if (!check_default(svc_getcaller(xprt), 
+			if (!check_default(svc_getcaller(xprt),
 			    rqstp->rq_proc, (u_long) 0)) {
 				p = 0;	/* send empty list */
 			} else {
@@ -417,7 +417,7 @@ reg_service(rqstp, xprt)
 		 * Calls a procedure on the local machine.  If the requested
 		 * procedure is not registered this procedure does not return
 		 * error information!!
-		 * This procedure is only supported on rpc/udp and calls via 
+		 * This procedure is only supported on rpc/udp and calls via
 		 * rpc/udp.  It passes null authentication parameters.
 		 */
 		callit(rqstp, xprt);
@@ -531,7 +531,7 @@ xdr_len_opaque_parms(xdrs, cap)
  * a machine should shut-up instead of complain, less the requestor be
  * overrun with complaints at the expense of not hearing a valid reply ...
  *
- * This now forks so that the program & process that it calls can call 
+ * This now forks so that the program & process that it calls can call
  * back to the portmapper.
  */
 static void
@@ -555,7 +555,7 @@ callit(rqstp, xprt)
 	if (!svc_getargs(xprt, xdr_rmtcall_args, &a))
 		return;
 	/* host and service access control */
-	if (!check_callit(svc_getcaller(xprt), 
+	if (!check_callit(svc_getcaller(xprt),
 	    rqstp->rq_proc, a.rmt_prog, a.rmt_proc))
 		return;
 	if ((pml = find_service(a.rmt_prog, a.rmt_vers,

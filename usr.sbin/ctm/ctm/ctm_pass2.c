@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass2.c,v 1.6 1995/02/04 19:20:48 phk Exp $
+ * $Id: ctm_pass2.c,v 1.7 1995/03/19 12:01:23 roberto Exp $
  *
  */
 
@@ -28,7 +28,7 @@ Pass2(FILE *fd)
     struct stat st;
     int ret = 0;
 
-    if(Verbose>3) 
+    if(Verbose>3)
 	printf("Pass2 -- Checking if CTM-patch will apply\n");
     MD5Init (&ctx);
 
@@ -87,7 +87,7 @@ Pass2(FILE *fd)
 			else
 			    ret |= Exit_NotOK;
 			break;
-		    } 
+		    }
 		    if (j & CTM_Q_Name_Dir) {
 			if((st.st_mode & S_IFMT) != S_IFDIR) {
 			    fprintf(stderr,
@@ -96,7 +96,7 @@ Pass2(FILE *fd)
 			    ret |= Exit_NotOK;
 			}
 			break;
-		    } 
+		    }
 		    if (j & CTM_Q_Name_File) {
 			if((st.st_mode & S_IFMT) != S_IFREG) {
 			    fprintf(stderr,
@@ -162,7 +162,7 @@ Pass2(FILE *fd)
 			unlink(p);
 			free(p);
 		    }
-		    
+
 		    break;
 		default: WRONG
 	    }

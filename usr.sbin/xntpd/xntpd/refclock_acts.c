@@ -189,7 +189,7 @@
  * are consistent before switching from "*" to "#". If the user has a
  * 1200 Baud modem with the same internal delay as that used by NIST,
  * then the "#" OTM should arrive at the user within +-2 ms of the
- * correct time. 
+ * correct time.
  *
  * However, NIST has studied different brands of 1200 Baud modems and
  * found internal delays from 24 ms to 40 ms and offsets of the "#" OTM
@@ -198,7 +198,7 @@
  * with granularity of 20 to 50 ms. In any case, the repeatability of
  * the offset for the "#" OTM should be within +-2 ms, if the dial-up
  * path is reciprocal and the user doesn't change the brand or model of
- * modem used. 
+ * modem used.
  *
  * This should be true even if the dial-up path on one day is a land-
  * line of less than 40 ms (one way) and on the next day is a satellite
@@ -767,7 +767,7 @@ acts_timeout(peer)
 		default:
 		syslog(LOG_NOTICE,
 		    "clock %s ACTS invalid mode", ntoa(&peer->srcadr));
-		
+
 	}
 
 	/*

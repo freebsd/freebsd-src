@@ -17,9 +17,9 @@
  *		1760 Zollinger Road
  *		Columbus, OH  43221
  *		(614)451-1883
- * 
- * $Id: chat.c,v 1.2 1995/02/26 12:17:20 amurai Exp $
- * 
+ *
+ * $Id: chat.c,v 1.3 1995/03/11 15:18:37 amurai Exp $
+ *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
  *	o Dialing shoud not block monitor process.
@@ -453,7 +453,7 @@ char *script;
 #ifdef DEBUG
   int i;
 #endif
-  
+
   timeout_next = abort_next = 0;
   for (n = 0; AbortStrings[n]; n++) {
     free(AbortStrings[n]);

@@ -402,7 +402,7 @@ mxrand(host)
 **	This algorithm tries to be smart about wildcard MX records.
 **	This is hard to do because DNS doesn't tell is if we matched
 **	against a wildcard or a specific MX.
-**	
+**
 **	We always prefer A & CNAME records, since these are presumed
 **	to be specific.
 **
@@ -434,7 +434,7 @@ getcanonname(host, hbsize, trymx)
 	extern int h_errno;
 	register u_char *eom, *ap;
 	register char *cp;
-	register int n; 
+	register int n;
 	HEADER *hp;
 	querybuf answer;
 	int ancount, qdcount;

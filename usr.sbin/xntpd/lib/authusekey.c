@@ -84,14 +84,14 @@ authusekey(keyno, keytype, str)
 		if (!DESauth_parity(key)) {
 			return 0;
 		}
-		
+
 		/*
 		 * We can't find a good reason not to use this key.
 		 * So use it.
 		 */
 		DESauth_setkey(keyno, key);
 		break;
-	
+
 	case KEY_TYPE_ASCII:
 		/*
 		 * Make up key from ascii representation
@@ -103,7 +103,7 @@ authusekey(keyno, keytype, str)
 		    | (U_LONG)keybytes[2] << 8 | (U_LONG)keybytes[3];
 		key[1] = (U_LONG)keybytes[4] << 24 | (U_LONG)keybytes[5] << 16
 		    | (U_LONG)keybytes[6] << 8 | (U_LONG)keybytes[7];
-		
+
 		/*
 		 * Set parity on key
 		 */

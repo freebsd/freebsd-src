@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_ed.c,v 1.4 1994/09/22 02:49:17 phk Exp $
+ * $Id: ctm_ed.c,v 1.5 1995/04/16 22:40:49 bde Exp $
  *
  */
 
@@ -20,9 +20,9 @@ ctm_edit(u_char *script, int length, char *filein, char *fileout)
     FILE *fi=0,*fo=0;
 
     fi = fopen(filein,"r");
-    if(!fi) { 
+    if(!fi) {
 	perror(filein);
-	return 8; 
+	return 8;
     }
 
     fo = fopen(fileout,"w");
@@ -84,7 +84,7 @@ ctm_edit(u_char *script, int length, char *filein, char *fileout)
 	    }
 	    continue;
 	}
-	ret = 1; 
+	ret = 1;
 	goto bye;
     }
     while(1) {

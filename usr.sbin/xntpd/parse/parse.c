@@ -1,7 +1,7 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
  * /src/NTP/REPOSITORY/v3/parse/parse.c,v 3.27 1994/06/01 08:18:33 kardel Exp
- *  
+ *
  * parse.c,v 3.27 1994/06/01 08:18:33 kardel Exp
  *
  * Parser module for reference clock
@@ -14,7 +14,7 @@
  *
  * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -100,7 +100,7 @@ Strcmp(s, t)
 
   while (!(c = *s++ - *t++) && *s && *t)
     /* empty loop */;
-  
+
   return c;
 }
 
@@ -165,7 +165,7 @@ setup_bitmaps(parseio, low, high)
       parseprintf(DD_PARSE, ("setup_bitmaps: failed: bounds error (low=%d, high=%d, nformats=%d)\n", low, high, nformats));
       return 0;
     }
-  
+
   bzero(parseio->parse_startsym, sizeof (parseio->parse_startsym));
   bzero(parseio->parse_endsym, sizeof (parseio->parse_endsym));
   bzero(parseio->parse_syncsym, sizeof (parseio->parse_syncsym));
@@ -175,7 +175,7 @@ setup_bitmaps(parseio, low, high)
   parseio->parse_syncflags = 0;
   parseio->parse_timeout.tv_sec = 0;
   parseio->parse_timeout.tv_usec = 0;
-  
+
   /*
    * gather bitmaps of possible start and end values
    */
@@ -189,7 +189,7 @@ setup_bitmaps(parseio, low, high)
 	  parseio->parse_dsize = fmt->length;
 	continue;
       }
-      
+
       if (fmt->flags & F_START)
 	{
 	  index = fmt->startsym >> 3;
@@ -244,7 +244,7 @@ setup_bitmaps(parseio, low, high)
 	{
 	  parseio->parse_timeout = fmt->timeout;
 	}
-      
+
       if (parseio->parse_dsize < fmt->length)
 	parseio->parse_dsize = fmt->length;
     }
@@ -299,10 +299,10 @@ parse_ioinit(parseio)
   register parse_t *parseio;
 {
   parseprintf(DD_PARSE, ("parse_iostart\n"));
-  
+
   parseio->parse_plen = 0;
   parseio->parse_pdata = (void *)0;
-  
+
   if (!setup_bitmaps(parseio, 0, nformats))
     return 0;
 
@@ -323,7 +323,7 @@ parse_ioinit(parseio)
   parseio->parse_flags     = 0;		/* true samples */
   parseio->parse_index     = 0;
   parseio->parse_ldsize    = 0;
-  
+
   return 1;
 }
 
@@ -369,7 +369,7 @@ parse_ioread(parseio, ch, ctime)
     case PARSE_IO_CS7:
       ch &= 0x7F;
       break;
-      
+
     case PARSE_IO_CS8:
       break;
     }
@@ -388,7 +388,7 @@ parse_ioread(parseio, ch, ctime)
 	{
 	  if (clockformats[parseio->parse_lformat]->input(parseio, ch, ctime))
 	    updated = timepacket(parseio); /* got a datagram - process */
-	  
+
 	  low = high = 0;	/* all done - just post processing */
 	}
       else
@@ -430,7 +430,7 @@ parse_ioread(parseio, ch, ctime)
 		}
 	    }
 	}
-		
+
       if ((((parseio->parse_syncflags & SYNC_START) &&
 	    (parseio->parse_startsym[index] & mask)) ||
 	   (parseio->parse_index == 0)) ||
@@ -525,7 +525,7 @@ parse_ioread(parseio, ch, ctime)
     {
       updated = clockformats[parseio->parse_lformat]->synth(parseio, ctime);
     }
-  
+
   /*
    * remember last character time
    */
@@ -613,13 +613,13 @@ parse_to_unixtime(clock, cvtrtc)
   register u_long *cvtrtc;
 {
 #define SETRTC(_X_)	{ if (cvtrtc) *cvtrtc = (_X_); }
-  static int days_of_month[] = 
+  static int days_of_month[] =
     {
       0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
     };
   register int i;
   time_t t;
-  
+
   if (clock->utctime)
     return clock->utctime;	/* if the conversion routine gets it right away - why not */
 
@@ -634,7 +634,7 @@ parse_to_unixtime(clock, cvtrtc)
       SETRTC(CVT_FAIL|CVT_BADDATE);
       return -1;
     }
-  
+
   /*
    * sorry, slow section here - but it's not time critical anyway
    */
@@ -683,7 +683,7 @@ parse_to_unixtime(clock, cvtrtc)
 
   t = TIMES60(t) + clock->minute;
 				/* sec */
-  
+
   if (clock->second < 0 || clock->second > 60)	/* allow for LEAPs */
     {
       SETRTC(CVT_FAIL|CVT_BADTIME);
@@ -717,7 +717,7 @@ Stoi(s, zp, cnt)
 
   while(*s == ' ')
     s++;
-  
+
   if (*s == '-')
     {
       s++;
@@ -726,7 +726,7 @@ Stoi(s, zp, cnt)
   else
     if (*s == '+')
       s++;
-  
+
   for(;;)
     {
       c = *s++;
@@ -794,14 +794,14 @@ updatetimeinfo(parseio, t, usec, flags)
     usecoff += (t - parseio->parse_dtime.parse_stime.fp.l_ui + JAN_1970) * 1000000
               + usec;
 #endif
-  
+
   /*
    * filtering (median) if requested
    */
   if (parseio->parse_flags & PARSE_STAT_FILTER)
     {
       register int n, i, s, k;
-      
+
       parseio->parse_delta[parseio->parse_dindex] = usecoff;
 
       parseio->parse_dindex = (parseio->parse_dindex + 1) % PARSE_DELTA;
@@ -810,14 +810,14 @@ updatetimeinfo(parseio, t, usec, flags)
        * sort always - thus every sample gets its data
        */
       bcopy((caddr_t)parseio->parse_delta, (caddr_t)delta, sizeof(delta));
-  
+
       for (s = 0; s < PARSE_DELTA; s++)
 	for (k = s+1; k < PARSE_DELTA; k++)
 	  {			/* Yes - it's slow sort */
-	    if (delta[s] > delta[k]) 
+	    if (delta[s] > delta[k])
 	      {
 		register long tmp;
-		
+
 		tmp      = delta[k];
 		delta[k] = delta[s];
 		delta[s] = tmp;
@@ -835,7 +835,7 @@ updatetimeinfo(parseio, t, usec, flags)
 	  register long top = delta[n-1];
 	  register long mid = delta[(n+i)>>1];
 	  register long low = delta[i];
-	  
+
 	  if ((top - mid) > (mid - low))
 	    {
 	      /*
@@ -851,7 +851,7 @@ updatetimeinfo(parseio, t, usec, flags)
 	      i++;
 	    }
 	}
-      
+
       parseio->parse_dtime.parse_usecdisp  = delta[n-1] - delta[i];
 
       if (parseio->parse_flags & PARSE_STAT_AVG)
@@ -873,7 +873,7 @@ updatetimeinfo(parseio, t, usec, flags)
 	{
 	  mean = delta[(n+i)>>1];
 	}
-      
+
       parseio->parse_dtime.parse_usecerror = mean;
     }
   else
@@ -881,26 +881,26 @@ updatetimeinfo(parseio, t, usec, flags)
       parseio->parse_dtime.parse_usecerror = usecoff;
       parseio->parse_dtime.parse_usecdisp  = 0;
     }
-  
+
   parseprintf(DD_PARSE,("parse: updatetimeinfo: T=%x+%d usec, useccoff=%d, usecerror=%d, usecdisp=%d\n",
 			(int)t, (int)usec, (int)usecoff, (int)parseio->parse_dtime.parse_usecerror,
 			(int)parseio->parse_dtime.parse_usecdisp));
-  
+
 
 #ifdef PARSEKERNEL
   {
     int s = splhigh();
 #endif
-  
+
     parseio->parse_lstate          = parseio->parse_dtime.parse_state | flags | PARSEB_TIMECODE;
-    
+
     parseio->parse_dtime.parse_state = parseio->parse_lstate;
 
 #ifdef PARSEKERNEL
     (void)splx(s);
   }
 #endif
-  
+
   return CVT_OK;		/* everything fine and dandy... */
 }
 
@@ -935,7 +935,7 @@ pps_simple(parseio, status, ptime)
 {
   parseio->parse_dtime.parse_ptime  = *ptime;
   parseio->parse_dtime.parse_state |= PARSEB_PPS|PARSEB_S_PPS;
-  
+
   return CVT_NONE;
 }
 
@@ -954,7 +954,7 @@ timepacket(parseio)
   register u_long cvtsum = 0;/* accumulated CVT_FAIL errors */
   u_long cvtrtc;		/* current conversion result */
   clocktime_t clock;
-  
+
   bzero(&clock, sizeof clock);
   format = parseio->parse_lformat;
 
@@ -967,7 +967,7 @@ timepacket(parseio)
 	case CVT_FAIL:
 	  parseio->parse_badformat++;
 	  cvtsum = cvtrtc & ~CVT_MASK;
-	      
+
 	  /*
 	   * may be too often ... but is nice to know when it happens
 	   */
@@ -977,7 +977,7 @@ timepacket(parseio)
 	  syslog(LOG_WARNING, "parse: \"%s\" failed to convert\n", clockformats[format]->name);
 #endif
 	  break;
-	  
+
 	case CVT_NONE:
 	  /*
 	   * too bad - pretend bad format
@@ -985,7 +985,7 @@ timepacket(parseio)
 	  parseio->parse_badformat++;
 	  cvtsum = CVT_BADFMT;
 	  break;
-	  
+
 	case CVT_OK:
 	  k = 1;
 	  break;
@@ -1000,7 +1000,7 @@ timepacket(parseio)
 	  printf("parse: INTERNAL error: bad return code of convert routine \"%s\"\n", clockformats[format]->name);
 #else
 	  syslog(LOG_WARNING, "parse: INTERNAL error: bad return code of convert routine \"%s\"\n", clockformats[format]->name);
-#endif	  
+#endif
 	  return CVT_FAIL|cvtrtc;
 	}
     }
@@ -1011,7 +1011,7 @@ timepacket(parseio)
        * and convert time packet
        * RR search starting at last successful conversion routine
        */
-  
+
       if (nformats)		/* very careful ... */
 	{
 	  do
@@ -1023,20 +1023,20 @@ timepacket(parseio)
 		case CVT_FAIL:
 		  parseio->parse_badformat++;
 		  cvtsum |= cvtrtc & ~CVT_MASK;
-	      
+
 		  /*
 		   * may be too often ... but is nice to know when it happens
 		   */
 #ifdef PARSEKERNEL
 		  printf("parse: \"%s\" failed to convert\n", clockformats[format]->name);
-#else		  
+#else
 		  syslog(LOG_WARNING, "parse: \"%s\" failed to convert\n", clockformats[format]->name);
 #endif
 		  /*FALLTHROUGH*/
 		case CVT_NONE:
 		  format++;
 		  break;
-	  
+
 		case CVT_OK:
 		  k = 1;
 		  break;
@@ -1066,7 +1066,7 @@ timepacket(parseio)
 #endif
       return CVT_FAIL|cvtsum;
     }
-  
+
   if (k == 2) return CVT_OK;
 
   if ((t = parse_to_unixtime(&clock, &cvtrtc)) == -1)
@@ -1078,7 +1078,7 @@ timepacket(parseio)
 #endif
       return CVT_FAIL|cvtrtc;
     }
-  
+
   parseio->parse_lformat = format;
 
   /*
@@ -1111,7 +1111,7 @@ parse_getstat(dct, parse)
   return 1;
 }
 
-		  
+
 /*ARGSUSED*/
 int
 parse_setstat(dct, parse)
@@ -1122,7 +1122,7 @@ parse_setstat(dct, parse)
   return 1;
 }
 
-		  
+
 /*ARGSUSED*/
 int
 parse_timecode(dct, parse)
@@ -1139,7 +1139,7 @@ parse_timecode(dct, parse)
    */
   dct->parsegettc.parse_badformat = parse->parse_badformat;
   parse->parse_badformat = 0;
-		  
+
   if (parse->parse_ldsize <= PARSE_TCMAX)
     {
       dct->parsegettc.parse_count = parse->parse_ldsize;
@@ -1152,7 +1152,7 @@ parse_timecode(dct, parse)
     }
 }
 
-		  
+
 /*ARGSUSED*/
 int
 parse_setfmt(dct, parse)

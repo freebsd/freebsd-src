@@ -402,7 +402,7 @@ create_sockets(port)
 
 	maxactivefd = 0;
 	FD_ZERO(&activefds);
-			
+
 	for (i = 0; i < ninterfaces; i++) {
 		inter_list[i].fd = open_socket(&inter_list[i].sin,
 		    inter_list[i].flags & INT_BROADCAST);
@@ -546,7 +546,7 @@ io_multicast_add(addr)
 			mreq.imr_multiaddr, mreq.imr_interface.s_addr,
 			inet_ntoa(iaddr));
 	inter_list[i].flags |= INT_MULTICAST;
-	if (i >= ninterfaces) ninterfaces = i+1;	
+	if (i >= ninterfaces) ninterfaces = i+1;
 #else /* MCAST */
 	struct in_addr iaddr;
 	iaddr.s_addr = addr;
@@ -813,7 +813,7 @@ getrecvbufs()
 #endif
 		return (struct recvbuf *)0;	/* nothing has arrived */
 	}
-	
+
 	/*
 	 * Get the fulllist chain and mark it empty
 	 */
@@ -932,7 +932,7 @@ sendpkt(dest, inter, ttl, pkt, len)
 		if (badaddrs[slot].port == dest->sin_port &&
 		    badaddrs[slot].addr.s_addr == dest->sin_addr.s_addr)
 			break;
-			
+
 	cc = sendto(inter->fd, (char *)pkt, len, 0, (struct sockaddr *)dest,
 	    sizeof(struct sockaddr_in));
 	if (cc == -1) {
@@ -1030,7 +1030,7 @@ again:
 				i = (rp->datalen == 0
 				    || rp->datalen > sizeof(rb->recv_space))
 				    ? sizeof(rb->recv_space) : rp->datalen;
-				
+
 				rb->recv_length =
 					read(fd, (char *)&rb->recv_space, i);
 
@@ -1041,7 +1041,7 @@ again:
 					free_recvbufs++;
 					continue;
 				}
-	
+
 				/*
 				 * Got one.  Mark how and when it got here,
 				 * put it on the full list and do bookkeeping.
@@ -1121,11 +1121,11 @@ again:
 						continue;
 					}
 				}
-	
+
 				rb = freelist;
 				freelist = rb->next;
 				free_recvbufs--;
-	
+
 				fromlen = sizeof(struct sockaddr_in);
 				rb->recv_length = recvfrom(fd,
 				    (char *)&rb->recv_space,
@@ -1159,7 +1159,7 @@ again:
 				rb->fd = fd;
 				rb->recv_time = ts;
 				rb->receiver = receive;
-	
+
 
 				if (fulllist == 0) {
 					beginlist = rb;
@@ -1170,7 +1170,7 @@ again:
 				}
 				fulllist = rb;
 				full_recvbufs++;
-	
+
 				inter_list[i].received++;
 				packets_received++;
 			}
@@ -1300,7 +1300,7 @@ io_closeclock(rio)
 				rp->next = rio->next;
 				break;
 			}
-		
+
 		if (rp == 0) {
 			/*
 			 * Internal error.  Report it.
@@ -1367,7 +1367,7 @@ init_clock_sig(rio)
 	struct refclockio *rio;
 {
 	int pgrp, on = 1;
-	
+
         pgrp = getpid();
         if (ioctl(rio->fd, FIOSSAIOOWN, (char *)&pgrp) == -1) {
                 syslog(LOG_ERR, "ioctl(FIOSSAIOOWN) fails for clock I/O: %m");
@@ -1389,7 +1389,7 @@ init_clock_sig(rio)
                 exit(1);
                 /*NOTREACHED*/
         }
-	return 0;	
+	return 0;
 }
 #endif /* SYS_HPUX */
 #if defined(SYS_AIX)&&!defined(_BSD)
@@ -1435,7 +1435,7 @@ init_clock_sig(rio)
                     "fcntl(FNDELAY|FASYNC) fails for clock I/O: %m");
                 return 1;
         }
-	return 0;	
+	return 0;
 }
 #endif /* CLOCK_DONE */
 #else /* !USE_TTY_SIGPOLL */
@@ -1798,7 +1798,7 @@ void
 wait_for_signal()
 {
 	int mask, omask;
-	
+
 	mask = sigmask(SIGIO)|sigmask(SIGALRM);
         omask = sigblock(0);
         omask &= ~mask;

@@ -1,14 +1,14 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_SCHMID)
 /*
  * /src/NTP/REPOSITORY/v3/parse/clk_schmid.c,v 3.16 1994/05/30 10:20:03 kardel Exp
- *  
+ *
  * clk_schmid.c,v 3.16 1994/05/30 10:20:03 kardel Exp
  *
  * Schmid clock support
  *
  * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -30,7 +30,7 @@
  * The command to Schmid's DCF77 clock is a single byte; each bit
  * allows the user to select some part of the time string, as follows (the
  * output for the lsb is sent first).
- * 
+ *
  * Bit 0:	time in MEZ, 4 bytes *binary, not BCD*; hh.mm.ss.tenths
  * Bit 1:	date 3 bytes *binary, not BCD: dd.mm.yy
  * Bit 2:	week day, 1 byte (unused here)
@@ -128,7 +128,7 @@ cvt_schmid(buffer, size, format, clock)
 	      default:
 		return CVT_FAIL|CVT_BADFMT;
 	      }
-	  
+
 	    if (!(buffer[7] & WS_TIME))
 	      {
 		clock->flags |= PARSEB_POWERUP;
@@ -158,7 +158,7 @@ cvt_schmid(buffer, size, format, clock)
 	      }
 
 	    clock->flags |= PARSEB_S_LEAP|PARSEB_S_ANTENNA;
-	  
+
 	    return CVT_OK;
 	  }
     }

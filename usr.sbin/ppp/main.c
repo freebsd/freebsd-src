@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.3 1995/02/27 10:57:50 amurai Exp $
- * 
+ * $Id: main.c,v 1.4 1995/03/11 15:18:47 amurai Exp $
+ *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
  *		o Add signal handler for misc controls.
@@ -573,7 +573,7 @@ DoLoop()
 
   dial_up = FALSE;			/* XXXX */
   for (;;) {
-    if ( modem ) 
+    if ( modem )
 	IpStartOutput();
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
 
@@ -638,10 +638,10 @@ DoLoop()
     tp = (RedialTimer.state == TIMER_RUNNING)? &timeout : NULL;
     i = select(tun_in+10, &rfds, &wfds, &efds, tp);
 #else
-    /* 
+    /*
      * When SIGALRM timer is running, a select function will be
-     * return -1 and EINTR after a Time Service signal hundler 
-     * is done. 
+     * return -1 and EINTR after a Time Service signal hundler
+     * is done.
      */
     i = select(tun_in+10, &rfds, &wfds, &efds, NULL);
 #endif
@@ -655,7 +655,7 @@ DoLoop()
        }
        perror("select");
        break;
-    } 
+    }
 
     if ((netfd > 0 && FD_ISSET(netfd, &efds)) || FD_ISSET(modem, &efds)) {
       logprintf("Exception detected.\n");
@@ -747,7 +747,7 @@ DoLoop()
        */
       if (ModemQlen() > 5)
 	continue;
-      
+
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
 	perror("read from tun");

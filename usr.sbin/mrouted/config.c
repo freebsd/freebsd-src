@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: config.c,v 1.2 1994/09/08 02:51:12 wollman Exp $
+ * $Id: config.c,v 1.3 1995/04/10 18:42:10 wollman Exp $
  */
 
 
@@ -254,7 +254,7 @@ void config_vifs_from_file()
 		break;
 	    }
 	    prev_vif = NO_VIF;
- 	    cache_lifetime = n;	
+ 	    cache_lifetime = n;
  	    max_prune_lifetime = cache_lifetime * 2;
  	}
 
@@ -277,7 +277,7 @@ void config_vifs_from_file()
  	else if (EQUAL(w, "boundary") && prev_vif != NO_VIF) {
 	    register struct vif_acl *v_acl;
 	    register u_long baddr;
-	    
+
 	    v = &uvifs[prev_vif];
 
 	    if (EQUAL((w = next_word(&s)), "")) {
@@ -287,7 +287,7 @@ void config_vifs_from_file()
 		w = "garbage";
 		break;
 	    }
-	    
+
 	    if ((sscanf(w, "%[0-9.]/%d", s1, &n) != 2) ||
 		n < 0 || n> 32) {
 		log(LOG_ERR, 0,
@@ -296,7 +296,7 @@ void config_vifs_from_file()
 		w = "garbage";
 		break;
 	    }
-	    
+
 	    if ((baddr = inet_parse(s1)) == 0xffffffff ||
 		(ntohl(baddr) & 0xff000000) != 0xef000000) {
 		log(LOG_ERR, 0,
@@ -304,14 +304,14 @@ void config_vifs_from_file()
 		    s1, configfilename);
 		continue;
 	    }
-	    
+
 	    v_acl = (struct vif_acl *)malloc(sizeof(struct vif_acl));
 	    if (v_acl == NULL)
 		log(LOG_ERR, 0,
 		    "out of memory");
 	    VAL_TO_MASK(v_acl->acl_mask, n);
 	    v_acl->acl_addr   = baddr & v_acl->acl_mask;
-	    
+
 	    /*
 	     * link into data structure
 	     */
@@ -329,7 +329,7 @@ void config_vifs_from_file()
 	     * Check if phyint was the first line - scream if not
 	     */
 	    if (order) {
-		log(LOG_ERR, 0, 
+		log(LOG_ERR, 0,
 		    "phyint stmnts should occur before tunnel stmnts in %s",
 		    configfilename);
 		continue;
@@ -619,7 +619,7 @@ void config_vifs_from_file()
 	    v->uv_acl         = NULL;
 
 	    /*
-	     * set variable to define which interface 
+	     * set variable to define which interface
 	     */
 	    prev_vif = numvifs;
 
@@ -761,7 +761,7 @@ void config_vifs_from_file()
  * lower-cased and null terminated, and advance '*s' to point beyond the word.
  * Words are separated by blanks and/or tabs, and the input string is
  * considered to terminate at a newline, '#' (comment), or null character.
- * If no words remain, a pointer to a null string ("") is returned.  
+ * If no words remain, a pointer to a null string ("") is returned.
  * Warning: This function clobbers the input string.
  */
 static char *next_word(s)

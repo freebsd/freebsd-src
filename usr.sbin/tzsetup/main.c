@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.1 1995/04/24 21:04:33 wollman Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -51,7 +51,7 @@ static int time_adjust = 0;
 static enum cmos cmos(enum cmos);
 static void fiddle_cmos(void);
 
-int 
+int
 main(void)
 {
 	const char *tz;
@@ -69,7 +69,7 @@ main(void)
 	dialog_notify("Reboot the machine for changes to take effect.\n");
 	end_dialog();
 
-	fprintf(stderr, 
+	fprintf(stderr,
 		"Now reboot your computer for the changes to take effect.\n");
 	return tz ? 0 : 1;
 }
@@ -97,7 +97,7 @@ set_time(void)
 		cmos_state = CMOS_LEAVE;
 		return 0;
 	}
-	       
+
 	usertm = systm;
 	usertm.tm_isdst = -1;
 
@@ -162,7 +162,7 @@ cmos(enum cmos state)
 	unsigned char buf[_POSIX2_LINE_MAX];
 	unsigned char result[_POSIX2_LINE_MAX];
 
-	snprintf(buf, sizeof buf, "%s seems most likely", 
+	snprintf(buf, sizeof buf, "%s seems most likely",
 		 state == CMOS_UTC ? "UTC" : "local time");
 
 	rv = dialog_menu("CMOS clock in local time or UTC",
@@ -208,11 +208,11 @@ setzone(const char *zone)
 	systime += time_adjust;
 	tm = localtime(&systime);
 
-	snprintf(msg, sizeof msg, 
+	snprintf(msg, sizeof msg,
 		 "Does %02d:%02d:%02d %d.%d.%04d %s look reasonable?",
 		 tm->tm_hour, tm->tm_min, tm->tm_sec, tm->tm_mday, tm->tm_mon,
 		 tm->tm_year + 1900, tm->tm_zone);
-		 
+
 	rv = dialog_yesno("Verifying timezone selection",
 			  msg, -1, -1);
 	if (rv)
@@ -230,7 +230,7 @@ setzone(const char *zone)
 
 	ofp = fopen(PATH_LOCALTIME, "w");
 	if (!ofp) {
-		snprintf(msg, sizeof msg, "Could not open " PATH_LOCALTIME 
+		snprintf(msg, sizeof msg, "Could not open " PATH_LOCALTIME
 			 ": %s", strerror(errno));
 		dialog_notify(msg);
 		fclose(ifp);
@@ -240,7 +240,7 @@ setzone(const char *zone)
 	while((rv = fread(msg, 1, sizeof msg, ifp)) > 0) {
 		int rv2;
 		if((rv2 = fwrite(msg, 1, rv, ofp)) != rv) {
-			snprintf(msg, sizeof msg, 
+			snprintf(msg, sizeof msg,
 				 "Could not write " PATH_LOCALTIME ": %s",
 				 strerror(errno));
 out:
@@ -250,7 +250,7 @@ out:
 			unlink(PATH_LOCALTIME);
 			return 1;
 		}
-	}		
+	}
 	if (rv < 0) {
 		snprintf(msg, sizeof msg, "Could not read timezone file: %s",
 			 strerror(errno));

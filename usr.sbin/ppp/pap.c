@@ -18,8 +18,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id:$
- * 
+ * $Id: pap.c,v 1.2 1995/02/26 12:17:51 amurai Exp $
+ *
  *	TODO:
  */
 #include "fsm.h"
@@ -66,7 +66,7 @@ int papid;
   cp += namelen;
   *cp++ = keylen;
   bcopy(VarAuthKey, cp, keylen);
- 
+
   HdlcOutput(PRI_NORMAL, PROTO_PAP, bp);
 }
 

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)db_update.c	4.28 (Berkeley) 3/21/91";
-static char rcsid[] = "$Id: db_update.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: db_update.c,v 1.1.1.1 1994/09/22 19:46:11 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: db_update.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp
  * -
  * Copyright (c) 1986, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: db_update.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: db_update.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -217,7 +217,7 @@ db_update(name, odp, newdp, flags, htp)
 		return (NONAME);
 
 	/* don't let nonauthoritative updates write in authority zones */
-	if (newdp && (flags & DB_NOTAUTH) && 
+	if (newdp && (flags & DB_NOTAUTH) &&
 	    (zn = findMyZone(np, newdp->d_class)) != DB_Z_CACHE) {
 		int foundRR = 0;
 
@@ -339,11 +339,11 @@ db_update(name, odp, newdp, flags, htp)
 				 * correctly with glue records. mpa.
 				 */
 
-				/* if the new data is authorative 
+				/* if the new data is authorative
 				 * remove any data for this domain with
 				 * the same class that isn't as credable
 				 */
-				if (newdp->d_cred == DB_C_ZONE && 
+				if (newdp->d_cred == DB_C_ZONE &&
 				    newdp->d_cred > dp->d_cred)
 					/* better credibility and the old datum
 					 * was not from a zone file.  remove
@@ -361,7 +361,7 @@ db_update(name, odp, newdp, flags, htp)
 				/* if the new data is authoritative but
 				 * but isn't as credible, reject it.
 				 */
-				if (newdp->d_cred == DB_C_ZONE && 
+				if (newdp->d_cred == DB_C_ZONE &&
 				    newdp->d_cred == dp->d_cred &&
 				    newdp->d_clev < dp->d_clev)
 					return (AUTH);
@@ -400,8 +400,8 @@ db_update(name, odp, newdp, flags, htp)
 					    ntohs(from_addr.sin_port),
 					    dp->d_cred,
 					    dp->d_clev));
-				if (newdp->d_cred > dp->d_cred || 
-				    (newdp->d_cred == DB_C_ZONE && 
+				if (newdp->d_cred > dp->d_cred ||
+				    (newdp->d_cred == DB_C_ZONE &&
 				     newdp->d_clev > dp->d_clev)) {
 					/* better credibility and the old datum
 					 * was not from a zone file.  remove
@@ -616,7 +616,7 @@ db_cmp(dp1, dp2)
 		cp1 += strlen((char *)cp1) + 1;
 		cp2 += strlen((char *)cp2) + 1;
 		return (bcmp(cp1, cp2, INT32SZ * 5));
-	
+
 	case T_MX:
 	case T_AFSDB:
 	case T_RT:

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.14 1995/04/28 18:24:31 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.15 1995/05/10 23:00:06 jkh Exp $";
 #endif
 
 /*
@@ -54,7 +54,7 @@ pkg_perform(char **pkgs)
 			    if (!strcmp(dp->d_name, CheckPkg))
 				return 0;
 			}
-			else 
+			else
 			    err_cnt += pkg_do(dp->d_name);
 		    }
 		}
@@ -66,7 +66,7 @@ pkg_perform(char **pkgs)
 		++err_cnt;
 	} else if (CheckPkg)
 	    return 1;			/* no dir -> not installed! */
-	    
+
     }
     for (i = 0; pkgs[i]; i++)
 	err_cnt += pkg_do(pkgs[i]);

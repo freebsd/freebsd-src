@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.8 1995/04/26 15:08:20 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.9 1995/05/10 23:00:16 jkh Exp $";
 #endif
 
 /*
@@ -161,7 +161,7 @@ Boolean connectionAborted = FALSE;
 
 static int
 _fileGetIO(FTP *ftp, int n, char *s )
-{ 
+{
     printf("In IO: %s\n", s);
     return 0;
 }
@@ -262,7 +262,7 @@ fileFindByPath(char *fname)
     cp = getenv("PKG_PATH");
     while (cp) {
 	char *cp2 = strsep(&cp, ":");
-	
+
 	snprintf(tmp, FILENAME_MAX, "%s/%s.tgz", cp2 ? cp2 : cp, fname);
 	if (fexists(tmp))
 	    return tmp;
@@ -389,7 +389,7 @@ unpack(char *pkg, char *flist)
 }
 
 /* Using fmt, replace all instances of:
- * 
+ *
  * %F	With the parameter "name"
  * %D	With the parameter "dir"
  * %B	Return the directory part ("base") of %D/%F

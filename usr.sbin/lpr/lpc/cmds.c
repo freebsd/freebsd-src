@@ -342,7 +342,7 @@ cleanpr()
 		}
      	} while (++i < nitems);
 }
- 
+
 static void
 unlinkf(name)
 	char	*name;
@@ -976,7 +976,7 @@ topq(argc, argv)
 	 */
 	if (changed && stat(LO, &stbuf) >= 0)
 		(void) chmod(LO, (stbuf.st_mode & 0777) | 01);
-} 
+}
 
 /*
  * Reposition the job by changing the modification time of
@@ -1008,8 +1008,8 @@ doarg(job)
 	FILE *fp;
 
 	/*
-	 * Look for a job item consisting of system name, colon, number 
-	 * (example: ucbarpa:114)  
+	 * Look for a job item consisting of system name, colon, number
+	 * (example: ucbarpa:114)
 	 */
 	if ((cp = index(job, ':')) != NULL) {
 		machine = job;

@@ -37,7 +37,7 @@
  *
  *	@(#)mtab_file.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: mtab_file.c,v 5.2.2.1 1992/02/09 15:10:42 jsp beta $
+ * $Id: mtab_file.c,v 1.1.1.1 1994/05/26 05:22:07 rgrimes Exp $
  *
  */
 
@@ -71,7 +71,7 @@ static FILE *mnt_file;
  * opening mtab may fail with ENFILE.  So, go to sleep
  * for a second and try again. (Yes - this has happened to me.)
  *
- * Note that this *may* block the automounter, oh well. 
+ * Note that this *may* block the automounter, oh well.
  * If we get to this state then things are badly wrong anyway...
  *
  * Give the system 10 seconds to recover but then give up.

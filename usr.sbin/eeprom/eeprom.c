@@ -163,7 +163,7 @@ main(argc, argv)
 		}
 		exit(0);
 	}
-	
+
 	status = 0;
 	for (i = 0; i < argc; ++i) {
 		dp->op_name = name = argv[i];

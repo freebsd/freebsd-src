@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.23 1995/04/27 11:33:08 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.24 1995/04/28 04:16:30 jkh Exp $";
 #endif
 
 /*
@@ -90,7 +90,7 @@ pkg_do(char *pkg)
     /* Nope - do it now */
     else {
 	if (!getcwd(home, FILENAME_MAX))
-	    upchuck("getcwd"); 
+	    upchuck("getcwd");
 
 	if (isURL(pkg)) {
 	    char *newname = fileGetURL(pkg);
@@ -405,7 +405,7 @@ pkg_do(char *pkg)
 	if (Verbose)
 	    printf("Package %s registered in %s\n", PkgName, LogDir);
     }
-    
+
     if (p = find_plist(&Plist, PLIST_DISPLAY)) {
 	FILE *fp;
 	char buf[BUFSIZ];

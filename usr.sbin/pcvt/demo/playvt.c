@@ -40,7 +40,7 @@ static char *id =
  *	-hm	want to see my xmas greeting ... :-)
  *
  *---------------------------------------------------------------------------*/
-	
+
 #include <stdio.h>
 #include <unistd.h>
 
@@ -58,7 +58,7 @@ char *argv[];
 	int delay = 0;
 	int fflag = -1;
 	char *filename;
-	
+
 	while( (c = getopt(argc, argv, "d:f:")) != EOF)
 	{
 		switch(c)
@@ -66,7 +66,7 @@ char *argv[];
 			case 'd':
 				delay = atoi(optarg);
 				break;
-				
+
 			case 'f':
 				filename = optarg;
 				fflag = 1;
@@ -90,7 +90,7 @@ char *argv[];
 			exit(1);
 		}
 	}
-			
+
 	while((c = getc(fp)) != EOF)
 	{
 		putchar(c);

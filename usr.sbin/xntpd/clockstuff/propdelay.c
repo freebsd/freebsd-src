@@ -171,7 +171,7 @@ char *argv[];
 			errflg++;
 			break;
 		}
-	if (errflg || (!(Cflag || Wflag || Gflag) && ntp_optind+4 != argc) || 
+	if (errflg || (!(Cflag || Wflag || Gflag) && ntp_optind+4 != argc) ||
             ((Cflag || Wflag || Gflag) && ntp_optind+2 != argc)) {
 		(void) fprintf(stderr,
 		    "usage: %s [-d] [-h height] lat1 long1 lat2 long2\n",
@@ -183,7 +183,7 @@ char *argv[];
 		exit(2);
 	}
 
-		   
+
 	if (!(Cflag || Wflag || Gflag)) {
 		lat1 = latlong(argv[ntp_optind], 1);
 		long1 = latlong(argv[ntp_optind + 1], 0);
@@ -456,7 +456,7 @@ finddelay(lat1, long1, lat2, long2, h, delay)
 	dg = greatcircle(lat1, long1, lat2, long2);
 	if (debug)
 		printf("great circle distance %g km %g miles\n", dg, dg/MILE);
-	
+
 	n = 1;
 	while ((delta = waveangle(dg, h, n)) < 0.0) {
 		if (debug)

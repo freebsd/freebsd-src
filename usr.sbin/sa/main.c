@@ -29,11 +29,11 @@
  */
 
 #ifndef LINT
-static char copright[] = 
+static char copright[] =
 "@(#) Copyright (c) 1994 Christopher G. Demetriou\n\
  All rights reserved.\n";
 
-static char rcsid[] = "$Id: main.c,v 1.1 1994/03/24 18:41:51 cgd Exp $";
+static char rcsid[] = "$Id: main.c,v 1.1.1.1 1994/09/26 21:22:56 davidg Exp $";
 #endif
 
 /*
@@ -167,7 +167,7 @@ main(argc, argv)
 				break;
 			case '?':
 	                default:
-				(void)fprintf(stderr,   
+				(void)fprintf(stderr,
 				    "usage: sa [-abcdDfijkKlmnqrstu] [-v cutoff] [file ...]\n");
 				exit(1);
 		}
@@ -221,7 +221,7 @@ main(argc, argv)
 				unmask = 0;
 				error = 1;
 			}
-			if (unmask && 
+			if (unmask &&
 			    (sigprocmask(SIG_BLOCK, &nmask, &omask) == -1)) {
 				warn("couldn't set signal mask ");
 				unmask = 0;

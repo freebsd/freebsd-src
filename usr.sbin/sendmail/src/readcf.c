@@ -385,7 +385,7 @@ readcf(cfname, safe, e)
 				continue;
 			if (!isascii(*p) || !isdigit(*p))
 			{
-				syserr("invalid argument to S line: \"%.20s\"", 
+				syserr("invalid argument to S line: \"%.20s\"",
 					&bp[1]);
 				break;
 			}
@@ -494,7 +494,7 @@ readcf(cfname, safe, e)
 				continue;
 			if (!isascii(*p) || !isdigit(*p))
 			{
-				syserr("invalid argument to V line: \"%.20s\"", 
+				syserr("invalid argument to V line: \"%.20s\"",
 					&bp[1]);
 				break;
 			}

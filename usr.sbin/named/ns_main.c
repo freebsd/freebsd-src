@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_main.c	4.55 (Berkeley) 7/1/91";
-static char rcsid[] = "$Id: ns_main.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp $";
+static char rcsid[] = "$Id: ns_main.c,v 1.1.1.1 1994/09/22 19:46:12 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: ns_main.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp $
  * -
  * Copyright (c) 1986, 1989, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: ns_main.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp $
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: ns_main.c,v 4.9.1.19 1994/07/23 23:23:56 vixie Exp $
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -277,7 +277,7 @@ main(argc, argv, envp)
 		fprintf(ddt, "Debug turned ON, Level %d\n",debug);
 		fprintf(ddt, "Version = %s\n", Version);
 		fprintf(ddt, "bootfile = %s\n", bootfile);
-	}		
+	}
 #endif
 
 	n = 0;
@@ -325,7 +325,7 @@ main(argc, argv, envp)
 		if ((vs = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 			syslog(LOG_ERR, "socket(SOCK_STREAM): %m");
 			exit(1);
-		}	
+		}
 		if (setsockopt(vs, SOL_SOCKET, SO_REUSEADDR, (char *)&on,
 			sizeof(on)) != 0)
 		{
@@ -593,7 +593,7 @@ main(argc, argv, envp)
 		if (retryqp != NULL) {
 			gettime(&tt);
 			/*
-			** The tv_sec field might be unsigned 
+			** The tv_sec field might be unsigned
 			** and thus cannot be negative.
 			*/
 			if ((int32_t) retryqp->q_time <= tt.tv_sec) {
@@ -805,7 +805,7 @@ main(argc, argv, envp)
 						sp->s_bufsize = sp->s_size;
 					    }
 					}
-					sp->s_bufp = sp->s_buf;	
+					sp->s_bufp = sp->s_buf;
 				}
 			}
 			gettime(&tt);
@@ -920,10 +920,10 @@ getnetconf()
 			    inet_ntoa(((struct sockaddr_in *)
 				       &ifreq.ifr_addr)->sin_addr)));
 		/* build datagram queue */
-		/* 
+		/*
 		 * look for an already existing source interface address.
 		 * This happens mostly when reinitializing.  Also, if
-		 * the machine has multiple point to point interfaces, then 
+		 * the machine has multiple point to point interfaces, then
 		 * the local address may appear more than once.
 		 */
 		if (dqp = aIsUs(((struct sockaddr_in *)&ifreq.ifr_addr)
@@ -1127,7 +1127,7 @@ opensocket(dqp)
 	if ((dqp->dq_dfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		syslog(LOG_ERR, "socket(SOCK_DGRAM): %m - exiting");
 		exit(1);
-	}	
+	}
 	dprintf(1, (ddt, "dqp->dq_addr %s d_dfd %d\n",
 		    inet_ntoa(dqp->dq_addr), dqp->dq_dfd));
 	if (setsockopt(dqp->dq_dfd, SOL_SOCKET, SO_REUSEADDR,

@@ -8,7 +8,7 @@ static char rcsid[] = "$Id:";
  * -
  * Copyright (c) 1986, 1990
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id:";
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id:";
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -315,7 +315,7 @@ boot_read(bootfile)
 		 */
 		if (!getword(buf, sizeof(buf), fp)) {
 			syslog(LOG_ERR, "%s: line %d: missing %s\n",
-				bootfile, lineno, 
+				bootfile, lineno,
 #ifdef STUBS
 			   (type == Z_SECONDARY || type == Z_STUB)
 #else
@@ -404,7 +404,7 @@ boot_read(bootfile)
 			 */
 			if (zp->z_source &&
 			    !strcmp(source, zp->z_source) &&
-			    !(zp->z_flags & Z_INCLUDE) && 
+			    !(zp->z_flags & Z_INCLUDE) &&
 			    stat(zp->z_source, &f_time) != -1 &&
 			    zp->z_ftime == f_time.st_mtime) {
 				dprintf(1, (ddt, "cache is up to date\n"));
@@ -461,7 +461,7 @@ boot_read(bootfile)
 			 */
 			if (zp->z_source &&
 			    !strcmp(source, zp->z_source) &&
-			    !(zp->z_flags & Z_INCLUDE) && 
+			    !(zp->z_flags & Z_INCLUDE) &&
 			    stat(zp->z_source, &f_time) != -1 &&
 			    zp->z_ftime == f_time.st_mtime) {
 				dprintf(1, (ddt, "zone is up to date\n"));
@@ -552,8 +552,8 @@ boot_read(bootfile)
 				zoneinit(zp);
 #ifdef FORCED_RELOAD
 			else {
-				/* 
-				** Force secondary to try transfer right away 
+				/*
+				** Force secondary to try transfer right away
 				** after SIGHUP.
 				*/
 				if (reloading) {
@@ -713,7 +713,7 @@ get_forwarders(fp)
 			syslog(LOG_ERR, "'%s' (ignored, NOT dotted quad)",
 			       buf);
 			dprintf(1, (ddt, " (ignored, NOT dotted quad)"));
-			continue;	
+			continue;
 		}
 #ifdef FWD_LOOP
 		if (aIsUs(ftp->fwdaddr.sin_addr)) {
@@ -737,7 +737,7 @@ get_forwarders(fp)
 	}
 	if (ftp)
 		free((char *)ftp);
-	
+
 #ifdef SLAVE_FORWARD
 	/*
 	** Set the slave retry time to 60 seconds total divided
@@ -776,7 +776,7 @@ free_forwarders()
 }
 
 static struct zoneinfo *
-find_zone(name, type, class) 
+find_zone(name, type, class)
 	char *name;
 	int type, class;
 {
@@ -796,7 +796,7 @@ find_zone(name, type, class)
 #ifdef DEBUG
 /* prints out the content of zones */
 static void
-content_zone(end) 
+content_zone(end)
 	int end;
 {
 	int i;

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: nfs_ops.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
+ * $Id: nfs_ops.c,v 1.2 1995/02/13 01:56:22 wpaul Exp $
  */
 
 #ifndef lint
@@ -448,7 +448,7 @@ mntfs *mf;
 	if (!mf->mf_private) {
 		int error;
 		struct fhstatus fhs;
-	
+
 		char *colon = strchr(mf->mf_info, ':');
 		if (colon == 0)
 			return ENOENT;

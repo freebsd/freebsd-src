@@ -274,7 +274,7 @@ main(argc, argv)
 				progname, mapname, lineno, sizeof ibuf);
 			continue;
 		}
-			
+
 		if (ibuf[0] == '\0' || ibuf[0] == '#')
 			continue;
 		if (isspace(ibuf[0]))

@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.c,v 1.2 1994/09/08 02:51:27 wollman Exp $
+ * $Id: vif.c,v 1.3 1995/05/16 00:28:50 jkh Exp $
  */
 
 
@@ -187,7 +187,7 @@ static void start_vif(vifi)
 	 * query.
 	 */
 	v->uv_flags |= VIFF_QUERIER;
-	send_igmp(src, allhosts_group, IGMP_HOST_MEMBERSHIP_QUERY, 
+	send_igmp(src, allhosts_group, IGMP_HOST_MEMBERSHIP_QUERY,
 		  IGMP_MAX_HOST_REPORT_DELAY * IGMP_TIMER_SCALE, 0, 0);
 	age_old_hosts();
     }
@@ -206,7 +206,7 @@ static void start_vif(vifi)
      * add the neighbor list on the interface to the message
      */
     nbr = v->uv_neighbors;
-    
+
     while (nbr) {
 	for (i = 0; i < 4; i++)
 	    *p++ = ((char *)&nbr->al_addr)[i];
@@ -214,7 +214,7 @@ static void start_vif(vifi)
 	nbr = nbr->al_next;
     }
 
-    send_igmp(src, dst, IGMP_DVMRP, DVMRP_PROBE, 
+    send_igmp(src, dst, IGMP_DVMRP, DVMRP_PROBE,
 	      htonl(MROUTED_LEVEL), datalen);
 }
 
@@ -366,7 +366,7 @@ void query_groups()
     for (vifi = 0, v = uvifs; vifi < numvifs; vifi++, v++) {
 	if (v->uv_flags & VIFF_QUERIER) {
 	    send_igmp(v->uv_lcl_addr, allhosts_group,
-		      IGMP_HOST_MEMBERSHIP_QUERY, 
+		      IGMP_HOST_MEMBERSHIP_QUERY,
 		      IGMP_MAX_HOST_REPORT_DELAY * IGMP_TIMER_SCALE, 0, 0);
 	}
     }
@@ -415,7 +415,7 @@ void accept_group_report(src, dst, group, r_type)
 		g->al_query = DeleteTimer(g->al_query);
 	    if (g->al_timerid)
 		g->al_timerid = DeleteTimer(g->al_timerid);
-	    g->al_timerid = SetTimer(vifi, g);	
+	    g->al_timerid = SetTimer(vifi, g);
 	    break;
 	}
     }
@@ -448,7 +448,7 @@ void accept_group_report(src, dst, group, r_type)
 	update_lclgrp(vifi, group);
     }
 
-    /* 
+    /*
      * Check if a graft is necessary for this group
      */
     chkgrp_graft(vifi, group);
@@ -493,12 +493,12 @@ void leave_group_message( src, dst, group)
 	    /** send a group specific querry **/
 	    g->al_timer = GROUP_EXPIRE_TIME / 10;
 	    send_igmp(v->uv_lcl_addr, g->al_addr,
-		      IGMP_HOST_MEMBERSHIP_QUERY, 
+		      IGMP_HOST_MEMBERSHIP_QUERY,
 		      GROUP_EXPIRE_TIME / 30 * IGMP_TIMER_SCALE,
 		      g->al_addr, 0);
 	    g->al_query = SetQueryTimer(g, vifi, g->al_timer / 3 ,
 			 	GROUP_EXPIRE_TIME / 30 * IGMP_TIMER_SCALE);
-	    g->al_timerid = SetTimer(vifi, g);	
+	    g->al_timerid = SetTimer(vifi, g);
 	    break;
 	}
     }
@@ -584,7 +584,7 @@ void accept_neighbor_request(src, dst)
 	close(udp);
 	us = addr.sin_addr.s_addr;
     } else			/* query sent to us alone */
-	us = dst;	
+	us = dst;
 
 #define PUT_ADDR(a)	temp_addr = ntohl(a); \
     *p++ = temp_addr >> 24; \
@@ -668,7 +668,7 @@ void accept_neighbor_request2(src, dst)
 	close(udp);
 	us = addr.sin_addr.s_addr;
     } else			/* query sent to us alone */
-	us = dst;	
+	us = dst;
 
     p = (u_char *) (send_buf + MIN_IP_HEADER_LEN + IGMP_MINLEN);
     datalen = 0;
@@ -843,13 +843,13 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 	    for (i = 0; i < 4; i++)
 	      ((char *)&genid)[i] = *p++;
 	    datalen -=4;
-	    
-	    /* 
+
+	    /*
 	     * loop through router list and check for one-way ifs.
 	     */
-	    
+
 	    he_hears_me = FALSE;
-	    
+
 	    while (datalen > 0) {
 		if (datalen < 4) {
 		    log(LOG_WARNING, 0,
@@ -876,7 +876,7 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 	    n->al_timer = 0;
 
 	    /* If probe message and version no >= 3.3 check genid */
-	    if (msgtype == DVMRP_PROBE && 
+	    if (msgtype == DVMRP_PROBE &&
 		((n->al_pv >= 3 && n->al_mv > 2) || n->al_pv > 3)) {
 		if (he_hears_me == TRUE && v->uv_flags & VIFF_ONEWAY)
 		    v->uv_flags &= ~VIFF_ONEWAY;
@@ -886,7 +886,7 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 
 		if ((n->al_genid != 0) && (n->al_genid != genid)) {
 		    log(LOG_DEBUG, 0,
-			"old:%d new:%dreset neighbor %s", 
+			"old:%d new:%dreset neighbor %s",
 			n->al_genid, genid, inet_fmt(addr, s1));
 
 		    reset_neighbor_state(vifi, addr);
@@ -904,7 +904,7 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 
 	    /*
 	     * update the neighbors version and protocol number
-	     * if changed => router went down and came up, 
+	     * if changed => router went down and came up,
 	     * so take action immediately.
 	     */
 	    if ((n->al_pv != (level & 0xff)) ||
@@ -913,7 +913,7 @@ int update_neighbor(vifi, addr, msgtype, p, datalen, level)
 		    "resetting neighbor %s [old:%d.%d, new:%d.%d]",
 		    inet_fmt(addr, s1),
 		    n->al_pv, n->al_mv, level&0xff, (level>>8)&0xff);
-		
+
 		n->al_pv = level & 0xff;
 		n->al_mv = (level >> 8) & 0xff;
 

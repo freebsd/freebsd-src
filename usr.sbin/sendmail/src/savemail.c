@@ -774,17 +774,17 @@ errbody(mci, e)
 }
 /*
 **  PRUNEROUTE -- prune an RFC-822 source route
-** 
+**
 **	Trims down a source route to the last internet-registered hop.
 **	This is encouraged by RFC 1123 section 5.3.3.
-** 
+**
 **	Parameters:
 **		addr -- the address
-** 
+**
 **	Returns:
 **		TRUE -- address was modified
 **		FALSE -- address could not be pruned
-** 
+**
 **	Side Effects:
 **		modifies addr in-place
 */

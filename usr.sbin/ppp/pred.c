@@ -4,9 +4,9 @@
 #include "ccp.h"
 
 /*
- * 
- * $Id:$
- * 
+ *
+ * $Id: pred.c,v 1.2 1995/02/26 12:17:55 amurai Exp $
+ *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
  * Updated by: iand@labtam.labtam.oz.au (Ian Donaldson)

@@ -1,24 +1,24 @@
  /*
   * pmap_check - additional portmap security.
-  * 
+  *
   * Always reject non-local requests to update the portmapper tables.
-  * 
+  *
   * Refuse to forward mount requests to the nfs mount daemon. Otherwise, the
   * requests would appear to come from the local system, and nfs export
   * restrictions could be bypassed.
-  * 
+  *
   * Refuse to forward requests to the nfsd process.
-  * 
+  *
   * Refuse to forward requests to NIS (YP) daemons; The only exception is the
   * YPPROC_DOMAIN_NONACK broadcast rpc call that is used to establish initial
   * contact with the NIS server.
-  * 
+  *
   * Always allocate an unprivileged port when forwarding a request.
-  * 
+  *
   * If compiled with -DCHECK_PORT, require that requests to register or
   * unregister a privileged port come from a privileged port. This makes it
   * more difficult to replace a critical service by a trojan.
-  * 
+  *
   * If compiled with -DHOSTS_ACCESS, reject requests from hosts that are not
   * authorized by the /etc/hosts.{allow,deny} files. The local system is
   * always treated as an authorized host. The access control tables are never
@@ -26,7 +26,7 @@
   * for requests from other hosts. Access control is based on IP addresses
   * only; attempts to map an address to a host name might cause the
   * portmapper to hang.
-  * 
+  *
   * Author: Wietse Venema (wietse@wzv.win.tue.nl), dept. of Mathematics and
   * Computing Science, Eindhoven University of Technology, The Netherlands.
   */

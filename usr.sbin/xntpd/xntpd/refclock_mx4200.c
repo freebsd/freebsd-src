@@ -375,7 +375,7 @@ mx4200_start(unit, peer)
 	/*
 	 * POSIX serial line parameters (termios interface)
 	 *
-	 * The MX4200CLK option provides timestamping at the driver level. 
+	 * The MX4200CLK option provides timestamping at the driver level.
 	 * It requires the tty_clk streams module.
 	 *
 	 * The MX4200PPS option provides timestamping at the driver level.
@@ -429,7 +429,7 @@ mx4200_start(unit, peer)
 	/*
 	 * 4.3bsd serial line parameters (sgttyb interface)
 	 *
-	 * The MX4200CLK option provides timestamping at the driver level. 
+	 * The MX4200CLK option provides timestamping at the driver level.
 	 * It requires the tty_clk line discipline and 4.3bsd or later.
 	 */
     {	struct sgttyb ttyb;

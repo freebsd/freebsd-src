@@ -292,7 +292,7 @@ char *argv[];
 		for (ihost = 0; ihost < numhosts; ihost++) {
 			if (openhost(chosts[ihost]))
 				for (icmd = 0; icmd < numcmds; icmd++) {
-					if (numhosts > 1) 
+					if (numhosts > 1)
 					   printf ("--- %s ---\n",chosts[ihost]);
 					docmd(ccmds[icmd]);
 				}
@@ -325,7 +325,7 @@ openhost(hname)
 
 	if (!getnetnum(hname, &netnum, temphost))
 		return 0;
-	
+
 	if (debug > 2)
 		printf("Opening host %s\n", temphost);
 
@@ -344,7 +344,7 @@ openhost(hname)
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockfd == -1)
 		error("socket", "", "");
-	
+
 #if defined(SYS_HPUX) && (SYS_HPUX < 8)
 #ifdef SO_RCVBUF
 	{ int rbufsize = INITDATASIZE + 2048;	/* 2K for slop */
@@ -358,7 +358,7 @@ openhost(hname)
 	if (connect(sockfd, (struct sockaddr *)&hostaddr,
 		    sizeof(hostaddr)) == -1)
 		error("connect", "", "");
-	
+
 	havehost = 1;
 	return 1;
 }
@@ -443,7 +443,7 @@ again:
 		tvo = tvout;
 	else
 		tvo = tvsout;
-	
+
 	FD_SET(sockfd, &fds);
 	n = select(sockfd+1, &fds, (fd_set *)0, (fd_set *)0, &tvo);
 
@@ -747,7 +747,7 @@ doquery(implcode, reqcode, auth, qitems, qsize, qdata, ritems, rsize, rdata,
 	res = sendrequest(implcode, reqcode, auth, qitems, qsize, qdata);
 	if (res != 0)
 		return res;
-	
+
 	/*
 	 * Get the response.  If we got a standard error, print a message
 	 */
@@ -848,7 +848,7 @@ docmd(cmdline)
 	tokenize(cmdline, tokens, &ntok);
 	if (ntok == 0)
 		return;
-	
+
 	/*
 	 * Find the appropriate command description.
 	 */
@@ -862,7 +862,7 @@ docmd(cmdline)
 		    tokens[0]);
 		return;
 	}
-	
+
 	/*
 	 * Save the keyword, then walk through the arguments, interpreting
 	 * as we go.

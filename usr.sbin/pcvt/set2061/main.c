@@ -41,7 +41,7 @@ static char *id =
  *	-hm	start using 132 columns on my Elsa Winner
  *
  *---------------------------------------------------------------------------*/
-	
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <machine/pcvt_ioctl.h>
@@ -62,7 +62,7 @@ char *argv[];
 	int c;
 	long freq = -1;
 	int no = -1;
-	
+
 	while( (c = getopt(argc, argv, "f:n:")) != EOF)
 	{
 		switch(c)
@@ -70,11 +70,11 @@ char *argv[];
 			case 'f':
 				freq = atoi(optarg);
 				break;
-				
+
 			case 'n':
 				no = atoi(optarg);
 				break;
-				
+
 			case '?':
 			default:
 				usage();
@@ -82,7 +82,7 @@ char *argv[];
 		}
 	}
 
-	if(freq == -1 || no == -1)	
+	if(freq == -1 || no == -1)
 		usage();
 
 	if((fd = open("/dev/console", O_RDONLY)) < 0)

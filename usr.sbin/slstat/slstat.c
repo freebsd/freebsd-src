@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: slstat.c,v 1.2 1994/10/17 06:05:32 davidg Exp $";
+static char rcsid[] = "$Id: slstat.c,v 1.3 1994/11/19 13:57:21 jkh Exp $";
 #endif
 
 #include <stdio.h>
@@ -56,7 +56,7 @@ struct nlist nl[] = {
 	{ 0 }
 };
 
-#define INTERFACE_PREFIX        "sl%d" 
+#define INTERFACE_PREFIX        "sl%d"
 char    interface[IFNAMSIZ];
 
 const char	*system = NULL;
@@ -293,7 +293,7 @@ knlist(system, nl, errstr)
 	if (kd == 0)
 		/* kopen() must be called first */
 		abort();
-		
+
 	if (kvm_nlist(nl) < 0 || nl[0].n_type == 0) {
 		fprintf(stderr, "%s: %s: no namelist\n", errstr, system);
 		return -1;

@@ -116,7 +116,7 @@ cwalk()
 			if (!dflag)
 				statf(indent, p);
 			break;
-			
+
 		}
 	}
 	(void)fts_close(t);

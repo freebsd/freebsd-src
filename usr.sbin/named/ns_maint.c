@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_maint.c	4.39 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: ns_maint.c,v 4.9.1.15 1994/06/11 22:04:46 vixie Exp $";
+static char rcsid[] = "$Id: ns_maint.c,v 1.1.1.1 1994/09/22 19:46:13 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: ns_maint.c,v 4.9.1.15 1994/06/11 22:04:46 vixie Exp 
  * -
  * Copyright (c) 1986, 1988
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: ns_maint.c,v 4.9.1.15 1994/06/11 22:04:46 vixie Exp 
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: ns_maint.c,v 4.9.1.15 1994/06/11 22:04:46 vixie Exp 
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -380,7 +380,7 @@ startxfer(zp)
 		}
 	}
 #endif
-	
+
 	if (zp->z_xaddr.s_addr != 0) {
 		/* address was specified by the qserial logic, use it */
 		argv[argc++] = strcpy(argv_ns[argc_ns++],
@@ -413,7 +413,7 @@ startxfer(zp)
 #ifdef ECHOARGS
 	if (debug) {
 		int i;
-		for (i = 0; i < argc; i++) 
+		for (i = 0; i < argc; i++)
 			fprintf(ddt, "Arg %d=%s\n", i, argv[i]);
         }
 #endif /* ECHOARGS */
@@ -570,7 +570,7 @@ remove_zone(htp, zone)
 		}
 	    }
 }
-   
+
 /*
  * Handle XFER limit for a nameserver.
  */
@@ -623,7 +623,7 @@ abortxfer(zp)
 SIG_FN
 endxfer()
 {
-    	register struct zoneinfo *zp;   
+    	register struct zoneinfo *zp;
 	int exitstatus, pid, xfers, save_errno;
 #if defined(sequent)
 	union wait status;
@@ -651,7 +651,7 @@ endxfer()
 			zp->z_xferpid = 0;
 			zp->z_flags &= ~Z_XFER_RUNNING;
 			dprintf(1, (ddt,
-		"\nendxfer: child %d zone %s returned status=%d termsig=%d\n", 
+		"\nendxfer: child %d zone %s returned status=%d termsig=%d\n",
 				    pid, zp->z_origin, exitstatus,
 				    WIFSIGNALED(status) ?WTERMSIG(status) :-1
 				    )
@@ -724,7 +724,7 @@ tryxfer() {
 
 		if (!xfers_deferred || xfers_running >= max_xfers_running)
 			break;
-		
+
 		if ((xfers = nxfers(zp, 0)) != -1 &&
 		    xfers < MAX_XFERS_PERNS &&
 		    (zp->z_flags & Z_NEED_XFER)) {
@@ -743,7 +743,7 @@ tryxfer() {
 void
 loadxfer()
 {
-    	register struct zoneinfo *zp;   
+    	register struct zoneinfo *zp;
 
 	gettime(&tt);
 	for (zp = zones; zp < &zones[nzones]; zp++) {

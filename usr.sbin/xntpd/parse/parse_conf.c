@@ -1,7 +1,7 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
  * /src/NTP/REPOSITORY/v3/parse/parse_conf.c,v 3.15 1994/02/02 17:45:32 kardel Exp
- *  
+ *
  * parse_conf.c,v 3.15 1994/02/02 17:45:32 kardel Exp
  *
  * Parser configuration module for reference clocks
@@ -14,7 +14,7 @@
  *
  * Copyright (c) 1992,1993,1994
  * Frank Kardel Friedrich-Alexander Universitaet Erlangen-Nuernberg
- *                                    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

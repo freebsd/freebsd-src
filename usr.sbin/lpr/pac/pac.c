@@ -267,7 +267,7 @@ dumpit()
 	}
 	if (allflag) {
 		printf("\n");
-		printf("%-24s %7.2f %4d   $%6.2f\n", "total", feet, 
+		printf("%-24s %7.2f %4d   $%6.2f\n", "total", feet,
 		    runs, feet * price);
 	}
 }

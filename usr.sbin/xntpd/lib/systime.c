@@ -100,7 +100,7 @@ int
 step_systime(ts)
 	l_fp *ts;
 {
-#ifdef SLEWALWAYS 
+#ifdef SLEWALWAYS
 #ifdef STEP_SLEW
 	register u_long tmp_ui;
 	register u_long tmp_uf;
@@ -121,7 +121,7 @@ step_systime(ts)
 	if (tmp_ui >= 3) {		/* Step it and slew we  might win */
              n = step_systime_real(ts);
 	     if (!n) return n;
-	     if (isneg) 
+	     if (isneg)
 		ts->l_ui = ~0;
 	     else
 		ts->l_ui = ~0;

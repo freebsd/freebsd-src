@@ -169,13 +169,13 @@ sendall(e, mode)
 			continue;
 		if (a != NULL)
 			q->q_owner = a->q_owner;
-				
+
 		if (q->q_owner != NULL &&
 		    !bitset(QDONTSEND, q->q_flags) &&
 		    strcmp(q->q_owner, e->e_from.q_paddr) == 0)
 			q->q_owner = NULL;
 	}
-		
+
 	owner = "";
 	otherowners = 1;
 	while (owner != NULL && otherowners > 0)
@@ -248,7 +248,7 @@ sendall(e, mode)
 			ee->e_errormode = EM_MAIL;
 			ee->e_sibling = splitenv;
 			splitenv = ee;
-			
+
 			for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 				if (q->q_owner == owner)
 				{
@@ -630,7 +630,7 @@ deliver(e, firstto)
 		_res.retrans = 30;
 		_res.retry = 2;
 	}
-#endif 
+#endif
 
 	m = to->q_mailer;
 	host = to->q_host;
@@ -1904,7 +1904,7 @@ logdelivery(m, mci, stat, ctladdr, e)
 	bp += strlen(bp);
 
 	(void) strcpy(bp, shortenstring(stat, (STATLEN)));
-		
+
 	l = SYSLOG_BUFSIZE - 100 - strlen(buf);
 	p = e->e_to;
 	while (strlen(p) >= l)

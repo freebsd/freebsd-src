@@ -1,11 +1,11 @@
 /*
 
-This code is not copyright, and is placed in the public domain. Feel free to 
+This code is not copyright, and is placed in the public domain. Feel free to
 use and modify. Please send modifications and/or suggestions + bug fixes to
 
         Klas Heggemann <klas@nada.kth.se>
 
-	$Id: callbootd.c,v 1.1.1.1 1995/02/26 23:40:53 wpaul Exp $
+	$Id: callbootd.c,v 1.2 1995/03/26 03:15:39 wpaul Exp $
 */
 
 
@@ -59,13 +59,13 @@ char **argv;
 {
   int stat;
   char *server;
-  
+
   bp_whoami_arg whoami_arg;
   bp_whoami_res *whoami_res, stat_whoami_res;
   bp_getfile_arg getfile_arg;
   bp_getfile_res *getfile_res, stat_getfile_res;
 
-  
+
   long the_inet_addr;
   CLIENT *clnt;
   enum clnt_stat clnt_stat;
@@ -75,20 +75,20 @@ char **argv;
 
   stat_getfile_res.server_name = cln;
   stat_getfile_res.server_path = path;
-  
+
   if (argc < 3) {
     fprintf(stderr,
 	    "Usage: %s server procnum (IP-addr | host fileid)\n", argv[0]);
     exit(1);
-  } 
+  }
 
-    
+
   server = argv[1];
   if ( ! strcmp(server , "all") ) broadcast = 1;
-    
+
   if ( ! broadcast ) {
     clnt = clnt_create(server,BOOTPARAMPROG, BOOTPARAMVERS, "udp");
-  } 
+  }
 
   if ( clnt == NULL ) {
      fprintf (stderr, "%s: could not contact bootparam server on host %s\n",
@@ -115,9 +115,9 @@ char **argv;
       } else
 	exit(0);
      } else {
-       clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS, 
+       clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_WHOAMI,
-			       xdr_bp_whoami_arg, &whoami_arg, 
+			       xdr_bp_whoami_arg, &whoami_arg,
 			       xdr_bp_whoami_res, &stat_whoami_res, eachres_whoami);
        exit(0);
      }
@@ -126,7 +126,7 @@ char **argv;
 
     getfile_arg.client_name = argv[2];
     getfile_arg.file_id = argv[3];
-    
+
     if (! broadcast ) {
       getfile_res = bootparamproc_getfile_1(&getfile_arg,clnt);
       printf("getfile returning:\n");
@@ -134,26 +134,26 @@ char **argv;
 	fprintf(stderr, "Bad answer returned from server %s\n", server);
 	exit(1);
       } else
-	exit(0);	
+	exit(0);
     } else {
-      clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS, 
+      clnt_stat=clnt_broadcast(BOOTPARAMPROG, BOOTPARAMVERS,
 			       BOOTPARAMPROC_GETFILE,
-			       xdr_bp_getfile_arg, &getfile_arg, 
+			       xdr_bp_getfile_arg, &getfile_arg,
 			       xdr_bp_getfile_res, &stat_getfile_res,eachres_getfile);
       exit(0);
     }
-      
+
   default:
-    
+
     fprintf(stderr,
 	    "Usage: %s server procnum (IP-addr | host fileid)\n", argv[0]);
     exit(1);
   }
-  
+
 }
 
 
-  
+
 int printwhoami(res)
 bp_whoami_res *res;
 {
@@ -171,7 +171,7 @@ bp_whoami_res *res;
 	return(1);
       }
     }
-	
+
 
 
 
@@ -181,7 +181,7 @@ bp_getfile_res *res;
 {
       if (res) {
 	printf("server_name:\t%s\nserver_address:\t%s\npath:\t%s\n",
-	       res->server_name, 
+	       res->server_name,
 	       inet_ntoa(res->server_address.bp_address_u.ip_addr),
 	       res->server_path);
 	return(0);

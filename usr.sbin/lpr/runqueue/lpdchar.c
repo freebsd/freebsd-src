@@ -163,7 +163,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c_1___1_,
  	  c1___1_1,
  	  c_____1_ },			/* % */
- 
+
  	{ c_11____,
  	  c1__1___,
  	  c1___1__,
@@ -173,7 +173,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c1___11_,
  	  c1___11_,
  	  c_111__1 },			/* & */
- 
+
  	{ c___11__,
  	  c___11__,
  	  c___1___,
@@ -183,7 +183,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c_______,
  	  c_______,
  	  c_______ },			/* ' */
- 
+
  	{ c____1__,
  	  c___1___,
  	  c__1____,
@@ -193,7 +193,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c__1____,
  	  c___1___,
  	  c____1__ },			/* ( */
- 
+
  	{ c__1____,
  	  c___1___,
  	  c____1__,
@@ -203,7 +203,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c____1__,
  	  c___1___,
  	  c__1____ },			/* ) */
- 
+
  	{ c_______,
  	  c___1___,
  	  c1__1__1,
@@ -213,7 +213,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c1__1__1,
  	  c___1___,
  	  c_______ },			/* * */
- 
+
  	{ c_______,
  	  c___1___,
  	  c___1___,
@@ -223,7 +223,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c___1___,
  	  c___1___,
  	  c_______ },			/* + */
- 
+
  	{ c_______,
  	  c_______,
  	  c_______,
@@ -233,7 +233,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c__1____,
  	  c_1_____,
  	  c_______ },			/* , */
- 
+
  	{ c_______,
  	  c_______,
  	  c_______,
@@ -243,7 +243,7 @@ char scnkey[][HEIGHT] =	/* this is relatively easy to modify */
  	  c_______,
  	  c_______,
  	  c_______ },			/* - */
- 
+
  	{ c_______,
 	  c_______,
 	  c_______,

@@ -1,4 +1,4 @@
-/* 
+/*
  * netof - return the net address part of an ip address
  *         (zero out host part)
  */

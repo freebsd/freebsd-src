@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id: command.c,v 1.3 1995/02/27 10:57:45 amurai Exp $
- * 
+ *
+ * $Id: command.c,v 1.4 1995/04/16 13:38:38 amurai Exp $
+ *
  */
 #include <ctype.h>
 #include <termios.h>

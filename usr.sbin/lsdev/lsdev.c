@@ -16,7 +16,7 @@ static void badname(const char *);
 static void print_pretty(struct devconf *);
 static void hprint_pretty(void);
 
-int 
+int
 main(int argc, char **argv)
 {
 	struct devconf *dc = 0;
@@ -80,13 +80,13 @@ main(int argc, char **argv)
 	mib[0] = CTL_HW;
 	mib[1] = HW_DEVCONF;
 	mib[2] = DEVCONF_NUMBER;
-	
+
 	size = sizeof ndevs;
 	if(sysctl(mib, 3, &ndevs, &size, 0, 0) < 0) {
 		err(1, "sysctl(hw.devconf.number)");
 	}
 	osize = 0;
-	
+
 	hprtfcn();
 
 	for(i = 1; i <= ndevs; i++) {
@@ -111,7 +111,7 @@ main(int argc, char **argv)
 			prtfcn(dc);
 		} else if(showonlydev) {
 			if(!strcmp(showonlydevclass, dc->dc_name)
-			   && (showonlydevunit < 0 || 
+			   && (showonlydevunit < 0 ||
 			       showonlydevunit == dc->dc_unit))
 				prtfcn(dc);
 		} else if(showonlytype == dc->dc_devtype) {
@@ -201,7 +201,7 @@ print_pretty(struct devconf *dc)
 
 	if(vflag) {
 		printf("%-10.10s %2.2s ", buf, states[dc->dc_state]);
-	
+
 		if(dc->dc_punit >= 0) {
 			snprintf(buf, sizeof buf, "%s%d", dc->dc_pname,
 				 dc->dc_punit);

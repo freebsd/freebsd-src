@@ -16,9 +16,9 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- * 
- * $Id:$
- * 
+ *
+ * $Id: arp.c,v 1.1 1995/02/26 12:17:09 amurai Exp $
+ *
  */
 
 /*
@@ -321,15 +321,15 @@ struct nlist nl[] = {
 
 kvm_t *kvmd;
 
-/*              
+/*
  * Read kernel memory, return 0 on success.
- */     
+ */
 int
-kread(addr, buf, size)  
+kread(addr, buf, size)
   u_long addr;
   char *buf;
   int size;
-{        
+{
 
 	if (kvm_read(kvmd, addr, buf, size) != size) {
 		/* XXX this duplicates kvm_read's error printout */
@@ -351,10 +351,10 @@ struct sockaddr_dl *dlo;
   struct sockaddr *sa;
   char *cp;
   struct sockaddr_dl *sdl;
-  union {          
+  union {
 	  struct ifaddr ifa;
 	  struct in_ifaddr in;
-  } ifaddr; 
+  } ifaddr;
   struct arpcom ac;
 
   kvmd = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL);

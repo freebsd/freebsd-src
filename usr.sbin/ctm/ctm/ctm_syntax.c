@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_syntax.c,v 1.4 1994/09/22 02:49:21 phk Exp $
  *
  */
 
@@ -31,15 +31,15 @@
 #define Force	CTM_Q_MD5_Force
 
 static int ctmFM[] = /* File Make */
-    { Name|File|New, Uid, Gid, Mode, 
+    { Name|File|New, Uid, Gid, Mode,
 	MD5|After|Chunk, Count, Bytes,0 };
 
 static int ctmFS[] = /* File Substitute */
-    { Name|File, Uid, Gid, Mode, 
+    { Name|File, Uid, Gid, Mode,
 	MD5|Before|Force, MD5|After|Chunk, Count, Bytes,0 };
 
 static int ctmFE[] = /* File Edit */
-    { Name|File, Uid, Gid, Mode, 
+    { Name|File, Uid, Gid, Mode,
 	MD5|Before, MD5|After, Count, Bytes,0 };
 
 static int ctmFR[] = /* File Remove */

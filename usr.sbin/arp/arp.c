@@ -165,7 +165,7 @@ struct	{
 }	m_rtmsg;
 
 /*
- * Set an individual arp entry 
+ * Set an individual arp entry
  */
 set(argc, argv)
 	int argc;
@@ -279,7 +279,7 @@ get(host)
 }
 
 /*
- * Delete an arp entry 
+ * Delete an arp entry
  */
 delete(host, info)
 	char *host;

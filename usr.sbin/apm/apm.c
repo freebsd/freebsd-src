@@ -5,9 +5,9 @@
  *
  * This software may be used, modified, copied, distributed, and sold,
  * in both source and binary form provided that the above copyright and
- * these terms are retained. Under no circumstances is the author 
- * responsible for the proper functioning of this software, nor does 
- * the author assume any responsibility for damages incurred with its 
+ * these terms are retained. Under no circumstances is the author
+ * responsible for the proper functioning of this software, nor does
+ * the author assume any responsibility for damages incurred with its
  * use.
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	int i, j, fd;
 	int sleep = 0, all_info = 1, batt_status = 0, batt_life = 0, ac_status = 0;
 	char *cmdname;
-	
+
 	main_argc = argc;
 	main_argv = argv;
 	if ((cmdname = strrchr(argv[0], '/')) != NULL) {

@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static char sccsid[] = "@(#)ns_stats.c	4.10 (Berkeley) 6/27/90";
-static char rcsid[] = "$Id: ns_stats.c,v 4.9.1.7 1994/06/06 09:08:15 vixie Exp $";
+static char rcsid[] = "$Id: ns_stats.c,v 1.1.1.1 1994/09/22 19:46:14 pst Exp $";
 #endif /* not lint */
 
 /*
@@ -8,7 +8,7 @@ static char rcsid[] = "$Id: ns_stats.c,v 4.9.1.7 1994/06/06 09:08:15 vixie Exp $
  * -
  * Copyright (c) 1986
  *    The Regents of the University of California.  All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -24,7 +24,7 @@ static char rcsid[] = "$Id: ns_stats.c,v 4.9.1.7 1994/06/06 09:08:15 vixie Exp $
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -38,14 +38,14 @@ static char rcsid[] = "$Id: ns_stats.c,v 4.9.1.7 1994/06/06 09:08:15 vixie Exp $
  * SUCH DAMAGE.
  * -
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -101,7 +101,7 @@ static const char *typenames[T_ANY+1] = {
 	/* 240 */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 250 */
-	0, 0, "AXFR", "MAILB", "MAILA", "ANY" 
+	0, 0, "AXFR", "MAILB", "MAILA", "ANY"
 };
 
 static void		nameserStats __P((FILE *));
@@ -204,7 +204,7 @@ nameserCompar(t1, t2)
 	else
 		return (0);
 }
-	
+
 struct nameser *
 nameserFind(addr, flags)
 	struct in_addr addr;

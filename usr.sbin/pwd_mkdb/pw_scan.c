@@ -129,7 +129,7 @@ pw_scan(bp, pw)
 				break;
 			}
 			if (!strcmp(p, sh))
-				break;	
+				break;
 		}
 	if(p[0]) pw->pw_fields |= _PWF_SHELL;
 

@@ -361,7 +361,7 @@ main(argc, argv)
 				printline(cvthname(&frominet), line);
 			} else if (i < 0 && errno != EINTR)
 				logerror("recvfrom inet");
-		} 
+		}
 	}
 }
 

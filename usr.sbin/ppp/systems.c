@@ -17,8 +17,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.3 1995/02/26 12:17:59 amurai Exp $
- * 
+ * $Id: systems.c,v 1.4 1995/04/29 13:38:14 ache Exp $
+ *
  *  TODO:
  */
 #include "fsm.h"
