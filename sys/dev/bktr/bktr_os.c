@@ -464,7 +464,11 @@ fail:
 static int
 bktr_detach( device_t dev )
 {
+	unsigned int	unit;
+
 	struct bktr_softc *bktr = device_get_softc(dev);
+
+	unit = device_get_unit(dev);
 
 	/* Disable the brooktree device */
 	OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
