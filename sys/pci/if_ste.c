@@ -1525,7 +1525,7 @@ encap_retry:
 		/*
 		 * We ran out of segments. We have to recopy this
 		 * mbuf chain first. Bail out if we can't get the
-		 * new buffers from if_fxp.c
+		 * new buffers. Code borrowed from if_fxp.c
 		 */
 		MGETHDR(mn, M_DONTWAIT, MT_DATA);
 		if (mn == NULL) {
