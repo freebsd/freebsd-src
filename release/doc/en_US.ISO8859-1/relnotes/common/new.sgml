@@ -174,7 +174,7 @@
 
       <para arch="i386">smbfs (CIFS) support in kernel has been
       added.  The corresponding userland filesystem mount utility can be found 
-      in the <filename>net/smbfs</filename> port in the &os; Ports 
+      in the <port>net/smbfs</port> port in the &os; Ports 
       Collection. </para>
 
       <para>A simple hash-based lookup optimization for large directories
