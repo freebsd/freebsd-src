@@ -61,7 +61,7 @@ release		Release building Makefile & associated tools.
 
 sbin		System commands.
 
-secure		DES and DES-related utilities - NOT FOR EXPORT!
+secure		DES and DES-related utilities.
 
 share		Shared resources.
 
