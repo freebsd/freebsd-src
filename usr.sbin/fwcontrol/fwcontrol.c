@@ -72,32 +72,40 @@ usage(void)
 	exit(0);
 }
 
-static void
-get_num_of_dev(int fd, struct fw_devlstreq *data)
+static struct fw_devlstreq *
+get_dev(int fd)
 {
-	data->n = 64;
+	struct fw_devlstreq *data;
+
+	data = (struct fw_devlstreq *)malloc(sizeof(struct fw_devlstreq));
+	if (data == NULL)
+		err(1, "malloc");
 	if( ioctl(fd, FW_GDEVLST, data) < 0) {
        			err(1, "ioctl");
 	}
+	return data;
 }
 
 static void
 list_dev(int fd)
 {
-	struct fw_devlstreq data;
+	struct fw_devlstreq *data;
+	struct fw_devinfo *devinfo;
 	int i;
 
-	get_num_of_dev(fd, &data);
-	printf("%d devices\n", data.n);
-	for (i = 0; i < data.n; i++) {
+	data = get_dev(fd);
+	printf("%d devices (info_len=%d)\n", data->n, data->info_len);
+	for (i = 0; i < data->info_len; i++) {
+		devinfo = &data->dev[i];
 		printf("%d node %d eui:%08x%08x status:%d\n",
 			i,
-			data.dst[i],
-			data.eui[i].hi,
-			data.eui[i].lo,
-			data.status[i]
+			devinfo->dst,
+			devinfo->eui.hi,
+			devinfo->eui.lo,
+			devinfo->status
 		);
 	}
+	free((void *)data);
 }
 
 static u_int32_t
@@ -165,29 +173,32 @@ send_phy_config(int fd, int root_node, int gap_count)
 static void
 set_pri_req(int fd, int pri_req)
 {
-	struct fw_devlstreq data;
+	struct fw_devlstreq *data;
+	struct fw_devinfo *devinfo;
 	u_int32_t max, reg, old;
 	int i;
 
-	get_num_of_dev(fd, &data);
+	data = get_dev(fd);
 #define BUGET_REG 0xf0000218
-	for (i = 0; i < data.n; i++) {
-		if (!data.status[i])
+	for (i = 0; i < data->info_len; i++) {
+		devinfo = &data->dev[i];
+		if (!devinfo->status)
 			continue;
-		reg = read_write_quad(fd, data.eui[i], BUGET_REG, 1, 0);
+		reg = read_write_quad(fd, devinfo->eui, BUGET_REG, 1, 0);
 		printf("%d %08x:%08x, %08x",
-			data.dst[i], data.eui[i].hi, data.eui[i].lo, reg);
+			devinfo->dst, devinfo->eui.hi, devinfo->eui.lo, reg);
 		if (reg > 0 && pri_req >= 0) {
 			old = (reg & 0x3f);
 			max = (reg & 0x3f00) >> 8;
 			if (pri_req > max)
 				pri_req =  max;
 			printf(" 0x%x -> 0x%x\n", old, pri_req);
-			read_write_quad(fd, data.eui[i], BUGET_REG, 0, pri_req);
+			read_write_quad(fd, devinfo->eui, BUGET_REG, 0, pri_req);
 		} else {
 			printf("\n");
 		}
 	}
+	free((void *)data);
 }
 
 static void
@@ -205,25 +216,28 @@ get_crom(int fd, int node, void *crom_buf, int len)
 {
 	struct fw_crom_buf buf;
 	int i, error;
-	struct fw_devlstreq data;
+	struct fw_devlstreq *data;
 
-	get_num_of_dev(fd, &data);
+	data = get_dev(fd);
 
-	for (i = 0; i < data.n; i++) {
-		if (data.dst[i] == node && data.eui[i].lo != 0)
+	for (i = 0; i < data->info_len; i++) {
+		if (data->dev[i].dst == node && data->dev[i].eui.lo != 0)
 			break;
 	}
-	if (i != data.n) {
-		buf.eui = data.eui[i];
-	} else {
-		err(1, "no such node: %d\n", node);
-	}
+	if (i == data->info_len)
+		errx(1, "no such node %d.", node);
+	else if (i == 0)
+		errx(1, "node %d is myself.", node);
+	else
+		buf.eui = data->dev[i].eui;
+	free((void *)data);
 
 	buf.len = len;
 	buf.ptr = crom_buf;
 	if ((error = ioctl(fd, FW_GCROM, &buf)) < 0) {
        		err(1, "ioctl");
 	}
+
 	return error;
 }
 
@@ -348,11 +362,16 @@ show_topology_map(int fd)
 int
 main(int argc, char **argv)
 {
-	char devname[] = "/dev/fw1";
+	char devname[256];
 	u_int32_t crom_buf[1024/4];
-	int fd, tmp, ch, len=1024;
+	int fd, i, tmp, ch, len=1024;
 
-	if ((fd = open(devname, O_RDWR)) < 0)
+	for (i = 0; i < 4; i++) {
+		snprintf(devname, sizeof(devname), "/dev/fw%d", i);
+		if ((fd = open(devname, O_RDWR)) >= 0)
+			break;
+	}
+	if (fd < 0)
 		err(1, "open");
 
 	if (argc < 2) {
