@@ -19,7 +19,7 @@ The device is a name such
 as
 .Pa cd0
 or
-.Pa mcd0 .
+.Pa acd0 .
 .Pp
 If no
 .Ar command
@@ -37,15 +37,28 @@ Verbose mode.
 Print as much information as possible.
 .It Fl f Ar device
 Specify a device, such as
-.Pa /dev/cd0c
+.Pa /dev/cd0
 or
-.Pa mcd0 .
+.Pa acd0 .
 Both absolute path and relative to
 .Pa /dev
 filename are possible.
-Suffix
-.Pa c
-is added to the device name if needed.
+The
+.Fl f
+option overrides
+.Ev CDROM .
+If neither
+.Ev CDROM
+nor the
+.Fl f
+option is specified,
+.Nm
+tries opening first
+.Pa /dev/cdrom ,
+then
+.Pa /dev/cd0 ,
+and finally
+.Pa /dev/acd0 .
 .El
 .Pp
 The available commands are listed below.
