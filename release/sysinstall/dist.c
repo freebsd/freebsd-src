@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.10 1995/10/18 00:11:59 jkh Exp $
+ * $Id: dist.c,v 1.36.2.11 1995/10/20 22:34:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -420,7 +420,7 @@ distExtract(char *parent, Distribution *me)
 
     done:
 	if (!status) {
-	    if (optionIsSet(OPT_NO_CONFIRM))
+	    if (variable_get(OPT_NO_CONFIRM))
 		status = TRUE;
 	    else {
 		if (me[i].my_dist) {

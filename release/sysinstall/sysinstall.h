@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.26 1995/10/20 14:25:03 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.27 1995/10/20 15:40:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -126,17 +126,12 @@
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
-#define OPT_NO_CONFIRM		0x0001
-#define OPT_NFS_SECURE		0x0002
-#define OPT_DEBUG		0x0004
-#define OPT_FTP_ACTIVE		0x0008
-#define OPT_FTP_PASSIVE		0x0010
-#define OPT_FTP_RESELECT	0x0020
-#define OPT_FTP_ABORT		0x0040
-#define OPT_SLOW_ETHER		0x0080
-#define OPT_EXPLORATORY_GET	0x0100
-
-#define OPT_DEFAULT_FLAGS	(OPT_FTP_PASSIVE | OPT_FTP_ABORT)
+#define OPT_NO_CONFIRM		"noConfirm"
+#define OPT_NFS_SECURE		"nfsSecure"
+#define OPT_DEBUG		"debug"
+#define OPT_FTP_STATE		"ftpState"
+#define OPT_FTP_ONERROR		"ftpOnError"
+#define OPT_SLOW_ETHER		"slowEthernetCard"
 
 /* The help file for the TCP/IP setup screen */
 #define TCP_HELPFILE		"tcp"
@@ -309,9 +304,7 @@ extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
-extern unsigned int	OptFlags;		/* Global options */
 extern int		BootMgr;		/* Which boot manager to use 			*/
-extern char		*InstallPrefix;		/* A location bias				*/
 
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
@@ -498,6 +491,7 @@ extern int	mediaSetFTPActive(char *str);
 extern int	mediaSetFTPPassive(char *str);
 extern int	mediaSetUFS(char *str);
 extern int	mediaSetNFS(char *str);
+extern int	mediaSetFtpOnError(char *str);
 extern int	mediaSetFtpUserPass(char *str);
 extern int	mediaSetCPIOVerbosity(char *str);
 extern int	mediaGetType(char *str);
@@ -551,8 +545,6 @@ extern void	mediaShutdownNFS(Device *dev);
 
 /* options.c */
 extern int	optionsEditor(char *str);
-extern Boolean	optionIsSet(int opt);
-extern void	optionUnset(int opt);
 
 /* package.c */
 extern int	package_extract(Device *dev, char *name);

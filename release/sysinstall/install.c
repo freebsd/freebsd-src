@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.47 1995/10/20 21:57:11 jkh Exp $
+ * $Id: install.c,v 1.71.2.48 1995/10/20 22:48:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -630,7 +630,6 @@ int
 installVarDefaults(char *unused)
 {
     /* Set default startup options */
-    OptFlags = OPT_DEFAULT_FLAGS;
     variable_set2("routedflags",	"-q");
     variable_set2(RELNAME,		RELEASE_NAME);
     variable_set2(CPIO_VERBOSITY_LEVEL, "high");
@@ -639,6 +638,8 @@ installVarDefaults(char *unused)
     variable_set2(BROWSER_PACKAGE,	"lynx-2.4.2");
     variable_set2(BROWSER_BINARY,	"/usr/local/bin/lynx");
     variable_set2(CONFIG_FILE,		"freebsd.cfg");
+    variable_set2(OPT_FTP_STATE,	"passive");
+    variable_set2(OPT_FTP_ONERROR,	"abort");
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE, "update");
     else
