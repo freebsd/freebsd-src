@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.22 1995/04/10 07:44:25 phk Exp $
+ *	$Id: autoconf.c,v 1.23 1995/04/14 15:13:23 dufault Exp $
  */
 
 /*
@@ -88,7 +88,7 @@ int cd9660_mountroot __P((void));
       #include <pci/pcivar.h>
 #endif
 
-#ifdef BOOTCDROM
+#ifdef CD9660
 /* We need to try out all our potential CDROM drives, so we need a table. */
 static struct {
 	char *name;
@@ -116,7 +116,7 @@ find_cdrom_root()
 		}
 	return EINVAL;
 }
-#endif
+#endif /* CD9660 */
 
 #include "scbus.h"
 #if NSCBUS > 0
@@ -159,16 +159,15 @@ configure()
 	configure_finish();
 
 #ifdef CD9660
-#ifdef BOOTCDROM
-	if (!mountroot) {
+	if ((boothowto & RB_CDROM) && !mountroot)
 		mountroot = find_cdrom_root;
-	}
 #endif
-#endif
+
 #ifdef NFS
 	if (!mountroot && nfs_diskless_valid)
 		mountroot = nfs_mountroot;
 #endif /* NFS */
+
 #ifdef FFS
 	if (!mountroot) {
 		mountroot = ffs_mountroot;
