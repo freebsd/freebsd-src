@@ -409,7 +409,7 @@ configRC_conf(void)
     fclose(rcSite);
     /* Tidy up the resulting file if it's late enough in the installation
 	for sort and uniq to be available */
-    if (file_readable("/usr/bin/sort") && file_readable("/usr/bin/uniq"))
+    if (RunningAsInit && file_readable("/usr/bin/sort") && file_readable("/usr/bin/uniq"))
 	(void)vsystem("sort /etc/rc.conf | uniq > /etc/rc.conf.new && mv /etc/rc.conf.new /etc/rc.conf");
 }
 
