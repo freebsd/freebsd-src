@@ -2794,9 +2794,9 @@ vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 	 */
 	p->p_vmspace = newvmspace;
 	pmap_pinit2(vmspace_pmap(newvmspace));
-	vmspace_free(oldvmspace);
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
+	vmspace_free(oldvmspace);
 }
 
 /*
@@ -2815,9 +2815,9 @@ vmspace_unshare(struct proc *p)
 	newvmspace = vmspace_fork(oldvmspace);
 	p->p_vmspace = newvmspace;
 	pmap_pinit2(vmspace_pmap(newvmspace));
-	vmspace_free(oldvmspace);
 	if (p == curthread->td_proc)		/* XXXKSE ? */
 		pmap_activate(curthread);
+	vmspace_free(oldvmspace);
 }
 
 /*
