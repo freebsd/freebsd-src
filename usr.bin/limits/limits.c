@@ -214,7 +214,7 @@ static struct {
 #define RCS_STRING  "tfdscmlunb"
 
 static rlim_t resource_num(int which, int ch, const char *str);
-static void usage(const char *msg, ...);
+static void usage(void);
 static int getshelltype(void);
 static void print_limit(rlim_t limit, unsigned divisor, const char *inf,
 			const char *pfx, const char *sfx, const char *which);
@@ -266,7 +266,8 @@ main(int argc, char *argv[])
 	    if ((pwd = getpwnam(optarg)) == NULL) {
 		if (!isdigit(*optarg) ||
 		    (pwd = getpwuid(atoi(optarg))) == NULL) {
-		    usage("Invalid user `%s'\n", optarg); 
+		    warnx("invalid user `%s'", optarg);
+		    usage();
 		}
 	    }
 	    break;
@@ -297,7 +298,7 @@ main(int argc, char *argv[])
 	    }
 	    /* FALLTHRU */
 	case '?':
-	    usage(NULL);
+	    usage();
 	}
 	optarg = NULL;
     }
@@ -377,8 +378,10 @@ main(int argc, char *argv[])
      * (perhaps) set environment variables and run a program
      */
     if (*argv) {
-	if (doeval)
-	    usage("-e cannot be used with `cmd' option\n");
+	if (doeval) {
+	    warnx("-e cannot be used with `cmd' option");
+	    usage();
+	}
 
 	login_close(lc);
 
@@ -394,7 +397,7 @@ main(int argc, char *argv[])
 	}
 
 	if (*argv == NULL)
-	    usage(NULL);
+	    usage();
 
 	execvp(*argv, argv);
 	err(1, "%s", *argv);
@@ -450,14 +453,8 @@ main(int argc, char *argv[])
 
 
 static void
-usage(char const *msg, ...)
+usage(void)
 {
-    if (msg) {
-	va_list argp;
-	va_start(argp, msg);
-	vfprintf(stderr, msg, argp);
-	va_end(argp);
-    }
     (void)fprintf(stderr,
 "usage: limits [-C class|-U user] [-eaSHBE] [-bcdflmnstu [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
@@ -567,8 +564,10 @@ resource_num(int which, int ch, const char *str)
 	    s = e;
 	    break;
 	}
-	if (*s)
-	    usage("invalid value -%c `%s'\n", ch, str);
+	if (*s) {
+	    warnx("invalid value -%c `%s'", ch, str);
+	    usage();
+	}
     }
     return res;
 }
