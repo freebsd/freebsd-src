@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.11 1995/03/12 08:17:30 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.12 1995/03/18 06:32:48 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -54,13 +54,12 @@
 #include <sys/syslog.h>
 
 /*
- * Seek sort for disks.  We depend on the driver which calls us using b_resid
- * as the current cylinder number.
+ * Seek sort for disks.
  *
  * The argument ap structure holds a b_actf activity chain pointer on which we
- * keep two queues, sorted in ascending cylinder order.  The first queue holds
- * those requests which are positioned after the current cylinder (in the first
- * request); the second holds requests which came in after their cylinder number
+ * keep two queues, sorted in ascending block order.  The first queue holds
+ * those requests which are positioned after the current block (in the first
+ * request); the second holds requests which came in after their block number
  * was passed.  Thus we implement a one way scan, retracting after reaching the
  * end of the drive to the first request on the second queue, at which time it
  * becomes the first queue.
@@ -68,13 +67,6 @@
  * A one-way scan is natural because of the way UNIX read-ahead blocks are
  * allocated.
  */
-
-/*
- * For portability with historic industry practice, the
- * cylinder number has to be maintained in the `b_resid'
- * field.
- */
-#define	b_cylinder	b_resid
 
 void
 disksort(ap, bp)
