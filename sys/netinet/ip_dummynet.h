@@ -351,7 +351,6 @@ extern	ip_dn_ctl_t *ip_dn_ctl_ptr;
 extern	ip_dn_ruledel_t *ip_dn_ruledel_ptr;
 extern	ip_dn_io_t *ip_dn_io_ptr;
 #define	DUMMYNET_LOADED	(ip_dn_io_ptr != NULL)
-#endif
 
 /*
  * Return the IPFW rule associated with the dummynet tag; if any.
@@ -362,4 +361,5 @@ ip_dn_find_rule(struct mbuf *m)
 	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
 	return mtag ?  ((struct dn_pkt_tag *)(mtag+1))->rule : NULL;
 }
+#endif
 #endif /* _IP_DUMMYNET_H */
