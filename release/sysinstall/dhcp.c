@@ -134,6 +134,8 @@ dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
 	    } else if (!strcasecmp("fixed-address", optname)) {
 		strcpy(ipaddr, optbuf);
 	    } else if (!strcasecmp("routers", optname)) {
+		if((tptr = (char *)strchr(optbuf, ',')))
+		    *tptr = NULL;
 		strcpy(gateway, optbuf);
 	    } else if (!strcasecmp("subnet-mask", optname)) {
 		strcpy(netmask, optbuf);
