@@ -518,7 +518,7 @@ parsecolors(cs)
 				colors[i].num[j] = c[j] - '0';
 				if (!legacy_warn) {
 					fprintf(stderr,
-					    "warn: LSCOLOURS should use "
+					    "warn: LSCOLORS should use "
 					    "characters a-h instead of 0-9 ("
 					    "see the manual page)\n");
 				}
