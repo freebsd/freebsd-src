@@ -1,6 +1,6 @@
 <!--
 
-  $FreeBSD$
+  $Id: docbook-html.ts,v 1.2 1996/12/17 01:48:30 jfieber Exp $
 
   Copyright (C) 1997
        John R. Fieber.  All rights reserved.
@@ -78,6 +78,9 @@ ${_action &r.blkpe;t}</end>'>
 <!ENTITY m.b '<start>&lt;B></start>
 <end>&lt;/B></end>'>
 
+<!ENTITY m.u '<start>&lt;U></start>
+<end>&lt;/U></end>'>
+
 <!-- Rule names (instant(1) only allows cryptic numbers). -->
 
 <!ENTITY r.pass "1">
@@ -104,6 +107,9 @@ ${_action &r.blkpe;t}</end>'>
 
 <!ENTITY r.blkps "50">
 <!ENTITY r.blkpe "51">
+
+<!ENTITY r.hyphen "60">
+<!ENTITY r.nl "61">
 
 <!ENTITY cmap SYSTEM "/usr/share/sgml/transpec/html.cmap">
 <!ENTITY sdata SYSTEM "/usr/share/sgml/transpec/html.sdata">
@@ -161,18 +167,29 @@ ${_action &r.blkpe;t}</end>'>
 <rule> <!-- Keycap used with a meta key to activate a graphical user interface -->
 <match>
 <gi>ACCEL
+<action>
+&m.u;
 </rule>
 
 <rule> <!-- Acknowledgements in an Article -->
 <match>
 <gi>ACKNO
+<action>
+<start>^&lt;P></start>
+<end>&lt;/P>^</end>
 </rule>
 
 <rule> <!-- Pronounceable contraction of initials -->
 <match>
 <gi>ACRONYM
+<content>^[^a-z]*$</content>
 <action>
 <replace>&lt;SMALL>${_! echo "${+content}" | tr "[:lower:]" "[:upper:]"}&lt;/SMALL></replace>
+</rule>
+
+<rule> <!-- Pronounceable contraction of initials -->
+<match>
+<gi>ACRONYM
 </rule>
 
 <rule> <!-- Function invoked in response to a user event -->
@@ -183,6 +200,11 @@ ${_action &r.blkpe;t}</end>'>
 <rule> <!-- Real-world address -->
 <match>
 <gi>ADDRESS
+<action>
+<start>${_action &r.blkps;t}
+&lt;P></start>
+<end>&lt;/P>
+${_action &r.blkpe;t}</end>
 </rule>
 
 <rule> <!-- Author's institutional affiliation -->
@@ -190,6 +212,13 @@ ${_action &r.blkpe;t}</end>'>
 <gi>AFFILIATION
 <action>
 <start>&lt;BR></start>
+</rule>
+
+<rule> <!-- Prose explanation of a nonprose element -->
+<match>
+<gi>ALT
+<action>
+&m.i;
 </rule>
 
 <rule> <!-- Spot in text -->
@@ -235,6 +264,56 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <rule> <!-- Argument in a CmdSynopsis -->
 <match>
 <gi>ARG
+<attval>CHOICE OPT
+<attval>REP NOREPEAT
+<action>
+<start>^[</start>
+<end>]^</end>
+</rule>
+
+<rule> <!-- Argument in a CmdSynopsis -->
+<match>
+<gi>ARG
+<attval>CHOICE OPT
+<action>
+<start>^[</start>
+<end>&amp;nbsp;...&amp;nbsp;]^</end>
+</rule>
+
+<rule> <!-- Argument in a CmdSynopsis -->
+<match>
+<gi>ARG
+<attval>CHOICE REQ
+<attval>REP NOREPEAT
+<action>
+<start>^{</start>
+<end>}^</end>
+</rule>
+
+<rule> <!-- Argument in a CmdSynopsis -->
+<match>
+<gi>ARG
+<attval>CHOICE REQ
+<action>
+<start>^{</start>
+<end>&amp;nbsp;...&amp;nbsp;}^</end>
+</rule>
+
+<rule> <!-- Argument in a CmdSynopsis -->
+<match>
+<gi>ARG
+<attval>REP REPEAT
+<action>
+<start>^</start>
+<end>&amp;nbsp;...^</end>
+</rule>
+
+<rule> <!-- Argument in a CmdSynopsis -->
+<match>
+<gi>ARG
+<action>
+<start>^</start>
+<end>^</end>
 </rule>
 
 <rule> <!-- Metainformation for an Article -->
@@ -242,7 +321,7 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <gi>ARTHEADER
 </rule>
 
-<rule> <!-- Article -->
+<rule> <!-- Article --> 
 <match>
 <gi>ARTICLE
 </rule>
@@ -250,6 +329,13 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <rule> <!-- Page numbers of an Article as published -->
 <match>
 <gi>ARTPAGENUMS
+</rule>
+
+<rule> <!-- Attribution of content for a BlockQuote or Epigraph -->
+<match>
+<gi>ATTRIBUTION
+<action>
+<ignore>all
 </rule>
 
 <rule> <!-- Author of a document -->
@@ -298,6 +384,34 @@ ${_followrel child TITLE &r.pass;} -->^</start>
 <rule> <!-- Untyped information supplied in a BiblioEntry or BookInfo -->
 <match>
 <gi>BIBLIOMISC
+</rule>
+
+<rule> <!-- Entry in a Bibliography -->
+<match>
+<gi>BIBLIOMIXED
+</rule>
+
+<rule> <!-- Container for related bibliographic information -->
+<match>
+<gi>BIBLIOMSET
+</rule>
+
+<rule> <!-- Container for related bibliographic information -->
+<match>
+<gi>BIBLIOSET
+</rule>
+
+<rule> <!-- Quotation set off from the main text, rather than occurring in-line -->
+<match>
+<gi>BLOCKQUOTE
+<relation>child ATTRIBUTION
+<action>
+<start>${_action &r.blkps;t}
+${_action &r.anchor;t}&lt;BLOCKQUOTE></start>
+<end>&lt;P ALIGN=RIGHT>&lt;I>--
+${_followrel child ATTRIBUTION &r.pass;}&lt;/I>&lt;/P>
+&lt;/BLOCKQUOTE>
+${_action &r.blkpe;t}</end>
 </rule>
 
 <rule> <!-- Quotation set off from the main text, rather than occurring in-line -->
@@ -742,8 +856,7 @@ ${_action &r.blkpe;t}</end>
 <match>
 <gi>FOREIGNPHRASE
 <action>
-<start>&lt;EM></start>
-<end>&lt;/EM></end>
+&m.i;
 </rule>
 
 <rule> <!-- Paragraph with a Title -->
@@ -1028,23 +1141,58 @@ ${_action &r.blkpe;t}</end>
             necessarily the same thing as a KeyCode -->
 <match>
 <gi>KEYCAP
+<relation>parent KEYCOMBO
+<action>
+<end>${_relation sibling+1 KEYCAP &r.hyphen;}${_relation sibling+1 KEYSYM &r.hyphen;}${_relation sibling+1 MOUSEBUTTON &r.hyphen;}${_relation sibling+1 KEYCOMBO &r.nl;}</end>
+</rule>
+
+<rule> <!-- Text printed on a physical key on a computer keyboard, not
+            necessarily the same thing as a KeyCode -->
+<match>
+<gi>KEYCAP
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Computer's numeric designation of a key on a computer
             keyboard -->
 <match>
 <gi>KEYCODE
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Combination of input actions -->
 <match>
 <gi>KEYCOMBO
+<relation>parent KEYCOMBO
+<relation>sibling+1 KEYCOMBO
+<action>
+<end>^</end>
+</rule>
+
+<rule> <!-- Combination of input actions -->
+<match>
+<gi>KEYCOMBO
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Key symbol name, which is not necessarily the same thing as a
             Keycap -->
 <match>
 <gi>KEYSYM
+<relation>parent KEYCOMBO
+<action>
+<end>${_relation sibling+1 KEYCAP &r.hyphen;}${_relation sibling+1 KEYSYM &r.hyphen;}${_relation sibling+1 MOUSEBUTTON &r.hyphen;}${_relation sibling+1 KEYCOMBO &r.nl;}</end>
+</rule>
+
+<rule> <!-- Key symbol name, which is not necessarily the same thing as a
+            Keycap -->
+<match>
+<gi>KEYSYM
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Statement of legal obligations or requirements -->
@@ -1181,6 +1329,16 @@ ${_action &r.blkpe;t}</end>
 <rule> <!-- Conventional name of a mouse button -->
 <match>
 <gi>MOUSEBUTTON
+<relation>parent KEYCOMBO
+<action>
+<end>${_relation sibling+1 KEYCAP &r.hyphen;}${_relation sibling+1 KEYSYM &r.hyphen;}${_relation sibling+1 MOUSEBUTTON &r.hyphen;}${_relation sibling+1 KEYCOMBO &r.nl;}</end>
+</rule>
+
+<rule> <!-- Conventional name of a mouse button -->
+<match>
+<gi>MOUSEBUTTON
+<action>
+&m.tt;
 </rule>
 
 <rule> <!-- Error message and its subparts, along with explanatory text, in a
@@ -2085,6 +2243,15 @@ with its
 <do>&r.admon;
 </rule>
 
+<rule> <!-- Text of a heading or the title of a block-oriented element -->
+<match>
+<gi>TITLE
+<relation>parent BLOCKQUOTE
+<action>
+<start>^&lt;H4>&hlofont;</start>
+<end>&hlcfont;&lt;/H4>^</end>
+</rule>
+
 <!-- Titles in the preface -->
 
 <rule> <!-- Text of a heading or the title of a block-oriented element -->
@@ -2619,6 +2786,22 @@ ${_find top gi FOOTNOTE &r.fnotei;}
 <relation>parent PARA
 <action>
 <replace>^&lt;P></replace>
+</rule>
+
+<!-- Simply output a hyphen -->
+<rule id="&r.hyphen;">
+<match>
+<gi>_hyphen
+<action>
+<replace>-</replace>
+</rule>
+
+<!-- Force a linebreak -->
+<rule id="&r.nl;">
+<match>
+<gi>_hyphen
+<action>
+<replace>^</replace>
 </rule>
 
 </transpec>
