@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)socket.2	8.1 (Berkeley) 6/4/93
+.\"     From: @(#)socket.2	8.1 (Berkeley) 6/4/93
+.\"	$Id$
 .\"
-.Dd June 4, 1993
+.Dd February 15, 1995
 .Dt SOCKET 2
 .Os BSD 4.2
 .Sh NAME
@@ -56,11 +57,12 @@ These families are defined in the include file
 The currently understood formats are
 .Pp
 .Bd -literal -offset indent -compact
-AF_UNIX		(UNIX internal protocols),
-AF_INET		(ARPA Internet protocols),
-AF_ISO		(ISO protocols),
-AF_NS		(Xerox Network Systems protocols), and
-AF_IMPLINK	(IMP \*(lqhost at IMP\*(rq link layer).
+PF_LOCAL	(Host-internal protocols, formerly called PF_UNIX),
+PF_INET		(ARPA Internet protocols),
+PF_ISO		(ISO protocols),
+PF_CCITT	(ITU-T protocols, like X.25),
+PF_NS		(Xerox Network Systems protocols), and
+.\"PF_IMPLINK	(IMP \*(lqhost at IMP\*(rq link layer).
 .Ed
 .Pp
 The socket has the indicated
@@ -123,7 +125,8 @@ to pipes.  A stream socket must be in a
 state before any data may be sent or received
 on it.  A connection to another socket is created with a
 .Xr connect 2
-call.  Once connected, data may be transferred using
+call.
+Once connected, data may be transferred using
 .Xr read 2
 and
 .Xr write 2
@@ -131,7 +134,15 @@ calls or some variant of the
 .Xr send 2
 and
 .Xr recv 2
-calls.  When a session has been completed a
+calls.
+(Some protocol families, such as the Internet family,
+support the notion of an
+.Dq implied connect,
+which permits data to be sent piggybacked onto a connect operation by
+using the
+.Xr sendto 2
+call.)
+When a session has been completed a
 .Xr close 2
 may be performed.
 Out-of-band data may also be transmitted as described in
@@ -244,11 +255,13 @@ The socket cannot be created until sufficient resources are freed.
 .Xr write 2
 .Rs
 .%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"
-.%O "reprinted in UNIX Programmer's Supplementary Documents Volume 1"
+.%B PS1
+.%N 7
 .Re
 .Rs
 .%T "BSD Interprocess Communication Tutorial"
-.%O "reprinted in UNIX Programmer's Supplementary Documents Volume 1"
+.%B PS1
+.%N 8
 .Re
 .Sh HISTORY
 The
