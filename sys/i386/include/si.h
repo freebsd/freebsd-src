@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.h,v 1.5 1995/11/09 21:53:48 peter Exp $
+ *	$Id: si.h,v 1.6 1995/11/28 02:07:31 peter Exp $
  */
 
 /*
@@ -68,8 +68,9 @@
 #define	SI_CONTROLDEV_MASK	0x40000
 #define	SI_SPECIAL_MASK		0x70000
 
+#define SI_CARDSHIFT		5
 #define	SI_PORT(m)		(m & SI_PORT_MASK)
-#define	SI_CARD(m)		((m & SI_CARD_MASK) >> 5)
+#define	SI_CARD(m)		((m & SI_CARD_MASK) >> SI_CARDSHIFT)
 #define	SI_TTY(m)		(m & SI_TTY_MASK)
 
 #define	IS_CALLOUT(m)		(m & SI_CALLOUT_MASK)
@@ -88,6 +89,10 @@
 #define	SI2		2
 #define	SIHOST2		3
 #define	SIEISA		4
+#define SIPCI		5
+#define SIJETPCI	6
+#define SIJETISA	7
+
 
 /* Buffer parameters */
 #define	SI_BUFFERSIZE	256
