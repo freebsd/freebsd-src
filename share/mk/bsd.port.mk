@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.15 1997/02/23 13:27:21 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.16 1997/03/06 08:33:14 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -115,7 +115,7 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # RESTRICTED	- Port is restricted.  Set this string to the reason why.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
-# USE_X11		- Says that the port uses X11.
+# USE_X11		- Says that the port uses X11 (i.e., installs in ${X11BASE}).
 # NO_INSTALL_MANPAGES - For imake ports that don't like the install.man
 #						target.
 # HAS_CONFIGURE	- Says that the port has its own configure script.
@@ -479,26 +479,26 @@ ALL_TARGET?=		all
 INSTALL_TARGET?=	install
 
 # Popular master sites
-MASTER_SITE_XCONTRIB?=	\
-	ftp://ftp.x.org/contrib/${MASTER_SITE_SUBDIR}/ \
-	ftp://crl.dec.com/pub/X11/contrib/${MASTER_SITE_SUBDIR}/
+MASTER_SITE_XCONTRIB+=	\
+	ftp://crl.dec.com/pub/X11/contrib/${MASTER_SITE_SUBDIR}/ \
+    ftp://ftp.eu.net/X11/contrib/${MASTER_SITE_SUBDIR}/
 
-MASTER_SITE_GNU?=	\
+MASTER_SITE_GNU+=	\
 	ftp://prep.ai.mit.edu/pub/gnu/${MASTER_SITE_SUBDIR}/ \
 	ftp://wuarchive.wustl.edu/systems/gnu/${MASTER_SITE_SUBDIR}/
 
-MASTER_SITE_PERL_CPAN?=	\
+MASTER_SITE_PERL_CPAN+=	\
 	ftp://ftp.digital.com/pub/plan/perl/CPAN/modules/by-module/${MASTER_SITE_SUBDIR}/ \
 	ftp://ftp.cdrom.com/pub/perl/CPAN/modules/by-module/${MASTER_SITE_SUBDIR}/
 
-MASTER_SITE_TEX_CTAN?=  \
+MASTER_SITE_TEX_CTAN+=  \
         ftp://ftp.cdrom.com/pub/tex/ctan/${MASTER_SITE_SUBDIR}/  \
         ftp://wuarchive.wustl.edu/packages/TeX/${MASTER_SITE_SUBDIR}/  \
         ftp://ftp.funet.fi/pub/TeX/CTAN/${MASTER_SITE_SUBDIR}/  \
         ftp://ftp.tex.ac.uk/public/ctan/tex-archive/${MASTER_SITE_SUBDIR}/  \
         ftp://ftp.dante.de/tex-archive/${MASTER_SITE_SUBDIR}/
 
-MASTER_SITE_SUNSITE?=	\
+MASTER_SITE_SUNSITE+=	\
 	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
 	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/${MASTER_SITE_SUBDIR}/ \
 	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
@@ -676,6 +676,8 @@ IGNORE=	"does not require Motif"
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
 IGNORE=	"is restricted: ${RESTRICTED}"
+.elif ((defined(USE_IMAKE) || defined(USE_X11)) && !exists(${X11BASE}))
+IGNORE=	"uses X11, but ${X11BASE} not found"
 .elif defined(BROKEN)
 IGNORE=	"is marked as broken: ${BROKEN}"
 .endif
@@ -1236,7 +1238,7 @@ distclean: pre-distclean clean
 		${RM} -f ${DISTFILES} ${PATCHFILES}; \
 	fi)
 .if defined(DIST_SUBDIR)
-	@${RMDIR} ${_DISTDIR}  
+	-@${RMDIR} ${_DISTDIR}  
 .endif
 .endif
 
