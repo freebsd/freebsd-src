@@ -7,8 +7,8 @@ SUBDIR=	ac accton amd arp chown chroot cron crunch dbsym dev_mkdb \
 	diskpart edquota inetd kbdcontrol kgmon kvm_mkdb lpr manctl \
 	mtree mrouted named nslookup pkg_install portmap pstat  \
 	pwd_mkdb quotaon repquota routed rmt rwhod sa sendmail sliplogin \
-	sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw xntpd \
-	ypbind yppoll ypset zic
+	slstat sysctl syslogd tcpdump timed traceroute trpt tzsetup vipw \
+	xntpd ypbind yppoll ypset zic
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
