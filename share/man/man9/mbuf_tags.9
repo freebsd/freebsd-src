@@ -1,8 +1,10 @@
 .\"	$OpenBSD: mbuf_tags.9,v 1.18 2003/12/08 07:07:35 mcbride Exp $
 .\"
-.\" The authors of this man page are Angelos D. Keromytis (angelos@cis.upenn.edu)
-.\" and Gleb Smirnoff <glebius@cell.sick.ru>
+.\" The authors of this man page are Angelos D. Keromytis
+.\" (angelos@cis.upenn.edu), Gleb Smirnoff <glebius@cell.sick.ru>, and
+.\" Robert Watson <rwatson@FreeBSD.org>
 .\"
+.\" Copyright (c) 2004 Robert N. M. Watson
 .\" Copyright (c) 2001 Angelos D. Keromytis
 .\"
 .\" Permission to use, copy, and modify this software with or without
@@ -57,6 +59,31 @@
 .Ft void
 .Fn m_tag_unlink "struct mbuf *m" "struct m_tag *t"
 .Sh DESCRIPTION
+Mbuf tags allow additional meta-data to be associated with in-flight packets
+by providing a mechanism for the tagging of additional kernel memory onto
+packet header mbufs.
+Tags are maintained in chains off of the
+.Xr mbuf 9
+header, and maintained using a series of API calls to allocate, search, and
+delete tags.
+Tags are identified using an ID and cookie that uniquely identifier a class
+of data tagged onto the packet, and may contain an arbitrary amount of
+additional storage.
+Typical uses of mbuf tags include the storage of VLAN tags as described in
+.Xr vlan 4 ,
+Mandatory Access Control (MAC) labels as described in
+.Xr mac 9 ,
+IPsec policy information as described in
+.Xr ipsec 4 ,
+and packet filter tags used by
+.Xr pf 4 .
+.Pp
+Tags will be maintained across a variety of operations, including the copying
+of packet headers using facilities such as M_COPY_PKTHDR and M_MOVE_PKTHDR.
+Any tags associated with an mbuf header will be automatically freed when the
+mbuf is freed, although some subsystems will wish to delete the tags prior
+to that time.
+.Pp
 Packet tags are used by different kernel APIs
 to keep track of operations done or
 scheduled to happen to packets.
