@@ -2022,7 +2022,7 @@ ti_probe(dev)
 		if ((pci_get_vendor(dev) == t->ti_vid) &&
 		    (pci_get_device(dev) == t->ti_did)) {
 			device_set_desc(dev, t->ti_name);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}

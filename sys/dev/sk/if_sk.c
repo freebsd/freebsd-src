@@ -1243,7 +1243,7 @@ skc_probe(dev)
 		if ((pci_get_vendor(dev) == t->sk_vid) &&
 		    (pci_get_device(dev) == t->sk_did)) {
 			device_set_desc(dev, t->sk_name);
-			return(0);
+			return (BUS_PROBE_DEFAULT);
 		}
 		t++;
 	}
@@ -1321,7 +1321,7 @@ sk_probe(dev)
 		break;
 	}
 
-	return(0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 /*

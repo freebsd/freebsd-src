@@ -4994,7 +4994,7 @@ tulip_pci_probe(device_t dev)
     }
     if (name) {
 	device_set_desc(dev, name);
-	return -200;
+	return BUS_PROBE_LOW_PRIORITY;
     }
     return ENXIO;
 }
