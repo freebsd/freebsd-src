@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.2 1995/12/14 09:53:56 phk Exp $
+ *	$Id: bt9xx.c,v 1.3 1995/12/14 14:19:19 peter Exp $
  */
 
 #include <pci.h>
@@ -40,7 +40,6 @@
 
 static char* bt_pci_probe __P((pcici_t tag, pcidi_t type));
 static void bt_pci_attach __P((pcici_t config_id, int unit));
-static int bt_pci_intr __P((void *arg));
 
 static struct  pci_device bt_pci_driver = {
 	"bt",
@@ -86,7 +85,7 @@ bt_pci_attach(config_id, unit)
 	if(!(bt = bt_alloc(unit, io_port)))
 		return;  /* XXX PCI code should take return status */
 
-	if(!(pci_map_int(config_id, bt_pci_intr, (void *)bt, &bio_imask))) {
+	if(!(pci_map_int(config_id, bt_intr, (void *)bt, &bio_imask))) {
 		bt_free(bt);
 		return;
 	}
@@ -111,23 +110,5 @@ bt_pci_attach(config_id, unit)
 	splx(opri);
 	return;
 }
-
-
-/*      
- * Handle an PCI interrupt.
- * XXX should go away as soon as PCI interrupt handlers
- * return void.
- */
-static int
-bt_pci_intr(arg)
-	void *arg;
-{       
-        bt_intr(arg);
-	return (1);  /*
-		      * XXX: Always say we handle the interrupt.
-		      * won't work with edge-triggered ints.
-		      */
-}
-
 
 #endif /* NPCI > 0 */

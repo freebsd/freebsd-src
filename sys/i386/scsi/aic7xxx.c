@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.52 1996/01/05 16:13:44 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.53 1996/01/07 19:24:31 gibbs Exp $
  */
 /*
  * TODO:
@@ -497,8 +497,8 @@ void ahc_add_waiting_scb (iobase, scb, where)
 /*
  * Catch an interrupt from the adaptor
  */
-int
-ahcintr(arg)
+void
+ahc_intr(arg)
         void *arg;
 {
 	int     intstat;
@@ -515,7 +515,7 @@ ahcintr(arg)
 	 * someone who is sharing my interrupt
 	 */
 	if (!(intstat & INT_PEND))
-		return 0;
+		return;
 
         if (intstat & BRKADRINT) {
 		/* We upset the sequencer :-( */
@@ -811,7 +811,7 @@ ahcintr(arg)
 			   */
 			  outb(RETURN_1 + iobase, 0);
 		 	  if (!scb || !(scb->flags & SCB_ACTIVE)) {
-                              printf("ahc%d:%c:%d: ahcintr - referenced scb "
+                              printf("ahc%d:%c:%d: ahc_intr - referenced scb "
 				     "not valid during seqint 0x%x scb(%d)\n", 
 				     ahc->unit, channel, target, intstat,
 				     scb_index);
@@ -1012,7 +1012,7 @@ ahcintr(arg)
 				outb(MSG_LEN + iobase, 1);
 			}
 			else
-				panic("ahcintr: AWAITING_MSG for an SCB that"
+				panic("ahc_intr: AWAITING_MSG for an SCB that"
 					"does not have a waiting message");
 			break;
 		  }
@@ -1052,7 +1052,7 @@ ahcintr(arg)
 #endif
 			}
 			else
-				panic("ahcintr: Immediate complete for "
+				panic("ahc_intr: Immediate complete for "
 				      "unknown operation.");
 			break;
 		  }
@@ -1092,7 +1092,7 @@ clear:
 
                 scb = ahc->scbarray[scb_index];
                 if (!scb || !(scb->flags & SCB_ACTIVE)) {
-			printf("ahc%d: ahcintr - referenced scb not "
+			printf("ahc%d: ahc_intr - referenced scb not "
 			       "valid during scsiint 0x%x scb(%d)\n",
 				ahc->unit, status, scb_index);
                         outb(CLRSINT1 + iobase, status);
@@ -1234,14 +1234,6 @@ cmdcomplete:
 
                 } while (inb(QOUTCNT + iobase));
         }
-	return 1;
-}
-
-void
-ahc_eisa_intr(arg)
-	void *arg;
-{
-	ahcintr(arg);
 }
 
 /*

@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.20 1995/12/14 23:23:48 bde Exp $
+ *	$Id: aic7770.c,v 1.21 1996/01/03 06:28:00 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -188,7 +188,7 @@ aic7770_attach(e_dev)
 	 * The IRQMS bit enables level sensitive interrupts only allow
 	 * IRQ sharing if its set.
 	 */
-	if(eisa_reg_intr(e_dev, irq, ahc_eisa_intr, (void *)ahc, &bio_imask,
+	if(eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &bio_imask,
 			 /*shared ==*/ahc->pause & IRQMS)) {
 		ahc_free(ahc);
 		return -1;
@@ -307,7 +307,7 @@ aic7770_attach(e_dev)
 		 * The board's IRQ line is not yet enabled so its safe
 		 * to release the irq.
 		 */
-		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
+		eisa_release_intr(e_dev, irq, ahc_intr);
 		return -1;
 	}
 
@@ -321,7 +321,7 @@ aic7770_attach(e_dev)
 	 */
 	if(eisa_enable_intr(e_dev, irq)) {
 		ahc_free(ahc);
-		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
+		eisa_release_intr(e_dev, irq, ahc_intr);
 		return -1;
 	}
 
