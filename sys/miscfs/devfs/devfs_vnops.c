@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.25 1996/09/10 08:27:39 bde Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.26 1996/09/11 07:52:18 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -555,7 +555,7 @@ DBPRINT(("getattr\n"));
 	vap->va_fileid = (long)file_node;
 	vap->va_size = file_node->len; /* now a u_quad_t */
 	vap->va_blocksize = 512;
-	if(file_node->ctime.ts_sec)
+	if(file_node->ctime.tv_sec)
 	{
 		vap->va_ctime = file_node->ctime;
 	}
@@ -563,7 +563,7 @@ DBPRINT(("getattr\n"));
 	{
 		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_ctime));
 	}
-	if(file_node->mtime.ts_sec)
+	if(file_node->mtime.tv_sec)
 	{
 		vap->va_mtime = file_node->mtime;
 	}
@@ -571,7 +571,7 @@ DBPRINT(("getattr\n"));
 	{
 		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_mtime));
 	}
-	if(file_node->atime.ts_sec)
+	if(file_node->atime.tv_sec)
 	{
 		vap->va_atime = file_node->atime;
 	}
@@ -617,7 +617,7 @@ DBPRINT(("setattr\n"));
 	    (vap->va_rdev != VNOVAL)  ||
 	    (vap->va_bytes != VNOVAL)  ||
 	    (vap->va_gen != VNOVAL)  ||
-	    (vap->va_atime.ts_sec != VNOVAL))
+	    (vap->va_atime.tv_sec != VNOVAL))
 	{
 		return EINVAL;
 	}
@@ -625,17 +625,17 @@ DBPRINT(("setattr\n"));
 	if (vap->va_size != VNOVAL) {
 			return error;	/*XXX (?) */
 	}
-	if (vap->va_atime.ts_sec != VNOVAL)
+	if (vap->va_atime.tv_sec != VNOVAL)
 	{
 		file_node->atime = vap->va_atime;
 	}
 
-	if (vap->va_mtime.ts_sec != VNOVAL)
+	if (vap->va_mtime.tv_sec != VNOVAL)
 	{
 		file_node->mtime = vap->va_mtime;
 	}
 
-	if (vap->va_ctime.ts_sec != VNOVAL)
+	if (vap->va_ctime.tv_sec != VNOVAL)
 	{
 		file_node->ctime = vap->va_ctime;
 	}
