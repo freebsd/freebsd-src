@@ -997,9 +997,9 @@ ess_attach(device_t dev)
 		goto no;
     	}
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx,0x%lx,0x%lx irq %ld",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx,0x%lx,0x%lx irq %ld %s",
     	     	rman_get_start(sc->io), rman_get_start(sc->sb), rman_get_start(sc->vc),
-		rman_get_start(sc->irq));
+		rman_get_start(sc->irq),PCM_KLDSTRING(snd_solo));
 
     	if (pcm_register(dev, sc, 1, 1))
 		goto no;

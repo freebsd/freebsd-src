@@ -924,9 +924,9 @@ es_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld",
+	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
 		 (es->regtype == SYS_RES_IOPORT)? "io" : "memory",
-		 rman_get_start(es->reg), rman_get_start(es->irq));
+		 rman_get_start(es->reg), rman_get_start(es->irq),PCM_KLDSTRING(snd_es137x));
 
 	if (pcm_register(dev, es, 1, 1)) goto bad;
 	pcm_addchan(dev, PCMDIR_REC, ct, es);

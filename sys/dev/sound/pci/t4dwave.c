@@ -860,8 +860,8 @@ tr_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	snprintf(status, 64, "at io 0x%lx irq %ld",
-		 rman_get_start(tr->reg), rman_get_start(tr->irq));
+	snprintf(status, 64, "at io 0x%lx irq %ld %s",
+		 rman_get_start(tr->reg), rman_get_start(tr->irq),PCM_KLDSTRING(snd_t4dwave));
 
 	if (pcm_register(dev, tr, TR_MAXPLAYCH, 1)) goto bad;
 	pcm_addchan(dev, PCMDIR_REC, &trrchan_class, tr);

@@ -878,8 +878,8 @@ sv_attach(device_t dev) {
         pcm_addchan(dev, PCMDIR_PLAY, &svpchan_class, sc);
         pcm_addchan(dev, PCMDIR_REC,  &svrchan_class, sc);
 
-        snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld",
-                 rman_get_start(sc->enh_reg),  rman_get_start(sc->irq));
+        snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld %s",
+                 rman_get_start(sc->enh_reg),  rman_get_start(sc->irq),PCM_KLDSTRING(snd_vibes));
         pcm_setstatus(dev, status);
 
         DEB(printf("sv_attach: succeeded\n"));

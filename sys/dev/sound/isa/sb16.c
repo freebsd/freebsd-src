@@ -824,9 +824,10 @@ sb16_attach(device_t dev)
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %ud",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %ud %s",
     	     	rman_get_start(sb->io_base), rman_get_start(sb->irq),
-		rman_get_start(sb->drq1), status2, sb->bufsize);
+		rman_get_start(sb->drq1), status2, sb->bufsize,
+		PCM_KLDSTRING(snd_sb16));
 
     	if (pcm_register(dev, sb, 1, 1))
 		goto no;
