@@ -56,20 +56,10 @@ init_vars() {	# OK
     # BUILDDIR is the build directory, which is the current one.
 
     SRC=${SRC:-/usr/src}
-    OBJ=${OBJ:-/usr/obj-pico}
+    OBJ=${OBJ:-${SRC}/usr/obj-pico}
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     START_DIR=`pwd`
 
-    # select the right memory disk name
-    case `uname -r` in
-	5.*)
-	    VN="md"
-	    MAKEDEV="${SRC}/etc/MAKEDEV"
-	    ;;
-	*)
-	    VN="vn"
-	    MAKEDEV="/dev/MAKEDEV"
-    esac
 
     # Various temporary files and directories.
     # User replies will be put in $RISU
@@ -150,6 +140,7 @@ clean_tree() {
 
 # free as much as possible from the vnode
 free_vnode() {
+    log "free_vnode, VN is ${VN} "
     umount ${MFS_MOUNTPOINT}    2> /dev/null || true
     umount /dev/${VNDEV}       2> /dev/null || true
     if [ "${VN}" = "vn" ] ; then
@@ -667,54 +658,84 @@ fill_floppy_image() {
     rm ${BUILDDIR}/kernel.gz ${BUILDDIR}/${MFS_NAME}
 }
 
+#
+# this code creates variables to point to the correct
+# source tree, and optionally initializes it.
+init_src_tree() {
+    if [ "${src}" = "" ] ; then
+	return
+    fi
+    SRC=${src}
+    log "using src tree in ${SRC}, init ${init_src}"
+    if [ "${init_src}" != "" ] ; then
+	# Optionally creates include directory and libraries.
+	mkdir -p ${SRC}/usr/include	# the include directory...
+	mkdir -p ${SRC}/usr/share/misc	# a few things go here
+	mkdir -p ${SRC}/usr/lib		# libraries
+
+	(cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${SRC} \
+		make includes ) || fail $? includes
+	# libraries already have the include path in the Makefile
+	CFLAGS="-nostdinc" ; export CFLAGS
+
+	(cd ${SRC}
+	    # $e is the invocation of make with correct environment
+	    e="MAKEOBJDIRPREFIX=${SRC}/usr/obj-pico/picobsd/libraries \
+		INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${SRC} \
+		make -DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
+	    # need to 'make obj' in a few places. This is very
+	    # version-specific... The following works for 5.0
+	    for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
+		    gnu/usr.bin/perl usr.bin/lex  ; do
+		(cd ${i}; eval $e obj)
+	    done
+	    # now make the static libraries
+	    eval $e -DNOPROFILE -DNOPIC libraries
+	) || fail $? "libraries"
+	log "libraries done"
+    fi
+    # pass the right LIBS and CFLAGS to the Makefile,
+    # and build the config program
+    LIBS="-L${SRC}/usr/lib"
+    CFLAGS="-nostdinc -I${SRC}/usr/include"
+    export LIBS CFLAGS
+    (cd ${SRC}/usr.sbin/config ; CFLAGS="" make )
+    CONFIG=${SRC}/usr.sbin/config/config
+}
+
+# set some default values for variables.
+# needs to be done as the first thing in the script.
+
+default_vars() {
+    verbose=""
+    TAR_VERBOSE=""
+    CONFIG=config
+    src=""		# not set by user
+    init_src=""
+    # select the right memory disk name
+    case `uname -r` in
+	5.*)
+	    VN="md"
+	    MAKEDEV="${SRC}/etc/MAKEDEV"
+	    ;;
+	*)
+	    VN="vn"
+	    MAKEDEV="/dev/MAKEDEV"
+    esac
+}
+
 #-------------------------------------------------------------------
 # Main entry of the script
-
-verbose=""
-TAR_VERBOSE=""
-CONFIG=config
-
+default_vars
 while [ true ]; do
     case $1 in
     --src)	# set the source path instead of /usr/src
-	SRC=$2
-	if [ "$3" = "--init" ] ; then
-	    shift
-	    # Optionally creates include directory and libraries.
-	    mkdir -p ${SRC}/usr/include		# the include directory...
-	    mkdir -p ${SRC}/usr/share/misc	# a few things go here
-	    mkdir -p ${SRC}/usr/lib		# libraries
-
-	    (cd ${SRC}; INCOWN=`id -un` DESTDIR=${SRC} make includes ) || \
-		fail $? includes
-	    # libraries already have the include path in the Makefile
-	    CFLAGS="-nostdinc" ; export CFLAGS
-
-	    (cd ${SRC}
-		# $e is the invocation of make with correct environment
-		e="MAKEOBJDIRPREFIX=/usr/obj-pico/picobsd/libraries \
-		    BINOWN=`id -un` DESTDIR=${SRC} \
-		    make -DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
-		# need to 'make obj' in a few places. This is very
-		# version-specific... The following works for 5.0
-		for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
-			gnu/usr.bin/perl usr.bin/lex  ; do
-		    (cd ${i}; eval $e obj)
-		done
-		# now make the static libraries
-		eval $e -DNOPROFILE -DNOPIC libraries
-	    ) || fail $? "libraries"
-	    log "libraries done"
-	fi
-	# pass the right LIBS and CFLAGS to the Makefile,
-	# and build the config program
-	LIBS="-L${SRC}/usr/lib"
-	CFLAGS="-nostdinc -I${SRC}/usr/include"
-	export LIBS CFLAGS
-	(cd ${SRC}/usr.sbin/config ; CFLAGS="" make )
-	CONFIG=${SRC}/usr.sbin/config/config
-
+	src=$2
 	shift
+	if [ "$2" = "--init" ] ; then
+	    init_src=$2
+	    shift
+	fi
 	;;
 
     --floppy_size)
@@ -740,7 +761,8 @@ while [ true ]; do
     esac
     shift
 done
-init_vars
+init_src_tree	# possibly a nop. Needs to be done before init_vars
+init_vars	# set other variables depending on cmdline args.
 
 THETYPE=$1
 SITE=$2
