@@ -111,8 +111,8 @@ edit1(msgvec, type)
 		sigint = signal(SIGINT, SIG_IGN);
 		fp = run_editor(setinput(mp), mp->m_size, type, readonly);
 		if (fp != NULL) {
-			(void)fseek(otf, 0L, 2);
-			size = ftell(otf);
+			(void)fseeko(otf, (off_t)0, SEEK_END);
+			size = ftello(otf);
 			mp->m_block = blockof(size);
 			mp->m_offset = boffsetof(size);
 			mp->m_size = fsize(fp);

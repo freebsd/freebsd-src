@@ -458,7 +458,7 @@ mesedit(fp, c)
 	FILE *nf = run_editor(fp, (off_t)-1, c, 0);
 
 	if (nf != NULL) {
-		(void)fseek(nf, 0L, 2);
+		(void)fseeko(nf, (off_t)0, SEEK_END);
 		collf = nf;
 		(void)Fclose(fp);
 	}
@@ -508,7 +508,7 @@ mespipe(fp, cmd)
 	/*
 	 * Take new files.
 	 */
-	(void)fseek(nf, 0L, 2);
+	(void)fseeko(nf, (off_t)0, SEEK_END);
 	collf = nf;
 	(void)Fclose(fp);
 out:
