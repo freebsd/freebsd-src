@@ -80,6 +80,8 @@ static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int kern_execve(struct thread *td, char *fname, char **argv,
 	char **envv, struct mac *mac_p);
+static int do_execve(struct thread *td, char *fname, char **argv,
+	char **envv, struct mac *mac_p);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
@@ -205,6 +207,44 @@ __mac_execve(td, uap)
 #endif
 }
 
+static int
+kern_execve(td, fname, argv, envv, mac_p)
+	struct thread *td;
+	char *fname;
+	char **argv;
+	char **envv;
+	struct mac *mac_p;
+{
+	struct proc *p = td->td_proc;
+	int error;
+
+	if (p->p_flag & P_HADTHREADS) {
+		PROC_LOCK(p);
+		if (thread_single(SINGLE_BOUNDARY)) {
+			PROC_UNLOCK(p);
+			return (ERESTART);	/* Try again later. */
+		}
+		PROC_UNLOCK(p);
+	}
+
+	error = do_execve(td, fname, argv, envv, mac_p);
+
+	if (p->p_flag & P_HADTHREADS) {
+		PROC_LOCK(p);
+		/*
+		 * If success, we upgrade to SINGLE_EXIT state to
+		 * force other threads to suicide.
+		 */
+		if (error == 0)
+			thread_single(SINGLE_EXIT);		
+		else
+			thread_single_end();
+		PROC_UNLOCK(p);
+	}
+
+	return (error);
+}
+
 /*
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
@@ -212,7 +252,7 @@ __mac_execve(td, uap)
  * MPSAFE
  */
 static int
-kern_execve(td, fname, argv, envv, mac_p)
+do_execve(td, fname, argv, envv, mac_p)
 	struct thread *td;
 	char *fname;
 	char **argv;
@@ -254,17 +294,6 @@ kern_execve(td, fname, argv, envv, mac_p)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
-	if (p->p_flag & P_HADTHREADS) {
-		if (thread_single(SINGLE_EXIT)) {
-			PROC_UNLOCK(p);
-			mtx_unlock(&Giant);
-			return (ERESTART);	/* Try again later. */
-		}
-		/*
-		 * If we get here all other threads are dead,
-		 * and threading mode has been turned off
-		 */
-	}
 	p->p_flag |= P_INEXEC;
 	PROC_UNLOCK(p);
 
@@ -625,9 +654,13 @@ interpret:
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
 	 * can be set before the program executes.
+	 * Use tdsignal to deliver signal to current thread, use
+	 * psignal may cause the signal to be delivered to wrong thread
+	 * because that thread will exit, remember we are going to enter
+	 * single thread mode.
 	 */
 	if (p->p_flag & P_TRACED)
-		psignal(p, SIGTRAP);
+		tdsignal(td, SIGTRAP, SIGTARGET_TD);
 
 	/* clear "fork but no exec" flag, as we _are_ execing */
 	p->p_acflag &= ~AFORK;

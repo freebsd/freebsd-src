@@ -741,7 +741,7 @@ thread_unlink(struct thread *td)
  * any sleeping threads that are interruptable. (PCATCH).
  */
 int
-thread_single(int force_exit)
+thread_single(int mode)
 {
 	struct thread *td;
 	struct thread *td2;
@@ -758,36 +758,53 @@ thread_single(int force_exit)
 		return (0);
 
 	/* Is someone already single threading? */
-	if (p->p_singlethread)
+	if (p->p_singlethread != NULL && p->p_singlethread != td)
 		return (1);
 
+	if (mode == SINGLE_EXIT) {
+		p->p_flag |= P_SINGLE_EXIT;
+		p->p_flag &= ~P_SINGLE_BOUNDARY;
+	} else {
+		p->p_flag &= ~P_SINGLE_EXIT;
+		if (mode == SINGLE_BOUNDARY)
+			p->p_flag |= P_SINGLE_BOUNDARY;
+		else
+			p->p_flag &= ~P_SINGLE_BOUNDARY;
+	}
 	p->p_flag |= P_STOPPED_SINGLE;
 	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = td;
-	if (force_exit == SINGLE_EXIT) {
+	if (mode == SINGLE_EXIT)
 		remaining = p->p_numthreads;
-		p->p_flag |= P_SINGLE_EXIT;
-	} else {
+	else if (mode == SINGLE_BOUNDARY)
+		remaining = p->p_numthreads - p->p_boundary_count;
+	else
 		remaining = p->p_numthreads - p->p_suspcount;
-		p->p_flag &= ~P_SINGLE_EXIT;
-	}
 	while (remaining != 1) {
 		FOREACH_THREAD_IN_PROC(p, td2) {
 			if (td2 == td)
 				continue;
 			td2->td_flags |= TDF_ASTPENDING;
 			if (TD_IS_INHIBITED(td2)) {
-				if (force_exit == SINGLE_EXIT) {
+				switch (mode) {
+				case SINGLE_EXIT:
 					if (td->td_flags & TDF_DBSUSPEND)
 						td->td_flags &= ~TDF_DBSUSPEND;
-					if (TD_IS_SUSPENDED(td2)) {
+					if (TD_IS_SUSPENDED(td2))
 						thread_unsuspend_one(td2);
-					}
 					if (TD_ON_SLEEPQ(td2) &&
-					    (td2->td_flags & TDF_SINTR)) {
+					    (td2->td_flags & TDF_SINTR))
 						sleepq_abort(td2);
-					}
-				} else {
+					break;
+				case SINGLE_BOUNDARY:
+					if (TD_IS_SUSPENDED(td2) &&
+					    !(td2->td_flags & TDF_BOUNDARY))
+						thread_unsuspend_one(td2);
+					if (TD_ON_SLEEPQ(td2) &&
+					    (td2->td_flags & TDF_SINTR))
+						sleepq_abort(td2);
+					break;
+				default:	
 					if (TD_IS_SUSPENDED(td2))
 						continue;
 					/*
@@ -798,11 +815,14 @@ thread_single(int force_exit)
 					if (td2->td_inhibitors &
 					    (TDI_SLEEPING | TDI_SWAPPED))
 						thread_suspend_one(td2);
+					break;
 				}
 			}
 		}
-		if (force_exit == SINGLE_EXIT)
+		if (mode == SINGLE_EXIT)
 			remaining = p->p_numthreads;
+		else if (mode == SINGLE_BOUNDARY)
+			remaining = p->p_numthreads - p->p_boundary_count;
 		else
 			remaining = p->p_numthreads - p->p_suspcount;
 
@@ -822,12 +842,14 @@ thread_single(int force_exit)
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
-		if (force_exit == SINGLE_EXIT)
+		if (mode == SINGLE_EXIT)
 			remaining = p->p_numthreads;
+		else if (mode == SINGLE_BOUNDARY)
+			remaining = p->p_numthreads - p->p_boundary_count;
 		else
 			remaining = p->p_numthreads - p->p_suspcount;
 	}
-	if (force_exit == SINGLE_EXIT) {
+	if (mode == SINGLE_EXIT) {
 		/*
 		 * We have gotten rid of all the other threads and we
 		 * are about to either exit or exec. In either case,
@@ -912,6 +934,11 @@ thread_suspend_check(int return_instead)
 		if ((p->p_flag & P_SINGLE_EXIT) && return_instead)
 			return (1);
 
+		/* Should we goto user boundary if we didn't come from there? */
+		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE &&
+		    (p->p_flag & P_SINGLE_BOUNDARY) && return_instead)
+			return (1);
+
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
 		/*
@@ -919,9 +946,8 @@ thread_suspend_check(int return_instead)
 		 * this thread should just suicide.
 		 * Assumes that P_SINGLE_EXIT implies P_STOPPED_SINGLE.
 		 */
-		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td)) {
+		if ((p->p_flag & P_SINGLE_EXIT) && (p->p_singlethread != td))
 			thread_exit();
-		}
 
 		/*
 		 * When a thread suspends, it just
@@ -929,13 +955,20 @@ thread_suspend_check(int return_instead)
 		 * and stays there.
 		 */
 		thread_suspend_one(td);
+		if (return_instead == 0) {
+			p->p_boundary_count++;
+			td->td_flags |= TDF_BOUNDARY;
+		}
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
-			if (p->p_numthreads == p->p_suspcount) {
+			if (p->p_numthreads == p->p_suspcount) 
 				thread_unsuspend_one(p->p_singlethread);
-			}
 		}
 		PROC_UNLOCK(p);
 		mi_switch(SW_INVOL, NULL);
+		if (return_instead == 0) {
+			p->p_boundary_count--;
+			td->td_flags &= ~TDF_BOUNDARY;
+		}
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
 	}
@@ -1014,7 +1047,7 @@ thread_single_end(void)
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
+	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY);
 	mtx_lock_spin(&sched_lock);
 	p->p_singlethread = NULL;
 	/*
@@ -1042,9 +1075,13 @@ thread_sleep_check(struct thread *td)
 
 	p = td->td_proc;
 	mtx_assert(&sched_lock, MA_OWNED);
-	if (p->p_flag & P_SA || p->p_numthreads > 1) {
-		if ((p->p_flag & P_SINGLE_EXIT) && p->p_singlethread != td)
-			return (EINTR);
+	if (p->p_flag & P_HADTHREADS) {
+		if (p->p_singlethread != td) {
+			if (p->p_flag & P_SINGLE_EXIT)
+				return (EINTR);
+			if (p->p_flag & P_SINGLE_BOUNDARY)
+				return (ERESTART);
+		}
 		if (td->td_flags & TDF_INTERRUPT)
 			return (td->td_intrval);
 	}
