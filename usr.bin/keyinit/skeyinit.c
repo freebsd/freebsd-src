@@ -98,7 +98,7 @@ char *argv[];
 	}
     n = 99;
     if( ! defaultsetup){
-	printf("Reminder you need the 6 english words from the skey command.\n");
+	printf("Reminder you need the 6 english words from the key command.\n");
 	for(i=0;;i++){
 		if(i >= 2) exit(1);
 		printf("Enter sequence count from 1 to 9999: ");
