@@ -52,35 +52,30 @@ static void shsec_dump(struct gctl_req *req);
 static void shsec_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
-	{ "clear", G_FLAG_VERBOSE, shsec_main, G_NULL_OPTS },
-	{ "dump", 0, shsec_main, G_NULL_OPTS },
+	{ "clear", G_FLAG_VERBOSE, shsec_main, G_NULL_OPTS,
+	    "clear [-v] prov ..."
+	},
+	{ "dump", 0, shsec_main, G_NULL_OPTS,
+	    "dump prov ..."
+	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, shsec_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-hv] name prov prov ..."
 	},
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'f', "force", NULL, G_TYPE_NONE },
 		G_OPT_SENTINEL
-	    }
+	    },
+	    "[-fv] name ..."
 	},
 	G_CMD_SENTINEL
 };
 
 static int verbose = 0;
-
-void usage(const char *name);
-void
-usage(const char *name)
-{
-
-	fprintf(stderr, "usage: %s label [-hv] name prov prov ...\n", name);
-	fprintf(stderr, "       %s stop [-fv] name ...\n", name);
-	fprintf(stderr, "       %s clear [-v] prov ...\n", name);
-	fprintf(stderr, "       %s dump prov ...\n", name);
-}
 
 static void
 shsec_main(struct gctl_req *req, unsigned flags)
