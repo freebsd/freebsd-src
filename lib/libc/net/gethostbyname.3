@@ -29,18 +29,20 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)gethostbyname.3	8.2 (Berkeley) 4/19/94
+.\"     @(#)gethostbyname.3	8.4 (Berkeley) 5/25/95
 .\"
-.Dd April 19, 1994
+.Dd May 25, 1995
 .Dt GETHOSTBYNAME 3
 .Os BSD 4.2
 .Sh NAME
 .Nm gethostbyname ,
+.Nm gethostbyname2 ,
 .Nm gethostbyaddr ,
 .Nm gethostent ,
 .Nm sethostent ,
 .Nm endhostent ,
-.Nm herror
+.Nm herror ,
+.Nm hstrerror
 .Nd get network host entry
 .Sh SYNOPSIS
 .Fd #include <netdb.h>
@@ -48,15 +50,20 @@
 .Ft struct hostent *
 .Fn gethostbyname "const char *name"
 .Ft struct hostent *
+.Fn gethostbyname2 "const char *name" "int af"
+.Ft struct hostent *
 .Fn gethostbyaddr "const char *addr" "int len" "int type"
 .Ft struct hostent *
 .Fn gethostent void
 .Fn sethostent "int stayopen"
 .Fn endhostent void
 .Fn herror "const char *string"
+.Ft const char *
+.Fn hstrerror "int err"
 .Sh DESCRIPTION
 The
-.Fn gethostbyname
+.Fn gethostbyname ,
+.Fn gethostbyname2
 and
 .Fn gethostbyaddr
 functions
@@ -85,21 +92,24 @@ The members of this structure are:
 .It Fa h_name
 Official name of the host.
 .It Fa h_aliases
-A zero terminated array of alternate names for the host.
+A NULL-terminated array of alternate names for the host.
 .It Fa h_addrtype
-The type of address being returned; currently always
+The type of address being returned; usually
 .Dv AF_INET .
 .It Fa h_length
 The length, in bytes, of the address.
 .It Fa h_addr_list
-A zero terminated array of network addresses for the host.
+A NULL-terminated array of network addresses for the host.
 Host addresses are returned in network byte order.
 .It Fa h_addr
 The first address in
 .Fa h_addr_list ;
 this is for backward compatibility.
+.El
 .Pp
 When using the nameserver,
+.Fn gethostbyname
+and
 .Fn gethostbyname
 will search for the named host in the current domain and its parents
 unless the name ends in a dot.
@@ -110,6 +120,25 @@ for an alias matching the input name.
 See
 .Xr hostname 7
 for the domain search procedure and the alias file format.
+.Pp
+The
+.Fn gethostbyname2
+function is an evolution of
+.Fn gethostbyname
+which is intended to allow lookups in address families other than
+.Dv AF_INET ,
+for example
+.Dv AF_INET6 .
+Currently the
+.Fa af
+argument must be specified as
+.Dv AF_INET
+else the fuction will return
+.Dv NULL
+after having set
+.Va h_errno
+to
+.Dv NETDB_INTERNAL
 .Pp
 The
 .Fn sethostent
@@ -123,7 +152,8 @@ flag is non-zero,
 this sets the option to send all queries to the name server using
 .Tn TCP
 and to retain the connection after each call to 
-.Fn gethostbyname
+.Fn gethostbyname ,
+.Fn gethostbyname2
 or
 .Fn gethostbyaddr .
 Otherwise, queries are performed using
@@ -136,13 +166,31 @@ function
 closes the
 .Tn TCP
 connection.
+.Pp
+The
+.Fn herror
+function writes a message to the diagnostic output consisting of the
+string parameter
+.Fa s ,
+the constant string ": ", and a message corresponding to the value of
+.Va h_errno .
+.Pp
+The
+.Fn hstrerror
+function returns a string which is the message text corresponding to the
+value of the
+.Fa err
+parameter.
 .Sh FILES
-.Bl -tag -width /etc/hosts -compact
+.Bl -tag -width /etc/resolv.conf -compact
 .It Pa /etc/hosts
+.It Pa /etc/host.conf
+.It Pa /etc/resolv.conf
 .El
 .Sh DIAGNOSTICS
 Error return status from 
-.Fn gethostbyname
+.Fn gethostbyname ,
+.Fn gethostbyname2
 and
 .Fn gethostbyaddr
 is indicated by return of a null pointer.
@@ -219,7 +267,8 @@ If the
 .Fa stayopen
 argument is non-zero,
 the file will not be closed after each call to
-.Fn gethostbyname
+.Fn gethostbyname ,
+.Fn gethostbyname2
 or
 .Fn gethostbyaddr .
 .Pp
@@ -241,6 +290,9 @@ and
 .Fn sethostent
 functions appeared in
 .Bx 4.2 .
+The
+.Fn gethostbyname2
+functrion first appeared in bind-4.9.4.
 .Sh BUGS
 These functions use static data storage;
 if the data is needed for future use, it should be
