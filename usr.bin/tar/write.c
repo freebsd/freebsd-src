@@ -874,8 +874,10 @@ setup_acl(struct bsdtar *bsdtar, struct archive_entry *entry,
 }
 #else
 void
-setup_acls(struct archive_entry *entry, const char *accpath)
+setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
+    const char *accpath)
 {
+	(void)bsdtar;
 	(void)entry;
 	(void)accpath;
 }
