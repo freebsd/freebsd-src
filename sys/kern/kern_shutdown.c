@@ -50,6 +50,7 @@
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <sys/disklabel.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -429,8 +430,8 @@ setdumpdev(dev_t dev)
 	/*
 	 * XXX should clean up checking in dumpsys() to be more like this.
 	 */
-	newdumplo = psize - Maxmem * PAGE_SIZE / DEV_BSIZE;
-	if (newdumplo < 0)
+	newdumplo = psize - Maxmem * (PAGE_SIZE / DEV_BSIZE);
+	if (newdumplo <= LABELSECTOR)
 		return (ENOSPC);
 	dumpdev = dev;
 	dumplo = newdumplo;
