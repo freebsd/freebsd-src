@@ -624,18 +624,23 @@ chap_Cmp(u_char type, char *myans, int mylen, char *hisans, int hislen
 #endif
         )
 {
+  int off;
+
   if (mylen != hislen)
     return 0;
-#ifndef NODES
-  else if (type == 0x80) {
-    int off = lm ? 0 : 24;
 
-    if (memcmp(myans + off, hisans + off, 24))
-      return 0;
+  off = 0;
+
+#ifndef NODES
+  if (type == 0x80) {
+    off = lm ? 0 : 24;
+    mylen = 24;
   }
 #endif
-  else if (memcmp(myans, hisans, mylen))
-    return 0;
+
+  for (; mylen; off++, mylen--)
+    if (toupper(myans[off]) != toupper(hisans[off]))
+      return 0;
 
   return 1;
 }
