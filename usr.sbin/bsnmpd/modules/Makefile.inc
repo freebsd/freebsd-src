@@ -5,12 +5,12 @@ SRCS+=		${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 CLEANFILES+=	${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h
 CFLAGS+=	-I${CONTRIB}/lib -I${CONTRIB}/snmpd -I.
 
-${MOD}_oid.h: ${MOD}_tree.def
-	gensnmptree -e ${XSYM} < ${.ALLSRC} > ${.TARGET}
+${MOD}_oid.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
+	cat ${.ALLSRC} | gensnmptree -e ${XSYM} > ${.TARGET}
 
 .ORDER: ${MOD}_tree.c ${MOD}_tree.h
-${MOD}_tree.c ${MOD}_tree.h: ${MOD}_tree.def
-	gensnmptree -l -p ${MOD}_ < ${.ALLSRC}
+${MOD}_tree.c ${MOD}_tree.h: ${MOD}_tree.def ${EXTRAMIBDEFS}
+	cat ${.ALLSRC} | gensnmptree -l -p ${MOD}_
 
 .if defined(DEFS)
 FILESGROUPS+=	DEFS
