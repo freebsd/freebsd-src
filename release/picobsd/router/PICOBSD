@@ -6,8 +6,9 @@
 #PicoBSD       820     oinit   3072            32768
 options MD_ROOT_SIZE=820      # same as def_sz
 
+hints  "PICOBSD.hints"
 machine		i386
-cpu		I386_CPU
+#cpu		I386_CPU
 cpu		I486_CPU
 cpu		I586_CPU
 cpu		I686_CPU
