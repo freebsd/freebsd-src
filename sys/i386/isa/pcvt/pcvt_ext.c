@@ -2619,8 +2619,9 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 		error = suser_td(td);
 		if (error != 0)
 			return (error);
-		if (securelevel > 0)
-			return (EPERM);
+		error = securelevel_gt(p->p_ucred, 0);
+		if (error != 0)
+			return (error);
 
 		fp->tf_eflags |= PSL_IOPL;
 
