@@ -3092,6 +3092,7 @@ siocnputc(dev, c)
 	dev_t	dev;
 	int	c;
 {
+	int	need_unlock;
 	int	s;
 	struct siocnstate	sp;
 	Port_t	iobase;
@@ -3101,13 +3102,16 @@ siocnputc(dev, c)
 	else
 		iobase = siocniobase;
 	s = spltty();
-	if (sio_inited)
+	need_unlock = 0;
+	if (sio_inited == 2 && !mtx_owned(&sio_lock)) {
 		mtx_lock_spin(&sio_lock);
+		need_unlock = 1;
+	}
 	siocnopen(&sp, iobase, comdefaultrate);
 	siocntxwait(iobase);
 	outb(iobase + com_data, c);
 	siocnclose(&sp, iobase);
-	if (sio_inited)
+	if (need_unlock)
 		mtx_unlock_spin(&sio_lock);
 	splx(s);
 }
