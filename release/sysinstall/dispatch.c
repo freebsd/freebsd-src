@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.5 1997/03/09 22:37:51 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.6 1997/03/10 21:10:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,6 @@ static struct _word {
     int (*handler)(dialogMenuItem *self);
 } resWords[] = {
     { "configAnonFTP",		configAnonFTP		},
-    { "configApache",		configApache		},
     { "configRouter",		configRouter		},
     { "configNFSServer",	configNFSServer		},
     { "configSamba",		configSamba		},
