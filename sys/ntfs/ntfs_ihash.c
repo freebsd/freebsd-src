@@ -94,7 +94,7 @@ ntfs_nthashlookup(dev, inum)
 	struct ntnode *ip;
 
 	mtx_enter(&ntfs_nthash_mtx, MTX_DEF);
-	for (ip = NTNOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next)
+	LIST_FOREACH(ip, NTNOHASH(dev, inum), i_hash)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
 	mtx_exit(&ntfs_nthash_mtx, MTX_DEF);
