@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: cdrom.c,v 1.1 1995/05/27 10:38:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,6 +57,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <grp.h>
+#include <fcntl.h>
 
 #define CD9660
 #include <sys/mount.h>
@@ -102,45 +103,19 @@ mediaInitCDROM(Device *dev)
 }
 
 int
-mediaGetCDROM(char *dist, char *path)
+mediaGetCDROM(char *file)
 {
     char		buf[PATH_MAX];
-    Attribs		*dist_attr;
-    int			retval;
 
-    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-
-    snprintf(buf, PATH_MAX, "/stand/info/%s.inf", dist);
-
-    if (!access(buf, R_OK) && attr_parse(&dist_attr, buf) == 0) {
-	msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
-	free(dist_attr);
-	return FALSE;
-    }
-   
-    snprintf(buf, PATH_MAX, "/cdrom/%s%s", path ? path : "", dist);
-    retval = genericGetDist(buf, dist_attr, FALSE);
-    free(dist_attr);
-    return retval;
+    snprintf(buf, PATH_MAX, "/cdrom/%s", file);
+    return open(buf,O_RDONLY);
 }
 
 void
 mediaShutdownCDROM(Device *dev)
 {
-    extern int getDistpid;
-
     if (!cdromMounted)
 	return;
-    if (getDistpid) {
-	int i, j;
-
-	i = waitpid(getDistpid, &j, 0);
-	if (i < 0 || WEXITSTATUS(j)) {
-	    msgConfirm("Warning: Last extraction returned status code %d.", WEXITSTATUS(j));
-	    getDistpid = 0;
-	}
-	getDistpid = 0;
-    }
     msgDebug("Unmounting /cdrom\n");
     if (unmount("/cdrom", 0) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
