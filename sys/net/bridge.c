@@ -922,9 +922,9 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	 * if_ethersubr.c:ether_ipfw_chk()
 	 */
 
-	args.m = m0;		/* the packet we are looking at 	*/
-	args.oif = NULL;	/* this is an input packet 		*/
-	args.divert_rule = 0;	/* we do not support divert yet 	*/
+	args.m = m0;		/* the packet we are looking at		*/
+	args.oif = NULL;	/* this is an input packet		*/
+	args.divert_rule = 0;	/* we do not support divert yet		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	i = ip_fw_chk_ptr(&args);
