@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1999/06/20 08:32:37 jb Exp $
+#	$Id: Makefile,v 1.16 1999/07/05 00:35:14 jasone Exp $
 #
 # All library objects contain rcsid strings by default; they may be
 # excluded as a space-saving measure.  To produce a library that does
@@ -16,7 +16,7 @@ CFLAGS+=-DPTHREAD_KERNEL -D_THREAD_SAFE -I${.CURDIR}/uthread
 CFLAGS+=-D_LOCK_DEBUG
 
 # Uncomment this if you want libc_r to use growable stacks.
-CFLAGS+= -D_PTHREAD_GSTACK
+#CFLAGS+=-D_PTHREAD_GSTACK
 
 AINC=	-I${.CURDIR}/../libc/${MACHINE_ARCH} -I${.CURDIR}/uthread
 PRECIOUSLIB=	yes
