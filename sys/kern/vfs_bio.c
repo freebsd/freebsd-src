@@ -2586,14 +2586,10 @@ biowait(register struct buf * bp)
 
 	s = splbio();
 	while ((bp->b_flags & B_DONE) == 0) {
-#if defined(NO_SCHEDULE_MODS)
-		tsleep(bp, PRIBIO, "biowait", 0);
-#else
 		if (bp->b_iocmd == BIO_READ)
 			tsleep(bp, PRIBIO, "biord", 0);
 		else
 			tsleep(bp, PRIBIO, "biowr", 0);
-#endif
 	}
 	splx(s);
 	if (bp->b_flags & B_EINTR) {
