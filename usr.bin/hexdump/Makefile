@@ -2,7 +2,7 @@
 
 PROG=	hexdump
 SRCS=	conv.c display.c hexdump.c hexsyntax.c odsyntax.c parse.c
-MAN1=	hexdump.0 od.0
+MAN1=	hexdump.1 od.1
 LINKS=	${BINDIR}/hexdump ${BINDIR}/od
 
 .include <bsd.prog.mk>
