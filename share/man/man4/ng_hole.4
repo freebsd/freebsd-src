@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_hole.8,v 1.4 1999/01/25 23:46:26 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd May 19, 2004
 .Dt NG_HOLE 4
 .Os
 .Sh NAME
@@ -54,8 +54,25 @@ A
 node accepts any request to connect, regardless of the hook name,
 as long as the name is unique.
 .Sh CONTROL MESSAGES
-This node type supports only the generic control messages.
-Other control messages are silently discarded.
+This node type supports the generic control messages, plus the
+following:
+.Bl -tag -width indent
+.It Dv NGM_BPF_GET_STATS
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the statistics
+associated with the hook as a
+.Vt "struct ng_hole_hookstat" .
+.It Dv NGM_BPF_CLR_STATS
+This command takes an
+.Tn ASCII
+string argument, the hook name, and clears the statistics
+associated with the hook.
+.It Dv NGM_BPF_GETCLR_STATS
+This command is identical to
+.Dv NGM_BPF_GET_STATS ,
+except that the statistics are also atomically cleared.
+.El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
