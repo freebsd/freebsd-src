@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.17 1995/11/28 09:41:39 julian Exp $
+ *	$Id: si.c,v 1.18 1995/11/29 10:47:51 julian Exp $
  */
 
 #ifndef lint
@@ -2330,8 +2330,8 @@ static void 	si_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"si",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(sidev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,si_drvinit,NULL)

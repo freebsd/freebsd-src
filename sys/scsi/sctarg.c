@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.6 1995/11/21 08:35:49 bde Exp $
+ *      $Id: sctarg.c,v 1.7 1995/11/29 10:49:01 julian Exp $
  */
 
 /*
@@ -300,8 +300,8 @@ static void 	sctarg_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"sctarg",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(sctargdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sctarg_drvinit,NULL)

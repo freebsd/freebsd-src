@@ -806,8 +806,8 @@ static void 	gsc_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"gsc",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(gscdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,gsc_drvinit,NULL)

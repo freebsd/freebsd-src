@@ -1204,8 +1204,8 @@ static void 	wcd_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"wcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(wcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wcd_drvinit,NULL)

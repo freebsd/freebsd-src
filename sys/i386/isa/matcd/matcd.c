@@ -2783,8 +2783,8 @@ static void 	matcd_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"matcd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(matcddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,matcd_drvinit,NULL)

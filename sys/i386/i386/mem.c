@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.19 1995/11/04 16:00:25 markm Exp $
+ *	$Id: mem.c,v 1.20 1995/11/29 10:47:18 julian Exp $
  */
 
 /*
@@ -399,8 +399,9 @@ static void 	mem_drvinit(void *unused)
 		cdevsw_add(&dev,&mem_cdevsw,NULL);
 		mem_devsw_installed = 1;
 #ifdef DEVFS
-	memdevfs_init(dev);
+		memdevfs_init(dev);
 #endif
+	}
 }
 
 SYSINIT(memdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mem_drvinit,NULL)

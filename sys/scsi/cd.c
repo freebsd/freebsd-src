@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.45 1995/11/20 12:42:25 phk Exp $
+ *      $Id: cd.c,v 1.46 1995/11/29 10:48:55 julian Exp $
  */
 
 #define SPLCD splbio
@@ -1342,8 +1342,8 @@ static void 	cd_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"cd",	major(dev_chr),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(cddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cd_drvinit,NULL)

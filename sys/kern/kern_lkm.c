@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.19 1995/11/20 12:06:21 phk Exp $
+ * $Id: kern_lkm.c,v 1.20 1995/11/29 10:48:22 julian Exp $
  */
 
 /*
@@ -1025,8 +1025,8 @@ static void 	lkm_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"lkm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(lkmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,lkm_drvinit,NULL)

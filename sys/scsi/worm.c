@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.10 1995/11/19 22:22:35 dyson Exp $
+ *      $Id: worm.c,v 1.11 1995/11/29 10:49:07 julian Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -394,8 +394,8 @@ static void 	worm_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"rworm",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(wormdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,worm_drvinit,NULL)

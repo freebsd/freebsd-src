@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.16 1995/11/28 09:41:25 julian Exp $
+ * $Id: mse.c,v 1.17 1995/11/29 10:47:46 julian Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -599,8 +599,8 @@ static void 	mse_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"mse",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(msedev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,mse_drvinit,NULL)

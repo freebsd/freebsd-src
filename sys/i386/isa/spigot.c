@@ -308,8 +308,8 @@ static void 	spigot_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"spigot",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(spigotdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,spigot_drvinit,NULL)

@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.6 1995/11/16 10:47:21 bde Exp $";
+static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.7 1995/11/29 10:47:10 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.6 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.7 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,12 @@ static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.6 1995/11/16 10:47:21 bde Exp $
  *
  *******************************************************************************
  * $Log: isdn.c,v $
+ * Revision 1.7  1995/11/29  10:47:10  julian
+ * OK, that's it..
+ * That's EVERY SINGLE driver that has an entry in conf.c..
+ * my next trick will be to define cdevsw[] and bdevsw[]
+ * as empty arrays and remove all those DAMNED defines as well..
+ *
  * Revision 1.6  1995/11/16  10:47:21  bde
  * Fixed a call to the listen function.  A trailing arg was missing.
  *
@@ -691,8 +697,8 @@ static void 	isdn_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"isdn",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(isdndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,isdn_drvinit,NULL)
