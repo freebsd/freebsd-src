@@ -47,10 +47,10 @@ int	_logname_valid;		/* known to setlogin() */
 char *
 getlogin()
 {
-	static char logname[MAXLOGNAME + 1];
+	static char logname[MAXLOGNAME];
 
 	if (_logname_valid == 0) {
-		if (_getlogin(logname, sizeof(logname) - 1) < 0)
+		if (_getlogin(logname, sizeof(logname)) < 0)
 			return ((char *)NULL);
 		_logname_valid = 1;
 	}
