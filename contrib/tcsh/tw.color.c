@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.color.c,v 1.5 1998/10/25 15:10:48 christos Exp $ */
+/* $Header: /src/pub/tcsh/tw.color.c,v 1.6 2000/01/14 22:57:30 christos Exp $ */
 /*
  * tw.color.c: builtin color ls-F
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.color.c,v 1.5 1998/10/25 15:10:48 christos Exp $")
+RCSID("$Id: tw.color.c,v 1.6 2000/01/14 22:57:30 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"
@@ -181,6 +181,7 @@ parseLS_COLORS(value)
     const Char   *v;		/* pointer in value */
     char   *c;			/* pointer in colors */
     Extension *e;		/* pointer in extensions */
+    jmp_buf_t osetexit;
 
     /* init */
     if (extensions)
@@ -209,6 +210,12 @@ parseLS_COLORS(value)
     c = colors;
     e = &extensions[0];
 
+    /* Prevent from crashing if unknown parameters are given. */
+
+    getexit(osetexit);
+
+    if (setexit() == 0) {
+	    
     /* parse */
     while (*v) {
 	switch (*v & CHAR) {
@@ -246,6 +253,9 @@ parseLS_COLORS(value)
 	while (*v && (*v & CHAR) != ':')
 	    v++;
     }
+    }
+
+    resexit(osetexit);
 
     nextensions = (int) (e - extensions);
 }

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.dol.c,v 3.38 1998/10/25 15:10:05 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.dol.c,v 3.39 2000/01/14 22:57:27 christos Exp $ */
 /*
  * sh.dol.c: Variable substitutions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.dol.c,v 3.38 1998/10/25 15:10:05 christos Exp $")
+RCSID("$Id: sh.dol.c,v 3.39 2000/01/14 22:57:27 christos Exp $")
 
 /*
  * C shell
@@ -110,6 +110,11 @@ Dfix(t)
     /* Note that t_dcom isn't trimmed thus !...:q's aren't lost */
     for (pp = t->t_dcom; (p = *pp++) != NULL;) {
 	for (; *p; p++) {
+#ifdef DSPMBYTE
+	    if (Ismbyte1(*p) && *(p + 1))
+		p ++;
+	    else
+#endif DSPMBYTE
 	    if (cmap(*p, _DOL | QUOTES)) {	/* $, \, ', ", ` */
 		Dfix2(t->t_dcom);	/* found one */
 		blkfree(t->t_dcom);
@@ -171,9 +176,28 @@ Dpack(wbuf, wp)
 {
     register int c;
     register int i = MAXWLEN - (int) (wp - wbuf);
+#if defined(DSPMBYTE)
+    int mbytepos = 1;
+#endif /* DSPMBYTE */
 
     for (;;) {
 	c = DgetC(DODOL);
+#if defined(DSPMBYTE)
+	if (mbytepos == 1 && Ismbyte1(c)) {
+	    /* An MB1 byte that may be followed by a MB2 byte */
+	    mbytepos = 2;
+	}
+	else {
+	    /* check if MB1 byte followed by an MB2 byte */
+	    if (mbytepos == 2 && Ismbyte2(c)) {
+		/* MB1 + MB2 make the character */
+		mbytepos = 1; /* reset */
+		goto mbyteskip;
+	    }
+	    mbytepos = 1; /* reset */
+	    /* wasn't followed, so the two bytes make two characters */
+	}
+#endif /* DSPMBYTE */
 	if (c == '\\') {
 	    c = DgetC(0);
 	    if (c == DEOF) {
@@ -201,6 +225,7 @@ Dpack(wbuf, wp)
 	    Gcat(STRNULL, wbuf);
 	    return (NULL);
 	}
+mbyteskip:
 	if (--i <= 0)
 	    stderror(ERR_WTOOLONG);
 	*wp++ = (Char) c;
