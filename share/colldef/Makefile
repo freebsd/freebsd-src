@@ -102,5 +102,7 @@ afterinstall:
 .endfor
 	ln -fs ../cs_CZ.ISO8859-2/LC_COLLATE \
 	       ${LOCALEDIR}/sk_SK.ISO8859-2/LC_COLLATE
+	ln -fs ../pt_PT.ISO8859-1/LC_COLLATE \
+		${LOCALEDIR}/pt_BR.ISO8859-1/LC_COLLATE
 
 .include <bsd.prog.mk>
