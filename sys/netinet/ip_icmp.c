@@ -121,7 +121,7 @@ int	icmpprintfs = 0;
 #endif
 
 static void	icmp_reflect __P((struct mbuf *));
-static void	icmp_send __P((struct mbuf *, struct mbuf *));
+static void	icmp_send __P((struct mbuf *, struct mbuf *, struct route *));
 static int	ip_next_mtu __P((int, int));
 
 extern	struct protosw inetsw[];
@@ -610,11 +610,13 @@ icmp_reflect(m)
 	struct in_addr t;
 	struct mbuf *opts = 0;
 	int optlen = (IP_VHL_HL(ip->ip_vhl) << 2) - sizeof(struct ip);
+	struct route *ro = NULL, rt;
 
 	if (!in_canforward(ip->ip_src) &&
 	    ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) !=
 	     (IN_LOOPBACKNET << IN_CLASSA_NSHIFT))) {
 		m_freem(m);	/* Bad return address */
+		icmpstat.icps_badaddr++;
 		goto done;	/* Ip_output() will check for broadcast */
 	}
 	t = ip->ip_dst;
@@ -627,21 +629,21 @@ icmp_reflect(m)
 	 */
 	for (ia = in_ifaddrhead.tqh_first; ia; ia = ia->ia_link.tqe_next) {
 		if (t.s_addr == IA_SIN(ia)->sin_addr.s_addr)
-			break;
+			goto match;
 		if (ia->ia_ifp && (ia->ia_ifp->if_flags & IFF_BROADCAST) &&
 		    t.s_addr == satosin(&ia->ia_broadaddr)->sin_addr.s_addr)
-			break;
+			goto match;
 	}
-	icmpdst.sin_addr = t;
-	if ((ia == (struct in_ifaddr *)0) && m->m_pkthdr.rcvif)
-		ia = (struct in_ifaddr *)ifaof_ifpforaddr(
-			(struct sockaddr *)&icmpdst, m->m_pkthdr.rcvif);
-	/*
-	 * The following happens if the packet was not addressed to us,
-	 * and was received on an interface with no IP address.
-	 */
-	if (ia == (struct in_ifaddr *)0)
-		ia = in_ifaddrhead.tqh_first;
+	ro = &rt;
+	bzero(ro, sizeof(*ro));
+	ia = ip_rtaddr(ip->ip_dst, ro);
+	/* We need a route to do anything useful. */
+	if (ia == NULL) {
+		m_freem(m);
+		icmpstat.icps_noroute++;
+		goto done;
+	}
+match:
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
 	ip->ip_ttl = ip_defttl;
@@ -719,10 +721,12 @@ icmp_reflect(m)
 			 (unsigned)(m->m_len - sizeof(struct ip)));
 	}
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-	icmp_send(m, opts);
+	icmp_send(m, opts, ro);
 done:
 	if (opts)
 		(void)m_free(opts);
+	if (ro && ro->ro_rt)
+		RTFREE(ro->ro_rt);
 }
 
 /*
@@ -730,14 +734,14 @@ done:
  * after supplying a checksum.
  */
 static void
-icmp_send(m, opts)
+icmp_send(m, opts, rt)
 	register struct mbuf *m;
 	struct mbuf *opts;
+	struct route *rt;
 {
 	register struct ip *ip = mtod(m, struct ip *);
 	register int hlen;
 	register struct icmp *icp;
-	struct route ro;
 
 	hlen = IP_VHL_HL(ip->ip_vhl) << 2;
 	m->m_data += hlen;
@@ -756,10 +760,7 @@ icmp_send(m, opts)
 		       buf, inet_ntoa(ip->ip_src));
 	}
 #endif
-	bzero(&ro, sizeof ro);
-	(void) ip_output(m, opts, &ro, 0, NULL);
-	if (ro.ro_rt)
-		RTFREE(ro.ro_rt);
+	(void) ip_output(m, opts, rt, 0, NULL);
 }
 
 n_time

@@ -222,7 +222,6 @@ static struct	mbuf *ip_reass __P((struct mbuf *,
 #else
 static struct	mbuf *ip_reass __P((struct mbuf *, struct ipq *, struct ipq *));
 #endif
-static struct	in_ifaddr *ip_rtaddr __P((struct in_addr));
 static void	ipintr __P((void));
 
 /*
@@ -1266,7 +1265,7 @@ nosourcerouting:
 			    if ((ia = (INA)ifa_ifwithdstaddr((SA)&ipaddr)) == 0)
 				ia = (INA)ifa_ifwithnet((SA)&ipaddr);
 			} else
-				ia = ip_rtaddr(ipaddr.sin_addr);
+				ia = ip_rtaddr(ipaddr.sin_addr, &ipforward_rt);
 			if (ia == 0) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_SRCFAIL;
@@ -1304,7 +1303,8 @@ nosourcerouting:
 			 * use the incoming interface (should be same).
 			 */
 			if ((ia = (INA)ifa_ifwithaddr((SA)&ipaddr)) == 0 &&
-			    (ia = ip_rtaddr(ipaddr.sin_addr)) == 0) {
+			    (ia = ip_rtaddr(ipaddr.sin_addr,
+			    &ipforward_rt)) == 0) {
 				type = ICMP_UNREACH;
 				code = ICMP_UNREACH_HOST;
 				goto bad;
@@ -1392,28 +1392,30 @@ bad:
  * Given address of next destination (final or next hop),
  * return internet address info of interface to be used to get there.
  */
-static struct in_ifaddr *
-ip_rtaddr(dst)
-	 struct in_addr dst;
+struct in_ifaddr *
+ip_rtaddr(dst, rt)
+	struct in_addr dst;
+	struct route *rt;
 {
 	register struct sockaddr_in *sin;
 
-	sin = (struct sockaddr_in *) &ipforward_rt.ro_dst;
+	sin = (struct sockaddr_in *)&rt->ro_dst;
 
-	if (ipforward_rt.ro_rt == 0 || dst.s_addr != sin->sin_addr.s_addr) {
-		if (ipforward_rt.ro_rt) {
-			RTFREE(ipforward_rt.ro_rt);
-			ipforward_rt.ro_rt = 0;
+	if (rt->ro_rt == 0 ||
+	    dst.s_addr != sin->sin_addr.s_addr) {
+		if (rt->ro_rt) {
+			RTFREE(rt->ro_rt);
+			rt->ro_rt = 0;
 		}
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(*sin);
 		sin->sin_addr = dst;
 
-		rtalloc_ign(&ipforward_rt, RTF_PRCLONING);
+		rtalloc_ign(rt, RTF_PRCLONING);
 	}
-	if (ipforward_rt.ro_rt == 0)
+	if (rt->ro_rt == 0)
 		return ((struct in_ifaddr *)0);
-	return ((struct in_ifaddr *) ipforward_rt.ro_rt->rt_ifa);
+	return ((struct in_ifaddr *)rt->ro_rt->rt_ifa);
 }
 
 /*

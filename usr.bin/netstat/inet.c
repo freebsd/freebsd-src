@@ -608,6 +608,8 @@ icmp_stats(u_long off __unused, char *name, int af __unused)
     printf(m, icmpstat.f, plural(icmpstat.f))
 #define	p1a(f, m) if (icmpstat.f || sflag <= 1) \
     printf(m, icmpstat.f)
+#define	p2(f, m) if (icmpstat.f || sflag <= 1) \
+    printf(m, icmpstat.f, plurales(icmpstat.f))
 
 	p(icps_error, "\t%lu call%s to icmp_error\n");
 	p(icps_oldicmp,
@@ -637,8 +639,11 @@ icmp_stats(u_long off __unused, char *name, int af __unused)
 				icmpstat.icps_inhist[i]);
 		}
 	p(icps_reflect, "\t%lu message response%s generated\n");
+	p2(icps_badaddr, "\t%lu invalid return address%s\n");
+	p(icps_badaddr, "\t%lu no return route%s\n");
 #undef p
 #undef p1a
+#undef p2
 	mib[3] = ICMPCTL_MASKREPL;
 	len = sizeof i;
 	if (sysctl(mib, 4, &i, &len, (void *)0, 0) < 0)
