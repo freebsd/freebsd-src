@@ -162,9 +162,15 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 	int             ret = 0;
 	int             status;
 
-	if (mutex == NULL || *mutex == NULL) {
+	if (mutex == NULL)
 		ret = EINVAL;
-	} else {
+
+	/*
+	 * If the mutex is statically initialized, perform the dynamic
+	 * initialization:
+	 */
+	else if (*mutex != NULL ||
+	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
 
@@ -224,9 +230,15 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	int             ret = 0;
 	int             status;
 
-	if (mutex == NULL || *mutex == NULL) {
+	if (mutex == NULL)
 		ret = EINVAL;
-	} else {
+
+	/*
+	 * If the mutex is statically initialized, perform the dynamic
+	 * initialization:
+	 */
+	else if (*mutex != NULL ||
+	    (ret = pthread_mutex_init(mutex,NULL)) == 0) {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
 

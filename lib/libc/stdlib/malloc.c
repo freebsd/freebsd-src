@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.28 1997/07/02 19:33:23 phk Exp $
+ * $Id: malloc.c,v 1.18.2.3 1997/07/24 08:25:25 phk Exp $
  *
  */
 
@@ -53,7 +53,7 @@
 #       include "pthread_private.h"
 #       define THREAD_LOCK()		pthread_mutex_lock(&malloc_lock)
 #       define THREAD_UNLOCK()		pthread_mutex_unlock(&malloc_lock)
-        static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_INITIALIZER;
+        static struct pthread_mutex _malloc_lock = PTHREAD_MUTEX_STATIC_INITIALIZER;
         static pthread_mutex_t malloc_lock = &_malloc_lock;
 #   endif
 #endif /* __FreeBSD__ */
