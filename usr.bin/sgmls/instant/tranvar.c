@@ -373,10 +373,16 @@ ExpandSpecialVar(
     }
 
     /* Do action on followed element if element has [relationship] with gi.
-     * Format: _followrel relationship gi action */
+     * If [relationship] is not met, do alternate action on this element.
+     * Format: _followrel relationship gi action [action] */
     else if (StrEq(tok[0], "followrel")) {
-	if (ntok >= 4)
-	    (void)CheckRelation(e, tok[1], tok[2], tok[3], fp, RA_Related);
+	if (ntok >= 4) {
+	    if (!CheckRelation(e, tok[1], tok[2], tok[3], fp, RA_Related)) {
+	    	/* action not done, see if an alt action specified */
+	    	if (ntok >= 5)
+	    	    TranTByAction(e, tok[4], fp);
+	    }
+	}
     }
 
     /* Find element with matching ID and do action.  If action not specified,
