@@ -44,15 +44,16 @@ static dev_t zero_dev;
 static d_write_t null_write;
 static d_ioctl_t null_ioctl;
 static d_read_t zero_read;
+static d_read_t null_read;
 
 #define CDEV_MAJOR	2
 #define NULL_MINOR	2
 #define ZERO_MINOR	12
 
 static struct cdevsw null_cdevsw = {
-	/* open */	(d_open_t *)nullop,
-	/* close */	(d_close_t *)nullop,
-	/* read */	(d_read_t *)nullop,
+	/* open */	nullopen,
+	/* close */	nullclose,
+	/* read */	null_read,
 	/* write */	null_write,
 	/* ioctl */	null_ioctl,
 	/* poll */	nopoll,
@@ -67,8 +68,8 @@ static struct cdevsw null_cdevsw = {
 };
 
 static struct cdevsw zero_cdevsw = {
-	/* open */	(d_open_t *)nullop,
-	/* close */	(d_close_t *)nullop,
+	/* open */	nullopen,
+	/* close */	nullclose,
 	/* read */	zero_read,
 	/* write */	null_write,
 	/* ioctl */	noioctl,
@@ -84,6 +85,13 @@ static struct cdevsw zero_cdevsw = {
 };
 
 static void *zbuf;
+
+static int
+null_read(dev_t dev __unused, struct uio *uio, int flags __unused)
+{
+
+	return 0;
+}
 
 /* ARGSUSED */
 static int
