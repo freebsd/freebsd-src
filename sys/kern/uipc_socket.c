@@ -1090,10 +1090,10 @@ dontblock:
 	 * Process one or more MT_CONTROL mbufs present before any data mbufs
 	 * in the first mbuf chain on the socket buffer.  If MSG_PEEK, we
 	 * just copy the data; if !MSG_PEEK, we call into the protocol to
-	 * perform externalization.
+	 * perform externalization (or freeing if controlp == NULL).
 	 */
 	if (m != NULL && m->m_type == MT_CONTROL) {
-		struct mbuf *cm = NULL;
+		struct mbuf *cm = NULL, *cmn;
 		struct mbuf **cme = &cm;
 
 		do {
@@ -1107,27 +1107,31 @@ dontblock:
 				sbfree(&so->so_rcv, m);
 				so->so_rcv.sb_mb = m->m_next;
 				m->m_next = NULL;
-				if (controlp) {
-					/*
-					 * Collect mbufs for processing below.
-					 */
-					*cme = m;
-					cme = &(*cme)->m_next;
-				} else
-					m_free(m);
+				*cme = m;
+				cme = &(*cme)->m_next;
 				m = so->so_rcv.sb_mb;
 			}
 		} while (m != NULL && m->m_type == MT_CONTROL);
 		if ((flags & MSG_PEEK) == 0)
 			sockbuf_pushsync(&so->so_rcv, nextrecord);
-		if (cm != NULL) {
+		while (cm != NULL) {
+			cmn = cm->m_next;
+			cm->m_next = NULL;
 			if (pr->pr_domain->dom_externalize != NULL) {
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				error = (*pr->pr_domain->dom_externalize)
 				    (cm, controlp);
 				SOCKBUF_LOCK(&so->so_rcv);
-			} else
+			} else if (controlp != NULL)
+				*controlp = cm;
+			else
 				m_freem(cm);
+			if (controlp != NULL) {
+				orig_resid = 0;
+				while (*controlp != NULL)
+					controlp = &(*controlp)->m_next;
+			}
+			cm = cmn;
 		}
 		nextrecord = so->so_rcv.sb_mb->m_nextpkt;
 		orig_resid = 0;
