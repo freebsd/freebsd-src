@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.77 1997/11/09 22:07:28 brian Exp $
+.\" $Id: ppp.8,v 1.78 1997/11/11 22:58:12 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2380,7 +2380,7 @@ for further details.
 
 .It Pa /var/spool/lock/LCK..* 
 tty port locking file.  Refer to
-.Xr uucplock 8
+.Xr uucplock 3
 for further details.
 
 .It Pa /var/run/tunN.pid
@@ -2428,8 +2428,7 @@ Get port number if port number is using service name.
 .Xr tcpdump 1 ,
 .Xr telnet 1 ,
 .Xr traceroute 8 ,
-.Xr uucplock 3 ,
-.Xr uucplock 8
+.Xr uucplock 3
 
 .Sh HISTORY
 
