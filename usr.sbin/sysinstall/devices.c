@@ -139,12 +139,6 @@ static struct _devname {
     { DEVICE_TYPE_NETWORK,	"lp",		"Parallel Port IP (PLIP) peer connection"			},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"				},
     { DEVICE_TYPE_NETWORK,	"disc",		"Software discard network interface"				},
-#ifdef PC98
-    { DEVICE_TYPE_DISK, 	"wd%d",		"IDE disk device",		3, 65538, 8, 16			},
-    { DEVICE_TYPE_CDROM,	"wcd%dc",	"ATAPI IDE CDROM",		69, 2, 8, 4			},
-    { DEVICE_TYPE_FLOPPY,	"wfd%d",	"ATAPI floppy drive unit A",	87, 0, 8, 4			},
-    { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI floppy device",		87, 65538, 8, 4			},
-#endif
     { 0 },
 };
 
