@@ -25,43 +25,43 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"
-.Dd August 31, 1994
+.Dd January 19, 1996
 .Dt AHA 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm aha
-.Nd
-Adaptec SCSI host adapter driver
+.Nd Adaptec SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd "controller aha0 at isa? port" \&"IO_AHA0\&" bio irq ? drq 5 vector ahaintr
-.Cd "controller scbus0
-.sp
-For each connected disk:
-.Cd "device sd0
-.sp
-For each connected tape device:
-.Cd "device st0
-.sp
-For one or more cdroms:
-.Cd "device cd0
+.Cd controller "aha0 at isa? port" \&"IO_AHA0\&" "bio irq ? drq 5 vector ahaintr"
+.Cd controller scbus0 at aha0
 .Sh DESCRIPTION
-This driver provides access to SCSI devices connected to an Adaptec 
-154xA, 154xB, 154xC or 164x hostadapter. It also works for compatible cards like
-the BusLogic 545 and the Adaptec 174x in 154x emulation mode.
-.sp
-For Adaptec 174x cards in enhanced mode the ahb(4) driver should be used. This
-mode is prefered over 154x emulation mode.
-.Sh FILES
-.Bl -tag -width Pa -compact
-.It Pa /sys/i386/conf/GENERIC
-sample generic kernel config file for Adaptec based systems
-.It Pa /sys/i386/isa/aha.c
-driver source
-.El
-.Sh SEE ALSO
+This driver provides access to the
+.Tn SCSI
+bus connected to an Adaptec 154xA, 154xB, 154xC or 164x host
+adapter.  It also works for compatible cards like the BusLogic 545 and
+the Adaptec 174x in 154x emulation mode.
+For Adaptec 174x cards in enhanced mode the
 .Xr ahb 4
-.Xr ahc 4
-.Xr cd 4
-.Xr scsi 4
-.Xr sd 4
+driver should be used instead.
+.Sh SEE ALSO
+.Xr ahb 4 ,
+.Xr ahc 4 ,
+.Xr cd 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
 .Xr st 4
+.\"
+.\" .Sh DIAGNOSTICS
+.\"
+.Sh AUTHOR
+The
+.Nm
+driver was written by Julian Elischer for
+.Tn Mach
+2.5.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in the
+.Tn 386BSD
+patchkit.
