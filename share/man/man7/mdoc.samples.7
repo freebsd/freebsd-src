@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mdoc.samples.7	8.2 (Berkeley) 12/30/93
-.\"	$Id: mdoc.samples.7,v 1.16 1997/12/08 07:44:20 charnier Exp $
+.\"	$Id: mdoc.samples.7,v 1.17 1998/12/03 03:38:45 jkoshy Exp $
 .\"
 .\" This tutorial sampler invokes every macro in the package several
 .\" times and is guaranteed to give a worst case performance
@@ -458,17 +458,17 @@ in
 \&.Sh DESCRIPTION
 \&.\e" The following requests should be uncommented and
 \&.\e" used where appropriate.  This next request is
-\&.\e" for sections 2 and 3 function return values only.
+\&.\e" for sections 2, 3 and 9 function return values only.
 \&.\e" .Sh RETURN VALUES
-\&.\e" This next request is for sections 1, 6, 7 & 8 only
+\&.\e" This next request is for sections 1, 6, 7, 8 & 9 only
 \&.\e" .Sh ENVIRONMENT
 \&.\e" .Sh FILES
 \&.\e" .Sh EXAMPLES
-\&.\e" This next request is for sections 1, 6, 7 & 8 only
+\&.\e" This next request is for sections 1, 6, 7, 8 & 9 only
 \&.\e"     (command return values (to shell) and
 \&.\e"	  fprintf/stderr type diagnostics)
 \&.\e" .Sh DIAGNOSTICS
-\&.\e" The next request is for sections 2 and 3 error
+\&.\e" The next request is for sections 2, 3 and 9 error
 \&.\e" and signal handling only.
 \&.\e" .Sh ERRORS
 \&.\e" .Sh SEE ALSO
@@ -525,9 +525,26 @@ subject of the man page and must be in
 .Tn CAPITALS
 due to troff
 limitations.
-The section number may be 1,\ ...,\ 8,
+The section number may be 1,\ ...,\ 9,
 and if it is specified,
 the volume title may be omitted.
+.Pp
+Under
+.Tn FreeBSD ,
+the following section numbers and their descriptions are described below:
+.Pp
+.Bl -column SMM -offset indent -compact
+.It Li 1	FreeBSD General Commands Manual
+.It Li 2	FreeBSD System Calls Manaul
+.It Li 3	FreeBSD Library Calls Manual
+.It Li 4	FreeBSD Kernel Interfaces Manual
+.It Li 5	FreeBSD File Formats Manual
+.It Li 6	FreeBSD Games Manual
+.It Li 7	FreeBSD Miscellaneous Information Manual
+.It Li 8	FreeBSD System Manager's Manual
+.It Li 9	FreeBSD Kernel Developers Guide
+.El
+.Pp
 A volume title may be arbitrary or one of the following:
 .\" .Cl
 .\" USD	UNIX User's Supplementary Documents
@@ -1363,7 +1380,7 @@ to be either a section page number or punctuation.
 Any
 remaining arguments are assumed to be punctuation.
 .Pp
-.Dl Usage: .Xr man_page [1,...,8] \*(Pu
+.Dl Usage: .Xr man_page [1,...,9] \*(Pu
 .Bl -tag -width ".Xr mdoc 7 ) ) ," -compact -offset 14n
 .It Li \&.Xr mdoc
 .Xr mdoc
@@ -1662,7 +1679,7 @@ will generate the following text:
 .Pp
 The
 .Fl std
-option is valid only for manual page sections 2 and 3.
+option is valid only for manual page sections 2, 3 and 9.
 .Ss Trade Names (or Acronyms and Type Names)
 The trade name macro is generally a small caps macro for
 all upper case words longer than two characters.
@@ -1986,7 +2003,7 @@ Credits, if need be, should be placed here.
 Diagnostics from a command should be placed in this section.
 .It \&.Sh ERRORS
 Specific error handling, especially from library functions
-(man page sections 2 and 3) should go here.
+(man page sections 2, 3 and 9) should go here.
 The
 .Ql \&.Er
 macro is used to specify an errno.
