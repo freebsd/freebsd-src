@@ -325,8 +325,9 @@ _ftp_transfer(int cd, char *oper, char *file,
     verbose = (flags && strchr(flags, 'v'));
 
     /* passive mode */
-    if (!pasv && (s = getenv("FTP_PASSIVE_MODE")) != NULL)
-	pasv = (strncasecmp(s, "no", 2) != 0);
+    if (!pasv)
+	pasv = ((s = getenv("FTP_PASSIVE_MODE")) == NULL ||
+		strncasecmp(s, "no", 2) != 0);
 
     /* find our own address, bind, and listen */
     l = sizeof sin;
