@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.14 1994/11/15 14:37:39 bde Exp $
+ * $Id: proc.h,v 1.15 1995/01/09 16:05:14 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -243,6 +243,7 @@ extern struct pgrp *pgrphash[];		/* In param.c. */
 extern struct proc *curproc;		/* Current running proc. */
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
+extern int maxprocperuid;		/* Max procs per uid. */
 extern int pidhashmask;			/* In param.c. */
 
 extern volatile struct proc *allproc;	/* List of active procs. */
