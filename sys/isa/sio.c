@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.174 1997/08/04 19:12:54 fsmp Exp $
+ *	$Id: sio.c,v 1.175 1997/08/20 05:25:16 fsmp Exp $
  */
 
 #include "opt_comconsole.h"
@@ -81,15 +81,6 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 #endif
-
-#ifdef SMP
-#include <machine/smp.h>
-#define COM_LOCK() 	s_lock(&com_lock)
-#define COM_UNLOCK() 	s_unlock(&com_lock)
-#else
-#define COM_LOCK()
-#define COM_UNLOCK()
-#endif /* SMP */
 
 #ifdef APIC_IO
 /*

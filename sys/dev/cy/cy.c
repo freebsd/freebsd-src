@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.1 1997/08/20 05:59:24 smp Exp smp $
+ *	$Id: cy.c,v 1.49 1997/08/20 06:16:44 fsmp Exp $
  */
 
 #include "cy.h"
@@ -83,15 +83,6 @@
 #endif
 
 #include <machine/clock.h>
-
-#ifdef SMP
-#include <machine/smp.h>
-#define COM_LOCK() 	s_lock(&com_lock)
-#define COM_UNLOCK() 	s_unlock(&com_lock)
-#else
-#define COM_LOCK()
-#define COM_UNLOCK()
-#endif /* SMP */
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/cyreg.h>
