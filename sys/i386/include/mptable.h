@@ -325,7 +325,7 @@ static void	release_aps(void *dummy);
 struct mtx		imen_mtx;
 
 /* lock region used by kernel profiling */
-struct mtx		mcount_mtx;
+int	mcount_lock;
 
 #ifdef USE_COMLOCK
 /* locks com (tty) data/hardware accesses: a FASTINTR() */
@@ -335,12 +335,6 @@ struct mtx		com_mtx;
 static void
 init_locks(void)
 {
-	/*
-	 * XXX The mcount mutex probably needs to be statically initialized,
-	 * since it will be used even in the function calls that get us to this
-	 * point.
-	 */
-	mtx_init(&mcount_mtx, "mcount", MTX_DEF);
 
 #ifdef USE_COMLOCK
 	mtx_init(&com_mtx, "com", MTX_SPIN);
