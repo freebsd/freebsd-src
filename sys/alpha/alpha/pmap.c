@@ -330,8 +330,6 @@ static pv_entry_t get_pv_entry(void);
 static void	alpha_protection_init(void);
 static void	pmap_changebit(vm_page_t m, int bit, boolean_t setem);
 
-static vm_page_t pmap_enter_quick(pmap_t pmap, vm_offset_t va,
-				      vm_page_t m, vm_page_t mpte);
 static int pmap_remove_pte(pmap_t pmap, pt_entry_t* ptq, vm_offset_t sva);
 static void pmap_remove_page(struct pmap *pmap, vm_offset_t va);
 static int pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
@@ -1973,7 +1971,7 @@ validate:
  * but is *MUCH* faster than pmap_enter...
  */
 
-static vm_page_t
+vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	register pt_entry_t *pte;
