@@ -1350,6 +1350,12 @@ pmap_page_protect(vm_page_t m, vm_prot_t prot)
 			pmap_pte_change(pt, &pvo->pvo_pte, pvo->pvo_vaddr);
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 	}
+
+	/*
+	 * Downgrading from writeable: clear the VM page flag
+	 */
+	if ((prot & VM_PROT_WRITE) != VM_PROT_WRITE)
+		vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 /*
@@ -1583,7 +1589,7 @@ pmap_remove_all(vm_page_t m)
 	pvo_head = vm_page_to_pvoh(m);
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
-		
+
 		PMAP_PVO_CHECK(pvo);	/* sanity check */
 		pmap_pvo_remove(pvo, -1);
 	}
