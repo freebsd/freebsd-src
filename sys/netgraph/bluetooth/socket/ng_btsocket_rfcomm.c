@@ -2065,9 +2065,12 @@ ng_btsocket_rfcomm_receive_disc(ng_btsocket_rfcomm_session_p s, int dlci)
 	if (dlci == 0) {
 		/* XXX FIXME assume that remote side will close the socket */
 		error = ng_btsocket_rfcomm_send_command(s, RFCOMM_FRAME_UA, 0);
-		if (error == 0)
-			s->state = NG_BTSOCKET_RFCOMM_SESSION_DISCONNECTING;
-		else
+		if (error == 0) {
+			if (s->state == NG_BTSOCKET_RFCOMM_SESSION_DISCONNECTING)
+				s->state = NG_BTSOCKET_RFCOMM_SESSION_CLOSED; /* XXX */
+			else
+				s->state = NG_BTSOCKET_RFCOMM_SESSION_DISCONNECTING;
+		} else
 			s->state = NG_BTSOCKET_RFCOMM_SESSION_CLOSED; /* XXX */
 
 		ng_btsocket_rfcomm_session_clean(s);
