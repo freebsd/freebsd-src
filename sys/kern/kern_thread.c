@@ -709,6 +709,29 @@ thread_link(struct thread *td, struct ksegrp *kg)
 }
 
 /*
+ * Convert a process with one thread to an unthreaded process.
+ * Called from:
+ *  thread_single(exit)  (called from execve and exit)
+ *  kse_exit()		XXX may need cleaning up wrt KSE stuff
+ */
+void
+thread_unthread(struct thread *td)
+{
+	struct proc *p = td->td_proc;
+
+	KASSERT((p->p_numthreads == 1), ("Unthreading with >1 threads"));
+	upcall_remove(td);
+	p->p_flag &= ~(P_SA|P_HADTHREADS);
+	td->td_mailbox = NULL;
+	td->td_pflags &= ~(TDP_SA | TDP_CAN_UNBIND);
+	if (td->td_standin != NULL) {
+		thread_stash(td->td_standin);
+		td->td_standin = NULL;
+	}
+	sched_set_concurrency(td->td_ksegrp, 1);
+}
+
+/*
  * Called from:
  *  thread_exit()
  */
@@ -856,21 +879,11 @@ thread_single(int mode)
 		 * we try our utmost  to revert to being a non-threaded
 		 * process.
 		 */
-		upcall_remove(td);
-		p->p_flag &= ~(P_SA|P_HADTHREADS);
-		td->td_mailbox = NULL;
-		td->td_pflags &= ~(TDP_SA | TDP_CAN_UNBIND);
-		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
 		p->p_singlethread = NULL;
-		if (td->td_standin != NULL) {
-			thread_stash(td->td_standin);
-			td->td_standin = NULL;
-		}
-		sched_set_concurrency(td->td_ksegrp, 1);
-		mtx_unlock_spin(&sched_lock);
-	} else {
-		mtx_unlock_spin(&sched_lock);
+		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
+		thread_unthread(td);
 	}
+	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
 
@@ -1036,7 +1049,6 @@ thread_unsuspend(struct proc *p)
 
 /*
  * End the single threading mode..
- * Part of this is duplicated in thread-single in the SINGLE_EXIT case.
  */
 void
 thread_single_end(void)
