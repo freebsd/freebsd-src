@@ -428,9 +428,10 @@ or
 has been modified.
 .It "pointer to wrong page"
 The pointer that
-.Fn malloc
+.Fn free ,
+.Fn realloc ,
 or
-.Fn calloc
+.Fn reallocf
 is trying to free does not reference a possible page.
 .It "recursive call"
 A process has attempted to call an allocation function recursively.
