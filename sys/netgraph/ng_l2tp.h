@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_L2TP_NODE_TYPE	"l2tp"
-#define NGM_L2TP_COOKIE		1091448040
+#define NGM_L2TP_COOKIE		1091515793
 
 /* Hook names */
 #define NG_L2TP_HOOK_CTRL	"ctrl"		/* control channel hook */
@@ -161,6 +161,23 @@ struct ng_l2tp_stats {
 	  { NULL }						\
 }
 
+/* Session statistics struct. */
+struct ng_l2tp_session_stats {
+	u_int64_t xmitPackets;		/* number of packets xmit */
+	u_int64_t xmitOctets;		/* number of octets xmit */
+	u_int64_t recvPackets;		/* number of packets received */
+	u_int64_t recvOctets;		/* number of octets received */
+};
+
+/* Keep this in sync with the above structure definition. */
+#define NG_L2TP_SESSION_STATS_TYPE_INFO	{			\
+	  { "xmitPackets",	&ng_parse_uint64_type	},	\
+	  { "xmitOctets",	&ng_parse_uint64_type	},	\
+	  { "recvPackets",	&ng_parse_uint64_type	},	\
+	  { "recvOctets",	&ng_parse_uint64_type	},	\
+	  { NULL }						\
+}
+
 /* Netgraph commands */
 enum {
 	NGM_L2TP_SET_CONFIG = 1,	/* supply a struct ng_l2tp_config */
@@ -170,6 +187,9 @@ enum {
 	NGM_L2TP_GET_STATS,		/* returns struct ng_l2tp_stats */
 	NGM_L2TP_CLR_STATS,		/* clears stats */
 	NGM_L2TP_GETCLR_STATS,		/* returns & clears stats */
+	NGM_L2TP_GET_SESSION_STATS,	/* returns session stats */
+	NGM_L2TP_CLR_SESSION_STATS,	/* clears session stats */
+	NGM_L2TP_GETCLR_SESSION_STATS,	/* returns & clears session stats */
 	NGM_L2TP_ACK_FAILURE,		/* sent *from* node after ack timeout */
 	NGM_L2TP_SET_SEQ		/* supply a struct ng_l2tp_seq_config */
 };

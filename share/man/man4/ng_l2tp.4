@@ -261,17 +261,27 @@ the current configuration for the corresponding data session as a
 .Vt "struct ng_l2tp_sess_config" .
 The corresponding session hook must be connected.
 .It Dv NGM_L2TP_GET_STATS
-This command takes a two byte session ID as an argument and returns a
+This command returns a
 .Vt "struct ng_l2tp_stats"
-containing statistics for the corresponding data session.
-The corresponding session hook must be connected.
+containing statistics of the L2TP tunnel.
 .It Dv NGM_L2TP_CLR_STATS
-This command takes a two byte session ID as an argument and
-clears the statistics for that data session.
-The corresponding session hook must be connected.
+This command clears the statistics for the L2TP tunnel.
 .It Dv NGM_L2TP_GETCLR_STATS
 Same as
 .Dv NGM_L2TP_GET_STATS ,
+but also atomically clears the statistics as well.
+.It Dv NGM_L2TP_GET_SESSION_STATS
+This command takes a two byte session ID as an argument and returns a
+.Vt "struct ng_l2tp_session_stats"
+containing statistics for the corresponding data session.
+The corresponding session hook must be connected.
+.It Dv NGM_L2TP_CLR_SESSION_STATS
+This command takes a two byte session ID as an argument and
+clears the statistics for that data session.
+The corresponding session hook must be connected.
+.It Dv NGM_L2TP_GETCLR_SESSION_STATS
+Same as
+.Dv NGM_L2TP_GET_SESSION_STATS ,
 but also atomically clears the statistics as well.
 .It Dv NGM_L2TP_SET_SEQ
 This command sets the sequence numbers of a not yet enabled node.
