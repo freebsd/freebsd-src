@@ -53,7 +53,7 @@ shift $(($OPTIND - 1))
 
 if [ $# = "0" ]
 then
-	echo "Missing operand" 1>&2
+	echo "c89: missing operand" 1>&2
 	usage
 fi
 
@@ -64,7 +64,7 @@ do
 		shift
 		;;
 	*)
-		echo "Invalid operand" 1>&2
+		echo "c89: invalid operand" 1>&2
 		usage
 		;;
 	esac
