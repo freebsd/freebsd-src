@@ -142,6 +142,7 @@ ext2_mountroot()
 	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	TAILQ_INIT(&mp->mnt_nvnodelist);
+	TAILQ_INIT(&mp->mnt_reservedvnlist);
 	mp->mnt_op = &ext2fs_vfsops;
 	mp->mnt_flag = MNT_RDONLY;
 	if (error = ext2_mountfs(rootvp, mp, td)) {
