@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.47 1996/07/06 14:39:56 joerg Exp $
+<date> $Id: freebsd-faq.sgml,v 1.48 1996/07/07 22:09:24 alex Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -1448,7 +1448,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
       <sect1>
 	<heading>When I try to mount a CDROM, I get a ``Device not configured'' error.  What's going on?</heading>
         <p>
-          This generally means that there is no CDROM in the CDROM drive.
+          This generally means that there is no CDROM in the CDROM drive,
           or the drive is not visible on the bus. Feed the drive
           something, and/or check it's master/slave status if it is
           IDE (ATAPI).
