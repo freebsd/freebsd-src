@@ -103,9 +103,6 @@ struct buf {
 	uint8_t		b_ioflags;
 	off_t		b_iooffset;
 	long		b_resid;
-	unsigned	b_magic;
-#define B_MAGIC_BIO	0x10b10b10
-#define B_MAGIC_NFS	0x67238234
 	void	(*b_iodone)(struct buf *);
 	daddr_t b_blkno;		/* Underlying physical block number. */
 	off_t	b_offset;		/* Offset into file. */

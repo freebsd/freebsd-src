@@ -295,7 +295,6 @@ initpbuf(struct buf *bp)
 	bp->b_ioflags = 0;
 	bp->b_iodone = NULL;
 	bp->b_error = 0;
-	bp->b_magic = B_MAGIC_BIO;
 	BUF_LOCK(bp, LK_EXCLUSIVE, NULL);
 }
 
