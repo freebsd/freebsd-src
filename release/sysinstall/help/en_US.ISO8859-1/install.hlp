@@ -311,18 +311,18 @@ relevant preparation section (section 2.x) for the installation media
 type you're trying to use - perhaps there's a helpful hint there that
 you missed the first time?  If you're having hardware trouble, or
 FreeBSD refuses to boot at all, read the Hardware Guide provided on
-the boot floppy for helpful hints and things to look for.
+the boot floppy for a list of possible solutions.
 
 The FreeBSD boot floppy contains all the on-line documentation you
-should need to be able to navigate through an installation, and if it
+should need to be able to navigate through an installation and if it
 doesn't then I'd like to know what you found most confusing!  It is
 the objective of the FreeBSD installation program (sysinstall) to be
 self-documenting enough that painful "step-by-step" guides are no
 longer necessary.  It may take us a little while to reach that
 objective, but that's the objective!
 
-In the meanwhile, you may also find the following "typical
-installation sequence" helpful:
+Meanwhile, you may also find the following "typical installation sequence"
+to be helpful:
 
 o Boot the boot floppy.  After a boot sequence which can take
   anywhere from from 30 seconds to 3 minutes, depending on your
@@ -351,27 +351,27 @@ o You can do anything you like in this menu without altering
   your system _except_ for "Commit", which will perform any
   requests to alter your system you may have made.
 
-  If you're confused at any point, the F1 key generally pulls
+  If you're confused at any point, the F1 key usually pulls
   up the right information for the screen you're in.
 
 	o The first step is generally `Partition', which allows
 	  you to chose how your drives will be used for FreeBSD.
 
-	o Next, with the `Label' editor, you can specify how
-	  the partition space allocated should be used by FreeBSD
+	o Next, with the `Label' editor, you can specify how the space
+	  in any allocated FreeBSD partitions should be used by FreeBSD,
 	  or where to mount a non-FreeBSD partition (such as DOS).
 
 	o Next, the `Distributions' menu allows you to specify which
 	  parts of FreeBSD you wish to load.  A good choice is
-	  "User" for a small system and "Developer" for someone
+	  "User" for a small system or "Developer" for someone
 	  wanting a bit more out of FreeBSD.  If none of the existing
-	  collections sound good, select Custom.
+	  collections sound applicable, select Custom.
 
 	o Next, the `Media' menu allows you to specify what kind of
-	  media you wish to install from.  If the desired media was
-	  found and configured automatically then a choice from this
-	  menu will simply return, otherwise you'll be asked for
-	  additional details on the media device type.
+	  media you wish to install from.  If a desired media choice is
+	  found and configured automatically then this menu will simply
+	  return, otherwise you'll be asked for additional details on
+	  the media device type.
 
 	o Finally, the Commit command will actually perform all the
 	  actions at once (nothing has been written to your disk
@@ -382,10 +382,14 @@ o You can do anything you like in this menu without altering
 	  Label editor) and all selected distributions will be
 	  extracted.
 
-	o The Configure menu choice is generaly used after a complete
-	  installation, or after the system is up.  This allows you to
-	  set various system defaults like screen saver preferences,
-	  whether or not the system will be an NFS server, etc.
+	o The Configure menu choice allows you to furthur configure your
+	  FreeBSD installation by giving you menu-driven access to 
+	  various system defaults.  Some items, like networking, may
+	  be especially important if you did a CDROM/Tape/Floppy
+	  installation and have not yet configured your network
+	  interfaces (assuming you have some).  Properly configuring
+	  your network here will allow FreeBSD to come up on the network
+	  when you first reboot from the hard disk.
 
 	o Exit returns you to the top menu.
 
@@ -398,7 +402,7 @@ boot menu with an `F?' prompt.  Press the function key for BSD (it
 will be shown) and you should boot up into FreeBSD off the hard disk.
 
   If this fails to happen for some reason, see the Q & A section
-of the Hardware Guide for clues!
+of the Hardware Guide for possible clues!
 
 					Jordan
 
