@@ -72,6 +72,7 @@
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -1003,6 +1004,42 @@ cpu_halt(void)
 	for (;;)
 		__asm__ ("hlt");
 }
+
+/*
+ * Hook to idle the CPU when possible.  This currently only works in
+ * the !SMP case, as there is no clean way to ensure that a CPU will be
+ * woken when there is work available for it.
+ */
+#ifndef SMP
+static int	cpu_idle_hlt = 1;
+SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW, &cpu_idle_hlt, 0, "Idle loop HLT enable");
+
+/*
+ * Note that we have to be careful here to avoid a race between checking
+ * procrunnable() and actually halting.  If we don't do this, we may waste
+ * the time between calling hlt and the next interrupt even though there
+ * is a runnable process.
+ */
+static void
+cpu_idle(void *junk, int count)
+{
+	if (cpu_idle_hlt){
+		disable_intr();
+		if (procrunnable()) {
+			enable_intr();
+		} else {
+			enable_intr();
+			__asm__ ("hlt");
+		}
+	}
+}
+
+static void cpu_idle_register(void *junk)
+{
+	EVENTHANDLER_FAST_REGISTER(idle_event, cpu_idle, NULL, IDLE_PRI_LAST);
+}
+SYSINIT(cpu_idle_register, SI_SUB_SCHED_IDLE, SI_ORDER_SECOND, cpu_idle_register, NULL)
+#endif /* !SMP */
 
 /*
  * Clear registers on exec

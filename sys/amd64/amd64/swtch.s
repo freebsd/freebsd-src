@@ -60,9 +60,6 @@
 
 	.data
 
-	.globl	_hlt_vector
-_hlt_vector:	.long	_default_halt	/* pointer to halt routine */
-
 	.globl	_panic
 
 #if defined(SWTCH_OPTIM_STATS)
@@ -72,13 +69,6 @@ _tlb_flush_count:	.long	0
 #endif
 
 	.text
-
-ENTRY(default_halt)
-	sti
-#ifndef SMP
-	hlt					/* XXX:	 until a wakeup IPI */
-#endif
-	ret
 
 /*
  * cpu_throw()
