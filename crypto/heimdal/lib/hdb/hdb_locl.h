@@ -32,6 +32,7 @@
  */
 
 /* $Id: hdb_locl.h,v 1.13 2000/02/06 05:17:05 assar Exp $ */
+/* $FreeBSD$ */
 
 #ifndef __HDB_LOCL_H__
 #define __HDB_LOCL_H__
@@ -56,7 +57,7 @@
 #endif
 #include <roken.h>
 
-#include <des.h>
+#include <openssl/des.h>
 #include <krb5.h>
 #include <hdb.h>
 #include <hdb-private.h>
