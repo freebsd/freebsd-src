@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslimits.h	8.1 (Berkeley) 6/2/93
- * $Id: syslimits.h,v 1.3 1994/08/07 23:00:50 wollman Exp $
+ * $Id: syslimits.h,v 1.4 1994/08/08 09:12:43 davidg Exp $
  */
+
+#ifndef _SYS_SYSLIMITS_H_
+#define _SYS_SYSLIMITS_H_
 
 #define	ARG_MAX			65536	/* max bytes for an exec function */
 #define	CHILD_MAX		   40	/* max simultaneous processes */
@@ -53,3 +56,5 @@
 #define	EXPR_NEST_MAX		   32	/* max expressions nested in expr(1) */
 #define	LINE_MAX		 2048	/* max bytes in an input line */
 #define	RE_DUP_MAX		  255	/* max RE's in interval notation */
+
+#endif

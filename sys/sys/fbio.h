@@ -36,8 +36,11 @@
  *
  *	@(#)fbio.h	8.2 (Berkeley) 10/30/93
  *
- * $Id$
+ * $Id: fbio.h,v 1.2 1994/08/02 07:52:56 davidg Exp $
  */
+
+#ifndef _SYS_FBIO_H_
+#define _SYS_FBIO_H_
 
 /*
  * Frame buffer ioctls (from Sprite, trimmed to essentials for X11).
@@ -184,3 +187,5 @@ struct fbcursor {
 
 /* get maximum cursor size */
 #define	FBIOGCURMAX	_IOR('F', 28, struct fbcurpos)
+
+#endif

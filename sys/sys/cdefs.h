@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)cdefs.h	8.7 (Berkeley) 1/21/94
- * $Id: cdefs.h,v 1.3 1994/08/02 07:52:41 davidg Exp $
+ * $Id: cdefs.h,v 1.4 1994/08/13 14:21:58 davidg Exp $
  */
 
-#ifndef	_CDEFS_H_
-#define	_CDEFS_H_
+#ifndef	_SYS_CDEFS_H_
+#define	_SYS_CDEFS_H_
 
 #if defined(__cplusplus)
 #define	__BEGIN_DECLS	extern "C" {

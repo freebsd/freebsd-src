@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)vcmd.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: vcmd.h,v 1.2 1994/08/02 07:54:09 davidg Exp $
  */
+
+#ifndef _SYS_VCMD_H_
+#define _SYS_VCMD_H_
 
 #include <sys/ioctl.h>
 
@@ -42,3 +45,5 @@
 
 #define	VGETSTATE	_IOR('v', 0, int)
 #define	VSETSTATE	_IOW('v', 1, int)
+
+#endif

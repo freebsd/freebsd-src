@@ -36,8 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)map.h	8.3 (Berkeley) 1/26/94
- * $Id$
+ * $Id: map.h,v 1.2 1994/08/02 07:53:11 davidg Exp $
  */
+
+#ifndef _SYS_MAP_H_
+#define _SYS_MAP_H_
 
 /*
  * Resource allocation maps.
@@ -80,4 +83,6 @@ int	nswapmap;
 long	rmalloc __P((struct map *, long));
 void	rmfree __P((struct map *, long, long));
 void	rminit __P((struct map *, long, long, char *, int));
+#endif
+
 #endif

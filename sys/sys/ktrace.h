@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: ktrace.h,v 1.2 1994/08/02 07:53:09 davidg Exp $
  */
+
+#ifndef _SYS_KTRACE_H_
+#define _SYS_KTRACE_H_
 
 /*
  * operations to ktrace system call  (KTROP(op))
@@ -155,3 +158,5 @@ int	ktrace __P((const char *, int, int, pid_t));
 __END_DECLS
 
 #endif	/* !KERNEL */
+
+#endif
