@@ -532,7 +532,7 @@ hifn_detach(device_t dev)
 	callout_stop(&sc->sc_rngto);
 #ifdef HIFN_RNDTEST
 	if (sc->sc_rndtest)
-		rndtest_detach(sc->sc->rndtest);
+		rndtest_detach(sc->sc_rndtest);
 #endif
 
 	/* Turn off DMA polling */
