@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.alpha,v 1.1 1998/03/12 02:55:20 jdp Exp $
+# $Id: Makefile.alpha,v 1.2 1998/05/04 21:29:54 jb Exp $
 #
 
 .if	${MACHINE_ARCH} == "alpha"
@@ -13,8 +13,6 @@ LDSCRIPTS+=	elf64alpha.x elf64alpha.xbn elf64alpha.xn elf64alpha.xr \
 		alpha.xn alpha.xr alpha.xu
 SRCS+=		eelf64alpha.c ealpha.c
 CLEANFILES+=	eelf64alpha.c ealpha.c
-
-beforedepend: eelf64alpha.c ealpha.c
 
 eelf64alpha.c:	emulparams/elf64alpha.sh emultempl/elf32.em \
 		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
