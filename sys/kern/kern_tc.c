@@ -758,6 +758,7 @@ static void
 tco_forward(int force)
 {
 	struct timecounter *tc, *tco;
+	struct timeval tvt;
 
 	tco = timecounter;
 	tc = sync_other_counter();
@@ -773,9 +774,17 @@ tco_forward(int force)
 	if (tco->tc_poll_pps) 
 		tco->tc_poll_pps(tco);
 	if (timedelta != 0) {
-		tc->tc_offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
+		tvt = boottime;
+		tvt.tv_usec -= tickdelta;
+		if (tvt.tv_usec >= 1000000) {
+			tvt.tv_sec++;
+			tvt.tv_usec -= 1000000;
+		} else if (tvt.tv_usec < 0) {
+			tvt.tv_sec--;
+			tvt.tv_usec += 1000000;
+		}
+		boottime = tvt;
 		timedelta -= tickdelta;
-		force++;
 	}
 
 	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
