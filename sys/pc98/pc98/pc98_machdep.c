@@ -59,8 +59,6 @@ pc98_init_dmac(void)
 }
 
 #ifdef EPSON_MEMWIN
-static	void init_epson_memwin __P((void));
-
 /*
  * Disconnect phisical memory in 15-16MB region.
  *
@@ -120,21 +118,21 @@ init_epson_memwin(void)
 /*
  * Get physical memory size
  */
-void
-pc98_getmemsize(unsigned *base, unsigned *ext, unsigned *under16)
+unsigned int
+pc98_getmemsize(unsigned int *base, unsigned int *ext)
 {
-	unsigned int over16;
+	unsigned int under16, over16;
 
 	/* available conventional memory size */
 	*base = ((PC98_SYSTEM_PARAMETER(0x501) & 7) + 1) * 128;
 
 	/* available protected memory size under 16MB */
-	*under16 = PC98_SYSTEM_PARAMETER(0x401) * 128 + 1024;
+	under16 = PC98_SYSTEM_PARAMETER(0x401) * 128 + 1024;
 #ifdef EPSON_MEMWIN
 	if (pc98_machine_type & M_EPSON_PC98) {
-		if (*under16 > (15 * 1024)) {
+		if (under16 > (15 * 1024)) {
 			/* chop under16 memory to 15MB */
-			*under16 = 15 * 1024;
+			under16 = 15 * 1024;
 		}
 		init_epson_memwin();
 	}
@@ -144,11 +142,13 @@ pc98_getmemsize(unsigned *base, unsigned *ext, unsigned *under16)
 	over16  = PC98_SYSTEM_PARAMETER(0x594);
 	over16 += PC98_SYSTEM_PARAMETER(0x595) * 256;
 
-	*ext = *under16;
 	if (over16 > 0) {
-		*ext = (16 + over16) * 1024;
+		*ext = (16 + over16) * 1024 - 1024;
+	} else {
+		*ext = under16 - 1024;
 	}
-	*ext -= 1024;	/* subtract base memory space */
+
+	return under16;
 }
 
 #include "da.h"
