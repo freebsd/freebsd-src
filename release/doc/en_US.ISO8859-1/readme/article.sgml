@@ -36,7 +36,7 @@
       information.</para>
   </abstract>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Introduction</title>
 
     <para>This distribution is a &release.type; of &os; &release.current;, the
@@ -113,7 +113,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="obtain">
     <title>Obtaining &os;</title>
 
     <para>&os; may be obtained in a variety of ways.  This section
@@ -250,7 +250,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="seealso">
     <title>Further Reading</title>
 
     <para>There are many sources of information about &os;; some are
@@ -403,7 +403,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="acknowledgements">
     <title>Acknowledgments</title>
 
     <para>&os; represents the cumulative work of many hundreds, if not

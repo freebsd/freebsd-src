@@ -1,6 +1,6 @@
 <!-- $FreeBSD$ -->
 
-<sect1>
+<sect1 id="intro">
   <title>Introduction</title>
 
   <para>This document contains the hardware compatibility notes for

@@ -57,7 +57,7 @@
 
   </abstract>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
@@ -86,14 +86,14 @@
 
   </sect1>
 
-  <sect1>
+  <sect1 id="security">
     <title>Security Advisories</title>
 
     <para>No active security advisories.</para>
 
   </sect1>
 
-  <sect1>
+  <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
     <para>The &man.geom.4;-based disk partitioning code in the kernel

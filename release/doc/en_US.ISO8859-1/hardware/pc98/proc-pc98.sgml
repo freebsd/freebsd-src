@@ -1,7 +1,7 @@
 <!--
 	$FreeBSD$
 -->
-<sect1>
+<sect1 id="support-sys">
   <title>Supported Systems</title>
 
   <para>NEC PC-98x1 machines</para>
