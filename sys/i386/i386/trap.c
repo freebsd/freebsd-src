@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.53 1995/06/11 19:31:14 rgrimes Exp $
+ *	$Id: trap.c,v 1.53.2.1 1995/07/20 09:18:16 davidg Exp $
  */
 
 /*
@@ -66,6 +66,11 @@
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/../isa/isa_device.h>
+
+#ifdef POWERFAIL_NMI
+# include <syslog.h>
+# include <machine/clock.h>
+#endif
 
 #include "isa.h"
 #include "npx.h"
@@ -234,16 +239,20 @@ trap(frame)
 
 #if NISA > 0
 		case T_NMI:
+#ifdef POWERFAIL_NMI
+			goto handle_powerfail;
+#else /* !POWERFAIL_NMI */
 #ifdef DDB
 			/* NMI can be hooked up to a pushbutton for debugging */
 			printf ("NMI ... going to debugger\n");
 			if (kdb_trap (type, 0, &frame))
 				return;
-#endif
+#endif /* DDB */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) return;
 			panic("NMI indicates hardware failure");
-#endif
+#endif /* POWERFAIL_NMI */
+#endif /* NISA > 0 */
 
 		case T_OFLOW:		/* integer overflow fault */
 			ucode = FPE_INTOVF_TRAP;
@@ -355,16 +364,34 @@ trap(frame)
 
 #if NISA > 0
 		case T_NMI:
+#ifdef POWERFAIL_NMI
+#ifndef TIMER_FREQ
+#  define TIMER_FREQ 1193182
+#endif
+	handle_powerfail:
+		{
+		  static unsigned lastalert = 0;
+
+		  if(time.tv_sec - lastalert > 10)
+		    {
+		      log(LOG_WARNING, "NMI: power fail\n");
+		      sysbeep(TIMER_FREQ/880, hz);
+		      lastalert = time.tv_sec;
+		    }
+		  return;
+		}
+#else /* !POWERFAIL_NMI */
 #ifdef DDB
 			/* NMI can be hooked up to a pushbutton for debugging */
 			printf ("NMI ... going to debugger\n");
 			if (kdb_trap (type, 0, &frame))
 				return;
-#endif
+#endif /* DDB */
 			/* machine/parity/power fail/"kitchen sink" faults */
 			if (isa_nmi(code) == 0) return;
 			/* FALL THROUGH */
-#endif
+#endif /* POWERFAIL_NMI */
+#endif /* NISA > 0 */
 		}
 
 		trap_fatal(&frame);
@@ -421,9 +448,9 @@ trap_pfault(frame, usermode)
 		vm_offset_t v;
 		vm_page_t ptepg;
 
-		if ((p == NULL) ||
+		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
-		    curpcb->pcb_onfault == NULL)) {
+		    (curpcb == NULL || curpcb->pcb_onfault == NULL))) {
 			trap_fatal(frame);
 			return (-1);
 		}
@@ -771,7 +798,7 @@ syscall(frame)
 	struct sysent *callp;
 	struct proc *p = curproc;
 	u_quad_t sticks;
-	int error, opc;
+	int error;
 	int args[8], rval[2];
 	u_int code;
 
@@ -779,14 +806,9 @@ syscall(frame)
 	if (ISPL(frame.tf_cs) != SEL_UPL)
 		panic("syscall");
 
-	code = frame.tf_eax;
 	p->p_md.md_regs = (int *)&frame;
-	params = (caddr_t)frame.tf_esp + sizeof (int) ;
-
-	/*
-	 * Reconstruct pc, assuming lcall $X,y is 7 bytes, as it is always.
-	 */
-	opc = frame.tf_eip - 7;
+	params = (caddr_t)frame.tf_esp + sizeof(int);
+	code = frame.tf_eax;
 	/*
 	 * Need to check if this is a 32 bit or 64 bit syscall.
 	 */
@@ -795,25 +817,25 @@ syscall(frame)
 		 * Code is first argument, followed by actual args.
 		 */
 		code = fuword(params);
-		params += sizeof (int);
+		params += sizeof(int);
 	} else if (code == SYS___syscall) {
 		/*
 		 * Like syscall, but code is a quad, so as to maintain
 		 * quad alignment for the rest of the arguments.
 		 */
-		code = fuword(params + _QUAD_LOWWORD * sizeof(int));
+		code = fuword(params);
 		params += sizeof(quad_t);
 	}
 
  	if (p->p_sysent->sv_mask)
- 		code = code & p->p_sysent->sv_mask;
+ 		code &= p->p_sysent->sv_mask;
 
  	if (code >= p->p_sysent->sv_size)
  		callp = &p->p_sysent->sv_table[0];
   	else
  		callp = &p->p_sysent->sv_table[code];
 
-	if ((i = callp->sy_narg * sizeof (int)) &&
+	if ((i = callp->sy_narg * sizeof(int)) &&
 	    (error = copyin(params, (caddr_t)args, (u_int)i))) {
 #ifdef KTRACE
 		if (KTRPOINT(p, KTR_SYSCALL))
@@ -844,14 +866,17 @@ syscall(frame)
 		break;
 
 	case ERESTART:
-		frame.tf_eip = opc;
+		/*
+		 * Reconstruct pc, assuming lcall $X,y is 7 bytes.
+		 */
+		frame.tf_eip -= 7;
 		break;
 
 	case EJUSTRETURN:
 		break;
 
 	default:
-	bad:
+bad:
  		if (p->p_sysent->sv_errsize)
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
@@ -879,14 +904,13 @@ void
 linux_syscall(frame)
 	struct trapframe frame;
 {
-	caddr_t params;
 	int i;
 	struct proc *p = curproc;
 	struct sysent *callp;
 	u_quad_t sticks;
-	int error, opc;
+	int error;
 	int rval[2];
-	int code;
+	u_int code;
 	struct linux_syscall_args {
 		int arg1;
 		int arg2;
@@ -905,35 +929,23 @@ linux_syscall(frame)
 	if (ISPL(frame.tf_cs) != SEL_UPL)
 		panic("linux syscall");
 
-	code = frame.tf_eax;
 	p->p_md.md_regs = (int *)&frame;
-	params = (caddr_t)frame.tf_esp + sizeof (int) ;
+	code = frame.tf_eax;
 
-	/* Reconstruct pc, subtract size of int 0x80 */
-	opc = frame.tf_eip - 2;
-	if (code == 0) {
-		code = fuword(params);
-		params += sizeof (int);
-	}
 	if (p->p_sysent->sv_mask)
-		code = code & p->p_sysent->sv_mask;
+		code &= p->p_sysent->sv_mask;
 
-	if (code < 0 || code >= p->p_sysent->sv_size)
+	if (code >= p->p_sysent->sv_size)
 		callp = &p->p_sysent->sv_table[0];
 	else
 		callp = &p->p_sysent->sv_table[code];
 
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
+		ktrsyscall(p->p_tracep, code, callp->sy_narg, (int *)&args);
 #endif
 
-#ifdef KTRACE
-	if (KTRPOINT(p, KTR_SYSCALL))
-		ktrsyscall(p->p_tracep, code, callp->sy_narg, &args);
-#endif
 	rval[0] = 0;
-	rval[1] = frame.tf_edx;
 
 	error = (*callp->sy_call)(p, &args, rval);
 
@@ -950,14 +962,14 @@ linux_syscall(frame)
 		break;
 
 	case ERESTART:
-		frame.tf_eip = opc;
+		/* Reconstruct pc, subtract size of int 0x80 */
+		frame.tf_eip -= 2;
 		break;
 
 	case EJUSTRETURN:
 		break;
 
 	default:
-	bad:
  		if (p->p_sysent->sv_errsize)
  			if (error >= p->p_sysent->sv_errsize)
   				error = -1;	/* XXX */
