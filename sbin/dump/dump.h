@@ -170,13 +170,13 @@ struct dumpdates {
 	time_t	dd_ddate;
 };
 int	nddates;		/* number of records (might be zero) */
-int	ddates_in;		/* we have read the increment file */
 struct	dumpdates **ddatev;	/* the arrayfied version */
 void	initdumptimes __P((void));
 void	getdumptime __P((void));
 void	putdumptime __P((void));
 #define	ITITERATE(i, ddp) \
-	for (ddp = ddatev[i = 0]; i < nddates; ddp = ddatev[++i])
+	if (ddatev != NULL) \
+		for (ddp = ddatev[i = 0]; i < nddates; ddp = ddatev[++i])
 
 void	sig __P((int signo));
 

@@ -71,7 +71,6 @@ struct dumptime {
 SLIST_HEAD(dthead, dumptime) dthead = SLIST_HEAD_INITIALIZER(dthead);
 struct	dumpdates **ddatev = 0;
 int	nddates = 0;
-int	ddates_in = 0;
 
 static	void dumprecout __P((FILE *, struct dumpdates *));
 static	int getrecord __P((FILE *, struct dumpdates *));
@@ -125,7 +124,6 @@ readdumptimes(df)
 		SLIST_INSERT_HEAD(&dthead, dtwalk, dt_list);
 	}
 
-	ddates_in = 1;
 	/*
 	 *	arrayify the list, leaving enough room for the additional
 	 *	record that we may have to add to the ddate structure
@@ -188,7 +186,6 @@ putdumptime()
 	free((char *)ddatev);
 	ddatev = 0;
 	nddates = 0;
-	ddates_in = 0;
 	readdumptimes(df);
 	if (fseek(df, 0L, 0) < 0)
 		quit("fseek: %s\n", strerror(errno));
