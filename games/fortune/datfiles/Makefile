@@ -37,6 +37,6 @@ fortunes-o.dat: fortunes-o
 	    strfile -Csx ${.ALLSRC} ${.TARGET}
 
 fortunes-o: fortunes-o.${TYPE}
-	LANG=C tr a-zA-Z n-za-mN-ZA-M < ${.ALLSRC} > ${.TARGET}
+	LC_ALL=C tr a-zA-Z n-za-mN-ZA-M < ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
