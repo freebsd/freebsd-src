@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.18 1998/12/07 21:58:46 archie Exp $ */
+/*	$Id: if_tx.c,v 1.19 1998/12/09 01:12:18 eivind Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -360,7 +360,7 @@ epic_shutdown(
 #else /* __FreeBSD__ */
 /* -----------------------------FreeBSD------------------------------------- */
 
-static char* epic_freebsd_probe __P((pcici_t, pcidi_t));
+static const char* epic_freebsd_probe __P((pcici_t, pcidi_t));
 static void epic_freebsd_attach __P((pcici_t, int));
 static void epic_shutdown __P((int, void *));
 
@@ -377,7 +377,7 @@ static struct pci_device txdevice = {
 DATA_SET ( pcidevice_set, txdevice );
 
 /* Synopsis: Check if device id corresponds with SMC83C170 id.  */
-static char*
+static const char*
 epic_freebsd_probe(
     pcici_t config_id,
     pcidi_t device_id)

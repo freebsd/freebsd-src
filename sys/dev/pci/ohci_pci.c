@@ -99,7 +99,7 @@ struct cfattach ohci_pci_ca = {
 
 #define PCI_OHCI_BASE_REG	0x10
 
-static char *ohci_pci_probe              __P((pcici_t, pcidi_t));
+static const char *ohci_pci_probe              __P((pcici_t, pcidi_t));
 static void ohci_pci_attach              __P((pcici_t, int));
 
 u_long ohci_count = 0;           /* global counter for nr. of devices found */
@@ -132,7 +132,7 @@ ohci_pci_match(parent, match, aux)
 	return 0;
 }
 #elif defined(__FreeBSD__)
-static char *
+static const char *
 ohci_pci_probe(pcici_t config_id, pcidi_t device_id)
 {
         u_int32_t class;

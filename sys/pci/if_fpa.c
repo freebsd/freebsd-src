@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.6 1998/02/09 06:10:49 eivind Exp $
+ * $Id: if_fpa.c,v 1.7 1998/02/20 13:11:53 bde Exp $
  *
  */
 
@@ -135,7 +135,7 @@ static void pdq_pci_shutdown(int, void *);
  * on both EISA and PCI boards, one must be careful in how defines the
  * PDQ in the config file.
  */
-static char *
+static const char *
 pdq_pci_probe(
     pcici_t config_id,
     pcidi_t device_id)

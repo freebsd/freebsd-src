@@ -94,8 +94,8 @@ struct cfattach uhci_pci_ca = {
 
 #define PCI_UHCI_BASE_REG               0x20
 
-static char *uhci_pci_probe              __P((pcici_t, pcidi_t));
-static void uhci_pci_attach              __P((pcici_t, int));
+static const char *uhci_pci_probe	__P((pcici_t, pcidi_t));
+static void uhci_pci_attach		__P((pcici_t, int));
 
 u_long uhci_count = 0;           /* global counter for nr. of devices found */
 
@@ -129,7 +129,7 @@ uhci_pci_match(parent, match, aux)
 }
 
 #elif defined(__FreeBSD__)
-static char *
+static const char *
 uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
 {
 	u_int32_t class;
