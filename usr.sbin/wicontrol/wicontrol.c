@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $FreeBSD$";
+	"@(#) $FreeBSD$"
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));
@@ -69,9 +69,9 @@ static void wi_sethex		__P((char *, int, char *));
 static void wi_printwords	__P((struct wi_req *));
 static void wi_printbool	__P((struct wi_req *));
 static void wi_printhex		__P((struct wi_req *));
-static void wi_dumpinfo		__P((char *));
+static void wi_dumpinfo		__P((char *, char));
 static void wi_setkeys		__P((char *, char *, int));
-static void wi_printkeys	__P((struct wi_req *));
+static void wi_printkeys	__P((struct wi_req *, char));
 static void usage		__P((char *));
 
 static void wi_getval(iface, wreq)
@@ -319,25 +319,35 @@ static void wi_setkeys(iface, key, idx)
 	return;
 }
 
-static void wi_printkeys(wreq)
+static void wi_printkeys(wreq, asciikeys)
 	struct wi_req		*wreq;
+	char asciikeys;
 {
 	int			i, j;
 	struct wi_key		*k;
 	struct wi_ltv_keys	*keys;
-	char			*ptr;
+	unsigned char		*ptr;
 
 	keys = (struct wi_ltv_keys *)wreq;
 
 	for (i = 0; i < 4; i++) {
 		k = &keys->wi_keys[i];
 		ptr = (char *)k->wi_keydat;
-		for (j = 0; j < k->wi_keylen; j++) {
-			if (ptr[i] == '\0')
-				ptr[i] = ' ';
+		if (asciikeys) {
+			for (j = 0; j < k->wi_keylen; j++) {
+				if (ptr[j] == '\0')
+					ptr[j] = ' ';
+			}
+			ptr[j] = '\0';
+			printf("[ %s ]", ptr);
+		} else {
+			printf("[ ");
+			if (k->wi_keylen)
+				printf("0x");
+			for (j = 0; j < k->wi_keylen; j++)
+				printf("%02x",ptr[j]);
+			printf(" ]");
 		}
-		ptr[j] = '\0';
-		printf("[ %s ]", ptr);
 	}
 
 	return;
@@ -429,8 +439,8 @@ static struct wi_table wi_crypt_table[] = {
 	{ 0, NULL }
 };
 
-static void wi_dumpinfo(iface)
-	char			*iface;
+static void wi_dumpinfo(iface, asciikeys)
+	char			*iface,asciikeys;
 {
 	struct wi_req		wreq;
 	int			i, has_wep;
@@ -499,7 +509,7 @@ static void wi_dumpinfo(iface)
 				wi_printhex(&wreq);
 				break;
 			case WI_KEYSTRUCT:
-				wi_printkeys(&wreq);
+				wi_printkeys(&wreq, asciikeys);
 				break;
 			default:
 				break;
@@ -672,10 +682,10 @@ int main(argc, argv)
 	char			*iface = NULL;
 	char			*p = argv[0];
 	char			*key = NULL;
-	int			modifier = 0;
+	int			modifier = 0, show_ascii_keys = 0;
 
 	while((ch = getopt(argc, argv,
-	    "hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
+	    "ahoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
@@ -699,6 +709,9 @@ int main(argc, argv)
 			break;
 		case 'i':
 			iface = optarg;
+			break;
+		case 'a':
+			show_ascii_keys++;
 			break;
 		case 'c':
 			wi_setword(iface, WI_RID_CREATE_IBSS, atoi(optarg));
@@ -779,7 +792,7 @@ int main(argc, argv)
 		exit(0);
 	}
 
-	wi_dumpinfo(iface);
+	wi_dumpinfo(iface,show_ascii_keys);
 
 	exit(0);
 }
