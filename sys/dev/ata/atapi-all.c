@@ -148,7 +148,8 @@ atapi_detach(struct ata_device *atadev)
 	}
 	free(request, M_ATAPI);
     }
-    atadev->channel->dma->free(atadev);
+    if (atadev->channel->dma)
+	atadev->channel->dma->free(atadev);
     free(atadev->result, M_ATAPI);
     atadev->driver = NULL;
     atadev->flags = 0;
