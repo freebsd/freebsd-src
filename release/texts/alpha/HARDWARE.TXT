@@ -134,7 +134,7 @@ Most PCI devices from the PC-world will also work in FreeBSD/alpha PCI-based
 machines. Check the /sys/alpha/conf/GENERIC file for the latest word on
 this.
 
-Parallel printer ports work on FreeBSD/alpha starting with 4.0-stable. 
+Parallel printer ports also work on FreeBSD/alpha.
 
 For Alpha CPUs you will find multiple versions. The original Alpha
 design is the 21064. It was produced in a chip process called MOS4,
