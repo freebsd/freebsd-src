@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id$
+ *	$Id: login_cap.h,v 1.1 1997/01/04 16:43:58 davidn Exp $
  */
 
 #ifndef _LOGIN_CAP_H_
@@ -81,12 +81,6 @@ typedef struct login_time {
   u_char    lt_dow;	    /* Days of week */
 } login_time_t;
 #define LC_MAXTIMES 64
-
-#ifdef RLIM_LONG
-typedef long rlim_t;
-#else
-typedef quad_t rlim_t;
-#endif
 
 #include <sys/cdefs.h>
 __BEGIN_DECLS
