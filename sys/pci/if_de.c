@@ -1,5 +1,6 @@
 /*	$NetBSD: if_de.c,v 1.86 1999/06/01 19:17:59 thorpej Exp $	*/
-/*	$Id: if_de.c,v 1.109 1999/08/09 12:29:29 peter Exp $ */
+
+/* $FreeBSD$ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
