@@ -126,7 +126,6 @@ struct buf {
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t b_lblkno;		/* Logical block number. */
 	struct	vnode *b_vp;		/* Device vnode. */
-	struct	vm_object *b_object;	/* Object for vp */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
@@ -143,6 +142,8 @@ struct buf {
 	int		b_npages;
 	struct	workhead b_dep;		/* (D) List of filesystem dependencies. */
 };
+
+#define b_object	b_bufobj->bo_object
 
 /*
  * These flags are kept in b_flags.

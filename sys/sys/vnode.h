@@ -115,7 +115,6 @@ struct vnode {
 	struct bufobj	v_bufobj;		/* * Buffer cache object */
 	u_long	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
-	struct vm_object *v_object;		/* v Place to store VM object */
 	daddr_t	v_lastw;			/* v last write (write cluster) */
 	daddr_t	v_cstart;			/* v start block of cluster */
 	daddr_t	v_lasta;			/* v last allocation (cluster) */
@@ -164,6 +163,7 @@ struct vnode {
 #define	v_fifoinfo	v_un.vu_fifoinfo
 
 /* XXX: These are temporary to avoid a source sweep at this time */
+#define v_object	v_bufobj.bo_object
 #define v_cleanblkhd	v_bufobj.bo_clean.bv_hd
 #define v_cleanblkroot	v_bufobj.bo_clean.bv_root
 #define v_cleanbufcnt	v_bufobj.bo_clean.bv_cnt
