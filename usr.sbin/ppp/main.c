@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.145 1998/10/31 17:38:46 brian Exp $
+ * $Id: main.c,v 1.146 1998/12/10 18:36:30 brian Exp $
  *
  *	TODO:
  */
@@ -251,6 +251,7 @@ int
 main(int argc, char **argv)
 {
   char *name;
+  const char *lastlabel;
   int nfds, mode, alias, label, arg;
   struct bundle *bundle;
   struct prompt *prompt;
@@ -325,6 +326,9 @@ main(int argc, char **argv)
     log_Printf(LogWARN, "bundle_Create: %s\n", strerror(errno));
     return EX_START;
   }
+
+  /* NOTE:  We may now have changed argv[1] via a ``set proctitle'' */
+
   if (prompt) {
     prompt->bundle = bundle;	/* couldn't do it earlier */
     prompt_Printf(prompt, "Using interface: %s\n", bundle->iface->name);
@@ -349,15 +353,17 @@ main(int argc, char **argv)
 
   sig_signal(SIGUSR2, BringDownServer);
 
+  lastlabel = argc == 2 ? bundle->argv1 : argv[argc - 1];
   for (arg = label; arg < argc; arg++) {
     /* In case we use LABEL or ``set enddisc label'' */
-    bundle_SetLabel(bundle, argv[argc - 1]);
-    system_Select(bundle, argv[arg], CONFFILE, prompt, NULL);
+    bundle_SetLabel(bundle, lastlabel);
+    system_Select(bundle, arg == 1 ? bundle->argv1 : argv[arg],
+                  CONFFILE, prompt, NULL);
   }
 
   if (label < argc)
     /* In case the last label did a ``load'' */
-    bundle_SetLabel(bundle, argv[argc - 1]);
+    bundle_SetLabel(bundle, lastlabel);
 
   if (mode == PHYS_AUTO &&
       bundle->ncp.ipcp.cfg.peer_range.ipaddr.s_addr == INADDR_ANY) {
