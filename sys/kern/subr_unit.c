@@ -198,7 +198,7 @@ delete_unr(struct unrhdr *uh, void *ptr)
  */
 
 struct unrhdr *
-new_unrhdr(u_int low, u_int high)
+new_unrhdr(u_int low, u_int high, struct mtx *mutex __unused)
 {
 	struct unrhdr *uh;
 	struct unr *up;
@@ -583,7 +583,7 @@ main(int argc __unused, const char **argv __unused)
 	int i, x, m;
 	char a[NN];
 
-	uh = new_unrhdr(0, NN - 1);
+	uh = new_unrhdr(0, NN - 1, NULL);
 
 	memset(a, 0, sizeof a);
 
