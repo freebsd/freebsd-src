@@ -215,6 +215,12 @@ struct ip6protosw inet6sw[] = {
   &nousrreqs
 },
 #endif /* GIF */
+{ SOCK_RAW,     &inet6domain,	IPPROTO_PIM,	PR_ATOMIC|PR_ADDR,
+  pim6_input,    rip6_output,	0,              rip6_ctloutput, 
+  0,
+  0,		0,		0,		0,
+  &rip6_usrreqs
+},
 /* raw wildcard */
 { SOCK_RAW,	&inet6domain,	0,		PR_ATOMIC | PR_ADDR,
   rip6_input,	rip6_output,	0,		rip6_ctloutput,

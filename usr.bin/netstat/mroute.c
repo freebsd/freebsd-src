@@ -82,7 +82,7 @@ mroutepr(mfcaddr, vifaddr)
 	vifi_t maxvif = 0;
 
 	if (mfcaddr == 0 || vifaddr == 0) {
-		printf("No multicast routing compiled into this system.\n");
+		printf("No IPv4 multicast routing compiled into this system.\n");
 		return;
 	}
 
