@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.89 1995/03/12 23:43:15 swallace Exp $
+#	$Id: files.i386,v 1.90 1995/03/16 17:18:49 bde Exp $
 #
 aic7xxx				optional	ahc	device-driver	   \
 	dependency 	"$S/gnu/misc/aic7xxx/aic7xxx.c"			   \
@@ -104,6 +104,7 @@ i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
 i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
 i386/isa/psm.c			optional	psm	device-driver
 i386/isa/readMBR.c		standard	
+i386/isa/scd.c			optional	scd	device-driver
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/sound/dev_table.c	optional	snd	device-driver
@@ -193,4 +194,3 @@ gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
 gnu/i386/isa/nic3008.c          optional        nic     device-driver
 gnu/i386/isa/nic3009.c          optional        nnic    device-driver
-gnu/i386/isa/scd.c		optional	scd	device-driver
