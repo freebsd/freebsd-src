@@ -789,17 +789,17 @@ alloc(int size, int mode)
 	    sblock.fs_cgsize);
 	if (acg.cg_magic != CG_MAGIC) {
 		printf("cg 0: bad magic number\n");
-		return (0);
+		exit(38);
 	}
 	if (acg.cg_cs.cs_nbfree == 0) {
 		printf("first cylinder group ran out of space\n");
-		return (0);
+		exit(39);
 	}
 	for (d = 0; d < acg.cg_ndblk; d += sblock.fs_frag)
 		if (isblock(&sblock, cg_blksfree(&acg), d / sblock.fs_frag))
 			goto goth;
 	printf("internal error: can't find block in cyl 0\n");
-	return (0);
+	exit(40);
 goth:
 	blkno = fragstoblks(&sblock, d);
 	clrblock(&sblock, cg_blksfree(&acg), blkno);
