@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.35 1998/07/22 05:53:53 phk Exp $";
+	"$Id: inetd.c,v 1.36 1998/07/22 14:24:12 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -492,12 +492,11 @@ main(argc, argv, envp)
 		    dofork = (sep->se_bi == 0 || sep->se_bi->bi_fork);
 		    if (dofork) {
 			    if (sep->se_count++ == 0)
-				(void)gettimeofday(&sep->se_time,
-				    (struct timezone *)0);
+				(void)gettimeofday(&sep->se_time, NULL);
 			    else if (sep->se_count >= toomany) {
 				struct timeval now;
 
-				(void)gettimeofday(&now, (struct timezone *)0);
+				(void)gettimeofday(&now, NULL);
 				if (now.tv_sec - sep->se_time.tv_sec >
 				    CNT_INTVL) {
 					sep->se_time = now;
@@ -587,7 +586,8 @@ main(argc, argv, envp)
 					/* error syslogged by getclass */
 					syslog(LOG_ERR,
 					    "%s/%s: %s: login class error",
-						sep->se_service, sep->se_proto);
+						sep->se_service, sep->se_proto,
+						sep->se_class);
 					if (sep->se_socktype != SOCK_STREAM)
 						recv(0, buf, sizeof (buf), 0);
 					_exit(EX_NOUSER);
@@ -735,8 +735,8 @@ config(signo)
 		if (login_getclass(new->se_class) == NULL) {
 			/* error syslogged by getclass */
 			syslog(LOG_ERR,
-				"%s/%s: login class error, service ignored",
-				new->se_service, new->se_proto);
+				"%s/%s: %s: login class error, service ignored",
+				new->se_service, new->se_proto, new->se_class);
 			continue;
 		}
 #endif
@@ -1641,7 +1641,7 @@ machtime()
 {
 	struct timeval tv;
 
-	if (gettimeofday(&tv, (struct timezone *)0) < 0) {
+	if (gettimeofday(&tv, NULL) < 0) {
 		if (debug)
 			warnx("unable to get time of day");
 		return (0L);
