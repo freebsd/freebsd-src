@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.23 1996/09/20 17:39:32 bde Exp $
+ * $Id: disklabel.h,v 1.24 1996/09/21 14:59:25 bde Exp $
  */
 
 #ifndef	_SYS_DISKLABEL_H_
@@ -408,12 +408,8 @@ struct dos_partition {
     _________________________________________________________________
     | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | | |
     -----------------------------------------------------------------
-    |      TYPE           | SLICE   |  MAJOR?       |  UNIT   |PART |
+    |    TYPE     |UNIT_2 | SLICE   |  MAJOR?       |  UNIT   |PART |
     -----------------------------------------------------------------
-    |      TYPE     |PART2| SLICE   |  MAJOR?       |  UNIT   |PART | <-soon
-    -----------------------------------------------------------------
-
-	I want 3 more part bits (taken from 'TYPE' (useless as it is) (JRE)
 */
 #define	dkmakeminor(unit, slice, part) \
 				(((slice) << 16) | ((unit) << 3) | (part))
@@ -421,8 +417,8 @@ struct dos_partition {
 #define	dkmodslice(dev, slice)	(((dev) & ~(dev_t)0x1f0000) | ((slice) << 16))
 #define	dkpart(dev)		(minor(dev) & 7)
 #define	dkslice(dev)		((minor(dev) >> 16) & 0x1f)
-#define	dktype(dev)       	((minor(dev) >> 21) & 0x7ff)
-#define	dkunit(dev)		((minor(dev) >> 3) & 0x1f)
+#define	dktype(dev)       	((minor(dev) >> 25) & 0x7f)
+#define	dkunit(dev)		((((dev) >> 16) & 0x1e0) | (((dev) >> 3) & 0x1f))
 
 #ifdef KERNEL
 
