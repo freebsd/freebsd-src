@@ -11,7 +11,7 @@ MAN=	lukemftpd.8 ftpd.conf.5 ftpusers.5
 SRCS=	cmds.c conf.c ftpd.c ftpcmd.y popen.c
 
 WFORMAT= 0
-CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD}
+CFLAGS+= -I${.CURDIR} -I${LUKEMFTPD} -I${LUKEMFTPD}/src
 YFLAGS=
 
 LDADD=	-lmd -lcrypt -lutil
