@@ -40,16 +40,16 @@ CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
 DPADD=		${RELTOP}/libbfd/libbfd.a
 DPADD+=		${RELTOP}/libopcodes/libopcodes.a
-DPADD+=		${LIBREADLINE}
+DPADD+=		${LIBTERMCAP}
 DPADD+=		${LIBGNUREGEX}
 DPADD+=		${RELTOP}/libiberty/libiberty.a
-DPADD+=		${LIBTERMCAP}
+DPADD+=		${LIBREADLINE}
 LDADD+=		${RELTOP}/libbfd/libbfd.a
 LDADD+=		${RELTOP}/libopcodes/libopcodes.a
-LDADD+=		-lreadline
+LDADD+=		-ltermcap
 LDADD+=		-lgnuregex
 LDADD+=		${RELTOP}/libiberty/libiberty.a
-LDADD+=		-ltermcap
+LDADD+=		-lreadline
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb
