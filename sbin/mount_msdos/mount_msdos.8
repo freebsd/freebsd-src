@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.14 1998/06/30 06:23:41 charnier Exp $
+.\"	$Id: mount_msdos.8,v 1.15 1999/01/11 18:35:14 dt Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -72,7 +72,14 @@ The options are as follows:
 Use the specified mount
 .Ar options ,
 as described in
-.Xr mount 8 .
+.Xr mount 8 ,
+or one of the MSDOS filesystem-specific options
+.Ar shortnames ,
+.Ar longnames
+or
+.Ar nowin95 ,
+all of which can be used to affect Windows name translation in the
+underlying filesystem.
 .It Fl u Ar uid
 Set the owner of the files in the file system to
 .Ar uid .
