@@ -303,7 +303,7 @@ sendsig(catcher, sig, mask, code)
  * Build siginfo_t for SA thread
  */
 void
-thread_siginfo(int sig, u_long code, siginfo_t *si)
+cpu_thread_siginfo(int sig, u_long code, siginfo_t *si)
 {
 	struct proc *p;
 	struct thread *td;
