@@ -266,7 +266,9 @@ typedef struct {
 	struct lportdb {
 		u_int
 					loopid		: 8,
-							: 4,
+							: 2,
+					was_fabric_dev	: 1,
+					fabric_dev	: 1,
 					loggedin	: 1,
 					roles		: 2,
 					valid		: 1;
@@ -329,14 +331,17 @@ typedef struct ispsoftc {
 	u_int8_t		isp_revision;	/* HBA Chip H/W Revision */
 	u_int32_t		isp_maxluns;	/* maximum luns supported */
 
-	u_int32_t
-				isp_touched	: 1,	/* board ever seen? */
+	u_int32_t		isp_clock	: 8,	/* input clock */
+						: 6,
+				isp_role	: 2,
 						: 1,
+				isp_touched	: 1,	/* board ever seen? */
 				isp_bustype	: 1,	/* SBus or PCI */
 				isp_loaded_fw	: 1,	/* loaded firmware */
-				isp_dblev	: 12,	/* debug log mask */
-				isp_clock	: 8,	/* input clock */
-				isp_confopts	: 8;	/* config options */
+				isp_dblev	: 12;	/* debug log mask */
+
+	u_int32_t		isp_confopts;		/* config options */
+
 	/*
 	 * Instrumentation
 	 */
@@ -359,6 +364,7 @@ typedef struct ispsoftc {
 	volatile u_int16_t	isp_residx;	/* index of next result */
 	volatile u_int16_t	isp_lasthdls;	/* last handle seed */
 	volatile u_int16_t	isp_mboxtmp[MAX_MAILBOX];
+	volatile u_int16_t	isp_lastmbxcmd;	/* last mbox command sent */
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
@@ -390,7 +396,6 @@ typedef struct ispsoftc {
  */
 #define	ISP_CFG_NORELOAD	0x80	/* don't download f/w */
 #define	ISP_CFG_NONVRAM		0x40	/* ignore NVRAM */
-#define	ISP_CFG_NOINIT		0x20	/* just set defaults- don't init */
 #define	ISP_CFG_FULL_DUPLEX	0x01	/* Full Duplex (Fibre Channel only) */
 #define	ISP_CFG_OWNWWN		0x02	/* override NVRAM wwn */
 #define	ISP_CFG_PORT_PREF	0x0C	/* Mask for Port Prefs (2200 only) */
@@ -400,11 +405,42 @@ typedef struct ispsoftc {
 #define	ISP_CFG_LPORT_ONLY	0x0C	/* insist on {N/F}L-Port connection */
 
 /*
+ * Prior to calling isp_reset for the first time, the outer layer
+ * should set isp_role to one of NONE, INITIATOR, TARGET, BOTH.
+ *
+ * If you set ISP_ROLE_NONE, the cards will be reset, new firmware loaded,
+ * NVRAM read, and defaults set, but any further initialization (e.g.
+ * INITIALIZE CONTROL BLOCK commands for 2X00 cards) won't be done.
+ *
+ * If INITIATOR MODE isn't set, attempts to run commands will be stopped
+ * at isp_start and completed with the moral equivalent of SELECTION TIMEOUT.
+ *
+ * If TARGET MODE is set, it doesn't mean that the rest of target mode support
+ * needs to be enabled, or will even work. What happens with the 2X00 cards
+ * here is that if you have enabled it with TARGET MODE as part of the ICB
+ * options, but you haven't given the f/w any ram resources for ATIOs or
+ * Immediate Notifies, the f/w just handles what it can and you never see
+ * anything. Basically, it sends a single byte of data (the first byte,
+ * which you can set as part of the INITIALIZE CONTROL BLOCK command) for
+ * INQUIRY, and sends back QUEUE FULL status for any other command.
+ * 
+ */
+#define	ISP_ROLE_NONE		0x0
+#define	ISP_ROLE_INITIATOR	0x1
+#define	ISP_ROLE_TARGET		0x2
+#define	ISP_ROLE_BOTH		(ISP_ROLE_TARGET|ISP_ROLE_INITIATOR)
+#define	ISP_ROLE_EITHER		ISP_ROLE_BOTH
+#ifndef	ISP_DEFAULT_ROLES
+#define	ISP_DEFAULT_ROLES	ISP_ROLE_INITIATOR
+#endif
+
+
+/*
  * Firmware related defines
  */
-#define	ISP_CODE_ORG		0x1000	/* default f/w code start */
+#define	ISP_CODE_ORG			0x1000	/* default f/w code start */
 #define	ISP_FW_REV(maj, min, mic)	((maj << 24) | (min << 16) | mic)
-#define	ISP_FW_REVX(xp)	((xp[0]<<24) | (xp[1] << 16) | xp[2])
+#define	ISP_FW_REVX(xp)			((xp[0]<<24) | (xp[1] << 16) | xp[2])
 
 /*
  * Bus (implementation) types
