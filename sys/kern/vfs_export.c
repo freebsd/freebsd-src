@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.173 1998/10/31 14:20:39 peter Exp $
+ * $Id: vfs_subr.c,v 1.174 1998/12/04 22:54:51 archie Exp $
  */
 
 /*
@@ -118,7 +118,7 @@ static vm_zone_t vnode_zone;
  * The workitem queue.
  */
 #define SYNCER_MAXDELAY		32
-int syncer_maxdelay =		SYNCER_MAXDELAY;	/* maximum delay time */
+static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
 time_t syncdelay =		30;
 int rushjob;				/* number of slots to run ASAP */
 
@@ -2695,8 +2695,8 @@ int	sync_reclaim  __P((struct  vop_reclaim_args *));
 int	sync_print __P((struct vop_print_args *));
 #define sync_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 
-vop_t **sync_vnodeop_p;
-struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
+static vop_t **sync_vnodeop_p;
+static struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
 	{ &vop_default_desc,	(vop_t *) vop_eopnotsupp },
 	{ &vop_close_desc,	(vop_t *) sync_close },		/* close */
 	{ &vop_fsync_desc,	(vop_t *) sync_fsync },		/* fsync */
@@ -2708,7 +2708,7 @@ struct vnodeopv_entry_desc sync_vnodeop_entries[] = {
 	{ &vop_islocked_desc,	(vop_t *) sync_islocked },	/* islocked */
 	{ NULL, NULL }
 };
-struct vnodeopv_desc sync_vnodeop_opv_desc =
+static struct vnodeopv_desc sync_vnodeop_opv_desc =
 	{ &sync_vnodeop_p, sync_vnodeop_entries };
 
 VNODEOP_SET(sync_vnodeop_opv_desc);
@@ -2754,7 +2754,7 @@ vfs_allocate_syncvnode(mp)
 /*
  * Do a lazy sync of the filesystem.
  */
-int
+static int
 sync_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;
@@ -2801,7 +2801,7 @@ sync_fsync(ap)
 /*
  * The syncer vnode is no referenced.
  */
-int
+static int
 sync_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -2816,7 +2816,7 @@ sync_inactive(ap)
 /*
  * The syncer vnode is no longer needed and is being decommissioned.
  */
-int
+static int
 sync_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -2836,7 +2836,7 @@ sync_reclaim(ap)
 /*
  * Print out a syncer vnode.
  */
-int
+static int
 sync_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
