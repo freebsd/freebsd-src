@@ -30,7 +30,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.38 1999/11/21 01:11:58 assar Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/savefile.c,v 1.49 2000/12/21 10:29:23 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -40,16 +44,17 @@ static const char rcsid[] =
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "pcap-int.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
 
 #define TCPDUMP_MAGIC 0xa1b2c3d4
+#define PATCHED_TCPDUMP_MAGIC 0xa1b2cd34
 
 /*
  * We use the "receiver-makes-right" approach to byte order,
@@ -70,6 +75,212 @@ static const char rcsid[] =
 #define SFERR_BADVERSION	2
 #define SFERR_BADF		3
 #define SFERR_EOF		4 /* not really an error, just a status */
+
+/*
+ * We don't write DLT_* values to the capture file header, because
+ * they're not the same on all platforms.
+ *
+ * Unfortunately, the various flavors of BSD have not always used the same
+ * numerical values for the same data types, and various patches to
+ * libpcap for non-BSD OSes have added their own DLT_* codes for link
+ * layer encapsulation types seen on those OSes, and those codes have had,
+ * in some cases, values that were also used, on other platforms, for other
+ * link layer encapsulation types.
+ *
+ * This means that capture files of a type whose numerical DLT_* code
+ * means different things on different BSDs, or with different versions
+ * of libpcap, can't always be read on systems other than those like
+ * the one running on the machine on which the capture was made.
+ *
+ * Instead, we define here a set of LINKTYPE_* codes, and map DLT_* codes
+ * to LINKTYPE_* codes when writing a savefile header, and map LINKTYPE_*
+ * codes to DLT_* codes when reading a savefile header.
+ *
+ * For those DLT_* codes that have, as far as we know, the same values on
+ * all platforms (DLT_NULL through DLT_FDDI), we define LINKTYPE_xxx as
+ * DLT_xxx; that way, captures of those types can still be read by
+ * versions of libpcap that map LINKTYPE_* values to DLT_* values, and
+ * captures of those types written by versions of libpcap that map DLT_
+ * values to LINKTYPE_ values can still be read by older versions
+ * of libpcap.
+ *
+ * The other LINKTYPE_* codes are given values starting at 100, in the
+ * hopes that no DLT_* code will be given one of those values.
+ *
+ * In order to ensure that a given LINKTYPE_* code's value will refer to
+ * the same encapsulation type on all platforms, you should not allocate
+ * a new LINKTYPE_* value without consulting "tcpdump-workers@tcpdump.org".
+ * The tcpdump developers will allocate a value for you, and will not
+ * subsequently allocate it to anybody else; that value will be added to
+ * the "pcap.h" in the tcpdump.org CVS repository, so that a future
+ * libpcap release will include it.
+ *
+ * You should, if possible, also contribute patches to libpcap and tcpdump
+ * to handle the new encapsulation type, so that they can also be checked
+ * into the tcpdump.org CVS repository and so that they will appear in
+ * future libpcap and tcpdump releases.
+ */
+#define LINKTYPE_NULL		DLT_NULL
+#define LINKTYPE_ETHERNET	DLT_EN10MB	/* also for 100Mb and up */
+#define LINKTYPE_EXP_ETHERNET	DLT_EN3MB	/* 3Mb experimental Ethernet */
+#define LINKTYPE_AX25		DLT_AX25
+#define LINKTYPE_PRONET		DLT_PRONET
+#define LINKTYPE_CHAOS		DLT_CHAOS
+#define LINKTYPE_TOKEN_RING	DLT_IEEE802	/* DLT_IEEE802 is used for Token Ring */
+#define LINKTYPE_ARCNET		DLT_ARCNET
+#define LINKTYPE_SLIP		DLT_SLIP
+#define LINKTYPE_PPP		DLT_PPP
+#define LINKTYPE_FDDI		DLT_FDDI
+
+/*
+ * LINKTYPE_PPP is for use when there might, or might not, be an RFC 1662
+ * PPP in HDLC-like framing header (with 0xff 0x03 before the PPP protocol
+ * field) at the beginning of the packet.
+ *
+ * This is for use when there is always such a header; the address field
+ * might be 0xff, for regular PPP, or it might be an address field for Cisco
+ * point-to-point with HDLC framing as per section 4.3.1 of RFC 1547 ("Cisco
+ * HDLC").  This is, for example, what you get with NetBSD's DLT_PPP_SERIAL.
+ *
+ * We give it the same value as NetBSD's DLT_PPP_SERIAL, in the hopes that
+ * nobody else will choose a DLT_ value of 50, and so that DLT_PPP_SERIAL
+ * captures will be written out with a link type that NetBSD's tcpdump
+ * can read.
+ */
+#define LINKTYPE_PPP_HDLC	50		/* PPP in HDLC-like framing */
+
+#define LINKTYPE_ATM_RFC1483	100		/* LLC/SNAP-encapsulated ATM */
+#define LINKTYPE_RAW		101		/* raw IP */
+#define LINKTYPE_SLIP_BSDOS	102		/* BSD/OS SLIP BPF header */
+#define LINKTYPE_PPP_BSDOS	103		/* BSD/OS PPP BPF header */
+#define LINKTYPE_C_HDLC		104		/* Cisco HDLC */
+#define LINKTYPE_ATM_CLIP	106		/* Linux Classical IP over ATM */
+
+/*
+ * Reserved for future use.
+ */
+#define LINKTYPE_IEEE802_11	105		/* IEEE 802.11 (wireless) */
+#define LINKTYPE_FR		107		/* BSD/OS Frame Relay */
+#define LINKTYPE_LOOP		108		/* OpenBSD loopback */
+#define LINKTYPE_ENC		109		/* OpenBSD IPSEC enc */
+#define LINKTYPE_LANE8023	110		/* ATM LANE + 802.3 */
+#define LINKTYPE_HIPPI		111		/* NetBSD HIPPI */
+#define LINKTYPE_HDLC		112		/* NetBSD HDLC framing */
+
+#define LINKTYPE_LINUX_SLL	113		/* Linux cooked socket capture */
+
+static struct linktype_map {
+	int	dlt;
+	int	linktype;
+} map[] = {
+	/*
+	 * These DLT_* codes have LINKTYPE_* codes with values identical
+	 * to the values of the corresponding DLT_* code.
+	 */
+	{ DLT_NULL,		LINKTYPE_NULL },
+	{ DLT_EN10MB,		LINKTYPE_ETHERNET },
+	{ DLT_EN3MB,		LINKTYPE_EXP_ETHERNET },
+	{ DLT_AX25,		LINKTYPE_AX25 },
+	{ DLT_PRONET,		LINKTYPE_PRONET },
+	{ DLT_CHAOS,		LINKTYPE_CHAOS },
+	{ DLT_IEEE802,		LINKTYPE_TOKEN_RING },
+	{ DLT_ARCNET,		LINKTYPE_ARCNET },
+	{ DLT_SLIP,		LINKTYPE_SLIP },
+	{ DLT_PPP,		LINKTYPE_PPP },
+	{ DLT_FDDI,	 	LINKTYPE_FDDI },
+
+	/*
+	 * These DLT_* codes have different values on different
+	 * platforms; we map them to LINKTYPE_* codes that
+	 * have values that should never be equal to any DLT_*
+	 * code.
+	 */
+	{ DLT_ATM_RFC1483, 	LINKTYPE_ATM_RFC1483 },
+	{ DLT_RAW,		LINKTYPE_RAW },
+	{ DLT_SLIP_BSDOS,	LINKTYPE_SLIP_BSDOS },
+	{ DLT_PPP_BSDOS,	LINKTYPE_PPP_BSDOS },
+
+	/* BSD/OS Cisco HDLC */
+	{ DLT_C_HDLC,		LINKTYPE_C_HDLC },
+
+	/*
+	 * These DLT_* codes are not on all platforms, but, so far,
+	 * there don't appear to be any platforms that define
+	 * other codes with those values; we map them to
+	 * different LINKTYPE_* values anyway, just in case.
+	 */
+
+	/* Linux ATM Classical IP */
+	{ DLT_ATM_CLIP,		LINKTYPE_ATM_CLIP },
+
+	/* NetBSD sync/async serial PPP (or Cisco HDLC) */
+	{ DLT_PPP_SERIAL,	LINKTYPE_PPP_HDLC },
+
+	/* IEEE 802.11 wireless */
+	{ DLT_IEEE802_11,	LINKTYPE_IEEE802_11 },
+
+	/* OpenBSD loopback */
+	{ DLT_LOOP,		LINKTYPE_LOOP },
+
+	/* Linux cooked socket capture */
+	{ DLT_LINUX_SLL,	LINKTYPE_LINUX_SLL },
+
+	/*
+	 * Any platform that defines additional DLT_* codes should:
+	 *
+	 *	request a LINKTYPE_* code and value from tcpdump.org,
+	 *	as per the above;
+	 *
+	 *	add, in their version of libpcap, an entry to map
+	 *	those DLT_* codes to the corresponding LINKTYPE_*
+	 *	code;
+	 *
+	 *	redefine, in their "net/bpf.h", any DLT_* values
+	 *	that collide with the values used by their additional
+	 *	DLT_* codes, to remove those collisions (but without
+	 *	making them collide with any of the LINKTYPE_*
+	 *	values equal to 50 or above; they should also avoid
+	 *	defining DLT_* values that collide with those
+	 *	LINKTYPE_* values, either).
+	 */
+	{ -1,			-1 }
+};
+
+static int
+dlt_to_linktype(int dlt)
+{
+	int i;
+
+	for (i = 0; map[i].dlt != -1; i++) {
+		if (map[i].dlt == dlt)
+			return (map[i].linktype);
+	}
+
+	/*
+	 * If we don't have a mapping for this DLT_ code, return an
+	 * error; that means that the table above needs to have an
+	 * entry added.
+	 */
+	return (-1);
+}
+
+static int
+linktype_to_dlt(int linktype)
+{
+	int i;
+
+	for (i = 0; map[i].linktype != -1; i++) {
+		if (map[i].linktype == linktype)
+			return (map[i].dlt);
+	}
+
+	/*
+	 * If we don't have an entry for this link type, return
+	 * the link type value; it may be a DLT_ value from an
+	 * older version of libpcap.
+	 */
+	return linktype;
+}
 
 static int
 sf_write_header(FILE *fp, int linktype, int thiszone, int snaplen)
@@ -108,11 +319,12 @@ pcap_open_offline(const char *fname, char *errbuf)
 	register pcap_t *p;
 	register FILE *fp;
 	struct pcap_file_header hdr;
+	bpf_u_int32 magic;
 	int linklen;
 
 	p = (pcap_t *)malloc(sizeof(*p));
 	if (p == NULL) {
-		strcpy(errbuf, "out of swap");
+		strlcpy(errbuf, "out of swap", PCAP_ERRBUF_SIZE);
 		return (NULL);
 	}
 
@@ -127,29 +339,44 @@ pcap_open_offline(const char *fname, char *errbuf)
 	else {
 		fp = fopen(fname, "r");
 		if (fp == NULL) {
-			sprintf(errbuf, "%s: %s", fname, pcap_strerror(errno));
+			snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s", fname,
+			    pcap_strerror(errno));
 			goto bad;
 		}
 	}
 	if (fread((char *)&hdr, sizeof(hdr), 1, fp) != 1) {
-		sprintf(errbuf, "fread: %s", pcap_strerror(errno));
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "fread: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
-	if (hdr.magic != TCPDUMP_MAGIC) {
-		if (SWAPLONG(hdr.magic) != TCPDUMP_MAGIC) {
-			sprintf(errbuf, "bad dump file format");
+	magic = hdr.magic;
+	if (magic != TCPDUMP_MAGIC && magic != PATCHED_TCPDUMP_MAGIC) {
+		magic = SWAPLONG(magic);
+		if (magic != TCPDUMP_MAGIC && magic != PATCHED_TCPDUMP_MAGIC) {
+			snprintf(errbuf, PCAP_ERRBUF_SIZE,
+			    "bad dump file format");
 			goto bad;
 		}
 		p->sf.swapped = 1;
 		swap_hdr(&hdr);
 	}
+	if (magic == PATCHED_TCPDUMP_MAGIC) {
+		/*
+		 * XXX - the patch that's in some versions of libpcap
+		 * changes the packet header but not the magic number;
+		 * we'd have to use some hacks^H^H^H^H^Hheuristics to
+		 * detect that.
+		 */
+		p->sf.hdrsize = sizeof(struct pcap_sf_patched_pkthdr);
+	} else
+		p->sf.hdrsize = sizeof(struct pcap_sf_pkthdr);
 	if (hdr.version_major < PCAP_VERSION_MAJOR) {
-		sprintf(errbuf, "archaic file format");
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "archaic file format");
 		goto bad;
 	}
 	p->tzoff = hdr.thiszone;
 	p->snapshot = hdr.snaplen;
-	p->linktype = hdr.linktype;
+	p->linktype = linktype_to_dlt(hdr.linktype);
 	p->sf.rfile = fp;
 	p->bufsize = hdr.snaplen;
 
@@ -171,7 +398,13 @@ pcap_open_offline(const char *fname, char *errbuf)
 		break;
 	}
 
+	if (p->bufsize < 0)
+		p->bufsize = BPF_MAXBUFSIZE;
 	p->sf.base = (u_char *)malloc(p->bufsize + BPF_ALIGNMENT);
+	if (p->sf.base == NULL) {
+		strlcpy(errbuf, "out of swap", PCAP_ERRBUF_SIZE);
+		goto bad;
+	}
 	p->buffer = p->sf.base + BPF_ALIGNMENT - (linklen % BPF_ALIGNMENT);
 	p->sf.version_major = hdr.version_major;
 	p->sf.version_minor = hdr.version_minor;
@@ -194,11 +427,17 @@ pcap_open_offline(const char *fname, char *errbuf)
 static int
 sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 {
-	struct pcap_sf_pkthdr sf_hdr;
+	struct pcap_sf_patched_pkthdr sf_hdr;
 	FILE *fp = p->sf.rfile;
 
-	/* read the stamp */
-	if (fread(&sf_hdr, sizeof(struct pcap_sf_pkthdr), 1, fp) != 1) {
+	/*
+	 * Read the packet header; the structure we use as a buffer
+	 * is the longer structure for files generated by the patched
+	 * libpcap, but if the file has the magic number for an
+	 * unpatched libpcap we only read as many bytes as the regular
+	 * header has.
+	 */
+	if (fread(&sf_hdr, p->sf.hdrsize, 1, fp) != 1) {
 		/* probably an EOF, though could be a truncated packet */
 		return (1);
 	}
@@ -239,9 +478,11 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 		static int tsize = 0;
 
 		if (hdr->caplen > 65535) {
-			sprintf(p->errbuf, "bogus savefile header");
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "bogus savefile header");
 			return (-1);
 		}
+
 		if (tsize < hdr->caplen) {
 			tsize = ((hdr->caplen + 1023) / 1024) * 1024;
 			if (tp != NULL)
@@ -249,12 +490,14 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 			tp = (u_char *)malloc(tsize);
 			if (tp == NULL) {
 				tsize = 0;
-				sprintf(p->errbuf, "BUFMOD hack malloc");
+				snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+				    "BUFMOD hack malloc");
 				return (-1);
 			}
 		}
 		if (fread((char *)tp, hdr->caplen, 1, fp) != 1) {
-			sprintf(p->errbuf, "truncated dump file");
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "truncated dump file");
 			return (-1);
 		}
 		/*
@@ -271,7 +514,8 @@ sf_next_packet(pcap_t *p, struct pcap_pkthdr *hdr, u_char *buf, int buflen)
 		/* read the packet itself */
 
 		if (fread((char *)buf, hdr->caplen, 1, fp) != 1) {
-			sprintf(p->errbuf, "truncated dump file");
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+			    "truncated dump file");
 			return (-1);
 		}
 	}
@@ -336,17 +580,27 @@ pcap_dumper_t *
 pcap_dump_open(pcap_t *p, const char *fname)
 {
 	FILE *f;
+	int linktype;
+
+	linktype = dlt_to_linktype(p->linktype);
+	if (linktype == -1) {
+		snprintf(p->errbuf, PCAP_ERRBUF_SIZE,
+		    "%s: link-layer type %d isn't supported in savefiles",
+		    fname, linktype);
+		return (NULL);
+	}
+
 	if (fname[0] == '-' && fname[1] == '\0')
 		f = stdout;
 	else {
 		f = fopen(fname, "w");
 		if (f == NULL) {
-			sprintf(p->errbuf, "%s: %s",
+			snprintf(p->errbuf, PCAP_ERRBUF_SIZE, "%s: %s",
 			    fname, pcap_strerror(errno));
 			return (NULL);
 		}
 	}
-	(void)sf_write_header(f, p->linktype, p->tzoff, p->snapshot);
+	(void)sf_write_header(f, linktype, p->tzoff, p->snapshot);
 	return ((pcap_dumper_t *)f);
 }
 

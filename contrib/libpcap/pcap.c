@@ -33,7 +33,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.29.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap.c,v 1.36 2000/12/16 10:43:31 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -43,7 +47,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -180,27 +183,44 @@ pcap_strerror(int errnum)
 
 	if ((unsigned int)errnum < sys_nerr)
 		return ((char *)sys_errlist[errnum]);
-	(void)sprintf(ebuf, "Unknown error: %d", errnum);
+	(void)snprintf(ebuf, sizeof ebuf, "Unknown error: %d", errnum);
 	return(ebuf);
 #endif
+}
+
+pcap_t *
+pcap_open_dead(int linktype, int snaplen)
+{
+	pcap_t *p;
+
+	p = malloc(sizeof(*p));
+	if (p == NULL)
+		return NULL;
+	memset (p, 0, sizeof(*p));
+	p->fd = -1;
+	p->snapshot = snaplen;
+	p->linktype = linktype;
+	return p;
 }
 
 void
 pcap_close(pcap_t *p)
 {
 	/*XXX*/
-	if (p->fd >= 0)
+	if (p->fd >= 0) {
+#ifdef linux
+		pcap_close_linux(p);
+#endif
 		close(p->fd);
+	}
 	if (p->sf.rfile != NULL) {
-		(void)fclose(p->sf.rfile);
+		if (p->sf.rfile != stdin)
+			(void)fclose(p->sf.rfile);
 		if (p->sf.base != NULL)
 			free(p->sf.base);
 	} else if (p->buffer != NULL)
 		free(p->buffer);
-#ifdef linux
-	if (p->md.device != NULL)
-		free(p->md.device);
-#endif
 	
+	pcap_freecode(&p->fcode);
 	free(p);
 }

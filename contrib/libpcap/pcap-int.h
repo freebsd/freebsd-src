@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.20 1999/11/21 01:10:20 assar Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-int.h,v 1.32 2000/12/21 10:29:23 guy Exp $ (LBL)
  */
 
 #ifndef pcap_int_h
@@ -49,6 +49,7 @@ extern "C" {
 struct pcap_sf {
 	FILE *rfile;
 	int swapped;
+	int hdrsize;
 	int version_major;
 	int version_minor;
 	u_char *base;
@@ -57,16 +58,21 @@ struct pcap_sf {
 struct pcap_md {
 	struct pcap_stat stat;
 	/*XXX*/
-	int use_bpf;
+	int use_bpf;		/* using kernel filter */
 	u_long	TotPkts;	/* can't oflow for 79 hrs on ether */
 	u_long	TotAccepted;	/* count accepted by filter */
 	u_long	TotDrops;	/* count of dropped packets */
 	long	TotMissed;	/* missed by i/f during this run */
 	long	OrigMissed;	/* missed by i/f before this run */
 #ifdef linux
-	int pad;
-	int skip;
-	char *device;
+	int	sock_packet;	/* using Linux 2.0 compatible interface */
+	int	readlen;	/* byte count to hand to "recvmsg()" */
+	int	timeout;	/* timeout specified to pcap_open_live */
+	int	clear_promisc;	/* must clear promiscuous mode when we close */
+	int	cooked;		/* using SOCK_DGRAM rather than SOCK_RAW */
+	int	lo_ifindex;	/* interface index of the loopback device */
+	char 	*device;	/* device name */
+	struct pcap *next;	/* list of open promiscuous sock_packet pcaps */
 #endif
 };
 
@@ -115,12 +121,53 @@ struct pcap_timeval {
 
 /*
  * How a `pcap_pkthdr' is actually stored in the dumpfile.
+ *
+ * Do not change the format of this structure, in any way (this includes
+ * changes that only affect the length of fields in this structure),
+ * and do not make the time stamp anything other than seconds and
+ * microseconds (e.g., seconds and nanoseconds).  Instead:
+ *
+ *	introduce a new structure for the new format;
+ *
+ *	send mail to "tcpdump-workers@tcpdump.org", requesting a new
+ *	magic number for your new capture file format, and, when
+ *	you get the new magic number, put it in "savefile.c";
+ *
+ *	use that magic number for save files with the changed record
+ *	header;
+ *
+ *	make the code in "savefile.c" capable of reading files with
+ *	the old record header as well as files with the new record header
+ *	(using the magic number to determine the header format).
+ *
+ * Then supply the changes to "patches@tcpdump.org", so that future
+ * versions of libpcap and programs that use it (such as tcpdump) will
+ * be able to read your new capture file format.
  */
 
 struct pcap_sf_pkthdr {
     struct pcap_timeval ts;	/* time stamp */
     bpf_u_int32 caplen;		/* length of portion present */
     bpf_u_int32 len;		/* length this packet (off wire) */
+};
+
+/*
+ * How a `pcap_pkthdr' is actually stored in dumpfiles written
+ * by some patched versions of libpcap (e.g. the ones in Red
+ * Hat Linux 6.1 and 6.2).
+ *
+ * Do not change the format of this structure, in any way (this includes
+ * changes that only affect the length of fields in this structure).
+ * Instead, introduce a new structure, as per the above.
+ */
+
+struct pcap_sf_patched_pkthdr {
+    struct pcap_timeval ts;	/* time stamp */
+    bpf_u_int32 caplen;		/* length of portion present */
+    bpf_u_int32 len;		/* length this packet (off wire) */
+    int		index;
+    unsigned short protocol;
+    unsigned char pkt_type;
 };
 
 int	yylex(void);
@@ -133,13 +180,29 @@ int	yylex(void);
 int	pcap_offline_read(pcap_t *, int, pcap_handler, u_char *);
 int	pcap_read(pcap_t *, int cnt, pcap_handler, u_char *);
 
-/* Ultrix pads to make everything line up on a nice boundary */
-#if defined(ultrix) || defined(__alpha) || defined(__NetBSD__)
+/*
+ * Ultrix, DEC OSF/1^H^H^H^H^H^H^H^H^HDigital UNIX^H^H^H^H^H^H^H^H^H^H^H^H
+ * Tru64 UNIX, and NetBSD pad to make everything line up on a nice boundary.
+ */
+#if defined(ultrix) || defined(__osf__) || defined(__NetBSD__)
 #define       PCAP_FDDIPAD 3
+#endif
+
+#ifndef HAVE_STRLCPY
+#define strlcpy(x, y, z) \
+	(strncpy((x), (y), (z)), \
+	 ((z) <= 0 ? 0 : ((x)[(z) - 1] = '\0')), \
+	 strlen((y)))
+#endif
+
+#ifdef linux
+void	pcap_close_linux(pcap_t *);
 #endif
 
 /* XXX */
 extern	int pcap_fddipad;
+
+int	install_bpf_program(pcap_t *, struct bpf_program *);
 
 #ifdef __cplusplus
 }

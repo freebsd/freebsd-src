@@ -24,7 +24,11 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-pf.c,v 1.54.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-pf.c,v 1.62 2000/10/28 00:01:30 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -35,11 +39,8 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <net/pfilt.h>
 
-#if __STDC__
 struct mbuf;
 struct rtentry;
-#endif
-
 #include <net/if.h>
 
 #include <netinet/in.h>
@@ -62,7 +63,6 @@ struct rtentry;
 
 #include "pcap-int.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -108,7 +108,7 @@ pcap_read(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 				(void)lseek(pc->fd, 0L, SEEK_SET);
 				goto again;
 			}
-			sprintf(pc->errbuf, "pf read: %s",
+			snprintf(pc->errbuf, sizeof(pc->errbuf), "pf read: %s",
 				pcap_strerror(errno));
 			return (-1);
 		}
@@ -127,7 +127,8 @@ pcap_read(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 #endif
 	while (cc > 0) {
 		if (cc < sizeof(*sp)) {
-			sprintf(pc->errbuf, "pf short read (%d)", cc);
+			snprintf(pc->errbuf, sizeof(pc->errbuf),
+			    "pf short read (%d)", cc);
 			return (-1);
 		}
 #ifdef LBL_ALIGN
@@ -138,7 +139,8 @@ pcap_read(pcap_t *pc, int cnt, pcap_handler callback, u_char *user)
 #endif
 			sp = (struct enstamp *)bp;
 		if (sp->ens_stamplen != sizeof(*sp)) {
-			sprintf(pc->errbuf, "pf short stamplen (%d)",
+			snprintf(pc->errbuf, sizeof(pc->errbuf),
+			    "pf short stamplen (%d)",
 			    sp->ens_stamplen);
 			return (-1);
 		}
@@ -210,13 +212,14 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	p = (pcap_t *)malloc(sizeof(*p));
 	if (p == NULL) {
-		sprintf(ebuf, "pcap_open_live: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "pcap_open_live: %s", pcap_strerror(errno));
 		return (0);
 	}
-	bzero((char *)p, sizeof(*p));
+	memset(p, 0, sizeof(*p));
 	p->fd = pfopen(device, O_RDONLY);
 	if (p->fd < 0) {
-		sprintf(ebuf, "pf open: %s: %s\n\
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "pf open: %s: %s\n\
 your system may not be properly configured; see \"man packetfilter(4)\"\n",
 			device, pcap_strerror(errno));
 		goto bad;
@@ -226,7 +229,8 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 	if (promisc)
 		enmode |= ENPROMISC;
 	if (ioctl(p->fd, EIOCMBIS, (caddr_t)&enmode) < 0) {
-		sprintf(ebuf, "EIOCMBIS: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCMBIS: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 #ifdef	ENCOPYALL
@@ -236,12 +240,14 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 #endif
 	/* set the backlog */
 	if (ioctl(p->fd, EIOCSETW, (caddr_t)&backlog) < 0) {
-		sprintf(ebuf, "EIOCSETW: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCSETW: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	/* discover interface type */
 	if (ioctl(p->fd, EIOCDEVP, (caddr_t)&devparams) < 0) {
-		sprintf(ebuf, "EIOCDEVP: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCDEVP: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	/* HACK: to compile prior to Ultrix 4.2 */
@@ -282,16 +288,18 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 		snaplen += pcap_fddipad;
 #endif
 	if (ioctl(p->fd, EIOCTRUNCATE, (caddr_t)&snaplen) < 0) {
-		sprintf(ebuf, "EIOCTRUNCATE: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCTRUNCATE: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 	p->snapshot = snaplen;
 	/* accept all packets */
-	bzero((char *)&Filter, sizeof(Filter));
+	memset(&Filter, 0, sizeof(Filter));
 	Filter.enf_Priority = 37;	/* anything > 2 */
 	Filter.enf_FilterLen = 0;	/* means "always true" */
 	if (ioctl(p->fd, EIOCSETF, (caddr_t)&Filter) < 0) {
-		sprintf(ebuf, "EIOCSETF: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCSETF: %s",
+		    pcap_strerror(errno));
 		goto bad;
 	}
 
@@ -300,7 +308,7 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 		timeout.tv_sec = to_ms / 1000;
 		timeout.tv_usec = (to_ms * 1000) % 1000000;
 		if (ioctl(p->fd, EIOCSRTIMEOUT, (caddr_t)&timeout) < 0) {
-			sprintf(ebuf, "EIOCSRTIMEOUT: %s",
+			snprintf(ebuf, PCAP_ERRBUF_SIZE, "EIOCSRTIMEOUT: %s",
 				pcap_strerror(errno));
 			goto bad;
 		}
@@ -326,8 +334,8 @@ pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 		struct bpf_version bv;
 
 		if (ioctl(p->fd, BIOCVERSION, (caddr_t)&bv) < 0) {
-			sprintf(p->errbuf, "BIOCVERSION: %s",
-				pcap_strerror(errno));
+			snprintf(p->errbuf, sizeof(p->errbuf),
+			    "BIOCVERSION: %s", pcap_strerror(errno));
 			return (-1);
 		}
 		else if (bv.bv_major != BPF_MAJOR_VERSION ||
@@ -339,8 +347,10 @@ pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 			/* don't give up, just be inefficient */
 			p->md.use_bpf = 0;
 		}
-	} else
-		p->fcode = *fp;
+	} else {
+		if (install_bpf_program(p, fp) < 0)
+			return (-1);
+	}
 
 	/*XXX this goes in tcpdump*/
 	if (p->md.use_bpf)

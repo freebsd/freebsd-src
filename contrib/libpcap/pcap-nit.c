@@ -20,7 +20,11 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /tcpdump/master/libpcap/pcap-nit.c,v 1.31.1.1 1999/10/07 23:46:40 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/pcap-nit.c,v 1.39 2000/10/28 00:01:29 guy Exp $ (LBL)";
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
 
 #include <sys/types.h>
@@ -49,7 +53,6 @@ static const char rcsid[] =
 
 #include "pcap-int.h"
 
-#include "gnuc.h"
 #ifdef HAVE_OS_PROTO_H
 #include "os-proto.h"
 #endif
@@ -91,7 +94,7 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 		if (cc < 0) {
 			if (errno == EWOULDBLOCK)
 				return (0);
-			sprintf(p->errbuf, "pcap_read: %s",
+			snprintf(p->errbuf, sizeof(p->errbuf), "pcap_read: %s",
 				pcap_strerror(errno));
 			return (-1);
 		}
@@ -125,7 +128,8 @@ pcap_read(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			continue;
 
 		default:
-			sprintf(p->errbuf, "bad nit state %d", nh->nh_state);
+			snprintf(p->errbuf, sizeof(p->errbuf),
+			    "bad nit state %d", nh->nh_state);
 			return (-1);
 		}
 		++p->md.stat.ps_recv;
@@ -157,7 +161,7 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 {
 	struct nit_ioc nioc;
 
-	bzero((char *)&nioc, sizeof(nioc));
+	memset(&nioc, 0, sizeof(nioc));
 	nioc.nioc_bufspace = BUFSPACE;
 	nioc.nioc_chunksize = CHUNKSIZE;
 	nioc.nioc_typetomatch = NT_ALLTYPES;
@@ -174,7 +178,8 @@ nit_setflags(int fd, int promisc, int to_ms, char *ebuf)
 		nioc.nioc_flags |= NF_PROMISC;
 
 	if (ioctl(fd, SIOCSNIT, &nioc) < 0) {
-		sprintf(ebuf, "SIOCSNIT: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE, "SIOCSNIT: %s",
+		    pcap_strerror(errno));
 		return (-1);
 	}
 	return (0);
@@ -189,7 +194,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 
 	p = (pcap_t *)malloc(sizeof(*p));
 	if (p == NULL) {
-		strcpy(ebuf, pcap_strerror(errno));
+		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
 		return (NULL);
 	}
 
@@ -199,18 +204,19 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 		 */
 		snaplen = 96;
 
-	bzero(p, sizeof(*p));
+	memset(p, 0, sizeof(*p));
 	p->fd = fd = socket(AF_NIT, SOCK_RAW, NITPROTO_RAW);
 	if (fd < 0) {
-		sprintf(ebuf, "socket: %s", pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "socket: %s", pcap_strerror(errno));
 		goto bad;
 	}
 	snit.snit_family = AF_NIT;
 	(void)strncpy(snit.snit_ifname, device, NITIFSIZ);
 
 	if (bind(fd, (struct sockaddr *)&snit, sizeof(snit))) {
-		sprintf(ebuf, "bind: %s: %s", snit.snit_ifname,
-			pcap_strerror(errno));
+		snprintf(ebuf, PCAP_ERRBUF_SIZE,
+		    "bind: %s: %s", snit.snit_ifname, pcap_strerror(errno));
 		goto bad;
 	}
 	p->snapshot = snaplen;
@@ -224,7 +230,7 @@ pcap_open_live(char *device, int snaplen, int promisc, int to_ms, char *ebuf)
 	p->bufsize = BUFSPACE;
 	p->buffer = (u_char *)malloc(p->bufsize);
 	if (p->buffer == NULL) {
-		strcpy(ebuf, pcap_strerror(errno));
+		strlcpy(ebuf, pcap_strerror(errno), PCAP_ERRBUF_SIZE);
 		goto bad;
 	}
 	return (p);
@@ -239,6 +245,7 @@ int
 pcap_setfilter(pcap_t *p, struct bpf_program *fp)
 {
 
-	p->fcode = *fp;
+	if (install_bpf_program(p, fp) < 0)
+		return (-1);
 	return (0);
 }
