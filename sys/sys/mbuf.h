@@ -222,7 +222,6 @@ struct mbuf {
 #define	MT_RIGHTS	12	/* access rights */
 #define	MT_IFADDR	13	/* interface address */
 #endif
-#define	MT_TAG		13	/* volatile metadata associated to pkts */
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
@@ -549,28 +548,10 @@ struct	mbuf *
 #define	PACKET_TAG_IPSEC_SOCKET			12 /* IPSEC socket ref */
 #define	PACKET_TAG_IPSEC_HISTORY		13 /* IPSEC history */
 #define	PACKET_TAG_IPV6_INPUT			14 /* IPV6 input processing */
-
-/*
- * As a temporary and low impact solution to replace the even uglier
- * approach used so far in some parts of the network stack (which relies
- * on global variables), packet tag-like annotations are stored in MT_TAG
- * mbufs (or lookalikes) prepended to the actual mbuf chain.
- *
- *	m_type	= MT_TAG
- *	m_flags = m_tag_id
- *	m_next	= next buffer in chain.
- *
- * BE VERY CAREFUL not to pass these blocks to the mbuf handling routines.
- */
-#define	_m_tag_id	m_hdr.mh_flags
-
-/* Packet tags used in the FreeBSD network stack. */
 #define	PACKET_TAG_DUMMYNET			15 /* dummynet info */
-#define	PACKET_TAG_IPFW				16 /* ipfw classification */
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
-#define	PACKET_TAG_IPFASTFWD_OURS		20 /* IP fastforward dropback */
 
 /* Packet tag routines. */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);

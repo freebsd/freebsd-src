@@ -57,6 +57,7 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/ip_divert.h>
 #include <netinet/igmp_var.h>
 #ifdef PIM
 #include <netinet/pim_var.h>

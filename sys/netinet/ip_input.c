@@ -78,6 +78,7 @@
 #include <sys/socketvar.h>
 
 #include <netinet/ip_fw.h>
+#include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 
 #ifdef IPSEC
@@ -239,8 +240,7 @@ static int	ip_dooptions(struct mbuf *m, int,
 static void	ip_forward(struct mbuf *m, int srcrt,
 			struct sockaddr_in *next_hop);
 static void	ip_freef(struct ipqhead *, struct ipq *);
-static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *,
-		struct ipq *, u_int32_t *, u_int16_t *);
+static struct	mbuf *ip_reass(struct mbuf *, struct ipqhead *, struct ipq *);
 
 /*
  * IP initialization: fill in IP protocol switch table.
@@ -300,10 +300,11 @@ ip_input(struct mbuf *m)
 	struct in_ifaddr *ia = NULL;
 	struct ifaddr *ifa;
 	int    i, checkif, hlen = 0;
-	int    ours = 0;
 	u_short sum;
 	struct in_addr pkt_dst;
-	u_int32_t divert_info = 0;		/* packet divert/tee info */
+#ifdef IPDIVERT
+	u_int32_t divert_info;			/* packet divert/tee info */
+#endif
 	struct ip_fw_args args;
 	int dchg = 0;				/* dest changed after fw */
 #ifdef PFIL_HOOKS
@@ -318,56 +319,17 @@ ip_input(struct mbuf *m)
 
 	args.eh = NULL;
 	args.oif = NULL;
-	args.rule = NULL;
-	args.divert_rule = 0;			/* divert cookie */
-	args.next_hop = NULL;
 
-	/*
-	 * Grab info from MT_TAG mbufs prepended to the chain.
-	 *
-	 * XXX: This is ugly. These pseudo mbuf prepend tags should really
-	 * be real m_tags.  Before these have always been allocated on the
-	 * callers stack, so we didn't have to free them.  Now with
- 	 * ip_fastforward they are true mbufs and we have to free them
-	 * otherwise we have a leak.  Must rewrite ipfw to use m_tags.
-	 */
-	for (; m && m->m_type == MT_TAG;) {
-		struct mbuf *m0;
-
-		switch(m->_m_tag_id) {
-		default:
-			printf("ip_input: unrecognised MT_TAG tag %d\n",
-			    m->_m_tag_id);
-			break;
-
-		case PACKET_TAG_DUMMYNET:
-			args.rule = ((struct dn_pkt *)m)->rule;
-			break;
-
-		case PACKET_TAG_DIVERT:
-			args.divert_rule = (intptr_t)m->m_hdr.mh_data & 0xffff;
-			break;
-
-		case PACKET_TAG_IPFORWARD:
-			args.next_hop = (struct sockaddr_in *)m->m_hdr.mh_data;
-			break;
-
-		case PACKET_TAG_IPFASTFWD_OURS:
-			ours = 1;
-			break;
-		}
-
-		m0 = m;
-		m = m->m_next;
-		/* XXX: This is set by ip_fastforward */
-		if (m0->m_nextpkt == (struct mbuf *)1)
-			m_free(m0);
-	}
-  
   	M_ASSERTPKTHDR(m);
+  	
+	args.next_hop = ip_claim_next_hop(m);
+	args.rule = ip_dn_claim_rule(m);
   
-	if (ours)		/* ip_fastforward firewall changed dest to local */
+	if (m->m_flags & M_FASTFWD_OURS) {
+		/* ip_fastforward firewall changed dest to local */
+		m->m_flags &= ~M_FASTFWD_OURS;	/* for reflected mbufs */
   		goto ours;
+  	}
 
   	if (args.rule) {	/* dummynet already filtered us */
   		ip = mtod(m, struct ip *);
@@ -531,7 +493,6 @@ iphack:
 #ifdef IPDIVERT
 		if (i != 0 && (i & IP_FW_PORT_DYNT_FLAG) == 0) {
 			/* Divert or tee packet */
-			divert_info = i;
 			goto ours;
 		}
 #endif
@@ -839,13 +800,11 @@ found:
 
 		/*
 		 * Attempt reassembly; if it succeeds, proceed.
-		 * ip_reass() will return a different mbuf, and update
-		 * the divert info in divert_info and args.divert_rule.
+		 * ip_reass() will return a different mbuf.
 		 */
 		ipstat.ips_fragments++;
 		m->m_pkthdr.header = ip;
-		m = ip_reass(m,
-		    &ipq[sum], fp, &divert_info, &args.divert_rule);
+		m = ip_reass(m, &ipq[sum], fp);
 		IPQ_UNLOCK();
 		if (m == 0)
 			return;
@@ -855,7 +814,7 @@ found:
 		hlen = ip->ip_hl << 2;
 #ifdef IPDIVERT
 		/* Restore original checksum before diverting packet */
-		if (divert_info != 0) {
+		if (divert_find_info(m) != 0) {
 			ip->ip_len += hlen;
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
@@ -876,12 +835,15 @@ found:
 	/*
 	 * Divert or tee packet to the divert protocol if required.
 	 */
+	divert_info = divert_find_info(m);
 	if (divert_info != 0) {
-		struct mbuf *clone = NULL;
+		struct mbuf *clone;
 
 		/* Clone packet if we're doing a 'tee' */
 		if ((divert_info & IP_FW_PORT_TEE_FLAG) != 0)
-			clone = m_dup(m, M_DONTWAIT);
+			clone = divert_clone(m);
+		else
+			clone = NULL;
 
 		/* Restore packet header fields to original values */
 		ip->ip_len += hlen;
@@ -889,7 +851,7 @@ found:
 		ip->ip_off = htons(ip->ip_off);
 
 		/* Deliver packet to divert input routine */
-		divert_packet(m, 1, divert_info & 0xffff, args.divert_rule);
+		divert_packet(m, 1);
 		ipstat.ips_delivered++;
 
 		/* If 'tee', continue with original packet */
@@ -900,12 +862,11 @@ found:
 		ip->ip_len += hlen;
 		/*
 		 * Jump backwards to complete processing of the
-		 * packet. But first clear divert_info to avoid
-		 * entering this block again.
-		 * We do not need to clear args.divert_rule
-		 * or args.next_hop as they will not be used.
+		 * packet.  We do not need to clear args.next_hop
+		 * as that will not be used again and the cloned packet
+		 * doesn't contain a divert packet tag so we won't
+		 * re-entry this block.
 		 */
-		divert_info = 0;
 		goto pass;
 	}
 #endif
@@ -966,21 +927,17 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 	 * Switch out to protocol's input routine.
 	 */
 	ipstat.ips_delivered++;
-	NET_PICKUP_GIANT();
 	if (args.next_hop && ip->ip_p == IPPROTO_TCP) {
-		/* TCP needs IPFORWARD info if available */
-		struct m_hdr tag;
-
-		tag.mh_type = MT_TAG;
-		tag.mh_flags = PACKET_TAG_IPFORWARD;
-		tag.mh_data = (caddr_t)args.next_hop;
-		tag.mh_next = m;
-		tag.mh_nextpkt = NULL;
-
-		(*inetsw[ip_protox[ip->ip_p]].pr_input)(
-			(struct mbuf *)&tag, hlen);
-	} else
-		(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
+		/* attach next hop info for TCP */
+		struct m_tag *mtag = m_tag_get(PACKET_TAG_IPFORWARD,
+		    sizeof(struct sockaddr_in *), M_NOWAIT);
+		if (mtag == NULL)
+			goto bad;
+		*(struct sockaddr_in **)(mtag+1) = args.next_hop;
+		m_tag_prepend(m, mtag);
+	}
+	NET_PICKUP_GIANT();
+	(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
 	NET_DROP_GIANT();
 	return;
 bad:
@@ -999,8 +956,7 @@ bad:
  */
 
 static struct mbuf *
-ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
-	u_int32_t *divinfo, u_int16_t *divert_rule)
+ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp)
 {
 	struct ip *ip = mtod(m, struct ip *);
 	register struct mbuf *p, *q, *nq;
@@ -1042,10 +998,6 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 		fp->ipq_dst = ip->ip_dst;
 		fp->ipq_frags = m;
 		m->m_nextpkt = NULL;
-#ifdef IPDIVERT
-		fp->ipq_div_info = 0;
-		fp->ipq_div_cookie = 0;
-#endif
 		goto inserted;
 	} else {
 		fp->ipq_nfrags++;
@@ -1129,16 +1081,15 @@ ip_reass(struct mbuf *m, struct ipqhead *head, struct ipq *fp,
 inserted:
 
 #ifdef IPDIVERT
-	/*
-	 * Transfer firewall instructions to the fragment structure.
-	 * Only trust info in the fragment at offset 0.
-	 */
-	if (ip->ip_off == 0) {
-		fp->ipq_div_info = *divinfo;
-		fp->ipq_div_cookie = *divert_rule;
+	if (ip->ip_off != 0) {
+		/*
+		 * Strip any divert information; only the info
+		 * on the first fragment is used/kept.
+		 */
+		struct m_tag *mtag = m_tag_find(m, PACKET_TAG_DIVERT, NULL);
+		if (mtag)
+			m_tag_delete(m, mtag);
 	}
-	*divinfo = 0;
-	*divert_rule = 0;
 #endif
 
 	/*
@@ -1204,14 +1155,6 @@ inserted:
 	mac_destroy_ipq(fp);
 #endif
 
-#ifdef IPDIVERT
-	/*
-	 * Extract firewall instructions from the fragment structure.
-	 */
-	*divinfo = fp->ipq_div_info;
-	*divert_rule = fp->ipq_div_cookie;
-#endif
-
 	/*
 	 * Create header for new ip packet by
 	 * modifying header of first packet;
@@ -1232,10 +1175,6 @@ inserted:
 	return (m);
 
 dropfrag:
-#ifdef IPDIVERT
-	*divinfo = 0;
-	*divert_rule = 0;
-#endif
 	ipstat.ips_fragdropped++;
 	if (fp != NULL)
 		fp->ipq_nfrags--;
@@ -1914,17 +1853,15 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 	}
 
     {
-	struct m_hdr tag;
-
 	if (next_hop) {
-		/* Pass IPFORWARD info if available */
- 
-		tag.mh_type = MT_TAG;
-		tag.mh_flags = PACKET_TAG_IPFORWARD;
-		tag.mh_data = (caddr_t)next_hop;
-		tag.mh_next = m;
-		tag.mh_nextpkt = NULL;
-		m = (struct mbuf *)&tag;
+		struct m_tag *mtag = m_tag_get(PACKET_TAG_IPFORWARD,
+		    sizeof(struct sockaddr_in *), M_NOWAIT);
+		if (mtag == NULL) {
+			m_freem(m);
+			return;
+		}
+		*(struct sockaddr_in **)(mtag+1) = next_hop;
+		m_tag_prepend(m, mtag);
 	}
 	error = ip_output(m, (struct mbuf *)0, NULL, IP_FORWARDING, 0, NULL);
     }
