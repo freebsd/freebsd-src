@@ -1,4 +1,4 @@
-#	$Id: bsd.own.mk,v 1.20 1998/10/19 20:09:17 imp Exp $
+#	$Id: bsd.own.mk,v 1.21 1999/01/07 06:32:22 peter Exp $
 #
 # The include file <bsd.own.mk> set common variables for owner,
 # group, mode, and directories. Defaults are in brackets.
@@ -58,7 +58,7 @@
 #
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see lkm(4)). [/lkm]
+#		(see lkm(4)). [/modules]
 #
 # KMODOWN	LKM owner. [${BINOWN}]
 #
@@ -152,7 +152,7 @@ LIBOWN?=	${BINOWN}
 LIBGRP?=	${BINGRP}
 LIBMODE?=	${NOBINMODE}
 
-KMODDIR?=	/lkm
+KMODDIR?=	/modules
 KMODOWN?=	${BINOWN}
 KMODGRP?=	${BINGRP}
 KMODMODE?=	${BINMODE}
