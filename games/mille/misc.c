@@ -215,7 +215,9 @@ register int	promptno; {
  * came from a saved file, make sure that they don't want to restore
  * it.  Exit appropriately.
  */
-check_more() {
+void
+check_more()
+{
 
 	On_exit = TRUE;
 	if (Player[PLAYER].total >= 5000 || Player[COMP].total >= 5000)
