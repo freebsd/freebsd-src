@@ -483,10 +483,18 @@ static char * device_list[] = {"wd", "aacd", "ad", "da", "afd", "fla", "idad", "
 static char * device_list[] = {"aacd", "ad", "da", "afd", "fla", "idad", "mlxd", "amrd", "twed", "ar", "fd", 0};
 #endif
 
+int qstrcmp(const void* a, const void* b) {
+
+	char *str1 = *(char**)a;
+	char *str2 = *(char**)b;
+	return strcmp(str1, str2);
+
+}
+
 char **
 Disk_Names()
 {
-    int i,j,k;
+    int i,j,disk_cnt;
     char disk[25];
     char diskname[25];
     struct stat st;
@@ -506,14 +514,16 @@ Disk_Names()
 	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
 	    if (error) 
 		    return NULL;
-	    k = 0;
-	    for (dp = disks; ((*dp = strsep(&disklist, " ")) != NULL) && k < MAX_NO_DISKS; k++, dp++);
-	    return disks;
-    }
+	    disk_cnt = 0;
+	    for (dp = disks; ((*dp = strsep(&disklist, " ")) != NULL) && 
+			 disk_cnt < MAX_NO_DISKS; disk_cnt++, dp++);
+    } else {
     warn("kern.disks sysctl not available");
 #endif
-    k = 0;
+    disk_cnt = 0;
 	for (j = 0; device_list[j]; j++) {
+		if(disk_cnt >= MAX_NO_DISKS)
+			break;
 		for (i = 0; i < MAX_NO_DISKS; i++) {
 			sprintf(diskname, "%s%d", device_list[j], i);
 			sprintf(disk, _PATH_DEV"%s", diskname);
@@ -529,12 +539,17 @@ Disk_Names()
 				continue;
 			}
 			close(fd);
-			disks[k++] = strdup(diskname);
-			if(k == MAX_NO_DISKS)
-				return disks;
+			disks[disk_cnt++] = strdup(diskname);
+			if(disk_cnt >= MAX_NO_DISKS)
+				break;
 		}
 	}
-	return disks;
+#if !defined(PC98) && !defined(KERN_DISKS_BROKEN)
+    }
+#endif
+    qsort(disks, disk_cnt, sizeof(char*), qstrcmp);
+    
+    return disks;
 }
 
 #ifdef PC98
