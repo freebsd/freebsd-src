@@ -1,6 +1,7 @@
 # $FreeBSD$
 
+MAINTAINER=	obrien
+
 PROG=	brandelf
-CFLAGS+= -Wall
 
 .include <bsd.prog.mk>
