@@ -45,8 +45,9 @@ uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_CONCAT_VERSION;
 
 static void concat_main(struct gctl_req *req, unsigned flags);
-static void concat_label(struct gctl_req *req);
 static void concat_clear(struct gctl_req *req);
+static void concat_dump(struct gctl_req *req);
+static void concat_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
 	{ "clear", G_FLAG_VERBOSE, concat_main, G_NULL_OPTS },
@@ -57,6 +58,7 @@ struct g_command class_commands[] = {
 		G_OPT_SENTINEL
 	    }
 	},
+	{ "dump", 0, concat_main, G_NULL_OPTS },
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, concat_main, G_NULL_OPTS },
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
@@ -80,6 +82,7 @@ usage(const char *name)
 	fprintf(stderr, "       %s label [-v] <name> <dev1> <dev2> [dev3 [...]]\n", name);
 	fprintf(stderr, "       %s stop [-fv] <name> [name2 [...]]\n", name);
 	fprintf(stderr, "       %s clear [-v] <dev1> [dev2 [...]]\n", name);
+	fprintf(stderr, "       %s dump <dev1> [dev2 [...]]\n", name);
 }
 
 static void
@@ -99,6 +102,8 @@ concat_main(struct gctl_req *req, unsigned flags)
 		concat_label(req);
 	else if (strcmp(name, "clear") == 0)
 		concat_clear(req);
+	else if (strcmp(name, "dump") == 0)
+		concat_dump(req);
 	else
 		gctl_error(req, "Unknown command: %s.", name);
 }
@@ -201,5 +206,54 @@ concat_clear(struct gctl_req *req)
 		}
 		if (verbose)
 			printf("Metadata cleared on %s.\n", name); 
+	}
+}
+
+static void 
+concat_metadata_dump(const struct g_concat_metadata *md)
+{
+
+	printf("         Magic string: %s\n", md->md_magic); 
+	printf("     Metadata version: %u\n", (u_int)md->md_version);
+	printf("          Device name: %s\n", md->md_name);
+	printf("            Device ID: %u\n", (u_int)md->md_id);
+	printf("          Disk number: %u\n", (u_int)md->md_no);
+	printf("Total number of disks: %u\n", (u_int)md->md_all);
+}
+
+static void
+concat_dump(struct gctl_req *req)
+{
+	struct g_concat_metadata md, tmpmd;
+	const char *name;
+	char param[16];
+	int *nargs, error, i;
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs < 1) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+
+	for (i = 0; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%u", i);
+		name = gctl_get_asciiparam(req, param);
+
+		error = g_metadata_read(name, (u_char *)&tmpmd, sizeof(tmpmd),
+		    G_CONCAT_MAGIC);
+		if (error != 0) {
+			fprintf(stderr, "Can't read metadata from %s: %s.\n",
+			    name, strerror(error));
+			gctl_error(req, "Not fully done.");
+			continue;
+		}
+		concat_metadata_decode((u_char *)&tmpmd, &md);
+		printf("Metadata on %s:\n", name);
+		concat_metadata_dump(&md);
+		printf("\n");
 	}
 }

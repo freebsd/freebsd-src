@@ -45,8 +45,9 @@ uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_LABEL_VERSION;
 
 static void label_main(struct gctl_req *req, unsigned flags);
-static void label_label(struct gctl_req *req);
 static void label_clear(struct gctl_req *req);
+static void label_dump(struct gctl_req *req);
+static void label_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
 	{ "clear", G_FLAG_VERBOSE, label_main, G_NULL_OPTS },
@@ -57,6 +58,7 @@ struct g_command class_commands[] = {
 		G_OPT_SENTINEL
 	    }
 	},
+	{ "dump", 0, label_main, G_NULL_OPTS },
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, label_main, G_NULL_OPTS },
 	{ "stop", G_FLAG_VERBOSE, NULL,
 	    {
@@ -80,6 +82,7 @@ usage(const char *name)
 	fprintf(stderr, "       %s label [-v] <name> <dev>\n", name);
 	fprintf(stderr, "       %s stop [-fv] <name> [name2 [...]]\n", name);
 	fprintf(stderr, "       %s clear [-v] <dev1> [dev2 [...]]\n", name);
+	fprintf(stderr, "       %s dump <dev1> [dev2 [...]]\n", name);
 }
 
 static void
@@ -99,6 +102,8 @@ label_main(struct gctl_req *req, unsigned flags)
 		label_label(req);
 	else if (strcmp(name, "clear") == 0)
 		label_clear(req);
+	else if (strcmp(name, "dump") == 0)
+		label_dump(req);
 	else
 		gctl_error(req, "Unknown command: %s.", name);
 }
@@ -190,5 +195,51 @@ label_clear(struct gctl_req *req)
 		}
 		if (verbose)
 			printf("Metadata cleared on %s.\n", name); 
+	}
+}
+
+static void 
+label_metadata_dump(const struct g_label_metadata *md)
+{
+
+	printf("    Magic string: %s\n", md->md_magic); 
+	printf("Metadata version: %u\n", (u_int)md->md_version);
+	printf("           Label: %s\n", md->md_label);
+}
+
+static void
+label_dump(struct gctl_req *req)
+{
+	struct g_label_metadata md, tmpmd;
+	const char *name;
+	char param[16];
+	int *nargs, error, i;
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs < 1) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+
+	for (i = 0; i < *nargs; i++) {
+		snprintf(param, sizeof(param), "arg%u", i);
+		name = gctl_get_asciiparam(req, param);
+
+		error = g_metadata_read(name, (u_char *)&tmpmd, sizeof(tmpmd),
+		    G_LABEL_MAGIC);
+		if (error != 0) {
+			fprintf(stderr, "Can't read metadata from %s: %s.\n",
+			    name, strerror(error));
+			gctl_error(req, "Not fully done.");
+			continue;
+		}
+		label_metadata_decode((u_char *)&tmpmd, &md);
+		printf("Metadata on %s:\n", name);
+		label_metadata_dump(&md);
+		printf("\n");
 	}
 }
