@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_pass.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -388,6 +388,12 @@ passopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	if (softc->flags & PASS_FLAG_INVALID)
 		return(ENXIO);
+
+	/*
+	 * Only allow read-write access.
+	 */
+	if (((flags & FWRITE) == 0) || ((flags & FREAD) == 0))
+		return(EPERM);
 
 	/*
 	 * We don't allow nonblocking access.
