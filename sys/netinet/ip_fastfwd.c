@@ -116,7 +116,7 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,
     &ipfastforward_active, 0, "Enable fast IP forwarding");
 
 static struct sockaddr_in *
-ip_findroute(struct route *ro, in_addr_t dest, struct mbuf *m)
+ip_findroute(struct route *ro, struct in_addr dest, struct mbuf *m)
 {
 	struct sockaddr_in *dst;
 	struct rtentry *rt;
@@ -128,7 +128,7 @@ ip_findroute(struct route *ro, in_addr_t dest, struct mbuf *m)
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 	dst->sin_family = AF_INET;
 	dst->sin_len = sizeof(*dst);
-	dst->sin_addr.s_addr = dest;
+	dst->sin_addr.s_addr = dest.s_addr;
 	rtalloc_ign(ro, RTF_CLONING);
 
 	/*
@@ -173,7 +173,7 @@ ip_fastforward(struct mbuf *m)
 	struct ifaddr *ifa = NULL;
 	struct ifnet *ifp;
 	struct ip_fw_args args;
-	in_addr_t odest, dest;
+	struct in_addr odest, dest;
 	u_short sum, ip_len;
 	int error = 0;
 	int hlen, ipfw, mtu;
@@ -330,10 +330,8 @@ ip_fastforward(struct mbuf *m)
 	/*
 	 * Is it for a local address on this host?
 	 */
-	LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
-		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
-			return 0;
-	}
+	if (in_localip(ip->ip_dst))
+		return 0;
 
 	/*
 	 * Or is it for a local IP broadcast address on this host?
@@ -363,7 +361,7 @@ ip_fastforward(struct mbuf *m)
 	ip->ip_len = ntohs(ip->ip_len);
 	ip->ip_off = ntohs(ip->ip_off);
 
-	odest = dest = ip->ip_dst.s_addr;
+	odest.s_addr = dest.s_addr = ip->ip_dst.s_addr;
 #ifdef PFIL_HOOKS
 	/*
 	 * Run through list of ipfilter hooks for input packets
@@ -376,7 +374,7 @@ ip_fastforward(struct mbuf *m)
 	M_ASSERTPKTHDR(m);
 
 	ip = mtod(m, struct ip *);	/* m may have changed by pfil hook */
-	dest = ip->ip_dst.s_addr;
+	dest.s_addr = ip->ip_dst.s_addr;
 #endif
 
 	/*
@@ -452,7 +450,7 @@ ip_fastforward(struct mbuf *m)
 		}
 #endif
 		if (ipfw == 0 && args.next_hop != NULL) {
-			dest = args.next_hop->sin_addr.s_addr;
+			dest.s_addr = args.next_hop->sin_addr.s_addr;
 			goto passin;
 		}
 		/*
@@ -467,14 +465,12 @@ passin:
 	/*
 	 * Destination address changed?
 	 */
-	if (odest != dest) {
+	if (odest.s_addr != dest.s_addr) {
 		/*
 		 * Is it now for a local address on this host?
 		 */
-		LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
-			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr)
-				goto forwardlocal;
-		}
+		if (in_localip(dest))
+			goto forwardlocal;
 		/*
 		 * Go on with new destination address
 		 */
@@ -531,7 +527,7 @@ passin:
 	M_ASSERTPKTHDR(m);
 
 	ip = mtod(m, struct ip *);
-	dest = ip->ip_dst.s_addr;
+	dest.s_addr = ip->ip_dst.s_addr;
 #endif
 	if (fw_enable && IPFW_LOADED && !args.next_hop) {
 		bzero(&args, sizeof(args));
@@ -604,7 +600,7 @@ passin:
 		}
 #endif
 		if (ipfw == 0 && args.next_hop != NULL) {
-			dest = args.next_hop->sin_addr.s_addr;
+			dest.s_addr = args.next_hop->sin_addr.s_addr;
 			goto passout;
 		}
 		/*
@@ -619,42 +615,40 @@ passout:
 	/*
 	 * Destination address changed?
 	 */
-	if (odest != dest) {
+	if (odest.s_addr != dest.s_addr) {
 		/*
 		 * Is it now for a local address on this host?
 		 */
-		LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
-			if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr) {
+		if (in_localip(dest)) {
 forwardlocal:
-				if (args.next_hop) {
-					struct m_tag *mtag = m_tag_get(
-					    PACKET_TAG_IPFORWARD,
-					    sizeof(struct sockaddr_in *),
-					    M_NOWAIT);
-					if (mtag == NULL) {
-						goto drop;
-					}
-					*(struct sockaddr_in **)(mtag+1) =
-					    args.next_hop;
-					m_tag_prepend(m, mtag);
+			if (args.next_hop) {
+				struct m_tag *mtag = m_tag_get(
+				    PACKET_TAG_IPFORWARD,
+				    sizeof(struct sockaddr_in *),
+				    M_NOWAIT);
+				if (mtag == NULL) {
+					goto drop;
 				}
+				*(struct sockaddr_in **)(mtag+1) =
+				    args.next_hop;
+				m_tag_prepend(m, mtag);
+			}
 #ifdef IPDIVERT
 droptoours:	/* Used for DIVERT */
 #endif
-				/* for ip_input */
-				m->m_flags |= M_FASTFWD_OURS;
+			/* for ip_input */
+			m->m_flags |= M_FASTFWD_OURS;
 
-				/* ip still points to the real packet */
-				ip->ip_len = htons(ip->ip_len);
-				ip->ip_off = htons(ip->ip_off);
+			/* ip still points to the real packet */
+			ip->ip_len = htons(ip->ip_len);
+			ip->ip_off = htons(ip->ip_off);
 
-				/*
-				 * Return packet for processing by ip_input
-				 */
-				if (ro.ro_rt)
-					RTFREE(ro.ro_rt);
-				return 0;
-			}
+			/*
+			 * Return packet for processing by ip_input
+			 */
+			if (ro.ro_rt)
+				RTFREE(ro.ro_rt);
+			return 0;
 		}
 		/*
 		 * Redo route lookup with new destination address
