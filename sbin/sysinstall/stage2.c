@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.22 1995/01/30 03:19:54 phk Exp $
+ * $Id: stage2.c,v 1.23 1995/02/02 05:35:36 phk Exp $
  *
  */
 
@@ -83,7 +83,7 @@ stage2()
 	    MountUfs(p, dbuf, 1, 0);
 	    continue;
         }
-	Mkdir(dbuf);
+	Mkdir(dbuf, FALSE);
     }
 
     Mkdir("/mnt/etc", TRUE);
