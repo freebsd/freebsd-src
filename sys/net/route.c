@@ -1096,17 +1096,6 @@ bad:
 				(void) m_free(m);
 			return (flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
 		}
-		/* XXX */
-#if 0
-		else {
-			/*
-			 * One would think that as we are deleting, and we know
-			 * it doesn't exist, we could just return at this point
-			 * with an "ELSE" clause, but apparently not..
-			 */
-			return (flags & RTF_HOST ? EHOSTUNREACH : ENETUNREACH);
-		}
-#endif
 	}
 	/*
 	 * Do the actual request
