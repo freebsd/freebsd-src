@@ -28,10 +28,12 @@
 #include <ctype.h>
 #ifdef __FreeBSD__
 #include <openssl/des.h>
-#else
-#include <des.h>
-#endif
 #include <sha.h>
+#else
+#include <stdlib.h>
+#include <des.h>
+#include <openssl/sha.h>
+#endif
 #include <md4.h>
 #include <string.h>
 
@@ -176,6 +178,29 @@ GenerateNTResponse(char *AuthenticatorChallenge, char *PeerChallenge,
   NtPasswordHash(Password, PasswordLen, PasswordHash);
   ChallengeResponse(Challenge, PasswordHash, Response);
 }
+
+#ifndef __FreeBSD__
+#define LENGTH 20
+char *
+SHA1_End(SHA_CTX *ctx, char *buf)
+{
+    int i;
+    unsigned char digest[LENGTH];
+    static const char hex[]="0123456789abcdef";
+
+    if (!buf)
+        buf = malloc(2*LENGTH + 1);
+    if (!buf)
+        return 0;
+    SHA1_Final(digest, ctx);
+    for (i = 0; i < LENGTH; i++) {
+        buf[i+i] = hex[digest[i] >> 4];
+        buf[i+i+1] = hex[digest[i] & 0x0f];
+    }
+    buf[i+i] = '\0';
+    return buf;
+}
+#endif
 
 void
 GenerateAuthenticatorResponse(char *Password, int PasswordLen,
