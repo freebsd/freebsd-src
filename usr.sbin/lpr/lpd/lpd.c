@@ -428,9 +428,9 @@ main(int argc, char **argv)
 static void
 reapchild(int signo __unused)
 {
-	union wait status;
+	int status;
 
-	while (wait3((int *)&status, WNOHANG, 0) > 0)
+	while (wait3(&status, WNOHANG, 0) > 0)
 		;
 }
 
