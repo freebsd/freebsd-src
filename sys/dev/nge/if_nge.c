@@ -611,30 +611,56 @@ static int nge_miibus_writereg(dev, phy, reg, data)
 static void nge_miibus_statchg(dev)
 	device_t		dev;
 {
+	int			status;	
 	struct nge_softc	*sc;
 	struct mii_data		*mii;
 
 	sc = device_get_softc(dev);
-	mii = device_get_softc(sc->nge_miibus);
+	if (sc->nge_tbi) {
+		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media)
+		    == IFM_AUTO) {
+			status = CSR_READ_4(sc, NGE_TBI_ANLPAR);
+			if (status == 0 || status & NGE_TBIANAR_FDX) {
+				NGE_SETBIT(sc, NGE_TX_CFG,
+				    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+				NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+			} else {
+				NGE_CLRBIT(sc, NGE_TX_CFG,
+				    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+				NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+			}
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		NGE_SETBIT(sc, NGE_TX_CFG,
-		    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
-		NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK) 
+			!= IFM_FDX) {
+			NGE_CLRBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		} else {
+			NGE_SETBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		}
 	} else {
-		NGE_CLRBIT(sc, NGE_TX_CFG,
-		    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
-		NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
-	}
+		mii = device_get_softc(sc->nge_miibus);
 
-	/* If we have a 1000Mbps link, set the mode_1000 bit. */
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
-	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) {
-		NGE_SETBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
-	} else {
-		NGE_CLRBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
-	}
+		if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
+		        NGE_SETBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		} else {
+			NGE_CLRBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		}
 
+		/* If we have a 1000Mbps link, set the mode_1000 bit. */
+		if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX ||
+		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) {
+			NGE_SETBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
+		} else {
+			NGE_CLRBIT(sc, NGE_CFG, NGE_CFG_MODE_1000);
+		}
+	}
 	return;
 }
 
@@ -788,6 +814,7 @@ static int nge_attach(dev)
 	struct nge_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid;
+	const char		*sep = "";
 
 	s = splimp();
 
@@ -947,14 +974,48 @@ static int nge_attach(dev)
 	 * Do MII setup.
 	 */
 	if (mii_phy_probe(dev, &sc->nge_miibus,
-	    nge_ifmedia_upd, nge_ifmedia_sts)) {
-		printf("nge%d: MII without any PHY!\n", sc->nge_unit);
-		nge_free_jumbo_mem(sc);
-		bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
-		bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
-		error = ENXIO;
-		goto fail;
+			  nge_ifmedia_upd, nge_ifmedia_sts)) {
+		if (CSR_READ_4(sc, NGE_CFG) & NGE_CFG_TBI_EN) {
+			sc->nge_tbi = 1;
+			device_printf(dev, "Using TBI\n");
+			
+			sc->nge_miibus = dev;
+
+			ifmedia_init(&sc->nge_ifmedia, 0, nge_ifmedia_upd, 
+				nge_ifmedia_sts);
+#define	ADD(m, c)	ifmedia_add(&sc->nge_ifmedia, (m), (c), NULL)
+#define PRINT(s)	printf("%s%s", sep, s); sep = ", "
+			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, 0), 0);
+			device_printf(dev, " ");
+			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, 0, 0), 0);
+			PRINT("1000baseSX");
+			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_SX, IFM_FDX, 0),0);
+			PRINT("1000baseSX-FDX");
+			ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, 0), 0);
+			PRINT("auto");
+	    
+			printf("\n");
+#undef ADD
+#undef PRINT
+			ifmedia_set(&sc->nge_ifmedia, 
+				IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, 0));
+	    
+			CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
+				| NGE_GPIO_GP4_OUT 
+				| NGE_GPIO_GP1_OUTENB | NGE_GPIO_GP2_OUTENB 
+				| NGE_GPIO_GP3_OUTENB
+				| NGE_GPIO_GP3_IN | NGE_GPIO_GP4_IN);
+	    
+		} else {
+			printf("nge%d: MII without any PHY!\n", sc->nge_unit);
+			nge_free_jumbo_mem(sc);
+			bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);
+			bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
+			bus_release_resource(dev, NGE_RES, NGE_RID, 
+					 sc->nge_res);
+			error = ENXIO;
+			goto fail;
+		}
 	}
 
 	/*
@@ -964,6 +1025,7 @@ static int nge_attach(dev)
 	callout_handle_init(&sc->nge_stat_ch);
 
 fail:
+
 	splx(s);
 	return(error);
 }
@@ -985,8 +1047,9 @@ static int nge_detach(dev)
 	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
 
 	bus_generic_detach(dev);
-	device_delete_child(dev, sc->nge_miibus);
-
+	if (!sc->nge_tbi) {
+		device_delete_child(dev, sc->nge_miibus);
+	}
 	bus_teardown_intr(dev, sc->nge_irq, sc->nge_intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->nge_irq);
 	bus_release_resource(dev, NGE_RES, NGE_RID, sc->nge_res);
@@ -1324,7 +1387,6 @@ static void nge_rxeof(sc)
 		cur_rx->nge_mbuf = NULL;
 		total_len = NGE_RXBYTES(cur_rx);
 		NGE_INC(i, NGE_RX_LIST_CNT);
-
 		/*
 		 * If an error occurs, update stats, clear the
 		 * status word and leave the mbuf cluster in place:
@@ -1336,7 +1398,6 @@ static void nge_rxeof(sc)
 			nge_newbuf(sc, cur_rx, m);
 			continue;
 		}
-
 
 		/*
 		 * Ok. NatSemi really screwed up here. This is the
@@ -1487,22 +1548,36 @@ static void nge_tick(xsc)
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
 
-	mii = device_get_softc(sc->nge_miibus);
-	mii_tick(mii);
-
-	if (!sc->nge_link) {
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-			sc->nge_link++;
-			if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_TX)
+	if (sc->nge_tbi) {
+		if (!sc->nge_link) {
+			if (CSR_READ_4(sc, NGE_TBI_BMSR) 
+			    & NGE_TBIBMSR_ANEG_DONE) {
 				printf("nge%d: gigabit link up\n",
 				    sc->nge_unit);
-			if (ifp->if_snd.ifq_head != NULL)
-				nge_start(ifp);
+				nge_miibus_statchg(sc->nge_miibus);
+				sc->nge_link++;
+				if (ifp->if_snd.ifq_head != NULL)
+					nge_start(ifp);
+			}
+		}
+	} else {
+		mii = device_get_softc(sc->nge_miibus);
+		mii_tick(mii);
+
+		if (!sc->nge_link) {
+			if (mii->mii_media_status & IFM_ACTIVE &&
+			    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+				sc->nge_link++;
+				if (IFM_SUBTYPE(mii->mii_media_active) 
+				    == IFM_1000_TX)
+					printf("nge%d: gigabit link up\n",
+					    sc->nge_unit);
+				if (ifp->if_snd.ifq_head != NULL)
+					nge_start(ifp);
+			}
 		}
 	}
 	sc->nge_stat_ch = timeout(nge_tick, sc, hz);
-
 
 	splx(s);
 
@@ -1527,6 +1602,11 @@ static void nge_intr(arg)
 
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, NGE_IER, 0);
+
+	/* Data LED on for TBI mode */
+	if(sc->nge_tbi)
+		 CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
+			     | NGE_GPIO_GP3_OUT);
 
 	for (;;) {
 		/* Reading the ISR register clears all interrupts. */
@@ -1572,6 +1652,12 @@ static void nge_intr(arg)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		nge_start(ifp);
+
+	/* Data LED off for TBI mode */
+
+	if(sc->nge_tbi)
+		CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
+			    & ~NGE_GPIO_GP3_OUT);
 
 	return;
 }
@@ -1724,7 +1810,11 @@ static void nge_init(xsc)
 	nge_stop(sc);
 	sc->nge_stat_ch = timeout(nge_tick, sc, hz);
 
-	mii = device_get_softc(sc->nge_miibus);
+	if (sc->nge_tbi) {
+		mii = NULL;
+	} else {
+		mii = device_get_softc(sc->nge_miibus);
+	}
 
 	/* Set MAC address */
 	CSR_WRITE_4(sc, NGE_RXFILT_CTL, NGE_FILTADDR_PAR0);
@@ -1823,14 +1913,27 @@ static void nge_init(xsc)
 	NGE_SETBIT(sc, NGE_VLAN_IP_TXCTL, NGE_VIPTXCTL_TAG_PER_PKT);
 
 	/* Set full/half duplex mode. */
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
-		NGE_SETBIT(sc, NGE_TX_CFG,
-		    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
-		NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+	if (sc->nge_tbi) {
+		if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK) 
+		    == IFM_FDX) {
+			NGE_SETBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		} else {
+			NGE_CLRBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		}
 	} else {
-		NGE_CLRBIT(sc, NGE_TX_CFG,
-		    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
-		NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX) {
+			NGE_SETBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		} else {
+			NGE_CLRBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+		}
 	}
 
 	/*
@@ -1881,15 +1984,46 @@ static int nge_ifmedia_upd(ifp)
 
 	sc = ifp->if_softc;
 
-	mii = device_get_softc(sc->nge_miibus);
-	sc->nge_link = 0;
-	if (mii->mii_instance) {
-		struct mii_softc	*miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list))
-			mii_phy_reset(miisc);
+	if (sc->nge_tbi) {
+		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media) 
+		     == IFM_AUTO) {
+			CSR_WRITE_4(sc, NGE_TBI_ANAR, 
+				CSR_READ_4(sc, NGE_TBI_ANAR)
+					| NGE_TBIANAR_HDX | NGE_TBIANAR_FDX
+					| NGE_TBIANAR_PS1 | NGE_TBIANAR_PS2);
+			CSR_WRITE_4(sc, NGE_TBI_BMCR, NGE_TBIBMCR_ENABLE_ANEG
+				| NGE_TBIBMCR_RESTART_ANEG);
+			CSR_WRITE_4(sc, NGE_TBI_BMCR, NGE_TBIBMCR_ENABLE_ANEG);
+		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media 
+			    & IFM_GMASK) == IFM_FDX) {
+			NGE_SETBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_SETBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+
+			CSR_WRITE_4(sc, NGE_TBI_ANAR, 0);
+			CSR_WRITE_4(sc, NGE_TBI_BMCR, 0);
+		} else {
+			NGE_CLRBIT(sc, NGE_TX_CFG,
+			    (NGE_TXCFG_IGN_HBEAT|NGE_TXCFG_IGN_CARR));
+			NGE_CLRBIT(sc, NGE_RX_CFG, NGE_RXCFG_RX_FDX);
+
+			CSR_WRITE_4(sc, NGE_TBI_ANAR, 0);
+			CSR_WRITE_4(sc, NGE_TBI_BMCR, 0);
+		}
+			
+		CSR_WRITE_4(sc, NGE_GPIO, CSR_READ_4(sc, NGE_GPIO)
+			    & ~NGE_GPIO_GP3_OUT);
+	} else {
+		mii = device_get_softc(sc->nge_miibus);
+		sc->nge_link = 0;
+		if (mii->mii_instance) {
+			struct mii_softc	*miisc;
+			for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
+			    miisc = LIST_NEXT(miisc, mii_list))
+				mii_phy_reset(miisc);
+		}
+		mii_mediachg(mii);
 	}
-	mii_mediachg(mii);
 
 	return(0);
 }
@@ -1906,10 +2040,43 @@ static void nge_ifmedia_sts(ifp, ifmr)
 
 	sc = ifp->if_softc;
 
-	mii = device_get_softc(sc->nge_miibus);
-	mii_pollstat(mii);
-	ifmr->ifm_active = mii->mii_media_active;
-	ifmr->ifm_status = mii->mii_media_status;
+	if (sc->nge_tbi) {
+		ifmr->ifm_status = IFM_AVALID;
+		ifmr->ifm_active = IFM_ETHER;
+
+		if (CSR_READ_4(sc, NGE_TBI_BMSR) & NGE_TBIBMSR_ANEG_DONE) {
+			ifmr->ifm_status |= IFM_ACTIVE;
+		} 
+		if (CSR_READ_4(sc, NGE_TBI_BMCR) & NGE_TBIBMCR_LOOPBACK)
+			ifmr->ifm_active |= IFM_LOOP;
+		if (!CSR_READ_4(sc, NGE_TBI_BMSR) & NGE_TBIBMSR_ANEG_DONE) {
+			ifmr->ifm_active |= IFM_NONE;
+			ifmr->ifm_status = 0;
+			return;
+		} 
+		ifmr->ifm_active |= IFM_1000_SX;
+		if (IFM_SUBTYPE(sc->nge_ifmedia.ifm_cur->ifm_media)
+		    == IFM_AUTO) {
+			ifmr->ifm_active |= IFM_AUTO;
+			if (CSR_READ_4(sc, NGE_TBI_ANLPAR)
+			    & NGE_TBIANAR_FDX) {
+				ifmr->ifm_active |= IFM_FDX;
+			}else if (CSR_READ_4(sc, NGE_TBI_ANLPAR)
+				  & NGE_TBIANAR_HDX) {
+				ifmr->ifm_active |= IFM_HDX;
+			}
+		} else if ((sc->nge_ifmedia.ifm_cur->ifm_media & IFM_GMASK) 
+			== IFM_FDX)
+			ifmr->ifm_active |= IFM_FDX;
+		else
+			ifmr->ifm_active |= IFM_HDX;
+ 
+	} else {
+		mii = device_get_softc(sc->nge_miibus);
+		mii_pollstat(mii);
+		ifmr->ifm_active = mii->mii_media_active;
+		ifmr->ifm_status = mii->mii_media_status;
+	}
 
 	return;
 }
@@ -1981,8 +2148,14 @@ static int nge_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
-		mii = device_get_softc(sc->nge_miibus);
-		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		if (sc->nge_tbi) {
+			error = ifmedia_ioctl(ifp, ifr, &sc->nge_ifmedia, 
+					      command);
+		} else {
+			mii = device_get_softc(sc->nge_miibus);
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, 
+					      command);
+		}
 		break;
 	default:
 		error = EINVAL;
@@ -2030,7 +2203,11 @@ static void nge_stop(sc)
 
 	ifp = &sc->arpcom.ac_if;
 	ifp->if_timer = 0;
-	mii = device_get_softc(sc->nge_miibus);
+	if (sc->nge_tbi) {
+		mii = NULL;
+	} else {
+		mii = device_get_softc(sc->nge_miibus);
+	}
 
 	untimeout(nge_tick, sc, sc->nge_stat_ch);
 	CSR_WRITE_4(sc, NGE_IER, 0);
@@ -2047,10 +2224,17 @@ static void nge_stop(sc)
 	 */
 	itmp = ifp->if_flags;
 	ifp->if_flags |= IFF_UP;
-	ifm = mii->mii_media.ifm_cur;
+
+	if (sc->nge_tbi)
+		ifm = sc->nge_ifmedia.ifm_cur;
+	else
+		ifm = mii->mii_media.ifm_cur;
+	
 	mtmp = ifm->ifm_media;
 	ifm->ifm_media = IFM_ETHER|IFM_NONE;
-	mii_mediachg(mii);
+	
+	if (!sc->nge_tbi)
+		mii_mediachg(mii);
 	ifm->ifm_media = mtmp;
 	ifp->if_flags = itmp;
 
