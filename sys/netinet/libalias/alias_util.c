@@ -26,10 +26,11 @@ purposes);
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
+#include "alias.h"
 #include "alias_local.h"
 
 u_short
-InternetChecksum(u_short *ptr, int nbytes)
+PacketAliasInternetChecksum(u_short *ptr, int nbytes)
 {
     int sum, oddbyte;
 
@@ -53,7 +54,8 @@ InternetChecksum(u_short *ptr, int nbytes)
 u_short
 IpChecksum(struct ip *pip)
 {
-    return( InternetChecksum((u_short *) pip, (pip->ip_hl << 2)) );
+    return( PacketAliasInternetChecksum((u_short *) pip,
+            (pip->ip_hl << 2)) );
 
 }
 

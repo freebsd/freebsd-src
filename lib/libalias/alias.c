@@ -66,6 +66,13 @@
           and PacketAliasOut2() for dynamic address
           control (e.g. round-robin allocation of
           incoming packets).
+
+    Version 2.2 July 1997 (cjm)
+        - Rationalized API function names to begin
+          with "PacketAlias..."
+        - Eliminated PacketAliasIn2() and
+          PacketAliasOut2() as poorly conceived.
+
 */
 
 #include <stdio.h>
@@ -884,20 +891,18 @@ FragmentOut(struct ip *pip)
 
 /* Outside World Access
 
-        SaveFragmentPtr()
-        GetNextFragmentPtr()
-        FragmentAliasIn()
+        PacketAliasSaveFragment()
+        PacketAliasGetFragment()
+        PacketAliasFragmentIn()
         PacketAliasIn()
         PacketAliasOut()
-        PacketAliasIn2()
-        PacketAliasOut2()
 
 (prototypes in alias.h)
 */
 
 
 int
-SaveFragmentPtr(char *ptr)
+PacketAliasSaveFragment(char *ptr)
 {
     int iresult;
     struct alias_link *link;
@@ -916,7 +921,7 @@ SaveFragmentPtr(char *ptr)
 
 
 char *
-GetNextFragmentPtr(char *ptr)
+PacketAliasGetFragment(char *ptr)
 {
     struct alias_link *link;
     char *fptr;
@@ -927,6 +932,7 @@ GetNextFragmentPtr(char *ptr)
     if (link != NULL)
     {
         GetFragmentPtr(link, &fptr);
+        SetFragmentPtr(link, NULL);
         SetExpire(link, 0); /* Deletes link */
 
         return(fptr);
@@ -939,11 +945,11 @@ GetNextFragmentPtr(char *ptr)
 
 
 void
-FragmentAliasIn(char *ptr,          /* Points to correctly de-aliased
-                                       header fragment */
-                char *ptr_fragment  /* Points to fragment which must
-                                       be de-aliased   */
-               )
+PacketAliasFragmentIn(char *ptr,          /* Points to correctly de-aliased
+                                             header fragment */
+                      char *ptr_fragment  /* Points to fragment which must
+                                             be de-aliased   */
+                     )
 {
     struct ip *pip;
     struct ip *fpip;
@@ -967,6 +973,7 @@ PacketAliasIn(char *ptr, int maxpacketsize)
     int iresult;
 
     HouseKeeping();
+    ClearCheckNewLink();
     pip = (struct ip *) ptr;
     alias_addr = pip->ip_dst;
         
@@ -1039,6 +1046,7 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
     struct ip *pip;
 
     HouseKeeping();
+    ClearCheckNewLink();
     pip = (struct ip *) ptr;
 
     addr_save = GetDefaultAliasAddress();
@@ -1056,7 +1064,7 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
         else if (addr >= UNREG_ADDR_A_LOWER && addr <= UNREG_ADDR_A_UPPER)
             iclass = 1;
 
-        if (iclass == 0)
+        if (iclass != 0)
         {
             SetDefaultAliasAddress(pip->ip_src);
         }
@@ -1085,58 +1093,4 @@ PacketAliasOut(char *ptr,           /* valid IP packet */
 
     SetDefaultAliasAddress(addr_save);
     return(iresult);
-}
-
-
-int
-PacketAliasIn2(char *ptr,           /* valid IP packet */
-               struct in_addr addr, /* Default aliasing address */
-               int  maxpacketsize   /* How much the packet data may grow
-                                       (FTP and IRC inline changes) */
-              )
-{
-    int result_code;
-    struct in_addr addr_save;
-
-    ClearNewDefaultLink();
-    addr_save = GetDefaultAliasAddress();
-
-    SetDefaultTargetAddress(addr);
-    result_code = PacketAliasIn(ptr, maxpacketsize);
-    ClearDefaultTargetAddress();
-
-    if (result_code == PKT_ALIAS_OK)
-    {
-        if (CheckNewDefaultLink())
-            return PKT_ALIAS_NEW_LINK;
-    }
-
-    return result_code;
-}
-
-
-int
-PacketAliasOut2(char *ptr,          /* valid IP packet */
-               struct in_addr addr, /* Default aliasing address */
-               int  maxpacketsize   /* How much the packet data may grow
-                                       (FTP and IRC inline changes) */
-              )
-{
-    int result_code;
-    struct in_addr addr_save;
-
-    ClearNewDefaultLink();
-    addr_save = GetDefaultAliasAddress();
-
-    SetDefaultAliasAddress(addr);
-    result_code = PacketAliasOut(ptr, maxpacketsize);
-    SetDefaultAliasAddress(addr_save);
-
-    if (result_code == PKT_ALIAS_OK)
-    {
-        if (CheckNewDefaultLink())
-            return PKT_ALIAS_NEW_LINK;
-    }
-
-    return result_code;
 }

@@ -249,8 +249,8 @@ struct alias_link                /* Main data structure */
 
     union                        /* Auxiliary data                      */
     {
-        struct in_addr frag_addr;
         char *frag_ptr;
+        struct in_addr frag_addr;
         struct tcp_dat *tcp;
     } data;
 };
@@ -755,6 +755,8 @@ DeleteLink(struct alias_link *link)
             break;
         case LINK_FRAGMENT_PTR:
             fragmentPtrLinkCount--;
+            if (link->data.frag_ptr != NULL)
+                free(link->data.frag_ptr);
             break;
     }
 
@@ -1351,8 +1353,6 @@ FindAliasAddress(struct in_addr original_addr)
     GetOriginalPort(), GetAliasPort()
     SetAckModified(), GetAckModified()
     GetDeltaAckIn(), GetDeltaSeqOut(), AddSeq()
-    ClearNewLink()
-    CheckNewLink()
 */
 
 
@@ -1454,19 +1454,6 @@ void
 SetDefaultAliasAddress(struct in_addr alias_addr)
 {
     aliasAddress = alias_addr;
-}
-
-
-void
-SetDefaultTargetAddress(struct in_addr target_addr)
-{
-    targetAddress = target_addr;
-}
-
-
-void ClearDefaultTargetAddress(void)
-{
-    targetAddress.s_addr = 0;
 }
 
 
@@ -1661,19 +1648,18 @@ SetExpire(struct alias_link *link, int expire)
 }
 
 void
-ClearNewDefaultLink(void)
+ClearCheckNewLink(void)
 {
     newDefaultLink = 0;
 }
 
 
-int
-CheckNewDefaultLink(void)
-{
-    return newDefaultLink;
-}
+/* Miscellaneous Functions
 
-
+    HouseKeeping()
+    InitPacketAliasLog()
+    UninitPacketAliasLog()
+*/
 
 /*
     Whenever an outgoing or incoming packet is handled, HouseKeeping()
@@ -1734,6 +1720,31 @@ HouseKeeping(void)
 }
 
 
+/* Init the log file and enable logging */
+void
+InitPacketAliasLog(void)
+{
+   if ((~packetAliasMode & PKT_ALIAS_LOG)
+    && (monitorFile = fopen("/var/log/alias.log", "w")))
+   {
+      packetAliasMode |= PKT_ALIAS_LOG;
+      fprintf(monitorFile,
+      "PacketAlias/InitPacketAliasLog: Packet alias logging enabled.\n");
+   }
+}
+
+
+/* Close the log-file and disable logging. */
+void
+UninitPacketAliasLog(void)
+{
+    if( monitorFile )
+        fclose(monitorFile);
+    packetAliasMode &= ~PKT_ALIAS_LOG;
+}
+
+
+
 
 
 
@@ -1743,11 +1754,10 @@ HouseKeeping(void)
 
     PacketAliasRedirectPort()
     PacketAliasRedirectAddr()
-    SetPacketAliasAddress()
-    InitPacketAliasLog()
-    UninitPacketAliasLog()
-    InitPacketAlias()
-    SetPacketAliasMode()
+    PacketAliasRedirectDelete()
+    PacketAliasSetAddress()
+    PacketAliasInit()
+    PacketAliasSetMode()
 
 (prototypes in alias.h)
 */
@@ -1795,28 +1805,6 @@ PacketAliasRedirectPort(struct in_addr src_addr,   u_short src_port,
 }
 
 
-/* This function is slightly less generalized than
-   PacketAliasRedirectPort and is included for backwards
-   compatibility */
-int
-PacketAliasPermanentLink(struct in_addr src_addr,   u_short src_port,
-                         struct in_addr dst_addr,   u_short dst_port,
-                         u_short alias_port, u_char proto)
-{
-    struct alias_link *link;
-
-    link = PacketAliasRedirectPort(src_addr, src_port,
-                                   dst_addr, dst_port,
-                                   nullAddress, alias_port,
-                                   proto);
-
-    if (link == NULL)
-        return -1;
-    else
-        return 0;
-}
-
-
 /* Static address translation */
 struct alias_link *
 PacketAliasRedirectAddr(struct in_addr src_addr,
@@ -1845,7 +1833,7 @@ PacketAliasRedirectAddr(struct in_addr src_addr,
 void
 PacketAliasRedirectDelete(struct alias_link *link)
 {
-/* This is a very dangerous function to put in the API,
+/* This is a dangerous function to put in the API,
    because an invalid pointer can crash the program. */
 
     deleteAllLinks = 1;
@@ -1855,9 +1843,10 @@ PacketAliasRedirectDelete(struct alias_link *link)
 
 
 void
-SetPacketAliasAddress(struct in_addr addr)
+PacketAliasSetAddress(struct in_addr addr)
 {
-    if (aliasAddress.s_addr != addr.s_addr)
+    if (packetAliasMode & PKT_ALIAS_RESET_ON_ADDR_CHANGE
+     && aliasAddress.s_addr != addr.s_addr)
     {
         CleanupAliasData();
         aliasAddress = addr;
@@ -1865,32 +1854,15 @@ SetPacketAliasAddress(struct in_addr addr)
 }
 
 
-/* Init the log file and enable logging */
 void
-InitPacketAliasLog(void)
+PacketAliasSetTarget(struct in_addr target_addr)
 {
-   if ((~packetAliasMode & PKT_ALIAS_LOG)
-    && (monitorFile = fopen("/var/log/alias.log", "w")))
-   {
-      packetAliasMode |= PKT_ALIAS_LOG;
-      fprintf(monitorFile,
-      "PacketAlias/InitPacketAliasLog: Packet alias logging enabled.\n");
-   }
-}
-
-
-/* Close the log-file and disable logging. */
-void
-UninitPacketAliasLog(void)
-{
-    if( monitorFile )
-        fclose(monitorFile);
-    packetAliasMode &= ~PKT_ALIAS_LOG;
+    targetAddress = target_addr;
 }
 
 
 void
-InitPacketAlias(void)
+PacketAliasInit(void)
 {
     int i;
     struct timeval tv;
@@ -1918,6 +1890,7 @@ InitPacketAlias(void)
     }
 
     aliasAddress.s_addr = 0;
+    targetAddress.s_addr = 0;
 
     icmpLinkCount = 0;
     udpLinkCount = 0;
@@ -1929,19 +1902,14 @@ InitPacketAlias(void)
     cleanupIndex =0;
 
     packetAliasMode = PKT_ALIAS_SAME_PORTS
-                    | PKT_ALIAS_USE_SOCKETS;
-
-    if (packetAliasMode & PKT_ALIAS_LOG)
-    {
-       InitPacketAliasLog();
-       fprintf(monitorFile, "Packet aliasing initialized.\n");
-    }
+                    | PKT_ALIAS_USE_SOCKETS
+                    | PKT_ALIAS_RESET_ON_ADDR_CHANGE;
 }
 
 
 /* Change mode for some operations */
 unsigned int
-SetPacketAliasMode
+PacketAliasSetMode
 (
     unsigned int flags, /* Which state to bring flags to */
     unsigned int mask   /* Mask of which flags to affect (use 0 to do a
@@ -1964,9 +1932,8 @@ SetPacketAliasMode
 }
 
 
-/*
-   Clear all packet aliasing links, but leave mode
-   flags unchanged.  Typically used when the interface
-   address changes and all existing links become
-   invalid.
-*/
+int
+PacketAliasCheckNewLink(void)
+{
+    return newDefaultLink;
+}
