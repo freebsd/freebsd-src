@@ -1,6 +1,4 @@
 <!-- 
-	$FreeBSD$ 
-
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
 	the dollar FreeBSD dollar header has a meaningful modification

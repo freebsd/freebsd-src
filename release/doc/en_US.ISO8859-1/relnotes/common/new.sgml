@@ -1,7 +1,4 @@
 <!--
-
-	$FreeBSD$
-
 	The "What's New" section of the release notes.  Within
 	each subsection (i.e. kernel, security, userland), list
 	items in chronological order, unless necessary to keep
