@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.6 1996/10/30 22:40:06 asami Exp $
+ * $Id: mse.c,v 1.6.2.1 1997/01/04 16:59:17 kato Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -59,10 +59,14 @@
 #endif /*DEVFS*/
 
 #include <machine/clock.h>
+#include <machine/mouse.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 
+/* driver configuration flags (config) */
+#define MSE_CONFIG_ACCEL	0x00f0  /* acceleration factor */
+#define MSE_CONFIG_FLAGS	(MSE_CONFIG_ACCEL)
 
 static int mseprobe(struct isa_device *);
 static int mseattach(struct isa_device *);
@@ -71,16 +75,16 @@ struct	isa_driver msedriver = {
 	mseprobe, mseattach, "mse"
 };
 
-
 static	d_open_t	mseopen;
 static	d_close_t	mseclose;
 static	d_read_t	mseread;
+static  d_ioctl_t	mseioctl;
 static	d_select_t	mseselect;
 
 #define CDEV_MAJOR 27
 static struct cdevsw mse_cdevsw = 
 	{ mseopen,	mseclose,	mseread,	nowrite,	/*27*/
-	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
+	  mseioctl,	nostop,		nullreset,	nodevtotty,/* mse */
 	  mseselect,	nommap,		NULL,	"mse",	NULL,	-1 };
 
 
@@ -88,7 +92,6 @@ static struct cdevsw mse_cdevsw =
  * Software control structure for mouse. The sc_enablemouse(),
  * sc_disablemouse() and sc_getmouse() routines must be called spl'd().
  */
-#define	PROTOBYTES	5
 static struct mse_softc {
 	int	sc_flags;
 	int	sc_mousetype;
@@ -102,7 +105,10 @@ static struct mse_softc {
 	int	sc_obuttons;
 	int	sc_buttons;
 	int	sc_bytesread;
-	u_char	sc_bytes[PROTOBYTES];
+	u_char	sc_bytes[MOUSE_SYS_PACKETSIZE];
+	mousehw_t	hw;
+	mousemode_t	mode;
+	mousestatus_t	status;
 #ifdef DEVFS
 	void 	*devfs_token;
 	void	*n_devfs_token;
@@ -245,12 +251,26 @@ static struct mse_types {
 				/* Disable interrupts routine */
 	void	(*m_get) __P((u_int port, int *dx, int *dy, int *but));
 				/* and get mouse status */
+	mousehw_t   m_hw;	/* buttons iftype type model hwid */
+	mousemode_t m_mode;	/* proto rate res accel level size mask */
 } mse_types[] = {
 #ifdef PC98
-	{ MSE_98BUSMOUSE, mse_probe98m, mse_enable98m, mse_disable98m, mse_get98m },
+	{ MSE_98BUSMOUSE,
+	  mse_probe98m, mse_enable98m, mse_disable98m, mse_get98m,
+	  { 2, MOUSE_IF_BUS, MOUSE_MOUSE, MOUSE_MODEL_GENERIC, 0, },
+	  { MOUSE_PROTO_BUS, -1, -1, 0, 0, MOUSE_MSC_PACKETSIZE, 
+	    { MOUSE_MSC_SYNCMASK, MOUSE_MSC_SYNC, }, }, },
 #else
-	{ MSE_ATIINPORT, mse_probeati, mse_enableati, mse_disableati, mse_getati },
-	{ MSE_LOGITECH, mse_probelogi, mse_enablelogi, mse_disablelogi, mse_getlogi },
+	{ MSE_ATIINPORT, 
+	  mse_probeati, mse_enableati, mse_disableati, mse_getati,
+	  { 2, MOUSE_IF_INPORT, MOUSE_MOUSE, MOUSE_MODEL_GENERIC, 0, },
+	  { MOUSE_PROTO_INPORT, -1, -1, 0, 0, MOUSE_MSC_PACKETSIZE, 
+	    { MOUSE_MSC_SYNCMASK, MOUSE_MSC_SYNC, }, }, },
+	{ MSE_LOGITECH, 
+	  mse_probelogi, mse_enablelogi, mse_disablelogi, mse_getlogi,
+	  { 2, MOUSE_IF_BUS, MOUSE_MOUSE, MOUSE_MODEL_GENERIC, 0, },
+	  { MOUSE_PROTO_BUS, -1, -1, 0, 0, MOUSE_MSC_PACKETSIZE, 
+	    { MOUSE_MSC_SYNCMASK, MOUSE_MSC_SYNC, }, }, },
 #endif
 	{ 0, },
 };
@@ -272,6 +292,8 @@ mseprobe(idp)
 			sc->sc_enablemouse = mse_types[i].m_enable;
 			sc->sc_disablemouse = mse_types[i].m_disable;
 			sc->sc_getmouse = mse_types[i].m_get;
+			sc->hw = mse_types[i].m_hw;
+			sc->mode = mse_types[i].m_mode;
 			return (1);
 		}
 		i++;
@@ -299,6 +321,7 @@ mseattach(idp)
 #endif
 
 	sc->sc_port = idp->id_iobase;
+	sc->mode.accelfactor = (idp->id_flags & MSE_CONFIG_ACCEL) >> 4;
 #ifdef	DEVFS
 	sc->devfs_token = 
 		devfs_add_devswf(&mse_cdevsw, unit << 1, DV_CHR, 0, 0, 
@@ -331,9 +354,13 @@ mseopen(dev, flags, fmt, p)
 	if (sc->sc_flags & MSESC_OPEN)
 		return (EBUSY);
 	sc->sc_flags |= MSESC_OPEN;
-	sc->sc_obuttons = sc->sc_buttons = 0x7;
+	sc->sc_obuttons = sc->sc_buttons = MOUSE_MSC_BUTTONS;
 	sc->sc_deltax = sc->sc_deltay = 0;
-	sc->sc_bytesread = PROTOBYTES;
+	sc->sc_bytesread = sc->mode.packetsize = MOUSE_MSC_PACKETSIZE;
+	sc->mode.level = 0;
+	sc->status.flags = 0;
+	sc->status.button = sc->status.obutton = 0;
+	sc->status.dx = sc->status.dy = sc->status.dz = 0;
 
 	/*
 	 * Initialize mouse interface and enable interrupts.
@@ -383,7 +410,7 @@ mseread(dev, uio, ioflag)
 	 * packet.
 	 */
 	s = spltty(); /* XXX Should be its own spl, but where is imlXX() */
-	if (sc->sc_bytesread >= PROTOBYTES) {
+	if (sc->sc_bytesread >= sc->mode.packetsize) {
 		while (sc->sc_deltax == 0 && sc->sc_deltay == 0 &&
 		       (sc->sc_obuttons ^ sc->sc_buttons) == 0) {
 			if (MSE_NBLOCKIO(dev)) {
@@ -403,7 +430,8 @@ mseread(dev, uio, ioflag)
 		 * For some reason X386 expects 5 bytes but never uses
 		 * the fourth or fifth?
 		 */
-		sc->sc_bytes[0] = 0x80 | (sc->sc_buttons & ~0xf8);
+		sc->sc_bytes[0] = sc->mode.syncmask[1] 
+		    | (sc->sc_buttons & ~sc->mode.syncmask[0]);
 		if (sc->sc_deltax > 127)
 			sc->sc_deltax = 127;
 		if (sc->sc_deltax < -127)
@@ -416,16 +444,135 @@ mseread(dev, uio, ioflag)
 		sc->sc_bytes[1] = sc->sc_deltax;
 		sc->sc_bytes[2] = sc->sc_deltay;
 		sc->sc_bytes[3] = sc->sc_bytes[4] = 0;
+		sc->sc_bytes[5] = sc->sc_bytes[6] = 0;
+		sc->sc_bytes[7] = MOUSE_SYS_EXTBUTTONS;
 		sc->sc_obuttons = sc->sc_buttons;
 		sc->sc_deltax = sc->sc_deltay = 0;
 		sc->sc_bytesread = 0;
 	}
 	splx(s);
-	xfer = min(uio->uio_resid, PROTOBYTES - sc->sc_bytesread);
+	xfer = min(uio->uio_resid, sc->mode.packetsize - sc->sc_bytesread);
 	if (error = uiomove(&sc->sc_bytes[sc->sc_bytesread], xfer, uio))
 		return (error);
 	sc->sc_bytesread += xfer;
 	return(0);
+}
+
+/*
+ * mseioctl: process ioctl commands.
+ */
+static int
+mseioctl(dev, cmd, addr, flag, p)
+	dev_t dev;
+	int cmd;
+	caddr_t addr;
+	int flag;
+	struct proc *p;
+{
+	register struct mse_softc *sc = &mse_sc[MSE_UNIT(dev)];
+	mousestatus_t status;
+	int err = 0;
+	int s;
+
+	switch (cmd) {
+
+	case MOUSE_GETHWINFO:
+		s = spltty();
+		*(mousehw_t *)addr = sc->hw;
+		if (sc->mode.level == 0)
+			((mousehw_t *)addr)->model = MOUSE_MODEL_GENERIC;
+		splx(s);
+		break;
+
+	case MOUSE_GETMODE:
+		s = spltty();
+		*(mousemode_t *)addr = sc->mode;
+		switch (sc->mode.level) {
+		case 0:
+			break;
+		case 1:
+			((mousemode_t *)addr)->protocol = MOUSE_PROTO_SYSMOUSE;
+	    		((mousemode_t *)addr)->syncmask[0] = MOUSE_SYS_SYNCMASK;
+	    		((mousemode_t *)addr)->syncmask[1] = MOUSE_SYS_SYNC;
+			break;
+		}
+		splx(s);
+		break;
+
+	case MOUSE_SETMODE:
+		switch (((mousemode_t *)addr)->level) {
+		case 0:
+		case 1:
+			break;
+		default:
+			return (EINVAL);
+		}
+		if (((mousemode_t *)addr)->accelfactor < -1)
+			return (EINVAL);
+		else if (((mousemode_t *)addr)->accelfactor >= 0)
+			sc->mode.accelfactor = 
+			    ((mousemode_t *)addr)->accelfactor;
+		sc->mode.level = ((mousemode_t *)addr)->level;
+		switch (sc->mode.level) {
+		case 0:
+			sc->sc_bytesread = sc->mode.packetsize 
+			    = MOUSE_MSC_PACKETSIZE;
+			break;
+		case 1:
+			sc->sc_bytesread = sc->mode.packetsize 
+			    = MOUSE_SYS_PACKETSIZE;
+			break;
+		}
+		break;
+
+	case MOUSE_GETLEVEL:
+		*(int *)addr = sc->mode.level;
+		break;
+
+	case MOUSE_SETLEVEL:
+		switch (*(int *)addr) {
+		case 0:
+			sc->mode.level = *(int *)addr;
+			sc->sc_bytesread = sc->mode.packetsize 
+			    = MOUSE_MSC_PACKETSIZE;
+			break;
+		case 1:
+			sc->mode.level = *(int *)addr;
+			sc->sc_bytesread = sc->mode.packetsize 
+			    = MOUSE_SYS_PACKETSIZE;
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+
+	case MOUSE_GETSTATUS:
+		s = spltty();
+		status = sc->status;
+		sc->status.flags = 0;
+		sc->status.obutton = sc->status.button;
+		sc->status.button = 0;
+		sc->status.dx = 0;
+		sc->status.dy = 0;
+		sc->status.dz = 0;
+		splx(s);
+		*(mousestatus_t *)addr = status;
+		break;
+
+	case MOUSE_READSTATE:
+	case MOUSE_READDATA:
+		return (ENODEV);
+
+#if (defined(MOUSE_GETVARS))
+	case MOUSE_GETVARS:
+	case MOUSE_SETVARS:
+		return (ENODEV);
+#endif
+
+	default:
+		return (ENOTTY);
+	}
+	return (err);
 }
 
 /*
@@ -441,7 +588,7 @@ mseselect(dev, rw, p)
 	int s;
 
 	s = spltty();
-	if (sc->sc_bytesread != PROTOBYTES || sc->sc_deltax != 0 ||
+	if (sc->sc_bytesread != sc->mode.packetsize || sc->sc_deltax != 0 ||
 	    sc->sc_deltay != 0 || (sc->sc_obuttons ^ sc->sc_buttons) != 0) {
 		splx(s);
 		return (1);
@@ -463,7 +610,23 @@ void
 mseintr(unit)
 	int unit;
 {
+	/*
+	 * the table to turn MouseSystem button bits (MOUSE_MSC_BUTTON?UP)
+	 * into `mousestatus' button bits (MOUSE_BUTTON?DOWN).
+	 */
+	static int butmap[8] = {
+		0, 
+		MOUSE_BUTTON3DOWN, 
+		MOUSE_BUTTON2DOWN, 
+		MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN, 
+		MOUSE_BUTTON1DOWN, 
+		MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN, 
+		MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN,
+        	MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
+	};
 	register struct mse_softc *sc = &mse_sc[unit];
+	int dx, dy, but;
+	int sign;
 
 #ifdef DEBUG
 	static int mse_intrcnt = 0;
@@ -473,7 +636,31 @@ mseintr(unit)
 	if ((sc->sc_flags & MSESC_OPEN) == 0)
 		return;
 
-	(*sc->sc_getmouse)(sc->sc_port, &sc->sc_deltax, &sc->sc_deltay, &sc->sc_buttons);
+	(*sc->sc_getmouse)(sc->sc_port, &dx, &dy, &but);
+	if (sc->mode.accelfactor > 0) {
+		sign = (dx < 0);
+		dx = dx * dx / sc->mode.accelfactor;
+		if (dx == 0)
+			dx = 1;
+		if (sign)
+			dx = -dx;
+		sign = (dy < 0);
+		dy = dy * dy / sc->mode.accelfactor;
+		if (dy == 0)
+			dy = 1;
+		if (sign)
+			dy = -dy;
+	}
+	sc->sc_deltax += dx;
+	sc->sc_deltay += dy;
+	sc->sc_buttons = but;
+
+	but = butmap[~but & MOUSE_MSC_BUTTONS];
+	sc->status.dx += dx;
+	sc->status.dy += dy;
+	sc->status.flags |= ((dx || dy) ? MOUSE_POSCHANGED : 0)
+	    | (sc->status.button ^ but);
+	sc->status.button = but;
 
 	/*
 	 * If mouse state has changed, wake up anyone wanting to know.
@@ -558,7 +745,7 @@ mse_getlogi(port, dx, dy, but)
 
 	outb(port + MSE_PORTC, MSE_HOLD | MSE_RXLOW);
 	x = inb(port + MSE_PORTA);
-	*but = (x >> 5) & 0x7;
+	*but = (x >> 5) & MOUSE_MSC_BUTTONS;
 	x &= 0xf;
 	outb(port + MSE_PORTC, MSE_HOLD | MSE_RXHIGH);
 	x |= (inb(port + MSE_PORTA) << 4);
@@ -566,8 +753,8 @@ mse_getlogi(port, dx, dy, but)
 	y = (inb(port + MSE_PORTA) & 0xf);
 	outb(port + MSE_PORTC, MSE_HOLD | MSE_RYHIGH);
 	y |= (inb(port + MSE_PORTA) << 4);
-	*dx += x;
-	*dy += y;
+	*dx = x;
+	*dy = y;
 	outb(port + MSE_PORTC, MSE_INTREN);
 }
 
@@ -630,13 +817,13 @@ mse_getati(port, dx, dy, but)
 	outb(port + MSE_PORTA, MSE_INPORT_MODE);
 	outb(port + MSE_PORTB, MSE_INPORT_HOLD);
 	outb(port + MSE_PORTA, MSE_INPORT_STATUS);
-	*but = ~(inb(port + MSE_PORTB) & 0x7);
+	*but = ~inb(port + MSE_PORTB) & MOUSE_MSC_BUTTONS;
 	outb(port + MSE_PORTA, MSE_INPORT_DX);
 	byte = inb(port + MSE_PORTB);
-	*dx += byte;
+	*dx = byte;
 	outb(port + MSE_PORTA, MSE_INPORT_DY);
 	byte = inb(port + MSE_PORTB);
-	*dy += byte;
+	*dy = byte;
 	outb(port + MSE_PORTA, MSE_INPORT_MODE);
 	outb(port + MSE_PORTB, MSE_INPORT_INTREN);
 }
@@ -721,8 +908,8 @@ mse_get98m(port, dx, dy, but)
 
 	*but = (inb(port + PORT_A) >> 5) & 7;
 
-	*dx += x;
-	*dy += y;
+	*dx = x;
+	*dy = y;
 
 	outb(port + HC, HC_NO_CLEAR);	/* HC = 0 */
 
