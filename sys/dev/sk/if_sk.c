@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.7 1999/07/23 02:06:55 wpaul Exp $
+ *	$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $
  */
 
 /*
@@ -102,7 +102,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.7 1999/07/23 02:06:55 wpaul Exp $";
+	"$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -1928,8 +1928,10 @@ static void sk_stop(sc_if)
 {
 	int			i;
 	struct sk_softc		*sc;
+	struct ifnet		*ifp;
 
 	sc = sc_if->sk_softc;
+	ifp = &sc_if->arpcom.ac_if;
 
 	/* Turn off various components of this interface. */
 	SK_IF_WRITE_2(sc_if, 0, SK_TXF1_MACCTL, SK_TXMACCTL_XMAC_RESET);
@@ -1965,6 +1967,8 @@ static void sk_stop(sc_if)
 			sc_if->sk_cdata.sk_tx_chain[i].sk_mbuf = NULL;
 		}
 	}
+
+	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
 	return;
 }

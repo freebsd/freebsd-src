@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sf.c,v 1.11 1999/07/24 21:13:38 wpaul Exp $
+ *	$Id: if_sf.c,v 1.12 1999/07/25 05:10:18 wpaul Exp $
  */
 
 /*
@@ -119,7 +119,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sf.c,v 1.11 1999/07/24 21:13:38 wpaul Exp $";
+	"$Id: if_sf.c,v 1.12 1999/07/25 05:10:18 wpaul Exp $";
 #endif
 
 static struct sf_type sf_devs[] = {
@@ -1720,6 +1720,9 @@ static void sf_stop(sc)
 	struct sf_softc		*sc;
 {
 	int			i;
+	struct ifnet		*ifp;
+
+	ifp = &sc->arpcom.ac_if;
 
 	untimeout(sf_stats_update, sc, sc->sf_stat_ch);
 
@@ -1747,6 +1750,8 @@ static void sf_stop(sc)
 			sc->sf_ldata->sf_tx_dlist[i].sf_mbuf = NULL;
 		}
 	}
+
+	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
 	return;
 }
