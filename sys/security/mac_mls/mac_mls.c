@@ -718,7 +718,7 @@ mac_mls_parse(struct mac_mls *mac_mls, char *string)
 	}
 	KASSERT((rangelow != NULL && rangehigh != NULL) ||
 	    (rangelow == NULL && rangehigh == NULL),
-	    ("mac_biba_internalize_label: range mismatch"));
+	    ("mac_mls_internalize_label: range mismatch"));
 
 	bzero(mac_mls, sizeof(*mac_mls));
 	if (single != NULL) {
