@@ -310,24 +310,24 @@ main(int argc, char *argv[])
 static int
 linkchk(FTSENT *p)
 {
-	static const size_t links_hash_initial_size = 8192;
 	struct links_entry {
-		struct links_entry	*next;
-		struct links_entry	*previous;
-		int			 links;
-		dev_t			 dev;
-		ino_t			 ino;
+		struct links_entry *next;
+		struct links_entry *previous;
+		int	 links;
+		dev_t	 dev;
+		ino_t	 ino;
 	};
-	static unsigned long		  number_entries;
-	static size_t			  number_buckets;
-	static struct links_entry	**buckets;
-	static struct links_entry	*free_list;
-	static char			 stop_allocating;
-
-	struct links_entry	*le, **new_buckets;
-	struct stat		*st;
-	int			 hash;
-	size_t			 i, new_size;
+	static const size_t links_hash_initial_size = 8192;
+	static struct links_entry **buckets;
+	static struct links_entry *free_list;
+	static size_t number_buckets;
+	static unsigned long number_entries;
+	static char stop_allocating;
+	struct links_entry *le, **new_buckets;
+	struct stat *st;
+	size_t i, new_size;
+	int count;
+	int hash;
 
 	st = p->fts_statp;
 
@@ -336,14 +336,13 @@ linkchk(FTSENT *p)
 		number_buckets = links_hash_initial_size;
 		buckets = malloc(number_buckets * sizeof(buckets[0]));
 		if (buckets == NULL)
-			err(1, "No memory for hardlink detection.");
+			errx(1, "No memory for hardlink detection.");
 		for (i = 0; i < number_buckets; i++)
 			buckets[i] = NULL;
 	}
 
 	/* If the hash table is getting too full, enlarge it. */
 	if (number_entries > number_buckets * 10 && !stop_allocating) {
-		int count;
 
 		new_size = number_buckets * 2;
 		new_buckets = malloc(new_size * sizeof(struct links_entry *));
@@ -361,9 +360,7 @@ linkchk(FTSENT *p)
 
 		if (new_buckets == NULL) {
 			stop_allocating = 1;
-			warnc(ENOMEM, "No more memory for recording "
-			    "hard links; Remaining hard links will be "
-			    "counted as separate files.");
+			warnx("No more memory for tracking hard links.");
 		} else {
 			memset(new_buckets, 0,
 			    new_size * sizeof(struct links_entry *));
@@ -431,9 +428,7 @@ linkchk(FTSENT *p)
 		le = malloc(sizeof(struct links_entry));
 	if (le == NULL) {
 		stop_allocating = 1;
-		warnc(ENOMEM, "No more memory for recording "
-		    "hard links; Remaining hard links will be counted "
-		    "as separate files.");
+		warnx("No more memory for tracking hard links.");
 		return (0);
 	}
 	le->dev = st->st_dev;
