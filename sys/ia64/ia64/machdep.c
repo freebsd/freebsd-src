@@ -177,6 +177,7 @@ cpu_startup(dummy)
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
+	mtx_lock(&vm_mtx);
 	identifycpu();
 
 	/* startrtclock(); */
@@ -300,6 +301,7 @@ again:
 		    &maxaddr, mb_map_size);
 		mb_map->system_map = 1;
 	}
+	mtx_unlock(&vm_mtx);
 
 	/*
 	 * Initialize callouts

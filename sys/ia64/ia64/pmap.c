@@ -94,18 +94,19 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/proc.h>
-#include <sys/msgbuf.h>
-#include <sys/vmmeter.h>
-#include <sys/mman.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mman.h>
+#include <sys/msgbuf.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sx.h>
+#include <sys/systm.h>
+#include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <sys/lock.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>

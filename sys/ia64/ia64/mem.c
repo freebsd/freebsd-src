@@ -49,12 +49,14 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
-#include <sys/proc.h>
 #include <sys/msgbuf.h>
-#include <sys/systm.h>
+#include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/systm.h>
 #include <sys/uio.h>
 
 #include <machine/frame.h>
@@ -187,13 +189,19 @@ kmemphys:
 			 */
 			addr = trunc_page(v);
 			eaddr = round_page(v + c);
+			mtx_lock(&vm_mtx);
 			for (; addr < eaddr; addr += PAGE_SIZE) 
-				if (pmap_extract(kernel_pmap, addr) == 0)
+				if (pmap_extract(kernel_pmap, addr) == 0) {
+					mtx_unlock(&vm_mtx);
 					return EFAULT;
+				}
 			if (!kernacc((caddr_t)v, c,
 			    uio->uio_rw == UIO_READ ? 
-			    VM_PROT_READ : VM_PROT_WRITE))
+			    VM_PROT_READ : VM_PROT_WRITE)) {
+				mtx_unlock(&vm_mtx);
 				return (EFAULT);
+			}
+			mtx_unlock(&vm_mtx);
 			error = uiomove((caddr_t)v, c, uio);
 		}
 
