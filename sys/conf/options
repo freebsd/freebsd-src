@@ -57,6 +57,8 @@ ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 
 # Miscellaneous options.
 GEOM		opt_geom.h
+GEOM_GPT	opt_geom.h		# Add support for GUID Partition
+					# Tables (GPTs).
 ADAPTIVE_MUTEXES
 COMPAT_43	opt_compat.h
 COMPAT_SUNOS	opt_compat.h
