@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.48 1998/05/19 14:04:02 dg Exp $
+ * $Id: if_ethersubr.c,v 1.49 1998/06/12 03:48:07 julian Exp $
  */
 
 #include "opt_atalk.h"
@@ -322,6 +322,7 @@ ether_output(ifp, m0, dst, rt0)
 #endif /* LLC */
 
 	case AF_UNSPEC:
+		loop_copy = -1; /* if this is for us, don't do it */
 		eh = (struct ether_header *)dst->sa_data;
  		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
 		type = eh->ether_type;
@@ -357,13 +358,15 @@ ether_output(ifp, m0, dst, rt0)
 	 * reasons and compatibility with the original behavior.
 	 */
 	if (ifp->if_flags & IFF_SIMPLEX) {
-		if ((m->m_flags & M_BCAST) || loop_copy) {
+		if ((m->m_flags & M_BCAST) || (loop_copy > 0)) {
 			struct mbuf *n = m_copy(m, 0, (int)M_COPYALL);
 
 			(void) if_simloop(ifp, n, dst, ETHER_HDR_LEN);
 		} else if (bcmp(eh->ether_dhost,
 		    eh->ether_shost, ETHER_ADDR_LEN) == 0) {
-			(void) if_simloop(ifp, m, dst, ETHER_HDR_LEN);
+			if (loop_copy != -1)
+				(void) if_simloop(ifp, m, dst,
+							ETHER_HDR_LEN);
 			return(0);	/* XXX */
 		}
 	}
