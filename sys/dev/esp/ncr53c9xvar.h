@@ -101,6 +101,9 @@
 #define	NCR_VARIANT_NCR53C90_86C01	10
 #define	NCR_VARIANT_MAX			11
 
+/* XXX Max tag depth.  Should this be defined in the register header? */
+#define NCR_TAG_DEPTH			256
+
 /*
  * ECB. Holds additional information for each SCSI command Comments: We
  * need a separate scsi command block because we may need to overwrite it
@@ -110,10 +113,14 @@
  * occasionally xs->retries.
  */
 struct ncr53c9x_ecb {
-	TAILQ_ENTRY(ncr53c9x_ecb) chain;
-	union ccb	*ccb;	/* SCSI xfer ctrl block from above */
+	/* These fields are preserved between alloc and free */
 	struct ncr53c9x_softc *sc;
+	int tag_id;
 	int flags;
+
+	union ccb	*ccb;	/* SCSI xfer ctrl block from above */
+	TAILQ_ENTRY(ncr53c9x_ecb) free_links;
+	TAILQ_ENTRY(ncr53c9x_ecb) chain;
 #define	ECB_ALLOC		0x01
 #define	ECB_READY		0x02
 #define	ECB_SENSE		0x04
@@ -168,7 +175,7 @@ struct ncr53c9x_linfo {
 	unsigned char		avail;	/* where to start scanning */
 	unsigned char		busy;
 	struct ncr53c9x_ecb	*untagged;
-	struct ncr53c9x_ecb	*queued[256];
+	struct ncr53c9x_ecb	*queued[NCR_TAG_DEPTH];
 };
 
 struct ncr53c9x_tinfo {
@@ -348,6 +355,9 @@ struct ncr53c9x_softc {
 	int sc_extended_geom;	/* Should we return extended geometry */
 
 	struct mtx sc_lock;	/* driver mutex */
+
+	struct ncr53c9x_ecb *ecb_array;
+	TAILQ_HEAD(,ncr53c9x_ecb) free_list;
 };
 
 /* values for sc_state */
