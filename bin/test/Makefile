@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=	test
-SRCS=   test.c operators.c
 LINKS=	${BINDIR}/test ${BINDIR}/[
 MLINKS=	test.1 '[.1'
 
