@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.71 1995/03/01 22:29:05 dufault Exp $
+ *	$Id: conf.c,v 1.72 1995/03/02 04:06:20 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -206,23 +206,6 @@ d_psize_t	scdsize;
 #define	scdioctl	nxioctl
 #define	scddump		nxdump
 #define	scdsize		zerosize
-#endif
-
-#include "pcd.h"
-#if NPCD > 0
-d_open_t	pcdopen;
-d_close_t	pcdclose;
-d_strategy_t	pcdstrategy;
-d_ioctl_t	pcdioctl;
-d_psize_t	pcdsize;
-#define	pcddump		nxdump
-#else
-#define	pcdopen		nxopen
-#define	pcdclose	nxclose
-#define	pcdstrategy	nxstrategy
-#define	pcdioctl	nxioctl
-#define	pcddump		nxdump
-#define	pcdsize		zerosize
 #endif
 
 #include "ch.h"
