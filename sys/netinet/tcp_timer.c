@@ -34,33 +34,31 @@
  * $FreeBSD$
  */
 
-#include "opt_compat.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
-#include <sys/sysctl.h>
+#include <sys/mutex.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/protosw.h>
-
-#include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
+#include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <net/route.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_pcb.h>
+#include <netinet/in_systm.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
 #endif
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
-#include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
