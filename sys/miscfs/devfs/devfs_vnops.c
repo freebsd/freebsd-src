@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.66 1999/01/21 08:29:06 dillon Exp $
+ *	$Id: devfs_vnops.c,v 1.67 1999/01/27 22:42:05 dillon Exp $
  */
 
 
@@ -1720,8 +1720,10 @@ devfs_strategy(struct vop_strategy_args *ap)
 	switch (ap->a_vp->v_type) {
 	case VCHR:
 		(*dnp->by.Cdev.cdevsw->d_strategy)(bp);
+		break;
 	case VBLK:
 		(*dnp->by.Bdev.bdevsw->d_strategy)(bp);
+		break;
 	}
 	return (0);
 }
