@@ -651,10 +651,9 @@ g_bde_start2(struct g_bde_work *wp)
 	struct g_bde_softc *sc;
 
 	KASSERT(wp != NULL, ("NULL wp in g_bde_start2"));
+	KASSERT(wp->softc != NULL, ("NULL wp->softc"));
 	g_trace(G_T_TOPOLOGY, "g_bde_start2(%p)", wp);
 	sc = wp->softc;
-	KASSERT(wp->softc != NULL, ("NULL wp->softc"));
-	g_bde_map_sector(&sc->key, wp->offset, &wp->so, &wp->kso, &wp->ko);
 	if (wp->bp->bio_cmd == BIO_READ) {
 		wp->sp = g_bde_new_sector(wp, 0);
 		if (wp->sp == NULL) {
@@ -704,8 +703,8 @@ g_bde_start2(struct g_bde_work *wp)
 }
 
 /*
- * Split the incoming bio on zone boundaries and submit the resulting
- * work structures to g_bde_start2().
+ * Create a sequence of work structures, and have g_bde_map_sector() determine
+ * how long they each can be.  Feed them to g_bde_start2().
  */
 
 void
@@ -713,13 +712,13 @@ g_bde_start1(struct bio *bp)
 {
 	struct g_bde_softc *sc;
 	struct g_bde_work *wp;
-	off_t left;
+	off_t done;
 
 	sc = bp->bio_to->geom->softc;
 	bp->bio_driver1 = sc;
 
 	mtx_lock(&sc->worklist_mutex);
-	for(left = 0;left < bp->bio_length; left += sc->sectorsize) {
+	for(done = 0; done < bp->bio_length; ) {
 		wp = g_bde_new_work(sc);
 		if (wp == NULL) {
 			g_io_deliver(bp, ENOMEM);
@@ -727,9 +726,11 @@ g_bde_start1(struct bio *bp)
 			return;
 		}
 		wp->bp = bp;
-		wp->offset = bp->bio_offset + left;
-		wp->data = bp->bio_data + left;
-		wp->length = sc->sectorsize;
+		wp->offset = bp->bio_offset + done;
+		wp->data = bp->bio_data + done;
+		wp->length = bp->bio_length - done;
+		g_bde_map_sector(wp);
+		done += wp->length;
 		g_bde_start2(wp);
 	}
 	mtx_unlock(&sc->worklist_mutex);
