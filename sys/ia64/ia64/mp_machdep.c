@@ -48,6 +48,7 @@
 #include <machine/pmap.h>
 #include <machine/clock.h>
 #include <machine/sal.h>
+#include <machine/smp.h>
 
 void cpu_mp_add(uint, uint, uint);
 void ia64_ap_startup(void);
