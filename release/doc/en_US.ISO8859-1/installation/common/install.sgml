@@ -811,7 +811,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  <para>Ongoing work with BSDI's &man.doscmd.1; utility will
 	  suffice in many cases, though
 	  it still has some rough edges.  If you're interested in
-	  working on this, please send mail to the &a.emulation
+	  working on this, please send mail to the &a.emulation;
 	  and indicate that you're interested in joining this ongoing
 	  effort!</para>
 
