@@ -153,7 +153,8 @@ dump_deviceids()
 
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
-	    strcasecmp(manf->vals[1], "NT.5.1") == 0) {
+	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
 		/* Handle Windows XP INF files. */
 		snprintf(xpsec, sizeof(xpsec), "%s.%s",
 		    manf->vals[0], manf->vals[1]);
@@ -370,7 +371,8 @@ dump_regvals(void)
 
 	/* Find manufacturer section */
 	if (manf->vals[1] != NULL &&
-	    strcasecmp(manf->vals[1], "NT.5.1") == 0) {
+	    (strcasecmp(manf->vals[1], "NT.5.1") == 0 ||
+	    strcasecmp(manf->vals[1], "NTx86.5.1") == 0)) {
 		is_winxp++;
 		/* Handle Windows XP INF files. */
 		snprintf(sname, sizeof(sname), "%s.%s",
@@ -402,9 +404,13 @@ dump_regvals(void)
 			 * Look for section names with .NT, unless
 			 * this is a WinXP .INF file.
 			 */
-			if (is_winxp)
-				dev = find_assign(assign->vals[0], "AddReg");
-			else {
+			if (is_winxp) {
+				sprintf(sname, "%s.NTx86", assign->vals[0]);
+				dev = find_assign(sname, "AddReg");
+				if (dev == NULL)
+					dev = find_assign(assign->vals[0],
+					    "AddReg");
+			} else {
 				sprintf(sname, "%s.NT", assign->vals[0]);
 				dev = find_assign(sname, "AddReg");
 			}
