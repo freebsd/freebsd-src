@@ -17,7 +17,7 @@
   012   '-'    '_'    ns     ns     173    223    159    159     O
   013   '='    '+'    nop    nop    189    171    nop    nop     O
   014   bs     bs     del    del    136    136    255    255     O
-  015   ht     fkey16 nop    nop    137    fkey16 nop    nop     O
+  015   ht     btab   nop    nop    137    btab   nop    nop     O
   016   'q'    'Q'    dc1    dc1    241    209    145    145     C
   017   'w'    'W'    etb    etb    247    215    151    151     C
   018   'e'    'E'    enq    enq    229    197    133    133     C
@@ -145,7 +145,7 @@
   140   '-'    '_'    ns     ns     173    223    159    159     O
   141   '='    '+'    nop    nop    189    171    nop    nop     O
   142   bs     bs     del    del    136    136    255    255     O
-  143   ht     fkey16 nop    nop    137    fkey16 nop    nop     O
+  143   ht     btab   nop    nop    137    btab   nop    nop     O
   144   202    234    dc1    dc1    241    209    145    145     C
   145   195    227    etb    etb    247    215    151    151     C
   146   213    245    enq    enq    229    197    133    133     C
