@@ -25,8 +25,10 @@ WCS1=	wcs fppwcs poc poc1 poc2 fppoc
 WCS2=	fpevent fppwcs fppwcs_dual hdcwcs load_diags start_fpp wcs wcs_dual
 
 # Special top level files for FreeBSD
-COPYRIGHT= COPYRIGHT
-FREEBSD= CONTRIB.386BSD CONTRIB.FreeBSD RELNOTES.FreeBSD ${COPYRIGHT}
+COPYRIGHT=	COPYRIGHT
+FREEBSD=	CONTRIB.386BSD CONTRIB.FreeBSD
+FREEBSD+=	MIRROR.SITES RELNOTES.FreeBSD SUPPORT.TXT
+FREEBSD+=	${COPYRIGHT}
 #
 # Floppy drive name and files for building FreeBSD Floppies
 FLOPPY?=	fd0
