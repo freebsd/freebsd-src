@@ -3924,6 +3924,7 @@ ahc_alloc(void *platform_arg, char *name)
 		return (NULL);
 	}
 	LIST_INIT(&ahc->pending_scbs);
+	LIST_INIT(&ahd->timedout_scbs);
 	/* We don't know our unit number until the OSM sets it */
 	ahc->name = name;
 	ahc->unit = -1;
@@ -6277,6 +6278,8 @@ ahc_calc_residual(struct ahc_softc *ahc, struct scb *scb)
 		return;
 	} else if ((resid_sgptr & ~SG_PTR_MASK) != 0) {
 		panic("Bogus resid sgptr value 0x%x\n", resid_sgptr);
+		/* NOTREACHED */
+		return;
 	} else {
 		struct ahc_dma_seg *sg;
 
