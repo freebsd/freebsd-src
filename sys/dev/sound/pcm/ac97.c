@@ -256,6 +256,12 @@ ac97_getextcaps(struct ac97_info *codec)
 	return codec->extcaps;
 }
 
+u_int16_t
+ac97_getcaps(struct ac97_info *codec)
+{
+	return codec->caps;
+}
+
 static int
 ac97_setrecsrc(struct ac97_info *codec, int channel)
 {
