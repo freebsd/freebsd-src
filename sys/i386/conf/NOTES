@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.626 1999/08/15 09:38:20 phk Exp $
+#	$Id: LINT,v 1.627 1999/08/15 09:54:56 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -758,6 +758,10 @@ options 	CHANGER_MAX_BUSY_SECONDS=10
 options 	SA_SPACE_TIMEOUT="(60)"
 options 	SA_REWIND_TIMEOUT="(2*60)"
 options 	SA_ERASE_TIMEOUT="(4*60)"
+
+# Optional timeout for the CAM processor target (pt) device
+# This is specified in seconds.  The default is 60 seconds.
+options		SCSI_PT_DEFAULT_TIMEOUT="60"
 
 
 #####################################################################
