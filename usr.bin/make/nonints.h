@@ -44,6 +44,6 @@
 
 /* main.c */
 void Main_ParseArgLine(char *, int);
-char *Cmd_Exec(char *, char **);
+char *Cmd_Exec(char *, const char **);
 
 #endif /* nonints_h_33c5dafb */

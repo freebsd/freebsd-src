@@ -977,7 +977,7 @@ Dir_MTime(GNode *gn)
  *-----------------------------------------------------------------------
  */
 void
-Dir_AddDir(Lst *path, char *name)
+Dir_AddDir(Lst *path, const char *name)
 {
 	LstNode *ln;		/* node in case Path structure is found */
 	Path *p;		/* pointer to new Path structure */
@@ -1076,7 +1076,7 @@ Dir_CopyDir(void *p)
  *-----------------------------------------------------------------------
  */
 char *
-Dir_MakeFlags(char *flag, Lst *path)
+Dir_MakeFlags(const char *flag, Lst *path)
 {
 	char *str;	/* the string which will be returned */
 	char *tstr;	/* the current directory preceded by 'flag' */

@@ -77,7 +77,7 @@ VarHead(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 	if (addSpace) {
 	    Buf_AddByte(buf, (Byte)' ');
 	}
-	Buf_AddBytes(buf, slash - word, (Byte *)word);
+	Buf_AddBytes(buf, slash - word, (const Byte *)word);
     } else {
 	/*
 	 * If no directory part, give . (q.v. the POSIX standard)
@@ -182,9 +182,9 @@ VarRoot(const char *word, Boolean addSpace, Buffer *buf, void *dummy __unused)
 
     dot = strrchr(word, '.');
     if (dot != NULL) {
-	Buf_AddBytes(buf, dot - word, (Byte *)word);
+	Buf_AddBytes(buf, dot - word, (const Byte *)word);
     } else {
-	Buf_AddBytes(buf, strlen(word), (Byte *)word);
+	Buf_AddBytes(buf, strlen(word), (const Byte *)word);
     }
     return (TRUE);
 }

@@ -58,8 +58,8 @@ struct GNode;
 struct Lst;
 
 void Targ_Init(void);
-struct GNode *Targ_NewGN(char *);
-struct GNode *Targ_FindNode(char *, int);
+struct GNode *Targ_NewGN(const char *);
+struct GNode *Targ_FindNode(const char *, int);
 void Targ_FindList(struct Lst *, struct Lst *, int);
 Boolean Targ_Ignore(struct GNode *);
 Boolean Targ_Silent(struct GNode *);
