@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id$
+#	$Id: rc,v 1.135 1997/08/17 15:02:34 joerg Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -122,7 +122,7 @@ if [ -f /etc/rc.network ]; then
 	network_pass1
 fi
 
-mount -a -t nfs >/dev/null 2>&1
+mount -a -t nfs
 
 # Whack the pty perms back into shape.
 chmod 666 /dev/tty[pqrsPQRS]*
