@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: fetch.3,v 1.2 1998/09/26 20:42:44 des Exp $
+.\"	$Id: fetch.3,v 1.3 1998/11/05 19:48:16 des Exp $
 .\"
 .Dd July 1, 1998
 .Dt FETCH 3
@@ -30,15 +30,20 @@
 .Sh NAME
 .Nm fetchGetURL ,
 .Nm fetchPutURL ,
+.Nm fetchStatURL ,
 .Nm fetchParseURL ,
 .Nm fetchGet ,
 .Nm fetchPut ,
+.Nm fetchStat ,
 .Nm fetchGetFile ,
 .Nm fetchPutFile ,
+.Nm fetchStatFile ,
 .Nm fetchGetHTTP ,
 .Nm fetchPutHTTP ,
+.Nm fetchStatHTTP ,
 .Nm fetchGetFTP ,
 .Nm fetchPutFTP
+.Nm fetchStatFTP
 .Nd file transfer library
 .Sh SYNOPSIS
 .Fd #include <fetch.h>
@@ -46,27 +51,36 @@
 .Fn fetchGetURL "char *URL" "char *flags"
 .Ft FILE *
 .Fn fetchPutURL "char *URL" "char *flags"
-.Ft url_t *
+.Ft int
+.Fn fetchStatURL "char *URL" "struct url_stat *us" "char *flags"
+.Ft struct url *
 .Fn fetchParseURL "char *URL" "char *flags"
 .Ft FILE *
-.Fn fetchGet "url_t *URL" "char *flags"
+.Fn fetchGet "struct url *URL" "char *flags"
 .Ft FILE *
-.Fn fetchPut "url_t *URL" "char *flags"
+.Fn fetchPut "struct url *URL" "char *flags"
+.Ft int
+.Fn fetchStat "struct url *URL" "struct url_stat *us" "char *flags"
 .Ft FILE *
-.Fn fetchGetFile "url_t *u" "char *flags"
+.Fn fetchGetFile "struct url *u" "char *flags"
 .Ft FILE *
-.Fn fetchPutFile "url_t *u" "char *flags"
+.Fn fetchPutFile "struct url *u" "char *flags"
+.Ft int
+.Fn fetchStatFile "struct url *URL" "struct url_stat *us" "char *flags"
 .Ft FILE *
-.Fn fetchGetHTTP "url_t *u" "char *flags"
+.Fn fetchGetHTTP "struct url *u" "char *flags"
 .Ft FILE *
-.Fn fetchPutHTTP "url_t *u" "char *flags"
+.Fn fetchPutHTTP "struct url *u" "char *flags"
+.Ft int
+.Fn fetchStatHTTP "struct url *URL" "struct url_stat *us" "char *flags"
 .Ft FILE *
-.Fn fetchGetFTP "url_t *u" "char *flags"
+.Fn fetchGetFTP "struct url *u" "char *flags"
 .Ft FILE *
-.Fn fetchPutFTP "url_t *u" "char *flags"
-.Vt extern int         fetchLastErrCode;
-.Vt extern const char *fetchLastErrText;
+.Fn fetchPutFTP "struct url *u" "char *flags"
+.Ft int
+.Fn fetchStatFTP "struct url *URL" "struct url_stat *us" "char *flags"
 .Sh DESCRIPTION
+.Pp
 These functions implement a high-level library for retrieving and
 uploading files using Uniform Resource Locators (URLs).
 .Pp
@@ -82,6 +96,19 @@ actual transfer. The
 argument is a string of characters which specify transfer options. The
 meaning of the individual flags is scheme-dependent, and is detailed
 in the appropriate section below.
+.Pp
+.Fn fetchStatURL
+attempts to obtain the requested document's metadata and fill in the
+structure pointed to by it's second argument. The
+.Fa url_stat
+structure is defined as follows in
+.Aq Pa fetch.h :
+.Bd -literal
+struct url_stat {
+    off_t	 size;
+    time_t	 time;
+};
+.Ed
 .Pp
 .Fn fetchParseURL
 takes a URL in the form of a null-terminated string and splits it into
@@ -101,17 +128,19 @@ The pointer returned by
 should be freed using
 .Fn free .
 .Pp
-.Fn fetchGet
-and
+.Fn fetchGet ,
 .Fn fetchPut
-are similar to
-.Fn fetchGetURL
 and
-.Fn fetchPutURL ,
+.Fn fetchStat
+are similar to
+.Fn fetchGetURL ,
+.Fn fetchPutURL
+and
+.Fn fetchStatURL ,
 except that they expect a pre-parsed URL in the form of a pointer to
-an
-.Fa url_t
-structure rather than a string.
+a
+.Fa struct url
+rather than a string.
 .Pp
 All of the
 .Fn fetchGetXXX
@@ -175,19 +204,66 @@ is currently unimplemented.
 .Sh RETURN VALUES
 .Fn fetchParseURL
 returns a pointer to a
-.Fa url_t
-structure containing the individual components of the URL. If it is
+.Fa struct url
+containing the individual components of the URL. If it is
 unable to allocate memory, or the URL is syntactically incorrect,
 .Fn fetchParseURL
 returns a NULL pointer.
 .Pp
+The 
+.Fn fetchStat
+functions return 0 on success and -1 on failure.
+.Pp
 All other functions return a stream pointer which may be used to
-access the requested document, or NULL if an error occurred. In the
-latter case, the variables
-.Va fetchLastErrCode
-and
-.Va fetchLastErrText
-are set to appropriately descriptive values.
+access the requested document, or NULL if an error occurred.
+.Pp
+.Nm Libfetch
+uses the Common Error Library
+.Nm ( libcom_err )
+to report errors. The error code passed to
+.Fn com_err
+is one of:
+.Bl -tag -width Er
+.It Bq Er FETCH_ABORT
+Operation aborted    
+.It Bq Er FETCH_AUTH
+Authentication failed    
+.It Bq Er FETCH_DOWN
+Service unavailable    
+.It Bq Er FETCH_EXISTS
+File exists    
+.It Bq Er FETCH_FULL
+File system full   
+.It Bq Er FETCH_INFO
+Informational response    
+.It Bq Er FETCH_MEMORY
+Insufficient memory    
+.It Bq Er FETCH_MOVED
+File has moved   
+.It Bq Er FETCH_NETWORK
+Network error    
+.It Bq Er FETCH_OK
+No error    
+.It Bq Er FETCH_PROTO
+Protocol error    
+.It Bq Er FETCH_RESOLV
+Resolver error    
+.It Bq Er FETCH_SERVER
+Server error    
+.It Bq Er FETCH_TEMP
+Temporary error    
+.It Bq Er FETCH_TIMEOUT
+Operation timed out   
+.It Bq Er FETCH_UNAVAIL
+File is not available  
+.It Bq Er FETCH_UNKNOWN
+Unknown error    
+.It Bq Er FETCH_URL
+Invalid URL
+.El
+.Pp
+The accompanying error message includes a protocol-specific error code
+and message, e.g. "File is not available (404 Not Found)"
 .Sh ENVIRONMENT
 The FTP and HTTP related functions use the
 .Ev HTTP_PROXY
@@ -196,6 +272,7 @@ and
 environment variables, respectively, as the address of a proxy server
 to use for transferring files.
 .Sh SEE ALSO
+.Xr com_err 3 ,
 .Xr fetch 1 ,
 .Xr ftpio 3
 .Rs
@@ -216,13 +293,14 @@ to use for transferring files.
 .%B File Transfer Protocol
 .%O RFC959
 .Re
-.Sh DIAGNOSTICS
-Add later.
 .Sh NOTES
-Some parts of the library are not yet implemented. The most notable
-examples of this are
-.Fn fetchPutHTTP
-and proxy support for the FTP access method.
+The
+.Nm fetch
+library uses the Common Error library, and applications which link
+with
+.Nm libfetch
+must therefore also link with
+.Nm libcom_err .
 .Sh HISTORY
 The
 .Nm fetch
@@ -234,18 +312,26 @@ The
 library was mostly written by
 .An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
 with numerous suggestions from
-.An Jordan K. Hubbard Aq jkh@FreeBSD.org
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org ,
+.An Eugene Skepner Aq eu@qub.com
 and other FreeBSD developers.
-It incorporates the older
+It replaces the older
 .Nm ftpio
-library, which was originally written by
-.Nm Poul-Henning Kamp Aq pkh@FreeBSD.org
-and later turned inside out by
+library written by
+.An Poul-Henning Kamp Aq pkh@FreeBSD.org
+and
 .An Jordan K. Hubbard Aq jkh@FreeBSD.org .
 .Pp
 This manual page was written by
 .An Dag-Erling Coïdan Smørgrav Aq des@FreeBSD.org
 .Sh BUGS
+Some parts of the library are not yet implemented. The most notable
+examples of this are
+.Fn fetchPutHTTP ,
+.Fn fetchStatFTP ,
+.Fn fetchStatHTTP
+and FTP proxy support.
+.Pp
 There's no way to select a proxy at run-time other than setting the
 .Ev HTTP_PROXY
 or

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.h,v 1.4 1998/08/17 09:30:19 des Exp $
+ *	$Id: fetch.h,v 1.5 1998/11/05 19:48:17 des Exp $
  */
 
 #ifndef _FETCH_H_INCLUDED
@@ -34,47 +34,51 @@
 #include <sys/param.h>
 #include <stdio.h>
 
+#include <fetch_err.h>
+
 #define _LIBFETCH_VER "libfetch/1.0"
 
 #define URL_SCHEMELEN 16
 #define URL_USERLEN 256
 #define URL_PWDLEN 256
 
-struct url_s {
-    char scheme[URL_SCHEMELEN+1];
-    char user[URL_USERLEN+1];
-    char pwd[URL_PWDLEN+1];
-    char host[MAXHOSTNAMELEN+1];
-    int  port;
-    char doc[2];
+struct url {
+    char	 scheme[URL_SCHEMELEN+1];
+    char	 user[URL_USERLEN+1];
+    char	 pwd[URL_PWDLEN+1];
+    char	 host[MAXHOSTNAMELEN+1];
+    int		 port;
+    char	 doc[2];
 };
 
-typedef struct url_s url_t;
+struct url_stat {
+    off_t	 size;
+    time_t	 time;
+};
 
 /* FILE-specific functions */
-FILE	*fetchGetFile(url_t *, char *);
-FILE	*fetchPutFile(url_t *, char *);
+FILE		*fetchGetFile(struct url *, char *);
+FILE		*fetchPutFile(struct url *, char *);
+int		 fetchStatFile(struct url *, struct url_stat *, char *);
 
 /* HTTP-specific functions */
-char	*fetchContentType(FILE *);
-FILE	*fetchGetHTTP(url_t *, char *);
-FILE	*fetchPutHTTP(url_t *, char *);
+char		*fetchContentType(FILE *);
+FILE		*fetchGetHTTP(struct url *, char *);
+FILE		*fetchPutHTTP(struct url *, char *);
+int		 fetchStatHTTP(struct url *, struct url_stat *, char *);
 
 /* FTP-specific functions */
-FILE	*fetchGetFTP(url_t *, char *);
-FILE	*fetchPutFTP(url_t *, char *);
+FILE		*fetchGetFTP(struct url *, char *);
+FILE		*fetchPutFTP(struct url *, char *);
+int		 fetchStatFTP(struct url *, struct url_stat *, char *);
 
 /* Generic functions */
-int	 fetchConnect(char *, int);
-url_t	*fetchParseURL(char *);
-void	 fetchFreeURL(url_t *);
-FILE	*fetchGetURL(char *, char *);
-FILE	*fetchPutURL(char *, char *);
-FILE	*fetchGet(url_t *, char *);
-FILE	*fetchPut(url_t *, char *);
-
-/* Error code and string */
-extern int fetchLastErrCode;
-extern const char *fetchLastErrText;
+struct url	*fetchParseURL(char *);
+FILE		*fetchGetURL(char *, char *);
+FILE		*fetchPutURL(char *, char *);
+int		 fetchStatURL(char *, struct url_stat *, char *);
+FILE		*fetchGet(struct url *, char *);
+FILE		*fetchPut(struct url *, char *);
+int		 fetchStat(struct url *, struct url_stat *, char *);
 
 #endif

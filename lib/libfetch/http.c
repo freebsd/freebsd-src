@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.5 1998/08/17 09:30:19 des Exp $
+ *	$Id: http.c,v 1.6 1998/11/05 19:48:17 des Exp $
  */
 
 /*
@@ -78,7 +78,7 @@
 
 #include "fetch.h"
 #include "common.h"
-#include "httperr.c"
+#include "httperr.inc"
 
 #ifndef NDEBUG
 #define DEBUG(x) do x; while (0)
@@ -300,10 +300,10 @@ _http_auth(char *usr, char *pwd)
 }
 
 /*
- * retrieve a file by HTTP
+ * Retrieve a file by HTTP
  */
 FILE *
-fetchGetHTTP(url_t *URL, char *flags)
+fetchGetHTTP(struct url *URL, char *flags)
 {
     int sd = -1, err, i, enc = ENC_NONE;
     struct cookie *c;
@@ -389,8 +389,7 @@ fetchGetHTTP(url_t *URL, char *flags)
     
     /* add code to handle redirects later */
     if (err != 200) {
-	fetchLastErrCode = err;
-	fetchLastErrText = _http_errstring(err);
+	_http_seterr(err);
 	goto fouch;
     }
 
@@ -452,8 +451,18 @@ fouch:
 }
 
 FILE *
-fetchPutHTTP(url_t *URL, char *flags)
+fetchPutHTTP(struct url *URL, char *flags)
 {
     warnx("fetchPutHTTP(): not implemented");
     return NULL;
+}
+
+/*
+ * Get an HTTP document's metadata
+ */
+int
+fetchStatHTTP(struct url *url, struct url_stat *us, char *flags)
+{
+    warnx("fetchStatHTTP(): not implemented");
+    return -1;
 }

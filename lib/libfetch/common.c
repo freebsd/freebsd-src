@@ -25,13 +25,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: common.c,v 1.1 1998/11/05 19:48:16 des Exp $
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+#include <com_err.h>
 #include <errno.h>
 #include <netdb.h>
 #include <string.h>
@@ -40,34 +41,45 @@
 #include "fetch.h"
 #include "common.h"
 
+
 /*** Local data **************************************************************/
 
 /*
  * Error messages for resolver errors
  */
 static struct fetcherr _netdb_errlist[] = {
-    { HOST_NOT_FOUND,	"Host not found" },
-    { TRY_AGAIN,	"Transient resolver failure" },
-    { NO_RECOVERY,	"Non-recoverable resolver failure" },
-    { NO_DATA,		"No address record" },
-    { -1,		"Unknown resolver error" }
+    { HOST_NOT_FOUND,	FETCH_RESOLV,	"Host not found" },
+    { TRY_AGAIN,	FETCH_RESOLV,	"Transient resolver failure" },
+    { NO_RECOVERY,	FETCH_RESOLV,	"Non-recoverable resolver failure" },
+    { NO_DATA,		FETCH_RESOLV,	"No address record" },
+    { -1,		FETCH_UNKNOWN,	"Unknown resolver error" }
 };
-#define _netdb_errstring(n)	_fetch_errstring(_netdb_errlist, n)
-#define _netdb_seterr(n)	_fetch_seterr(_netdb_errlist, n)
 
+static int com_err_initialized;
 
 /*** Error-reporting functions ***********************************************/
 
 /*
+ * Initialize the common error library
+ */
+static void
+_fetch_init_com_err(void)
+{
+    initialize_ftch_error_table();
+    com_err_initialized = 1;
+}
+
+/*
  * Map error code to string
  */
-const char *
-_fetch_errstring(struct fetcherr *p, int e)
+static int
+_fetch_finderr(struct fetcherr *p, int e)
 {
-    while ((p->num != -1) && (p->num != e))
-	p++;
-    
-    return p->string;
+    int i;
+    for (i = 0; p[i].num != -1; i++)
+	if (p[i].num == e)
+	    break;
+    return i;
 }
 
 /*
@@ -76,8 +88,13 @@ _fetch_errstring(struct fetcherr *p, int e)
 void
 _fetch_seterr(struct fetcherr *p, int e)
 {
-    fetchLastErrCode = e;
-    fetchLastErrText = _fetch_errstring(p, e);
+    int n;
+    
+    if (!com_err_initialized)
+	_fetch_init_com_err();
+
+    n = _fetch_finderr(p, e);
+    com_err("libfetch", p[n].cat, "(%d %s)", e, p[n].string);
 }
 
 /*
@@ -86,8 +103,62 @@ _fetch_seterr(struct fetcherr *p, int e)
 void
 _fetch_syserr(void)
 {
-    fetchLastErrCode = errno;
-    fetchLastErrText = strerror(errno);
+    int cat;
+    
+    if (!com_err_initialized)
+	_fetch_init_com_err();
+
+    switch (errno) {
+    case 0:
+	cat = FETCH_OK;
+	break;
+    case EPERM:
+    case EACCES:
+    case EROFS:
+    case EAUTH:
+    case ENEEDAUTH:
+	cat = FETCH_AUTH;
+	break;
+    case ENOENT:
+    case EISDIR: /* XXX */
+	cat = FETCH_UNAVAIL;
+	break;
+    case ENOMEM:
+	cat = FETCH_MEMORY;
+	break;
+    case EBUSY:
+    case EAGAIN:	
+	cat = FETCH_TEMP;
+	break;
+    case EEXIST:
+	cat = FETCH_EXISTS;
+	break;
+    case ENOSPC:
+	cat = FETCH_FULL;
+	break;
+    case EADDRINUSE:
+    case EADDRNOTAVAIL:
+    case ENETDOWN:
+    case ENETUNREACH:
+    case ENETRESET:
+    case EHOSTUNREACH:
+	cat = FETCH_NETWORK;
+	break;
+    case ECONNABORTED:
+    case ECONNRESET:
+	cat = FETCH_ABORT;
+	break;
+    case ETIMEDOUT:
+	cat = FETCH_TIMEOUT;
+	break;
+    case ECONNREFUSED:
+    case EHOSTDOWN:
+	cat = FETCH_DOWN;
+	break;
+    default:
+	cat = FETCH_UNKNOWN;
+    }
+    com_err("libfetch", cat, "(%02d %s)", errno, strerror(errno));
 }
 
 
