@@ -645,10 +645,15 @@ _strfile=	games/fortune/strfile
 _uudecode=	usr.bin/uudecode
 .endif
 
+.if ( ${BOOTSTRAPPING} < 430002 || \
+    ( ${BOOTSTRAPPING} >= 500000 && ${BOOTSTRAPPING} < 500019 ))
+_xargs=		usr.bin/xargs
+.endif
+
 bootstrap-tools:
 .for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef \
     usr.bin/makewhatis usr.bin/rpcgen ${_uudecode} \
-    usr.bin/xargs usr.bin/xinstall \
+    ${_xargs} usr.bin/xinstall \
     usr.sbin/config usr.sbin/kbdcontrol \
     gnu/usr.bin/gperf gnu/usr.bin/groff gnu/usr.bin/texinfo
 	@${ECHODIR} "===> ${_tool}"; \
