@@ -87,6 +87,7 @@
 #include <machine/fp.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/metadata.h>
 #include <machine/ofw_machdep.h>
 #include <machine/pmap.h>
 #include <machine/pstate.h>
@@ -636,12 +637,11 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 void
 Debugger(const char *msg)
 {
-	critical_t c;
 
 	printf("Debugger(\"%s\")\n", msg);
-	c = critical_enter();
+	critical_enter();
 	breakpoint();
-	critical_exit(c);
+	critical_exit();
 }
 
 int
