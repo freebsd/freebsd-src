@@ -1,16 +1,15 @@
 #
-# $Id: Makefile,v 1.2 1994/09/07 21:48:45 csgr Exp $
+# $Id: Makefile,v 1.7 1996/04/13 08:03:19 markm Exp $
 #
-
 
 LIB=		cipher
 SRCS=		crypt.c
 PRECIOUSLIB=	yes
-NOPROFILE=	yes
+#NOPROFILE=	yes
 
-#MAN3=   crypt.0
-#MLINKS= crypt.3 encrypt.3 crypt.3 setkey.3
-#MLINKS+=crypt.3 des_cipher.3 crypt.3 des_setkey.3
+MAN3=   cipher.3
+MLINKS= cipher.3 encrypt.3 cipher.3 setkey.3
+MLINKS+=cipher.3 des_cipher.3 cipher.3 des_setkey.3
 
 #SUBDIR=		test
 
