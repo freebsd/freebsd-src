@@ -170,6 +170,7 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 
 #define	MNT_ILOCK(mp)	mtx_lock(&(mp)->mnt_mtx)
 #define	MNT_IUNLOCK(mp)	mtx_unlock(&(mp)->mnt_mtx)
+#define	MNT_MTX(mp)	(&(mp)->mnt_mtx)
 
 #endif /* _KERNEL */
 
@@ -267,6 +268,7 @@ struct vnode *__mnt_vnode_next(struct vnode **nvp, struct mount *mp);
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
+#define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
 
 /*
  * Sysctl CTL_VFS definitions.
@@ -524,6 +526,28 @@ vfs_statfs_t	__vfs_statfs;
 	(*(MP)->mnt_op->vfs_extattrctl)(MP, C, FN, NS, N, P)
 #define VFS_SYSCTL(MP, OP, REQ) \
 	(*(MP)->mnt_op->vfs_sysctl)(MP, OP, REQ)
+
+extern int mpsafe_vfs;
+
+#define	VFS_NEEDSGIANT(MP)						\
+    (!mpsafe_vfs || ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0))
+
+#define	VFS_LOCK_GIANT(MP) __extension__				\
+({									\
+	int _locked;							\
+	if (VFS_NEEDSGIANT((MP))) {					\
+		mtx_lock(&Giant);					\
+		_locked = 1;						\
+	} else								\
+		_locked = 0;						\
+	_locked;							\
+})
+#define	VFS_UNLOCK_GIANT(locked)	if ((locked)) mtx_unlock(&Giant);
+#define	VFS_ASSERT_GIANT(MP) do 					\
+{									\
+	if (VFS_NEEDSGIANT((MP)))					\
+		mtx_assert(&Giant, MA_OWNED);				\
+} while (0)
 
 #include <sys/module.h>
 
