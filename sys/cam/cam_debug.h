@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_debug.h,v 1.2 1998/10/02 21:00:50 ken Exp $
+ *      $Id: cam_debug.h,v 1.3 1998/12/05 23:55:48 mjacob Exp $
  */
 #ifndef	_CAM_CAM_DEBUG_H
 #define _CAM_CAM_DEBUG_H 1
@@ -43,7 +43,8 @@ typedef enum {
 	CAM_DEBUG_TRACE		= 0x02,	/* routine flow tracking */
 	CAM_DEBUG_SUBTRACE	= 0x04,	/* internal to routine flows */
 	CAM_DEBUG_CDB		= 0x08, /* print out SCSI CDBs only */
-	CAM_DEBUG_XPT		= 0x10	/* print out xpt scheduling */
+	CAM_DEBUG_XPT		= 0x10,	/* print out xpt scheduling */
+	CAM_DEBUG_PERIPH	= 0x20  /* print out peripheral calls */
 } cam_debug_flags;
 
 #if defined(CAMDEBUG) && defined(KERNEL)
@@ -52,25 +53,31 @@ typedef enum {
 extern struct cam_path *cam_dpath;
 /* Current debug levels set */
 extern u_int32_t cam_dflags;
+/* Printf delay value (to prevent scrolling */
+extern u_int32_t cam_debug_delay;
  
 /* Debugging macros. */
 #define	CAM_DEBUGGED(path, flag)			\
 	((cam_dflags & (flag))				\
 	 && (cam_dpath != NULL)				\
-	 && (xpt_path_comp(path, cam_dpath) >= 0))
+	 && (xpt_path_comp(cam_dpath, path) >= 0)	\
+	 && (xpt_path_comp(cam_dpath, path) < 2))
 #define	CAM_DEBUG(path, flag, printfargs)		\
 	if ((cam_dflags & (flag))			\
 	 && (cam_dpath != NULL)				\
-	 && (xpt_path_comp(path, cam_dpath) >= 0)) {	\
+	 && (xpt_path_comp(cam_dpath, path) >= 0)	\
+	 && (xpt_path_comp(cam_dpath, path) < 2)) {	\
 		xpt_print_path(path);			\
  		printf printfargs;			\
-		DELAY(100000);				\
+		if (cam_debug_delay != 0)		\
+			DELAY(cam_debug_delay);		\
 	}
 #define	CAM_DEBUG_PRINT(flag, printfargs)		\
 	if (cam_dflags & (flag)) {			\
 		printf("cam_debug: ");			\
  		printf printfargs;			\
-		DELAY(100000);				\
+		if (cam_debug_delay != 0)		\
+			DELAY(cam_debug_delay);		\
 	}
 
 #else /* !CAMDEBUG || !KERNEL */
