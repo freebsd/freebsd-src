@@ -3,7 +3,7 @@
 PROG=	snake
 SRCS=	snake.c move.c
 MAN6=	snake.6
-DPADD=	${LIBM} ${LIBTERM} ${LIBCOMPAT}
+DPADD=	${LIBM} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lm -ltermcap -lcompat
 HIDEGAME=hidegame
 

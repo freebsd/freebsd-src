@@ -2,7 +2,7 @@
 
 PROG=	worm
 MAN6=	worm.6
-DPADD=	${LIBCURSES} ${LIBTERM} ${LIBCOMPAT}
+DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 
