@@ -138,10 +138,10 @@ _kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
 		_kvm_syserr(kd, kd->program, "_kvm_vatop: read");
 		goto invalid;
 	}
-	if (!tte_match(tte, va))
+	if (!tte_match(&tte, va))
 		goto invalid;
 
-	*pa = TD_PA(tte.tte_data) + offset;
+	*pa = TTE_GET_PA(&tte) + offset;
 	return (PAGE_SIZE - offset);
 
 invalid:
