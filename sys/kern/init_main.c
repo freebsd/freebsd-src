@@ -295,7 +295,11 @@ proc0_init(void *dummy __unused)
 	session0.s_count = 1;
 	session0.s_leader = p;
 
+#ifdef __ELF__
+	p->p_sysent = &elf_freebsd_sysvec;
+#else
 	p->p_sysent = &aout_sysvec;
+#endif
 
 	p->p_flag = P_INMEM | P_SYSTEM;
 	p->p_stat = SRUN;
