@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.3 1995/04/23 07:39:21 bde Exp $
+ *      $Id: worm.c,v 1.4 1995/04/23 22:07:56 gibbs Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -58,6 +58,8 @@
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_disk.h>
+
+#define STUNIT(DEV)      ((minor(DEV)&0xF0) >> 4)    /* 4 bit unit.  */
 
 struct scsi_data {
 	struct buf *buf_queue;		/* the queue of pending IO operations */
@@ -240,7 +242,7 @@ wormstart(unit, flags)
 			flags | SCSI_NOSLEEP) == SUCCESSFULLY_QUEUED) {
 		} else {
 badnews:
-			printf("worm%d: oops not queued\n", unit);
+			printf("worm%ld: oops not queued\n", unit);
 			bp->b_flags |= B_ERROR;
 			bp->b_error = EIO;
 			biodone(bp);
@@ -305,8 +307,6 @@ int
 worm_open(dev_t dev, int flags, int fmt, struct proc *p,
 struct scsi_link *sc_link)
 {
-	struct scsi_data *worm = sc_link->sd;
-
 	if (sc_link->flags & SDEV_OPEN)
 		return EBUSY;
 
