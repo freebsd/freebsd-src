@@ -51,6 +51,7 @@
 .Op Fl U
 .Op Fl r
 .Op Fl o
+.Op Fl O
 .Op Fl E
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
@@ -161,6 +162,12 @@ All commands which may modify the local filesystem are disabled.
 .It Fl o
 Put server in write-only mode.
 RETR is disabled, preventing downloads.
+.It Fl O
+Put server in write-only mode for anonymous users only.
+RETR is disabled for anonymous users, preventing anonymous downloads.
+This has no effect if
+.Fl o
+is also specified.
 .It Fl E
 Disable the EPSV command.
 This is useful for servers behind older firewalls.
