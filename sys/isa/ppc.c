@@ -1355,8 +1355,9 @@ ppc_exec_microseq(device_t dev, struct ppb_microseq **p_msq)
 	struct ppb_microseq *stack = 0;
 
 /* microsequence registers are equivalent to PC-like port registers */
-#define r_reg(register,ppc) (inb((ppc)->ppc_base + register))
-#define w_reg(register,ppc,byte) outb((ppc)->ppc_base + register, byte)
+
+#define r_reg(register,ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, register))
+#define w_reg(register, ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, register, byte))
 
 #define INCR_PC (mi ++)		/* increment program counter */
 
@@ -1912,6 +1913,9 @@ ppc_probe(device_t dev)
 
  	ppc->ppc_base = rman_get_start(ppc->res_ioport);
 
+	ppc->bsh = rman_get_bushandle(ppc->res_ioport);
+	ppc->bst = rman_get_bustag(ppc->res_ioport);
+
 	ppc->ppc_flags = device_get_flags(dev);
 
 	if (!(ppc->ppc_flags & 0x20)) {
@@ -2013,22 +2017,22 @@ ppc_io(device_t ppcdev, int iop, u_char *addr, int cnt, u_char byte)
 	struct ppc_data *ppc = DEVTOSOFTC(ppcdev);
 	switch (iop) {
 	case PPB_OUTSB_EPP:
-		outsb(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_write_multi_1(ppc->bst, ppc->bsh, PPC_EPP_DATA, addr, cnt);
 		break;
 	case PPB_OUTSW_EPP:
-		outsw(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_write_multi_2(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
 		break;
 	case PPB_OUTSL_EPP:
-		outsl(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_write_multi_4(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
 		break;
 	case PPB_INSB_EPP:
-		insb(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_read_multi_1(ppc->bst, ppc->bsh, PPC_EPP_DATA, addr, cnt);
 		break;
 	case PPB_INSW_EPP:
-		insw(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_read_multi_2(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int16_t *)addr, cnt);
 		break;
 	case PPB_INSL_EPP:
-		insl(ppc->ppc_base + PPC_EPP_DATA, addr, cnt);
+	    bus_space_read_multi_4(ppc->bst, ppc->bsh, PPC_EPP_DATA, (u_int32_t *)addr, cnt);
 		break;
 	case PPB_RDTR:
 		return (r_dtr(ppc));
