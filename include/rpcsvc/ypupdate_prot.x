@@ -34,10 +34,8 @@
 %
 %/* from @(#)ypupdate_prot.x	1.3 91/03/11 TIRPC 1.0 */
 #ifndef RPC_HDR
-%#ifndef lint
-%static const char rcsid[] =
-%  "$FreeBSD$";
-%#endif
+%#include <sys/cdefs.h>
+%__FBSDID("$FreeBSD$");
 #endif
 %
 %/*

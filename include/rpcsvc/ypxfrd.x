@@ -65,10 +65,8 @@
  */
 
 #ifndef RPC_HDR
-%#ifndef lint
-%static const char rcsid[] =
-%  "$FreeBSD$";
-%#endif /* not lint */
+%#include <sys/cdefs.h>
+%__FBSDID("$FreeBSD$");
 #endif
 
 /* XXX cribbed from yp.x */
