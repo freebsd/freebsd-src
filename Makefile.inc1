@@ -126,10 +126,14 @@ MAKEOBJDIRPREFIX?=	/usr/obj
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == ${MACHINE_ARCH}
 TARGET?=	${MACHINE}
-TARGET_CPUTYPE?=	${CPUTYPE}
+TARGET_CPUTYPE?=${CPUTYPE}
 .else
 TARGET?=	${TARGET_ARCH}
 TARGET_CPUTYPE?=
+.endif
+_CPUTYPE!=	cd ${.CURDIR}; ${MAKE} CPUTYPE=${TARGET_CPUTYPE} -V CPUTYPE
+.if ${_CPUTYPE} != ${TARGET_CPUTYPE}
+.error CPUTYPE global should be set with ?=.
 .endif
 .if make(buildworld)
 BUILD_ARCH!=	sysctl -n hw.machine_arch
@@ -175,6 +179,7 @@ INSTALLTMP!=	/usr/bin/mktemp -d -u -t install
 CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		MACHINE_ARCH=${TARGET_ARCH} \
 		MACHINE=${TARGET} \
+		CPUTYPE=${TARGET_CPUTYPE} \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
 		GROFF_BIN_PATH=${WORLDTMP}/usr/bin \
 		GROFF_FONT_PATH=${WORLDTMP}/usr/share/groff_font \
@@ -476,7 +481,7 @@ buildkernel:
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KRNLSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} -DBOOTSTRAPPING -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
+	    ${MAKE} -DNO_CPU_CFLAGS -f ${KRNLSRCDIR}/dev/aic7xxx/aicasm/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} ${MAKE} KERNEL=${INSTKERNNAME} depend
