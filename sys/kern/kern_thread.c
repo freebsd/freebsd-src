@@ -1242,7 +1242,9 @@ thread_exit(void)
 		PROC_UNLOCK(p);
 		td->td_kse	= NULL;
 		td->td_state	= TDS_INACTIVE;
+#if 0
 		td->td_proc	= NULL;
+#endif
 		td->td_ksegrp	= NULL;
 		td->td_last_kse	= NULL;
 		PCPU_SET(deadthread, td);
@@ -1395,13 +1397,6 @@ thread_alloc_spare(struct thread *td, struct thread *spare)
 	bzero(&spare->td_startzero,
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
 	spare->td_proc = td->td_proc;
-	/* Setup PCB and fork address */
-	cpu_set_upcall(spare, td->td_pcb);
-	/*
-	 * XXXKSE do we really need this? (default values for the
-	 * frame).
-	 */
-	bcopy(td->td_frame, spare->td_frame, sizeof(struct trapframe));
 	spare->td_ucred = crhold(td->td_ucred);
 }
 
@@ -1433,6 +1428,9 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ku->ku_ksegrp);
+	/* inherit blocked thread's context */
+	bcopy(td->td_frame, td2->td_frame, sizeof(struct trapframe));
+	cpu_set_upcall(td2, td->td_pcb);
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
