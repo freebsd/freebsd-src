@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.14 1997/02/25 14:05:06 brian Exp $
+ * $Id: os.c,v 1.15 1997/04/15 00:03:36 brian Exp $
  *
  */
 #include "fsm.h"
@@ -293,6 +293,11 @@ int *ptun;
     return(-1);
   }
   *ptun = unit;
+
+  if (logptr != NULL)
+    LogClose();
+  if (LogOpen(unit))
+    return(-1);
 
   /*
    * At first, name the interface.
