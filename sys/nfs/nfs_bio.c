@@ -34,12 +34,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.4 1994/08/08 09:11:41 davidg Exp $
+ * $Id: nfs_bio.c,v 1.5 1994/08/18 22:35:35 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/resourcevar.h>
+#include <sys/signalvar.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
@@ -118,20 +119,24 @@ nfs_bioread(vp, uio, ioflag, cred)
 		if (np->n_flag & NMODIFIED) {
 			if ((nmp->nm_flag & NFSMNT_MYWRITE) == 0 ||
 			     vp->v_type != VREG) {
-				if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+				if (error)
 					return (error);
 			}
 			np->n_attrstamp = 0;
 			np->n_direofoffset = 0;
-			if (error = VOP_GETATTR(vp, &vattr, cred, p))
+			error = VOP_GETATTR(vp, &vattr, cred, p);
+			if (error)
 				return (error);
 			np->n_mtime = vattr.va_mtime.ts_sec;
 		} else {
-			if (error = VOP_GETATTR(vp, &vattr, cred, p))
+			error = VOP_GETATTR(vp, &vattr, cred, p);
+			if (error)
 				return (error);
 			if (np->n_mtime != vattr.va_mtime.ts_sec) {
 				np->n_direofoffset = 0;
-				if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+				if (error)
 					return (error);
 				np->n_mtime = vattr.va_mtime.ts_sec;
 			}
@@ -156,14 +161,16 @@ nfs_bioread(vp, uio, ioflag, cred)
 			    np->n_direofoffset = 0;
 			    cache_purge(vp);
 			}
-			if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+			error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+			if (error)
 			    return (error);
 			np->n_brev = np->n_lrev;
 		    }
 		} else if (vp->v_type == VDIR && (np->n_flag & NMODIFIED)) {
 		    np->n_direofoffset = 0;
 		    cache_purge(vp);
-		    if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+		    error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+		    if (error)
 			return (error);
 		}
 	    }
@@ -177,6 +184,10 @@ nfs_bioread(vp, uio, ioflag, cred)
 			break;
 		case VDIR:
 			error = nfs_readdirrpc(vp, uio, cred);
+			break;
+		default:
+			printf(" NQNFSNONCACHE: type %x unexpected\n",	
+				vp->v_type);
 			break;
 		};
 		return (error);
@@ -232,7 +243,8 @@ again:
 			if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 				bp->b_flags |= B_READ;
 				not_readin = 0;
-				if (error = nfs_doio(bp, cred, p)) {
+				error = nfs_doio(bp, cred, p);
+				if (error) {
 				    brelse(bp);
 				    return (error);
 				}
@@ -273,7 +285,8 @@ again:
 			return (EINTR);
 		if ((bp->b_flags & B_DONE) == 0) {
 			bp->b_flags |= B_READ;
-			if (error = nfs_doio(bp, cred, p)) {
+			error = nfs_doio(bp, cred, p);
+			if (error) {
 				brelse(bp);
 				return (error);
 			}
@@ -290,7 +303,8 @@ again:
 			return (EINTR);
 		if ((bp->b_flags & B_DONE) == 0) {
 			bp->b_flags |= B_READ;
-			if (error = nfs_doio(bp, cred, p)) {
+			error = nfs_doio(bp, cred, p);
+			if (error) {
 				brelse(bp);
 				return (error);
 			}
@@ -320,6 +334,9 @@ again:
 		n = min(uio->uio_resid, NFS_DIRBLKSIZ - bp->b_resid);
 		got_buf = 1;
 		break;
+	    default:
+		printf(" nfsbioread: type %x unexpected\n",vp->v_type);
+		break;
 	    };
 
 	    if (n > 0) {
@@ -336,7 +353,10 @@ again:
 	    case VDIR:
 		uio->uio_offset = bp->b_blkno;
 		break;
-	    };
+	    default:
+		printf(" nfsbioread: type %x unexpected\n",vp->v_type);
+		break;
+	    }
 	    if (got_buf)
 		brelse(bp);
 	} while (error == 0 && uio->uio_resid > 0 && n > 0);
@@ -383,12 +403,14 @@ nfs_write(ap)
 	if (ioflag & (IO_APPEND | IO_SYNC)) {
 		if (np->n_flag & NMODIFIED) {
 			np->n_attrstamp = 0;
-			if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+			error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+			if (error)
 				return (error);
 		}
 		if (ioflag & IO_APPEND) {
 			np->n_attrstamp = 0;
-			if (error = VOP_GETATTR(vp, &vattr, cred, p))
+			error = VOP_GETATTR(vp, &vattr, cred, p);
+			if (error)
 				return (error);
 			uio->uio_offset = np->n_size;
 		}
@@ -428,7 +450,8 @@ nfs_write(ap)
 				return (error);
 			if (np->n_lrev != np->n_brev ||
 			    (np->n_flag & NQNFSNONCACHE)) {
-				if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+				if (error)
 					return (error);
 				np->n_brev = np->n_lrev;
 			}
@@ -483,13 +506,15 @@ again:
 			if (np->n_lrev != np->n_brev ||
 			    (np->n_flag & NQNFSNONCACHE)) {
 				brelse(bp);
-				if (error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1))
+				error = nfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
+				if (error)
 					return (error);
 				np->n_brev = np->n_lrev;
 				goto again;
 			}
 		}
-		if (error = uiomove((char *)bp->b_data + on, n, uio)) {
+		error = uiomove((char *)bp->b_data + on, n, uio);
+		if (error) {
 			bp->b_flags |= B_ERROR;
 			brelse(bp);
 			return (error);
@@ -522,7 +547,8 @@ again:
 		 */
 		if ((np->n_flag & NQNFSNONCACHE) || (ioflag & IO_SYNC)) {
 			bp->b_proc = p;
-			if (error = VOP_BWRITE(bp))
+			error = VOP_BWRITE(bp);
+			if (error)
 				return (error);
 		} else if ((n + on) == biosize &&
 			(nmp->nm_flag & NFSMNT_NQNFS) == 0) {
@@ -666,7 +692,7 @@ nfs_asyncio(bp, cred)
 int
 nfs_doio(bp, cr, p)
 	register struct buf *bp;
-	struct cred *cr;
+	struct ucred *cr;
 	struct proc *p;
 {
 	register struct uio *uiop;
@@ -747,6 +773,9 @@ nfs_doio(bp, cr, p)
 		 * Save offset cookie in b_blkno.
 		 */
 		bp->b_blkno = uiop->uio_offset;
+		break;
+	    default:
+		printf("nfs_doio:  type %x unexpected\n",vp->v_type);
 		break;
 	    };
 	    if (error) {

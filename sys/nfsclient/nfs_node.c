@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.3 1994/08/02 07:52:06 davidg Exp $
+ * $Id: nfs_node.c,v 1.4 1994/08/10 19:48:23 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -123,7 +123,8 @@ loop:
 		*npp = np;
 		return(0);
 	}
-	if (error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp)) {
+	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
+	if (error) {
 		*npp = 0;
 		return (error);
 	}
@@ -135,7 +136,8 @@ loop:
 	 * Insert the nfsnode in the hash queue for its new file handle
 	 */
 	np->n_flag = 0;
-	if (nq = *nhpp)
+	nq = *nhpp;
+	if (nq)
 		nq->n_back = &np->n_forw;
 	np->n_forw = nq;
 	np->n_back = nhpp;
@@ -210,7 +212,8 @@ nfs_reclaim(ap)
 	/*
 	 * Remove the nfsnode from its hash chain.
 	 */
-	if (nq = np->n_forw)
+	nq = np->n_forw;
+	if (nq)
 		nq->n_back = np->n_back;
 	*np->n_back = nq;
 

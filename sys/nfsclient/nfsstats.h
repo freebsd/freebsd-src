@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.3 1994/08/04 06:03:46 davidg Exp $
+ * $Id: nfs.h,v 1.4 1994/08/21 06:50:08 paul Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -291,7 +291,7 @@ struct nfsd {
 	int		nd_repstat;	/* Reply status value */
 	struct ucred	nd_cr;		/* Credentials for req. */
 	int		nd_nqlflag;	/* Leasing flag */
-	int		nd_duration;	/* Lease duration */
+	u_long		nd_duration;	/* Lease duration */
 	int		nd_authlen;	/* Authenticator len */
 	u_char		nd_authstr[RPCAUTH_MAXSIZ]; /* Authenticator data */
 	struct proc	*nd_procp;	/* Proc ptr */
@@ -302,6 +302,53 @@ struct nfsd {
 #define	NFSD_REQINPROG	0x04
 #define	NFSD_NEEDAUTH	0x08
 #define	NFSD_AUTHFAIL	0x10
+
+int	nfs_reply __P((struct nfsreq *));
+int	nfs_getreq __P((struct nfsd *,int));
+int	nfs_send __P((struct socket *,struct mbuf *,struct mbuf *,struct nfsreq *));
+int	nfs_rephead __P((int,struct nfsd *,int,int,u_quad_t *,struct mbuf **,struct mbuf **,caddr_t *));
+int	nfs_sndlock __P((int *,struct nfsreq *));
+int	nfs_disct __P((struct mbuf **,caddr_t *,int,int,caddr_t *));
+int	nfs_vinvalbuf __P((struct vnode *,int,struct ucred *,struct proc *,int));
+int	nfs_readrpc __P((struct vnode *,struct uio *,struct ucred *));
+int	nfs_writerpc __P((struct vnode *,struct uio *,struct ucred *,int));
+int	nfs_readdirrpc __P((register struct vnode *,struct uio *,struct ucred *));
+int	nfs_asyncio __P((struct buf *,struct ucred *));
+int	nfs_doio __P((struct buf *,struct ucred *,struct proc *));
+int	nfs_readlinkrpc __P((struct vnode *,struct uio *,struct ucred *));
+int	nfs_sigintr __P((struct nfsmount *,struct nfsreq *r,struct proc *));
+int	nfs_readdirlookrpc __P((struct vnode *,register struct uio *,struct ucred *));
+int	nfsm_disct __P((struct mbuf **,caddr_t *,int,int,caddr_t *));
+int	nfsrv_fhtovp __P((fhandle_t *,int,struct vnode **,struct ucred *,struct nfssvc_sock *,struct mbuf *,int *));
+int	nfsrv_access __P((struct vnode *,int,struct ucred *,int,struct proc *));
+int	netaddr_match __P((int,union nethostaddr *,struct mbuf *));
+int	nfs_request __P((struct vnode *,struct mbuf *,int,struct proc *,struct ucred *,struct mbuf **,struct mbuf **,caddr_t *));
+int	nfs_loadattrcache __P((struct vnode **,struct mbuf **,caddr_t *,struct vattr *));
+int	nfs_namei __P((struct nameidata *,fhandle_t *,int,struct nfssvc_sock *,struct mbuf *,struct mbuf **,caddr_t *,struct proc *));
+void	nfsm_adj __P((struct mbuf *,int,int));
+int	nfsm_mbuftouio __P((struct mbuf **,struct uio *,int,caddr_t *));
+void	nfsrv_initcache __P((void));
+int	nfs_rcvlock __P((struct nfsreq *));
+int	nfs_getauth __P((struct nfsmount *,struct nfsreq *,struct ucred *,int *,char **,int *));
+int	nfs_msg __P((struct proc *,char *,char *));
+int	nfs_adv __P((struct mbuf **,caddr_t *,int,int));
+int	nfsrv_getstream __P((struct nfssvc_sock *,int));
+void	nfs_nhinit __P((void));
+void	nfs_timer __P((void*));
+struct nfsnode ** nfs_hash __P((nfsv2fh_t *));
+int	nfssvc_iod __P((struct proc *));
+int	nfssvc_nfsd __P((struct nfsd_srvargs *,caddr_t,struct proc *));
+int	nfssvc_addsock __P((struct file *,struct mbuf *));
+int	nfsrv_dorec __P((struct nfssvc_sock *,struct nfsd *));
+int	nfsrv_getcache __P((struct mbuf *,struct nfsd *,struct mbuf **));
+void	nfsrv_updatecache __P((struct mbuf *,struct nfsd *,int,struct mbuf *));
+int	mountnfs __P((struct nfs_args *,struct mount *,struct mbuf *,char *,char *,struct vnode **));
+int	nfs_connect __P((struct nfsmount *,struct nfsreq *));
+int	nfs_getattrcache __P((struct vnode *,struct vattr *));
+int	nfsm_strtmbuf __P((struct mbuf **,char **,char *,long));
+int	nfs_bioread __P((struct vnode *,struct uio *,int,struct ucred *));
+int	nfsm_uiotombuf __P((struct uio *,struct mbuf **,int,caddr_t *));
+void	nfsrv_init __P((int));
 #endif	/* KERNEL */
 
 #endif

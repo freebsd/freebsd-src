@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id$
+ * $Id: nfs_socket.c,v 1.3 1994/08/02 07:52:11 davidg Exp $
  */
 
 /*
@@ -228,8 +228,9 @@ nfs_connect(nmp, rep)
 
 	nmp->nm_so = (struct socket *)0;
 	saddr = mtod(nmp->nm_nam, struct sockaddr *);
-	if (error = socreate(saddr->sa_family,
-		&nmp->nm_so, nmp->nm_sotype, nmp->nm_soproto))
+	error = socreate(saddr->sa_family, &nmp->nm_so, nmp->nm_sotype, 
+		nmp->nm_soproto);
+	if (error)
 		goto bad;
 	so = nmp->nm_so;
 	nmp->nm_soflags = so->so_proto->pr_flags;
@@ -263,7 +264,8 @@ nfs_connect(nmp, rep)
 			goto bad;
 		}
 	} else {
-		if (error = soconnect(so, nmp->nm_nam))
+		error = soconnect(so, nmp->nm_nam);
+		if (error)
 			goto bad;
 
 		/*
@@ -324,7 +326,8 @@ nfs_connect(nmp, rep)
 		rcvreserve = (nmp->nm_rsize + NFS_MAXPKTHDR + sizeof (u_long))
 				* 2;
 	}
-	if (error = soreserve(so, sndreserve, rcvreserve))
+	error = soreserve(so, sndreserve, rcvreserve);
+	if (error)
 		goto bad;
 	so->so_rcv.sb_flags |= SB_NOINTR;
 	so->so_snd.sb_flags |= SB_NOINTR;
@@ -362,7 +365,7 @@ nfs_reconnect(rep)
 	int error;
 
 	nfs_disconnect(nmp);
-	while (error = nfs_connect(nmp, rep)) {
+	while ((error = nfs_connect(nmp, rep))) {
 		if (error == EINTR || error == ERESTART)
 			return (EINTR);
 		(void) tsleep((caddr_t)&lbolt, PSOCK, "nfscon", 0);
@@ -511,7 +514,8 @@ nfs_receive(rep, aname, mp)
 	 * until we have an entire rpc request/reply.
 	 */
 	if (sotype != SOCK_DGRAM) {
-		if (error = nfs_sndlock(&rep->r_nmp->nm_flag, rep))
+		error = nfs_sndlock(&rep->r_nmp->nm_flag, rep);
+		if (error)
 			return (error);
 tryagain:
 		/*
@@ -527,8 +531,10 @@ tryagain:
 			nfs_sndunlock(&rep->r_nmp->nm_flag);
 			return (EINTR);
 		}
-		if ((so = rep->r_nmp->nm_so) == NULL) {
-			if (error = nfs_reconnect(rep)) {
+		so = rep->r_nmp->nm_so;
+		if (!so) {
+			error = nfs_reconnect(rep); 
+			if (error) {
 				nfs_sndunlock(&rep->r_nmp->nm_flag);
 				return (error);
 			}
@@ -537,7 +543,8 @@ tryagain:
 		while (rep->r_flags & R_MUSTRESEND) {
 			m = m_copym(rep->r_mreq, 0, M_COPYALL, M_WAIT);
 			nfsstats.rpcretries++;
-			if (error = nfs_send(so, rep->r_nmp->nm_nam, m, rep)) {
+			error = nfs_send(so, rep->r_nmp->nm_nam, m, rep);
+			if (error) {
 				if (error == EINTR || error == ERESTART ||
 				    (error = nfs_reconnect(rep))) {
 					nfs_sndunlock(&rep->r_nmp->nm_flag);
@@ -708,7 +715,8 @@ nfs_reply(myrep)
 		 * Also necessary for connection based protocols to avoid
 		 * race conditions during a reconnect.
 		 */
-		if (error = nfs_rcvlock(myrep))
+		error = nfs_rcvlock(myrep);
+		if (error)
 			return (error);
 		/* Already received, bye bye */
 		if (myrep->r_mrep != NULL) {
@@ -1236,7 +1244,7 @@ nfs_rephead(siz, nd, err, cache, frev, mrq, mbp, bposp)
  */
 void
 nfs_timer(arg)
-	void *arg;
+	void *arg;	/* never used */
 {
 	register struct nfsreq *rep;
 	register struct mbuf *m;
@@ -1620,7 +1628,8 @@ nfsrv_rcv(so, arg, waitflag)
 		/*
 		 * Now try and parse record(s) out of the raw stream data.
 		 */
-		if (error = nfsrv_getstream(slp, waitflag)) {
+		error = nfsrv_getstream(slp, waitflag);
+		if (error) {
 			if (error == EPERM)
 				slp->ns_flag |= SLP_DISCONN;
 			else
@@ -1786,7 +1795,8 @@ nfsrv_dorec(slp, nd)
 	if ((slp->ns_flag & SLP_VALID) == 0 ||
 	    (m = slp->ns_rec) == (struct mbuf *)0)
 		return (ENOBUFS);
-	if (slp->ns_rec = m->m_nextpkt)
+	slp->ns_rec = m->m_nextpkt;
+	if (slp->ns_rec)
 		m->m_nextpkt = (struct mbuf *)0;
 	else
 		slp->ns_recend = (struct mbuf *)0;
@@ -1799,7 +1809,8 @@ nfsrv_dorec(slp, nd)
 		nd->nd_md = nd->nd_mrep = m;
 	}
 	nd->nd_dpos = mtod(nd->nd_md, caddr_t);
-	if (error = nfs_getreq(nd, TRUE)) {
+	error = nfs_getreq(nd, TRUE);
+	if (error) {
 		m_freem(nd->nd_nam);
 		return (error);
 	}
