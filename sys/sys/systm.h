@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.39 1996/05/08 04:29:01 gpalmer Exp $
+ * $Id: systm.h,v 1.40 1996/07/01 18:12:13 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -117,6 +117,7 @@ void	*phashinit __P((int count, int type, u_long *nentries));
 
 __dead void	panic __P((const char *, ...)) __dead2;
 __dead void	boot __P((int)) __dead2;
+__dead void	cpu_boot __P((int)) __dead2;
 void	tablefull __P((const char *));
 int	addlog __P((const char *, ...));
 int	kvprintf __P((char const *, void (*)(int, void*), void *, int, va_list));
@@ -187,5 +188,21 @@ typedef timeout_t *timeout_func_t; /* a pointer to this type */
 void timeout(timeout_func_t, void *, int);
 void untimeout(timeout_func_t, void *);
 void	logwakeup __P((void));
+
+/* Various other callout lists that modules might want to know about */
+/* shutdown */
+typedef void (*bootlist_fn)(int,void *);
+int at_shutdown(bootlist_fn function, void *arg);
+int rm_at_shutdown(bootlist_fn function, void *arg);
+
+/* forking */ /* XXX not yet */
+typedef void (*forklist_fn)(struct proc *parent,struct proc *child,int flags);
+int at_fork(forklist_fn function);
+int rm_at_fork(forklist_fn function);
+
+/* exiting */
+typedef void (*exitlist_fn)(struct proc *procp);
+int at_exit(exitlist_fn function);
+int rm_at_exit(exitlist_fn function);
 
 #endif /* !_SYS_SYSTM_H_ */
