@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.10 1996/04/06 13:34:36 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vfsops.c,v 1.11 1996/04/07 01:15:02 joerg Exp $
  *
  *
  */
@@ -103,7 +103,6 @@ static int
 mountdevfs( struct mount *mp, struct proc *p)
 {
 	int error = 0;
-	int ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	struct devfsmount *devfs_mp_p;
 
 
@@ -144,8 +143,6 @@ DBPRINT(("start "));
 static int
 devfs_unmount( struct mount *mp, int mntflags, struct proc *p)
 {
-	int flags = 0;
-	int error = 0;
 	struct devfsmount *devfs_mp_p = (struct devfsmount *)mp->mnt_data;
 
 DBPRINT(("unmount "));
@@ -153,7 +150,8 @@ DBPRINT(("unmount "));
 	free((caddr_t)devfs_mp_p, M_DEVFSMNT);
 	mp->mnt_data = (qaddr_t)0;
 	mp->mnt_flag &= ~MNT_LOCAL;
-	return error;
+
+	return 0;
 }
 
 /* return the address of the root vnode  in *vpp */
