@@ -1730,7 +1730,7 @@ siointr(arg)
 #endif /* COM_MULTIPORT */
 }
 
-static struct timespec siots[8192];
+static struct timespec siots[8];
 static int siotso;
 static int volatile siotsunit = -1;
 
@@ -1740,17 +1740,17 @@ sysctl_siots(SYSCTL_HANDLER_ARGS)
 	char buf[128];
 	long long delta;
 	size_t len;
-	int error, i;
+	int error, i, tso;
 
-	for (i = 1; i < siotso; i++) {
+	for (i = 1, tso = siotso; i < tso; i++) {
 		delta = (long long)(siots[i].tv_sec - siots[i - 1].tv_sec) *
 		    1000000000 +
 		    (siots[i].tv_nsec - siots[i - 1].tv_nsec);
 		len = sprintf(buf, "%lld\n", delta);
 		if (delta >= 110000)
 			len += sprintf(buf + len - 1, ": *** %ld.%09ld\n",
-			    (long)siots[i].tv_sec, siots[i].tv_nsec);
-		if (i == siotso - 1)
+			    (long)siots[i].tv_sec, siots[i].tv_nsec) - 1;
+		if (i == tso - 1)
 			buf[len - 1] = '\0';
 		error = SYSCTL_OUT(req, buf, len);
 		if (error != 0)
@@ -1922,11 +1922,9 @@ cont:
 			} else {
 				outb(com->data_port, *ioptr++);
 				++com->bytes_out;
-				if (com->unit == siotsunit) {
-					nanouptime(&siots[siotso]);
-					siotso = (siotso + 1) %
-					    (sizeof siots / sizeof siots[0]);
-				}
+				if (com->unit == siotsunit
+				    && siotso < sizeof siots / sizeof siots[0])
+					nanouptime(&siots[siotso++]);
 			}
 			com->obufq.l_head = ioptr;
 			if (COM_IIR_TXRDYBUG(com->flags))
