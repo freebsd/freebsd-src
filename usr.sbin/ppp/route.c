@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.23 1998/05/06 00:38:55 brian Exp $
+ * $Id: route.c,v 1.42.2.24 1998/05/06 23:50:19 brian Exp $
  *
  */
 
@@ -457,8 +457,6 @@ route_Change(struct bundle *bundle, struct sticky_route *r,
         r->gw = peer;
     } else if ((r->type & ROUTE_GWHISADDR) && r->gw.s_addr != peer.s_addr)
       r->gw = peer;
-    else
-      continue;
     bundle_SetRoute(bundle, RTM_ADD, r->dst, r->gw, r->mask, 1);
   }
 }
