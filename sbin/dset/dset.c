@@ -49,10 +49,7 @@ struct nlist    nl[] = {
 #define N_TABLAST	N_TABNULL
 
 struct nlist    nlk[] = {
-	{"_isa_devtab_tty"},
-	{"_isa_devtab_bio"},
-	{"_isa_devtab_net"},
-	{"_isa_devtab_null"},
+	{"_isa_devlist"},
 	"",
 };
 
@@ -94,9 +91,9 @@ main(ac, av)
 	char          **av;
 {
 	int             f, res, s;
-	int             modified;
+	int             modified,dev_found;
 	int             sym;
-	u_long          pos, entry, pos1;
+	u_long          pos, entry, pos1, pos_t;
 	u_long          flags;
 	struct isa_device buf, buf1;
 	struct isa_driver dbuf;
@@ -170,40 +167,57 @@ main(ac, av)
 			printf("\nTable: %s\n", nl[sym].n_name);
 		pos = nl[sym].n_value + NBPG - entry;
 
-		pos1 = nlk[sym].n_value;
+		pos1 = nlk[0].n_value;
 
 		if (lseek(f, pos, SEEK_SET) != pos)
 			fatal("seek", NULL);
 
+		if (verbose)
+			printf("----------------------------------------------------\n");
+
 		do {
-			if (verbose)
-				printf("----------------------------------------------------\n");
-			if (kvm_read(kd, pos1, &buf1, sizeof(struct isa_device)) < 0)
-				fatal("kvmread", NULL);
-
-			if (buf1.id_id)
-				if (buf1.id_driver)
-					if (kvm_read(kd, (u_long) buf1.id_driver,
-						     &dbuf, sizeof(struct isa_driver)) < 0) {
-						error("kvm_read", "no driver");
-					} else {
-						if (kvm_read(kd, (u_long) dbuf.name,
-						  nbuf, sizeof(nbuf)) < 0) {
-							error("kvm_read", NULL);
-						} else {
-							nbuf[sizeof(nbuf) - 1] = 0;
-							if (verbose)
-								printf("Device: %s%d\n", nbuf, buf1.id_unit);
-						}
-					}
-				else
-					error("kvm_read", "no driver");
-
-			pos1 += sizeof(struct isa_device);
-
 			if ((res = read(f, (char *) &buf, sizeof(struct isa_device)))
 			    <= 0)
 				fatal("read", NULL);
+
+
+
+		if (kvm_read(kd, pos1, &pos_t, sizeof(u_long)) < 0)
+			fatal("kvmread", NULL);
+		dev_found = 0;
+
+		while(pos_t!=NULL) {	
+			if (kvm_read(kd, pos_t, &buf1, sizeof(struct isa_device)) < 0)
+				fatal("kvmread", NULL);
+
+			if (buf1.id_id !=buf.id_id) {
+				pos_t = (u_long)(buf1.id_next);
+				continue;
+			} else
+				dev_found=1;
+
+			if (buf1.id_driver)
+				if (kvm_read(kd, (u_long) buf1.id_driver,
+					     &dbuf, sizeof(struct isa_driver)) < 0) {
+					error("kvm_read", "no driver");
+				} else {
+					if (kvm_read(kd, (u_long) dbuf.name,
+					  nbuf, sizeof(nbuf)) < 0) {
+						error("kvm_read", NULL);
+					} else {
+						nbuf[sizeof(nbuf) - 1] = 0;
+						if (verbose)
+							printf("Device: %s%d\n", nbuf, buf1.id_unit);
+					}
+				}
+			else
+				error("kvm_read", "no driver");
+			break;
+
+		};
+
+		if (!dev_found)
+			continue;
 
 			if (buf1.id_id != 0)
 				if (verbose)
@@ -221,30 +235,26 @@ main(ac, av)
 			 */
 			modified = FALSE;
 
-			if (buf.id_id != buf1.id_id) {
-				fprintf(stderr, "IDs don't match.  Aborting\n");
-				exit(1);
-			}
-			if (buf.id_iobase != 0xFFFFFFFF && buf.id_iobase !=
+			if (buf.id_iobase != -1 && buf.id_iobase !=
 			    buf1.id_iobase) {
 				if (verbose)
 					printf("Setting IO addr\n");
 				buf.id_iobase = buf1.id_iobase;
 				modified = TRUE;
 			}
-			if (buf.id_irq != buf1.id_irq) {
+			if (buf.id_irq != (u_short)-1 && buf.id_irq != buf1.id_irq) {
 				if (verbose)
 					printf("Setting IRQ\n");
 				buf.id_irq = buf1.id_irq;
 				modified = TRUE;
 			}
-			if (buf.id_drq != buf1.id_drq) {
+			if (buf.id_drq != -1 && buf.id_drq != buf1.id_drq) {
 				if (verbose)
 					printf("Setting DRQ\n");
 				buf.id_drq = buf1.id_drq;
 				modified = TRUE;
 			}
-			if (buf.id_maddr != buf1.id_maddr) {
+			if (buf.id_maddr != (caddr_t)-1 && buf.id_maddr != buf1.id_maddr) {
 				if (verbose)
 					printf("Setting memory addres\n");
 				buf.id_maddr = buf1.id_maddr;
@@ -262,6 +272,8 @@ main(ac, av)
 				buf.id_enabled = buf1.id_enabled;
 				modified = TRUE;
 			}
+			if (verbose)
+				printf("----------------------------------------------------\n");
 			if (modified && !testonly) {
 
 				res = lseek(f, -(off_t) sizeof(struct isa_device),
