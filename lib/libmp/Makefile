@@ -7,6 +7,6 @@ INCS=		mp.h
 SRCS=		mpasbn.c
 
 WARNS?=		2
-CFLAGS+=	-ansi -pedantic
+CFLAGS+=	-I${.CURDIR}/../../crypto
 
 .include <bsd.lib.mk>
