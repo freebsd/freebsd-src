@@ -3707,7 +3707,7 @@ extattrctl(p, uap)
 	 */
 	filename_vp = NULL;
 	if (SCARG(uap, filename) != NULL) {
-		NDINIT(&nd, LOOKUP | LOCKLEAF, FOLLOW, UIO_USERSPACE,
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
 		    SCARG(uap, filename), p);
 		if ((error = namei(&nd)) != 0)
 			return (error);
