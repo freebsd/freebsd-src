@@ -87,7 +87,7 @@ d_open_t  ufmopen;
 d_close_t ufmclose;
 d_ioctl_t ufmioctl;
 
-#define UFM_CDEV_MAJOR	200
+#define UFM_CDEV_MAJOR	MAJOR_AUTO
 
 Static struct cdevsw ufm_cdevsw = {
 	ufmopen,	ufmclose,	noread,		nowrite,
