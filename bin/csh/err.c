@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)err.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: err.c,v 1.4 1997/02/22 14:01:48 peter Exp $";
+	"$Id: err.c,v 1.5 1997/08/07 21:42:06 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -310,7 +310,7 @@ seterror(id, va_alist)
 #endif
 	if (id < 0 || id > sizeof(errorlist) / sizeof(errorlist[0]))
 	    id = ERR_INVALID;
-	vsprintf(berr, errorlist[id], va);
+	vsnprintf(berr, sizeof(berr), errorlist[id], va);
 	va_end(va);
 
 	seterr = strsave(berr);
