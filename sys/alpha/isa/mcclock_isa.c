@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: mcclock_isa.c,v 1.1 1998/07/15 19:21:31 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -37,6 +37,7 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 
+#include <isa/isavar.h>
 #include <machine/clockvar.h>
 #include <dev/dec/mcclockvar.h>
 
@@ -76,6 +77,7 @@ static devclass_t mcclock_devclass;
 int
 mcclock_isa_probe(device_t dev)
 {
+	isa_set_portsize(dev, 2);
 	device_set_desc(dev, "MC146818A real time clock");
 	return 0;
 }
@@ -90,16 +92,17 @@ mcclock_isa_attach(device_t dev)
 static void
 mcclock_isa_write(device_t dev, u_int reg, u_int val)
 {
-	outb(0x70, reg);
-	outb(0x71, val);
+	u_int port = isa_get_port(dev);
+	outb(port, reg);
+	outb(port+1, val);
 }
 
 static u_int
 mcclock_isa_read(device_t dev, u_int reg)
 {
-	outb(0x70, reg);
-	return inb(0x71);
+	u_int port = isa_get_port(dev);
+	outb(port, reg);
+	return inb(port+1);
 }
 
-/* XXX put it on the root for now, later on isa */
-DRIVER_MODULE(mcclock_isa, root, mcclock_isa_driver, mcclock_devclass, 0, 0);
+DRIVER_MODULE(mcclock_isa, isa, mcclock_isa_driver, mcclock_devclass, 0, 0);
