@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tunefs.c	8.2 (Berkeley) 4/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: tunefs.c,v 1.6 1998/08/03 06:41:20 charnier Exp $";
+	"$Id: tunefs.c,v 1.7 1999/01/20 01:22:39 luoqi Exp $";
 #endif /* not lint */
 
 /*
@@ -103,7 +103,8 @@ main(argc, argv)
 	special = argv[argc - 1];
 	fs = getfsfile(special);
 	if (fs) {
-		if (statfs(special, &stfs) == 0) {
+		if (statfs(special, &stfs) == 0 &&
+		    strcmp(special, stfs.f_mntonname) == 0) {
 		    	if ((stfs.f_flags & MNT_RDONLY) == 0) {
 				errx(1, "cannot work on read-write mounted file system");
 			}
