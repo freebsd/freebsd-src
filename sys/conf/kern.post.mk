@@ -1,4 +1,3 @@
-
 # Part of unified Makefile for building kenrels.  This includes all
 # the definitions that need to be included after all the % directives,
 # except %RULES and things that act like they are part of %RULES
@@ -43,7 +42,7 @@ ${SYSTEM_OBJS}: vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 
 .for mfile in ${MFILES}
 ${mfile:T:S/.m$/.h/}: ${mfile}
-	perl5 $S/kern/makeobjops.pl -h ${mfile}
+	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
 
 kernel-clean:
