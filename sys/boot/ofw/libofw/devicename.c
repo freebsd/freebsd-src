@@ -91,7 +91,7 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
 	if (OF_getprop(handle, "device_type", type, sizeof(type)) == -1)
 	    continue;
 	for (i = 0; (dv = devsw[i]) != NULL; i++) {
-	    if (strncmp(dv->dv_name, type, strlen(type)) == 0)
+	    if (strncmp(dv->dv_name, type, strlen(dv->dv_name)) == 0)
 		goto found;
 	}
     }
