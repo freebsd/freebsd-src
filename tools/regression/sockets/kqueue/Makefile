@@ -3,8 +3,6 @@
 #
 
 PROG=	kqueue
-NOMAN=	yes
-
-kqueue: kqueue.c
+NOMAN=
 
 .include <bsd.prog.mk>
