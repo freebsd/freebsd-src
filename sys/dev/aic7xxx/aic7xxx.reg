@@ -766,7 +766,6 @@ register INTSTAT {
 	mask	SEND_REJECT	0x10|SEQINT	/* sending a message reject */
 	mask	NO_IDENT	0x20|SEQINT	/* no IDENTIFY after reconnect*/
 	mask	NO_MATCH	0x30|SEQINT	/* no cmd match for reconnect */
-	mask	ABORT_REQUESTED 0x50|SEQINT	/* Reconect of aborted SCB */
 	mask	UPDATE_TMSG_REQ	0x60|SEQINT	/* Update TMSG_REQ values */
 	mask	BAD_STATUS	0x70|SEQINT	/* Bad status from target */
 	mask	RESIDUAL	0x80|SEQINT	/* Residual byte count != 0 */
@@ -779,6 +778,11 @@ register INTSTAT {
 						 * like sync/wide negotiation
 						 * that require a kernel based
 						 * message state engine.
+						 */
+	mask	PERR_DETECTED	0xb0|SEQINT	/*
+						 * Either the phase_lock
+						 * or inb_next routine has
+						 * noticed a parity error.
 						 */
 	mask	TRACEPOINT	0xd0|SEQINT
 	mask	MSGIN_PHASEMIS	0xe0|SEQINT	/*
