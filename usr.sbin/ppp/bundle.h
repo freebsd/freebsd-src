@@ -23,20 +23,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.1 1998/02/02 19:32:02 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.2 1998/02/02 19:33:01 brian Exp $
  */
 
 struct bundle {
-  int unit;
-  int ifIndex;
-  int tun_fd;
-  char dev[20];
-  char *ifname;
-  int routing_seq;
+  int unit;                   /* The tun number */
+  int ifIndex;                /* The interface number */
+  int tun_fd;                 /* The /dev/tunX descriptor */
+  char dev[20];               /* The /dev/tunX name */
+  char *ifname;               /* The interface name */
+  int routing_seq;            /* The current routing sequence number */
 
-  /* These belong at the NCP level */
-  int linkup;
-  struct in_addr if_mine, if_peer;
+  /* These really belong at the NCP level */
+  int linkup;                 /* We've called ppp.linkup */
+  struct in_addr if_mine;     /* My configured interface address */
+  struct in_addr if_peer;     /* My congigured destination address */
 };
 
 extern struct bundle *bundle_Create(const char *dev);
