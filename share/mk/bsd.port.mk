@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.193 1996/02/16 11:19:00 jkh Exp $
+# $Id: bsd.port.mk,v 1.194 1996/03/06 08:08:16 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -35,8 +35,6 @@
 #				  (default: ports@FreeBSD.ORG).
 # CATEGORIES	- A list of descriptive categories into which this port falls
 #				  (default: orphans).
-# KEYWORDS		- A list of descriptive keywords that might index well for this
-#				  port (default: orphans).
 #
 # Variables that typically apply to an individual port.  Non-Boolean
 # variables without defaults are *mandatory*.
@@ -371,7 +369,6 @@ EXTRACT_ONLY?=	${DISTFILES}
 # Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
 CATEGORIES?=	orphans
-KEYWORDS+=		${CATEGORIES}
 
 # Note this has to start with a capital letter (or more accurately, it
 #  shouldn't match "[a-z]*"), see the target "delete-package-links" below.
@@ -1138,6 +1135,14 @@ misc-depends:
 
 .endif
 
+.if !target(depends-list)
+depends-list:
+	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${DEPENDS}; do \
+		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
+		(cd $$dir ; ${MAKE} package-name depends-list); \
+	done
+.endif
+
 ################################################################
 # Everything after here are internal targets and really
 # shouldn't be touched by anybody but the release engineers.
@@ -1147,7 +1152,7 @@ misc-depends:
 # a large index.  Format is:
 #
 # distribution-name|port-path|installation-prefix|comment| \
-#  description-file|maintainer|categories|keywords
+#  description-file|maintainer|categories|build deps|run deps
 #
 .if !target(describe)
 describe:
@@ -1163,7 +1168,10 @@ describe:
 	else \
 		${ECHO} -n "|/dev/null"; \
 	fi
-	@${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|${KEYWORDS}"
+	@${ECHO} -n "|${MAINTAINER}|${CATEGORIES}|"
+	@${ECHO} -n `make depends-list|sort|uniq`
+	@${ECHO} -n "|"
+	@${ECHO} -n `make package-depends|sort|uniq`
 	@${ECHO} ""
 .endif
 
