@@ -138,10 +138,15 @@ main(int argc, char *argv[])
 				continue;
 			}
 			if (shortflag)
-				printf("%s %d:%d ", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
+				printf("%s %d:%d ", names[foo], bar & 0x7f,
+				       (bar >> 8) & 0x7f);
 			else
-				printf("Mixer %-8s is currently set to %3d:%d\n", names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
+				printf("Mixer %-8s is currently set to %3d:%d\n",
+				       names[foo], bar & 0x7f, (bar >> 8) & 0x7f);
 		}
+		if (ioctl(baz, SOUND_MIXER_READ_RECSRC, &recsrc) == -1)
+			err(1, "SOUND_MIXER_READ_RECSRC");
+		print_recsrc(recsrc);
 		return(0);
 	}
 
@@ -217,7 +222,8 @@ main(int argc, char *argv[])
 				continue;
 			}
 			if (shortflag)
-				printf("%s %d:%d ", names[dev], bar & 0x7f, (bar >> 8) & 0x7f);
+				printf("%s %d:%d ", names[dev], bar & 0x7f,
+				       (bar >> 8) & 0x7f);
 			else
 				printf("Mixer %-8s is currently set to %3d:%d\n",
 				  names[dev], bar & 0x7f, (bar >> 8) & 0x7f);
