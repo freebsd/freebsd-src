@@ -90,6 +90,10 @@
 #define		AA_DMMU_VWPR			0x38
 #define		AA_DMMU_PWPR			0x40
 
+#define	ASI_DCACHE_DATA				0x46
+#define	ASI_DCACHE_TAG				0x47
+#define	ASI_ECACHE_TAG_DATA			0x4e
+
 #define	ASI_DMMU_TSB_8KB_PTR_REG		0x59
 #define	ASI_DMMU_TSB_64KB_PTR_REG		0x5a
 #define	ASI_DMMU_TSB_DIRECT_PTR_REG 		0x5b
@@ -98,8 +102,15 @@
 #define	ASI_DTLB_TAG_READ_REG			0x5e
 #define	ASI_DMMU_DEMAP				0x5f
 
+#define	ASI_ICACHE_INSTR			0x66
+#define	ASI_ICACHE_TAG				0x67
+#define	ASI_ICACHE_PRE_DECODE			0x6e
+#define	ASI_ICACHE_PRE_NEXT_FIELD		0x6f
+
 #define	ASI_BLK_AUIP				0x70
 #define	ASI_BLK_AIUS				0x71
+
+#define	ASI_ECACHE_W				0x76
 
 #define	ASI_SDB_INTR_W				0x77
 #define		AA_SDB_INTR_D0			0x40
@@ -109,10 +120,12 @@
 #define	ASI_BLK_AIUPL				0x78
 #define	ASI_BLK_AIUSL				0x79
 
+#define	ASI_ECACHE_R				0x7e
+
 #define	ASI_SDB_INTR_R				0x7f
 
-#define	ASI_BLK_COMMIT_S			0xe0
-#define	ASI_BLK_COMMIT_P			0xe1
+#define	ASI_BLK_COMMIT_P			0xe0
+#define	ASI_BLK_COMMIT_S			0xe1
 #define	ASI_BLK_P				0xf0
 #define	ASI_BLK_S				0xf1
 #define	ASI_BLK_PL				0xf8
