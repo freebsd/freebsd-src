@@ -83,6 +83,8 @@ has been added.
 USB support has been improved.
 
 Major updates to the Vinum volume manager have been incorporated.
+[Though the new RAID-5 features should still be considered
+experimental since they are, well, new].
 
 A number of NFS problems have been fixed.
 
