@@ -31,7 +31,6 @@
  */
 
 #include <stand.h>
-#include <string.h>
 #include <machine/stdarg.h>
 #include <bootstrap.h>
 #include <isapnp.h>
@@ -71,7 +70,7 @@ struct pnp_devNode
     u_int8_t	dn_id[4]	__attribute__ ((packed));
     u_int8_t	dn_type[3]	__attribute__ ((packed));
     u_int16_t	dn_attrib	__attribute__ ((packed));
-    u_int8_t	dn_data[0]	__attribute__ ((packed));
+    u_int8_t	dn_data[1]	__attribute__ ((packed));
 };
 
 struct pnp_isaConfiguration
@@ -87,10 +86,12 @@ static u_int16_t		pnp_NumNodes;
 static u_int16_t		pnp_NodeSize;
 
 static void	biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn);
-static int	biospnp_call(int func, char *fmt, ...);
+static int	biospnp_call(int func, const char *fmt, ...);
 
 #define vsegofs(vptr)	(((u_int32_t)VTOPSEG(vptr) << 16) + VTOPOFF(vptr))
-void	(* v86bios)(u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3) = (void *)v86int;
+
+typedef void    v86bios_t(u_int32_t, u_int32_t, u_int32_t, u_int32_t);
+v86bios_t	*v86bios = (v86bios_t *)v86int;
 
 #define	biospnp_f00(NumNodes, NodeSize)			biospnp_call(0x00, "ll", NumNodes, NodeSize)
 #define biospnp_f01(Node, devNodeBuffer, Control)	biospnp_call(0x01, "llw", Node, devNodeBuffer, Control)
@@ -186,7 +187,7 @@ biospnp_enumerate(void)
 static void
 biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
 {
-    int		tag, i, rlen, dlen;
+    u_int	tag, i, rlen, dlen;
     u_int8_t	*p;
     char	*str;
 
@@ -243,10 +244,10 @@ biospnp_scanresdata(struct pnpinfo *pi, struct pnp_devNode *dn)
  * this evil.
  */
 static int
-biospnp_call(int func, char *fmt, ...)
+biospnp_call(int func, const char *fmt, ...)
 {
     va_list	ap;
-    char	*p;
+    const char	*p;
     u_int8_t	*argp;
     u_int32_t	args[4];
     u_int32_t	i;

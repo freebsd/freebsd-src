@@ -38,8 +38,8 @@
 
 #define READIN_BUF	(16 * 1024)
 
-int
-i386_copyin(void *src, vm_offset_t dest, size_t len)
+ssize_t
+i386_copyin(const void *src, vm_offset_t dest, const size_t len)
 {
     if (dest + len >= memtop) {
 	errno = EFBIG;
@@ -50,8 +50,8 @@ i386_copyin(void *src, vm_offset_t dest, size_t len)
     return(len);
 }
 
-int
-i386_copyout(vm_offset_t src, void *dest, size_t len)
+ssize_t
+i386_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
     if (src + len >= memtop) {
 	errno = EFBIG;
@@ -63,8 +63,8 @@ i386_copyout(vm_offset_t src, void *dest, size_t len)
 }
 
 
-int
-i386_readin(int fd, vm_offset_t dest, size_t len)
+ssize_t
+i386_readin(const int fd, vm_offset_t dest, const size_t len)
 {
     void	*buf;
     size_t	resid, chunk, get;
@@ -83,10 +83,8 @@ i386_readin(int fd, vm_offset_t dest, size_t len)
 	got = read(fd, buf, get);
 	if (got <= 0)
 	    break;
-	bcopy(buf, PTOV(dest), got);
+	bcopy(buf, PTOV(dest), (size_t)got);
     }
     free(buf);
     return(len - resid);
 }
-
-    

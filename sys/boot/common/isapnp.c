@@ -39,9 +39,8 @@
 #define inb(x)		(archsw.arch_isainb((x)))
 #define outb(x,y)	(archsw.arch_isaoutb((x),(y)))
 
-static void	isapnp_write(int d, u_char r);
-static u_char	isapnp_read(int d);
-static void	isapnp_send_Initiation_LFSR();
+static void	isapnp_write(int d, int r);
+static void	isapnp_send_Initiation_LFSR(void);
 static int	isapnp_get_serial(u_int8_t *p);
 static int	isapnp_isolation_protocol(void);
 static void	isapnp_enumerate(void);
@@ -58,17 +57,10 @@ struct pnphandler isapnphandler =
 };
 
 static void
-isapnp_write(int d, u_char r)
+isapnp_write(int d, int r)
 {
     outb (_PNP_ADDRESS, d);
     outb (_PNP_WRITE_DATA, r);
-}
-
-static u_char
-isapnp_read(int d)
-{
-    outb (_PNP_ADDRESS, d);
-    return (inb(isapnp_readport));
 }
 
 /*
@@ -76,7 +68,7 @@ isapnp_read(int d)
  * Intel May 94.
  */
 static void
-isapnp_send_Initiation_LFSR()
+isapnp_send_Initiation_LFSR(void)
 {
     int cur, i;
 
@@ -167,8 +159,9 @@ static int
 isapnp_scan_resdata(struct pnpinfo *pi)
 {
     u_char	tag, resinfo[8];
-    int		large_len, limit;
-    char	*str;
+    u_int	limit;
+    size_t	large_len;
+    u_char	*str;
 
     limit = 1000;
     while ((limit-- > 0) && !isapnp_get_resource_info(&tag, 1)) {
@@ -204,13 +197,13 @@ isapnp_scan_resdata(struct pnpinfo *pi)
 
 	    case ID_STRING_ANSI:
 		str = malloc(large_len + 1);
-		if (isapnp_get_resource_info(str, large_len)) {
+		if (isapnp_get_resource_info(str, (ssize_t)large_len)) {
 		    free(str);
 		    return(1);
 		}
 		str[large_len] = 0;
 		if (pi->pi_desc == NULL) {
-		    pi->pi_desc = str;
+		    pi->pi_desc = (char *)str;
 		} else {
 		    free(str);
 		}
@@ -218,7 +211,7 @@ isapnp_scan_resdata(struct pnpinfo *pi)
 		
 	    default:
 		/* Large resource, skip it */
-		if (isapnp_get_resource_info(NULL, large_len))
+		if (isapnp_get_resource_info(NULL, (ssize_t)large_len))
 		    return(1);
 	    }
 	}

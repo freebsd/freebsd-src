@@ -57,7 +57,7 @@ typedef struct elf_file {
     size_t	strsz;
     int		fd;
     caddr_t	firstpage;
-    int		firstlen;
+    size_t	firstlen;
     int		kernel;
     vm_offset_t	off;
 } *elf_file_t;
@@ -65,9 +65,10 @@ typedef struct elf_file {
 static int elf_loadimage(struct preloaded_file *mp, elf_file_t ef, vm_offset_t loadaddr);
 static int elf_lookup_symbol(struct preloaded_file *mp, elf_file_t ef, const char* name,	Elf_Sym* sym);
 static int elf_parse_modmetadata(struct preloaded_file *mp, elf_file_t ef);
+static char	*fake_modname(const char *name);
 
-char	*elf_kerneltype = "elf kernel";
-char	*elf_moduletype = "elf module";
+const char	*elf_kerneltype = "elf kernel";
+const char	*elf_moduletype = "elf module";
 
 /*
  * Attempt to load the file (file) as an ELF module.  It will be stored at
@@ -83,6 +84,7 @@ elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
     int				err;
     u_int			pad;
     char			*s;
+    ssize_t			bytes_read;
 
     fp = NULL;
     bzero(&ef, sizeof(struct elf_file));
@@ -99,8 +101,9 @@ elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
 	close(ef.fd);
 	return(ENOMEM);
     }
-    ef.firstlen = read(ef.fd, ef.firstpage, PAGE_SIZE);
-    if (ef.firstlen <= sizeof(Elf_Ehdr)) {
+    bytes_read = read(ef.fd, ef.firstpage, PAGE_SIZE);
+    ef.firstlen = (size_t)bytes_read;
+    if (bytes_read < 0 || ef.firstlen <= sizeof(Elf_Ehdr)) {
 	err = EFTYPE;		/* could be EIO, but may be small file */
 	goto oerr;
     }
@@ -224,7 +227,8 @@ elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
 static int
 elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
 {
-    int 	i, j;
+    int 	i;
+    u_int	j;
     Elf_Ehdr	*ehdr;
     Elf_Phdr	*phdr, *php;
     Elf_Shdr	*shdr;
@@ -233,6 +237,7 @@ elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
     vm_offset_t lastaddr;
     void	*buf;
     size_t	resid, chunk;
+    ssize_t	result;
     vm_offset_t	dest;
     vm_offset_t	ssym, esym;
     Elf_Dyn	*dp;
@@ -241,7 +246,7 @@ elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
     int		symstrindex;
     int		symtabindex;
     long	size;
-    int		fpcopy;
+    u_int	fpcopy;
 
     dp = NULL;
     shdr = NULL;
@@ -290,12 +295,13 @@ elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
 			       phdr[i].p_vaddr + off, fpcopy);
 	}
 	if (phdr[i].p_filesz > fpcopy) {
-	    if (lseek(ef->fd, phdr[i].p_offset + fpcopy, SEEK_SET) == -1) {
+	    if (lseek(ef->fd, (off_t)(phdr[i].p_offset + fpcopy),
+		      SEEK_SET) == -1) {
 		printf("\nelf_loadexec: cannot seek\n");
 		goto out;
 	    }
 	    if (archsw.arch_readin(ef->fd, phdr[i].p_vaddr + off + fpcopy,
-		phdr[i].p_filesz - fpcopy) != phdr[i].p_filesz - fpcopy) {
+		phdr[i].p_filesz - fpcopy) != (ssize_t)(phdr[i].p_filesz - fpcopy)) {
 		printf("\nelf_loadexec: archsw.readin failed\n");
 		goto out;
 	    }
@@ -348,11 +354,12 @@ elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
     shdr = malloc(chunk);
     if (shdr == NULL)
 	goto nosyms;
-    if (lseek(ef->fd, ehdr->e_shoff, SEEK_SET) == -1) {
+    if (lseek(ef->fd, (off_t)ehdr->e_shoff, SEEK_SET) == -1) {
 	printf("\nelf_loadimage: cannot lseek() to section headers");
 	goto nosyms;
     }
-    if (read(ef->fd, shdr, chunk) != chunk) {
+    result = read(ef->fd, shdr, chunk);
+    if (result < 0 || (size_t)result != chunk) {
 	printf("\nelf_loadimage: read section headers failed");
 	goto nosyms;
     }
@@ -417,14 +424,14 @@ elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
 	printf("0x%lx+0x%lx", (long)sizeof(size), size);
 #endif
 
-	if (lseek(ef->fd, shdr[i].sh_offset, SEEK_SET) == -1) {
+	if (lseek(ef->fd, (off_t)shdr[i].sh_offset, SEEK_SET) == -1) {
 	    printf("\nelf_loadimage: could not seek for symbols - skipped!");
 	    lastaddr = ssym;
 	    ssym = 0;
 	    goto nosyms;
 	}
-	if (archsw.arch_readin(ef->fd, lastaddr, shdr[i].sh_size) !=
-	    shdr[i].sh_size) {
+	result = archsw.arch_readin(ef->fd, lastaddr, shdr[i].sh_size);
+	if (result < 0 || (size_t)result != shdr[i].sh_size) {
 	    printf("\nelf_loadimage: could not read symbols - skipped!");
 	    lastaddr = ssym;
 	    ssym = 0;
@@ -531,9 +538,9 @@ out:
 
 static char invalid_name[] = "bad";
 char *
-fake_modname(char *name) {
+fake_modname(const char *name) {
     char *sp, *ep;
-    int len;
+    size_t len;
 
     sp = strrchr(name, '/');
     if (sp)
@@ -561,8 +568,7 @@ int
 elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef) {
     struct mod_metadata md;
     Elf_Sym sym;
-    void **p, *v;
-    char *s;
+    char *s, *v, **p;
     long entries;
     int modcnt;
 
@@ -571,7 +577,7 @@ elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef) {
     COPYOUT(sym.st_value + ef->off, &entries, sizeof(entries));
 
     modcnt = 0;
-    p = (void*)(sym.st_value + ef->off + sizeof(entries));
+    p = (char **)(sym.st_value + ef->off + sizeof(entries));
     while (entries--) {
 	COPYOUT(p++, &v, sizeof(v));
 	COPYOUT(v + ef->off, &md, sizeof(md));
