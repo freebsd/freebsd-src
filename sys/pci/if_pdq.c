@@ -21,44 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.3 1995/03/21 22:41:19 se Exp $
- *
- * $Log: if_pdq.c,v $
- * Revision 1.3  1995/03/21  22:41:19  se
- * Cosmetic changes.
- *
- * Submitted by:	Wolfgang Stnglmeier <wolf@kintaro.cologne.de>
- *
- * Revision 1.2  1995/03/17  04:27:17  davidg
- * Added a new field to the pci_device struct called pd_shutdown to specify
- * a device specific shutdown routine for devconf. Assign the value of this
- * to the kern_devconf struct. Implement a device shutdown routine for if_de
- * that disables the device. This will stop the device from corrupting memory
- * after a reboot.
- *
- * Revision 1.1  1995/03/14  09:16:04  davidg
- * Added support for generic FDDI and the DEC DEFEA and DEFPA FDDI adapters.
- *
- * Submitted by:	Matt Thomas
- *
- * Revision 1.7  1995/03/14  01:52:52  thomas
- * Update for new FreeBSD PCI Interrupt interface
- *
- * Revision 1.6  1995/03/10  17:06:59  thomas
- * Update for latest version of FreeBSD.
- * Compensate for the fast that the ifp will not be first thing
- * in softc on BSDI.
- *
- * Revision 1.5  1995/03/07  19:59:42  thomas
- * First pass at BSDI EISA support
- *
- * Revision 1.4  1995/03/06  17:06:03  thomas
- * Add transmit timeout support.
- * Add support DEFEA (untested).
- *
- * Revision 1.3  1995/03/03  13:48:35  thomas
- * more fixes
- *
+ * $Id: if_pdq.c,v 1.4 1995/03/25 22:06:27 bde Exp $
  *
  */
 
@@ -698,14 +661,16 @@ pdq_eisa_probe(
 		   id->id_unit);
 	    return 0;
 	}
-#if 0
-	id->id_maddr = (char *) NULL + atdevbase + maddr;
-	id->id_msize = msize;
-#endif
-	sc = (pdq_softc_t *) malloc(sizeof(pdq_softc_t), M_DEVBUF, M_WAITOK);
-	if (sc == NULL)
+	id->id_maddr = (caddr_t) pmap_mapdev(maddr, msize);
+	if (id->id_maddr == NULL)
 	    return 0;
-	PDQ_EISA_UNIT_TO_SOFTC(id->id_unit) = sc;
+	id->id_msize = msize;
+	if (PDQ_EISA_UNIT_TO_SOFTC(id->id_unit) == NULL) {
+	    sc = (pdq_softc_t *) malloc(sizeof(pdq_softc_t), M_DEVBUF, M_WAITOK);
+	    if (sc == NULL)
+		return 0;
+	    PDQ_EISA_UNIT_TO_SOFTC(id->id_unit) = sc;
+	}
 	return 0x1000;
     }
     return 0;
@@ -716,8 +681,6 @@ pdq_eisa_attach(
     struct isa_device *id)
 {
     pdq_softc_t *sc = PDQ_EISA_UNIT_TO_SOFTC(id->id_unit);
-    vm_offset_t va_csrs;
-    pdq_uint32_t maddr, msize;
 
     bzero(sc, sizeof(pdq_softc_t));	/* Zero out the softc*/
 
@@ -726,14 +689,7 @@ pdq_eisa_attach(
     sc->sc_iobase = id->id_iobase;
 
     pdq_eisa_devinit(sc);
-    pdq_eisa_subprobe(sc->sc_iobase, &maddr, &msize, NULL);
-    va_csrs = (vm_offset_t) pmap_mapdev(maddr, msize);
-    if (va_csrs == (vm_offset_t) 0) {
-	printf("fea%d: mapping of device memory failed\n", sc->sc_if.if_unit);
-	return 0;
-    }
-
-    sc->sc_pdq = pdq_initialize((void *) va_csrs, "fea", sc->sc_if.if_unit,
+    sc->sc_pdq = pdq_initialize((void *) id->id_maddr, "fea", sc->sc_if.if_unit,
 				(void *) sc, PDQ_DEFEA);
     if (sc->sc_pdq == NULL) {
 	printf("fea%d: initialization failed\n", sc->sc_if.if_unit);
@@ -827,7 +783,7 @@ pdq_eisa_attach(
     sc->sc_pdq = pdq_initialize((void *) ISA_HOLE_VADDR(ia->ia_maddr), "fea",
 				sc->sc_if.if_unit, (void *) sc, PDQ_DEFEA);
     if (sc->sc_pdq == NULL) {
-	printf("fea%s: initialization failed\n", sc->sc_if.if_unit);
+	printf("fea%d: initialization failed\n", sc->sc_if.if_unit);
 	return;
     }
 
