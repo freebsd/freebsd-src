@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)position.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: position.c,v 1.8 1998/05/13 07:33:54 charnier Exp $";
+	"$Id: position.c,v 1.10 1999/06/20 14:58:55 green Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -66,7 +66,7 @@ pos_in()
 	off_t cnt;
 
 	/* If not a character, pipe or tape device, try to seek on it. */
-	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE))) {
+	if (!(in.flags & (ISCHR|ISPIPE|ISTAPE)) || in.flags & ISDISK) {
 		if (lseek(in.fd, in.offset * in.dbsz, SEEK_CUR) == -1)
 			err(1, "%s", in.name);
 		return;
@@ -121,12 +121,8 @@ pos_out()
 	off_t cnt;
 	ssize_t n;
 
-	/*
-	 * If not a tape, try seeking on the file.  Seeking on a pipe is
-	 * going to fail, but don't protect the user -- they shouldn't
-	 * have specified the seek operand.
-	 */
-	if (!(out.flags & ISTAPE)) {
+	/* If not a character, pipe or tape device, try to seek on it. */
+	if (!(out.flags & (ISCHR|ISPIPE|ISTAPE)) || out.flags & ISDISK) {
 		if (lseek(out.fd, out.offset * out.dbsz, SEEK_SET) == -1)
 			err(1, "%s", out.name);
 		return;
