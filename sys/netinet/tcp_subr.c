@@ -1119,7 +1119,7 @@ tcp6_ctlinput(cmd, sa, d)
 		inc.inc_isipv6 = 1;
 		syncache_unreach(&inc, &th);
 	} else
-		in6_pcbnotify(&tcb, sa, 0, (struct sockaddr *)sa6_src,
+		in6_pcbnotify(&tcb, sa, 0, (const struct sockaddr *)sa6_src,
 			      0, cmd, notify);
 }
 #endif /* INET6 */
