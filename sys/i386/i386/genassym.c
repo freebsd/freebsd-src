@@ -179,8 +179,6 @@ ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_COMMON_TSS, offsetof(struct pcpu, pc_common_tss));
-ASSYM(PC_SWITCHTIME, offsetof(struct pcpu, pc_switchtime));
-ASSYM(PC_SWITCHTICKS, offsetof(struct pcpu, pc_switchticks));
 ASSYM(PC_COMMON_TSSD, offsetof(struct pcpu, pc_common_tssd));
 ASSYM(PC_TSS_GDT, offsetof(struct pcpu, pc_tss_gdt));
 ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
