@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.202 1998/06/13 02:03:36 peter Exp $
+#	$Id: Makefile,v 1.203 1998/06/17 09:34:42 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -760,6 +760,8 @@ build-tools:
 		bin/mv			\
 		bin/rm			\
 		bin/test		\
+		games/caesar		\
+		games/fortune/strfile	\
 		gnu/usr.bin/awk		\
 		gnu/usr.bin/bc		\
 		gnu/usr.bin/grep	\
@@ -775,6 +777,7 @@ build-tools:
 		usr.bin/chflags		\
 		usr.bin/cmp		\
 		usr.bin/col		\
+		usr.bin/colldef		\
 		usr.bin/cpp		\
 		usr.bin/expand		\
 		usr.bin/file2c		\
@@ -785,6 +788,7 @@ build-tools:
 		usr.bin/lorder		\
 		usr.bin/m4		\
 		usr.bin/mkdep		\
+		usr.bin/mklocale	\
 		usr.bin/paste		\
 		usr.bin/sed		\
 		${_aout_size}		\
@@ -808,6 +812,20 @@ build-tools:
 		${MAKE} ${MK_FLAGS} all; \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
 .endfor
+	cd ${DESTDIR}/usr/games; cp -p caesar strfile ${DESTDIR}/usr/bin
+.for d in				\
+		bin/sh			\
+		games/adventure		\
+		games/hack		\
+		games/phantasia		\
+		gnu/usr.bin/cc/cc_tools	\
+		lib/libmytinfo		\
+		lkm/linux		\
+		share/syscons/scrnmaps	\
+		sys/i386/boot/netboot
+	cd ${.CURDIR}/$d; ${MAKE} ${MK_FLAGS} build-tools
+.endfor
+	cd ${.CURDIR}/usr.bin/tn3270/tools; ${MAKE} ${MK_FLAGS} all
 
 .for __target in clean cleandepend cleandir depend obj
 .for entry in ${SUBDIR}
