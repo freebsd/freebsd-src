@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.18 1998/12/16 13:59:30 jkh Exp $";
+	"$Id: main.c,v 1.19 1999/06/23 16:54:34 billf Exp $";
 #endif
 
 /*
@@ -18,7 +18,7 @@ static const char rcsid[] =
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNOhv?f:p:P:c:d:i:I:k:K:r:t:X:D:m:s:";
+static char Options[] = "YNOhvf:p:P:c:d:i:I:k:K:r:t:X:D:m:s:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
