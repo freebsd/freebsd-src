@@ -31,10 +31,10 @@
 
 #include <sys/param.h>
 
-#include <dev/acpi/aml/aml_amlmem.h>
-#include <dev/acpi/aml/aml_common.h>
-#include <dev/acpi/aml/aml_env.h>
-#include <dev/acpi/aml/aml_name.h>
+#include <aml/aml_amlmem.h>
+#include <aml/aml_common.h>
+#include <aml/aml_env.h>
+#include <aml/aml_name.h>
 
 #ifndef _KERNEL
 #include <stdio.h>
