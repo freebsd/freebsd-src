@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.311 1998/09/29 11:20:16 abial Exp $
+ *	$Id: machdep.c,v 1.312 1998/10/09 00:31:06 msmith Exp $
  */
 
 #include "apm.h"
@@ -1613,9 +1613,13 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_ext = 0;
 #endif
 
-	/* Export kernel environment and module metadata information */
-	module_metadata = (caddr_t)bootinfo.bi_modulep;
-	kern_envp = (caddr_t)bootinfo.bi_envp;
+	/* Sigh, relocate physical addresses left from bootstrap */
+	if (bootinfo.bi_modulep) {
+		preload_metadata = (caddr_t)bootinfo.bi_modulep + KERNBASE;
+		preload_bootstrap_relocate(KERNBASE);
+	}
+	if (bootinfo.bi_envp)
+		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
