@@ -236,10 +236,10 @@ static dpt_sig_S ASR_sig = {
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#if defined (__i386__)
+#if defined(__i386__)
 #include <i386/include/cputypes.h>
 #include <i386/include/vmparam.h>
-#elif defined (__alpha__)
+#elif defined(__alpha__)
 #include <alpha/include/pmap.h>
 #endif
 
@@ -4485,7 +4485,7 @@ asr_ioctl(
 		Info.numDrives = *((char *)ptok(0x475));
 
 		Info.processorFamily = ASR_sig.dsProcessorFamily;
-#if defined (__i386__)
+#if defined(__i386__)
 		switch (cpu) {
 		case CPU_386SX: case CPU_386:
 			Info.processorType = PROC_386; break;
