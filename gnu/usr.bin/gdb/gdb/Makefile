@@ -12,7 +12,7 @@ SRCS = annotate.c blockframe.c breakpoint.c buildsym.c c-lang.c \
 	infrun.c inftarg.c init.c kcorelow.c language.c \
 	m2-lang.c m2-typeprint.c m2-valprint.c main.c maint.c \
 	mem-break.c minsyms.c objfiles.c parse.c \
-	printcmd.c regex.c remote.c remote-utils.c solib.c source.c \
+	printcmd.c remote.c remote-utils.c solib.c source.c \
 	stabsread.c stack.c symfile.c symmisc.c \
 	symtab.c target.c thread.c top.c \
 	typeprint.c utils.c valarith.c valops.c \
@@ -45,8 +45,8 @@ m2-exp.tab.c: $(.CURDIR)/m2-exp.y
 
 
 CFLAGS+= -I$(.CURDIR)/. -I${DESTDIR}/usr/include/readline -I$(.CURDIR)/../bfd
-DPADD+= ${LIBREADLINE} ${LIBTERMCAP}
-LDADD+= -lreadline  -ltermcap
+DPADD+= ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
+LDADD+= -lreadline  -ltermcap -lgnuregex
 
 .if exists(${.CURDIR}/../libiberty/obj)
 LDADD+=   -L${.CURDIR}/../libiberty/obj -liberty
