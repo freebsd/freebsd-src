@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)atalk.c	1.1 (Whistle) 6/6/96";
 */
 static const char rcsid[] =
-	"$Id: atalk.c,v 1.9 1997/02/22 19:56:20 peter Exp $";
+	"$Id: atalk.c,v 1.10 1997/07/29 06:51:39 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -240,8 +240,8 @@ atalkprotopr(off, name)
 			first = 0;
 		}
 		if (Aflag)
-			printf("%8x ", ppcb);
-		printf("%-5.5s %6d %6d ", name, sockb.so_rcv.sb_cc,
+			printf("%8lx ", ppcb);
+		printf("%-5.5s %6lu %6lu ", name, sockb.so_rcv.sb_cc,
 			sockb.so_snd.sb_cc);
 		printf(Aflag?" %-18.18s":" %-22.22s", atalk_print(
 					(struct sockaddr *)&ddpcb.ddp_lsat,7));
@@ -250,8 +250,9 @@ atalkprotopr(off, name)
 		putchar('\n');
 	}
 }
+
 #define ANY(x,y,z) \
-	((x) ? printf("\t%d %s%s%s\n",x,y,plural(x),z) : 0)
+	((x) ? printf("\t%lu %s%s%s\n",x,y,plural(x),z) : 0)
 
 /*
  * Dump DDP statistics structure.
@@ -278,6 +279,3 @@ ddp_stats(off, name)
 	ANY(ddpstat.ddps_cantforward, "packet", " rcvd for unreachable dest ");
 	ANY(ddpstat.ddps_nosockspace, "packet", " dropped due to no socket space ");
 }
-#undef ANY
-
-

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: unix.c,v 1.7 1998/05/16 08:31:49 ache Exp $";
+	"$Id: unix.c,v 1.8 1998/05/16 18:04:00 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -154,7 +154,7 @@ unixdomainpr(xunp, so)
 	       (long)unp->unp_refs.lh_first, (long)unp->unp_reflink.le_next);
 	if (sa)
 		printf(" %.*s",
-		    sa->sun_len - offsetof(struct sockaddr_un, sun_path),
+		    (int)(sa->sun_len - offsetof(struct sockaddr_un, sun_path)),
 		    sa->sun_path);
 	putchar('\n');
 }

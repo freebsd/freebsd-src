@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: touch.c,v 1.4 1997/08/04 06:48:25 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -89,7 +89,7 @@ settime(afd)
 	size = SARMAG + sizeof(hdr->ar_name);
 	if (lseek(afd, size, SEEK_SET) == (off_t)-1)
 		error(archive);
-	(void)sprintf(buf, "%-12ld", time((time_t *)NULL) + RANLIBSKEW);
+	(void)sprintf(buf, "%-12ld", (long)time((time_t *)NULL) + RANLIBSKEW);
 	if (write(afd, buf, sizeof(hdr->ar_date)) != sizeof(hdr->ar_date))
 		error(archive);
 }

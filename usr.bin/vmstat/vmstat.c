@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.22 1997/12/05 19:28:28 bde Exp $";
+	"$Id: vmstat.c,v 1.23 1998/03/07 23:40:23 dyson Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -428,20 +428,25 @@ dovmstat(interval, reps)
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
 		(void)printf("%8ld%6ld ",
 		    (long)pgtok(total.t_avm), (long)pgtok(total.t_free));
-		(void)printf("%4lu ", rate(sum.v_vm_faults - osum.v_vm_faults));
+		(void)printf("%4lu ",
+		    (u_long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",
-		    rate(sum.v_reactivated - osum.v_reactivated));
-		(void)printf("%3lu ", rate(sum.v_swapin + sum.v_vnodein -
+		    (u_long)rate(sum.v_reactivated - osum.v_reactivated));
+		(void)printf("%3lu ",
+		    (u_long)rate(sum.v_swapin + sum.v_vnodein -
 		    (osum.v_swapin + osum.v_vnodein)));
-		(void)printf("%3lu ", rate(sum.v_swapout + sum.v_vnodeout -
+		(void)printf("%3lu ",
+		    (u_long)rate(sum.v_swapout + sum.v_vnodeout -
 		    (osum.v_swapout + osum.v_vnodeout)));
-		(void)printf("%3lu ", rate(sum.v_tfree - osum.v_tfree));
-		(void)printf("%3lu ", rate(sum.v_pdpages - osum.v_pdpages));
+		(void)printf("%3lu ",
+		    (u_long)rate(sum.v_tfree - osum.v_tfree));
+		(void)printf("%3lu ",
+		    (u_long)rate(sum.v_pdpages - osum.v_pdpages));
 		dkstats();
 		(void)printf("%4lu %4lu %3lu ",
-		    rate(sum.v_intr - osum.v_intr),
-		    rate(sum.v_syscall - osum.v_syscall),
-		    rate(sum.v_swtch - osum.v_swtch));
+		    (u_long)rate(sum.v_intr - osum.v_intr),
+		    (u_long)rate(sum.v_syscall - osum.v_syscall),
+		    (u_long)rate(sum.v_swtch - osum.v_swtch));
 		cpustats();
 		(void)printf("\n");
 		(void)fflush(stdout);
@@ -705,21 +710,21 @@ domem()
 	int len, size, first, nkms;
 	long totuse = 0, totfree = 0, totreq = 0;
 	const char *name;
-	struct malloc_type kmemstats[200],*kmsp;
+	struct malloc_type kmemstats[200], *kmsp;
 	char *kmemnames[200];
 	char buf[1024];
 	struct kmembuckets buckets[MINBUCKET + 16];
 
 	kread(X_KMEMBUCKETS, buckets, sizeof(buckets));
 	kread(X_KMEMSTATISTICS, &kmsp, sizeof(kmsp));
-	for (nkms=0; nkms < 200 && kmsp; nkms++) {
+	for (nkms = 0; nkms < 200 && kmsp != NULL; nkms++) {
 		if (sizeof(kmemstats[0]) != kvm_read(kd, (u_long)kmsp,
 		    &kmemstats[nkms], sizeof(kmemstats[0])))
-			err(1,"kvm_read(%08x)", (u_long)kmsp);
+			err(1, "kvm_read(%p)", (void *)kmsp);
 		if (sizeof(buf) !=  kvm_read(kd, 
 	            (u_long)kmemstats[nkms].ks_shortdesc, buf, sizeof(buf)))
-			err(1,"kvm_read(%08x)", 
-			    (u_long)kmemstats[nkms].ks_shortdesc);
+			err(1, "kvm_read(%p)", 
+			    (void *)kmemstats[nkms].ks_shortdesc);
 		kmemstats[nkms].ks_shortdesc = strdup(buf);
 		kmsp = kmemstats[nkms].ks_next;
 	}

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id: inet.c,v 1.28 1998/05/19 16:00:55 pb Exp $";
+	"$Id: inet.c,v 1.29 1998/06/09 04:13:01 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -239,8 +239,12 @@ tcp_stats(off, name)
 
 #define	p(f, m) if (tcpstat.f || sflag <= 1) \
     printf(m, tcpstat.f, plural(tcpstat.f))
+#define	p1a(f, m) if (tcpstat.f || sflag <= 1) \
+    printf(m, tcpstat.f)
 #define	p2(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1) \
     printf(m, tcpstat.f1, plural(tcpstat.f1), tcpstat.f2, plural(tcpstat.f2))
+#define	p2a(f1, f2, m) if (tcpstat.f1 || tcpstat.f2 || sflag <= 1) \
+    printf(m, tcpstat.f1, plural(tcpstat.f1), tcpstat.f2)
 #define	p3(f, m) if (tcpstat.f || sflag <= 1) \
     printf(m, tcpstat.f, plurales(tcpstat.f))
 
@@ -250,7 +254,7 @@ tcp_stats(off, name)
 	p2(tcps_sndrexmitpack, tcps_sndrexmitbyte,
 		"\t\t%lu data packet%s (%lu byte%s) retransmitted\n");
 	p(tcps_mturesent, "\t\t%lu resend%s initiated by MTU discovery\n");
-	p2(tcps_sndacks, tcps_delack,
+	p2a(tcps_sndacks, tcps_delack,
 		"\t\t%lu ack-only packet%s (%lu delayed)\n");
 	p(tcps_sndurg, "\t\t%lu URG only packet%s\n");
 	p(tcps_sndprobe, "\t\t%lu window probe packet%s\n");
@@ -276,7 +280,7 @@ tcp_stats(off, name)
 	p(tcps_rcvafterclose, "\t\t%lu packet%s received after close\n");
 	p(tcps_rcvbadsum, "\t\t%lu discarded for bad checksum%s\n");
 	p(tcps_rcvbadoff, "\t\t%lu discarded for bad header offset field%s\n");
-	p(tcps_rcvshort, "\t\t%lu discarded because packet too short\n");
+	p1a(tcps_rcvshort, "\t\t%lu discarded because packet too short\n");
 	p(tcps_connattempt, "\t%lu connection request%s\n");
 	p(tcps_accepts, "\t%lu connection accept%s\n");
 	p(tcps_badsyn, "\t%lu bad connection attempt%s\n");
@@ -302,7 +306,9 @@ tcp_stats(off, name)
 	p(tcps_predack, "\t%lu correct ACK header prediction%s\n");
 	p(tcps_preddat, "\t%lu correct data packet header prediction%s\n");
 #undef p
+#undef p1a
 #undef p2
+#undef p2a
 #undef p3
 }
 
@@ -326,14 +332,17 @@ udp_stats(off, name)
 	printf("%s:\n", name);
 #define	p(f, m) if (udpstat.f || sflag <= 1) \
     printf(m, udpstat.f, plural(udpstat.f))
+#define	p1a(f, m) if (udpstat.f || sflag <= 1) \
+    printf(m, udpstat.f)
 	p(udps_ipackets, "\t%lu datagram%s received\n");
-	p(udps_hdrops, "\t%lu with incomplete header\n");
-	p(udps_badlen, "\t%lu with bad data length field\n");
-	p(udps_badsum, "\t%lu with bad checksum\n");
-	p(udps_noport, "\t%lu dropped due to no socket\n");
-	p(udps_noportbcast, "\t%lu broadcast/multicast datagram%s dropped due to no socket\n");
-	p(udps_fullsock, "\t%lu dropped due to full socket buffers\n");
-	p(udpps_pcbhashmiss, "\t%lu not for hashed pcb\n");
+	p1a(udps_hdrops, "\t%lu with incomplete header\n");
+	p1a(udps_badlen, "\t%lu with bad data length field\n");
+	p1a(udps_badsum, "\t%lu with bad checksum\n");
+	p1a(udps_noport, "\t%lu dropped due to no socket\n");
+	p(udps_noportbcast,
+	    "\t%lu broadcast/multicast datagram%s dropped due to no socket\n");
+	p1a(udps_fullsock, "\t%lu dropped due to full socket buffers\n");
+	p1a(udpps_pcbhashmiss, "\t%lu not for hashed pcb\n");
 	delivered = udpstat.udps_ipackets -
 		    udpstat.udps_hdrops -
 		    udpstat.udps_badlen -
@@ -345,6 +354,7 @@ udp_stats(off, name)
 		printf("\t%lu delivered\n", delivered);
 	p(udps_opackets, "\t%lu datagram%s output\n");
 #undef p
+#undef p1a
 }
 
 /*
@@ -367,15 +377,17 @@ ip_stats(off, name)
 
 #define	p(f, m) if (ipstat.f || sflag <= 1) \
     printf(m, ipstat.f, plural(ipstat.f))
+#define	p1a(f, m) if (ipstat.f || sflag <= 1) \
+    printf(m, ipstat.f)
 
 	p(ips_total, "\t%lu total packet%s received\n");
 	p(ips_badsum, "\t%lu bad header checksum%s\n");
-	p(ips_toosmall, "\t%lu with size smaller than minimum\n");
-	p(ips_tooshort, "\t%lu with data size < data length\n");
-	p(ips_badhlen, "\t%lu with header length < data size\n");
-	p(ips_badlen, "\t%lu with data length < header length\n");
-	p(ips_badoptions, "\t%lu with bad options\n");
-	p(ips_badvers, "\t%lu with incorrect version number\n");
+	p1a(ips_toosmall, "\t%lu with size smaller than minimum\n");
+	p1a(ips_tooshort, "\t%lu with data size < data length\n");
+	p1a(ips_badhlen, "\t%lu with header length < data size\n");
+	p1a(ips_badlen, "\t%lu with data length < header length\n");
+	p1a(ips_badoptions, "\t%lu with bad options\n");
+	p1a(ips_badvers, "\t%lu with incorrect version number\n");
 	p(ips_fragments, "\t%lu fragment%s received\n");
 	p(ips_fragdropped, "\t%lu fragment%s dropped (dup or out of space)\n");
 	p(ips_fragtimeout, "\t%lu fragment%s dropped after timeout\n");
@@ -399,6 +411,7 @@ ip_stats(off, name)
 	p(ips_ofragments, "\t%lu fragment%s created\n");
 	p(ips_cantfrag, "\t%lu datagram%s that can't be fragmented\n");
 #undef p
+#undef p1a
 }
 
 static	char *icmpnames[] = {
@@ -450,6 +463,8 @@ icmp_stats(off, name)
 
 #define	p(f, m) if (icmpstat.f || sflag <= 1) \
     printf(m, icmpstat.f, plural(icmpstat.f))
+#define	p1a(f, m) if (icmpstat.f || sflag <= 1) \
+    printf(m, icmpstat.f)
 
 	p(icps_error, "\t%lu call%s to icmp_error\n");
 	p(icps_oldicmp,
@@ -467,8 +482,8 @@ icmp_stats(off, name)
 	p(icps_tooshort, "\t%lu message%s < minimum length\n");
 	p(icps_checksum, "\t%lu bad checksum%s\n");
 	p(icps_badlen, "\t%lu message%s with bad length\n");
-	p(icps_bmcastecho, "\t%lu multicast echo requests ignored\n");
-	p(icps_bmcasttstamp, "\t%lu multicast timestamp requests ignored\n");
+	p1a(icps_bmcastecho, "\t%lu multicast echo requests ignored\n");
+	p1a(icps_bmcasttstamp, "\t%lu multicast timestamp requests ignored\n");
 	for (first = 1, i = 0; i < ICMP_MAXTYPE + 1; i++)
 		if (icmpstat.icps_inhist[i] != 0) {
 			if (first) {
@@ -480,6 +495,7 @@ icmp_stats(off, name)
 		}
 	p(icps_reflect, "\t%lu message response%s generated\n");
 #undef p
+#undef p1a
 	mib[3] = ICMPCTL_MASKREPL;
 	len = sizeof i;
 	if (sysctl(mib, 4, &i, &len, (void *)0, 0) < 0)
@@ -588,8 +604,8 @@ inetname(inp)
 		line[sizeof(line) - 1] = '\0';
 	} else {
 		inp->s_addr = ntohl(inp->s_addr);
-#define C(x)	((x) & 0xff)
-		sprintf(line, "%lu.%lu.%lu.%lu", C(inp->s_addr >> 24),
+#define C(x)	((u_int)((x) & 0xff))
+		sprintf(line, "%u.%u.%u.%u", C(inp->s_addr >> 24),
 		    C(inp->s_addr >> 16), C(inp->s_addr >> 8), C(inp->s_addr));
 	}
 	return (line);
