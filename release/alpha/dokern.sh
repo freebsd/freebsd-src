@@ -20,6 +20,7 @@ sed	-e '/pty/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 echo "options  NETGRAPH"
+echo "options  NETGRAPH_ETHER"
 echo "options  NETGRAPH_PPPOE"
 echo "options  NETGRAPH_SOCKET"
 
