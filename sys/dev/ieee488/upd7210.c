@@ -111,8 +111,6 @@ upd7210intr(void *arg)
 		    upd7210_rd(u, ADR1));
 		upd7210_print_isr(isr1, isr2);
 		printf("\n");
-		upd7210_wr(u, IMR1, 0);
-		upd7210_wr(u, IMR2, 0);
 	}
 	mtx_unlock(&u->mutex);
 }
