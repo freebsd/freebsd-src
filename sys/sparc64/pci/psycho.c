@@ -238,6 +238,12 @@ struct psycho_strayclr {
  *
  * We really should attach handlers for each.
  */
+#ifdef DEBUGGER_ON_POWERFAIL
+#define	PSYCHO_PWRFAIL_INT_FLAGS	INTR_FAST
+#else
+#define	PSYCHO_PWRFAIL_INT_FLAGS	0
+#endif
+
 #define	OFW_PCI_TYPE		"pci"
 
 struct psycho_desc {
@@ -502,8 +508,8 @@ psycho_attach(device_t dev)
 		psycho_set_intr(sc, 1, dev, PSR_CE_INT_MAP, 0, psycho_ce);
 		psycho_set_intr(sc, 2, dev, PSR_PCIAERR_INT_MAP, INTR_FAST,
 		    psycho_bus_a);
-		psycho_set_intr(sc, 4, dev, PSR_POWER_INT_MAP, INTR_FAST,
-		    psycho_powerfail);
+		psycho_set_intr(sc, 4, dev, PSR_POWER_INT_MAP,
+		    PSYCHO_PWRFAIL_INT_FLAGS, psycho_powerfail);
 		/* Psycho-specific initialization. */
 		if (sc->sc_mode == PSYCHO_MODE_PSYCHO) {
 			/*
