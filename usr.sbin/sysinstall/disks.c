@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.57 1996/07/31 09:10:39 jkh Exp $
+ * $Id: disks.c,v 1.58 1996/07/31 09:29:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -72,7 +72,7 @@ print_chunks(Disk *d)
 
     for (i = sz = 0; chunk_info[i]; i++)
 	sz += chunk_info[i]->size;
-    if ((!d->bios_cyl || d->bios_cyl == sz / ONE_MEG) && d->bios_hd <= 1 && d->bios_sect <= 1) {
+    if (d->bios_hd <= 1 && d->bios_sect <= 1) {
 	All_FreeBSD(d, TRUE);
 	d->bios_hd = d->bios_sect = d->bios_cyl = 1;
     }
