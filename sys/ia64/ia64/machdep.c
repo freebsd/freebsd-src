@@ -1357,26 +1357,6 @@ Debugger(const char *msg)
 }
 #endif /* no DDB */
 
-static int
-sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
-		req);
-	if (!error && req->newptr)
-		resettodr();
-	return (error);
-}
-
-SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
-
-SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
-	CTLFLAG_RW, &disable_rtc_set, 0, "");
-
-SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
-	CTLFLAG_RW, &wall_cmos_clock, 0, "");
-
 /*
  * Utility functions for manipulating instruction bundles.
  */
@@ -1399,4 +1379,10 @@ ia64_pack_bundle(u_int64_t *lowp, u_int64_t *highp,
 	high = (bp->slot[1] >> 18) | (bp->slot[2] << 23);
 	*lowp = low;
 	*highp = high;
+}
+
+int
+sysbeep(int pitch, int period)
+{
+	return (ENODEV);
 }

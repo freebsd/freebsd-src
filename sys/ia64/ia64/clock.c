@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
-
 /*
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1992, 1993
@@ -42,8 +39,10 @@
  *
  *	@(#)clock.c	8.1 (Berkeley) 6/10/93
  */
+/* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
-#include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -52,13 +51,11 @@
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/timetc.h>
+#include <sys/pcpu.h>
 
-#include <machine/pal.h>
-#include <machine/sal.h>
 #include <machine/clock.h>
 #include <machine/clockvar.h>
-#include <isa/isareg.h>
-#include <ia64/ia64/timerreg.h>
+#include <machine/cpu.h>
 
 #define	SECMIN	((unsigned)60)			/* seconds per minute */
 #define	SECHOUR	((unsigned)(60*SECMIN))		/* seconds per hour */
@@ -68,197 +65,106 @@
 /*
  * 32-bit time_t's can't reach leap years before 1904 or after 2036, so we
  * can use a simple formula for leap years.
+ * XXX time_t is 64-bits on ia64.
  */
 #define	LEAPYEAR(y)	(((y) % 4) == 0)
 
-kobj_t clockdev;
-int clockinitted;
-int tickfix;
-int tickfixinterval;
+static int sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS);
+
+int disable_rtc_set;	/* disable resettodr() if != 0 */
+SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
+	CTLFLAG_RW, &disable_rtc_set, 0, "");
+
+int wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
+SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+	CTLFLAG_RW, &wall_cmos_clock, 0, "");
+
 int	adjkerntz;		/* local offset	from GMT in seconds */
-int	disable_rtc_set;	/* disable resettodr() if != 0 */
-int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
-u_int64_t itm_reload;		/* reload ticks for clock */
-static	int	beeping = 0;
+SYSCTL_PROC(_machdep, CPU_ADJKERNTZ, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
+	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "");
+
+kobj_t	clockdev;
+int	todr_initialized;
+
+uint64_t ia64_clock_reload;
 
 #ifndef SMP
-static timecounter_get_t	ia64_get_timecount;
+static timecounter_get_t ia64_get_timecount;
 
 static struct timecounter ia64_timecounter = {
 	ia64_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
- 	~0u,			/* counter_mask */
+	~0u,			/* counter_mask */
 	0,			/* frequency */
 	"ITC"			/* name */
 };
 
+static unsigned
+ia64_get_timecount(struct timecounter* tc)
+{
+	return ia64_get_itc();
+}
 #endif
 
-/* Values for timerX_state: */
-#define	RELEASED	0
-#define	RELEASE_PENDING	1
-#define	ACQUIRED	2
-#define	ACQUIRE_PENDING	3
+static int
+sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
+{
+	int error;
 
-/* static	u_char	timer0_state; */
-static	u_char	timer2_state;
-
-/*
- * Algorithm for missed clock ticks from Linux/alpha.
- */
-
-/*
- * Shift amount by which scaled_ticks_per_cycle is scaled.  Shifting
- * by 48 gives us 16 bits for HZ while keeping the accuracy good even
- * for large CPU clock rates.
- */
-#define FIX_SHIFT	48
-
-static u_int64_t scaled_ticks_per_cycle;
-static u_int32_t max_cycles_per_tick;
-static u_int32_t last_time;
-
-#if 0	/* not used yet */
-static u_int32_t calibrate_clocks(u_int32_t firmware_freq);
-#endif
+	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2, req);
+	if (!error && req->newptr)
+		resettodr();
+	return (error);
+}
 
 void
 clockattach(kobj_t dev)
 {
 
-	/*
-	 * Just bookkeeping.
-	 */
 	if (clockdev)
 		panic("clockattach: multiple clocks");
+
 	clockdev = dev;
+
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
 
-	/*
-	 * Get the clock started.
-	 */
+	/* Get the clock started. */
 	CLOCK_INIT(clockdev);
 }
 
-/*
- * Machine-dependent clock routines.
- *
- * Startrtclock restarts the real-time clock, which provides
- * hardclock interrupts to kern_clock.c.
- *
- * Inittodr initializes the time of day hardware which provides
- * date functions.  Its primary function is to use some file
- * system information in case the hardare clock lost state.
- *
- * Resettodr restores the time of day hardware after a time change.
- */
+void
+pcpu_initclock(void)
+{
+
+	PCPU_SET(clockadj, 0);
+	PCPU_SET(clock, ia64_get_itc());
+	ia64_set_itm(PCPU_GET(clock) + ia64_clock_reload);
+	ia64_set_itv(CLOCK_VECTOR);	/* highest priority class */
+}
 
 /*
- * Start the real-time and statistics clocks. Leave stathz 0 since there
- * are no other timers available.
+ * Start the real-time and statistics clocks. We use cr.itc and cr.itm
+ * to implement a 1000hz clock.
  */
 void
 cpu_initclocks()
 {
-	u_int32_t freq;
 
-	/*
-	 * We use cr.itc and cr.itm to implement a 1024hz clock.
-	 */
-	hz = 1024;
-	tick = 1000000 / hz;	/* number of microseconds between interrupts */
-	tickfix = 1000000 - (hz * tick);
-	if (tickfix) {
-		int ftp;
-
-		ftp = min(ffs(tickfix), ffs(hz));
-		tickfix >>= (ftp - 1);
-		tickfixinterval = hz >> (ftp - 1);
-        }
-
-	if (!itc_frequency)
+	if (itc_frequency == 0)
 		panic("Unknown clock frequency");
 
-	freq = itc_frequency;
-	last_time = ia64_get_itc();
-	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / freq;
-	max_cycles_per_tick = 2*freq / hz;
+	stathz = hz;
+	ia64_clock_reload = (itc_frequency + hz/2) / hz;
 
 #ifndef SMP
-	ia64_timecounter.tc_frequency = freq;
+	ia64_timecounter.tc_frequency = itc_frequency;
 	tc_init(&ia64_timecounter);
 #endif
 
-	itm_reload = (itc_frequency + hz/2) / hz;
-	ia64_set_itm(ia64_get_itc() + itm_reload);
-	ia64_set_itv(CLOCK_VECTOR);	/* highest priority class */
-
-	stathz = 128;
+	pcpu_initclock();
 }
-
-#if 0	/* not used yet */
-static u_int32_t
-calibrate_clocks(u_int32_t firmware_freq)
-{
-	u_int32_t start_pcc, stop_pcc;
-	int sec, start_sec;
-
-	if (bootverbose)
-	        printf("Calibrating clock(s) ... ");
-
-	/* Read the mc146818A seconds counter. */
-	if (CLOCK_GETSECS(clockdev, &sec))
-		goto fail;
-
-	/* Wait for the mC146818A seconds counter to change. */
-	start_sec = sec;
-	for (;;) {
-		if (CLOCK_GETSECS(clockdev, &sec))
-			goto fail;
-		if (sec != start_sec)
-			break;
-	}
-
-	/* Start keeping track of the PCC. */
-	start_pcc = ia64_get_itc();
-
-	/*
-	 * Wait for the mc146818A seconds counter to change.
-	 */
-	start_sec = sec;
-	for (;;) {
-		if (CLOCK_GETSECS(clockdev, &sec))
-			goto fail;
-		if (sec != start_sec)
-			break;
-	}
-
-	/*
-	 * Read the PCC again to work out frequency.
-	 */
-	stop_pcc = ia64_get_itc();
-
-	if (bootverbose) {
-	        printf("PCC clock: %u Hz (firmware %u Hz)\n",
-		       stop_pcc - start_pcc, firmware_freq);
-	}
-	return (stop_pcc - start_pcc);
-
-fail:
-	if (bootverbose)
-	        printf("failed, using firmware default of %u Hz\n",
-		       firmware_freq);
-	return (firmware_freq);
-}
-#endif
-
-/*
- * We assume newhz is either stathz or profhz, and that neither will
- * change after being set up above.  Could recalculate intervals here
- * but that would be a drag.
- */
 
 void
 cpu_startprofclock(void)
@@ -283,20 +189,17 @@ static short dayyr[12] = {
 };
 
 /*
- * Initialze the time of day register, based on the time base which is, e.g.
- * from a filesystem.  Base provides the time to within six months,
+ * Initialize the time of day register, based on the time base which is,
+ * e.g. from a filesystem.  Base provides the time to within six months,
  * and the time of year clock (if any) provides the rest.
  */
 void
-inittodr(base)
-	time_t base;
+inittodr(time_t base)
 {
-	register int days, yr;
 	struct clocktime ct;
-	time_t deltat;
-	int badbase;
-	int s;
 	struct timespec ts;
+	time_t deltat;
+	int badbase, days, s, yr;
 
 	if (base < 5*SECYR) {
 		printf("WARNING: preposterous time in filesystem");
@@ -307,7 +210,7 @@ inittodr(base)
 		badbase = 0;
 
 	CLOCK_GET(clockdev, base, &ct);
-	clockinitted = 1;
+	todr_initialized = 1;
 
 	/* simple sanity checks */
 	if (ct.year < 70 || ct.mon < 1 || ct.mon > 12 || ct.day < 1 ||
@@ -333,12 +236,13 @@ inittodr(base)
 	days += dayyr[ct.mon - 1] + ct.day - 1;
 	if (LEAPYEAR(yr) && ct.mon > 2)
 		days++;
+
 	/* now have days since Jan 1, 1970; the rest is easy... */
 	s = splclock();
-	ts.tv_sec = 
+	ts.tv_sec =
 	    days * SECDAY + ct.hour * SECHOUR + ct.min * SECMIN + ct.sec;
 	if (wall_cmos_clock)
-	    ts.tv_sec += adjkerntz;
+		ts.tv_sec += adjkerntz;
 	ts.tv_nsec = 0;
 	tc_setclock(&ts);
 	splx(s);
@@ -361,28 +265,25 @@ bad:
 }
 
 /*
- * Reset the TODR based on the time value; used when the TODR
- * has a preposterous value and also when the time is reset
- * by the stime system call.  Also called when the TODR goes past
+ * Reset the TODR based on the time value; used when the TODR has a
+ * preposterous value and also when the time is reset by the stime
+ * system call.  Also called when the TODR goes past
  * TODRZERO + 100*(SECYEAR+2*SECDAY) (e.g. on Jan 2 just after midnight)
  * to wrap the TODR around.
  */
 void
 resettodr()
 {
-	register int t, t2, s;
 	struct clocktime ct;
-	unsigned long	tm;
+	unsigned long tm;
+	int s, t, t2;
 
-	if (disable_rtc_set)
+	if (!todr_initialized || disable_rtc_set)
 		return;
 
 	s = splclock();
 	tm = time_second;
 	splx(s);
-
-	if (!clockinitted)
-		return;
 
 	/* Calculate local time	to put in RTC */
 	tm -= (wall_cmos_clock ? adjkerntz : 0);
@@ -419,86 +320,3 @@ resettodr()
 
 	CLOCK_SET(clockdev, &ct);
 }
-
-#ifndef SMP
-static unsigned
-ia64_get_timecount(struct timecounter* tc)
-{
-    return ia64_get_itc();
-}
-#endif
-
-int
-acquire_timer2(int mode)
-{
-
-	if (timer2_state != RELEASED)
-		return (-1);
-	timer2_state = ACQUIRED;
-
-	/*
-	 * This access to the timer registers is as atomic as possible
-	 * because it is a single instruction.  We could do better if we
-	 * knew the rate.  Use of splclock() limits glitches to 10-100us,
-	 * and this is probably good enough for timer2, so we aren't as
-	 * careful with it as with timer0.
-	 */
-	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
-
-	return (0);
-}
-
-int
-release_timer2()
-{
-
-	if (timer2_state != ACQUIRED)
-		return (-1);
-	timer2_state = RELEASED;
-	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
-	return (0);
-}
-
-static void
-sysbeepstop(void *chan)
-{
-	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
-	release_timer2();
-	beeping = 0;
-}
-
-/*
- * Frequency of all three count-down timers; (TIMER_FREQ/freq) is the
- * appropriate count to generate a frequency of freq hz.
- */
-#ifndef TIMER_FREQ
-#define	TIMER_FREQ	1193182
-#endif
-#define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
-
-int
-sysbeep(int pitch, int period)
-{
-	int x = splhigh();
-
-	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
-		if (!beeping) {
-			/* Something else owns it. */
-			splx(x);
-			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
-		}
-
-	if (pitch) pitch = TIMER_DIV(pitch);
-
-	outb(TIMER_CNTR2, pitch);
-	outb(TIMER_CNTR2, (pitch>>8));
-	if (!beeping) {
-		/* enable counter2 output to speaker */
-		if (pitch) outb(IO_PPI, inb(IO_PPI) | 3);
-		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
-	}
-	splx(x);
-	return (0);
-}
-
