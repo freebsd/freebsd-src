@@ -370,23 +370,24 @@ again:
 		}
 	}
 #endif /* notdef */
+	/*
+	 * Verify that we have any chance at all of being able to queue the
+	 * packet or packet fragments, unless ALTQ is enabled on the given
+	 * interface in which case packetdrop should be done by queueing.
+	 */
 #ifdef ALTQ
-	/*
-	 * disable packet drop hack.
-	 * packetdrop should be done by queueing.
-	 */
-#else /* !ALTQ */
-	/*
-	 * Verify that we have any chance at all of being able to queue
-	 *      the packet or packet fragments
-	 */
+	if ((!ALTQ_IS_ENABLED(&ifp->if_snd)) &&
+	    ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
+	    ifp->if_snd.ifq_maxlen))
+#else
 	if ((ifp->if_snd.ifq_len + ip->ip_len / ifp->if_mtu + 1) >=
-		ifp->if_snd.ifq_maxlen) {
-			error = ENOBUFS;
-			ipstat.ips_odropped++;
-			goto bad;
+	    ifp->if_snd.ifq_maxlen)
+#endif /* ALTQ */
+	{
+		error = ENOBUFS;
+		ipstat.ips_odropped++;
+		goto bad;
 	}
-#endif /* !ALTQ */
 
 	/*
 	 * Look for broadcast address and
