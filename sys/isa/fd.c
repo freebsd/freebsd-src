@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.13 1993/12/16 04:28:42 ache Exp $
+ *	$Id: fd.c,v 1.14 1993/12/16 19:47:42 ache Exp $
  *
  */
 
@@ -72,38 +72,48 @@ struct fd_type {
 	int	secsize;		/* size code for sectors     */
 	int	datalen;		/* data len when secsize = 0 */
 	int	gap;			/* gap len between sectors   */
+					/* needed for format only    */
 	int	tracks;			/* total num of tracks       */
 	int	size;			/* size of disk in sectors   */
 	int	steptrac;		/* steps per cylinder        */
 	int	trans;			/* transfer speed code       */
 	int	heads;			/* number of heads	     */
+	int     intleave;               /* interleave factor         */
+					/* needed for format only    */
 };
 
-#define NUMTYPES 9
+#define NUMTYPES 11
+#define NUMDENS  (NUMTYPES - 3)
 
 /* This defines must match fd_types */
-#define FD_1440         0
-#define FD_1200         1
-#define FD_360in1200    2
-#define FD_360          3
-#define FD_720in1440    4
-#define FD_720in1200 FD_720in1440
-#define FD_1720in1440   5
-#define FD_800in1200    6
-#define FD_1440in1200   7
-#define FD_1460in1200   8
+#define FD_1720         0
+#define FD_1480         1
+#define FD_1440         2
+#define FD_1200         3
+#define FD_820          4
+#define FD_800          5
+#define FD_720          6
+#define FD_360          7
+
+#define FD_1480in1440   FD_1480
+#define FD_360inHD      8
+#define FD_1480in1200   9
+#define FD_1440in1200   10
 
 struct fd_type fd_types[NUMTYPES] =
 {
-	{ 18,2,0xFF,0x1B,80,2880,1,0,2 }, /* 1.44M in HD 3.5in  drive */
-	{ 15,2,0xFF,0x1B,80,2400,1,0,2 }, /*  1.2M in HD 5.25in drive */
-	{ 9,2,0xFF,0x23,40,720,2,1,2 },   /*  360K in HD 5.25in drive */
-	{ 9,2,0xFF,0x2A,40,720,1,1,2 },   /*  360K in DD 5.25in drive */
-	{ 9,2,0xFF,0x20,80,1440,1,1,2 },  /*  720K in HD 3.5in  drive */
-	{ 21,2,0xFF,0x0C,82,3444,1,0,2 }, /* 1.72M in HD 3.5in  drive */
-	{ 10,2,0xFF,0x2E,80,1600,1,1,2 }, /*  800K in HD 5.25in drive */
-	{ 18,2,0xFF,0x02,80,2880,1,0,2 }, /* 1.44M in HD 5.25in drive */
-	{ 18,2,0xFF,0x02,82,2952,1,0,2 }, /* 1.46M in HD 5.25in drive */
+	{ 21,2,0xFF,0x0C,82,3444,1,0,2,2 }, /* 1.72M in HD 3.5in  drive */
+	{ 18,2,0xFF,0x6C,82,2952,1,0,2,1 }, /* 1.48M in HD 3.5in  drive */
+	{ 18,2,0xFF,0x6C,80,2880,1,0,2,1 }, /* 1.44M in HD 3.5in  drive */
+	{ 15,2,0xFF,0x54,80,2400,1,0,2,1 }, /*  1.2M in HD drive */
+	{ 10,2,0xFF,0x2E,82,1600,1,1,2,1 }, /*  820K in HD drive */
+	{ 10,2,0xFF,0x2E,80,1600,1,1,2,1 }, /*  800K in HD drive */
+	{ 9,2,0xFF,0x50,80,1440,1,1,2,1 },  /*  720K in HD drive */
+	{ 9,2,0xFF,0x50,40,720,1,1,2,1 },   /*  360K in DD 5.25in drive */
+
+	{ 9,2,0xFF,0x50,40,720,2,1,2,1 },   /*  360K in HD drive */
+	{ 18,2,0xFF,0x02,82,2952,1,0,2,2 }, /* 1.48M in HD 5.25in drive */
+	{ 18,2,0xFF,0x02,80,2880,1,0,2,2 }, /* 1.44M in HD 5.25in drive */
 };
 
 #define DRVS_PER_CTLR 2
@@ -311,8 +321,12 @@ fdattach(dev)
 			fd_data[fdu].type = FD_1440;
 			break;
 		case RTCFDT_360K:
-			printf("360K 5.25in\n");
+			printf("360KB 5.25in\n");
 			fd_data[fdu].type = FD_360;
+			break;
+		case RTCFDT_720K:
+			printf("720KB 3.5in\n");
+			fd_data[fdu].type = FD_720;
 			break;
 		default:
 			printf("unknown\n");
@@ -540,7 +554,7 @@ Fdopen(dev, flags)
 	/* check bounds */
 	if (fdu >= NFD || fd_data[fdu].fdc == NULL
 		|| fd_data[fdu].type == NO_TYPE) return(ENXIO);
-	if (type > NUMTYPES) return(ENXIO);
+	if (type > NUMDENS) return(ENXIO);
 	if (type == 0)
 		type = fd_data[fdu].type;
 	else {
@@ -549,19 +563,38 @@ Fdopen(dev, flags)
 			switch (fd_data[fdu].type) {
 			case FD_360:
 				return(ENXIO);
+			case FD_720:
+				if (type == FD_360)
+					type = FD_360inHD;
+				else if (type != FD_800
+				      && type != FD_820
+					)
+					return(ENXIO);
+				break;
 			case FD_1200:
-				if (   type != FD_720in1200
-				    && type != FD_360in1200
-				    && type != FD_800in1200
-				    && type != FD_1440in1200
-				    && type != FD_1460in1200
-				   )
+				if (type == FD_360)
+					type = FD_360inHD;
+				else if (type == FD_1440)
+					type = FD_1440in1200;
+				else if (type == FD_1480)
+					type = FD_1480in1200;
+				else if (type != FD_720
+				      && type != FD_800
+				      && type != FD_820
+					)
 					return(ENXIO);
 				break;
 			case FD_1440:
-				if (   type != FD_1720in1440
-				    && type != FD_720in1440
-				   )
+				if (type == FD_360)
+					type = FD_360inHD;
+				else if (type == FD_1480)
+					type = FD_1480in1440;
+				else if (type != FD_720
+				      && type != FD_800
+				      && type != FD_820
+				      && type != FD_1200
+				      && type != FD_1720
+					)
 					return(ENXIO);
 				break;
 			}
@@ -819,7 +852,10 @@ fdstate(fdcu, fdc)
 		out_fdc(fdcu,sec);			/* sector XXX +1? */
 		out_fdc(fdcu,fd->ft->secsize);		/* sector size */
 		out_fdc(fdcu,sectrac);		/* sectors/track */
-		out_fdc(fdcu,fd->ft->gap);		/* gap size */
+#if 0
+		out_fdc(fdcu,fd->ft->gap);              /* gap size */
+#endif
+		out_fdc(fdcu,2);     /* always use gap 2 for read/write */
 		out_fdc(fdcu,fd->ft->datalen);		/* data length */
 		fdc->state = IOCOMPLETE;
 		timeout(fd_timeout, (caddr_t)fdcu, 2 * hz);
