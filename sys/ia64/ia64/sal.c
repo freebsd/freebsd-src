@@ -146,7 +146,7 @@ ia64_sal_init(struct sal_system_table *saltab)
 			}
 
 			if (bootverbose)
-				printf("SAL: AP wake-up vector: 0x%x\n",
+				printf("SAL: AP wake-up vector: 0x%lx\n",
 				    dp->sale_vector);
 
 			ipi_vector[IPI_AP_WAKEUP] = dp->sale_vector;
