@@ -941,7 +941,11 @@ syscall(frame)
 	int args[8];
 	u_int code;
 
-	atomic_add_int(&cnt.v_syscall, 1);
+	/*
+	 * note: PCPU_LAZY_INC() can only be used if we can afford
+	 * occassional inaccuracy in the count.
+	 */
+	PCPU_LAZY_INC(cnt.v_syscall);
 
 #ifdef DIAGNOSTIC
 	if (ISPL(frame.tf_cs) != SEL_UPL) {

@@ -35,6 +35,7 @@
 
 #ifdef _KERNEL
 #include <sys/queue.h>
+#include <sys/vmmeter.h>
 #include <machine/pcpu.h>
 
 #ifndef LOCORE
@@ -65,6 +66,7 @@ struct pcpu {
 	char		*pc_ktr_buf;
 #endif
 	PCPU_MD_FIELDS;
+	struct vmmeter	pc_cnt;			/* VM stats counters */
 };
 
 SLIST_HEAD(cpuhead, pcpu);
@@ -76,6 +78,21 @@ extern struct cpuhead cpuhead;
 #define	curproc		(curthread->td_proc)
 #define	curksegrp	(curthread->td_ksegrp)
 #define	curkse		(curthread->td_kse)
+
+/*
+ * MI PCPU support functions
+ *
+ * PCPU_LAZY_INC() -	Lazily increment a per-cpu stats counter, without
+ *			guarenteeing atomicy or even necessarily consistency.
+ *
+ *			XXX we need to create MD primitives to support
+ *			this to guarentee at least some level of consistency,
+ *			i.e. to prevent us from totally corrupting the 
+ *			counters due to preemption in a multi-instruction
+ *			increment sequence for architectures that do not
+ *			support single-instruction memory increments.
+ */
+#define PCPU_LAZY_INC(var)	(++*PCPU_PTR(var))
 
 /*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
