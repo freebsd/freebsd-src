@@ -1,4 +1,4 @@
-$Id: nslookup.help,v 4.9.1.3 1993/12/06 00:43:17 vixie Exp $
+$Id: nslookup.help,v 8.2 1995/06/29 09:26:34 vixie Exp $
 
 Commands: 	(identifiers are shown in uppercase, [] means optional)
 NAME		- print info about the host/domain NAME using default server
@@ -16,12 +16,12 @@ set OPTION	- set an option
     root=NAME	- set root server to NAME
     retry=X	- set number of retries to X
     timeout=X	- set initial time-out interval to X seconds
-    querytype=X	- set query type, e.g., A,ANY,CNAME,HINFO,MX,NS,PTR,SOA,TXT,WKS
+    querytype=X	- set query type, e.g., A,ANY,CNAME,HINFO,MX,PX,NS,PTR,SOA,TXT,WKS
     type=X	- synonym for querytype
     class=X	- set query class to one of IN (Internet), CHAOS, HESIOD or ANY
 server NAME	- set default server to NAME, using current default server
 lserver NAME	- set default server to NAME, using initial server
-finger [USER]	- finger the optional NAME at the current default host
+finger [USER]	- finger the optional USER at the current default host
 root		- set current default server to the root
 ls [opt] DOMAIN [> FILE] - list addresses in DOMAIN (optional: output to FILE)
     -a 		-  list canonical names and aliases
