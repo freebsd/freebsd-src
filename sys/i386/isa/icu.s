@@ -36,7 +36,7 @@
  *
  *	@(#)icu.s	7.2 (Berkeley) 5/21/91
  *
- *	$Id: icu.s,v 1.12 1994/08/18 05:09:24 davidg Exp $
+ *	$Id: icu.s,v 1.13 1994/09/14 23:56:08 wollman Exp $
  */
 
 /*
@@ -314,6 +314,7 @@ _netisrs:
 	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
 	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
 	.long _dummynetisr, _dummynetisr, _dummynetisr, _dummynetisr
+	.text
 	
 #define DONET(s) ; \
 	btrl	$s,_netisr ; \
