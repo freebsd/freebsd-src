@@ -99,7 +99,7 @@ reflect data read.  Otherwise, an appropriate error code is returned.
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er ENOENT
-The attribute name is not defined for this vnode
+The attribute name is not defined for this vnode.
 .It Bq Er EACCES
 Permission denied
 .It Bq Er ENXIO
@@ -117,7 +117,7 @@ or
 argument is invalid.
 .It Bq Er EOPNOTSUPP
 The filesystem does not support
-.Fn VOP_GETEXTATTR
+.Fn VOP_GETEXTATTR .
 .El
 .Sh SEE ALSO
 .Xr extattr 9 ,
