@@ -39,11 +39,12 @@
 .Nd attach a serial line network interface
 .Sh SYNOPSIS
 .Nm sliplogin
-.Op Ar loginname
+.Op Ar loginname Op Ar device
 .Sh DESCRIPTION
 .Nm Sliplogin
-is used to turn the terminal line on standard input into
-a Serial Line IP
+is used to turn the terminal line on standard input (or
+.Ar device )
+into a Serial Line IP
 .Pq Tn SLIP
 link to a remote host.  To do this, the program
 searches the file
@@ -54,8 +55,25 @@ for an entry matching
 If a matching entry is found, the line is configured appropriately
 for slip (8-bit transparent i/o) and converted to
 .Tn SLIP
-line
-discipline.  Then a shell script is invoked to initialize the slip
+line discipline using the optional line discipline parameters.
+.Pp
+The optional line discipline parameters consist of one or more of
+the following;
+.Sq normal ,
+.Sq compress ,
+.Sq noicmp ,
+or
+.Sq autocomp
+which correspond respectively to
+.Sq use normal line discipline
+(no header compression),
+.Sq enable VJ header compression ,
+.Sq throw away ICMP packets ,
+and
+.Sq auto enable VJ header compression
+(only if the remote end of the link also supports it).
+.Pp
+Then a shell script is invoked to initialize the slip
 interface with the appropriate local and remote
 .Tn IP
 address,
@@ -94,7 +112,8 @@ or
 .Pa /etc/sliphome/slip.logout. Ns Ar loginname
 is executed if it exists.  It is given the same arguments as the login script.
 .Ss Format of /etc/sliphome/slip.hosts
-Comments (lines starting with a `#') and blank lines are ignored.
+Comments (lines starting with a `#') and blank lines (or started
+with space) are ignored.
 Other lines must start with a
 .Ar loginname
 but the remaining arguments can be whatever is appropriate for the
@@ -122,6 +141,44 @@ directly to
 .Xr ifconfig 8 .
 .Em Opt-args
 are optional arguments used to configure the line.
+.Pp
+.Sh FreeBSD Additions
+An additional SLIP configuration file (if present) is
+.Pa /etc/sliphome/slip.slparms .
+If particular hosts need different configurations, the file
+.Pa /etc/sliphome/slip.slparms. Ns Ar loginname
+will be parsed instead if it exists.
+.Ss Format of /etc/sliphome/slip.slparms*
+Comments (lines starting with a `#') and blank lines (or started with
+space) are ignored.
+This file contains from one to three numeric parameters separated with spaces,
+in order:
+.Ar keepalive ,
+.Ar outfill
+and
+.Ar slunit .
+.Bl -tag -width keepalive
+.It Ar keepalive
+Set SLIP "keep alive" timeout in seconds. If FRAME_END is not received in
+this amount of time,
+.Nm sliplogin
+closes the line and exits.
+The default value is no timeout (zero).
+.It Ar outfill
+Set SLIP "out fill" timeout in seconds. It forces at least one FRAME_END
+to be sent during this time period, which is necessary for the "keep alive"
+timeout on the remote side.
+The default value is no timeout (zero).
+.It Ar slunit
+Set the SLIP unit number directly. Use with caution, because no check is made
+for two interfaces with same number.
+By default sliplogin dynamically assigns the unit number.
+.El
+.Pp
+If latter two parameters are ommitted, they will not affect the
+corresponding SLIP configuration.
+If any of first two parameters is equal to zero, it will not affect
+the corresponding SLIP configuration.
 .Sh EXAMPLE
 The normal use of
 .Nm sliplogin
@@ -212,7 +269,8 @@ was successfully attached.
 .El
 .Sh SEE ALSO
 .Xr slattach 8 ,
-.Xr syslogd 8
+.Xr syslogd 8 ,
+.Pa /usr/share/examples/sliplogin
 .Sh HISTORY
 The
 .Nm
