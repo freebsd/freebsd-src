@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.2 1996/07/05 01:03:20 jkh Exp $
+.\" $Id: fetch.1,v 1.3 1996/07/18 00:07:59 jkh Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os
@@ -99,6 +99,14 @@ is the password for the remote host. Default is
 
 .Ev FTP_PASSIVE_MODE
 will force the use of passive mode FTP for firewalls.
+
+If
+.Ev HTTP_PROXY
+is set to a value of the form
+.Em host:port
+it specifies the address of a http proxy. The proxy will be used
+for all ftp and http requests. This is useful if you are behind
+an application firewall.
 .Sh SEE ALSO
 .Xr tftp 1
 .Xr ftp 1
