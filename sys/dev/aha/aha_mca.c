@@ -180,7 +180,7 @@ aha_mca_attach (device_t dev)
 				   			NULL,
 							NULL,
 				   /* maxsize	*/	BUS_SPACE_MAXSIZE_24BIT,
-				   /* nsegments	*/	BUS_SPACE_UNRESTRICTED,
+				   /* nsegments	*/	~0,
 				   /* maxsegsz	*/	BUS_SPACE_MAXSIZE_24BIT,
 				   /* flags	*/	0,
 							&sc->parent_dmat);

@@ -139,7 +139,7 @@ dpt_eisa_attach (device_t dev)
 				/* filter    */	NULL,
 				/* filterarg */	NULL,
 				/* maxsize   */	BUS_SPACE_MAXSIZE_32BIT,
-				/* nsegments */	BUS_SPACE_UNRESTRICTED,
+				/* nsegments */	~0,
 				/* maxsegsz  */	BUS_SPACE_MAXSIZE_32BIT,
 				/* flags     */0,
 				&dpt->parent_dmat) != 0) {

@@ -248,7 +248,7 @@ aha_isa_attach(device_t dev)
 	    lowaddr, /*highaddr*/BUS_SPACE_MAXADDR,
 	    filter, filter_arg,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_24BIT,
-	    /*nsegments*/BUS_SPACE_UNRESTRICTED,
+	    /*nsegments*/~0,
 	    /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
 	    /*flags*/0, &aha->parent_dmat) != 0) {
                 aha_free(aha);
