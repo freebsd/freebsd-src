@@ -207,6 +207,7 @@ NamePathTail                [.]{NameSeg}
 "Device"                    { count (2); return (PARSEOP_DEVICE); }
 "Event"                     { count (2); return (PARSEOP_EVENT); }
 "Field"                     { count (2); return (PARSEOP_FIELD); }
+"Function"                  { count (2); return (PARSEOP_FUNCTION); }
 "IndexField"                { count (2); return (PARSEOP_INDEXFIELD); }
 "Method"                    { count (2); return (PARSEOP_METHOD); }
 "Mutex"                     { count (2); return (PARSEOP_MUTEX); }
@@ -279,6 +280,7 @@ NamePathTail                [.]{NameSeg}
 "SizeOf"                    { count (3); return (PARSEOP_SIZEOF); }
 "Store"                     { count (3); return (PARSEOP_STORE); }
 "Subtract"                  { count (3); return (PARSEOP_SUBTRACT); }
+"Timer"                     { count (3); return (PARSEOP_TIMER); }
 "ToBCD"                     { count (3); return (PARSEOP_TOBCD); }
 "ToBuffer"                  { count (3); return (PARSEOP_TOBUFFER); }
 "ToDecimalString"           { count (3); return (PARSEOP_TODECIMALSTRING); }
@@ -313,11 +315,16 @@ NamePathTail                [.]{NameSeg}
 
 "EISAID"                    { count (1); return (PARSEOP_EISAID); }
 "ResourceTemplate"          { count (1); return (PARSEOP_RESOURCETEMPLATE); }
+"ToUUID"                    { count (1); return (PARSEOP_TOUUID); }
 "Unicode"                   { count (1); return (PARSEOP_UNICODE); }
 "DMA"                       { count (1); return (PARSEOP_DMA); }
 "DWordIO"                   { count (1); return (PARSEOP_DWORDIO); }
 "DWordMemory"               { count (1); return (PARSEOP_DWORDMEMORY); }
+"DWordSpace"                { count (1); return (PARSEOP_DWORDSPACE); }
 "EndDependentFn"            { count (1); return (PARSEOP_ENDDEPENDENTFN); }
+"ExtendedIO"                { count (1); return (PARSEOP_EXTENDEDIO); }
+"ExtendedMemory"            { count (1); return (PARSEOP_EXTENDEDMEMORY); }
+"ExtendedSpace"             { count (1); return (PARSEOP_EXTENDEDSPACE); }
 "FixedIO"                   { count (1); return (PARSEOP_FIXEDIO); }
 "Interrupt"                 { count (1); return (PARSEOP_INTERRUPT); }
 "IO"                        { count (1); return (PARSEOP_IO); }
@@ -328,6 +335,7 @@ NamePathTail                [.]{NameSeg}
 "Memory32"                  { count (1); return (PARSEOP_MEMORY32); }
 "QWordIO"                   { count (1); return (PARSEOP_QWORDIO); }
 "QWordMemory"               { count (1); return (PARSEOP_QWORDMEMORY); }
+"QWordSpace"                { count (1); return (PARSEOP_QWORDSPACE); }
 "Register"                  { count (1); return (PARSEOP_REGISTER); }
 "StartDependentFn"          { count (1); return (PARSEOP_STARTDEPENDENTFN); }
 "StartDependentFnNoPri"     { count (1); return (PARSEOP_STARTDEPENDENTFN_NOPRI); }
@@ -335,6 +343,7 @@ NamePathTail                [.]{NameSeg}
 "VendorShort"               { count (1); return (PARSEOP_VENDORSHORT); }
 "WordBusNumber"             { count (1); return (PARSEOP_WORDBUSNUMBER); }
 "WordIO"                    { count (1); return (PARSEOP_WORDIO); }
+"WordSpace"                 { count (1); return (PARSEOP_WORDSPACE); }
 
 "UnknownObj"                { count (0); return (PARSEOP_OBJECTTYPE_UNK); }
 "IntObj"                    { count (0); return (PARSEOP_OBJECTTYPE_INT); }
@@ -886,14 +895,9 @@ comment2 (void)
 
     if (c == EOF)
     {
-        /*
-         * Premature End-Of-File
-         */
-        AslCommonError (ASL_ERROR, ASL_MSG_EARLY_EOF,
-                        Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
-                        Gbl_CurrentLineOffset, Gbl_CurrentColumn,
-                        Gbl_Files[ASL_FILE_INPUT].Filename, NULL);
-        return (FALSE);
+        /* End of file is OK, change to newline. Let parser detect EOF later */
+
+        c = '\n';
     }
 
     InsertLineBuffer (c);

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslcodegen - AML code generation
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -444,6 +444,13 @@ CgWriteTableHeader (
 
     Child = Child->Asl.Next;
     TableHeader.Revision = (UINT8) Child->Asl.Value.Integer;
+
+    /* Command-line Revision override */
+
+    if (Gbl_RevisionOverride)
+    {
+        TableHeader.Revision = Gbl_RevisionOverride;
+    }
 
     /* OEMID */
 

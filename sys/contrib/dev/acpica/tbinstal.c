@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbinstal - ACPI table installation and removal
- *              $Revision: 73 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -352,10 +352,11 @@ AcpiTbInitTableDescriptor (
     {
         /*
          * Only one table allowed, and a table has alread been installed
-         *  at this location, so return an error.
+         * at this location, so return an error.
          */
         if (ListHead->Next)
         {
+            ACPI_MEM_FREE (TableDesc);
             return_ACPI_STATUS (AE_ALREADY_EXISTS);
         }
 

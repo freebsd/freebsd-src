@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acevents.h - Event subcomponent prototypes and defines
- *       $Revision: 95 $
+ *       $Revision: 96 $
  *
  *****************************************************************************/
 
@@ -184,7 +184,8 @@ AcpiEvNotifyDispatch (
 
 ACPI_STATUS
 AcpiEvWalkGpeList (
-    ACPI_GPE_CALLBACK       GpeWalkCallback);
+    ACPI_GPE_CALLBACK       GpeWalkCallback,
+    UINT32                  Flags);
 
 BOOLEAN
 AcpiEvValidGpeEvent (

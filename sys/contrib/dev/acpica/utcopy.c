@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 114 $
+ *              $Revision: 115 $
  *
  *****************************************************************************/
 
@@ -507,25 +507,23 @@ AcpiUtCopyEsimpleToIsimple (
         break;
 
     default:
-        /*
-         * Whatever other type -- it is not supported
-         */
+        /* All other types are not supported */
+
         return_ACPI_STATUS (AE_SUPPORT);
     }
 
 
-    switch (ExternalObject->Type)
-    {
-
     /* Must COPY string and buffer contents */
 
+    switch (ExternalObject->Type)
+    {
     case ACPI_TYPE_STRING:
 
         InternalObject->String.Pointer =
             ACPI_MEM_CALLOCATE ((ACPI_SIZE) ExternalObject->String.Length + 1);
         if (!InternalObject->String.Pointer)
         {
-            return_ACPI_STATUS (AE_NO_MEMORY);
+            goto ErrorExit;
         }
 
         ACPI_MEMCPY (InternalObject->String.Pointer,
@@ -542,7 +540,7 @@ AcpiUtCopyEsimpleToIsimple (
             ACPI_MEM_CALLOCATE (ExternalObject->Buffer.Length);
         if (!InternalObject->Buffer.Pointer)
         {
-            return_ACPI_STATUS (AE_NO_MEMORY);
+            goto ErrorExit;
         }
 
         ACPI_MEMCPY (InternalObject->Buffer.Pointer,
@@ -565,6 +563,11 @@ AcpiUtCopyEsimpleToIsimple (
 
     *RetInternalObject = InternalObject;
     return_ACPI_STATUS (AE_OK);
+
+
+ErrorExit:
+    AcpiUtRemoveReference (InternalObject);
+    return_ACPI_STATUS (AE_NO_MEMORY);
 }
 
 
@@ -845,7 +848,7 @@ AcpiUtCopyIelementToIelement (
             Status = AcpiUtCopySimpleObject (SourceObject, TargetObject);
             if (ACPI_FAILURE (Status))
             {
-                return (Status);
+                goto ErrorExit;
             }
 
             *ThisTargetPtr = TargetObject;
@@ -882,8 +885,8 @@ AcpiUtCopyIelementToIelement (
                                     sizeof (void *));
         if (!TargetObject->Package.Elements)
         {
-            ACPI_MEM_FREE (TargetObject);
-            return (AE_NO_MEMORY);
+            Status = AE_NO_MEMORY;
+            goto ErrorExit;
         }
 
         /*
@@ -902,6 +905,10 @@ AcpiUtCopyIelementToIelement (
         return (AE_BAD_PARAMETER);
     }
 
+    return (Status);
+
+ErrorExit:
+    AcpiUtRemoveReference (TargetObject);
     return (Status);
 }
 

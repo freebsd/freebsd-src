@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
- *              $Revision: 86 $
+ *              $Revision: 87 $
  *
  *****************************************************************************/
 
@@ -197,7 +197,7 @@ AcpiExSystemMemorySpaceHandler (
      * Hardware does not support non-aligned data transfers, we must verify
      * the request.
      */
-    (void) AcpiUtShortDivide ((ACPI_INTEGER *) &Address, Length, NULL, &Remainder);
+    (void) AcpiUtShortDivide ((ACPI_INTEGER) Address, Length, NULL, &Remainder);
     if (Remainder != 0)
     {
         return_ACPI_STATUS (AE_AML_ALIGNMENT);

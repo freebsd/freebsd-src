@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 73 $
+ *              $Revision: 74 $
  *
  *****************************************************************************/
 
@@ -129,7 +129,7 @@
  *
  * FUNCTION:    AcpiEvSystemMemoryRegionSetup
  *
- * PARAMETERS:  RegionObj           - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context
@@ -186,7 +186,7 @@ AcpiEvSystemMemoryRegionSetup (
  *
  * FUNCTION:    AcpiEvIoSpaceRegionSetup
  *
- * PARAMETERS:  RegionObj           - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context
@@ -224,7 +224,7 @@ AcpiEvIoSpaceRegionSetup (
  *
  * FUNCTION:    AcpiEvPciConfigRegionSetup
  *
- * PARAMETERS:  RegionObj           - Region we are interested in
+ * PARAMETERS:  Handle             - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context
@@ -413,7 +413,7 @@ AcpiEvPciConfigRegionSetup (
  *
  * FUNCTION:    AcpiEvPciBarRegionSetup
  *
- * PARAMETERS:  RegionObj           - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context
@@ -444,7 +444,7 @@ AcpiEvPciBarRegionSetup (
  *
  * FUNCTION:    AcpiEvCmosRegionSetup
  *
- * PARAMETERS:  RegionObj           - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context
@@ -475,7 +475,7 @@ AcpiEvCmosRegionSetup (
  *
  * FUNCTION:    AcpiEvDefaultRegionSetup
  *
- * PARAMETERS:  RegionObj           - Region we are interested in
+ * PARAMETERS:  Handle              - Region we are interested in
  *              Function            - Start or stop
  *              HandlerContext      - Address space handler context
  *              RegionContext       - Region specific context

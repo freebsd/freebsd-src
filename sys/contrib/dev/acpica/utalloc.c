@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utalloc - local cache and memory allocation routines
- *              $Revision: 135 $
+ *              $Revision: 138 $
  *
  *****************************************************************************/
 
@@ -345,13 +345,13 @@ AcpiUtValidateBuffer (
  *
  * FUNCTION:    AcpiUtInitializeBuffer
  *
- * PARAMETERS:  RequiredLength      - Length needed
- *              Buffer              - Buffer to be validated
+ * PARAMETERS:  Buffer              - Buffer to be validated
+ *              RequiredLength      - Length needed
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Validate that the buffer is of the required length or
- *              allocate a new buffer.
+ *              allocate a new buffer.  Returned buffer is always zeroed.
  *
  ******************************************************************************/
 
@@ -393,26 +393,27 @@ AcpiUtInitializeBuffer (
 
         /* Allocate a new buffer with local interface to allow tracking */
 
-        Buffer->Pointer = ACPI_MEM_ALLOCATE (RequiredLength);
+        Buffer->Pointer = ACPI_MEM_CALLOCATE (RequiredLength);
         if (!Buffer->Pointer)
         {
             return (AE_NO_MEMORY);
         }
-
-        /* Clear the buffer */
-
-        ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
         break;
 
 
     default:
 
-        /* Validate the size of the buffer */
+        /* Existing buffer: Validate the size of the buffer */
 
         if (Buffer->Length < RequiredLength)
         {
             Status = AE_BUFFER_OVERFLOW;
+            break;
         }
+
+        /* Clear the buffer */
+
+        ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
         break;
     }
 
@@ -566,7 +567,7 @@ AcpiUtAllocateAndTrack (
     ACPI_STATUS             Status;
 
 
-    Allocation = AcpiUtAllocate (Size + sizeof (ACPI_DEBUG_MEM_BLOCK), Component,
+    Allocation = AcpiUtAllocate (Size + sizeof (ACPI_DEBUG_MEM_HEADER), Component,
                                 Module, Line);
     if (!Allocation)
     {
@@ -614,7 +615,7 @@ AcpiUtCallocateAndTrack (
     ACPI_STATUS             Status;
 
 
-    Allocation = AcpiUtCallocate (Size + sizeof (ACPI_DEBUG_MEM_BLOCK), Component,
+    Allocation = AcpiUtCallocate (Size + sizeof (ACPI_DEBUG_MEM_HEADER), Component,
                                 Module, Line);
     if (!Allocation)
     {
@@ -703,7 +704,8 @@ AcpiUtFreeAndTrack (
  *
  * FUNCTION:    AcpiUtFindAllocation
  *
- * PARAMETERS:  Allocation             - Address of allocated memory
+ * PARAMETERS:  ListId                  - Memory list to search
+ *              Allocation              - Address of allocated memory
  *
  * RETURN:      A list element if found; NULL otherwise.
  *
@@ -749,7 +751,8 @@ AcpiUtFindAllocation (
  *
  * FUNCTION:    AcpiUtTrackAllocation
  *
- * PARAMETERS:  Allocation          - Address of allocated memory
+ * PARAMETERS:  ListId              - Memory list to search
+ *              Allocation          - Address of allocated memory
  *              Size                - Size of the allocation
  *              AllocType           - MEM_MALLOC or MEM_CALLOC
  *              Component           - Component type of caller
@@ -816,6 +819,7 @@ AcpiUtTrackAllocation (
     Allocation->Line      = Line;
 
     ACPI_STRNCPY (Allocation->Module, Module, ACPI_MAX_MODULE_NAME);
+    Allocation->Module[ACPI_MAX_MODULE_NAME-1] = 0;
 
     /* Insert at list head */
 
@@ -840,7 +844,8 @@ UnlockAndExit:
  *
  * FUNCTION:    AcpiUtRemoveAllocation
  *
- * PARAMETERS:  Allocation          - Address of allocated memory
+ * PARAMETERS:  ListId              - Memory list to search
+ *              Allocation          - Address of allocated memory
  *              Component           - Component type of caller
  *              Module              - Source file name of caller
  *              Line                - Line number of caller

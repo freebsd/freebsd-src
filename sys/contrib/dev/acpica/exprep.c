@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exprep - ACPI AML (p-code) execution - field prep utilities
- *              $Revision: 127 $
+ *              $Revision: 128 $
  *
  *****************************************************************************/
 
@@ -599,6 +599,7 @@ AcpiExPrepFieldValue (
         if (!ObjDesc->IndexField.DataObj || !ObjDesc->IndexField.IndexObj)
         {
             ACPI_REPORT_ERROR (("Null Index Object during field prep\n"));
+            AcpiUtDeleteObjectDesc (ObjDesc);
             return_ACPI_STATUS (AE_AML_INTERNAL);
         }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 56 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -331,10 +331,28 @@ AcpiTbConvertFadt1 (
     LocalFadt->CstCnt = 0;
 
     /*
-     * Since there isn't any equivalence in 1.0 and since it highly likely
-     * that a 1.0 system has legacy support.
+     * FADT Rev 2 was an interim FADT released between ACPI 1.0 and ACPI 2.0.
+     * It primarily adds the FADT reset mechanism.
      */
-    LocalFadt->IapcBootArch = BAF_LEGACY_DEVICES;
+    if ((OriginalFadt->Revision == 2) &&
+        (OriginalFadt->Length == sizeof (FADT_DESCRIPTOR_REV2_MINUS)))
+    {
+        /*
+         * Grab the entire generic address struct, plus the 1-byte reset value
+         * that immediately follows.
+         */
+        ACPI_MEMCPY (&LocalFadt->ResetRegister,
+            &((FADT_DESCRIPTOR_REV2_MINUS *) OriginalFadt)->ResetRegister,
+            sizeof (ACPI_GENERIC_ADDRESS) + 1);
+    }
+    else
+    {
+        /*
+         * Since there isn't any equivalence in 1.0 and since it is highly
+         * likely that a 1.0 system has legacy support.
+         */
+        LocalFadt->IapcBootArch = BAF_LEGACY_DEVICES;
+    }
 
     /*
      * Convert the V1.0 block addresses to V2.0 GAS structures
@@ -510,23 +528,21 @@ AcpiTbConvertTableFadt (void)
 
 
     /*
-     * AcpiGbl_FADT is valid
-     * Allocate and zero the 2.0 FADT buffer
-     */
-    LocalFadt = ACPI_MEM_CALLOCATE (sizeof (FADT_DESCRIPTOR_REV2));
-    if (LocalFadt == NULL)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    /*
-     * FADT length and version validation.  The table must be at least as
-     * long as the version 1.0 FADT
+     * AcpiGbl_FADT is valid. Validate the FADT length. The table must be
+     * at least as long as the version 1.0 FADT
      */
     if (AcpiGbl_FADT->Length < sizeof (FADT_DESCRIPTOR_REV1))
     {
-        ACPI_REPORT_ERROR (("Invalid FADT table length: 0x%X\n", AcpiGbl_FADT->Length));
+        ACPI_REPORT_ERROR (("FADT is invalid, too short: 0x%X\n", AcpiGbl_FADT->Length));
         return_ACPI_STATUS (AE_INVALID_TABLE_LENGTH);
+    }
+
+    /* Allocate buffer for the ACPI 2.0(+) FADT */
+
+    LocalFadt = ACPI_MEM_CALLOCATE (sizeof (FADT_DESCRIPTOR_REV2));
+    if (!LocalFadt)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
     if (AcpiGbl_FADT->Revision >= FADT2_REVISION_ID)

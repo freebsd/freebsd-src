@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: aslanalyze.c - check for semantic errors
- *              $Revision: 80 $
+ *              $Revision: 84 $
  *
  *****************************************************************************/
 
@@ -454,8 +454,9 @@ AnGetBtype (
         if (!Node)
         {
             DbgPrint (ASL_DEBUG_OUTPUT,
-                "Null attached Nsnode: [%s] at line %d\n",
-                Op->Asl.ParseOpName, Op->Asl.LineNumber);
+                "No attached Nsnode: [%s] at line %d name [%s], ignoring typecheck\n",
+                Op->Asl.ParseOpName, Op->Asl.LineNumber,
+                Op->Asl.ExternalName);
             return ACPI_UINT32_MAX;
         }
 
@@ -582,6 +583,13 @@ AnCheckForReservedName (
     else if ((Op->Asl.ExternalName[1] == 'T') &&
              (Op->Asl.ExternalName[2] == '_'))
     {
+        /* Ignore if actually emitted by the compiler */
+
+        if (Op->Asl.CompileFlags & NODE_COMPILER_EMITTED)
+        {
+            return (ACPI_NOT_RESERVED_NAME);
+        }
+
         AslError (ASL_ERROR, ASL_MSG_RESERVED_WORD, Op, Op->Asl.ExternalName);
         return (ACPI_COMPILER_RESERVED_NAME);
     }
@@ -683,6 +691,64 @@ AnCheckForReservedMethod (
 }
 
 
+UINT32
+AnMapObjTypeToBtype (
+    ACPI_PARSE_OBJECT       *Op)
+{
+
+    switch (Op->Asl.ParseOpcode)
+    {
+    case PARSEOP_OBJECTTYPE_BFF:        /* "BuffFieldObj" */
+        return (ACPI_BTYPE_BUFFER_FIELD);
+
+    case PARSEOP_OBJECTTYPE_BUF:        /* "BuffObj" */
+        return (ACPI_BTYPE_BUFFER);
+
+    case PARSEOP_OBJECTTYPE_DDB:        /* "DDBHandleObj" */
+        return (ACPI_BTYPE_DDB_HANDLE);
+
+    case PARSEOP_OBJECTTYPE_DEV:        /* "DeviceObj" */
+        return (ACPI_BTYPE_DEVICE);
+
+    case PARSEOP_OBJECTTYPE_EVT:        /* "EventObj" */
+        return (ACPI_BTYPE_EVENT);
+
+    case PARSEOP_OBJECTTYPE_FLD:        /* "FieldUnitObj" */
+        return (ACPI_BTYPE_FIELD_UNIT);
+
+    case PARSEOP_OBJECTTYPE_INT:        /* "IntObj" */
+        return (ACPI_BTYPE_INTEGER);
+
+    case PARSEOP_OBJECTTYPE_MTH:        /* "MethodObj" */
+        return (ACPI_BTYPE_METHOD);
+
+    case PARSEOP_OBJECTTYPE_MTX:        /* "MutexObj" */
+        return (ACPI_BTYPE_MUTEX);
+
+    case PARSEOP_OBJECTTYPE_OPR:        /* "OpRegionObj" */
+        return (ACPI_BTYPE_REGION);
+
+    case PARSEOP_OBJECTTYPE_PKG:        /* "PkgObj" */
+        return (ACPI_BTYPE_PACKAGE);
+
+    case PARSEOP_OBJECTTYPE_POW:        /* "PowerResObj" */
+        return (ACPI_BTYPE_POWER);
+
+    case PARSEOP_OBJECTTYPE_STR:        /* "StrObj" */
+        return (ACPI_BTYPE_STRING);
+
+    case PARSEOP_OBJECTTYPE_THZ:        /* "ThermalZoneObj" */
+        return (ACPI_BTYPE_THERMAL);
+
+    case PARSEOP_OBJECTTYPE_UNK:        /* "UnknownObj" */
+        return (ACPI_BTYPE_OBJECTS_AND_REFS);
+
+    default:
+        return (0);
+    }
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AnMethodAnalysisWalkBegin
@@ -711,6 +777,10 @@ AnMethodAnalysisWalkBegin (
     UINT32                  i;
     char                    LocalName[] = "Local0";
     char                    ArgName[] = "Arg0";
+    ACPI_PARSE_OBJECT       *ArgNode;
+    ACPI_PARSE_OBJECT       *NextType;
+    ACPI_PARSE_OBJECT       *NextParamType;
+    char                    ActualArgs = 0;
 
 
     ACPI_FUNCTION_NAME ("AnMethodAnalysisWalkBegin");
@@ -731,11 +801,75 @@ AnMethodAnalysisWalkBegin (
 
         WalkInfo->MethodStack = MethodInfo;
 
-        /* Get the NumArguments node */
+        /* Get the name node, ignored here */
 
         Next = Op->Asl.Child;
+
+        /* Get the NumArguments node */
+
         Next = Next->Asl.Next;
         MethodInfo->NumArguments = (UINT8) (((UINT8) Next->Asl.Value.Integer) & 0x07);
+
+        /* Get the SerializeRule and SyncLevel nodes, ignored here */
+
+        Next = Next->Asl.Next;
+        Next = Next->Asl.Next;
+        ArgNode = Next;
+
+        /* Get the ReturnType node */
+
+        Next = Next->Asl.Next;
+
+        NextType = Next->Asl.Child;
+        while (NextType)
+        {
+            /* Get and map each of the ReturnTypes */
+
+            MethodInfo->ValidReturnTypes |= AnMapObjTypeToBtype (NextType);
+            NextType->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
+            NextType = NextType->Asl.Next;
+        }
+
+        /* Get the ParameterType node */
+
+        Next = Next->Asl.Next;
+
+        NextType = Next->Asl.Child;
+        while (NextType)
+        {
+            if (NextType->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
+            {
+                NextParamType = NextType->Asl.Child;
+                while (NextParamType)
+                {
+                    MethodInfo->ValidArgTypes[ActualArgs] |= AnMapObjTypeToBtype (NextParamType);
+                    NextParamType->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
+                    NextParamType = NextParamType->Asl.Next;
+                }
+            }
+            else
+            {
+                MethodInfo->ValidArgTypes[ActualArgs] = AnMapObjTypeToBtype (NextType);
+                NextType->Asl.ParseOpcode = PARSEOP_DEFAULT_ARG;
+            }
+
+            ActualArgs++;
+            NextType = NextType->Asl.Next;
+        }
+
+        if ((MethodInfo->NumArguments) &&
+            (MethodInfo->NumArguments != ActualArgs))
+        {
+            /* error: Param list did not match number of args */
+        }
+
+        /* Allow numarguments == 0 for Function() */
+
+        if ((!MethodInfo->NumArguments) && (ActualArgs))
+        {
+            MethodInfo->NumArguments = ActualArgs;
+            ArgNode->Asl.Value.Integer |= ActualArgs;
+        }
 
         /*
          * Actual arguments are initialized at method entry.
@@ -746,7 +880,6 @@ AnMethodAnalysisWalkBegin (
         {
             MethodInfo->ArgInitialized[i] = TRUE;
         }
-
         break;
 
 
@@ -791,8 +924,11 @@ AnMethodAnalysisWalkBegin (
         /*
          * Otherwise, this is a reference, check if the local
          * has been previously initialized.
+         *
+         * The only operator that accepts an uninitialized value is ObjectType()
          */
-        else if (!MethodInfo->LocalInitialized[RegisterNumber])
+        else if ((!MethodInfo->LocalInitialized[RegisterNumber]) &&
+                 (Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_OBJECTTYPE))
         {
             LocalName[strlen (LocalName) -1] = (char) (RegisterNumber + 0x30);
             AslError (ASL_ERROR, ASL_MSG_LOCAL_INIT, Op, LocalName);
@@ -831,8 +967,11 @@ AnMethodAnalysisWalkBegin (
         /*
          * Otherwise, this is a reference, check if the Arg
          * has been previously initialized.
+         *
+         * The only operator that accepts an uninitialized value is ObjectType()
          */
-        else if (!MethodInfo->ArgInitialized[RegisterNumber])
+        else if ((!MethodInfo->ArgInitialized[RegisterNumber]) &&
+                 (Op->Asl.Parent->Asl.ParseOpcode != PARSEOP_OBJECTTYPE))
         {
             AslError (ASL_ERROR, ASL_MSG_ARG_INIT, Op, ArgName);
         }
