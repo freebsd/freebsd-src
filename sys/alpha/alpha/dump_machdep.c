@@ -57,7 +57,7 @@ dumpsys(struct dumperinfo *di)
 	void *va;
 	int i, mb;
 
-	printf("Dumping %u MB\n", Maxmem / (1024*1024 / PAGE_SIZE));
+	printf("Dumping %ld MB\n", Maxmem / (1024*1024 / PAGE_SIZE));
 
 	/* Fill in the kernel dump header */
 	strcpy(kdh.magic, KERNELDUMPMAGIC);
