@@ -33,3 +33,5 @@ nsed		100038
 nsemntd		100039
 pcnfsd		150001	pcnfs
 amd		300019
+cmsd		100068
+ttdbserver	100083	tooltalk
