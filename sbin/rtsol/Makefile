@@ -19,8 +19,8 @@ PROG=	rtsol
 SRCS=	rtsold.c rtsol.c if.c probe.c dump.c
 
 CFLAGS+=-DINET6 -DHAVE_GETIFADDRS
-LDADD+=	-lkvm
-DPADD+=	${LIBKVM}
+LDADD=	-lkvm
+DPADD=	${LIBKVM}
 
 NOMAN=	yes
 
