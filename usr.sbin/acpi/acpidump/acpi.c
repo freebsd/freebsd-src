@@ -27,8 +27,8 @@
  *	$FreeBSD$
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <assert.h>
@@ -60,10 +60,14 @@ static void	acpi_print_sdt(struct ACPIsdt *sdp, int endcomment);
 static void	acpi_print_fadt(struct FADTbody *fadt);
 static void	acpi_print_facs(struct FACSbody *facs);
 static void	acpi_print_dsdt(struct ACPIsdt *dsdp);
-static struct ACPIsdt *
-		acpi_map_sdt(vm_offset_t pa);
+static struct ACPIsdt *acpi_map_sdt(vm_offset_t pa);
 static void	acpi_print_rsd_ptr(struct ACPIrsdp *rp);
 static void	acpi_handle_rsdt(struct ACPIsdt *rsdp);
+
+/*
+ * Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up.
+ */
+static int addr_size;
 
 static void
 acpi_print_string(char *s, size_t length)
@@ -341,14 +345,26 @@ static void
 acpi_print_rsdt(struct ACPIsdt *rsdp)
 {
 	int	i, entries;
+	u_long	addr;
 
 	acpi_print_sdt(rsdp, /*endcomment*/0);
-	entries = (rsdp->len - SIZEOF_SDT_HDR) / sizeof(u_int32_t);
+	entries = (rsdp->len - SIZEOF_SDT_HDR) / addr_size;
 	printf("\tEntries={ ");
 	for (i = 0; i < entries; i++) {
 		if (i > 0)
 			printf(", ");
-		printf("0x%08x", rsdp->body[i]);
+		switch (addr_size) {
+		case 4:
+			addr = le32dec((char*)rsdp->body + i * addr_size);
+			break;
+		case 8:
+			addr = le64dec((char*)rsdp->body + i * addr_size);
+			break;
+		default:
+			addr = 0;
+		}
+		assert(addr != 0);
+		printf("0x%08lx", addr);
 	}
 	printf(" }\n");
 	printf(END_COMMENT);
@@ -528,25 +544,42 @@ acpi_map_sdt(vm_offset_t pa)
 static void
 acpi_print_rsd_ptr(struct ACPIrsdp *rp)
 {
-
 	printf(BEGIN_COMMENT);
-	printf("  RSD PTR: Checksum=%d, OEMID=", rp->sum);
+	printf("  RSD PTR: OEM=");
 	acpi_print_string(rp->oem, 6);
-	printf(", RsdtAddress=0x%08x\n", rp->rsdt_addr);
+	printf(", ACPI_Rev=%s (%d)\n", rp->revision < 2 ? "1.x" : "2.x",
+	       rp->revision);
+	if (rp->revision < 2) {
+		printf("\tRSDT=0x%08x, cksum=%u\n", rp->rsdt_addr, rp->sum);
+	} else {
+		printf("\tXSDT=0x%08lx, length=%u, cksum=%u\n",
+		    (u_long)rp->xsdt_addr, rp->length, rp->xsum);
+	}
 	printf(END_COMMENT);
 }
 
 static void
 acpi_handle_rsdt(struct ACPIsdt *rsdp)
 {
-	int	i;
-	int	entries;
-	struct	ACPIsdt *sdp;
+	struct ACPIsdt *sdp;
+	vm_offset_t addr;
+	int entries, i;
 
-	entries = (rsdp->len - SIZEOF_SDT_HDR) / sizeof(u_int32_t);
 	acpi_print_rsdt(rsdp);
+	entries = (rsdp->len - SIZEOF_SDT_HDR) / addr_size;
 	for (i = 0; i < entries; i++) {
-		sdp = (struct ACPIsdt *)acpi_map_sdt(rsdp->body[i]);
+		switch (addr_size) {
+		case 4:
+			addr = le32dec((char*)rsdp->body + i * addr_size);
+			break;
+		case 8:
+			addr = le64dec((char*)rsdp->body + i * addr_size);
+			break;
+		default:
+			assert((addr = 0));
+		}
+
+		sdp = (struct ACPIsdt *)acpi_map_sdt(addr);
 		if (acpi_checksum(sdp, sdp->len))
 			errx(1, "RSDT entry %d is corrupt", i);
 		if (!memcmp(sdp->signature, "FACP", 4))
@@ -572,11 +605,19 @@ sdt_load_devmem()
 
 	if (tflag)
 		acpi_print_rsd_ptr(rp);
-	rsdp = (struct ACPIsdt *)acpi_map_sdt(rp->rsdt_addr);
-	if (memcmp(rsdp->signature, "RSDT", 4) != 0 ||
-	    acpi_checksum(rsdp, rsdp->len) != 0)
-		errx(1, "RSDT is corrupted");
-
+	if (rp->revision < 2) {
+		rsdp = (struct ACPIsdt *)acpi_map_sdt(rp->rsdt_addr);
+		if (memcmp(rsdp->signature, "RSDT", 4) != 0 ||
+		    acpi_checksum(rsdp, rsdp->len) != 0)
+			errx(1, "RSDT is corrupted");
+		addr_size = sizeof(uint32_t);
+	} else {
+		rsdp = (struct ACPIsdt *)acpi_map_sdt(rp->xsdt_addr);
+		if (memcmp(rsdp->signature, "XSDT", 4) != 0 ||
+		    acpi_checksum(rsdp, rsdp->len) != 0)
+			errx(1, "XSDT is corrupted");
+		addr_size = sizeof(uint64_t);
+	}
 	return (rsdp);
 }
 
@@ -651,17 +692,28 @@ sdt_print_all(struct ACPIsdt *rsdp)
 struct ACPIsdt *
 sdt_from_rsdt(struct ACPIsdt *rsdt, const char *sig)
 {
-	int	i;
-	int	entries;
-	struct	ACPIsdt *sdt;
+	struct ACPIsdt *sdt;
+	vm_offset_t addr;
+	int entries, i;
 
-	entries = (rsdt->len - SIZEOF_SDT_HDR) / sizeof(uint32_t);
+	entries = (rsdt->len - SIZEOF_SDT_HDR) / addr_size;
 	for (i = 0; i < entries; i++) {
-		sdt = (struct ACPIsdt *)acpi_map_sdt(rsdt->body[i]);
+		switch (addr_size) {
+		case 4:
+			addr = le32dec((char*)rsdt->body + i * addr_size);
+			break;
+		case 8:
+			addr = le64dec((char*)rsdt->body + i * addr_size);
+			break;
+		default:
+			assert((addr = 0));
+		}
+		sdt = (struct ACPIsdt *)acpi_map_sdt(addr);
+		if (memcmp(sdt->signature, sig, strlen(sig)))
+			continue;
 		if (acpi_checksum(sdt, sdt->len))
 			errx(1, "RSDT entry %d is corrupt", i);
-		if (!memcmp(sdt->signature, sig, strlen(sig)))
-			return (sdt);
+		return (sdt);
 	}
 
 	return (NULL);
