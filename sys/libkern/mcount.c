@@ -46,6 +46,7 @@ void	bintr __P((void));
 void	btrap __P((void));
 void	eintr __P((void));
 void	user __P((void));
+#include <machine/lock.h>
 #endif
 
 /*
