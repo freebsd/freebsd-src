@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.13 1999/01/13 01:16:39 yokota Exp $
+ * $Id: vesa.c,v 1.14 1999/01/16 12:56:00 yokota Exp $
  */
 
 #include "vga.h"
@@ -740,6 +740,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	printf("VESA: mode set!\n");
 #endif
 	vesa_adp->va_mode = mode;
+	vesa_adp->va_mode_flags = info.vi_flags;
 	vesa_adp->va_flags &= ~V_ADP_COLOR;
 	vesa_adp->va_flags |= 
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
