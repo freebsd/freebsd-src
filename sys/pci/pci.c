@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.29 1995/09/07 15:20:53 se Exp $
+**  $Id: pci.c,v 1.30 1995/09/14 13:09:40 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -1480,7 +1480,7 @@ struct vt {
 };
 
 static struct vt VendorTable[] = {
-/*	{0x0e11, "? 0x0e11"},*/
+	{0x0e11, "Compaq"},
 	{0x1000, "NCR/Symbios"},
 	{0x1002, "ATI Technologies Inc."},
 	{0x1004, "VLSI"},
