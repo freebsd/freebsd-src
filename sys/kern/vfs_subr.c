@@ -1705,6 +1705,7 @@ vflush(mp, rootrefs, flags)
 {
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp, *nvp, *rootvp = NULL;
+	struct vattr vattr;
 	int busy = 0, error;
 
 	/* Hack to prevent crashes with old filesystem modules. */
@@ -1744,10 +1745,14 @@ loop:
 			continue;
 		}
 		/*
-		 * If WRITECLOSE is set, only flush out regular file vnodes
-		 * open for writing.
+		 * If WRITECLOSE is set, flush out unlinked but still open
+		 * files (even if open only for reading) and regular file
+		 * vnodes open for writing. 
 		 */
 		if ((flags & WRITECLOSE) &&
+		    (vp->v_type == VNON ||
+		    (VOP_GETATTR(vp, &vattr, p->p_ucred, p) == 0 &&
+		    vattr.va_nlink > 0)) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
 			simple_unlock(&vp->v_interlock);
 			continue;

@@ -81,7 +81,7 @@ ufs_inactive(ap)
 	 */
 	if (ip->i_mode == 0)
 		goto out;
-	if (ip->i_nlink <= 0 && (vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
+	if (ip->i_nlink <= 0) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, 0);
