@@ -39,6 +39,7 @@
 .Nd IPX Routing Information Protocol daemon
 .Sh SYNOPSIS
 .Nm IPXrouted
+.Op Fl N
 .Op Fl q
 .Op Fl s
 .Op Fl S
@@ -53,6 +54,8 @@ table entries.
 .Pp
 Available options:
 .Bl -tag -width logfile
+.It Fl N
+Do not reply on GetNearestServer SAP request.
 .It Fl q
 Do not supply routing information (opposite of
 .Fl s
