@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 LIB=		alpha
-NOPIC=		true
-NOPROFILE=	true
 INTERNALLIB=	true
 
 CFLAGS+=	-ffreestanding
