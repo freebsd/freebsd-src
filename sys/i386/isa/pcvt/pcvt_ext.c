@@ -2601,8 +2601,8 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 					if(pcvt_is_console)
 						cons_unavail = 0;
 #endif
-					return 0;
 				}
+				return 0;
 			}
 			break;
 
@@ -2651,20 +2651,8 @@ usl_vt_ioctl(Dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return 0;
 
 		if(i == -1)
-		{
-			/* xxx Is this what it is supposed to do? */
-			int x = spltty();
-			i = current_video_screen;
-			error = 0;
-			while (current_video_screen == i &&
-			       (error == 0 || error == ERESTART)) {
-				vs[i].vt_status |= VT_WAIT_ACT;
-				error = tsleep((caddr_t)&vs[i].smode,
-					       PZERO | PCATCH, "waitvt", 0);
-			}
-			splx(x);
-		}
-		else
+			i = minor(dev);
+
 		{
 			int x = spltty();
 			error = 0;
