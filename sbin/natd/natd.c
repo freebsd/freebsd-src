@@ -126,7 +126,7 @@ static 	int			packetDirection;
 static  int			dropIgnoredIncoming;
 static  int			logDropped;
 static	int			logFacility;
-static	int			log_ipfw_denied;
+static	int			logIpfwDenied;
 
 int main (int argc, char** argv)
 {
@@ -161,7 +161,7 @@ int main (int argc, char** argv)
 	dynamicMode		= 0;
  	logDropped		= 0;
  	logFacility		= LOG_DAEMON;
-	log_ipfw_denied		= 0;
+	logIpfwDenied		= 0;
 /*
  * Mark packet buffer empty.
  */
@@ -616,7 +616,7 @@ static void FlushPacketBuffer (int fd)
 						  (struct ip*) packetBuf,
 						  ifMTU - aliasOverhead);
 		}
-		else if (errno == EACCES && log_ipfw_denied) {
+		else if (errno == EACCES && logIpfwDenied) {
 
 			sprintf (msgBuf, "failed to write packet back");
 			Warn (msgBuf);
@@ -1257,7 +1257,7 @@ static void ParseOption (const char* option, const char* parms)
 		break;
 
 	case LogDenied:
-		logDropped = 1;
+		logDropped = yesNoValue;
 		break;
 
 	case LogFacility:
@@ -1283,8 +1283,10 @@ static void ParseOption (const char* option, const char* parms)
 	case PunchFW:
 		SetupPunchFW(strValue);
 		break;
+
 	case LogIpfwDenied:
-		log_ipfw_denied=1;
+		logIpfwDenied = yesNoValue;;
+		break;
 	}
 }
 
