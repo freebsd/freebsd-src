@@ -210,9 +210,6 @@ static void		fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp,
 static void 		fxp_init(void *xsc);
 static void 		fxp_init_body(struct fxp_softc *sc);
 static void 		fxp_tick(void *xsc);
-#ifndef BURN_BRIDGES
-static void		fxp_powerstate_d0(device_t dev);
-#endif
 static void 		fxp_start(struct ifnet *ifp);
 static void 		fxp_start_body(struct ifnet *ifp);
 static void		fxp_stop(struct fxp_softc *sc);
@@ -350,34 +347,6 @@ fxp_probe(device_t dev)
 	return (ENXIO);
 }
 
-#ifndef BURN_BRIDGES
-static void
-fxp_powerstate_d0(device_t dev)
-{
-#if __FreeBSD_version >= 430002
-	u_int32_t iobase, membase, irq;
-
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		/* Save important PCI config data. */
-		iobase = pci_read_config(dev, FXP_PCI_IOBA, 4);
-		membase = pci_read_config(dev, FXP_PCI_MMBA, 4);
-		irq = pci_read_config(dev, PCIR_INTLINE, 4);
-
-		/* Reset the power state. */
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-
-		/* Restore PCI config data. */
-		pci_write_config(dev, FXP_PCI_IOBA, iobase, 4);
-		pci_write_config(dev, FXP_PCI_MMBA, membase, 4);
-		pci_write_config(dev, PCIR_INTLINE, irq, 4);
-	}
-#endif
-}
-#endif
-
 static void
 fxp_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
@@ -417,9 +386,7 @@ fxp_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 	val = pci_read_config(dev, PCIR_COMMAND, 2);
-#ifndef BURN_BRIDGES
-	fxp_powerstate_d0(dev);
-#endif
+
 	/*
 	 * Figure out which we should try first - memory mapping or i/o mapping?
 	 * We default to memory mapping. Then we accept an override from the
@@ -1023,9 +990,7 @@ fxp_resume(device_t dev)
 
 	FXP_LOCK(sc);
 	s = splimp();
-#ifndef BURN_BRIDGES
-	fxp_powerstate_d0(dev);
-#endif
+
 	/* better way to do this? */
 	for (i = 0; i < 5; i++)
 		pci_write_config(dev, PCIR_BAR(i), sc->saved_maps[i], 4);
