@@ -57,20 +57,20 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 
 # Standard busses
-controller	isa0
-controller	pci0
+device		isa0
+device		pci0
 
 # Floppy drives
-controller	fdc0	at isa? port IO_FD1 irq 6 drq 2
+device		fdc0	at isa? port IO_FD1 irq 6 drq 2
 device		fd0	at fdc0 drive 0
 
 # ATA and ATAPI devices
 # This is work in progress, use at your own risk.
 # It currently reuses the majors of wd.c and friends.
 # It cannot co-exist with the old system in one kernel.
-# You only need one "controller ata0" for it to find all
+# You only need one "device ata0" for it to find all
 # PCI devices on modern machines.
-controller	ata0
+device		ata0
 device		atadisk0	# ATA disk drives
 device		atapicd0	# ATAPI CDROM drives
 device		atapifd0	# ATAPI floppy drives
@@ -79,22 +79,22 @@ device		atapist0	# ATAPI tape drives
 # SCSI Controllers
 # A single entry for any of these controllers (ahb, ahc, amd, ncr, etc...) is
 # sufficient for any number of installed devices.
-controller	ahc0		# AHA2940 and onboard AIC7xxx devices
-#controller	esp0
-controller	isp0		# Qlogic family
-controller	ncr0		# NCR/Symbios Logic
-controller	sym0		# NCR/Symbios Logic (newer chipsets)
+device		ahc0		# AHA2940 and onboard AIC7xxx devices
+#device		esp0
+device		isp0		# Qlogic family
+device		ncr0		# NCR/Symbios Logic
+device		sym0		# NCR/Symbios Logic (newer chipsets)
 
 # SCSI peripherals
 # Only one of each of these is needed, they are dynamically allocated.
-controller	scbus0		# SCSI bus (required)
+device		scbus0		# SCSI bus (required)
 device		da0		# Direct Access (disks)
 device		sa0		# Sequential Access (tape etc)
 device		cd0		# CD
 device		pass0		# Passthrough device (direct SCSI access)
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-controller	atkbdc0	at isa? port IO_KBD
+device		atkbdc0	at isa? port IO_KBD
 device		atkbd0	at atkbdc? irq 1
 device		psm0	at atkbdc? irq 12
 
@@ -120,7 +120,7 @@ device		wx0		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		le0		# Lance
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-controller	miibus0		# MII bus support
+device		miibus0		# MII bus support
 device		dc0		# DEC/Intel 21143 and workalikes
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
@@ -145,14 +145,14 @@ pseudo-device	md		# Memory "disks"
 pseudo-device	bpf		#Berkeley packet filter
 
 # USB support
-#controller	uhci0		# UHCI PCI->USB interface
-#controller	ohci0		# OHCI PCI->USB interface
-#controller	usb0		# USB Bus (required)
+#device		uhci0		# UHCI PCI->USB interface
+#device		ohci0		# OHCI PCI->USB interface
+#device		usb0		# USB Bus (required)
 #device		ugen0		# Generic
 #device		uhid0		# "Human Interface Devices"
 #device		ukbd0		# Keyboard
 #device		ulpt0		# Printer
-#controller	umass0		# Disks/Mass storage - Requires scbus and da0
+#device		umass0		# Disks/Mass storage - Requires scbus and da0
 #device		ums0		# Mouse
 #device		aue0		# ADMtek USB ethernet
 #device		kue0		# Kawasaki LSI USB ethernet
