@@ -100,7 +100,7 @@ options 	KSTACK_PAGES=3		# number of stack pages per process
 #
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-options	GEOM				# Use the GEOMetry system for
+options 	GEOM			# Use the GEOMetry system for
 					# disk-I/O transformations.
 
 #
