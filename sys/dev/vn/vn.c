@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.71 1998/09/14 19:56:38 sos Exp $
+ *	$Id: vn.c,v 1.72 1999/01/21 17:17:02 peter Exp $
  */
 
 /*
@@ -635,7 +635,9 @@ static int
 vn_modevent(module_t mod, int type, void *data)
 {
 	int unit;
+#ifdef DEVFS
 	struct vn_softc *vn;
+#endif
 
 	switch (type) {
 	case MOD_LOAD:
