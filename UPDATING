@@ -27,6 +27,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	The FreeBSD keyword is no longer a requirement for a valid
 	rc.d script. The rc(8) and rc.shutdown(8) scripts no longer check
 	for the existence of this keyword when ordering rc.d scripts.
+	This change touches most of the file in /etc/rc.d; therefore,
+	if you have not modified any files in that directory it may
+	be easier to rm -rf /etc/rc.d and then use the -i switch with
+	mergemaster(8).
 
 20041007:
 	One of the syscalls the 1:1 threading library libthr uses has
