@@ -11,8 +11,18 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- *	$Id$
+ *	$Id: if_isreg.h,v 1.2 1993/10/16 13:45:55 rgrimes Exp $
  */
+
+/*
+ * Initialize multicast address hashing registers to accept
+ * all multicasts (only used when in promiscuous mode)
+ */
+#if NBPFILTER > 0
+#define MULTI_INIT_ADDR 0xff
+#else
+#define MULTI_INIT_ADDR 0
+#endif
 
 /* Declarations specific to this driver */
 #define NTBUF 2
