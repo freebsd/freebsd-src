@@ -94,11 +94,17 @@ dev/aic7xxx/aic7xxx.c	optional ahc		\
 	dependency	"aic7xxx_{reg,seq}.h"
 dev/aic7xxx/93cx6.c	optional ahc
 dev/buslogic/bt.c	optional bt
+dev/buslogic/bt_mca.c	optional bt mca
 dev/ccd/ccd.c		optional ccd
 #dev/dpt/dpt_control.c	optional dpt
 dev/dpt/dpt_scsi.c	optional dpt
 dev/ed/if_ed_pci.c	optional ed pci
 dev/en/midway.c		optional en
+dev/ep/if_ep.c		optional ep
+dev/ep/if_ep_isa.c	optional ep isa
+dev/ep/if_ep_eisa.c	optional ep eisa
+dev/ep/if_ep_mca.c	optional ep mca
+dev/ep/if_ep_pccard.c	optional ep card
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
@@ -125,6 +131,7 @@ dev/ida/ida.c		optional ida
 dev/ida/ida_disk.c	optional id
 dev/isp/isp_freebsd.c	optional isp
 dev/isp/isp.c		optional isp
+dev/mca/mca_bus.c	optional mca
 dev/md/md.c		optional md
 dev/mii/mii.c		optional miibus
 dev/mii/mii_physubr.c	optional miibus
@@ -794,5 +801,3 @@ dev/pcm/isa/sb.c	optional pcm isa
 dev/pcm/pci/es1370.c	optional pcm pci
 dev/pcm/pci/t4dwave.c	optional pcm pci
 #dev/pcm/pci/aureal.c	optional pcm pci
-dev/mca/mca_bus.c	optional mca
-dev/buslogic/bt_mca.c	optional bt mca
