@@ -68,7 +68,7 @@ socket_between(struct sockaddr_at *from, struct sockaddr_at *to)
 {
 	int s;
 
-	s = socket(PF_APPLETALK, SOCK_DGRAM, 0);
+	s = socket(PF_APPLETALK, SOCK_DGRAM, ATPROTO_DDP);
 	if (s == -1)
 		errx(1, "socket: %s\n", strerror(errno));
 
