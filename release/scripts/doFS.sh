@@ -18,6 +18,18 @@ FSINODE=$1 ; shift
 FSLABEL=$1 ; shift
 
 #
+# If we've been told to, compute the required file system size
+# and average inode size automatically.
+#
+if [ ${FSSIZE} -eq 0 -a ${FSLABEL} = "auto" ]; then
+	roundup() echo $((($1+$2-1)-($1+$2-1)%$2))
+	nf=$(find ${FSPROTO} |wc -l)
+	sk=$(du -sk ${FSPROTO} |cut -f1)
+	FSINODE=$(roundup $(($sk*1024/$nf)) ${FSINODE})
+	FSSIZE=$(roundup $(($sk*12/10)) 1024)
+fi
+
+#
 # We don't have any bootblocks on ia64. Note that -B implies -r,
 # so we have to specifically specify -r when we don't have -B.
 # bsdlabel fails otherwise.
