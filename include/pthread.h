@@ -190,6 +190,9 @@ enum pthread_mutextype {
  */
 __BEGIN_DECLS
 int		pthread_attr_destroy __P((pthread_attr_t *));
+int		pthread_attr_getstack __P((const pthread_attr_t * __restrict,
+			void ** __restrict stackaddr,
+			size_t * __restrict stacksize));
 int		pthread_attr_getstacksize __P((const pthread_attr_t *,
 			size_t *));
 int		pthread_attr_getstackaddr __P((const pthread_attr_t *,
@@ -197,6 +200,7 @@ int		pthread_attr_getstackaddr __P((const pthread_attr_t *,
 int		pthread_attr_getdetachstate __P((const pthread_attr_t *,
 			int *));
 int		pthread_attr_init __P((pthread_attr_t *));
+int		pthread_attr_setstack __P((pthread_attr_t *, void *, size_t));
 int		pthread_attr_setstacksize __P((pthread_attr_t *, size_t));
 int		pthread_attr_setstackaddr __P((pthread_attr_t *, void *));
 int		pthread_attr_setdetachstate __P((pthread_attr_t *, int));
