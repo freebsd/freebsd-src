@@ -23,7 +23,14 @@
 
 <article>
   <articleinfo>
-    <title>&os; &release.prev; Errata</title>
+    <title>&os;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
 
     <corpauthor>
     The &os; Project
@@ -40,7 +47,13 @@
 
   <abstract>
     <para>This document lists errata items for &os; 
-    &release.prev;, containing significant information
+<![ %release.type.snapshot [
+    &release.prev;,
+]]>
+<![ %release.type.release [
+    &release.current;,
+]]>
+    containing significant information
     discovered after the release.  This information includes 
     security advisories, as well as
     news relating to the software or documentation
@@ -48,24 +61,29 @@
     version of this document should always be consulted before
     installing this version of &os;.</para>
 
+    <para>This errata document for &os; 
 <![ %release.type.snapshot [
-    <para>This errata document for &os; &release.prev; will be
-    maintained until the release of &os; &release.next;.</para>
+    &release.prev;
 ]]>
-
 <![ %release.type.release [
-    <para>This is the final version of the errata document for &os; &release.prev;.  Future errata documents along the 
-    &release.branch; branch will address &os; &release.current; and
-    later releases.</para>
+    &release.current;
 ]]>
-
+    will be
+    maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1>
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-    about &os; &release.prev;.  Before installing this version,
+    about &os;
+<![ %release.type.snapshot [
+    &release.prev;.
+]]>
+<![ %release.type.release [
+    &release.current;.
+]]>
+    Before installing this version,
     it is important to consult this document to learn about
     any post-release discoveries or 
     problems that may already have been found and
@@ -95,6 +113,11 @@
   <sect1>
     <title>Security Advisories</title>
 
+<![ %release.type.release [
+    <para>No active security advisories.</para>
+]]>
+
+<![ %release.type.snapshot [
     <para>The vulnerability documented in security advisory
     FreeBSD-SA-01:39 was fixed in &os; &release.prev;.  The release
     notes mentioned the fix, but made no mention of the security
@@ -155,11 +178,17 @@
     world-readable <filename>/etc/master.passwd</filename>.  For more
     details, as well as workarounds and solutions, see security
     advisory FreeBSD-SA-01:59.</para>
+  ]]>
   </sect1>
 
   <sect1>
     <title>System Update Information</title>
 
+<![ %release.type.release [
+    <para>No active updates.</para>
+]]>
+
+<![ %release.type.snapshot [
     <para>The release note entry for the ESS Maestro-3/Allegro sound
     driver gave an incorrect command for loading the driver via
     <filename>/boot/loader.conf</filename>.  The correct command is:</para>
@@ -172,6 +201,6 @@
     <quote>out of the box</quote>.  Both temporary and permanent fixes
     are described in <ulink
     url="http://www.FreeBSD.org/doc/en_US.ISO_8859-1/books/faq/admin.html#SSH-SHOSTS">an item in the FAQ</ulink>.</para>
-
+]]>
   </sect1>
 </article>
