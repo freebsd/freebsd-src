@@ -224,6 +224,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Disks and Storage</title>
 
+      <para>The &man.ahc.4; driver was synchronized with the version
+	from &os; -CURRENT as of 29 April 2002.</para>
+
       <para>The &man.ata.4; driver was sync-ed with the driver from
 	&os; -CURRENT as of 18 March 2002.</para>
 
@@ -258,6 +261,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para arch="i386">The ich sound driver now supports the SiS
 	7012 chipset.</para>
+
+      <para arch="i386">The &man.pcm.4; driver was synchronized with
+	the version from &os; -CURRENT as of 22 April 2002.</para>
+
     </sect3>
 
     <sect3>
@@ -368,6 +375,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <option>link</option> family (<option>ether</option> is still
       accepted for backwards compatability).</para>
 
+    <para>&man.fsdb.8; now supports a <literal>blocks</literal>
+      command to list the blocks allocated by a particular
+      inode.</para>
+
     <para>&man.ispppcontrol.8; has been deleted, and its functionality
       has been folded into &man.spppcontrol.8;.</para>
 
@@ -442,6 +453,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices.</para>
+
+    <para>&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
+      set their output files.  They can also do base64 encoding and
+      decoding when given the <option>-m</option> flag.</para>
 
     <para>The <option>-W</option> option to &man.ps.1; (to extract
       information from a specified swap device) has been useless for
