@@ -1045,6 +1045,7 @@ device_detach(device_t dev)
 
     if ((error = DEVICE_DETACH(dev)) != 0)
 	return error;
+    device_printf(dev, "detached\n");
     if (dev->parent)
 	BUS_CHILD_DETACHED(dev->parent, dev);
 
