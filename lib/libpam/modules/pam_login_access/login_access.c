@@ -7,7 +7,6 @@
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   */
 
-#ifdef LOGIN_ACCESS
 #if 0
 #ifndef lint
 static char sccsid[] = "%Z% %M% %I% %E% %U%";
@@ -27,8 +26,7 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <unistd.h>
 
-#include "login.h"
-#include "pathnames.h"
+#define _PATH_LOGACCESS		"/etc/login.access"
 
  /* Delimiters for fields and for lists of users, ttys or hosts. */
 
@@ -236,4 +234,3 @@ const char   *string;
     }
     return (NO);
 }
-#endif /* LOGIN_ACCES */
