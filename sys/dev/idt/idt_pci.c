@@ -267,13 +267,13 @@ idt_free (device_t dev)
 }
 
 static int
-idt_modevent (module_t mod, int what, void *arg)
+idt_modevent (module_t mod, int type, void *data)
 {
 	int error;
 
 	error = 0;
 
-	switch (what) {
+	switch (type) {
 	case MOD_LOAD:
 		idt_nif_zone = uma_zcreate("idt nif",
 			sizeof(struct atm_nif),

@@ -358,13 +358,13 @@ hfa_reset (device_t dev)
 }
 
 static int	 
-hfa_modevent (module_t mod, int what, void *arg)
+hfa_modevent (module_t mod, int type, void *data)
 {
 	int error;
 
 	error = 0;
 
-	switch (what) {
+	switch (type) {
 	case MOD_LOAD:
 		/*
 		* Verify software version
