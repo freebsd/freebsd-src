@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.8 1997/12/08 22:59:39 fsmp Exp $
+ *	$Id: intr_machdep.h,v 1.9 1998/02/13 06:59:22 bde Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -111,8 +111,10 @@
 #ifdef BETTER_CLOCK
 /* inter-cpu clock handling */
 #define XCPUCHECKSTATE_OFFSET	(ICU_OFFSET + 113)
-#define XCPUAST_OFFSET		(ICU_OFFSET + 114)
 #endif
+
+/* IPI to generate an additional software trap at the target CPU */
+#define XCPUAST_OFFSET		(ICU_OFFSET +  48)
 
 /* IPI to signal CPUs to stop and wait for another CPU to restart them */
 #define XCPUSTOP_OFFSET		(ICU_OFFSET + 128)
@@ -170,8 +172,8 @@ inthand_t
 	Xinvltlb,	/* TLB shootdowns */
 #ifdef BETTER_CLOCK
 	Xcpucheckstate,	/* Check cpu state */
-	Xcpuast,	/* Additional software trap on other cpu */ 
 #endif
+	Xcpuast,	/* Additional software trap on other cpu */ 
 	Xcpustop,	/* CPU stops & waits for another CPU to restart it */
 	Xspuriousint;	/* handle APIC "spurious INTs" */
 
