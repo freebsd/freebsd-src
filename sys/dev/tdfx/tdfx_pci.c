@@ -38,12 +38,6 @@
  * and Jens Axboe, located at http://linux.3dfx.com.
  */
 
-/*
- * put this here, so as to bail out immediately if we have no PCI BUS installed
- */
-#include	"pci.h"
-#if NPCI > 0
-
 #include <sys/param.h>
 
 #include <sys/bus_private.h>
@@ -871,6 +865,3 @@ static driver_t tdfx_driver = {
 
 /* Tell Mr. Kernel about us! */
 DRIVER_MODULE(tdfx, pci, tdfx_driver, tdfx_devclass, 0, 0);
-
-
-#endif	/* NPCI */
