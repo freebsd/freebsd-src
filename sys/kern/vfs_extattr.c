@@ -3682,7 +3682,6 @@ revoke(td, uap)
 		char *path;
 	} */ *uap;
 {
-	struct mount *mp;
 	struct vnode *vp;
 	struct vattr vattr;
 	int error;
