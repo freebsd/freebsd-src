@@ -81,6 +81,21 @@ devclass_t	pccard_devclass;
 
 #define PCCARD_DEVINFO(d) (struct pccard_devinfo *) device_get_ivars(d)
 
+/*
+ * glue for NEWCARD/OLDCARD compat layer
+ */
+int
+pccard_compat_probe(device_t dev)
+{
+	return (CARD_COMPAT_PROBE(dev));
+}
+
+int
+pccard_compat_attach(device_t dev)
+{
+	return (CARD_COMPAT_ATTACH(dev));
+}
+
 static int
 pccard_probe(device_t dev)
 {
@@ -371,3 +386,4 @@ static driver_t pccard_driver = {
 DRIVER_MODULE(pccard, pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, pc98pcic, pccard_driver, pccard_devclass, 0, 0);
 DRIVER_MODULE(pccard, cbb, pccard_driver, pccard_devclass, 0, 0);
+MODULE_VERSION(pccard, 1);

@@ -58,6 +58,9 @@
 #include <dev/ep/if_epreg.h>
 #include <dev/ep/if_epvar.h>
 
+#include "card_if.h"
+#include <dev/pccard/pccardvar.h>
+
 static const char *ep_pccard_identify(u_short id);
 
 /*
@@ -238,11 +241,22 @@ ep_pccard_detach(device_t dev)
 	return (0);
 }
 
+static int
+ep_pccard_match(device_t dev)
+{
+	return EIO;
+}
+
 static device_method_t ep_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		ep_pccard_probe),
-	DEVMETHOD(device_attach,	ep_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	ep_pccard_detach),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	ep_pccard_match),
+	DEVMETHOD(card_compat_probe,	ep_pccard_probe),
+	DEVMETHOD(card_compat_attach,	ep_pccard_attach),
 
 	{ 0, 0 }
 };
