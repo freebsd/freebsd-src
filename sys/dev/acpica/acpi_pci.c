@@ -69,11 +69,8 @@ static int	acpi_pci_child_location_str_method(device_t cbdev,
     device_t child, char *buf, size_t buflen);
 
 
-#if 0
 static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
     int state);
-static int	acpi_pci_get_powerstate_method(device_t dev, device_t child);
-#endif
 static ACPI_STATUS acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level,
     void *context, void **status);
 
@@ -112,9 +109,8 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
 	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
 	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
-	/* XXX: We should override these two. */
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
-	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
+	DEVMETHOD(pci_set_powerstate,	acpi_pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt, pci_assign_interrupt_method),
 
 	{ 0, 0 }
@@ -159,24 +155,58 @@ acpi_pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
     return (0);
 }
 
-#if 0
 /*
  * PCI power manangement
  */
 static int
 acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 {
-	/* XXX: TODO */
-	return (ENXIO);
-}
+	ACPI_STATUS status;
+	int acpi_state, old_state, error;
 
-static int
-acpi_pci_get_powerstate_method(device_t dev, device_t child)
-{
-	/* XXX: TODO */
-	return (ENXIO);
+	switch (state) {
+	case PCI_POWERSTATE_D0:
+		acpi_state = ACPI_STATE_D0;
+		break;
+	case PCI_POWERSTATE_D1:
+		acpi_state = ACPI_STATE_D1;
+		break;
+	case PCI_POWERSTATE_D2:
+		acpi_state = ACPI_STATE_D2;
+		break;
+	case PCI_POWERSTATE_D3:
+		acpi_state = ACPI_STATE_D3;
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	/*
+	 * We set the state using PCI Power Management outside of setting
+	 * the ACPI state.  This means that when powering down a device, we
+	 * first shut it down using PCI, and then using ACPI, which lets ACPI
+	 * try to power down any Power Resources that are now no longer used.
+	 * When powering up a device, we let ACPI set the state first so that
+	 * it can enable any needed Power Resources before changing the PCI
+	 * power state.
+	 */
+	old_state = pci_get_powerstate(child);
+	if (old_state < state) {
+		error = pci_set_powerstate_method(dev, child, state);
+		if (error)
+			return (error);
+	}
+	status = acpi_pwr_switch_consumer(acpi_get_handle(child), acpi_state);
+	if (ACPI_FAILURE(status))
+		device_printf(dev,
+		    "Failed to set ACPI power state D%d on %s: %s\n",
+		    acpi_state, device_get_nameunit(child),
+		    AcpiFormatException(status));
+	if (state > old_state)
+		return (pci_set_powerstate_method(dev, child, state));
+	else
+		return (0);
 }
-#endif
 
 static ACPI_STATUS
 acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
