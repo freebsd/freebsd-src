@@ -109,7 +109,7 @@ char *AdapterName[] = {
 	/* 16 */ "Olicom PCMCIA 16/4 Adapter (OC-3220) [unsupported]",
 	/* 17 */ "Olicom PCMCIA 16/4 Adapter (OC-3121, OC-3230, OC-3232) [unsupported]",
 	/* 18 */ "Olicom PCMCIA 16/4 Adapter (OC-3250)",
-	/* 19 */ "Olicom RapidFire 3540 4/16/100 Adapter (OC-3540)"
+	/* 19 */ "Olicom RapidFire 3540 100/16/4 Adapter (OC-3540)"
 };
 
 /*
@@ -399,7 +399,7 @@ oltr_pci_attach(device_t dev)
 	}
 
 	if (work_size) {
-		if ((sc->work_memory = malloc(32*1024, M_DEVBUF, M_NOWAIT)) == NULL) {
+		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL) {
 			device_printf(dev, "failed to allocate work memory.\n");
 		} else {
 			TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
@@ -766,7 +766,7 @@ oltr_pci_attach(pcici_t config_id, int unit)
 	}
 
 	if (work_size)
-		if ((sc->work_memory = malloc(32*1024, M_DEVBUF, M_NOWAIT)) == NULL)
+		if ((sc->work_memory = malloc(work_size, M_DEVBUF, M_NOWAIT)) == NULL)
 			printf("oltr%d: failed to allocate work memory.\n", unit);
 		else
 			TRlldAddMemory(sc->TRlldAdapter, sc->work_memory,
