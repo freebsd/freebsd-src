@@ -113,15 +113,9 @@ __sflush(FILE *fp)
 	fp->_p = p;
 	fp->_w = t & (__SLBF|__SNBF) ? 0 : fp->_bf._size;
 
-	if (n <= 0)
-		return (0);
-	if ((fp->_flags & __SAPP) && _sseek(fp, (fpos_t)0, SEEK_END) == -1)
-		goto err;
-	fp->_flags &= ~__SOFF;  /* In case FAPPEND mode is set. */
 	for (; n > 0; n -= t, p += t) {
-		t = (*fp->_write)(fp->_cookie, (char *)p, n);
+		t = _swrite(fp, (char *)p, n);
 		if (t <= 0) {
-	err:
 			fp->_flags |= __SERR;
 			return (EOF);
 		}

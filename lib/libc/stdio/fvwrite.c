@@ -64,7 +64,7 @@ __sfvwrite(fp, uio)
 	register struct __siov *iov;
 	register int w, s;
 	char *nl;
-	int nlknown, nldist, firsttime;
+	int nlknown, nldist;
 
 	if ((len = uio->uio_resid) == 0)
 		return (0);
@@ -86,22 +86,13 @@ __sfvwrite(fp, uio)
 		len = iov->iov_len; \
 		iov++; \
 	}
-	firsttime = 1;
 	if (fp->_flags & __SNBF) {
 		/*
 		 * Unbuffered: write up to BUFSIZ bytes at a time.
 		 */
 		do {
 			GETIOV(;);
-			if (firsttime) {
-				if ((fp->_flags & __SAPP) &&
-				    _sseek(fp, (fpos_t)0, SEEK_END) == -1)
-					goto err;
-				/* In case FAPPEND mode is set. */
-				fp->_flags &= ~__SOFF;
-				firsttime = 0;
-			}
-			w = (*fp->_write)(fp->_cookie, p, MIN(len, BUFSIZ));
+			w = _swrite(fp, p, MIN(len, BUFSIZ));
 			if (w <= 0)
 				goto err;
 			p += w;
@@ -156,15 +147,7 @@ __sfvwrite(fp, uio)
 					goto err;
 			} else if (len >= (w = fp->_bf._size)) {
 				/* write directly */
-				if (firsttime) {
-					if ((fp->_flags & __SAPP) &&
-					    _sseek(fp, (fpos_t)0, SEEK_END) == -1)
-						goto err;
-					/* In case FAPPEND mode is set. */
-					fp->_flags &= ~__SOFF;
-					firsttime = 0;
-				}
-				w = (*fp->_write)(fp->_cookie, p, w);
+				w = _swrite(fp, p, w);
 				if (w <= 0)
 					goto err;
 			} else {
@@ -203,15 +186,7 @@ __sfvwrite(fp, uio)
 				if (__fflush(fp))
 					goto err;
 			} else if (s >= (w = fp->_bf._size)) {
-				if (firsttime) {
-					if ((fp->_flags & __SAPP) &&
-					    _sseek(fp, (fpos_t)0, SEEK_END) == -1)
-						goto err;
-					/* In case FAPPEND mode is set. */
-					fp->_flags &= ~__SOFF;
-					firsttime = 0;
-				}
-				w = (*fp->_write)(fp->_cookie, p, w);
+				w = _swrite(fp, p, w);
 				if (w <= 0)
 				 	goto err;
 			} else {
