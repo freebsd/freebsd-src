@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.68 1996/03/28 14:33:54 scrappy Exp $
+ *      $Id: cd.c,v 1.69 1996/03/29 11:57:52 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -58,7 +58,9 @@ static errval cd_pause __P((u_int32_t, u_int32_t));
 static errval cd_reset __P((u_int32_t));
 static errval cd_play_msf __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t));
 static errval cd_play __P((u_int32_t, u_int32_t, u_int32_t));
+#ifdef notyet
 static errval cd_play_big __P((u_int32_t unit, u_int32_t blk, u_int32_t len));
+#endif
 static errval cd_play_tracks __P((u_int32_t, u_int32_t, u_int32_t, u_int32_t, u_int32_t));
 static errval cd_read_subchannel __P((u_int32_t, u_int32_t, u_int32_t, int, struct cd_sub_channel_info *, u_int32_t));
 static errval cd_getdisklabel __P((u_int8_t));
@@ -1191,6 +1193,7 @@ cd_play(unit, blk, len)
 		0));
 }
 
+#ifdef notyet
 /*
  * Get scsi driver to send a "start playing" command
  */
@@ -1220,6 +1223,7 @@ cd_play_big(unit, blk, len)
 		NULL,
 		0));
 }
+#endif
 
 /*
  * Get scsi driver to send a "start playing" command

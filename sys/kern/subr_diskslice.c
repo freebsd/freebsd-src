@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.24 1996/04/07 14:32:14 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.25 1996/04/19 19:22:29 bde Exp $
  */
 
 #include <sys/param.h>
@@ -776,7 +776,6 @@ free_ds_label(ssp, slice)
 	int	slice;
 {
 	struct disklabel *lp;
-	int	part;
 	struct diskslice *sp;
 
 	sp = &ssp->dss_slices[slice];

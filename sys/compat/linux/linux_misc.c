@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.18 1996/04/07 17:38:49 bde Exp $
+ *  $Id: linux_misc.c,v 1.19 1996/05/02 10:43:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -166,7 +166,6 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args, int *retval)
     unsigned long file_offset;
     vm_offset_t buffer;
     unsigned long bss_size;
-    char *ptr;
     int error;
     caddr_t sg;
     int locked;
@@ -683,7 +682,7 @@ linux_times(struct proc *p, struct linux_times_args *args, int *retval)
     struct timeval tv;
     struct linux_times_argv tms;
     struct rusage ru;
-    int error, s;
+    int error;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): times(*)\n", p->p_pid);

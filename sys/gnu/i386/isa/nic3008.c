@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.14 1995/12/17 21:14:34 phk Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.14 $   $State: Exp $
+/* @(#)$Id: nic3008.c,v 1.15 1996/03/28 14:27:27 scrappy Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.15 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.14 1995/12/17 21:14:34 phk 
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.15  1996/03/28 14:27:27  scrappy
+ * Switched from using devfs_add_sw() to using devfs_add_swf()
+ *
+ * Reviewed by:	julian@freebsd.org
+ *
  * Revision 1.14  1995/12/17 21:14:34  phk
  * Staticize.
  *
@@ -521,7 +526,7 @@ nic_output(int cn)
 	int             mb = C_CHAN(cn) ? 7 : 5;
 	dpr_type       *dpr = sc->sc_dpr;
 	mbx_type       *mbx = &dpr->dpr_mbx[mb];
-	int             r, l;
+	int             l;
 	u_char         *b = (u_char *) dpr;
 	int		len= ctrl->o_len;
 	char	       *buf= ctrl->o_buf;
@@ -696,8 +701,7 @@ static	int
 nicioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
 	int             error;
-	u_char          unit;
-	int             i, x;
+	int             x;
 	struct nic_softc *sc = &nic_sc[minor(dev)];
 	dpr_type       *dpr = sc->sc_dpr;
 	mbx_type       *mbx;
@@ -973,7 +977,6 @@ b_intr(int mb, int c, struct nic_softc * sc)
 		case 9:	/* DATA B3 IND */
 			{
 				u_char         *b = (u_char *) dpr;
-				u_char	mno;
 
 				b += dpr->buf_ptr[mb];
 				if (mbx->more_data)

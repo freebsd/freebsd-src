@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: 3c5x9.c,v 1.1 1996/02/26 01:01:37 gibbs Exp $
+ *	$Id: 3c5x9.c,v 1.2 1996/02/28 17:18:55 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -127,7 +127,6 @@ ep_eisa_probe(void)
 {
 	u_long iobase;
 	struct eisa_device *e_dev = NULL;
-	int stat = 0;
 	int count;
 
 	count = 0;
@@ -204,7 +203,6 @@ ep_eisa_attach(e_dev)
 	resvaddr_t *ioport;
 	resvaddr_t *eisa_ioport;
 	u_char level_intr;
-	u_short conf;
 	int i;
 
 	/*

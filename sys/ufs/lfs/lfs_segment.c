@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.5 (Berkeley) 1/4/94
- * $Id: lfs_segment.c,v 1.15 1995/12/03 11:16:46 bde Exp $
+ * $Id: lfs_segment.c,v 1.16 1995/12/17 21:09:49 phk Exp $
  */
 
 #include <sys/param.h>
@@ -152,7 +152,9 @@ void	 lfs_iset __P((struct inode *, daddr_t, time_t));
 static int lfs_match_data __P((struct lfs *, struct buf *));
 static int lfs_match_dindir __P((struct lfs *, struct buf *));
 static int lfs_match_indir __P((struct lfs *, struct buf *));
+#ifdef TRIPLE
 static int lfs_match_tindir __P((struct lfs *, struct buf *));
+#endif
 static void lfs_newseg __P((struct lfs *));
 static void lfs_shellsort __P((struct buf **, daddr_t *, register int));
 static void lfs_supercallback __P((struct buf *));
@@ -1058,6 +1060,7 @@ lfs_match_dindir(fs, bp)
 	return (lbn < 0 && (-lbn - NDADDR) % NINDIR(fs) == 1);
 }
 
+#ifdef TRIPLE
 static int
 lfs_match_tindir(fs, bp)
 	struct lfs *fs;
@@ -1068,6 +1071,7 @@ lfs_match_tindir(fs, bp)
 	lbn = bp->b_lblkno;
 	return (lbn < 0 && (-lbn - NDADDR) % NINDIR(fs) == 2);
 }
+#endif
 
 /*
  * Allocate a new buffer header.

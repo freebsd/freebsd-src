@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.16 1996/03/28 14:27:26 scrappy Exp $
+ *  dgb.c $Id: dgb.c,v 1.17 1996/03/29 11:39:08 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -168,7 +168,6 @@ static struct tty dgb_tty[NDGBPORTS];
  */
 
 /* Interrupt handling entry points. */
-static void	dgbintr		__P((int unit));
 static void	dgbpoll		__P((void *unit_c));
 
 /* Device switch entry points. */
@@ -211,8 +210,6 @@ static struct cdevsw dgb_cdevsw =
 	  ttselect,	nommap,		NULL,	"dgb",	NULL,	-1 };
 
 static	speed_t	dgbdefaultrate = TTYDEF_SPEED;
-static	u_int	dgb_events;	/* input chars + weighted output completions */
-static	int	dgbmajor;
 
 static	struct speedtab dgbspeedtab[] = {
 	0,	0, /* old (sysV-like) Bx codes */
@@ -239,9 +236,6 @@ static	struct speedtab dgbspeedtab[] = {
 static int dgbdebug=0;
 SYSCTL_INT(_debug, OID_AUTO, dgb_debug, CTLFLAG_RW,
 	&dgbdebug, 0, "");
-
-
-static int polltimeout=0;
 
 static int setwin __P((struct dgb_softc *sc, unsigned addr));
 static int setinitwin __P((struct dgb_softc *sc, unsigned addr));
@@ -305,10 +299,8 @@ dgbprobe(dev)
 	struct isa_device	*dev;
 {
 	struct dgb_softc *sc= &dgb_softc[dev->id_unit];
-	int i, v, t;
+	int i, v;
 	u_long win_size;  /* size of vizible memory window */
-	u_char *mem;
-	int addr;
 	int unit=dev->id_unit;
 
 	sc->unit=dev->id_unit;
@@ -451,7 +443,6 @@ dgbattach(dev)
 	int addr;
 	struct dgb_p *port;
 	struct board_chan *bc;
-	struct global_data *gd;
 	int shrinkmem;
 	int nfails;
 	ushort *pstat;
@@ -1127,7 +1118,6 @@ dgbhardclose(port)
 {
 	struct dgb_softc *sc=&dgb_softc[port->unit];
 	struct board_chan *bc=port->brdchan;
-	int s;
 
 	setwin(sc,0);
 
@@ -1424,12 +1414,6 @@ dgbpoll(unit_c)
 	timeout(dgbpoll, unit_c, hz/25);
 }
 
-static void
-dgbintr(unit)
-	int	unit;
-{
-}
-
 static	int
 dgbioctl(dev, cmd, data, flag, p)
 	dev_t		dev;
@@ -1680,7 +1664,6 @@ static int
 dgbdrain(port)
 	struct dgb_p	*port;
 {
-	struct tty *tp=port->tty;
 	struct dgb_softc *sc=&dgb_softc[port->unit];
 	struct board_chan *bc=port->brdchan;
 	int error;
@@ -1787,7 +1770,6 @@ dgbparam(tp, t)
 	struct termios	*t;
 {
 	int dev=tp->t_dev;
-	int mynor=minor(dev);
 	int unit=MINOR_TO_UNIT(dev);
 	int pnum=MINOR_TO_PORT(dev);
 	struct dgb_softc *sc=&dgb_softc[unit];

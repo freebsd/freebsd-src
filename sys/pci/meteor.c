@@ -1089,6 +1089,7 @@ met_attach(pcici_t tag, int unit)
 
 #define UNIT(x)	((x) & 0x07)
 
+#ifdef unused
 static int
 meteor_reset(dev_t dev)
 {
@@ -1112,7 +1113,7 @@ struct	saa7116_regs	*m;
 	return 0;
 
 }
-
+#endif
 
 /*---------------------------------------------------------
 **
@@ -1171,7 +1172,9 @@ meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
+#ifdef METEOR_DEALLOC_ABOVE
 	int	temp;
+#endif
 
 	unit = UNIT(minor(dev));
 	if (unit >= NMETEOR)	/* unit out of range */

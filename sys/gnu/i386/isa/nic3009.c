@@ -1,6 +1,6 @@
-static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.14 1995/12/17 21:14:36 phk Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.14 $   $State: Exp $
+/* @(#)$Id: nic3009.c,v 1.15 1996/03/28 14:27:28 scrappy Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.15 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     nic39_id[] = "@(#)$Id: nic3009.c,v 1.14 1995/12/17 21:14:36 phk 
  *
  *******************************************************************************
  * $Log: nic3009.c,v $
+ * Revision 1.15  1996/03/28 14:27:28  scrappy
+ * Switched from using devfs_add_sw() to using devfs_add_swf()
+ *
+ * Reviewed by:	julian@freebsd.org
+ *
  * Revision 1.14  1995/12/17 21:14:36  phk
  * Staticize.
  *
@@ -603,8 +608,6 @@ nnicopen(dev_t dev, int flags, int fmt, struct proc *p)
 	struct nnic_softc *sc;
 	u_char          unit;
 	int             x;
-	unsigned	error;
-	u_char	b= 0xff;
 
 	unit = minor(dev);
 	/* minor number out of limits ? */

@@ -126,7 +126,9 @@ static struct lnc_softc {
 	LNCSTATS_STRUCT
 } lnc_softc[NLNC];
 
+#ifdef LNC_MULTICAST
 static void lnc_setladrf __P((struct lnc_softc *sc));
+#endif
 static void lnc_stop __P((int unit));
 static void lnc_reset __P((int unit));
 static void lnc_free_mbufs __P((struct lnc_softc *sc));

@@ -1,6 +1,6 @@
-static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.2 1995/03/28 07:54:45 bde Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+/* @(#)$Id: isdn_ioctl.h,v 1.3 1995/11/16 10:44:48 bde Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     _isdn_ioctl_id[] = "@(#)$Id: isdn_ioctl.h,v 1.2 1995/03/28 07:54
  *
  *******************************************************************************
  * $Log: isdn_ioctl.h,v $
+ * Revision 1.3  1995/11/16 10:44:48  bde
+ * Completed function declarations.
+ *
+ * Added prototypes.
+ *
  * Revision 1.2  1995/03/28  07:54:45  bde
  * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
  * (except in netccitt, netiso and netns) that I didn't notice when I fixed

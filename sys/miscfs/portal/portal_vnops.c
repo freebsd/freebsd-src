@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.11 1996/02/13 18:16:25 wollman Exp $
+ * $Id: portal_vnops.c,v 1.12 1996/06/12 03:37:29 davidg Exp $
  */
 
 /*
@@ -72,7 +72,6 @@ static int	portal_enotsupp __P((void));
 static int	portal_getattr __P((struct vop_getattr_args *ap));
 static int	portal_inactive __P((struct vop_inactive_args *ap));
 static int	portal_lookup __P((struct vop_lookup_args *ap));
-static int	portal_nullop __P((void));
 static int	portal_open __P((struct vop_open_args *ap));
 static int	portal_pathconf __P((struct vop_pathconf_args *ap));
 static int	portal_print __P((struct vop_print_args *ap));
@@ -628,16 +627,6 @@ portal_badop()
 
 	panic("portal: bad op");
 	/* NOTREACHED */
-}
-
-/*
- * Portal vnode null operation
- */
-static int
-portal_nullop()
-{
-
-	return (0);
 }
 
 #define portal_create ((int (*) __P((struct vop_create_args *)))portal_enotsupp)

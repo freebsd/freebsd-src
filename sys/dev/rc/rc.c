@@ -152,7 +152,7 @@ static int rc_scheduled_event = 0;
 
 /* for pstat -t */
 static struct tty rc_tty[NRC * CD180_NCHAN];
-static int        nrc_tty = NRC * CD180_NCHAN;
+static const int  nrc_tty = NRC * CD180_NCHAN;
 
 /* Flags */
 #define RC_DTR_OFF      0x0001          /* DTR wait, for close/open     */
@@ -258,7 +258,7 @@ static int
 rcattach(dvp)
 	struct  isa_device      *dvp;
 {
-	register int            i, chan, nec = dvp->id_iobase;
+	register int            chan, nec = dvp->id_iobase;
 	struct rc_softc         *rcb = &rc_softc[dvp->id_unit];
 	struct rc_chans         *rc  = &rc_chans[dvp->id_unit * CD180_NCHAN];
 	static int              rc_wakeup_started = 0;
@@ -595,9 +595,8 @@ void rcpoll()
 	register struct rc_chans *rc;
 	register struct rc_softc *rcb;
 	register u_char        *tptr, *eptr;
-	register int            s;
 	register struct tty    *tp;
-	register int            chan, icnt, c, nec, unit;
+	register int            chan, icnt, nec, unit;
 
 	if (rc_scheduled_event == 0)
 		return;
@@ -1110,7 +1109,7 @@ static void rc_reinit(rcb)
 struct rc_softc         *rcb;
 {
 	register struct rc_chans       *rc, *rce;
-	register int                    i, nec;
+	register int                    nec;
 
 	nec = rcb->rcb_addr;
 	rc_hwreset(rcb->rcb_unit, nec, RC_FAKEID);
@@ -1272,7 +1271,7 @@ int rc_test(nec, unit)
 	register int    nec;
 	int             unit;
 {
-	int     chan = 0, nopt = 0;
+	int     chan = 0;
 	int     i = 0, rcnt, old_level;
 	unsigned int    iack, chipid;
 	unsigned short  divs;
@@ -1482,8 +1481,6 @@ static void
 rc_wakeup(chan)
 	void	*chan;
 {
-	int		unit;
-
 	timeout(rc_wakeup, (caddr_t)NULL, 1);
 
 	if (rc_scheduled_event != 0) {

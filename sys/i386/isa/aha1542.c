@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.57 1996/03/31 18:19:38 gibbs Exp $
+ *      $Id: aha1542.c,v 1.58 1996/04/07 17:32:08 bde Exp $
  */
 
 /*
@@ -325,7 +325,10 @@ static struct aha_data {
 
 static u_int32_t	aha_adapter_info __P((int unit));
 static int	ahaattach __P((struct isa_device *dev));
+#ifdef	TUNE_1542
 static int	aha_bus_speed_check __P((struct aha_data *aha, int speed));
+static int	aha_set_bus_speed __P((struct aha_data *aha));
+#endif
 static int	aha_cmd __P((struct aha_data *aha, int icnt, int ocnt, int wait,
 			     u_char *retval, u_char opcode, ...));
 static void	aha_done __P((struct aha_data *aha, struct aha_ccb *ccb));
@@ -341,7 +344,6 @@ static int	aha_poll __P((struct aha_data *aha, struct scsi_xfer *xs,
 static int	ahaprobe __P((struct isa_device *dev));
 static void	aha_registerdev __P((struct isa_device *id));
 static int32_t	aha_scsi_cmd __P((struct scsi_xfer *xs));
-static int	aha_set_bus_speed __P((struct aha_data *aha));
 static timeout_t
 		aha_timeout;
 static char	*board_rev __P((struct aha_data *aha, int type));

@@ -66,9 +66,6 @@
 #include <i386/isa/isa_device.h>
 
 
-static u_char d_inb(u_int port);
-static void d_outb(u_int port, u_char data);
-
 static struct kern_devconf kdc_bqu[NBQU] = { {
 	0, 0, 0,		/* filled in by dev_attach */
 	"bqu", 0, { MDDT_ISA, 0 },
@@ -93,6 +90,9 @@ static struct kern_devconf kdc_bqu[NBQU] = { {
 #undef B004_DEBUG_2
 
 #ifdef B004_DEBUG
+static u_char d_inb(u_int port);
+static void d_outb(u_int port, u_char data);
+
 #define out(port,data)	d_outb(port, data)
 #define in(a)		d_inb(((u_int)a))
 #else
@@ -150,7 +150,7 @@ b004_base_addresses[B004_CHANCE] = {
     0x150, 0x190, 0, 0, 0, 0, 0, 0
 };
 
-
+#ifdef B004_DEBUG
 static void
 d_outb(u_int port, u_char data)
 {
@@ -159,13 +159,15 @@ d_outb(u_int port, u_char data)
 	outb(port,data);
 }
 
-static u_char d_inb(u_int port)
+static u_char
+d_inb(u_int port)
 {
 u_char ap;
 	ap=inb(port);
 	printf("INPUT 0x%x FROM 0x%x\n",ap,port);
 	return(ap);
 }
+#endif
 
 static int
 detected(int base)

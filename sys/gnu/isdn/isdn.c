@@ -1,6 +1,6 @@
-static char     _isdnid[] = "@(#)$Id: isdn.c,v 1.11 1995/12/10 15:54:17 bde Exp $";
-/*******************************************************************************
- *  II - Version 0.1 $Revision: 1.11 $   $State: Exp $
+/* @(#)$Id: isdn.c,v 1.12 1995/12/17 21:17:48 phk Exp $
+ *******************************************************************************
+ *  II - Version 0.1 $Revision: 1.12 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -51,13 +51,11 @@ static timeout_t isdn_check;
 static char	*isdn_get_prot __P((int ap, int dir));
 static int	isdn_get_prot_size __P((int ap));
 static int	isdn_set_prot __P((int ap, int dir, char *p));
-static int	isdn_stat __P((int cn));
 static void	passout __P((int unit, int l, char *buf));
 
 static	d_open_t	isdnopen;
 static	d_close_t	isdnclose;
 static	d_read_t	isdnread;
-static	d_write_t	isdnwrite;
 static	d_ioctl_t	isdnioctl;
 
 #define CDEV_MAJOR 55
@@ -202,8 +200,6 @@ isdn_ctrl_attach(int n)
 static	int
 isdnopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int             err;
-
 	if (minor(dev)>Isdn_Typ)
 		return (ENXIO);
 
@@ -251,10 +247,9 @@ isdnread(dev_t dev, struct uio * uio, int ioflag)
 static	int
 isdnioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
-	int             err, x, i;
+	int             err, x;
 	isdn_appl_t    *appl;
 	isdn_ctrl_t    *ctrl;
-	short          *val = (short *) data;
 	unsigned        ab, an, cn;
 
 	err = 0;
@@ -439,13 +434,6 @@ isdn_start_out(int cn)
 	}
 
 	splx(x);
-}
-
-static int
-isdn_stat(int cn)
-{
-	isdn_ctrl_t    *ctrl = &isdn_ctrl[cn];
-	return((*ctrl->state) (cn));
 }
 
 int

@@ -47,7 +47,7 @@
  */
 
 /*
- * $Id: if_ze.c,v 1.28 1996/01/26 09:27:33 phk Exp $
+ * $Id: if_ze.c,v 1.29 1996/02/06 18:50:50 wollman Exp $
  */
 
 #include "ze.h"
@@ -581,8 +581,6 @@ ze_attach(isa_dev)
 {
 	struct ze_softc *sc = &ze_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	int pl;
 
 	/* PCMCIA card can be offlined. Reconfiguration is required */
