@@ -49,9 +49,6 @@
 #endif
 
 __BEGIN_DECLS
-#ifdef	__STDC__
-struct timespec;			/* nanosleep(2), clock_*(2) etc */
-#endif
 void	 _exit __P((int)) __dead2;
 int	 access __P((const char *, int));
 unsigned int	 alarm __P((unsigned int));
