@@ -232,7 +232,7 @@ dumpheader(kth)
 
 #include <sys/syscall.h>
 #define KTRACE
-#include "/sys/kern/syscalls.c"
+#include <sys/kern/syscalls.c>
 #undef KTRACE
 int nsyscalls = sizeof (syscallnames) / sizeof (syscallnames[0]);
 
