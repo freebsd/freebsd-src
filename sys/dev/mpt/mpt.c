@@ -263,8 +263,8 @@ mpt_send_cmd(mpt_softc_t *mpt, request_t *req)
 	if (mpt->verbose > 1) {
 		u_int32_t *pReq;
 		pReq = req->req_vbuf;
-		device_printf(mpt->dev, "Send Request %d (0x%x):\n",
-		    req->index, req->req_pbuf);
+		device_printf(mpt->dev, "Send Request %d (0x%lx):\n",
+		    req->index, (long) req->req_pbuf);
 		device_printf(mpt->dev, "%08X %08X %08X %08X\n",
 		    pReq[0], pReq[1], pReq[2], pReq[3]);
 		device_printf(mpt->dev, "%08X %08X %08X %08X\n",
@@ -397,8 +397,8 @@ mpt_recv_handshake_reply(mpt_softc_t *mpt, size_t reply_len, void *reply)
 	if (mpt->verbose > 1 && ((reply_len >> 1) != hdr->MsgLength)) {
 		device_printf(mpt->dev,
 			"reply length does not match message length: "
-			"got 0x%02x, expected 0x%02x\n",
-			hdr->MsgLength << 2, reply_len << 1);
+			"got 0x%02x, expected 0x%02lx\n",
+			hdr->MsgLength << 2, (long) (reply_len << 1));
 	}
 
 	/* Get rest of the reply; but don't overflow the provided buffer */
