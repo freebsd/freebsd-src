@@ -45,8 +45,6 @@
 
 #define	PMAP_CONTEXT_MAX	8192
 
-#define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.tte_list))
-
 typedef	struct pmap *pmap_t;
 
 struct md_page {
@@ -71,6 +69,7 @@ void	pmap_kenter(vm_offset_t va, vm_page_t m);
 void	pmap_kremove(vm_offset_t);
 void	pmap_kenter_flags(vm_offset_t va, vm_paddr_t pa, u_long flags);
 void	pmap_kremove_flags(vm_offset_t va);
+boolean_t pmap_page_is_mapped(vm_page_t m);
 
 int	pmap_cache_enter(vm_page_t m, vm_offset_t va);
 void	pmap_cache_remove(vm_page_t m, vm_offset_t va);
