@@ -272,6 +272,7 @@ copy(char *argv[], enum op type, int fts_options)
 			badcp = rval = 1;
 			continue;
 		default:
+			;
 		}
 
 		/*
