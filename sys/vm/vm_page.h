@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.13 1995/01/24 10:13:45 davidg Exp $
+ * $Id: vm_page.h,v 1.14 1995/02/14 06:10:24 phk Exp $
  */
 
 /*
@@ -278,5 +278,9 @@ vm_page_unhold(vm_page_t mem)
 }
 
 #endif				/* KERNEL */
+
+#define ACT_DECLINE	1
+#define ACT_ADVANCE	3
+#define ACT_MAX		100
 
 #endif				/* !_VM_PAGE_ */

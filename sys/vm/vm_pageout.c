@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.34 1995/02/09 07:41:42 davidg Exp $
+ * $Id: vm_pageout.c,v 1.35 1995/02/14 06:09:15 phk Exp $
  */
 
 /*
@@ -102,9 +102,6 @@ extern int vm_swap_size;
 extern int swap_pager_ready();
 
 #define MAXSCAN 1024		/* maximum number of pages to scan in queues */
-#define ACT_DECLINE	1
-#define ACT_ADVANCE	3
-#define ACT_MAX		100
 
 #define MAXLAUNDER (cnt.v_page_count > 1800 ? 32 : 16)
 
