@@ -407,13 +407,12 @@ swi_sched(void *cookie, int flags)
 {
 	struct intrhand *ih = (struct intrhand *)cookie;
 	struct ithd *it = ih->ih_ithread;
-	struct proc *p = it->it_proc;
 	int error;
 
 	atomic_add_int(&cnt.v_intr, 1); /* one more global interrupt */
 		
 	CTR3(KTR_INTR, "swi_sched pid %d(%s) need=%d",
-		p->p_pid, p->p_comm, it->it_need);
+		it->it_proc->p_pid, it->it_proc->p_comm, it->it_need);
 
 	/*
 	 * Set ih_need for this handler so that if the ithread is already
