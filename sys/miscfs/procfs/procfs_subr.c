@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.4 (Berkeley) 1/27/94
  *
- *	$Id: procfs_subr.c,v 1.5.4.1 1996/06/12 03:42:19 davidg Exp $
+ *	$Id: procfs_subr.c,v 1.5.4.2 1996/07/02 13:55:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -234,6 +234,8 @@ procfs_rw(ap)
 	p = PFIND(pfs->pfs_pid);
 	if (p == 0)
 		return (EINVAL);
+	if (p->p_pid == 1 && securelevel > 0 && uio->uio_rw == UIO_WRITE)
+		return(EACCES);
 
 	while (pfs->pfs_lockowner) {
 		tsleep(&pfs->pfs_lockowner, PRIBIO, "pfslck", 0);
