@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.16 1998/11/04 00:30:47 msmith Exp $
+# $Id: Makefile,v 1.17 1998/11/04 02:36:18 jkh Exp $
 
 BASE=		loader
 PROG=		${BASE}
@@ -61,8 +61,8 @@ CFLAGS+=	-elf
 CFLAGS+=	-DNEW_LINKER_SET
 
 # Debug me!
-CFLAGS+=	-g
-LDFLAGS+=	-g
+#CFLAGS+=	-g
+#LDFLAGS+=	-g
 
 vers.o:
 	sh ${.CURDIR}/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
