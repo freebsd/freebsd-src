@@ -285,6 +285,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 #ifdef SMP
 	struct globaldata *gd;
 #endif
+	int i;
 
 	avail_start = firstaddr;
 
@@ -363,8 +364,8 @@ pmap_bootstrap(firstaddr, loadaddr)
 	virtual_avail = va;
 
 	*(int *) CMAP1 = *(int *) CMAP2 = 0;
-	*(int *) PTD = 0;
-
+	for (i = 0; i < NKPT; i++)
+		PTD[i] = 0;
 
 	pgeflag = 0;
 #if !defined(SMP)			/* XXX - see also mp_machdep.c */
