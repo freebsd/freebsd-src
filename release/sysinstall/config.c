@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id$
+ * $Id: config.c,v 1.16.2.66 1997/02/07 04:25:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -437,10 +437,8 @@ configResolv(void)
     if (!cp || !*cp)
 	goto skip;
     fp = fopen("/etc/resolv.conf", "w");
-    if (!fp) {
-	msgConfirm("Unable to open /etc/resolv.conf!  You will need to do this manually.");
+    if (!fp)
 	return;
-    }
     if (variable_get(VAR_DOMAINNAME))
 	fprintf(fp, "domain\t%s\n", variable_get(VAR_DOMAINNAME));
     fprintf(fp, "nameserver\t%s\n", cp);
