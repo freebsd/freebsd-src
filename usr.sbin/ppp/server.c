@@ -1,5 +1,5 @@
 /*
- * $Id: server.c,v 1.11 1997/11/22 03:37:45 brian Exp $
+ * $Id: server.c,v 1.12 1997/12/03 10:23:53 brian Exp $
  */
 
 #include <sys/param.h>
@@ -46,6 +46,7 @@ ServerLocalOpen(const char *name, mode_t mask)
     return 1;
   }
 
+  memset(&ifsun, '\0', sizeof ifsun);
   ifsun.sun_len = strlen(name);
   if (ifsun.sun_len > sizeof ifsun.sun_path - 1) {
     LogPrintf(LogERROR, "Local: %s: Path too long\n", name);
@@ -108,6 +109,7 @@ ServerTcpOpen(int port)
     LogPrintf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
     return 7;
   }
+  memset(&ifsin, '\0', sizeof ifsin);
   ifsin.sin_family = AF_INET;
   ifsin.sin_addr.s_addr = INADDR_ANY;
   ifsin.sin_port = htons(port);
