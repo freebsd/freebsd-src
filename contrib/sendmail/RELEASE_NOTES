@@ -1,10 +1,85 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.561.2.5.2.181 2000/12/28 23:56:46 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.561.2.5.2.208 2001/02/26 21:24:54 gshapiro Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.11.3/8.11.3	2001/02/27
+	Prevent a segmentation fault when a bogus value was used in the
+		LDAPDefaultSpec option's -r, -s, or -M flags and if a bogus
+		option was used.  Problem noted by Allan E Johannesen of
+		Worcester Polytechnic Institute.
+	Prevent "token too long" message by shortening {currHeader} which
+		could be too long if the last copied character was a quote.
+		Problem detected by Jan Krueger of digitalanswers
+		communications consulting gmbh.
+	Additional IPv6 check for unspecified addresses.  Patch from
+		Jun-ichiro itojun Hagino of the KAME Project.
+	Do not ignore the ClientPortOptions setting if DaemonPortOptions
+		Modifier=b (bind to same interface) is set and the
+		connection came in from the command line.
+	Do not bind to the loopback address if DaemonPortOptions
+		Modifier=b (bind to same interface) is set.  Patch from
+		John Beck of Sun Microsystems.
+	Properly deal with open failures on non-optional maps used in
+		check_* rulesets by returning a temporary failure.
+	Buffered file I/O files were not being properly fsync'ed to disk
+		when they were committed.
+	Properly encode '=' for the AUTH= parameter of the MAIL command.
+		Problem noted by Hadmut Danisch.
+	Under certain circumstances the macro {server_name} could be set
+		to the wrong hostname (of a previous connection), which may
+		cause some rulesets to return wrong results.  This would
+		usually cause mail to be queued up and delivered later on.
+	Ignore F=z (LMTP) mailer flag if $u is given in the mailer A=
+		equate.  Problem noted by Motonori Nakamura of Kyoto
+		University.
+	Work around broken accept() implementations which only partially
+		fill in the peer address if the socket is closed before
+		accept() completes.
+	Return an SMTP "421" temporary failure if the data file can't be
+		opened where the "354" reply would normally be given.
+	Prevent a CPU loop in trying to expand a macro which doesn't exist
+		in a queue run.  Problem noted by Gordon Lack of Glaxo
+		Wellcome.
+	If delivering via a program and that program exits with EX_TEMPFAIL,
+		note that fact for the mailq display instead of just showing
+		"Deferred".  Problem noted by Motonori Nakamura of Kyoto
+		University.
+	If doing canonification via /etc/hosts, try both the fully
+		qualified hostname as well as the first portion of the
+		hostname.  Problem noted by David Bremner of the
+		University of New Brunswick.
+	Portability:
+		Fix a compilation problem for mail.local and rmail if SFIO
+			is in use.  Problem noted by Auteria Wally
+			Winzer Jr. of Champion Nutrition.
+		IPv6 changes for platforms using KAME.  Patch from
+			Jun-ichiro itojun Hagino of the KAME Project.
+		OpenBSD 2.7 and higher has srandomdev(3).  OpenBSD 2.8 and
+			higher has BSDI-style login classes.  Patch from
+			Todd C.  Miller of Courtesan Consulting.
+		Unixware 7.1.1 doesn't allow h_errno to be set directly if
+			sendmail is being compiled with -kthread.  Problem
+			noted by Orion Poplawski of CQG, Inc.
+	CONTRIB: buildvirtuser: Substitute current domain for $DOMAIN and
+		current left hand side for $LHS in virtuser files.
+	DEVTOOLS: Do not pass make targets to recursive Build invocations.
+		Problem noted by Jeff Bronson of J.D. Bronson, Inc.
+	MAIL.LOCAL: In LMTP mode, do not return errors regarding problems
+		storing the temporary message file until after the remote
+		side has sent the final DATA termination dot.  Problem
+		noted by Allan E Johannesen of Worcester Polytechnic
+		Institute.
+	MAIL.LOCAL: If LMTP mode is set, give a temporary error if users
+		are also specified on the command line.  Patch from
+		Motonori Nakamura of Kyoto University.
+	PRALIASES: Skip over AliasFile specifications which aren't based on
+		database files (i.e., only show dbm, hash, and btree).
+	Renamed Files:
+		devtools/OS/OSF1.V5.0 => devtools/OS/OSF1.V5.x
 
 8.11.2/8.11.2	2000/12/29
 	Prevent a segmentation fault when trying to set a class in
@@ -89,7 +164,7 @@ summary of the changes in that release.
 		is used.  Problem noted by Phil Homewood of Asia Online,
 		patch from Neil Rickert of Northern Illinois University.
 	CONFIG: Change the default DNS based blacklist server for
-		FEATURE(`dnsbl') to blackholes.mail-abuse.org. 
+		FEATURE(`dnsbl') to blackholes.mail-abuse.org.
 	CONFIG: Deal correctly with the 'C' flag in {daemon_flags}, i.e.,
 		implicitly assume canonical host names.
 	CONFIG: Deal with "::" in IPv6 addresses for access_db.  Based on
@@ -107,7 +182,7 @@ summary of the changes in that release.
 		Roth of the University of Illinois at Urbana-Champaign.
 	DEVTOOLS: Change the internal devtools OS, REL, and ARCH m4
 		variables into bldOS, bldREL, and bldARCH to prevent
-		namespace collisions.  Problem noted by Motonori Nakamura 
+		namespace collisions.  Problem noted by Motonori Nakamura
 		of Kyoto University.
 	RMAIL: Undo the 8.11.1 change to use -G when calling sendmail.  It
 		causes some changes in behavior and may break rmail for

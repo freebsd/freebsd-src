@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.56 2000/12/19 01:16:12 gshapiro Exp $";
+static char id[] = "@(#)$Id: deliver.c,v 8.600.2.1.2.66 2001/02/25 23:30:35 gshapiro Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -1132,7 +1132,7 @@ deliver(e, firstto)
 
 	if (*mvp == NULL)
 	{
-		/* running SMTP */
+		/* running LMTP or SMTP */
 #if SMTP
 		clever = TRUE;
 		*pvp = NULL;
@@ -1141,6 +1141,14 @@ deliver(e, firstto)
 		syserr("554 5.3.5 SMTP style mailer not implemented");
 		return EX_SOFTWARE;
 #endif /* SMTP */
+	}
+	else if (bitnset(M_LMTP, m->m_flags))
+	{
+		/* not running LMTP */
+		sm_syslog(LOG_ERR, NULL,
+			  "Warning: mailer %s: LMTP flag (F=z) turned off",
+			  m->m_name);
+		clrbitn(M_LMTP, m->m_flags);
 	}
 
 	/*
@@ -1235,7 +1243,7 @@ deliver(e, firstto)
 			continue;
 		}
 #if NAMED_BIND
-		h_errno = 0;
+		SM_SET_H_ERRNO(0);
 #endif /* NAMED_BIND */
 
 		ovr = TRUE;
@@ -1498,7 +1506,7 @@ deliver(e, firstto)
 	}
 	errno = 0;
 #if NAMED_BIND
-	h_errno = 0;
+	SM_SET_H_ERRNO(0);
 #endif /* NAMED_BIND */
 
 	CurHostName = NULL;
@@ -2267,7 +2275,7 @@ reconnect:	/* after switching to an authenticated connection */
 		    !DONE_STARTTLS(mci->mci_flags))
 		{
 			int olderrors;
-			bool hasdot;
+			int dotpos;
 			bool usetls;
 			bool saveQuickAbort = QuickAbort;
 			bool saveSuprErrs = SuprErrs;
@@ -2275,6 +2283,7 @@ reconnect:	/* after switching to an authenticated connection */
 #  if _FFR_TLS_CLT1
 			char *p;
 #  endif /* _FFR_TLS_CLT1 */
+			char *srvname;
 			extern SOCKADDR CurHostAddr;
 
 			rcode = EX_OK;
@@ -2296,11 +2305,25 @@ reconnect:	/* after switching to an authenticated connection */
 			}
 #  endif /* _FFR_TLS_CLT1 */
 
-			hasdot = CurHostName[strlen(CurHostName) - 1] == '.';
-			if (hasdot)
-				CurHostName[strlen(CurHostName) - 1] = '\0';
+			if (mci->mci_host != NULL)
+			{
+				srvname = mci->mci_host;
+				dotpos = strlen(srvname) - 1;
+				if (dotpos >= 0)
+				{
+					if (srvname[dotpos] == '.')
+						srvname[dotpos] = '\0';
+					else
+						dotpos = -1;
+				}
+			}
+			else
+			{
+				srvname = "";
+				dotpos = -1;
+			}
 			define(macid("{server_name}", NULL),
-			       newstr(CurHostName), e);
+			       newstr(srvname), e);
 			if (CurHostAddr.sa.sa_family != 0)
 				define(macid("{server_addr}", NULL),
 				       newstr(anynet_ntoa(&CurHostAddr)), e);
@@ -2314,7 +2337,7 @@ reconnect:	/* after switching to an authenticated connection */
 				olderrors = Errors;
 				QuickAbort = FALSE;
 				SuprErrs = TRUE;
-				if (rscheck("try_tls", CurHostName, NULL,
+				if (rscheck("try_tls", srvname, NULL,
 					    e, TRUE, FALSE, 8, host) != EX_OK
 				    || Errors > olderrors)
 					usetls = FALSE;
@@ -2323,9 +2346,9 @@ reconnect:	/* after switching to an authenticated connection */
 #  endif /* _FFR_TLS_O_T */
 			}
 
-			/* undo change of CurHostName */
-			if (hasdot)
-				CurHostName[strlen(CurHostName)] = '.';
+			/* undo change of srvname */
+			if (dotpos >= 0)
+				srvname[dotpos] = '.';
 			if (usetls)
 			{
 				if ((rcode = starttls(m, mci, e)) == EX_OK)
@@ -2562,7 +2585,7 @@ do_transfer:
 		rcode = mci->mci_exitstat;
 		errno = mci->mci_errno;
 #if NAMED_BIND
-		h_errno = mci->mci_herrno;
+		SM_SET_H_ERRNO(mci->mci_herrno);
 #endif /* NAMED_BIND */
 		if (rcode == EX_OK)
 		{
@@ -2593,6 +2616,18 @@ do_transfer:
 
 		/* get the exit status */
 		rcode = endmailer(mci, e, pv);
+		if (rcode == EX_TEMPFAIL &&
+		    SmtpError[0] == '\0')
+		{
+			/*
+			**  Need an e_message for mailq display.
+			**  We set SmtpError as
+			*/
+
+			snprintf(SmtpError, sizeof SmtpError,
+				 "%s mailer (%s) exited with EX_TEMPFAIL",
+				 m->m_name, m->m_mailer);
+		}
 	}
 	else
 #if SMTP
@@ -3345,7 +3380,7 @@ giveresponse(status, dsn, m, mci, ctladdr, xstart, e)
 	}
 	errno = 0;
 #if NAMED_BIND
-	h_errno = 0;
+	SM_SET_H_ERRNO(0);
 #endif /* NAMED_BIND */
 }
 /*
@@ -5228,6 +5263,8 @@ endtls(ssl, side)
 	SSL *ssl;
 	char *side;
 {
+	int ret = EX_OK;
+
 	if (ssl != NULL)
 	{
 		int r;
@@ -5238,7 +5275,7 @@ endtls(ssl, side)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "SSL_shutdown %s failed: %d",
 					  side, r);
-			return EX_SOFTWARE;
+			ret = EX_SOFTWARE;
 		}
 		else if (r == 0)
 		{
@@ -5246,12 +5283,12 @@ endtls(ssl, side)
 				sm_syslog(LOG_WARNING, NOQID,
 					  "SSL_shutdown %s not done",
 					  side);
-			return EX_SOFTWARE;
+			ret = EX_SOFTWARE;
 		}
 		SSL_free(ssl);
 		ssl = NULL;
 	}
-	return EX_OK;
+	return ret;
 }
 # endif /* STARTTLS */
 #endif /* SMTP */

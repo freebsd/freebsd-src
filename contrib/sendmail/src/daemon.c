@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -16,9 +16,9 @@
 
 #ifndef lint
 # ifdef DAEMON
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.41 2000/12/28 23:46:43 gshapiro Exp $ (with daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.51 2001/02/23 18:57:27 geir Exp $ (with daemon mode)";
 # else /* DAEMON */
-static char id[] = "@(#)$Id: daemon.c,v 8.401.4.41 2000/12/28 23:46:43 gshapiro Exp $ (without daemon mode)";
+static char id[] = "@(#)$Id: daemon.c,v 8.401.4.51 2001/02/23 18:57:27 geir Exp $ (without daemon mode)";
 # endif /* DAEMON */
 #endif /* ! lint */
 
@@ -461,9 +461,29 @@ getrequests(e)
 				    FD_ISSET(Daemons[idx].d_socket, &readfds))
 				{
 					lotherend = Daemons[idx].d_socksize;
+					memset(&RealHostAddr, '\0',
+					       sizeof RealHostAddr);
 					t = accept(Daemons[idx].d_socket,
 						   (struct sockaddr *)&RealHostAddr,
 						   &lotherend);
+
+					/*
+					**  If remote side closes before
+					**  accept() finishes, sockaddr
+					**  might not be fully filled in.
+					*/
+
+					if (t >= 0 &&
+					    (lotherend == 0 ||
+# ifdef BSD4_4_SOCKADDR
+					     RealHostAddr.sa.sa_len == 0 ||
+# endif /* BSD4_4_SOCKADDR */
+					     RealHostAddr.sa.sa_family != Daemons[idx].d_addr.sa.sa_family))
+					{
+						(void) close(t);
+						t = -1;
+						errno = EINVAL;
+					}
 					olddaemon = curdaemon = idx;
 					break;
 				}
@@ -477,10 +497,30 @@ getrequests(e)
 				struct sockaddr_un sa_un;
 
 				lotherend = sizeof sa_un;
+				memset(&sa_un, '\0', sizeof sa_un);
 				t = accept(ControlSocket,
 					   (struct sockaddr *)&sa_un,
 					   &lotherend);
-				control = TRUE;
+
+				/*
+				**  If remote side closes before
+				**  accept() finishes, sockaddr
+				**  might not be fully filled in.
+				*/
+
+				if (t >= 0 &&
+				    (lotherend == 0 ||
+# ifdef BSD4_4_SOCKADDR
+				     sa_un.sun_len == 0 ||
+# endif /* BSD4_4_SOCKADDR */
+				     sa_un.sun_family != AF_UNIX))
+				{
+					(void) close(t);
+					t = -1;
+					errno = EINVAL;
+				}
+				if (t >= 0)
+					control = TRUE;
 			}
 # else /* NETUNIX */
 			if (curdaemon == -1)
@@ -1614,7 +1654,8 @@ makeconnection(host, port, mci, e)
 
 	/* Set up the address for outgoing connection. */
 	if (bitnset(D_BINDIF, d_flags) &&
-	    (p = macvalue(macid("{if_addr}", NULL), e)) != NULL)
+	    (p = macvalue(macid("{if_addr}", NULL), e)) != NULL &&
+	    *p != '\0')
 	{
 # if NETINET6
 		char p6[INET6_ADDRSTRLEN];
@@ -1628,15 +1669,10 @@ makeconnection(host, port, mci, e)
 		{
 # if NETINET
 		  case AF_INET:
-			if ((clt_addr.sin.sin_addr.s_addr = inet_addr(p))
-			    != INADDR_NONE)
+			clt_addr.sin.sin_addr.s_addr = inet_addr(p);
+			if (clt_addr.sin.sin_addr.s_addr != INADDR_NONE &&
+			    clt_addr.sin.sin_addr.s_addr != INADDR_LOOPBACK)
 			{
-				clt_bind = TRUE;
-				socksize = sizeof (struct sockaddr_in);
-			}
-			else if (clt_addr.sin.sin_port != 0)
-			{
-				clt_addr.sin.sin_addr.s_addr = INADDR_ANY;
 				clt_bind = TRUE;
 				socksize = sizeof (struct sockaddr_in);
 			}
@@ -1650,15 +1686,9 @@ makeconnection(host, port, mci, e)
 			else
 				strlcpy(p6, p, sizeof p6);
 			if (inet_pton(AF_INET6, p6,
-				      &clt_addr.sin6.sin6_addr) == 1)
+				      &clt_addr.sin6.sin6_addr) == 1 &&
+			    !IN6_IS_ADDR_LOOPBACK(&clt_addr.sin6.sin6_addr))
 			{
-				clt_bind = TRUE;
-				socksize = sizeof (struct sockaddr_in6);
-			}
-			else if (clt_addr.sin6.sin6_port != 0)
-			{
-				if (IN6_IS_ADDR_UNSPECIFIED(&clt_addr.sin6.sin6_addr))
-					clt_addr.sin6.sin6_addr = in6addr_any;
 				clt_bind = TRUE;
 				socksize = sizeof (struct sockaddr_in6);
 			}
@@ -1721,7 +1751,7 @@ makeconnection(host, port, mci, e)
 	*/
 
 # if NAMED_BIND
-	h_errno = 0;
+	SM_SET_H_ERRNO(0);
 # endif /* NAMED_BIND */
 	errno = 0;
 	memset(&CurHostAddr, '\0', sizeof CurHostAddr);
@@ -2396,10 +2426,8 @@ myhostname(hostbuf, size)
 {
 	register struct hostent *hp;
 
-	if (gethostname(hostbuf, size) < 0)
-	{
+	if (gethostname(hostbuf, size) < 0 || hostbuf[0] == '\0')
 		(void) strlcpy(hostbuf, "localhost", size);
-	}
 	hp = sm_gethostbyname(hostbuf, InetMode);
 	if (hp == NULL)
 		return NULL;
@@ -3045,7 +3073,7 @@ host_map_lookup(map, name, av, statp)
 					: s->s_namecanon.nc_cname);
 		errno = s->s_namecanon.nc_errno;
 # if NAMED_BIND
-		h_errno = s->s_namecanon.nc_herrno;
+		SM_SET_H_ERRNO(s->s_namecanon.nc_herrno);
 # endif /* NAMED_BIND */
 		*statp = s->s_namecanon.nc_stat;
 		if (*statp == EX_TEMPFAIL)
@@ -3221,6 +3249,8 @@ myhostname(hostbuf, size)
 		fixcrlf(hostbuf, TRUE);
 		(void) fclose(f);
 	}
+	if (hostbuf[0] == '\0')
+		(void) strlcpy(hostbuf, "localhost", size);
 	return NULL;
 }
 /*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: milter.c,v 8.50.4.41 2000/12/27 21:35:32 gshapiro Exp $";
+static char id[] = "@(#)$Id: milter.c,v 8.50.4.44 2001/01/23 19:43:57 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -261,7 +261,7 @@ milter_sysread(m, buf, sz, to, e)
 		}
 
 		curl += len;
-		if (len == 0 || len >= sz)
+		if (len == 0 || curl >= sz)
 			break;
 
 	}
@@ -1810,7 +1810,11 @@ milter_send_command(m, command, data, sz, e, state)
 
 	  case SMFIR_ACCEPT:
 		/* this filter is done with message/connection */
-		m->mf_state = SMFS_DONE;
+		if (command == SMFIC_HELO ||
+		    command == SMFIC_CONNECT)
+			m->mf_state = SMFS_CLOSABLE;
+		else
+			m->mf_state = SMFS_DONE;
 		break;
 
 	  case SMFIR_CONTINUE:
@@ -2092,7 +2096,7 @@ milter_per_connection_check(e)
 	{
 		struct milter *m = InputFilters[i];
 
-		if (m->mf_state == SMFS_DONE)
+		if (m->mf_state == SMFS_CLOSABLE)
 			milter_quit_filter(m, e);
 	}
 }
@@ -2936,10 +2940,30 @@ milter_helo(helo, e, state)
 	ENVELOPE *e;
 	char *state;
 {
+	int i;
 	char *response;
 
 	if (tTd(64, 10))
 		dprintf("milter_helo(%s)\n", helo);
+
+	/* HELO/EHLO can come after encryption is negotiated */
+	for (i = 0; InputFilters[i] != NULL; i++)
+	{
+		struct milter *m = InputFilters[i];
+
+		switch (m->mf_state)
+		{
+		  case SMFS_INMSG:
+			/* abort in message filters */
+			milter_abort_filter(m, e);
+			/* FALLTHROUGH */
+
+		  case SMFS_DONE:
+			/* reset done filters */
+			m->mf_state = SMFS_OPEN;
+			break;
+		}
+	}
 
 	response = milter_command(SMFIC_HELO, helo, strlen(helo) + 1,
 				  MilterHeloMacros, e, state);
