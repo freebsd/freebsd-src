@@ -41,7 +41,7 @@ static char rcsid[] = "$NetBSD: tree.c,v 1.12 1995/10/02 17:37:57 jpo Exp $";
 #include <limits.h>
 
 #include "lint1.h"
-#include "cgram.tab.h"
+#include "y.tab.h"
 
 /* Various flags for each operator. */
 static	mod_t	modtab[NOPS];
