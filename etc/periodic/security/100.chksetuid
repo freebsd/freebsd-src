@@ -45,14 +45,17 @@ case "$daily_status_security_chksetuid_enable" in
 	echo 'Checking setuid files and devices:'
 	# XXX Note that there is the possibility of overrunning the args to ls
 	MP=`mount -t ufs | grep -v " nosuid" | awk '{ print $3 }' | sort`
-	set ${MP}
-	while [ $# -ge 1 ]; do
-	    mount=$1
-	    shift
-	    find $mount -xdev -type f \
-		    \( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
-		    \( -perm -u+s -or -perm -g+s \) -print0
-	done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort +10 > ${TMP}
+	if [ -n "${MP}" ]
+	then
+	    set ${MP}
+	    while [ $# -ge 1 ]; do
+	        mount=$1
+	        shift
+	        find $mount -xdev -type f \
+			\( -perm -u+x -or -perm -g+x -or -perm -o+x \) \
+			\( -perm -u+s -or -perm -g+s \) -print0
+	    done | xargs -0 -n 20 ls -liTd | sed 's/^ *//' | sort +10 > ${TMP}
+	fi
 
 	if [ ! -f ${LOG}/setuid.today ]; then
 	    rc=1
