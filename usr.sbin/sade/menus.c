@@ -1274,8 +1274,6 @@ DMenu MenuStartup = {
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { " APM",		"Auto-power management services (typically laptops)",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "apm_enable=YES" },
-      { " diskcheckd",	"Background disk scanner",
-	dmenuVarCheck,	dmenuToggleVariable, NULL, "diskcheckd_enable=YES" },
       { " pccard",	"Enable PCCARD (AKA PCMCIA) services (also laptops)",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "pccard_enable=YES" },
       { " pccard mem",	"Set PCCARD memory address (if enabled)",
