@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sysinstall.8,v 1.1.2.1 1997/08/11 13:25:35 jkh Exp $
+.\"	$Id: sysinstall.8,v 1.1.2.2 1997/08/18 21:10:40 jkh Exp $
 .\"
 .Dd August 9, 1997
 .Dt SYSINSTALL 8
@@ -608,6 +608,15 @@ Initialize all variables to their defaults, overriding any
 previous settings.
 .Pp
 \fBVariables:\fR None
+.It loadConfig
+Sort of like an #include statement, it allows you to load one
+configuration file from another.
+.Pp
+\fBVariables:\fR
+.Bl -tag -width indent
+.It file
+The fully pathname of the file to load.
+.El
 .It mediaSetCDROM
 Select a FreeBSD CDROM as the installation media.
 .Pp

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.59 1997/07/31 10:08:32 jkh Exp $
+#	$Id: Makefile,v 1.246.2.60 1997/07/31 11:09:29 jkh Exp $
 #
 # How to roll a release:
 #
@@ -276,7 +276,8 @@ release.3:
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
-	cd ${.CURDIR}/sysinstall && make obj depend all
+	mkdir -p /stand
+	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	export RELEASE_BUILD_FIXIT=noway ; \
