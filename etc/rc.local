@@ -1,7 +1,7 @@
 #
 # site-specific startup actions, daemons
 #
-#	@(#)rc.local	5.4 (Berkeley) 12/14/90
+#	$Id$
 #
 
 T=/tmp/_motd
@@ -15,29 +15,6 @@ rm -f $T
 _HOST=`hostname`
 
 echo -n 'starting local daemons:'
-
-# Kerberos runs ONLY on the Kerberos server machine
-if [ X"${kerberos_server}" = X"YES" ]; then
-	echo -n ' kerberos';	kerberos >> /var/log/kerberos.log &
-	if [ -x /usr/sbin/kadmind ]; then
-		echo -n ' kadmind'; (sleep 20; /usr/sbin/kadmind -n >/dev/null 2>&1 &) &
-	fi
-fi
-
-# Start ypserv if we're an NIS server.
-if [ X"${nis_serverflags}" != X"NO" ]; then
-        echo -n ' ypserv'; ypserv $nis_serverflags
-fi
-
-# Run yppasswdd only on the NIS master server
-if [ X"${yppasswddflags}" != X"NO" ]; then
-        echo -n ' yppasswdd'; yppasswdd $yppasswddflags
-fi
-
-# Start ypbind if we're an NIS client
-if [ X"${nis_clientflags}" != X"NO" ]; then
-        echo -n ' ypbind'; ypbind $nis_clientflags
-fi
 
 # For loading fonts/keyboard example look in /usr/share/examples/syscons
 # directory
