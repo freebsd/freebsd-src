@@ -62,9 +62,14 @@ indicates an error occurred and
 .Va errno
 is set to indicated the reason.
 .Sh ERRORS
-The
 .Fn sigpending
-function does not currently detect any errors.
+will fail if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The
+.Fa set
+argument specified an invalid address.
+.El
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr sigprocmask 2
