@@ -308,7 +308,7 @@ ip_input(struct mbuf *m)
 			break;
 
 		case PACKET_TAG_DIVERT:
-			args.divert_rule = (int)m->m_hdr.mh_data & 0xffff;
+			args.divert_rule = (intptr_t)m->m_hdr.mh_data & 0xffff;
 			break;
 
 		case PACKET_TAG_IPFORWARD:
