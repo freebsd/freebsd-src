@@ -77,7 +77,7 @@
 
 #define RC_FAKEID       0x10
 
-#define CALLOUT(dev)    (((int)(dev)->si_drv2) != 0)
+#define CALLOUT(dev)    (((intptr_t)(dev)->si_drv2) != 0)
 
 /* Per-channel structure */
 struct rc_chans  {
