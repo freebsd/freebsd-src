@@ -70,6 +70,11 @@ in the string
 where only the first number of characters, identified by
 .Fa len ,
 are searched.
+Since the
+.Fn strnstr
+function is a
+.Fx
+specific API, it should only be used when portablility is not a concern.
 .Sh RETURN VALUES
 If
 .Fa little
