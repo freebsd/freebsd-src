@@ -109,7 +109,7 @@ struct timezone {
 
 /* Operations on timevals. */
 
-#define	timevalclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
+#define	timevalclear(tvp)		((tvp)->tv_sec = (tvp)->tv_usec = 0)
 #define	timevalisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
 #define	timevalcmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
@@ -122,7 +122,7 @@ struct timezone {
 
 #ifndef _KERNEL			/* NetBSD/OpenBSD compatible interfaces */
 
-#define	timerclear(tvp)		(tvp)->tv_sec = (tvp)->tv_usec = 0
+#define	timerclear(tvp)		((tvp)->tv_sec = (tvp)->tv_usec = 0)
 #define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
 #define	timercmp(tvp, uvp, cmp)					\
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
