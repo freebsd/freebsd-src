@@ -225,9 +225,9 @@ distVerifyFlags(void)
 #if __FreeBSD__ > 3
 	Dists |= DIST_COMPAT3X;
 #endif
+#endif
 #if __FreeBSD__ > 4
 	Dists |= DIST_COMPAT4X;
-#endif
 #endif
     }
     if (isDebug())
