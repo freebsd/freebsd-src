@@ -73,7 +73,7 @@ struct	utmp *utmp = NULL;
 time_t	lastmsgtime;
 int	nutmp, uf;
 
-void jkfprintf __P((FILE *, char[], off_t));
+void jkfprintf __P((FILE *, char[], char[], off_t));
 void mailfor __P((char *));
 void notify __P((struct utmp *, char[], off_t, int));
 void onalrm __P((int));
@@ -238,15 +238,16 @@ notify(utp, file, offset, folder)
 	    cr, name, (int)sizeof(hostname), hostname,
 	    folder ? cr : "", folder ? "to " : "", folder ? file : "",
 	    cr, cr);
-	jkfprintf(tp, file, offset);
+	jkfprintf(tp, name, file, offset);
 	(void)fclose(tp);
 	_exit(0);
 }
 
 void
-jkfprintf(tp, name, offset)
+jkfprintf(tp, user, file, offset)
 	register FILE *tp;
-	char name[];
+	char user[];
+	char file[];
 	off_t offset;
 {
 	register char *cp, ch;
@@ -256,10 +257,10 @@ jkfprintf(tp, name, offset)
 	char line[BUFSIZ];
 
 	/* Set effective uid to user in case mail drop is on nfs */
-	if ((p = getpwnam(name)) != NULL)
+	if ((p = getpwnam(user)) != NULL)
 		(void) setuid(p->pw_uid);
 
-	if ((fi = fopen(name, "r")) == NULL)
+	if ((fi = fopen(file, "r")) == NULL)
 		return;
 
 	(void)fseek(fi, offset, L_SET);
