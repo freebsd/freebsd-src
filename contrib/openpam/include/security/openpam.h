@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/include/security/openpam.h#11 $
  */
 
 #ifndef _SECURITY_OPENPAM_H_INCLUDED
@@ -177,7 +177,7 @@ typedef int (*pam_func_t)(struct pam_handle *, int, int, const char **);
  */
 typedef struct pam_module pam_module_t;
 struct pam_module {
-	const char	*path;
+	char		*path;
 	pam_func_t	 func[PAM_NUM_PRIMITIVES];
 	void		*dlh;
 	int		 refcount;
@@ -201,7 +201,8 @@ struct pam_module {
 #define OPENPAM_STATIC_MODULES
 #define PAM_EXTERN static
 #define PAM_MODULE_ENTRY(name)						\
-static struct pam_module _pam_module = { name PAM_SOEXT, {		\
+static char _pam_name[] = name PAM_SOEXT;				\
+static struct pam_module _pam_module = { _pam_name, {			\
     pam_sm_authenticate, pam_sm_setcred, pam_sm_acct_mgmt,		\
     pam_sm_open_session, pam_sm_close_session, pam_sm_chauthtok },	\
     NULL, 0, NULL, NULL };						\

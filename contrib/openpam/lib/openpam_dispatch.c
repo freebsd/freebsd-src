@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $P4: //depot/projects/openpam/lib/openpam_dispatch.c#13 $
  */
 
 #include <sys/param.h>
@@ -111,7 +111,8 @@ openpam_dispatch(pam_handle_t *pamh,
 			continue;
 		if (r == PAM_SUCCESS) {
 			/*
-			 * For pam_setcred(), treat "sufficient" as
+			 * For pam_setcred() and pam_chauthtok() with the
+			 * PAM_PRELIM_CHECK flag, treat "sufficient" as
 			 * "optional".
 			 *
 			 * Note that Solaris libpam does not terminate
@@ -119,7 +120,9 @@ openpam_dispatch(pam_handle_t *pamh,
 			 * previously failed.  I'm not sure why.
 			 */
 			if (chain->flag == PAM_SUFFICIENT &&
-			    primitive != PAM_SM_SETCRED)
+			    primitive != PAM_SM_SETCRED &&
+			    (primitive != PAM_SM_CHAUTHTOK ||
+				!(flags & PAM_PRELIM_CHECK)))
 				break;
 			continue;
 		}
@@ -203,7 +206,8 @@ _openpam_check_error_code(int primitive, int r)
 		    r == PAM_AUTHTOK_ERR ||
 		    r == PAM_AUTHTOK_RECOVERY_ERR ||
 		    r == PAM_AUTHTOK_LOCK_BUSY ||
-		    r == PAM_AUTHTOK_DISABLE_AGING)
+		    r == PAM_AUTHTOK_DISABLE_AGING ||
+		    r == PAM_TRY_AGAIN)
 			return;
 		break;
 	}

@@ -31,7 +31,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id$
+# $P4: //depot/projects/openpam/lib/Makefile#11 $
 #
 
 LIB		 = pam
@@ -41,9 +41,11 @@ SHLIB_MINOR	 = 0
 WARNS		?= 4
 NO_WERROR	 = yes
 CFLAGS		+= -I${.CURDIR}/../include
+CFLAGS		+= -DLIB_MAJ=${SHLIB_MAJOR}
 
 SRCS		 =
 SRCS		+= openpam_dispatch.c
+SRCS		+= openpam_dynamic.c
 SRCS		+= openpam_findenv.c
 SRCS		+= openpam_get_option.c
 SRCS		+= openpam_load.c

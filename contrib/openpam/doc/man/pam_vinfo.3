@@ -31,9 +31,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $P4: //depot/projects/openpam/doc/man/pam_vinfo.3#6 $
 .\"
-.Dd February 22, 2002
+.Dd March 5, 2002
 .Dt PAM_VINFO 3
 .Os
 .Sh NAME
@@ -51,8 +51,7 @@ The
 function passes its arguments to
 .Xr pam_vprompt 3
 with a
-.Xr style 3
-argument of
+style argument of
 .Dv PAM_TEXT_INFO ,
 and discards the response.
 .Pp
@@ -69,7 +68,6 @@ Conversation failure.
 System error.
 .El
 .Sh SEE ALSO
-.Xr  3 ,
 .Xr pam 3 ,
 .Xr pam_info 3 ,
 .Xr pam_strerror 3 ,
