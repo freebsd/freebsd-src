@@ -132,6 +132,7 @@ SRCS+=	rsa_eay.c				# native rsa
 .else
 SRCS+=	rsar_err.c rsaref.c rsaref_stubs.c	# external rsaref
 HDRS+=	../rsaref/rsaref.h
+CFLAGS+=-DRSAref
 .endif
 .endif
 
