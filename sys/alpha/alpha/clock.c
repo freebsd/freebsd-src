@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.1 1998/06/10 10:52:13 dfr Exp $ */
+/* $Id: clock.c,v 1.2 1998/06/14 13:44:38 dfr Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -53,6 +53,8 @@
 
 #include <machine/cpuconf.h>
 #include <machine/clockvar.h>
+#include <isa/isareg.h>
+#include <alpha/alpha/timerreg.h>
 
 #define	SECMIN	((unsigned)60)			/* seconds per minute */
 #define	SECHOUR	((unsigned)(60*SECMIN))		/* seconds per hour */
@@ -66,6 +68,7 @@ int clockinitted;
 int tickfix;
 int tickfixinterval;
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
+static	int	beeping = 0;
 
 extern int cycles_per_sec;
 
@@ -82,6 +85,15 @@ static struct timecounter alpha_timecounter[3] = {
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, alpha_timecounter, CTLFLAG_RD, 
 	alpha_timecounter, sizeof(alpha_timecounter), "S,timecounter", "");
+
+/* Values for timerX_state: */
+#define	RELEASED	0
+#define	RELEASE_PENDING	1
+#define	ACQUIRED	2
+#define	ACQUIRE_PENDING	3
+
+/* static	u_char	timer0_state; */
+static	u_char	timer2_state;
 
 /*
  * Algorithm for missed clock ticks from Linux/alpha.
@@ -189,6 +201,7 @@ handleclock(void* arg)
 			hardclock(arg);
 	}
 	hardclock(arg);
+	setdelayed();
 }
 
 /*
@@ -346,5 +359,77 @@ static unsigned
 alpha_get_timecount(struct timecounter* tc)
 {
     return alpha_rpcc();
+}
+
+int
+acquire_timer2(int mode)
+{
+
+	if (timer2_state != RELEASED)
+		return (-1);
+	timer2_state = ACQUIRED;
+
+	/*
+	 * This access to the timer registers is as atomic as possible
+	 * because it is a single instruction.  We could do better if we
+	 * knew the rate.  Use of splclock() limits glitches to 10-100us,
+	 * and this is probably good enough for timer2, so we aren't as
+	 * careful with it as with timer0.
+	 */
+	outb(TIMER_MODE, TIMER_SEL2 | (mode & 0x3f));
+
+	return (0);
+}
+
+int
+release_timer2()
+{
+
+	if (timer2_state != ACQUIRED)
+		return (-1);
+	timer2_state = RELEASED;
+	outb(TIMER_MODE, TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT);
+	return (0);
+}
+
+static void
+sysbeepstop(void *chan)
+{
+	outb(IO_PPI, inb(IO_PPI)&0xFC);	/* disable counter2 output to speaker */
+	release_timer2();
+	beeping = 0;
+}
+
+/*
+ * Frequency of all three count-down timers; (TIMER_FREQ/freq) is the
+ * appropriate count to generate a frequency of freq hz.
+ */
+#ifndef TIMER_FREQ
+#define	TIMER_FREQ	1193182
+#endif
+#define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
+
+int
+sysbeep(int pitch, int period)
+{
+	int x = splhigh();
+
+	if (acquire_timer2(TIMER_SQWAVE|TIMER_16BIT))
+		if (!beeping) {
+			/* Something else owns it. */
+			splx(x);
+			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
+		}
+	pitch = TIMER_DIV(pitch);
+	outb(TIMER_CNTR2, pitch);
+	outb(TIMER_CNTR2, (pitch>>8));
+	if (!beeping) {
+		/* enable counter2 output to speaker */
+		outb(IO_PPI, inb(IO_PPI) | 3);
+		beeping = period;
+		timeout(sysbeepstop, (void *)NULL, period);
+	}
+	splx(x);
+	return (0);
 }
 
