@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_rmt.c 1.21 87/08/27 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_rmt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_rmt.c,v 1.5 1996/03/17 20:12:53 guido Exp $";
+static char *rcsid = "$Id: pmap_rmt.c,v 1.6 1996/06/10 00:49:17 jraynard Exp $";
 #endif
 
 /*
@@ -57,7 +57,7 @@ static char *rcsid = "$Id: pmap_rmt.c,v 1.5 1996/03/17 20:12:53 guido Exp $";
 
 static struct timeval timeout = { 3, 0 };
 
-+int _rpc_dtablesize(void);
+int _rpc_dtablesize(void);
 
 /*
  * pmapper remote-call-service interface.
