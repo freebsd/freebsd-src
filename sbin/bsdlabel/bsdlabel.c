@@ -46,7 +46,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif
 static const char rcsid[] =
-	"$Id: disklabel.c,v 1.19 1998/08/17 21:13:57 bde Exp $";
+	"$Id: disklabel.c,v 1.20 1998/08/21 23:44:16 gpalmer Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -548,6 +548,7 @@ makebootarea(boot, dp, f)
 	register struct disklabel *dp;
 	int f;
 {
+	struct disklabel *lp;
 	register char *p;
 	int b;
 #if NUMBOOT > 0
@@ -555,11 +556,10 @@ makebootarea(boot, dp, f)
 	struct stat sb;
 #endif
 #ifdef __alpha__
-	u_long *lp;
+	u_long *bootinfo;
 	int n;
 #endif
 #ifdef __i386__
-	struct disklabel *lp;
 	char *tmpbuf;
 	int i, found;
 #endif
@@ -690,10 +690,10 @@ makebootarea(boot, dp, f)
 	n = read(b, boot + dp->d_secsize, (int)dp->d_bbsize);
 	if (n < 0)
 		err(4, "%s", xxboot);
-	lp = (u_long *) (boot + 480);
-	lp[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
-	lp[1] = 1;		/* start at sector 1 */
-	lp[2] = 0;		/* flags (must be zero) */
+	bootinfo = (u_long *)(boot + 480);
+	bootinfo[0] = (n + dp->d_secsize - 1) / dp->d_secsize;
+	bootinfo[1] = 1;	/* start at sector 1 */
+	bootinfo[2] = 0;	/* flags (must be zero) */
 #else /* !__alpha__ */
 	if (read(b, boot, (int)dp->d_bbsize) < 0)
 		err(4, "%s", xxboot);
