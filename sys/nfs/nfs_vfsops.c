@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.71 1998/06/01 11:07:16 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.72 1998/06/07 17:12:30 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -759,7 +759,7 @@ nfs_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 	if (args.version != NFS_ARGSVERSION) {
-#ifndef NO_COMPAT_PRELITE2
+#ifdef COMPAT_PRELITE2
 		/*
 		 * If the argument version is unknown, then assume the
 		 * caller is a pre-lite2 4.4BSD client and convert its
@@ -770,9 +770,9 @@ nfs_mount(mp, path, data, ndp, p)
 		if (error)
 			return (error);
 		nfs_convert_oargs(&args,&oargs);
-#else /* NO_COMPAT_PRELITE2 */
+#else /* !COMPAT_PRELITE2 */
 		return (EPROGMISMATCH);
-#endif /* !NO_COMPAT_PRELITE2 */
+#endif /* COMPAT_PRELITE2 */
 	}
 	if (mp->mnt_flag & MNT_UPDATE) {
 		register struct nfsmount *nmp = VFSTONFS(mp);
