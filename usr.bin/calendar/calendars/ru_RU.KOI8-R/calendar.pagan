@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _ru_SU_KOI8_R_pagan_
-#define _ru_SU_KOI8_R_pagan_
+#ifndef _ru_RU_KOI8_R_pagan_
+#define _ru_RU_KOI8_R_pagan_
 
-LANG=ru_SU.KOI8-R
+LANG=ru_RU.KOI8-R
 Paskha=Пасха
 
 21 дек*	Зимнее солнцестояние
@@ -38,5 +38,5 @@ Paskha=Пасха
 21 ноя	День Сварога и Семаргла
  9 дек	День Дажьбога и Марены
 
-#endif /* !_ru_SU_KOI8_R_pagan_ */
+#endif /* !_ru_RU_KOI8_R_pagan_ */
 

@@ -4,10 +4,10 @@
  * $FreeBSD$
  */
 
-#ifndef _ru_SU_KOI8_R_orthodox_
-#define _ru_SU_KOI8_R_orthodox_
+#ifndef _ru_RU_KOI8_R_orthodox_
+#define _ru_RU_KOI8_R_orthodox_
 
-LANG=ru_SU.KOI8-R
+LANG=ru_RU.KOI8-R
 Paskha=Пасха
 
 21 сен	Рождество Пресвятой Богородицы
@@ -30,5 +30,5 @@ Paskha=Пасха
 19 авг	Преображение Господне
 28 авг	Успение Пресвятой Богородицы
 
-#endif /* !_ru_SU_KOI8_R_orthodox_ */
+#endif /* !_ru_RU_KOI8_R_orthodox_ */
 
