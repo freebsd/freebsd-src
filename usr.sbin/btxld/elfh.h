@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 
-#include <elf.h>
+#include <sys/elf32.h>
 
 struct elfh {
     Elf32_Ehdr e;		/* ELF header */
@@ -35,4 +35,4 @@ struct elfh {
     char shstrtab[28];		/* section header string table */
 };
 
-const struct elfh elfhdr;	/* ELF header template */
+extern const struct elfh elfhdr;	/* ELF header template */

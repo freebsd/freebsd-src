@@ -43,7 +43,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include <a.out.h>
-#include <elf.h>
 
 #include "btx.h"
 #include "elfh.h"
@@ -65,14 +64,14 @@ static const char rcsid[] =
 #define align(x, y) (((x) + (y) - 1) & ~((y) - 1))
 
 struct hdr {
-    unsigned fmt;		/* Format */
-    unsigned flags;		/* Bit flags */
-    unsigned size;		/* Size of file */
-    unsigned text;		/* Size of text segment */
-    unsigned data;		/* Size of data segment */
-    unsigned bss;		/* Size of bss segment */
-    unsigned org;		/* Program origin */
-    unsigned entry;		/* Program entry point */
+    uint32_t fmt;		/* Format */
+    uint32_t flags;		/* Bit flags */
+    uint32_t size;		/* Size of file */
+    uint32_t text;		/* Size of text segment */
+    uint32_t data;		/* Size of data segment */
+    uint32_t bss;		/* Size of bss segment */
+    uint32_t org;		/* Program origin */
+    uint32_t entry;		/* Program entry point */
 };
 
 static const char *const fmtlist[] = {"bin", "aout", "elf"};
@@ -95,7 +94,7 @@ static const char *oname =
 static int ppage = -1;		/* First page present */
 static int wpage = -1;		/* First page writable */
 
-static unsigned format; 	/* Output format */
+static unsigned int format; 	/* Output format */
 
 static uint32_t centry; 	/* Client entry address */
 static uint32_t lentry; 	/* Loader entry address */
@@ -117,7 +116,7 @@ static void copy(int, int, size_t, off_t);
 static size_t readx(int, void *, size_t, off_t);
 static void writex(int, const void *, size_t);
 static void seekx(int, off_t);
-static unsigned optfmt(const char *);
+static unsigned int optfmt(const char *);
 static uint32_t optaddr(const char *);
 static int optpage(const char *, int);
 static void Warn(const char *, const char *, ...);
@@ -195,8 +194,10 @@ btxld(const char *iname)
     char name[FILENAME_MAX];
     struct btx_hdr btx;
     struct hdr ihdr, ohdr;
-    unsigned ldr_size, cwr;
+    unsigned int ldr_size, cwr;
     int fdi[3], fdo, i;
+
+    ldr_size = 0;
 
     for (i = I_LDR; i <= I_CLNT; i++) {
 	fname = i == I_LDR ? lname : i == I_BTX ? bname : iname;
@@ -228,7 +229,7 @@ btxld(const char *iname)
     ohdr.org = lentry;
     ohdr.entry = lentry;
     cwr = 0;
-    if (wpage > 0 || (wpage == -1 && !(ihdr.flags & IMPURE)))
+    if (wpage > 0 || (wpage == -1 && !(ihdr.flags & IMPURE))) {
 	if (wpage > 0)
 	    cwr = wpage;
 	else {
@@ -236,6 +237,7 @@ btxld(const char *iname)
 	    if (cwr > BTX_MAXCWR)
 		cwr = BTX_MAXCWR;
 	}
+    }
     if (ppage > 0 || (ppage && wpage && ihdr.org >= BTX_PGSIZE)) {
 	btx.btx_flags |= BTX_MAPONE;
 	if (!cwr)
@@ -312,7 +314,7 @@ gethdr(int fd, struct hdr *hdr)
     const Elf32_Ehdr *ee;
     const Elf32_Phdr *ep;
     void *p;
-    unsigned fmt, x, n, i;
+    unsigned int fmt, x, n, i;
 
     memset(hdr, 0, sizeof(*hdr));
     if (fstat(fd, &sb))
@@ -480,10 +482,10 @@ seekx(int fd, off_t offset)
 /*
  * Convert an option argument to a format code.
  */
-static unsigned
+static unsigned int
 optfmt(const char *arg)
 {
-    unsigned i;
+    unsigned int i;
 
     for (i = 0; i < F_CNT && strcmp(arg, fmtlist[i]); i++);
     if (i == F_CNT)
