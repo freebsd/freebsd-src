@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.60 1999/08/13 10:29:21 phk Exp $
+ * $Id: kern_shutdown.c,v 1.61 1999/08/21 06:24:20 msmith Exp $
  */
 
 #include "opt_ddb.h"
@@ -250,8 +250,8 @@ boot(howto)
 				    BUF_REFCNT(bp) > 0) {
 					nbusy++;
 					printf(
-			"%d: dev:%08lx, flags:%08lx, blkno:%ld, lblkno:%ld\n",
-					    nbusy, (u_long)bp->b_dev,
+			"%d: dev:%s, flags:%08lx, blkno:%ld, lblkno:%ld\n",
+					    nbusy, devtoname(bp->b_dev),
 					    bp->b_flags, (long)bp->b_blkno,
 					    (long)bp->b_lblkno);
 				}

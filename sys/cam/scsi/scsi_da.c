@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_da.c,v 1.33 1999/08/15 23:34:40 mjacob Exp $
+ *      $Id: scsi_da.c,v 1.34 1999/08/21 06:23:50 msmith Exp $
  */
 
 #include "opt_hw_wdog.h"
@@ -282,7 +282,7 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	softc = (struct da_softc *)periph->softc;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
-	    ("daopen: dev=0x%lx (unit %d , partition %d)\n", (long) dev,
+	    ("daopen: dev=%s (unit %d , partition %d)\n", devtoname(dev),
 	     unit, part));
 
 	if ((error = cam_periph_lock(periph, PRIBIO|PCATCH)) != 0) {

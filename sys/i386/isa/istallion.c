@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.28 1999/05/30 16:52:16 phk Exp $
+ * $Id: istallion.c,v 1.29 1999/05/31 11:26:09 phk Exp $
  */
 
 /*****************************************************************************/
@@ -1064,8 +1064,8 @@ STATIC int stliclose(dev_t dev, int flag, int mode, struct proc *p)
 	int		x;
 
 #if DEBUG
-	printf("stliclose(dev=%lx,flag=%x,mode=%x,p=%p)\n",
-		(unsigned long) dev, flag, mode, (void *) p);
+	printf("stliclose(dev=%s,flag=%x,mode=%x,p=%p)\n",
+		devtoname(dev), flag, mode, (void *) p);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
@@ -1092,7 +1092,7 @@ STATIC int stliread(dev_t dev, struct uio *uiop, int flag)
 	stliport_t	*portp;
 
 #if DEBUG
-	printf("stliread(dev=%lx,uiop=%p,flag=%x)\n", (unsigned long) dev,
+	printf("stliread(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
 		(void *) uiop, flag);
 #endif
 
@@ -1149,7 +1149,7 @@ STATIC int stliwrite(dev_t dev, struct uio *uiop, int flag)
 	stliport_t	*portp;
 
 #if DEBUG
-	printf("stliwrite(dev=%lx,uiop=%p,flag=%x)\n", (unsigned long) dev,
+	printf("stliwrite(dev=%s,uiop=%p,flag=%x)\n", devtoname(dev),
 		(void *) uiop, flag);
 #endif
 
@@ -1175,8 +1175,8 @@ STATIC int stliioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 	int		error, i, x;
 
 #if DEBUG
-	printf("stliioctl(dev=%lx,cmd=%lx,data=%p,flag=%x,p=%p)\n",
-		(unsigned long) dev, cmd, (void *) data, flag, (void *) p);
+	printf("stliioctl(dev=%s,cmd=%lx,data=%p,flag=%x,p=%p)\n",
+		devtoname(dev), cmd, (void *) data, flag, (void *) p);
 #endif
 
 	if (minor(dev) & STL_MEMDEV)
@@ -3829,8 +3829,8 @@ static int stli_memioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag,
 	int		brdnr, rc;
 
 #if DEBUG
-	printf("stli_memioctl(dev=%lx,cmd=%lx,data=%p,flag=%x)\n",
-		(unsigned long) dev, cmd, (void *) data, flag);
+	printf("stli_memioctl(dev=%s,cmd=%lx,data=%p,flag=%x)\n",
+		devtoname(dev), cmd, (void *) data, flag);
 #endif
 
 	brdnr = minor(dev) & 0x7;
