@@ -130,11 +130,11 @@ mailbill()
 				exit(0);
 			while (*cp != NULL) {
 				if (*cp[0] == '1') {
-					sprintf(buf, "\n%d gold pieces back with you from your journey.  As the",
+					sprintf(buf, "\n%ld gold pieces back with you from your journey.  As the",
 					    (long)c[GOLD]);
 					write(fd, buf, strlen(buf));
 				} else if (*cp[0] == '2') {
-					sprintf(buf, "\nin preparing your tax bill.  You owe %d gold pieces as", (long)c[GOLD]*TAXRATE);
+					sprintf(buf, "\nin preparing your tax bill.  You owe %ld gold pieces as", (long)c[GOLD]*TAXRATE);
 					write(fd, buf, strlen(buf));
 				} else
 					write(fd, *cp, strlen(*cp));
