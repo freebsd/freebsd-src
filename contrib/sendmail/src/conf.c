@@ -284,6 +284,8 @@ setdefaults(e)
 	ColonOkInAddr = TRUE;
 	DontLockReadFiles = TRUE;
 	DoubleBounceAddr = "postmaster";
+	MaxHeaderLines = MAXHDRLINES;
+	MaxHeaderLineLength = MAXHDRLINELEN;
 	snprintf(buf, sizeof buf, "%s%sdead.letter",
 		_PATH_VARTMP,
 		_PATH_VARTMP[sizeof _PATH_VARTMP - 2] == '/' ? "" : "/");
