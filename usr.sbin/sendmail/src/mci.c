@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)mci.c	8.13 (Berkeley) 4/12/94";
+static char sccsid[] = "@(#)mci.c	8.14 (Berkeley) 5/15/94";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -83,18 +83,17 @@ mci_cache(mci)
 	register MCI **mcislot;
 	extern MCI **mci_scan();
 
-	if (MaxMciCache <= 0)
-	{
-		/* we don't support caching */
-		return;
-	}
-
 	/*
 	**  Find the best slot.  This may cause expired connections
 	**  to be closed.
 	*/
 
 	mcislot = mci_scan(mci);
+	if (mcislot == NULL)
+	{
+		/* we don't support caching */
+		return;
+	}
 
 	/* if this is already cached, we are done */
 	if (bitset(MCIF_CACHED, mci->mci_flags))
@@ -135,6 +134,12 @@ mci_scan(savemci)
 	register MCI **bestmci;
 	register MCI *mci;
 	register int i;
+
+	if (MaxMciCache <= 0)
+	{
+		/* we don't support caching */
+		return NULL;
+	}
 
 	if (MciCache == NULL)
 	{
@@ -267,6 +272,7 @@ mci_get(host, m)
 {
 	register MCI *mci;
 	register STAB *s;
+	extern MCI **mci_scan();
 
 #ifdef DAEMON
 	extern SOCKADDR CurHostAddr;
@@ -276,7 +282,7 @@ mci_get(host, m)
 #endif
 
 	/* clear out any expired connections */
-	mci_scan(NULL);
+	(void) mci_scan(NULL);
 
 	if (m->m_mno < 0)
 		syserr("negative mno %d (%s)", m->m_mno, m->m_name);

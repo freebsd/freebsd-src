@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.39 (Berkeley) 4/14/94";
+static char sccsid[] = "@(#)util.c	8.39.1.2 (Berkeley) 2/10/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1464,4 +1464,84 @@ shortenstring(s, m)
 	strcpy(buf + m, "...");
 	strcpy(buf + m + 3, s + l - m);
 	return buf;
+}
+/*
+**  CLEANSTRCPY -- copy string keeping out bogus characters
+**
+**	Parameters:
+**		t -- "to" string.
+**		f -- "from" string.
+**		l -- length of space available in "to" string.
+**
+**	Returns:
+**		none.
+*/
+
+void
+cleanstrcpy(t, f, l)
+	register char *t;
+	register char *f;
+	int l;
+{
+#ifdef LOG
+	/* check for newlines and log if necessary */
+	(void) denlstring(f);
+#endif
+
+	l--;
+	while (l > 0 && *f != '\0')
+	{
+		if (isascii(*f) &&
+		    (isalnum(*f) || strchr("!#$%&'*+-./^_`{|}~", *f) != NULL))
+		{
+			l--;
+			*t++ = *f;
+		}
+		f++;
+	}
+	*t = '\0';
+}
+/*
+**  DENLSTRING -- convert newlines in a string to spaces
+**
+**	Parameters:
+**		s -- the input string
+**
+**	Returns:
+**		A pointer to a version of the string with newlines
+**		mapped to spaces.  This should be copied.
+*/
+
+char *
+denlstring(s)
+	char *s;
+{
+	register char *p;
+	int l;
+	static char *bp = NULL;
+	static int bl = 0;
+
+	if (strchr(s, '\n') == NULL)
+		return s;
+
+	l = strlen(s) + 1;
+	if (bl < l)
+	{
+		/* allocate more space */
+		if (bp != NULL)
+			free(bp);
+		bp = xalloc(l);
+		bl = l;
+	}
+	strcpy(bp, s);
+	for (p = bp; (p = strchr(p, '\n')) != NULL; )
+		*p++ = ' ';
+
+#ifdef LOG
+	p = macvalue('_', CurEnv);
+	syslog(LOG_ALERT, "POSSIBLE ATTACK from %s: newline in string \"%s\"",
+		p == NULL ? "[UNKNOWN]" : p, bp);
+#endif
+
+	return bp;
 }

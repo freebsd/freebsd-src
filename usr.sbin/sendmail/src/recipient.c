@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)recipient.c	8.44 (Berkeley) 2/28/94";
+static char sccsid[] = "@(#)recipient.c	8.44.1.4 (Berkeley) 2/20/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -75,7 +75,10 @@ sendtolist(list, ctladdr, sendq, e)
 	bool firstone;		/* set on first address sent */
 	char delimiter;		/* the address delimiter */
 	int naddrs;
+	int i;
 	char *oldto = e->e_to;
+	char *bufp;
+	char buf[MAXNAME + 1];
 
 	if (list == NULL)
 	{
@@ -102,7 +105,15 @@ sendtolist(list, ctladdr, sendq, e)
 	al = NULL;
 	naddrs = 0;
 
-	for (p = list; *p != '\0'; )
+	/* make sure we have enough space to copy the string */
+	i = strlen(list) + 1;
+	if (i <= sizeof buf)
+		bufp = buf;
+	else
+		bufp = xalloc(i);
+	strcpy(bufp, denlstring(list));
+
+	for (p = bufp; *p != '\0'; )
 	{
 		auto char *delimptr;
 		register ADDRESS *a;
@@ -143,6 +154,8 @@ sendtolist(list, ctladdr, sendq, e)
 	}
 
 	e->e_to = oldto;
+	if (bufp != buf)
+		free(bufp);
 	return (naddrs);
 }
 /*
