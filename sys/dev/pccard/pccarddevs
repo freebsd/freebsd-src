@@ -43,7 +43,7 @@ $FreeBSD$
  */
 
 vendor FUJITSU			0x0004  Fujitsu Corporation
-vendor NETGEAR_2		0x000b  Netgear
+vendor INTERSIL			0x000b  Intersil
 vendor PANASONIC		0x0032	Matsushita Electric Industrial Co.
 vendor SANDISK			0x0045	Sandisk Corporation
 vendor NEWMEDIA			0x0057	New Media Corporation
@@ -258,6 +258,10 @@ product IBM ETHERJET		0x003f IBM EtherJet Ethernet
 product INTEL PRO_WLAN_2011	0x0001 Intel PRO/Wireless 2011 LAN PC Card
 product INTEL EEPRO100		0x010a Intel EtherExpress PRO/100
 
+/* Intersil */
+/* Note: The following likely is an OEM card under a different Intersil name */
+product INTERSIL MA401RA	0x7300 Netgear MA401RA
+
 /* I-O DATA */
 product IODATA PCLATE		0x2216 I-O DATA PCLA/TE
 product IODATA2 WNB11PCM	0x0002 I-O DATA WN-B11/PCM
@@ -323,7 +327,6 @@ product NEWMEDIA2 BUSTOASTER	0x0001 NewMedia BusToaster
 product NETGEAR FA410TX		0x0230 Netgear FA410TX
 product NETGEAR FA410TXC	0x4530 Netgear FA410TXC
 product NETGEAR FA411		0x0411 Netgear FA411
-product NETGEAR_2 MA401RA	0x7300 Netgear MA401RA
 
 /* National Instruments */
 product NI PCMCIA_GPIB	 	0x4882 National Instruments PCMCIA-GPIB
