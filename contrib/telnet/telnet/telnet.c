@@ -51,7 +51,6 @@ static const char sccsid[] = "@(#)telnet.c	8.4 (Berkeley) 5/30/95";
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <termcap.h>
 
 #include "ring.h"
 
