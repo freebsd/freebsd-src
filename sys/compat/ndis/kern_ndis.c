@@ -753,7 +753,6 @@ ndis_halt_nic(arg)
 	__stdcall ndis_halt_handler	haltfunc;
 	struct ifnet		*ifp;
 	struct ndis_timer_entry	*ne;
-	struct callout_handle	*ch;
 
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
@@ -781,9 +780,7 @@ ndis_halt_nic(arg)
 	while (!TAILQ_EMPTY(&sc->ndis_block.nmb_timerlist)) {
 		ne = TAILQ_FIRST(&sc->ndis_block.nmb_timerlist);
 		TAILQ_REMOVE(&sc->ndis_block.nmb_timerlist, ne, link);
-		ch = &ne->nte_ch;
-		if (ch->callout != NULL)
-			untimeout(ch->callout->c_func, ch->callout->c_arg, *ch);
+		callout_stop(&ne->nte_ch);
 		free(ne, M_DEVBUF);
 	}
 
