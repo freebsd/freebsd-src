@@ -853,8 +853,20 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 
 		/* skip messages with the incorrect program name */
 		if (f->f_program)
-			if (strcmp(prog, f->f_program) != 0)
-				continue;
+			switch (f->f_program[0]) {
+			case '+':
+				if (strcmp(prog, f->f_program + 1) != 0)
+					continue;
+				break;
+			case '-':
+				if (strcmp(prog, f->f_program + 1) == 0)
+					continue;
+				break;
+			default:
+				if (strcmp(prog, f->f_program) != 0)
+					continue;
+				break;
+			}
 
 		if (f->f_type == F_CONSOLE && (flags & IGN_CONS))
 			continue;
