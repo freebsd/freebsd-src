@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.3 1994/08/18 22:35:08 wollman Exp $
+ * $Id: vfs_lookup.c,v 1.4 1994/08/20 03:48:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -144,7 +144,8 @@ namei(ndp)
 			VREF(dp);
 		}
 		ndp->ni_startdir = dp;
-		if (error = lookup(ndp)) {
+		error = lookup(ndp);
+		if (error) {
 			FREE(cnp->cn_pnbuf, M_NAMEI);
 			return (error);
 		}
@@ -177,7 +178,8 @@ namei(ndp)
 		auio.uio_segflg = UIO_SYSSPACE;
 		auio.uio_procp = (struct proc *)0;
 		auio.uio_resid = MAXPATHLEN;
-		if (error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred)) {
+		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
+		if (error) {
 			if (ndp->ni_pathlen > 1)
 				free(cp, M_NAMEI);
 			break;
@@ -374,7 +376,8 @@ dirloop:
 	 */
 unionlookup:
 	ndp->ni_dvp = dp;
-	if (error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp)) {
+	error = VOP_LOOKUP(dp, &ndp->ni_vp, cnp);
+	if (error) {
 #ifdef DIAGNOSTIC
 		if (ndp->ni_vp != NULL)
 			panic("leaf should be empty");
@@ -450,7 +453,8 @@ unionlookup:
 			sleep((caddr_t)mp, PVFS);
 			continue;
 		}
-		if (error = VFS_ROOT(dp->v_mountedhere, &tdp))
+		error = VFS_ROOT(dp->v_mountedhere, &tdp);
+		if (error)
 			goto bad2;
 		vput(dp);
 		ndp->ni_vp = dp = tdp;
@@ -505,4 +509,155 @@ bad:
 	return (error);
 }
 
+/*
+ * relookup - lookup a path name component
+ *    Used by lookup to re-aquire things.
+ */
+int
+relookup(dvp, vpp, cnp)
+	struct vnode *dvp, **vpp;
+	struct componentname *cnp;
+{
+	register struct vnode *dp = 0;	/* the directory we are searching */
+	int docache;			/* == 0 do not cache last component */
+	int wantparent;			/* 1 => wantparent or lockparent flag */
+	int rdonly;			/* lookup read-only flag bit */
+	int error = 0;
+#ifdef NAMEI_DIAGNOSTIC
+	int newhash;			/* DEBUG: check name hash */
+	char *cp;			/* DEBUG: check name ptr/len */
+#endif
 
+	/*
+	 * Setup: break out flag bits into variables.
+	 */
+	wantparent = cnp->cn_flags & (LOCKPARENT|WANTPARENT);
+	docache = (cnp->cn_flags & NOCACHE) ^ NOCACHE;
+	if (cnp->cn_nameiop == DELETE ||
+	    (wantparent && cnp->cn_nameiop != CREATE))
+		docache = 0;
+	rdonly = cnp->cn_flags & RDONLY;
+	cnp->cn_flags &= ~ISSYMLINK;
+	dp = dvp;
+	VOP_LOCK(dp);
+
+/* dirloop: */
+	/*
+	 * Search a new directory.
+	 *
+	 * The cn_hash value is for use by vfs_cache.
+	 * The last component of the filename is left accessible via
+	 * cnp->cn_nameptr for callers that need the name. Callers needing
+	 * the name set the SAVENAME flag. When done, they assume
+	 * responsibility for freeing the pathname buffer.
+	 */
+#ifdef NAMEI_DIAGNOSTIC
+	for (newhash = 0, cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
+		newhash += (unsigned char)*cp;
+	if (newhash != cnp->cn_hash)
+		panic("relookup: bad hash");
+	if (cnp->cn_namelen != cp - cnp->cn_nameptr)
+		panic ("relookup: bad len");
+	if (*cp != 0)
+		panic("relookup: not last component");
+	printf("{%s}: ", cnp->cn_nameptr);
+#endif
+
+	/*
+	 * Check for degenerate name (e.g. / or "")
+	 * which is a way of talking about a directory,
+	 * e.g. like "/." or ".".
+	 */
+	if (cnp->cn_nameptr[0] == '\0') {
+		if (cnp->cn_nameiop != LOOKUP || wantparent) {
+			error = EISDIR;
+			goto bad;
+		}
+		if (dp->v_type != VDIR) {
+			error = ENOTDIR;
+			goto bad;
+		}
+		if (!(cnp->cn_flags & LOCKLEAF))
+			VOP_UNLOCK(dp);
+		*vpp = dp;
+		if (cnp->cn_flags & SAVESTART)
+			panic("lookup: SAVESTART");
+		return (0);
+	}
+
+	if (cnp->cn_flags & ISDOTDOT)
+		panic ("relookup: lookup on dot-dot");
+
+	/*
+	 * We now have a segment name to search for, and a directory to search.
+	 */
+	error = VOP_LOOKUP(dp, vpp, cnp);
+	if (error) {
+#ifdef DIAGNOSTIC
+		if (*vpp != NULL)
+			panic("leaf should be empty");
+#endif
+		if (error != EJUSTRETURN)
+			goto bad;
+		/*
+		 * If creating and at end of pathname, then can consider
+		 * allowing file to be created.
+		 */
+		if (rdonly || (dvp->v_mount->mnt_flag & MNT_RDONLY)) {
+			error = EROFS;
+			goto bad;
+		}
+		/* ASSERT(dvp == ndp->ni_startdir) */
+		if (cnp->cn_flags & SAVESTART)
+			VREF(dvp);
+		/*
+		 * We return with ni_vp NULL to indicate that the entry
+		 * doesn't currently exist, leaving a pointer to the
+		 * (possibly locked) directory inode in ndp->ni_dvp.
+		 */
+		return (0);
+	}
+	dp = *vpp;
+
+#ifdef DIAGNOSTIC
+	/*
+	 * Check for symbolic link
+	 */
+	if (dp->v_type == VLNK && (cnp->cn_flags & FOLLOW))
+		panic ("relookup: symlink found.\n");
+#endif
+
+	/*
+	 * Check for read-only file systems.
+	 */
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME) {
+		/*
+		 * Disallow directory write attempts on read-only
+		 * file systems.
+		 */
+		if (rdonly || (dp->v_mount->mnt_flag & MNT_RDONLY) ||
+		    (wantparent &&
+		     (dvp->v_mount->mnt_flag & MNT_RDONLY))) {
+			error = EROFS;
+			goto bad2;
+		}
+	}
+	/* ASSERT(dvp == ndp->ni_startdir) */
+	if (cnp->cn_flags & SAVESTART)
+		VREF(dvp);
+	
+	if (!wantparent)
+		vrele(dvp);
+	if ((cnp->cn_flags & LOCKLEAF) == 0)
+		VOP_UNLOCK(dp);
+	return (0);
+
+bad2:
+	if ((cnp->cn_flags & LOCKPARENT) && (cnp->cn_flags & ISLASTCN))
+		VOP_UNLOCK(dvp);
+	vrele(dvp);
+bad:
+	vput(dp);
+	*vpp = NULL;
+	return (error);
+}

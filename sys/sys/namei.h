@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)namei.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: namei.h,v 1.2 1994/08/02 07:53:18 davidg Exp $
  */
 
 #ifndef _SYS_NAMEI_H_
@@ -171,6 +171,8 @@ struct	namecache {
 u_long	nextvnodeid;
 int	namei __P((struct nameidata *ndp));
 int	lookup __P((struct nameidata *ndp));
+int	relookup __P((struct vnode *dvp, struct vnode **vpp,
+	    struct componentname *cnp));
 #endif
 
 /*
