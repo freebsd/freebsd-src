@@ -41,7 +41,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)comm.c	8.4 (Berkeley) 5/4/95";
+#if 0
+static char sccsid[] = "From: @(#)comm.c	8.4 (Berkeley) 5/4/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <err.h>
@@ -66,13 +70,15 @@ main(argc, argv)
 	char *argv[];
 {
 	int comp, file1done, file2done, read1, read2;
-	int ch, flag1, flag2, flag3;
+	int ch, flag1, flag2, flag3, iflag;
 	FILE *fp1, *fp2;
 	char *col1, *col2, *col3;
 	char **p, line1[MAXLINELEN], line2[MAXLINELEN];
 
 	flag1 = flag2 = flag3 = 1;
-	while ((ch = getopt(argc, argv, "-123")) != -1)
+	iflag = 0;
+
+	while ((ch = getopt(argc, argv, "-123i")) != -1)
 		switch(ch) {
 		case '-':
 			--optind;
@@ -85,6 +91,9 @@ main(argc, argv)
 			break;
 		case '3':
 			flag3 = 0;
+			break;
+		case 'i':
+			iflag = 1;
 			break;
 		case '?':
 		default:
@@ -129,7 +138,12 @@ done:	argc -= optind;
 		}
 
 		/* lines are the same */
-		if (!(comp = strcmp(line1, line2))) {
+		if(iflag)
+			comp = strcasecmp(line1, line2);
+		else
+			comp = strcmp(line1, line2);
+
+		if (!comp) {
 			read1 = read2 = 1;
 			if (col3)
 				(void)printf("%s%s", col3, line1);
@@ -180,6 +194,6 @@ file(name)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: comm [-123] file1 file2\n");
+	(void)fprintf(stderr, "usage: comm [-123i] file1 file2\n");
 	exit(1);
 }

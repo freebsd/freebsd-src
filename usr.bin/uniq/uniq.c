@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uniq.c	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: uniq.c,v 1.3 1997/08/21 06:51:10 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -75,9 +75,10 @@ main (argc, argv)
 	FILE *ifp, *ofp;
 	int ch;
 	char *prevline, *thisline, *p;
+	int iflag = 0, comp;
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "-cdf:s:u")) != -1)
+	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
 		switch (ch) {
 		case '-':
 			--optind;
@@ -87,6 +88,9 @@ main (argc, argv)
 			break;
 		case 'd':
 			dflag = 1;
+			break;
+		case 'i':
+			iflag = 1;
 			break;
 		case 'f':
 			numfields = strtol(optarg, &p, 10);
@@ -152,7 +156,12 @@ done:	argc -= optind;
 		}
 
 		/* If different, print; set previous to new value. */
-		if (strcmp(t1, t2)) {
+		if (iflag)
+			comp = strcasecmp(t1, t2);
+		else
+			comp = strcmp(t1, t2);
+
+		if (comp) {
 			show(ofp, prevline);
 			t1 = prevline;
 			prevline = thisline;
@@ -245,6 +254,6 @@ static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: uniq [-c | -du] [-f fields] [-s chars] [input [output]]\n");
+	    "usage: uniq [-c | -du | -i] [-f fields] [-s chars] [input [output]]\n");
 	exit(1);
 }

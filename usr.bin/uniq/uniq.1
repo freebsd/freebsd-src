@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)uniq.1	8.1 (Berkeley) 6/6/93
+.\"     From: @(#)uniq.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt UNIQ 1
@@ -43,6 +44,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl c | Fl d | Fl u
+.Op Fl i
 .Op Fl f Ar fields
 .Op Fl s Ar chars
 .Oo
@@ -87,6 +89,8 @@ fields will be ignored.
 Character numbers are one based, i.e. the first character is character one.
 .It Fl u
 Don't output lines that are repeated in the input.
+.It Fl i
+Case insensitive comparison of lines.
 .\".It Fl Ns Ar n
 .\"(Deprecated; replaced by
 .\".Fl f ) .
