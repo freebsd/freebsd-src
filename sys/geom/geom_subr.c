@@ -60,6 +60,37 @@ char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
 static int g_ignition;
 
+
+/*
+ * This event offers a new class a chance to taste all preexisting providers.
+ */
+static void
+g_new_class_event(void *arg, int flag)
+{
+	struct g_class *mp2, *mp;
+	struct g_geom *gp;
+	struct g_provider *pp;
+
+	g_topology_assert();
+	if (flag == EV_CANCEL)
+		return;
+	if (g_shutdown)
+		return;
+	mp2 = arg;
+	if (mp2->taste == NULL)
+		return;
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mp2 == mp)
+			continue;
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			LIST_FOREACH(pp, &gp->provider, provider) {
+				mp2->taste(mp2, pp, 0);
+				g_topology_assert();
+			}
+		}
+	}
+}
+
 void
 g_add_class(struct g_class *mp)
 {
@@ -73,8 +104,8 @@ g_add_class(struct g_class *mp)
 	g_trace(G_T_TOPOLOGY, "g_add_class(%s)", mp->name);
 	LIST_INIT(&mp->geom);
 	LIST_INSERT_HEAD(&g_classes, mp, class);
-	if (g_nproviders > 0)
-		g_post_event(EV_NEW_CLASS, mp, NULL);
+	if (g_nproviders > 0 && mp->taste != NULL)
+		g_call_me(g_new_class_event, mp, mp, NULL);
 	g_topology_unlock();
 }
 
