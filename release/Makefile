@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.481 1999/05/02 17:43:45 max Exp $
+#	$Id: Makefile,v 1.482 1999/05/09 17:00:04 obrien Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -503,7 +503,7 @@ ftp.1:
 	@mkdir -p ${FD}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
-	@for i in ${DIST_DOCS}; do cp ${.CURDIR}/texts/$${i} ${FD}; done
+	@for i in ${DIST_DOCS}; do if [ -f ${.CURDIR}/texts/${MACHINE_ARCH}/$$i ]; then cp ${.CURDIR}/texts/${MACHINE_ARCH}/$${i} ${FD}; else cp ${.CURDIR}/texts/$${i} ${FD}; done; fi
 	@echo "CD_VERSION = ${BUILDNAME}" > ${FD}/cdrom.inf
 .if !defined(NOPORTS)
 	@tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
