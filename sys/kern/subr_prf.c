@@ -36,19 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.16 1995/08/07 07:58:18 davidg Exp $
+ * $Id: subr_prf.c,v 1.17 1995/08/07 08:40:49 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/buf.h>
-#include <sys/conf.h>
 #include <sys/reboot.h>
 #include <sys/msgbuf.h>
 #include <sys/proc.h>
-#include <sys/ioctl.h>
 #include <sys/vnode.h>
-#include <sys/file.h>
 #include <sys/tty.h>
 #include <sys/tprintf.h>
 #include <sys/syslog.h>
