@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $Id$
  */
 
 /*****************************************************************************/
@@ -46,8 +48,8 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
-#include "cdk.h"
-#include "comstats.h"
+#include <machine/cdk.h>
+#include <machine/comstats.h>
 
 /*****************************************************************************/
 
