@@ -16,6 +16,11 @@
 /*
  * HISTORY
  * $Log: aha1742.c,v $
+ * Revision 1.4  1993/08/06  11:59:02  rgrimes
+ * Fixed **probing for scsi devices** message to have a controller and unit
+ * message on the begining of it:
+ * aha0: **probing for scsi devices**
+ *
  * Revision 1.3  1993/07/29  11:55:34  nate
  * Syncing our sources back with Julian's, and removing PATCHKIT headers.
  *
@@ -642,9 +647,13 @@ ahbintr(unit)
 				ahb_data[unit].immed_ecb = 0;
 				break;
 			case	AHB_ASN:	/* for target mode */
+				printf("ahb%d: Unexpected ASN interrupt(%x)\n",
+					unit, mboxval);
 				ecb = 0;
 				break;
 			case	AHB_HW_ERR:
+				printf("ahb%d: Hardware error interrupt(%x)\n",
+					unit, mboxval);
 				ecb = 0;
 				break;
 			case	AHB_ECB_RECOVERED:
