@@ -173,7 +173,6 @@ struct pmap {
 	pt_entry_t		*pm_lev1;	/* KVA of lev0map */
 	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
-	int			pm_count;	/* reference count */
 	u_int32_t		pm_active;	/* active cpus */
 	struct {
 		u_int32_t	asn:ASN_BITS;	/* address space number */
@@ -192,7 +191,8 @@ struct pmap {
 typedef struct pmap	*pmap_t;
 
 #ifdef _KERNEL
-extern pmap_t		kernel_pmap;
+extern struct pmap	kernel_pmap_store;
+#define kernel_pmap	(&kernel_pmap_store)
 #endif
 
 /*
@@ -231,7 +231,6 @@ vm_offset_t pmap_steal_memory(vm_size_t);
 void	pmap_bootstrap(vm_offset_t, u_int);
 void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
 int	pmap_uses_prom_console(void);
-pmap_t	pmap_kernel(void);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;

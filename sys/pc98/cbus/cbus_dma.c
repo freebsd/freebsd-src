@@ -290,7 +290,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 	}
 
 	/* translate to physical */
-	phys = pmap_extract(pmap_kernel(), (vm_offset_t)addr);
+	phys = pmap_extract(kernel_pmap, (vm_offset_t)addr);
 
 	if (flags & ISADMA_RAW) {
 	    dma_auto_mode |= (1 << chan);
@@ -440,7 +440,7 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
-		phys = trunc_page(pmap_extract(pmap_kernel(), (vm_offset_t)va));
+		phys = trunc_page(pmap_extract(kernel_pmap, (vm_offset_t)va));
 #ifdef EPSON_BOUNCEDMA
 #define ISARAM_END	0xf00000
 #else

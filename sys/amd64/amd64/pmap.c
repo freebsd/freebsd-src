@@ -146,8 +146,7 @@
 #define pte_prot(m, p)	(protection_codes[p])
 static int protection_codes[8];
 
-static struct pmap kernel_pmap_store;
-pmap_t kernel_pmap;
+struct pmap kernel_pmap_store;
 LIST_HEAD(pmaplist, pmap);
 struct pmaplist allpmaps;
 
@@ -306,14 +305,9 @@ pmap_bootstrap(firstaddr, loadaddr)
 	i386_protection_init();
 
 	/*
-	 * The kernel's pmap is statically allocated so we don't have to use
-	 * pmap_create, which is unlikely to work correctly at this part of
-	 * the boot sequence (XXX and which no longer exists).
+	 * Initialize the kernel pmap (which is statically allocated).
 	 */
-	kernel_pmap = &kernel_pmap_store;
-
 	kernel_pmap->pm_pdir = (pd_entry_t *) (KERNBASE + (u_int)IdlePTD);
-	kernel_pmap->pm_count = 1;
 	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvlist);
 	LIST_INIT(&allpmaps);
@@ -1281,7 +1275,6 @@ pmap_pinit0(pmap)
 	pmap->pm_pdir =
 		(pd_entry_t *)kmem_alloc_pageable(kernel_map, PAGE_SIZE);
 	pmap_kenter((vm_offset_t) pmap->pm_pdir, (vm_offset_t) IdlePTD);
-	pmap->pm_count = 1;
 	pmap->pm_ptphint = NULL;
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
@@ -1342,7 +1335,6 @@ pmap_pinit(pmap)
 	pmap->pm_pdir[PTDPTDI] =
 		VM_PAGE_TO_PHYS(ptdpg) | PG_V | PG_RW | PG_A | PG_M;
 
-	pmap->pm_count = 1;
 	pmap->pm_active = 0;
 	pmap->pm_ptphint = NULL;
 	TAILQ_INIT(&pmap->pm_pvlist);
@@ -1642,39 +1634,9 @@ pmap_growkernel(vm_offset_t addr)
 	splx(s);
 }
 
-/*
- *	Retire the given physical map from service.
- *	Should only be called if the map contains
- *	no valid mappings.
- */
-void
-pmap_destroy(pmap_t pmap)
-{
-	int count;
-
-	if (pmap == NULL)
-		return;
-
-	count = --pmap->pm_count;
-	if (count == 0) {
-		pmap_release(pmap);
-		panic("destroying a pmap is not yet implemented");
-	}
-}
-
-/*
- *	Add a reference to the specified pmap.
- */
-void
-pmap_reference(pmap_t pmap)
-{
-	if (pmap != NULL) {
-		pmap->pm_count++;
-	}
-}
 
 /***************************************************
-* page management routines.
+ * page management routines.
  ***************************************************/
 
 /*
@@ -2844,17 +2806,6 @@ printf ("IT HAPPENNED!");
 		}
 	}
 }	
-
-/*
- *	Routine:	pmap_kernel
- *	Function:
- *		Returns the physical map handle for the kernel.
- */
-pmap_t
-pmap_kernel()
-{
-	return (kernel_pmap);
-}
 
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
