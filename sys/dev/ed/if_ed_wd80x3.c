@@ -86,20 +86,6 @@ static uint16_t ed_790_intr_val[] = {
 	15
 };
 
-static void
-ed_disable_16bit_access(struct ed_softc *sc)
-{
-	/*
-	 * Disable 16 bit access to shared memory
-	 */
-	if (sc->isa16bit) {
-		if (sc->chip_type == ED_CHIP_TYPE_WD790)
-			ed_asic_outb(sc, ED_WD_MSR, 0x00);
-		ed_asic_outb(sc, ED_WD_LAAR, sc->wd_laar_proto &
-		    ~ED_WD_LAAR_M16EN);
-	}
-}
-
 /*
  * Probe and vendor-specific initialization routine for SMC/WD80x3 boards
  */

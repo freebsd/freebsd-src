@@ -129,6 +129,31 @@ ed_probe_generic8390(struct ed_softc *sc)
 	return (1);
 }
 
+void
+ed_disable_16bit_access(struct ed_softc *sc)
+{
+	/*
+	 * Disable 16 bit access to shared memory
+	 */
+	if (sc->isa16bit && sc->vendor == ED_VENDOR_WD_SMC) {
+		if (sc->chip_type == ED_CHIP_TYPE_WD790)
+			ed_asic_outb(sc, ED_WD_MSR, 0x00);
+		ed_asic_outb(sc, ED_WD_LAAR,
+		    sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
+	}
+}
+
+void
+ed_enable_16bit_access(struct ed_softc *sc)
+{
+	if (sc->isa16bit && sc->vendor == ED_VENDOR_WD_SMC) {
+		ed_asic_outb(sc, ED_WD_LAAR,
+		     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
+		if (sc->chip_type == ED_CHIP_TYPE_WD790)
+			ed_asic_outb(sc, ED_WD_MSR, ED_WD_MSR_MENB);
+	}
+}
+
 /*
  * Allocate a port resource with the given resource id.
  */
@@ -1128,28 +1153,9 @@ edintr(void *arg)
 				 * Enable 16bit access to shared memory first
 				 * on WD/SMC boards.
 				 */
-				if (sc->isa16bit &&
-				    (sc->vendor == ED_VENDOR_WD_SMC)) {
-
-					ed_asic_outb(sc, ED_WD_LAAR,
-						     sc->wd_laar_proto | ED_WD_LAAR_M16EN);
-					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-						ed_asic_outb(sc, ED_WD_MSR,
-							     ED_WD_MSR_MENB);
-					}
-				}
+				ed_enable_16bit_access(sc);
 				ed_rint(sc);
-
-				/* disable 16bit access */
-				if (sc->isa16bit &&
-				    (sc->vendor == ED_VENDOR_WD_SMC)) {
-
-					if (sc->chip_type == ED_CHIP_TYPE_WD790) {
-						ed_asic_outb(sc, ED_WD_MSR, 0x00);
-					}
-					ed_asic_outb(sc, ED_WD_LAAR,
-						     sc->wd_laar_proto & ~ED_WD_LAAR_M16EN);
-				}
+				ed_disable_16bit_access(sc);
 			}
 		}
 
