@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.9 1994/11/21 05:36:01 jkh Exp $
+# $Id: netinst.sh,v 1.10 1994/11/21 08:33:56 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -31,6 +31,7 @@ network_set_defaults()
 	hostname=""
 	domain=""
 	ipaddr="127.0.0.1"
+	serial_interface="/dev/tty00"
 }
 
 network_basic_setup()
