@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.30.4.1 1995/08/20 00:04:04 davidg Exp $
+ *	$Id: lpt.c,v 1.30.4.2 1995/09/14 07:09:17 davidg Exp $
  */
 
 /*
@@ -131,6 +131,11 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
+#include "bpfilter.h"
+#if NBPFILTER > 0
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
+#endif
 #endif /* INET */
 
 #define	LPINITRDY	4	/* wait up to 4 seconds for a ready */
@@ -824,7 +829,7 @@ lpattach (struct lpt_softc *sc, int unit)
 	ifp->if_name = "lp";
 	ifp->if_unit = unit;
 	ifp->if_mtu = LPMTU;
-	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT;
+	ifp->if_flags = IFF_SIMPLEX | IFF_POINTOPOINT | IFF_MULTICAST;
 	ifp->if_ioctl = lpioctl;
 	ifp->if_output = lpoutput;
 	ifp->if_type = IFT_PARA;
@@ -833,6 +838,10 @@ lpattach (struct lpt_softc *sc, int unit)
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(ifp);
 	printf("lp%d: TCP/IP capable interface\n", unit);
+
+#if NBPFILTER > 0
+	bpfattach(&ifp->if_bpf, ifp, DLT_NULL, LPIPHDRLEN);
+#endif
 }
 /*
  * Build the translation tables for the LPIP (BSD unix) protocol.
@@ -917,6 +926,23 @@ lpioctl (struct ifnet *ifp, int cmd, caddr_t data)
 	ifr->ifr_mtu = sc->sc_if.if_mtu;
 	break;
 
+    case SIOCADDMULTI:
+    case SIOCDELMULTI:
+	if (ifr == 0) {
+	    return EAFNOSUPPORT;		/* XXX */
+	}
+	switch (ifr->ifr_addr.sa_family) {
+
+#ifdef INET
+	case AF_INET:
+	    break;
+#endif
+
+	default:
+	    return EAFNOSUPPORT;
+	}
+	break;
+
     default:
 	lprintf("LP:ioctl(0x%x)\n",cmd);
 	return EINVAL;
@@ -977,6 +1003,11 @@ lpintr (int unit)
 		IF_DROP(&ipintrq);
 		goto done;
 	    }
+#if NBPFILTER > 0
+	    if (sc->sc_if.if_bpf) {
+		bpf_tap(sc->sc_if.if_bpf, sc->sc_ifbuf, len);
+	    }
+#endif
 	    len -= LPIPHDRLEN;
 	    sc->sc_if.if_ipackets++;
 	    sc->sc_if.if_ibytes += len;
@@ -1078,6 +1109,25 @@ end:
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
+#if NBPFILTER > 0
+	if (ifp->if_bpf) {
+	    /*
+	     * We need to prepend the packet type as
+	     * a two byte field.  Cons up a dummy header
+	     * to pacify bpf.  This is safe because bpf
+	     * will only read from the mbuf (i.e., it won't
+	     * try to free it or keep a pointer to it).
+	     */
+	    struct mbuf m0;
+	    u_short hdr = 0x800;
+
+	    m0.m_next = m;
+	    m0.m_len = 2;
+	    m0.m_data = (char *)&hdr;
+
+	    bpf_mtap(ifp->if_bpf, &m0);
+	}
+#endif
     }
 
     m_freem(m);
