@@ -13,7 +13,7 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	getcap.c getcwd.c getdomainname.c getgrent.c getgrouplist.c \
 	gethostname.c getloadavg.c getlogin.c getmntinfo.c getnetgrent.c \
 	getobjformat.c getosreldate.c getpagesize.c \
-	getpass.c getpwent.c getttyent.c \
+	getpass.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c getvfsent.c glob.c \
 	initgroups.c isatty.c jrand48.c lcong48.c \
 	lockf.c lrand48.c mrand48.c msgctl.c \
@@ -22,7 +22,8 @@ SRCS+=  __xuname.c _pthread_stubs.c _rand48.c _spinlock_stub.c _thread_init.c \
 	pause.c popen.c psignal.c pw_scan.c pwcache.c raise.c readdir.c rewinddir.c \
 	posixshm.c \
 	scandir.c seed48.c seekdir.c semconfig.c semctl.c semget.c semop.c \
-	setdomainname.c sethostname.c setjmperr.c setmode.c setproctitle.c \
+	setdomainname.c sethostname.c setjmperr.c setmode.c setprogname.c \
+	setproctitle.c \
 	shmat.c shmctl.c shmdt.c shmget.c siginterrupt.c siglist.c signal.c \
 	sigsetops.c sleep.c srand48.c stringlist.c strtofflags.c \
 	sysconf.c sysctl.c sysctlbyname.c sysctlnametomib.c \
@@ -43,7 +44,7 @@ MAN+=	alarm.3 arc4random.3 clock.3 \
 	getdiskbyname.3 getdomainname.3 getfsent.3 \
 	getgrent.3 getgrouplist.3 gethostname.3 getloadavg.3 \
 	getmntinfo.3 getnetgrent.3 getobjformat.3 \
-	getpagesize.3 getpass.3 getpwent.3 \
+	getpagesize.3 getpass.3 getprogname.3 getpwent.3 \
 	getttyent.3 getusershell.3 getvfsbyname.3 getvfsent.3 \
 	glob.3 initgroups.3 isinf.3 \
 	ldexp.3 lockf.3 modf.3 msgctl.3 msgget.3 msgrcv.3 msgsnd.3 \
@@ -82,6 +83,7 @@ MLINKS+=getgrent.3 endgrent.3 getgrent.3 getgrgid.3 getgrent.3 getgrnam.3 \
 MLINKS+=gethostname.3 sethostname.3
 MLINKS+=getnetgrent.3 endnetgrent.3 getnetgrent.3 innetgr.3 \
 	getnetgrent.3 setnetgrent.3
+MLINKS+=getprogname.3 setprogname.3
 MLINKS+=getpwent.3 endpwent.3 getpwent.3 getpwnam.3 getpwent.3 getpwuid.3 \
 	getpwent.3 setpassent.3 getpwent.3 setpwent.3 getpwent.3 setpwfile.3
 MLINKS+=getttyent.3 endttyent.3 getttyent.3 getttynam.3 \
