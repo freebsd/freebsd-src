@@ -38,11 +38,11 @@
 		.set BDA_SCR,0x449		# Video mode
 		.set BDA_POS,0x450		# Cursor position
 
-		.globl crt_putchr
+		.globl _(crt_putchr)
 
 # void crt_putchr(int c)
 
-crt_putchr: 	movb 0x4(%esp,1),%al		# Get character
+_(crt_putchr): 	movb 0x4(%esp,1),%al		# Get character
 		pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
