@@ -668,7 +668,6 @@ out:
 	return;
 
 dopanic:
-	mtx_lock(&Giant);
 	printtrap(a0, a1, a2, entry, framep, 1, user);
 
 	/* XXX dump registers */
@@ -678,7 +677,6 @@ dopanic:
 #endif
 
 	panic("trap");
-	mtx_unlock(&Giant);
 }
 
 /*
