@@ -149,8 +149,6 @@ lf_advlock(ap, head, size)
 		if (oadd > OFF_MAX - start)
 			return (EOVERFLOW);
 		end = start + oadd;
-		if (end < start)
-			return (EINVAL);
 	}
 	/*
 	 * Avoid the common case of unlocking when inode has no locks.
