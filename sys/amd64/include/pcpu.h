@@ -59,8 +59,8 @@ extern struct pcpu *pcpup;
 #define PCPU_PTR(member)        (&pcpup->pc_ ## member)
 #define PCPU_SET(member,value)  (pcpup->pc_ ## member = (value))
  
-#elif defined(__GNUCLIKE___TYPEOF) && defined(__GNUCLIKE___OFFSETOF) \
-    && defined(__GNUCLIKE_ASM)
+#elif defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) \
+    && defined(__GNUCLIKE___OFFSETOF)
 
 /*
  * Evaluates to the byte offset of the per-cpu variable name.
