@@ -382,7 +382,7 @@ static struct atapi_params *atapi_probe (int port, int unit)
 
 	/* Wait for DRQ deassert. */
 	for (cnt=2000; cnt>0; --cnt)
-	  if (! (inb (0x640 + AR_STATUS) & ARS_DRQ))
+	  if (! (inb (port + AR_STATUS) & ARS_DRQ))
 	    break;
 
 	outb (port + AR_COMMAND, ATAPIC_IDENTIFY);
