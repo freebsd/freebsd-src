@@ -88,7 +88,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		else
 			di->ops = uart_i8251_ops;
 		di->bas.bst = I386_BUS_SPACE_IO;
-		i386_bus_space_handle_alloc(di->bas.bst, ivar, 8, &di->bas.bsh);
+		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
+			return (ENXIO);
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
