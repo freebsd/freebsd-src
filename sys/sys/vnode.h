@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.54 1997/10/26 20:26:14 phk Exp $
+ * $Id: vnode.h,v 1.55 1997/10/26 20:54:57 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -39,10 +39,6 @@
 
 #include <sys/lock.h>
 #include <sys/queue.h>
-
-#ifdef SMP
-#include <machine/smp.h>
-#endif
 
 /*
  * The vnode is the focus of all file activity in UNIX.  There is a
@@ -73,7 +69,6 @@ enum vtagtype	{
 LIST_HEAD(buflists, buf);
 
 typedef	int 	vop_t __P((void *));
-struct vm_object;
 struct namecache;
 
 /*
@@ -249,6 +244,7 @@ extern int		vttoif_tab[];
  */
 extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int desiredvnodes;		/* number of vnodes desired */
+extern	struct vm_zone *namei_zone;
 extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
@@ -443,9 +439,6 @@ struct uio;
 struct vattr;
 struct vnode;
 struct vop_bwrite_args;
-struct vm_zone;
-
-extern struct vm_zone *namei_zone;
 
 extern int	(*lease_check_hook) __P((struct vop_lease_args *));
 
