@@ -20,7 +20,7 @@
  * 4. Neither the name of the Company nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * This software is provided ``as is'', and any express or implied
  * warranties, including, but not limited to, the implied warranties of
  * merchantability and fitness for a particular purpose are disclaimed.
@@ -176,6 +176,8 @@ enum rqinfo_type {
     loginfo_iodone,					    /* iodone */
     loginfo_raid5_data,					    /* write RAID-5 data block */
     loginfo_raid5_parity,				    /* write RAID-5 parity block */
+    loginfo_sdio,					    /* subdisk I/O */
+    loginfo_sdiol,					    /* subdisk I/O launch */
     loginfo_lockwait,					    /* wait for range lock */
     loginfo_lock,					    /* lock range */
     loginfo_unlock,					    /* unlock range */
@@ -245,7 +247,7 @@ enum daemon_option {
 };
 
 void freerq(struct request *rq);
-void unlockrange(struct rqgroup *rqg);
+void unlockrange(int plexno, struct rangelock *);
 /* Local Variables: */
 /* fill-column: 50 */
 /* End: */
