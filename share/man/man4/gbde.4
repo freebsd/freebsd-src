@@ -105,7 +105,7 @@ through essentially the same exercise, using the sector key and the
 encrypted sector key to find the key used to encrypt the sectorkey.
 .Pp
 Armed with one or more of these "key-keys" our attacker has to derive
-as much information about the the 2048 bit master-key.  To do so, he
+as much information about the 2048 bit master-key.  To do so, he
 first has to reverse an MD5 hash, and then the PRNG-like algorithm
 which derives the MD5 input from the master-key.
 .Pp
@@ -124,8 +124,8 @@ will still be acknowleded as good but access to the data will still be
 denied.
 .Ss A practical analogy
 For persons who think cryptography is only slightly more interesting than
-watching silicon sublimate the author humbly offer this analogy to the
-keying scheme for an protected device:
+watching silicon sublimate the author humbly offers this analogy to the
+keying scheme for a protected device:
 .Pp
 Imagine an installation with a vault with walls of several hundred meters
 thick solid steel.  This vault can only be feasibly accessed using the
@@ -136,12 +136,12 @@ four small safes, each of which can be opened
 with unique key which has a complexity comparable to a 40 digit
 number.
 .Pp
-In addition to the masterkey each of the four safes also contain
-the exact locations of all four key-safes which are located in a
+In addition to the masterkey, each of the four safes also contain
+the exact locations of all four key-safes which are located in
 randomly chosen places on the outside surface of the vault and they
 are impossible to detect when they are closed.
 .Pp
-Finally, each safe contains four switches which are wire to a bar
+Finally, each safe contains four switches which are wired to a bar
 of dynamite inside each of the four safes.
 .Pp
 In addition to this, a keyholder after opening his key-safe is 
@@ -168,7 +168,7 @@ that applying further pressure on the personel will not give access to
 the vault.
 .Pp
 The final point to make here is that it is perfectly possible to
-make a detattched copy of any one of these keys, including the master
+make a detached copy of any one of these keys, including the master
 key, and deposit or hide it as one sees fit.
 .Ss steganography support
 When the device is initialized, it is possible to restrict the encrypted
@@ -187,7 +187,7 @@ some kind of structure or identifying byte sequences.
 .Pp
 Certain file formats like ELF contain multiple distinct sections, and it
 would be possible to locate things just right in such a way that a device
-contains a parition with a filesystem with a large executable,
+contains a partition with a filesystem with a large executable,
 ("a backup copy of my kernel") where a non-loaded ELF section is laid out
 consecutively on the device and thereby could be used to contain a
 .Nm
@@ -211,7 +211,7 @@ the data by accident.
 (The employee can still intentionally deny access by applying another
 encryption scheme to the data, but that problem has no technical solution).
 .Ss Cryptographic strength
-This section lists the specific components which conribute to the cryptographic
+This section lists the specific components which contribute to the cryptographic
 strength of
 .Nm .
 .Pp
@@ -221,7 +221,7 @@ AES is well documented.
 .Pp
 The random key is produced with
 .Xr arc4rand 9
-which is belived to do a respectable job at producing unpredicatble bytes.
+which is belived to do a respectable job at producing unpredictable bytes.
 .Pp
 The skey is stored on the device in a location which can be derived from
 the location of the encrypted payload data.
@@ -233,7 +233,7 @@ with the sector address of the data in question.
 The function of the PRNG is to produce a hash of the masterkey
 unique for each of the payload sectors on the device in one-way
 sort of way.
-Up to 12.5% of the masterkey (32 bytes our of 2048 bits) will be involved
+Up to 12.5% of the masterkey (32 bytes out of 2048 bits) will be involved
 in producing each kkey.
 Since the one-way properties of this algorithm has not been properly
 studied and therefore may have any strength, the output is subsequently
