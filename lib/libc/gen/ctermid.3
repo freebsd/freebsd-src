@@ -42,6 +42,8 @@
 .Fd #include <stdio.h>
 .Ft char *
 .Fn ctermid "char *buf"
+.Ft char *
+.Fn ctermid_r "char *buf"
 .Sh DESCRIPTION
 The
 .Fn ctermid
@@ -63,6 +65,17 @@ is assumed to be at least
 file
 .Aq Pa stdio.h )
 bytes long.
+.Pp
+.Fn ctermid_r
+provides the same functionality as
+.Fn ctermid
+except that if
+.Ar buf
+is a 
+.Dv NULL
+pointer, 
+.Dv NULL
+is returned.
 .Pp
 The current implementation simply returns
 .Ql /dev/tty .
