@@ -173,10 +173,6 @@ I4B_SMP_WORKAROUND      opt_i4b.h
 IPR_VJ			opt_i4b.h
 IPR_LOG			opt_i4b.h
 
-# Total number of ports controlled by the dgb(4) driver.
-# Defaults to NDGB*16.
-NDGBPORTS		opt_dgb.h
-
 # Device options
 DEV_NPX			opt_npx.h
 DEV_SPLASH		opt_splash.h
