@@ -176,6 +176,6 @@ void	syscall __P((u_int64_t, struct trapframe *));
 void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,
 	    struct trapframe *));
 
-#endif /* _KERNEL */
+#endif /* KERNEL */
 
 #endif /* _ALPHA_CPU_H_ */

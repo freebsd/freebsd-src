@@ -94,17 +94,4 @@ typedef	alpha_pt_entry_t	pt_entry_t;
 #define	ALPHA_STSIZE		((u_long)PAGE_SIZE)		/* 8k */
 #define	ALPHA_MAX_PTSIZE	((u_long)(NPTEPG * NBPG))	/* 8M */
 
-#ifdef _KERNEL
-/*
- * Kernel virtual address to Sysmap entry and visa versa.
- */
-#define	kvtopte(va) \
-	(Sysmap + (((vm_offset_t)(va) - VM_MIN_KERNEL_ADDRESS) >> PGSHIFT))
-#define	ptetokv(pte) \
-	((((pt_entry_t *)(pte) - Sysmap) << PGSHIFT) + VM_MIN_KERNEL_ADDRESS)
-
-extern	pt_entry_t *Lev1map;		/* Alpha Level One page table */
-extern	pt_entry_t *Sysmap;		/* kernel pte table */
-extern	vm_size_t Sysmapsize;		/* number of pte's in Sysmap */
-#endif
 #endif
