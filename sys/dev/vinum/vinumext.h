@@ -159,10 +159,7 @@ int vinum_mallocinfo(caddr_t data);
 int vinum_rqinfo(caddr_t data);
 void LongJmp(jmp_buf, int);
 char *basename(char *);
-#else
-void longjmp(jmp_buf, int);				    /* the kernel doesn't define this */
 #endif
-int setjmp(jmp_buf);
 
 void expand_table(void **, int, int);
 
