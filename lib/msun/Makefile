@@ -139,7 +139,7 @@ MLINKS+=exp.3 expm1.3 exp.3 log.3 exp.3 log10.3 exp.3 log1p.3 exp.3 pow.3 \
 	exp.3 expf.3 exp.3 exp10.3 exp.3 exp10f.3 \
 	exp.3 expm1f.3 exp.3 logf.3 exp.3 powf.3 \
 	exp.3 log10f.3 exp.3 log1pf.3
-MLINKS+=fabs.3 fabsf.3
+MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
 MLINKS+=floor.3 floorf.3
 MLINKS+=fmod.3 fmodf.3
 MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 hypotf.3
