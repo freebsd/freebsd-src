@@ -1012,8 +1012,8 @@ print_AMD_features(u_int *regs)
 		"\020ICMOV"	/* CMOV instruction */
 		"\021PAT"	/* Page attributes table */
 		"\022PGE36"	/* 36 bit address space support */
-		"\023<b18>"
-		"\024<b19>"
+		"\023RSVD"	/* Reserved, unknown */
+		"\024MP"	/* Multiprocessor Capable */
 		"\025<b20>"
 		"\026<b21>"
 		"\027AMIE"	/* AMD MMX Instruction Extensions */
