@@ -16,7 +16,7 @@ CFLAGS+= -DHAVE_SYS_SELECT_H=1 -DHAVE_SYS_SOCKIO_H=1 \
 	 -DHAVE_SYS_SYSCTL_H=1 \
 	 -DHAVE_SETLINEBUF=1 -DHAVE_RAW_OPTIONS=1 \
 	 -DHAVE_SOCKADDR_SA_LEN=1 -DHAVE_ICMP_NEXTMTU=1
-.ifndef (NOIPSEC)
+.if !defined(TRACEROUTE_NO_IPSEC)
 CFLAGS+= -DIPSEC
 .endif
 # RTT Jitter on the internet these days means printing 3 decimal places on
@@ -24,7 +24,7 @@ CFLAGS+= -DIPSEC
 # reporting, ie: print a variable precision from 0.001ms through 1000ms
 # CFLAGS+= -DSANE_PRECISION
 
-.ifndef (NOIPSEC)
+.if !defined(TRACEROUTE_NO_IPSEC)
 DPADD=	${LIBIPSEC}
 LDADD=	-lipsec
 .endif
