@@ -38,11 +38,6 @@
 #ifndef _NETATM_KERN_INCLUDE_H
 #define	_NETATM_KERN_INCLUDE_H
 
-/*
- * Note that we're compiling kernel code
- */
-#define	ATM_KERNEL
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>

@@ -45,7 +45,7 @@ struct atm_connection;
 struct atm_attributes;
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure used to define a kernel ATM endpoint service module and its 
  * associated entry points.  An endpoint service is defined as a kernel 
@@ -94,7 +94,7 @@ struct atm_endpoint {
 				__P((void *, KBuffer *, u_int));
 };
 typedef struct atm_endpoint	Atm_endpoint;
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * Endpoint IDs
@@ -230,7 +230,7 @@ typedef struct atm_attributes	Atm_attributes;
 #define	CMAPI_SSCOP	2		/* Reliable data (SSCOP) */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * ATM Connection Instance
  *
@@ -343,6 +343,6 @@ struct atm_cm_stat {
 	u_long		cms_rcvconn;	/* Packets dropped, bad conn state */
 	u_long		cms_rcvconnvc;	/* Packets dropped, bad connvc state */
 };
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _NETATM_ATM_CM_H */

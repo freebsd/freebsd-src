@@ -66,16 +66,7 @@
  */
 #define	BUF_MIN_VCC	4	/* Minimum for buffer supply calculations */
 
-#ifdef FORE_SBUS
-#if defined(sun4c)
-#define	BUF_DATA_ALIGN	32	/* Fore-required data alignment */
-#elif defined(sun4m)
-#define	BUF_DATA_ALIGN	64	/* Fore-required data alignment */
-#endif
-#endif
-#ifdef FORE_PCI
 #define	BUF_DATA_ALIGN	4	/* Fore-required data alignment */
-#endif
 
 #if defined(BSD)
 /*

@@ -134,7 +134,7 @@ struct sscop_stat {
 	u_long		sos_maa_error[MAA_ERROR_COUNT]; /* Management errors */
 };
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Global function declarations
  */
@@ -278,6 +278,6 @@ extern void		(*(*sscop_qsaal_pdutab[]))
 extern void		(*(*sscop_q2110_pdutab[]))
 				__P((struct sscop *, KBuffer *, caddr_t));
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _UNI_SSCOP_VAR_H */

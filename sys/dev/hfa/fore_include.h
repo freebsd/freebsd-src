@@ -51,10 +51,8 @@
 #endif
 #endif
 
-#ifdef FORE_PCI
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#endif
 
 #include <dev/hfa/fore.h>
 #include <dev/hfa/fore_aali.h>

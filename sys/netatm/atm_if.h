@@ -142,7 +142,7 @@ struct atm_config {
 typedef struct atm_config	Atm_config;
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Common structure used to define each physical ATM device interface.
  * This structure will (normally) be embedded at the top of each driver's 
@@ -381,6 +381,6 @@ typedef	atm_intr_t	*atm_intr_func_t; /* Pointer to callback function */
 extern	int	atm_intr_index;
 #define	SCHED_ATM	schednetisr(atm_intr_index) 
 #endif
-#endif /* ATM_KERNEL */
+#endif /* _KERNEL */
 
 #endif	/* _NETATM_ATM_IF_H */

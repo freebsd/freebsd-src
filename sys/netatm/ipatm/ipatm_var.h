@@ -38,7 +38,7 @@
 #ifndef _IPATM_IPATM_VAR_H
 #define _IPATM_IPATM_VAR_H
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure containing information for each VCC, both SVC and PVC, which
  * supports IP traffic.
@@ -60,7 +60,7 @@ struct ipvcc {
 };
 #define iv_forw		iv_elem.q_forw
 #define iv_back		iv_elem.q_back
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * VCC Flags
@@ -83,7 +83,7 @@ struct ipvcc {
 #define	IPVCC_CLOSED	6		/* VCC has been closed */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure containing IP-specific information for each ATM network
  * interface in the system.
@@ -210,6 +210,6 @@ extern Atm_attributes	ipatm_aal5llc;
 extern Atm_attributes	ipatm_aal5null;
 extern Atm_attributes	ipatm_aal4null;
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #endif	/* _IPATM_IPATM_VAR_H */

@@ -72,7 +72,7 @@
  *			Zeros len bytes of data from addr.
  *
  */
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 #if (defined(BSD) && (BSD >= 199103))
 #include <sys/malloc.h>
 #define	KM_ALLOC(size, type, flags)	malloc((size), (type), (flags))
@@ -119,10 +119,10 @@
 #endif
 #define	XM_COPY(f, t, l)	UM_COPY((f), (t), (l))
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Kernel buffers
  *
@@ -526,7 +526,7 @@ typedef int	KTimeout_ret;
 #define	KT_TIME(t)	((t) = time)
 #endif
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 #ifndef NTOHL
 #if BYTE_ORDER == BIG_ENDIAN

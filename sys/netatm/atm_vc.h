@@ -39,7 +39,7 @@
 #define _NETATM_ATM_VC_H
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * ATM Virtual Channel Connection control block.  All vccb's are created
  * and controlled by an ATM signalling manager.  Each ATM signalling 
@@ -66,7 +66,7 @@ struct vccb {
 	long		vc_oerrors;	/* Errors sending to VCC */
 	time_t		vc_tstamp;	/* State transition timestamp */
 };
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 /*
  * VCC Types

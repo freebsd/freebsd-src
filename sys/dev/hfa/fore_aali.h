@@ -125,7 +125,7 @@ typedef volatile struct buf_strategy	Buf_strategy;
 
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Common Queue Element
  *
@@ -333,7 +333,7 @@ typedef volatile unsigned long	Cmd_code;
 #define	CMD_GET_PROM	0x09		/* Get PROM data */
 #define	CMD_INTR_REQ	0x80		/* Request host interrupt */
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 
 /*
@@ -359,7 +359,7 @@ struct init_parms {
 typedef volatile struct init_parms	Init_parms;
 
 
-#ifdef ATM_KERNEL
+#ifdef _KERNEL
 /*
  * Structure defining the parameters for the Activate commands
  */
@@ -464,7 +464,7 @@ struct cmd_queue {
 #define	cmdq_prom	cmdq_u.cmdqu_prom
 typedef volatile struct cmd_queue	Cmd_queue;
 
-#endif	/* ATM_KERNEL */
+#endif	/* _KERNEL */
 
 
 
