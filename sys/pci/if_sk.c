@@ -1194,6 +1194,9 @@ static int sk_attach(dev)
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sk_softc));
 
+	mtx_init(&sc->sk_mtx, device_get_nameunit(dev), MTX_DEF);
+	SK_LOCK(sc);
+
 	/*
 	 * Handle power management nonsense.
 	 */
@@ -1279,8 +1282,6 @@ static int sk_attach(dev)
 		goto fail;
 	}
 
-	mtx_init(&sc->sk_mtx, device_get_nameunit(dev), MTX_DEF);
-	SK_LOCK(sc);
 	/* Reset the adapter. */
 	sk_reset(sc);
 
