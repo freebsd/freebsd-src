@@ -21,13 +21,13 @@
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * 1.15 is the last verion to support MACH and OSF/1
  */
-/* $Revision: 1.23 $ */
+/* $Revision: 1.25 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *	$Id: st.c,v 1.23 93/08/26 21:09:51 julian Exp Locker: julian $
+ *	$Id: st.c,v 1.25 93/08/31 21:29:41 julian Exp Locker: julian $
  */
 
 
@@ -72,9 +72,9 @@ long int ststrats,stqueues;
 #define DSTY(z)         ( ((minor(z) >> 2) & 0x03) )
 #define UNIT(z)		(  (minor(z) >> 4) )
 
-#define LOW_DSTY  3
-#define MED_DSTY  2
-#define HIGH_DSTY  1
+#define DSTY3  3
+#define DSTY2  2
+#define DSTY1  1
 
 #define SCSI_2_MAX_DENSITY_CODE	0x17	/* maximum density code specified
 					   in SCSI II spec. */
@@ -103,6 +103,7 @@ struct	rogues
 #define	ST_Q_FORCE_FIXED_MODE	0x00002
 #define	ST_Q_FORCE_VAR_MODE	0x00004
 #define	ST_Q_SNS_HLP		0x00008
+#define	ST_Q_IGNORE_LOADS	0x00010
 
 static struct rogues gallery[] = /* ends with an all null entry */
 {
@@ -136,14 +137,6 @@ static struct rogues gallery[] = /* ends with an all null entry */
 		  {0,QIC_150},				/* minor  4,5,6,7*/
 		  {0,QIC_120},				/* minor  8,9,10,11*/
 		  {0,QIC_24}				/* minor  12,13,14,15*/
-		}
-	},
-	{ "Wangdat Dat (1.3GB)", "WangDAT ", "Model 1300","????",
-		0,
-		{ {ST_Q_FORCE_VAR_MODE,0},		/* minor  0,1,2,3*/
-		  {ST_Q_SNS_HLP,0},			/* minor  4,5,6,7*/
-		  {ST_Q_FORCE_FIXED_MODE,0},		/* minor  8,9,10,11*/
-		  {ST_Q_FORCE_VAR_MODE,0}		/* minor  12,13,14,15*/
 		}
 	},
 	{(char *)0}
@@ -257,9 +250,9 @@ struct	scsi_switch *scsi_switch;
 	/*******************************************************\
 	* Store information about default densities 		*
 	\*******************************************************/
-	st->modes[HIGH_DSTY].density	=	QIC_525;
-	st->modes[MED_DSTY].density	=	QIC_150;
-	st->modes[LOW_DSTY].density	=	QIC_120;
+	st->modes[DSTY1].density	=	QIC_525;
+	st->modes[DSTY2].density	=	QIC_150;
+	st->modes[DSTY3].density	=	QIC_120;
 
 	/*******************************************************\
 	* Check if the drive is a known criminal and take	*
@@ -430,7 +423,7 @@ stopen(dev)
 	* errors (the error handling will invalidate all our	*
 	* device info if we get one, but otherwise, ignore it	*
 	\*******************************************************/
-	st_test_ready(unit, 0); 
+	st_test_ready(unit, SCSI_SILENT); 
 
 	/***************************************************************\
 	* Check that the device is ready to use	 (media loaded?)	*
@@ -478,13 +471,13 @@ stopen(dev)
 			* value to st_mode_sense incorrectly until the	*
 			* tape has actually passed by the head.		*
 			*						*
-			* The method is to set the drive to fixed-block	*
-			* state (user-specified density and 512-byte	*
-			* blocks), then read and rewind to get it to	*
-			* sense the tape.  If the sense interpretation	*
-			* code determines that the tape contains	*
-			* variable-length blocks, set to variable-block	*
-			* state and try again.  The result will be the	*
+			* The method is to set the drive to large	*
+			* fixed-block state (user-specified density and	*
+			* 1024-byte blocks), then read and rewind to	*
+			* get it to sense the tape.  If that doesn't	*
+			* work, try 512-byte fixed blocks.  If that	*
+			* doesn't work, as a last resort, try variable-	*
+			* length blocks.  The result will be the	*
 			* ability to do an accurate st_mode_sense.	*
 			*						*
 			* We pretend not to be at beginning of medium	*
@@ -494,54 +487,49 @@ stopen(dev)
 			* did a load, which implies rewind.  Rewind	*
 			* seems preferable to space backward if	we have	*
 			* a virgin tape.				*
-			* 						*
-			* This is really a check fr 512 byte records	*
-			* Needs more thought				*
+			*						*
+			* The rest of the code for this quirk is in ILI	*
+			* processing and BLANK CHECK error processing,	*
+			* both part of st_interpret_sense.		*
 			\***********************************************/
 			char	*buf;
+			int	readsiz;
 
-			buf = malloc(DEF_FIXED_BSIZE,M_TEMP,M_NOWAIT);
+			buf = malloc(1024,M_TEMP,M_NOWAIT);
 			if(!buf) return(ENOMEM);
 
 			if (errno = st_mode_sense(unit, 0))
 			{
-				free(buf,M_TEMP);
-				return(errno);
+				goto bad;
 			}
-			st->blksiz = DEF_FIXED_BSIZE;
-			st->flags = ~ST_AT_BOM & st->flags | ST_FIXEDBLOCKS;
-			if (errno = st_mode_select(unit, 0))
-			{
-				free(buf,M_TEMP);
-				return(errno);
-			}
-			st_read(unit, buf, DEF_FIXED_BSIZE, 0);
-			if (errno = st_rewind(unit, FALSE, 0))
-			{
-				free(buf,M_TEMP);
-				return(errno);
-			}
-			if (st->blksiz == 0) /* set it back the way it was */
-			{
-				st->flags &= ~(ST_FIXEDBLOCKS | ST_AT_BOM);
+			st->blksiz = 1024;
+			do {
+				switch (st->blksiz)
+				{
+				case	512:
+				case	1024:
+					readsiz = st->blksiz;
+					st->flags |= ST_FIXEDBLOCKS;
+					break;
+				default:
+					readsiz = 1;
+					st->flags &= ~ST_FIXEDBLOCKS;
+				}
 				if (errno = st_mode_select(unit, 0))
 				{
-					free(buf,M_TEMP);
-					return(errno);
+					goto bad;
 				}
-				st_read(unit, buf, 1, 0);
+				st->flags &= ~ST_AT_BOM;
+				st_read(unit, buf, readsiz, SCSI_SILENT);
 				if (errno = st_rewind(unit, FALSE, 0))
 				{
-					free(buf,M_TEMP);
+bad:					free(buf,M_TEMP);
 					return(errno);
 				}
-			}
+			} while (readsiz != 1 && readsiz > st->blksiz);
 			free(buf,M_TEMP);
 		}
 	}
-#ifdef	removing_this
-#endif	removing_this
-
 
 	/*******************************************************\
 	* Load the physical device parameters			*
@@ -559,6 +547,33 @@ stopen(dev)
 	if(errno = st_mode_sense(unit,0))
 	{
 		return(errno);
+	}
+
+	if (!(st->flags & ST_INFO_VALID) && dsty == 0)
+	{
+		/*******************************************************\
+		* If the user defaulted the density, use the drive's	*
+		* opinion of it.					*
+		\*******************************************************/
+		st->quirks = st->drive_quirks;
+		st->density = st->media_density;
+		do {
+			if (st->density == st->modes[dsty].density)
+			{
+				st->quirks |= st->modes[dsty].quirks;
+#ifdef	STDEBUG
+				if(st_debug) printf("selected density %d\n", dsty);
+#endif	/*STDEBUG*/
+				break; /* only out of the loop*/
+			}
+		} while (++dsty < 4);
+		/*******************************************************\
+		* If dsty got to 4, the drive must have reported a	*
+		* density which isn't in our density list (e.g. QIC-24	*
+		* for a default drive).  We can handle that, except	*
+		* there'd better be no density-specific quirks in the	*
+		* drive's behavior.					*
+		\*******************************************************/
 	}
 
 	st->flags |= ST_INFO_VALID;
@@ -653,54 +668,14 @@ int	unit, first_read;
 #endif	/*STDEBUG*/
 
 	/***************************************************************\
-	* Second, set the density, and set the quirk flags as a		*
-	* function of the density.					*
-	\***************************************************************/
-	st->quirks = st->drive_quirks;
-	dsty = st->last_dsty; /* set in the open call */
-	if (dsty > 0)
-	{
-		/*******************************************************\
-		* If the user specified the density, believe him.	*
-		\*******************************************************/
-		st->density = st->modes[dsty].density;
-		st->quirks |= st->modes[dsty].quirks;
-	}
-	else
-	{
-		/*******************************************************\
-		* If the user defaulted the density, use the drive's	*
-		* opinion of it.					*
-		\*******************************************************/
-		st->density = st->media_density;
-		do {
-			if (st->density == st->modes[dsty].density)
-			{
-				st->quirks |= st->modes[dsty].quirks;
-#ifdef	STDEBUG
-	if(st_debug) printf("selected density %d\n",dsty);
-#endif	/*STDEBUG*/
-				break; /* only out of the loop*/
-			}
-		} while (++dsty < 4);
-		/*******************************************************\
-		* If dsty got to 4, the drive must have reported a	*
-		* density which isn't in our density list (e.g. QIC-24	*
-		* for a default drive).  We can handle that, except	*
-		* there'd better be no density-specific quirks in the	*
-		* drive's behavior.					*
-		\*******************************************************/
-	}
-
-	/***************************************************************\
 	* If the user has already specified fixed or variable-length	*
 	* blocks using an ioctl, just believe him. OVERRIDE ALL		*
 	\***************************************************************/
 	if (st->flags & ST_BLOCK_SET)
 	{
 #ifdef	STDEBUG
-	if(st_debug) printf("user has specified %s\n",
-		st->flags & ST_FIXEDBLOCKS ?  "variable mode" : "fixed mode");
+	if(st_debug) printf("user has specified %s mode\n",
+		st->flags & ST_FIXEDBLOCKS ?  "fixed" : "variable");
 #endif	/*STDEBUG*/
 		goto done;
 	}
@@ -719,21 +694,21 @@ int	unit, first_read;
 		return (EINVAL);
 	case	ST_Q_FORCE_FIXED_MODE:
 		st->flags |= ST_FIXEDBLOCKS;
-		if (st->blkmin && st->blkmin == st->blkmax)
+		if (st->blkmin && (st->blkmin == st->blkmax))
 			st->blksiz = st->blkmin;
 		else if(st->media_blksiz > 0)
 			st->blksiz = st->media_blksiz;
 		else
 			st->blksiz = DEF_FIXED_BSIZE;
 #ifdef	STDEBUG
-	if(st_debug) printf("Quirks force fixed mode\n");
+		if(st_debug) printf("Quirks force fixed mode\n");
 #endif	/*STDEBUG*/
 		goto done;
 	case	ST_Q_FORCE_VAR_MODE:
 		st->flags &= ~ST_FIXEDBLOCKS;
 		st->blksiz = 0;
 #ifdef	STDEBUG
-	if(st_debug) printf("Quirks force variable mode\n");
+		if(st_debug) printf("Quirks force variable mode\n");
 #endif	/*STDEBUG*/
 		goto done;
 	}
@@ -747,7 +722,7 @@ int	unit, first_read;
 		st->flags |= ST_FIXEDBLOCKS;
 		st->blksiz = st->blkmin;
 #ifdef	STDEBUG
-	if(st_debug) printf("blkmin == blkmax of %d\n",st->blkmin);
+		if(st_debug) printf("blkmin == blkmax of %d\n",st->blkmin);
 #endif	/*STDEBUG*/
 		goto done;
 	}
@@ -761,6 +736,7 @@ int	unit, first_read;
 	case	HALFINCH_800:
 	case	HALFINCH_1600:
 	case	HALFINCH_6250:
+	case	DDS:
 		st->flags &= ~ST_FIXEDBLOCKS;
 		st->blksiz = 0;
 #ifdef	STDEBUG
@@ -786,7 +762,6 @@ int	unit, first_read;
 	* If we're about to read the tape, perhaps we should choose	*
 	* fixed or variable-length blocks and block size according to	*
 	* what the drive found on the tape.				*
-	* ****though it probably hasn't looked yet!****			*
 	\***************************************************************/
 	if (first_read)
 	{
@@ -796,33 +771,19 @@ int	unit, first_read;
 			st->flags |= ST_FIXEDBLOCKS;
 		st->blksiz = st->media_blksiz;
 #ifdef	STDEBUG
-	if(st_debug) printf("Used media_blksiz of %d\n",st->media_blksiz);
+		if(st_debug) printf("Used media_blksiz of %d\n",st->media_blksiz);
 #endif	/*STDEBUG*/
 		goto done;
 	}
 
 	/***************************************************************\
-	* If the drive says it can handle variable size blocks		*
-	* and nothing has been specified until now, hey let's do it	*
-	\***************************************************************/
-	if (st->blkmin != st->blkmax)
-	{
-		st->flags &= ~ST_FIXEDBLOCKS;
-		st->blksiz = 0;
-#ifdef	STDEBUG
-	if(st_debug) printf("blkmin != blkmax\n, select variable\n");
-#endif	/*STDEBUG*/
-		goto done;
-	}
-
-	/***************************************************************\
-	* We're getting no hints from any direction.  Choose fixed-	*
+	* We're getting no hints from any direction.  Choose variable-	*
 	* length blocks arbitrarily.					*
 	\***************************************************************/
-	st->flags |= ST_FIXEDBLOCKS;
-	st->blksiz = DEF_FIXED_BSIZE;
+	st->flags &= ~ST_FIXEDBLOCKS;
+	st->blksiz = 0;
 #ifdef	STDEBUG
-	if(st_debug) printf("Give up and default to fixed mode\n");
+	if(st_debug) printf("Give up and default to variable mode\n");
 #endif	/*STDEBUG*/
 done:
 	st->flags &= ~ST_AT_BOM;
@@ -955,14 +916,16 @@ caddr_t arg;
 	unsigned int opri;
 	int errcode = 0;
 	unsigned char unit;
-	int number,flags;
+	int number,flags,dsty;
         struct  st_data *st;
+	
 
 	/*******************************************************\
 	* Find the device that the user is talking about	*
 	\*******************************************************/
 	flags = 0;	/* give error messages, act on errors etc. */
 	unit = UNIT(dev);
+	dsty = DSTY(dev);
         st = st_data[unit];
 
 	switch(cmd)
@@ -979,9 +942,10 @@ caddr_t arg;
                 } else {
                         g->mt_bsiz = 0;
                 }
-		g->mt_dns_high		= st->modes[HIGH_DSTY].density;
-		g->mt_dns_medium 	= st->modes[MED_DSTY].density;
-		g->mt_dns_low		= st->modes[LOW_DSTY].density;
+		g->mt_dns_dflt		= st->modes[0].density;
+		g->mt_dns_dsty1		= st->modes[DSTY1].density;
+		g->mt_dns_dsty2 	= st->modes[DSTY2].density;
+		g->mt_dns_dsty3		= st->modes[DSTY3].density;
 		break;
 	    }
 
@@ -1037,21 +1001,26 @@ caddr_t arg;
 		case MTNOCACHE:	/* disable controller cache */
 			break;
                 case MTSETBSIZ: /* Set block size for device */
-			if (st->blkmin && st->blkmin == st->blkmax ||
-			    st->quirks & ST_Q_FORCE_FIXED_MODE)
-				/* Per definition in mtio.h, this is a	*/
-				/* no-op for a real fixed block device	*/
-				break;
-			if (!(st->flags & ST_AT_BOM) || number < 0 || number > 0
-			    && (number < st->blkmin || number > st->blkmax))
+			if (!(st->flags & ST_AT_BOM))
 			{
-				errcode = EINVAL;
+				errcode =  EINVAL;
 				break;
 			}
 			if (number == 0)
+			{
 				st->flags &= ~ST_FIXEDBLOCKS;
+			}
 			else
+			{
+				if ((st->blkmin || st->blkmax) /* they exist */
+			   	  && ((number < st->blkmin 
+				    || number > st->blkmax)))
+				{
+					errcode = EINVAL;
+					break;
+				}
 				st->flags |= ST_FIXEDBLOCKS;
+			}
 			st->blksiz = number;
 			st->flags |= ST_BLOCK_SET;
                         break;
@@ -1059,38 +1028,16 @@ caddr_t arg;
 			/* How do we check that the drive can handle
 			   the requested density ? */
 
-                case MTSETHDNSTY: /* Set high density defaults for device */
+                case MTSETDNSTY: /* Set density for device and mode */
 			if (number < 0 || number > SCSI_2_MAX_DENSITY_CODE)
 			{
 				errcode = EINVAL;
 			}
 			else
 			{ 
-				st->modes[HIGH_DSTY].density = number;
+				st->modes[dsty].density = number;
 			}
 			break;
-
-                case MTSETMDNSTY: /* Set medium density defaults for device */
-			if (number < 0 || number > SCSI_2_MAX_DENSITY_CODE)
-			{
-				errcode = EINVAL;
-			}
-			else
-			{
-				st->modes[MED_DSTY].density = number;
-			}
-			break;
-
-                case MTSETLDNSTY: /* Set low density defaults for device */
-			if (number < 0 || number > SCSI_2_MAX_DENSITY_CODE)
-			{
-				errcode = EINVAL;
-			}
-			else
-			{
-				st->modes[LOW_DSTY].density = number;
-			}
-                        break;
 
 		default:
 			errcode = EINVAL;
@@ -1486,6 +1433,7 @@ int	unit,type,flags;
 	struct	st_data	*st = st_data[unit];
 
 	st->flags &= ~ST_PER_ACTION;
+	if(st->quirks & ST_Q_IGNORE_LOADS) return(0);
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = LOAD_UNLOAD;
 	scsi_cmd.how=type;
@@ -1822,7 +1770,7 @@ struct	scsi_xfer	*xs;
 		break;
 
 	case    XS_TIMEOUT:
-		printf("st%d timeout\n",unit);
+		printf("st%d: timeout\n",unit);
 
 	case    XS_BUSY:        /* should retry */ /* how? */
 		/************************************************/
@@ -2025,7 +1973,15 @@ struct	scsi_xfer	*xs;
 	int	silent = xs->flags & SCSI_SILENT;
 	struct	st_data	*st = st_data[unit];
 	int	info;
-	int	errno = 0;/* default error */
+	static char *error_mes[] = {		"soft error (corrected)",
+		"not ready",			"medium error",
+		"non-media hardware failure",	"illegal request",
+		"unit attention",		"tape is write-protected",
+		"no data found",		"vendor unique",
+		"copy aborted",			"command aborted",
+		"search returned equal",	"volume overflow",
+		"verify miscompare",		"unknown error key"
+	};
 
 	/***************************************************************\
 	* If errors are ok, report a success				*
@@ -2079,7 +2035,6 @@ struct	scsi_xfer	*xs;
 	* If it's code 70, use the extended stuff and interpret the key	*
 	\***************************************************************/
 	case 0x70:
-	{
 		if(st->flags & ST_FIXEDBLOCKS)
 		{
 			xs->resid = info * st->blksiz;
@@ -2094,32 +2049,24 @@ struct	scsi_xfer	*xs;
 			if(sense->ext.extended.flags & SSD_ILI)
 			{
 				st->flags |= ST_EIO_PENDING;
-		/*******************************************************\
-		* The following quirk code deals with the fact that the	*
-		* value of media_blksiz returned by the drive in	*
-		* response to an st_mode_sense call doesn't reflect the	*
-		* tape's format.					*
-		*							*
-		* The method is to try a fixed-length block read and	*
-		* let this code determine whether the tape has fixed or	*
-		* variable-length blocks, by seeing if we get an ILI	*
-		*							*
-		* Since the quirk code is the only place that calls the *
-		* board without the INFO_VALID set, catch that case	*
-		* and handle it here (no other way of catching it	*
-		* because resid info can't get passed without a buf) 	*
-		\*******************************************************/
 
-				if ((st->quirks & ST_Q_SNS_HLP)
-				&& !(st->flags & ST_INFO_VALID))
+				/***************************************\
+				* This quirk code helps the drive read	*
+				* the first tape block, regardless of	*
+				* format.  That is required for these	*
+				* drives to return proper MODE SENSE	*
+				* information.				*
+				\***************************************/
+				if ((st->quirks & ST_Q_SNS_HLP) &&
+				    !(st->flags & ST_INFO_VALID))
 				{
-					st->blksiz = 0;	
+					st->blksiz -= 512;
 				}
 			}
 			/***********************************************\
 			* If no data was tranfered, do it immediatly	*
 			\***********************************************/
-			if(xs->resid == xs->datalen)
+			if(xs->resid >= xs->datalen)
 			{
 				if(st->flags & ST_EIO_PENDING) 
 				{
@@ -2149,8 +2096,10 @@ struct	scsi_xfer	*xs;
 				* the record was bigger than the read	*
 				\***************************************/
 				{
-					printf("st%d: record of %d bytes too big\n",
-						unit, xs->datalen - info);
+					if (!silent)
+						printf("st%d: %d-byte record "
+						    "too big\n", unit,
+						    xs->datalen - info);
 					return(EIO);
 				}
 				xs->resid = info;
@@ -2158,133 +2107,82 @@ struct	scsi_xfer	*xs;
 		}/* there may be some other error. check the rest */
 
 		key=sense->ext.extended.flags & SSD_KEY;
-		switch(key)
+
+		if (!silent && key > 0)
 		{
-		case	0x0:
-			if(xs->resid == xs->datalen) xs->resid = 0;
-			return(ESUCCESS);
-		case	0x1:
-			if(xs->resid == xs->datalen) xs->resid = 0;
-			if(!silent)
+			printf("st%d: %s", unit, error_mes[key - 1]);
+			if(sense->error_code & SSD_ERRCODE_VALID)
 			{
-				printf("st%d: soft error(corrected)", unit); 
-				if(sense->error_code & SSD_ERRCODE_VALID)
+				switch (key)
 				{
-			   		printf("info = %d (decimal)",
-						info);
+				case	0x2:		/* NOT READY */
+				case	0x5:		/* ILLEGAL REQUEST */
+				case	0x6:		/* UNIT ATTENTION */
+				case	0x7:		/* DATA PROTECT */
+					break;
+				case	0x8:		/* BLANK CHECK */
+			   		printf(", requested size: %d (decimal)",
+					    info);
+					break;
+				default:
+			   		printf(", info = %d (decimal)", info);
 				}
-		 		printf("\n");
 			}
+			printf("\n");
+		}
+
+		switch (key)
+		{
+		case	0x0:				/* NO SENSE */
+		case	0x1:				/* RECOVERED ERROR */
+			if(xs->resid == xs->datalen) xs->resid = 0;
+		case	0xc:				/* EQUAL */
 			return(ESUCCESS);
-		case	0x2:
-			if(!silent) printf("st%d: not ready\n", unit); 
+		case	0x2:				/* NOT READY */
 			return(ENODEV);
-		case	0x3:
-			if(!silent)
-			{
-				printf("st%d: medium error", unit); 
-				if(sense->error_code & SSD_ERRCODE_VALID)
-				{
-			   		printf(" block no. %d (decimal)",
-						info);
-				}
-		 		printf("\n");
-			}
-			return(EIO);
-		case	0x4:
-			if(!silent) printf("st%d: non-media hardware failure\n",
-				unit); 
-			return(EIO);
-		case	0x5:
-			if(!silent) printf("st%d: illegal request\n", unit); 
+		case	0x5:				/* ILLEGAL REQUEST */
 			return(EINVAL);
-		case	0x6:
-			if(!silent) printf("st%d: Unit attention\n", unit); 
+		case	0x6:				/* UNIT ATTENTION */
 			st->flags &= ~ST_PER_MEDIA;
 			if (st->flags & ST_OPEN) /* TEMP!!!! */
 				return(EIO);
 			else
 				return(ESUCCESS);
-		case	0x7:
-			if(!silent)
-				printf("st%d: tape is write protected\n", unit); 
+		case	0x7:				/* DATA PROTECT */
 			return(EACCES);
-		case	0x8:
-			if(!silent)
-			{
-				printf("st%d: no data found", unit);
-				if(sense->error_code & SSD_ERRCODE_VALID)
-			   		printf(": requested size: %d (decimal)",
-					    info);
-		 		printf("\n");
-			}
-			return(EIO);
-		case	0x9:
-			if(!silent) printf("st%d: vendor unique\n",
-				unit); 
-			return(EIO);
-		case	0xa:
-			if(!silent) printf("st%d: copy aborted\n",
-				unit); 
-			return(EIO);
-		case	0xb:
-			if(!silent) printf("st%d: command aborted\n",
-				unit); 
-			return(EIO);
-		case	0xc:
-			if(!silent)
-			{
-				printf("st%d: search returned", unit); 
-				if(sense->error_code & SSD_ERRCODE_VALID)
-				{
-			   		printf(" block no. %d (decimal)",
-						info);
-				}
-		 		printf("\n");
-			}
-			return(ESUCCESS);
-		case	0xd:
-			if(!silent) printf("st%d: volume overflow\n",
-				unit); 
+		case	0xd:				/* VOLUME OVERFLOW */
 			return(ENOSPC);
-		case	0xe:
-			if(!silent)
+		case	0x8:				/* BLANK CHECK */
+			/***********************************************\
+			* This quirk code helps the drive read the	*
+			* first tape block, regardless of format.  That	*
+			* is required for these drives to return proper	*
+			* MODE SENSE information.			*
+			\***********************************************/
+			if ((st->quirks & ST_Q_SNS_HLP) &&
+			    !(st->flags & ST_INFO_VALID))
 			{
-			 	printf("st%d: verify miscompare", unit); 
-				if(sense->error_code & SSD_ERRCODE_VALID)
-				{
-			   		printf(" block no. %d (decimal)",
-						info);
-				}
-		 		printf("\n");
+				st->blksiz -= 512;
 			}
-			return(EIO);
-		case	0xf:
-			if(!silent) printf("st%d: unknown error key\n",
-				unit); 
+		default:
 			return(EIO);
 		}
-		break;
-	}
 	/***************************************************************\
 	* If it's NOT code 70, just report it.				*
 	\***************************************************************/
 	default:
+		if (!silent)
 		{
-			if(!silent) printf("st%d: error code %d",
-				unit,
+			printf("st%d: error code %d", unit,
 				sense->error_code & SSD_ERRCODE);
 			if(sense->error_code & SSD_ERRCODE_VALID)
 			{
-				if(!silent)
-				{
-					printf(" block no. %d (decimal)",
-					(sense->ext.unextended.blockhi <<16),
-					+ (sense->ext.unextended.blockmed <<8),
-					+ (sense->ext.unextended.blocklow ));
-				}
-				printf("\n");
+				printf(" at block no. %d (decimal)",
+					(sense->ext.unextended.blockhi << 16) +
+					(sense->ext.unextended.blockmed << 8) +
+					sense->ext.unextended.blocklow);
 			}
+			printf("\n");
 		}
 		return(EIO);
 	}
