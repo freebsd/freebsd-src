@@ -1075,7 +1075,7 @@ long_format (file_hdr, link_name)
     }
   tbuf[16] = '\0';
 
-  printf ("%s %3u ", mbuf, file_hdr->c_nlink);
+  printf ("%s %3lu ", mbuf, file_hdr->c_nlink);
 
 #ifndef __MSDOS__
   if (numeric_uid)
@@ -1089,8 +1089,7 @@ long_format (file_hdr, link_name)
 
   if ((file_hdr->c_mode & CP_IFMT) == CP_IFCHR
       || (file_hdr->c_mode & CP_IFMT) == CP_IFBLK)
-    printf ("%3u, %3u ", file_hdr->c_rdev_maj,
-	    file_hdr->c_rdev_min);
+    printf ("%3lu, %3lu ", file_hdr->c_rdev_maj, file_hdr->c_rdev_min);
   else
 #endif
     printf ("%8lu ", file_hdr->c_filesize);
