@@ -90,6 +90,20 @@ int
 ahc_map_int(struct ahc_softc *ahc)
 {
 	int error;
+	int zero;
+	int shareable;
+
+	zero = 0;
+	shareable = (ahc->flags & AHC_EDGE_INTERRUPT) ? 0: RF_SHAREABLE;
+	ahc->platform_data->irq =
+	    bus_alloc_resource_any(ahc->dev_softc, SYS_RES_IRQ, &zero,
+				   RF_ACTIVE | shareable);
+	if (ahc->platform_data->irq == NULL) {
+		device_printf(ahc->dev_softc,
+			      "bus_alloc_resource() failed to allocate IRQ\n");
+		return (ENOMEM);
+	}
+	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
 
 	/* Hook up our interrupt handler */
 	error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
@@ -100,6 +114,27 @@ ahc_map_int(struct ahc_softc *ahc)
 		device_printf(ahc->dev_softc, "bus_setup_intr() failed: %d\n",
 			      error);
 	return (error);
+}
+
+int
+aic7770_map_registers(struct ahc_softc *ahc, u_int unused_ioport_arg)
+{
+	struct	resource *regs;
+	int	rid;
+
+	rid = 0;
+	regs = bus_alloc_resource_any(ahc->dev_softc, SYS_RES_IOPORT, &rid,
+				      RF_ACTIVE);
+	if (regs == NULL) {
+		device_printf(ahc->dev_softc, "Unable to map I/O space?!\n");
+		return ENOMEM;
+	}
+	ahc->platform_data->regs_res_type = SYS_RES_IOPORT;
+	ahc->platform_data->regs_res_id = rid,
+	ahc->platform_data->regs = regs;
+	ahc->tag = rman_get_bustag(regs);
+	ahc->bsh = rman_get_bushandle(regs);
+	return (0);
 }
 
 /*
@@ -346,22 +381,28 @@ ahc_done(struct ahc_softc *ahc, struct scb *scb)
 	if ((scb->flags & SCB_RECOVERY_SCB) != 0) {
 		struct	scb *list_scb;
 
-		/*
-		 * We were able to complete the command successfully,
-		 * so renew the timeouts for all other pending
-		 * commands.
-		 */
-		LIST_FOREACH(list_scb, &ahc->pending_scbs, pending_links) {
-
-			aic_scb_timer_reset(scb, aic_get_timeout(scb));
-		}
+		ahc->scb_data->recovery_scbs--;
 
 		if (aic_get_transaction_status(scb) == CAM_BDR_SENT
 		 || aic_get_transaction_status(scb) == CAM_REQ_ABORTED)
 			aic_set_transaction_status(scb, CAM_CMD_TIMEOUT);
-		ahc_print_path(ahc, scb);
-		printf("no longer in timeout, status = %x\n",
-		       ccb->ccb_h.status);
+
+		if (ahc->scb_data->recovery_scbs == 0) {
+			/*
+			 * All recovery actions have completed successfully,
+			 * so reinstate the timeouts for all other pending
+			 * commands.
+			 */
+			LIST_FOREACH(list_scb, &ahc->pending_scbs,
+				     pending_links) {
+
+				aic_scb_timer_reset(scb, aic_get_timeout(scb));
+			}
+
+			ahc_print_path(ahc, scb);
+			printf("no longer in timeout, status = %x\n",
+			       ccb->ccb_h.status);
+		}
 	}
 
 	/* Don't clobber any existing error state */
@@ -1230,19 +1271,6 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 
-	if (ccb->ccb_h.timeout != CAM_TIME_INFINITY) {
-		uint64_t time;
-
-		if (ccb->ccb_h.timeout == CAM_TIME_DEFAULT)
-			ccb->ccb_h.timeout = 5 * 1000;
-
-		time = ccb->ccb_h.timeout;
-		time *= hz;
-		time /= 1000;
-		ccb->ccb_h.timeout_ch =
-		    timeout(ahc_platform_timeout, (caddr_t)scb, time);
-	}
-
 	/*
 	 * We only allow one untagged transaction
 	 * per target in the initiator role unless
@@ -1264,6 +1292,11 @@ ahc_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		}
 	}
 	scb->flags |= SCB_ACTIVE;
+
+	/*
+	 * Timers are disabled while recovery is in progress.
+	 */
+	aic_scb_timer_start(scb);
 
 	if ((scb->flags & SCB_TARGET_IMMEDIATE) != 0) {
 		/* Define a mapping from our tag to the SCB. */

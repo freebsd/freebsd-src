@@ -613,6 +613,8 @@ struct scb_data {
 	struct	scb *scbarray;		/* Array of kernel SCBs */
 	struct	scsi_sense_data *sense; /* Per SCB sense data */
 
+	u_int	recovery_scbs;		/* Transactions currently in recovery */
+
 	/*
 	 * "Bus" addresses of our data structures.
 	 */
@@ -919,6 +921,8 @@ typedef int (*ahc_bus_chip_init_t)(struct ahc_softc *);
 typedef int (*ahc_bus_suspend_t)(struct ahc_softc *);
 typedef int (*ahc_bus_resume_t)(struct ahc_softc *);
 typedef void ahc_callback_t (void *);
+
+#define AIC_SCB_DATA(softc) ((softc)->scb_data)
 
 struct ahc_softc {
 	bus_space_tag_t           tag;

@@ -46,15 +46,7 @@ aic_set_recoveryscb(struct aic_softc *aic, struct scb *scb)
 
 		scb->flags |= SCB_RECOVERY_SCB;
 
-		/*
-		 * Take all queued, but not sent SCBs out of the equation.
-		 * Also ensure that no new CCBs are queued to us while we
-		 * try to fix this problem.
-		 */
-		if ((scb->io_ctx->ccb_h.status & CAM_RELEASE_SIMQ) == 0) {
-			xpt_freeze_simq(SCB_GET_SIM(aic, scb), /*count*/1);
-			scb->io_ctx->ccb_h.status |= CAM_RELEASE_SIMQ;
-		}
+		AIC_SCB_DATA(aic)->recovery_scbs++;
 
 		/*
 		 * Go through all of our pending SCBs and remove
