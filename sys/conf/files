@@ -326,6 +326,7 @@ dev/ex/if_ex.c		optional ex
 dev/ex/if_ex_isa.c	optional ex isa
 dev/ex/if_ex_pccard.c	optional ex card
 #dev/ex/if_ex_pccard.c	optional ex pccard
+dev/exca/exca.c		optional pccbb
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
 dev/fe/if_fe_pccard.c	optional fe pccard
@@ -431,6 +432,7 @@ dev/pccard/pccard_cis.c	optional pccard
 dev/pccard/pccard_cis_quirks.c optional pccard
 dev/pccard/power_if.m	optional cardbus
 dev/pccard/power_if.m	optional pccard
+dev/pccbb/pccbb.c	optional pccbb
 dev/pci/eisa_pci.c	optional pci
 dev/pci/fixup_pci.c	optional pci
 dev/pci/ignore_pci.c	optional pci
@@ -1233,7 +1235,6 @@ pci/intpm.c		optional intpm
 pci/meteor.c		count meteor pci
 pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
-dev/pccbb/pccbb.c	optional pccbb
 pci/simos.c		optional simos
 pci/uhci_pci.c		optional uhci
 pci/xrpu.c		optional xrpu
