@@ -71,6 +71,8 @@ struct msqid_ds	*msqids;
 struct shminfo	shminfo;
 struct shmid_ds	*shmsegs;
 
+char   *fmt_perm(u_short);
+void	cvt_time(time_t, char *);
 void	sysctlgatherstruct(void *addr, size_t size, struct scgs_vector *vec);
 void	kget(int idx, void *addr, size_t size);
 void	usage(void);
@@ -270,8 +272,8 @@ main(argc, argv)
 				if (symbols[i].n_value == 0)
 					warnx("symbol %s not found",
 					    symbols[i].n_name);
-			break;
 #endif
+			break;
 		}
 	}
 
@@ -326,7 +328,7 @@ main(argc, argv)
 
 					printf("q %6d %10d %s %8s %8s",
 					    IXSEQ_TO_IPCID(i, msqptr->msg_perm),
-					    msqptr->msg_perm.key,
+					    (int)msqptr->msg_perm.key,
 					    fmt_perm(msqptr->msg_perm.mode),
 					    user_from_uid(msqptr->msg_perm.uid, 0),
 					    group_from_gid(msqptr->msg_perm.gid, 0));
@@ -337,12 +339,12 @@ main(argc, argv)
 						    group_from_gid(msqptr->msg_perm.cgid, 0));
 
 					if (option & OUTSTANDING)
-						printf(" %6d %6d",
+						printf(" %6lu %6lu",
 						    msqptr->msg_cbytes,
 						    msqptr->msg_qnum);
 
 					if (option & BIGGEST)
-						printf(" %6d",
+						printf(" %6lu",
 						    msqptr->msg_qbytes);
 
 					if (option & PID)
@@ -415,7 +417,7 @@ main(argc, argv)
 
 					printf("m %6d %10d %s %8s %8s",
 					    IXSEQ_TO_IPCID(i, shmptr->shm_perm),
-					    shmptr->shm_perm.key,
+					    (int)shmptr->shm_perm.key,
 					    fmt_perm(shmptr->shm_perm.mode),
 					    user_from_uid(shmptr->shm_perm.uid, 0),
 					    group_from_gid(shmptr->shm_perm.gid, 0));
@@ -507,7 +509,7 @@ main(argc, argv)
 
 					printf("s %6d %10d %s %8s %8s",
 					    IXSEQ_TO_IPCID(i, semaptr->sem_perm),
-					    semaptr->sem_perm.key,
+					    (int)semaptr->sem_perm.key,
 					    fmt_perm(semaptr->sem_perm.mode),
 					    user_from_uid(semaptr->sem_perm.uid, 0),
 					    group_from_gid(semaptr->sem_perm.gid, 0));
