@@ -38,6 +38,7 @@ MAN=	acpi_asus.4 \
 	sbni.4 \
 	scd.4 \
 	smapi.4 \
+	snc.4 \
 	spkr.4 \
 	sr.4 \
 	streams.4 \
