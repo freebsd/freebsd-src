@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.86 1998/09/04 08:06:55 dfr Exp $
+ *	$Id: kern_exec.c,v 1.87 1998/10/16 03:55:00 peter Exp $
  */
 
 #include <sys/param.h>
@@ -408,7 +408,7 @@ exec_unmap_first_page(imgp)
 {
 	if (imgp->firstpage) {
 		pmap_kremove((vm_offset_t) imgp->image_header);
-		vm_page_unwire(imgp->firstpage);
+		vm_page_unwire(imgp->firstpage, 1);
 		imgp->firstpage = NULL;
 	}
 }
