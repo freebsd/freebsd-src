@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$";
+    "@(#) $Header: /home/ncvs/src/contrib/tcpdump/print-token.c,v 1.1 1999/02/20 11:17:55 julian Exp $";
 #endif
 
 #include <sys/param.h>

@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: arp.c,v 1.13 1997/11/13 01:16:57 julian Exp $";
+	"$Id: arp.c,v 1.14 1998/01/16 17:38:51 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -469,6 +469,7 @@ print_entry(struct sockaddr_dl *sdl,
 	char *host;
 	extern int h_errno;
 	struct hostent *hp;
+	int seg;
 
 	if (nflag == 0)
 		hp = gethostbyaddr((caddr_t)&(sin->sin_addr),
@@ -499,7 +500,23 @@ print_entry(struct sockaddr_dl *sdl,
 		if (sin->sin_len != 8)
 			printf("(wierd)");
 	}
+        switch(sdl->sdl_type) {
+            case IFT_ETHER:
+                printf(" [ethernet]");
+                break;
+            case IFT_ISO88025:
+                printf(" [token-ring]");
+                break;
+            default:
+        }
+	if (sdl->sdl_rcf != NULL) {
+		printf(" rt=%x", ntohs(sdl->sdl_rcf));
+		for (seg = 0; seg < ((((ntohs(sdl->sdl_rcf) & 0x1f00) >> 8) - 2 ) / 2); seg++) 
+			printf(":%x", ntohs(sdl->sdl_route[seg]));
+	}
+		
 	printf("\n");
+
 }
 
 /*

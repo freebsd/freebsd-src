@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.23 1999/05/25 14:08:01 des Exp $
+#	$Id: LINT,v 1.539.2.24 1999/05/25 20:19:10 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -389,8 +389,8 @@ options		NETATALK		#Appletalk communications protocols
 # Network interfaces:
 #  The `loop' pseudo-device is MANDATORY when networking is enabled.
 #  The `ether' pseudo-device provides generic code to handle
-#  Ethernets; it is MANDATORY when a Ethernet device driver is
-#  configured.
+#  Ethernets; it is MANDATORY when a Ethernet device driver or a
+#  Token-ring device driver is configured.
 #  The 'fddi' pseudo-device provides generic code to support FDDI.
 #  The `sppp' pseudo-device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
@@ -412,6 +412,7 @@ options		NETATALK		#Appletalk communications protocols
 # See pppd(8) for more details.
 #
 pseudo-device	ether			#Generic Ethernet
+pseudo-device	token			#Generic TokenRing
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
@@ -1193,6 +1194,8 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 # zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
 #     send/receive operation, but it needs 'iomem' to read/write the
 #     attribute memory)
+# oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133 
+#       (no options needed)
 #
 
 device ar0 at isa? port 0x300 net irq 10 iomem 0xd0000
@@ -1218,6 +1221,8 @@ device xe0 at isa? port? irq ?
 # support when COMPILING_LINT.
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000
+
+device oltr0 at isa?
 
 #
 # ATM related options
@@ -1607,6 +1612,9 @@ options	"EISA_SLOTS=12"
 #
 # Using sysctl(8) run-time overrides on a per-card basis can be made
 #
+# The oltr driver supports the following Olicom PCI token-ring adapters
+# OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
+#
 controller	pci0
 controller	ahc1
 controller	ncr0
@@ -1660,6 +1668,8 @@ device		wb0
 device		xl0
 device		fpa0
 device		meteor0
+#The oltr driver in the ISA section will also find PCI cards.
+#device		oltr0
 
 
 # Brooktree driver has been ported to the new I2C framework. Thus,

@@ -396,6 +396,7 @@ net/if.c		standard
 net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
 net/if_ethersubr.c	optional ether
+net/if_iso88025subr.c	optional token
 net/if_fddisubr.c	optional fddi
 net/if_loop.c		optional loop
 net/if_media.c		standard

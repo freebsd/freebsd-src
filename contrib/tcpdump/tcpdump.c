@@ -91,7 +91,7 @@ struct printer {
 
 static struct printer printers[] = {
 	{ ether_if_print,	DLT_EN10MB },
-	{ ether_if_print,	DLT_IEEE802 },
+	{ token_if_print,	DLT_IEEE802 },
 	{ sl_if_print,		DLT_SLIP },
 	{ sl_bsdos_if_print,	DLT_SLIP_BSDOS },
 	{ ppp_if_print,		DLT_PPP },

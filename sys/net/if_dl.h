@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_dl.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_dl.h,v 1.6 1997/02/22 09:41:00 peter Exp $
  */
 
 #ifndef _NET_IF_DL_H_
@@ -68,6 +68,8 @@ struct sockaddr_dl {
 	u_char	sdl_slen;	/* link layer selector length */
 	char	sdl_data[12];	/* minimum work area, can be larger;
 				   contains both if name and ll address */
+	u_short	sdl_rcf;	/* source routing control */
+	u_short	sdl_route[16];	/* source routing information */
 };
 
 #define LLADDR(s) ((caddr_t)((s)->sdl_data + (s)->sdl_nlen))
