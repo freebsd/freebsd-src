@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.30 1998/09/06 08:20:11 phk Exp $
+#	$Id: rc.network,v 1.31 1998/09/15 10:49:02 jkoshy Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -247,7 +247,7 @@ network_pass3() {
     if [ "X${amd_enable}" = X"YES" ]; then
 	    echo -n ' amd'
 	    if [ "X${amd_map_program}" != X"NO" ]; then
-		amd_flags="${amd_flags} `${amd_map_program}`"
+		amd_flags="${amd_flags} `eval ${amd_map_program}`"
 	    fi
 	    amd -p ${amd_flags} > /var/run/amd.pid 2> /dev/null
     fi
