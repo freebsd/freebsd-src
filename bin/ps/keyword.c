@@ -264,8 +264,11 @@ parsefmt(const char *p)
 		}
 	}
 	free(tempstr1);
-	if (!vhead)
-		errx(1, "no valid keywords (type ps -L for a list)");
+	if (!vhead) {
+		warnx("no valid keywords; valid keywords:");
+		showkey();
+		exit(1);
+	}
 }
 
 static VAR *
