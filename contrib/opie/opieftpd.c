@@ -628,9 +628,8 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
   if (guest) {
     reply(230, "Guest login ok, access restrictions apply.");
 #if DOTITLE
-    sprintf(proctitle, "%s: anonymous/%.*s", remotehost,
-	    sizeof(proctitle) - sizeof(remotehost) -
-	    sizeof(": anonymous/"), passwd);
+    snprintf(proctitle, sizeof(proctitle), "%s: anonymous/%s", remotehost,
+	passwd);
     setproctitle(proctitle);
 #endif	/* DOTITLE */
     syslog(LOG_NOTICE, "ANONYMOUS FTP login from %s with ID %s",
@@ -641,7 +640,7 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
     reply(230, "User %s logged in.", pw->pw_name);
 
 #if DOTITLE
-    sprintf(proctitle, "%s: %s", remotehost, pw->pw_name);
+    snprintf(proctitle, sizeof(proctitle), "%s: %s", remotehost, pw->pw_name);
     setproctitle(proctitle);
 #endif	/* DOTITLE */
     syslog(LOG_INFO, "FTP login from %s with user name %s", remotehost, pw->pw_name);
@@ -667,7 +666,8 @@ VOIDRET retrieve FUNCTION((cmd, name), char *cmd AND char *name)
   } else {
     char line[BUFSIZ];
 
-    sprintf(line, cmd, name), name = line;
+    snprintf(line, sizeof(line), cmd, name);
+    name = line;
     fin = ftpd_popen(line, "r"), closefunc = ftpd_pclose;
     st.st_size = -1;
 #if HAVE_ST_BLKSIZE
@@ -841,7 +841,7 @@ static FILE *dataconn FUNCTION((name, size, mode), char *name AND off_t size AND
   file_size = size;
   byte_count = 0;
   if (size != (off_t) - 1)
-    sprintf(sizebuf, " (%ld bytes)", size);
+    snprintf(sizebuf, sizeof(sizebuf), " (%ld bytes)", size);
   else
     strcpy(sizebuf, "");
   if (pdata >= 0) {
@@ -1068,9 +1068,9 @@ VOIDRET statfilecmd FUNCTION((filename), char *filename)
   int c;
 
 #if HAVE_LS_G_FLAG
-  sprintf(line, "%s %s", "/bin/ls -lgA", filename);
+  snprintf(line, sizeof(line), "%s %s", "/bin/ls -lgA", filename);
 #else /* HAVE_LS_G_FLAG */
-  sprintf(line, "%s %s", "/bin/ls -lA", filename);
+  snprintf(line, sizeof(line), "%s %s", "/bin/ls -lA", filename);
 #endif /* HAVE_LS_G_FLAG */
   fin = ftpd_popen(line, "r");
   lreply(211, "status of %s:", filename);
@@ -1256,8 +1256,9 @@ static VOIDRET dolog FUNCTION((sin), struct sockaddr_in *sin)
     strncpy(remotehost, hp->h_name, sizeof(remotehost));
   else
     strncpy(remotehost, inet_ntoa(sin->sin_addr), sizeof(remotehost));
+  remotehost[sizeof(remotehost) - 1] = '\0';
 #if DOTITLE
-  sprintf(proctitle, "%s: connected", remotehost);
+  snprintf(proctitle, sizeof(proctitle), "%s: connected", remotehost);
   setproctitle(proctitle);
 #endif	/* DOTITLE */
 
@@ -1381,7 +1382,7 @@ static char *gunique FUNCTION((local), char *local)
   cp = new + strlen(new);
   *cp++ = '.';
   for (count = 1; count < 100; count++) {
-    sprintf(cp, "%d", count);
+    snprintf(cp, sizeof(new) - (cp - new), "%d", count);
     if (stat(new, &st) < 0)
       return (new);
   }
@@ -1481,7 +1482,7 @@ VOIDRET send_file_list FUNCTION((whichfiles), char *whichfiles)
 	  (strlen(dir->d_name) == 2))
 	continue;
 
-      sprintf(nbuf, "%s/%s", dirname, dir->d_name);
+      snprintf(nbuf, sizeof(nbuf), "%s/%s", dirname, dir->d_name);
 
       /* We have to do a stat to insure it's not a directory or special file. */
       if (simple || (stat(nbuf, &st) == 0 &&
@@ -1532,7 +1533,7 @@ VOIDRET setproctitle FUNCTION((fmt, a, b, c), char *fmt AND int a AND int b AND 
   register int i;
   char buf[BUFSIZ];
 
-  sprintf(buf, fmt, a, b, c);
+  snprintf(buf, sizeof(buf), fmt, a, b, c);
 
   /* make ps print our process name */
   p = Argv[0];
