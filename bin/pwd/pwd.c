@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: pwd.c,v 1.5 1997/02/22 14:05:16 peter Exp $
  */
 
 #ifndef lint
@@ -40,7 +38,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)pwd.c	8.3 (Berkeley) 4/1/94";
+#if 0
+static char sccsid[] = "@(#)pwd.c	8.3 (Berkeley) 4/1/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <err.h>
