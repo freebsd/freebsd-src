@@ -46,6 +46,7 @@
 #include <sys/disk.h>
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
+#include <sys/stdint.h>
 #include <machine/md_var.h>
 #include <sys/ctype.h>
 
@@ -106,7 +107,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	struct dumperinfo di;
 
 	gkd = (struct g_kerneldump*)bp->bio_data;
-	printf("Kerneldump off=%lld len=%lld\n", gkd->offset, gkd->length);
+	printf("Kerneldump off=%jd len=%jd\n", (intmax_t)gkd->offset, (intmax_t)gkd->length);
 	di.dumper = (dumper_t *)dp->d_devsw->d_dump;
 	di.priv = dp->d_dev;
 	di.blocksize = dp->d_label.d_secsize;

@@ -52,6 +52,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
+#include <sys/stdint.h>
 #include <sys/errno.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
@@ -158,8 +159,8 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			g_hexdump(buf+512 + i * 32, 32);
 			start = v * fwsect * fwhead * sectorsize;
 			length = (u - v) * fwsect * fwhead * sectorsize;
-			printf("c%d - c%d (%llx - %llx) = %s\n",
-			     v, u, start, length, buf + 512 + 16 + i * 32);
+			printf("c%d - c%d (%jx - %jx) = %s\n",
+			     v, u, (uintmax_t)start, (uintmax_t)length, buf + 512 + 16 + i * 32);
 			npart++;
 			pp2 = g_slice_addslice(gp, i,
 			    start, length,
