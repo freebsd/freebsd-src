@@ -49,10 +49,9 @@ u_long
 inet_network(cp)
 	register const char *cp;
 {
-	register u_long val, base, n;
+	register u_long val, base, n, i;
 	register char c;
 	u_long parts[4], *pp = parts;
-	register int i;
 
 again:
 	val = 0; base = 10;
@@ -60,7 +59,7 @@ again:
 		base = 8, cp++;
 	if (*cp == 'x' || *cp == 'X')
 		base = 16, cp++;
-	while ( (c = *cp) ) {
+	while ((c = *cp) != 0) {
 		if (isdigit(c)) {
 			val = (val * base) + (c - '0');
 			cp++;

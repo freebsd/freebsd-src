@@ -1,6 +1,4 @@
 /*
- * ++Copyright++ 1988, 1993
- * -
  * Copyright (c) 1988, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
@@ -31,7 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * -
+ */
+
+/*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
@@ -49,40 +49,51 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- * -
- * --Copyright--
+ */
+
+/*
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char orig_rcsid = "From: Id: res_query.c,v 8.10 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_query.c,v 1.14 1997/06/27 08:22:03 peter Exp $";
+static char orig_rcsid = "From: Id: res_query.c,v 8.14 1997/06/09 17:47:05 halley Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.15 1997/09/01 01:19:21 brian Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
-#include "res_config.h"
 #include <arpa/nameser.h>
-
-#include <stdio.h>
-#include <netdb.h>
-#include <resolv.h>
 #include <ctype.h>
 #include <errno.h>
+#include <netdb.h>
+#include <resolv.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "res_config.h"
 
 #if PACKETSZ > 1024
 #define MAXPACKET	PACKETSZ
 #else
 #define MAXPACKET	1024
 #endif
-
-const char *hostalias __P((const char *));
-int h_errno;
 
 /*
  * Formulate a normal query, send, and await answer.
@@ -102,7 +113,7 @@ res_query(name, class, type, answer, anslen)
 	int anslen;		/* size of answer buffer */
 {
 	u_char buf[MAXPACKET];
-	register HEADER *hp = (HEADER *) answer;
+	HEADER *hp = (HEADER *) answer;
 	int n;
 
 	hp->rcode = NOERROR;	/* default */
@@ -177,7 +188,7 @@ res_search(name, class, type, answer, anslen)
 	u_char *answer;		/* buffer to put answer */
 	int anslen;		/* size of answer */
 {
-	register const char *cp, * const *domain;
+	const char *cp, * const *domain;
 	HEADER *hp = (HEADER *) answer;
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
@@ -196,10 +207,8 @@ res_search(name, class, type, answer, anslen)
 	if (cp > name && *--cp == '.')
 		trailing_dot++;
 
-	/*
-	 * if there aren't any dots, it could be a user-level alias
-	 */
-	if (!dots && (cp = __hostalias(name)) != NULL)
+	/* If there aren't any dots, it could be a user-level alias */
+	if (!dots && (cp = hostalias(name)) != NULL)
 		return (res_query(cp, class, type, answer, anslen));
 
 	/*
@@ -279,7 +288,8 @@ res_search(name, class, type, answer, anslen)
 		}
 	}
 
-	/* if we have not already tried the name "as is", do that now.
+	/*
+	 * If we have not already tried the name "as is", do that now.
 	 * note that we do this regardless of how many dots were in the
 	 * name or whether it ends with a dot unless NOTLDQUERY is set.
 	 */
@@ -359,7 +369,7 @@ res_querydomain(name, domain, class, type, answer, anslen)
 
 const char *
 hostalias(name)
-	register const char *name;
+	const char *name;
 {
 	register char *cp1, *cp2;
 	FILE *fp;
@@ -369,8 +379,7 @@ hostalias(name)
 
 	if (_res.options & RES_NOALIASES)
 		return (NULL);
-	/* XXX issetguid() would be better here, but we don't have that. */
-	if (getuid() != geteuid() || getgid() != getegid())
+	if (issetugid())
 		return (NULL);
 	file = getenv("HOSTALIASES");
 	if (file == NULL || (fp = fopen(file, "r")) == NULL)
