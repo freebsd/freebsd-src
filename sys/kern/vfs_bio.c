@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.97 1996/09/06 05:37:53 gibbs Exp $
+ * $Id: vfs_bio.c,v 1.98 1996/09/08 20:44:20 dyson Exp $
  */
 
 /*
@@ -313,7 +313,8 @@ bwrite(struct buf * bp)
 		curproc->p_stats->p_ru.ru_oublock++;
 	VOP_STRATEGY(bp);
 
-	if ((bp->b_flags & B_ASYNC) == 0) {
+	/* if ((bp->b_flags & B_ASYNC) == 0) { */
+	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
 
 		if (oldflags & B_DELWRI) {
