@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.58 1998/06/10 06:34:57 peter Exp $
+ *	$Id: procfs_vnops.c,v 1.59 1998/06/14 12:53:39 bde Exp $
  */
 
 /*
@@ -799,8 +799,8 @@ procfs_readdir(ap)
 		struct uio *a_uio;
 		struct ucred *a_cred;
 		int *a_eofflag;
-		u_long *a_cookies;
-		int a_ncookies;
+		int *a_ncookies;
+		u_long **a_cookies;
 	} */ *ap;
 {
 	struct uio *uio = ap->a_uio;
@@ -808,13 +808,6 @@ procfs_readdir(ap)
 	struct pfsdent *dp = &d;
 	struct pfsnode *pfs;
 	int count, error, i, off;
-
-	/*
-	 * We don't allow exporting procfs mounts, and currently local
-	 * requests do not need cookies.
-	 */
-	if (ap->a_ncookies)
-		panic("procfs_readdir: not hungry");
 
 	pfs = VTOPFS(ap->a_vp);
 
