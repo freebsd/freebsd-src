@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)syslog.h	8.1 (Berkeley) 6/2/93
- * $Id: syslog.h,v 1.11 1997/02/26 06:03:20 mpp Exp $
+ * $Id: syslog.h,v 1.12 1997/03/02 09:19:15 joerg Exp $
  */
 
 #ifndef _SYS_SYSLOG_H_
 #define _SYS_SYSLOG_H_
 
 #define	_PATH_LOG	"/var/run/log"
+#define	_PATH_OLDLOG	"/dev/log"	/* backward compatibility */
 
 /*
  * priorities/facilities are encoded into a single 32-bit quantity, where the
