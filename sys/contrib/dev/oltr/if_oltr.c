@@ -1259,8 +1259,10 @@ DriverTransmitFrameCompleted(DriverHandle, FrameHandle, TransmitStatus)
         sc->tx_avail += sc->tx_buffer[frame].count;
     }
 
-    if ((ifp->if_flags & IFF_OACTIVE) && (sc->tx_avail > 0))
+    if ((ifp->if_flags & IFF_OACTIVE) && (sc->tx_avail > 0)) {
         ifp->if_flags &= ~(IFF_OACTIVE);
+        oltr_start(ifp);
+    }
 
 }
 
@@ -1311,6 +1313,7 @@ DriverReceiveFrameCompleted(DriverHandle, ByteCount, FragmentCount, FragmentHand
             m0->m_data += 2;
             mbuf_size -=2;
             th = mtod(m0, struct iso88025_header *);
+            m0->m_pkthdr.header = (void *)th;
 
             m = m0; mbuf_offset = 0; frag_offset = 0;
             while (frame_len > 0) {

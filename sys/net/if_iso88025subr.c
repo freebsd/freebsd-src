@@ -169,16 +169,16 @@ iso88025_output(ifp, m0, dst, rt0)
 	struct sockaddr *dst;
 	struct rtentry *rt0;
 {
-        register struct ether_header *eh;  /* Needed for AF_UNSPEC XXX */
 	register struct iso88025_header *th;
+	struct iso88025_header gen_th;
+	register struct iso88025_sockaddr_data *sd = (struct iso88025_sockaddr_data *)dst->sa_data;
         register struct llc *l;
-	short type;
-        int s, error = 0;
+	register struct sockaddr_dl *sdl = NULL;
+        int s, error = 0, rif_len = 0;
  	u_char edst[6];
 	register struct mbuf *m = m0;
 	register struct rtentry *rt;
-	struct mbuf *mcopy = (struct mbuf *)0;
-	int off, len = m->m_pkthdr.len, loop_copy = 0;
+	int len = m->m_pkthdr.len, loop_copy = 0;
 	struct arpcom *ac = (struct arpcom *)ifp;
 
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
@@ -208,24 +208,62 @@ iso88025_output(ifp, m0, dst, rt0)
 			    time_second < rt->rt_rmx.rmx_expire)
 				senderr(rt == rt0 ? EHOSTDOWN : EHOSTUNREACH);
 	}
-	switch (dst->sa_family) {
 
+	/* Calculate routing info length based on arp table entry */
+	if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway))
+		if (sdl->sdl_rcf != NULL)
+			rif_len = (ntohs(sdl->sdl_rcf) & 0x1f00) >> 8;
+
+	/* Generate a generic 802.5 header for the packet */
+	gen_th.ac = 0x10;
+	gen_th.fc = 0x40;
+	memcpy(gen_th.iso88025_shost, ac->ac_enaddr, sizeof(ac->ac_enaddr));
+	if (rif_len) {
+		gen_th.iso88025_shost[0] |= 0x80;
+		if (rif_len > 2) {
+			gen_th.rcf = sdl->sdl_rcf;
+			memcpy(gen_th.rseg, sdl->sdl_route, rif_len - 2);
+		}
+	}
+	
+
+	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-           /*printf("%s%d: iso88025_output (AF_INET).\n", ifp->if_name, ifp->if_unit);*/
 		if (!arpresolve(ac, rt, m, dst, edst, rt0))
 			return (0);	/* if not yet resolved */
-		off = m->m_pkthdr.len - m->m_len;
-		type = htons(ETHERTYPE_IP);
+		/* Add LLC and SNAP headers */
+		M_PREPEND(m, 8, M_DONTWAIT)
+		if (m == 0)
+			senderr(ENOBUFS);
+		l = mtod(m, struct llc *);
+	        l->llc_un.type_snap.ether_type = htons(ETHERTYPE_IP);
+	        l->llc_dsap = 0xaa;
+		l->llc_ssap = 0xaa;
+		l->llc_un.type_snap.control = 0x3;
+		l->llc_un.type_snap.org_code[0] = 0x0;
+		l->llc_un.type_snap.org_code[1] = 0x0;
+		l->llc_un.type_snap.org_code[2] = 0x0;
+		memcpy(gen_th.iso88025_dhost, edst, sizeof(edst));
 		break;
 #endif
 
 	case AF_UNSPEC:
-                /*printf("%s%d: iso88025_output (AF_UNSPEC).\n", ifp->if_name, ifp->if_unit);*/
+		/*
+		 * For AF_UNSPEC sockaddr.sa_data must contain all of the
+		 * mac information needed to send the packet.  This allows
+		 * full mac, llc, and source routing function to be controlled.
+		 * llc and source routing information must already be in the
+		 * mbuf provided, ac/fc are set in sa_data.  sockaddr.sa_data
+		 * should be a iso88025_sockaddr_data structure see iso88025.h
+		 */
                 loop_copy = -1;
-		eh = (struct ether_header *)dst->sa_data;
- 		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
-		type = eh->ether_type;
+		sd = (struct iso88025_sockaddr_data *)dst->sa_data;
+		gen_th.ac = sd->ac;
+		gen_th.fc = sd->fc;
+		memcpy(gen_th.iso88025_dhost, sd->ether_dhost, sizeof(sd->ether_dhost));
+		memcpy(gen_th.iso88025_shost, sd->ether_shost, sizeof(sd->ether_shost));
+		rif_len = 0;
 		break;
 
 	default:
@@ -238,26 +276,15 @@ iso88025_output(ifp, m0, dst, rt0)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, ISO88025_HDR_LEN + 8, M_DONTWAIT);
+	
+	M_PREPEND(m, ISO88025_HDR_LEN + rif_len, M_DONTWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
+
+	/* Copy as much of the generic header as is needed into the mbuf */
 	th = mtod(m, struct iso88025_header *);
-        th->ac = 0x10;
-        th->fc = 0x40;
-        m->m_data += ISO88025_HDR_LEN;
-        l = mtod(m , struct llc *);
-        m->m_data -= ISO88025_HDR_LEN;
-	(void)memcpy(&l->llc_un.type_snap.ether_type, &type,
-		sizeof(l->llc_un.type_snap.ether_type));
- 	(void)memcpy(th->iso88025_dhost, edst, sizeof (edst));
- 	(void)memcpy(th->iso88025_shost, ac->ac_enaddr,
-	    sizeof(th->iso88025_shost));
-        l->llc_dsap = 0xaa;
-        l->llc_ssap = 0xaa;
-        l->llc_un.type_snap.control = 0x3;
-        l->llc_un.type_snap.org_code[0] = 0x0;
-        l->llc_un.type_snap.org_code[1] = 0x0;
-        l->llc_un.type_snap.org_code[2] = 0x0;
+	memcpy(th, &gen_th, ISO88025_HDR_LEN + rif_len);
+
         /*
          * If a simplex interface, and the packet is being sent to our
          * Ethernet address or a broadcast address, loopback a copy.
@@ -305,7 +332,7 @@ iso88025_output(ifp, m0, dst, rt0)
 bad:
 	if (m)
 		m_freem(m);
-        printf("iso88025_output: something went wrong, bailing to bad.\n");
+        /*printf("iso88025_output: something went wrong, bailing to bad.\n");*/
 	return (error);
 }
 
@@ -349,12 +376,11 @@ iso88025_input(ifp, th, m)
 
         /*printf("iso88025_input: source %6D dest %6D ethertype %x\n", th->iso88025_shost, ":", th->iso88025_dhost, ":", ether_type);*/
 
-        th->iso88025_shost[0] &= ~(0x80); /* Turn off source route bit */
-        
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
             /*printf("iso88025_input: IP Packet\n");*/
+		th->iso88025_shost[0] &= ~(0x80); /* Turn off source route bit XXX */
 		if (ipflow_fastforward(m))
 			return;
 		schednetisr(NETISR_IP);
