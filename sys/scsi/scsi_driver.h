@@ -35,11 +35,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.h,v 1.1 1995/03/01 22:24:42 dufault Exp $
+ * $Id: scsi_driver.h,v 1.2 1995/03/04 20:50:52 dufault Exp $
  *
  */
 #ifndef _SCSI__DRIVER_H_
 #define _SCSI__DRIVER_H_
+
+#ifdef KERNEL
 
 #include <sys/conf.h>
 
@@ -58,5 +60,17 @@ int  scsi_ioctl __P((dev_t, u_int32, caddr_t, int, struct proc *,
       struct scsi_device *));
 void scsi_strategy __P((struct buf *, struct scsi_device *));
 void scsi_minphys __P((struct buf *, struct scsi_device *));
+
+int suopen __P((dev_t, int, int, struct proc *));
+int suclose __P((dev_t, int, int, struct proc *));
+void sustrategy __P((struct buf *));
+int suioctl __P((dev_t, int, caddr_t, int, struct proc *));
+int sudump __P((dev_t));
+int supsize __P((dev_t));
+int suread __P((dev_t, struct uio *, int));
+int suwrite __P((dev_t, struct uio *, int));
+int suselect __P((dev_t, int, struct proc *));
+
+#endif /* KERNEL */
 
 #endif /* _SCSI__DRIVER_H_ */

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.36 1995/03/15 14:22:03 dufault Exp $
+ *      $Id: cd.c,v 1.37 1995/03/21 11:21:00 dufault Exp $
  */
 
 #define SPLCD splbio
@@ -183,6 +183,12 @@ cdattach(struct scsi_link *sc_link)
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
 	 * request must specify this.
+	 *
+	 * XXX dufault@hda.com:
+	 * Need to handle this better in the case of no record.  Rather than
+	 * a state driven sense handler I think we should make it so that
+	 * the command can get the sense back so that it can selectively log
+	 * errors.
 	 */
 	cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
 	if (dp->disksize) {
@@ -190,8 +196,9 @@ cdattach(struct scsi_link *sc_link)
 		    cd->params.disksize,
 		    cd->params.blksize);
 	} else {
-		printf("drive empty");
+		printf("can't get the size\n");
 	}
+
 	cd->flags |= CDINIT;
 	cd_registerdev(unit);
 
@@ -220,7 +227,7 @@ struct scsi_link *sc_link)
 		return (ENXIO);
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("cd_open: dev=0x%x (unit %d,partition %d)\n",
+	    ("cd_open: dev=0x%lx (unit %ld,partition %ld)\n",
 		dev, unit, part));
 	/*
 	 * Check that it is still responding and ok.
@@ -278,7 +285,7 @@ struct scsi_link *sc_link)
 	 	 *  Check that the partition CAN exist
 	 	 */
 		if (part >= cd->disklabel.d_npartitions) {
-			SC_DEBUG(sc_link, SDEV_DB3, ("partition %d > %d\n", part
+			SC_DEBUG(sc_link, SDEV_DB3, ("partition %ld > %d\n", part
 				,cd->disklabel.d_npartitions));
 			errcode = ENXIO;
 			goto bad;
@@ -288,7 +295,7 @@ struct scsi_link *sc_link)
 	 	 */
 		if (cd->disklabel.d_partitions[part].p_fstype == FS_UNUSED) {
 			SC_DEBUG(sc_link, SDEV_DB3,
-					("part %d type UNUSED\n", part));
+					("part %ld type UNUSED\n", part));
 			errcode = ENXIO;
 			goto bad;
 		}
@@ -326,7 +333,7 @@ cd_close(dev_t dev, int flag, int fmt, struct proc *p,
 	part = PARTITION(dev);
 	cd = sc_link->sd;
 
-	SC_DEBUG(sc_link, SDEV_DB2, ("cd%ld: closing part %d\n", unit, part));
+	SC_DEBUG(sc_link, SDEV_DB2, ("cd%d: closing part %d\n", unit, part));
 	cd->partflags[part] &= ~CDOPEN;
 	cd->openparts &= ~(1 << part);
 
@@ -449,7 +456,7 @@ cdstart(unit)
 	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
 	struct scsi_data *cd = sc_link->sd;
 
-	SC_DEBUG(sc_link, SDEV_DB2, ("cdstart%d ", unit));
+	SC_DEBUG(sc_link, SDEV_DB2, ("cdstart%ld ", unit));
 	/*
 	 * See if there is a buf to do and we are not already
 	 * doing one
@@ -961,7 +968,6 @@ cd_size(unit, flags)
 		20000,		/* might be a disk-changer */
 		NULL,
 		SCSI_DATA_IN | flags) != 0) {
-		printf("cd%d: could not get size\n", unit);
 		return (0);
 	} else {
 		size = rdcap.addr_0 + 1;
@@ -977,7 +983,7 @@ cd_size(unit, flags)
 		blksize = 2048;	/* some drives lie ! */
 	if (size < 100)
 		size = 400000;	/* ditto */
-	SC_DEBUG(sc_link, SDEV_DB3, ("cd%ld: %d %d byte blocks\n"
+	SC_DEBUG(sc_link, SDEV_DB3, ("cd%d: %ld %ld byte blocks\n"
 		,unit, size, blksize));
 	cd->params.disksize = size;
 	cd->params.blksize = blksize;
@@ -1183,15 +1189,7 @@ errval
 cd_reset(unit)
 	u_int32 unit;
 {
-	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
-		0,
-		0,
-		0,
-		0,
-		CDRETRIES,
-		2000,
-		NULL,
-		SCSI_RESET));
+	return scsi_reset_target(SCSI_LINK(&cd_switch, unit));
 }
 
 /*
