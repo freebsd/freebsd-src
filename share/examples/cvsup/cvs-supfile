@@ -108,6 +108,7 @@ ports-all
 #
 #ports-base
 #
+#ports-accessibility
 #ports-arabic
 #ports-archivers
 #ports-astro
@@ -163,6 +164,7 @@ ports-all
 #ports-x11-fm
 #ports-x11-fonts
 #ports-x11-servers
+#ports-x11-themes
 #ports-x11-toolkits
 #ports-x11-wm
 
