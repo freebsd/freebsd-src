@@ -679,6 +679,15 @@ next_code:
 		case 0x5d:	/* menu key */
 	    		keycode = 0x6b;
 	    		break;
+		case 0x5e:	/* power key */
+			keycode = 0x6d;
+			break;
+		case 0x5f:	/* sleep key */
+			keycode = 0x6e;
+			break;
+		case 0x63:	/* wake key */
+			keycode = 0x6f;
+			break;
 		default:	/* ignore everything else */
 	    		goto next_code;
 		}
