@@ -57,9 +57,9 @@ typedef int sig_atomic_t;
 typedef unsigned int osigset_t;
 
 struct	osigcontext {
-	int	sc_onstack;	/* sigstack state to restore */
-	osigset_t sc_mask;	/* signal mask to restore */
-	int	sc_esp;		/* machine state */
+	int	sc_onstack;		/* sigstack state to restore */
+	osigset_t sc_mask;		/* signal mask to restore */
+	int	sc_esp;			/* machine state follows: */
 	int	sc_ebp;
 	int	sc_isp;
 	int	sc_eip;
@@ -81,13 +81,13 @@ struct	osigcontext {
 };
 
 /*
- * The sequence of the fields/registers in sigcontext should match
+ * The sequence of the fields/registers in struct sigcontext should match
  * those in mcontext_t.
  */
 struct	sigcontext {
 	sigset_t sc_mask;		/* signal mask to restore */
 	int	sc_onstack;		/* sigstack state to restore */
-	int	sc_gs;
+	int	sc_gs;			/* machine state (struct trapframe): */
 	int	sc_fs;
 	int	sc_es;
 	int	sc_ds;
@@ -104,15 +104,22 @@ struct	sigcontext {
 	int	sc_eip;
 	int	sc_cs;
 	int	sc_efl;
-	int	sc_esp;			/* machine state */
+	int	sc_esp;
 	int	sc_ss;
+	/*
+	 * XXX FPU state is 27 * 4 bytes h/w, 1 * 4 bytes s/w (probably not
+	 * needed here), or that + 16 * 4 bytes for emulators (probably all
+	 * needed here).  The "spare" bytes are mostly not spare.
+	 */
+	int	sc_fpregs[28];		/* machine state (FPU): */
+	int	sc_spare[17];
 };
 
-#define sc_sp		sc_esp
-#define sc_fp		sc_ebp
-#define sc_pc		sc_eip
-#define sc_ps		sc_efl
-#define sc_eflags	sc_efl
+#define	sc_sp		sc_esp
+#define	sc_fp		sc_ebp
+#define	sc_pc		sc_eip
+#define	sc_ps		sc_efl
+#define	sc_eflags	sc_efl
 
 #endif /* !_ANSI_SOURCE && !_POSIX_SOURCE */
 
