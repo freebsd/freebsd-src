@@ -318,6 +318,8 @@ Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
 Novell NE1000, NE2000, and NE2100 ethernet interface.
+PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
+Winbond W89C940, Surecom NE-34, VIA VT86C926.
 
 3Com 3C501 cards
 
@@ -410,7 +412,7 @@ Cortex1 frame grabber
 Hauppauge Wincast/TV boards (PCI)
 STB TV PCI
 Intel Smart Video Recorder III
-Various Frame grabbers based on Brooktree Bt848 chip.
+Various Frame grabbers based on Brooktree Bt848 and Bt878 chip.
 
 HP4020, HP6020, Philips CDD2000/CDD2660 and Plasmon CD-R drives.
 
