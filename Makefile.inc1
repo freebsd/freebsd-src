@@ -461,8 +461,7 @@ _strfile=	games/fortune/strfile
 .endif
 
 bootstrap-tools:
-.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config \
-    gnu/usr.bin/bison
+.for _tool in ${_strfile} usr.bin/yacc usr.bin/colldef usr.sbin/config
 	cd ${.CURDIR}/${_tool}; \
 		${MAKE} obj; \
 		${MAKE} depend; \
