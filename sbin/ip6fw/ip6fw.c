@@ -68,6 +68,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
+#include <timeconv.h>
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
@@ -839,8 +840,6 @@ fill_iface(char *which, union ip6_fw_if *ifu, int *byname, int ac, char *arg)
 		ifu->fu_via_ip6 = in6addr_any;
 		*byname = 0;
 	} else if (!isdigit(*arg)) {
-		char *q;
-
 		*byname = 1;
 		strlcpy(ifu->fu_via_if.name, arg, sizeof(ifu->fu_via_if.name));
 		/*
