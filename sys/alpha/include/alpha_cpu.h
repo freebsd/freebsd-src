@@ -1,4 +1,4 @@
-/* $Id: alpha_cpu.h,v 1.1 1998/01/10 10:13:13 jb Exp $ */
+/* $Id: alpha_cpu.h,v 1.2 1998/06/10 10:54:21 dfr Exp $ */
 /* From: NetBSD: alpha_cpu.h,v 1.15 1997/09/20 19:02:34 mjacob Exp */
 
 /*
@@ -191,12 +191,12 @@ struct alpha_logout_area {
 #define ALPHA_L1SHIFT		(ALPHA_L2SHIFT+ALPHA_PTSHIFT)
 
 #define	ALPHA_USEG_BASE		0			/* virtual */
-#define	ALPHA_USEG_END		0x000003ffffffffff
+#define	ALPHA_USEG_END		0x000003ffffffffffLL
 
-#define	ALPHA_K0SEG_BASE	0xfffffc0000000000	/* direct-mapped */
-#define	ALPHA_K0SEG_END		0xfffffdffffffffff
-#define	ALPHA_K1SEG_BASE	0xfffffe0000000000	/* virtual */
-#define	ALPHA_K1SEG_END		0xffffffffffffffff
+#define	ALPHA_K0SEG_BASE	0xfffffc0000000000LL	/* direct-mapped */
+#define	ALPHA_K0SEG_END		0xfffffdffffffffffLL
+#define	ALPHA_K1SEG_BASE	0xfffffe0000000000LL	/* virtual */
+#define	ALPHA_K1SEG_END		0xffffffffffffffffLL
 
 #define ALPHA_K0SEG_TO_PHYS(x)	((x) & ~ALPHA_K0SEG_BASE)
 #define ALPHA_PHYS_TO_K0SEG(x)	((x) | ALPHA_K0SEG_BASE)

@@ -1,7 +1,7 @@
 # Makefile.alpha -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.alpha	7.1 5/10/91
-#	$Id: Makefile.alpha,v 1.109 1998/04/17 07:51:36 dima Exp $
+#	$Id: Makefile.alpha,v 1.1 1998/06/10 10:53:59 dfr Exp $
 #
 # Makefile for FreeBSD
 #
@@ -29,6 +29,9 @@ S=	./@
 S=	../..
 .endif
 ALPHA=	${S}/alpha
+
+HCC?=${CC}
+SIZE?=size
 
 COPTFLAGS?=-O
 INCLUDES= -nostdinc -I- -I. -I$S
@@ -59,6 +62,9 @@ DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 DRIVER_S= ${CC} -c -x assembler-with-cpp -DLOCORE ${COPTS} $<
 PROFILE_C= ${CC} -c ${CFLAGS} ${PARAM} $<
 
+NORMAL_M= sh $S/kern/makedevops.sh -c $<;\
+	  ${CC} -c ${CFLAGS} ${PROF} `basename $< .m`.c
+
 # ${ALPHA}/alpha/setdef0.c and ${ALPHA}/alpha/setdef1.c are intentionally
 # omitted from SYSTEM_CFILES.  They depend on setdefs.h, a header which
 # is generated from all of ${OBJS}.  We don't want to have to compile
@@ -71,11 +77,12 @@ SYMORDER_EXCLUDE=-x symbols.exclude
 .endif
 SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 .if ${BINFORMAT} == elf
-SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
+SYSTEM_OBJS= locore.o setdef0.o vnode_if.o \
+	${OBJS} ioconf.o param.o config.o \
 	setdef1.o
 SYSTEM_LD= @${LD} -Bstatic -N -Ttext ${LOAD_ADDRESS} -e locorestart -defsym _DYNAMIC=0 \
 	-o $@ -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @size $@; chmod 755 $@
+SYSTEM_LD_TAIL= @${SIZE} $@; chmod 755 $@
 .endif
 
 %BEFORE_DEPEND
@@ -123,10 +130,10 @@ setdefs.h: gensetdefs ${OBJS}
 	@./gensetdefs ${OBJS} >setdefs.h
 
 gensetdefs: gensetdefs.o
-	${CC} ${CFLAGS} gensetdefs.o -o $@
+	${HCC} gensetdefs.o -o $@
 
 gensetdefs.o: ${ALPHA}/alpha/gensetdefs.c
-	${CC} -c ${CFLAGS} ${ALPHA}/alpha/gensetdefs.c
+	${HCC} ${CFLAGS} -c ${ALPHA}/alpha/gensetdefs.c
 
 # everything potentially depends on the Makefile since everything potentially
 # depends on the options.  Some things are more dependent on the Makefile for
@@ -151,10 +158,10 @@ assym.s: genassym
 # Some of the defines that genassym outputs may well depend on the
 # value of kernel options.
 genassym.o: ${ALPHA}/alpha/genassym.c Makefile opt_global.h
-	${CC} -c ${CFLAGS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
+	${HCC} -c ${COPTS} ${PARAM} -UKERNEL ${ALPHA}/alpha/genassym.c
 
 genassym: genassym.o
-	${CC} ${CFLAGS} ${PARAM} genassym.o -o $@
+	${HCC} ${COPTS} ${PARAM} genassym.o -o $@
 
 SYSTEM_OBJS+=	__divqu.o __divq.o __divlu.o __divl.o
 SYSTEM_OBJS+=	__remqu.o __remq.o __remlu.o __reml.o

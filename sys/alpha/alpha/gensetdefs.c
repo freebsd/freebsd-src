@@ -23,11 +23,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: gensetdefs.c,v 1.1 1997/05/21 23:21:25 jdp Exp $
+ *      $Id: gensetdefs.c,v 1.1 1998/06/10 10:52:41 dfr Exp $
  */
 
 #include <sys/types.h>
-#include <machine/elf.h>
+#include "../../alpha/include/elf.h"
 
 #include <err.h>
 #include <stddef.h>
