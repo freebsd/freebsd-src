@@ -42,6 +42,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ntp.h"
+#include "opt_ddb.h"
+#include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +73,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/gmon.h>
 #endif
 
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
+
 #ifdef DEVICE_POLLING
 extern void hardclock_device_poll(void);
 #endif /* DEVICE_POLLING */
@@ -83,6 +89,22 @@ long cp_time[CPUSTATES];
 
 SYSCTL_OPAQUE(_kern, OID_AUTO, cp_time, CTLFLAG_RD, &cp_time, sizeof(cp_time),
     "LU", "CPU time statistics");
+
+#ifdef WATCHDOG
+static int sysctl_watchdog_reset(SYSCTL_HANDLER_ARGS);
+static void watchdog_fire(void);
+
+static int watchdog_enabled;
+static unsigned int watchdog_ticks;
+static int watchdog_timeout = 20;
+
+SYSCTL_NODE(_debug, OID_AUTO, watchdog, CTLFLAG_RW, 0, "System watchdog");
+SYSCTL_INT(_debug_watchdog, OID_AUTO, enabled, CTLFLAG_RW, &watchdog_enabled,
+	0, "Enable the watchdog");
+SYSCTL_INT(_debug_watchdog, OID_AUTO, timeout, CTLFLAG_RW, &watchdog_timeout,
+	0, "Timeout for watchdog checkins");
+
+#endif /* WATCHDOG */
 
 /*
  * Clock handling routines.
@@ -228,6 +250,12 @@ hardclock(frame)
 	 */
 	if (need_softclock)
 		swi_sched(softclock_ih, 0);
+
+#ifdef WATCHDOG
+	if (watchdog_enabled > 0 &&
+	    (int)(ticks - watchdog_ticks) >= (hz * watchdog_timeout))
+		watchdog_fire();
+#endif /* WATCHDOG */
 }
 
 /*
@@ -481,3 +509,57 @@ sysctl_kern_clockrate(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo",
 	"Rate and period of various kernel clocks");
+
+#ifdef WATCHDOG
+/*
+ * Reset the watchdog timer to ticks, thus preventing the watchdog
+ * from firing for another watchdog timeout period.
+ */
+static int
+sysctl_watchdog_reset(SYSCTL_HANDLER_ARGS)
+{
+	int ret;
+
+	ret = 0;
+	watchdog_ticks = ticks;
+	return sysctl_handle_int(oidp, &ret, 0, req);
+}
+
+SYSCTL_PROC(_debug_watchdog, OID_AUTO, reset, CTLFLAG_RW, 0, 0,
+    sysctl_watchdog_reset, "I", "Reset the watchdog");
+
+/*
+ * Handle a watchdog timeout by dumping interrupt information and
+ * then either dropping to DDB or panicing.
+ */
+static void
+watchdog_fire(void)
+{
+	int nintr;
+	u_int64_t inttotal;
+	u_long *curintr;
+	char *curname;
+
+	curintr = intrcnt;
+	curname = intrnames;
+	inttotal = 0;
+	nintr = eintrcnt - intrcnt;
+	
+	printf("interrupt                   total\n");
+	while (--nintr >= 0) {
+		if (*curintr)
+			printf("%-12s %20lu\n", curname, *curintr);
+		curname += strlen(curname) + 1;
+		inttotal += *curintr++;
+	}
+	printf("Total        %20llu\n", inttotal);
+
+#ifdef DDB
+	db_print_backtrace();
+	Debugger("watchdog timeout");
+#else /* !DDB */
+	panic("watchdog timeout");
+#endif /* DDB */
+}
+
+#endif /* WATCHDOG */
