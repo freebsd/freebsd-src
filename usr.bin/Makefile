@@ -216,7 +216,6 @@ SUBDIR+=vacation
 SUBDIR+=ar \
 	doscmd \
 	gcore \
-	gprof4 \
 	ncplist \
 	ncplogin \
 	nm \
