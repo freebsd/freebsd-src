@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.20 1995/03/25 01:34:21 davidg Exp $
+ *	$Id: kern_exec.c,v 1.21 1995/05/30 08:05:24 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -270,9 +270,6 @@ interpret:
 	 */
 	p->p_cred->p_svuid = p->p_ucred->cr_uid;
 	p->p_cred->p_svgid = p->p_ucred->cr_gid;
-
-	/* mark vnode pure text */
- 	ndp->ni_vp->v_flag |= VTEXT;
 
 	/*
 	 * Store the vp for use in procfs

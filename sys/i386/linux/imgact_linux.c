@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.2 1995/06/07 21:27:57 sos Exp $
+ *	$Id: imgact_linux.c,v 1.1 1995/06/25 17:32:32 sos Exp $
  */
 
 #include <sys/param.h>
@@ -210,6 +210,8 @@ exec_linux_imgact(iparams)
 	    if (error)
 		return (error);
 	}
+	/* Indicate that this file should not be modified */
+	iparams->vnodep->v_flag |= VTEXT;
     }
     /* Fill in process VM information */
     vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;
