@@ -202,6 +202,9 @@ uses the correct, unsigned format for printing most of them out.
 A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
 VGA graphics to syscons ttys (sort of like Linux's libSVGA).
 
+Xntpd's syslogging has been moved out into a facility of its own
+(LOG_NTP, userland name "ntp").
+
 
 2. Supported Configurations
 ---------------------------
