@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: dset.8,v 1.1 1996/05/02 21:47:45 joerg Exp $
+.\" $Id: dset.8,v 1.2 1996/05/02 22:34:19 mpp Exp $
 .\" "
 .Dd May 2, 1996
 .Dt DSET 8
@@ -34,16 +34,19 @@
 .Sh SYNOPSIS
 .Nm dset
 .Op Fl vqt
+.Op Fl k Ar kernel
 .Sh DESCRIPTION
 .Nm Dset
 records the configuration changes for ISA devices that have been made
-from within
+from
 .Em UserConfig
 after booting with the
 .Fl c
-option.  The changes (if any) are always attempted to be recorded into
-the file as obtained by
-.Xr getbootfile 3 .
+option.  The changes (if any) are recorded to the file name returned by
+.Xr getbootfile 3
+unless overridden with the
+.Fl k
+flag.
 .Nm Dset
 is typically called from within
 .Pa /etc/rc .
