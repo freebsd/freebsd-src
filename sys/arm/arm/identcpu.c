@@ -49,12 +49,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <machine/cpu.h>
 
 #include <machine/cpuconf.h>
 
 char machine[] = "arm";
 
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
+        machine, 0, "Machine class");
 enum cpu_class {
 	CPU_CLASS_NONE,
 	CPU_CLASS_ARM2,
