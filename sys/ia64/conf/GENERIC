@@ -176,6 +176,3 @@ device		ums		# Mouse
 device		aue		# ADMtek USB ethernet
 device		cue		# CATC USB ethernet
 device		kue		# Kawasaki LSI USB ethernet
-
-# Tempary things until things are farther along.
-makeoptions	NO_MODULES=useless_for_now
