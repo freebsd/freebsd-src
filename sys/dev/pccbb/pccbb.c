@@ -218,7 +218,6 @@ static int	cbb_detach(device_t brdev);
 static int	cbb_shutdown(device_t brdev);
 static void	cbb_driver_added(device_t brdev, driver_t *driver);
 static void	cbb_child_detached(device_t brdev, device_t child);
-static int	cbb_card_reprobe(device_t brdev, device_t busdev);
 static void	cbb_event_thread(void *arg);
 static void	cbb_insert(struct cbb_softc *sc);
 static void	cbb_removal(struct cbb_softc *sc);
@@ -868,34 +867,6 @@ cbb_child_detached(device_t brdev, device_t child)
 	else
 		device_printf(brdev, "Unknown child detached: %s %p/%p\n",
 		    device_get_nameunit(child), sc->cbdev, sc->pccarddev);
-}
-
-static int
-cbb_card_reprobe(device_t brdev, device_t busdev)
-{
-	struct cbb_softc *sc = device_get_softc(brdev);
-	int wake = 0;
-	uint32_t sockstate;
-
-	sockstate = cbb_get(sc, CBB_SOCKET_STATE);
-
-	if ((sockstate & CBB_SOCKET_STAT_CD) == 0) {
-		if (busdev == sc->cbdev &&
-		    (sockstate & CBB_SOCKET_STAT_CB))
-			wake++;
-		else if (busdev == sc->pccarddev &&
-		    (sockstate & CBB_SOCKET_STAT_16BIT))
-			wake++;
-
-		if (wake > 0) {
-			mtx_lock(&sc->mtx);
-			wakeup(sc);
-			mtx_unlock(&sc->mtx);
-			return (0);
-		}
-		return (EBUSY);
-	}
-	return (ENOENT);
 }
 
 /************************************************************************/
@@ -1954,7 +1925,6 @@ static device_method_t cbb_methods[] = {
 	/* 16-bit card interface */
 	DEVMETHOD(card_set_res_flags,		cbb_pcic_set_res_flags),
 	DEVMETHOD(card_set_memory_offset,	cbb_pcic_set_memory_offset),
-	DEVMETHOD(card_reprobe_card,		cbb_card_reprobe),
 
 	/* power interface */
 	DEVMETHOD(power_enable_socket,		cbb_power_enable_socket),
