@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount_ufs.c	8.4 (Berkeley) 4/26/95";
 #else
 static const char rcsid[] =
-	"$Id: mount_ufs.c,v 1.9 1997/08/24 21:02:50 steve Exp $";
+	"$Id: mount_ufs.c,v 1.10 1997/08/25 21:14:22 bde Exp $";
 #endif
 #endif /* not lint */
 
@@ -83,6 +83,10 @@ mount_ufs(argc, argv)
 	char *fs_name;
 	struct vfsconf vfc;
 	int error = 0;
+#ifdef ROOTSLICE_HUNT
+	int slice, part, result;
+	char devbuf[MAXPATHLEN], devpfx[MAXPATHLEN];
+#endif
 
 	mntflags = 0;
 	optind = optreset = 1;		/* Reset for parse of new argv. */
@@ -124,8 +128,36 @@ mount_ufs(argc, argv)
 		warnx("ufs filesystem is not available");
 		return (1);
 	}
-
+#ifdef ROOTSLICE_HUNT
+	result = -1;
+	/*
+	 * If we are mounting root, and we have a mount of something that
+	 * might be the compatability slice, try mounting other slices
+	 * first.  If the kernel has done the right thing and mounted
+	 * the slice because the disk is really sliced, this will find
+	 * the real root filesystem.  If not, we'll try what was supplied.
+	 */
+	if (!strcmp(fs_name, "/") &&
+	    (sscanf(args.fspec, "%[^0-9]%d%c", devpfx, &unit, &part) == 3) &&
+	    (part >= 'a') &&
+	    (part <= 'h')) {
+		for (slice = 1; (slice < 32) && (result < 0); slice++) {
+			sprintf(devbuf, "%s%ds%d%c",
+				devpfx, unit, slice, part);
+			args.fspec = devbuf;
+			result = mount(vfc.vfc_name, fs_name, mntflags, &args);
+		}
+		args.fspec = argv[0];
+	}
+	if (result == 0)
+		warnx("*** update /etc/fstab entry for %s to use %s ***",
+			fs_name, devbuf);
+	/* Try the mount as originally requested */
+	if ((result  < 0) &&
+	    (mount(vfc.vfc_name, fs_name, mntflags, &args < 0)) {
+#else
 	if (mount(vfc.vfc_name, fs_name, mntflags, &args) < 0) {
+#endif
 		(void)fprintf(stderr, "%s on %s: ", args.fspec, fs_name);
 		switch (errno) {
 		case EMFILE:
