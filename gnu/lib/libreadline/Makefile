@@ -1,7 +1,8 @@
-#       $Id: Makefile,v 1.20 1995/05/08 08:43:06 ache Exp $
+#       $Id: Makefile,v 1.21 1995/08/06 12:22:57 bde Exp $
 
 
-CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H
+CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H \
+	-DHAVE_STDLIB_H -DHAVE_UNISTD_H
 
 LIB=    readline
 SHLIB_MAJOR= 3
@@ -17,11 +18,9 @@ LDADD+= -ltermcap
 SUBDIR+= doc
 
 beforeinstall:
-	cd ${.CURDIR}; \
-	for m in ${HEADERS} ; do \
-	  cmp -s $$m ${DESTDIR}/usr/include/readline/$$m || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		$$m ${DESTDIR}/usr/include/readline ; \
-	done
+.for i in ${HEADERS}
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+		${DESTDIR}/usr/include/readline
+.endfor
 
 .include <bsd.lib.mk>
