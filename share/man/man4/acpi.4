@@ -309,12 +309,6 @@ Name of the DSDT table to load, if loading is enabled.
 Selectively disables portions of ACPI for debugging purposes.
 .It Va hint.acpi.0.disabled
 Disables all of ACPI.
-.It Va hw.acpi.cpu.performance_speed
-Sets the speed of the CPU, if it supports multiple speeds, while in
-the performance power profile.
-.It Va hw.acpi.cpu.economy_speed
-Sets the speed of the CPU, if it supports multiple speeds, while in
-the economy power profile.
 .It Va hw.acpi.ec.poll_timeout
 Delay in milliseconds to wait for the EC to respond.  Try increasing this
 number if you get the error 
@@ -332,8 +326,32 @@ Override the interrupt to use.
 .It Va hw.acpi.verbose
 Turn on verbose debugging information about what ACPI is doing.
 .El
+.Sh SYSCTLS
+.Bl -tag -width indent
+.It Va hw.acpi.cpu.performance_speed
+Sets the speed of the CPU, if it supports multiple speeds, while in
+the performance power profile.
+.It Va hw.acpi.cpu.economy_speed
+Sets the speed of the CPU, if it supports multiple speeds, while in
+the economy power profile.
+.It Va hw.acpi.cpu.cx_history
+Debugging information listing all sleep states and the number of
+long and short sleeps for each one.
+The counters are reset when
+.Va hw.acpi.cpu.cx_lowest
+is modified.
+.It Va hw.acpi.cpu.cx_lowest
+Zero-based index of the lowest CPU idle state to use.
+A value of -1 disables ACPI CPU idle states.
+To enable ACPI CPU idling control,
+.Va machdep.cpu_idle_hlt
+must be set to 1.
+.It Va hw.acpi.cpu.cx_supported
+List of supported CPU idle states and their transition latency
+in microseconds.
+.El
 .Sh COMPATIBILITY
-ACPI is only found/supported on i386/ia32, ia64 and amd64.
+ACPI is only found and supported on i386/ia32, ia64, and amd64.
 .Sh SEE ALSO
 .Xr loader.conf 5 ,
 .Xr acpiconf 8 ,
