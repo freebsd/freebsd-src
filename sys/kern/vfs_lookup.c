@@ -139,8 +139,11 @@ namei(ndp)
 	}
 	ndp->ni_loopcnt = 0;
 #ifdef KTRACE
-	if (KTRPOINT(p, KTR_NAMEI))
-		ktrnamei(p->p_tracep, cnp->cn_pnbuf);
+	if (KTRPOINT(td, KTR_NAMEI)) {
+		KASSERT(cnp->cn_thread == curthread,
+		    ("namei not using curthread"));
+		ktrnamei(cnp->cn_pnbuf);
+	}
 #endif
 
 	/*
