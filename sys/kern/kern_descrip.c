@@ -1141,11 +1141,12 @@ fpathconf(struct thread *td, struct fpathconf_args *uap)
 	}
 	vp = fp->f_vnode;
 	if (vp != NULL) {
-		mtx_lock(&Giant);
+		int vfslocked;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		VOP_UNLOCK(vp, 0, td);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
 		if (uap->name != _PC_PIPE_BUF) {
 			error = EINVAL;
@@ -1528,8 +1529,6 @@ fdfree(struct thread *td)
 	struct vnode *vp;
 	struct flock lf;
 
-	GIANT_REQUIRED;		/* VFS */
-
 	/* Certain daemons might not have file descriptors. */
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
@@ -1560,6 +1559,7 @@ fdfree(struct thread *td)
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
 				vp = fp->f_vnode;
+				VFS_ASSERT_GIANT(vp->v_mount);
 				(void) VOP_ADVLOCK(vp,
 						   (caddr_t)td->td_proc->
 						   p_leader,
@@ -1869,13 +1869,15 @@ closef(struct file *fp, struct thread *td)
 	 * aren't passed with the descriptor.
 	 */
 	if (fp->f_type == DTYPE_VNODE) {
-		mtx_lock(&Giant);
+		int vfslocked;
+
+		vp = fp->f_vnode;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
 			lf.l_start = 0;
 			lf.l_len = 0;
 			lf.l_type = F_UNLCK;
-			vp = fp->f_vnode;
 			(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
 					   F_UNLCK, &lf, F_POSIX);
 		}
@@ -1913,7 +1915,7 @@ closef(struct file *fp, struct thread *td)
 			}
 			FILEDESC_UNLOCK(fdp);
 		}
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	return (fdrop(fp, td));
 }
@@ -2006,8 +2008,6 @@ _fgetvp(struct thread *td, int fd, struct vnode **vpp, int flags)
 {
 	struct file *fp;
 	int error;
-
-	GIANT_REQUIRED;		/* VFS */
 
 	*vpp = NULL;
 	if ((error = _fget(td, fd, &fp, 0, 0)) != 0)
