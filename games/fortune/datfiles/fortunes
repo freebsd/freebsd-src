@@ -718,6 +718,12 @@ A successful [software] tool is one that was used to do something
 undreamed of by its author.
 		-- S. C. Johnson
 %
+A system admin's life is a sorry one.  The only advantage he has over
+Emergency Room doctors is that malpractice suits are rare.  On the
+other hand, ER doctors never have to deal with patients installing
+new versions of their own innards!"
+		-- Michael O'Brien
+%
 A tautology is a thing which is tautological.
 %
 A total abstainer is one who abstains from everything but abstention,
@@ -3784,6 +3790,11 @@ Everything is worth precisely as much as a belch, the difference being
 that a belch is more satisfying.
 		-- Ingmar Bergman
 %
+Everything journalists write is true, except when they write about
+something you know.
+		-- Dag-Erling Smorgrav,
+		   June 1999, FreeBSD-Stable Mailing List
+%
 Everything should be built top-down, except the first time.
 %
 Everything you know is wrong!
@@ -4150,7 +4161,7 @@ Food for thought is no substitute for the real thing.
 %
 For 20 dollars, I'll give you a good fortune next time ...
 %
-For a good time, call (415) 642-9483
+For a good time, call (510) 642-9483
 %
 For a man to truly understand rejection, he must first be ignored by a
 cat.
@@ -4382,6 +4393,12 @@ almost one, it is damn near zero.
 %
 Frankfort, Kentucky, makes it against the law to shoot off a
 policeman's tie.
+%
+FreeBSD: everything but the fairings
+%
+FreeBSD: Have you had your fairings today?
+%
+FreeBSD: It's 3am at night.  Do you know where your fairings are?
 %
 Fresco's Discovery:
 	If you knew what you were doing you'd probably be bored.
@@ -5615,11 +5632,15 @@ other minority viewpoint -- no matter how distasteful to the majority.
 What are our schools for if not indoctrination against Communism?
 		-- Richard M. Nixon
 %
+I am a PC technician - however, this has unfortunately caused my
+computer to be running Win98.
+		-- seen on a FreeBSD mailing-list
+%
 "I am convinced that the manufacturers of carpet odor removing powder
 have included encapsulated time released cat urine in their products.
 This technology must be what prevented its distribution during my mom's
 reign.  My carpet smells like piss, and I don't have a cat.  Better go
-by some more."
+buy some more."
 		-- timw@zeb.USWest.COM
 %
 I am more bored than you could ever possibly be.  Go back to work.
@@ -9231,8 +9252,6 @@ Neckties strangle clear thinking.
 %
 Never be led astray onto the path of virtue.
 %
-Never call a man a fool.  Borrow from him.
-%
 Never call a man a fool; borrow from him.
 %
 Never commit yourself!  Let someone else commit you.
@@ -9870,7 +9889,7 @@ us bright young students taking number theory discovered the names of
 the smaller prime numbers.
 
 2:  The Odd Prime --
-	It's the only even prime, therefore is odd.  QED.
+	It's the only even prime, therefore it's odd.  QED.
 3:  The True Prime --
 	Lewis Carroll: "If I tell you three times, it's true."
 31: The Arbitrary Prime --
@@ -10561,6 +10580,12 @@ Professor Gorden Newell threw another shutout in last week's Chem.
 Eng.  130 midterm.  Once again no student received a single point on
 his exam.  Newell has now tossed five shutouts this quarter.  Newell's
 earned exam average has now dropped to a phenomenal 30%
+%
+Programming today is a race between software engineers striving to
+build bigger and better idiot-proof programs, and the Universe trying
+to produce bigger and better idiots.  So far, the Universe is winning.
+
+		-- Rich Cook
 %
 Proof techniques #1: Proof by Induction.
 
@@ -13252,7 +13277,7 @@ Nuts" is catchier, in terms of marketing, than "A Cross Between Gerbil
 Food and Gravel", which is what it tastes like.
 		-- Dave Barry, "Tips for Writer's"
 %
-The reason we come up with new versions is not to fix bugs. It's
+The reason we come up with new versions is not to fix bugs.  It's
 absolutely not.
 			-- Bill Gates
 %
@@ -14463,6 +14488,25 @@ Too often I find that the volume of paper expands to fill the available
 briefcases.
 		-- Governor Jerry Brown
 %
+Top 10 things likely to be overheard if you had a Klingon Programmer:
+
+10) Specifications are for the weak and timid!
+ 9) You question the worthiness of my code?  I should kill you where you stand!
+ 8) Indentation?! - I will show you how to indent when I indent your skull!
+ 7) What is this talk of 'release'?  Klingons do not make software 'releases'.
+    Our software 'escapes' leaving a bloody trail of designers and quality
+    assurance people in its wake.
+ 6) Klingon function calls do not have 'parameters' - they have 'arguments'
+     - and they ALWAYS WIN THEM.
+ 5) Debugging?  Klingons do not debug.  Our software does not coddle the weak.
+ 4) A TRUE Klingon Warrior does not comment his code!
+ 3) Klingon software does NOT have BUGS.  It has FEATURES, and those features
+    are too sophisticated for a Romulan pig like you to understand.
+ 2) You cannot truly appreciate Dilbert unless you've read it in the
+    original Klingon.
+ 1) Our users will know fear and cower before our software!  Ship it!  Ship
+    it and let them flee like the dogs they are!
+%
 Top scientists agree that with the present rate of consumption, the
 earth's supply of gravity will be exhausted before the 24th century.
 As man struggles to discover cheaper alternatives, we need your help.
@@ -14483,7 +14527,7 @@ Follow these simple suggestions:
 %
 Travel important today; Internal Revenue men arrive tomorrow.
 %
-Troubled day for virgins over 16 who are beautiful and wealthy and live
+Troubled day for virgins over 16 who are beautiful, wealthy, and live
 in eucalyptus trees.
 %
 Truly great madness can not be achieved without significant
@@ -16098,8 +16142,7 @@ today.
 %
 You know if they ever find a way to harness sarcasm as an energy source,
 you people are all going to owe me big.
-
-                -- Bill Paul <wpaul@FreeBSD.org>
+		-- Bill Paul
 %
 You know it's going to be a bad day when you want to put on the clothes
 you wore home from the party and there aren't any.
@@ -16154,7 +16197,7 @@ You might have mail
 You might like to know that I looked at a detailed map of NT, and I'm
 now able to confirm that in all probability Microsoft NT does not
 exist.  If it does, it's so small as to be completely insignificant.
-                -- Greg Lehey
+		-- Greg Lehey
 %
 "You must realize that the computer has it in for you.  The irrefutable
 proof of this is that the computer always does what you tell it to do."
@@ -16219,7 +16262,7 @@ hemorrhoids.
 		-- Dave Barry, "The Stuff of Etiquette"
 %
 "You should, without hesitation, pound your typewriter into a
-plowshare, your paper into fertilizer, and enter agriculture"
+plowshare, your paper into fertilizer, and enter agriculture."
 		-- Business Professor, University of Georgia
 %
 You think Oedipus had a problem -- Adam was Eve's mother.
@@ -16345,3 +16388,10 @@ since I first called my brother's father dad.
 %
 Zymurgy's Law of Volunteer Labor:
 	People are always available for work in the past tense.
+%
+"Just remember, it all started with a mouse."
+		-- Walt Disney
+%
+There's nothing so precious as a cafe full of Gap kiddies trying to
+work out whether you're really wearing rubber pants.
+		-- Mike Smith
