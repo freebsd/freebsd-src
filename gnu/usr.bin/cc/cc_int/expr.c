@@ -1025,6 +1025,41 @@ convert_move (to, from, unsignedp)
 	}
     }
 
+  if (to_mode == PDImode)
+    {
+      if (from_mode != DImode)
+	from = convert_to_mode (DImode, from, unsignedp);
+
+#ifdef HAVE_truncdipdi2
+      if (HAVE_truncdipdi2)
+	{
+	  emit_unop_insn (CODE_FOR_truncdipdi2, to, from, UNKNOWN);
+	  return;
+	}
+#endif /* HAVE_truncdipdi2 */
+      abort ();
+    }
+
+  if (from_mode == PDImode)
+    {
+      if (to_mode != DImode)
+	{
+	  from = convert_to_mode (DImode, from, unsignedp);
+	  from_mode = DImode;
+	}
+      else
+	{
+#ifdef HAVE_extendpdidi2
+	  if (HAVE_extendpdidi2)
+	    {
+	      emit_unop_insn (CODE_FOR_extendpdidi2, to, from, UNKNOWN);
+	      return;
+	    }
+#endif /* HAVE_extendpdidi2 */
+	  abort ();
+	}
+    }
+
   /* Now follow all the conversions between integers
      no more than a word long.  */
 
@@ -1157,6 +1192,58 @@ convert_move (to, from, unsignedp)
       if (HAVE_trunchiqi2)
 	{
 	  emit_unop_insn (CODE_FOR_trunchiqi2, to, from, UNKNOWN);
+	  return;
+	}
+#endif
+      convert_move (to, force_reg (from_mode, from), unsignedp);
+      return;
+    }
+
+  if (from_mode == TImode && to_mode == DImode)
+    {
+#ifdef HAVE_trunctidi2
+      if (HAVE_trunctidi2)
+	{
+	  emit_unop_insn (CODE_FOR_trunctidi2, to, from, UNKNOWN);
+	  return;
+	}
+#endif
+      convert_move (to, force_reg (from_mode, from), unsignedp);
+      return;
+    }
+
+  if (from_mode == TImode && to_mode == SImode)
+    {
+#ifdef HAVE_trunctisi2
+      if (HAVE_trunctisi2)
+	{
+	  emit_unop_insn (CODE_FOR_trunctisi2, to, from, UNKNOWN);
+	  return;
+	}
+#endif
+      convert_move (to, force_reg (from_mode, from), unsignedp);
+      return;
+    }
+
+  if (from_mode == TImode && to_mode == HImode)
+    {
+#ifdef HAVE_trunctihi2
+      if (HAVE_trunctihi2)
+	{
+	  emit_unop_insn (CODE_FOR_trunctihi2, to, from, UNKNOWN);
+	  return;
+	}
+#endif
+      convert_move (to, force_reg (from_mode, from), unsignedp);
+      return;
+    }
+
+  if (from_mode == TImode && to_mode == QImode)
+    {
+#ifdef HAVE_trunctiqi2
+      if (HAVE_trunctiqi2)
+	{
+	  emit_unop_insn (CODE_FOR_trunctiqi2, to, from, UNKNOWN);
 	  return;
 	}
 #endif
@@ -1603,6 +1690,9 @@ move_block_to_reg (regno, x, nregs, mode)
   int i;
   rtx pat, last;
 
+  if (nregs == 0)
+    return;
+
   if (CONSTANT_P (x) && ! LEGITIMATE_CONSTANT_P (x))
     x = validize_mem (force_const_mem (mode, x));
 
@@ -1823,8 +1913,6 @@ emit_move_insn_1 (x, y)
       int stack = push_operand (x, GET_MODE (x));
       rtx insns;
 
-      start_sequence ();
-
       /* If this is a stack, push the highpart first, so it
 	 will be in the argument order.
 
@@ -1858,17 +1946,6 @@ emit_move_insn_1 (x, y)
 		     (gen_imagpart (submode, x), gen_imagpart (submode, y)));
 	}
 
-      insns = get_insns ();
-      end_sequence ();
-
-      /* If X is a CONCAT, we got insns like RD = RS, ID = IS,
-	 each with a separate pseudo as destination.
-	 It's not correct for flow to treat them as a unit.  */
-      if (GET_CODE (x) != CONCAT)
-	emit_no_conflict_block (insns, x, y, NULL_RTX, NULL_RTX);
-      else
-	emit_insns (insns);
-
       return get_last_insn ();
     }
 
@@ -1880,8 +1957,6 @@ emit_move_insn_1 (x, y)
       rtx last_insn = 0;
       rtx insns;
       
-      start_sequence ();
-
       for (i = 0;
 	   i < (GET_MODE_SIZE (mode)  + (UNITS_PER_WORD - 1)) / UNITS_PER_WORD;
 	   i++)
@@ -1905,10 +1980,6 @@ emit_move_insn_1 (x, y)
 
 	  last_insn = emit_move_insn (xpart, ypart);
 	}
-
-      insns = get_insns ();
-      end_sequence ();
-      emit_no_conflict_block (insns, x, y, NULL_RTX, NULL_RTX);
 
       return last_insn;
     }
@@ -2724,6 +2795,7 @@ store_expr (exp, target, want_value)
 	     The string constant may be shorter than the array.
 	     So copy just the string's actual length, and clear the rest.  */
 	  rtx size;
+	  rtx addr;
 
 	  /* Get the size of the data type of the string,
 	     which is actually the size of the target.  */
@@ -2752,17 +2824,16 @@ store_expr (exp, target, want_value)
 		 that we have to clear.  */
 	      if (GET_CODE (copy_size_rtx) == CONST_INT)
 		{
-		  temp = plus_constant (XEXP (target, 0),
+		  addr = plus_constant (XEXP (target, 0),
 					TREE_STRING_LENGTH (exp));
-		  size = plus_constant (size,
-					- TREE_STRING_LENGTH (exp));
+		  size = plus_constant (size, - TREE_STRING_LENGTH (exp));
 		}
 	      else
 		{
 		  enum machine_mode size_mode = Pmode;
 
-		  temp = force_reg (Pmode, XEXP (target, 0));
-		  temp = expand_binop (size_mode, add_optab, temp,
+		  addr = force_reg (Pmode, XEXP (target, 0));
+		  addr = expand_binop (size_mode, add_optab, addr,
 				       copy_size_rtx, NULL_RTX, 0,
 				       OPTAB_LIB_WIDEN);
 
@@ -2779,13 +2850,14 @@ store_expr (exp, target, want_value)
 	      if (size != const0_rtx)
 		{
 #ifdef TARGET_MEM_FUNCTIONS
-		  emit_library_call (memset_libfunc, 0, VOIDmode, 3,
-				     temp, Pmode, const0_rtx, Pmode, size, Pmode);
+		  emit_library_call (memset_libfunc, 0, VOIDmode, 3, addr,
+				     Pmode, const0_rtx, Pmode, size, Pmode);
 #else
 		  emit_library_call (bzero_libfunc, 0, VOIDmode, 2,
-				     temp, Pmode, size, Pmode);
+				     addr, Pmode, size, Pmode);
 #endif
 		}
+
 	      if (label)
 		emit_label (label);
 	    }
@@ -3507,7 +3579,13 @@ safe_from_p (x, exp)
   rtx exp_rtl = 0;
   int i, nops;
 
-  if (x == 0)
+  if (x == 0
+      /* If EXP has varying size, we MUST use a target since we currently
+	 have no way of allocating temporaries of variable size.  So we
+	 assume here that something at a higher level has prevented a
+	 clash.  This is somewhat bogus, but the best we can do.  */
+      || (TREE_TYPE (exp) != 0 && TYPE_SIZE (TREE_TYPE (exp)) != 0
+	  && TREE_CODE (TYPE_SIZE (TREE_TYPE (exp))) != INTEGER_CST))
     return 1;
 
   /* If this is a subreg of a hard register, declare it unsafe, otherwise,
@@ -4340,13 +4418,16 @@ expand_expr (exp, target, tmode, modifier)
 	  }
 
 	/* Fold an expression like: "foo"[2].
-	   This is not done in fold so it won't happen inside &.  */
+	   This is not done in fold so it won't happen inside &.
+	   Don't fold if this is for wide characters since it's too
+	   difficult to do correctly and this is a very rare case.  */
 
 	if (TREE_CODE (array) == STRING_CST
 	    && TREE_CODE (index) == INTEGER_CST
 	    && !TREE_INT_CST_HIGH (index)
 	    && (i = TREE_INT_CST_LOW (index)) < TREE_STRING_LENGTH (array)
-	    && GET_MODE_CLASS (mode) == MODE_INT)
+	    && GET_MODE_CLASS (mode) == MODE_INT
+	    && GET_MODE_SIZE (mode) == 1)
 	  return GEN_INT (TREE_STRING_POINTER (array)[i]);
 
 	/* If this is a constant index into a constant array,
@@ -4404,9 +4485,12 @@ expand_expr (exp, target, tmode, modifier)
     case COMPONENT_REF:
     case BIT_FIELD_REF:
       /* If the operand is a CONSTRUCTOR, we can just extract the
-	 appropriate field if it is present.  */
+	 appropriate field if it is present.  Don't do this if we have
+	 already written the data since we want to refer to that copy
+	 and varasm.c assumes that's what we'll do.  */
       if (code != ARRAY_REF
-	  && TREE_CODE (TREE_OPERAND (exp, 0)) == CONSTRUCTOR)
+	  && TREE_CODE (TREE_OPERAND (exp, 0)) == CONSTRUCTOR
+	  && TREE_CST_RTL (TREE_OPERAND (exp, 0)) == 0)
 	{
 	  tree elt;
 
@@ -5450,7 +5534,9 @@ expand_expr (exp, target, tmode, modifier)
 	  temp = 0;
 	else if (original_target
 		 && safe_from_p (original_target, TREE_OPERAND (exp, 0))
-		 && GET_MODE (original_target) == mode)
+		 && GET_MODE (original_target) == mode
+		 && ! (GET_CODE (original_target) == MEM
+		       && MEM_VOLATILE_P (original_target)))
 	  temp = original_target;
 	else if (mode == BLKmode)
 	  {
@@ -5498,8 +5584,7 @@ expand_expr (exp, target, tmode, modifier)
 	    && (TREE_CODE (binary_op) == PLUS_EXPR
 		|| TREE_CODE (binary_op) == MINUS_EXPR
 		|| TREE_CODE (binary_op) == BIT_IOR_EXPR
-		|| TREE_CODE (binary_op) == BIT_XOR_EXPR
-		|| TREE_CODE (binary_op) == BIT_AND_EXPR)
+		|| TREE_CODE (binary_op) == BIT_XOR_EXPR)
 	    && integer_onep (TREE_OPERAND (binary_op, 1))
 	    && TREE_CODE_CLASS (TREE_CODE (TREE_OPERAND (exp, 0))) == '<')
 	  {
@@ -5507,8 +5592,7 @@ expand_expr (exp, target, tmode, modifier)
 	    optab boptab = (TREE_CODE (binary_op) == PLUS_EXPR ? add_optab
 			    : TREE_CODE (binary_op) == MINUS_EXPR ? sub_optab
 			    : TREE_CODE (binary_op) == BIT_IOR_EXPR ? ior_optab
-			    : TREE_CODE (binary_op) == BIT_XOR_EXPR ? xor_optab
-			    : and_optab);
+			    : xor_optab);
 
 	    /* If we had X ? A : A + 1, do this as A + (X == 0).
 
@@ -5732,7 +5816,8 @@ expand_expr (exp, target, tmode, modifier)
 	      left_cleanups = integer_zero_node;
 	    if (! right_cleanups)
 	      right_cleanups = integer_zero_node;
-	    new_cleanups = build (COND_EXPR, void_type_node, cond,
+	    new_cleanups = build (COND_EXPR, void_type_node,
+				  truthvalue_conversion (cond),
 				  left_cleanups, right_cleanups);
 	    new_cleanups = fold (new_cleanups);
 
@@ -5969,7 +6054,10 @@ expand_expr (exp, target, tmode, modifier)
 	    op0 = force_const_mem (TYPE_MODE (TREE_TYPE (TREE_OPERAND (exp, 0))),
 				   op0);
 	  else if (GET_CODE (op0) == MEM)
-	    temp = XEXP (op0, 0);
+	    {
+	      mark_temp_addr_taken (op0);
+	      temp = XEXP (op0, 0);
+	    }
 
 	  else if (GET_CODE (op0) == REG || GET_CODE (op0) == SUBREG
 		   || GET_CODE (op0) == CONCAT)
@@ -5982,6 +6070,7 @@ expand_expr (exp, target, tmode, modifier)
 		= assign_stack_temp (inner_mode,
 				     int_size_in_bytes (inner_type), 1);
 
+	      mark_temp_addr_taken (memloc);
 	      emit_move_insn (memloc, op0);
 	      op0 = memloc;
 	    }
@@ -6055,6 +6144,7 @@ expand_expr (exp, target, tmode, modifier)
 
     case CONJ_EXPR:
       {
+	enum machine_mode partmode = TYPE_MODE (TREE_TYPE (TREE_TYPE (exp)));
 	rtx imag_t;
 	rtx insns;
 	
@@ -6066,11 +6156,12 @@ expand_expr (exp, target, tmode, modifier)
 	start_sequence ();
 
 	/* Store the realpart and the negated imagpart to target.  */
-	emit_move_insn (gen_realpart (mode, target), gen_realpart (mode, op0));
+	emit_move_insn (gen_realpart (partmode, target),
+			gen_realpart (partmode, op0));
 
-	imag_t = gen_imagpart (mode, target);
-	temp = expand_unop (mode, neg_optab,
-			       gen_imagpart (mode, op0), imag_t, 0);
+	imag_t = gen_imagpart (partmode, target);
+	temp = expand_unop (partmode, neg_optab,
+			       gen_imagpart (partmode, op0), imag_t, 0);
 	if (temp != imag_t)
 	  emit_move_insn (imag_t, temp);
 
@@ -6836,6 +6927,9 @@ expand_builtin (exp, target, subtarget, mode, ignore)
 
     case BUILT_IN_SIN:
     case BUILT_IN_COS:
+      /* Treat these like sqrt, but only if the user asks for them. */
+      if (! flag_fast_math)
+	break;
     case BUILT_IN_FSQRT:
       /* If not optimizing, call the library function.  */
       if (! optimize)
@@ -7792,7 +7886,7 @@ result_vector (savep, result)
 	align = GET_MODE_ALIGNMENT (mode) / BITS_PER_UNIT;
 	if (size % align != 0)
 	  size = CEIL (size, align) * align;
-	reg = gen_rtx (REG, mode, savep ? INCOMING_REGNO (regno) : regno);
+	reg = gen_rtx (REG, mode, savep ? regno : INCOMING_REGNO (regno));
 	mem = change_address (result, mode,
 			      plus_constant (XEXP (result, 0), size));
 	savevec[nelts++] = (savep
@@ -8284,7 +8378,9 @@ preexpand_calls (exp)
       /* Do nothing to built-in functions.  */
       if (TREE_CODE (TREE_OPERAND (exp, 0)) != ADDR_EXPR
 	  || TREE_CODE (TREE_OPERAND (TREE_OPERAND (exp, 0), 0)) != FUNCTION_DECL
-	  || ! DECL_BUILT_IN (TREE_OPERAND (TREE_OPERAND (exp, 0), 0)))
+	  || ! DECL_BUILT_IN (TREE_OPERAND (TREE_OPERAND (exp, 0), 0))
+	  /* Do nothing if the call returns a variable-sized object.  */
+	  || TREE_CODE (TYPE_SIZE (TREE_TYPE(exp))) != INTEGER_CST)
 	CALL_EXPR_RTL (exp) = expand_call (exp, NULL_RTX, 0);
       return;
 
@@ -8371,6 +8467,7 @@ defer_cleanups_to (old_cleanups)
   while (cleanups_this_call != old_cleanups)
     {
       (*interim_eh_hook) (TREE_VALUE (cleanups_this_call));
+      last = cleanups_this_call;
       cleanups_this_call = TREE_CHAIN (cleanups_this_call);
     }      
 
@@ -8555,17 +8652,117 @@ do_jump (exp, if_false_label, if_true_label)
       break;
 
     case TRUTH_ANDIF_EXPR:
-      if (if_false_label == 0)
-	if_false_label = drop_through_label = gen_label_rtx ();
-      do_jump (TREE_OPERAND (exp, 0), if_false_label, NULL_RTX);
-      do_jump (TREE_OPERAND (exp, 1), if_false_label, if_true_label);
+      {
+	rtx seq1, seq2;
+	tree cleanups, old_cleanups;
+
+	if (if_false_label == 0)
+	  if_false_label = drop_through_label = gen_label_rtx ();
+	start_sequence ();
+	do_jump (TREE_OPERAND (exp, 0), if_false_label, NULL_RTX);
+	seq1 = get_insns ();
+	end_sequence ();
+
+	old_cleanups = cleanups_this_call;
+	start_sequence ();
+	do_jump (TREE_OPERAND (exp, 1), if_false_label, if_true_label);
+	seq2 = get_insns ();
+	end_sequence ();
+
+	cleanups = defer_cleanups_to (old_cleanups);
+	if (cleanups)
+	  {
+	    rtx flag = gen_reg_rtx (word_mode);
+	    tree new_cleanups;
+	    tree cond;
+
+	    /* Flag cleanups as not needed. */
+	    emit_move_insn (flag, const0_rtx);
+	    emit_insns (seq1);
+
+	    /* Flag cleanups as needed. */
+	    emit_move_insn (flag, const1_rtx);
+	    emit_insns (seq2);
+
+	    /* convert flag, which is an rtx, into a tree. */
+	    cond = make_node (RTL_EXPR);
+	    TREE_TYPE (cond) = integer_type_node;
+	    RTL_EXPR_RTL (cond) = flag;
+	    RTL_EXPR_SEQUENCE (cond) = NULL_RTX;
+
+	    new_cleanups = build (COND_EXPR, void_type_node,
+				  truthvalue_conversion (cond),
+				  cleanups, integer_zero_node);
+	    new_cleanups = fold (new_cleanups);
+
+	    /* Now add in the conditionalized cleanups. */
+	    cleanups_this_call
+	      = tree_cons (NULL_TREE, new_cleanups, cleanups_this_call);
+	    (*interim_eh_hook) (NULL_TREE);
+	  }
+	else
+	  {
+	    emit_insns (seq1);
+	    emit_insns (seq2);
+	  }
+      }
       break;
 
     case TRUTH_ORIF_EXPR:
-      if (if_true_label == 0)
-	if_true_label = drop_through_label = gen_label_rtx ();
-      do_jump (TREE_OPERAND (exp, 0), NULL_RTX, if_true_label);
-      do_jump (TREE_OPERAND (exp, 1), if_false_label, if_true_label);
+      {
+	rtx seq1, seq2;
+	tree cleanups, old_cleanups;
+
+	if (if_true_label == 0)
+	  if_true_label = drop_through_label = gen_label_rtx ();
+	start_sequence ();
+	do_jump (TREE_OPERAND (exp, 0), NULL_RTX, if_true_label);
+	seq1 = get_insns ();
+	end_sequence ();
+
+	old_cleanups = cleanups_this_call;
+	start_sequence ();
+	do_jump (TREE_OPERAND (exp, 1), if_false_label, if_true_label);
+	seq2 = get_insns ();
+	end_sequence ();
+
+	cleanups = defer_cleanups_to (old_cleanups);
+	if (cleanups)
+	  {
+	    rtx flag = gen_reg_rtx (word_mode);
+	    tree new_cleanups;
+	    tree cond;
+
+	    /* Flag cleanups as not needed. */
+	    emit_move_insn (flag, const0_rtx);
+	    emit_insns (seq1);
+
+	    /* Flag cleanups as needed. */
+	    emit_move_insn (flag, const1_rtx);
+	    emit_insns (seq2);
+
+	    /* convert flag, which is an rtx, into a tree. */
+	    cond = make_node (RTL_EXPR);
+	    TREE_TYPE (cond) = integer_type_node;
+	    RTL_EXPR_RTL (cond) = flag;
+	    RTL_EXPR_SEQUENCE (cond) = NULL_RTX;
+
+	    new_cleanups = build (COND_EXPR, void_type_node,
+				  truthvalue_conversion (cond),
+				  cleanups, integer_zero_node);
+	    new_cleanups = fold (new_cleanups);
+
+	    /* Now add in the conditionalized cleanups. */
+	    cleanups_this_call
+	      = tree_cons (NULL_TREE, new_cleanups, cleanups_this_call);
+	    (*interim_eh_hook) (NULL_TREE);
+	  }
+	else
+	  {
+	    emit_insns (seq1);
+	    emit_insns (seq2);
+	  }
+      }
       break;
 
     case COMPOUND_EXPR:
@@ -8980,9 +9177,6 @@ do_jump_for_compare (comparison, if_false_label, if_true_label)
       rtx prev = get_last_insn ();
       rtx branch = 0;
 
-      if (prev != 0)
-	prev = PREV_INSN (prev);
-
       /* Output the branch with the opposite condition.  Then try to invert
 	 what is generated.  If more than one insn is a branch, or if the
 	 branch is not the last insn written, abort. If we can't invert
@@ -8990,20 +9184,23 @@ do_jump_for_compare (comparison, if_false_label, if_true_label)
 	 emit a jump to the false label and define the true label.  */
 
       if (bcc_gen_fctn[(int) GET_CODE (comparison)] != 0)
-	emit_jump_insn ((*bcc_gen_fctn[(int) GET_CODE (comparison)]) (if_false_label));
+	emit_jump_insn ((*bcc_gen_fctn[(int) GET_CODE (comparison)])(if_false_label));
       else
 	abort ();
 
-      /* Here we get the insn before what was just emitted.
-	 On some machines, emitting the branch can discard
-	 the previous compare insn and emit a replacement.  */
+      /* Here we get the first insn that was just emitted.  It used to be  the
+	 case that, on some machines, emitting the branch would discard
+	 the previous compare insn and emit a replacement.  This isn't
+	 done anymore, but abort if we see that PREV is deleted.  */
+
       if (prev == 0)
-	/* If there's only one preceding insn...  */
 	insn = get_insns ();
+      else if (INSN_DELETED_P (prev))
+	abort ();
       else
 	insn = NEXT_INSN (prev);
 
-      for (insn = NEXT_INSN (insn); insn; insn = NEXT_INSN (insn))
+      for (; insn; insn = NEXT_INSN (insn))
 	if (GET_CODE (insn) == JUMP_INSN)
 	  {
 	    if (branch)

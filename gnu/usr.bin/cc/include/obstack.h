@@ -119,7 +119,7 @@ Summary:
    but in traditional C it is usually long.  If we are in ANSI C and
    don't already have ptrdiff_t get it.  */
 
-#if defined (__STDC__) && ! defined (offsetof)
+#if defined (__STDC__) && __STDC__ && ! defined (offsetof)
 #if defined (__GNUC__) && defined (IN_GCC)
 /* On Next machine, the system's stddef.h screws up if included
    after we have defined just ptrdiff_t, so include all of stddef.h.
@@ -132,7 +132,7 @@ Summary:
 #include <stddef.h>
 #endif
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 #define PTR_INT_TYPE ptrdiff_t
 #else
 #define PTR_INT_TYPE long
@@ -167,7 +167,7 @@ struct obstack		/* control current object in current chunk */
 
 /* Declare the external functions we use; they are in obstack.c.  */
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 extern void _obstack_newchunk (struct obstack *, int);
 extern void _obstack_free (struct obstack *, void *);
 extern int _obstack_begin (struct obstack *, int, int,
@@ -181,7 +181,7 @@ extern int _obstack_begin ();
 extern int _obstack_begin_1 ();
 #endif
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 
 /* Do the function-declarations after the structs
    but before defining the macros.  */
@@ -492,7 +492,7 @@ __extension__								\
   (h)->object_base = (h)->next_free,					\
   __INT_TO_PTR ((h)->temp)))
 
-#ifdef __STDC__
+#if defined (__STDC__) && __STDC__
 #define obstack_free(h,obj)						\
 ( (h)->temp = (char *)(obj) - (char *) (h)->chunk,			\
   (((h)->temp > 0 && (h)->temp < (h)->chunk_limit - (char *) (h)->chunk)\

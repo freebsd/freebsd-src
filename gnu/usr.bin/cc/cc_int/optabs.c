@@ -117,6 +117,13 @@ rtx bcmp_libfunc;
 rtx memset_libfunc;
 rtx bzero_libfunc;
 
+rtx eqhf2_libfunc;
+rtx nehf2_libfunc;
+rtx gthf2_libfunc;
+rtx gehf2_libfunc;
+rtx lthf2_libfunc;
+rtx lehf2_libfunc;
+
 rtx eqsf2_libfunc;
 rtx nesf2_libfunc;
 rtx gtsf2_libfunc;
@@ -689,13 +696,6 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 	  if (carries == 0)
 	    inter = 0;
 	  else
-	    inter = expand_binop (word_mode, binoptab, outof_input,
-				  op1, outof_target, unsignedp, next_methods);
-	  
-	  if (inter != 0 && inter != outof_target)
-	    emit_move_insn (outof_target, inter);
-
-	  if (inter != 0)
 	    inter = expand_binop (word_mode, unsigned_shift, into_input,
 				  op1, 0, unsignedp, next_methods);
 
@@ -705,6 +705,13 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 
 	  if (inter != 0 && inter != into_target)
 	    emit_move_insn (into_target, inter);
+
+	  if (inter != 0)
+	    inter = expand_binop (word_mode, binoptab, outof_input,
+				  op1, outof_target, unsignedp, next_methods);
+	  
+	  if (inter != 0 && inter != outof_target)
+	    emit_move_insn (outof_target, inter);
 	}
 
       insns = get_insns ();
@@ -1260,8 +1267,10 @@ expand_binop (mode, binoptab, op0, op1, target, unsignedp, methods)
 				    NULL_RTX, unsignedp, methods);
 
 	      if (temp1 == 0 || temp2 == 0)
-		res = expand_binop (submode, add_optab, temp1, temp2,
-				    imagr, unsignedp, methods);
+		  break;
+
+	      res = expand_binop (submode, add_optab, temp1, temp2,
+				  imagr, unsignedp, methods);
 
 	      if (res == 0)
 		break;
@@ -2760,7 +2769,34 @@ emit_float_lib_cmp (x, y, comparison)
   enum machine_mode mode = GET_MODE (x);
   rtx libfunc = 0;
 
-  if (mode == SFmode)
+  if (mode == HFmode)
+    switch (comparison)
+      {
+      case EQ:
+	libfunc = eqhf2_libfunc;
+	break;
+
+      case NE:
+	libfunc = nehf2_libfunc;
+	break;
+
+      case GT:
+	libfunc = gthf2_libfunc;
+	break;
+
+      case GE:
+	libfunc = gehf2_libfunc;
+	break;
+
+      case LT:
+	libfunc = lthf2_libfunc;
+	break;
+
+      case LE:
+	libfunc = lehf2_libfunc;
+	break;
+      }
+  else if (mode == SFmode)
     switch (comparison)
       {
       case EQ:
@@ -3237,8 +3273,11 @@ expand_float (to, from, unsignedp)
 	      expand_float (target, temp, 0);
 
 	      /* Multiply by 2 to undo the shift above.  */
-	      target = expand_binop (fmode, add_optab, target, target,
+	      temp = expand_binop (fmode, add_optab, target, target,
 				     target, 0, OPTAB_LIB_WIDEN);
+	      if (temp != target)
+		emit_move_insn (target, temp);
+
 	      do_pending_stack_adjust ();
 	      emit_label (label);
 	      goto done;
@@ -3278,7 +3317,7 @@ expand_float (to, from, unsignedp)
     }
 #endif
 
-  /* No hardware instruction available; call a library rotine to convert from
+  /* No hardware instruction available; call a library routine to convert from
      SImode, DImode, or TImode into SFmode, DFmode, XFmode, or TFmode.  */
     {
       rtx libfcn;
@@ -3562,6 +3601,7 @@ expand_fix (to, from, unsignedp)
   if (libfcn)
     {
       rtx insns;
+      rtx value;
 
       to = protect_from_queue (to, 1);
       from = protect_from_queue (from, 0);
@@ -3571,12 +3611,14 @@ expand_fix (to, from, unsignedp)
 
       start_sequence ();
 
-      emit_library_call (libfcn, 1, GET_MODE (to), 1, from, GET_MODE (from));
+      value = emit_library_call_value (libfcn, NULL_RTX, 1, GET_MODE (to),
+
+				       1, from, GET_MODE (from));
       insns = get_insns ();
       end_sequence ();
 
-      emit_libcall_block (insns, target, hard_libcall_value (GET_MODE (to)),
-			  gen_rtx (unsignedp ? FIX : UNSIGNED_FIX,
+      emit_libcall_block (insns, target, value,
+			  gen_rtx (unsignedp ? UNSIGNED_FIX : FIX,
 				   GET_MODE (to), from));
     }
       
@@ -3956,6 +3998,13 @@ init_optabs ()
   bcmp_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__gcc_bcmp");
   memset_libfunc = gen_rtx (SYMBOL_REF, Pmode, "memset");
   bzero_libfunc = gen_rtx (SYMBOL_REF, Pmode, "bzero");
+
+  eqhf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__eqhf2");
+  nehf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__nehf2");
+  gthf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__gthf2");
+  gehf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__gehf2");
+  lthf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__lthf2");
+  lehf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__lehf2");
 
   eqsf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__eqsf2");
   nesf2_libfunc = gen_rtx (SYMBOL_REF, Pmode, "__nesf2");

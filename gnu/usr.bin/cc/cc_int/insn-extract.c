@@ -9,12 +9,6 @@ extern rtx recog_operand[];
 extern rtx *recog_operand_loc[];
 extern rtx *recog_dup_loc[];
 extern char recog_dup_num[];
-extern
-#ifdef __GNUC__
-__volatile__
-#endif
-void fatal_insn_not_found ();
-
 void
 insn_extract (insn)
      rtx insn;
@@ -27,7 +21,7 @@ insn_extract (insn)
     case -1:
       fatal_insn_not_found (insn);
 
-    case 308:
+    case 326:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0, 0), 0));
       ro[2] = *(ro_loc[2] = &XVECEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0, 1));
@@ -36,38 +30,38 @@ insn_extract (insn)
       recog_dup_num[0] = 1;
       break;
 
-    case 306:
-    case 303:
-    case 302:
-    case 300:
-    case 299:
+    case 324:
+    case 321:
+    case 320:
+    case 318:
+    case 317:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XEXP (pat, 1), 1), 0));
       ro[3] = *(ro_loc[3] = &XEXP (pat, 1));
       break;
 
-    case 305:
-    case 301:
-    case 298:
-    case 297:
-    case 295:
+    case 323:
+    case 319:
+    case 316:
+    case 315:
+    case 313:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (pat, 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (pat, 1), 1));
       ro[3] = *(ro_loc[3] = &XEXP (pat, 1));
       break;
 
-    case 304:
-    case 296:
-    case 294:
+    case 322:
+    case 314:
+    case 312:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (pat, 1), 1));
       ro[3] = *(ro_loc[3] = &XEXP (pat, 1));
       break;
 
-    case 289:
+    case 307:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
@@ -80,7 +74,7 @@ insn_extract (insn)
       recog_dup_num[2] = 0;
       break;
 
-    case 288:
+    case 306:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1), 0));
@@ -94,7 +88,7 @@ insn_extract (insn)
       recog_dup_num[2] = 1;
       break;
 
-    case 286:
+    case 304:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
@@ -106,33 +100,18 @@ insn_extract (insn)
       recog_dup_num[1] = 0;
       break;
 
-    case 284:
-    case 283:
+    case 302:
+    case 301:
+    case 300:
       break;
 
-    case 282:
-      ro[0] = *(ro_loc[0] = &XVECEXP (pat, 0, 0));
-      break;
-
-    case 280:
-      ro[0] = *(ro_loc[0] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 0), 0));
-      ro[1] = *(ro_loc[1] = &XVECEXP (pat, 0, 1));
-      ro[2] = *(ro_loc[2] = &XVECEXP (pat, 0, 2));
-      break;
-
-    case 279:
-      ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
-      ro[1] = *(ro_loc[1] = &XVECEXP (pat, 0, 1));
-      ro[2] = *(ro_loc[2] = &XVECEXP (pat, 0, 2));
-      break;
-
-    case 277:
+    case 298:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (pat, 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (pat, 1), 1));
       break;
 
-    case 274:
+    case 295:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1));
@@ -141,7 +120,7 @@ insn_extract (insn)
       ro[4] = *(ro_loc[4] = &XEXP (XEXP (XVECEXP (pat, 0, 1), 1), 1));
       break;
 
-    case 273:
+    case 294:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1));
@@ -150,7 +129,7 @@ insn_extract (insn)
       ro[4] = *(ro_loc[4] = &XEXP (XEXP (XVECEXP (pat, 0, 1), 1), 1));
       break;
 
-    case 268:
+    case 289:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (pat, 0, 0), 1));
       ro[2] = const0_rtx;
@@ -158,7 +137,7 @@ insn_extract (insn)
       ro[3] = *(ro_loc[3] = &XEXP (XEXP (XVECEXP (pat, 0, 1), 1), 1));
       break;
 
-    case 267:
+    case 288:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (pat, 0, 0), 1));
       ro[2] = const0_rtx;
@@ -166,85 +145,85 @@ insn_extract (insn)
       ro[3] = *(ro_loc[3] = &XEXP (XEXP (XVECEXP (pat, 0, 1), 1), 1));
       break;
 
-    case 265:
+    case 286:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 1));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 1), 0), 0));
       break;
 
-    case 264:
+    case 285:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1), 0), 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1), 0), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
       break;
 
-    case 261:
+    case 282:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (pat, 1), 0));
       break;
 
-    case 260:
-    case 259:
-    case 258:
-    case 257:
-    case 256:
-    case 255:
-    case 254:
-    case 253:
-    case 252:
-    case 251:
+    case 281:
+    case 280:
+    case 279:
+    case 278:
+    case 277:
+    case 276:
+    case 275:
+    case 274:
+    case 273:
+    case 272:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (XEXP (pat, 1), 2), 0));
       break;
 
-    case 250:
-    case 248:
-    case 246:
-    case 244:
-    case 242:
-    case 240:
-    case 238:
-    case 236:
-    case 234:
-    case 232:
+    case 271:
+    case 269:
+    case 267:
+    case 265:
+    case 263:
+    case 261:
+    case 259:
+    case 257:
+    case 255:
+    case 253:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (XEXP (pat, 1), 1), 0));
       break;
 
-    case 230:
-    case 228:
-    case 226:
-    case 224:
-    case 222:
-    case 220:
-    case 218:
-    case 216:
-    case 214:
-    case 212:
+    case 251:
+    case 249:
+    case 247:
+    case 245:
+    case 243:
+    case 241:
+    case 239:
+    case 237:
+    case 235:
+    case 233:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       break;
 
-    case 210:
-    case 209:
+    case 231:
+    case 230:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (pat, 1), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 1));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (pat, 1), 2));
       break;
 
-    case 208:
+    case 229:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (pat, 1), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 2));
       break;
 
-    case 207:
+    case 228:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XEXP (pat, 1), 1), 1));
       break;
 
-    case 206:
+    case 227:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (pat, 1), 0), 1));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (pat, 1), 1));
       break;
 
-    case 205:
+    case 226:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (pat, 0), 0));
       ro[1] = const0_rtx;
       ro_loc[1] = &junk;
@@ -252,9 +231,9 @@ insn_extract (insn)
       ro[3] = *(ro_loc[3] = &XEXP (pat, 1));
       break;
 
-    case 195:
-    case 189:
-    case 183:
+    case 216:
+    case 210:
+    case 204:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1));
@@ -262,37 +241,37 @@ insn_extract (insn)
       recog_dup_num[0] = 2;
       break;
 
-    case 177:
-    case 174:
+    case 198:
+    case 195:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (XEXP (pat, 1), 0, 0), 0));
       break;
 
-    case 176:
-    case 175:
-    case 173:
-    case 172:
+    case 197:
+    case 196:
+    case 194:
+    case 193:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XVECEXP (XEXP (pat, 1), 0, 0));
       break;
 
-    case 293:
-    case 291:
-    case 171:
-    case 170:
-    case 168:
-    case 165:
-    case 163:
-    case 160:
-    case 158:
+    case 311:
+    case 309:
+    case 192:
+    case 191:
+    case 189:
+    case 186:
+    case 184:
+    case 181:
+    case 179:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (pat, 1), 0), 0));
       break;
 
-    case 142:
-    case 141:
-    case 140:
-    case 139:
+    case 163:
+    case 162:
+    case 161:
+    case 160:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1));
@@ -303,65 +282,79 @@ insn_extract (insn)
       recog_dup_num[1] = 2;
       break;
 
-    case 130:
-    case 129:
-    case 128:
-    case 127:
+    case 151:
+    case 150:
+      ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
+      ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0), 0), 0));
+      ro[2] = *(ro_loc[2] = &XEXP (XEXP (XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0), 1), 0));
+      ro[3] = *(ro_loc[3] = &XEXP (XVECEXP (pat, 0, 1), 0));
+      break;
+
+    case 149:
+    case 148:
+    case 147:
+    case 146:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (pat, 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (XEXP (pat, 1), 1), 0));
       break;
 
-    case 276:
-    case 204:
+    case 297:
+    case 225:
+    case 224:
+    case 223:
+    case 222:
+    case 221:
+    case 220:
+    case 219:
+    case 218:
+    case 217:
+    case 215:
+    case 213:
+    case 212:
+    case 211:
+    case 209:
+    case 207:
+    case 206:
+    case 205:
     case 203:
-    case 202:
-    case 201:
-    case 200:
-    case 199:
-    case 198:
-    case 197:
-    case 196:
-    case 194:
-    case 192:
-    case 191:
-    case 190:
-    case 188:
-    case 186:
-    case 185:
-    case 184:
-    case 182:
-    case 151:
-    case 150:
-    case 149:
-    case 148:
-    case 147:
-    case 146:
+    case 172:
+    case 171:
+    case 170:
+    case 169:
+    case 168:
+    case 167:
+    case 166:
+    case 165:
+    case 164:
+    case 156:
+    case 155:
     case 145:
     case 144:
     case 143:
-    case 135:
-    case 134:
-    case 126:
-    case 125:
-    case 124:
-    case 123:
-    case 119:
-    case 118:
-    case 117:
-    case 116:
-    case 111:
-    case 110:
-    case 109:
-    case 108:
+    case 142:
+    case 138:
+    case 137:
+    case 136:
+    case 130:
+    case 129:
+    case 128:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XEXP (pat, 1), 1));
       break;
 
-    case 95:
-    case 94:
-    case 93:
+    case 135:
+    case 127:
+      ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
+      ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0));
+      ro[2] = *(ro_loc[2] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 1));
+      ro[3] = *(ro_loc[3] = &XEXP (XVECEXP (pat, 0, 1), 0));
+      break;
+
+    case 114:
+    case 113:
+    case 112:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
@@ -369,9 +362,9 @@ insn_extract (insn)
       ro[4] = *(ro_loc[4] = &XEXP (XVECEXP (pat, 0, 3), 0));
       break;
 
-    case 89:
-    case 88:
-    case 87:
+    case 108:
+    case 107:
+    case 106:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 2), 0));
@@ -381,53 +374,66 @@ insn_extract (insn)
       recog_dup_num[0] = 1;
       break;
 
-    case 78:
+    case 97:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (XVECEXP (pat, 0, 0), 1), 0));
       ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
       break;
 
+    case 201:
+    case 200:
+    case 199:
+    case 190:
+    case 188:
+    case 187:
+    case 185:
+    case 183:
+    case 182:
     case 180:
-    case 179:
     case 178:
-    case 169:
-    case 167:
-    case 166:
-    case 164:
-    case 162:
-    case 161:
-    case 159:
-    case 157:
-    case 156:
-    case 155:
-    case 154:
-    case 153:
-    case 152:
-    case 107:
-    case 106:
-    case 105:
-    case 104:
-    case 103:
-    case 102:
-    case 80:
-    case 79:
-    case 76:
-    case 75:
-    case 74:
-    case 73:
-    case 72:
-    case 71:
-    case 70:
-    case 69:
-    case 68:
-    case 67:
-    case 66:
+    case 177:
+    case 176:
+    case 175:
+    case 174:
+    case 173:
+    case 126:
+    case 125:
+    case 124:
+    case 123:
+    case 122:
+    case 121:
+    case 99:
+    case 98:
+    case 95:
+    case 94:
+    case 93:
+    case 92:
+    case 91:
+    case 90:
+    case 89:
+    case 88:
+    case 87:
+    case 86:
+    case 85:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
       ro[1] = *(ro_loc[1] = &XEXP (XEXP (pat, 1), 0));
       break;
 
-    case 62:
-    case 59:
+    case 84:
+    case 83:
+    case 80:
+    case 79:
+    case 74:
+    case 73:
+      ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
+      ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (pat, 0, 0), 1));
+      ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
+      ro[3] = *(ro_loc[3] = &XEXP (XVECEXP (pat, 0, 2), 0));
+      break;
+
+    case 82:
+    case 76:
+    case 70:
       ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (pat, 0, 0), 1));
       recog_dup_loc[0] = &XEXP (XVECEXP (pat, 0, 1), 0);
@@ -436,28 +442,38 @@ insn_extract (insn)
       recog_dup_num[1] = 0;
       break;
 
-    case 271:
-    case 55:
-    case 52:
+    case 68:
+    case 67:
+      ro[0] = *(ro_loc[0] = &XEXP (XVECEXP (pat, 0, 0), 0));
+      ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (pat, 0, 0), 1));
+      ro[2] = *(ro_loc[2] = &XEXP (XVECEXP (pat, 0, 1), 0));
+      break;
+
+    case 292:
+    case 64:
+    case 57:
       ro[0] = *(ro_loc[0] = &XEXP (XEXP (pat, 0), 0));
       ro[1] = *(ro_loc[1] = &XEXP (pat, 1));
       break;
 
-    case 270:
-    case 112:
-    case 65:
-    case 64:
-    case 63:
-    case 61:
+    case 291:
+    case 131:
+    case 81:
+    case 78:
+    case 75:
+    case 72:
+    case 69:
+    case 66:
+    case 62:
     case 60:
+    case 59:
     case 58:
-    case 57:
-    case 56:
-    case 54:
+    case 55:
     case 53:
+    case 52:
     case 51:
     case 50:
-    case 49:
+    case 48:
     case 47:
     case 46:
       ro[0] = *(ro_loc[0] = &XEXP (pat, 0));
@@ -520,7 +536,7 @@ insn_extract (insn)
       ro[1] = *(ro_loc[1] = &XEXP (XVECEXP (pat, 0, 1), 0));
       break;
 
-    case 262:
+    case 283:
     case 4:
     case 2:
     case 0:

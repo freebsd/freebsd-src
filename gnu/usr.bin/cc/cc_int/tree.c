@@ -319,8 +319,9 @@ gcc_obstack_init (obstack)
    This is used before starting a nested function.  */
 
 void
-save_tree_status (p)
+save_tree_status (p, toplevel)
      struct function *p;
+     int toplevel;
 {
   p->all_types_permanent = all_types_permanent;
   p->momentary_stack = momentary_stack;
@@ -334,10 +335,15 @@ save_tree_status (p)
   p->saveable_obstack = saveable_obstack;
   p->rtl_obstack = rtl_obstack;
 
-  /* Objects that need to be saved in this function can be in the nonsaved
-     obstack of the enclosing function since they can't possibly be needed
-     once it has returned.  */
-  function_maybepermanent_obstack = function_obstack;
+  if (! toplevel)
+    {
+      /* Objects that need to be saved in this function can be in the nonsaved
+	 obstack of the enclosing function since they can't possibly be needed
+	 once it has returned.  */
+      function_maybepermanent_obstack = function_obstack;
+      maybepermanent_firstobj
+	= (char *) obstack_finish (function_maybepermanent_obstack);
+    }
 
   function_obstack = (struct obstack *) xmalloc (sizeof (struct obstack));
   gcc_obstack_init (function_obstack);
@@ -348,30 +354,32 @@ save_tree_status (p)
 
   momentary_firstobj = (char *) obstack_finish (&momentary_obstack);
   momentary_function_firstobj = momentary_firstobj;
-  maybepermanent_firstobj
-    = (char *) obstack_finish (function_maybepermanent_obstack);
 }
 
 /* Restore all variables describing the current status from the structure *P.
    This is used after a nested function.  */
 
 void
-restore_tree_status (p)
+restore_tree_status (p, toplevel)
      struct function *p;
+     int toplevel;
 {
   all_types_permanent = p->all_types_permanent;
   momentary_stack = p->momentary_stack;
 
   obstack_free (&momentary_obstack, momentary_function_firstobj);
 
-  /* Free saveable storage used by the function just compiled and not
-     saved.
+  if (! toplevel)
+    {
+      /* Free saveable storage used by the function just compiled and not
+	 saved.
 
-     CAUTION: This is in function_obstack of the containing function.  So
-     we must be sure that we never allocate from that obstack during
-     the compilation of a nested function if we expect it to survive past the
-     nested function's end.  */
-  obstack_free (function_maybepermanent_obstack, maybepermanent_firstobj);
+	 CAUTION: This is in function_obstack of the containing function.
+	 So we must be sure that we never allocate from that obstack during
+	 the compilation of a nested function if we expect it to survive
+	 past the nested function's end.  */
+      obstack_free (function_maybepermanent_obstack, maybepermanent_firstobj);
+    }
 
   obstack_free (function_obstack, 0);
   free (function_obstack);
@@ -519,7 +527,10 @@ permanent_allocation (function_end)
   /* Free up previous temporary obstack data */
   obstack_free (&temporary_obstack, temporary_firstobj);
   if (function_end)
-    obstack_free (&momentary_obstack, momentary_function_firstobj);
+    {
+      obstack_free (&momentary_obstack, momentary_function_firstobj);
+      momentary_firstobj = momentary_function_firstobj;
+    }
   else
     obstack_free (&momentary_obstack, momentary_firstobj);
   obstack_free (&maybepermanent_obstack, maybepermanent_firstobj);
@@ -2353,6 +2364,13 @@ stabilize_reference (ref)
 			 stabilize_reference_1 (TREE_OPERAND (ref, 1)));
       break;
 
+    case COMPOUND_EXPR:
+      result = build_nt (COMPOUND_EXPR,
+			 stabilize_reference_1 (TREE_OPERAND (ref, 0)),
+			 stabilize_reference (TREE_OPERAND (ref, 1)));
+      break;
+
+
       /* If arg isn't a kind of lvalue we recognize, make no change.
 	 Caller should recognize the error for an invalid lvalue.  */
     default:
@@ -2792,19 +2810,14 @@ build_type_variant (type, constp, volatilep)
   constp = !!constp;
   volatilep = !!volatilep;
 
-  /* If not generating auxiliary info, search the chain of variants to see
-     if there is already one there just like the one we need to have.  If so,
-     use that existing one.
+  /* Search the chain of variants to see if there is already one there just
+     like the one we need to have.  If so, use that existing one.  We must
+     preserve the TYPE_NAME, since there is code that depends on this.  */
 
-     We don't do this in the case where we are generating aux info because
-     in that case we want each typedef names to get it's own distinct type
-     node, even if the type of this new typedef is the same as some other
-     (existing) type.  */
-
-  if (!flag_gen_aux_info)
-    for (t = TYPE_MAIN_VARIANT(type); t; t = TYPE_NEXT_VARIANT (t))
-      if (constp == TYPE_READONLY (t) && volatilep == TYPE_VOLATILE (t))
-        return t;
+  for (t = TYPE_MAIN_VARIANT(type); t; t = TYPE_NEXT_VARIANT (t))
+    if (constp == TYPE_READONLY (t) && volatilep == TYPE_VOLATILE (t)
+	&& TYPE_NAME (t) == TYPE_NAME (type))
+      return t;
 
   /* We need a new one.  */
 
@@ -2819,7 +2832,7 @@ build_type_variant (type, constp, volatilep)
    This is the right thing to do only when something else
    about TYPE is modified in place.  */
 
-tree
+void
 change_main_variant (type, new_main)
      tree type, new_main;
 {
@@ -3054,7 +3067,9 @@ type_list_equal (l1, l2)
 	  int cmp = simple_cst_equal (TREE_PURPOSE (t1), TREE_PURPOSE (t2));
 	  if (cmp < 0)
 	    abort ();
-	  if (cmp == 0)
+	  if (cmp == 0
+	      || TREE_TYPE (TREE_PURPOSE (t1))
+	         != TREE_TYPE (TREE_PURPOSE (t2)))
 	    return 0;
 	}
     }
@@ -3843,7 +3858,7 @@ decl_function_context (decl)
     {
       if (TREE_CODE (context) == RECORD_TYPE
 	  || TREE_CODE (context) == UNION_TYPE)
-	context = TYPE_CONTEXT (context);
+	context = NULL_TREE;
       else if (TREE_CODE (context) == TYPE_DECL)
 	context = DECL_CONTEXT (context);
       else if (TREE_CODE (context) == BLOCK)
@@ -3993,4 +4008,103 @@ get_file_function_name (kind)
   buf[FILE_FUNCTION_PREFIX_LEN] = kind;
 
   return get_identifier (buf);
+}
+
+/* Expand (the constant part of) a SET_TYPE CONTRUCTOR node.
+   The result is placed in BUFFER (which has length BIT_SIZE),
+   with one bit in each char ('\000' or '\001').
+
+   If the constructor is constant, NULL_TREE is returned.
+   Otherwise, a TREE_LIST of the non-constant elements is emitted. */
+
+tree
+get_set_constructor_bits (init, buffer, bit_size)
+     tree init;
+     char *buffer;
+     int bit_size;
+{
+  int i;
+  tree vals;
+  HOST_WIDE_INT domain_min
+    = TREE_INT_CST_LOW (TYPE_MIN_VALUE (TYPE_DOMAIN (TREE_TYPE (init))));
+  tree non_const_bits = NULL_TREE;
+  for (i = 0; i < bit_size; i++)
+    buffer[i] = 0;
+
+  for (vals = TREE_OPERAND (init, 1); 
+       vals != NULL_TREE; vals = TREE_CHAIN (vals))
+    {
+      if (TREE_CODE (TREE_VALUE (vals)) != INTEGER_CST
+	  || (TREE_PURPOSE (vals) != NULL_TREE
+	      && TREE_CODE (TREE_PURPOSE (vals)) != INTEGER_CST))
+	non_const_bits =
+	  tree_cons (TREE_PURPOSE (vals), TREE_VALUE (vals), non_const_bits);
+      else if (TREE_PURPOSE (vals) != NULL_TREE)
+	{
+	  /* Set a range of bits to ones. */
+	  HOST_WIDE_INT lo_index
+	    = TREE_INT_CST_LOW (TREE_PURPOSE (vals)) - domain_min;
+	  HOST_WIDE_INT hi_index
+	    = TREE_INT_CST_LOW (TREE_VALUE (vals)) - domain_min;
+	  if (lo_index < 0 || lo_index >= bit_size
+	    || hi_index < 0 || hi_index >= bit_size)
+	    abort ();
+	  for ( ; lo_index <= hi_index; lo_index++)
+	    buffer[lo_index] = 1;
+	}
+      else
+	{
+	  /* Set a single bit to one. */
+	  HOST_WIDE_INT index
+	    = TREE_INT_CST_LOW (TREE_VALUE (vals)) - domain_min;
+	  if (index < 0 || index >= bit_size)
+	    {
+	      error ("invalid initializer for bit string");
+	      return NULL_TREE;
+	    }
+	  buffer[index] = 1;
+	}
+    }
+  return non_const_bits;
+}
+
+/* Expand (the constant part of) a SET_TYPE CONTRUCTOR node.
+   The result is placed in BUFFER (which is an array of WD_SIZE
+   words).  TYPE_ALIGN bits are stored in each element of BUFFER.
+   If the constructor is constant, NULL_TREE is returned.
+   Otherwise, a TREE_LIST of the non-constant elements is emitted. */
+
+tree
+get_set_constructor_words (init, buffer, wd_size)
+     tree init;
+     HOST_WIDE_INT *buffer;
+     int wd_size;
+{
+  int i;
+  tree vals = TREE_OPERAND (init, 1);
+  int set_word_size = TYPE_ALIGN (TREE_TYPE (init));
+  int bit_size = wd_size * set_word_size;
+  int bit_pos = 0;
+  HOST_WIDE_INT *wordp = buffer;
+  char *bit_buffer = (char*)alloca(bit_size);
+  tree non_const_bits = get_set_constructor_bits (init, bit_buffer, bit_size);
+
+  for (i = 0; i < wd_size; i++)
+    buffer[i] = 0;
+
+  for (i = 0; i < bit_size; i++)
+    {
+      if (bit_buffer[i])
+	{
+#if BITS_BIG_ENDIAN
+	  *wordp |= (1 << (set_word_size - 1 - bit_pos));
+#else
+	  *wordp |= 1 << bit_pos;
+#endif
+	}
+      bit_pos++;
+      if (bit_pos >= set_word_size)
+	bit_pos = 0, wordp++;
+    }
+  return non_const_bits;
 }

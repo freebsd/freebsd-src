@@ -36,6 +36,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #include <ctype.h>
 #include <sys/stat.h>
 
+#ifndef WINNT
 #ifdef USG
 #undef FLOAT
 #include <sys/param.h>
@@ -48,6 +49,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #ifndef VMS
 #include <sys/time.h>
 #include <sys/resource.h>
+#endif
 #endif
 #endif
 
@@ -430,11 +432,7 @@ int flag_inline_functions;
 
 int flag_keep_inline_functions;
 
-/* Nonzero means that functions declared `inline' will be treated
-   as `static'.  Prevents generation of zillions of copies of unused
-   static inline functions; instead, `inlines' are written out
-   only when actually used.  Used in conjunction with -g.  Also
-   does the right thing with #pragma interface.  */
+/* Nonzero means that functions will not be inlined.  */
 
 int flag_no_inline;
 
@@ -640,6 +638,8 @@ char *lang_options[] =
   "-+e0",			/* gcc.c tacks the `-' on the front.  */
   "-+e1",
   "-+e2",
+  "-faccess-control",
+  "-fno-access-control",
   "-fall-virtual",
   "-fno-all-virtual",
   "-falt-external-templates",
@@ -707,6 +707,10 @@ char *lang_options[] =
   "-Wno-non-virtual-dtor",
   "-Wextern-inline",
   "-Wno-extern-inline",
+  "-Wreorder",
+  "-Wno-reorder",
+  "-Wsynth",
+  "-Wno-synth",
 
   /* these are for obj c */
   "-lang-objc",
@@ -849,6 +853,9 @@ int dump_time;
 int
 get_run_time ()
 {
+#ifdef WINNT
+  return 0;
+#else
 #ifdef USG
   struct tms tms;
 #else
@@ -879,6 +886,7 @@ get_run_time ()
 #else /* VMS */
   times (&vms_times);
   return (vms_times.proc_user_time + vms_times.proc_system_time) * 10000;
+#endif
 #endif
 #endif
 }
@@ -942,20 +950,17 @@ fatal_io_error (name)
   exit (35);
 }
 
-/* Called to give a better error message when we don't have an insn to match
-   what we are looking for or if the insn's constraints aren't satisfied,
-   rather than just calling abort().  */
+/* Called to give a better error message for a bad insn rather than
+   just calling abort().  */
 
 void
-fatal_insn_not_found (insn)
+fatal_insn (message, insn)
+     char *message;
      rtx insn;
 {
   if (!output_bytecode)
     {
-      if (INSN_CODE (insn) < 0)
-	error ("internal error--unrecognizable insn:");
-      else
-	error ("internal error--insn does not satisfy its constraints:");
+      error (message);
       debug_rtx (insn);
     }
   if (asm_out_file)
@@ -991,6 +996,20 @@ fatal_insn_not_found (insn)
   if (stack_reg_dump_file)
     fflush (stack_reg_dump_file);
   abort ();
+}
+
+/* Called to give a better error message when we don't have an insn to match
+   what we are looking for or if the insn's constraints aren't satisfied,
+   rather than just calling abort().  */
+
+void
+fatal_insn_not_found (insn)
+     rtx insn;
+{
+  if (INSN_CODE (insn) < 0)
+    fatal_insn ("internal error--unrecognizable insn:", insn);
+  else
+    fatal_insn ("internal error--insn does not satisfy its constraints:", insn);
 }
 
 /* This is the default decl_printable_name function.  */
@@ -2719,6 +2738,7 @@ rest_of_compilation (decl)
 		       if (warn_inline && specd)
 			 warning_with_decl (decl, lose);
 		       DECL_INLINE (decl) = 0;
+		       DECL_ABSTRACT_ORIGIN (decl) = 0;
 		       /* Don't really compile an extern inline function.
 			  If we can't make it inline, pretend
 			  it was only declared.  */
@@ -3927,8 +3947,7 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
 
   compile_file (filename);
 
-#ifndef OS2
-#ifndef VMS
+#if !defined(OS2) && !defined(VMS) && !defined(WINNT)
   if (flag_print_mem)
     {
 #ifdef __alpha
@@ -3946,8 +3965,7 @@ You Lose!  You must define PREFERRED_DEBUGGING_TYPE!
       system ("ps v");
 #endif /* not USG */
     }
-#endif /* not VMS */
-#endif /* not OS2 */
+#endif /* not OS2 and not VMS and not WINNT */
 
   if (errorcount)
     exit (FATAL_EXIT_CODE);

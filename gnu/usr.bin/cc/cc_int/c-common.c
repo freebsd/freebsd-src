@@ -253,6 +253,19 @@ decl_attributes (decl, attributes)
 	else
 	  warning_with_decl (decl, "`const' attribute ignored");
       }
+    else if (TREE_VALUE (a) == get_identifier ("transparent_union"))
+      {
+	if (TREE_CODE (decl) == PARM_DECL
+	    && TREE_CODE (type) == UNION_TYPE
+	    && TYPE_MODE (type) == DECL_MODE (TYPE_FIELDS (type)))
+	  DECL_TRANSPARENT_UNION (decl) = 1;
+	else if (TREE_CODE (decl) == TYPE_DECL
+		 && TREE_CODE (type) == UNION_TYPE
+		 && TYPE_MODE (type) == DECL_MODE (TYPE_FIELDS (type)))
+	  TYPE_TRANSPARENT_UNION (type) = 1;
+	else
+	  warning_with_decl (decl, "`transparent_union' attribute ignored");
+      }
     else if (TREE_CODE (name) != TREE_LIST)
      {
 #ifdef VALID_MACHINE_ATTRIBUTE
@@ -518,7 +531,7 @@ static format_char_info print_char_table[] = {
   { "s",	1,	T_C,	NULL,	T_W,	NULL,	NULL,	"-wp"		},
   { "S",	1,	T_W,	NULL,	NULL,	NULL,	NULL,	"-wp"		},
   { "p",	1,	T_V,	NULL,	NULL,	NULL,	NULL,	"-w"		},
-  { "n",	1,	T_I,	T_S,	T_L,	NULL,	NULL,	""		},
+  { "n",	1,	T_I,	T_S,	T_L,	T_LL,	NULL,	""		},
   { NULL }
 };
 
@@ -531,7 +544,7 @@ static format_char_info scan_char_table[] = {
   { "C",	1,	T_W,	NULL,	NULL,	NULL,	NULL,	"*"	},
   { "S",	1,	T_W,	NULL,	NULL,	NULL,	NULL,	"*"	},
   { "p",	2,	T_V,	NULL,	NULL,	NULL,	NULL,	"*"	},
-  { "n",	1,	T_I,	T_S,	T_L,	NULL,	NULL,	""	},
+  { "n",	1,	T_I,	T_S,	T_L,	T_LL,	NULL,	""	},
   { NULL }
 };
 
@@ -1340,6 +1353,37 @@ type_for_mode (mode, unsignedp)
   return 0;
 }
 
+/* Return the minimum number of bits needed to represent VALUE in a
+   signed or unsigned type, UNSIGNEDP says which.  */
+
+int
+min_precision (value, unsignedp)
+     tree value;
+     int unsignedp;
+{
+  int log;
+
+  /* If the value is negative, compute its negative minus 1.  The latter
+     adjustment is because the absolute value of the largest negative value
+     is one larger than the largest positive value.  This is equivalent to
+     a bit-wise negation, so use that operation instead.  */
+
+  if (tree_int_cst_sgn (value) < 0)
+    value = fold (build1 (BIT_NOT_EXPR, TREE_TYPE (value), value));
+
+  /* Return the number of bits needed, taking into account the fact
+     that we need one more bit for a signed than unsigned type.  */
+
+  if (integer_zerop (value))
+    log = 0;
+  else if (TREE_INT_CST_HIGH (value) != 0)
+    log = HOST_BITS_PER_WIDE_INT + floor_log2 (TREE_INT_CST_HIGH (value));
+  else
+    log = floor_log2 (TREE_INT_CST_LOW (value));
+
+  return log + 1 + ! unsignedp;
+}
+
 /* Print an error message for invalid operands to arith operation CODE.
    NOP_EXPR is used as a special case (see truthvalue_conversion).  */
 
@@ -1451,9 +1495,11 @@ shorten_compare (op0_ptr, op1_ptr, restype_ptr, rescode_ptr)
   real2 = TREE_CODE (TREE_TYPE (primop1)) == REAL_TYPE;
 
   /* If first arg is constant, swap the args (changing operation
-     so value is preserved), for canonicalization.  */
+     so value is preserved), for canonicalization.  Don't do this if
+     the second arg is 0.  */
 
-  if (TREE_CONSTANT (primop0))
+  if (TREE_CONSTANT (primop0)
+      && ! integer_zerop (primop1) && ! real_zerop (primop1))
     {
       register tree tem = primop0;
       register int temi = unsignedp0;
@@ -1692,13 +1738,23 @@ shorten_compare (op0_ptr, op1_ptr, restype_ptr, rescode_ptr)
 	  switch (code)
 	    {
 	    case GE_EXPR:
-	      if (extra_warnings)
+	      /* All unsigned values are >= 0, so we warn if extra warnings
+		 are requested.  However, if OP0 is a constant that is
+		 >= 0, the signedness of the comparison isn't an issue,
+		 so suppress the warning.  */
+	      if (extra_warnings
+		  && ! (TREE_CODE (primop0) == INTEGER_CST
+			&& ! TREE_OVERFLOW (convert (signed_type (type),
+						     primop0))))
 		warning ("unsigned value >= 0 is always 1");
 	      value = integer_one_node;
 	      break;
 
 	    case LT_EXPR:
-	      if (extra_warnings)
+	      if (extra_warnings
+		  && ! (TREE_CODE (primop0) == INTEGER_CST
+			&& ! TREE_OVERFLOW (convert (signed_type (type),
+						     primop0))))
 		warning ("unsigned value < 0 is always 0");
 	      value = integer_zero_node;
 	    }

@@ -655,7 +655,8 @@ type_lists_compatible_p (args1, args2)
 	  /* Allow  wait (union {union wait *u; int *i} *)
 	     and  wait (union wait *)  to be compatible.  */
 	  if (TREE_CODE (TREE_VALUE (args1)) == UNION_TYPE
-	      && TYPE_NAME (TREE_VALUE (args1)) == 0
+	      && (TYPE_NAME (TREE_VALUE (args1)) == 0
+		  || TYPE_TRANSPARENT_UNION (TREE_VALUE (args1)))
 	      && TREE_CODE (TYPE_SIZE (TREE_VALUE (args1))) == INTEGER_CST
 	      && tree_int_cst_equal (TYPE_SIZE (TREE_VALUE (args1)),
 				     TYPE_SIZE (TREE_VALUE (args2))))
@@ -669,7 +670,8 @@ type_lists_compatible_p (args1, args2)
 		return 0;
 	    }
 	  else if (TREE_CODE (TREE_VALUE (args2)) == UNION_TYPE
-		   && TYPE_NAME (TREE_VALUE (args2)) == 0
+		   && (TYPE_NAME (TREE_VALUE (args2)) == 0
+		       || TYPE_TRANSPARENT_UNION (TREE_VALUE (args2)))
 		   && TREE_CODE (TYPE_SIZE (TREE_VALUE (args2))) == INTEGER_CST
 		   && tree_int_cst_equal (TYPE_SIZE (TREE_VALUE (args2)),
 					  TYPE_SIZE (TREE_VALUE (args1))))
@@ -990,8 +992,11 @@ default_conversion (exp)
   /* Constants can be used directly unless they're not loadable.  */
   if (TREE_CODE (exp) == CONST_DECL)
     exp = DECL_INITIAL (exp);
-  /* Replace a nonvolatile const static variable with its value.  */
-  else if (optimize && TREE_CODE (exp) == VAR_DECL)
+
+  /* Replace a nonvolatile const static variable with its value unless
+     it is an array, in which case we must be sure that taking the
+     address of the array produces consistent results.  */
+  else if (optimize && TREE_CODE (exp) == VAR_DECL && code != ARRAY_TYPE)
     {
       exp = decl_constant_value (exp);
       type = TREE_TYPE (exp);
@@ -1630,36 +1635,27 @@ convert_arguments (typelist, values, name, fundecl)
 	    }
 	  else
 	    {
-#if 0 /* This turns out not to win--there's no way to write a prototype
-	 for a function whose arg type is a union with no tag.  */
-	      /* Nameless union automatically casts the types it contains.  */
-	      if (TREE_CODE (type) == UNION_TYPE && TYPE_NAME (type) == 0)
-		{
-		  tree field;
-
-		  for (field = TYPE_FIELDS (type); field;
-		       field = TREE_CHAIN (field))
-		    if (comptypes (TYPE_MAIN_VARIANT (TREE_TYPE (field)),
-				   TYPE_MAIN_VARIANT (TREE_TYPE (val))))
-		      break;
-
-		  if (field)
-		    val = build1 (CONVERT_EXPR, type, val);
-		}
-#endif
-
 	      /* Optionally warn about conversions that
 		 differ from the default conversions.  */
 	      if (warn_conversion)
 		{
 		  int formal_prec = TYPE_PRECISION (type);
 
-		  if (TREE_CODE (type) != REAL_TYPE
+		  if (INTEGRAL_TYPE_P (type)
 		      && TREE_CODE (TREE_TYPE (val)) == REAL_TYPE)
 		    warn_for_assignment ("%s as integer rather than floating due to prototype", (char *) 0, name, parmnum + 1);
+		  else if (TREE_CODE (type) == COMPLEX_TYPE
+			   && TREE_CODE (TREE_TYPE (val)) == REAL_TYPE)
+		    warn_for_assignment ("%s as complex rather than floating due to prototype", (char *) 0, name, parmnum + 1);
 		  else if (TREE_CODE (type) == REAL_TYPE
-		      && TREE_CODE (TREE_TYPE (val)) != REAL_TYPE)
+			   && INTEGRAL_TYPE_P (TREE_TYPE (val)))
 		    warn_for_assignment ("%s as floating rather than integer due to prototype", (char *) 0, name, parmnum + 1);
+		  else if (TREE_CODE (type) == REAL_TYPE
+			   && TREE_CODE (TREE_TYPE (val)) == COMPLEX_TYPE)
+		    warn_for_assignment ("%s as floating rather than complex due to prototype", (char *) 0, name, parmnum + 1);
+		  /* ??? At some point, messages should be written about
+		     conversions between complex types, but that's too messy
+		     to do now.  */
 		  else if (TREE_CODE (type) == REAL_TYPE
 			   && TREE_CODE (TREE_TYPE (val)) == REAL_TYPE)
 		    {
@@ -1669,10 +1665,8 @@ convert_arguments (typelist, values, name, fundecl)
 			warn_for_assignment ("%s as `float' rather than `double' due to prototype", (char *) 0, name, parmnum + 1);
 		    }
 		  /* Detect integer changing in width or signedness.  */
-		  else if ((TREE_CODE (type) == INTEGER_TYPE
-			    || TREE_CODE (type) == ENUMERAL_TYPE)
-			   && (TREE_CODE (TREE_TYPE (val)) == INTEGER_TYPE
-			       || TREE_CODE (TREE_TYPE (val)) == ENUMERAL_TYPE))
+		  else if (INTEGRAL_TYPE_P (type)
+			   && INTEGRAL_TYPE_P (TREE_TYPE (val)))
 		    {
 		      tree would_have_been = default_conversion (val);
 		      tree type1 = TREE_TYPE (would_have_been);
@@ -2798,7 +2792,7 @@ build_unary_op (code, xarg, noconvert)
 		       ((code == PREINCREMENT_EXPR
 			 || code == POSTINCREMENT_EXPR)
 			? "increment" : "decrement"));
-	    inc = c_sizeof_nowarn (TREE_TYPE (result_type));
+	    inc = c_size_in_bytes (TREE_TYPE (result_type));
 	  }
 	else
 	  inc = integer_one_node;
@@ -3211,6 +3205,18 @@ mark_addressable (exp)
 		       IDENTIFIER_POINTER (DECL_NAME (x)));
 		return 0;
 	      }
+
+	    /* If we are making this addressable due to its having
+	       volatile components, give a different error message.  Also
+	       handle the case of an unnamed parameter by not trying
+	       to give the name.  */
+
+	    else if (C_TYPE_FIELDS_VOLATILE (TREE_TYPE (x)))
+	      {
+		error ("cannot put object with volatile field into register");
+		return 0;
+	      }
+
 	    pedwarn ("address of register variable `%s' requested",
 		     IDENTIFIER_POINTER (DECL_NAME (x)));
 	  }
@@ -3868,14 +3874,15 @@ convert_for_assignment (type, rhs, errtype, fundecl, funname, parmnum)
   /* Arithmetic types all interconvert, and enum is treated like int.  */
   if ((codel == INTEGER_TYPE || codel == REAL_TYPE || codel == ENUMERAL_TYPE
        || codel == COMPLEX_TYPE)
-       &&
-      (coder == INTEGER_TYPE || coder == REAL_TYPE || coder == ENUMERAL_TYPE
-       || coder == COMPLEX_TYPE))
+      && (coder == INTEGER_TYPE || coder == REAL_TYPE || coder == ENUMERAL_TYPE
+	  || coder == COMPLEX_TYPE))
     return convert_and_check (type, rhs);
+
   /* Conversion to a union from its member types.  */
   else if (codel == UNION_TYPE)
     {
       tree memb_types;
+
       for (memb_types = TYPE_FIELDS (type); memb_types;
 	   memb_types = TREE_CHAIN (memb_types))
 	{
@@ -3886,6 +3893,7 @@ convert_for_assignment (type, rhs, errtype, fundecl, funname, parmnum)
 		pedwarn ("ANSI C prohibits argument conversion to union type");
 	      return build1 (NOP_EXPR, type, rhs);
 	    }
+
 	  else if (coder == POINTER_TYPE
 		   && TREE_CODE (TREE_TYPE (memb_types)) == POINTER_TYPE)
 	    {
@@ -3895,44 +3903,59 @@ convert_for_assignment (type, rhs, errtype, fundecl, funname, parmnum)
 
 	      /* Any non-function converts to a [const][volatile] void *
 		 and vice versa; otherwise, targets must be the same.
-		 Meanwhile, the lhs target must have all the qualifiers of the rhs.  */
+		 Meanwhile, the lhs target must have all the qualifiers of
+		 the rhs.  */
 	      if (TYPE_MAIN_VARIANT (ttl) == void_type_node
 		  || TYPE_MAIN_VARIANT (ttr) == void_type_node
 		  || comp_target_types (memb_type, rhstype))
 		{
-		  /* Const and volatile mean something different for function types,
-		     so the usual warnings are not appropriate.  */
+		  /* Const and volatile mean something different for function
+		     types, so the usual warnings are not appropriate.  */
 		  if (TREE_CODE (ttr) != FUNCTION_TYPE
 		      || TREE_CODE (ttl) != FUNCTION_TYPE)
 		    {
 		      if (! TYPE_READONLY (ttl) && TYPE_READONLY (ttr))
 			warn_for_assignment ("%s discards `const' from pointer target type",
-					     get_spelling (errtype), funname, parmnum);
+					     get_spelling (errtype), funname,
+					     parmnum);
 		      if (! TYPE_VOLATILE (ttl) && TYPE_VOLATILE (ttr))
 			warn_for_assignment ("%s discards `volatile' from pointer target type",
-					     get_spelling (errtype), funname, parmnum);
+					     get_spelling (errtype), funname,
+					     parmnum);
 		    }
 		  else
 		    {
-		      /* Because const and volatile on functions are restrictions
-			 that say the function will not do certain things,
-			 it is okay to use a const or volatile function
-			 where an ordinary one is wanted, but not vice-versa.  */
+		      /* Because const and volatile on functions are
+			 restrictions that say the function will not do
+			 certain things, it is okay to use a const or volatile
+			 function where an ordinary one is wanted, but not
+			 vice-versa.  */
 		      if (TYPE_READONLY (ttl) && ! TYPE_READONLY (ttr))
 			warn_for_assignment ("%s makes `const *' function pointer from non-const",
-					     get_spelling (errtype), funname, parmnum);
+					     get_spelling (errtype), funname,
+					     parmnum);
 		      if (TYPE_VOLATILE (ttl) && ! TYPE_VOLATILE (ttr))
 			warn_for_assignment ("%s makes `volatile *' function pointer from non-volatile",
-					     get_spelling (errtype), funname, parmnum);
+					     get_spelling (errtype), funname,
+					     parmnum);
 		    }
+
 		  if (pedantic
 		      && !(fundecl != 0 && DECL_IN_SYSTEM_HEADER (fundecl)))
 		    pedwarn ("ANSI C prohibits argument conversion to union type");
 		  return build1 (NOP_EXPR, type, rhs);
 		}
 	    }
+
+	  /* Can convert integer zero to any pointer type.  */
+	  else if (TREE_CODE (TREE_TYPE (memb_types)) == POINTER_TYPE
+		   && (integer_zerop (rhs)
+		       || (TREE_CODE (rhs) == NOP_EXPR
+			   && integer_zerop (TREE_OPERAND (rhs, 0)))))
+	    return build1 (NOP_EXPR, type, null_pointer_node);
 	}
     }
+
   /* Conversions among pointers */
   else if (codel == POINTER_TYPE && coder == POINTER_TYPE)
     {
@@ -5155,8 +5178,8 @@ push_init_level (implicit)
 
   /* Structure elements may require alignment.  Do this now
      if necessary for the subaggregate.  */
-  if (constructor_incremental && TREE_CODE (constructor_type) == RECORD_TYPE
-      && constructor_fields)
+  if (constructor_incremental && constructor_type != 0
+      && TREE_CODE (constructor_type) == RECORD_TYPE && constructor_fields)
     {
       /* Advance to offset of this element.  */
       if (! tree_int_cst_equal (constructor_bit_index,
@@ -6020,6 +6043,7 @@ process_init_element (value)
 	  /* Otherwise, if we have come to a subaggregate,
 	     and we don't have an element of its type, push into it.  */
 	  else if (value != 0 && !constructor_no_implicit
+		   && value != error_mark_node
 		   && TYPE_MAIN_VARIANT (TREE_TYPE (value)) != fieldtype
 		   && (fieldcode == RECORD_TYPE || fieldcode == ARRAY_TYPE
 		       || fieldcode == UNION_TYPE))
@@ -6083,6 +6107,7 @@ process_init_element (value)
 	  /* Otherwise, if we have come to a subaggregate,
 	     and we don't have an element of its type, push into it.  */
 	  else if (value != 0 && !constructor_no_implicit
+		   && value != error_mark_node
 		   && TYPE_MAIN_VARIANT (TREE_TYPE (value)) != fieldtype
 		   && (fieldcode == RECORD_TYPE || fieldcode == ARRAY_TYPE
 		       || fieldcode == UNION_TYPE))
@@ -6126,6 +6151,7 @@ process_init_element (value)
 	  /* Otherwise, if we have come to a subaggregate,
 	     and we don't have an element of its type, push into it.  */
 	  else if (value != 0 && !constructor_no_implicit
+		   && value != error_mark_node
 		   && TYPE_MAIN_VARIANT (TREE_TYPE (value)) != elttype
 		   && (eltcode == RECORD_TYPE || eltcode == ARRAY_TYPE
 		       || eltcode == UNION_TYPE))
@@ -6141,6 +6167,10 @@ process_init_element (value)
 			    " after `%s'", NULL_PTR);
 	      break;
 	    }
+
+	  /* In the case of [LO .. HI] = VALUE, only evaluate VALUE once. */
+	  if (constructor_range_end)
+	    value = save_expr (value);
 
 	  /* Now output the actual element.
 	     Ordinarily, output once.

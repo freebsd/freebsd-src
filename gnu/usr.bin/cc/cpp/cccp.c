@@ -93,7 +93,6 @@ typedef unsigned char U_CHAR;
 /* VMS-specific definitions */
 #ifdef VMS
 #include <time.h>
-#include <perror.h>		/* This defines sys_errlist/sys_nerr properly */
 #include <descrip.h>
 #define O_RDONLY	0	/* Open arg for Read/Only  */
 #define O_WRONLY	1	/* Open arg for Write/Only */
@@ -186,13 +185,22 @@ extern char *getenv ();
 extern FILE *fdopen ();
 extern char *version_string;
 extern struct tm *localtime ();
+#ifndef VMS
+#ifndef HAVE_STRERROR
 extern int sys_nerr;
-#if defined(bsd4_4) || defined(__NetBSD__)
+#if defined(bsd4_4) || defined(__NetBSD__) || defined(__FreeBSD__)
 extern const char *const sys_errlist[];
 #else
 extern char *sys_errlist[];
 #endif
+#else	/* HAVE_STERRROR */
+char *strerror ();
+#endif
+#else	/* VMS */
+char *strerror (int,...);
+#endif
 extern int parse_escape ();
+extern HOST_WIDE_INT parse_c_expression ();
 
 #ifndef errno
 extern int errno;
@@ -276,7 +284,7 @@ static void write_output ();
 static int check_macro_name ();
 static int compare_defs ();
 static int compare_token_lists ();
-static int eval_if_expression ();
+static HOST_WIDE_INT eval_if_expression ();
 static int discard_comments ();
 static int change_newlines ();
 static int line_for_error ();
@@ -387,6 +395,11 @@ static int print_include_names = 0;
 /* Nonzero means don't output line number information.  */
 
 static int no_line_commands;
+
+/* Nonzero means output the text in failing conditionals,
+   inside #failed ... #endfailed.  */
+
+static int output_conditionals;
 
 /* dump_only means inhibit output of the preprocessed text
              and instead output the definitions of all user-defined
@@ -1123,7 +1136,12 @@ main (argc, argv)
 #endif
 
   p = argv[0] + strlen (argv[0]);
-  while (p != argv[0] && p[-1] != '/') --p;
+  while (p != argv[0] && p[-1] != '/'
+#ifdef DIR_SEPARATOR
+	 && p[-1] != DIR_SEPARATOR
+#endif
+	 )
+    --p;
   progname = p;
 
 #ifdef VMS
@@ -1194,6 +1212,9 @@ main (argc, argv)
 	    fatal ("Filename missing after `-iprefix' option");
 	  else
 	    include_prefix = argv[++i];
+	}
+	if (!strcmp (argv[i], "-ifoutput")) {
+	  output_conditionals = 1;
 	}
 	if (!strcmp (argv[i], "-isystem")) {
 	  struct file_name_list *dirtmp;
@@ -1322,7 +1343,10 @@ main (argc, argv)
 	  pedantic = 1;
 	  pedantic_errors = 1;
 	} else if (!strcmp (argv[i], "-pcp")) {
-	  char *pcp_fname = argv[++i];
+	  char *pcp_fname;
+	  if (i + 1 == argc)
+	    fatal ("Filename missing after -pcp option");
+	  pcp_fname = argv[++i];
 	  pcp_outfile = 
 	    ((pcp_fname[0] != '-' || pcp_fname[1] != '\0')
 	     ? fopen (pcp_fname, "w")
@@ -1429,6 +1453,8 @@ main (argc, argv)
 	/* For -MD and -MMD options, write deps on file named by next arg.  */
 	if (!strcmp (argv[i], "-MD")
 	    || !strcmp (argv[i], "-MMD")) {
+	  if (i + 1 == argc)
+	    fatal ("Filename missing after %s option", argv[i]);
 	  i++;
 	  deps_file = argv[i];
 	  deps_mode = "w";
@@ -1606,7 +1632,11 @@ main (argc, argv)
   /* Some people say that CPATH should replace the standard include dirs,
      but that seems pointless: it comes before them, so it overrides them
      anyway.  */
+#ifdef WINNT
+  p = (char *) getenv ("Include");
+#else
   p = (char *) getenv ("CPATH");
+#endif
   if (p != 0 && ! no_standard_includes)
     path_include (p);
 
@@ -1958,7 +1988,11 @@ main (argc, argv)
       int len;
 
       /* Discard all directory prefixes from filename.  */
-      if ((q = rindex (in_fname, '/')) != NULL)
+      if ((q = rindex (in_fname, '/')) != NULL
+#ifdef DIR_SEPARATOR
+	  && (q = rindex (in_fname, DIR_SEPARATOR)) != NULL
+#endif
+	  )
 	++q;
       else
 	q = in_fname;
@@ -2175,6 +2209,33 @@ path_include (path)
     }
 }
 
+/* Return the address of the first character in S that equals C.
+   S is an array of length N, possibly containing '\0's, and followed by '\0'.
+   Return 0 if there is no such character.  Assume that C itself is not '\0'.
+   If we knew we could use memchr, we could just invoke memchr (S, C, N),
+   but unfortunately memchr isn't autoconfigured yet.  */
+
+static U_CHAR *
+index0 (s, c, n)
+     U_CHAR *s;
+     int c;
+     int n;
+{
+  for (;;) {
+    char *q = index (s, c);
+    if (q)
+      return (U_CHAR *) q;
+    else {
+      int l = strlen (s);
+      if (l == n)
+	return 0;
+      l++;
+      s += l;
+      n -= l;
+    }
+  }
+}
+
 /* Pre-C-Preprocessor to translate ANSI trigraph idiocy in BUF
    before main CCCP processing.  Name `pcp' is also in honor of the
    drugs the trigraph designers must have been on.
@@ -2188,11 +2249,12 @@ static void
 trigraph_pcp (buf)
      FILE_BUF *buf;
 {
-  register U_CHAR c, *fptr, *bptr, *sptr;
+  register U_CHAR c, *fptr, *bptr, *sptr, *lptr;
   int len;
 
   fptr = bptr = sptr = buf->buf;
-  while ((sptr = (U_CHAR *) index (sptr, '?')) != NULL) {
+  lptr = fptr + buf->length;
+  while ((sptr = (U_CHAR *) index0 (sptr, '?', lptr - sptr)) != NULL) {
     if (*++sptr != '?')
       continue;
     switch (*++sptr) {
@@ -2261,25 +2323,15 @@ newline_fix (bp)
      U_CHAR *bp;
 {
   register U_CHAR *p = bp;
-  register int count = 0;
 
   /* First count the backslash-newline pairs here.  */
 
-  while (1) {
-    if (p[0] == '\\') {
-      if (p[1] == '\n')
-	p += 2, count++;
-      else if (p[1] == '\r' && p[2] == '\n')
-	p += 3, count++;
-      else
-	break;
-    } else
-      break;
-  }
+  while (p[0] == '\\' && p[1] == '\n')
+    p += 2;
 
   /* What follows the backslash-newlines is not embarrassing.  */
 
-  if (count == 0 || (*p != '/' && *p != '*'))
+  if (*p != '/' && *p != '*')
     return;
 
   /* Copy all potentially embarrassing characters
@@ -2290,7 +2342,7 @@ newline_fix (bp)
     *bp++ = *p++;
 
   /* Now write the same number of pairs after the embarrassing chars.  */
-  while (count-- > 0) {
+  while (bp < p) {
     *bp++ = '\\';
     *bp++ = '\n';
   }
@@ -2304,24 +2356,14 @@ name_newline_fix (bp)
      U_CHAR *bp;
 {
   register U_CHAR *p = bp;
-  register int count = 0;
 
   /* First count the backslash-newline pairs here.  */
-  while (1) {
-    if (p[0] == '\\') {
-      if (p[1] == '\n')
-	p += 2, count++;
-      else if (p[1] == '\r' && p[2] == '\n')
-	p += 3, count++;
-      else
-	break;
-    } else
-      break;
-  }
+  while (p[0] == '\\' && p[1] == '\n')
+    p += 2;
 
   /* What follows the backslash-newlines is not embarrassing.  */
 
-  if (count == 0 || !is_idchar[*p])
+  if (!is_idchar[*p])
     return;
 
   /* Copy all potentially embarrassing characters
@@ -2332,7 +2374,7 @@ name_newline_fix (bp)
     *bp++ = *p++;
 
   /* Now write the same number of pairs after the embarrassing chars.  */
-  while (count-- > 0) {
+  while (bp < p) {
     *bp++ = '\\';
     *bp++ = '\n';
   }
@@ -2495,7 +2537,7 @@ do { ip = &instack[indepth];		\
      obp = op->bufp; } while (0)
 
   if (no_output && instack[indepth].fname != 0)
-    skip_if_group (&instack[indepth], 1);
+    skip_if_group (&instack[indepth], 1, NULL);
 
   obp = op->bufp;
   RECACHE;
@@ -2513,22 +2555,25 @@ do { ip = &instack[indepth];		\
 
     switch (c) {
     case '\\':
-      if (ibp >= limit)
-	break;
-      if (*ibp == '\n') {
-	/* Always merge lines ending with backslash-newline,
-	   even in middle of identifier.  */
+      if (*ibp == '\n' && !ip->macro) {
+	/* At the top level, always merge lines ending with backslash-newline,
+	   even in middle of identifier.  But do not merge lines in a macro,
+	   since backslash might be followed by a newline-space marker.  */
 	++ibp;
 	++ip->lineno;
 	--obp;		/* remove backslash from obuf */
 	break;
       }
+      /* If ANSI, backslash is just another character outside a string.  */
+      if (!traditional)
+	goto randomchar;
       /* Otherwise, backslash suppresses specialness of following char,
 	 so copy it here to prevent the switch from seeing it.
 	 But first get any pending identifier processed.  */
       if (ident_length > 0)
 	goto specialchar;
-      *obp++ = *ibp++;
+      if (ibp < limit)
+	*obp++ = *ibp++;
       break;
 
     case '#':
@@ -2608,7 +2653,7 @@ do { ip = &instack[indepth];		\
 	  /* If not generating expanded output,
 	     what we do with ordinary text is skip it.
 	     Discard everything until next # directive.  */
-	  skip_if_group (&instack[indepth], 1);
+	  skip_if_group (&instack[indepth], 1, 0);
 	  RECACHE;
 	  beg_of_line = ibp;
 	  break;
@@ -2632,7 +2677,7 @@ do { ip = &instack[indepth];		\
       /* If not generating expanded output, ignore everything until
 	 next # directive.  */
       if (no_output && instack[indepth].fname)
-	skip_if_group (&instack[indepth], 1);
+	skip_if_group (&instack[indepth], 1, 0);
       obp = op->bufp;
       RECACHE;
       beg_of_line = ibp;
@@ -2790,6 +2835,9 @@ do { ip = &instack[indepth];		\
 	char *lintcmd = get_lintcmd (ibp, limit, &argbp, &arglen, &cmdlen);
 
 	if (lintcmd != NULL) {
+	  op->bufp = obp;
+	  check_expand (op, cmdlen + arglen + 14);
+	  obp = op->bufp;
 	  /* I believe it is always safe to emit this newline: */
 	  obp[-1] = '\n';
 	  bcopy ("#pragma lint ", (char *) obp, 13);
@@ -2804,10 +2852,12 @@ do { ip = &instack[indepth];		\
 	  }
 
 	  /* OK, now bring us back to the state we were in before we entered
-	     this branch.  We need #line b/c the newline for the pragma
-	     could fuck things up. */
+	     this branch.  We need #line because the #pragma's newline always
+	     messes up the line count.  */
+	  op->bufp = obp;
 	  output_line_command (ip, op, 0, same_file);
-	  *(obp++) = ' ';	/* just in case, if comments are copied thru */
+	  check_expand (op, limit - ibp + 2);
+	  obp = op->bufp;
 	  *(obp++) = '/';
 	}
       }
@@ -2884,9 +2934,7 @@ do { ip = &instack[indepth];		\
 	    ibp += 2;
 	  }
 	  c = *ibp++;
-	  /* ".." terminates a preprocessing number.  This is useless for C
-	     code but useful for preprocessing other things.  */
-	  if (!isalnum (c) && (c != '.' || *ibp == '.') && c != '_') {
+	  if (!is_idchar[c] && c != '.') {
 	    --ibp;
 	    break;
 	  }
@@ -2988,7 +3036,7 @@ do { ip = &instack[indepth];		\
       if (ip->lineno != op->lineno) {
 	op->bufp = obp;
 	output_line_command (ip, op, 1, same_file);
-	check_expand (op, ip->length - (ip->bufp - ip->buf));
+	check_expand (op, limit - ibp);
 	obp = op->bufp;
       }
       break;
@@ -3226,9 +3274,17 @@ startagain:
 	      
 	      /* This is now known to be a macro call.
 		 Discard the macro name from the output,
-		 along with any following whitespace just copied.  */
+		 along with any following whitespace just copied,
+		 but preserve newlines at the top level since this
+		 is more likely to do the right thing with line numbers.  */
 	      obp = op->buf + obufp_before_macroname;
-	      op->lineno = op_lineno_before_macroname;
+	      if (ip->macro != 0)
+		op->lineno = op_lineno_before_macroname;
+	      else {
+		int newlines = op->lineno - op_lineno_before_macroname;
+		while (0 < newlines--)
+		  *obp++ = '\n';
+	      }
 
 	      /* Prevent accidental token-pasting with a character
 		 before the macro call.  */
@@ -3529,8 +3585,9 @@ handle_directive (ip, op)
 	    if (*bp == '\n') {
 	      ip->lineno++;
 	      copy_command = 1;
-	    }
-	    bp++;
+	      bp++;
+	    } else if (traditional)
+	      bp++;
 	  }
 	  break;
 
@@ -3555,7 +3612,14 @@ handle_directive (ip, op)
 	case '<':
 	  if (!kt->angle_brackets)
 	    break;
-	  while (*bp && *bp != '>') bp++;
+	  while (bp < limit && *bp != '>' && *bp != '\n') {
+	    if (*bp == '\\' && bp[1] == '\n') {
+	      ip->lineno++;
+	      copy_command = 1;
+	      bp++;
+	    }
+	    bp++;
+	  }
 	  break;
 
 	case '/':
@@ -3783,7 +3847,7 @@ timestamp ()
 {
   static struct tm *timebuf;
   if (!timebuf) {
-    time_t t = time (0);
+    time_t t = time ((time_t *)0);
     timebuf = localtime (&t);
   }
   return timebuf;
@@ -3925,7 +3989,8 @@ special_symbol (hp, op)
       goto oops;
     if (hp = lookup (ip->bufp, -1, -1)) {
       if (pcp_outfile && pcp_inside_if
-	  && hp->value.defn->predefined)
+	  && (hp->type == T_CONST
+	      || (hp->type == T_MACRO && hp->value.defn->predefined)))
 	/* Output a precondition for this macro use. */
 	fprintf (pcp_outfile, "#define %s\n", hp->name);
       buf = " 1 ";
@@ -5360,9 +5425,31 @@ create_definition (buf, limit, op)
   } else {
     /* Simple expansion or empty definition.  */
 
-    /* Skip spaces and tabs if any.  */
-    while (bp < limit && (*bp == ' ' || *bp == '\t'))
-      ++bp;
+    if (bp < limit)
+      {
+	switch (*bp)
+	  {
+	    case '\t': case ' ':
+	      /* Skip spaces and tabs.  */
+	      while (++bp < limit && (*bp == ' ' || *bp == '\t'))
+		continue;
+	      break;
+
+	    case '!':  case '"':  case '#':  case '%':  case '&':  case '\'':
+	    case ')':  case '*':  case '+':  case ',':  case '-':  case '.':
+	    case '/':  case ':':  case ';':  case '<':  case '=':  case '>':
+	    case '?':  case '[':  case '\\': case ']':  case '^':  case '{':
+	    case '|':  case '}':  case '~':
+	      warning ("missing white space after `#define %.*s'",
+		       sym_length, symname);
+	      break;
+
+	    default:
+	      pedwarn ("missing white space after `#define %.*s'",
+		       sym_length, symname);
+	      break;
+	  }
+      }
     /* Now everything from bp before limit is the definition. */
     defn = collect_expansion (bp, limit, -1, NULL_PTR);
     defn->args.argnames = (U_CHAR *) "";
@@ -5659,16 +5746,8 @@ collect_expansion (buf, end, nargs, arglist)
           expected_delimiter = c;
 	break;
 
-	/* Special hack: if a \# is written in the #define
-	   include a # in the definition.  This is useless for C code
-	   but useful for preprocessing other things.  */
-
       case '\\':
-	/* \# quotes a # even outside of strings.  */
-	if (p < limit && *p == '#' && !expected_delimiter) {
-	  exp_p--;
-	  *exp_p++ = *p++;
-	} else if (p < limit && expected_delimiter) {
+	if (p < limit && expected_delimiter) {
 	  /* In a string, backslash goes through
 	     and makes next char ordinary.  */
 	  *exp_p++ = *p++;
@@ -6537,7 +6616,7 @@ do_ident (buf, limit)
   free (trybuf.buf);
 
   /* Output directive name.  */
-  check_expand (op, 8);
+  check_expand (op, 7);
   bcopy ("#ident ", (char *) op->bufp, 7);
   op->bufp += 7;
 
@@ -6647,11 +6726,11 @@ do_if (buf, limit, op, keyword)
      FILE_BUF *op;
      struct directive *keyword;
 {
-  int value;
+  HOST_WIDE_INT value;
   FILE_BUF *ip = &instack[indepth];
 
   value = eval_if_expression (buf, limit - buf);
-  conditional_skip (ip, value == 0, T_IF, NULL_PTR);
+  conditional_skip (ip, value == 0, T_IF, NULL_PTR, op);
   return 0;
 }
 
@@ -6666,7 +6745,7 @@ do_elif (buf, limit, op, keyword)
      FILE_BUF *op;
      struct directive *keyword;
 {
-  int value;
+  HOST_WIDE_INT value;
   FILE_BUF *ip = &instack[indepth];
 
   if (if_stack == instack[indepth].if_stack) {
@@ -6685,11 +6764,11 @@ do_elif (buf, limit, op, keyword)
   }
 
   if (if_stack->if_succeeded)
-    skip_if_group (ip, 0);
+    skip_if_group (ip, 0, op);
   else {
     value = eval_if_expression (buf, limit - buf);
     if (value == 0)
-      skip_if_group (ip, 0);
+      skip_if_group (ip, 0, op);
     else {
       ++if_stack->if_succeeded;	/* continue processing input */
       output_line_command (ip, op, 1, same_file);
@@ -6702,16 +6781,16 @@ do_elif (buf, limit, op, keyword)
  * evaluate a #if expression in BUF, of length LENGTH,
  * then parse the result as a C expression and return the value as an int.
  */
-static int
+static HOST_WIDE_INT
 eval_if_expression (buf, length)
      U_CHAR *buf;
      int length;
 {
   FILE_BUF temp_obuf;
   HASHNODE *save_defined;
-  int value;
+  HOST_WIDE_INT value;
 
-  save_defined = install ("defined", -1, T_SPEC_DEFINED, 0, 0, -1);
+  save_defined = install ("defined", -1, T_SPEC_DEFINED, 0, NULL_PTR, -1);
   pcp_inside_if = 1;
   temp_obuf = expand_to_temp_buffer (buf, buf + length, 0, 1);
   pcp_inside_if = 0;
@@ -6790,7 +6869,9 @@ do_xifdef (buf, limit, op, keyword)
 
     if (pcp_outfile) {
       /* Output a precondition for this macro.  */
-      if (hp && hp->value.defn->predefined)
+      if (hp &&
+	  (hp->type == T_CONST
+	   || (hp->type == T_MACRO && hp->value.defn->predefined)))
 	fprintf (pcp_outfile, "#define %s\n", hp->name);
       else {
 	U_CHAR *cp = buf;
@@ -6809,7 +6890,7 @@ do_xifdef (buf, limit, op, keyword)
     }
   }
   
-  conditional_skip (ip, skip, T_IF, control_macro);
+  conditional_skip (ip, skip, T_IF, control_macro, op);
   return 0;
 }
 
@@ -6819,11 +6900,12 @@ do_xifdef (buf, limit, op, keyword)
    Otherwise, CONTROL_MACRO is 0.  */
 
 static void
-conditional_skip (ip, skip, type, control_macro)
+conditional_skip (ip, skip, type, control_macro, op)
      FILE_BUF *ip;
      int skip;
      enum node_type type;
      U_CHAR *control_macro;
+     FILE_BUF *op;
 {
   IF_STACK_FRAME *temp;
 
@@ -6837,7 +6919,7 @@ conditional_skip (ip, skip, type, control_macro)
   if_stack->type = type;
 
   if (skip != 0) {
-    skip_if_group (ip, 0);
+    skip_if_group (ip, 0, op);
     return;
   } else {
     ++if_stack->if_succeeded;
@@ -6851,9 +6933,10 @@ conditional_skip (ip, skip, type, control_macro)
  * If ANY is nonzero, return at next directive of any sort.
  */
 static void
-skip_if_group (ip, any)
+skip_if_group (ip, any, op)
      FILE_BUF *ip;
      int any;
+     FILE_BUF *op;
 {
   register U_CHAR *bp = ip->bufp, *cp;
   register U_CHAR *endb = ip->buf + ip->length;
@@ -6862,6 +6945,25 @@ skip_if_group (ip, any)
   U_CHAR *beg_of_line = bp;
   register int ident_length;
   U_CHAR *ident, *after_ident;
+  /* Save info about where the group starts.  */
+  U_CHAR *beg_of_group = bp;
+  int beg_lineno = ip->lineno;
+
+  if (output_conditionals && op != 0) {
+    char *ptr = "#failed\n";
+    int len = strlen (ptr);
+
+    if (op->bufp > op->buf && op->bufp[-1] != '\n')
+      {
+	*op->bufp++ = '\n';
+	op->lineno++;
+      }
+    check_expand (op, len);
+    bcopy (ptr, (char *) op->bufp, len);
+    op->bufp += len;
+    op->lineno++;
+    output_line_command (ip, op, 1, 0);
+  }
 
   while (bp < endb) {
     switch (*bp++) {
@@ -7013,7 +7115,7 @@ skip_if_group (ip, any)
 	    && strncmp (cp, kt->name, kt->length) == 0) {
 	  /* If we are asked to return on next directive, do so now.  */
 	  if (any)
-	    return;
+	    goto done;
 
 	  switch (kt->type) {
 	  case T_IF:
@@ -7036,7 +7138,7 @@ skip_if_group (ip, any)
 	      break;
 	    }
 	    else if (if_stack == save_if_stack)
-	      return;		/* found what we came for */
+	      goto done;		/* found what we came for */
 
 	    if (kt->type != T_ENDIF) {
 	      if (if_stack->type == T_ELSE)
@@ -7058,10 +7160,32 @@ skip_if_group (ip, any)
 	pedwarn ("invalid preprocessor directive name");
     }
   }
+
   ip->bufp = bp;
   /* after this returns, rescan will exit because ip->bufp
      now points to the end of the buffer.
      rescan is responsible for the error message also.  */
+
+ done:
+  if (output_conditionals && op != 0) {
+    char *ptr = "#endfailed\n";
+    int len = strlen (ptr);
+
+    if (op->bufp > op->buf && op->bufp[-1] != '\n')
+      {
+	*op->bufp++ = '\n';
+	op->lineno++;
+      }
+    check_expand (op, beg_of_line - beg_of_group);
+    bcopy ((char *) beg_of_group, (char *) op->bufp,
+	   beg_of_line - beg_of_group);
+    op->bufp += beg_of_line - beg_of_group;
+    op->lineno += ip->lineno - beg_lineno;
+    check_expand (op, len);
+    bcopy (ptr, (char *) op->bufp, len);
+    op->bufp += len;
+    op->lineno++;
+  }
 }
 
 /*
@@ -7104,7 +7228,7 @@ do_else (buf, limit, op, keyword)
   }
 
   if (if_stack->if_succeeded)
-    skip_if_group (ip, 0);
+    skip_if_group (ip, 0, op);
   else {
     ++if_stack->if_succeeded;	/* continue processing input */
     output_line_command (ip, op, 1, same_file);
@@ -8384,6 +8508,39 @@ change_newlines (start, length)
 }
 
 /*
+ * my_strerror - return the descriptive text associated with an `errno' code.
+ */
+
+char *
+my_strerror (errnum)
+     int errnum;
+{
+  char *result;
+
+#ifndef VMS
+#ifndef HAVE_STRERROR
+  result = (char *) ((errnum < sys_nerr) ? sys_errlist[errnum] : 0);
+#else
+  result = strerror (errnum);
+#endif
+#else	/* VMS */
+  /* VAXCRTL's strerror() takes an optional second argument, which only
+     matters when the first argument is EVMSERR.  However, it's simplest
+     just to pass it unconditionally.  `vaxc$errno' is declared in
+     <errno.h>, and maintained by the library in parallel with `errno'.
+     We assume that caller's `errnum' either matches the last setting of
+     `errno' by the library or else does not have the value `EVMSERR'.  */
+
+  result = strerror (errnum, vaxc$errno);
+#endif
+
+  if (!result)
+    result = "undocumented I/O error";
+
+  return result;
+}
+
+/*
  * error - print error message and increment count of errors.
  */
 
@@ -8430,10 +8587,7 @@ error_from_errno (name)
   if (ip != NULL)
     fprintf (stderr, "%s:%d: ", ip->nominal_fname, ip->lineno);
 
-  if (errno < sys_nerr)
-    fprintf (stderr, "%s: %s\n", name, sys_errlist[errno]);
-  else
-    fprintf (stderr, "%s: undocumented I/O error\n", name);
+  fprintf (stderr, "%s: %s\n", name, my_strerror (errno));
 
   errors++;
 }
@@ -8929,15 +9083,16 @@ dump_defn_1 (base, start, length, of)
   U_CHAR *limit = base + start + length;
 
   while (p < limit) {
-    if (*p != '\n')
-      putc (*p, of);
-    else if (*p == '\"' || *p =='\'') {
+    if (*p == '\"' || *p =='\'') {
       U_CHAR *p1 = skip_quoted_string (p, limit, 0, NULL_PTR,
 				       NULL_PTR, NULL_PTR);
       fwrite (p, p1 - p, 1, of);
-      p = p1 - 1;
+      p = p1;
+    } else {
+      if (*p != '\n')
+	putc (*p, of);
+      p++;
     }
-    p++;
   }
 }
 
@@ -9012,29 +9167,29 @@ initialize_builtins (inp, outp)
      FILE_BUF *inp;
      FILE_BUF *outp;
 {
-  install ("__LINE__", -1, T_SPECLINE, 0, 0, -1);
-  install ("__DATE__", -1, T_DATE, 0, 0, -1);
-  install ("__FILE__", -1, T_FILE, 0, 0, -1);
-  install ("__BASE_FILE__", -1, T_BASE_FILE, 0, 0, -1);
-  install ("__INCLUDE_LEVEL__", -1, T_INCLUDE_LEVEL, 0, 0, -1);
-  install ("__VERSION__", -1, T_VERSION, 0, 0, -1);
+  install ("__LINE__", -1, T_SPECLINE, 0, NULL_PTR, -1);
+  install ("__DATE__", -1, T_DATE, 0, NULL_PTR, -1);
+  install ("__FILE__", -1, T_FILE, 0, NULL_PTR, -1);
+  install ("__BASE_FILE__", -1, T_BASE_FILE, 0, NULL_PTR, -1);
+  install ("__INCLUDE_LEVEL__", -1, T_INCLUDE_LEVEL, 0, NULL_PTR, -1);
+  install ("__VERSION__", -1, T_VERSION, 0, NULL_PTR, -1);
 #ifndef NO_BUILTIN_SIZE_TYPE
-  install ("__SIZE_TYPE__", -1, T_SIZE_TYPE, 0, 0, -1);
+  install ("__SIZE_TYPE__", -1, T_SIZE_TYPE, 0, NULL_PTR, -1);
 #endif
 #ifndef NO_BUILTIN_PTRDIFF_TYPE
-  install ("__PTRDIFF_TYPE__ ", -1, T_PTRDIFF_TYPE, 0, 0, -1);
+  install ("__PTRDIFF_TYPE__ ", -1, T_PTRDIFF_TYPE, 0, NULL_PTR, -1);
 #endif
-  install ("__WCHAR_TYPE__", -1, T_WCHAR_TYPE, 0, 0, -1);
-  install ("__USER_LABEL_PREFIX__", -1, T_USER_LABEL_PREFIX_TYPE, 0, 0, -1);
-  install ("__REGISTER_PREFIX__", -1, T_REGISTER_PREFIX_TYPE, 0, 0, -1);
-  install ("__TIME__", -1, T_TIME, 0, 0, -1);
+  install ("__WCHAR_TYPE__", -1, T_WCHAR_TYPE, 0, NULL_PTR, -1);
+  install ("__USER_LABEL_PREFIX__",-1,T_USER_LABEL_PREFIX_TYPE,0,NULL_PTR, -1);
+  install ("__REGISTER_PREFIX__", -1, T_REGISTER_PREFIX_TYPE, 0, NULL_PTR, -1);
+  install ("__TIME__", -1, T_TIME, 0, NULL_PTR, -1);
   if (!traditional)
-    install ("__STDC__", -1, T_CONST, STDC_VALUE, 0, -1);
+    install ("__STDC__", -1, T_CONST, STDC_VALUE, NULL_PTR, -1);
   if (objc)
-    install ("__OBJC__", -1, T_CONST, 1, 0, -1);
+    install ("__OBJC__", -1, T_CONST, 1, NULL_PTR, -1);
 /*  This is supplied using a -D by the compiler driver
     so that it is present only when truly compiling with GNU C.  */
-/*  install ("__GNUC__", -1, T_CONST, 2, 0, -1);  */
+/*  install ("__GNUC__", -1, T_CONST, 2, NULL_PTR, -1);  */
 
   if (debug_output)
     {
@@ -9119,6 +9274,12 @@ make_definition (str, op)
   }
   while (is_idchar[*++p])
     ;
+  if (*p == '(') {
+    while (is_idchar[*++p] || *p == ',' || is_hor_space[*p])
+      ;
+    if (*p++ != ')')
+      p = str;			/* Error */
+  }
   if (*p == 0) {
     buf = (U_CHAR *) alloca (p - buf + 4);
     strcpy ((char *)buf, str);
@@ -9137,7 +9298,18 @@ make_definition (str, op)
     p++;
     q = &buf[p - str];
     while (*p) {
-      if (*p == '\\' && p[1] == '\n')
+      if (*p == '\"' || *p == '\'') {
+	int unterminated = 0;
+	U_CHAR *p1 = skip_quoted_string (p, p + strlen (p), 0,
+					 NULL_PTR, NULL_PTR, &unterminated);
+	if (unterminated)
+	  return;
+	while (p != p1)
+	  if (*p == '\\' && p[1] == '\n')
+	    p += 2;
+	  else
+	    *q++ = *p++;
+      } else if (*p == '\\' && p[1] == '\n')
 	p += 2;
       /* Change newline chars into newline-markers.  */
       else if (*p == '\n')
@@ -9167,7 +9339,7 @@ make_definition (str, op)
     ;
 
   /* Pass NULL instead of OP, since this is a "predefined" macro.  */
-  do_define (buf, buf + strlen (buf), NULL, kt);
+  do_define (buf, buf + strlen (buf), NULL_PTR, kt);
   --indepth;
 }
 
@@ -9392,10 +9564,7 @@ perror_with_name (name)
      char *name;
 {
   fprintf (stderr, "%s: ", progname);
-  if (errno < sys_nerr)
-    fprintf (stderr, "%s: %s\n", name, sys_errlist[errno]);
-  else
-    fprintf (stderr, "%s: undocumented I/O error\n", name);
+  fprintf (stderr, "%s: %s\n", name, my_strerror (errno));
   errors++;
 }
 

@@ -33,21 +33,17 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=2 -D__386BSD__ -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
+#if 0
 #define INCLUDE_DEFAULTS { \
 	{ "/usr/include", 0 }, \
 	{ "/usr/include/g++", 1 }, \
 	{ 0, 0} \
 	}
-
-#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
+#endif
 
 /* Like the default, except no -lg.  */
 #define LIB_SPEC "%{!p:%{!pg:-lc}}%{p:-lc_p}%{pg:-lc_p}"
 
-#define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*} \
-   %{p:-Bstatic} %{pg:-Bstatic} %{Z}"
-
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"
 
@@ -55,12 +51,12 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define PTRDIFF_TYPE "int"
 
 #undef WCHAR_TYPE
-#define WCHAR_TYPE "int"
+#define WCHAR_TYPE "short unsigned int"
 
-#define WCHAR_UNSIGNED 0
+#define WCHAR_UNSIGNED 1
 
 #undef WCHAR_TYPE_SIZE
-#define WCHAR_TYPE_SIZE BITS_PER_WORD
+#define WCHAR_TYPE_SIZE 16
 
 #define HAVE_ATEXIT
 
@@ -74,9 +70,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 #define FUNCTION_PROFILER(FILE, LABELNO)  \
 {									\
   if (flag_pic)								\
-    fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
+    {									\
+      fprintf (FILE, "\tleal %sP%d@GOTOFF(%%ebx),%%eax\n",		\
+	     LPREFIX, (LABELNO));					\
+      fprintf (FILE, "\tcall *mcount@GOT(%%ebx)\n");			\
+    }									\
   else									\
-    fprintf (FILE, "\tcall mcount\n");					\
+    {									\
+      fprintf (FILE, "\tmovl $%sP%d,%%eax\n", LPREFIX, (LABELNO));	\
+      fprintf (FILE, "\tcall mcount\n");				\
+    }									\
 }
 
 #if 0 /* not ready for this; it should be decided at compile time */
@@ -183,7 +186,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     size_directive_output = 0;						\
     if (!flag_inhibit_size_directive && DECL_SIZE (DECL))		\
       {									\
-	size_directive_output = 1;					\
+        size_directive_output = 1;					\
 	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
 	assemble_name (FILE, NAME);					\
 	fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));	\
@@ -197,19 +200,20 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    size_directive_output was set
    by ASM_DECLARE_OBJECT_NAME when it was run for the same decl.  */
 
-#define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)	 \
-do {									 \
-     char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);			 \
-     if (!flag_inhibit_size_directive && DECL_SIZE (DECL)		 \
-         && ! AT_END && TOP_LEVEL					 \
-	 && DECL_INITIAL (DECL) == error_mark_node			 \
-	 && !size_directive_output)					 \
-       {								 \
-	 fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);			 \
-	 assemble_name (FILE, name);					 \
-	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL))); \
-       }								 \
+#define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)        \
+do {                                                                    \
+     char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);                  \
+     if (!flag_inhibit_size_directive && DECL_SIZE (DECL)	        \
+         && ! AT_END && TOP_LEVEL                                       \
+         && DECL_INITIAL (DECL) == error_mark_node                      \
+         && !size_directive_output)                                     \
+       {                                                                \
+         fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);                        \
+	 assemble_name (FILE, name);                                    \
+	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));\
+	}								\
    } while (0)
+
 
 /* This is how to declare the size of a function.  */
 
@@ -232,82 +236,9 @@ do {									 \
       }									\
   } while (0)
 
-/* This section copied from i386/osfrose.h */
-
-/* A C statement or compound statement to output to FILE some
-   assembler code to initialize basic-block profiling for the current
-   object module.  This code should call the subroutine
-   `__bb_init_func' once per object module, passing it as its sole
-   argument the address of a block allocated in the object module.
-
-   The name of the block is a local symbol made with this statement:
-
-	ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 0);
-
-   Of course, since you are writing the definition of
-   `ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
-   can take a short cut in the definition of this macro and use the
-   name that you know will result.
-
-   The first word of this block is a flag which will be nonzero if the
-   object module has already been initialized.  So test this word
-   first, and do not call `__bb_init_func' if the flag is nonzero.  */
-
-#undef	FUNCTION_BLOCK_PROFILER
-#define FUNCTION_BLOCK_PROFILER(STREAM, LABELNO)			\
-do									\
-  {									\
-    if (!flag_pic)							\
-      {									\
-	fprintf (STREAM, "\tcmpl $0,%sPBX0\n", LPREFIX);		\
-	fprintf (STREAM, "\tjne 0f\n");					\
-	fprintf (STREAM, "\tpushl $%sPBX0\n", LPREFIX);			\
-	fprintf (STREAM, "\tcall ___bb_init_func\n");			\
-	fprintf (STREAM, "0:\n");					\
-      }									\
-    else								\
-      {									\
-	fprintf (STREAM, "\tpushl %eax\n");				\
-	fprintf (STREAM, "\tmovl %sPBX0@GOT(%ebx),%eax\n");		\
-	fprintf (STREAM, "\tcmpl $0,(%eax)\n");				\
-	fprintf (STREAM, "\tjne 0f\n");					\
-	fprintf (STREAM, "\tpushl %eax\n");				\
-	fprintf (STREAM, "\tcall ___bb_init_func@PLT\n");		\
-	fprintf (STREAM, "0:\n");					\
-	fprintf (STREAM, "\tpopl %eax\n");				\
-      }									\
-  }									\
-while (0)
-
-/* A C statement or compound statement to increment the count
-   associated with the basic block number BLOCKNO.  Basic blocks are
-   numbered separately from zero within each compilation.  The count
-   associated with block number BLOCKNO is at index BLOCKNO in a
-   vector of words; the name of this array is a local symbol made
-   with this statement:
-
-	ASM_GENERATE_INTERNAL_LABEL (BUFFER, "LPBX", 2);
-
-   Of course, since you are writing the definition of
-   `ASM_GENERATE_INTERNAL_LABEL' as well as that of this macro, you
-   can take a short cut in the definition of this macro and use the
-   name that you know will result.  */
-
-#undef	BLOCK_PROFILER
-#define BLOCK_PROFILER(STREAM, BLOCKNO)					\
-do									\
-  {									\
-    if (!flag_pic)							\
-      fprintf (STREAM, "\tincl %sPBX2+%d\n", LPREFIX, (BLOCKNO)*4);	\
-    else								\
-      {									\
-	fprintf (STREAM, "\tpushl %eax\n");				\
-	fprintf (STREAM, "\tmovl %sPBX2@GOT(%ebx),%eax\n", LPREFIX);	\
-	fprintf (STREAM, "\tincl %d(%eax)\n", (BLOCKNO)*4);		\
-	fprintf (STREAM, "\tpopl %eax\n");				\
-      }									\
-  }									\
-while (0)
+#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
+#define LINK_SPEC \
+  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*}"
 
 /* This is defined when gcc is compiled in the BSD-directory-tree, and must
  * make up for the gap to all the stuff done in the GNU-makefiles.

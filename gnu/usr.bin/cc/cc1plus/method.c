@@ -313,6 +313,7 @@ flush_repeats (type)
     OB_PUTC ('_');
 }
 
+static int numeric_outputed_need_bar;
 static void build_overload_identifier ();
 
 static void
@@ -463,9 +464,9 @@ build_overload_identifier (name)
       icat (nparms);
       for (i = 0; i < nparms; i++)
 	{
-	  tree parm = TREE_VEC_ELT (parmlist, i);
+	  tree parm = TREE_VALUE (TREE_VEC_ELT (parmlist, i));
 	  tree arg = TREE_VEC_ELT (arglist, i);
-	  if (TREE_CODE (parm) == IDENTIFIER_NODE)
+	  if (TREE_CODE (parm) == TYPE_DECL)
 	    {
 	      /* This parameter is a type.  */
 	      OB_PUTC ('Z');
@@ -476,11 +477,17 @@ build_overload_identifier (name)
 	      /* It's a PARM_DECL.  */
 	      build_overload_name (TREE_TYPE (parm), 0, 0);
 	      build_overload_value (parm, arg);
+	      numeric_outputed_need_bar = 1;
 	    }
 	}
     }
   else
     {
+      if (numeric_outputed_need_bar)
+	{
+	  OB_PUTC ('_');
+	  numeric_outputed_need_bar = 0;
+	}
       icat (IDENTIFIER_LENGTH (name));
       OB_PUTID (name);
     }
@@ -772,6 +779,7 @@ build_overload_name (parmtypes, begin, end)
 		icat (i);
 		if (i > 9)
 		  OB_PUTC ('_');
+                numeric_outputed_need_bar = 0;
 		build_overload_nested_name (TYPE_NAME (parmtype));
 	      }
 	    else
@@ -817,6 +825,18 @@ build_overload_name (parmtypes, begin, end)
   if (end) OB_FINISH ();
   return (char *)obstack_base (&scratch_obstack);
 }
+
+tree
+build_static_name (basetype, name)
+  tree basetype, name;
+{
+  char *basename  = build_overload_name (basetype, 1, 1);
+  char *buf = (char *) alloca (IDENTIFIER_LENGTH (name)
+			       + sizeof (STATIC_NAME_FORMAT)
+			       + strlen (basename));
+  sprintf (buf, STATIC_NAME_FORMAT, basename, IDENTIFIER_POINTER (name));
+  return get_identifier (buf);
+}  
 
 /* Generate an identifier that encodes the (ANSI) exception TYPE. */
 
@@ -852,18 +872,17 @@ build_decl_overload (dname, parms, for_method)
   /* member operators new and delete look like methods at this point.  */
   if (! for_method && parms != NULL_TREE && TREE_CODE (parms) == TREE_LIST)
     {
-      if (TREE_VALUE (parms) == sizetype
-	  && TREE_CHAIN (parms) == void_list_node)
+      if (dname == ansi_opname[(int) DELETE_EXPR])
+	return get_identifier ("__builtin_delete");
+      else if (dname == ansi_opname[(int) VEC_DELETE_EXPR])
+	return get_identifier ("__builtin_vec_delete");
+      else if (TREE_CHAIN (parms) == void_list_node)
 	{
 	  if (dname == ansi_opname[(int) NEW_EXPR])
 	    return get_identifier ("__builtin_new");
 	  else if (dname == ansi_opname[(int) VEC_NEW_EXPR])
 	    return get_identifier ("__builtin_vec_new");
 	}
-      else if (dname == ansi_opname[(int) DELETE_EXPR])
-	return get_identifier ("__builtin_delete");
-      else if (dname == ansi_opname[(int) VEC_DELETE_EXPR])
-	return get_identifier ("__builtin_vec_delete");
     }
 
   OB_INIT ();
@@ -901,6 +920,7 @@ build_decl_overload (dname, parms, for_method)
     {
       ALLOCATE_TYPEVEC (parms);
       nofold = 0;
+      numeric_outputed_need_bar = 0;
       if (for_method)
 	{
 	  build_overload_name (TREE_VALUE (parms), 0, 0);
@@ -1461,11 +1481,13 @@ hack_identifier (value, name, yychar)
   if (really_overloaded_fn (value))
     {
       tree t = get_first_fn (value);
-      while (t)
+      for (; t; t = DECL_CHAIN (t))
 	{
+	  if (TREE_CODE (t) == TEMPLATE_DECL)
+	    continue;
+
 	  assemble_external (t);
 	  TREE_USED (t) = 1;
-	  t = DECL_CHAIN (t);
 	}
     }
   else if (TREE_CODE (value) == TREE_LIST)
@@ -1945,4 +1967,205 @@ emit_thunk (thunk_fndecl)
 
   decl_printable_name = save_decl_printable_name;
   current_function_decl = 0;
+}
+
+/* Code for synthesizing methods which have default semantics defined.  */
+
+void
+build_default_constructor (fndecl)
+     tree fndecl;
+{
+  start_function (NULL_TREE, fndecl, NULL_TREE, 1);
+  store_parm_decls ();
+  setup_vtbl_ptr ();
+  finish_function (lineno, 0);
+}
+
+/* For the anonymous union in TYPE, return the member that is at least as
+   large as the rest of the members, so we can copy it.  */
+static tree
+largest_union_member (type)
+     tree type;
+{
+  tree f, type_size = TYPE_SIZE (type);
+
+  for (f = TYPE_FIELDS (type); f; f = TREE_CHAIN (f))
+    if (simple_cst_equal (DECL_SIZE (f), type_size))
+      return f;
+
+  /* We should always find one.  */
+  my_friendly_abort (323);
+  return NULL_TREE;
+}
+
+/* Generate code for default X(X&) constructor.  */
+void
+build_copy_constructor (fndecl)
+     tree fndecl;
+{
+  tree parm = TREE_CHAIN (DECL_ARGUMENTS (fndecl));
+  tree t;
+
+  start_function (NULL_TREE, fndecl, NULL_TREE, 1);
+  store_parm_decls ();
+  clear_last_expr ();
+  push_momentary ();
+
+  if (TYPE_USES_VIRTUAL_BASECLASSES (current_class_type))
+    parm = TREE_CHAIN (parm);
+  parm = convert_from_reference (parm);
+
+  if (! TYPE_HAS_COMPLEX_INIT_REF (current_class_type))
+    {
+      t = build (INIT_EXPR, void_type_node, C_C_D, parm);
+      TREE_SIDE_EFFECTS (t) = 1;
+      cplus_expand_expr_stmt (t);
+    }
+  else
+    {
+      tree fields = TYPE_FIELDS (current_class_type);
+      int n_bases = CLASSTYPE_N_BASECLASSES (current_class_type);
+      tree binfos = TYPE_BINFO_BASETYPES (current_class_type);
+      int i;
+
+      for (t = CLASSTYPE_VBASECLASSES (current_class_type); t;
+	   t = TREE_CHAIN (t))
+	{
+	  tree basetype = BINFO_TYPE (t);
+	  tree p = convert (build_reference_type (basetype), parm);
+	  p = convert_from_reference (p);
+	  current_base_init_list = tree_cons (TYPE_NESTED_NAME (basetype),
+					      p, current_base_init_list);
+	}
+	
+      for (i = 0; i < n_bases; ++i)
+	{
+	  tree p, basetype = TREE_VEC_ELT (binfos, i);
+	  if (TREE_VIA_VIRTUAL (basetype))
+	    continue;	  
+
+	  basetype = BINFO_TYPE (basetype);
+	  p = convert (build_reference_type (basetype), parm);
+	  p = convert_from_reference (p);
+	  current_base_init_list = tree_cons (TYPE_NESTED_NAME (basetype),
+					      p, current_base_init_list);
+	}
+      for (; fields; fields = TREE_CHAIN (fields))
+	{
+	  tree name, init, t;
+	  if (TREE_CODE (fields) != FIELD_DECL)
+	    continue;
+	  if (DECL_NAME (fields))
+	    {
+	      if (VFIELD_NAME_P (DECL_NAME (fields)))
+		continue;
+	      if (VBASE_NAME_P (DECL_NAME (fields)))
+		continue;
+
+	      /* True for duplicate members.  */
+	      if (IDENTIFIER_CLASS_VALUE (DECL_NAME (fields)) != fields)
+		continue;
+	    }
+	  else if ((t = TREE_TYPE (fields)) != NULL_TREE
+		   && TREE_CODE (t) == UNION_TYPE
+		   && ANON_AGGRNAME_P (TYPE_IDENTIFIER (t))
+		   && TYPE_FIELDS (t) != NULL_TREE)
+	    fields = largest_union_member (t);
+	  else
+	    continue;
+
+	  init = build (COMPONENT_REF, TREE_TYPE (fields), parm, fields);
+	  init = build_tree_list (NULL_TREE, init);
+
+	  current_member_init_list
+	    = tree_cons (DECL_NAME (fields), init, current_member_init_list);
+	}
+      current_member_init_list = nreverse (current_member_init_list);
+      setup_vtbl_ptr ();
+    }
+
+  pop_momentary ();
+  finish_function (lineno, 0);
+}
+
+void
+build_assign_ref (fndecl)
+     tree fndecl;
+{
+  tree parm = TREE_CHAIN (DECL_ARGUMENTS (fndecl));
+
+  start_function (NULL_TREE, fndecl, NULL_TREE, 1);
+  store_parm_decls ();
+  push_momentary ();
+
+  parm = convert_from_reference (parm);
+
+  if (! TYPE_HAS_COMPLEX_ASSIGN_REF (current_class_type))
+    {
+      tree t = build (MODIFY_EXPR, void_type_node, C_C_D, parm);
+      TREE_SIDE_EFFECTS (t) = 1;
+      cplus_expand_expr_stmt (t);
+    }
+  else
+    {
+      tree fields = TYPE_FIELDS (current_class_type);
+      int n_bases = CLASSTYPE_N_BASECLASSES (current_class_type);
+      tree binfos = TYPE_BINFO_BASETYPES (current_class_type);
+      int i;
+
+      for (i = 0; i < n_bases; ++i)
+	{
+	  tree basetype = BINFO_TYPE (TREE_VEC_ELT (binfos, i));
+	  if (TYPE_HAS_ASSIGN_REF (basetype))
+	    {
+	      tree p = convert (build_reference_type (basetype), parm);
+	      p = convert_from_reference (p);
+	      p = build_member_call (TYPE_NESTED_NAME (basetype),
+				     ansi_opname [MODIFY_EXPR],
+				     build_tree_list (NULL_TREE, p));
+	      expand_expr_stmt (p);
+	    }
+	}
+      for (; fields; fields = TREE_CHAIN (fields))
+	{
+	  tree comp, init, t;
+	  if (TREE_CODE (fields) != FIELD_DECL)
+	    continue;
+	  if (DECL_NAME (fields))
+	    {
+	      if (VFIELD_NAME_P (DECL_NAME (fields)))
+		continue;
+	      if (VBASE_NAME_P (DECL_NAME (fields)))
+		continue;
+
+	      /* True for duplicate members.  */
+	      if (IDENTIFIER_CLASS_VALUE (DECL_NAME (fields)) != fields)
+		continue;
+	    }
+	  else if ((t = TREE_TYPE (fields)) != NULL_TREE
+		   && TREE_CODE (t) == UNION_TYPE
+		   && ANON_AGGRNAME_P (TYPE_IDENTIFIER (t))
+		   && TYPE_FIELDS (t) != NULL_TREE)
+	    fields = largest_union_member (t);
+	  else
+	    continue;
+
+	  comp = build (COMPONENT_REF, TREE_TYPE (fields), C_C_D, fields);
+	  init = build (COMPONENT_REF, TREE_TYPE (fields), parm, fields);
+
+	  expand_expr_stmt (build_modify_expr (comp, NOP_EXPR, init));
+	}
+    }
+  c_expand_return (C_C_D);
+  pop_momentary ();
+  finish_function (lineno, 0);
+}
+
+void
+build_dtor (fndecl)
+     tree fndecl;
+{
+  start_function (NULL_TREE, fndecl, NULL_TREE, 1);
+  store_parm_decls ();
+  finish_function (lineno, 0);
 }

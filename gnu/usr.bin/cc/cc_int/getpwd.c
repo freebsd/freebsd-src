@@ -14,16 +14,23 @@ extern int errno;
    BSD systems) now provides getcwd as called for by POSIX.  Allow for
    the few exceptions to the general rule here.  */
 
-#if !(defined (POSIX) || defined (USG) || defined (VMS))
+#if !(defined (POSIX) || defined (USG) || defined (VMS)) || defined (HAVE_GETWD)
 #include <sys/param.h>
 extern char *getwd ();
 #define getcwd(buf,len) getwd(buf)
+#ifdef MAXPATHLEN
 #define GUESSPATHLEN (MAXPATHLEN + 1)
+#else
+#define GUESSPATHLEN 100
+#endif
 #else /* (defined (USG) || defined (VMS)) */
 extern char *getcwd ();
 /* We actually use this as a starting point, not a limit.  */
 #define GUESSPATHLEN 100
 #endif /* (defined (USG) || defined (VMS)) */
+#ifdef WINNT
+#include <direct.h>
+#endif
 
 char *getenv ();
 char *xmalloc ();
