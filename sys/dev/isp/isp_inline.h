@@ -476,7 +476,7 @@ isp_put_request_t3(struct ispsoftc *isp, ispreqt3_t *tqsrc, ispreqt3_t *tqdst)
 		ISP_IOXPUT_8(isp, tqsrc->req_cdb[i], &tqdst->req_cdb[i]);
 	}
 	ISP_IOXPUT_32(isp, tqsrc->req_totalcnt, &tqdst->req_totalcnt);
-	for (i = 0; i < ISP_RQDSEG_T2; i++) {
+	for (i = 0; i < ISP_RQDSEG_T3; i++) {
 		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_base,
 		    &tqdst->req_dataseg[i].ds_base);
 		ISP_IOXPUT_32(isp, tqsrc->req_dataseg[i].ds_basehi,
