@@ -42,9 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_RCLK	307200
 
-#define	IS_CHANNEL_A(bas)	(((bas)->iobase & 7) != 0)
-#define	IS_CHANNEL_B(bas)	(((bas)->iobase & 7) == 0)
-
 /* Multiplexed I/O. */
 static __inline void
 uart_setmreg(struct uart_bas *bas, int reg, int val)
@@ -144,14 +141,22 @@ static int
 z8530_setup(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
-	uint8_t tpc;
+	uint8_t mic, tpc;
 
 	if (bas->rclk == 0)
 		bas->rclk = DEFAULT_RCLK;
 
 	/* Assume we don't need to perform a full hardware reset. */
-	uart_setmreg(bas, WR_MIC, ((IS_CHANNEL_A(bas)) ? MIC_CRA : MIC_CRB) |
-	    MIC_MIE | MIC_NV);
+	mic = MIC_MIE | MIC_NV;
+	switch (bas->chan) {
+	case 1:
+		mic |= MIC_CRA;
+		break;
+	case 2:
+		mic |= MIC_CRB;
+		break;
+	}
+	uart_setmreg(bas, WR_MIC, mic);
 	uart_barrier(bas);
 	/* Set clock sources and enable BRG. */
 	uart_setmreg(bas, WR_CMC, CMC_RC_BRG | CMC_TC_BRG);
@@ -433,17 +438,16 @@ static int
 z8530_bus_probe(struct uart_softc *sc)
 {
 	char buf[80];
-	const char *ch;
 	int error;
+	char ch;
 
 	error = z8530_probe(&sc->sc_bas);
 	if (error)
 		return (error);
 
-	/* Assume the address range is naturally aligned. */
-	ch = IS_CHANNEL_A(&sc->sc_bas) ? "A" : "B";
+	ch = sc->sc_bas.chan - 1 + 'A';
 
-	snprintf(buf, sizeof(buf), "z8530, channel %s", ch);
+	snprintf(buf, sizeof(buf), "z8530, channel %c", ch);
 	device_set_desc_copy(sc->sc_dev, buf);
 	return (0);
 }

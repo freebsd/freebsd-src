@@ -40,7 +40,7 @@ int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
 
-	return ((b1->iobase == b2->iobase && b1->bst == b2->bst) ? 1 : 0);
+	return (0);		/* XXX */
 }
 
 int
@@ -80,7 +80,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 			di->ops = uart_ns8250_ops;
 		else
 			di->ops = uart_i8251_ops;
-		di->bas.iobase = ivar;
+		di->bas.chan = 0;
 		di->bas.bst = I386_BUS_SPACE_IO;
 		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
 			continue;

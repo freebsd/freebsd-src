@@ -111,7 +111,7 @@ uart_pci_probe(device_t dev)
  match:
 	if (id->desc)
 		device_set_desc(dev, id->desc);
-	return (uart_bus_probe(dev, 0, 0, id->rid));
+	return (uart_bus_probe(dev, 0, 0, id->rid, 0));
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, 0, 0);

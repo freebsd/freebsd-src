@@ -221,7 +221,7 @@ uart_intr(void *arg)
 }
 
 int
-uart_bus_probe(device_t dev, int regshft, int rclk, int rid)
+uart_bus_probe(device_t dev, int regshft, int rclk, int rid, int chan)
 {
 	struct uart_softc *sc;
 	struct uart_devinfo *sysdev;
@@ -267,14 +267,15 @@ uart_bus_probe(device_t dev, int regshft, int rclk, int rid)
 	 * accordingly. In general, you don't want to permanently disrupt
 	 * console I/O.
 	 */
-	sc->sc_bas.iobase = rman_get_start(sc->sc_rres);
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
+	sc->sc_bas.chan = chan;
 	sc->sc_bas.regshft = regshft;
 	sc->sc_bas.rclk = (rclk == 0) ? sc->sc_class->uc_rclk : rclk;
 
 	SLIST_FOREACH(sysdev, &uart_sysdevs, next) {
-		if (uart_cpu_eqres(&sc->sc_bas, &sysdev->bas)) {
+		if (chan == sysdev->bas.chan &&
+		    uart_cpu_eqres(&sc->sc_bas, &sysdev->bas)) {
 			/* XXX check if ops matches class. */
 			sc->sc_sysdev = sysdev;
 			break;
@@ -324,8 +325,6 @@ uart_bus_attach(device_t dev)
 	    0, ~0, sc->sc_class->uc_range, RF_ACTIVE);
 	if (sc->sc_rres == NULL)
 		return (ENXIO);
-
-	sc->sc_bas.iobase = rman_get_start(sc->sc_rres);
 	sc->sc_bas.bsh = rman_get_bushandle(sc->sc_rres);
 	sc->sc_bas.bst = rman_get_bustag(sc->sc_rres);
 

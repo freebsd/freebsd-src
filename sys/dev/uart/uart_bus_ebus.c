@@ -71,11 +71,11 @@ uart_ebus_probe(device_t dev)
 	nm = ebus_get_name(dev);
 	if (!strcmp(nm, "su")) {
 		sc->sc_class = &uart_ns8250_class;
-		return (uart_bus_probe(dev, 0, 0, 0));
+		return (uart_bus_probe(dev, 0, 0, 0, 0));
 	}
 	if (!strcmp(nm, "se")) {
 		sc->sc_class = &uart_sab82532_class;
-		error = uart_bus_probe(dev, 0, 0, 0);
+		error = uart_bus_probe(dev, 0, 0, 0, 1);
 		return ((error) ? error : -1);
 	}
 
