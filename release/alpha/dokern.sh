@@ -7,6 +7,7 @@ sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \

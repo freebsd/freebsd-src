@@ -49,6 +49,7 @@ sed	-e '/	pci$/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
@@ -85,6 +86,7 @@ sed	-e '/pty/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
