@@ -145,8 +145,15 @@ P1003_1B_SEMAPHORES		opt_posix.h
 
 # Support for Mandatory Access Control (MAC)
 MAC		opt_mac.h
+MAC_BIBA	opt_dontuse.h
+MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DEBUG	opt_mac.h
+MAC_IFOFF	opt_dontuse.h
+MAC_MLS		opt_dontuse.h
 MAC_NONE	opt_dontuse.h
+MAC_PARTITION	opt_dontuse.h
+MAC_SEEOTHERUIDS	opt_dontuse.h
+MAC_TEST	opt_dontuse.h
 
 # Do we want the config file compiled into the kernel?
 INCLUDE_CONFIG_FILE	opt_config.h
