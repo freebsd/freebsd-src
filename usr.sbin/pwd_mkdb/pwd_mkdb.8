@@ -42,6 +42,7 @@
 .Op Fl C
 .Op Fl p
 .Op Fl d Ar directory
+.Op Fl s Ar cachesize
 .Op Fl u Ar username
 .Ar file
 .Sh DESCRIPTION
@@ -76,6 +77,14 @@ Store databases into specified destination directory instead of
 Only update the record for the specified user.  Utilities that
 operate on a single user can use this option to avoid the
 overhead of rebuilding the entire database.
+.It Fl s Ar cachesize
+Specify in megabytes the size of the memory cache used by the
+hashing library.  On systems with a large user base, a small cache
+size can lead to prohibitively long database file rebuild times.
+As a rough guide, the memory usage of
+.Nm pwd_mkdb
+in megabytes will be a little bit more than twice the figure
+specified here.  The default is 2 megabytes.
 .El
 .Pp
 The two databases differ in that the secure version contains the user's 
