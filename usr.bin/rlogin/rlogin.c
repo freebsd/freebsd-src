@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -150,10 +151,10 @@ main(argc, argv)
 	struct servent *sp;
 	struct sgttyb ttyb;
 	long omask;
-	int argoff, ch, dflag, one, uid;
+	int argoff, ch, dflag, Dflag, one, uid;
 	char *host, *p, *user, term[1024];
 
-	argoff = dflag = 0;
+	argoff = dflag = Dflag = 0;
 	one = 1;
 	host = user = NULL;
 
@@ -172,14 +173,17 @@ main(argc, argv)
 	}
 
 #ifdef KERBEROS
-#define	OPTIONS	"8EKLde:k:l:x"
+#define	OPTIONS	"8DEKLde:k:l:x"
 #else
-#define	OPTIONS	"8EKLde:l:"
+#define	OPTIONS	"8DEKLde:l:"
 #endif
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
 		switch(ch) {
 		case '8':
 			eight = 1;
+			break;
+		case 'D':
+			Dflag = 1;
 			break;
 		case 'E':
 			noescape = 1;
@@ -337,6 +341,10 @@ try_connect:
 	    setsockopt(rem, SOL_SOCKET, SO_DEBUG, &one, sizeof(one)) < 0)
 		(void)fprintf(stderr, "rlogin: setsockopt: %s.\n",
 		    strerror(errno));
+	if (Dflag &&
+	    setsockopt(rem, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one)) < 0)
+		perror("rlogin: setsockopt NODELAY (ignored)");
+
 	one = IPTOS_LOWDELAY;
 	if (setsockopt(rem, IPPROTO_IP, IP_TOS, (char *)&one, sizeof(int)) < 0)
 		perror("rlogin: setsockopt TOS (ignored)");
