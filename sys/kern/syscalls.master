@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.25 1996/02/23 18:03:08 peter Exp $
+	$Id: syscalls.master,v 1.26 1996/02/23 18:20:44 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -117,9 +117,7 @@
 			    int arg); } getkerninfo getkerninfo_args int
 64	COMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
-65	STD	BSD	{ int msync(caddr_t addr, int len, int flags); }
-; XXX should be		{ int msync(caddr_t addr, size_t len, int flags); }
-; but man page and old args struct have `int len'.
+65	STD	BSD	{ int msync(caddr_t addr, size_t len, int flags); }
 66	STD	BSD	{ int vfork(void); }
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
@@ -127,25 +125,13 @@
 70	STD	BSD	{ int sstk(int incr); }
 71	COMPAT	BSD	{ int mmap(caddr_t addr, int len, int prot, \
 			    int flags, int fd, long pos); }
-; XXX should be		{ int mmap(caddr_t addr, size_t len, int prot,
-;			    int flags, int fd, long pos); }
-; but old args struct has `int len'.
 72	STD	BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
-73	STD	BSD	{ int munmap(caddr_t addr, int len); }
-; XXX should be		{ int munmap(caddr_t addr, size_t len); }
-; but man page and old args struct have `int len'.
-74	STD	BSD	{ int mprotect(caddr_t addr, int len, int prot); }
-; XXX should be		{ int mprotect(caddr_t addr, size_t len, int prot); }
-; but man page and old args struct have `int len'.
-75	STD	BSD	{ int madvise(caddr_t addr, int len, int behav); }
-; XXX should be		{ int madvise(caddr_t addr, size_t len, int behav); }
-; but man page, madvise() prototype and old args struct have `int len'.
+73	STD	BSD	{ int munmap(caddr_t addr, size_t len); }
+74	STD	BSD	{ int mprotect(caddr_t addr, size_t len, int prot); }
+75	STD	BSD	{ int madvise(caddr_t addr, size_t len, int behav); }
 76	OBSOL	NOHIDE	vhangup
 77	OBSOL	NOHIDE	vlimit
-78	STD	BSD	{ int mincore(caddr_t addr, int len, char *vec); }
-; XXX should be		{ int mincore(caddr_t addr, size_t len, char *vec); }
-; but man page, and old args struct have `int len'.
-; XXX mincore() prototype isn't in <sys/mman.h>.
+78	STD	BSD	{ int mincore(caddr_t addr, size_t len, char *vec); }
 79	STD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
 80	STD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 81	STD	POSIX	{ int getpgrp(void); }
