@@ -62,14 +62,6 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
 
-void
-m_freem(struct mbuf *m)
-{
-	while (m) {
-		m = m_free(m);
-	}
-}
-
 /*
  * Lesser-used path for M_PREPEND:
  * allocate new mbuf to prepend to chain,
