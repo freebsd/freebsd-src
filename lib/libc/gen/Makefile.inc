@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.6 (Berkeley) 5/4/95
-#	$Id: Makefile.inc,v 1.45 1998/03/09 06:48:25 jb Exp $
+#	$Id: Makefile.inc,v 1.46 1998/06/10 16:20:10 jdp Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/gen ${.CURDIR}/../libc/gen
@@ -29,10 +29,6 @@ SRCS+=  _rand48.c _spinlock_stub.c alarm.c arc4random.c assert.c \
 
 # machine-dependent gen sources
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/gen/Makefile.inc"
-
-.if defined(BINFORMAT) && ${BINFORMAT} == elf
-CFLAGS+=-D_NLIST_DO_ELF
-.endif
 
 .if ${LIB} == "c"
 MAN3+=  alarm.3 arc4random.3 clock.3 \
