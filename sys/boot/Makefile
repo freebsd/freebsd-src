@@ -3,8 +3,8 @@
 # Build the add-in FORTH interpreter
 SUBDIR+=		ficl
 
-# Build OpenFirmware library on PowerPC
-.if ${MACHINE_ARCH} == "powerpc"
+# Build OpenFirmware library
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "sparc64"
 SUBDIR+=		ofw
 .endif
 
