@@ -1041,6 +1041,7 @@ sigreturn(struct thread *td,
 
 	p->p_sigmask = uc.uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 
 	/* XXX ksc.sc_ownedfp ? */

@@ -256,10 +256,12 @@ linux_do_sigprocmask(struct thread *td, int how, l_sigset_t *new,
 			break;
 		case LINUX_SIG_UNBLOCK:
 			SIGSETNAND(p->p_sigmask, mask);
+			signotify(p);
 			break;
 		case LINUX_SIG_SETMASK:
 			p->p_sigmask = mask;
 			SIG_CANTMASK(p->p_sigmask);
+			signotify(p);
 			break;
 		default:
 			error = EINVAL;
@@ -377,6 +379,7 @@ linux_ssetmask(struct thread *td, struct linux_ssetmask_args *args)
 	linux_to_bsd_sigset(&lset, &bset);
 	p->p_sigmask = bset;
 	SIG_CANTMASK(p->p_sigmask);
+	signotify(p);
 	PROC_UNLOCK(p);
 	return (0);
 }

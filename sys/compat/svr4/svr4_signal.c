@@ -531,11 +531,13 @@ svr4_sys_sigprocmask(td, uap)
 
 	case SVR4_SIG_UNBLOCK:
 		SIGSETNAND(td->td_proc->p_sigmask, bss);
+		signotify(td->td_proc);
 		break;
 
 	case SVR4_SIG_SETMASK:
 		td->td_proc->p_sigmask = bss;
 		SIG_CANTMASK(td->td_proc->p_sigmask);
+		signotify(td->td_proc);
 		break;
 
 	default:
