@@ -276,6 +276,7 @@ g_mbr_taste(struct g_class *mp, struct g_provider *pp, int insist)
 
 static struct g_class g_mbr_class	= {
 	.name = MBR_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_mbr_taste,
 	.dumpconf = g_mbr_dumpconf,
 	.ioctl = g_mbr_ioctl,
@@ -418,6 +419,7 @@ g_mbrext_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 static struct g_class g_mbrext_class	= {
 	.name = MBREXT_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_mbrext_taste,
 	.dumpconf = g_mbrext_dumpconf,
 };

@@ -81,6 +81,7 @@ static g_taste_t g_mirror_taste;
 
 struct g_class g_mirror_class = {
 	.name = G_MIRROR_CLASS_NAME,
+	.version = G_VERSION,
 	.ctlreq = g_mirror_config,
 	.taste = g_mirror_taste,
 	.destroy_geom = g_mirror_destroy_geom

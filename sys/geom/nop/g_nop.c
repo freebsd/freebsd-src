@@ -56,6 +56,7 @@ static void g_nop_dumpconf(struct sbuf *sb, const char *indent,
 
 struct g_class g_nop_class = {
 	.name = G_NOP_CLASS_NAME,
+	.version = G_VERSION,
 	.ctlreq = g_nop_config,
 	.destroy_geom = g_nop_destroy_geom
 };

@@ -55,6 +55,7 @@ static void g_label_config(struct gctl_req *req, struct g_class *mp,
 
 struct g_class g_label_class = {
 	.name = G_LABEL_CLASS_NAME,
+	.version = G_VERSION,
 	.ctlreq = g_label_config,
 	.taste = g_label_taste
 };
