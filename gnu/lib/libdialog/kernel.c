@@ -85,6 +85,11 @@
 #include "colors.h"
 #endif
 
+/* These are two "secret" globals that can be fiddled to make a dialog
+ * come up someplace other than a "centered" calculation for X,Y
+ */
+int DialogX, DialogY;
+
 /*
  * Do some initialization for dialog
  */
@@ -114,6 +119,7 @@ void init_dialog(void)
 
   /* Set screen to screen attribute */
   dialog_clear_norefresh();
+  DialogX = DialogY = 0;
 }
 /* End of init_dialog() */
 
