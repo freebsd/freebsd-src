@@ -45,6 +45,7 @@
 #include <sys/socketvar.h>
 #include <net/if.h>
 #include <net/netisr.h>
+#include <net/intrq.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
 #include <netatm/atm.h>
