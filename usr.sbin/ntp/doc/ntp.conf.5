@@ -381,8 +381,8 @@ using the
 or
 .Cm autokey
 subcommands on the
-.Ic peer  ,
-.Ic server  ,
+.Ic peer ,
+.Ic server ,
 .Ic broadcast
 and
 .Ic manycastclient
@@ -462,7 +462,7 @@ The servers and clients involved must
 agree on the key and key identifier to authenticate their messages.
 Keys and related information are specified in a key file, usually
 called
-.Pa ntp.keys  ,
+.Pa ntp.keys ,
 which should be exchanged and stored
 using secure procedures beyond the scope of the NTP protocol
 itself.
@@ -486,7 +486,7 @@ command before use.
 This allows, for instance, the
 installation of possibly several batches of keys and then
 activating or deactivating each batch remotely using
-.Xr ntpdc 8  .
+.Xr ntpdc 8 .
 This also provides a revocation capability that can
 be used if a key becomes compromised.
 The
@@ -841,7 +841,7 @@ Specifies the key identifier to use with the
 .Xr ntpdc 8
 utility program, which uses a
 proprietary protocol specific to this implementation of
-.Xr ntpd 8  .
+.Xr ntpd 8 .
 The
 .Ar key
 argument is a key identifier
@@ -1150,9 +1150,9 @@ number.
 This number is taken to be the number of seconds the server
 is running at the start of the corresponding 24-hour period.
 Information is only written to a file generation by specifying
-.Ic enable  ;
+.Ic enable ;
 output is prevented by specifying
-.Ic disable  .
+.Ic disable .
 .El
 .It Cm link \&| Cm nolink
 It is convenient to be able to access the current element of a
@@ -1351,7 +1351,7 @@ programs
 are not subject to these limits.
 A history of clients is kept using
 the monitoring capability of
-.Xr ntpd 8  .
+.Xr ntpd 8 .
 Thus, monitoring is
 always active as long as there is a restriction entry with the
 .Cm limited
@@ -1479,7 +1479,7 @@ clock, where the
 argument in that command
 is the clock address.
 The
-.Cm key  ,
+.Cm key ,
 .Cm version
 and
 .Cm ttl
@@ -1765,7 +1765,7 @@ When enabled, this is identical to the
 .Ic broadcastclient
 command.
 The default for this flag is
-.Ic disable  .
+.Ic disable .
 .It Cm calibrate
 Enables the calibration facility, which automatically adjusts
 the
@@ -1778,7 +1778,7 @@ See the
 page
 for further information.
 The default for this flag is
-.Ic disable  .
+.Ic disable .
 .It Cm kernel
 Enables the precision-time kernel support for the
 .Xr adjtime 2
@@ -1791,7 +1791,7 @@ It is provided primarily so that this support
 can be disabled during kernel development.
 The default for this
 flag is
-.Ic enable  .
+.Ic enable .
 .It Cm monitor
 Enables the monitoring facility.
 See the
@@ -1802,7 +1802,7 @@ and the
 command or further information.
 The
 default for this flag is
-.Ic enable  .
+.Ic enable .
 .It Cm ntp
 Enables the server to adjust its local clock by means of NTP.
 If disabled, the local clock free-runs at its intrinsic time and
@@ -1818,14 +1818,14 @@ See the
 page for further
 information.
 The default for this flag is
-.Ic enable  .
+.Ic enable .
 .It Cm stats
 Enables the statistics facility.
 See the
 .Qq "Monitoring Options"
 page for further information.
 The default for this flag is
-.Ic enable  .
+.Ic enable .
 .El
 .It Ic logconfig Ar configkeyword
 This command controls the amount and type of output written to
