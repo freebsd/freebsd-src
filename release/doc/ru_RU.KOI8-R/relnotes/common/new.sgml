@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.4 2004/06/29 07:19:51 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/new.sgml,v 1.6 2004/06/30 10:36:21 den Exp $
 
      Original revision: 1.732
 -->
@@ -476,7 +476,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
 	<programlisting>ip verify unicast source reachable-via any</programlisting>
       </para>
 
-      <para>Были исправленные некоторые ошибки в реализации IPsec от
+      <para>Были исправлены некоторые ошибки в реализации IPsec от
 	KAME Project.  Эти ошибки были связаны с освобождением объектов
 	памяти перед тем, как все ссылки на эти объекты были удалены,
 	они могли стать причиной странного поведения или паники ядра
@@ -918,7 +918,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
       </note>
     </para>
 
-    <para>Были импортированы несколько утилит пользования из OpenBSD
+    <para>Были импортированы несколько утилит пользователя из OpenBSD
       <application>pf</application>.
       <filename>libexec/ftp-proxy</filename> это ftp прокси для
       <application>pf</application>,
@@ -968,7 +968,7 @@ mat.asc">FreeBSD-SA-04:02</ulink>.
     <title>Подготовка релизов и интеграция</title>
 
     <para arch="i386,pc98">Процесс сборки загрузочных дискет был полностью
-      пересмотрен.  Наиболее значительное изменение изменение заключается
+      пересмотрен.  Наиболее значительное изменение заключается
       в том, что загрузчик теперь загружает <filename>GENERIC</filename>
       ядро, разделенное на несколько дисков (два на момент написания).
       Это существенно улучшает установку, начинающуюся загрузкой
