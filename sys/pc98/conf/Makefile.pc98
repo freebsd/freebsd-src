@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.7.2.2 1997/02/14 05:35:07 kato Exp $
+#	$Id: Makefile.pc98,v 1.7.2.3 1997/06/20 10:27:57 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -41,7 +41,7 @@ COPTS=	${INCLUDES} ${IDENT} -DKERNEL
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 LOAD_ADDRESS?=	F0100000
 .if defined(PROF)
-PROF+=	-malign-functions=4
+CFLAGS+=	-malign-functions=4
 .if ${PROFLEVEL} >= 2
 IDENT+=	-DGPROF4 -DGUPROF
 PROF+=	-mprofiler-epilogue
