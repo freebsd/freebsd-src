@@ -33,7 +33,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-COPTS+= -msoft-float
+CFLAGS+= -msoft-float
 
 %BEFORE_DEPEND
 
