@@ -99,7 +99,7 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #
-#	$Id: MAKEDEV,v 1.116 1996/03/26 21:04:54 wollman Exp $
+#	$Id: MAKEDEV,v 1.117 1996/05/02 09:15:57 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -426,6 +426,33 @@ od*|sd*|vn*|wd*)
 			chmod 600 r${name}${unit}.ctl
 			;;
 		esac
+		;;
+	*)
+		echo bad unit for disk in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+ccd*)
+	umask 37
+	name=ccd
+	blk=21; chr=74
+	unit=`expr $i : '...\(.*\)'`
+	case $unit in
+	[0-9]|[1-2][0-9]|30|31)
+		rm -f r${name}${unit}.ctl
+		mknod r${name}${unit}.ctl c $chr `expr $unit '*' 8 + $scsictl `
+		chmod 600 r${name}${unit}.ctl
+		for part in 0 1 2 3 4 5 6 7
+		do
+			minor=`dkminor 0 $unit 0 $part` 
+			partname=`dkitop $part`
+			mknod  $name$unit$partname \
+			      b $blk $minor
+			mknod r$name$unit$partname \
+			      c $chr $minor
+		done
 		;;
 	*)
 		echo bad unit for disk in: $i
