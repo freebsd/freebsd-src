@@ -100,28 +100,28 @@
 43:222:Vienna:Austria
 43:316:Graz:Austria
 43:5222:Innsbruck:Austria
-44:171:London, Eng.:United Kingdom
-44:181:London, Eng.:United Kingdom
-44:113:Leeds, Eng.:United Kingdom
-44:114:Sheffield, Eng.:United Kingdom
-44:115:Nottingham, Eng.:United Kingdom
-44:116:Leicester, Eng.:United Kingdom
-44:117:Bristol, Eng.:United Kingdom
-44:1203:Coventry, Eng.:United Kingdom
-44:121:Birmingham, Eng.:United Kingdom
-44:1222:Cardiff, Wales:United Kingdom
-44:1232:Belfast, N. Ire.:United Kingdom
-44:1274:Bradford, Eng.:United Kingdom
-44:131:Edinburgh, Scot.:United Kingdom
-44:141:Glasgow, Scot.:United Kingdom
-44:1484:Huddersfield, Eng.:United Kingdom
-44:1485:Hillington, Eng.:United Kingdom
-44:151:Liverpool, Eng.:United Kingdom
-44:161:Manchester, Eng.:United Kingdom
-44:1752:Plymouth, Eng.:United Kingdom
-44:1782:Stoke-on-Trent, Eng.:United Kingdom
-44:1902:Wolverhampton, Eng.:United Kingdom
-44:191:Newcastle upon Tyne, Eng.:United Kingdom
+44:71:London, Eng.:United Kingdom
+44:81:London, Eng.:United Kingdom
+44:203:Coventry, Eng.:United Kingdom
+44:21:Birmingham, Eng.:United Kingdom
+44:222:Cardiff, Wales:United Kingdom
+44:232:Belfast, N. Ire.:United Kingdom
+44:272:Bristol, Eng.:United Kingdom
+44:274:Bradford, Eng.:United Kingdom
+44:31:Edinburgh, Scot.:United Kingdom
+44:41:Glasgow, Scot.:United Kingdom
+44:484:Huddersfield, Eng.:United Kingdom
+44:485:Hillington, Eng.:United Kingdom
+44:51:Liverpool, Eng.:United Kingdom
+44:532:Leeds, Eng.:United Kingdom
+44:533:Leicester, Eng.:United Kingdom
+44:602:Nottingham, Eng.:United Kingdom
+44:61:Manchester, Eng.:United Kingdom
+44:682:New Castle-on-Tyne, Eng.:United Kingdom
+44:742:Sheffield, Eng.:United Kingdom
+44:752:Plymouth, Eng.:United Kingdom
+44:782:Stoke-on-Trent, Eng.:United Kingdom
+44:902:Wolverhampton, Eng.:United Kingdom
 45:3:Copenhagen:Denmark
 45:6:Aarhus:Denmark
 45:8:Aalborg:Denmark
@@ -246,8 +246,7 @@
 86:20:Ghuangzhou:China, People's Rep. of
 86:21:Shanghai:China, People's Rep. of
 86:591:Fuzhou:China, People's Rep. of
-90:212:Istanbul (European side):Turkey
-90:216:Istanbul (Asian side):Turkey
+90:1:Istanbul:Turkey
 90:4:Ankara:Turkey
 91:11:New Delhi:India
 91:22:Bombay:India
