@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.62 1994/06/03 05:18:18 jkh Exp $
+#	$Id: Makefile,v 1.63 1994/06/08 11:01:46 csgr Exp $
 
 NOOBJ=	noobj
 
@@ -136,32 +136,34 @@ non-crypt:
 distribution: distrib-dirs
 	install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc
 	install -c -o ${BINOWN} -g ${BINGRP} -m 666 ${BIN2} ${DESTDIR}/etc
-	install -c -o root -g wheel -m 755 ${BIN3} ${DESTDIR}/etc
-	install -c -o root -g wheel -m 644 crontab ${DESTDIR}/etc
-	install -c -o root -g wheel -m 600 /dev/null ${DESTDIR}/var/cron/log
-	install -c -o root -g wheel -m 600 master.passwd ${DESTDIR}/etc
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN3} ${DESTDIR}/etc
+	install -c -o ${BINOWN} -g ${BINGRP} -m 644 crontab ${DESTDIR}/etc
+	install -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
+	    ${DESTDIR}/var/cron/log
+	install -c -o ${BINOWN} -g ${BINGRP} -m 600 \
+	    master.passwd ${DESTDIR}/etc
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd
 	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local etc.${MACHINE}/MAKEDEV ${DESTDIR}/dev
 .if defined(CDROMDIST)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
 .endif
-	(cd root; \
-		install -c -o root -g wheel -m 644 dot.cshrc \
+	(cd ${.CURDIR}/root; \
+		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
-		install -c -o root -g wheel -m 644 dot.klogin \
+		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.klogin \
 		    ${DESTDIR}/root/.klogin; \
-		install -c -o root -g wheel -m 644 dot.login \
+		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.login \
 		    ${DESTDIR}/root/.login; \
-		install -c -o root -g wheel -m 644 dot.profile \
+		install -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.profile \
 		    ${DESTDIR}/root/.profile; \
 		rm -f ${DESTDIR}/.cshrc ${DESTDIR}/.profile; \
 		ln ${DESTDIR}/root/.cshrc ${DESTDIR}/.cshrc; \
 		ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile)
-	cd mtree; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${MTREE} \
-	    ${DESTDIR}/etc/mtree
-	cd namedb; install -c -o ${BINOWN} -g ${BINGRP} -m 644 ${NAMEDB} \
-	    ${DESTDIR}/etc/namedb
+	cd ${.CURDIR}/mtree; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${MTREE} ${DESTDIR}/etc/mtree
+	cd ${.CURDIR}/namedb; install -c -o ${BINOWN} -g ${BINGRP} -m 644 \
+	    ${NAMEDB} ${DESTDIR}/etc/namedb
 	install -c -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
 	install -c -o nobody -g ${BINGRP} -m 664 /dev/null \
@@ -194,10 +196,10 @@ distribution: distrib-dirs
 	 cd ../cf/cf; \
 	    ${MAKE} obj; \
 	    ${MAKE} freefall.cf; \
-	    install -o root -g wheel -m 644 obj/freefall.cf \
+	    install -o ${BINOWN} -g ${BINGRP} -m 644 obj/freefall.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ../; \
-	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${FREEBSD} ${DESTDIR}/)
 	(cd ..; ${MAKE} mdec; )
 	(cd ../share/man; ${MAKE} makedb; )
 .if ${MACHINE} == "tahoe"
@@ -209,6 +211,17 @@ distribution: distrib-dirs
 	    ${DESTDIR}/)
 .endif
 
+crunch:
+	@echo crunch target
+
+extract:
+	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	    ${.CURDIR}/etc.i386/INSTALL_bin.sh ${RELEASEDIR}/tarballs/bindist
+	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	    ${.CURDIR}/etc.i386/INSTALL_src.sh ${RELEASEDIR}/tarballs/srcdist
+	install -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	    ${.CURDIR}/etc.i386/INSTALL_secr.sh ${RELEASEDIR}/tarballs/secrdist
+
 hcx9-distribution:
 	(cd etc.tahoe; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${WCS2} \
 	    ${DESTDIR}/)
@@ -217,10 +230,10 @@ kcopy-kernels: ../sys/i386/conf/GENERICAH ../sys/i386/conf/GENERICBT
 	(cd ../sys/compile; rm -rf GENERICAH GENERICBT)
 	(cd ../sys/i386/conf; config GENERICAH; config GENERICBT)
 	(cd ../sys/compile/GENERICAH; ${MAKE} depend; ${MAKE} all; \
-	    install -c -o root -g wheel -m 755 386bsd \
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICAH)
 	(cd ../sys/compile/GENERICBT; ${MAKE} depend; ${MAKE} all; \
-	    install -c -o root -g wheel -m 755 386bsd \
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd \
 	        ${DESTDIR}/386bsd.GENERICBT)
 
 kcopy-floppy:
@@ -229,7 +242,7 @@ kcopy-floppy:
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
 		r${FLOPPY} ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
-	chown root.wheel ${MOUNT}/.
+	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls -d ${KC_DIRS} | cpio -pdamuv ${MOUNT})
@@ -242,10 +255,10 @@ kcopy-floppy:
 	    rm -rf rmcd*)
 	(cd ${DESTDIR}/; \
 	    ls ${KC_FILES} | cpio -pdamuv ${MOUNT})
-	install -c -o root -g wheel -m 755 etc.i386/kc.profile \
-	    ${MOUNT}/.profile
-	install -c -o root -g wheel -m 755 ${RELEASEDIR}/distbin/kcopy \
-	    ${MOUNT}/bin/kcopy
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/kc.profile ${MOUNT}/.profile
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${RELEASEDIR}/distbin/kcopy ${MOUNT}/bin/kcopy
 	(cd ${MOUNT}/; \
 	    for i in ${KC_LINKS}; do \
 		ln bin/kcopy $$i; \
@@ -254,7 +267,7 @@ kcopy-floppy:
 kcopy_ah.flp:
 	${MAKE} kcopy-floppy
 	(cd ../sys/compile/GENERICAH; \
-	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
@@ -266,7 +279,7 @@ kcopy_ah.flp:
 kcopy_bt.flp:
 	${MAKE} kcopy-floppy
 	(cd ../sys/compile/GENERICBT; \
-	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
@@ -283,17 +296,17 @@ cdins-floppy:
 	    ln -s /cdrom/filesys/usr/libexec libexec; \
 	    ln -s /cdrom/filesys/usr/lib lib)
 	mkdir ${MOUNT}/cdrom
-	chown root.wheel ${MOUNT}/cdrom
+	chown ${BINOWN}.${BINGRP} ${MOUNT}/cdrom
 	chmod 755 ${MOUNT}/cdrom
-	install -c -o root -g wheel -m 755 etc.i386/cdinst1.profile \
-	    ${MOUNT}/.profile
-	install -c -o root -g wheel -m 755 etc.i386/cdinst1.install \
-	    ${MOUNT}/install
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/cdinst1.profile ${MOUNT}/.profile
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/cdinst1.install ${MOUNT}/install
 	
 cdins_ah.flp:
 	${MAKE} cdins-floppy
 	(cd ../sys/compile/GENERICAH; \
-	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
@@ -305,7 +318,7 @@ cdins_ah.flp:
 cdins_bt.flp:
 	${MAKE} cdins-floppy
 	(cd ../sys/compile/GENERICBT; \
-	    install -c -o root -g wheel -m 755 386bsd ${MOUNT}/)
+	    install -c -o ${BINOWN} -g ${BINGRP} -m 755 386bsd ${MOUNT}/)
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
@@ -320,7 +333,7 @@ filesyst.flp:
 	newfs -b 4096 -c 80 -f 512 -i 10240 -m 0 -o space \
 		r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY}  ${MOUNT}
-	chown root.wheel ${MOUNT}/.
+	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 	    ls -d ${FILESYSTEM_DIRS} | cpio -pdamuv ${MOUNT})
@@ -334,12 +347,12 @@ filesyst.flp:
 	    (find ${FILESYSTEM_CPIO}; ls -d ${FILESYSTEM_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst1.cpio.gz)
-	install -c -o root -g wheel -m 755 etc.i386/inst1.profile \
-	    ${MOUNT}/.profile
-	install -c -o root -g wheel -m 755 etc.i386/inst1.install \
-	    ${MOUNT}/install
-	install -c -o root -g wheel -m 755 ${RELEASEDIR}/distbin/filesystem \
-	    ${MOUNT}/bin/filesystem
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/inst1.profile ${MOUNT}/.profile
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/inst1.install ${MOUNT}/install
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${RELEASEDIR}/distbin/filesystem ${MOUNT}/bin/filesystem
 	(cd ${MOUNT}/; \
 	    for i in ${FILESYSTEM_LINKS}; do \
 		ln bin/filesystem $$i; \
@@ -365,7 +378,7 @@ cpio.flp:
 	newfs -b 4096 -c 80 -f 512 -i 65536 -m 0 -o space \
 			r${FLOPPY}  ${FLOPPY_TYPE}
 	mount /dev/${FLOPPY} ${MOUNT}
-	chown root.wheel ${MOUNT}/.
+	chown ${BINOWN}.${BINGRP} ${MOUNT}/.
 	chmod 755 ${MOUNT}/.
 	(cd ${DESTDIR}/; \
 		ls ${CPIO_FILES} | cpio -pdamuv ${MOUNT})
@@ -373,12 +386,12 @@ cpio.flp:
 	    (find ${CPIO_CPIO}; ls -d ${CPIO_CPIO_DIRS}) | \
 		cpio -H newc --block-size=16 -oav | \
 		gzip -9 >${MOUNT}/inst2.cpio.gz)
-	install -c -o root -g wheel -m 755 etc.i386/cpio.rc \
-	    ${MOUNT}/rc
-	install -c -o root -g wheel -m 755 etc.i386/cpio.install \
-	    ${MOUNT}/install
-	install -c -o root -g wheel -m 755 etc.i386/cpio.magic \
-	    ${MOUNT}/magic
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/cpio.rc ${MOUNT}/rc
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/cpio.install ${MOUNT}/install
+	install -c -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${.CURDIR}/etc.i386/cpio.magic ${MOUNT}/magic
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}
 	fsck /dev/r${FLOPPY}
@@ -539,24 +552,24 @@ des-tarball:
 	rm -rf ${RELEASEDIR}/tmpdes
 
 distrib-dirs:
-	mtree -u -f mtree/BSD.root.dist -p ${DESTDIR}/
-	mtree -u -f mtree/BSD.var.dist -p ${DESTDIR}/var
-	mtree -u -f mtree/BSD.usr.dist -p ${DESTDIR}/usr
+	mtree -u -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
+	mtree -u -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
+	mtree -u -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 .if defined(CDROMDIST)
-	mtree -u -f mtree/BSD.local.dist -p ${DESTDIR}/usr/local
+	mtree -u -f ${.CURDIR}/mtree/BSD.local.dist -p ${DESTDIR}/usr/local
 .endif
 	cd ${DESTDIR}/; rm -f ${DESTDIR}/sys; ln -s usr/src/sys sys
 
 floppies:	kcopy_ah.flp kcopy_bt.flp filesyst.flp cpio.flp \
 		cdins_ah.flp cdins_bt.flp
 
-release:	release-dirs distribution kcopy-kernels floppies \
-		bin-tarball des-tarball
-	
+release:	release-dirs distribution crunch extract kcopy-kernels \
+		floppies bin-tarball des-tarball
+
 release-dirs:
 	rm -rf ${RELEASEDIR}/filesys
 	mkdir ${RELEASEDIR}/filesys
-	chown root.wheel ${RELEASEDIR}/filesys
+	chown ${BINOWN}.${BINGRP} ${RELEASEDIR}/filesys
 	chmod 755 ${RELEASEDIR}/filesys
 	rm -rf ${RELEASEDIR}/tarballs
 	mkdir ${RELEASEDIR}/tarballs
@@ -564,11 +577,11 @@ release-dirs:
 	mkdir ${RELEASEDIR}/tarballs/objdist
 	mkdir ${RELEASEDIR}/tarballs/secrdist
 	mkdir ${RELEASEDIR}/tarballs/srcdist
-	chown -R root.wheel ${RELEASEDIR}/tarballs
+	chown -R ${BINOWN}.${BINGRP} ${RELEASEDIR}/tarballs
 	chmod -R 755 ${RELEASEDIR}/tarballs
 	rm -rf ${RELEASEDIR}/floppies
 	mkdir ${RELEASEDIR}/floppies
-	chown root.wheel ${RELEASEDIR}/floppies
+	chown ${BINOWN}.${BINGRP} ${RELEASEDIR}/floppies
 	chmod 755 ${RELEASEDIR}/floppies
 
 .include <bsd.prog.mk>
