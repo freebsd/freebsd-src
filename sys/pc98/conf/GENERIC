@@ -126,6 +126,10 @@ device		npx
 # Add suspend/resume support for the i8254.
 #device		pmtimer
 
+# Audio support
+#device		pcm		# Windows Sound System
+#device		sbc		# Sound Blaster 16
+
 # PCCARD (PCMCIA) support
 device		card		# pccard bus
 device		pcic		# PCMCIA bridge
