@@ -2493,14 +2493,10 @@ retry:
 		    ((objpgs > 0) && (p != NULL));
 		    p = TAILQ_NEXT(p, listq)) {
 
-			tmpidx = p->pindex;
-			if (tmpidx < pindex) {
+			if (p->pindex < pindex || p->pindex - pindex > psize) {
 				continue;
 			}
-			tmpidx -= pindex;
-			if (tmpidx >= psize) {
-				continue;
-			}
+			tmpidx = p->pindex - pindex;
 			/*
 			 * don't allow an madvise to blow away our really
 			 * free pages allocating pv entries.
