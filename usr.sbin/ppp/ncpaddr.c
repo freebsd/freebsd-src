@@ -185,6 +185,12 @@ ncpaddr_init(struct ncpaddr *addr)
 }
 
 int
+ncpaddr_isset(const struct ncpaddr *addr)
+{
+  return addr->ncpaddr_family != AF_UNSPEC;
+}
+
+int
 ncpaddr_isdefault(const struct ncpaddr *addr)
 {
   switch (addr->ncpaddr_family) {
