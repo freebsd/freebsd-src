@@ -43,7 +43,6 @@
 
 #include <netatm/ipatm/ipatm.h>
 #include <netatm/ipatm/ipatm_var.h>
-#include <netatm/ipatm/ipatm_serv.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");

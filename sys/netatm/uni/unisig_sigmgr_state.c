@@ -40,11 +40,6 @@
 #include <netatm/uni/uni.h>
 #include <netatm/uni/unisig.h>
 #include <netatm/uni/unisig_var.h>
-#include <netatm/uni/unisig_msg.h>
-#include <netatm/uni/unisig_mbuf.h>
-#include <netatm/uni/unisig_decode.h>
-
-#include <netatm/uni/sscf_uni.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");
