@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.69 1997/04/23 19:43:20 se Exp $
+**  $Id: pci.c,v 1.70 1997/04/26 11:46:18 peter Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -472,52 +472,65 @@ static void pci_attach (int bus, int dev, int func,
 	**	and update the pcicb fields.
 	*/
 
-	for (reg=PCI_MAP_REG_START;reg<PCI_MAP_REG_END;reg+=4) {
+	data = pci_conf_read(tag, PCI_CLASS_REG);
+	data &= (PCI_CLASS_MASK|PCI_SUBCLASS_MASK);
+	switch (data) {
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI:
+		break;
+	case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_CARDBUS: {
 		u_int map, addr, size;
+		map = pci_conf_read(tag, PCI_CARDBUS_SOCKET_REG);
+		pci_conf_write (tag, PCI_CARDBUS_SOCKET_REG, 0xffffffff);
+		size = pci_conf_read(tag, PCI_CARDBUS_SOCKET_REG);
+		size = (~size) + 1;
+		addr = pci_memalloc (pcicb, map, size);
+		pci_conf_write (tag, PCI_CARDBUS_SOCKET_REG, addr);
+		pcicb->pcicb_mamount += size;
+		break;
+		}
+	default:
+		for (reg=PCI_MAP_REG_START;reg<PCI_MAP_REG_END;reg+=4) {
+			u_int map, addr, size;
 
-		data = pci_conf_read(tag, PCI_CLASS_REG);
-		switch (data & (PCI_CLASS_MASK|PCI_SUBCLASS_MASK)) {
-		case PCI_CLASS_BRIDGE|PCI_SUBCLASS_BRIDGE_PCI:
-			continue;
-		};
 
-		map = pci_conf_read (tag, reg);
-		if (!(map & PCI_MAP_MEMORY_ADDRESS_MASK))
-			continue;
+			map = pci_conf_read (tag, reg);
+			if (!(map & PCI_MAP_MEMORY_ADDRESS_MASK))
+				continue;
 
-		pci_conf_write (tag, reg, 0xffffffff);
-		data = pci_conf_read (tag, reg);
-		pci_conf_write (tag, reg, map);
+			pci_conf_write (tag, reg, 0xffffffff);
+			data = pci_conf_read (tag, reg);
+			pci_conf_write (tag, reg, map);
 
-		switch (data & 7) {
+			switch (data & 7) {
 
-		default:
-			continue;
-		case 1:
-		case 5:
-			addr = map & PCI_MAP_IO_ADDRESS_MASK;
-			size = -(data & PCI_MAP_IO_ADDRESS_MASK);
-			size &= ~(addr ^ -addr);
+			default:
+				continue;
+			case 1:
+			case 5:
+				addr = map & PCI_MAP_IO_ADDRESS_MASK;
+				size = -(data & PCI_MAP_IO_ADDRESS_MASK);
+				size &= ~(addr ^ -addr);
 
-			pci_register_io (pcicb, addr, addr+size-1);
-			pcicb->pcicb_pamount += size;
-			break;
+				pci_register_io (pcicb, addr, addr+size-1);
+				pcicb->pcicb_pamount += size;
+				break;
 
-		case 0:
-		case 2:
-		case 4:
-			size = -(data & PCI_MAP_MEMORY_ADDRESS_MASK);
-			addr = map & PCI_MAP_MEMORY_ADDRESS_MASK;
-			if (addr >= 0x100000) {
-				pci_register_memory (pcicb, addr, addr+size-1);
-				pcicb->pcicb_mamount += size;
-			};
-			break;
-		};
-		if (bootverbose)
-			printf ("\tmapreg[%02x] type=%d addr=%08x size=%04x.\n",
-				reg, map&7, addr, size);
-	};
+			case 0:
+			case 2:
+			case 4:
+				size = -(data & PCI_MAP_MEMORY_ADDRESS_MASK);
+				addr = map & PCI_MAP_MEMORY_ADDRESS_MASK;
+				if (addr >= 0x100000) {
+					pci_register_memory (pcicb, addr, addr+size-1);
+					pcicb->pcicb_mamount += size;
+				};
+				break;
+			}
+			if (bootverbose)
+				printf ("\tmapreg[%02x] type=%d addr=%08x size=%04x.\n",
+					reg, map&7, addr, size);
+		}
+	}
 
 	/*
 	**	attach device
