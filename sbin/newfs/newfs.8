@@ -40,6 +40,7 @@
 .Nd construct a new file system
 .Sh SYNOPSIS
 .Nm
+.Op Fl L Ar volname
 .Op Fl NU
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -82,6 +83,8 @@ The following options define the general layout policies:
 .Bl -tag -width indent
 .It Fl T Ar disktype
 For backward compatibility.
+.It Fl L Ar volname
+Add a volume label to the new file system.
 .It Fl N
 Cause the file system parameters to be printed out
 without really creating the file system.
