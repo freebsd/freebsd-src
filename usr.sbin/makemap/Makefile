@@ -1,8 +1,6 @@
 #	@(#)Makefile	8.4 (Berkeley) 6/10/97
 # $FreeBSD$
 
-MAINTAINER=	gshapiro@FreeBSD.org
-
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH: ${SENDMAIL_DIR}/makemap
 

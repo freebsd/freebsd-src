@@ -1,8 +1,6 @@
 #	@(#)Makefile	8.8 (Berkeley) 3/28/97
 # $FreeBSD$
 
-MAINTAINER=	gshapiro@FreeBSD.org
-
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 SMDIR=	${SENDMAIL_DIR}/src
 .PATH: ${SMDIR}
