@@ -50,11 +50,22 @@
  */
 #define RTLD_NEXT	((void *) -1)
 
+/*
+ * Structure filled in by dladdr().
+ */
+typedef struct dl_info {
+	const char	*dli_fname;	/* Pathname of shared object */
+	void		*dli_fbase;	/* Base address of shared object */
+	const char	*dli_sname;	/* Name of nearest symbol */
+	void		*dli_saddr;	/* Address of nearest symbol */
+} Dl_info;
+
 __BEGIN_DECLS
+int dladdr __P((const void *, Dl_info *));
+int dlclose __P((void *));
+const char *dlerror __P((void));
 void *dlopen __P((const char *, int));
 void *dlsym __P((void *, const char *));
-const char *dlerror __P((void));
-int dlclose __P((void *));
 __END_DECLS
 
 #endif /* !_DLFCN_H_ */
