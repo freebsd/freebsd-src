@@ -119,6 +119,13 @@ extern struct mtx	acpi_mutex;
 #define	ACPI_FAN		0x00200000
 
 /*
+ * Constants for different interrupt models used with acpi_SetIntrModel().
+ */
+#define	ACPI_INTR_PIC		0
+#define	ACPI_INTR_APIC		1
+#define	ACPI_INTR_SAPIC		2
+
+/*
  * This is a cheap and nasty way to get around the horrid counted list
  * argument format that AcpiEvalateObject uses.
  */
@@ -260,6 +267,7 @@ extern ACPI_STATUS	acpi_ForeachPackageObject(ACPI_OBJECT *obj,
 						  void *arg);
 extern ACPI_STATUS	acpi_FindIndexedResource(ACPI_BUFFER *buf, int index, ACPI_RESOURCE **resp);
 extern ACPI_STATUS	acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res);
+extern ACPI_STATUS	acpi_SetIntrModel(int model);
 
 extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
