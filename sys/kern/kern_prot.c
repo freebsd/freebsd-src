@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.41 1998/11/09 15:07:42 truckman Exp $
+ * $Id: kern_prot.c,v 1.42 1998/11/10 09:16:29 peter Exp $
  */
 
 /*
@@ -122,13 +122,16 @@ getpgid(p, uap)
 	struct proc *p;
 	struct getpgid_args *uap;
 {
+	struct proc *pt;
+
+	pt = p;
 	if (uap->pid == 0)
 		goto found;
 
-	if ((p == pfind(uap->pid)) == 0)
+	if ((pt = pfind(uap->pid)) == 0)
 		return ESRCH;
 found:
-	p->p_retval[0] = p->p_pgrp->pg_id;
+	p->p_retval[0] = pt->p_pgrp->pg_id;
 	return 0;
 }
 
@@ -146,13 +149,16 @@ getsid(p, uap)
 	struct proc *p;
 	struct getsid_args *uap;
 {
+	struct proc *pt;
+
+	pt = p;
 	if (uap->pid == 0)
 		goto found;
 
-	if ((p == pfind(uap->pid)) == 0)
+	if ((pt == pfind(uap->pid)) == 0)
 		return ESRCH;
 found:
-	p->p_retval[0] = p->p_session->s_sid;
+	p->p_retval[0] = pt->p_session->s_sid;
 	return 0;
 }
 
