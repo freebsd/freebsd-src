@@ -1214,6 +1214,7 @@ fd_attach(device_t dev)
 
 	fd = device_get_softc(dev);
 
+	cdevsw_add(&fd_cdevsw);	/* XXX fill in devices */
 	make_dev(&fd_cdevsw, (fd->fdu << 6),
 		UID_ROOT, GID_OPERATOR, 0640, "rfd%d", fd->fdu);
 
@@ -1249,7 +1250,7 @@ static driver_t fd_driver = {
 	sizeof(struct fd_data)
 };
 
-DEV_DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, fd_cdevsw, 0, 0);
+DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
 
 /******************************************************************/
 
