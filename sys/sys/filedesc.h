@@ -162,13 +162,11 @@ int	getvnode(struct filedesc *fdp, int fd, struct file **fpp);
 void	setugidsafety(struct thread *td);
 
 static __inline struct file *
-fget_locked(fdp, fd)
-	struct filedesc *fdp;
-	int fd;
+fget_locked(struct filedesc *fdp, int fd)
 {
 
 	/* u_int cast checks for negative descriptors. */
-	return ((u_int)fd >= fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
+	return ((u_int)fd >= (u_int)fdp->fd_nfiles ? NULL : fdp->fd_ofiles[fd]);
 }
 
 #endif /* _KERNEL */
