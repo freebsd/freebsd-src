@@ -138,6 +138,25 @@ static void bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
     bus_size_t, int);
 static int bus_space_subregion(bus_space_tag_t, bus_space_handle_t,
     bus_size_t, bus_size_t, bus_space_handle_t *);
+
+/*
+ * Map a region of device bus space into CPU virtual address space.
+ */
+
+static __inline int bus_space_map(bus_space_tag_t t, bus_addr_t addr,
+				  bus_size_t size, int flags,
+				  bus_space_handle_t *bshp);
+
+static __inline int
+bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
+	      bus_size_t size __unused, int flags __unused,
+	      bus_space_handle_t *bshp)
+{
+
+	*bshp = addr;
+	return (0);
+}
+
 /*
  * Unmap a region of device bus space.
  */
