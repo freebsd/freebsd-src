@@ -188,7 +188,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			MFLAGS_append("-I", optarg);
 			break;
 		case 'V':
-			(void)Lst_AtEnd(variables, (void *)optarg);
+			Lst_AtEnd(variables, estrdup(optarg));
 			MFLAGS_append("-V", optarg);
 			break;
 		case 'X':
@@ -276,9 +276,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		}
 		case 'E':
-			p = emalloc(strlen(optarg) + 1);
-			(void)strcpy(p, optarg);
-			(void)Lst_AtEnd(envFirstVars, (void *)p);
+			Lst_AtEnd(envFirstVars, estrdup(optarg));
 			MFLAGS_append("-E", optarg);
 			break;
 		case 'e':
@@ -286,7 +284,7 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			MFLAGS_append("-e", NULL);
 			break;
 		case 'f':
-			(void)Lst_AtEnd(makefiles, (void *)optarg);
+			Lst_AtEnd(makefiles, estrdup(optarg));
 			break;
 		case 'i':
 			ignoreErrors = TRUE;
@@ -902,8 +900,8 @@ main(int argc, char **argv)
 		Lst_Destroy(targs, NOFREE);
 	}
 
-	Lst_Destroy(variables, NOFREE);
-	Lst_Destroy(makefiles, NOFREE);
+	Lst_Destroy(variables, free);
+	Lst_Destroy(makefiles, free);
 	Lst_Destroy(create, (void (*)(void *)) free);
 
 	/* print the graph now it's been processed if the user requested it */
