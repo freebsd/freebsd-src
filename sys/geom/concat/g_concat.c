@@ -592,6 +592,7 @@ g_concat_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	/*
 	 * Let's check if device already exists.
 	 */
+	sc = NULL;
 	LIST_FOREACH(gp, &mp->geom, geom) {
 		sc = gp->softc;
 		if (sc == NULL)
@@ -756,7 +757,7 @@ g_concat_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (sc == NULL)
 		return;
 	if (pp == NULL && cp == NULL) {
-		sbuf_printf(sb, "%s<id>%zu</id>\n", indent, sc->sc_id);
+		sbuf_printf(sb, "%s<id>%u</id>\n", indent, (u_int)sc->sc_id);
 		switch (sc->sc_type) {
 		case G_CONCAT_TYPE_AUTOMATIC:
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
