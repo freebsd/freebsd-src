@@ -420,11 +420,11 @@ child_process(e, u)
 				(void) gethostname(hostname, MAXHOSTNAMELEN);
 				(void) snprintf(mailcmd, sizeof(mailcmd),
 					       MAILARGS, MAILCMD);
-				if (!(mail = cron_popen(mailcmd, "w"))) {
+				if (!(mail = cron_popen(mailcmd, "w", e))) {
 					warn("%s", MAILCMD);
 					(void) _exit(ERROR_EXIT);
 				}
-				fprintf(mail, "From: root (Cron Daemon)\n");
+				fprintf(mail, "From: %s (Cron Daemon)\n", usernm);
 				fprintf(mail, "To: %s\n", mailto);
 				fprintf(mail, "Subject: Cron <%s@%s> %s\n",
 					usernm, first_word(hostname, "."),
