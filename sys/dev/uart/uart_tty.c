@@ -164,11 +164,11 @@ uart_tty_oproc(struct tty *tp)
 	 */
 	if ((tp->t_cflag & CRTS_IFLOW) && !sc->sc_hwiflow) {
 		if ((tp->t_state & TS_TBLOCK) &&
-		    (sc->sc_hwsig & UART_SIG_RTS))
-			UART_SETSIG(sc, UART_SIG_DRTS);
+		    (sc->sc_hwsig & SER_RTS))
+			UART_SETSIG(sc, SER_DRTS);
 		else if (!(tp->t_state & TS_TBLOCK) &&
-		    !(sc->sc_hwsig & UART_SIG_RTS))
-			UART_SETSIG(sc, UART_SIG_DRTS|UART_SIG_RTS);
+		    !(sc->sc_hwsig & SER_RTS))
+			UART_SETSIG(sc, SER_DRTS|SER_RTS);
 	}
 
 	if (tp->t_state & TS_TTSTOP)
@@ -207,7 +207,7 @@ uart_tty_param(struct tty *tp, struct termios *t)
 		t->c_cflag &= ~HUPCL;
 	}
 	if (t->c_ospeed == 0) {
-		UART_SETSIG(sc, UART_SIG_DDTR | UART_SIG_DRTS);
+		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
 		return (0);
 	}
 	switch (t->c_cflag & CSIZE) {
@@ -224,13 +224,13 @@ uart_tty_param(struct tty *tp, struct termios *t)
 		parity = UART_PARITY_NONE;
 	if (UART_PARAM(sc, t->c_ospeed, databits, stopbits, parity) != 0)
 		return (EINVAL);
-	UART_SETSIG(sc, UART_SIG_DDTR | UART_SIG_DTR);
+	UART_SETSIG(sc, SER_DDTR | SER_DTR);
 	/* Set input flow control state. */
 	if (!sc->sc_hwiflow) {
 		if ((t->c_cflag & CRTS_IFLOW) && (tp->t_state & TS_TBLOCK))
-			UART_SETSIG(sc, UART_SIG_DRTS);
+			UART_SETSIG(sc, SER_DRTS);
 		else
-			UART_SETSIG(sc, UART_SIG_DRTS | UART_SIG_RTS);
+			UART_SETSIG(sc, SER_DRTS | SER_RTS);
 	} else
 		UART_IOCTL(sc, UART_IOCTL_IFLOW, (t->c_cflag & CRTS_IFLOW));
 	/* Set output flow control state. */
@@ -297,11 +297,11 @@ uart_tty_intr(void *arg)
 
 	if (pend & UART_IPEND_SIGCHG) {
 		sig = pend & UART_IPEND_SIGMASK;
-		if (sig & UART_SIG_DDCD)
-			ttyld_modem(tp, sig & UART_SIG_DCD);
-		if ((sig & UART_SIG_DCTS) && (tp->t_cflag & CCTS_OFLOW) &&
+		if (sig & SER_DDCD)
+			ttyld_modem(tp, sig & SER_DCD);
+		if ((sig & SER_DCTS) && (tp->t_cflag & CCTS_OFLOW) &&
 		    !sc->sc_hwoflow) {
-			if (sig & UART_SIG_CTS) {
+			if (sig & SER_CTS) {
 				tp->t_state &= ~TS_TTSTOP;
 				ttyld_start(tp);
 			} else
@@ -418,7 +418,7 @@ uart_tty_open(struct cdev *dev, int flags, int mode, struct thread *td)
 		/*
 		 * Handle initial DCD.
 		 */
-		if ((sc->sc_hwsig & UART_SIG_DCD) || sc->sc_callout)
+		if ((sc->sc_hwsig & SER_DCD) || sc->sc_callout)
 			ttyld_modem(tp, 1);
 	}
 	/*
@@ -464,7 +464,7 @@ uart_tty_close(struct cdev *dev, int flags, int mode, struct thread *td)
 	if (sc->sc_hwoflow)
 		UART_IOCTL(sc, UART_IOCTL_OFLOW, 0);
 	if (sc->sc_sysdev == NULL)
-		UART_SETSIG(sc, UART_SIG_DDTR | UART_SIG_DRTS);
+		UART_SETSIG(sc, SER_DDTR | SER_DRTS);
 
 	/* Disable pulse capturing. */
 	sc->sc_pps.ppsparam.mode = 0;
@@ -504,52 +504,52 @@ uart_tty_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 		UART_IOCTL(sc, UART_IOCTL_BREAK, 0);
 		break;
 	case TIOCSDTR:
-		UART_SETSIG(sc, UART_SIG_DDTR | UART_SIG_DTR);
+		UART_SETSIG(sc, SER_DDTR | SER_DTR);
 		break;
 	case TIOCCDTR:
-		UART_SETSIG(sc, UART_SIG_DDTR);
+		UART_SETSIG(sc, SER_DDTR);
 		break;
 	case TIOCMSET:
 		bits = *(int*)data;
-		sig = UART_SIG_DDTR | UART_SIG_DRTS;
+		sig = SER_DDTR | SER_DRTS;
 		if (bits & TIOCM_DTR)
-			sig |= UART_SIG_DTR;
+			sig |= SER_DTR;
 		if (bits & TIOCM_RTS)
-			sig |= UART_SIG_RTS;
+			sig |= SER_RTS;
 		UART_SETSIG(sc, sig);
 		break;
         case TIOCMBIS:
 		bits = *(int*)data;
 		sig = 0;
 		if (bits & TIOCM_DTR)
-			sig |= UART_SIG_DDTR | UART_SIG_DTR;
+			sig |= SER_DDTR | SER_DTR;
 		if (bits & TIOCM_RTS)
-			sig |= UART_SIG_DRTS | UART_SIG_RTS;
+			sig |= SER_DRTS | SER_RTS;
 		UART_SETSIG(sc, sig);
 		break;
         case TIOCMBIC:
 		bits = *(int*)data;
 		sig = 0;
 		if (bits & TIOCM_DTR)
-			sig |= UART_SIG_DDTR;
+			sig |= SER_DDTR;
 		if (bits & TIOCM_RTS)
-			sig |= UART_SIG_DRTS;
+			sig |= SER_DRTS;
 		UART_SETSIG(sc, sig);
 		break;
         case TIOCMGET:
 		sig = sc->sc_hwsig;
 		bits = TIOCM_LE;
-		if (sig & UART_SIG_DTR)
+		if (sig & SER_DTR)
 			bits |= TIOCM_DTR;
-		if (sig & UART_SIG_RTS)
+		if (sig & SER_RTS)
 			bits |= TIOCM_RTS;
-		if (sig & UART_SIG_DSR)
+		if (sig & SER_DSR)
 			bits |= TIOCM_DSR;
-		if (sig & UART_SIG_CTS)
+		if (sig & SER_CTS)
 			bits |= TIOCM_CTS;
-		if (sig & UART_SIG_DCD)
+		if (sig & SER_DCD)
 			bits |= TIOCM_CD;
-		if (sig & (UART_SIG_DRI | UART_SIG_RI))
+		if (sig & (SER_DRI | SER_RI))
 			bits |= TIOCM_RI;
 		*(int*)data = bits;
 		break;
