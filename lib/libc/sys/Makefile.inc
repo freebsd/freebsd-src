@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.29 1997/05/03 03:50:05 jb Exp $
+#	$Id: Makefile.inc,v 1.30 1997/05/07 18:12:14 dfr Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -15,6 +15,7 @@ SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
 # modules with default implementations on all architectures:
 ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	chown.o chroot.o \
+	clock_getres.o clock_gettime.o clock_settime.o \
 	getdtablesize.o getegid.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
 	getpgrp.o getpid.o getppid.o getpriority.o \
@@ -44,8 +45,8 @@ ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
 	execve.o fchdir.o fchflags.o fchmod.o fchown.o fcntl.o \
 	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
 	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
-	mkfifo.o mknod.o nfssvc.o open.o read.o readv.o recvfrom.o \
-	recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
+	mkfifo.o mknod.o nanosleep.o nfssvc.o open.o read.o readv.o \
+	recvfrom.o recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
 	shutdown.o sigaction.o sigaltstack.o socket.o socketpair.o \
 	wait4.o write.o writev.o
 
@@ -66,6 +67,9 @@ SPSEUDO= ${PSEUDO:S/.o/.S/}
 SPSEUDOR= ${PSEUDOR:S/.o/.S/}
 
 SRCS+=	${SASM} ${SASMR} ${SPSEUDO} ${SPSEUDOR}
+
+# Generated files
+CLEANFILES+=	${SASM} ${SASMR} ${SPSEUDO} ${SPSEUDOR}
 
 ${SASM}:
 	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
