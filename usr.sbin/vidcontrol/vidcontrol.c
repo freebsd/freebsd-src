@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.8 1995/02/08 01:07:16 dima Exp $
+ *	$Id: vidcontrol.c,v 1.9 1995/02/22 13:41:27 sos Exp $
  */
 
 #include <ctype.h>
@@ -66,7 +66,6 @@ usage()
 "                  -l filename      (load srceenmap file filename)\n"
 "                  -L               (load default screenmap)\n"
 "                  -f DxL filename  (load font, D dots wide & L lines high)\n"
-"                  -s saver | help  (set screensaver type or help for a list)\n"
 "                  -t N             (set screensaver timeout in seconds)\n"
 "                  -x               (use hex numbers for output)\n"
 	);
