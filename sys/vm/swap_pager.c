@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.65 1996/05/03 21:01:47 phk Exp $
+ * $Id: swap_pager.c,v 1.66 1996/05/18 03:37:32 dyson Exp $
  */
 
 /*
@@ -433,6 +433,32 @@ swap_pager_freespace(object, start, size)
 				swap_pager_setvalid(object, i, 0);
 			}
 			*addr = SWB_EMPTY;
+		}
+	}
+	splx(s);
+}
+
+/*
+ * same as freespace, but don't free, just force a DMZ next time
+ */
+void
+swap_pager_dmzspace(object, start, size)
+	vm_object_t object;
+	vm_pindex_t start;
+	vm_size_t size;
+{
+	vm_pindex_t i;
+	int s;
+
+	s = splbio();
+	for (i = start; i < start + size; i += 1) {
+		int valid;
+		daddr_t *addr = swap_pager_diskaddr(object, i, &valid);
+
+		if (addr && *addr != SWB_EMPTY) {
+			if (valid) {
+				swap_pager_setvalid(object, i, 0);
+			}
 		}
 	}
 	splx(s);
