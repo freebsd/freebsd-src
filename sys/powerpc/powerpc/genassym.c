@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.1 1998/06/10 10:52:39 dfr Exp $
+ *	$Id: genassym.c,v 1.2 1998/06/14 13:44:43 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -93,6 +93,7 @@ main()
 	OFF(P_WCHAN,		struct proc,	p_wchan);
 	OFF(P_FLAG,		struct proc,	p_flag);
 	OFF(P_PID,		struct proc,	p_pid);
+	OFF(P_SWITCHTIME,	struct proc,	p_switchtime);
 	OFF(P_RUNTIME,		struct proc,	p_runtime);
 	OFF(P_MD_PCBPADDR,	struct proc,	p_md.md_pcbpaddr);
 
