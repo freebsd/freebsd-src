@@ -1,4 +1,4 @@
-.\" $Id$
+.\" $Id: fetch.1,v 1.9.2.3 1997/03/06 07:21:40 mpp Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -140,12 +140,12 @@ colon and a port number.
 .Pp
 The
 .Tn FTP
-proxy client specifies
-.Dq anonymous
-as its user name, and passes the remote user name and host as the
+proxy client passes the remote username, host and port as the
 .Tn FTP
-session's password, in the form
-.Dq Va remoteuser Ns Li \&@ Ns Va remotehost .
+session's username, in the form
+.Do Va remoteuser Ns Li \&@ Ns Va remotehost
+.Op Li \^@ Ns Va port
+.Dc .
 The
 .Tn HTTP
 proxy client simply passes the originally-requested URI to the remote
@@ -153,10 +153,6 @@ server in an
 .Tn HTTP
 .Dq Li GET
 request.  HTTP proxy authentication is not yet implemented.
-When multiple proxy protcols are configured,
-.Nm
-will prefer
-.Tn HTTP .
 .Sh HTTP AUTHENTICATION
 The
 .Tn HTTP
@@ -251,13 +247,21 @@ the password used for
 transfers (default
 .Dq Va yourname Ns Li \&@ Ns Va yourhost )
 .It Ev FTP_PROXY
-the address of a proxy server which understands
+the address (in the form
+.Do Va hostname Ns
+.Op Li : Ns Va port
+.Dc )
+of a proxy server which understands
 .Tn FTP
 .It Ev HTTP_AUTH
 defines authentication parameters for
 .Tn HTTP
 .It Ev HTTP_PROXY
-the address of a proxy server which understands
+the address (in the form
+.Do Va hostname Ns
+.Op Li : Ns Va port
+.Dc )
+of a proxy server which understands
 .Tn HTTP
 .It Ev HTTP_PROXY_AUTH
 defines authentication parameters for
