@@ -159,6 +159,10 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	gp = bp->bio_to->geom;
 	g_trace(G_T_TOPOLOGY, "g_disk_kernedump(%s, %jd, %jd)",
 		gp->name, (intmax_t)gkd->offset, (intmax_t)gkd->length);
+	if (dp->d_dump == NULL) {
+		g_io_deliver(bp, ENODEV);
+		return;
+	}
 	di.dumper = dp->d_dump;
 	di.priv = dp;
 	di.blocksize = dp->d_sectorsize;
