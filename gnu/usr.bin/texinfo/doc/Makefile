@@ -1,13 +1,7 @@
-#
-# $Id$
-#
+#	$Id$
 
-SRCTEXINFODIR=	${.CURDIR}/../../../../contrib/texinfo
-SRCINFODIR=	${.CURDIR}/../../../../contrib/texinfo/info
-SRCMAKEINFODIR=	${.CURDIR}/../../../../contrib/texinfo/makeinfo
-
-INFO= texinfo info info-stnd makeinfo
-
-.PATH: $(SRCTEXINFODIR) $(SRCINFODIR) $(SRCMAKEINFODIR)
+INFO=	texinfo info info-stnd makeinfo
 
 .include <bsd.info.mk>
+
+.PATH: ${TXIDIR} ${TXIDIR}/info ${TXIDIR}/makeinfo

@@ -1,20 +1,11 @@
-#
-# $Id$
-#
+#	$Id$
 
-TXIDIR= ${.CURDIR}/../../../../contrib/texinfo/libtxi
+LIB=	txi
+INTERNALLIB= true
+INTERNALSTATICLIB= true
 
-.PATH: $(TXIDIR)
-
-LIB= txi
-
-SRCS+= getopt.c getopt1.c
-
-NOPROFILE=      NO
-NOPIC=          NO
-NOSHARED=	NO
-
-install:
-	@true
+SRCS=	getopt.c getopt1.c
 
 .include <bsd.lib.mk>
+
+.PATH: ${TXIDIR}/libtxi
