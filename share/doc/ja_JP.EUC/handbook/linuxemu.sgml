@@ -1,6 +1,6 @@
-<!-- $Id: linuxemu.sgml,v 1.6 1997/02/22 13:01:24 peter Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.7 1997/02/25 04:56:46 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.17 -->
+<!-- Original revision: 1.19 -->
 
 <chapt><heading>Linux エミュレーション<label id="linuxemu"></heading>
 
@@ -11,9 +11,9 @@
 
 <p>
 FreeBSD での Linux エミュレーションは, 大部分の Linux バイナリ(a.out 
-および ELF フォーマット)を実行できる状態になっています. -STABLE ブラン
+および ELF フォーマット)を実行できる状態になっています. 2.1-STABLE ブラン
 チでのエミュレーションでは, Linux DOOM や Mathematica が実行できます.
-FreeBSD-current でのエミュレーションは, さらに強化されており, Linux 用
+FreeBSD 2.2-RELEASE でのエミュレーションは, さらに強化されており, Linux 用
 の Quake, Abuse, IDL, netrek など, 多数のソフトウェアが実行できます.
 
 Linux オペレーティングシステムには、特有の機能がいくつかあり, FreeBSD 
@@ -109,7 +109,7 @@ EXEC      0   3 f0baf000 0018 f0bb4000   1 linux_emulator
 </verb>
 </tscreen>
 システムブート時に, LKM をロードするようにするには, 2つの方法がありま
-す. FreeBSD-current または FreeBSD-STABLE では, /etc/sysconfig を,
+す. FreeBSD 2.2-RELEASE または 2.1-STABLE では, /etc/sysconfig を,
 <tscreen>
 <verb>
 linux=YES
@@ -124,10 +124,10 @@ linux
 </verb>
 </tscreen>
 
-<sect1><heading>2.2-current への Linux エミュレーションのインストール
+<sect1><heading>2.2-RELEASE への Linux エミュレーションのインストール
 </heading>
 
-<p>-current では, ``options LINUX'' や ``options COMPAT_LINUX'' を指定する必要
+<p>``options LINUX'' や ``options COMPAT_LINUX'' を指定する必要
 はなくなりました. Linux エミュレーションは LKM(「ローダブルカーネルモジュール」)
 を使用して, リブートせず簡単にインストールできます. スタートアッ
 プファイルで以下のように指定します.
@@ -159,8 +159,8 @@ EXEC      0   4 f09e6000 001c f09ec010   1 linux_mod
 %
 </verb>
 </tscreen>
-FreeBSD-current システムの中には, modstat の実行がうまくいかないものがあ
-るという報告もあります. 何らかの理由で, Linux LKM がロードできな
+2.2-RELEASE とそれ以降のシステムの中には, modstat の実行がうまくいかない
+ものがあるという報告もあります. 何らかの理由で, Linux LKM がロードできな
 い場合は,
 <tscreen>
 <verb>
@@ -210,8 +210,8 @@ linux_lib port を使用するのが簡単です.
 が参照するライブラリではなく, /compat/linux/lib 以下にインストールする
 必要があります.
 
-FreeBSD-current では, /compat/linux にかかわる動作が多少異なりま
-す. -current では, ライブラリだけでなくすべてのファイルが, ``shadow
+FreeBSD 2.2-RELEASE 以降では, /compat/linux にかかわる動作が多少異なりま
+す. -CURRENT では, ライブラリだけでなくすべてのファイルが, ``shadow
 root'' /compat/linux から検索されます.
 
 Linux のプログラムが必要とするシェアードライブラリを探す必要があるのは,
@@ -298,13 +298,13 @@ libc.so.4 (DLL Jump 4.5pl26) -> libc.so.4.6.29
 ン番号の一致したライブラリを検索しますから, ユーザが気にする必要はあり
 ません.
 
-<sect2><heading>ld.so の設定 -- FreeBSD-current のみ</heading>
+<sect2><heading>ld.so の設定 -- FreeBSD 2.2-RELEASE のみ</heading>
 
-<p>このセクションは, FreeBSD-current にのみ当てはまります.
-FreeBSD-STABLE を使用している方は, 飛ばしてください.
+<p>このセクションは, FreeBSD 2.2-CURRENT 以降にのみ当てはまります.
+2.1-STABLE を使用している方は, 飛ばしてください.
 
 <p>
-最後に, FreeBSD-current を使われている場合は, Linux のランタイムリンカと
+最後に, FreeBSD 2.2-RELEASE を使われている場合は, Linux のランタイムリンカと
 その設定ファイルがシステムに導入されていることを確認してください.
 これらのファイルは, FreeBSD システムの適切な位置(/compat/linux ツリー以
 下)にコピーされている必要があります.
@@ -360,7 +360,7 @@ Linux バイナリが, /lib/libc.so というライブラリを開いた場合, エミュレー
 (/compat/linux/lib/libc.so, /compat/linux/usr/X11/lib/libX11.so など)
 は, /compat/linux 以下にインストールされていなければなりません.
 
-<p>FreeBSD-current を使用している場合は, Linux の ldconfig プログラム
+<p>FreeBSD 2.2-RELEASE を使用している場合は, Linux の ldconfig プログラム
 を実行する必要があります.
 <tscreen>
 <verb>
@@ -376,8 +376,8 @@ ldconfig はスタティックリンクされていますから, 実行するのにシェアードラ
 ブラリの追加をおこなった場合には, ldconfig を再実行して, このファイルを作り
 直さなければなりません.
 
-FreeBSD-STABLE では, /compat/linux/etc/ld.so.cache をインストールしたり,
-ldconfig を実行したりしないでください. FreeBSD-stable では, システムコー
+2.1-STABLE では, /compat/linux/etc/ld.so.cache をインストールしたり,
+ldconfig を実行したりしないでください. 2.1-STABLE では, システムコー
 ルの実装方法が異なるため, ldconfig は使用されません.
 
 <p>
@@ -434,9 +434,9 @@ Linux のアプリケーションは, FreeBSD の /etc/host.conf を使用しようとして,
 文法の違いによる警告を表示します. /etc/resolv.conf を使用してネームサー
 バを設定していない場合には, `bind' を削除してください.
 
-<p>最後になりますが, FreeBSD-STABLE を使用している場合は,
+<p>最後になりますが, 2.1-STABLE を使用している場合は,
 RESOLV_HOST_CONF 環境変数を指定して, アプリケーションにホストテーブル
-の検索方法を指定する必要があります. FreeBSD-current を使用している場合
+の検索方法を指定する必要があります. FreeBSD 2.2-RELEASE を使用している場合
 は, スキップしてください. /bin/csh を使っている場合は, 以下のようにし
 ます.
 <tscreen>
@@ -667,7 +667,7 @@ XKEYSYMDB=/usr/local/Mathematica/lib/X11/XKeysymDB; export XKEYSYMDB
 これは, Mathematica が使用する Mathematica バージョンのキーマップファイル
 XKeysymDB の場所を指定するものです.
 
-FreeBSD-STABLE を使用している場合は, 以下の行も追加してください.
+2.1-STABLE を使用している場合は, 以下の行も追加してください.
 <tscreen>
 <verb>
 RESOLV_HOST_CONF=/compat/linux/etc/host.conf; export RESOLV_HOST_CONF
