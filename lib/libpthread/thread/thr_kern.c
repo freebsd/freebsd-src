@@ -152,6 +152,22 @@ static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
 static void	thr_unlink(struct pthread *thread);
 
 
+static void __inline
+thr_accounting(struct pthread *thread)
+{
+	if ((thread->slice_usec != -1) &&
+	    (thread->slice_usec <= TIMESLICE_USEC) &&
+	    (thread->attr.sched_policy != SCHED_FIFO)) {
+		thread->slice_usec += (thread->tmbx.tm_uticks
+		    + thread->tmbx.tm_sticks) * _clock_res_usec;
+		/* Check for time quantum exceeded: */
+		if (thread->slice_usec > TIMESLICE_USEC)
+			thread->slice_usec = -1;
+	}
+	thread->tmbx.tm_uticks = 0;
+	thread->tmbx.tm_sticks = 0;
+}
+
 /*
  * This is called after a fork().
  * No locks need to be taken here since we are guaranteed to be
@@ -581,7 +597,8 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 
 	curthread->need_switchout = 1;	/* The thread yielded on its own. */
 	curthread->critical_yield = 0;	/* No need to yield anymore. */
-	curthread->slice_usec = -1;	/* Restart the time slice. */
+	thr_accounting(curthread);
+
 
 	/* Thread can unlock the scheduler lock. */
 	curthread->lock_switch = 1;
@@ -636,12 +653,6 @@ _thr_sched_switch_unlocked(struct pthread *curthread)
 			 * this kse.
 			 */
 			td->kse = curkse;
-
-			/*
-			 * Reset accounting.
-			 */
-			td->tmbx.tm_uticks = 0;
-			td->tmbx.tm_sticks = 0;
 
 			/*
 			 * Reset the time slice if this thread is running
@@ -1028,12 +1039,6 @@ kse_sched_multi(struct kse *curkse)
 	curthread->kse = curkse;
 
 	/*
-	 * Reset accounting.
-	 */
-	curthread->tmbx.tm_uticks = 0;
-	curthread->tmbx.tm_sticks = 0;
-
-	/*
 	 * Reset the time slice if this thread is running for the first
 	 * time or running again after using its full time slice allocation.
 	 */
@@ -1416,6 +1421,7 @@ kse_check_completed(struct kse *kse)
 			    (thread->name == NULL) ? "none" : thread->name);
 			thread->blocked = 0;
 			if (thread != kse->k_curthread) {
+				thr_accounting(thread);
 				if ((thread->flags & THR_FLAGS_SUSPENDED) != 0)
 					THR_SET_STATE(thread, PS_SUSPENDED);
 				else
@@ -1545,11 +1551,6 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 		thread->active = 0;
 		thread->need_switchout = 0;
 		/* This thread must have blocked in the kernel. */
-		/* thread->slice_usec = -1;*/	/* restart timeslice */
-		if ((thread->slice_usec != -1) &&
-		    (thread->attr.sched_policy != SCHED_FIFO))
-			thread->slice_usec += (thread->tmbx.tm_uticks
-			    + thread->tmbx.tm_sticks) * _clock_res_usec;
 		/*
 		 *  Check for pending signals for this thread to
 		 *  see if we need to interrupt it in the kernel.
@@ -1623,24 +1624,8 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			KSE_WAITQ_INSERT(kse, thread);
 			break;
 		}
-		if (thread->state != PS_RUNNING) {
-			/* Restart the time slice: */
-			thread->slice_usec = -1;
-		} else {
-			if (thread->need_switchout != 0)
-				/*
-				 * The thread yielded on its own;
-				 * restart the timeslice.
-				 */
-				thread->slice_usec = -1;
-			else if ((thread->slice_usec != -1) &&
-	   		    (thread->attr.sched_policy != SCHED_FIFO)) {
-				thread->slice_usec += (thread->tmbx.tm_uticks
-				    + thread->tmbx.tm_sticks) * _clock_res_usec;
-				/* Check for time quantum exceeded: */
-				if (thread->slice_usec > TIMESLICE_USEC)
-					thread->slice_usec = -1;
-			}
+		thr_accounting(thread);
+		if (thread->state == PS_RUNNING) {
 			if (thread->slice_usec == -1) {
 				/*
 				 * The thread exceeded its time quantum or
