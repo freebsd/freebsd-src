@@ -114,3 +114,5 @@
 #define WT_QIC150       0040    /* 150 megabytes */
 #define WT_QIC300       0050    /* 300 megabytes? */
 #define WT_QIC600       0060    /* 600 megabytes? */
+#define	WT_UNIT		0003	/* unit selection */
+#define	WT_NOREWIND	0004	/* no rewind on close */

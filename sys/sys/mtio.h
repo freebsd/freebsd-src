@@ -234,18 +234,4 @@ union mterrstat {
 #define	DEFTAPE	"/dev/nsa0"
 #endif
 
-#ifdef	_KERNEL
-/*
- * minor device number
- */
-
-#define	T_UNIT		003		/* unit selection */
-#define	T_NOREWIND	004		/* no rewind on close */
-#define	T_DENSEL	030		/* density select */
-#define	T_800BPI	000		/* select  800 bpi */
-#define	T_1600BPI	010		/* select 1600 bpi */
-#define	T_6250BPI	020		/* select 6250 bpi */
-#define	T_BADBPI	030		/* undefined selection */
-#endif
-
 #endif /* !_SYS_MTIO_H_ */
