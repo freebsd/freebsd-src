@@ -331,7 +331,7 @@ main(argc, argv)
 		 * within the next block. pwd can be NULL since it
 		 * falls back to the "default" class if it is.
 		 */
-		lc = login_getclass(pwd);
+		lc = login_getpwclass(pwd);
 #endif /* LOGIN_CAP */
 
 		/*
@@ -475,7 +475,7 @@ main(argc, argv)
 
 		(void)setpriority(PRIO_PROCESS, 0, 0);
 
-#ifdef LOGIN_CAP
+#ifdef LOGIN_CAP_AUTH
 		if (rval)
 			auth_rmfiles();
 #endif
