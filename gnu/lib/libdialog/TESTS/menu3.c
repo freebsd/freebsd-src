@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: menu3.c,v 1.4 1996/04/18 13:21:26 jkh Exp $
+ * $Id: menu3.c,v 1.1.2.1 1996/05/03 23:32:28 jkh Exp $
  */
 
 #include <stdio.h>
@@ -74,6 +74,8 @@ preinsure(dialogMenuItem *self, int is_selected)
 
 /* prompt	title						checked		fire		sel  */
 static dialogMenuItem doit[] = {
+    { "Rah!" },
+    { "No way!" },
     { "Stop",	"No, I'm not going to do that!",		NULL,		stop,		NULL	},
     { "Maybe",	"I'm still thinking about it, don't rush me!",	NULL,		maybe,		NULL,	},
     { "Go",	"Yes!  Yes!  I want to do it!",			NULL,		NULL, 		preinsure },
@@ -95,7 +97,7 @@ main(int argc, unsigned char *argv[])
     retval = dialog_menu("Do you have the GUTS?",
 			 "C'mon, macho man!  Do you have what it takes to do something REALLY\n"
 			 "dangerous and stupid?  WHAT ARE YOU WAITING FOR?!",
-			 -1, -1, 3, -3, doit, NULL, NULL, NULL);
+			 -1, -1, 3, -3, doit + 2, (char *)TRUE, NULL, NULL);
     dialog_clear();
     fprintf(stderr, "returned value for dialog_menu was %d\n", retval);
     

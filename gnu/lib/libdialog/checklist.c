@@ -342,6 +342,7 @@ draw:
 			else if (st & DITEM_RECREATE) {
 			    delwin(list);
 			    delwin(dialog);
+			    dialog_clear();
 			    goto draw;
 			}
 		    }
