@@ -60,7 +60,7 @@
 # Terminal ports:
 #	tty*	general purpose serial ports
 #	cua*	dialout serial ports
-#	ttyA*	Specialix SI/XIO dialin ports
+#	ttyA*	Specialix SI/XIO dialin ports ('*' = number of devices)
 #	cuaA*	Specialix SI/XIO dialout ports
 #	ttyD*	Digiboard - 16 dialin ports
 #	cuaD*	Digiboard - 16 dialout ports
@@ -93,7 +93,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.104 1995/09/03 20:40:16 jkh Exp $
+#	$Id: MAKEDEV,v 1.105 1995/09/16 23:15:01 ats Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -756,31 +756,42 @@ ttym?)
 # Specialix SI/XIO.
 # Note: these are 'base 1' to match the numbers on the panels, and to match
 #       the manual that comes with the system.
-ttyA?)
-	unit=`expr $i : 'tty.*\(.\)$'`
-	rm -f tty*A$unit
-	m=`ttyminor $unit`
-	mknod ttyA$unit c 68 `expr $m - 1`
-	mknod ttyiA$unit c 68 `expr $m + 65536 - 1`
-	mknod ttylA$unit c 68 `expr $m + 131072 - 1`
-	chown root.wheel ttyA$unit
-	;;
-cuaA?)
-	umask 7
-	unit=`expr $i : 'cua.*\(.\)$'`
-	rm -f cuaA$unit
-	m=`ttyminor $unit`
-	mknod cuaA$unit c 68 `expr $m + 128 - 1`
-	chown uucp.dialer cuaA$unit
-	umask 77
-	;;
-
-# the user mode process "gets" to the card via this..
-si_control)
+ttyA*)
+	major=68
+	nports=`expr $i : 'ttyA\(.*\)$'`
+	port=1
+	while [ $port -le $nports ]; do
+		minor=`expr $port - 1`
+		name=`expr $port + 1000 | cut -c 3-4` 
+		rm -f tty*A$name
+		mknod ttyA$name c $major $minor
+		chown root.wheel ttyA$name
+		mknod ttyiA$name c $major `expr $minor + 65536`
+		chown root.wheel ttyiA$name
+		mknod ttylA$name c $major `expr $minor + 131072`
+		chown root.wheel ttylA$name
+		port=`expr $port + 1`
+	done
+	# For the user-mode control program, 'sicontrol'
 	rm -f si_control
 	mknod si_control c 68 262144
 	chmod 600 si_control
 	chown root.wheel si_control
+	;;
+cuaA*)
+	umask 7
+	major=68
+	nports=`expr $i : 'cuaA\(.*\)$'`
+	port=1
+	while [ $port -le $nports ]; do
+		minor=`expr $port - 1`
+		name=`expr $port + 1000 | cut -c 3-4` 
+		rm -f cuaA$name
+		mknod cuaA$name c $major `expr $minor + 128`
+		chown uucp.dialer cuaA$name
+		port=`expr $port + 1`
+	done
+	umask 77
 	;;
 
 # Digiboard PC/?? 16 port card.
