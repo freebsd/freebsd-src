@@ -182,7 +182,7 @@ struct inoinfo {
 	u_int	i_numblks;		/* size of block array in bytes */
 	ufs_daddr_t i_blks[1];		/* actually longer */
 } **inphead, **inpsort;
-long numdirs, listmax, inplast;
+long numdirs, dirhash, listmax, inplast;
 long countdirs;			/* number of directories we actually found */
 
 char	*cdevname;		/* name of device being checked */
