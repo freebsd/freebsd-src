@@ -156,6 +156,10 @@ Please keep this list in alphabetical order by entity names.
   <tt><htmlurl url='mailto:guido@FreeBSD.ORG'
   name='&lt;guido@FreeBSD.ORG&gt;'></tt>">
 
+<!ENTITY a.hanai "Hiroyuki HANAI
+  <tt><htmlurl url='mailto:hanai@FreeBSD.ORG'
+  name='&lt;hanai@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.handy "Brian N. Handy
   <tt><htmlurl url='mailto:handy@sxt4.physics.montana.edu'
   name='&lt;handy@sxt4.physics.montana.edu&gt;'></tt>">
