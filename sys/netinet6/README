@@ -26,3 +26,56 @@ please understand the following:
   (or to core@kame.net if it is necessary to make it confidential)
 
 Thank you for your cooperation and have a happy IPv6 life!
+
+
+Note: KAME-origin code is in the following locations.
+The above notice applies to corresponding manpages too.
+The list may not be complete.  If you see $KAME$ in the code, it is from
+KAME distribution.  If you see some file that is IPv6/IPsec related, it is
+highly possible that the file is from KAME distribution.
+
+include/ifaddrs.h
+lib/libc/net
+lib/libc/net/getaddrinfo.c
+lib/libc/net/getifaddrs.c
+lib/libc/net/getnameinfo.c
+lib/libc/net/ifname.c
+lib/libc/net/ip6opt.c
+lib/libc/net/map_v4v6.c
+lib/libc/net/name6.c
+lib/libftpio
+lib/libipsec
+sbin/ip6fw
+sbin/ping6
+sbin/rtsol
+share/doc/IPv6
+share/man/man4/ip6.4
+share/man/man4/inet6.4
+sys/crypto (except sys/crypto/rc4)
+sys/kern/uipc_mbuf2.c
+sys/net/if_faith.[ch]
+sys/net/if_gif.[ch]
+sys/net/if_stf.[ch]
+sys/net/pfkeyv2.h
+sys/netinet/icmp6.h
+sys/netinet/in_gif.[ch]
+sys/netinet/ip6.h
+sys/netinet/ip_encap.[ch]
+sys/netinet6
+sys/netkey
+usr.sbin/faithd
+usr.sbin/gifconfig
+usr.sbin/ifmcstat
+usr.sbin/mld6query
+usr.sbin/ndp
+usr.sbin/pim6dd
+usr.sbin/pim6sd
+usr.sbin/prefix
+usr.sbin/rip6query
+usr.sbin/route6d
+usr.sbin/rrenumd
+usr.sbin/rtadvd
+usr.sbin/rtsold
+usr.sbin/scope6config
+usr.sbin/setkey
+usr.sbin/traceroute6
