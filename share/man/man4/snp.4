@@ -16,7 +16,7 @@
 .Ft int
 .Fn ioctl fd FIONREAD &result
 .Sh DESCRIPTION
-/dev/snp? are snoop devices which allow user to attach to any tty
+/dev/snp? are snoop devices which allow users to attach to any tty
 and watch activities on it.
 The kernel must be compiled with
 .Cd "device snp" ,
@@ -27,13 +27,12 @@ for these devices to be available.
 .Pp
 To associate a given
 .Nm
-device with a tty to be observed,  open the
+device with a tty to be observed, open the
 .Nm
 device and then use the SNPSTTY ioctl.
-The argument passed to the IOCTL is the address of a variable of type
+The argument passed to the ioctl is the address of a variable of type
 dev_t.
-By setting the value of the variable pointed to -1, the user may detach
-the snp device from a tty.
+To detach the snp device from a tty use a pointer to a value of (dev_t)-1.
 .Pp
 The SNPGTTY ioctl returns information about the current tty attached to
 the open
