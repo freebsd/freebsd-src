@@ -13,6 +13,7 @@ LOCALES=        ja_JP.EUC \
 		ru_SU.CP866 \
 		ru_SU.ISO_8859-5 \
 		ru_SU.KOI8-R \
+		uk_UA.KOI8-U \
 		zh_CN.EUC \
 		zh_TW.Big5
 
