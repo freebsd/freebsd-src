@@ -210,7 +210,6 @@ void	psignal __P((struct proc *p, int sig));
 void	sigexit __P((struct proc *p, int signum));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, u_long code));
-int	__cursig __P((struct proc *p));
 
 /*
  * Machine-dependent functions:
@@ -229,7 +228,7 @@ void	sendsig __P((sig_t action, int sig, sigset_t *retmask, u_long code));
  *
  * MP SAFE
  */
-extern __inline int __cursig(struct proc *p)
+static __inline int __cursig(struct proc *p)
 {
 	sigset_t tmpset;
 	int r;
