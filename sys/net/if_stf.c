@@ -138,6 +138,13 @@ struct stf_softc {
 	LIST_ENTRY(stf_softc) sc_list;	/* all stf's are linked */
 };
 
+/*
+ * All mutable global variables in if_stf.c are protected by stf_mtx.
+ * XXXRW: Note that mutable fields in the softc are not currently locked:
+ * in particular, sc_ro needs to be protected from concurrent entrance
+ * of stf_output().
+ */
+static struct mtx stf_mtx;
 static LIST_HEAD(, stf_softc) stf_softc_list;
 
 static MALLOC_DEFINE(M_STF, STFNAME, "6to4 Tunnel Interface");
@@ -197,24 +204,36 @@ stf_clone_create(ifc, unit)
 	sc->sc_if.if_snd.ifq_maxlen = IFQ_MAXLEN;
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int));
+	mtx_lock(&stf_mtx);
 	LIST_INSERT_HEAD(&stf_softc_list, sc, sc_list);
+	mtx_unlock(&stf_mtx);
 	return (0);
+}
+
+static void
+stf_destroy(struct stf_softc *sc)
+{
+	int err;
+
+	err = encap_detach(sc->encap_cookie);
+	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
+	bpfdetach(&sc->sc_if);
+	if_detach(&sc->sc_if);
+
+	free(sc, M_STF);
 }
 
 void
 stf_clone_destroy(ifp)
 	struct ifnet *ifp;
 {
-	int err;
 	struct stf_softc *sc = (void *) ifp;
 
+	mtx_lock(&stf_mtx);
 	LIST_REMOVE(sc, sc_list);
-	err = encap_detach(sc->encap_cookie);
-	KASSERT(err == 0, ("Unexpected error detaching encap_cookie"));
-	bpfdetach(ifp);
-	if_detach(ifp);
+	mtx_unlock(&stf_mtx);
 
-	free(sc, M_STF);
+	stf_destroy(sc);
 }
 
 static int
@@ -223,9 +242,11 @@ stfmodevent(mod, type, data)
 	int type;
 	void *data;
 {
+	struct stf_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&stf_mtx, "stf_mtx", NULL, MTX_DEF);
 		LIST_INIT(&stf_softc_list);
 		if_clone_attach(&stf_cloner);
 
@@ -233,8 +254,15 @@ stfmodevent(mod, type, data)
 	case MOD_UNLOAD:
 		if_clone_detach(&stf_cloner);
 
-		while (!LIST_EMPTY(&stf_softc_list))
-			stf_clone_destroy(&LIST_FIRST(&stf_softc_list)->sc_if);
+		mtx_lock(&stf_mtx);
+		while ((sc = LIST_FIRST(&stf_softc_list)) != NULL) {
+			LIST_REMOVE(sc, sc_list);
+			mtx_unlock(&stf_mtx);
+			stf_destroy(sc);
+			mtx_lock(&stf_mtx);
+		}
+		mtx_unlock(&stf_mtx);
+		mtx_destroy(&stf_mtx);
 		break;
 	}
 
@@ -467,6 +495,9 @@ stf_output(ifp, m, dst, rt)
 	else
 		ip_ecn_ingress(ECN_NOCARE, &ip->ip_tos, &tos);
 
+	/*
+	 * XXXRW: Locking of sc_ro required.
+	 */
 	dst4 = (struct sockaddr_in *)&sc->sc_ro.ro_dst;
 	if (dst4->sin_family != AF_INET ||
 	    bcmp(&dst4->sin_addr, &ip->ip_dst, sizeof(ip->ip_dst)) != 0) {
