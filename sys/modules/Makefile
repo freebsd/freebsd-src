@@ -236,7 +236,7 @@ SUBDIR=	${_3dfx} \
 	uvisor \
 	uvscom \
 	${_vesa} \
-	${_vinum} \
+	vinum \
 	vpo \
 	vr \
 	vx \
@@ -325,7 +325,6 @@ _sppp=		sppp
 _sr=		sr
 _stg=		stg
 _streams=	streams
-_vinum=		vinum
 _wi=		wi
 _xe=		xe
 .if ${MACHINE} == "i386"
@@ -369,7 +368,6 @@ _linux=		linux
 _osf1=		osf1
 _sound=		sound
 _sppp=		sppp
-_vinum=		vinum
 .endif
 
 .if ${MACHINE_ARCH} == "amd64"
@@ -408,7 +406,6 @@ _splash=	splash
 _sppp=		sppp
 _sr=		sr
 _streams=	streams
-_vinum=		vinum
 _wi=		wi
 _xe=		xe
 .endif
@@ -420,7 +417,6 @@ _gem=		gem
 .if ${MACHINE_ARCH} == "sparc64"
 _gem=		gem
 _hme=		hme
-_vinum=		vinum
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
