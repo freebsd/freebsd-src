@@ -1035,7 +1035,7 @@ pmap_release(pmap_t pm)
 		    ("pmap_release: freeing held tsb page"));
 		m->md.pmap = NULL;
 		m->wire_count--;
-		cnt.v_wire_count--;
+		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
 		vm_page_unlock_queues();
 	}

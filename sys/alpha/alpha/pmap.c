@@ -993,7 +993,7 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 		if (m->wire_count == 0) {
 			vm_page_busy(m);
 			vm_page_free_zero(m);
-			--cnt.v_wire_count;
+			atomic_subtract_int(&cnt.v_wire_count, 1);
 		}
 		return 1;
 	}
@@ -1181,7 +1181,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 #endif
 
 	p->wire_count--;
-	cnt.v_wire_count--;
+	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(p);
 	vm_page_unlock_queues();
 	return 1;
