@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.20 1994/08/27 15:28:34 ache Exp $
+ *	$Id: mcd.c,v 1.21 1994/08/28 20:37:59 ache Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -79,7 +79,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define mcd_part(dev)	((minor(dev)) & 7)
 #define mcd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
 #define mcd_phys(dev)	(((minor(dev)) & 0x40) >> 6)
-#define RAW_PART	3
+#define RAW_PART        2
 
 /* flags */
 #define MCDOPEN		0x0001	/* device opened */
