@@ -2010,6 +2010,8 @@ fdrop_locked(fp, td)
 		FILE_UNLOCK(fp);
 		return (0);
 	}
+	/* We have the last ref so we can proceed without the file lock. */
+	FILE_UNLOCK(fp);
 	mtx_lock(&Giant);
 	if (fp->f_count < 0)
 		panic("fdrop: count < 0");
@@ -2019,10 +2021,8 @@ fdrop_locked(fp, td)
 		lf.l_len = 0;
 		lf.l_type = F_UNLCK;
 		vp = fp->f_data;
-		FILE_UNLOCK(fp);
 		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
-	} else
-		FILE_UNLOCK(fp);
+	}
 	if (fp->f_ops != &badfileops)
 		error = fo_close(fp, td);
 	else
