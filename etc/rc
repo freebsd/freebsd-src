@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.89 1996/05/08 09:25:57 jkh Exp $
+#	$Id: rc,v 1.90 1996/05/19 22:30:26 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -313,11 +313,13 @@ fi
 
 # for each valid dir in $local_startup, search for init scripts matching *.sh
 if [ "X${local_startup}" != X"NO" ]; then
+	echo -n 'Local package startup:'
 	for dir in ${local_startup}; do
 		[ -d ${dir} ] && for script in ${dir}/*.sh; do
 			[ -x ${script} ] && ${script} start
 		done
 	done
+	echo .
 fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
