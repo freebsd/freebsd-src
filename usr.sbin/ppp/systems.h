@@ -40,6 +40,4 @@ extern FILE *OpenSecret(const char *);
 extern void CloseSecret(FILE *);
 extern int AllowUsers(struct cmdargs const *);
 extern int AllowModes(struct cmdargs const *);
-extern int LoadCommand(struct cmdargs const *);
-extern int SaveCommand(struct cmdargs const *);
 extern const char *InterpretArg(const char *, char *);

@@ -51,7 +51,7 @@ struct chap {
     u_char local[CHAPCHALLENGELEN + AUTHLEN];	/* I invented this one */
     u_char peer[CHAPCHALLENGELEN + AUTHLEN];	/* Peer gave us this one */
   } challenge;
-#ifdef HAVE_DES
+#ifndef NODES
   unsigned NTRespSent : 1;		/* Our last response */
   int peertries;
   u_char authresponse[CHAPAUTHRESPONSELEN];	/* CHAP 81 response */
@@ -62,6 +62,13 @@ struct chap {
   ((d)->type == CHAP_DESCRIPTOR ? (struct chap *)(d) : NULL)
 #define auth2chap(a) \
   ((struct chap *)((char *)a - (int)&((struct chap *)0)->auth))
+
+struct MSCHAPv2_resp {		/* rfc2759 */
+  char PeerChallenge[16];
+  char Reserved[8];
+  char NTResponse[24];
+  char Flags;
+};
 
 extern void chap_Init(struct chap *, struct physical *);
 extern void chap_ReInit(struct chap *);

@@ -32,6 +32,7 @@
 #if defined(__OpenBSD__) || defined(__NetBSD__)
 #include <sys/ioctl.h>
 #endif
+#include <sys/stat.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -39,8 +40,13 @@
 #include <machine/i4b_ioctl.h>
 #include <machine/i4b_rbch_ioctl.h>
 #else
+#ifdef __NetBSD__
+#include <netisdn/i4b_ioctl.h>
+#include <netisdn/i4b_rbch_ioctl.h>
+#else
 #include <i4b/i4b_ioctl.h>
 #include <i4b/i4b_rbch_ioctl.h>
+#endif
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -269,6 +275,17 @@ i4b_OpenInfo(struct physical *p)
   return buf;
 }
 
+static int
+i4b_Slot(struct physical *p)
+{
+  struct stat st;
+
+  if (fstat(p->fd, &st) == 0)
+    return minor(st.st_rdev);
+
+  return -1;
+}
+
 static void
 i4b_device2iov(struct device *d, struct iovec *iov, int *niov,
                int maxiov, int *auxfd, int *nauxfd)
@@ -300,13 +317,15 @@ static struct device basei4bdevice = {
   i4b_Raw,
   i4b_Offline,
   i4b_Cooked,
+  NULL,
   i4b_StopTimer,
   i4b_Free,
   NULL,
   NULL,
   i4b_device2iov,
   i4b_Speed,
-  i4b_OpenInfo
+  i4b_OpenInfo,
+  i4b_Slot
 };
 
 struct device *

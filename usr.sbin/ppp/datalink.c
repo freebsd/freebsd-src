@@ -30,9 +30,11 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <ctype.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,12 +58,15 @@
 #include "physical.h"
 #include "iplist.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "mp.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "chat.h"
 #include "auth.h"
@@ -206,14 +211,14 @@ datalink_LoginDone(struct datalink *dl)
 {
   chat_Finish(&dl->chat);
 
-  if (!dl->script.packetmode) { 
+  if (!dl->script.packetmode) {
     dl->dial.tries = -1;
     dl->dial.incs = 0;
     datalink_NewState(dl, DATALINK_READY);
   } else if (!physical_Raw(dl->physical)) {
     dl->dial.tries = 0;
     log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
-    if (dl->script.run) { 
+    if (dl->script.run) {
       datalink_NewState(dl, DATALINK_LOGOUT);
       if (!chat_Setup(&dl->chat, dl->cfg.script.logout, NULL))
         log_Printf(LogWARN, "Invalid logout script\n");
@@ -263,7 +268,7 @@ datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
         datalink_Up(dl, 1, 1);
       else
         break;
-      /* fall through */
+      /* FALLTHROUGH */
 
     case DATALINK_OPENING:
       if (dl->dial.timer.state != TIMER_RUNNING) {
@@ -335,7 +340,7 @@ datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
 
         case CARRIER_LOST:
           physical_Offline(dl->physical);	/* Is this required ? */
-          if (dl->script.run) { 
+          if (dl->script.run) {
             datalink_NewState(dl, DATALINK_HANGUP);
             if (!chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL))
               log_Printf(LogWARN, "Invalid hangup script\n");
@@ -484,7 +489,10 @@ datalink_Write(struct fdescriptor *d, struct bundle *bundle,
     case DATALINK_DIAL:
     case DATALINK_LOGOUT:
     case DATALINK_LOGIN:
-      result = descriptor_Write(&dl->chat.desc, bundle, fdset);
+      if ((result = descriptor_Write(&dl->chat.desc, bundle, fdset)) == -1) {
+        datalink_ComeDown(dl, CLOSE_NORMAL);
+        result = 0;
+      }
       break;
 
     case DATALINK_READY:
@@ -493,16 +501,28 @@ datalink_Write(struct fdescriptor *d, struct bundle *bundle,
     case DATALINK_CBCP:
     case DATALINK_OPEN:
       if (descriptor_IsSet(&dl->chap.desc, fdset))
-        result += descriptor_Write(&dl->chap.desc, bundle, fdset);
+        switch (descriptor_Write(&dl->chap.desc, bundle, fdset)) {
+        case -1:
+          datalink_ComeDown(dl, CLOSE_NORMAL);
+          break;
+        case 1:
+          result++;
+        }
       if (descriptor_IsSet(&dl->physical->desc, fdset))
-        result += descriptor_Write(&dl->physical->desc, bundle, fdset);
+        switch (descriptor_Write(&dl->physical->desc, bundle, fdset)) {
+        case -1:
+          datalink_ComeDown(dl, CLOSE_NORMAL);
+          break;
+        case 1:
+          result++;
+        }
       break;
   }
 
   return result;
 }
 
-static void
+void
 datalink_ComeDown(struct datalink *dl, int how)
 {
   int stayonline;
@@ -602,7 +622,7 @@ datalink_NCPUp(struct datalink *dl)
         /* First link in the bundle */
         auth_Select(dl->bundle, dl->peer.authname);
         bundle_CalculateBandwidth(dl->bundle);
-        /* fall through */
+        /* FALLTHROUGH */
       case MP_ADDED:
         /* We're in multilink mode ! */
         dl->physical->link.ccp.fsm.open_mode = OPEN_PASSIVE;	/* override */
@@ -620,7 +640,7 @@ datalink_NCPUp(struct datalink *dl)
     return;
   } else {
     dl->bundle->ncp.mp.peer = dl->peer;
-    ipcp_SetLink(&dl->bundle->ncp.ipcp, &dl->physical->link);
+    ncp_SetLink(&dl->bundle->ncp, &dl->physical->link);
     auth_Select(dl->bundle, dl->peer.authname);
   }
 
@@ -737,12 +757,12 @@ datalink_LayerDown(void *v, struct fsm *fp)
         fsm2initial(&dl->physical->link.ccp.fsm);
         datalink_NewState(dl, DATALINK_LCP);  /* before parent TLD */
         (*dl->parent->LayerDown)(dl->parent->object, fp);
-        /* fall through (just in case) */
+        /* FALLTHROUGH (just in case) */
 
       case DATALINK_CBCP:
         if (!dl->cbcp.required)
           cbcp_Down(&dl->cbcp);
-        /* fall through (just in case) */
+        /* FALLTHROUGH (just in case) */
 
       case DATALINK_AUTH:
         timer_Stop(&dl->pap.authtimer);
@@ -961,7 +981,7 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
     case DATALINK_OPENING:
       if (!dl->script.run && runscripts)
         dl->script.run = 1;
-      /* fall through */
+      /* FALLTHROUGH */
 
     case DATALINK_DIAL:
     case DATALINK_LOGIN:
@@ -985,7 +1005,7 @@ datalink_Close(struct datalink *dl, int how)
     case DATALINK_OPEN:
       peerid_Init(&dl->peer);
       fsm2initial(&dl->physical->link.ccp.fsm);
-      /* fall through */
+      /* FALLTHROUGH */
 
     case DATALINK_CBCP:
     case DATALINK_AUTH:
@@ -1011,7 +1031,7 @@ datalink_Down(struct datalink *dl, int how)
     case DATALINK_OPEN:
       peerid_Init(&dl->peer);
       fsm2initial(&dl->physical->link.ccp.fsm);
-      /* fall through */
+      /* FALLTHROUGH */
 
     case DATALINK_CBCP:
     case DATALINK_AUTH:
@@ -1019,7 +1039,7 @@ datalink_Down(struct datalink *dl, int how)
       fsm2initial(&dl->physical->link.lcp.fsm);
       if (dl->state == DATALINK_OPENING)
         return;			/* we're doing a callback... */
-      /* fall through */
+      /* FALLTHROUGH */
 
     default:
       datalink_ComeDown(dl, how);

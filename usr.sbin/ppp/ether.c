@@ -49,14 +49,11 @@
 #include <string.h>
 #include <sysexits.h>
 #include <sys/fcntl.h>
-#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-#include <sys/linker.h>
-#include <sys/module.h>
-#endif
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <termios.h>
 #include <sys/time.h>
+#include <syslog.h>
 #include <unistd.h>
 
 #include "layer.h"
@@ -83,14 +80,19 @@
 #include "datalink.h"
 #include "slcompress.h"
 #include "iplist.h"
+#include "ncpaddr.h"
+#include "ip.h"
 #include "ipcp.h"
 #include "filter.h"
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "id.h"
 #include "iface.h"
+#include "route.h"
 #include "ether.h"
 
 
@@ -102,6 +104,7 @@ struct etherdevice {
   int connected;			/* Are we connected yet ? */
   int timeout;				/* Seconds attempting to connect */
   char hook[sizeof TUN_NAME + 11];	/* Our socket node hook */
+  u_int32_t slot;			/* ifindex << 24 | unit */
 };
 
 #define device2ether(d) \
@@ -177,6 +180,15 @@ ether_OpenInfo(struct physical *p)
   return "disconnected";
 }
 
+static int
+ether_Slot(struct physical *p)
+{
+  struct etherdevice *dev = device2ether(p->handler);
+
+  return dev->slot;
+}
+
+
 static void
 ether_device2iov(struct device *d, struct iovec *iov, int *niov,
                  int maxiov, int *auxfd, int *nauxfd)
@@ -204,10 +216,11 @@ ether_MessageIn(struct etherdevice *dev)
   char msgbuf[sizeof(struct ng_mesg) + sizeof(struct ngpppoe_sts)];
   struct ng_mesg *rep = (struct ng_mesg *)msgbuf;
   struct ngpppoe_sts *sts = (struct ngpppoe_sts *)(msgbuf + sizeof *rep);
-  char unknown[14];
+  char *end, unknown[14], sessionid[5];
   const char *msg;
   struct timeval t;
   fd_set *r;
+  u_long slot;
   int asciilen, ret;
 
   if (dev->cs < 0)
@@ -258,6 +271,17 @@ ether_MessageIn(struct etherdevice *dev)
           log_Printf(LogWARN, "setenv: cannot set ACNAME=%s: %m", sts->hook);
         asciilen = rep->header.arglen;
         break;
+      case NGM_PPPOE_SESSIONID:
+        msg = "SESSIONID";
+        snprintf(sessionid, sizeof sessionid, "%04x", *(u_int16_t *)sts);
+        if (setenv("SESSIONID", sessionid, 1) != 0)
+          syslog(LOG_WARNING, "setenv: cannot set SESSIONID=%s: %m",
+                 sessionid);
+        /* Use this in preference to our interface index */
+        slot = strtoul(sessionid, &end, 16);
+        if (end != sessionid && *end == '\0')
+            dev->slot = slot;
+        break;
       default:
         snprintf(unknown, sizeof unknown, "<%d>", (int)rep->header.cmd);
         msg = unknown;
@@ -307,12 +331,14 @@ static const struct device baseetherdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   ether_Free,
   ether_Read,
   ether_Write,
   ether_device2iov,
   NULL,
-  ether_OpenInfo
+  ether_OpenInfo,
+  ether_Slot
 };
 
 struct device *
@@ -417,7 +443,7 @@ ether_Create(struct physical *p)
   struct ng_mesg *resp;
   const struct hooklist *hlist;
   const struct nodeinfo *ninfo;
-  char *path;
+  char *path, *sessionid;
   int ifacelen, f;
 
   dev = NULL;
@@ -437,29 +463,8 @@ ether_Create(struct physical *p)
 
     p->fd--;				/* We own the device - change fd */
 
-#if defined(__FreeBSD__) && !defined(NOKLDLOAD)
-    if (modfind("netgraph") == -1 && ID0kldload("netgraph") == -1) {
-      log_Printf(LogWARN, "kldload: netgraph: %s\n", strerror(errno));
-      return NULL;
-    }
-
-    if (modfind("ng_ether") == -1 && ID0kldload("ng_ether") == -1)
-      /*
-       * Don't treat this as an error as older kernels have this stuff
-       * built in as part of the netgraph node itself.
-       */
-      log_Printf(LogWARN, "kldload: ng_ether: %s\n", strerror(errno));
-
-    if (modfind("ng_pppoe") == -1 && ID0kldload("ng_pppoe") == -1) {
-      log_Printf(LogWARN, "kldload: ng_pppoe: %s\n", strerror(errno));
-      return NULL;
-    }
-
-    if (modfind("ng_socket") == -1 && ID0kldload("ng_socket") == -1) {
-      log_Printf(LogWARN, "kldload: ng_socket: %s\n", strerror(errno));
-      return NULL;
-    }
-#endif
+    loadmodules(LOAD_VERBOSLY, "netgraph", "ng_ether", "ng_pppoe", "ng_socket",
+                NULL);
 
     if ((dev = malloc(sizeof *dev)) == NULL)
       return NULL;
@@ -503,6 +508,7 @@ ether_Create(struct physical *p)
       log_Printf(LogWARN, "Cannot create netgraph socket node: %s\n",
                  strerror(errno));
       free(dev);
+      p->fd = -2;
       return NULL;
     }
 
@@ -570,7 +576,7 @@ ether_Create(struct physical *p)
     if (f == ninfo->hooks) {
       /*
        * Create a new ``PPPoE'' node connected to the ``ether'' node using
-       * the magic ``orphan'' and ``ethernet'' hooks
+       * the ``orphan'' and ``ethernet'' hooks
        */
       snprintf(mkp.type, sizeof mkp.type, "%s", NG_PPPOE_NODE_TYPE);
       snprintf(mkp.ourhook, sizeof mkp.ourhook, "%s", NG_ETHER_HOOK_ORPHAN);
@@ -653,7 +659,8 @@ ether_Create(struct physical *p)
 
     dev->timeout = dev->dev.cd.delay;
     dev->connected = CARRIER_PENDING;
-
+    /* This will be overridden by our session id - if provided by netgraph */
+    dev->slot = GetIfIndex(path);
   } else {
     /* See if we're a netgraph socket */
     struct stat st;
@@ -689,6 +696,19 @@ ether_Create(struct physical *p)
         dev->timeout = 0;
         dev->connected = CARRIER_OK;
         *dev->hook = '\0';
+
+        /*
+         * If we're being envoked from pppoed(8), we may have a SESSIONID
+         * set in the environment.  If so, use it as the slot
+         */
+        if ((sessionid = getenv("SESSIONID")) != NULL) {
+          char *end;
+          u_long slot;
+
+          slot = strtoul(sessionid, &end, 16);
+          dev->slot = end != sessionid && *end == '\0' ? slot : 0;
+        } else
+          dev->slot = 0;
       }
     }
   }

@@ -36,7 +36,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
-#include <unistd.h>
 
 #include "defs.h"
 #include "command.h"
@@ -186,7 +185,7 @@ DecodeCtrlCommand(char *line, char *arg)
   if (!strncasecmp(line, "include", 7) && issep(line[7])) {
     end = InterpretArg(line+8, arg);
     if (*end && *end != '#')
-      log_Printf(LogWARN, "Usage: !include filename\n");
+      log_Printf(LogWARN, "usage: !include filename\n");
     else
       return CTRL_INCLUDE;
   }

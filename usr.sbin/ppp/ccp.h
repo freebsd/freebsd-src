@@ -47,14 +47,14 @@
 #define CCP_NEG_DEFLATE		0
 #define CCP_NEG_PRED1		1
 #define CCP_NEG_DEFLATE24	2
-#ifdef HAVE_DES
+#ifndef NODES
 #define CCP_NEG_MPPE		3
 #define CCP_NEG_TOTAL		4
 #else
 #define CCP_NEG_TOTAL		3
 #endif
 
-#ifdef HAVE_DES
+#ifndef NODES
 enum mppe_negstate {
   MPPE_ANYSTATE,
   MPPE_STATELESS,
@@ -71,7 +71,7 @@ struct ccp_config {
       int winsize;
     } in, out;
   } deflate;
-#ifdef HAVE_DES
+#ifndef NODES
   struct {
     int keybits;
     enum mppe_negstate state;
@@ -85,7 +85,7 @@ struct ccp_config {
 struct ccp_opt {
   struct ccp_opt *next;
   int algorithm;
-  struct lcp_opt val;
+  struct fsm_opt val;
 };
 
 struct ccp {
@@ -100,7 +100,7 @@ struct ccp {
   struct {
     int algorithm;		/* Algorithm in use */
     void *state;		/* Returned by implementations Init() */
-    struct lcp_opt opt;		/* Set by implementation's OptInit() */
+    struct fsm_opt opt;		/* Set by implementation's OptInit() */
   } in;
 
   struct {
@@ -123,12 +123,12 @@ struct ccp {
 struct ccp_algorithm {
   int id;
   int Neg;					/* ccp_config neg array item */
-  const char *(*Disp)(struct lcp_opt *);	/* Use result immediately !  */
+  const char *(*Disp)(struct fsm_opt *);	/* Use result immediately !  */
   int (*Usable)(struct fsm *);			/* Ok to negotiate ? */
   int (*Required)(struct fsm *);		/* Must negotiate ? */
   struct {
-    int (*Set)(struct lcp_opt *, const struct ccp_config *);
-    void *(*Init)(struct lcp_opt *);
+    int (*Set)(struct bundle *, struct fsm_opt *, const struct ccp_config *);
+    void *(*Init)(struct bundle *, struct fsm_opt *);
     void (*Term)(void *);
     void (*Reset)(void *);
     struct mbuf *(*Read)(void *, struct ccp *, u_short *, struct mbuf *);
@@ -136,9 +136,10 @@ struct ccp_algorithm {
   } i;
   struct {
     int MTUOverhead;
-    void (*OptInit)(struct lcp_opt *, const struct ccp_config *);
-    int (*Set)(struct lcp_opt *, const struct ccp_config *);
-    void *(*Init)(struct lcp_opt *);
+    void (*OptInit)(struct bundle *, struct fsm_opt *,
+                    const struct ccp_config *);
+    int (*Set)(struct bundle *, struct fsm_opt *, const struct ccp_config *);
+    void *(*Init)(struct bundle *, struct fsm_opt *);
     void (*Term)(void *);
     int (*Reset)(void *);
     struct mbuf *(*Write)(void *, struct ccp *, struct link *, int, u_short *,

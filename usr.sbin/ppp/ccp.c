@@ -32,8 +32,10 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>	/* memcpy() on some archs */
@@ -56,6 +58,7 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -67,15 +70,17 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
-#ifdef HAVE_DES
+#ifndef NODES
 #include "mppe.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSentTerminateReq(struct fsm *);
 static void CcpSendTerminateAck(struct fsm *, u_char);
-static void CcpDecodeConfig(struct fsm *, u_char *, int, int,
+static void CcpDecodeConfig(struct fsm *, u_char *, u_char *, int,
                             struct fsm_decode *);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
@@ -129,8 +134,11 @@ protoname(int proto)
   };
 
   if (proto < 0 || proto > sizeof cftypes / sizeof *cftypes ||
-      cftypes[proto] == NULL)
+      cftypes[proto] == NULL) {
+    if (proto == -1)
+      return "none";
     return HexStr(proto, NULL, 0);
+  }
 
   return cftypes[proto];
 }
@@ -140,7 +148,7 @@ static const struct ccp_algorithm * const algorithm[] = {
   &DeflateAlgorithm,
   &Pred1Algorithm,
   &PppdDeflateAlgorithm
-#ifdef HAVE_DES
+#ifndef NODES
   , &MPPEAlgorithm
 #endif
 };
@@ -189,7 +197,7 @@ ccp_ReportStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, "           deflate windows: ");
   prompt_Printf(arg->prompt, "incoming = %d, ", ccp->cfg.deflate.in.winsize);
   prompt_Printf(arg->prompt, "outgoing = %d\n", ccp->cfg.deflate.out.winsize);
-#ifdef HAVE_DES
+#ifndef NODES
   prompt_Printf(arg->prompt, "           MPPE: ");
   if (ccp->cfg.mppe.keybits)
     prompt_Printf(arg->prompt, "%d bits, ", ccp->cfg.mppe.keybits);
@@ -216,7 +224,7 @@ ccp_ReportStatus(struct cmdargs const *arg)
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_PRED1]));
   prompt_Printf(arg->prompt, "           DEFLATE24:  %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_DEFLATE24]));
-#ifdef HAVE_DES
+#ifndef NODES
   prompt_Printf(arg->prompt, "           MPPE:       %s\n",
                 command_ShowNegval(ccp->cfg.neg[CCP_NEG_MPPE]));
 #endif
@@ -249,7 +257,7 @@ ccp_Init(struct ccp *ccp, struct bundle *bundle, struct link *l,
   ccp->cfg.neg[CCP_NEG_DEFLATE] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_PRED1] = NEG_ENABLED|NEG_ACCEPTED;
   ccp->cfg.neg[CCP_NEG_DEFLATE24] = 0;
-#ifdef HAVE_DES
+#ifndef NODES
   ccp->cfg.mppe.keybits = 0;
   ccp->cfg.mppe.state = MPPE_ANYSTATE;
   ccp->cfg.mppe.required = 0;
@@ -268,7 +276,7 @@ ccp_Setup(struct ccp *ccp)
   ccp->reset_sent = ccp->last_reset = -1;
   ccp->in.algorithm = ccp->out.algorithm = -1;
   ccp->in.state = ccp->out.state = NULL;
-  ccp->in.opt.id = -1;
+  ccp->in.opt.hdr.id = -1;
   ccp->out.opt = NULL;
   ccp->his_reject = ccp->my_reject = 0;
   ccp->uncompout = ccp->compout = 0;
@@ -353,26 +361,26 @@ CcpSendConfigReq(struct fsm *fp)
 
       if (!alloc)
         for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
-          if ((*o)->val.id == algorithm[f]->id && (*o)->algorithm == f)
+          if ((*o)->val.hdr.id == algorithm[f]->id && (*o)->algorithm == f)
             break;
 
       if (alloc || *o == NULL) {
         *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
-        (*o)->val.id = algorithm[f]->id;
-        (*o)->val.len = 2;
+        (*o)->val.hdr.id = algorithm[f]->id;
+        (*o)->val.hdr.len = 2;
         (*o)->next = NULL;
         (*o)->algorithm = f;
-        (*algorithm[f]->o.OptInit)(&(*o)->val, &ccp->cfg);
+        (*algorithm[f]->o.OptInit)(fp->bundle, &(*o)->val, &ccp->cfg);
       }
 
-      if (cp + (*o)->val.len > buff + sizeof buff) {
+      if (cp + (*o)->val.hdr.len > buff + sizeof buff) {
         log_Printf(LogERROR, "%s: CCP REQ buffer overrun !\n", fp->link->name);
         break;
       }
-      memcpy(cp, &(*o)->val, (*o)->val.len);
-      cp += (*o)->val.len;
+      memcpy(cp, &(*o)->val, (*o)->val.hdr.len);
+      cp += (*o)->val.hdr.len;
 
-      ccp->my_proto = (*o)->val.id;
+      ccp->my_proto = (*o)->val.hdr.id;
       ccp->out.algorithm = f;
 
       if (alloc)
@@ -445,7 +453,7 @@ CcpLayerDown(struct fsm *fp)
     ccp->out.algorithm = -1;
   }
   ccp->his_reject = ccp->my_reject = 0;
-  
+
   while (ccp->out.opt) {
     next = ccp->out.opt->next;
     free(ccp->out.opt);
@@ -510,7 +518,8 @@ CcpLayerUp(struct fsm *fp)
 
   if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
       ccp->in.algorithm < NALGORITHMS) {
-    ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)(&ccp->in.opt);
+    ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)
+      (fp->bundle, &ccp->in.opt);
     if (ccp->in.state == NULL) {
       log_Printf(LogERROR, "%s: %s (in) initialisation failure\n",
                 fp->link->name, protoname(ccp->his_proto));
@@ -527,7 +536,8 @@ CcpLayerUp(struct fsm *fp)
 
   if (ccp->out.state == NULL && ccp->out.algorithm >= 0 &&
       ccp->out.algorithm < NALGORITHMS) {
-    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)(&(*o)->val);
+    ccp->out.state = (*algorithm[ccp->out.algorithm]->o.Init)
+      (fp->bundle, &(*o)->val);
     if (ccp->out.state == NULL) {
       log_Printf(LogERROR, "%s: %s (out) initialisation failure\n",
                 fp->link->name, protoname(ccp->my_proto));
@@ -547,93 +557,80 @@ CcpLayerUp(struct fsm *fp)
 }
 
 static void
-CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+CcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                 struct fsm_decode *dec)
 {
   /* Deal with incoming data */
   struct ccp *ccp = fsm2ccp(fp);
-  int type, length, f;
-  const char *end;
+  int f;
+  const char *disp;
+  struct fsm_opt *opt;
 
   if (mode_type == MODE_REQ)
     ccp->in.algorithm = -1;	/* In case we've received two REQs in a row */
 
-  while (plen >= sizeof(struct fsmconfig)) {
-    type = *cp;
-    length = cp[1];
-
-    if (length == 0) {
-      log_Printf(LogCCP, "%s: CCP size zero\n", fp->link->name);
+  while (end - cp >= sizeof(opt->hdr)) {
+    if ((opt = fsm_readopt(&cp)) == NULL)
       break;
-    }
-
-    if (length > sizeof(struct lcp_opt)) {
-      length = sizeof(struct lcp_opt);
-      log_Printf(LogCCP, "%s: Warning: Truncating length to %d\n",
-                fp->link->name, length);
-    }
 
     for (f = NALGORITHMS-1; f > -1; f--)
-      if (algorithm[f]->id == type)
+      if (algorithm[f]->id == opt->hdr.id)
         break;
 
-    end = f == -1 ? "" : (*algorithm[f]->Disp)((struct lcp_opt *)cp);
-    if (end == NULL)
-      end = "";
+    disp = f == -1 ? "" : (*algorithm[f]->Disp)(opt);
+    if (disp == NULL)
+      disp = "";
 
-    log_Printf(LogCCP, " %s[%d] %s\n", protoname(type), length, end);
+    log_Printf(LogCCP, " %s[%d] %s\n", protoname(opt->hdr.id),
+               opt->hdr.len, disp);
 
     if (f == -1) {
       /* Don't understand that :-( */
       if (mode_type == MODE_REQ) {
-        ccp->my_reject |= (1 << type);
-        memcpy(dec->rejend, cp, length);
-        dec->rejend += length;
+        ccp->my_reject |= (1 << opt->hdr.id);
+        fsm_rej(dec, opt);
       }
     } else {
       struct ccp_opt *o;
 
       switch (mode_type) {
       case MODE_REQ:
-	if (IsAccepted(ccp->cfg.neg[algorithm[f]->Neg]) &&
+        if (IsAccepted(ccp->cfg.neg[algorithm[f]->Neg]) &&
             (*algorithm[f]->Usable)(fp) &&
             ccp->in.algorithm == -1) {
-	  memcpy(&ccp->in.opt, cp, length);
-          switch ((*algorithm[f]->i.Set)(&ccp->in.opt, &ccp->cfg)) {
+          memcpy(&ccp->in.opt, opt, opt->hdr.len);
+          switch ((*algorithm[f]->i.Set)(fp->bundle, &ccp->in.opt, &ccp->cfg)) {
           case MODE_REJ:
-	    memcpy(dec->rejend, &ccp->in.opt, ccp->in.opt.len);
-	    dec->rejend += ccp->in.opt.len;
+            fsm_rej(dec, &ccp->in.opt);
             break;
           case MODE_NAK:
-	    memcpy(dec->nakend, &ccp->in.opt, ccp->in.opt.len);
-	    dec->nakend += ccp->in.opt.len;
+            fsm_nak(dec, &ccp->in.opt);
             break;
           case MODE_ACK:
-	    memcpy(dec->ackend, cp, length);
-	    dec->ackend += length;
-	    ccp->his_proto = type;
+            fsm_ack(dec, &ccp->in.opt);
+            ccp->his_proto = opt->hdr.id;
             ccp->in.algorithm = f;		/* This one'll do :-) */
             break;
           }
-	} else {
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	}
-	break;
+        } else {
+          fsm_rej(dec, opt);
+        }
+        break;
       case MODE_NAK:
         for (o = ccp->out.opt; o != NULL; o = o->next)
-          if (o->val.id == cp[0])
+          if (o->val.hdr.id == opt->hdr.id)
             break;
         if (o == NULL)
           log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent"
                      " option\n", fp->link->name);
         else {
-	  memcpy(&o->val, cp, length);
-          if ((*algorithm[f]->o.Set)(&o->val, &ccp->cfg) == MODE_ACK)
+          memcpy(&o->val, opt, opt->hdr.len);
+          if ((*algorithm[f]->o.Set)(fp->bundle, &o->val, &ccp->cfg) ==
+              MODE_ACK)
             ccp->my_proto = algorithm[f]->id;
           else {
-	    ccp->his_reject |= (1 << type);
-	    ccp->my_proto = -1;
+            ccp->his_reject |= (1 << opt->hdr.id);
+            ccp->my_proto = -1;
             if (algorithm[f]->Required(fp)) {
               log_Printf(LogWARN, "%s: Cannot understand peers (required)"
                          " %s negotiation\n", fp->link->name,
@@ -644,33 +641,21 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         }
         break;
       case MODE_REJ:
-	ccp->his_reject |= (1 << type);
-	ccp->my_proto = -1;
+        ccp->his_reject |= (1 << opt->hdr.id);
+        ccp->my_proto = -1;
         if (algorithm[f]->Required(fp)) {
           log_Printf(LogWARN, "%s: Peer rejected (required) %s negotiation\n",
                      fp->link->name, protoname(algorithm[f]->id));
           fsm_Close(&fp->link->lcp.fsm);
         }
-	break;
+        break;
       }
     }
-
-    plen -= cp[1];
-    cp += cp[1];
   }
 
   if (mode_type != MODE_NOP) {
-    if (dec->rejend != dec->rej) {
-      /* rejects are preferred */
-      dec->ackend = dec->ack;
-      dec->nakend = dec->nak;
-      if (ccp->in.state == NULL) {
-        ccp->his_proto = -1;
-        ccp->in.algorithm = -1;
-      }
-    } else if (dec->nakend != dec->nak) {
-      /* then NAKs */
-      dec->ackend = dec->ack;
+    fsm_opt_normalise(dec);
+    if (dec->rejend != dec->rej || dec->nakend != dec->nak) {
       if (ccp->in.state == NULL) {
         ccp->his_proto = -1;
         ccp->in.algorithm = -1;
@@ -762,8 +747,6 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
    */
   if (l->ccp.fsm.state == ST_OPENED) {
     if (*proto == PROTO_COMPD || *proto == PROTO_ICOMPD) {
-      log_Printf(LogDEBUG, "ccp_LayerPull: PROTO_%sCOMPDP -> PROTO_IP\n",
-                 *proto == PROTO_ICOMPD ? "I" : "");
       /* Decompress incoming data */
       if (l->ccp.reset_sent != -1)
         /* Send another REQ and put the packet in the bit bucket */
@@ -785,12 +768,10 @@ ccp_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp, u_short *proto)
       m_freem(bp);
       bp = NULL;
     } else if (PROTO_COMPRESSIBLE(*proto) && l->ccp.in.state != NULL) {
-      log_Printf(LogDEBUG, "ccp_LayerPull: Ignore packet (dict only)\n");
       /* Add incoming Network Layer traffic to our dictionary */
       (*algorithm[l->ccp.in.algorithm]->i.DictSetup)
         (l->ccp.in.state, &l->ccp, *proto, bp);
-    } else
-      log_Printf(LogDEBUG, "ccp_LayerPull: Ignore packet\n");
+    }
   }
 
   return bp;

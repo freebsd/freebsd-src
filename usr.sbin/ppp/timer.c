@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -63,11 +64,13 @@ tState2Nam(u_int state)
 void
 timer_Stop(struct pppTimer *tp)
 {
-  int omask;
+  sigset_t mask, omask;
 
-  omask = sigblock(sigmask(SIGALRM));
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGALRM);
+  sigprocmask(SIG_BLOCK, &mask, &omask);
   StopTimerNoBlock(tp);
-  sigsetmask(omask);
+  sigprocmask(SIG_SETMASK, &omask, NULL);
 }
 
 void
@@ -76,16 +79,18 @@ timer_Start(struct pppTimer *tp)
   struct itimerval itimer;
   struct pppTimer *t, *pt;
   u_long ticks = 0;
-  int omask;
+  sigset_t mask, omask;
 
-  omask = sigblock(sigmask(SIGALRM));
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGALRM);
+  sigprocmask(SIG_BLOCK, &mask, &omask);
 
   if (tp->state != TIMER_STOPPED)
     StopTimerNoBlock(tp);
 
   if (tp->load == 0) {
     log_Printf(LogTIMER, "%s timer[%p] has 0 load!\n", tp->name, tp);
-    sigsetmask(omask);
+    sigprocmask(SIG_SETMASK, &omask, NULL);
     return;
   }
 
@@ -121,7 +126,7 @@ timer_Start(struct pppTimer *tp)
   if (t)
     t->rest -= tp->rest;
 
-  sigsetmask(omask);
+  sigprocmask(SIG_SETMASK, &omask, NULL);
 }
 
 static void
@@ -207,13 +212,13 @@ TimerService(void)
       exp = tp;
       tp = next;
     } while (tp && tp->rest == 0);
-  
+
     TimerList = tp;
     if (TimerList != NULL)	/* Any timers remaining ? */
       timer_InitService(1);	/* Restart the Timer Service */
     else
       timer_TermService();	/* Stop the Timer Service */
-  
+
     /* Process all expired timers */
     while (exp) {
       ExpiredList = exp->enext;
@@ -258,7 +263,7 @@ timer_Show(int LogLevel, struct prompt *prompt)
     log_Printf(LogLevel, "---- End of Timer Service List ---\n");
 }
 
-void 
+void
 timer_InitService(int restart)
 {
   struct itimerval itimer;
@@ -275,7 +280,7 @@ timer_InitService(int restart)
   }
 }
 
-void 
+void
 timer_TermService(void)
 {
   struct itimerval itimer;

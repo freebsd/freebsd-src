@@ -30,15 +30,16 @@
 
 #include <sys/param.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
+#include <string.h>
 #include <termios.h>
 
 #include "layer.h"
@@ -56,6 +57,7 @@
 #include "ccp.h"
 #include "link.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -64,115 +66,20 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 
-static int filter_Nam2Proto(int, char const *const *);
 static int filter_Nam2Op(const char *);
 
-static const u_int32_t netmasks[33] = {
-  0x00000000,
-  0x80000000, 0xC0000000, 0xE0000000, 0xF0000000,
-  0xF8000000, 0xFC000000, 0xFE000000, 0xFF000000,
-  0xFF800000, 0xFFC00000, 0xFFE00000, 0xFFF00000,
-  0xFFF80000, 0xFFFC0000, 0xFFFE0000, 0xFFFF0000,
-  0xFFFF8000, 0xFFFFC000, 0xFFFFE000, 0xFFFFF000,
-  0xFFFFF800, 0xFFFFFC00, 0xFFFFFE00, 0xFFFFFF00,
-  0xFFFFFF80, 0xFFFFFFC0, 0xFFFFFFE0, 0xFFFFFFF0,
-  0xFFFFFFF8, 0xFFFFFFFC, 0xFFFFFFFE, 0xFFFFFFFF,
-};
-
-struct in_addr
-bits2mask(int bits)
-{
-  struct in_addr result;
-
-  result.s_addr = htonl(netmasks[bits]);
-  return result;
-}
-
-int
-ParseAddr(struct ipcp *ipcp, const char *data,
-	  struct in_addr *paddr, struct in_addr *pmask, int *pwidth)
-{
-  int bits, len;
-  char *wp;
-  const char *cp;
-
-  if (pmask)
-    pmask->s_addr = INADDR_BROADCAST;	/* Assume 255.255.255.255 as default */
-
-  cp = pmask || pwidth ? strchr(data, '/') : NULL;
-  len = cp ? cp - data : strlen(data);
-
-  if (ipcp && strncasecmp(data, "HISADDR", len) == 0)
-    *paddr = ipcp->peer_ip;
-  else if (ipcp && strncasecmp(data, "MYADDR", len) == 0)
-    *paddr = ipcp->my_ip;
-  else if (ipcp && strncasecmp(data, "DNS0", len) == 0)
-    *paddr = ipcp->ns.dns[0];
-  else if (ipcp && strncasecmp(data, "DNS1", len) == 0)
-    *paddr = ipcp->ns.dns[1];
-  else {
-    char *s;
-
-    s = (char *)alloca(len + 1);
-    strncpy(s, data, len);
-    s[len] = '\0';
-    *paddr = GetIpAddr(s);
-    if (paddr->s_addr == INADDR_NONE) {
-      log_Printf(LogWARN, "ParseAddr: %s: Bad address\n", s);
-      return 0;
-    }
-  }
-  if (cp && *++cp) {
-    bits = strtol(cp, &wp, 0);
-    if (cp == wp || bits < 0 || bits > 32) {
-      log_Printf(LogWARN, "ParseAddr: bad mask width.\n");
-      return 0;
-    }
-  } else if (paddr->s_addr == INADDR_ANY)
-    /* An IP of 0.0.0.0 without a width is anything */
-    bits = 0;
-  else
-    /* If a valid IP is given without a width, assume 32 bits */
-    bits = 32;
-
-  if (pwidth)
-    *pwidth = bits;
-
-  if (pmask) {
-    if (paddr->s_addr == INADDR_ANY)
-      pmask->s_addr = INADDR_ANY;
-    else
-      *pmask = bits2mask(bits);
-  }
-
-  return 1;
-}
-
 static int
-ParsePort(const char *service, int proto)
+ParsePort(const char *service, const char *proto)
 {
-  const char *protocol_name;
-  char *cp;
   struct servent *servent;
+  char *cp;
   int port;
 
-  switch (proto) {
-  case P_IPIP:
-    protocol_name = "ipip";
-    break;
-  case P_UDP:
-    protocol_name = "udp";
-    break;
-  case P_TCP:
-    protocol_name = "tcp";
-    break;
-  default:
-    protocol_name = 0;
-  }
-
-  servent = getservbyname(service, protocol_name);
+  servent = getservbyname(service, proto);
   if (servent != 0)
     return ntohs(servent->s_port);
 
@@ -189,7 +96,8 @@ ParsePort(const char *service, int proto)
  *	ICMP Syntax:	src eq icmp_message_type
  */
 static int
-ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
+ParseIcmp(int argc, char const *const *argv, const struct protoent *pe,
+          struct filterent *tgt)
 {
   int type;
   char *cp;
@@ -197,7 +105,7 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
   switch (argc) {
   case 0:
     /* permit/deny all ICMP types */
-    tgt->f_srcop = OP_NONE;
+    tgt->f_srcop = tgt->f_dstop = OP_NONE;
     break;
 
   case 3:
@@ -209,6 +117,7 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
       }
       tgt->f_srcop = OP_EQ;
       tgt->f_srcport = type;
+      tgt->f_dstop = OP_NONE;
     }
     break;
 
@@ -223,7 +132,7 @@ ParseIcmp(int argc, char const *const *argv, struct filterent *tgt)
  *	UDP Syntax: [src op port] [dst op port]
  */
 static int
-ParseUdpOrTcp(int argc, char const *const *argv, int proto,
+ParseUdpOrTcp(int argc, char const *const *argv, const struct protoent *pe,
               struct filterent *tgt)
 {
   tgt->f_srcop = tgt->f_dstop = OP_NONE;
@@ -232,10 +141,12 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   if (argc >= 3 && !strcmp(*argv, "src")) {
     tgt->f_srcop = filter_Nam2Op(argv[1]);
     if (tgt->f_srcop == OP_NONE) {
-      log_Printf(LogWARN, "ParseUdpOrTcp: bad operation\n");
+      log_Printf(LogWARN, "ParseUdpOrTcp: bad operator\n");
       return 0;
     }
-    tgt->f_srcport = ParsePort(argv[2], proto);
+    if (pe == NULL)
+      return 0;
+    tgt->f_srcport = ParsePort(argv[2], pe->p_name);
     if (tgt->f_srcport == 0)
       return 0;
     argc -= 3;
@@ -245,17 +156,19 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
   if (argc >= 3 && !strcmp(argv[0], "dst")) {
     tgt->f_dstop = filter_Nam2Op(argv[1]);
     if (tgt->f_dstop == OP_NONE) {
-      log_Printf(LogWARN, "ParseUdpOrTcp: bad operation\n");
+      log_Printf(LogWARN, "ParseUdpOrTcp: bad operator\n");
       return 0;
     }
-    tgt->f_dstport = ParsePort(argv[2], proto);
+    if (pe == NULL)
+      return 0;
+    tgt->f_dstport = ParsePort(argv[2], pe->p_name);
     if (tgt->f_dstport == 0)
       return 0;
     argc -= 3;
     argv += 3;
   }
 
-  if (proto == P_TCP) {
+  if (pe && pe->p_proto == IPPROTO_TCP) {
     for (; argc > 0; argc--, argv++)
       if (!strcmp(*argv, "estab"))
         tgt->f_estab = 1;
@@ -276,64 +189,33 @@ ParseUdpOrTcp(int argc, char const *const *argv, int proto,
 }
 
 static int
-ParseIgmp(int argc, char const * const *argv, struct filterent *tgt)
+ParseGeneric(int argc, char const * const *argv, const struct protoent *pe,
+             struct filterent *tgt)
 {
   /*
    * Filter currently is a catch-all. Requests are either permitted or
    * dropped.
    */
   if (argc != 0) {
-    log_Printf(LogWARN, "ParseIgmp: Too many parameters\n");
+    log_Printf(LogWARN, "ParseGeneric: Too many parameters\n");
     return 0;
   } else
-    tgt->f_srcop = OP_NONE;
+    tgt->f_srcop = tgt->f_dstop = OP_NONE;
 
   return 1;
 }
-
-#ifdef P_GRE
-static int
-ParseGRE(int argc, char const * const *argv, struct filterent *tgt)
-{
-  /*
-   * Filter currently is a catch-all. Requests are either permitted or
-   * dropped.
-   */
-  if (argc != 0) {
-    log_Printf(LogWARN, "ParseGRE: Too many parameters\n");
-    return 0;
-  } else
-    tgt->f_srcop = OP_NONE;
-
-  return 1;
-}
-#endif
-
-#ifdef P_OSPF
-static int
-ParseOspf(int argc, char const * const *argv, struct filterent *tgt)
-{
-  /*
-   * Filter currently is a catch-all. Requests are either permitted or
-   * dropped.
-   */
-  if (argc != 0) {
-    log_Printf(LogWARN, "ParseOspf: Too many parameters\n");
-    return 0;
-  } else
-    tgt->f_srcop = OP_NONE;
-
-  return 1;
-}
-#endif
 
 static unsigned
 addrtype(const char *addr)
 {
   if (!strncasecmp(addr, "MYADDR", 6) && (addr[6] == '\0' || addr[6] == '/'))
     return T_MYADDR;
+  if (!strncasecmp(addr, "MYADDR6", 7) && (addr[7] == '\0' || addr[7] == '/'))
+    return T_MYADDR6;
   if (!strncasecmp(addr, "HISADDR", 7) && (addr[7] == '\0' || addr[7] == '/'))
     return T_HISADDR;
+  if (!strncasecmp(addr, "HISADDR6", 8) && (addr[8] == '\0' || addr[8] == '/'))
+    return T_HISADDR6;
   if (!strncasecmp(addr, "DNS0", 4) && (addr[4] == '\0' || addr[4] == '/'))
     return T_DNS0;
   if (!strncasecmp(addr, "DNS1", 4) && (addr[4] == '\0' || addr[4] == '/'))
@@ -343,7 +225,7 @@ addrtype(const char *addr)
 }
 
 static const char *
-addrstr(struct in_addr addr, unsigned type)
+addrstr(struct ncprange *addr, unsigned type)
 {
   switch (type) {
     case T_MYADDR:
@@ -355,30 +237,17 @@ addrstr(struct in_addr addr, unsigned type)
     case T_DNS1:
       return "DNS1";
   }
-  return inet_ntoa(addr);
-}
-
-static const char *
-maskstr(int bits)
-{
-  static char str[4];
-
-  if (bits == 32)
-    *str = '\0';
-  else
-    snprintf(str, sizeof str, "/%d", bits);
-
-  return str;
+  return ncprange_ntoa(addr);
 }
 
 static int
-Parse(struct ipcp *ipcp, int argc, char const *const *argv,
-      struct filterent *ofp)
+filter_Parse(struct ncp *ncp, int argc, char const *const *argv,
+             struct filterent *ofp)
 {
-  int action, proto;
-  int val, ruleno;
+  struct filterent fe;
+  struct protoent *pe;
   char *wp;
-  struct filterent filterdata;
+  int action, family, ruleno, val, width;
 
   ruleno = strtol(*argv, &wp, 0);
   if (*argv == wp || ruleno >= MAXFILTERS) {
@@ -401,8 +270,7 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
   }
   argv++;
 
-  proto = P_NONE;
-  memset(&filterdata, '\0', sizeof filterdata);
+  memset(&fe, '\0', sizeof fe);
 
   val = strtol(*argv, &wp, 0);
   if (!*wp && val >= 0 && val < MAXFILTERS) {
@@ -420,56 +288,71 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
     ofp->f_action = A_NONE;
     return 1;
   } else {
-    log_Printf(LogWARN, "Parse: bad action: %s\n", *argv);
+    log_Printf(LogWARN, "Parse: %s: bad action\n", *argv);
     return 0;
   }
-  filterdata.f_action = action;
+  fe.f_action = action;
 
   argc--;
   argv++;
 
   if (argc && argv[0][0] == '!' && !argv[0][1]) {
-    filterdata.f_invert = 1;
+    fe.f_invert = 1;
     argc--;
     argv++;
   }
 
-  proto = filter_Nam2Proto(argc, argv);
-  if (proto == P_NONE) {
-    if (!argc)
-      log_Printf(LogWARN, "Parse: address/mask is expected.\n");
-    else if (ParseAddr(ipcp, *argv, &filterdata.f_src.ipaddr,
-                       &filterdata.f_src.mask, &filterdata.f_src.width)) {
-      filterdata.f_srctype = addrtype(*argv);
+  ncprange_init(&fe.f_src);
+  ncprange_init(&fe.f_dst);
+
+  if (argc == 0)
+    pe = NULL;
+  else if ((pe = getprotobyname(*argv)) == NULL && strcmp(*argv, "all") != 0) {
+    if (argc < 2) {
+      log_Printf(LogWARN, "Parse: Protocol or address pair expected\n");
+      return 0;
+    } else if (strcasecmp(*argv, "any") == 0 ||
+               ncprange_aton(&fe.f_src, ncp, *argv)) {
+      family = ncprange_family(&fe.f_src);
+      if (!ncprange_getwidth(&fe.f_src, &width))
+        width = 0;
+      if (width == 0)
+        ncprange_init(&fe.f_src);
+      fe.f_srctype = addrtype(*argv);
       argc--;
       argv++;
-      proto = filter_Nam2Proto(argc, argv);
-      if (!argc)
-        log_Printf(LogWARN, "Parse: address/mask is expected.\n");
-      else if (proto == P_NONE) {
-	if (ParseAddr(ipcp, *argv, &filterdata.f_dst.ipaddr,
-		      &filterdata.f_dst.mask, &filterdata.f_dst.width)) {
-          filterdata.f_dsttype = addrtype(*argv);
-	  argc--;
-	  argv++;
-	} else
-          filterdata.f_dsttype = T_ADDR;
-        if (argc) {
-	  proto = filter_Nam2Proto(argc, argv);
-	  if (proto == P_NONE) {
-            log_Printf(LogWARN, "Parse: %s: Invalid protocol\n", *argv);
-            return 0;
-          } else {
-	    argc--;
-	    argv++;
-	  }
-	}
+
+      if (strcasecmp(*argv, "any") == 0 ||
+          ncprange_aton(&fe.f_dst, ncp, *argv)) {
+        if (ncprange_family(&fe.f_dst) != AF_UNSPEC &&
+            ncprange_family(&fe.f_src) != AF_UNSPEC &&
+            family != ncprange_family(&fe.f_dst)) {
+          log_Printf(LogWARN, "Parse: src and dst address families differ\n");
+          return 0;
+        }
+        if (!ncprange_getwidth(&fe.f_dst, &width))
+          width = 0;
+        if (width == 0)
+          ncprange_init(&fe.f_dst);
+        fe.f_dsttype = addrtype(*argv);
+        argc--;
+        argv++;
       } else {
-	argc--;
-	argv++;
+        log_Printf(LogWARN, "Parse: Protocol or address pair expected\n");
+        return 0;
+      }
+
+      if (argc) {
+        if ((pe = getprotobyname(*argv)) == NULL && strcmp(*argv, "all") != 0) {
+          log_Printf(LogWARN, "Parse: %s: Protocol expected\n", *argv);
+          return 0;
+        } else {
+          argc--;
+          argv++;
+        }
       }
     } else {
-      log_Printf(LogWARN, "Parse: Address/protocol expected.\n");
+      log_Printf(LogWARN, "Parse: Protocol or address pair expected\n");
       return 0;
     }
   } else {
@@ -477,60 +360,49 @@ Parse(struct ipcp *ipcp, int argc, char const *const *argv,
     argv++;
   }
 
-  if (argc >= 2 && strcmp(argv[argc - 2], "timeout") == 0) {
-    filterdata.timeout = strtoul(argv[argc - 1], NULL, 10);
+  if (argc >= 2 && strcmp(*argv, "timeout") == 0) {
+    fe.timeout = strtoul(argv[1], NULL, 10);
     argc -= 2;
+    argv += 2;
   }
 
   val = 1;
-  filterdata.f_proto = proto;
+  fe.f_proto = (pe == NULL) ? 0 : pe->p_proto;
 
-  switch (proto) {
-  case P_TCP:
-    val = ParseUdpOrTcp(argc, argv, P_TCP, &filterdata);
-    break;
-  case P_UDP:
-    val = ParseUdpOrTcp(argc, argv, P_UDP, &filterdata);
-    break;
-  case P_IPIP:
-    val = ParseUdpOrTcp(argc, argv, P_IPIP, &filterdata);
-    break;
-  case P_ICMP:
-    val = ParseIcmp(argc, argv, &filterdata);
-    break;
-  case P_IGMP:
-    val = ParseIgmp(argc, argv, &filterdata);
-    break;
-#ifdef P_OSPF
-  case P_OSPF:
-    val = ParseOspf(argc, argv, &filterdata);
-    break;
+  switch (fe.f_proto) {
+  case IPPROTO_TCP:
+  case IPPROTO_UDP:
+  case IPPROTO_IPIP:
+#ifndef NOINET6
+  case IPPROTO_IPV6:
 #endif
-#ifdef P_GRE
-  case P_GRE:
-    val = ParseGRE(argc, argv, &filterdata);
+    val = ParseUdpOrTcp(argc, argv, pe, &fe);
     break;
+  case IPPROTO_ICMP:
+#ifndef NOINET6
+  case IPPROTO_ICMPV6:
 #endif
+    val = ParseIcmp(argc, argv, pe, &fe);
+    break;
+  default:
+    val = ParseGeneric(argc, argv, pe, &fe);
+    break;
   }
 
-  log_Printf(LogDEBUG, "Parse: Src: %s\n", inet_ntoa(filterdata.f_src.ipaddr));
-  log_Printf(LogDEBUG, "Parse: Src mask: %s\n",
-             inet_ntoa(filterdata.f_src.mask));
-  log_Printf(LogDEBUG, "Parse: Dst: %s\n", inet_ntoa(filterdata.f_dst.ipaddr));
-  log_Printf(LogDEBUG, "Parse: Dst mask: %s\n",
-             inet_ntoa(filterdata.f_dst.mask));
-  log_Printf(LogDEBUG, "Parse: Proto = %d\n", proto);
+  log_Printf(LogDEBUG, "Parse: Src: %s\n", ncprange_ntoa(&fe.f_src));
+  log_Printf(LogDEBUG, "Parse: Dst: %s\n", ncprange_ntoa(&fe.f_dst));
+  log_Printf(LogDEBUG, "Parse: Proto: %d\n", fe.f_proto);
 
   log_Printf(LogDEBUG, "Parse: src:  %s (%d)\n",
-            filter_Op2Nam(filterdata.f_srcop), filterdata.f_srcport);
+            filter_Op2Nam(fe.f_srcop), fe.f_srcport);
   log_Printf(LogDEBUG, "Parse: dst:  %s (%d)\n",
-            filter_Op2Nam(filterdata.f_dstop), filterdata.f_dstport);
-  log_Printf(LogDEBUG, "Parse: estab: %u\n", filterdata.f_estab);
-  log_Printf(LogDEBUG, "Parse: syn: %u\n", filterdata.f_syn);
-  log_Printf(LogDEBUG, "Parse: finrst: %u\n", filterdata.f_finrst);
+            filter_Op2Nam(fe.f_dstop), fe.f_dstport);
+  log_Printf(LogDEBUG, "Parse: estab: %u\n", fe.f_estab);
+  log_Printf(LogDEBUG, "Parse: syn: %u\n", fe.f_syn);
+  log_Printf(LogDEBUG, "Parse: finrst: %u\n", fe.f_finrst);
 
   if (val)
-    *ofp = filterdata;
+    *ofp = fe;
 
   return val;
 }
@@ -557,7 +429,7 @@ filter_Set(struct cmdargs const *arg)
     return -1;
   }
 
-  Parse(&arg->bundle->ncp.ipcp, arg->argc - arg->argn - 1,
+  filter_Parse(&arg->bundle->ncp, arg->argc - arg->argn - 1,
         arg->argv + arg->argn + 1, filter->rule);
   return 0;
 }
@@ -580,18 +452,29 @@ filter_Action2Nam(int act)
 static void
 doShowFilter(struct filterent *fp, struct prompt *prompt)
 {
+  struct protoent *pe;
   int n;
 
   for (n = 0; n < MAXFILTERS; n++, fp++) {
     if (fp->f_action != A_NONE) {
       prompt_Printf(prompt, "  %2d %s", n, filter_Action2Nam(fp->f_action));
       prompt_Printf(prompt, "%c ", fp->f_invert ? '!' : ' ');
-      prompt_Printf(prompt, "%s%s ", addrstr(fp->f_src.ipaddr, fp->f_srctype),
-                    maskstr(fp->f_src.width));
-      prompt_Printf(prompt, "%s%s ", addrstr(fp->f_dst.ipaddr, fp->f_dsttype),
-                    maskstr(fp->f_dst.width));
+
+      if (ncprange_isset(&fp->f_src))
+        prompt_Printf(prompt, "%s ", addrstr(&fp->f_src, fp->f_srctype));
+      else
+        prompt_Printf(prompt, "any ");
+
+      if (ncprange_isset(&fp->f_dst))
+        prompt_Printf(prompt, "%s ", addrstr(&fp->f_dst, fp->f_dsttype));
+      else
+        prompt_Printf(prompt, "any ");
+
       if (fp->f_proto) {
-	prompt_Printf(prompt, "%s", filter_Proto2Nam(fp->f_proto));
+        if ((pe = getprotobynumber(fp->f_proto)) == NULL)
+	  prompt_Printf(prompt, "P:%d", fp->f_proto);
+        else
+	  prompt_Printf(prompt, "%s", pe->p_name);
 
 	if (fp->f_srcop)
 	  prompt_Printf(prompt, " src %s %d", filter_Op2Nam(fp->f_srcop),
@@ -605,7 +488,8 @@ doShowFilter(struct filterent *fp, struct prompt *prompt)
 	  prompt_Printf(prompt, " syn");
 	if (fp->f_finrst)
 	  prompt_Printf(prompt, " finrst");
-      }
+      } else
+	prompt_Printf(prompt, "all");
       if (fp->timeout != 0)
 	  prompt_Printf(prompt, " timeout %u", fp->timeout);
       prompt_Printf(prompt, "\n");
@@ -652,33 +536,6 @@ filter_Show(struct cmdargs const *arg)
   return 0;
 }
 
-static const char * const protoname[] = {
-  "none", "tcp", "udp", "icmp", "ospf", "igmp", "gre", "ipip"
-};
-
-const char *
-filter_Proto2Nam(int proto)
-{
-  if (proto >= sizeof protoname / sizeof protoname[0])
-    return "unknown";
-  return protoname[proto];
-}
-
-static int
-filter_Nam2Proto(int argc, char const *const *argv)
-{
-  int proto;
-
-  if (argc == 0)
-    proto = 0;
-  else
-    for (proto = sizeof protoname / sizeof protoname[0] - 1; proto; proto--)
-      if (!strcasecmp(*argv, protoname[proto]))
-        break;
-
-  return proto;
-}
-
 static const char * const opname[] = {"none", "eq", "gt", "lt"};
 
 const char *
@@ -703,35 +560,47 @@ filter_Nam2Op(const char *cp)
 }
 
 void
-filter_AdjustAddr(struct filter *filter, struct in_addr *my_ip,
-                  struct in_addr *peer_ip, struct in_addr dns[2])
+filter_AdjustAddr(struct filter *filter, struct ncpaddr *local,
+                  struct ncpaddr *remote, struct in_addr *dns)
 {
   struct filterent *fp;
   int n;
 
   for (fp = filter->rule, n = 0; n < MAXFILTERS; fp++, n++)
     if (fp->f_action != A_NONE) {
-      if (my_ip) {
-        if (fp->f_srctype == T_MYADDR)
-          fp->f_src.ipaddr = *my_ip;
-        if (fp->f_dsttype == T_MYADDR)
-          fp->f_dst.ipaddr = *my_ip;
+      if (local) {
+        if (fp->f_srctype == T_MYADDR && ncpaddr_family(local) == AF_INET)
+          ncprange_sethost(&fp->f_src, local);
+        if (fp->f_dsttype == T_MYADDR && ncpaddr_family(local) == AF_INET)
+          ncprange_sethost(&fp->f_dst, local);
+#ifndef NOINET6
+        if (fp->f_srctype == T_MYADDR6 && ncpaddr_family(local) == AF_INET6)
+          ncprange_sethost(&fp->f_src, local);
+        if (fp->f_dsttype == T_MYADDR6 && ncpaddr_family(local) == AF_INET6)
+          ncprange_sethost(&fp->f_dst, local);
+#endif
       }
-      if (peer_ip) {
-        if (fp->f_srctype == T_HISADDR)
-          fp->f_src.ipaddr = *peer_ip;
-        if (fp->f_dsttype == T_HISADDR)
-          fp->f_dst.ipaddr = *peer_ip;
+      if (remote) {
+        if (fp->f_srctype == T_HISADDR && ncpaddr_family(remote) == AF_INET)
+          ncprange_sethost(&fp->f_src, remote);
+        if (fp->f_dsttype == T_HISADDR && ncpaddr_family(remote) == AF_INET)
+          ncprange_sethost(&fp->f_dst, remote);
+#ifndef NOINET6
+        if (fp->f_srctype == T_HISADDR6 && ncpaddr_family(remote) == AF_INET6)
+          ncprange_sethost(&fp->f_src, remote);
+        if (fp->f_dsttype == T_HISADDR6 && ncpaddr_family(remote) == AF_INET6)
+          ncprange_sethost(&fp->f_dst, remote);
+#endif
       }
       if (dns) {
         if (fp->f_srctype == T_DNS0)
-          fp->f_src.ipaddr = dns[0];
+          ncprange_setip4host(&fp->f_src, dns[0]);
         if (fp->f_dsttype == T_DNS0)
-          fp->f_dst.ipaddr = dns[0];
+          ncprange_setip4host(&fp->f_dst, dns[0]);
         if (fp->f_srctype == T_DNS1)
-          fp->f_src.ipaddr = dns[1];
+          ncprange_setip4host(&fp->f_src, dns[1]);
         if (fp->f_dsttype == T_DNS1)
-          fp->f_dst.ipaddr = dns[1];
+          ncprange_setip4host(&fp->f_dst, dns[1]);
       }
     }
 }

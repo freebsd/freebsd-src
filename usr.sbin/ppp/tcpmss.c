@@ -52,6 +52,7 @@
 #include "link.h"
 #include "iplist.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -60,6 +61,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 
 
@@ -67,7 +70,7 @@
  * We are in a liberal position about MSS
  * (RFC 879, section 7).
  */
-#define MAXMSS(mtu) (mtu - sizeof(struct ip) - sizeof(struct tcphdr)) 
+#define MAXMSS(mtu) (mtu - sizeof(struct ip) - sizeof(struct tcphdr))
 
 
 /*-

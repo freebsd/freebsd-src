@@ -151,7 +151,7 @@ Pred1ResetOutput(void *v)
 }
 
 static void *
-Pred1InitInput(struct lcp_opt *o)
+Pred1InitInput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct pred1_state *state;
   state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
@@ -161,7 +161,7 @@ Pred1InitInput(struct lcp_opt *o)
 }
 
 static void *
-Pred1InitOutput(struct lcp_opt *o)
+Pred1InitOutput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct pred1_state *state;
   state = (struct pred1_state *)malloc(sizeof(struct pred1_state));
@@ -294,32 +294,24 @@ Pred1DictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *bp)
 }
 
 static const char *
-Pred1DispOpts(struct lcp_opt *o)
+Pred1DispOpts(struct fsm_opt *o)
 {
   return NULL;
 }
 
 static void
-Pred1InitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+Pred1InitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                    const struct ccp_config *cfg)
 {
-  o->len = 2;
+  o->hdr.len = 2;
 }
 
 static int
-Pred1SetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+Pred1SetOpts(struct bundle *bundle, struct fsm_opt *o,
+             const struct ccp_config *cfg)
 {
-  if (o->len != 2) {
-    o->len = 2;
-    return MODE_NAK;
-  }
-  return MODE_ACK;
-}
-
-static int
-Pred1SetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
-{
-  if (o->len != 2) {
-    o->len = 2;
+  if (o->hdr.len != 2) {
+    o->hdr.len = 2;
     return MODE_NAK;
   }
   return MODE_ACK;
@@ -332,7 +324,7 @@ const struct ccp_algorithm Pred1Algorithm = {
   ccp_DefaultUsable,
   ccp_DefaultRequired,
   {
-    Pred1SetOptsInput,
+    Pred1SetOpts,
     Pred1InitInput,
     Pred1Term,
     Pred1ResetInput,
@@ -342,7 +334,7 @@ const struct ccp_algorithm Pred1Algorithm = {
   {
     0,
     Pred1InitOptsOutput,
-    Pred1SetOptsOutput,
+    Pred1SetOpts,
     Pred1InitOutput,
     Pred1Term,
     Pred1ResetOutput,

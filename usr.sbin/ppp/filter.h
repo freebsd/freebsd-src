@@ -28,22 +28,6 @@
  * $FreeBSD$
  */
 
-/* Known protocols - f_proto */
-#define	P_NONE	0
-#define	P_TCP	1
-#define	P_UDP	2
-#define	P_ICMP	3
-#ifdef IPPROTO_OSPFIGP
-#define	P_OSPF	4
-#endif
-#define	P_IGMP	5
-#ifdef IPPROTO_GRE
-#define P_GRE	6
-#endif
-#define P_ESP	7
-#define P_AH	8
-#define P_IPIP	9
-
 /* Operations - f_srcop, f_dstop */
 #define	OP_NONE	0
 #define	OP_EQ	1
@@ -53,9 +37,11 @@
 /* srctype or dsttype */
 #define T_ADDR		0
 #define T_MYADDR	1
-#define T_HISADDR	2
-#define T_DNS0		3
-#define T_DNS1		4
+#define T_MYADDR6	2
+#define T_HISADDR	3
+#define T_HISADDR6	4
+#define T_DNS0		5
+#define T_DNS1		6
 
 /*
  * There's a struct filterent for each possible filter rule.  The
@@ -63,17 +49,12 @@
  * them) - which is also conveniently a power of 2 (32 bytes) on
  * architectures where sizeof(int)==4 (this makes indexing faster).
  *
- * f_action and f_proto only need to be 6 and 3 bits, respectively,
- * but making them 8 bits allows them to be efficently accessed using
- * byte operations as well as allowing space for future expansion
- * (expanding MAXFILTERS or converting f_proto IPPROTO_... values).
- *
  * Note that there are four free bits in the initial word for future
  * extensions.
  */
 struct filterent {
-  unsigned f_action : 8;		/* Filtering action: goto or A_... */
-  unsigned f_proto : 8;		/* Protocol: P_... */
+  int f_proto;			/* Protocol: getprotoby*() */
+  unsigned f_action : 8;	/* Filtering action: goto or A_... */
   unsigned f_srcop : 2;		/* Source port operation: OP_... */
   unsigned f_dstop : 2;		/* Destination port operation: OP_... */
   unsigned f_srctype : 3;	/* T_ value of src */
@@ -82,8 +63,8 @@ struct filterent {
   unsigned f_syn : 1;		/* Check TCP SYN bit */
   unsigned f_finrst : 1;	/* Check TCP FIN/RST bits */
   unsigned f_invert : 1;	/* true to complement match */
-  struct in_range f_src;	/* Source address and mask */
-  struct in_range f_dst;	/* Destination address and mask */
+  struct ncprange f_src;	/* Source address and mask */
+  struct ncprange f_dst;	/* Destination address and mask */
   u_short f_srcport;		/* Source port, compared with f_srcop */
   u_short f_dstport;		/* Destination port, compared with f_dstop */
   unsigned timeout;		/* Keep alive value for passed packet */
@@ -112,13 +93,9 @@ struct filter {
 struct ipcp;
 struct cmdargs;
 
-extern int ParseAddr(struct ipcp *, const char *, struct in_addr *,
-                     struct in_addr *, int *);
 extern int filter_Show(struct cmdargs const *);
 extern int filter_Set(struct cmdargs const *);
 extern const char * filter_Action2Nam(int);
-extern const char *filter_Proto2Nam(int);
 extern const char *filter_Op2Nam(int);
-extern struct in_addr bits2mask(int);
-extern void filter_AdjustAddr(struct filter *, struct in_addr *,
-                              struct in_addr *, struct in_addr [2]);
+extern void filter_AdjustAddr(struct filter *, struct ncpaddr *,
+                              struct ncpaddr *, struct in_addr *);

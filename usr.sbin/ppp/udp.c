@@ -162,10 +162,12 @@ static const struct device baseudpdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   udp_Free,
   udp_Recvfrom,
   udp_Sendto,
   udp_device2iov,
+  NULL,
   NULL,
   NULL
 };
@@ -207,7 +209,6 @@ udp_CreateDevice(struct physical *p, char *host, char *port)
   }
 
   dev->sock.sin_family = AF_INET;
-  dev->sock.sin_addr.s_addr = inet_addr(host);
   dev->sock.sin_addr = GetIpAddr(host);
   if (dev->sock.sin_addr.s_addr == INADDR_NONE) {
     log_Printf(LogWARN, "%s: %s: unknown host\n", p->link.name, host);
@@ -293,21 +294,30 @@ udp_Create(struct physical *p)
       }
 
       if (sz == sizeof type && type == SOCK_DGRAM) {
+        struct sockaddr_in sock;
+        struct sockaddr *sockp = (struct sockaddr *)&sock;
+
         if ((dev = malloc(sizeof *dev)) == NULL) {
           log_Printf(LogWARN, "%s: Cannot allocate a udp device: %s\n",
                      p->link.name, strerror(errno));
           return NULL;
         }
 
-        /* We can't getpeername().... */
-        dev->connected = UDP_MAYBEUNCONNECTED;
-
-        log_Printf(LogPHASE, "%s: Link is a udp socket\n", p->link.name);
-
-        if (p->link.lcp.cfg.openmode != OPEN_PASSIVE) {
-          log_Printf(LogPHASE, "%s:   Changing openmode to PASSIVE\n",
+        if (getpeername(p->fd, sockp, &sz) == 0) {
+          log_Printf(LogPHASE, "%s: Link is a connected udp socket\n",
                      p->link.name);
-          p->link.lcp.cfg.openmode = OPEN_PASSIVE;
+          dev->connected = UDP_CONNECTED;
+	} else {
+          log_Printf(LogPHASE, "%s: Link is a disconnected udp socket\n",
+                     p->link.name);
+
+          dev->connected = UDP_MAYBEUNCONNECTED;
+
+          if (p->link.lcp.cfg.openmode != OPEN_PASSIVE) {
+            log_Printf(LogPHASE, "%s:   Changing openmode to PASSIVE\n",
+                       p->link.name);
+            p->link.lcp.cfg.openmode = OPEN_PASSIVE;
+          }
         }
       }
     }

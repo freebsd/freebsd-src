@@ -30,10 +30,10 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
 #include <sys/un.h>
 
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -43,8 +43,9 @@
 #include "log.h"
 #include "descriptor.h"
 #include "server.h"
-#include "id.h"
 #include "prompt.h"
+#include "ncpaddr.h"
+#include "probe.h"
 
 static int
 server_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
@@ -84,19 +85,19 @@ server_IsSet(struct fdescriptor *d, const fd_set *fdset)
   return 0;
 }
 
-#define IN_SIZE sizeof(struct sockaddr_in)
-#define UN_SIZE sizeof(struct sockaddr_un)
-#define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
-
 static void
 server_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
 {
   struct server *s = descriptor2server(d);
-  char hisaddr[ADDRSZ];
-  struct sockaddr *sa = (struct sockaddr *)hisaddr;
-  struct sockaddr_in *in = (struct sockaddr_in *)hisaddr;
-  int ssize = ADDRSZ, wfd;
+  struct sockaddr_storage ss;
+  struct sockaddr *sa = (struct sockaddr *)&ss;
+  struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
+#ifndef NOINET6
+  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ss;
+#endif
+  int ssize = sizeof ss, wfd;
   struct prompt *p;
+  struct ncpaddr addr;
 
   if (s->fd >= 0 && FD_ISSET(s->fd, fdset)) {
     wfd = accept(s->fd, sa, &ssize);
@@ -116,17 +117,34 @@ server_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
         break;
 
       case AF_INET:
-        if (ntohs(in->sin_port) < 1024) {
+        ncpaddr_setsa(&addr, sa);
+        if (ntohs(sin->sin_port) < 1024) {
           log_Printf(LogALERT, "Rejected client connection from %s:%u"
                     "(invalid port number) !\n",
-                    inet_ntoa(in->sin_addr), ntohs(in->sin_port));
+                    ncpaddr_ntoa(&addr), ntohs(sin->sin_port));
           close(wfd);
           wfd = -1;
           break;
         }
         log_Printf(LogPHASE, "Connected to client from %s:%u\n",
-                  inet_ntoa(in->sin_addr), in->sin_port);
+                  ncpaddr_ntoa(&addr), ntohs(sin->sin_port));
         break;
+
+#ifndef NOINET6
+      case AF_INET6:
+        ncpaddr_setsa(&addr, sa);
+        if (ntohs(sin6->sin6_port) < 1024) {
+          log_Printf(LogALERT, "Rejected client connection from %s:%u"
+                    "(invalid port number) !\n",
+                    ncpaddr_ntoa(&addr), ntohs(sin6->sin6_port));
+          close(wfd);
+          wfd = -1;
+          break;
+        }
+        log_Printf(LogPHASE, "Connected to client from %s:%u\n",
+                  ncpaddr_ntoa(&addr), ntohs(sin6->sin6_port));
+        break;
+#endif
 
       default:
         write(wfd, "Unrecognised access !\n", 22);
@@ -147,10 +165,17 @@ server_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
           p->src.from[sizeof p->src.from - 1] = '\0';
           break;
         case AF_INET:
-          p->src.type = "tcp";
+          p->src.type = "ip";
           snprintf(p->src.from, sizeof p->src.from, "%s:%u",
-                   inet_ntoa(in->sin_addr), in->sin_port);
+                   ncpaddr_ntoa(&addr), ntohs(sin->sin_port));
           break;
+#ifndef NOINET6
+        case AF_INET6:
+          p->src.type = "ip6";
+          snprintf(p->src.from, sizeof p->src.from, "%s:%u",
+                   ncpaddr_ntoa(&addr), ntohs(sin6->sin6_port));
+          break;
+#endif
       }
       prompt_TtyCommandMode(p);
       prompt_Required(p);
@@ -282,8 +307,12 @@ failed:
 enum server_stat
 server_TcpOpen(struct bundle *bundle, u_short port)
 {
-  struct sockaddr_in ifsin;
-  int s;
+  struct sockaddr_storage ss;
+  struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
+#ifndef NOINET6
+  struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ss;
+#endif
+  int s, sz;
 
   if (server.cfg.port == port)
     server_Close(bundle);
@@ -291,17 +320,32 @@ server_TcpOpen(struct bundle *bundle, u_short port)
   if (port == 0)
     return SERVER_INVALID;
 
-  s = socket(PF_INET, SOCK_STREAM, 0);
+  memset(&ss, '\0', sizeof ss);
+#ifndef NOINET6
+  if (probe.ipv6_available) {
+    sin6->sin6_family = AF_INET6;
+    sin6->sin6_port = htons(port);
+    sin6->sin6_len = (u_int8_t)sizeof ss;
+    sz = sizeof *sin6;
+    s = socket(PF_INET6, SOCK_STREAM, 0);
+  } else
+#endif
+  {
+    sin->sin_family = AF_INET;
+    sin->sin_port = htons(port);
+    sin->sin_len = (u_int8_t)sizeof ss;
+    sin->sin_addr.s_addr = INADDR_ANY;
+    sz = sizeof *sin;
+    s = socket(PF_INET, SOCK_STREAM, 0);
+  }
+
   if (s < 0) {
     log_Printf(LogERROR, "Tcp: socket: %s\n", strerror(errno));
     goto failed;
   }
-  memset(&ifsin, '\0', sizeof ifsin);
-  ifsin.sin_family = AF_INET;
-  ifsin.sin_addr.s_addr = INADDR_ANY;
-  ifsin.sin_port = htons(port);
+
   setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &s, sizeof s);
-  if (bind(s, (struct sockaddr *)&ifsin, sizeof ifsin) < 0) {
+  if (bind(s, (struct sockaddr *)&ss, sz) < 0) {
     log_Printf(LogWARN, "Tcp: bind: %s\n", strerror(errno));
     close(s);
     goto failed;

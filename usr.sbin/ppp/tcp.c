@@ -66,7 +66,6 @@ tcp_OpenConnection(const char *name, char *host, char *port)
   struct servent *sp;
 
   dest.sin_family = AF_INET;
-  dest.sin_addr.s_addr = inet_addr(host);
   dest.sin_addr = GetIpAddr(host);
   if (dest.sin_addr.s_addr == INADDR_NONE) {
     log_Printf(LogWARN, "%s: %s: unknown host\n", name, host);
@@ -102,6 +101,8 @@ static struct device tcpdevice = {
   "tcp",
   0,
   { CD_NOTREQUIRED, 0 },
+  NULL,
+  NULL,
   NULL,
   NULL,
   NULL,

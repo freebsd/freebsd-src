@@ -24,14 +24,13 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
-#ifdef NOSUID
-#include <signal.h>
-#endif
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,6 +68,7 @@
 #include "async.h"
 #include "iplist.h"
 #include "slcompress.h"
+#include "ncpaddr.h"
 #include "ipcp.h"
 #include "filter.h"
 #include "descriptor.h"
@@ -79,6 +79,8 @@
 #ifndef NORADIUS
 #include "radius.h"
 #endif
+#include "ipv6cp.h"
+#include "ncp.h"
 #include "bundle.h"
 #include "prompt.h"
 #include "chat.h"
@@ -95,9 +97,12 @@
 #endif
 #ifndef NONETGRAPH
 #include "ether.h"
+#include "netgraph.h"
+#endif
+#ifndef NOATM
+#include "atm.h"
 #endif
 #include "tcpmss.h"
-
 
 #define PPPOTCPLINE "ppp"
 
@@ -130,6 +135,13 @@ struct {
    * able to identify it as a more specific type of SOCK_DGRAM.
    */
   { ether_Create, ether_iov2device, ether_DeviceSize },
+#ifdef EXPERIMENTAL_NETGRAPH
+  { ng_Create, ng_iov2device, ng_DeviceSize },
+#endif
+#endif
+#ifndef NOATM
+  /* Ditto for ATM devices */
+  { atm_Create, atm_iov2device, atm_DeviceSize },
 #endif
   { tcp_Create, tcp_iov2device, tcp_DeviceSize },
   { udp_Create, udp_iov2device, udp_DeviceSize },
@@ -354,8 +366,8 @@ physical_Close(struct physical *p)
   throughput_log(&p->link.stats.total, LogPHASE, p->link.name);
 
   if (p->session_owner != (pid_t)-1) {
-    log_Printf(LogPHASE, "%s: HUPing %d\n", p->link.name,
-               (int)p->session_owner);
+    log_Printf(LogPHASE, "%s: HUPing %ld\n", p->link.name,
+               (long)p->session_owner);
     ID0kill(p->session_owner, SIGHUP);
     p->session_owner = (pid_t)-1;
   }
@@ -430,22 +442,31 @@ physical_ShowStatus(struct cmdargs const *arg)
   struct physical *p = arg->cx->physical;
   struct cd *cd;
   const char *dev;
-  int n;
+  int n, slot;
 
   prompt_Printf(arg->prompt, "Name: %s\n", p->link.name);
   prompt_Printf(arg->prompt, " State:           ");
   if (p->fd < 0)
     prompt_Printf(arg->prompt, "closed\n");
-  else if (p->handler && p->handler->openinfo)
-    prompt_Printf(arg->prompt, "open (%s)\n", (*p->handler->openinfo)(p));
-  else
-    prompt_Printf(arg->prompt, "open\n");
+  else {
+    slot = physical_Slot(p);
+    if (p->handler && p->handler->openinfo) {
+      if (slot == -1)
+        prompt_Printf(arg->prompt, "open (%s)\n", (*p->handler->openinfo)(p));
+      else
+        prompt_Printf(arg->prompt, "open (%s, port %d)\n",
+                      (*p->handler->openinfo)(p), slot);
+    } else if (slot == -1)
+      prompt_Printf(arg->prompt, "open\n");
+    else
+      prompt_Printf(arg->prompt, "open (port %d)\n", slot);
+  }
 
   prompt_Printf(arg->prompt, " Device:          %s",
                 *p->name.full ?  p->name.full :
                 p->type == PHYS_DIRECT ? "unknown" : "N/A");
   if (p->session_owner != (pid_t)-1)
-    prompt_Printf(arg->prompt, " (session owner: %d)", (int)p->session_owner);
+    prompt_Printf(arg->prompt, " (session owner: %ld)", (long)p->session_owner);
 
   prompt_Printf(arg->prompt, "\n Link Type:       %s\n", mode2Nam(p->type));
   prompt_Printf(arg->prompt, " Connect Count:   %d\n", p->connect_count);
@@ -468,7 +489,7 @@ physical_ShowStatus(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, "\"%s\"", dev);
     dev += strlen(dev) + 1;
   }
-  
+
   prompt_Printf(arg->prompt, "\n Characteristics: ");
   if (physical_IsSync(arg->cx->physical))
     prompt_Printf(arg->prompt, "sync");
@@ -1088,4 +1109,23 @@ physical_AwaitCarrier(struct physical *p)
     return (*p->handler->awaitcarrier)(p);
 
   return CARRIER_OK;
+}
+
+
+void
+physical_SetAsyncParams(struct physical *p, u_int32_t mymap, u_int32_t hismap)
+{
+  if (p->handler && p->handler->setasyncparams)
+    return (*p->handler->setasyncparams)(p, mymap, hismap);
+
+  async_SetLinkParams(&p->async, mymap, hismap);
+}
+
+int
+physical_Slot(struct physical *p)
+{
+  if (p->handler && p->handler->slot)
+    return (*p->handler->slot)(p);
+
+  return -1;
 }

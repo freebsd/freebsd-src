@@ -35,12 +35,18 @@
 #define	PROTO_VJUNCOMP	0x002f	/* VJ Uncompressed */
 #define	PROTO_VJCOMP	0x002d	/* VJ Compressed */
 #define	PROTO_MP	0x003d	/* Multilink fragment */
+#ifndef NOINET6
+#define	PROTO_IPV6	0x0057	/* IPv6 */
+#endif
 #define	PROTO_ICOMPD	0x00fb	/* Individual link compressed */
 #define	PROTO_COMPD	0x00fd	/* Compressed datagram */
 
-#define PROTO_COMPRESSIBLE(p) (((p) & 0xffe1) == 0x21)
+#define PROTO_COMPRESSIBLE(p) (((p) & 0xff81) == 0x01)
 
 #define	PROTO_IPCP	0x8021
+#ifndef NOINET6
+#define	PROTO_IPV6CP	0x8057
+#endif
 #define	PROTO_ICCP	0x80fb
 #define	PROTO_CCP	0x80fd
 

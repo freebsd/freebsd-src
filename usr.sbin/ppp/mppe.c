@@ -26,17 +26,18 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
+
+#include <sys/socket.h>
+#include <netinet/in_systm.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <sys/un.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
-#ifdef __FreeBSD__
-#include <sha.h>
-#else
-#include <openssl/sha.h>
-#endif
 #include <openssl/rc4.h>
 
 #include "defs.h"
@@ -54,6 +55,20 @@
 #include "chap_ms.h"
 #include "proto.h"
 #include "mppe.h"
+#include "ua.h"
+#include "descriptor.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
+#include "ncpaddr.h"
+#include "iplist.h"
+#include "slcompress.h"
+#include "ipcp.h"
+#include "ipv6cp.h"
+#include "filter.h"
+#include "mp.h"
+#include "ncp.h"
+#include "bundle.h"
 
 /*
  * Documentation:
@@ -122,6 +137,7 @@ MPPEReduceSessionKey(struct mppe_state *mp)
   case 56:
     mp->sesskey[0] = 0xd1;
   case 128:
+    break;
   }
 }
 
@@ -190,7 +206,7 @@ MPPEOutput(void *v, struct ccp *ccp, struct link *l, int pri, u_short *proto,
   }
 
   /* Set MPPE packet prefix */
-  *(u_short *)rp = htons(prefix);
+  ua_htons(&prefix, rp);
 
   /* Save encrypted protocol number */
   nproto = htons(*proto);
@@ -361,44 +377,46 @@ MPPEDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 }
 
 static const char *
-MPPEDispOpts(struct lcp_opt *o)
+MPPEDispOpts(struct fsm_opt *o)
 {
   static char buf[70];
-  u_int32_t val = ntohl(*(u_int32_t *)o->data);
+  u_int32_t val;
   char ch;
-  int len;
+  int len, n;
 
-  snprintf(buf, sizeof buf, "value 0x%08x ", (unsigned)val);
-  len = strlen(buf);
+  ua_ntohl(o->data, &val);
+  len = 0;
+  if ((n = snprintf(buf, sizeof buf, "value 0x%08x ", (unsigned)val)) > 0)
+    len += n;
   if (!(val & MPPE_OPT_BITMASK)) {
-    snprintf(buf + len, sizeof buf - len, "(0");
-    len++;
+    if ((n = snprintf(buf + len, sizeof buf - len, "(0")) > 0)
+      len += n;
   } else {
     ch = '(';
     if (val & MPPE_OPT_128BIT) {
-      snprintf(buf + len, sizeof buf - len, "%c128", ch);
-      len += strlen(buf + len);
+      if ((n = snprintf(buf + len, sizeof buf - len, "%c128", ch)) > 0)
+        len += n;
       ch = '/';
     }
     if (val & MPPE_OPT_56BIT) {
-      snprintf(buf + len, sizeof buf - len, "%c56", ch);
-      len += strlen(buf + len);
+      if ((n = snprintf(buf + len, sizeof buf - len, "%c56", ch)) > 0)
+        len += n;
       ch = '/';
     }
     if (val & MPPE_OPT_40BIT) {
-      snprintf(buf + len, sizeof buf - len, "%c40", ch);
-      len += strlen(buf + len);
+      if ((n = snprintf(buf + len, sizeof buf - len, "%c40", ch)) > 0)
+        len += n;
       ch = '/';
     }
   }
 
-  snprintf(buf + len, sizeof buf - len, " bits, state%s",
-           (val & MPPE_OPT_STATELESS) ? "less" : "ful");
-  len += strlen(buf + len);
+  if ((n = snprintf(buf + len, sizeof buf - len, " bits, state%s",
+                    (val & MPPE_OPT_STATELESS) ? "less" : "ful")) > 0)
+    len += n;
 
   if (val & MPPE_OPT_COMPRESSED) {
-    snprintf(buf + len, sizeof buf - len, ", compressed");
-    len += strlen(buf + len);
+    if ((n = snprintf(buf + len, sizeof buf - len, ", compressed")) > 0)
+      len += n;
   }
 
   snprintf(buf + len, sizeof buf - len, ")");
@@ -409,14 +427,27 @@ MPPEDispOpts(struct lcp_opt *o)
 static int
 MPPEUsable(struct fsm *fp)
 {
-  struct lcp *lcp;
   int ok;
+#ifndef NORADIUS
+  struct radius *r = &fp->bundle->radius;
 
-  lcp = &fp->link->lcp;
-  ok = (lcp->want_auth == PROTO_CHAP && lcp->want_authtype == 0x81) ||
-       (lcp->his_auth == PROTO_CHAP && lcp->his_authtype == 0x81);
-  if (!ok)
-    log_Printf(LogCCP, "MPPE: Not usable without CHAP81\n");
+  /*
+   * If the radius server gave us RAD_MICROSOFT_MS_MPPE_ENCRYPTION_TYPES,
+   * use that instead of our configuration value.
+   */
+  if (*r->cfg.file) {
+    ok = r->mppe.sendkeylen && r->mppe.recvkeylen;
+    if (!ok)
+      log_Printf(LogCCP, "MPPE: Not permitted by RADIUS server\n");
+  } else
+#endif
+  {
+    struct lcp *lcp = &fp->link->lcp;
+    ok = (lcp->want_auth == PROTO_CHAP && lcp->want_authtype == 0x81) ||
+         (lcp->his_auth == PROTO_CHAP && lcp->his_authtype == 0x81);
+    if (!ok)
+      log_Printf(LogCCP, "MPPE: Not usable without CHAP81\n");
+  }
 
   return ok;
 }
@@ -424,29 +455,50 @@ MPPEUsable(struct fsm *fp)
 static int
 MPPERequired(struct fsm *fp)
 {
+#ifndef NORADIUS
+  /*
+   * If the radius server gave us RAD_MICROSOFT_MS_MPPE_ENCRYPTION_POLICY,
+   * use that instead of our configuration value.
+   */
+  if (*fp->bundle->radius.cfg.file && fp->bundle->radius.mppe.policy)
+    return fp->bundle->radius.mppe.policy == MPPE_POLICY_REQUIRED ? 1 : 0;
+#endif
+
   return fp->link->ccp.cfg.mppe.required;
 }
 
 static u_int32_t
-MPPE_ConfigVal(const struct ccp_config *cfg)
+MPPE_ConfigVal(struct bundle *bundle, const struct ccp_config *cfg)
 {
   u_int32_t val;
 
   val = cfg->mppe.state == MPPE_STATELESS ? MPPE_OPT_STATELESS : 0;
-  switch(cfg->mppe.keybits) {
-  case 128:
-    val |= MPPE_OPT_128BIT;
-    break;
-  case 56:
-    val |= MPPE_OPT_56BIT;
-    break;
-  case 40:
-    val |= MPPE_OPT_40BIT;
-    break;
-  case 0:
-    val |= MPPE_OPT_128BIT | MPPE_OPT_56BIT | MPPE_OPT_40BIT;
-    break;
-  }
+#ifndef NORADIUS
+  /*
+   * If the radius server gave us RAD_MICROSOFT_MS_MPPE_ENCRYPTION_TYPES,
+   * use that instead of our configuration value.
+   */
+  if (*bundle->radius.cfg.file && bundle->radius.mppe.types) {
+    if (bundle->radius.mppe.types & MPPE_TYPE_40BIT)
+      val |= MPPE_OPT_40BIT;
+    if (bundle->radius.mppe.types & MPPE_TYPE_128BIT)
+      val |= MPPE_OPT_128BIT;
+  } else
+#endif
+    switch(cfg->mppe.keybits) {
+    case 128:
+      val |= MPPE_OPT_128BIT;
+      break;
+    case 56:
+      val |= MPPE_OPT_56BIT;
+      break;
+    case 40:
+      val |= MPPE_OPT_40BIT;
+      break;
+    case 0:
+      val |= MPPE_OPT_128BIT | MPPE_OPT_56BIT | MPPE_OPT_40BIT;
+      break;
+    }
 
   return val;
 }
@@ -455,37 +507,41 @@ MPPE_ConfigVal(const struct ccp_config *cfg)
  * What options should we use for our first configure request
  */
 static void
-MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+MPPEInitOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                   const struct ccp_config *cfg)
 {
-  u_int32_t *p = (u_int32_t *)o->data;
+  u_int32_t mval;
 
-  o->len = 6;
+  o->hdr.len = 6;
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
                " MPPE is available only with CHAP81 authentication\n");
-    *p = htonl(0x0);
+    ua_htonl(0x0, o->data);
     return;
   }
 
-  *p = htonl(MPPE_ConfigVal(cfg));
+
+  mval = MPPE_ConfigVal(bundle, cfg);
+  ua_htonl(&mval, o->data);
 }
 
 /*
  * Our CCP request was NAK'd with the given options
  */
 static int
-MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+MPPESetOptsOutput(struct bundle *bundle, struct fsm_opt *o,
+                  const struct ccp_config *cfg)
 {
-  u_int32_t *p = (u_int32_t *)o->data;
-  u_int32_t peer = ntohl(*p);
-  u_int32_t mval;
+  u_int32_t mval, peer;
+
+  ua_ntohl(o->data, &peer);
 
   if (!MPPE_MasterKeyValid)
     /* Treat their NAK as a REJ */
     return MODE_NAK;
 
-  mval = MPPE_ConfigVal(cfg);
+  mval = MPPE_ConfigVal(bundle, cfg);
 
   /*
    * If we haven't been configured with a specific number of keybits, allow
@@ -504,7 +560,7 @@ MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
     mval |= (peer & MPPE_OPT_STATELESS);
   }
 
-  *p = htonl(mval);
+  ua_htonl(&mval, o->data);
 
   return MODE_ACK;
 }
@@ -513,22 +569,23 @@ MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
  * The peer has requested the given options
  */
 static int
-MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
+MPPESetOptsInput(struct bundle *bundle, struct fsm_opt *o,
+                 const struct ccp_config *cfg)
 {
-  u_int32_t *p = (u_int32_t *)(o->data);
-  u_int32_t peer = ntohl(*p);
-  u_int32_t mval;
+  u_int32_t mval, peer;
   int res = MODE_ACK;
 
+  ua_ntohl(o->data, &peer);
   if (!MPPE_MasterKeyValid) {
-    if (*p != 0x0) {
-      *p = 0x0;
+    if (peer != 0) {
+      peer = 0;
+      ua_htonl(&peer, o->data);
       return MODE_NAK;
     } else
       return MODE_ACK;
   }
 
-  mval = MPPE_ConfigVal(cfg);
+  mval = MPPE_ConfigVal(bundle, cfg);
 
   if (peer & ~MPPE_OPT_MASK)
     /* He's asking for bits we don't know about */
@@ -552,7 +609,7 @@ MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 
   /* If we've got a configured number of keybits - the peer must use that */
   if (cfg->mppe.keybits) {
-    *p = htonl(mval);
+    ua_htonl(&mval, o->data);
     return peer == mval ? res : MODE_NAK;
   }
 
@@ -576,19 +633,19 @@ MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
     mval |= MPPE_OPT_40BIT;
   else
     mval |= MPPE_OPT_128BIT;
-  *p = htonl(mval);
+  ua_htonl(&mval, o->data);
 
   return res;
 }
 
 static struct mppe_state *
-MPPE_InitState(struct lcp_opt *o)
+MPPE_InitState(struct fsm_opt *o)
 {
   struct mppe_state *mp;
   u_int32_t val;
 
   if ((mp = calloc(1, sizeof *mp)) != NULL) {
-    val = ntohl(*(u_int32_t *)o->data);
+    ua_ntohl(o->data, &val);
 
     switch (val & MPPE_OPT_BITMASK) {
     case MPPE_OPT_128BIT:
@@ -616,7 +673,7 @@ MPPE_InitState(struct lcp_opt *o)
 }
 
 static void *
-MPPEInitInput(struct lcp_opt *o)
+MPPEInitInput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct mppe_state *mip;
 
@@ -632,8 +689,18 @@ MPPEInitInput(struct lcp_opt *o)
 
   log_Printf(LogDEBUG, "MPPE: InitInput: %d-bits\n", mip->keybits);
 
-  GetAsymetricStartKey(MPPE_MasterKey, mip->mastkey, mip->keylen, 0,
-                       MPPE_IsServer);
+#ifndef NORADIUS
+  if (*bundle->radius.cfg.file && bundle->radius.mppe.recvkey) {
+    if (mip->keylen > bundle->radius.mppe.recvkeylen)
+      mip->keylen = bundle->radius.mppe.recvkeylen;
+    if (mip->keylen > sizeof mip->mastkey)
+      mip->keylen = sizeof mip->mastkey;
+    memcpy(mip->mastkey, bundle->radius.mppe.recvkey, mip->keylen);
+  } else
+#endif
+    GetAsymetricStartKey(MPPE_MasterKey, mip->mastkey, mip->keylen, 0,
+                         MPPE_IsServer);
+
   GetNewKeyFromSHA(mip->mastkey, mip->mastkey, mip->keylen, mip->sesskey);
 
   MPPEReduceSessionKey(mip);
@@ -662,7 +729,7 @@ MPPEInitInput(struct lcp_opt *o)
 }
 
 static void *
-MPPEInitOutput(struct lcp_opt *o)
+MPPEInitOutput(struct bundle *bundle, struct fsm_opt *o)
 {
   struct mppe_state *mop;
 
@@ -678,8 +745,18 @@ MPPEInitOutput(struct lcp_opt *o)
 
   log_Printf(LogDEBUG, "MPPE: InitOutput: %d-bits\n", mop->keybits);
 
-  GetAsymetricStartKey(MPPE_MasterKey, mop->mastkey, mop->keylen, 1,
-                       MPPE_IsServer);
+#ifndef NORADIUS
+  if (*bundle->radius.cfg.file && bundle->radius.mppe.sendkey) {
+    if (mop->keylen > bundle->radius.mppe.sendkeylen)
+      mop->keylen = bundle->radius.mppe.sendkeylen;
+    if (mop->keylen > sizeof mop->mastkey)
+      mop->keylen = sizeof mop->mastkey;
+    memcpy(mop->mastkey, bundle->radius.mppe.sendkey, mop->keylen);
+  } else
+#endif
+    GetAsymetricStartKey(MPPE_MasterKey, mop->mastkey, mop->keylen, 1,
+                         MPPE_IsServer);
+
   GetNewKeyFromSHA(mop->mastkey, mop->mastkey, mop->keylen, mop->sesskey);
 
   MPPEReduceSessionKey(mop);
