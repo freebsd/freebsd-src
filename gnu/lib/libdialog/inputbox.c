@@ -28,16 +28,14 @@
  */
 int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int width, unsigned char *result)
 {
-  int i, x, y, box_y, box_x, box_width,
-      input_x = 0, scroll = 0, key = 0, button = -1;
+  int i, x, y, box_y, box_x, box_width, first,
+      key = 0, button = -1;
   unsigned char instr[MAX_LEN+1];
   WINDOW *dialog;
 
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
-
-  memset(instr, 0, sizeof(instr));
 
 #ifdef HAVE_NCURSES
   if (use_shadow)
@@ -80,127 +78,15 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
   print_button(dialog, "Cancel", y, x+14, FALSE);
   print_button(dialog, "  OK  ", y, x, TRUE);
 
-  wmove(dialog, box_y, box_x);
-  wrefresh(dialog);
+  first = 1;
   while (key != ESC) {
-    key = wgetch(dialog);
 
     if (button == -1) {    /* Input box selected */
-      switch (key) {
-        case TAB:
-	case KEY_BTAB:
-        case KEY_UP:
-        case KEY_DOWN:
-          break;
-	case KEY_HOME:
-	  input_x = scroll = 0;
-	  wmove(dialog, box_y, box_x);
-	  for (i = 0; i < box_width; i++)
-	    waddch(dialog, instr[i] ? instr[i] : ' ');
-	  wmove(dialog, box_y, box_x);
-	  wrefresh(dialog);
-	  continue;
-	case KEY_END:
-	  for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
-	    instr[i] = '\0';
-	  i++;
-	  input_x = i % box_width;
-	  scroll = i - input_x;
-	  wmove(dialog, box_y, box_x);
-	  for (i = 0; i < box_width; i++)
-	    waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-	  wmove(dialog, box_y, input_x + box_x);
-	  wrefresh(dialog);
-	  continue;
-        case KEY_LEFT:
-          if (input_x || scroll) {
-            wattrset(dialog, inputbox_attr);
-            if (!input_x) {
-	      int oldscroll = scroll;
-              scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
-              wmove(dialog, box_y, box_x);
-              for (i = 0; i < box_width; i++)
-                waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
-	      input_x = oldscroll - 1 - scroll;
-            }
-            else
-              input_x--;
-            wmove(dialog, box_y, input_x + box_x);
-            wrefresh(dialog);
-          }
-          continue;
-        case KEY_RIGHT:
-            if (scroll+input_x < MAX_LEN) {
-	      wattrset(dialog, inputbox_attr);
-	      if (!instr[scroll+input_x])
-		instr[scroll+input_x] = ' ';
-	      if (input_x == box_width-1) {
-		scroll++;
-		wmove(dialog, box_y, box_x);
-		for (i = 0; i < box_width; i++)
-		  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-		wmove(dialog, box_y, box_x + box_width - 1);
-	      }
-	      else {
-		wmove(dialog, box_y, input_x + box_x);
-		waddch(dialog, instr[scroll+input_x]);
-		input_x++;
-	      }
-              wrefresh(dialog);
-            } else
-	      flash(); /* Alarm user about overflow */
-          continue;
-        case KEY_BACKSPACE:
-	case KEY_DC:
-          if (input_x || scroll) {
-	    i = strlen(instr);
-	    memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-scroll+input_x+1);
-            wattrset(dialog, inputbox_attr);
-            if (!input_x) {
-	      int oldscroll = scroll;
-              scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
-              wmove(dialog, box_y, box_x);
-              for (i = 0; i < box_width; i++)
-                waddch(dialog, instr[scroll+input_x+i] ? instr[scroll+input_x+i] : ' ');
-	      input_x = oldscroll - 1 - scroll;
-            }
-            else
-              input_x--;
-	    wmove(dialog, box_y, input_x + box_x);
-	    for (i = input_x; i < box_width; i++)
-	      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-	    wmove(dialog, box_y, input_x + box_x);
-            wrefresh(dialog);
-          }
-          continue;
-        default:
-          if (key < 0x100 && isprint(key)) {
-	    for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
-	      instr[i] = '\0';
-	    i++;
-	    if (i < MAX_LEN) {
-	      memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
-              wattrset(dialog, inputbox_attr);
-              instr[scroll+input_x] = key;
-              if (input_x == box_width-1) {
-                scroll++;
-                wmove(dialog, box_y, box_x);
-                for (i = 0; i < box_width-1; i++)
-                  waddch(dialog, instr[scroll+i]);
-              }
-              else {
-		wmove(dialog, box_y, input_x + box_x);
-		for (i = input_x; i < box_width; i++)
-		  waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
-		wmove(dialog, box_y, ++input_x + box_x);
-              }
-              wrefresh(dialog);
-            } else
-	      flash(); /* Alarm user about overflow */
-            continue;
-          }
-      }
+      key = line_edit(dialog, box_y, box_x, box_width, dialog_attr, first, instr);
+      first = 0;
     }
+    else
+      key = wgetch(dialog);
 
     switch (key) {
       case 'O':
@@ -226,8 +112,6 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
             button = -1;   /* Indicates input box is selected */
 	    print_button(dialog, "Cancel", y, x+14, FALSE);
 	    print_button(dialog, "  OK  ", y, x, TRUE);
-            wmove(dialog, box_y, box_x + input_x);
-            wrefresh(dialog);
             break;
           case 1:
 	    button = 0;    /* Indicates "OK" button is selected */
@@ -257,16 +141,12 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
             button = -1;   /* Indicates input box is selected */
 	    print_button(dialog, "Cancel", y, x+14, FALSE);
 	    print_button(dialog, "  OK  ", y, x, TRUE);
-            wmove(dialog, box_y, box_x + input_x);
-            wrefresh(dialog);
             break;
         }
         break;
       case ' ':
       case '\n':
         delwin(dialog);
-	for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
-	  instr[i] = '\0';
 	if (button < 1)
 	  strcpy(result, instr);
         return (button == -1 ? 0 : button);
