@@ -41,7 +41,8 @@
  * the features you're relying on.  Specific values of FEATURE are
  * documented here:
  *
- *    1 - Version test is available.
+ *    1 - Version tests are available.
+ *    2 - archive_{read,write}_close available separately from _finish.
  */
 #define	ARCHIVE_API_VERSION	@ARCHIVE_API_VERSION@
 int		archive_api_version(void);
@@ -138,7 +139,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
  *   4) Repeatedly call archive_read_next_header to get information about
  *      successive archive entries.  Call archive_read_data to extract
  *      data for entries of interest.
- *   5) Call archive_read_finish to destroy the object.
+ *   5) Call archive_read_finish to end processing.
  */
 struct archive	*archive_read_new(void);
 
@@ -237,7 +238,10 @@ int		 archive_read_extract(struct archive *, struct archive_entry *,
 void		 archive_read_extract_set_progress_callback(struct archive *,
 		     void (*_progress_func)(void *), void *_user_data);
 
-/* Close the file, release any resources, and destroy the object. */
+/* Close the file and release most resources. */
+int		 archive_read_close(struct archive *);
+/* Release all resources and destroy the object. */
+/* Note that archive_read_finish will call archive_read_close for you. */
 void		 archive_read_finish(struct archive *);
 
 /*-
@@ -250,7 +254,8 @@ void		 archive_read_finish(struct archive *);
  *      - construct an appropriate struct archive_entry structure
  *      - archive_write_header to write the header
  *      - archive_write_data to write the entry data
- *   5) archive_write_finish to close the output and cleanup the writer
+ *   5) archive_write_close to close the output
+ *   6) archive_write_finish to cleanup the writer and release resources
  */
 struct archive	*archive_write_new(void);
 int		 archive_write_set_bytes_per_block(struct archive *,
@@ -287,6 +292,7 @@ int		 archive_write_open_file(struct archive *, const char *_file);
 int		 archive_write_header(struct archive *,
 		     struct archive_entry *);
 int		 archive_write_data(struct archive *, const void *, size_t);
+int		 archive_write_close(struct archive *);
 void		 archive_write_finish(struct archive *);
 
 /*
