@@ -43,8 +43,6 @@ enum mca_device_ivars {
 	MCA_IVAR_SLOT,
 	MCA_IVAR_ID,
 	MCA_IVAR_ENABLED,
-	MCA_IVAR_IRQ,
-	MCA_IVAR_DRQ,
 };
 
 #define MCA_ACCESSOR(A, B, T)						\
@@ -59,8 +57,6 @@ static __inline T mca_get_ ## A(device_t dev)				\
 MCA_ACCESSOR(slot,	SLOT,		int)
 MCA_ACCESSOR(id,	ID,		mca_id_t)
 MCA_ACCESSOR(enabled,	ENABLED,	int)
-MCA_ACCESSOR(irq,	IRQ,		int)
-MCA_ACCESSOR(drq,	DRQ,		int)
 
 /* don't use these! */
 void		mca_pos_set	(device_t, u_int8_t, u_int8_t);
@@ -68,7 +64,7 @@ u_int8_t	mca_pos_get	(device_t, u_int8_t);
 
 u_int8_t	mca_pos_read	(device_t, u_int8_t);
 
-int		mca_add_irq	(device_t, int);
-int		mca_add_drq	(device_t, int);
-int		mca_add_iospace	(device_t, u_long, u_long, int);
-int		mca_add_mspace	(device_t, u_long, u_long, int);
+void		mca_add_irq	(device_t, int);
+void		mca_add_drq	(device_t, int);
+void		mca_add_iospace	(device_t, u_long, u_long);
+void		mca_add_mspace	(device_t, u_long, u_long);
