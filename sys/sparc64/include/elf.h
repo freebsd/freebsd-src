@@ -162,7 +162,11 @@ __ElfType(Auxinfo);
 #define	R_SPARC_UA16		55
 
 /* Define "machine" characteristics */
-#define	ELF_TARG_CLASS	ELFCLASS64
+#if __ELF_WORD_SIZE == 32
+#define ELF_TARG_CLASS  ELFCLASS32
+#else
+#define ELF_TARG_CLASS  ELFCLASS64
+#endif
 #define	ELF_TARG_DATA	ELFDATA2MSB
 #define	ELF_TARG_MACH	ELF_ARCH
 #define	ELF_TARG_VER	1
