@@ -76,6 +76,8 @@ typedef struct adp_state adp_state_t;
 /* VESA video adapter */
 static video_adapter_t *vesa_adp = NULL;
 static int vesa_state_buf_size = 0;
+#define VESA_VM86_BUFSIZE	(3 * PAGE_SIZE)
+static void *vesa_vm86_buf;
 
 /* VESA functions */
 #if 0
@@ -244,7 +246,7 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	bzero(&vmf, sizeof(vmf));
 	vmf.vmf_eax = 0x4f01; 
 	vmf.vmf_ecx = mode;
-	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
+	buf = vesa_vm86_buf;
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
@@ -310,7 +312,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	vmf.vmf_ebx = 1;	/* get primary palette data */
 	vmf.vmf_ecx = colors;
 	vmf.vmf_edx = start;
-	p = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
+	p = vesa_vm86_buf;
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
@@ -340,7 +342,7 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	vmf.vmf_ebx = 1;	/* get primary palette data */
 	vmf.vmf_ecx = colors;
 	vmf.vmf_edx = start;
-	p = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
+	p = vesa_vm86_buf;
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
@@ -364,7 +366,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	int err;
 	int i;
 
-	p = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
+	p = vesa_vm86_buf;
 	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
 		p[i*4]	   = palette[i*3 + 2] >> bits;
@@ -394,7 +396,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	int err;
 	int i;
 
-	p = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
+	p = vesa_vm86_buf;
 	bits = 8 - bits;
 	for (i = 0; i < colors; ++i) {
 		p[i*4]	   = b[i] >> bits;
@@ -423,7 +425,7 @@ vesa_bios_state_buf_size(void)
 
 	bzero(&vmf, sizeof(vmf));
 	vmf.vmf_eax = 0x4f04; 
-	vmf.vmf_ecx = STATE_MOST;
+	vmf.vmf_ecx = STATE_ALL;
 	vmf.vmf_edx = STATE_SIZE;
 	err = vm86_intcall(0x10, &vmf);
 	if ((err != 0) || (vmf.vmf_ax != 0x4f))
@@ -438,15 +440,19 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	u_char *buf;
 	int err;
 
+	if (size > VESA_VM86_BUFSIZE)
+		return (1);
+
 	bzero(&vmf, sizeof(vmf));
 	vmf.vmf_eax = 0x4f04; 
-	vmf.vmf_ecx = STATE_MOST;
+	vmf.vmf_ecx = STATE_ALL;
 	vmf.vmf_edx = code;	/* STATE_SAVE/STATE_LOAD */
-	buf = (u_char *)vm86_getpage(&vesa_vmcontext, 1);
+	buf = vesa_vm86_buf;
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_bx);
 	bcopy(p, buf, size);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
+	bcopy(buf, p, size);
 	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
@@ -623,7 +629,15 @@ vesa_bios_init(void)
 	vesa_vmode_max = 0;
 	vesa_vmode[0].vi_mode = EOT;
 
-	vmbuf = (u_char *)vm86_addpage(&vesa_vmcontext, 1, 0);
+	/* Allocate a buffer and add each page to the vm86 context. */
+	vesa_vm86_buf = malloc(VESA_VM86_BUFSIZE, M_DEVBUF, M_WAITOK | M_ZERO);
+	KASSERT(((vm_offset_t)vesa_vm86_buf & PAGE_MASK) == 0,
+	    ("bad vesa_vm86_buf alignment"));
+	for (i = 0; i < howmany(VESA_VM86_BUFSIZE, PAGE_SIZE); i++)
+		vm86_addpage(&vesa_vmcontext, i + 1,
+		    (vm_offset_t)vesa_vm86_buf + PAGE_SIZE * i);
+
+	vmbuf = vesa_vm86_buf;
 	bzero(&vmf, sizeof(vmf));	/* paranoia */
 	bcopy("VBE2", vmbuf, 4);	/* try for VBE2 data */
 	vmf.vmf_eax = 0x4f00;
@@ -797,7 +811,10 @@ vesa_bios_init(void)
 		printf("VESA: %d mode(s) found\n", modes);
 
 	has_vesa_bios = (modes > 0);
-	return (has_vesa_bios ? 0 : 1);
+	if (!has_vesa_bios)
+		return (1);
+
+	return (0);
 }
 
 static void
@@ -1639,6 +1656,9 @@ vesa_unload(void)
 		}
 	}
 	splx(s);
+
+	if (vesa_vm86_buf != NULL)
+		free(vesa_vm86_buf, M_DEVBUF);
 
 	return error;
 }
