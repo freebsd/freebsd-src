@@ -62,7 +62,7 @@ extern char * strdup(const char *);
 #endif
 
 /*  WALNUT CREEK CDROM HACK  -- rab 950126 */
-static const char trans_tbl[] = "00_TRANS.TBL";
+static char trans_tbl[] = "00_TRANS.TBL";
 
 static unsigned char symlink_buff[256];
 

@@ -219,7 +219,7 @@ static void dump_filelist(){
 };
 #endif
 
-int FDECL2(compare_dirs, const struct directory_entry **, r, const struct directory_entry **, l) {
+int FDECL2(compare_dirs, struct directory_entry **, r, struct directory_entry **, l) {
   char * rpnt, *lpnt;
 
   rpnt = (*r)->isorec.name;
@@ -264,7 +264,8 @@ void FDECL1(sort_directory, struct directory_entry **, sort_dir){
     s_entry = s_entry->next;
   };
   
-  qsort(sortlist, dcount, sizeof(struct directory_entry *), compare_dirs);
+  qsort(sortlist, dcount, sizeof(struct directory_entry *),
+  	(void *)compare_dirs);
 
   /* Now reassemble the linked list in the proper sorted order */
   for(i=0; i<dcount-1; i++)
@@ -577,7 +578,7 @@ void generate_path_tables(){
 
   do{
     fix = 0;
-    qsort(&pathlist[1], next_path_index-1, sizeof(struct directory *), compare_paths);
+    qsort(&pathlist[1], next_path_index-1, sizeof(struct directory *), (void *)compare_paths);
 
     for(j=1; j<next_path_index; j++)
       if(pathlist[j]->path_index != j){
