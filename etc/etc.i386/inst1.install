@@ -420,7 +420,14 @@ y*|Y*)
 	;;
 esac
 
-mount -u /dev/fd0a /
+mount -u /dev/fd0a / || {
+	if mount -u /dev/fd1a / ; then
+		echo "[Please ignore the above error message, that's normal.]"
+	else
+		echo "Oh boy, we're in trouble here: Could not mount floppy read-write."
+		exit 1
+	fi
+}
 sync
 verified_install=""
 while [ ! "$verified_install" ]; do	# Begin of Big Loop
