@@ -1,10 +1,11 @@
-#	@(#)Makefile	8.1 (Berkeley) 4/20/94
+#	From: @(#)Makefile	8.1 (Berkeley) 4/20/94
+#	$Id$
 
-DIR=	papers/nqnfs
+VOLUME=	papers
+DOC=	nqnfs
 SRCS=	nqnfs.me
 MACROS=	-me
-
-paper.ps: ${SRCS}
-	${PIC} ${SRCS} | ${TBL} | ${ROFF} > ${.TARGET}
+USE_PIC=	yes
+USE_TBL=	yes
 
 .include <bsd.doc.mk>
