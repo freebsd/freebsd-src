@@ -1,7 +1,7 @@
 .\" This file contains changes from the Open Software Foundation.
 .\"
 .\"	from: @(#)newsyslog.8
-.\"	$Id: newsyslog.8,v 1.1.1.1.2.2 1997/02/28 07:34:37 mpp Exp $
+.\"	$Id: newsyslog.8,v 1.1.1.1.2.3 1997/10/08 07:21:09 charnier Exp $
 .\"
 .\" Copyright 1988, 1989 by the Massachusetts Institute of Technology
 .\" 
@@ -17,7 +17,7 @@
 .\" the suitability of this software for any purpose.  It is
 .\" provided "as is" without express or implied warranty.
 .\"
-.Dd "January 12, 1989"
+.Dd January 12, 1989
 .Dt NEWSYSLOG 8
 .Os
 .Sh NAME
@@ -57,7 +57,7 @@ at.  By default, this configuration file is
 Each line of the file contains information about a particular log file
 that should be handled by
 .Nm newsyslog .
-Each line has five mandatory fields and two optional fields, with a
+Each line has five mandatory fields and three optional fields, with a
 whitespace separating each field.  Blank lines or lines beginning with
 ``#'' are ignored.  The fields of the configuration file are as
 follows: 
@@ -113,7 +113,17 @@ flag means that the file is a binary file, and so the
 message which
 .Nm
 inserts to indicate the fact that the logs have been
-turned over should not be included.
+turned over should not be included.  The
+.Ar -
+flag means nothing, but can be used as a placeholder when the
+.Ar path_to_pid_file
+field is specified.
+.It Ar path_to_pid_file
+This optional field specifies
+the file name to read to find the daemon process id.  If this
+field is present, a SIGHUP is sent the process id contained in this
+file.  This field must start with "/" in order to be recognized
+properly.
 .El
 .Sh OPTIONS
 The following options can be used with newsyslog:
