@@ -224,6 +224,9 @@ server_send_service_search_response(server_p srv, int32_t fd)
 	pdu.tid = ((sdp_pdu_p)(srv->req))->tid;
 	pdu.len = htons(sizeof(rcounts) + rcounts[1] * 4 + 1 + cs[0]);
 
+	rcounts[0] = htons(rcounts[0]);
+	rcounts[1] = htons(rcounts[1]);
+
 	iov[0].iov_base = &pdu;
 	iov[0].iov_len = sizeof(pdu);
 
