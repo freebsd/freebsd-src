@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.11 1995/05/20 11:13:58 jkh Exp $
+ * $Id: media.c,v 1.12 1995/05/21 15:40:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -294,7 +294,8 @@ mediaOpen(char *parent, char *me)
     else
 	snprintf(distname, FILENAME_MAX, "%s/%s", me, me);
     if (mediaDevice->init)
-	(*mediaDevice->init)(mediaDevice);
+	if ((*mediaDevice->init)(mediaDevice) == FALSE)
+	     return -1;
     fd = (*mediaDevice->get)(distname);
     return fd;
 }
