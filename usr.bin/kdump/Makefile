@@ -2,10 +2,12 @@
 # $FreeBSD$
 
 PROG=	kdump
-CFLAGS+=-I${.CURDIR}/../ktrace -I${.CURDIR}/../..
 SRCS=	kdump.c ioctl.c subr.c
-.PATH:	${.CURDIR}/../ktrace
+CFLAGS+=-I${.CURDIR}/../ktrace -I${.CURDIR}/../..
+
 CLEANFILES+=ioctl.c
+
+.PATH:	${.CURDIR}/../ktrace
 
 ioctl.c: mkioctls
 	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
