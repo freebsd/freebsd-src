@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.33 1997/06/25 03:19:31 dima Exp $
+#	$Id: services,v 1.34 1997/06/25 04:36:30 dima Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1510,6 +1510,8 @@ ivsd		2241/tcp   #IVS Daemon
 ivsd		2241/udp   #IVS Daemon
 pehelp		2307/tcp
 pehelp		2307/udp
+cvspserver	2401/tcp   #CVS network server
+cvspserver	2401/udp   #CVS network server
 rtsserv		2500/tcp   #Resource Tracking system server
 rtsserv		2500/udp   #Resource Tracking system server
 rtsclient	2501/tcp   #Resource Tracking system client
