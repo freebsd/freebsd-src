@@ -56,9 +56,9 @@ strtoimax(nptr, endptr, base)
 {
 	const char *s;
 	uintmax_t acc;
-	unsigned char c;
+	char c;
 	uintmax_t cutoff;
-	int neg, any, cutlim, n;
+	int neg, any, cutlim;
 
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
@@ -68,7 +68,7 @@ strtoimax(nptr, endptr, base)
 	s = nptr;
 	do {
 		c = *s++;
-	} while (isspace(c));
+	} while (isspace((unsigned char)c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -112,20 +112,22 @@ strtoimax(nptr, endptr, base)
 	cutlim = cutoff % base;
 	cutoff /= base;
 	for ( ; ; c = *s++) {
-		if (isxdigit(c))
-			n = digittoint(c);
-		else if (isalpha(c))
-			n = (char)c - (isupper(c) ? 'A' - 10 : 'a' - 10);
+		if (c >= '0' && c <= '9')
+			c -= '0';
+		else if (c >= 'A' && c <= 'Z')
+			c -= 'A' - 10;
+		else if (c >= 'a' && c <= 'z')
+			c -= 'a' - 10;
 		else
 			break;
-		if (n < 0 || n >= base)
+		if (c >= base)
 			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && n > cutlim))
+		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
 			any = -1;
 		else {
 			any = 1;
 			acc *= base;
-			acc += n;
+			acc += c;
 		}
 	}
 	if (any < 0) {

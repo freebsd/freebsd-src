@@ -56,9 +56,9 @@ strtoumax(nptr, endptr, base)
 {
 	const char *s;
 	uintmax_t acc;
-	unsigned char c;
+	char c;
 	uintmax_t cutoff;
-	int neg, any, cutlim, n;
+	int neg, any, cutlim;
 
 	/*
 	 * See strtoimax for comments as to the logic used.
@@ -66,7 +66,7 @@ strtoumax(nptr, endptr, base)
 	s = nptr;
 	do {
 		c = *s++;
-	} while (isspace(c));
+	} while (isspace((unsigned char)c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -90,20 +90,22 @@ strtoumax(nptr, endptr, base)
 	cutoff = UINTMAX_MAX / base;
 	cutlim = UINTMAX_MAX % base;
 	for ( ; ; c = *s++) {
-		if (isxdigit(c))
-			n = digittoint(c);
-		else if (isalpha(c))
-			n = (char)c - (isupper(c) ? 'A' - 10 : 'a' - 10);
+		if (c >= '0' && c <= '9')
+			c -= '0';
+		else if (c >= 'A' && c <= 'Z')
+			c -= 'A' - 10;
+		else if (c >= 'a' && c <= 'z')
+			c -= 'a' - 10;
 		else
 			break;
-		if (n < 0 || n >= base)
+		if (c >= base)
 			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && n > cutlim))
+		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
 			any = -1;
 		else {
 			any = 1;
 			acc *= base;
-			acc += n;
+			acc += c;
 		}
 	}
 	if (any < 0) {
