@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.38 1998/05/21 01:13:32 brian Exp $
+.\" $Id: ppp.8,v 1.100 1998/05/21 21:47:48 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2472,7 +2472,7 @@ is logged as
 for security reasons.
 .It set authname Ar id
 This sets the authentication id used in client mode PAP or CHAP negotiation.
-.It set autoload Ar maxduration maxload Op Ar minduration minload
+.It set autoload Ar maxduration maxload [minduration minload]
 These settings apply only in multilink mode and all default to zero.
 When more than one
 .Ar demand-dial
