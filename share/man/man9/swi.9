@@ -1,0 +1,203 @@
+.\" Copyright (c) 2000 John H. Baldwin
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 30, 2000
+.Dt SWI 9
+.Os
+.Sh NAME
+.Nm sched_swi ,
+.Nm sinthand_add
+.Nd register and schedule software interrupt handlers
+.Sh SYNOPSIS
+.Fd #include <sys/bus.h>
+.Fd #include <sys/proc.h>
+.Fd #include <sys/interrupt.h>
+.Vt extern	struct ithd *tty_ithd;
+.Vt extern	struct ithd *clk_ithd;
+.Vt extern	struct intrhand *net_ih;
+.Vt extern	struct intrhand *softclock_ih;
+.Vt extern	struct intrhand *vm_ih;
+.Ft void
+.Fn sched_swi "struct intrhand *handler" "int flags"
+.Ft struct intrhand *
+.Fo sinthand_add
+.Fa "const char *name"
+.Fa "struct ithd **thread"
+.Fa "driver_intr_t handler"
+.Fa "void *arg"
+.Fa "int pri"
+.Fa "int flags"
+.Fc
+.Sh DESCRIPTION
+These functions are used to register and schedule software interrupt handlers.
+Software interrupt handlers are attached to a software interrupt thread, just
+as hardware interrupt handlers are attached to a hardware interrupt thread.
+This means that multiple handlers can be attached to the same thread.
+Software interrupt handlers can be used to queue up less critical processing
+inside of hardware interrupt handlers so that the work can be done at a later
+time.
+Software interrupt threads are different from other kernel threads in that they
+are treated as an interrupt thread.
+This means that time spent executing these threads is counted as interrupt
+time, and that they can be run via a lightweight context switch during
+.Fn ast .
+.Pp
+The
+.Fn sinthand_add
+function is used to register a new software interrupt handler.
+The
+.Fa name
+argument is used to associate a name with a specific handler.
+This name is appended to the name of the software interrupt thread that this
+handler is attached to.
+The
+.Fa thread
+argument is an optional pointer to a
+.Li struct ithd
+pointer.
+If this argument points to an existing software interrupt thread, then this
+handler will be attached to that thread.
+Otherwise a new thread will be created, and if
+.Fa thread
+is not
+.Dv NULL ,
+then the pointer at that address to will be modified to point to the
+newly created thread.
+The
+.Fa handler
+is the function that will be called when the handler is scheduled to run.
+The
+.Fa arg
+parameter will be passed in as the only parameter to
+.Fa handler
+when the function is executed.
+The
+.Fa pri
+value specifies the priority to assign to an interrupt thread if one is created,
+and the
+.Fa flags
+argument is used to specify the attributes of a handler such as
+.Dv INTR_MPSAFE .
+.Fn sinthand_add
+returns a pointer to a
+.Li struct intrhand
+which is used later to schedule the handler to run.
+.Pp
+The
+.Fn sched_swi
+function is used to schedule an interrupt handler and its associated thread to
+run.
+The
+.Fa handler
+argument specifies which software interrupt handler should be scheduled to run.
+The
+.Fa flags
+argument specifies how and when the handler should be run and is a mask of one
+or more of the following flags:
+.Bl -tag -width SWI_NOSWITCH
+.It Dv SWI_SWITCH
+Specifies that the kernel should schedule the software interrupt thread
+associated with the specified handler to run.  If lightweight context switches
+are in place, then the kernel will switch to this thread and run it
+immediately.
+.It Dv SWI_NOSWITCH
+Specifies that the kernel should schedule the software interrupt thread
+associated with the specified handler to run, but it should not attempt to
+switch to the thread immediately.
+.It Dv SWI_DELAY
+Specifies that the kernel should mark the specified handler as needing to run,
+but the kernel should not schedule the software interrupt thread to run.
+Instead,
+.Fa handler
+will be executed the next time that the software interrupt thread runs after
+being scheduled by another event.
+Attaching a handler to the clock software interrupt thread and using this flag
+when scheduling a software interrupt handler can be used to implement the
+functionality previously performed by
+.Fn setdelayed .
+.El
+.Pp
+The
+.Va tty_ithd
+and
+.Va clk_ithd
+variables contain pointers to the software interrupt threads for the tty and
+clock software interrupts, respectively.
+.Va tty_ithd
+is used to hang tty software interrupt handlers off of the same thread.
+.Va clk_ithd
+is used to hang delayed handlers off of the clock software interrupt thread so
+that the functionality of
+.Fn setdelayed
+can be obtained in conjuction with
+.Dv SWI_DELAY .
+The
+.Va net_ih ,
+.Va softclock_ih ,
+and
+.Va vm_ih
+handler cookies are used to schedule software interrupt threads to run for the
+networking stack, clock interrupt, and VM subsystem respectively.
+.Sh RETURN VALUES
+The
+.Fn sinthand_add
+function returns a pointer to the newly created
+.Li struct intrhand
+if successful or
+.Dv NULL
+on error.
+.Sh SEE ALSO
+.Xr taskqueue 9
+.Sh HISTORY
+The
+.Fn sinthand_add
+and the
+.Fn sched_swi
+functions first appeared in
+.Fx 5.0 .
+.Sh BUGS
+The
+.Fn sinthand_add
+function currently doesn't check for or allow for the
+.Dv INTR_EXCL
+flag to be used to allow a software interrupt handler to have exclusive
+access to a particular software interrupt thread.
+There is also no checking to verify that one does not add a software interrupt
+handler to a hardware interrupt thread.
+.Pp
+The
+.Fn sinthand_add
+function should really return an error code and use a
+.Fa "void **cookiep"
+argument to return a cookie that is passed in as the first argument to
+.Fn sched_swi
+instead of exposing the
+.Li struct intrhand
+type.
+.Pp
+Most of the global variables described in this manual page should not be
+global, or at the very least should not be declared in
+.Aq Pa sys/interrupt.h .
