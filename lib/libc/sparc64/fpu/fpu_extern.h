@@ -34,7 +34,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: NetBSD: fpu_extern.h,v 1.4 2000/08/03 18:32:08 eeh Exp
- *
  * $FreeBSD$
  */
 
