@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.40 1994/03/26 13:40:18 ache Exp $
+ *	$Id: sio.c,v 1.43 1994/04/03 11:41:11 ache Exp $
  */
 
 #include "sio.h"
@@ -941,6 +941,7 @@ siointr(unit)
 	siointr1(com_addr(unit));
 #else /* COM_MULTIPORT */
 	bool_t		possibly_more_intrs;
+	struct com_s    *com;
 
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
