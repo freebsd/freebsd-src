@@ -58,8 +58,8 @@ typedef struct qic_segment {
 typedef struct qic_geom {
 	int g_fmtno;			/* Format number */
 	int g_lenno;			/* Length number */
-	char g_fmtdesc[16];		/* Format text description */
-	char g_lendesc[16];		/* Length text description */
+	char *g_fmtdesc;		/* Format text description */
+	char *g_lendesc;		/* Length text description */
 	int g_trktape;			/* Number of tracks per tape */
 	int g_segtrk;			/* Number of segments per track */
 	int g_blktrk;			/* Number of blocks per track */
