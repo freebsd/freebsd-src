@@ -49,14 +49,6 @@
 #endif
 
 /*
- * XXXMAC: The single MAC extended attribute will be deprecated once
- * compound EA writes on a single target file can be performed cleanly
- * with UFS2.
- */
-#define	FREEBSD_MAC_EXTATTR_NAME	"freebsd.mac"
-#define	FREEBSD_MAC_EXTATTR_NAMESPACE	EXTATTR_NAMESPACE_SYSTEM
-
-/*
  * MAC framework-related constants and limits.
  */
 #define	MAC_MAX_POLICY_NAME		32
