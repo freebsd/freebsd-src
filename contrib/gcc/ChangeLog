@@ -1,3 +1,335 @@
+2002-10-09  Zack Weinberg  <zack@codesourcery.com>
+
+	PR c/7353
+	* c-decl.c (start_decl): Unconditionally issue error for
+	'typedef foo = bar'.
+	(finish_decl): Remove special case for TYPE_DECL with initializer.
+
+	* doc/extend.texi: Delete "Naming Types" section.  Change all
+	cross-references to that section to refer to "Typeof" instead.
+	Add the useful safe-max()-macro example from "Naming Types" to
+	"Typeof", rewritten using that extension.  Add some compatibility
+	notes to "Typeof."
+
+2002-10-02  Richard Henderson  <rth@redhat.com>
+
+	PR opt/7124
+	* config/i386/i386.c (ix86_register_move_cost): Increase cost
+	for secondary_memory_needed pairs.
+
+Wed Oct  9 19:09:13 CEST 2002  Jan Hubicka  <jh@suse.cz>
+
+	PR opt/7912
+	PR opt/7390
+	* i386.c (athlon_cost): Fix the move costs.
+
+2002-10-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* libgcc2.c (__floatdisf): Properly cure double rounding.
+
+2002-10-09  Gabriel Dos Reis  <gdr@integrable-solutions.net>
+
+	PR doc/7484
+	* doc/invoke.texi (Option Summary): List
+	-Wmissing-declarations as a C only option.
+
+2002-10-08  Jakub Jelinek  <jakub@redhat.com>
+
+	* config/sparc/t-linux64 (MULTILIB_OPTIONS): Remove
+	mno-app-regs|mcmodel=medany.
+	(MULTILIB_DIRNAMES, MULTILIB_OSDIRNAMES): Remove alt.
+	(MULTILIB_EXCEPTIONS, MULTILIB_EXCLUSIONS, MULTILIB_MATCHES): Remove.
+	(CRTSTUFF_T_CFLAGS): Define.
+
+2002-09-25  Eric Botcazou  <ebotcazou@libertysurf.fr>
+	    Volker Reichelt <reichelt@igpm.rwth-aachen.de>
+
+	PR c/7411
+	* expr.c (expand_expr) [PLUS]: Simplify after the operands
+	have been expanded in EXPAND_NORMAL mode.
+
+2002-10-06  Richard Henderson  <rth@redhat.com>
+
+	* config/rs6000/rs6000.md (load_toc_v4_PIC_2): Fix base constraint.
+
+2002-10-06  Roger Sayle  <roger@eyesopen.com>
+
+	PR optimization/6627
+	* toplev.c (force_align_functions_log): New global variable.
+	* flags.h (force_align_functions_log): Add extern prototype.
+	* varasm.c (assemble_start_function): Use it to force minimum
+	function alignment.
+	* config/i386/i386.h (FUNCTION_BOUNDARY): Set the correct
+	minimum function alignment to one byte.
+	(TARGET_PTRMEMFUNC_VBIT_LOCATION): Store the virtual bit in
+	the least significant bit of vtable member function pointers.
+	* tree.h (enum ptrmemfunc_vbit_where_t): Move definition to
+	here from cp/cp-tree.h.
+
+2002-10-06  Neil Booth  <neil@daikokuya.co.uk>
+
+	Debian BTS Bug #157416
+	* cpplib.c (destringize_and_run): Kludge around getting
+	tokens from in-progress macros.
+	(_cpp_do__Pragma): Simplify.
+
+2002-10-06  Frank Ch. Eigler  <fche@redhat.com>
+
+	* cppinit.c (init_standard_includes, parse_option): Use strncmp.
+
+2002-10-05  Jakub Jelinek  <jakub@redhat.com>
+
+	* gcc.c (set_multilib_dir): Don't access *end.
+	Use memcpy instead of strncpy.  Don't write beyond malloced buffer.
+	(print_multilib_info): Don't show paths starting with ".:".
+	* genmultilib: Add new option, "yes" if multilibs are enabled.
+	Update comments.  If multilibs not enabled, print .:${osdirout}
+	for each directory.  If multilibs are enabled, always print
+	${dirout}:${osdirout}, even if the two are the same.
+	* Makefile.in (s-mlib): Pass @enable_multilib@ to genmultilib.
+	Pass all MULTILIB_* variables to genmultilib even if
+	--disable-multilib but MULTILIB_OSDIRNAMES is not empty.
+
+	* gcc.c (print_multi_os_directory): New variable.
+	(option_map): Support --print-multi-os-directory.
+	(struct prefix_list): Add os_multilib field.
+	(multilib_os_dir): New variable.
+	(static_specs): Add multilib_options.
+	(find_a_file): Add multilib argument.  Search in GCC or OS multilib
+	subdirs if non-zero.
+	(read_specs, execute): Update callers.
+	(find_file): Likewise.  Don't prefix name with multilib_dir, instead
+	pass 1 as multilib option.
+	(display_help): Include --print-multi-os-directory.
+	(add_prefix): Add os_multilib argument.  Initialize pl->os_multilib.
+	(process_command): Update callers.  Handle --print-multi-os-directory.
+	(do_spec_1) ['D']: Use multilib_os_directory if pl->os_multilib is
+	set.
+	(main): Update find_a_file and add_prefix callers.
+	Handle print_multi_os_directory.
+	(struct mdswitchstr): New.
+	(mdswitches, n_mdswitches): New variables.
+	(used_arg): Add MULTILIB_DEFAULT switches too if they are not
+	present on the command line nor their mutually incompatible
+	switches.
+	(default_arg): Optimize.
+	(set_multilib_dir): Compute multilib_os_dir.  Initialize mdswitches
+	array.
+	(print_multilib_info): Only print GCC multilib dir name, not OS
+	multilib dirname.
+	* genmultilib: Add osdirnames parameter.  Output multilib_options
+	variable.  If osdirnames is specified, output dirnames as
+	dirname:osdirname.
+	* mklibgcc.in: Use MULTILIB_OSDIRNAMES, --print-multi-directory
+	and --print-multi-os-directory instead of SHLIB_SLIBDIR_SUFFIXES
+	to compute libgcc_s soname and install path.
+	* Makefile.in (libgcc.mk): Pass MULTILIB_OSDIRNAMES instead of
+	SHLIB_SLIBDIR_SUFFIXES to mklibgcc.
+	(s_mlib): Pass MULTILIB_OSDIRNAMES or nothing as last genmultilib
+	argument.
+
+	* config/sparc/t-linux64 (MULTILIB_OSDIRNAMES): Set.
+	(SHLIB_SLIBDIR_SUFFIXES): Remove.
+	* config/sparc/linux64.h (STARTFILE_SPEC32, STARTFILE_SPEC64,
+	ENDFILE_SPEC32, ENDFILE_SPEC64, ENDFILE_COMMON): Remove.
+	(STARTFILE_SPEC, ENDFILE_SPEC): Don't distinguish between -m32
+	and -m64.
+	* config/sparc/t-sol2-64 (MULTILIB_OSDIRNAMES): Set.
+	(SHLIB_SLIBDIR_SUFFIXES): Remove.
+	* config/sparc/sol2-bi.h (STARTFILE_SPEC32, STARTFILE_SPEC64): Remove.
+	(STARTFILE_ARCH_SPEC): Remove.
+	(STARTFILE_SPEC): Add values-X*.o here.
+	* config/i386/t-linux64 (MULTILIB_OSDIRNAMES): Set.
+	(SHLIB_SLIBDIR_SUFFIXES): Remove.
+	* config/i386/linux64.h (STARTFILE_PREFIX_SPEC): Remove.
+	(STARTFILE_SPEC, ENDFILE_SPEC): Don't distinguish between m32 and
+	!m32.
+	* config/mips/t-iris6 (MULTILIB_OSDIRNAMES): Set.
+	(SHLIB_SLIBDIR_SUFFIXES): Remove.
+
+2002-10-05  Neil Booth  <neil@daikokuya.co.uk>
+
+	PR preprocessor/8120
+	* doc/cpp.texi: Update documentation of bad use of ##.
+
+Thu Oct  3 23:15:15 CEST 2002  Jan Hubicka  <jh@suse.cz>
+
+	* i386.h (CPP_SPECS): fix defines for -msse, -msse2, -mpentium2,3.
+
+Thu Oct  3 21:35:36 CEST 2002  Jan Hubicka  <jh@suse.cz>
+
+	* toplev.c (rest_of_compilation): Dump loops before clobbering
+	the structure.
+
+	* expr.c (force_operand): Use expand_simple_* to handle more
+	cases.
+
+	* i386.c (q_regs_operand): Use ANY_QI_REG_P.
+
+	* i386.c (override_options): Fix stack alignment.
+	(classify_argument): Handle variable sized types.
+	(ix86_expand_int_movcc): Avoid RTL sharing problem.
+
+	* i386.md (prefetch_sse_rex, prefetch_3dnow_rex): New.
+	(prefetch): Properly handle 64bit case.
+
+	* i386.c (classify_argument): Properly compute word size of the analyzed object.
+
+	* jump.c (reg_or_subregno): New function.
+	* rtl.h (reg_or_subregno): Declare
+	* unroll.c (find_splittable_givs): Handle subregs.
+
+	Richard Sandiford  <rsandifo@redhat.com>:
+
+	* expr.c (force_operand): Fix reversed move.
+
+	Andreas Jaeger  <aj@suse.de>:
+
+	* config/i386/linux64.h (STARTFILE_PREFIX_SPEC): New.
+
+	Janis Johnson  <janis187@us.ibm.com>:
+
+	* loop.c (emit_prefetch_instructions): Several small fixes.
+
+Thu Sep  5 00:34:33 2002  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* loop.c (scan_loop): Don't mark separate insns out of a libcall
+	for moving.
+	(move_movables): Abort if we see the first insn of a libcall.
+
+2002-10-01  David S. Miller  <davem@redhat.com>
+
+	PR middle-end/7151
+	* config/sparc/sparc.md (movdi_insn_sp32_v9): Accept 'e' regs.
+	(movdi reg/reg split): Match only on sparc32, and v9 when int regs.
+
+2002-10-01  David S. Miller  <davem@redhat.com>
+	    Jan Hubicka <jh@suse.cz>
+
+	* reload1.c (gen_reload:SECONDARY_MEMORY_NEEDED): Handle SUBREG.
+	* reload.c (push_reload:SECONDARY_MEMORY_NEEDED): Likewise.
+
+2002-09-30  Bob Wilson  <bob.wilson@acm.org>
+
+	* config/xtensa/xtensa.h (REG_CLASS_NAMES, REG_CLASS_CONTENTS):
+	Add new RL_REGS register class.
+	(PREFERRED_RELOAD_CLASS, PREFERRED_OUTPUT_RELOAD_CLASS):
+	Call xtensa_preferred_reload_class for both input and output reloads.
+	* config/xtensa/xtensa.c (xtensa_regno_to_class): Use new RL_REGS class.
+	(xtensa_preferred_reload_class): Handle output reloads; use RL_REGS
+	instead of either AR_REGS or GR_REGS classes.
+	(xtensa_secondary_reload_class): Use new RL_REGS class.
+	* config/xtensa/xtensa-protos.h (xtensa_preferred_reload_class): Update.
+
+2002-08-21  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* cppinit.c (remove_dup_nonsys_dirs): Fix warning and return value.
+
+2002-08-20  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* cppinit.c (remove_dup_dir): Add head_ptr argument to handle removal
+	at head.
+	(remove_dup_nonsys_dirs): New function.
+	(remove_dup_dirs): Change argument head to head_ptr.  Remove warnings.
+	(merge_include_chains): Remove non-system include directories from
+	quote and bracket include chains when they duplicate equivalent system
+	directories.
+	* doc/cpp.texi (-I): Update.
+	* doc/cppopts.texi (-I): Update.
+	* doc/install.texi (--with-local-prefix): Further document usage of
+	this option.
+	* doc/invoke.texi (-I): Update.
+
+2002-09-30  Richard Earnshaw  <rearnsha@arm.com>
+
+	* arm.h (BASE_REG_CLASS): Always return LO_REGS for Thumb.
+	(MODE_BASE_REG_CLASS, case Thumb): Only return BASE_REGS if we know
+	that we have a SImode access, and only then if reload hasn't completed;
+	for all other cases, use LO_REGS.
+
+2002-09-29  David S. Miller  <davem@redhat.com>
+
+	* config/sparc/linux64.h (STARTFILE_SPEC32, ENDFILE_SPEC32): Kill
+	hardcoded paths.
+
+2002-09-27  Alexander N. Kabaev <ak03@gte.com>
+
+	PR preprocessor/8055
+	* cppmacro.c (stringify_arg): Do not overflow the buffer
+	with the terminating NUL when the argument to be stringified
+	has no tokens.
+
+2002-09-26  David S. Miller  <davem@redhat.com>
+
+	PR optimization/7335
+	* calls.c (emit_library_call_value_1): Passing args by reference
+	converts a CONST function into a PURE one.
+
+2002-09-26  Richard Henderson  <rth@redhat.com>
+
+	PR c/7160
+	* sched-deps.c (sched_analyze_insn): Make clobber insns depend
+	on call insns.
+
+2002-09-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* doloop.c (doloop_modify_runtime <biv skips initial incr>): Adjust
+	by absolute loop increment, not loop increment.
+
+2002-09-25  David S. Miller  <davem@redhat.com>
+
+	PR target/7842
+	* config/sparc/sparc.c (set_extends): SImode ASHIFT does not
+	extend.
+
+2002-09-20  Jeroen Dobbelaere  <jeroen.dobbelaere@acunia.com>
+
+	* config/arm/arm.md (sign_extract_onebit, not_signextract_onebit):
+	Add clobber of the condition code register.
+
+2002-09-18  Richard Earnshaw (rearnsha@arm.com)
+
+	PR optimization/7967
+	* arm.md (ne_zeroextractsi): Add clobber of the condition code
+	register.
+
+2002-09-17  Richard Henderson  <rth@redhat.com>
+
+	* sibcall.c (optimize_sibling_and_tail_recursive_call): Also remove
+	RTX_UNCHANGING_P markers for successful tail-recursive replacement.
+
+2002-09-16  Richard Henderson  <rth@redhat.com>
+
+	PR opt/7515
+	* c-objc-common.c (c_cannot_inline_tree_fn): Don't auto-inline
+	functions that don't bind locally.
+
+2002-09-17  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-07-20  Alan Modra  <amodra@bigpond.net.au>
+	PR optimization/7130
+	* loop.h (struct loop_info): Add "preconditioned".
+	* unroll.c (unroll_loop): Set it.
+	* doloop.c (doloop_modify_runtime): Correct count for unrolled loops.
+
+	2002-06-24  Alan Modra  <amodra@bigpond.net.au>
+	PR optimization/6984
+	* doloop.c (doloop_valid_p): Correct comment.
+	(doloop_modify_runtime <abs_inc != 1>): Simplify.
+	(doloop_modify_runtime <do-while>): Don't emit code when NE.
+
+2002-09-16  Jeff Law <law@redhat.com>
+
+	* libgcc2.c: Do not include machmode.h.
+
+2002-09-16  Jason Merrill  <jason@redhat.com>
+	    Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* config/i386/winnt.c (ix86_handle_dll_attribute): Set
+	DECL_EXTERN and TREE_PUBLIC for dllimported variables here...
+	(i386_pe_mark_dllimport): Not here.
+
 2002-09-14  Stephane Carrez  <stcarrez@nerim.fr>
 
 	* config/m68hc11/m68hc11.md ("movdi_internal"): Allow any offsetable
@@ -185,7 +517,7 @@
 2002-08-27  Mark Mitchell  <mark@codesourcery.com>
 
 	* doc/invoke.texi: Document -Wabi.
-	
+
 2002-08-23  David Edelsohn  <edelsohn@gnu.org>
 
 	* config/rs6000/rs6000.c (rs6000_select_section): Treat
@@ -201,7 +533,7 @@
 	* explow.c (expr_size): Call it.
 	(int_expr_size): New fn.
 	* expr.h: Declare it.
-	* expr.c (expand_expr) [CONSTRUCTOR]: Use it to calculate how 
+	* expr.c (expand_expr) [CONSTRUCTOR]: Use it to calculate how
 	much to store.
 
 2002-08-23  Alan Modra  <amodra@bigpond.net.au>
