@@ -81,12 +81,12 @@
 #define NLPID_ISIS	0x83
 
 /* Node private data */
-struct private {
+struct ng_rfc1490_private {
 	hook_p  downlink;
 	hook_p  ppp;
 	hook_p  inet;
 };
-typedef struct private *priv_p;
+typedef struct ng_rfc1490_private *priv_p;
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_rfc1490_constructor;
