@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.64 1998/08/26 07:09:58 imp Exp $
+ *	$Id: pccard.c,v 1.65 1998/09/08 18:09:51 brian Exp $
  */
 
 #include "opt_devfs.h"
@@ -387,6 +387,11 @@ slot_suspend(void *arg)
 		splx(s);
 		printf("Card disabled, slot %d\n", slt->slotnum);
 	}
+	/*
+	 * Disable any pending timeouts for this slot since we're
+	 * powering it down/disabling now.
+	 */
+	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	slt->ctrl->disable(slt);
 	return (0);
 }
