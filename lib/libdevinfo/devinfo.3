@@ -101,6 +101,11 @@ struct devinfo_dev {
     char		*dd_name;	/* name of device */
     char		*dd_desc;	/* device description */
     char		*dd_drivername;	/* name of attached driver */
+    char		*dd_pnpinfo;	/* pnp info from parent bus */
+    char		*dd_location;	/* Where bus thinks dev at */
+    uint32_t		dd_devflags;	/* API flags */
+    uint16_t		dd_flags;	/* internal dev flags */
+    device_state_t	dd_state;	/* attacement state of dev */
 };
 
 struct devinfo_rman {
