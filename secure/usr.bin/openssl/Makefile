@@ -10,7 +10,7 @@ NOMAN=	noman
 OPENSSL_SRC= ${.CURDIR}/../../../crypto/openssl/apps
 LCRYPTO_SRC= ${.CURDIR}/../../../crypto/openssl/crypto
 
-CFLAGS+= -DMONOLITH -DNO_IDEA -I${.CURDIR}
+CFLAGS+= -DMONOLITH -I${.CURDIR}
 
 WITH_RSA?=	YES
 .if ${WITH_RSA} == NO
