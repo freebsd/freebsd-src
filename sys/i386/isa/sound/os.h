@@ -19,8 +19,6 @@
 #include <sys/buf.h>
 #include <sys/signalvar.h>
 
-#if NSND > 0
-
 #include <machine/soundcard.h>
 #undef DELAY
 #define DELAY(x)  tenmicrosec(x)
@@ -34,7 +32,6 @@ struct snd_wait {
 
 unsigned long   get_time(void);
 
-#endif	/* NSND > 0 */
 #endif	/* _OS_H_ */
 
 typedef caddr_t ioctl_arg;
