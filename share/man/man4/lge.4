@@ -46,6 +46,10 @@ The
 driver provides support for various NICs based on the Level 1 LXT1001
 NetCellerator Gigabit Ethernet controller chip.
 .Pp
+The LXT1001 supports fiber PHYs and also a GMII port for use with
+10/100/1000 copper PHYs, however there are currently no NICs on the
+market that use this feature.
+.Pp
 The LXT1001 supports TCP/IP checksum offload for receive and
 VLAN-based filtering as well as a 64-bit multicast hash filter.
 It also supports jumbo frames, which can be configured
@@ -97,11 +101,6 @@ SMC TigerCard 1000 (SMC9462SX)
 .It
 D-Link DGE-500SX
 .El
-.Pp
-These NICs are capable of 1000Mbps speeds over fiber optic cable.
-The LXT1001 also supports a GMII port for use with 10/100/1000 copper
-PHYs, however there aren't currently any NICs on the market that use
-this feature.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "lge%d: couldn't map memory"
