@@ -236,17 +236,17 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 		link->l_res_index = req->res_index;
 		req->link_index++;
 		req->res_index++;
+
+		/*
+		 * Only use the current value if there's one IRQ.  Some
+		 * systems return multiple IRQs (which is nonsense for _CRS)
+		 * when the link hasn't been programmed.
+		 */
 		if (res->Id == ACPI_RSTYPE_IRQ) {
-			if (res->Data.Irq.NumberOfInterrupts > 0) {
-				KASSERT(res->Data.Irq.NumberOfInterrupts == 1,
-				    ("%s: too many interrupts", __func__));
+			if (res->Data.Irq.NumberOfInterrupts == 1)
 				link->l_irq = res->Data.Irq.Interrupts[0];
-			}
-		} else if (res->Data.ExtendedIrq.NumberOfInterrupts > 0) {
-			KASSERT(res->Data.ExtendedIrq.NumberOfInterrupts == 1,
-			    ("%s: too many interrupts", __func__));
+		} else if (res->Data.ExtendedIrq.NumberOfInterrupts == 1)
 			link->l_irq = res->Data.ExtendedIrq.Interrupts[0];
-		}
 
 		/*
 		 * An IRQ of zero means that the link isn't routed.
