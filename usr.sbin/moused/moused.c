@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.22 1998/11/20 11:19:20 yokota Exp $";
+	"$Id: moused.c,v 1.23 1998/11/20 11:22:17 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -814,7 +814,7 @@ usage(void)
     fprintf(stderr, "%s\n%s\n%s\n",
 	"usage: moused [-3DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
 	"              [-C threshold] [-m N=M] [-w N] [-z N] [-t <mousetype>] -p <port>",
-	"       moused [-d] -i -p <port>");
+	"       moused [-d] -i <info> -p <port>");
     exit(1);
 }
 
