@@ -1,9 +1,11 @@
+# $FreeBSD$
 */Makefile*
 */aclocal.m4
 */config*
 */depcomp
 */install-sh
 */intl/*
+*/lib/getopt*
 */lib/*.y
 */m4/*
 */missing
