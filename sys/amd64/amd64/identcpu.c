@@ -95,6 +95,10 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, 
     cpu_model, 0, "Machine model");
 
+static int hw_clockrate;
+SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD, 
+    &hw_clockrate, 0, "CPU instruction clock rate");
+
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 static char cpu_brand[48];
 
@@ -568,6 +572,7 @@ printcpuinfo(void)
 #endif
 #if defined(I586_CPU)
 	case CPUCLASS_586:
+		hw_clockrate = (tsc_freq + 5000) / 1000000;
 		printf("%jd.%02d-MHz ",
 		       (intmax_t)(tsc_freq + 4999) / 1000000,
 		       (u_int)((tsc_freq + 4999) / 10000) % 100);
@@ -576,6 +581,7 @@ printcpuinfo(void)
 #endif
 #if defined(I686_CPU)
 	case CPUCLASS_686:
+		hw_clockrate = (tsc_freq + 5000) / 1000000;
 		printf("%jd.%02d-MHz ",
 		       (intmax_t)(tsc_freq + 4999) / 1000000,
 		       (u_int)((tsc_freq + 4999) / 10000) % 100);
