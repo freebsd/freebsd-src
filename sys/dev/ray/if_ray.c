@@ -428,12 +428,14 @@ static int
 ray_probe(struct pccard_devinfo *dev_p)
 {
 	struct ray_softc *sc;
+	struct ray_ecf_startup_v5 *ep;
 	int doRemap;
 
 	if (dev_p->isahd.id_unit >= NRAY)
 		return (ENODEV);
 
 	sc = &ray_softc[dev_p->isahd.id_unit];
+	ep = &sc->sc_ecf_startup;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
 #if (RAY_NEED_CM_REMAPPING | RAY_NEED_CM_FIXUP)
@@ -488,64 +490,31 @@ ray_probe(struct pccard_devinfo *dev_p)
 	    sc->flags,
 	    sc->slotnum);
 
-	if (ray_attach(&dev_p->isahd))
+	/*
+	 * Read startup results, check the card is okay and work out what
+	 * version we are using.
+	 */
+	ray_read_region(sc, RAY_ECF_TO_HOST_BASE, ep,
+	    sizeof(sc->sc_ecf_startup));
+	if (ep->e_status != RAY_ECFS_CARD_OK) {
+		RAY_PRINTF(sc, "card failed self test 0x%b",
+		    ep->e_status, RAY_ECFS_PRINTFB);
 		return (ENXIO);
-
-	return (0);
-}
-
-/*
- * PCCard unload.
- */
-static void
-ray_detach(struct pccard_devinfo *dev_p)
-{
-	struct ray_softc *sc;
-	struct ifnet *ifp;
-
-	sc = &ray_softc[dev_p->isahd.id_unit];
-	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-
-	if (sc->gone) {
-	    RAY_PRINTF(sc, "unloaded");
-	    return;
+	}
+	if (sc->sc_version != RAY_ECFS_BUILD_4 &&
+	    sc->sc_version != RAY_ECFS_BUILD_5) {
+		RAY_PRINTF(sc, "unsupported firmware version 0x%0x",
+		    ep->e_fw_build_string);
+		return (ENXIO);
 	}
 
 	/*
-	 * Clear out timers and sort out driver state
-	 *
-	 * We use callout_stop to unconditionally kill the ccs and general
-	 * timers as they are used with multiple arguments.
+	 * Fixup tib size to be correct - on build 4 it is garbage
 	 */
-#if RAY_USE_CALLOUT_STOP
-	callout_stop(sc->com_timerh);
-	callout_stop(sc->reset_timerh);
-#else
-	untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
-	untimeout(ray_reset_timo, sc, sc->reset_timerh);
-#endif /* RAY_USE_CALLOUT_STOP */
-	untimeout(ray_tx_timo, sc, sc->tx_timerh);
-	sc->sc_havenet = 0;
+	if (sc->sc_version == RAY_ECFS_BUILD_4 && sc->sc_tibsize == 0x55)
+		sc->sc_tibsize = sizeof(struct ray_tx_tib);
 
-	/*
-	 * Mark as not running
-	 */
-	ifp = &sc->arpcom.ac_if;
-	ifp->if_flags &= ~IFF_RUNNING;
-	ifp->if_flags &= ~IFF_OACTIVE;
-
-	/*
-	 * Cleardown interface
-	 */
-	if_down(ifp); /* XXX should be if_detach for -current */
-
-	/*
-	 * Mark card as gone
-	 */
-	sc->gone = 1;
-	RAY_PRINTF(sc, "unloading complete");
-
-	return;
+	return (ray_attach(&dev_p->isahd));
 }
 
 /*
@@ -558,37 +527,89 @@ ray_attach(struct isa_device *dev_p)
 	struct ray_ecf_startup_v5 *ep;
 	struct ifnet *ifp;
 	size_t ccs;
-	char ifname[IFNAMSIZ];
 	int i;
 
 	sc = &ray_softc[dev_p->id_unit];
+	ep = &sc->sc_ecf_startup;
+	ifp = &sc->arpcom.ac_if;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
 	if (sc->gone) {
 		RAY_PRINTF(sc, "unloaded");
-		return (1);
+		return (ENODEV);
 	}
 
 	/*
-	 * Read startup results, check the card is okay and work out what
-	 * version we are using.
+	 * Set the parameters that will survive stop/init and
+	 * reset a few things on the card.
+	 *
+	 * Do not update these in ray_init's parameter setup
 	 */
-	ep = &sc->sc_ecf_startup;
-	ray_read_region(sc, RAY_ECF_TO_HOST_BASE, ep,
-	    sizeof(sc->sc_ecf_startup));
-	if (ep->e_status != RAY_ECFS_CARD_OK) {
-		RAY_PRINTF(sc, "card failed self test 0x%b\n", 
-		    ep->e_status, RAY_ECFS_PRINTFB);
-		return (1);
-	}
-	if (sc->sc_version != RAY_ECFS_BUILD_4 &&
-	    sc->sc_version != RAY_ECFS_BUILD_5) {
-		RAY_PRINTF(sc, "unsupported firmware version 0x%0x\n", 
-		    ep->e_fw_build_string);
-		return (1);
+#if XXX
+	see the ray_init section for stuff to move
+#endif
+	bzero(&sc->sc_d, sizeof(struct ray_nw_param));
+	bzero(&sc->sc_c, sizeof(struct ray_nw_param));
+
+	/* Reset any pending interrupts */
+	RAY_HCS_CLEAR_INTR(sc);
+
+#if XXX_CLEARCCS_IN_INIT > 0
+#else
+	/* Set all ccs to be free */
+	bzero(sc->sc_ccsinuse, sizeof(sc->sc_ccsinuse));
+	ccs = RAY_CCS_ADDRESS(0);
+	for (i = 0; i < RAY_CCS_LAST; ccs += RAY_CCS_SIZE, i++)
+		RAY_CCS_FREE(sc, ccs);
+#endif /* XXX_CLEARCCS_IN_INIT */
+
+	/*
+	 * Initialise the network interface structure
+	 */
+	if (!ifp->if_name) {
+		bcopy((char *)&ep->e_station_addr,
+		    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+		ifp->if_softc = sc;
+		ifp->if_name = "ray";
+		ifp->if_unit = sc->unit;
+		ifp->if_timer = 0;
+#if XXX_MCAST
+		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+#else
+		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
+#endif /* XXX_MCAST */
+		ifp->if_hdrlen = sizeof(struct ieee80211_header) + 
+		    sizeof(struct ether_header);
+		ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
+		ifp->if_output = ether_output;
+		ifp->if_start = ray_tx;
+		ifp->if_ioctl = ray_ioctl;
+		ifp->if_watchdog = ray_watchdog;
+		ifp->if_init = ray_init_user;
+		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+
+		if_attach(ifp);
+		ether_ifattach(ifp);
 	}
 
+	/*
+	 * Initialise the timers and bpf
+	 */
+	callout_handle_init(&sc->com_timerh);
+	callout_handle_init(&sc->reset_timerh);
+	callout_handle_init(&sc->tx_timerh);
+	TAILQ_INIT(&sc->sc_comq);
+#if NBPFILTER > 0
+	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+#endif /* NBFFILTER */
+#if XXX
+	at_shutdown(ray_shutdown, sc, SHUTDOWN_POST_SYNC);
+#endif /* XXX */
+
+	/*
+	 * Print out some useful information
+	 */
 	if (bootverbose || (RAY_DEBUG & RAY_DBG_BOOTPARAM)) {
 		RAY_PRINTF(sc, "start up results");
 		if (sc->sc_version == RAY_ECFS_BUILD_4)
@@ -617,83 +638,67 @@ ray_attach(struct isa_device *dev_p)
 		}
 	}
 
-	/*
-	 * Fixup tib size to be correct - on build 4 it is garbage
-	 */
-	if (sc->sc_version == RAY_ECFS_BUILD_4 && sc->sc_tibsize == 0x55)
-		sc->sc_tibsize = sizeof(struct ray_tx_tib);
+	return (0);
+}
 
-#if XXX_CLEARCCS_IN_INIT > 0
-#else
-	/* Set all ccs to be free */
-	bzero(sc->sc_ccsinuse, sizeof(sc->sc_ccsinuse));
-	ccs = RAY_CCS_ADDRESS(0);
-	for (i = 0; i < RAY_CCS_LAST; ccs += RAY_CCS_SIZE, i++)
-		RAY_CCS_FREE(sc, ccs);
-#endif /* XXX_CLEARCCS_IN_INIT */
+/*
+ * Detach the card
+ *
+ * This is usually called when the card is ejected, but
+ * can be caused by a modunload of a controller driver.
+ * The idea is to reset the driver's view of the device
+ * and ensure that any driver entry points such as
+ * read and write do not hang.
+ */
+static void
+ray_detach(struct pccard_devinfo *dev_p)
+{
+	struct ray_softc *sc;
+	struct ifnet *ifp;
 
-	/* Reset any pending interrupts */
-	RAY_HCS_CLEAR_INTR(sc);
-
-	/*
-	 * Set the parameters that will survive stop/init
-	 *
-	 * Do not update these in ray_init's parameter setup
-	 */
-#if XXX
-	see the ray_init section for stuff to move
-#endif
-	bzero(&sc->sc_d, sizeof(struct ray_nw_param));
-	bzero(&sc->sc_c, sizeof(struct ray_nw_param));
-
-	/*
-	 * Initialise the network interface structure
-	 */
-	bcopy((char *)&ep->e_station_addr,
-	    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+	sc = &ray_softc[dev_p->isahd.id_unit];
 	ifp = &sc->arpcom.ac_if;
-	ifp->if_softc = sc;
-	ifp->if_name = "ray";
-	ifp->if_unit = sc->unit;
-	ifp->if_timer = 0;
-#if XXX_MCAST
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-#else
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
-#endif /* XXX_MCAST */
-	ifp->if_hdrlen = sizeof(struct ieee80211_header) + 
-	    sizeof(struct ether_header);
-	ifp->if_baudrate = 1000000; /* Is this baud or bps ;-) */
-	ifp->if_output = ether_output;
-	ifp->if_start = ray_tx;
-	ifp->if_ioctl = ray_ioctl;
-	ifp->if_watchdog = ray_watchdog;
-	ifp->if_init = ray_init_user;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	/*
-	 * If this logical interface has already been attached,
-	 * don't attach it again or chaos will ensue.
-	 */
-	sprintf(ifname, "ray%d", sc->unit);
-
-	if (ifunit(ifname) == NULL) {
-		callout_handle_init(&sc->com_timerh);
-		callout_handle_init(&sc->reset_timerh);
-		callout_handle_init(&sc->tx_timerh);
-		TAILQ_INIT(&sc->sc_comq);
-		if_attach(ifp);
-		ether_ifattach(ifp);
-#if NBPFILTER > 0
-		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif /* NBFFILTER */
-
-#if XXX
-		at_shutdown(ray_shutdown, sc, SHUTDOWN_POST_SYNC);
-#endif /* XXX */
+	if (sc->gone) {
+	    RAY_PRINTF(sc, "unloaded");
+	    return;
 	}
 
-	return (0);
+	/*
+	 * Clear out timers and sort out driver state
+	 *
+	 * We use callout_stop to unconditionally kill the ccs and general
+	 * timers as they are used with multiple arguments.
+	 */
+#if RAY_USE_CALLOUT_STOP
+	callout_stop(sc->com_timerh);
+	callout_stop(sc->reset_timerh);
+#else
+	untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
+	untimeout(ray_reset_timo, sc, sc->reset_timerh);
+#endif /* RAY_USE_CALLOUT_STOP */
+	untimeout(ray_tx_timo, sc, sc->tx_timerh);
+	sc->sc_havenet = 0;
+
+	/*
+	 * Mark as not running
+	 */
+	ifp->if_flags &= ~IFF_RUNNING;
+	ifp->if_flags &= ~IFF_OACTIVE;
+
+	/*
+	 * Cleardown interface
+	 */
+	if_down(ifp); /* XXX should be if_detach for -current */
+
+	/*
+	 * Mark card as gone
+	 */
+	sc->gone = 1;
+	RAY_PRINTF(sc, "unloading complete");
+
+	return;
 }
 
 /*
@@ -702,13 +707,11 @@ ray_attach(struct isa_device *dev_p)
 static int
 ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 {
-	struct ray_softc *sc;
+	struct ray_softc *sc = ifp->if_softc;
 	struct ray_param_req pr;
 	struct ray_stats_req sr;
-	struct ifreq *ifr;
+	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error, error2;
-
-	sc = ifp->if_softc;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_IOCTL, "");
 	RAY_MAP_CM(sc);
@@ -719,7 +722,6 @@ ray_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	    return (ENXIO);
 	}
 
-	ifr = (struct ifreq *)data;
 	error = 0;
 	error2 = 0;
 
@@ -852,7 +854,7 @@ ray_init_user(void *xsc)
 {
 	struct ray_softc *sc = (struct ray_softc *)xsc;
 	struct ray_comq_entry *com[5];
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int i, ncom;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
@@ -863,7 +865,6 @@ ray_init_user(void *xsc)
 		return;
 	}
 
-	ifp = &sc->arpcom.ac_if;
 	if ((ifp->if_flags & IFF_RUNNING))
 		ray_stop(sc);
 
@@ -1145,7 +1146,7 @@ ray_init_sj(struct ray_softc *sc, struct ray_comq_entry *com)
 static void
 ray_init_sj_done(struct ray_softc *sc, size_t ccs)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_MAP_CM(sc);
@@ -1181,7 +1182,6 @@ ray_init_sj_done(struct ray_softc *sc, size_t ccs)
 	 */
 	if (SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_cmd) == RAY_CMD_START_NET) {
 		sc->sc_havenet = 1;
-		ifp = &sc->arpcom.ac_if;
 		ifp->if_flags &= ~IFF_OACTIVE;
 	}
 
@@ -1207,7 +1207,7 @@ ray_init_assoc(struct ray_softc *sc, struct ray_comq_entry *com)
 static void
 ray_init_assoc_done(struct ray_softc *sc, size_t ccs)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_STARTJOIN, "");
 	RAY_COM_CHECK(sc, ccs);
@@ -1220,7 +1220,6 @@ ray_init_assoc_done(struct ray_softc *sc, size_t ccs)
 	 * packets. Just before we return from the interrupt context
 	 * we check to see if packets have been queued.
 	 */
-	ifp = &sc->arpcom.ac_if;
 	sc->sc_havenet = 1;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
@@ -1236,7 +1235,7 @@ ray_init_assoc_done(struct ray_softc *sc, size_t ccs)
 static void
 ray_stop(struct ray_softc *sc)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int s;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
@@ -1246,8 +1245,6 @@ ray_stop(struct ray_softc *sc)
 		RAY_PRINTF(sc, "unloaded");
 		return;
 	}
-
-	ifp = &sc->arpcom.ac_if;
 
 	/*
 	 * Clear out timers and sort out driver state
@@ -1298,14 +1295,13 @@ static void
 ray_reset(struct ray_softc *sc)
 {
 #if XXX_RESET
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 #endif /* XXX_RESET */
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
 #if XXX_RESET
-	ifp = &sc->arpcom.ac_if;
 	if (ifp->if_flags & IFF_RUNNING)
 		ray_stop(sc);
 
@@ -1642,13 +1638,12 @@ static void
 ray_tx_timo(void *xsc)
 {
 	struct ray_softc *sc = (struct ray_softc *)xsc;
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int s;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
-	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL)) {
 		s = splimp();
 		ray_tx(ifp);
@@ -1743,14 +1738,12 @@ found:
 static void
 ray_tx_done(struct ray_softc *sc, size_t ccs)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	char *ss[] = RAY_CCS_STATUS_STRINGS;
 	u_int8_t status;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
-
-	ifp = &sc->arpcom.ac_if;
 
 	status = SRAM_READ_FIELD_1(sc, ccs, ray_cmd, c_status);
 	if (status != RAY_CCS_STATUS_COMPLETE) {
@@ -1776,7 +1769,7 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 {
 	struct ieee80211_header *header;
 	struct ether_header *eh;
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct mbuf *m0;
 	size_t pktlen, fraglen, readlen, tmplen;
 	size_t bufp, ebufp;
@@ -1790,7 +1783,6 @@ ray_rx(struct ray_softc *sc, size_t rcs)
 
 	RAY_DPRINTF(sc, RAY_DBG_CCS, "using rcs 0x%x", rcs);
 
-	ifp = &sc->arpcom.ac_if;
 	m0 = NULL;
 	readlen = 0;
 
@@ -2073,7 +2065,7 @@ ray_intr(struct pccard_devinfo *dev_p)
 	int ccsi, count;
 
 	sc = &ray_softc[dev_p->isahd.id_unit];
-
+	ifp = &sc->arpcom.ac_if;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
@@ -2107,7 +2099,6 @@ ray_intr(struct pccard_devinfo *dev_p)
 	RAY_DPRINTF(sc, RAY_DBG_RX, "interrupt %s handled", count?"was":"not");
 
 	/* Send any packets lying around and update error counters */
-	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_OACTIVE) && (ifp->if_snd.ifq_head != NULL))
 		ray_tx(ifp);
 
@@ -2293,13 +2284,11 @@ ray_intr_rcs(struct ray_softc *sc, u_int8_t cmd, size_t rcs)
 static int
 ray_mcast_user(struct ray_softc *sc)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ray_comq_entry *com[2];
 	int error, count;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
-
-	ifp = &sc->arpcom.ac_if;
 
 	/*
 	 * The multicast list is only 16 items long so use promiscuous
@@ -2368,14 +2357,12 @@ ray_mcast_user(struct ray_softc *sc)
 static void
 ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ifmultiaddr *ifma;
 	size_t bufp;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
-
-	ifp = &sc->arpcom.ac_if;
 
 	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_MCAST, 0);
 	SRAM_WRITE_FIELD_1(sc, &com->c_ccs,
@@ -2442,12 +2429,10 @@ ray_promisc_user(struct ray_softc *sc)
 static void
 ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
-
-	ifp = &sc->arpcom.ac_if;
 
 	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_PARAMS, 0);
 	SRAM_WRITE_FIELD_1(sc, com->c_ccs,
@@ -2465,13 +2450,12 @@ ray_promisc(struct ray_softc *sc, struct ray_comq_entry *com)
 static int
 ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ray_comq_entry *com[1];
 	int error, ncom, i;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		pr->r_failcause = RAY_FAILCAUSE_EDEVSTOP;
 		return (EIO);
@@ -2581,12 +2565,8 @@ ray_repparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 static void
 ray_repparams(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp;
-
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
-
-	ifp = &sc->arpcom.ac_if;
 
 	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_REPORT_PARAMS, 0);
 
@@ -2626,11 +2606,10 @@ ray_repparams_done(struct ray_softc *sc, size_t ccs)
 static int
 ray_repstats_user(struct ray_softc *sc, struct ray_stats_req *sr)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		return (EIO);
 	}
@@ -2652,7 +2631,7 @@ ray_repstats_user(struct ray_softc *sc, struct ray_stats_req *sr)
 static int
 ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 {
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ray_comq_entry *com[3];
 	int i, todo, error, ncom;
 #define RAY_UPP_SJ	0x1
@@ -2660,7 +2639,6 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_RUNNING)) {
 		pr->r_failcause = RAY_FAILCAUSE_EDEVSTOP;
 		return (EIO); /* XXX Use this for other IFF_RUNNING checks */
@@ -2759,12 +2737,8 @@ ray_upparams_user(struct ray_softc *sc, struct ray_param_req *pr)
 static void
 ray_upparams(struct ray_softc *sc, struct ray_comq_entry *com)
 {
-	struct ifnet *ifp;
-
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
-
-	ifp = &sc->arpcom.ac_if;
 
 	(void)ray_ccs_alloc(sc, &com->c_ccs, RAY_CMD_UPDATE_PARAMS, 0);
 
@@ -2884,7 +2858,7 @@ static void
 ray_com_runq(struct ray_softc *sc)
 {
 	struct ray_comq_entry *com;
-	struct ifnet *ifp;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_COM, "");
 
@@ -2911,7 +2885,6 @@ ray_com_runq(struct ray_softc *sc)
 	 *
 	 * XXX also what about sc->sc_gone and sc->sc_havenet?
 	 */
-	ifp = &sc->arpcom.ac_if;
 	if (!(ifp->if_flags & IFF_RUNNING))
 		RAY_PANIC(sc, "not running");
 
