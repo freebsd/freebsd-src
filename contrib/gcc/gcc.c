@@ -2482,8 +2482,8 @@ process_command (argc, argv)
 
 #if defined(FREEBSD_NATIVE) && defined(__i386__)
   {
-    /* first hint is /etc/objectformat */
-    FILE *fp = fopen("/etc/objectformat", "r");
+    /* first hint is /etc/objformat */
+    FILE *fp = fopen("/etc/objformat", "r");
     if (fp) {
       char buf[1024];
       buf[1023] = '\0';
@@ -2496,7 +2496,7 @@ process_command (argc, argv)
 	else if (strcmp(buf, "OBJFORMAT=elf") == 0)
 	  objformat_aout = 0;
 	else
-	  fprintf(stderr, "Unrecognized line in /etc/objectformat: %s\n", buf);
+	  fprintf(stderr, "Unrecognized line in /etc/objformat: %s\n", buf);
       }
       fclose(fp);
     }
