@@ -60,8 +60,8 @@ usleep(useconds)
     struct timespec time_to_sleep;
 
     if (useconds) {
-        time_to_sleep.ts_nsec = (useconds % 1000000) * 1000;
-        time_to_sleep.ts_sec = useconds / 1000000;
+        time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
+        time_to_sleep.tsvsec = useconds / 1000000;
         nanosleep(&time_to_sleep,NULL);
     }
 #else
