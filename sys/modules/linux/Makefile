@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.6 1996/03/02 20:00:35 peter Exp $
+#	$Id: Makefile,v 1.7 1996/03/10 08:42:31 sos Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -10,7 +10,6 @@ OBJS=	linux_locore.o
 NOMAN=
 
 CFLAGS+= -DLKM -I. -DCOMPAT_43 -DCOMPAT_LINUX #-DDEBUG
-CPPFLAGS= -I. -I${.CURDIR}/../../sys
 EXPORT_SYMS=_linux_mod
 CLEANFILES+= vnode_if.h vnode_if.c linux_genassym.o linux_genassym machine \
 	linux_assym.h
@@ -19,9 +18,8 @@ linux_assym.h:	linux_genassym
 	./linux_genassym > linux_assym.h
 
 linux_locore.o:	linux_locore.s linux_assym.h
-	@if [ ! -h machine ]; then ln -s ${.CURDIR}/../../i386/include machine \
-	; fi
-	${CPP} -DLOCORE -DKERNEL ${CPPFLAGS} ${.IMPSRC} | ${AS} ${ASFLAGS} -o ${.TARGET}
+	${CC} -c -x assembler-with-cpp -DLOCORE -DKERNEL ${CFLAGS} \
+		${.IMPSRC} -o ${.TARGET}
 
 linux_genassym.o:	linux_genassym.c linux.h
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
@@ -29,8 +27,13 @@ linux_genassym.o:	linux_genassym.c linux.h
 linux_genassym:	linux_genassym.o
 	${CC} ${CFLAGS} ${.ALLSRC} -o ${.TARGET}
 
+machine:
+	ln -fs ${.CURDIR}/../../sys/i386/include machine
+
+vnode_if.h:	machine
+
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	${.CURDIR}/linux ${DESTDIR}/usr/bin
+		${.CURDIR}/linux ${DESTDIR}/usr/bin
 
 .include <bsd.kmod.mk>
