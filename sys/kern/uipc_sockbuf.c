@@ -117,7 +117,7 @@ soisconnected(so)
 
 	so->so_state &= ~(SS_ISCONNECTING|SS_ISDISCONNECTING|SS_ISCONFIRMING);
 	so->so_state |= SS_ISCONNECTED;
-	if (head && (so->so_state & SS_INCOMP)) {
+	if (head && (so->so_qstate & SQ_INCOMP)) {
 		if ((so->so_options & SO_ACCEPTFILTER) != 0) {
 			so->so_upcall = head->so_accf->so_accept_filter->accf_callback;
 			so->so_upcallarg = head->so_accf->so_accept_filter_arg;
@@ -128,10 +128,10 @@ soisconnected(so)
 		}
 		TAILQ_REMOVE(&head->so_incomp, so, so_list);
 		head->so_incqlen--;
-		so->so_state &= ~SS_INCOMP;
+		so->so_qstate &= ~SQ_INCOMP;
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		head->so_qlen++;
-		so->so_state |= SS_COMP;
+		so->so_qstate |= SQ_COMP;
 		sorwakeup(head);
 		wakeup_one(&head->so_timeo);
 	} else {
@@ -209,7 +209,7 @@ sonewconn(head, connstatus)
 
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
-		so->so_state |= SS_COMP;
+		so->so_qstate |= SQ_COMP;
 		head->so_qlen++;
 	} else {
 		if (head->so_incqlen > head->so_qlimit) {
@@ -218,7 +218,7 @@ sonewconn(head, connstatus)
 			(void) soabort(sp);
 		}
 		TAILQ_INSERT_TAIL(&head->so_incomp, so, so_list);
-		so->so_state |= SS_INCOMP;
+		so->so_qstate |= SQ_INCOMP;
 		head->so_incqlen++;
 	}
 	if (connstatus) {
