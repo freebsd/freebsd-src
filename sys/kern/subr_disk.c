@@ -296,6 +296,7 @@ diskstrategy(struct bio *bp)
 
 	pdev = dkmodpart(dkmodslice(bp->bio_dev, WHOLE_DISK_SLICE), RAW_PART);
 	dp = pdev->si_disk;
+	bp->bio_resid = bp->bio_bcount;
 	if (dp != bp->bio_dev->si_disk)
 		inherit_raw(pdev, bp->bio_dev);
 
@@ -310,7 +311,6 @@ diskstrategy(struct bio *bp)
 	}
 
 	if (bp->bio_bcount == 0) {
-		bp->bio_resid = 0;
 		biodone(bp);
 		return;
 	}
