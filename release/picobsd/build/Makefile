@@ -1,9 +1,5 @@
 # PicoBSD Makefile
 #
-# $Id: Makefile,v 1.1 1999/12/10 17:38:06 grog Exp $
-#
-# Taken from:
-#
 # $FreeBSD$
 #
 
@@ -83,6 +79,7 @@ ${MFS_NAME}: ${MFS_VNODE} ${MFS_MOUNTPOINT}
 	@echo "--> Building and mounting MFS image vnode"
 	-umount -f ${MFS_MOUNTPOINT}
 	-umount -f ${MFS_VNODE}
+	rm -f .mfs_mounted
 	-vnconfig -u ${MFS_VNODE}
 	rm -f ${MFS_NAME}
 	dd of=${MFS_NAME} if=/dev/zero count=${MFS_SIZE} bs=1k
@@ -92,7 +89,7 @@ ${MFS_NAME}: ${MFS_VNODE} ${MFS_MOUNTPOINT}
 	dd if=/boot/boot1 of=${MFS_NAME} conv=notrunc
 	disklabel -rw vn0 auto
 	newfs -i ${MFS_INODES} -m 0 -p 0 -o space ${MFS_VNODE}c
-	mount ${MFS_VNODE} ${MFS_MOUNTPOINT}
+	make .mfs_mounted
 	make -f Makefile.mfs DESTDIR=${MFS_MOUNTPOINT} LANGUAGE=${LANGUAGE}
 	make -f Makefile.mfs devnodes DESTDIR=${MFS_MOUNTPOINT} LANGUAGE=${LANGUAGE}
 	MFS_MOUNTPOINT=${MFS_MOUNTPOINT} INIT=${INIT} VER=${VER} BUILDDIR=${BUILDDIR} LANGUAGE=${LANGUAGE}
@@ -100,23 +97,26 @@ ${MFS_NAME}: ${MFS_VNODE} ${MFS_MOUNTPOINT}
 # Populate the MFS image.
 crunch: ${MFS_MOUNTPOINT}
 	@echo "--> Populating MFS image"
-	-mount ${MFS_VNODE} ${MFS_MOUNTPOINT} 
+	-vnconfig -c ${MFS_VNODE} ${MFS_NAME}
+	make .mfs_mounted
 	# We need to make login with other options
 	for i in ${SPECIAL_PROGS}; do (cd $$i; make clean); done
 	cd crunch1; make SRC=${SRC} INIT=${INIT}; make install MFS_MOUNTPOINT=../${MFS_MOUNTPOINT}
 	# who can tell me how these damned help files get in here?
 	rm -rf ${MFS_MOUNTPOINT}/sbin/help
 	# Other files for the mfs file system
-	(cd mfs; tar cf - . | (cd ../${MFS_MOUNTPOINT}; tar xf -))
+	(cd mfs; tar cXf ../floppy.tree.exclude - . | (cd ../${MFS_MOUNTPOINT}; tar xf -))
 	cd ${MFS_MOUNTPOINT}; chown -R root *
 	df -ik ${MFS_MOUNTPOINT}
 	umount ${MFS_MOUNTPOINT}
+	rm .mfs_mounted
 	fsck -p ${MFS_VNODE}
 
 # Create and mount the floppy image
-${FLOPPY_NAME}:	${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT} ${MFS_NAME}
+${FLOPPY_NAME}:	${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT} ${MFS_NAME} .mfs_mounted
 	@echo "--> Preparing ${FLOPPY_SIZE}kB floppy filesystem"
 	-umount ${FLOPPY_VNODE}
+	rm -f .floppy_mounted
 	-vnconfig -u ${FLOPPY_VNODE}
 	dd of=${FLOPPY_NAME} if=/dev/zero count=${FLOPPY_SIZE} bs=1k
 	awk 'BEGIN {printf "%c%c", 85, 170}' | \
@@ -125,26 +125,20 @@ ${FLOPPY_NAME}:	${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT} ${MFS_NAME}
 	dd if=/boot/boot1 of=${FLOPPY_NAME} conv=notrunc
 	disklabel -Brw -b /boot/boot1 -s /boot/boot2 ${FLOPPY_VNODE}c fd${FLOPPY_SIZE}	
 	newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space ${FLOPPY_VNODE}c
-	mount ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+	make .floppy_mounted
 
-copy:	${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot
+copy:	../floppy.tree/boot .floppy_mounted
 	@echo "--> Populating floppy filesystem from ../floppy.tree"
 	@echo -- Make a loader
-	cp /boot/loader floppy.tree/boot
-	kzip floppy.tree/boot/loader
-	mv floppy.tree/boot/loader.kz floppy.tree/boot/loader
-.if foo
-	rm ../floppy.tree/boot/loader
-	mv ../floppy.tree/boot/loader.kz ../floppy.tree/boot/loader
-.endif
+	kgzip -o floppy.tree/boot/loader /boot/loader
 	@echo -- copy base floppy tree
-	@echo -- Base files
 	(wd=`pwd`; cd ../floppy.tree ; tar cXhf $${wd}/floppy.tree.exclude - . ) | \
 		(cd ${FLOPPY_MOUNTPOINT} ; tar xvf - )
 	@echo -- Now update from our private floppy tree if it exists
 	@echo -- Local files in `pwd`/floppy.tree
 	if [ -d floppy.tree ] ; then \
-		(cd floppy.tree; tar cXhf ../floppy.tree.exclude - .) | (cd ${FLOPPY_MOUNTPOINT} ; tar xvf - ); \
+		(cd floppy.tree; tar cXhf ../floppy.tree.exclude - .) | \
+	  (cd ${FLOPPY_MOUNTPOINT} ; tar xvf - ); \
 	fi
 	# We get stuff here that we can't use.  When the transition
 	# to Makefile-based build is complete, we can delete this.
@@ -161,26 +155,23 @@ copy:	${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot
 	    rm pwd.db master.passwd; \
 	fi
 	cp kernel.gz ${FLOPPY_MOUNTPOINT}/kernel.gz
+	if [ -f .mfs_mounted ]; then \
+	  umount ${MFS_VNODE}; \
+	  rm .mfs_mounted; \
+	fi
 	@echo -- Insert the MFS image
 	gzip -9cv ${MFS_NAME} > ${FLOPPY_MOUNTPOINT}/${MFS_NAME}.gz
-.if loaderconf
-	XXX finish this.
-	cp ${SRC}/sys/boot/forth/loader.conf ${FLOPPY_MOUNTPOINT}/boot/defaults
-	echo "userconfig_script_load=\"YES\""	>>${FLOPPY_MOUNTPOINT}/boot/defaults/loader.conf
-	echo "rootfs_load=\"YES\""		>>${FLOPPY_MOUNTPOINT}/boot/defaults/loader.conf
-	echo "rootfs_name=\"${MFS_NAME}\""	>>${FLOPPY_MOUNTPOINT}/boot/defaults/loader.conf
-	echo "rootfs_type=\"mfs_root\""		>>${FLOPPY_MOUNTPOINT}/boot/defaults/loader.conf
-#	for i in frames screen ; do \
-#		cp ${SRC}/share/examples/bootforth/$${i}.4th ${FLOPPY_MOUNTPOINT}/boot/; \
-#	done
-.endif
 	(echo "-> Fixing permissions"; cd ${FLOPPY_MOUNTPOINT}; chown -R root *)
 	df -ik ${FLOPPY_MOUNTPOINT}
 	umount ${FLOPPY_MOUNTPOINT}
+	rm .floppy_mounted
 
-floppy:	${FLOPPY_NAME}
-	@echo copying ${FLOPPY_NAME} to ${FDEV}c.  This will take about 50 seconds.
-	@echo "wait for the message 'safe to remove' before removing the floppy..."
+floppy:
+	@if [ -f .floppy_mounted ]; then \
+	  umount ${FLOPPY_MOUNTPOINT}; \
+	  rm .floppy_mounted; \
+	fi
+	@echo Copying ${FLOPPY_NAME} to ${FDEV}c.  This will take about 50 seconds.
 	@dd if=${FLOPPY_NAME} of=${FDEV}c bs=36b >/dev/null
 	@echo Safe to remove disk from ${FDEV}
 	
@@ -219,13 +210,10 @@ ${FLOPPY_VNODE} ${MFS_VNODE}:
 	(cd /dev; ./MAKEDEV `basename $@`)
 
 # Directories to make
-${MFS_MOUNTPOINT} ${FLOPPY_MOUNTPOINT} ${FLOPPY_MOUNTPOINT}/boot/defaults ../floppy.tree/boot:
+${MFS_MOUNTPOINT} ${FLOPPY_MOUNTPOINT} ../floppy.tree/boot:
 	mkdir -p $@
 
-tidy:
-	-umount ${FLOPPY_VNODE} ${MFS_VNODE}
-	-vnconfig -u ${FLOPPY_VNODE}
-	-vnconfig -u ${MFS_VNODE}
+tidy:	umount vnunconfig
 	rm -f ${MFS_NAME}  ${MFS_NAME}.gz ${FLOPPY_NAME} *~ Make.log kernel.gz
 
 clean:	tidy
@@ -246,9 +234,17 @@ vnunconfig:
 	-vnconfig -u  ${MFS_VNODE}
 	-vnconfig -u ${FLOPPY_VNODE}
 
-mount:
-	mount ${MFS_VNODE} ${MFS_MOUNTPOINT}
-	mount ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+mount:	.floppy_mounted .mfs_mounted
 
 umount:
 	-umount ${MFS_VNODE} ${MFS_MOUNTPOINT} ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+	rm -f .floppy_mounted .mfs_mounted
+
+.floppy_mounted:
+	mount ${FLOPPY_VNODE} ${FLOPPY_MOUNTPOINT}
+	touch $@
+
+.mfs_mounted:
+	mount ${MFS_VNODE} ${MFS_MOUNTPOINT}
+	touch $@
+
