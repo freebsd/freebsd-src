@@ -350,7 +350,6 @@ err1:			syslog(LOG_WARNING, "%s: %s", path, strerror(errno));
 		(void)fprintf(fp, "%d\n", bounds + 1);
 		(void)fclose(fp);
 	}
-	(void)fclose(fp);
 
 	/* Create the core file. */
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
