@@ -708,7 +708,7 @@ ifaof_ifpforaddr(addr, ifp)
 		if (ifa->ifa_netmask == 0) {
 			if (equal(addr, ifa->ifa_addr) ||
 			    (ifa->ifa_dstaddr && equal(addr, ifa->ifa_dstaddr)))
-				return (ifa);
+				goto done;
 			continue;
 		}
 		if (ifp->if_flags & IFF_POINTOPOINT) {
@@ -723,7 +723,7 @@ ifaof_ifpforaddr(addr, ifp)
 				if ((*cp++ ^ *cp2++) & *cp3)
 					break;
 			if (cp3 == cplim)
-				return (ifa);
+				goto done;
 		}
 	}
 	ifa = ifa_maybe;
@@ -1285,9 +1285,8 @@ ifconf(cmd, data)
 		char workbuf[64];
 		int ifnlen, addrs;
 
-		if (space > sizeof(ifr))
+		if (space < sizeof(ifr))
 			break;
-
 		ifnlen = snprintf(workbuf, sizeof(workbuf),
 		    "%s%d", ifp->if_name, ifp->if_unit);
 		if(ifnlen + 1 > sizeof ifr.ifr_name) {
@@ -1298,10 +1297,11 @@ ifconf(cmd, data)
 		}
 
 		addrs = 0;
-		ifa = TAILQ_FIRST(&ifp->if_addrhead);
-		for ( ; space > sizeof (ifr) && ifa;
-		    ifa = TAILQ_NEXT(ifa, ifa_link)) {
-			register struct sockaddr *sa = ifa->ifa_addr;
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			struct sockaddr *sa = ifa->ifa_addr;
+
+			if (space < sizeof(ifr))
+				break;
 			if (jailed(curproc->p_ucred) &&
 			    prison_if(curproc->p_ucred, sa))
 				continue;
