@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#ifdef linux
+#ifdef __linux
 #include <ext2fs/ext2_fs.h>
 #include <sys/ioctl.h>
 #endif
@@ -122,7 +122,7 @@ static void		 setup_acls(struct bsdtar *, struct archive_entry *,
 static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
 static void		 write_entry(struct bsdtar *, struct archive *,
-			     struct stat *, const char *pathname,
+			     const struct stat *, const char *pathname,
 			     unsigned pathlen, const char *accpath);
 static int		 write_file_data(struct bsdtar *, struct archive *,
 			     int fd);
@@ -518,7 +518,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	FTSENT	*ftsent;
 	int	 ftsoptions;
 	char	*fts_argv[2];
-#ifdef linux
+#ifdef __linux
 	int	 fd, r;
 	unsigned long fflags;
 #endif
@@ -590,7 +590,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			}
 #endif
 
-#ifdef linux
+#ifdef __linux
 			/*
 			 * Linux has a nodump flag too but to read it
 			 * we have to open() the dir and do an ioctl on it...
@@ -659,7 +659,7 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 				break;
 #endif
 
-#ifdef linux
+#ifdef __linux
 			/*
 			 * Linux has a nodump flag too but to read it
 			 * we have to open() the file and do an ioctl on it...
@@ -719,13 +719,13 @@ write_heirarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
  * Add a single filesystem object to the archive.
  */
 static void
-write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
+write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
     const char *pathname, unsigned pathlen, const char *accpath)
 {
 	struct archive_entry	*entry;
 	int			 e;
 	int			 fd;
-#ifdef linux
+#ifdef __linux
 	int			 r;
 	unsigned long		 stflags;
 #endif
@@ -735,10 +735,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 
 	fd = -1;
 	entry = archive_entry_new();
-
-	/* Non-regular files get archived with zero size. */
-	if (!S_ISREG(st->st_mode))
-		st->st_size = 0;
 
 	/* Strip redundant "./" from start of filename. */
 	if (pathname != NULL && pathname[0] == '.' && pathname[1] == '/') {
@@ -796,7 +792,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 		archive_entry_set_fflags(entry, st->st_flags, 0);
 #endif
 
-#ifdef linux
+#ifdef __linux
 	if ((S_ISREG(st->st_mode) || S_ISDIR(st->st_mode)) &&
 	    ((fd = open(accpath, O_RDONLY|O_NONBLOCK)) >= 0) &&
 	    ((r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags)), close(fd), r) >= 0 &&
@@ -824,6 +820,10 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, struct stat *st,
 			goto cleanup;
 		}
 	}
+
+	/* Non-regular files get archived with zero size. */
+	if (!S_ISREG(st->st_mode))
+		archive_entry_set_size(entry, 0);
 
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
@@ -1267,8 +1267,7 @@ lookup_gname_helper(struct bsdtar *bsdtar, const char **name, id_t id)
 }
 
 /*
- * Test if the specified file is newer than what's already
- * in the archive.
+ * Test if the specified file is new enough to include in the archive.
  */
 int
 new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
