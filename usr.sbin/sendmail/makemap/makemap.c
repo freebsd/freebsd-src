@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)makemap.c	8.37 (Berkeley) 7/10/97";
+static char sccsid[] = "@(#)makemap.c	8.38 (Berkeley) 9/23/97";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -363,13 +363,6 @@ main(argc, argv)
 				pbuf, errstring(st));
 			exit(EX_CANTCREAT);
 		}
-		if (std.st_dev == stp.st_dev && std.st_ino == stp.st_ino)
-		{
-			fprintf(stderr,
-				"%s: cannot run with GDBM\n",
-				mapname);
-			exit(EX_CONFIG);
-		}
 		break;
 #endif
 	  default:
@@ -407,6 +400,14 @@ main(argc, argv)
 #ifdef NDBM
 	  case T_DBM:
 		dbp.dbm = dbm_open(mapname, mode, 0644);
+		if (dbp.dbm != NULL &&
+		    dbm_dirfno(dbp.dbm) == dbm_pagfno(dbp.dbm))
+		{
+			fprintf(stderr, "dbm map %s: cannot run with GDBM\n",
+				mapname);
+			dbm_close(dbp.dbm);
+			exit(EX_CONFIG);
+		}
 		if (!ignoresafeties && dbp.dbm != NULL &&
 		    (filechanged(dbuf, dbm_dirfno(dbp.dbm), &std, sff) ||
 		     filechanged(pbuf, dbm_pagfno(dbp.dbm), &stp, sff)))
