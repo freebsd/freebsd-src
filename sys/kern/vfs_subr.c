@@ -618,6 +618,7 @@ getnewvnode(tag, mp, vops, vpp)
 	vp->v_type = VNON;
 	vp->v_tag = tag;
 	vp->v_op = vops;
+	lockinit(&vp->v_lock, PVFS, "vnlock", 0, LK_NOPAUSE);
 	insmntque(vp, mp);
 	*vpp = vp;
 	vp->v_usecount = 1;
@@ -1373,6 +1374,9 @@ addaliasu(nvp, nvp_rdev)
 	ops = nvp->v_op;
 	nvp->v_op = ovp->v_op;
 	ovp->v_op = ops;
+	lockinit(&ovp->v_lock, PVFS, "vnlock", 0, LK_NOPAUSE);
+	if (nvp->v_vnlock)
+		ovp->v_vnlock = &ovp->v_lock;
 	insmntque(ovp, nvp->v_mount);
 	vrele(nvp);
 	vgone(nvp);
@@ -1773,10 +1777,7 @@ vclean(vp, flags, p)
 	}
 
 	cache_purge(vp);
-	if (vp->v_vnlock) {
-		FREE(vp->v_vnlock, M_VNODE);
-		vp->v_vnlock = NULL;
-	}
+	vp->v_vnlock = NULL;
 
 	if (VSHOULDFREE(vp))
 		vfree(vp);
