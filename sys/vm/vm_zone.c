@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.1 1997/08/05 00:07:29 dyson Exp $
+ * $Id: vm_zone.c,v 1.2 1997/08/05 22:24:30 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -30,6 +30,7 @@
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -52,6 +53,9 @@
  * zalloc, zfree, are the interrupt/lock unsafe allocation/free routines.
  * zalloci, zfreei, are the interrupt/lock safe allocation/free routines.
  */
+
+struct vm_zone *zlist;
+int sysctl_vm_zone SYSCTL_HANDLER_ARGS;
 
 /*
  * Create a zone, but don't allocate the zone structure.  If the
@@ -85,7 +89,16 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 		z->zsize = size;
 		simple_lock_init(&z->zlock);
 		z->zfreecnt = 0;
+		z->ztotal = 0;
+		z->zmax = 0;
 		z->zname = name;
+
+		if (zlist == 0) {
+			zlist = z;
+		} else {
+			z->znext = zlist;
+			zlist = z;
+		}
 	}
 
 	z->zflags |= flags;
@@ -111,9 +124,12 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 			_vm_object_allocate(OBJT_DEFAULT, z->zpagemax, obj);
 		}
 		z->zallocflag = VM_ALLOC_INTERRUPT;
+		z->zmax += nentries;
 	} else {
 		z->zallocflag = VM_ALLOC_SYSTEM;
+		z->zmax = 0;
 	}
+
 
 	if ( z->zsize > PAGE_SIZE)
 		z->zfreemin = 1;
@@ -177,7 +193,16 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems) {
 		z->zitems = item;
 		(char *) item += z->zsize;
 	}
-	z->zfreecnt += nitems;
+	z->zfreecnt = nitems;
+	z->zmax = nitems;
+	z->ztotal = nitems;
+
+	if (zlist == 0) {
+		zlist = z;
+	} else {
+		z->znext = zlist;
+		zlist = z;
+	}
 }
 
 /*
@@ -266,6 +291,7 @@ _zget(vm_zone_t z) {
 		item = (void *) kmem_alloc(kernel_map, z->zalloc * PAGE_SIZE);
 		nitems = (z->zalloc * PAGE_SIZE) / z->zsize;
 	}
+	z->ztotal += nitems;
 
 	/*
 	 * Save one for immediate allocation
@@ -289,3 +315,45 @@ _zget(vm_zone_t z) {
 	return item;
 }
 
+int
+sysctl_vm_zone SYSCTL_HANDLER_ARGS
+{
+	int error=0;
+	vm_zone_t curzone, nextzone;
+	char tmpbuf[128];
+	char tmpname[16];
+
+	for (curzone = zlist; curzone; curzone = nextzone) {
+			int i;
+			int len;
+			int offset;
+			nextzone = curzone->znext;
+			len = strlen(curzone->zname);
+			for(i = 0; i < sizeof(tmpname) - 1; i++)
+				tmpname[i] = ' ';
+			tmpname[i] = 0;
+			memcpy(tmpname, curzone->zname, len);
+			offset = 0;
+			if (curzone == zlist) {
+				offset = 1;
+				tmpbuf[0] = '\n';
+			}
+			
+			sprintf(tmpbuf + offset, "%s: maxpossible=%6.6d, total=%6.6d, free=%6.6d\n",
+				tmpname, curzone->zmax, curzone->ztotal, curzone->zfreecnt);
+
+			len = strlen((char *)tmpbuf);
+			if (nextzone == NULL) {
+				tmpbuf[len - 1] = 0;
+			}
+
+			error = SYSCTL_OUT(req, tmpbuf, len);
+
+			if (error)
+				return (error);
+	}
+	return (0);
+}
+
+SYSCTL_OID(_kern, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
+	NULL, 0, sysctl_vm_zone, "A", "Zone Info");
