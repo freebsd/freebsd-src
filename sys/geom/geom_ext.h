@@ -60,4 +60,6 @@ struct geom_ctl_req {
 
 #define GEOM_CTL	_IOW('G', GEOM_CTL_VERSION, struct geom_ctl_req)
 
+#define PATH_GEOM_CTL	"geom.ctl"
+
 #endif /* _GEOM_GEOM_EXT_H_ */
