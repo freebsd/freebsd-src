@@ -380,12 +380,12 @@ writeprivs(quplist, outfd, name, quotatype)
 	}
 	fprintf(fd, "Quotas for %s %s:\n", qfextension[quotatype], name);
 	for (qup = quplist; qup; qup = qup->next) {
-		fprintf(fd, "%s: %s %d, limits (soft = %d, hard = %d)\n",
+		fprintf(fd, "%s: %s %lu, limits (soft = %lu, hard = %lu)\n",
 		    qup->fsname, "blocks in use:",
-		    dbtob(qup->dqblk.dqb_curblocks) / 1024,
-		    dbtob(qup->dqblk.dqb_bsoftlimit) / 1024,
-		    dbtob(qup->dqblk.dqb_bhardlimit) / 1024);
-		fprintf(fd, "%s %d, limits (soft = %d, hard = %d)\n",
+		    (unsigned long)(dbtob(qup->dqblk.dqb_curblocks) / 1024),
+		    (unsigned long)(dbtob(qup->dqblk.dqb_bsoftlimit) / 1024),
+		    (unsigned long)(dbtob(qup->dqblk.dqb_bhardlimit) / 1024));
+		fprintf(fd, "%s %lu, limits (soft = %lu, hard = %lu)\n",
 		    "\tinodes in use:", qup->dqblk.dqb_curinodes,
 		    qup->dqblk.dqb_isoftlimit, qup->dqblk.dqb_ihardlimit);
 	}
@@ -428,7 +428,7 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " blocks in use: %d, limits (soft = %d, hard = %d)",
+		    " blocks in use: %lu, limits (soft = %lu, hard = %lu)",
 		    &dqblk.dqb_curblocks, &dqblk.dqb_bsoftlimit,
 		    &dqblk.dqb_bhardlimit);
 		if (cnt != 3) {
@@ -443,7 +443,7 @@ readprivs(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    "\tinodes in use: %d, limits (soft = %d, hard = %d)",
+		    "\tinodes in use: %lu, limits (soft = %lu, hard = %lu)",
 		    &dqblk.dqb_curinodes, &dqblk.dqb_isoftlimit,
 		    &dqblk.dqb_ihardlimit);
 		if (cnt != 3) {
@@ -568,7 +568,7 @@ readtimes(quplist, inname)
 			return (0);
 		}
 		cnt = sscanf(cp,
-		    " block grace period: %d %s file grace period: %d %s",
+		    " block grace period: %ld %s file grace period: %ld %s",
 		    &btime, bunits, &itime, iunits);
 		if (cnt != 4) {
 			fprintf(stderr, "%s:%s: bad format\n", fsp, cp);
@@ -614,15 +614,15 @@ cvtstoa(time)
 
 	if (time % (24 * 60 * 60) == 0) {
 		time /= 24 * 60 * 60;
-		sprintf(buf, "%d day%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld day%s", time, time == 1 ? "" : "s");
 	} else if (time % (60 * 60) == 0) {
 		time /= 60 * 60;
-		sprintf(buf, "%d hour%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld hour%s", time, time == 1 ? "" : "s");
 	} else if (time % 60 == 0) {
 		time /= 60;
-		sprintf(buf, "%d minute%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld minute%s", time, time == 1 ? "" : "s");
 	} else
-		sprintf(buf, "%d second%s", time, time == 1 ? "" : "s");
+		sprintf(buf, "%ld second%s", time, time == 1 ? "" : "s");
 	return (buf);
 }
 
