@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.4.2.5 1998/02/10 01:02:06 msmith Exp $
+# $Id: pccard.conf.sample,v 1.4.2.6 1998/07/19 06:53:20 jkh Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -125,6 +125,12 @@ card "DANPEX" "EN-6200P2"
 	insert /etc/pccard_ether ed0
 	remove /sbin/ifconfig ed0 delete
  
+# Fujitsu MBH10303 Ethernet PCMCIA
+card "EAGLE Technology" "NE200 ETHERNET LAN MBH10303  "
+	config 0x1 "fe0" ?
+	insert /etc/pccard_ether fe0
+        remove /sbin/ifconfig fe0 delete
+
 # Telecom Device SuperSocket RE450T
 # Note: There are several revisions of the cardon the market.
 #	Type A needs no "ether" line.
