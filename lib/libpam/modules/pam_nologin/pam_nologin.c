@@ -28,13 +28,14 @@
 
 #define PAM_SM_AUTH
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <login_cap.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <pwd.h>
 
 #include <security/_pam_macros.h>
 #include <security/pam_modules.h>
@@ -45,11 +46,12 @@
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
+	login_cap_t *lc;
 	struct options options;
 	struct passwd *pwd;
 	struct stat st;
 	int retval, fd;
-	const char *user;
+	const char *user, *nologin;
 	char *mtmp;
 
 	pam_std_option(&options, NULL, argc, argv);
@@ -62,7 +64,12 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Got user: %s", user);
 
-	fd = open(NOLOGIN, O_RDONLY, 0);
+	lc = login_getclass(NULL);
+	nologin = login_getcapstr(lc, "nologin", NOLOGIN, NOLOGIN);
+	login_close(lc);
+	lc = NULL;
+
+	fd = open(nologin, O_RDONLY, 0);
 	if (fd < 0)
 		PAM_RETURN(PAM_SUCCESS);
 
