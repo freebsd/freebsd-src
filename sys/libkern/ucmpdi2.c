@@ -34,10 +34,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ucmpdi2.c,v 1.4 1997/02/22 09:40:05 peter Exp $
+ * $Id: ucmpdi2.c,v 1.5 1999/05/14 05:05:33 gibbs Exp $
  */
 
-#include <libkern/quad.h>
+#include "quad.h"
 
 /*
  * Return 0, 1, or 2 as a <, =, > b respectively.
