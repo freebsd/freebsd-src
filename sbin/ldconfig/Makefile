@@ -1,13 +1,11 @@
-#	$Id: Makefile,v 1.10 1997/02/22 15:46:37 peter Exp $
+#	$Id: Makefile,v 1.11 1997/06/29 21:40:54 bde Exp $
 
 PROG=	ldconfig
 SRCS=	ldconfig.c shlib.c support.c
-LDDIR?= $(.CURDIR)/..
-CFLAGS+=-I$(LDDIR) -I$(.CURDIR) -I$(LDDIR)/$(MACHINE)
-NOSHARED?= yes
-BINDIR=	/sbin
+LDDIR?= ${.CURDIR}/../../libexec/rtld-aout
+CFLAGS+=-I${LDDIR}
 MAN8=	ldconfig.8
 
-.PATH: $(LDDIR) $(LDDIR)/$(MACHINE)
+.PATH: ${LDDIR}
 
 .include <bsd.prog.mk>
