@@ -114,7 +114,7 @@ AliasHandleFtpOut(
 	int ftp_message_type;
 
 /* Calculate data length of TCP packet */
-	tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+	tc = (struct tcphdr *)ip_next(pip);
 	hlen = (pip->ip_hl + tc->th_off) << 2;
 	tlen = ntohs(pip->ip_len);
 	dlen = tlen - hlen;
@@ -578,7 +578,7 @@ NewFtpMessage(struct libalias *la, struct ip *pip,
 #endif
 
 /* Calculate data length of TCP packet */
-		tc = (struct tcphdr *)((char *)pip + (pip->ip_hl << 2));
+		tc = (struct tcphdr *)ip_next(pip);
 		hlen = (pip->ip_hl + tc->th_off) << 2;
 		tlen = ntohs(pip->ip_len);
 		dlen = tlen - hlen;
