@@ -503,7 +503,6 @@ pciereg_findelem(vm_paddr_t papage)
 	struct pcie_cfg_list *pcielist;
 	struct pcie_cfg_elem *elem;
 
-	critical_enter();
 	pcielist = &pcie_list[PCPU_GET(cpuid)];
 	TAILQ_FOREACH(elem, pcielist, elem) {
 		if (elem->papage == papage)
@@ -534,7 +533,9 @@ pciereg_cfgread(int bus, int slot, int func, int reg, int bytes)
 	struct pcie_cfg_elem *elem;
 	volatile vm_offset_t va;
 	vm_paddr_t pa, papage;
+	int data;
 
+	critical_enter();
 	pa = PCIE_PADDR(pciebar, reg, bus, slot, func);
 	papage = pa & ~PAGE_MASK;
 	elem = pciereg_findelem(papage);
@@ -542,14 +543,20 @@ pciereg_cfgread(int bus, int slot, int func, int reg, int bytes)
 
 	switch (bytes) {
 	case 4:
-		return (*(volatile uint32_t *)(va));
+		data = *(volatile uint32_t *)(va);
+		break;
 	case 2:
-		return (*(volatile uint16_t *)(va));
+		data = *(volatile uint16_t *)(va);
+		break;
 	case 1:
-		return (*(volatile uint8_t *)(va));
+		data = *(volatile uint8_t *)(va);
+		break;
 	default:
 		panic("pciereg_cfgread: invalid width");
 	}
+
+	critical_exit();
+	return (data);
 }
 
 static void
@@ -559,6 +566,7 @@ pciereg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	volatile vm_offset_t va;
 	vm_paddr_t pa, papage;
 
+	critical_enter();
 	pa = PCIE_PADDR(pciebar, reg, bus, slot, func);
 	papage = pa & ~PAGE_MASK;
 	elem = pciereg_findelem(papage);
@@ -577,4 +585,6 @@ pciereg_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 	default:
 		panic("pciereg_cfgwrite: invalid width");
 	}
+
+	critical_exit();
 }
