@@ -20,6 +20,7 @@
 .Op Fl b
 .Op Fl a
 .Op Fl l
+.Op Fl s
 .Pp
 .Nm zzz
 .Sh DESCRIPTION
@@ -58,13 +59,21 @@ status respectively.
 Display the current AC-line status as an integer value.  The values
 0 and 1 correspond to the 
 .Dq off-line
-state and 
+state or
 .Dq on-line
 state, respectively.
 .Pp
 .It Fl l
 Display the remaining battery percentage.  If your laptop does not 
 support this function, 255 is displayed.
+.Pp
+.It Fl s
+Display the status of the APM support as an integer value.  The values
+0 and 1 correspond to the
+.Dq enabled
+state or
+.Dq disabled
+state respecitively
 .Sh BUGS
 Some APM implementations do not support parameters needed by
 .Nm apm.
