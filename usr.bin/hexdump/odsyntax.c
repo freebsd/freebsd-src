@@ -423,9 +423,9 @@ odformatint(char fchar, const char *fmt)
 	}
 	if (fchar == 'd')
 		digits++;
-	asprintf(&hdfmt, "%lu/%lu \"%%%s%d%c \" \"\\n\"",
-	    16UL / (u_long)isize, (u_long)isize,
-	    (fchar == 'd' || fchar == 'u') ? "" : "0", digits, fchar);
+	asprintf(&hdfmt, "%lu/%lu \"%*s%%%s%d%c\" \"\\n\"",
+	    16UL / (u_long)isize, (u_long)isize, (int)(4 * isize - digits),
+	    "", (fchar == 'd' || fchar == 'u') ? "" : "0", digits, fchar);
 	if (hdfmt == NULL)
 		err(1, NULL);
 	odadd(hdfmt);
