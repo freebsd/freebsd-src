@@ -91,7 +91,7 @@ main(argc, argv)
 	char line[256];
 
 	lflag = 0;
-	while ((ch = getopt(argc, argv, "l")) != EOF)
+	while ((ch = getopt(argc, argv, "l")) !=  -1)
 		switch (ch) {
 		case 'l':
 			lflag = 1;

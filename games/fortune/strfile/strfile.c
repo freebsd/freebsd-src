@@ -255,7 +255,7 @@ char	**argv;
 	extern int	optind;
 	int	ch;
 
-	while ((ch = getopt(argc, argv, "c:iorsx")) != EOF)
+	while ((ch = getopt(argc, argv, "c:iorsx")) != -1)
 		switch(ch) {
 		case 'c':			/* new delimiting char */
 			Delimch = *optarg;

@@ -307,9 +307,9 @@ register char	**argv;
 	pat = NULL;
 
 # ifdef DEBUG
-	while ((ch = getopt(argc, argv, "aDefilm:osw")) != EOF)
+	while ((ch = getopt(argc, argv, "aDefilm:osw")) != -1)
 #else
-	while ((ch = getopt(argc, argv, "aefilm:osw")) != EOF)
+	while ((ch = getopt(argc, argv, "aefilm:osw")) != -1)
 #endif /* DEBUG */
 		switch(ch) {
 		case 'a':		/* any fortune */

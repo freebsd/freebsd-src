@@ -104,7 +104,7 @@ main(argc, argv)
 	int ch, cnt;
 	void intr();
 
-	while ((ch = getopt(argc, argv, "r:o:")) != EOF)
+	while ((ch = getopt(argc, argv, "r:o:")) != -1)
 		switch(ch) {
 		case 'o': {
 			register char *p;

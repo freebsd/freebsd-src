@@ -61,7 +61,7 @@ main(argc, argv)
 	FILE *f;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "eqr")) != EOF)
+	while ((ch = getopt(argc, argv, "eqr")) != -1)
 		switch (ch) {
 		case 'e':
 			explain = TRUE;
