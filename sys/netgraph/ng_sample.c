@@ -409,8 +409,14 @@ devintr()
 /*
  * Do local shutdown processing..
  * All our links and the name have already been removed.
- * If we are a persistant device, we might refuse to go away, and
- * we'd create a new node immediatly.
+ * If we are a persistant device, we might refuse to go away.
+ * In the case of a persistant node we signal the framework that we
+ * are still in business by clearing the NG_INVALID bit. However
+ * If we find the NG_REALLY_DIE bit set, this means that
+ * we REALLY need to die (e.g. hardware removed).
+ * This would have been set using the NG_NODE_REALLY_DIE(node)
+ * macro in some device dependent function (not shown here) before
+ * calling ng_rmnode_self().
  */
 static int
 ng_xxx_shutdown(node_p node)
@@ -418,35 +424,22 @@ ng_xxx_shutdown(node_p node)
 	const xxx_p privdata = NG_NODE_PRIVATE(node);
 	int error;
 
+#ifndef PERSISTANT_NODE
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
-#ifndef PERSISTANT_NODE
 	FREE(privdata, M_NETGRAPH);
 #else
-	/* 
-	 * Create a new node. This is basically what a device 
-	 * driver would do in the attach routine.
-	 */
-	error = ng_make_node_common(&typestruct, &node);
-	if (node == NULL) {
-		printf ("node recreation failed:");
-		return (error);
-	}
-	if ( ng_name_node(node, "name")) {	/* whatever name is needed */
-		printf("something informative");
-		NG_NODE_UNREF(node);			/* drop it again */
-		return (0);
-	}
-	privdata->packets_in = 0;		/* reset stats */
-	privdata->packets_out = 0;
-	for (i = 0; i < XXX_NUM_DLCIS; i++) {
-		privdata->channel[i].dlci = -2;
-		privdata->channel[i].channel = i;
-	}
-
-	/* Link structs together; this counts as our one reference to node */
-	privdata->node = node;
-	NG_NODE_SET_PRIVATE(node, privdata);
+	if (node->nd_flags & NG_REALLY_DIE) {
+		/*
+		 * WE came here because the widget card is being unloaded,
+		 * so stop being persistant.
+		 * Actually undo all the things we did on creation.
+		 */
+		NG_NODE_SET_PRIVATE(node, NULL);
+		NG_NODE_UNREF(privdata->node);
+		FREE(privdata, M_NETGRAPH);
+		return (0);   
+        }
 	node->nd_flags &= ~NG_INVALID;		/* reset invalid flag */
 #endif /* PERSISTANT_NODE */
 	return (0);

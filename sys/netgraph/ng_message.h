@@ -95,8 +95,7 @@ struct ng_mesg {
 /* Flags field flags */
 #define NGF_ORIG	0x00000000	/* the msg is the original request */
 #define NGF_RESP	0x00000001	/* the message is a response */
-#define NGF_STATIC	0x00000002	/* Not malloc'd. Don't FREE */
-					/* Only checked in generic message */
+
 /* Type of a unique node ID */
 #define ng_ID_t unsigned int
 
