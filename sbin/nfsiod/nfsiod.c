@@ -172,7 +172,9 @@ reapchild(signo)
 	int signo;
 {
 
-	while (wait3(NULL, WNOHANG, NULL));
+	while (wait3(NULL, WNOHANG, NULL) > 0) {
+		/* nothing */
+	};
 }
 
 void
