@@ -1,5 +1,6 @@
 /* Output variables, constants and external declarations, for GNU compiler.
-   Copyright (C) 1987, 88, 89, 92-98, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
+   1999, 2000, 2001 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -3491,6 +3492,18 @@ force_const_mem (mode, x)
 	  else
 	    x = GEN_INT (INTVAL (x));
 
+	  pop_obstacks ();
+	}
+      if (GET_CODE (x) == LABEL_REF)
+	{
+	  extern rtx forced_labels;
+
+	  push_obstacks_nochange ();
+	  rtl_in_saveable_obstack ();
+
+	  forced_labels = gen_rtx_EXPR_LIST (VOIDmode,
+					     XEXP (x, 0),
+					     forced_labels);
 	  pop_obstacks ();
 	}
 
