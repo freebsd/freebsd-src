@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.47 1996/09/08 13:45:49 davidg Exp $
+ * $Id: ip_input.c,v 1.48 1996/10/07 19:21:45 wollman Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -329,7 +329,7 @@ tooshort:
 		}
 	}
 
-        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, IP_NAT_IN))
+        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, m->m_pkthdr.rcvif, IP_NAT_IN))
 		return;
 #endif
 
