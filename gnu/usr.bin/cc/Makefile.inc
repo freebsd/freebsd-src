@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc,v 1.28 1999/04/08 15:43:36 peter Exp $
+# $Id: Makefile.inc,v 1.29 1999/04/18 09:36:11 obrien Exp $
 #
 
 .include "../Makefile.inc"
@@ -25,7 +25,7 @@ version!=	sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/' < ${GCCDIR}/version.c
 #version!=	sed -e 's/.*\(egcs-[0-9\.]*\).*/\1/' < ${GCCDIR}/version.c 
 
 CFLAGS+=	-I${GCCDIR} -I${GCCDIR}/config
-CFLAGS+=	-DFREEBSD_NATIVE
+CFLAGS+=	-DFREEBSD_NATIVE -DHAVE_CONFIG_H
 CFLAGS+=	-DDEFAULT_TARGET_VERSION=\"$(version)\"
 CFLAGS+=	-DDEFAULT_TARGET_MACHINE=\"$(target)\"
 
