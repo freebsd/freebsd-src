@@ -350,7 +350,7 @@ static int ext2_check_descriptors (struct ext2_sb_info * sb)
                 {
                         printf ("ext2_check_descriptors: "
                                     "Block bitmap for group %d"
-                                    " not in group (block %lu)!",
+                                    " not in group (block %lu)!\n",
                                     i, (unsigned long) gdp->bg_block_bitmap);
                         return 0;
                 }
@@ -359,7 +359,7 @@ static int ext2_check_descriptors (struct ext2_sb_info * sb)
                 {
                         printf ("ext2_check_descriptors: "
                                     "Inode bitmap for group %d"
-                                    " not in group (block %lu)!",
+                                    " not in group (block %lu)!\n",
                                     i, (unsigned long) gdp->bg_inode_bitmap);
                         return 0;
                 }
@@ -369,7 +369,7 @@ static int ext2_check_descriptors (struct ext2_sb_info * sb)
                 {
                         printf ("ext2_check_descriptors: "
                                     "Inode table for group %d"
-                                    " not in group (block %lu)!",
+                                    " not in group (block %lu)!\n",
                                     i, (unsigned long) gdp->bg_inode_table);
                         return 0;
                 }
@@ -673,10 +673,12 @@ ext2_mountfs(devvp, mp, p)
 	ump->um_e2fs->s_es = bsd_malloc(sizeof(struct ext2_super_block), 
 		M_UFSMNT, M_WAITOK);
 	bcopy(es, ump->um_e2fs->s_es, (u_int)sizeof(struct ext2_super_block));
-	if(error = compute_sb_data(devvp, ump->um_e2fs->s_es, ump->um_e2fs)) {
-		brelse(bp);
-		return error;
-	}
+	if ((error = compute_sb_data(devvp, ump->um_e2fs->s_es, ump->um_e2fs)))
+		goto out;
+	/*
+	 * We don't free the group descriptors allocated by compute_sb_data()
+	 * until ext2_unmount().  This is OK since the mount will succeed.
+	 */
 	brelse(bp);
 	bp = NULL;
 	fs = ump->um_e2fs;
@@ -714,7 +716,8 @@ out:
 		brelse(bp);
 	(void)VOP_CLOSE(devvp, ronly ? FREAD : FREAD|FWRITE, NOCRED, p);
 	if (ump) {
-		bsd_free(ump->um_fs, M_UFSMNT);
+		bsd_free(ump->um_e2fs->s_es, M_UFSMNT);
+		bsd_free(ump->um_e2fs, M_UFSMNT);
 		bsd_free(ump, M_UFSMNT);
 		mp->mnt_data = (qaddr_t)0;
 	}
@@ -754,6 +757,7 @@ ext2_unmount(mp, mntflags, p)
 	/* release buffers containing group descriptors */
 	for(i = 0; i < fs->s_db_per_group; i++) 
 		ULCK_BUF(fs->s_group_desc[i])
+	bsd_free(fs->s_group_desc, M_UFSMNT);
 
 	/* release cached inode/block bitmaps */
         for (i = 0; i < EXT2_MAX_GROUP_LOADED; i++)
