@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <locale.h>
+#include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

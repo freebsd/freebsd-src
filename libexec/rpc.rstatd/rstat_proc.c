@@ -55,6 +55,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
+#include <nlist.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
