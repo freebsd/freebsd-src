@@ -382,7 +382,8 @@ cryptodev_op(
 	}
 
 	crp->crp_ilen = cop->len;
-	crp->crp_flags = CRYPTO_F_IOV;
+	crp->crp_flags = CRYPTO_F_IOV | CRYPTO_F_CBIMM
+		       | (cop->flags & COP_F_BATCH);
 	crp->crp_buf = (caddr_t)&cse->uio;
 	crp->crp_callback = (int (*) (struct cryptop *)) cryptodev_cb;
 	crp->crp_sid = cse->sid;
