@@ -221,7 +221,7 @@ put_arobj(cfp, sb)
 		if (options & AR_TR) {
 			if (lname > OLDARMAXNAME) {
 				(void)fflush(stdout);
-				warnx("warning: %s truncated to %.*s\n",
+				warnx("warning: %s truncated to %.*s",
 				    name, OLDARMAXNAME, name);
 				(void)fflush(stderr);
 			}
