@@ -143,8 +143,8 @@ readjob(pp)
 {
 	register int size;
 	register char *cp;
-	int	 cfcnt, dfcnt;
-	char 	 givenid[32], givenhost[MAXHOSTNAMELEN];
+	int cfcnt, dfcnt;
+	char givenid[32], givenhost[MAXHOSTNAMELEN];
 
 	ack();
 	cfcnt = 0;
@@ -398,9 +398,9 @@ frecverr(msg, va_alist)
 	vsyslog(LOG_ERR, msg, ap);
 	va_end(ap);
 	/*
-         * rcleanup is not called until AFTER logging the error message,
-         * because rcleanup will zap some variables which may have been
-         * supplied as parameters for that msg...
+	 * rcleanup is not called until AFTER logging the error message,
+	 * because rcleanup will zap some variables which may have been
+	 * supplied as parameters for that msg...
 	 */
 	rcleanup(0);
 	/* 
