@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.64 1996/01/19 04:00:23 dyson Exp $
+ * $Id: vm_pageout.c,v 1.65 1996/01/31 12:44:33 davidg Exp $
  */
 
 /*
@@ -113,6 +113,7 @@ static struct kproc_desc page_kp = {
 };
 SYSINIT_KT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, &page_kp)
 
+#ifndef NO_SWAPPING
 /* the kernel process "vm_daemon"*/
 static void vm_daemon __P((void));
 static struct	proc *vmproc;
@@ -123,6 +124,7 @@ static struct kproc_desc vm_kp = {
 	&vmproc
 };
 SYSINIT_KT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, &vm_kp)
+#endif /* !NO_SWAPPING */
 
 
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
@@ -527,17 +529,6 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	return;
 }
 
-static void
-vm_req_vmdaemon()
-{
-	static int lastrun = 0;
-
-	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {
-		wakeup(&vm_daemon_needed);
-		lastrun = ticks;
-	}
-}
-
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
@@ -776,6 +767,7 @@ rescan1:
 				wakeup(&vfs_update_wakeup);
 			}
 		}
+#ifndef NO_SWAPPING
 		/*
 		 * now swap processes out if we are in low memory conditions
 		 */
@@ -784,12 +776,15 @@ rescan1:
 			vm_pageout_req_swapout = 1;
 			vm_req_vmdaemon();
 		}
+#endif
 	}
 
+#ifndef NO_SWAPPING
 	if ((cnt.v_inactive_count + cnt.v_free_count + cnt.v_cache_count) <
 	    (cnt.v_inactive_target + cnt.v_free_min)) {
 		vm_req_vmdaemon();
 	}
+#endif
 
 	/*
 	 * make sure that we have swap space -- if we are low on memory and
@@ -905,6 +900,18 @@ vm_pageout()
 	}
 }
 
+#ifndef NO_SWAPPING
+static void
+vm_req_vmdaemon()
+{
+	static int lastrun = 0;
+
+	if ((ticks > (lastrun + hz / 10)) || (ticks < lastrun)) {
+		wakeup(&vm_daemon_needed);
+		lastrun = ticks;
+	}
+}
+
 static void
 vm_daemon()
 {
@@ -981,3 +988,4 @@ restart:
 		}
 	}
 }
+#endif /* !NO_SWAPPING */
