@@ -940,7 +940,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 		return error;
 	}
 	s = splnet();
-	error = in_pcballoc(so, &udbinfo, td, "udpinp");
+	error = in_pcballoc(so, &udbinfo, "udpinp");
 	splx(s);
 	if (error) {
 		INP_INFO_WUNLOCK(&udbinfo);

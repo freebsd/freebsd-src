@@ -155,10 +155,9 @@ SYSCTL_INT(_net_inet_ip_portrange, OID_AUTO, reservedlow,
  * Allocate a PCB and associate it with the socket.
  */
 int
-in_pcballoc(so, pcbinfo, td, type)
+in_pcballoc(so, pcbinfo, type)
 	struct socket *so;
 	struct inpcbinfo *pcbinfo;
-	struct thread *td;
 	const char *type;
 {
 	register struct inpcb *inp;

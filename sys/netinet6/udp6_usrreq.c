@@ -526,7 +526,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 			return error;
 	}
 	s = splnet();
-	error = in_pcballoc(so, &udbinfo, td, "udp6inp");
+	error = in_pcballoc(so, &udbinfo, "udp6inp");
 	splx(s);
 	if (error)
 		return error;
