@@ -264,7 +264,7 @@ lptopen(dev, flag)
 
 	if (sc->sc_state) {
 lprintf("lp: still open\n") ;
-printf("still open %x\n", sc->sc_state);
+lprintf("still open %x\n", sc->sc_state);
 		return(EBUSY);
 	} else	sc->sc_state |= INIT;
 
