@@ -91,7 +91,6 @@
 
 #include <fs/udf/ecma167-udf.h>
 #include <fs/udf/udf.h>
-#include <fs/udf/udf_mount.h>
 #include <fs/udf/osta.h>
 
 MALLOC_DEFINE(M_UDFMOUNT, "UDF mount", "UDF mount structure");
@@ -104,8 +103,7 @@ uma_zone_t udf_zone_node = NULL;
 
 static int udf_init(struct vfsconf *);
 static int udf_uninit(struct vfsconf *);
-static int udf_mount(struct mount *, char *, caddr_t, struct nameidata *,
-		     struct thread *);
+static int udf_mount(struct mount *, struct nameidata *, struct thread *);
 static int udf_unmount(struct mount *, int, struct thread *);
 static int udf_root(struct mount *, struct vnode **);
 static int udf_statfs(struct mount *, struct statfs *, struct thread *);
@@ -114,7 +112,7 @@ static int udf_vptofh(struct vnode *, struct fid *);
 static int udf_find_partmaps(struct udf_mnt *, struct logvol_desc *);
 
 static struct vfsops udf_vfsops = {
-	udf_mount,
+	NULL,
 	vfs_stdstart,
 	udf_unmount,
 	udf_root,
@@ -128,10 +126,11 @@ static struct vfsops udf_vfsops = {
 	udf_init,
 	udf_uninit,
 	vfs_stdextattrctl,
+	udf_mount,
 };
 VFS_SET(udf_vfsops, udf, VFCF_READONLY);
 
-static int udf_mountfs(struct vnode *, struct mount *, struct thread *, struct udf_args *);
+static int udf_mountfs(struct vnode *, struct mount *, struct thread *);
 
 static int
 udf_init(struct vfsconf *foo)
@@ -174,13 +173,17 @@ udf_uninit(struct vfsconf *foo)
 }
 
 static int
-udf_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, struct thread *td)
+udf_mount(struct mount *mp, struct nameidata *ndp, struct thread *td)
 {
 	struct vnode *devvp;	/* vnode of the mount device */
-	struct udf_args args;
 	struct udf_mnt *imp = 0;
+	struct export_args *export;
+	struct vfsoptlist *opts;
+	char *fspec;
 	size_t size;
-	int error;
+	int error, len;
+
+	opts = mp->mnt_optnew;
 
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EROFS);
@@ -192,17 +195,26 @@ udf_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, str
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (ENOTSUP);
 
-	if ((error = copyin(data, (caddr_t)&args, sizeof(struct udf_args))))
-		return (error);
+	fspec = NULL;
+	error = vfs_getopt(opts, "from", (void **)&fspec, &len);
+	if (!error && fspec[len - 1] != '\0')
+		return (EINVAL);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		imp = VFSTOUDFFS(mp);
-		if (args.fspec == 0)
-			return (vfs_export(mp, &args.export));
+		if (fspec == NULL) {
+			error = vfs_getopt(opts, "export", (void **)&export,
+			    &len);
+			if (error || len != sizeof(struct export_args))
+				return (EINVAL);
+			return (vfs_export(mp, export));
+		}
 	}
 
 	/* Check that the mount device exists */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	if (fspec == NULL)
+		return (EINVAL);
+	NDINIT(ndp, LOOKUP, FOLLOW, UIO_SYSSPACE, fspec, td);
 	if ((error = namei(ndp)))
 		return (error);
 	NDFREE(ndp, NDF_ONLY_PNBUF);
@@ -224,13 +236,13 @@ udf_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp, str
 	}
 	VOP_UNLOCK(devvp, 0, td);
 
-	if ((error = udf_mountfs(devvp, mp, td, &args))) {
+	if ((error = udf_mountfs(devvp, mp, td))) {
 		vrele(devvp);
 		return (error);
 	}
 
 	imp = VFSTOUDFFS(mp);
-	copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
+	copystr(fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	udf_statfs(mp, &mp->mnt_stat, td);
 	return 0;
@@ -262,7 +274,7 @@ udf_checktag(struct desc_tag *tag, uint16_t id)
 }
 
 static int
-udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td, struct udf_args *argp) {
+udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	struct buf *bp = NULL;
 	struct anchor_vdp avdp;
 	struct udf_mnt *udfmp = NULL;
