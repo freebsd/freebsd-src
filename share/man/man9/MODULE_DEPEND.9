@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd January 11, 2005
 .Dt MODULE_DEPEND 9
 .Os
 .Sh NAME
@@ -46,6 +46,15 @@ macro sets a dependency on another kernel module with name
 which has registered
 its version with
 .Fn MODULE_VERSION .
+.Pp
+The
+.Fn MODULE_DEPEND
+macro provides hints to the kernel
+.Xr loader 8
+and to the kernel linker to ensure that the named dependency is loaded
+prior to the existing module.
+It does not change or dictate the order in which modules are
+initialized at runtime.
 .Pp
 Three versions must be specified for
 .Fa moddepend :
