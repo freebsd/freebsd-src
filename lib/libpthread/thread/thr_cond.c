@@ -49,10 +49,16 @@ static inline struct pthread	*cond_queue_deq(pthread_cond_t);
 static inline void		cond_queue_remove(pthread_cond_t, pthread_t);
 static inline void		cond_queue_enq(pthread_cond_t, pthread_t);
 
+/*
+ * Double underscore versions are cancellation points.  Single underscore
+ * versions are not and are provided for libc internal usage (which
+ * shouldn't introduce cancellation points).
+ */
+__weak_reference(__pthread_cond_wait, pthread_cond_wait);
+__weak_reference(__pthread_cond_timedwait, pthread_cond_timedwait);
+
 __weak_reference(_pthread_cond_init, pthread_cond_init);
 __weak_reference(_pthread_cond_destroy, pthread_cond_destroy);
-__weak_reference(_pthread_cond_wait, pthread_cond_wait);
-__weak_reference(_pthread_cond_timedwait, pthread_cond_timedwait);
 __weak_reference(_pthread_cond_signal, pthread_cond_signal);
 __weak_reference(_pthread_cond_broadcast, pthread_cond_broadcast);
 
@@ -167,22 +173,16 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 	int	unlock_mutex = 1;
 	int	seqno;
 
-	_thr_enter_cancellation_point(curthread);
-
-	if (cond == NULL) {
-		_thr_leave_cancellation_point(curthread);
+	if (cond == NULL)
 		return (EINVAL);
-	}
 
 	/*
 	 * If the condition variable is statically initialized,
 	 * perform the dynamic initialization:
 	 */
 	if (*cond == NULL &&
-	    (rval = pthread_cond_init(cond, NULL)) != 0) {
-		_thr_leave_cancellation_point(curthread);
+	    (rval = pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
-	}
 
 	/*
 	 * Enter a loop waiting for a condition signal or broadcast
@@ -348,8 +348,6 @@ _pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 			curthread->continuation((void *) curthread);
 	} while ((done == 0) && (rval == 0));
 
-	_thr_leave_cancellation_point(curthread);
-
 	/* Return the completion status: */
 	return (rval);
 }
@@ -379,21 +377,16 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 	THR_ASSERT(curthread->locklevel == 0,
 	    "cv_timedwait: locklevel is not zero!");
-	_thr_enter_cancellation_point(curthread);
 
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
-	    abstime->tv_nsec >= 1000000000) {
-		_thr_leave_cancellation_point(curthread);
+	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
-	}
 	/*
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
 	 */
-	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0) {
-		_thr_leave_cancellation_point(curthread);
+	if (*cond == NULL && (rval = pthread_cond_init(cond, NULL)) != 0)
 		return (rval);
-	}
 
 	/*
 	 * Enter a loop waiting for a condition signal or broadcast
@@ -555,8 +548,6 @@ _pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		if ((interrupted != 0) && (curthread->continuation != NULL))
 			curthread->continuation((void *)curthread);
 	} while ((done == 0) && (rval == 0));
-
-	_thr_leave_cancellation_point(curthread);
 
 	/* Return the completion status: */
 	return (rval);

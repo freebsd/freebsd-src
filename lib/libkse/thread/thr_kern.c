@@ -117,6 +117,9 @@ static int			inited = 0;
 static int			active_kse_count = 0;
 static int			active_kseg_count = 0;
 
+#ifdef DEBUG_THREAD_KERN
+static void	dump_queues(struct kse *curkse);
+#endif
 static void	kse_check_completed(struct kse *kse);
 static void	kse_check_waitq(struct kse *kse);
 static void	kse_check_signals(struct kse *kse);
@@ -762,7 +765,8 @@ kse_sched_single(struct kse *curkse)
 }
 #endif
 
-void
+#ifdef DEBUG_THREAD_KERN
+static void
 dump_queues(struct kse *curkse)
 {
 	struct pthread *thread;
@@ -773,6 +777,7 @@ dump_queues(struct kse *curkse)
 		    thread, thread->state, thread->blocked);
 	}
 }
+#endif
 
 /*
  * This is the scheduler for a KSE which runs multiple threads.
