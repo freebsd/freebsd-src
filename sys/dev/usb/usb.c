@@ -79,9 +79,10 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/select.h>
 #endif
-#include <sys/vnode.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
+#include <sys/vnode.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
