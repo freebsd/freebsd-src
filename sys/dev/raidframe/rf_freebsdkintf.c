@@ -1544,6 +1544,7 @@ rf_DispatchKernelIO(queue, req)
 			raidbp->rf_buf.b_vp->v_numoutput++;
 		}
 #endif
+		raidbp->rf_buf.b_iooffset = dbtob(raidbp->rf_buf.b_blkno);
 		(*devsw(raidbp->rf_buf.bio_dev)->d_strategy)(&raidbp->rf_buf);
 
 		break;
@@ -1861,7 +1862,7 @@ raidread_component_label(dev, b_vp, clabel)
 
 	/* get our ducks in a row for the read */
 	bp->b_blkno = RF_COMPONENT_INFO_OFFSET / DEV_BSIZE;
-	bp->b_offset = RF_COMPONENT_INFO_OFFSET;
+	bp->b_iooffset = RF_COMPONENT_INFO_OFFSET;
 	bp->b_bcount = RF_COMPONENT_INFO_SIZE;
 	bp->b_iocmd = BIO_READ;
  	bp->b_resid = RF_COMPONENT_INFO_SIZE / DEV_BSIZE;
@@ -1901,7 +1902,7 @@ raidwrite_component_label(dev, b_vp, clabel)
 	/* get our ducks in a row for the write */
 	bp->b_flags = 0;
 	bp->b_blkno = RF_COMPONENT_INFO_OFFSET / DEV_BSIZE;
-	bp->b_offset = RF_COMPONENT_INFO_OFFSET;
+	bp->b_iooffset = RF_COMPONENT_INFO_OFFSET;
 	bp->b_bcount = RF_COMPONENT_INFO_SIZE;
 	bp->b_iocmd = BIO_WRITE;
  	bp->b_resid = RF_COMPONENT_INFO_SIZE / DEV_BSIZE;
