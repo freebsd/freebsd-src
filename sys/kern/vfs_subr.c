@@ -89,7 +89,6 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vx_lock(struct vnode *vp);
 static void	vx_unlock(struct vnode *vp);
-static void	vgonechrl(struct vnode *vp, struct thread *td);
 
 
 /*
@@ -2125,10 +2124,9 @@ loop:
 		 * all other files, just kill them.
 		 */
 		if (flags & FORCECLOSE) {
-			if (vp->v_type != VCHR)
-				vgonel(vp, td);
-			else
-				vgonechrl(vp, td);
+			KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+			    ("device VNODE %p is FORCECLOSED", vp));
+			vgonel(vp, td);
 			MNT_ILOCK(mp);
 			continue;
 		}
@@ -2365,46 +2363,6 @@ vgone(vp)
 
 	VI_LOCK(vp);
 	vgonel(vp, td);
-}
-
-/*
- * Disassociate a character device from the its underlying filesystem and
- * attach it to spec.  This is for use when the chr device is still active
- * and the filesystem is going away.
- */
-static void
-vgonechrl(struct vnode *vp, struct thread *td)
-{
-	ASSERT_VI_LOCKED(vp, "vgonechrl");
-	vx_lock(vp);
-	/*
-	 * This is a custom version of vclean() which does not tearm down
-	 * the bufs or vm objects held by this vnode.  This allows filesystems
-	 * to continue using devices which were discovered via another
-	 * filesystem that has been unmounted.
-	 */
-	if (vp->v_usecount != 0) {
-		v_incr_usecount(vp, 1);
-		/*
-		 * Ensure that no other activity can occur while the
-		 * underlying object is being cleaned out.
-		 */
-		VOP_LOCK(vp, LK_DRAIN | LK_INTERLOCK, td);
-		/*
-		 * Any other processes trying to obtain this lock must first
-		 * wait for VXLOCK to clear, then call the new lock operation.
-		 */
-		VOP_UNLOCK(vp, 0, td);
-		vp->v_vnlock = &vp->v_lock;
-		vp->v_tag = "orphanchr";
-		delmntque(vp);
-		cache_purge(vp);
-		vrele(vp);
-		VI_LOCK(vp);
-	} else
-		vclean(vp, 0, td);
-	vx_unlock(vp);
-	VI_UNLOCK(vp);
 }
 
 /*
