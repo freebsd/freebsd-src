@@ -42,7 +42,7 @@
  * copyright notice and this permission notice appear in all
  * supporting documentation, and that the name of M.I.T. not be used
  * in advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.  M.I.T. makes
+ * software without specific, written prior permission.	 M.I.T. makes
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
@@ -61,13 +61,17 @@
  * SUCH DAMAGE. */
 
 #include <sys/param.h>
+#include <sys/socket.h>
 
 #include <err.h>
 #include <ctype.h>
+#include <locale.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "fetch.h"
@@ -77,6 +81,10 @@
 extern char *__progname;
 
 #define ENDL "\r\n"
+
+#define HTTP_OK		200
+#define HTTP_PARTIAL	206
+#define HTTP_MOVED	302
 
 struct cookie
 {
@@ -129,6 +137,8 @@ _http_fillbuf(struct cookie *c)
     } else if (c->encoding == ENC_CHUNKED) {
 	if (c->chunksize == 0) {
 	    ln = fgetln(c->real_f, &len);
+	    if (len <= 2)
+		return NULL;
 	    DEBUG(fprintf(stderr, "\033[1m_http_fillbuf(): new chunk: "
 			  "%*.*s\033[m\n", (int)len-2, (int)len-2, ln));
 	    sscanf(ln, "%x", &(c->chunksize));
@@ -288,83 +298,183 @@ _http_auth(char *usr, char *pwd)
 }
 
 /*
- * Retrieve a file by HTTP
+ * Connect to server or proxy
  */
 FILE *
-fetchGetHTTP(struct url *URL, char *flags)
+_http_connect(struct url *URL, char *flags)
 {
-    int sd = -1, e, i, enc = ENC_NONE, direct, verbose;
-    struct cookie *c;
-    char *ln, *p, *px, *q;
-    FILE *f, *cf;
+    int direct, sd = -1, verbose;
+#ifdef INET6
+    int af = AF_UNSPEC;
+#else
+    int af = AF_INET;
+#endif
     size_t len;
-
+    char *px;
+    FILE *f;
+    
     direct = (flags && strchr(flags, 'd'));
     verbose = (flags && strchr(flags, 'v'));
+    if ((flags && strchr(flags, '4')))
+	af = AF_INET;
+    else if ((flags && strchr(flags, '6')))
+	af = AF_INET6;
     
-    /* allocate cookie */
-    if ((c = calloc(1, sizeof(struct cookie))) == NULL)
-	return NULL;
-
     /* check port */
-    if (!URL->port)
-	URL->port = 80; /* default HTTP port */
+    if (!URL->port) {
+	struct servent *se;
+
+	if (strcasecmp(URL->scheme, "ftp") == 0)
+	    if ((se = getservbyname("ftp", "tcp")) != NULL)
+		URL->port = ntohs(se->s_port);
+	    else
+		URL->port = 21;
+	else
+	    if ((se = getservbyname("http", "tcp")) != NULL)
+		URL->port = ntohs(se->s_port);
+	    else
+		URL->port = 80;
+    }
     
     /* attempt to connect to proxy server */
     if (!direct && (px = getenv("HTTP_PROXY")) != NULL) {
 	char host[MAXHOSTNAMELEN];
-	int port = 3128; /* XXX I think 3128 is default... check? */
+	int port = 0;
 
 	/* measure length */
-	len = strcspn(px, ":");
+#ifdef INET6
+	if (px[0] != '[' ||
+	    (len = strcspn(px, "]")) >= strlen(px) ||
+	    (px[++len] != '\0' && px[len] != ':'))
+#endif
+	    len = strcspn(px, ":");
 
 	/* get port (XXX atoi is a little too tolerant perhaps?) */
-	if (px[len] == ':')
+	if (px[len] == ':') {
+	    if (strspn(px+len+1, "0123456789") != strlen(px+len+1)
+		|| strlen(px+len+1) > 5) {
+		/* XXX we should emit some kind of warning */
+	    }
 	    port = atoi(px+len+1);
+	    if (port < 1 || port > 65535) {
+		/* XXX we should emit some kind of warning */
+	    }
+	}
+	if (!port) {
+#if 0
+	    /*
+	     * commented out, since there is currently no service name
+	     * for HTTP proxies
+	     */
+	    struct servent *se;
+	    
+	    if ((se = getservbyname("xxxx", "tcp")) != NULL)
+		port = ntohs(se->s_port);
+	    else
+#endif
+		port = 3128;
+	}
 	
 	/* get host name */
+#ifdef INET6
+	if (len > 1 && px[0] == '[' && px[len - 1] == ']') {
+	    px++;
+	    len -= 2;
+	}
+#endif
 	if (len >= MAXHOSTNAMELEN)
 	    len = MAXHOSTNAMELEN - 1;
 	strncpy(host, px, len);
 	host[len] = 0;
 
 	/* connect */
-	sd = _fetch_connect(host, port, verbose);
+	sd = _fetch_connect(host, port, af, verbose);
     }
 
     /* if no proxy is configured or could be contacted, try direct */
     if (sd == -1) {
-	if ((sd = _fetch_connect(URL->host, URL->port, verbose)) == -1)
+	if (strcasecmp(URL->scheme, "ftp") == 0)
+	    goto ouch;
+	if ((sd = _fetch_connect(URL->host, URL->port, af, verbose)) == -1)
 	    goto ouch;
     }
 
     /* reopen as stream */
     if ((f = fdopen(sd, "r+")) == NULL)
 	goto ouch;
-    c->real_f = f;
+    
+    return f;
 
+ouch:
+    if (sd >= 0)
+	close(sd);
+    _http_seterr(999); /* XXX do this properly RSN */
+    return NULL;
+}
+
+/*
+ * Check a header line
+ */
+char *
+_http_match(char *str, char *hdr)
+{
+    while (*str && *hdr && tolower(*str++) == tolower(*hdr++))
+	/* nothing */;
+    if (*str || *hdr != ':')
+	return NULL;
+    while (*hdr && isspace(*++hdr))
+	/* nothing */;
+    return hdr;
+}
+
+/*
+ * Send a HEAD or GET request
+ */
+int
+_http_request(FILE *f, char *op, struct url *URL, char *flags)
+{
+    int e, verbose;
+    char *ln, *p;
+    size_t len;
+    char *host;
+#ifdef INET6
+    char hbuf[MAXHOSTNAMELEN + 1];
+#endif
+    
+    verbose = (flags && strchr(flags, 'v'));
+
+    host = URL->host;
+#ifdef INET6
+    if (strchr(URL->host, ':')) {
+	snprintf(hbuf, sizeof(hbuf), "[%s]", URL->host);
+	host = hbuf;
+    }
+#endif
+    
     /* send request (proxies require absolute form, so use that) */
     if (verbose)
-	_fetch_info("requesting http://%s:%d%s",
-		    URL->host, URL->port, URL->doc);
-    _http_cmd(f, "GET http://%s:%d%s HTTP/1.1" ENDL,
-	      URL->host, URL->port, URL->doc);
+	_fetch_info("requesting %s://%s:%d%s",
+		    URL->scheme, host, URL->port, URL->doc);
+    _http_cmd(f, "%s %s://%s:%d%s HTTP/1.1" ENDL,
+	      op, URL->scheme, host, URL->port, URL->doc);
 
     /* start sending headers away */
     if (URL->user[0] || URL->pwd[0]) {
 	char *auth_str = _http_auth(URL->user, URL->pwd);
 	if (!auth_str)
-	    goto fouch;
+	    return 999; /* XXX wrong */
 	_http_cmd(f, "Authorization: Basic %s" ENDL, auth_str);
 	free(auth_str);
     }
-    _http_cmd(f, "Host: %s:%d" ENDL, URL->host, URL->port);
+    _http_cmd(f, "Host: %s:%d" ENDL, host, URL->port);
     _http_cmd(f, "User-Agent: %s " _LIBFETCH_VER ENDL, __progname);
+    if (URL->offset)
+	_http_cmd(f, "Range: bytes=%lld-" ENDL, URL->offset);
     _http_cmd(f, "Connection: close" ENDL ENDL);
 
     /* get response */
     if ((ln = fgetln(f, &len)) == NULL)
-	goto fouch;
+	return 999;
     DEBUG(fprintf(stderr, "response: [\033[1m%*.*s\033[m]\n",
 		  (int)len-2, (int)len-2, ln));
     
@@ -375,14 +485,46 @@ fetchGetHTTP(struct url *URL, char *flags)
     while ((p < ln + len) && !isdigit(*p))
 	p++;
     if (!isdigit(*p))
-	goto fouch;
+	return 999;
+    
     e = atoi(p);
     DEBUG(fprintf(stderr, "code:     [\033[1m%d\033[m]\n", e));
+    return e;
+}
+
+/*
+ * Retrieve a file by HTTP
+ */
+FILE *
+fetchGetHTTP(struct url *URL, char *flags)
+{
+    int e, enc = ENC_NONE, i, noredirect;
+    struct cookie *c;
+    char *ln, *p, *q;
+    FILE *f, *cf;
+    size_t len;
+    off_t pos = 0;
+
+    noredirect = (flags && strchr(flags, 'A'));
     
-    /* add code to handle redirects later */
-    if (e != 200) {
+    /* allocate cookie */
+    if ((c = calloc(1, sizeof *c)) == NULL)
+	return NULL;
+
+    /* connect */
+    if ((f = _http_connect(URL, flags)) == NULL) {
+	free(c);
+	return NULL;
+    }
+    c->real_f = f;
+
+    e = _http_request(f, "GET", URL, flags);
+    if (e != (URL->offset ? HTTP_PARTIAL : HTTP_OK)
+	&& (e != HTTP_MOVED || noredirect)) {
 	_http_seterr(e);
-	goto fouch;
+	free(c);
+	fclose(f);
+	return NULL;
     }
 
     /* browse through header */
@@ -391,32 +533,48 @@ fetchGetHTTP(struct url *URL, char *flags)
 	    goto fouch;
 	if ((ln[0] == '\r') || (ln[0] == '\n'))
 	    break;
-	DEBUG(fprintf(stderr, "header:   [\033[1m%*.*s\033[m]\n",
-		      (int)len-2, (int)len-2, ln));
-#define XFERENC "Transfer-Encoding:"
-	if (strncasecmp(ln, XFERENC, sizeof(XFERENC)-1) == 0) {
-	    p = ln + sizeof(XFERENC) - 1;
-	    while ((p < ln + len) && isspace(*p))
-		p++;
-	    for (q = p; (q < ln + len) && !isspace(*q); q++)
+	while (isspace(ln[len-1]))
+	    --len;
+	ln[len] = '\0'; /* XXX */
+	DEBUG(fprintf(stderr, "header:	 [\033[1m%s\033[m]\n", ln));
+	if ((p = _http_match("Location", ln)) != NULL) {
+	    struct url *url;
+	    
+	    for (q = p; *q && !isspace(*q); q++)
+		/* VOID */ ;
+	    *q = 0;
+	    if ((url = fetchParseURL(p)) == NULL)
+		goto fouch;
+	    url->offset = URL->offset;
+	    url->length = URL->length;
+	    DEBUG(fprintf(stderr, "location:  [\033[1m%s\033[m]\n", p));
+	    cf = fetchGetHTTP(url, flags);
+	    fetchFreeURL(url);
+	    fclose(f);
+	    return cf;
+	} else if ((p = _http_match("Transfer-Encoding", ln)) != NULL) {
+	    for (q = p; *q && !isspace(*q); q++)
 		/* VOID */ ;
 	    *q = 0;
 	    if (strcasecmp(p, "chunked") == 0)
 		enc = ENC_CHUNKED;
-	    DEBUG(fprintf(stderr, "xferenc:  [\033[1m%s\033[m]\n", p));
-#undef XFERENC
-#define CONTTYPE "Content-Type:"
-	} else if (strncasecmp(ln, CONTTYPE, sizeof(CONTTYPE)-1) == 0) {
-	    p = ln + sizeof(CONTTYPE) - 1;
-	    while ((p < ln + len) && isspace(*p))
-		p++;
-	    for (i = 0; p < ln + len; p++)
-		if (i < HTTPCTYPELEN)
-		    c->content_type[i++] = *p;
+	    DEBUG(fprintf(stderr, "transfer encoding:  [\033[1m%s\033[m]\n", p));
+	} else if ((p = _http_match("Content-Type", ln)) != NULL) {
+	    for (i = 0; *p && i < HTTPCTYPELEN; p++, i++)
+		    c->content_type[i] = *p;
 	    do c->content_type[i--] = 0; while (isspace(c->content_type[i]));
-	    DEBUG(fprintf(stderr, "conttype: [\033[1m%s\033[m]\n",
+	    DEBUG(fprintf(stderr, "content type: [\033[1m%s\033[m]\n",
 			  c->content_type));
-#undef CONTTYPE
+	} else if ((p = _http_match("Content-Range", ln)) != NULL) {
+	    if (strncasecmp(p, "bytes ", 6) != 0)
+		goto fouch;
+	    p += 6;
+	    while (*p && isdigit(*p))
+		pos = pos * 10 + (*p++ - '0');
+	    /* XXX wouldn't hurt to be slightly more paranoid here */
+	    DEBUG(fprintf(stderr, "content range: [\033[1m%lld-\033[m]\n", pos));
+	    if (pos > URL->offset)
+		goto fouch;
 	}
     }
 
@@ -429,17 +587,20 @@ fetchGetHTTP(struct url *URL, char *flags)
 		 (int (*)(void *))_http_closefn);
     if (cf == NULL)
 	goto fouch;
+
+    while (pos < URL->offset)
+	if (fgetc(cf) == EOF)
+	    goto cfouch;
+		
     return cf;
     
-ouch:
-    if (sd >= 0)
-	close(sd);
-    free(c);
-    _http_seterr(999); /* XXX do this properly RSN */
-    return NULL;
 fouch:
     fclose(f);
     free(c);
+    _http_seterr(999); /* XXX do this properly RSN */
+    return NULL;
+cfouch:
+    fclose(cf);
     _http_seterr(999); /* XXX do this properly RSN */
     return NULL;
 }
@@ -455,10 +616,82 @@ fetchPutHTTP(struct url *URL, char *flags)
  * Get an HTTP document's metadata
  */
 int
-fetchStatHTTP(struct url *url, struct url_stat *us, char *flags)
+fetchStatHTTP(struct url *URL, struct url_stat *us, char *flags)
 {
-    warnx("fetchStatHTTP(): not implemented");
-    return -1;
+    int e, noredirect;
+    size_t len;
+    char *ln, *p, *q;
+    FILE *f;
+
+    noredirect = (flags && strchr(flags, 'A'));
+    
+    us->size = -1;
+    us->atime = us->mtime = 0;
+    
+    /* connect */
+    if ((f = _http_connect(URL, flags)) == NULL)
+	return -1;
+
+    e = _http_request(f, "HEAD", URL, flags);
+    if (e != HTTP_OK && (e != HTTP_MOVED || noredirect)) {
+	_http_seterr(e);
+	fclose(f);
+	return -1;
+    }
+
+    while (1) {
+	if ((ln = fgetln(f, &len)) == NULL)
+	    goto fouch;
+	if ((ln[0] == '\r') || (ln[0] == '\n'))
+	    break;
+	while (isspace(ln[len-1]))
+	    --len;
+	ln[len] = '\0'; /* XXX */
+	DEBUG(fprintf(stderr, "header:	 [\033[1m%s\033[m]\n", ln));
+	if ((p = _http_match("Location", ln)) != NULL) {
+	    struct url *url;
+	    
+	    for (q = p; *q && !isspace(*q); q++)
+		/* VOID */ ;
+	    *q = 0;
+	    if ((url = fetchParseURL(p)) == NULL)
+		goto ouch;
+	    url->offset = URL->offset;
+	    url->length = URL->length;
+	    DEBUG(fprintf(stderr, "location:  [\033[1m%s\033[m]\n", p));
+	    e = fetchStatHTTP(url, us, flags);
+	    fetchFreeURL(url);
+	    fclose(f);
+	    return e;
+	} else if ((p = _http_match("Last-Modified", ln)) != NULL) {
+	    struct tm tm;
+	    char locale[64];
+
+	    strncpy(locale, setlocale(LC_TIME, NULL), sizeof locale);
+	    setlocale(LC_TIME, "C");
+	    strptime(p, "%a, %d %b %Y %H:%M:%S GMT", &tm);
+	    /* XXX should add support for date-2 and date-3 */
+	    setlocale(LC_TIME, locale);
+	    us->atime = us->mtime = timegm(&tm);
+	    DEBUG(fprintf(stderr, "last modified: [\033[1m%04d-%02d-%02d "
+			  "%02d:%02d:%02d\033[m]\n",
+			  tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday,
+			  tm.tm_hour, tm.tm_min, tm.tm_sec));
+	} else if ((p = _http_match("Content-Length", ln)) != NULL) {
+	    us->size = 0;
+	    while (*p && isdigit(*p))
+		us->size = us->size * 10 + (*p++ - '0');
+	    DEBUG(fprintf(stderr, "content length: [\033[1m%lld\033[m]\n", us->size));
+	}
+    }
+
+    fclose(f);
+    return 0;
+ ouch:
+    _http_seterr(999); /* XXX do this properly RSN */
+ fouch:
+    fclose(f);
+    return -1;    
 }
 
 /*
