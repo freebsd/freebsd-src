@@ -143,9 +143,7 @@ struct vnode {
 	 */
 	LIST_HEAD(, namecache) v_cache_src;	/* c Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* c Cache entries to us */
-	u_long	v_id;				/* c capability identifier */
 	struct	vnode *v_dd;			/* c .. vnode */
-	u_long	v_ddid;				/* c .. capability identifier */
 
 	/*
 	 * clustering stuff
