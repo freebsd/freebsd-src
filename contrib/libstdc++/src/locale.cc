@@ -28,7 +28,6 @@
 
 #include <clocale>
 #include <cstring>
-#include <cassert>
 #include <cctype>
 #include <cwctype>     // For towupper, etc.
 #include <locale>
@@ -208,9 +207,8 @@ namespace std
 		// different from LANG.
 		size_t __i = 0;
 		if (strcmp(__res, "C") == 0)
-		  for (__i = 0; 
-		       __i < _S_categories_size + _S_extra_categories_size; 
-		       ++__i)
+		  for (; __i < _S_categories_size
+			 + _S_extra_categories_size; ++__i)
 		    {
 		      __env = getenv(_S_categories[__i]);
 		      if (__env && strcmp(__env, "") != 0 
@@ -219,9 +217,8 @@ namespace std
 			break;
 		    }
 		else
-		  for (__i = 0; 
-		       __i < _S_categories_size + _S_extra_categories_size; 
-		       ++__i)
+		  for (; __i < _S_categories_size
+			 + _S_extra_categories_size; ++__i)
 		    {
 		      __env = getenv(_S_categories[__i]);
 		      if (__env && strcmp(__env, "") != 0 
@@ -237,14 +234,14 @@ namespace std
 		    for (size_t __j = 0; __j < __i; ++__j)
 		      {
 			__str += _S_categories[__j];
-			__str += "=";
+			__str += '=';
 			__str += __res;
-			__str += ";";
+			__str += ';';
 		      }
 		    __str += _S_categories[__i];
-		    __str += "=";
+		    __str += '=';
 		    __str += __env;
-		    __str += ";";
+		    __str += ';';
 		    __i++;
 		    for (; __i < _S_categories_size
 			   + _S_extra_categories_size; ++__i)
@@ -266,9 +263,9 @@ namespace std
 			else
 			  {
 			    __str += _S_categories[__i];
-			    __str += "=";
+			    __str += '=';
 			    __str += __env;
-			    __str += ";";
+			    __str += ';';
 			  }
 		      }
 		    __str.erase(__str.end() - 1);
@@ -349,15 +346,15 @@ namespace std
     else
       {
 	__ret += _S_categories[0];
-	__ret += "=";
+	__ret += '=';
 	__ret += _M_impl->_M_names[0]; 
 	for (size_t __i = 1; 
 	     __i < _S_categories_size + _S_extra_categories_size; 
 	     ++__i)
 	  {
-	    __ret += ";";
+	    __ret += ';';
 	    __ret += _S_categories[__i];
-	    __ret += "=";
+	    __ret += '=';
 	    __ret += _M_impl->_M_names[__i];
 	  }
       }
@@ -504,13 +501,16 @@ namespace std
   const money_base::pattern 
   money_base::_S_default_pattern =  { {symbol, sign, none, value} };
 
-  const char __num_base::_S_atoms[] = "0123456789eEabcdfABCDF";
+  const char* __num_base::_S_atoms_in = "0123456789eEabcdfABCDF";
+  const char* __num_base::_S_atoms_out ="-+xX0123456789abcdef0123456789ABCDEF";
 
-  bool
-  __num_base::_S_format_float(const ios_base& __io, char* __fptr, char __mod,
-			      streamsize __prec)
+  // _GLIBCPP_RESOLVE_LIB_DEFECTS
+  // According to the resolution of DR 231, about 22.2.2.2.2, p11,
+  // "str.precision() is specified in the conversion specification".
+  void
+  __num_base::_S_format_float(const ios_base& __io, char* __fptr,
+			      char __mod, streamsize/* unused post DR 231 */)
   {
-    bool __incl_prec = false;
     ios_base::fmtflags __flags = __io.flags();
     *__fptr++ = '%';
     // [22.2.2.2.2] Table 60
@@ -518,13 +518,12 @@ namespace std
       *__fptr++ = '+';
     if (__flags & ios_base::showpoint)
       *__fptr++ = '#';
-    // As per [22.2.2.2.2.11]
-    if (__flags & ios_base::fixed || __prec > 0)
-      {
-	*__fptr++ = '.';
-	*__fptr++ = '*';
-	__incl_prec = true;
-      }
+
+    // As per DR 231: _always_, not only when 
+    // __flags & ios_base::fixed || __prec > 0
+    *__fptr++ = '.';
+    *__fptr++ = '*';
+
     if (__mod)
       *__fptr++ = __mod;
     ios_base::fmtflags __fltfield = __flags & ios_base::floatfield;
@@ -536,7 +535,6 @@ namespace std
     else
       *__fptr++ = (__flags & ios_base::uppercase) ? 'G' : 'g';
     *__fptr = '\0';
-    return __incl_prec;
   }
   
   void

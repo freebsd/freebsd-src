@@ -1,6 +1,6 @@
 // basic_ios locale and locale-related member functions -*- C++ -*-
 
-// Copyright (C) 1999, 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 1999, 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -95,10 +95,17 @@ namespace std
       this->precision(__rhs.precision());
       this->tie(__rhs.tie());
       this->fill(__rhs.fill());
+      _M_ios_locale = __rhs.getloc();
+
+      // This removes the link to __rhs locale cache
+      _M_call_callbacks(copyfmt_event);
+
+      _M_cache_locale(_M_ios_locale);
+
+
       // The next is required to be the last assignment.
       this->exceptions(__rhs.exceptions());
       
-      _M_call_callbacks(copyfmt_event);
       return *this;
     }
 
@@ -129,7 +136,7 @@ namespace std
     {
       locale __old(this->getloc());
       ios_base::imbue(__loc);
-      _M_cache_facets(__loc);
+      _M_cache_locale(__loc);
       if (this->rdbuf() != 0)
 	this->rdbuf()->pubimbue(__loc);
       return __old;
@@ -141,7 +148,7 @@ namespace std
     {
       // NB: This may be called more than once on the same object.
       ios_base::_M_init();
-      _M_cache_facets(_M_ios_locale);
+      _M_cache_locale(_M_ios_locale);
       _M_tie = 0;
 
       // NB: The 27.4.4.1 Postconditions Table specifies requirements
@@ -166,30 +173,46 @@ namespace std
 
   template<typename _CharT, typename _Traits>
     void
-    basic_ios<_CharT, _Traits>::_M_cache_facets(const locale& __loc)
+    basic_ios<_CharT, _Traits>::_M_cache_locale(const locale& __loc)
     {
-      if (has_facet<__ctype_type>(__loc))
+      if (__builtin_expect(has_facet<__ctype_type>(__loc), true))
 	_M_fctype = &use_facet<__ctype_type>(__loc);
       else
 	_M_fctype = 0;
-      // Should be filled in by ostream and istream, respectively.
-      if (has_facet<__numput_type>(__loc))
+      if (__builtin_expect(has_facet<__numput_type>(__loc), true))
 	_M_fnumput = &use_facet<__numput_type>(__loc); 
       else
 	_M_fnumput = 0;
-      if (has_facet<__numget_type>(__loc))
-	_M_fnumget = &use_facet<__numget_type>(__loc); 
+      if (__builtin_expect(has_facet<__numget_type>(__loc), true))
+	_M_fnumget = &use_facet<__numget_type>(__loc);
       else
 	_M_fnumget = 0;
     }
 
+#if 1
+      // XXX GLIBCXX_ABI Deprecated, compatibility only.
+  template<typename _CharT, typename _Traits>
+    void
+    basic_ios<_CharT, _Traits>::_M_cache_facets(const locale& __loc)
+    {
+      if (__builtin_expect(has_facet<__ctype_type>(__loc), true))
+	_M_fctype = &use_facet<__ctype_type>(__loc);
+      if (__builtin_expect(has_facet<__numput_type>(__loc), true))
+	_M_fnumput = &use_facet<__numput_type>(__loc); 
+      if (__builtin_expect(has_facet<__numget_type>(__loc), true))
+	_M_fnumget = &use_facet<__numget_type>(__loc);
+    }
+#endif
+
   // Inhibit implicit instantiations for required instantiations,
   // which are defined via explicit instantiations elsewhere.  
   // NB:  This syntax is a GNU extension.
+#if _GLIBCPP_EXTERN_TEMPLATE
   extern template class basic_ios<char>;
 
 #ifdef _GLIBCPP_USE_WCHAR_T
   extern template class basic_ios<wchar_t>;
+#endif
 #endif
 } // namespace std
 

@@ -1,6 +1,6 @@
 // Wrapper for underlying C-language localization -*- C++ -*-
 
-// Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+// Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -33,6 +33,11 @@
 
 // Written by Benjamin Kosnik <bkoz@redhat.com>
 
+#ifndef _CPP_BITS_C_LOCALE_H
+#define _CPP_BITS_C_LOCALE_H 1
+
+#pragma GCC system_header
+
 #include <clocale>
 
 #define _GLIBCPP_NUM_CATEGORIES 0
@@ -41,9 +46,15 @@ namespace std
 {
   typedef int*			__c_locale;
 
+  // Convert numeric value of type _Tv to string and return length of
+  // string.  If snprintf is available use it, otherwise fall back to
+  // the unsafe sprintf which, in general, can be dangerous and should
+  // be avoided.
   template<typename _Tv>
     int
-    __convert_from_v(char* __out, const int __size, const char* __fmt,
+    __convert_from_v(char* __out, 
+		     const int __attribute__ ((__unused__)) __size,
+		     const char* __fmt,
 		     _Tv __v, const __c_locale&, int __prec = -1)
     {
       char* __old = setlocale(LC_ALL, NULL);
@@ -69,3 +80,5 @@ namespace std
       return __ret;
     }
 }
+
+#endif
