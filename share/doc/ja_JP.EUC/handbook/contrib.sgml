@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.47 1997/04/10 04:41:55 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.48 1997/04/10 06:06:22 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.233 -->
+<!-- Original revision: 1.237 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -48,6 +48,7 @@
 
       <itemize>
 	<item>&a.mbarkah;
+	<item>&a.stb;
 	<item>&a.jb;
         <item>&a.torstenb;
 	<item>&a.danny;
@@ -125,15 +126,15 @@
 
       <p><descrip>
         <tag/ドキュメンテーションプロジェクト担当/ &a.jfieber
-        <tag/Web 管理責任者/ &a.mbarkah; <p><em>副責任者</em> &a.paul
+        <tag/Web 管理責任者/ &a.mbarkah; <p><em>副責任者:</em> &a.paul
         <tag/ハンドブックおよび FAQ 編集担当/ &a.pds
-        <tag/ドキュメント構築環境の技術責任者/ &a.paul; <p><em>副責任者</em> &a.dave
+        <tag/ドキュメント構築環境の技術責任者/ &a.paul; <p><em>副責任者:</em> &a.dave
         <tag/Mirror 担当/ &a.ulf; <p><em>副担当</em>&a.john
-        <tag/ニュースフラッシュ編集担当/ &a.nsj; <p><em>副担当</em>&a.john;
+        <tag/ニュースフラッシュ編集担当/ &a.nsj; <p><em>副担当:</em>&a.john;
         <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.nsj; <p><em>副担当</em>&a.cawimm
-        <tag/WEB ページデザイン等の美術担当/ &a.dave; <p><em>副担当</em>&a.opsys
-        <tag/データベース技術担当/ &a.mayo; <p><em>副担当</em>&a.cracauer
-        <tag/CGI 技術担当/ &a.cracauer
+        <tag/WEB ページデザイン等の美術担当/ &a.dave; <p><em>副担当:</em>&a.opsys
+        <tag/データベース技術担当/ &a.mayo; <p><em>副担当:</em>&a.cracauer
+        <tag/CGI 技術担当/ &a.cracauer;<p><em>副担当:</em> &a.stb
         <tag/雑務担当/ &a.nsj
       </descrip>
 
@@ -170,38 +171,6 @@
       を持っています. すなわち, 人々のコンピュータにもっと BSD をベースに
       したオペレーティングシステムを! ということです. 私たちは NetBSD
       の努力が常に成功してほしいと思っています.
-
-  <sect><heading>ハードウェアのコントリビュータ</heading>
-
-    <p>特に Walnut Creek CDROM にはネットワークへのアクセス及び他のハードウェア
-      リソースの寄贈はいうまでもなく, 開発に使うための Pentium P5-90 と
-      486/DX2-66 EISA/VL システムを提供してくれたことについて感謝しています.
-      彼らのサポートがなければこのリリースをおこなうことは不可能であったで
-      しょう.
-
-      TRW Financial Sysytems社は, PC 130台,三つの 68 GB のファイルサーバ
-      12のイーサネット, ディスクレスコードのデバッグをおこなうための
-     二つのルータ及び ATM スイッチを提供してくれました. 
-      また, かれらは 2, 3人の FreeBSD ハッカーを雇って, FreeBSD に専念させて
-      くれています. ありがとう!
-
-      また, 東芝 XM3401B CDROM ドライブ を寄付してくれた Dermot McDonnell
-      に感謝します. その CDROM ドライブはもっとも役に立ちました.
-
-      実験のためにフロッピーテープストリーマを寄付してくれた
-      &a.chuck; に感謝します.
-
-      <tt>wt</tt>ドライバを改良するために Wangtek と Archive の
-      QIC-02 テープドライブを提供してくれた Larry Altneu &lt;larry@ALR.COM&gt;
-      と &a.wilko; に感謝します.
-
-      このプロジェクトへ 2.88 MB のフロッピードライブを提供してくれた
-      Ernst Winter &lt;ewinter@lobo.muc.de&gt; に感謝します.
-      うまくいけば, これでフロッピーディスクドライバを書き直すための
-      プレッシャーが増えるでしょう. ;-)
-
-      また, FreeBSDプロジェクトへ資金やサービスを提供してくれた人々の
-      リストは <ref id="donors" name="寄贈者ギャラリー"> をご覧ください.
 
     <sect><heading>その他の FreeBSD へのコントリビュータ<label
       id="contrib:additional"></heading>
@@ -383,6 +352,7 @@
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
 	  <item>Robert Withrow &lt;witr@rwwa.com&gt;
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
+	  <item>Samuel Lam &lt;skl@ScalableNetwork.com&gt;
 	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
 	  <item>Sandro Sigala &lt;ssigala@globalnet.it&gt;
 	  <item>Sascha Blank &lt;blank@fox.uni-trier.de&gt;
@@ -390,7 +360,7 @@
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
 	  <item>Simon Marlow &lt;simonm@dcs.gla.ac.uk&gt;
-          <item>Slaven Rezi (Tomi) &lt;eserte@cs.tu-berlin.de&gt;
+	  <item>Slaven Rezic (Tomic) &lt;eserte@cs.tu-berlin.de&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stefan Moeding &lt;moeding@bn.DeTeMobil.de&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;

@@ -1,6 +1,6 @@
-<!-- $Id: authors.sgml,v 1.18 1997/02/28 04:07:56 hanai Exp $ -->
+<!-- $Id: authors.sgml,v 1.19 1997/04/01 02:32:27 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.62 -->
+<!-- Original revision: 1.63 -->
 
 <!-- 
 Names and email address of contributing authors and CVS committers.
@@ -396,6 +396,10 @@ Please keep this list in alphabetical order by entity names.
 <!ENTITY a.sos  "S&oslash;ren Schmidt 
   <tt><htmlurl url='mailto:sos@FreeBSD.ORG'  
   name='&lt;sos@FreeBSD.ORG&gt;'></tt>">  
+
+<!ENTITY a.stb "Stefan Bethke
+  <tt><htmlurl url='mailto:stb@FreeBSD.ORG'
+  name='&lt;stb@FreeBSD.ORG&gt;'></tt>">
 
 <!ENTITY a.steve "Steve Price
   <tt><htmlurl url='mailto:steve@FreeBSD.ORG'
