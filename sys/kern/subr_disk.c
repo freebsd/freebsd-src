@@ -52,7 +52,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 
 	dev->si_disk = dp;
 	dp->d_dev = dev;
-	dp->d_flags = flags;
+	dp->d_dsflags = flags;
 	dp->d_devsw = cdevsw;
 	return (dev);
 }
@@ -114,6 +114,12 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	if (!dp)
 		return (ENXIO);
 
+	while (dp->d_flags & DISKFLAG_LOCK) {
+		dp->d_flags |= DISKFLAG_WANTED;
+		tsleep(dp, PRIBIO | PCATCH, "diskopen", hz);
+	}
+	dp->d_flags |= DISKFLAG_LOCK;
+
 	if (!dsisopen(dp->d_slice)) {
 		if (!pdev->si_iosize_max)
 			pdev->si_iosize_max = dev->si_iosize_max;
@@ -129,12 +135,18 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	dev->si_bsize_best = pdev->si_bsize_best;
 
 	if (error)
-		return(error);
+		goto out;
 	
-	error = dsopen(dev, devtype, dp->d_flags, &dp->d_slice, &dp->d_label);
+	error = dsopen(dev, devtype, dp->d_dsflags, &dp->d_slice, &dp->d_label);
 
 	if (!dsisopen(dp->d_slice)) 
 		dp->d_devsw->d_close(pdev, oflags, devtype, p);
+out:	
+	dp->d_flags &= ~DISKFLAG_LOCK;
+	if (dp->d_flags & DISKFLAG_WANTED) {
+		dp->d_flags &= ~DISKFLAG_WANTED;
+		wakeup(dp);
+	}
 	
 	return(error);
 }
