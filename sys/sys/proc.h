@@ -486,7 +486,7 @@ extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
 extern struct vm_zone *proc_zone;
 
-extern int nextpid;
+extern int lastpid;
 
 /*
  * XXX macros for scheduler.  Shouldn't be here, but currently needed for
