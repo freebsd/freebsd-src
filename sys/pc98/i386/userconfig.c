@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.46 1998/02/10 08:03:42 kato Exp $
+ **      $Id: userconfig.c,v 1.47 1998/03/10 12:52:55 kato Exp $
  **/
 
 /**
@@ -297,8 +297,8 @@ static DEV_INFO device_info[] = {
 {"joy",         "Joystick",				FLG_FIXED,	CLS_INPUT},
 {"vt",          "PCVT console driver",			FLG_FIXED,	CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
-{"bktr",        "Brooktree BT848 based frame grabber/tuner card",	0,CLS_MMEDIA},
 
+{"bktr",        "Brooktree BT848 based frame grabber/tuner card",	0,CLS_MMEDIA},
 #ifdef PC98
 {"pcm",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
 #else
@@ -2394,7 +2394,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.46 1998/02/10 08:03:42 kato Exp $
+ *      $Id: userconfig.c,v 1.47 1998/03/10 12:52:55 kato Exp $
  */
 
 #include "scbus.h"
