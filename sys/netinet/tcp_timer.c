@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.13 1996/01/04 21:34:21 olah Exp $
+ *	$Id: tcp_timer.c,v 1.14 1996/03/11 15:13:35 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -71,6 +71,10 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPIDLE, keepidle,
 static int	tcp_keepintvl = TCPTV_KEEPINTVL;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl,
 	CTLFLAG_RW, &tcp_keepintvl , 0, "");
+
+static int	always_keepalive = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive,
+	CTLFLAG_RW, &always_keepalive , 0, "");
 
 static int	tcp_keepcnt = TCPTV_KEEPCNT;
 	/* max idle probes */
@@ -314,7 +318,8 @@ tcp_timers(tp, timer)
 		tcpstat.tcps_keeptimeo++;
 		if (tp->t_state < TCPS_ESTABLISHED)
 			goto dropit;
-		if (tp->t_inpcb->inp_socket->so_options & SO_KEEPALIVE &&
+		if ((always_keepalive ||
+		    tp->t_inpcb->inp_socket->so_options & SO_KEEPALIVE) &&
 		    tp->t_state <= TCPS_CLOSE_WAIT) {
 		    	if (tp->t_idle >= tcp_keepidle + tcp_maxidle)
 				goto dropit;
