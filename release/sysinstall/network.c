@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.7 1995/10/16 07:31:08 jkh Exp $
+ * $Id: network.c,v 1.7.2.8 1995/10/18 00:12:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -99,7 +99,8 @@ mediaInitNetwork(Device *dev)
 	    if (!vsystem(attach))
 		dev->private = NULL;
 	    else {
-		msgConfirm("slattach returned a bad status!  Please verify that\nthe command is correct and try again.");
+		msgConfirm("slattach returned a bad status!  Please verify that\n"
+			   "the command is correct and try again.");
 		return FALSE;
 	    }
 	}
@@ -111,19 +112,22 @@ mediaInitNetwork(Device *dev)
     snprintf(ifconfig, 64, "%s%s", VAR_IFCONFIG, ifname);
     cp = variable_get(ifconfig);
     if (!cp) {
-	msgConfirm("The %s device is not configured.  You will need to do so\nin the Networking configuration menu before proceeding.", ifname);
+	msgConfirm("The %s device is not configured.  You will need to do so\n"
+		   "in the Networking configuration menu before proceeding.", ifname);
 	return FALSE;
     }
     msgNotify("Configuring network device %s.", ifname);
     i = vsystem("ifconfig %s %s", ifname, cp);
     if (i) {
-	msgConfirm("Unable to configure the %s interface!\nThis installation method cannot be used.", ifname);
+	msgConfirm("Unable to configure the %s interface!\n"
+		   "This installation method cannot be used.", ifname);
 	return FALSE;
     }
 
     rp = variable_get(VAR_GATEWAY);
     if (!rp || *rp == '0')
-	msgConfirm("No gateway has been set. You may be unable to access hosts\nnot on your local network\n");
+	msgConfirm("No gateway has been set. You may be unable to access hosts\n"
+		   "not on your local network\n");
     else {
 	msgNotify("Adding default route to %s.", rp);
 	vsystem("route add default %s", rp);
@@ -190,11 +194,15 @@ startPPP(Device *devp)
 
     /* Get any important user values */
     val = msgGetInput("115200",
-"Enter the baud rate for your modem - this can be higher than the actual\nmaximum data rate since most modems can talk at one speed to the\ncomputer and at another speed to the remote end.\n\nIf you're not sure what to put here, just select the default.");
+		      "Enter the baud rate for your modem - this can be higher than the actual\n"
+		      "maximum data rate since most modems can talk at one speed to the\n"
+		      "computer and at another speed to the remote end.\n\n"
+		      "If you're not sure what to put here, just select the default.");
     strcpy(speed, val ? val : "115200");
 
     strcpy(provider, variable_get(VAR_GATEWAY) ? variable_get(VAR_GATEWAY) : "0");
-    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\ndon't know it and would prefer to negotiate it dynamically.");
+    val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\n"
+		      "don't know it and would prefer to negotiate it dynamically.");
     strcpy(provider, val ? val : "0");
 
     if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
