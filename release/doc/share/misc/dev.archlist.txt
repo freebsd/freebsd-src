@@ -89,6 +89,7 @@ ng_ubt	i386,pc98,amd64
 nge	i386,pc98,alpha,amd64
 nsp	i386,pc98
 ohci	i386,pc98,alpha,ia64,amd64
+oltr	i386
 pcn	i386,pc98,alpha,ia64,amd64
 rue	i386,pc98,amd64
 safe	i386,pc98,amd64
