@@ -432,8 +432,8 @@ init_secondary(void)
 	/* set up FPU state on the AP */
 	fpuinit();
 
-	/* set up SSE registers */
-	enable_sse();
+	/* set up SSE/NX registers */
+	initializecpu();
 
 	/* A quick check from sanity claus */
 	if (PCPU_GET(apic_id) != lapic_id()) {

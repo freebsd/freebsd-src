@@ -130,7 +130,6 @@ extern void dblfault_handler(void);
 extern void printcpuinfo(void);	/* XXX header file */
 extern void identify_cpu(void);
 extern void panicifcpuunsupported(void);
-extern void initializecpu(void);
 
 #define	CS_SECURE(cs)		(ISPL(cs) == SEL_UPL)
 #define	EFL_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
@@ -1106,12 +1105,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
 #else
 #error "have you forgotten the isa device?";
-#endif
-
-#if 0	/* Not till we test the features bit */
-	/* Turn on PTE NX (no execute) bit */
-	msr = rdmsr(MSR_EFER) | EFER_NXE;
-	wrmsr(MSR_EFER, msr);
 #endif
 
 	proc0.p_uarea = (struct user *)(physfree + KERNBASE);

@@ -174,6 +174,7 @@ static int nkpt;
 static int ndmpdp;
 static vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end;
+pt_entry_t pg_nx;
 
 static u_int64_t	KPTphys;	/* phys addr of kernel level 1 */
 static u_int64_t	KPDphys;	/* phys addr of kernel level 2 */
@@ -1972,10 +1973,8 @@ validate:
 	newpte = (pt_entry_t)(pa | PG_V);
 	if ((prot & VM_PROT_WRITE) != 0)
 		newpte |= PG_RW;
-#ifdef PG_NX
 	if ((prot & VM_PROT_EXECUTE) == 0)
-		newpte |= PG_NX;
-#endif
+		newpte |= pg_nx;
 	if (wired)
 		newpte |= PG_W;
 	if (va < VM_MAXUSER_ADDRESS)
