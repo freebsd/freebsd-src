@@ -780,6 +780,7 @@ device		cd			#SCSI CD-ROMs
 device		pass			#CAM passthrough driver
 device		pt			#SCSI processor type
 device		ses			#SCSI SES/SAF-TE driver
+device		targ			#SCSI target driver
 
 # CAM OPTIONS:
 # debugging options:
