@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.62 1998/08/12 22:51:59 wpaul Exp $
+ *	$Id: if.c,v 1.63 1998/12/04 22:54:52 archie Exp $
  */
 
 #include "opt_compat.h"
@@ -401,18 +401,52 @@ link_rtrequest(cmd, rt, sa)
  * NOTE: must be called at splnet or eqivalent.
  */
 void
-if_down(ifp)
+if_unroute(ifp, flag, fam)
 	register struct ifnet *ifp;
+	int flag, fam;
 {
 	register struct ifaddr *ifa;
 
-	ifp->if_flags &= ~IFF_UP;
+	ifp->if_flags &= ~flag;
 	getmicrotime(&ifp->if_lastchange);
-	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
-	     ifa = ifa->ifa_link.tqe_next)
-		pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
+			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	if_qflush(&ifp->if_snd);
 	rt_ifmsg(ifp);
+}
+
+/*
+ * Mark an interface up and notify protocols of
+ * the transition.
+ * NOTE: must be called at splnet or eqivalent.
+ */
+void
+if_route(ifp, flag, fam)
+	register struct ifnet *ifp;
+	int flag, fam;
+{
+	register struct ifaddr *ifa;
+
+	ifp->if_flags |= flag;
+	getmicrotime(&ifp->if_lastchange);
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
+			pfctlinput(PRC_IFUP, ifa->ifa_addr);
+	rt_ifmsg(ifp);
+}
+
+/*
+ * Mark an interface down and notify protocols of
+ * the transition.
+ * NOTE: must be called at splnet or eqivalent.
+ */
+void
+if_down(ifp)
+	register struct ifnet *ifp;
+{
+
+	if_unroute(ifp, IFF_UP, AF_UNSPEC);
 }
 
 /*
@@ -424,14 +458,8 @@ void
 if_up(ifp)
 	register struct ifnet *ifp;
 {
-	register struct ifaddr *ifa;
 
-	ifp->if_flags |= IFF_UP;
-	getmicrotime(&ifp->if_lastchange);
-	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
-	     ifa = ifa->ifa_link.tqe_next)
-		pfctlinput(PRC_IFUP, ifa->ifa_addr);
-	rt_ifmsg(ifp);
+	if_route(ifp, IFF_UP, AF_UNSPEC);
 }
 
 /*
