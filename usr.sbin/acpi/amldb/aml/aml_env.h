@@ -30,9 +30,9 @@
 #ifndef _AML_ENV_H_
 #define _AML_ENV_H_
 
-#include <dev/acpi/aml/aml_name.h>
-#include <dev/acpi/aml/aml_obj.h>
-#include <dev/acpi/aml/aml_status.h>
+#include <aml/aml_name.h>
+#include <aml/aml_obj.h>
+#include <aml/aml_status.h>
 
 struct	aml_environ {
 	u_int8_t	*dp;

@@ -31,11 +31,11 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include <dev/acpi/aml/aml_amlmem.h>
-#include <dev/acpi/aml/aml_common.h>
-#include <dev/acpi/aml/aml_env.h>
-#include <dev/acpi/aml/aml_parse.h>
-#include <dev/acpi/aml/aml_region.h>
+#include <aml/aml_amlmem.h>
+#include <aml/aml_common.h>
+#include <aml/aml_env.h>
+#include <aml/aml_parse.h>
+#include <aml/aml_region.h>
 
 #include <assert.h>
 #include <err.h>

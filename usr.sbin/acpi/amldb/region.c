@@ -34,10 +34,10 @@
 #include <sys/param.h>
 #include <sys/queue.h>
 
-#include <dev/acpi/aml/aml_amlmem.h>
-#include <dev/acpi/aml/aml_name.h>
-#include <dev/acpi/aml/aml_region.h>
-#include <dev/acpi/aml/aml_common.h>
+#include <aml/aml_amlmem.h>
+#include <aml/aml_name.h>
+#include <aml/aml_region.h>
+#include <aml/aml_common.h>
 
 #include <assert.h>
 #include <err.h>
