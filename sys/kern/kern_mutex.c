@@ -74,7 +74,7 @@
 /* XXXKSE This test will change. */
 #define	thread_running(td)						\
 	((td)->td_kse != NULL && (td)->td_kse->ke_oncpu != NOCPU)
-    
+
 /*
  * Lock classes for sleep and spin mutexes.
  */
@@ -345,7 +345,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_sleep,
 	    ("mtx_unlock() of spin mutex %s @ %s:%d", m->mtx_object.lo_name,
 	    file, line));
- 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
@@ -386,7 +386,7 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 			mpp->next = mprof_hash[hash];
 			if (mprof_hash[hash] != NULL)
 				++mutex_prof_collisions;
-			mprof_hash[hash] = mpp;	
+			mprof_hash[hash] = mpp;
 			++mutex_prof_records;
 		}
 		/*
@@ -431,7 +431,7 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	KASSERT(m->mtx_object.lo_class == &lock_class_mtx_spin,
 	    ("mtx_unlock_spin() of sleep mutex %s @ %s:%d",
 	    m->mtx_object.lo_name, file, line));
- 	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
+	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
@@ -528,7 +528,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			m->mtx_lock = (uintptr_t)td | MTX_CONTESTED;
 
 			if (td1->td_priority < td->td_priority)
-				td->td_priority = td1->td_priority; 
+				td->td_priority = td1->td_priority;
 			mtx_unlock_spin(&sched_lock);
 			return;
 		}
@@ -804,7 +804,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 
 /*
  * All the unlocking of MTX_SPIN locks is done inline.
- * See the _rel_spin_lock() macro for the details. 
+ * See the _rel_spin_lock() macro for the details.
  */
 
 /*
@@ -867,7 +867,7 @@ mtx_validate(struct mtx *m)
 	 * Can't call kernacc() from early init386(), especially when
 	 * initializing Giant mutex, because some stuff in kernacc()
 	 * requires Giant itself.
-	 */ 
+	 */
 	if (!cold)
 		if (!kernacc((caddr_t)m, sizeof(m),
 		    VM_PROT_READ | VM_PROT_WRITE))
@@ -892,7 +892,7 @@ mtx_sysinit(void *arg)
  * `opts' with options contained in `opts' and name `name.'  The optional
  * lock type `type' is used as a general lock category name for use with
  * witness.
- */ 
+ */
 void
 mtx_init(struct mtx *m, const char *name, const char *type, int opts)
 {
@@ -990,7 +990,7 @@ mutex_init(void)
  * sysctls unless they know what they are doing.
  *
  * Callers of mtx_lock_giant() are expected to pass the return value to an
- * accompanying mtx_unlock_giant() later on.  If multiple subsystems are 
+ * accompanying mtx_unlock_giant() later on.  If multiple subsystems are
  * effected by a Giant wrap, all related sysctl variables must be zero for
  * the subsystem call to operate without Giant (as determined by the caller).
  */
@@ -1023,4 +1023,3 @@ mtx_unlock_giant(int s)
 	if (s)
 		mtx_unlock(&Giant);
 }
-
