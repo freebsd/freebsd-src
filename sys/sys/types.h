@@ -173,7 +173,7 @@ typedef struct specinfo	*dev_t;
 typedef	u_int32_t	dev_t;		/* device number */
 #define udev_t dev_t
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 
 /*
  * minor() gives a cookie instead of an index since we don't want to
@@ -184,7 +184,7 @@ typedef	u_int32_t	dev_t;		/* device number */
 #define minor(x)        ((int)((x)&0xffff00ff))         /* minor number */
 #define makedev(x,y)    ((dev_t)(((x) << 8) | (y)))     /* create dev_t */
 
-#endif /* _POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 #endif /* !_KERNEL */
 
@@ -201,6 +201,12 @@ typedef	_BSD_CLOCKID_T_	clockid_t;
 #ifdef _BSD_FFLAGS_T_
 typedef	_BSD_FFLAGS_T_	fflags_t;	/* file flags */
 #undef _BSD_FFLAGS_T_
+#endif
+
+#ifndef _FSBLKCNT_T_DECLARED		/* for statvfs() */
+typedef _BSD_FSBLKCNT_T_ fsblkcnt_t;
+typedef _BSD_FSFILCNT_T_ fsfilcnt_t;
+#define _FSBLKCNT_T_DECLARED
 #endif
 
 #ifdef _BSD_SIZE_T_
@@ -223,7 +229,7 @@ typedef	_BSD_TIMER_T_	timer_t;
 #undef _BSD_TIMER_T_
 #endif
 
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 #define	NBBY	8		/* number of bits in a byte */
 
 /*
@@ -280,6 +286,6 @@ int	 truncate(const char *, off_t);
 __END_DECLS
 #endif /* !_KERNEL */
 
-#endif /* !_POSIX_SOURCE */
+#endif /* __BSD_VISIBLE */
 
 #endif /* !_SYS_TYPES_H_ */
