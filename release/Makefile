@@ -900,7 +900,7 @@ doMFSKERN:
 	mv ${RD}/kernels/BOOTMFS ${RD}/image.${FSIMAGE}/kernel
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
-	@cp /boot/boot[12] /boot/loader ${RD}/image.${FSIMAGE}/boot
+	@cp /boot/loader ${RD}/image.${FSIMAGE}/boot
 .if !defined(FDSIZE) || ${FDSIZE} != "BIG"
 	@echo "load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
