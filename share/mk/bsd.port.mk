@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.6 1994/08/21 16:55:54 jkh Exp $
+# $Id: bsd.port.mk,v 1.7 1994/08/21 17:42:24 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -124,20 +124,20 @@ ${.CURDIR}/.configure_done:
 		done; \
 	fi
 # We have a small convention for our local configure scripts, which
-# is that ${.CURDIR} and the package working directory get passed as
+# is that ${PORTSDIR}, ${.CURDIR} and ${WRKSRC} get passed as
 # command-line arguments since all other methods are a little
 # problematic.
 	@if [ -f ${SCRIPTDIR}/pre-configure ]; then \
-		sh ${SCRIPTDIR}/pre-configure ${.CURDIR} ${WRKSRC}; \
+		sh ${SCRIPTDIR}/pre-configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
 	fi
 	@if [ -f ${SCRIPTDIR}/configure ]; then \
-		sh ${SCRIPTDIR}/configure ${.CURDIR} ${WRKSRC}; \
+		sh ${SCRIPTDIR}/configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
 	fi
 .if defined(HAS_CONFIGURE)
 	@(cd ${WRKSRC}; ./configure ${CONFIGURE_ARGS})
 .endif
 	@if [ -f ${SCRIPTDIR}/post-configure ]; then \
-		sh ${SCRIPTDIR}/post-configure ${.CURDIR} ${WRKSRC}; \
+		sh ${SCRIPTDIR}/post-configure ${PORTSDIR} ${.CURDIR} ${WRKSRC}; \
 	fi
 	@touch -f ${.CURDIR}/.configure_done
 .endif
