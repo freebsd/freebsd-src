@@ -89,11 +89,7 @@ Lst_Append(Lst list, LstNode ln, void *d)
     nLNode->useCount = nLNode->flags = 0;
 
     if (ln == NULL) {
-	if (list->isCirc) {
-	    nLNode->nextPtr = nLNode->prevPtr = nLNode;
-	} else {
-	    nLNode->nextPtr = nLNode->prevPtr = NULL;
-	}
+	nLNode->nextPtr = nLNode->prevPtr = NULL;
 	list->firstPtr = list->lastPtr = nLNode;
     } else {
 	nLNode->prevPtr = ln;

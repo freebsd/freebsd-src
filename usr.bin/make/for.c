@@ -168,7 +168,7 @@ For_Eval(char *line)
 	/*
 	 * Make a list with the remaining words
 	 */
-	forLst = Lst_Init(FALSE);
+	forLst = Lst_Init();
 	buf = Buf_Init(0);
 	sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
 

@@ -2186,8 +2186,8 @@ Job_Init(int maxproc)
     struct sigaction sa;
 
     fifoFd = -1;
-    jobs = Lst_Init(FALSE);
-    stoppedJobs = Lst_Init(FALSE);
+    jobs = Lst_Init();
+    stoppedJobs = Lst_Init();
     env = getenv("MAKE_JOBS_FIFO");
 
     if (env == NULL && maxproc > 1) {

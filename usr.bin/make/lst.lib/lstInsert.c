@@ -90,11 +90,7 @@ Lst_Insert(Lst list, LstNode ln, void *d)
     nLNode->useCount = nLNode->flags = 0;
 
     if (ln == NULL) {
-	if (list->isCirc) {
-	    nLNode->prevPtr = nLNode->nextPtr = nLNode;
-	} else {
-	    nLNode->prevPtr = nLNode->nextPtr = NULL;
-	}
+	nLNode->prevPtr = nLNode->nextPtr = NULL;
 	list->firstPtr = list->lastPtr = nLNode;
     } else {
 	nLNode->prevPtr = ln->prevPtr;

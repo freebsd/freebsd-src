@@ -115,7 +115,7 @@ void
 Targ_Init(void)
 {
 
-    allTargets = Lst_Init(FALSE);
+    allTargets = Lst_Init();
     Hash_InitTable(&targets, HTSIZE);
 }
 
@@ -173,18 +173,18 @@ Targ_NewGN(char *name)
     gn->childMade = FALSE;
     gn->order = 0;
     gn->mtime = gn->cmtime = 0;
-    gn->iParents = Lst_Init(FALSE);
-    gn->cohorts = Lst_Init(FALSE);
-    gn->parents = Lst_Init(FALSE);
-    gn->children = Lst_Init(FALSE);
-    gn->successors = Lst_Init(FALSE);
-    gn->preds = Lst_Init(FALSE);
-    gn->context = Lst_Init(FALSE);
-    gn->commands = Lst_Init(FALSE);
+    gn->iParents = Lst_Init();
+    gn->cohorts = Lst_Init();
+    gn->parents = Lst_Init();
+    gn->children = Lst_Init();
+    gn->successors = Lst_Init();
+    gn->preds = Lst_Init();
+    gn->context = Lst_Init();
+    gn->commands = Lst_Init();
     gn->suffix = NULL;
 
     if (allGNs == NULL)
-	allGNs = Lst_Init(FALSE);
+	allGNs = Lst_Init();
     Lst_AtEnd(allGNs, (void *)gn);
 
     return (gn);
@@ -284,7 +284,7 @@ Targ_FindList(Lst names, int flags)
     GNode	   *gn;		/* node in tLn */
     char    	   *name;
 
-    nodes = Lst_Init(FALSE);
+    nodes = Lst_Init();
 
     if (Lst_Open(names) == FAILURE) {
 	return (nodes);

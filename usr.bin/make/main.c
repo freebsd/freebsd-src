@@ -565,11 +565,11 @@ main(int argc, char **argv)
 			machine_cpu = "unknown";
 	}
 
-	create = Lst_Init(FALSE);
-	makefiles = Lst_Init(FALSE);
-	envFirstVars = Lst_Init(FALSE);
+	create = Lst_Init();
+	makefiles = Lst_Init();
+	envFirstVars = Lst_Init();
 	expandVars = TRUE;
-	variables = Lst_Init(FALSE);
+	variables = Lst_Init();
 	beSilent = FALSE;		/* Print commands as executed */
 	ignoreErrors = FALSE;		/* Pay attention to non-zero returns */
 	noExecute = FALSE;		/* Execute all commands */
@@ -746,7 +746,7 @@ main(int argc, char **argv)
 	if (!noBuiltins) {
 		LstNode ln;
 
-		sysMkPath = Lst_Init(FALSE);
+		sysMkPath = Lst_Init();
 		Dir_Expand(_PATH_DEFSYSMK, sysIncPath, sysMkPath);
 		if (Lst_IsEmpty(sysMkPath))
 			Fatal("make: no system rules (%s).", _PATH_DEFSYSMK);
