@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.49 1995/02/15 04:36:31 davidg Exp $
+ *	$Id: pmap.c,v 1.50 1995/02/26 05:14:16 bde Exp $
  */
 
 /*
@@ -1523,6 +1523,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 				(p->busy == 0) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
 				vm_page_hold(p);
+				p->flags |= PG_MAPPED;
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
 				vm_page_unhold(p);
 			}
@@ -1539,6 +1540,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 			    ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL) &&
 			    (p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) == 0) {
 				vm_page_hold(p);
+				p->flags |= PG_MAPPED;
 				pmap_enter_quick(pmap, addr + tmpoff, VM_PAGE_TO_PHYS(p));
 				vm_page_unhold(p);
 			}
@@ -1635,6 +1637,7 @@ pmap_prefault(pmap, addra, entry, object)
 					vm_page_activate(m);
 			}
 			vm_page_hold(m);
+			m->flags |= PG_MAPPED;
 			pmap_enter_quick(pmap, addr, VM_PAGE_TO_PHYS(m));
 			vm_page_unhold(m);
 		}
