@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.59.2.2 1999/02/14 14:09:43 des Exp $
+#	$Id: Makefile.inc1,v 1.59.2.3 1999/04/11 21:52:42 des Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -189,7 +189,7 @@ COMPILER_ENV=	BISON_SIMPLE=${TOOLROOT}/usr/share/misc/bison.simple \
 BMAKEENV=	PATH=${TMPPATH} ${COMPILER_ENV} NOEXTRADEPEND=t \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec:/usr/libexec
 XMAKEENV=	PATH=${STRICTTMPPATH} ${COMPILER_ENV} \
-		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00502 \
+		PERL5LIB=${DESTDIR}/usr/libdata/perl/5.00503 \
 		OBJFORMAT_PATH=${TOOLROOT}/usr/libexec \
 		CFLAGS="-nostdinc ${CFLAGS}"	# XXX -nostdlib
 
