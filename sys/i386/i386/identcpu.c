@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.27 1997/07/24 14:19:23 kato Exp $
+ *	$Id: identcpu.c,v 1.28 1997/09/20 13:18:48 phk Exp $
  */
 
 #include "opt_cpu.h"
@@ -443,7 +443,7 @@ printcpuinfo(void)
 			);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
-		printf("  Device ID = 0x%lx", cyrix_did);
+		printf("  DIR=0x%lx", cyrix_did);
 		printf("  Stepping=%ld", (cyrix_did & 0xf000) >> 12);
 		printf("  Revision=%ld", (cyrix_did & 0x0fff) >> 8);
 #ifndef CYRIX_CACHE_REALLY_WORKS
@@ -619,6 +619,7 @@ finishidentcpu(void)
 		}
 		switch (cpu_id & 0xf00) {
 		case 0x600:
+			identifycyrix();
 			cpu = CPU_M2;
 			break;
 		default:
