@@ -50,7 +50,7 @@ fi
 if [ -f /etc/rc.network ]; then
 	. /etc/rc.network
 else
-	echo "Sorry, I can't find /etc/rc.network - aborting."
+	echo 'Sorry, I can't find /etc/rc.network - aborting'
 	exit 1
 fi
 

@@ -50,7 +50,7 @@ atm_pass1() {
 	done`
 
 	if [ -z "${atmdev}" ]; then
-		echo "No ATM adapters found."
+		echo 'No ATM adapters found'
 		return 0
 	fi
 
@@ -69,7 +69,7 @@ atm_pass1() {
 		if [ -n "${netif_args}" ]; then
 			atm set netif ${phy} ${netif_args} || continue
 		else
-			echo "missing network interface definition"
+			echo ' missing network interface definition'
 			continue
 		fi
 
@@ -90,7 +90,7 @@ atm_pass1() {
 		if [ -n "${sigmgr_args}" ]; then
 			atm attach ${phy} ${sigmgr_args} || continue
 		else
-			echo "missing signalling manager definition"
+			echo ' missing signalling manager definition'
 			continue
 		fi
 
@@ -98,7 +98,7 @@ atm_pass1() {
 		eval prefix_args=\$atm_prefix_${phy}
 		if [ `expr "${sigmgr_args}" : '[uU][nN][iI].*'` -ne 0 ]; then
 			if [ -z "${prefix_args}" ]; then
-				echo "missing NSAP prefix for UNI interface"
+				echo ' missing NSAP prefix for UNI interface'
 				continue
 			fi
 
@@ -113,19 +113,19 @@ atm_pass1() {
 		fi
 
 		atm_phy="${atm_phy} ${phy}"
-		echo "."
+		echo '.'
 	done
 
-	echo -n "Starting initial ATM daemons:"
+	echo -n 'Starting initial ATM daemons:'
 	# Start ILMI daemon (if needed)
 	case ${ilmid} in
 	1)
-		echo -n " ilmid"
+		echo -n ' ilmid'
 		ilmid
 		;;
 	esac
 
-	echo "."
+	echo '.'
 	atm_pass1_done=YES
 }
 
@@ -134,7 +134,7 @@ atm_pass1() {
 # N.B. /usr is not mounted.
 #
 atm_pass2() {
-	echo -n "Configuring ATM network interfaces:"
+	echo -n 'Configuring ATM network interfaces:'
 
 	atm_scspd=0
 	atm_atmarpd=""
@@ -165,7 +165,7 @@ atm_pass2() {
 				local)
 					;;
 				*)
-					echo "local arpserver required for SCSP"
+					echo ' local arpserver required for SCSP'
 					continue
 					;;
 				esac
@@ -175,7 +175,7 @@ atm_pass2() {
 			esac
 		done
 	done
-	echo "."
+	echo '.'
 
 	# Define any PVCs.
 	if [ -n "${atm_pvcs}" ]; then
@@ -202,14 +202,14 @@ atm_pass3() {
 	# Start SCSP daemon (if needed)
 	case ${atm_scspd} in
 	1)
-		echo -n " scspd"
+		echo -n ' scspd'
 		scspd
 		;;
 	esac
 
 	# Start ATMARP daemon (if needed)
 	if [ -n "${atm_atmarpd}" ]; then
-		echo -n " atmarpd"
+		echo -n ' atmarpd'
 		atmarpd ${atm_atmarpd}
 	fi
 

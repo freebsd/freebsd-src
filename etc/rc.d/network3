@@ -40,12 +40,12 @@ network_pass1() {
 
 	# Convert host.conf to nsswitch.conf if necessary
 	if [ -f "/etc/host.conf" ]; then
-		echo ""
-		echo "Warning: /etc/host.conf is no longer used"
+		echo ''
+		echo 'Warning: /etc/host.conf is no longer used'
 		if [ -f "/etc/nsswitch.conf" ]; then
-		    echo "  /etc/nsswitch.conf will be used instead"
+		    echo '  /etc/nsswitch.conf will be used instead'
 		else
-		    echo "  /etc/nsswitch.conf will be created for you"
+		    echo '  /etc/nsswitch.conf will be created for you'
 		    convert_host_conf /etc/host.conf /etc/nsswitch.conf
 		fi
 	fi
@@ -247,9 +247,9 @@ network_pass1() {
 	[Yy][Ee][Ss])
 		if [ "${firewall_in_kernel}" -eq 0 ] && kldload ipfw; then
 			firewall_in_kernel=1
-			echo "Kernel firewall module loaded."
+			echo 'Kernel firewall module loaded'
 		elif [ "${firewall_in_kernel}" -eq 0 ]; then
-			echo "Warning: firewall kernel module failed to load."
+			echo 'Warning: firewall kernel module failed to load'
 		fi
 		;;
 	esac
@@ -288,9 +288,9 @@ network_pass1() {
 				echo '.'
 
 			elif [ "`ipfw l 65535`" = "65535 deny ip from any to any" ]; then
-				echo -n "Warning: kernel has firewall functionality, "
-				echo "but firewall rules are not enabled."
-				echo "		 All ip services are disabled."
+				echo 'Warning: kernel has firewall functionality,' \
+				     'but firewall rules are not enabled.'
+				echo '		 All ip services are disabled.'
 			fi
 
 			case ${firewall_logging} in
@@ -451,7 +451,7 @@ network_pass1() {
 		;;
 	esac
 
-	echo -n 'routing daemons:'
+	echo -n 'Routing daemons:'
 	case ${router_enable} in
 	[Yy][Ee][Ss])
 		echo -n " ${router}";	${router} ${router_flags}

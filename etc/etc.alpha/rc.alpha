@@ -27,7 +27,7 @@ echo '.'
 kbddev=/dev/ttyv0
 viddev=/dev/ttyv0
 
-echo -n "rc.alpha configuring syscons:"
+echo -n 'rc.alpha configuring syscons:'
 
 # keymap
 #
@@ -65,7 +65,7 @@ case ${keychange} in
 [Nn][Oo] | '')
         ;;
 *)
-	echo -n " keychange"
+	echo -n ' keychange'
 	set - ${keychange}
 	while [ $# -gt 0 ]; do
 		kbdcontrol < ${kbddev} -f "$1" "$2"

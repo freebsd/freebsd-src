@@ -58,7 +58,7 @@ case ${entropy_file} in
 [Nn][Oo] | '')
 	;;
 *)
-	echo "Writing entropy file."
+	echo -n 'Writing entropy file:'
 	rm -f ${entropy_file}
 	oumask=`umask`
 	umask 077
@@ -74,11 +74,12 @@ case ${entropy_file} in
 	fi
 	case ${entropy_file_confirmed} in
 	'')
-		echo "ERROR: entropy file write failed"
+		echo ' ERROR - entropy file write failed'
 		;;
 	*)
 		dd if=/dev/random of=${entropy_file_confirmed} \
 		   bs=4096 count=1 2> /dev/null
+		echo '.'
 		;;
 	esac
 	umask ${oumask}
@@ -94,7 +95,7 @@ reboot)
 	;;
 esac
 
-echo -n "Shutting down daemon processes:"
+echo -n 'Shutting down daemon processes:'
 
 # for each valid dir in $local_startup, search for init scripts matching *.sh
 case ${local_startup} in
@@ -112,7 +113,7 @@ case ${local_startup} in
 			done
 		fi
 	done
-	echo .
+	echo '.'
 	;;
 esac
 
