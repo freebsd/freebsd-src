@@ -30,7 +30,7 @@
 .\"
 .Dd October 10, 1998
 .Dt PREFIX 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm prefix
 .Nd configure network interface prefixes
@@ -38,7 +38,7 @@
 .Nm prefix
 .Ar interface prefix
 .Op Ar parameters
-.Op Cm set|delete
+.Op Cm set | delete
 .Nm prefix
 .Ar interface
 .Cm matchpr
@@ -50,7 +50,7 @@
 .Cm up_uselen
 .Ar use_prefix_len
 .Op Ar parameters
-.Op Cm add|change|setglobal
+.Op Cm add | change | setglobal
 .Nm prefix
 .Fl a
 .Op Fl d
@@ -64,23 +64,25 @@
 .Cm up_uselen
 .Ar use_prefix_uselen
 .Op Ar parameters
-.Op Cm add|change|setglobal
+.Op Cm add | change | setglobal
 .Sh DESCRIPTION
 .Nm Prefix
 is used to assign an prefix
 to a network interface and/or renumbering
 network interface prefixes.
-.Nm Prefix
+.Nm
 must be used at boot time to define the network prefix
 of each interface present on a machine; it may also be used at
 a later time to renumbering multiple interface's prefixes
 and other prefix related parameters.
-.Nm Prefix
+.Nm
 is router-only command, so you must do following to use it.
 .Dl % sysctl -w net.inet6.ip6.forwarding=1
 If net.inet6.ip6.forwarding is set to 0,
-.Nm Prefix
-command fails by EPERM error.
+.Nm
+command fails by
+.Er EPERM
+error.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -112,7 +114,7 @@ If the parameter is ommitted, 64 is used.
 Specify
 .Ar match_prefix
 that is used for matching with preassigned prefixes to which
-.Cm add|change|setglobal
+.Cm add | change | setglobal
 command should be applied.
 .It Cm mp_len Ar match_prefix_len
 Specify the starting part of
@@ -122,27 +124,27 @@ to be used for matching with preassigned prefixes, as decimal bit number.
 Specify the minimum length of prefixes which is allowed to be matched to
 .Ar match_prefix ,
 as decimal bit number.
-.Cm add|change|setglobal
+.Cm add | change | setglobal
 is not applied to preassigned prefixes with smaller prefix len than
 .Ar match_prefix_minlen .
 .It Cm mp_maxlen Ar match_prefix_maxlen
 Specify the maximum length of prefixes which is allowed to be matched to
 .Ar match_prefix ,
 as decimal bit number.
-.Cm add|change|setglobal
+.Cm add | change | setglobal
 is not applied to preassigned prefixes with bigger prefix len than
 .Ar match_prefix_maxlen .
 .It Cm usepr Ar use_prefix
 Specify
 .Ar use_prefix
 that is used for prefixes to be added on
-.Cm add|change|setglobal
+.Cm add | change | setglobal
 command.
 .It Cm up_uselen Ar use_prefix_uselen
 Specify the starting part of
 .Ar use_prefix
 copied to the starting part of prefixes to be added on
-.Cm add|change|setglobal
+.Cm add | change | setglobal
 command, as decimal bit number.
 .It Cm up_keeplen Ar use_prefix_keeplen
 Specify the medium part of
@@ -198,20 +200,22 @@ Messages indicating the specified interface does not exist, the
 requested prefix is unknown, or the user is not privileged and
 tried to alter an interface's configuration.
 .Sh SEE ALSO
-M. Crawford,
-Router Renumbering for IPv6,
-internet-draft,
-draft-ietf-ipngwg-router-renum-05.txt
-.Pp
-.Xr ifconfig 8 ,
 .Xr netstat 1 ,
 .Xr netintro 4 ,
+.Xr ifconfig 8 ,
 .Xr rc 8 ,
 .Xr routed 8
+.Rs
+.%A M. Crawford
+.%T Router Renumbering for IPv6
+.%R internet-draft
+.%N draft-ietf-ipngwg-router-renum-05.txt
+.Re
 .Sh HISTORY
 The
 .Nm
 command first appeared in WIDE/KAME IPv6 protocol stack kit.
-.\"
-.\" .Sh BUGS
-.\" (to be written)
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initially integrated into
+.Fx 4.0
