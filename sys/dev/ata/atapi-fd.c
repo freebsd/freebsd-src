@@ -112,7 +112,7 @@ afdattach(struct ata_device *atadev)
 	!strncmp(atadev->param->model, "IOMEGA Clik!", 12))
 	fdp->dev->si_iosize_max = 64 * DEV_BSIZE;
     else
-	fdp->dev->si_iosize_max = 126 * DEV_BSIZE;
+	fdp->dev->si_iosize_max = 127 * DEV_BSIZE;
 
     afd_describe(fdp);
     atadev->flags |= ATA_D_MEDIA_CHANGED;
