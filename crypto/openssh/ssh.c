@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ssh.c,v 1.51 2000/05/08 17:12:15 markus Exp $");
+RCSID("$Id: ssh.c,v 1.54 2000/05/30 17:32:06 markus Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/dsa.h>
@@ -110,10 +110,12 @@ usage()
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "  -l user     Log in using this user name.\n");
 	fprintf(stderr, "  -n          Redirect input from /dev/null.\n");
+	fprintf(stderr, "  -A          Enable authentication agent forwarding.\n");
 	fprintf(stderr, "  -a          Disable authentication agent forwarding.\n");
 #ifdef AFS
 	fprintf(stderr, "  -k          Disable Kerberos ticket and AFS token forwarding.\n");
 #endif				/* AFS */
+        fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
 	fprintf(stderr, "  -x          Disable X11 connection forwarding.\n");
 	fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
 	fprintf(stderr, "  -i file     Identity for RSA authentication (default: ~/.ssh/identity).\n");
@@ -312,6 +314,9 @@ main(int ac, char **av)
 		case 'a':
 			options.forward_agent = 0;
 			break;
+		case 'A':
+			options.forward_agent = 1;
+			break;
 #ifdef AFS
 		case 'k':
 			options.krb4_tgt_passing = 0;
@@ -429,7 +434,7 @@ main(int ac, char **av)
 	if (!host)
 		usage();
 
-        OpenSSL_add_all_algorithms();
+	SSLeay_add_all_algorithms();
 
 	/* Initialize the command to execute on remote host. */
 	buffer_init(&command);
