@@ -110,10 +110,12 @@ pw_scan(bp, pw)
 	if(p[0]) pw->pw_fields |= _PWF_EXPIRE;
 	pw->pw_expire = atol(p);
 
-	pw->pw_gecos = strsep(&bp, ":");		/* gecos */
+	if (!(pw->pw_gecos = strsep(&bp, ":")))		/* gecos */
+		goto fmt;
 	if(pw->pw_gecos[0]) pw->pw_fields |= _PWF_GECOS;
 
-	pw->pw_dir = strsep(&bp, ":");			/* directory */
+	if (!(pw->pw_dir = strsep(&bp, ":")))			/* directory */
+		goto fmt;
 	if(pw->pw_dir[0]) pw->pw_fields |= _PWF_DIR;
 
 	if (!(pw->pw_shell = strsep(&bp, ":")))		/* shell */
