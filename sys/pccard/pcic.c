@@ -40,9 +40,7 @@
 
 #include <pccard/i82365.h>
 #include <pccard/cardinfo.h>
-#include <pccard/driver.h>
 #include <pccard/slot.h>
-#include <pccard/pcic.h>
 
 /* Get pnp IDs */
 #include <isa/isavar.h>
@@ -89,7 +87,8 @@ static struct isa_pnp_id pcic_ids[] = {
 	{PCIC_PNP_CL_PD6720,		NULL},		/* PNP0E01 */
 	{PCIC_PNP_VLSI_82C146,		NULL},		/* PNP0E02 */
 	{PCIC_PNP_82365_CARDBUS,	NULL},		/* PNP0E03 */
-        {0x1802a904,                    NULL},
+	{PCIC_PNP_ACTIONTEC,            NULL},          /* AEI0218 */
+	{PCIC_PNP_SCM_SWAPBOX,		NULL},		/* SCM0469 */ 
 	{0}
 };
 
@@ -498,6 +497,7 @@ pcic_attach(device_t dev)
 	int error;
 	struct pcic_slot *sp;
 	int i;
+	int stat;
 	
 	SET_UNIT(dev, validunits);
 	sp = &pcic_slots[GET_UNIT(dev) * PCIC_CARD_SLOTS];
@@ -551,7 +551,10 @@ pcic_attach(device_t dev)
 		setb(sp, PCIC_POWER, PCIC_PCPWRE| PCIC_DISRST);
 		if (sp->slt == NULL)
 			continue;
-		if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) != PCIC_CD) {
+		stat = sp->getb(sp, PCIC_STATUS);
+		if (bootverbose)
+			printf("stat is %x\n", stat);
+		if ((stat & PCIC_CD) != PCIC_CD) {
 			sp->slt->laststate = sp->slt->state = empty;
 		} else {
 			sp->slt->laststate = sp->slt->state = filled;
@@ -771,6 +774,8 @@ pcicintr(void *arg)
 	s = splhigh();
 	for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
 		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
+			if (bootverbose)
+				printf("Slot %d chg = 0x%x\n", slot, chg);
 			if (chg & PCIC_CDTCH) {
 				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {

@@ -150,12 +150,12 @@ newstr(char *p)
  *	least count number.
  */
 int
-bit_fns(bitstr_t *nm, int nbits, int count, int step)
+bit_fns(bitstr_t *nm, int nbits, int min, int count, int step)
 {
 	int     i, j;
 	int     found = 0;
 
-	for (i = 0; i < nbits; i += step)
+	for (i = min; i < nbits; i += step)
 		for (j = i, found = 0; j < nbits; j++)
 			if (bit_test(nm, j)) {
 				if (++found == count)
@@ -173,7 +173,7 @@ alloc_memory(int size)
 {
 	int     i;
 
-	i = bit_fns(mem_avail, MEMBLKS, size / MEMUNIT + (size % MEMUNIT != 0), 1);
+	i = bit_fns(mem_avail, MEMBLKS, 0, size / MEMUNIT + (size % MEMUNIT != 0), 1);
 	if (i < 0)
 		return (0);
 	bit_nclear(mem_avail, i, i + size / MEMUNIT + (size % MEMUNIT != 0) - 1);
