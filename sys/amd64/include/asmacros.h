@@ -48,7 +48,7 @@
  * to a possibly-modified form that will be invisible to C programs.
  */
 #define CNAME(csym)		csym
-#define HIDENAME(asmsym)	__CONCAT(.,asmsym)
+#define HIDENAME(asmsym)	.asmsym
 
 #define ALIGN_DATA	.p2align 2	/* 4 byte alignment, zero filled */
 #ifdef GPROF
