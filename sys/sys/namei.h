@@ -113,8 +113,9 @@ struct nameidata {
 #define	NOCACHE		0x0020	/* name must not be left in cache */
 #define	FOLLOW		0x0040	/* follow symbolic links */
 #define	NOOBJ		0x0080	/* don't create object */
+#define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
-#define	MODMASK		0x00fc	/* mask of operational modifiers */
+#define	MODMASK		0x01fc	/* mask of operational modifiers */
 /*
  * Namei parameter descriptors.
  *
@@ -129,7 +130,6 @@ struct nameidata {
  * name being sought. The caller is responsible for releasing the
  * buffer and for vrele'ing ni_startdir.
  */
-#define	NOCROSSMOUNT	0x000100 /* do not cross mount points */
 #define	RDONLY		0x000200 /* lookup with read-only semantics */
 #define	HASBUF		0x000400 /* has allocated pathname buffer */
 #define	SAVENAME	0x000800 /* save pathname buffer */
@@ -143,7 +143,8 @@ struct nameidata {
 #define	WILLBEDIR	0x080000 /* new files will be dirs; allow trailing / */
 #define	ISUNICODE	0x100000 /* current component name is unicode*/
 #define	PDIRUNLOCK	0x200000 /* file system lookup() unlocked parent dir */
-#define PARAMASK	0x1fff00 /* mask of parameter descriptors */
+#define	NOCROSSMOUNT	0x400000 /* do not cross mount points */
+#define	PARAMASK	0x3ffe00 /* mask of parameter descriptors */
 
 /*
  * Initialization of an nameidata structure.
