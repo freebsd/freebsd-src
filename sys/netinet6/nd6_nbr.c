@@ -796,9 +796,9 @@ nd6_ifptomac(ifp)
 	}
 }
 
-TAILQ_HEAD(dadq_head, struct dadq);
+TAILQ_HEAD(dadq_head, dadq);
 struct dadq {
-	TAILQ_ENTRY(struct dadq) dad_list;
+	TAILQ_ENTRY(dadq) dad_list;
 	struct ifaddr *dad_ifa;
 	int dad_count;		/* max NS to send */
 	int dad_ns_ocount;	/* NS sent so far */

@@ -60,7 +60,7 @@ struct ntnode {
 	struct vnode   *i_devvp;	/* vnode of blk dev we live on */
 	dev_t           i_dev;		/* Device associated with the inode. */
 
-	LIST_ENTRY(struct ntnode)	i_hash;
+	LIST_ENTRY(ntnode)	i_hash;
 	struct ntnode  *i_next;
 	struct ntnode **i_prev;
 	struct ntfsmount       *i_mp;
@@ -72,8 +72,8 @@ struct ntnode {
 	struct simplelock i_interlock;
 	int		i_usecount;
 
-	LIST_HEAD(, struct fnode)	i_fnlist;
-	LIST_HEAD(, struct ntvattr)	i_valist;
+	LIST_HEAD(,fnode)	i_fnlist;
+	LIST_HEAD(,ntvattr)	i_valist;
 
 	long		i_nlink;	/* MFR */
 	ino_t		i_mainrec;	/* MFR */
@@ -88,7 +88,7 @@ struct fnode {
 	struct lock	f_lock;	/* fnode lock >Keep this first< */
 #endif
 	
-	LIST_ENTRY(struct fnode) f_fnlist;
+	LIST_ENTRY(fnode) f_fnlist;
 	struct vnode   *f_vp;		/* Associatied vnode */
 	struct ntnode  *f_ip;		/* Associated ntnode */
 	u_long		f_flag;

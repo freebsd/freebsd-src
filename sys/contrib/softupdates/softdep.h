@@ -128,7 +128,7 @@
  * per second to process the items on the queue.
  */
 
-/* LIST_HEAD(workhead, struct worklist);	-- declared in buf.h */
+/* LIST_HEAD(workhead, worklist);	-- declared in buf.h */
 
 /*
  * Each request can be linked onto a work queue through its worklist structure.
@@ -138,7 +138,7 @@
  * and the macros below changed to use it.
  */
 struct worklist {
-	LIST_ENTRY(struct worklist) wk_list;	/* list of work requests */
+	LIST_ENTRY(worklist)	wk_list;	/* list of work requests */
 	unsigned short		wk_type;	/* type of request */
 	unsigned short		wk_state;	/* state flags */
 };
@@ -160,13 +160,13 @@ struct worklist {
 /*
  * Various types of lists
  */
-LIST_HEAD(dirremhd, struct dirrem);
-LIST_HEAD(diraddhd, struct diradd);
-LIST_HEAD(newblkhd, struct newblk);
-LIST_HEAD(inodedephd, struct inodedep);
-LIST_HEAD(allocindirhd, struct allocindir);
-LIST_HEAD(allocdirecthd, struct allocdirect);
-TAILQ_HEAD(allocdirectlst, struct allocdirect);
+LIST_HEAD(dirremhd, dirrem);
+LIST_HEAD(diraddhd, diradd);
+LIST_HEAD(newblkhd, newblk);
+LIST_HEAD(inodedephd, inodedep);
+LIST_HEAD(allocindirhd, allocindir);
+LIST_HEAD(allocdirecthd, allocdirect);
+TAILQ_HEAD(allocdirectlst, allocdirect);
 
 /*
  * The "pagedep" structure tracks the various dependencies related to
@@ -191,7 +191,7 @@ TAILQ_HEAD(allocdirectlst, struct allocdirect);
 struct pagedep {
 	struct	worklist pd_list;	/* page buffer */
 #	define	pd_state pd_list.wk_state /* check for multiple I/O starts */
-	LIST_ENTRY(struct pagedep) pd_hash;	/* hashed lookup */
+	LIST_ENTRY(pagedep) pd_hash;	/* hashed lookup */
 	struct	mount *pd_mnt;		/* associated mount point */
 	ino_t	pd_ino;			/* associated file */
 	ufs_lbn_t pd_lbn;		/* block within file */
@@ -250,12 +250,12 @@ struct pagedep {
 struct inodedep {
 	struct	worklist id_list;	/* buffer holding inode block */
 #	define	id_state id_list.wk_state /* inode dependency state */
-	LIST_ENTRY(struct inodedep) id_hash;	/* hashed lookup */
+	LIST_ENTRY(inodedep) id_hash;	/* hashed lookup */
 	struct	fs *id_fs;		/* associated filesystem */
 	ino_t	id_ino;			/* dependent inode */
 	nlink_t	id_nlinkdelta;		/* saved effective link count */
 	struct	dinode *id_savedino;	/* saved dinode contents */
-	LIST_ENTRY(struct inodedep) id_deps;	/* bmsafemap's list of inodedep's */
+	LIST_ENTRY(inodedep) id_deps;	/* bmsafemap's list of inodedep's */
 	struct	buf *id_buf;		/* related bmsafemap (if pending) */
 	off_t	id_savedsize;		/* file size saved during rollback */
 	struct	workhead id_pendinghd;	/* entries awaiting directory write */
@@ -274,11 +274,11 @@ struct inodedep {
  * is not set (i.e., its cylinder group map has not been written).
  */ 
 struct newblk {
-	LIST_ENTRY(struct newblk) nb_hash;	/* hashed lookup */
+	LIST_ENTRY(newblk) nb_hash;	/* hashed lookup */
 	struct	fs *nb_fs;		/* associated filesystem */
 	ufs_daddr_t nb_newblkno;	/* allocated block number */
 	int	nb_state;		/* state of bitmap dependency */
-	LIST_ENTRY(struct newblk) nb_deps; /* bmsafemap's list of newblk's */
+	LIST_ENTRY(newblk) nb_deps;	/* bmsafemap's list of newblk's */
 	struct	bmsafemap *nb_bmsafemap; /* associated bmsafemap */
 };
 
@@ -321,13 +321,13 @@ struct bmsafemap {
 struct allocdirect {
 	struct	worklist ad_list;	/* buffer holding block */
 #	define	ad_state ad_list.wk_state /* block pointer state */
-	TAILQ_ENTRY(struct allocdirect) ad_next; /* inodedep's list of allocdirect's */
+	TAILQ_ENTRY(allocdirect) ad_next; /* inodedep's list of allocdirect's */
 	ufs_lbn_t ad_lbn;		/* block within file */
 	ufs_daddr_t ad_newblkno;	/* new value of block pointer */
 	ufs_daddr_t ad_oldblkno;	/* old value of block pointer */
 	long	ad_newsize;		/* size of new block */
 	long	ad_oldsize;		/* size of old block */
-	LIST_ENTRY(struct allocdirect) ad_deps; /* bmsafemap's list of allocdirect's */
+	LIST_ENTRY(allocdirect) ad_deps; /* bmsafemap's list of allocdirect's */
 	struct	buf *ad_buf;		/* cylgrp buffer (if pending) */
 	struct	inodedep *ad_inodedep;	/* associated inodedep */
 	struct	freefrag *ad_freefrag;	/* fragment to be freed (if any) */
@@ -375,13 +375,13 @@ struct indirdep {
 struct allocindir {
 	struct	worklist ai_list;	/* buffer holding indirect block */
 #	define	ai_state ai_list.wk_state /* indirect block pointer state */
-	LIST_ENTRY(struct allocindir) ai_next;	/* indirdep's list of allocindir's */
+	LIST_ENTRY(allocindir) ai_next;	/* indirdep's list of allocindir's */
 	int	ai_offset;		/* pointer offset in indirect block */
 	ufs_daddr_t ai_newblkno;	/* new block pointer value */
 	ufs_daddr_t ai_oldblkno;	/* old block pointer value */
 	struct	freefrag *ai_freefrag;	/* block to be freed when complete */
 	struct	indirdep *ai_indirdep;	/* address of associated indirdep */
-	LIST_ENTRY(struct allocindir) ai_deps;	/* bmsafemap's list of allocindir's */
+	LIST_ENTRY(allocindir) ai_deps;	/* bmsafemap's list of allocindir's */
 	struct	buf *ai_buf;		/* cylgrp buffer (if pending) */
 };
 
@@ -478,7 +478,7 @@ struct freefile {
 struct diradd {
 	struct	worklist da_list;	/* id_inowait or id_pendinghd list */
 #	define	da_state da_list.wk_state /* state of the new directory entry */
-	LIST_ENTRY(struct diradd) da_pdlist;	/* pagedep holding directory block */
+	LIST_ENTRY(diradd) da_pdlist;	/* pagedep holding directory block */
 	doff_t	da_offset;		/* offset of new dir entry in dir blk */
 	ino_t	da_newinum;		/* inode number for the new dir entry */
 	union {
@@ -518,9 +518,9 @@ struct mkdir {
 #	define	md_state md_list.wk_state /* type: MKDIR_PARENT or MKDIR_BODY */
 	struct	diradd *md_diradd;	/* associated diradd */
 	struct	buf *md_buf;		/* MKDIR_BODY: buffer holding dir */
-	LIST_ENTRY(struct mkdir) md_mkdirs;	/* list of all mkdirs */
+	LIST_ENTRY(mkdir) md_mkdirs;	/* list of all mkdirs */
 };
-LIST_HEAD(mkdirlist, struct mkdir) mkdirlisthd;
+LIST_HEAD(mkdirlist, mkdir) mkdirlisthd;
 
 /*
  * A "dirrem" structure describes an operation to decrement the link
@@ -536,7 +536,7 @@ LIST_HEAD(mkdirlist, struct mkdir) mkdirlisthd;
 struct dirrem {
 	struct	worklist dm_list;	/* delayed worklist */
 #	define	dm_state dm_list.wk_state /* state of the old directory entry */
-	LIST_ENTRY(struct dirrem) dm_next; /* pagedep's list of dirrem's */
+	LIST_ENTRY(dirrem) dm_next;	/* pagedep's list of dirrem's */
 	struct	mount *dm_mnt;		/* associated mount point */
 	ino_t	dm_oldinum;		/* inum of the removed dir entry */
 	union {

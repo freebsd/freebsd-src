@@ -60,7 +60,7 @@
 #define	UMAP_NHASH(vp) \
 	(&umap_node_hashtbl \
 	[((uintptr_t)(void *)(vp) >> LOG2_SIZEVNODE) & umap_node_hash])
-static LIST_HEAD(umap_node_hashhead, struct umap_node) *umap_node_hashtbl;
+static LIST_HEAD(umap_node_hashhead, umap_node) *umap_node_hashtbl;
 static u_long umap_node_hash;
 
 static u_long	umap_findid __P((u_long id, u_long map[][2], int nentries));

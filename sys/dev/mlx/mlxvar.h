@@ -77,7 +77,7 @@ struct mlx_sysdrive
  */
 struct mlx_command 
 {
-    TAILQ_ENTRY(struct mlx_command)	mc_link;	/* list linkage */
+    TAILQ_ENTRY(mlx_command)	mc_link;	/* list linkage */
 
     struct mlx_softc		*mc_sc;		/* controller that owns us */
     u_int8_t			mc_slot;	/* command slot we occupy */
@@ -128,8 +128,8 @@ struct mlx_softc
 #define MLX_FEAT_PAUSEWORKS	(1<<0)	/* channel pause works as expected */
 
     /* controller queues and arrays */
-    TAILQ_HEAD(, struct mlx_command)	mlx_freecmds;	/* command structures available for reuse */
-    TAILQ_HEAD(, struct mlx_command)	mlx_work;	/* active commands */
+    TAILQ_HEAD(, mlx_command)	mlx_freecmds;		/* command structures available for reuse */
+    TAILQ_HEAD(, mlx_command)	mlx_work;		/* active commands */
     struct mlx_command	*mlx_busycmd[MLX_NSLOTS];	/* busy commands */
     int			mlx_busycmds;			/* count of busy commands */
     struct mlx_sysdrive	mlx_sysdrive[MLX_MAXDRIVES];	/* system drives */

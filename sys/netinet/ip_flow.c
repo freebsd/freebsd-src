@@ -59,7 +59,7 @@
 #define	IPFLOW_TIMER		(5 * PR_SLOWHZ)
 #define IPFLOW_HASHBITS		6	/* should not be a multiple of 8 */
 #define	IPFLOW_HASHSIZE		(1 << IPFLOW_HASHBITS)
-static LIST_HEAD(ipflowhead, struct ipflow) ipflows[IPFLOW_HASHSIZE];
+static LIST_HEAD(ipflowhead, ipflow) ipflows[IPFLOW_HASHSIZE];
 static int ipflow_inuse;
 #define	IPFLOW_MAX		256
 

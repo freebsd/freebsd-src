@@ -93,7 +93,7 @@ struct adv_ccb_info {
 	adv_ccb_state	state;
 	bus_dmamap_t	dmamap;
 	union ccb*	ccb;
-	SLIST_ENTRY(struct adv_ccb_info) links;
+	SLIST_ENTRY(adv_ccb_info) links;
 };
 
 #define ccb_cinfo_ptr spriv_ptr0
@@ -497,9 +497,9 @@ struct adv_softc {
 	bus_space_tag_t		 tag;
 	bus_space_handle_t	 bsh;
 	struct cam_sim		*sim;
-	LIST_HEAD(, struct ccb_hdr)	 pending_ccbs;
+	LIST_HEAD(, ccb_hdr)	 pending_ccbs;
 	struct adv_ccb_info	*ccb_infos;
-	SLIST_HEAD(, struct adv_ccb_info) free_ccb_infos;
+	SLIST_HEAD(, adv_ccb_info) free_ccb_infos;
 	bus_dma_tag_t		 parent_dmat;
 	bus_dma_tag_t		 buffer_dmat;
 	bus_dma_tag_t		 sense_dmat;

@@ -59,7 +59,7 @@
 
 #define	NULL_NHASH(vp) \
 	(&null_node_hashtbl[(((uintptr_t)vp)>>LOG2_SIZEVNODE) & null_node_hash])
-static LIST_HEAD(null_node_hashhead, struct null_node) *null_node_hashtbl;
+static LIST_HEAD(null_node_hashhead, null_node) *null_node_hashtbl;
 static u_long null_node_hash;
 
 static int	null_node_alloc __P((struct mount *mp, struct vnode *lowervp,

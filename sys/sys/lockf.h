@@ -50,7 +50,7 @@ struct vop_advlock_args;
  * the inode structure. Locks are sorted by the starting byte of the lock for
  * efficiency.
  */
-TAILQ_HEAD(locklist, struct lockf);
+TAILQ_HEAD(locklist, lockf);
 
 struct lockf {
 	short	lf_flags;	    /* Semantics: F_POSIX, F_FLOCK, F_WAIT */
@@ -62,7 +62,7 @@ struct lockf {
 	struct	inode *lf_inode;    /* Back pointer to the inode */
 	struct	lockf *lf_next;	    /* Pointer to the next lock on this inode */
 	struct	locklist lf_blkhd;  /* List of requests blocked on this lock */
-	TAILQ_ENTRY(struct lockf) lf_block;/* A request waiting for a lock */
+	TAILQ_ENTRY(lockf) lf_block;/* A request waiting for a lock */
 };
 
 /* Maximum length of sleep chains to traverse to try and detect deadlock. */

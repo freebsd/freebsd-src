@@ -143,10 +143,10 @@ typedef struct action_s {
 	char	*attach;	/* commands to execute */
 	char	*detach;
 
-	STAILQ_ENTRY(struct action_s) next;
+	STAILQ_ENTRY(action_s) next;
 } action_t;
 
-STAILQ_HEAD(action_list, struct action_s) actions = STAILQ_HEAD_INITIALIZER(actions);
+STAILQ_HEAD(action_list, action_s) actions = STAILQ_HEAD_INITIALIZER(actions);
 
 typedef struct action_match_s {
 	action_t *action;

@@ -122,7 +122,7 @@ struct pnphandler
 struct pnpident
 {
     char			*id_ident;	/* ASCII identifier, actual format varies with bus/handler */
-    STAILQ_ENTRY(struct pnpident)	id_link;
+    STAILQ_ENTRY(pnpident)	id_link;
 };
 
 struct pnpinfo
@@ -133,8 +133,8 @@ struct pnpinfo
     int				pi_argc;	/* module arguments */
     char			**pi_argv;
     struct pnphandler		*pi_handler;	/* handler which detected this device */
-    STAILQ_HEAD(, struct pnpident)	pi_ident; /* list of identifiers */
-    STAILQ_ENTRY(struct pnpinfo)	pi_link;
+    STAILQ_HEAD(,pnpident)	pi_ident;	/* list of identifiers */
+    STAILQ_ENTRY(pnpinfo)	pi_link;
 };
 
 extern struct pnphandler	*pnphandlers[];		/* provided by MD code */

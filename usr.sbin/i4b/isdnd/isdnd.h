@@ -471,7 +471,7 @@ struct rarr {
 #ifdef I4B_EXTERNAL_MONITOR
 /* for each rights entry we keep one of this structures around: */
 struct monitor_rights {
-	TAILQ_ENTRY(struct monitor_rights) list; /* a list of this structures */
+	TAILQ_ENTRY(monitor_rights) list;	/* a list of this structures */
 	char name[FILENAME_MAX];	/* net/host spec or filename */
 	int rights;			/* bitmask of allowed acces rights */
 	u_int32_t net;			/* net/host address (host byte order!) */

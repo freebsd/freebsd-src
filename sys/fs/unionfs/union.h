@@ -79,7 +79,7 @@ struct union_mount {
  */
 struct union_node {
 	struct lock		un_lock;
-	LIST_ENTRY(struct union_node)	un_cache;	/* Hash chain */
+	LIST_ENTRY(union_node)	un_cache;	/* Hash chain */
 	struct vnode		*un_vnode;	/* Back pointer */
 	struct vnode	        *un_uppervp;	/* overlaying object */
 	struct vnode	        *un_lowervp;	/* underlying object */

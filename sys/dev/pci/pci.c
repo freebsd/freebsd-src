@@ -87,13 +87,13 @@ struct pci_quirk pci_quirks[] = {
 #define PCI_MAPPORT	0x04	/* port map */
 
 struct pci_devinfo {
-    	STAILQ_ENTRY(struct pci_devinfo) pci_links;
+    	STAILQ_ENTRY(pci_devinfo) pci_links;
 	struct resource_list resources;
 	pcicfgregs		cfg;
 	struct pci_conf		conf;
 };
 
-static STAILQ_HEAD(devlist, struct pci_devinfo) pci_devq;
+static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
 static u_int32_t pci_generation = 0;
 
@@ -400,7 +400,7 @@ pci_freecfg(struct pci_devinfo *dinfo)
 	if (dinfo->cfg.map != NULL)
 		free(dinfo->cfg.map, M_DEVBUF);
 	/* XXX this hasn't been tested */
-	STAILQ_REMOVE(devlist_head, dinfo, struct pci_devinfo, pci_links);
+	STAILQ_REMOVE(devlist_head, dinfo, pci_devinfo, pci_links);
 	free(dinfo, M_DEVBUF);
 
 	/* increment the generation count */

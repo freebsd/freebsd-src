@@ -33,7 +33,7 @@
 #include <i386/isa/isa_device.h>
 #endif /* _KERNEL */
 
-typedef TAILQ_HEAD(, struct datapoint) dphead_t;
+typedef TAILQ_HEAD(, datapoint) dphead_t;
 
 struct datapoint {
 	/* Fields used by kernel */
@@ -48,7 +48,7 @@ struct datapoint {
 	u_int			qsig;
 	u_int			ssig;
 	u_int64_t		epoch;
-	TAILQ_ENTRY(struct datapoint)	list;
+	TAILQ_ENTRY(datapoint)	list;
 	int			vco;
 	int			bounce;
 	pid_t			pid;

@@ -187,14 +187,14 @@
  * XXX It'd be nice if these were contained in uthread_priority_queue.[ch].
  */
 typedef struct pq_list {
-	TAILQ_HEAD(, struct pthread)	pl_head; /* list of threads at this priority */
-	TAILQ_ENTRY(struct pq_list)	pl_link; /* link for queue of priority lists */
+	TAILQ_HEAD(, pthread)	pl_head; /* list of threads at this priority */
+	TAILQ_ENTRY(pq_list)	pl_link; /* link for queue of priority lists */
 	int			pl_prio; /* the priority of this list */
 	int			pl_queued; /* is this in the priority queue */
 } pq_list_t;
 
 typedef struct pq_queue {
-	TAILQ_HEAD(, struct pq_list)	 pq_queue; /* queue of priority lists */
+	TAILQ_HEAD(, pq_list)	 pq_queue; /* queue of priority lists */
 	pq_list_t		*pq_lists; /* array of all priority lists */
 	int			 pq_size;  /* number of priority lists */
 } pq_queue_t;
@@ -216,7 +216,7 @@ union pthread_mutex_data {
 struct pthread_mutex {
 	enum pthread_mutextype		m_type;
 	int				m_protocol;
-	TAILQ_HEAD(mutex_head, struct pthread)	m_queue;
+	TAILQ_HEAD(mutex_head, pthread)	m_queue;
 	struct pthread			*m_owner;
 	union pthread_mutex_data	m_data;
 	long				m_flags;
@@ -239,7 +239,7 @@ struct pthread_mutex {
 	/*
 	 * Link for list of all mutexes a thread currently owns.
 	 */
-	TAILQ_ENTRY(struct pthread_mutex)	m_qe;
+	TAILQ_ENTRY(pthread_mutex)	m_qe;
 
 	/*
 	 * Lock for accesses to this structure.
@@ -279,7 +279,7 @@ enum pthread_cond_type {
 
 struct pthread_cond {
 	enum pthread_cond_type		c_type;
-	TAILQ_HEAD(cond_head, struct pthread)	c_queue;
+	TAILQ_HEAD(cond_head, pthread)	c_queue;
 	pthread_mutex_t			c_mutex;
 	void				*c_data;
 	long				c_flags;
@@ -449,8 +449,8 @@ struct fd_table_entry {
 	 * state of the lock on the file descriptor.
 	 */
 	spinlock_t		lock;
-	TAILQ_HEAD(, struct pthread)	r_queue;	/* Read queue.                        */
-	TAILQ_HEAD(, struct pthread)	w_queue;	/* Write queue.                       */
+	TAILQ_HEAD(, pthread)	r_queue;	/* Read queue.                        */
+	TAILQ_HEAD(, pthread)	w_queue;	/* Write queue.                       */
 	struct pthread		*r_owner;	/* Ptr to thread owning read lock.    */
 	struct pthread		*w_owner;	/* Ptr to thread owning write lock.   */
 	char			*r_fname;	/* Ptr to read lock source file name  */
@@ -505,10 +505,10 @@ struct pthread {
 	spinlock_t		lock;
 
 	/* Queue entry for list of all threads: */
-	TAILQ_ENTRY(struct pthread)	tle;
+	TAILQ_ENTRY(pthread)	tle;
 
 	/* Queue entry for list of dead threads: */
-	TAILQ_ENTRY(struct pthread)	dle;
+	TAILQ_ENTRY(pthread)	dle;
 
 	/*
 	 * Thread start routine, argument, stack pointer and thread
@@ -625,7 +625,7 @@ struct pthread {
 	int	error;
 
 	/* Join queue head and link for waiting threads: */
-	TAILQ_HEAD(join_head, struct pthread)	join_queue;
+	TAILQ_HEAD(join_head, pthread)	join_queue;
 
 	/*
 	 * The current thread can belong to only one scheduling queue at
@@ -645,10 +645,10 @@ struct pthread {
 	 */
 
 	/* Priority queue entry for this thread: */
-	TAILQ_ENTRY(struct pthread)	pqe;
+	TAILQ_ENTRY(pthread)	pqe;
 
 	/* Queue entry for this thread: */
-	TAILQ_ENTRY(struct pthread)	qe;
+	TAILQ_ENTRY(pthread)	qe;
 
 	/* Wait data. */
 	union pthread_wait_data data;
@@ -724,7 +724,7 @@ struct pthread {
 	/*
 	 * Queue of currently owned mutexes.
 	 */
-	TAILQ_HEAD(, struct pthread_mutex)	mutexq;
+	TAILQ_HEAD(, pthread_mutex)	mutexq;
 
 	void		*ret;
 	const void	**specific_data;
@@ -738,7 +738,7 @@ struct pthread {
 
 /* Spare thread stack. */
 struct stack {
-	SLIST_ENTRY(struct stack)	qe; /* Queue entry for this stack. */
+	SLIST_ENTRY(stack)	qe; /* Queue entry for this stack. */
 };
 
 /*
@@ -776,7 +776,7 @@ SCLASS struct pthread   * volatile _thread_single
 #endif
 
 /* List of all threads: */
-SCLASS TAILQ_HEAD(, struct pthread)	_thread_list
+SCLASS TAILQ_HEAD(, pthread)	_thread_list
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = TAILQ_HEAD_INITIALIZER(_thread_list);
 #else
@@ -818,7 +818,7 @@ SCLASS struct timeval   kern_inc_prio_time
 #endif
 
 /* Dead threads: */
-SCLASS TAILQ_HEAD(, struct pthread) _dead_list
+SCLASS TAILQ_HEAD(, pthread) _dead_list
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = TAILQ_HEAD_INITIALIZER(_dead_list);
 #else
@@ -927,12 +927,12 @@ SCLASS sigset_t	_process_sigpending;
  * Scheduling queues:
  */
 SCLASS pq_queue_t		_readyq;
-SCLASS TAILQ_HEAD(, struct pthread)	_waitingq;
+SCLASS TAILQ_HEAD(, pthread)	_waitingq;
 
 /*
  * Work queue:
  */
-SCLASS TAILQ_HEAD(, struct pthread)	_workq;
+SCLASS TAILQ_HEAD(, pthread)	_workq;
 
 /* Tracks the number of threads blocked while waiting for a spinlock. */
 SCLASS	volatile int	_spinblock_count
@@ -960,7 +960,7 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
  * thread creation time.  Spare stacks are used in LIFO order to increase cache
  * locality.
  */
-SCLASS SLIST_HEAD(, struct stack)	_stackq;
+SCLASS SLIST_HEAD(, stack)	_stackq;
 
 /*
  * Base address of next unallocated default-size {stack, red zone}.  Stacks are

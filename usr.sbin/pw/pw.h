@@ -66,10 +66,10 @@ struct carg
 {
 	int		  ch;
 	char		  *val;
-	LIST_ENTRY(struct carg)  list;
+	LIST_ENTRY(carg)  list;
 };
 
-extern LIST_HEAD(cargs, struct carg) arglist;
+extern LIST_HEAD(cargs, carg) arglist;
 
 struct userconf
 {

@@ -74,9 +74,9 @@ MALLOC_DECLARE(M_EXTATTR);
 #endif
 
 struct vnode;
-LIST_HEAD(ufs_extattr_list_head, struct ufs_extattr_list_entry);
+LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
 struct ufs_extattr_list_entry {
-	LIST_ENTRY(struct ufs_extattr_list_entry) uele_entries;
+	LIST_ENTRY(ufs_extattr_list_entry) uele_entries;
 	struct ufs_extattr_fileheader	uele_fileheader;
 	char	uele_attrname[UFS_EXTATTR_MAXEXTATTRNAME];
 	struct vnode	*uele_backing_vnode;

@@ -64,9 +64,9 @@ static linker_file_list_t linker_files;
 static int next_file_id = 1;
 
 /* XXX wrong name; we're looking at version provision tags here, not modules */
-typedef TAILQ_HEAD(, struct modlist) modlisthead_t;
+typedef TAILQ_HEAD(, modlist) modlisthead_t;
 struct modlist {
-    TAILQ_ENTRY(struct modlist) link;	/* chain together all modules */
+    TAILQ_ENTRY(modlist) link;		/* chain together all modules */
     linker_file_t	container;
     const char		*name;
 };
@@ -480,7 +480,7 @@ linker_file_unload(linker_file_t file)
 
     for (cp = STAILQ_FIRST(&file->common); cp;
 	 cp = STAILQ_FIRST(&file->common)) {
-	STAILQ_REMOVE(&file->common, cp, struct common_symbol, link);
+	STAILQ_REMOVE(&file->common, cp, common_symbol, link);
 	free(cp, M_LINKER);
     }
 

@@ -57,8 +57,8 @@
  * reassigned to a different file by setting fp.
  */
 struct	file_lock {
-	LIST_ENTRY(struct file_lock)	entry;	/* Entry if file list.       */
-	TAILQ_HEAD(lock_head, struct pthread)
+	LIST_ENTRY(file_lock)	entry;	/* Entry if file list.       */
+	TAILQ_HEAD(lock_head, pthread)
 				l_head;	/* Head of queue for threads */
 					/* waiting on this lock.     */
 	FILE		*fp;		/* The target file.          */
@@ -90,7 +90,7 @@ struct	file_lock {
  * collisions that require a malloc and an element added to the list.
  */
 struct static_file_lock {
-	LIST_HEAD(file_list_head, struct file_lock) head;
+	LIST_HEAD(file_list_head, file_lock) head;
 	struct	file_lock	fl;
 } flh[NUM_HEADS];
 

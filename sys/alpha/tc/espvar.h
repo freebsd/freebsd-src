@@ -49,7 +49,7 @@
  * occasionally xs->retries.
  */
 struct ecb {
-	TAILQ_ENTRY(struct ecb) chain;
+	TAILQ_ENTRY(ecb) chain;
 	struct scsi_xfer *xs;	/* SCSI xfer ctrl block from above */
 	int		flags;	/* Status */
 #define ECB_QNONE	0
@@ -173,7 +173,7 @@ struct esp_softc {
 	u_char	sc_espfflags;
 
 	/* Lists of command blocks */
-	TAILQ_HEAD(ecb_list, struct ecb) free_list,
+	TAILQ_HEAD(ecb_list, ecb) free_list,
 				  ready_list,
 				  nexus_list;
 

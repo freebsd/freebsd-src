@@ -97,7 +97,7 @@ struct ip6_fw {
 #define	fw_reject_code	fw_un.fu_reject_code
 
 struct	ip6_fw_chain {
-	LIST_ENTRY(struct ip6_fw_chain) chain;
+	LIST_ENTRY(ip6_fw_chain) chain;
 	struct	ip6_fw    *rule;
 };
 

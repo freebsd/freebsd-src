@@ -198,7 +198,7 @@ static u_char const char_type[] = {
 /*
  * list of struct tty where pstat(8) can pick it up with sysctl
  */
-static SLIST_HEAD(, struct tty) tty_list;
+static SLIST_HEAD(, tty) tty_list;
 
 static int  drainwait = 5*60;
 SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,

@@ -105,7 +105,7 @@ static char *parse(hp)
 
 extern struct hostent *__dns_getanswer __P((char *, int, char *, int));
 
-static CIRCLEQ_HEAD(dns_qhead, struct circleq_dnsentry) qhead;
+static CIRCLEQ_HEAD(dns_qhead, circleq_dnsentry) qhead;
 
 struct circleq_dnsentry {
 	SVCXPRT *xprt;
@@ -119,7 +119,7 @@ struct circleq_dnsentry {
 	char **domain;
 	char *name;
 	struct in_addr addr;
-	CIRCLEQ_ENTRY(struct circleq_dnsentry) links;
+	CIRCLEQ_ENTRY(circleq_dnsentry) links;
 };
 
 static int pending = 0;

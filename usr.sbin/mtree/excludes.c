@@ -48,11 +48,11 @@ static const char rcsid[] =
  * so it's OK to use a stupid algorithm.
  */
 struct exclude {
-	LIST_ENTRY(struct exclude) link;
+	LIST_ENTRY(exclude) link;
 	const char *glob;
 	int pathname;
 };
-static LIST_HEAD(, struct exclude) excludes;
+static LIST_HEAD(, exclude) excludes;
 
 void
 init_excludes(void)

@@ -745,7 +745,7 @@ softdep_flushfiles(oldmnt, flags, p)
 /*
  * Structures and routines associated with pagedep caching.
  */
-LIST_HEAD(pagedep_hashhead, struct pagedep) *pagedep_hashtbl;
+LIST_HEAD(pagedep_hashhead, pagedep) *pagedep_hashtbl;
 u_long	pagedep_hash;		/* size of hash table - 1 */
 #define	PAGEDEP_HASH(mp, inum, lbn) \
 	(&pagedep_hashtbl[((((register_t)(mp)) >> 13) + (inum) + (lbn)) & \
@@ -816,7 +816,7 @@ top:
 /*
  * Structures and routines associated with inodedep caching.
  */
-LIST_HEAD(inodedep_hashhead, struct inodedep) *inodedep_hashtbl;
+LIST_HEAD(inodedep_hashhead, inodedep) *inodedep_hashtbl;
 static u_long	inodedep_hash;	/* size of hash table - 1 */
 static long	num_inodedep;	/* number of inodedep allocated */
 #define	INODEDEP_HASH(fs, inum) \
@@ -897,7 +897,7 @@ top:
 /*
  * Structures and routines associated with newblk caching.
  */
-LIST_HEAD(newblk_hashhead, struct newblk) *newblk_hashtbl;
+LIST_HEAD(newblk_hashhead, newblk) *newblk_hashtbl;
 u_long	newblk_hash;		/* size of hash table - 1 */
 #define	NEWBLK_HASH(fs, inum) \
 	(&newblk_hashtbl[((((register_t)(fs)) >> 13) + (inum)) & newblk_hash])
