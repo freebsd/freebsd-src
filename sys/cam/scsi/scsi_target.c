@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.13 1999/05/30 16:51:07 phk Exp $
+ *      $Id: scsi_target.c,v 1.14 1999/05/31 11:24:11 phk Exp $
  */
 #include <stddef.h>	/* For offsetof */
 
@@ -69,9 +69,11 @@ typedef enum {
 } targ_flags;
 
 typedef enum {
-	TARG_CCB_WORKQ,
-	TARG_CCB_WAITING
-} targ_ccb_types;
+	TARG_CCB_NONE		= 0x00,
+	TARG_CCB_WAITING	= 0x01,
+	TARG_CCB_HELDQ		= 0x02,
+	TARG_CCB_ABORT_TO_HELDQ = 0x04
+} targ_ccb_flags;
 
 #define MAX_ACCEPT	16
 #define MAX_IMMEDIATE	16
@@ -83,22 +85,51 @@ typedef enum {
 #define TARG_CONTROL_UNIT 0xffff00ff
 #define TARG_IS_CONTROL_DEV(unit) ((unit) == TARG_CONTROL_UNIT)
 
+#define TARG_TAG_WILDCARD ((u_int)~0)
+
 /* Offsets into our private CCB area for storing accept information */
-#define ccb_type	ppriv_field0
+#define ccb_flags	ppriv_field0
 #define ccb_descr	ppriv_ptr1
 
 /* We stick a pointer to the originating accept TIO in each continue I/O CCB */
 #define ccb_atio	ppriv_ptr1
 
-TAILQ_HEAD(ccb_queue, ccb_hdr);
-
 struct targ_softc {
+	/* CTIOs pending on the controller */
 	struct		ccb_queue pending_queue;
+
+	/* ATIOs awaiting CTIO resources from the XPT */
 	struct		ccb_queue work_queue;
+
+	/*
+	 * ATIOs for SEND operations waiting for 'write'
+	 * buffer resources from our userland daemon.
+	 */
 	struct		ccb_queue snd_ccb_queue;
+
+	/*
+	 * ATIOs for RCV operations waiting for 'read'
+	 * buffer resources from our userland daemon.
+	 */
 	struct		ccb_queue rcv_ccb_queue;
+
+	/*
+	 * ATIOs for commands unknown to the kernel driver.
+	 * These are queued for the userland daemon to
+	 * consume.
+	 */
 	struct		ccb_queue unknown_atio_queue;
+
+	/*
+	 * Userland buffers for SEND commands waiting for
+	 * SEND ATIOs to be queued by an initiator.
+	 */
 	struct		buf_queue_head snd_buf_queue;
+
+	/*
+	 * Userland buffers for RCV commands waiting for
+	 * RCV ATIOs to be queued by an initiator.
+	 */
 	struct		buf_queue_head rcv_buf_queue;
 	struct		devstat device_stats;
 	struct		selinfo snd_select;
@@ -175,13 +206,25 @@ static void		targdone(struct cam_periph *periph,
 				 union ccb *done_ccb);
 static void		targfireexception(struct cam_periph *periph,
 					  struct targ_softc *softc);
+static void		targinoterror(struct cam_periph *periph,
+				      struct targ_softc *softc,
+				      struct ccb_immed_notify *inot);
 static  int		targerror(union ccb *ccb, u_int32_t cam_flags,
 				  u_int32_t sense_flags);
 static struct targ_cmd_desc*	allocdescr(void);
 static void		freedescr(struct targ_cmd_desc *buf);
-static void		fill_sense(struct scsi_sense_data *sense,
-				   u_int error_code, u_int sense_key,
-				   u_int asc, u_int ascq);
+static void		fill_sense(struct targ_softc *softc,
+				   u_int initiator_id, u_int error_code,
+				   u_int sense_key, u_int asc, u_int ascq);
+static void		copy_sense(struct targ_softc *softc,
+				   struct ccb_scsiio *csio);
+static void	set_unit_attention_cond(struct cam_periph *periph,
+					u_int initiator_id, ua_types ua);
+static void	set_contingent_allegiance_cond(struct cam_periph *periph,
+					       u_int initiator_id, ca_types ca);
+static void	abort_pending_transactions(struct cam_periph *periph,
+					   u_int initiator_id, u_int tag_id,
+					   int errno, int to_held_queue);
 					
 static struct periph_driver targdriver =
 {
@@ -215,17 +258,15 @@ targasync(void *callback_arg, u_int32_t code,
 	  struct cam_path *path, void *arg)
 {
 	struct cam_periph *periph;
+	struct targ_softc *softc;
 
 	periph = (struct cam_periph *)callback_arg;
+	softc = (struct targ_softc *)periph->softc;
 	switch (code) {
 	case AC_PATH_DEREGISTERED:
 	{
 		/* XXX Implement */
 		break;
-	}
-	case AC_BUS_RESET:
-	{
-		/* Flush transaction queue */
 	}
 	default:
 		break;
@@ -329,15 +370,9 @@ targenlun(struct cam_periph *periph)
 		xpt_setup_ccb(&inot->ccb_h, periph->path, /*priority*/1);
 		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
 		inot->ccb_h.cbfcnp = targdone;
-		xpt_action((union ccb *)inot);
-		status = inot->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			printf("Queue of inot failed\n");
-			free(inot, M_DEVBUF);
-			break;
-		}
 		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
 				  periph_links.sle);
+		xpt_action((union ccb *)inot);
 	}
 
 	if (i == 0) {
@@ -416,7 +451,7 @@ targctor(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-	bzero(softc, sizeof(softc));
+	bzero(softc, sizeof(*softc));
 	TAILQ_INIT(&softc->pending_queue);
 	TAILQ_INIT(&softc->work_queue);
 	TAILQ_INIT(&softc->snd_ccb_queue);
@@ -460,7 +495,6 @@ targctor(struct cam_periph *periph, void *arg)
 	strncpy(softc->inq_data->product, "TM-PT           ", SID_PRODUCT_SIZE);
 	strncpy(softc->inq_data->revision, "0.0 ", SID_REVISION_SIZE);
 	softc->init_level++;
-
 	return (CAM_REQ_CMP);
 }
 
@@ -622,7 +656,6 @@ targallocinstance(struct ioc_alloc_unit *alloc_unit)
 
 	/* Ensure that we don't already have an instance for this unit. */
 	if ((periph = cam_periph_find(path, "targ")) != NULL) { 
-		printf("Lun already enabled%x\n", status);
 		status = CAM_LUN_ALRDY_ENA;
 		goto fail;
 	}
@@ -832,7 +865,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			error = EINVAL;
 			break;
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("GET/SETISTATE for %d\n", ioc_istate->initiator_id));
 		if (cmd == TARGIOCGETISTATE) {
 			bcopy(&softc->istate[ioc_istate->initiator_id],
@@ -841,7 +874,7 @@ targioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 			bcopy(&ioc_istate->istate,
 			      &softc->istate[ioc_istate->initiator_id],
 			      sizeof(ioc_istate->istate));
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("pending_ca now %x\n",
 			   softc->istate[ioc_istate->initiator_id].pending_ca));
 		}
@@ -865,6 +898,7 @@ targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	struct targ_softc *softc;
 	struct cam_periph_map_info mapinfo;
 	int error, need_unmap;
+	int s;
 
 	softc = (struct targ_softc *)periph->softc;
 
@@ -917,16 +951,39 @@ targsendccb(struct cam_periph *periph, union ccb *ccb, union ccb *inccb)
 	}
 
 	/*
-	 * If the user wants us to perform any error recovery, then honor
-	 * that request.  Otherwise, it's up to the user to perform any
-	 * error recovery.
+	 * Once queued on the pending CCB list, this CCB will be protected
+	 * by the error recovery handling used for 'buffer I/O' ccbs.  Since
+	 * we are in a process context here, however, the software interrupt
+	 * for this driver may deliver an event invalidating this CCB just
+	 * before we queue it.  Close this race condition by blocking
+	 * software interrupt delivery, checking for any pertinent queued
+	 * events, and only then queuing this CCB.
 	 */
-	error = cam_periph_runccb(ccb,
-				  (ccb->ccb_h.flags & CAM_PASS_ERR_RECOVER) ?
-				  targerror : NULL,
-				  /* cam_flags */ 0,
-				  /* sense_flags */SF_RETRY_UA,
-				  &softc->device_stats);
+	s = splsoftcam();
+	if (softc->exceptions == 0) {
+		if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO)
+			TAILQ_INSERT_TAIL(&softc->pending_queue, &ccb->ccb_h,
+					  periph_links.tqe);
+
+		/*
+		 * If the user wants us to perform any error recovery,
+		 * then honor that request.  Otherwise, it's up to the
+		 * user to perform any error recovery.
+		 */
+		error = cam_periph_runccb(ccb,
+					  /* error handler */NULL,
+					  /* cam_flags */ 0,
+					  /* sense_flags */SF_RETRY_UA,
+					  &softc->device_stats);
+
+		if (ccb->ccb_h.func_code == XPT_CONT_TARGET_IO)
+			TAILQ_INSERT_TAIL(&softc->pending_queue, &ccb->ccb_h,
+					  periph_links.tqe);
+	} else {
+		ccb->ccb_h.status = CAM_UNACKED_EVENT;
+		error = 0;
+	}
+	splx(s);
 
 	if (need_unmap != 0)
 		cam_periph_unmapmem(ccb, &mapinfo);
@@ -1100,11 +1157,11 @@ targstrategy(struct buf *bp)
 	 */
 	bp->b_resid = bp->b_bcount;
 	if ((bp->b_flags & B_READ) != 0) {
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Queued a SEND buffer\n"));
 		bufq_insert_tail(&softc->snd_buf_queue, bp);
 	} else {
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Queued a RECEIVE buffer\n"));
 		bufq_insert_tail(&softc->rcv_buf_queue, bp);
 	}
@@ -1158,7 +1215,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		if (bp == NULL)
 			softc->flags &= ~TARG_FLAG_SEND_EOF;
 		else {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("De-Queued a SEND buffer %ld\n",
 				   bp->b_bcount));
 		}
@@ -1171,7 +1228,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 		if (bp == NULL)
 			softc->flags &= ~TARG_FLAG_RECEIVE_EOF;
 		else {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("De-Queued a RECEIVE buffer %ld\n",
 				   bp->b_bcount));
 		}
@@ -1198,7 +1255,7 @@ targrunqueue(struct cam_periph *periph, struct targ_softc *softc)
 			desc->data_increment =
 			    MIN(desc->data_resid, bp->b_resid);
 		}
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Buffer command: data %x: datacnt %d\n",
 			   (intptr_t)desc->data, desc->data_increment));
 		TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
@@ -1219,7 +1276,7 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 	struct ccb_accept_tio *atio;
 	struct targ_cmd_desc *desc;
 	struct ccb_scsiio *csio;
-	ccb_flags flags;
+	targ_ccb_flags flags;
 	int    s;
 
 	softc = (struct targ_softc *)periph->softc;
@@ -1227,7 +1284,7 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 	s = splbio();
 	ccbh = TAILQ_FIRST(&softc->work_queue);
 	if (periph->immediate_priority <= periph->pinfo.priority) {
-		start_ccb->ccb_h.ccb_type = TARG_CCB_WAITING;			
+		start_ccb->ccb_h.ccb_flags = TARG_CCB_WAITING;			
 		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
 				  periph_links.sle);
 		periph->immediate_priority = CAM_PRIORITY_NONE;
@@ -1238,8 +1295,6 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 		xpt_release_ccb(start_ccb);	
 	} else {
 		TAILQ_REMOVE(&softc->work_queue, ccbh, periph_links.tqe);
-		TAILQ_INSERT_HEAD(&softc->pending_queue, ccbh,
-				  periph_links.tqe);
 		splx(s);	
 		atio = (struct ccb_accept_tio*)ccbh;
 		desc = (struct targ_cmd_desc *)atio->ccb_h.ccb_descr;
@@ -1268,10 +1323,12 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 			      /*dxfer_len*/desc->data_increment,
 			      /*timeout*/desc->timeout);
 
-		start_ccb->ccb_h.ccb_type = TARG_CCB_WORKQ;
+		start_ccb->ccb_h.ccb_flags = TARG_CCB_NONE;
 		start_ccb->ccb_h.ccb_atio = atio;
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Sending a CTIO\n"));
+		TAILQ_INSERT_TAIL(&softc->pending_queue, &csio->ccb_h,
+				  periph_links.tqe);
 		xpt_action(start_ccb);
 		s = splbio();
 		ccbh = TAILQ_FIRST(&softc->work_queue);
@@ -1288,7 +1345,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 	softc = (struct targ_softc *)periph->softc;
 
-	if (done_ccb->ccb_h.ccb_type == TARG_CCB_WAITING) {
+	if (done_ccb->ccb_h.ccb_flags == TARG_CCB_WAITING) {
 		/* Caller will release the CCB */
 		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
@@ -1362,7 +1419,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 
 				inq = (struct scsi_inquiry *)cdb;
 				sense = &istate->sense_data;
-				CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Saw an inquiry!\n"));
 				/*
 				 * Validate the command.  We don't
@@ -1377,7 +1434,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 					descr->data_resid = 0;
 					descr->data_increment = 0;
 					descr->status = SCSI_STATUS_CHECK_COND;
-					fill_sense(sense,
+					fill_sense(softc, atio->init_id,
 						   SSD_CURRENT_ERROR,
 						   SSD_KEY_ILLEGAL_REQUEST,
 						   /*asc*/0x24, /*ascq*/0x00);
@@ -1436,11 +1493,12 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				rsense = (struct scsi_request_sense *)cdb;
 				sense = &istate->sense_data;
 				if (pending_ca == 0) {
-					fill_sense(sense, SSD_CURRENT_ERROR,
+					fill_sense(softc, atio->init_id,
+						   SSD_CURRENT_ERROR,
 						   SSD_KEY_NO_SENSE, 0x00,
 						   0x00);
 					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
+						  CAM_DEBUG_PERIPH,
 						  ("No pending CA!\n"));
 				} else if (pending_ca == CA_UNIT_ATTN) {
 					u_int ascq;
@@ -1449,11 +1507,12 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 						ascq = 0x1;
 					else
 						ascq = 0x2;
-					fill_sense(sense, SSD_CURRENT_ERROR,
+					fill_sense(softc, atio->init_id,
+						   SSD_CURRENT_ERROR,
 						   SSD_KEY_UNIT_ATTENTION,
 						   0x29, ascq);
 					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
+						  CAM_DEBUG_PERIPH,
 						  ("Pending UA!\n"));
 				}
 				/*
@@ -1492,7 +1551,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				if (cdb[0] == SEND) {
 					atio->ccb_h.flags |= CAM_DIR_OUT;
 					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
+						  CAM_DEBUG_PERIPH,
 						  ("Saw a SEND!\n"));
 					atio->ccb_h.flags |= CAM_DIR_OUT;
 					TAILQ_INSERT_TAIL(&softc->snd_ccb_queue,
@@ -1502,7 +1561,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				} else {
 					atio->ccb_h.flags |= CAM_DIR_IN;
 					CAM_DEBUG(periph->path,
-						  CAM_DEBUG_SUBTRACE,
+						  CAM_DEBUG_PERIPH,
 						  ("Saw a RECEIVE!\n"));
 					TAILQ_INSERT_TAIL(&softc->rcv_ccb_queue,
 							  &atio->ccb_h,
@@ -1539,29 +1598,48 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case XPT_CONT_TARGET_IO:
 	{
+		struct ccb_scsiio *csio;
 		struct ccb_accept_tio *atio;
 		struct targ_cmd_desc *desc;
 		struct buf *bp;
+		int    error;
 
-		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 			  ("Received completed CTIO\n"));
+		csio = &done_ccb->csio;
 		atio = (struct ccb_accept_tio*)done_ccb->ccb_h.ccb_atio;
 		desc = (struct targ_cmd_desc *)atio->ccb_h.ccb_descr;
 
-		TAILQ_REMOVE(&softc->pending_queue, &atio->ccb_h,
+		TAILQ_REMOVE(&softc->pending_queue, &done_ccb->ccb_h,
 			     periph_links.tqe);
 
-		/* XXX Check for errors */
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-			
-		}
+			printf("CCB with error %x\n", done_ccb->ccb_h.status);
+			error = targerror(done_ccb, 0, 0);
+			if (error == ERESTART)
+				break;
+			/*
+			 * Right now we don't need to do anything
+			 * prior to unfreezing the queue...
+			 */
+			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+				printf("Releasing Queue\n");
+				cam_release_devq(done_ccb->ccb_h.path,
+						 /*relsim_flags*/0,
+						 /*reduction*/0,
+						 /*timeout*/0,
+						 /*getcount_only*/0); 
+			}
+		} else
+			error = 0;
+		desc->data_increment -= csio->resid;
 		desc->data_resid -= desc->data_increment;
 		if ((bp = desc->bp) != NULL) {
 
 			bp->b_resid -= desc->data_increment;
-			bp->b_error = 0;
+			bp->b_error = error;
 
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 				  ("Buffer I/O Completed - Resid %ld:%d\n",
 				   bp->b_resid, desc->data_resid));
 			/*
@@ -1570,12 +1648,13 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 			 * buffer space has been consumed.
 			 */
 			if (desc->data_resid == 0
-			 || bp->b_resid == 0) {
+			 || bp->b_resid == 0
+			 || error != 0) {
 				if (bp->b_resid != 0)
 					/* Short transfer */
 					bp->b_flags |= B_ERROR;
 				
-				CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Completing a buffer\n"));
 				biodone(bp);
 				desc->bp = NULL;
@@ -1590,7 +1669,7 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 				 * Send the original accept TIO back to the
 				 * controller to handle more work.
 				 */
-				CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
+				CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 					  ("Returning ATIO to target\n"));
 				xpt_action((union ccb *)atio);
 				break;
@@ -1629,9 +1708,31 @@ targdone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case XPT_IMMED_NOTIFY:
 	{
-		if (softc->state == TARG_STATE_TEARDOWN
-		 || done_ccb->ccb_h.status == CAM_REQ_ABORTED)
+		int frozen;
+
+		frozen = (done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0;
+		if (softc->state == TARG_STATE_TEARDOWN) {
+			SLIST_REMOVE(&softc->immed_notify_slist,
+				     &done_ccb->ccb_h, ccb_hdr,
+				     periph_links.sle);
 			free(done_ccb, M_DEVBUF);
+		} else if (done_ccb->ccb_h.status == CAM_REQ_ABORTED) {
+			free(done_ccb, M_DEVBUF);
+		} else {
+			printf("Saw event %x:%x\n", done_ccb->ccb_h.status,
+			       done_ccb->cin.message_args[0]);
+			/* Process error condition. */
+			targinoterror(periph, softc, &done_ccb->cin);
+
+			/* Requeue for another immediate event */
+			xpt_action(done_ccb);
+		}
+		if (frozen != 0)
+			cam_release_devq(periph->path,
+					 /*relsim_flags*/0,
+					 /*opening reduction*/0,
+					 /*timeout*/0,
+					 /*getcount_only*/0);
 		break;
 	}
 	default:
@@ -1680,10 +1781,188 @@ targfireexception(struct cam_periph *periph, struct targ_softc *softc)
 	selwakeup(&softc->rcv_select);
 }
 
+static void
+targinoterror(struct cam_periph *periph, struct targ_softc *softc,
+	      struct ccb_immed_notify *inot)
+{
+	cam_status status;
+	int sense;
+
+	status = inot->ccb_h.status;
+	sense = (status & CAM_AUTOSNS_VALID) != 0;
+	status &= CAM_STATUS_MASK;
+	switch (status) {
+	case CAM_SCSI_BUS_RESET:
+		set_unit_attention_cond(periph, /*init_id*/CAM_TARGET_WILDCARD,
+					UA_BUS_RESET);
+		abort_pending_transactions(periph,
+					   /*init_id*/CAM_TARGET_WILDCARD,
+					   TARG_TAG_WILDCARD, EINTR,
+					   /*to_held_queue*/FALSE);
+		softc->exceptions |= TARG_EXCEPT_BUS_RESET_SEEN;
+		targfireexception(periph, softc);
+		break;
+	case CAM_BDR_SENT:
+		set_unit_attention_cond(periph, /*init_id*/CAM_TARGET_WILDCARD,
+					UA_BDR);
+		abort_pending_transactions(periph, CAM_TARGET_WILDCARD,
+					   TARG_TAG_WILDCARD, EINTR,
+					   /*to_held_queue*/FALSE);
+		softc->exceptions |= TARG_EXCEPT_BDR_RECEIVED;
+		targfireexception(periph, softc);
+		break;
+	case CAM_MESSAGE_RECV:
+		switch (inot->message_args[0]) {
+		case MSG_INITIATOR_DET_ERR:
+			break;
+		case MSG_ABORT:
+			break;
+		case MSG_BUS_DEV_RESET:
+			break;
+		case MSG_ABORT_TAG:
+			break;
+		case MSG_CLEAR_QUEUE:
+			break;
+		case MSG_TERM_IO_PROC:
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static int
 targerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 {
-	return 0;
+	struct cam_periph *periph;
+	struct targ_softc *softc;
+	struct ccb_scsiio *csio;
+	cam_status status;
+	int frozen;
+	int sense;
+	int error;
+	int on_held_queue;
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	softc = (struct targ_softc *)periph->softc;
+	status = ccb->ccb_h.status;
+	sense = (status & CAM_AUTOSNS_VALID) != 0;
+	frozen = (status & CAM_DEV_QFRZN) != 0;
+	status &= CAM_STATUS_MASK;
+	on_held_queue = FALSE;
+	csio = &ccb->csio;
+	switch (status) {
+	case CAM_REQ_ABORTED:
+		printf("Request Aborted!\n");
+		if ((ccb->ccb_h.ccb_flags & TARG_CCB_ABORT_TO_HELDQ) != 0) {
+			struct initiator_state *istate;
+
+			/*
+			 * Place this CCB into the initiators
+			 * 'held' queue until the pending CA is cleared.
+			 * If there is no CA pending, reissue immediately.
+			 */
+			istate = &softc->istate[ccb->csio.init_id];
+			if (istate->pending_ca == 0) {
+				ccb->ccb_h.ccb_flags = TARG_CCB_NONE;
+				xpt_action(ccb);
+			} else {
+				ccb->ccb_h.ccb_flags = TARG_CCB_HELDQ;
+				TAILQ_INSERT_TAIL(&softc->pending_queue,
+						  &ccb->ccb_h,
+						  periph_links.tqe);
+			}
+			/* The command will be retried at a later time. */
+			on_held_queue = TRUE;
+			error = ERESTART;
+			break;
+		}
+		/* FALLTHROUGH */
+	case CAM_SCSI_BUS_RESET:
+	case CAM_BDR_SENT:
+	case CAM_REQ_TERMIO:
+	case CAM_CMD_TIMEOUT:
+		/* Assume we did not send any data */
+		csio->resid = csio->dxfer_len;
+		error = EIO;
+		break;
+	case CAM_SEL_TIMEOUT:
+		if (ccb->ccb_h.retry_count > 0) {
+			ccb->ccb_h.retry_count--;
+			error = ERESTART;
+		} else {
+			/* "Select or reselect failure" */
+			csio->resid = csio->dxfer_len;
+			fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
+				   SSD_KEY_HARDWARE_ERROR, 0x45, 0x00);
+			set_contingent_allegiance_cond(periph,
+						       csio->init_id,
+						       CA_CMD_SENSE);
+			error = EIO;
+		}
+		break;
+	case CAM_UNCOR_PARITY:
+		/* "SCSI parity error" */
+		fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
+			   SSD_KEY_HARDWARE_ERROR, 0x47, 0x00);
+		set_contingent_allegiance_cond(periph, csio->init_id,
+					       CA_CMD_SENSE);
+		csio->resid = csio->dxfer_len;
+		error = EIO;
+		break;
+	case CAM_NO_HBA:
+		csio->resid = csio->dxfer_len;
+		error = ENXIO;
+		break;
+	case CAM_SEQUENCE_FAIL:
+		if (sense != 0) {
+			copy_sense(softc, csio);
+			set_contingent_allegiance_cond(periph,
+						       csio->init_id,
+						       CA_CMD_SENSE);
+		}
+		csio->resid = csio->dxfer_len;
+		error = EIO;
+		break;
+	case CAM_IDE:
+		/* "Initiator detected error message received" */
+		fill_sense(softc, csio->init_id, SSD_CURRENT_ERROR,
+			   SSD_KEY_HARDWARE_ERROR, 0x48, 0x00);
+		set_contingent_allegiance_cond(periph, csio->init_id,
+					       CA_CMD_SENSE);
+		csio->resid = csio->dxfer_len;
+		error = EIO;
+		break;
+	case CAM_REQUEUE_REQ:
+		printf("Requeue Request!\n");
+		error = ERESTART;
+		break;
+	default:
+		csio->resid = csio->dxfer_len;
+		error = EIO;
+		panic("targerror: Unexpected status %x encounterd", status);
+		/* NOTREACHED */
+	}
+
+	if (error == ERESTART || error == 0) {
+		/* Clear the QFRZN flag as we will release the queue */
+		if (frozen != 0)
+			ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+
+		if (error == ERESTART && !on_held_queue)
+			xpt_action(ccb);
+
+		if (frozen != 0)
+			cam_release_devq(ccb->ccb_h.path,
+					 /*relsim_flags*/0,
+					 /*opening reduction*/0,
+					 /*timeout*/0,
+					 /*getcount_only*/0);
+	}
+	return (error);
 }
 
 static struct targ_cmd_desc*
@@ -1717,9 +1996,14 @@ freedescr(struct targ_cmd_desc *descr)
 }
 
 static void
-fill_sense(struct scsi_sense_data *sense, u_int error_code, u_int sense_key,
-	   u_int asc, u_int ascq)
+fill_sense(struct targ_softc *softc, u_int initiator_id, u_int error_code,
+	   u_int sense_key, u_int asc, u_int ascq)
 {
+	struct initiator_state *istate;
+	struct scsi_sense_data *sense;
+
+	istate = &softc->istate[initiator_id];
+	sense = &istate->sense_data;
 	bzero(sense, sizeof(*sense));
 	sense->error_code = error_code;
 	sense->flags = sense_key;
@@ -1728,4 +2012,155 @@ fill_sense(struct scsi_sense_data *sense, u_int error_code, u_int sense_key,
 
 	sense->extra_len = offsetof(struct scsi_sense_data, fru)
 			 - offsetof(struct scsi_sense_data, extra_len);
+}
+
+static void
+copy_sense(struct targ_softc *softc, struct ccb_scsiio *csio)
+{
+	struct initiator_state *istate;
+	struct scsi_sense_data *sense;
+	size_t copylen;
+
+	istate = &softc->istate[csio->init_id];
+	sense = &istate->sense_data;
+	copylen = sizeof(*sense);
+	if (copylen > csio->sense_len)
+		copylen = csio->sense_len;
+	bcopy(&csio->sense_data, sense, copylen);
+}
+
+static void
+set_unit_attention_cond(struct cam_periph *periph,
+			u_int initiator_id, ua_types ua)
+{
+	int start;
+	int end;
+	struct targ_softc *softc;
+
+	softc = (struct targ_softc *)periph->softc;
+	if (initiator_id == CAM_TARGET_WILDCARD) {
+		start = 0;
+		end = MAX_INITIATORS - 1;
+	} else
+		start = end = initiator_id;
+
+	while (start <= end) {
+		softc->istate[start].pending_ua = ua;
+		start++;
+	}
+}
+
+static void
+set_contingent_allegiance_cond(struct cam_periph *periph,
+			       u_int initiator_id, ca_types ca)
+{
+	struct targ_softc *softc;
+
+	softc = (struct targ_softc *)periph->softc;
+	softc->istate[initiator_id].pending_ca = ca;
+	abort_pending_transactions(periph, initiator_id, TARG_TAG_WILDCARD,
+				   /* errno */0, /*to_held_queue*/TRUE);
+}
+
+static void
+abort_pending_transactions(struct cam_periph *periph, u_int initiator_id,
+			   u_int tag_id, int errno, int to_held_queue)
+{
+	struct ccb_abort cab;
+	struct ccb_queue *atio_queues[3];
+	struct targ_softc *softc;
+	struct ccb_hdr *ccbh;
+	u_int i;
+
+	softc = (struct targ_softc *)periph->softc;
+
+	atio_queues[0] = &softc->work_queue;
+	atio_queues[1] = &softc->snd_ccb_queue;
+	atio_queues[2] = &softc->rcv_ccb_queue;
+
+	/* First address the ATIOs awaiting resources */
+	for (i = 0; i < (sizeof(atio_queues) / sizeof(*atio_queues)); i++) {
+		struct ccb_queue *atio_queue;
+
+		if (to_held_queue) {
+			/*
+			 * The device queue is frozen anyway, so there
+			 * is nothing for us to do.
+			 */
+			continue;
+		}
+		atio_queue = atio_queues[i];
+		ccbh = TAILQ_FIRST(atio_queue);
+		while (ccbh != NULL) {
+			struct ccb_accept_tio *atio;
+			struct targ_cmd_desc *desc;
+
+			atio = (struct ccb_accept_tio *)ccbh;
+			desc = (struct targ_cmd_desc *)atio->ccb_h.ccb_descr;
+			ccbh = TAILQ_NEXT(ccbh, periph_links.tqe);
+
+			/* Only abort the CCBs that match */
+			if ((atio->init_id != initiator_id
+			  && initiator_id != CAM_TARGET_WILDCARD)
+			 || (tag_id != TARG_TAG_WILDCARD
+			  && ((atio->ccb_h.flags & CAM_TAG_ACTION_VALID) == 0
+			   || atio->tag_id != tag_id)))
+				continue;
+
+			TAILQ_REMOVE(atio_queue, &atio->ccb_h,
+				     periph_links.tqe);
+
+			CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+				  ("Aborting ATIO\n"));
+			if (desc->bp != NULL) {
+				desc->bp->b_flags |= B_ERROR;
+				if (softc->state != TARG_STATE_TEARDOWN)
+					desc->bp->b_error = errno;
+				else
+					desc->bp->b_error = ENXIO;
+				biodone(desc->bp);
+				desc->bp = NULL;
+			}
+			if (softc->state == TARG_STATE_TEARDOWN) {
+				freedescr(desc);
+				free(atio, M_DEVBUF);
+			} else {
+				/* Return the ATIO back to the controller */
+				xpt_action((union ccb *)atio);
+			}
+		}
+	}
+
+	ccbh = TAILQ_FIRST(&softc->pending_queue);
+	while (ccbh != NULL) {
+		struct ccb_scsiio *csio;
+
+		csio = (struct ccb_scsiio *)ccbh;
+		ccbh = TAILQ_NEXT(ccbh, periph_links.tqe);
+
+		/* Only abort the CCBs that match */
+		if ((csio->init_id != initiator_id
+		  && initiator_id != CAM_TARGET_WILDCARD)
+		 || (tag_id != TARG_TAG_WILDCARD
+		  && ((csio->ccb_h.flags & CAM_TAG_ACTION_VALID) == 0
+		   || csio->tag_id != tag_id)))
+			continue;
+
+		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
+			  ("Aborting CTIO\n"));
+
+		TAILQ_REMOVE(&softc->work_queue, &csio->ccb_h,
+			     periph_links.tqe);
+
+		if (to_held_queue != 0)
+			csio->ccb_h.ccb_flags |= TARG_CCB_ABORT_TO_HELDQ;
+		xpt_setup_ccb(&cab.ccb_h, csio->ccb_h.path, /*priority*/1);
+		cab.abort_ccb = (union ccb *)csio;
+		xpt_action((union ccb *)&cab);
+		if (cab.ccb_h.status != CAM_REQ_CMP) {
+			xpt_print_path(cab.ccb_h.path);
+			printf("Unable to abort CCB.  Status %x\n",
+			       cab.ccb_h.status);
+		}
+	}
 }
