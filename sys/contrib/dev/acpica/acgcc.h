@@ -131,7 +131,9 @@
 #define BREAKPOINT3
 #define disable() __cli()
 #define enable()  __sti()
+#ifndef __FreeBSD__	/* XXX conflicts with inline in cpufunc.h */
 #define wbinvd()
+#endif
 
 /*! [Begin] no source code translation */
 
@@ -194,7 +196,9 @@
 #define disable() __cli()
 #define enable()  __sti()
 #define halt()    __asm__ __volatile__ ("sti; hlt":::"memory")
+#ifndef __FreeBSD__	/* XXX conflicts with inline in cpufunc.h */
 #define wbinvd()
+#endif
 
 /*! [Begin] no source code translation
  *

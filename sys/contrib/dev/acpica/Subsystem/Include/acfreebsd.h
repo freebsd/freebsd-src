@@ -117,9 +117,19 @@
 #ifndef __ACFREEBSD_H__
 #define __ACFREEBSD_H__
 
+/*
+ * XXX this is technically correct, but will cause problems with some ASL
+ *     which only works if the string names a Microsoft operating system.
+ */
 #define ACPI_OS_NAME                "FreeBSD"
 
+/* FreeBSD uses GCC */
+
+#include "acgcc.h"
+
 #ifdef _KERNEL
+#include "opt_acpi.h"		/* collect build-time options here */
+
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -130,5 +140,57 @@
 #define __cli()     disable_intr()
 #define __sti()     enable_intr()
 
+#ifdef ACPI_DEBUG
+#ifdef DEBUGGER_THREADING
+#undef DEBUGGER_THREADING
+#endif /* DEBUGGER_THREADING */
+#define DEBUGGER_THREADING 0	/* integrated with DDB */
+#include "opt_ddb.h"
+#ifdef DDB
+#define ENABLE_DEBUGGER
+#endif /* DDB */
+#endif /* ACPI_DEBUG */
+
+#else /* _KERNEL */
+
+/* Not building kernel code, so use libc */
+#define ACPI_USE_STANDARD_HEADERS
+
+#endif /* _KERNEL */
+
+/* Always use FreeBSD code over our local versions */
+#define ACPI_USE_SYSTEM_CLIBRARY
+
+/* FreeBSD doesn't have strupr, should be fixed. (move to libkern) */
+static __inline char *
+strupr(char *str)
+{
+    char *c = str;
+    while(*c) {
+	*c = toupper(*c);
+	c++;
+    }
+    return(str);
+}
+
+/* Or strstr (used in debugging mode, also move to libkern) */
+static __inline char *
+strstr(char *s, char *find)
+{
+    char c, sc;
+    size_t len;
+
+    if ((c = *find++) != 0) {
+	len = strlen(find);
+	do {
+	    do {
+		if ((sc = *s++) == 0)
+		    return (NULL);
+	    } while (sc != c);
+	} while (strncmp(s, find, len) != 0);
+	s--;
+    }
+    return ((char *)s);
+}
 
 #endif /* __ACFREEBSD_H__ */
