@@ -57,5 +57,5 @@ extern char *_unctrl[];
 #define ctrl(c)		(c & 0x1f)
 #define unctrl(c)	(_unctrl[(unsigned char) (c)])
 #define isctrl(c)       iscntrl((unsigned char)(c))
-#define isprt(c)        isprint((unsigned char)(c))
+#define isprt(c)        (isprint((unsigned char)(c)) || (c) == '\t')
 #define isunctrl(c)     (strchr("\b\t\n\r", (c)) == NULL && isctrl(c))

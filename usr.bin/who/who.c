@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: who.c,v 1.3.2.2 1997/08/27 06:19:30 charnier Exp $";
+	"$Id: who.c,v 1.3.2.3 1998/05/25 07:21:49 steve Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -54,7 +54,6 @@ static const char rcsid[] =
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -73,9 +72,6 @@ main(argc, argv)
 	struct passwd *pw;
 	FILE *ufp, *file();
 	char *t;
-
-	if (getopt(argc, argv, "") != -1)
-		usage();
 
 	(void) setlocale(LC_TIME, "");
 

@@ -67,11 +67,12 @@ main(argc, argv)
 	char *p, *prefix, buf[1024];
 
 	flags = 0;
-	while ((ch = getopt(argc, argv, "amnrsv")) != -1)
+	while ((ch = getopt(argc, argv, "amnprsv")) != -1)
 		switch(ch) {
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
 			break;
+		case 'p':
 		case 'm':
 			flags |= MFLAG;
 			break;
@@ -109,7 +110,7 @@ main(argc, argv)
 		len = sizeof(buf);
 		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
 			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, len, buf);
+		(void)printf("%s%.*s", prefix, (int)len, buf);
 		prefix = " ";
 	}
 	if (flags & NFLAG) {
@@ -118,7 +119,7 @@ main(argc, argv)
 		len = sizeof(buf);
 		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
 			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, len, buf);
+		(void)printf("%s%.*s", prefix, (int)len, buf);
 		prefix = " ";
 	}
 	if (flags & RFLAG) {
@@ -127,7 +128,7 @@ main(argc, argv)
 		len = sizeof(buf);
 		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
 			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, len, buf);
+		(void)printf("%s%.*s", prefix, (int)len, buf);
 		prefix = " ";
 	}
 	if (flags & VFLAG) {
@@ -139,7 +140,7 @@ main(argc, argv)
 		for (p = buf, tlen = len; tlen--; ++p)
 			if (*p == '\n' || *p == '\t')
 				*p = ' ';
-		(void)printf("%s%.*s", prefix, len, buf);
+		(void)printf("%s%.*s", prefix, (int)len, buf);
 		prefix = " ";
 	}
 	if (flags & MFLAG) {
@@ -148,7 +149,7 @@ main(argc, argv)
 		len = sizeof(buf);
 		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
 			err(1, "sysctl");
-		(void)printf("%s%.*s", prefix, len, buf);
+		(void)printf("%s%.*s", prefix, (int)len, buf);
 		prefix = " ";
 	}
 	(void)printf("\n");

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uuencode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: uuencode.c,v 1.1.1.1.8.2 1997/08/29 05:30:09 imp Exp $";
+	"$Id: uuencode.c,v 1.1.1.1.8.3 1998/03/08 14:29:25 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -55,7 +55,6 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 void encode __P((void));
