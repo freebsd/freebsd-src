@@ -413,7 +413,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 #ifdef SMP
 	if (cpu_apic_address == 0)
-		panic("pmap_bootstrap: no local apic!");
+		panic("pmap_bootstrap: no local apic! (non-SMP hardware?)");
 
 	/* local apic is mapped on last page */
 	SMPpt[NPTEPG - 1] = (pt_entry_t)(PG_V | PG_RW | PG_N | pgeflag |
