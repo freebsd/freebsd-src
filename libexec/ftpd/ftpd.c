@@ -1187,11 +1187,14 @@ pass(passwd)
 			goto skip;
 #endif
 #ifdef SKEY
-		rval = strcmp(skey_crypt(passwd, pw->pw_passwd, pw, pwok),
-			      pw->pw_passwd);
-		pwok = 0;
+		if (pwok)
+			rval = strcmp(pw->pw_passwd,
+			    crypt(passwd, pw->pw_passwd));
+		if (rval)
+			rval = strcmp(pw->pw_passwd,
+			    skey_crypt(passwd, pw->pw_passwd, pw, pwok));
 #else
-		rval = strcmp(crypt(passwd, pw->pw_passwd), pw->pw_passwd);
+		rval = strcmp(pw->pw_passwd, crypt(passwd, pw->pw_passwd));
 #endif
 		/* The strcmp does not catch null passwords! */
 		if (*pw->pw_passwd == '\0' ||
@@ -1219,6 +1222,9 @@ skip:
 			return;
 		}
 	}
+#ifdef SKEY
+	pwok = 0;
+#endif
 	login_attempts = 0;		/* this time successful */
 	if (setegid((gid_t)pw->pw_gid) < 0) {
 		reply(550, "Can't set gid.");
