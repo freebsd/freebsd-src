@@ -54,6 +54,10 @@ typedef int sig_atomic_t;
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
 
 /*
+ * Only the kernel should need these old type definitions.
+ */
+#ifdef _KERNEL
+/*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
  * execution of the signal handler.  It is also made available
@@ -85,6 +89,7 @@ struct osigcontext {
 	int	sc_trapno;
 	int	sc_err;
 };
+#endif
 
 /*
  * The sequence of the fields/registers in struct sigcontext should match

@@ -34,7 +34,7 @@
 /*
  * Signal frames, arguments passed to application signal handlers.
  */
-
+#ifdef _KERNEL
 struct osigframe {
 	/*
 	 * The first four members may be used by applications.
@@ -69,6 +69,7 @@ struct osigframe {
 	/* In the SA_SIGINFO case, sf_arg2 points here. */
 	osiginfo_t	sf_siginfo;
 };
+#endif
 
 struct sigframe {
 	/*

@@ -42,6 +42,10 @@ typedef long	sig_atomic_t;
 #define	MINSIGSTKSZ	(1024 * 4)
 
 /*
+ * Only the kernel should need these old type definitions.
+ */
+#ifdef _KERNEL
+/*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
  * execution of the signal handler.  It is also made available
@@ -70,6 +74,7 @@ struct  osigcontext {
 	unsigned long sc_traparg_a2;	/* a2 argument to trap at exception */
 	long	sc_xxx2[3];		/* sc_fp_trap_pc, sc_fp_trigger_sum, sc_fp_trigger_inst */
 };
+#endif
 
 /*
  * The sequence of the fields should match those in
