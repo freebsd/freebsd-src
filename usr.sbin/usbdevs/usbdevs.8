@@ -1,6 +1,5 @@
-.\" $NetBSD: usbdevs.8,v 1.3 1998/07/23 13:57:51 augustss Exp $
-.\" $FreeBSD$
-.\" Copyright (c) 1998 The NetBSD Foundation, Inc.
+.\" $NetBSD: usbdevs.8,v 1.5 2000/10/15 12:44:11 bjh21 Exp $
+.\" Copyright (c) 1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" Author: Lennart Augustsson
@@ -35,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 12, 1998
+.Dd October 15, 2000
 .Dt USBDEVS 8
 .Os
 .Sh NAME
@@ -44,6 +43,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a Ar addr
+.Op Fl d
 .Op Fl f Ar dev
 .Op Fl v
 .Sh DESCRIPTION
@@ -53,9 +53,11 @@ with some information about each device.
 The indentation of each line indicates its distance from the root.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width Fl
 .It Fl a Ar addr
 only print information about the device at the given address.
+.It Fl d
+Show the device drivers associated with each device.
 .It Fl f Ar dev
 only print information for the given USB controller.
 .It Fl v
