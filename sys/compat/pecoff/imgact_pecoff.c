@@ -66,7 +66,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
-#include <vm/vm_zone.h>
 
 #include <sys/user.h>
 #include <sys/exec.h>
