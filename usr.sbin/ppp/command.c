@@ -455,7 +455,7 @@ subst(char *tgt, const char *oldstr, const char *newstr)
       tgt = ntgt;
     }
     if (lnewstr > loldstr)
-      bcopy(word + loldstr, word + lnewstr, ltgt - pos - loldstr);
+      bcopy(word + loldstr, word + lnewstr, ltgt - pos - lnewstr);
     bcopy(newstr, word, lnewstr);
   } while ((word = strstrword(word, oldstr)));
 
