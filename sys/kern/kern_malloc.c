@@ -41,10 +41,9 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
-
-#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -75,7 +74,7 @@ static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
 
-struct mtx malloc_mtx;
+MUTEX_DECLARE(static, malloc_mtx);
 
 u_int vm_kmem_size;
 
@@ -437,7 +436,7 @@ kmeminit(dummy)
 #error "kmeminit: MAXALLOCSAVE too small"
 #endif
 
-	mtx_init(&malloc_mtx, "malloc", MTX_DEF);
+	mtx_init(&malloc_mtx, "malloc", MTX_DEF | MTX_COLD);
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
