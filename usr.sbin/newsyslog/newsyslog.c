@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <glob.h>
 #include <grp.h>
 #include <paths.h>
 #include <pwd.h>
@@ -68,6 +69,7 @@ static const char rcsid[] =
 #define CE_BZCOMPACT 8		/* Compact the achived log files with bzip2 */
 				/*  status messages */
 #define	CE_TRIMAT  4		/* trim at a specific time */
+#define	CE_GLOB    16		/* name of the log is file name pattern */
 
 #define NONE -1
 
@@ -125,6 +127,8 @@ int
 main(int argc, char **argv)
 {
 	struct conf_entry *p, *q;
+	glob_t pglob;
+	int i;
 
 	PRS(argc, argv);
 	if (needroot && getuid() && geteuid())
@@ -132,7 +136,19 @@ main(int argc, char **argv)
 	p = q = parse_file(argv + optind);
 
 	while (p) {
-		do_entry(p);
+		if ((p->flags & CE_GLOB) == 0) {
+			do_entry(p);
+		} else {
+			if (glob(p->log, GLOB_NOCHECK, NULL, &pglob) != 0) {
+				warn("can't expand pattern: %s", p->log);
+			} else {
+				for (i = 0; i < pglob.gl_matchc; i++) {
+					p->log = pglob.gl_pathv[i];
+					do_entry(p);
+				}
+				globfree(&pglob);
+			}
+		}
 		p = p->next;
 		free((char *) q);
 		q = p;
@@ -443,6 +459,8 @@ parse_file(char **files)
 				working->flags |= CE_BZCOMPACT;
 			else if ((*q == 'B') || (*q == 'b'))
 				working->flags |= CE_BINARY;
+			else if ((*q == 'G') || (*q == 'c'))
+				working->flags |= CE_GLOB;
 			else if (*q != '-')
 				errx(1, "illegal flag in config file -- %c",
 				    *q);
