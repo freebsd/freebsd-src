@@ -1,5 +1,5 @@
 #	@(#)README	8.1 (Berkeley) 6/5/93
-#	$Id: README,v 1.4 1997/02/22 13:55:34 peter Exp $
+#	$Id: README,v 1.5 1998/01/25 19:20:00 wosch Exp $
 
 WEB ---- (introduction provided by jaw@riacs) -------------------------
 
@@ -17,3 +17,13 @@ Russian, Spanish, Swahili, Swedish, Yiddish, are available
 at ftp://sable.ox.ac.uk/pub/wordlists.
 
 Country names are stored in the file /usr/share/misc/iso3166.
+
+
+FreeBSD Maintenance Notes ---------------------------------------------
+
+Note that FreeBSD is not maintaining a historical document, we're
+maintaining a list of current [American] English spellings.
+
+A few words have been removed because their spellings have depreciated.
+This list of words includes:
+	corelation (and its derivatives) -- "correlation" is the preferred spelling
