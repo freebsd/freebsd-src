@@ -118,7 +118,6 @@
 				/* 112 is old sigstack */
 				/* 113 is old recvmsg */
 				/* 114 is old sendmsg */
-#define	SYS_vtrace	115
 				/* 115 is obsolete vtrace */
 #define	SYS_gettimeofday	116
 #define	SYS_getrusage	117

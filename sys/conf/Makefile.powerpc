@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.55 1995/02/26 05:05:53 bde Exp $
+#	$Id: Makefile.i386,v 1.56 1995/03/01 10:08:04 gibbs Exp $
 #
 # Makefile for FreeBSD
 #
@@ -13,13 +13,6 @@
 # Generic makefile changes should be made in
 #	/sys/i386/conf/Makefile.i386
 # after which config should be rerun for all machines.
-#
-# N.B.: DEPENDENCIES ON FOLLOWING FLAGS ARE INVISIBLE TO MAKEFILE
-#	IF YOU CHANGE THE DEFINITION OF ANY OF THESE RECOMPILE EVERYTHING
-#
-# -DTRACE	compile in kernel tracing hooks
-# -DQUOTA	compile in file system quotas
-# -DFOO		almost all options
 #
 CC?=	cc 
 CPP?=	cpp

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: ffs_inode.c,v 1.10 1994/12/27 14:44:42 bde Exp $
+ * $Id: ffs_inode.c,v 1.11 1995/01/09 16:05:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -43,7 +43,6 @@
 #include <sys/vnode.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/trace.h>
 #include <sys/resourcevar.h>
 
 #include <vm/vm.h>
@@ -442,12 +441,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 */
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->fs_bsize, 0, 0);
-	/* if (bp->b_flags & (B_DONE | B_DELWRI)) { */
-	if (bp->b_flags & B_CACHE) {
-		/* Braces must be here in case trace evaluates to nothing. */
-		trace(TR_BREADHIT, pack(vp, fs->fs_bsize), lbn);
-	} else {
-		trace(TR_BREADMISS, pack(vp, fs->fs_bsize), lbn);
+	if ((bp->b_flags & B_CACHE) == 0) {
 		curproc->p_stats->p_ru.ru_inblock++;	/* pay for read */
 		bp->b_flags |= B_READ;
 		if (bp->b_bcount > bp->b_bufsize)

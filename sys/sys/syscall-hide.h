@@ -116,10 +116,6 @@ HIDE_POSIX(sigsuspend)
 HIDE_BSD(sigstack)
 HIDE_BSD(recvmsg)
 HIDE_BSD(sendmsg)
-#ifdef TRACE
-HIDE_BSD(vtrace)
-#else
-#endif
 HIDE_BSD(gettimeofday)
 HIDE_BSD(getrusage)
 HIDE_BSD(getsockopt)
