@@ -273,7 +273,7 @@ main(argc, argv)
 #endif
 
 	if (argc > 0) {
-		if (isurl(argv[0])) {
+		if (strchr(argv[0], ':') != NULL && ! isipv6addr(argv[0])) {
 			anonftp = 1;	/* Handle "automatic" transfers. */
 			rval = auto_fetch(argc, argv);
 			if (rval >= 0)		/* -1 == connected and cd-ed */
