@@ -781,6 +781,7 @@ doslave(int cmd, int slave_number)
 		eot_count = 0;
 		size = 0;
 
+		wrote = 0;
 		while (eot_count < 10 && size < writesize) {
 #ifdef RDUMP
 			if (host)
