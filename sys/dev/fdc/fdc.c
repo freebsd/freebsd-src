@@ -63,7 +63,6 @@
 #include <sys/conf.h>
 #include <sys/devicestat.h>
 #include <sys/disk.h>
-#include <sys/disklabel.h>
 #include <sys/fcntl.h>
 #include <sys/fdcio.h>
 #include <sys/filio.h>
@@ -2611,8 +2610,6 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
  	fdu_t fdu;
  	fd_p fd;
-	struct fd_type *fdt;
-	struct disklabel *lp;
 	struct fdc_status *fsp;
 	struct fdc_readid *rid;
 	size_t fdblk;
@@ -2627,6 +2624,15 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	 * FD_NONBLOCK still being set.
 	 */
 	switch (cmd) {
+
+	case DIOCGMEDIASIZE:
+		*(off_t *)addr = (128 << (fd->ft->secsize)) * fd->ft->size;
+		return (0);
+
+	case DIOCGSECTORSIZE:
+		*(u_int *)addr = 128 << (fd->ft->secsize);
+		return (0);
+
 	case FIONBIO:
 		if (*(int *)addr != 0)
 			fd->flags |= FD_NONBLOCK;
@@ -2725,43 +2731,6 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	error = 0;
 
 	switch (cmd) {
-	case DIOCGDINFO:
-		lp = malloc(sizeof(*lp), M_TEMP, M_ZERO);
-		lp->d_secsize = fdblk;
-		fdt = fd->ft;
-		lp->d_secpercyl = fdt->size / fdt->tracks;
-		lp->d_type = DTYPE_FLOPPY;
-		if (readdisklabel(dev, lp) != NULL)
-			error = EINVAL;
-		else
-			*(struct disklabel *)addr = *lp;
-		free(lp, M_TEMP);
-		break;
-
-	case DIOCSDINFO:
-		if ((flag & FWRITE) == 0)
-			return (EBADF);
-		/*
-		 * XXX perhaps should call setdisklabel() to do error checking
-		 * although there is nowhere to "set" the result.  Perhaps
-		 * should always just fail.
-		 */
-		break;
-
-	case DIOCWLABEL:
-		if ((flag & FWRITE) == 0)
-			return (EBADF);
-		break;
-
-	case DIOCWDINFO:
-		if ((flag & FWRITE) == 0)
-			return (EBADF);
-		lp = malloc(DEV_BSIZE, M_TEMP, M_ZERO);
-		error = setdisklabel(lp, (struct disklabel *)addr, (u_long)0);
-		if (error != 0)
-			error = writedisklabel(dev, lp);
-		free(lp, M_TEMP);
-		break;
 
 	case FD_FORM:
 		if ((flag & FWRITE) == 0)
