@@ -179,26 +179,23 @@
 
   </sect2>
 
-    <sect2 id="contrib">
-      <title>Contributed Software</title>
+  <sect2 id="contrib">
+    <title>Contributed Software</title>
 
-      <para><application>sendmail</application> has been updated to
-        version 8.12.9.</para>
+    <para><application>sendmail</application> has been updated to
+      version 8.12.9.</para>
+  </sect2>
 
-    </sect2>
+  <sect2 id="ports">
+    <title>Ports/Packages Collection Infrastructure</title>
 
-    <sect2 id="ports">
-      <title>Ports/Packages Collection Infrastructure</title>
-
-      <para></para>
-
-    </sect2>
+    <para></para>
+  </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
     <para></para>
-
   </sect2>
 </sect1>
 
