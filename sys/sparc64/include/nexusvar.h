@@ -40,11 +40,6 @@ enum nexus_ivars {
 	NEXUS_IVAR_DMATAG,
 };
 
-/*
- * Simplified accessors for nexus devices
- * XXX: These should be made specializations of generic bus accessor macros
- * instead of having multiple implementations around.
- */
 #define NEXUS_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(nexus, var, NEXUS, ivar, type)
 
