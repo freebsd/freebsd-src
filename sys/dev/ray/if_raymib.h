@@ -220,9 +220,11 @@ struct ray_mib_5 {
 #define RAY_MIB_CUR_PROMISC			64
 #define RAY_MIB_DES_AP_STATUS			65
 #define RAY_MIB_DES_PROMISC			66
+#define RAY_MIB_CUR_FRAMING			67
+#define RAY_MIB_DES_FRAMING			68
 
 #define	RAY_MIB_LASTUSER			45
-#define	RAY_MIB_MAX				66
+#define	RAY_MIB_MAX				68
 
 /*
  * Strings for the MIB
@@ -294,7 +296,9 @@ struct ray_mib_5 {
 	"Current AP_STATUS",		\
 	"Current PROMISC",		\
 	"Desired AP_STATUS",		\
-	"Desired PROMISC"		\
+	"Desired PROMISC",		\
+	"Current FRAMING",		\
+	"Desired FRAMING"		\
 }
 
 #define RAY_MIB_HELP_STRINGS {			\
@@ -364,7 +368,9 @@ struct ray_mib_5 {
 	"Current AP_STATUS",			\
 	"Current PROMISC",			\
 	"Desired AP_STATUS",			\
-	"Desired PROMISC"			\
+	"Desired PROMISC",			\
+	"Current FRAMING",			\
+	"Desired FRAMING"			\
 }
 
 /*
@@ -447,7 +453,9 @@ struct ray_mib_5 {
 {RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_CUR_AP_STATUS */		\
 {RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_CUR_PROMISC */		\
 {RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_DES_AP_STATUS */		\
-{RAY_V4|RAY_V5,	1, 	1} 	/* RAY_MIB_DES_PROMISC */		\
+{RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_DES_PROMISC */		\
+{RAY_V4|RAY_V5,	1, 	1}, 	/* RAY_MIB_CUR_FRAMING */		\
+{RAY_V4|RAY_V5,	1, 	1} 	/* RAY_MIB_DES_FRAMING */		\
 }
 
 /*
@@ -480,8 +488,11 @@ struct ray_mib_5 {
  *	17 June, 1998
  */
 
-/* XXX Obtained by raycontrol _before_ downloading
- * # /sys/dev/ray/raycontrol/raycontrol -i ray0
+/* Obtained by raycontrol _before_ downloading
+ *
+ * WebGear Aviator
+ *
+ * # raycontrol -i ray0
  * Firmware version                4
  * Network type                    0x01    0 Ad hoc, 1 Infrastructure
  * AP status                       0x00    0 Station, 1 Access Point
@@ -525,7 +536,56 @@ struct ray_mib_5 {
  * TEST_MODE                       0x00    TEST_MODE
  * TEST_MIN_CHAN                   0x02    TEST_MIN_CHAN
  * TEST_MAX_CHAN                   0x02    TEST_MAX_CHAN
-*/
+ *
+ * Raylink
+ * Firmware version          	5
+ * Network type              	0x01	0 Ad hoc, 1 Infrastructure
+ * AP status                 	0x00	0 Station, 1 Access Point
+ * SSID                      	ESSID1                          	
+ * Scan mode                 	0x01	0 Passive, 1 Active
+ * APM mode                  	0x00	0 Off, 1 On
+ * MAC address               	00:00:8f:a8:17:06	
+ * Fragmentation threshold   	0x7fff	Bytes
+ * Dwell time                	0x0080	DWELL_TIME
+ * Beacon period             	0x0100	BEACON_PERIOD
+ * DTIM_INTERVAL             	0x01	DTIM_INTERVAL
+ * MAX_RETRY                 	0x1f	MAX_RETRY
+ * ACK_TIMO                  	0x86	ACK_TIMO
+ * SIFS                      	0x1c	SIFS
+ * DIFS                      	0x82	DIFS
+ * PIFS                      	0x4e	PIFS
+ * RTS_THRESH                	0x7fff	RTS_THRESH
+ * SCAN_DWELL                	0x04e2	SCAN_DWELL
+ * SCAN_MAX_DWELL            	0x38a4	SCAN_MAX_DWELL
+ * ASSOC_TIMO                	0x05	ASSOC_TIMO
+ * ADHOC_SCAN_CYCLE          	0x08	ADHOC_SCAN_CYCLE
+ * INFRA_SCAN_CYCLE          	0x02	INFRA_SCAN_CYCLE
+ * INFRA_SUPER_SCAN_CYCLE    	0x08	INFRA_SUPER_SCAN_CYCLE
+ * PROMISC                   	0x00	PROMISC
+ * UNIQ_WORD                 	0x0cbd	UNIQ_WORD
+ * SLOT_TIME                 	0x32	SLOT_TIME
+ * ROAM_LOW_SNR_THRESH       	0xff	ROAM_LOW_SNR_THRESH
+ * LOW_SNR_COUNT             	0xff	LOW_SNR_COUNT
+ * INFRA_MISSED_BEACON_COUNT 	0x02	INFRA_MISSED_BEACON_COUNT
+ * ADHOC_MISSED_BEACON_COUNT 	0xff	ADHOC_MISSED_BEACON_COUNT
+ * COUNTRY_CODE              	0x01	COUNTRY_CODE
+ * HOP_SEQ                   	0x0b	HOP_SEQ
+ * HOP_SEQ_LEN               	0x55	HOP_SEQ_LEN
+ * CW_MAX                    	0x003f	CW_MAX
+ * CW_MIN                    	0x000f	CW_MIN
+ * NOISE_FILTER_GAIN         	0x04	NOISE_FILTER_GAIN
+ * NOISE_LIMIT_OFFSET        	0x08	NOISE_LIMIT_OFFSET
+ * RSSI_THRESH_OFFSET        	0x28	RSSI_THRESH_OFFSET
+ * BUSY_THRESH_OFFSET        	0x28	BUSY_THRESH_OFFSET
+ * SYNC_THRESH               	0x07	SYNC_THRESH
+ * TEST_MODE                 	0x00	TEST_MODE
+ * TEST_MIN_CHAN             	0x02	TEST_MIN_CHAN
+ * TEST_MAX_CHAN             	0x02	TEST_MAX_CHAN
+ * ALLOW_PROBE_RESP          	0x00	ALLOW_PROBE_RESP
+ * PRIVACY_MUST_START        	0x00	PRIVACY_MUST_START
+ * PRIVACY_CAN_JOIN          	0x00	PRIVACY_CAN_JOIN
+ * BASIC_RATE_SET            	0x02	BASIC_RATE_SET
+ */
 
 /*
  * mib_net_type
@@ -533,11 +593,13 @@ struct ray_mib_5 {
  * DOC		0x01	- Defines network type for Start and Join
  *			- Network commands.
  *
- * Symb		0x00	- Adhoc is safer and I ain't got an AP
+ * As the V4 cards don't do infra we have to use adhoc. For V5 cards
+ * we follow standard FreeBSD practise and use infrastructure mode.
  */
 #define	RAY_MIB_NET_TYPE_ADHOC			0x00
 #define	RAY_MIB_NET_TYPE_INFRA			0x01
-#define	RAY_MIB_NET_TYPE_DEFAULT		RAY_MIB_NET_TYPE_ADHOC
+#define	RAY_MIB_NET_TYPE_V4			RAY_MIB_NET_TYPE_ADHOC
+#define	RAY_MIB_NET_TYPE_V5			RAY_MIB_NET_TYPE_INFRA
 
 /*
  * mib_ap_status
@@ -547,7 +609,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_AP_STATUS_TERMINAL		0x00
 #define	RAY_MIB_AP_STATUS_AP			0x01
-#define	RAY_MIB_AP_STATUS_DEFAULT		RAY_MIB_AP_STATUS_TERMINAL
+#define	RAY_MIB_AP_STATUS_V4			RAY_MIB_AP_STATUS_TERMINAL
+#define	RAY_MIB_AP_STATUS_V5			RAY_MIB_AP_STATUS_TERMINAL
 
 /*
  * mib_ssid
@@ -560,8 +623,9 @@ struct ray_mib_5 {
  * Symb			- windows setting comes from the Aviator software v1.1
  */
 #define RAY_MIB_SSID_WINDOWS			"NETWORK_NAME"
-#define RAY_MIB_SSID_NOT_WINDOWS		"WIRELESS_NETWORK"
-#define RAY_MIB_SSID_DEFAULT			RAY_MIB_SSID_WINDOWS
+#define RAY_MIB_SSID_RAYLINK			"ESSID1"
+#define RAY_MIB_SSID_V4				RAY_MIB_SSID_WINDOWS
+#define RAY_MIB_SSID_V5				RAY_MIB_SSID_RAYLINK
 
 /*
  * mib_scan_mode
@@ -572,7 +636,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_SCAN_MODE_PASSIVE		0x00
 #define	RAY_MIB_SCAN_MODE_ACTIVE		0x01
-#define	RAY_MIB_SCAN_MODE_DEFAULT		RAY_MIB_SCAN_MODE_ACTIVE
+#define	RAY_MIB_SCAN_MODE_V4			RAY_MIB_SCAN_MODE_ACTIVE
+#define	RAY_MIB_SCAN_MODE_V5			RAY_MIB_SCAN_MODE_ACTIVE
 
 /*
  * mib_apm_mode
@@ -584,7 +649,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_APM_MODE_NONE			0x00
 #define	RAY_MIB_APM_MODE_POWERSAVE		0x01
-#define	RAY_MIB_APM_MODE_DEFAULT		RAY_MIB_APM_MODE_NONE
+#define	RAY_MIB_APM_MODE_V4			RAY_MIB_APM_MODE_NONE
+#define	RAY_MIB_APM_MODE_V5			RAY_MIB_APM_MODE_NONE
 
 /*
  * mib_mac_addr
@@ -609,7 +675,8 @@ struct ray_mib_5 {
 #define RAY_MIB_FRAG_THRESH_MINIMUM		0
 #define RAY_MIB_FRAG_THRESH_MAXIMUM		2346
 #define RAY_MIB_FRAG_THRESH_DISABLE		0x7fff
-#define RAY_MIB_FRAG_THRESH_DEFAULT		RAY_MIB_FRAG_THRESH_DISABLE
+#define RAY_MIB_FRAG_THRESH_V4			RAY_MIB_FRAG_THRESH_DISABLE
+#define RAY_MIB_FRAG_THRESH_V5			RAY_MIB_FRAG_THRESH_DISABLE
 
 /*
  * mib_dwell_time
@@ -664,7 +731,7 @@ struct ray_mib_5 {
 #define	RAY_MIB_BEACON_PERIOD_MINIMUM		1
 #define	RAY_MIB_BEACON_PERIOD_MAXIMUM		0xffff
 #define	RAY_MIB_BEACON_PERIOD_V4		0x0001
-#define	RAY_MIB_BEACON_PERIOD_V5		RAY_MIB_DWELL_TIME_V5
+#define	RAY_MIB_BEACON_PERIOD_V5		(2*RAY_MIB_DWELL_TIME_V5)
 
 /*
  * mib_dtim_interval
@@ -680,7 +747,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_DTIM_INTERVAL_MINIMUM		1
 #define	RAY_MIB_DTIM_INTERVAL_MAXIMUM		255
-#define	RAY_MIB_DTIM_INTERVAL_DEFAULT		0x01
+#define	RAY_MIB_DTIM_INTERVAL_V4		0x01
+#define	RAY_MIB_DTIM_INTERVAL_V5		0x01
 
 /*
  * mib_max_retry
@@ -696,7 +764,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_MAX_RETRY_MINIMUM		0
 #define	RAY_MIB_MAX_RETRY_MAXIMUM		255
-#define	RAY_MIB_MAX_RETRY_DEFAULT		0x07
+#define	RAY_MIB_MAX_RETRY_V4			0x07
+#define	RAY_MIB_MAX_RETRY_V5			0x1f
 
 /*
  * mib_ack_timo
@@ -714,7 +783,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_ACK_TIMO_MINIMUM		0
 #define	RAY_MIB_ACK_TIMO_MAXIMUM		255
-#define	RAY_MIB_ACK_TIMO_DEFAULT		0xa3
+#define	RAY_MIB_ACK_TIMO_V4			0xa3
+#define	RAY_MIB_ACK_TIMO_V5			0x86
 
 /*
  * mib_sifs
@@ -729,7 +799,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_SIFS_MINIMUM			28
 #define	RAY_MIB_SIFS_MAXIMUM			62
-#define	RAY_MIB_SIFS_DEFAULT			0x1d
+#define	RAY_MIB_SIFS_V4				0x1d
+#define	RAY_MIB_SIFS_V5				0x1c
 
 /*
  * mib_difs
@@ -738,7 +809,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_DIFS_MINIMUM			130
 #define	RAY_MIB_DIFS_MAXIMUM			255
-#define	RAY_MIB_DIFS_DEFAULT			0x82
+#define	RAY_MIB_DIFS_V4				0x82
+#define	RAY_MIB_DIFS_V5				0x82
 
 /*
  * mib_pifs
@@ -766,7 +838,8 @@ struct ray_mib_5 {
 #define	RAY_MIB_RTS_THRESH_MINIMUM		0
 #define	RAY_MIB_RTS_THRESH_MAXIMUM		2346
 #define	RAY_MIB_RTS_THRESH_DISABLE		0x7fff
-#define	RAY_MIB_RTS_THRESH_DEFAULT		RAY_MIB_RTS_THRESH_DISABLE
+#define	RAY_MIB_RTS_THRESH_V4			RAY_MIB_RTS_THRESH_DISABLE
+#define	RAY_MIB_RTS_THRESH_V5			RAY_MIB_RTS_THRESH_DISABLE
 
 /*
  * mib_scan_dwell
@@ -815,7 +888,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_ASSOC_TIMO_MINIMUM		0
 #define	RAY_MIB_ASSOC_TIMO_MAXIMUM		255
-#define	RAY_MIB_ASSOC_TIMO_DEFAULT		0x05
+#define	RAY_MIB_ASSOC_TIMO_V4			0x05
+#define	RAY_MIB_ASSOC_TIMO_V5			0x05
 
 /*
  * mib_adhoc_scan_cycle
@@ -827,7 +901,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_ADHOC_SCAN_CYCLE_MINIMUM	1
 #define	RAY_MIB_ADHOC_SCAN_CYCLE_MAXIMUM	255
-#define	RAY_MIB_ADHOC_SCAN_CYCLE_DEFAULT	0x08
+#define	RAY_MIB_ADHOC_SCAN_CYCLE_V4		0x08
+#define	RAY_MIB_ADHOC_SCAN_CYCLE_V5		0x08
 
 /*
  * mib_infra_scan_cycle
@@ -839,7 +914,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_INFRA_SCAN_CYCLE_MINIMUM	1
 #define	RAY_MIB_INFRA_SCAN_CYCLE_MAXIMUM	255
-#define	RAY_MIB_INFRA_SCAN_CYCLE_DEFAULT	0x02
+#define	RAY_MIB_INFRA_SCAN_CYCLE_V4		0x02
+#define	RAY_MIB_INFRA_SCAN_CYCLE_V5		0x02
 
 /*
  * mib_infra_super_scan_cycle
@@ -850,7 +926,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_INFRA_SUPER_SCAN_CYCLE_MINIMUM	1
 #define	RAY_MIB_INFRA_SUPER_SCAN_CYCLE_MAXIMUM	255
-#define	RAY_MIB_INFRA_SUPER_SCAN_CYCLE_DEFAULT	0x08
+#define	RAY_MIB_INFRA_SUPER_SCAN_CYCLE_V4		0x08
+#define	RAY_MIB_INFRA_SUPER_SCAN_CYCLE_V5		0x08
 
 /*
  * mib_promisc
@@ -860,7 +937,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_PROMISC_DISABLED		0
 #define	RAY_MIB_PROMISC_ENABLED			1
-#define	RAY_MIB_PROMISC_DEFAULT			0x00
+#define	RAY_MIB_PROMISC_V4			0x00
+#define	RAY_MIB_PROMISC_V5			0x00
 
 /*
  * mib_uniq_word
@@ -870,7 +948,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_UNIQ_WORD_MINIMUM		0
 #define	RAY_MIB_UNIQ_WORD_MAXIMUM		0xffff
-#define	RAY_MIB_UNIQ_WORD_DEFAULT		0x0cbd
+#define	RAY_MIB_UNIQ_WORD_V4			0x0cbd
+#define	RAY_MIB_UNIQ_WORD_V5			0x0cbd
 
 /*
  * mib_slot_time
@@ -908,7 +987,8 @@ struct ray_mib_5 {
 #define	RAY_MIB_ROAM_LOW_SNR_THRESH_MINIMUM	0
 #define	RAY_MIB_ROAM_LOW_SNR_THRESH_MAXIMUM	255
 #define	RAY_MIB_ROAM_LOW_SNR_THRESH_DISABLED	0xff
-#define	RAY_MIB_ROAM_LOW_SNR_THRESH_DEFAULT	RAY_MIB_ROAM_LOW_SNR_THRESH_DISABLED	
+#define	RAY_MIB_ROAM_LOW_SNR_THRESH_V4		RAY_MIB_ROAM_LOW_SNR_THRESH_DISABLED	
+#define	RAY_MIB_ROAM_LOW_SNR_THRESH_V5		RAY_MIB_ROAM_LOW_SNR_THRESH_DISABLED	
 
 /*
  * mib_low_snr_count
@@ -929,7 +1009,8 @@ struct ray_mib_5 {
 #define	RAY_MIB_LOW_SNR_COUNT_MINIMUM		0
 #define	RAY_MIB_LOW_SNR_COUNT_MAXIMUM		255
 #define	RAY_MIB_LOW_SNR_COUNT_DISABLED		0xff
-#define	RAY_MIB_LOW_SNR_COUNT_DEFAULT		RAY_MIB_LOW_SNR_COUNT_DISABLED
+#define	RAY_MIB_LOW_SNR_COUNT_V4		RAY_MIB_LOW_SNR_COUNT_DISABLED
+#define	RAY_MIB_LOW_SNR_COUNT_V5		RAY_MIB_LOW_SNR_COUNT_DISABLED
 
 /*
  * mib_infra_missed_beacon_count
@@ -947,7 +1028,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_INFRA_MISSED_BEACON_COUNT_MINIMUM	0
 #define	RAY_MIB_INFRA_MISSED_BEACON_COUNT_MAXIMUM	255
-#define	RAY_MIB_INFRA_MISSED_BEACON_COUNT_DEFAULT	0x05
+#define	RAY_MIB_INFRA_MISSED_BEACON_COUNT_V4		0x05
+#define	RAY_MIB_INFRA_MISSED_BEACON_COUNT_V5		0x02
 
 /*
  * mib_adhoc_missed_beacon_count
@@ -960,7 +1042,8 @@ struct ray_mib_5 {
 #define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_MINIMUM	0
 #define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_MAXIMUM	255
 #define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DISABLED	0xff
-#define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DEFAULT	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DISABLED
+#define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_V4		RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DISABLED
+#define	RAY_MIB_ADHOC_MISSED_BEACON_COUNT_V5		RAY_MIB_ADHOC_MISSED_BEACON_COUNT_DISABLED
 
 /*
  * mib_country_code
@@ -982,7 +1065,8 @@ struct ray_mib_5 {
 #define	RAY_MIB_COUNTRY_CODE_ISRAEL		0x07
 #define	RAY_MIB_COUNTRY_CODE_AUSTRALIA		0x08
 #define	RAY_MIB_COUNTRY_CODE_JAPAN_TEST		0x09
-#define	RAY_MIB_COUNTRY_CODE_DEFAULT		RAY_MIB_COUNTRY_CODE_USA
+#define	RAY_MIB_COUNTRY_CODE_V4			RAY_MIB_COUNTRY_CODE_USA
+#define	RAY_MIB_COUNTRY_CODE_V5			RAY_MIB_COUNTRY_CODE_USA
 
 /*
  * mib_hop_seq
@@ -994,7 +1078,8 @@ struct ray_mib_5 {
  */
 #define	RAY_MIB_HOP_SEQ_MINIMUM			6
 #define	RAY_MIB_HOP_SEQ_MAXIMUM			72
-#define	RAY_MIB_HOP_SEQ_DEFAULT			0x0b
+#define	RAY_MIB_HOP_SEQ_V4			0x0b
+#define	RAY_MIB_HOP_SEQ_V5			0x04
 
 /*
  * mib_hop_seq_len
@@ -1008,8 +1093,6 @@ struct ray_mib_5 {
 #define	RAY_MIB_HOP_SEQ_LEN_MAXIMUM		79
 #define	RAY_MIB_HOP_SEQ_LEN_V4			0x4e
 #define	RAY_MIB_HOP_SEQ_LEN_V5			0x4f
-
-/* XXX need to update these to the spec. XXX */
 
 /*
  * All from here down are the same in Linux/NetBSD and seem to be sane.
