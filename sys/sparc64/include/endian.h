@@ -71,10 +71,10 @@ __END_DECLS
 #define	htonl(x)	(x)
 #define	htons(x)	(x)
 
-#define	NTOHL(x)	(x)
-#define	NTOHS(x)	(x)
-#define	HTONL(x)	(x)
-#define	HTONS(x)	(x)
+#define	NTOHL(x)
+#define	NTOHS(x)
+#define	HTONL(x)
+#define	HTONS(x)
 
 #else
 
