@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.34 1997/07/31 15:24:37 pst Exp $
+# $Id: adduser.perl,v 1.35 1997/08/26 22:47:51 wosch Exp $
 
 
 # read variables
@@ -317,7 +317,7 @@ sub new_users_name {
 sub new_users_name_valid {
     local($name) = @_;
 
-    if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/) {
+    if ($name !~ /^[a-z0-9_][a-z0-9_\-]*$/ || $name eq "a-z0-9_-") {
 	warn "Wrong username. " .
 	    "Please use only lowercase characters or digits\a\n";
 	return 0;
