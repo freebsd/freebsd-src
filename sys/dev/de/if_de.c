@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/module.h>
 #include <sys/eventhandler.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
