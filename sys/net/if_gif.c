@@ -395,27 +395,27 @@ gif_output(ifp, m, dst, rt)
 }
 
 void
-gif_input(m, af, gifp)
+gif_input(m, af, ifp)
 	struct mbuf *m;
 	int af;
-	struct ifnet *gifp;
+	struct ifnet *ifp;
 {
 	int isr;
 	struct ifqueue *ifq = 0;
 
-	if (gifp == NULL) {
+	if (ifp == NULL) {
 		/* just in case */
 		m_freem(m);
 		return;
 	}
 
-	m->m_pkthdr.rcvif = gifp;
+	m->m_pkthdr.rcvif = ifp;
 
 #ifdef MAC
-	mac_create_mbuf_from_ifnet(gifp, m);
+	mac_create_mbuf_from_ifnet(ifp, m);
 #endif
 
-	if (gifp->if_bpf) {
+	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -430,11 +430,11 @@ gif_input(m, af, gifp)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af1;
 		
-		bpf_mtap(gifp, &m0);
+		bpf_mtap(ifp, &m0);
 	}
 
 	if (ng_gif_input_p != NULL) {
-		(*ng_gif_input_p)(gifp, &m, af);
+		(*ng_gif_input_p)(ifp, &m, af);
 		if (m == NULL)
 			return;
 	}
@@ -465,14 +465,14 @@ gif_input(m, af, gifp)
 #endif
 	default:
 		if (ng_gif_input_orphan_p != NULL)
-			(*ng_gif_input_orphan_p)(gifp, m, af);
+			(*ng_gif_input_orphan_p)(ifp, m, af);
 		else
 			m_freem(m);
 		return;
 	}
 
-	gifp->if_ipackets++;
-	gifp->if_ibytes += m->m_pkthdr.len;
+	ifp->if_ipackets++;
+	ifp->if_ibytes += m->m_pkthdr.len;
 	(void) IF_HANDOFF(ifq, m, NULL);
 	/* we need schednetisr since the address family may change */
 	schednetisr(isr);
