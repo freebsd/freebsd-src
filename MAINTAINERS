@@ -64,3 +64,4 @@ ncurses		peter	Heads-up appreciated, try not to break it.
 nvi		peter	Try not to break it.
 libz		peter	Try not to break it.
 pppd/chat	peter	Try not to break it.
+share/mk	ru	Recommends pre-commit review.
