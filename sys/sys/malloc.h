@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.7 1995/03/12 13:25:01 ugen Exp $
+ * $Id: malloc.h,v 1.8 1995/04/20 03:18:15 julian Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -120,7 +120,8 @@
 #define M_GZIP		76	/* Gzip trees */
 #define M_IPFW		77	/* IpFw/IpAcct chain's */
 #define M_DEVL		78	/* isa_device lists in userconfig() */
-#define	M_LAST		79	/* Must be last type + 1 */
+#define M_PKTCLASS	79	/* structures used in packet classifier */
+#define	M_LAST		80	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -197,6 +198,7 @@
 	"Gzip trees",	/* 76 M_GZIP */ \
 	"IpFw/IpAcct",	/* 77 M_IPFW */ \
 	"isa_devlist",	/* 78 M_DEVL */ \
+	"PktClass",	/* 79 M_PKTCLASS */ \
 }
 
 struct kmemstats {
@@ -274,7 +276,7 @@ struct kmembuckets {
 					: (MINBUCKET + 15)
 
 /*
- * Turn virtual addresses into kmem map indicies
+ * Turn virtual addresses into kmem map indices
  */
 #define kmemxtob(alloc)	(kmembase + (alloc) * NBPG)
 #define btokmemx(addr)	(((caddr_t)(addr) - kmembase) / NBPG)
@@ -286,7 +288,7 @@ struct kmembuckets {
 #if defined(KMEMSTATS) || defined(DIAGNOSTIC)
 #define	MALLOC(space, cast, size, type, flags) \
 	(space) = (cast)malloc((u_long)(size), type, flags)
-#define FREE(addr, type) free((caddr_t)(addr), type)
+#define FREE(addr, type) free((addr), type)
 
 #else /* do not collect statistics */
 #define	MALLOC(space, cast, size, type, flags) { \
@@ -306,7 +308,7 @@ struct kmembuckets {
 	register struct kmemusage *kup = btokup(addr); \
 	long s = splimp(); \
 	if (1 << kup->ku_indx > MAXALLOCSAVE) { \
-		free((caddr_t)(addr), type); \
+		free((addr), type); \
 	} else { \
 		kbp = &bucket[kup->ku_indx]; \
 		if (kbp->kb_next == NULL) \
