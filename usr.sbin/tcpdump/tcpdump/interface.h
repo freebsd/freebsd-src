@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/interface.h,v 1.3 1995/03/08 12:52:14 olah Exp $ (LBL)
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/Attic/interface.h,v 1.3.4.1 1996/06/05 02:58:15 jkh Exp $ (LBL)
  */
 
 #ifdef __GNUC__

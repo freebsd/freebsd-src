@@ -2,9 +2,13 @@
 'di';
 'ig00';
 #
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/eg/relink,v 1.1.1.1 1994/09/10 06:27:47 gclarkii Exp $
+# $Header: /home/ncvs/src/gnu/usr.bin/perl/eg/relink,v 1.1.1.1.6.1 1996/06/05 02:41:54 jkh Exp $
 #
 # $Log: relink,v $
+# Revision 1.1.1.1.6.1  1996/06/05 02:41:54  jkh
+# This 3rd mega-commit should hopefully bring us back to where we were.
+# I can get it to `make world' succesfully, anyway!
+#
 # Revision 1.1.1.1  1994/09/10  06:27:47  gclarkii
 # Initial import of Perl 4.046 bmaked
 #

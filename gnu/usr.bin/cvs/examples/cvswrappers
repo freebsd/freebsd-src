@@ -1,5 +1,5 @@
 #
-#ident	"@(#)cvs/examples:$Name:  $:$Id: cvswrappers,v 1.3 1995/11/14 23:23:11 woods Exp $"
+#ident	"@(#)cvs/examples:$Name: RELENG_2_1_7_RELEASE $:$Id: cvswrappers,v 1.2 1995/12/10 23:07:52 peter Exp $"
 #
 # This file describes wrappers and other binary files to CVS.
 #

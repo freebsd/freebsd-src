@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.10.2.3 1996/05/13 09:18:26 asami Exp $ */
+/* $Id: ccd.c,v 1.10.2.4 1997/02/18 22:40:31 davidg Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 

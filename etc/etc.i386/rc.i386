@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.9.4.5 1996/06/17 09:17:33 jkh Exp $
+#	$Id: rc.i386,v 1.9.4.6 1996/06/25 21:14:52 gpalmer Exp $
 #	Do i386 specific processing
 #
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.8 1995/05/30 08:05:47 rgrimes Exp $
+ * $Id: kern_time.c,v 1.8.4.1 1995/08/24 03:46:26 davidg Exp $
  */
 
 #include <sys/param.h>

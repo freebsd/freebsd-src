@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.1.1.1 1994/08/28 14:53:44 csgr Exp $
+#	$Id: Makefile,v 1.1.1.1.6.1 1997/01/31 09:21:58 dima Exp $
 
 PROG =	rpc.rusersd
 SRCS =	rusersd.c rusers_proc.c

@@ -493,10 +493,14 @@ X                  not scan the uucico log.
 X
 X
 #if !defined(lint)
-static char rcsid[] = "$Id: uupoll.shar,v 1.1.6.1 1995/09/01 06:01:57 davidg Exp $";
+static char rcsid[] = "$Id: uupoll.shar,v 1.1.6.3 1996/06/05 02:39:00 jkh Exp $";
 #endif /* not lint */
 X
 /* $Log: uupoll.shar,v $
+ * Revision 1.1.6.3  1996/06/05 02:39:00  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
 # Revision 1.1.6.1  1995/09/01  06:01:57  davidg
 # Brought in changes from main branch: updated to UUCP 1.06.1
 #
@@ -1636,8 +1640,12 @@ sed 's/^X//' << 'SHAR_EOF' > 'uupoll/conf.h' &&
 #ifndef CONF
 X  #define CONF
 X
-/* $Id: uupoll.shar,v 1.1.6.1 1995/09/01 06:01:57 davidg Exp $ */
+/* $Id: uupoll.shar,v 1.1.6.3 1996/06/05 02:39:00 jkh Exp $ */
 /* $Log: uupoll.shar,v $
+ * Revision 1.1.6.3  1996/06/05 02:39:00  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
 # Revision 1.1.6.1  1995/09/01  06:01:57  davidg
 # Brought in changes from main branch: updated to UUCP 1.06.1
 #
@@ -2002,10 +2010,14 @@ X                - No alias expansion is done on the given names.
 */
 X
 #if !defined(lint)
-static char rcsid[] = "$Id: uupoll.shar,v 1.1.6.1 1995/09/01 06:01:57 davidg Exp $";
+static char rcsid[] = "$Id: uupoll.shar,v 1.1.6.3 1996/06/05 02:39:00 jkh Exp $";
 #endif /* not lint */
 X
 /* $Log: uupoll.shar,v $
+ * Revision 1.1.6.3  1996/06/05 02:39:00  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
 # Revision 1.1.6.1  1995/09/01  06:01:57  davidg
 # Brought in changes from main branch: updated to UUCP 1.06.1
 #

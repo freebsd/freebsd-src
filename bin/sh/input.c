@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: input.c,v 1.4 1995/11/03 18:50:14 peter Exp $
+ *	$Id: input.c,v 1.3.4.1 1995/12/11 23:04:46 joerg Exp $
  */
 
 #ifndef lint

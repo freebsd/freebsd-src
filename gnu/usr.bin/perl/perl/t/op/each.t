@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/each.t,v 1.1.1.1 1994/09/10 06:27:42 gclarkii Exp $
+# $Header: /home/ncvs/src/gnu/usr.bin/perl/perl/t/op/each.t,v 1.1.1.1.6.1 1996/06/05 02:42:57 jkh Exp $
 
 print "1..3\n";
 

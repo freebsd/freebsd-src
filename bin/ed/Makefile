@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1995/10/22 20:14:13 ache Exp $
+#	$Id: Makefile,v 1.10.4.3 1996/11/24 09:31:31 joerg Exp $
 
 PROG=	ed
 SRCS=	buf.c cbc.c glbl.c io.c main.c re.c sub.c undo.c

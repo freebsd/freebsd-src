@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)clnp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id: clnp_debug.c,v 1.3 1995/05/30 08:10:14 rgrimes Exp $
+ * $Id: clnp_debug.c,v 1.3.4.1 1996/06/05 02:54:49 jkh Exp $
  */
 
 /***********************************************************
@@ -60,8 +60,8 @@ SOFTWARE.
 /*
  * ARGO Project, Computer Sciences Dept., University of Wisconsin - Madison
  */
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_debug.c,v 1.3 1995/05/30 08:10:14 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/clnp_debug.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/Attic/clnp_debug.c,v 1.3.4.1 1996/06/05 02:54:49 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/Attic/clnp_debug.c,v $ */
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

@@ -84,6 +84,10 @@
  *        get knowledge of
  */
 /* $Log: uurate.c,v $
+ * Revision 1.3.4.3  1996/06/05 02:39:02  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.3.4.1  1995/09/01  06:01:59  davidg
  * Brought in changes from main branch: updated to UUCP 1.06.1
  *
@@ -147,7 +151,7 @@
  * */
 
 char version[] = "@(#) Taylor UUCP Log File Summary Filter, Version 1.2.2";
-static char rcsid[] = "$Id: uurate.c,v 1.3.4.1 1995/09/01 06:01:59 davidg Exp $";
+static char rcsid[] = "$Id: uurate.c,v 1.3.4.3 1996/06/05 02:39:02 jkh Exp $";
 #include <ctype.h>            /* Character Classification      */
 #include <math.h>
 #include "uucp.h"

@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMTSIP)
 /*
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/xntpd/parse/clk_trimtsip.c,v 1.2 1995/05/30 03:54:13 rgrimes Exp $
+ * $Header: /home/ncvs/src/usr.sbin/xntpd/parse/clk_trimtsip.c,v 1.2.4.1 1996/06/05 02:59:00 jkh Exp $
  *
  * Trimble TSIP support - CURRENTLY VERY MUCH UNDER CONSTRUCTION
  */
@@ -468,6 +468,10 @@ getint(bp)
  * History:
  *
  * $Log: clk_trimtsip.c,v $
+ * Revision 1.2.4.1  1996/06/05 02:59:00  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.2  1995/05/30  03:54:13  rgrimes
  * Remove trailing whitespace.
  *

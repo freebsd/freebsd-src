@@ -24,7 +24,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/nametoaddr.c,v 1.2 1995/05/30 05:47:21 rgrimes Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/Attic/nametoaddr.c,v 1.2.4.1 1996/06/05 02:52:50 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

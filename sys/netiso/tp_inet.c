@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_inet.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_inet.c,v 1.5 1995/05/30 08:11:10 rgrimes Exp $
+ * $Id: tp_inet.c,v 1.5.4.1 1996/06/05 02:55:24 jkh Exp $
  */
 
 /***********************************************************
@@ -62,8 +62,8 @@ SOFTWARE.
  */
 /*
  * ARGO TP
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_inet.c,v 1.5 1995/05/30 08:11:10 rgrimes Exp $
- * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_inet.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/Attic/tp_inet.c,v 1.5.4.1 1996/06/05 02:55:24 jkh Exp $
+ * $Source: /home/ncvs/src/sys/netiso/Attic/tp_inet.c,v $
  *
  * Here is where you find the inet-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff

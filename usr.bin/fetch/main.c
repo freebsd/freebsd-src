@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.26.2.2 1996/11/28 08:26:14 phk Exp $ */
+/* $Id: main.c,v 1.1.1.1.2.6 1997/02/07 19:32:14 jkh Exp $ */
 
 #include <sys/types.h>
 #include <sys/socket.h>

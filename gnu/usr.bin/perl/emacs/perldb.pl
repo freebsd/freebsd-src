@@ -3,7 +3,7 @@ package DB;
 # modified Perl debugger, to be run from Emacs in perldb-mode
 # Ray Lischner (uunet!mntgfx!lisch) as of 5 Nov 1990
 
-$header = '$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/emacs/perldb.pl,v 1.1.1.1 1994/09/10 06:27:50 gclarkii Exp $';
+$header = '$Header: /home/ncvs/src/gnu/usr.bin/perl/emacs/perldb.pl,v 1.1.1.1.6.1 1996/06/05 02:42:14 jkh Exp $';
 #
 # This file is automatically included if you do perl -d.
 # It's probably not useful to include this yourself.
@@ -13,6 +13,10 @@ $header = '$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/emacs/perldb.p
 # have a breakpoint.  It also inserts a do 'perldb.pl' before the first line.
 #
 # $Log: perldb.pl,v $
+# Revision 1.1.1.1.6.1  1996/06/05 02:42:14  jkh
+# This 3rd mega-commit should hopefully bring us back to where we were.
+# I can get it to `make world' succesfully, anyway!
+#
 # Revision 1.1.1.1  1994/09/10  06:27:50  gclarkii
 # Initial import of Perl 4.046 bmaked
 #

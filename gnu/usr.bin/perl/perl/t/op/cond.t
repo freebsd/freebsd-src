@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/op/cond.t,v 1.1.1.1 1994/09/10 06:27:41 gclarkii Exp $
+# $Header: /home/ncvs/src/gnu/usr.bin/perl/perl/t/op/cond.t,v 1.1.1.1.6.1 1996/06/05 02:42:55 jkh Exp $
 
 print "1..4\n";
 

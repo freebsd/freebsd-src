@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.2 (Berkeley) 12/28/90
-#	$Id: Makefile,v 1.4 1995/06/16 22:46:38 ache Exp $
+#	$Id: Makefile,v 1.3.4.1 1995/08/08 04:00:16 ache Exp $
 
 PROG=	make
 CFLAGS+= -I${.CURDIR} -DPOSIX -DSYSVINCLUDE

@@ -1,4 +1,4 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/ntp.h,v 1.2 1995/03/08 12:52:20 olah Exp $ */
+/* $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/Attic/ntp.h,v 1.2.4.1 1996/06/05 02:58:18 jkh Exp $ */
 
 /*
  * Based on ntp.h from the U of MD implementation

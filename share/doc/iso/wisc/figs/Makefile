@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1.1.1.6.1 1996/07/07 23:26:49 jkh Exp $
 #
 .SUFFIXES: .nr .grn
 

@@ -31,7 +31,7 @@
 #
 # [whew!]
 #
-# $Id: which.pl,v 1.4 1995/01/30 22:21:29 jkh Exp $
+# $Id: which.pl,v 1.4.4.1 1995/08/26 10:33:20 davidg Exp $
 
 $all = 0;
 $silent = 0;

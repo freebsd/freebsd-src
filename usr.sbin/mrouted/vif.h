@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $Id: vif.h,v 1.6 1996/11/11 03:50:15 fenner Exp $
+ * $Id: vif.h,v 1.2.6.2 1996/11/12 18:19:32 jkh Exp $
  */
 
 /*

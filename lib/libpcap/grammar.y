@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/lib/libpcap/grammar.y,v 1.2 1995/02/21 10:46:34 olah Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/lib/libpcap/Attic/grammar.y,v 1.2.4.1 1996/06/05 02:52:46 jkh Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

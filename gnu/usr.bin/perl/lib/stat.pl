@@ -1,4 +1,4 @@
-;# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/lib/stat.pl,v 1.1.1.1 1994/09/10 06:27:53 gclarkii Exp $
+;# $Header: /home/ncvs/src/gnu/usr.bin/perl/lib/stat.pl,v 1.1.1.1.6.1 1996/06/05 02:42:17 jkh Exp $
 
 ;# Usage:
 ;#	require 'stat.pl';

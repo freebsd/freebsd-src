@@ -1,4 +1,4 @@
-;# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/lib/importenv.pl,v 1.1.1.1 1994/09/10 06:27:52 gclarkii Exp $
+;# $Header: /home/ncvs/src/gnu/usr.bin/perl/lib/importenv.pl,v 1.1.1.1.6.1 1996/06/05 02:42:17 jkh Exp $
 
 ;# This file, when interpreted, pulls the environment into normal variables.
 ;# Usage:

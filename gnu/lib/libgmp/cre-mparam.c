@@ -1,6 +1,6 @@
 /* cre-mparam.c -- Create machine-depedent parameter file.
 
- $Id$
+ $Id: cre-mparam.c,v 1.2 1995/11/12 14:55:48 markm Exp $
 
 Copyright (C) 1991 Free Software Foundation, Inc.
 

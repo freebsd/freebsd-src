@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.10.2.12 1997/02/12 18:39:03 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.13 1997/02/18 04:27:08 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx_reg.h,v 1.2.2.10 1997/02/12 18:35:43 gibbs Exp $
+ *	$Id: aic7xxx_reg.h,v 1.2.2.11 1997/02/18 19:52:38 gibbs Exp $
  */
 
 /*

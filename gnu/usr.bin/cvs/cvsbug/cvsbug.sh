@@ -7,7 +7,7 @@
 # This file is part of GNU GNATS.
 # Modified by Berliner for CVS.
 #
-#ident	"@(#)cvs/src:$Name:  $:$Id: cvsbug.sh,v 1.10 1995/11/15 00:18:00 woods Exp $"
+#ident	"@(#)cvs/src:$Name: RELENG_2_1_7_RELEASE $:$Id: cvsbug.sh,v 1.2 1995/12/10 23:05:59 peter Exp $"
 #
 # GNU GNATS is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

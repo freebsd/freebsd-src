@@ -11,10 +11,10 @@
 # that on a 14.4 line just yet...
 #
 # SET THIS !!!
-BUILDNAME=2.1.7-RELEASE
+BUILDNAME=2.1.6-RELEASE
 #CHROOTDIR=/junk/release
 # If this is a RELEASE, then set
-RELEASETAG=RELENG_2_1_7_RELEASE
+RELEASETAG=RELENG_2_1_0
 
 # Things which without too much trouble can be considered variables
 

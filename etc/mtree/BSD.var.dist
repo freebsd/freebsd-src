@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.23.4.3 1996/06/17 09:17:40 jkh Exp $
+#	$Id: BSD.var.dist,v 1.23.4.4 1996/11/08 21:49:45 guido Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755

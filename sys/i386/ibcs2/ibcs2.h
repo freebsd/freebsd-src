@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.h,v 1.4 1995/05/30 07:59:50 rgrimes Exp $
+ *	$Id: ibcs2.h,v 1.4.4.1 1996/02/22 19:20:44 peter Exp $
  */
 
 /* trace all iBCS2 system calls */

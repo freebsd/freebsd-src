@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.5 1995/12/11 04:24:11 peter Exp $
+#	$Id: Makefile,v 1.1.8.1 1996/02/23 12:18:27 peter Exp $
 
 MAN8=	cvsinit.8
 

@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.2 1996/04/09 22:43:33 wosch Exp $
+#	$Id: bsd.obj.mk,v 1.3 1996/04/22 23:31:39 wosch Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.

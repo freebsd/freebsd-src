@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_pcb.h	8.1 (Berkeley) 6/10/93
- * $Id: tp_pcb.h,v 1.5 1995/05/30 08:11:27 rgrimes Exp $
+ * $Id: tp_pcb.h,v 1.5.4.1 1996/06/05 02:55:32 jkh Exp $
  */
 
 #ifndef _NETISO_TP_PCB_H_
@@ -66,8 +66,8 @@ SOFTWARE.
 /*
  * ARGO TP
  *
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_pcb.h,v 1.5 1995/05/30 08:11:27 rgrimes Exp $
- * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_pcb.h,v $
+ * $Header: /home/ncvs/src/sys/netiso/Attic/tp_pcb.h,v 1.5.4.1 1996/06/05 02:55:32 jkh Exp $
+ * $Source: /home/ncvs/src/sys/netiso/Attic/tp_pcb.h,v $
  *
  *
  * This file defines the transport protocol control block (tpcb).

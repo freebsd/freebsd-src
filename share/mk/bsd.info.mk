@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.13.4.1 1995/09/17 11:14:36 davidg Exp $
+# $Id: bsd.info.mk,v 1.13.4.3 1996/06/05 02:53:53 jkh Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info

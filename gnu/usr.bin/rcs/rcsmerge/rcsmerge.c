@@ -117,7 +117,7 @@ Report problems and direct all questions to:
 
 static char const co[] = CO;
 
-mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 1.4 1995/10/29 22:06:45 peter Exp $")
+mainProg(rcsmergeId, "rcsmerge", "$Id: rcsmerge.c,v 1.2.4.1 1996/02/23 09:32:19 peter Exp $")
 {
 	static char const cmdusage[] =
 		"\nrcsmerge usage: rcsmerge -rrev1 [-rrev2] -ksubst -{pq}[rev] -Vn -xsuff -zzone file";

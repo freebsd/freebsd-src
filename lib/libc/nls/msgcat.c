@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.2.4.1 1995/08/28 05:06:51 davidg Exp $ */
+/*	$Id: msgcat.c,v 1.2.4.3 1996/06/05 02:48:46 jkh Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.

@@ -1,5 +1,5 @@
 # Makefile
-# $Id: Makefile,v 1.3 1995/09/28 17:33:16 bde Exp $
+# $Id: Makefile,v 1.2.4.1 1995/10/05 20:27:09 davidg Exp $
 
 PROG=	bootptest
 MAN8=	bootptest.8

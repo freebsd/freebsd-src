@@ -1,7 +1,7 @@
 /* 
  * Copyright (c) 1995 Wolfram Schneider. Public domain.
  *
- * $Id: ostern.c,v 1.3 1996/05/10 17:32:05 ache Exp $
+ * $Id: ostern.c,v 1.4 1996/05/11 20:44:20 ache Exp $
 */
 
 #include <stdio.h>

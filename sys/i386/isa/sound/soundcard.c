@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.29 1995/09/08 19:57:13 bde Exp $
+ * $Id: soundcard.c,v 1.26.4.1 1995/09/14 23:37:21 jkh Exp $
  */
 
 #include "sound_config.h"

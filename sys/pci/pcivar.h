@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcivar.h,v 1.6 1995/05/30 08:13:12 rgrimes Exp $
+**  $Id: pcivar.h,v 1.6.4.1 1996/06/26 04:36:54 davidg Exp $
 **
 **  Declarations for pci device drivers.
 **

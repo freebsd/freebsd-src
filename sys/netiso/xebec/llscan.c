@@ -1,5 +1,5 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llscan.c,v 1.2 1995/05/30 08:12:01 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/llscan.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/Attic/llscan.c,v 1.2.4.1 1996/06/05 02:56:05 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/Attic/llscan.c,v $ */
 /*
  * ************************* NOTICE *******************************
  * This code is in the public domain.  It cannot be copyrighted.

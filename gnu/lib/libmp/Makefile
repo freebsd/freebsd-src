@@ -1,5 +1,5 @@
 # Makefile for libmp
-# $Id: Makefile,v 1.3 1995/11/13 18:39:23 markm Exp $
+# $Id: Makefile,v 1.4 1995/11/25 00:13:57 peter Exp $
 
 LIB=    mp
 SRCS=	$(MP_SRCS)

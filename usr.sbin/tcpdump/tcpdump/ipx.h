@@ -1,7 +1,7 @@
 /*
  * IPX protocol formats
  *
- * @(#) $Header: /pub/FreeBSD/FreeBSD-CVS/src/usr.sbin/tcpdump/tcpdump/ipx.h,v 1.2 1995/05/30 03:52:37 rgrimes Exp $
+ * @(#) $Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/Attic/ipx.h,v 1.2.4.1 1996/06/05 02:58:16 jkh Exp $
  */
 
 /* well-known sockets */

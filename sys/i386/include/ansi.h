@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ansi.h	8.2 (Berkeley) 1/4/94
- * $Id: ansi.h,v 1.7.4.1 1995/10/01 06:29:18 davidg Exp $
+ * $Id: ansi.h,v 1.7.4.4 1996/06/05 19:49:02 nate Exp $
  */
 
 #ifndef _MACHINE_ANSI_H_

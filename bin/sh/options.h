@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)options.h	8.1 (Berkeley) 5/31/93
- *	$Id: options.h,v 1.2 1994/09/24 02:58:05 davidg Exp $
+ *	$Id: options.h,v 1.2.6.1 1997/02/15 10:09:18 joerg Exp $
  */
 
 struct shparam {

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.10 1995/07/31 09:52:21 mpp Exp $
+ * $Id: kernfs_vnops.c,v 1.8.4.1 1995/09/07 21:55:27 davidg Exp $
  */
 
 /*

@@ -1,5 +1,5 @@
 #ifndef LINT
-static char rcsid[] = "$Id: db_secure.c,v 1.2 1995/05/30 03:48:43 rgrimes Exp $";
+static char rcsid[] = "$Id: db_secure.c,v 1.2.4.1 1995/08/30 04:07:30 davidg Exp $";
 #endif
 
 /* this file was contributed by Gregory Neil Shapiro of WPI in August 1993 */

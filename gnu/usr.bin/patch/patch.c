@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/patch/patch.c,v 1.6 1995/05/30 05:02:34 rgrimes Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.6.4.1 1996/06/05 02:41:40 jkh Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -9,6 +9,10 @@ char rcsid[] =
  * money off of it, or pretend that you wrote it.
  *
  * $Log: patch.c,v $
+ * Revision 1.6.4.1  1996/06/05 02:41:40  jkh
+ * This 3rd mega-commit should hopefully bring us back to where we were.
+ * I can get it to `make world' succesfully, anyway!
+ *
  * Revision 1.6  1995/05/30  05:02:34  rgrimes
  * Remove trailing whitespace.
  *

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- * $Id: setproctitle.c,v 1.1 1995/12/26 22:50:08 peter Exp $
+ * $Id: setproctitle.c,v 1.1.2.2 1996/06/05 02:53:08 jkh Exp $
  */
 
 #include <sys/types.h>

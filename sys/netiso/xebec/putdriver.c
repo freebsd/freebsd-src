@@ -1,5 +1,5 @@
-/* $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/putdriver.c,v 1.2 1995/05/30 08:12:10 rgrimes Exp $ */
-/* $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/xebec/Attic/putdriver.c,v $ */
+/* $Header: /home/ncvs/src/sys/netiso/xebec/Attic/putdriver.c,v 1.2.4.1 1996/06/05 02:56:10 jkh Exp $ */
+/* $Source: /home/ncvs/src/sys/netiso/xebec/Attic/putdriver.c,v $ */
 
 /*
  * This code is such a kludge that I don't want to put my name on it.

@@ -259,9 +259,7 @@ interpret:
 			p->p_ucred->cr_groups[0] = attr.va_gid;
 		p->p_flag |= P_SUGID;
 	} else {
-	        if (p->p_ucred->cr_uid == p->p_cred->p_ruid &&
-		    p->p_ucred->cr_gid == p->p_cred->p_rgid)
-			p->p_flag &= ~P_SUGID;
+		p->p_flag &= ~P_SUGID;
 	}
 
 	/*

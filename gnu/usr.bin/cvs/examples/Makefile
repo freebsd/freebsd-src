@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1995/12/10 23:07:36 peter Exp $
+# $Id: Makefile,v 1.1.4.1 1996/02/23 12:18:32 peter Exp $
 
 CVSFILES= checkoutlist commitinfo cvswrappers editinfo loginfo modules \
 	  rcsinfo rcstemplate taginfo unwrap wrap

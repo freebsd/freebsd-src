@@ -1,6 +1,6 @@
 #!./perl
 
-# $Header: /pub/FreeBSD/FreeBSD-CVS/src/gnu/usr.bin/perl/perl/t/comp/decl.t,v 1.1.1.1 1994/09/10 06:27:40 gclarkii Exp $
+# $Header: /home/ncvs/src/gnu/usr.bin/perl/perl/t/comp/decl.t,v 1.1.1.1.6.1 1996/06/05 02:42:33 jkh Exp $
 
 # check to see if subroutine declarations work everwhere
 

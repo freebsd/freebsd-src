@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: buf_subs.c,v 1.3 1995/05/30 00:06:53 rgrimes Exp $
+ *	$Id: buf_subs.c,v 1.3.4.2 1996/06/05 02:35:49 jkh Exp $
  */
 
 #ifndef lint

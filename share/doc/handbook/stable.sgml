@@ -1,4 +1,4 @@
-<!-- $Id: stable.sgml,v 1.2.2.1 1996/07/05 11:30:22 jkh Exp $ -->
+<!-- $Id: stable.sgml,v 1.2.2.2 1996/07/12 16:33:24 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1996/07/05 11:30:22 $
+Last updated: $Date: 1996/07/12 16:33:24 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,

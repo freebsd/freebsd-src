@@ -18,7 +18,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: eisaconf.c,v 1.15 1996/01/31 18:46:36 gibbs Exp $
+ *	$Id: eisaconf.c,v 1.2.4.2 1996/04/01 00:14:15 gibbs Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>

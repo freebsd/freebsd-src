@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tp_iso.c	8.1 (Berkeley) 6/10/93
- * $Id: tp_iso.c,v 1.3 1995/05/30 08:11:18 rgrimes Exp $
+ * $Id: tp_iso.c,v 1.3.4.1 1996/06/05 02:55:27 jkh Exp $
  */
 
 /***********************************************************
@@ -62,8 +62,8 @@ SOFTWARE.
  */
 /*
  * ARGO TP
- * $Header: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_iso.c,v 1.3 1995/05/30 08:11:18 rgrimes Exp $
- * $Source: /pub/FreeBSD/FreeBSD-CVS/src/sys/netiso/Attic/tp_iso.c,v $
+ * $Header: /home/ncvs/src/sys/netiso/Attic/tp_iso.c,v 1.3.4.1 1996/06/05 02:55:27 jkh Exp $
+ * $Source: /home/ncvs/src/sys/netiso/Attic/tp_iso.c,v $
  *
  * Here is where you find the iso-dependent code.  We've tried
  * keep all net-level and (primarily) address-family-dependent stuff
