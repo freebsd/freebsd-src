@@ -1,7 +1,7 @@
 /*
  * extensions to ioctl_meteor.h for the bt848 cards
  *
- * $Id$
+ * $Id: ioctl_bt848.h,v 1.19 1998/09/30 21:06:55 sos Exp $
  */
 
 /*
@@ -144,7 +144,8 @@ struct eeProm {
 #define	METEOR_DEV0		0x00001000
 #define	METEOR_DEV1		0x00002000
 #define	METEOR_DEV2		0x00004000
-
+#define	METEOR_DEV3		0x00008000
+#define	METEOR_DEV_SVIDEO	0x00006000
 /*
  * right now I don't know were to put these, but as they are suppose to be
  * a part of a common video capture interface, these should be relocated to
