@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.188 1998/05/29 05:14:08 jkh Exp $
+#	$Id: Makefile,v 1.189 1998/05/29 05:15:47 jkh Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -634,7 +634,7 @@ _csu=lib/csu/${MACHINE}
 
 # Build the "default" libcrypt first since it sets symlinks for static
 # binaries such as /sbin/init.  lib/Makefile builds the other if needed.
-.if !defined(NOSECURE) && !defined(NOCRYPT)
+.if exists(secure) && !defined(NOSECURE) && !defined(NOCRYPT)
 _libcrypt=	secure/lib/libcrypt
 .else
 _libcrypt=	lib/libcrypt
