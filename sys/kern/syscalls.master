@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.46 1998/01/24 02:54:35 eivind Exp $
+	$Id: syscalls.master,v 1.47 1998/01/30 11:33:01 phk Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -132,7 +132,8 @@
 75	STD	BSD	{ int madvise(void *addr, size_t len, int behav); }
 76	OBSOL	NOHIDE	vhangup
 77	OBSOL	NOHIDE	vlimit
-78	STD	BSD	{ int mincore(caddr_t addr, size_t len, char *vec); }
+78	STD	BSD	{ int mincore(const void *addr, size_t len, \
+			    char *vec); }
 79	STD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
 80	STD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
 81	STD	POSIX	{ int getpgrp(void); }
