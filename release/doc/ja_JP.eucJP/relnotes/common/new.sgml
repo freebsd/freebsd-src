@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.171
+    Original revision: 1.22.2.172
 -->
 
 <articleinfo>
@@ -663,6 +663,10 @@
       指定アドレスのみに bind する機能が追加されました.
       有効にするには
       <option>-b</option> オプションを使います.</para>
+
+    <para>&man.syslogd.8; に新しいオプション <option>-c</option>
+      が追加されました.  これは連続して出力される同一内容の行の圧縮を
+      無効にするためのものです.</para>
 
     <para>従来 &man.vnconfig.8; に <option>-f</option>
       オプションを指定した場合は 16
