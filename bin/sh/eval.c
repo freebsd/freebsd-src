@@ -448,6 +448,7 @@ expredir(union node *n)
 		case NTO:
 		case NFROMTO:
 		case NAPPEND:
+		case NCLOBBER:
 			expandarg(redir->nfile.fname, &fn, EXP_TILDE | EXP_REDIR);
 			redir->nfile.expfname = fn.list->text;
 			break;

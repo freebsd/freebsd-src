@@ -1057,6 +1057,8 @@ until:
 		p = ">>";  i = 1;  goto redir;
 	case NTOFD:
 		p = ">&";  i = 1;  goto redir;
+	case NCLOBBER:
+		p = ">|"; i = 1; goto redir;
 	case NFROM:
 		p = "<";  i = 0;  goto redir;
 	case NFROMTO:
