@@ -333,11 +333,31 @@ err_io:
 static int
 csa_detach(device_t dev)
 {
+	csa_res *resp;
 	sc_p scp;
+	int err;
 
 	scp = device_get_softc(dev);
-	device_delete_child(dev, scp->midi);
-	device_delete_child(dev, scp->pcm);
+	resp = &scp->res;
+
+	err = 0;
+	if (scp->midi != NULL)
+		err = device_delete_child(dev, scp->midi);
+	if (err)
+		return err;
+	scp->midi = NULL;
+
+	if (scp->pcm != NULL)
+		err = device_delete_child(dev, scp->pcm);
+	if (err)
+		return err;
+	scp->pcm = NULL;
+
+	bus_teardown_intr(dev, resp->irq, scp->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
+	bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
+
 	return bus_generic_detach(dev);
 }
 
