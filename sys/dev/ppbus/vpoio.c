@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.1.2.6 1998/08/07 01:59:49 son Exp $
+ *	$Id: vpoio.c,v 1.2 1998/09/13 18:26:26 nsouch Exp $
  *
  */
 
@@ -261,9 +261,9 @@ static struct ppb_microseq in_disk_mode[] = {
 	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
 	  MS_BRSET(H_FLT, 2 /* error */),
 
-	  MS_RET(0),
+	  MS_RET(1),
 /* error: */
-	  MS_RET(1)
+	  MS_RET(0)
 };
 
 static int
@@ -343,26 +343,64 @@ vpoio_in_disk_mode(struct vpoio_data *vpo)
 static int
 vpoio_detect(struct vpoio_data *vpo)
 {
-	vpoio_disconnect(vpo);
-	vpoio_connect(vpo, PPB_DONTWAIT);
+	int error, ret;
 
-	if (vpoio_in_disk_mode(vpo)) {
-		vpoio_disconnect(vpo);
-		return (VP0_EINITFAILED);
+	/* allocate the bus, then apply microsequences */
+	if ((error = ppb_request_bus(&vpo->vpo_dev, PPB_DONTWAIT)))
+                return (error);
+
+	ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq, &ret);
+
+	if (PPB_IN_EPP_MODE(&vpo->vpo_dev))
+		ppb_MS_microseq(&vpo->vpo_dev, connect_epp_microseq, &ret);
+	else
+		ppb_MS_microseq(&vpo->vpo_dev, connect_spp_microseq, &ret);
+
+	ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+	if (!ret) {
+
+		/* try spp mode (maybe twice or because previous mode was PS2)
+		 * NIBBLE mode will be restored on next transfers if detection
+		 * succeed
+		 */
+		ppb_set_mode(&vpo->vpo_dev, PPB_NIBBLE);
+		ppb_MS_microseq(&vpo->vpo_dev, connect_spp_microseq, &ret);
+
+		ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+		if (!ret) {
+			if (bootverbose)
+				printf("vpo%d: can't connect to the drive\n",
+					vpo->vpo_unit);
+
+			/* disconnect and release the bus */
+			ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq,
+					&ret);
+			goto error;
+		}
 	}
 
 	/* send SCSI reset signal */
 	vpoio_reset(vpo);
 
-	vpoio_disconnect(vpo);
+	ppb_MS_microseq(&vpo->vpo_dev, disconnect_microseq, &ret);
 
 	/* ensure we are disconnected or daisy chained peripheral 
 	 * may cause serious problem to the disk */
 
-	if (!vpoio_in_disk_mode(vpo))
-		return (VP0_EINITFAILED);
+	ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+	if (ret) {
+		if (bootverbose)
+			printf("vpo%d: can't disconnect from the drive\n",
+				vpo->vpo_unit);
+		goto error;
+	}
 
+	ppb_release_bus(&vpo->vpo_dev);
 	return (0);
+
+error:
+	ppb_release_bus(&vpo->vpo_dev);
+	return (VP0_EINITFAILED);
 }
 
 /*
@@ -666,7 +704,7 @@ int
 vpoio_reset_bus(struct vpoio_data *vpo)
 {
 	/* first, connect to the drive */
-	if (vpoio_connect(vpo, PPB_WAIT|PPB_INTR) || vpoio_in_disk_mode(vpo)) {
+	if (vpoio_connect(vpo, PPB_WAIT|PPB_INTR) || !vpoio_in_disk_mode(vpo)) {
 		/* release ppbus */
 		vpoio_disconnect(vpo);
 		return (1);
@@ -709,7 +747,7 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	if ((error = vpoio_connect(vpo, PPB_WAIT|PPB_INTR)))
 		return (error);
 
-	if (vpoio_in_disk_mode(vpo)) {
+	if (!vpoio_in_disk_mode(vpo)) {
 		*ret = VP0_ECONNECT; goto error;
 	}
 
@@ -753,8 +791,15 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 			*ret = VP0_EDATA_OVERFLOW;
 			goto error;
 		}
-		len = (((blen - *count) >= VP0_SECTOR_SIZE)) ?
-			VP0_SECTOR_SIZE : 1;
+
+		/* if in EPP mode or writing bytes, try to transfer a sector
+		 * otherwise, just send one byte
+		 */
+		if (PPB_IN_EPP_MODE(&vpo->vpo_dev) || r == (char)0xc0)
+			len = (((blen - *count) >= VP0_SECTOR_SIZE)) ?
+				VP0_SECTOR_SIZE : 1;
+		else
+			len = 1;
 
 		/* ZIP wants to send data? */
 		if (r == (char)0xc0)

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.c,v 1.6 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: vpo.c,v 1.4 1997/09/01 00:51:52 bde Exp $
  *
  */
 
@@ -36,8 +36,16 @@
 #include <machine/clock.h>
 
 #endif	/* KERNEL */
-#include <scsi/scsi_disk.h>
-#include <scsi/scsiconf.h>
+
+#include <cam/cam.h>
+#include <cam/cam_ccb.h>
+#include <cam/cam_sim.h>
+#include <cam/cam_xpt_sim.h>
+#include <cam/cam_debug.h>
+
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_message.h>
+#include <cam/scsi/scsi_da.h>
 
 #ifdef	KERNEL
 #include <sys/kernel.h>
@@ -45,8 +53,6 @@
 
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/vpoio.h>
-
-#define VP0_BUFFER_SIZE 0x12000
 
 struct vpo_sense {
 	struct scsi_sense cmd;
@@ -63,56 +69,27 @@ struct vpo_data {
 
 	int vpo_isplus;
 
-	struct ppb_status vpo_status;
+	struct cam_sim  *sim;
+	struct cam_path *path;
+
 	struct vpo_sense vpo_sense;
 
-	unsigned char vpo_buffer[VP0_BUFFER_SIZE];
-
 	struct vpoio_data vpo_io;	/* interface to low level functions */
-
-	struct scsi_link sc_link;
 };
 
-
-static int32_t	vpo_scsi_cmd(struct scsi_xfer *);
-static void	vpominphys(struct buf *);
-static u_int32_t vpo_adapter_info(int);
+/* cam related functions */
+static void	vpo_action(struct cam_sim *sim, union ccb *ccb);
+static void	vpo_poll(struct cam_sim *sim);
 
 static int	nvpo = 0;
 #define MAXVP0	8			/* XXX not much better! */
 static struct vpo_data *vpodata[MAXVP0];
 
-static struct scsi_adapter vpo_switch =
-{
-	vpo_scsi_cmd,
-	vpominphys,
-	0,
-	0,
-	vpo_adapter_info,
-	"vpo",
-	{ 0, 0 }
-};
-
-/* 
- * The below structure is so we have a default dev struct
- * for out link struct.
- */
-static struct scsi_device vpo_dev =
-{
-	NULL,	/* Use default error handler */
-	NULL,	/* have a queue, served by this */
-	NULL,	/* have no async handler */
-	NULL,	/* Use default 'done' routine */
-	"vpo",
-	0,
-	{ 0, 0 }
-};
-
+#ifdef KERNEL
 
 /*
  * Make ourselves visible as a ppbus driver
  */
-
 static struct ppb_device	*vpoprobe(struct ppb_data *ppb);
 static int			vpoattach(struct ppb_device *dev);
 
@@ -121,13 +98,7 @@ static struct ppb_driver vpodriver = {
 };
 DATA_SET(ppbdriver_set, vpodriver);
 
-
-static u_int32_t
-vpo_adapter_info(int unit)
-{
-
-	return 1;
-}
+#endif /* KERNEL */
 
 /*
  * vpoprobe()
@@ -164,10 +135,13 @@ vpoprobe(struct ppb_data *ppb)
 	/* low level probe */
 	vpoio_set_unit(&vpo->vpo_io, vpo->vpo_unit);
 
-	if ((dev = imm_probe(ppb, &vpo->vpo_io))) {
+	/* check ZIP before ZIP+ or imm_probe() will send controls to
+	 * the printer or whatelse connected to the port */
+	if ((dev = vpoio_probe(ppb, &vpo->vpo_io))) {
+		vpo->vpo_isplus = 0;
+	} else if ((dev = imm_probe(ppb, &vpo->vpo_io))) {
 		vpo->vpo_isplus = 1;
-
-	} else if (!(dev = vpoio_probe(ppb, &vpo->vpo_io))) {
+	} else {
 		free(vpo, M_DEVBUF);
 		return (NULL);
 	}
@@ -183,9 +157,9 @@ vpoprobe(struct ppb_data *ppb)
 static int
 vpoattach(struct ppb_device *dev)
 {
-
 	struct scsibus_data *scbus;
 	struct vpo_data *vpo = vpodata[dev->id_unit];
+	struct cam_devq *devq;
 
 	/* low level attachment */
 	if (vpo->vpo_isplus) {
@@ -196,175 +170,271 @@ vpoattach(struct ppb_device *dev)
 			return (0);
 	}
 
-	vpo->sc_link.adapter_unit = vpo->vpo_unit;
-	vpo->sc_link.adapter_targ = VP0_INITIATOR;
-	vpo->sc_link.adapter = &vpo_switch;
-	vpo->sc_link.device = &vpo_dev;
-	vpo->sc_link.opennings = VP0_OPENNINGS;
-
 	/*
-	 * Prepare the scsibus_data area for the upperlevel
-	 * scsi code.
-	 */
-	scbus = scsi_alloc_bus();
-	if(!scbus)
+	**	Now tell the generic SCSI layer
+	**	about our bus.
+	*/
+	devq = cam_simq_alloc(/*maxopenings*/1);
+	/* XXX What about low-level detach on error? */
+	if (devq == NULL)
 		return (0);
-	scbus->adapter_link = &vpo->sc_link;
+
+	vpo->sim = cam_sim_alloc(vpo_action, vpo_poll, "vpo", vpo, dev->id_unit,
+				 /*untagged*/1, /*tagged*/0, devq);
+	if (vpo->sim == NULL) {
+		cam_simq_free(devq);
+		return (0);
+	}
+
+	cam_sim_set_basexfer_speed(vpo->sim, 93/*kB/s*/);
+	if (xpt_bus_register(vpo->sim, /*bus*/0) != CAM_SUCCESS) {
+		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
+		return (0);
+	}
+
+	if (xpt_create_path(&vpo->path, /*periph*/NULL,
+			    cam_sim_path(vpo->sim), CAM_TARGET_WILDCARD,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_bus_deregister(cam_sim_path(vpo->sim));
+		cam_sim_free(vpo->sim, /*free_devq*/TRUE);
+		return (0);
+	}
 
 	/* all went ok */
-	printf("vpo%d: <Iomega PPA-3/VPI0/IMM SCSI controller>\n",
-		dev->id_unit);
-
-	scsi_attachdevs(scbus);
 
 	return (1);
-}
-
-static void
-vpominphys(struct buf *bp)
-{
-
-	if (bp->b_bcount > VP0_BUFFER_SIZE)
-		bp->b_bcount = VP0_BUFFER_SIZE;
-
-	return;
 }
 
 /*
  * vpo_intr()
  */
 static void
-vpo_intr(struct vpo_data *vpo, struct scsi_xfer *xs)
+vpo_intr(struct vpo_data *vpo, struct ccb_scsiio *csio)
 {
 
-	int errno;	/* error in errno.h */
+	int i, errno;	/* error in errno.h */
+	int s;
 
-	if (xs->datalen && !(xs->flags & SCSI_DATA_IN))
-		bcopy(xs->data, vpo->vpo_buffer, xs->datalen);
+	s = splcam();
 
 	if (vpo->vpo_isplus) {
 		errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
-			xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
-			vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat,
-			&vpo->vpo_count, &vpo->vpo_error);
+			csio->ccb_h.target_id,
+			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			(char *)csio->data_ptr, csio->dxfer_len,
+			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	} else {
 		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
-			xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
-			vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat,
-			&vpo->vpo_count, &vpo->vpo_error);
+			csio->ccb_h.target_id,
+			(char *)&csio->cdb_io.cdb_bytes, csio->cdb_len,
+			(char *)csio->data_ptr, csio->dxfer_len,
+			&vpo->vpo_stat, &vpo->vpo_count, &vpo->vpo_error);
 	}
 
 #ifdef VP0_DEBUG
 	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
 		 errno, vpo->vpo_stat, vpo->vpo_count, vpo->vpo_error);
+
+	/* dump of command */
+	for (i=0; i<csio->cdb_len; i++)
+		printf("%x ", ((char *)&csio->cdb_io.cdb_bytes)[i]);
+
+	printf("\n");
 #endif
 
 	if (errno) {
-#ifdef VP0_WARNING
-		log(LOG_WARNING, "vpo%d: errno = %d\n", vpo->vpo_unit, errno);
-#endif
 		/* connection to ppbus interrupted */
-		xs->error = XS_DRIVER_STUFFUP;
+		csio->ccb_h.status = CAM_CMD_TIMEOUT;
 		goto error;
 	}
 
 	/* if a timeout occured, no sense */
 	if (vpo->vpo_error) {
-		xs->error = XS_TIMEOUT;
+		if (vpo->vpo_error != VP0_ESELECT_TIMEOUT)
+			printf("vpo%d: VP0 error/timeout (%d)\n",
+				vpo->vpo_unit, vpo->vpo_error);
+
+		csio->ccb_h.status = CAM_CMD_TIMEOUT;
 		goto error;
 	}
 
-#define RESERVED_BITS_MASK 0x3e		/* 00111110b */
-#define NO_SENSE	0x0
-#define CHECK_CONDITION	0x02
+	/* check scsi status */
+	if (vpo->vpo_stat != SCSI_STATUS_OK) {
+	   csio->scsi_status = vpo->vpo_stat;
 
-	switch (vpo->vpo_stat & RESERVED_BITS_MASK) {
-	case NO_SENSE:
-		break;
+	   /* check if we have to sense the drive */
+	   if ((vpo->vpo_stat & SCSI_STATUS_CHECK_COND) != 0) {
 
-	case CHECK_CONDITION:
-		vpo->vpo_sense.cmd.op_code = REQUEST_SENSE;
-		vpo->vpo_sense.cmd.length = sizeof(xs->sense);
+		vpo->vpo_sense.cmd.opcode = REQUEST_SENSE;
+		vpo->vpo_sense.cmd.length = csio->sense_len;
 		vpo->vpo_sense.cmd.control = 0;
 
 		if (vpo->vpo_isplus) {
 			errno = imm_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
-				xs->sc_link->target,
+				csio->ccb_h.target_id,
 				(char *)&vpo->vpo_sense.cmd,
 				sizeof(vpo->vpo_sense.cmd),
-				(char *)&xs->sense, sizeof(xs->sense),
+				(char *)&csio->sense_data, csio->sense_len,
 				&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
 				&vpo->vpo_error);
 		} else {
 			errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
-				xs->sc_link->target,
+				csio->ccb_h.target_id,
 				(char *)&vpo->vpo_sense.cmd,
 				sizeof(vpo->vpo_sense.cmd),
-				(char *)&xs->sense, sizeof(xs->sense),
+				(char *)&csio->sense_data, csio->sense_len,
 				&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
 				&vpo->vpo_error);
 		}
+			
 
-		if (errno)
-			/* connection to ppbus interrupted */
-			xs->error = XS_DRIVER_STUFFUP;
-		else
-			xs->error = XS_SENSE;
+#ifdef VP0_DEBUG
+		printf("(sense) vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
+			errno, vpo->vpo_sense.stat, vpo->vpo_sense.count, vpo->vpo_error);
+#endif
 
-		goto error;
+		/* check sense return status */
+		if (errno == 0 && vpo->vpo_sense.stat == SCSI_STATUS_OK) {
+		   /* sense ok */
+		   csio->ccb_h.status = CAM_AUTOSNS_VALID | CAM_SCSI_STATUS_ERROR;
+		   csio->sense_resid = csio->sense_len - vpo->vpo_sense.count;
 
-	default:	/* BUSY or RESERVATION_CONFLICT */
-		xs->error = XS_TIMEOUT;
-		goto error;
+#ifdef VP0_DEBUG
+		   /* dump of sense info */
+		   printf("(sense) ");
+		   for (i=0; i<vpo->vpo_sense.count; i++)
+			printf("%x ", ((char *)&csio->sense_data)[i]);
+		   printf("\n");
+#endif
+
+		} else {
+		   /* sense failed */
+		   csio->ccb_h.status = CAM_AUTOSENSE_FAIL;
+		}
+	   } else {
+		/* no sense */
+		csio->ccb_h.status = CAM_SCSI_STATUS_ERROR;			
+	   }
+
+	   goto error;
 	}
 
-	if (xs->datalen && (xs->flags & SCSI_DATA_IN))
-		bcopy(vpo->vpo_buffer, xs->data, xs->datalen);
-
-done:
-	xs->resid = 0;
-	xs->error = XS_NOERROR;
+	csio->resid = csio->dxfer_len - vpo->vpo_count;
+	csio->ccb_h.status = CAM_REQ_CMP;
 
 error:
-	xs->flags |= ITSDONE;
-	scsi_done(xs);
+	splx(s);
 
 	return;
 }
 
-static int32_t
-vpo_scsi_cmd(struct scsi_xfer *xs)
+static void
+vpo_action(struct cam_sim *sim, union ccb *ccb)
 {
 
-	int s;
+	struct vpo_data *vpo = (struct vpo_data *)sim->softc;
 
-	if (xs->sc_link->lun > 0) {
-		xs->error = XS_DRIVER_STUFFUP;
-		return TRY_AGAIN_LATER;
-	}
+	switch (ccb->ccb_h.func_code) {
+	case XPT_SCSI_IO:
+	{
+		struct ccb_scsiio *csio;
 
-	if (xs->flags & SCSI_DATA_UIO) {
-		printf("UIO not supported by vpo_driver !\n");
-		xs->error = XS_DRIVER_STUFFUP;
-		return TRY_AGAIN_LATER;
-	}
+		csio = &ccb->csio;
 
 #ifdef VP0_DEBUG
-	printf("vpo_scsi_cmd(): xs->flags = 0x%x, "\
-		"xs->data = 0x%x, xs->datalen = %d\ncommand : %*D\n",
-		xs->flags, xs->data, xs->datalen,
-		xs->cmdlen, xs->cmd, " " );
+		printf("vpo%d: XPT_SCSI_IO (0x%x) request\n",
+			vpo->vpo_unit, csio->cdb_io.cdb_bytes[0]);
+#endif
+		
+		vpo_intr(vpo, csio);
+
+		xpt_done(ccb);
+
+		break;
+	}
+	case XPT_CALC_GEOMETRY:
+	{
+		struct	  ccb_calc_geometry *ccg;
+		u_int32_t size_mb;
+		u_int32_t secs_per_cylinder;
+
+		ccg = &ccb->ccg;
+		size_mb = ccg->volume_size
+			/ ((1024L * 1024L) / ccg->block_size);
+
+#ifdef VP0_DEBUG
+		printf("vpo%d: XPT_CALC_GEOMETRY (%d, %d) request\n",
+			vpo->vpo_unit, ccg->volume_size, ccg->block_size);
+#endif
+		
+		ccg->heads = 64;
+		ccg->secs_per_track = 32;
+
+		secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+		ccg->cylinders = ccg->volume_size / secs_per_cylinder;
+
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
+	{
+
+#ifdef VP0_DEBUG
+		printf("vpo%d: XPT_RESET_BUS request\n", vpo->vpo_unit);
 #endif
 
-	if (xs->flags & SCSI_NOMASK) {
-		vpo_intr(vpodata[xs->sc_link->adapter_unit], xs);
-		return COMPLETE;
+		if (vpo->vpo_isplus) {
+			if (imm_reset_bus(&vpo->vpo_io)) {
+				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+				xpt_done(ccb);
+				return;
+			}
+		} else {
+			if (vpoio_reset_bus(&vpo->vpo_io)) {
+				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+				xpt_done(ccb);
+				return;
+			}
+		}
+
+		ccb->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	case XPT_PATH_INQ:		/* Path routing inquiry */
+	{
+		struct ccb_pathinq *cpi = &ccb->cpi;
+		
+#ifdef VP0_DEBUG
+		printf("vpo%d: XPT_PATH_INQ request\n", vpo->vpo_unit);
+#endif
+		cpi->version_num = 1; /* XXX??? */
+		cpi->max_target = 7;
+		cpi->max_lun = 0;
+		cpi->initiator_id = VP0_INITIATOR;
+		cpi->bus_id = sim->bus_id;
+		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
+		strncpy(cpi->hba_vid, "Iomega", HBA_IDLEN);
+		strncpy(cpi->dev_name, sim->sim_name, DEV_IDLEN);
+		cpi->unit_number = sim->unit_number;
+
+		cpi->ccb_h.status = CAM_REQ_CMP;
+		xpt_done(ccb);
+		break;
+	}
+	default:
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		break;
 	}
 
-	s = splbio();
+	return;
+}
 
-	vpo_intr(vpodata[xs->sc_link->adapter_unit], xs);
-
-	splx(s);
-	return SUCCESSFULLY_QUEUED;
+static void
+vpo_poll(struct cam_sim *sim)
+{       
+	/* The ZIP is actually always polled throw vpo_action() */
+	return;
 }
