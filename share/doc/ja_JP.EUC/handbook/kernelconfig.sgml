@@ -1,6 +1,6 @@
-<!-- $Id: kernelconfig.sgml,v 1.3 1996/12/23 14:01:37 max Exp $ -->
+<!-- $Id: kernelconfig.sgml,v 1.4 1996/12/28 09:25:06 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-    <!-- Original revision: 1.23 -->
+    <!-- Original revision: 1.24 -->
 <!-- <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'> -->
   <chapt><heading>FreeBSDカーネルのコンフィグレーション <label id="kernelconfig"></heading>
 
