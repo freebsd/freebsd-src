@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: rc.pl,v 1.2 1998/09/26 17:27:22 abial Exp $
+# $Id: rc.pl,v 1.3 1998/11/01 20:19:19 abial Exp $
 ############################################
 ### Special setup for one floppy PICOBSD ###
 ### THIS IS NOT THE NORMAL /etc/rc !!!!! ###
@@ -33,9 +33,6 @@ if [ -n "$network_pass2_done" ]; then
 fi
 if [ "X${inetd_enable}" = X"YES" ]; then
 	echo "Uruchamiam inetd."; inetd ${inetd_flags}
-fi
-if [ "X${snmpd_enable}" = X"YES" ]; then
-	echo "Uruchamiam snmpd."; snmpd ${snmpd_flags}
 fi
 
 dev_mkdb
