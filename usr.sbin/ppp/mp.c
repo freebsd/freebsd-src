@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.1.2.22 1998/05/04 03:00:08 brian Exp $
+ *	$Id: mp.c,v 1.1.2.23 1998/05/04 21:42:41 brian Exp $
  */
 
 #include <sys/types.h>
@@ -542,6 +542,8 @@ mp_FillQueues(struct bundle *bundle)
 
   if (!fdl) {
     fdl = bundle->links;
+    if (!fdl)
+      return 0;
     thislink = 0;
   }
 
@@ -859,7 +861,7 @@ mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     return;
   }
 
-  if (in.sa_family == AF_LOCAL)		/* ??? */
+  if (in.sa_family == AF_LOCAL)
     bundle_ReceiveDatalink(bundle, fd, (struct sockaddr_un *)&in);
 
   close(fd);

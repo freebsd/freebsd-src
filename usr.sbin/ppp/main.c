@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.54 1998/05/01 19:25:16 brian Exp $
+ * $Id: main.c,v 1.121.2.55 1998/05/06 18:49:42 brian Exp $
  *
  *	TODO:
  */
@@ -110,12 +110,9 @@ static void
 CloseConnection(int signo)
 {
   /* NOTE, these are manual, we've done a setsid() */
-  struct datalink *dl;
-
   sig_signal(SIGINT, SIG_IGN);
   log_Printf(LogPHASE, "Caught signal %d, abort connection(s)\n", signo);
-  for (dl = SignalBundle->links; dl; dl = dl->next)
-    datalink_Down(dl, 1);
+  bundle_Down(SignalBundle);
   sig_signal(SIGINT, CloseConnection);
 }
 
@@ -493,7 +490,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
 
     sig_Handle();
 
-    /* This one comes first 'cos it may nuke a datalink */
+    /* This may nuke a datalink */
     descriptor_UpdateSet(&bundle->ncp.mp.server.desc, &rfds, &wfds,
                          &efds, &nfds);
     descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
@@ -529,6 +526,7 @@ DoLoop(struct bundle *bundle, struct prompt *prompt)
     if (descriptor_IsSet(&bundle->desc, &wfds))
       descriptor_Write(&bundle->desc, bundle, &wfds);
 
+    /* This may add a datalink */
     if (descriptor_IsSet(&bundle->desc, &rfds))
       descriptor_Read(&bundle->desc, bundle, &rfds);
   } while (bundle_CleanDatalinks(bundle), !bundle_IsDead(bundle));

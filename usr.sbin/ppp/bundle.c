@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.72 1998/05/05 23:29:55 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.73 1998/05/06 18:49:36 brian Exp $
  */
 
 #include <sys/types.h>
@@ -347,6 +347,15 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
     datalink_Close(this_dl, staydown);
 }
 
+void
+bundle_Down(struct bundle *bundle)
+{
+  struct datalink *dl;
+
+  for (dl = bundle->links; dl; dl = dl->next)
+    datalink_Down(dl, 1);
+}
+
 static int
 bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 {
@@ -363,7 +372,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
     result += descriptor_UpdateSet(desc, r, w, e, n);
 
   /* If there are aren't many packets queued, look for some more. */
-  if (bundle_FillQueues(bundle) < 20) {
+  if (bundle->links && bundle_FillQueues(bundle) < 20) {
     if (*n < bundle->tun_fd + 1)
       *n = bundle->tun_fd + 1;
     FD_SET(bundle->tun_fd, r);
@@ -904,12 +913,19 @@ bundle_FillQueues(struct bundle *bundle)
 {
   int total;
 
-  if (bundle->ncp.mp.active) {
+  if (bundle->ncp.mp.active)
     total = mp_FillQueues(bundle);
-  } else {
-    total = link_QueueLen(&bundle->links->physical->link);
-    if (total == 0 && bundle->links->physical->out == NULL)
-      total = ip_FlushPacket(&bundle->links->physical->link, bundle);
+  else {
+    struct datalink *dl;
+    int add;
+
+    for (total = 0, dl = bundle->links; dl; dl = dl->next)
+      if (dl->state == DATALINK_OPEN) {
+        add = link_QueueLen(&dl->physical->link);
+        if (add == 0 && dl->physical->out == NULL)
+          add = ip_FlushPacket(&dl->physical->link, bundle);
+        total += add;
+      }
   }
 
   return total + ip_QueueLen();
