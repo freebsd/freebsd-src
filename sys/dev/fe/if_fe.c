@@ -2046,26 +2046,24 @@ fe_write_mbufs (struct fe_softc *sc, struct mbuf *m)
 /*
  * Compute hash value for an Ethernet address
  */
-static int
-fe_hash ( u_char * ep )
+static u_int32_t
+fe_mchash (caddr_t addr)
 {
-#define FE_HASH_MAGIC_NUMBER 0xEDB88320L
+#define	FE_POLY 0xEDB88320L
 
-	u_long hash = 0xFFFFFFFFL;
-	int i, j;
-	u_char b;
-	u_long m;
+	u_long carry, crc = 0xFFFFFFFFL;
+	int idx, bit;
+	u_int8_t data;
 
-	for ( i = ETHER_ADDR_LEN; --i >= 0; ) {
-		b = *ep++;
-		for ( j = 8; --j >= 0; ) {
-			m = hash;
-			hash >>= 1;
-			if ( ( m ^ b ) & 1 ) hash ^= FE_HASH_MAGIC_NUMBER;
-			b >>= 1;
+	for ( idx = ETHER_ADDR_LEN; --idx >= 0; ) {
+		for (data = *addr++, bit = 8; --bit >= 0; data >>= 1) {
+			carry = crc;
+			crc >>= 1;
+			if ((carry ^ data) & 1)
+				crc ^= FE_POLY;
 		}
 	}
-	return ( ( int )( hash >> 26 ) );
+	return (crc >> 26);
 }
 
 /*
@@ -2083,7 +2081,7 @@ fe_mcaf ( struct fe_softc *sc )
 	TAILQ_FOREACH(ifma, &sc->arpcom.ac_if.if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		index = fe_hash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		index = fe_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 #ifdef FE_DEBUG
 		printf("%s: hash(%6D) == %d\n",
 			sc->sc_xname, enm->enm_addrlo , ":", index);

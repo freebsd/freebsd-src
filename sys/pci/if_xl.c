@@ -239,7 +239,7 @@ static int xl_mii_writereg	(struct xl_softc *, struct xl_mii_frame *);
 
 static void xl_setcfg		(struct xl_softc *);
 static void xl_setmode		(struct xl_softc *, int);
-static u_int8_t xl_calchash	(caddr_t);
+static u_int32_t xl_mchash	(caddr_t);
 static void xl_setmulti		(struct xl_softc *);
 static void xl_setmulti_hash	(struct xl_softc *);
 static void xl_reset		(struct xl_softc *);
@@ -810,22 +810,21 @@ xl_read_eeprom(sc, dest, off, cnt, swap)
  * 256 bit hash table. This means we have to use all 8 bits regardless.
  * On older cards, the upper 2 bits will be ignored. Grrrr....
  */
-static u_int8_t xl_calchash(addr)
-	caddr_t			addr;
+static u_int32_t
+xl_mchash(addr)
+	caddr_t		addr;
 {
-	u_int32_t		crc, carry;
-	int			i, j;
-	u_int8_t		c;
+	u_int32_t	crc, carry;
+	int		idx, bit;
+	u_int8_t	data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
 
-	for (i = 0; i < 6; i++) {
-		c = *(addr + i);
-		for (j = 0; j < 8; j++) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (c & 0x01);
+	for (idx = 0; idx < 6; idx++) {
+		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
+			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
 			crc <<= 1;
-			c >>= 1;
 			if (carry)
 				crc = (crc ^ 0x04c11db6) | carry;
 		}
@@ -906,7 +905,7 @@ xl_setmulti_hash(sc)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = xl_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		h = xl_mchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|XL_HASH_SET|h);
 		mcnt++;
 	}
