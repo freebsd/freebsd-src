@@ -142,17 +142,19 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	int i;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	for (i = 0; i < count; i++) {
+		if (m[i]->valid == 0) {
+			if ((m[i]->flags & PG_ZERO) == 0)
+				pmap_zero_page(m[i]);
+			m[i]->valid = VM_PAGE_BITS_ALL;
+		}
+		KASSERT(m[i]->valid == VM_PAGE_BITS_ALL,
+		    ("phys_pager_getpages: partially valid page %p", m[i]));
+	}
 	vm_page_lock_queues();
 	for (i = 0; i < count; i++) {
-		if ((m[i]->flags & PG_ZERO) == 0) {
-			vm_page_unlock_queues();
-			pmap_zero_page(m[i]);
-			vm_page_lock_queues();
-		}
-		vm_page_flag_set(m[i], PG_ZERO);
 		/* Switch off pv_entries */
 		vm_page_unmanage(m[i]);
-		m[i]->valid = VM_PAGE_BITS_ALL;
 		m[i]->dirty = 0;
 		/* The requested page must remain busy, the others not. */
 		if (reqpage != i) {
