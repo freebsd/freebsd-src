@@ -31,9 +31,10 @@
  * $FreeBSD$
  */
 
-#ifndef _I386_EISA_EISACONF_H_
-#define _I386_EISA_EISACONF_H_ 1
+#ifndef _DEV_EISA_EISACONF_H_
+#define _DEV_EISA_EISACONF_H_ 1
 
+#include "eisa_if.h"
 #define EISA_SLOT_SIZE 0x1000
 
 #define EISA_MFCTR_CHAR0(ID) (char)(((ID>>26) & 0x1F) | '@')  /* Bits 26-30 */
@@ -68,14 +69,30 @@ EISA_ACCESSOR(irq, IRQ, eisa_id_t)
 
 #undef EISA_ACCESSOR
 
-int eisa_add_intr(device_t, int, int);
-
 #define		RESVADDR_NONE		0x00
 #define		RESVADDR_BITMASK	0x01	/* size is a mask of reserved 
 						 * bits at addr
 						 */
 #define		RESVADDR_RELOCATABLE	0x02
-int eisa_add_iospace(device_t, u_long, u_long, int);
-int eisa_add_mspace(device_t, u_long, u_long, int);
 
-#endif /* _I386_EISA_EISACONF_H_ */
+static __inline int
+eisa_add_intr(device_t dev, int irq, int trigger)
+{
+	return (EISA_ADD_INTR(device_get_parent(dev), dev, irq, trigger));
+}
+
+static __inline int
+eisa_add_iospace(device_t dev, u_long iobase, u_long iosize, int flags)
+{
+	return (EISA_ADD_IOSPACE(device_get_parent(dev), dev, iobase, iosize,
+	    flags));
+}
+
+static __inline int
+eisa_add_mspace(device_t dev, u_long mbase, u_long msize, int flags)
+{
+	return (EISA_ADD_MSPACE(device_get_parent(dev), dev, mbase, msize,
+	    flags));
+}
+
+#endif /* _DEV_EISA_EISACONF_H_ */

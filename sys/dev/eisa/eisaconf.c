@@ -508,8 +508,8 @@ eisa_release_resource(device_t dev, device_t child, int type, int rid,
 	return rv;
 }
 
-int
-eisa_add_intr(device_t dev, int irq, int trigger)
+static int
+eisa_add_intr_m(device_t eisa, device_t dev, int irq, int trigger)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
 	struct irq_node *irq_info;
@@ -575,8 +575,9 @@ eisa_add_resvaddr(struct eisa_device *e_dev, struct resvlist *head, u_long base,
 	return (0);
 }
 
-int
-eisa_add_mspace(device_t dev, u_long mbase, u_long msize, int flags)
+static int
+eisa_add_mspace_m(device_t eisa, device_t dev, u_long mbase, u_long msize,
+    int flags)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
 
@@ -584,8 +585,9 @@ eisa_add_mspace(device_t dev, u_long mbase, u_long msize, int flags)
 				  flags);
 }
 
-int
-eisa_add_iospace(device_t dev, u_long iobase, u_long iosize, int flags)
+static int
+eisa_add_iospace_m(device_t eisa, device_t dev, u_long iobase, u_long iosize,
+    int flags)
 {
 	struct eisa_device *e_dev = device_get_ivars(dev);
 
@@ -613,6 +615,11 @@ static device_method_t eisa_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+
+	/* EISA interface */
+	DEVMETHOD(eisa_add_intr,	eisa_add_intr_m),
+	DEVMETHOD(eisa_add_iospace,	eisa_add_iospace_m),
+	DEVMETHOD(eisa_add_mspace,	eisa_add_mspace_m),
 
 	{ 0, 0 }
 };
