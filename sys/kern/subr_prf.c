@@ -46,7 +46,6 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
-#include <sys/tprintf.h>
 #include <sys/syslog.h>
 #include <sys/cons.h>
 
@@ -121,53 +120,39 @@ uprintf(const char *fmt, ...)
 	return retval;
 }
 
-tpr_t
-tprintf_open(p)
-	struct proc *p;
-{
-
-	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
-		SESSHOLD(p->p_session);
-		return ((tpr_t) p->p_session);
-	}
-	return ((tpr_t) NULL);
-}
-
-void
-tprintf_close(sess)
-	tpr_t sess;
-{
-
-	if (sess)
-		SESSRELE((struct session *) sess);
-}
-
 /*
  * tprintf prints on the controlling terminal associated
- * with the given session.
+ * with the given session, possibly to the log as well.
  */
-int
-tprintf(tpr_t tpr, const char *fmt, ...)
+void
+tprintf(struct proc *p, int pri, const char *fmt, ...)
 {
-	struct session *sess = (struct session *)tpr;
 	struct tty *tp = NULL;
-	int flags = TOLOG;
+	int flags = 0, shld = 0;
 	va_list ap;
 	struct putchar_arg pca;
 	int retval;
 
-	logpri(LOG_INFO);
-	if (sess && sess->s_ttyvp && ttycheckoutq(sess->s_ttyp, 0)) {
-		flags |= TOTTY;
-		tp = sess->s_ttyp;
+	if (pri != -1) {
+		logpri(pri);
+		flags |= TOLOG;
 	}
-	va_start(ap, fmt);
+	if (p->p_flag & P_CONTROLT && p->p_session->s_ttyvp) {
+		SESSHOLD(p->p_session);
+		shld++;
+		if (ttycheckoutq(p->p_session->s_ttyp, 0)) {
+			flags |= TOTTY;
+			tp = p->p_session->s_ttyp;
+		}
+	}
 	pca.tty = tp;
 	pca.flags = flags;
+	va_start(ap, fmt);
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
+	if (shld)
+		SESSRELE(p->p_session);
 	logwakeup();
-	return retval;
 }
 
 /*
@@ -222,7 +207,6 @@ log(int level, const char *fmt, ...)
 		va_end(ap);
 	}
 	logwakeup();
-	return retval;
 }
 
 static void
