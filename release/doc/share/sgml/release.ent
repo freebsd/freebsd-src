@@ -1,0 +1,37 @@
+<!-- -*- sgml -*-
+
+     $FreeBSD$
+
+     OS Release Information -->
+
+<!-- Version of the OS we're describing.  This needs to be updated
+     with each new release. -->
+<!ENTITY release.current "4.7-RC">
+
+<!-- The previous version used for comparison in the "What's New"
+     section.  For -CURRENT, we might point back to the last
+     branchpoint. -->
+<!ENTITY release.prev "4.6-RELEASE">
+
+<!-- The next version to be released, usually used for snapshots. -->
+<!ENTITY release.next "4.7-RELEASE">
+
+<!-- The name of this branch. -->
+<!ENTITY release.branch "4-STABLE">
+
+<!-- The URL for obtaining this version of FreeBSD. -->
+<!ENTITY release.url "http://snapshots.jp.FreeBSD.org/">
+
+<!-- The type of release (usually this will be either "snapshot"
+     or "release" -->
+<!ENTITY release.type "snapshot">
+<!ENTITY % release.type.snapshot "INCLUDE">
+<!ENTITY % release.type.release "IGNORE">
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- Name of our OS.  This is almost certainly going to remain
+     FreeBSD, but we might want to try to do some other formatting or
+     other fancy markup on it in the future. -->
+<!ENTITY os "FreeBSD">
+
