@@ -222,6 +222,12 @@ link_elf_link_common_finish(linker_file_t lf)
     elf_file_t ef = (elf_file_t)lf;
     char *newfilename;
 #endif
+    int error;
+
+    /* Notify MD code that a module is being loaded. */
+    error = elf_cpu_load_file(lf);
+    if (error)
+	return (error);
 
 #ifdef DDB
     GDB_STATE(RT_ADD);
@@ -837,6 +843,9 @@ link_elf_unload_file(linker_file_t file)
 	GDB_STATE(RT_CONSISTENT);
     }
 #endif
+
+    /* Notify MD code that a module is being unloaded. */
+    elf_cpu_unload_file(file);
 
     if (ef->preloaded) {
 	link_elf_unload_preload(file);
