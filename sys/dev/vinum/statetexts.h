@@ -33,9 +33,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: statetexts.h,v 1.1.1.1 1998/09/16 05:56:21 grog Exp $
  */
-/* Created by ./makestatetext on Tue 4 Aug 15:53:16 CST 1998. Do not edit */
+
+/* Created by ./makestatetext on Wed Jan 20 16:30:10 CST 1999. Do not edit */
 
 /* Drive state texts */
 char *drivestatetext[] =
@@ -43,7 +43,6 @@ char *drivestatetext[] =
     "unallocated",
     "uninit",
     "down",
-    "coming_up",
     "up",
 };
 
@@ -53,12 +52,13 @@ char *sdstatetext[] =
     "unallocated",
     "uninit",
     "init",
-    "initializing",
     "empty",
+    "initializing",
     "obsolete",
     "stale",
     "crashed",
     "down",
+    "reviving",
     "reborn",
     "up",
 };
@@ -70,7 +70,6 @@ char *plexstatetext[] =
     "init",
     "faulty",
     "down",
-    "reviving",
     "initializing",
     "corrupt",
     "degraded",
