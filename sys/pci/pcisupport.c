@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.39 1996/09/09 06:09:45 rgrimes Exp $
+**  $Id: pcisupport.c,v 1.40 1996/09/16 08:56:39 rgrimes Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -148,6 +148,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82371SB PCI-ISA bridge");
 	case 0x70108086:
 		return ("Intel 82371SB IDE interface");
+	case 0x70308086:
+		return ("Intel 82437VX PCI cache memory controller");
 	case 0x12378086:
 		return ("Intel 82440FX (Natoma) PCI and memory controller");
 	case 0x84c48086:
@@ -478,6 +480,55 @@ static const struct condmsg conf82437fx[] =
     { 0 }
 };
 
+static const struct condmsg conf82437vx[] = 
+{
+    /* PCON -- PCI Control Register */
+    { 0x00, 0x00, 0x00, M_TR, "\n\tPCI Concurrency: " },
+    { 0x50, 0x08, 0x08, M_EN, 0 },
+
+    /* CC -- Cache Control Regsiter */
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCache:" },
+    { 0x52, 0xc0, 0x80, M_EQ, " 512K" },
+    { 0x52, 0xc0, 0x40, M_EQ, " 256K" },
+    { 0x52, 0xc0, 0x00, M_EQ, " NO" },
+    { 0x52, 0x30, 0x00, M_EQ, " pipelined-burst" },
+    { 0x52, 0x30, 0x10, M_EQ, " burst" },
+    { 0x52, 0x30, 0x20, M_EQ, " asynchronous" },
+    { 0x52, 0x30, 0x30, M_EQ, " dual-bank pipelined-burst" },
+    { 0x00, 0x00, 0x00, M_TR, " secondary; L1 " },
+    { 0x52, 0x01, 0x00, M_EN, 0 },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
+
+    /* DRAMC -- DRAM Control Register */
+    { 0x57, 0x07, 0x00, M_EQ, "Warning: refresh OFF!\n" },
+    { 0x00, 0x00, 0x00, M_TR, "\tDRAM:" },
+    { 0x57, 0xc0, 0x00, M_EQ, " no memory hole" },
+    { 0x57, 0xc0, 0x40, M_EQ, " 512K-640K memory hole" },
+    { 0x57, 0xc0, 0x80, M_EQ, " 15M-16M memory hole" },
+    { 0x57, 0x07, 0x01, M_EQ, ", 50 MHz refresh" },
+    { 0x57, 0x07, 0x02, M_EQ, ", 60 MHz refresh" },
+    { 0x57, 0x07, 0x03, M_EQ, ", 66 MHz refresh" },
+
+    /* DRAMT = DRAM Timing Register */
+    { 0x00, 0x00, 0x00, M_TR, "\n\tRead burst timing: " },
+    { 0x58, 0x60, 0x00, M_EQ, "x-4-4-4/x-4-4-4" },
+    { 0x58, 0x60, 0x20, M_EQ, "x-3-3-3/x-4-4-4" },
+    { 0x58, 0x60, 0x40, M_EQ, "x-2-2-2/x-3-3-3" },
+    { 0x58, 0x60, 0x60, M_EQ, "???" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tWrite burst timing: " },
+    { 0x58, 0x18, 0x00, M_EQ, "x-4-4-4" },
+    { 0x58, 0x18, 0x08, M_EQ, "x-3-3-3" },
+    { 0x58, 0x18, 0x10, M_EQ, "x-2-2-2" },
+    { 0x58, 0x18, 0x18, M_EQ, "???" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tRAS-CAS delay: " },
+    { 0x58, 0x04, 0x00, M_EQ, "3" },
+    { 0x58, 0x04, 0x04, M_EQ, "2" },
+    { 0x00, 0x00, 0x00, M_TR, " clocks\n" },
+
+    /* end marker */
+    { 0 }
+};
+
 static const struct condmsg conf82371fb[] =
 {
     /* IORT -- ISA I/O Recovery Timer Register */
@@ -652,6 +703,10 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x122d8086:
 		writeconfig (config_id, conf82437fx);
 		break;
+	case 0x70308086:
+		writeconfig (config_id, conf82437vx);
+		break;
+	case 0x70108086:
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
 		break;
