@@ -17,13 +17,16 @@
 .Sh DESCRIPTION
 Ipfirewall (alias ipfw) is a system facility which allows filtering,
 redirecting, and other operations on IP packets travelling through
-system interfaces. Packets are matched by applying an ordered list
+system interfaces.
+Packets are matched by applying an ordered list
 of pattern rules against each packet until a match is found, at
-which point the corresponding action is taken. Rules are numbered
+which point the corresponding action is taken.
+Rules are numbered
 from 1 to 65534; multiple rules may share the same number.
 .Pp
 There is one rule that always exists, rule number 65535. This rule
-normally causes all packets to be dropped. Hence, any packet which does not
+normally causes all packets to be dropped.
+Hence, any packet which does not
 match a lower numbered rule will be dropped.  However, a kernel compile
 time option
 .Dq IPFIREWALL_DEFAULT_TO_ACCEPT
@@ -43,7 +46,8 @@ IP_FW_DEL deletes all rules having the matching rule number.
 IP_FW_GET returns the (first) rule having the matching rule number.
 .Pp
 IP_FW_ZERO zeros the statistics associated with all rules having the
-matching rule number. If the rule number is zero, all rules are zeroed.
+matching rule number.
+If the rule number is zero, all rules are zeroed.
 .Pp
 IP_FW_FLUSH removes all rules (except 65535).
 .Pp
@@ -171,7 +175,8 @@ Options in the kernel configuration file:
 When packets match a rule with the IP_FW_F_PRN bit set, a message
 is logged to the console if IPFIREWALL_VERBOSE has been enabled;
 IPFIREWALL_VERBOSE_LIMIT limits the maximum number of times each
-rule can cause a log message. These variables are also
+rule can cause a log message.
+These variables are also
 available via the
 .Xr sysctl 3
 interface.
@@ -179,7 +184,7 @@ interface.
 
 [EINVAL]  The IP option field was improperly formed; an option
           field was shorter than the minimum value or longer than
-          the option buffer provided. A structural error in 
+          the option buffer provided.  A structural error in 
           ip_fw structure occurred (n_src_p+n_dst_p too big,
           ports set for ALL/ICMP protocols etc.). An invalid
           rule number was used.

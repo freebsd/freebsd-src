@@ -85,7 +85,8 @@ Always zero.
 .It bit 2
 Left button status; cleared if pressed, otherwise set.
 .It bit 1
-Middle button status; cleared if pressed, otherwise set. Always one,
+Middle button status; cleared if pressed, otherwise set.
+Always one,
 if the device does not have the middle button.
 .It bit 0
 Right button status; cleared if pressed, otherwise set.
@@ -231,7 +232,8 @@ is always 0.
 .Pp
 The
 .Dv packetsize
-field specifies the length of the data packet. It depends on the
+field specifies the length of the data packet.
+It depends on the
 operation level.
 .Pp
 .Bl -tag -width level_0__ -compact
@@ -246,7 +248,8 @@ The array
 holds a bit mask and pattern to detect the first byte of the
 data packet.
 .Dv syncmask[0]
-is the bit mask to be ANDed with a byte. If the result is equal to
+is the bit mask to be ANDed with a byte.
+If the result is equal to
 .Dv syncmask[1] ,
 the byte is likely to be the first byte of the data packet.
 Note that this method of detecting the first byte is not 100% reliable,
@@ -258,7 +261,8 @@ as specified in
 .Ar mode .
 Only
 .Dv level 
-may be modifiable. Setting values in the other field does not generate
+may be modifiable.
+Setting values in the other field does not generate
 error and has no effect.
 .\" .Pp
 .\" .It Dv MOUSE_GETVARS Ar mousevar_t *vars
@@ -342,7 +346,8 @@ The signal to be delivered is set in
 .Dv u.mode .
 .El
 .Pp
-The above operations are for virtual consoles. The operations defined 
+The above operations are for virtual consoles.
+The operations defined 
 below are for the console control device and used by 
 .Xr moused 8
 to pass mouse data to the console driver.
@@ -361,7 +366,8 @@ requested or performs cut and paste operations
 if the current console is a text interface. 
 .It Dv MOUSE_BUTTONEVENT
 .Dv u.data
-specifies a button and its click count. The console driver will
+specifies a button and its click count.
+The console driver will
 use this information for signal delivery if requested or 
 for cut and paste operations if the console is in text mode.
 .El
@@ -394,7 +400,8 @@ and
 .Dv z
 represent movement of the mouse along respective directions.
 .Dv buttons
-tells the state of buttons. It encodes up to 31 buttons in the bit 0 though
+tells the state of buttons.
+It encodes up to 31 buttons in the bit 0 though
 the bit 30.  If a button is held down, the corresponding bit is set. 
 .Pp
 .It Dv mode
@@ -407,7 +414,8 @@ struct mouse_mode {
 .Pp
 The
 .Dv signal
-field specifies the signal to be delivered to the process. It must be 
+field specifies the signal to be delivered to the process.
+It must be 
 one of the values defined in
 .Ao Pa signal.h Ac .
 The

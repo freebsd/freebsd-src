@@ -42,7 +42,8 @@
 The
 .Nm
 driver provides support for Mass Storage devices that attach to the USB
-port. Supported are
+port.
+Supported are
 .Bl -tag -compact -width xxxxxx
 .It Iomega Zip 100 drive
 .El
@@ -51,7 +52,8 @@ and one of
 .Nm uhci
 or
 .Nm ohci
-must be configured in the kernel as well. Last but not least, support for
+must be configured in the kernel as well.
+Last but not least, support for
 SCSI drives,
 .Nm da
 .Sh EXAMPLE
@@ -66,7 +68,8 @@ driver to the kernel.
 .Pp
 .Dl camcontrol rescan 0
 .Pp
-Rescan a Zip drive that was added after boot. The command above
+Rescan a Zip drive that was added after boot.
+The command above
 assumes that the Zip drive is the first SCSI bus in the system.
 .Pp
 .Dl disklabel -w -r da0 zip100

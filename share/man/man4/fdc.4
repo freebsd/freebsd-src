@@ -39,13 +39,16 @@ PC architecture floppy disk controller driver
 .Cd device fd1 at fdc0 drive 1
 .Sh DESCRIPTION
 This driver provides access to floppy disk drives and QIC40/80 tapedrives.
-In /dev for each floppy device a number of minor devices are present. The
+In /dev for each floppy device a number of minor devices are present.
+The
 /dev/fd* devices with trailing alphabetic characters are used to indicate
 .Sq partitions
-on the floppy disk. The /dev/fd*.<number> are devices that
+on the floppy disk.
+The /dev/fd*.<number> are devices that
 indicate the size of the floppy disk (so: 720kB, 1440kB etc). The latter
 are used for formatting disks using fdformat or for accessing different
-density disks in multidensity drive. Example: 720kB disk in a 1.44Mb drive.
+density disks in multidensity drive.
+Example: 720kB disk in a 1.44Mb drive.
 .Pp
 Normally, the driver will ask the system's CMOS memory to obtain the
 floppy drive configuration.  Some machines do not store any form of a
