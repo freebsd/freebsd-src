@@ -39,7 +39,7 @@
 .Nm ctags
 .Nd create a tags file
 .Sh SYNOPSIS
-.Nm ctags
+.Nm
 .Op Fl BFadtuwvx
 .Op Fl f Ar tagsfile
 .Ar name ...
@@ -61,7 +61,7 @@ file,
 .Xr ex 1
 can quickly locate these object definitions.
 Depending upon the options provided to
-.Nm ctags ,
+.Nm ,
 objects will consist of subroutines, typedefs, defines, structs,
 enums and unions.
 .Bl -tag -width Ds
@@ -114,7 +114,7 @@ vgrind \-x index
 .It Fl w
 suppress warning diagnostics.
 .It Fl x
-.Nm ctags
+.Nm
 produces a list of object
 names, the line number and file name on which each is defined, as well
 as the text of that line and prints this on the standard output.  This
@@ -152,7 +152,7 @@ trailing
 .Nm \&.c
 and any leading pathname components removed.  This
 makes use of
-.Nm ctags
+.Nm
 practical in directories with more than one
 program.
 .Pp

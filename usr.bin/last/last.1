@@ -39,7 +39,7 @@
 .Nm last
 .Nd indicate last logins of users and ttys
 .Sh SYNOPSIS
-.Nm last
+.Nm
 .Op Fl Ns Ar n
 .Op Fl f Ar file
 .Op Fl h Ar host
@@ -59,7 +59,7 @@ the user name, the tty from which the session was conducted, any
 hostname, the start and stop times for the session, and the duration
 of the session.  If the session is still continuing or was cut short by
 a crash or shutdown,
-.Nm last
+.Nm
 will so indicate.
 .Pp
 .Bl -tag -width indent-two
@@ -101,7 +101,7 @@ would list all of
 sessions as well as all sessions on the console terminal.
 If no
 users, hostnames or terminals are specified,
-.Nm last
+.Nm
 prints a record of
 all logins and logouts.
 .Pp
@@ -112,10 +112,10 @@ logs in at reboots of the system, thus
 will give an indication of mean time between reboot.
 .Pp
 If
-.Nm last
+.Nm
 is interrupted, it indicates to what date the search has
 progressed.  If interrupted with a quit signal
-.Nm last
+.Nm
 indicates how
 far the search has progressed and then continues.
 .Sh FILES
@@ -131,7 +131,7 @@ login data base
 If a login shell should terminate abnormally for some reason, it is likely
 that a logout record won't be written to the wtmp file.
 In this case,
-.Nm last
+.Nm
 will indicate the logout time as "shutdown".
 .Sh HISTORY
 .Nm Last

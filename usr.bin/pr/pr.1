@@ -102,15 +102,13 @@ utility is a printing and pagination filter for text files.
 When multiple input files are specified, each is read, formatted,
 and written to standard output.
 By default, the input is separated into 66-line pages, each with
-.sp
-.in +2
-.ti -2
-\(bu A 5-line header with the page number, date, time, and
+.Bl -bullet
+.It
+A 5-line header with the page number, date, time, and
 the pathname of the file.
-.sp
-.ti -2
-\(bu A 5-line trailer consisting of blank lines.
-.in -2
+.It
+A 5-line trailer consisting of blank lines.
+.El
 .Pp
 If standard output is associated with a terminal,
 diagnostic messages are suppressed until the

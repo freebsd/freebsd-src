@@ -39,7 +39,7 @@
 .Nm calendar
 .Nd reminder service
 .Sh SYNOPSIS
-.Nm calendar
+.Nm
 .Op Fl a
 .Op Fl A Ar num
 .Op Fl B Ar num
@@ -169,7 +169,7 @@ file in current directory
 .It Pa ~/.calendar
 .Pa calendar
 HOME directory. 
-.Nm calendar
+.Nm
 does a chdir into this directory if it exists.
 .It Pa ~/.calendar/calendar
 calendar file to use if no calendar file exists in the current directory.
@@ -217,7 +217,7 @@ Russian calendar.
 .Xr cron 8
 .Sh COMPATIBILITY
 The
-.Nm calendar
+.Nm
 program previously selected lines which had the correct date anywhere
 in the line.
 This is no longer true, the date is only recognized when it occurs

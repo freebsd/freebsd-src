@@ -42,14 +42,14 @@
 .Fd #include <ar.h>
 .Sh DESCRIPTION
 The archive command
-.Nm ar
+.Nm
 combines several files into one.
 Archives are mainly used as libraries of object files intended to be
 loaded using the link-editor
 .Xr ld 1 .
 .Pp
 A file created with
-.Nm ar
+.Nm
 begins with the ``magic'' string "!<arch>\en".
 The rest of the archive is made up of objects, each of which is composed
 of a header for a file, a possible file name, and the file contents.
@@ -108,7 +108,7 @@ character, although the size in the header does not reflect this.
 .Xr stat 2
 .Sh HISTORY
 There have been at least four
-.Nm ar
+.Nm
 formats.
 The first was denoted by the leading ``magic'' number 0177555 (stored as
 type int).

@@ -36,10 +36,10 @@
 .Dt HEXDUMP 1
 .Os
 .Sh NAME
-.Nm hexdump, hd
+.Nm hexdump , hd
 .Nd ASCII, decimal, hexadecimal, octal dump
 .Sh SYNOPSIS
-.Nm hexdump
+.Nm
 .Op Fl bcCdovx
 .Op Fl e Ar format_string
 .Op Fl f Ar format_file
@@ -58,7 +58,9 @@
 .Ek
 .Ar file  ...
 .Sh DESCRIPTION
-The hexdump utility is a filter which displays the specified files, or
+The
+.Nm
+utility is a filter which displays the specified files, or
 the standard input, if no files are specified, in a user specified
 format.
 .Pp
@@ -137,7 +139,9 @@ respectively.
 .It Fl v
 The
 .Fl v
-option causes hexdump to display all input data.
+option causes
+.Nm
+to display all input data.
 Without the
 .Fl v
 option, any number of groups of output lines, which would be
@@ -152,7 +156,7 @@ data, in hexadecimal, per line.
 .El
 .Pp
 For each input file,
-.Nm hexdump
+.Nm
 sequentially copies the input to standard output, transforming the
 data according to the format strings specified by the
 .Fl e
@@ -214,7 +218,8 @@ described in the C standard are supported:
 .Ed
 .El
 .Pp
-Hexdump also supports the following additional conversion strings:
+.Nm Hexdump
+also supports the following additional conversion strings:
 .Bl -tag -width Fl
 .It Cm \&_a Ns Op Cm dox 
 Display the input offset, cumulative across input files, of the
@@ -286,7 +291,9 @@ not have a specified iteration count, have the iteration count
 incremented until the entire input block has been processed or there
 is not enough data remaining in the block to satisfy the format string.
 .Pp
-If, either as a result of user specification or hexdump modifying
+If, either as a result of user specification or
+.Nm
+modifying
 the iteration count as described above, an iteration count is
 greater than one, no trailing whitespace characters are output
 during the last iteration.
@@ -324,7 +331,7 @@ to specifying the
 .Fl x
 option.
 .Pp
-.Nm hexdump
+.Nm
 exits 0 on success and >0 if an error occurred.
 .Sh EXAMPLES
 Display the input in perusal format:

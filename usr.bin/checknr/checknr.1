@@ -39,7 +39,7 @@
 .Nm checknr
 .Nd check nroff/troff files
 .Sh SYNOPSIS
-.Nm checknr
+.Nm
 .Op Fl a Ns Ar \&.x1.y1.x2.y2. ... \&.xn.yn
 .Op Fl c Ns Ar \&.x1.x2.x3 ... \&.xn
 .Op Fl s
@@ -55,7 +55,7 @@ input files for certain kinds of errors
 involving mismatched opening and closing delimiters
 and unknown commands.
 If no files are specified,
-.Nm checknr
+.Nm
 checks the standard input.
 .Pp
 Options:
@@ -76,7 +76,7 @@ Define commands which would otherwise be complained about
 as undefined.
 .It Fl f
 Request
-.Nm checknr
+.Nm
 to ignore
 .Ql \ef
 font changes.
@@ -99,7 +99,7 @@ the .TS and .TE macros which must always come in pairs.
 .Pp
 .Nm Checknr
 is intended for use on documents that are prepared with
-.Nm checknr
+.Nm
 in mind, much the same as
 .Xr lint 1 .
 It expects a certain document writing style for
@@ -120,7 +120,7 @@ While it will work to directly go into the next font or explicitly
 specify the original font or point size,
 and many existing documents actually do this,
 such a practice will produce complaints from
-.Nm checknr .
+.Nm .
 Since it is probably better to use the
 .Ql \efP
 and
