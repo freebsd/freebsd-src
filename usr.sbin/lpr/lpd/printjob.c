@@ -808,7 +808,8 @@ start:
 		closelog();
 		closeallfds(3);
 		execv(prog, av);
-		syslog(LOG_ERR, "cannot execv %s", prog);
+		syslog(LOG_ERR, "%s: cannot execv(%s): %m", pp->printer,
+		    prog);
 		exit(2);
 	}
 	(void) close(fi);
@@ -1244,7 +1245,7 @@ execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 	closelog();
 	closeallfds(3);
 	execv(f_cmd, f_av);
-	syslog(LOG_ERR, "%s: cannot execv %s", pp->printer, f_cmd);
+	syslog(LOG_ERR, "%s: cannot execv(%s): %m", pp->printer, f_cmd);
 	exit(2);
 	/* NOTREACHED */
 }
