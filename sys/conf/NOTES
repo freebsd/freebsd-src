@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.126 1995/01/23 00:25:01 jkh Exp $
+#	$Id: LINT,v 1.127 1995/01/24 20:38:39 paul Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -439,6 +439,7 @@ options	FDSEEKWAIT="16"
 # sio: serial ports (see sio(4))
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
 # gsc: Genius GS-4500 hand scanner.
+# joy: joystick
 
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
@@ -446,6 +447,7 @@ device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
+device		joy0	at isa? port "IO_GAME"
 
 # Options for sio:
 options		COMCONSOLE		#prefer serial console to video console
