@@ -1,0 +1,112 @@
+User PPP Packet Aliasing
+
+0. Contents
+    1. Background
+    2. Setup
+    3. Future Development
+
+
+1. Background
+
+User ppp has embedded packet aliasing (IP masquerading) code.
+When this capability is enabled by the "-alias" command line
+option, the ppp host will automatically alias IP packets forwarded
+from a local network so that they appear to come from the ppp
+host machine.  Incoming packets from the outside world are then
+appropriately de-aliased.
+
+The process of aliasing involves both the IP address as well as
+TCP and UDP port numbers.  ICMP packets can be aliased by either
+their id or sequence numbers.
+
+This software was specifically meant to support users who have
+unregistered, private address IP networks (e.g. 192.168.0.x or
+10.0.0.x addresses).  The ppp host can act as a gateway for these
+networks, and computers on the local area net will have some
+degree of internet access without the need for a registered IP
+address.  Additionally, there will be no need for an internet
+service provider to maintain routing tables for the local area
+network. 
+
+A disadvantage of packet aliasing is that machines on the local
+network, behind the ppp host, can establish tcp connections and
+make udp inqiries (such as domain name service requests), but these
+machines, other than the ppp host itself, are not visible from
+the outside world.  There is, in effect, a partial firewall.
+
+A second disadvantage is that "IP encoding" protocols, which send
+IP address or port information within the data stream, are not
+supported unless exception code has been put in place.  A workaround
+for ftp, which is the most well known of the IP encoding protocols,
+has been developed in this implementation, so users do not have
+to depend on using the ftp passive mode, as is sometimes the case
+with other masquerading solutions.
+
+All standard, non-encoding TCP and UDP protocals are supported,
+Examples of these protocols are http, gopher and telnet.  The
+standard UDP mode of RealAudio is not presently supported,
+but the TCP mode does work correctly.  IRC is reported by users
+to work in some, but not all, modes.
+
+The packet aliasing code also handle many ICMP messages.  In
+particular, ping and traceroute are supported.
+
+
+
+2. Packet Aliasing Setup
+
+It is recommended that correct ppp operation first be verified
+without packet aliasing enabled.  Then ppp can be started with
+the "-alias" option in the command line.  Correct network operation
+of the ppp host in packet aliasing mode should then be verified.
+Finally, machines on the private network should be checked to see
+whether they can access the internet.
+
+Since the masquerading software aliases all packets, whether
+they come from the host or another computer on the local area
+network, a correctly operating ppp host will indicate that the
+software should work properly for other computers on the private
+network.  
+
+If the ppp host can access the internet, but other computers on
+the local network cannot do this, then it should be checked that
+IP forwarding is enabled on the ppp host and that the other
+computers use this machine as a gateway.  Of course, proper
+communications between machines within the local area network
+should also be verified (do they use consistent subnet addresses
+and masks?).
+
+
+
+3.  Future Development
+
+What is called packet aliasing here has been variously called
+masquerading, network address translation (NAT) and transparent
+proxying by others.  It is an extremely useful function to
+many users, but it is also necessarily imperfect.  Workarounds
+(hacks) are always needed for the occasional IP-encoding
+protocols.
+
+The specific solution implemented here does not block off or
+reserve any segment of TCP or UDP ports on the ppp host for use
+by the masquerading function.  No communication to the kernel
+is needed in this matter.  All packets are aliased, whether
+they originate from the ppp host or other computers on the
+local network.  This is a central issue, and some programmers
+may wish to handle this differently.
+
+The packet aliasing engine (alias.c, alias_db.c, alias_ftp.c
+and alias_util.c) runs in user space, and is intended to be
+both portable and reusable for interfaces other than ppp.  The
+basic engine is accessed by four simple function calls
+(initialization, communication of host address, outgoing
+aliasing and incoming de-aliasing).
+
+Limited IP fragment handling exists.  Once the packet aliasing
+software sees the header fragment of a packet, all other fragments
+will be correctly forwarded.  However, if the header fragment
+does not come first, then some fragments will be lost.
+
+Charles Mott (cmott@srv.net)
+December 4, 1996
+
