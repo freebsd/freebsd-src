@@ -38,7 +38,6 @@
  * $FreeBSD$
  */
 #include "apm.h"
-#include "npx.h"
 #include "opt_atalk.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
@@ -47,6 +46,7 @@
 #include "opt_ipx.h"
 #include "opt_maxmem.h"
 #include "opt_msgbuf.h"
+#include "opt_npx.h"
 #include "opt_perfmon.h"
 #include "opt_user_ldt.h"
 #include "opt_userconfig.h"
@@ -1097,7 +1097,7 @@ setregs(p, entry, stack, ps_strings)
 	 */
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
 
-#if NNPX > 0
+#ifdef DEV_NPX
 	/* Initialize the npx (if any) for the current process. */
 	npxinit(__INITIAL_NPXCW__);
 #endif
