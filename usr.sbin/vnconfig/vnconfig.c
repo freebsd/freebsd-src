@@ -252,7 +252,7 @@ config(vnp)
 	struct vndisk *vnp;
 {
 	char *dev, *file, *oarg;
-	int flags;
+	int flags, status;
 	struct vn_ioctl vnio;
 	register int rv;
 	char *rdev;
@@ -260,7 +260,7 @@ config(vnp)
 	u_long l;
 	int pgsize = getpagesize();
 
-	rv = 0;
+	status = rv = 0;
 
 	/*
 	 * Prepend "/dev/" to the specified device name, if necessary.
@@ -333,6 +333,7 @@ config(vnp)
 		if (flags & (VN_MOUNTRO|VN_MOUNTRW)) {
 			rv = unmount(oarg, 0);
 			if (rv) {
+				status--;
 				if (errno == EBUSY)
 					flags &= ~VN_UNCONFIG;
 				if ((flags & VN_UNCONFIG) == 0)
@@ -351,8 +352,10 @@ config(vnp)
 				if (verbose)
 					printf("%s: not configured\n", dev);
 				rv = 0;
-			} else
+			} else {
+				status--;
 				warn("VNIOCDETACH");
+			}
 		} else if (verbose)
 			printf("%s: cleared\n", dev);
 	}
@@ -366,6 +369,7 @@ config(vnp)
 		else
 			rv = ioctl(fileno(f), VNIOCUSET, &l);
 		if (rv) {
+			status--;
 			warn("VNIO[GU]SET");
 		} else if (verbose)
 			printf("%s: flags now=%08x\n",dev,l);
@@ -380,6 +384,7 @@ config(vnp)
 		else
 			rv = ioctl(fileno(f), VNIOCUCLEAR, &l);
 		if (rv) {
+			status--;
 			warn("VNIO[GU]CLEAR");
 		} else if (verbose)
 			printf("%s: flags now=%08x\n",dev,l);
@@ -390,6 +395,7 @@ config(vnp)
 	if (flags & VN_CONFIG) {
 		rv = ioctl(fileno(f), VNIOCATTACH, &vnio);
 		if (rv) {
+			status--;
 			warn("VNIOCATTACH");
 			flags &= ~VN_ENABLE;
 		} else {
@@ -417,6 +423,7 @@ config(vnp)
 		else
 			rv = ioctl(fileno(f), VNIOCUSET, &l);
 		if (rv) {
+			status--;
 			warn("VNIO[GU]SET");
 		} else if (verbose)
 			printf("%s: flags now=%08lx\n",dev,l);
@@ -431,6 +438,7 @@ config(vnp)
 		else
 			rv = ioctl(fileno(f), VNIOCUCLEAR, &l);
 		if (rv) {
+			status--;
 			warn("VNIO[GU]CLEAR");
 		} else if (verbose)
 			printf("%s: flags now=%08lx\n",dev,l);
@@ -447,8 +455,10 @@ config(vnp)
 	if (flags & VN_ENABLE) {
 		if (flags & VN_SWAP) {
 			rv = swapon(dev);
-			if (rv)
+			if (rv) {
+				status--;
 				warn("swapon");
+			}
 			else if (verbose)
 				printf("%s: swapping enabled\n", dev);
 		}
@@ -459,15 +469,17 @@ config(vnp)
 			args.fspec = dev;
 			mflags = (flags & VN_MOUNTRO) ? MNT_RDONLY : 0;
 			rv = mount("ufs", oarg, mflags, &args);
-			if (rv)
+			if (rv) {
+				status--;
 				warn("mount");
+			}
 			else if (verbose)
 				printf("%s: mounted on %s\n", dev, oarg);
 		}
 	}
 /* done: */
 	fflush(stdout);
-	return(rv < 0);
+	return(status < 0);
 }
 
 #define EOL(c)		((c) == '\0' || (c) == '\n')
