@@ -538,10 +538,12 @@ print(format, file)
 		if ((prchild = dofork(DORETURN)) == 0) {	/* child */
 			dup2(fi, 0);		/* file is stdin */
 			dup2(p[1], 1);		/* pipe is stdout */
+			closelog();
 			for (n = 3; n < NOFILE; n++)
 				(void) close(n);
 			execl(_PATH_PR, "pr", width, length,
 			    "-h", *title ? title : " ", "-F", 0);
+			openlog("lpd", LOG_PID, LOG_LPR);
 			syslog(LOG_ERR, "cannot execl %s", _PATH_PR);
 			exit(2);
 		}
@@ -651,9 +653,11 @@ start:
 		n = open(tempfile, O_WRONLY|O_CREAT|O_TRUNC, 0664);
 		if (n >= 0)
 			dup2(n, 2);
+		closelog();
 		for (n = 3; n < NOFILE; n++)
 			(void) close(n);
 		execv(prog, av);
+		openlog("lpd", LOG_PID, LOG_LPR);
 		syslog(LOG_ERR, "cannot execv %s", prog);
 		exit(2);
 	}
@@ -1008,6 +1012,7 @@ sendmail(user, bombed)
 	pipe(p);
 	if ((s = dofork(DORETURN)) == 0) {		/* child */
 		dup2(p[0], 0);
+		closelog();
 		for (i = 3; i < NOFILE; i++)
 			(void) close(i);
 		if ((cp = rindex(_PATH_SENDMAIL, '/')) != NULL)
@@ -1016,6 +1021,8 @@ sendmail(user, bombed)
 			cp = _PATH_SENDMAIL;
 		sprintf(buf, "%s@%s", user, fromhost);
 		execl(_PATH_SENDMAIL, cp, buf, 0);
+		openlog("lpd", LOG_PID, LOG_LPR);
+		syslog(LOG_ERR, "cannot execl %s", _PATH_SENDMAIL);
 		exit(0);
 	} else if (s > 0) {				/* parent */
 		dup2(p[1], 1);
@@ -1252,6 +1259,7 @@ openpr()
 		if ((ofilter = dofork(DOABORT)) == 0) {	/* child */
 			dup2(p[0], 0);		/* pipe is std in */
 			dup2(pfd, 1);		/* printer is std out */
+			closelog();
 			for (i = 3; i < NOFILE; i++)
 				(void) close(i);
 			if ((cp = rindex(OF, '/')) == NULL)
@@ -1259,6 +1267,7 @@ openpr()
 			else
 				cp++;
 			execl(OF, cp, width, length, 0);
+			openlog("lpd", LOG_PID, LOG_LPR);
 			syslog(LOG_ERR, "%s: %s: %m", printer, OF);
 			exit(1);
 		}
