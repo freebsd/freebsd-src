@@ -2761,22 +2761,19 @@ ENTRY(tl1_trap)
 	and	%l5, WSTATE_OTHER_MASK, %l5
 	wrpr	%l5, WSTATE_KERNEL, %wstate
 
+	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
+	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
+	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
+
 	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
 	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
 	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
 	stb	%l3, [%sp + SPOFF + CCFSZ + TF_PIL]
 	stw	%l4, [%sp + SPOFF + CCFSZ + TF_Y]
 
-	stw	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o3, [%sp + SPOFF + CCFSZ + TF_TAR]
-	stx	%o4, [%sp + SPOFF + CCFSZ + TF_SFAR]
-	stw	%o5, [%sp + SPOFF + CCFSZ + TF_SFSR]
-
-	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
-	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
-
-	mov	PCB_REG, %l4
-	mov	PCPU_REG, %l5
+	mov	PCB_REG, %l0
+	mov	PCPU_REG, %l1
 	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
@@ -2785,12 +2782,30 @@ ENTRY(tl1_trap)
 	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
 	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
 
-	mov	%l4, PCB_REG
-	mov	%l5, PCPU_REG
+	mov	%l0, PCB_REG
+	mov	%l1, PCPU_REG
 	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
+	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
+	stx	%i2, [%sp + SPOFF + CCFSZ + TF_O2]
+	stx	%i3, [%sp + SPOFF + CCFSZ + TF_O3]
+	stx	%i4, [%sp + SPOFF + CCFSZ + TF_O4]
+	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
+	stx	%i6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
 
 	call	trap
 	 add	%sp, CCFSZ + SPOFF, %o0
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
+	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
+	ldx	[%sp + SPOFF + CCFSZ + TF_O2], %i2
+	ldx	[%sp + SPOFF + CCFSZ + TF_O3], %i3
+	ldx	[%sp + SPOFF + CCFSZ + TF_O4], %i4
+	ldx	[%sp + SPOFF + CCFSZ + TF_O5], %i5
+	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %i6
+	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
 
 	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
 	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
