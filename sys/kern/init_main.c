@@ -485,11 +485,15 @@ start_init(void *dummy)
 	 * Need just enough stack to hold the faked-up "execve()" arguments.
 	 */
 	addr = trunc_page(USRSTACK - PAGE_SIZE);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 	if (vm_map_find(&p->p_vmspace->vm_map, NULL, 0, &addr, PAGE_SIZE,
 			FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != 0)
 		panic("init: couldn't allocate argument space");
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 
 	if ((var = getenv("init_path")) != NULL) {
 		strncpy(init_path, var, sizeof init_path);

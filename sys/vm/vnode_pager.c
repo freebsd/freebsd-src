@@ -103,6 +103,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	vm_object_t object;
 	struct vnode *vp;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	/*
 	 * Pageout to vnode, no can do yet.
 	 */
@@ -122,11 +123,15 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * Prevent race condition when allocating the object. This
 	 * can happen with NFS vnodes since the nfsnode isn't locked.
 	 */
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	while (vp->v_flag & VOLOCK) {
 		vp->v_flag |= VOWANT;
 		tsleep(vp, PVM, "vnpobj", 0);
 	}
 	vp->v_flag |= VOLOCK;
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 
 	/*
 	 * If the object is being terminated, wait for it to
@@ -134,7 +139,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 */
 	while (((object = vp->v_object) != NULL) &&
 		(object->flags & OBJ_DEAD)) {
-		tsleep(object, PVM, "vadead", 0);
+		msleep(object, &vm_mtx, PVM, "vadead", 0);
 	}
 
 	if (vp->v_usecount == 0)
@@ -157,11 +162,15 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		vp->v_usecount++;
 	}
 
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	vp->v_flag &= ~VOLOCK;
 	if (vp->v_flag & VOWANT) {
 		vp->v_flag &= ~VOWANT;
 		wakeup(vp);
 	}
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 	return (object);
 }
 
@@ -221,8 +230,12 @@ vnode_pager_haspage(object, pindex, before, after)
 		blocksperpage = (PAGE_SIZE / bsize);
 		reqblock = pindex * blocksperpage;
 	}
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	err = VOP_BMAP(vp, reqblock, (struct vnode **) 0, &bn,
 		after, before);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 	if (err)
 		return TRUE;
 	if ( bn == -1)
@@ -285,6 +298,11 @@ vnode_pager_setsize(vp, nsize)
 	 * File has shrunk. Toss any cached pages beyond the new EOF.
 	 */
 	if (nsize < object->un_pager.vnp.vnp_size) {
+		int hadvmlock;
+
+		hadvmlock = mtx_owned(&vm_mtx);
+		if (!hadvmlock)
+			mtx_lock(&vm_mtx);
 		vm_freeze_copyopts(object, OFF_TO_IDX(nsize), object->size);
 		if (nobjsize < object->size) {
 			vm_object_page_remove(object, nobjsize, object->size,
@@ -325,6 +343,8 @@ vnode_pager_setsize(vp, nsize)
 					m->dirty = VM_PAGE_BITS_ALL;
 			}
 		}
+		if (!hadvmlock)
+			mtx_unlock(&vm_mtx);
 	}
 	object->un_pager.vnp.vnp_size = nsize;
 	object->size = nobjsize;
@@ -542,8 +562,8 @@ vnode_pager_input_old(object, m)
  */
 
 /*
- * EOPNOTSUPP is no longer legal.  For local media VFS's that do not
- * implement their own VOP_GETPAGES, their VOP_GETPAGES should call to
+ * Local media VFS's that do not implement their own VOP_GETPAGES
+ * should have their VOP_GETPAGES should call to
  * vnode_pager_generic_getpages() to implement the previous behaviour.
  *
  * All other FS's should use the bypass to get to the local media
@@ -560,16 +580,11 @@ vnode_pager_getpages(object, m, count, reqpage)
 	struct vnode *vp;
 	int bytes = count * PAGE_SIZE;
 
+	mtx_assert(&vm_mtx, MA_OWNED);
 	vp = object->handle;
-	/* 
-	 * XXX temporary diagnostic message to help track stale FS code,
-	 * Returning EOPNOTSUPP from here may make things unhappy.
-	 */
 	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
-	if (rtval == EOPNOTSUPP) {
-	    printf("vnode_pager: *** WARNING *** stale FS getpages\n");
-	    rtval = vnode_pager_generic_getpages( vp, m, bytes, reqpage);
-	}
+	KASSERT(rtval != EOPNOTSUPP,
+	    ("vnode_pager: FS getpages not implemented\n"));
 	return rtval;
 }
 
@@ -891,13 +906,19 @@ vnode_pager_putpages(object, m, count, sync, rtvals)
 	vp = object->handle;
 	if (vp->v_type != VREG)
 		mp = NULL;
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	(void)vn_start_write(vp, &mp, V_WAIT);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 	rtval = VOP_PUTPAGES(vp, m, bytes, sync, rtvals, 0);
-	if (rtval == EOPNOTSUPP) {
-	    printf("vnode_pager: *** WARNING *** stale FS putpages\n");
-	    rtval = vnode_pager_generic_putpages( vp, m, bytes, sync, rtvals);
-	}
+	KASSERT(rtval != EOPNOTSUPP, 
+	    ("vnode_pager: stale FS putpages\n"));
+	mtx_unlock(&vm_mtx);
+	mtx_lock(&Giant);
 	vn_finished_write(mp);
+	mtx_unlock(&Giant);
+	mtx_lock(&vm_mtx);
 }
 
 
@@ -1000,6 +1021,8 @@ vnode_pager_lock(object)
 {
 	struct proc *p = curproc;	/* XXX */
 
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
+	mtx_assert(&Giant, MA_OWNED);
 	for (; object != NULL; object = object->backing_object) {
 		if (object->type != OBJT_VNODE)
 			continue;

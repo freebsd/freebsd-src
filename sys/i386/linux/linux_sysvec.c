@@ -41,6 +41,7 @@
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/sysent.h>

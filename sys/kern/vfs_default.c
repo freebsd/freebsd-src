@@ -535,14 +535,18 @@ retry:
 		if (vp->v_type == VREG || vp->v_type == VDIR) {
 			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
 				goto retn;
+			mtx_lock(&vm_mtx);
 			object = vnode_pager_alloc(vp, vat.va_size, 0, 0);
+			mtx_unlock(&vm_mtx);
 		} else if (devsw(vp->v_rdev) != NULL) {
 			/*
 			 * This simply allocates the biggest object possible
 			 * for a disk vnode.  This should be fixed, but doesn't
 			 * cause any problems (yet).
 			 */
+			mtx_lock(&vm_mtx);
 			object = vnode_pager_alloc(vp, IDX_TO_OFF(INT_MAX), 0, 0);
+			mtx_unlock(&vm_mtx);
 		} else {
 			goto retn;
 		}
@@ -550,15 +554,23 @@ retry:
 		 * Dereference the reference we just created.  This assumes
 		 * that the object is associated with the vp.
 		 */
+		mtx_lock(&vm_mtx);
 		object->ref_count--;
+		mtx_unlock(&vm_mtx);
 		vp->v_usecount--;
 	} else {
+		/*
+		 * XXX: safe to hold vm mutex through VOP_UNLOCK?
+		 */
+		mtx_lock(&vm_mtx);
 		if (object->flags & OBJ_DEAD) {
 			VOP_UNLOCK(vp, 0, p);
-			tsleep(object, PVM, "vodead", 0);
+			msleep(object, VM_OBJECT_MTX(object), PVM, "vodead", 0);
+			mtx_unlock(&vm_mtx);
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			goto retry;
 		}
+		mtx_unlock(&vm_mtx);
 	}
 
 	KASSERT(vp->v_object != NULL, ("vfs_object_create: NULL object"));
@@ -580,6 +592,7 @@ vop_stddestroyvobject(ap)
 	if (vp->v_object == NULL)
 		return (0);
 
+	mtx_lock(&vm_mtx);
 	if (obj->ref_count == 0) {
 		/*
 		 * vclean() may be called twice. The first time
@@ -594,6 +607,7 @@ vop_stddestroyvobject(ap)
 		 */
 		vm_pager_deallocate(obj);
 	}
+	mtx_unlock(&vm_mtx);
 	return (0);
 }
 

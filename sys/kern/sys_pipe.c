@@ -56,6 +56,7 @@
 #include <sys/filedesc.h>
 #include <sys/filio.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/ttycom.h>
 #include <sys/stat.h>
 #include <sys/poll.h>
@@ -253,6 +254,7 @@ pipespace(cpipe, size)
 	 * kernel_object.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
+	mtx_lock(&vm_mtx);
 	object = vm_object_allocate(OBJT_DEFAULT, npages);
 	buffer = (caddr_t) vm_map_min(kernel_map);
 
@@ -264,6 +266,7 @@ pipespace(cpipe, size)
 	error = vm_map_find(kernel_map, object, 0,
 		(vm_offset_t *) &buffer, size, 1,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
+	mtx_unlock(&vm_mtx);
 
 	if (error != KERN_SUCCESS) {
 		vm_object_deallocate(object);
@@ -551,6 +554,7 @@ pipe_build_write_buffer(wpipe, uio)
 		size = wpipe->pipe_buffer.size;
 
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
+	mtx_lock(&vm_mtx);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
 		vm_page_t m;
@@ -561,6 +565,7 @@ pipe_build_write_buffer(wpipe, uio)
 
 			for (j = 0; j < i; j++)
 				vm_page_unwire(wpipe->pipe_map.ms[j], 1);
+			mtx_unlock(&vm_mtx);
 			return (EFAULT);
 		}
 
@@ -592,6 +597,7 @@ pipe_build_write_buffer(wpipe, uio)
 	pmap_qenter(wpipe->pipe_map.kva, wpipe->pipe_map.ms,
 		wpipe->pipe_map.npages);
 
+	mtx_unlock(&vm_mtx);
 /*
  * and update the uio data
  */
@@ -625,8 +631,10 @@ pipe_destroy_write_buffer(wpipe)
 			amountpipekva -= wpipe->pipe_buffer.size + PAGE_SIZE;
 		}
 	}
+	mtx_lock(&vm_mtx);
 	for (i = 0; i < wpipe->pipe_map.npages; i++)
 		vm_page_unwire(wpipe->pipe_map.ms[i], 1);
+	mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -1199,12 +1207,13 @@ pipeclose(cpipe)
 			wakeup(ppipe);
 			ppipe->pipe_peer = NULL;
 		}
-
 		/*
 		 * free resources
 		 */
+		mtx_lock(&vm_mtx);
 		pipe_free_kmem(cpipe);
 		zfree(pipe_zone, cpipe);
+		mtx_unlock(&vm_mtx);
 	}
 }
 

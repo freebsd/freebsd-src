@@ -106,11 +106,17 @@ kmem_alloc_pageable(map, size)
 {
 	vm_offset_t addr;
 	int result;
+	int hadvmlock;
 
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	size = round_page(size);
 	addr = vm_map_min(map);
 	result = vm_map_find(map, NULL, (vm_offset_t) 0,
 	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, 0);
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	if (result != KERN_SUCCESS) {
 		return (0);
 	}
@@ -131,10 +137,17 @@ kmem_alloc_nofault(map, size)
 	vm_offset_t addr;
 	int result;
 
+	int hadvmlock;
+
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	size = round_page(size);
 	addr = vm_map_min(map);
 	result = vm_map_find(map, NULL, (vm_offset_t) 0,
 	    &addr, size, TRUE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	if (result != KERN_SUCCESS) {
 		return (0);
 	}
@@ -153,8 +166,11 @@ kmem_alloc(map, size)
 	vm_offset_t addr;
 	vm_offset_t offset;
 	vm_offset_t i;
+	int hadvmlock;
 
-	mtx_assert(&Giant, MA_OWNED);
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	size = round_page(size);
 
 	/*
@@ -170,6 +186,8 @@ kmem_alloc(map, size)
 	vm_map_lock(map);
 	if (vm_map_findspace(map, vm_map_min(map), size, &addr)) {
 		vm_map_unlock(map);
+		if (!hadvmlock)
+			mtx_unlock(&vm_mtx);
 		return (0);
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
@@ -214,6 +232,8 @@ kmem_alloc(map, size)
 
 	(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size, FALSE);
 
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	return (addr);
 }
 
@@ -232,9 +252,16 @@ kmem_free(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
+	int hadvmlock;
 
-	mtx_assert(&Giant, MA_OWNED);
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
+
 	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
+
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -257,6 +284,11 @@ kmem_suballoc(parent, min, max, size)
 {
 	int ret;
 	vm_map_t result;
+	int hadvmlock;
+
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 
 	size = round_page(size);
 
@@ -274,6 +306,8 @@ kmem_suballoc(parent, min, max, size)
 		panic("kmem_suballoc: cannot create submap");
 	if (vm_map_submap(parent, *min, *max, result) != KERN_SUCCESS)
 		panic("kmem_suballoc: unable to change range to submap");
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	return (result);
 }
 
@@ -308,10 +342,15 @@ kmem_malloc(map, size, flags)
 	vm_map_entry_t entry;
 	vm_offset_t addr;
 	vm_page_t m;
+	int hadvmlock;
 
 	if (map != kmem_map && map != mb_map)
 		panic("kmem_malloc: map != {kmem,mb}_map");
 
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
+		
 	size = round_page(size);
 	addr = vm_map_min(map);
 
@@ -326,12 +365,12 @@ kmem_malloc(map, size, flags)
 		if (map == mb_map) {
 			mb_map_full = TRUE;
 			printf("Out of mbuf clusters - adjust NMBCLUSTERS or increase maxusers!\n");
-			return (0);
+			goto bad;
 		}
 		if ((flags & M_NOWAIT) == 0)
 			panic("kmem_malloc(%ld): kmem_map too small: %ld total allocated",
 				(long)size, (long)map->size);
-		return (0);
+		goto bad;
 	}
 	offset = addr - VM_MIN_KERNEL_ADDRESS;
 	vm_object_reference(kmem_object);
@@ -370,7 +409,7 @@ retry:
 			if (flags & M_ASLEEP) {
 				VM_AWAIT;
 			}
-			return (0);
+			goto bad;
 		}
 		vm_page_flag_clear(m, PG_ZERO);
 		m->valid = VM_PAGE_BITS_ALL;
@@ -407,7 +446,14 @@ retry:
 	}
 	vm_map_unlock(map);
 
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	return (addr);
+
+bad:	
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
+	return (0);
 }
 
 /*
@@ -425,6 +471,11 @@ kmem_alloc_wait(map, size)
 	vm_size_t size;
 {
 	vm_offset_t addr;
+	int hadvmlock;
+
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 
 	size = round_page(size);
 
@@ -439,13 +490,17 @@ kmem_alloc_wait(map, size)
 		/* no space now; see if we can ever get space */
 		if (vm_map_max(map) - vm_map_min(map) < size) {
 			vm_map_unlock(map);
+			if (!hadvmlock)
+				mtx_unlock(&vm_mtx);
 			return (0);
 		}
 		vm_map_unlock(map);
-		tsleep(map, PVM, "kmaw", 0);
+		msleep(map, &vm_mtx, PVM, "kmaw", 0);
 	}
 	vm_map_insert(map, NULL, (vm_offset_t) 0, addr, addr + size, VM_PROT_ALL, VM_PROT_ALL, 0);
 	vm_map_unlock(map);
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 	return (addr);
 }
 
@@ -461,10 +516,17 @@ kmem_free_wakeup(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
+	int hadvmlock;
+
+	hadvmlock = mtx_owned(&vm_mtx);
+	if (!hadvmlock)
+		mtx_lock(&vm_mtx);
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
 	wakeup(map);
 	vm_map_unlock(map);
+	if (!hadvmlock)
+		mtx_unlock(&vm_mtx);
 }
 
 /*

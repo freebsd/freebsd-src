@@ -290,11 +290,14 @@ void
 cpu_wait(p)
 	struct proc *p;
 {
+
+	mtx_lock(&vm_mtx);
 	/* drop per-process resources */
 	pmap_dispose_proc(p);
 
 	/* and clean-out the vmspace */
 	vmspace_free(p->p_vmspace);
+	mtx_unlock(&vm_mtx);
 }
 
 /*
@@ -376,6 +379,7 @@ vmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
+	mtx_lock(&vm_mtx);
 	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data);
 	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE, v += PAGE_SIZE) {
@@ -391,6 +395,7 @@ vmapbuf(bp)
 		vm_page_hold(PHYS_TO_VM_PAGE(pa));
 		pmap_kenter((vm_offset_t) v, pa);
 	}
+	mtx_unlock(&vm_mtx);
 
 	kva = bp->b_saveaddr;
 	bp->b_saveaddr = bp->b_data;
@@ -411,6 +416,7 @@ vunmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
+	mtx_lock(&vm_mtx);
 	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data);
 	    addr < bp->b_data + bp->b_bufsize;
 	    addr += PAGE_SIZE) {
@@ -418,6 +424,7 @@ vunmapbuf(bp)
 		pmap_kremove((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 	}
+	mtx_unlock(&vm_mtx);
 
 	bp->b_data = bp->b_saveaddr;
 }
@@ -574,12 +581,17 @@ vm_page_zero_idle()
 	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
 
-	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
+	if (mtx_trylock(&vm_mtx) == 0)
+		return (0);
+	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count)) {
+		mtx_unlock(&vm_mtx);
 		return(0);
-	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
+	}
+	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count)) {
+		mtx_unlock(&vm_mtx);
 		return(0);
+	}
 
-	if (mtx_trylock(&Giant)) {
 		s = splvm();
 		zero_state = 0;
 		m = vm_page_list_find(PQ_FREE, free_rover, FALSE);
@@ -602,10 +614,8 @@ vm_page_zero_idle()
 		}
 		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
 		splx(s);
-		mtx_unlock(&Giant);
+		mtx_unlock(&vm_mtx);
 		return (1);
-	}
-	return (0);
 }
 
 /*

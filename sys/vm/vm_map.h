@@ -196,6 +196,7 @@ struct vmspace {
 	caddr_t vm_minsaddr;	/* user VA at max stack growth */
 };
 
+#ifdef	_KERNEL
 /*
  *	Macros:		vm_map_lock, etc.
  *	Function:
@@ -211,6 +212,7 @@ struct vmspace {
 	do { \
 		lockmgr(&(map)->lock, LK_DRAIN|LK_INTERLOCK, \
 			&(map)->ref_lock, curproc); \
+		mtx_lock(&vm_mtx); \
 		(map)->timestamp++; \
 	} while(0)
 
@@ -225,27 +227,33 @@ struct vmspace {
 #define	vm_map_lock(map) \
 	do { \
 		vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map); \
-		if (lockmgr(&(map)->lock, LK_EXCLUSIVE, (void *)0, curproc) != 0) \
+		mtx_assert(&vm_mtx, MA_OWNED); \
+		if (lockmgr(&(map)->lock, LK_EXCLUSIVE | LK_INTERLOCK, \
+		   	&vm_mtx, curproc) != 0) \
 			panic("vm_map_lock: failed to get lock"); \
+		mtx_lock(&vm_mtx); \
 		(map)->timestamp++; \
 	} while(0)
 
 #define	vm_map_unlock(map) \
 	do { \
 		vm_map_printf("locking map LK_RELEASE: %p\n", map); \
-		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
+		lockmgr(&(map)->lock, LK_RELEASE, NULL, curproc); \
 	} while (0)
 
 #define	vm_map_lock_read(map) \
 	do { \
 		vm_map_printf("locking map LK_SHARED: %p\n", map); \
-		lockmgr(&(map)->lock, LK_SHARED, (void *)0, curproc); \
+		mtx_assert(&vm_mtx, MA_OWNED); \
+		lockmgr(&(map)->lock, LK_SHARED | LK_INTERLOCK, \
+		    &vm_mtx, curproc); \
+		mtx_lock(&vm_mtx); \
 	} while (0)
 
 #define	vm_map_unlock_read(map) \
 	do { \
 		vm_map_printf("locking map LK_RELEASE: %p\n", map); \
-		lockmgr(&(map)->lock, LK_RELEASE, (void *)0, curproc); \
+		lockmgr(&(map)->lock, LK_RELEASE, NULL, curproc); \
 	} while (0)
 
 static __inline__ int
@@ -253,7 +261,8 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 	int error;
 
 	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
-	error = lockmgr(&map->lock, LK_EXCLUPGRADE, (void *)0, p);
+	error = lockmgr(&map->lock, LK_EXCLUPGRADE | LK_INTERLOCK, &vm_mtx, p);
+	mtx_lock(&vm_mtx);
 	if (error == 0)
 		map->timestamp++;
 	return error;
@@ -264,7 +273,7 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 #define vm_map_lock_downgrade(map) \
 	do { \
 		vm_map_printf("locking map LK_DOWNGRADE: %p\n", map); \
-		lockmgr(&(map)->lock, LK_DOWNGRADE, (void *)0, curproc); \
+		lockmgr(&(map)->lock, LK_DOWNGRADE, NULL, curproc); \
 	} while (0)
 
 #define vm_map_set_recursive(map) \
@@ -287,6 +296,7 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 #define		vm_map_min(map)		((map)->min_offset)
 #define		vm_map_max(map)		((map)->max_offset)
 #define		vm_map_pmap(map)	((map)->pmap)
+#endif	/* _KERNEL */
 
 static __inline struct pmap *
 vmspace_pmap(struct vmspace *vmspace)

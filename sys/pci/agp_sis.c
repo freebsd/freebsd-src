@@ -35,6 +35,7 @@
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>

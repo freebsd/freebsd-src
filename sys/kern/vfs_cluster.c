@@ -433,6 +433,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 		BUF_KERNPROC(tbp);
 		TAILQ_INSERT_TAIL(&bp->b_cluster.cluster_head,
 			tbp, b_cluster.cluster_entry);
+		mtx_lock(&vm_mtx);
 		for (j = 0; j < tbp->b_npages; j += 1) {
 			vm_page_t m;
 			m = tbp->b_pages[j];
@@ -446,10 +447,12 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 			if ((m->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL)
 				tbp->b_pages[j] = bogus_page;
 		}
+		mtx_unlock(&vm_mtx);
 		bp->b_bcount += tbp->b_bcount;
 		bp->b_bufsize += tbp->b_bufsize;
 	}
 
+	mtx_lock(&vm_mtx);
 	for(j=0;j<bp->b_npages;j++) {
 		if ((bp->b_pages[j]->valid & VM_PAGE_BITS_ALL) ==
 			VM_PAGE_BITS_ALL)
@@ -462,6 +465,7 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 	pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 		(vm_page_t *)bp->b_pages, bp->b_npages);
+	mtx_unlock(&vm_mtx);
 	return (bp);
 }
 
@@ -484,7 +488,9 @@ cluster_callback(bp)
 	if (bp->b_ioflags & BIO_ERROR)
 		error = bp->b_error;
 
+	mtx_lock(&vm_mtx);
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
+	mtx_unlock(&vm_mtx);
 	/*
 	 * Move memory from the large cluster buffer into the component
 	 * buffers and mark IO as done on these.
@@ -851,6 +857,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 					}
 				}
 					
+				mtx_lock(&vm_mtx);
 				for (j = 0; j < tbp->b_npages; j += 1) {
 					m = tbp->b_pages[j];
 					vm_page_io_start(m);
@@ -861,6 +868,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 						bp->b_npages++;
 					}
 				}
+				mtx_unlock(&vm_mtx);
 			}
 			bp->b_bcount += size;
 			bp->b_bufsize += size;
@@ -879,8 +887,10 @@ cluster_wbuild(vp, size, start_lbn, len)
 				tbp, b_cluster.cluster_entry);
 		}
 	finishcluster:
+		mtx_lock(&vm_mtx);
 		pmap_qenter(trunc_page((vm_offset_t) bp->b_data),
 			(vm_page_t *) bp->b_pages, bp->b_npages);
+		mtx_unlock(&vm_mtx);
 		if (bp->b_bufsize > bp->b_kvasize)
 			panic(
 			    "cluster_wbuild: b_bufsize(%ld) > b_kvasize(%d)\n",

@@ -81,6 +81,7 @@
 #include <sys/errno.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/ucred.h>
 
 #include <vm/vm.h>

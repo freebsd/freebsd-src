@@ -2139,6 +2139,8 @@ nfs_clearcommit(mp)
 	int s;
 
 	s = splbio();
+	mtx_assert(&Giant, MA_OWNED);
+	mtx_assert(&vm_mtx, MA_NOTOWNED);
 loop:
 	for (vp = mp->mnt_vnodelist.lh_first; vp; vp = nvp) {
 		if (vp->v_mount != mp)	/* Paranoia */

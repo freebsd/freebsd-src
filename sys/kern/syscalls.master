@@ -61,7 +61,7 @@
 14	STD	POSIX	{ int mknod(char *path, int mode, int dev); }
 15	STD	POSIX	{ int chmod(char *path, int mode); }
 16	STD	POSIX	{ int chown(char *path, int uid, int gid); }
-17	STD	BSD	{ int obreak(char *nsize); } break obreak_args int
+17	MPSAFE	STD	BSD	{ int obreak(char *nsize); } break obreak_args int
 18	STD	BSD	{ int getfsstat(struct statfs *buf, long bufsize, \
 			    int flags); }
 19	COMPAT	POSIX	{ long lseek(int fd, long offset, int whence); }
@@ -121,23 +121,23 @@
 62	COMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
 63	COMPAT	BSD	{ int getkerninfo(int op, char *where, size_t *size, \
 			    int arg); } getkerninfo getkerninfo_args int
-64	COMPAT	BSD	{ int getpagesize(void); } \
+64	MPSAFE	COMPAT	BSD	{ int getpagesize(void); } \
 			    getpagesize getpagesize_args int
 65	STD	BSD	{ int msync(void *addr, size_t len, int flags); }
 66	STD	BSD	{ int vfork(void); }
 67	OBSOL	NOHIDE	vread
 68	OBSOL	NOHIDE	vwrite
-69	STD	BSD	{ int sbrk(int incr); }
-70	STD	BSD	{ int sstk(int incr); }
-71	COMPAT	BSD	{ int mmap(void *addr, int len, int prot, \
+69	MPSAFE	STD	BSD	{ int sbrk(int incr); }
+70	MPSAFE	STD	BSD	{ int sstk(int incr); }
+71	MPSAFE	COMPAT	BSD	{ int mmap(void *addr, int len, int prot, \
 			    int flags, int fd, long pos); }
-72	STD	BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
-73	STD	BSD	{ int munmap(void *addr, size_t len); }
-74	STD	BSD	{ int mprotect(const void *addr, size_t len, int prot); }
-75	STD	BSD	{ int madvise(void *addr, size_t len, int behav); }
+72	MPSAFE	STD	BSD	{ int ovadvise(int anom); } vadvise ovadvise_args int
+73	MPSAFE	STD	BSD	{ int munmap(void *addr, size_t len); }
+74	MPSAFE	STD	BSD	{ int mprotect(const void *addr, size_t len, int prot); }
+75	MPSAFE	STD	BSD	{ int madvise(void *addr, size_t len, int behav); }
 76	OBSOL	NOHIDE	vhangup
 77	OBSOL	NOHIDE	vlimit
-78	STD	BSD	{ int mincore(const void *addr, size_t len, \
+78	MPSAFE	STD	BSD	{ int mincore(const void *addr, size_t len, \
 			    char *vec); }
 79	STD	POSIX	{ int getgroups(u_int gidsetsize, gid_t *gidset); }
 80	STD	POSIX	{ int setgroups(u_int gidsetsize, gid_t *gidset); }
@@ -306,7 +306,7 @@
 			    setrlimit __setrlimit_args int
 196	STD	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
 			    long *basep); }
-197	STD	BSD	{ caddr_t mmap(caddr_t addr, size_t len, int prot, \
+197	MPSAFE	STD	BSD	{ caddr_t mmap(caddr_t addr, size_t len, int prot, \
 			    int flags, int fd, int pad, off_t pos); }
 198	STD	NOHIDE	{ int nosys(void); } __syscall __syscall_args int
 199	STD	POSIX	{ off_t lseek(int fd, int pad, off_t offset, \
@@ -318,8 +318,8 @@
 			    __sysctl sysctl_args int
 ; properly, __sysctl should be a NOHIDE, but making an exception
 ; here allows to avoid one in libc/sys/Makefile.inc.
-203	STD	BSD	{ int mlock(const void *addr, size_t len); }
-204	STD	BSD	{ int munlock(const void *addr, size_t len); }
+203	MPSAFE	STD	BSD	{ int mlock(const void *addr, size_t len); }
+204	MPSAFE	STD	BSD	{ int munlock(const void *addr, size_t len); }
 205	STD	BSD	{ int undelete(char *path); }
 206	STD	BSD	{ int futimes(int fd, struct timeval *tptr); }
 207	STD	BSD	{ int getpgid(pid_t pid); }
@@ -386,7 +386,7 @@
 248	UNIMPL	NOHIDE	nosys
 249	UNIMPL	NOHIDE	nosys
 ; syscall numbers initially used in OpenBSD
-250	STD	BSD	{ int minherit(void *addr, size_t len, int inherit); }
+250	MPSAFE	STD	BSD	{ int minherit(void *addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
 252	STD	BSD	{ int openbsd_poll(struct pollfd *fds, u_int nfds, \
 			    int timeout); }
@@ -414,7 +414,7 @@
 274	STD	BSD	{ int lchmod(char *path, mode_t mode); }
 275	NOPROTO BSD	{ int lchown(char *path, uid_t uid, gid_t gid); } netbsd_lchown lchown_args int
 276	STD	BSD	{ int lutimes(char *path, struct timeval *tptr); }
-277	NOPROTO	BSD	{ int msync(void *addr, size_t len, int flags); } netbsd_msync msync_args int
+277	MPSAFE	NOPROTO	BSD	{ int msync(void *addr, size_t len, int flags); } netbsd_msync msync_args int
 278	STD	BSD	{ int nstat(char *path, struct nstat *ub); }
 279	STD	BSD	{ int nfstat(int fd, struct nstat *sb); }
 280	STD	BSD	{ int nlstat(char *path, struct nstat *ub); }
@@ -463,8 +463,8 @@
 321     STD     BSD     { int yield(void); }
 322	OBSOL	NOHIDE	thr_sleep
 323	OBSOL	NOHIDE	thr_wakeup
-324     STD     BSD     { int mlockall(int how); }
-325     STD     BSD     { int munlockall(void); }
+324     MPSAFE	STD     BSD     { int mlockall(int how); }
+325     MPSAFE	STD     BSD     { int munlockall(void); }
 326     STD     BSD     { int __getcwd(u_char *buf, u_int buflen); }
 
 327     STD     POSIX   { int sched_setparam (pid_t pid, const struct sched_param *param); }
