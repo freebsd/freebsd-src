@@ -70,8 +70,8 @@ ata_generic_hw(struct ata_channel *ch)
 static int
 ata_transaction(struct ata_request *request)
 {
-    /* safety check, device might have been detached FIXME SOS */
-    if (!request->device->param) {
+    /* safetybelt for HW that went away */
+    if (!request->device->param || request->device->channel->flags&ATA_HWGONE) {
 	request->result = ENXIO;
 	return ATA_OP_FINISHED;
     }
