@@ -40,6 +40,7 @@
 #undef ATOMIC_ASM
 
 /* Make atomic.h generate public functions */
+#define WANT_FUNCTIONS
 #define static
 #undef __inline
 #define __inline
