@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.3 (Berkeley) 1/31/94
- * $Id: cd9660_vfsops.c,v 1.9 1994/11/14 07:01:58 bde Exp $
+ * $Id: cd9660_vfsops.c,v 1.10 1995/01/16 17:03:27 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,7 @@ struct vfsops cd9660_vfsops = {
 	cd9660_vptofh,
 	cd9660_init,
 };
-VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, 0);
+VFS_SET(cd9660_vfsops, cd9660, MOUNT_CD9660, VFCF_READONLY);
 
 
 /*
