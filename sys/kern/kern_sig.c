@@ -1137,8 +1137,10 @@ psignal(p, sig)
 		 * asleep, we are finished; the process should not
 		 * be awakened.
 		 */
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if ((prop & SA_CONT) && action == SIG_DFL) {
 			SIGDELSET(p->p_siglist, sig);
+			mtx_enter(&sched_lock, MTX_SPIN);
 			goto out;
 		}
 		/*
@@ -1148,8 +1150,10 @@ psignal(p, sig)
 		 * cause the process to run.
 		 */
 		if (prop & SA_STOP) {
-			if (action != SIG_DFL)
+			if (action != SIG_DFL) {
+				mtx_enter(&sched_lock, MTX_SPIN);
 				goto runfast;
+			}
 			/*
 			 * If a child holding parent blocked,
 			 * stopping could cause deadlock.
@@ -1163,9 +1167,12 @@ psignal(p, sig)
 				psignal(p->p_pptr, SIGCHLD);
 			stop(p);
 			PROCTREE_LOCK(PT_RELEASE);
+			mtx_enter(&sched_lock, MTX_SPIN);
 			goto out;
-		} else
+		} else {
+			mtx_enter(&sched_lock, MTX_SPIN);
 			goto runfast;
+		}
 		/*NOTREACHED*/
 
 	case SSTOP:
@@ -1182,6 +1189,7 @@ psignal(p, sig)
 		if (sig == SIGKILL)
 			goto runfast;
 
+		mtx_exit(&sched_lock, MTX_SPIN);
 		if (prop & SA_CONT) {
 			/*
 			 * If SIGCONT is default (or ignored), we continue the
@@ -1195,6 +1203,7 @@ psignal(p, sig)
 			 */
 			if (action == SIG_DFL)
 				SIGDELSET(p->p_siglist, sig);
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (action == SIG_CATCH)
 				goto runfast;
 			if (p->p_wchan == 0)
@@ -1209,6 +1218,7 @@ psignal(p, sig)
 			 * (If we did the shell could get confused.)
 			 */
 			SIGDELSET(p->p_siglist, sig);
+			mtx_enter(&sched_lock, MTX_SPIN);
 			goto out;
 		}
 
@@ -1218,6 +1228,7 @@ psignal(p, sig)
 		 * runnable and can look at the signal.  But don't make
 		 * the process runnable, leave it stopped.
 		 */
+		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_wchan && p->p_flag & P_SINTR)
 			unsleep(p);
 		goto out;
@@ -1228,11 +1239,17 @@ psignal(p, sig)
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
-		if (p == curproc)
+		if (p == curproc) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			signotify(p);
+			mtx_enter(&sched_lock, MTX_SPIN);
+		}
 #ifdef SMP
-		else if (p->p_stat == SRUN)
+		else if (p->p_stat == SRUN) {
+			mtx_exit(&sched_lock, MTX_SPIN);
 			forward_signal(p);
+			mtx_enter(&sched_lock, MTX_SPIN);
+		}
 #endif
 		goto out;
 	}
