@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
- * $Id: ffs_vnops.c,v 1.53 1998/10/31 15:31:27 peter Exp $
+ * $Id: ffs_vnops.c,v 1.54 1999/01/07 16:14:17 bde Exp $
  */
 
 #include <sys/param.h>
@@ -142,9 +142,11 @@ ffs_fsync(ap)
 	skipmeta = 0;
 	if (ap->a_waitfor == MNT_WAIT)
 		skipmeta = 1;
-loop:
 	s = splbio();
-loop2:
+loop:
+	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp;
+	     bp = TAILQ_NEXT(bp, b_vnbufs))
+		bp->b_flags &= ~B_SCANNED;
 	for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		/* 
@@ -152,7 +154,7 @@ loop2:
 		 * or if it's already scheduled, skip to the next 
 		 * buffer
 		 */
-		if ((bp->b_flags & B_BUSY) ||
+		if ((bp->b_flags & (B_BUSY | B_SCANNED)) ||
 		    ((skipmeta == 1) && (bp->b_lblkno < 0)))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
@@ -162,6 +164,7 @@ loop2:
 		 * asked to wait for everything, or it's not a file or BDEV,
 		 * start the IO on this buffer immediatly.
 		 */
+		bp->b_flags |= B_SCANNED;
 		if (((bp->b_vp != vp) || (ap->a_waitfor == MNT_WAIT)) ||
 		    ((vp->v_type != VREG) && (vp->v_type != VBLK))) {
 
@@ -174,18 +177,19 @@ loop2:
 				if ((bp->b_flags & B_CLUSTEROK) &&
 				    ap->a_waitfor != MNT_WAIT) {
 					(void) vfs_bio_awrite(bp);
-					splx(s);
 				} else {
 					bremfree(bp);
 					bp->b_flags |= B_BUSY;
 					splx(s);
 					(void) bawrite(bp);
+					s = splbio();
 				}
 			} else {
 				bremfree(bp);
 				bp->b_flags |= B_BUSY;
 				splx(s);
 				(void) bwrite(bp);
+				s = splbio();
 			}
 		} else if ((vp->v_type == VREG) && (bp->b_lblkno >= lbn)) {
 			/* 
@@ -194,13 +198,17 @@ loop2:
 			 */
 			bremfree(bp);
 			bp->b_flags |= B_BUSY | B_INVAL | B_NOCACHE;
-			brelse(bp);
 			splx(s);
+			brelse(bp);
+			s = splbio();
 		} else {
 			vfs_bio_awrite(bp);
-			splx(s);
 		}
-		goto loop;
+		/*
+		 * Since we may have slept during the I/O, we need 
+		 * to start from a known point.
+		 */
+		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 	}
 	/*
 	 * If we were asked to do this synchronously, then go back for
@@ -208,7 +216,7 @@ loop2:
 	 */
 	if (skipmeta) {
 		skipmeta = 0;
-		goto loop2; /* stay within the splbio() */
+		goto loop;
 	}
 
 	if (ap->a_waitfor == MNT_WAIT) {
@@ -238,7 +246,7 @@ loop2:
 			 */
 			if (passes > 0) {
 				passes -= 1;
-				goto loop2;
+				goto loop;
 			}
 #ifdef DIAGNOSTIC
 			if (vp->v_type != VBLK)

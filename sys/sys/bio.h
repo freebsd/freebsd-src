@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.62 1999/01/21 08:29:08 dillon Exp $
+ * $Id: buf.h,v 1.63 1999/01/21 13:41:12 peter Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -164,7 +164,7 @@ struct buf {
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_ERROR		0x00000800	/* I/O error occurred. */
-#define	B_AVAIL2	0x00001000	/* Available flag */
+#define	B_SCANNED	0x00001000	/* VOP_FSYNC funcs mark written bufs */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
