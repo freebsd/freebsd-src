@@ -291,7 +291,7 @@ kcore_open (char *filename /* the core file */, int from_tty)
 
   /* Print out the panic string if there is one.  */
   if (kvread (ksym_lookup ("panicstr"), &addr) == 0 &&
-      addr != 0 && 
+      addr != 0 &&
       target_read_memory (addr, buf, sizeof(buf)) == 0)
     {
 
@@ -326,7 +326,7 @@ kcore_open (char *filename /* the core file */, int from_tty)
 		    RETURN_MASK_ALL);
 #endif
     }
-  else 
+  else
     {
       warning ("you won't be able to access this core file until you terminate\n"
 		"your %s; do ``info files''", target_longname);
@@ -697,12 +697,12 @@ set_proc_cmd (char *arg, int from_tty)
     error ("no kernel core file");
 
   addr = (CORE_ADDR) parse_and_eval_address (arg);
-  
+
   if (!INKERNEL (addr))
     {
       kp = kvm_getprocs (core_kd, KERN_PROC_PID, addr, &cnt);
       if (!cnt)
-	error ("invalid pid");	  
+	error ("invalid pid");
       addr = (CORE_ADDR)kp->ki_paddr;
       cur_proc = kp;
     }
@@ -714,7 +714,7 @@ set_proc_cmd (char *arg, int from_tty)
 	error ("cannot read pid ptr");
       cur_proc = kvm_getprocs (core_kd, KERN_PROC_PID, pid, &cnt);
       if (!cnt)
-	error("invalid pid");	  
+	error("invalid pid");
     }
 
   /* Find the first thread in the process.  XXXKSE  */
