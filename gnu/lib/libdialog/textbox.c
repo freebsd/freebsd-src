@@ -136,7 +136,7 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   }
   display_helpline(dialog, height-1, width);
 
-  print_button(dialog, " EXIT ", height-2, width/2-4, TRUE);
+  print_button(dialog, " CONTINUE ", height-2, width/2-8, TRUE);
   wnoutrefresh(dialog);
   getyx(dialog, cur_y, cur_x);    /* Save cursor position */
 
