@@ -1804,8 +1804,14 @@ retry_lookup:
 			xfsize = PAGE_SIZE - pgoff;
 		if (uap->nbytes && xfsize > (uap->nbytes - sbytes))
 			xfsize = uap->nbytes - sbytes;
-		if (xfsize <= 0)
-			break;
+		if (xfsize <= 0) {
+			if (m_header != NULL) {
+				m = m_header;
+				m_header = NULL;
+				goto retry_space;
+			} else
+				break;
+		}
 		/*
 		 * Optimize the non-blocking case by looking at the socket space
 		 * before going to the extra work of constituting the sf_buf.
