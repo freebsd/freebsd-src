@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.180 1999/07/27 00:30:32 brian Exp $
+.\" $Id: ppp.8,v 1.181 1999/07/27 13:47:59 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -1400,7 +1400,9 @@ set filter
 .Ar name
 .Ar rule-no
 .Ar action
+.Op \&!
 .Oo
+.Op host
 .Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
 .Oc
@@ -1432,16 +1434,27 @@ but only if rule
 is defined.
 .It
 .Ar Action
-is either
+may be specified as
 .Sq permit
 or
-.Sq deny .
-If a given packet
-matches the rule, the associated action is taken immediately.
+.Sq deny ,
+in which case, if a given packet matches the rule, the associated action
+is taken immediately.
 .Ar Action
 can also be specified as
 .Sq clear
-to clear the action associated with that particular rule.
+to clear the action associated with that particular rule, or as a new
+rule number greater than the current rule.  In this case, if a given
+packet matches the current rule, the packet will next be matched against
+the new rule number (rather than the next rule number).
+.Pp
+The
+.Ar action
+may optionally be followed with an exclaimation mark
+.Pq Dq ! ,
+telling
+.Nm
+to reverse the sense of the following match.
 .It
 .Op Ar src_addr Ns Op / Ns Ar width
 and
@@ -3843,8 +3856,10 @@ will be
 .Sq escaped
 as they travel across the link.
 .It set filter dial|alive|in|out Ar rule-no Xo
-.No permit|deny
-.Oo Ar src_addr Ns Op / Ns Ar width
+.No permit|deny|clear| Ns Ar rule-no
+.Op \&!
+.Oo Op host
+.Ar src_addr Ns Op / Ns Ar width
 .Op Ar dst_addr Ns Op / Ns Ar width
 .Oc Oo tcp|udp|igmp|icmp Op src lt|eq|gt Ar port
 .Op dst lt|eq|gt Ar port
@@ -3871,9 +3886,12 @@ into the machine and the
 filter specifies packets that are allowed out of the machine.
 .Pp
 Filtering is done prior to any IP alterations that might be done by the
-alias engine.  By default all filter sets allow all packets to pass.
-Rules are processed in order according to
-.Ar rule-no .
+alias engine on outgoing packets and after any IP alterations that might
+be done by the alias engine on incoming packets.  By default all filter
+sets allow all packets to pass.  Rules are processed in order according to
+.Ar rule-no
+(unless skipped by specifying a rule number as the
+.Ar action ) .
 Up to 40 rules may be given for each set.  If a packet doesn't match
 any of the rules in a given set, it is discarded.  In the case of
 .Em in
