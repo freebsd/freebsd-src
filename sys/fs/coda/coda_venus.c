@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/cfs/coda_venus.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_venus.c,v 1.6 1998/11/11 20:32:20 rvb Exp $
+ *  $Id: coda_venus.c,v 1.7 1999/05/11 19:53:51 phk Exp $
  * 
  */
 
@@ -197,7 +197,8 @@ venus_open(void *mdp, ViceFid *fid, int flag,
 
     error = coda_call(mdp, Isize, &Osize, (char *)inp);
     if (!error) {
-	*dev =  udev2dev(outp->dev, 2);
+/* 5/11	*dev =  udev2dev(outp->dev, 2); */
+	*dev =  udev2dev(outp->dev, 0);
 	*inode = outp->inode;
     }
 
