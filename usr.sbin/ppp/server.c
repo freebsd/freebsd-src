@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.21 1998/06/24 19:33:36 brian Exp $
+ *	$Id: server.c,v 1.22 1998/06/27 14:18:10 brian Exp $
  */
 
 #include <sys/types.h>
@@ -152,9 +152,13 @@ server_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
     }
   }
 
+  log_PromptListChanged = 0;
   for (p = log_PromptList(); p; p = p->next)
-    if (descriptor_IsSet(&p->desc, fdset))
+    if (descriptor_IsSet(&p->desc, fdset)) {
       descriptor_Read(&p->desc, bundle, fdset);
+      if (log_PromptListChanged)
+        break;
+    }
 }
 
 static int
