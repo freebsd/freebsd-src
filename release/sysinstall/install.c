@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.41 1995/10/20 07:02:36 jkh Exp $
+ * $Id: install.c,v 1.71.2.44 1995/10/20 14:24:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -296,7 +296,7 @@ installFixit(char *str)
     clear();
     dialog_clear();
     dialog_update();
-    unmount("/mnt2", MNT_FORCE);
+    unmount("/mnt2", 0);
     msgConfirm("Please remove the fixit floppy now.");
     return RET_SUCCESS;
 }
@@ -622,146 +622,6 @@ installFilesystems(char *str)
     return RET_SUCCESS;
 }
 
-static struct _word {
-    char *name;
-    int (*handler)(char *str);
-} resWords[] = {
-    { "diskPartitionEditor",	diskPartitionEditor	},
-    { "diskPartitionWrite",	diskPartitionWrite	},
-    { "diskLabelEditor",	diskLabelEditor		},
-    { "diskLabelCommit",	diskLabelCommit		},
-    { "distReset",		distReset		},
-    { "distSetDeveloper",	distSetDeveloper	},
-    { "distSetXDeveloper",	distSetXDeveloper	},
-    { "distSetKernDeveloper",	distSetKernDeveloper	},
-    { "distSetMinimum",		distSetMinimum		},
-    { "distSetEverything",	distSetEverything	},
-    { "distSetDES",		distSetDES		},
-    { "distSetSrc",		distSetSrc		},
-    { "distSetXF86",		distSetXF86		},
-    { "distExtractAll",		distExtractAll		},
-    { "docBrowser",		docBrowser		},
-    { "docShowDocument",	docShowDocument		},
-    { "installCommit",		installCommit		},
-    { "installExpress",		installExpress		},
-    { "installUpgrade",		installUpgrade		},
-    { "installPreconfig",	installPreconfig	},
-    { "installFixup",		installFixup		},
-    { "installFinal",		installFinal		},
-    { "installFilesystems",	installFilesystems	},
-    { "mediaSetCDROM",		mediaSetCDROM		},
-    { "mediaSetFloppy",		mediaSetFloppy		},
-    { "mediaSetDOS",		mediaSetDOS		},
-    { "mediaSetTape",		mediaSetTape		},
-    { "mediaSetFTP",		mediaSetFTP		},
-    { "mediaSetFTPActive",	mediaSetFTPActive	},
-    { "mediaSetFTPPassive",	mediaSetFTPPassive	},
-    { "mediaSetUFS",		mediaSetUFS		},
-    { "mediaSetNFS",		mediaSetNFS		},
-    { "mediaSetFtpUserPass",	mediaSetFtpUserPass	},
-    { "mediaSetCPIOVerbosity",	mediaSetCPIOVerbosity	},
-    { "mediaGetType",		mediaGetType		},
-    { NULL, NULL },
-};
-
-static int
-call_possible_resword(char *name, char *value, int *status)
-{
-    int i, rval;
-
-    rval = 0;
-    for (i = 0; resWords[i].name; i++) {
-	if (!strcmp(name, resWords[i].name)) {
-	    *status = resWords[i].handler(value);
-	    rval = 1;
-	    break;
-	}
-    }
-    return rval;
-}
-
-/* From the top menu - try to mount the floppy and read a configuration file from it */
-int
-installPreconfig(char *str)
-{
-    struct ufs_args u_args;
-    struct msdosfs_args	m_args;
-    int fd, i;
-    char buf[128];
-    char *cfg_file;
-
-    memset(&u_args, 0, sizeof(u_args));
-    u_args.fspec = "/dev/fd0";
-    Mkdir("/mnt2", NULL);
-
-    memset(&m_args, 0, sizeof(m_args));
-    m_args.fspec = "/dev/fd0";
-    m_args.uid = m_args.gid = 0;
-    m_args.mask = 0777;
-
-    i = RET_FAIL;
-    while (1) {
-	
-	if (!(cfg_file = variable_get_value(CONFIG_FILE,
-					    "Please insert the floppy containing this configuration file\n"
-					    "into drive A now and press [ENTER].")))
-	    break;
-
-	if (mount(MOUNT_UFS, "/mnt2", MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    if (mount(MOUNT_MSDOS, "/mnt2", MNT_RDONLY, (caddr_t)&m_args) == -1) {
-		if (msgYesNo("Unable to mount the configuration floppy - do you want to try again?"))
-		    break;
-		else
-		    continue;
-	    }
-	}
-
-    fnord:
-	if (!cfg_file)
-	    break;
-	sprintf(buf, "/mnt2/%s", cfg_file);
-	msgDebug("Attempting to open configuration file: %s\n", buf);
-	fd = open(buf, O_RDONLY);
-	if (fd == -1) {
-	    if (msgYesNo("Unable to find the configuration file `%s' - do you want to\n"
-			 "try again?", buf)) {
-		unmount("/mnt2", MNT_FORCE);
-		break;
-	    }
-	    else
-		goto fnord;
-	}
-	else {
-	    Attribs *cattr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    int i, j;
-
-	    if (attr_parse(cattr, fd) == RET_FAIL)
-		msgConfirm("Cannot parse configuration file %s!  Please verify your media.", cfg_file);
-	    else {
-		for (j = 0; cattr[j].name[0]; j++) {
-		    int status;
-
-		    if (call_possible_resword(cattr[j].name, cattr[j].value, &status)) {
-			if (status != RET_SUCCESS)
-			    msgDebug("macro call to %s(%s) returns %d status!\n", cattr[j].name,
-				     cattr[j].value, status);
-		    }
-		    else
-			variable_set2(cattr[j].name, cattr[j].value);
-		}
-		i = RET_SUCCESS;
-		msgConfirm("Configuration file %s loaded successfully!\n"
-			   "Some parameters may now have new default values.", cfg_file);
-	    }
-	    close(fd);
-	    safe_free(cattr);
-	    unmount("/mnt2", MNT_FORCE);
-	    break;
-	}
-    }
-    return i;
-}
-
 int
 installVarDefaults(char *unused)
 {
@@ -816,7 +676,7 @@ root_extract(void)
 
     if (mediaDevice) {
 	if (isDebug())
-	    msgDebug("Attempting to extract root image from %s device\n", mediaDevice->description);
+	    msgDebug("Attempting to extract root image from %s\n", mediaDevice->name);
 	switch(mediaDevice->type) {
 
 	case DEVICE_TYPE_FLOPPY:
