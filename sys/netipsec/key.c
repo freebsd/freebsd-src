@@ -917,12 +917,18 @@ key_do_allocsa_policy(struct secashead *sah, u_int state)
 		 */
 		if (d->lft_c->sadb_lifetime_addtime != 0) {
 			struct mbuf *m, *result;
+			u_int8_t satype;
 
 			key_sa_chgstate(d, SADB_SASTATE_DEAD);
 
 			IPSEC_ASSERT(d->refcnt > 0, ("bogus ref count"));
+
+			satype = key_proto2satype(d->sah->saidx.proto);
+			if (satype == 0)
+				goto msgfail;
+
 			m = key_setsadbmsg(SADB_DELETE, 0,
-			    d->sah->saidx.proto, 0, 0, d->refcnt - 1);
+			    satype, 0, 0, d->refcnt - 1);
 			if (!m)
 				goto msgfail;
 			result = m;
