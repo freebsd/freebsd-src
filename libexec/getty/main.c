@@ -386,7 +386,7 @@ main(argc, argv)
 			}
 			if (!(upper || lower || digit))
 				continue;
-			setflags(2);
+			set_flags(2);
 			if (crmod) {
 				tmode.c_iflag |= ICRNL;
 				tmode.c_oflag |= ONLCR;
@@ -486,7 +486,7 @@ setttymode(tname, raw)
 		cfsetospeed(&tmode, speed(OS));
 	else if (SP)
 		cfsetospeed(&tmode, speed(SP));
-	setflags(0);
+	set_flags(0);
 	setchars();
 	if (raw)
 		cfmakeraw(&tmode);
@@ -514,7 +514,7 @@ getname()
 		return (0);
 	}
 	signal(SIGINT, interrupt);
-	setflags(1);
+	set_flags(1);
 	prompt();
 	oflush();
 	if (PF > 0) {
