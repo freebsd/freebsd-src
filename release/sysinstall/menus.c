@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.87 1996/10/10 09:22:37 jkh Exp $
+ * $Id: menus.c,v 1.88 1996/10/12 19:30:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -258,7 +258,6 @@ DMenu MenuIndex = {
       { "Packages",		"The packages collection",		NULL, configPackages },
       { "Partition",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "PCNFSD",		"Run authentication server for PC-NFS.",	dmenuVarCheck, configPCNFSD, NULL, "pcnfsd" },
-      { "Ports",		"Link to FreeBSD ports collection.",	NULL, configPorts },
       { "Root Password",	"Set the system manager's password.",   NULL, dmenuSystemCommand, NULL, "passwd root" },
       { "Routed",		"Set flags for routed (default: -q)",	dmenuVarCheck, configRoutedFlags, NULL, "routed" },
       { "Samba",		"Configure Samba for LanManager access.", dmenuVarCheck, configSamba, NULL, "samba" },
@@ -1011,15 +1010,13 @@ software not provided in the base distributions.",
     NULL, optionsEditor },
   { "8 Packages",	"Install pre-packaged software for FreeBSD",
     NULL, configPackages },
-  { "9 Ports",		"Link to FreeBSD Ports Collection on CD",
-    NULL, configPorts },
-  { "A Root Password",	"Set the system manager's password",
+  { "9 Root Password",	"Set the system manager's password",
     NULL, dmenuSystemCommand, NULL, "passwd root" },
-  { "B HTML Docs",	"Go to the HTML documentation menu (post-install)",
+  { "A HTML Docs",	"Go to the HTML documentation menu (post-install)",
     NULL, docBrowser },
-  { "C XFree86",	"Configure XFree86",
+  { "B XFree86",	"Configure XFree86",
     NULL, configXFree86 },
-  { "0 Exit",		"Exit this menu (returning to previous)",
+  { "Exit",		"Exit this menu (returning to previous)",
     NULL, dmenuExit },
   { NULL } },
 };
