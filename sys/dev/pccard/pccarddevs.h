@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.59 2003/07/19 05:32:07 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.60 2003/07/19 05:49:17 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -410,6 +410,9 @@
 #define	PCMCIA_CIS_IODATA2_WNB11PCM	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_IODATA2_WNB11PCM	0x0002
 #define	PCMCIA_STR_IODATA2_WNB11PCM	"I-O DATA WN-B11/PCM"
+#define	PCMCIA_CIS_IODATA2_WCF12	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_IODATA2_WCF12	0x0673
+#define	PCMCIA_STR_IODATA2_WCF12	"Wireless CF Card"
 
 /* Kingston Products */
 #define	PCMCIA_CIS_KINGSTON_KNE2	{ NULL, NULL, NULL, NULL }
