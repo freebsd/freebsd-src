@@ -277,6 +277,16 @@ fr_info_t *fin;
 		int minicmpsz = sizeof(struct icmp);
 		icmphdr_t *icmp;
 
+		if (fin->fin_dlen > 1)
+			fin->fin_data[0] = *(u_short *)tcp;
+
+		if ((!(plen >= hlen + minicmpsz) && !off) ||
+		    (off && off < sizeof(struct icmp))) {
+			fi->fi_fl |= FI_SHORT;
+			if (fin->fin_dlen < 2)
+				break;
+		}
+
 		icmp = (icmphdr_t *)tcp;
 
 		if (!off && (icmp->icmp_type == ICMP_ECHOREPLY ||
@@ -294,11 +304,6 @@ fr_info_t *fin;
 		    icmp->icmp_type == ICMP_MASKREPLY))
 			minicmpsz = 12;
 
-		if ((!(plen >= hlen + minicmpsz) && !off) ||
-		    (off && off < sizeof(struct icmp)))
-			fi->fi_fl |= FI_SHORT;
-		if (fin->fin_dlen > 1)
-			fin->fin_data[0] = *(u_short *)tcp;
 		break;
 	}
 	case IPPROTO_TCP :
@@ -743,6 +748,7 @@ int out;
 
 #ifdef	_KERNEL
 	mb_t *mc = NULL;
+	int p, len;
 # if !defined(__SVR4) && !defined(__svr4__)
 #  ifdef __sgi
 	char hbuf[(0xf << 2) + sizeof(struct icmp) + sizeof(ip_t) + 8];
@@ -767,13 +773,26 @@ int out;
 	}
 #  endif /* CSUM_DELAY_DATA */
 
+# ifdef	USE_INET6
+	if (v == 6) {
+		len = ntohs(((ip6_t*)ip)->ip6_plen);
+		p = ((ip6_t *)ip)->ip6_nxt;
+	} else
+# endif
+	{
+		p = ip->ip_p;
+		len = ip->ip_len;
+	}
 
-	if ((ip->ip_p == IPPROTO_TCP || ip->ip_p == IPPROTO_UDP ||
-	     ip->ip_p == IPPROTO_ICMP)) {
+	if ((p == IPPROTO_TCP || p == IPPROTO_UDP || p == IPPROTO_ICMP
+# ifdef USE_INET6
+	    || (v == 6 && p == IPPROTO_ICMPV6)
+# endif
+	   )) {
 		int plen = 0;
 
-		if ((ip->ip_off & IP_OFFMASK) == 0)
-			switch(ip->ip_p)
+		if ((v == 6) || (ip->ip_off & IP_OFFMASK) == 0)
+			switch(p)
 			{
 			case IPPROTO_TCP:
 				plen = sizeof(tcphdr_t);
@@ -783,10 +802,13 @@ int out;
 				break;
 			/* 96 - enough for complete ICMP error IP header */
 			case IPPROTO_ICMP:
+# ifdef USE_INET6
+	    		case IPPROTO_ICMPV6 :
+# endif
 				plen = ICMPERR_MAXPKTLEN - sizeof(ip_t);
 				break;
 			}
-		up = MIN(hlen + plen, ip->ip_len);
+		up = MIN(hlen + plen, len);
 
 		if (up > m->m_len) {
 #  ifdef __sgi
@@ -835,8 +857,8 @@ int out;
 #endif
 
 	changed = 0;
-	fin->fin_v = v;
 	fin->fin_ifp = ifp;
+	fin->fin_v = v;
 	fin->fin_out = out;
 	fin->fin_mp = mp;
 	fr_makefrip(hlen, ip, fin);
@@ -1383,7 +1405,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.20 2000/08/13 04:15:43 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.26 2000/10/24 11:58:17 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,
@@ -1862,7 +1884,7 @@ size_t c;
 	int err;
 
 #if SOLARIS
-	if (copyin(a, &ca, sizeof(ca)))
+	if (copyin(a, (char *)&ca, sizeof(ca)))
 		return EFAULT;
 #else
 	bcopy(a, &ca, sizeof(ca));
@@ -1882,7 +1904,7 @@ size_t c;
 	int err;
 
 #if SOLARIS
-	if (copyin(b, &ca, sizeof(ca)))
+	if (copyin(b, (char *)&ca, sizeof(ca)))
 		return EFAULT;
 #else
 	bcopy(b, &ca, sizeof(ca));
@@ -1976,6 +1998,15 @@ friostat_t *fiop;
 	fiop->f_acctin6[1] = ipacct6[0][1];
 	fiop->f_acctout6[0] = ipacct6[1][0];
 	fiop->f_acctout6[1] = ipacct6[1][1];
+#else
+	fiop->f_fin6[0] = NULL;
+	fiop->f_fin6[1] = NULL;
+	fiop->f_fout6[0] = NULL;
+	fiop->f_fout6[1] = NULL;
+	fiop->f_acctin6[0] = NULL;
+	fiop->f_acctin6[1] = NULL;
+	fiop->f_acctout6[0] = NULL;
+	fiop->f_acctout6[1] = NULL;
 #endif
 	fiop->f_active = fr_active;
 	fiop->f_froute[0] = ipl_frouteok[0];
