@@ -744,10 +744,9 @@ pcmcsa_attach(device_t dev)
 	struct ac97_info *codec;
 	struct sndcard_func *func;
 
-	csa = malloc(sizeof(*csa), M_DEVBUF, M_NOWAIT);
+	csa = malloc(sizeof(*csa), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (csa == NULL)
 		return (ENOMEM);
-	bzero(csa, sizeof(*csa));
 	unit = device_get_unit(dev);
 	func = device_get_ivars(dev);
 	csa->binfo = func->varinfo;
