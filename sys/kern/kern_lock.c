@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.16 1998/02/06 12:13:23 eivind Exp $
+ * $Id: kern_lock.c,v 1.17 1998/02/11 00:05:26 eivind Exp $
  */
 
 #include "opt_lint.h"
@@ -92,9 +92,15 @@ shareunlock(struct lock *lkp, int decr) {
 #endif
 #endif
 
-	lkp->lk_sharecount -= decr;
-	if (lkp->lk_sharecount == 0)
+	if (lkp->lk_sharecount == decr) {
 		lkp->lk_flags &= ~LK_SHARE_NONZERO;
+		if (lkp->lk_flags & (LK_WANT_UPGRADE | LK_WANT_EXCL)) {
+			wakeup(lkp);
+		}
+		lkp->lk_sharecount = 0;
+	} else {
+		lkp->lk_sharecount -= decr;
+	}
 }
 
 /*
@@ -125,7 +131,7 @@ apause(struct lock *lkp, int flags) {
 
 static int
 acquire(struct lock *lkp, int extflags, int wanted) {
-	int error;
+	int s, error;
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
 		return EBUSY;
@@ -137,21 +143,29 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 			return 0;
 	}
 
+	s = splhigh();
 	while ((lkp->lk_flags & wanted) != 0) {
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
 		simple_unlock(&lkp->lk_interlock);
 		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, lkp->lk_timo);
 		simple_lock(&lkp->lk_interlock);
-		lkp->lk_waitcount--;
-		if (lkp->lk_waitcount == 0)
+		if (lkp->lk_waitcount == 1) {
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
-		if (error)
+			lkp->lk_waitcount = 0;
+		} else {
+			lkp->lk_waitcount--;
+		}
+		if (error) {
+			splx(s);
 			return error;
+		}
 		if (extflags & LK_SLEEPFAIL) {
+			splx(s);
 			return ENOLCK;
 		}
 	}
+	splx(s);
 	return 0;
 }
 
@@ -206,8 +220,10 @@ lockmgr(lkp, flags, interlkp, p)
 		/* fall into downgrade */
 
 	case LK_DOWNGRADE:
+#if !defined(MAX_PERF)
 		if (lkp->lk_lockholder != pid || lkp->lk_exclusivecount == 0)
 			panic("lockmgr: not holding exclusive lock");
+#endif
 		sharelock(lkp, lkp->lk_exclusivecount);
 		lkp->lk_exclusivecount = 0;
 		lkp->lk_flags &= ~LK_HAVE_EXCL;
@@ -239,8 +255,10 @@ lockmgr(lkp, flags, interlkp, p)
 		 * after the upgrade). If we return an error, the file
 		 * will always be unlocked.
 		 */
+#if !defined(MAX_PERF)
 		if ((lkp->lk_lockholder == pid) || (lkp->lk_sharecount <= 0))
 			panic("lockmgr: upgrade exclusive lock");
+#endif
 		shareunlock(lkp, 1);
 		COUNT(p, -1);
 		/*
@@ -259,14 +277,17 @@ lockmgr(lkp, flags, interlkp, p)
 			 * drop to zero, then take exclusive lock.
 			 */
 			lkp->lk_flags |= LK_WANT_UPGRADE;
-			error = acquire(lkp, extflags , LK_SHARE_NONZERO);
+			error = acquire(lkp, extflags, LK_SHARE_NONZERO);
 			lkp->lk_flags &= ~LK_WANT_UPGRADE;
+
 			if (error)
 				break;
 			lkp->lk_flags |= LK_HAVE_EXCL;
 			lkp->lk_lockholder = pid;
+#if !defined(MAX_PERF)
 			if (lkp->lk_exclusivecount != 0)
 				panic("lockmgr: non-zero exclusive count");
+#endif
 			lkp->lk_exclusivecount = 1;
 			COUNT(p, 1);
 			break;
@@ -286,8 +307,10 @@ lockmgr(lkp, flags, interlkp, p)
 			/*
 			 *	Recursive lock.
 			 */
+#if !defined(MAX_PERF)
 			if ((extflags & LK_CANRECURSE) == 0)
 				panic("lockmgr: locking against myself");
+#endif
 			lkp->lk_exclusivecount++;
 			COUNT(p, 1);
 			break;
@@ -316,23 +339,29 @@ lockmgr(lkp, flags, interlkp, p)
 			break;
 		lkp->lk_flags |= LK_HAVE_EXCL;
 		lkp->lk_lockholder = pid;
+#if !defined(MAX_PERF)
 		if (lkp->lk_exclusivecount != 0)
 			panic("lockmgr: non-zero exclusive count");
+#endif
 		lkp->lk_exclusivecount = 1;
 		COUNT(p, 1);
 		break;
 
 	case LK_RELEASE:
 		if (lkp->lk_exclusivecount != 0) {
+#if !defined(MAX_PERF)
 			if (pid != lkp->lk_lockholder)
 				panic("lockmgr: pid %d, not %s %d unlocking",
 				    pid, "exclusive lock holder",
 				    lkp->lk_lockholder);
-			lkp->lk_exclusivecount--;
+#endif
 			COUNT(p, -1);
-			if (lkp->lk_exclusivecount == 0) {
+			if (lkp->lk_exclusivecount == 1) {
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
+				lkp->lk_exclusivecount = 0;
+			} else {
+				lkp->lk_exclusivecount--;
 			}
 		} else if (lkp->lk_flags & LK_SHARE_NONZERO) {
 			shareunlock(lkp, 1);
@@ -349,8 +378,10 @@ lockmgr(lkp, flags, interlkp, p)
 		 * check for holding a shared lock, but at least we can
 		 * check for an exclusive one.
 		 */
+#if !defined(MAX_PERF)
 		if (lkp->lk_lockholder == pid)
 			panic("lockmgr: draining against myself");
+#endif
 
 		error = acquiredrain(lkp, extflags);
 		if (error)
@@ -362,9 +393,11 @@ lockmgr(lkp, flags, interlkp, p)
 		break;
 
 	default:
+#if !defined(MAX_PERF)
 		simple_unlock(&lkp->lk_interlock);
 		panic("lockmgr: unknown locktype request %d",
 		    flags & LK_TYPE_MASK);
+#endif
 		/* NOTREACHED */
 	}
 	if ((lkp->lk_flags & LK_WAITDRAIN) &&
