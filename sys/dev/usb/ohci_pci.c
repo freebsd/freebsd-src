@@ -174,11 +174,11 @@ ohci_pci_attach(device_t self)
 	}
 
 	usbus = device_add_child(self, "usb", -1);
-	device_set_ivars(usbus, sc);
 	if (!usbus) {
 		device_printf(self, "could not add USB device\n");
 		return ENOMEM;
 	}
+	device_set_ivars(usbus, sc);
 
 	switch (pci_get_devid(self)) {
 	case PCI_OHCI_DEVICEID_ALADDIN_V:
