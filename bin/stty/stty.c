@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: stty.c,v 1.2 1994/09/24 02:59:02 davidg Exp $
  */
 
 #ifndef lint
@@ -140,6 +140,7 @@ args:	argc -= optind;
 
 		if (!strncmp(*argv, "gfmt1", sizeof("gfmt1") - 1)) {
 			gread(&i.t, *argv + sizeof("gfmt1") - 1);
+			i.set = 1;
 			continue;
 		}
 
