@@ -1,3 +1,6 @@
+/*	$FreeBSD$	*/
+/*	$KAME: name6.c,v 1.22 2000/05/01 08:19:08 itojun Exp $	*/
+
 /*
  * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
  * All rights reserved.
@@ -25,10 +28,62 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-/* $Id: name6.c,v 1.9 1999/10/29 03:04:26 itojun Exp $ */
+/*
+ * ++Copyright++ 1985, 1988, 1993
+ * -
+ * Copyright (c) 1985, 1988, 1993
+ *    The Regents of the University of California.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ * 	This product includes software developed by the University of
+ * 	California, Berkeley and its contributors.
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ * -
+ * Portions Copyright (c) 1993 by Digital Equipment Corporation.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies, and that
+ * the name of Digital Equipment Corporation not be used in advertising or
+ * publicity pertaining to distribution of the document or software without
+ * specific, written prior permission.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+ * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+ * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ * -
+ * --Copyright--
+ */
+
 /*
  *	Atsushi Onoe <onoe@sm.sony.co.jp>
  */
@@ -118,8 +173,10 @@ static struct	 hostent *_files_ghbyname(const char *name, int af, int *errp);
 static struct	 hostent *_files_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
 static void	 _files_shent(int stayopen);
 static void	 _files_ehent(void);
+#ifdef YP
 static struct	 hostent *_nis_ghbyname(const char *name, int af, int *errp);
 static struct	 hostent *_nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
+#endif
 static struct	 hostent *_dns_ghbyname(const char *name, int af, int *errp);
 static struct	 hostent *_dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp);
 static void	 _dns_shent(int stayopen);
@@ -190,11 +247,13 @@ _hostconf_init(void)
 				_hostconf[n].byaddr = _dns_ghbyaddr;
 				n++;
 			}
+#ifdef YP
 			else if (strcmp(p, "nis") == 0) {
 				_hostconf[n].byname = _nis_ghbyname;
 				_hostconf[n].byaddr = _nis_ghbyaddr;
 				n++;
 			}
+#endif
 #ifdef ICMPNL
 			else if (strcmp(p, "icmp") == 0) {
 				_hostconf[n].byname = NULL;
@@ -245,7 +304,7 @@ _mapped_addr_enabled(void)
 
 /*
  * Functions defined in RFC2553
- *	getipnodebyname, getipnodebyadr, freehostent
+ *	getipnodebyname, getipnodebyaddr, freehostent
  */
 
 static struct hostent *
@@ -285,8 +344,7 @@ _ghbyname(const char *name, int af, int flags, int *errp)
 
 	for (i = 0; i < MAXHOSTCONF; i++) {
 		if (_hostconf[i].byname
-		&&  (hp = (*_hostconf[i].byname)(name, af, errp))
-		    != NULL)
+		 && (hp = (*_hostconf[i].byname)(name, af, errp)) != NULL)
 			return hp;
 	}
 
@@ -895,6 +953,7 @@ _files_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	return hp;
 }
 
+#ifdef YP
 /*
  * NIS
  *
@@ -928,11 +987,6 @@ _nis_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	}
 	return (hp);
 }
-
-#ifdef DEBUG
-#define	DNS_ASSERT(X)	if (!(X)) { fprintf(stderr, "ASSFAIL: %s %d: %s\n", __FILE__, __LINE__, #X); goto badanswer; }
-#else
-#define	DNS_ASSERT(X)	if (!(X)) { goto badanswer; }
 #endif
 
 struct __res_type_list {
@@ -940,117 +994,297 @@ struct __res_type_list {
         int     rtl_type;
 };
 
+#if PACKETSZ > 1024
+#define	MAXPACKET	PACKETSZ
+#else
+#define	MAXPACKET	1024
+#endif
+
+typedef union {
+	HEADER hdr;
+	u_char buf[MAXPACKET];
+} querybuf;
+
+static struct hostent *getanswer __P((const querybuf *, int, const char *,
+	int, struct hostent *, int *));
+
+/*
+ * we don't need to take care about sorting, nor IPv4 mapped address here.
+ */
 static struct hostent *
-_gethpbyanswer(answer, anslen, qtype, errp)
-	const u_char *answer;
+getanswer(answer, anslen, qname, qtype, template, errp)
+	const querybuf *answer;
 	int anslen;
+	const char *qname;
 	int qtype;
+	struct hostent *template;
 	int *errp;
 {
-	int n;
-	char tbuf[MAXDNAME+1];
-	HEADER *hp;
-	const u_char *cp, *eom;
-	int type, class, ancount, qdcount;
-	u_long ttl;
-	char hostbuf[BUFSIZ];
-	char *bp;
-	char *alist[MAXALIASES];
-	char *hlist[MAXADDRS];
-	struct hostent hbuf;
-	int buflen;
-	int na, nh;
+	register const HEADER *hp;
+	register const u_char *cp;
+	register int n;
+	const u_char *eom, *erdata;
+	char *bp, **ap, **hap;
+	int type, class, buflen, ancount, qdcount;
+	int haveanswer, had_error;
+	char tbuf[MAXDNAME];
+	const char *tname;
+	int (*name_ok) __P((const char *));
+	static char *h_addr_ptrs[MAXADDRS + 1];
+	static char *host_aliases[MAXALIASES];
+	static char hostbuf[8*1024];
 
-	hbuf.h_aliases = alist;
-	hbuf.h_addrtype =
-#ifdef INET6
-		(qtype == T_AAAA) ? AF_INET6 :
-#endif
-		AF_INET;
-	hbuf.h_length = ADDRLEN(hbuf.h_addrtype);
-	hbuf.h_addr_list = hlist;
-	na = nh = 0;
-	hp = (HEADER *)answer;
-	eom = answer + anslen;
+#define BOUNDED_INCR(x) \
+	do { \
+		cp += x; \
+		if (cp > eom) { \
+			*errp = NO_RECOVERY; \
+			return (NULL); \
+		} \
+	} while (0)
+
+#define BOUNDS_CHECK(ptr, count) \
+	do { \
+		if ((ptr) + (count) > eom) { \
+			*errp = NO_RECOVERY; \
+			return (NULL); \
+		} \
+	} while (0)
+
+#define DNS_ASSERT(x) \
+	do {				\
+		if (!(x)) {		\
+			cp += n;	\
+			continue;	\
+		}			\
+	} while (0)
+
+#define DNS_FATAL(x) \
+	do {				\
+		if (!(x)) {		\
+			had_error++;	\
+			continue;	\
+		}			\
+	} while (0)
+
+	tname = qname;
+	template->h_name = NULL;
+	eom = answer->buf + anslen;
+	switch (qtype) {
+	case T_A:
+	case T_AAAA:
+		name_ok = res_hnok;
+		break;
+	case T_PTR:
+		name_ok = res_dnok;
+		break;
+	default:
+		return (NULL);	/* XXX should be abort(); */
+	}
+	/*
+	 * find first satisfactory answer
+	 */
+	hp = &answer->hdr;
 	ancount = ntohs(hp->ancount);
 	qdcount = ntohs(hp->qdcount);
-	DNS_ASSERT(qdcount == 1);
-	cp = answer + sizeof(HEADER);
 	bp = hostbuf;
-	buflen = sizeof(hostbuf);
-
-	n = dn_expand(answer, eom, cp, bp, buflen);
-	DNS_ASSERT(n >= 0);
-	cp += n + QFIXEDSZ;
-	hbuf.h_name = bp;
-	n = strlen(bp) + 1;
-	bp += n;
-	buflen -= n;
-	while (ancount-- > 0 && cp < eom) {
-		n = dn_expand(answer, eom, cp, bp, buflen);
-		DNS_ASSERT(n >= 0);
-		cp += n;		/* name */
+	buflen = sizeof hostbuf;
+	cp = answer->buf;
+	BOUNDED_INCR(HFIXEDSZ);
+	if (qdcount != 1) {
+		*errp = NO_RECOVERY;
+		return (NULL);
+	}
+	n = dn_expand(answer->buf, eom, cp, bp, buflen);
+	if ((n < 0) || !(*name_ok)(bp)) {
+		*errp = NO_RECOVERY;
+		return (NULL);
+	}
+	BOUNDED_INCR(n + QFIXEDSZ);
+	if (qtype == T_A || qtype == T_AAAA) {
+		/* res_send() has already verified that the query name is the
+		 * same as the one we sent; this just gets the expanded name
+		 * (i.e., with the succeeding search-domain tacked on).
+		 */
+		n = strlen(bp) + 1;		/* for the \0 */
+		if (n >= MAXHOSTNAMELEN) {
+			*errp = NO_RECOVERY;
+			return (NULL);
+		}
+		template->h_name = bp;
+		bp += n;
+		buflen -= n;
+		/* The qname can be abbreviated, but h_name is now absolute. */
+		qname = template->h_name;
+	}
+	ap = host_aliases;
+	*ap = NULL;
+	template->h_aliases = host_aliases;
+	hap = h_addr_ptrs;
+	*hap = NULL;
+	template->h_addr_list = h_addr_ptrs;
+	haveanswer = 0;
+	had_error = 0;
+	while (ancount-- > 0 && cp < eom && !had_error) {
+		n = dn_expand(answer->buf, eom, cp, bp, buflen);
+		DNS_FATAL(n >= 0);
+		DNS_FATAL((*name_ok)(bp));
+		cp += n;			/* name */
+		BOUNDS_CHECK(cp, 3 * INT16SZ + INT32SZ);
 		type = _getshort(cp);
-		cp += 2;		/* type */
+ 		cp += INT16SZ;			/* type */
 		class = _getshort(cp);
-		cp += 2;		/* class */
-		ttl = _getlong(cp);
-		cp += 4;		/* ttl */
+ 		cp += INT16SZ + INT32SZ;	/* class, TTL */
 		n = _getshort(cp);
-		cp += 2;		/* len */
+		cp += INT16SZ;			/* len */
+		BOUNDS_CHECK(cp, n);
+		erdata = cp + n;
 		DNS_ASSERT(class == C_IN);
-		switch (type) {
-		case T_CNAME:
-			if (na >= MAXALIASES-1) {
-				cp += n;
-				break;
-			}
-			n = dn_expand(answer, eom, cp, tbuf, sizeof(tbuf));
-			DNS_ASSERT(n >= 0);
+		if ((qtype == T_A || qtype == T_AAAA) && type == T_CNAME) {
+			if (ap >= &host_aliases[MAXALIASES-1])
+				continue;
+			n = dn_expand(answer->buf, eom, cp, tbuf, sizeof tbuf);
+			DNS_FATAL(n >= 0);
+			DNS_FATAL((*name_ok)(tbuf));
 			cp += n;
-			/* alias */
-			alist[na++] = bp;
-			n = strlen(bp) + 1;
+			if (cp != erdata) {
+				*errp = NO_RECOVERY;
+				return (NULL);
+			}
+			/* Store alias. */
+			*ap++ = bp;
+			n = strlen(bp) + 1;	/* for the \0 */
+			DNS_FATAL(n < MAXHOSTNAMELEN);
 			bp += n;
 			buflen -= n;
-			/* canon */
-			n = strlen(tbuf) + 1;
-			DNS_ASSERT(n < buflen);
+			/* Get canonical name. */
+			n = strlen(tbuf) + 1;	/* for the \0 */
+			DNS_FATAL(n <= buflen);
+			DNS_FATAL(n < MAXHOSTNAMELEN);
 			strcpy(bp, tbuf);
-			hbuf.h_name = bp;
+			template->h_name = bp;
 			bp += n;
 			buflen -= n;
-			break;
-		case T_A:
-#ifdef INET6
-		case T_AAAA:
-#endif
-			DNS_ASSERT(type == qtype);
-			bp = (char *)ALIGN(bp);
-			DNS_ASSERT(n == hbuf.h_length);
-			DNS_ASSERT(n < buflen);
-			if (nh < MAXADDRS-1) {
-				hlist[nh++] = bp;
-				memcpy(bp, cp, n);
+			continue;
+		}
+		if (qtype == T_PTR && type == T_CNAME) {
+			n = dn_expand(answer->buf, eom, cp, tbuf, sizeof tbuf);
+			if (n < 0 || !res_dnok(tbuf)) {
+				had_error++;
+				continue;
+			}
+			cp += n;
+			if (cp != erdata) {
+				*errp = NO_RECOVERY;
+				return (NULL);
+			}
+			/* Get canonical name. */
+			n = strlen(tbuf) + 1;	/* for the \0 */
+			if (n > buflen || n >= MAXHOSTNAMELEN) {
+				had_error++;
+				continue;
+			}
+			strcpy(bp, tbuf);
+			tname = bp;
+			bp += n;
+			buflen -= n;
+			continue;
+		}
+		DNS_ASSERT(type == qtype);
+		switch (type) {
+		case T_PTR:
+			DNS_ASSERT(strcasecmp(tname, bp) == 0);
+			n = dn_expand(answer->buf, eom, cp, bp, buflen);
+			DNS_FATAL(n >= 0);
+			DNS_FATAL(res_hnok(bp));
+#if MULTI_PTRS_ARE_ALIASES
+			cp += n;
+			if (cp != erdata) {
+				*errp = NO_RECOVERY;
+				return (NULL);
+			}
+			if (!haveanswer)
+				template->h_name = bp;
+			else if (ap < &host_aliases[MAXALIASES-1])
+				*ap++ = bp;
+			else
+				n = -1;
+			if (n != -1) {
+				n = strlen(bp) + 1;	/* for the \0 */
+				if (n >= MAXHOSTNAMELEN) {
+					had_error++;
+					break;
+				}
 				bp += n;
 				buflen -= n;
 			}
+			break;
+#else
+			template->h_name = bp;
+			*errp = NETDB_SUCCESS;
+			return (template);
+#endif
+		case T_A:
+		case T_AAAA:
+			DNS_ASSERT(strcasecmp(template->h_name, bp) == 0);
+			DNS_ASSERT(n == template->h_length);
+			if (!haveanswer) {
+				register int nn;
+
+				template->h_name = bp;
+				nn = strlen(bp) + 1;	/* for the \0 */
+				bp += nn;
+				buflen -= nn;
+			}
+			bp = (char *)ALIGN(bp);
+
+			DNS_FATAL(bp + n < &hostbuf[sizeof hostbuf]);
+			DNS_ASSERT(hap < &h_addr_ptrs[MAXADDRS-1]);
+#ifdef FILTER_V4MAPPED
+			if (type == T_AAAA) {
+				struct in6_addr in6;
+				memcpy(&in6, cp, sizeof(in6));
+				DNS_ASSERT(IN6_IS_ADDR_V4MAPPED(&in6) == 0);
+			}
+#endif
+			bcopy(cp, *hap++ = bp, n);
+			bp += n;
+			buflen -= n;
 			cp += n;
+			if (cp != erdata) {
+				*errp = NO_RECOVERY;
+				return (NULL);
+			}
 			break;
 		default:
-			DNS_ASSERT(0);
-			cp += n;
-			break;
+			abort();
 		}
+		if (!had_error)
+			haveanswer++;
 	}
-	if (nh == 0) {
-  badanswer:
-		*errp = NO_RECOVERY;
-		return NULL;
+	if (haveanswer) {
+		*ap = NULL;
+		*hap = NULL;
+		if (!template->h_name) {
+			n = strlen(qname) + 1;	/* for the \0 */
+			if (n > buflen || n >= MAXHOSTNAMELEN)
+				goto no_recovery;
+			strcpy(bp, qname);
+			template->h_name = bp;
+			bp += n;
+			buflen -= n;
+		}
+		*errp = NETDB_SUCCESS;
+		return (template);
 	}
-	alist[na] = NULL;
-	hlist[nh] = NULL;
-	return _hpcopy(&hbuf, errp);
+ no_recovery:
+	*errp = NO_RECOVERY;
+	return (NULL);
+
+#undef BOUNDED_INCR
+#undef BOUNDS_CHECK
+#undef DNS_ASSERT
+#undef DNS_FATAL
 }
 
 /* res_search() variant with multiple query support. */
@@ -1060,13 +1294,14 @@ _res_search_multi(name, rtl, errp)
 	struct	__res_type_list *rtl; /* list of query types */
 	int *errp;
 {
-	u_char answer[BUFSIZ];	/* buffer to put answer */
 	const char *cp, * const *domain;
 	struct hostent *hp0 = NULL, *hp;
+	struct hostent hpbuf;
 	u_int dots;
 	int trailing_dot, ret, saved_herrno;
 	int got_nodata = 0, got_servfail = 0, tried_as_is = 0;
 	struct __res_type_list *rtl0 = rtl;
+	querybuf buf;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		*errp = NETDB_INTERNAL;
@@ -1083,11 +1318,15 @@ _res_search_multi(name, rtl, errp)
 	if (!dots && (cp = hostalias(name)) != NULL) {
 		for(rtl = rtl0; rtl != NULL;
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
-			ret = res_query(cp, C_IN, rtl->rtl_type, answer,
-					     sizeof(answer));
+			ret = res_query(cp, C_IN, rtl->rtl_type, buf.buf,
+					     sizeof(buf.buf));
 			if (ret > 0) {
-				hp = _gethpbyanswer(answer, ret, rtl->rtl_type,
-						    errp);
+				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
+				    ? AF_INET6 : AF_INET;
+				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
+				hp = getanswer(&buf, ret, name, rtl->rtl_type,
+						    &hpbuf, errp);
+				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
 		}
@@ -1103,10 +1342,14 @@ _res_search_multi(name, rtl, errp)
 		for(rtl = rtl0; rtl != NULL;
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
-					      answer, sizeof(answer));
+					      buf.buf, sizeof(buf.buf));
 			if (ret > 0) {
-				hp = _gethpbyanswer(answer, ret, rtl->rtl_type,
-						    errp);
+				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
+				    ? AF_INET6 : AF_INET;
+				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
+				hp = getanswer(&buf, ret, name, rtl->rtl_type,
+						    &hpbuf, errp);
+				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
 		}
@@ -1134,11 +1377,14 @@ _res_search_multi(name, rtl, errp)
 			    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 				ret = res_querydomain(name, *domain, C_IN,
 						      rtl->rtl_type,
-						      answer, sizeof(answer));
+						      buf.buf, sizeof(buf.buf));
 				if (ret > 0) {
-					hp = _gethpbyanswer(answer, ret,
-							      rtl->rtl_type,
-							      errp);
+					hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
+					    ? AF_INET6 : AF_INET;
+					hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
+					hp = getanswer(&buf, ret, name,
+					    rtl->rtl_type, &hpbuf, errp);
+					hp = _hpcopy(&hpbuf, errp);
 					hp0 = _hpmerge(hp0, hp, errp);
 				}
 			}
@@ -1171,7 +1417,7 @@ _res_search_multi(name, rtl, errp)
 				/* keep trying */
 				break;
 			case TRY_AGAIN:
-				if (((HEADER *)answer)->rcode == SERVFAIL) {
+				if (buf.hdr.rcode == SERVFAIL) {
 					/* try next search element, if any */
 					got_servfail++;
 					break;
@@ -1199,10 +1445,14 @@ _res_search_multi(name, rtl, errp)
 		for(rtl = rtl0; rtl != NULL;
 		    rtl = SLIST_NEXT(rtl, rtl_entry)) {
 			ret = res_querydomain(name, NULL, C_IN, rtl->rtl_type,
-					      answer, sizeof(answer));
+					      buf.buf, sizeof(buf.buf));
 			if (ret > 0) {
-				hp = _gethpbyanswer(answer, ret, rtl->rtl_type,
-						    errp);
+				hpbuf.h_addrtype = (rtl->rtl_type == T_AAAA)
+				    ? AF_INET6 : AF_INET;
+				hpbuf.h_length = ADDRLEN(hpbuf.h_addrtype);
+				hp = getanswer(&buf, ret, name, rtl->rtl_type,
+				    &hpbuf, errp);
+				hp = _hpcopy(&hpbuf, errp);
 				hp0 = _hpmerge(hp0, hp, errp);
 			}
 		}
@@ -1261,21 +1511,17 @@ static struct hostent *
 _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 {
 	int n;
-	u_char answer[BUFSIZ];
-	HEADER *hp;
-	u_char c, *cp, *eom;
-	int type, class, ancount, qdcount;
-	u_long ttl;
-	char hostbuf[BUFSIZ];
+	struct hostent *hp;
+	u_char c, *cp;
 	char *bp;
-	char *alist[MAXALIASES];
-	char *hlist[2];
 	struct hostent hbuf;
-	int buflen;
 	int na;
 #ifdef INET6
 	static const char hex[] = "0123456789abcdef";
 #endif
+	querybuf buf;
+	char qbuf[MAXDNAME+1];
+	char *hlist[2];
 
 #ifdef INET6
 	/* XXX */
@@ -1289,17 +1535,15 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 			return NULL;
 		}
 	}
+	memset(&hbuf, 0, sizeof(hbuf));
 	hbuf.h_name = NULL;
-	hbuf.h_aliases = alist;
 	hbuf.h_addrtype = af;
 	hbuf.h_length = addrlen;
-	hbuf.h_addr_list = hlist;
-	hlist[0] = (char *)addr;
-	hlist[1] = NULL;
 	na = 0;
 
+	/* XXX assumes that MAXDNAME is big enough */
 	n = 0;
-	bp = hostbuf;
+	bp = qbuf;
 	cp = (u_char *)addr+addrlen-1;
 	switch (af) {
 #ifdef INET6
@@ -1328,66 +1572,36 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 		break;
 	}
 
-	n = res_query(hostbuf, C_IN, T_PTR, answer, sizeof(answer));
+	n = res_query(qbuf, C_IN, T_PTR, buf.buf, sizeof buf.buf);
 	if (n < 0) {
 		*errp = h_errno;
 		return NULL;
 	}
-	hp = (HEADER *)answer;
-	eom = answer + n;
-	ancount = ntohs(hp->ancount);
-	qdcount = ntohs(hp->qdcount);
-	DNS_ASSERT(qdcount == 1);
-	cp = answer + sizeof(HEADER);
-	bp = hostbuf;
-	buflen = sizeof(hostbuf);
-
-	n = dn_expand(answer, eom, cp, bp, buflen);
-	DNS_ASSERT(n >= 0);
-	cp += n + QFIXEDSZ;
-	while (ancount-- > 0 && cp < eom) {
-		n = dn_expand(answer, eom, cp, bp, buflen);
-		DNS_ASSERT(n >= 0);
-		cp += n;		/* name */
-		type = _getshort(cp);
-		cp += 2;		/* type */
-		class = _getshort(cp);
-		cp += 2;		/* class */
-		ttl = _getlong(cp);
-		cp += 4;		/* ttl */
-		n = _getshort(cp);
-		cp += 2;		/* len */
-		DNS_ASSERT(class == C_IN);
-		switch (type) {
-		case T_PTR:
-			n = dn_expand(answer, eom, cp, bp, buflen);
-			DNS_ASSERT(n >= 0);
-			cp += n;
-			if (na >= MAXALIASES-1)
-				break;
-			if (hbuf.h_name == NULL)
-				hbuf.h_name = bp;
-			else
-				alist[na++] = bp;
-			n = strlen(bp) + 1;
-			bp += n;
-			buflen -= n;
-			break;
-		case T_CNAME:
-			cp += n;
-			break;
-		default:
-  badanswer:
-			*errp = NO_RECOVERY;
-			return NULL;
-		}
-	}
-	if (hbuf.h_name == NULL) {
-		*errp = h_errno;
-		return NULL;
-	}
-	alist[na] = NULL;
+	hp = getanswer(&buf, n, qbuf, T_PTR, &hbuf, errp);
+	hbuf.h_addrtype = af;
+	hbuf.h_length = addrlen;
+	hbuf.h_addr_list = hlist;
+	hlist[0] = (char *)addr;
+	hlist[1] = NULL;
 	return _hpcopy(&hbuf, errp);
+}
+
+static void
+_dns_shent(int stayopen)
+{
+	if ((_res.options & RES_INIT) == 0) {
+		if (res_init() < 0)
+			return;
+	}
+	if (stayopen)
+		_res.options |= RES_STAYOPEN | RES_USEVC;
+}
+
+static void
+_dns_ehent(void)
+{
+	_res.options &= ~(RES_STAYOPEN | RES_USEVC);
+	res_close();
 }
 
 #ifdef ICMPNL
