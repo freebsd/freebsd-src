@@ -710,7 +710,8 @@ determine_locale(void)
 	sep = strchr(locale, '_');
 	if (sep != NULL && isupper((unsigned char)sep[1])
 			&& isupper((unsigned char)sep[2])) {
-		asprintf(&lang_locale, "%.*s%s", sep - locale, locale, &sep[3]);
+		asprintf(&lang_locale, "%.*s%s", (int)(sep - locale),
+		    locale, &sep[3]);
 	}
 	sep = nl_langinfo(CODESET);
 	if (sep != NULL && *sep != '\0' && strcmp(sep, "US-ASCII") != 0) {
