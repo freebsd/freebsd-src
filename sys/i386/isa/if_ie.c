@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.25 1995/08/16 16:12:32 bde Exp $
+ *	$Id: if_ie.c,v 1.26 1995/09/19 18:55:09 bde Exp $
  */
 
 /*
@@ -576,9 +576,7 @@ ieattach(dvp)
 	 ie_softc[unit].hard_vers + 1,
 	 ether_sprintf(ie->arpcom.ac_enaddr));
 
-  ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
-  ifp->if_flags  |= IFF_MULTICAST;
-
+  ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
   ifp->if_init = ieinit;
   ifp->if_output = ether_output;
   ifp->if_start = iestart;

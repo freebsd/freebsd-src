@@ -6,7 +6,7 @@
  *
  * Questions, comments, bug reports and fixes to kimmel@cs.umass.edu.
  *
- * $Id: if_el.c,v 1.13.2.1 1995/06/09 18:12:09 davidg Exp $
+ * $Id: if_el.c,v 1.14 1995/06/11 19:31:25 rgrimes Exp $
  */
 /* Except of course for the portions of code lifted from other FreeBSD
  * drivers (mainly elread, elget and el_ioctl)
@@ -212,7 +212,7 @@ int el_attach(struct isa_device *idev)
 	ifp->if_ioctl = el_ioctl;
 	ifp->if_reset = el_reset;
 	ifp->if_watchdog = el_watchdog;
-	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
+	ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX);
 
 	/* Now we can attach the interface */
 	dprintf(("Attaching interface...\n"));

@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_pdq.c,v 1.5 1995/04/05 08:19:23 davidg Exp $
+ * $Id: if_pdq.c,v 1.6 1995/05/30 08:13:04 rgrimes Exp $
  *
  */
 
@@ -406,7 +406,7 @@ pdq_ifattach(
 {
     struct ifnet *ifp = &sc->sc_if;
 
-    ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
+    ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
 
     ifp->if_init = ifinit;
 #ifndef __bsdi__

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.3 1995/04/12 20:47:47 wollman Exp $
+ * $Id: if_eg.c,v 1.4 1995/05/30 08:02:02 rgrimes Exp $
  */
 
 /* To do:
@@ -419,7 +419,7 @@ egattach (struct isa_device *id)
 	ifp->if_start = egstart;
 	ifp->if_ioctl = egioctl;
 	ifp->if_reset = egreset;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
 
 	/* Now we can attach the interface. */
 	if_attach(ifp);

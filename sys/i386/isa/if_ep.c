@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.29 1995/07/05 07:21:34 davidg Exp $
+ *  $Id: if_ep.c,v 1.30 1995/08/28 12:01:17 guido Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -423,7 +423,7 @@ epattach(is)
     ifp->if_unit = is->id_unit;
     ifp->if_name = "ep";
     ifp->if_mtu = ETHERMTU;
-    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS;
+    ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;
     ifp->if_init = epinit;
     ifp->if_output = ether_output;
     ifp->if_start = epstart;

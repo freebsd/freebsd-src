@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.32 1995/10/02 14:04:33 davidg Exp $
+ * $Id: if_de.c,v 1.33 1995/10/07 20:34:30 davidg Exp $
  *
  */
 
@@ -1987,7 +1987,7 @@ tulip_attach(
 {
     struct ifnet * const ifp = &sc->tulip_if;
 
-    ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
+    ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST;
     ifp->if_ioctl = tulip_ioctl;
     ifp->if_output = ether_output;
     ifp->if_start = tulip_start;
