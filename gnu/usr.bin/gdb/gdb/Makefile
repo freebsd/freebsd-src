@@ -11,7 +11,7 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 # global symbols visible.
 LDFLAGS+= -Wl,-E
 
-DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP}
-LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap
+DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAP} ${LIBGNUREGEX}
+LDADD=	${GDBLIBS} ${BULIBS} -lm -lreadline -ltermcap -lgnuregex
 
 .include <bsd.prog.mk>

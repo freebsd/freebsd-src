@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD$/
 
 .include "../Makefile.inc0"
 
@@ -12,7 +12,7 @@ SRCS=	argv.c concat.c choose-temp.c cp-demangle.c cp-demint.c		\
 	xexit.c xmalloc.c xstrdup.c xstrerror.c
 
 # The following files are needed by gdb(1)
-SRCS+=	regex.c splay-tree.c
+SRCS+=	splay-tree.c
 
 WARNS?=	1
 CFLAGS+=	-DHAVE_CONFIG_H

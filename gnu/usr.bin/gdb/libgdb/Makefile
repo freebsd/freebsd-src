@@ -45,6 +45,11 @@ GENSRCS= version.c
 LIBSRCS+= fbsd-threads.c
 .endif
 
+.for stupid_gnu in \
+xregcomp xre_exec xregexec xre_search xre_compile_fastmap xregerror xre_comp xre_set_syntax
+CFLAGS+= -D${stupid_gnu}=${stupid_gnu:S/^x//}
+.endfor
+
 version.c:
 	echo '#include "version.h"' >  ${.TARGET}
 	echo 'const char version[] = ${VERSION};' >> ${.TARGET}
