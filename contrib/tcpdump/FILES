@@ -23,8 +23,6 @@ config.sub
 configure
 configure.in
 decnet.h
-dhcp6.h
-dhcp6opt.h
 esp.h
 ether.h
 ethertype.h
