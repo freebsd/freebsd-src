@@ -3093,12 +3093,6 @@ process_command (argc, argv)
     case OBJFMT_UNKNOWN:
       fatal ("object format unknown");
     }
-  add_prefix (&exec_prefixes, "/usr/libexec/", "GCC",
-	      0, 0, warn_std_ptr);
-  add_prefix (&exec_prefixes, "/usr/bin/", "GCC",
-	      0, 0, warn_std_ptr);
-  add_prefix (&startfile_prefixes, "/usr/libdata/gcc/", "BINUTILS",
-	      0, 0, warn_std_ptr);
 #else /* not FREEBSD_NATIVE */
 #ifndef OS2
   add_prefix (&exec_prefixes, standard_exec_prefix, "BINUTILS",
