@@ -206,8 +206,7 @@ div_output(so, m, addr, control)
 		sin = mtod(addr, struct sockaddr_in *);
 
 	/* Loopback avoidance option */
-	if (sin && sin->sin_port)
-		ip_divert_ignore = ntohs(inp->inp_lport);
+	ip_divert_ignore = ntohs(inp->inp_lport);
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {

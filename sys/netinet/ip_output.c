@@ -355,6 +355,7 @@ sendit:
 #ifdef IPDIVERT
 		action = (*ip_fw_chk_ptr)(&ip,
 				hlen, ifp, (~0 << 16) | ip_divert_ignore, &m);
+		ip_divert_ignore = 0;
 #else
 		action = (*ip_fw_chk_ptr)(&ip, hlen, ifp, (~0 << 16), &m);
 #endif
