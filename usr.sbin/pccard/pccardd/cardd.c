@@ -37,6 +37,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <ctype.h>
 #include <regex.h>
+#include <machine/resource.h>
 #include <sys/ioctl.h>
 #include "cardd.h"
 
@@ -486,13 +487,29 @@ assign_driver(struct card *cp)
 	}
 	/* Allocate a free IRQ if none has been specified */
 	if (conf->irq == 0) {
-		int     i;
-		for (i = 1; i < 16; i++)
-			if (pool_irq[i]) {
+		struct pccard_resource resource;
+		char name[128];
+		int i, fd;
+
+		sprintf(name, CARD_DEVICE, 0); /* XXX sanpei */
+		fd = open(name, O_RDWR);
+ 
+		resource.type = SYS_RES_IRQ;
+		resource.size = 1;
+		for (i = 1; i < 16; i++) {
+			resource.min = i;
+			resource.max = i;
+			if (ioctl(fd, PIOCSRESOURCE, &resource) < 0) {
+				perror("ioctl (PIOCSRESOURCE)");
+				exit(1);
+			}
+			if (pool_irq[i] && resource.resource_addr == i) {
 				conf->irq = i;
 				pool_irq[i] = 0;
 				break;
 			}
+		}
+		close(fd);
 		if (conf->irq == 0) {
 			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
 			return (NULL);
@@ -513,19 +530,33 @@ assign_card_index(struct cis * cis)
 {
 	struct cis_config *cp;
 	struct cis_ioblk *cio;
-	int i;
+	struct pccard_resource resource;
+	char name[128];
+	int i, fd;
 
+	sprintf(name, CARD_DEVICE, 0); /* XXX sanpei */
+	fd = open(name, O_RDWR);
+
+	resource.type = SYS_RES_IOPORT;
 	for (cp = cis->conf; cp; cp = cp->next) {
 		if (!cp->iospace || !cp->io)
 			continue;
 		for (cio = cp->io; cio; cio = cio->next) {
+			resource.size = cio->size;
 			for (i = cio->addr; i < cio->addr + cio->size - 1; i++)
-				if (!bit_test(io_avail, i))
+				resource.min = i;
+				resource.max = resource.min + cio->size - 1;
+				if (ioctl(fd, PIOCSRESOURCE, &resource) < 0) {
+					perror("ioctl (PIOCSRESOURCE)");
+				       exit(1);
+				}
+				if (!bit_test(io_avail, i) || resource.resource_addr != i)
 					goto next;
 		}
 		return cp;	/* found */
 	next:
 	}
+	close(fd);
 	return cis->def_config;
 }
 
