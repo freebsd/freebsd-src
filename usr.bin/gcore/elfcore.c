@@ -455,7 +455,7 @@ readmap(pid_t pid)
 	bufsize = 8 * 1024;
 	mapbuf = NULL;
 	for ( ; ; ) {
-		if ((mapbuf = realloc(mapbuf, bufsize)) == NULL)
+		if ((mapbuf = realloc(mapbuf, bufsize + 1)) == NULL)
 			errx(1, "out of memory");
 		mapsize = read(mapfd, mapbuf, bufsize);
 		if (mapsize != -1 || errno != EFBIG)
@@ -468,6 +468,7 @@ readmap(pid_t pid)
 		err(1, "read error from %s", mapname);
 	if (mapsize == 0)
 		errx(1, "empty map file %s", mapname);
+	mapbuf[mapsize] = 0;
 	close(mapfd);
 
 	pos = 0;
