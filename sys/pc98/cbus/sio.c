@@ -799,6 +799,10 @@ siodetach(dev)
 	} else {
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
+#ifdef PC98
+		if (com->obuf1 != NULL)
+			free(com->obuf1, M_DEVBUF);
+#endif
 		device_set_softc(dev, NULL);
 		free(com, M_DEVBUF);
 	}
