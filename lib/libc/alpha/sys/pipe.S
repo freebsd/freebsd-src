@@ -25,13 +25,15 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include "SYS.h"
 
-PSYSCALL(pipe)
+SYSCALL(pipe)
 	stl	v0, 0(a0)
 	stl	a4, 4(a0)
 	mov	zero, v0
 	RET
-PEND(pipe)
+END(pipe)

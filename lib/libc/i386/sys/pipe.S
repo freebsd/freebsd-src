@@ -43,7 +43,7 @@
 
 #include "SYS.h"
 
-PSYSCALL(pipe)
+SYSCALL(pipe)
 	movl	4(%esp),%ecx
 	movl	%eax,(%ecx)
 	movl	%edx,4(%ecx)

@@ -14,11 +14,7 @@ NOASM=	__semctl.o break.o exit.o ftruncate.o getdomainname.o getlogin.o \
 	semop.o setdomainname.o shmat.o shmctl.o shmdt.o shmget.o sstk.o \
 	truncate.o uname.o vfork.o yield.o
 
-PSEUDO=	_getlogin.o
-
-# Pseudo syscalls that are renamed as __sys_{pseudo} so that libc_r can
-# override them with replacements.
-PSEUDOR=	_exit.o
+PSEUDO=	_getlogin.o _exit.o
 
 .if ${LIB} == "c"
 MAN2+=	i386_get_ioperm.2 i386_get_ldt.2 i386_vm86.2

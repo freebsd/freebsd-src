@@ -16,24 +16,6 @@ INSTALL_PIC_ARCHIVE=	yes
 PRECIOUSLIB=	yes
 
 #
-# This is a list of syscalls that are renamed as __sys_{syscall}
-# so that libpthread and libc_r can override and/or replace them.
-# In the case of libc_r replacement functions are provided, whereas
-# libpthread can both override and provide replacement functions.
-#
-HIDDEN_SYSCALLS= _exit.o accept.o aio_suspend.o bind.o close.o connect.o \
-	dup.o dup2.o execve.o fchflags.o fchmod.o fchown.o fcntl.o \
-	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
-	getpeername.o getsockname.o getsockopt.o ioctl.o \
-	kevent.o listen.o \
-	msync.o nanosleep.o nfssvc.o open.o poll.o read.o readv.o recvfrom.o \
-	recvmsg.o sched_yield.o select.o sendfile.o sendmsg.o sendto.o \
-	setsockopt.o shutdown.o sigaction.o sigaltstack.o \
-	sigpending.o sigprocmask.o sigreturn.o \
-	sigsuspend.o socket.o \
-	socketpair.o wait4.o write.o writev.o
-
-#
 # Include make rules that are shared with libc_r.
 #
 .include "${.CURDIR}/Makefile.inc"

@@ -25,11 +25,13 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ * $FreeBSD$
  */
 
 #include "SYS.h"
 
-PSYSCALL(fork)
+SYSCALL(fork)
 	cmovne	a4, zero, v0		/* a4 (rv[1]) != 0, child */
 	RET
-PEND(fork)
+END(fork)
