@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.4 1994/10/12 01:51:27 ache Exp $
+# $Id: Makefile,v 1.5 1994/10/12 01:59:06 ache Exp $
 
 LIB=    ncurses
 SRCS=   lib_kernel.c lib_pad.c\
@@ -13,7 +13,7 @@ SRCS=   lib_kernel.c lib_pad.c\
 	lib_newterm.c lib_set_term.c lib_overlay.c lib_scrreg.c lib_color.c \
 	lib_insstr.c lib_insdel.c lib_twait.c copyright.c
 
-CFLAGS+= -I. -Wall -DMYTINFO -DTERMIOS -DGOOD_SELECT -DBSDTABS
+CFLAGS+= -I. -I${.CURDIR} -Wall -DMYTINFO -DTERMIOS -DGOOD_SELECT -DBSDTABS
 LDADD+=  -lmytinfo
 
 CLEANFILES+= lib_keyname.c keys.tries
