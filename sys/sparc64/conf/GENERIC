@@ -64,7 +64,7 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 
 # To make an SMP kernel, the next line is needed
-options 	SMP			# Symmetric MultiProcessor Kernel
+#options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Standard busses
 device		apb		# Sun APB PCI-PCI bridge
