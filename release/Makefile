@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.448 1999/01/06 13:55:04 peter Exp $
+#	$Id: Makefile,v 1.449 1999/01/06 19:18:45 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -448,6 +448,7 @@ release.8: write_mfs_in_kernel dumpnlist
 	for i in README.TXT RELNOTES.TXT INSTALL.TXT UPGRADE.TXT HARDWARE.TXT; do \
 	   gzip -9c ${.CURDIR}/texts/$${i} > ${RD}/mfsfd/stand/help/$${i}.gz; done
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
+	@cp -r /boot ${RD}/mfsfd
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
@@ -666,6 +667,7 @@ doMFSKERN:
 	@echo "Setting up /boot directory for ${FSIMAGE} floppy"
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/* ${RD}/image.${FSIMAGE}/boot
+	@rm -f ${RD}/boot.${FSIMAGE}/boot/netboot
 	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/boot.conf
 	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
 	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/boot.conf
@@ -682,11 +684,16 @@ doMFSKERN:
 	@umount /tmp/mnt_xx
 	@vnconfig -u /dev/${VNDEVICE}
 	@rmdir /tmp/mnt_xx
-	@echo "Writing MFS image into kzip kernel for ${FSIMAGE} floppy"
+	@echo "Writing MFS image into kernel for ${FSIMAGE} floppy"
 	@./write_mfs_in_kernel ${RD}/image.${FSIMAGE}/kernel mfsroot
 	@cp ${RD}/image.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
+.if ${MACHINE_ARCH} == "alpha"
+	@gzip -v ${RD}/image.${FSIMAGE}/kernel
+	@mv ${RD}/image.${FSIMAGE}/kernel.gz ${RD}/image.${FSIMAGE}/kernel.gz
+.else
 	@kzip -v ${RD}/image.${FSIMAGE}/kernel
 	@mv ${RD}/image.${FSIMAGE}/kernel.kz ${RD}/image.${FSIMAGE}/kernel
+.endif
 .else
 	@echo "Using gzip'd kernel for ${FSIMAGE}"
 	@gzip -v ${RD}/image.${FSIMAGE}/kernel
