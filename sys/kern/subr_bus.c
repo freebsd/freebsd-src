@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.26 1999/05/22 14:57:15 dfr Exp $
+ *	$Id: subr_bus.c,v 1.27 1999/05/27 07:18:41 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -604,6 +604,7 @@ make_device(device_t parent, const char *name,
     dev->desc = NULL;
     dev->busy = 0;
     dev->flags = DF_ENABLED;
+    dev->order = 0;
     if (unit == -1)
 	dev->flags |= DF_WILDCARD;
     if (name) {
@@ -634,38 +635,40 @@ device_print_child(device_t dev, device_t child)
 device_t
 device_add_child(device_t dev, const char *name, int unit, void *ivars)
 {
-    device_t child;
-
-    PDEBUG(("%s at %s as unit %d with%s ivars",
-    	    name, DEVICENAME(dev), unit, (ivars? "":"out")));
-
-    child = make_device(dev, name, unit, ivars);
-
-    if (child)
-	TAILQ_INSERT_TAIL(&dev->children, child, link);
-    else
-	PDEBUG(("%s failed", name));
-
-    return child;
+    return device_add_child_ordered(dev, 0, name, unit, ivars);
 }
 
 device_t
-device_add_child_after(device_t dev, device_t place, const char *name,
-		       int unit, void *ivars)
+device_add_child_ordered(device_t dev, int order,
+			 const char *name, int unit, void *ivars)
 {
     device_t child;
+    device_t place;
 
-    PDEBUG(("%s at %s after %s as unit %d with%s ivars",
-    	    name, DEVICENAME(dev), DEVICENAME(place), unit, (ivars? "":"out")));
+    PDEBUG(("%s at %s with order %d as unit %d with%s ivars",
+    	    name, DEVICENAME(dev), order, unit, (ivars? "":"out")));
 
     child = make_device(dev, name, unit, ivars);
     if (child == NULL)
 	return child;
+    child->order = order;
+
+    TAILQ_FOREACH(place, &dev->children, link)
+	if (place->order > order)
+	    break;
 
     if (place) {
-	TAILQ_INSERT_AFTER(&dev->children, place, child, link);
+	/*
+	 * The device 'place' is the first device whose order is
+	 * greater than the new child.
+	 */
+	TAILQ_INSERT_BEFORE(place, child, link);
     } else {
-	TAILQ_INSERT_HEAD(&dev->children, child, link);
+	/*
+	 * The new child's order is greater or equal to the order of
+	 * any existing device. Add the child to the tail of the list.
+	 */
+	TAILQ_INSERT_TAIL(&dev->children, child, link);
     }
 
     return child;

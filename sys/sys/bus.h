@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.16 1999/05/14 11:22:47 dfr Exp $
+ *	$Id: bus.h,v 1.17 1999/05/22 14:57:13 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -213,8 +213,9 @@ int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
  */
 device_t	device_add_child(device_t dev, const char *name, int unit,
 				 void *ivp);
-device_t	device_add_child_after(device_t dev, device_t place,
-				       const char *name, int unit, void *ivp);
+device_t	device_add_child_ordered(device_t dev, int order,
+					 const char *name, int unit,
+					 void *ivp);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
 int	device_detach(device_t dev);
