@@ -32,7 +32,6 @@
 .\"	@(#)su.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.\" this is for hilit19's braindeadness: "
 .Dd April 18, 1994
 .Dt SU 1
 .Os
@@ -47,24 +46,12 @@
 .Op Ar login Op Ar args
 .Sh DESCRIPTION
 .Nm Su
-requests the superuser password for
-.Ar login
-(or if Kerberos PAMs are used for
-.Dq Ar login Ns .root
-or
-.Dq Ar login Ns /root
-as appropriate),
-and switches to that user ID.
+requests appropriate user credentials via PAM
+and switches to that user ID
+(the default user is the superuser).
 A shell is then executed.
-.Nm Su
-will resort to the local password file to find the password for
-.Ar login
-if there is a PAM error.
-If
-.Nm
-is executed by root, no password is requested and a shell
-with the appropriate user ID is executed;
-no additional PAM work is done.
+.Pp
+PAM is used to set all policy.
 .Pp
 By default, the environment is unmodified with the exception of
 .Ev USER ,
@@ -154,38 +141,21 @@ If the optional
 are provided on the command line, they are passed to the login shell of
 the target login.
 .Pp
-Only users who are a member of group 0 (normally
-.Dq wheel )
-can
-.Nm
-to
-.Dq root .
-\ If group 0 is missing or empty, any user can
-.Nm
-to
-.Dq root .
-.Pp
 By default (unless the prompt is reset by a startup file) the super-user
 prompt is set to
 .Dq Sy \&#
 to remind one of its awesome power.
 .Sh FILES
-.Bl -tag -width /etc/auth.conf -compact
-.It Pa /etc/auth.conf
-configure authentication services
+.Bl -tag -width /etc/pam.conf -compact
 .It Pa /etc/pam.conf
-if
 .Nm
-is configured with PAM support, it uses
+is configured with PAM support; it uses
 .Pa /etc/pam.conf
 entries with service name
 .Dq su
 .El
 .Sh SEE ALSO
 .Xr csh 1 ,
-.Xr kerberos 1 ,
-.Xr kinit 1 ,
-.Xr login 1 ,
 .Xr sh 1 ,
 .Xr group 5 ,
 .Xr login.conf 5 ,
