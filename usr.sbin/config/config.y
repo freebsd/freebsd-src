@@ -12,6 +12,7 @@
 %token	BIO
 %token	COMMA
 %token	CONFIG
+%token	CONFLICTS
 %token	CONTROLLER
 %token	CPU
 %token	CSR
@@ -633,7 +634,9 @@ Info:
 	NET 
 	      = { cur.d_mask = "net"; } |
 	FLAGS NUMBER
-	      = { cur.d_flags = $2; };
+	      = { cur.d_flags = $2; } |
+	CONFLICTS
+	      = { cur.d_conflicts = 1; };
 
 Int_spec:
 	VECTOR Id_list
@@ -909,6 +912,7 @@ init_dev(dp)
 	dp->d_name = "OHNO!!!";
 	dp->d_type = DEVICE;
 	dp->d_conn = 0;
+	dp->d_conflicts = 0;
 	dp->d_vec = 0;
 	dp->d_addr = dp->d_flags = dp->d_dk = 0;
 	dp->d_pri = -1;
