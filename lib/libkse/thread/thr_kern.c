@@ -2539,7 +2539,11 @@ _thr_debug_check_yield(struct pthread *curthread)
 	 * is cleared by debugger, the flag will be cleared in next
 	 * suspension event. 
 	 */
-	if ((curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0 &&
-	    !DBG_CAN_RUN(curthread))
-		_thr_sched_switch(curthread);
+	if (!DBG_CAN_RUN(curthread)) {
+		if ((curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0)
+			_thr_sched_switch(curthread);
+		else
+			kse_thr_interrupt(&curthread->tcb->tcb_tmbx,
+				KSE_INTR_DBSUSPEND, 0);
+	}
 }
