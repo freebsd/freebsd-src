@@ -83,6 +83,8 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
   wmove(dialog, 1, 2);
   print_autowrap(dialog, prompt, height-1, width-2, width, 1, 2, TRUE, FALSE);
 
+  display_helpline(dialog, height-1, width);
+
   x = width/2-10;
   y = height-2;
   print_button(dialog, "  No  ", y, x+13, FALSE);
@@ -125,6 +127,10 @@ int dialog_yesno(unsigned char *title, unsigned char * prompt, int height, int w
         return button;
       case ESC:
         break;
+    case KEY_F(1):
+    case '?':
+	display_helpfile();
+	break;
     }
   }
 
