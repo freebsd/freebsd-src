@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.51 1999/06/21 11:17:34 sheldonh Exp $";
+	"$Id: inetd.c,v 1.52 1999/06/27 18:05:34 sheldonh Exp $";
 #endif /* not lint */
 
 /*
@@ -540,7 +540,7 @@ main(argc, argv, envp)
 				close(ctrl);
 				continue;
 			    }
-			    if (!wrap || log) {
+			    if (!wrap && log) {
 				i = sizeof peer;
 				if (getpeername(ctrl, (struct sockaddr *)
 						&peer, &i)) {
