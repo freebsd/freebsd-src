@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: rusers_proc.c,v 1.2 1994/03/06 02:07:58 jkh Exp $";
+static char rcsid[] = "$Id: rusers_proc.c,v 1.1.1.1 1994/08/28 14:53:44 csgr Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -158,7 +158,7 @@ getidle(char *tty, char *display)
         idle = 0;
         if (*tty == 'X') {
                 u_long kbd_idle, mouse_idle;
-#if	!defined(__386BSD__)
+#if	!defined(__FreeBSD__)
                 kbd_idle = getidle("kbd", NULL);
 #else
                 kbd_idle = getidle("vga", NULL);

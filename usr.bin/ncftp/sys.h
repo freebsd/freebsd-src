@@ -399,7 +399,7 @@ extern int errno;
 #	endif
 #endif	/* BSDi */
 
-#ifdef __386BSD__
+#ifdef __FreeBSD__
 #       ifdef __FreeBSD__
 #               define System "FreeBSD"
 #               define GZCAT "/usr/bin/gzcat"
@@ -416,7 +416,7 @@ extern int errno;
 #endif
 
 #ifdef BSD
-#	ifndef __386BSD__
+#	ifndef __FreeBSD__
 #		ifndef SYSDIRH
 #			define SYSDIRH 1
 #		endif

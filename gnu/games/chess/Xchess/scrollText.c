@@ -624,7 +624,7 @@ struct txtWin *textInfo;	/* Text window information */
     XFillRectangle(display, textInfo->scrollBar,
 		   textInfo->bgGC, 
 		   0, 0, BARSIZE, top-1);
-#ifdef __386BSD__
+#ifdef __FreeBSD__
     XFillRectangle(display, textInfo->scrollBar,
 		   DEFAULT_GC, top, BARSIZE - (2*BARBORDER) - 2,
 		   BARSIZE, bottom - top);
@@ -1057,7 +1057,7 @@ int col;			/* Color of indicator            */
 					     (XID) win);
 
     /* First,  draw the arrow */
-#ifdef __386BSD__
+#ifdef __FreeBSD__
     XCopyArea(display, textInfo->arrowMap, textInfo->mainWindow,
 	       textInfo->CursorGC,
 	       0, 0, arrow_width, arrow_height,
@@ -1580,7 +1580,7 @@ struct txtWin *textInfo;	/* Text window information   */
     textInfo->endLine = FindEndLine(textInfo, &(textInfo->bottomSpace));
 
     /* Clear out bottom space region */
-#ifdef __386BSD__
+#ifdef __FreeBSD__
     XClearArea(display, textInfo->mainWindow,
 	       0, textInfo->h - textInfo->bottomSpace,
 	       textInfo->w, textInfo->bottomSpace, 1);
