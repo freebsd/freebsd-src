@@ -82,6 +82,8 @@ struct plimit {
 	rlim_t	p_cpulimit;		/* current cpu limit in usec */
 };
 
+#ifdef _KERNEL
+
 /*
  * Per uid resource consumption
  */
@@ -91,16 +93,8 @@ struct uidinfo {
 	long	ui_proccnt;		/* number of processes */
 	uid_t	ui_uid;			/* uid */
 	u_short	ui_ref;			/* reference count */
-	struct mtx	ui_mtx;		/* protect counts */
+	struct mtx	ui_mtx;		/* protect all counts/limits */
 };
-
-#ifdef _KERNEL
-#define uihold(uip)	\
-	do {						\
-		mtx_enter(&(uip)->ui_mtx, MTX_DEF);	\
-		(uip)->ui_ref++;			\
-		mtx_exit(&(uip)->ui_mtx, MTX_DEF);	\
-	} while(0)
 
 struct proc;
 
@@ -118,6 +112,7 @@ void	 ruadd __P((struct rusage *ru, struct rusage *ru2));
 int	 suswintr __P((void *base, int word));
 struct uidinfo
 	*uifind __P((uid_t uid));
+void	 uihold __P((struct uidinfo *uip));
 void	 uifree __P((struct uidinfo *uip));
 void	uihashinit __P((void));
 #endif
