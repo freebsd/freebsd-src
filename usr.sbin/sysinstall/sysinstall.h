@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.138 1997/07/16 05:22:42 jkh Exp $
+ * $Id: sysinstall.h,v 1.139 1997/07/31 11:08:41 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -106,6 +106,7 @@
 #define VAR_DOMAINNAME			"domainname"
 #define VAR_EDITOR			"editor"
 #define VAR_EXTRAS			"ifconfig_"
+#define VAR_CONFIG_FILE		"configFile"
 #define VAR_FTP_DIR			"ftpDirectory"
 #define VAR_FTP_PASS			"ftpPass"
 #define VAR_FTP_PATH			"ftp"
@@ -459,6 +460,10 @@ extern void	diskPartition(Device *dev, Disk *d);
 
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
+extern int	dispatch_load_floppy(dialogMenuItem *self);
+extern int	dispatch_load_file_int(int);
+extern int	dispatch_load_file(dialogMenuItem *self);
+
 
 /* dist.c */
 extern int	distReset(dialogMenuItem *self);
@@ -704,9 +709,6 @@ extern char 	*variable_get(char *var);
 extern void	variable_unset(char *var);
 extern char	*variable_get_value(char *var, char *prompt);
 extern int 	variable_check(char *data);
-
-/* variable_load.c */
-extern int	variableLoad(dialogMenuItem *self);
 
 /* wizard.c */
 extern void	slice_wizard(Disk *d);

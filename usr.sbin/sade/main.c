@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.45 1997/04/20 16:46:31 jkh Exp $
+ * $Id: main.c,v 1.46 1997/06/05 09:47:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,24 +104,8 @@ main(int argc, char **argv)
 	if (argc > start_arg)
 	    systemShutdown(0);
     }
-    else {
-	FILE *fp;
-	char buf[BUFSIZ];
-
-	fp = fopen("install.cfg", "r");
-	if (fp) {
-	    msgNotify("Loading pre-configuration file");
-	    variable_set2(VAR_NONINTERACTIVE, "YES");
-	    while (fgets(buf, sizeof buf, fp)) {
-		if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
-		    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
-		    break;
-		}
-	    }
-	    fclose(fp);
-	    variable_unset(VAR_NONINTERACTIVE);
-	}
-    }
+    else
+	dispatch_load_file_int(TRUE);
 
     status = setjmp(BailOut);
     if (status) {
