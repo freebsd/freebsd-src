@@ -757,6 +757,7 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
+	regs->tf_fs = _udatasel;
 	regs->tf_ss = _udatasel;
 }
 
