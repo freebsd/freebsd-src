@@ -50,11 +50,11 @@ __FBSDID("$FreeBSD$");
 
 #include <crypto/blowfish/blowfish.h>
 #include <crypto/des/des.h>
+#include <crypto/rijndael/rijndael.h>
 #include <crypto/sha1.h>
 
 #include <opencrypto/cast.h>
 #include <opencrypto/deflate.h>
-#include <opencrypto/rijndael.h>
 #include <opencrypto/rmd160.h>
 #include <opencrypto/skipjack.h>
 
