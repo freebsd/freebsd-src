@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 		lp = NULL;
 	}
 
-	if (lp = strrchr(prog, '/'))
+	if ((lp = strrchr(prog, '/')) != NULL)
 		*comp = ++lp;
 	else
 		*comp = prog;
