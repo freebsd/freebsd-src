@@ -1,5 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
+BINDIR?=	/usr/bin
 MAN1=	mkdep.1
 
 beforeinstall:

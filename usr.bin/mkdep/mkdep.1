@@ -39,7 +39,7 @@
 .Nd construct Makefile dependency list
 .Sh SYNOPSIS
 .Nm
-.Op Fl ap
+.Op Fl anp
 .Op Fl f Ar file
 .Op Ar flags
 .Ar file ...
@@ -71,6 +71,8 @@ may be run from a single Makefile.
 Write the include file dependencies to 
 .Ar file ,
 instead of the default ``.depend''.
+.It Fl n
+Don't make dependencies on system headers.  I.e. anything in <>'s.
 .It Fl p
 Cause
 .Nm
