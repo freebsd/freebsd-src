@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.21 1997/02/19 19:15:43 wollman Exp $
+ *	$Id: uipc_socket2.c,v 1.22 1997/02/24 20:30:57 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -111,9 +111,9 @@ soisconnected(so)
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_state |= SS_COMP;
 		sorwakeup(head);
-		wakeup((caddr_t)&head->so_timeo);
+		wakeup_one(&head->so_timeo);
 	} else {
-		wakeup((caddr_t)&so->so_timeo);
+		wakeup(&so->so_timeo);
 		sorwakeup(so);
 		sowwakeup(so);
 	}
