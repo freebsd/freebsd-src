@@ -1187,6 +1187,7 @@ ufs/ffs/ffs_vnops.c	optional ifs
 ufs/ffs/ffs_vnops.c	optional mfs
 ufs/mfs/mfs_vfsops.c	optional mfs
 ufs/mfs/mfs_vnops.c	optional mfs
+ufs/ufs/ufs_acl.c	standard
 ufs/ufs/ufs_bmap.c	standard
 ufs/ufs/ufs_extattr.c	standard
 ufs/ufs/ufs_ihash.c	standard

@@ -41,6 +41,7 @@
 
 #include "opt_quota.h"
 #include "opt_suiddir.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,12 +53,13 @@
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
-#include <sys/vnode.h>
 #include <sys/malloc.h>
+#include <sys/vnode.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
 #include <sys/event.h>
 #include <sys/conf.h>
+#include <sys/acl.h>
 
 #include <machine/mutex.h>
 
@@ -68,6 +70,7 @@
 
 #include <miscfs/fifofs/fifo.h>
 
+#include <ufs/ufs/acl.h>
 #include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -308,8 +311,10 @@ ufs_access(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 	mode_t mode = ap->a_mode;
-#ifdef QUOTA
 	int error;
+#ifdef UFS_ACL
+	struct acl *acl;
+	int len;
 #endif
 
 	/*
@@ -338,8 +343,35 @@ ufs_access(ap)
 	if ((mode & VWRITE) && (ip->i_flags & (IMMUTABLE | SF_SNAPSHOT)))
 		return (EPERM);
 
-	return (vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-	    ap->a_mode, ap->a_cred, NULL));
+#ifdef UFS_ACL
+	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+	len = sizeof(*acl);
+	error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred, ap->a_p);
+	switch (error) {
+	case EOPNOTSUPP:
+		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
+		    ap->a_mode, ap->a_cred, NULL);
+		break;
+	case 0:
+		error = vaccess_acl_posix1e(vp->v_type, acl, ap->a_mode,
+		    ap->a_cred, NULL);
+		break;
+	default:
+		printf("ufs_access(): Error retrieving ACL on object (%d).\n",
+		    error);
+		/*
+		 * XXX: Fall back until debugged.  Should eventually
+		 * possibly log an error, and return EPERM for safety.
+		 */
+		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
+		    ap->a_mode, ap->a_cred, NULL);
+	}
+	FREE(acl, M_ACL);
+#else
+	error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
+	    ap->a_mode, ap->a_cred, NULL);
+#endif
+	return (error);
 }
 
 /* ARGSUSED */
@@ -1279,6 +1311,9 @@ ufs_mkdir(ap)
 	struct buf *bp;
 	struct dirtemplate dirtemplate, *dtp;
 	struct direct newdir;
+#ifdef UFS_ACL
+	struct acl *acl, *dacl;
+#endif
 	int error, dmode;
 	long blkoff;
 
@@ -1360,7 +1395,54 @@ ufs_mkdir(ap)
 #endif
 #endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
+#ifdef UFS_ACL
+	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+	MALLOC(dacl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+
+	/*
+	 * Retrieve default ACL from parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
+	    cnp->cn_proc);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.
+		 */
+		if (acl->acl_cnt != 0) {
+			/*
+			 * Two possible ways for default ACL to not be
+			 * present.  First, the EA can be undefined,
+			 * or second, the default ACL can be blank.
+			 * If it's blank, fall through to the it's
+			 * not defined case.
+			 */
+			ip->i_mode = dmode;
+			*dacl = *acl;
+			ufs_sync_acl_from_inode(ip, acl);
+			break;
+		}
+		/* FALLTHROUGH */
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = dmode;
+		FREE(acl, M_ACL);
+		FREE(dacl, M_ACL);
+		dacl = acl = NULL;
+		break;
+	
+	default:
+		UFS_VFREE(tvp, ip->i_number, dmode);
+		vput(tvp);
+		return (error);
+	}
+#else /* !UFS_ACL */
 	ip->i_mode = dmode;
+#endif /* !UFS_ACL */
 	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
 	ip->i_effnlink = 2;
 	ip->i_nlink = 2;
@@ -1382,6 +1464,41 @@ ufs_mkdir(ap)
 	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(dvp) | DOINGASYNC(dvp)));
 	if (error)
 		goto bad;
+#ifdef UFS_ACL
+	if (acl != NULL) {
+		/*
+		 * XXX: If we abort now, will Soft Updates notify the extattr
+		 * code that the EAs for the file need to be released?
+		 */
+		error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cnp->cn_cred,
+		    cnp->cn_proc);
+		if (error == 0)
+			error = VOP_SETACL(tvp, ACL_TYPE_DEFAULT, dacl,
+			    cnp->cn_cred, cnp->cn_proc);
+		switch (error) {
+		case 0:
+			break;
+
+		case EOPNOTSUPP:
+			/*
+			 * XXX: This should not happen, as EOPNOTSUPP above
+			 * was supposed to free acl.
+			 */
+			printf("ufs_mkdir: VOP_GETACL() but no VOP_SETACL()\n");
+			/*
+			panic("ufs_mkdir: VOP_GETACL() but no VOP_SETACL()");
+			 */
+			break;
+
+		default:
+			FREE(acl, M_ACL);
+			FREE(dacl, M_ACL);
+			goto bad;
+		}
+		FREE(acl, M_ACL);
+		FREE(dacl, M_ACL);
+	}
+#endif /* !UFS_ACL */
 
 	/*
 	 * Initialize directory with "." and ".." from static template.
@@ -2049,6 +2166,7 @@ ufs_vinit(mntp, specops, fifoops, vpp)
 
 /*
  * Allocate a new inode.
+ * Vnode dvp must be locked.
  */
 int
 ufs_makeinode(mode, dvp, vpp, cnp)
@@ -2060,6 +2178,9 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	register struct inode *ip, *pdir;
 	struct direct newdir;
 	struct vnode *tvp;
+#ifdef UFS_ACL
+	struct acl *acl;
+#endif
 	int error;
 
 	pdir = VTOI(dvp);
@@ -2132,7 +2253,49 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #endif
 #endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
+#ifdef UFS_ACL
+	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+	/*
+	 * Retrieve default ACL for parent, if any.
+	 */
+	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
+	    cnp->cn_proc);
+	switch (error) {
+	case 0:
+		/*
+		 * Retrieved a default ACL, so merge mode and ACL if
+		 * necessary.
+		 */
+		if (acl->acl_cnt != 0) {
+			/*
+			 * Two possible ways for default ACL to not be
+			 * present.  First, the EA can be undefined,
+			 * or second, the default ACL can be blank.
+			 * If it's blank, fall through to the it's
+			 * not defined case.
+			 */
+			ip->i_mode = mode;
+			ufs_sync_acl_from_inode(ip, acl);
+			break;
+		}
+
+	case EOPNOTSUPP:
+		/*
+		 * Just use the mode as-is.
+		 */
+		ip->i_mode = mode;
+		FREE(acl, M_ACL);
+		acl = NULL;
+		break;
+
+	default:
+		UFS_VFREE(tvp, ip->i_number, mode);
+		vput(tvp);
+		return (error);
+	}
+#else /* !UFS_ACL */
 	ip->i_mode = mode;
+#endif /* !UFS_ACL */
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_effnlink = 1;
 	ip->i_nlink = 1;
@@ -2151,6 +2314,36 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	error = UFS_UPDATE(tvp, !(DOINGSOFTDEP(tvp) | DOINGASYNC(tvp)));
 	if (error)
 		goto bad;
+#ifdef UFS_ACL
+	if (acl != NULL) {
+		/*
+		 * XXX: If we abort now, will Soft Updates notify the extattr
+		 * code that the EAs for the file need to be released?
+		 */
+		error = VOP_SETACL(tvp, ACL_TYPE_ACCESS, acl, cnp->cn_cred,
+		    cnp->cn_proc);
+		switch (error) {
+		case 0:
+			break;
+
+		case EOPNOTSUPP:
+			/*
+			 * XXX: This should not happen, as EOPNOTSUPP above was
+			 * supposed to free acl.
+			 */
+			printf("ufs_makeinode: VOP_GETACL() but no "
+			    "VOP_SETACL()\n");
+			/* panic("ufs_makeinode: VOP_GETACL() but no "
+			    "VOP_SETACL()"); */
+			break;
+
+		default:
+			FREE(acl, M_ACL);
+			goto bad;
+		}
+		FREE(acl, M_ACL);
+	}
+#endif /* !UFS_ACL */
 	ufs_makedirentry(ip, cnp, &newdir);
 	error = ufs_direnter(dvp, tvp, &newdir, cnp, NULL);
 	if (error)
@@ -2299,6 +2492,11 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_symlink_desc,		(vop_t *) ufs_symlink },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_whiteout_desc,		(vop_t *) ufs_whiteout },
+#ifdef UFS_ACL
+	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
+	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
+	{ &vop_aclcheck_desc,		(vop_t *) ufs_aclcheck },
+#endif
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ufs_vnodeop_opv_desc =
@@ -2320,7 +2518,12 @@ static struct vnodeopv_entry_desc ufs_specop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsspec_write },
-	{ NULL, NULL }
+#ifdef UFS_ACL
+	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
+	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
+	{ &vop_aclcheck_desc,		(vop_t *) ufs_aclcheck },
+#endif
+	{NULL, NULL}
 };
 static struct vnodeopv_desc ufs_specop_opv_desc =
 	{ &ufs_specop_p, ufs_specop_entries };
@@ -2341,6 +2544,11 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *) ufs_setattr },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ &vop_write_desc,		(vop_t *) ufsfifo_write },
+#ifdef UFS_ACL
+	{ &vop_getacl_desc,		(vop_t *) ufs_getacl },
+	{ &vop_setacl_desc,		(vop_t *) ufs_setacl },
+	{ &vop_aclcheck_desc,		(vop_t *) ufs_aclcheck },
+#endif
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc ufs_fifoop_opv_desc =
