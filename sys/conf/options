@@ -216,8 +216,7 @@ MROUTING		opt_mrouting.h
 INET			opt_inet.h
 IPDIVERT
 DUMMYNET		opt_ipdn.h
-IPFILTER		opt_ipfilter.h
-IPFILTER_LOG		opt_ipfilter.h
+IPFILTER_LKM		opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
