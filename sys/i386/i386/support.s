@@ -1591,42 +1591,6 @@ ENTRY(ssdtosd)
 	popl	%ebx
 	ret
 
-/* load_cr0(cr0) */
-ENTRY(load_cr0)
-	movl	4(%esp),%eax
-	movl	%eax,%cr0
-	ret
-
-/* rcr0() */
-ENTRY(rcr0)
-	movl	%cr0,%eax
-	ret
-
-/* rcr3() */
-ENTRY(rcr3)
-	movl	%cr3,%eax
-	ret
-
-/* void load_cr3(caddr_t cr3) */
-ENTRY(load_cr3)
-#ifdef SWTCH_OPTIM_STATS
-	incl	tlb_flush_count
-#endif
-	movl	4(%esp),%eax
-	movl	%eax,%cr3
-	ret
-
-/* rcr4() */
-ENTRY(rcr4)
-	movl	%cr4,%eax
-	ret
-
-/* void load_cr4(caddr_t cr4) */
-ENTRY(load_cr4)
-	movl	4(%esp),%eax
-	movl	%eax,%cr4
-	ret
-
 /* void reset_dbregs() */
 ENTRY(reset_dbregs)
 	movl    $0,%eax

@@ -88,6 +88,7 @@
 /* IDT vector base for regular (aka. slow) and fast interrupts */
 #define TPR_SLOW_INTS		0x20
 #define TPR_FAST_INTS		0x60
+/* XXX note that the AST interrupt is at 0x50 */
 
 /* blocking values for local APIC Task Priority Register */
 #define TPR_BLOCK_HWI		0x4f		/* hardware INTs */
@@ -104,20 +105,23 @@
 #endif /** TEST_TEST1 */
 
 /* TLB shootdowns */
-#define XINVLTLB_OFFSET		(ICU_OFFSET + 112)
+#define XINVLTLB_OFFSET		(ICU_OFFSET + 112)	/* 0x90 */
+#define XINVLPG_OFFSET		(ICU_OFFSET + 113)	/* 0x91 */
+#define XINVLRNG_OFFSET		(ICU_OFFSET + 114)	/* 0x92 */
 
 /* inter-cpu clock handling */
-#define XHARDCLOCK_OFFSET	(ICU_OFFSET + 113)
-#define XSTATCLOCK_OFFSET	(ICU_OFFSET + 114)
+#define XHARDCLOCK_OFFSET	(ICU_OFFSET + 120)	/* 0x98 */
+#define XSTATCLOCK_OFFSET	(ICU_OFFSET + 121)	/* 0x99 */
 
 /* inter-CPU rendezvous */
-#define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 115)
+#define XRENDEZVOUS_OFFSET	(ICU_OFFSET + 122)	/* 0x9A */
 
 /* IPI to generate an additional software trap at the target CPU */
-#define XCPUAST_OFFSET		(ICU_OFFSET +  48)
+/* XXX in the middle of the interrupt range, overlapping IRQ48 */
+#define XCPUAST_OFFSET		(ICU_OFFSET +  48)	/* 0x50 */
 
 /* IPI to signal CPUs to stop and wait for another CPU to restart them */
-#define XCPUSTOP_OFFSET		(ICU_OFFSET + 128)
+#define XCPUSTOP_OFFSET		(ICU_OFFSET + 128)	/* 0xA0 */
 
 /*
  * Note: this vector MUST be xxxx1111, 32 + 223 = 255 = 0xff:
@@ -181,7 +185,9 @@ inthand_t
 	IDTVEC(intr28), IDTVEC(intr29), IDTVEC(intr30), IDTVEC(intr31);
 
 inthand_t
-	Xinvltlb,	/* TLB shootdowns */
+	Xinvltlb,	/* TLB shootdowns - global */
+	Xinvlpg,	/* TLB shootdowns - 1 page */
+	Xinvlrng,	/* TLB shootdowns - page range */
 	Xhardclock,	/* Forward hardclock() */
 	Xstatclock,	/* Forward statclock() */
 	Xcpuast,	/* Additional software trap on other cpu */ 

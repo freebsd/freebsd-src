@@ -287,6 +287,14 @@ extern pt_entry_t *SMPpt;
 
 struct pcb stoppcbs[MAXCPU];
 
+#ifdef APIC_IO
+/* Variables needed for SMP tlb shootdown. */
+u_int smp_tlb_addr1;
+u_int smp_tlb_addr2;
+volatile int smp_tlb_wait;
+static struct mtx smp_tlb_mtx;
+#endif
+
 /*
  * Local data and functions.
  */
@@ -335,6 +343,9 @@ init_locks(void)
 #ifdef USE_COMLOCK
 	mtx_init(&com_mtx, "com", MTX_SPIN);
 #endif /* USE_COMLOCK */
+#ifdef APIC_IO
+	mtx_init(&smp_tlb_mtx, "tlb", MTX_SPIN);
+#endif
 }
 
 /*
@@ -603,6 +614,10 @@ mp_enable(u_int boot_addr)
 
 	/* install an inter-CPU IPI for TLB invalidation */
 	setidt(XINVLTLB_OFFSET, Xinvltlb,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(XINVLPG_OFFSET, Xinvlpg,
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	setidt(XINVLRNG_OFFSET, Xinvlrng,
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
 
 	/* install an inter-CPU IPI for forwarding hardclock() */
@@ -2186,42 +2201,198 @@ start_ap(int logical_cpu, u_int boot_addr)
 	return 0;		/* return FAILURE */
 }
 
+#if defined(APIC_IO)
+
+#ifdef COUNT_XINVLTLB_HITS
+u_int xhits_gbl[MAXCPU];
+u_int xhits_pg[MAXCPU];
+u_int xhits_rng[MAXCPU];
+SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
+    sizeof(xhits_gbl), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
+    sizeof(xhits_pg), "IU", "");
+SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, range, CTLFLAG_RW, &xhits_rng,
+    sizeof(xhits_rng), "IU", "");
+
+u_int ipi_global;
+u_int ipi_page;
+u_int ipi_range;
+u_int ipi_range_size;
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_global, CTLFLAG_RW, &ipi_global, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_page, CTLFLAG_RW, &ipi_page, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range, CTLFLAG_RW, &ipi_range, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_range_size, CTLFLAG_RW, &ipi_range_size,
+    0, "");
+
+u_int ipi_masked_global;
+u_int ipi_masked_page;
+u_int ipi_masked_range;
+u_int ipi_masked_range_size;
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_global, CTLFLAG_RW,
+    &ipi_masked_global, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_page, CTLFLAG_RW,
+    &ipi_masked_page, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
+    &ipi_masked_range, 0, "");
+SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
+    &ipi_masked_range_size, 0, "");
+#endif
+
 /*
  * Flush the TLB on all other CPU's
- *
- * XXX: Needs to handshake and wait for completion before proceding.
  */
+static void
+smp_tlb_shootdown(u_int vector, u_int addr1, u_int addr2)
+{
+	u_int ncpu;
+	register_t eflags;
+
+	ncpu = mp_ncpus - 1;	/* does not shootdown self */
+	if (ncpu < 1)
+		return;		/* no other cpus */
+	eflags = read_eflags();
+	if ((eflags & PSL_I) == 0)
+		panic("absolutely cannot call smp_ipi_shootdown with interrupts already disabled");
+	mtx_lock_spin(&smp_tlb_mtx);
+	smp_tlb_addr1 = addr1;
+	smp_tlb_addr2 = addr2;
+	smp_tlb_wait = 0;
+	ipi_all_but_self(vector);
+	while (atomic_load_acq_int(&smp_tlb_wait) < ncpu)
+		/* XXX cpu_pause() */ ;
+	mtx_unlock_spin(&smp_tlb_mtx);
+}
+
+static void
+smp_targeted_tlb_shootdown(u_int mask, u_int vector, u_int addr1, u_int addr2)
+{
+	u_int m;
+	int i, ncpu, othercpus;
+	register_t eflags;
+
+	othercpus = mp_ncpus - 1;
+	if (mask == (u_int)-1) {
+		ncpu = othercpus;
+		if (ncpu < 1)
+			return;
+	} else {
+		/* XXX there should be a pcpu self mask */
+		mask &= ~(1 << PCPU_GET(cpuid));
+		if (mask == 0)
+			return;
+		/* Count the target cpus */
+		ncpu = 0;
+		m = mask;
+		while ((i = ffs(m)) != 0) {
+			m >>= i;
+			ncpu++;
+		}
+		if (ncpu > othercpus) {
+			/* XXX this should be a panic offence */
+			printf("SMP: tlb shootdown to %d other cpus (only have %d)\n",
+			    ncpu, othercpus);
+			ncpu = othercpus;
+		}
+		/* XXX should be a panic, implied by mask == 0 above */
+		if (ncpu < 1)
+			return;
+	}
+	eflags = read_eflags();
+	if ((eflags & PSL_I) == 0)
+		panic("absolutely cannot call smp_targeted_ipi_shootdown with interrupts already disabled");
+	mtx_lock_spin(&smp_tlb_mtx);
+	smp_tlb_addr1 = addr1;
+	smp_tlb_addr2 = addr2;
+	smp_tlb_wait = 0;
+	if (mask == (u_int)-1)
+		ipi_all_but_self(vector);
+	else
+		ipi_selected(mask, vector);
+	while (atomic_load_acq_int(&smp_tlb_wait) < ncpu)
+		/* XXX cpu_pause() */ ;
+	mtx_unlock_spin(&smp_tlb_mtx);
+}
+#endif
+
 void
 smp_invltlb(void)
 {
 #if defined(APIC_IO)
-	if (smp_started)
-		ipi_all_but_self(IPI_INVLTLB);
+	if (smp_started) {
+		smp_tlb_shootdown(IPI_INVLTLB, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_global++;
+#endif
+	}
 #endif  /* APIC_IO */
 }
 
 void
-invlpg(u_int addr)
+smp_invlpg(u_int addr)
 {
-	__asm   __volatile("invlpg (%0)"::"r"(addr):"memory");
-
-	/* send a message to the other CPUs */
-	smp_invltlb();
+#if defined(APIC_IO)
+	if (smp_started) {
+		smp_tlb_shootdown(IPI_INVLPG, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_page++;
+#endif
+	}
+#endif  /* APIC_IO */
 }
 
 void
-invltlb(void)
+smp_invlpg_range(u_int addr1, u_int addr2)
 {
-	u_long  temp;
+#if defined(APIC_IO)
+	if (smp_started) {
+		smp_tlb_shootdown(IPI_INVLRNG, addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_range++;
+		ipi_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
+	}
+#endif  /* APIC_IO */
+}
 
-	/*
-	 * This should be implemented as load_cr3(rcr3()) when load_cr3() is
-	 * inlined.
-	 */
-	__asm __volatile("movl %%cr3, %0; movl %0, %%cr3":"=r"(temp) :: "memory");
+void
+smp_masked_invltlb(u_int mask)
+{
+#if defined(APIC_IO)
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(mask, IPI_INVLTLB, 0, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_global++;
+#endif
+	}
+#endif  /* APIC_IO */
+}
 
-	/* send a message to the other CPUs */
-	smp_invltlb();
+void
+smp_masked_invlpg(u_int mask, u_int addr)
+{
+#if defined(APIC_IO)
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(mask, IPI_INVLPG, addr, 0);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_page++;
+#endif
+	}
+#endif  /* APIC_IO */
+}
+
+void
+smp_masked_invlpg_range(u_int mask, u_int addr1, u_int addr2)
+{
+#if defined(APIC_IO)
+	if (smp_started) {
+		smp_targeted_tlb_shootdown(mask, IPI_INVLRNG, addr1, addr2);
+#ifdef COUNT_XINVLTLB_HITS
+		ipi_masked_range++;
+		ipi_masked_range_size += (addr2 - addr1) / PAGE_SIZE;
+#endif
+	}
+#endif  /* APIC_IO */
 }
 
 
@@ -2280,6 +2451,9 @@ ap_init(void)
 	/* Build our map of 'other' CPUs. */
 	PCPU_SET(other_cpus, all_cpus & ~PCPU_GET(cpumask));
 
+	if (bootverbose)
+		apic_dump("ap_init()");
+
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	if (smp_cpus == mp_ncpus) {
@@ -2312,7 +2486,8 @@ forwarded_statclock(struct trapframe frame)
 {
 
 	mtx_lock_spin(&sched_lock);
-	statclock_process(curthread->td_kse, TRAPF_PC(&frame), TRAPF_USERMODE(&frame));
+	statclock_process(curthread->td_kse, TRAPF_PC(&frame),
+	    TRAPF_USERMODE(&frame));
 	mtx_unlock_spin(&sched_lock);
 }
 
