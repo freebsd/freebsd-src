@@ -57,6 +57,7 @@
  * 3Com 3c450-TX	10/100Mbps/RJ-45 (Tornado ASIC)
  * 3Com 3c556		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
  * 3Com 3c556B		10/100Mbps/RJ-45 (MiniPCI, Hurricane ASIC)
+ * 3Com 3c575TX		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
  * 3Com 3c575B		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
  * 3Com 3c575C		10/100Mbps/RJ-45 (Cardbus, Hurricane ASIC)
  * Dell Optiplex GX1 on-board 3c918 10/100Mbps/RJ-45
@@ -193,6 +194,8 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c556 Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_556B,
 		"3Com 3c556B Fast Etherlink XL" },
+	{ TC_VENDORID, TC_DEVICEID_HURRICANE_575A,
+		"3Com 3c575TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_575B,
 		"3Com 3c575B Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_575C,
@@ -1172,6 +1175,7 @@ static void xl_choose_xcvr(sc, verbose)
 	case TC_DEVICEID_BOOMERANG_10_100BT:	/* 3c905-TX */
 	case TC_DEVICEID_HURRICANE_556:		/* 3c556 */
 	case TC_DEVICEID_HURRICANE_556B:	/* 3c556B */
+	case TC_DEVICEID_HURRICANE_575A:	/* 3c575TX */
 	case TC_DEVICEID_HURRICANE_575B:	/* 3c575B */
 	case TC_DEVICEID_HURRICANE_575C:	/* 3c575C */
 		sc->xl_media = XL_MEDIAOPT_MII;
@@ -1240,7 +1244,8 @@ static int xl_attach(dev)
 	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_556)
 		sc->xl_flags |= XL_FLAG_8BITROM;
 
-	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B ||
+	if (pci_get_device(dev) == TC_DEVICEID_HURRICANE_575A ||
+	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575B ||
 	    pci_get_device(dev) == TC_DEVICEID_HURRICANE_575C)
 		sc->xl_flags |= XL_FLAG_FUNCREG | XL_FLAG_PHYOK |
 		    XL_FLAG_EEPROM_OFFSET_30 | XL_FLAG_8BITROM;
