@@ -764,6 +764,9 @@ options 	ENABLE_VFS_IOOPT
 # Cryptographically secure random number generator; /dev/[u]random
 device		random
 
+# Avoid blocking the random device
+options		NOBLOCKRANDOM
+
 
 #####################################################################
 # POSIX P1003.1B
