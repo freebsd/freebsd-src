@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.132 1996/03/26 19:57:23 wollman Exp $
+#	$Id: files.i386,v 1.133 1996/03/29 13:39:48 bde Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -15,13 +15,13 @@ aic7xxx_seq.h			optional	ahc	device-driver	   \
 	clean		"aic7xxx_seq.h"					   \
 	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq aic7xxx_asm"
 #
-linux_genassym			optional	linux			   \
+linux_genassym			optional	compat_linux		   \
 	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
 	compile-with	"${CC} ${CFLAGS} -o $@ $<"			   \
 	no-obj no-implicit-rule						   \
 	clean		"linux_genassym"
 #
-linux_assym.h			optional	linux			   \
+linux_assym.h			optional	compat_linux		   \
 	dependency 	"linux_genassym"		   \
 	compile-with	"./linux_genassym > $@"				   \
 	no-obj no-implicit-rule before-depend				   \
@@ -193,20 +193,20 @@ i386/isa/atapi.c		optional	atapi	device-driver
 i386/isa/wcd.c			optional	wcd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
-i386/linux/imgact_linux.c	optional	linux
-i386/linux/linux_dummy.c	optional	linux
-i386/linux/linux_file.c		optional	linux
-i386/linux/linux_ioctl.c	optional	linux
-i386/linux/linux_ipc.c		optional	linux
-i386/linux/linux_locore.s	optional	linux \
+i386/linux/imgact_linux.c	optional	compat_linux
+i386/linux/linux_dummy.c	optional	compat_linux
+i386/linux/linux_file.c		optional	compat_linux
+i386/linux/linux_ioctl.c	optional	compat_linux
+i386/linux/linux_ipc.c		optional	compat_linux
+i386/linux/linux_locore.s	optional	compat_linux \
 	dependency 	"linux_assym.h"
-i386/linux/linux_misc.c		optional	linux
-i386/linux/linux_signal.c	optional	linux
-i386/linux/linux_socket.c	optional	linux
-i386/linux/linux_stats.c	optional	linux
-i386/linux/linux_sysent.c	optional	linux
-i386/linux/linux_sysvec.c	optional	linux
-i386/linux/linux_util.c		optional	linux
+i386/linux/linux_misc.c		optional	compat_linux
+i386/linux/linux_signal.c	optional	compat_linux
+i386/linux/linux_socket.c	optional	compat_linux
+i386/linux/linux_stats.c	optional	compat_linux
+i386/linux/linux_sysent.c	optional	compat_linux
+i386/linux/linux_sysvec.c	optional	compat_linux
+i386/linux/linux_util.c		optional	compat_linux
 i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
 	dependency	"$S/dev/aic7xxx/aic7xxx_reg.h aic7xxx_seq.h"
 i386/scsi/bt.c			optional	bt	device-driver
