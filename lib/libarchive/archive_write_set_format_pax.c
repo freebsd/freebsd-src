@@ -657,7 +657,7 @@ archive_write_pax_header(struct archive *a,
 
 		/* Note that the 'x' header shouldn't ever fail to format */
 		if (ret != 0) {
-			const char *msg = "archive_write_header_pax: "
+			const char *msg = "archive_write_pax_header: "
 			    "'x' header failed?!  This can't happen.\n";
 			write(2, msg, strlen(msg));
 			exit(1);
