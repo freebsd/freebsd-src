@@ -48,6 +48,7 @@ static char *id =
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <machine/pcvt_ioctl.h>
+#include <unistd.h>
 #include <paths.h>
 
 #define DEFAULTFD 0
@@ -56,10 +57,6 @@ main(argc,argv)
 int argc;
 char *argv[];
 {
-	extern int optind;
-	extern int opterr;
-	extern char *optarg;
-
 	struct cursorshape cursorshape;
 	int fd;
 	int c;
