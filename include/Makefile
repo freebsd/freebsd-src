@@ -21,7 +21,8 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h ctype.h db.h \
 	search.h setjmp.h sgtty.h \
 	signal.h stab.h stdbool.h stddef.h stdio.h stdlib.h strhash.h \
 	string.h stringlist.h strings.h sysexits.h tar.h time.h timeconv.h \
-	timers.h ttyent.h unistd.h utime.h utmp.h vis.h wchar.h wctype.h
+	timers.h ttyent.h ulimit.h unistd.h utime.h utmp.h vis.h wchar.h \
+	wctype.h
 
 MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 
