@@ -4,7 +4,7 @@
 0, 44	util.c		printav	print address of each string
 1	main.c		main	print from person
 2	main.c		finis
-3	conf.c		getla
+3	conf.c		getla, shouldqueue
 4	conf.c		enoughspace
 5	clock.c		setevent, clrevent, tick
 6	savemail.c	savemail, returntosender
@@ -50,6 +50,9 @@
 40	queue.c		queueup, orderq, dowork
 41	queue.c		orderq
 42	mci.c		mci_get
+43	mime.c		mime8to7
+44	recipient.c	writeable
+44	util.c		safefile
 45	envelope.c	setsender
 46	envelope.c	openxscript
 49	conf.c		checkcompat
@@ -61,4 +64,8 @@
 55	conf.c		lockfile
 59	Extended Load Average implementation from Christophe Wolfhugel
 60	map.c
+61	conf.c		sm_gethostbyname
+80			content length
+81			sun remote mode
 91	mci.c		syslogging of MCI cache information
+99	main.c		avoid backgrounding (no printed output)

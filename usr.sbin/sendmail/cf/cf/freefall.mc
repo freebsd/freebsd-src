@@ -1,8 +1,8 @@
 divert(-1)
 #
 # Copyright (c) 1983 Eric P. Allman
-# Copyright (c) 1988 The Regents of the University of California.
-# All rights reserved.
+# Copyright (c) 1988, 1993
+#	The Regents of the University of California.  All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -33,15 +33,30 @@ divert(-1)
 # SUCH DAMAGE.
 #
 
-include(`../m4/cf.m4')
-VERSIONID(`@(#)freefall.mc	$Revision: 1.1 $')
+VERSIONID(`@(#)freefall.mc	$Revision: 1.7 $')
 OSTYPE(bsd4.4)dnl
+DOMAIN(generic)dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
+FEATURE(mailertable, `hash -o /etc/mailertable')dnl
 define(`UUCP_RELAY', ucbvax.Berkeley.EDU)dnl
 define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
 define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`confCHECKPOINT_INTERVAL', 4)dnl
-define(`confAUTO_REBUILD', True)dnl
-
-
+define(`confCHECKPOINT_INTERVAL', `4')dnl
+define(`confAUTO_REBUILD', `True')dnl
+define(`confMIN_FREE_BLOCKS', `1024')dnl
+define(`confSMTP_MAILER', `smtp8')dnl
+define(`confME_TOO', `True')dnl
+define(`confMCI_CACHE_TIMEOUT', `10m')dnl
+define(`confTO_QUEUEWARN', `1d')dnl
+define(`confTO_QUEUEWARN_NORMAL', `1d')dnl
+define(`confTO_RCPT', `10m')dnl
+define(`confTO_DATABLOCK', `10m')dnl
+define(`confTO_DATAFINAL', `10m')dnl
+define(`confTO_COMMAND', `10m')dnl
+define(`confMIN_QUEUE_AGE', `30m')dnl
+define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
+define(`confTRUSTED_USERS', `majordom')
+define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)$.
+          by $j ($v/$Z)$?r with $r$. id $i
+          $?ufor $u; $.$b')

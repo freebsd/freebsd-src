@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,10 +33,14 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)macro.c	8.3 (Berkeley) 2/7/94";
+static char sccsid[] = "@(#)macro.c	8.13 (Berkeley) 7/10/95";
 #endif /* not lint */
 
 # include "sendmail.h"
+
+char	*MacroName[256];	/* macro id to name table */
+int	NextMacroId = 0240;	/* codes for long named macros */
+
 
 /*
 **  EXPAND -- macro expand a string using $x escapes.
@@ -44,8 +48,7 @@ static char sccsid[] = "@(#)macro.c	8.3 (Berkeley) 2/7/94";
 **	Parameters:
 **		s -- the string to expand.
 **		buf -- the place to put the expansion.
-**		buflim -- the buffer limit, i.e., the address
-**			of the last usable position in buf.
+**		bufsize -- the size of the buffer.
 **		e -- envelope in which to work.
 **
 **	Returns:
@@ -56,10 +59,10 @@ static char sccsid[] = "@(#)macro.c	8.3 (Berkeley) 2/7/94";
 */
 
 void
-expand(s, buf, buflim, e)
+expand(s, buf, bufsize, e)
 	register char *s;
 	register char *buf;
-	char *buflim;
+	size_t bufsize;
 	register ENVELOPE *e;
 {
 	register char *xp;
@@ -115,7 +118,7 @@ expand(s, buf, buflim, e)
 			continue;
 
 		  case MACROEXPAND:	/* macro interpolation */
-			c = *++s & 0177;
+			c = *++s & 0377;
 			if (c != '\0')
 				q = macvalue(c, e);
 			else
@@ -160,14 +163,14 @@ expand(s, buf, buflim, e)
 	/* recurse as appropriate */
 	if (recurse)
 	{
-		expand(xbuf, buf, buflim, e);
+		expand(xbuf, buf, bufsize, e);
 		return;
 	}
 
 	/* copy results out */
-	i = buflim - buf - 1;
-	if (i > xp - xbuf)
-		i = xp - xbuf;
+	i = xp - xbuf;
+	if (i >= bufsize)
+		i = bufsize - 1;
 	bcopy(xbuf, buf, i);
 	buf[i] = '\0';
 }
@@ -242,11 +245,12 @@ define(n, v, e)
 {
 	if (tTd(35, 9))
 	{
-		printf("define(%c as ", n);
+		printf("%sdefine(%s as ", 
+		    (e->e_macro[n & 0377] == NULL) ? "" : "re", macname(n));
 		xputs(v);
 		printf(")\n");
 	}
-	e->e_macro[n & 0177] = v;
+	e->e_macro[n & 0377] = v;
 }
 /*
 **  MACVALUE -- return uninterpreted value of a macro.
@@ -266,7 +270,7 @@ macvalue(n, e)
 	int n;
 	register ENVELOPE *e;
 {
-	n &= 0177;
+	n &= 0377;
 	while (e != NULL)
 	{
 		register char *p = e->e_macro[n];
@@ -276,4 +280,162 @@ macvalue(n, e)
 		e = e->e_parent;
 	}
 	return (NULL);
+}
+/*
+**  MACNAME -- return the name of a macro given its internal id
+**
+**	Parameter:
+**		n -- the id of the macro
+**
+**	Returns:
+**		The name of n.
+**
+**	Side Effects:
+**		none.
+*/
+
+char *
+macname(n)
+	int n;
+{
+	static char mbuf[2];
+
+	n &= 0377;
+	if (bitset(0200, n))
+	{
+		char *p = MacroName[n];
+
+		if (p != NULL)
+			return p;
+		return "***UNDEFINED MACRO***";
+	}
+	mbuf[0] = n;
+	mbuf[1] = '\0';
+	return mbuf;
+}
+/*
+**  MACID -- return id of macro identified by its name
+**
+**	Parameters:
+**		p -- pointer to name string -- either a single
+**			character or {name}.
+**		ep -- filled in with the pointer to the byte
+**			after the name.
+**
+**	Returns:
+**		The internal id code for this macro.  This will
+**		fit into a single byte.
+**
+**	Side Effects:
+**		If this is a new macro name, a new id is allocated.
+*/
+
+int
+macid(p, ep)
+	register char *p;
+	char **ep;
+{
+	int mid;
+	register char *bp;
+	char mbuf[21];
+
+	if (tTd(35, 14))
+	{
+		printf("macid(");
+		xputs(p);
+		printf(") => ");
+	}
+
+	if (*p == '\0' || (p[0] == '{' && p[1] == '}'))
+	{
+		syserr("Name required for macro/class");
+		if (ep != NULL)
+			*ep = p;
+		if (tTd(35, 14))
+			printf("NULL\n");
+		return '\0';
+	}
+	if (*p != '{')
+	{
+		/* the macro is its own code */
+		if (ep != NULL)
+			*ep = p + 1;
+		if (tTd(35, 14))
+			printf("%c\n", *p);
+		return *p;
+	}
+	bp = mbuf;
+	while (*++p != '\0' && *p != '}' && bp < &mbuf[sizeof mbuf])
+	{
+		if (isascii(*p) && (isalnum(*p) || *p == '_'))
+			*bp++ = *p;
+		else
+			syserr("Invalid macro/class character %c", *p);
+	}
+	*bp = '\0';
+	mid = -1;
+	if (*p == '\0')
+	{
+		syserr("Unbalanced { on %s", mbuf);	/* missing } */
+	}
+	else if (*p != '}')
+	{
+		syserr("Macro/class name ({%s}) too long (%d chars max)",
+			mbuf, sizeof mbuf - 1);
+	}
+	else if (mbuf[1] == '\0')
+	{
+		/* ${x} == $x */
+		mid = mbuf[0];
+		p++;
+	}
+	else
+	{
+		register STAB *s;
+
+		s = stab(mbuf, ST_MACRO, ST_ENTER);
+		if (s->s_macro != 0)
+			mid = s->s_macro;
+		else
+		{
+			if (NextMacroId > 0377)
+			{
+				syserr("Macro/class {%s}: too many long names", mbuf);
+				s->s_macro = -1;
+			}
+			else
+			{
+				MacroName[NextMacroId] = s->s_name;
+				s->s_macro = mid = NextMacroId++;
+			}
+		}
+		p++;
+	}
+	if (ep != NULL)
+		*ep = p;
+	if (tTd(35, 14))
+		printf("0x%x\n", mid);
+	return mid;
+}
+/*
+**  WORDINCLASS -- tell if a word is in a specific class
+**
+**	Parameters:
+**		str -- the name of the word to look up.
+**		cl -- the class name.
+**
+**	Returns:
+**		TRUE if str can be found in cl.
+**		FALSE otherwise.
+*/
+
+bool
+wordinclass(str, cl)
+	char *str;
+	int cl;
+{
+	register STAB *s;
+
+	s = stab(str, ST_CLASS, ST_FIND);
+	return s != NULL && bitnset(cl & 0xff, s->s_class);
 }

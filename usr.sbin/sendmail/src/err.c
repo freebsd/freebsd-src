@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983 Eric P. Allman
+ * Copyright (c) 1983, 1995 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,13 +33,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.27 (Berkeley) 4/18/94";
+static char sccsid[] = "@(#)err.c	8.42 (Berkeley) 11/29/95";
 #endif /* not lint */
 
 # include "sendmail.h"
 # include <errno.h>
-# include <netdb.h>
-# include <pwd.h>
 
 /*
 **  SYSERR -- Print error message.
@@ -53,8 +51,11 @@ static char sccsid[] = "@(#)err.c	8.27 (Berkeley) 4/18/94";
 **	be used lightly.
 **
 **	Parameters:
-**		f -- the format string
-**		a, b, c, d, e -- parameters
+**		fmt -- the format string.  If it does not begin with
+**			a three-digit SMTP reply code, either 554 or
+**			451 is assumed depending on whether errno
+**			is set.
+**		(others) -- parameters
 **
 **	Returns:
 **		none
@@ -65,9 +66,12 @@ static char sccsid[] = "@(#)err.c	8.27 (Berkeley) 4/18/94";
 **		sets ExitStat.
 */
 
-char	MsgBuf[BUFSIZ*2];	/* text of most recent message */
+char	MsgBuf[BUFSIZ*2];		/* text of most recent message */
+char	HeldMessageBuf[sizeof MsgBuf];	/* for held messages */
 
-static void	fmtmsg();
+extern void	putoutmsg __P((char *, bool, bool));
+extern void	puterrmsg __P((char *));
+static void	fmtmsg __P((char *, const char *, const char *, int, const char *, va_list));
 
 #if NAMED_BIND && !defined(NO_DATA)
 # define NO_DATA	NO_ADDRESS
@@ -107,6 +111,14 @@ syserr(fmt, va_alist)
 	VA_END;
 	puterrmsg(MsgBuf);
 
+	/* save this message for mailq printing */
+	if (!panic)
+	{
+		if (CurEnv->e_message != NULL)
+			free(CurEnv->e_message);
+		CurEnv->e_message = newstr(MsgBuf + 4);
+	}
+
 	/* determine exit status if not already set */
 	if (ExitStat == EX_OK)
 	{
@@ -119,7 +131,7 @@ syserr(fmt, va_alist)
 	}
 
 # ifdef LOG
-	pw = getpwuid(getuid());
+	pw = sm_getpwuid(getuid());
 	if (pw != NULL)
 		uname = pw->pw_name;
 	else
@@ -129,7 +141,7 @@ syserr(fmt, va_alist)
 	}
 
 	if (LogLevel > 0)
-		syslog(panic ? LOG_ALERT : LOG_CRIT, "%s: SYSERR(%s): %s",
+		syslog(panic ? LOG_ALERT : LOG_CRIT, "%s: SYSERR(%s): %.900s",
 			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
 			uname, &MsgBuf[4]);
 # endif /* LOG */
@@ -143,6 +155,8 @@ syserr(fmt, va_alist)
 #ifdef XLA
 		xla_all_end();
 #endif
+		if (tTd(0, 1))
+			abort();
 		exit(EX_OSERR);
 	}
 	errno = 0;
@@ -155,7 +169,9 @@ syserr(fmt, va_alist)
 **	This is much like syserr except it is for user errors.
 **
 **	Parameters:
-**		fmt, a, b, c, d -- printf strings
+**		fmt -- the format string.  If it does not begin with
+**			a three-digit SMTP reply code, 501 is assumed.
+**		(others) -- printf strings
 **
 **	Returns:
 **		none
@@ -183,11 +199,41 @@ usrerr(fmt, va_alist)
 	VA_START(fmt);
 	fmtmsg(MsgBuf, CurEnv->e_to, "501", 0, fmt, ap);
 	VA_END;
+
+	/* save this message for mailq printing */
+	switch (MsgBuf[0])
+	{
+	  case '4':
+	  case '8':
+		if (CurEnv->e_message != NULL)
+			break;
+
+		/* fall through.... */
+
+	  case '5':
+	  case '6':
+		if (CurEnv->e_message != NULL)
+			free(CurEnv->e_message);
+		if (MsgBuf[0] == '6')
+		{
+			char buf[MAXLINE];
+
+			sprintf(buf, "Postmaster warning: %.*s",
+				sizeof buf - 22, MsgBuf + 4);
+			CurEnv->e_message = newstr(buf);
+		}
+		else
+		{
+			CurEnv->e_message = newstr(MsgBuf + 4);
+		}
+		break;
+	}
+
 	puterrmsg(MsgBuf);
 
 # ifdef LOG
 	if (LogLevel > 3 && LogUsrErrs)
-		syslog(LOG_NOTICE, "%s: %s",
+		syslog(LOG_NOTICE, "%s: %.900s",
 			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
 			&MsgBuf[4]);
 # endif /* LOG */
@@ -201,7 +247,7 @@ usrerr(fmt, va_alist)
 **	Parameters:
 **		msg -- the message (printf fmt) -- it can begin with
 **			an SMTP reply code.  If not, 050 is assumed.
-**		a, b, c, d, e -- printf arguments
+**		(others) -- printf arguments
 **
 **	Returns:
 **		none
@@ -226,7 +272,23 @@ message(msg, va_alist)
 	VA_START(msg);
 	fmtmsg(MsgBuf, CurEnv->e_to, "050", 0, msg, ap);
 	VA_END;
-	putoutmsg(MsgBuf, FALSE);
+	putoutmsg(MsgBuf, FALSE, FALSE);
+
+	/* save this message for mailq printing */
+	switch (MsgBuf[0])
+	{
+	  case '4':
+	  case '8':
+		if (CurEnv->e_message != NULL)
+			break;
+		/* fall through.... */
+
+	  case '5':
+		if (CurEnv->e_message != NULL)
+			free(CurEnv->e_message);
+		CurEnv->e_message = newstr(MsgBuf + 4);
+		break;
+	}
 }
 /*
 **  NMESSAGE -- print message (not necessarily an error)
@@ -234,10 +296,10 @@ message(msg, va_alist)
 **	Just like "message" except it never puts the to... tag on.
 **
 **	Parameters:
-**		num -- the default ARPANET error number (in ascii)
 **		msg -- the message (printf fmt) -- if it begins
-**			with three digits, this number overrides num.
-**		a, b, c, d, e -- printf arguments
+**			with a three digit SMTP reply code, that is used,
+**			otherwise 050 is assumed.
+**		(others) -- printf arguments
 **
 **	Returns:
 **		none
@@ -262,7 +324,23 @@ nmessage(msg, va_alist)
 	VA_START(msg);
 	fmtmsg(MsgBuf, (char *) NULL, "050", 0, msg, ap);
 	VA_END;
-	putoutmsg(MsgBuf, FALSE);
+	putoutmsg(MsgBuf, FALSE, FALSE);
+
+	/* save this message for mailq printing */
+	switch (MsgBuf[0])
+	{
+	  case '4':
+	  case '8':
+		if (CurEnv->e_message != NULL)
+			break;
+		/* fall through.... */
+
+	  case '5':
+		if (CurEnv->e_message != NULL)
+			free(CurEnv->e_message);
+		CurEnv->e_message = newstr(MsgBuf + 4);
+		break;
+	}
 }
 /*
 **  PUTOUTMSG -- output error message to transcript and channel
@@ -271,6 +349,8 @@ nmessage(msg, va_alist)
 **		msg -- message to output (in SMTP format).
 **		holdmsg -- if TRUE, don't output a copy of the message to
 **			our output channel.
+**		heldmsg -- if TRUE, this is a previously held message;
+**			don't log it to the transcript file.
 **
 **	Returns:
 **		none.
@@ -281,25 +361,42 @@ nmessage(msg, va_alist)
 **		Deletes SMTP reply code number as appropriate.
 */
 
-putoutmsg(msg, holdmsg)
+void
+putoutmsg(msg, holdmsg, heldmsg)
 	char *msg;
 	bool holdmsg;
+	bool heldmsg;
 {
+	char msgcode = msg[0];
+
 	/* display for debugging */
 	if (tTd(54, 8))
-		printf("--- %s%s\n", msg, holdmsg ? " (held)" : "");
-
-	/* output to transcript if serious */
-	if (CurEnv->e_xfp != NULL && strchr("456", msg[0]) != NULL)
-		fprintf(CurEnv->e_xfp, "%s\n", msg);
-
-	/* output to channel if appropriate */
-	if (holdmsg || (!Verbose && msg[0] == '0'))
-		return;
+		printf("--- %s%s%s\n", msg, holdmsg ? " (hold)" : "",
+			heldmsg ? " (held)" : "");
 
 	/* map warnings to something SMTP can handle */
-	if (msg[0] == '6')
+	if (msgcode == '6')
 		msg[0] = '5';
+	else if (msgcode == '8')
+		msg[0] = '4';
+
+	/* output to transcript if serious */
+	if (!heldmsg && CurEnv->e_xfp != NULL && strchr("45", msg[0]) != NULL)
+		fprintf(CurEnv->e_xfp, "%s\n", msg);
+
+	if (msgcode == '8')
+		msg[0] = '0';
+
+	/* output to channel if appropriate */
+	if (!Verbose && msg[0] == '0')
+		return;
+	if (holdmsg)
+	{
+		/* save for possible future display */
+		msg[0] = msgcode;
+		strcpy(HeldMessageBuf, msg);
+		return;
+	}
 
 	(void) fflush(stdout);
 
@@ -334,7 +431,7 @@ putoutmsg(msg, holdmsg)
 			"%s: SYSERR: putoutmsg (%s): error on output channel sending \"%s\": %s",
 			CurEnv->e_id == NULL ? "NOQUEUE" : CurEnv->e_id,
 			CurHostName == NULL ? "NO-HOST" : CurHostName,
-			msg, errstring(errno));
+			shortenstring(msg, 203), errstring(errno));
 #endif
 }
 /*
@@ -350,13 +447,14 @@ putoutmsg(msg, holdmsg)
 **		Sets the fatal error bit in the envelope as appropriate.
 */
 
+void
 puterrmsg(msg)
 	char *msg;
 {
 	char msgcode = msg[0];
 
 	/* output the message as usual */
-	putoutmsg(msg, HoldErrs);
+	putoutmsg(msg, HoldErrs, FALSE);
 
 	/* signal the error */
 	Errors++;
@@ -392,14 +490,16 @@ puterrmsg(msg)
 static void
 fmtmsg(eb, to, num, eno, fmt, ap)
 	register char *eb;
-	char *to;
-	char *num;
+	const char *to;
+	const char *num;
 	int eno;
-	char *fmt;
+	const char *fmt;
 	va_list ap;
 {
 	char del;
 	char *meb;
+	int l;
+	int spaceleft = sizeof MsgBuf;
 
 	/* output the reply code */
 	if (isdigit(fmt[0]) && isdigit(fmt[1]) && isdigit(fmt[2]))
@@ -413,18 +513,23 @@ fmtmsg(eb, to, num, eno, fmt, ap)
 		del = ' ';
 	(void) sprintf(eb, "%3.3s%c", num, del);
 	eb += 4;
+	spaceleft -= 4;
 
 	/* output the file name and line number */
 	if (FileName != NULL)
 	{
-		(void) sprintf(eb, "%s: line %d: ", FileName, LineNumber);
-		eb += strlen(eb);
+		(void) snprintf(eb, spaceleft, "%s: line %d: ",
+			shortenstring(FileName, 83), LineNumber);
+		eb += (l = strlen(eb));
+		spaceleft -= l;
 	}
 
 	/* output the "to" person */
 	if (to != NULL && to[0] != '\0')
 	{
-		(void) sprintf(eb, "%s... ", shortenstring(to, 203));
+		(void) snprintf(eb, spaceleft, "%s... ",
+			shortenstring(to, 203));
+		spaceleft -= strlen(eb);
 		while (*eb != '\0')
 			*eb++ &= 0177;
 	}
@@ -432,23 +537,50 @@ fmtmsg(eb, to, num, eno, fmt, ap)
 	meb = eb;
 
 	/* output the message */
-	(void) vsprintf(eb, fmt, ap);
+	(void) vsnprintf(eb, spaceleft, fmt, ap);
+	spaceleft -= strlen(eb);
 	while (*eb != '\0')
 		*eb++ &= 0177;
 
 	/* output the error code, if any */
 	if (eno != 0)
-	{
-		(void) sprintf(eb, ": %s", errstring(eno));
-		eb += strlen(eb);
-	}
+		(void) snprintf(eb, spaceleft, ": %s", errstring(eno));
+}
+/*
+**  BUFFER_ERRORS -- arrange to buffer future error messages
+**
+**	Parameters:
+**		none
+**
+**	Returns:
+**		none.
+*/
 
-	if (num[0] == '5' || (CurEnv->e_message == NULL && num[0] == '4'))
-	{
-		if (CurEnv->e_message != NULL)
-			free(CurEnv->e_message);
-		CurEnv->e_message = newstr(meb);
-	}
+void
+buffer_errors()
+{
+	HeldMessageBuf[0] = '\0';
+	HoldErrs = TRUE;
+}
+/*
+**  FLUSH_ERRORS -- flush the held error message buffer
+**
+**	Parameters:
+**		print -- if set, print the message, otherwise just
+**			delete it.
+**
+**	Returns:
+**		none.
+*/
+
+void
+flush_errors(print)
+	bool print;
+{
+	if (print && HeldMessageBuf[0] != '\0')
+		putoutmsg(HeldMessageBuf, FALSE, TRUE);
+	HeldMessageBuf[0] = '\0';
+	HoldErrs = FALSE;
 }
 /*
 **  ERRSTRING -- return string description of error code
@@ -505,13 +637,15 @@ errstring(errnum)
 	  case EHOSTDOWN:
 		if (CurHostName == NULL)
 			break;
-		(void) sprintf(buf, "Host %s is down", CurHostName);
+		(void) sprintf(buf, "Host %s is down",
+			shortenstring(CurHostName, 203));
 		return (buf);
 
 	  case ECONNREFUSED:
 		if (CurHostName == NULL)
 			break;
-		(void) sprintf(buf, "Connection refused by %s", CurHostName);
+		(void) sprintf(buf, "Connection refused by %s",
+			shortenstring(CurHostName, 203));
 		return (buf);
 # endif
 

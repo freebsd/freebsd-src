@@ -1,9 +1,9 @@
 cpyr
-cpyr	Copyright (c) 1983  Eric P. Allman
+cpyr	Copyright (c) 1983, 1995  Eric P. Allman
 cpyr	Copyright (c) 1988, 1993
 cpyr	    The Regents of the University of California.  All rights reserved.
 cpyr	
-cpyr	@(#)sendmail.hf	8.2 (Berkeley) 7/16/93
+cpyr	@(#)sendmail.hf	8.7 (Berkeley) 10/1/95
 cpyr
 smtp	Commands:
 smtp		HELO	EHLO	MAIL	RCPT	DATA
@@ -11,7 +11,7 @@ smtp		RSET	NOOP	QUIT	HELP	VRFY
 smtp		EXPN	VERB
 smtp	For more info use "HELP <topic>".
 smtp	To report bugs in the implementation send email to
-smtp		sendmail@CS.Berkeley.EDU.
+smtp		sendmail-bugs@sendmail.org.
 smtp	For local information send email to Postmaster at your site.
 help	HELP [ <topic> ]
 help		The HELP command gives help info.
@@ -32,7 +32,7 @@ quit	QUIT
 quit		Exit sendmail (SMTP).
 verb	VERB
 verb		Go into verbose mode.  This sends 0xy responses that are
-verb		are not RFC821 standard (but should be)  They are recognized
+verb		not RFC821 standard (but should be)  They are recognized
 verb		by humans and other sendmail implementations.
 vrfy	VRFY <recipient>
 vrfy		Verify an address.  If you want to see what it aliases
@@ -56,3 +56,23 @@ saml		implementation.
 turn	TURN
 turn		Reverses the direction of the connection.  Not currently
 turn		implemented.
+-bt	Help for test mode:
+-bt	?                :this help message.
+-bt	.Dmvalue         :define macro `m' to `value'.
+-bt	.Ccvalue         :add `value' to class `c'.
+-bt	=Sruleset        :dump the contents of the indicated ruleset.
+-bt	=M               :display the known mailers.
+-bt	-ddebug-spec     :equivalent to the command-line -d debug flag.
+-bt	$m               :print the value of macro $m.
+-bt	$=c              :print the contents of class $=c.
+-bt	/mx host         :returns the MX records for `host'.
+-bt	/parse address   :parse address, returning the value of crackaddr, and
+-bt	                  the parsed address (same as -bv).
+-bt	/try mailer addr :rewrite address into the form it will have when
+-bt	                  presented to the indicated mailer.
+-bt	/tryflags flags  :set flags used by parsing.  The flags can be `H' for
+-bt	                  Header or `E' for Envelope, and `S' for Sender or `R'
+-bt	                  for Recipient.  These can be combined, `HR' sets
+-bt			  flags for header recipients.
+-bt	/canon hostname  :try to canonify hostname.
+-bt	/map mapname key :look up `key' in the indicated `mapname'.
