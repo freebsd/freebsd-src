@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.51 1996/08/01 12:59:54 jkh Exp $
+ * $Id: media.c,v 1.52 1996/08/03 10:11:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -259,12 +259,18 @@ mediaSetFTP(dialogMenuItem *self)
     static Device ftpDevice;
     char *cp, *hostname, *dir;
     extern int FtpPort;
+    static int first_time = 1;
 
     dialog_clear_norefresh();
-    if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-	return DITEM_FAILURE | DITEM_RECREATE;
-    else
-	cp = variable_get(VAR_FTP_PATH);
+    cp = variable_get(VAR_FTP_PATH);
+    if (!(cp && first_time)) {
+	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
+	    return DITEM_FAILURE | DITEM_RECREATE;
+	else
+	    cp = variable_get(VAR_FTP_PATH);
+    }
+    if (first_time)
+	first_time = 0;
     if (!cp) {
 	msgConfirm("%s not set!  Not setting an FTP installation path, OK?", VAR_FTP_PATH);
 	return DITEM_FAILURE | DITEM_RECREATE;
