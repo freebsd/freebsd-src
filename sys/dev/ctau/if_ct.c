@@ -875,7 +875,8 @@ static void ct_tlf (struct sppp *sp)
 	CT_DEBUG (d, ("ct_tlf\n"));
 /*	ct_set_dtr (d->chan, 0);*/
 /*	ct_set_rts (d->chan, 0);*/
-	sp->pp_down (sp);
+	if (!(d->pp.pp_flags & PP_FR) && !(d->pp.pp_if.if_flags & PP_CISCO))
+		sp->pp_down (sp);
 }
 
 static void ct_tls (struct sppp *sp)
@@ -883,7 +884,8 @@ static void ct_tls (struct sppp *sp)
 	drv_t *d = sp->pp_if.if_softc;
 
 	CT_DEBUG (d, ("ct_tls\n"));
-	sp->pp_up (sp);
+	if (!(d->pp.pp_flags & PP_FR) && !(d->pp.pp_if.if_flags & PP_CISCO))
+		sp->pp_up (sp);
 }
 
 /*
