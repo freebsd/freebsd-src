@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.35 1997/09/21 22:00:16 gibbs Exp $
+ * $Id: kern_time.c,v 1.36 1997/10/15 13:58:52 peter Exp $
  */
 
 #include <sys/param.h>
@@ -269,11 +269,13 @@ nanosleep1(p, rqt, rmt)
 			s = splclock();
 			utv = time;
 			splx(s);
+			if (i != n) {
+				atv.tv_sec += (n - i - 1) * 100000000;
+				timevaladd(&atv, &rtv);
+			}
 			timevalsub(&atv, &utv);
 			if (atv.tv_sec < 0)
 				timerclear(&atv);
-			if (n > 0)
-				atv.tv_sec += (n - i) * 100000000;
 			TIMEVAL_TO_TIMESPEC(&atv, rmt);
 		}
 	}
