@@ -69,13 +69,13 @@ The
 and
 .Fn cabsf
 functions compute the complex absolute value of
-.Ar z .
+.Fa z .
 .Pp
 .Fn hypot "\*(If" "v"
 =
 .Fn hypot "v" "\*(If"
 = +\*(If for all
-.Ar v ,
+.Fa v ,
 including \*(Na.
 .Sh ERROR (due to Roundoff, etc.)
 Below 0.97
@@ -98,7 +98,7 @@ and
 .Fn hypot "\*(Na" "v"
 are \*(Na for all
 .Em finite
-.Ar v ;
+.Fa v ;
 with "reserved operand" in place of "\*(Na", the
 same is true on a
 .Tn VAX .
@@ -113,12 +113,12 @@ This is intentional; it happens because
 = +\*(If
 for
 .Em all
-.Ar v ,
+.Fa v ,
 finite or infinite.
 Hence
 .Fn hypot "\*(If" "v"
 is independent of
-.Ar v .
+.Fa v .
 Unlike the reserved operand fault on a
 .Tn VAX ,
 the
