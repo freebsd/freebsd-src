@@ -161,6 +161,7 @@ char	**argv;
 	register char		**av;
 	struct	sgttyb		argp;
 
+	/* revoke */
 	setgid(getgid());
 
 	av = argv;
