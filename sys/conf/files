@@ -701,4 +701,5 @@ dev/usb/ucom.c		optional ucom device-driver
 dev/usb/ums.c		optional ums device-driver
 dev/usb/ulpt.c		optional ulpt device-driver
 dev/usb/ukbd.c		optional ukbd device-driver
+dev/usb/umass.c		optional umass device-driver
 dev/usb/uhub.c		optional usb device-driver
