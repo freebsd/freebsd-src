@@ -71,14 +71,14 @@ acpi_print_dsdt_definition(void)
 	strncpy(oemtblid, dsdt_header.oemtblid, 8);
 	oemtblid[8] = '\0';
 
-	printf("DefinitionBlock (
-    \"acpi_dsdt.aml\",	//Output filename
-    \"DSDT\",		//Signature
-    0x%x,		//DSDT Revision
-    \"%s\",		//OEMID
-    \"%s\",		//TABLE ID
-    0x%x		//OEM Revision\n)\n",
-	dsdt_header.rev, oemid, oemtblid, dsdt_header.oemrev);
+	printf("DefinitionBlock (\n"
+	       "    \"acpi_dsdt.aml\",	//Output filename\n"
+	       "    \"DSDT\",		//Signature\n"
+	       "    0x%x,		//DSDT Revision\n"
+	       "    \"%s\",		//OEMID\n"
+	       "    \"%s\",		//TABLE ID\n"
+	       "    0x%x		//OEM Revision\n)\n",
+		dsdt_header.rev, oemid, oemtblid, dsdt_header.oemrev);
 }
 
 static void
