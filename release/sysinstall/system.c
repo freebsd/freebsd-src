@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.68 1996/12/11 19:35:26 jkh Exp $
+ * $Id: system.c,v 1.69 1996/12/12 08:23:51 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -28,6 +28,8 @@
 /* Where we stick our temporary expanded doc file */
 #define	DOC_TMP_DIR	"/tmp"
 #define	DOC_TMP_FILE	"/tmp/doc.tmp"
+
+static pid_t ehs_pid;
 
 /*
  * Handle interrupt signals - this probably won't work in all cases
@@ -294,7 +296,28 @@ void
 systemCreateHoloshell(void)
 {
     if (OnVTY && RunningAsInit) {
-	if (!fork()) {
+
+	if (ehs_pid != 0) {
+	    int pstat;
+
+	    if (kill(ehs_pid, 0) == 0) {
+
+		if (msgYesNo("There seems to be an emergency holographic shell\n"
+			     "already running von VTY 4.\n"
+			     "Kill it and start a new one?"))
+		    return;
+
+		/* try cleaning up as much as possible */
+		(void) kill(ehs_pid, SIGHUP);
+		sleep(1);
+		(void) kill(ehs_pid, SIGKILL);
+	    }
+
+	    /* avoid too many zombies */
+	    (void) waitpid(ehs_pid, &pstat, WNOHANG);
+	}
+
+	if ((ehs_pid = fork()) == 0) {
 	    int i, fd;
 	    struct termios foo;
 	    extern int login_tty(int);
