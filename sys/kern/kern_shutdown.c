@@ -67,6 +67,9 @@
 #include <machine/md_var.h>
 
 #include <sys/signalvar.h>
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -207,6 +210,11 @@ boot(int howto)
 
 	/* collect extra flags that shutdown_nice might have set */
 	howto |= shutdown_howto;
+
+#ifdef DDB
+	/* We are out of the debugger now. */
+	db_active = 0;
+#endif
 
 #ifdef SMP
 	if (smp_active)
