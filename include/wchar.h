@@ -144,6 +144,7 @@ size_t	wcsrtombs(char * __restrict, const wchar_t ** __restrict, size_t,
 size_t	wcsspn(const wchar_t *, const wchar_t *);
 wchar_t	*wcsstr(const wchar_t * __restrict, const wchar_t * __restrict);
 int	wctob(wint_t);
+double	wcstod(const wchar_t * __restrict, wchar_t ** __restrict);
 wchar_t	*wcstok(wchar_t * __restrict, const wchar_t * __restrict,
 	    wchar_t ** __restrict);
 long	 wcstol(const wchar_t * __restrict, wchar_t ** __restrict, int);

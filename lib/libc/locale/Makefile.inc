@@ -11,7 +11,8 @@ SRCS+=	big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c frune.c \
 	mbrtowc.c mbrune.c mbsinit.c mbsrtowcs.c mbtowc.c mbstowcs.c \
 	mskanji.c nl_langinfo.c nomacros.c none.c rune.c \
 	runetype.c setinvalidrune.c setlocale.c setrunelocale.c table.c \
-	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c wcsftime.c wcstol.c \
+	tolower.c toupper.c utf2.c wcrtomb.c wcsrtombs.c wcsftime.c wcstod.c \
+	wcstol.c \
 	wcstombs.c \
 	wcstoul.c wctob.c wctomb.c wctrans.c wctype.c wcwidth.c
 
@@ -25,7 +26,7 @@ MAN+=	btowc.3 \
 	rune.3 \
 	setlocale.3 toascii.3 tolower.3 toupper.3 towlower.3 wcsftime.3 \
 	wcrtomb.3 \
-	wcsrtombs.3 wcstol.3 \
+	wcsrtombs.3 wcstod.3 wcstol.3 \
 	wctrans.3 wctype.3 wcwidth.3
 MAN+=	euc.4 utf2.4
 
