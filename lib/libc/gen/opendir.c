@@ -137,7 +137,7 @@ __opendir2(name, flags)
 			if (space < DIRBLKSIZ) {
 				space += incr;
 				len += incr;
-				buf = realloc(buf, len);
+				buf = reallocf(buf, len);
 				if (buf == NULL)
 					goto fail;
 				ddptr = buf + (len - space);

@@ -57,13 +57,8 @@ int type; {
 
 	if (files >= size) {
 		size += HUNK;
-		if (path == NULL)
-			path = (struct term_path *)
-				malloc(size * sizeof(struct term_path));
-		else
-			path = (struct term_path *)
-				realloc((anyptr) path,
-					size * sizeof(struct term_path));
+		path = (struct term_path *) reallocf((anyptr) path,
+			size * sizeof(struct term_path));
 		if (path == NULL)
 			return 0;
 	}

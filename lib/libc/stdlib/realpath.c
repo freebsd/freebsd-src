@@ -105,7 +105,7 @@ loop:
                               errno = ELOOP;
                               goto err1;
                       }
-			n = readlink(p, resolved, MAXPATHLEN);
+			n = readlink(p, resolved, MAXPATHLEN - 1);
 			if (n < 0)
 				goto err1;
 			resolved[n] = '\0';

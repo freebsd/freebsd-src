@@ -266,7 +266,7 @@ grscan(search, gid, name)
 				    maxlinelength >= MAXLINELENGTHLIMIT)
 					return(0);
 
-				if ((line = (char *)realloc(line, 
+				if ((line = (char *)reallocf(line, 
 				     sizeof(char) * 
 				     (maxlinelength + MAXLINELENGTH))) == NULL)
 					return(0);
@@ -381,7 +381,7 @@ grscan(search, gid, name)
 		for (m = members; ; bp++) {
 			if (m == (members + maxgrp - 1)) {
 				if ((members = (char **)
-				     realloc(members, 
+				     reallocf(members, 
 					     sizeof(char **) * 
 					     (maxgrp + MAXGRP))) == NULL)
 					return(0);
@@ -439,7 +439,7 @@ _gr_breakout_yp(struct group *gr, char *result)
 
 	for (m = members; ; s++) {
 		if (m == members + maxgrp - 1) {
-			if ((members = (char **)realloc(members, 
+			if ((members = (char **)reallocf(members, 
 			     sizeof(char **) * (maxgrp + MAXGRP))) == NULL)
 				return(0);
 			m = members + maxgrp - 1;

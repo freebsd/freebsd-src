@@ -37,7 +37,7 @@ int ss_create_invocation(subsystem_name, version_string, info_ptr,
 
 	for (sci_idx = 1; table[sci_idx] != (ss_data *)NULL; sci_idx++)
 		;
-	table = (ss_data **) realloc((char *)table,
+	table = (ss_data **) reallocf((char *)table,
 				     ((unsigned)sci_idx+2)*size);
 	table[sci_idx+1] = (ss_data *) NULL;
 	table[sci_idx] = new_table;

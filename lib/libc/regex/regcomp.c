@@ -1185,12 +1185,12 @@ register struct parse *p;
 		if (p->g->sets == NULL)
 			p->g->sets = (cset *)malloc(nc * sizeof(cset));
 		else
-			p->g->sets = (cset *)realloc((char *)p->g->sets,
+			p->g->sets = (cset *)reallocf((char *)p->g->sets,
 							nc * sizeof(cset));
 		if (p->g->setbits == NULL)
 			p->g->setbits = (uch *)malloc(nbytes);
 		else {
-			p->g->setbits = (uch *)realloc((char *)p->g->setbits,
+			p->g->setbits = (uch *)reallocf((char *)p->g->setbits,
 								nbytes);
 			/* xxx this isn't right if setbits is now NULL */
 			for (i = 0; i < no; i++)
@@ -1331,7 +1331,7 @@ register char *cp;
 	if (cs->multis == NULL)
 		cs->multis = malloc(cs->smultis);
 	else
-		cs->multis = realloc(cs->multis, cs->smultis);
+		cs->multis = reallocf(cs->multis, cs->smultis);
 	if (cs->multis == NULL) {
 		SETERROR(REG_ESPACE);
 		return;
@@ -1365,7 +1365,7 @@ register char *cp;
 		return;
 	}
 
-	cs->multis = realloc(cs->multis, cs->smultis);
+	cs->multis = reallocf(cs->multis, cs->smultis);
 	assert(cs->multis != NULL);
 }
 

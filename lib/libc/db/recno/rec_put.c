@@ -88,9 +88,8 @@ __rec_put(dbp, key, data, flags)
 			goto einval;
 
 		if (t->bt_rdata.size < t->bt_reclen) {
-			t->bt_rdata.data = t->bt_rdata.data == NULL ?
-			    malloc(t->bt_reclen) :
-			    realloc(t->bt_rdata.data, t->bt_reclen);
+			t->bt_rdata.data = 
+			    reallocf(t->bt_rdata.data, t->bt_reclen);
 			if (t->bt_rdata.data == NULL)
 				return (RET_ERROR);
 			t->bt_rdata.size = t->bt_reclen;

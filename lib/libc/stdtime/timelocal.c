@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: timelocal.c,v 1.1 1997/08/09 15:43:57 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -146,7 +146,7 @@ __time_load_locale(const char *name)
 	bufsize = namesize + st.st_size;
 	locale_buf = NULL;
 	lbuf = (lbuf == NULL || lbuf == locale_buf_C) ?
-		malloc(bufsize) : realloc(lbuf, bufsize);
+		malloc(bufsize) : reallocf(lbuf, bufsize);
 	if (lbuf == NULL)
 		goto bad_locale;
 	(void) strcpy(lbuf, name);

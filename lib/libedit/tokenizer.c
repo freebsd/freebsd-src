@@ -59,6 +59,7 @@ typedef enum { Q_none, Q_single, Q_double, Q_one, Q_doubleone } quote_t;
 #define tok_malloc(a)		malloc(a)
 #define tok_free(a)		free(a)
 #define tok_realloc(a, b)	realloc(a, b)
+#define tok_reallocf(a, b)	reallocf(a, b)
 
 
 struct tokenizer {
@@ -377,8 +378,8 @@ tok_line(tok, line, argc, argv)
 
 	if (tok->argc >= tok->amax - 4) {
 	    tok->amax += AINCR;
-	    tok->argv = (char **) tok_realloc(tok->argv,
-					      tok->amax * sizeof(char*));
+	    tok->argv = (char **) tok_reallocf(tok->argv,
+					       tok->amax * sizeof(char*));
 	}
 
     }

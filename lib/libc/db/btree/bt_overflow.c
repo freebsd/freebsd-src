@@ -99,7 +99,7 @@ __ovfl_get(t, p, ssz, buf, bufsz)
 #endif
 	/* Make the buffer bigger as necessary. */
 	if (*bufsz < sz) {
-		*buf = (char *)(*buf == NULL ? malloc(sz) : realloc(*buf, sz));
+		*buf = (char *)(*buf == NULL ? malloc(sz) : reallocf(*buf, sz));
 		if (*buf == NULL)
 			return (RET_ERROR);
 		*bufsz = sz;

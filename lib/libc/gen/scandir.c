@@ -109,7 +109,7 @@ scandir(dirname, namelist, select, dcomp)
 			if (fstat(dirp->dd_fd, &stb) < 0)
 				return(-1);	/* just might have grown */
 			arraysz = stb.st_size / 12;
-			names = (struct dirent **)realloc((char *)names,
+			names = (struct dirent **)reallocf((char *)names,
 				arraysz * sizeof(struct dirent *));
 			if (names == NULL)
 				return(-1);
