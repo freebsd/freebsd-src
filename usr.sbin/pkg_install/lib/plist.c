@@ -205,7 +205,7 @@ plist_cmd(const char *s, char **arg)
 	++cp, ++sp;
     }
     if (arg)
-	(const char *)*arg = sp;
+	*arg = (char *)sp;
     if (!strcmp(cmd, "cwd"))
 	return PLIST_CWD;
     else if (!strcmp(cmd, "srcdir"))
