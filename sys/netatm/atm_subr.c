@@ -36,6 +36,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
