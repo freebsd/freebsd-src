@@ -164,7 +164,14 @@ Buslogic 742A, 747S, 747c EISA SCSI controller.
 Buslogic 946c PCI SCSI controller
 Buslogic 956c PCI SCSI controller
 
-NCR 53C810 and 53C825 PCI SCSI controller.
+NCR 53C810, 53C825, 53c860 and 53c875 PCI SCSI controllers:
+	ASUS SC-200
+  	Data Technology DTC3130 (all variants)
+	NCR cards (all)
+	Symbios cards (all)
+	Tekram DC390W, 390U and 390F
+	Tyan S1365
+
 NCR5380/NCR53400 ("ProAudio Spectrum") SCSI controller. 
 
 DTC 3290 EISA SCSI controller in 1542 emulation mode.
@@ -517,4 +524,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.21 1996/11/14 14:51:16 jkh Exp $
+$Id: relnotes.hlp,v 1.22 1996/11/15 07:00:58 jkh Exp $
