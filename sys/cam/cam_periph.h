@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_periph.h,v 1.1 1998/09/15 06:33:23 gibbs Exp $
+ *      $Id: cam_periph.h,v 1.2 1998/10/13 21:41:32 ken Exp $
  */
 
 #ifndef _CAM_CAM_PERIPH_H
@@ -66,11 +66,12 @@ typedef void		periph_start_t (struct cam_periph *periph,
 					union ccb *start_ccb);
 typedef cam_status	periph_ctor_t (struct cam_periph *periph,
 				       void *arg);
+typedef void		periph_oninv_t (struct cam_periph *periph);
 typedef void		periph_dtor_t (struct cam_periph *periph);
-
 struct cam_periph {
 	cam_pinfo		 pinfo;
 	periph_start_t		*periph_start;
+	periph_oninv_t		*periph_oninval;
 	periph_dtor_t		*periph_dtor;
 	char			*periph_name;
 	struct cam_path		*path;	/* Compiled path to device */
@@ -100,7 +101,10 @@ struct cam_periph_map_info {
 	struct buf	*bp[CAM_PERIPH_MAXMAPS];
 };
 
-cam_status cam_periph_alloc(periph_ctor_t*, periph_dtor_t*, periph_start_t*,
+cam_status cam_periph_alloc(periph_ctor_t *periph_ctor,
+			    periph_oninv_t *periph_oninvalidate,
+			    periph_dtor_t *periph_dtor,
+			    periph_start_t *periph_start,
 			    char *name, cam_periph_type type, struct cam_path *,			    ac_callback_t *, ac_code, void *arg);
 struct cam_periph *cam_periph_find(struct cam_path *path, char *name);
 int		cam_periph_lock(struct cam_periph *periph, int priority);
