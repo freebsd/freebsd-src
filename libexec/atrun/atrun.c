@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <sys/param.h>
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
@@ -42,10 +43,17 @@
 #include <time.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <utmp.h>
 #ifdef __FreeBSD__
 #include <paths.h>
 #else
 #include <getopt.h>
+#endif
+
+#if (MAXLOGNAME-1) > UT_NAMESIZE
+#define LOGNAMESIZE UT_NAMESIZE
+#else
+#define LOGNAMESIZE (MAXLOGNAME-1)
 #endif
 
 /* Local headers */
@@ -71,7 +79,7 @@
 /* File scope variables */
 
 static char *namep;
-static char rcsid[] = "$Id: atrun.c,v 1.8 1997/02/22 14:20:54 peter Exp $";
+static char rcsid[] = "$Id: atrun.c,v 1.9 1997/03/28 15:48:03 imp Exp $";
 static debug = 0;
 
 void perr(const char *a);
@@ -108,7 +116,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     pid_t pid;
     int fd_out, fd_in;
     int queue;
-    char mailbuf[9];
+    char mailbuf[LOGNAMESIZE + 1], fmt[49];
     char *mailname = NULL;
     FILE *stream;
     int send_mail = 0;
@@ -197,11 +205,10 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
-    if (fscanf(stream, "#!/bin/sh\n# atrun uid=%ld gid=%ld\n# mail %8s %d",
-         &nuid, &ngid, mailbuf, &send_mail) != 4)
-    {
-	syslog(LOG_ERR,"File %s is in wrong format - aborting",
-		filename);
+    snprintf(fmt, 49, "#!/bin/sh\n# atrun uid=%%ld gid=%%ld\n# mail %%%ds %%d",
+                          LOGNAMESIZE);
+    if (fscanf(stream, fmt, &nuid, &ngid, mailbuf, &send_mail) != 4) {
+	syslog(LOG_ERR,"File %s is in wrong format - aborting", filename);
 	exit(EXIT_FAILURE);
     }
     if (mailbuf[0] == '-') {
