@@ -77,9 +77,9 @@
 /* Utils */
 static int clean_pipe __P((struct thread *, const char *));
 static void getparm __P((struct file *, struct svr4_si_sockparms *));
-static int svr4_do_putmsg __P((struct proc *, struct svr4_sys_putmsg_args *,
+static int svr4_do_putmsg __P((struct thread *, struct svr4_sys_putmsg_args *,
 			       struct file *));
-static int svr4_do_getmsg __P((struct proc *, struct svr4_sys_getmsg_args *,
+static int svr4_do_getmsg __P((struct thread *, struct svr4_sys_getmsg_args *,
 			       struct file *));
 
 /* Address Conversions */
@@ -1898,8 +1898,8 @@ svr4_do_putmsg(td, uap, fp)
 }
 
 int
-svr4_sys_getmsg(p, uap)
-	struct proc *p;
+svr4_sys_getmsg(td, uap)
+	struct thread *td;
 	struct svr4_sys_getmsg_args *uap;
 {
 	struct file     *fp;
@@ -1912,7 +1912,7 @@ svr4_sys_getmsg(p, uap)
 #endif
 		return EBADF;
 	}
-	error = svr4_do_getmsg(p, uap, fp);
+	error = svr4_do_getmsg(td, uap, fp);
 	fdrop(fp, td);
 	return (error);
 }
