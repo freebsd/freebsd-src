@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.h	8.1 (Berkeley) 6/10/93
- * $Id: if.h,v 1.20 1995/08/16 16:13:39 bde Exp $
+ * $Id: if.h,v 1.21 1995/08/30 00:33:17 bde Exp $
  */
 
 #ifndef _NET_IF_H_
@@ -117,6 +117,8 @@ struct	ifqueue {
 	int	ifq_drops;
 };
 
+#define IF_NPRIVATE 4
+
 /*
  * Structure describing information about an interface
  * which may be of interest to management entities.
@@ -149,6 +151,7 @@ struct ifnet {
 	void	(*if_watchdog)		/* timer routine */
 		__P((int));
 	struct	ifqueue if_snd;		/* output queue */
+	void 	*if_private[IF_NPRIVATE]; /* opaque data for various clients */
 };
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
