@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
-# FreeBSD-current source tree.
+# FreeBSD-stable source tree.
 #
 # CVSup (CVS Update Protocol) allows you to download the latest CVS
 # tree (or any branch of development therefrom) to your system easily
