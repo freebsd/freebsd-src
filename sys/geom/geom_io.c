@@ -192,21 +192,16 @@ g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 	int error;
 
 	g_trace(G_T_BIO, "bio_getattr(%s)", attr);
-	do {
-		bp = g_new_bio();
-		bp->bio_cmd = BIO_GETATTR;
-		bp->bio_done = NULL;
-		bp->bio_attribute = attr;
-		bp->bio_length = *len;
-		bp->bio_data = ptr;
-		g_io_request(bp, cp);
-		error = biowait(bp, "ggetattr");
-		*len = bp->bio_completed;
-		g_destroy_bio(bp);
-		if (error == EBUSY)
-			tsleep(&error, 0, "getattr_busy", hz);
-
-	} while(error == EBUSY);
+	bp = g_new_bio();
+	bp->bio_cmd = BIO_GETATTR;
+	bp->bio_done = NULL;
+	bp->bio_attribute = attr;
+	bp->bio_length = *len;
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	error = biowait(bp, "ggetattr");
+	*len = bp->bio_completed;
+	g_destroy_bio(bp);
 	return (error);
 }
 
@@ -355,26 +350,22 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 	void *ptr;
 	int errorc;
 
-        do {
-		bp = g_new_bio();
-		bp->bio_cmd = BIO_READ;
-		bp->bio_done = NULL;
-		bp->bio_offset = offset;
-		bp->bio_length = length;
-		ptr = g_malloc(length, M_WAITOK);
-		bp->bio_data = ptr;
-		g_io_request(bp, cp);
-		errorc = biowait(bp, "gread");
-		if (error != NULL)
-			*error = errorc;
-		g_destroy_bio(bp);
-		if (errorc) {
-			g_free(ptr);
-			ptr = NULL;
-		}
-		if (errorc == EBUSY)
-			tsleep(&errorc, 0, "g_read_data_busy", hz);
-        } while (errorc == EBUSY);
+	bp = g_new_bio();
+	bp->bio_cmd = BIO_READ;
+	bp->bio_done = NULL;
+	bp->bio_offset = offset;
+	bp->bio_length = length;
+	ptr = g_malloc(length, M_WAITOK);
+	bp->bio_data = ptr;
+	g_io_request(bp, cp);
+	errorc = biowait(bp, "gread");
+	if (error != NULL)
+		*error = errorc;
+	g_destroy_bio(bp);
+	if (errorc) {
+		g_free(ptr);
+		ptr = NULL;
+	}
 	return (ptr);
 }
 
