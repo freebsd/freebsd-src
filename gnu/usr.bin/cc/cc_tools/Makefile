@@ -57,8 +57,7 @@ CLEANFILES+=	gen$i
 genrtl.h genrtl.c: gengenrtl
 	./gengenrtl genrtl.h genrtl.c
 
-#GENSRCS+=	genrtl.c genrtl.h
-CLEANFILES+=	genrtl.c genrtl.h
+GENSRCS+=	genrtl.c genrtl.h
 
 .for i in attrtab
 build-tools: gen$i
@@ -95,8 +94,7 @@ $i-parse.c: tree-check.h
 tree-check.h: gencheck
 	./gencheck > ${.TARGET}
 
-##GENSRCS+=	tree-check.h
-CLEANFILES+=	tree-check.h
+GENSRCS+=	tree-check.h
 
 #-----------------------------------------------------------------------
 # C parser
@@ -188,7 +186,7 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 # would do if we defined PROG, except for leaving out dependencies on
 # insn-*.h because these dependencies would be circular.
 #
-${OBJS}: ${SRCS:M*.h:Ninsn-*.h}
+${OBJS}: ${SRCS:M*.h:Ninsn-*.h:Ntree-check.h:Ngenrtl.h}
 
 # Give all dependencies on insn-*.h explicitly
 # This suffices for `make -j<any> depend', and after that all
