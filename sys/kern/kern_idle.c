@@ -65,7 +65,7 @@ idle_setup(void *dummy)
 		if (error)
 			panic("idle_setup: kthread_create error %d\n", error);
 
-		gd->gd_idleproc->p_stat = SWAIT;
+		gd->gd_idleproc->p_stat = SRUN;
 	}
 }
 
@@ -100,7 +100,6 @@ idle_proc(void *dummy)
 		}
 
 		mtx_enter(&sched_lock, MTX_SPIN);
-		idleproc->p_stat = SWAIT;
 		mi_switch();
 		mtx_exit(&sched_lock, MTX_SPIN);
 		spl0();
