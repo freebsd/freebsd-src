@@ -69,7 +69,6 @@ pccardInitialize(void)
     char *card_irq = "";
     char *spcic_mem;
     char *scard_irq;
-    char pccardd_flags[128];
     char pccardd_cmd[256];
     WINDOW *w;
     
@@ -92,6 +91,8 @@ pccardInitialize(void)
 	return;
     }
     close(fd);
+
+    variable_set2("_pccard_install", "YES", 0);
 
     dmenuOpenSimple(&MenuPCICMem, FALSE);
     spcic_mem = variable_get("_pcicmem");
@@ -165,10 +166,8 @@ pccardInitialize(void)
     strcat(pccardd_cmd, card_irq);
     strcat(pccardd_cmd, " -z");
 
-    variable_set2("pccard_enable", "YES", 1);
-
     variable_set2("pccardd_flags", card_irq, 1);
-    strcpy(pccardd_flags, card_irq);
+    variable_set2("pccard_enable", "YES", 1);
 
     vsystem(pccardd_cmd);
     restorescr(w);

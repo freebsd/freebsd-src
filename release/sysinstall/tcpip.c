@@ -360,6 +360,7 @@ netconfig:
 	DevInfo *di;
 	char temp[512], ifn[255];
 	char *ifaces;
+	char *pccard;
 
 	if (hostname[0]) {
 	    variable_set2(VAR_HOSTNAME, hostname, use_dhcp ? 0 : 1);
@@ -388,6 +389,10 @@ netconfig:
 	else
 	    sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	variable_set2(ifn, temp, 1);
+	pccard = variable_get("_pccard_install");
+	if (pccard && strcmp(pccard, "YES") == 0) {
+	    variable_set2("pccard_ifconfig", temp, 1);
+	}
 	ifaces = variable_get(VAR_INTERFACES);
 	if (!ifaces)
 	    variable_set2(VAR_INTERFACES, ifaces = "lo0", 1);
