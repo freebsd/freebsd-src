@@ -162,6 +162,90 @@ gpt_write(int fd, map_t *map)
 }
 
 static int
+gpt_mbr(int fd, off_t lba)
+{
+	struct mbr *mbr;
+	map_t *m, *p;
+	off_t size, start;
+	unsigned int i, pmbr;
+
+	mbr = gpt_read(fd, lba, 1);
+	if (mbr == NULL)
+		return (-1);
+
+	if (mbr->mbr_sig != MBR_SIG) {
+		if (verbose)
+			warnx("%s: MBR not found at sector %llu", device_name,
+			    (long long)lba);
+		free(mbr);
+		return (0);
+	}
+
+	/*
+	 * Differentiate between a regular MBR and a PMBR. This is more
+	 * convenient in general. A PMBR is one with a single partition
+	 * of type 0xee.
+	 */
+	pmbr = 0;
+	for (i = 0; i < 4; i++) {
+		if (mbr->mbr_part[i].part_typ == 0)
+			continue;
+		if (mbr->mbr_part[i].part_typ == 0xee)
+			pmbr++;
+		else
+			break;
+	}
+	if (pmbr && i == 4 && lba == 0) {
+		if (pmbr != 1)
+			warnx("%s: Suspicious PMBR at sector %llu",
+			    device_name, (long long)lba);
+		else if (verbose > 1)
+			warnx("%s: PMBR at sector %llu", device_name,
+			    (long long)lba);
+		p = map_add(lba, 1LL, MAP_TYPE_PMBR, mbr);
+		return ((p == NULL) ? -1 : 0);
+	}
+	if (pmbr)
+		warnx("%s: Suspicious MBR at sector %llu", device_name,
+		    (long long)lba);
+	else if (verbose > 1)
+		warnx("%s: MBR at sector %llu", device_name, (long long)lba);
+
+	p = map_add(lba, 1LL, MAP_TYPE_MBR, mbr);
+	if (p == NULL)
+		return (-1);
+	for (i = 0; i < 4; i++) {
+		if (mbr->mbr_part[i].part_typ == 0 ||
+		    mbr->mbr_part[i].part_typ == 0xee)
+			continue;
+		start = mbr->mbr_part[i].part_start_hi;
+		start = (start << 16) + mbr->mbr_part[i].part_start_lo;
+		size = mbr->mbr_part[i].part_size_hi;
+		size = (size << 16) + mbr->mbr_part[i].part_size_lo;
+		if (start == 0 && size == 0) {
+			warnx("%s: Malformed MBR at sector %llu", device_name,
+			    (long long)lba);
+			continue;
+		}
+		/* start is relative to the offset of the MBR itself. */
+		start += lba;
+		if (verbose > 2)
+			warnx("%s: MBR part: type=%d, start=%llu, size=%llu",
+			    device_name, mbr->mbr_part[i].part_typ,
+			    (long long)start, (long long)size);
+		if (mbr->mbr_part[i].part_typ != 15) {
+			m = map_add(start, size, MAP_TYPE_MBR_PART, p);
+			if (m == NULL)
+				return (-1);
+		} else {
+			if (gpt_mbr(fd, start) == -1)
+				return (-1);
+		}
+	}
+	return (0);
+}
+
+static int
 gpt_gpt(int fd, off_t lba)
 {
 	off_t size;
@@ -252,10 +336,6 @@ int
 gpt_open(const char *dev)
 {
 	struct stat sb;
-	struct mbr *mbr;
-	map_t *m;
-	uint32_t size, start;
-	unsigned int i;
 	int fd;
 
 	if (!stat(dev, &sb)) {
@@ -306,46 +386,8 @@ gpt_open(const char *dev)
 
 	map_init(mediasz / secsz);
 
-	/*
-	 * MBR
-	 */
-	mbr = gpt_read(fd, 0LL, 1);
-	if (mbr == NULL)
+	if (gpt_mbr(fd, 0LL) == -1)
 		goto close;
-
-	if (mbr->mbr_sig == MBR_SIG) {
-		if (verbose > 1)
-			warnx("%s: MBR at sector 0", device_name);
-		m = map_add(0LL, 1LL, MAP_TYPE_MBR, mbr);
-		if (m == NULL)
-			goto close;
-		for (i = 0; i < 4; i++) {
-			start = mbr->mbr_part[i].part_start_hi;
-			start = (start << 16) + mbr->mbr_part[i].part_start_lo;
-			size = mbr->mbr_part[i].part_size_hi;
-			size = (size << 16) + mbr->mbr_part[i].part_size_lo;
-			if (start == 0 && size == 0)
-				continue;
-			if (verbose > 2)
-				warnx("%s: MBR partition: type=%d, start=%llu, size=%llu",
-				    device_name, mbr->mbr_part[i].part_typ,
-				    (long long)start, (long long)size);
-			if (mbr->mbr_part[i].part_typ == 0xee)
-				continue;
-			m = map_add(start, size, MAP_TYPE_MBR_PART,
-			    mbr->mbr_part + i);
-			if (m == NULL)
-				goto close;
-		}
-	} else {
-		if (verbose)
-			warnx("%s: MBR not found", device_name);
-		free(mbr);
-	}
-
-	/*
-	 * GPT
-	 */
 	if (gpt_gpt(fd, 1LL) == -1)
 		goto close;
 	if (gpt_gpt(fd, mediasz / secsz - 1LL) == -1)
