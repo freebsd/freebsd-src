@@ -76,6 +76,7 @@ void m_dumpm(struct mbuf *m);
  * Compatibility wrappers for simple locks
  */
 
+#include <sys/lock.h>
 #include <sys/mutex.h>
 
 #define	smb_slock			mtx
