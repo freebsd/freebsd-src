@@ -664,7 +664,7 @@ pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 static int
 pcic_power(struct slot *slt)
 {
-	unsigned char c;
+	unsigned char c, c2;
 	unsigned char reg = PCIC_DISRST | PCIC_PCPWRE;
 	struct pcic_slot *sp = slt->cdata;
 	struct pcic_slot *sp2;
@@ -760,22 +760,20 @@ pcic_power(struct slot *slt)
 			reg |= PCIC_APSENA;
 		}
 		if (sc->flags & PCIC_RICOH_POWER) {
-			switch (sp->controller) {
-			case PCIC_RF5C396:
-			case PCIC_RF5C296:
-				/*
-				 * The ISA bridge have the 5V/3.3V in register
-				 * 1, bit 7.
-				 */
-				c = sp->getb(sp, PCIC_STATUS);
-				if ((c & PCIC_RICOH_5VCARD) == 0)
-					slt->pwr.vcc = 33;
-				else
-					slt->pwr.vcc = 50;
-				break;
-			}
+			/*
+			 * The ISA bridge have the 5V/3.3V in register
+			 * 1, bit 7.  However, 3.3V cards can only be
+			 * detected if GPI_EN is disabled.
+			 */
+			c = sp->getb(sp, PCIC_STATUS);
+			c2 = sp->getb(sp, PCIC_CDGC);
+			if ((c & PCIC_RICOH_5VCARD) && (c2 & PCIC_GPI_EN) == 0)
+				slt->pwr.vcc = 33;
+			else
+				slt->pwr.vcc = 50;
 		}
-		/* Other bridges here */
+		/* Other power schemes here */
+
 		if (bootverbose && slt->pwr.vcc != -1)
 			device_printf(sc->dev, "Autodetected %d.%dV card\n",
 			    slt->pwr.vcc / 10, slt->pwr.vcc %10);
