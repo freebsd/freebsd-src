@@ -562,6 +562,7 @@ char *argv[];
 	signal(SIGCHLD, SIG_DFL);
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
+	signal(SIGHUP, edit_abort);
 
 	d_char = malloc(3);	/* provide a buffer for multi-byte chars */
 	d_word = malloc(150);
