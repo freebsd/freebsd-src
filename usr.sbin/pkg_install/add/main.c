@@ -61,6 +61,7 @@ struct {
 	{ 470000, 470099, "/packages-4.7-release" },
 	{ 300000, 399000, "/packages-3-stable" },
 	{ 400000, 499000, "/packages-4-stable" },
+	{ 500000, 500099, "/packages-5.0-release" },
 	{ 510000, 599000, "/packages-5-stable" },
 	{ 0, 9999999, "/packages-current" },
 	{ 0, 0, NULL }
