@@ -1,4 +1,4 @@
-#	$Id: options.pc98,v 1.76 1998/12/30 08:03:03 kato Exp $
+#	$Id: options.pc98,v 1.77 1999/01/04 08:09:15 kato Exp $
 
 DISABLE_PSE
 IDE_DELAY
@@ -64,16 +64,17 @@ I486_CPU		opt_global.h
 I586_CPU		opt_global.h
 I686_CPU		opt_global.h
 
-SC_SPLASH_SCREEN	opt_syscons.h
 MAXCONS			opt_syscons.h
-SLOW_VGA		opt_syscons.h
 STD8X16FONT		opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_MOUSE_CHAR		opt_syscons.h
-SC_ALT_SEQACCESS	opt_syscons.h
+
+FB_INSTALL_CDEV		opt_fb.h
 
 VESA			opt_vesa.h
+
+GDC			opt_gdc.h
 
 PSM_HOOKAPM		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
@@ -81,10 +82,11 @@ PSM_DEBUG		opt_psm.h
 
 PCIC_RESUME_RESET	opt_pcic.h
 
-KBD_RESETDELAY		opt_kbdio.h
-KBD_MAXRETRY		opt_kbdio.h
-KBD_MAXWAIT		opt_kbdio.h
-KBDIO_DEBUG		opt_kbdio.h
+KBD_INSTALL_CDEV	opt_kbd.h
+KBD_MAXRETRY		opt_kbd.h
+KBD_MAXWAIT		opt_kbd.h
+KBD_RESETDELAY		opt_kbd.h
+KBDIO_DEBUG		opt_kbd.h
 
 ATAPI			opt_atapi.h
 ATAPI_STATIC		opt_atapi.h
