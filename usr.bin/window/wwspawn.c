@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)wwspawn.c	8.1 (Berkeley) 6/6/93";
 #include <signal.h>
 
 /*
- * There is a dead lock with vfork and closing of pseudo-ports.
+ * There is a dead lock with fork and closing of pseudo-ports.
  * So we have to be sneaky about error reporting.
  */
 wwspawn(wp, file, argv)
@@ -56,7 +56,7 @@ char **argv;
 	int s;
 
 	s = sigblock(sigmask(SIGCHLD));
-	switch (pid = vfork()) {
+	switch (pid = fork()) {
 	case -1:
 		wwerrno = WWE_SYS;
 		ret = -1;
