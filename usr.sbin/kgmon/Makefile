@@ -3,6 +3,7 @@
 
 PROG=	kgmon
 MAN=	kgmon.8
+WARNS?=	2
 
 # This program may safely be run setuid-root to allow non-root
 # users to start, stop, and reset profiling buffers.
