@@ -1032,7 +1032,11 @@ elf64_alpha_info_to_howto (abfd, cache_ptr, dst)
 
 #define MAX_GOT_ENTRIES		(64*1024 / 8)
 
+#if defined(__FreeBSD__)
 #define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+#else
+#define ELF_DYNAMIC_INTERPRETER "/usr/lib/ld.so"
+#endif
 
 /* Handle an Alpha specific section when reading an object file.  This
    is called when elfcode.h finds a section with an unknown type.
