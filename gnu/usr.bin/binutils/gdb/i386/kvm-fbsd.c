@@ -125,7 +125,8 @@ static CORE_ADDR pcpu;
  * Symbol names of kernel entry points.  Use special frames.
  */
 #define	KSYM_TRAP	"calltrap"
-#define	KSYM_INTERRUPT	"Xresume"
+#define	KSYM_INTR	"Xintr"
+#define	KSYM_FASTINTR	"Xfastintr"
 #define	KSYM_SYSCALL	"Xsyscall"
 
 /*
@@ -160,7 +161,9 @@ struct frame_info *fr;
        if (sym != NULL) {
                if (strcmp (SYMBOL_NAME(sym), KSYM_TRAP) == 0)
                        frametype = tf_trap;
-               else if (strncmp (SYMBOL_NAME(sym), KSYM_INTERRUPT, 7) == 0)
+               else if (strncmp (SYMBOL_NAME(sym), KSYM_INTR,
+                   strlen(KSYM_INTR)) == 0 || strncmp (SYMBOL_NAME(sym),
+                   KSYM_FASTINTR, strlen(KSYM_FASTINTR)) == 0)
                        frametype = tf_interrupt;
                else if (strcmp (SYMBOL_NAME(sym), KSYM_SYSCALL) == 0)
                        frametype = tf_syscall;
