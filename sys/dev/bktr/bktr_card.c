@@ -356,6 +356,18 @@ static const struct CARDTYPE cards[] = {
 	   { 0x10000, 0, 0x10000, 0, 1 },	/* audio MUX values */
 	   0x10f00 },				/* GPIO mask */
 
+	{  CARD_AOPEN_VA1000,			/* the card id */
+	  "AOpen VA1000",			/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
+	   0,					/* dbx is optional */
+	   0,
+	   0,
+	   0,					/* EEProm unknown */
+	   0,					/* size unknown */
+	   { 0x02, 0x00, 0x00, 0x00, 1 },	/* audio MUX values */
+	   0x18e0 },				/* GPIO mask */
+
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
