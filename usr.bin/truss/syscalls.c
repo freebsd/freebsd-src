@@ -53,6 +53,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
+#include "extern.h"
 #include "syscall.h"
 
 /*
@@ -103,8 +104,6 @@ struct syscall syscalls[] = {
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
-char * ioctlname __P((int));
-
 /*
  * If/when the list gets big, it might be desirable to do it
  * as a hash table or binary search.
@@ -128,7 +127,7 @@ get_syscall(const char *name) {
  * Copy a fixed amount of bytes from the process.
  */
 
-int
+static int
 get_struct(int procfd, void *offset, void *buf, int len) {
 	char *pos;
 	FILE *p;
@@ -261,7 +260,7 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
     break;
   case Ioctl:
     {
-      char *temp = ioctlname(args[sc->offset]);
+      const char *temp = ioctlname(args[sc->offset]);
       if (temp)
 	tmp = strdup(temp);
       else {
@@ -290,8 +289,8 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
     {
       struct sockaddr_storage ss;
       char addr[64];
-      struct sockaddr_in *sin;
-      struct sockaddr_in6 *sin6;
+      struct sockaddr_in *lsin;
+      struct sockaddr_in6 *lsin6;
       struct sockaddr_un *sun;
       struct sockaddr *sa;
       char *p;
@@ -316,14 +315,14 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 
       switch (ss.ss_family) {
       case AF_INET:
-	sin = (struct sockaddr_in *)&ss;
-	inet_ntop(AF_INET, &sin->sin_addr, addr, sizeof addr);
-	asprintf(&tmp, "{ AF_INET %s:%d }", addr, htons(sin->sin_port));
+	lsin = (struct sockaddr_in *)&ss;
+	inet_ntop(AF_INET, &lsin->sin_addr, addr, sizeof addr);
+	asprintf(&tmp, "{ AF_INET %s:%d }", addr, htons(lsin->sin_port));
 	break;
       case AF_INET6:
-	sin6 = (struct sockaddr_in6 *)&ss;
-	inet_ntop(AF_INET6, &sin6->sin6_addr, addr, sizeof addr);
-	asprintf(&tmp, "{ AF_INET6 [%s]:%d }", addr, htons(sin6->sin6_port));
+	lsin6 = (struct sockaddr_in6 *)&ss;
+	inet_ntop(AF_INET6, &lsin6->sin6_addr, addr, sizeof addr);
+	asprintf(&tmp, "{ AF_INET6 [%s]:%d }", addr, htons(lsin6->sin6_port));
 	break;
       case AF_UNIX:
         sun = (struct sockaddr_un *)&ss;
