@@ -359,7 +359,10 @@ umountfs(struct statfs *sfs)
 	snprintf(fsidbuf, sizeof(fsidbuf), "FSID:%d:%d", sfs->f_fsid.val[0],
 	    sfs->f_fsid.val[1]);
 	if (unmount(fsidbuf, fflag | MNT_BYFSID) != 0) {
-		warn("unmount of %s failed", sfs->f_mntonname);
+		/* XXX, non-root users get a zero fsid, so don't warn. */
+		if (errno != ENOENT || sfs->f_fsid.val[0] != 0 ||
+		    sfs->f_fsid.val[1] != 0)
+			warn("unmount of %s failed", sfs->f_mntonname);
 		if (errno != ENOENT)
 			return (1);
 		/* Compatability for old kernels. */
