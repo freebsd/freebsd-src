@@ -46,6 +46,7 @@ struct opttab {
 
 struct options {
 	struct {
+		const char *name;
 		int bool;
 		char *arg;
 	} opt[PAM_MAX_OPTIONS];
@@ -60,15 +61,20 @@ void	pam_set_option(struct options *, enum opt);
 void	pam_clear_option(struct options *, enum opt);
 void	_pam_log(struct options *, const char *, const char *, const char *, ...);
 void	_pam_log_retval(struct options *, const char *, const char *, int);
+void	_pam_verbose_error(pam_handle_t *, struct options *, const char *,
+		const char *, const char *, ...);
 __END_DECLS
 
-#define	PAM_LOG(args...)					\
+#define	PAM_LOG(args...)						\
 	_pam_log(&options, __FILE__, __FUNCTION__, ##args)
 
 #define PAM_RETURN(arg)							\
 	do {								\
-	_pam_log_retval(&options, __FILE__, __FUNCTION__, arg);		\
-	return arg;							\
+		_pam_log_retval(&options, __FILE__, __FUNCTION__, arg);	\
+		return arg;						\
 	} while (0)
+
+#define PAM_VERBOSE_ERROR(args...)					\
+	_pam_verbose_error(pamh, &options, __FILE__, __FUNCTION__, ##args)
 
 #endif
