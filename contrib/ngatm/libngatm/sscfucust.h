@@ -26,7 +26,7 @@
  *
  * Author: Hartmut Brandt <harti@freebsd.org>
  *
- * $Begemot: libunimsg/libunimsg/sscfucust.h,v 1.3 2003/09/19 13:10:35 hbb Exp $
+ * $Begemot: libunimsg/libngatm/sscfucust.h,v 1.4 2004/07/08 08:21:40 brandt Exp $
  *
  * Customisation of the SSCFU code for the user space library.
  */
