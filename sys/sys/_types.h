@@ -90,6 +90,8 @@ typedef	struct cdev	*__dev_t;
 typedef	__udev_t	__dev_t;		/* device number */
 #endif
 
+typedef	__uint32_t	__fixpt_t;		/* fixed point number */
+
 /*
  * mbstate_t is an opaque object to keep conversion state during multibyte
  * stream conversions.
