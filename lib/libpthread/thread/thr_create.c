@@ -193,7 +193,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->tcb->tcb_tmbx.tm_context.uc_stack.ss_sp =
 			    new_thread->attr.stackaddr_attr;
 			makecontext(&new_thread->tcb->tcb_tmbx.tm_context,
-			    (void (*)(void))thread_start, 4, new_thread,
+			    (void (*)(void))thread_start, 3, new_thread,
 			    start_routine, arg);
 			/*
 			 * Check if this thread is to inherit the scheduling
