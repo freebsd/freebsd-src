@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.3 1996/06/17 15:28:00 jkh Exp $
+ * $Id: ftpio.c,v 1.4 1996/06/17 20:36:57 jkh Exp $
  *
  */
 
@@ -314,6 +314,7 @@ ftp_new(void)
     ftp->fd_ctrl = -1;
     ftp->con_state = init;
     ftp->errno = 0;
+    ftp->binary = TRUE;
     if (getenv("FTP_PASSIVE_MODE"))
 	ftp->passive = 1;
     return ftp;
