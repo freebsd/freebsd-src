@@ -121,6 +121,8 @@ sbc_probe(device_t dev)
 			s = "Creative SB32 (CTL0042)";
 		else if (vend_id2 == 0x44008c0e)
 			s = "Creative SB32 (CTL0044)";
+		else if (vend_id2 == 0x48008c0e)
+			s = "Creative SB32 (CTL0048)";
 		else if (vend_id2 == 0x49008c0e)
 			s = "Creative SB32 (CTL0049)";
 		else if (vend_id2 == 0xf1008c0e)
