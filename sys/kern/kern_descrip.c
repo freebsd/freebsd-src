@@ -160,8 +160,6 @@ retry:
 	if (new >= fdp->fd_nfiles) {
 		if ((error = fdalloc(p, new, &i)))
 			return (error);
-		if (new != i)
-			panic("dup2: fdalloc");
 		/*
 		 * fdalloc() may block, retest everything.
 		 */
