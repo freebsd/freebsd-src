@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.7 1998/04/01 21:07:37 tegge Exp $
+ * $Id: pci_compat.c,v 1.8 1998/07/22 08:39:08 dfr Exp $
  *
  */
 
@@ -152,10 +152,7 @@ int pci_map_mem(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 			vaddr = (vm_offset_t)pmap_mapdev(paddr-poffs, psize+poffs);
 #endif
 #ifdef __alpha__
-			/* XXX should talk to chipset.
-			   Hardwire pyxis for now */
-			vaddr = ALPHA_PHYS_TO_K0SEG(0x8600000000L
-						    + paddr-poffs);
+			vaddr = paddr-poffs;
 #endif
 			if (vaddr != NULL) {
 				vaddr += poffs;
