@@ -18,11 +18,12 @@ SRCS=	cmd_args.c	map_vme.c	ntp_config.c \
 	refclock_hopfpci.c	refclock_hopfser.c	refclock_hpgps.c \
 	refclock_irig.c	refclock_jupiter.c	refclock_leitch.c \
 	refclock_local.c	refclock_msfees.c	refclock_mx4200.c \
-	refclock_nmea.c	refclock_oncore.c	refclock_palisade.c \
-	refclock_parse.c	refclock_pcf.c	refclock_pst.c \
-	refclock_ptbacts.c	refclock_shm.c	refclock_tpro.c \
-	refclock_trak.c	refclock_true.c	refclock_ulink.c \
-	refclock_usno.c	refclock_wwv.c	refclock_wwvb.c \
+	refclock_neoclock4x.c refclock_nmea.c	refclock_oncore.c \
+	refclock_palisade.c refclock_parse.c	refclock_pcf.c \
+	refclock_pst.c refclock_ptbacts.c	refclock_ripencc.c \
+	refclock_shm.c	refclock_tpro.c refclock_trak.c	refclock_true.c \
+	refclock_ulink.c refclock_usno.c	refclock_wwv.c	\
+	refclock_wwvb.c \
 	version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
