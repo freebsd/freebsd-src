@@ -204,13 +204,13 @@ revive_block(int sdno)
 
 	    if (debug & DEBUG_REVIVECONFLICT)
 		log(LOG_DEBUG,
-		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
+		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%jx, length %ld\n",
 		    rq->sdno,
 		    rq,
 		    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		    major(rq->bp->b_dev),
 		    minor(rq->bp->b_dev),
-		    rq->bp->b_blkno,
+		    (intmax_t)rq->bp->b_blkno,
 		    rq->bp->b_bcount);
 #endif
 	    launch_requests(sd->waitlist, 1);		    /* do them now */
@@ -306,8 +306,8 @@ parityops(struct vinum_ioctl_msg *data)
 	    if (op == checkparity)
 		reply->error = EIO;
 	    sprintf(reply->msg,
-		"Parity incorrect at offset 0x%llx\n",
-		errorloc);
+		"Parity incorrect at offset 0x%jx\n",
+		(intmax_t)errorloc);
 	}
 	if (reply->error == EAGAIN) {			    /* still OK, */
 	    plex->checkblock = pstripe + (pbp->b_bcount >> DEV_BSHIFT);	/* moved this much further down */
