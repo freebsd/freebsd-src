@@ -71,9 +71,13 @@ struct dbreg {
 /*
  * XXX these interfaces are MI, so they should be declared in a MI place.
  */
-int	set_fpregs(struct thread *td, struct fpreg *fpregs);
-int	set_regs(struct thread *td, struct reg *regs);
-void	setregs(struct thread *td, u_long e, u_long s, u_long ps);
+void	setregs __P((struct thread *, u_long, u_long, u_long));
+int	fill_regs __P((struct thread *, struct reg *));
+int	set_regs __P((struct thread *, struct reg *));
+int	fill_fpregs __P((struct thread *, struct fpreg *));
+int	set_fpregs __P((struct thread *, struct fpreg *));
+int	fill_dbregs __P((struct thread *, struct dbreg *));
+int	set_dbregs __P((struct thread *, struct dbreg *));
 #endif
 
 #endif /* !_MACHINE_REG_H_ */

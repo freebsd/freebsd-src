@@ -109,7 +109,6 @@ static const char rcsid[] =
 #include <dev/ofw/openfirm.h>
 #include <ddb/ddb.h>
 #include <sys/vnode.h>
-#include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
 
 int physmem = 0;
@@ -842,28 +841,42 @@ Debugger(const char *msg)
 
 /* XXX: dummy {fill,set}_[fp]regs */
 int
-fill_regs(struct proc *p, struct reg *regs)
+fill_regs(struct thread *td, struct reg *regs)
 {
 
 	return (ENOSYS);
 }
 
 int
-fill_fpregs(struct proc *p, struct fpreg *fpregs)
+fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 
 	return (ENOSYS);
 }
 
 int
-set_regs(struct proc *p, struct reg *regs)
+fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
 	return (ENOSYS);
 }
 
 int
-set_fpregs(struct proc *p, struct fpreg *fpregs)
+set_regs(struct thread *td, struct reg *regs)
+{
+
+	return (ENOSYS);
+}
+
+int
+set_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
+}
+
+int
+set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
 	return (ENOSYS);

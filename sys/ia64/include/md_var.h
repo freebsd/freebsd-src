@@ -47,10 +47,6 @@ void	cpu_halt __P((void));
 void	cpu_reset __P((void));
 int	is_physical_memory __P((vm_offset_t addr));
 void	swi_vm __P((void *));
-int	fill_regs __P((struct thread *, struct reg *));
-int	set_regs __P((struct thread *, struct reg *));
-int	fill_fpregs __P((struct thread *, struct fpreg *));
-int	set_fpregs __P((struct thread *, struct fpreg *));
 int	ia64_running_in_simulator __P((void));
 
 #endif /* !_MACHINE_MD_VAR_H_ */

@@ -50,9 +50,5 @@ void	cpu_halt __P((void));
 void	cpu_reset __P((void));
 int	is_physical_memory __P((vm_offset_t addr));
 void	swi_vm __P((void *));
-int	fill_regs __P((struct proc *, struct reg *));
-int	set_regs __P((struct proc *, struct reg *));
-int	fill_fpregs __P((struct proc *, struct fpreg *));
-int	set_fpregs __P((struct proc *, struct fpreg *));
 
 #endif /* !_MACHINE_MD_VAR_H_ */
