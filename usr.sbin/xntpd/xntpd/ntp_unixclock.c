@@ -556,13 +556,18 @@ clock_parms(tickadj, tick)
 #endif /* SOLARIS */
 
 #ifdef SYS_LINUX
-/* XXX should look this up somewhere ! */
+#include <sys/timex.h>
 static void
 clock_parms(tickadj, tick)
 	U_LONG *tickadj;
 	U_LONG *tick;
 {
-      *tickadj = (U_LONG)1;
-      *tick    = (U_LONG)10000;
+  struct timex txc;
+
+  txc.mode = 0;
+  __adjtimex(&txc);
+
+  *tickadj = (U_LONG)1;		/* our adjtime is accurate */
+  *tick    = (U_LONG)txc.tick;
 }
 #endif /* SYS_LINUX */

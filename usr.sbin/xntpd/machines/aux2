@@ -1,6 +1,6 @@
 RANLIB=     true # ar does the work of ranlib under System V
 DEFS_LOCAL= -DREFCLOCK
-DEFS=       -DSYS_AUX2
+DEFS=       -DSYS_AUX2 -DHAVE_BSD_TTYS
 AUTHDEFS=   -DDES -DMD5 -DFASTMD5
 CLOCKDEFS=  -DLOCAL_CLOCK
 DAEMONLIBS=

@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS))
 /*
- * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp
+ * /src/NTP/REPOSITORY/v3/xntpd/refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp
  *
- * refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp
+ * refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp
  *
  * generic reference clock driver for receivers
  *
@@ -129,7 +129,7 @@ CURRENTLY NO BSD TTY SUPPORT
 #include "parse.h"
 
 #if !defined(NO_SCCSID) && !defined(lint) && !defined(__GNUC__)
-static char rcsid[]="refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp";
+static char rcsid[]="refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp";
 #endif
 
 /**===========================================================================
@@ -1653,7 +1653,8 @@ local_poll(parse)
 		   * done if no more characters are available
 		   */
 		  FD_SET(fd, &fdmask);
-		  if (select(fd + 1, &fdmask, 0, 0, &null_time) == 0)
+		  if ((i == 0) &&
+		      (select(fd + 1, &fdmask, 0, 0, &null_time) == 0))
 		    return;
 		}
 	    }
@@ -1706,7 +1707,8 @@ parsestate(state, buffer)
       { PARSEB_NOSYNC,   "TIME CODE NOT CONFIRMED" },
       { PARSEB_DST,      "DST" },
       { PARSEB_UTC,      "UTC DISPLAY" },
-      { PARSEB_LEAP,     "LEAP WARNING" },
+      { PARSEB_LEAPADD,  "LEAP ADD WARNING" },
+      { PARSEB_LEAPDEL,  "LEAP DELETE WARNING" },
       { PARSEB_LEAPSECOND, "LEAP SECOND" },
       { PARSEB_ALTERNATE,"ALTERNATE ANTENNA" },
       { PARSEB_TIMECODE, "TIME CODE" },
@@ -2539,9 +2541,10 @@ static void
 parse_leap()
 {
 	/*
-	 * PARSE does encode a leap warning... we are aware but not afraid of that
-	 * as long as we get a little help for the direction from the operator until
 	 * PARSE encodes the LEAP correction direction.
+	 * For timecodes that do not pass on the leap correction direction
+	 * the default PARSEB_LEAPADD must be used. It may then be modified
+	 * with a fudge flag (flag2).
 	 */
 }
 
@@ -2821,7 +2824,7 @@ parse_control(unit, in, out)
       sprintf(tt, "refclock_iomode=\"%s\"", parse->binding->bd_description);
 
       tt = add_var(&out->kv_list, 128, RO);
-      sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.45 1994/01/25 19:06:27 kardel Exp\"");
+      sprintf(tt, "refclock_driver_version=\"refclock_parse.c,v 3.51 1994/03/03 09:49:54 kardel Exp\"");
 
       out->lencode       = strlen(outstatus);
       out->lastcode      = outstatus;
@@ -3245,14 +3248,24 @@ parse_process(parse, parsetime)
     }
   else
     {
-      if (PARSE_LEAP(parsetime->parse_state))
+      if (PARSE_LEAPADD(parsetime->parse_state))
 	{
+	  /*
+	   * we pick this state also for time code that pass leap warnings
+	   * without direction information (as earth is currently slowing
+	   * down).
+	   */
 	  leap = (parse->flags & PARSE_LEAP_DELETE) ? LEAP_DELSECOND : LEAP_ADDSECOND;
 	}
       else
-	{
-	  leap = LEAP_NOWARNING;
-	}
+        if (PARSE_LEAPDEL(parsetime->parse_state))
+	  {
+	    leap = LEAP_DELSECOND;
+	  }
+	else
+	  {
+	    leap = LEAP_NOWARNING;
+	  }
     }
   
   refclock_receive(parse->peer, &off, 0, LFPTOFP(&dispersion), &reftime, &rectime, leap);
@@ -3396,6 +3409,15 @@ trimble_init(parse)
  * History:
  *
  * refclock_parse.c,v
+ * Revision 3.49  1994/02/20  13:26:00  kardel
+ * rcs id cleanup
+ *
+ * Revision 3.48  1994/02/20  13:04:56  kardel
+ * parse add/delete second support
+ *
+ * Revision 3.47  1994/02/02  17:44:30  kardel
+ * rcs ids fixed
+ *
  * Revision 3.45  1994/01/25  19:06:27  kardel
  * 94/01/23 reconcilation
  *

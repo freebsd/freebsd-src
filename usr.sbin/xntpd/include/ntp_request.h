@@ -429,6 +429,24 @@ struct info_sys_stats {
 	U_LONG processed;	/* packets processed */
 	U_LONG badauth;		/* packets dropped because of authorization */
 	U_LONG wanderhold;
+	U_LONG limitrejected;	/* rejected because of client limitation */
+};
+
+
+/*
+ * System stats - old version
+ */
+struct old_info_sys_stats {
+	U_LONG timeup;		/* time we have been up and running */
+	U_LONG timereset;	/* time since these were last cleared */
+	U_LONG badstratum;	/* packets claiming an invalid stratum */
+	U_LONG oldversionpkt;	/* old version packets received */
+	U_LONG newversionpkt;	/* new version packets received */
+	U_LONG unknownversion;	/* don't know version packets */
+	U_LONG badlength;	/* packets with bad length */
+	U_LONG processed;	/* packets processed */
+	U_LONG badauth;		/* packets dropped because of authorization */
+	U_LONG wanderhold;
 };
 
 
@@ -546,6 +564,7 @@ struct conf_restrict {
 struct info_monitor {	
 	U_LONG lasttime;		/* last packet from this host */
 	U_LONG firsttime;		/* first time we received a packet */
+	U_LONG lastdrop;	        /* last time we rejected a packet due to client limitation policy */
 	U_LONG count;			/* count of packets received */
 	U_LONG addr;			/* host address */
 	u_short port;			/* port number of last reception */
@@ -553,6 +572,18 @@ struct info_monitor {
 	u_char version;			/* version number of last packet */
 };
 
+/*
+ * Structure used for returning monitor data (old format
+ */
+struct old_info_monitor {	
+	U_LONG lasttime;		/* last packet from this host */
+	U_LONG firsttime;		/* first time we received a packet */
+	U_LONG count;			/* count of packets received */
+	U_LONG addr;			/* host address */
+	u_short port;			/* port number of last reception */
+	u_char mode;			/* mode of last packet */
+	u_char version;			/* version number of last packet */
+};
 
 /*
  * Structure used for passing indication of flags to clear

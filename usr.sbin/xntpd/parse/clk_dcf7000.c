@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_DCF7000)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_dcf7000.c,v 3.10 1994/01/25 19:05:07 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_dcf7000.c,v 3.11 1994/02/02 17:45:14 kardel Exp
  *  
- * clk_dcf7000.c,v 3.10 1994/01/25 19:05:07 kardel Exp
+ * clk_dcf7000.c,v 3.11 1994/02/02 17:45:14 kardel Exp
  *
  * ELV DCF7000 module
  *
@@ -121,6 +121,9 @@ cvt_dcf7000(buffer, size, format, clock)
  * History:
  *
  * clk_dcf7000.c,v
+ * Revision 3.11  1994/02/02  17:45:14  kardel
+ * rcs ids fixed
+ *
  * Revision 3.6  1993/10/09  15:01:27  kardel
  * file structure unified
  *

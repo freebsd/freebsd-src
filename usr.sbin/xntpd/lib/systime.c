@@ -47,12 +47,13 @@ extern int debug;
  * We also remember the clock precision we computed from the kernel in
  * case someone asks us.
  */
+	LONG sys_clock;
+
 	LONG adj_precision;	/* adj precision in usec (tickadj) */
 	LONG tvu_maxslew;	/* maximum adjust doable in 1<<CLOCK_ADJ sec (usec) */
 
 	U_LONG tsf_maxslew;	/* same as above, as LONG format */
 
-	LONG sys_clock;
 	l_fp sys_clock_offset;	/* correction for current system time */
 
 /*

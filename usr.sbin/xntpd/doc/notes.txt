@@ -785,7 +785,7 @@ configuration functionality (though the only thing you can currently do
 with mode-6 messages is set the leap-second warning bits) and the ntpq
 program provides generic support for the latter. The leap bits that can be
 set in the leap_warning variable (up to one month ahead) and in the
-leap_indication variable have a slighly different encoding than the
+leap_indication variable have a slightly different encoding than the
 usual interpretation:
 
 	Value		Action

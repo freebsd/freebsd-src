@@ -598,8 +598,12 @@ again:
 	/*
 	 * So far, so good.  Copy this data into the output array.
 	 */
-	if ((datap + datasize) > (pktdata + pktdatasize))
+	if ((datap + datasize) > (pktdata + pktdatasize)) {
+		int offset = datap - pktdata;
 		growpktdata();
+	        *rdata = pktdata; /* might have been realloced ! */
+		datap = pktdata + offset;
+	}
 	memmove(datap, (char *)rpkt.data, datasize);
 	datap += datasize;
 	if (firstpkt) {

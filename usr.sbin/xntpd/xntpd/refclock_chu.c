@@ -599,6 +599,25 @@ chu_receive(rbufp)
 	chu->lastupdate = current_time;
 
 	/*
+	 * Just for fun, we can debug the whole frame if
+	 * we want.
+	 */
+
+#ifndef NO_CHU_DEBUG
+	syslog(LOG_DEBUG, "CHU %s packet:", (chuc->chutype == CHU_YEAR)?
+	    "year":"time");
+	for (i=0; i < NCHUCHARS; i++) {
+		char c[64];
+
+		sprintf(c,"%c%c %s",hexstring[chuc->codechars[i]&0xf],
+		    hexstring[chuc->codechars[i]>>4],
+		    ctime(&(chuc->codetimes[i].tv_sec)));
+		c[strlen(c)-1]=0;	/* ctime() adds a damn \n */
+		syslog(LOG_DEBUG, "%s .%06d", c, chuc->codetimes[i].tv_usec);
+	}
+#endif
+
+	/*
 	 * At this point we're assured that both halves of the
 	 * data match because of what the kernel has done.
 	 * But there's more than one data format. We need to
