@@ -233,12 +233,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
 	cache = mmap(NULL, bytes, PROT_READ|PROT_WRITE, MAP_ANON, -1, 0);
-	if (cache == MAP_FAILED) {
+	if (cache == MAP_FAILED)
 		cache = NULL;
-	}
-	if (cache != NULL) {
-		memset(cache, 0, obj->nchains * sizeof(SymCache));
-	}
 
 	/*
 	 * From the SVR4 PPC ABI:
