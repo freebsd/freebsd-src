@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.42 1994/12/24 07:22:58 bde Exp $
+ *	$Id: trap.c,v 1.43 1995/01/09 16:04:39 davidg Exp $
  */
 
 /*
@@ -73,24 +73,24 @@ void	trap_fatal	__P((struct trapframe *));
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
-	"reserved addressing fault",		/*  0 T_RESADFLT */
+	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
-	"reserved operand fault",		/*  2 T_RESOPFLT */
+	"",					/*  2 unused */
 	"breakpoint instruction fault",		/*  3 T_BPTFLT */
 	"",					/*  4 unused */
-	"system call trap",			/*  5 T_SYSCALL */
+	"",					/*  5 unused */
 	"arithmetic trap",			/*  6 T_ARITHTRAP */
 	"system forced exception",		/*  7 T_ASTFLT */
-	"segmentation (limit) fault",		/*  8 T_SEGFLT */
+	"",					/*  8 unused */
 	"general protection fault",		/*  9 T_PROTFLT */
 	"trace trap",				/* 10 T_TRCTRAP */
 	"",					/* 11 unused */
 	"page fault",				/* 12 T_PAGEFLT */
-	"page table fault",			/* 13 T_TABLEFLT */
+	"",					/* 13 unused */
 	"alignment fault",			/* 14 T_ALIGNFLT */
-	"kernel stack pointer not valid",	/* 15 T_KSPNOTVAL */
-	"bus error",				/* 16 T_BUSERR */
-	"kernel debugger fault",		/* 17 T_KDBTRAP */
+	"",					/* 15 unused */
+	"",					/* 16 unused */
+	"",					/* 17 unused */
 	"integer divide fault",			/* 18 T_DIVIDE */
 	"non-maskable interrupt trap",		/* 19 T_NMI */
 	"overflow trap",			/* 20 T_OFLOW */
@@ -167,7 +167,6 @@ trap(frame)
 	u_long eva;
 #endif
 
-	frame.tf_eflags &= ~PSL_NT;	/* clear nested trap XXX */
 	type = frame.tf_trapno;
 	code = frame.tf_err;
 	
@@ -178,9 +177,7 @@ trap(frame)
 		p->p_md.md_regs = (int *)&frame;
 
 		switch (type) {
-		case T_RESADFLT:	/* reserved addressing fault */
 		case T_PRIVINFLT:	/* privileged instruction fault */
-		case T_RESOPFLT:	/* reserved operand fault */
 			ucode = type;
 			i = SIGILL;
 			break;
@@ -208,6 +205,9 @@ trap(frame)
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
 		case T_STKFLT:		/* stack fault */
+		case T_TSSFLT:		/* invalid TSS fault */
+		case T_DOUBLEFLT:	/* double fault */
+		default:
 			ucode = code + BUS_SEGM_FAULT ;
 			i = SIGBUS;
 			break;
@@ -276,10 +276,6 @@ trap(frame)
 			ucode = T_FPOPFLT;
 			i = SIGILL;
 			break;
-
-		default:
-			trap_fatal(&frame);
-			return;
 		}
 	} else {
 		/* kernel trap */
@@ -291,8 +287,52 @@ trap(frame)
 
 		case T_PROTFLT:		/* general protection fault */
 		case T_SEGNPFLT:	/* segment not present fault */
+			/*
+			 * Invalid segment selectors and out of bounds
+			 * %eip's and %esp's can be set up in user mode.
+			 * This causes a fault in kernel mode when the
+			 * kernel tries to return to user mode.  We want
+			 * to get this fault so that we can fix the
+			 * problem here and not have to check all the
+			 * selectors and pointers when the user changes
+			 * them.
+			 */
+#define	MAYBE_DORETI_FAULT(where, whereto)				\
+	do {								\
+		extern void where(void) __asm(__STRING(where));		\
+		extern void whereto(void) __asm(__STRING(whereto));	\
+		if (frame.tf_eip == (int)where) {			\
+			frame.tf_eip = (int)whereto;			\
+			return;						\
+		}							\
+	} while (0)
+
+			if (intr_nesting_level == 0) {
+				MAYBE_DORETI_FAULT(doreti_iret,
+						   doreti_iret_fault);
+				MAYBE_DORETI_FAULT(doreti_popl_ds,
+						   doreti_popl_ds_fault);
+				MAYBE_DORETI_FAULT(doreti_popl_es,
+						   doreti_popl_es_fault);
+			}
 			if (curpcb && curpcb->pcb_onfault) {
 				frame.tf_eip = (int)curpcb->pcb_onfault;
+				return;
+			}
+			break;
+
+		case T_TSSFLT:
+			/*
+			 * PSL_NT can be set in user mode and isn't cleared
+			 * automatically when the kernel is entered.  This
+			 * causes a TSS fault when the kernel attempts to
+			 * `iret' because the TSS link is uninitialized.  We
+			 * want to get this fault so that we can fix the
+			 * problem here and not every time the kernel is
+			 * entered.
+			 */
+			if (frame.tf_eflags & PSL_NT) {
+				frame.tf_eflags &= ~PSL_NT;
 				return;
 			}
 			break;
