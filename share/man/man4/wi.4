@@ -291,7 +291,7 @@ Add BRIDGE to the kernel config.
 ifconfig wi0 inet up ssid my_ap mediaopt hostap
 sysctl net.link.ether.bridge=1
 sysctl net.link.ether.bridge_cfg="wi0 fxp0"
-sysctl net.inet.ip.forwarding=1
+sysctl net.inet.ip.check_interface=0
 .Ed
 .Pp
 This will give you approximately the same functionality as an access
