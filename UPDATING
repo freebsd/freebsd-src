@@ -53,7 +53,9 @@ the common items quick how-tos, followed by entries for versions of
 	are very benign, some of them have created a bit of a stir.
 	Use the new version of mergemaster to update /etc, either by
 	updating /etc after installworld, or by doing:
-	cd /usr/src/usr.sbin/mergemaster; make all install [clean]
+	cd /usr/src/usr.sbin/mergemaster; make all install
+	before you run installworld.
+
 	Then use the new -C option to double-check your rc.conf settings.
 	You should also double-check settings in [defaults/]rc.conf,
 	syslog.conf, newsyslog.conf, and anything else important
@@ -89,7 +91,7 @@ the common items quick how-tos, followed by entries for versions of
 	'mergemaster -p' will do this.  You may need to install
 	mergemaster before this will work if you are updating from a
 	very old version of stable.  This can be done with:
-	cd /usr/src/usr.sbin/mergemaster; make all install [clean]
+	cd /usr/src/usr.sbin/mergemaster; make all install
 
 20020325:
 	sendmail 8.12.2 has been imported.  The sendmail binary is no
