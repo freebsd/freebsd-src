@@ -280,7 +280,9 @@ ifconfig_ed0_alias2="inet 127.0.0.253 netmask 0xffffffff"
 ifconfig_ed0_alias4="inet 127.0.0.254 netmask 0xffffffff"
 
 .Ed
-Then note that alias4 would \fBnot\fR be added since the search would
+Then note that alias4 would 
+.Em not
+be added since the search would
 stop with the missing alias3 entry.
 .Pp
 You can bring up an interface with DHCP by setting the
@@ -413,8 +415,11 @@ daemon at boot time.
 .Ar amd_enable
 is set to
 .Ar YES ,
-these are the flags to pass to it.  Use the \fBinfo amd\fR
-command for more information.
+these are the flags to pass to it.
+See the
+.Xr amd 8
+.Xr info 1
+page for more information.
 .It Ar update_motd
 (bool) If set to 
 .Ar YES ,
@@ -471,7 +476,7 @@ daemon. It is commonly needed to run CFS without real NFS used.
 .It Ar weak_mountd_authentication
 (bool) If set to
 .Ar YES ,
-allow services like \fBPCNFSD\fR to make non-privileged mount
+allow services like PCNFSD to make non-privileged mount
 requests.
 .It Ar nfs_reserved_port_only
 (bool) If set to
