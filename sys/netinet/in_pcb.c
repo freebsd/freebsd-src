@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.31 1997/04/27 20:01:04 wollman Exp $
+ *	$Id: in_pcb.c,v 1.32 1997/05/19 00:18:30 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -470,10 +470,12 @@ in_setsockaddr(so, nam)
 	struct socket *so;
 	struct mbuf *nam;
 {
-	int s = splnet();
-	register struct inpcb *inp = sotoinpcb(so);
+	int s;
+	register struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
+	s = splnet();
+	inp = sotoinpcb(so);
 	if (!inp) {
 		splx(s);
 		return EINVAL;
@@ -494,10 +496,12 @@ in_setpeeraddr(so, nam)
 	struct socket *so;
 	struct mbuf *nam;
 {
-	int s = splnet();
-	struct inpcb *inp = sotoinpcb(so);
+	int s;
+	struct inpcb *inp;
 	register struct sockaddr_in *sin;
 
+	s = splnet();
+	inp = sotoinpcb(so);
 	if (!inp) {
 		splx(s);
 		return EINVAL;
