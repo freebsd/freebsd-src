@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)sysctl.c	8.1 (Berkeley) 6/6/93"; */
 static const char rcsid[] =
-	"$Id: sysctl.c,v 1.3 1995/02/09 23:16:17 wollman Exp $";
+	"$Id: sysctl.c,v 1.4 1995/02/16 00:28:42 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -111,6 +111,7 @@ int	Aflag, aflag, nflag, wflag;
 #define	CLOCK		0x00000001
 #define	BOOTTIME	0x00000002
 #define	CONSDEV		0x00000004
+#define DUMPDEV		0x00000008
 
 int
 main(argc, argv)
@@ -274,6 +275,9 @@ parse(string, flags)
 		case KERN_BOOTTIME:
 			special |= BOOTTIME;
 			break;
+		case KERN_DUMPDEV:
+			special |= DUMPDEV;
+			break;
 		}
 		break;
 
@@ -391,12 +395,17 @@ parse(string, flags)
 			fprintf(stdout, "%d\n", btp->tv_sec);
 		return;
 	}
-	if (special & CONSDEV) {
+	if (special & (CONSDEV | DUMPDEV)) {
 		dev_t dev = *(dev_t *)buf;
 
+		if ((special & DUMPDEV) && dev == NODEV && !nflag) {
+			printf("%s = disabled\n", string);
+			return;
+		}
 		if (!nflag)
 			fprintf(stdout, "%s = %s\n", string,
-			    devname(dev, S_IFCHR));
+			    devname(dev, 
+				    (special & CONSDEV) ? S_IFCHR : S_IFBLK));
 		else
 			fprintf(stdout, "0x%x\n", dev);
 		return;
