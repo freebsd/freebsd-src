@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $Id$
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id$";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)

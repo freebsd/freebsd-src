@@ -15,7 +15,7 @@
 
 #if ! lint
 static const char rcsid[] =
-    "$FreeBSD$";
+    "$Id$";
 #endif	/* ! lint */
 
 static void

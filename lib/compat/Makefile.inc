@@ -1,3 +1,3 @@
-# $FreeBSD$
+# $Id$
 
 LIBCOMPATDIR?=	${LIBDIR}/compat

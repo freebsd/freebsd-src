@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$Id$ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.

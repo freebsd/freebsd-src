@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$FreeBSD$";
+	"$Id$";
 #endif
 
 #ifndef lint

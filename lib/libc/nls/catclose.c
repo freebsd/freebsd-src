@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$Id$ */
 
 /*
  * Written by J.T. Conklin, 10/05/94

@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=	disk
 SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
