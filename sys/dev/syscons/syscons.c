@@ -2907,14 +2907,14 @@ init_scp(sc_softc_t *sc, int vty, scr_stat *scp)
 	scp->status |= GRAPHICS_MODE;
 	scp->xpixel = info.vi_width;
 	scp->ypixel = info.vi_height;
-	scp->xsize = info.vi_width/8;
+	scp->xsize = info.vi_width/info.vi_cwidth;
 	scp->ysize = info.vi_height/info.vi_cheight;
 	scp->font_size = 0;
 	scp->font = NULL;
     } else {
 	scp->xsize = info.vi_width;
 	scp->ysize = info.vi_height;
-	scp->xpixel = scp->xsize*8;
+	scp->xpixel = scp->xsize*info.vi_cwidth;
 	scp->ypixel = scp->ysize*info.vi_cheight;
 	if (info.vi_cheight < 14) {
 	    scp->font_size = 8;
