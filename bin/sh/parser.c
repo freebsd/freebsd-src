@@ -868,6 +868,7 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 	int parenlevel;	/* levels of parens in arithmetic */
 	int oldstyle;
 	char const *prevsyntax;	/* syntax before arithmetic */
+	int synentry;
 #if __GNUC__
 	/* Avoid longjmp clobbering */
 	(void) &out;
@@ -879,6 +880,7 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 	(void) &oldstyle;
 	(void) &prevsyntax;
 	(void) &syntax;
+	(void) &synentry;
 #endif
 
 	startlinno = plinno;
@@ -906,7 +908,13 @@ readtoken1(firstc, syntax, eofmark, striptabs)
 		CHECKEND();	/* set c to PEOF if at end of here document */
 		for (;;) {	/* until end of line or end of word */
 			CHECKSTRSPACE(3, out);	/* permit 3 calls to USTPUTC */
-			switch(syntax[c]) {
+
+			if (c < 0 && c != PEOF)
+				synentry = CWORD;
+			else
+				synentry = syntax[c];
+
+			switch(synentry) {
 			case CNL:	/* '\n' */
 				if (syntax == BASESYNTAX)
 					goto endword;	/* exit outer loop */
