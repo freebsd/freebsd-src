@@ -137,8 +137,11 @@ struct if_data {
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART)
 
 /* Capabilities that interfaces can advertise. */
-#define IFCAP_HWCSUM		0x0001  /* can do hardware checksums */
-#define IFCAP_NETCONS		0x0002  /* can be a network console */
+#define IFCAP_RXCSUM		0x0001  /* can offload checksum on RX */
+#define IFCAP_TXCSUM		0x0002  /* can offload checksum on TX */
+#define IFCAP_NETCONS		0x0004  /* can be a network console */
+
+#define IFCAP_HWCSUM		(IFCAP_RXCSUM | IFCAP_TXCSUM)
 
 #define	IFQ_MAXLEN	50
 #define	IFNET_SLOWHZ	1		/* granularity is 1 second */
