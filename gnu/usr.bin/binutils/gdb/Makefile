@@ -60,10 +60,6 @@ GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 CFLAGS+=	-DFREEBSD_ELF
 
 CFLAGS+= -I$(.CURDIR) -I${DESTDIR}/usr/include/readline
-# use phkmalloc
-CFLAGS+= -DNO_MMALLOC
-# uncomment the next line if you want to debug gdb
-#CFLAGS+= -g
 YFLAGS=
 
 CLEANFILES=	init.c init.c-tmp wait.h
