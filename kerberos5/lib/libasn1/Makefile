@@ -7,7 +7,8 @@ CFLAGS+=-I${KRB5DIR}/include \
 	-I${INCLUDEOBJDIR} \
 	-I${.OBJDIR}
 SRCS=	der_get.c der_put.c der_free.c der_length.c der_copy.c \
-	timegm.c asn1_err.c asn1_err.h asn1.h ${GEN:S/.x/.c/g}
+	timegm.c asn1_err.c asn1_err.h asn1.h roken.h \
+	${GEN:S/.x/.c/g}
 
 GEN=	asn1_APOptions.x asn1_AP_REP.x asn1_AP_REQ.x asn1_AS_REP.x \
 	asn1_AS_REQ.x asn1_Authenticator.x asn1_AuthorizationData.x \
@@ -31,7 +32,7 @@ GEN=	asn1_APOptions.x asn1_AP_REP.x asn1_AP_REQ.x asn1_AS_REP.x \
 .PATH:		${KRB5DIR}/lib/asn1
 .PATH:		${KRB5DIR}/lib/roken
 
-beforedepend all:
+beforedepend all: roken.h
 
 .for I in ${GEN}
 ${I:S/.x/.c/}:	${I}
@@ -51,7 +52,7 @@ asn1_compile:	parse.o lex.o main.c hash.c symbol.c gen.c \
 		get_window_size.c strupr.c
 	${CC} ${CFLAGS} ${.OODATE} -o ${.TARGET}
 
-parse.o:	parse.c
+parse.o:	parse.c roken.h
 
 parse.h parse.c:	parse.y
 	${YACC}	-d ${.OODATE}
@@ -60,7 +61,7 @@ parse.h parse.c:	parse.y
 
 lex.o:		lex.l
 
-print_version.o: print_version.h print_version.c
+print_version.o: print_version.h print_version.c roken.h
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${KRB5DIR}/lib/roken/print_version.c
 
 print_version.h: make-print-version

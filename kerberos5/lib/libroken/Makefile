@@ -13,7 +13,8 @@ SRCS=		base64.c concat.c emalloc.c eread.c erealloc.c estrdup.c \
 		roken_gethostby.c signal.c simple_exec.c snprintf.c \
 		socket.c tm2time.c verify.c warnerr.c copyhostent.c \
 		strlwr.c strndup.c strnlen.c strupr.c get_default_username.c \
-		print_version.h
+		strcollect.c getaddrinfo_hostspec.c \
+		print_version.h roken.h
 NOPIC=		yes
 
 install:
