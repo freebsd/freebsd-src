@@ -124,6 +124,10 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	&ip_keepfaith,	0,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
+static int	ip_checkinterface = 1;
+SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
+    &ip_checkinterface, 0, "Verify packet arrives on correct interface");
+
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
@@ -513,7 +517,7 @@ pass:
 		 * check that the packet is either arriving from the
 		 * correct interface or is locally generated.
 		 */
-		if (ia->ia_ifp != m->m_pkthdr.rcvif &&
+		if (ia->ia_ifp != m->m_pkthdr.rcvif && ip_checkinterface &&
 		     (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0)
 			continue;
 
