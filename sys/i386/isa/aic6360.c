@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.26 1997/02/22 09:35:55 peter Exp $
+ * $Id: aic6360.c,v 1.27 1997/03/23 04:39:35 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -127,6 +127,7 @@
 #include <sys/queue.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#include <scsi/scsi_debug.h>
 
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
