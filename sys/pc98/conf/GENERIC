@@ -275,6 +275,9 @@ device		wi
 # those paremeters here.
 device		an
 
+# Xircom Ethernet
+device		xe
+
 # requires PCCARD (PCMCIA) support to be activated
 device		sn
 
