@@ -27,6 +27,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/procfs.h>
+#include <ucontext.h>
+
 void
 pt_reg_to_ucontext(const struct reg *r, ucontext_t *uc)
 {
