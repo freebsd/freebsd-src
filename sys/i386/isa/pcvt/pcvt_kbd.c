@@ -1682,7 +1682,7 @@ scroll_reset:
 
 #if PCVT_CTRL_ALT_DEL		/*   Check for cntl-alt-del	*/
 	if((key == 76) && ctrl_down && (meta_down||altgr_down))
-		shutdown_nice();
+		shutdown_nice(0);
 #endif /* PCVT_CTRL_ALT_DEL */
 
 #if !(PCVT_NETBSD || PCVT_FREEBSD >= 200)

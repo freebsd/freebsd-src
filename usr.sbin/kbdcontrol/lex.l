@@ -68,6 +68,8 @@ lctrla|ctrla	{ return TLCTRA; }
 rctrla		{ return TRCTRA; }
 lalta|alta	{ return TLALTA; }
 ralta		{ return TRALTA; }
+halt		{ return THALT; }
+pdwn		{ return TPDWN; }
 
 NUL|nul		{ number = 0; return TNUM; }
 SOH|soh		{ number = 1; return TNUM; }

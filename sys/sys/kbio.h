@@ -171,6 +171,8 @@ typedef struct keymap keymap_t;
 #define RCTRA		0x9e		/* right ctrl key / alt lock	*/
 #define LALTA		0x9f		/* left alt key / alt lock	*/
 #define RALTA		0xa0		/* right alt key / alt lock	*/
+#define HALT		0xa1		/* halt machine */
+#define PDWN		0xa2		/* halt machine and power down */
 
 #define F(x)		((x)+F_FN-1)
 #define	S(x)		((x)+F_SCR-1)
