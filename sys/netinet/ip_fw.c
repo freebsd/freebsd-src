@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.70 1998/01/05 00:14:05 alex Exp $
+ *	$Id: ip_fw.c,v 1.71 1998/01/05 00:57:15 alex Exp $
  */
 
 /*
@@ -154,8 +154,8 @@ icmptype_match(struct icmp *icmp, struct ip_fw *f)
 	type = icmp->icmp_type;
 
 	/* check for matching type in the bitmap */
-	if (type < IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8 &&
-		(f->fw_icmptypes[type / (sizeof(unsigned) * 8)] & 
+	if (type < IP_FW_ICMPTYPES_MAX &&
+		(f->fw_uar.fw_icmptypes[type / (sizeof(unsigned) * 8)] & 
 		(1U << (type % (8 * sizeof(unsigned))))))
 		return(1);
 
@@ -255,7 +255,7 @@ static void
 ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct ifnet *rif, struct ifnet *oif)
 {
-	static int counter;
+	static u_int64_t counter;
 	struct tcphdr *const tcp = (struct tcphdr *) ((u_long *) ip+ ip->ip_hl);
 	struct udphdr *const udp = (struct udphdr *) ((u_long *) ip+ ip->ip_hl);
 	struct icmp *const icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
@@ -469,11 +469,11 @@ ip_fw_chk(struct ip **pip, int hlen,
 			src_port = ntohs(udp->uh_sport);
 			dst_port = ntohs(udp->uh_dport);
 check_ports:
-			if (!port_match(&f->fw_pts[0],
+			if (!port_match(&f->fw_uar.fw_pts[0],
 			    IP_FW_GETNSRCP(f), src_port,
 			    f->fw_flg & IP_FW_F_SRNG))
 				continue;
-			if (!port_match(&f->fw_pts[IP_FW_GETNSRCP(f)],
+			if (!port_match(&f->fw_uar.fw_pts[IP_FW_GETNSRCP(f)],
 			    IP_FW_GETNDSTP(f), dst_port,
 			    f->fw_flg & IP_FW_F_DRNG)) 
 				continue;
