@@ -35,4 +35,4 @@
 
 #include "externs.h"
 
-int dtab[];
+extern int dtab[];
