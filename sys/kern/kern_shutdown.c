@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.37 1998/08/23 14:18:08 des Exp $
+ * $Id: kern_shutdown.c,v 1.38 1998/09/06 06:25:04 ache Exp $
  */
 
 #include "opt_ddb.h"
@@ -52,6 +52,7 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/sysproto.h>
@@ -107,17 +108,18 @@ const char *panicstr;
  * callout list for things to do a shutdown
  */
 typedef struct shutdown_list_element {
-	struct shutdown_list_element *next;
+	LIST_ENTRY(shutdown_list_element) links;
 	bootlist_fn function;
 	void *arg;
 } *sle_p;
 
 /*
- * there are two shutdown lists. Some things need to be shut down
- * Earlier than others.
+ * There are three shutdown lists. Some things need to be shut down
+ * earlier than others.
  */
-static sle_p shutdown_list1;
-static sle_p shutdown_list2;
+LIST_HEAD(shutdown_list, shutdown_list_element);
+
+static struct shutdown_list shutdown_lists[SHUTDOWN_FINAL + 1];
 
 static void boot __P((int)) __dead2;
 static void dumpsys __P((void));
@@ -183,12 +185,8 @@ boot(howto)
 	/*
 	 * Do any callouts that should be done BEFORE syncing the filesystems.
 	 */
-	ep = shutdown_list1;
-	while (ep) {
-		shutdown_list1 = ep->next;
+	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_PRE_SYNC], links)
 		(*ep->function)(howto, ep->arg);
-		ep = ep->next;
-	}
 
 	/* 
 	 * Now sync filesystems
@@ -210,7 +208,8 @@ boot(howto)
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
+				if ((bp->b_flags & (B_BUSY | B_INVAL))
+						== B_BUSY) {
 					nbusy++;
 				} else if ((bp->b_flags & (B_DELWRI | B_INVAL))
 						== B_DELWRI) {
@@ -233,7 +232,8 @@ boot(howto)
 #ifdef SHOW_BUSYBUFS
 			nbusy = 0;
 			for (bp = &buf[nbuf]; --bp >= buf; ) {
-				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
+				if ((bp->b_flags & (B_BUSY | B_INVAL))
+						== B_BUSY) {
 					nbusy++;
 					printf(
 			"%d: dev:%08lx, flags:%08lx, blkno:%ld, lblkno:%ld\n",
@@ -252,20 +252,28 @@ boot(howto)
 			if (panicstr == 0)
 				vfs_unmountall();
 		}
-		DELAY(100000);			/* wait for console output to finish */
+		DELAY(100000);		/* wait for console output to finish */
 	}
 
 	/*
 	 * Ok, now do things that assume all filesystem activity has
 	 * been completed.
 	 */
-	ep = shutdown_list2;
-	while (ep) {
-		shutdown_list2 = ep->next;
+	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_POST_SYNC], links)
 		(*ep->function)(howto, ep->arg);
-		ep = ep->next;
-	}
 	splhigh();
+	if ((howto & (RB_HALT|RB_DUMP) == RB_DUMP) && !cold) {
+		savectx(&dumppcb);
+#ifdef __i386__
+		dumppcb.pcb_cr3 = rcr3();
+#endif
+		dumpsys();
+	}
+
+	/* Now that we're going to really halt the system... */
+	LIST_FOREACH(ep, &shutdown_lists[SHUTDOWN_FINAL], links)
+		(*ep->function)(howto, ep->arg);
+
 	if (howto & RB_HALT) {
 		cpu_power_down();
 		printf("\n");
@@ -276,38 +284,33 @@ boot(howto)
 			cpu_halt();
 			/* NOTREACHED */
 		default:
+			howto &= ~RB_HALT;
 			break;
 		}
-	} else {
-		if (howto & RB_DUMP) {
-			if (!cold) {
-				savectx(&dumppcb);
-#ifdef __i386__
-				dumppcb.pcb_cr3 = rcr3();
-#endif
-				dumpsys();
-			}
+	} else if (howto & RB_DUMP) {
+		/* System Paniced */
 
-			if (PANIC_REBOOT_WAIT_TIME != 0) {
-				if (PANIC_REBOOT_WAIT_TIME != -1) {
-					int loop;
-					printf("Automatic reboot in %d seconds - press a key on the console to abort\n",
-						PANIC_REBOOT_WAIT_TIME);
-					for (loop = PANIC_REBOOT_WAIT_TIME * 10; loop > 0; --loop) {
-						DELAY(1000 * 100); /* 1/10th second */
-						/* Did user type a key? */
-						if (cncheckc() != -1)
-							break;
-					}
-					if (!loop)
-						goto die;
+		if (PANIC_REBOOT_WAIT_TIME != 0) {
+			if (PANIC_REBOOT_WAIT_TIME != -1) {
+				int loop;
+				printf("Automatic reboot in %d seconds - "
+				       "press a key on the console to abort\n",
+					PANIC_REBOOT_WAIT_TIME);
+				for (loop = PANIC_REBOOT_WAIT_TIME * 10;
+				     loop > 0; --loop) {
+					DELAY(1000 * 100); /* 1/10th second */
+					/* Did user type a key? */
+					if (cncheckc() != -1)
+						break;
 				}
-			} else { /* zero time specified - reboot NOW */
-				goto die;
+				if (!loop)
+					goto die;
 			}
-			printf("--> Press a key on the console to reboot <--\n");
-			cngetc();
+		} else { /* zero time specified - reboot NOW */
+			goto die;
 		}
+		printf("--> Press a key on the console to reboot <--\n");
+		cngetc();
 	}
 die:
 	printf("Rebooting...\n");
@@ -437,30 +440,24 @@ panic(const char *fmt, ...)
  * returns 0 on success.
  */
 int
-at_shutdown(bootlist_fn function, void *arg, int position)
+at_shutdown(bootlist_fn function, void *arg, int queue)
 {
-	sle_p ep, *epp;
+	sle_p ep;
 
-	switch(position) {
-	case SHUTDOWN_PRE_SYNC:
-		epp = &shutdown_list1;
-		break;
-	case SHUTDOWN_POST_SYNC:
-		epp = &shutdown_list2;
-		break;
-	default:
-		printf("bad exit callout list specified\n");
+	if (queue < SHUTDOWN_PRE_SYNC
+	 || queue > SHUTDOWN_FINAL) {
+		printf("at_shutdown: bad exit callout queue %d specified\n",
+		       queue);
 		return (EINVAL);
 	}
 	if (rm_at_shutdown(function, arg))
-		printf("exit callout entry already present\n");
+		printf("at_shutdown: exit callout entry was already present\n");
 	ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
 	if (ep == NULL)
 		return (ENOMEM);
-	ep->next = *epp;
 	ep->function = function;
 	ep->arg = arg;
-	*epp = ep;
+	LIST_INSERT_HEAD(&shutdown_lists[queue], ep, links);
 	return (0);
 }
 
@@ -471,33 +468,19 @@ at_shutdown(bootlist_fn function, void *arg, int position)
 int
 rm_at_shutdown(bootlist_fn function, void *arg)
 {
-	sle_p *epp, ep;
-	int count;
+	sle_p ep;
+	int   count;
+	int   queue;
 
 	count = 0;
-	epp = &shutdown_list1;
-	ep = *epp;
-	while (ep) {
-		if ((ep->function == function) && (ep->arg == arg)) {
-			*epp = ep->next;
-			free(ep, M_TEMP);
-			count++;
-		} else {
-			epp = &ep->next;
+	for (queue = SHUTDOWN_PRE_SYNC; queue < SHUTDOWN_FINAL; queue++) {
+		LIST_FOREACH(ep, &shutdown_lists[queue], links) {
+			if ((ep->function == function) && (ep->arg == arg)) {
+				LIST_REMOVE(ep, links);
+				free(ep, M_TEMP);
+				count++;
+			}
 		}
-		ep = *epp;
-	}
-	epp = &shutdown_list2;
-	ep = *epp;
-	while (ep) {
-		if ((ep->function == function) && (ep->arg == arg)) {
-			*epp = ep->next;
-			free(ep, M_TEMP);
-			count++;
-		} else {
-			epp = &ep->next;
-		}
-		ep = *epp;
 	}
 	return (count);
 }
