@@ -86,6 +86,12 @@
 		<para>ServerWorks ROSB4 ATA33</para>
 	   </listitem>
 	   <listitem>
+	        <para>SiS 530, 540, 620</para>
+	   </listitem>
+	   <listitem>
+	        <para>SiS 630, 633, 635, 730, 733, 735</para>
+	   </listitem>
+	   <listitem>
 		<para>SiS 5591</para>
 	   </listitem>
 	   <listitem>
@@ -1622,7 +1628,7 @@
     </para>
 
     <para>Gigabit Ethernet NICs based on the Intel 82542 and 82543
-    controller chips (&man.gx.4; driver)
+    controller chips (&man.gx.4; and &man.em.4; drivers)
       <itemizedlist>
 	<listitem>
 	  <para>Intel PRO/1000 Gigabit Ethernet</para>
