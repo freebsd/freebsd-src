@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_mkdb.c,v 1.4 1996/03/26 05:32:14 wpaul Exp wpaul $
+ *	$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -43,14 +43,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
-#include <db.h>
 #include <err.h>
 #include <rpc/rpc.h>
 #include <rpcsvc/yp.h>
 #include "yp_extern.h"
+#include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_mkdb.c,v 1.4 1996/03/26 05:32:14 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_mkdb.c,v 1.5 1996/06/03 03:12:32 wpaul Exp $";
 #endif
 
 char *yp_dir = "";	/* No particular default needed. */
@@ -193,21 +193,21 @@ main (argc, argv)
 	key.size = sizeof("YP_MASTER_NAME") - 1;
 	data.data = mastername;
 	data.size = strlen(mastername);
-	yp_put_record(dbp, &key, &data);
+	yp_put_record(dbp, &key, &data, 0);
 
 	key.data = "YP_LAST_MODIFIED";
 	key.size = sizeof("YP_LAST_MODIFIED") - 1;
 	snprintf(buf, sizeof(buf), "%lu", time(NULL));
-	data.data = &buf;
+	data.data = (char *)&buf;
 	data.size = strlen(buf);
-	yp_put_record(dbp, &key, &data);
+	yp_put_record(dbp, &key, &data, 0);
 
 	if (infilename) {
 		key.data = "YP_INPUT_FILE";
 		key.size = sizeof("YP_INPUT_FILE") - 1;
 		data.data = infilename;
 		data.size = strlen(infilename);
-		yp_put_record(dbp, &key, &data);
+		yp_put_record(dbp, &key, &data, 0);
 	}
 
 	if (outfilename) {
@@ -215,7 +215,7 @@ main (argc, argv)
 		key.size = sizeof("YP_OUTPUT_FILE") - 1;
 		data.data = outfilename;
 		data.size = strlen(outfilename);
-		yp_put_record(dbp, &key, &data);
+		yp_put_record(dbp, &key, &data, 0);
 	}
 
 	if (domain) {
@@ -223,7 +223,7 @@ main (argc, argv)
 		key.size = sizeof("YP_DOMAIN_NAME") - 1;
 		data.data = domain;
 		data.size = strlen(domain);
-		yp_put_record(dbp, &key, &data);
+		yp_put_record(dbp, &key, &data, 0);
 	}
 
 	while(fgets((char *)&buf, sizeof(buf), ifp)) {
@@ -279,7 +279,7 @@ main (argc, argv)
 		data.data = datbuf;
 		data.size = strlen(datbuf);
 
-		if ((rval = yp_put_record(dbp, &key, &data)) != YP_TRUE) {
+		if ((rval = yp_put_record(dbp, &key, &data, 0)) != YP_TRUE) {
 			switch(rval) {
 			case YP_FALSE:
 				warnx("duplicate key '%s' - skipping", keybuf);
