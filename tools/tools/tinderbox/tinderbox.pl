@@ -415,8 +415,7 @@ MAIN:{
     # Build GENERIC if requested
     if ($cmds{'generic'}) {
 	logstage("building generic kernel");
-	$ENV{'KERNCONF'} = "GENERIC";
-	spawn('/usr/bin/make', 'buildkernel')
+	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=GENERIC')
 	    or error("failed to build generic kernel");
     }
 
@@ -427,8 +426,7 @@ MAIN:{
 	make('LINT')
 	    or error("failed to generate lint config");
 	cd("$sandbox/src");
-	$ENV{'KERNCONF'} = "LINT";
-	spawn('/usr/bin/make', 'buildkernel')
+	spawn('/usr/bin/make', 'buildkernel', 'KERNCONF=LINT')
 	    or error("failed to build lint kernel");
     }
 
