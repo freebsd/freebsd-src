@@ -609,7 +609,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 			return (error);
 		TIMESPEC_TO_TIMEVAL(&tv, &timeout);
 	}
-	if (td->td_flags & TDF_SA)
+	if (td->td_pflags & TDP_SA)
 		td->td_pflags |= TDP_UPCALLING;
 	else {
 		ku->ku_mflags = fuword(&ku->ku_mailbox->km_flags);
@@ -748,7 +748,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	if (virtual_cpu != 0)
 		ncpus = virtual_cpu;
 	if (!(mbx.km_flags & KMF_BOUND))
-		sa = TDF_SA;
+		sa = TDP_SA;
 	else
 		ncpus = 1;
 	PROC_LOCK(p);
@@ -787,7 +787,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 	} else {
-		if (!first && ((td->td_flags & TDF_SA) ^ sa) != 0)
+		if (!first && ((td->td_pflags & TDP_SA) ^ sa) != 0)
 			return (EINVAL);
 		newkg = kg;
 	}
@@ -891,14 +891,14 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	}
 	if (!sa) {
 		newtd->td_mailbox = mbx.km_curthread;
-		newtd->td_flags &= ~TDF_SA;
+		newtd->td_pflags &= ~TDP_SA;
 		if (newtd != td) {
 			mtx_unlock_spin(&sched_lock);
 			cpu_set_upcall_kse(newtd, newku);
 			mtx_lock_spin(&sched_lock);
 		}
 	} else {
-		newtd->td_flags |= TDF_SA;
+		newtd->td_pflags |= TDP_SA;
 	}
 	if (newtd != td)
 		setrunqueue(newtd);
@@ -1263,7 +1263,7 @@ thread_statclock(int user)
 	struct thread *td = curthread;
 	struct ksegrp *kg = td->td_ksegrp;
 
-	if (kg->kg_numupcalls == 0 || !(td->td_flags & TDF_SA))
+	if (kg->kg_numupcalls == 0 || !(td->td_pflags & TDP_SA))
 		return (0);
 	if (user) {
 		/* Current always do via ast() */
@@ -1621,8 +1621,8 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
 	td2->td_upcall = ku;
-	td2->td_flags  = TDF_SA;
-	td2->td_pflags = TDP_UPCALLING;
+	td2->td_flags  = 0;
+	td2->td_pflags = TDP_SA|TDP_UPCALLING;
 	td2->td_kse    = NULL;
 	td2->td_state  = TDS_CAN_RUN;
 	td2->td_inhibitors = 0;
@@ -1729,7 +1729,7 @@ thread_user_enter(struct proc *p, struct thread *td)
 	 * but for now do it every time.
 	 */
 	kg = td->td_ksegrp;
-	if (td->td_flags & TDF_SA) {
+	if (td->td_pflags & TDP_SA) {
 		ku = td->td_upcall;
 		KASSERT(ku, ("%s: no upcall owned", __func__));
 		KASSERT((ku->ku_owner == td), ("%s: wrong owner", __func__));
@@ -1788,7 +1788,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	ku = td->td_upcall;
 
 	/* Nothing to do with bound thread */
-	if (!(td->td_flags & TDF_SA))
+	if (!(td->td_pflags & TDP_SA))
 		return (0);
 
 	/*
