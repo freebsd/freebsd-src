@@ -52,16 +52,16 @@ device		atapicd			# ATAPI CDROM drives
 options	KTRACE
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
-#device		atkbdc		# AT keyboard controller
-#device		atkbd		# AT keyboard
-#device		psm		# PS/2 mouse
+device		atkbdc		# AT keyboard controller
+device		atkbd		# AT keyboard
+device		psm		# PS/2 mouse
 
-#device		vga		# VGA video card driver
+device		vga		# VGA video card driver
 
-#device		splash		# Splash screen and screen saver support
+device		splash		# Splash screen and screen saver support
 
 # syscons is the default console driver, resembling an SCO console
-#device		sc
+device		sc
 
 #device		agp		# support several AGP chipsets
 
