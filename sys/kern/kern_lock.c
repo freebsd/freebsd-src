@@ -43,7 +43,9 @@
 
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 
 #include <machine/mutex.h>
@@ -71,9 +73,47 @@
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
 	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
 
+/*
+ * Mutex array variables.  Rather than each lockmgr lock having its own mutex,
+ * share a fixed (at boot time) number of mutexes across all lockmgr locks in
+ * order to keep sizeof(struct lock) down.
+ */
+extern int lock_nmtx;
+int lock_mtx_selector;
+struct mtx *lock_mtx_array;
+struct mtx lock_mtx;
+
 static int acquire(struct lock *lkp, int extflags, int wanted);
 static int apause(struct lock *lkp, int flags);
 static int acquiredrain(struct lock *lkp, int extflags) ;
+
+static void
+lockmgr_init(void *dummy __unused)
+{
+	int	i;
+
+	/*
+	 * Initialize the lockmgr protection mutex if it hasn't already been
+	 * done.  Unless something changes about kernel startup order, VM
+	 * initialization will always cause this mutex to already be
+	 * initialized in a call to lockinit().
+	 */
+	if (lock_mtx_selector == 0)
+		mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
+	else {
+		/*
+		 * This is necessary if (lock_nmtx == 1) and doesn't hurt
+		 * otherwise.
+		 */
+		lock_mtx_selector = 0;
+	}
+
+	lock_mtx_array = (struct mtx *)malloc(sizeof(struct mtx) * lock_nmtx,
+	    M_CACHE, M_WAITOK);
+	for (i = 0; i < lock_nmtx; i++)
+		mtx_init(&lock_mtx_array[i], "lockmgr interlock", MTX_DEF);
+}
+SYSINIT(lmgrinit, SI_SUB_LOCK, SI_ORDER_FIRST, lockmgr_init, NULL)
 
 static LOCK_INLINE void
 sharelock(struct lock *lkp, int incr) {
@@ -113,11 +153,11 @@ apause(struct lock *lkp, int flags)
 		return 0;
 #ifdef SMP
 	for (lock_wait = LOCK_WAIT_TIME; lock_wait > 0; lock_wait--) {
-		mtx_exit(&lkp->lk_interlock, MTX_DEF);
+		mtx_exit(lkp->lk_interlock, MTX_DEF);
 		for (i = LOCK_SAMPLE_WAIT; i > 0; i--)
 			if ((lkp->lk_flags & flags) == 0)
 				break;
-		mtx_enter(&lkp->lk_interlock, MTX_DEF);
+		mtx_enter(lkp->lk_interlock, MTX_DEF);
 		if ((lkp->lk_flags & flags) == 0)
 			return 0;
 	}
@@ -147,9 +187,9 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 	while ((lkp->lk_flags & wanted) != 0) {
 		lkp->lk_flags |= LK_WAIT_NONZERO;
 		lkp->lk_waitcount++;
-		mtx_exit(&lkp->lk_interlock, MTX_DEF);
+		mtx_exit(lkp->lk_interlock, MTX_DEF);
 		error = tsleep(lkp, lkp->lk_prio, lkp->lk_wmesg, lkp->lk_timo);
-		mtx_enter(&lkp->lk_interlock, MTX_DEF);
+		mtx_enter(lkp->lk_interlock, MTX_DEF);
 		if (lkp->lk_waitcount == 1) {
 			lkp->lk_flags &= ~LK_WAIT_NONZERO;
 			lkp->lk_waitcount = 0;
@@ -206,7 +246,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 	else
 		pid = p->p_pid;
 
-	mtx_enter(&lkp->lk_interlock, MTX_DEF);
+	mtx_enter(lkp->lk_interlock, MTX_DEF);
 	if (flags & LK_INTERLOCK)
 		mtx_exit(interlkp, MTX_DEF);
 
@@ -434,7 +474,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		break;
 
 	default:
-		mtx_exit(&lkp->lk_interlock, MTX_DEF);
+		mtx_exit(lkp->lk_interlock, MTX_DEF);
 		panic("lockmgr: unknown locktype request %d",
 		    flags & LK_TYPE_MASK);
 		/* NOTREACHED */
@@ -445,7 +485,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		lkp->lk_flags &= ~LK_WAITDRAIN;
 		wakeup((void *)&lkp->lk_flags);
 	}
-	mtx_exit(&lkp->lk_interlock, MTX_DEF);
+	mtx_exit(lkp->lk_interlock, MTX_DEF);
 	return (error);
 }
 
@@ -463,10 +503,10 @@ acquiredrain(struct lock *lkp, int extflags) {
 
 	while (lkp->lk_flags & LK_ALL) {
 		lkp->lk_flags |= LK_WAITDRAIN;
-		mtx_exit(&lkp->lk_interlock, MTX_DEF);
+		mtx_exit(lkp->lk_interlock, MTX_DEF);
 		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
 			lkp->lk_wmesg, lkp->lk_timo);
-		mtx_enter(&lkp->lk_interlock, MTX_DEF);
+		mtx_enter(lkp->lk_interlock, MTX_DEF);
 		if (error)
 			return error;
 		if (extflags & LK_SLEEPFAIL) {
@@ -490,11 +530,32 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	CTR5(KTR_LOCKMGR, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
-	if (lkp->lk_flags & LK_VALID)
-		lockdestroy(lkp);
-
-	mtx_init(&lkp->lk_interlock, "lockmgr interlock", MTX_DEF);
-	lkp->lk_flags = (flags & LK_EXTFLG_MASK) | LK_VALID;
+	if (lock_mtx_array != NULL) {
+		mtx_enter(&lock_mtx, MTX_DEF);
+		lkp->lk_interlock = &lock_mtx_array[lock_mtx_selector];
+		lock_mtx_selector++;
+		if (lock_mtx_selector == lock_nmtx)
+			lock_mtx_selector = 0;
+		mtx_exit(&lock_mtx, MTX_DEF);
+	} else {
+		/*
+		 * Giving lockmgr locks that are initialized during boot a
+		 * pointer to the internal lockmgr mutex is safe, since the
+		 * lockmgr code itself doesn't call lockinit() (which could
+		 * cause mutex recursion).
+		 */
+		if (lock_mtx_selector == 0) {
+			/*
+			 * This  case only happens during kernel bootstrapping,
+			 * so there's no reason to protect modification of
+			 * lock_mtx_selector or lock_mtx.
+			 */
+			mtx_init(&lock_mtx, "lockmgr", MTX_DEF);
+			lock_mtx_selector = 1;
+		}
+		lkp->lk_interlock = &lock_mtx;
+	}
+	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
 	lkp->lk_sharecount = 0;
 	lkp->lk_waitcount = 0;
 	lkp->lk_exclusivecount = 0;
@@ -513,10 +574,6 @@ lockdestroy(lkp)
 {
 	CTR2(KTR_LOCKMGR, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
-	if (lkp->lk_flags & LK_VALID) {
-		lkp->lk_flags &= ~LK_VALID;
-		mtx_destroy(&lkp->lk_interlock);
-	}
 }
 
 /*
@@ -529,7 +586,7 @@ lockstatus(lkp, p)
 {
 	int lock_type = 0;
 
-	mtx_enter(&lkp->lk_interlock, MTX_DEF);
+	mtx_enter(lkp->lk_interlock, MTX_DEF);
 	if (lkp->lk_exclusivecount != 0) {
 		if (p == NULL || lkp->lk_lockholder == p->p_pid)
 			lock_type = LK_EXCLUSIVE;
@@ -537,7 +594,7 @@ lockstatus(lkp, p)
 			lock_type = LK_EXCLOTHER;
 	} else if (lkp->lk_sharecount != 0)
 		lock_type = LK_SHARED;
-	mtx_exit(&lkp->lk_interlock, MTX_DEF);
+	mtx_exit(lkp->lk_interlock, MTX_DEF);
 	return (lock_type);
 }
 
@@ -550,9 +607,9 @@ lockcount(lkp)
 {
 	int count;
 
-	mtx_enter(&lkp->lk_interlock, MTX_DEF);
+	mtx_enter(lkp->lk_interlock, MTX_DEF);
 	count = lkp->lk_exclusivecount + lkp->lk_sharecount;
-	mtx_exit(&lkp->lk_interlock, MTX_DEF);
+	mtx_exit(lkp->lk_interlock, MTX_DEF);
 	return (count);
 }
 

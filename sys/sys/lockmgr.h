@@ -50,8 +50,7 @@
  * can be gained. The simple locks are defined in <machine/param.h>.
  */
 struct lock {
-	struct	mtx lk_interlock;	/* lock on remaining fields */
-	struct	mtxf lk_pad;		/* padding to keep sizeof constant */
+	struct	mtx *lk_interlock;	/* lock on remaining fields */
 	u_int	lk_flags;		/* see below */
 	int	lk_sharecount;		/* # of accepted shared locks */
 	int	lk_waitcount;		/* # of processes sleeping for lock */
@@ -133,11 +132,6 @@ struct lock {
 #define LK_HAVE_EXCL	0x00000400	/* exclusive lock obtained */
 #define LK_WAITDRAIN	0x00000800	/* process waiting for lock to drain */
 #define LK_DRAINING	0x00004000	/* lock is being drained */
-#define LK_VALID	0x00008000	/*
-					 * Lock is initialized.  This is a
-					 * temporary hack to support vfs
-					 * layering.
-					 */
 /*
  * Control flags
  *
