@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.34 1997/09/29 16:26:02 wosch Exp $
+#     $Id: BSD.local.dist,v 1.35 1997/10/06 08:08:14 jkh Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -230,6 +230,8 @@
 	    ru_SU.CP866
             ..
             ru_SU.KOI8-R
+            ..
+	    sl_SI.ISO_8859-2
             ..
 	    sv_SE.ISO_8859-1
             ..
