@@ -35,7 +35,7 @@
 # include "sendmail.h"
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.66 (Berkeley) 9/20/96";
+static char sccsid[] = "@(#)alias.c	8.67 (Berkeley) 1/18/97";
 #endif /* not lint */
 
 
@@ -601,11 +601,24 @@ readaliases(map, af, announcestats, logstats)
 	while (fgets(line, sizeof (line), af) != NULL)
 	{
 		int lhssize, rhssize;
+		int c;
 
 		LineNumber++;
 		p = strchr(line, '\n');
 		if (p != NULL)
 			*p = '\0';
+		else if (!feof(af))
+		{
+			syserr("554 alias line too long");
+
+			/* flush to end of line */
+			while ((c = getc(af)) != EOF && c != '\n')
+				continue;
+
+			/* skip any continuation lines */
+			skipping = TRUE;
+			continue;
+		}
 		switch (line[0])
 		{
 		  case '#':
@@ -655,7 +668,6 @@ readaliases(map, af, announcestats, logstats)
 		rhs = p;
 		for (;;)
 		{
-			register char c;
 			register char *nlp;
 
 			nlp = &p[strlen(p)];
@@ -698,12 +710,19 @@ readaliases(map, af, announcestats, logstats)
 			LineNumber++;
 
 			/* check for line overflow */
-			if (strchr(p, '\n') == NULL)
+			if (strchr(p, '\n') == NULL && !feof(af))
 			{
 				usrerr("554 alias too long");
+				while ((c = fgetc(af)) != EOF && c != '\n')
+					continue;
+				skipping = TRUE;
 				break;
 			}
 		}
+
+		if (skipping)
+			continue;
+
 		if (!bitnset(M_ALIASABLE, al.q_mailer->m_flags))
 		{
 			syserr("554 %s... cannot alias non-local names",

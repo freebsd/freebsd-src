@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)envelope.c	8.99 (Berkeley) 12/1/96";
+static char sccsid[] = "@(#)envelope.c	8.101 (Berkeley) 12/16/96";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -275,11 +275,14 @@ dropenvelope(e, fulldrop)
 
 	if (bitset(EF_FATALERRS, e->e_flags) && !failure_return)
 	{
-		failure_return = TRUE;
 		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
 		{
-			if (!bitset(QDONTSEND, q->q_flags))
+			if (!bitset(QDONTSEND, q->q_flags) &&
+			    bitset(QPINGONFAILURE, q->q_flags))
+			{
+				failure_return = TRUE;
 				q->q_flags |= QBADADDR;
+			}
 		}
 	}
 
@@ -640,6 +643,8 @@ closexscript(e)
 **		e -- the envelope in which we would like the sender set.
 **		delimptr -- if non-NULL, set to the location of the
 **			trailing delimiter.
+**		delimchar -- the character that will delimit the sender
+**			address.
 **		internal -- set if this address is coming from an internal
 **			source such as an owner alias.
 **
@@ -651,16 +656,16 @@ closexscript(e)
 */
 
 void
-setsender(from, e, delimptr, internal)
+setsender(from, e, delimptr, delimchar, internal)
 	char *from;
 	register ENVELOPE *e;
 	char **delimptr;
+	int delimchar;
 	bool internal;
 {
 	register char **pvp;
 	char *realname = NULL;
 	register struct passwd *pw;
-	char delimchar;
 	char *bp;
 	char buf[MAXNAME + 2];
 	char pvpbuf[PSBUFSIZE];
@@ -683,7 +688,6 @@ setsender(from, e, delimptr, internal)
 	if (ConfigLevel < 2)
 		SuprErrs = TRUE;
 
-	delimchar = internal ? '\0' : ' ';
 	e->e_from.q_flags = QBADADDR;
 	if (from == NULL ||
 	    parseaddr(from, &e->e_from, RF_COPYALL|RF_SENDERADDR,
