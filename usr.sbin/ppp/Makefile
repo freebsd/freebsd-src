@@ -20,9 +20,9 @@ NOSUID=		true
 .endif
 
 .if defined(NOSUID) || defined(PPP_NOSUID)
-BINMODE=554
+BINMODE=550
 .else
-BINMODE=4554
+BINMODE=4550
 BINOWN=	root
 .endif
 BINGRP=	network
