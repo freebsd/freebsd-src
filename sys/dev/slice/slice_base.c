@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_base.c,v 1.4 1998/06/14 19:00:12 julian Exp $
+ *	$Id: slice_base.c,v 1.5 1998/07/13 08:22:56 julian Exp $
  */
 
 #include <sys/param.h>
@@ -82,65 +82,10 @@ sl_findtype(char *type)
 }
 
 /*
- * Ask all known handler types if a given slice is handled by them.
- * If the slice specifies a type, then just find that.
- */
-void
-slice_start_probe(sl_p slice)
-{
-	sh_p            tp = types;
-
-	if (slice->probeinfo.type == NULL) {
-		if(slice->handler_up == NULL) {
-			slice->probeinfo.trial_handler = tp;
-			printf("%s: probing for %s.. ",slice->name, tp->name);  
-			(*tp->claim) (slice);
-		}
-		return;
-	}
-
-	/*
-	 * Null string ("") means "don't even try". Caller probably
-	 * should pre-trap such cases but we'll check here too.
-	 */
-	if (slice->probeinfo.type[0]) {
-		tp = sl_findtype(slice->probeinfo.type);
-		if (tp) {
-			printf("%s: attaching %s..\n", slice->name, tp->name);
-			(*tp->claim) (slice);
-		}
-	}
-}
-
-/*
- * Move the slice probe type, on to the next type
- * and call that.  Called from failed probes.
- */
-void
-slice_probe_next(sl_p slice)
-{
-	sh_p            tp = slice->probeinfo.trial_handler;
-	
-	if ((slice->flags & SLF_PROBING) == 0)
-		panic("slice_probe_next: bad call");
-	if (tp != NULL) {
-		tp = tp->next;
-		slice->probeinfo.trial_handler = tp;
-		if (tp) {
-			printf("%s: probing for %s.. ",slice->name, tp->name);  
-			(*tp->claim) (slice);
-			return;
-		}
-	}
-	slice->flags &= ~SLF_PROBING;
-}
-
-
-/*
  * Make a handler instantiation of the requested type.
  * don't take no for an answer.
  * force it to mark it's new territory.
- * Must be called from a with a user context.
+ * Must be called from a within a user context.
  * 
  */
 static int
@@ -308,9 +253,82 @@ sl_unref(sl_p slice)
 }
 
 
+/***********************************************************************
+ * Handler probing state machine support.
+ ***********************************************************************/
+
+/*
+ * Ask all known handler types if a given slice is handled by them.
+ * If the slice specifies a type, then just find that.
+ * This will be done asynchronously. The claim operation may simply
+ * queue the work to be done.  When this item has been rejected, 
+ * control will pass to slice_probe_next(). 
+ * This  starts up the generic probeing state machine, which
+ * will start up the probing state machine for each handler in turn,
+ * until one has claimed the device, or there are no more handlers.
+ * 
+ */
+void
+slice_start_probe(sl_p slice)
+{
+	sh_p            tp = types;
+
+	if (slice->probeinfo.type == NULL) {
+		if(slice->handler_up == NULL) {
+			slice->probeinfo.trial_handler = tp;
+			slice->flags |= SLF_PROBING;
+			printf("%s: probing for %s.. ",slice->name, tp->name);  
+			(*tp->claim) (slice);
+		}
+		return;
+	}
+
+	/*
+	 * Null string ("") means "don't even try". Caller probably
+	 * should pre-trap such cases but we'll check here too.
+	 * Notice that the PROBING bit is not set.
+	 * This means that we should not do a full probe,
+	 * but just this one handler.
+	 */
+	if (slice->probeinfo.type[0]) {
+		tp = sl_findtype(slice->probeinfo.type);
+		if (tp) {
+			printf("%s: attaching %s..\n", slice->name, tp->name);
+			(*tp->claim) (slice);
+		}
+	}
+}
+
+/*
+ * Move the slice probe type, on to the next type
+ * and call that.  Called from failed probes.
+ * Don't do anything if the PROBING flag has been cleared.
+ */
+void
+slice_probe_next(sl_p slice)
+{
+	sh_p            tp = slice->probeinfo.trial_handler;
+	
+	if ((slice->flags & SLF_PROBING) == 0)
+		return;
+	if (tp != NULL) {
+		if (slice->probeinfo.trial_handler = tp = tp->next) {
+			printf("%s: probing for %s.. ",slice->name, tp->name);  
+			(*tp->claim) (slice);
+			return;
+		}
+	}
+	slice->flags &= ~SLF_PROBING;
+}
+
+
 /*
  * Given a slice,  launch an IOrequest for information
  * This is not a bulk IO routine but meant for probes etc.
+ * This routine may be called at interrupt time. It schedules an 
+ * IO that will be completed asynchronously. On completion the
+ * Block IO system will call sl_async_done, which will trigger
+ * a completion event for the handler's probe state machine.
  */
 int
 slice_request_block(sl_p slice, int blknum)
@@ -385,7 +403,9 @@ slice_writeblock(struct slice * slice, int blkno,
 }
 
 /* 
- * called with an argument of a bp when it is completed
+ * called with an argument of a bp when it is completed.
+ * Th eslice is extracted from the operation and the completion event
+ * is used to trigger that slice's state machine to make the next move.
  */
 static void
 sl_async_done(struct buf *bp)
@@ -410,9 +430,13 @@ RR;
 			panic("sl_async_done: unexpected write completion");
 	}
 #endif	/* PARANOID */
+
 	/*
 	 * if the IO failed, then abandon the probes and 
 	 * return. Possibly ask the lower layer to try again later?
+	 * It's assumed that a a revoke will abort the state machine.
+	 * XXX Maybe we should call the done() routine anyhow
+	 * and let each handler detect the failure..
 	 */
 	if (bp->b_flags & B_ERROR) {
 		(* slice->handler_up->revoke)(slice->private_up);
@@ -421,24 +445,40 @@ RR;
 
 		bp->b_flags |= B_INVAL | B_AGE;
 		brelse(bp);
+		slice->flags &= ~SLF_PROBING;
 		return;
 	}
 		
-	error = (* slice->handler_up->done)(slice, bp);
+	/*
+	 * Call the handler's done() routine. This will
+	 * examine the result of the probe and do whatever is needed.
+	 * Check for abnormal error conditions. (return value non 0)
+	 * Not claiming the slice is not an error condition.
+	 */
+	if ( (* slice->handler_up->done)(slice, bp)) {
+		slice->flags &= ~SLF_PROBING;
+		return;
+	}
+
 	/*
 	 * If the handler has left itself there, or cleared
 	 * the PROBING bit, then consider
 	 * probing to have come to a close. So just return.
-	 * an IO error would be a great hint to abandon probing as well.
-	 * we could catch that on the way up but we might want to give
+	 * XXX An IO error would be a great hint to abandon probing as well.
+	 * we catch that on the way up but we might want to give
 	 * the handler a chance to clean up state?
 	 */
-	if (slice->handler_up)
-		return;
-	if (error) {
+	if (slice->handler_up || ((slice->flags & SLF_PROBING) == 0)) {
 		slice->flags &= ~SLF_PROBING;
 		return;
 	}
+
+
+	/*
+	 * The handler didn't claim it. Nor did it abort the 
+	 * probing sequence. 
+	 * Ok, so we should try the next handler to probe.
+	 */
 	slice_probe_next(slice);
 }
 
