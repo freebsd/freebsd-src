@@ -196,7 +196,7 @@ aac_pci_attach(device_t dev)
 		device_printf(sc->aac_dev, "can't allocate interrupt\n");
 		goto out;
 	}
-#if __FreeBSD_version < 500005
+#ifndef INTR_ENTROPY
 #define INTR_ENTROPY 0
 #endif
 	if (bus_setup_intr(sc->aac_dev, sc->aac_irq, INTR_TYPE_BIO|INTR_ENTROPY,
@@ -278,6 +278,10 @@ aac_pci_attach(device_t dev)
 			case AAC_HWIF_STRONGARM:
 				debug(2, "set hardware up for StrongARM");
 				sc->aac_if = aac_sa_interface;
+				break;
+			case AAC_HWIF_FALCON:
+				debug(2, "set hardware up for Falcon/PPC");
+				sc->aac_if = aac_fa_interface;
 				break;
 			}
 			break;

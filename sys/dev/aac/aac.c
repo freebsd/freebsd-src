@@ -42,6 +42,12 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
+#include <sys/poll.h>
+#if __FreeBSD_version >= 500005
+#include <sys/selinfo.h>
+#else
+#include <sys/select.h>
+#endif
 
 #include <dev/aac/aac_compat.h>
 
@@ -109,6 +115,27 @@ static int	aac_dequeue_fib(struct aac_softc *sc, int queue,
 static int	aac_enqueue_response(struct aac_softc *sc, int queue,
 				     struct aac_fib *fib);
 
+/* Falcon/PPC interface */
+static int	aac_fa_get_fwstatus(struct aac_softc *sc);
+static void	aac_fa_qnotify(struct aac_softc *sc, int qbit);
+static int	aac_fa_get_istatus(struct aac_softc *sc);
+static void	aac_fa_clear_istatus(struct aac_softc *sc, int mask);
+static void	aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
+				   u_int32_t arg0, u_int32_t arg1,
+				   u_int32_t arg2, u_int32_t arg3);
+static int	aac_fa_get_mailboxstatus(struct aac_softc *sc);
+static void	aac_fa_set_interrupts(struct aac_softc *sc, int enable);
+
+struct aac_interface aac_fa_interface = {
+	aac_fa_get_fwstatus,
+	aac_fa_qnotify,
+	aac_fa_get_istatus,
+	aac_fa_clear_istatus,
+	aac_fa_set_mailbox,
+	aac_fa_get_mailboxstatus,
+	aac_fa_set_interrupts
+};
+
 /* StrongARM interface */
 static int	aac_sa_get_fwstatus(struct aac_softc *sc);
 static void	aac_sa_qnotify(struct aac_softc *sc, int qbit);
@@ -160,6 +187,7 @@ static char	*aac_describe_code(struct aac_code_lookup *table,
 static d_open_t		aac_open;
 static d_close_t	aac_close;
 static d_ioctl_t	aac_ioctl;
+static d_poll_t		aac_poll;
 static int		aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib);
 static void		aac_handle_aif(struct aac_softc *sc,
 					   struct aac_fib *fib);
@@ -176,7 +204,7 @@ static struct cdevsw aac_cdevsw = {
 	noread,			/* read */
 	nowrite,		/* write */
 	aac_ioctl,		/* ioctl */
-	nopoll,			/* poll */
+	aac_poll,		/* poll */
 	nommap,			/* mmap */
 	nostrategy,		/* strategy */
 	"aac",			/* name */
@@ -251,7 +279,12 @@ aac_attach(struct aac_softc *sc)
 	 * Register to probe our containers later.
 	 */
 	TAILQ_INIT(&sc->aac_container_tqh);
-	AAC_LOCK_INIT(&sc->aac_container_lock);
+	AAC_LOCK_INIT(&sc->aac_container_lock, "AAC container lock");
+
+	/*
+	 * Lock for the AIF queue
+	 */
+	AAC_LOCK_INIT(&sc->aac_aifq_lock, "AAC AIF lock");
 
 	sc->aac_ich.ich_func = aac_startup;
 	sc->aac_ich.ich_arg = sc;
@@ -380,7 +413,7 @@ aac_add_container(struct aac_softc *sc, struct aac_mntinforesponse *mir, int f)
 		co->co_found = f;
 		bcopy(&mir->MntTable[0], &co->co_mntobj,
 		      sizeof(struct aac_mntobj));
-		AAC_LOCK_AQUIRE(&sc->aac_container_lock);
+		AAC_LOCK_ACQUIRE(&sc->aac_container_lock);
 		TAILQ_INSERT_TAIL(&sc->aac_container_tqh, co, co_link);
 		AAC_LOCK_RELEASE(&sc->aac_container_lock);
 	}
@@ -585,14 +618,10 @@ aac_intr(void *arg)
 
 	reason = AAC_GET_ISTATUS(sc);
 
-	/* controller wants to talk to the log?  Defer it to the AIF thread */
+	/* controller wants to talk to the log */
 	if (reason & AAC_DB_PRINTF) {
 		AAC_CLEAR_ISTATUS(sc, AAC_DB_PRINTF);
-		if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
-			sc->aifflags |= AAC_AIFFLAGS_PENDING;
-			wakeup(sc->aifthread);
-		} else
-			aac_print_printf(sc);
+		aac_print_printf(sc);
 	}
 
 	/* controller has a message for us? */
@@ -754,8 +783,6 @@ aac_host_command(struct aac_softc *sc)
 						     fib);
 			}
 		}
-		aac_print_printf(sc);
-
 	}
 	sc->aifflags &= ~AAC_AIFFLAGS_RUNNING;
 	wakeup(sc->aac_dev);
@@ -1063,6 +1090,15 @@ aac_dump_complete(struct aac_softc *sc)
 
 /*
  * Submit a command to the controller, return when it completes.
+ * XXX This is very dangerous!  If the card has gone out to lunch, we could
+ *     be stuck here forever.  At the same time, signals are not caught
+ *     because there is a risk that a signal could wakeup the tsleep before
+ *     the card has a chance to complete the command.  The passed in timeout
+ *     is ignored for the same reason.  Since there is no way to cancel a
+ *     command in progress, we should probably create a 'dead' queue where
+ *     commands go that have been interrupted/timed-out/etc, that keeps them
+ *     out of the free pool.  That way, if the card is just slow, it won't
+ *     spam the memory of a command that has been recycled.
  */
 static int
 aac_wait_command(struct aac_command *cm, int timeout)
@@ -1077,9 +1113,7 @@ aac_wait_command(struct aac_command *cm, int timeout)
 	aac_startio(cm->cm_sc);
 	s = splbio();
 	while (!(cm->cm_flags & AAC_CMD_COMPLETED) && (error != EWOULDBLOCK)) {
-		error = tsleep(cm, PRIBIO | PCATCH, "aacwait", 0);
-		if ((error == ERESTART) || (error == EINTR))
-			break;
+		error = tsleep(cm, PRIBIO, "aacwait", 0);
 	}
 	splx(s);
 	return(error);
@@ -1856,6 +1890,17 @@ aac_rx_get_fwstatus(struct aac_softc *sc)
 	return(AAC_GETREG4(sc, AAC_RX_FWSTATUS));
 }
 
+static int
+aac_fa_get_fwstatus(struct aac_softc *sc)
+{
+	int val;
+
+	debug_called(3);
+
+	val = AAC_GETREG4(sc, AAC_FA_FWSTATUS);
+	return (val);
+}
+
 /*
  * Notify the controller of a change in a given queue
  */
@@ -1874,6 +1919,15 @@ aac_rx_qnotify(struct aac_softc *sc, int qbit)
 	debug_called(3);
 
 	AAC_SETREG4(sc, AAC_RX_IDBR, qbit);
+}
+
+static void
+aac_fa_qnotify(struct aac_softc *sc, int qbit)
+{
+	debug_called(3);
+
+	AAC_SETREG2(sc, AAC_FA_DOORBELL1, qbit);
+	AAC_FA_HACK(sc);
 }
 
 /*
@@ -1895,6 +1949,17 @@ aac_rx_get_istatus(struct aac_softc *sc)
 	return(AAC_GETREG4(sc, AAC_RX_ODBR));
 }
 
+static int
+aac_fa_get_istatus(struct aac_softc *sc)
+{
+	int val;
+
+	debug_called(3);
+
+	val = AAC_GETREG2(sc, AAC_FA_DOORBELL0);
+	return (val);
+}
+
 /*
  * Clear some interrupt reason bits
  */
@@ -1912,6 +1977,15 @@ aac_rx_clear_istatus(struct aac_softc *sc, int mask)
 	debug_called(3);
 
 	AAC_SETREG4(sc, AAC_RX_ODBR, mask);
+}
+
+static void
+aac_fa_clear_istatus(struct aac_softc *sc, int mask)
+{
+	debug_called(3);
+
+	AAC_SETREG2(sc, AAC_FA_DOORBELL0_CLEAR, mask);
+	AAC_FA_HACK(sc);
 }
 
 /*
@@ -1943,6 +2017,24 @@ aac_rx_set_mailbox(struct aac_softc *sc, u_int32_t command,
 	AAC_SETREG4(sc, AAC_RX_MAILBOX + 16, arg3);
 }
 
+static void
+aac_fa_set_mailbox(struct aac_softc *sc, u_int32_t command,
+		u_int32_t arg0, u_int32_t arg1, u_int32_t arg2, u_int32_t arg3)
+{
+	debug_called(4);
+
+	AAC_SETREG4(sc, AAC_FA_MAILBOX, command);
+	AAC_FA_HACK(sc);
+	AAC_SETREG4(sc, AAC_FA_MAILBOX + 4, arg0);
+	AAC_FA_HACK(sc);
+	AAC_SETREG4(sc, AAC_FA_MAILBOX + 8, arg1);
+	AAC_FA_HACK(sc);
+	AAC_SETREG4(sc, AAC_FA_MAILBOX + 12, arg2);
+	AAC_FA_HACK(sc);
+	AAC_SETREG4(sc, AAC_FA_MAILBOX + 16, arg3);
+	AAC_FA_HACK(sc);
+}
+
 /*
  * Fetch the immediate command status word
  */
@@ -1960,6 +2052,17 @@ aac_rx_get_mailboxstatus(struct aac_softc *sc)
 	debug_called(4);
 
 	return(AAC_GETREG4(sc, AAC_RX_MAILBOX));
+}
+
+static int
+aac_fa_get_mailboxstatus(struct aac_softc *sc)
+{
+	int val;
+
+	debug_called(4);
+
+	val = AAC_GETREG4(sc, AAC_FA_MAILBOX);
+	return (val);
 }
 
 /*
@@ -1986,6 +2089,20 @@ aac_rx_set_interrupts(struct aac_softc *sc, int enable)
 		AAC_SETREG4(sc, AAC_RX_OIMR, ~AAC_DB_INTERRUPTS);
 	} else {
 		AAC_SETREG4(sc, AAC_RX_OIMR, ~0);
+	}
+}
+
+static void
+aac_fa_set_interrupts(struct aac_softc *sc, int enable)
+{
+	debug(2, "%sable interrupts", enable ? "en" : "dis");
+
+	if (enable) {
+		AAC_SETREG2((sc), AAC_FA_MASK0_CLEAR, AAC_DB_INTERRUPTS);
+		AAC_FA_HACK(sc);
+	} else {
+		AAC_SETREG2((sc), AAC_FA_MASK0, ~0);
+		AAC_FA_HACK(sc);
 	}
 }
 
@@ -2058,7 +2175,7 @@ aac_describe_code(struct aac_code_lookup *table, u_int32_t code)
  */
 
 static int
-aac_open(dev_t dev, int flags, int fmt, struct proc *p)
+aac_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_softc *sc;
 
@@ -2076,7 +2193,7 @@ aac_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-aac_close(dev_t dev, int flags, int fmt, struct proc *p)
+aac_close(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
 	struct aac_softc *sc;
 
@@ -2091,7 +2208,7 @@ aac_close(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 static int
-aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
+aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	union aac_statrequest *as;
 	struct aac_softc *sc;
@@ -2133,7 +2250,7 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		break;
 	case FSACTL_OPEN_GET_ADAPTER_FIB:
 		arg = *(caddr_t*)arg;
-		case FSACTL_LNX_OPEN_GET_ADAPTER_FIB:
+	case FSACTL_LNX_OPEN_GET_ADAPTER_FIB:
 		debug(1, "FSACTL_OPEN_GET_ADAPTER_FIB");
 		/*
 		 * Pass the caller out an AdapterFibContext.
@@ -2183,11 +2300,35 @@ aac_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		error = 0;
 		break;
 	default:
-		device_printf(sc->aac_dev, "unsupported cmd 0x%lx\n", cmd);
+		debug(1, "unsupported cmd 0x%lx\n", cmd);
 		error = EINVAL;
 		break;
 	}
 	return(error);
+}
+
+static int
+aac_poll(dev_t dev, int poll_events, d_thread_t *td)
+{
+	struct aac_softc *sc;
+	int revents;
+
+	sc = dev->si_drv1;
+	revents = 0;
+
+	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
+	if ((poll_events & (POLLRDNORM | POLLIN)) != 0) {
+		if (sc->aac_aifq_tail != sc->aac_aifq_head)
+			revents |= poll_events & (POLLIN | POLLRDNORM);
+	}
+	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
+
+	if (revents == 0) {
+		if (poll_events & (POLLIN | POLLRDNORM))
+			selrecord(td, &sc->rcv_select);
+	}
+
+	return (revents);
 }
 
 /*
@@ -2231,8 +2372,10 @@ aac_ioctl_sendfib(struct aac_softc *sc, caddr_t ufib)
 	/*
 	 * Pass the FIB to the controller, wait for it to complete.
 	 */
-	if ((error = aac_wait_command(cm, 30)) != 0)	/* XXX user timeout? */
+	if ((error = aac_wait_command(cm, 30)) != 0) {	/* XXX user timeout? */
+		printf("aac_wait_command return %d\n", error);
 		goto out;
+	}
 
 	/*
 	 * Copy the FIB and data back out to the caller.
@@ -2264,7 +2407,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	struct aac_mntinfo mi;
 	struct aac_mntinforesponse mir;
 	u_int16_t rsize;
-	int next, s, found;
+	int next, found;
 	int added = 0, i = 0;
 
 	debug_called(2);
@@ -2356,7 +2499,7 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 					device_delete_child(sc->aac_dev,
 							    co->co_disk);
 					co_next = TAILQ_NEXT(co, co_link);
-					AAC_LOCK_AQUIRE(&sc->
+					AAC_LOCK_ACQUIRE(&sc->
 							aac_container_lock);
 					TAILQ_REMOVE(&sc->aac_container_tqh, co,
 						     co_link);
@@ -2385,15 +2528,19 @@ aac_handle_aif(struct aac_softc *sc, struct aac_fib *fib)
 	}
 
 	/* Copy the AIF data to the AIF queue for ioctl retrieval */
-	s = splbio();
+	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
 	next = (sc->aac_aifq_head + 1) % AAC_AIFQ_LENGTH;
 	if (next != sc->aac_aifq_tail) {
 		bcopy(aif, &sc->aac_aifq[next], sizeof(struct aac_aif_command));
-	sc->aac_aifq_head = next;
-	if (sc->aac_state & AAC_STATE_AIF_SLEEPER)
-		wakeup(sc->aac_aifq);
+		sc->aac_aifq_head = next;
+
+		/* On the off chance that someone is sleeping for an aif... */
+		if (sc->aac_state & AAC_STATE_AIF_SLEEPER)
+			wakeup(sc->aac_aifq);
+		/* Wakeup any poll()ers */
+		selwakeup(&sc->rcv_select);
 	}
-	splx(s);
+	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
 
 	return;
 }
@@ -2530,11 +2677,11 @@ aac_getnext_aif(struct aac_softc *sc, caddr_t arg)
 static int
 aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 {
-	int error, s;
+	int error;
 
 	debug_called(2);
 
-	s = splbio();
+	AAC_LOCK_ACQUIRE(&sc->aac_aifq_lock);
 	if (sc->aac_aifq_tail == sc->aac_aifq_head) {
 		error = EAGAIN;
 	} else {
@@ -2546,7 +2693,7 @@ aac_return_aif(struct aac_softc *sc, caddr_t uptr)
 			sc->aac_aifq_tail = (sc->aac_aifq_tail + 1) %
 					    AAC_AIFQ_LENGTH;
 	}
-	splx(s);
+	AAC_LOCK_RELEASE(&sc->aac_aifq_lock);
 	return(error);
 }
 
@@ -2576,7 +2723,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 	if (id == -1)
 		return (EINVAL);
 
-	AAC_LOCK_AQUIRE(&sc->aac_container_lock);
+	AAC_LOCK_ACQUIRE(&sc->aac_container_lock);
 	TAILQ_FOREACH(co, &sc->aac_container_tqh, co_link) {
 		if (co->co_mntobj.ObjectId == id)
 			break;
@@ -2592,7 +2739,7 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 			query_disk.Locked =
 			    (disk->ad_flags & AAC_DISK_OPEN) ? 1 : 0;
 			query_disk.Deleted = 0;
-			query_disk.Bus = 0;
+			query_disk.Bus = device_get_unit(sc->aac_dev);
 			query_disk.Target = disk->unit;
 			query_disk.Lun = 0;
 			query_disk.UnMapped = 0;

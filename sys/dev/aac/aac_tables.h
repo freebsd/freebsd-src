@@ -80,7 +80,7 @@ static struct aac_code_lookup aac_cpu_variant[] = {
 	{"i960HX",		CPUI960_HX},
 	{"i960RX",		CPUI960_RX},
 	{"StrongARM SA110",	CPUARM_SA110},
-	{"PowerPC 603e",	CPUPPC_603e},
+	{"MPC824x",		CPUMPC_824x},
 	{"Unknown StrongARM",	CPUARM_xxx},
 	{"Unknown PowerPC",	CPUPPC_xxx},
 	{NULL, 0},
@@ -107,10 +107,11 @@ static struct aac_code_lookup aac_container_types[] = {
 	{"Morph",		CT_MORPH},
 	{"Passthrough",		CT_PASSTHRU},
 	{"RAID 4",		CT_RAID4},
-	{"RAID 10",		CT_RAID10},
-	{"RAID 00",		CT_RAID00},
+	{"RAID 0/1",		CT_RAID10},
+	{"RAID 0/0",		CT_RAID00},
 	{"Volume of Mirrors",	CT_VOLUME_OF_MIRRORS},
 	{"Pseudo RAID 3",	CT_PSEUDO_RAID3},
+	{"RAID 0/5",		CT_RAID50},
 	{NULL, 0},
 	{"unknown",		0}
 };
