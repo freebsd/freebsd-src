@@ -133,7 +133,7 @@ CRUNCH_PROGS+= fdisk_pc98
 CRUNCH_PROGS+= mca gpt
 .endif
 
-.if ${MACHINE_ARCH} == "sparc"
+.if ${MACHINE_ARCH} == "sparc64"
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
