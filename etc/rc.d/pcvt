@@ -63,7 +63,7 @@ pcvt_start()
 		echo "-n" "Configuring pcvt"
 	fi
 
-	# video adapter type 
+	# video adapter type
 
 	adapter=`/usr/sbin/scon -d /dev/ttyv0 -a`
 
@@ -77,7 +77,7 @@ pcvt_start()
 
 	# load fonts into VGA
 
-	if [ $adapter = VGA ] ; then
+	if [ $adapter = VGA ]; then
 		pcvt_echo "-n" "  loading fonts: 8x16:0,"
 		loadfont -d /dev/ttyv0 -c0 -f $FONTP/vt220l.816
 
@@ -141,7 +141,7 @@ pcvt_start()
 		# set emulation
 
 		/usr/sbin/scon -d$device $size $emulation >/dev/null 2>&1
-		if [ $? != 0 ] ; then
+		if [ $? != 0 ]; then
 			break 1
 		fi
 
@@ -160,7 +160,6 @@ pcvt_start()
 			esac
 			;;
 		esac
-		
 
 		# on monochrome monitor, set color palette to use a higher intensity
 

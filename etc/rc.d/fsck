@@ -83,7 +83,7 @@ fsck_start()
 			stop_boot
 			;;
 		esac
-		;;	
+		;;
 		12)
 			echo "Boot interrupted."
 			stop_boot

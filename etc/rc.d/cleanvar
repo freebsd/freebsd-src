@@ -10,7 +10,7 @@
 
 purgedir()
 {
-        local dir file
+	local dir file
 
 	if [ $# -eq 0 ]; then
 		purgedir .

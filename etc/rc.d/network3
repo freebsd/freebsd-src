@@ -28,8 +28,8 @@ case ${log_in_vain} in
 esac
 
 [ "${log_in_vain}" -ne 0 ] && (
-    echo -n " log_in_vain=${log_in_vain}"
-    sysctl net.inet.tcp.log_in_vain="${log_in_vain}" >/dev/null
-    sysctl net.inet.udp.log_in_vain="${log_in_vain}" >/dev/null
+	echo -n " log_in_vain=${log_in_vain}"
+	sysctl net.inet.tcp.log_in_vain="${log_in_vain}" >/dev/null
+	sysctl net.inet.udp.log_in_vain="${log_in_vain}" >/dev/null
 )
 echo '.'

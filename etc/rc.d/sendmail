@@ -86,7 +86,7 @@ run_rc_command "$1"
 case ${OSTYPE} in
 FreeBSD)
 	required_files=
-	
+
 	if ! checkyesno sendmail_enable; then
 		name="sendmail_submit"
 		rcvar=`set_rcvar`

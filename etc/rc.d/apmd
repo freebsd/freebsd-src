@@ -23,15 +23,15 @@ esac
 
 apmd_prestart()
 {
-        case `${SYSCTL_N} hw.machine_arch` in   
-        i386)
+	case `${SYSCTL_N} hw.machine_arch` in
+	i386)
 		# Don't start if apm is already running
 		/etc/rc.d/apm forcestatus > /dev/null && return 1
-                ;;
+		;;
 	*)
 		return 1
 		;;
-        esac
+	esac
 	return 0
 }
 

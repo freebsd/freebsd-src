@@ -35,7 +35,7 @@ mountcritremote_precmd()
 	case "`mount -d -a -t nfs 2> /dev/null`" in
 	*mount_nfs*)
 		# Handle absent nfs client support
-		if ! sysctl vfs.nfs >/dev/null 2>&1 ; then
+		if ! sysctl vfs.nfs >/dev/null 2>&1; then
 			kldload nfsclient || warn 'nfs mount ' \
 			    'requested, but no nfs client in kernel' \
 			return 1
@@ -55,7 +55,7 @@ mountcritremote_start()
 		mount -a -t nfs
 		echo '.'
 
-		# Mount other network filesystems if present in /etc/fstab
+		# Mount other network filesystems if present in /etc/fstab.
 		for i in ${networkfs_types}; do
 			fstype=${i%:*}
 			fsdecr=${i#*:}
@@ -71,7 +71,7 @@ mountcritremote_start()
 			esac
 		done
 
-		# Cleanup /var again just in case it's a network mount 
+		# Cleanup /var again just in case it's a network mount.
 		/etc/rc.d/cleanvar start
 		rm -f /var/run/clean_var /var/spool/lock/clean_var
 		;;

@@ -19,12 +19,12 @@ stop_cmd="unmount_all"
 nfsclient_precmd()
 {
 	if ! sysctl vfs.nfs >/dev/null 2>&1; then
-		if ! kldload nfsclient ; then
+		if ! kldload nfsclient; then
 			warn 'Could not load nfs client module'
 			return 1
 		fi
 	fi
-        return 0
+	return 0
 }
 
 nfsclient_start()

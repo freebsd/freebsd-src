@@ -19,9 +19,9 @@ ppp_start()
 	# Establish ppp mode.
 	#
 	if [ "${ppp_mode}" != "ddial" -a "${ppp_mode}" != "direct" \
-	    -a "${ppp_mode}" != "dedicated" \
-	    -a "${ppp_mode}" != "background" ]; then
-	    ppp_mode="auto"
+		-a "${ppp_mode}" != "dedicated" \
+		-a "${ppp_mode}" != "background" ]; then
+		ppp_mode="auto"
 	fi
 
 	ppp_command="/usr/sbin/ppp -quiet -${ppp_mode}"

@@ -18,8 +18,8 @@ stop_cmd="${SYSCTL_W} net.inet.ip.fw.enable=0"
 
 ipfw_precmd()
 {
-	if ! ${SYSCTL} net.inet.ip.fw.enable > /dev/null 2>&1 ; then
-		if ! kldload ipfw ; then
+	if ! ${SYSCTL} net.inet.ip.fw.enable > /dev/null 2>&1; then
+		if ! kldload ipfw; then
 			warn unable to load firewall module.
 			return 1
 		fi
@@ -39,10 +39,10 @@ ipfw_start()
 
 		# Network Address Translation daemon
 		#
-		if checkyesno natd_enable ; then
+		if checkyesno natd_enable; then
 			if [ -n "${natd_interface}" ]; then
 				if echo ${natd_interface} | \
-			    	grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
+				grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
 					natd_flags="$natd_flags -a ${natd_interface}"
 				else
 					natd_flags="$natd_flags -n ${natd_interface}"

@@ -139,16 +139,16 @@ wscons_start()
 			mapfile)
 				mapfile=$arg1
 				( while read entry; do
-				    case "$entry" in
-					\#*|"")
-					    continue
-					    ;;
+					case "$entry" in
+						\#*|"")
+						continue
+						;;
 					*)
-					    cmd="$wsctl -w \"map+=$entry\""
-					    cmd="$cmd >/dev/null"
-					    eval $DOIT $cmd
-					    ;;
-				    esac
+						cmd="$wsctl -w \"map+=$entry\""
+						cmd="$cmd >/dev/null"
+						eval $DOIT $cmd
+						;;
+					esac
 				done ) < $mapfile
 				;;
 

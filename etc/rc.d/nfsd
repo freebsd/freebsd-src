@@ -44,7 +44,7 @@ nfsd_precmd()
 		force_depend mountd || return 1
 	fi
 
-	if checkyesno nfs_reserved_port_only ; then
+	if checkyesno nfs_reserved_port_only; then
 		echo 'NFS on reserved port only=YES'
 		sysctl vfs.nfsrv.nfs_privport=1 > /dev/null
 	fi
