@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.9.2.4 1997/06/10 09:44:28 brian Exp $
+ * $Id: route.c,v 1.9.2.5 1997/06/13 04:01:42 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -302,12 +302,13 @@ int all;
     rtm = (struct rt_msghdr *)cp;
     sa = (struct sockaddr *)(rtm + 1);
     LogPrintf(LogDEBUG, "DeleteIfRoutes: addrs: %x, index: %d, flags: %x,"
-			" dstnet: %x\n",
+			" dstnet: %s\n",
 			rtm->rtm_addrs, rtm->rtm_index, rtm->rtm_flags,
-			((struct sockaddr_in *)sa)->sin_addr);
+			inet_ntoa(((struct sockaddr_in *)sa)->sin_addr));
     if (rtm->rtm_addrs != RTA_DST &&
        (rtm->rtm_index == IfIndex) &&
        (all || (rtm->rtm_flags & RTF_GATEWAY))) {
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: Remove it\n");
       dstnet = ((struct sockaddr_in *)sa)->sin_addr;
       wp = (u_char *)cp + rtm->rtm_msglen;
       if (sa->sa_len == 0)
@@ -327,19 +328,14 @@ int all;
 	for (nb = 8 - *lp; nb > 0; nb--)
 	  mask <<= 8;
       }
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: Dest: %s\n", inet_ntoa(dstnet));
+      LogPrintf(LogDEBUG, "DeleteIfRoutes: Dst: %s\n", inet_ntoa(dstnet));
       LogPrintf(LogDEBUG, "DeleteIfRoutes: Gw: %s\n", inet_ntoa(gateway));
       LogPrintf(LogDEBUG, "DeleteIfRoutes: Index: %d\n", rtm->rtm_index);
-      if (dstnet.s_addr == INADDR_ANY) {
-        gateway.s_addr = INADDR_ANY;
+      if (dstnet.s_addr == INADDR_ANY)
         mask = INADDR_ANY;
-      }
       maddr.s_addr = htonl(mask);
       OsSetRoute(RTM_DELETE, dstnet, gateway, maddr);
     }
-    else if(rtm->rtm_index == IfIndex)
-      LogPrintf(LogDEBUG, "DeleteIfRoutes: Ignoring (looking for index %d)\n",
-		IfIndex);
   }
   free(sp);
 }
