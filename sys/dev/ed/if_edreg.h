@@ -1,7 +1,7 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 1.9 1993/11/29 17:07:33 davidg Exp $
+ * $Id: if_edreg.h,v 1.10 1994/01/11 21:28:29 ats Exp $
  *
  * Modification history
  *
@@ -605,6 +605,13 @@ struct ed_ring	{
 #define ED_WD_MSR_ADDR	0x3f	/* Memory decode bits 18-13 */
 #define ED_WD_MSR_MENB	0x40	/* Memory enable */
 #define ED_WD_MSR_RST	0x80	/* Reset board */
+#ifdef TOSH_ETHER
+#define ED_WD_MSR_POW	0x02	/* 0 = power save, 1 = normal (R/W) */
+#define ED_WD_MSR_BSY	0x04	/* gate array busy (R) */
+#define ED_WD_MSR_LEN	0x20	/* data bus width, 0 = 16 bits,
+				   1 = 8 bits (R/W) */
+#endif
+
 
 /*
  * Interface Configuration Register (ICR)
@@ -619,6 +626,14 @@ struct ed_ring	{
 #define ED_WD_ICR_RX7	0x20	/* recall all but i/o and LAN address */
 #define	ED_WD_ICR_RIO	0x40	/* recall i/o address */
 #define ED_WD_ICR_STO	0x80	/* store to non-volatile memory */
+#ifdef TOSH_ETHER
+#define ED_WD_ICR_MEM	0xe0	/* shared mem address A15-A13 (R/W) */
+#define ED_WD_ICR_MSZ1	0x0f	/* memory size, 0x08 = 64K, 0x04 = 32K,
+				   0x02 = 16K, 0x01 = 8K */
+				/* 64K can only be used if mem address
+				   above 1Mb */
+				/* IAR holds address A23-A16 (R/W) */
+#endif
 
 /*
  * IO Address Register (IAR)
@@ -678,8 +693,10 @@ struct ed_ring	{
 #define ED_TYPE_WD8003S		0x02
 #define ED_TYPE_WD8003E		0x03
 #define ED_TYPE_WD8013EBT	0x05
-#define ED_TYPE_TOSHIBA1	0x11
-#define ED_TYPE_TOSHIBA2	0x14
+#define ED_TYPE_TOSHIBA1	0x11 /* named PCETA1 */
+#define ED_TYPE_TOSHIBA2	0x12 /* named PCETA2 */
+#define ED_TYPE_TOSHIBA3	0x13 /* named PCETB  */
+#define ED_TYPE_TOSHIBA4	0x14 /* named PCETC  */
 #define ED_TYPE_WD8013W		0x26
 #define ED_TYPE_WD8013EP	0x27
 #define ED_TYPE_WD8013WC	0x28
