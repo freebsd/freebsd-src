@@ -39,10 +39,16 @@
 #endif
 
 /* special return codes for `fire' actions */
+#define DITEM_STATUS(flag)	((flag) & 0x0000FFFF)
 #define DITEM_SUCCESS		0
-#define DITEM_FAILURE		-1
-#define DITEM_LEAVE_MENU	-2
-#define DITEM_REDRAW		-3
+#define DITEM_FAILURE		1
+
+/* Flags - returned in upper 16 bits of return status */
+#define DITEM_LEAVE_MENU	(1 << 16)
+#define DITEM_REDRAW		(1 << 17)
+#define DITEM_RECREATE		(1 << 18)
+#define DITEM_RESTORE		(1 << 19)
+
 
 /* negative offsets for buttons in item lists, if specified */
 #define OK_BUTTON		-2
