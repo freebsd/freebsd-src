@@ -125,6 +125,13 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 
 	ustar = a->format_data;
 	ustar->written = 1;
+
+	/* Only regular files (not hardlinks) have data. */
+	if (archive_entry_hardlink(entry) != NULL ||
+	    archive_entry_symlink(entry) != NULL ||
+	    !S_ISREG(archive_entry_mode(entry)))
+		archive_entry_set_size(entry, 0);
+
 	ret = __archive_write_format_header_ustar(a, buff, entry);
 	if (ret != ARCHIVE_OK)
 		return (ret);
@@ -132,14 +139,7 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 	if (ret < 512)
 		return (ARCHIVE_FATAL);
 
-	/* Only regular files (not hardlinks) have data. */
-	if (archive_entry_hardlink(entry) != NULL ||
-	    archive_entry_symlink(entry) != NULL ||
-	    !S_ISREG(archive_entry_mode(entry)))
-		ustar->entry_bytes_remaining = 0;
-	else
-		ustar->entry_bytes_remaining = archive_entry_size(entry);
-
+	ustar->entry_bytes_remaining = archive_entry_size(entry);
 	ustar->entry_padding = 0x1ff & (- ustar->entry_bytes_remaining);
 	return (ARCHIVE_OK);
 }
