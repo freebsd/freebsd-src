@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.48 1999/07/07 12:49:45 peter Exp $
+#	$Id: rc.network,v 1.49 1999/07/08 18:56:02 peter Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -63,7 +63,12 @@ network_pass1() {
 	    # Do the primary ifconfig if specified
 	    eval ifconfig_args=\$ifconfig_${ifn}
 	    if [ -n "${ifconfig_args}" ] ; then
-		    ifconfig ${ifn} ${ifconfig_args}
+		    # See if we are using DHCP
+		    if [ X"${ifconfig_args}" = X"DHCP" ]; then
+			     ${dhcp_program} ${dhcp_flags} ${ifn}
+		    else
+			     ifconfig ${ifn} ${ifconfig_args}
+		    fi
 		    showstat=true
 	    fi
 	    # Check to see if aliases need to be added
