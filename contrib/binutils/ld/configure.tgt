@@ -147,7 +147,12 @@ i[3456]86-*-sysv[45]*)	targ_emul=elf_i386 ;;
 i[3456]86-*-solaris2*)	targ_emul=elf_i386 ;;
 i[3456]86-*-unixware)	targ_emul=elf_i386 ;;
 i[3456]86-*-solaris*)	targ_emul=elf_i386 ;;
-i[3456]86-*-netbsd*)	targ_emul=i386nbsd ;;
+i[3456]86-*-netbsdelf*)	targ_emul=elf_i386
+			targ_extra_emuls=i386nbsd
+			;;
+i[3456]86-*-netbsd*)	targ_emul=i386nbsd
+			targ_extra_emuls=elf_i386
+			;;
 i[3456]86-*-netware)	targ_emul=i386nw ;;
 i[3456]86-*-elf*)	targ_emul=elf_i386 ;;
 i[3456]86-*-freebsdaout* | i[3456]86-*-freebsd[12].* | i[3456]86-*-freebsd[12])
@@ -245,6 +250,7 @@ m68*-hp*-netbsd*)	targ_emul=m68k4knbsd ;;
 m68*-*-netbsd*)		targ_emul=m68knbsd ;;
 m68*-*-psos*)		targ_emul=m68kpsos ;;
 m68*-*-rtems*)		targ_emul=m68kcoff ;;
+hppa*64*-*-linux-gnu*)	targ_emul=hppa64linux ;;
 hppa*64*-*)		targ_emul=elf64hppa ;;
 hppa*-*-linux-gnu*)	targ_emul=hppalinux ;;
 hppa*-*-*elf*)		targ_emul=hppaelf ;;
