@@ -4,7 +4,7 @@
 #
 # ncplib lookups configuration files in next order:
 #	1. ~/.nwfsrc
-#	2. /etc/nwserv.conf - if this file found it will
+#	2. /etc/nwfs.conf - if this file found it will
 #	   override values with same keys from user files.
 #
 #
