@@ -31,7 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	@(#)$Id$
+ *	@(#)ipx_ip.c
+ *
+ * $Id: ipx_ip.c,v 1.3 1995/10/31 23:36:31 julian Exp $
  */
 
 /*
