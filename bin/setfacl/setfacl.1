@@ -225,10 +225,11 @@ Remove the group mail ACL entry containing read/write permissions
 from
 .Pa file.
 .Pp
-.Dl setfacl -b file
+.Dl setfacl -bn file
 .Pp
-Remove all ACL entries except for the three required
-entries from
+Remove all
+.Dq Li access
+ACL entries except for the three required from
 .Pa file .
 .Pp
 .Dl getfacl file1 | setfacl -b -n -M - file2
