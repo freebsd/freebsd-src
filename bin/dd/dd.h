@@ -62,13 +62,13 @@ typedef struct {
 } IO;
 
 typedef struct {
-	u_quad_t	in_full;	/* # of full input blocks */
-	u_quad_t	in_part;	/* # of partial input blocks */
-	u_quad_t	out_full;	/* # of full output blocks */
-	u_quad_t	out_part;	/* # of partial output blocks */
-	u_quad_t	trunc;		/* # of truncated records */
-	u_quad_t	swab;		/* # of odd-length swab blocks */
-	u_quad_t	bytes;		/* # of bytes written */
+	uintmax_t	in_full;	/* # of full input blocks */
+	uintmax_t	in_part;	/* # of partial input blocks */
+	uintmax_t	out_full;	/* # of full output blocks */
+	uintmax_t	out_part;	/* # of partial output blocks */
+	uintmax_t	trunc;		/* # of truncated records */
+	uintmax_t	swab;		/* # of odd-length swab blocks */
+	uintmax_t	bytes;		/* # of bytes written */
 	double		start; 			/* start time of dd */
 } STAT;
 
