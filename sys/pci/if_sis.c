@@ -1681,8 +1681,32 @@ static int sis_encap(sc, m_head, txidx)
 {
 	struct sis_desc		*f = NULL;
 	struct mbuf		*m;
-	int			frag, cur, cnt = 0;
+	int			frag, cur, cnt = 0, chainlen = 0;
 
+	/*
+	 * If there's no way we can send any packets, return now.
+	 */
+	if (SIS_TX_LIST_CNT - sc->sis_cdata.sis_tx_cnt < 2)
+		return (ENOBUFS);
+
+	/*
+	 * Count the number of frags in this chain to see if
+	 * we need to m_defrag.  Since the descriptor list is shared
+	 * by all packets, we'll m_defrag long chains so that they
+	 * do not use up the entire list, even if they would fit.
+	 */
+
+	for (m = m_head; m != NULL; m = m->m_next)
+		chainlen++;
+
+	if ((chainlen > SIS_TX_LIST_CNT / 4) ||
+	    ((SIS_TX_LIST_CNT - (chainlen + sc->sis_cdata.sis_tx_cnt)) < 2)) {
+		m = m_defrag(m_head, M_DONTWAIT);
+		if (m == NULL)
+			return (ENOBUFS);
+		m_head = m;
+	}
+	
 	/*
  	 * Start packing the mbufs in this chain into
 	 * the fragment pointers. Stop when we run out
