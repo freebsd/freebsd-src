@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.80 1999/05/30 16:51:55 phk Exp $
+ *	$Id: vn.c,v 1.81 1999/07/20 09:47:33 phk Exp $
  */
 
 /*
@@ -89,7 +89,6 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
-#include <miscfs/specfs/specdev.h>
 #include <sys/vnioctl.h>
 
 #include <vm/vm.h>

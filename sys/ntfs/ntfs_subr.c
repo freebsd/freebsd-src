@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_subr.c,v 1.3 1999/04/20 21:06:43 semenu Exp $
+ *	$Id: ntfs_subr.c,v 1.4 1999/05/12 09:43:01 semenu Exp $
  */
 
 #include <sys/param.h>
@@ -42,8 +42,6 @@
 #if defined(__FreeBSD__)
 #include <machine/clock.h>
 #endif
-
-#include <miscfs/specfs/specdev.h>
 
 /* #define NTFS_DEBUG 1 */
 #include <ntfs/ntfs.h>

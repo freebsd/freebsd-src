@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.223 1999/07/09 16:41:19 peter Exp $
+ * $Id: vfs_bio.c,v 1.224 1999/07/26 06:25:16 alc Exp $
  */
 
 /*
@@ -38,7 +38,6 @@
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
-#include <miscfs/specfs/specdev.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
@@ -52,6 +51,7 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
+#include <sys/conf.h>
 
 static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 

@@ -33,12 +33,11 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.33 1999/08/07 08:07:05 grog Exp $
+ * $Id: vinumio.c,v 1.34 1999/08/08 14:11:03 bde Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
-#include <miscfs/specfs/specdev.h>
 
 static char *sappend(char *txt, char *s);
 static int drivecmp(const void *va, const void *vb);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vnops.c	8.19 (Berkeley) 5/27/95
- * $Id: cd9660_vnops.c,v 1.55 1999/04/18 10:58:02 dcs Exp $
+ * $Id: cd9660_vnops.c,v 1.56 1999/05/11 19:54:25 phk Exp $
  */
 
 #include <sys/param.h>
@@ -47,11 +47,11 @@
 #include <sys/buf.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
-#include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/unistd.h>
+#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_zone.h>

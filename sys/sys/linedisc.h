@@ -36,11 +36,49 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.66 1999/07/17 19:58:51 phk Exp $
+ * $Id: conf.h,v 1.67 1999/07/20 09:47:50 phk Exp $
  */
 
 #ifndef _SYS_CONF_H_
 #define	_SYS_CONF_H_
+
+#define SPECNAMELEN	15
+
+struct tty;
+struct vnode;
+
+struct specinfo {
+	struct	mount *si_mountpoint;
+	int		si_bsize_phys;	/* minimum physical block size */
+	int		si_bsize_best;	/* optimal block size / VBLK */
+	int		si_bsize_max;	/* maximum block size */
+
+	udev_t		si_udev;
+	SLIST_ENTRY(specinfo)	si_hash;
+	struct vnode	*si_hlist;
+	char		si_name[SPECNAMELEN + 1];
+	void		*si_drv1, *si_drv2;
+	struct cdevsw	*si_devsw;
+	union {
+		struct {
+			struct tty *__sit_tty;
+		} __si_tty;
+	} __si_u;
+};
+
+#define si_tty_tty	__si_u.__si_tty.__sit_tty
+
+/*
+ * Exported shorthand
+ */
+#define v_hashchain v_specinfo->si_hlist
+#define v_specmountpoint v_specinfo->si_mountpoint
+
+/*
+ * Special device management
+ */
+#define	SPECHSZ	64
+#define	SPECHASH(rdev)	(((unsigned)(minor(rdev)))%SPECHSZ)
 
 /*
  * Definitions of device driver entry switches
@@ -48,10 +86,7 @@
 
 struct buf;
 struct proc;
-struct specinfo;
-struct tty;
 struct uio;
-struct vnode;
 
 typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
 typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
@@ -96,11 +131,6 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_NOCLUSTERW	0x20000		/* disables cluster write */
 #define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
 #define	D_CANFREE	0x40000		/* can free blocks */
-
-/*
- * Control type for d_parms() call.
- */
-#define DPARM_GET	0		/* ask device to load parms in  */
 
 /*
  * Character device switch table
@@ -225,7 +255,24 @@ int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 int	iskmemdev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
 dev_t	makebdev __P((int maj, int min));
+dev_t	make_dev __P((struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)) __printflike(6, 7);
 void	setconf __P((void));
+
+/*
+ * XXX: This gunk included in case DEVFS resurfaces 
+ */
+
+#define		UID_ROOT	0
+#define		UID_BIN		3
+#define		UID_UUCP	66
+
+#define		GID_WHEEL	0
+#define		GID_KMEM	2
+#define		GID_OPERATOR	5
+#define		GID_BIN		7
+#define		GID_GAMES	13
+#define		GID_DIALER	68
+
 #endif /* KERNEL */
 
 #endif /* !_SYS_CONF_H_ */
