@@ -129,3 +129,7 @@ int rcs_change_text PROTO ((const char *, char *, size_t, const char *,
 
 void RCS_setlocalid PROTO ((const char *arg));
 void RCS_setincexc PROTO ((const char *arg));
+
+/* From import.c.  */
+extern int add_rcs_file PROTO ((char *, char *, char *, char *,
+				char *, char *, int, char **, FILE *));
