@@ -1,7 +1,7 @@
 #!/bin/sh
 #	cd install floppy disk /install script
 #
-#	$Id: cdinst1.install,v 1.3 1994/05/03 10:11:47 rgrimes Exp $
+#	$Id: cdinst1.install,v 1.4 1994/06/20 06:05:15 jkh Exp $
 
 # ${OPSYSTEM}, the mounting of the cdrom drive, and the path are all
 # setup by .profile
@@ -864,7 +864,7 @@ if [ "$sect_fwd" = "sf:" ]; then
 		bad_read=$(expr "$data" : '[^(]*(read)[^0-9]*\([0-9]*\)')
 		[ "$bad_seek" -o "$bad_read" ] && echo -n "$bad_seek $bad_read "
 	done)
-	[ "$badlist" ] && bad144 -a -c $drivename "$badlist"
+	[ "$badlist" ] && bad144 -a -c $drivename $badlist
 	echo " done."
 fi
 
