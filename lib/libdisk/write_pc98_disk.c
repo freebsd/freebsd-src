@@ -64,7 +64,7 @@ Write_Disk(const struct disk *d1)
 	struct chunk *c1;
 	int ret = 0;
 	char device[64];
-	u_char *mbr;
+	u_char *mbrblk;
 	struct pc98_partition *dp, work[NDOSPART];
 	int s[7];
 	int PC98_EntireDisk = 0;
@@ -87,11 +87,11 @@ Write_Disk(const struct disk *d1)
 	}
 
 	memset(s, 0, sizeof s);
-	mbr = read_block(fd, 1, d1->sector_size);
-	dp = (struct pc98_partition *)(mbr + DOSPARTOFF);
+	mbrblk = read_block(fd, 1, d1->sector_size);
+	dp = (struct pc98_partition *)(mbrblk + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
 	dp = work;
-	free(mbr);
+	free(mbrblk);
 	for (c1 = d1->chunks->part; c1; c1 = c1->next) {
 		if (c1->type == unused)
 			continue;
@@ -151,15 +151,15 @@ Write_Disk(const struct disk *d1)
 	if (d1->bootipl)
 		write_block(fd, 0, d1->bootipl, d1->sector_size);
 
-	mbr = read_block(fd, 1, d1->sector_size);
-	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
+	mbrblk = read_block(fd, 1, d1->sector_size);
+	memcpy(mbrblk + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
 	for (c1 = d1->chunks->part; c1; c1 = c1->next)
 		if (((c1->type == freebsd) || (c1->type == fat))
 			 && (c1->offset == 0))
 			PC98_EntireDisk = 1;
 	if (PC98_EntireDisk == 0)
-		write_block(fd, 1, mbr, d1->sector_size);
+		write_block(fd, 1, mbrblk, d1->sector_size);
 
 	if (d1->bootmenu)
 		for (i = 0; i * d1->sector_size < d1->bootmenu_size; i++)
