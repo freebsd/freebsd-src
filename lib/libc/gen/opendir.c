@@ -117,7 +117,8 @@ __opendir2(name, flags)
 
 		if (_fstatfs(fd, &sfb) < 0)
 			goto fail;
-		unionstack = !strcmp(sfb.f_fstypename, "union");
+		unionstack = !strcmp(sfb.f_fstypename, "union")
+		    || (sfb.f_flags & MNT_UNION);
 	} else {
 		unionstack = 0;
 	}
