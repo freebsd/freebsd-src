@@ -3,6 +3,7 @@
  * function declarations and includes.
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
+ * Copyright (c) 2001-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.h#14 $
  *
  * $FreeBSD$
  */
@@ -42,16 +43,13 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>		/* For device_t */
+#if __FreeBSD_version >= 500000
+#include <sys/endian.h>
+#endif
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
-
-#if __FreeBSD_version < 500000
-#include <pci.h>
-#else
-#define NPCI 1
-#endif
 
 #define AHD_PCI_CONFIG 1
 #include <machine/bus_memio.h>
@@ -63,10 +61,8 @@
 
 #include <sys/rman.h>
 
-#if NPCI > 0
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#endif
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -184,28 +180,45 @@ struct scb_platform_data {
 };
 
 /********************************* Byte Order *********************************/
-/*
- * XXX Waiting for FreeBSD byte swapping functions.
- * For now assume host is Little Endian.
- */
-#define ahd_htobe16(x) x
-#define ahd_htobe32(x) x
-#define ahd_htobe64(x) x
-#define ahd_htole16(x) x
-#define ahd_htole32(x) x
-#define ahd_htole64(x) x
+#if __FreeBSD_version >= 500000
+#define ahd_htobe16(x) htobe16(x)
+#define ahd_htobe32(x) htobe32(x)
+#define ahd_htobe64(x) htobe64(x)
+#define ahd_htole16(x) htole16(x)
+#define ahd_htole32(x) htole32(x)
+#define ahd_htole64(x) htole64(x)
 
-#define ahd_be16toh(x) x
-#define ahd_be32toh(x) x
-#define ahd_be64toh(x) x
-#define ahd_le16toh(x) x
-#define ahd_le32toh(x) x
-#define ahd_le64toh(x) x
+#define ahd_be16toh(x) be16toh(x)
+#define ahd_be32toh(x) be32toh(x)
+#define ahd_be64toh(x) be64toh(x)
+#define ahd_le16toh(x) le16toh(x)
+#define ahd_le32toh(x) le32toh(x)
+#define ahd_le64toh(x) le64toh(x)
+#else
+#define ahd_htobe16(x) (x)
+#define ahd_htobe32(x) (x)
+#define ahd_htobe64(x) (x)
+#define ahd_htole16(x) (x)
+#define ahd_htole32(x) (x)
+#define ahd_htole64(x) (x)
+
+#define ahd_be16toh(x) (x)
+#define ahd_be32toh(x) (x)
+#define ahd_be64toh(x) (x)
+#define ahd_le16toh(x) (x)
+#define ahd_le32toh(x) (x)
+#define ahd_le64toh(x) (x)
+#endif
 
 /************************** Timer DataStructures ******************************/
 typedef struct callout ahd_timer_t;
 
 /***************************** Core Includes **********************************/
+#if AHD_REG_PRETTY_PRINT
+#define AIC_DEBUG_REGISTERS 1
+#else
+#define AIC_DEBUG_REGISTERS 0
+#endif
 #include <dev/aic7xxx/aic79xx.h>
 
 /***************************** Timer Facilities *******************************/
@@ -270,7 +283,7 @@ static __inline void ahd_done_lockinit(struct ahd_softc *);
 static __inline void ahd_done_lock(struct ahd_softc *, unsigned long *flags);
 static __inline void ahd_done_unlock(struct ahd_softc *, unsigned long *flags);
 
-/* Lock held during ahc_list manipulation and ahc softc frees */
+/* Lock held during ahd_list manipulation and ahd softc frees */
 static __inline void ahd_list_lockinit(void);
 static __inline void ahd_list_lock(unsigned long *flags);
 static __inline void ahd_list_unlock(unsigned long *flags);
@@ -308,7 +321,7 @@ ahd_done_unlock(struct ahd_softc *ahd, unsigned long *flags)
 {
 }
 
-/* Lock held during ahc_list manipulation and ahc softc frees */
+/* Lock held during ahd_list manipulation and ahd softc frees */
 static __inline void
 ahd_list_lockinit()
 {
