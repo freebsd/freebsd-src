@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <grp.h>
 #include <limits.h>
+#include <paths.h>
 #include <sdp.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -99,7 +100,10 @@ main(int argc, char *argv[])
 			break;
 
 		case 't': /* Slave TTY name */
-			tty = optarg;
+			if (optarg[0] != '/')
+				asprintf(&tty, "%s%s", _PATH_DEV, optarg);
+			else
+				tty = optarg;
 			break;
 
 		case 'h':
@@ -255,18 +259,31 @@ main(int argc, char *argv[])
 static int
 sppd_ttys_open(char const *tty, int *amaster, int *aslave)
 {
-	char		 pty[PATH_MAX];
+	char		 pty[PATH_MAX], *slash = NULL;
 	struct group	*gr = NULL;
 	gid_t		 ttygid;
 	struct termios	 tio;
 
 	/*
-	 * Master PTY
+	 * Construct master PTY name. The slave tty name must be less then
+	 * PATH_MAX characters in length, must contain '/' character and 
+	 * must not end with '/'.
 	 */
 
-	strlcpy(pty, tty, sizeof(pty));
-	pty[5] = 'p';
+	if (strlen(tty) >= sizeof(pty)) {
+		syslog(LOG_ERR, "Slave tty name is too long");
+		return (-1);
+	}
 
+	strlcpy(pty, tty, sizeof(pty));
+	slash = strrchr(pty, '/');
+	if (slash == NULL || slash[1] == 0) {
+		syslog(LOG_ERR, "Invalid slave tty name (%s)", tty);
+		return (-1);
+	}
+
+	slash[1] = 'p';
+	
 	if (strcmp(pty, tty) == 0) {
 		syslog(LOG_ERR, "Master and slave tty are the same (%s)", tty);
 		return (-1);
