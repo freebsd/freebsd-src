@@ -38,73 +38,73 @@
 #include <sys/stat.h>
 #include <sys/user.h>
 
-char p_stat[]="?iRSTZWM";
+char p_stat[] = "?iRSTZWM";
 
 int
 main(int argc, char *argv[])
 {
-	int mib[4],i=0, num, len, j, plen;
-	char buf[MAXPATHLEN],vty[5],pst[5], wmesg[10];
+	int mib[4], i, num, len, j, plen;
+	char buf[MAXPATHLEN], vty[5], pst[5], wmesg[10];
 	struct kinfo_proc *ki;
 	char *t;
-	int ma,mi;
+	int ma, mi;
 
-	mib[0]=CTL_KERN;
-	mib[1]=KERN_PROC;
-	mib[2]=KERN_PROC_ALL;
-	if(sysctl(mib,3,NULL,&len,NULL,0)) {
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_ALL;
+	if (sysctl(mib, 3, NULL, &len, NULL, 0) != 0) {
 		perror("sysctl sizing");
 		exit(1);
 	}
-	t=(char *)malloc(len);
-	if(sysctl(mib,3,t,&len,NULL,0)) {
+	t = (char *)malloc(len);
+	if (sysctl(mib, 3, t, &len, NULL, 0) != 0) {
 		perror("sysctl info");
 		exit(1);
 	}
-	mib[2]=KERN_PROC_ARGS;
+	mib[2] = KERN_PROC_ARGS;
 	num = len / KINFO_PROC_SIZE;
-	i=0;
+	i = 0;
 	printf("USERNAME   PID  PPID PRI NICE TTY STAT WCHAN   COMMAND\n");
 	while(i < num) {
 		ki = (struct kinfo_proc *)(t + (num - i - 1) * KINFO_PROC_SIZE);
 		mib[3] = ki->ki_pid;
 		plen = MAXPATHLEN;
-		if(sysctl(mib,4,buf,&plen,NULL,0)) {
-			perror("sysctl info");
+		if (sysctl(mib, 4, buf, &plen, NULL, 0) != 0) {
+			perror("sysctl cmd info");
 			exit(1);
 		}
-		if(plen == 0) {
+		if (plen == 0) {
 			sprintf(buf, "(%s)", ki->ki_comm);
 		} else {
-			for(j=0; j < plen-1; j++) {
-				if(buf[j] == '\0') buf[j] = ' ';
+			for (j = 0; j < plen - 1; j++) {
+				if (buf[j] == '\0') buf[j] = ' ';
 			}
 		}
-		if(strcmp(ki->ki_wmesg, "") == 0) {
+		if (strcmp(ki->ki_wmesg, "") == 0) {
 			sprintf(wmesg, "-");
 		} else {
 			strcpy(wmesg, ki->ki_wmesg);
 		}
-		ma=major(ki->ki_tdev);
-		mi=minor(ki->ki_tdev);
+		ma = major(ki->ki_tdev);
+		mi = minor(ki->ki_tdev);
 		switch(ma) {
 		case 255:
-			strcpy(vty,"??");
+			strcpy(vty, "??");
 			break;
 		case 12:
-			if(mi!=255) {
-				sprintf(vty,"v%d",mi);
+			if(mi != 255) {
+				sprintf(vty, "v%d", mi);
 				break;
 			}
 			/* FALLTHROUGH */
 		case 0:
-			strcpy(vty,"con");
+			strcpy(vty, "con");
 			break;
 		case 5:
-			sprintf(vty,"p%d",mi);
+			sprintf(vty, "p%d", mi);
 			break;
 		}
-		sprintf(pst,"%c",p_stat[ki->ki_stat]);
+		sprintf(pst, "%c", p_stat[ki->ki_stat]);
 		printf("%8s %5u %5u %3d %4d %3s %-4s %-7s %s\n",
 			ki->ki_login,
 			ki->ki_pid,
