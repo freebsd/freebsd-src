@@ -85,10 +85,10 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * isdigit is defined to work on an 'int', in the range 0 to 255, plus EOF.
- * Define a wrapper which can take 'char', either signed or unsigned.
+ * isdigit takes an `int', but expects values in the range of unsigned char.
+ * This wrapper ensures that values from a 'char' end up in the correct range.
  */
-#define	isdigitch(Anychar) isdigit(((int) Anychar) & 255)
+#define	isdigitch(Anychar) isdigit((u_char)(Anychar))
 
 int	 cflag;			/* -c */
 int	 eval;			/* Exit value */
