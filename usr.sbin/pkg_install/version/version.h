@@ -32,8 +32,8 @@
 
 struct index_entry {
     SLIST_ENTRY(index_entry) next;
-    char name[PATH_MAX];
-    char origin[PATH_MAX];
+    char *name;
+    char *origin;
 };
 SLIST_HEAD(index_head, index_entry);
 

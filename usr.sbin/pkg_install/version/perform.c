@@ -68,6 +68,8 @@ pkg_perform(char **indexarg)
     i = -1;
     while (pkgs[++i] != NULL) {
 	if (MatchName == NULL || strstr(pkgs[i], MatchName))
+	    if (strcmp(pkgs[i], "mpeg_lib-1.3.1") == 0)
+		printf("Found!\n");
 	    err_cnt += pkg_do(pkgs[i]);
     }
 
@@ -75,6 +77,10 @@ pkg_perform(char **indexarg)
     while (!SLIST_EMPTY(&Index)) {
 	ie = SLIST_FIRST(&Index);
 	SLIST_REMOVE_HEAD(&Index, next);
+	if (ie->name != NULL)
+	    free(ie->name);
+	if (ie->origin != NULL)
+	    free(ie->origin);
 	free(ie);
     }
     if (IndexFile != NULL)
@@ -157,8 +163,9 @@ pkg_do(char *pkg)
 		    errx(2, "The INDEX does not appear to be valid!");
 		if ((ie = malloc(sizeof(struct index_entry))) == NULL)
 		    errx(2, "Unable to allocate memory in %s.", __func__);
-		strlcpy(ie->name, tmp, PATH_MAX);
-		strlcpy(ie->origin, &ch[1], PATH_MAX);
+		bzero(ie, sizeof(struct index_entry));
+		ie->name = strdup(tmp);
+		ie->origin = strdup(&ch[1]);
 		/* Who really cares if we reverse the index... */
 		SLIST_INSERT_HEAD(&Index, ie, next);
 	    }
