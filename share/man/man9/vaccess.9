@@ -27,34 +27,49 @@
 .\"
 .Dd August 22, 2001
 .Os
-.Dt vaccess 9
+.Dt VACCESS 9
 .Sh NAME
 .Nm vaccess
 .Nd generate an access control decision using vnode parameters
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/vnode.h>
+.In sys/types.h
+.In sys/vnode.h
 .Ft int
-.Fn vaccess "enum vtype type" "mode_t file_mode" "uid_t file_uid" "gid_t file_gid" "mode_t acc_mode" "struct ucred *cred" "int *privused"
+.Fo vaccess
+.Fa "enum vtype type"
+.Fa "mode_t file_mode"
+.Fa "uid_t file_uid"
+.Fa "gid_t file_gid"
+.Fa "mode_t acc_mode"
+.Fa "struct ucred *cred"
+.Fa "int *privused"
+.Fc
 .Sh DESCRIPTION
-This call implements the logic for the UNIX discretionary file security model
-common to many file systems in FreeBSD.
+This call implements the logic for the
+.Ux
+discretionary file security model
+common to many file systems in
+.Fx .
 It accepts the vnodes type
-.Fa vtype ,
+.Fa type ,
 permissions via
-.Fa mode ,
-owning uid 
+.Fa file_mode ,
+owning UID
 .Fa file_uid ,
-owning gid
+owning GID
 .Fa file_gid ,
 desired access mode
 .Fa acc_mode ,
 requesting credential
 .Fa cred ,
-and an optional call-by-reference int pointer returning whether or not
+and an optional call-by-reference
+.Vt int
+pointer returning whether or not
 privilege was required for successful evaluation of the call; the
 .Fa privused
-pointer may be set to NULL by the caller in order not to be informed of
+pointer may be set to
+.Dv NULL
+by the caller in order not to be informed of
 privilege information, or it may point to an integer that will be set to
 1 if privilege is used, and 0 otherwise.
 .Pp
@@ -73,13 +88,13 @@ The algorithm used by
 .Fn vaccess
 selects a component of the file permission bits based on comparing the
 passed credential, file owner, and file group.
-If the credential's effective uid matches the file owner, then the
+If the credential's effective UID matches the file owner, then the
 owner component of the permission bits is selected.
-If the uid does not match, then the credential's effective gid, followed
-by additional groups, are compared with the file group--if there is
+If the UID does not match, then the credential's effective GID, followed
+by additional groups, are compared with the file group\[em]if there is
 a match, then the group component of the permission bits is selected.
-If neither the credential uid or gids match the passed file owner and
-group, then then the other component of the permission bits is selected.
+If neither the credential UID or GIDs match the passed file owner and
+group, then the other component of the permission bits is selected.
 .Pp
 Once appropriate protections are selected for the current credential,
 the requested access mode, in combination with the vnode type, will be
