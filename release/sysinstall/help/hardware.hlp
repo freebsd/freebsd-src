@@ -99,6 +99,7 @@ fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
 ix0     300     10      dyn     d0000   Intel EtherExpress cards
+ex0     dyn     dyn     dyn     dyn     Intel EtherExpress Pro/10 cards
 le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
