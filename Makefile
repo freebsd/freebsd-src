@@ -3,6 +3,8 @@
 #
 # The user-driven targets are:
 #
+# universe 	      - *Really* build *everything*:  Buildworld and
+#			all kernels on all architectures.
 # buildworld          - Rebuild *everything*, including glue to help do
 #                       upgrades.
 # installworld        - Install everything built by "buildworld".
@@ -213,3 +215,39 @@ upgrade:	aout-to-elf
 ${UPGRADE} : upgrade_checks
 	@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.upgrade -m ${.CURDIR}/share/mk ${.TARGET}
+
+
+universe:
+	@echo "--------------------------------------------------------------"
+	@echo ">>> make universe started on ${STARTTIME}"
+	@echo "--------------------------------------------------------------"
+.for arch in i386 sparc64 alpha ia64
+	@printf ">> ${arch} started on `LC_ALL=C date`\n"
+	-cd ${.CURDIR} && make ${JFLAG} buildworld TARGET_ARCH=${arch} \
+		__MAKE_CONF=/dev/null \
+		> _.${arch}.buildworld 2>&1
+	@printf ">> ${arch} buildworld ended on `LC_ALL=C date`\n"
+.if exists(sys/${arch}/conf/NOTES)
+	cd ${.CURDIR}/sys/${arch}/conf && make LINT \
+		> _.${arch}.makeLINT 2>&1
+.endif
+	cd ${.CURDIR} && make buildkernels TARGET_ARCH=${arch} JFLAG="${JFLAG}"
+	@printf ">> ${arch} ended on `LC_ALL=C date`\n"
+.endfor
+	@echo "--------------------------------------------------------------"
+	@printf ">>> make universe completed on `LC_ALL=C date`\n                       (started ${STARTTIME})\n"
+	@echo "--------------------------------------------------------------"
+
+KERNCONFS !=	echo ${.CURDIR}/sys/${TARGET_ARCH}/conf/[A-Z]*
+KERNCONF2 = ${KERNCONFS:T:N*[a-z]*:NCVS:NNOTES}
+
+buildkernels:
+.for kernel in ${KERNCONF2}
+.if exists(${.CURDIR}/sys/${TARGET_ARCH}/conf/${kernel})
+	-cd ${.CURDIR} && make ${JFLAG} buildkernel \
+		TARGET_ARCH=${TARGET_ARCH} KERNCONF=${kernel} \
+		__MAKE_CONF=/dev/null \
+		 > _.${TARGET_ARCH}.${kernel} 2>&1
+.endif
+.endfor
+
