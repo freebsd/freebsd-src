@@ -31,20 +31,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.39 1998/01/06 05:24:04 dyson Exp $
+ * $Id: ufs_readwrite.c,v 1.40 1998/01/22 17:30:22 dyson Exp $
  */
 
-#ifdef LFS_READWRITE
-#define	BLKSIZE(a, b, c)	blksize(a, b, c)
-#define	FS			struct lfs
-#define	I_FS			i_lfs
-#define	READ			lfs_read
-#define	READ_S			"lfs_read"
-#define	WRITE			lfs_write
-#define	WRITE_S			"lfs_write"
-#define	fs_bsize		lfs_bsize
-#define	fs_maxfilesize		lfs_maxfilesize
-#else
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
 #define	FS			struct fs
 #define	I_FS			i_fs
@@ -52,7 +41,6 @@
 #define	READ_S			"ffs_read"
 #define	WRITE			ffs_write
 #define	WRITE_S			"ffs_write"
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -147,11 +135,6 @@ READ(ap)
 		if (bytesinfile < xfersize)
 			xfersize = bytesinfile;
 
-#ifdef LFS_READWRITE
-		(void)lfs_check(vp, lbn);
-		error = cluster_read(vp, ip->i_size, lbn,
-			size, NOCRED, uio->uio_resid, seqcount, &bp);
-#else
 		if (lblktosize(fs, nextlbn) >= ip->i_size)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0)
@@ -163,7 +146,6 @@ READ(ap)
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
 		} else
 			error = bread(vp, lbn, size, NOCRED, &bp);
-#endif
 		if (error) {
 			brelse(bp);
 			bp = NULL;
@@ -291,10 +273,6 @@ WRITE(ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-#ifdef LFS_READWRITE
-		(void)lfs_check(vp, lbn);
-		error = lfs_balloc(vp, blkoffset, xfersize, lbn, &bp);
-#else
 		if (fs->fs_bsize > xfersize)
 			flags |= B_CLRBUF;
 		else
@@ -302,7 +280,6 @@ WRITE(ap)
 
 		error = ffs_balloc(ip,
 		    lbn, blkoffset + xfersize, ap->a_cred, &bp, flags);
-#endif
 		if (error)
 			break;
 
@@ -325,9 +302,6 @@ WRITE(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
-#ifdef LFS_READWRITE
-		(void)VOP_BWRITE(bp);
-#else
 		if (ioflag & IO_VMIO)
 			bp->b_flags |= B_RELBUF;
 
@@ -344,7 +318,6 @@ WRITE(ap)
 			bp->b_flags |= B_CLUSTEROK;
 			bdwrite(bp);
 		}
-#endif
 		if (error || xfersize == 0)
 			break;
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
@@ -373,7 +346,6 @@ WRITE(ap)
 	return (error);
 }
 
-#ifndef LFS_READWRITE
 
 /*
  * get page routine
@@ -526,4 +498,3 @@ ffs_getpages(ap)
 
 	return (rtval);
 }
-#endif
