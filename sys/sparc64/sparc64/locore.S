@@ -62,13 +62,14 @@ END(_start)
 ENTRY(sigcode)
 	call	%o4
 	 nop
-	add	%sp, SPOFF + SF_UC, %o0
+	add	%sp, SPOFF + CCFSZ + SF_UC, %o0
 	mov	SYS_sigreturn, %g1
 	ta	%xcc, 9
 	mov	SYS_exit, %g1
 	ta	%xcc, 9
 1:	b	%xcc, 1b
 	 nop
+	.align 16
 esigcode:
 END(sigcode)
 

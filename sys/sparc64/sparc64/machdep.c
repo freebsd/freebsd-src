@@ -41,6 +41,7 @@
  */
 
 #include "opt_ddb.h"
+#include "opt_msgbuf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,9 +49,11 @@
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
@@ -178,6 +181,7 @@ tick_get_timecount(struct timecounter *tc)
 void
 sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 {
+	vm_offset_t off;
 	u_long ps;
 
 	/*
@@ -197,6 +201,8 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 		panic("sparc64_init: bootinfo version mismatch");
 	if (bi->bi_metadata == 0)
 		panic("sparc64_init: no loader metadata");
+	boothowto = bi->bi_howto;
+	kern_envp = (char *)bi->bi_envp;
 	preload_metadata = (caddr_t)bi->bi_metadata;
 
 	/*
@@ -211,7 +217,7 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	/*
 	 * Initialize virtual memory.
 	 */
-	pmap_bootstrap(bi->bi_kpa, bi->bi_end);
+	pmap_bootstrap(bi->bi_end);
 
 	/*
 	 * Disable tick for now.
@@ -223,6 +229,13 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	 */
 	wrpr(tl, 0, 1);
 	wrpr(tba, tl0_base, 0);
+
+	/*
+	 * Map and initialize the message buffer (after setting trap table).
+	 */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
+	msgbufinit(msgbufp, MSGBUF_SIZE);
 
 	proc_linkup(&proc0);
 	/*
@@ -236,6 +249,7 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	thread0->td_kstack = proc0kstack;
 	thread0->td_pcb = (struct pcb *)
 	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	frame0.tf_tstate = TSTATE_IE;
 	thread0->td_frame = &frame0;
 	LIST_INIT(&thread0->td_contested);
 
@@ -243,12 +257,6 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	 * Initialize the per-cpu pointer so we can set curproc.
 	 */
 	globalp = &__globaldata;
-
-	/*
-	 * Setup pointers to interrupt data tables.
-	 */
-	globalp->gd_iq = &intr_queues[0];	/* XXX cpuno */
-	globalp->gd_ivt = intr_vectors;
 
 	/*
 	 * Put the globaldata pointer in the alternate and interrupt %g7 also.
@@ -264,7 +272,8 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	    (&__globaldata.gd_alt_stack[ALT_STACK_SIZE - 1]));
 	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
 	wrpr(pstate, ps, PSTATE_IG);
-	__asm __volatile("mov %0, %%g7" : : "r" (&__globaldata));
+	__asm __volatile("mov %0, %%g6" : : "r" (&__globaldata.gd_iq));
+	__asm __volatile("mov %0, %%g7" : : "r" (&intr_vectors));
 	wrpr(pstate, ps, 0);
 
 	/*
@@ -299,9 +308,10 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	struct sigacts *psp;
 	struct sigframe sf;
 	struct thread *td;
+	struct frame *fp;
 	struct proc *p;
-	u_long sp;
 	int oonstack;
+	u_long sp;
 
 	oonstack = 0;
 	td = curthread;
@@ -346,8 +356,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 * and the stack can not be grown.
 	 * useracc() will return FALSE if access is denied.
 	 */
-	if (vm_map_growstack(p, (u_long)sfp) != KERN_SUCCESS ||
-	    !useracc((caddr_t)sfp, sizeof(*sfp), VM_PROT_WRITE)) {
+	fp = (struct frame *)sfp - 1;
+	if (vm_map_growstack(p, (u_long)fp) != KERN_SUCCESS ||
+	    !useracc((caddr_t)fp, sizeof(*fp) + sizeof(*sfp), VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -387,7 +398,8 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	PROC_UNLOCK(p);
 
 	/* Copy the sigframe out to the user's stack. */
-	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0) {
+	if (rwindow_save(td) != 0 || copyout(&sf, sfp, sizeof(*sfp)) != 0 ||
+	    suword(&fp->f_in[6], tf->tf_out[6]) != 0) {
 		/*
 		 * Something is wrong with the stack pointer.
 		 * ...Kill the process.
@@ -400,7 +412,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	tf->tf_tpc = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	tf->tf_tnpc = tf->tf_tpc + 4;
-	tf->tf_sp = (u_long)sfp - SPOFF;
+	tf->tf_sp = (u_long)fp - SPOFF;
 
 	CTR3(KTR_SIG, "sendsig: return td=%p pc=%#lx sp=%#lx", td, tf->tf_tpc,
 	    tf->tf_sp);
@@ -499,6 +511,7 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	pcb = td->td_pcb;
 	/* XXX: honor the real number of windows... */
 	bzero(pcb->pcb_rw, sizeof(pcb->pcb_rw));
+	pcb->pcb_nsaved = 0;
 	/* The inital window for the process (%cw = 0). */
 	fp = (struct frame *)(td->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	/* Make sure the frames that are frobbed are actually flushed. */
@@ -528,6 +541,8 @@ setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	td->td_frame->tf_out[2] = 0;
 	td->td_frame->tf_out[3] = PS_STRINGS;
 	td->td_frame->tf_out[6] = sp - SPOFF - sizeof(struct frame);
+	td->td_retval[0] = td->td_frame->tf_out[0];
+	td->td_retval[1] = td->td_frame->tf_out[1];
 	wr(y, 0, 0);
 	mtx_unlock_spin(&sched_lock);
 }
