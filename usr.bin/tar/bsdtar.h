@@ -76,7 +76,6 @@ struct bsdtar {
 	char		**argv;
 	size_t		  gs_width; /* For 'list_item' in read.c */
 	size_t		  u_width; /* for 'list_item' in read.c */
-	char		 *user_uname; /* User running this program */
 	uid_t		  user_uid; /* UID running this program */
 	int		  return_value; /* Value returned by main() */
 	char		  warned_lead_slash; /* Already displayed warning */
