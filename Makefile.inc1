@@ -269,7 +269,7 @@ _worldtmp:
 .if !defined(NOCLEAN)
 	rm -rf ${WORLDTMP}
 .else
-	rm -rf ${WORLDTMP}/build/usr/include
+	rm -rf ${WORLDTMP}/legacy/usr/include
 	# XXX - These two can depend on any header file.
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/kdump/ioctl.c
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
@@ -620,10 +620,6 @@ installmost:
 #
 # legacy: Build compatibility shims for the next three targets
 #
-.if exists(${.CURDIR}/games) && !defined(NOGAMES)
-_strfile=	games/fortune/strfile
-.endif
-
 legacy:
 .for _tool in tools/build
 	@${ECHODIR} "===> ${_tool}"; \
