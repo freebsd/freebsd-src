@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.14 1998/02/23 16:49:16 ache Exp $";
+	"$Id: mount_msdos.c,v 1.15 1998/06/30 06:23:42 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -54,11 +54,21 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
+/*
+ * XXX - no way to specify "foo=<bar>"-type options; that's what we'd
+ * want for "-u", "-g", "-m", "-L", and "-W".
+ */
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_FORCE,
 	MOPT_SYNC,
 	MOPT_UPDATE,
+#ifdef MSDOSFSMNT_GEMDOSFS
+	{ "gemdosfs", 0, MSDOSFSMNT_GEMDOSFS, 1 },
+#endif
+	{ "shortnames", 0, MSDOSFSMNT_SHORTNAME, 1 },
+	{ "longnames", 0, MSDOSFSMNT_LONGNAME, 1 },
+	{ "nowin95", 0, MSDOSFSMNT_NOWIN95, 1 },
 	{ NULL }
 };
 
@@ -121,7 +131,7 @@ main(argc, argv)
 			args.flags |= MSDOSFSMNT_U2WTABLE;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags, 0);
+			getmntopts(optarg, mopts, &mntflags, &args.flags);
 			break;
 		case '?':
 		default:
