@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.20 1997/11/22 03:37:37 brian Exp $
+ * $Id: lqr.c,v 1.21 1998/01/11 17:50:40 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -42,9 +42,11 @@
 #include "lcp.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "main.h"
 
-struct pppTimer LqrTimer;
+struct lqrdata MyLqrData, HisLqrData;
+struct lqrsave HisLqrSave;
+
+static struct pppTimer LqrTimer;
 
 static u_long lastpeerin = (u_long) - 1;
 

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.h,v 1.10 1997/11/22 03:37:38 brian Exp $
+ * $Id: lqr.h,v 1.11 1998/01/11 17:50:42 brian Exp $
  *
  *	TODO:
  */
@@ -46,8 +46,8 @@ struct lqrsave {
   u_int32_t SaveInOctets;
 };
 
-struct lqrdata MyLqrData, HisLqrData;
-struct lqrsave HisLqrSave;
+extern struct lqrdata MyLqrData, HisLqrData;
+extern struct lqrsave HisLqrSave;
 
 /*
  *  We support LQR and ECHO as LQM method

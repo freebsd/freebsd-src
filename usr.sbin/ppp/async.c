@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.13 1997/10/29 01:19:38 brian Exp $
+ * $Id: async.c,v 1.14 1997/11/22 03:37:23 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -39,7 +39,6 @@
 #include "modem.h"
 #include "loadalias.h"
 #include "vars.h"
-#include "os.h"
 #include "async.h"
 
 #define HDLCSIZE	(MAX_MRU*2+6)
@@ -140,7 +139,7 @@ AsyncDecode(u_char c)
   struct mbuf *bp;
 
   if ((hs->mode & MODE_HUNT) && c != HDLC_SYN)
-    return (NULLBUFF);
+    return NULL;
 
   switch (c) {
   case HDLC_SYN:
@@ -149,7 +148,7 @@ AsyncDecode(u_char c)
       bp = mballoc(hs->length, MB_ASYNC);
       mbwrite(bp, hs->hbuff, hs->length);
       hs->length = 0;
-      return (bp);
+      return bp;
     }
     break;
   case HDLC_ESC:
@@ -173,7 +172,7 @@ AsyncDecode(u_char c)
     hs->hbuff[hs->length++] = c;
     break;
   }
-  return NULLBUFF;
+  return NULL;
 }
 
 void

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.48 1998/01/18 20:49:18 brian Exp $
+ * $Id: ipcp.c,v 1.49 1998/01/20 22:47:38 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -30,11 +30,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "command.h"
@@ -88,7 +86,6 @@ struct fsm IpcpFsm = {
   ST_INITIAL,
   0, 0, 0,
 
-  0,
   {0, 0, 0, NULL, NULL, NULL},	/* FSM timer */
   {0, 0, 0, NULL, NULL, NULL},	/* Open timer */
   {0, 0, 0, NULL, NULL, NULL},	/* Stopped timer */
@@ -126,7 +123,7 @@ static const char *cftypes128[] = {
 
 #define NCFTYPES128 (sizeof cftypes128/sizeof cftypes128[0])
 
-struct pppThroughput throughput;
+static struct pppThroughput throughput;
 
 void
 IpcpAddInOctets(int n)
