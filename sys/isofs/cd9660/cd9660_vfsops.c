@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.58 1999/08/13 10:29:18 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.59 1999/08/23 21:07:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -220,13 +220,9 @@ cd9660_mount(mp, path, data, ndp, p)
 		return (error);
 	devvp = ndp->ni_vp;
 
-	if (devvp->v_type != VBLK) {
+	if (!vn_isdisk(devvp)) {
 		vrele(devvp);
 		return ENOTBLK;
-	}
-	if (devsw(devvp->v_rdev) == NULL) {
-		vrele(devvp);
-		return ENXIO;
 	}
 
 	/*       
