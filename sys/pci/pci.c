@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.36 1995/12/07 12:47:42 davidg Exp $
+**  $Id: pci.c,v 1.37 1995/12/14 09:54:08 phk Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -156,8 +156,8 @@ static	struct pcicb	pcibus0 = {
     0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0,	/* real allocation */
     0, 0xFFFF,			/* iobase/limit */
-    0x4000000, 0xFFFFFFFFu,	/* nonprefetch membase/limit */
-    0x4000000, 0xFFFFFFFFu	/* prefetch membase/limit */
+    0x2000000, 0xFFFFFFFFu,	/* nonprefetch membase/limit */
+    0x2000000, 0xFFFFFFFFu	/* prefetch membase/limit */
 };
 static	struct pcicb   *pcicb;
 
@@ -923,7 +923,7 @@ int pci_map_port (pcici_t tag, u_long reg, u_short* pa)
 	};
 	iosize = -(data &  PCI_MAP_IO_ADDRESS_MASK);
 	if (ioaddr < pcicb->pcicb_iobase
-		|| ioaddr + iosize > pcicb->pcicb_iolimit) {
+		|| ioaddr + iosize -1 > pcicb->pcicb_iolimit) {
 		printf ("pci_map_port failed: device's iorange 0x%x-0x%x "
 			"is incompatible with its bridge's range 0x%x-0x%x\n",
 			(unsigned) ioaddr, (unsigned) ioaddr + iosize - 1,
