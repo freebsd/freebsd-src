@@ -301,6 +301,7 @@ ar_open(const char *name)
 void
 ar_close(void)
 {
+	int status;
 
 	if (arfd < 0) {
 		did_io = io_ok = flcnt = 0;
@@ -336,13 +337,14 @@ ar_close(void)
 	 * for a quick extract/list, pax frequently exits before the child
 	 * process is done
 	 */
-	if ((act == LIST || act == EXTRACT) && nflag && zpid > 0) {
-		int status;
+	if ((act == LIST || act == EXTRACT) && nflag && zpid > 0)
 		kill(zpid, SIGINT);
-		waitpid(zpid, &status, 0);
-	}
 
 	(void)close(arfd);
+
+	/* Do not exit before child to ensure data integrity */
+	if (zpid > 0)
+		waitpid(zpid, &status, 0);
 
 	if (vflag && (artyp == ISTAPE)) {
 		(void)fputs("done.\n", listf);
