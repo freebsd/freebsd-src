@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.39 1994/09/29 14:02:40 csgr Exp $
+#	$Id: Makefile.i386,v 1.40 1994/10/01 02:55:56 davidg Exp $
 #
 # Makefile for FreeBSD
 #
@@ -158,7 +158,7 @@ assym.s: genassym
 
 # Some of the defines that genassym outputs may well depend on the 
 # value of kernel options.
-genassym:	Makefile
+genassym:	Makefile ${I386}/i386/genassym.c
 	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
 		 ${I386}/i386/genassym.c -static -o genassym
 
