@@ -2656,7 +2656,8 @@ g_raid3_access(struct g_provider *pp, int acr, int acw, int ace)
 
 	sc = pp->geom->softc;
 	if (sc == NULL ||
-	    g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) < sc->sc_ndisks - 1) {
+	    g_raid3_ndisks(sc, G_RAID3_DISK_STATE_ACTIVE) < sc->sc_ndisks - 1 ||
+	    (sc->sc_flags & G_RAID3_DEVICE_FLAG_DESTROY) != 0) {
 		if (acr <= 0 && acw <= 0 && ace <= 0)
 			return (0);
 		else
