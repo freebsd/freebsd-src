@@ -118,7 +118,7 @@ sdp_open_local(void)
 
 	sa.sun_len = sizeof(sa);
 	sa.sun_family = AF_UNIX;
-	strlcpy(sa.sun_path, SDP_UNSOCK_PATH, sizeof(sa.sun_path));
+	strlcpy(sa.sun_path, SDP_LOCAL_PATH, sizeof(sa.sun_path));
 
 	if (connect(ss->s, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
 		ss->error = errno;
@@ -126,7 +126,7 @@ sdp_open_local(void)
 	}
 
 	ss->flags |= SDP_SESSION_LOCAL;
-	ss->imtu = ss->omtu = SDP_UNSOCK_MTU;
+	ss->imtu = ss->omtu = SDP_LOCAL_MTU;
 
 	if ((ss->req = malloc(ss->omtu)) == NULL) {
 		ss->error = ENOMEM;
