@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.80 1998/04/20 03:57:41 julian Exp $
+ * $Id: ffs_vfsops.c,v 1.81 1998/05/06 05:29:40 msmith Exp $
  */
 
 #include "opt_devfs.h" /* for SLICE */
@@ -260,6 +260,16 @@ ffs_mount( mp, path, data, ndp, p)
 			}
 
 			fs->fs_ronly = 0;
+		}
+		/*
+		 * Soft updates is incompatible with "async",
+		 * so if we are doing softupdates stop the user
+		 * from setting the async flag in an update.
+		 * Softdep_mount() clears it in an initial mount 
+		 * or ro->rw remount.
+		 */
+		if (mp->mnt_flag & MNT_SOFTDEP) {
+			mp->mnt_flag &= ~MNT_ASYNC;
 		}
 		if (fs->fs_ronly == 0) {
 			fs->fs_clean = 0;
