@@ -34,7 +34,6 @@
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/devicestat.h>
@@ -47,8 +46,6 @@
 #include <cam/cam_debug.h>
 
 #include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_message.h>
-#include <cam/scsi/scsi_da.h>
 #include <cam/scsi/scsi_pass.h>
 
 typedef enum {
