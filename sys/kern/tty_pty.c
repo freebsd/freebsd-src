@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_pty.c	8.4 (Berkeley) 2/20/95
- * $Id: tty_pty.c,v 1.61 1999/05/31 11:27:38 phk Exp $
+ * $Id: tty_pty.c,v 1.62 1999/08/08 19:28:50 phk Exp $
  */
 
 /*
@@ -167,6 +167,7 @@ ptyinit(n)
 	bzero(pt, sizeof(*pt));
 	devs->si_drv1 = devc->si_drv1 = pt;
 	devs->si_tty_tty = devc->si_tty_tty = &pt->pt_tty;
+	ttyregister(&pt->pt_tty);
 }
 
 /*ARGSUSED*/
