@@ -733,8 +733,9 @@ acts_receive (
 	 * waiting for carrier loss or long-space disconnect, but we do
 	 * these clumsy things anyway.
 	 */
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	pp->sloppyclockflag &= ~CLK_FLAG1;
 	up->pollcnt = 0;
 	(void)write(pp->io.fd, &hangup, 1);
@@ -800,7 +801,7 @@ acts_timeout (
 		acts_disc(peer);
 		return;
 	}
-	switch (peer->ttlmax) {
+	switch (peer->ttl) {
 
 		/*
 		 * In manual mode the ACTS calling program is activated

@@ -146,6 +146,7 @@ struct palisade_unit {
 	char		rpt_status;	/* TSIP Parser State */
 	short 		rpt_cnt;	/* TSIP packet length so far */
 	char 		rpt_buf[BMAX]; 	 /* packet assembly buffer */
+	int		type;		/* Clock mode type */
 };
 
 /*

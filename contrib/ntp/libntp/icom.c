@@ -12,6 +12,7 @@
 #include <errno.h>
 
 #include "ntp_tty.h"
+#include "l_stdlib.h"
 
 /*
  * Scraps

@@ -1,3 +1,4 @@
+
 /*
  * refclock_atom - clock driver for 1-pps signals
  */
@@ -75,8 +76,6 @@
  * Interface definitions
  */
 #ifdef HAVE_PPSAPI
-extern int pps_assert;		/* selects rising or falling edge */
-extern int pps_hardpps;		/* enables the kernel PPS interface */
 #define DEVICE		"/dev/pps%d" /* device name and unit */
 #endif /* HAVE_PPSAPI */
 
@@ -159,9 +158,9 @@ atom_start(
 	pp = peer->procptr;
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
+	pp->stratum = STRATUM_UNSPEC;
 	memcpy((char *)&pp->refid, REFID, 4);
 	peer->burst = ASTAGE;
-	peer->stratum = STRATUM_UNSPEC; 
 #ifdef HAVE_PPSAPI
 	up = emalloc(sizeof(struct ppsunit));
 	memset(up, 0, sizeof(struct ppsunit));
@@ -194,7 +193,7 @@ atom_start(
 		    "refclock_atom: time_pps_create failed: %m");
 		return (0);
 	}
-	return (atom_ppsapi(peer, pps_assert, pps_hardpps));
+	return (atom_ppsapi(peer, 0, 0));
 #else /* HAVE_PPSAPI */
 	return (1);
 #endif /* HAVE_PPSAPI */
@@ -250,7 +249,7 @@ atom_ppsapi(
 	if (!up->pps_params.mode) {
 		msyslog(LOG_ERR,
 		    "refclock_atom: invalid capture edge %d",
-		    pps_assert);
+		    enb_clear);
 		return (0);
 	}
 	up->pps_params.mode |= PPS_TSFMT_TSPEC;
@@ -459,17 +458,17 @@ atom_poll(
 	 * +-0.5 s of the local time and the seconds numbering is
 	 * unambiguous. Note that the leap bits are set no-warning on
 	 * the first valid update and the stratum is set at the prefer
-	 * peer.
+	 * peer, unless overriden by a fudge command.
 	 */
 	if (peer->burst > 0)
 		return;
-	peer->stratum = STRATUM_UNSPEC;
+	peer->leap = LEAP_NOTINSYNC;
 	if (pp->codeproc == pp->coderecv) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		peer->burst = ASTAGE;
 		return;
 
-	} else if (!sys_prefer) {
+	} else if (sys_prefer == NULL) {
 		pp->codeproc = pp->coderecv;
 		peer->burst = ASTAGE;
 		return;
@@ -479,12 +478,17 @@ atom_poll(
 		peer->burst = ASTAGE;
 		return;
 	}
-	peer->stratum = sys_prefer->stratum;
-	if (peer->stratum <= 1)
+	pp->leap = LEAP_NOWARNING;
+	if (pp->stratum >= STRATUM_UNSPEC)
+		peer->stratum = sys_prefer->stratum;
+	else
+		peer->stratum = pp->stratum;
+	if (peer->stratum == STRATUM_REFCLOCK || peer->stratum ==
+	    STRATUM_UNSPEC)
 		peer->refid = pp->refid;
 	else
-		peer->refid = peer->srcadr.sin_addr.s_addr;
-	pp->leap = LEAP_NOWARNING;
+		peer->refid = addr2refid(&sys_prefer->srcadr);
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 	peer->burst = ASTAGE;
 }

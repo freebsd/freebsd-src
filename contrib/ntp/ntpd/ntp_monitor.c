@@ -1,7 +1,6 @@
 /*
- * ntp_monitor.c - monitor who is using the ntpd server
+ * ntp_monitor - monitor ntpd statistics
  */
-
 #ifdef HAVE_CONFIG_H
 # include <config.h>
 #endif
@@ -18,30 +17,29 @@
 #endif
 
 /*
- * I'm still not sure I like what I've done here.  It certainly consumes
+ * I'm still not sure I like what I've done here. It certainly consumes
  * memory like it is going out of style, and also may not be as low
  * overhead as I'd imagined.
  *
- * Anyway, we record statistics based on source address, mode and version
- * (for now, anyway.  Check the code).  The receive procedure calls us with
- * the incoming rbufp before it does anything else.
+ * Anyway, we record statistics based on source address, mode and
+ * version (for now, anyway. Check the code).  The receive procedure
+ * calls us with the incoming rbufp before it does anything else.
  *
  * Each entry is doubly linked into two lists, a hash table and a
- * most-recently-used list.  When a packet arrives it is looked up
- * in the hash table.  If found, the statistics are updated and the
- * entry relinked at the head of the MRU list.  If not found, a new
- * entry is allocated, initialized and linked into both the hash
- * table and at the head of the MRU list.
+ * most-recently-used list. When a packet arrives it is looked up in
+ * the hash table.  If found, the statistics are updated and the entry
+ * relinked at the head of the MRU list. If not found, a new entry is
+ * allocated, initialized and linked into both the hash table and at the
+ * head of the MRU list.
  *
- * Memory is usually allocated by grabbing a big chunk of new memory
- * and cutting it up into littler pieces.  The exception to this when we
- * hit the memory limit.  Then we free memory by grabbing entries off
- * the tail for the MRU list, unlinking from the hash table, and
+ * Memory is usually allocated by grabbing a big chunk of new memory and
+ * cutting it up into littler pieces. The exception to this when we hit
+ * the memory limit. Then we free memory by grabbing entries off the
+ * tail for the MRU list, unlinking from the hash table, and
  * reinitializing.
  *
  * trimmed back memory consumption ... jdg 8/94
  */
-
 /*
  * Limits on the number of structures allocated.  This limit is picked
  * with the illicit knowlege that we can only return somewhat less
@@ -62,31 +60,31 @@
  */
 #define	MON_HASH_SIZE	128
 #define	MON_HASH_MASK	(MON_HASH_SIZE-1)
-#define	MON_HASH(addr)	((int)(ntohl((addr)) & MON_HASH_MASK))
+#define	MON_HASH(addr)	sock_hash(addr)
 
 /*
  * Pointers to the hash table, the MRU list and the count table.  Memory
- * for the hash and count tables is only allocated if monitoring is turned on.
+ * for the hash and count tables is only allocated if monitoring is
+ * turned on.
  */
-static  struct mon_data *mon_hash[MON_HASH_SIZE];  /* array of list ptrs */
-struct mon_data mon_mru_list;
-struct mon_data mon_fifo_list;
+static	struct mon_data *mon_hash[MON_HASH_SIZE];  /* list ptrs */
+struct	mon_data mon_mru_list;
+
 /*
  * List of free structures structures, and counters of free and total
  * structures.  The free structures are linked with the hash_next field.
  */
-static  struct mon_data *mon_free;      /* the free list or null if none */
-
-static	int mon_total_mem;		/* total number of structures allocated */
-static	int mon_mem_increments;		/* number of times we've called malloc() */
+static  struct mon_data *mon_free;      /* free list or null if none */
+static	int mon_total_mem;		/* total structures allocated */
+static	int mon_mem_increments;		/* times called malloc() */
 
 /*
  * Initialization state.  We may be monitoring, we may not.  If
  * we aren't, we may not even have allocated any memory yet.
  */
-int mon_enabled;
+int	mon_enabled;			/* enable switch */
+u_long	mon_age = 3000;			/* preemption limit */
 static	int mon_have_memory;
-
 static	void	mon_getmoremem	P((void));
 static	void	remove_from_hash P((struct mon_data *));
 
@@ -106,9 +104,8 @@ init_mon(void)
 	mon_total_mem = 0;
 	mon_mem_increments = 0;
 	mon_free = NULL;
-	memset((char *)&mon_hash[0], 0, sizeof mon_hash);
-	memset((char *)&mon_mru_list, 0, sizeof mon_mru_list);
-	memset((char *)&mon_fifo_list, 0, sizeof mon_fifo_list);
+	memset(&mon_hash[0], 0, sizeof mon_hash);
+	memset(&mon_mru_list, 0, sizeof mon_mru_list);
 }
 
 
@@ -126,7 +123,7 @@ mon_start(
 		return;
 	}
 	if (mode == MON_OFF)
-	    return;		/* Ooops.. */
+	    return;
 	
 	if (!mon_have_memory) {
 		mon_total_mem = 0;
@@ -138,10 +135,6 @@ mon_start(
 
 	mon_mru_list.mru_next = &mon_mru_list;
 	mon_mru_list.mru_prev = &mon_mru_list;
-
-	mon_fifo_list.fifo_next = &mon_fifo_list;
-	mon_fifo_list.fifo_prev = &mon_fifo_list;
-
 	mon_enabled = mode;
 }
 
@@ -182,9 +175,6 @@ mon_stop(
 
 	mon_mru_list.mru_next = &mon_mru_list;
 	mon_mru_list.mru_prev = &mon_mru_list;
-
-	mon_fifo_list.fifo_next = &mon_fifo_list;
-	mon_fifo_list.fifo_prev = &mon_fifo_list;
 }
 
 
@@ -198,31 +188,34 @@ ntp_monitor(
 {
 	register struct pkt *pkt;
 	register struct mon_data *md;
-	register u_long netnum;
+        struct sockaddr_storage addr;
 	register int hash;
 	register int mode;
 
 	if (mon_enabled == MON_OFF)
-	    return;
+		return;
 
 	pkt = &rbufp->recv_pkt;
-	netnum = NSRCADR(&rbufp->recv_srcadr);
-	hash = MON_HASH(netnum);
+	memset(&addr, 0, sizeof(addr));
+	memcpy(&addr, &(rbufp->recv_srcadr), sizeof(addr));
+	hash = MON_HASH(&addr);
 	mode = PKT_MODE(pkt->li_vn_mode);
-
 	md = mon_hash[hash];
 	while (md != NULL) {
-		if (md->rmtadr == netnum && 
-		    /* ?? md->interface == rbufp->dstadr && ?? */
-		    md->mode == (u_char)mode) {
+
+		/*
+		 * Match address only to conserve MRU size.
+		 */
+		if (SOCKCMP(&md->rmtadr, &addr)) {
+			md->drop_count = current_time - md->lasttime;
 			md->lasttime = current_time;
 			md->count++;
-			md->version = PKT_VERSION(pkt->li_vn_mode);
 			md->rmtport = NSRCPORT(&rbufp->recv_srcadr);
+			md->mode = (u_char) mode;
+			md->version = PKT_VERSION(pkt->li_vn_mode);
 
 			/*
-			 * Shuffle him to the head of the
-			 * mru list.  What a crock.
+			 * Shuffle to the head of the MRU list.
 			 */
 			md->mru_next->mru_prev = md->mru_prev;
 			md->mru_prev->mru_next = md->mru_next;
@@ -230,7 +223,6 @@ ntp_monitor(
 			md->mru_prev = &mon_mru_list;
 			mon_mru_list.mru_next->mru_prev = md;
 			mon_mru_list.mru_next = md;
-
 			return;
 		}
 		md = md->hash_next;
@@ -242,24 +234,21 @@ ntp_monitor(
 	 * or from the tail of the MRU list.
 	 */
 	if (mon_free == NULL && mon_total_mem >= MAXMONMEM) {
+
 		/*
-		 * Get it from MRU list
+		 * Preempt from the MRU list if old enough.
 		 */
 		md = mon_mru_list.mru_prev;
+		if (((u_long)RANDOM & 0xffffffff) / FRAC >
+		    (double)(current_time - md->lasttime) / mon_age)
+			return;
+
 		md->mru_prev->mru_next = &mon_mru_list;
 		mon_mru_list.mru_prev = md->mru_prev;
-
 		remove_from_hash(md);
-
-		/*
-		 * Get it from FIFO list
-		 */
-		md->fifo_prev->fifo_next = md->fifo_next;
-		md->fifo_next->fifo_prev = md->fifo_prev;
-		
 	} else {
-		if (mon_free == NULL)           /* if free list empty */
-		    mon_getmoremem();       /* then get more */
+		if (mon_free == NULL)
+			mon_getmoremem();
 		md = mon_free;
 		mon_free = md->hash_next;
 	}
@@ -267,36 +256,30 @@ ntp_monitor(
 	/*
 	 * Got one, initialize it
 	 */
-	md->lasttime = md->firsttime = current_time;
-	md->lastdrop = 0;
+	md->avg_interval = 0;
+	md->lasttime = current_time;
 	md->count = 1;
-	md->rmtadr = netnum;
+	md->drop_count = 0;
+	memset(&md->rmtadr, 0, sizeof(md->rmtadr));
+	memcpy(&md->rmtadr, &addr, sizeof(addr));
 	md->rmtport = NSRCPORT(&rbufp->recv_srcadr);
 	md->mode = (u_char) mode;
 	md->version = PKT_VERSION(pkt->li_vn_mode);
 	md->interface = rbufp->dstadr;
-	md->cast_flags = ((rbufp->dstadr->flags & INT_MULTICAST) &&
-			  rbufp->fd == md->interface->fd) ? MDF_MCAST: rbufp->fd ==
-		md->interface->bfd ? MDF_BCAST : MDF_UCAST;
+	md->cast_flags = (u_char)(((rbufp->dstadr->flags & INT_MULTICAST) &&
+	    rbufp->fd == md->interface->fd) ? MDF_MCAST: rbufp->fd ==
+		md->interface->bfd ? MDF_BCAST : MDF_UCAST);
 
 	/*
-	 * Drop him into front of the hash table.
-	 * Also put him on top of the MRU list
-	 * and at bottom of FIFO list
+	 * Drop him into front of the hash table. Also put him on top of
+	 * the MRU list.
 	 */
-
 	md->hash_next = mon_hash[hash];
 	mon_hash[hash] = md;
-
 	md->mru_next = mon_mru_list.mru_next;
 	md->mru_prev = &mon_mru_list;
 	mon_mru_list.mru_next->mru_prev = md;
 	mon_mru_list.mru_next = md;
-
-	md->fifo_prev = mon_fifo_list.fifo_prev;
-	md->fifo_next = &mon_fifo_list;
-	mon_fifo_list.fifo_prev->fifo_next = md;
-	mon_fifo_list.fifo_prev = md;
 }
 
 
@@ -310,10 +293,10 @@ mon_getmoremem(void)
 	register int i;
 	struct mon_data *freedata;      /* 'old' free list (null) */
 
-	md = (struct mon_data *)emalloc(MONMEMINC * sizeof(struct mon_data));
+	md = (struct mon_data *)emalloc(MONMEMINC *
+	    sizeof(struct mon_data));
 	freedata = mon_free;
 	mon_free = md;
-
 	for (i = 0; i < (MONMEMINC-1); i++) {
 		md->hash_next = (md + 1);
 		md++;
@@ -323,7 +306,6 @@ mon_getmoremem(void)
 	 * md now points at the last.  Link in the rest of the chain.
 	 */
 	md->hash_next = freedata;
-
 	mon_total_mem += MONMEMINC;
 	mon_mem_increments++;
 }
@@ -336,7 +318,7 @@ remove_from_hash(
 	register int hash;
 	register struct mon_data *md_prev;
 
-	hash = MON_HASH(md->rmtadr);
+	hash = MON_HASH(&md->rmtadr);
 	if (mon_hash[hash] == md) {
 		mon_hash[hash] = md->hash_next;
 	} else {

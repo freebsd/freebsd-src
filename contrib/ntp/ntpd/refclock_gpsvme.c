@@ -349,6 +349,7 @@ vme_poll(
 	l_fp tstmp;
 	time_t tloc;
 	struct tm *tadr;
+	long ltemp;
 
         
  
@@ -395,13 +396,13 @@ vme_poll(
 	vme->hour =   tptr->hr;
 	vme->minute =  tptr->mn;
 	vme->second =  tptr->sec;
-	vme->usec =   tptr->frac;
+	vme->nsec =   tptr->frac * 1000;
 
 #ifdef DEBUG
 	if (debug)
 	    printf("vme: %3d %02d:%02d:%02d.%06ld %1x\n",
 		   vme->day, vme->hour, vme->minute, vme->second,
-		   vme->usec, tptr->status);
+		   vme->nsec, tptr->status);
 #endif
 	if (tptr->status ) {       /*  Status 0 is locked to ref., 1 is not */
 		vme_report_event(vme, CEVNT_BADREPLY);
@@ -424,14 +425,16 @@ vme_poll(
 		msyslog(LOG_ERR, "refclock_gpsvme: bad data!!");
 		return;
 	}
-	TVUTOTSF(vme->usec, vme->lastref.l_uf);
+	vme->lastref.l_uf = 0;
+	DTOLFP(vme->nsec / 1e9, &ltemp);
+	L_ADD(&vme->lastrec, &ltemp);
 	tstmp = vme->lastref;
 
 	L_SUB(&tstmp, &vme->lastrec);
 	vme->coderecv++;
 
 	L_ADD(&tstmp, &(fudgefactor[vme->unit]));
-
+	vme->lastref = vme->lastrec;
 	refclock_receive(vme->peer);
 }
 
@@ -548,7 +551,7 @@ vme_buginfo(
 	bug->values[4] = (u_long)vme->hour;
 	bug->values[5] = (u_long)vme->minute;
 	bug->values[6] = (u_long)vme->second;
-	bug->values[7] = (u_long)vme->usec;
+	bug->values[7] = (u_long)vme->nsec;
 	bug->values[9] = vme->yearstart;
 	bug->stimes = 0x1c;
 	bug->times[0] = vme->lastref;

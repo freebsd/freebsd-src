@@ -325,6 +325,7 @@ trak_receive(
 		refclock_report(peer, CEVNT_BADTIME);
 		return;
         }
+	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 }
 

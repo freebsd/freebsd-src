@@ -24,11 +24,14 @@ humandate(
 	struct tm *tm;
 	time_t sec;
 
-	LIB_GETBUF(bp);
-	
 	sec = ntptime - JAN_1970;
 	tm = localtime(&sec);
 
+	if (!tm)
+		return "--- --- -- ---- --:--:--";
+
+	LIB_GETBUF(bp);
+	
 	(void) sprintf(bp, "%s, %s %2d %4d %2d:%02d:%02d",
 		       days[tm->tm_wday], months[tm->tm_mon], tm->tm_mday,
 		       1900+tm->tm_year, tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -47,6 +50,9 @@ humanlogtime(void)
 	time_t cursec = time((time_t *) 0);
 	struct tm *tm = localtime(&cursec);
 	
+	if (!tm)
+		return "-- --- --:--:--";
+
 	LIB_GETBUF(bp);
 	
 	(void) sprintf(bp, "%2d %s %02d:%02d:%02d",

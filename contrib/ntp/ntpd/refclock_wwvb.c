@@ -103,6 +103,7 @@
 #define	DESCRIPTION	"Spectracom WWVB/GPS Receivers" /* WRU */
 
 #define	LENWWVB0	22	/* format 0 timecode length */
+#define LENWWVB1	22	/* format 1 timecode length */
 #define	LENWWVB2	24	/* format 2 timecode length */
 #define LENWWVB3        29      /* format 3 timecode length */
 #define MONLIN		15	/* number of monitoring lines */
@@ -187,7 +188,7 @@ wwvb_start(
 	peer->precision = PRECISION;
 	pp->clockdesc = DESCRIPTION;
 	memcpy((char *)&pp->refid, REFID, 4);
-	peer->burst = NSTAGE;
+	peer->burst = MAXSTAGE;
 	return (1);
 }
 
@@ -263,11 +264,6 @@ wwvb_receive(
 	pp->lastrec = up->laststamp;
 	up->laststamp = trtmp;
 	up->tcswitch = 1;
-#ifdef DEBUG
-	if (debug)
-		printf("wwvb: timecode %d %s\n", pp->lencode,
-		    pp->a_lastcode);
-#endif
 
 	/*
 	 * We get down to business, check the timecode format and decode
@@ -277,10 +273,9 @@ wwvb_receive(
 	 */
 	syncchar = qualchar = leapchar = dstchar = ' ';
 	tz = 0;
-	pp->msec = 0;
 	switch (pp->lencode) {
 
-		case LENWWVB0:
+	case LENWWVB0:
 
 		/*
 		 * Timecode format 0: "I  ddd hh:mm:ss DTZ=nn"
@@ -289,20 +284,22 @@ wwvb_receive(
 		    "%c %3d %2d:%2d:%2d%c%cTZ=%2d",
 		    &syncchar, &pp->day, &pp->hour, &pp->minute,
 		    &pp->second, &tmpchar, &dstchar, &tz) == 8)
+			pp->nsec = 0;
 			break;
 
-		case LENWWVB2:
+	case LENWWVB2:
 
 		/*
 		 * Timecode format 2: "IQyy ddd hh:mm:ss.mmm LD" */
 		if (sscanf(pp->a_lastcode,
-		    "%c%c %2d %3d %2d:%2d:%2d.%3d %c",
+		    "%c%c %2d %3d %2d:%2d:%2d.%3ld %c",
 		    &syncchar, &qualchar, &pp->year, &pp->day,
-		    &pp->hour, &pp->minute, &pp->second, &pp->msec,
+		    &pp->hour, &pp->minute, &pp->second, &pp->nsec,
 		    &leapchar) == 9)
+			pp->nsec *= 1000000;
 			break;
 
-		case LENWWVB3:
+	case LENWWVB3:
 
 	   	/*
 		 * Timecode format 3: "0003I yyyymmdd hhmmss+0000SL#"
@@ -313,10 +310,11 @@ wwvb_receive(
 		    &pp->minute, &pp->second, &dstchar, &leapchar) == 8)
 		    {
 			pp->day = ymd2yd(pp->year, month, day);
+			pp->nsec = 0;
 			break;
 		}
 
-		default:
+	default:
 
 		/*
 		 * Unknown format: If dumping internal table, record
@@ -343,6 +341,7 @@ wwvb_receive(
 
 	    case ' ':
 		pp->disp = .001;
+		pp->lastref = pp->lastrec;
 		break;
 
 	    case 'A':
@@ -411,17 +410,21 @@ wwvb_poll(
 		pollchar = 'T';
 	if (write(pp->io.fd, &pollchar, 1) != 1)
 		refclock_report(peer, CEVNT_FAULT);
-	else
-		pp->polls++;
 	if (peer->burst > 0)
 		return;
 	if (pp->coderecv == pp->codeproc) {
 		refclock_report(peer, CEVNT_TIMEOUT);
 		return;
 	}
-	record_clock_stats(&peer->srcadr, pp->a_lastcode);
 	refclock_receive(peer);
-	peer->burst = NSTAGE;
+	record_clock_stats(&peer->srcadr, pp->a_lastcode);
+#ifdef DEBUG
+	if (debug)
+		printf("wwvb: timecode %d %s\n", pp->lencode,
+		    pp->a_lastcode);
+#endif
+	peer->burst = MAXSTAGE;
+	pp->polls++;
 
 	/*
 	 * If the monitor flag is set (flag4), we dump the internal

@@ -54,7 +54,6 @@
  */
 char *sprintb		P((u_int, const char *));
 const char *timex_state	P((int));
-volatile int debug = 0;
 
 #ifdef SIGSYS
 void pll_trap		P((int));
@@ -89,13 +88,13 @@ main(
 	double ftemp, gtemp, htemp;
 	long time_frac;				/* ntv.time.tv_frac_sec (us/ns) */
 	l_fp ts;
-	unsigned ts_mask = TS_MASK;		/* defaults to 20 bits (us) */
-	unsigned ts_roundbit = TS_ROUNDBIT;	/* defaults to 20 bits (us) */
-	int fdigits = 6;			/* fractional digits for us */
+	volatile unsigned ts_mask = TS_MASK;		/* defaults to 20 bits (us) */
+	volatile unsigned ts_roundbit = TS_ROUNDBIT;	/* defaults to 20 bits (us) */
+	volatile int fdigits = 6;			/* fractional digits for us */
 	int c;
 	int errflg	= 0;
 	int cost	= 0;
-	int rawtime	= 0;
+	volatile int rawtime	= 0;
 
 	memset((char *)&ntx, 0, sizeof(ntx));
 	progname = argv[0];
@@ -120,9 +119,6 @@ main(
 #endif
 	    case 'c':
 		cost++;
-		break;
-	    case 'd':
-		debug++;
 		break;
 	    case 'e':
 		ntx.modes |= MOD_ESTERROR;
@@ -166,7 +162,7 @@ main(
 -m maxerror	max possible error (us)\n\
 -o offset	current offset (ms)\n\
 -r		print the unix and NTP time raw\n\
--l leap		Set the leap bits\n\
+-s status	Set the status bits\n\
 -t timeconstant	log2 of PLL time constant (0 .. %d)\n",
 			       progname, optargs,
 #ifdef MOD_MICRO
@@ -305,7 +301,7 @@ main(
 		    (int) ntv.time.tv_sec, fdigits, (int) time_frac,
 		    ctime((const time_t *) &ntv.time.tv_sec));
 #if NTP_API > 3
-		printf(", TAI offset %d\n", ntv.tai);
+		printf(", TAI offset %ld\n", (long)ntv.tai);
 #else
 		printf("\n");
 #endif /* NTP_API */
