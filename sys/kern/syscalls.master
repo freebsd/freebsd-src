@@ -639,6 +639,8 @@
 			    int attrnamespace, void *data, size_t nbytes); }
 439	STD	BSD	{ ssize_t extattr_list_link(const char *path, \
 			    int attrnamespace, void *data, size_t nbytes); }
+440	MSTD	BSD	{ int kse_switchin(const struct __mcontext *mcp, \
+			    long val, long *loc); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
