@@ -882,7 +882,7 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 
     if (str[1] == '\0') {
 	/*
-	 * Error - there is only a dollar sign!
+	 * Error, there is only a dollar sign in the input string.
 	 */
 	*freePtr = FALSE;
 	*lengthPtr = 1;
