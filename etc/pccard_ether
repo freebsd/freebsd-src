@@ -81,6 +81,7 @@ stop_dhcp() {
 }
 
 start_dhcp() {
+	stop_dhcp
 	case ${pccard_ether_delay} in
 	[Nn][Oo])
 		;;
@@ -88,7 +89,6 @@ start_dhcp() {
 		sleep ${pccard_ether_delay}
 		;;
         esac
-	stop_dhcp
 	[ -n "$dhcp_program" ] && dhclient_program="$dhcp_program"
 	[ -n "$dhcp_flags" ] && dhclient_flags="$dhcp_flags"
 	if [ -x "${dhclient_program}" ]; then
