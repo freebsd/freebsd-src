@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.40 1997/09/21 13:11:22 brian Exp $
+ * $Id: command.c,v 1.24.2.41 1997/09/22 00:50:34 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1184,7 +1184,7 @@ SetNBNS(struct cmdtab const * list, int argc, char **argv)
 
 #endif				/* MS_EXT */
 
-static int
+int
 SetVariable(struct cmdtab const * list, int argc, char **argv, int param)
 {
   u_long map;
