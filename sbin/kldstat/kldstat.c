@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: kldstat.c,v 1.4 1998/01/05 07:09:28 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -111,7 +111,7 @@ main(int argc, char** argv)
 	    err(1, "can't find file %s", filename);
     }
 
-    printf("Id Refs Address  Size     Name\n");
+    printf("Id Refs Address    Size     Name\n");
     if (fileid)
 	printfile(fileid, verbose);
     else
