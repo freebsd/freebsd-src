@@ -242,7 +242,8 @@ void	 closeallfds(int _start);
 void	 delay(int _millisec);
 void	 displayq(struct printer *_pp, int _format);
 void	 dump(const char *_nfile, const char *_datafile, int _copies);
-void	 fatal(const struct printer *_pp, const char *_msg, ...);
+void	 fatal(const struct printer *_pp, const char *_msg, ...)
+	    __printflike(2, 3);
 int	 firstprinter(struct printer *_pp, int *_error);
 void	 free_printer(struct printer *_pp);
 void	 free_request(struct request *_rp);

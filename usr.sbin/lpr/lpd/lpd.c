@@ -115,7 +115,7 @@ static void	 startup(void);
 static void	 chkhost(struct sockaddr *_f, int _ch_opts);
 static int	 ckqueue(struct printer *_pp);
 static void	 fhosterr(int _dosys, const char *_sysmsg, const char *_usermsg,
-			  ...);
+			  ...) __printf0like(3, 4);
 static int	*socksetup(int _af, int _debuglvl);
 static void	 usage(void);
 
@@ -512,7 +512,7 @@ doit(void)
 			}
 			status = getprintcap(printer, pp);
 			if (status < 0)
-				fatal(pp, pcaperr(status));
+				fatal(pp, "%s", pcaperr(status));
 			displayq(pp, cbuf[0] == CMD_SHOWQ_LONG);
 			exit(0);
 		case CMD_RMJOB:	/* remove a job from the queue */
