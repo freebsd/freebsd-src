@@ -705,13 +705,13 @@ loop:
 		goto loop;
 	}
 	if (cnt == -1)
-		msg("read error from %s: %s: [block %d]: count=%d\n",
+		msg("read error from %s: %s: [block %qd]: count=%d\n",
 			disk, strerror(errno), blkno, size);
 	else
-		msg("short read error from %s: [block %d]: count=%d, got=%d\n",
+		msg("short read error from %s: [block %qd]: count=%d, got=%d\n",
 			disk, blkno, size, cnt);
 	if (++breaderrors > BREADEMAX) {
-		msg("More than %d block read errors from %d\n",
+		msg("More than %d block read errors from %s\n",
 			BREADEMAX, disk);
 		broadcast("DUMP IS AILING!\n");
 		msg("This is an unrecoverable error.\n");
@@ -730,11 +730,11 @@ loop:
 		    ((off_t)blkno << dev_bshift))) == dev_bsize)
 			continue;
 		if (cnt == -1) {
-			msg("read error from %s: %s: [sector %d]: count=%d\n",
+			msg("read error from %s: %s: [sector %qd]: count=%d\n",
 				disk, strerror(errno), blkno, dev_bsize);
 			continue;
 		}
-		msg("short read error from %s: [sector %d]: count=%d, got=%d\n",
+		msg("short read error from %s: [sector %qd]: count=%d, got=%d\n",
 			disk, blkno, dev_bsize, cnt);
 	}
 }
