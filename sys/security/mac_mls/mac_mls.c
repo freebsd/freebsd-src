@@ -672,14 +672,12 @@ mac_mls_parse_element(struct mac_mls_element *element, char *string)
 static int
 mac_mls_parse(struct mac_mls *mac_mls, char *string)
 {
-	char *range, *rangeend, *rangehigh, *rangelow, *single;
+	char *rangehigh, *rangelow, *single;
 	int error;
 
 	single = strsep(&string, "(");
-	if (string == NULL) {
-		string = single;
+	if (*single == '\0')
 		single = NULL;
-	}
 
 	if (string != NULL) {
 		rangelow = strsep(&string, "-");
@@ -690,6 +688,9 @@ mac_mls_parse(struct mac_mls *mac_mls, char *string)
 			return (EINVAL);
 		if (*string != '\0')
 			return (EINVAL);
+	} else {
+		rangelow = NULL;
+		rangehigh = NULL;
 	}
 
 	KASSERT((rangelow != NULL && rangehigh != NULL) ||
