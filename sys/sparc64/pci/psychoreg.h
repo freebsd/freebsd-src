@@ -94,8 +94,8 @@
 /* Note: clear interrupt 0 registers are not really used */
 #define	PSR_PCIA0_INT_CLR	0x1400	/* PCI a slot 0 clear int regs 0..3 */
 #define	PSR_PCIA1_INT_CLR	0x1420	/* PCI a slot 1 clear int regs 0..3 */
-#define	PSR_PCIA2_INT_CLR	0x1440	/* PCI a slot 1 clear int regs 0..3 */
-#define	PSR_PCIA3_INT_CLR	0x1460	/* PCI a slot 1 clear int regs 0..3 */
+#define	PSR_PCIA2_INT_CLR	0x1440	/* PCI a slot 2 clear int regs 0..3 */
+#define	PSR_PCIA3_INT_CLR	0x1460	/* PCI a slot 3 clear int regs 0..3 */
 #define	PSR_PCIB0_INT_CLR	0x1480	/* PCI b slot 0 clear int regs 0..3 */
 #define	PSR_PCIB1_INT_CLR	0x14a0	/* PCI b slot 1 clear int regs 0..3 */
 #define	PSR_PCIB2_INT_CLR	0x14c0	/* PCI b slot 2 clear int regs 0..3 */
