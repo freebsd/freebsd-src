@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.4 1998/12/07 00:35:05 wpaul Exp $
+ *	$Id: if_rl.c,v 1.18 1998/12/10 17:52:36 wpaul Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.4 1998/12/07 00:35:05 wpaul Exp $";
+	"$Id: if_rl.c,v 1.18 1998/12/10 17:52:36 wpaul Exp $";
 #endif
 
 /*
@@ -179,8 +179,8 @@ static void rl_shutdown		__P((int, void *));
 static int rl_ifmedia_upd	__P((struct ifnet *));
 static void rl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
-static void rl_eeprom_putbyte	__P((struct rl_softc *, u_int8_t));
-static void rl_eeprom_getword	__P((struct rl_softc *, u_int8_t, u_int16_t *));
+static void rl_eeprom_putbyte	__P((struct rl_softc *, int));
+static void rl_eeprom_getword	__P((struct rl_softc *, int, u_int16_t *));
 static void rl_read_eeprom	__P((struct rl_softc *, caddr_t,
 					int, int, int));
 static void rl_mii_sync		__P((struct rl_softc *));
@@ -189,13 +189,13 @@ static int rl_mii_readreg	__P((struct rl_softc *, struct rl_mii_frame *));
 static int rl_mii_writereg	__P((struct rl_softc *, struct rl_mii_frame *));
 
 static u_int16_t rl_phy_readreg	__P((struct rl_softc *, int));
-static void rl_phy_writereg	__P((struct rl_softc *, u_int16_t, u_int16_t));
+static void rl_phy_writereg	__P((struct rl_softc *, int, int));
 
 static void rl_autoneg_xmit	__P((struct rl_softc *));
 static void rl_autoneg_mii	__P((struct rl_softc *, int, int));
 static void rl_setmode_mii	__P((struct rl_softc *, int));
 static void rl_getmode_mii	__P((struct rl_softc *));
-static u_int8_t rl_calchash	__P((u_int8_t *));
+static u_int8_t rl_calchash	__P((caddr_t));
 static void rl_setmulti		__P((struct rl_softc *));
 static void rl_reset		__P((struct rl_softc *));
 static int rl_list_tx_init	__P((struct rl_softc *));
@@ -213,7 +213,7 @@ static int rl_list_tx_init	__P((struct rl_softc *));
  */
 static void rl_eeprom_putbyte(sc, addr)
 	struct rl_softc		*sc;
-	u_int8_t		addr;
+	int			addr;
 {
 	register int		d, i;
 
@@ -243,7 +243,7 @@ static void rl_eeprom_putbyte(sc, addr)
  */
 static void rl_eeprom_getword(sc, addr, dest)
 	struct rl_softc		*sc;
-	u_int8_t		addr;
+	int			addr;
 	u_int16_t		*dest;
 {
 	register int		i;
@@ -547,8 +547,8 @@ static u_int16_t rl_phy_readreg(sc, reg)
 
 static void rl_phy_writereg(sc, reg, data)
 	struct rl_softc		*sc;
-	u_int16_t		reg;
-	u_int16_t		data;
+	int			reg;
+	int			data;
 {
 	struct rl_mii_frame	frame;
 	u_int16_t		rl8139_reg = 0;
@@ -590,7 +590,7 @@ static void rl_phy_writereg(sc, reg, data)
  * Calculate CRC of a multicast group address, return the lower 6 bits.
  */
 static u_int8_t rl_calchash(addr)
-	u_int8_t		*addr;
+	caddr_t			addr;
 {
 	u_int32_t		crc, carry;
 	int			i, j;
@@ -804,17 +804,11 @@ static void rl_autoneg_mii(sc, flag, verbose)
 			media &= ~PHY_BMCR_SPEEDSEL;
 			media |= PHY_BMCR_DUPLEX;
 			printf("(full-duplex, 10Mbps)\n");
-		} else if (advert & PHY_ANAR_10BTHALF &&
-			ability & PHY_ANAR_10BTHALF) {
-			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
-			media &= ~PHY_BMCR_SPEEDSEL;
-			media &= ~PHY_BMCR_DUPLEX;
-			printf("(half-duplex, 10Mbps)\n");
 		} else {
 			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
 			media &= ~PHY_BMCR_SPEEDSEL;
 			media &= ~PHY_BMCR_DUPLEX;
-			printf("(unknown mode! forcing half-duplex, 10Mbps)\n");
+			printf("(half-duplex, 10Mbps)\n");
 		}
 
 		/* Set ASIC's duplex mode to match the PHY. */
