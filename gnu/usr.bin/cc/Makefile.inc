@@ -21,7 +21,7 @@ OUT_OBJ=	${GCC_ARCH}
 target=		${TARGET_ARCH}-unknown-freebsd
 
 # These architectures are Cygnus's default for enabling Haifa.
-.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc"
+.if ${GCC_ARCH} == "alpha" || ${GCC_ARCH} == "sparc" || ${GCC_ARCH} == "sparc64"
 USE_EGCS_HAIFA=	1
 .endif
 
