@@ -65,8 +65,6 @@
  * interrupts and network activity; thus, splimp must be >= spltty.
  */
 
-#include "sl.h"
-
 #include "opt_inet.h"
 #if !defined(KLD_MODULE)
 #include "opt_slip.h"
