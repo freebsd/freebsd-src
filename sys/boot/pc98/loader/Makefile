@@ -6,6 +6,7 @@ PROG=		${BASE}
 STRIP=
 NEWVERSWHAT=	"bootstrap loader" pc98
 BINDIR?=	/boot
+INSTALLFLAGS=	-b
 
 CFLAGS+=	-DPC98
 
@@ -107,9 +108,6 @@ ${BASE}.help: help.common help.i386
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
 
 beforeinstall:
-.if exists(${DESTDIR}/boot/loader)
-	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
-.endif
 .if exists(${.OBJDIR}/loader.help)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
