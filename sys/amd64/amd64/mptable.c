@@ -22,11 +22,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.68 1998/03/03 20:55:25 tegge Exp $
+ *	$Id: mp_machdep.c,v 1.69 1998/03/03 22:56:24 tegge Exp $
  */
 
 #include "opt_smp.h"
 #include "opt_vm86.h"
+#include "opt_cpu.h"
 
 #ifdef SMP
 #include <machine/smptests.h>
@@ -2055,6 +2056,10 @@ ap_init()
 	u_int	apic_id;
 
 	smp_cpus++;
+
+#if defined(I586_CPU) && !defined(NO_F00F_HACK)
+	lidt(&r_idt);
+#endif
 
 	/* Build our map of 'other' CPUs. */
 	other_cpus = all_cpus & ~(1 << cpuid);
