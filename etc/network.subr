@@ -85,17 +85,6 @@ network_pass1() {
 				${ipmon_program:-/sbin/ipmon} ${ipmon_flags}
 				;;
 			esac
-			case "${ipnat_enable}" in
-			[Yy][Ee][Ss])
-				if [ -r "${ipnat_rules}" ]; then
-					echo -n ' ipnat';
-				eval ${ipnat_program:-/sbin/ipnat -CF -f} \
-					"${ipnat_rules}" ${ipnat_flags}
-				else
-					echo -n ' NO IPNAT RULES'
-				fi
-				;;
-			esac
 			case "${ipfs_enable}" in
 			[Yy][Ee][Ss])
 				if [ -r "/var/db/ipf/ipstate.ipf" ]; then
@@ -108,6 +97,22 @@ network_pass1() {
 		else
 			ipfilter_enable="NO"
 			echo -n ' NO IPF RULES'
+		fi
+	esac
+	case "${ipnat_enable}" in
+	[Yy][Ee][Ss])
+		if [ "${ipfilter_in_kernel}" -eq 0 ] && kldload ipl; then
+			ipfilter_in_kernel=1
+			echo "Kernel ipfilter module loaded."
+		elif [ "${ipfilter_in_kernel}" -eq 0 ]; then
+			echo "Warning: ipfilter kernel module failed to load."
+		fi
+		if [ -r "${ipnat_rules}" ]; then
+			echo -n ' ipnat';
+		eval ${ipnat_program:-/sbin/ipnat -CF -f} \
+			"${ipnat_rules}" ${ipnat_flags}
+		else
+			echo -n ' NO IPNAT RULES'
 		fi
 		;;
 	esac
