@@ -41,8 +41,7 @@ static const char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
 #include <ufs/ffs/fs.h>
-#include <stdio.h>
-#include <stdlib.h>
+
 #include <err.h>
 #include <string.h>
 
