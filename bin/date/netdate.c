@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: netdate.c,v 1.2 1994/09/24 02:54:38 davidg Exp $
+ *	$Id: netdate.c,v 1.3 1995/05/30 00:06:41 rgrimes Exp $
  */
 
 #ifndef lint
@@ -116,7 +116,8 @@ netsettime(tval)
 		warn("gethostname");
 		goto bad;
 	}
-	(void)strncpy(msg.tsp_name, hostname, sizeof(hostname));
+	(void)strncpy(msg.tsp_name, hostname, sizeof(msg.tsp_name));
+	msg.tsp_name[sizeof(msg.tsp_name) - 1] = '\0';
 	msg.tsp_seq = htons((u_short)0);
 	msg.tsp_time.tv_sec = htonl((u_long)tval);
 	msg.tsp_time.tv_usec = htonl((u_long)0);
