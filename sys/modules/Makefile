@@ -202,6 +202,7 @@ SUBDIR+=3dfx \
 	nwfs \
 	oltr \
 	pccard \
+	pcfclock \
 	pecoff \
 	ray \
 	safe \
