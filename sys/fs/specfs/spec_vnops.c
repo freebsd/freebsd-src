@@ -40,6 +40,7 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mutex.h>
 #include <sys/conf.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -493,6 +494,18 @@ loop2:
 }
 
 /*
+ * Mutex to use when delaying niced I/O bound processes in spec_strategy().
+ */
+static struct mtx strategy_mtx;
+static void
+strategy_init(void)
+{
+
+	mtx_init(&strategy_mtx, "strategy", NULL, MTX_DEF);
+}
+SYSINIT(strategy, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, strategy_init, NULL)
+
+/*
  * Just call the device strategy routine
  */
 static int
@@ -507,7 +520,17 @@ spec_strategy(ap)
 	struct mount *mp;
 	int error;
 	struct cdevsw *dsw;
-
+	struct thread *td = curthread;
+	
+	/*
+	 * Slow down disk requests for niced processes.
+	 */
+	if (td && td->td_ksegrp->kg_nice > 0) {
+		mtx_lock(&strategy_mtx);
+		msleep(&strategy_mtx, &strategy_mtx,
+		    PPAUSE | PCATCH | PDROP, "ioslow",
+		    td->td_ksegrp->kg_nice);
+	}
 	bp = ap->a_bp;
 	vp = ap->a_vp;
 	if (bp->b_iocmd == BIO_WRITE) {

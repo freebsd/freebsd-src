@@ -493,8 +493,6 @@ out1:
 	 * Resume operation on filesystem.
 	 */
 	vfs_write_resume(vp->v_mount);
-	if (saved_nice > 0)
-		td->td_ksegrp->kg_nice = saved_nice;
 	vn_start_write(NULL, &wrtmp, V_WAIT);
 	if (collectsnapstats && starttime.tv_sec > 0) {
 		nanotime(&endtime);
@@ -592,6 +590,8 @@ done:
 	free(copy_fs->fs_csp, M_UFSMNT);
 	bawrite(sbp);
 out:
+	if (saved_nice > 0)
+		td->td_ksegrp->kg_nice = saved_nice;
 	if (fs->fs_active != 0) {
 		FREE(fs->fs_active, M_DEVBUF);
 		fs->fs_active = 0;
