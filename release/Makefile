@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.90 1995/01/27 08:30:35 jkh Exp $
+#	$Id: Makefile,v 1.91 1995/01/28 01:18:36 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -54,7 +54,7 @@ hierarchy:
 	ln -s usr/src/sys ${DESTDIR}/sys
 
 kernel:	${.CURDIR}/../sys/i386/conf/GENERIC
-	if [ ! -f ${.CURDIR}/../sys/compile/GENERIC ]; then \
+	if [ ! -d ${.CURDIR}/../sys/compile/GENERIC ]; then \
 		(cd ${.CURDIR}/../sys/i386/conf; config GENERIC); \
 		(cd ${.CURDIR}/../sys/compile/GENERIC; \
 			${MAKE} depend; ${MAKE} all; ) \
