@@ -118,8 +118,8 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp)
 		error = EBADF;
 	else {
 		FILEDESC_LOCK(fdp);
-		if ((u_int)fd >= fdp->fd_nfiles ||
-		    (fp = fdp->fd_ofiles[fd]) == NULL)
+		fp = fget_locked(fdp, fd);
+		if(fp == NULL)
 			error = EBADF;
 		else if (fp->f_type != DTYPE_SOCKET) {
 			fp = NULL;
