@@ -797,6 +797,13 @@ network_pass3() {
 			${kadmind5_server} &
 			;;
 		esac
+
+		case ${kpasswdd5_server_enable} in
+		[Yy][Ee][Ss])
+			echo -n ' kpasswdd5'
+			${kpasswdd5_server} &
+			;;
+		esac
 		;;
 	esac
 
