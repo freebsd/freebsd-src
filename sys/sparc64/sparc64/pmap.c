@@ -160,13 +160,6 @@ struct pmap kernel_pmap_store;
 static char pmap_context_map[PMAP_CONTEXT_MAX];
 static u_int pmap_context_base;
 
-/*
- * Virtual addresses of free space for temporary mappings.  Used for copying,
- * zeroing and mapping physical pages for /dev/mem accesses.
- */
-static vm_offset_t CADDR1;
-static vm_offset_t CADDR2;
-
 static boolean_t pmap_initialized = FALSE;
 
 /* Convert a tte data field into a page mask */
@@ -379,15 +372,6 @@ pmap_bootstrap(vm_offset_t ekva)
 		;
 	avail_end = phys_avail[i + 1];
 	Maxmem = sparc64_btop(avail_end);
-
-	/*
-	 * Allocate virtual address space for copying and zeroing pages of
-	 * physical memory.
-	 */
-	CADDR1 = virtual_avail;
-	virtual_avail += PAGE_SIZE;
-	CADDR2 = virtual_avail;
-	virtual_avail += PAGE_SIZE;
 
 	/*
 	 * Allocate virtual address space for the message buffer.
