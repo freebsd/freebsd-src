@@ -58,6 +58,7 @@ static char sccsid[] = "@(#)rcmd.c	8.3 (Berkeley) 3/26/94";
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #endif
+#include <arpa/nameser.h>
 
 /* wrapper for KAME-special getnameinfo() */
 #ifndef NI_WITHSCOPEID
@@ -101,6 +102,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	char c;
 	int refused;
 	char num[8];
+	static char canonnamebuf[MAXDNAME];	/* is it proper here? */
 
 	pid = getpid();
 
@@ -119,8 +121,12 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 				strerror(errno));
 		return (-1);
 	}
-	if (res->ai_canonname)
-		*ahost = res->ai_canonname;
+
+	if (res->ai_canonname
+	 && strlen(res->ai_canonname) + 1 < sizeof(canonnamebuf)) {
+		strncpy(canonnamebuf, res->ai_canonname, sizeof(canonnamebuf));
+		*ahost = canonnamebuf;
+	}
 	ai = res;
 	refused = 0;
 	oldmask = sigblock(sigmask(SIGURG));
