@@ -164,9 +164,9 @@ This is an error return, and the
 field will be set to indicate what caused the error.
 .It Dv FTS_DOT
 A file named
-.Ql \&.
+.Ql .\&
 or
-.Ql ..
+.Ql ..\&
 which was not specified as a file name to
 .Fn fts_open
 (see
@@ -441,9 +441,9 @@ function.
 By default, unless they are specified as path arguments to
 .Fn fts_open ,
 any files named
-.Ql \&.
+.Ql .\&
 or
-.Ql ..
+.Ql ..\&
 encountered in the file hierarchy are ignored.
 This option causes the
 .Nm

@@ -70,10 +70,12 @@ The
 parameter specifies the requested ktrace operation.
 The defined operations are:
 .Bl -column KTRFLAG_DESCENDXXX -offset indent
-.It KTROP_SET	Enable trace points specified in Fa trpoints .
-.It KTROP_CLEAR	Disable trace points specified in Fa trpoints .
-.It KTROP_CLEARFILE	Stop all tracing.
-.It KTRFLAG_DESCEND	The tracing change should apply to the
+.It "KTROP_SET	Enable trace points specified in"
+.Fa trpoints .
+.It "KTROP_CLEAR	Disable trace points specified in
+.Fa trpoints .
+.It "KTROP_CLEARFILE	Stop all tracing."
+.It "KTRFLAG_DESCEND	The tracing change should apply to the"
 specified process and all its current children.
 .El
 .Pp
@@ -82,14 +84,14 @@ The
 parameter specifies the trace points of interest.
 The defined trace points are:
 .Bl -column KTRFAC_SYSCALLXXX -offset indent
-.It KTRFAC_SYSCALL	Trace system calls.
-.It KTRFAC_SYSRET	Trace return values from system calls.
-.It KTRFAC_NAMEI	Trace name lookup operations.
-.It KTRFAC_GENIO	Trace all I/O (note that this option can
+.It "KTRFAC_SYSCALL	Trace system calls."
+.It "KTRFAC_SYSRET	Trace return values from system calls."
+.It "KTRFAC_NAMEI	Trace name lookup operations."
+.It "KTRFAC_GENIO	Trace all I/O (note that this option can"
 generate much output).
-.It KTRFAC_PSIG	Trace posted signals.
-.It KTRFAC_CSW	Trace context switch points.
-.It KTRFAC_INHERIT	Inherit tracing to future children.
+.It "KTRFAC_PSIG	Trace posted signals."
+.It "KTRFAC_CSW	Trace context switch points."
+.It "KTRFAC_INHERIT	Inherit tracing to future children."
 .El
 .Pp
 Each tracing event outputs a record composed of a generic header
