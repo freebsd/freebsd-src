@@ -18,6 +18,10 @@ CFLAGS+=	-Wall
 .if ${MACHINE_ARCH} == "alpha"
 CFLAGS+=	-mno-fp-regs
 .endif
+.if ${MACHINE_ARCH} == "i386"
+CFLAGS+=	-mpreferred-stack-boundary=2
+.endif
+
 
 # standalone components and stuff we have modified locally
 SRCS+=	__main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
