@@ -53,7 +53,6 @@ nodevice	amr
 nodevice	ida
 nodevice	mlx
 nodevice	pst
-nodevice	twe
 
 nodevice	agp
 
