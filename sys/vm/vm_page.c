@@ -1241,6 +1241,9 @@ vm_page_wire(vm_page_t m)
 	 * it is already off the queues).
 	 */
 	s = splvm();
+#ifndef	__alpha__
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+#endif
 	if (m->wire_count == 0) {
 		if ((m->flags & PG_UNMANAGED) == 0)
 			vm_pageq_remove(m);
