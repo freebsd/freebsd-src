@@ -194,22 +194,6 @@ extern int	(*ip_rsvp_vif)(struct socket *, struct sockopt *);
 extern void	(*ip_rsvp_force_done)(struct socket *);
 extern void	(*rsvp_input_p)(struct mbuf *m, int off);
 
-/*
- * Obtain next_hop information asociated with the mbuf; if any.
- * If a tag is present devalidate it also.
- */
-static __inline struct sockaddr_in *
-ip_claim_next_hop(struct mbuf *m)
-{
-	struct m_tag *mtag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
-	if (mtag) {
-		struct sockaddr_in *sin = *(struct sockaddr_in **)(mtag+1);
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		return sin;
-	} else
-		return NULL;
-}
-
 #ifdef PFIL_HOOKS
 extern	struct pfil_head inet_pfil_hook;
 #endif
