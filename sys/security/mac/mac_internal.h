@@ -246,37 +246,28 @@ MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
 /*
- * mac_policy_list stores the list of active policies.  A busy count is
+ * mac_static_policy_list holds a list of policy modules that are not
+ * loaded while the system is "live", and cannot be unloaded.  These
+ * policies can be invoked without holding the busy count.
+ *
+ * mac_policy_list stores the list of dynamic policies.  A busy count is
  * maintained for the list, stored in mac_policy_busy.  The busy count
- * is protected by mac_policy_list_lock; the list may be modified only
+ * is protected by mac_policy_mtx; the list may be modified only
  * while the busy count is 0, requiring that the lock be held to
  * prevent new references to the list from being acquired.  For almost
  * all operations, incrementing the busy count is sufficient to
  * guarantee consistency, as the list cannot be modified while the
  * busy count is elevated.  For a few special operations involving a
- * change to the list of active policies, the lock itself must be held.
- * A condition variable, mac_policy_list_not_busy, is used to signal
- * potential exclusive consumers that they should try to acquire the
- * lock if a first attempt at exclusive access fails.
+ * change to the list of active policies, the mtx itself must be held.
+ * A condition variable, mac_policy_cv, is used to signal potential
+ * exclusive consumers that they should try to acquire the lock if a
+ * first attempt at exclusive access fails.
  */
-static struct mtx mac_policy_list_lock;
-static struct cv mac_policy_list_not_busy;
+static struct mtx mac_policy_mtx;
+static struct cv mac_policy_cv;
+static int mac_policy_count;
 static LIST_HEAD(, mac_policy_conf) mac_policy_list;
-static int mac_policy_list_busy;
-
-#define	MAC_POLICY_LIST_LOCKINIT() do {					\
-	mtx_init(&mac_policy_list_lock, "mac_policy_list_lock", NULL,	\
-	    MTX_DEF);							\
-	cv_init(&mac_policy_list_not_busy, "mac_policy_list_not_busy");	\
-} while (0)
-
-#define	MAC_POLICY_LIST_LOCK() do {					\
-	mtx_lock(&mac_policy_list_lock);				\
-} while (0)
-
-#define	MAC_POLICY_LIST_UNLOCK() do {					\
-	mtx_unlock(&mac_policy_list_lock);				\
-} while (0)
+static LIST_HEAD(, mac_policy_conf) mac_static_policy_list;
 
 /*
  * We manually invoke WITNESS_WARN() to allow Witness to generate
@@ -287,35 +278,67 @@ static int mac_policy_list_busy;
  * framework to become quiescent so that a policy list change may
  * be made.
  */
-#define	MAC_POLICY_LIST_EXCLUSIVE() do {				\
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,			\
- 	    "mac_policy_list_exclusive() at %s:%d", __FILE__, __LINE__);\
-	mtx_lock(&mac_policy_list_lock);				\
-	while (mac_policy_list_busy != 0)				\
-		cv_wait(&mac_policy_list_not_busy,			\
-		    &mac_policy_list_lock);				\
-} while (0)
+static __inline void
+mac_policy_grab_exclusive(void)
+{
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+ 	    "mac_policy_grab_exclusive() at %s:%d", __FILE__, __LINE__);
+	mtx_lock(&mac_policy_mtx);
+	while (mac_policy_count != 0)
+		cv_wait(&mac_policy_cv, &mac_policy_mtx);
+}
 
-#define	MAC_POLICY_LIST_ASSERT_EXCLUSIVE() do {				\
-	mtx_assert(&mac_policy_list_lock, MA_OWNED);			\
-	KASSERT(mac_policy_list_busy == 0,				\
-	    ("MAC_POLICY_LIST_ASSERT_EXCLUSIVE()"));			\
-} while (0)
+static __inline void
+mac_policy_assert_exclusive(void)
+{
+	mtx_assert(&mac_policy_mtx, MA_OWNED);
+	KASSERT(mac_policy_count == 0,
+	    ("mac_policy_assert_exclusive(): not exclusive"));
+}
 
-#define	MAC_POLICY_LIST_BUSY() do {					\
-	MAC_POLICY_LIST_LOCK();						\
-	mac_policy_list_busy++;						\
-	MAC_POLICY_LIST_UNLOCK();					\
-} while (0)
+static __inline void
+mac_policy_release_exclusive(void)
+{
 
-#define	MAC_POLICY_LIST_UNBUSY() do {					\
-	MAC_POLICY_LIST_LOCK();						\
-	mac_policy_list_busy--;						\
-	KASSERT(mac_policy_list_busy >= 0, ("MAC_POLICY_LIST_LOCK"));	\
-	if (mac_policy_list_busy == 0)					\
-		cv_signal(&mac_policy_list_not_busy);			\
-	MAC_POLICY_LIST_UNLOCK();					\
-} while (0)
+	KASSERT(mac_policy_count == 0,
+	    ("mac_policy_release_exclusive(): not exclusive"));
+	mtx_unlock(&mac_policy_mtx);
+	cv_signal(&mac_policy_cv);
+}
+
+static __inline void
+mac_policy_list_busy(void)
+{
+	mtx_lock(&mac_policy_mtx);
+	mac_policy_count++;
+	mtx_unlock(&mac_policy_mtx);
+}
+
+static __inline int
+mac_policy_list_conditional_busy(void)
+{
+	int ret;
+
+	mtx_lock(&mac_policy_mtx);
+	if (!LIST_EMPTY(&mac_policy_list)) {
+		mac_policy_count++;
+		ret = 1;
+	} else
+		ret = 0;
+	mtx_unlock(&mac_policy_mtx);
+	return (ret);
+}
+
+static __inline void
+mac_policy_list_unbusy(void)
+{
+	mtx_lock(&mac_policy_mtx);
+	mac_policy_count--;
+	KASSERT(mac_policy_count >= 0, ("MAC_POLICY_LIST_LOCK"));
+	if (mac_policy_count == 0)
+		cv_signal(&mac_policy_cv);
+	mtx_unlock(&mac_policy_mtx);
+}
 
 /*
  * MAC_CHECK performs the designated check by walking the policy
@@ -325,16 +348,24 @@ static int mac_policy_list_busy;
  */
 #define	MAC_CHECK(check, args...) do {					\
 	struct mac_policy_conf *mpc;					\
+	int entrycount;							\
 									\
 	error = 0;							\
-	MAC_POLICY_LIST_BUSY();						\
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {			\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
 		if (mpc->mpc_ops->mpo_ ## check != NULL)		\
 			error = error_select(				\
 			    mpc->mpc_ops->mpo_ ## check (args),		\
 			    error);					\
 	}								\
-	MAC_POLICY_LIST_UNBUSY();					\
+	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## check != NULL)	\
+				error = error_select(			\
+				    mpc->mpc_ops->mpo_ ## check (args),	\
+				    error);				\
+		}							\
+		mac_policy_list_unbusy();				\
+	}								\
 } while (0)
 
 /*
@@ -347,14 +378,22 @@ static int mac_policy_list_busy;
  */
 #define	MAC_BOOLEAN(operation, composition, args...) do {		\
 	struct mac_policy_conf *mpc;					\
+	int entrycount;							\
 									\
-	MAC_POLICY_LIST_BUSY();						\
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {			\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
 		if (mpc->mpc_ops->mpo_ ## operation != NULL)		\
 			result = result composition			\
 			    mpc->mpc_ops->mpo_ ## operation (args);	\
 	}								\
-	MAC_POLICY_LIST_UNBUSY();					\
+	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
+				result = result composition		\
+				    mpc->mpc_ops->mpo_ ## operation	\
+				    (args);				\
+		}							\
+		mac_policy_list_unbusy();				\
+	}								\
 } while (0)
 
 #define	MAC_EXTERNALIZE(type, label, elementlist, outbuf, 		\
@@ -452,13 +491,19 @@ static int mac_policy_list_busy;
  */
 #define	MAC_PERFORM(operation, args...) do {				\
 	struct mac_policy_conf *mpc;					\
+	int entrycount;							\
 									\
-	MAC_POLICY_LIST_BUSY();						\
-	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {			\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
 		if (mpc->mpc_ops->mpo_ ## operation != NULL)		\
 			mpc->mpc_ops->mpo_ ## operation (args);		\
 	}								\
-	MAC_POLICY_LIST_UNBUSY();					\
+	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## operation != NULL)	\
+				mpc->mpc_ops->mpo_ ## operation (args);	\
+		}							\
+		mac_policy_list_unbusy();				\
+	}								\
 } while (0)
 
 /*
@@ -468,8 +513,11 @@ static void
 mac_init(void)
 {
 
+	LIST_INIT(&mac_static_policy_list);
 	LIST_INIT(&mac_policy_list);
-	MAC_POLICY_LIST_LOCKINIT();
+
+	mtx_init(&mac_policy_mtx, "mac_policy_mtx", NULL, MTX_DEF);
+	cv_init(&mac_policy_cv, "mac_policy_cv");
 }
 
 /*
@@ -496,11 +544,18 @@ mac_policy_updateflags(void)
 	int labelmbufs;
 #endif
 
-	MAC_POLICY_LIST_ASSERT_EXCLUSIVE();
+	mac_policy_assert_exclusive();
 
 #ifndef MAC_ALWAYS_LABEL_MBUF
 	labelmbufs = 0;
 #endif
+
+	LIST_FOREACH(tmpc, &mac_static_policy_list, mpc_list) {
+#ifndef MAC_ALWAYS_LABEL_MBUF
+		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
+			labelmbufs++;
+#endif
+	}
 	LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
 #ifndef MAC_ALWAYS_LABEL_MBUF
 		if (tmpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_LABELMBUFS)
@@ -555,38 +610,75 @@ static int
 mac_policy_register(struct mac_policy_conf *mpc)
 {
 	struct mac_policy_conf *tmpc;
-	int slot;
+	int error, slot, static_entry;
 
-	MAC_POLICY_LIST_EXCLUSIVE();
-	LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
-		if (strcmp(tmpc->mpc_name, mpc->mpc_name) == 0) {
-			MAC_POLICY_LIST_UNLOCK();
-			return (EEXIST);
+	error = 0;
+
+	/*
+	 * We don't technically need exclusive access while !mac_late,
+	 * but hold it for assertion consistency.
+	 */
+	mac_policy_grab_exclusive();
+
+	/*
+	 * If the module can potentially be unloaded, or we're loading
+	 * late, we have to stick it in the non-static list and pay
+	 * an extra performance overhead.  Otherwise, we can pay a
+	 * light locking cost and stick it in the static list.
+	 */
+	static_entry = (!mac_late &&
+	    !(mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK));
+
+	if (static_entry) {
+		LIST_FOREACH(tmpc, &mac_static_policy_list, mpc_list) {
+			if (strcmp(tmpc->mpc_name, mpc->mpc_name) == 0) {
+				error = EEXIST;
+				goto out;
+			}
+		}
+	} else {
+		LIST_FOREACH(tmpc, &mac_policy_list, mpc_list) {
+			if (strcmp(tmpc->mpc_name, mpc->mpc_name) == 0) {
+				error = EEXIST;
+				goto out;
+			}
 		}
 	}
 	if (mpc->mpc_field_off != NULL) {
 		slot = ffs(mac_policy_offsets_free);
 		if (slot == 0) {
-			MAC_POLICY_LIST_UNLOCK();
-			return (ENOMEM);
+			error = ENOMEM;
+			goto out;
 		}
 		slot--;
 		mac_policy_offsets_free &= ~(1 << slot);
 		*mpc->mpc_field_off = slot;
 	}
 	mpc->mpc_runtime_flags |= MPC_RUNTIME_FLAG_REGISTERED;
-	LIST_INSERT_HEAD(&mac_policy_list, mpc, mpc_list);
+
+	/*
+	 * If we're loading a MAC module after the framework has
+	 * initialized, it has to go into the dynamic list.  If
+	 * we're loading it before we've finished initializing,
+	 * it can go into the static list with weaker locker
+	 * requirements.
+	 */
+	if (static_entry)
+		LIST_INSERT_HEAD(&mac_static_policy_list, mpc, mpc_list);
+	else
+		LIST_INSERT_HEAD(&mac_policy_list, mpc, mpc_list);
 
 	/* Per-policy initialization. */
 	if (mpc->mpc_ops->mpo_init != NULL)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
 	mac_policy_updateflags();
-	MAC_POLICY_LIST_UNLOCK();
 
 	printf("Security policy loaded: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
 
-	return (0);
+out:
+	mac_policy_release_exclusive();
+	return (error);
 }
 
 static int
@@ -598,9 +690,9 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	 * to see if we did the run-time registration, and if not,
 	 * silently succeed.
 	 */
-	MAC_POLICY_LIST_EXCLUSIVE();
+	mac_policy_grab_exclusive();
 	if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED) == 0) {
-		MAC_POLICY_LIST_UNLOCK();
+		mac_policy_release_exclusive();
 		return (0);
 	}
 #if 0
@@ -617,7 +709,7 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	 * by its own definition.
 	 */
 	if ((mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK) == 0) {
-		MAC_POLICY_LIST_UNLOCK();
+		mac_policy_release_exclusive();
 		return (EBUSY);
 	}
 	if (mpc->mpc_ops->mpo_destroy != NULL)
@@ -626,7 +718,8 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	LIST_REMOVE(mpc, mpc_list);
 	mpc->mpc_runtime_flags &= ~MPC_RUNTIME_FLAG_REGISTERED;
 	mac_policy_updateflags();
-	MAC_POLICY_LIST_UNLOCK();
+
+	mac_policy_release_exclusive();
 
 	printf("Security policy unload: %s (%s)\n", mpc->mpc_fullname,
 	    mpc->mpc_name);
@@ -3773,14 +3866,13 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {
 	struct mac_policy_conf *mpc;
 	char target[MAC_MAX_POLICY_NAME];
-	int error;
+	int entrycount, error;
 
 	error = copyinstr(uap->policy, target, sizeof(target), NULL);
 	if (error)
 		return (error);
 
 	error = ENOSYS;
-	MAC_POLICY_LIST_BUSY();
 	LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
 		if (strcmp(mpc->mpc_name, target) == 0 &&
 		    mpc->mpc_ops->mpo_syscall != NULL) {
@@ -3790,8 +3882,18 @@ mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 		}
 	}
 
+	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {
+			if (strcmp(mpc->mpc_name, target) == 0 &&
+			    mpc->mpc_ops->mpo_syscall != NULL) {
+				error = mpc->mpc_ops->mpo_syscall(td,
+				    uap->call, uap->arg);
+				break;
+			}
+		}
+		mac_policy_list_unbusy();
+	}
 out:
-	MAC_POLICY_LIST_UNBUSY();
 	return (error);
 }
 
