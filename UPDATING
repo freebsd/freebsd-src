@@ -11,7 +11,7 @@ ITEMS:'
 	when they resume.  Include
 		device		pmtimer
 	in your config file and
-		hints.pmtimer.0.at="isa"
+		hint.pmtimer.0.at="isa"
 	to your /boot/device.hints file.
 
 20000911:
