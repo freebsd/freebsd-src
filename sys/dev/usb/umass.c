@@ -662,7 +662,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	}
 
 	id = usbd_get_interface_descriptor(iface);
-	if (id == NULL || id->bInterfaceClass != UCLASS_MASS)
+	if (id == NULL || id->bInterfaceClass != UICLASS_MASS)
 		return(UMATCH_NONE);
 	
 	if (UGETW(dd->idVendor) == USB_VENDOR_SONY
@@ -688,18 +688,18 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	}
 
 	switch (id->bInterfaceSubClass) {
-	case USUBCLASS_SCSI:
+	case UISUBCLASS_SCSI:
 		sc->proto |= PROTO_SCSI;
 		break;
-	case USUBCLASS_UFI:
+	case UISUBCLASS_UFI:
 		sc->transfer_speed = UMASS_FLOPPY_TRANSFER_SPEED;
 		sc->proto |= PROTO_UFI;
 		break;
-	case USUBCLASS_RBC:
+	case UISUBCLASS_RBC:
 		sc->proto |= PROTO_RBC;
 		break;
-	case USUBCLASS_SFF8020I:
-	case USUBCLASS_SFF8070I:
+	case UISUBCLASS_SFF8020I:
+	case UISUBCLASS_SFF8070I:
 		sc->proto |= PROTO_ATAPI;
 		break;
 	default:
@@ -709,20 +709,20 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 	}
 
 	switch (id->bInterfaceProtocol) {
-	case UPROTO_MASS_CBI:
+	case UIPROTO_MASS_CBI:
 		sc->proto |= PROTO_CBI;
 		break;
-	case UPROTO_MASS_CBI_I:
+	case UIPROTO_MASS_CBI_I:
 #if CBI_I
 		sc->proto |= PROTO_CBI_I;
 #else
 		sc->proto |= PROTO_CBI;
 #endif
 		break;
-	case UPROTO_MASS_BBB:
+	case UIPROTO_MASS_BULK:
 		sc->proto |= PROTO_BBB;
 		break;
-	case UPROTO_MASS_BBB_P:
+	case UIPROTO_MASS_BULK_P:
 		sc->drive = ZIP_100;
 		sc->proto |= PROTO_BBB;
 		sc->transfer_speed = UMASS_ZIP100_TRANSFER_SPEED;

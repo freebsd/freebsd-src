@@ -22,7 +22,7 @@ ohcireg.h		Hardware definitions for OHCI
 ohcivar.h		API for ohci.c
 uaudio.c		USB audio class driver
 uaudioreg.h		  and definitions for it
-ugen.c			generic driver that can handle access to any USB device
+[Merged] ugen.c		generic driver that can handle access to any USB device
 uhci.c			Host controller driver for UHCI
 uhcireg.h		Hardware definitions for UHCI
 uhcivar.h		API for uhci.c
