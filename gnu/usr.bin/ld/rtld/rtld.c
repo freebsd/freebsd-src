@@ -27,9 +27,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: rtld.c,v 1.8 1993/11/08 13:20:40 pk Exp $
+ *	$Id: rtld.c,v 1.2 1993/11/09 04:19:31 paul Exp $
  */
 
+#include <machine/vmparam.h>
 #include <sys/param.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -888,11 +889,10 @@ int	*usehints;
 
 	if (ld_path != NULL) {
 		/* Prefer paths from LD_LIBRARY_PATH */
-		while ((cp = strsep(&ld_path, ":")) != NULL) {
+		while ((cp = strtok(ld_path, ":")) != NULL) {
 
+			ld_path = NULL;
 			hint = findhint(name, major, minor, cp);
-			if (ld_path)
-				*(ld_path-1) = ':';
 			if (hint)
 				return hint;
 		}
@@ -951,18 +951,13 @@ init_brk()
 		_exit(1);
 	}
 
-	/*
-	 * Walk to the top of stack
-	 */
-	if (*cpp) {
-		while (*cpp) cpp++;
-		cp = *--cpp;
-		while (*cp) cp++;
-	} else
-		cp = (char *)&cp;
-
-	curbrk = (caddr_t)
-		(((long)(cp - 1 - rlim.rlim_cur) + PAGSIZ) & ~(PAGSIZ - 1));
+        if (environ < USRSTACK - MAXSSIZ) {
+                curbrk = (caddr_t) 
+                    (((long)(USRSTACK - MAXSSIZ - rlim.rlim_cur) + PAGSIZ) & ~(PAGSIZ - 1));
+        } else {
+                curbrk = (caddr_t) 
+                   (((long)(USRSTACK - rlim.rlim_cur) + PAGSIZ) & ~(PAGSIZ - 1)) ;
+        }
 }
 
 void
