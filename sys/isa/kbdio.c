@@ -130,20 +130,33 @@ static int verbose = KBDIO_DEBUG;
 
 /* function prototypes */
 
+#ifndef PC98
 static int addq(kqueue *q, int c);
 static int removeq(kqueue *q);
 static int wait_while_controller_busy(struct kbdc_softc *kbdc);
 static int wait_for_data(struct kbdc_softc *kbdc);
+#endif
 static int wait_for_kbd_data(struct kbdc_softc *kbdc);
+#ifndef PC98
 static int wait_for_kbd_ack(struct kbdc_softc *kbdc);
 static int wait_for_aux_data(struct kbdc_softc *kbdc);
 static int wait_for_aux_ack(struct kbdc_softc *kbdc);
+#endif
 
 /* associate a port number with a KBDC */
 
 KBDC 
 kbdc_open(int port)
 {
+#ifdef PC98
+	if (NKBDC) {
+		/* PC-98 has only one keyboard I/F */
+		kbdc_softc[0].port = port;
+		kbdc_softc[0].lock = FALSE;
+		return (KBDC)&kbdc_softc[0];
+	}
+	return NULL;	/* You didn't include sc driver in your config file */
+#else
     int s;
     int i;
 
@@ -172,6 +185,7 @@ kbdc_open(int port)
     }
     splx(s);
     return NULL;
+#endif
 }
 
 /*
@@ -228,10 +242,15 @@ kbdc_lock(KBDC p, int lock)
 int
 kbdc_data_ready(KBDC p)
 {
+#ifdef PC98
+	return (inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL);
+#else
     return (availq(&kbdcp(p)->kbd) || availq(&kbdcp(p)->aux) 
 	|| (inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_ANY_BUFFER_FULL));
+#endif
 }
 
+#ifndef PC98
 /* queuing functions */
 
 static int
@@ -273,10 +292,6 @@ removeq(kqueue *q)
 static int
 wait_while_controller_busy(struct kbdc_softc *kbdc)
 {
-#ifdef PC98
-    DELAY(KBDC_DELAYTIME);
-    return TRUE;
-#else
     /* CPU will stay inside the loop for 100msec at most */
     int retry = 5000;
     int port = kbdc->port;
@@ -295,7 +310,6 @@ wait_while_controller_busy(struct kbdc_softc *kbdc)
     	    return FALSE;
     }
     return TRUE;
-#endif
 }
 
 /*
@@ -318,6 +332,7 @@ wait_for_data(struct kbdc_softc *kbdc)
     DELAY(KBDD_DELAYTIME);
     return f;
 }
+#endif /* !PC98 */
 
 /* wait for data from the keyboard */
 static int
@@ -330,10 +345,14 @@ wait_for_kbd_data(struct kbdc_softc *kbdc)
 
     while ((f = inb(port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL) 
 	    != KBDS_KBD_BUFFER_FULL) {
+#ifdef PC98
+	    DELAY(KBDD_DELAYTIME);
+#else
         if (f == KBDS_AUX_BUFFER_FULL) {
 	    DELAY(KBDD_DELAYTIME);
 	    addq(&kbdc->aux, inb(port + KBD_DATA_PORT));
 	}
+#endif
         DELAY(KBDC_DELAYTIME);
         if (--retry < 0)
     	    return 0;
@@ -342,6 +361,7 @@ wait_for_kbd_data(struct kbdc_softc *kbdc)
     return f;
 }
 
+#ifndef PC98
 /* 
  * wait for an ACK(FAh), RESEND(FEh), or RESET_FAIL(FCh) from the keyboard.
  * queue anything else.
@@ -584,6 +604,7 @@ read_controller_data(KBDC p)
         return -1;		/* timeout */
     return inb(kbdcp(p)->port + KBD_DATA_PORT);
 }
+#endif /* !PC98 */
 
 #if KBDIO_DEBUG >= 2
 static int call = 0;
@@ -593,6 +614,7 @@ static int call = 0;
 int
 read_kbd_data(KBDC p)
 {
+#ifndef PC98
 #if KBDIO_DEBUG >= 2
     if (++call > 2000) {
 	call = 0;
@@ -605,6 +627,7 @@ read_kbd_data(KBDC p)
 
     if (availq(&kbdcp(p)->kbd)) 
         return removeq(&kbdcp(p)->kbd);
+#endif /* !PC98 */
     if (!wait_for_kbd_data(kbdcp(p)))
         return -1;		/* timeout */
 #ifdef PC98
@@ -621,6 +644,9 @@ read_kbd_data_no_wait(KBDC p)
 {
     int f;
 
+#ifdef PC98
+    f = inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL;
+#else
 #if KBDIO_DEBUG >= 2
     if (++call > 2000) {
 	call = 0;
@@ -639,6 +665,7 @@ read_kbd_data_no_wait(KBDC p)
         addq(&kbdcp(p)->aux, inb(kbdcp(p)->port + KBD_DATA_PORT));
         f = inb(kbdcp(p)->port + KBD_STATUS_PORT) & KBDS_BUFFER_FULL;
     }
+#endif /* PC98 */
     if (f == KBDS_KBD_BUFFER_FULL) {
         DELAY(KBDD_DELAYTIME);
         return inb(kbdcp(p)->port + KBD_DATA_PORT);
@@ -646,6 +673,7 @@ read_kbd_data_no_wait(KBDC p)
     return -1;		/* no data */
 }
 
+#ifndef PC98
 /* read one byte from the aux device */
 int
 read_aux_data(KBDC p)
@@ -1012,3 +1040,4 @@ set_controller_command_byte(KBDC p, int mask, int command)
 
     return TRUE;
 }
+#endif /* !PC98 */
