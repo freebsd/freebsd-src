@@ -37,25 +37,30 @@ The value passed to
 .Fn setsockopt
 is a struct ip_fw describing the rule (see below).
 In some cases
-(such as IP_FW_DEL), only the rule number is significant.
-.Sh COMMANDS
+(such as
+.Dv IP_FW_DEL ) ,
+only the rule number is significant.
+.Ss Commands
 The following socket options are used to manage the rule list:
-.Pp
-IP_FW_ADD inserts the rule into the rule list.
-.Pp
-IP_FW_DEL deletes all rules having the matching rule number.
-.Pp
-IP_FW_GET returns the (first) rule having the matching rule number.
-.Pp
-IP_FW_ZERO zeros the statistics associated with all rules having the
+.Bl -tag -width "IP_FW_FLUSH"
+.It Dv IP_FW_ADD
+inserts the rule into the rule list
+.It Dv IP_FW_DEL
+deletes all rules having the matching rule number
+.It Dv IP_FW_GET
+returns the (first) rule having the matching rule number
+.It Dv IP_FW_ZERO
+zeros the statistics associated with all rules having the
 matching rule number.
 If the rule number is zero, all rules are zeroed.
+.It Dv IP_FW_FLUSH
+removes all rules (except 65535).
+.El
 .Pp
-IP_FW_FLUSH removes all rules (except 65535).
-.Pp
-When the kernel security level is greater than 2, only IP_FW_GET
+When the kernel security level is greater than 2, only
+.Dv IP_FW_GET
 is allowed.
-.Sh RULE STRUCTURE
+.Ss Rule Structure
 Rules are described by the following structure:
 .Bd -literal
 /* Specify an interface */
@@ -146,37 +151,72 @@ struct ip_fw {
 
 #define IP_FW_F_MASK    0xFFFF  /* All possible flag bits mask          */
 .Ed
-
-.Sh RULE ACTIONS
+.Ss Rule Actions
 Each rule has an action described by the IP_FW_F_COMMAND bits in the
 flags word:
-
-  IP_FW_F_DENY          - drop packet
-  IP_FW_F_REJECT        - drop packet; send rejection via ICMP or TCP
-  IP_FW_F_ACCEPT        - accept packet
-  IP_FW_F_COUNT         - increment counters; continue matching
-  IP_FW_F_DIVERT        - divert packet to a divert(4) socket
-  IP_FW_F_TEE           - copy packet to a divert(4) socket; continue
-  IP_FW_F_SKIPTO        - skip to rule number fu_skipto_rule
+.Bl -tag -width "IP_FW_F_DIVERT"
+.It Dv IP_FW_F_DENY
+drop packet
+.It Dv IP_FW_F_REJECT
+drop packet; send rejection via ICMP or TCP
+.It Dv IP_FW_F_ACCEPT
+accept packet
+.It Dv IP_FW_F_COUNT
+increment counters; continue matching
+.It Dv IP_FW_F_DIVERT
+divert packet to a
+.Xr divert 4
+socket
+.It Dv IP_FW_F_TEE
+copy packet to a
+.Xr divert 4
+socket; continue
+.It Dv IP_FW_F_SKIPTO
+skip to rule number
+.Va fu_skipto_rule
+.El
 .Pp
-In the case of IP_FW_F_REJECT, if the fu_reject_code is a number
+In the case of
+.Dv IP_FW_F_REJECT ,
+if the
+.Va fu_reject_code
+is a number
 from 0 to 255, then an ICMP unreachable packet is sent back to the
 original packet's source IP address, with the corresponding code.
-Otherwise, the value must be 256 and the protocol IPPROTO_TCP,
+Otherwise, the value must be 256 and the protocol
+.Dv IPPROTO_TCP ,
 in which case a TCP reset packet is sent instead.
 .Pp
-With IP_FW_F_SKIPTO, all succeeding rules having rule number less
-than fu_skipto_rule are skipped.
-.Sh KERNEL OPTIONS
+With
+.Dv IP_FW_F_SKIPTO ,
+all succeeding rules having rule number less
+than
+.Va fu_skipto_rule
+are skipped.
+.Ss Kernel Options
 Options in the kernel configuration file:
-  IPFIREWALL               - enable ipfirewall.
-  IPFIREWALL_VERBOSE       - enable firewall output
-  IPFIREWALL_VERBOSE_LIMIT - limit firewall output
-  IPDIVERT                 - enable divert(4) sockets.
+.Bl -tag -width "optionsXIPFIREWALL_VERBOSE_LIMIT"
+.It Cd options IPFIREWALL
+enable
+.Nm
+.It Cd options IPFIREWALL_VERBOSE
+enable firewall output
+.It Cd options IPFIREWALL_VERBOSE_LIMIT
+limit firewall output
+.It Cd options IPDIVERT
+enable
+.Xr divert 4
+sockets
+.El
 .Pp
-When packets match a rule with the IP_FW_F_PRN bit set, a message
-is logged to the console if IPFIREWALL_VERBOSE has been enabled;
-IPFIREWALL_VERBOSE_LIMIT limits the maximum number of times each
+When packets match a rule with the
+.Dv IP_FW_F_PRN
+bit set, a message
+is logged to the console if
+.Dv IPFIREWALL_VERBOSE
+has been enabled;
+Dq IPFIREWALL_VERBOSE_LIMIT
+limits the maximum number of times each
 rule can cause a log message.
 These variables are also
 available via the
@@ -216,8 +256,15 @@ The ``tee'' rule is not yet implemented (currently it has no effect).
 This man page still needs work.
 .Sh HISTORY
 The ipfw facility was initially written as package to BSDI
-by Daniel Boulet <danny@BouletFermat.ab.ca>.
-It has been heavily modified and ported to FreeBSD
-by Ugen J.S.Antsilevich <ugen@NetVision.net.il>.
+by
+.An Daniel Boulet
+.Aq danny@BouletFermat.ab.ca .
+It has been heavily modified and ported to
+.Fx
+by
+.Ar Ugen J.S.Antsilevich
+.Aq ugen@NetVision.net.il .
 .Pp
-Several enhancements added by Archie Cobbs <archie@whistle.com>.
+Several enhancements added by
+.An Archie Cobbs
+.Aq archie@whistle.com .
