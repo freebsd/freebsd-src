@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pccard.c,v 1.56 1998/02/25 05:58:50 bde Exp $
+ *	$Id: pccard.c,v 1.57 1998/04/08 15:00:02 nate Exp $
  */
 
 #include "opt_devfs.h"
@@ -562,12 +562,12 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 			slt->ctrl->mapirq(slt, slt->irq);
 		}
 	}
-	devi->running = 1;
 	MALLOC(devi, struct pccard_devinfo *, sizeof(*devi), M_DEVBUF, M_WAITOK);
 	bzero(devi, sizeof(*devi));
 	/*
 	 *	Create an entry for the device under this slot.
 	 */
+	devi->running = 1;
 	devi->drv = drv;
 	devi->slt = slt;
 	devi->isahd.id_irq = irq;
