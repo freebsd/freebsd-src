@@ -134,7 +134,7 @@ main(argc, argv)
 	struct stat *stp;
 	FILE *ut;
 	u_long l;
-	int ch, i, nentries, nusers, wcmd, longidle;
+	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
 	char *memf, *nlistf, *p, *x;
 	char buf[MAXHOSTNAMELEN], errbuf[256];
 
@@ -149,7 +149,8 @@ main(argc, argv)
 		p = "dhiflM:N:nsuw";
 	}
 
-	memf = nlistf = NULL;
+	dropgid = 0;
+	memf = nlistf = _PATH_DEVNULL;
 	while ((ch = getopt(argc, argv, p)) != -1)
 		switch (ch) {
 		case 'd':
@@ -164,9 +165,11 @@ main(argc, argv)
 		case 'M':
 			header = 0;
 			memf = optarg;
+			dropgid = 1;
 			break;
 		case 'N':
 			nlistf = optarg;
+			dropgid = 1;
 			break;
 		case 'n':
 			nflag = 1;
@@ -190,7 +193,7 @@ main(argc, argv)
 	 * Discard setgid privileges if not the running kernel so that bad
 	 * guys can't print interesting stuff from kernel memory.
 	 */
-	if (nlistf != NULL || memf != NULL)
+	if (dropgid)
 		setgid(getgid());
 
 	if ((kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf)) == NULL)
