@@ -30,6 +30,9 @@
  * $FreeBSD$
  */
 
+#include "opt_atpic.h"
+#include "opt_ia32.h"
+
 #include <machine/asmacros.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
@@ -294,8 +297,44 @@ ENTRY(fork_trampoline)
 	MEXITCOUNT
 	jmp	doreti			/* Handle any ASTs */
 
+/*
+ * To efficiently implement classification of trap and interrupt handlers
+ * for profiling, there must be only trap handlers between the labels btrap
+ * and bintr, and only interrupt handlers between the labels bintr and
+ * eintr.  This is implemented (partly) by including files that contain
+ * some of the handlers.  Before including the files, set up a normal asm
+ * environment so that the included files doen't need to know that they are
+ * included.
+ */
+
+#ifdef IA32
 	.data
-	ALIGN_DATA
+	.align	4
+	.text
+	SUPERALIGN_TEXT
+
+#include <amd64/ia32/ia32_exception.S>
+#endif
+
+	.data
+	.align	4
+	.text
+	SUPERALIGN_TEXT
+MCOUNT_LABEL(bintr)
+
+#include <amd64/amd64/apic_vector.S>
+
+#ifdef DEV_ATPIC
+	.data
+	.align	4
+	.text
+	SUPERALIGN_TEXT
+
+#include <amd64/isa/atpic_vector.S>
+#endif
+
+	.text
+MCOUNT_LABEL(eintr)
 
 /*
  * void doreti(struct trapframe)
@@ -304,7 +343,6 @@ ENTRY(fork_trampoline)
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	doreti
 	.type	doreti,@function
 doreti:
 	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
