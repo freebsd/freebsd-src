@@ -17,7 +17,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *
  *  ft.c - QIC-40/80 floppy tape driver
- *  $Id: ft.c,v 1.36 1997/09/21 21:41:02 gibbs Exp $
+ *  $Id: ft.c,v 1.37 1998/04/17 22:36:32 des Exp $
  *
  *  01/19/95 ++sg
  *  Cleaned up recalibrate/seek code at attach time for FreeBSD 2.x.
@@ -288,7 +288,7 @@ static struct ft_data {
 
 int ftopen(dev_t, int);
 int ftclose(dev_t, int);
-int ftioctl(dev_t, int, caddr_t, int, struct proc *);
+int ftioctl(dev_t, unsigned long, caddr_t, int, struct proc *);
 int ftattach(struct isa_device *, struct isa_device *, int);
 static timeout_t ft_timeout;
 static void async_cmd(ftu_t);
@@ -2118,7 +2118,7 @@ ftclose(dev_t dev, int flags)
  *  Read or write a segment.
  */
 static int
-ftreq_rw(ftu_t ftu, int cmd, QIC_Segment *sr, struct proc *p)
+ftreq_rw(ftu_t ftu, unsigned long cmd, QIC_Segment *sr, struct proc *p)
 {
   int r, i;
   SegReq *sp;
@@ -2421,7 +2421,7 @@ ftreq_setmode(ftu_t ftu, int cmd)
  *  Return drive status bits
  */
 static int
-ftreq_status(ftu_t ftu, int cmd, int *sts, struct proc *p)
+ftreq_status(ftu_t ftu, unsigned long cmd, int *sts, struct proc *p)
 {
   ft_p	ft = ft_data[ftu];
 
@@ -2437,7 +2437,7 @@ ftreq_status(ftu_t ftu, int cmd, int *sts, struct proc *p)
  *  Return drive configuration bits
  */
 static int
-ftreq_config(ftu_t ftu, int cmd, int *cfg, struct proc *p)
+ftreq_config(ftu_t ftu, unsigned long cmd, int *cfg, struct proc *p)
 {
   int r, tries;
   ft_p	ft = ft_data[ftu];
@@ -2501,7 +2501,7 @@ ftreq_hwinfo(ftu_t ftu, QIC_HWInfo *hwp)
  *  Receive or Send the in-core header segment.
  */
 static int
-ftreq_hdr(ftu_t ftu, int cmd, QIC_Segment *sp)
+ftreq_hdr(ftu_t ftu, unsigned long cmd, QIC_Segment *sp)
 {
   ft_p	ft = ft_data[ftu];
   QIC_Header *h = (QIC_Header *)ft->hdr->buff;
@@ -2520,7 +2520,7 @@ ftreq_hdr(ftu_t ftu, int cmd, QIC_Segment *sp)
  *  I/O functions.
  */
 int
-ftioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+ftioctl(dev_t dev, unsigned long cmd, caddr_t data, int flag, struct proc *p)
 {
   ftu_t ftu = FDUNIT(minor(dev));
 
@@ -2573,7 +2573,7 @@ ftioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return(ftreq_hdr(ftu, cmd, (QIC_Segment *)data));
   }
 badreq:
-  DPRT(("ft%d: unknown ioctl(%d) request\n", ftu, cmd));
+  DPRT(("ft%d: unknown ioctl(%#lx) request\n", ftu, cmd));
   return(ENXIO);
 }
 
