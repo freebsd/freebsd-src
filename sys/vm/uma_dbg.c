@@ -230,7 +230,7 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	freei = ((unsigned long)item - (unsigned long)slab->us_data)
 	    / zone->uz_rsize;
 
-	slab->us_freelist[freei] = 255;
+	atomic_set_8(&slab->us_freelist[freei], 255);
 
 	return;
 }
@@ -279,5 +279,5 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	 * Until then the count of valid slabs will make sure we don't
 	 * accidentally follow this and assume it's a valid index.
 	 */
-	slab->us_freelist[freei] = 0;
+	atomic_set_8(&slab->us_freelist[freei], 0);
 }
