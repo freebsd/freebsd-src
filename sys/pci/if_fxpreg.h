@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.3.2.2 1997/03/17 11:09:44 davidg Exp $
+ *	$Id: if_fxpreg.h,v 1.3.2.3 1997/03/21 08:01:52 davidg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -292,15 +292,16 @@ struct fxp_stats {
 #define FXP_PHY_DP83840		4
 #define FXP_PHY_80C240		5
 #define FXP_PHY_80C24		6
+#define FXP_PHY_82555		7
 #define FXP_PHY_DP83840A	10
 
 /*
- * DP84830 PHY, BMCR Basic Mode Control Register
+ * PHY BMCR Basic Mode Control Register
  */
-#define FXP_DP83840_BMCR		0x0
-#define FXP_DP83840_BMCR_FULLDUPLEX	0x0100
-#define FXP_DP83840_BMCR_AUTOEN		0x1000
-#define FXP_DP83840_BMCR_SPEED_100M	0x2000
+#define FXP_PHY_BMCR			0x0
+#define FXP_PHY_BMCR_FULLDUPLEX		0x0100
+#define FXP_PHY_BMCR_AUTOEN		0x1000
+#define FXP_PHY_BMCR_SPEED_100M		0x2000
 
 /*
  * DP84830 PHY, PCS Configuration Register
