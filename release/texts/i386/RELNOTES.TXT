@@ -45,6 +45,8 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
+A driver for the S3 Sonicvibes sound chipset has been added.
+
 
 1.2. SECURITY FIXES
 -------------------
@@ -55,6 +57,13 @@ Table of contents:
 
 ip6fw(8) now has the ability to use a preprocessor and use the -q (quiet)
 flag when reading from a file.
+
+ping(8) now supports a -m option to set the TTL of outgoing
+packets.
+
+groff(1) and its related utilities have been updated to FSF version
+1.17.  This import brings in a new mdoc(7) macro package, which
+removes many of the limitations of its predecessor.
 
 
 2. Supported Configurations
@@ -563,6 +572,7 @@ Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
 NeoMagic 256AV/ZX
 OPTi 931/82C931
+S3 Sonicvibes
 SoundBlaster, Soundblaster Pro, Soundblaster AWE-32, Soundblaster AWE-64
 Trident 4DWave DX/NX
 VIA Technologies VT82C686A
