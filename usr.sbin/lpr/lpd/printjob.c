@@ -103,6 +103,7 @@ static int	 pfd;		/* prstatic inter file descriptor */
 static int	 pid;		/* pid of lpd process */
 static int	 prchild;	/* id of pr process */
 static char	 title[80];	/* ``pr'' title */
+static char      locale[80];    /* ``pr'' locale */
 
 static char	class[32];		/* classification field */
 static char	fromhost[32];		/* user's host machine */
@@ -388,6 +389,7 @@ printit(pp, file)
 	 *              U -- "unlink" name of file to remove
 	 *                    (after we print it. (Pass 2 only)).
 	 *		M -- "mail" to user when done printing
+	 *              Z -- "locale" for pr
 	 *
 	 *      getline reads a line and expands tabs to blanks
 	 */
@@ -477,6 +479,11 @@ printit(pp, file)
 			indent[2+sizeof(indent) - 3] = '\0';
 			continue;
 
+		case 'Z':       /* locale for pr */
+			strncpy(locale, line+1, sizeof(locale) - 1);
+			locale[sizeof(locale) - 1] = '\0';
+			continue;
+
 		default:	/* some file to print */
 			switch (i = print(pp, line[0], line+1)) {
 			case ERROR:
@@ -546,7 +553,7 @@ print(pp, format, file)
 	int format;
 	char *file;
 {
-	register int n;
+	register int n, i;
 	register char *prog;
 	int fi, fo;
 	FILE *fp;
@@ -584,13 +591,16 @@ print(pp, format, file)
 	case 'p':	/* print file using 'pr' */
 		if (pp->filters[LPF_INPUT] == NULL) {	/* use output filter */
 			prog = _PATH_PR;
-			av[0] = "pr";
-			av[1] = width;
-			av[2] = length;
-			av[3] = "-h";
-			av[4] = *title ? title : " ";
-			av[5] = "-F";
-			av[6] = 0;
+			i = 0;
+			av[i++] = "pr";
+			av[i++] = width;
+			av[i++] = length;
+			av[i++] = "-h";
+			av[i++] = *title ? title : " ";
+			av[i++] = "-L";
+			av[i++] = *locale ? locale : "C";
+			av[i++] = "-F";
+			av[i] = 0;
 			fo = ofd;
 			goto start;
 		}
@@ -601,7 +611,9 @@ print(pp, format, file)
 			closelog();
 			closeallfds(3);
 			execl(_PATH_PR, "pr", width, length,
-			    "-h", *title ? title : " ", "-F", 0);
+			    "-h", *title ? title : " ",
+			    "-L", *locale ? locale : "C",
+			    "-F", 0);
 			syslog(LOG_ERR, "cannot execl %s", _PATH_PR);
 			exit(2);
 		}
