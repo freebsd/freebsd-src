@@ -914,6 +914,12 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		}
 	}
 
+	if (tp->t_pps != NULL) {
+		error = pps_ioctl(cmd, data, tp->t_pps);
+		if (error != ENOIOCTL)
+			return (error);
+	}
+
 	switch (cmd) {			/* Process the ioctl. */
 	case FIOASYNC:			/* set/clear async i/o */
 		s = spltty();
