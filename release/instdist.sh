@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.13 1994/11/18 17:36:11 jkh Exp $
+# $Id: instdist.sh,v 1.14 1994/11/18 19:09:32 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -104,7 +104,7 @@ or unable to get a connection.  Please select the site closest \n\
 to you or select \"other\" if you'd like to specify your own \n\
 choice.  Also note that not all sites carry the optional package \n\
 or XFree86 3.1 distributions!  These are only guaranteed to be \n\
-available from the primary U.S. ftp site.\n\n" -1 -1 8 \
+available from the primary U.S. ftp site.\n\n" -1 -1 9 \
    "Primary" "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" \
    "#2-U.S" "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" \
    "#3-U.S" "ftp://kryten.atinc.com/pub/FreeBSD/${DISTNAME}" \
@@ -112,6 +112,7 @@ available from the primary U.S. ftp site.\n\n" -1 -1 8 \
    "Australia" "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" \
    "France" "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" \
    "Finland" "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" \
+   "Russia" "ftp://ftp.kiae.su/FreeBSD" \
    "other" "None of the above.  I want to specify my own." \
       2> ${TMP}/menu.tmp.$$
 	retval=$?
@@ -145,6 +146,10 @@ available from the primary U.S. ftp site.\n\n" -1 -1 8 \
 
 	Finland)
 		ftp_path="ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}"
+	;;
+
+	Russia)
+		ftp_path="ftp://ftp.kiae.su/FreeBSD/${DISTNAME}"
 	;;
 
 	other)
