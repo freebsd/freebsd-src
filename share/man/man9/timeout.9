@@ -45,14 +45,18 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/systm.h>
-.Ft typedef void timeout_t \*(lpvoid *\*(rp;
-
+.Pp
+.Bd -literal
+typedef void timeout_t (void *);
+.Ed
 .Ft struct callout_handle
 .Fn timeout "timeout_t *func" "void *arg" "int ticks"
 .Ft void
 .Fn callout_handle_init "struct callout_handle *handle"
-
-.Li struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
+.Pp
+.Bd -literal
+struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
+.Ed
 .Ft void
 .Fn untimeout "timeout_t *func" "void *arg" "struct callout_handle handle"
 .Ft void

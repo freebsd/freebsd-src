@@ -120,7 +120,7 @@ require
 .Aq Pa sys/socket.h
 and
 .Aq Pa net/if.h .
-
+.Pp
 In addition to
 .Dv FIONREAD
 and
@@ -131,7 +131,6 @@ file.
 The (third) argument to
 .Xr ioctl 2
 should be a pointer to the type indicated.
-
 .Bl -tag -width BIOCGRTIMEOUT
 .It Dv BIOCGBLEN
 .Pq Li u_int
@@ -242,7 +241,7 @@ struct bpf_program {
 	struct bpf_insn *bf_insns; 
 };
 .Ed
-
+.Pp
 The filter program is pointed to by the
 .Li bf_insns
 field while its length in units of 
@@ -298,6 +297,7 @@ interface should be returned by BPF.  Set to zero to see only incoming
 packets on the interface.  Set to one to see packets originating
 locally and remotely on the interface.  This flag is initialized to one by
 default.
+.El
 .Sh BPF HEADER
 The following structure is prepended to each packet returned by
 .Xr read 2 :
@@ -381,7 +381,7 @@ instruction.
 Each instruction performs some action on the pseudo-machine state,
 which consists of an accumulator, index register, scratch memory store,
 and implicit program counter.
-
+.Pp
 The following structure defines the instruction format:
 .Bd -literal
 struct bpf_insn {
@@ -391,7 +391,7 @@ struct bpf_insn {
 	u_long k;
 };
 .Ed
-
+.Pp
 The 
 .Li k
 field is used in different ways by different instructions, 
@@ -416,7 +416,7 @@ Various other mode and
 operator bits are or'd into the class to give the actual instructions.
 The classes and modes are defined in
 .Aq Pa net/bpf.h .
-
+.Pp
 Below are the semantics for each defined
 .Nm
 instruction.
@@ -440,7 +440,7 @@ instruction definition.
 .Dq len
 refers to the length of the packet.
 .Pp
-.Bl -tag -width BPF_STXx -compact
+.Bl -tag -width BPF_STXx
 .It Dv BPF_LD
 These instructions copy a value into the accumulator.  The type of the
 source operand is specified by an
@@ -489,14 +489,13 @@ A <- k
 .It Li BPF_LD+BPF_MEM
 A <- M[k]
 .El
-
 .It Dv BPF_LDX
 These instructions load a value into the index register.  Note that
 the addressing modes are more restrictive than those of the accumulator loads,
 but they include
 .Dv BPF_MSH ,
 a hack for efficiently loading the IP header length.
-
+.Pp
 .Bl -tag -width "BPF_LDX+BPF_W+BPF_MEM" -compact
 .It Li BPF_LDX+BPF_W+BPF_IMM
 X <- k
@@ -507,25 +506,22 @@ X <- len
 .It Li BPF_LDX+BPF_B+BPF_MSH
 X <- 4*(P[k:1]&0xf)
 .El
-
 .It Dv BPF_ST
 This instruction stores the accumulator into the scratch memory.
 We do not need an addressing mode since there is only one possibility
 for the destination.
-
+.Pp
 .Bl -tag -width "BPF_ST" -compact
 .It Li BPF_ST
 M[k] <- A
 .El
-
 .It Dv BPF_STX
 This instruction stores the index register in the scratch memory store.
-
+.Pp
 .Bl -tag -width "BPF_STX" -compact
 .It Li BPF_STX
 M[k] <- X
 .El
-
 .It Dv BPF_ALU
 The alu instructions perform operations between the accumulator and
 index register or constant, and store the result back in the accumulator.
@@ -535,7 +531,7 @@ For binary operations, a source mode is required
 or
 .Dv BPF_X
 .Pc .
-
+.Pp
 .Bl -tag -width "BPF_ALU+BPF_MUL+BPF_K" -compact
 .It Li BPF_ALU+BPF_ADD+BPF_K
 A <- A + k
@@ -572,7 +568,6 @@ A <- A >> X
 .It Li BPF_ALU+BPF_NEG
 A <- -A
 .El
-
 .It Dv BPF_JMP
 The jump instructions alter flow of control.  Conditional jumps
 compare the accumulator against a constant
@@ -588,7 +583,7 @@ opcode uses the 32 bit
 .Li k 
 field as the offset, allowing arbitrarily distant destinations.
 All conditionals use unsigned comparison conventions.
-
+.Pp
 .Bl -tag -width "BPF_JMP+BPF_KSET+BPF_X" -compact
 .It Li BPF_JMP+BPF_JA
 pc += k
@@ -609,7 +604,6 @@ pc += (A == X) ? jt : jf
 .It Li BPF_JMP+BPF_JSET+BPF_X
 pc += (A & X) ? jt : jf
 .El
-
 .It Dv BPF_RET
 The return instructions terminate the filter program and specify the amount
 of packet to accept (i.e., they return the truncation amount).  A return
@@ -618,25 +612,25 @@ The return value is either a constant
 .Pq Dv BPF_K
 or the accumulator
 .Pq Dv BPF_A .
-
+.Pp
 .Bl -tag -width "BPF_RET+BPF_K" -compact
 .It Li BPF_RET+BPF_A
 accept A bytes
 .It Li BPF_RET+BPF_K
 accept k bytes
 .El
-
 .It Dv BPF_MISC
 The miscellaneous category was created for anything that doesn't
 fit into the above classes, and for any new instructions that might need to
 be added.  Currently, these are the register transfer instructions
 that copy the index register to the accumulator or vice versa.
-
+.Pp
 .Bl -tag -width "BPF_MISC+BPF_TAX" -compact
 .It Li BPF_MISC+BPF_TAX
 X <- A
 .It Li BPF_MISC+BPF_TXA
 A <- X
+.El
 .El
 .Pp
 The

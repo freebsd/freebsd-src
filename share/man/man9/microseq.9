@@ -133,7 +133,7 @@ Available microinstructions are:
 The
 .Em execution context
 of microinstructions is:
-.Bl -bullet -item -offset indent
+.Bl -bullet -offset indent
 .It
 the
 .Em program counter
@@ -172,7 +172,7 @@ is used to assert/clear some bits of a particular parallel port register,
 two masks are applied.
 .Pp
 Parameters:
-.Bl -enum -offset ident
+.Bl -enum -offset indent
 .It
 register
 .It
@@ -214,7 +214,7 @@ integer value
 .El
 .Pp
 Predefined macro: MS_SET(accum)
-.Ss MS_OP_DBRA - Do BRAnch
+.Ss MS_OP_DBRA - \&Do BRAnch
 is used to branch if internal branch register decremented by one result value
 is positive.
 .Pp
