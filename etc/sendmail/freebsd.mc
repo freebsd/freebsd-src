@@ -34,7 +34,7 @@ divert(-1)
 #
 
 #
-#  This is a generic configuration file for FreeBSD 4.X and later systems.
+#  This is a generic configuration file for FreeBSD 5.X and later systems.
 #  If you want to customize it, copy it to a name appropriate for your
 #  environment and do the modifications there.
 #
