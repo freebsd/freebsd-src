@@ -19,19 +19,20 @@ LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
 LINKS+=	${LIBDIR}/libtermcap_p.a ${LIBDIR}/libtermlib_p.a
 .endif
 
-# This is a hack.. Work around a major number bump that should have been
-# done differently.  Back out this delta when it's time to go to 3.0 for real.
-.if !defined(NOPIC)
-LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	/usr/lib/compat/libtermcap.so.3.0
-LINKS+= ${SHLIBDIR}/libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	/usr/lib/compat/libtermlib.so.3.0
-.endif
-
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/termcap.h \
 		${DESTDIR}/usr/include
-	rm -f ${DESTDIR}${SHLIBDIR}/libtermcap.so.3.0 \
-	      ${DESTDIR}${SHLIBDIR}/libtermlib.so.3.0
+
+# This is a hack.. Work around a major number bump that should have been
+# done differently.  Back out this delta when it's time to go to 3.0 for real.
+.if !defined(NOPIC)
+afterinstall:
+.for lib in libtermcap.so libtermlib.so
+	rm -f ${DESTDIR}/usr/lib/compat/${lib}.3.0
+	ln -s ${SHLIBDIR}/${lib}.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+		${DESTDIR}/usr/lib/compat/${lib}.3.0
+	rm -f ${DESTDIR}${SHLIBDIR}/${lib}.3.0
+.endfor
+.endif
 
 .include <bsd.lib.mk>
