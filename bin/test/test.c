@@ -12,7 +12,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: test.c,v 1.24 1999/08/18 00:18:52 green Exp $";
+	"$Id: test.c,v 1.25 1999/08/20 16:19:26 green Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -172,7 +172,8 @@ main(argc, argv)
 
 	/*
 	 * We need to set our real user and group so that when we call
-	 * access(2), it won't possibly return incorrect results.
+	 * access(2), it actually reflects our effective credentials,
+	 * not the real credentials it wants to use.
 	 */
 	(void)setgid(getegid());
 	(void)setuid(geteuid());
