@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)map.c	8.256 (Berkeley) 11/15/1998";
+static char sccsid[] = "@(#)map.c	8.261 (Berkeley) 2/2/1999";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -1877,9 +1877,11 @@ db_map_close(map)
 	**  opened by another process will interfere
 	**  with the shared memory and locks of the parent
 	**  process leaving things in a bad state.
-	**
+	*/
+
+	/*
 	**  If this map was not opened by the current
-	**  process, do not close it here but recover
+	**  process, do not close the map but recover
 	**  the file descriptor.
 	*/
 	if (map->map_pid != getpid())
@@ -2670,7 +2672,7 @@ ldap_map_start(map)
 		ev = setevent(lmap->timeout.tv_sec, ldaptimeout, 0);
 	}
 
-#ifdef LDAP_VERSION3
+#ifdef USE_LDAP_INIT
 	ld = ldap_init(lmap->ldaphost,lmap->ldapport);
 #else
 	ld = ldap_open(lmap->ldaphost,lmap->ldapport);
@@ -2691,23 +2693,26 @@ ldap_map_start(map)
 		return FALSE;
 	}
 
-#ifdef LDAP_VERSION3
+#ifdef USE_LDAP_SET_OPTION
 	ldap_set_option(ld, LDAP_OPT_DEREF, &lmap->deref);
 	ldap_set_option(ld, LDAP_OPT_TIMELIMIT, &lmap->timelimit);
 	ldap_set_option(ld, LDAP_OPT_SIZELIMIT, &lmap->sizelimit);
-	ldap_set_option(ld, LDAP_OPT_REFERRALS, &lmap->ldap_options);
-
-	/* ld needs to be cast into the map struct */
-	lmap->ld = ld; 
-	return TRUE;
+	ldap_set_option(ld, LDAP_OPT_REFERRALS, 
+			bitset(LDAP_OPT_REFERRALS, lmap->ldap_options) ?
+			LDAP_OPT_ON : LDAP_OPT_OFF);
 #else
-
 	/* From here on in we can use ldap internal timelimits */
 	ld->ld_deref = lmap->deref;
 	ld->ld_timelimit = lmap->timelimit;
 	ld->ld_sizelimit = lmap->sizelimit;
 	ld->ld_options = lmap->ldap_options;
+#endif
 
+#ifdef USE_LDAP_INIT
+	/* ld needs to be cast into the map struct */
+	lmap->ld = ld; 
+	return TRUE;
+#else
 	if (ldap_bind_s(ld, lmap->binddn,lmap->passwd,lmap->method) != LDAP_SUCCESS)
 	{
 		if (!bitset(MF_OPTIONAL, map->map_mflags))
@@ -2729,6 +2734,24 @@ ldap_map_start(map)
 
 
 /*
+**  LDAP_MAP_STOP -- close the ldap connection
+*/
+
+void
+ldap_map_stop(map)
+	MAP *map;
+{
+	LDAP_MAP_STRUCT *lmap;
+
+	lmap = (LDAP_MAP_STRUCT *) map->map_db1;
+	if (lmap->ld != NULL)
+	{
+		ldap_unbind(lmap->ld);
+		lmap->ld = NULL;
+	}
+}
+
+/*
 **  LDAP_MAP_CLOSE -- close ldap map
 */
 
@@ -2736,12 +2759,8 @@ void
 ldap_map_close(map)
 	MAP *map;
 {
-	LDAP_MAP_STRUCT *lmap ;
-	lmap = (LDAP_MAP_STRUCT *) map->map_db1;
-	if (lmap->ld != NULL)
-		ldap_unbind(lmap->ld);
+	ldap_map_stop(map);
 }
-
 
 #ifdef SUNET_ID
 /*
@@ -2855,8 +2874,8 @@ ldap_map_lookup(map, name, av, statp)
 			   lmap->attr, lmap->attrsonly, &(lmap->timeout),
 			   &(lmap->res)) != LDAP_SUCCESS)
 	{
-		/* try close/opening map */
-		ldap_map_close(map);
+		/* try stopping/starting map */
+		ldap_map_stop(map);
 		if (!ldap_map_start(map))
 		{
 			result = NULL;
@@ -2918,7 +2937,7 @@ ldap_map_lookup(map, name, av, statp)
 		ldap_value_free(attr_values);
 	if (lmap != NULL)
 		ldap_msgfree(lmap->res);
-	ldap_map_close(map);
+	ldap_map_stop(map);
 	return result ;
 }
 

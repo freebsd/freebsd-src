@@ -12,7 +12,7 @@ divert(-1)
 #	Contributed by Christopher Durham <chrisdu@SCO.COM> of SCO.
 #
 divert(0)
-VERSIONID(`@(#)sco-uw-2.1.m4	8.7 (Berkeley) 10/6/1998')
+VERSIONID(`@(#)sco-uw-2.1.m4	8.8 (Berkeley) 1/25/1999')
 
 define(`ALIAS_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/aliases', `/usr/lib/mail/aliases'))dnl
 ifdef(`HELP_FILE',,`define(`HELP_FILE', ifdef(`_USE_ETC_MAIL_', `/etc/mail/helpfile', `/usr/ucblib/sendmail.hf'))')dnl
@@ -23,3 +23,4 @@ define(`LOCAL_SHELL_FLAGS', `ehuP')dnl
 define(`UUCP_MAILER_ARGS', `uux - -r -a$g -gmedium $h!rmail ($u)')dnl
 define(`LOCAL_MAILER_ARGS',`rmail $u')dnl
 define(`confEBINDIR', `/usr/lib')dnl
+define(`confTIME_ZONE', `USE_TZ')dnl

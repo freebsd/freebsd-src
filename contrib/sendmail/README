@@ -1,5 +1,5 @@
 /*-
- *	@(#)README	8.50 (Berkeley) 12/17/1998
+ *	@(#)README	8.51 (Berkeley) 1/25/1999
  */
 
 			SENDMAIL RELEASE 8
@@ -341,6 +341,17 @@ copies available on:
 If you want to run an IDENT server, I suggest getting a copy from
 one of those sites.  Versions are available for several different
 systems, including Apollo, BSD, NeXT, AIX, TOPS20, and VMS.
+
+
++-------------------------+
+| INTEROPERATION PROBLEMS |
++-------------------------+
+
+Microsoft Exchange Server 5.0
+	We have had a report that ``about 7% of messages from Sendmail
+	to Exchange were not being delivered with status messages of
+	"connection reset" and "I/O error".''  Upgrading Exchange from
+	Version 5.0 to Version 5.5 Service Pack 2 solved this problem.
 
 
 +---------------------+

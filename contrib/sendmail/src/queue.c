@@ -14,9 +14,9 @@
 
 #ifndef lint
 #if QUEUE
-static char sccsid[] = "@(#)queue.c	8.210 (Berkeley) 10/15/1998 (with queueing)";
+static char sccsid[] = "@(#)queue.c	8.211 (Berkeley) 1/25/1999 (with queueing)";
 #else
-static char sccsid[] = "@(#)queue.c	8.210 (Berkeley) 10/15/1998 (without queueing)";
+static char sccsid[] = "@(#)queue.c	8.211 (Berkeley) 1/25/1999 (without queueing)";
 #endif
 #endif /* not lint */
 
@@ -348,8 +348,7 @@ queueup(e, announce)
 	{
 		extern bool bitzerop __P((BITMAP));
 
-		/* don't output null headers */
-		if (h->h_value == NULL || h->h_value[0] == '\0')
+		if (h->h_value == NULL)
 			continue;
 
 		/* don't output resent headers on non-resent messages */
