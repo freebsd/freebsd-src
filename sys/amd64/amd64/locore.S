@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.48 1995/02/11 04:21:22 phk Exp $
+ *	$Id: locore.s,v 1.49 1995/02/17 02:22:41 phk Exp $
  */
 
 /*
@@ -758,3 +758,15 @@ NON_GPROF_ENTRY(sigcode)
 	.globl	_szsigcode
 _szsigcode:
 	.long	_szsigcode-_sigcode
+
+/*
+ * Here for doing BB-profiling (gcc -a).
+ * We rely on the "bbset" instead, but need a dummy function.
+ */
+	.text
+	.align 2
+.globl	___bb_init_func
+___bb_init_func:
+        movl 4(%ebp),%eax
+        movl $1,(%eax)
+        ret 
