@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.85.4.6 1996/05/04 07:15:15 pst Exp $
+ *	$Id: conf.c,v 1.85.4.7 1996/06/08 11:31:03 joerg Exp $
  */
 
 #include <sys/param.h>
@@ -1163,6 +1163,59 @@ d_ioctl_t    labpcioctl;
 #define	labpcioctl		nxioctl
 #endif
 
+/* Stallion Multiport Serial Driver (cd1400 based) */
+#include "stl.h"
+#if NSTL > 0
+d_open_t	stlopen;
+d_close_t	stlclose;
+d_read_t	stlread;
+d_write_t	stlwrite;
+d_ioctl_t	stlioctl;
+d_stop_t	stlstop;
+d_ttycv_t	stldevtotty;
+#define stlreset	nxreset
+#define stlmmap		nxmmap
+#define stlstrategy	nxstrategy
+#else
+#define stlopen		nxopen
+#define stlclose	nxclose
+#define stlread		nxread
+#define stlwrite	nxwrite
+#define stlioctl	nxioctl
+#define stlstop		nxstop
+#define stlreset	nxreset
+#define stlmmap		nxmmap
+#define stlstrategy	nxstrategy
+#define stldevtotty	nxdevtotty
+#endif
+
+/* Stallion Intelligent Multiport Serial Driver */
+#include "stli.h"
+#if NSTLI > 0
+d_open_t	stliopen;
+d_close_t	stliclose;
+d_read_t	stliread;
+d_write_t	stliwrite;
+d_ioctl_t	stliioctl;
+d_stop_t	stlistop;
+d_ttycv_t	stlidevtotty;
+#define stlireset	nxreset
+#define stlimmap	nxmmap
+#define stlistrategy	nxstrategy
+#else
+#define stliopen	nxopen
+#define stliclose	nxclose
+#define stliread	nxread
+#define stliwrite	nxwrite
+#define stliioctl	nxioctl
+#define stlistop	nxstop
+#define stlireset	nxreset
+#define stlimmap	nxmmap
+#define stlistrategy	nxstrategy
+#define stlidevtotty	nxdevtotty
+#endif
+
+
 /* open, close, read, write, ioctl, stop, reset, ttys, select, mmap, strat */
 struct cdevsw	cdevsw[] =
 {
@@ -1390,15 +1443,19 @@ struct cdevsw	cdevsw[] =
 	{ ascopen,      ascclose,       ascread,        nowrite,        /*71*/
 	  ascioctl,     nostop,         nullreset,      nodevtotty, /* asc */   
 	  ascselect,    nommap,         NULL },
- 	{ nxopen,       nxclose,        nxread,         nowrite,        /*72*/
- 	  nxioctl,      nostop,         nullreset,      nodevtotty, /* unused */
- 	  nxselect,     nommap,         NULL },
+	{ stlopen,	stlclose,	stlread,	stlwrite,       /*72*/
+	  stlioctl,	stlstop,	stlreset,	stldevtotty, /*stli*/
+	  ttselect,	stlmmap,	stlstrategy },
 	{ qcam_open,    qcam_close,     qcam_read,      nowrite,        /*73*/
 	  qcam_ioctl,   nostop,         nullreset,      nodevtotty, /* qcam */
 	  noselect,     nommap,         NULL },
 	{ ccdopen,	ccdclose,	ccdread,	ccdwrite,	/*74*/
-	  ccdioctl,	nostop,		nullreset,	nodevtotty,/* ccd */
-	  seltrue,	nommap,		ccdstrategy }
+	  ccdioctl,	nostop,		nullreset,	nodevtotty, /* ccd */
+	  seltrue,	nommap,		ccdstrategy },
+	{ stliopen,	stliclose,	stliread,	stliwrite,      /*75*/
+	  stliioctl,	stlistop,	stlireset,	stlidevtotty, /*stli*/
+	  ttselect,	stlimmap,	stlistrategy },
+
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
 
