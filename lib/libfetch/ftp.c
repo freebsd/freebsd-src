@@ -300,13 +300,12 @@ _ftp_transfer(int cd, char *oper, char *file,
          * is IMHO the one and only weak point in the FTP protocol.
 	 */
 	ln = last_reply;
-	for (p = ln + 3; *p && *p != '('; p++)
+	for (p = ln + 3; *p && !isdigit(*p); p++)
 	    /* nothing */ ;
 	if (!*p) {
 	    e = 999;
 	    goto ouch;
 	}
-	p++;
 	switch (e) {
 	case FTP_PASSIVE_MODE:
 	case FTP_LPASSIVE_MODE:
