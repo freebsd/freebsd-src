@@ -1,5 +1,4 @@
 .\" $NetBSD: gre.4,v 1.28 2002/06/10 02:49:35 itojun Exp $
-.\"  $FreeBSD$
 .\"
 .\" Copyright 1998 (c) The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -31,9 +30,11 @@
 .\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
 .\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
 .\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-.\" CONTRACT, STRICT  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-.\" ARISING IN ANY WAY  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
 .\"
 .Dd June 9, 2002
 .Dt GRE 4
@@ -42,12 +43,13 @@
 .Nm gre
 .Nd encapsulating network device
 .Sh SYNOPSIS
-.Cd pseudo-device gre
+.Cd "device gre"
 .Sh DESCRIPTION
 The
-.Nm gre
+.Nm
 network interface pseudo device encapsulates datagrams
-into IP.  These encapsulated datagrams are routed to a destination host,
+into IP.
+These encapsulated datagrams are routed to a destination host,
 where they are decapsulated and further routed to their final destination.
 The
 .Dq tunnel
@@ -62,67 +64,84 @@ and
 subcommands.
 .Pp
 This driver currently supports the following modes of operation:
-.Bl -tag -width abc
-.It GRE encapsulation (IP protocol number 47)
+.Bl -tag -width indent
+.It "GRE encapsulation (IP protocol number 47)"
 Encapsulated datagrams are
-prepended an outer datagram and a GRE header.  The GRE header specifies
+prepended an outer datagram and a GRE header.
+The GRE header specifies
 the type of the encapsulated datagram and thus allows for tunneling other
-protocols than IP like e.g. AppleTalk.  GRE mode is also the default tunnel
-mode on Cisco routers.  This is also the default mode of operation of the
-.Sy gre Ns Ar X
+protocols than IP like e.g. AppleTalk.
+GRE mode is also the default tunnel mode on Cisco routers.
+This is also the default mode of operation of the
+.Nm
 interfaces.
-.It MOBILE encapsulation (IP protocol number 55)
+.It "MOBILE encapsulation (IP protocol number 55)"
 Datagrams are
-encapsulated into IP, but with a shorter encapsulation.  The original
+encapsulated into IP, but with a shorter encapsulation.
+The original
 IP header is modified and the modifications are inserted between the
-so modified header and the original payload.  Like
+so modified header and the original payload.
+Like
 .Xr gif 4 ,
-only for IP in IP encapsulation.
+only for IP-in-IP encapsulation.
 .El
 .Pp
 The
-.Sy gre Ns Ar X
+.Nm
 interfaces support a number of
 .Xr ioctl 2 Ns s ,
 such as:
-.Bl -tag -width aaa
-.It GRESADDRS :
-Set the IP address of the local tunnel end.  This is the source address
-set by or displayed by ifconfig for the
-.Sy gre Ns Ar X
+.Bl -tag -width ".Dv GRESADDRS"
+.It Dv GRESADDRS
+Set the IP address of the local tunnel end.
+This is the source address
+set by or displayed by
+.Xr ifconfig 8
+for the
+.Nm
 interface.
-.It GRESADDRD :
-Set the IP address of the remote tunnel end.  This is the destination address
-set by or displayed by ifconfig for the
-.Sy gre Ns Ar X
+.It Dv GRESADDRD
+Set the IP address of the remote tunnel end.
+This is the destination address
+set by or displayed by
+.Xr ifconfig 8
+for the
+.Nm
 interface.
-.It GREGADDRS :
-Query the IP address that is set for the local tunnel end.  This is the
-address the encapsulation header carries as local address (i.e. the real
-address of the tunnel start point.)
-.It GREGADDRD :
-Query the IP address that is set for the remote tunnel end.  This is the
-address the encapsulated packets are sent to (i.e. the real address of
-the remote tunnel endpoint.)
-.It GRESPROTO :
-Set the operation mode to the specified IP protocol value.  The
-protocol is passed to the interface in (struct ifreq)-\*[Gt]ifr_flags.
+.It Dv GREGADDRS
+Query the IP address that is set for the local tunnel end.
+This is the
+address the encapsulation header carries as local address (i.e., the real
+address of the tunnel start point).
+.It Dv GREGADDRD
+Query the IP address that is set for the remote tunnel end.
+This is the
+address the encapsulated packets are sent to (i.e., the real address of
+the remote tunnel endpoint).
+.It Dv GRESPROTO
+Set the operation mode to the specified IP protocol value.
+The
+protocol is passed to the interface in
+.Po Vt "struct ifreq" Pc Ns Li -> Ns Va ifr_flags .
 The operation mode can also be given as
-.Bl -tag -width link0xxx
-.It link0
-IPPROTO_GRE
-.It -link0
-IPPROTO_MOBILE
+.Pp
+.Bl -tag -width ".Cm -link0" -compact
+.It Cm link0
+.Dv IPPROTO_GRE
+.It Cm -link0
+.Dv IPPROTO_MOBILE
 .El
 .Pp
 to
 .Xr ifconfig 8 .
 .Pp
-The link1 flag is not used to choose encapsulation, but to modify the
+The
+.Cm link1
+flag is not used to choose encapsulation, but to modify the
 internal route search for the remote tunnel endpoint, see the
 .Sx BUGS
 section below.
-.It GREGPROTO :
+.It Dv GREGPROTO
 Query operation mode.
 .El
 .Pp
@@ -134,51 +153,54 @@ encapsulating AppleTalk.
 .Sh EXAMPLES
 Configuration example:
 .Bd -literal
-Host X-- Host A  ----------------tunnel---------- cisco D------Host E
+Host X-- Host A  ----------------tunnel---------- Cisco D------Host E
           \\                                          |
            \\                                        /
-             +------Host B----------Host C----------+
+            +------Host B----------Host C----------+
 .Ed
+.Pp
 On host A
-.Ns ( Nx ) :
-.Bd -literal
-   # route add default B
-   # ifconfig greN create
-   # ifconfig greN A D netmask 0xffffffff linkX up
-   # ifconfig greN tunnel A D
-   # route add E D
+.Pq Fx :
+.Bd -literal -offset indent
+route add default B
+ifconfig greN create
+ifconfig greN A D netmask 0xffffffff linkX up
+ifconfig greN tunnel A D
+route add E D
 .Ed
+.Pp
 On Host D (Cisco):
-.Bd -literal
-   Interface TunnelX
-    ip unnumbered D   ! e.g. address from Ethernet interface
-    tunnel source D   ! e.g. address from Ethernet interface
-    tunnel destination A
-   ip route C \*[Lt]some interface and mask\*[Gt]
-   ip route A mask C
-   ip route X mask tunnelX
+.Bd -literal -offset indent
+Interface TunnelX
+ ip unnumbered D   ! e.g. address from Ethernet interface
+ tunnel source D   ! e.g. address from Ethernet interface
+ tunnel destination A
+ip route C <some interface and mask>
+ip route A mask C
+ip route X mask tunnelX
 .Ed
+.Pp
 OR
+.Pp
 On Host D
-.Ns ( Nx ) :
-.Bd -literal
-   # route add default C
-   # ifconfig greN create
-   # ifconfig greN D A
-   # ifconfig tunnel greN D A
+.Pq Fx :
+.Bd -literal -offset indent
+route add default C
+ifconfig greN create
+ifconfig greN D A
+ifconfig tunnel greN D A
 .Ed
 .Pp
 If all goes well, you should see packets flowing ;-)
 .Pp
 If you want to reach Host A over the tunnel (from Host D (Cisco)), then
 you have to have an alias on Host A for e.g. the Ethernet interface like:
-.Bd -literal
-     ifconfig \*[Lt]etherif\*[Gt] alias Y
-.Ed
-and on the cisco
-.Bd -literal
-     ip route Y mask tunnelX
-.Ed
+.Pp
+.Dl "ifconfig <etherif> alias Y"
+.Pp
+and on the Cisco:
+.Pp
+.Dl "ip route Y mask tunnelX"
 .Pp
 A similar setup can be used to create a link between two private networks
 (for example in the 192.168 subnet) over the Internet:
@@ -186,37 +208,41 @@ A similar setup can be used to create a link between two private networks
 192.168.1.* --- Router A  -------tunnel-------- Router B --- 192.168.2.*
                    \\                              /
                     \\                            /
-                      +----- the Internet ------+
+                     +------ the Internet ------+
 .Ed
+.Pp
 Assuming router A has the (external) IP address A and the internal address
 192.168.1.1, while router B has external address B and internal address
 192.168.2.1, the following commands will configure the tunnel:
 .Pp
 On router A:
-.Bd -literal
-   # ifconfig greN create
-   # ifconfig greN 192.168.1.1 192.168.2.1 link1
-   # ifconfig greN tunnel A B
-   # route add -net 192.168.2 -netmask 255.255.255.0 192.168.2.1
+.Bd -literal -offset indent
+ifconfig greN create
+ifconfig greN 192.168.1.1 192.168.2.1 link1
+ifconfig greN tunnel A B
+route add -net 192.168.2 -netmask 255.255.255.0 192.168.2.1
 .Ed
 .Pp
 On router B:
-.Bd -literal
-   # ifconfig greN create
-   # ifconfig greN 192.168.2.1 192.168.1.1 link1
-   # ifconfig greN tunnel B A
-   # route add -net 192.168.1 -netmask 255.255.255.0 192.168.1.1
+.Bd -literal -offset indent
+ifconfig greN create
+ifconfig greN 192.168.2.1 192.168.1.1 link1
+ifconfig greN tunnel B A
+route add -net 192.168.1 -netmask 255.255.255.0 192.168.1.1
 .Ed
 .Pp
-Note that this is a safe situation where the link1 flag (as discussed in the
+Note that this is a safe situation where the
+.Cm link1
+flag (as discussed in the
 .Sx BUGS
 section below) may (and probably should) be set.
 .Sh NOTES
 The MTU of
-.Sy gre Ns Ar X
-interfaces is set to 1476 by default to match the value used by Cisco routers.
+.Nm
+interfaces is set to 1476 by default, to match the value used by Cisco routers.
 This may not be an optimal value, depending on the link between the two tunnel
-endpoints.  It can be adjusted via
+endpoints.
+It can be adjusted via
 .Xr ifconfig 8 .
 .Pp
 For correct operation, the
@@ -226,31 +252,32 @@ one over the tunnel.
 (Basically, there needs to be a route to the decapsulating host that
 does not run over the tunnel, as this would be a loop.)
 If the addresses are ambiguous, doing the
-.Xr ifconfig 8
-.Li tunnel
+.Nm ifconfig Cm tunnel
 step before the
 .Xr ifconfig 8
 call to set the
-.Sy gre Ns Ar X
+.Nm
 IP addresses will help to find a route outside the tunnel.
 .Pp
 In order to tell
 .Xr ifconfig 8
-to actually mark the interface as up, the keyword
-.Dq up
+to actually mark the interface as
+.Dq up ,
+the keyword
+.Cm up
 must be given last on its command line.
 .Pp
-The kernel must be set to forward datagrams by either option
-.Em GATEWAY
-in the kernel config file or by issuing the appropriate option to
-.Xr sysctl 8 .
+The kernel must be set to forward datagrams by setting the
+.Va ip.forwarding
+.Xr sysctl 8
+variable to non-zero.
 .Sh SEE ALSO
-.Xr atalk 4 ,
+.\" Xr atalk 4 ,
 .Xr gif 4 ,
 .Xr inet 4 ,
 .Xr ip 4 ,
 .Xr netintro 4 ,
-.Xr options 4 ,
+.\" Xr options 4 ,
 .Xr protocols 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
@@ -261,19 +288,24 @@ A description of MOBILE encapsulation can be found in RFC 2004.
 .Sh AUTHORS
 .An Heiko W.Rupp Aq hwr@pilhuhn.de
 .Sh BUGS
-The compute_route() code in if_gre.c toggles the last bit of the
+The
+.Fn compute_route
+code in
+.Pa if_gre.c
+toggles the last bit of the
 IP-address to provoke the search for a less specific route than the
-one directly over the tunnel to prevent loops.  This is possibly not
-the best solution.
+one directly over the tunnel to prevent loops.
+This is possibly not the best solution.
 .Pp
-To avoid the address munging described above, turn on the link1 flag
-on the
+To avoid the address munging described above, turn on the
+.Cm link1
+flag on the
 .Xr ifconfig 8
 command line.
 This implies that the GRE packet destination and the ifconfig remote host
 are not the same IP addresses, and that the GRE destination does not route
 over the
-.Sy gre Ns Ar X
+.Nm
 interface itself.
 .Pp
 The GRE RFCs are not yet fully implemented (no GRE options).
