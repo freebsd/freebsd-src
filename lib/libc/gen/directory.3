@@ -100,7 +100,7 @@ provides the same functionality as
 .Fn readdir ,
 but the caller must provide a directory
 .Fa entry
-buffer to store the results in.  If the read succeeds, 
+buffer to store the results in.  If the read succeeds,
 .Fa result
 is pointed at the
 .Fa entry ;
@@ -122,7 +122,7 @@ are good only for the lifetime of the
 .Dv DIR
 pointer,
 .Fa dirp ,
-from which they are derived.  If the directory is closed and then 
+from which they are derived.  If the directory is closed and then
 reopened, prior values returned by
 .Fn telldir
 will no longer be valid.
@@ -138,7 +138,7 @@ The new position reverts to the one associated with the
 .Em directory stream
 when the
 .Fn telldir
-operation was performed.  
+operation was performed.
 .Pp
 The
 .Fn rewinddir

@@ -14,9 +14,9 @@
 .\" NO EVENT SHALL SUN MICROSYSTEMS, INC. BE LIABLE FOR ANY SPECIAL, INDIRECT,
 .\" INCIDENTAL, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING
 .\" FROM USE OF SUCH SOURCE CODE, REGARDLESS OF THE THEORY OF LIABILITY.
-.\" 
+.\"
 .\" This source code is provided with no support and without any obligation on
-.\" the part of Sun Microsystems, Inc. to assist in its use, correction, 
+.\" the part of Sun Microsystems, Inc. to assist in its use, correction,
 .\" modification or enhancement.
 .\"
 .\" SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
@@ -59,10 +59,10 @@ defined by such
 objects, and to remove such objects when their use is no longer required.
 .Pp
 .Fn dlopen
-provides access to the shared object in 
+provides access to the shared object in
 .Fa path ,
 returning a descriptor that can be used for later
-references to the object in calls to 
+references to the object in calls to
 .Fn dlsym
 and
 .Fn dlclose .
@@ -78,13 +78,13 @@ if any, is called by the dynamic linker.
 If
 .Fa path
 has already been placed in the address space in a previous call to
-.Fn dlopen , 
-it is not added a second time, although a reference count of 
+.Fn dlopen ,
+it is not added a second time, although a reference count of
 .Fn dlopen
 operations on
 .Fa path
 is maintained.
-A null pointer supplied for 
+A null pointer supplied for
 .Fa path
 is interpreted as a reference to the main
 executable of the process.
@@ -125,7 +125,7 @@ in the same DAG.  This is the default, but it may be specified
 explicitly with this flag.
 .El
 .Pp
-If 
+If
 .Fn dlopen
 fails, it returns a null pointer, and sets an error condition which may
 be interrogated with
@@ -137,7 +137,7 @@ character string
 .Fa symbol ,
 as it occurs in the shared object identified by
 .Fa handle .
-The symbols exported by objects added to the address space by 
+The symbols exported by objects added to the address space by
 .Fn dlopen
 can be accessed only through calls to
 .Fn dlsym .
@@ -242,14 +242,14 @@ Just before removing a shared object in this way, the dynamic linker
 calls the object's
 .Fn _fini
 function, if such a function is defined by the object.
-If 
+If
 .Fn dlclose
 is successful, it returns a value of 0.
 Otherwise it returns -1, and sets an error condition that can be
 interrogated with
 .Fn dlerror .
 .Pp
-The object-intrinsic functions 
+The object-intrinsic functions
 .Fn _init
 and
 .Fn _fini
@@ -260,7 +260,7 @@ using the
 .Fl export-dynamic
 option to
 .Xr ld 1
-for symbols defined in the executable to become visible to 
+for symbols defined in the executable to become visible to
 .Fn dlsym .
 .Pp
 In previous implementations, it was necessary to prepend an underscore
