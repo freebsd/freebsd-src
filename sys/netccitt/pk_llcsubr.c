@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pk_llcsubr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: pk_llcsubr.c,v 1.2 1994/08/02 07:47:36 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -143,7 +143,8 @@ cons_rtrequest(int cmd, struct rtentry *rt, struct sockaddr *dst)
 		if (rt->rt_flags & RTF_GATEWAY) {
 			if (rt->rt_llinfo)
 				RTFREE((struct rtentry *)rt->rt_llinfo);
-			rt->rt_llinfo = (caddr_t) rtalloc1(rt->rt_gateway, 1);
+			rt->rt_llinfo = (caddr_t) rtalloc1(rt->rt_gateway, 1,
+							   0UL);
 			return(0);
 		}
 		/*
@@ -279,7 +280,7 @@ npaidb_enter(struct sockaddr_dl *key, struct sockaddr *value,
 
 	USES_AF_LINK_RTS;
 
-	if ((nprt = rtalloc1(SA(key), 0)) == 0) {
+	if ((nprt = rtalloc1(SA(key), 0, 0UL)) == 0) {
 		register u_int size = sizeof(struct npaidbentry);
 		register u_char saploc = LLSAPLOC(key, rt->rt_ifp);
 
@@ -321,7 +322,7 @@ npaidb_enrich(short type, caddr_t info, struct sockaddr_dl *sdl)
 
 	USES_AF_LINK_RTS;
 
-	if (rt = rtalloc1((struct sockaddr *)sdl, 0)) {
+	if (rt = rtalloc1((struct sockaddr *)sdl, 0, 0UL)) {
 		rt->rt_refcnt--;
 		switch (type) {
 		case NPAIDB_LINK:

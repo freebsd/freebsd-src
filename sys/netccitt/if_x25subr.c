@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: if_x25subr.c,v 1.2 1994/08/02 07:47:14 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -250,7 +250,7 @@ struct mbuf *m0;
 	register struct mbuf *m = m0->m_next; /* m0 has calling sockaddr_x25 */
 	void x25_rtrequest();
 
-	rt = rtalloc1(SA(&lcp->lcd_faddr), 0);
+	rt = rtalloc1(SA(&lcp->lcd_faddr), 0, 0UL);
 	if (rt == 0) {
 refuse: 	lcp->lcd_upper = 0;
 		pk_close(lcp);
@@ -260,7 +260,7 @@ refuse: 	lcp->lcd_upper = 0;
 	if ((nrt = RT(rt->rt_llinfo)) == 0 || rt_mask(rt) != x25_dgram_sockmask)
 		goto refuse;
 	if ((nrt->rt_flags & RTF_UP) == 0) {
-		rt->rt_llinfo = (caddr_t)rtalloc1(rt->rt_gateway, 0);
+		rt->rt_llinfo = (caddr_t)rtalloc1(rt->rt_gateway, 0, 0UL);
 		rtfree(nrt);
 		if ((nrt = RT(rt->rt_llinfo)) == 0)
 			goto refuse;
@@ -302,7 +302,7 @@ m = m0;
 			}
 			dst = rt->rt_gateway;
 		}
-		if ((rt = rtalloc1(dst, 1)) == 0)
+		if ((rt = rtalloc1(dst, 1, 0UL)) == 0)
 			senderr(EHOSTUNREACH);
 		rt->rt_refcnt--;
 	}
@@ -432,7 +432,7 @@ struct sockaddr *dst;
 		if (rt->rt_llinfo)
 			RTFREE((struct rtentry *)rt->rt_llinfo);
 		rt->rt_llinfo = (cmd == RTM_ADD) ? 
-			(caddr_t)rtalloc1(rt->rt_gateway, 1) : 0;
+			(caddr_t)rtalloc1(rt->rt_gateway, 1, 0UL) : 0;
 		return;
 	}
 	if ((rt->rt_flags & RTF_HOST) == 0)
@@ -488,7 +488,7 @@ register struct rtentry *rt;
 		return;
 	}
 	rt2 = rt;
-	if ((rt = rtalloc1(sa, 0)) == 0 ||
+	if ((rt = rtalloc1(sa, 0, 0UL)) == 0 ||
 	    (rt->rt_flags & RTF_PROTO2) == 0 ||
 	    rt->rt_llinfo != (caddr_t)rt2) {
 		printf("x25_rtchange: inverse route screwup\n");
@@ -648,7 +648,7 @@ register struct x25_ifaddr *ia;
 		 * This uses the X25 routing table to do inverse
 		 * lookup of x25 address to sockaddr.
 		 */
-		if (rt = rtalloc1(SA(dst), 0)) {
+		if (rt = rtalloc1(SA(dst), 0, 0UL)) {
 			sa = rt->rt_gateway;
 			rt->rt_refcnt--;
 		}
@@ -658,7 +658,7 @@ register struct x25_ifaddr *ia;
 	 * to callee by virtue of cloning magic and will allocate
 	 * space for local control block.
 	 */
-	if (sa && (rt = rtalloc1(sa, 1)))
+	if (sa && (rt = rtalloc1(sa, 1, 0UL)))
 		rt->rt_refcnt--;
 }
 int x25_startproto = 1;
@@ -724,7 +724,7 @@ struct mbuf *m0;
 	register struct pklcd *lcp = (struct pklcd *)so->so_pcb;
 	register struct mbuf *m = m0;
 	struct sockaddr *dst = mtod(m, struct sockaddr *);
-	register struct rtentry *rt = rtalloc1(dst, 0);
+	register struct rtentry *rt = rtalloc1(dst, 0, 0UL);
 	register struct llinfo_x25 *lx;
 	caddr_t cp;
 #define ROUNDUP(a) \
