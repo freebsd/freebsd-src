@@ -138,7 +138,10 @@ compile()
 	*compile_stream(&prog) = NULL;
 	fixuplabel(prog, NULL);
 	uselabel();
-	if ((appends = malloc(sizeof(struct s_appends) * appendnum)) == NULL)
+	if (appendnum == 0)
+		appends = NULL;
+	else if ((appends = malloc(sizeof(struct s_appends) * appendnum)) ==
+	    NULL)
 		err(1, "malloc");
 	if ((match = malloc((maxnsub + 1) * sizeof(regmatch_t))) == NULL)
 		err(1, "malloc");
