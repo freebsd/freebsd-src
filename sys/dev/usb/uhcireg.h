@@ -48,6 +48,9 @@
 #define  PCI_USBREV_PRE_1_0	0x00
 #define  PCI_USBREV_1_0		0x10
 
+#define PCI_LEGSUP		0xc0	/* Legacy Support register */
+#define  PCI_LEGSUP_USBPIRQDEN	0x2000	/* USB PIRQ D Enable */
+
 #define PCI_CBIO		0x20	/* configuration base IO */
 
 #define PCI_INTERFACE_UHCI	0x00
@@ -101,8 +104,6 @@
 #define UHCI_PORTSC_OCI		0x0400
 #define UHCI_PORTSC_OCIC	0x0800
 #define UHCI_PORTSC_SUSP	0x1000
-
-#define UHCI_LEGSUP		0xc0
 
 #define UHCI_FRAMELIST_COUNT	1024
 #define UHCI_FRAMELIST_ALIGN	4096
