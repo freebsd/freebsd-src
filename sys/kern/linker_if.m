@@ -54,6 +54,20 @@ METHOD int search_symbol {
 };
 
 #
+# Search for a linker set in a file.  Return a pointer to the first
+# entry (which is itself a pointer), and the number of entries.
+# "stop" points to the entry beyond the last valid entry.
+# If count, start or stop are NULL, they are not returned.
+#
+METHOD int lookup_set {
+    linker_file_t	file;
+    const char*		name;
+    void***		start;
+    void***		stop;
+    int*		count;
+};
+
+#
 # Unload a file, releasing dependancies and freeing storage.
 #
 METHOD void unload {

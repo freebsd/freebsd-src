@@ -78,7 +78,6 @@ struct consdev {
 #define CN_REMOTE	3	/* serial interface with remote bit set */
 
 #ifdef _KERNEL
-extern	struct linker_set cons_set;
 extern	int cons_unavail;
 extern	struct consdev *cn_tab;
 

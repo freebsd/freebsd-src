@@ -557,8 +557,6 @@ extern char	machine[];
 extern char	osrelease[];
 extern char	ostype[];
 
-struct linker_set;
-
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
 		struct sysctl_oid_list *parent, int nbr, const char *name,
@@ -574,10 +572,6 @@ struct	sysctl_ctx_entry *sysctl_ctx_entry_find(struct sysctl_ctx_list *clist,
 		struct sysctl_oid *oidp);
 int	sysctl_ctx_entry_del(struct sysctl_ctx_list *clist,
 		struct sysctl_oid *oidp);
-
-/* Linker set based oid handling */
-void	sysctl_register_set(struct linker_set *lsp);
-void	sysctl_unregister_set(struct linker_set *lsp);
 
 int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 		      size_t *oldlenp, void *new, size_t newlen,

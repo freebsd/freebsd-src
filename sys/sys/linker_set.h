@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1999 John D. Polstra
+ * Copyright (c) 1999,2001 Peter Wemm <peter@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,56 +32,109 @@
 
 /*
  * The following macros are used to declare global sets of objects, which
- * are collected by the linker into a `struct linker_set' as defined below.
+ * are collected by the linker into a `linker_set' as defined below.
  * For ELF, this is done by constructing a separate segment for each set.
  * For a.out, it is done automatically by the linker.
- *
- * In the MAKE_SET macros below, the lines:
- *
- *   static void const * const __set_##set##_sym_##sym = &sym;
- *
- * are present only to prevent the compiler from producing bogus
- * warnings about unused symbols.
  */
-#ifdef __ELF__
 
-#if defined(__alpha__) || defined(__ia64__)
-#define MAKE_SET(set, sym)						\
-	static void const * const __set_##set##_sym_##sym = &sym;	\
-	__asm(".section .set." #set ",\"aw\"");				\
-	__asm(".p2align 3");						\
-	__asm(".quad " #sym);						\
-	__asm(".previous")
-#else
-#define MAKE_SET(set, sym)						\
-	static void const * const __set_##set##_sym_##sym = &sym;	\
-	__asm(".section .set." #set ",\"aw\"");				\
-	__asm(".p2align 2");						\
-	__asm(".long " #sym);						\
-	__asm(".previous")
-#endif
-#define TEXT_SET(set, sym) MAKE_SET(set, sym)
-#define DATA_SET(set, sym) MAKE_SET(set, sym)
+#if defined(__ELF__)
+/*
+ * Private macros, not to be used outside this header file.
+ */
+/* this bit of h0h0magic brought to you by cpp */
+#define	__GLOBL(sym)	__GLOBL2(sym)
+#define	__GLOBL2(sym)	__asm(".globl " #sym)
 
-#else
+#define __MAKE_SET(set, sym)						\
+	__GLOBL(__CONCAT(__start_set_,set));				\
+	__GLOBL(__CONCAT(__stop_set_,set));				\
+	static void const * const __set_##set##_sym_##sym 		\
+	__attribute__((__section__("set_" #set),__unused__)) = &sym
 
 /*
+ * Public macros.
+ */
+#define TEXT_SET(set, sym)	__MAKE_SET(set, sym)
+#define DATA_SET(set, sym)	__MAKE_SET(set, sym)
+#define BSS_SET(set, sym)	__MAKE_SET(set, sym)
+#define ABS_SET(set, sym)	__MAKE_SET(set, sym)
+#define SET_ENTRY(set, sym)	__MAKE_SET(set, sym)
+
+/*
+ * Initialize before referring to a give linker set
+ */
+#define SET_DECLARE(set, ptype)						\
+	extern ptype *__CONCAT(__start_set_,set);			\
+	extern ptype *__CONCAT(__stop_set_,set)
+
+#define SET_BEGIN(set)							\
+	(&__CONCAT(__start_set_,set))
+#define SET_LIMIT(set)							\
+	(&__CONCAT(__stop_set_,set))
+
+#else	/* __ELF__ */
+
+/*
+ * The old way.  This depends on GNU ld extensions that are not widely
+ * available outside of the a.out format.
+ *
  * NB: the constants defined below must match those defined in
  * ld/ld.h.  Since their calculation requires arithmetic, we
  * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
+ *
+ * In the __MAKE_SET macro below, the line:
+ *   static void const * const __set_##set##_sym_##sym = &sym;
+ * is present only to prevent the compiler from producing bogus
+ * warnings about unused symbols.
  */
-#define MAKE_SET(set, sym, type) \
-	static void const * const __set_##set##_sym_##sym = &sym; \
+/* Private macros */
+#ifdef __UNDERSCORES__
+#define __MAKE_SET(set, sym, type) \
+	static void const * const __set_##set##_sym_##sym = &sym;	\
+	__asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+#else
+#define __MAKE_SET(set, sym, type) \
+	static void const * const __set_##set##_sym_##sym = &sym;	\
 	__asm(".stabs \"" #set "\", " #type ", 0, 0, " #sym)
-#define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
-#define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
-
 #endif
 
-struct linker_set {
-	int	ls_length;
-	void	*ls_items[1];		/* really ls_length of them,
-						 * trailing NULL */
-};
+/* Public Macros */
+#define TEXT_SET(set, sym)	__MAKE_SET(set, sym, 23)
+#define DATA_SET(set, sym)	__MAKE_SET(set, sym, 25)
+#define BSS_SET(set, sym)	__MAKE_SET(set, sym, 27)
+#define ABS_SET(set, sym)	__MAKE_SET(set, sym, 21)
+#define SET_ENTRY(set, sym)	error error must provide text/data type
 
-#endif /* _SYS_LINKER_SET_H_ */
+#define SET_DECLARE(set, ptype)						\
+	extern struct  {						\
+		int		ls_length;				\
+		ptype		*ls_items[1];				\
+	} set
+
+#define SET_BEGIN(set)							\
+	(&((set).ls_items[0]))
+#define SET_LIMIT(set)							\
+	(&((set).ls_items[(set).ls_length]))
+
+#endif	/* __ELF__ */
+
+/*
+ * Iterate over all the elements of a set.
+ *
+ * Sets always contain addresses of things, and "pvar" points to words
+ * containing those addresses.  Thus is must be declared as "type **pvar",
+ * and the address of each set item is obtained inside the loop by "*pvar".
+ */
+#define SET_FOREACH(pvar, set)						\
+	for (pvar = SET_BEGIN(set); pvar < SET_LIMIT(set); pvar++)
+
+#define SET_ITEM(set, i)						\
+	((SET_BEGIN(set))[i])
+
+/*
+ * Provide a count of the items in a set.
+ */
+#define SET_COUNT(set)							\
+	(SET_LIMIT(set) - SET_BEGIN(set))
+
+#endif	/* _SYS_LINKER_SET_H_ */

@@ -250,7 +250,7 @@ struct sysinit {
 	C_SYSUNINIT(uniquifier, subsystem, order,		\
 	(sysinit_cfunc_t)(sysinit_nfunc_t)func, (void *)ident)
 
-void	sysinit_add __P((struct sysinit **set));
+void	sysinit_add __P((struct sysinit **set, struct sysinit **set_end));
 
 /*
  * Infrastructure for tunable 'constants'.  Value may be specified at compile

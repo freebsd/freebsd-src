@@ -81,7 +81,7 @@ extern int linux_szsigcode;
 
 extern struct sysent linux_sysent[LINUX_SYS_MAXSYSCALL];
 
-extern struct linker_set linux_ioctl_handler_set;
+SET_DECLARE(linux_ioctl_handler_set, struct linux_ioctl_handler);
 
 static int	linux_fixup __P((register_t **stack_base,
 				 struct image_params *iparams));
@@ -809,6 +809,7 @@ linux_elf_modevent(module_t mod, int type, void *data)
 {
 	Elf32_Brandinfo **brandinfo;
 	int error;
+	struct linux_ioctl_handler **lihp;
 
 	error = 0;
 
@@ -819,8 +820,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 			if (elf_insert_brand_entry(*brandinfo) < 0)
 				error = EINVAL;
 		if (error == 0) {
-			linux_ioctl_register_handlers(
-				&linux_ioctl_handler_set);
+			SET_FOREACH(lihp, linux_ioctl_handler_set)
+				linux_ioctl_register_handler(*lihp);
 			if (bootverbose)
 				printf("Linux ELF exec handler installed\n");
 		} else
@@ -838,8 +839,8 @@ linux_elf_modevent(module_t mod, int type, void *data)
 					error = EINVAL;
 		}
 		if (error == 0) {
-			linux_ioctl_unregister_handlers(
-				&linux_ioctl_handler_set);
+			SET_FOREACH(lihp, linux_ioctl_handler_set)
+				linux_ioctl_unregister_handler(*lihp);
 			if (bootverbose)
 				printf("Linux ELF exec handler removed\n");
 		} else

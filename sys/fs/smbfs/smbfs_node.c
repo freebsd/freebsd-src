@@ -69,7 +69,6 @@ static MALLOC_DEFINE(M_SMBNODENAME, "SMBFS nname", "SMBFS node name");
 int smbfs_hashprint(struct mount *mp);
 
 #if 0
-extern struct linker_set sysctl_vfs_smbfs;
 #ifdef SYSCTL_DECL
 SYSCTL_DECL(_vfs_smbfs);
 #endif

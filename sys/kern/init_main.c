@@ -77,8 +77,6 @@
 #include <sys/user.h>
 #include <sys/copyright.h>
 
-extern struct linker_set	sysinit_set;	/* XXX */
-
 void mi_startup(void);				/* Should be elsewhere */
 
 /* Components of the first process -- never freed. */
@@ -112,46 +110,43 @@ SYSINIT(placeholder, SI_SUB_DUMMY, SI_ORDER_ANY, NULL, NULL)
  * The sysinit table itself.  Items are checked off as the are run.
  * If we want to register new sysinit types, add them to newsysinit.
  */
-struct sysinit **sysinit = (struct sysinit **)sysinit_set.ls_items;
-struct sysinit **newsysinit;
+SET_DECLARE(sysinit_set, struct sysinit);
+struct sysinit **sysinit, **sysinit_end;
+struct sysinit **newsysinit, **newsysinit_end;
 
 /*
  * Merge a new sysinit set into the current set, reallocating it if
  * necessary.  This can only be called after malloc is running.
  */
 void
-sysinit_add(struct sysinit **set)
+sysinit_add(struct sysinit **set, struct sysinit **set_end)
 {
 	struct sysinit **newset;
 	struct sysinit **sipp;
 	struct sysinit **xipp;
-	int count = 0;
+	int count;
 
+	count = set_end - set;
 	if (newsysinit)
-		for (sipp = newsysinit; *sipp; sipp++)
-			count++;
+		count += newsysinit_end - newsysinit;
 	else
-		for (sipp = sysinit; *sipp; sipp++)
-			count++;
-	for (sipp = set; *sipp; sipp++)
-		count++;
-	count++;		/* Trailing NULL */
+		count += sysinit_end - sysinit;
 	newset = malloc(count * sizeof(*sipp), M_TEMP, M_NOWAIT);
 	if (newset == NULL)
 		panic("cannot malloc for sysinit");
 	xipp = newset;
 	if (newsysinit)
-		for (sipp = newsysinit; *sipp; sipp++)
+		for (sipp = newsysinit; sipp < newsysinit_end; sipp++)
 			*xipp++ = *sipp;
 	else
-		for (sipp = sysinit; *sipp; sipp++)
+		for (sipp = sysinit; sipp < sysinit_end; sipp++)
 			*xipp++ = *sipp;
-	for (sipp = set; *sipp; sipp++)
+	for (sipp = set; sipp < set_end; sipp++)
 		*xipp++ = *sipp;
-	*xipp = NULL;
 	if (newsysinit)
 		free(newsysinit, M_TEMP);
 	newsysinit = newset;
+	newsysinit_end = newset + count;
 }
 
 /*
@@ -173,13 +168,18 @@ mi_startup(void)
 	register struct sysinit **xipp;		/* interior loop of sort*/
 	register struct sysinit *save;		/* bubble*/
 
+	if (sysinit == NULL) {
+		sysinit = SET_BEGIN(sysinit_set);
+		sysinit_end = SET_LIMIT(sysinit_set);
+	}
+
 restart:
 	/*
 	 * Perform a bubble sort of the system initialization objects by
 	 * their subsystem (primary key) and order (secondary key).
 	 */
-	for (sipp = sysinit; *sipp; sipp++) {
-		for (xipp = sipp + 1; *xipp; xipp++) {
+	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
+		for (xipp = sipp + 1; xipp < sysinit_end; xipp++) {
 			if ((*sipp)->subsystem < (*xipp)->subsystem ||
 			     ((*sipp)->subsystem == (*xipp)->subsystem &&
 			      (*sipp)->order <= (*xipp)->order))
@@ -197,7 +197,7 @@ restart:
 	 * The last item on the list is expected to be the scheduler,
 	 * which will not return.
 	 */
-	for (sipp = sysinit; *sipp; sipp++) {
+	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
 
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
@@ -213,10 +213,12 @@ restart:
 
 		/* Check if we've installed more sysinit items via KLD */
 		if (newsysinit != NULL) {
-			if (sysinit != (struct sysinit **)sysinit_set.ls_items)
+			if (sysinit != SET_BEGIN(sysinit_set))
 				free(sysinit, M_TEMP);
 			sysinit = newsysinit;
+			sysinit_end = newsysinit_end;
 			newsysinit = NULL;
+			newsysinit_end = NULL;
 			goto restart;
 		}
 	}

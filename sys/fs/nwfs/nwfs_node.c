@@ -71,8 +71,6 @@ MALLOC_DEFINE(M_NWFSHASH, "NWFS hash", "NWFS has table");
 
 static int nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS);
 
-extern struct linker_set sysctl_vfs_nwfs;
-
 SYSCTL_DECL(_vfs_nwfs);
 
 SYSCTL_PROC(_vfs_nwfs, OID_AUTO, vnprint, CTLFLAG_WR|CTLTYPE_OPAQUE,
