@@ -169,11 +169,6 @@ Static uhci_soft_qh_t  *uhci_alloc_sqh(uhci_softc_t *);
 Static void		uhci_free_sqh(uhci_softc_t *, uhci_soft_qh_t *);
 Static uhci_intr_info_t *uhci_alloc_intr_info(uhci_softc_t *);
 Static void		uhci_free_intr_info(uhci_intr_info_t *ii);
-#if 0
-Static void		uhci_enter_ctl_q(uhci_softc_t *, uhci_soft_qh_t *,
-					 uhci_intr_info_t *);
-Static void		uhci_exit_ctl_q(uhci_softc_t *, uhci_soft_qh_t *);
-#endif
 
 Static void		uhci_free_std_chain(uhci_softc_t *, 
 					    uhci_soft_td_t *, uhci_soft_td_t *);
@@ -1546,19 +1541,6 @@ uhci_free_sqh(uhci_softc_t *sc, uhci_soft_qh_t *sqh)
 	sqh->hlink = sc->sc_freeqhs;
 	sc->sc_freeqhs = sqh;
 }
-
-#if 0
-/* 
- * Enter a list of transfers onto a control queue.
- * Called at splusb() 
- */
-void
-uhci_enter_ctl_q(uhci_softc_t *sc, uhci_soft_qh_t *sqh, uhci_intr_info_t *ii)
-{
-	DPRINTFN(5, ("uhci_enter_ctl_q: sqh=%p\n", sqh));
-
-}
-#endif
 
 void
 uhci_free_std_chain(uhci_softc_t *sc, uhci_soft_td_t *std,
