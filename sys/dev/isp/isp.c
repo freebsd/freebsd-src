@@ -950,28 +950,55 @@ isp_scsi_init(struct ispsoftc *isp)
 	 * Now enable request/response queues
 	 */
 
-	mbs.param[0] = MBOX_INIT_RES_QUEUE;
-	mbs.param[1] = RESULT_QUEUE_LEN(isp);
-	mbs.param[2] = DMA_WD1(isp->isp_result_dma);
-	mbs.param[3] = DMA_WD0(isp->isp_result_dma);
-	mbs.param[4] = 0;
-	mbs.param[5] = 0;
-	isp_mboxcmd(isp, &mbs, MBLOGALL);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		return;
-	}
-	isp->isp_residx = mbs.param[5];
+	if (IS_ULTRA2(isp) || IS_1240(isp)) {
+		mbs.param[0] = MBOX_INIT_RES_QUEUE_A64;
+		mbs.param[1] = RESULT_QUEUE_LEN(isp);
+		mbs.param[2] = DMA_WD1(isp->isp_result_dma);
+		mbs.param[3] = DMA_WD0(isp->isp_result_dma);
+		mbs.param[4] = 0;
+		mbs.param[6] = DMA_WD3(isp->isp_result_dma);
+		mbs.param[7] = DMA_WD2(isp->isp_result_dma);
+		isp_mboxcmd(isp, &mbs, MBLOGALL);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			return;
+		}
+		isp->isp_residx = mbs.param[5];
 
-	mbs.param[0] = MBOX_INIT_REQ_QUEUE;
-	mbs.param[1] = RQUEST_QUEUE_LEN(isp);
-	mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
-	mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
-	mbs.param[4] = 0;
-	isp_mboxcmd(isp, &mbs, MBLOGALL);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		return;
+		mbs.param[0] = MBOX_INIT_REQ_QUEUE_A64;
+		mbs.param[1] = RQUEST_QUEUE_LEN(isp);
+		mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
+		mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
+		mbs.param[5] = 0;
+		mbs.param[6] = DMA_WD3(isp->isp_result_dma);
+		mbs.param[7] = DMA_WD2(isp->isp_result_dma);
+		isp_mboxcmd(isp, &mbs, MBLOGALL);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			return;
+		}
+		isp->isp_reqidx = isp->isp_reqodx = mbs.param[4];
+	} else {
+		mbs.param[0] = MBOX_INIT_RES_QUEUE;
+		mbs.param[1] = RESULT_QUEUE_LEN(isp);
+		mbs.param[2] = DMA_WD1(isp->isp_result_dma);
+		mbs.param[3] = DMA_WD0(isp->isp_result_dma);
+		mbs.param[4] = 0;
+		isp_mboxcmd(isp, &mbs, MBLOGALL);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			return;
+		}
+		isp->isp_residx = mbs.param[5];
+
+		mbs.param[0] = MBOX_INIT_REQ_QUEUE;
+		mbs.param[1] = RQUEST_QUEUE_LEN(isp);
+		mbs.param[2] = DMA_WD1(isp->isp_rquest_dma);
+		mbs.param[3] = DMA_WD0(isp->isp_rquest_dma);
+		mbs.param[5] = 0;
+		isp_mboxcmd(isp, &mbs, MBLOGALL);
+		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			return;
+		}
+		isp->isp_reqidx = isp->isp_reqodx = mbs.param[4];
 	}
-	isp->isp_reqidx = isp->isp_reqodx = mbs.param[4];
 
 	/*
 	 * Turn on Fast Posting, LVD transitions
@@ -4825,8 +4852,8 @@ static u_int16_t mbpscsi[] = {
 	ISPOPMAP(0x00, 0x00),	/* 0x4f: */
 	ISPOPMAP(0xdf, 0xdf),	/* 0x50: LOAD RAM A64 */
 	ISPOPMAP(0xdf, 0xdf),	/* 0x51: DUMP RAM A64 */
-	ISPOPMAP(0xdf, 0xdf),	/* 0x52: INITIALIZE REQUEST QUEUE A64 */
-	ISPOPMAP(0xff, 0xff),	/* 0x53: INITIALIZE RESPONSE QUEUE A64 */
+	ISPOPMAP(0xdf, 0xff),	/* 0x52: INITIALIZE REQUEST QUEUE A64 */
+	ISPOPMAP(0xef, 0xff),	/* 0x53: INITIALIZE RESPONSE QUEUE A64 */
 	ISPOPMAP(0xcf, 0x01),	/* 0x54: EXECUTE IOCB A64 */
 	ISPOPMAP(0x07, 0x01),	/* 0x55: ENABLE TARGET MODE */
 	ISPOPMAP(0x03, 0x0f),	/* 0x56: GET TARGET STATUS */
