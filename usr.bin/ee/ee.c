@@ -3686,12 +3686,15 @@ create_info_window()
 	idlok(text_win, TRUE);
 	werase(text_win);
 	info_window = TRUE;
-	info_win = newwin(6, COLS, 0, 0);
+	info_win = newwin(5, COLS, 0, 0);
 	werase(info_win);
 	info_type = CONTROL_KEYS;
 	midscreen(min(scr_vert, last_line), point);
 	clearok(info_win, TRUE);
 	paint_info_win();
+	count_win = newwin(1, COLS, 5, 0);
+	leaveok(count_win, TRUE);
+	wrefresh(count_win);
 	wrefresh(text_win);
 	clear_com_win = TRUE;
 }
