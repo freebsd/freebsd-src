@@ -47,9 +47,4 @@
 #define PT_GETDBREGS    (PT_FIRSTMACH + 5)
 #define PT_SETDBREGS    (PT_FIRSTMACH + 6)
 
-#ifdef _KERNEL
-int	ptrace_read_u_check __P((struct proc *p, vm_offset_t off, size_t len));
 #endif
-
-#endif
-

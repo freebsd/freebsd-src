@@ -365,20 +365,6 @@ cpu_halt(void)
 }
 
 int
-ptrace_read_u_check(struct proc *p, vm_offset_t addr, size_t len)
-{
-	TODO;
-	return (0);
-}
-
-int
-ptrace_write_u(struct proc *p, vm_offset_t off, long data)
-{
-	TODO;
-	return (0);
-}
-
-int
 ptrace_set_pc(struct proc *p, u_long addr)
 {
 	TODO;

@@ -45,9 +45,4 @@
 #define PT_GETFPREGS    (PT_FIRSTMACH + 3)
 #define PT_SETFPREGS    (PT_FIRSTMACH + 4)
 
-#ifdef _KERNEL
-int	ptrace_read_u_check __P((struct proc *p, vm_offset_t off, size_t len));
 #endif
-
-#endif
-
