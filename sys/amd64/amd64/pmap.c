@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.206 1998/08/16 00:41:40 bde Exp $
+ *	$Id: pmap.c,v 1.207 1998/08/23 10:16:25 bde Exp $
  */
 
 /*
@@ -1010,7 +1010,7 @@ pmap_new_proc(p)
 			}
 		}
 
-		PAGE_WAKEUP(m);
+		vm_page_wakeup(m);
 		m->flags &= ~PG_ZERO;
 		m->flags |= PG_MAPPED | PG_WRITEABLE;
 		m->valid = VM_PAGE_BITS_ALL;
@@ -1109,7 +1109,7 @@ pmap_swapin_proc(p)
 		}
 
 		vm_page_wire(m);
-		PAGE_WAKEUP(m);
+		vm_page_wakeup(m);
 		m->flags |= PG_MAPPED | PG_WRITEABLE;
 	}
 }
@@ -2452,7 +2452,7 @@ retry:
 			}
 
 			p = vm_page_lookup(object, pindex);
-			PAGE_WAKEUP(p);
+			vm_page_wakeup(p);
 		}
 
 		ptepa = (vm_offset_t) VM_PAGE_TO_PHYS(p);
@@ -2516,7 +2516,7 @@ retry:
 					addr + i386_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
 				p->flags |= PG_MAPPED;
-				PAGE_WAKEUP(p);
+				vm_page_wakeup(p);
 			}
 			objpgs -= 1;
 		}
@@ -2537,7 +2537,7 @@ retry:
 					addr + i386_ptob(tmpidx),
 					VM_PAGE_TO_PHYS(p), mpte);
 				p->flags |= PG_MAPPED;
-				PAGE_WAKEUP(p);
+				vm_page_wakeup(p);
 			}
 		}
 	}
@@ -2633,7 +2633,7 @@ pmap_prefault(pmap, addra, entry)
 			mpte = pmap_enter_quick(pmap, addr,
 				VM_PAGE_TO_PHYS(m), mpte);
 			m->flags |= PG_MAPPED;
-			PAGE_WAKEUP(m);
+			vm_page_wakeup(m);
 		}
 	}
 }
