@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.17 1994/10/02 05:18:23 rgrimes Exp $
+#	$Id: Makefile,v 1.18 1994/10/06 09:40:58 rgrimes Exp $
 #
 
 PROG=	boot
@@ -7,7 +7,7 @@ SRCS=	start.S table.c boot2.S boot.c asm.S bios.S io.c disk.c sys.c
 
 BINDIR=		/usr/mdec
 BINMODE=	444
-CFLAGS+=	-O2 -DDO_BAD144 -DBOOTWAIT=${BOOTWAIT}
+CFLAGS=		-O2 -DDO_BAD144	-DBOOTWAIT=${BOOTWAIT}
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 CLEANFILES+=	boot.nohdr boot.strip boot1 boot2
