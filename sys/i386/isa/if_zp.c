@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.23 1996/07/12 04:11:24 bde Exp $
+ *	$Id: if_zp.c,v 1.24 1996/08/06 21:14:12 phk Exp $
  */
 /*-
  * TODO:
@@ -440,10 +440,12 @@ static int
 zp_suspend(visa_dev)
 	void   *visa_dev;
 {
+#if 0
 	struct isa_device *isa_dev = visa_dev;
 	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 
 	pcic_power_off(sc->slot);
+#endif
 	return 0;
 }
 
