@@ -1146,8 +1146,3 @@ usage(void)
 "            [-m directory] [-V variable] [variable=value] [target ...]");
 	exit(2);
 }
-
-void foo(void);
-void foo(void)
-{
-}
