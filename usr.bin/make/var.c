@@ -1349,6 +1349,17 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, int *lengthPtr, Boolean *freePtr)
 			cp++;
 		    }
 
+		    /*
+		     * Replacing the empty string for something else when
+		     * done globally causes an infinite loop. The only
+		     * meaningful substitution of the empty string would
+		     * be those anchored by '^' or '$'. Thus, we can
+		     * safely turn the substitution into a non-global one
+		     * if the LHS is the empty string.
+		     */
+		    if (pattern.leftLen == 0)
+			pattern.flags &= ~VAR_SUB_GLOBAL;
+
 		    termc = *cp;
 		    newStr = VarModify(str, VarSubstitute,
 				       (void *)&pattern);
