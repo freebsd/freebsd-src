@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.224 1999/07/26 06:25:16 alc Exp $
+ * $Id: vfs_bio.c,v 1.225 1999/08/08 18:42:48 phk Exp $
  */
 
 /*
@@ -2972,10 +2972,11 @@ vfs_bio_clrbuf(struct buf *bp) {
 		}
 		ea = sa = bp->b_data;
 		for(i=0;i<bp->b_npages;i++,sa=ea) {
-			int j = ((u_long)sa & PAGE_MASK) / DEV_BSIZE;
+			int j = ((vm_offset_t)sa & PAGE_MASK) / DEV_BSIZE;
 			ea = (caddr_t)trunc_page((vm_offset_t)sa + PAGE_SIZE);
-			ea = (caddr_t)ulmin((u_long)ea,
-				(u_long)bp->b_data + bp->b_bufsize);
+			ea = (caddr_t)(vm_offset_t)ulmin(
+			    (u_long)(vm_offset_t)ea,
+			    (u_long)(vm_offset_t)bp->b_data + bp->b_bufsize);
 			mask = ((1 << ((ea - sa) / DEV_BSIZE)) - 1) << j;
 			if ((bp->b_pages[i]->valid & mask) == mask)
 				continue;

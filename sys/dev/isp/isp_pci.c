@@ -1,4 +1,4 @@
-/* $Id: isp_pci.c,v 1.29 1999/08/16 01:52:21 gibbs Exp $ */
+/* $Id: isp_pci.c,v 1.30 1999/08/16 19:52:29 mjacob Exp $ */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -576,7 +576,7 @@ isp_pci_attach(pcici_t cfid, int unit)
 		/*
 		 * poor man's attempt at pseudo randomness.
 		 */
-		long i = (long) isp;
+		long i = (intptr_t) isp;
 
 		i >>= 5;
 		i &= 0x7;
