@@ -64,8 +64,6 @@ static	d_close_t	promclose;
 static	d_read_t	promread;
 static	d_write_t	promwrite;
 static	d_ioctl_t	promioctl;
-static	d_stop_t	promstop;
-static	d_devtotty_t	promdevtotty;
 
 #define CDEV_MAJOR 97
 static struct cdevsw prom_cdevsw = {
@@ -74,10 +72,10 @@ static struct cdevsw prom_cdevsw = {
 	/* read */	promread,
 	/* write */	promwrite,
 	/* ioctl */	promioctl,
-	/* stop */	promstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	promdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"prom",
@@ -98,6 +96,7 @@ static struct callout_handle promtimeouthandle
 void	promstart __P((struct tty *));
 void	promtimeout __P((void *));
 int	promparam __P((struct tty *, struct termios *));
+void	promstop __P((struct tty *, int));
 
 int
 promopen(dev, flag, mode, p)
@@ -116,9 +115,11 @@ promopen(dev, flag, mode, p)
 	s = spltty();
 
 	tp = &prom_tty[unit];
+	dev->si_tty = tp;
 
 	tp->t_oproc = promstart;
 	tp->t_param = promparam;
+	tp->t_stop = promstop;
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
@@ -246,6 +247,7 @@ promstart(tp)
 void
 promstop(tp, flag)
 	struct tty *tp;
+	int flag;
 {
 	int s;
 
@@ -268,17 +270,6 @@ promtimeout(v)
 			(*linesw[tp->t_line].l_rint)(c, tp);
 	}
 	promtimeouthandle = timeout(promtimeout, tp, polltime);
-}
-
-struct tty *
-promdevtotty(dev)
-	dev_t dev;
-{
-
-	if (minor(dev) != 0)
-		panic("promtty: bogus");
-
-	return &prom_tty[0];
 }
 
 DEV_MODULE(prom, CDEV_MAJOR, NOMAJ, prom_cdevsw, 0, 0);

@@ -441,13 +441,6 @@ STATIC	d_close_t	stlclose;
 STATIC	d_read_t	stlread;
 STATIC	d_write_t	stlwrite;
 STATIC	d_ioctl_t	stlioctl;
-STATIC	d_stop_t	stlstop;
-
-#if VFREEBSD >= 220
-STATIC	d_devtotty_t	stldevtotty;
-#else
-struct tty		*stldevtotty(dev_t dev);
-#endif
 
 /*
  *	Internal function prototypes.
@@ -458,6 +451,7 @@ static int	stl_rawopen(stlport_t *portp);
 static int	stl_rawclose(stlport_t *portp);
 static int	stl_param(struct tty *tp, struct termios *tiosp);
 static void	stl_start(struct tty *tp);
+static void	stl_stop(struct tty *tp, int);
 static void	stl_ttyoptim(stlport_t *portp, struct termios *tiosp);
 static void	stl_dotimeout(void);
 static void	stl_poll(void *arg);
@@ -541,10 +535,10 @@ static struct cdevsw stl_cdevsw = {
 	/* read */	stlread,
 	/* write */	stlwrite,
 	/* ioctl */	stlioctl,
-	/* stop */	stlstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	stldevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"stl",
@@ -783,6 +777,7 @@ STATIC int stlopen(dev_t dev, int flag, int mode, struct proc *p)
 	if (portp == (stlport_t *) NULL)
 		return(ENXIO);
 	tp = &portp->tty;
+	dev->si_tty = tp;
 	callout = minor(dev) & STL_CALLOUTDEV;
 	error = 0;
 
@@ -806,6 +801,7 @@ stlopen_restart:
  */
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_oproc = stl_start;
+		tp->t_stop = stl_stop;
 		tp->t_param = stl_param;
 		tp->t_dev = dev;
 		tp->t_termios = callout ? portp->initouttios :
@@ -926,10 +922,10 @@ STATIC int stlread(dev_t dev, struct uio *uiop, int flag)
 
 #if VFREEBSD >= 220
 
-STATIC void stlstop(struct tty *tp, int rw)
+STATIC void stl_stop(struct tty *tp, int rw)
 {
 #if DEBUG
-	printf("stlstop(tp=%x,rw=%x)\n", (int) tp, rw);
+	printf("stl_stop(tp=%x,rw=%x)\n", (int) tp, rw);
 #endif
 
 	stl_flush((stlport_t *) tp, rw);
@@ -948,16 +944,6 @@ STATIC int stlstop(struct tty *tp, int rw)
 }
 
 #endif
-
-/*****************************************************************************/
-
-STATIC struct tty *stldevtotty(dev_t dev)
-{
-#if DEBUG
-	printf("stldevtotty(dev=%s)\n", devtoname(dev));
-#endif
-	return((struct tty *) stl_dev2port(dev));
-}
 
 /*****************************************************************************/
 

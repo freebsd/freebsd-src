@@ -192,6 +192,7 @@ static void fepcmd(struct dgm_p *port, unsigned cmd, unsigned op1, unsigned op2,
 	unsigned ncmds, unsigned bytecmd);
 
 static	void	dgmstart	__P((struct tty *tp));
+static	void	dgmstop		__P((struct tty *tp, int rw));
 static	int	dgmparam	__P((struct tty *tp, struct termios *t));
 static	void	dgmhardclose	__P((struct dgm_p *port));
 static	void	dgm_drain_or_flush	__P((struct dgm_p *port));
@@ -210,8 +211,6 @@ static	d_close_t	dgmclose;
 static	d_read_t	dgmread;
 static	d_write_t	dgmwrite;
 static	d_ioctl_t	dgmioctl;
-static	d_stop_t	dgmstop;
-static	d_devtotty_t	dgmdevtotty;
 
 #define	CDEV_MAJOR	101
 static struct cdevsw dgm_cdevsw = {
@@ -220,10 +219,10 @@ static struct cdevsw dgm_cdevsw = {
 	/* read */	dgmread,
 	/* write */	dgmwrite,
 	/* ioctl */	dgmioctl,
-	/* stop */	dgmstop,
+	/* stop */	nostop,
 	/* reset */	noreset,
-	/* devtotty */	dgmdevtotty,
-	/* poll */	ttpoll,
+	/* devtotty */	nodevtotty,
+	/* poll */	ttypoll,
 	/* mmap */	nommap,
 	/* strategy */	nostrategy,
 	/* name */	"dgm",
@@ -778,6 +777,7 @@ dgmopen(dev, flag, mode, p)
 		return 0;
 
 	tp=&sc->ttys[pnum];
+	dev->si_tty = tp;
 	port=&sc->ports[pnum];
 	bc=port->brdchan;
 
@@ -837,6 +837,7 @@ open_top:
 		 */
 		tp->t_oproc=dgmstart;
 		tp->t_param=dgmparam;
+		tp->t_stop=dgmstop;
 		tp->t_dev=dev;
 		tp->t_termios= (mynor & CALLOUT_MASK) ?
 							port->it_out :
@@ -1984,26 +1985,6 @@ dgmstop(tp, rw)
 	bmws_set(ws);
 	splx(s);
 	dgmstart(tp);
-}
-
-struct tty *
-dgmdevtotty(dev)
-	dev_t	dev;
-{
-	int mynor, pnum, unit;
-	struct dgm_softc *sc;
-
-	mynor = minor(dev);
-	if (mynor & CONTROL_MASK)
-		return (NULL);
-	unit = MINOR_TO_UNIT(mynor);
-	if ((u_int) unit >= NDGM)
-		return (NULL);
-	pnum = MINOR_TO_PORT(mynor);
-	sc = &dgm_softc[unit];
-	if (pnum >= sc->numports)
-		return (NULL);
-	return (&sc->ttys[pnum]);
 }
 
 static void 

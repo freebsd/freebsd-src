@@ -896,7 +896,7 @@ pppinput(c, tp)
 	if (c == tp->t_cc[VSTOP] && tp->t_cc[VSTOP] != _POSIX_VDISABLE) {
 	    if ((tp->t_state & TS_TTSTOP) == 0) {
 		tp->t_state |= TS_TTSTOP;
-		(*devsw(tp->t_dev)->d_stop)(tp, 0);
+		tp->t_stop(tp, 0);
 	    }
 	    return 0;
 	}

@@ -59,7 +59,7 @@ vesa_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	struct tty *tp;
 	int mode;
 
-	tp = scdevtotty(dev);
+	tp = dev->si_tty;
 	if (!tp)
 		return ENXIO;
 	scp = SC_STAT(tp->t_dev);

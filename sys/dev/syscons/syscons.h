@@ -418,7 +418,6 @@ void		sc_clear_screen(scr_stat *scp);
 void		sc_set_cursor_image(scr_stat *scp);
 int		sc_clean_up(scr_stat *scp);
 void		sc_alloc_scr_buffer(scr_stat *scp, int wait, int discard);
-struct tty	*scdevtotty(dev_t dev);
 #ifndef SC_NO_SYSMOUSE
 struct tty	*sc_get_mouse_tty(void);
 #endif /* SC_NO_SYSMOUSE */
