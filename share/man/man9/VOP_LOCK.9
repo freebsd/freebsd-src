@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_LOCK.9,v 1.3 1997/04/13 14:39:58 bde Exp $
+.\" $Id: VOP_LOCK.9,v 1.6 1999/03/26 02:11:59 bde Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -34,10 +34,12 @@
 .Sh NAME
 .Nm VOP_LOCK ,
 .Nm VOP_UNLOCK ,
-.Nm VOP_ISLOCKED
+.Nm VOP_ISLOCKED ,
+.Nm vn_lock
 .Nd serialize access to a vnode
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
+.Fd #include <sys/lock.h>
 .Fd #include <sys/vnode.h>
 .Ft int
 .Fn VOP_LOCK "struct vnode *vp" "int flags" "struct proc *p"
@@ -45,17 +47,59 @@
 .Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct proc *p"
 .Ft int
 .Fn VOP_ISLOCKED "struct vnode *vp"
+.Ft int
+.Fn vn_lock "struct vnode *vp" "int flags" "struct proc *p"
 .Sh DESCRIPTION
 .Pp
+These calls are used to serialize access to the filesystem, such as
+to prevent two writes to the same file from happening at the
+same time.
+.Pp
 The arguments are:
-.Bl -tag -width vp
+.Bl -tag -width flags
 .It Ar vp
 the vnode being locked or unlocked
+.It Ar flags
+One of the lock request types:
+.Bl -column LK_EXCLUPGRADE -offset indent
+.It Dv LK_SHARED Ta "Shared lock"
+.It Dv LK_EXCLUSIVE Ta "Exclusive lock"
+.It Dv LK_UPGRADE Ta "Shared-to-exclusive upgrade"
+.It Dv LK_EXCLUPGRADE Ta "First shared-to-exclusive upgrade"
+.It Dv LK_DOWNGRADE Ta "Exclusive-to-shared downgrade"
+.It Dv LK_RELEASE Ta "Release any type of lock"
+.It Dv LK_DRAIN Ta "Wait for all lock activity to end"
 .El
 .Pp
-These calls are used to serialize access to the filesystem, for
-instance to prevent two writes to the same file from happening at the
-same time.
+The lock type may be
+.Em or Ns 'ed
+with these lock flags:
+.Bl -column LK_CANRECURSE -offset indent
+.It Dv LK_NOWAIT Ta "Do not sleep to wait for lock"
+.It Dv LK_SLEEPFAIL Ta "Sleep, then return failure"
+.It Dv LK_CANRECURSE Ta "Allow recursive exclusive lock"
+.It Dv LK_REENABLE Ta "Lock is to be reenabled after drain"
+.It Dv LK_NOPAUSE Ta "No spinloop"
+.El
+.Pp
+The lock type may be
+.Em or Ns 'ed
+with these control flags:
+.Bl -column LK_INTERLOCK -offset indent
+.It Dv LK_INTERLOCK Ta "Specify when the caller already has a simple lock \
+(VOP_LOCK will unlock the simple lock after getting the lock)"
+.It Dv LK_RETRY Ta "Retry until locked"
+.It Dv LK_NOOBJ Ta "Don't create object"
+.El
+.It Ar p
+process context to use for the locks
+.El
+.Pp
+Kernel code should use
+.Fn vn_lock
+to lock a vnode rather than calling
+.Fn VOP_LOCK
+directly.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
 .Sh PSEUDOCODE

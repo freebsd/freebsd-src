@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: BUS_READ_IVAR.9,v 1.2 1999/03/06 17:21:14 bde Exp $
 .\"
 .Dd June 16, 1998
 .Os
@@ -40,9 +40,9 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
 .Ft int
-.Fn BUS_READ_IVAR "device_t dev" "device_t child" "int index" "u_long *result"
+.Fn BUS_READ_IVAR "device_t dev" "device_t child" "int index" "uintptr_t *result"
 .Ft int
-.Fn BUS_WRITE_IVAR "device_t dev" "device_t child" "int index" "u_long value"
+.Fn BUS_WRITE_IVAR "device_t dev" "device_t child" "int index" "uintptr_t value"
 .Sh DESCRIPTION
 .Pp
 These two methods manage a bus specific set of instance variables of

@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: bus_generic_read_ivar.9,v 1.2 1999/03/06 17:18:10 bde Exp $
 .\"
 .Dd June 16, 1998
 .Os
@@ -44,9 +44,9 @@ for busses
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
 .Ft int
-.Fn bus_generic_read_ivar "device_t dev" "device_t child" "int index" "u_long *result"
+.Fn bus_generic_read_ivar "device_t dev" "device_t child" "int index" "uintptr_t *result"
 .Ft int
-.Fn bus_generic_write_ivar "device_t dev" "device_t child" "int index" "u_long value"
+.Fn bus_generic_write_ivar "device_t dev" "device_t child" "int index" "uintptr_t value"
 .Sh DESCRIPTION
 .Pp
 These functions simply return

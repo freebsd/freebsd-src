@@ -25,26 +25,26 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: devfs_link.9,v 1.9 1998/05/06 09:13:53 phk Exp $
+.\" $Id: devfs_link.9,v 1.11 1999/03/06 17:37:20 bde Exp $
 .\"
 .Dd December 31, 1995
 .Os FreeBSD
 .Dt DEVFS_LINK 9
 .Sh NAME
-.Nm devfs_link
+.Nm devfs_makelink
 .Nd make a hard link for a devfs entry
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/devfsext.h>
 .Ft void *
-.Fn devfs_link "void *original" "char *fmt" ...
+.Fn devfs_makelink "void *original" "char *fmt" ...
 .Sh DESCRIPTION
 The function
 .Nm
 takes a token from a previous call to
 .Fn devfs_add_devswf
 or
-.Fn devfs_link
+.Fn devfs_makelink
 as argument, and links it to an alias location denoted by
 .Ar fmt
 string.
