@@ -108,6 +108,8 @@ struct acpi_cmbat_softc {
 	ACPI_BUFFER	bst_buffer;
 	struct timespec	bif_lastupdated;
 	struct timespec	bst_lastupdated;
+	int		bif_updating;
+	int		bst_updating;
 
 	int		not_present;
 	int		cap;
@@ -195,42 +197,17 @@ acpi_cmbat_get_bst(void *context)
 		return;
 	}
 
-	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
-retry:
-	if (sc->bst_buffer.Length == 0) {
-		if (sc->bst_buffer.Pointer != NULL) {
-			free(sc->bst_buffer.Pointer, M_ACPICMBAT);
-			sc->bst_buffer.Pointer = NULL;
-		}
-		as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bst_buffer);
-		if (as != AE_BUFFER_OVERFLOW) {
-			ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-			    "couldn't find _BST - %s\n", AcpiFormatException(as));
-			goto end;
-		}
-
-		sc->bst_buffer.Pointer = malloc(sc->bst_buffer.Length, M_ACPICMBAT, M_NOWAIT);
-		if (sc->bst_buffer.Pointer == NULL) {
-			device_printf(dev, "malloc failed");
-			goto end;
-		}
+	if (sc->bst_updating) {
+		return;
 	}
+	sc->bst_updating = 1;
 
-	bzero(sc->bst_buffer.Pointer, sc->bst_buffer.Length);
-	as = AcpiEvaluateObject(h, "_BST", NULL, &sc->bst_buffer);
+	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
 
-	if (as == AE_BUFFER_OVERFLOW) {
-		if (sc->bst_buffer.Pointer != NULL) {
-			free(sc->bst_buffer.Pointer, M_ACPICMBAT);
-			sc->bst_buffer.Pointer = NULL;
-		}
+	if ((as = acpi_EvaluateIntoBuffer(h, "_BST", NULL, &sc->bst_buffer)) != AE_OK) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "bst size changed to %d\n", sc->bst_buffer.Length);
-		sc->bst_buffer.Length = 0;
-		goto retry;
-	} else if (as != AE_OK) {
-		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "couldn't find _BST - %s\n", AcpiFormatException(as));
+		    "error fetching current battery status -- %s\n",
+		    AcpiFormatException(as));
 		goto end;
 	}
 
@@ -248,6 +225,7 @@ retry:
 	PKG_GETINT(res, tmp, 3, sc->bst.volt, end);
 	acpi_cmbat_info_updated(&sc->bst_lastupdated);
 end:
+	sc->bst_updating = 0;
 	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
@@ -268,42 +246,17 @@ acpi_cmbat_get_bif(void *context)
 		return;
 	}
 
-	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
-retry:
-	if (sc->bif_buffer.Length == 0) {
-		if (sc->bif_buffer.Pointer != NULL) {
-			free(sc->bif_buffer.Pointer, M_ACPICMBAT);
-			sc->bif_buffer.Pointer = NULL;
-		}
-		as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
-		if (as != AE_BUFFER_OVERFLOW) {
-			ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-			    "couldn't find _BIF - %s\n", AcpiFormatException(as));
-			goto end;
-		}
-
-		sc->bif_buffer.Pointer = malloc(sc->bif_buffer.Length, M_ACPICMBAT, M_NOWAIT);
-		if (sc->bif_buffer.Pointer == NULL) {
-			device_printf(dev, "malloc failed");
-			goto end;
-		}
+	if (sc->bif_updating) {
+		return;
 	}
+	sc->bif_updating = 1;
 
-	bzero(sc->bif_buffer.Pointer, sc->bif_buffer.Length);
-	as = AcpiEvaluateObject(h, "_BIF", NULL, &sc->bif_buffer);
+	untimeout(acpi_cmbat_timeout, (caddr_t)dev, sc->cmbat_timeout);
 
-	if (as == AE_BUFFER_OVERFLOW) {
-		if (sc->bif_buffer.Pointer != NULL) {
-			free(sc->bif_buffer.Pointer, M_ACPICMBAT);
-			sc->bif_buffer.Pointer = NULL;
-		}
+	if ((as = acpi_EvaluateIntoBuffer(h, "_BIF", NULL, &sc->bif_buffer)) != AE_OK) {
 		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "bif size changed to %d\n", sc->bif_buffer.Length);
-		sc->bif_buffer.Length = 0;
-		goto retry;
-	} else if (as != AE_OK) {
-		ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
-		    "couldn't find _BIF - %s\n", AcpiFormatException(as));
+		    "error fetching current battery info -- %s\n",
+		    AcpiFormatException(as));
 		goto end;
 	}
 
@@ -330,6 +283,7 @@ retry:
 	PKG_GETSTR(res, tmp, 12, sc->bif.oeminfo, ACPI_CMBAT_MAXSTRLEN, end);
 	acpi_cmbat_info_updated(&sc->bif_lastupdated);
 end:
+	sc->bif_updating = 0;
 	sc->cmbat_timeout = timeout(acpi_cmbat_timeout, dev, CMBAT_POLLRATE);
 }
 
@@ -391,6 +345,7 @@ acpi_cmbat_attach(device_t dev)
 
 	bzero(&sc->bif_buffer, sizeof(sc->bif_buffer));
 	bzero(&sc->bst_buffer, sizeof(sc->bst_buffer));
+	sc->bif_updating = sc->bst_updating = 0;
 	sc->dev = dev;
 
 	timespecclear(&sc->bif_lastupdated);

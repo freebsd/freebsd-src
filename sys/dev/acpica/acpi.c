@@ -471,6 +471,12 @@ acpi_attach(device_t dev)
 	acpi_EnterDebugger();
 #endif
 
+#if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
+    if ((error = acpi_task_thread_init())) {
+	goto out;
+    }
+#endif
+
     if ((error = acpi_machdep_init(dev))) {
 	goto out;
     }
@@ -1078,7 +1084,7 @@ acpi_GetTableIntoBuffer(ACPI_TABLE_TYPE table, UINT32 instance, ACPI_BUFFER *buf
 
 /*
  * Perform the tedious double-evaluate procedure for evaluating something into
- * an ACPI_BUFFER that has not been initialised.  Note that this evaluates
+ * an ACPI_BUFFER if it has not been initialised.  Note that this evaluates
  * twice, so avoid applying this to things that may have side-effects.
  *
  * This is like AcpiEvaluateObject with automatic buffer allocation.
@@ -1091,11 +1097,10 @@ acpi_EvaluateIntoBuffer(ACPI_HANDLE object, ACPI_STRING pathname, ACPI_OBJECT_LI
     
     ACPI_ASSERTLOCK;
 
-    buf->Length = 0;
-    buf->Pointer = NULL;
-
     if ((status = AcpiEvaluateObject(object, pathname, params, buf)) != AE_BUFFER_OVERFLOW)
 	return(status);
+    if (buf->Pointer != NULL)
+	AcpiOsFree(buf->Pointer);
     if ((buf->Pointer = AcpiOsCallocate(buf->Length)) == NULL)
 	return(AE_NO_MEMORY);
     return(AcpiEvaluateObject(object, pathname, params, buf));
@@ -1109,8 +1114,7 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 {
     ACPI_STATUS	error;
     ACPI_BUFFER	buf;
-    ACPI_OBJECT	param, *p;
-    int		i;
+    ACPI_OBJECT	param;
 
     ACPI_ASSERTLOCK;
 
@@ -1144,23 +1148,33 @@ acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number)
 	    error = AE_NO_MEMORY;
 	} else {
 	    if ((error = AcpiEvaluateObject(handle, path, NULL, &buf)) == AE_OK) {
-		p = (ACPI_OBJECT *)buf.Pointer;
-		if (p->Type != ACPI_TYPE_BUFFER) {
-		    error = AE_TYPE;
-		} else {
-		    if (p->Buffer.Length > sizeof(int)) {
-			error = AE_BAD_DATA;
-		    } else {
-			*number = 0;
-			for (i = 0; i < p->Buffer.Length; i++)
-			    *number += (*(p->Buffer.Pointer + i) << (i * 8));
-		    }
-		}
+		error = acpi_ConvertBufferToInteger(&buf, number);
 	    }
 	}
 	AcpiOsFree(buf.Pointer);
     }
     return(error);
+}
+
+ACPI_STATUS
+acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp, int *number)
+{
+    ACPI_OBJECT	*p;
+    int		i;
+
+    p = (ACPI_OBJECT *)bufp->Pointer;
+    if (p->Type == ACPI_TYPE_INTEGER) {
+	*number = p->Integer.Value;
+	return(AE_OK);
+    }
+    if (p->Type != ACPI_TYPE_BUFFER)
+	return(AE_TYPE);
+    if (p->Buffer.Length > sizeof(int))
+	return(AE_BAD_DATA);
+    *number = 0;
+    for (i = 0; i < p->Buffer.Length; i++)
+	*number += (*(p->Buffer.Pointer + i) << (i * 8));
+    return(AE_OK);
 }
 
 /*

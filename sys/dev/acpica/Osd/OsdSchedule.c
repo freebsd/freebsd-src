@@ -33,11 +33,23 @@
 
 #include "acpi.h"
 
+#include "opt_acpi.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
 #include <machine/clock.h>
+
+#include <sys/bus.h>
+
+#include <dev/acpica/acpivar.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
 MODULE_NAME("SCHEDULE")
@@ -45,9 +57,6 @@ MODULE_NAME("SCHEDULE")
 /*
  * This is a little complicated due to the fact that we need to build and then
  * free a 'struct task' for each task we enqueue.
- *
- * We use the default taskqueue_swi queue, since it really doesn't matter what
- * else we're queued along with.
  */
 
 MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
@@ -59,6 +68,95 @@ struct acpi_task {
     OSD_EXECUTION_CALLBACK	at_function;
     void			*at_context;
 };
+
+struct acpi_task_queue {
+    STAILQ_ENTRY(acpi_task_queue) at_q;
+    struct acpi_task		*at;
+};
+
+/*
+ * Private task queue definition for ACPI
+ */
+TASKQUEUE_DECLARE(acpi);
+static void	*taskqueue_acpi_ih;
+
+static void
+taskqueue_acpi_enqueue(void *context)
+{  
+    swi_sched(taskqueue_acpi_ih, SWI_NOSWITCH);
+}
+
+static void
+taskqueue_acpi_run(void *dummy)
+{
+    taskqueue_run(taskqueue_acpi);
+}
+
+TASKQUEUE_DEFINE(acpi, taskqueue_acpi_enqueue, 0,
+		 swi_add(NULL, "acpitaskq", taskqueue_acpi_run, NULL,
+		     SWI_TQ, 0, &taskqueue_acpi_ih));
+
+#if defined(ACPI_MAX_THREADS) && ACPI_MAX_THREADS > 0
+#define ACPI_USE_THREADS
+#endif
+
+#ifdef ACPI_USE_THREADS
+STAILQ_HEAD(, acpi_task_queue) acpi_task_queue;
+static struct mtx	acpi_task_mtx;
+
+static void
+acpi_task_thread(void *arg)
+{
+    struct acpi_task_queue	*atq;
+    OSD_EXECUTION_CALLBACK	Function;
+    void			*Context;
+
+    for (;;) {
+	mtx_lock(&acpi_task_mtx);
+	if ((atq = STAILQ_FIRST(&acpi_task_queue)) == NULL) {
+	    msleep(&acpi_task_queue, &acpi_task_mtx, PCATCH, "actask", 0);
+	    mtx_unlock(&acpi_task_mtx);
+	    continue;
+	}
+
+	STAILQ_REMOVE_HEAD(&acpi_task_queue, at_q);
+	mtx_unlock(&acpi_task_mtx);
+
+	Function = (OSD_EXECUTION_CALLBACK)atq->at->at_function;
+	Context = atq->at->at_context;
+
+	mtx_lock(&Giant);
+	Function(Context);
+
+	free(atq->at, M_ACPITASK);
+	free(atq, M_ACPITASK);
+	mtx_unlock(&Giant);
+    }
+
+    kthread_exit(0);
+}
+
+int
+acpi_task_thread_init(void)
+{
+    int		i, err;
+    struct proc	*acpi_kthread_proc;
+
+    err = 0;
+    STAILQ_INIT(&acpi_task_queue);
+    mtx_init(&acpi_task_mtx, "ACPI task", MTX_DEF);
+
+    for (i = 0; i < ACPI_MAX_THREADS; i++) {
+	err = kthread_create(acpi_task_thread, NULL, &acpi_kthread_proc,
+			     0, "acpi_task%d", i);
+	if (err != 0) {
+	    printf("%s: kthread_create failed(%d)\n", __func__, err);
+	    break;
+	}
+    }
+    return (err);
+}
+#endif
 
 ACPI_STATUS
 AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *Context)
@@ -97,25 +195,46 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
     }
     TASK_INIT(&at->at_task, pri, AcpiOsExecuteQueue, at);
 
-    taskqueue_enqueue(taskqueue_swi, (struct task *)at);
+    taskqueue_enqueue(taskqueue_acpi, (struct task *)at);
     return_ACPI_STATUS(AE_OK);
 }
 
 static void
 AcpiOsExecuteQueue(void *arg, int pending)
 {
-    struct acpi_task		*at = (struct acpi_task *)arg;
+    struct acpi_task		*at;
+    struct acpi_task_queue	*atq;
     OSD_EXECUTION_CALLBACK	Function;
     void			*Context;
 
     FUNCTION_TRACE(__func__);
 
+    at = (struct acpi_task *)arg;
+    atq = NULL;
+    Function = NULL;
+    Context = NULL;
+
+#ifdef ACPI_USE_THREADS
+    atq = malloc(sizeof(*atq), M_ACPITASK, M_NOWAIT);
+    if (atq == NULL) {
+	printf("%s: no memory\n", __func__);
+	return;
+    }
+
+    atq->at = at;
+
+    mtx_lock(&acpi_task_mtx);
+    STAILQ_INSERT_TAIL(&acpi_task_queue, atq, at_q);
+    mtx_unlock(&acpi_task_mtx);
+    wakeup_one(&acpi_task_queue);
+#else
     Function = (OSD_EXECUTION_CALLBACK)at->at_function;
     Context = at->at_context;
 
-    free(at, M_ACPITASK);
-
     Function(Context);
+    free(at, M_ACPITASK);
+#endif
+
     return_VOID;
 }
 
