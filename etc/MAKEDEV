@@ -85,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.89 1995/05/01 14:34:45 dufault Exp $
+#	$Id: MAKEDEV,v 1.90 1995/05/03 18:15:35 dufault Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -697,22 +697,24 @@ ttyc?)
 	chown root.wheel tty*c$unit
 	;;
 
-cuar?)
+# RISCom8 'rc' driver entries
+
+cuam?)
 	umask 7
 	unit=`expr $i : 'cua.*\(.\)$'`
-	rm -f cuar$unit
+	rm -f cuam$unit
 	m=`ttyminor $unit`
-	mknod cuar$unit c 63 `expr $m + 128`
-	chown uucp.dialer cuar$unit
+	mknod cuam$unit c 63 `expr $m + 128`
+	chown uucp.dialer cuam$unit
 	umask 77
 	;;
 
-ttyr?)
+ttym?)
 	unit=`expr $i : 'tty.*\(.\)$'`
-	rm -f ttyr$unit
+	rm -f ttym$unit
 	m=`ttyminor $unit`
-	mknod ttyr$unit c 63 $m
-	chown root.wheel ttyr$unit
+	mknod ttym$unit c 63 $m
+	chown root.wheel ttym$unit
 	;;
 
 mse*)
