@@ -223,7 +223,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 void
 daytime_stream(s, sep)		/* Return human-readable time of day */
 	int s;
-	struct servtab *sep;
+	struct servtab *sep __unused;
 {
 	char buffer[256];
 	time_t now;
@@ -243,7 +243,7 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 void
 discard_dg(s, sep)		/* Discard service -- ignore data */
 	int s;
-	struct servtab *sep;
+	struct servtab *sep __unused;
 {
 	char buffer[BUFSIZE];
 
@@ -737,7 +737,7 @@ machtime_dg(s, sep)
 void
 machtime_stream(s, sep)
 	int s;
-	struct servtab *sep;
+	struct servtab *sep __unused;
 {
 	unsigned long result;
 
