@@ -122,9 +122,17 @@ distribution:
 	    ln ${DESTDIR}/root/.profile ${DESTDIR}/.profile
 	cd ${.CURDIR}/mtree; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${MTREE} ${DESTDIR}/etc/mtree
-.if !defined(NO_BIND_ETC) && !defined(NO_BIND)
+.if !defined(NO_BIND)
+.if !defined(NO_BIND_ETC)
 	cd ${.CURDIR}/namedb; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${NAMEDB} ${DESTDIR}/var/named/etc/namedb
+.endif
+.if !defined(NO_BIND_MTREE)
+	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
+		set -x; \
+		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
+	fi
+.endif
 .endif
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
@@ -184,9 +192,10 @@ distrib-dirs:
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.include.dist \
 	    -p ${DESTDIR}/usr/include
 .endif
+.if !defined(NO_BIND_MTREE)
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
 	    -p ${DESTDIR}/var/named
-	ln -fhs /var/named/etc/namedb ${DESTDIR}/etc/namedb
+.endif
 .endif
 .if !defined(NO_SENDMAIL)
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/

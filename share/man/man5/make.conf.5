@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2004
+.Dd October 5, 2004
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -612,12 +612,23 @@ and
 .It Va NO_BIND_ETC
 .Pq Vt bool
 Set to avoid installing the default files to
-.Pa /etc/namedb .
+.Pa /var/named/etc/namedb .
 .It Va NO_BIND_LIBS_LWRES
 .Pq Vt bool
 Set to avoid installing the lightweight resolver library in
 .Pa /usr/lib .
 The library that is private to the build system may still be built as needed.
+.It Va NO_BIND_MTREE
+.Pq Vt bool
+Set to avoid running
+.Xr mtree 8
+to create the chroot directory structure under
+.Pa /var/named ,
+and avoid creating an
+.Pa /etc/namedb
+symlink to the chroot directory.
+This option should typically be used together with
+.Vt NO_BIND_ETC .
 .It Va NO_BIND_NAMED
 .Pq Vt bool
 Set to avoid building or installing
