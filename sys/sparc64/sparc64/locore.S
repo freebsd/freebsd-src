@@ -26,7 +26,10 @@
  * $FreeBSD$
  */
 
+#include <sys/syscall.h>
+
 #include <machine/asmacros.h>
+#include <machine/pstate.h>
 
 #include "assym.s"
 
@@ -40,7 +43,7 @@ ENTRY(_start)
 	flushw
 	wrpr	%g0, 1, %cwp
 	wrpr	%g0, 0, %cleanwin
-	wrpr	%g0, 13, %pil
+	wrpr	%g0, 0, %pil
 
 	setx	user0 + UPAGES * PAGE_SIZE - SPOFF, %l0, %o5
 	save	%o5, -CCFSZ, %sp
@@ -54,7 +57,15 @@ ENTRY(_start)
 END(_start)
 
 ENTRY(sigcode)
-	illtrap
+	call	%o4
+	 nop
+	add	%sp, SPOFF + SF_UC, %o0
+	mov	SYS_sigreturn, %g1
+	ta	%xcc, 9
+	mov	SYS_exit, %g1
+	ta	%xcc, 9
+1:	b	%xcc, 1b
+	 nop
 esigcode:
 END(sigcode)
 
