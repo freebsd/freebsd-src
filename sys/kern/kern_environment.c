@@ -36,11 +36,14 @@
  * the kernel.
  */
 
+#include "opt_mac.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
@@ -90,6 +93,11 @@ kenv(td, uap)
 
 	error = 0;
 	if (SCARG(uap, what) == KENV_DUMP) {
+#ifdef MAC
+		error = mac_check_kenv_dump(td->td_ucred);
+		if (error)
+			return (error);
+#endif
 		len = 0;
 		/* Return the size if called with a NULL buffer */
 		if (SCARG(uap, value) == NULL) {
@@ -131,6 +139,11 @@ kenv(td, uap)
 
 	switch (SCARG(uap, what)) {
 	case KENV_GET:
+#ifdef MAC
+		error = mac_check_kenv_get(td->td_ucred, name);
+		if (error)
+			goto done;
+#endif
 		value = getenv(name);
 		if (value == NULL) {
 			error = ENOENT;
@@ -159,10 +172,19 @@ kenv(td, uap)
 			free(value, M_TEMP);
 			goto done;
 		}
-		setenv(name, value);
+#ifdef MAC
+		error = mac_check_kenv_set(td->td_ucred, name, value);
+		if (error == 0)
+#endif
+			setenv(name, value);
 		free(value, M_TEMP);
 		break;
 	case KENV_UNSET:
+#ifdef MAC
+		error = mac_check_kenv_unset(td->td_ucred, name);
+		if (error)
+			goto done;
+#endif
 		error = unsetenv(name);
 		if (error)
 			error = ENOENT;
