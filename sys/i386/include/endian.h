@@ -83,8 +83,10 @@ __uint8_swap_uint32(__uint32_t __x)
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 	__asm ("bswap %0" : "=r" (__x) : "0" (__x));
 #else
-	__asm ("xchgb %h1, %b1\n\trorl $16, %1\n\txchgb %h1, %b1"
-	    : "=q" (__x) : "0" (__x));
+	__asm ("xchgb %h1, %b1\n\t"
+	       "rorl $16, %1\n\t"
+	       "xchgb %h1, %b1"
+	       : "=q" (__x) : "0" (__x));
 #endif
 	return __x;
 }
