@@ -1,4 +1,4 @@
-.\" $Id: pppctl.8,v 1.1.2.1 1997/06/28 01:08:58 brian Exp $
+.\" $Id: pppctl.8,v 1.1.2.2 1997/08/14 01:47:53 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -65,9 +65,90 @@ Specify the password required by the
 daemon.  If this switch is not used,
 .Nm
 will prompt for a password once it has successfully connected to
-.Nm ppp
-(assuming, of course, that one is required).
+.Nm ppp .
 .El
+
+.Sh EXAMPLES
+Assuming you want to run
+.Nm ppp
+in
+.Fl auto
+mode, 
+.Nm
+can be used to automate many frequent tasks.  Use of the
+.Fl p
+option is discouraged (even in scripts that aren't readably by others)
+as a
+.Xr ps 1
+listing may reveal your secret.
+.Pp
+In order to have
+.Nm ppp
+create a socket for use with
+.Nm pppctl ,
+you will need to define a password for your local system:
+.Bd -literal -offset indent
+# touch /etc/ppp/ppp.secret
+# chown root.wheel /etc/ppp/ppp.secret
+# chmod 400 /etc/ppp/ppp.secret
+# echo "`hostname -s` MyPassword" >>/etc/ppp/ppp.secret
+.Ed
+
+.Pp
+The most secure way to allow easy, secure
+.Nm
+access, and to make sure you can distinguish between multiple invocations
+of
+.Nm ppp
+is to create a local server socket in
+.Pa /etc/ppp/ppp.conf
+(in the correct section):
+
+.Bd -literal -offset indent
+set server /var/run/internet 0666
+.Ed
+
+This will instruct
+.Nm ppp
+to create a local domain socket rather than the tcp socket that's created
+by default.  Refer to the
+.Xr ppp 8
+man page for further details.
+
+.Pp
+You can now create some easy-access scripts.  To connect to the internet:
+
+.Bd -literal -offset indent
+#! /bin/sh
+test $# -eq 0 && time=300 || time=$1
+exec pppctl -t 60 /var/run/internet set timeout $time\\; dial
+.Ed
+
+.Pp
+To disconnect:
+.Bd -literal -offset indent
+#! /bin/sh
+exec pppctl /var/run/internet set timeout 300\\; close
+.Ed
+
+.Pp
+To check if the line is up:
+.Bd -literal -offset indent
+#! /bin/sh
+pppctl -p '' -v /var/run/internet '' | grep ^PPP >/dev/null
+if [ $? -eq 0 ]; then
+  echo Link is up
+else
+  echo Link is down
+fi
+.Ed
+
+.Pp
+You can even make a generic script:
+.Bd -literal -offset indent
+#! /bin/sh
+exec pppctl /var/run/internet "$@"
+.Ed
 
 .Sh SEE ALSO
 .Xr ppp 8 ,
