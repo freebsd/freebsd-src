@@ -26,10 +26,7 @@
  * $FreeBSD$
  */
 
-#include "sc.h"
 #include "opt_syscons.h"
-
-#if NSC > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1106,5 +1103,3 @@ kanji_convert(u_char mode, u_char h, u_char l)
 #endif /* KANJI */
 
 #endif /* SC_DUMB_TERMINAL */
-
-#endif /* NSC > 0 */
