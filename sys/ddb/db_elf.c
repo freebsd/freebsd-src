@@ -402,7 +402,7 @@ kdb_init(void)
 	elf.e_ident[EI_MAG1] = ELFMAG1;
 	elf.e_ident[EI_MAG2] = ELFMAG2;
 	elf.e_ident[EI_MAG3] = ELFMAG3;
-	elf.e_machine = EM_486;
+	elf.e_machine = ELF_ARCH;
 	elf.e_shoff = (uintptr_t)(void *)&sh[0] - (uintptr_t)(void *)&elf;
 	sh[0].sh_type = SHT_SYMTAB;
 	sh[0].sh_offset = (uintptr_t)ksym_start + sizeof(long) -
