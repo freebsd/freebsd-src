@@ -11,7 +11,7 @@ MAN8=	sshd.8
 
 SRCS=	sshd.c auth-rhosts.c auth-passwd.c auth-rsa.c auth-rh-rsa.c \
 	pty.c log-server.c login.c servconf.c serverloop.c \
-	login_access.c
+	auth.c auth1.c auth2.c session.c login_access.c
 
 CFLAGS+= -DLIBWRAP -DLOGIN_ACCESS -I${LOGINSRC}
 
@@ -36,6 +36,10 @@ SRCS+=	auth-krb5.c
 LDADD+=	 -lkrb5 -lasn1 -lcom_err -lmd -L${.OBJDIR}/../../../kerberos5/lib/libroken -lroken
 DPADD+=	 ${LIBKRB5} ${LIBCOM_ERR} ${LIBASN1} ${LIBMD}
 .endif # MAKE_KERBEROS5
+
+CFLAGS+= -DSKEY
+LDADD+=	-lopie
+DPADD+=	${LIBOPIE}
 
 .include <bsd.prog.mk>
 
