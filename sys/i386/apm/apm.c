@@ -13,7 +13,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.28 1996/03/18 21:58:22 nate Exp $
+ *	$Id: apm.c,v 1.29 1996/03/18 22:29:48 nate Exp $
  */
 
 #include "apm.h"
@@ -722,6 +722,7 @@ apmattach(struct isa_device *dvp)
 	printf("apm: CS_limit=%x, DS_limit=%x\n", sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
+	/* Workaround for some buggy APM BIOS implementations */
 	sc->cs_limit = 0xffff;
 	sc->ds_limit = 0xffff;
 
@@ -782,6 +783,7 @@ apmattach(struct isa_device *dvp)
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
 	apm_event_enable(sc);
+	kdc_apm.kdc_state = DC_IDLE;
 
 	sc->initialized = 1;
 
