@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.9 1995/05/04 07:00:53 phk Exp $
+ * $Id: create_chunk.c,v 1.10 1995/05/06 03:28:28 phk Exp $
  *
  */
 
@@ -55,6 +55,7 @@ Fixup_FreeBSD_Names(struct disk *d, struct chunk *c)
 
 	/* Try to give them the same as they had before */
 	for (c1 = c->part; c1 ; c1 = c1->next) {
+		if (!strcmp(c->name,"X")) continue;
 		for(c3 = c->part; c3 ; c3 = c3->next) 
 			if (c1 != c3 && !strcmp(c3->name, c1->oname)) {
 				goto newname;
