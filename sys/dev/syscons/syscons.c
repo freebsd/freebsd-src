@@ -3068,12 +3068,7 @@ next_code:
 
 	    case PASTE:
 #ifndef SC_NO_CUTPASTE
-	    /* XXX need to set MOUSE_VISIBLE flag 'cause sc_mouse_paste() */
-	    /* and sc_paste() will not operate without it. */
-		i = scp->status;
-		scp->status |= MOUSE_VISIBLE;
 		sc_mouse_paste(scp);
-		scp->status = i;
 #endif
 		break;
 
@@ -3367,14 +3362,12 @@ sc_paste(scr_stat *scp, u_char *p, int count)
     struct tty *tp;
     u_char *rmap;
 
-    if (scp->status & MOUSE_VISIBLE) {
-	tp = VIRTUAL_TTY(scp->sc, scp->sc->cur_scp->index);
-	if (!(tp->t_state & TS_ISOPEN))
-	    return;
-	rmap = scp->sc->scr_rmap;
-	for (; count > 0; --count)
-	    (*linesw[tp->t_line].l_rint)(rmap[*p++], tp);
-    }
+    tp = VIRTUAL_TTY(scp->sc, scp->sc->cur_scp->index);
+    if (!(tp->t_state & TS_ISOPEN))
+	return;
+    rmap = scp->sc->scr_rmap;
+    for (; count > 0; --count)
+	(*linesw[tp->t_line].l_rint)(rmap[*p++], tp);
 }
 
 void
