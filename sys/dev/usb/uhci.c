@@ -1,4 +1,4 @@
-/*	$NetBSD: uhci.c,v 1.158 2002/03/17 18:02:53 augustss Exp $	*/
+/*	$NetBSD: uhci.c,v 1.159 2002/05/19 06:24:32 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1627,7 +1627,7 @@ uhci_alloc_std(uhci_softc_t *sc)
 			return (0);
 		for(i = 0; i < UHCI_STD_CHUNK; i++) {
 			offs = i * UHCI_STD_SIZE;
-			std = (uhci_soft_td_t *)((char *)KERNADDR(&dma, offs));
+			std = KERNADDR(&dma, offs);
 			std->physaddr = DMAADDR(&dma, offs);
 			std->link.std = sc->sc_freetds;
 			sc->sc_freetds = std;
@@ -1670,7 +1670,7 @@ uhci_alloc_sqh(uhci_softc_t *sc)
 			return (0);
 		for(i = 0; i < UHCI_SQH_CHUNK; i++) {
 			offs = i * UHCI_SQH_SIZE;
-			sqh = (uhci_soft_qh_t *)((char *)KERNADDR(&dma, offs));
+			sqh = KERNADDR(&dma, offs);
 			sqh->physaddr = DMAADDR(&dma, offs);
 			sqh->hlink = sc->sc_freeqhs;
 			sc->sc_freeqhs = sqh;
