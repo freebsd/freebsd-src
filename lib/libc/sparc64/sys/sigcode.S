@@ -29,7 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "assym.s"
 
-ENTRY(__sigcode)
+ENTRY(__sigtramp)
 	call	%o4
 	 nop
 	call	sigreturn
@@ -37,4 +37,4 @@ ENTRY(__sigcode)
 	call	exit
 	 mov	1, %o0
 	illtrap
-END(__sigcode)
+END(__sigtramp)
