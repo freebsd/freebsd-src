@@ -218,7 +218,7 @@ msgNotify(char *fmt, ...)
     dialog_msgbox(NULL, errstr, -1, -1, 0);
 }
 
-/* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
+/* Put up a message in a popup yes/no box and return 0 for YES, 1 for NO */
 int
 msgYesNo(char *fmt, ...)
 {
@@ -238,13 +238,13 @@ msgYesNo(char *fmt, ...)
 	msgInfo(NULL);
     }
     if (variable_get(VAR_NONINTERACTIVE))
-	return 1;	/* If non-interactive, return YES all the time */
+	return 0;	/* If non-interactive, return YES all the time */
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
     restorescr(w);
     return ret;
 }
 
-/* Put up a message in a popup no/yes box and return 1 for YES, 0 for NO */
+/* Put up a message in a popup no/yes box and return 0 for YES, 1 for NO */
 int
 msgNoYes(char *fmt, ...)
 {
@@ -264,7 +264,7 @@ msgNoYes(char *fmt, ...)
 	msgInfo(NULL);
     }
     if (variable_get(VAR_NONINTERACTIVE))
-	return 0;	/* If non-interactive, return NO all the time */
+	return 1;	/* If non-interactive, return NO all the time */
     ret = dialog_noyes("User Confirmation Requested", errstr, -1, -1);
     restorescr(w);
     return ret;
