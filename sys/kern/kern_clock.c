@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.71 1998/06/07 08:40:41 phk Exp $
+ * $Id: kern_clock.c,v 1.72 1998/06/07 20:36:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -73,7 +73,7 @@ SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
 static void tco_forward __P((void));
 static void tco_setscales __P((struct timecounter *tc));
-static __inline unsigned tco_getdelta __P((struct timecounter *tc));
+static __inline unsigned tco_delta __P((struct timecounter *tc));
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 #if defined(SMP) && defined(BETTER_CLOCK)
@@ -495,10 +495,11 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 	0, 0, sysctl_kern_clockrate, "S,clockinfo","");
 
 static __inline unsigned
-tco_getdelta(struct timecounter *tc)
+tco_delta(struct timecounter *tc)
 {
 
-	return ((tc->get_timecount(tc) - tc->offset_count) & tc->counter_mask);
+	return ((tc->tc_get_timecount(tc) - tc->tc_offset_count) & 
+	    tc->tc_counter_mask);
 }
 
 /*
@@ -515,7 +516,7 @@ getmicrotime(struct timeval *tvp)
 	struct timecounter *tc;
 
 	tc = timecounter;
-	*tvp = tc->microtime;
+	*tvp = tc->tc_microtime;
 }
 
 void
@@ -524,7 +525,7 @@ getnanotime(struct timespec *tsp)
 	struct timecounter *tc;
 
 	tc = timecounter;
-	*tsp = tc->nanotime;
+	*tsp = tc->tc_nanotime;
 }
 
 void
@@ -533,9 +534,9 @@ microtime(struct timeval *tv)
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	tv->tv_sec = tc->offset_sec;
-	tv->tv_usec = tc->offset_micro;
-	tv->tv_usec += ((u_int64_t)tco_getdelta(tc) * tc->scale_micro) >> 32;
+	tv->tv_sec = tc->tc_offset_sec;
+	tv->tv_usec = tc->tc_offset_micro;
+	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
 	tv->tv_usec += boottime.tv_usec;
 	tv->tv_sec += boottime.tv_sec;
 	while (tv->tv_usec >= 1000000) {
@@ -552,12 +553,12 @@ nanotime(struct timespec *ts)
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	ts->tv_sec = tc->offset_sec;
-	count = tco_getdelta(tc);
-	delta = tc->offset_nano;
-	delta += ((u_int64_t)count * tc->scale_nano_f);
+	ts->tv_sec = tc->tc_offset_sec;
+	count = tco_delta(tc);
+	delta = tc->tc_offset_nano;
+	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
 	delta >>= 32;
-	delta += ((u_int64_t)count * tc->scale_nano_i);
+	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
 	delta += boottime.tv_usec * 1000;
 	ts->tv_sec += boottime.tv_sec;
 	while (delta >= 1000000000) {
@@ -574,13 +575,13 @@ timecounter_timespec(unsigned count, struct timespec *ts)
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	ts->tv_sec = tc->offset_sec;
-	count -= tc->offset_count;
-	count &= tc->counter_mask;
-	delta = tc->offset_nano;
-	delta += ((u_int64_t)count * tc->scale_nano_f);
+	ts->tv_sec = tc->tc_offset_sec;
+	count -= tc->tc_offset_count;
+	count &= tc->tc_counter_mask;
+	delta = tc->tc_offset_nano;
+	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
 	delta >>= 32;
-	delta += ((u_int64_t)count * tc->scale_nano_i);
+	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
 	delta += boottime.tv_usec * 1000;
 	ts->tv_sec += boottime.tv_sec;
 	while (delta >= 1000000000) {
@@ -596,8 +597,8 @@ getmicrouptime(struct timeval *tvp)
 	struct timecounter *tc;
 
 	tc = timecounter;
-	tvp->tv_sec = tc->offset_sec;
-	tvp->tv_usec = tc->offset_micro;
+	tvp->tv_sec = tc->tc_offset_sec;
+	tvp->tv_usec = tc->tc_offset_micro;
 }
 
 void
@@ -606,8 +607,8 @@ getnanouptime(struct timespec *tsp)
 	struct timecounter *tc;
 
 	tc = timecounter;
-	tsp->tv_sec = tc->offset_sec;
-	tsp->tv_nsec = tc->offset_nano >> 32;
+	tsp->tv_sec = tc->tc_offset_sec;
+	tsp->tv_nsec = tc->tc_offset_nano >> 32;
 }
 
 void
@@ -616,9 +617,9 @@ microuptime(struct timeval *tv)
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	tv->tv_sec = tc->offset_sec;
-	tv->tv_usec = tc->offset_micro;
-	tv->tv_usec += ((u_int64_t)tco_getdelta(tc) * tc->scale_micro) >> 32;
+	tv->tv_sec = tc->tc_offset_sec;
+	tv->tv_usec = tc->tc_offset_micro;
+	tv->tv_usec += ((u_int64_t)tco_delta(tc) * tc->tc_scale_micro) >> 32;
 	if (tv->tv_usec >= 1000000) {
 		tv->tv_usec -= 1000000;
 		tv->tv_sec++;
@@ -633,12 +634,12 @@ nanouptime(struct timespec *tv)
 	struct timecounter *tc;
 
 	tc = (struct timecounter *)timecounter;
-	tv->tv_sec = tc->offset_sec;
-	count = tco_getdelta(tc);
-	delta = tc->offset_nano;
-	delta += ((u_int64_t)count * tc->scale_nano_f);
+	tv->tv_sec = tc->tc_offset_sec;
+	count = tco_delta(tc);
+	delta = tc->tc_offset_nano;
+	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
 	delta >>= 32;
-	delta += ((u_int64_t)count * tc->scale_nano_i);
+	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
 	if (delta >= 1000000000) {
 		delta -= 1000000000;
 		tv->tv_sec++;
@@ -652,14 +653,14 @@ tco_setscales(struct timecounter *tc)
 	u_int64_t scale;
 
 	scale = 1000000000LL << 32;
-	if (tc->adjustment > 0)
-		scale += (tc->adjustment * 1000LL) << 10;
+	if (tc->tc_adjustment > 0)
+		scale += (tc->tc_adjustment * 1000LL) << 10;
 	else
-		scale -= (-tc->adjustment * 1000LL) << 10;
-	scale /= tc->frequency;
-	tc->scale_micro = scale / 1000;
-	tc->scale_nano_f = scale & 0xffffffff;
-	tc->scale_nano_i = scale >> 32;
+		scale -= (-tc->tc_adjustment * 1000LL) << 10;
+	scale /= tc->tc_frequency;
+	tc->tc_scale_micro = scale / 1000;
+	tc->tc_scale_nano_f = scale & 0xffffffff;
+	tc->tc_scale_nano_i = scale >> 32;
 }
 
 void
@@ -668,14 +669,14 @@ init_timecounter(struct timecounter *tc)
 	struct timespec ts0, ts1;
 	int i;
 
-	tc->adjustment = 0;
+	tc->tc_adjustment = 0;
 	tco_setscales(tc);
-	tc->offset_count = tc->get_timecount(tc);
-	tc[0].tweak = &tc[0];
+	tc->tc_offset_count = tc->tc_get_timecount(tc);
+	tc[0].tc_tweak = &tc[0];
 	tc[2] = tc[1] = tc[0];
-	tc[1].other = &tc[2];
-	tc[2].other = &tc[1];
-	if (!timecounter || !strcmp(timecounter->name, "dummy"))
+	tc[1].tc_other = &tc[2];
+	tc[2].tc_other = &tc[1];
+	if (!timecounter || !strcmp(timecounter->tc_name, "dummy"))
 		timecounter = &tc[2];
 	tc = &tc[1];
 
@@ -684,21 +685,21 @@ init_timecounter(struct timecounter *tc)
 	 */
 	nanotime(&ts0);
 	for (i = 0; i < 256; i ++) 
-		tc->get_timecount(tc);
+		tc->tc_get_timecount(tc);
 	nanotime(&ts1);
 	ts1.tv_sec -= ts0.tv_sec;
-	tc->cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
-	tc->cost >>= 8;
-	if (print_tci && strcmp(tc->name, "dummy"))
+	tc->tc_cost = ts1.tv_sec * 1000000000 + ts1.tv_nsec - ts0.tv_nsec;
+	tc->tc_cost >>= 8;
+	if (print_tci && strcmp(tc->tc_name, "dummy"))
 		printf("Timecounter \"%s\"  frequency %lu Hz  cost %u ns\n", 
-		    tc->name, tc->frequency, tc->cost);
+		    tc->tc_name, tc->tc_frequency, tc->tc_cost);
 
 	/* XXX: For now always start using the counter. */
-	tc->offset_count = tc->get_timecount(tc);
+	tc->tc_offset_count = tc->tc_get_timecount(tc);
 	nanotime(&ts1);
-	tc->offset_nano = (u_int64_t)ts1.tv_nsec << 32;
-	tc->offset_micro = ts1.tv_nsec / 1000;
-	tc->offset_sec = ts1.tv_sec;
+	tc->tc_offset_nano = (u_int64_t)ts1.tv_nsec << 32;
+	tc->tc_offset_micro = ts1.tv_nsec / 1000;
+	tc->tc_offset_sec = ts1.tv_sec;
 	timecounter = tc;
 }
 
@@ -729,15 +730,15 @@ switch_timecounter(struct timecounter *newtc)
 
 	s = splclock();
 	tc = timecounter;
-	if (newtc == tc || newtc == tc->other) {
+	if (newtc == tc || newtc == tc->tc_other) {
 		splx(s);
 		return;
 	}
 	nanotime(&ts);
-	newtc->offset_sec = ts.tv_sec;
-	newtc->offset_nano = (u_int64_t)ts.tv_nsec << 32;
-	newtc->offset_micro = ts.tv_nsec / 1000;
-	newtc->offset_count = newtc->get_timecount(newtc);
+	newtc->tc_offset_sec = ts.tv_sec;
+	newtc->tc_offset_nano = (u_int64_t)ts.tv_nsec << 32;
+	newtc->tc_offset_micro = ts.tv_nsec / 1000;
+	newtc->tc_offset_count = newtc->tc_get_timecount(newtc);
 	timecounter = newtc;
 	splx(s);
 }
@@ -749,17 +750,17 @@ sync_other_counter(void)
 	struct timecounter *tc, *tco;
 	unsigned delta;
 
-	if (timecounter->poll_pps) 
-		timecounter->poll_pps(timecounter);
-	tc = timecounter->other;
-	tco = tc->other;
+	if (timecounter->tc_poll_pps) 
+		timecounter->tc_poll_pps(timecounter);
+	tc = timecounter->tc_other;
+	tco = tc->tc_other;
 	*tc = *timecounter;
-	tc->other = tco;
-	delta = tco_getdelta(tc);
-	tc->offset_count += delta;
-	tc->offset_count &= tc->counter_mask;
-	tc->offset_nano += (u_int64_t)delta * tc->scale_nano_f;
-	tc->offset_nano += (u_int64_t)delta * tc->scale_nano_i << 32;
+	tc->tc_other = tco;
+	delta = tco_delta(tc);
+	tc->tc_offset_count += delta;
+	tc->tc_offset_count &= tc->tc_counter_mask;
+	tc->tc_offset_nano += (u_int64_t)delta * tc->tc_scale_nano_f;
+	tc->tc_offset_nano += (u_int64_t)delta * tc->tc_scale_nano_i << 32;
 	return (tc);
 }
 
@@ -770,31 +771,32 @@ tco_forward(void)
 
 	tc = sync_other_counter();
 	if (timedelta != 0) {
-		tc->offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
+		tc->tc_offset_nano += (u_int64_t)(tickdelta * 1000) << 32;
 		timedelta -= tickdelta;
 	}
 
-	while (tc->offset_nano >= 1000000000ULL << 32) {
-		tc->offset_nano -= 1000000000ULL << 32;
-		tc->offset_sec++;
-		tc->frequency = tc->tweak->frequency;
-		tc->adjustment = tc->tweak->adjustment;
+	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
+		tc->tc_offset_nano -= 1000000000ULL << 32;
+		tc->tc_offset_sec++;
+		tc->tc_frequency = tc->tc_tweak->tc_frequency;
+		tc->tc_adjustment = tc->tc_tweak->tc_adjustment;
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
 	}
 
-	tc->offset_micro = (tc->offset_nano / 1000) >> 32;
+	tc->tc_offset_micro = (tc->tc_offset_nano / 1000) >> 32;
 
 	/* Figure out the wall-clock time */
-	tc->nanotime.tv_sec = tc->offset_sec + boottime.tv_sec;
-	tc->nanotime.tv_nsec = (tc->offset_nano >> 32) + boottime.tv_usec * 1000;
-	tc->microtime.tv_usec = tc->offset_micro + boottime.tv_usec;
-	if (tc->nanotime.tv_nsec >= 1000000000) {
-		tc->nanotime.tv_nsec -= 1000000000;
-		tc->microtime.tv_usec -= 1000000;
-		tc->nanotime.tv_sec++;
+	tc->tc_nanotime.tv_sec = tc->tc_offset_sec + boottime.tv_sec;
+	tc->tc_nanotime.tv_nsec = 
+	    (tc->tc_offset_nano >> 32) + boottime.tv_usec * 1000;
+	tc->tc_microtime.tv_usec = tc->tc_offset_micro + boottime.tv_usec;
+	if (tc->tc_nanotime.tv_nsec >= 1000000000) {
+		tc->tc_nanotime.tv_nsec -= 1000000000;
+		tc->tc_microtime.tv_usec -= 1000000;
+		tc->tc_nanotime.tv_sec++;
 	}
-	time_second = tc->microtime.tv_sec = tc->nanotime.tv_sec;
+	time_second = tc->tc_microtime.tv_sec = tc->tc_nanotime.tv_sec;
 
 	timecounter = tc;
 }
@@ -803,16 +805,18 @@ static int
 sysctl_kern_timecounter_frequency SYSCTL_HANDLER_ARGS
 {
 
-	return (sysctl_handle_opaque(oidp, &timecounter->tweak->frequency,
-	    sizeof(timecounter->tweak->frequency), req));
+	return (sysctl_handle_opaque(oidp, 
+	    &timecounter->tc_tweak->tc_frequency,
+	    sizeof(timecounter->tc_tweak->tc_frequency), req));
 }
 
 static int
 sysctl_kern_timecounter_adjustment SYSCTL_HANDLER_ARGS
 {
 
-	return (sysctl_handle_opaque(oidp, &timecounter->tweak->adjustment,
-	    sizeof(timecounter->tweak->adjustment), req));
+	return (sysctl_handle_opaque(oidp, 
+	    &timecounter->tc_tweak->tc_adjustment,
+	    sizeof(timecounter->tc_tweak->tc_adjustment), req));
 }
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");

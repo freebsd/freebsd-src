@@ -307,7 +307,7 @@ ntp_update_second(struct timecounter *tc)
 	if (!time_daemon)
 		return;
 
-	newsec = &tc->offset_sec;
+	newsec = &tc->tc_offset_sec;
 	time_maxerror += time_tolerance >> SHIFT_USEC;
 
 	/*
@@ -361,7 +361,7 @@ ntp_update_second(struct timecounter *tc)
 	else
 		time_adj += ltemp << (SHIFT_SCALE - SHIFT_USEC);
 
-	tc->adjustment = time_adj;
+	tc->tc_adjustment = time_adj;
 	
 	/* XXX - this is really bogus, but can't be fixed until
 	xntpd's idea of the system clock is fixed to know how
