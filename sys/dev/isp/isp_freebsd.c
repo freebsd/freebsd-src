@@ -1,4 +1,5 @@
 /* $FreeBSD$ */
+
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
