@@ -814,7 +814,6 @@ ufs_link(ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode *tdvp = ap->a_tdvp;
 	struct componentname *cnp = ap->a_cnp;
-	struct thread *td = cnp->cn_thread;
 	struct inode *ip;
 	struct direct newdir;
 	int error;
@@ -825,19 +824,16 @@ ufs_link(ap)
 #endif
 	if (tdvp->v_mount != vp->v_mount) {
 		error = EXDEV;
-		goto out2;
-	}
-	if (tdvp != vp && (error = vn_lock(vp, LK_EXCLUSIVE, td))) {
-		goto out2;
+		goto out;
 	}
 	ip = VTOI(vp);
 	if ((nlink_t)ip->i_nlink >= LINK_MAX) {
 		error = EMLINK;
-		goto out1;
+		goto out;
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND)) {
 		error = EPERM;
-		goto out1;
+		goto out;
 	}
 	ip->i_effnlink++;
 	ip->i_nlink++;
@@ -859,10 +855,7 @@ ufs_link(ap)
 		if (DOINGSOFTDEP(vp))
 			softdep_change_linkcnt(ip);
 	}
-out1:
-	if (tdvp != vp)
-		VOP_UNLOCK(vp, 0, td);
-out2:
+out:
 	VN_KNOTE(vp, NOTE_LINK);
 	VN_KNOTE(tdvp, NOTE_WRITE);
 	return (error);
