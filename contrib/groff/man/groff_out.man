@@ -1,7 +1,7 @@
 '\" e
 .\" The above line should force the use of eqn as a preprocessor
 .ig
-Copyright (C) 1989-2000 Free Software Foundation, Inc.
+Copyright (C) 1989-2000, 2001 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -88,6 +88,21 @@ When a character is to be printed, that character will always be
 in the current font.
 Unlike device-independent troff, it is not necessary
 for drivers to search special fonts to find a character.
+.LP
+The
+.B x
+device control command has been extended.
+.TP
+\fBx u \fIn\fR
+If
+.I n
+is\~1, start underlining of spaces.
+If
+.I n
+is\~0, stop underlining of spaces.
+This is needed for the
+.B cu
+request in nroff mode and is ignored otherwise.
 .LP
 The
 .B D
