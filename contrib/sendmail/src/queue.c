@@ -13,20 +13,23 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.863.2.30 2003/03/20 00:20:16 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.863.2.61 2003/09/03 19:58:26 ca Exp $")
 
 #include <dirent.h>
 
 # define RELEASE_QUEUE	(void) 0
 # define ST_INODE(st)	(st).st_ino
 
+#  define sm_file_exists(errno) ((errno) == EEXIST)
+
+# define TF_OPEN_FLAGS (O_CREAT|O_WRONLY|O_EXCL)
 
 /*
 **  Historical notes:
-**     QF_VERSION == 4 was sendmail 8.10/8.11 without _FFR_QUEUEDELAY
-**     QF_VERSION == 5 was sendmail 8.10/8.11 with    _FFR_QUEUEDELAY
-**     QF_VERSION == 6 is  sendmail 8.12      without _FFR_QUEUEDELAY
-**     QF_VERSION == 7 is  sendmail 8.12      with    _FFR_QUEUEDELAY
+**	QF_VERSION == 4 was sendmail 8.10/8.11 without _FFR_QUEUEDELAY
+**	QF_VERSION == 5 was sendmail 8.10/8.11 with    _FFR_QUEUEDELAY
+**	QF_VERSION == 6 is  sendmail 8.12      without _FFR_QUEUEDELAY
+**	QF_VERSION == 7 is  sendmail 8.12      with    _FFR_QUEUEDELAY
 */
 
 #if _FFR_QUEUEDELAY
@@ -67,6 +70,21 @@ typedef struct work	WORK;
 
 static WORK	*WorkQ;		/* queue of things to be done */
 static int	NumWorkGroups;	/* number of work groups */
+static time_t	Current_LA_time = 0;
+
+/* Get new load average every 30 seconds. */
+#define GET_NEW_LA_TIME	30
+
+#define SM_GET_LA(now)	\
+	do							\
+	{							\
+		now = curtime();				\
+		if (Current_LA_time < now - GET_NEW_LA_TIME)	\
+		{						\
+			sm_getla();				\
+			Current_LA_time = now;			\
+		}						\
+	} while (0)
 
 /*
 **  DoQueueRun indicates that a queue run is needed.
@@ -343,14 +361,36 @@ queueup(e, announce, msync)
 	newid = (e->e_id == NULL) || !bitset(EF_INQUEUE, e->e_flags);
 	(void) sm_strlcpy(tf, queuename(e, NEWQFL_LETTER), sizeof tf);
 	tfp = e->e_lockfp;
-	if (tfp == NULL)
-		newid = false;
+	if (tfp == NULL && newid)
+	{
+		/*
+		**  open qf file directly: this will give an error if the file
+		**  already exists and hence prevent problems if a queue-id
+		**  is reused (e.g., because the clock is set back).
+		*/
+
+		(void) sm_strlcpy(tf, queuename(e, ANYQFL_LETTER), sizeof tf);
+		tfd = open(tf, TF_OPEN_FLAGS, FileMode);
+		if (tfd < 0 ||
+		    !lockfile(tfd, tf, NULL, LOCK_EX|LOCK_NB) ||
+		    (tfp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
+					 (void *) &tfd, SM_IO_WRONLY_B,
+					 NULL)) == NULL)
+		{
+			int save_errno = errno;
+
+			printopenfds(true);
+			errno = save_errno;
+			syserr("!queueup: cannot create queue file %s, euid=%d",
+				tf, (int) geteuid());
+			/* NOTREACHED */
+		}
+		e->e_lockfp = tfp;
+	}
 
 	/* if newid, write the queue file directly (instead of temp file) */
 	if (!newid)
 	{
-		const int flags = O_CREAT|O_WRONLY|O_EXCL;
-
 		/* get a locked tf file */
 		for (i = 0; i < 128; i++)
 		{
@@ -360,7 +400,7 @@ queueup(e, announce, msync)
 
 				if (bitset(S_IWGRP, QueueFileMode))
 					oldumask = umask(002);
-				tfd = open(tf, flags, QueueFileMode);
+				tfd = open(tf, TF_OPEN_FLAGS, QueueFileMode);
 				if (bitset(S_IWGRP, QueueFileMode))
 					(void) umask(oldumask);
 
@@ -399,7 +439,7 @@ queueup(e, announce, msync)
 				(void) sleep(i % 32);
 		}
 		if (tfd < 0 || (tfp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
-						 (void *) &tfd, SM_IO_WRONLY,
+						 (void *) &tfd, SM_IO_WRONLY_B,
 						 NULL)) == NULL)
 		{
 			int save_errno = errno;
@@ -485,11 +525,12 @@ queueup(e, announce, msync)
 
 		if (bitset(S_IWGRP, QueueFileMode))
 			oldumask = umask(002);
-		dfd = open(df, O_WRONLY|O_CREAT|O_TRUNC, QueueFileMode);
+		dfd = open(df, O_WRONLY|O_CREAT|O_TRUNC|QF_O_EXTRA,
+			   QueueFileMode);
 		if (bitset(S_IWGRP, QueueFileMode))
 			(void) umask(oldumask);
 		if (dfd < 0 || (dfp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT,
-						 (void *) &dfd, SM_IO_WRONLY,
+						 (void *) &dfd, SM_IO_WRONLY_B,
 						 NULL)) == NULL)
 			syserr("!queueup: cannot create data temp file %s, uid=%d",
 				df, (int) geteuid());
@@ -1552,9 +1593,6 @@ runqueue(forkflag, verbose, persistent, runall)
 **		runs things in the mail queue.
 */
 
-/* Get new load average every 30 seconds. */
-#define GET_NEW_LA_TIME	30
-
 static void
 runner_work(e, sequenceno, didfork, skip, njobs)
 	register ENVELOPE *e;
@@ -1565,9 +1603,9 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 {
 	int n;
 	WORK *w;
-	time_t current_la_time, now;
+	time_t now;
 
-	current_la_time = curtime();
+	SM_GET_LA(now);
 
 	/*
 	**  Here we temporarily block the second calling of the handlers.
@@ -1623,13 +1661,8 @@ runner_work(e, sequenceno, didfork, skip, njobs)
 		**	Get new load average every GET_NEW_LA_TIME seconds.
 		*/
 
-		now = curtime();
-		if (current_la_time < now - GET_NEW_LA_TIME)
-		{
-			sm_getla();
-			current_la_time = now;
-		}
-		if (shouldqueue(WkRecipFact, current_la_time))
+		SM_GET_LA(now);
+		if (shouldqueue(WkRecipFact, Current_LA_time))
 		{
 			char *msg = "Aborting queue run: load average too high";
 
@@ -1743,7 +1776,7 @@ run_work_group(wgrp, flags)
 	int njobs, qdir;
 	int sequenceno = 1;
 	int qgrp, endgrp, h, i;
-	time_t current_la_time, now;
+	time_t now;
 	bool full, more;
 	SM_RPOOL_T *rpool;
 	extern void rmexpstab __P((void));
@@ -1758,11 +1791,10 @@ run_work_group(wgrp, flags)
 	**  the queue.
 	*/
 
-	sm_getla();	/* get load average */
-	current_la_time = curtime();
+	SM_GET_LA(now);
 
 	if (!bitset(RWG_PERSISTENT, flags) &&
-	    shouldqueue(WkRecipFact, current_la_time))
+	    shouldqueue(WkRecipFact, Current_LA_time))
 	{
 		char *msg = "Skipping queue run -- load average too high";
 
@@ -2035,7 +2067,7 @@ run_work_group(wgrp, flags)
 			if (pid < 0)
 			{
 				syserr("run_work_group: cannot fork");
-				return 0;
+				return false;
 			}
 			else if (pid > 0)
 			{
@@ -2216,12 +2248,8 @@ run_work_group(wgrp, flags)
 		**  CurrentLA caused all entries in a queue to be ignored.
 		*/
 
-		now = curtime();
-		if (njobs == 0 && current_la_time < now - GET_NEW_LA_TIME)
-		{
-			sm_getla();
-			current_la_time = now;
-		}
+		if (njobs == 0)
+			SM_GET_LA(now);
 		rpool = sm_rpool_new_x(NULL);
 		e = newenvelope(&QueueEnvelope, CurEnv, rpool);
 		e->e_flags = BlankEnvelope.e_flags;
@@ -2545,7 +2573,7 @@ gatherq(qgrp, qdir, doall, full, more)
 		}
 
 		/* open control file */
-		cf = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDONLY,
+		cf = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDONLY_B,
 				NULL);
 		if (cf == NULL && OpMode != MD_PRINT)
 		{
@@ -2686,6 +2714,8 @@ gatherq(qgrp, qdir, doall, full, more)
 					p = strchr(&lbuf[1], ':');
 					if (p == NULL)
 						p = &lbuf[1];
+					else
+						++p; /* skip over ':' */
 				}
 				else
 					p = &lbuf[1];
@@ -3792,7 +3822,7 @@ readqf(e, openonly)
 	*/
 
 	(void) sm_strlcpy(qf, queuename(e, ANYQFL_LETTER), sizeof qf);
-	qfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDWR, NULL);
+	qfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDWR_B, NULL);
 	if (qfp == NULL)
 	{
 		int save_errno = errno;
@@ -3824,6 +3854,8 @@ readqf(e, openonly)
 		return false;
 	}
 
+	RELEASE_QUEUE;
+
 	/*
 	**  Prevent locking race condition.
 	**
@@ -3850,7 +3882,6 @@ readqf(e, openonly)
 			sm_dprintf("readqf(%s): [f]stat failure (%s)\n",
 				qf, sm_errstring(errno));
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
-		RELEASE_QUEUE;
 		return false;
 	}
 
@@ -3873,7 +3904,6 @@ readqf(e, openonly)
 		if (LogLevel > 19)
 			sm_syslog(LOG_DEBUG, e->e_id, "changed");
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
-		RELEASE_QUEUE;
 		return false;
 	}
 
@@ -3939,7 +3969,6 @@ readqf(e, openonly)
 		if (!openonly)
 			loseqfile(e, "bogus file uid/gid in mqueue");
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
-		RELEASE_QUEUE;
 		return false;
 	}
 
@@ -3952,7 +3981,6 @@ readqf(e, openonly)
 			(void) xunlink(queuename(e, ANYQFL_LETTER));
 		}
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
-		RELEASE_QUEUE;
 		return false;
 	}
 
@@ -3964,7 +3992,6 @@ readqf(e, openonly)
 		*/
 
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
-		RELEASE_QUEUE;
 		return false;
 	}
 
@@ -4154,10 +4181,10 @@ readqf(e, openonly)
 			/*
 			**  count size before chompheader() destroys the line.
 			**  this isn't accurate due to macro expansion, but
-			**  better than before. "+3" to skip H?? at least.
+			**  better than before. "-3" to skip H?? at least.
 			*/
 
-			hdrsize += strlen(bp + 3);
+			hdrsize += strlen(bp) - 3;
 			(void) chompheader(&bp[1], CHHDR_QUEUE, NULL, e);
 			break;
 
@@ -4199,7 +4226,6 @@ readqf(e, openonly)
 						  howlong);
 				e->e_id = NULL;
 				unlockqueue(e);
-				RELEASE_QUEUE;
 				return false;
 			}
 			macdefine(&e->e_macro, A_TEMP,
@@ -4274,8 +4300,13 @@ readqf(e, openonly)
 			}
 			else
 				qflags |= QPRIMARY;
-			q = parseaddr(++p, NULLADDR, RF_COPYALL, '\0', NULL, e,
-				      true);
+			macdefine(&e->e_macro, A_PERM, macid("{addr_type}"),
+				"e r");
+			if (*p != '\0')
+				q = parseaddr(++p, NULLADDR, RF_COPYALL, '\0',
+						NULL, e, true);
+			else
+				q = NULL;
 			if (q != NULL)
 			{
 				/* make sure we keep the current qgrp */
@@ -4291,6 +4322,8 @@ readqf(e, openonly)
 			}
 			frcpt = NULL;
 			orcpt = NULL;
+			macdefine(&e->e_macro, A_PERM, macid("{addr_type}"),
+				NULL);
 			break;
 
 		  case 'S':		/* sender */
@@ -4372,7 +4405,6 @@ readqf(e, openonly)
 	{
 		errno = 0;
 		e->e_flags |= EF_CLRQUEUE|EF_FATALERRS|EF_RESPONSE;
-		RELEASE_QUEUE;
 		return true;
 	}
 
@@ -4381,7 +4413,6 @@ readqf(e, openonly)
 	{
 		syserr("readqf: %s: incomplete queue file read", qf);
 		(void) sm_io_close(qfp, SM_TIME_DEFAULT);
-		RELEASE_QUEUE;
 		return false;
 	}
 
@@ -4401,7 +4432,7 @@ readqf(e, openonly)
 	*/
 
 	p = queuename(e, DATAFL_LETTER);
-	e->e_dfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, p, SM_IO_RDONLY,
+	e->e_dfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, p, SM_IO_RDONLY_B,
 			      NULL);
 	if (e->e_dfp == NULL)
 	{
@@ -4423,7 +4454,6 @@ readqf(e, openonly)
 		}
 	}
 
-	RELEASE_QUEUE;
 	return true;
 
   fail:
@@ -4441,7 +4471,6 @@ readqf(e, openonly)
 	e->e_lockfp = NULL;
 	e->e_flags |= EF_INQUEUE;
 	loseqfile(e, err);
-	RELEASE_QUEUE;
 	return false;
 }
 /*
@@ -4740,7 +4769,7 @@ print_single_queue(qgrp, qdir)
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%13s",
 				     w->w_name + 2);
 		(void) sm_strlcpyn(qf, sizeof qf, 3, qd, "/", w->w_name);
-		f = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDONLY,
+		f = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, qf, SM_IO_RDONLY_B,
 			       NULL);
 		if (f == NULL)
 		{
@@ -6591,7 +6620,7 @@ init_shm(qn, owner, hash)
 			Pshm = sm_shmstart(ShmKey, shms, SHM_R|SHM_W, &ShmId,
 					   owner);
 			save_errno = errno;
-			if (Pshm != NULL || save_errno != EEXIST)
+			if (Pshm != NULL || !sm_file_exists(save_errno))
 				break;
 			if (++count >= 3)
 			{
@@ -6680,6 +6709,7 @@ init_shm(qn, owner, hash)
 	}
 }
 #endif /* SM_CONF_SHM */
+
 
 /*
 **  SETUP_QUEUES -- setup all queue groups
@@ -8250,7 +8280,7 @@ quarantine_queue_item(qgrp, qdir, e, reason)
 	}
 
 	tempqfp = sm_io_open(SmFtStdiofd, SM_TIME_DEFAULT, (void *) &fd,
-			     SM_IO_WRONLY, NULL);
+			     SM_IO_WRONLY_B, NULL);
 	if (tempqfp == NULL)
 	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,

@@ -9,9 +9,9 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"     $Id: smrsh.8,v 8.16 2002/04/25 13:33:40 ca Exp $
+.\"     $Id: smrsh.8,v 8.16.2.1 2003/07/08 01:33:03 gshapiro Exp $
 .\"
-.TH SMRSH 8 "$Date: 2002/04/25 13:33:40 $"
+.TH SMRSH 8 "$Date: 2003/07/08 01:33:03 $"
 .SH NAME
 smrsh \- restricted shell for sendmail
 .SH SYNOPSIS
@@ -47,7 +47,7 @@ It also rejects any commands with the characters
 or `\en' (newline)
 on the command line to prevent ``end run'' attacks.
 It allows ``||'' and ``&&'' to enable commands like:
-``"|exec /usr/local/bin/procmail -f- /etc/procmailrcs/user || exit 75"''
+``"|exec /usr/local/bin/filter || exit 75"''
 .PP
 Initial pathnames on programs are stripped,
 so forwarding to ``/usr/ucb/vacation'',
@@ -60,9 +60,8 @@ all actually forward to
 .PP
 System administrators should be conservative about populating
 the sm.bin directory.
-Reasonable additions are
+For example, a reasonable additions is
 .IR vacation (1),
-.IR procmail (1),
 and the like.
 No matter how brow-beaten you may be,
 never include any shell or shell-like program
@@ -74,6 +73,12 @@ directory.
 Note that this does not restrict the use of shell or perl scripts
 in the sm.bin directory (using the ``#!'' syntax);
 it simply disallows execution of arbitrary programs.
+Also, including mail filtering programs such as
+.IR procmail (1)
+is a very bad idea.
+.IR procmail (1)
+allows users to run arbitrary programs in their
+.IR procmailrc (5).
 .SH COMPILATION
 Compilation should be trivial on most systems.
 You may need to use \-DSMRSH_PATH=\e"\fIpath\fP\e"

@@ -19,7 +19,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # define INIT(x)	= x
-SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.33.2.9 2003/01/03 22:14:40 ca Exp $")
+SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.33.2.12 2003/09/08 21:39:55 yuri Exp $")
 #else /* _DEFINE */
 # define EXTERN extern
 # define INIT(x)
@@ -151,7 +151,7 @@ typedef pthread_mutex_t smutex_t;
 
 /* hack */
 #define smi_log		syslog
-#define sm_dprintf	printf
+#define sm_dprintf	(void) printf
 #define milter_ret	int
 #define SMI_LOG_ERR	LOG_ERR
 #define SMI_LOG_FATAL	LOG_ERR

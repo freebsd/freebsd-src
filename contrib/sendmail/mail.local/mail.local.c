@@ -18,7 +18,7 @@ SM_IDSTR(copyright,
      Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.5 2003/03/15 23:43:20 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.11 2003/09/01 01:49:46 gshapiro Exp $")
 
 #include <stdlib.h>
 #include <sm/errstring.h>
@@ -28,6 +28,7 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.5 2003/03/15 23:43:20 gshapiro Exp
 # ifdef EX_OK
 #  undef EX_OK		/* unistd.h may have another use for this */
 # endif /* EX_OK */
+# define LOCKFILE_PMODE 0
 #include <sm/mbdb.h>
 #include <sm/sysexits.h>
 
@@ -61,10 +62,6 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239.2.5 2003/03/15 23:43:20 gshapiro Exp
 
 #include <sm/conf.h>
 #include <sendmail/pathnames.h>
-
-
-/* additional mode for open() */
-# define EXTRA_MODE 0
 
 
 #ifndef LOCKTO_RM
@@ -854,7 +851,7 @@ deliver(fd, name)
 	int exitval;
 	char *p;
 	char *errcode;
-	off_t curoff;
+	off_t curoff, cursize;
 #ifdef CONTENTLENGTH
 	off_t headerbytes;
 	int readamount;
@@ -997,7 +994,7 @@ tryagain:
 		mode |= S_IRGRP|S_IWGRP;
 #endif /* MAILGID */
 
-		mbfd = open(path, O_APPEND|O_CREAT|O_EXCL|O_WRONLY|EXTRA_MODE,
+		mbfd = open(path, O_APPEND|O_CREAT|O_EXCL|O_WRONLY,
 			    mode);
 		save_errno = errno;
 
@@ -1067,7 +1064,7 @@ tryagain:
 #ifdef DEBUG
 	fprintf(stderr, "new euid = %d\n", (int) geteuid());
 #endif /* DEBUG */
-	mbfd = open(path, O_APPEND|O_WRONLY|EXTRA_MODE, 0);
+	mbfd = open(path, O_APPEND|O_WRONLY, 0);
 	if (mbfd < 0)
 	{
 		mailerr("450 4.2.0", "%s: %s", path, sm_errstring(errno));
@@ -1203,7 +1200,6 @@ tryagain:
 	{
 		mailerr("450 4.2.0", "%s: %s", path, sm_errstring(errno));
 err3:
-		(void) setreuid(0, 0);
 #ifdef DEBUG
 		fprintf(stderr, "reset euid = %d\n", (int) geteuid());
 #endif /* DEBUG */
@@ -1211,9 +1207,25 @@ err3:
 			(void) ftruncate(mbfd, curoff);
 err1:		if (mbfd >= 0)
 			(void) close(mbfd);
-err0:		unlockmbox();
+err0:		(void) setreuid(0, 0);
+		unlockmbox();
 		return;
 	}
+
+	/*
+	**  Save the current size so if the close() fails below
+	**  we can make sure no other process has changed the mailbox
+	**  between the failed close and the re-open()/re-lock().
+	**  If something else has changed the size, we shouldn't
+	**  try to truncate it as we may do more harm then good
+	**  (e.g., truncate a later message delivery).
+	*/
+
+	if (fstat(mbfd, &sb) < 0)
+		cursize = 0;
+	else
+		cursize = sb.st_size;
+
 
 	/* Close and check -- NFS doesn't write until the close. */
 	if (close(mbfd))
@@ -1224,9 +1236,12 @@ err0:		unlockmbox();
 			errcode = "552 5.2.2";
 #endif /* EDQUOT */
 		mailerr(errcode, "%s: %s", path, sm_errstring(errno));
-		mbfd = open(path, O_WRONLY|EXTRA_MODE, 0);
-		if (mbfd < 0
-		    || fstat(mbfd, &sb) < 0 ||
+		mbfd = open(path, O_WRONLY, 0);
+		if (mbfd < 0 ||
+		    cursize == 0
+		    || flock(mbfd, LOCK_EX) < 0 ||
+		    fstat(mbfd, &sb) < 0 ||
+		    sb.st_size != cursize ||
 		    sb.st_nlink != 1 ||
 		    !S_ISREG(sb.st_mode) ||
 		    sb.st_dev != fsb.st_dev ||
@@ -1344,7 +1359,7 @@ lockmbox(path)
 			errno = 0;
 			return EX_TEMPFAIL;
 		}
-		fd = open(LockName, O_WRONLY|O_EXCL|O_CREAT, 0);
+		fd = open(LockName, O_WRONLY|O_EXCL|O_CREAT, LOCKFILE_PMODE);
 		if (fd >= 0)
 		{
 			/* defeat lock checking programs which test pid */

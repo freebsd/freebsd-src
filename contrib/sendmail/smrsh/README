@@ -44,7 +44,17 @@ With gcc, the GNU C compiler, use the -static option.
 		or
 	host.domain% sh Build LDOPTS=-static
 
+The following C defines can be set defined to change the search path and
+the bin directory used by smrsh.
 
+-DSMRSH_PATH=\"path\"	\"/bin:/usr/bin:/usr/ucb\"	The default search
+							path.
+-DSMRSH_CMDDIR=\"dir\"	\"/usr/adm/sm.bin\"		The default smrsh
+							program directory
+ 
+These can be added to the devtools/Site/site.config.m4 file using the
+global M4 macro confENVDEF or the smrsh specific M4 macro
+conf_smrsh_ENVDEF.
 
 As root, install smrsh in /usr/libexec.  Using the Build script:
 
@@ -153,4 +163,4 @@ a typical system follows:
 	host.domain# /usr/sbin/sendmail -bd -q30m
 
 
-$Revision: 8.8 $, Last updated $Date: 2001/01/24 00:05:58 $
+$Revision: 8.8.4.1 $, Last updated $Date: 2003/05/26 04:29:42 $
