@@ -45,7 +45,12 @@ static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/signal.h>
+#include <sys/sysctl.h>
+
+#include <err.h>
 #include <stdio.h>
+
+static int getstathz __P((void));
 
 main(argc, argv)
 	int argc;
@@ -102,7 +107,7 @@ main(argc, argv)
 	fprintf(stderr, "%9ld.%02ld sys\n",
 	    ru.ru_stime.tv_sec, ru.ru_stime.tv_usec/10000);
 	if (lflag) {
-		int hz = 100;			/* XXX */
+		int hz = getstathz();
 		u_long ticks;
 
 		ticks = hz * (ru.ru_utime.tv_sec + ru.ru_stime.tv_sec) +
@@ -145,4 +150,22 @@ main(argc, argv)
 			ru.ru_nivcsw, "involuntary context switches");
 	}
 	exit (status>>8);
+}
+
+/*
+ * Return the frequency of the kernel's statistics clock.
+ */
+static int
+getstathz()
+{
+	struct clockinfo clockrate;
+	int mib[2];
+	size_t size;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_CLOCKRATE;
+	size = sizeof clockrate;
+	if (sysctl(mib, 2, &clockrate, &size, NULL, 0) == -1)
+		err(1, "sysctl kern.clockrate");
+	return clockrate.stathz;
 }
