@@ -209,18 +209,26 @@ Class names are:
 .\" and vice-versa) is specified in the same relative position in
 .\" .Ar string1 .
 .\" .Pp
-When ``[:lower:]'' appears in
+When
+.Dq Li [:lower:]
+appears in
 .Ar string1
-and ``[:upper:]'' appears in the same relative position in
+and
+.Dq Li [:upper:]
+appears in the same relative position in
 .Ar string2 ,
 it represents the characters pairs from the
 .Dv toupper
 mapping in the
 .Ev LC_CTYPE
 category of the current locale.
-When ``[:upper:]'' appears in
+When
+.Dq Li [:upper:]
+appears in
 .Ar string1
-and ``[:lower:]'' appears in the same relative position in
+and
+.Dq Li [:lower:]
+appears in the same relative position in
 .Ar string2 ,
 it represents the characters pairs from the
 .Dv tolower
@@ -326,23 +334,45 @@ and
 .Ql "A-Z" .
 .Pp
 System V has historically implemented character ranges using the syntax
-``[c-c]'' instead of the ``c-c'' used by historic
+.Dq Li [c-c]
+instead of the
+.Dq Li c-c
+used by historic
 .Bx
 implementations and
 standardized by POSIX.
 System V shell scripts should work under this implementation as long as
 the range is intended to map in another range, i.e., the command
-``tr [a-z] [A-Z]'' will work as it will map the ``['' character in
+.Dq Li "tr [a-z] [A-Z]"
+will work as it will map the
+.Ql \&[
+character in
 .Ar string1
-to the ``['' character in
+to the
+.Ql \&[
+character in
 .Ar string2 .
 However, if the shell script is deleting or squeezing characters as in
-the command ``tr -d [a-z]'', the characters ``['' and ``]'' will be
+the command
+.Dq Li "tr -d [a-z]" ,
+the characters
+.Ql \&[
+and
+.Ql \&]
+will be
 included in the deletion or compression list which would not have happened
 under a historic System V implementation.
-Additionally, any scripts that depended on the sequence ``a-z'' to
-represent the three characters ``a'', ``-'' and ``z'' will have to be
-rewritten as ``a\e-z''.
+Additionally, any scripts that depended on the sequence
+.Dq Li a-z
+to
+represent the three characters
+.Ql a ,
+.Ql \&-
+and
+.Ql z
+will have to be
+rewritten as
+.Dq Li a\e-z .
 .Pp
 The
 .Nm
@@ -373,7 +403,9 @@ has less characters than
 .Ar string1
 is permitted by POSIX but is not required.
 Shell scripts attempting to be portable to other POSIX systems should use
-the ``[#*]'' convention instead of relying on this behavior.
+the
+.Dq Li [#*]
+convention instead of relying on this behavior.
 The
 .Fl u
 option is an extension to the
