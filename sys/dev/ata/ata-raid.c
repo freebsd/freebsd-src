@@ -165,7 +165,9 @@ ata_raid_attach()
 	raid->dev = dev;
 
 	printf("ar%d: %lluMB <ATA ",
-	       raid->lun, raid->total_sectors / ((1024L * 1024L) / DEV_BSIZE));
+	       raid->lun,
+	       (unsigned long long)(raid->total_sectors /
+	       ((1024L * 1024L) / DEV_BSIZE)));
 	switch (raid->flags & (AR_F_RAID0 | AR_F_RAID1 | AR_F_SPAN)) {
 	case AR_F_RAID0:
 	    printf("RAID0 "); break;
