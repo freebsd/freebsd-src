@@ -1,13 +1,11 @@
-# Makefile for grodvi
+# $FreeBSD$
 
 PROG=		grodvi
 SRCS=		dvi.cc
-#CFLAGS+=	-I${.CURDIR}/../include
 LDADD+=		${LIBDRIVER} ${LIBGROFF} -lm
 DPADD+=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 
-MANDEPEND=	grodvi.1
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

@@ -1,3 +1,4 @@
+# $FreeBSD$
 #
 # Set a bunch of things to hardcoded paths so that we don't accidently
 # pick up a user's own version of some utility and hose ourselves.
@@ -6,9 +7,9 @@ libdir=			/etc
 bindir=			${BINDIR}
 pager=			more -s
 manpath_config_file=	/etc/manpath.config
-troff=			/usr/bin/groff -S -man
+troff=			/usr/bin/groff -S -mandoc
 # -Tascii or localized encoding added automatically
-nroff=                  /usr/bin/groff -S -Wall -mtty-char -man
+nroff=                  /usr/bin/groff -S -Wall -mtty-char -mandoc
 apropos=		/usr/bin/apropos
 whatis=			/usr/bin/whatis
 eqn=                    /usr/bin/eqn

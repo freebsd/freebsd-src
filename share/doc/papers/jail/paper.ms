@@ -258,7 +258,7 @@ another process already in that jail.
 Processes may never
 leave the jail they created, or were created in.
 .KF
-.PSPIC jail01.eps 4i
+.if t .PSPIC jail01.eps 4i
 .ce 1
 Fig. 1 \(em Schematic diagram of machine with two configured jails
 .sp

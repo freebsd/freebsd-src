@@ -1,13 +1,11 @@
-# Makefile for lookbib
+# $FreeBSD$
 
 PROG=		lookbib
 SRCS=		lookbib.cc
-CFLAGS+=	-I$(.CURDIR)/../include
 LDADD+=		$(LIBBIB) $(LIBGROFF) -lm
 DPADD+=		$(LIBBIB) $(LIBGROFF) $(LIBM)
 
-MANDEPEND=	lookbib.1
-CLEANFILES+=	${MANDEPEND}
+CLEANFILES+=	${MAN1}
 
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>

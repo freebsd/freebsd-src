@@ -1,14 +1,15 @@
-DEV=		lj4
-LJ4RES=		300
-LJ4PRINT=	$(PSPRINT)
-DEVFILES=	$(FONTS) $(SUPPORT) $(DEVGENFILES) DESC
-FONTS=		ALBB ALBR AOB AOI AOR CB CBI CI CR GB GBI GI GR \
-		LGB LGI LGR OB OBI OI OR TB TBI TI TR UB UBI UI UR \
-		UCB UCBI UCI UCR CLARENDON CORONET MARIGOLD S
-#DEVGENFILES=	generate/Makefile generate/text.map generate/special.map
-CLEANFILES+=	DESC
+# $FreeBSD$
 
-.include "../Makefile.inc"
+DEV=		lj4
+LJ4RES=		600
+LJ4PRINT=	$(PSPRINT)
+DEVFILES=	DESC \
+		ALBB ALBR AOB AOI AOR CB CBI CI CR GB GBI GI GR \
+		LGB LGI LGR OB OBI OI OR TB TBI TI TR UB UBI UI UR \
+		UCB UCBI UCI UCR CLARENDON CORONET MARIGOLD S \
+		generate/Makefile generate/text.map generate/special.map
+
+CLEANFILES+=	DESC
 
 DESC: DESC.in
 	-rm -f DESC
@@ -22,9 +23,8 @@ DESC: DESC.in
 	fi
 	test -z '$(LJ4PRINT)' || echo print '$(LJ4PRINT)' >>DESC
 
-fonts:	DESC
-	$(MAKE) -f ${DIST_DIR}/generate/Makefile \
-		srcdir=${DIST_DIR}/generate DESC=${DIST_DIR}/DESC.in \
-	  	HPFTODIT=${.CURDIR}/../hpftodit/hpftodit
+fonts:
+	$(MAKE) -f ${DIST_DIR}/generate/Makefile srcdir=${DIST_DIR}/generate \
+	  HPFTODIT=${.CURDIR}/../hpftodit/hpftodit
 
 .include "../Makefile.dev"
