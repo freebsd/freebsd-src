@@ -48,9 +48,16 @@
  *    (and why do you want more ?)
  */
 
+/*
+ * Mar. 23 1999 by Isao SEKI <iseki@gongon.com>
+ * I added a new flag for ip protocol number.
+ * We are using 4 as protocol number in ampr.org.
+ *
+ */
+
 #ifndef lint
 static const char rcsid[] =
-	"$Id: nos-tun.c,v 1.3 1998/07/15 06:38:53 charnier Exp $";
+	"$Id: nos-tun.c,v 1.4 1998/08/02 16:06:34 bde Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -232,6 +239,8 @@ int main (int argc, char **argv)
   char *point_to = NULL;
   char *to_point = NULL;
   char *target;
+  char *protocol = NULL;
+  int protnum;
 
   struct sockaddr t_laddr;          /* Source address of tunnel */
   struct sockaddr whereto;          /* Destination of tunnel */
@@ -244,7 +253,7 @@ int main (int argc, char **argv)
   int nfds;                         /* Return from select() */
 
 
-  while ((c = getopt(argc, argv, "d:s:t:")) != -1) {
+  while ((c = getopt(argc, argv, "d:s:t:p:")) != -1) {
     switch (c) {
     case 'd':
       to_point = optarg;
@@ -255,6 +264,9 @@ int main (int argc, char **argv)
     case 't':
       devname = optarg;
       break;
+    case 'p':
+      protocol = optarg;
+      break;
     }
   }
   argc -= optind;
@@ -264,6 +276,11 @@ int main (int argc, char **argv)
       (point_to == NULL) || (to_point == NULL)) {
     usage();
   }
+
+  if(protocol == NULL)
+      protnum = 94;
+  else
+      protnum = atoi(protocol);
 
   target = *argv;
 
@@ -284,7 +301,7 @@ int main (int argc, char **argv)
   if(Set_address(target, to))
     Finish(4);
 
-  if ((net = socket(AF_INET, SOCK_RAW, 94)) < 0) {
+  if ((net = socket(AF_INET, SOCK_RAW, protnum)) < 0) {
     syslog(LOG_ERR,"can't open socket - %m");
     Finish(5);
   }
@@ -348,7 +365,7 @@ static void
 usage()
 {
 	fprintf(stderr,
-"usage: nos_tun -t <tun_name> -s <source_addr> -d <dest_addr> <target_addr>\n");
+"usage: nos_tun -t <tun_name> -s <source_addr> -d <dest_addr> -p <protocol_number> <target_addr>\n");
 	exit(1);
 }
 
