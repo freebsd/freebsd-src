@@ -465,7 +465,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 				rabp->b_flags |= B_ASYNC;
 				rabp->b_iocmd = BIO_READ;
 				vfs_busy_pages(rabp, 0);
-				if (nfs_asyncio(rabp, cred, td)) {
+				if (nfs_asyncio(nmp, rabp, cred, td)) {
 				    rabp->b_flags |= B_INVAL;
 				    rabp->b_ioflags |= BIO_ERROR;
 				    vfs_unbusy_pages(rabp);
@@ -531,7 +531,7 @@ again:
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
-		    error = nfs_doio(bp, cred, td);
+		    error = nfs_doio(vp, bp, cred, td);
 		    if (error) {
 			brelse(bp);
 			return (error);
@@ -560,7 +560,7 @@ again:
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
-		    error = nfs_doio(bp, cred, td);
+		    error = nfs_doio(vp, bp, cred, td);
 		    if (error) {
 			bp->b_ioflags |= BIO_ERROR;
 			brelse(bp);
@@ -586,7 +586,7 @@ again:
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
-		    error = nfs_doio(bp, cred, td);
+		    error = nfs_doio(vp, bp, cred, td);
 		    if (error) {
 			    brelse(bp);
 		    }
@@ -615,7 +615,7 @@ again:
 			    if ((bp->b_flags & B_CACHE) == 0) {
 				    bp->b_iocmd = BIO_READ;
 				    vfs_busy_pages(bp, 0);
-				    error = nfs_doio(bp, cred, td);
+				    error = nfs_doio(vp, bp, cred, td);
 				    /*
 				     * no error + B_INVAL == directory EOF,
 				     * use the block.
@@ -658,7 +658,7 @@ again:
 				rabp->b_flags |= B_ASYNC;
 				rabp->b_iocmd = BIO_READ;
 				vfs_busy_pages(rabp, 0);
-				if (nfs_asyncio(rabp, cred, td)) {
+				if (nfs_asyncio(nmp, rabp, cred, td)) {
 				    rabp->b_flags |= B_INVAL;
 				    rabp->b_ioflags |= BIO_ERROR;
 				    vfs_unbusy_pages(rabp);
@@ -926,7 +926,7 @@ again:
 		if ((bp->b_flags & B_CACHE) == 0) {
 			bp->b_iocmd = BIO_READ;
 			vfs_busy_pages(bp, 0);
-			error = nfs_doio(bp, cred, td);
+			error = nfs_doio(vp, bp, cred, td);
 			if (error) {
 				brelse(bp);
 				break;
@@ -1165,16 +1165,13 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
  * is eventually dequeued by the async daemon, nfs_doio() *will*.
  */
 int
-nfs_asyncio(struct buf *bp, struct ucred *cred, struct thread *td)
+nfs_asyncio(struct nfsmount *nmp, struct buf *bp, struct ucred *cred, struct thread *td)
 {
-	struct nfsmount *nmp;
 	int iod;
 	int gotiod;
 	int slpflag = 0;
 	int slptimeo = 0;
 	int error, error2;
-
-	nmp = VFSTONFS(bp->b_vp->v_mount);
 
 	/*
 	 * Commits are usually short and sweet so lets save some cpu and
@@ -1298,10 +1295,9 @@ again:
  * synchronously or from an nfsiod.
  */
 int
-nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
+nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 {
 	struct uio *uiop;
-	struct vnode *vp;
 	struct nfsnode *np;
 	struct nfsmount *nmp;
 	int error = 0, iomode, must_commit = 0;
@@ -1309,7 +1305,6 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 	struct iovec io;
 	struct proc *p = td ? td->td_proc : NULL;
 
-	vp = bp->b_vp;
 	np = VTONFS(vp);
 	nmp = VFSTONFS(vp->v_mount);
 	uiop = &uio;

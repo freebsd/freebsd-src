@@ -292,8 +292,8 @@ int	nfs_commit(struct vnode *vp, u_quad_t offset, int cnt,
 	    struct ucred *cred, struct thread *td);
 int	nfs_readdirrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_nfsiodnew(void);
-int	nfs_asyncio(struct buf *, struct ucred *, struct thread *);
-int	nfs_doio(struct buf *, struct ucred *, struct thread *);
+int	nfs_asyncio(struct nfsmount *, struct buf *, struct ucred *, struct thread *);
+int	nfs_doio(struct vnode *vp, struct buf *, struct ucred *, struct thread *);
 void    nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
 	    const char *, int);
 void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
