@@ -1,7 +1,7 @@
 /* 
  * implement the "dc" Desk Calculator language.
  *
- * Copyright (C) 1994, 1997, 1998 Free Software Foundation, Inc.
+ * Copyright (C) 1994, 1997, 1998, 2000 Free Software Foundation, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,8 +15,10 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can either send email to this
- * program's author (see below) or write to: The Free Software Foundation,
- * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
+ * program's author (see below) or write to:
+ *   The Free Software Foundation, Inc.
+ *   59 Temple Place, Suite 330
+ *   Boston, MA 02111 USA
  */
 
 /* Written with strong hiding of implementation details
@@ -42,8 +44,6 @@
 #include "dc.h"
 #include "dc-proto.h"
 
-#include "version.h"
-
 #ifndef EXIT_SUCCESS	/* C89 <stdlib.h> */
 # define EXIT_SUCCESS	0
 #endif
@@ -52,6 +52,22 @@
 #endif
 
 const char *progname;	/* basename of program invocation */
+
+static void
+bug_report_info DC_DECLVOID()
+{
+	printf("Email bug reports to:  bug-dc@gnu.org .\n");
+}
+
+static void
+show_version DC_DECLVOID()
+{
+	printf("dc (GNU %s %s) %s\n", PACKAGE, VERSION, DC_VERSION);
+	printf("\n%s\n\
+This is free software; see the source for copying conditions.  There is NO\n\
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE,\n\
+to the extent permitted by law.\n", DC_COPYRIGHT); 
+}
 
 /* your generic usage function */
 static void
@@ -65,18 +81,8 @@ Usage: %s [OPTION] [file ...]\n\
   -h, --help               display this help and exit\n\
   -V, --version            output version information and exit\n\
 \n\
-Report bugs to bug-gnu-utils@prep.ai.mit.edu\n\
-Be sure to include the word ``dc'' somewhere in the ``Subject:'' field.\n\
 ", progname);
-}
-
-static void
-show_version DC_DECLVOID()
-{
-	printf("%s\n\n", DC_VERSION);
-	printf("Email bug reports to:  bug-gnu-utils@prep.ai.mit.edu .\n");
-	printf("Be sure to include the word ``dc'' \
-somewhere in the ``Subject:'' field.\n");
+	bug_report_info();
 }
 
 /* returns a pointer to one past the last occurance of c in s,

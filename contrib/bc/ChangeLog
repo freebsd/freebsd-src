@@ -1,3 +1,224 @@
+Wed Sep 27 17:19:48 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* doc/bc.texi: Added new file. Mainly translated from bc.1
+		       by Brian Youmans.
+	  doc/bc.1: Minor changes made as part of reviewing bc.texi.
+
+Wed Sep 20 11:45:00 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/bc.y:  Added a comment on the meanings of lvals.
+
+Wed Sep 13 11:40:24 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/main.c: add --interactive to long options.
+	  bc/bc.1: add -i/--interactive to doc.
+	  MANY: Update FSF address and Phil's e-mail.
+	
+Tue Sep 12 13:58:16 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* NEWS: update for recent changes.
+	  bc/bc.y: remove required parens around return expression.
+	  doc/bc.1: update for recent changes.
+
+Fri Sep  8 10:20:01 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/Makefile.am, dc/Makefile.am, lib/Makefile.am:
+	    Compile with unsigned characters.
+	  bc/main.c: Add --help option.
+	  bc/scan.l: Print illegal, non-printable characters in octal.
+
+Fri Sep  8 09:36:54 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/bc.y: Allow more newlines in function definitions.
+	  bc/proto.h: Don't prototype main.
+
+Fri Sep  1 16:09:50 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/bc.y: Spelling correction
+	  bc/execute.c: Correct expressions for multi-byte names.
+	  bc/load.c: Add parens for correct casting.
+	  doc/bc.1: Typos.
+	  Above fixes pointed out by kwzh@gnu.org (Karl Heuer).
+
+Tue Aug 29 23:03:30 PDT 2000 Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/testmul.c: #ifdef out a declaration matching #ifdef out
+	  code.
+
+Mon Jul 31 07:01:42 2000 Ken Pizzini <ken@gnu.org>
+
+	* dc/numeric.c: use of the "n" command can cause a number to be printed
+	  without a trailing newline, which would cause the column counter to
+	  fail to be reset and result in inappropriately wrapped numeric outputs.
+	  Fixed by always clearing the column counter before outputting each number.
+
+	* dc/stack.c: if a stack is used without ever using the correspondingly
+	  named register, it is perfectly legitimate for the register to be
+	  uninitialized; added an "else if" to handle this case without aborting.
+
+	* dc/eval.c: updated the comment explaining the restrictions
+	  on the | command to better reflect reality.
+
+	* doc/dc.texi: update the FSF office address in the copyright notice
+
+Thu Jul 13 18:13:00 2000 Phil Nelson  <phil@cs.wwu.edu>
+
+	* README: note --with-libedit configure parameter.
+
+Tue Jun 20 22:52:10 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/bcdefs.h: Include <readline/history.h> to quiet warnings. 
+
+	* configure.in: make --with-readline and --with-libedit work correctly.
+
+	* Makefile.am: use $(MAKE) instead of directly calling make.
+
+	* lib/testmul.c: Update to use bc_ on all number.c routines.
+
+Sat Jun 10 22:44:29 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/Makefile.am: Add scan.c to maintainer-clean target.
+
+	* acconfig.h configure.in stamp-h.in bc/Makefile.am bc/execute.c
+	  bc/fix-libmath_h bc/global.c bc/load.c bc/main.c bc/storage.c:
+	    Remove long string for libmath.  Clean up for compiler errors.
+
+	* dc/numeric.c: Correct parameter name.
+
+Wed May 10 15:51:16 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* {bc,doc,dc,lib}/Makefile.am: Add Makefile.in to maintainer-clean.
+
+	* bootstrap.sh: Added script to run the auto* tools.
+
+	* Imported all into CVS tree.
+
+Sun 2000-05-07  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/Makefile.am, dc/Makefile.am, lib/Makefile.am: Add -Wall to CFLAGS.
+
+	* bc/{execute.c,proto.h,storage.c,util.c}, dc/numeric.c: Changes for
+	  -Wall and for name changes in lib/number.c.  (Added bc_ to several
+	  routine.  Updated copyright notice.)
+
+	* h/number.h, lib/number.c:  Now comes from bcmath library which is  
+	  distributed in a different place. 
+
+Wed Mar 29 17:47:34 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/{bc.y,bcdefs.h,global.h,main.c,proto.h,scan.l,storage.c}:
+	  Added BSD libedit support.  Generic support for both where possible.
+	  Fixed bugs in readline support noticed during libedit addition.
+	  Works with NetBSD-1.4.1 libedit.
+	* doc/bc.1: Documented libedit addition.
+
+Wed Mar 29 10:20:18 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* FAQ: Added this file.
+	* Makfile.am: Added FAQ to distribution
+
+Tue Mar 28 13:52:35 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/number.c, h/number.h: Moved definitions so 
+	  number.c/number.h is a stand-alone "library".
+	  Changed definition of out_num to not reference a global.
+	* lib/testmul.c: updated #includes for number.h changes.
+	* h/{bcdefs.h,const.h,global.h,proto.h} moved to
+	  bc where they really belong.
+	* bc/execute.c: Changed calls to out_num for correctness.
+	* dc/numeric.c: Changed calls to out_num for correctness,
+	  include only number.h now and not all the other junk.
+	* configure.in, acconfig.h: Start of support for BSD libedit,
+	  added --with-pkg for NetBSD /usr/pkg tree.
+
+Tue Mar 28 11:20:00 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* Test/{exp.b,fact.b,jn.b,mul.b,raise.b}: Tweeks on the tests
+	  run to do more computation and test the recursive multiply.
+	* bc/scan.l: Removed a printf('\r') that was unneeded.
+
+Mon Mar 27 14:00:00 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* NEWS: Updated for 1.06.
+	* lib/number.c, h/number.h: Fixed bugs in recursive multiply.
+		Changed these files to be under the LGPL.
+	* Tests/jn.b: Added more tests.
+	* lib/Makefile.am: Only generate a timed version of number.o if
+		requested.
+	* README: Updated with information on how to generate a timed
+	        version of number.o.
+	* h/version.h: Updated copyright and version number for dc.
+
+Thu Mar 16 14:01:45 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* doc/bc.1, doc/dc.1, doc/dc.texi: Changed bug reporting address
+	  to bug-bc@gnu.org to update with what we hope will be reality.
+
+Tue Feb  8 08:54:19 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* doc/bc.1, bc/util.c: Removed "multiply digits"
+	  limit due to new recursive algorithm that doesn't
+	  have those limits.
+
+Tue Feb  8 08:47:05 2000  Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/Makefile.am, lib/testmul.c, lib/number.c, Makefile.am:
+	  Finally got a resonable version of the program
+	  to test the crossover between non-recursive and
+	  recursive multiply algorithms.  Added to distribution
+	  and build process.  Does increase build time by 
+	  about 10 minutes.
+
+Wed Oct  6 13:28:59 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/Makefile.am: Added rules to allow DEFSADD definitions.
+
+Sat Oct  2 19:59:51 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/libmath.b: Correctly do the cosine accuracy.
+
+Fri Oct  1 12:41:51 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/number.c: Increase accuracy of computing raise.
+	  Also turn off use of recursive multiply routines
+	  until furthur testing.
+	* bc/libmath.b: Increase accuracy of cosine.
+	* bc/Makefile.am: Remove -lfl from items to make.
+
+Wed Jul 28 10:29:28 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/scan.l:  rl_len from char to int.  (From FreeBSD
+	  bug tracking system and Nick Hibma <nick.hibma@jrc.it>)
+
+Tue Jun 22 08:00:28 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* lib/number.c: Rewrote bc_multiply to use a faster
+	  algorithm.  Old code not removed yet.
+
+Mon Jun 21 03:08:02 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* h/version.h: Updated version number to 1.06.
+	  bc/bc.y: Corrected bug in for statement, not popping.
+	  bc/execute.c: Improved stack dump/instruction tracing.
+
+Tue Jun 15 22:30:42 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* configure.in: Updated bc version to 1.06.
+
+Tue Jun 15 22:27:44 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* h/bcdefs.h, h/const.h, bc/execute.c, bc/load.c, bc/storage.c,
+	  bc/util.c: Removed segmented function storaged.  Now
+	  dynamically expands (by doubling, starting at 1024 bytes)
+	  to allow arbitrary sized functions.
+
+Thu Jun 10 22:33:44 1999  Phil Nelson  <phil@cs.wwu.edu>
+
+	* bc/libmath.b: change scaling in computation of j(n,x) so
+	  it correctly computes the value.
+
+Wed Jun 10 10:10:10 1998 Release of bc-1.05a.
+
 Fri Apr 17 10:40:59 1998  Phil Nelson  <phil@cs.wwu.edu>
 
 	* bc/main.c: Enable readline only if interactive.
@@ -820,4 +1041,3 @@ Tue Oct 29 10:06:32 1991  Phil Nelson  (phil at cs.wwu.edu)
 	* Called current version 1.00.
 
 	* Submitted GNU bc-1.00 to comp.sources.reviewed
-

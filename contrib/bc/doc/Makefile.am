@@ -1,7 +1,9 @@
 ## Process this file with automake to produce Makefile.in
 
-info_TEXINFOS = dc.texi
+info_TEXINFOS = bc.texi dc.texi
 MAKEINFO = makeinfo --no-split
+
+MAINTAINERCLEANFILES = Makefile.in
 
 # FIXME: remove this when automake has been fixed to include these
 # files automatically

@@ -2,7 +2,7 @@
 .\" bc.1 - the *roff document processor source for the bc manual
 .\"
 .\" This file is part of GNU bc.
-.\" Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+.\" Copyright (C) 1991-1994, 1997, 2000 Free Software Foundation, Inc.
 .\"
 .\" This program is free software; you can redistribute it and/or modify
 .\" it under the terms of the GNU General Public License as published by
@@ -15,24 +15,27 @@
 .\" GNU General Public License for more details.
 .\"
 .\" You should have received a copy of the GNU General Public License
-.\" along with this program; see the file COPYING.  If not, write to
-.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\" along with this program; see the file COPYING.  If not, write to:
+.\"   The Free Software Foundation, Inc.
+.\"   59 Temple Place, Suite 330
+.\"   Boston, MA 02111 USA
 .\"
 .\" You may contact the author by:
-.\" e-mail: phil@cs.wwu.edu
+.\" e-mail: philnelson@acm.org
 .\" us-mail: Philip A. Nelson
 .\" Computer Science Department, 9062
 .\" Western Washington University
 .\" Bellingham, WA 98226-9062
 .\"
+.\" $FreeBSD$
 .\"
-.TH bc 1 .\" "Command Manual" v1.04 "June 22, 1995"
+.TH bc 1 .\" "Command Manual" v1.06 "Sept 12, 2000"
 .SH NAME
 bc - An arbitrary precision calculator language
 .SH SYNTAX
-\fBbc\fR [ \fB-lwsqv\fR ] [long-options] [ \fI file ...\fR ]
+\fBbc\fR [ \fB-hlwsqv\fR ] [long-options] [ \fI file ...\fR ]
 .SH VERSION
-This man page documents GNU bc version 1.04.
+This man page documents GNU bc version 1.06.
 .SH DESCRIPTION
 \fBbc\fR is a language that supports arbitrary precision numbers
 with interactive execution of statements.  There are some similarities
@@ -52,25 +55,19 @@ or to be rejected.  This
 document describes the language accepted by this processor.
 Extensions will be identified as such.
 .SS OPTIONS
-.IP -l
+.IP "-h, --help"
+Print the usage and exit.
+.IP "-i, --interactive"
+Force interactive mode.
+.IP "-l, --mathlib"
 Define the standard math library.
-.IP -w
+.IP "-w, --warn"
 Give warnings for extensions to POSIX \fBbc\fR.
-.IP -s
+.IP "-s, --standard"
 Process exactly the POSIX \fBbc\fR language.
-.IP -q
+.IP "-q, --quiet"
 Do not print the normal GNU bc welcome.
-.IP -v
-Print the version number and copyright and quit.
-.IP --mathlib
-Define the standard math library.
-.IP --warn
-Give warnings for extensions to POSIX \fBbc\fR.
-.IP --standard
-Process exactly the POSIX \fBbc\fR language.
-.IP --quiet
-Do not print the normal GNU bc welcome.
-.IP --version
+.IP "-v, --version"
 Print the version number and copyright and quit.
 .SS NUMBERS
 The most basic element in \fBbc\fR is the number.  Numbers are
@@ -328,8 +325,8 @@ base ten value of "obase-1".  Since numbers are of arbitrary
 precision, some numbers may not be printable on a single output line.
 These long numbers will be split across lines using the "\e" as the
 last character on a line.  The maximum number of characters printed
-per line is 70.  Due to the interactive nature of \fBbc\fR printing
-a number cause the side effect of assigning the printed value to the
+per line is 70.  Due to the interactive nature of \fBbc\fR, printing
+a number causes the side effect of assigning the printed value to the
 special variable \fBlast\fR. This allows the user to recover the
 last value printed without having to retype the expression that
 printed the number.  Assigning to \fBlast\fR is legal and will
@@ -405,7 +402,7 @@ not executed.
 Return the value 0 from a function.  (See the section on functions.)
 .IP "\fBreturn\fR ( expression )"
 Return the value of the expression from a function.  (See the section on 
-functions.)
+functions.)  As an extension, the parenthesis are not required.
 .SS PSEUDO STATEMENTS
 These statements are not statements in the traditional sense.  They are
 not executed statements.  Their function is performed at "compile" time.
@@ -460,7 +457,7 @@ popped so that the original value (at the time of the function call)
 of these variables are restored.  The parameters are really auto
 variables that are initialized to a value provided in the function
 call.  Auto variables are different than traditional local variables
-in the fact that if function A calls function B, B may access function
+because if function A calls function B, B may access function
 A's auto variables by just using the same name, unless function B has
 called them auto variables.  Due to the fact that auto variables and
 parameters are pushed onto a stack, \fBbc\fR supports recursive functions.
@@ -481,6 +478,22 @@ constants in the function body will be converted using the value of
 will be ignored during the execution of the function except for the
 standard function \fBread\fR, which will always use the current value
 of \fBibase\fR for conversion of numbers.
+.PP
+As an extension, the format of the definition has been slightly relaxed.
+The standard requires the opening brace be on the same line as the 
+\fBdefine\fR keyword and all other parts must be on following lines.
+This version of \fBbc\fR will allow any number of newlines before and
+after the opening brace of the function.  For example, the following
+definitions are legal.
+.nf
+.RS
+\f(CW
+define d (n) { return (2*n); }
+define d (n)
+  { return (2*n); }
+\fR
+.RE
+.fi
 .SS MATH LIBRARY
 If \fBbc\fR is invoked with the \fB-l\fR option, a math library is preloaded
 and the default scale is set to 20.   The math functions will calculate their
@@ -594,19 +607,21 @@ define f (x) {
 \fR
 .RE
 .fi
-.SS READLINE OPTION
-GNU \fBbc\fR can be compiled (via a configure option) to use the
-GNU \fBreadline\fR input editor library.  This allows the user
-to do more editing of lines before sending them to \fBbc\fR.
-It also allows for a history of previous lines typed.  When this
-option is selected, \fBbc\fR has one more special variable.
-This special variable, \fBhistory\fR is the number of lines of
-history retained.  A value of -1 means that an unlimited number
-of history lines are retained.  This is the default value.
-Setting the value of \fBhistory\fR to a positive number restricts
-the number of history lines to the number given.  The value of
-0 disables the history feature.  For more information, read the
-user manuals for the GNU \fBreadline\fR and \fBhistory\fR libraries.
+.SS READLINE AND LIBEDIT OPTIONS
+GNU \fBbc\fR can be compiled (via a configure option) to use the GNU
+\fBreadline\fR input editor library or the BSD \fBlibedit\fR library.
+This allows the user to do editing of lines before sending them
+to \fBbc\fR.  It also allows for a history of previous lines typed.
+When this option is selected, \fBbc\fR has one more special variable.
+This special variable, \fBhistory\fR is the number of lines of history
+retained.  For \fBreadline\fR, a value of -1 means that an unlimited
+number of history lines are retained.  Setting the value of
+\fBhistory\fR to a positive number restricts the number of history
+lines to the number given.  The value of 0 disables the history
+feature.  The default value is 100. For more information, read the
+user manuals for the GNU \fBreadline\fR, \fBhistory\fR and BSD \fBlibedit\fR
+libraries.  One can not enable both \fBreadline\fR and \fBlibedit\fR
+at the same time.
 .SS DIFFERENCES
 This version of 
 .B bc
@@ -657,12 +672,17 @@ POSIX \fBbc\fR does not have a read function.
 POSIX \fBbc\fR does not have a print statement .
 .IP "continue statement"
 POSIX \fBbc\fR does not have a continue statement.
+.IP "return statement"
+POSIX \fBbc\fR requires parentheses around the return expression.
 .IP "array parameters"
 POSIX \fBbc\fR does not (currently) support array parameters in full.
 The POSIX grammar allows for arrays in function definitions, but does
 not provide a method to specify an array as an actual parameter.  (This
 is most likely an oversight in the grammar.)  Traditional implementations
 of \fBbc\fR have only call by value array parameters.
+.IP "function format"
+POSIX \fBbc\fR requires the opening brace on the same line as the 
+\fBdefine\fR key word and the \fBauto\fR statement on the next line.
 .IP "=+, =-, =*, =/, =%, =^"
 POSIX \fBbc\fR does not require these "old style" assignment operators to
 be defined.  This version may allow these "old style" assignments.  Use
@@ -732,14 +752,6 @@ digits.
 The limit on the number of characters in a string is INT_MAX characters.
 .IP exponent
 The value of the exponent in the raise operation (^) is limited to LONG_MAX.
-.IP multiply
-The multiply routine may yield incorrect results if a number
-has more than LONG_MAX / 90 total digits.  For 32 bit longs, this number is
-23,860,929 digits.
-.IP "code size"
-Each function and the "main" program are limited to 16384 bytes of
-compiled byte code each.  This limit (BC_MAX_SEGS) can be easily changed
-to have more than 16 segments of 1024 bytes.
 .IP "variable names"
 The current limit on the number of unique names is 32767 for each of
 simple variables, arrays and functions.
@@ -760,12 +772,6 @@ the user wants defined every time \fBbc\fR is run.
 This should be an integer specifying the number of characters in an
 output line for numbers. This includes the backslash and newline characters
 for long numbers.
-.SH FILES
-In most installations, \fBbc\fR is completely self-contained.
-Where executable size is of importance or the C compiler does
-not deal with very long strings, \fBbc\fR will read
-the standard math library from the file /usr/local/lib/libmath.b.
-(The actual location may vary.  It may be /lib/libmath.b.)
 .SH DIAGNOSTICS
 If any file on the command line can not be opened, \fBbc\fR will report
 that the file is unavailable and terminate.  Also, there are compile
@@ -774,12 +780,12 @@ and run time diagnostics that should be self-explanatory.
 Error recovery is not very good yet.
 .PP
 Email bug reports to
-.BR bug-gnu-utils@prep.ai.mit.edu .
+.BR bug-bc@gnu.org .
 Be sure to include the word ``bc'' somewhere in the ``Subject:'' field.
 .SH AUTHOR
 .nf
 Philip A. Nelson
-phil@cs.wwu.edu
+philnelson@acm.org
 .fi
 .SH ACKNOWLEDGEMENTS
 The author would like to thank Steve Sommars (Steve.Sommars@att.com) for
