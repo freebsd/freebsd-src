@@ -330,6 +330,8 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 	pde = pmap_pde(pmap, va);
 	if (pde == NULL || (*pde & PG_V) == 0)
 		return NULL;
+	if ((*pde & PG_PS) != 0)	/* compat with i386 pmap_pte() */
+		return ((pt_entry_t *)pde);
 	pte = (pt_entry_t *)PHYS_TO_DMAP(*pde & PG_FRAME);
 	return (&pte[pmap_pte_index(va)]);
 }
