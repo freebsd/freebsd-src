@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.609.2.23 2003/03/28 05:51:16 ca Exp $
+.\"	$Id: op.me,v 8.609.2.26 2003/07/28 21:54:53 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -90,7 +90,7 @@ Sendmail, Inc.
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.609.2.23 $
+.Ve $Revision: 8.609.2.26 $
 .rm Ve
 .sp
 For Sendmail Version 8.12
@@ -4307,8 +4307,11 @@ is ignored (even if the ruleset does not return a ``useful'' result).
 .pp
 The
 .i queuegroup
-ruleset is used to map an address to a queue group name.
-It should return
+ruleset is used to map a recipient address to a queue group name.
+The input for the ruleset is a recipient address as specified by the
+.sm "SMTP RCPT"
+command.
+The ruleset should return
 .b $#
 followed by the name of a queue group.
 If the return value starts with anything else it is silently ignored.
@@ -8270,7 +8273,7 @@ Contributed and supported by
 Mark Roth, roth@uiuc.edu.
 For more information,
 consult the web site
-.q http://www-dev.cso.uiuc.edu/sendmail/ .
+.q http://www-dev.cites.uiuc.edu/sendmail/ .
 .ip nsd
 nsd map for IRIX 6.5 and later.
 Contributed and supported by Bob Mende of SGI,
@@ -9154,7 +9157,7 @@ Then create a config file that uses this.
 For example, using the V8 M4 configuration, include the
 following line in your .mc file:
 .(b
-define(\`confUSERDB_SPEC\', /etc/mail/userdb.db)
+define(\`confUSERDB_SPEC\', /etc/mail/userdb)
 .)b
 .sh 1 "OTHER CONFIGURATION"
 .pp
@@ -10764,7 +10767,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.609.2.23 $
+.\"Version $Revision: 8.609.2.26 $
 .\".ce 0
 .bp 3
 .ce

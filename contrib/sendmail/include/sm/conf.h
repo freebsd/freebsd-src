@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.90.2.14 2003/03/06 18:38:06 ca Exp $
+ *	$Id: conf.h,v 1.90.2.18 2003/08/20 22:27:44 ca Exp $
  */
 
 /*
@@ -102,7 +102,9 @@
 #  endif /* ! HASGETUSERSHELL */
 #  ifdef HPUX10
 #   define _PATH_SENDMAIL	"/usr/sbin/sendmail"
-#   define SMRSH_CMDDIR		"/var/adm/sm.bin"
+#   ifndef SMRSH_CMDDIR
+#    define SMRSH_CMDDIR	"/var/adm/sm.bin"
+#   endif /* ! SMRSH_CMDDIR */
 #  endif /* HPUX10 */
 #  ifdef HPUX11
 #   define HASSETREUID	1	/* setreuid(2) works on HP-UX 11.x */
@@ -110,7 +112,9 @@
 #   ifndef BROKEN_RES_SEARCH
 #    define BROKEN_RES_SEARCH 1	/* res_search(unknown) returns h_errno=0 */
 #   endif /* ! BROKEN_RES_SEARCH */
-#   define SMRSH_CMDDIR		"/var/adm/sm.bin"
+#   ifndef SMRSH_CMDDIR
+#    define SMRSH_CMDDIR	"/var/adm/sm.bin"
+#   endif /* ! SMRSH_CMDDIR */
 #   define _PATH_SENDMAIL	"/usr/sbin/sendmail"
 #  else /* HPUX11 */
 #   ifndef NOT_SENDMAIL
@@ -157,6 +161,9 @@ extern void	hard_syslog();
 
 # ifdef _AIX5
 #  define _AIX4		40300
+#  if _AIX5 >= 50200
+#   define HASUNSETENV	1	/* has unsetenv(3) call */
+#  endif /* _AIX5 >= 50200 */
 # endif /* _AIX5 */
 
 /*
@@ -422,7 +429,9 @@ typedef int		pid_t;
 #   if SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208)
 #    undef _PATH_SENDMAILPID	/* tmpfs /var/run added in 2.8 */
 #    define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
-#    define SMRSH_CMDDIR		"/var/adm/sm.bin"
+#    ifndef SMRSH_CMDDIR
+#     define SMRSH_CMDDIR	"/var/adm/sm.bin"
+#    endif /* ! SMRSH_CMDDIR */
 #    define SL_FUDGE	34	/* fudge offset for SyslogPrefixLen */
 #   endif /* SOLARIS >= 20800 || (SOLARIS < 10000 && SOLARIS >= 208) */
 #   if SOLARIS >= 20900 || (SOLARIS < 10000 && SOLARIS >= 209)
@@ -907,8 +916,12 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #     define HASSETUSERCONTEXT	1	/* BSDI-style login classes */
 #    endif /* __FreeBSD_version >= 222000 */
 #    if __FreeBSD_version >= 330000	/* 3.3.0-release and later */
-#     define SMRSH_CMDDIR	"/usr/libexec/sm.bin"
-#     define SMRSH_PATH		"/bin:/usr/bin"
+#     ifndef SMRSH_CMDDIR
+#      define SMRSH_CMDDIR	"/usr/libexec/sm.bin"
+#     endif /* ! SMRSH_CMDDIR */
+#     ifndef SMRSH_PATH
+#      define SMRSH_PATH	"/bin:/usr/bin"
+#     endif /* ! SMRSH_PATH */
 #    endif /* __FreeBSD_version >= 330000 */
 #    define USESYSCTL		1	/* use sysctl(3) for getting ncpus */
 #    include <sys/sysctl.h>
@@ -922,7 +935,9 @@ extern unsigned int sleepX __P((unsigned int seconds));
 #   undef SPT_TYPE
 #   define SPT_TYPE	SPT_BUILTIN	/* setproctitle is in libc */
 #   define HASSETLOGIN	1	/* has setlogin(2) */
-#   define HASSETREUID	0	/* OpenBSD has broken setreuid(2) emulation */
+#   if OpenBSD < 200305
+#    define HASSETREUID	0	/* setreuid(2) broken in OpenBSD < 3.3 */
+#   endif /* OpenBSD < 200305 */
 #   define HASSETEGID	1	/* use setegid(2) to set saved gid */
 #   define HASURANDOMDEV	1	/* has /dev/urandom(4) */
 #   if OpenBSD >= 200006
@@ -1360,6 +1375,11 @@ extern void		*malloc();
 #    define HASURANDOMDEV 1	/* 2.0 (at least) has linux/drivers/char/random.c */
 #   endif /* ! HASURANDOMDEV */
 #  endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2,0,0)) */
+#  if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+#   ifndef HASSTRERROR
+#    define HASSTRERROR	1	/* has strerror(3) */
+#   endif /* HASSTRERROR */
+#  endif /* defined(__GLIBC__) && defined(__GLIBC_MINOR__) */
 #  ifndef TZ_TYPE
 #   define TZ_TYPE	TZ_NONE		/* no standard for Linux */
 #  endif /* ! TZ_TYPE */
@@ -1385,7 +1405,6 @@ extern void		*malloc();
    **  in 2.1 and later, but the APIs appear before the functions.
    */
 #   if defined(__GLIBC__) && defined(__GLIBC_MINOR__)
-#    define HASSTRERROR	1	/* has strerror(3) */
 #    define GLIBC_VERSION ((__GLIBC__ << 8) + __GLIBC_MINOR__)
 #    if (GLIBC_VERSION >= 0x201)
 #     undef IPPROTO_ICMPV6	/* linux #defines, glibc enums */
@@ -2547,7 +2566,7 @@ typedef struct msgb		mblk_t;
 # endif /* ! EX_CONFIG */
 
 /* pseudo-codes */
-# define EX_QUIT		22	/* drop out of server immediately */
+# define EX_QUIT	22	/* drop out of server immediately */
 # define EX_RESTART	23	/* restart sendmail daemon */
 # define EX_SHUTDOWN	24	/* shutdown sendmail daemon */
 

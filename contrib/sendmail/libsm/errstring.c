@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001, 2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: errstring.c,v 1.12 2001/10/03 16:09:32 ca Exp $")
+SM_RCSID("@(#)$Id: errstring.c,v 1.12.2.4 2003/06/24 17:16:09 ca Exp $")
 
 #include <errno.h>
 #include <stdio.h>	/* sys_errlist, on some platforms */
@@ -42,6 +42,8 @@ SM_RCSID("@(#)$Id: errstring.c,v 1.12 2001/10/03 16:09:32 ca Exp $")
 **
 **	Returns:
 **		A string description of errnum.
+**
+**	Note: this may point to a local (static) buffer.
 */
 
 const char *
@@ -49,6 +51,7 @@ sm_errstring(errnum)
 	int errnum;
 {
 	char *ret;
+
 
 	switch (errnum)
 	{
@@ -183,6 +186,9 @@ sm_errstring(errnum)
 
 	  case SMDBE_OLD_VERSION:
 		return "Berkeley DB file is an old version, recreate it";
+
+	  case SMDBE_VERSION_MISMATCH:
+		return "Berkeley DB version mismatch between include file and library";
 	}
 
 	/*

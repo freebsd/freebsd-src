@@ -15,7 +15,7 @@ int smfi_setreply(
 	char *message
 );
 </pre>
-Set the default SMTP error reply code.
+Set the default SMTP error reply code.  Only 4XX and 5XX replies are accepted.
 </td></tr>
 
 <!----------- Description ---------->
@@ -42,10 +42,13 @@ this filter.</td>
 	<td>Opaque context structure.
 	</td></tr>
     <tr valign="top"><td>rcode</td>
-	<td>The three-digit (RFC 821) SMTP reply code, as a null-terminated string.  rcode cannot be NULL, and must be a valid reply code.
-	</td></tr>
+	<td>The three-digit (RFC 821/2821) SMTP reply code, as a
+	null-terminated string.  rcode cannot be NULL, and must be a valid
+	4XX or 5XX reply code.
+        </td></tr>
     <tr valign="top"><td>xcode</td>
-	<td>The extended (RFC 2034) reply code.  If xcode is NULL, no extended code is used.  Otherwise, xcode must conform to RFC 2034.
+	<td>The extended (RFC 1893/2034) reply code.  If xcode is NULL, no
+	extended code is used.  Otherwise, xcode must conform to RFC 1893/2034.
 	</td></tr>
     <tr valign="top"><td>message</td>
 	<td>The text part of the SMTP reply.  If message is NULL, an empty message is used.
@@ -73,8 +76,11 @@ Otherwise, it return MI_SUCCESS.
 <ul>
 <li>Values passed to smfi_setreply are not checked for standards compliance.
 <li>For details about reply codes and their meanings, please see RFC's 
-<a href="http://www.rfc-editor.org/rfc/rfc821.txt">821</a>
-and <a href="http://www.rfc-editor.org/rfc/rfc2034.txt">2034</a>.
+<a href="http://www.rfc-editor.org/rfc/rfc821.txt">821</a>/
+<a href="http://www.rfc-editor.org/rfc/rfc2821.txt">2821</a>
+and
+<a href="http://www.rfc-editor.org/rfc/rfc1893.txt">1893</a>/
+<a href="http://www.rfc-editor.org/rfc/rfc2034.txt">2034</a>.
 <li>If the reply code (rcode) given is a '4XX' code but SMFI_REJECT is used
 for the message, the custom reply is not used.
 <li>Similarly, if the reply code (rcode) given is a '5XX' code but

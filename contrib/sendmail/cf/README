@@ -2765,15 +2765,14 @@ ${server_addr} the address of the server of the current outgoing SMTP
 Relaying
 --------
 
-
 SMTP STARTTLS can allow relaying for remote SMTP clients which have
-successfully authenticated themselves.  This is done in the ruleset
-RelayAuth.  If the verification of the cert failed (${verify} != OK),
-relaying is subject to the usual rules.  Otherwise the DN of the issuer is
-looked up in the access map using the tag CERTISSUER.  If the resulting
-value is RELAY, relaying is allowed.  If it is SUBJECT, the DN of the cert
-subject is looked up next in the access map using the tag CERTSUBJECT.  If
-the value is RELAY, relaying is allowed.
+successfully authenticated themselves.  If the verification of the cert
+failed (${verify} != OK), relaying is subject to the usual rules.
+Otherwise the DN of the issuer is looked up in the access map using the
+tag CERTISSUER.  If the resulting value is RELAY, relaying is allowed.
+If it is SUBJECT, the DN of the cert subject is looked up next in the
+access map using the tag CERTSUBJECT.  If the value is RELAY, relaying
+is allowed.
 
 ${cert_issuer} and ${cert_subject} can be optionally modified by regular
 expressions defined in the m4 variables _CERT_REGEX_ISSUER_ and
@@ -3245,7 +3244,9 @@ and on relay.machine use the mailertable:
 
 The [square brackets] turn off MX records for this host only.
 If you didn't do this, the mailertable would use the MX record
-again, which would give you an MX loop.
+again, which would give you an MX loop.  Note that the use of
+wildcard MX records is almost always a bad idea.  Please avoid
+using them if possible.
 
 
 +--------------------------------+
@@ -4374,4 +4375,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.623.2.23 $, Last updated $Date: 2003/03/28 17:28:26 $
+$Revision: 8.623.2.25 $, Last updated $Date: 2003/06/18 18:47:21 $

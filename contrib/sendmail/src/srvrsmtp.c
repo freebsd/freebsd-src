@@ -16,7 +16,7 @@
 # include <libmilter/mfdef.h>
 #endif /* MILTER */
 
-SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.22 2003/02/19 02:45:40 ca Exp $")
+SM_RCSID("@(#)$Id: srvrsmtp.c,v 8.829.2.31 2003/07/01 17:30:01 ca Exp $")
 
 #if SASL || STARTTLS
 # include <sys/time.h>
@@ -67,6 +67,38 @@ static void	printvrfyaddr __P((ADDRESS *, bool, bool));
 static void	rcpt_esmtp_args __P((ADDRESS *, char *, char *, ENVELOPE *));
 static char	*skipword __P((char *volatile, char *));
 static void	setup_smtpd_io __P((void));
+
+#if SASL
+# if SASL >= 20000
+static int reset_saslconn __P((sasl_conn_t **_conn, char *_hostname,
+				char *_remoteip, char *_localip,
+				char *_auth_id, sasl_ssf_t *_ext_ssf));
+
+# define RESET_SASLCONN	\
+	result = reset_saslconn(&conn, hostname, remoteip, localip, auth_id, \
+				&ext_ssf);	\
+	if (result != SASL_OK)			\
+	{					\
+		/* This is pretty fatal */	\
+		goto doquit;			\
+	}
+
+# else /* SASL >= 20000 */
+static int reset_saslconn __P((sasl_conn_t **_conn, char *_hostname,
+				struct sockaddr_in *_saddr_r,
+				struct sockaddr_in *_saddr_l,
+				sasl_external_properties_t *_ext_ssf));
+# define RESET_SASLCONN	\
+	result = reset_saslconn(&conn, hostname, &saddr_r, &saddr_l, &ext_ssf); \
+	if (result != SASL_OK)			\
+	{					\
+		/* This is pretty fatal */	\
+		goto doquit;			\
+	}
+
+# endif /* SASL >= 20000 */
+#endif /* SASL */
+
 extern ENVELOPE	BlankEnvelope;
 
 #define SKIP_SPACE(s)	while (isascii(*s) && isspace(*s))	\
@@ -367,6 +399,7 @@ smtp(nullserver, d_flags, e)
 	volatile unsigned int n_etrn = 0;	/* count of ETRN */
 	volatile unsigned int n_noop = 0;	/* count of NOOP/VERB/etc */
 	volatile unsigned int n_helo = 0;	/* count of HELO/EHLO */
+	volatile int save_sevenbitinput;
 	bool ok;
 #if _FFR_BLOCK_PROXIES || _FFR_ADAPTIVE_EOL
 	volatile bool first;
@@ -398,10 +431,13 @@ smtp(nullserver, d_flags, e)
 	char *auth_id;
 	const char *out;
 	sasl_ssf_t ext_ssf;
+	char localip[60], remoteip[60];
 # else /* SASL >= 20000 */
 	char *out;
 	const char *errstr;
 	sasl_external_properties_t ext_ssf;
+	struct sockaddr_in saddr_l;
+	struct sockaddr_in saddr_r;
 # endif /* SASL >= 20000 */
 	sasl_security_properties_t ssp;
 	sasl_ssf_t *ssf;
@@ -431,6 +467,7 @@ smtp(nullserver, d_flags, e)
 #endif /* PIPELINING */
 	volatile time_t log_delay = (time_t) 0;
 
+	save_sevenbitinput = SevenBitInput;
 	smtp.sm_nrcpts = 0;
 #if MILTER
 	smtp.sm_milterize = (nullserver == NULL);
@@ -568,7 +605,6 @@ smtp(nullserver, d_flags, e)
 			SOCKADDR_LEN_T addrsize;
 			SOCKADDR saddr_l;
 			SOCKADDR saddr_r;
-			char localip[60], remoteip[60];
 
 			addrsize = sizeof(saddr_r);
 			if (getpeername(sm_io_getinfo(InChannel, SM_IO_WHAT_FD,
@@ -607,8 +643,6 @@ smtp(nullserver, d_flags, e)
 		if (in != NULL && strcmp(in, "inet") == 0)
 		{
 			SOCKADDR_LEN_T addrsize;
-			struct sockaddr_in saddr_l;
-			struct sockaddr_in saddr_r;
 
 			addrsize = sizeof(struct sockaddr_in);
 			if (getpeername(sm_io_getinfo(InChannel, SM_IO_WHAT_FD,
@@ -677,6 +711,9 @@ smtp(nullserver, d_flags, e)
 			n_mechs = saslmechs(conn, &mechlist);
 	}
 #endif /* SASL */
+
+#if STARTTLS
+#endif /* STARTTLS */
 
 #if MILTER
 	if (smtp.sm_milterize)
@@ -766,7 +803,10 @@ smtp(nullserver, d_flags, e)
 	/* If this an smtps connection, start TLS now */
 	smtps = bitnset(D_SMTPS, d_flags);
 	if (smtps)
+	{
+		Errors = 0;
 		goto starttls;
+	}
 
   greeting:
 
@@ -975,6 +1015,7 @@ smtp(nullserver, d_flags, e)
 			{
 				authenticating = SASL_NOT_AUTH;
 				message("501 5.5.2 missing input");
+				RESET_SASLCONN;
 				continue;
 			}
 # endif /* 0 */
@@ -984,6 +1025,7 @@ smtp(nullserver, d_flags, e)
 
 				/* rfc 2254 4. */
 				message("501 5.0.0 AUTH aborted");
+				RESET_SASLCONN;
 				continue;
 			}
 
@@ -1006,6 +1048,7 @@ smtp(nullserver, d_flags, e)
 # if SASL >= 20000
 				sm_free(in);
 # endif /* SASL >= 20000 */
+				RESET_SASLCONN;
 				continue;
 			}
 
@@ -1160,6 +1203,7 @@ smtp(nullserver, d_flags, e)
 # else /* SASL >= 20000 */
 						  errstr == NULL ? "" : errstr);
 # endif /* SASL >= 20000 */
+				RESET_SASLCONN;
 				authenticating = SASL_NOT_AUTH;
 			}
 		}
@@ -1409,6 +1453,7 @@ smtp(nullserver, d_flags, e)
 # else /* SASL >= 20000 */
 						  errstr);
 # endif /* SASL >= 20000 */
+				RESET_SASLCONN;
 				break;
 			}
 			auth_type = newstr(p);
@@ -1436,6 +1481,7 @@ smtp(nullserver, d_flags, e)
 
 				/* start over? */
 				authenticating = SASL_NOT_AUTH;
+				RESET_SASLCONN;
 			}
 			else
 			{
@@ -1505,6 +1551,8 @@ smtp(nullserver, d_flags, e)
 			else if ((srv_ssl = SSL_new(srv_ctx)) == NULL)
 			{
 				message("454 4.3.3 TLS not available: error generating SSL handle");
+				if (LogLevel > 8)
+					tlslogerr("server");
 # if _FFR_SMTP_SSL
 				goto tls_done;
 # else /* _FFR_SMTP_SSL */
@@ -1816,7 +1864,7 @@ tlsfail:
 					ok = AllowBogusHELO;
 					break;
 				}
-				if (strchr("[].-_#", *q) == NULL)
+				if (strchr("[].-_#:", *q) == NULL)
 					break;
 			}
 
@@ -2123,6 +2171,9 @@ tlsfail:
 				auth_warning(e, "%s owned process doing -bs",
 					RealUserName);
 			}
+
+			/* reset to default value */
+			SevenBitInput = save_sevenbitinput;
 
 			/* now parse ESMTP arguments */
 			e->e_msgsize = 0;
@@ -3003,7 +3054,7 @@ smtp_data(smtp, e)
 		e->e_flags |= EF_NL_NOT_EOL;
 #endif /* _FFR_ADAPTIVE_EOL */
 
-	collect(InChannel, true, NULL, e);
+	collect(InChannel, true, NULL, e, true);
 
 	/* redefine message size */
 	(void) sm_snprintf(buf, sizeof buf, "%ld", e->e_msgsize);
@@ -3962,7 +4013,7 @@ saslmechs(conn, mechlist)
 # if SASL >= 20000
 	result = sasl_listmech(conn, NULL,
 			       "", " ", "", (const char **) mechlist,
-			       (unsigned int *)&len, (unsigned int *)&num);
+			       (unsigned int *)&len, &num);
 # else /* SASL >= 20000 */
 	result = sasl_listmech(conn, "user", /* XXX */
 			       "", " ", "", mechlist,
@@ -4314,3 +4365,84 @@ help(topic, e)
 
 	(void) sm_io_close(hf, SM_TIME_DEFAULT);
 }
+
+#if SASL
+/*
+**  RESET_SASLCONN -- reset SASL connection data
+**
+**	Parameters:
+**		conn -- SASL connection context
+**		hostname -- host name
+**		various connection data
+**
+**	Returns:
+**		SASL result
+*/
+
+static int
+reset_saslconn(sasl_conn_t ** conn, char *hostname,
+# if SASL >= 20000
+	       char *remoteip, char *localip,
+	       char *auth_id, sasl_ssf_t * ext_ssf)
+# else /* SASL >= 20000 */
+	       struct sockaddr_in * saddr_r, struct sockaddr_in * saddr_l,
+	       sasl_external_properties_t * ext_ssf)
+# endif /* SASL >= 20000 */
+{
+	int result;
+
+	sasl_dispose(conn);
+# if SASL >= 20000
+	result = sasl_server_new("smtp", hostname, NULL, NULL, NULL,
+				 NULL, 0, conn);
+# elif SASL > 10505
+	/* use empty realm: only works in SASL > 1.5.5 */
+	result = sasl_server_new("smtp", hostname, "", NULL, 0, conn);
+# else /* SASL >= 20000 */
+	/* use no realm -> realm is set to hostname by SASL lib */
+	result = sasl_server_new("smtp", hostname, NULL, NULL, 0,
+				 conn);
+# endif /* SASL >= 20000 */
+	if (result != SASL_OK)
+		return result;
+
+# if SASL >= 20000
+#  if NETINET || NETINET6
+	if (remoteip != NULL)
+		result = sasl_setprop(*conn, SASL_IPREMOTEPORT, remoteip);
+	if (result != SASL_OK)
+		return result;
+
+	if (localip != NULL)
+		result = sasl_setprop(*conn, SASL_IPLOCALPORT, localip);
+	if (result != SASL_OK)
+		return result;
+#  endif /* NETINET || NETINET6 */
+
+	result = sasl_setprop(*conn, SASL_SSF_EXTERNAL, ext_ssf);
+	if (result != SASL_OK)
+		return result;
+
+	result = sasl_setprop(*conn, SASL_AUTH_EXTERNAL, auth_id);
+	if (result != SASL_OK)
+		return result;
+# else /* SASL >= 20000 */
+#  if NETINET
+	if (saddr_r != NULL)
+		result = sasl_setprop(*conn, SASL_IP_REMOTE, saddr_r);
+	if (result != SASL_OK)
+		return result;
+
+	if (saddr_l != NULL)
+		result = sasl_setprop(*conn, SASL_IP_LOCAL, saddr_l);
+	if (result != SASL_OK)
+		return result;
+#  endif /* NETINET */
+
+	result = sasl_setprop(*conn, SASL_SSF_EXTERNAL, ext_ssf);
+	if (result != SASL_OK)
+		return result;
+# endif /* SASL >= 20000 */
+	return SASL_OK;
+}
+#endif /* SASL */

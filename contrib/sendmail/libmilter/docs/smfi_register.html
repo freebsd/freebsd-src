@@ -9,7 +9,7 @@
 <pre>
 #include &lt;libmilter/mfapi.h&gt;
 int smfi_register(
-	smfiDesc_str descr
+	smfiDesc descr
 );
 </pre>
 Register a set of filter callbacks.
@@ -25,7 +25,7 @@ Register a set of filter callbacks.
 <tr align="left" valign=top>
 <th width="80">Effects</th>
 <td>smfi_register creates a filter using the information given in the
-smfiDesc_str argument.  Multiple calls to smfi_register within a
+smfiDesc argument.  Multiple calls to smfi_register within a
 single process are not allowed.</td>
 </tr>
 </table>
@@ -36,7 +36,7 @@ single process are not allowed.</td>
     <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
     <tr valign="top"><td>descr</td>
 	<td>
-A filter descriptor of type smfiDesc_str describing the filter's
+A filter descriptor of type smfiDesc describing the filter's
 functions.  The structure has the following members:
 <pre>
 struct smfiDesc

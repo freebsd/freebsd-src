@@ -67,8 +67,10 @@ due to a lack of memory.
 	0660 (read/write permission for the socket's owner and group)
 	which is useful if the sendmail RunAsUser option is used.
 	The permissions for a unix/local domain socket are determined as
-	usual by <code>umask</code>, which should be set to 007 or 077
-	before calling <code>smfi_setconn()</code>.
+	usual by <code>umask</code>, which should be set to 007 or 077.
+        Note some operating systems (e.g, Solaris) don't use the
+        permissions of the socket.  On those systems, place the socket in a
+        protected directory.
 </ul>
 </td>
 </tr>

@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.649.2.17 2003/03/28 17:20:53 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.649.2.24 2003/08/04 21:14:26 ca Exp $')
 
 # level CF_LEVEL config file format
 V`'CF_LEVEL/ifdef(`VENDOR_NAME', `VENDOR_NAME', `Berkeley')
@@ -1283,6 +1283,7 @@ R< $* > $*		$@ $2				no mailertable match',
 dnl input: in general: <[mailer:]host> lp<@domain>rest
 dnl	<> address				-> address
 dnl	<error:d.s.n:text>			-> error
+dnl	<error:keyword:text>			-> error
 dnl	<error:text>				-> error
 dnl	<mailer:user@host> lp<@domain>rest	-> mailer host user
 dnl	<mailer:host> address			-> mailer host address
@@ -1293,7 +1294,8 @@ dnl	<host> address				-> relay host address
 SMailerToTriple=95
 R< > $*				$@ $1			strip off null relay
 R< error : $-.$-.$- : $+ > $* 	$#error $@ $1.$2.$3 $: $4
-R< error : $- $+ > $*		$#error $@ $(dequote $1 $) $: $2
+R< error : $- : $+ > $*		$#error $@ $(dequote $1 $) $: $2
+R< error : $+ > $*		$#error $: $1
 R< local : $* > $*		$>CanonLocal < $1 > $2
 dnl it is $~[ instead of $- to avoid matches on IPv6 addresses
 R< $~[ : $+ @ $+ > $*<$*>$*	$# $1 $@ $3 $: $2<@$3>	use literal user
@@ -1909,8 +1911,10 @@ R<@> < $* @ $+ . $+ >	$: < $1 @ $2 . $3 >
 dnl prepend daemon_flags
 R<@> $*			$: $&{daemon_flags} $| <@> $1
 dnl workspace: ${daemon_flags} $| <@> <address>
+dnl 'r'equire qual.rcpt: ok
+R$* r $* $| <@> < $+ @ $+ >	$: < $3 @ $4 >
 dnl do not allow these at all or only from local systems?
-R$* r $* $| <@> < $* @ $* >	$: < ? $&{client_name} > < $3 @ $4 >
+R$* r $* $| <@> < $* >	$: < ? $&{client_name} > < $3 >
 R<?> < $* >		$: <$1>
 R<? $=w> < $* >		$: <$1>
 R<? $+> <$+>		$#error $@ 5.5.4 $: "553 Fully qualified domain name required"
@@ -2195,22 +2199,24 @@ R$* <@ $+ . >		$1 <@ $2 >
 R$* <@ $* >		$@ $1 <@ $2 >
 R$+			$@ $1 <@ $j >
 
-SDelay_TLS_Client
+SDelay_TLS_Clt
 # authenticated?
 dnl code repeated here from Basic_check_mail
 dnl only called from check_rcpt in delay mode if checkrcpt returns $#
 R$*			$: $1 $| $>"tls_client" $&{verify} $| MAIL
 R$* $| $#$+		$#$2
 dnl return result from checkrcpt
+R$* $| $*		$# $1
 R$*			$# $1
 
-SDelay_TLS_Client2
+SDelay_TLS_Clt2
 # authenticated?
 dnl code repeated here from Basic_check_mail
 dnl only called from check_rcpt in delay mode if stopping due to Friend/Hater
 R$*			$: $1 $| $>"tls_client" $&{verify} $| MAIL
 R$* $| $#$+		$#$2
 dnl return result from friend/hater check
+R$* $| $*		$@ $1
 R$*			$@ $1
 
 # call all necessary rulesets
@@ -2225,7 +2231,7 @@ dnl on error (or discard) stop now
 R$+ $| $#error $*	$#error $2
 R$+ $| $#discard $*	$#discard $2
 dnl otherwise call tls_client; see above
-R$+ $| $#$*		$@ $>"Delay_TLS_Client" $2
+R$+ $| $#$*		$@ $>"Delay_TLS_Clt" $2
 R$+ $| $*		$: <?> $>FullAddr $>CanonAddr $1
 ifdef(`_SPAM_FH_',
 `dnl lookup user@ and user@address
@@ -2247,13 +2253,13 @@ ifdef(`_SPAM_FRIEND_',
 ifdef(`_SPAM_HATER_',
 	`errprint(`*** ERROR: define either Hater or Friend -- not both.
 ')', `dnl')
-R<FRIEND> $+		$@ $>"Delay_TLS_Client2" SPAMFRIEND
+R<FRIEND> $+		$@ $>"Delay_TLS_Clt2" SPAMFRIEND
 R<$*> $+		$: $2',
 `dnl')
 ifdef(`_SPAM_HATER_',
 `# is the recipient no spam hater?
 R<HATER> $+		$: $1			spam hater: continue checks
-R<$*> $+		$@ $>"Delay_TLS_Client2" NOSPAMHATER	everyone else: stop
+R<$*> $+		$@ $>"Delay_TLS_Clt2" NOSPAMHATER	everyone else: stop
 dnl',`dnl')
 dnl run further checks: check_mail
 dnl should we "clean up" $&f?
@@ -2467,7 +2473,7 @@ dnl seems to be useful...
 R$* $| $&{auth_authen}		$@ identical
 R$* $| <$&{auth_authen}>	$@ identical
 dnl call user supplied code
-R$* $| $*		$: $1 $| $>"Local_trust_auth" $1
+R$* $| $*		$: $1 $| $>"Local_trust_auth" $2
 R$* $| $#$*		$#$2
 dnl default: error
 R$*			$#error $@ 5.7.1 $: "550 " $&{auth_authen} " not allowed to act as " $&{auth_author}

@@ -174,7 +174,8 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>sendmail</application> has been updated to
+      version 8.12.10.</para>
 
   </sect2>
 

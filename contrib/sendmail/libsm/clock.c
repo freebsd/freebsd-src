@@ -12,7 +12,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: clock.c,v 1.35.2.3 2003/03/03 19:57:40 ca Exp $")
+SM_RCSID("@(#)$Id: clock.c,v 1.35.2.10 2003/06/26 16:36:49 ca Exp $")
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -24,12 +24,16 @@ SM_RCSID("@(#)$Id: clock.c,v 1.35.2.3 2003/03/03 19:57:40 ca Exp $")
 #include <sm/bitops.h>
 #include <sm/clock.h>
 #include "local.h"
+#if _FFR_SLEEP_USE_SELECT > 0
+# include <sys/types.h>
+#endif /* _FFR_SLEEP_USE_SELECT > 0 */
+#if defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2
+# include <syslog.h>
+#endif /* defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2 */
 
 #ifndef sigmask
 # define sigmask(s)	(1 << ((s) - 1))
 #endif /* ! sigmask */
-
-static void	sm_endsleep __P((void));
 
 
 /*
@@ -136,6 +140,8 @@ sm_sigsafe_seteventm(intvl, func, arg)
 		*/
 
 		LEAVE_CRITICAL();
+		if (wasblocked == 0)
+			(void) sm_releasesignal(SIGALRM);
 		return NULL;
 	}
 	else
@@ -490,7 +496,10 @@ sm_tick(sig)
 */
 
 
+# if !HAVE_NANOSLEEP
+static void	sm_endsleep __P((void));
 static bool	volatile SmSleepDone;
+# endif /* !HAVE_NANOSLEEP */
 
 #ifndef SLEEP_T
 # define SLEEP_T	unsigned int
@@ -500,20 +509,118 @@ SLEEP_T
 sleep(intvl)
 	unsigned int intvl;
 {
-	int was_held;
+#if HAVE_NANOSLEEP
+	struct timespec rqtp;
 
 	if (intvl == 0)
 		return (SLEEP_T) 0;
+	rqtp.tv_sec = intvl;
+	rqtp.tv_nsec = 0;
+	nanosleep(&rqtp, NULL);
+	return (SLEEP_T) 0;
+#else /* HAVE_NANOSLEEP */
+	int was_held;
+	SM_EVENT *ev;
+#if _FFR_SLEEP_USE_SELECT > 0
+	int r;
+#endif /* _FFR_SLEEP_USE_SELECT > 0 */
+#if SM_CONF_SETITIMER
+	struct timeval now, begin, diff;
+# if _FFR_SLEEP_USE_SELECT > 0
+	struct timeval sm_io_to, slpv;
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+#else /*  SM_CONF_SETITIMER */
+	time_t begin, now;
+#endif /*  SM_CONF_SETITIMER */
+
+	if (intvl == 0)
+		return (SLEEP_T) 0;
+#if defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2
+	if (intvl > _FFR_MAX_SLEEP_TIME)
+	{
+		syslog(LOG_ERR, "sleep: interval=%u exceeds max value %d",
+			intvl, _FFR_MAX_SLEEP_TIME);
+# if 0
+		SM_ASSERT(intvl < (unsigned int) INT_MAX);
+# endif /* 0 */
+		intvl = _FFR_MAX_SLEEP_TIME;
+	}
+#endif /* defined(_FFR_MAX_SLEEP_TIME) && _FFR_MAX_SLEEP_TIME > 2 */
 	SmSleepDone = false;
-	(void) sm_setevent((time_t) intvl, sm_endsleep, 0);
+
+#if SM_CONF_SETITIMER
+# if _FFR_SLEEP_USE_SELECT > 0
+	slpv.tv_sec = intvl;
+	slpv.tv_usec = 0;
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+	(void) gettimeofday(&now, NULL);
+	begin = now;
+#else /*  SM_CONF_SETITIMER */
+	now = begin = time(NULL);
+#endif /*  SM_CONF_SETITIMER */
+
+	ev = sm_setevent((time_t) intvl, sm_endsleep, 0);
+	if (ev == NULL)
+	{
+		/* COMPLAIN */
+#if 0
+		syslog(LOG_ERR, "sleep: sm_setevent(%u) failed", intvl);
+#endif /* 0 */
+		SmSleepDone = true;
+	}
 	was_held = sm_releasesignal(SIGALRM);
+
 	while (!SmSleepDone)
+	{
+#if SM_CONF_SETITIMER
+		(void) gettimeofday(&now, NULL);
+		timersub(&now, &begin, &diff);
+		if (diff.tv_sec < 0 ||
+		    (diff.tv_sec == 0 && diff.tv_usec == 0))
+			break;
+# if _FFR_SLEEP_USE_SELECT > 0
+		timersub(&slpv, &diff, &sm_io_to);
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+#else /* SM_CONF_SETITIMER */
+		now = time(NULL);
+
+		/*
+		**  Check whether time expired before signal is released.
+		**  Due to the granularity of time() add 1 to be on the
+		**  safe side.
+		*/
+
+		if (!(begin + (time_t) intvl + 1 > now))
+			break;
+# if _FFR_SLEEP_USE_SELECT > 0
+		sm_io_to.tv_sec = intvl - (now - begin);
+		if (sm_io_to.tv_sec <= 0)
+			sm_io_to.tv_sec = 1;
+		sm_io_to.utv_sec = 0;
+# endif /* _FFR_SLEEP_USE_SELECT > 0 */
+#endif /* SM_CONF_SETITIMER */
+#if _FFR_SLEEP_USE_SELECT > 0
+		if (intvl <= _FFR_SLEEP_USE_SELECT)
+		{
+			r = select(0, NULL, NULL, NULL, &sm_io_to);
+			if (r == 0)
+				break;
+		}
+		else
+#endif /* _FFR_SLEEP_USE_SELECT > 0 */
 		(void) pause();
+	}
+
+	/* if out of the loop without the event being triggered remove it */
+	if (!SmSleepDone)
+		sm_clrevent(ev);
 	if (was_held > 0)
 		(void) sm_blocksignal(SIGALRM);
 	return (SLEEP_T) 0;
+#endif /* HAVE_NANOSLEEP */
 }
 
+#if !HAVE_NANOSLEEP
 static void
 sm_endsleep()
 {
@@ -525,4 +632,5 @@ sm_endsleep()
 
 	SmSleepDone = true;
 }
+#endif /* !HAVE_NANOSLEEP */
 

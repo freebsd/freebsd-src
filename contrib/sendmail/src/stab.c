@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001, 2003 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: stab.c,v 8.86 2001/12/29 04:27:56 ca Exp $")
+SM_RCSID("@(#)$Id: stab.c,v 8.86.4.1 2003/03/31 17:44:24 ca Exp $")
 
 /*
 **  STAB -- manage the symbol table
@@ -279,7 +279,7 @@ queueup_macros(class, qfp, e)
 
 			if (s->s_symtype == ST_CLASS &&
 			    bitnset(bitidx(class), s->s_class) &&
-			    (m = macid(s->s_name)) != '\0' &&
+			    (m = macid(s->s_name)) != 0 &&
 			    (p = macvalue(m, e)) != NULL)
 			{
 				(void) sm_io_fprintf(qfp, SM_TIME_DEFAULT,

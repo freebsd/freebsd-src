@@ -8,6 +8,7 @@
 
 use 5.001;
 use IO::Socket;
+use Fcntl;
 
 # system requirements:
 # 	must have 'nslookup' and 'hostname' programs.
@@ -999,7 +1000,7 @@ sub mxlookup
 	}
 
 	$0 = "$av0 - nslookup of $server";
-	open(T,">/tmp/expn$$") || die "open > /tmp/expn$$: $!\n";
+	sysopen(T,"/tmp/expn$$",O_RDWR|O_CREAT|O_EXCL,0600) || die "open > /tmp/expn$$: $!\n";
 	print T "set querytype=MX\n";
 	print T "$server\n";
 	close(T);

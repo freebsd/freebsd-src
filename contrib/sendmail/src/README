@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355.2.14 2003/03/27 21:39:29 ca Exp $
+#	$Id: README,v 8.355.2.15 2003/06/02 01:43:04 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -125,7 +125,7 @@ MAP_REGEX	Regular Expression support.  You will need to use an
 		the Free Software Foundation.
 DNSMAP		DNS map support.  Requires NAMED_BIND.
 PH_MAP		PH map support.  You will need the libphclient library from
-		the nph package (http://www-dev.cso.uiuc.edu/ph/nph/).
+		the nph package (http://www-dev.cites.uiuc.edu/ph/nph/).
 MAP_NSD		nsd map support (IRIX 6.5 and later).
 
 >>>  NOTE WELL for NEWDB support: If you want to get ndbm support, for
@@ -1640,7 +1640,7 @@ OpenSSL
 
 PH
 	PH support is provided by Mark Roth <roth@uiuc.edu>.  The map is
-	described at http://www-dev.cso.uiuc.edu/sendmail/ .
+	described at http://www-dev.cites.uiuc.edu/sendmail/ .
 
 	NOTE: The "spacedname" pseudo-field which was used by earlier
 	versions of the PH map code is no longer supported!  See the URL
@@ -1797,4 +1797,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355.2.14 $, last update $Date: 2003/03/27 21:39:29 $ )
+(Version $Revision: 8.355.2.15 $, last update $Date: 2003/06/02 01:43:04 $ )

@@ -36,7 +36,7 @@
 
 use Socket;
 use Getopt::Std;
-use POSIX;
+use File::Temp;
 use Sys::Syslog qw(:DEFAULT setlogsock);
 use strict;
 use vars qw( $opt_d $tmpfile);
@@ -125,7 +125,7 @@ sub main {
 
   # The bounced e-mail may be large, so we'd better not try to buffer
   # it in memory, get a temporary file.
-  $tmpfile = POSIX::tmpnam();
+  $tmpfile = tmpnam();
 
   if (!open(MSG, ">$tmpfile")) {
     syslog('err', "Unable to open temporary file $tmpfile");

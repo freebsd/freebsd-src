@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.197.2.7 2003/03/22 18:54:25 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.197.2.9 2003/09/07 00:18:29 ca Exp $")
 
 #if MILTER
 # include <libmilter/mfapi.h>
@@ -1569,7 +1569,7 @@ milter_reopen_df(e)
 
 		/* open writable */
 		if ((e->e_dfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, dfname,
-					   SM_IO_RDWR, NULL)) == NULL)
+					   SM_IO_RDWR_B, NULL)) == NULL)
 		{
 			MILTER_DF_ERROR("milter_reopen_df: sm_io_open %s: %s");
 			return -1;
@@ -1626,7 +1626,7 @@ milter_reset_df(e)
 		return -1;
 	}
 	else if ((e->e_dfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, dfname,
-					SM_IO_RDONLY, NULL)) == NULL)
+					SM_IO_RDONLY_B, NULL)) == NULL)
 	{
 		MILTER_DF_ERROR("milter_reset_df: error reopening %s: %s");
 		return -1;
@@ -2807,6 +2807,8 @@ milter_addrcpt(response, rlen, e)
 	ssize_t rlen;
 	ENVELOPE *e;
 {
+	int olderrors;
+
 	if (tTd(64, 10))
 		sm_dprintf("milter_addrcpt: ");
 
@@ -2831,7 +2833,9 @@ milter_addrcpt(response, rlen, e)
 		sm_dprintf("%s\n", response);
 	if (MilterLogLevel > 8)
 		sm_syslog(LOG_INFO, e->e_id, "Milter add: rcpt: %s", response);
-	(void) sendtolist(response, NULLADDR, &e->e_sendqueue, 0, e);
+	olderrors = Errors;
+  	(void) sendtolist(response, NULLADDR, &e->e_sendqueue, 0, e);
+ 	Errors = olderrors;
 	return;
 }
 /*

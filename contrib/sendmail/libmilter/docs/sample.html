@@ -379,7 +379,7 @@ usage(prog)
 	char *prog;
 {
 	fprintf(stderr,
-		"Usage: %s [-p socket-addr] [-t timeout] [-r reject-addr] [-a add-addr]\n",
+		"Usage: %s -p socket-addr [-t timeout] [-r reject-addr] [-a add-addr]\n",
 		prog);
 }
 
@@ -388,6 +388,7 @@ main(argc, argv)
 	 int argc;
 	 char **argv;
 {
+	bool setconn = FALSE;
 	int c;
 	const char *args = "p:t:r:a:h";
 	extern char *optarg;
@@ -421,6 +422,7 @@ main(argc, argv)
 				unlink(optarg + 5);
 			else if (strncasecmp(optarg, "local:", 6) == 0)
 				unlink(optarg + 6);
+			setconn = TRUE;
 			break;
 
 		  case 't':
@@ -466,6 +468,12 @@ main(argc, argv)
 			usage(argv[0]);
 			exit(EX_USAGE);
 		}
+	}
+	if (!setconn)
+	{
+		fprintf(stderr, "%s: Missing required -p argument\n", argv[0]);
+		usage(argv[0]);
+		exit(EX_USAGE);
 	}
 	if (<a href="smfi_register.html">smfi_register</a>(smfilter) == MI_FAILURE)
 	{

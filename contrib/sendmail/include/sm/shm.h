@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2003 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: shm.h,v 1.8 2002/04/10 23:11:35 ca Exp $
+ *	$Id: shm.h,v 1.8.2.2 2003/05/17 18:34:16 ca Exp $
  */
 
 #ifndef SM_SHM_H
@@ -28,6 +28,7 @@
 
 extern void *sm_shmstart __P((key_t, int , int , int *, bool));
 extern int sm_shmstop __P((void *, int, bool));
+
 
 /* for those braindead systems... (e.g., SunOS 4) */
 #  ifndef SHM_R

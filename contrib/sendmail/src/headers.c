@@ -11,11 +11,12 @@
  *
  * $FreeBSD$
  *
+ * $FreeBSD$
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: headers.c,v 8.266.4.5 2003/03/12 22:42:52 gshapiro Exp $")
+SM_RCSID("@(#)$Id: headers.c,v 8.266.4.7 2003/09/03 21:32:20 ca Exp $")
 
 static size_t	fix_mime_header __P((HDR *, ENVELOPE *));
 static int	priencode __P((char *));
@@ -320,6 +321,7 @@ hse:
 			qval[l++] = '"';
 
 			/* - 3 to avoid problems with " at the end */
+			/* should be sizeof(qval), not MAXNAME */
 			for (k = 0; fvalue[k] != '\0' && l < MAXNAME - 3; k++)
 			{
 				switch (fvalue[k])
@@ -1698,6 +1700,12 @@ put_vanilla_header(h, v, mci)
 		int l;
 
 		l = nlp - v;
+
+		/*
+		**  XXX This is broken for SPACELEFT()==0
+		**  However, SPACELEFT() is always > 0 unless MAXLINE==1.
+		*/
+
 		if (SPACELEFT(obuf, obp) - 1 < (size_t) l)
 			l = SPACELEFT(obuf, obp) - 1;
 
@@ -1708,6 +1716,8 @@ put_vanilla_header(h, v, mci)
 		if (*v != ' ' && *v != '\t')
 			*obp++ = ' ';
 	}
+
+	/* XXX This is broken for SPACELEFT()==0 */
 	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.*s",
 			   (int) (SPACELEFT(obuf, obp) - 1), v);
 	putxline(obuf, strlen(obuf), mci, putflags);
@@ -1759,6 +1769,8 @@ commaize(h, p, oldstyle, mci, e)
 	obp = obuf;
 	(void) sm_snprintf(obp, SPACELEFT(obuf, obp), "%.200s: ",
 			h->h_field);
+
+	/* opos = strlen(obp); */
 	opos = strlen(h->h_field) + 2;
 	if (opos > 202)
 		opos = 202;
@@ -1800,6 +1812,14 @@ commaize(h, p, oldstyle, mci, e)
 			res = prescan(p, oldstyle ? ' ' : ',', pvpbuf,
 				      sizeof pvpbuf, &oldp, NULL);
 			p = oldp;
+#if _FFR_IGNORE_BOGUS_ADDR
+			/* ignore addresses that can't be parsed */
+			if (res == NULL)
+			{
+				name = p;
+				continue;
+			}
+#endif /* _FFR_IGNORE_BOGUS_ADDR */
 
 			/* look to see if we have an at sign */
 			while (*p != '\0' && isascii(*p) && isspace(*p))
@@ -1965,6 +1985,7 @@ fix_mime_header(h, e)
 		return 0;
 
 	/* Split on each ';' */
+	/* find_character() never returns NULL */
 	while ((end = find_character(begin, ';')) != NULL)
 	{
 		char save = *end;

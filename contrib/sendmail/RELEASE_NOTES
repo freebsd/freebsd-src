@@ -1,16 +1,83 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.132 2003/03/29 14:02:26 ca Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.165 2003/09/16 20:50:42 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
 
+8.12.10/8.12.10	2003/09/24
+	SECURITY: Fix a buffer overflow in address parsing.  Problem
+		detected by Michal Zalewski, patch from Todd C. Miller
+		of Courtesan Consulting.
+	Fix a potential buffer overflow in ruleset parsing.  This problem
+		is not exploitable in the default sendmail configuration;
+		only if non-standard rulesets recipient (2), final (4), or
+		mailer-specific envelope recipients rulesets are used then
+		a problem may occur.  Problem noted by Timo Sirainen.
+	Accept 0 (and 0/0) as valid input for set MaxMimeHeaderLength.
+		Problem noted by Thomas Schulz.
+	Add several checks to avoid (theoretical) buffer over/underflows.
+	Properly count message size when performing 7->8 or 8->7 bit MIME
+		conversions.  Problem noted by Werner Wiethege.
+	Properly compute message priority based on size of entire message,
+		not just header.  Problem noted by Axel Holscher.
+	Reset SevenBitInput to its configured value between SMTP
+		transactions for broken clients which do not properly
+		announce 8 bit data.  Problem noted by Stefan Roehrich.
+	Set {addr_type} during queue runs when processing recipients.
+		Based on patch from Arne Jansen.
+	Better error handling in case of (very unlikely) queue-id conflicts.
+	Perform better error recovery for address parsing, e.g., when
+		encountering a comment that is too long.  Problem noted by
+		Tanel Kokk, Union Bank of Estonia.
+	Add ':' to the allowed character list for bogus HELO/EHLO
+		checking.  It is used for IPv6 domain literals.  Patch from
+		Iwaizako Takahiro of FreeBit Co., Ltd.
+	Reset SASL connection context after a failed authentication attempt.
+		Based on patch from Rob Siemborski of CMU.
+	Check Berkeley DB compile time version against run time version
+		to make sure they match.
+	Do not attempt AAAA (IPv6) DNS lookups if IPv6 is not enabled
+		in the kernel.
+	When a milter adds recipients and one of them causes an error,
+		do not ignore the other recipients.  Problem noted by
+		Bart Duchesne.
+	CONFIG: Use specified SMTP error code in mailertable entries which
+		lack a DSN, i.e., "error:### Text".  Problem noted by
+		Craig Hunt.
+	CONFIG: Call Local_trust_auth with the correct argument.  Patch
+		from Jerome Borsboom.
+	CONTRIB: Better handling of temporary filenames for doublebounce.pl
+		and expn.pl to avoid file overwrites, etc.  Patches from
+		Richard A. Nelson of Debian and Paul Szabo.
+	MAIL.LOCAL: Fix obscure race condition that could lead to an
+		improper mailbox truncation if close() fails after the
+		mailbox is fsync()'ed and a new message is delivered
+		after the close() and before the truncate().
+	MAIL.LOCAL: If mail delivery fails, do not leave behind a
+		stale lockfile (which is ignored after the lock timeout).
+		Patch from Oleg Bulyzhin of Cronyx Plus LLC.
+	Portability:
+		Port for AIX 5.2.  Thanks to Steve Hubert of University
+			of Washington for providing access to a computer
+			with AIX 5.2.
+		setreuid(2) works on OpenBSD 3.3.  Patch from
+			Todd C. Miller of Courtesan Consulting.
+		Allow for custom definition of SMRSH_CMDDIR and SMRSH_PATH
+			on all operating systems.  Patch from Robert Harker
+			of Harker Systems.
+		Use strerror(3) on Linux.  If this causes a problem on
+			your Linux distribution, compile with
+			-DHASSTRERROR=0 and tell sendmail.org about it.
+	Added Files:
+		devtools/OS/AIX.5.2
+
 8.12.9/8.12.9	2003/03/29
 	SECURITY: Fix a buffer overflow in address parsing due to
 		a char to int conversion problem which is potentially
 		remotely exploitable.  Problem found by Michal Zalewski.
-  		Note: an MTA that is not patched might be vulnerable to
+		Note: an MTA that is not patched might be vulnerable to
 		data that it receives from untrusted sources, which
 		includes DNS.
 	To provide partial protection to internal, unpatched sendmail MTAs,
@@ -31,7 +98,7 @@ summary of the changes in that release.
 		College London.
 	Properly initialize data structure for dns maps to avoid various
 		errors, e.g., looping processes.  Problem noted by
-		Maurice Makaay.
+		Maurice Makaay of InterNLnet B.V.
 	CONFIG: Prevent multiple application of rule to add smart host.
 		Patch from Andrzej Filip.
 	CONFIG: Fix queue group declaration in MAILER(`usenet').
@@ -1457,6 +1524,67 @@ summary of the changes in that release.
 		cf/cf/generic-solaris2.cf => cf/cf/generic-solaris.cf
 		cf/ostype/aux.m4 => cf/ostype/a-ux.m4
 
+8.11.7/8.11.7	2003/03/29
+	SECURITY: Fix a remote buffer overflow in header parsing by
+		dropping sender and recipient header comments if the
+		comments are too long.  Problem noted by Mark Dowd
+		of ISS X-Force.
+	SECURITY: Fix a buffer overflow in address parsing due to
+		a char to int conversion problem which is potentially
+		remotely exploitable.  Problem found by Michal Zalewski.
+		Note: an MTA that is not patched might be vulnerable to
+		data that it receives from untrusted sources, which
+		includes DNS.
+	To provide partial protection to internal, unpatched sendmail MTAs,
+		8.11.7 changes by default (char)0xff to (char)0x7f in
+		headers etc.  To turn off this conversion compile with
+		-DALLOW_255 or use the command line option -d82.101.
+	To provide partial protection for internal, unpatched MTAs that may be
+		performing 7->8 or 8->7 bit MIME conversions, the default
+		for MaxMimeHeaderLength has been changed to 2048/1024.
+		Note: this does have a performance impact, and it only
+		protects against frontal attacks from the outside.
+		To disable the checks and return to pre-8.11.7 defaults,
+		set MaxMimeHeaderLength to 0/0.
+	Properly clean up macros to avoid persistence of session data
+		across various connections.  This could cause session
+		oriented restrictions, e.g., STARTTLS requirements,
+		to erroneously allow a connection.  Problem noted
+		by Tim Maletic of Priority Health.
+	Ignore comments in NIS host records when trying to find the
+		canonical name for a host.
+	Fix a memory leak when closing Hesiod maps.
+	Set ${msg_size} macro when reading a message from the command line
+		or the queue.
+	Prevent a segmentation fault when clearing the event list by
+		turning off alarms before checking if event list is
+		empty.  Problem noted by Allan E Johannesen of Worcester
+		Polytechnic Institute.
+	Fix a potential core dump problem if the environment variable
+		NAME is set.  Problem noted by Beth A. Chaney of
+		Purdue University.
+	Prevent a race condition on child cleanup for delivery to files.
+		Problem noted by Fletcher Mattox of the University of
+		Texas.
+	CONFIG: Do not bounce mail if FEATURE(`ldap_routing')'s bounce
+		parameter is set and the LDAP lookup returns a temporary
+		error.
+	CONFIG: Fix a syntax error in the try_tls ruleset if
+		FEATURE(`access_db') is not enabled.
+	LIBSMDB: Fix a lock race condition that affects makemap, praliases,
+		and vacation.
+	LIBSMDB: Avoid a file creation race condition for Berkeley DB 1.X
+		and NDBM on systems with the O_EXLOCK open(2) flag.
+	MAKEMAP: Avoid going beyond the end of an input line if it does
+		not contain a value for a key.  Based on patch from
+		Mark Bixby from Hewlett-Packard.
+	MAIL.LOCAL: Fix a truncation race condition if the close() on
+		the mailbox fails.  Problem noted by Tomoko Fukuzawa of
+		Sun Microsystems.
+	SMRSH: SECURITY: Only allow regular files or symbolic links to be
+		used for a command.  Problem noted by David Endler of
+		iDEFENSE, Inc.
+
 8.11.6/8.11.6	2001/08/20
 	SECURITY: Fix a possible memory access violation when specifying
 		out-of-bounds debug parameters.  Problem detected by
@@ -2686,10 +2814,9 @@ summary of the changes in that release.
 	Log the DSN code for each recipient if one is available as a new
 		equate (dsn=).
 	Macro expand PostmasterCopy and DoubleBounceAddress options.
-	New "ph" map for performing ph queries in rulesets.  More
-		information is available at
-		http://www-dev.cso.uiuc.edu/sendmail/.  Contributed by Mark
-		Roth of the University of Illinois at Urbana-Champaign.
+	New "ph" map for performing ph queries in rulesets, see
+		sendmail/README for details.  Contributed by Mark Roth
+		of the University of Illinois at Urbana-Champaign.
 	Detect temporary lookup failures in the host map if looking up a
 		bracketed IP address.  Problem noted by Kari Hurtta of the
 		Finnish Meteorological Institute.

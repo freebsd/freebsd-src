@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <string.h>
 
-SM_RCSID("@(#)$Id: mime.c,v 8.130 2002/05/21 03:39:34 ca Exp $")
+SM_RCSID("@(#)$Id: mime.c,v 8.130.2.1 2003/04/15 01:05:59 ca Exp $")
 
 /*
 **  MIME support.
@@ -317,7 +317,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			putline(buf, mci);
 			if (tTd(43, 35))
 				sm_dprintf("  ...%s\n", buf);
-			collect(e->e_dfp, false, &hdr, e);
+			collect(e->e_dfp, false, &hdr, e, false);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
 			putheader(mci, hdr, e, flags);
@@ -371,7 +371,7 @@ mime8to7(mci, header, e, boundaries, flags)
 			putline("", mci);
 
 			mci->mci_flags |= MCIF_INMIME;
-			collect(e->e_dfp, false, &hdr, e);
+			collect(e->e_dfp, false, &hdr, e, false);
 			if (tTd(43, 101))
 				putline("+++after collect", mci);
 			putheader(mci, hdr, e, flags);

@@ -9,11 +9,12 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
  */
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.205.2.3 2003/01/07 03:56:19 ca Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.205.2.4 2003/03/31 17:35:27 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -1362,7 +1363,7 @@ mci_purge_persistent(pathname, hostname)
 /*
 **  MCI_GENERATE_PERSISTENT_PATH -- generate path from hostname
 **
-**	Given `host', convert from a.b.c to $QueueDir/.hoststat/c./b./a,
+**	Given `host', convert from a.b.c to $HostStatDir/c./b./a,
 **	putting the result into `path'.  if `createflag' is set, intervening
 **	directories will be created as needed.
 **

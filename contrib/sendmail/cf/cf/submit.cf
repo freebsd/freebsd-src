@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2003 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -24,15 +24,15 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.108.2.2 2003/03/11 21:24:20 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.108.2.3 2003/04/03 17:51:51 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: submit.mc,v 8.6.2.4 2002/12/29 03:54:34 ca Exp $  #####
+#####  $Id: submit.mc,v 8.6.2.7 2003/09/10 22:11:56 ca Exp $  #####
 #####  $Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $  #####
 
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.649.2.17 2003/03/28 17:20:53 ca Exp $  #####
+#####  $Id: proto.m4,v 8.649.2.24 2003/08/04 21:14:26 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -110,7 +110,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.12.9/Submit
+DZ8.12.10/Submit
 
 
 ###############
@@ -834,7 +834,8 @@ R< $+ > $+		$@ $>MailerToTriple < $1 > $2 < @ $1 >
 SMailerToTriple=95
 R< > $*				$@ $1			strip off null relay
 R< error : $-.$-.$- : $+ > $* 	$#error $@ $1.$2.$3 $: $4
-R< error : $- $+ > $*		$#error $@ $(dequote $1 $) $: $2
+R< error : $- : $+ > $*		$#error $@ $(dequote $1 $) $: $2
+R< error : $+ > $*		$#error $: $1
 R< local : $* > $*		$>CanonLocal < $1 > $2
 R< $~[ : $+ @ $+ > $*<$*>$*	$# $1 $@ $3 $: $2<@$3>	use literal user
 R< $~[ : $+ > $*		$# $1 $@ $2 $: $3	try qualified mailer
@@ -1137,7 +1138,7 @@ R$*			$: $&{auth_type} $| $1
 R$@ $| $*		$#error $@ 5.7.1 $: "550 not authenticated"
 R$* $| $&{auth_authen}		$@ identical
 R$* $| <$&{auth_authen}>	$@ identical
-R$* $| $*		$: $1 $| $>"Local_trust_auth" $1
+R$* $| $*		$: $1 $| $>"Local_trust_auth" $2
 R$* $| $#$*		$#$2
 R$*			$#error $@ 5.7.1 $: "550 " $&{auth_authen} " not allowed to act as " $&{auth_author}
 

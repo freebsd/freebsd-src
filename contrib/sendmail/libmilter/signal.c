@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: signal.c,v 8.37.2.2 2002/10/23 16:52:00 ca Exp $")
+SM_RCSID("@(#)$Id: signal.c,v 8.37.2.3 2003/08/04 18:14:33 ca Exp $")
 
 #include "libmilter.h"
 
@@ -90,15 +90,15 @@ mi_signal_thread(name)
 	int sig, errs;
 	sigset_t set;
 
-	sigemptyset(&set);
-	sigaddset(&set, SIGHUP);
-	sigaddset(&set, SIGTERM);
+	(void) sigemptyset(&set);
+	(void) sigaddset(&set, SIGHUP);
+	(void) sigaddset(&set, SIGTERM);
 
 	/* Handle Ctrl-C gracefully for debugging */
-	sigaddset(&set, SIGINT);
+	(void) sigaddset(&set, SIGINT);
 	errs = 0;
 
-	while (true)
+	for (;;)
 	{
 		sig = 0;
 #if defined(SOLARIS) || defined(__svr5__)
@@ -138,6 +138,7 @@ mi_signal_thread(name)
 			break;
 		}
 	}
+	/* NOTREACHED */
 }
 /*
 **  MI_SPAWN_SIGNAL_THREAD -- spawn thread to handle signals
@@ -158,10 +159,10 @@ mi_spawn_signal_thread(name)
 	sigset_t set;
 
 	/* Mask HUP and KILL signals */
-	sigemptyset(&set);
-	sigaddset(&set, SIGHUP);
-	sigaddset(&set, SIGTERM);
-	sigaddset(&set, SIGINT);
+	(void) sigemptyset(&set);
+	(void) sigaddset(&set, SIGHUP);
+	(void) sigaddset(&set, SIGTERM);
+	(void) sigaddset(&set, SIGINT);
 
 	if (pthread_sigmask(SIG_BLOCK, &set, NULL) != 0)
 	{

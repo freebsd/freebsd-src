@@ -46,7 +46,7 @@ divert(-1)changequote(<<, >>)<<
    in the sendmail source tree.  For more information, please see the
    following URL:
 
-      http://www-dev.cso.uiuc.edu/sendmail/domainmap/
+      http://www-dev.cites.uiuc.edu/sendmail/domainmap/
 
    Feedback is welcome.
 

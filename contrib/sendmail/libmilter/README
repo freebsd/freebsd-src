@@ -427,6 +427,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
+	bool setconn = false;
 	int c;
 	const char *args = "p:";
 
@@ -443,9 +444,15 @@ main(argc, argv)
 				exit(EX_USAGE);
 			}
 			(void) smfi_setconn(optarg);
+			setconn = true;
 			break;
 
 		}
+	}
+	if (!setconn)
+	{
+		fprintf(stderr, "%s: Missing required -p argument\n", argv[0]);
+		exit(EX_USAGE);
 	}
 	if (smfi_register(smfilter) == MI_FAILURE)
 	{
@@ -457,4 +464,4 @@ main(argc, argv)
 
 /* eof */
 
-$Revision: 8.35.2.1 $, Last updated $Date: 2002/10/21 14:31:57 $
+$Revision: 8.35.2.2 $, Last updated $Date: 2003/05/26 04:10:06 $
