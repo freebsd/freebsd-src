@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.22 1994/11/07 11:26:26 davidg Exp $
+ *	$Id: boot.c,v 1.23 1994/11/18 05:02:14 phk Exp $
  */
 
 
@@ -75,7 +75,7 @@ int drive;
 	/* Pick up the story from the Bios on geometry of disks */
 
 	for(ret = 0; ret < N_BIOS_GEOM; ret ++)
-		bootinfo.bios_geom[ret] = get_diskinfo(ret + 0x80));
+		bootinfo.bios_geom[ret] = get_diskinfo(ret + 0x80);
 
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n",
 		ouraddr,
