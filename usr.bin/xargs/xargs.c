@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)xargs.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: xargs.c,v 1.6 1998/06/17 12:58:43 jkoshy Exp $";
+	"$Id: xargs.c,v 1.7 1998/10/13 14:52:32 des Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -70,7 +70,7 @@ main(argc, argv, env)
 {
 	register int ch;
 	register char *p, *bbp, *ebp, **bxp, **exp, **xp;
-	int cnt, indouble, insingle, nargs, nflag, nline, xflag;
+	int cnt, indouble, insingle, nargs, nflag, nline, xflag, wasquoted;
 	char **av, *argp, **ep = env;
 	long arg_max;
 
@@ -95,7 +95,7 @@ main(argc, argv, env)
 		/* 1 byte for each '\0' */
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
-	nflag = xflag = 0;
+	nflag = xflag = wasquoted = 0;
 	while ((ch = getopt(argc, argv, "0n:s:tx")) != -1)
 		switch(ch) {
 		case 'n':
@@ -177,13 +177,6 @@ main(argc, argv, env)
 			/* No arguments since last exec. */
 			if (p == bbp)
 				exit(rval);
-
-			/* Nothing since end of last argument. */
-			if (argp == p) {
-				*xp = NULL;
-				run(av);
-				exit(rval);
-			}
 			goto arg1;
 		case ' ':
 		case '\t':
@@ -199,24 +192,24 @@ main(argc, argv, env)
 			if (zflag)
 				goto addch;
 
-			/* Empty lines are skipped. */
-			if (argp == p)
-				continue;
-
 			/* Quotes do not escape newlines. */
 arg1:			if (insingle || indouble)
 				 errx(1, "unterminated quote");
 
-arg2:			*p = '\0';
-			*xp++ = argp;
+arg2:
+			/* Do not make empty args unless they are quoted */
+			if (argp != p || wasquoted) {
+				*p++ = '\0';
+				*xp++ = argp;
+			}
 
 			/*
 			 * If max'd out on args or buffer, or reached EOF,
 			 * run the command.  If xflag and max'd out on buffer
 			 * but not on args, object.
 			 */
-			if (xp == exp || p == ebp || ch == EOF) {
-				if (xflag && xp != exp && p == ebp)
+			if (xp == exp || p > ebp || ch == EOF) {
+				if (xflag && xp != exp && p > ebp)
 					errx(1, "insufficient space for arguments");
 				*xp = NULL;
 				run(av);
@@ -224,19 +217,21 @@ arg2:			*p = '\0';
 					exit(rval);
 				p = bbp;
 				xp = bxp;
-			} else
-				++p;
+			}
 			argp = p;
+			wasquoted = 0;
 			break;
 		case '\'':
 			if (indouble || zflag)
 				goto addch;
 			insingle = !insingle;
+			wasquoted = 1;
 			break;
 		case '"':
 			if (insingle || zflag)
 				goto addch;
 			indouble = !indouble;
+			wasquoted = 1;
 			break;
 		case '\\':
 			if (zflag)
