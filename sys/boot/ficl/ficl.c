@@ -170,7 +170,7 @@ int ficlBuild(char *name, FICL_CODE code, char flags)
 **      time to delete the vm, etc -- or you can ignore this
 **      signal.
 **************************************************************************/
-int ficlExec(FICL_VM *pVM, char *pText)
+int ficlExec(FICL_VM *pVM, char *pText, INT32 size)
 {
     int        except;
     FICL_WORD *tempFW;
@@ -180,7 +180,7 @@ int ficlExec(FICL_VM *pVM, char *pText)
 
     assert(pVM);
 
-    vmPushTib(pVM, pText, &saveTib);
+    vmPushTib(pVM, pText, size, &saveTib);
 
     /*
     ** Save and restore VM's jmp_buf to enable nested calls to ficlExec 
@@ -237,6 +237,8 @@ int ficlExec(FICL_VM *pVM, char *pText)
         break;
 
     case VM_ERREXIT:
+    case VM_ABORT:
+    case VM_ABORTQ:
     default:    /* user defined exit code?? */
         if (pVM->state == COMPILE)
         {
@@ -285,8 +287,7 @@ int ficlExecFD(FICL_VM *pVM, int fd)
 		break;
 	    continue;
 	}
-	cp[i] = '\0';
-        if ((rval = ficlExec(pVM, cp)) >= VM_ERREXIT)
+        if ((rval = ficlExec(pVM, cp, i)) >= VM_ERREXIT)
         {
             pVM->sourceID = id;
             vmThrowErr(pVM, "ficlExecFD: Error at line %d", nLine);
@@ -298,7 +299,7 @@ int ficlExecFD(FICL_VM *pVM, int fd)
     ** any pending REFILLs (as required by FILE wordset)
     */
     pVM->sourceID.i = -1;
-    ficlExec(pVM, "");
+    ficlExec(pVM, "", 0);
 
     pVM->sourceID = id;
     return rval;
