@@ -1,7 +1,3 @@
-/* XXX to do:
-
- * Decide where we need splbio ()
- */
 /*-
  * Copyright (c) 1997, 1998
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -121,7 +117,7 @@ vinumstrategy(struct buf *bp)
 
 	/*
 	 * In fact, vinum doesn't handle drives: they're
-	 * handled directly by the disk drivers 
+	 * handled directly by the disk drivers
 	 */
     case VINUM_DRIVE_TYPE:
     default:
@@ -147,7 +143,7 @@ vinumstrategy(struct buf *bp)
 	/*
 	 * Plex I/O is pretty much the same as volume I/O
 	 * for a single plex.  Indicate this by passing a NULL
-	 * pointer (set above) for the volume 
+	 * pointer (set above) for the volume
 	 */
     case VINUM_PLEX_TYPE:
     case VINUM_RAWPLEX_TYPE:
@@ -165,7 +161,7 @@ vinumstrategy(struct buf *bp)
  * be started immediately when a revive is in
  * progress.  During revive, normal transfers
  * are queued if they share address space with
- * a currently active revive operation. 
+ * a currently active revive operation.
  */
 int 
 vinumstart(struct buf *bp, int reviveok)
@@ -187,7 +183,7 @@ vinumstart(struct buf *bp, int reviveok)
      * which is a multiple of the sector size.  This
      * is a reasonable assumption, since we are only
      * called from system routines.  Should we check
-     * anyway? 
+     * anyway?
      */
 
     if ((bp->b_bcount % DEV_BSIZE) != 0) {		    /* bad length */
@@ -208,7 +204,7 @@ vinumstart(struct buf *bp, int reviveok)
     /*
      * Note the volume ID.  This can be NULL, which
      * the request building functions use as an
-     * indication for single plex I/O 
+     * indication for single plex I/O
      */
     rq->bp = bp;					    /* and the user buffer struct */
 
@@ -233,7 +229,7 @@ vinumstart(struct buf *bp, int reviveok)
 	 * since we're not locked, and we could end
 	 * up multiply incrementing the round-robin
 	 * counter.  This doesn't have any serious
-	 * effects, however. 
+	 * effects, however.
 	 */
 	if (vol != NULL) {
 	    vol->reads++;
@@ -274,7 +270,7 @@ vinumstart(struct buf *bp, int reviveok)
 	/*
 	 * This is a write operation.  We write to all
 	 * plexes.  If this is a RAID 5 plex, we must also
-	 * update the parity stripe. 
+	 * update the parity stripe.
 	 */
     {
 	if (vol != NULL) {
@@ -307,7 +303,7 @@ vinumstart(struct buf *bp, int reviveok)
 
 /*
  * Call the low-level strategy routines to
- * perform the requests in a struct request 
+ * perform the requests in a struct request
  */
 int 
 launch_requests(struct request *rq, int reviveok)
@@ -321,7 +317,7 @@ launch_requests(struct request *rq, int reviveok)
      * First find out whether we're reviving, and the
      * request contains a conflict.  If so, we hang
      * the request off plex->waitlist of the first
-     * plex we find which is reviving 
+     * plex we find which is reviving
      */
     if ((rq->flags & XFR_REVIVECONFLICT)		    /* possible revive conflict */
     &&(!reviveok)) {					    /* and we don't want to do it now, */
@@ -504,25 +500,25 @@ bre(struct request *rq,
 	    while (*diskaddr < diskend) {		    /* until we get it all sorted out */
 		/*
 		 * The offset of the start address from
-		 * the start of the stripe 
+		 * the start of the stripe
 		 */
 		stripeoffset = *diskaddr % (plex->stripesize * plex->subdisks);
 
 		/*
 		 * The plex-relative address of the
-		 * start of the stripe 
+		 * start of the stripe
 		 */
 		stripebase = *diskaddr - stripeoffset;
 
 		/*
 		 * The number of the subdisk in which
-		 * the start is located 
+		 * the start is located
 		 */
 		sdno = stripeoffset / plex->stripesize;
 
 		/*
 		 * The offset from the beginning of the stripe
-		 * on this subdisk 
+		 * on this subdisk
 		 */
 		blockoffset = stripeoffset % plex->stripesize;
 
@@ -591,7 +587,7 @@ bre(struct request *rq,
 /*
  * Build up a request structure for reading volumes.
  * This function is not needed for plex reads, since there's
- * no recovery if a plex read can't be satisified. 
+ * no recovery if a plex read can't be satisified.
  */
 enum requeststatus 
 build_read_request(struct request *rq,			    /* request */
@@ -633,13 +629,13 @@ build_read_request(struct request *rq,			    /* request */
 	     * if we get here, we have either had a failure or
 	     * a RAID 5 recovery.  We don't want to use the
 	     * recovery, because it's expensive, so first we
-	     * check if we have alternatives 
+	     * check if we have alternatives
 	     */
 	case REQUEST_DOWN:				    /* can't access the plex */
 	    if (vol != NULL) {				    /* and this is volume I/O */
 		/*
 		 * Try to satisfy the request
-		 * from another plex 
+		 * from another plex
 		 */
 		for (plexno = 0; plexno < vol->plexes; plexno++) {
 		    diskaddr = startaddr;		    /* start at the beginning again */
@@ -668,7 +664,7 @@ build_read_request(struct request *rq,			    /* request */
  * Build up a request structure for writes.
  * Return 0 if all subdisks involved in the request are up, 1 if some
  * subdisks are not up, and -1 if the request is at least partially
- * outside the bounds of the subdisks. 
+ * outside the bounds of the subdisks.
  */
 enum requeststatus 
 build_write_request(struct request *rq)
@@ -683,13 +679,13 @@ build_write_request(struct request *rq)
     bp = rq->bp;					    /* buffer pointer */
     vol = &VOL[rq->volplex.volno];			    /* point to volume */
     diskend = bp->b_blkno + (bp->b_bcount / DEV_BSIZE);	    /* end offset of transfer */
-    status = REQUEST_OK;
+    status = REQUEST_DOWN;				    /* assume the worst */
     for (plexno = 0; plexno < vol->plexes; plexno++) {
 	diskstart = bp->b_blkno;			    /* start offset of transfer */
 	/*
 	 * Build requests for the plex.
 	 * We take the best possible result here (min,
-	 * not max): we're happy if we can write at all 
+	 * not max): we're happy if we can write at all
 	 */
 	status = min(status, bre(rq,
 		vol->plex[plexno],
@@ -720,7 +716,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     bp->b_flags |= B_CALL | B_BUSY;			    /* inform us when it's done */
     /*
      * XXX Should we check for reviving plexes here, and
-     * set B_ORDERED if so? 
+     * set B_ORDERED if so?
      */
     bp->b_iodone = complete_rqe;			    /* by calling us here */
     bp->b_dev = DRIVE[rqe->driveno].dev;		    /* drive device */
@@ -743,14 +739,14 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
 	/*
 	 * Point directly to user buffer data.  This means
 	 * that we don't need to do anything when we have
-	 * finished the transfer 
+	 * finished the transfer
 	 */
 	bp->b_data = ubp->b_data + rqe->useroffset * DEV_BSIZE;
     return 0;
 }
 /*
  * Abort a request: free resources and complete the
- * user request with the specified error 
+ * user request with the specified error
  */
 int 
 abortrequest(struct request *rq, int error)
@@ -768,7 +764,7 @@ abortrequest(struct request *rq, int error)
  * Check that our transfer will cover the
  * complete address space of the user request.
  *
- * Return 1 if it can, otherwise 0 
+ * Return 1 if it can, otherwise 0
  */
 int 
 check_range_covered(struct request *rq)
@@ -831,7 +827,7 @@ sdio(struct buf *bp)
 	    bp->b_resid = bp->b_bcount;			    /* nothing transferred */
 	    /*
 	     * XXX Grrr.  This doesn't seem to work.  Return
-	     * an error after all 
+	     * an error after all
 	     */
 	    bp->b_flags |= B_ERROR;
 	    bp->b_error = ENOSPC;
@@ -921,7 +917,7 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 
 /*
  * Allocate a request group and hook
- * it in in the list for rq 
+ * it in in the list for rq
  */
 struct rqgroup *
 allocrqg(struct request *rq, int elements)
@@ -940,8 +936,7 @@ allocrqg(struct request *rq, int elements)
 	bzero(rqg, size);				    /* no old junk */
 	rqg->rq = rq;					    /* point back to the parent request */
 	rqg->count = elements;				    /* number of requests in the group */
-    } else
-	Debugger("XXX");
+    }
     return rqg;
 }
 
@@ -949,7 +944,7 @@ allocrqg(struct request *rq, int elements)
  * Deallocate a request group out of a chain.  We do
  * this by linear search: the chain is short, this
  * almost never happens, and currently it can only
- * happen to the first member of the chain. 
+ * happen to the first member of the chain.
  */
 void 
 deallocrqg(struct rqgroup *rqg)
