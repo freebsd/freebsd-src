@@ -3,6 +3,5 @@
 
 KMOD=		ng_hole
 SRCS= 		ng_hole.c
-MAN4=		ng_hole.4
 
 .include <bsd.kmod.mk>
