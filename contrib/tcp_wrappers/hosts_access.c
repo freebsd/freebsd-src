@@ -41,6 +41,9 @@ static char sccsid[] = "@(#) hosts_access.c 1.21 97/02/12 02:13:22";
 #include <errno.h>
 #include <setjmp.h>
 #include <string.h>
+#ifdef INET6
+#include <netdb.h>
+#endif
 
 extern char *fgets();
 extern int errno;
@@ -341,7 +344,8 @@ char   *string;
 	return (STRN_EQ(tok, string, n));
     } else {					/* exact match */
 #ifdef INET6
-	struct in6_addr pat, addr;
+	struct addrinfo hints, *res;
+	struct sockaddr_in6 pat, addr;
 	int len, ret;
 	char ch;
 
@@ -349,11 +353,27 @@ char   *string;
 	if (*tok == '[' && tok[len - 1] == ']') {
 	    ch = tok[len - 1];
 	    tok[len - 1] = '\0';
-	    ret = inet_pton(AF_INET6, tok + 1, pat.s6_addr);
+	    memset(&hints, 0, sizeof(hints));
+	    hints.ai_family = AF_INET6;
+	    hints.ai_socktype = SOCK_STREAM;
+	    hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+	    if ((ret = getaddrinfo(tok + 1, NULL, &hints, &res)) == 0) {
+		memcpy(&pat, res->ai_addr, sizeof(pat));
+		freeaddrinfo(res);
+	    }
 	    tok[len - 1] = ch;
-	    if (ret != 1 || inet_pton(AF_INET6, string, addr.s6_addr) != 1)
+	    if (ret != 0 || getaddrinfo(string, NULL, &hints, &res) != 0)
 		return NO;
-	    return (!memcmp(&pat, &addr, sizeof(struct in6_addr)));
+	    memcpy(&addr, res->ai_addr, sizeof(addr));
+	    freeaddrinfo(res);
+#ifdef NI_WITHSCOPEID
+	    if (pat.sin6_scope_id != 0 &&
+		addr.sin6_scope_id != pat.sin6_scope_id)
+		return NO;
+#endif
+	    return (!memcmp(&pat.sin6_addr, &addr.sin6_addr,
+			    sizeof(struct in6_addr)));
+	    return (ret);
 	}
 #endif
 	return (STR_EQ(tok, string));
@@ -414,19 +434,26 @@ char   *net_tok;
 char   *mask_tok;
 char   *string;
 {
-    struct in6_addr net, addr;
+    struct addrinfo hints, *res;
+    struct sockaddr_in6 net, addr;
     u_int32_t mask;
     int len, mask_len, i = 0;
     char ch;
 
-    if (inet_pton(AF_INET6, string, addr.s6_addr) != 1)
-	    return NO;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET6;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE | AI_NUMERICHOST;
+    if (getaddrinfo(string, NULL, &hints, &res) != 0)
+	return NO;
+    memcpy(&addr, res->ai_addr, sizeof(addr));
+    freeaddrinfo(res);
 
-    if (IN6_IS_ADDR_V4MAPPED(&addr)) {
-	if ((*(u_int32_t *)&net.s6_addr[12] = dot_quad_addr(net_tok)) == INADDR_NONE
+    if (IN6_IS_ADDR_V4MAPPED(&addr.sin6_addr)) {
+	if ((*(u_int32_t *)&net.sin6_addr.s6_addr[12] = dot_quad_addr(net_tok)) == INADDR_NONE
 	 || (mask = dot_quad_addr(mask_tok)) == INADDR_NONE)
 	    return (NO);
-	return ((*(u_int32_t *)&addr.s6_addr[12] & mask) == *(u_int32_t *)&net.s6_addr[12]);
+	return ((*(u_int32_t *)&addr.sin6_addr.s6_addr[12] & mask) == *(u_int32_t *)&net.sin6_addr.s6_addr[12]);
     }
 
     /* match IPv6 address against netnumber/prefixlen */
@@ -435,22 +462,28 @@ char   *string;
 	return NO;
     ch = net_tok[len - 1];
     net_tok[len - 1] = '\0';
-    if (inet_pton(AF_INET6, net_tok + 1, net.s6_addr) != 1) {
+    if (getaddrinfo(net_tok + 1, NULL, &hints, &res) != 0) {
 	net_tok[len - 1] = ch;
 	return NO;
     }
+    memcpy(&net, res->ai_addr, sizeof(net));
+    freeaddrinfo(res);
     net_tok[len - 1] = ch;
     if ((mask_len = atoi(mask_tok)) < 0 || mask_len > 128)
 	return NO;
 
+#ifdef NI_WITHSCOPEID
+    if (net.sin6_scope_id != 0 && addr.sin6_scope_id != net.sin6_scope_id)
+	return NO;
+#endif
     while (mask_len > 0) {
 	if (mask_len < 32) {
 	    mask = htonl(~(0xffffffff >> mask_len));
-	    if ((*(u_int32_t *)&addr.s6_addr[i] & mask) != (*(u_int32_t *)&net.s6_addr[i] & mask))
+	    if ((*(u_int32_t *)&addr.sin6_addr.s6_addr[i] & mask) != (*(u_int32_t *)&net.sin6_addr.s6_addr[i] & mask))
 		return NO;
 	    break;
 	}
-	if (*(u_int32_t *)&addr.s6_addr[i] != *(u_int32_t *)&net.s6_addr[i])
+	if (*(u_int32_t *)&addr.sin6_addr.s6_addr[i] != *(u_int32_t *)&net.sin6_addr.s6_addr[i])
 	    return NO;
 	i += 4;
 	mask_len -= 32;

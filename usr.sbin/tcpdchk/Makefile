@@ -11,7 +11,9 @@ SRCS=	tcpdchk.c fakelog.c inetcf.c scaffold.c
 CFLAGS=	-DREAL_DAEMON_DIR=\"/usr/libexec\" \
 	-DSEVERITY=LOG_INFO -DRFC931_TIMEOUT=10 \
 	-DHOSTS_DENY=\"/etc/hosts.deny\" -DHOSTS_ALLOW=\"/etc/hosts.allow\"
-CFLAGS+=-DINET6 -DUSE_GETIPNODEBY
+.if !defined(NOINET6)
+CFLAGS+=-DINET6
+.endif
 
 DPADD=	${LIBWRAP}
 LDADD=	-lwrap
