@@ -41,7 +41,7 @@ struct varent;
 
 extern fixpt_t ccpu;
 extern int eval, fscale, mempages, nlistread, rawcpu, cflag;
-extern int sumrusage, termwidth, totwidth, use_ampm;
+extern int sumrusage, termwidth, totwidth;
 extern VAR var[];
 extern VARENT *vhead;
 
