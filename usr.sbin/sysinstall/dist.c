@@ -91,7 +91,11 @@ static Distribution DistTable[] = {
 /* The DES distribution (not for export!) */
 static Distribution DESDistTable[] = {
 { "des",        "/",                    &DESDists,	DIST_DES_DES,		NULL		},
+#if __FreeBSD__ > 3
 { "krb4",	"/",			&DESDists,	DIST_DES_KERBEROS4,	NULL		},
+#else
+{ "krb",	"/",			&DESDists,	DIST_DES_KERBEROS,	NULL		},
+#endif
 { "ssecure",	"/usr/src",		&DESDists,	DIST_DES_SSECURE,	NULL		},
 { "scrypto",	"/usr/src",		&DESDists,	DIST_DES_SCRYPTO,	NULL		},
 { "skerbero",	"/usr/src",		&DESDists,	DIST_DES_SKERBEROS,	NULL		},
