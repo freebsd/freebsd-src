@@ -37,7 +37,7 @@
 #include "pthread_private.h"
 
 int
-pthread_attr_getschedpolicy(pthread_attr_t *attr, int *policy)
+pthread_attr_getschedpolicy(const pthread_attr_t *attr, int *policy)
 {
 	int ret = 0;
 
