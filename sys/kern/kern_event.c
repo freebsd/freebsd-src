@@ -413,10 +413,10 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 	}
 
 	if (fops->f_isfd) {
-		/* validate descriptor; ignore invalid descriptors */
+		/* validate descriptor */
 		if ((u_int)kev->ident >= fdp->fd_nfiles ||
 		    (fp = fdp->fd_ofiles[kev->ident]) == NULL)
-			return (0);
+			return (EBADF);
 
 		if (kev->ident < fdp->fd_knlistsize) {
 			SLIST_FOREACH(kn, &fdp->fd_knlist[kev->ident], kn_link)
@@ -439,7 +439,7 @@ kqueue_register(struct kqueue *kq, struct kevent *kev, struct proc *p)
 	}
 
 	if (kn == NULL && ((kev->flags & EV_ADD) == 0))
-		goto done;
+		return (ENOENT);
 
 	/*
 	 * kn now contains the matching knote, or NULL if no match
@@ -523,24 +523,28 @@ kqueue_scan(struct file *fp, int maxevents, struct kevent *ulistp,
 	if (count == 0)
 		goto done;
 
-        if (tsp != NULL) {
+	if (tsp != NULL) {
 		TIMESPEC_TO_TIMEVAL(&atv, tsp);
-                if (itimerfix(&atv)) {
+		if (itimerfix(&atv)) {
 			error = EINVAL;
 			goto done;
 		}
-		timeout = atv.tv_sec > 24 * 60 * 60 ?
-			24 * 60 * 60 * hz : tvtohz(&atv);
-                getmicrouptime(&rtv);
-                timevaladd(&atv, &rtv);
-        } else {
-                atv.tv_sec = 0;
+		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
+			timeout = -1;
+		else 
+			timeout = atv.tv_sec > 24 * 60 * 60 ?
+			    24 * 60 * 60 * hz : tvtohz(&atv);
+		getmicrouptime(&rtv);
+		timevaladd(&atv, &rtv);
+	} else {
+		atv.tv_sec = 0;
+		atv.tv_usec = 0;
 		timeout = 0;
 	}
 	goto start;
 
 retry:
-	if (atv.tv_sec) {
+	if (atv.tv_sec || atv.tv_usec) {
 		getmicrouptime(&rtv);
 		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
@@ -554,8 +558,12 @@ start:
 	kevp = kq->kq_kev;
 	s = splhigh();
 	if (kq->kq_count == 0) {
-		kq->kq_state |= KQ_SLEEP;
-		error = tsleep(kq, PSOCK | PCATCH, "kqread", timeout);
+		if (timeout < 0) { 
+			error = EWOULDBLOCK;
+		} else {
+			kq->kq_state |= KQ_SLEEP;
+			error = tsleep(kq, PSOCK | PCATCH, "kqread", timeout);
+		}
 		splx(s);
 		if (error == 0)
 			goto retry;
