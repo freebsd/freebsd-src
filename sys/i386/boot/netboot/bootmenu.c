@@ -13,7 +13,7 @@ extern unsigned long netmask;
 
 int cmd_ip(), cmd_server(), cmd_kernel(), cmd_help(), exit();
 int cmd_rootfs(), cmd_swapfs(), cmd_interface(), cmd_hostname();
-int cmd_netmask();
+int cmd_netmask(), cmd_swapsize();
 
 #ifdef SMALL_ROM
 struct bootcmds_t {
@@ -40,10 +40,11 @@ struct bootcmds_t {
 	{"ip",		cmd_ip,		"<addr>          set my IP addr"},
 	{"server",	cmd_server,	"<addr>      set TFTP server IP addr"},
 	{"netmask",	cmd_netmask,	"<addr>     set network mask"},
-	{"hostname",	cmd_hostname,	"          set hostname"},
+	{"hostname",	cmd_hostname,	"<name>    set hostname"},
 	{"kernel",	cmd_kernel,	"<file>      set boot filename"},
-	{"rootfs",	cmd_rootfs,	"            set root filesystem"},
-	{"swapfs",	cmd_swapfs,	"            set swap filesystem"},
+	{"rootfs",	cmd_rootfs,	"ip:/fs      set root filesystem"},
+	{"swapfs",	cmd_swapfs,	"ip:/fs      set swap filesystem"},
+	{"swapsize",	cmd_swapsize,	"<nblks>   set swap size"},
 	{"diskboot",	exit,		"          boot from disk"},
 	{"autoboot",	NULL,		"          continue"},
 	{NULL,		NULL,		NULL}
@@ -73,7 +74,7 @@ cmd_ip(p)
 	if (!setip(p, &arptable[ARP_CLIENT].ipaddr)) {
 		printf("IP address is %I\r\n",
 			arptable[ARP_CLIENT].ipaddr);
-	}
+	} else default_netmask();
 }
 
 /**************************************************************************
@@ -102,6 +103,17 @@ cmd_netmask(p)
 		printf("netmask is %I\r\n", netmask);
 	}
 	netmask = htonl(netmask);
+}
+
+/**************************************************************************
+CMD_SWAPSIZE - Set number of blocks for swap
+**************************************************************************/
+cmd_swapsize(p)
+	char *p;
+{
+	int blks = getdec(&p);
+	if (blks > 0) nfsdiskless.swap_nblks = blks;
+	else printf("Swap size is: %d blocks\r\n",nfsdiskless.swap_nblks);
 }
 
 extern char kernel_buf[], *kernel;

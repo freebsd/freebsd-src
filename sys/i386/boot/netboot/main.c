@@ -126,19 +126,14 @@ load()
         nfsdiskless.myif.ifra_addr.sa_family = AF_INET;
 	addr = htonl(arptable[ARP_CLIENT].ipaddr);
 	bcopy(&addr, &nfsdiskless.myif.ifra_addr.sa_data[2], 4);
-	if (!netmask) {
-		int net = nfsdiskless.myif.ifra_addr.sa_data[2];
-		if (net <= 127)
-			netmask = htonl(0xff000000);
-		else if (net < 192)
-			netmask = htonl(0xffff0000);
-		else
-			netmask = htonl(0xffffff00);
-	}
 	broadcast = (addr & netmask) | ~netmask;
-        nfsdiskless.myif.ifra_broadaddr.sa_len = sizeof(struct sockaddr);
-        nfsdiskless.myif.ifra_broadaddr.sa_family = AF_INET;
+	nfsdiskless.myif.ifra_broadaddr.sa_len = sizeof(struct sockaddr);
+	nfsdiskless.myif.ifra_broadaddr.sa_family = AF_INET;
 	bcopy(&broadcast, &nfsdiskless.myif.ifra_broadaddr.sa_data[2], 4);
+	addr = htonl(arptable[ARP_GATEWAY].ipaddr);
+	nfsdiskless.mygateway.sin_len = sizeof(struct sockaddr);
+	nfsdiskless.mygateway.sin_family = AF_INET;
+	bcopy(&addr, &nfsdiskless.mygateway.sin_addr, 4);
         nfsdiskless.myif.ifra_mask.sa_len = sizeof(struct sockaddr);
         nfsdiskless.myif.ifra_mask.sa_family = AF_UNSPEC;
 	bcopy(&netmask, &nfsdiskless.myif.ifra_mask.sa_data[2], 4);
@@ -147,15 +142,29 @@ load()
 
 		/* Lookup NFS/MOUNTD ports for SWAP using PORTMAP */
 	if (arptable[ARP_SWAPSERVER].ipaddr) {
+		char swapfs_fh[32], swapfile[32];
 		swap_nfs_port = rpclookup(ARP_SWAPSERVER, PROG_NFS, 2);
 		swap_mount_port = rpclookup(ARP_SWAPSERVER, PROG_MOUNT, 1);
 		if ((swap_nfs_port == -1) || (swap_mount_port == -1)) {
 			printf("Unable to get SWAP NFS/MOUNT ports\r\n");
 			longjmp(jmp_bootmenu,1);
 		}
+		if (err = nfs_mount(ARP_SWAPSERVER, swap_mount_port,
+			nfsdiskless.swap_hostnam, &swapfs_fh)) {
+			printf("Unable to mount SWAP filesystem: ");
+			nfs_err(err);
+			longjmp(jmp_bootmenu,1);
+		}
+		sprintf(swapfile,"swap.%I",arptable[ARP_CLIENT].ipaddr);
+		if (err = nfs_lookup(ARP_SWAPSERVER, swap_nfs_port,
+			&swapfs_fh, swapfile, &nfsdiskless.swap_fh)) {
+			printf("Unable to open %s: ",swapfile);
+			nfs_err(err);
+			longjmp(jmp_bootmenu,1);
+		}
 		nfsdiskless.swap_saddr.sin_len = sizeof(struct sockaddr_in);
 		nfsdiskless.swap_saddr.sin_family = AF_INET;
-		nfsdiskless.swap_saddr.sin_port = root_nfs_port;
+		nfsdiskless.swap_saddr.sin_port = swap_nfs_port;
 		nfsdiskless.swap_saddr.sin_addr.s_addr = 
 			htonl(arptable[ARP_SWAPSERVER].ipaddr);
         	nfsdiskless.swap_args.sotype = SOCK_DGRAM;
@@ -272,6 +281,19 @@ pollkbd()
 }
 
 /**************************************************************************
+DEFAULT_NETMASK - Set a default netmask for IP address
+**************************************************************************/
+default_netmask()
+{
+	int net = arptable[ARP_CLIENT].ipaddr >> 24;
+	if (net <= 127)
+		netmask = htonl(0xff000000);
+	else if (net < 192)
+		netmask = htonl(0xffff0000);
+	else
+		netmask = htonl(0xffffff00);
+}
+/**************************************************************************
 UDP_TRANSMIT - Send a UDP datagram
 **************************************************************************/
 udp_transmit(destip, srcsock, destsock, len, buf)
@@ -307,6 +329,12 @@ udp_transmit(destip, srcsock, destsock, len, buf)
 	if (destip == IP_BROADCAST) {
 		eth_transmit(broadcast, IP, len, buf);
 	} else {
+		long h_netmask = ntohl(netmask);
+				/* Check to see if we need gateway */
+		if (((destip & h_netmask) != 
+			(arptable[ARP_CLIENT].ipaddr & h_netmask)) &&
+			arptable[ARP_GATEWAY].ipaddr)
+				destip = arptable[ARP_GATEWAY].ipaddr;
 		for(arpentry = 0; arpentry<MAX_ARP; arpentry++)
 			if (arptable[arpentry].ipaddr == destip) break;
 		if (arpentry == MAX_ARP) {
@@ -469,15 +497,21 @@ await_reply(type, ival, ptr)
 			   (bootpreply->bp_op == BOOTP_REPLY)) {
 				convert_ipaddr(&arptable[ARP_CLIENT].ipaddr,
 					bootpreply->bp_yiaddr);
+				default_netmask();
 				convert_ipaddr(&arptable[ARP_SERVER].ipaddr,
 					bootpreply->bp_siaddr);
 				bzero(arptable[ARP_SERVER].node,
+					ETHER_ADDR_SIZE);  /* Kill arp */
+				convert_ipaddr(&arptable[ARP_GATEWAY].ipaddr,
+					bootpreply->bp_giaddr);
+				bzero(arptable[ARP_GATEWAY].node,
 					ETHER_ADDR_SIZE);  /* Kill arp */
 				if (bootpreply->bp_file[0]) {
 					bcopy(bootpreply->bp_file,
 						kernel_buf, 128);
 					kernel = kernel_buf;
 				}
+				decode_rfc1048(bootpreply->bp_vend);
 				return(1);
 			}
 
@@ -497,6 +531,33 @@ await_reply(type, ival, ptr)
 		}
 	}
 	return(0);
+}
+
+/**************************************************************************
+DECODE_RFC1048 - Decodes RFC1048 header
+**************************************************************************/
+decode_rfc1048(p)
+	unsigned char *p;
+{
+	static char rfc1048_cookie[4] = RFC1048_COOKIE;
+	unsigned char *end = p + BOOTP_VENDOR_LEN;
+	if (bcompare(p, rfc1048_cookie, 4)) { /* RFC 1048 header */
+		p += 4;
+		while(p < end) {
+			if (*p == RFC1048_PAD) {
+				p++;
+				continue;
+			}
+			if (*p == RFC1048_END) break;
+			if (*p == RFC1048_NETMASK)
+				bcopy(p+2,&netmask,4);
+			if (*p == RFC1048_HOSTNAME) {
+				bcopy(p+2, &nfsdiskless.my_hostnam, TAG_LEN(p));
+				hostnamelen = (TAG_LEN(p) + 3) & ~3;
+			}
+			p += TAG_LEN(p) + 2;
+		}
+	}
 }
 
 /**************************************************************************
