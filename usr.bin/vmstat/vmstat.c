@@ -59,7 +59,6 @@ static const char rcsid[] =
 #include <sys/vmmeter.h>
 
 #include <vm/vm_param.h>
-#include <vm/vm_zone.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -866,59 +865,23 @@ domem()
 void
 dozmem()
 {
-	static SLIST_HEAD(vm_zone_list, vm_zone) zlist;
-	vm_zone_t zonep;
-	int nmax = 512;
-	int zused_bytes = 0;
-	int ztotal_bytes = 0;
+	char *buf;
+	size_t bufsize;
 
-	printf(
-	    "\n"
-	    "%-16s%-8s%-8s%-8s\n",
-	    "ZONE", 
-	    "used",
-	    "total",
-	    "mem-use"
-	);
-
-	SLIST_INIT(&zlist);
-	kread(X_ZLIST, &zlist, sizeof(zlist));
-	zonep = SLIST_FIRST(&zlist);
-
-	while (zonep != NULL && nmax) {
-		struct vm_zone zone;
-		char buf[32];
-		int n;
-
-		if (kvm_read(kd, (u_long)zonep, &zone, sizeof(zone)) != sizeof(zone))
+	buf = NULL;
+	bufsize = 1024;
+	for (;;) {
+		if ((buf = realloc(buf, bufsize)) == NULL)
+			err(1, "realloc()");
+		if (sysctlbyname("vm.zone", buf, &bufsize, 0, NULL) == 0)
 			break;
-		n = kvm_read(kd, (u_long)zone.zname, buf, sizeof(buf) - 1);
-		if (n < 0)
-		    n = 0;
-		buf[n] = 0;
-
-		printf(
-		    "%-15.15s %-7d %-7d %4d/%dK\n",
-		    buf,
-		    zone.ztotal - zone.zfreecnt,
-		    zone.ztotal,
-		    (zone.ztotal - zone.zfreecnt) * zone.zsize / 1024,
-		    zone.ztotal * zone.zsize / 1024
-		);
-		zused_bytes += (zone.ztotal - zone.zfreecnt) * zone.zsize;
-		ztotal_bytes += zone.ztotal * zone.zsize;
-		--nmax;
-		zonep = SLIST_NEXT(&zone, zent);
+		if (errno != ENOMEM)
+			err(1, "sysctl()");
+		bufsize *= 2;
 	}
-	printf(
-	    "------------------------------------------\n"
-	    "%-15.15s %-7s %-7s %4d/%dK\n\n",
-	    "TOTAL",
-	    "",
-	    "",
-	    zused_bytes / 1024,
-	    ztotal_bytes / 1024
-	);
+	buf[bufsize] = '\0'; /* play it safe */
+	(void)printf("%s\n\n", buf);
+	free(buf);
 }
 
 /*
