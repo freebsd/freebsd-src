@@ -34,7 +34,7 @@
 .Nd the AT keyboard interface
 .Sh SYNOPSIS
 .Cd "options ATKBD_DFLT_KEYMAP"
-.Cd "makeoptions ATKBD_DFLT_KEYMAP"=\&"_keymap_name_\&"
+.Cd "makeoptions ATKBD_DFLT_KEYMAP=_keymap_name_"
 .Cd "options KBD_DISABLE_KEYMAP_LOAD"
 .Cd "device atkbd0 at atkbdc? irq 1"
 .Sh DESCRIPTION
@@ -177,7 +177,7 @@ to
 .Pa jp.106.kbd .
 .Pp
 .Dl "options ATKBD_DFLT_KEYMAP"
-.Dl "makeoptions ATKBD_DFLT_KEYMAP"=\&"jp.106\&"
+.Dl "makeoptions ATKBD_DFLT_KEYMAP=jp.106"
 .Dl "device atkbd0 at atkbdc? irq 1"
 .Pp
 .\".Sh DIAGNOSTICS
