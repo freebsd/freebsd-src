@@ -48,12 +48,6 @@ options 	NO_MIXED_MODE		# Disable use of mixed mode
 # Rogue SMP hardware:
 #
 
-# Bridged PCI cards:
-#
-# The MP tables of most of the current generation MP motherboards
-#  do NOT properly support bridged PCI cards.  To use one of these
-#  cards you should refer to ???
-
 
 #####################################################################
 # CPU OPTIONS
