@@ -672,8 +672,7 @@
 
     &hwlist.xl;
 
-    <para arch="i386,pc98,amd64">3Com 3C59X series NICs (&man.vx.4; driver)
-    </para>
+    &hwlist.vx;
 
     <para arch="i386,amd64">Crystal Semiconductor CS89x0-based NICs 
     (&man.cs.4; driver)
@@ -696,9 +695,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,amd64">Gigabit Ethernet cards based on the Level 1
-    LXT1001 NetCellerator controller (&man.lge.4; driver)
-    </para>
+    &hwlist.lge;
 
     &hwlist.txp;
 
