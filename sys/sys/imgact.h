@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.8 1994/10/02 17:24:45 phk Exp $
+ *	$Id: imgact.h,v 1.9 1995/05/30 08:14:24 rgrimes Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
@@ -43,7 +43,7 @@
 struct image_params {
 	struct proc *proc;	/* our process struct */
 	struct execve_args *uap; /* syscall arguments */
-	struct vnode *vnodep;	/* pointer to vnode of file to exec */
+	struct vnode *vp;	/* pointer to vnode of file to exec */
 	struct vattr *attr;	/* attributes of file */
 	const char *image_header; /* head of file to exec */
 	char *stringbase;	/* base address of tmp string storage */

@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.1 1995/06/25 17:32:32 sos Exp $
+ *	$Id: imgact_linux.c,v 1.2 1995/08/24 10:32:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -45,11 +45,11 @@
 #include <vm/vm_kern.h>
 
 int
-exec_linux_imgact(iparams)
-    struct image_params *iparams;
+exec_linux_imgact(imgp)
+    struct image_params *imgp;
 {
-    struct exec *a_out = (struct exec *) iparams->image_header;
-    struct vmspace *vmspace = iparams->proc->p_vmspace;
+    struct exec *a_out = (struct exec *) imgp->image_header;
+    struct vmspace *vmspace = imgp->proc->p_vmspace;
     unsigned long vmaddr, virtual_offset, file_offset;
     unsigned long buffer, bss_size;
     int error;
@@ -84,24 +84,24 @@ exec_linux_imgact(iparams)
 	return (-1);
 
     /* text + data can't exceed file size */
-    if (a_out->a_data + a_out->a_text > iparams->attr->va_size)
+    if (a_out->a_data + a_out->a_text > imgp->attr->va_size)
 	return (EFAULT);
     /*
      * text/data/bss must not exceed limits
      */
     if (a_out->a_text > MAXTSIZ || a_out->a_data + bss_size > MAXDSIZ ||
-	a_out->a_data+bss_size > iparams->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
+	a_out->a_data+bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
 	return (ENOMEM);
 
     /* copy in arguments and/or environment from old process */
-    error = exec_extract_strings(iparams);
+    error = exec_extract_strings(imgp);
     if (error)
 	return (error);
 
     /*
      * Destroy old process VM and create a new one (with a new stack)
      */
-    exec_new_vmspace(iparams);
+    exec_new_vmspace(imgp);
 
     /*
      * Check if file_offset page aligned,.
@@ -124,7 +124,7 @@ exec_linux_imgact(iparams)
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_text + file_offset),
 			VM_PROT_READ, VM_PROT_READ, MAP_FILE,
-			(caddr_t) iparams->vnodep, trunc_page(file_offset));
+			(caddr_t) imgp->vp, trunc_page(file_offset));
 	if (error)
 	    return error;
 
@@ -153,7 +153,7 @@ exec_linux_imgact(iparams)
 	error = vm_mmap(kernel_map, &buffer,
 			round_page(a_out->a_data + file_offset),
 			VM_PROT_READ, VM_PROT_READ, MAP_FILE,
-			(caddr_t) iparams->vnodep,
+			(caddr_t) imgp->vp,
 			trunc_page(a_out->a_text + file_offset));
 	if (error)
 	    return error;
@@ -185,7 +185,7 @@ exec_linux_imgact(iparams)
 	    		VM_PROT_READ | VM_PROT_EXECUTE,
 	    		VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_WRITE,
 	    		MAP_PRIVATE | MAP_FIXED,
-	    		(caddr_t)iparams->vnodep, file_offset);
+	    		(caddr_t)imgp->vp, file_offset);
 	if (error)
 	    return (error);
     
@@ -196,7 +196,7 @@ exec_linux_imgact(iparams)
 	error = vm_mmap(&vmspace->vm_map, &vmaddr, a_out->a_data,
 			VM_PROT_READ | VM_PROT_WRITE,
 			VM_PROT_ALL, MAP_PRIVATE | MAP_FIXED,
-			(caddr_t)iparams->vnodep, file_offset + a_out->a_text);
+			(caddr_t)imgp->vp, file_offset + a_out->a_text);
 	if (error)
 	    return (error);
     
@@ -211,7 +211,7 @@ exec_linux_imgact(iparams)
 		return (error);
 	}
 	/* Indicate that this file should not be modified */
-	iparams->vnodep->v_flag |= VTEXT;
+	imgp->vp->v_flag |= VTEXT;
     }
     /* Fill in process VM information */
     vmspace->vm_tsize = round_page(a_out->a_text) >> PAGE_SHIFT;
@@ -220,10 +220,10 @@ exec_linux_imgact(iparams)
     vmspace->vm_daddr = (caddr_t)virtual_offset + a_out->a_text;
 
     /* Fill in image_params */
-    iparams->interpreted = 0;
-    iparams->entry_addr = a_out->a_entry;
+    imgp->interpreted = 0;
+    imgp->entry_addr = a_out->a_entry;
     
-    iparams->proc->p_sysent = &linux_sysvec;
+    imgp->proc->p_sysent = &linux_sysvec;
     return (0);
 }
 
