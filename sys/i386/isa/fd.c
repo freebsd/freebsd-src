@@ -5,10 +5,12 @@
  * This code is derived from software contributed to Berkeley by
  * Don Ahn.
  *
- * Portions Copyright (c) 1993, 1994, 1995 by
+ * Copyright (c) 1993, 1994 by
  *  jc@irbs.UUCP (John Capo)
  *  vak@zebub.msk.su (Serge Vakulenko)
  *  ache@astral.msk.su (Andrew A. Chernov)
+ *
+ * Copyright (c) 1993, 1994, 1995 by
  *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
  *  dufault@hda.com (Peter Dufault)
  *
@@ -41,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.46 1994/12/04 20:22:19 joerg Exp $
+ *	$Id: fd.c,v 1.16.1.2 1995/01/10 23:49:30 j Exp $
  *
  */
 
@@ -85,7 +87,8 @@
 
 static int fd_goaway(struct kern_devconf *, int);
 static int fdc_goaway(struct kern_devconf *, int);
-static int fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
+static int
+fd_externalize(struct proc *, struct kern_devconf *, void *, size_t);
 
 /*
  * Templates for the kern_devconf structures used when we attach.
@@ -96,7 +99,7 @@ static struct kern_devconf kdc_fd[NFD] = { {
 	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN,
 	0,			/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
+	DC_UNCONFIGURED,	/* state */
 	"floppy disk"
 } };
 
@@ -106,7 +109,7 @@ struct kern_devconf kdc_fdc[NFDC] = { {
 	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN,
 	0,			/* parent */
 	0,			/* parentdata */
-	DC_UNKNOWN,		/* state */
+	DC_UNCONFIGURED,	/* state */
 	"floppy disk/tape controller"
 } };
 
@@ -214,6 +217,7 @@ struct fd_type fd_types[NUMTYPES] =
 };
 
 #define DRVS_PER_CTLR 2		/* 2 floppies */
+
 /***********************************************************************\
 * Per controller structure.						*
 \***********************************************************************/
@@ -332,19 +336,27 @@ int	fd_debug = 0;
 #define TRACE1(arg1, arg2)
 #endif /* DEBUG */
 
+/* autoconfig structure */
+
+struct	isa_driver fdcdriver = {
+	fdprobe, fdattach, "fdc",
+};
+
 struct isa_device *fdcdevs[NFDC];
 
 /*
  * Provide hw.devconf information.
  */
 static int
-fd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+fd_externalize(struct proc *p, struct kern_devconf *kdc,
+	       void *userp, size_t len)
 {
 	return disk_externalize(fd_data[kdc->kdc_unit].fdsu, userp, &len);
 }
 
 static int
-fdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
+fdc_externalize(struct proc *p, struct kern_devconf *kdc,
+		void *userp, size_t len)
 {
 	return isa_externalize(fdcdevs[kdc->kdc_unit], userp, &len);
 }
@@ -482,10 +494,6 @@ fd_read_status(fdc_p fdc, int fdsu)
 /****************************************************************************/
 /*                      autoconfiguration stuff                             */
 /****************************************************************************/
-struct	isa_driver fdcdriver = {
-	fdprobe, fdattach, "fdc",
-};
-
 
 /*
  * probe for existance of controller
@@ -515,6 +523,7 @@ fdprobe(struct isa_device *dev)
 	{
 		return(0);
 	}
+	kdc_fdc[fdcu].kdc_state = DC_IDLE;
 	return (IO_FDCSIZE);
 }
 
@@ -564,7 +573,7 @@ fdattach(struct isa_device *dev)
 		/* is there a unit? */
 		if ((fdt == RTCFDT_NONE)
 #if NFT > 0
-		|| (fdsu >= DRVS_PER_CTLR)) {
+		    || (fdsu >= DRVS_PER_CTLR)) {
 #else
 		) {
 			fd->type = NO_TYPE;
@@ -685,6 +694,7 @@ fdattach(struct isa_device *dev)
 			break;
 		}
 		fd_registerdev(fdcu, fdu);
+		kdc_fd[fdu].kdc_state = DC_IDLE;
 		if(dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
 			dk_wpms[dk_ndrive] = (500 * 1024 / 2) / 1000;
@@ -733,6 +743,7 @@ set_motor(fdcu_t fdcu, int fdsu, int turnon)
 
 	outb(fdc_data[fdcu].baseport+FDOUT, fdout);
 	fdc_data[fdcu].fdout = fdout;
+	kdc_fdc[fdcu].kdc_state = (fdout & FDO_FRST)? DC_BUSY: DC_IDLE;
 	TRACE1("[0x%x->FDOUT]", fdout);
 
 	if(needspecify) {
@@ -754,8 +765,9 @@ fd_turnoff(void *arg1)
 {
 	fdu_t fdu = (fdu_t)arg1;
 	int	s;
-
 	fd_p fd = fd_data + fdu;
+
+	TRACE1("[fd%d: turnoff]", fdu);
 	s = splbio();
 	fd->flags &= ~FD_MOTOR;
 	set_motor(fd->fdc->fdcu, fd->fdsu, TURNOFF);
@@ -973,8 +985,9 @@ Fdopen(dev_t dev, int flags)
 			err = EIO;
 		else if ( (st3 & NE7_ST3_WP) )
 		{
+			/* XXX should be tprintf() */
 			printf("fd%d: drive is write protected.\n", fdu);
-			err = ENXIO;
+			err = EIO;
 		}
 
 		if (err) {
@@ -987,6 +1000,7 @@ Fdopen(dev_t dev, int flags)
 
 	fd_data[fdu].ft = fd_types + type - 1;
 	fd_data[fdu].flags |= FD_OPEN;
+	kdc_fd[fdu].kdc_state = DC_BUSY;
 
 	return 0;
 }
@@ -1004,6 +1018,8 @@ fdclose(dev_t dev, int flags)
 #endif
 	fd_data[fdu].flags &= ~FD_OPEN;
 	fd_data[fdu].options &= ~FDOPT_NORETRY;
+	kdc_fd[fdu].kdc_state = DC_IDLE;
+
 	return(0);
 }
 
