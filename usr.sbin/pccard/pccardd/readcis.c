@@ -170,16 +170,29 @@ freecis(struct cis *cp)
 static void
 cis_info(struct cis *cp, unsigned char *p, int len)
 {
+	unsigned char *end = p + len;
 	*cp->manuf = *cp->vers = *cp->add_info1 = *cp->add_info2 = '\0';
 	cp->maj_v = *p++;
 	cp->min_v = *p++;
+	if (p >= end)
+		return;
 	strncpy(cp->manuf, p, CIS_MAXSTR - 1);
-	while (*p++);
+	cp->manuf[CIS_MAXSTR - 1] = '\0';
+	p += strlen(p);
+	if (p >= end)
+		return;
 	strncpy(cp->vers, p, CIS_MAXSTR - 1);
-	while (*p++);
+	cp->vers[CIS_MAXSTR - 1] = '\0';
+	p += strlen(p);
+	if (p >= end)
+		return;
 	strncpy(cp->add_info1, p, CIS_MAXSTR - 1);
-	while (*p++);
+	cp->add_info1[CIS_MAXSTR - 1] = '\0';
+	p += strlen(p);
+	if (p >= end)
+		return;
 	strncpy(cp->add_info2, p, CIS_MAXSTR - 1);
+	cp->add_info2[CIS_MAXSTR - 1] = '\0';
 }
 
 /*
