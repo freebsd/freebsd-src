@@ -84,7 +84,7 @@ server_IsSet(struct fdescriptor *d, const fd_set *fdset)
 }
 
 #define IN_SIZE sizeof(struct sockaddr_in)
-#define UN_SIZE sizeof(struct sockaddr_in)
+#define UN_SIZE sizeof(struct sockaddr_un)
 #define ADDRSZ (IN_SIZE > UN_SIZE ? IN_SIZE : UN_SIZE)
 
 static void
