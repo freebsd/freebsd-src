@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.8 1996/10/15 18:24:34 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.9 1996/10/16 17:51:07 sos Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -102,6 +102,26 @@ int linux_to_bsd_signal[LINUX_NSIG] = {
 	SIGBUS, SIGCHLD, SIGCONT, SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU, SIGIO,
 	SIGXCPU, SIGXFSZ, SIGVTALRM, SIGPROF, SIGWINCH, SIGURG, SIGURG, 0
 };
+
+/*
+ * If FreeBSD & Linux have a difference of opinion about what a trap
+ * means, deal with it here.
+ */
+static int
+translate_traps(int signal, int trap_code)
+{
+	if (signal != SIGBUS)
+		return signal;
+	switch (trap_code) {
+	case T_PROTFLT:
+	case T_TSSFLT:
+	case T_DOUBLEFLT:
+	case T_PAGEFLT:
+		return SIGSEGV;
+	default:
+		return signal;
+	}
+}
 
 int linux_fixup(int **stack_base, struct image_params *imgp)
 {
@@ -378,6 +398,7 @@ struct sysentvec linux_sysvec = {
 	bsd_to_linux_signal,
 	ELAST, 
 	bsd_to_linux_errno,
+	translate_traps,
 	linux_fixup,
 	linux_sendsig,
 	linux_sigcode,	
@@ -394,6 +415,7 @@ struct sysentvec elf_linux_sysvec = {
         bsd_to_linux_signal,
         ELAST,
         bsd_to_linux_errno,
+        translate_traps,
         elf_linux_fixup,
         linux_sendsig,
         linux_sigcode,
