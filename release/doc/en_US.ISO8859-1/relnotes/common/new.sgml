@@ -387,6 +387,9 @@
     <para>&man.adduser.8; now correctly handles setting user passwords
       containing special shell characters.</para>
 
+    <para>&man.adduser.8; now supports a <option>-g</option> option to
+      set a user's default login group.</para>
+
     <para arch="alpha,i386">The <filename>compat4x</filename>
       distribution now includes the
       <filename>libcrypto.so.2</filename>,
@@ -457,6 +460,9 @@
     <para>&man.fwcontrol.8; now supports <option>-R</option> and
       <option>-S</option> options for receiving and sending DV
       streams. &merged;</para>
+
+    <para>The &man.gstat.8; utility has been added to show the disk
+      activity inside the &man.geom.4; subsystem.</para>
 
     <para>&man.ipfw.8; now supports <literal>enable</literal> and
       <literal>disable</literal> commands to control various aspects
@@ -586,6 +592,10 @@
 
       <para>The <application>ISC DHCP</application> client has been
 	updated to 3.0.1RC11. &merged;</para>
+
+      <para>The <application>ISC DHCP</application> client now
+	includes the &man.omshell.1; utility and the &man.dhcpctl.3;
+	library for run-time control of the client.</para>
 
       <para><application>Kerberos IV</application> support (in the
 	form of <application>KTH eBones</application>) has been
