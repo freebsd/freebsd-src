@@ -70,11 +70,10 @@
 extern int (**devfs_vnodeop_p)();	/* our own vector array for dirs */
 extern int (**dev_spec_vnodeop_p)();	/* our own vector array for devs */
 
-typedef struct dev_back *devb_p;
-typedef struct dev_front *devf_p;
+typedef struct dev_name *devnm_p;
 typedef	struct devnode	*dn_p;
 
-struct	devnode
+struct	devnode	/* the equivalent of an INODE */
 {
 	u_short type;
 	int	flags;		/* more inode compatible for now *//*XXXkill*/
@@ -104,47 +103,52 @@ struct	devnode
 			int	arg;
 		}Ddev;
 		struct {
-			devf_p	dirlist;
-			devf_p	*dirlast;
+			devnm_p	dirlist;
+			devnm_p	*dirlast;
 			dn_p	parent;
-			devf_p	myname;
+			devnm_p	myname;
 			int	entrycount;
 		}Dir;	
-		struct {
-			devb_p	dirlist;
-			devb_p	*dirlast;
-			dn_p	parent;
-			devb_p	myname;
-			int	entrycount;
-		}BackDir;	
 		struct {
 			char	*name;	/* must be allocated separatly */
 			int	namelen;
 		}Slnk;
 		struct {
-			devb_p	realthing;
-			devb_p	next;
+			devnm_p	realthing;
+			devnm_p	next;
 		}Alias;
 	}by;
 };
 typedef	struct devnode	devnode_t;
 
-struct	dev_back
+struct	dev_name
 {
-	devb_p	next;		/* next object in this directory */
-	devb_p	*prevp;		/* previous pointer in directory linked list */
-	devb_p	aliases;	/* chain of aliases (kill if we are deleted)*/
-	int	alias_count;	/* how many 'alias' nodes reference us. */
-	devf_p	fronts;		/* the linked list of all our front nodes */
-	devf_p	*lastfront;	/* the end of the front node chain */
-	int	frontcount;	/* number of front nodes that reference us*/
-	dn_p parent;	/* backpointer to the directory itself */
-	dn_p dnp;	/* info a STAT would look at */
+	/*-----------------------directory entry fields-------------*/
 	char	name[DEVMAXNAMESIZE];
+	dn_p	dnp;		/* the "inode" (devnode) pointer */
+	dn_p	parent;		/* backpointer to the directory itself */
+	devnm_p	next;		/* next object in this directory */
+	devnm_p	*prevp;		/* previous pointer in directory linked list */
+	/*-----------------------aliases or backing nodes----------*/
+	union {
+		struct {
+			devnm_p	aliases;	/* aliase chain (kill with us)*/
+			int	alias_count;	/* # 'alias' nodes for us. */
+		} back;
+		struct {
+			devnm_p	realthing;	/* ptr to the backing node */
+			devnm_p	file_node;	/* our file node */
+
+		} front;
+	} as;
+	/*-----------------------the front-back chain-------------*/
+	devnm_p	next_front;	/* the linked list of all our front nodes */
+	devnm_p	*prev_frontp;	/* the end of the front node chain */
+	int	frontcount;	/* number of front nodes that reference us*/
 };
 
-typedef struct dev_back devb_t;
-extern struct dev_back *dev_root;		/* always exists */
+typedef struct dev_name devnm_t;
+extern devnm_p dev_root;
 
 
 /*
@@ -154,21 +158,6 @@ extern struct dev_back *dev_root;		/* always exists */
  * Device Nodes ALWAYS point to the devnode that is linked
  * to the Backing node. (with a ref count)
  */
-struct dev_front
-{
-	devf_p	next;		/* next item in this directory chain */
-	devf_p	*prevp;		/* previous pointer in the directory */
-	devf_p	file_node;	/* the file node this represents */
-	devf_p	next_front;	/* pointer to next item for this object */
-	devf_p	*prev_frontp;	/* previous pointer in object chain */
-	devb_p	realthing;	/* backpointer to the backing object */
-	dn_p parent;	/* our PARENT directory node */
-	dn_p dnp;	/* info a STAT would look at */
-	char	name[DEVMAXNAMESIZE];
-};
-typedef struct dev_front devf_t;
-
-
 
 /*
  * DEVFS specific per/mount information, used to link a monted fs to a
@@ -177,15 +166,15 @@ typedef struct dev_front devf_t;
 struct devfsmount
 {
 	struct mount *mount;		/* vfs mount struct for this fs	*/
-	devf_p	plane_root;		/* the root of this 'plane'	*/
+	devnm_p	plane_root;		/* the root of this 'plane'	*/
 	int	flags;			/* usefule some day 8-) 	*/
 };
 
 struct dev_vn_data
 {
 	char	magic[6];		/* = "devfs" if correct */
-	devf_p	front;
-	devb_p	back;
+	devnm_p	front;
+	devnm_p	back;
 };
 
 extern struct vnodeops spec_vnodeops,devfs_vnodeops;
