@@ -503,6 +503,7 @@ wait1(td, uap, compat)
 {
 	register int nfound;
 	register struct proc *q, *p, *t;
+	struct pargs *pa;
 	int status, error;
 
 	mtx_lock(&Giant);
@@ -604,6 +605,8 @@ loop:
 			sx_xunlock(&proctree_lock);
 			PROC_LOCK(p);
 			p->p_xstat = 0;
+			pa = p->p_args;
+			p->p_args = NULL;
 			PROC_UNLOCK(p);
 			ruadd(&q->p_stats->p_cru, p->p_ru);
 			FREE(p->p_ru, M_ZOMBIE);
@@ -637,7 +640,7 @@ loop:
 			/*
 			 * Remove unused arguments
 			 */
-			pargs_drop(p->p_args);
+			pargs_drop(pa);
 
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_uarea->u_sigacts)
