@@ -41,14 +41,16 @@
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
-/* revive a block of a subdisk.  Return an error
+/*
+ * revive a block of a subdisk.  Return an error
  * indication.  EAGAIN means successful copy, but
  * that more blocks remain to be copied.  EINVAL means
  * that the subdisk isn't associated with a plex (which
  * means a programming error if we get here at all;
  * FIXME)
  * XXX We should specify a block size here.  At the moment,
- * just take a default value.  FIXME */
+ * just take a default value.  FIXME 
+ */
 int 
 revive_block(int sdno)
 {
@@ -91,8 +93,10 @@ revive_block(int sdno)
 	bremfree(bp);					    /* remove it XXX how can this happen? */
     splx(s);
 
-    /* Amount to transfer: block size, unless it
-     * would overlap the end */
+    /*
+     * Amount to transfer: block size, unless it
+     * would overlap the end 
+     */
     bp->b_bufsize = size;
     bp->b_bcount = bp->b_bufsize;
     bp->b_resid = 0;
@@ -120,8 +124,10 @@ revive_block(int sdno)
     {
 	bp->b_blkno = plexblkno;			    /* start here */
 	if (vol != NULL)				    /* it's part of a volume, */
-	    /* First, read the data from the volume.  We don't
-	       * care which plex, that's bre's job */
+	    /*
+	       * First, read the data from the volume.  We don't
+	       * care which plex, that's bre's job 
+	     */
 	    bp->b_dev = VINUMBDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE); /* create the device number */
 	else						    /* it's an unattached plex */
 	    bp->b_dev = VINUMRBDEV(sd->plexno, VINUM_RAWPLEX_TYPE); /* create the device number */

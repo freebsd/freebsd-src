@@ -40,9 +40,11 @@
 #include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 
-/* Lock routines.  Currently, we lock either an individual volume
+/*
+ * Lock routines.  Currently, we lock either an individual volume
  * or the global configuration.  I don't think tsleep and
- * wakeup are SMP safe. FIXME XXX */
+ * wakeup are SMP safe. FIXME XXX 
+ */
 
 /* Lock a drive, wait if it's in use */
 int 
@@ -52,11 +54,13 @@ lockdrive(struct drive *drive)
 
     /* XXX get rid of     drive->flags |= VF_LOCKING; */
     while ((drive->flags & VF_LOCKED) != 0) {
-	/* There are problems sleeping on a unique identifier,
+	/*
+	 * There are problems sleeping on a unique identifier,
 	 * since the drive structure can move, and the unlock
 	 * function can be called after killing the drive.
 	 * Solve this by waiting on this function; the number
-	 * of conflicts is negligible */
+	 * of conflicts is negligible 
+	 */
 	if ((error = tsleep(&lockdrive,
 		    PRIBIO | PCATCH,
 		    "vindrv",
@@ -85,10 +89,12 @@ lockvol(struct volume *vol)
 
     while ((vol->flags & VF_LOCKED) != 0) {
 	vol->flags |= VF_LOCKING;
-	/* It would seem to make more sense to sleep on
+	/*
+	 * It would seem to make more sense to sleep on
 	 * the address 'vol'.  Unfortuntaly we can't
 	 * guarantee that this address won't change due to
-	 * table expansion.  The address we choose won't change. */
+	 * table expansion.  The address we choose won't change. 
+	 */
 	if ((error = tsleep(&vinum_conf.volume + vol->devno,
 		    PRIBIO | PCATCH,
 		    "volock",
@@ -118,10 +124,12 @@ lockplex(struct plex *plex)
 
     while ((plex->flags & VF_LOCKED) != 0) {
 	plex->flags |= VF_LOCKING;
-	/* It would seem to make more sense to sleep on
+	/*
+	 * It would seem to make more sense to sleep on
 	 * the address 'plex'.  Unfortunately we can't
 	 * guarantee that this address won't change due to
-	 * table expansion.  The address we choose won't change. */
+	 * table expansion.  The address we choose won't change. 
+	 */
 	if ((error = tsleep(&vinum_conf.plex + plex->sdnos[0],
 		    PRIBIO | PCATCH,
 		    "plexlk",
