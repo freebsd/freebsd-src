@@ -231,8 +231,8 @@ static caddr_t crashdumpmap;
 #ifdef SMP
 extern pt_entry_t *SMPpt;
 #endif
-static pt_entry_t *PMAP1 = 0;
-static pt_entry_t *PADDR1 = 0;
+static pt_entry_t *PMAP1 = 0, *PMAP2;
+static pt_entry_t *PADDR1 = 0, *PADDR2;
 
 static PMAP_INLINE void	free_pv_entry(pv_entry_t pv);
 static pv_entry_t get_pv_entry(void);
@@ -250,6 +250,7 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
+static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
 static void *pmap_pv_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
@@ -379,6 +380,7 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 * ptemap is used for pmap_pte_quick
 	 */
 	SYSMAP(pt_entry_t *, PMAP1, PADDR1, 1);
+	SYSMAP(pt_entry_t *, PMAP2, PADDR2, 1);
 
 	virtual_avail = va;
 
@@ -731,25 +733,20 @@ pmap_invalidate_all(pmap_t pmap)
  * it.  The borrowed page table can change spontaneously, making any
  * dependence on its continued use subject to a race condition.
  */
-static int
+static __inline int
 pmap_is_current(pmap_t pmap)
 {
+
 	return (pmap == kernel_pmap ||
 		(pmap == vmspace_pmap(curthread->td_proc->p_vmspace) &&
 	    (pmap->pm_pdir[PTDPTDI] & PG_FRAME) == (PTDpde[0] & PG_FRAME)));
 }
 
 /*
- * Super fast pmap_pte routine best used when scanning
- * the pv lists.  This eliminates many coarse-grained
- * invltlb calls.  Note that many of the pv list
- * scans are across different pmaps.  It is very wasteful
- * to do an entire invltlb for checking a single mapping.
+ * If the given pmap is not the current pmap, Giant must be held.
  */
-pt_entry_t * 
-pmap_pte_quick(pmap, va)
-	register pmap_t pmap;
-	vm_offset_t va;
+pt_entry_t *
+pmap_pte(pmap_t pmap, vm_offset_t va)
 {
 	pd_entry_t newpf;
 	pd_entry_t *pde;
@@ -760,13 +757,48 @@ pmap_pte_quick(pmap, va)
 	if (*pde != 0) {
 		/* are we current address space or kernel? */
 		if (pmap_is_current(pmap))
-			return vtopte(va);
+			return (vtopte(va));
+		GIANT_REQUIRED;
 		newpf = *pde & PG_FRAME;
-		if (((*PMAP1) & PG_FRAME) != newpf) {
-			*PMAP1 = newpf | PG_RW | PG_V;
+		if ((*PMAP2 & PG_FRAME) != newpf) {
+			*PMAP2 = newpf | PG_RW | PG_V | PG_A | PG_M;
+			pmap_invalidate_page(kernel_pmap, (vm_offset_t)PADDR2);
+		}
+		return (PADDR2 + (i386_btop(va) & (NPTEPG - 1)));
+	}
+	return (0);
+}
+
+/*
+ * Super fast pmap_pte routine best used when scanning
+ * the pv lists.  This eliminates many coarse-grained
+ * invltlb calls.  Note that many of the pv list
+ * scans are across different pmaps.  It is very wasteful
+ * to do an entire invltlb for checking a single mapping.
+ *
+ * If the given pmap is not the current pmap, vm_page_queue_mtx
+ * must be held.
+ */
+static pt_entry_t *
+pmap_pte_quick(pmap_t pmap, vm_offset_t va)
+{
+	pd_entry_t newpf;
+	pd_entry_t *pde;
+
+	pde = pmap_pde(pmap, va);
+	if (*pde & PG_PS)
+		return (pde);
+	if (*pde != 0) {
+		/* are we current address space or kernel? */
+		if (pmap_is_current(pmap))
+			return (vtopte(va));
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		newpf = *pde & PG_FRAME;
+		if ((*PMAP1 & PG_FRAME) != newpf) {
+			*PMAP1 = newpf | PG_RW | PG_V | PG_A | PG_M;
 			pmap_invalidate_page(kernel_pmap, (vm_offset_t)PADDR1);
 		}
-		return PADDR1 + (i386_btop(va) & (NPTEPG - 1));
+		return (PADDR1 + (i386_btop(va) & (NPTEPG - 1)));
 	}
 	return (0);
 }
@@ -794,7 +826,7 @@ pmap_extract(pmap, va)
 			rtval = (pde & ~PDRMASK) | (va & PDRMASK);
 			return rtval;
 		}
-		pte = pmap_pte_quick(pmap, va);
+		pte = pmap_pte(pmap, va);
 		rtval = ((*pte & PG_FRAME) | (va & PAGE_MASK));
 		return rtval;
 	}
@@ -1579,7 +1611,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 {
 	pt_entry_t *pte;
 
-	if ((pte = pmap_pte_quick(pmap, va)) == NULL || *pte == 0)
+	if ((pte = pmap_pte(pmap, va)) == NULL || *pte == 0)
 		return;
 	pmap_remove_pte(pmap, pte, va);
 	pmap_invalidate_page(pmap, va);
@@ -1657,7 +1689,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			pdnxt = eva;
 
 		for (; sva != pdnxt; sva += PAGE_SIZE) {
-			if ((pte = pmap_pte_quick(pmap, sva)) == NULL ||
+			if ((pte = pmap_pte(pmap, sva)) == NULL ||
 			    *pte == 0)
 				continue;
 			anyvalid = 1;
@@ -1792,7 +1824,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pt_entry_t *pte;
 			vm_page_t m;
 
-			if ((pte = pmap_pte_quick(pmap, sva)) == NULL)
+			if ((pte = pmap_pte(pmap, sva)) == NULL)
 				continue;
 			pbits = *pte;
 			if (pbits & PG_MANAGED) {
@@ -1875,7 +1907,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte_quick(pmap, va);
+	pte = pmap_pte(pmap, va);
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -2210,7 +2242,7 @@ pmap_change_wiring(pmap, va, wired)
 	if (pmap == NULL)
 		return;
 
-	pte = pmap_pte_quick(pmap, va);
+	pte = pmap_pte(pmap, va);
 
 	if (wired && !pmap_pte_w(pte))
 		pmap->pm_stats.wired_count++;
@@ -2304,7 +2336,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				 * block.
 				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr);
-				dst_pte = pmap_pte_quick(dst_pmap, addr);
+				dst_pte = pmap_pte(dst_pmap, addr);
 				if ((*dst_pte == 0) && (ptetemp = *src_pte)) {
 					/*
 					 * Clear the modified and
@@ -2944,7 +2976,7 @@ pmap_mincore(pmap, addr)
 	vm_page_t m;
 	int val = 0;
 	
-	ptep = pmap_pte_quick(pmap, addr);
+	ptep = pmap_pte(pmap, addr);
 	if (ptep == 0) {
 		return 0;
 	}
@@ -3081,7 +3113,7 @@ pmap_pid_dump(int pid)
 							sx_sunlock(&allproc_lock);
 							return npte;
 						}
-						pte = pmap_pte_quick(pmap, va);
+						pte = pmap_pte(pmap, va);
 						if (pte && pmap_pte_v(pte)) {
 							pt_entry_t pa;
 							vm_page_t m;
@@ -3132,7 +3164,7 @@ pads(pm)
 					continue;
 				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)
 					continue;
-				ptep = pmap_pte_quick(pm, va);
+				ptep = pmap_pte(pm, va);
 				if (pmap_pte_v(ptep))
 					printf("%x:%x ", va, *ptep);
 			};
