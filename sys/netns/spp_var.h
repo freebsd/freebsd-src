@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_var.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_var.h,v 1.2 1994/08/02 07:52:01 davidg Exp $
  */
+
+#ifndef _NETNS_SPP_VAR_H_
+#define _NETNS_SPP_VAR_H_
 
 /*
  * Sp control block, one per connection
@@ -213,4 +216,6 @@ short xnsCbug;
 #define	SSEQ_LEQ(a,b)	(((short)((a)-(b))) <= 0)
 #define	SSEQ_GT(a,b)	(((short)((a)-(b))) > 0)
 #define	SSEQ_GEQ(a,b)	(((short)((a)-(b))) >= 0)
+#endif
+
 #endif

@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ns.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: ns.h,v 1.2 1994/08/02 07:51:44 davidg Exp $
  */
+
+#ifndef _NETNS_NS_H_
+#define _NETNS_NS_H_
 
 /*
  * Constants and Structures defined by the Xerox Network Software
@@ -148,5 +151,7 @@ __BEGIN_DECLS
 extern struct ns_addr ns_addr __P((const char *));
 extern char *ns_ntoa __P((struct ns_addr));
 __END_DECLS
+
+#endif
 
 #endif

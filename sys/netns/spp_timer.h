@@ -31,8 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_timer.h,v 1.2 1994/08/02 07:51:59 davidg Exp $
  */
+
+#ifndef _NETNS_SPP_TIMER_H_
+#define _NETNS_SPP_TIMER_H_
 
 /*
  * Definitions of the SPP timers.  These timers are counted
@@ -120,4 +123,6 @@ char *spptimers[] =
 
 #ifdef KERNEL
 extern int spp_backoff[];
+#endif
+
 #endif
