@@ -274,7 +274,6 @@ struct	thread {
 	struct vm_object *td_kstack_obj;/* (a) kstack object. */
 	vm_offset_t	td_kstack;	/* kstack mapped address */
 };
-#define TDF_ONRUNQ	0x00000001	/* This KE is on a run queue */
 
 /*
  * The schedulable entity that can be given a context to run.
@@ -452,7 +451,6 @@ struct	proc {
 #define	SMTX	7		/* Blocked on a mutex. */
 
 /* These flags are kept in p_flag. */
-/* In a KSE world some go to a thread or a KSE (*)*/
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
 #define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
 #define	P_KTHREAD	0x00004 /* Kernel thread. (*)*/
@@ -467,10 +465,8 @@ struct	proc {
 #define	P_KSES		0x08000	/* Process is using KSEs. */
 
 /* Should be moved to machine-dependent areas. */
-
 #define	P_BUFEXHAUST	0x100000 /* Dirty buffers flush is in progress. */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
-
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_OLDMASK	0x2000000 /* Need to restore mask after suspend. */
@@ -484,18 +480,21 @@ struct	proc {
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
 #define	PS_SWAPPING	0x00200	/* Process is being swapped. */
 
+/* flags kept in td_flags */
+#define TDF_ONRUNQ	0x00001	/* This KE is on a run queue */
 #define	TDF_SINTR	0x00008	/* Sleep is interruptible. */
 #define	TDF_TIMEOUT	0x00010	/* Timing out during sleep. */
 #define	TDF_SELECT	0x00040	/* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x00080 /* Proces is on a cv_waitq (not slpq). */
+#define	TDF_TIMOFAIL	0x01000	/* Timeout from sleep after we were awake. */
 #define	TDF_DEADLKTREAT	0x800000 /* Lock aquisition - deadlock treatment. */
 
+/* flags kept in ke_flags */
+#define KEF_ONRUNQ	0x00001	/* This KE is on a run queue */
 #define	KEF_OWEUPC	0x00002	/* Owe process an addupc() call at next ast. */
 #define	KEF_ASTPENDING	0x00400	/* KSE has a pending ast. */
 #define	KEF_NEEDRESCHED	0x00800	/* Process needs to yield. */
-#define	TDF_TIMOFAIL	0x01000	/* Timeout from sleep after we were awake. */
 
-#define KEF_ONRUNQ	0x00000001	/* This KE is on a run queue */
 
 #define	P_MAGIC		0xbeefface
 
