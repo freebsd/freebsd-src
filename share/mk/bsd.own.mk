@@ -146,8 +146,6 @@ BINGRP?=	wheel
 BINMODE?=	555
 NOBINMODE?=	444
 
-GAMEGRP?=	games
-
 INCOWN?=	root
 INCGRP?=	wheel
 INCMODE?=	444
