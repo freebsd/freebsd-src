@@ -193,14 +193,14 @@ parse__escape(ptr)
 	    break;
 	}
     }
-    else if (*p == '^' && isalpha((unsigned char) p[1])) {
+    else if (*p == '^' && isascii(p[1]) && (p[1] == '?' || isalpha(p[1]))) {
 	p++;
 	c = (*p == '?') ? '\177' : (*p & 0237);
     }
     else
 	c = *p;
     *ptr = ++p;
-    return c;
+    return (unsigned char)c;
 }
 
 /* parse__string():
