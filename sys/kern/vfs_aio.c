@@ -209,7 +209,7 @@ static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(void);
 static int	aio_aqueue(struct proc *p, struct aiocb *job, int type);
 static void	aio_physwakeup(struct buf *bp);
-static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe, int type);
+static int	aio_fphysio(struct proc *p, struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
 
@@ -341,7 +341,7 @@ aio_free_entry(struct aiocblist *aiocbe)
 	}
 
 	if (aiocbe->jobstate == JOBST_JOBQBUF) {
-		if ((error = aio_fphysio(p, aiocbe, 1)) != 0)
+		if ((error = aio_fphysio(p, aiocbe)) != 0)
 			return error;
 		if (aiocbe->jobstate != JOBST_JOBBFINISHED)
 			panic("aio_free_entry: invalid physio finish-up state");
@@ -1095,7 +1095,7 @@ doerror:
  * This waits/tests physio completion.
  */
 int
-aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
+aio_fphysio(struct proc *p, struct aiocblist *iocb)
 {
 	int s;
 	struct buf *bp;
@@ -1104,15 +1104,8 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
 	bp = iocb->bp;
 
 	s = splbio();
-	if (flgwait == 0) {
-		if ((bp->b_flags & B_DONE) == 0) {
-			splx(s);
-			return EINPROGRESS;
-		}
-	}
-
 	while ((bp->b_flags & B_DONE) == 0) {
-		if (tsleep((caddr_t)bp, PRIBIO, "physstr", aiod_timeout)) {
+		if (tsleep(bp, PRIBIO, "physstr", aiod_timeout)) {
 			if ((bp->b_flags & B_DONE) == 0) {
 				splx(s);
 				return EINPROGRESS;
@@ -1120,6 +1113,7 @@ aio_fphysio(struct proc *p, struct aiocblist *iocb, int flgwait)
 				break;
 		}
 	}
+	splx(s);
 
 	/* Release mapping into kernel space. */
 	vunmapbuf(bp);
@@ -2219,7 +2213,7 @@ aio_physwakeup(struct buf *bp)
 	struct kaioinfo *ki;
 	struct aio_liojob *lj;
 
-	wakeup((caddr_t)bp);
+	wakeup(bp);
 
 	aiocbe = (struct aiocblist *)bp->b_spc;
 	if (aiocbe) {
