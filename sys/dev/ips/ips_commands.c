@@ -266,7 +266,7 @@ int ips_get_adapter_info(ips_softc_t *sc)
 {
 	int error = 0;
 	ips_cmd_status_t *status;
-	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT);
+	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if(!status)
 		return ENOMEM;
 	if(ips_get_free_cmd(sc, ips_send_adapter_info_cmd, status, 
@@ -275,7 +275,7 @@ int ips_get_adapter_info(ips_softc_t *sc)
 		free(status, M_DEVBUF);
 		return ENXIO;
 	}
-	if(COMMAND_ERROR(status)){
+	if (COMMAND_ERROR(status)){
 		error = ENXIO;
 	}
 	free(status, M_DEVBUF);
@@ -372,7 +372,7 @@ int ips_get_drive_info(ips_softc_t *sc)
 {
 	int error = 0;
 	ips_cmd_status_t *status;
-	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT);
+	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if(!status)
 		return ENOMEM;
 	if(ips_get_free_cmd(sc, ips_send_drive_info_cmd, status, 
@@ -415,7 +415,7 @@ static int ips_send_flush_cache_cmd(ips_command_t *command)
 int ips_flush_cache(ips_softc_t *sc)
 {
 	ips_cmd_status_t *status;
-	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT);
+	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if(!status)
 		return ENOMEM;
 	device_printf(sc->dev, "flushing cache\n");
@@ -534,7 +534,7 @@ exit:
 int ips_update_nvram(ips_softc_t *sc)
 {
 	ips_cmd_status_t *status;
-	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT);
+	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if(!status)
 		return ENOMEM;
 	if(ips_get_free_cmd(sc, ips_read_nvram, status, IPS_NOWAIT_FLAG)){
@@ -602,7 +602,7 @@ static int ips_send_error_table_cmd(ips_command_t *command)
 int ips_clear_adapter(ips_softc_t *sc)
 {
 	ips_cmd_status_t *status;
-	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT);
+	status = malloc(sizeof(ips_cmd_status_t), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if(!status)
 		return ENOMEM;
 	device_printf(sc->dev, "syncing config\n");
