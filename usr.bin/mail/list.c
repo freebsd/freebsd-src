@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)list.c	8.2 (Berkeley) 4/19/94";
+static char sccsid[] = "@(#)list.c	8.4 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -555,9 +555,9 @@ scan(sp)
 	 * Return TNUMBER when done.
 	 */
 
-	if (isdigit(c)) {
+	if (isdigit((unsigned char)c)) {
 		lexnumber = 0;
-		while (isdigit(c)) {
+		while (isdigit((unsigned char)c)) {
 			lexnumber = lexnumber*10 + c - '0';
 			*cp2++ = c;
 			c = *cp++;
@@ -678,12 +678,55 @@ matchsender(str, mesg)
 	while (*cp2 != '\0') {
 		if (*cp == '\0')
 			return (1);
-		if (toupper(*cp++) != toupper(*cp2++)) {
+		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
 			cp2 = ++backup;
 			cp = str;
 		}
 	}
 	return (*cp == '\0');
+}
+
+/*
+ * See if the passed name received the passed message number.  Return true
+ * if so.
+ */
+
+static char *to_fields[] = { "to", "cc", "bcc", NULL };
+
+int
+matchto(str, mesg)
+	char *str;
+	int mesg;
+{
+	struct message *mp;
+	char *cp, *cp2, *backup, **to;
+
+	str++;
+
+	/* null string matches nothing instead of everything */
+	if (*str == '\0')
+		return (0);
+
+	mp = &message[mesg - 1];
+
+	for (to = to_fields; *to != NULL; to++) {
+		cp = str;
+		cp2 = hfield(*to, mp);
+		if (cp2 != NULL) {
+			backup = cp2;
+			while (*cp2 != '\0') {
+				if (*cp == '\0')
+					return (1);
+				if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
+					cp2 = ++backup;
+					cp = str;
+				}
+			}
+			if (*cp == '\0')
+				return (1);
+		}
+	}
+	return (0);
 }
 
 /*
@@ -715,8 +758,11 @@ matchsubj(str, mesg)
 	 */
 
 	if (value("searchheaders") && (cp = strchr(str, ':')) != NULL) {
+		/* Check for special case "/To:" */
+		if (strncasecmp(str, "To:", 3) == 0)
+			return (matchto(cp, mesg));
 		*cp++ = '\0';
-		cp2 = hfield(str, mp);
+		cp2 = hfield(*str != '\0' ? str : "subject", mp);
 		cp[-1] = ':';
 		str = cp;
 	} else {
@@ -729,7 +775,7 @@ matchsubj(str, mesg)
 	while (*cp2 != '\0') {
 		if (*cp == '\0')
 			return (1);
-		if (toupper(*cp++) != toupper(*cp2++)) {
+		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
 			cp2 = ++backup;
 			cp = str;
 		}

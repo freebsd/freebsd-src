@@ -39,6 +39,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/time.h>
+
 #include "rcv.h"
 #include "extern.h"
 
@@ -181,7 +183,7 @@ gethfield(f, linebuf, rem, colon)
 			return (-1);
 		if ((c = readline(f, linebuf, LINESIZE)) <= 0)
 			return (-1);
-		for (cp = linebuf; isprint(*cp) && *cp != ' ' && *cp != ':';
+		for (cp = linebuf; isprint((unsigned char)*cp) && *cp != ' ' && *cp != ':';
 		    cp++)
 			;
 		if (*cp != ':' || cp == linebuf)
@@ -256,7 +258,7 @@ istrncpy(dest, src, dsize)
 
 	strlcpy(dest, src, dsize);
 	while (*dest)
-		*dest++ = tolower(*dest);
+		*dest++ = tolower((unsigned char)*dest);
 }
 
 /*
@@ -345,9 +347,9 @@ alter(name)
 
 	if (stat(name, &sb))
 		return;
-	tv[0].tv_sec = time((time_t *)0) + 1;
-	tv[1].tv_sec = sb.st_mtime;
-	tv[0].tv_usec = tv[1].tv_usec = 0;
+	(void)gettimeofday(&tv[0], (struct timezone *)NULL);
+	tv[0].tv_sec++;
+	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
 	(void)utimes(name, tv);
 }
 

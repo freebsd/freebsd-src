@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)cmd3.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)cmd3.c	8.2 (Berkeley) 4/20/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -357,7 +357,7 @@ rexit(e)
 {
 	if (sourcing)
 		return (1);
-	exit(e);
+	exit(0);
 	/*NOTREACHED*/
 }
 
@@ -423,7 +423,9 @@ unset(arglist)
 	errs = 0;
 	for (ap = arglist; *ap != NULL; ap++) {
 		if ((vp2 = lookup(*ap)) == NULL) {
-			if (!sourcing) {
+			if (getenv(*ap)) 
+				unsetenv(*ap);
+			else if (!sourcing) {
 				printf("\"%s\": undefined variable\n", *ap);
 				errs++;
 			}
@@ -552,7 +554,7 @@ file(argv)
 {
 
 	if (argv[0] == NULL) {
-		newfileinfo();
+		newfileinfo(0);
 		return (0);
 	}
 	if (setfile(*argv) < 0)

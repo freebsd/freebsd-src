@@ -47,6 +47,7 @@ static const char rcsid[] =
  */
 
 #include "rcv.h"
+#include <fcntl.h>
 #include "extern.h"
 
 /*
@@ -80,14 +81,19 @@ collect(hp, printheaders)
 	FILE *fbuf;
 	int lc, cc, escape, eofcount, fd, c, t;
 	char linebuf[LINESIZE], tempname[PATHSIZE], *cp, getsub;
-	int omask;
+	sigset_t nset;
+	int longline, lastlong, rc;	/* So we don't make 2 or more lines
+					   out of a long input line. */
 
 	collf = NULL;
 	/*
 	 * Start catching signals from here, but we're still die on interrupts
 	 * until we're in the main loop.
 	 */
-	omask = sigblock(sigmask(SIGINT) | sigmask(SIGHUP));
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, SIGINT);
+	(void)sigaddset(&nset, SIGHUP);
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	if ((saveint = signal(SIGINT, SIG_IGN)) != SIG_IGN)
 		(void)signal(SIGINT, collint);
 	if ((savehup = signal(SIGHUP, SIG_IGN)) != SIG_IGN)
@@ -99,7 +105,7 @@ collect(hp, printheaders)
 		(void)rm(tempname);
 		goto err;
 	}
-	sigsetmask(omask & ~(sigmask(SIGINT) | sigmask(SIGHUP)));
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 
 	noreset++;
 	(void)snprintf(tempname, sizeof(tempname),
@@ -131,6 +137,8 @@ collect(hp, printheaders)
 		escape = ESCAPE;
 	eofcount = 0;
 	hadintr = 0;
+	lastlong = 0;
+	longline = 0;
 
 	if (!setjmp(colljmp)) {
 		if (getsub)
@@ -163,14 +171,17 @@ cont:
 			}
 			break;
 		}
+		lastlong = longline;
+		longline = c == LINESIZE - 1;
 		eofcount = 0;
 		hadintr = 0;
 		if (linebuf[0] == '.' && linebuf[1] == '\0' &&
-		    value("interactive") != NULL &&
+		    value("interactive") != NULL && !lastlong &&
 		    (value("dot") != NULL || value("ignoreeof") != NULL))
 			break;
-		if (linebuf[0] != escape || value("interactive") == NULL) {
-			if (putline(collf, linebuf) < 0)
+		if (linebuf[0] != escape || value("interactive") == NULL ||
+		    lastlong) {
+			if (putline(collf, linebuf, !longline) < 0)
 				goto err;
 			continue;
 		}
@@ -182,7 +193,7 @@ cont:
 			 * Otherwise, it's an error.
 			 */
 			if (c == escape) {
-				if (putline(collf, &linebuf[1]) < 0)
+				if (putline(collf, &linebuf[1], !longline) < 0)
 					goto err;
 				else
 					break;
@@ -203,6 +214,7 @@ cont:
 			shell(&linebuf[2]);
 			break;
 		case ':':
+		case '_':
 			/*
 			 * Escape to command mode, but be nice!
 			 */
@@ -221,6 +233,11 @@ cont:
 			hadintr++;
 			collint(SIGINT);
 			exit(1);
+		case 'x':
+			/*
+			 * Exit, do not save in dead.letter.
+			 */
+			goto err;
 		case 'h':
 			/*
 			 * Grab a bunch of headers.
@@ -238,7 +255,7 @@ cont:
 			 * Set the Subject line.
 			 */
 			cp = &linebuf[2];
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 			hp->h_subject = savestr(cp);
 			break;
@@ -247,7 +264,7 @@ cont:
 			 * Set the Reply-To line.
 			 */
 			cp = &linebuf[2];
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 			hp->h_replyto = savestr(cp);
 			break;
@@ -259,25 +276,59 @@ cont:
 			break;
 		case 'b':
 			/*
-			 * Add stuff to blind carbon copies list.
+			 * Add to the BCC list.
 			 */
 			hp->h_bcc = cat(hp->h_bcc, extract(&linebuf[2], GBCC));
 			break;
+		case 'i':
+		case 'A':
+		case 'a':
+			/*
+			 * Insert named variable in message.
+			 */
+			switch(c) {
+				case 'i':
+					cp = &linebuf[2];
+					while(isspace((unsigned char)*cp))
+						cp++;
+					break;
+				case 'a':
+					cp = "sign";
+					break;
+				case 'A':
+					cp = "Sign";
+					break;
+				default:
+					goto err;
+			}
+
+			if(*cp != '\0' && (cp = value(cp)) != NULL) {
+				printf("%s\n", cp);
+				if(putline(collf, cp, 1) < 0)
+					goto err;
+			}
+
+			break;
 		case 'd':
-			if (strlcpy(linebuf + 2, getdeadletter(), sizeof(linebuf) - 2)
+			/*
+			 * Read in the dead letter file.
+			 */
+			if (strlcpy(linebuf + 2, getdeadletter(),
+				sizeof(linebuf) - 2)
 			    >= sizeof(linebuf) - 2) {
 				printf("Line buffer overflow\n");
 				break;
 			}
-			/* fall into . . . */
+			/* FALLTHROUGH */
 		case 'r':
+		case '<':
 			/*
 			 * Invoke a file:
 			 * Search for the file name,
 			 * then open it and copy the contents to collf.
 			 */
 			cp = &linebuf[2];
-			while (isspace(*cp))
+			while (isspace((unsigned char)*cp))
 				cp++;
 			if (*cp == '\0') {
 				printf("Interpolate what file?\n");
@@ -286,11 +337,55 @@ cont:
 			cp = expand(cp);
 			if (cp == NULL)
 				break;
-			if (isdir(cp)) {
+			if (*cp == '!') {
+				/*
+				 * Insert stdout of command.
+				 */
+				char *sh;
+				int nullfd, tempfd, rc;
+				char tempname2[PATHSIZE];
+
+				if ((nullfd = open("/dev/null", O_RDONLY, 0))
+				    == -1) {
+					warn("/dev/null");
+					break;
+				}
+
+				(void)snprintf(tempname2, sizeof(tempname2),
+				    "%s/mail.ReXXXXXXXXXX", tmpdir);
+				if ((tempfd = mkstemp(tempname2)) == -1 ||
+				    (fbuf = Fdopen(tempfd, "w+")) == NULL) {
+					warn("%s", tempname2);
+					break;
+				}
+				(void)unlink(tempname2);
+
+				if ((sh = value("SHELL")) == NULL)
+					sh = _PATH_CSHELL;
+
+				rc = run_command(sh, 0, nullfd, fileno(fbuf),
+				    "-c", cp+1, NULL);
+
+				close(nullfd);
+
+				if (rc < 0) {
+					(void)Fclose(fbuf);
+					break;
+				}
+
+				if (fsize(fbuf) == 0) {
+					fprintf(stderr,
+					    "No bytes from command \"%s\"\n",
+					    cp+1);
+					(void)Fclose(fbuf);
+					break;
+				}
+
+				rewind(fbuf);
+			} else if (isdir(cp)) {
 				printf("%s: Directory\n", cp);
 				break;
-			}
-			if ((fbuf = Fopen(cp, "r")) == NULL) {
+			} else if ((fbuf = Fopen(cp, "r")) == NULL) {
 				warn("%s", cp);
 				break;
 			}
@@ -298,9 +393,11 @@ cont:
 			(void)fflush(stdout);
 			lc = 0;
 			cc = 0;
-			while (readline(fbuf, linebuf, LINESIZE) >= 0) {
-				lc++;
-				if ((t = putline(collf, linebuf)) < 0) {
+			while ((rc = readline(fbuf, linebuf, LINESIZE)) >= 0) {
+				if (rc != LINESIZE - 1)
+					lc++;
+				if ((t = putline(collf, linebuf,
+					 rc != LINESIZE - 1)) < 0) {
 					(void)Fclose(fbuf);
 					goto err;
 				}
@@ -388,13 +485,13 @@ out:
 	if (collf != NULL)
 		rewind(collf);
 	noreset--;
-	(void)sigblock(sigmask(SIGINT) | sigmask(SIGHUP));
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	(void)signal(SIGINT, saveint);
 	(void)signal(SIGHUP, savehup);
 	(void)signal(SIGTSTP, savetstp);
 	(void)signal(SIGTTOU, savettou);
 	(void)signal(SIGTTIN, savettin);
-	(void)sigsetmask(omask);
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 	return (collf);
 }
 
@@ -458,7 +555,7 @@ mesedit(fp, c)
 	FILE *nf = run_editor(fp, (off_t)-1, c, 0);
 
 	if (nf != NULL) {
-		(void)fseek(nf, 0L, 2);
+		(void)fseeko(nf, (off_t)0, SEEK_END);
 		collf = nf;
 		(void)Fclose(fp);
 	}
@@ -508,7 +605,7 @@ mespipe(fp, cmd)
 	/*
 	 * Take new files.
 	 */
-	(void)fseek(nf, 0L, 2);
+	(void)fseeko(nf, (off_t)0, SEEK_END);
 	collf = nf;
 	(void)Fclose(fp);
 out:
@@ -551,7 +648,7 @@ forward(ms, fp, fn, f)
 		tabst = NULL;
 	else if ((tabst = value("indentprefix")) == NULL)
 		tabst = "\t";
-	ig = isupper(f) ? NULL : ignore;
+	ig = isupper((unsigned char)f) ? NULL : ignore;
 	printf("Interpolating:");
 	for (; *msgvec != 0; msgvec++) {
 		struct message *mp = message + *msgvec - 1;
@@ -576,10 +673,13 @@ collstop(s)
 	int s;
 {
 	sig_t old_action = signal(s, SIG_DFL);
+	sigset_t nset;
 
-	(void)sigsetmask(sigblock(0) & ~sigmask(s));
+	(void)sigemptyset(&nset);
+	(void)sigaddset(&nset, s);
+	(void)sigprocmask(SIG_UNBLOCK, &nset, NULL);
 	(void)kill(0, s);
-	(void)sigblock(sigmask(s));
+	(void)sigprocmask(SIG_BLOCK, &nset, NULL);
 	(void)signal(s, old_action);
 	if (colljmp_p) {
 		colljmp_p = 0;

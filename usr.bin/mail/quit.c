@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)quit.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)quit.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -117,7 +117,7 @@ quit()
 		    (rbuf = Fdopen(fd, "w")) == NULL)
 			goto newmail;
 #ifdef APPEND
-		(void)fseek(fbuf, (long)mailsize, 0);
+		(void)fseeko(fbuf, mailsize, SEEK_SET);
 		while ((c = getc(fbuf)) != EOF)
 			(void)putc(c, rbuf);
 #else
@@ -274,8 +274,8 @@ quit()
 			c = getc(ibuf);
 		}
 		(void)Fclose(ibuf);
-		(void)fflush(obuf);
 	}
+	(void)fflush(obuf);
 	trunc(obuf);
 	if (ferror(obuf)) {
 		warn("%s", mbox);
@@ -442,7 +442,7 @@ edstop()
 			relsesigs();
 			reset(0);
 		}
-		(void)fseek(ibuf, (long)mailsize, 0);
+		(void)fseeko(ibuf, mailsize, SEEK_SET);
 		while ((c = getc(ibuf)) != EOF)
 			(void)putc(c, obuf);
 		(void)Fclose(ibuf);
