@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.135 1999/04/18 20:15:06 peter Exp $
+ **      $Id: userconfig.c,v 1.136 1999/04/19 19:40:58 peter Exp $
  **/
 
 /**
@@ -129,7 +129,7 @@
 #include <i386/isa/pnp.h>
 #endif
 
-#if NPCI > 0
+#if NPCI > 0 && 0
 #include <pci/pcivar.h>
 #endif
 
@@ -569,7 +569,7 @@ getdevs(void)
 	    if (!devinfo(&scratch))			/* get more info on the device */
 		insdev(&scratch,ap[i].id_enabled?active:inactive);
 	}
-#if NPCI > 0
+#if NPCI > 0 && 0
     for (i = 0; i < pcidevice_set.ls_length; i++)
     {
 	if (pcidevice_set.ls_items[i])
@@ -2517,7 +2517,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.135 1999/04/18 20:15:06 peter Exp $
+ *      $Id: userconfig.c,v 1.136 1999/04/19 19:40:58 peter Exp $
  */
 
 #include "scbus.h"
