@@ -284,7 +284,6 @@ main(int argc, char *argv[])
 			if (failures > (pwd ? 0 : 1))
 				badlogin(olduser);
 		}
-		olduser = username;
 
 		/*
 		 * Load the PAM policy and set some variables
