@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.475
+    Original revision: 1.480
 -->
 
 <articleinfo>
@@ -208,7 +208,7 @@
       &man.access.2; と似ていますが、後者は実権限を使うのに対して、
       前者は実効権限を使います。</para>
 
-    <para arch="sparc64">EBus ベースのデバイスがサポートされました。</para>
+    <para arch="sparc64">EBus ベースのデバイスに対応しました。</para>
 
     <para arch="i386,pc98,powerpc">FireWire デバイスへに対する
       初期的な対応が追加されました
@@ -401,7 +401,7 @@
       <literal>PQ_CACHESIZE</literal>
       という一つのオプションに置き換えられました。
       これにはキャッシュサイズをキロバイト単位で指定します。
-      後方互換性を保つため、従来のオプションは現在もサポートされています。
+      後方互換性を保つため、現在も、従来のオプションに対応しています。
       &merged;</para>
 
     <para arch="i386,pc98" role="historic">&man.puc.4;
@@ -438,7 +438,7 @@
       <varname>vmemoryuse</varname> 変数によって設定することができます。
       &merged;</para>
 
-    <para arch="sparc64">SBus ベースのデバイスがサポートされました。</para>
+    <para arch="sparc64">SBus ベースのデバイスに対応しました。</para>
 
     <para arch="sparc64">最近の Sparc Ultra マシンの多くに搭載されている
       Siemens SAB82532 シリアルチップに対応した
@@ -462,9 +462,9 @@
       標準では <keycap>Shift</keycap>-<keycap>Insert</keycap>
       に設定されています。</para>
 
-    <para role="historic">出荷時の状態で USB デバイスをサポートするため、
+    <para role="historic">出荷時の状態で USB デバイスに対応するため、
       <filename>GENERIC</filename> カーネルと
-      インストールプログラムに USB デバイスのサポートが加えられました。
+      インストールプログラムが USB デバイスに対応しました。
       現時点で SRM は USB デバイスに対応していないため、
       シリアルコンソールを使っていない場合には
       まだ AT キーボードを使う必要があります。&merged;</para>
@@ -473,7 +473,8 @@
       uaudio ドライバが追加されました。&merged;</para>
 
     <para arch="i386,pc98">Belkin F5U103 USB-シリアル変換アダプタ
-      (およびその互換製品) に対応する ubsa ドライバが追加されました。</para>
+      (およびその互換製品) に対応する ubsa ドライバが追加されました。
+      &merged;</para>
 
     <para arch="i386,pc98" role="historic">USB モデムに対応した
       &man.umodem.4; ドライバが追加されました。このドライバは
@@ -606,7 +607,7 @@
 
     </para>
 
-    <para>カーネルは複数の低レベルコンソールデバイスをサポートします。
+    <para>カーネルは複数の低レベルコンソールデバイスに対応しています。
       異なったコンソールを操作するには、新しい &man.conscontrol.8;
       ユーティリティを使います。</para>
 
@@ -627,7 +628,7 @@
 
     <para role="historic">モジュール付きデバッグ用カーネルが構築された場合、
       (例えば <literal>makeoptions DEBUG=-g</literal> を使った場合)
-      モジュール自体もデバッグサポートを含んだ状態で構築されるように
+      モジュール自体もデバッグシンボルを含んだ状態で構築されるように
       なりました。
       この副作用として、デバッグ用のモジュールの構築とインストールに、
       以前よりも大きなディスク容量が必要とされるようになりました。
@@ -726,10 +727,9 @@
 	忘れている場合に、セットするようにするものです。&merged;</para>
 
       <para arch="sparc64">&os; が UltraSPARC プラットフォームに
-	対応しました。
-	以下のマシンが異なった度合いでサポートされています:
+	対応しました。まだ不具合のある部分もありますが、
 	Ultra 1/2/5/10/30/60、Enterprise 220R/420R、Netra T1 AC200/DC200、
-	Netra T 105、Blade 100
+	Netra T 105、Blade 100 の各マシンに対応しています。
 	SMP にも対応しており、
 	Ultra 2、Ultra 60、Enterprise 220R、Enterprise 420R
 	でテストされています。</para>
@@ -781,8 +781,8 @@
 	標準に完全には準拠しないいくつかの BIOS
 	実装に対してもうまく動作します。
 	このブートローダは <quote>エミュレーションではない</quote>
-	モードのブートをサポートするので、ブータブル CDROM において
-	エミュレートされたフロッピーディスクイメージは必要ありません。
+	モードの起動に対応しており、ブータブル CDROM には
+	エミュレート用のフロッピディスクイメージが含まれていません。
 	&merged;</para>
 
       <para arch="i386,pc98" role="historic">i386 ブートローダが
@@ -793,8 +793,8 @@
 
       <para arch="i386,pc98" role="historic">&man.loader.8; が
 	<application>bzip2</application> で圧縮されたカーネルと
-	モジュールのロードをオプションでサポートしました
-	(デフォルトはオフで、コンパイル時に有効にできます)。
+	モジュールのロードをオプションで対応しました
+	(デフォルトでは無効で、コンパイル時に有効にできます)。
 	&merged;</para>
 
       <para arch="i386" role="historic">&os; ブートローダが
@@ -802,6 +802,10 @@
 	API が異なるため古いバージョンの PXE には対応していません。
 	これにより DHCP を使ったネットワーク経由の起動が可能になってい
 	ます。&merged;</para>
+
+      <para arch="pc98">PC98 ブートローダが SCSI MO
+        メディアからの起動に対応しました。
+        &merged;</para>
 
        <!-- Above this line, order bootloader changes by keyword-->
 
@@ -849,12 +853,11 @@
 
       <para role="historic">&man.an.4; ドライバは Cisco LEAP に対応し、
 	<quote>Home</quote> WEP キーも使えるようになりました。
-	Linux Aironet ユーティリティはエミュレーションでサポートされます。
+	Linux Aironet ユーティリティはエミュレーションで対応しています。
 	&merged;</para>
 
       <para arch="i386,pc98" role="historic">ARCNET token-based
-	ネットワークへの
-	サポートが追加されました。&merged;</para>
+	ネットワークに対応しました。&merged;</para>
 
       <para arch="i386,pc98" role="historic">
         &man.bge.4; ドライバが追加されました。
@@ -914,8 +917,8 @@
 	82542、82543、82544、82545EM、82546EB ギガビット
 	イーサネットコントローラチップベースの NIC に対応する
 	&man.em.4; ドライバが追加されました。
-	ドライバは VLAN をサポートし、82543、82544 ベースのアダプタにおいて
-	送信/受信チェックサム offload とジャンボフレームに
+	このドライバは VLAN に対応し、82543、82544 ベースのアダプタにおいて
+	送信/受信チェックサム負荷低減機能とジャンボフレームに
 	対応しています。&merged;</para>
 
       <para role="historic">&man.faith.4;
@@ -931,7 +934,7 @@
 	&merged;</para>
 
       <para role="historic">&man.fxp.4;
-	ドライバはカーネルコンフィグレーションファイルに
+	ドライバはカーネルコンフィグファイルに
         <literal>device miibus</literal>
 	のエントリを必要とするようになりました。
         &merged;</para>
@@ -946,9 +949,9 @@
 	システムを再起動する必要があります。&merged;</para>
 
       <para role="historic">&man.fxp.4;
-	ドライバは Intel のローダブルマイクロコード
-	が使えるようになり、NIC がその機能をサポートしている場合には、
-	受信側の割り込み結合とパケット bundling を実装します。
+	ドライバは、対応している NIC
+        上に受信側の割り込み結合機能とパケットバンドル機能を実装する
+        Intel のローダブルマイクロコードに対応しました。
 	この機能は &man.ifconfig.8; の <option>link0</option>
 	オプションで有効にできます。&merged;</para>
 
@@ -957,10 +960,10 @@
 	追加されました。</para>
 
       <para role="historic">&man.gx.4; ドライバが追加され、Intel 82542 と 82543
-	のギガビットイーサネットコントローラチップがサポートされました。
-	ファイバと銅線の両方のカードがサポートされています。
-	VLAN タグ付け/挿入は両方のチップでサポートされ、82543 では
-	さらに TCP/IP チェックサム offload をサポートしています。
+	のギガビットイーサネットコントローラチップに対応しました。
+	ファイバと銅線の両方のカードに対応しています。
+	VLAN タグ付け/挿入は両方のチップで対応しており、82543 では
+	さらに TCP/IP チェックサム負荷低減機能にも対応しています。
 	&merged;</para>
 
       <para arch="sparc64">多くの Sun Ultra シリーズにオンボードで
@@ -1034,7 +1037,7 @@
         National Semiconductor DP83815 チップセット
 	(NetGear FA311-TX および FA312-TX を含む) の
         PCI イーサネットアダプタに対応しました。
-        このデバイスは VLAN をサポートしています。&merged;</para>
+        このデバイスは VLAN に対応しています。&merged;</para>
 
       <para arch="pc98" role="historic">National Semiconductor
         DP8393X (SONIC) イーサネットコントローラに対応した
@@ -1153,7 +1156,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<varname>kern.polling.user_frac</varname> sysctl 変数
 	によりユーザランド側に確保しておく CPU 時間の割合を
 	指定します。
-	ポーリングをサポートしているデバイスは &man.dc.4;、
+	ポーリングに対応しているデバイスは &man.dc.4;、
 	&man.fxp.4;、&man.rl.4;、&man.nge.4;、&man.sis.4; となっています。
 	詳しくは &man.polling.4; マニュアルページを参照してください。
 	&merged;</para>
@@ -1584,7 +1587,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386" role="historic">SCSI-3
         共通インターフェイスを使うデバイス用の &man.ciss.4; ドライバが追加されました。
 	このドライバは Compaq の SmartRAID 5* ファミリ RAID
-	コントローラ (5300、532、5i) をサポートしています。&merged;</para>
+	コントローラ (5300、532、5i) に対応しています。&merged;</para>
 
       <para>&man.fdc.4; フロッピーディスクコントローラドライバに
         多くの機能強化が行なわれました。一般的な設定における密度の選択は
@@ -1654,7 +1657,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         これには Ultra2、Ultra3、デュアルバスカードが含まれます。</para>
 
       <para role="historic">&man.isp.4; ドライバが Qlogic 2300/2312 Optical
-	Fibre Channel PCI カードをサポートしました。&merged;</para>
+	Fibre Channel PCI カードに対応しました。&merged;</para>
 
       <para arch="i386,pc98">&man.matcd.4; ドライバは、
         ライセンス上の問題でソースが修正できないため、削除されました。
@@ -2567,8 +2570,8 @@ hw.pcic.irq="0"</programlisting>
       事前に警告することなく既存のファイルを上書きしたり、
       許可属性の競合状態により意図しないユーザにファイルのアクセスを許す
       といった複数の弱点が発見されました。
-      この問題は新しい <application>bzip2</application> の
-      import により修正されました。
+      この問題は新しい <application>bzip2</application>
+      の統合で修正されました。
       詳細はセキュリティ勧告
       FreeBSD-SA-02:25
       をご覧ください。&merged;</para>
@@ -2665,7 +2668,7 @@ hw.pcic.irq="0"</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink> をご覧ください。
       &merged;</para>
 
-    <para>DNS りゾルバ (&man.resolver.3;) にあった、
+    <para>DNS リゾルバ (&man.resolver.3;) にあった、
       アプリケーションを動作不能にする可能性のあるバッファオーバフロー問題が修正されました。
       詳細はセキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink> をご覧ください。
@@ -2973,6 +2976,11 @@ hw.pcic.irq="0"</programlisting>
       はファイルシステムのスナップショットを作成し、
       そのスナップショットに対してダンプを実行します。
       ダンプの作成が完了すると、スナップショットは削除されます。</para>
+
+    <para>&man.dump.8; に、ディスクブロックをキャッシュする
+      <option>-C</option> オプションが追加されました。
+      これは、パスの間のファイルシステム更新を反映しないという欠点がありますが、
+      ダンプ速度を向上させることが可能です。</para>
 
     <para role="historic">&man.dump.8; の <option>-T</option> オプションが、
       後続するオプションを余計に無効化してしまっていた問題が修正されました。
@@ -3432,9 +3440,9 @@ hw.pcic.irq="0"</programlisting>
       起動ローダのインストール時設定ができるようになりました。
       &merged;</para>
 
-    <para role="historic"><filename>libstand</filename> は
+    <para role="historic"><filename>libstand</filename> が
       <application>bzip2</application> で圧縮されたファイルを含む
-      ファイルシステムをサポートするようになりました。&merged;</para>
+      ファイルシステムに対応しました。&merged;</para>
 
     <para><filename>libstand</filename> は UFS ファイルシステム中
       のファイルの中身を上書きすることができるようになりました
@@ -3602,6 +3610,11 @@ hw.pcic.irq="0"</programlisting>
       による起動時の設定・初期化に対応しました。
       &merged;</para>
 -->
+
+    <para>&man.make.1; に新しいオプション <option>-C</option> が追加されました。
+      これは、ターゲットを構築する前に、
+      カレントディレクトリを指定されたディレクトリに移動します。
+      &merged;</para>
 
     <para role="historic">不正な空のサフィクスの処理にあった
       &man.make.1; のバグおよび、
@@ -3778,6 +3791,14 @@ hw.pcic.irq="0"</programlisting>
       ログファイルの圧縮に &man.bzip2.1; を使うようになりました
       (<filename>/etc/newsyslog.conf</filename> には、
       &man.gzip.1; を利用する従来の動作を指定することも可能です)。</para>
+
+    <para>&man.newsyslog.8; に、エントリの圧縮処理の開始前に、
+      前回開始した圧縮処理を強制終了させる
+      <literal>W</literal> フラグ (エントリのグループの場合は
+      <literal>G</literal> フラグ) が追加されました。
+      この機能は、大きいファイルを同時に圧縮する処理でシステムが過負荷に
+      なるのを避けるためのものです。
+      &merged;</para>
 
     <para>次回の起動で使用するカーネルと起動フラグを指定するための
       &man.nextboot.8; ユーティリティが追加されました。この機能は
@@ -3991,6 +4012,11 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.rand.3; の疑似乱数生成器実装に対して、
       結果の乱雑さをより向上させるための改良が加えられました。</para>
 
+    <para>&man.rarpd.8; に
+      <filename>/tftpboot</filename> ディレクトリを変更する
+      <option>-t</option> フラグが追加されました。
+      &merged;</para>
+
     <para role="historic">&man.rc.8; に &man.rc.conf.5;
       環境変数間の依存関係を処理する枠組が追加されました。
       &merged;</para>
@@ -4053,8 +4079,8 @@ hw.pcic.irq="0"</programlisting>
       の公開済み ARP エントリを作成できるようになりました。&merged;</para>
 
     <para role="historic">&man.route.8; の <option>add</option> コマンドは
-      <option>-ifp</option> と <option>-ifa</option> の修飾子
-      をサポートするようになりました。&merged;</para>
+      <option>-ifp</option> と <option>-ifa</option> の修飾子に
+      対応しました。&merged;</para>
 
     <para>&man.portmap.8; が &man.rpcbind.8; に置き換えられました。</para>
 
@@ -4064,7 +4090,7 @@ hw.pcic.irq="0"</programlisting>
       <filename>/usr/bin/cpp</filename>
       を使うようになりました。</para>
 
-    <para>&man.rpc.lockd.8; が NetBSD から import されました。
+    <para>NetBSD 由来の &man.rpc.lockd.8; が統合されました。
       このデーモンは
       クライアント側の NFS ロックを提供するためのものです。</para>
 
@@ -4375,7 +4401,7 @@ hw.pcic.irq="0"</programlisting>
       なりました。</para>
 
     <para>Transport Independent RPC
-    (<application>TI-RPC</application>) が import されました。</para>
+    (<application>TI-RPC</application>) が統合されました。</para>
 
     <para role="historic"><envar>TMPDIR</envar> を用いて
       &man.tmpnam.3; における一時ファイルの場所を指定できるようになりました。
@@ -4666,8 +4692,7 @@ hw.pcic.irq="0"</programlisting>
 	更新されました。</para>
 
       <para role="historic"><application>bzip2</application>
-	バージョン 1.0.2 が
-	import されました。
+	バージョン 1.0.2 が統合されました。
         これによりベースシステムに &man.bzip2.1; プログラムおよび、
         <filename>libbz2</filename> ライブラリが導入されました。
 	&merged;</para>
@@ -4735,7 +4760,7 @@ hw.pcic.irq="0"</programlisting>
 	できます。&merged;</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
-        3.0.1RC9 に更新されました。</para>
+        3.0.1RC11 に更新されました。</para>
 
       <para role="historic"><application>Kerberos IV</application> がバージョン
         1.0.5 に更新されました。
@@ -4744,7 +4769,7 @@ hw.pcic.irq="0"</programlisting>
       <para>&man.more.1; コマンドが &man.less.1; に置き換えられました、
         ただし <command>more</command> というコマンド名はそのまま使用
         できます。&merged;
-        <application>less</application> のバージョン 371 が import されました。
+        <application>less</application> のバージョン 371 が統合されました。
       </para>
 
       <para>ベースシステムにおける
@@ -4806,7 +4831,7 @@ hw.pcic.irq="0"</programlisting>
         &man.sysinstall.8; のメニューから
         <guimenuitem>Perl distribution</guimenuitem>
         を選択することでインストールすることができます。
-	Perl の削除は、ベースシステムから削除することで、
+	Perl のベースシステムから削除の削除は、
         今後のアップグレードと保守を容易にすることを目的としています。
         ベースシステムの Perl 依存性を減らすため、
 	多くのユーティリティがシェルスクリプトや
@@ -5006,9 +5031,9 @@ hw.pcic.irq="0"</programlisting>
 	  &man.scp.1; は 2GB 以上のファイルを扱えるようになりました。
 	  &man.sshd.8; に対して新たに、
           未認証の ssh 接続数を制限する機能が追加されています。
-	  Rijndael 暗号アルゴリズムがサポートされました。
-	  &man.ssh.1; に既存セションの rekeying がサポートされ、実験的な
-	  <application>SOCKS4</application> プロキシーも加えられました。
+	  Rijndael 暗号アルゴリズムに対応しました。
+	  &man.ssh.1; が既存セションの rekeying に対応し、実験的な
+	  <application>SOCKS4</application> プロキシも加えられました。
 	  &merged;</para>
 
 	<para><application>OpenSSH</application> が 3.4p1 に更新されました。
@@ -5283,7 +5308,7 @@ hw.pcic.irq="0"</programlisting>
 
       <para role="historic">&man.pkg.create.1; はローカルにインストールされた
 	パッケージからパッケージを作成する <option>-b</option>
-	をサポートしました。&merged;</para>
+	に対応しました。&merged;</para>
 
       <para role="historic">&man.pkg.delete.1;
 	に複数の package を削除するように指定した際に、
@@ -5406,7 +5431,7 @@ hw.pcic.irq="0"</programlisting>
       <para>Ports Collection で生成される package (FTP
         サイトに置かれているものも同様) が、
         &man.gzip.1; ではなく &man.bzip2.1; で圧縮されるようになりました
-        (そのため、拡張子は <filename>.gz</filename> ではなく
+        (そのため、拡張子は <filename>.tgz</filename> ではなく
         <filename>.tbz</filename> になっています)。
         package 関連ツールも、この新しい形式に対応するために更新されています。</para>
 
