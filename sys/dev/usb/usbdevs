@@ -534,9 +534,9 @@ vendor HP2		0xf003	Hewlett Packard
  */
 
 /* 3Com products */
-product 3COM HOMECONN		0x009d	HomeConnect USB Camera
-product 3COM 3CREB96		0x00a0	Bluetooth USB dongle
-product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
+product 3COM HOMECONN		0x009d	HomeConnect Camera
+product 3COM 3CREB96		0x00a0	Bluetooth dongle
+product 3COM 3C19250		0x03E8	3C19250 Ethernet
 product 3COM 3CRSHEW696		0x0a01	3CRSHEW696 Wireless adapter
 product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 product 3COM 3C460		0x11f8	HomeConnect 3C460
@@ -550,9 +550,9 @@ product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 /* AboCom products */
 product ABOCOM XX1		0x110c	XX1
 product ABOCOM XX2		0x200c	XX2
-product ABOCOM URE450		0x4000	URE450 Ethernet Adapter
-product ABOCOM UFE1000		0x4002	UFE1000 Fast Ethernet Adapter
-product ABOCOM DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
+product ABOCOM URE450		0x4000	URE450 Ethernet
+product ABOCOM UFE1000		0x4002	UFE1000 Fast Ethernet
+product ABOCOM DSB650TX_PNA	0x4003	1/10/100 ethernet
 product ABOCOM XX4		0x4004	XX4
 product ABOCOM XX5		0x4007	XX5
 product ABOCOM XX6		0x400b	XX6
@@ -562,8 +562,8 @@ product ABOCOM XX9		0x4104	XX9
 product ABOCOM XX10		0xabc1	XX10
 
 /* Accton products */
-product ACCTON USB320_EC	0x1046	USB320-EC Ethernet Adapter
-product ACCTON SS1001		0x5046	SpeedStream Ethernet Adapter
+product ACCTON USB320_EC	0x1046	USB320-EC Ethernet
+product ACCTON SS1001		0x5046	SpeedStream Ethernet
 
 /* Acer Peripherals, Inc. products */
 product ACERP ACERSCAN_C310U	0x12a6	Acerscan C310U
@@ -578,15 +578,15 @@ product ACTIVEWIRE IOBOARD	0x0100	I/O Board
 product ACTIVEWIRE IOBOARD_FW1	0x0101	I/O Board, rev. 1 firmware
 
 /* Actiontec, Inc. products */
-product ACTIONTEC UAT1		0x7605	UAT1 Wireless Ethernet adapter
+product ACTIONTEC UAT1		0x7605	UAT1 Wireless Ethernet
 
 /* ADMtek products */
-product ADMTEK PEGASUS		0x0986	AN986 USB Ethernet adapter
-product ADMTEK PEGASUSII	0x8511	AN8511 USB Ethernet adapter
-product ADMTEK PEGASUSII_2	0x8513	AN8513 USB Ethernet adapter
+product ADMTEK PEGASUS		0x0986	AN986 Ethernet
+product ADMTEK PEGASUSII	0x8511	AN8511 Ethernet
+product ADMTEK PEGASUSII_2	0x8513	AN8513 Ethernet
 
 /* ADS products */
-product ADS UBS10BT		0x0008	UBS-10BT Ethernet adapter
+product ADS UBS10BT		0x0008	UBS-10BT Ethernet
 
 /* Agate Technologies products */
 product AGATE QDRIVE		0x0378	Q-Drive
@@ -629,7 +629,7 @@ product ANCHOR EZUSB		0x2131	EZUSB
 product ANCHOR EZLINK		0x2720	EZLINK
 
 /* AOX, Inc. products */
-product AOX USB101		0x0008	USB ethernet controller engine
+product AOX USB101		0x0008	Ethernet
 
 /* Apple Computer products */
 product APPLE OPTMOUSE		0x0302	Optical mouse
@@ -640,12 +640,12 @@ product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
 product ASAHIOPTICAL OPTIO330	0x0006	Digital camera
 
 /* ASIX Electronics products */
-product ASIX AX88172		0x1720  USB 2.0 10/100 ethernet controller
+product ASIX AX88172		0x1720  10/100 ethernet
 
 /* ATen products */
-product ATEN UC1284		0x2001	Parallel printer adapter
-product ATEN UC10T		0x2002	10Mbps ethernet adapter
-product ATEN UC232A		0x2008	Serial adapter
+product ATEN UC1284		0x2001	Parallel printer
+product ATEN UC10T		0x2002	10Mbps ethernet
+product ATEN UC232A		0x2008	Serial
 
 /* Atmel Comp. products */
 product ATMEL UHB124		0x3301	UHB124 hub
@@ -658,20 +658,20 @@ product ATMEL AT76C505A		0x7614	AT76c505a Wireless adapter
 product AVISION 1200U		0x0268	1200U scanner
 
 /* B&B Electronics products */
-product BBELECTRONICS USOTL4	0xAC01	uLinks Isolated RS-422/485 to USB adapter
+product BBELECTRONICS USOTL4	0xAC01	RS-422/485
 
 /* Belkin products */
-/*product BELKIN F5U111		0x????	F5U111 Ethernet adapter*/
-product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
-product BELKIN USB2LAN		0x0121	USB to LAN Converter
-product BELKIN F5U103		0x0103	F5U103 Serial adapter
-product BELKIN F5U109		0x0109	F5U109 Serial adapter
+/*product BELKIN F5U111		0x????	F5U111 Ethernet*/
+product BELKIN2 F5U002		0x0002	F5U002 Parallel printer
+product BELKIN USB2LAN		0x0121	USB to LAN
+product BELKIN F5U103		0x0103	F5U103 Serial
+product BELKIN F5U109		0x0109	F5U109 Serial
 product BELKIN F5U208		0x0208	F5U208 VideoBus II
-product BELKIN F5U409		0x0409	F5U409 Serial adapter
+product BELKIN F5U409		0x0409	F5U409 Serial
 product BELKIN F5U120		0x1203	F5U120-PC Hub
 
 /* Billionton products */
-product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
+product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet
 product BILLIONTON USBLP100	0x0987	USB100LP
 product BILLIONTON USBEL100	0x0988	USB100EL
 product BILLIONTON USBE100	0x8511	USBE100
@@ -695,8 +695,8 @@ product CANON S100		0x3045	PowerShot S100
 product CANON S200		0x3065	PowerShot S200
 
 /* CATC products */
-product CATC NETMATE		0x000a	Netmate ethernet adapter
-product CATC NETMATE2		0x000c	Netmate2 ethernet adapter
+product CATC NETMATE		0x000a	Netmate ethernet
+product CATC NETMATE2		0x000c	Netmate2 ethernet
 product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
 product CATC ANDROMEDA		0x1237	Andromeda hub
 
@@ -772,16 +772,16 @@ product DIGI ACCELEPORT4	0x0004	AccelePort USB 4
 product DIGI ACCELEPORT8	0x0008	AccelePort USB 8
 
 /* D-Link products */
-/*product DLINK DSBS25		0x0100	DSB-S25 serial adapter*/
-product DLINK DUBE100		0x1a00	10/100 ethernet adapter
-product DLINK DSB650TX4		0x200c	10/100 ethernet adapter
-product DLINK DSB650C		0x4000	10Mbps ethernet adapter
-product DLINK DSB650TX1		0x4001	10/100 ethernet adapter
-product DLINK DSB650TX		0x4002	10/100 ethernet adapter
-product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
-product DLINK DSB650TX3		0x400b	10/100 ethernet adapter
-product DLINK DSB650TX2		0x4102	10/100 ethernet adapter
-product DLINK DSB650		0xabc1	10/100 ethernet adapter
+/*product DLINK DSBS25		0x0100	DSB-S25 serial*/
+product DLINK DUBE100		0x1a00	10/100 ethernet
+product DLINK DSB650TX4		0x200c	10/100 ethernet
+product DLINK DSB650C		0x4000	10Mbps ethernet
+product DLINK DSB650TX1		0x4001	10/100 ethernet
+product DLINK DSB650TX		0x4002	10/100 ethernet
+product DLINK DSB650TX_PNA	0x4003	1/10/100 ethernet
+product DLINK DSB650TX3		0x400b	10/100 ethernet
+product DLINK DSB650TX2		0x4102	10/100 ethernet
+product DLINK DSB650		0xabc1	10/100 ethernet
 
 /* EIZO products */
 product EIZO HUB		0x0000	hub
@@ -805,17 +805,17 @@ product ELSA USB2ETHERNET	0x3000	Microlink USB2Ethernet
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
 
 /* Entrega products */
-product ENTREGA 1S		0x0001	1S serial connector
-product ENTREGA 2S		0x0002	2S serial connector
-product ENTREGA 1S25		0x0003	1S25 serial connector
-product ENTREGA 4S		0x0004	4S serial connector
-product ENTREGA E45		0x0005	E45 Ethernet adapter
-product ENTREGA CENTRONICS	0x0006	Centronics connector
-product ENTREGA 1S9		0x0093	1S9 serial connector
+product ENTREGA 1S		0x0001	1S serial
+product ENTREGA 2S		0x0002	2S serial
+product ENTREGA 1S25		0x0003	1S25 serial
+product ENTREGA 4S		0x0004	4S serial
+product ENTREGA E45		0x0005	E45 Ethernet
+product ENTREGA CENTRONICS	0x0006	Parallel Port
+product ENTREGA 1S9		0x0093	1S9 serial
 product ENTREGA EZUSB		0x8000	EZ-USB
-/*product ENTREGA SERIAL	0x8001	DB25 Serial connector*/
-product ENTREGA 2U4S		0x8004	2U4S serial connector/usb hub
-/*product ENTREGA SERIAL_DB9	0x8093	DB9 Serial connector*/
+/*product ENTREGA SERIAL	0x8001	DB25 Serial*/
+product ENTREGA 2U4S		0x8004	2U4S serial/usb hub
+/*product ENTREGA SERIAL_DB9	0x8093	DB9 Serial*/
 
 /* Epson products */
 product EPSON PRINTER1		0x0001	USB Printer
@@ -839,29 +839,29 @@ product EPSON 1660		0x011e	Perfection 1660 scanner
 product EPSON 1670		0x011f	Perfection 1670 scanner
 
 /* e-TEK Labs products */
-product ETEK 1COM		0x8007	Serial port
+product ETEK 1COM		0x8007	Serial
 
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 
 /* GoHubs products */
-product GOHUBS GOCOM232		0x1001	GoCOM232 Serial converter
+product GOHUBS GOCOM232		0x1001	GoCOM232 Serial
 
 /* Gravis products */
 product GRAVIS GAMEPADPRO	0x4001	GamePad Pro
 
 /* GREENHOUSE products */
-product GREENHOUSE KANA21	0x0001	CF-writer with Portable MP3 Player
+product GREENHOUSE KANA21	0x0001	CF-writer with MP3
 
 /* Griffin Technology */
 product GRIFFIN IMATE		0x0405	iMate, ADB adapter
 
 /* Freecom products */
-product FREECOM DVD		0xfc01	Connector for DVD drive
+product FREECOM DVD		0xfc01	DVD drive
 
 /* Future Technology Devices products */
-product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial converter
-product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial converter
+product FTDI SERIAL_8U100AX	0x8372	8U100AX Serial
+product FTDI SERIAL_8U232AM	0x6001	8U232AM Serial
 
 /* Fuji photo products */
 product FUJIPHOTO MASS0100	0x0100	Mass Storage
@@ -950,7 +950,7 @@ product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
 product INSIDEOUT EDGEPORT4	0x0001	EdgePort/4 serial ports
 
 /* In-System products */
-product INSYSTEM F5U002		0x0002	Parallel printer adapter
+product INSYSTEM F5U002		0x0002	Parallel printer
 product INSYSTEM ATAPI		0x0031	ATAPI adapter
 product INSYSTEM ISD110		0x0200	IDE adapter ISD110
 product INSYSTEM ISD105		0x0202	IDE adapter ISD105
@@ -973,7 +973,7 @@ product IODATA DVR_UEH8		0x0206	DVD Multi-plus unit DVR-UEH8
 product IODATA USBETT		0x0901	USB ETT
 product IODATA USBETTX		0x0904	USB ETTX
 product IODATA USBETTXS		0x0913	USB ETTX
-product IODATA USBRSAQ		0x0a03	USB serial adapter USB-RSAQ1
+product IODATA USBRSAQ		0x0a03	Serial USB-RSAQ1
 
 /* Iomega products */
 product IOMEGA ZIP100		0x0001	Zip 100
@@ -986,8 +986,8 @@ product JVC GR_DX95		0x000a	GR-DX95
 product JRC AH_J3001V_J3002V	0x0001	AirH\" PHONE AH-J3001V/J3002V
 
 /* Kawasaki products */
-product KLSI DUH3E10BT		0x0008	USB ethernet controller engine
-product KLSI DUH3E10BTN		0x0009	USB ethernet controller engine
+product KLSI DUH3E10BT		0x0008	USB ethernet
+product KLSI DUH3E10BTN		0x0009	USB ethernet
 
 /* Kawatsu products */
 product KAWATSU MH4000P		0x0003	MiniHub 4000P
@@ -996,20 +996,20 @@ product KAWATSU MH4000P		0x0003	MiniHub 4000P
 product KEISOKUGIKEN USBDAQ	0x0068	HKS-0200 USBDAQ
 
 /* Kawasaki products */
-product KLSI DUH3E10BT		0x0008	10BT Ethernet adapter, in the DU-H3E
+product KLSI DUH3E10BT		0x0008	DU-H3E 10BT Ethernet
 
 /* Kensington products */
 product KENSINGTON ORBIT	0x1003	Orbit USB/PS2 trackball
 product KENSINGTON TURBOBALL	0x1005	TurboBall
 
 /* Keyspan products */
-product KEYSPAN USA28		0x0101	USA-28 serial adapter
-product KEYSPAN USA28X		0x0102	USA-28X serial adapter
-product KEYSPAN USA19		0x0103	USA-19 serial adapter
-product KEYSPAN USA18X		0x0105	USA-18X serial adapter
-product KEYSPAN USA19W		0x0106	USA-19W serial adapter
-product KEYSPAN USA49W		0x0109	USA-49W serial adapter
-product KEYSPAN USA19QW		0x0118	USA-19QW serial adapter
+product KEYSPAN USA28		0x0101	USA-28 serial
+product KEYSPAN USA28X		0x0102	USA-28X serial
+product KEYSPAN USA19		0x0103	USA-19 serial
+product KEYSPAN USA18X		0x0105	USA-18X serial
+product KEYSPAN USA19W		0x0106	USA-19W serial
+product KEYSPAN USA49W		0x0109	USA-49W serial
+product KEYSPAN USA19QW		0x0118	USA-19QW serial
 
 /* Kingston products */
 product KINGSTON KNU101TX	0x000a	KNU101TX USB Ethernet
@@ -1053,7 +1053,7 @@ product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 product LINKSYS USB10TX2	0x400b	USB10TX
 product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless adapter
-product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 ethernet controller
+product LINKSYS2 USB200M	0x2226	USB 2.0 10/100 ethernet
 product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 wireless adapter
 
 /* Logitech products */
@@ -1200,8 +1200,8 @@ product NEODIO ND5010		0x5010	Multi-format Flash Controller
 product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
 
 /* Netgear products */
-product NETGEAR EA101		0x1001	Ethernet adapter
-product NETGEAR FA120		0x1040	USB 2.0 Ethernet adapter
+product NETGEAR EA101		0x1001	Ethernet
+product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
@@ -1219,7 +1219,7 @@ product OMNIVISION OV511PLUS	0xa511	OV511+ Camera
 product ONSPEC UCF100		0xa400	FlashLink UCF-100 CompactFlash Reader
 
 /* Palm Computing, Inc. product */
-product PALM SERIAL		0x0080	USB Serial Adaptor
+product PALM SERIAL		0x0080	USB Serial
 product PALM M500		0x0001	Palm m500
 product PALM M505		0x0002	Palm m505
 product PALM M515		0x0003	Palm m515
@@ -1235,13 +1235,13 @@ product PALM ZIRE		0x0070	Palm Zire
 product PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
-product PANASONIC SDCAAE	0x1b00	MultiMediaCard Adapter
+product PANASONIC SDCAAE	0x1b00	MultiMediaCard
 
 /* Peracom products */
-product PERACOM SERIAL1		0x0001	Serial Converter
-product PERACOM ENET		0x0002	Ethernet adapter
-product PERACOM ENET3		0x0003	At Home Ethernet Adapter
-product PERACOM ENET2		0x0005	Ethernet adapter
+product PERACOM SERIAL1		0x0001	Serial
+product PERACOM ENET		0x0002	Ethernet
+product PERACOM ENET3		0x0003	At Home Ethernet
+product PERACOM ENET2		0x0005	Ethernet
 
 /* Philips products */
 product PHILIPS DSS350		0x0101	DSS 350 Digital Speaker System
@@ -1289,10 +1289,10 @@ product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
 product PROLIFIC PL2302		0x0001	PL2302 Host-Host interface
-product PROLIFIC RSAQ2		0x04bb	PL2303 Serial adapter (IODATA USB-RSAQ2)
-product PROLIFIC PL2303		0x2303	PL2303 Serial adapter (ATEN/IOGEAR UC232A)
-product PROLIFIC PL2305		0x2305	Parallel printer adapter
-product PROLIFIC ATAPI4		0x2307	ATAPI-4 Bridge Controller
+product PROLIFIC RSAQ2		0x04bb	PL2303 Serial (IODATA USB-RSAQ2)
+product PROLIFIC PL2303		0x2303	PL2303 Serial (ATEN/IOGEAR UC232A)
+product PROLIFIC PL2305		0x2305	Parallel printer
+product PROLIFIC ATAPI4		0x2307	ATAPI-4 Controller
 
 /* Putercom products */
 product PUTERCOM UPA100		0x047e	USB-1284 BRIDGE
@@ -1322,7 +1322,7 @@ product ROLAND UM880G		0x0015	EDIROL UM-880 MIDI I/F (generic)
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
 
 /* RATOC Systems products */
-product RATOC REXUSB60		0xb000	USB serial adapter REX-USB60
+product RATOC REXUSB60		0xb000	REX-USB60
 
 /* Samsung products */
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
@@ -1365,7 +1365,7 @@ product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 product SIIG WINTERREADER	0x0330	WINTERREADER Reader
-product SIIG2 US2308		0x0421	USB to Serial
+product SIIG2 US2308		0x0421	Serial
 
 /* Silicon Portals Inc. */
 product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
@@ -1375,18 +1375,18 @@ product SILICONPORTALS YAPPHONE	0x0201	YAP Phone
 product SIRIUS ROADSTER		0x0001	NetComm Roadster II 56 USB
 
 /* Sitecom products */
-product SITECOM LN029		0x182d	USB 2.0 Ethernet Adapter
+product SITECOM LN029		0x182d	USB 2.0 Ethernet
 
 /* SmartBridges products */
-product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet adapter
-product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP Adapter
+product SMARTBRIDGES SMARTLINK	0x0001	SmartLink USB ethernet
+product SMARTBRIDGES SMARTNIC	0x0003	smartNIC 2 PnP ethernet
 
 /* SMC products */
-product SMC 2102USB		0x0100	10Mbps ethernet adapter
-product SMC 2202USB		0x0200	10/100 ethernet adapter
-product SMC 2206USB		0x0201	EZ Connect USB Ethernet Adapter
+product SMC 2102USB		0x0100	10Mbps ethernet
+product SMC 2202USB		0x0200	10/100 ethernet
+product SMC 2206USB		0x0201	EZ Connect USB Ethernet
 product SMC2 2020HUB		0x2020	USB Hub
-product SMC3 2662WUSB		0xa002	2662W-AR Wireless Adapter
+product SMC3 2662WUSB		0xa002	2662W-AR Wireless
 
 /* SOHOware products */
 product SOHOWARE NUB100		0x9100	10/100 USB Ethernet
