@@ -1122,17 +1122,36 @@ linux_getitimer(struct proc *p, struct linux_getitimer_args *args)
 }
 
 int
+linux_ioperm(struct proc *p, struct linux_ioperm_args *args)
+{
+	struct sysarch_args sa;
+	struct i386_ioperm_args *iia;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	iia = stackgap_alloc(&sg, sizeof(struct i386_ioperm_args));
+	iia->start = args->start;
+	iia->length = args->length;
+	iia->enable = args->enable;
+	sa.op = I386_SET_IOPERM;
+	sa.parms = (char *)iia;
+	return sysarch(p, &sa);
+}
+
+int
 linux_iopl(struct proc *p, struct linux_iopl_args *args)
 {
 	int error;
 
-	error = suser(p);
-	if (error != 0)
-		return error;
+	if (args->level < 0 || args->level > 3)
+		return (EINVAL);
+	if ((error = suser(p)) != 0)
+		return (error);
 	if (securelevel > 0)
-		return EPERM;
-	p->p_md.md_regs->tf_eflags |= PSL_IOPL;
-	return 0;
+		return (EPERM);
+	p->p_md.md_regs->tf_eflags = (p->p_md.md_regs->tf_eflags & ~PSL_IOPL) |
+		(args->level * (PSL_IOPL / 3));
+	return (0);
 }
 
 int
