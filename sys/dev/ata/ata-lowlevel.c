@@ -318,7 +318,7 @@ ata_interrupt(void *data)
 
 	    /* set this transfer size according to HW capabilities */
 	    request->transfersize = 
-		min((request->bytecount-request->donecount),
+		min((request->bytecount - request->donecount),
 		    request->transfersize);
 
 	    /* if data write command, output the data */
