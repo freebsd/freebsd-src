@@ -63,9 +63,9 @@ static char null_entry[] = "\n\t(char *(*)())0,\n\
 
 static char tbl_nproc[] = "int %s_nproc =\n\tsizeof(%s_table)/sizeof(%s_table[0]);\n\n";
 
-extern int nullproc __P(( proc_list * ));
-static void write_table __P(( definition * ));
-static void printit __P(( char *, char * ));
+extern int nullproc( proc_list * );
+static void write_table( definition * );
+static void printit( char *, char * );
 
 void
 write_tables()

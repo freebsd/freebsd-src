@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFNICE	10
 
-void usage __P((void));
+void usage(void);
 
 int
 main(argc, argv)

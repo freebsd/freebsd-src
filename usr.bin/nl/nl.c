@@ -91,10 +91,10 @@ static struct numbering_property numbering_properties[NP_LAST + 1] = {
 #define INT_STRLEN_MAXIMUM \
 	((sizeof (int) * CHAR_BIT - 1) * 302 / 1000 + 2)
 
-static void	filter __P((void));
-int		main __P((int, char *[]));
-static void	parse_numbering __P((const char *, int));
-static void	usage __P((void));
+static void	filter(void);
+int		main(int, char *[]);
+static void	parse_numbering(const char *, int);
+static void	usage(void);
 
 /*
  * Pointer to dynamically allocated input line buffer, and its size.

@@ -48,8 +48,8 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-static void adjust __P((char[], char *));
-static void getseed __P((char *, int, unsigned char *));
+static void adjust(char[], char *);
+static void getseed(char *, int, unsigned char *);
 
 /*
  * Generate a seed

@@ -79,12 +79,12 @@ int (*sfunc)() = fname;
 #define	SYMBOL_TYPE(x)		((x) & (N_TYPE | N_STAB))
 #define SYMBOL_BIND(x)		(((x) >> 4) & 0xf)
 
-static void usage __P(( void ));
-int process_file __P(( char * ));
-int show_archive __P(( char *, FILE * ));
-int show_objfile __P(( char *, FILE * ));
-void print_symbol __P(( char *, struct nlist * ));
-char typeletter __P((u_char));
+static void usage( void );
+int process_file( char * );
+int show_archive( char *, FILE * );
+int show_objfile( char *, FILE * );
+void print_symbol( char *, struct nlist * );
+char typeletter(u_char);
 
 /*
  * main()

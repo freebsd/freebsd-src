@@ -56,7 +56,7 @@ static const char rcsid[] =
 extern char *archive;			/* archive name */
 char *tname = "temporary file";		/* temporary file "name" */
 
-void error __P(( char * ));
+void error( char * );
 
 int
 tmp(void)

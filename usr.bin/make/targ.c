@@ -96,10 +96,10 @@ static Hash_Table targets;	/* a hash table of same */
 
 #define HTSIZE	191		/* initial size of hash table */
 
-static int TargPrintOnlySrc __P((void *, void *));
-static int TargPrintName __P((void *, void *));
-static int TargPrintNode __P((void *, void *));
-static void TargFreeGN __P((void *));
+static int TargPrintOnlySrc(void *, void *);
+static int TargPrintName(void *, void *);
+static int TargPrintNode(void *, void *);
+static void TargFreeGN(void *);
 
 /*-
  *-----------------------------------------------------------------------

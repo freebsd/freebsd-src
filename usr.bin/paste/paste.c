@@ -61,10 +61,10 @@ __FBSDID("$FreeBSD$");
 char *delim;
 int delimcnt;
 
-void parallel __P((char **));
-void sequential __P((char **));
-int tr __P((char *));
-static void usage __P((void));
+void parallel(char **);
+void sequential(char **);
+int tr(char *);
+static void usage(void);
 
 int
 main(argc, argv)

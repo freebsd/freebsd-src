@@ -56,29 +56,29 @@ static const char rcsid[] =
 #include "rpc_util.h"
 #include "rpc_scan.h"
 
-extern void write_sample_svc __P(( definition * ));
-extern int write_sample_clnt __P(( definition * ));
-extern void write_sample_clnt_main __P(( void ));
-extern void add_sample_msg __P(( void ));
-static void c_output __P(( char *, char *, int, char * ));
-static void h_output __P(( char *, char *, int, char * ));
-static void l_output __P(( char *, char *, int, char * ));
-static void t_output __P(( char *, char *, int, char * ));
-static void clnt_output __P(( char *, char *, int, char * ));
+extern void write_sample_svc( definition * );
+extern int write_sample_clnt( definition * );
+extern void write_sample_clnt_main( void );
+extern void add_sample_msg( void );
+static void c_output( char *, char *, int, char * );
+static void h_output( char *, char *, int, char * );
+static void l_output( char *, char *, int, char * );
+static void t_output( char *, char *, int, char * );
+static void clnt_output( char *, char *, int, char * );
 
-void c_initialize __P(( void ));
+void c_initialize( void );
 
 #if !defined(__FreeBSD__) && !defined(__NetBSD__)
 char * rindex();
 #endif
 
-static void usage __P(( void ));
-static void options_usage __P (( void ));
-static int do_registers __P(( int, char ** ));
-static int parseargs __P(( int, char **, struct commandline * ));
-static void svc_output __P(( char *, char *, int, char * ));
-static void mkfile_output __P(( struct commandline * ));
-static void s_output __P(( int, char **, char *, char *, int, char *, int, int ));
+static void usage(void);
+static void options_usage(void);
+static int do_registers(int, char **);
+static int parseargs(int, char **, struct commandline *);
+static void svc_output(char *, char *, int, char *);
+static void mkfile_output(struct commandline *);
+static void s_output(int, char **, char *, char *, int, char *, int, int);
 
 #define	EXTEND	1		/* alias for TRUE */
 #define	DONT_EXTEND	0		/* alias for FALSE */

@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void usage __P((void));
+void usage(void);
 
 int
 main(argc, argv)

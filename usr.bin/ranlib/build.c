@@ -57,10 +57,10 @@ static const char rcsid[] =
 
 #include "archive.h"
 
-extern int tmp __P(( void ));
-extern void error __P(( char * ));
-extern void badfmt __P(( void ));
-extern void settime __P(( int ));
+extern int tmp( void );
+extern void error( char * );
+extern void badfmt( void );
+extern void settime( int );
 
 extern CHDR chdr;			/* converted header */
 extern char *archive;			/* archive name */
@@ -79,8 +79,8 @@ FILE *fp;
 long symcnt;				/* symbol count */
 long tsymlen;				/* total string length */
 
-static void rexec __P((int, int));
-static void symobj __P((void));
+static void rexec(int, int);
+static void symobj(void);
 
 int
 build(void)
