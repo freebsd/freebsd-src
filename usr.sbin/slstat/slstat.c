@@ -23,13 +23,14 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: slstat.c,v 1.6 1996/10/11 18:47:10 wollman Exp $";
+	"$Id: slstat.c,v 1.7 1996/11/04 17:14:43 bde Exp $";
 #endif
 
 #include <sys/param.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>

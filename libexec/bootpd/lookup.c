@@ -1,15 +1,13 @@
 /*
  * lookup.c - Lookup IP address, HW address, netmask
  *
- *	$Id$
+ *	$Id: lookup.c,v 1.2 1996/09/22 21:52:21 wosch Exp $
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#ifdef _AIX32
 #include <sys/time.h>	/* for struct timeval in net/if.h */
-#endif
 #include <net/if.h>
 #include <netinet/in.h>
 

@@ -37,8 +37,13 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: pppstats.c,v 1.11 1995/07/11 06:41:45 paulus Exp $";
+static char rcsid[] = "$Id: pppstats.c,v 1.6 1995/10/31 21:41:59 peter Exp $";
 #endif
+
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <errno.h>
@@ -46,9 +51,6 @@ static char rcsid[] = "$Id: pppstats.c,v 1.11 1995/07/11 06:41:45 paulus Exp $";
 #include <stdio.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <sys/param.h>
-#include <sys/types.h>
-#include <sys/ioctl.h>
 
 #include <net/ppp_defs.h>
 
