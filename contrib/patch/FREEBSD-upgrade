@@ -6,8 +6,10 @@ To prepare a new patch dist for import, extract it into a fresh directory
 and remove the following files (and any others that are non-FreeBSD
 specific):
 
+memchr.c
 mkinstalldirs
 pc/*
+rename.c
 
 The only other change that was made to the original tarball was to
 rename patch.man to patch.1.
