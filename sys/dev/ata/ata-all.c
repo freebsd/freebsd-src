@@ -224,7 +224,8 @@ ata_detach(device_t dev)
     struct ata_channel *ch;
     int s;
  
-    if (!dev || !(ch = device_get_softc(dev)))
+    if (!dev || !(ch = device_get_softc(dev)) ||
+	!ch->r_io || !ch->r_altio || !ch->r_irq)
 	return ENXIO;
 
     /* make sure channel is not busy */
@@ -310,7 +311,8 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
 	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
-	    error = ata_reinit(ch);
+	    if ((error = ata_reinit(ch)))
+		ATA_UNLOCK_CH(ch);
 	    return error;
 
 	case ATAGMODE:
@@ -421,7 +423,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	case ATARAIDREBUILD:
 	    return ata_raid_rebuild(iocmd->channel);
 
-	case ATARAIDCREATE:   
+	case ATARAIDCREATE:
 	    return ata_raid_create(&iocmd->u.raid_setup);
 
 	case ATARAIDDELETE:
@@ -470,6 +472,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	}
 #endif
 	default:
+	    break;
     }
     return ENOTTY;
 }
@@ -645,6 +648,7 @@ ata_intr(void *data)
 		       intr_count, ch->active, ch->status);
     }
 #endif
+	break;
     }
     ch->active &= ATA_CONTROL;
     if (ch->active & ATA_CONTROL)
@@ -845,6 +849,7 @@ ata_reinit(struct ata_channel *ch)
 
     if (!ch->r_io || !ch->r_altio || !ch->r_irq)
 	return ENXIO;
+
     ATA_FORCELOCK_CH(ch, ATA_CONTROL);
     ch->running = NULL;
     devices = ch->devices;
@@ -1264,7 +1269,7 @@ ata_change_mode(struct ata_device *atadev, int mode)
     ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
     ata_dmainit(atadev->channel, atadev->unit, pmode, wmode, umode);
     ATA_UNLOCK_CH(atadev->channel);
-    ata_start(atadev->channel);
+    ata_start(atadev->channel); /* XXX SOS */
 }
 
 int
