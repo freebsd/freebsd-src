@@ -46,7 +46,7 @@ amd_precmd()
 		[Nn][Oo] | '')
 			;;
 		*)
-			amd_flags="${amd_flags} `eval ${amd_map_program}`"
+			rc_flags="${rc_flags} `eval ${amd_map_program}`"
 			;;
 		esac
 
@@ -58,7 +58,7 @@ amd_precmd()
 			fi
 			;;
 		*)
-			amd_flags="-p ${amd_flags} > /var/run/amd.pid 2> /dev/null" \
+			rc_flags="-p ${rc_flags} > /var/run/amd.pid 2> /dev/null" \
 			;;
 		esac
 		;;
