@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc"
 
-.PATH: ../cc_tools ${GCCDIR} 
+.PATH: ../cc_tools ${GCCDIR}
 
 SRCS=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c
 
