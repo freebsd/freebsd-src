@@ -20,7 +20,7 @@ LDADD+=	-lopie
 
 LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR}
-SRCS+=	ls.c cmp.c lomac.c print.c util.c
+SRCS+=	ls.c cmp.c print.c util.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
 DPADD+=	${LIBM}
 LDADD+=	-lm

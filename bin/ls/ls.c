@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <sys/mac.h>
 
 #include <dirent.h>
 #include <err.h>
@@ -71,7 +72,6 @@ __FBSDID("$FreeBSD$");
 
 #include "ls.h"
 #include "extern.h"
-#include "lomac.h"
 
 /*
  * Upward approximation of the maximum number of characters needed to
@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
-static void	 display(FTSENT *, FTSENT *);
+static void	 display(FTSENT *, FTSENT *, int);
 static u_quad_t	 makenines(u_long);
 static int	 mastercmp(const FTSENT * const *, const FTSENT * const *);
 static void	 traverse(int, char **, int);
@@ -118,7 +118,7 @@ static int f_singlecol;		/* use single column output */
 static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
-       int f_lomac;		/* show LOMAC attributes */
+       int f_label;		/* show MAC label */
 #ifdef COLORLS
        int f_color;		/* add type in color for non-regular files */
 
@@ -300,7 +300,7 @@ main(int argc, char *argv[])
 			f_octal_escape = 0;
 			break;
 		case 'Z':
-			f_lomac = 1;
+			f_label = 1;
 			break;
 		default:
 		case '?':
@@ -440,7 +440,7 @@ traverse(int argc, char *argv[], int options)
 	    fts_open(argv, options, f_nosort ? NULL : mastercmp)) == NULL)
 		err(1, "fts_open");
 
-	display(NULL, fts_children(ftsp, 0));
+	display(NULL, fts_children(ftsp, 0), options);
 	if (f_listdir)
 		return;
 
@@ -480,7 +480,7 @@ traverse(int argc, char *argv[], int options)
 				output = 1;
 			}
 			chp = fts_children(ftsp, ch_options);
-			display(p, chp);
+			display(p, chp, options);
 
 			if (!f_recursive && chp != NULL)
 				(void)fts_set(ftsp, p, FTS_SKIP);
@@ -498,14 +498,15 @@ traverse(int argc, char *argv[], int options)
  * points to the parent directory of the display list.
  */
 static void
-display(FTSENT *p, FTSENT *list)
+display(FTSENT *p, FTSENT *list, int options)
 {
 	struct stat *sp;
 	DISPLAY d;
 	FTSENT *cur;
 	NAMES *np;
 	off_t maxsize;
-	u_long btotal, lattrlen, maxblock, maxinode, maxlen, maxnlink, maxlattr;
+	u_long btotal, labelstrlen, maxblock, maxinode, maxlen, maxnlink;
+	u_long maxlabelstr;
 	int bcfile, maxflags;
 	gid_t maxgroup;
 	uid_t maxuser;
@@ -513,7 +514,7 @@ display(FTSENT *p, FTSENT *list)
 	char *initmax;
 	int entries, needstats;
 	const char *user, *group;
-	char *flags, *lattr = NULL;
+	char *flags, *labelstr = NULL;
 	char buf[STRBUF_SIZEOF(u_quad_t) + 1];
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
@@ -533,7 +534,7 @@ display(FTSENT *p, FTSENT *list)
 	btotal = 0;
 	initmax = getenv("LS_COLWIDTHS");
 	/* Fields match -lios order.  New ones should be added at the end. */
-	maxlattr = maxblock = maxinode = maxlen = maxnlink =
+	maxlabelstr = maxblock = maxinode = maxlen = maxnlink =
 	    maxuser = maxgroup = maxflags = maxsize = 0;
 	if (initmax != NULL && *initmax != '\0') {
 		char *initmax2, *jinitmax;
@@ -563,7 +564,7 @@ display(FTSENT *p, FTSENT *list)
 		ninitmax = sscanf(jinitmax,
 		    " %lu : %lu : %lu : %i : %i : %i : %llu : %lu : %lu ",
 		    &maxinode, &maxblock, &maxnlink, &maxuser,
-		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlattr);
+		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlabelstr);
 		f_notabs = 1;
 		switch (ninitmax) {
 		case 0:
@@ -591,7 +592,7 @@ display(FTSENT *p, FTSENT *list)
 			maxlen = 0;
 			/* FALLTHROUGH */
 		case 8:
-			maxlattr = 0;
+			maxlabelstr = 0;
 			/* FALLTHROUGH */
 #ifdef COLORLS
 			if (!f_color)
@@ -606,8 +607,6 @@ display(FTSENT *p, FTSENT *list)
 		maxnlink = makenines(maxnlink);
 		maxsize = makenines(maxsize);
 	}
-	if (f_lomac)
-		lomac_start();
 	bcfile = 0;
 	flags = NULL;
 	for (cur = list, entries = 0; cur; cur = cur->fts_link) {
@@ -684,16 +683,51 @@ display(FTSENT *p, FTSENT *list)
 						maxflags = flen;
 				} else
 					flen = 0;
-				lattr = NULL;
-				if (f_lomac) {
-					lattr = get_lattr(cur);
-					lattrlen = strlen(lattr);
-					if (lattrlen > maxlattr)
-						maxlattr = lattrlen;
-				} else
-					lattrlen = 0;
+				labelstr = NULL;
+				if (f_label) {
+					mac_t label;
+					int error;
 
-				if ((np = malloc(sizeof(NAMES) + lattrlen +
+					error = mac_prepare_file_label(&label);
+					if (error == -1) {
+						fprintf(stderr, "%s: %s\n",
+						    cur->fts_name,
+						    strerror(errno));
+						goto label_out;
+					}
+
+					if (options & FTS_LOGICAL)
+						error = mac_get_file(
+						    cur->fts_path, label);
+					else
+						error = mac_get_link(
+						    cur->fts_name, label);
+					if (error == -1) {
+						perror(cur->fts_name);
+						mac_free(label);
+						goto label_out;
+					}
+
+					error = mac_to_text(label,
+					    &labelstr);
+					if (error == -1) {
+						fprintf(stderr, "%s: %s\n",
+						    cur->fts_name,
+						    strerror(errno));
+						mac_free(label);
+						goto label_out;
+					}
+					mac_free(label);
+label_out:
+					if (labelstr == NULL)
+						labelstr = strdup("");
+					labelstrlen = strlen(labelstr);
+					if (labelstrlen > maxlabelstr)
+						maxlabelstr = labelstrlen;
+				} else
+					labelstrlen = 0;
+
+				if ((np = malloc(sizeof(NAMES) + labelstrlen +
 				    ulen + glen + flen + 4)) == NULL)
 					err(1, "malloc");
 
@@ -711,11 +745,11 @@ display(FTSENT *p, FTSENT *list)
 					(void)strcpy(np->flags, flags);
 					free(flags);
 				}
-				if (f_lomac) {
-					np->lattr = &np->data[ulen + glen + 2
+				if (f_label) {
+					np->label = &np->data[ulen + glen + 2
 					    + (f_flags ? flen + 1 : 0)];
-					(void)strcpy(np->lattr, lattr);
-					free(lattr);
+					(void)strcpy(np->label, labelstr);
+					free(labelstr);
 				}
 				cur->fts_pointer = np;
 			}
@@ -735,7 +769,7 @@ display(FTSENT *p, FTSENT *list)
 		(void)snprintf(buf, sizeof(buf), "%lu", maxblock);
 		d.s_block = strlen(buf);
 		d.s_flags = maxflags;
-		d.s_lattr = maxlattr;
+		d.s_label = maxlabelstr;
 		d.s_group = maxgroup;
 		(void)snprintf(buf, sizeof(buf), "%lu", maxinode);
 		d.s_inode = strlen(buf);
@@ -751,8 +785,6 @@ display(FTSENT *p, FTSENT *list)
 	if (f_longform)
 		for (cur = list; cur; cur = cur->fts_link)
 			free(cur->fts_pointer);
-	if (f_lomac)
-		lomac_stop();
 }
 
 /*
