@@ -1,6 +1,6 @@
 /* nm.c -- Describe symbol table of a rel file.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -25,11 +25,14 @@
 #include "bfd.h"
 #include "progress.h"
 #include "bucomm.h"
+#include "budemang.h"
 #include "getopt.h"
 #include "aout/stab_gnu.h"
 #include "aout/ranlib.h"
 #include "demangle.h"
 #include "libiberty.h"
+#include "elf-bfd.h"
+#include "elf/common.h"
 
 /* When sorting by size, we use this structure to hold the size and a
    pointer to the minisymbol.  */
@@ -51,142 +54,84 @@ struct get_relocs_info
   asymbol **syms;
 };
 
-static void
-usage PARAMS ((FILE *, int));
+struct extended_symbol_info
+{
+  symbol_info *sinfo;
+  bfd_vma ssize;
+  elf_symbol_type *elfinfo;
+  /* FIXME: We should add more fields for Type, Line, Section.  */
+};
+#define SYM_NAME(sym)        (sym->sinfo->name)
+#define SYM_VALUE(sym)       (sym->sinfo->value)
+#define SYM_TYPE(sym)        (sym->sinfo->type)
+#define SYM_STAB_NAME(sym)   (sym->sinfo->stab_name)
+#define SYM_STAB_DESC(sym)   (sym->sinfo->stab_desc)
+#define SYM_STAB_OTHER(sym)  (sym->sinfo->stab_other)
+#define SYM_SIZE(sym) \
+  (sym->elfinfo ? sym->elfinfo->internal_elf_sym.st_size: sym->ssize)
 
-static void
-set_print_radix PARAMS ((char *));
-
-static void
-set_output_format PARAMS ((char *));
-
-static void
-display_archive PARAMS ((bfd *));
-
-static boolean
-display_file PARAMS ((char *filename));
-
-static void
-display_rel_file PARAMS ((bfd * file, bfd * archive));
-
-static long
-filter_symbols PARAMS ((bfd *, boolean, PTR, long, unsigned int));
-
-static long
-sort_symbols_by_size PARAMS ((bfd *, boolean, PTR, long, unsigned int,
-			      struct size_sym **));
-
-static void
-print_symbols PARAMS ((bfd *, boolean, PTR, long, unsigned int, bfd *));
-
-static void
-print_size_symbols PARAMS ((bfd *, boolean, struct size_sym *, long, bfd *));
-
-static void
-print_symname PARAMS ((const char *, const char *, bfd *));
-
-static void
-print_symbol PARAMS ((bfd *, asymbol *, bfd *));
-
-static void
-print_symdef_entry PARAMS ((bfd * abfd));
+static void usage                PARAMS ((FILE *, int));
+static void set_print_radix      PARAMS ((char *));
+static void set_output_format    PARAMS ((char *));
+static void display_archive      PARAMS ((bfd *));
+static boolean display_file      PARAMS ((char *));
+static void display_rel_file     PARAMS ((bfd *, bfd *));
+static long filter_symbols       PARAMS ((bfd *, boolean, PTR, long, unsigned int));
+static long sort_symbols_by_size PARAMS ((bfd *, boolean, PTR, long, unsigned int, struct size_sym **));
+static void print_symbols        PARAMS ((bfd *, boolean, PTR, long, unsigned int, bfd *));
+static void print_size_symbols   PARAMS ((bfd *, boolean, struct size_sym *, long, bfd *));
+static void print_symname        PARAMS ((const char *, const char *, bfd *));
+static void print_symbol         PARAMS ((bfd *, asymbol *, bfd_vma ssize, bfd *));
+static void print_symdef_entry   PARAMS ((bfd *));
 
 /* The sorting functions.  */
-
-static int
-numeric_forward PARAMS ((const PTR, const PTR));
-
-static int
-numeric_reverse PARAMS ((const PTR, const PTR));
-
-static int
-non_numeric_forward PARAMS ((const PTR, const PTR));
-
-static int
-non_numeric_reverse PARAMS ((const PTR, const PTR));
-
-static int
-size_forward1 PARAMS ((const PTR, const PTR));
-
-static int
-size_forward2 PARAMS ((const PTR, const PTR));
+static int numeric_forward PARAMS ((const PTR, const PTR));
+static int numeric_reverse PARAMS ((const PTR, const PTR));
+static int non_numeric_forward PARAMS ((const PTR, const PTR));
+static int non_numeric_reverse PARAMS ((const PTR, const PTR));
+static int size_forward1 PARAMS ((const PTR, const PTR));
+static int size_forward2 PARAMS ((const PTR, const PTR));
 
 /* The output formatting functions.  */
-
-static void
-print_object_filename_bsd PARAMS ((char *filename));
-
-static void
-print_object_filename_sysv PARAMS ((char *filename));
-
-static void
-print_object_filename_posix PARAMS ((char *filename));
-
-
-static void
-print_archive_filename_bsd PARAMS ((char *filename));
-
-static void
-print_archive_filename_sysv PARAMS ((char *filename));
-
-static void
-print_archive_filename_posix PARAMS ((char *filename));
-
-
-static void
-print_archive_member_bsd PARAMS ((char *archive, CONST char *filename));
-
-static void
-print_archive_member_sysv PARAMS ((char *archive, CONST char *filename));
-
-static void
-print_archive_member_posix PARAMS ((char *archive, CONST char *filename));
-
-
-static void
-print_symbol_filename_bsd PARAMS ((bfd * archive_bfd, bfd * abfd));
-
-static void
-print_symbol_filename_sysv PARAMS ((bfd * archive_bfd, bfd * abfd));
-
-static void
-print_symbol_filename_posix PARAMS ((bfd * archive_bfd, bfd * abfd));
-
-
-static void
-print_value PARAMS ((bfd *, bfd_vma));
-
-static void
-print_symbol_info_bsd PARAMS ((symbol_info * info, bfd * abfd));
-
-static void
-print_symbol_info_sysv PARAMS ((symbol_info * info, bfd * abfd));
-
-static void
-print_symbol_info_posix PARAMS ((symbol_info * info, bfd * abfd));
-
-static void
-get_relocs PARAMS ((bfd *, asection *, PTR));
+static void print_object_filename_bsd PARAMS ((char *));
+static void print_object_filename_sysv PARAMS ((char *));
+static void print_object_filename_posix PARAMS ((char *));
+static void print_archive_filename_bsd PARAMS ((char *));
+static void print_archive_filename_sysv PARAMS ((char *));
+static void print_archive_filename_posix PARAMS ((char *));
+static void print_archive_member_bsd PARAMS ((char *, const char *));
+static void print_archive_member_sysv PARAMS ((char *, const char *));
+static void print_archive_member_posix PARAMS ((char *, const char *));
+static void print_symbol_filename_bsd PARAMS ((bfd *, bfd *));
+static void print_symbol_filename_sysv PARAMS ((bfd *, bfd *));
+static void print_symbol_filename_posix PARAMS ((bfd *, bfd *));
+static void print_value PARAMS ((bfd *, bfd_vma));
+static void print_symbol_info_bsd PARAMS ((struct extended_symbol_info *, bfd *));
+static void print_symbol_info_sysv PARAMS ((struct extended_symbol_info *, bfd *));
+static void print_symbol_info_posix PARAMS ((struct extended_symbol_info *, bfd *));
+static void get_relocs PARAMS ((bfd *, asection *, PTR));
+static const char * get_symbol_type PARAMS ((unsigned int));
 
 /* Support for different output formats.  */
 struct output_fns
   {
     /* Print the name of an object file given on the command line.  */
-    void (*print_object_filename) PARAMS ((char *filename));
+    void (*print_object_filename) PARAMS ((char *));
 
     /* Print the name of an archive file given on the command line.  */
-    void (*print_archive_filename) PARAMS ((char *filename));
+    void (*print_archive_filename) PARAMS ((char *));
 
     /* Print the name of an archive member file.  */
-    void (*print_archive_member) PARAMS ((char *archive, CONST char *filename));
+    void (*print_archive_member) PARAMS ((char *, const char *));
 
     /* Print the name of the file (and archive, if there is one)
        containing a symbol.  */
-    void (*print_symbol_filename) PARAMS ((bfd * archive_bfd, bfd * abfd));
+    void (*print_symbol_filename) PARAMS ((bfd *, bfd *));
 
     /* Print a line of information about a symbol.  */
-    void (*print_symbol_info) PARAMS ((symbol_info * info, bfd * abfd));
+    void (*print_symbol_info) PARAMS ((struct extended_symbol_info *, bfd *));
   };
+
 static struct output_fns formats[] =
 {
   {print_object_filename_bsd,
@@ -215,23 +160,23 @@ static struct output_fns formats[] =
 /* The output format to use.  */
 static struct output_fns *format = &formats[FORMAT_DEFAULT];
 
-
 /* Command options.  */
 
 static int do_demangle = 0;	/* Pretty print C++ symbol names.  */
-static int external_only = 0;	/* print external symbols only */
-static int defined_only = 0;	/* Print defined symbols only */
-static int no_sort = 0;		/* don't sort; print syms in order found */
-static int print_debug_syms = 0;	/* print debugger-only symbols too */
-static int print_armap = 0;	/* describe __.SYMDEF data in archive files.  */
-static int reverse_sort = 0;	/* sort in downward(alpha or numeric) order */
-static int sort_numerically = 0;	/* sort in numeric rather than alpha order */
-static int sort_by_size = 0;	/* sort by size of symbol */
-static int undefined_only = 0;	/* print undefined symbols only */
-static int dynamic = 0;		/* print dynamic symbols.  */
-static int show_version = 0;	/* show the version number */
-static int show_stats = 0;	/* show statistics */
-static int line_numbers = 0;	/* print line numbers for symbols */
+static int external_only = 0;	/* Print external symbols only.  */
+static int defined_only = 0;	/* Print defined symbols only.  */
+static int no_sort = 0;		/* Don't sort; print syms in order found.  */
+static int print_debug_syms = 0;/* Print debugger-only symbols too.  */
+static int print_armap = 0;	/* Describe __.SYMDEF data in archive files.  */
+static int print_size = 0;	/* Print size of defined symbols.  */
+static int reverse_sort = 0;	/* Sort in downward(alpha or numeric) order.  */
+static int sort_numerically = 0;/* Sort in numeric rather than alpha order.  */
+static int sort_by_size = 0;	/* Sort by size of symbol.  */
+static int undefined_only = 0;	/* Print undefined symbols only.  */
+static int dynamic = 0;		/* Print dynamic symbols.  */
+static int show_version = 0;	/* Show the version number.  */
+static int show_stats = 0;	/* Show statistics.  */
+static int line_numbers = 0;	/* Print line numbers for symbols.  */
 
 /* When to print the names of files.  Not mutually exclusive in SYSV format.  */
 static int filename_per_file = 0;	/* Once per file, on its own line.  */
@@ -281,6 +226,7 @@ static struct option long_options[] =
   {"portability", no_argument, 0, 'P'},
   {"print-armap", no_argument, &print_armap, 1},
   {"print-file-name", no_argument, 0, 'o'},
+  {"print-size", no_argument, 0, 'S'},
   {"radix", required_argument, 0, 't'},
   {"reverse-sort", no_argument, &reverse_sort, 1},
   {"size-sort", no_argument, &sort_by_size, 1},
@@ -292,7 +238,7 @@ static struct option long_options[] =
   {0, no_argument, 0, 0}
 };
 
-/* Some error-reporting functions */
+/* Some error-reporting functions.  */
 
 static void
 usage (stream, status)
@@ -322,6 +268,7 @@ usage (stream, status)
   -p, --no-sort          Do not sort the symbols\n\
   -P, --portability      Same as --format=posix\n\
   -r, --reverse-sort     Reverse the sense of the sort\n\
+  -S, --print-size       Print size of defined symbols\n\
   -s, --print-armap      Include index for symbols from archive members\n\
       --size-sort        Sort symbols by size\n\
   -t, --radix=RADIX      Use RADIX for printing symbol values\n\
@@ -411,6 +358,7 @@ main (argc, argv)
 #endif
 #if defined (HAVE_SETLOCALE)
   setlocale (LC_CTYPE, "");
+  setlocale (LC_COLLATE, "");
 #endif
   bindtextdomain (PACKAGE, LOCALEDIR);
   textdomain (PACKAGE);
@@ -423,7 +371,7 @@ main (argc, argv)
   bfd_init ();
   set_default_bfd_target ();
 
-  while ((c = getopt_long (argc, argv, "aABCDef:gHhlnopPrst:uvVvX:",
+  while ((c = getopt_long (argc, argv, "aABCDef:gHhlnopPrSst:uvVvX:",
 			   long_options, (int *) 0)) != EOF)
     {
       switch (c)
@@ -443,14 +391,14 @@ main (argc, argv)
 	  if (optarg != NULL)
 	    {
 	      enum demangling_styles style;
-	      
+
 	      style = cplus_demangle_name_to_style (optarg);
-	      if (style == unknown_demangling) 
+	      if (style == unknown_demangling)
 		fatal (_("unknown demangling style `%s'"),
 		       optarg);
-	      
+
 	      cplus_demangle_set_style (style);
-           }
+	    }
 	  break;
 	case 'D':
 	  dynamic = 1;
@@ -485,6 +433,9 @@ main (argc, argv)
 	  break;
 	case 's':
 	  print_armap = 1;
+	  break;
+	case 'S':
+	  print_size = 1;
 	  break;
 	case 't':
 	  set_print_radix (optarg);
@@ -554,6 +505,32 @@ main (argc, argv)
   return retval;
 }
 
+static const char *
+get_symbol_type (type)
+     unsigned int type;
+{
+  static char buff [32];
+
+  switch (type)
+    {
+    case STT_NOTYPE:   return "NOTYPE";
+    case STT_OBJECT:   return "OBJECT";
+    case STT_FUNC:     return "FUNC";
+    case STT_SECTION:  return "SECTION";
+    case STT_FILE:     return "FILE";
+    case STT_COMMON:   return "COMMON";
+    case STT_TLS:      return "TLS";
+    default:
+      if (type >= STT_LOPROC && type <= STT_HIPROC)
+	sprintf (buff, _("<processor specific>: %d"), type);
+      else if (type >= STT_LOOS && type <= STT_HIOS)
+	sprintf (buff, _("<OS specific>: %d"), type);
+      else
+	sprintf (buff, _("<unknown>: %d"), type);
+      return buff;
+    }
+}
+
 static void
 display_archive (file)
      bfd *file;
@@ -582,6 +559,10 @@ display_archive (file)
 
       if (bfd_check_format_matches (arfile, bfd_object, &matching))
 	{
+	  char buf[30];
+
+	  bfd_sprintf_vma (arfile, buf, (bfd_vma) -1);
+	  print_width = strlen (buf);
 	  (*format->print_archive_member) (bfd_get_filename (file),
 					   bfd_get_filename (arfile));
 	  display_rel_file (arfile, file);
@@ -634,6 +615,10 @@ display_file (filename)
     }
   else if (bfd_check_format_matches (file, bfd_object, &matching))
     {
+      char buf[30];
+
+      bfd_sprintf_vma (file, buf, (bfd_vma) -1);
+      print_width = strlen (buf);
       (*format->print_object_filename) (filename);
       display_rel_file (file, NULL);
     }
@@ -724,8 +709,23 @@ non_numeric_forward (P_x, P_y)
   xn = bfd_asymbol_name (x);
   yn = bfd_asymbol_name (y);
 
-  return ((xn == NULL) ? ((yn == NULL) ? 0 : -1) :
-	  ((yn == NULL) ? 1 : strcmp (xn, yn)));
+  if (yn == NULL)
+    return xn != NULL;
+  if (xn == NULL)
+    return -1;
+
+#ifdef HAVE_STRCOLL
+  /* Solaris 2.5 has a bug in strcoll.
+     strcoll returns invalid values when confronted with empty strings.  */
+  if (*yn == '\0')
+    return *xn != '\0';
+  if (*xn == '\0')
+    return -1;
+
+  return strcoll (xn, yn);
+#else
+  return strcmp (xn, yn);
+#endif
 }
 
 static int
@@ -841,10 +841,10 @@ size_forward2 (P_x, P_y)
     return sorters[0][reverse_sort] (x->minisym, y->minisym);
 }
 
-/* Sort the symbols by size.  We guess the size by assuming that the
-   difference between the address of a symbol and the address of the
-   next higher symbol is the size.  FIXME: ELF actually stores a size
-   with each symbol.  We should use it.  */
+/* Sort the symbols by size.  ELF provides a size but for other formats
+   we have to make a guess by assuming that the difference between the
+   address of a symbol and the address of the next higher symbol is the
+   size.  */
 
 static long
 sort_symbols_by_size (abfd, dynamic, minisyms, symcount, size, symsizesp)
@@ -870,7 +870,6 @@ sort_symbols_by_size (abfd, dynamic, minisyms, symcount, size, symsizesp)
   /* Note that filter_symbols has already removed all absolute and
      undefined symbols.  Here we remove all symbols whose size winds
      up as zero.  */
-
   from = (bfd_byte *) minisyms;
   fromend = from + symcount * size;
 
@@ -906,7 +905,9 @@ sort_symbols_by_size (abfd, dynamic, minisyms, symcount, size, symsizesp)
 
       sec = bfd_get_section (sym);
 
-      if (bfd_is_com_section (sec))
+      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+	sz = ((elf_symbol_type *) sym)->internal_elf_sym.st_size;
+      else if (bfd_is_com_section (sec))
 	sz = sym->value;
       else
 	{
@@ -952,7 +953,6 @@ display_rel_file (abfd, archive_bfd)
   PTR minisyms;
   unsigned int size;
   struct size_sym *symsizes;
-  char buf[30];
 
   if (! dynamic)
     {
@@ -972,9 +972,6 @@ display_rel_file (abfd, archive_bfd)
       non_fatal (_("%s: no symbols"), bfd_get_filename (abfd));
       return;
     }
-
-  bfd_sprintf_vma (abfd, buf, (bfd_vma) -1);
-  print_width = strlen (buf);
 
   /* Discard the symbols we don't want to print.
      It's OK to do this in place; we'll free the storage anyway
@@ -1037,7 +1034,7 @@ filter_symbols (abfd, dynamic, minisyms, symcount, size)
       asymbol *sym;
 
       PROGRESS (1);
-      
+
       sym = bfd_minisymbol_to_symbol (abfd, dynamic, (const PTR) from, store);
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
@@ -1091,21 +1088,11 @@ print_symname (format, name, abfd)
 {
   if (do_demangle && *name)
     {
-      char *res;
+      char *res = demangle (abfd, name);
 
-      /* In this mode, give a user-level view of the symbol name
-	 even if it's not mangled; strip off any leading
-	 underscore.  */
-      if (bfd_get_symbol_leading_char (abfd) == name[0])
-	name++;
-
-      res = cplus_demangle (name, DMGL_ANSI | DMGL_PARAMS);
-      if (res)
-	{
-	  printf (format, res);
-	  free (res);
-	  return;
-	}
+      printf (format, res);
+      free (res);
+      return;
     }
 
   printf (format, name);
@@ -1140,13 +1127,13 @@ print_symbols (abfd, dynamic, minisyms, symcount, size, archive_bfd)
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
 
-      print_symbol (abfd, sym, archive_bfd);
+      print_symbol (abfd, sym, (bfd_vma) 0, archive_bfd);
     }
 }
 
 /* Print the symbols when sorting by size.  */
 
-static void 
+static void
 print_size_symbols (abfd, dynamic, symsizes, symcount, archive_bfd)
      bfd *abfd;
      boolean dynamic;
@@ -1166,25 +1153,29 @@ print_size_symbols (abfd, dynamic, symsizes, symcount, archive_bfd)
   for (; from < fromend; from++)
     {
       asymbol *sym;
+      bfd_vma ssize;
 
       sym = bfd_minisymbol_to_symbol (abfd, dynamic, from->minisym, store);
       if (sym == NULL)
 	bfd_fatal (bfd_get_filename (abfd));
 
-      /* Set the symbol value so that we actually display the symbol
-         size.  */
-      sym->value = from->size - bfd_section_vma (abfd, bfd_get_section (sym));
+      /* For elf we have already computed the correct symbol size.  */
+      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+	ssize = from->size;
+      else
+	ssize = from->size - bfd_section_vma (abfd, bfd_get_section (sym));
 
-      print_symbol (abfd, sym, archive_bfd);
+      print_symbol (abfd, sym, ssize, archive_bfd);
     }
 }
 
 /* Print a single symbol.  */
 
 static void
-print_symbol (abfd, sym, archive_bfd)
+print_symbol (abfd, sym, ssize, archive_bfd)
      bfd *abfd;
      asymbol *sym;
+     bfd_vma ssize;
      bfd *archive_bfd;
 {
   PROGRESS (1);
@@ -1199,9 +1190,16 @@ print_symbol (abfd, sym, archive_bfd)
   else
     {
       symbol_info syminfo;
+      struct extended_symbol_info info;
 
       bfd_get_symbol_info (abfd, sym, &syminfo);
-      (*format->print_symbol_info) (&syminfo, abfd);
+      info.sinfo = &syminfo;
+      info.ssize = ssize;
+      if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+	info.elfinfo = (elf_symbol_type *) sym;
+      else
+	info.elfinfo = NULL;
+      (*format->print_symbol_info) (&info, abfd);
     }
 
   if (line_numbers)
@@ -1244,7 +1242,6 @@ print_symbol (abfd, sym, archive_bfd)
 
 	  /* For an undefined symbol, we try to find a reloc for the
              symbol, and print the line number of the reloc.  */
-
 	  if (abfd != lineno_cache_rel_bfd && relocs != NULL)
 	    {
 	      for (i = 0; i < seccount; i++)
@@ -1344,8 +1341,12 @@ print_object_filename_sysv (filename)
     printf (_("\n\nUndefined symbols from %s:\n\n"), filename);
   else
     printf (_("\n\nSymbols from %s:\n\n"), filename);
-  printf (_("\
-Name                  Value   Class        Type         Size   Line  Section\n\n"));
+  if (print_width == 8)
+    printf (_("\
+Name                  Value   Class        Type         Size     Line  Section\n\n"));
+  else
+    printf (_("\
+Name                  Value           Class        Type         Size             Line  Section\n\n"));
 }
 
 static void
@@ -1383,7 +1384,7 @@ print_archive_filename_posix (filename)
 static void
 print_archive_member_bsd (archive, filename)
      char *archive ATTRIBUTE_UNUSED;
-     CONST char *filename;
+     const char *filename;
 {
   if (!filename_per_symbol)
     printf ("\n%s:\n", filename);
@@ -1392,20 +1393,24 @@ print_archive_member_bsd (archive, filename)
 static void
 print_archive_member_sysv (archive, filename)
      char *archive;
-     CONST char *filename;
+     const char *filename;
 {
   if (undefined_only)
     printf (_("\n\nUndefined symbols from %s[%s]:\n\n"), archive, filename);
   else
     printf (_("\n\nSymbols from %s[%s]:\n\n"), archive, filename);
-  printf (_("\
-Name                  Value   Class        Type         Size   Line  Section\n\n"));
+  if (print_width == 8)
+    printf (_("\
+Name                  Value   Class        Type         Size     Line  Section\n\n"));
+  else
+    printf (_("\
+Name                  Value           Class        Type         Size             Line  Section\n\n"));
 }
 
 static void
 print_archive_member_posix (archive, filename)
      char *archive;
-     CONST char *filename;
+     const char *filename;
 {
   if (!filename_per_symbol)
     printf ("%s[%s]:\n", archive, filename);
@@ -1488,66 +1493,109 @@ print_value (abfd, val)
 
 static void
 print_symbol_info_bsd (info, abfd)
-     symbol_info *info;
+     struct extended_symbol_info *info;
      bfd *abfd;
 {
-  if (bfd_is_undefined_symclass (info->type))
+  if (bfd_is_undefined_symclass (SYM_TYPE (info)))
     {
       if (print_width == 16)
 	printf ("        ");
       printf ("        ");
     }
   else
-    print_value (abfd, info->value);
-  printf (" %c", info->type);
-  if (info->type == '-')
+    {
+      print_value (abfd, SYM_VALUE (info));
+
+      if (print_size && SYM_SIZE (info))
+	{
+	  printf(" ");
+	  print_value (abfd, SYM_SIZE (info));
+	}
+    }
+
+  printf (" %c", SYM_TYPE (info));
+
+  if (SYM_TYPE (info) == '-')
     {
       /* A stab.  */
       printf (" ");
-      printf (other_format, info->stab_other);
+      printf (other_format, SYM_STAB_OTHER (info));
       printf (" ");
-      printf (desc_format, info->stab_desc);
-      printf (" %5s", info->stab_name);
+      printf (desc_format, SYM_STAB_DESC (info));
+      printf (" %5s", SYM_STAB_NAME (info));
     }
-  print_symname (" %s", info->name, abfd);
+  print_symname (" %s", SYM_NAME (info), abfd);
 }
 
 static void
 print_symbol_info_sysv (info, abfd)
-     symbol_info *info;
+     struct extended_symbol_info *info;
      bfd *abfd;
 {
-  print_symname ("%-20s|", info->name, abfd);	/* Name */
-  if (bfd_is_undefined_symclass (info->type))
-    printf ("        ");	/* Value */
-  else
-    print_value (abfd, info->value);
-  printf ("|   %c  |", info->type);	/* Class */
-  if (info->type == '-')
+  print_symname ("%-20s|", SYM_NAME (info), abfd);
+
+  if (bfd_is_undefined_symclass (SYM_TYPE (info)))
     {
-      /* A stab.  */
-      printf ("%18s|  ", info->stab_name);	/* (C) Type */
-      printf (desc_format, info->stab_desc);	/* Size */
-      printf ("|     |");	/* Line, Section */
+      if (print_width == 8)
+	printf ("        ");
+      else
+	printf ("                ");
     }
   else
-    printf ("                  |      |     |");	/* Type, Size, Line, Section */
+    print_value (abfd, SYM_VALUE (info));
+
+  printf ("|   %c  |", SYM_TYPE (info));
+
+  if (SYM_TYPE (info) == '-')
+    {
+      /* A stab.  */
+      printf ("%18s|  ", SYM_STAB_NAME (info));		/* (C) Type */
+      printf (desc_format, SYM_STAB_DESC (info));	/* Size */
+      printf ("|     |");				/* Line, Section */
+    }
+  else
+    {
+      /* Type, Size, Line, Section */
+      if (info->elfinfo)
+	printf ("%18s|",
+		get_symbol_type (ELF_ST_TYPE (info->elfinfo->internal_elf_sym.st_info)));
+      else
+	printf ("                  |");
+
+      if (SYM_SIZE (info))
+	print_value (abfd, SYM_SIZE (info));
+      else
+	{
+	  if (print_width == 8)
+	    printf ("        ");
+	  else
+	    printf ("                ");
+	}
+
+      if (info->elfinfo)
+	printf("|     |%s", info->elfinfo->symbol.section->name);
+      else
+	printf("|     |");
+    }
 }
 
 static void
 print_symbol_info_posix (info, abfd)
-     symbol_info *info;
+     struct extended_symbol_info *info;
      bfd *abfd;
 {
-  print_symname ("%s ", info->name, abfd);
-  printf ("%c ", info->type);
-  if (bfd_is_undefined_symclass (info->type))
+  print_symname ("%s ", SYM_NAME (info), abfd);
+  printf ("%c ", SYM_TYPE (info));
+
+  if (bfd_is_undefined_symclass (SYM_TYPE (info)))
     printf ("        ");
   else
-    print_value (abfd, info->value);
-  /* POSIX.2 wants the symbol size printed here, when applicable;
-     BFD currently doesn't provide it, so we take the easy way out by
-     considering it to never be applicable.  */
+    {
+      print_value (abfd, SYM_VALUE (info));
+      printf (" ");
+      if (SYM_SIZE (info))
+	print_value (abfd, SYM_SIZE (info));
+    }
 }
 
 static void
