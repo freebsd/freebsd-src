@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: nfs.c,v 1.2 1998/01/24 12:43:09 drochner Exp $	*/
 
 /*-
@@ -109,9 +110,15 @@ static off_t	nfs_seek(struct open_file *f, off_t offset, int where);
 static int	nfs_stat(struct open_file *f, struct stat *sb);
 
 struct fs_ops nfs_fsops = {
-	"nfs", nfs_open, nfs_close, nfs_read, nfs_write, nfs_seek, nfs_stat
+	"nfs",
+	nfs_open,
+	nfs_close,
+	nfs_read,
+	nfs_write,
+	nfs_seek,
+	nfs_stat,
+	null_readdir
 };
-
 
 /*
  * Fetch the root file handle (call mount daemon)
