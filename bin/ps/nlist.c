@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: nlist.c,v 1.8 1997/02/22 14:05:04 peter Exp $
  */
 
 #ifndef lint
@@ -51,24 +51,15 @@ static char const sccsid[] = "@(#)nlist.c	8.4 (Berkeley) 4/2/94";
 
 #include "ps.h"
 
-#ifdef P_PPWAIT
-#define NEWVM
-#endif
-
 struct	nlist psnl[] = {
 	{"_fscale"},
 #define	X_FSCALE	0
 	{"_ccpu"},
 #define	X_CCPU		1
-#ifdef NEWVM
 	{"_avail_start"},
 #define	X_AVAILSTART	2
 	{"_avail_end"},
 #define	X_AVAILEND	3
-#else
-	{"_ecmx"},
-#define	X_ECMX		2
-#endif
 	{NULL}
 };
 
@@ -86,9 +77,7 @@ int
 donlist()
 {
 	int rval;
-#ifdef NEWVM
 	int tmp;
-#endif
 
 	rval = 0;
 	nlistread = 1;
@@ -101,7 +90,6 @@ donlist()
 		warnx("fscale: %s", kvm_geterr(kd));
 		eval = rval = 1;
 	}
-#ifdef NEWVM
 	if (kread(X_AVAILEND, mempages)) {
 		warnx("avail_start: %s", kvm_geterr(kd));
 		eval = rval = 1;
@@ -112,12 +100,6 @@ donlist()
 	}
 	mempages -= tmp;
 	mempages /= PAGE_SIZE;
-#else
-	if (kread(X_ECMX, mempages)) {
-		warnx("ecmx: %s", kvm_geterr(kd));
-		eval = rval = 1;
-	}
-#endif
 	if (kread(X_CCPU, ccpu)) {
 		warnx("ccpu: %s", kvm_geterr(kd));
 		eval = rval = 1;
