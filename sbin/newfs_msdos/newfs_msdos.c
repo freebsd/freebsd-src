@@ -337,8 +337,6 @@ main(int argc, char *argv[])
     fname = *argv++;
     if (!strchr(fname, '/')) {
 	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
-	if (stat(buf, &sb))
-	    snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
 	if (!(fname = strdup(buf)))
 	    err(1, NULL);
     }
