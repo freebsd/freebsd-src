@@ -33,7 +33,9 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 
 #include "acpi.h"
 

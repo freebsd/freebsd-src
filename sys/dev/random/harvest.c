@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/selinfo.h>

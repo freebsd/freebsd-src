@@ -21,6 +21,7 @@
 #define ZONE_INTERRUPT 1 /* Use this if you need to allocate at int time */
 #define ZONE_BOOT 16	 /* This is an internal flag used by zbootinit */
 
+#include	<sys/lock.h>	/* XXX */
 #include	<sys/mutex.h>
 
 typedef struct vm_zone {
