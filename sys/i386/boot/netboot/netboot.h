@@ -79,6 +79,14 @@ Author: Martin Renters
 #define BOOTP_REQUEST	1
 #define BOOTP_REPLY	2
 
+#define TAG_LEN(p)		(*((p)+1))
+#define RFC1048_COOKIE		{ 99, 130, 83, 99 }
+#define RFC1048_PAD		0
+#define RFC1048_NETMASK		1
+#define RFC1048_HOSTNAME	12
+#define RFC1048_END		255
+#define BOOTP_VENDOR_LEN	64
+
 #define TFTP_RRQ	1
 #define TFTP_WRQ	2
 #define TFTP_DATA	3
