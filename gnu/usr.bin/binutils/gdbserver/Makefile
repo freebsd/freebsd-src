@@ -1,6 +1,9 @@
-#	$Id$
+#	$Id: Makefile,v 1.4.2.1 1999/05/08 08:58:32 dfr Exp $
 
 .include "../Makefile.inc0"
+
+# Not elf specific so don't install in /usr/libexec/elf
+BINDIR=/usr/bin
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
 .PATH:	${GDBDIR}/gdb/gdbserver
