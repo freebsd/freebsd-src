@@ -48,26 +48,12 @@
 struct GNode;
 struct Lst;
 
-/*
- * Definitions for handling #include specifications
- */
-typedef struct {
-    char *str;
-    char *ptr;
-} PTR;
-typedef struct IFile {
-    char            *fname;	    /* name of previous file */
-    int             lineno;	    /* saved line number */
-    FILE	    *F;		    /* the open stream */
-    PTR		    *p;	    	    /* the char pointer */
-} IFile;
-
 void Parse_Error(int, const char *, ...);
 Boolean Parse_AnyExport(void);
 Boolean Parse_IsVar(char *);
 void Parse_DoVar(char *, struct GNode *);
 void Parse_AddIncludeDir(char *);
-void Parse_File(char *, FILE *);
+void Parse_File(const char *, FILE *);
 void Parse_Init(void);
 void Parse_FromString(char *, int);
 void Parse_MainName(struct Lst *);
