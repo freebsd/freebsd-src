@@ -28,10 +28,16 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <machine/clock.h>
 
 u_long tick_increment;
 u_long tick_freq;
 u_long tick_MHz;
+
+struct mtx clock_lock;
+static int beeping = 0;
 
 void
 cpu_initclocks(void)
@@ -62,6 +68,27 @@ void
 resettodr(void)
 {
 	TODO;
+}
+
+static void
+sysbeepstop(void *chan)
+{
+#warning sysbeepstop() needs filling in.
+	beeping = 0;
+}
+
+int
+sysbeep(int pitch, int period)
+{
+	/*
+	 * XXX: function exists to enable RAID drivers to compile at the moment.
+	 */
+#warning sysbeep() needs filling in.
+	mtx_lock_spin(&clock_lock);
+	timeout(sysbeepstop, (void *)NULL, period);
+	mtx_unlock_spin(&clock_lock);
+
+	return (0);
 }
 
 void
