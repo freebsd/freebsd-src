@@ -932,7 +932,6 @@ static int
 fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 {
 	struct fcntl_args fcntl_args;
-	struct filedesc *fdp;
 	struct file *fp;
 	int error, result;
 
