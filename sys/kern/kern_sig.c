@@ -2027,6 +2027,7 @@ ptracestop(struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.mtx_object, "Stopping for traced signal");
 
