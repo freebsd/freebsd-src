@@ -88,109 +88,53 @@ struct mbuf *nfsm_rpchead(struct ucred *cr, int nmflag, int procid,
  * unions.
  */
 
+
+/* *********************************** */
+/* Request generation phase macros */
+
 int	nfsm_fhtom_xx(struct vnode *v, int v3, u_int32_t **tl,
 	    struct mbuf **mb, caddr_t *bpos);
-int	nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
-	    u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
-int	nfsm_getfh_xx(nfsfh_t **f, int *s, int v3, u_int32_t **tl,
-	    struct mbuf **md, caddr_t *dpos);
 void	nfsm_v3attrbuild_xx(struct vattr *va, int full, u_int32_t **tl,
 	    struct mbuf **mb, caddr_t *bpos);
-int	nfsm_loadattr_xx(struct vnode **v, struct vattr *va, u_int32_t **tl,
-	    struct mbuf **md, caddr_t *dpos);
-int	nfsm_postop_attr_xx(struct vnode **v, int *f, u_int32_t **tl,
-	    struct mbuf **md, caddr_t *dpos);
-int	nfsm_wcc_data_xx(struct vnode **v, int *f, u_int32_t **tl,
-	    struct mbuf **md, caddr_t *dpos);
 int	nfsm_strtom_xx(const char *a, int s, int m, u_int32_t **tl,
 	    struct mbuf **mb, caddr_t *bpos);
+
+#define nfsm_bcheck(t1, mreq) \
+do { \
+	if (t1) { \
+		error = t1; \
+		m_freem(mreq); \
+		goto nfsmout; \
+	} \
+} while (0)
 
 #define nfsm_fhtom(v, v3) \
 do { \
 	int32_t t1; \
 	t1 = nfsm_fhtom_xx((v), (v3), &tl, &mb, &bpos); \
-	if (t1) { \
-		error = t1; \
-		m_freem(mreq); \
-		goto nfsmout; \
-	} \
-} while (0)
-
-#define nfsm_mtofh(d, v, v3, f) \
-do { \
-	int32_t t1; \
-	t1 = nfsm_mtofh_xx((d), &(v), (v3), &(f), &tl, &md, &dpos); \
-	if (t1) { \
-		error = t1; \
-		m_freem(mrep); \
-		goto nfsmout; \
-	} \
-} while (0)
-
-#define nfsm_getfh(f, s, v3) \
-do { \
-	int32_t t1; \
-	t1 = nfsm_getfh_xx(&(f), &(s), (v3), &tl, &md, &dpos); \
-	if (t1) { \
-		error = t1; \
-		m_freem(mrep); \
-		goto nfsmout; \
-	} \
-} while (0)
-
-#define	nfsm_loadattr(v, a) \
-do { \
-	int32_t t1; \
-	t1 = nfsm_loadattr_xx(&v, a, &tl, &md, &dpos); \
-	if (t1 != 0) { \
-		error = t1; \
-		m_freem(mrep); \
-		goto nfsmout; \
-	} \
-} while (0)
-
-#define	nfsm_postop_attr(v, f) \
-do { \
-	int32_t t1; \
-	t1 = nfsm_postop_attr_xx(&v, &f, &tl, &md, &dpos); \
-	if (t1 != 0) { \
-		error = t1; \
-		m_freem(mrep); \
-		goto nfsmout; \
-	} \
-} while (0)
-
-/* Used as (f) for nfsm_wcc_data() */
-#define NFSV3_WCCRATTR	0
-#define NFSV3_WCCCHK	1
-
-#define	nfsm_wcc_data(v, f) \
-do { \
-	int32_t t1; \
-	t1 = nfsm_wcc_data_xx(&v, &f, &tl, &md, &dpos); \
-	if (t1 != 0) { \
-		error = t1; \
-		m_freem(mrep); \
-		goto nfsmout; \
-	} \
+	nfsm_bcheck(t1, mreq); \
 } while (0)
 
 /* If full is true, set all fields, otherwise just set mode and time fields */
 #define nfsm_v3attrbuild(a, full) \
-do { \
-	nfsm_v3attrbuild_xx(a, full, &tl, &mb, &bpos); \
-} while(0)
+	nfsm_v3attrbuild_xx(a, full, &tl, &mb, &bpos)
 
 #define nfsm_uiotom(p, s) \
 do { \
 	int t1; \
 	t1 = nfsm_uiotombuf((p), &mb, (s), &bpos); \
-	if (t1 != 0) { \
-		error = t1; \
-		m_freem(mreq); \
-		goto nfsmout; \
-	} \
+	nfsm_bcheck(t1, mreq); \
 } while (0)
+
+#define	nfsm_strtom(a, s, m) \
+do { \
+	int t1; \
+	t1 = nfsm_strtom_xx((a), (s), (m), &tl, &mb, &bpos); \
+	nfsm_bcheck(t1, mreq); \
+} while (0)
+
+/* *********************************** */
+/* Send the request */
 
 #define	nfsm_request(v, t, p, c) \
 do { \
@@ -203,15 +147,57 @@ do { \
 	} \
 } while (0)
 
-#define	nfsm_strtom(a, s, m) \
+/* *********************************** */
+/* Reply interpretation phase macros */
+
+int	nfsm_mtofh_xx(struct vnode *d, struct vnode **v, int v3, int *f,
+	    u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
+int	nfsm_getfh_xx(nfsfh_t **f, int *s, int v3, u_int32_t **tl,
+	    struct mbuf **md, caddr_t *dpos);
+int	nfsm_loadattr_xx(struct vnode **v, struct vattr *va, u_int32_t **tl,
+	    struct mbuf **md, caddr_t *dpos);
+int	nfsm_postop_attr_xx(struct vnode **v, int *f, u_int32_t **tl,
+	    struct mbuf **md, caddr_t *dpos);
+int	nfsm_wcc_data_xx(struct vnode **v, int *f, u_int32_t **tl,
+	    struct mbuf **md, caddr_t *dpos);
+
+#define nfsm_mtofh(d, v, v3, f) \
 do { \
-	int t1; \
-	t1 = nfsm_strtom_xx((a), (s), (m), &tl, &mb, &bpos); \
-	if (t1 != 0) { \
-		error = t1; \
-		m_freem(mreq); \
-		goto nfsmout; \
-	} \
+	int32_t t1; \
+	t1 = nfsm_mtofh_xx((d), &(v), (v3), &(f), &tl, &md, &dpos); \
+	nfsm_dcheck(t1, mrep); \
+} while (0)
+
+#define nfsm_getfh(f, s, v3) \
+do { \
+	int32_t t1; \
+	t1 = nfsm_getfh_xx(&(f), &(s), (v3), &tl, &md, &dpos); \
+	nfsm_dcheck(t1, mrep); \
+} while (0)
+
+#define	nfsm_loadattr(v, a) \
+do { \
+	int32_t t1; \
+	t1 = nfsm_loadattr_xx(&v, a, &tl, &md, &dpos); \
+	nfsm_dcheck(t1, mrep); \
+} while (0)
+
+#define	nfsm_postop_attr(v, f) \
+do { \
+	int32_t t1; \
+	t1 = nfsm_postop_attr_xx(&v, &f, &tl, &md, &dpos); \
+	nfsm_dcheck(t1, mrep); \
+} while (0)
+
+/* Used as (f) for nfsm_wcc_data() */
+#define NFSV3_WCCRATTR	0
+#define NFSV3_WCCCHK	1
+
+#define	nfsm_wcc_data(v, f) \
+do { \
+	int32_t t1; \
+	t1 = nfsm_wcc_data_xx(&v, &f, &tl, &md, &dpos); \
+	nfsm_dcheck(t1, mrep); \
 } while (0)
 
 #endif

@@ -55,10 +55,6 @@
  */
 
 #define	M_HASCL(m)	((m)->m_flags & M_EXT)
-#define	NFSMADV(m, s) \
-	do { \
-		(m)->m_data += (s); \
-	} while (0)
 #define	NFSMSIZ(m)	((M_HASCL(m))?MCLBYTES: \
 				(((m)->m_flags & M_PKTHDR)?MHLEN:MLEN))
 
@@ -76,35 +72,18 @@
  */
 
 
-/* Helpers for macros */
-void	nfsm_srvfhtom_xx(fhandle_t *f, int v3, u_int32_t **tl, struct mbuf **mb,
-	    caddr_t *bpos);
-void	nfsm_srvpostop_fh_xx(fhandle_t *f, u_int32_t **tl, struct mbuf **mb,
-	    caddr_t *bpos);
+
+/* ************************************* */
+/* Dissection phase macros */
+
 int	nfsm_srvstrsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **md,
 	    caddr_t *dpos);
 int	nfsm_srvnamesiz_xx(int *s, u_int32_t **tl, struct mbuf **md,
 	    caddr_t *dpos);
-void	nfs_rephead_xx(int s, struct nfsrv_descript *nfsd,
-	    struct nfssvc_sock *slp, int error, struct mbuf **mrq,
-	    struct mbuf **mb, struct mbuf **mreq, struct mbuf **mrep,
-	    caddr_t *bpos);
 int	nfsm_srvmtofh_xx(fhandle_t *f, struct nfsrv_descript *nfsd,
 	    u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
-void	nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
-	    char **bp, char **be, caddr_t bpos);
 int	nfsm_srvsattr_xx(struct vattr *a, u_int32_t **tl, struct mbuf **md,
 	    caddr_t *dpos);
-
-#define nfsm_srvfhtom(f, v3) \
-do { \
-	nfsm_srvfhtom_xx((f), (v3), &tl, &mb, &bpos); \
-} while (0)
-
-#define nfsm_srvpostop_fh(f) \
-do { \
-	nfsm_srvpostop_fh_xx((f), &tl, &mb, &bpos); \
-} while (0)
 
 #define	nfsm_srvstrsiz(s, m) \
 do { \
@@ -126,20 +105,6 @@ do { \
 	} \
 } while (0)
 
-#define	nfsm_reply(s) \
-do { \
-	nfs_rephead_xx((s), nfsd, slp, error, mrq, &mb, &mreq, &mrep, &bpos); \
-	if (error && error == EBADRPC) { \
-		error = 0; \
-		goto nfsmout; \
-	} \
-} while (0)
-
-#define	nfsm_writereply(s) \
-do { \
-	nfs_rephead((s), nfsd, slp, error, &mreq, &mb, &bpos); \
-} while (0)
-
 #define nfsm_srvmtofh(f) \
 do { \
 	int t1; \
@@ -150,26 +115,7 @@ do { \
 	} \
 } while (0)
 
-#define nfsm_clget \
-do { \
-	nfsm_clget_xx(&tl, mb, &mp, &bp, &be, bpos); \
-} while (0)
-
-#define	nfsm_srvfillattr(a, f) \
-do { \
-	nfsm_srvfattr(nfsd, (a), (f)); \
-} while (0)
-
-#define nfsm_srvwcc_data(br, b, ar, a) \
-do { \
-	nfsm_srvwcc(nfsd, (br), (b), (ar), (a), &mb, &bpos); \
-} while (0)
-
-#define nfsm_srvpostop_attr(r, a) \
-do { \
-	nfsm_srvpostopattr(nfsd, (r), (a), &mb, &bpos); \
-} while (0)
-
+/* XXX why is this different? */
 #define nfsm_srvsattr(a) \
 do { \
 	int t1; \
@@ -181,5 +127,55 @@ do { \
 		goto nfsmout; \
 	} \
 } while (0)
+
+/* ************************************* */
+/* Prepare the reply */
+
+#define	nfsm_reply(s) \
+do { \
+	if (mrep != NULL) { \
+		m_freem(mrep); \
+		mrep = NULL; \
+	} \
+	if (error == EBADRPC) { \
+		error = 0; \
+		goto nfsmout; \
+	} \
+	mreq = nfs_rephead((s), nfsd, error, &mb, &bpos); \
+	*mrq = mreq; \
+} while (0)
+
+#define	nfsm_writereply(s) \
+do { \
+	mreq = nfs_rephead((s), nfsd, error, &mb, &bpos); \
+} while(0)
+
+/* ************************************* */
+/* Reply phase macros - add additional reply info */
+
+void	nfsm_srvfhtom_xx(fhandle_t *f, int v3, u_int32_t **tl, struct mbuf **mb,
+	    caddr_t *bpos);
+void	nfsm_srvpostop_fh_xx(fhandle_t *f, u_int32_t **tl, struct mbuf **mb,
+	    caddr_t *bpos);
+void	nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
+	    char **bp, char **be, caddr_t bpos);
+
+#define nfsm_srvfhtom(f, v3) \
+	nfsm_srvfhtom_xx((f), (v3), &tl, &mb, &bpos)
+
+#define nfsm_srvpostop_fh(f) \
+	nfsm_srvpostop_fh_xx((f), &tl, &mb, &bpos)
+
+#define nfsm_srvwcc_data(br, b, ar, a) \
+	nfsm_srvwcc(nfsd, (br), (b), (ar), (a), &mb, &bpos)
+
+#define nfsm_srvpostop_attr(r, a) \
+	nfsm_srvpostopattr(nfsd, (r), (a), &mb, &bpos)
+
+#define	nfsm_srvfillattr(a, f) \
+	nfsm_srvfattr(nfsd, (a), (f))
+
+#define nfsm_clget \
+	nfsm_clget_xx(&tl, mb, &mp, &bp, &be, bpos)
 
 #endif
