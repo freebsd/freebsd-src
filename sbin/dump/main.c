@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.6 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.16 1998/06/15 06:58:10 charnier Exp $";
+	"$Id: main.c,v 1.17 1998/07/14 09:19:47 jkoshy Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -147,20 +147,6 @@ main(argc, argv)
 		case 'b':		/* blocks per tape write */
 			ntrec = numarg("number of blocks per write",
 			    1L, 1000L);
-			/*
-			 * XXX
-			 * physio(9) currently slices all requests to
-			 * 64 KB chunks.  So now, if somebody entered
-			 * e.g. 96 KB block size here, he would effectively
-			 * yield one 64 KB and one 32 KB block, which
-			 * restore cannot handle.
-			 * Thus we currently enforce pyhsio(9)'s limit
-			 * here, too.
-			 */
-			if ( ntrec > 64 ) {
-				msg("please choose a blocksize <= 64\n");
-				exit(X_STARTUP);
-			}
 			break;
 
 		case 'c':		/* Tape is cart. not 9-track */
