@@ -141,9 +141,7 @@ static d_write_t	${1}write;
 static d_ioctl_t	${1}ioctl;
 static d_mmap_t		${1}mmap;
 static d_poll_t		${1}poll;
-#ifdef ${UPPER}_MODULE
-static	ointhand2_t	${1}intr; /* should actually have type inthand2_t */
-#endif
+static	void		${1}intr(void *arg);
  
 #define CDEV_MAJOR 20
 static struct cdevsw ${1}_cdevsw = {
@@ -168,6 +166,7 @@ static struct cdevsw ${1}_cdevsw = {
  */
 #define BUFFERSIZE 1024
 #define NUMPORTS 4
+#define MEMSIZE	1024*1024 /* imaginable h/w buffer size */
 
 /*
  * One of these per allocated device
@@ -175,10 +174,17 @@ static struct cdevsw ${1}_cdevsw = {
 struct ${1}_softc {
 	bus_space_tag_t bt;
 	bus_space_handle_t bh;
-	int port_rid;
-	struct resource* port_res;	/* resource for port range */
-	dev_t dev;
+	int rid_ioport;
+	int rid_memory;
+	int rid_irq;
+	int rid_drq;
+	struct resource* res_ioport;	/* resource for port range */
+	struct resource* res_memory;	/* resource for mem range */
+	struct resource* res_irq;	/* resource for irq range */
+	struct resource* res_drq;	/* resource for dma channel */
 	device_t device;
+	dev_t dev;
+	void	*intr_cookie;
 	char	buffer[BUFFERSIZE];
 } ;
 
@@ -219,8 +225,10 @@ ${1}_isa_probe (device_t device)
 	sc_p scp = device_get_softc(device);
 	bus_space_handle_t  bh;
 	bus_space_tag_t bt;
-	struct resource *port_res;
-	int rid = 0;
+	struct resource* res_ioport;	/* resource for port range */
+	struct resource* res_memory;	/* resource for mem range */
+	struct resource* res_irq;	/* resource for irq range */
+	struct resource* res_drq;	/* resource for dma channel */
 	int	size = 16; /* SIZE of port range used */
 
 
@@ -255,31 +263,52 @@ ${1}_isa_probe (device_t device)
 		 * which is read in by code in isa/isahint.c
 		 */
   
-        	port_res = bus_alloc_resource(device, SYS_RES_IOPORT, &rid,
-                                 0ul, ~0ul, size, RF_ACTIVE);
-        	if (port_res == NULL) {
+        	res_ioport = bus_alloc_resource(device, SYS_RES_IOPORT,
+				&scp->rid_ioport, 0ul, ~0ul, size, RF_ACTIVE);
+        	if (res_ioport == NULL) {
 			error = ENXIO;
-			break;
+			goto errexit;
+        	}
+		res_irq = bus_alloc_resource(device, SYS_RES_IRQ,
+				&scp->rid_irq, 0ul, ~0ul, 1, RF_SHAREABLE);
+        	if (res_irq == NULL) {
+			error = ENXIO;
+			goto errexit;
+        	}
+		res_drq = bus_alloc_resource(device, SYS_RES_DRQ,
+				&scp->rid_drq, 0ul, ~0ul, 1, RF_ACTIVE);
+        	if (res_drq == NULL) {
+			error = ENXIO;
+			goto errexit;
+        	}
+        	res_memory = bus_alloc_resource(device, SYS_RES_IOPORT,
+				&scp->rid_memory, 0ul, ~0ul, MSIZE, RF_ACTIVE);
+        	if (res_memory == NULL) {
+			error = ENXIO;
+			goto errexit;
         	}
 
-                scp->port_rid = rid;
-                scp->port_res = port_res;
-		scp->bt = bt = rman_get_bustag(port_res);
-		scp->bh = bh = rman_get_bushandle(port_res);
+                scp->res_ioport = res_ioport;
+                scp->res_memory = res_memory;
+                scp->res_drq = res_drq;
+                scp->res_irq = res_irq;
+		scp->bt = bt = rman_get_bustag(res_ioport);
+		scp->bh = bh = rman_get_bushandle(res_ioport);
 
 		if ( ${UPPER}_INB(SOME_PORT) != EXPECTED_VALUE) {
 			/* 
 			 * It isn't what we expected,
 			 * so release everything and quit looking for it.
 			 */
-			bus_release_resource(device, SYS_RES_IOPORT,
-							rid, port_res);
-			return (ENXIO);
+			goto errexit;
 		}
 		error = 0;
 		break;
 	case  ENXIO:
 		/* not ours, leave imediatly */
+errexit:
+		/* cleanup anything we may have assigned. */
+		${1}_isa_detach(device);
 	default:
 		error = ENXIO;
 	}
@@ -295,9 +324,18 @@ ${1}_isa_attach (device_t device)
 {
 	int	unit = device_get_unit(device);
 	sc_p scp = device_get_softc(device);
+	device_t parent = device_get_parent(device);
 
 	scp->dev = make_dev(&${1}_cdevsw, 0, 0, 0, 0600, "${1}%d", unit);
 	scp->dev->si_drv1 = scp;
+	/* register the interrupt handler as default */
+	if (scp->res_irq) {
+		/* default to the tty mask for registration */  /* XXX */
+		if (BUS_SETUP_INTR(parent, device, scp->res_irq, INTR_TYPE_TTY,
+				${1}intr, device, &scp->intr_cookie) == 0) {
+			/* do something if successfull */
+		}
+	}
 	return 0;
 }
 
@@ -305,10 +343,43 @@ static int
 ${1}_isa_detach (device_t device)
 {
 	sc_p scp = device_get_softc(device);
+	device_t parent = device_get_parent(device);
 
-	bus_release_resource(device, SYS_RES_IOPORT,
-					scp->port_rid, scp->port_res);
-	destroy_dev(scp->dev);
+	if (scp->res_irq != 0) {
+		if (BUS_TEARDOWN_INTR(parent, device,
+			scp->res_irq, scp->intr_cookie) != 0) {
+				printf("intr teardown failed.. continuing\n");
+		}
+		bus_deactivate_resource(device, SYS_RES_IRQ,
+			scp->rid_irq, scp->res_irq);
+		bus_release_resource(device, SYS_RES_IRQ,
+			scp->rid_irq, scp->res_irq);
+		scp->res_irq = 0;
+	}
+	if (scp->res_ioport != 0) {
+		bus_deactivate_resource(device, SYS_RES_IOPORT,
+			scp->rid_ioport, scp->res_ioport);
+		bus_release_resource(device, SYS_RES_IOPORT,
+			scp->rid_ioport, scp->res_ioport);
+		scp->res_ioport = 0;
+	}
+	if (scp->res_ioport != 0) {
+		bus_deactivate_resource(device, SYS_RES_MEMORY,
+			scp->rid_memory, scp->res_memory);
+		bus_release_resource(device, SYS_RES_MEMORY,
+			scp->rid_memory, scp->res_memory);
+		scp->res_ioport = 0;
+	}
+	if (scp->res_drq != 0) {
+		bus_deactivate_resource(device, SYS_RES_DRQ,
+			scp->rid_drq, scp->res_drq);
+		bus_release_resource(device, SYS_RES_DRQ,
+			scp->rid_drq, scp->res_drq);
+		scp->res_drq = 0;
+	}
+	if (scp->dev) {
+		destroy_dev(scp->dev);
+	}
 	return (0);
 }
 
