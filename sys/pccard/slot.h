@@ -88,7 +88,9 @@ struct slot_ctrl {
 struct pccard_devinfo {
 	uint8_t		name[128];
 	int		running;	/* Current state of driver */
-	uint8_t		misc[116];	/* For any random info */
+	uint8_t		misc[DEV_MISC_LEN]; /* For any random info */
+	uint8_t		manufstr[DEV_MAX_CIS_LEN];
+	uint8_t		versstr[DEV_MAX_CIS_LEN];
 	uint32_t	manufacturer;	/* Manufacturer ID */
 	uint32_t	product;	/* Product ID */
 	uint32_t	prodext;	/* Product ID (extended) */
