@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rmdir.c,v 1.2 1994/09/24 02:57:13 davidg Exp $
+ *	$Id: rmdir.c,v 1.2.8.1 1997/08/25 08:43:06 jkh Exp $
  */
 
 #ifndef lint
@@ -40,7 +40,11 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
+#if 0
+static char sccsid[] = "@(#)rmdir.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <err.h>
@@ -78,14 +82,6 @@ main(argc, argv)
 		usage();
 
 	for (errors = 0; *argv; argv++) {
-		char *p;
-
-		/* Delete trailing slashes, per POSIX. */
-		p = *argv + strlen(*argv);
-		while (--p > *argv && *p == '/')
-			;
-		*++p = '\0';
-
 		if (rmdir(*argv) < 0) {
 			warn("%s", *argv);
 			errors = 1;

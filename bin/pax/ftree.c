@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftree.c,v 1.4.2.2 1997/09/14 13:07:23 jkh Exp $
+ *	$Id: ftree.c,v 1.4.2.3 1998/02/15 11:18:19 jkh Exp $
  */
 
 #ifndef lint
@@ -506,14 +506,14 @@ next_file(arcn)
 			 * have to read the symlink path from the file
 			 */
 			if ((cnt = readlink(ftent->fts_path, arcn->ln_name,
-			    PAXPATHLEN)) < 0) {
+			    PAXPATHLEN - 1)) < 0) {
 				sys_warn(1, errno, "Unable to read symlink %s",
 				    ftent->fts_path);
 				continue;
 			}
 			/*
 			 * set link name length, watch out readlink does not
-			 * allways null terminate the link path
+			 * allways NUL terminate the link path
 			 */
 			arcn->ln_name[cnt] = '\0';
 			arcn->ln_nlen = cnt;
