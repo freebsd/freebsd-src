@@ -33,64 +33,63 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sbrk.S,v 1.2 1995/01/23 01:30:04 davidg Exp $
+ *	$Id: sbrk.S,v 1.3 1995/10/04 15:58:57 phk Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sbrk.S,v 1.2 1995/01/23 01:30:04 davidg Exp $"
+	.asciz "$Id: sbrk.S,v 1.3 1995/10/04 15:58:57 phk Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
-#define	SYS_brk		17
-
-	.globl	_end
-	.globl	minbrk
-	.globl	curbrk
+	.globl	CNAME(end)
+	.globl	HIDENAME(minbrk)
+	.globl	HIDENAME(curbrk)
 
 	.data
-minbrk:	.long	_end
-curbrk:	.long	_end
+HIDENAME(minbrk):	.long	CNAME(end)
+HIDENAME(curbrk):	.long	CNAME(end)
 	.text
 
 ENTRY(sbrk)
 #ifdef PIC
 	movl	4(%esp),%ecx
 	PIC_PROLOGUE
-	movl	PIC_GOT(curbrk),%edx
+	movl	PIC_GOT(HIDENAME(curbrk)),%edx
 	movl	(%edx),%eax
 	PIC_EPILOGUE
 	testl	%ecx,%ecx
 	jz	back
 	addl	%eax,4(%esp)
-	lea	SYS_brk,%eax
-	LCALL(7,0)
+	lea	SYS_break,%eax
+	KERNCALL
 	jb	err
 	PIC_PROLOGUE
-	movl	PIC_GOT(curbrk),%edx
+	movl	PIC_GOT(HIDENAME(curbrk)),%edx
 	movl	(%edx),%eax
 	addl	%ecx,(%edx)
 	PIC_EPILOGUE
 back:
 	ret
 err:
-	jmp	PIC_PLT(cerror)
+	PIC_PROLOGUE
+	jmp	PIC_PLT(HIDENAME(cerror))
 
 #else /* !PIC */
 
 	movl	4(%esp),%ecx
-	movl	curbrk,%eax
+	movl	HIDENAME(curbrk),%eax
 	testl	%ecx,%ecx
 	jz	back
 	addl	%eax,4(%esp)
-	lea	SYS_brk,%eax
-	LCALL(7,0)
+	lea	SYS_break,%eax
+	KERNCALL
 	jb	err
-	movl	curbrk,%eax
-	addl	%ecx,curbrk
+	movl	HIDENAME(curbrk),%eax
+	addl	%ecx,HIDENAME(curbrk)
 back:
 	ret
 err:
-	jmp	cerror
+	jmp	HIDENAME(cerror)
 #endif /* PIC */

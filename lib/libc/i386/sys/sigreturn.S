@@ -33,25 +33,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigreturn.S,v 1.2 1995/01/23 01:30:16 davidg Exp $
+ *	$Id: sigreturn.S,v 1.3 1996/01/22 00:01:00 julian Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigreturn.S,v 1.2 1995/01/23 01:30:16 davidg Exp $"
+	.asciz "$Id: sigreturn.S,v 1.3 1996/01/22 00:01:00 julian Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
 /*
- * We must preserve the state of the registers as the user has set them up.
+ * NOTE: If the profiling ENTRY() code ever changes any registers, they
+ * must be saved.   On FreeBSD, this is not the case.
  */
-#ifdef PROF
-#undef ENTRY
-#define	ENTRY(x) \
-	.globl _/**/x; .align 2; _/**/x:  pusha ; \
-	.data; 1:; .long 0; .text; movl $1b,%eax; call mcount; popa ; nop
-#endif /* PROF */
 
-PSYSCALL(sigreturn)
+#ifdef _THREAD_SAFE
+PSYSCALL(sigreturn,_thread_sys_sigreturn)
+#else
+SYSCALL(sigreturn)
+#endif
 	ret

@@ -33,14 +33,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: Ovfork.S,v 1.2 1995/01/23 01:29:37 davidg Exp $
+ *	$Id: Ovfork.S,v 1.3 1996/01/22 00:00:56 julian Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: Ovfork.S,v 1.2 1995/01/23 01:29:37 davidg Exp $"
+	.asciz "$Id: Ovfork.S,v 1.3 1996/01/22 00:00:56 julian Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
+#include "DEFS.h"
 #include "SYS.h"
 
 /*
@@ -50,14 +51,11 @@
  * %eax == pid of child in parent, %eax == pid of parent in child.
  *
  */
-	.set	vfork,66
-.globl	_vfork
-.type	_vfork,@function
 
-_vfork:
+ENTRY(vfork)
 	popl	%ecx		/* my rta into ecx */
-	movl	$vfork, %eax
-	LCALL(7,0)
+	lea	SYS_vfork,%eax
+	KERNCALL
 	jb	verror
 vforkok:
 	cmpl	$0,%edx		/* child process? */
@@ -67,14 +65,14 @@ vforkok:
 	/*
 	 * Threaded version using __error().
 	 */
-	.globl	___error
-	.type	___error,@function
+	.globl	CNAME(__error)
+	.type	CNAME(__error),@function
 verror:
 	pushl	%eax
 #ifdef PIC
-	call	PIC_PLT(___error)
+	call	PIC_PLT(CNAME(__error))
 #else
-	call	___error
+	call	CNAME(__error)
 #endif
 	popl	%ecx
 	movl	%ecx,(%eax)
@@ -84,15 +82,15 @@ verror:
 	/*
 	 * Non-threaded version using global errno.
 	 */
-	.globl	_errno
+	.globl	CNAME(errno)
 verror:
 #ifdef PIC
 	PIC_PROLOGUE
-	movl	PIC_GOT(_errno), %edx
+	movl	PIC_GOT(CNAME(errno)), %edx
 	movl	%eax,(%edx)
 	PIC_EPILOGUE
 #else
-	movl	%eax,_errno
+	movl	%eax,CNAME(errno)
 #endif
 	movl	$-1,%eax
 #endif	/* !_THREAD_SAFE */
