@@ -419,7 +419,7 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 	} else {
 		td2->td_flags |= TDF_INTERRUPT | TDF_ASTPENDING;
 		if (TD_CAN_UNBIND(td2))
-			td->td_upcall->ku_flags |= KUF_DOUPCALL;
+			td2->td_upcall->ku_flags |= KUF_DOUPCALL;
 		if (sig == -1)
 			td2->td_intrval = EINTR;
 		else if (sig == -2)
