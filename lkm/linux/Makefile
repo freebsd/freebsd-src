@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/01/06 23:10:25 ache Exp $
+#	$Id: Makefile,v 1.4 1996/01/08 05:36:17 peter Exp $
 
 .PATH:	${.CURDIR}/../../sys/i386/linux
 KMOD=	linux_mod
@@ -11,6 +11,6 @@ CLEANFILES+= vnode_if.h vnode_if.c
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	${.CURDIR}/linux /usr/bin
+	${.CURDIR}/linux ${DESTDIR}/usr/bin
 
 .include <bsd.kmod.mk>
