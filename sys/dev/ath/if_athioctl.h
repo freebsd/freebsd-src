@@ -91,6 +91,15 @@ struct ath_stats {
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
 
+struct ath_diag {
+	char	ad_name[IFNAMSIZ];		/* if name, e.g. "ath0" */
+	u_int	ad_id;
+	caddr_t	ad_data;
+	u_int	ad_size;
+
+};
+#define	SIOCGATHDIAG	_IOWR('i', 138, struct ath_diag)
+
 /*
  * Radio capture format.
  */
