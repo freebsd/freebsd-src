@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.110 1999/05/15 23:42:39 dt Exp $
+ *	$Id: vnode_pager.c,v 1.111 1999/06/26 02:46:50 mckusick Exp $
  */
 
 /*
@@ -902,8 +902,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 		rtvals[i] = VM_PAGER_AGAIN;
 
 	if ((int) m[0]->pindex < 0) {
-		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%x(%x)\n",
-			m[0]->pindex, m[0]->dirty);
+		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%x)\n",
+			(long)m[0]->pindex, m[0]->dirty);
 		rtvals[0] = VM_PAGER_BAD;
 		return VM_PAGER_BAD;
 	}
