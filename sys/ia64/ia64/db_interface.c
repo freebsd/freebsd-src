@@ -325,7 +325,7 @@ int
 kdb_trap(int vector, struct trapframe *regs)
 {
 	int ddb_mode = !(boothowto & RB_GDB);
-	int s;
+	critical_t s;
 
 	/*
 	 * Don't bother checking for usermode, since a benign entry
@@ -368,7 +368,7 @@ kdb_trap(int vector, struct trapframe *regs)
 
 	__asm __volatile("flushrs"); /* so we can look at them */
 
-	s = splhigh();
+	s = critical_enter();
 
 #if 0
 	db_printf("stopping %x\n", PCPU_GET(other_cpus));
@@ -391,7 +391,7 @@ kdb_trap(int vector, struct trapframe *regs)
 	restart_cpus(stopped_cpus);
 #endif
 
-	splx(s);
+	critical_exit(s);
 
 	*regs = ddb_regs;
 
