@@ -2083,7 +2083,7 @@ retrier(struct fdc_data *fdc)
 			/* Trick diskerr */
 			bp->b_dev = makedev(major(bp->b_dev),
 				    (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
-			diskerr(bp, "fd", "hard error", LOG_PRINTF,
+			diskerr(bp, "hard error", LOG_PRINTF,
 				fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
 			bp->b_dev = sav_b_dev;
