@@ -120,12 +120,16 @@ FreeBSD 3.0                  |    |            |
  |   FreeBSD 3.3             | NetBSD 1.4.1    |
  |       |                   |             OpenBSD 2.6
  |   FreeBSD 3.4             |                 |
- |                           |                 |
- |                           |                 |
-FreeBSD 4.0-CURRENT       NetBSD -current  OpenBSD -current
- |                           |                 |
- v                           v                 v
-
+ |           |               |                 |
+FreeBSD 4.0  |               |                 |
+ |           |            NetBSD -current  OpenBSD -current
+ |   FreeBSD 3.5             |                 |
+ |                           v                 v
+ *---FreeBSD 4.1
+ |        
+FreeBSD 5.0-current
+ |
+ v
 
 
 Time
