@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.25 1997/04/28 15:51:15 kato Exp $
+ *	$Id: pc98.c,v 1.26 1997/05/07 14:15:11 kato Exp $
  */
 
 /*
@@ -81,6 +81,8 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
 #include "vector.h"
+
+#include <sys/interrupt.h>
 
 #ifdef APIC_IO
 /*
@@ -254,6 +256,99 @@ haveseen(dvp, tmpdvp, checkbits)
 	return 0;
 }
 
+#ifdef RESOURCE_CHECK
+#include <sys/drvresource.h>
+
+static int
+checkone (struct isa_device *dvp, int type, addr_t low, addr_t high, 
+	  char *resname, char *resfmt, int attaching)
+{
+	int result = 0;
+	if (bootverbose) {
+		if (low == high)
+			printf("\tcheck %s: 0x%x\n", resname, low);
+		else
+			printf("\tcheck %s: 0x%x to 0x%x\n", 
+			       resname, low, high);
+	}
+	if (resource_check(type, RESF_NONE, low, high) != NULL) {
+		char *whatnot = attaching ? "attach" : "prob";
+		static struct isa_device dummydev;
+		static struct isa_driver dummydrv;
+		struct isa_device *tmpdvp = &dummydev;
+
+		dummydev.id_driver = &dummydrv;
+		dummydev.id_unit = 0;
+		dummydrv.name = "pci";
+		conflict(dvp, tmpdvp, low, whatnot, resname, resfmt);
+		result = 1;
+	} else if (attaching) {
+		if (low == high)
+			printf("\tregister %s: 0x%x\n", resname, low);
+		else
+			printf("\tregister %s: 0x%x to 0x%x\n",
+			       resname, low, high);
+		resource_claim(dvp, type, RESF_NONE, low, high);
+	}
+	return (result);
+}
+
+static int 
+check_pciconflict(struct isa_device *dvp, int checkbits)
+{
+	int result = 0;
+	int attaching = (checkbits & CC_ATTACH) != 0;
+
+	if (checkbits & CC_MEMADDR) {
+		long maddr = dvp->id_maddr;
+		long msize = dvp->id_msize;
+		if (msize > 0) {
+			if (checkone(dvp, REST_MEM, maddr, maddr + msize - 1,
+				     "maddr", "0x%x", attaching) != 0) {
+				result = 1;
+				attaching = 0;
+			}
+		}
+	}
+	if (checkbits & CC_IOADDR) {
+		unsigned iobase = dvp->id_iobase;
+		unsigned iosize = dvp->id_alive;
+		if (iosize == -1)
+			iosize = 1; /* XXX can't do much about this ... */
+		if (iosize > 0) {
+			if (checkone(dvp, REST_PORT, iobase, iobase + iosize -1,
+				     "I/O address", "0x%x", attaching) != 0) {
+				result = 1;
+				attaching = 0;
+			}
+		}
+	}
+	if (checkbits & CC_IRQ) {
+		int irq = ffs(dvp->id_irq) - 1;
+		if (irq >= 0) {
+			if (checkone(dvp, REST_INT, irq, irq, 
+				     "irq", "%d", attaching) != 0) {
+				result = 1;
+				attaching = 0;
+			}
+		}
+	}
+	if (checkbits & CC_DRQ) {
+		int drq = dvp->id_drq;
+		if (drq >= 0) {
+			if (checkone(dvp, REST_DMA, drq, drq, 
+				     "drq", "%d", attaching) != 0) {
+				result = 1;
+				attaching = 0;
+			}
+		}
+	}
+	if (result != 0)
+		resource_free (dvp);
+	return (result);
+}
+#endif /* RESOURCE_CHECK */
+
 /*
  * Search through all the isa_devtab_* tables looking for anything that
  * conflicts with the current device.
@@ -286,6 +381,13 @@ haveseen_isadev(dvp, checkbits)
 		if (status)
 			return status;
 	}
+#ifdef RESOURCE_CHECK
+	if (!dvp->id_conflicts) {
+		status = check_pciconflict(dvp, checkbits);
+	} else if (bootverbose)
+		printf("\tnot checking for resource conflicts ...\n");
+	}
+#endif /* RESOURCE_CHECK */
 	return(status);
 }
 
@@ -357,7 +459,7 @@ isa_configure() {
 	 * Finish initializing intr_mask[].  Note that the partly
 	 * constructed masks aren't actually used since we're at splhigh.
 	 * For fully dynamic initialization, register_intr() and
-	 * unregister_intr() will have to adjust the masks for _all_
+	 * icu_unset() will have to adjust the masks for _all_
 	 * interrupts and for tty_imask, etc.
 	 */
 	for (dvp = isa_devtab_tty; dvp->id_driver; dvp++)
@@ -378,8 +480,8 @@ isa_configure() {
 
 static void
 config_isadev(isdp, mp)
-     struct isa_device *isdp;
-     u_int *mp;
+	struct isa_device *isdp;
+	u_int *mp;
 {
 	config_isadev_c(isdp, mp, 0);
 }
@@ -479,8 +581,9 @@ config_isadev_c(isdp, mp, reconfig)
 			 * a check for IRQs in the next group of checks.
 			 */
 			checkbits |= CC_IRQ;
-			if (haveseen_isadev(isdp, checkbits))
+			if (haveseen_isadev(isdp, checkbits)) {
 				return;
+			}
 			isdp->id_alive = id_alive;
 		}
 		(*dp->attach)(isdp);
@@ -502,12 +605,9 @@ config_isadev_c(isdp, mp, reconfig)
 				undirect_isa_irq( rirq ); /* free for ISA */
 			}
 #endif  /* APIC_IO */
-			if (mp)
-				INTRMASK(*mp, isdp->id_irq);
 			register_intr(ffs(isdp->id_irq) - 1, isdp->id_id,
 				      isdp->id_ri_flags, isdp->id_intr,
 				      mp, isdp->id_unit);
-			INTREN(isdp->id_irq);
 		}
 	} else {
 		if (isdp->id_reconfig) {
@@ -523,14 +623,17 @@ config_isadev_c(isdp, mp, reconfig)
 			}
 		}
 		else {
+#if 0
 			/* This code has not been tested.... */
 			if (isdp->id_irq) {
-				INTRDIS(isdp->id_irq);
-				unregister_intr(ffs(isdp->id_irq) - 1,
+				icu_unset(ffs(isdp->id_irq) - 1,
 						isdp->id_intr);
 				if (mp)
 					INTRUNMASK(*mp, isdp->id_irq);
 			}
+#else
+			printf ("icu_unset() not supported here ...\n");
+#endif
 		}
 	}
 }
@@ -546,7 +649,7 @@ isa_defaultirq()
 
 	/* icu vectors */
 	for (i = 0; i < ICU_LEN; i++)
-		unregister_intr(i, (inthand2_t *)NULL);
+		icu_unset(i, (inthand2_t *)NULL);
 
 	/* initialize 8259's */
 #ifdef PC98
@@ -1042,21 +1145,21 @@ find_display()
  */
 
 struct isa_device *find_isadev(table, driverp, unit)
-     struct isa_device *table;
-     struct isa_driver *driverp;
-     int unit;
+	struct isa_device *table;
+	struct isa_driver *driverp;
+	int unit;
 {
-  if (driverp == NULL) /* sanity check */
-    return NULL;
+	if (driverp == NULL) /* sanity check */
+		return (NULL);
 
-  while ((table->id_driver != driverp) || (table->id_unit != unit)) {
-    if (table->id_driver == 0)
-      return NULL;
+	while ((table->id_driver != driverp) || (table->id_unit != unit)) {
+		if (table->id_driver == 0)
+			return NULL;
 
-    table++;
-  }
+		table++;
+	}
 
-  return table;
+	return (table);
 }
 
 /*
@@ -1137,49 +1240,63 @@ update_intr_masks(void)
 	return (n);
 }
 
-int
-register_intr(intr, device_id, flags, handler, maskptr, unit)
-	int	intr;
-	int	device_id;
-	u_int	flags;
-	inthand2_t *handler;
-	u_int	*maskptr;
-	int	unit;
+/*
+ * The find_device_id function is only required because of the way the
+ * device names are currently stored for reporting in systat or vmstat.
+ * In fact, those programs should be modified to use the sysctl interface
+ * to obtain a list of driver names by traversing intreclist_head[irq].
+ */
+
+static int
+find_device_id(int irq)
+{
+	char buf[16];
+	char *cp;
+	int free_id, id;
+
+	sprintf(buf, "pci irq%d", irq);
+	cp = intrnames;
+	/* default to 0, which corresponds to clk0 */
+	free_id = 0;
+
+	for (id = 0; id < NR_DEVICES; id++) {
+		if (strcmp(cp, buf) == 0)
+			return (id);
+		if (free_id == 0 && strcmp(cp, "pci irqnn") == 0)
+			free_id = id;
+		while (*cp++ != '\0');
+	}
+#if 0
+	if (free_id == 0) {
+		/*
+		 * All pci irq counters are in use, perhaps because config
+		 * is old so there aren't any. Abuse the clk0 counter.
+		 */
+		printf("\tcounting shared irq%d as clk0 irq\n", irq);
+	}
+#endif
+	return (free_id);
+}
+
+void
+update_intrname(int intr, int device_id)
 {
 	char	*cp;
-	u_long	ef;
 	int	id;
-	u_int	mask = (maskptr ? *maskptr : 0);
 
-#if defined(APIC_IO)
-	if ((u_int)intr >= ICU_LEN	/* no 8259 SLAVE to ignore */
-#else
-#ifdef PC98
-	if ((u_int)intr >= ICU_LEN || intr == 7
-#else
-	if ((u_int)intr >= ICU_LEN || intr == 2
-#endif
-#endif /* APIC_IO */
-	    || (u_int)device_id >= NR_DEVICES)
-		return (EINVAL);
-	if (intr_handler[intr] != isa_strayintr)
-		return (EBUSY);
-	ef = read_eflags();
-	disable_intr();
+	if (device_id == -1)
+		device_id = find_device_id(intr);
+
+	if ((u_int)device_id >= NR_DEVICES)
+		return;
+
 	intr_countp[intr] = &intrcnt[device_id];
-	intr_handler[intr] = handler;
-	intr_mptr[intr] = maskptr;
-	intr_mask[intr] = mask | (1 << intr);
-	intr_unit[intr] = unit;
-	setidt(ICU_OFFSET + intr,
-	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	write_eflags(ef);
+
 	for (cp = intrnames, id = 0; id <= device_id; id++)
 		while (*cp++ != '\0')
 			;
 	if (cp > eintrnames)
-		return (0);
+		return;
 	if (intr < 10) {
 		cp[-3] = intr + '0';
 		cp[-2] = ' ';
@@ -1190,6 +1307,33 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 		cp[-3] = '2';
 		cp[-2] = intr - 20 + '0';
 	}
+}
+
+int
+icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
+{
+	u_long	ef;
+	u_int	mask = (maskptr ? *maskptr : 0);
+
+#if defined(APIC_IO)
+	if ((u_int)intr >= ICU_LEN)	/* no 8259 SLAVE to ignore */
+#else
+	if ((u_int)intr >= ICU_LEN || intr == 2)
+#endif /* APIC_IO */
+	if (intr_handler[intr] != isa_strayintr)
+		return (EBUSY);
+
+	ef = read_eflags();
+	disable_intr();
+	intr_handler[intr] = handler;
+	intr_mptr[intr] = maskptr;
+	intr_mask[intr] = mask | (1 << intr);
+	intr_unit[intr] = arg;
+	setidt(ICU_OFFSET + intr,
+	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
+	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
+	INTREN(1 << intr);
+	write_eflags(ef);
 	return (0);
 }
 
@@ -1208,7 +1352,7 @@ register_imask(dvp, mask)
 }
 
 int
-unregister_intr(intr, handler)
+icu_unset(intr, handler)
 	int	intr;
 	inthand2_t *handler;
 {
@@ -1216,6 +1360,8 @@ unregister_intr(intr, handler)
 
 	if ((u_int)intr >= ICU_LEN || handler != intr_handler[intr])
 		return (EINVAL);
+
+	INTRDIS(1 << intr);
 	ef = read_eflags();
 	disable_intr();
 	intr_countp[intr] = &intrcnt[NR_DEVICES + intr];
