@@ -28,6 +28,8 @@
  */
 
 #include <dev/sound/pcm/sound.h>
+#include <sys/sysctl.h>
+#include "opt_devfs.h"
 
 static int 	status_isopen = 0;
 static int 	status_init(char *buf, int size);
@@ -87,6 +89,10 @@ nomenclature:
 #define PCMMKMINOR(u, d, c) ((((c) & 0xff) << 16) | (((u) & 0x0f) << 4) | ((d) & 0x0f))
 
 static devclass_t pcm_devclass;
+#ifdef DEVFS
+int snd_unit;
+TUNABLE_INT_DECL("hw.sndunit", 0, snd_unit);
+#endif
 
 static snddev_info *
 gsd(int unit)
@@ -176,7 +182,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	}
 	make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL, 0),
 		 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
-
 	d->dev = dev;
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
@@ -229,6 +234,65 @@ no:
 	if (d->rec) free(d->rec, M_DEVBUF);
 	return ENXIO;
 }
+
+#ifdef DEVFS
+static void
+pcm_makelinks(void *dummy)
+{
+	int unit;
+	dev_t pdev;
+	static dev_t dsp = 0, dspW = 0, audio = 0, mixer = 0;
+
+	unit = snd_unit;
+	if (unit > devclass_get_maxunit(pcm_devclass))
+		unit = -1;
+
+	if (dsp) {
+		destroy_dev(dsp);
+		dsp = 0;
+	}
+	if (dspW) {
+		destroy_dev(dspW);
+		dspW = 0;
+	}
+	if (audio) {
+		destroy_dev(audio);
+		audio = 0;
+	}
+	if (mixer) {
+		destroy_dev(mixer);
+		mixer = 0;
+	}
+
+	if (unit >= 0) {
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP, 0));
+		dsp = make_dev_alias(pdev, "dsp");
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_DSP16, 0));
+		dspW = make_dev_alias(pdev, "dspW");
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_AUDIO, 0));
+		audio = make_dev_alias(pdev, "audio");
+		pdev = makedev(CDEV_MAJOR, PCMMKMINOR(unit, SND_DEV_CTL, 0));
+		mixer = make_dev_alias(pdev, "mixer");
+	}
+}
+SYSINIT(pcm_makelinks, SI_SUB_MOUNT_ROOT, SI_ORDER_ANY, pcm_makelinks, NULL);
+
+static int
+sysctl_hw_sndunit(SYSCTL_HANDLER_ARGS)
+{
+	int error, unit;
+
+	unit = snd_unit;
+	error = sysctl_handle_int(oidp, &unit, sizeof(unit), req);
+	if (error == 0 && req->newptr != NULL) {
+		snd_unit = unit;
+		pcm_makelinks(NULL);
+	}
+	return (error);
+}
+SYSCTL_PROC(_hw, OID_AUTO, sndunit, CTLTYPE_INT | CTLFLAG_RW,
+            0, sizeof(int), sysctl_hw_sndunit, "I", "");
+#endif
 
 /*
  * a small utility function which, given a device number, returns
