@@ -68,14 +68,14 @@
 #define BRGPHY_MII_ANAR		0x04
 #define BRGPHY_ANAR_NP		0x8000	/* Next page */
 #define BRGPHY_ANAR_RF		0x2000	/* Remote fault */
-#define BRGPHY_ANAR_ASP		0x0800	/* Asymetric Pause */
+#define BRGPHY_ANAR_ASP		0x0800	/* Asymmetric Pause */
 #define BRGPHY_ANAR_PC		0x0400	/* Pause capable */
 #define BRGPHY_ANAR_SEL		0x001F	/* selector field, 00001=Ethernet */
 
 #define BRGPHY_MII_ANLPAR	0x05
 #define BRGPHY_ANLPAR_NP	0x8000	/* Next page */
 #define BRGPHY_ANLPAR_RF	0x2000	/* Remote fault */
-#define BRGPHY_ANLPAR_ASP	0x0800	/* Asymetric Pause */
+#define BRGPHY_ANLPAR_ASP	0x0800	/* Asymmetric Pause */
 #define BRGPHY_ANLPAR_PC	0x0400	/* Pause capable */
 #define BRGPHY_ANLPAR_SEL	0x001F	/* selector field, 00001=Ethernet */
 
@@ -158,6 +158,44 @@
 #define BRGPHY_RXNOCNT_LOCAL	0xFF00	/* Local RX not OK counter */
 #define BRGPHY_RXNOCNT_REMOTE	0x00FF	/* Local RX not OK counter */
 
+#define BRGPHY_MII_DSP_RW_PORT	0x15	/* DSP coefficient r/w port */
+
+#define BRGPHY_MII_DSP_ADDR_REG	0x17	/* DSP coefficient addr register */
+
+#define BRGPHY_DSP_TAP_NUMBER_MASK		0x00
+#define BRGPHY_DSP_AGC_A			0x00
+#define BRGPHY_DSP_AGC_B			0x01
+#define BRGPHY_DSP_MSE_PAIR_STATUS		0x02
+#define BRGPHY_DSP_SOFT_DECISION		0x03
+#define BRGPHY_DSP_PHASE_REG			0x04
+#define BRGPHY_DSP_SKEW				0x05
+#define BRGPHY_DSP_POWER_SAVER_UPPER_BOUND	0x06
+#define BRGPHY_DSP_POWER_SAVER_LOWER_BOUND	0x07
+#define BRGPHY_DSP_LAST_ECHO			0x08
+#define BRGPHY_DSP_FREQUENCY			0x09
+#define BRGPHY_DSP_PLL_BANDWIDTH		0x0A
+#define BRGPHY_DSP_PLL_PHASE_OFFSET		0x0B
+
+#define BRGPHYDSP_FILTER_DCOFFSET		0x0C00
+#define BRGPHY_DSP_FILTER_FEXT3			0x0B00
+#define BRGPHY_DSP_FILTER_FEXT2			0x0A00
+#define BRGPHY_DSP_FILTER_FEXT1			0x0900
+#define BRGPHY_DSP_FILTER_FEXT0			0x0800
+#define BRGPHY_DSP_FILTER_NEXT3			0x0700
+#define BRGPHY_DSP_FILTER_NEXT2			0x0600
+#define BRGPHY_DSP_FILTER_NEXT1			0x0500
+#define BRGPHY_DSP_FILTER_NEXT0			0x0400
+#define BRGPHY_DSP_FILTER_ECHO			0x0300
+#define BRGPHY_DSP_FILTER_DFE			0x0200
+#define BRGPHY_DSP_FILTER_FFE			0x0100
+
+#define BRGPHY_DSP_CONTROL_ALL_FILTERS		0x1000
+
+#define BRGPHY_DSP_SEL_CH_0			0x0000
+#define BRGPHY_DSP_SEL_CH_1			0x2000
+#define BRGPHY_DSP_SEL_CH_2			0x4000
+#define BRGPHY_DSP_SEL_CH_3			0x6000
+
 #define BRGPHY_MII_AUXCTL	0x18	/* AUX control */
 #define BRGPHY_AUXCTL_LOW_SQ	0x8000	/* Low squelch */
 #define BRGPHY_AUXCTL_LONG_PKT	0x4000	/* RX long packets */
@@ -183,6 +221,11 @@
 
 #define BRGPHY_RES_1000FD	0x0700	/* 1000baseT full duplex */
 #define BRGPHY_RES_1000HD	0x0600	/* 1000baseT half duplex */
+#define BRGPHY_RES_100FD	0x0500	/* 100baseT full duplex */
+#define BRGPHY_RES_100T4	0x0400	/* 100baseT4 */
+#define BRGPHY_RES_100HD	0x0300	/* 100baseT half duplex */
+#define BRGPHY_RES_10HD		0x0200	/* 10baseT full duplex */
+#define BRGPHY_RES_10FD		0x0100	/* 10baseT half duplex */
 
 #define BRGPHY_MII_ISR		0x1A	/* interrupt status */
 #define BRGPHY_ISR_PSERR	0x4000	/* Pair swap error */
