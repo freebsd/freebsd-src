@@ -168,6 +168,27 @@ io_apic_setup(int apic)
 	for (pin = 0; pin < maxpin; ++pin) {
 		int bus, bustype, irq;
 		
+		select = pin * 2 + IOAPIC_REDTBL0;	/* register */
+		/* 
+		 * Always disable interrupts, and by default map
+		 * pin X to IRQX because the disable doesn't stick
+		 * and the uninitialize vector will get translated 
+		 * into a panic.
+		 *
+		 * This is correct for IRQs 1 and 3-15.  In the other cases, 
+		 * any robust driver will handle the spurious interrupt, and 
+		 * the effective NOP beats a panic.
+		 *
+		 * A dedicated "bogus interrupt" entry in the IDT would
+		 * be a nicer hack, although some one should find out 
+		 * why some systems are generating interrupts when they
+		 * shouldn't and stop the carnage.
+		 */
+		vector = NRSVIDT + pin;			/* IDT vec */
+		io_apic_write(apic, select,
+			      (io_apic_read(apic, select) & ~IOART_INTMASK 
+			      & ~0xff)|IOART_INTMSET|vector);
+		
 		/* we only deal with vectored INTs here */
 		if (apic_int_type(apic, pin) != 0)
 			continue;
@@ -209,7 +230,6 @@ io_apic_setup(int apic)
 		if (apic != 0 || pin != irq)
 			printf("IOAPIC #%d intpin %d -> irq %d\n",
 			       apic, pin, irq);
-		select = pin * 2 + IOAPIC_REDTBL0;	/* register */
 		vector = NRSVIDT + irq;			/* IDT vec */
 		io_apic_write(apic, select, flags | vector);
 		io_apic_write(apic, select + 1, target);
