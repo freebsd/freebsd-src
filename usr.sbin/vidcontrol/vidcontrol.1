@@ -295,45 +295,38 @@ one per character position.
 In each tuple, the first byte will be the character code,
 and the second byte is the character's color attribute.
 .Pp
-The syscons driver converts the ^[[Nm terminal escapes
-into the corresponding attribute bytes.
-.Pp
 The VGA color attribute byte looks like this:
 .Pp
 .Bl -column "X:X" "<00000000>" "width" "bright foreground color"
-.Sy bits# Ta Ta Sy width Ta Sy meaning
-.Li 7   Ta <X0000000> Ta 1 Ta character blinking
-.Li 6:4 Ta <0XXX0000> Ta 3 Ta background color
-.Li 3   Ta <0000X000> Ta 1 Ta bright foreground color
-.Li 2:0 Ta <00000XXX> Ta 3 Ta foreground color
+.Sy "bits#		width	meaning"
+.Li "7	<X0000000>	1	character blinking"
+.Li "6:4	<0XXX0000>	3	background color"
+.Li "3	<0000X000>	1	bright foreground color"
+.Li "2:0	<00000XXX>	3	foreground color"
 .El
 .Pp
-Here is a list of the three bit wide base colors with
-their corresponding ANSI terminal escape codes
-parenthesized (add 10 to get the background code):
+Here is a list of the three bit wide base colors:
 .Pp
 .Bl -hang -offset indent -compact
 .It 0
-Black (30)
+Black
 .It 1
-Blue (34)
+Blue
 .It 2
-Green (32)
+Green
 .It 3
-Cyan (36)
+Cyan
 .It 4
-Red (31)
+Red
 .It 5
-Magenta (35)
+Magenta
 .It 6
-Brown (33)
+Brown
 .It 7
-Light Grey (37)
+Light Grey
 .El
 .Pp
-Base colors with bit 3 (the bright foreground flag)
-set.  The terminal escape for successive bright text
-is ^[[1m.
+Base colors with bit 3 (the bright foreground flag) set:
 .Pp
 .Bl -hang -offset indent -compact
 .It 0
@@ -346,14 +339,13 @@ Light Green
 Light Cyan
 .It 4
 Light Red
-.It 5 
+.It 5
 Light Magenta
 .It 6
 Yellow
 .It 7
 White
 .El
-.lt 1
 .Pp
 For example, the two bytes
 .Pp
