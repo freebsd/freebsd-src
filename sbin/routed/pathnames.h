@@ -11,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *	This product includes software developed by the University of
  *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -31,8 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
+ *
  *	$Id$
- *	$NetBSD$
  */
 
 #include <paths.h>
@@ -47,6 +47,8 @@
  * Leave this undefined, and only the trace file originally specified
  * when routed was started, if any, will be appended to.
  */
-#if 0
-#define _PATH_TRACE	"/var/log/routed.trace"
+#ifndef __NetBSD__
+#define _PATH_TRACE	"/etc/routed.trace"
+#else
+#undef _PATH_TRACE
 #endif
