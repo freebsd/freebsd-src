@@ -243,6 +243,24 @@ NgRecvData(int ds, u_char * buf, size_t len, char *hook)
 }
 
 /*
+ * Identical to NgRecvData() except buffer is dynamically allocated.
+ */
+int
+NgAllocRecvData(int ds, u_char **buf, char *hook)
+{
+	int len;
+	socklen_t optlen;
+
+	optlen = sizeof(len);
+	if (getsockopt(ds, SOL_SOCKET, SO_RCVBUF, &len, &optlen) == -1 ||
+	    (*buf = malloc(len)) == NULL)
+		return (-1);
+	if ((len = NgRecvData(ds, *buf, len, hook)) < 0)
+		free(*buf);
+	return (len);
+}
+
+/*
  * Write a packet to a data socket. The packet will be sent
  * out the corresponding node on the specified hook.
  * Returns -1 if error and sets errno.
