@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.8 1995/01/09 16:05:07 davidg Exp $
+ * $Id: nfs_serv.c,v 1.9 1995/02/15 03:03:03 davidg Exp $
  */
 
 /*
@@ -1118,7 +1118,7 @@ out:
 			nfsrv_vrele(nd.ni_vp);
 	}
 out1:
-	nfsrv_vput(vp);
+	nfsrv_vrele(vp);
 	nfsm_reply(0);
 	nfsm_srvdone;
 }
