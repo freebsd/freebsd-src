@@ -839,7 +839,7 @@ static int
 kqueue_close(struct file *fp, struct thread *td)
 {
 	struct kqueue *kq = fp->f_data;
-	struct filedesc *fdp = td->td_proc->p_fd;
+	struct filedesc *fdp = kq->kq_fdp;
 	struct knote **knp, *kn, *kn0;
 	int i;
 
