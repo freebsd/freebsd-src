@@ -768,7 +768,8 @@ adv_free(struct adv_softc *adv)
 	case 2:
 		bus_dma_tag_destroy(adv->parent_dmat);
 	case 1:
-		free(adv->ccb_infos, M_DEVBUF);
+		if (adv->ccb_infos != NULL)
+			free(adv->ccb_infos, M_DEVBUF);
 	case 0:
 		break;
 	}
