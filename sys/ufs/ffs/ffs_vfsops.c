@@ -734,6 +734,9 @@ ffs_mountfs(devvp, mp, p, malloctype)
 
 	ump->um_savedmaxfilesize = fs->fs_maxfilesize;		/* XXX */
 	maxfilesize = (u_int64_t)0x40000000 * fs->fs_bsize - 1;	/* XXX */
+	/* Enforce limit caused by vm object backing (32 bits vm_pindex_t). */
+	if (maxfilesize > (u_int64_t)0x80000000u * PAGE_SIZE - 1)
+		maxfilesize = (u_int64_t)0x80000000u * PAGE_SIZE - 1;
 	if (fs->fs_maxfilesize > maxfilesize)			/* XXX */
 		fs->fs_maxfilesize = maxfilesize;		/* XXX */
 	if (ronly == 0) {
