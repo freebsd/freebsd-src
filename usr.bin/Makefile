@@ -1,41 +1,48 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.92 1997/12/13 09:59:32 msmith Exp $
+#	$Id: Makefile,v 1.93 1997/12/15 20:52:24 helbig Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
 # XXX Use GNU versions: apropos bc dc diff grep ld man patch ptx uucp whatis
 # Moved to secure: bdes
 #
-SUBDIR=	apply ar at banner basename biff brandelf c89 calendar \
+SUBDIR=	apply at banner basename biff c89 calendar \
 	cap_mkdb chat checknr chflags chpass cksum col colcrt colldef colrm \
 	column comm compile_et compress chkey cpp ctags cut dig \
-	dirname dnsquery doscmd du ee env error expand \
+	dirname dnsquery du ee env error expand \
 	f2c false fetch file file2c \
-	find finger fmt fold fpr from fsplit fstat ftp gcore gencat getopt \
-	global gprof head hexdump host id indent ipcrm ipcs \
-	join jot kdump ktrace key keyinfo keyinit keylogin keylogout killall \
+	find finger fmt fold fpr from fsplit ftp gencat getopt \
+	global head hexdump host id indent \
+	join jot key keyinfo keyinit keylogin keylogout killall \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
-	logname lorder lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
-	mk_cmds modstat more msgs mt ncal netstat newkey nfsstat nice \
+	logname lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
+	mk_cmds more msgs ncal netstat newkey nfsstat nice \
 	nm nohup opieinfo opiekey opiepasswd pagesize passwd paste pr printenv \
-	printf quota ranlib rdist renice rev rlogin rpcgen \
+	printf quota rdist renice rev rlogin rpcgen \
 	rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed shar showmount size soelim split \
-	strings	strip su symorder talk tconv tcopy tee tftp time \
-	tip tn3270 top touch tput tr true truss tset tsort tty ul uname \
+	strings	su symorder talk tconv tcopy tee tftp time \
+	tip tn3270 touch tput tr true tset tsort tty ul uname \
 	unexpand unifdef uniq units unvis users uudecode uuencode vacation \
-	vgrind vi vis w wall wc what whereis which who whois window \
+	vgrind vi vis wall wc what whereis which who whois window \
 	write xargs xinstall xlint xstr yacc yes ypcat ypmatch ypwhich
-SUBDIR+=gprof4 minigzip
+SUBDIR+=minigzip
+
+.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
+# releases do need both
+SUBDIR+=telnet
+.endif
+
+.if ${MACHINE_ARCH} == "i386"
+# Things that don't compile on alpha:
+SUBDIR+=ar brandelf doscmd fstat gcore gprof gprof4 ipcrm ipcs kdump ktrace \
+	modstat mt ranlib strip top truss w lorder
 
 .if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
 	exists(${.CURDIR}/tclsh) && exists (${.CURDIR}/../lib/libtcl)
 SUBDIR+=tclsh
 .endif
 
-.if defined(RELEASEDIR) || !exists(${.CURDIR}/../kerberosIV) || defined(NOCRYPT) || !defined(MAKE_KERBEROS4)
-# releases do need both
-SUBDIR+=telnet
 .endif
 
 # Cmp, look and tail all use mmap, so new-VM only.
