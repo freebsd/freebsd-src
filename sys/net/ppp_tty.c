@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.38 1999/01/17 20:53:47 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.39 1999/04/27 11:17:07 phk Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -896,7 +896,7 @@ pppinput(c, tp)
 	if (c == tp->t_cc[VSTOP] && tp->t_cc[VSTOP] != _POSIX_VDISABLE) {
 	    if ((tp->t_state & TS_TTSTOP) == 0) {
 		tp->t_state |= TS_TTSTOP;
-		(*cdevsw[major(tp->t_dev)]->d_stop)(tp, 0);
+		(*devsw(tp->t_dev)->d_stop)(tp, 0);
 	    }
 	    return 0;
 	}

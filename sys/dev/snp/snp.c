@@ -71,7 +71,7 @@ snpdevtotty (dev)
 	maj = major(dev);
 	if ((u_int)maj >= nchrdev)
 		return (NULL);
-	cdp = cdevsw[maj];
+	cdp = devsw(dev);
 	if (cdp == NULL)
 		return (NULL);
 	return ((*cdp->d_devtotty)(dev));
