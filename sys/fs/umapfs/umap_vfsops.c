@@ -260,6 +260,7 @@ umapfs_start(mp, flags, td)
 	int flags;
 	struct thread *td;
 {
+
 	return (0);
 	/* return (VFS_START(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, flags, td)); */
 }
@@ -338,6 +339,7 @@ umapfs_quotactl(mp, cmd, uid, arg, td)
 	caddr_t arg;
 	struct thread *td;
 {
+
 	return (VFS_QUOTACTL(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, cmd, uid, arg, td));
 }
 
@@ -410,7 +412,7 @@ umapfs_fhtovp(mp, fidp, vpp)
 	struct fid *fidp;
 	struct vnode **vpp;
 {
-	
+
 	return (VFS_FHTOVP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, fidp, vpp));
 }
 
@@ -422,7 +424,7 @@ umapfs_checkexp(mp, nam, exflagsp, credanonp)
 	struct ucred **credanonp;
 {
 
-	return (VFS_CHECKEXP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, nam, 
+	return (VFS_CHECKEXP(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, nam,
 		exflagsp, credanonp));
 }
 
@@ -431,6 +433,7 @@ umapfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
 {
+
 	return (VFS_VPTOFH(UMAPVPTOLOWERVP(vp), fhp));
 }
 
@@ -443,10 +446,10 @@ umapfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 	const char *attrname;
 	struct thread *td;
 {
+
 	return (VFS_EXTATTRCTL(MOUNTTOUMAPMOUNT(mp)->umapm_vfs, cmd,
 	    filename_vp, namespace, attrname, td));
-} 
-
+}
 
 static struct vfsops umap_vfsops = {
 	umapfs_mount,
