@@ -65,6 +65,7 @@
 #include <machine/clock.h>
 #include <machine/lock.h>
 #include <machine/md_var.h>
+#include <machine/mutex.h>
 #include <machine/smp.h>		/* smp_active, cpuid */
 
 #include <sys/signalvar.h>
