@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.41 1997/02/22 09:32:33 peter Exp $
+ *	$Id: mem.c,v 1.42 1997/04/14 15:54:26 bde Exp $
  */
 
 /*
@@ -145,16 +145,13 @@ mmclose(dev, flags, fmt, p)
 	int fmt;
 	struct proc *p;
 {
-	struct trapframe *fp;
-
 	switch (minor(dev)) {
 #ifdef PERFMON
 	case 32:
 		return perfmon_close(dev, flags, fmt, p);
 #endif
 	case 14:
-		fp = (struct trapframe *)curproc->p_md.md_regs;
-		fp->tf_eflags &= ~PSL_IOPL;
+		curproc->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 		break;
 	default:
 		break;
@@ -170,7 +167,6 @@ mmopen(dev, flags, fmt, p)
 	struct proc *p;
 {
 	int error;
-	struct trapframe *fp;
 
 	switch (minor(dev)) {
 	case 32:
@@ -185,8 +181,7 @@ mmopen(dev, flags, fmt, p)
 			return (error);
 		if (securelevel > 0)
 			return (EPERM);
-		fp = (struct trapframe *)curproc->p_md.md_regs;
-		fp->tf_eflags |= PSL_IOPL;
+		curproc->p_md.md_regs->tf_eflags |= PSL_IOPL;
 		break;
 	default:
 		break;
