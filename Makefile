@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.139 1997/08/21 15:43:54 bde Exp $
+#	$Id: Makefile,v 1.140 1997/08/25 19:40:53 bde Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -151,16 +151,16 @@ world:
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} pre-world
+	cd ${.CURDIR} && ${MAKE} pre-world
 .endif
-	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} buildworld
-	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} installworld
+	cd ${.CURDIR} && ${MAKE} buildworld
+	cd ${.CURDIR} && ${MAKE} installworld
 .if target(post-world)
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Making 'post-world' target"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} post-world
+	cd ${.CURDIR} && ${MAKE} post-world
 .endif
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -353,19 +353,19 @@ most:
 	@echo "--------------------------------------------------------------"
 	@echo " Building programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/bin	&&	${MAKE} all
+	cd ${.CURDIR}/sbin	&&	${MAKE} all
+	cd ${.CURDIR}/libexec	&&	${MAKE} all
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} all
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} all
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} all
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} all
+	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} all
 #.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} most
+#	cd ${.CURDIR}/eBones	&&	${MAKE} most
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} most
+#	cd ${.CURDIR}/secure	&&	${MAKE} most
 #.endif
 
 #
@@ -378,19 +378,19 @@ installmost:
 	@echo "--------------------------------------------------------------"
 	@echo " Installing programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/bin	&&	${MAKE} install
+	cd ${.CURDIR}/sbin	&&	${MAKE} install
+	cd ${.CURDIR}/libexec	&&	${MAKE} install
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} install
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} install
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} install
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} install
+	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} install
 #.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} installmost
+#	cd ${.CURDIR}/eBones	&&	${MAKE} installmost
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} installmost
+#	cd ${.CURDIR}/secure	&&	${MAKE} installmost
 #.endif
 
 #
