@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.9 1994/09/29 13:19:42 jkh Exp $ */
+/* $Id: lib.h,v 1.10 1994/10/04 16:07:50 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -109,6 +109,7 @@ char		*copy_string(char *);
 Boolean		suffix(char *, char *);
 void		nuke_suffix(char *);
 void		str_lowercase(char *);
+char		*basename_of(char *);
 
 /* File */
 Boolean		fexists(char *);
