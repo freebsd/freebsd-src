@@ -117,11 +117,13 @@ SUBDIR+=aac \
 	acpi \
 	aic \
 	ar \
+	arcnet \
 	apm \
 	asr \
 	atspeaker \
 	bktr \
 	ciss \
+	cm \
 	coff \
 	el \
 	em \

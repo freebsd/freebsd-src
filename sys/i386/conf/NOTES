@@ -509,6 +509,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  Ethernets; it is MANDATORY when a Ethernet device driver is
 #  configured or token-ring is enabled.
 #  The `fddi' device provides generic code to support FDDI.
+#  The `arcnet' device provides generic code to support Arcnet.
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
 #  The `sl' device implements the Serial Line IP (SLIP) service.
@@ -543,6 +544,7 @@ device		ether			#Generic Ethernet
 device		vlan			#VLAN support
 device		token			#Generic TokenRing
 device		fddi			#Generic FDDI
+device		arcnet			#Generic Arcnet
 device		sppp			#Generic Synchronous PPP
 device		loop	1		#Network loopback device
 device		bpf			#Berkeley packet filter
@@ -1711,6 +1713,8 @@ device		miibus
 #	the SysKonnect SK-9D21 and SK-9D41, and the embedded gigE NICs
 #	on Dell PowerEdge 2550 servers.
 # cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
+# cm:	Arcnet SMC COM90c26 / SMC COM90c56
+#	(and SMC COM90c66 in '56 compatibility mode) adapters.
 # cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
@@ -1829,6 +1833,11 @@ hint.ar.0.at="isa"
 hint.ar.0.port="0x300"
 hint.ar.0.irq="10"
 hint.ar.0.maddr="0xd0000"
+device		cm
+hint.cm.0.at="isa"
+hint.cm.0.port="0x2e0"
+hint.cm.0.irq="9"
+hint.cm.0.maddr="0xdc000"
 device		cs
 hint.cs.0.at="isa"
 hint.cs.0.port="0x300"
