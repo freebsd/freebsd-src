@@ -75,13 +75,13 @@
        /boot/loader.conf, and this is very clearly illustrated in
        /boot/defaults/loader.conf (which you could just copy over
        to /boot/loader.conf).  I'm going to illustrate here how you
-       *could* do it in /boot/loader.conf (for information only)
+       *could* do it in /boot/loader.rc (for information only)
        but I don't recommend you do this; use the
        /boot/defaults/loader.conf syntax, it's easier to get it
        correct.
 
        You can load your splash screen by putting the following
-       lines into /boot/loader.conf:
+       lines into /boot/loader.rc:
 
        load splash_bmp
        load -t splash_image_data /path/to/file.bmp
@@ -148,7 +148,7 @@
           o If you use loader.conf, you can do:
 
                  unload
-                 set kernel_name=kernel.old
+                 set kernel=kernel.old
                  boot-conf
 
             this will then load all the modules you have
