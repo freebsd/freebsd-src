@@ -55,6 +55,9 @@
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/libkern.h>
+#include <sys/md5.h>
+#include <sys/endian.h>
 #endif
 #include <sys/errno.h>
 #include <geom/geom.h>
@@ -65,19 +68,74 @@
 
 #define AES_CLASS_NAME "AES"
 
-static u_char *aes_magic = "<<FreeBSD-GEOM-AES>>";
+#define MASTER_KEY_LENGTH	(1024/8)
 
-static u_char aes_key[128 / 8] = {
-	0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0
-};
+static u_char *aes_magic = "<<FreeBSD-GEOM-AES>>";
+static u_char *aes_magic_random = "<<FreeBSD-GEOM-AES-RANDOM>>";
+static u_char *aes_magic_test = "<<FreeBSD-GEOM-AES-TEST>>";
+
 
 struct g_aes_softc {
+	enum {
+		KEY_ZERO,
+		KEY_RANDOM,
+		KEY_TEST
+	} keying;
 	u_int	sectorsize;
 	off_t	mediasize;
-	keyInstance ekey;
-	keyInstance dkey;
 	cipherInstance ci;
+	u_char master_key[MASTER_KEY_LENGTH];
 };
+
+/*
+ * Generate a sectorkey from the masterkey and the offset position.
+ *
+ * For KEY_ZERO we just return a key of all zeros.
+ *
+ * We feed the sector byte offset, 16 bytes of the master-key and
+ * the sector byte offset once more to MD5.
+ * The sector byte offset is converted to little-endian format first
+ * to support multi-architecture operation.
+ * We use 16 bytes from the master-key starting at the logical sector
+ * number modulus he length of the master-key.  If need be we wrap
+ * around to the start of the master-key.
+ */
+
+static void
+g_aes_makekey(struct g_aes_softc *sc, off_t off, keyInstance *ki, int dir)
+{
+	MD5_CTX cx;
+	u_int64_t u64;
+	u_int u, u1;
+	u_char *p, buf[16];
+
+	if (sc->keying == KEY_ZERO) {
+		rijndael_makeKey(ki, dir, 128, sc->master_key);
+		return;
+	}
+	MD5Init(&cx);
+	u64 = htole64(off);
+	MD5Update(&cx, (u_char *)&u64, sizeof(u64));
+	u = off / sc->sectorsize;
+	u %= sizeof sc->master_key;
+	p = sc->master_key + u;
+	if (u + 16 <= sizeof(sc->master_key)) {
+		MD5Update(&cx, p, 16);
+	} else {
+		u1 = sizeof sc->master_key - u;
+		MD5Update(&cx, p, u1);
+		MD5Update(&cx, sc->master_key, 16 - u1);
+		u1 = 0;				/* destroy evidence */
+	}
+	u = 0;					/* destroy evidence */
+	MD5Update(&cx, (u_char *)&u64, sizeof(u64));
+	u64 = 0;				/* destroy evidence */
+	MD5Final(buf, &cx);
+	bzero(&cx, sizeof cx);			/* destroy evidence */
+	rijndael_makeKey(ki, dir, 128, buf);
+	bzero(buf, sizeof buf);			/* destroy evidence */
+
+}
 
 static void
 g_aes_read_done(struct bio *bp)
@@ -85,6 +143,8 @@ g_aes_read_done(struct bio *bp)
 	struct g_geom *gp;
 	struct g_aes_softc *sc;
 	u_char *p, *b, *e, *sb;
+	keyInstance dkey;
+	off_t o;
 
 	gp = bp->bio_from->geom;
 	sc = gp->softc;
@@ -92,17 +152,28 @@ g_aes_read_done(struct bio *bp)
 	b = bp->bio_data;
 	e = bp->bio_data;
 	e += bp->bio_length;
+	o = bp->bio_offset - sc->sectorsize;
 	for (p = b; p < e; p += sc->sectorsize) {
-		rijndael_blockDecrypt(&sc->ci, &sc->dkey, p, sc->sectorsize * 8, sb);
+		g_aes_makekey(sc, o, &dkey, DIR_DECRYPT);
+		rijndael_blockDecrypt(&sc->ci, &dkey, p, sc->sectorsize * 8, sb);
 		bcopy(sb, p, sc->sectorsize);
+		o += sc->sectorsize;
 	}
+	bzero(&dkey, sizeof dkey);		/* destroy evidence */
+	bzero(sb, sc->sectorsize);		/* destroy evidence */
+	g_free(sb);
 	g_std_done(bp);
 }
 
 static void
 g_aes_write_done(struct bio *bp)
 {
+	struct g_aes_softc *sc;
+	struct g_geom *gp;
 
+	gp = bp->bio_to->geom;
+	sc = gp->softc;
+	bzero(bp->bio_data, bp->bio_length);	/* destroy evidence */
 	g_free(bp->bio_data);
 	g_std_done(bp);
 }
@@ -115,6 +186,8 @@ g_aes_start(struct bio *bp)
 	struct g_aes_softc *sc;
 	struct bio *bp2;
 	u_char *p1, *p2, *b, *e;
+	keyInstance ekey;
+	off_t o;
 
 	gp = bp->bio_to->geom;
 	cp = LIST_FIRST(&gp->consumer);
@@ -135,11 +208,15 @@ g_aes_start(struct bio *bp)
 		e = bp->bio_data;
 		e += bp->bio_length;
 		p2 = bp2->bio_data;
+		o = bp->bio_offset;
 		for (p1 = b; p1 < e; p1 += sc->sectorsize) {
-			rijndael_blockEncrypt(&sc->ci, &sc->ekey,
+			g_aes_makekey(sc, o, &ekey, DIR_ENCRYPT);
+			rijndael_blockEncrypt(&sc->ci, &ekey,
 			    p1, sc->sectorsize * 8, p2);
 			p2 += sc->sectorsize;
+			o += sc->sectorsize;
 		}
+		bzero(&ekey, sizeof ekey);	/* destroy evidence */
 		g_io_request(bp2, cp);
 		break;
 	case BIO_GETATTR:
@@ -166,6 +243,7 @@ g_aes_orphan(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
+	struct g_aes_softc *sc;
 	int error;
 
 	g_trace(G_T_TOPOLOGY, "g_aes_orphan(%p/%s)", cp, cp->provider->name);
@@ -174,10 +252,12 @@ g_aes_orphan(struct g_consumer *cp)
 		("g_aes_orphan with error == 0"));
 
 	gp = cp->geom;
+	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
 	error = cp->provider->error;
 	LIST_FOREACH(pp, &gp->provider, provider)
 		g_orphan_provider(pp, error);
+	bzero(sc, sizeof(struct g_aes_softc));	/* destroy evidence */
 	return;
 }
 
@@ -238,16 +318,46 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		if (buf == NULL || error != 0) {
 			break;
 		}
-		if (memcmp(buf, aes_magic, strlen(aes_magic)))
-			break;
 		sc = g_malloc(sizeof(struct g_aes_softc), M_WAITOK | M_ZERO);
+		if (!memcmp(buf, aes_magic, strlen(aes_magic))) {
+			sc->keying = KEY_ZERO;
+		} else if (!memcmp(buf, aes_magic_random, 
+		    strlen(aes_magic_random))) {
+			sc->keying = KEY_RANDOM;
+		} else if (!memcmp(buf, aes_magic_test, 
+		    strlen(aes_magic_test))) {
+			sc->keying = KEY_TEST;
+		} else {
+			g_free(sc);
+			break;
+		}
 		gp->softc = sc;
 		gp->access = g_aes_access;
 		sc->sectorsize = sectorsize;
 		sc->mediasize = mediasize - sectorsize;
 		rijndael_cipherInit(&sc->ci, MODE_CBC, NULL);
-		rijndael_makeKey(&sc->ekey, DIR_ENCRYPT, 128, aes_key);
-		rijndael_makeKey(&sc->dkey, DIR_DECRYPT, 128, aes_key);
+		if (sc->keying == KEY_TEST) {
+			int i;
+			u_char *p;
+
+			p = sc->master_key;
+			for (i = 0; i < sizeof sc->master_key; i ++) 
+				*p++ = i;
+		}
+		if (sc->keying == KEY_RANDOM) {
+			int i;
+			u_int32_t u;
+			u_char *p;
+
+			p = sc->master_key;
+			for (i = 0; i < sizeof sc->master_key; i += sizeof u) {
+				u = arc4random();
+				*p++ = u;
+				*p++ = u >> 8;
+				*p++ = u >> 16;
+				*p++ = u >> 24;
+			}
+		}
 		pp = g_new_providerf(gp, gp->name);
 		pp->mediasize = mediasize - sectorsize;
 		g_error_provider(pp, 0);
