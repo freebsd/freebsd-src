@@ -2,7 +2,7 @@
 
 SUBDIR=	atrun bootpd bootpgw comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey rexecd rlogind rpc.rstatd rpc.rusersd \
-	rpc.rwalld rshd talkd telnetd tftpd uucpd
+	rpc.rwalld rshd talkd telnetd tftpd uucpd xtend
 
 # Present but disabled: kpasswdd
 
