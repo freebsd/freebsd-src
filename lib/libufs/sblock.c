@@ -96,6 +96,8 @@ sbwrite(struct uufsd *disk, int all)
 	struct fs *fs;
 	int i, rofd;
 
+	DEBUG(NULL);
+
 	fs = &disk->d_fs;
 
 	rofd = disk->d_fd;

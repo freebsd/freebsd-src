@@ -90,6 +90,6 @@ gotit:	switch (disk->d_ufs) {
 	default:
 		break;
 	}
-	DEBUG(NULL);
+	DEBUG("unknown UFS filesystem");
 	return -1;
 }
