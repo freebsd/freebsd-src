@@ -433,6 +433,14 @@ swapoff(td, uap)
 	error = EINVAL;
 	goto done;
 found:
+#ifdef MAC
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = mac_check_system_swapoff(td->td_ucred, vp);
+	(void) VOP_UNLOCK(vp, 0, td);
+	if (error != 0)
+		goto done;
+#endif
+	
 	nblks = sp->sw_nblks;
 
 	/*
