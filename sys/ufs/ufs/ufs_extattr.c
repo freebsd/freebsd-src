@@ -714,7 +714,7 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	 * Processes with privilege, but in jail, are not allowed to
 	 * configure extended attributes.
 	 */
-	if ((error = suser_xxx(td->td_ucred, td->td_proc, 0))) {
+	if ((error = suser(td))) {
 		if (filename_vp != NULL)
 			VOP_UNLOCK(filename_vp, 0, td);
 		return (error);
@@ -811,7 +811,7 @@ ufs_extattr_credcheck(struct vnode *vp, struct ufs_extattr_list_entry *uele,
 	switch (uele->uele_attrnamespace) {
 	case EXTATTR_NAMESPACE_SYSTEM:
 		/* Potentially should be: return (EPERM); */
-		return (suser_xxx(cred, td->td_proc, 0));
+		return (suser_cred(cred, 0));
 	case EXTATTR_NAMESPACE_USER:
 		return (VOP_ACCESS(vp, access, cred, td));
 	default:

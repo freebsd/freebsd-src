@@ -467,7 +467,7 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 	inp = sotoinpcb(so);
 	if (inp)
 		panic("rip_attach");
-	if (td && (error = suser_td(td)) != 0)
+	if (td && (error = suser(td)) != 0)
 		return error;
 
 	error = soreserve(so, rip_sendspace, rip_recvspace);

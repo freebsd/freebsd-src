@@ -1010,7 +1010,7 @@ open_top:
 				goto open_top;
 			}
 		}
-		if(tp->t_state & TS_XCLUDE && suser_td(td) != 0) {
+		if(tp->t_state & TS_XCLUDE && suser(td) != 0) {
 			splx(oldspl);
 			error = EBUSY;
 			goto out2;
@@ -1271,7 +1271,7 @@ rpioctl(dev, cmd, data, flag, td)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser_td(td);
+			error = suser(td);
 			if(error != 0)
 				return(error);
 			*ct = *(struct termios *)data;
@@ -1416,7 +1416,7 @@ rpioctl(dev, cmd, data, flag, td)
 		*(int *)data = result;
 		break;
 	case TIOCMSDTRWAIT:
-		error = suser_td(td);
+		error = suser(td);
 		if(error != 0) {
 			splx(oldspl);
 			return(error);

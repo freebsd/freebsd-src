@@ -105,7 +105,7 @@ umapfs_mount(mp, path, data, ndp, td)
 	/*
 	 * Only for root
 	 */
-	if ((error = suser_td(td)) != 0)
+	if ((error = suser(td)) != 0)
 		return (error);
 
 #ifdef DEBUG

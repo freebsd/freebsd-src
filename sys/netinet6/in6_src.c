@@ -349,7 +349,7 @@ in6_pcbsetport(laddr, inp, td)
 		last  = ipport_hilastauto;
 		lastport = &pcbinfo->lasthi;
 	} else if (inp->inp_flags & INP_LOWPORT) {
-		if (td && (error = suser_td(td)))
+		if (td && (error = suser(td)))
 			return error;
 		first = ipport_lowfirstauto;	/* 1023 */
 		last  = ipport_lowlastauto;	/* 600 */

@@ -636,7 +636,7 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, s;
 
-	error = suser_xxx(0, req->td->td_proc, PRISON_ROOT);
+	error = suser_cred(req->td->td_ucred, PRISON_ROOT);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));

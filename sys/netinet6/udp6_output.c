@@ -140,7 +140,7 @@ udp6_output(in6p, m, addr6, control, td)
 	struct sockaddr_in6 tmp;
 
 	priv = 0;
-	if (td && !suser_td(td))
+	if (td && !suser(td))
 		priv = 1;
 	if (control) {
 		if ((error = ip6_setpktoptions(control, &opt, priv, 0)) != 0)

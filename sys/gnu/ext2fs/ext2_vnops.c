@@ -1153,7 +1153,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser_xxx(cnp->cn_cred, 0, PRISON_ROOT))
+	    suser_cred(cnp->cn_cred, PRISON_ROOT))
 		ip->i_mode &= ~ISGID;
 
 	if (cnp->cn_flags & ISWHITEOUT)

@@ -99,7 +99,7 @@ smopen(dev_t dev, int flag, int mode, struct thread *td)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		smparam(tp, &tp->t_termios);
 		(*linesw[tp->t_line].l_modem)(tp, 1);
-	} else if (tp->t_state & TS_XCLUDE && suser_td(td)) {
+	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
 		return EBUSY;
 	}
 

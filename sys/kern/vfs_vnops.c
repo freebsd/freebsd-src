@@ -638,7 +638,7 @@ vn_stat(vp, sb, td)
 	}
 	
 	sb->st_flags = vap->va_flags;
-	if (suser_xxx(td->td_ucred, 0, 0))
+	if (suser(td))
 		sb->st_gen = 0;
 	else
 		sb->st_gen = vap->va_gen;

@@ -290,7 +290,7 @@ zsopen(dev_t dev, int flag, int mode, struct thread *td)
 		tp->t_ispeed = tp->t_ospeed = TTYDEF_SPEED;
 		ttsetwater(tp);
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(td->td_proc)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {
 		splx(s);
 		return EBUSY;
 	}

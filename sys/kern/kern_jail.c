@@ -87,7 +87,7 @@ jail(td, uap)
 	pr->pr_ip = j.ip_number;
 	PROC_LOCK(p);
 	/* Implicitly fail if already in jail.  */
-	error = suser_xxx(p->p_ucred, NULL, 0);
+	error = suser_cred(p->p_ucred, 0);
 	if (error)
 		goto badcred;
 	oldcred = p->p_ucred;

@@ -1283,7 +1283,7 @@ ip6_ctloutput(so, sopt)
 	}
 	error = optval = 0;
 
-	privileged = (td == 0 || suser_td(td)) ? 0 : 1;
+	privileged = (td == 0 || suser(td)) ? 0 : 1;
 
 	if (level == IPPROTO_IPV6) {
 		switch (op) {
@@ -1733,7 +1733,7 @@ ip6_pcbopts(pktopt, m, so, sopt)
 	}
 
 	/*  set options specified by user. */
-	if (td && !suser_td(td))
+	if (td && !suser(td))
 		priv = 1;
 	if ((error = ip6_setpktoptions(m, opt, priv, 1)) != 0) {
 		ip6_clearpktopts(opt, 1, -1); /* XXX: discard all options */
@@ -1989,7 +1989,7 @@ ip6_setmoptions(optname, im6op, m)
 			 * all multicast addresses. Only super user is allowed
 			 * to do this.
 			 */
-			if (suser_td(td))
+			if (suser(td))
 			{
 				error = EACCES;
 				break;
@@ -2096,7 +2096,7 @@ ip6_setmoptions(optname, im6op, m)
 		}
 		mreq = mtod(m, struct ipv6_mreq *);
 		if (IN6_IS_ADDR_UNSPECIFIED(&mreq->ipv6mr_multiaddr)) {
-			if (suser_td(td)) {
+			if (suser(td)) {
 				error = EACCES;
 				break;
 			}

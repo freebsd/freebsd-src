@@ -70,7 +70,7 @@ void m_dumpm(struct mbuf *m);
 	 SIGISMEMBER(set, SIGHUP) || SIGISMEMBER(set, SIGKILL) ||	\
 	 SIGISMEMBER(set, SIGQUIT))
 
-#define	smb_suser(cred)	suser_xxx(cred, NULL, 0)
+#define	smb_suser(cred)	suser_cred(cred, 0)
 
 /*
  * Compatibility wrappers for simple locks

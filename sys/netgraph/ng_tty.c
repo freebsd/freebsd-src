@@ -190,7 +190,7 @@ ngt_open(dev_t dev, struct tty *tp)
 	int s, error;
 
 	/* Super-user only */
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 		return (error);
 	s = splnet();
 	(void) spltty();	/* XXX is this necessary? */

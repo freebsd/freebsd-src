@@ -375,7 +375,7 @@ vinumopen(dev_t dev,
 	}
 
     case VINUM_SUPERDEV_TYPE:
-	error = suser_td(td);				    /* are we root? */
+	error = suser(td);				    /* are we root? */
 	if (error == 0) {				    /* yes, can do */
 	    if (devminor == VINUM_DAEMON_DEV)		    /* daemon device */
 		vinum_conf.flags |= VF_DAEMONOPEN;	    /* we're open */

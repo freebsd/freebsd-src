@@ -559,13 +559,13 @@ svr4_sys_systeminfo(td, uap)
 		break;
 #if defined(WHY_DOES_AN_EMULATOR_WANT_TO_SET_HOSTNAMES)
 	case SVR4_SI_SET_HOSTNAME:
-		if ((error = suser(p)) != 0)
+		if ((error = suser(td)) != 0)
 			return error;
 		name = KERN_HOSTNAME;
 		return kern_sysctl(&name, 1, 0, 0, SCARG(uap, buf), rlen, td);
 
 	case SVR4_SI_SET_SRPC_DOMAIN:
-		if ((error = suser(p)) != 0)
+		if ((error = suser(td)) != 0)
 			return error;
 		name = KERN_NISDOMAINNAME;
 		return kern_sysctl(&name, 1, 0, 0, SCARG(uap, buf), rlen, td);

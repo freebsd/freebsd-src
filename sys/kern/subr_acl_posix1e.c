@@ -89,7 +89,7 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 	 * a DAC entry that matches but has failed to allow access.
 	 */
 #ifndef CAPABILITIES
-	if (suser_xxx(cred, NULL, PRISON_ROOT) == 0)
+	if (suser_cred(cred, PRISON_ROOT) == 0)
 		cap_granted = (VEXEC | VREAD | VWRITE | VADMIN);
 	else
 		cap_granted = 0;

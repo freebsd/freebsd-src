@@ -123,7 +123,7 @@ promopen(dev, flag, mode, td)
 		ttsetwater(tp);
 
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(td->td_proc)) {
+	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {
 		splx(s);
 		return EBUSY;
 	}

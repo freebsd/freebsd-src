@@ -126,7 +126,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 retry:
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
-	if (suser_xxx(cred, NULL, PRISON_ROOT) &&
+	if (suser_cred(cred, PRISON_ROOT) &&
 	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
 		goto nospace;
 #ifdef QUOTA
@@ -207,7 +207,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 #endif /* DIAGNOSTIC */
 	reclaimed = 0;
 retry:
-	if (suser_xxx(cred, NULL, PRISON_ROOT) &&
+	if (suser_cred(cred, PRISON_ROOT) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
 	if ((bprev = ip->i_db[lbprev]) == 0) {

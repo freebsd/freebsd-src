@@ -1266,7 +1266,7 @@ an_ioctl(ifp, command, data)
 	int			i;
 	struct an_softc		*sc;
 	struct ifreq		*ifr;
-	struct proc		*p = curproc;
+	struct thread		*td = curthread;
 	struct ieee80211req	*ireq;
 	u_int8_t		tmpstr[IEEE80211_NWID_LEN*2];
 	u_int8_t		*tmpptr;
@@ -1353,7 +1353,7 @@ an_ioctl(ifp, command, data)
 		error = copyout(&sc->areq, ifr->ifr_data, sizeof(sc->areq));
 		break;
 	case SIOCSAIRONET:
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
 		if (error != 0)
@@ -1361,7 +1361,7 @@ an_ioctl(ifp, command, data)
 		an_setdef(sc, &sc->areq);
 		break;
 	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
 		mode = l_ioctl.command;
@@ -1381,7 +1381,7 @@ an_ioctl(ifp, command, data)
 
 		break;
 	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
 		l_ioctl.command = 0;
@@ -1614,7 +1614,7 @@ an_ioctl(ifp, command, data)
 		}
 		break;
 	case SIOCS80211:
-		if ((error = suser(p)))
+		if ((error = suser(td)))
 			goto out;
 		sc->areq.an_len = sizeof(sc->areq);
 		/*

@@ -1134,12 +1134,16 @@ ip6_savecontrol(in6p, mp, ip6, m)
 	struct ip6_hdr *ip6;
 	struct mbuf *m;
 {
-	struct proc *p = curproc;	/* XXX */
+#if __FreeBSD__ >= 5
+	struct thread *td = curthread;	/* XXX */
+#else
+	struct proc *td = curproc;	/* XXX */
+#endif
 	int privileged = 0;
 	int rthdr_exist = 0;
 
 
-	if (p && !suser(p))
+	if (td && !suser(td))
  		privileged++;
 
 #ifdef SO_TIMESTAMP

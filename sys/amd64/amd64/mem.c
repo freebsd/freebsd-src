@@ -122,7 +122,7 @@ mmopen(dev_t dev, int flags, int fmt, struct thread *td)
 		}
 		break;
 	case 14:
-		error = suser_td(td);
+		error = suser(td);
 		if (error != 0)
 			return (error);
 		error = securelevel_gt(td->td_ucred, 0);

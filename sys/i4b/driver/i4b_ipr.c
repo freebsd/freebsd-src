@@ -481,9 +481,9 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #ifdef IPR_VJ
 		case IPRIOCSMAXCID:
 			{
-			struct proc *p = curproc;	/* XXX */
+			struct thread *td = curthread;	/* XXX */
 
-			if((error = suser(p)) != 0)
+			if((error = suser(td)))
 				return (error);
 		        sl_compress_setup(sc->sc_compr, *(int *)data);
 			}

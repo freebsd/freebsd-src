@@ -108,7 +108,11 @@ awi_wicfg(ifp, cmd, data)
 		break;
 	case SIOCSWAVELAN:
 #ifdef __FreeBSD__
+#if __FreeBSD__ >= 5
+		error = suser(curthread);
+#else
 		error = suser(curproc);
+#endif
 #else
 		error = suser(curproc->p_ucred, &curproc->p_acflag);
 #endif
@@ -272,7 +276,11 @@ awi_cfgget(ifp, cmd, data)
 		keys = (struct wi_ltv_keys *)&wreq;
 		/* do not show keys to non-root user */
 #ifdef __FreeBSD__
+#if __FreeBSD__ >= 5
+		error = suser(curthread);
+#else
 		error = suser(curproc);
+#endif
 #else
 		error = suser(curproc->p_ucred, &curproc->p_acflag);
 #endif

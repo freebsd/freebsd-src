@@ -307,7 +307,7 @@ mmap(td, uap)
 			if (securelevel >= 1)
 				disablexworkaround = 1;
 			else
-				disablexworkaround = suser(p);
+				disablexworkaround = suser(td);
 			if (vp->v_type == VCHR && disablexworkaround &&
 			    (flags & (MAP_PRIVATE|MAP_COPY))) {
 				error = EINVAL;

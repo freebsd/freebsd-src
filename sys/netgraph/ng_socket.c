@@ -166,7 +166,7 @@ ngc_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
 
-	if (suser_td(td))
+	if (suser(td))
 		return (EPERM);
 	if (pcbp != NULL)
 		return (EISCONN);

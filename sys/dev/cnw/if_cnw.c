@@ -1239,7 +1239,11 @@ cnw_ioctl(ifp, cmd, data)
 #endif
 	struct ifreq *ifr = (struct ifreq *)data;
 	int s, error = 0;
-	struct proc *p = curproc;	/*XXX*/
+#if __FreeBSD__ >= 5
+	struct thread *td = curthread;	/* XXX */
+#else
+	struct proc *td = curproc;	/*XXX*/
+#endif
 
 	s = splnet();
 
@@ -1331,7 +1335,7 @@ cnw_ioctl(ifp, cmd, data)
 #if !defined(__FreeBSD__)
 		error = suser(p->p_ucred, &p->p_acflag);
 #else
-		error = suser(p);
+		error = suser(td);
 #endif
 		if (error)
 			break;
@@ -1342,7 +1346,7 @@ cnw_ioctl(ifp, cmd, data)
 #if !defined(__FreeBSD__)
 		error = suser(p->p_ucred, &p->p_acflag);
 #else
-		error = suser(p);
+		error = suser(td);
 #endif
 		if (error)
 			break;
@@ -1353,7 +1357,7 @@ cnw_ioctl(ifp, cmd, data)
 #if !defined(__FreeBSD__)
 		error = suser(p->p_ucred, &p->p_acflag);
 #else
-		error = suser(p);
+		error = suser(td);
 #endif
 		if (error)
 			break;
