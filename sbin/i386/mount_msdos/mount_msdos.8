@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: mount_msdos.8,v 1.5 1997/02/22 14:32:29 peter Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -95,25 +95,34 @@ directory on which the file system is being mounted.
 The
 .Nm msdos
 filesystem is not known to work reliably with filesystems created by versions
-of MS-DOS later than version 3.3.
+of MS-DOS later than version 6.22.
 .Pp
 The limitations on file names imposed by MS-DOS are strange, at best.
 For instance, they are
 limited to single-case, 8 character names with 3 character extensions.
 .Pp
-If you see the warning:
+.Fx 2.1
+and earlier versions could not handle cluster sizes larger than 16K.
+Just mounting an MS-DOS file system could cause corruption to any
+mounted file system.
+Cluster sizes larger than 16K are unavoidable for file system sizes
+larger than 1G, and also occur when filesystems larger than 1G are
+shrunk to smaller than 1G using FIPS.
+The warning:
 .Pp
 mountmsdosfs(): Warning: root directory is not a multiple of the clustersize in length
 .Pp
-then it is possible that writing to the MS-DOS filesystem would
-produce corruption on the disk. This is a shortcoming in the code
-which needs to be addressed.
+is common when the cluster size is large and/or the filesystem has been
+shrunk, but it is not directly related to any known problems.
 .Sh HISTORY
 The
 .Nm mount_msdos
-utility first appeared in FreeBSD 2.0.
+utility first appeared in
+.Fx 2.0 .
 Its predecessor, the
 .Nm mount_pcfs
-utility appeared in FreeBSD 1, and was abandoned in favor
+utility appeared in
+.Fx 1.0 ,
+and was abandoned in favor
 of the more aptly-named
 .Nm mount_msdos .
