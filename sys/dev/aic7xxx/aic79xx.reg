@@ -2,7 +2,7 @@
  * Aic79xx register and scratch ram definitions.
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
- * Copyright (c) 2000-2001 Adaptec Inc.
+ * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#34 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#39 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -70,8 +70,8 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#34 $"
 register MODE_PTR {
 	address			0x000
 	access_mode	RW
-	mask	DST_MODE	0x70
-	mask	SRC_MODE	0x07
+	field	DST_MODE	0x70
+	field	SRC_MODE	0x07
 	mode_pointer
 }
 
@@ -84,14 +84,14 @@ const DST_MODE_SHIFT	4
 register INTSTAT {
 	address			0x001
 	access_mode	RW
-	bit	HWERRINT	0x80
-	bit	BRKADRINT	0x40
-	bit	SWTMINT		0x20
-	bit	PCIINT		0x10
-	bit	SCSIINT		0x08
-	bit	SEQINT		0x04
-	bit	CMDCMPLT	0x02
-	bit	SPLTINT		0x01
+	field	HWERRINT	0x80
+	field	BRKADRINT	0x40
+	field	SWTMINT		0x20
+	field	PCIINT		0x10
+	field	SCSIINT		0x08
+	field	SEQINT		0x04
+	field	CMDCMPLT	0x02
+	field	SPLTINT		0x01
 	mask	INT_PEND 0xFF
 }
 
@@ -101,19 +101,20 @@ register INTSTAT {
 register SEQINTCODE {
 	address			0x002
 	access_mode	RW
-	mask	BAD_PHASE	1		/* unknown scsi bus phase */
-	mask	SEND_REJECT	2		/* sending a message reject */
-	mask	PROTO_VIOLATION 3		/* Protocol Violation */
-	mask	NO_MATCH	4		/* no cmd match for reconnect */
-	mask	IGN_WIDE_RES	5		/* Complex IGN Wide Res Msg */
-	mask	PDATA_REINIT	6		/*
+	field {
+		BAD_PHASE	1,		/* unknown scsi bus phase */
+		SEND_REJECT,			/* sending a message reject */
+		PROTO_VIOLATION, 		/* Protocol Violation */
+		NO_MATCH,			/* no cmd match for reconnect */
+		IGN_WIDE_RES,			/* Complex IGN Wide Res Msg */
+		PDATA_REINIT,			/*
 						 * Returned to data phase
 						 * that requires data
 						 * transfer pointers to be
 						 * recalculated from the
 						 * transfer residual.
 						 */
-	mask	HOST_MSG_LOOP	7		/*
+		HOST_MSG_LOOP,			/*
 						 * The bus is ready for the
 						 * host to perform another
 						 * message transaction.  This
@@ -122,43 +123,31 @@ register SEQINTCODE {
 						 * that require a kernel based
 						 * message state engine.
 						 */
-	mask	BAD_STATUS	8		/* Bad status from target */
-	mask	DATA_OVERRUN	9		/*
+		BAD_STATUS,			/* Bad status from target */
+		DATA_OVERRUN,			/*
 						 * Target attempted to write
 						 * beyond the bounds of its
 						 * command.
 						 */
-	mask	MKMSG_FAILED	10		/*
+		MKMSG_FAILED,			/*
 						 * Target completed command
 						 * without honoring our ATN
 						 * request to issue a message. 
 						 */
-	mask	MISSED_BUSFREE	11		/*
+		MISSED_BUSFREE,			/*
 						 * The sequencer never saw
 						 * the bus go free after
 						 * either a command complete
 						 * or disconnect message.
 						 */
-	mask	SCB_MISMATCH	12		/*
-						 * Downloaded SCB's tag does
-						 * not match the entry we
-						 * intended to download.
-						 */
-	mask	NO_FREE_SCB	13		/*
-						 * get_free_or_disc_scb failed.
-						 */
-	mask	OUT_OF_RANGE	14
-	mask	NO_FREE_FIFO	15
-	mask	DUMP_CARD_STATE	16
-	mask	ILLEGAL_PHASE	17
-	mask	INVALID_SEQINT	18
-	mask	CFG4ISTAT_INTR	19
-	mask	STATUS_OVERRUN	20
-	mask	CFG4OVERRUN	21
-	mask	SNAPSHOTCLRCHN	22
-	mask	MONITORDRAIN	23
-	mask	ENTERING_NONPACK 24
-	mask	PCIX_ARBITOR_WW 25
+		DUMP_CARD_STATE,
+		ILLEGAL_PHASE,
+		INVALID_SEQINT,
+		CFG4ISTAT_INTR,
+		STATUS_OVERRUN,
+		CFG4OVERRUN,
+		ENTERING_NONPACK
+	}
 }
 
 /*
@@ -167,12 +156,13 @@ register SEQINTCODE {
 register CLRINT {
 	address			0x003
 	access_mode	WO
-	bit	CLRBRKADRINT	0x40
-	bit	CLRSWTMINT	0x20
-	bit	CLRSCSIINT	0x08
-	bit	CLRSEQINT	0x04
-	bit	CLRCMDINT	0x02
-	bit	CLRSPLTINT	0x01
+	field	CLRHWERRINT	0x80 /* Rev B or greater */
+	field	CLRBRKADRINT	0x40
+	field	CLRSWTMINT	0x20
+	field	CLRSCSIINT	0x08
+	field	CLRSEQINT	0x04
+	field	CLRCMDINT	0x02
+	field	CLRSPLTINT	0x01
 }
 
 /*
@@ -181,12 +171,13 @@ register CLRINT {
 register ERROR {
 	address			0x004
 	access_mode	RO
-	bit	CIOPARERR	0x80
-	bit	MPARERR		0x20
-	bit	DPARERR		0x10
-	bit	SQPARERR	0x08
-	bit	ILLOPCODE	0x04
-	bit	DSCTMOUT	0x02
+	field	CIOPARERR	0x80
+	field	CIOACCESFAIL	0x40 /* Rev B or greater */
+	field	MPARERR		0x20
+	field	DPARERR		0x10
+	field	SQPARERR	0x08
+	field	ILLOPCODE	0x04
+	field	DSCTMOUT	0x02
 }
 
 /*
@@ -195,12 +186,13 @@ register ERROR {
 register CLRERR {
 	address			0x004
 	access_mode 	WO
-	bit	CLRCIOPARERR	0x80
-	bit	CLRMPARERR	0x20
-	bit	CLRDPARERR	0x10
-	bit	CLRSQPARERR	0x08
-	bit	CLRILLOPCODE	0x04
-	bit	CLRDSCTMOUT	0x02
+	field	CLRCIOPARERR	0x80
+	field	CLRCIOACCESFAIL	0x40 /* Rev B or greater */
+	field	CLRMPARERR	0x20
+	field	CLRDPARERR	0x10
+	field	CLRSQPARERR	0x08
+	field	CLRILLOPCODE	0x04
+	field	CLRDSCTMOUT	0x02
 }
 
 /*
@@ -210,13 +202,14 @@ register CLRERR {
 register HCNTRL {
 	address			0x005
 	access_mode	RW
-	bit	POWRDN		0x40
-	bit	SWINT		0x10
-	bit	HCNTRL3		0x08
-	bit	PAUSE		0x04
-	bit	INTEN		0x02
-	bit	CHIPRST		0x01
-	bit	CHIPRSTACK	0x01
+	field	SEQ_RESET	0x80 /* Rev B or greater */
+	field	POWRDN		0x40
+	field	SWINT		0x10
+	field	SWTIMER_START_B	0x08 /* Rev B or greater */
+	field	PAUSE		0x04
+	field	INTEN		0x02
+	field	CHIPRST		0x01
+	field	CHIPRSTACK	0x01
 }
 
 /*
@@ -251,11 +244,11 @@ register HS_MAILBOX {
 register SEQINTSTAT {
 	address			0x0C
 	access_mode	RO
-	bit	SEQ_SWTMRTO	0x10
-	bit	SEQ_SEQINT	0x08
-	bit	SEQ_SCSIINT	0x04
-	bit	SEQ_PCIINT	0x02
-	bit	SEQ_SPLTINT	0x01
+	field	SEQ_SWTMRTO	0x10
+	field	SEQ_SEQINT	0x08
+	field	SEQ_SCSIINT	0x04
+	field	SEQ_PCIINT	0x02
+	field	SEQ_SPLTINT	0x01
 }
 
 /*
@@ -264,11 +257,11 @@ register SEQINTSTAT {
 register CLRSEQINTSTAT {
 	address			0x0C0
 	access_mode	WO
-	bit	CLRSEQ_SWTMRTO	0x10
-	bit	CLRSEQ_SEQINT	0x08
-	bit	CLRSEQ_SCSIINT	0x04
-	bit	CLRSEQ_PCIINT	0x02
-	bit	CLRSEQ_SPLTINT	0x01
+	field	CLRSEQ_SWTMRTO	0x10
+	field	CLRSEQ_SEQINT	0x08
+	field	CLRSEQ_SCSIINT	0x04
+	field	CLRSEQ_PCIINT	0x02
+	field	CLRSEQ_SPLTINT	0x01
 }
 
 /*
@@ -316,24 +309,25 @@ register QOFF_CTLSTA {
 	address			0x016
 	access_mode	RW
 	modes		M_CCHAN
-	bit	EMPTY_SCB_AVAIL	0x80
-	bit	NEW_SCB_AVAIL	0x40
-	bit	SDSCB_ROLLOVR	0x20
-	bit	HS_MAILBOX_ACT	0x10
-	mask	SCB_QSIZE	0x0F
-	mask	SCB_QSIZE_4	0x00
-	mask	SCB_QSIZE_8	0x01
-	mask	SCB_QSIZE_16	0x02
-	mask	SCB_QSIZE_32	0x03
-	mask	SCB_QSIZE_64	0x04
-	mask	SCB_QSIZE_128	0x05
-	mask	SCB_QSIZE_256	0x06
-	mask	SCB_QSIZE_512	0x07
-	mask	SCB_QSIZE_1024	0x08
-	mask	SCB_QSIZE_2048	0x09
-	mask	SCB_QSIZE_4096	0x0A
-	mask	SCB_QSIZE_8192	0x0B
-	mask	SCB_QSIZE_16384	0x0C
+	field	EMPTY_SCB_AVAIL	0x80
+	field	NEW_SCB_AVAIL	0x40
+	field	SDSCB_ROLLOVR	0x20
+	field	HS_MAILBOX_ACT	0x10
+	field	SCB_QSIZE	0x0F {
+		SCB_QSIZE_4,
+		SCB_QSIZE_8,
+		SCB_QSIZE_16,
+		SCB_QSIZE_32,
+		SCB_QSIZE_64,
+		SCB_QSIZE_128,
+		SCB_QSIZE_256,
+		SCB_QSIZE_512,
+		SCB_QSIZE_1024,
+		SCB_QSIZE_2048,
+		SCB_QSIZE_4096,
+		SCB_QSIZE_8192,
+		SCB_QSIZE_16384
+	}
 }
 
 /*
@@ -342,14 +336,14 @@ register QOFF_CTLSTA {
 register INTCTL {
 	address			0x018
 	access_mode	RW
-	bit	SWTMINTMASK	0x80
-	bit	SWTMINTEN	0x40
-	bit	SWTIMER_START	0x20
-	bit	AUTOCLRCMDINT	0x10
-	bit	PCIINTEN	0x08
-	bit	SCSIINTEN	0x04
-	bit	SEQINTEN	0x02
-	bit	SPLTINTEN	0x01
+	field	SWTMINTMASK	0x80
+	field	SWTMINTEN	0x40
+	field	SWTIMER_START	0x20
+	field	AUTOCLRCMDINT	0x10
+	field	PCIINTEN	0x08
+	field	SCSIINTEN	0x04
+	field	SEQINTEN	0x02
+	field	SPLTINTEN	0x01
 }
 
 /*
@@ -359,16 +353,16 @@ register DFCNTRL {
 	address			0x019
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	PRELOADEN	0x80
-	bit	SCSIEN		0x20
-	bit	SCSIENACK	0x20
-	bit	HDMAEN		0x08
-	bit	HDMAENACK	0x08
-	bit	DIRECTION	0x04
-	bit	DIRECTIONACK	0x04
-	bit	FIFOFLUSH	0x02
-	bit	FIFOFLUSHACK	0x02
-	bit	DIRECTIONEN	0x01
+	field	PRELOADEN	0x80
+	field	SCSIEN		0x20
+	field	SCSIENACK	0x20
+	field	HDMAEN		0x08
+	field	HDMAENACK	0x08
+	field	DIRECTION	0x04
+	field	DIRECTIONACK	0x04
+	field	FIFOFLUSH	0x02
+	field	FIFOFLUSHACK	0x02
+	field	DIRECTIONEN	0x01
 }
 
 /*
@@ -378,11 +372,12 @@ register DSCOMMAND0 {
 	address			0x019
 	access_mode	RW
 	modes		M_CFG
-	bit	CACHETHEN	0x80	/* Cache Threshold enable */
-	bit	DPARCKEN	0x40	/* Data Parity Check Enable */
-	bit	MPARCKEN	0x20	/* Memory Parity Check Enable */
-	bit	EXTREQLCK	0x10	/* External Request Lock */
-	bit	CIOPARCKEN	0x01	/* Internal bus parity error enable */
+	field	CACHETHEN	0x80	/* Cache Threshold enable */
+	field	DPARCKEN	0x40	/* Data Parity Check Enable */
+	field	MPARCKEN	0x20	/* Memory Parity Check Enable */
+	field	EXTREQLCK	0x10	/* External Request Lock */
+	field	DISABLE_TWATE	0x02	/* Rev B or greater */
+	field	CIOPARCKEN	0x01	/* Internal bus parity error enable */
 }
 
 /*
@@ -392,13 +387,13 @@ register DFSTATUS {
 	address			0x01A
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	bit	PRELOAD_AVAIL		0x80
-	bit	PKT_PRELOAD_AVAIL	0x40
-	bit	MREQPEND		0x10
-	bit	HDONE			0x08
-	bit	DFTHRESH		0x04
-	bit	FIFOFULL		0x02
-	bit	FIFOEMP			0x01
+	field	PRELOAD_AVAIL		0x80
+	field	PKT_PRELOAD_AVAIL	0x40
+	field	MREQPEND		0x10
+	field	HDONE			0x08
+	field	DFTHRESH		0x04
+	field	FIFOFULL		0x02
+	field	FIFOEMP			0x01
 }
 
 /*
@@ -408,19 +403,19 @@ register SG_CACHE_PRE {
 	address			0x01B
 	access_mode	WO
 	modes		M_DFF0, M_DFF1
-	mask	SG_ADDR_MASK	0xf8
-	bit	ODD_SEG		0x04
-	bit	LAST_SEG	0x02
+	field	SG_ADDR_MASK	0xf8
+	field	ODD_SEG		0x04
+	field	LAST_SEG	0x02
 }
 
 register SG_CACHE_SHADOW {
 	address			0x01B
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	SG_ADDR_MASK	0xf8
-	bit	ODD_SEG		0x04
-	bit	LAST_SEG	0x02
-	bit	LAST_SEG_DONE	0x01
+	field	SG_ADDR_MASK	0xf8
+	field	ODD_SEG		0x04
+	field	LAST_SEG	0x02
+	field	LAST_SEG_DONE	0x01
 }
 
 /*
@@ -430,9 +425,9 @@ register ARBCTL {
 	address			0x01B
 	access_mode	RW
 	modes		M_CFG
-	bit	RESET_HARB	0x80
-	bit	RETRY_SWEN	0x08
-	mask	USE_TIME	0x07
+	field	RESET_HARB	0x80
+	field	RETRY_SWEN	0x08
+	field	USE_TIME	0x07
 }
 
 /*
@@ -529,24 +524,26 @@ register DFF_THRSH {
 	address			0x088
 	access_mode	RW
 	modes		M_CFG
-	mask	WR_DFTHRSH	0x70
-	mask	RD_DFTHRSH	0x07
-	mask	RD_DFTHRSH_MIN	0x00
-	mask	RD_DFTHRSH_25	0x01
-	mask	RD_DFTHRSH_50	0x02
-	mask	RD_DFTHRSH_63	0x03
-	mask	RD_DFTHRSH_75	0x04
-	mask	RD_DFTHRSH_85	0x05
-	mask	RD_DFTHRSH_90	0x06
-	mask	RD_DFTHRSH_MAX	0x07
-	mask	WR_DFTHRSH_MIN	0x00
-	mask	WR_DFTHRSH_25	0x10
-	mask	WR_DFTHRSH_50	0x20
-	mask	WR_DFTHRSH_63	0x30
-	mask	WR_DFTHRSH_75	0x40
-	mask	WR_DFTHRSH_85	0x50
-	mask	WR_DFTHRSH_90	0x60
-	mask	WR_DFTHRSH_MAX	0x70
+	field	WR_DFTHRSH	0x70 {
+		WR_DFTHRSH_MIN,
+		WR_DFTHRSH_25,
+		WR_DFTHRSH_50,
+		WR_DFTHRSH_63,
+		WR_DFTHRSH_75,
+		WR_DFTHRSH_85,
+		WR_DFTHRSH_90,
+		WR_DFTHRSH_MAX
+	}
+	field	RD_DFTHRSH	0x07 {
+		RD_DFTHRSH_MIN,
+		RD_DFTHRSH_25,
+		RD_DFTHRSH_50,
+		RD_DFTHRSH_63,
+		RD_DFTHRSH_75,
+		RD_DFTHRSH_85,
+		RD_DFTHRSH_90,
+		RD_DFTHRSH_MAX
+	}
 }
 
 /*
@@ -564,10 +561,10 @@ register ROMADDR {
 register ROMCNTRL {
 	address			0x08D
 	access_mode	RW
-	mask	ROMOP		0xE0
-	mask	ROMSPD		0x18
-	bit	REPEAT		0x02
-	bit	RDY		0x01
+	field	ROMOP		0xE0
+	field	ROMSPD		0x18
+	field	REPEAT		0x02
+	field	RDY		0x01
 }
 
 /*
@@ -585,8 +582,8 @@ register DCHRXMSG0 {
 	address			0x090
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask		CDNUM	0xF8
-	mask		CFNUM	0x07
+	field		CDNUM	0xF8
+	field		CFNUM	0x07
 }
 
 /*
@@ -596,8 +593,8 @@ register CMCRXMSG0 {
 	address			0x090
 	access_mode	RO
 	modes		M_CCHAN
-	mask		CDNUM	0xF8
-	mask		CFNUM	0x07
+	field		CDNUM	0xF8
+	field		CFNUM	0x07
 }
 
 /*
@@ -607,8 +604,8 @@ register OVLYRXMSG0 {
 	address			0x090
 	access_mode	RO
 	modes		M_SCSI
-	mask		CDNUM	0xF8
-	mask		CFNUM	0x07
+	field		CDNUM	0xF8
+	field		CFNUM	0x07
 }
 
 /*
@@ -618,12 +615,12 @@ register ROENABLE {
 	address			0x090
 	access_mode	RW
 	modes		M_CFG
-	bit	MSIROEN		0x20
-	bit	OVLYROEN	0x10
-	bit	CMCROEN		0x08
-	bit	SGROEN		0x04
-	bit	DCH1ROEN	0x02
-	bit	DCH0ROEN	0x01
+	field	MSIROEN		0x20
+	field	OVLYROEN	0x10
+	field	CMCROEN		0x08
+	field	SGROEN		0x04
+	field	DCH1ROEN	0x02
+	field	DCH0ROEN	0x01
 }
 
 /*
@@ -633,7 +630,7 @@ register DCHRXMSG1 {
 	address			0x091
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	CBNUM		0xFF
+	field	CBNUM		0xFF
 }
 
 /*
@@ -643,7 +640,7 @@ register CMCRXMSG1 {
 	address			0x091
 	access_mode	RO
 	modes		M_CCHAN
-	mask	CBNUM		0xFF
+	field	CBNUM		0xFF
 }
 
 /*
@@ -653,7 +650,7 @@ register OVLYRXMSG1 {
 	address			0x091
 	access_mode	RO
 	modes		M_SCSI
-	mask	CBNUM		0xFF
+	field	CBNUM		0xFF
 }
 
 /*
@@ -663,12 +660,12 @@ register NSENABLE {
 	address			0x091
 	access_mode	RW
 	modes		M_CFG
-	bit	MSINSEN		0x20
-	bit	OVLYNSEN	0x10
-	bit	CMCNSEN		0x08
-	bit	SGNSEN		0x04
-	bit	DCH1NSEN	0x02
-	bit	DCH0NSEN	0x01
+	field	MSINSEN		0x20
+	field	OVLYNSEN	0x10
+	field	CMCNSEN		0x08
+	field	SGNSEN		0x04
+	field	DCH1NSEN	0x02
+	field	DCH0NSEN	0x01
 }
 
 /*
@@ -678,7 +675,7 @@ register DCHRXMSG2 {
 	address			0x092
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	MINDEX		0xFF
+	field	MINDEX		0xFF
 }
 
 /*
@@ -688,7 +685,7 @@ register CMCRXMSG2 {
 	address			0x092
 	access_mode	RO
 	modes		M_CCHAN
-	mask	MINDEX		0xFF
+	field	MINDEX		0xFF
 }
 
 /*
@@ -698,7 +695,7 @@ register OVLYRXMSG2 {
 	address			0x092
 	access_mode	RO
 	modes		M_SCSI
-	mask	MINDEX		0xFF
+	field	MINDEX		0xFF
 }
 
 /*
@@ -717,7 +714,7 @@ register DCHRXMSG3 {
 	address			0x093
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	MCLASS		0x0F
+	field	MCLASS		0x0F
 }
 
 /*
@@ -727,7 +724,7 @@ register CMCRXMSG3 {
 	address			0x093
 	access_mode	RO
 	modes		M_CCHAN
-	mask	MCLASS		0x0F
+	field	MCLASS		0x0F
 }
 
 /*
@@ -737,7 +734,7 @@ register OVLYRXMSG3 {
 	address			0x093
 	access_mode	RO
 	modes		M_SCSI
-	mask	MCLASS		0x0F
+	field	MCLASS		0x0F
 }
 
 /*
@@ -747,13 +744,13 @@ register PCIXCTL {
 	address			0x093
 	access_mode	RW
 	modes		M_CFG
-	bit	SERRPULSE	0x80
-	bit	UNEXPSCIEN	0x20
-	bit	SPLTSMADIS	0x10
-	bit	SPLTSTADIS	0x08
-	bit	SRSPDPEEN	0x04
-	bit	TSCSERREN	0x02
-	bit	CMPABCDIS	0x01
+	field	SERRPULSE	0x80
+	field	UNEXPSCIEN	0x20
+	field	SPLTSMADIS	0x10
+	field	SPLTSTADIS	0x08
+	field	SRSPDPEEN	0x04
+	field	TSCSERREN	0x02
+	field	CMPABCDIS	0x01
 }
 
 /*
@@ -791,14 +788,14 @@ register DCHSPLTSTAT0 {
 	address			0x096
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	STAETERM	0x80
-	bit	SCBCERR		0x40
-	bit	SCADERR		0x20
-	bit	SCDATBUCKET	0x10
-	bit	CNTNOTCMPLT	0x08
-	bit	RXOVRUN		0x04
-	bit	RXSCEMSG	0x02
-	bit	RXSPLTRSP	0x01
+	field	STAETERM	0x80
+	field	SCBCERR		0x40
+	field	SCADERR		0x20
+	field	SCDATBUCKET	0x10
+	field	CNTNOTCMPLT	0x08
+	field	RXOVRUN		0x04
+	field	RXSCEMSG	0x02
+	field	RXSPLTRSP	0x01
 }
 
 /*
@@ -808,14 +805,14 @@ register CMCSPLTSTAT0 {
 	address			0x096
 	access_mode	RW
 	modes		M_CCHAN
-	bit	STAETERM	0x80
-	bit	SCBCERR		0x40
-	bit	SCADERR		0x20
-	bit	SCDATBUCKET	0x10
-	bit	CNTNOTCMPLT	0x08
-	bit	RXOVRUN		0x04
-	bit	RXSCEMSG	0x02
-	bit	RXSPLTRSP	0x01
+	field	STAETERM	0x80
+	field	SCBCERR		0x40
+	field	SCADERR		0x20
+	field	SCDATBUCKET	0x10
+	field	CNTNOTCMPLT	0x08
+	field	RXOVRUN		0x04
+	field	RXSCEMSG	0x02
+	field	RXSPLTRSP	0x01
 }
 
 /*
@@ -825,14 +822,14 @@ register OVLYSPLTSTAT0 {
 	address			0x096
 	access_mode	RW
 	modes		M_SCSI
-	bit	STAETERM	0x80
-	bit	SCBCERR		0x40
-	bit	SCADERR		0x20
-	bit	SCDATBUCKET	0x10
-	bit	CNTNOTCMPLT	0x08
-	bit	RXOVRUN		0x04
-	bit	RXSCEMSG	0x02
-	bit	RXSPLTRSP	0x01
+	field	STAETERM	0x80
+	field	SCBCERR		0x40
+	field	SCADERR		0x20
+	field	SCDATBUCKET	0x10
+	field	CNTNOTCMPLT	0x08
+	field	RXOVRUN		0x04
+	field	RXSCEMSG	0x02
+	field	RXSPLTRSP	0x01
 }
 
 /*
@@ -842,7 +839,7 @@ register DCHSPLTSTAT1 {
 	address			0x097
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	RXDATABUCKET	0x01
+	field	RXDATABUCKET	0x01
 }
 
 /*
@@ -852,7 +849,7 @@ register CMCSPLTSTAT1 {
 	address			0x097
 	access_mode	RW
 	modes		M_CCHAN
-	bit	RXDATABUCKET	0x01
+	field	RXDATABUCKET	0x01
 }
 
 /*
@@ -862,7 +859,7 @@ register OVLYSPLTSTAT1 {
 	address			0x097
 	access_mode	RW
 	modes		M_SCSI
-	bit	RXDATABUCKET	0x01
+	field	RXDATABUCKET	0x01
 }
 
 /*
@@ -872,8 +869,8 @@ register SGRXMSG0 {
 	address			0x098
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask		CDNUM	0xF8
-	mask		CFNUM	0x07
+	field		CDNUM	0xF8
+	field		CFNUM	0x07
 }
 
 /*
@@ -883,7 +880,7 @@ register SGRXMSG1 {
 	address			0x099
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	CBNUM		0xFF
+	field	CBNUM		0xFF
 }
 
 /*
@@ -893,7 +890,7 @@ register SGRXMSG2 {
 	address			0x09A
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	MINDEX		0xFF
+	field	MINDEX		0xFF
 }
 
 /*
@@ -903,7 +900,7 @@ register SGRXMSG3 {
 	address			0x09B
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	mask	MCLASS		0x0F
+	field	MCLASS		0x0F
 }
 
 /*
@@ -913,7 +910,7 @@ register SLVSPLTOUTADR0 {
 	address			0x098
 	access_mode	RO
 	modes		M_SCSI
-	mask	LOWER_ADDR	0x7F
+	field	LOWER_ADDR	0x7F
 }
 
 /*
@@ -923,8 +920,8 @@ register SLVSPLTOUTADR1 {
 	address			0x099
 	access_mode	RO
 	modes		M_SCSI
-	mask	REQ_DNUM	0xF8
-	mask	REQ_FNUM	0x07
+	field	REQ_DNUM	0xF8
+	field	REQ_FNUM	0x07
 }
 
 /*
@@ -934,7 +931,7 @@ register SLVSPLTOUTADR2 {
 	address			0x09A
 	access_mode	RO
 	modes		M_SCSI
-	mask	REQ_BNUM	0xFF
+	field	REQ_BNUM	0xFF
 }
 
 /*
@@ -944,8 +941,8 @@ register SLVSPLTOUTADR3 {
 	address			0x09B
 	access_mode	RO
 	modes		M_SCSI
-	bit	RLXORD		020
-	mask	TAG_NUM		0x1F
+	field	RLXORD		020
+	field	TAG_NUM		0x1F
 }
 
 /*
@@ -964,7 +961,7 @@ register SLVSPLTOUTATTR0 {
 	address			0x09C
 	access_mode	RO
 	modes		M_SCSI
-	mask	LOWER_BCNT	0xFF
+	field	LOWER_BCNT	0xFF
 }
 
 /*
@@ -974,8 +971,8 @@ register SLVSPLTOUTATTR1 {
 	address			0x09D
 	access_mode	RO
 	modes		M_SCSI
-	mask	CMPLT_DNUM	0xF8
-	mask	CMPLT_FNUM	0x07
+	field	CMPLT_DNUM	0xF8
+	field	CMPLT_FNUM	0x07
 }
 
 /*
@@ -986,7 +983,7 @@ register SLVSPLTOUTATTR2 {
 	access_mode	RO
 	size		2
 	modes		M_SCSI
-	mask	CMPLT_BNUM	0xFF
+	field	CMPLT_BNUM	0xFF
 }
 /*
  * S/G Split Status 0
@@ -995,14 +992,14 @@ register SGSPLTSTAT0 {
 	address			0x09E
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	STAETERM	0x80
-	bit	SCBCERR		0x40
-	bit	SCADERR		0x20
-	bit	SCDATBUCKET	0x10
-	bit	CNTNOTCMPLT	0x08
-	bit	RXOVRUN		0x04
-	bit	RXSCEMSG	0x02
-	bit	RXSPLTRSP	0x01
+	field	STAETERM	0x80
+	field	SCBCERR		0x40
+	field	SCADERR		0x20
+	field	SCDATBUCKET	0x10
+	field	CNTNOTCMPLT	0x08
+	field	RXOVRUN		0x04
+	field	RXSCEMSG	0x02
+	field	RXSPLTRSP	0x01
 }
 
 /*
@@ -1012,7 +1009,7 @@ register SGSPLTSTAT1 {
 	address			0x09F
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	RXDATABUCKET	0x01
+	field	RXDATABUCKET	0x01
 }
 
 /*
@@ -1022,8 +1019,8 @@ register SFUNCT {
 	address			0x09f
 	access_mode	RW
 	modes		M_CFG
-	mask	TEST_GROUP	0xF0
-	mask	TEST_NUM	0x0F
+	field	TEST_GROUP	0xF0
+	field	TEST_NUM	0x0F
 }
 
 /*
@@ -1033,14 +1030,14 @@ register DF0PCISTAT {
 	address			0x0A0
 	access_mode	RW
 	modes		M_CFG
-	bit	DPE		0x80
-	bit	SSE		0x40
-	bit	RMA		0x20
-	bit	RTA		0x10
-	bit	SCAAPERR	0x08
-	bit	RDPERR		0x04
-	bit	TWATERR		0x02
-	bit	DPR		0x01
+	field	DPE		0x80
+	field	SSE		0x40
+	field	RMA		0x20
+	field	RTA		0x10
+	field	SCAAPERR	0x08
+	field	RDPERR		0x04
+	field	TWATERR		0x02
+	field	DPR		0x01
 }
 
 /*
@@ -1050,14 +1047,14 @@ register DF1PCISTAT {
 	address			0x0A1
 	access_mode	RW
 	modes		M_CFG
-	bit	DPE		0x80
-	bit	SSE		0x40
-	bit	RMA		0x20
-	bit	RTA		0x10
-	bit	SCAAPERR	0x08
-	bit	RDPERR		0x04
-	bit	TWATERR		0x02
-	bit	DPR		0x01
+	field	DPE		0x80
+	field	SSE		0x40
+	field	RMA		0x20
+	field	RTA		0x10
+	field	SCAAPERR	0x08
+	field	RDPERR		0x04
+	field	TWATERR		0x02
+	field	DPR		0x01
 }
 
 /*
@@ -1067,13 +1064,13 @@ register SGPCISTAT {
 	address			0x0A2
 	access_mode	RW
 	modes		M_CFG
-	bit	DPE		0x80
-	bit	SSE		0x40
-	bit	RMA		0x20
-	bit	RTA		0x10
-	bit	SCAAPERR	0x08
-	bit	RDPERR		0x04
-	bit	DPR		0x01
+	field	DPE		0x80
+	field	SSE		0x40
+	field	RMA		0x20
+	field	RTA		0x10
+	field	SCAAPERR	0x08
+	field	RDPERR		0x04
+	field	DPR		0x01
 }
 
 /*
@@ -1083,14 +1080,14 @@ register CMCPCISTAT {
 	address			0x0A3
 	access_mode	RW
 	modes		M_CFG
-	bit	DPE		0x80
-	bit	SSE		0x40
-	bit	RMA		0x20
-	bit	RTA		0x10
-	bit	SCAAPERR	0x08
-	bit	RDPERR		0x04
-	bit	TWATERR		0x02
-	bit	DPR		0x01
+	field	DPE		0x80
+	field	SSE		0x40
+	field	RMA		0x20
+	field	RTA		0x10
+	field	SCAAPERR	0x08
+	field	RDPERR		0x04
+	field	TWATERR		0x02
+	field	DPR		0x01
 }
 
 /*
@@ -1100,13 +1097,13 @@ register OVLYPCISTAT {
 	address			0x0A4
 	access_mode	RW
 	modes		M_CFG
-	bit	DPE		0x80
-	bit	SSE		0x40
-	bit	RMA		0x20
-	bit	RTA		0x10
-	bit	SCAAPERR	0x08
-	bit	RDPERR		0x04
-	bit	DPR		0x01
+	field	DPE		0x80
+	field	SSE		0x40
+	field	RMA		0x20
+	field	RTA		0x10
+	field	SCAAPERR	0x08
+	field	RDPERR		0x04
+	field	DPR		0x01
 }
 
 /*
@@ -1116,12 +1113,12 @@ register MSIPCISTAT {
 	address			0x0A6
 	access_mode	RW
 	modes		M_CFG
-	bit	SSE		0x40
-	bit	RMA		0x20
-	bit	RTA		0x10
-	bit	CLRPENDMSI	0x08
-	bit	TWATERR		0x02
-	bit	DPR		0x01
+	field	SSE		0x40
+	field	RMA		0x20
+	field	RTA		0x10
+	field	CLRPENDMSI	0x08
+	field	TWATERR		0x02
+	field	DPR		0x01
 }
 
 /*
@@ -1131,10 +1128,10 @@ register TARGPCISTAT {
 	address			0x0A6
 	access_mode	RW
 	modes		M_CFG
-	bit	DPE		0x80
-	bit	SSE		0x40
-	bit	STA		0x08
-	bit	TWATERR		0x02
+	field	DPE		0x80
+	field	SSE		0x40
+	field	STA		0x08
+	field	TWATERR		0x02
 }
 
 /*
@@ -1283,6 +1280,33 @@ register ABRTBITPTR {
 }
 
 /*
+ * Rev B or greater.
+ */
+register MAXCMDBYTES {
+	address			0x02D
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Rev B or greater.
+ */
+register MAXCMD2RCV {
+	address			0x02E
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
+ * Rev B or greater.
+ */
+register SHORTTHRESH {
+	address			0x02F
+	access_mode	RW
+	modes		M_CFG
+}
+
+/*
  * Logical Unit Number Length
  * The length, in bytes, of the SCB lun field.
  */
@@ -1362,10 +1386,10 @@ register LQCTL0 {
 	address			0x038
 	access_mode	RW
 	modes		M_CFG
-	mask	LQITARGCLT	0xC0
-	mask	LQIINITGCLT	0x30
-	mask	LQ0TARGCLT	0x0C
-	mask	LQ0INITGCLT	0x03
+	field	LQITARGCLT	0xC0
+	field	LQIINITGCLT	0x30
+	field	LQ0TARGCLT	0x0C
+	field	LQ0INITGCLT	0x03
 }
 
 /*
@@ -1375,9 +1399,9 @@ register LQCTL1 {
 	address			0x038
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	PCI2PCI		0x04
-	bit	SINGLECMD	0x02
-	bit	ABORTPENDING	0x01
+	field	PCI2PCI		0x04
+	field	SINGLECMD	0x02
+	field	ABORTPENDING	0x01
 }
 
 /*
@@ -1387,14 +1411,14 @@ register LQCTL2 {
 	address			0x039
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	LQIRETRY	0x80
-	bit	LQICONTINUE	0x40
-	bit	LQITOIDLE	0x20
-	bit	LQIPAUSE	0x10
-	bit	LQORETRY	0x08
-	bit	LQOCONTINUE	0x04
-	bit	LQOTOIDLE	0x02
-	bit	LQOPAUSE	0x01
+	field	LQIRETRY	0x80
+	field	LQICONTINUE	0x40
+	field	LQITOIDLE	0x20
+	field	LQIPAUSE	0x10
+	field	LQORETRY	0x08
+	field	LQOCONTINUE	0x04
+	field	LQOTOIDLE	0x02
+	field	LQOPAUSE	0x01
 }
 
 /*
@@ -1404,12 +1428,12 @@ register SCSBIST0 {
 	address			0x039
 	access_mode	RW
 	modes		M_CFG
-	bit	GSBISTERR	0x40
-	bit	GSBISTDONE	0x20
-	bit	GSBISTRUN	0x10
-	bit	OSBISTERR	0x04
-	bit	OSBISTDONE	0x02
-	bit	OSBISTRUN	0x01
+	field	GSBISTERR	0x40
+	field	GSBISTDONE	0x20
+	field	GSBISTRUN	0x10
+	field	OSBISTERR	0x04
+	field	OSBISTDONE	0x02
+	field	OSBISTRUN	0x01
 }
 
 /*
@@ -1419,11 +1443,11 @@ register SCSISEQ0 {
 	address			0x03A
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	TEMODEO		0x80
-	bit	ENSELO		0x40
-	bit	ENARBO		0x20
-	bit	FORCEBUSFREE	0x10
-	bit	SCSIRSTO	0x01
+	field	TEMODEO		0x80
+	field	ENSELO		0x40
+	field	ENARBO		0x20
+	field	FORCEBUSFREE	0x10
+	field	SCSIRSTO	0x01
 }
 
 /*
@@ -1433,9 +1457,9 @@ register SCSBIST1 {
 	address			0x03A
 	access_mode	RW
 	modes		M_CFG
-	bit	NTBISTERR	0x04
-	bit	NTBISTDONE	0x02
-	bit	NTBISTRUN	0x01
+	field	NTBISTERR	0x04
+	field	NTBISTDONE	0x02
+	field	NTBISTRUN	0x01
 }
 
 /*
@@ -1445,12 +1469,12 @@ register SCSISEQ1 {
 	address			0x03B
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	MANUALCTL	0x40
-	bit	ENSELI		0x20
-	bit	ENRSELI		0x10
-	mask	MANUALP		0x0C
-	bit	ENAUTOATNP	0x02
-	bit	ALTSTIM		0x01
+	field	MANUALCTL	0x40
+	field	ENSELI		0x20
+	field	ENRSELI		0x10
+	field	MANUALP		0x0C
+	field	ENAUTOATNP	0x02
+	field	ALTSTIM		0x01
 }
 
 /*
@@ -1460,10 +1484,10 @@ register SXFRCTL0 {
 	address			0x03C
 	access_mode	RW
 	modes		M_SCSI
-	bit	DFON		0x80
-	bit	DFPEXP		0x40
-	bit	BIOSCANCELEN	0x10
-	bit	SPIOEN		0x08
+	field	DFON		0x80
+	field	DFPEXP		0x40
+	field	BIOSCANCELEN	0x10
+	field	SPIOEN		0x08
 }
 
 /*
@@ -1473,13 +1497,13 @@ register SXFRCTL1 {
 	address			0x03D
 	access_mode	RW
 	modes		M_SCSI
-	bit	BITBUCKET	0x80
-	bit	ENSACHK		0x40
-	bit	ENSPCHK		0x20
-	mask	STIMESEL	0x18
-	bit	ENSTIMER	0x04
-	bit	ACTNEGEN	0x02
-	bit	STPWEN		0x01
+	field	BITBUCKET	0x80
+	field	ENSACHK		0x40
+	field	ENSPCHK		0x20
+	field	STIMESEL	0x18
+	field	ENSTIMER	0x04
+	field	ACTNEGEN	0x02
+	field	STPWEN		0x01
 }
 
 /*
@@ -1489,9 +1513,9 @@ register SXFRCTL2 {
 	address			0x03E
 	access_mode	RW
 	modes		M_SCSI
-	bit	AUTORSTDIS	0x10
-	bit	CMDDMAEN	0x08
-	mask	ASU		0x07
+	field	AUTORSTDIS	0x10
+	field	CMDDMAEN	0x08
+	field	ASU		0x07
 }
 
 /*
@@ -1523,9 +1547,9 @@ register DFFSTAT {
 	address			0x03F
 	access_mode	RW
 	modes		M_SCSI
-	bit	FIFO1FREE	0x20
-	bit	FIFO0FREE	0x10
-	bit	CURRFIFO	0x01
+	field	FIFO1FREE	0x20
+	field	FIFO0FREE	0x10
+	field	CURRFIFO	0x01
 }
 
 /*
@@ -1546,52 +1570,54 @@ register SCSISIGO {
 	address			0x040
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CDO		0x80
-	bit	IOO		0x40
-	bit	MSGO		0x20
-	bit	ATNO		0x10
-	bit	SELO		0x08
-	bit	BSYO		0x04
-	bit	REQO		0x02
-	bit	ACKO		0x01
+	field	CDO		0x80
+	field	IOO		0x40
+	field	MSGO		0x20
+	field	ATNO		0x10
+	field	SELO		0x08
+	field	BSYO		0x04
+	field	REQO		0x02
+	field	ACKO		0x01
 /*
  * Possible phases to write into SCSISIG0
  */
-	mask	PHASE_MASK	CDO|IOO|MSGO
-	mask	P_DATAOUT	0x00
-	mask	P_DATAIN	IOO
-	mask	P_DATAOUT_DT	P_DATAOUT|MSGO
-	mask	P_DATAIN_DT	P_DATAIN|MSGO
-	mask	P_COMMAND	CDO
-	mask	P_MESGOUT	CDO|MSGO
-	mask	P_STATUS	CDO|IOO
-	mask	P_MESGIN	CDO|IOO|MSGO
+	enum	PHASE_MASK  CDO|IOO|MSGO {
+		P_DATAOUT	0x0,
+		P_DATAIN	IOO,
+		P_DATAOUT_DT	P_DATAOUT|MSGO,
+		P_DATAIN_DT	P_DATAIN|MSGO,
+		P_COMMAND	CDO,
+		P_MESGOUT	CDO|MSGO,
+		P_STATUS	CDO|IOO,
+		P_MESGIN	CDO|IOO|MSGO
+	}
 }
 
 register SCSISIGI {
 	address			0x041
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CDI		0x80
-	bit	IOI		0x40
-	bit	MSGI		0x20
-	bit	ATNI		0x10
-	bit	SELI		0x08
-	bit	BSYI		0x04
-	bit	REQI		0x02
-	bit	ACKI		0x01
+	field	CDI		0x80
+	field	IOI		0x40
+	field	MSGI		0x20
+	field	ATNI		0x10
+	field	SELI		0x08
+	field	BSYI		0x04
+	field	REQI		0x02
+	field	ACKI		0x01
 /*
  * Possible phases in SCSISIGI
  */
-	mask	PHASE_MASK	CDI|IOI|MSGI
-	mask	P_DATAOUT	0x00
-	mask	P_DATAIN	IOI
-	mask	P_DATAOUT_DT	P_DATAOUT|MSGI
-	mask	P_DATAIN_DT	P_DATAIN|MSGI
-	mask	P_COMMAND	CDI
-	mask	P_MESGOUT	CDI|MSGI
-	mask	P_STATUS	CDI|IOI
-	mask	P_MESGIN	CDI|IOI|MSGI
+	enum	PHASE_MASK  CDO|IOO|MSGO {
+		P_DATAOUT	0x0,
+		P_DATAIN	IOO,
+		P_DATAOUT_DT	P_DATAOUT|MSGO,
+		P_DATAIN_DT	P_DATAIN|MSGO,
+		P_COMMAND	CDO,
+		P_MESGOUT	CDO|MSGO,
+		P_STATUS	CDO|IOO,
+		P_MESGIN	CDO|IOO|MSGO
+	}
 }
 
 /*
@@ -1612,13 +1638,14 @@ register SCSIPHASE {
 	address			0x042
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	STATUS_PHASE	0x20
-	bit	COMMAND_PHASE	0x10
-	bit	MSG_IN_PHASE	0x08
-	bit	MSG_OUT_PHASE	0x04
-	bit	DATA_IN_PHASE	0x02
-	bit	DATA_OUT_PHASE	0x01
-	mask	DATA_PHASE_MASK	0x03
+	field	STATUS_PHASE	0x20
+	field	COMMAND_PHASE	0x10
+	field	MSG_IN_PHASE	0x08
+	field	MSG_OUT_PHASE	0x04
+	field	DATA_PHASE_MASK	0x03 {
+		DATA_OUT_PHASE	0x01,
+		DATA_IN_PHASE	0x02
+	}
 }
 
 /*
@@ -1657,8 +1684,8 @@ register TARGIDIN {
 	address			0x048
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLKOUT		0x80
-	mask	TARGID		0x0F
+	field	CLKOUT		0x80
+	field	TARGID		0x0F
 }
 
 /*
@@ -1670,8 +1697,8 @@ register SELID {
 	address			0x049
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	mask	SELID_MASK	0xf0
-	bit	ONEBIT		0x08
+	field	SELID_MASK	0xf0
+	field	ONEBIT		0x08
 }
 
 /*
@@ -1683,11 +1710,11 @@ register SBLKCTL {
 	address			0x04A
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	DIAGLEDEN	0x80
-	bit	DIAGLEDON	0x40
-	bit	ENAB40		0x08	/* LVD transceiver active */
-	bit	ENAB20		0x04	/* SE/HVD transceiver active */
-	bit	SELWIDE		0x02
+	field	DIAGLEDEN	0x80
+	field	DIAGLEDON	0x40
+	field	ENAB40		0x08	/* LVD transceiver active */
+	field	ENAB20		0x04	/* SE/HVD transceiver active */
+	field	SELWIDE		0x02
 }
 
 /*
@@ -1697,12 +1724,12 @@ register OPTIONMODE {
 	address			0x04A
 	access_mode	RW
 	modes		M_CFG
-	bit	BIOSCANCTL		0x80
-	bit	AUTOACKEN		0x40
-	bit	BIASCANCTL		0x20
-	bit	BUSFREEREV		0x10
-	bit	ENDGFORMCHK		0x04
-	bit	AUTO_MSGOUT_DE		0x02
+	field	BIOSCANCTL		0x80
+	field	AUTOACKEN		0x40
+	field	BIASCANCTL		0x20
+	field	BUSFREEREV		0x10
+	field	ENDGFORMCHK		0x04
+	field	AUTO_MSGOUT_DE		0x02
 	mask	OPTIONMODE_DEFAULTS	AUTO_MSGOUT_DE
 }
 
@@ -1713,14 +1740,14 @@ register SSTAT0	{
 	address			0x04B
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	TARGET		0x80	/* Board acting as target */
-	bit	SELDO		0x40	/* Selection Done */
-	bit	SELDI		0x20	/* Board has been selected */
-	bit	SELINGO		0x10	/* Selection In Progress */
-	bit	IOERR		0x08	/* LVD Tranceiver mode changed */
-	bit	OVERRUN		0x04	/* SCSI Offset overrun detected */
-	bit	SPIORDY		0x02	/* SCSI PIO Ready */
-	bit	ARBDO		0x01	/* Arbitration Done Out */
+	field	TARGET		0x80	/* Board acting as target */
+	field	SELDO		0x40	/* Selection Done */
+	field	SELDI		0x20	/* Board has been selected */
+	field	SELINGO		0x10	/* Selection In Progress */
+	field	IOERR		0x08	/* LVD Tranceiver mode changed */
+	field	OVERRUN		0x04	/* SCSI Offset overrun detected */
+	field	SPIORDY		0x02	/* SCSI PIO Ready */
+	field	ARBDO		0x01	/* Arbitration Done Out */
 }
 
 /*
@@ -1731,13 +1758,13 @@ register CLRSINT0 {
 	address			0x04B
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRSELDO	0x40
-	bit	CLRSELDI	0x20
-	bit	CLRSELINGO	0x10
-	bit	CLRIOERR	0x08
-	bit	CLROVERRUN	0x04
-	bit	CLRSPIORDY	0x02
-	bit	CLRARBDO	0x01
+	field	CLRSELDO	0x40
+	field	CLRSELDI	0x20
+	field	CLRSELINGO	0x10
+	field	CLRIOERR	0x08
+	field	CLROVERRUN	0x04
+	field	CLRSPIORDY	0x02
+	field	CLRARBDO	0x01
 }
 
 /*
@@ -1749,13 +1776,13 @@ register SIMODE0 {
 	address			0x04B
 	access_mode	RW
 	modes		M_CFG
-	bit	ENSELDO		0x40
-	bit	ENSELDI		0x20
-	bit	ENSELINGO	0x10
-	bit	ENIOERR		0x08
-	bit	ENOVERRUN	0x04
-	bit	ENSPIORDY	0x02
-	bit	ENARBDO		0x01
+	field	ENSELDO		0x40
+	field	ENSELDI		0x20
+	field	ENSELINGO	0x10
+	field	ENIOERR		0x08
+	field	ENOVERRUN	0x04
+	field	ENSPIORDY	0x02
+	field	ENARBDO		0x01
 }
 
 /*
@@ -1765,14 +1792,14 @@ register SSTAT1 {
 	address			0x04C
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	SELTO		0x80
-	bit	ATNTARG 	0x40
-	bit	SCSIRSTI	0x20
-	bit	PHASEMIS	0x10
-	bit	BUSFREE		0x08
-	bit	SCSIPERR	0x04
-	bit	STRB2FAST	0x02
-	bit	REQINIT		0x01
+	field	SELTO		0x80
+	field	ATNTARG 	0x40
+	field	SCSIRSTI	0x20
+	field	PHASEMIS	0x10
+	field	BUSFREE		0x08
+	field	SCSIPERR	0x04
+	field	STRB2FAST	0x02
+	field	REQINIT		0x01
 }
 
 /*
@@ -1783,13 +1810,13 @@ register CLRSINT1 {
 	address			0x04c
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRSELTIMEO	0x80
-	bit	CLRATNO		0x40
-	bit	CLRSCSIRSTI	0x20
-	bit	CLRBUSFREE	0x08
-	bit	CLRSCSIPERR	0x04
-	bit	CLRSTRB2FAST	0x02
-	bit	CLRREQINIT	0x01
+	field	CLRSELTIMEO	0x80
+	field	CLRATNO		0x40
+	field	CLRSCSIRSTI	0x20
+	field	CLRBUSFREE	0x08
+	field	CLRSCSIPERR	0x04
+	field	CLRSTRB2FAST	0x02
+	field	CLRREQINIT	0x01
 }
 
 /*
@@ -1799,16 +1826,17 @@ register SSTAT2 {
 	address			0x04d
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	mask	BUSFREETIME	0xc0
-	mask	BUSFREE_LQO	0x40
-	mask	BUSFREE_DFF0	0x80
-	mask	BUSFREE_DFF1	0xC0
-	bit	NONPACKREQ	0x20
-	bit	EXP_ACTIVE	0x10	/* SCSI Expander Active */
-	bit	BSYX		0x08	/* Busy Expander */
-	bit	WIDE_RES	0x04	/* Modes 0 and 1 only */
-	bit	SDONE		0x02	/* Modes 0 and 1 only */
-	bit	DMADONE		0x01	/* Modes 0 and 1 only */
+	field	BUSFREETIME	0xc0 {
+		BUSFREE_LQO	0x40,
+		BUSFREE_DFF0	0x80,
+		BUSFREE_DFF1	0xC0
+	}
+	field	NONPACKREQ	0x20
+	field	EXP_ACTIVE	0x10	/* SCSI Expander Active */
+	field	BSYX		0x08	/* Busy Expander */
+	field	WIDE_RES	0x04	/* Modes 0 and 1 only */
+	field	SDONE		0x02	/* Modes 0 and 1 only */
+	field	DMADONE		0x01	/* Modes 0 and 1 only */
 }
 
 /*
@@ -1818,10 +1846,10 @@ register CLRSINT2 {
 	address			0x04D
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRNONPACKREQ	0x20
-	bit	CLRWIDE_RES	0x04	/* Modes 0 and 1 only */
-	bit	CLRSDONE	0x02	/* Modes 0 and 1 only */
-	bit	CLRDMADONE	0x01	/* Modes 0 and 1 only */
+	field	CLRNONPACKREQ	0x20
+	field	CLRWIDE_RES	0x04	/* Modes 0 and 1 only */
+	field	CLRSDONE	0x02	/* Modes 0 and 1 only */
+	field	CLRDMADONE	0x01	/* Modes 0 and 1 only */
 }
 
 /*
@@ -1831,9 +1859,9 @@ register SIMODE2 {
 	address			0x04D
 	access_mode	RW
 	modes		M_CFG
-	bit	ENWIDE_RES	0x04
-	bit	ENSDONE		0x02
-	bit	ENDMADONE	0x01
+	field	ENWIDE_RES	0x04
+	field	ENSDONE		0x02
+	field	ENDMADONE	0x01
 }
 
 /*
@@ -1843,14 +1871,14 @@ register PERRDIAG {
 	address			0x04E
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	HIZERO		0x80
-	bit	HIPERR		0x40
-	bit	PREVPHASE	0x20
-	bit	PARITYERR	0x10
-	bit	AIPERR		0x08
-	bit	CRCERR		0x04
-	bit	DGFORMERR	0x02
-	bit	DTERR		0x01
+	field	HIZERO		0x80
+	field	HIPERR		0x40
+	field	PREVPHASE	0x20
+	field	PARITYERR	0x10
+	field	AIPERR		0x08
+	field	CRCERR		0x04
+	field	DGFORMERR	0x02
+	field	DTERR		0x01
 }
 
 /*
@@ -1887,27 +1915,27 @@ register LQISTAT0 {
 	address			0x050
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	LQIATNQAS	0x20
-	bit	LQICRCT1	0x10
-	bit	LQICRCT2	0x08
-	bit	LQIBADLQT	0x04
-	bit	LQIATNLQ	0x02
-	bit	LQIATNCMD	0x01
+	field	LQIATNQAS	0x20
+	field	LQICRCT1	0x10
+	field	LQICRCT2	0x08
+	field	LQIBADLQT	0x04
+	field	LQIATNLQ	0x02
+	field	LQIATNCMD	0x01
 }
 
 /*
  * Clear LQI Interrupts 0
  */
-register CLRLQIINTO {
+register CLRLQIINT0 {
 	address			0x050
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRLQIATNQAS	0x20
-	bit	CLRLQICRCT1	0x10
-	bit	CLRLQICRCT2	0x08
-	bit	CLRLQIBADLQT	0x04
-	bit	CLRLQIATNLQ	0x02
-	bit	CLRLQIATNCMD	0x01
+	field	CLRLQIATNQAS	0x20
+	field	CLRLQICRCT1	0x10
+	field	CLRLQICRCT2	0x08
+	field	CLRLQIBADLQT	0x04
+	field	CLRLQIATNLQ	0x02
+	field	CLRLQIATNCMD	0x01
 }
 
 /*
@@ -1917,12 +1945,12 @@ register LQIMODE0 {
 	address			0x050
 	access_mode	RW
 	modes		M_CFG
-	bit	ENLQIATNQASK	0x20
-	bit	ENLQICRCT1	0x10
-	bit	ENLQICRCT2	0x08
-	bit	ENLQIBADLQT	0x04
-	bit	ENLQIATNLQ	0x02
-	bit	ENLQIATNCMD	0x01
+	field	ENLQIATNQASK	0x20
+	field	ENLQICRCT1	0x10
+	field	ENLQICRCT2	0x08
+	field	ENLQIBADLQT	0x04
+	field	ENLQIATNLQ	0x02
+	field	ENLQIATNCMD	0x01
 }
 
 /*
@@ -1932,14 +1960,14 @@ register LQISTAT1 {
 	address			0x051
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	mask	LQIPHASE_LQ	0x80
-	mask	LQIPHASE_NLQ	0x40
-	bit	LQIABORT	0x20
-	mask	LQICRCI_LQ	0x10
-	mask	LQICRCI_NLQ	0x08
-	bit	LQIBADLQI	0x04
-	mask	LQIOVERI_LQ	0x02
-	mask	LQIOVERI_NLQ	0x01
+	field	LQIPHASE_LQ	0x80
+	field	LQIPHASE_NLQ	0x40
+	field	LQIABORT	0x20
+	field	LQICRCI_LQ	0x10
+	field	LQICRCI_NLQ	0x08
+	field	LQIBADLQI	0x04
+	field	LQIOVERI_LQ	0x02
+	field	LQIOVERI_NLQ	0x01
 }
 
 /*
@@ -1949,14 +1977,14 @@ register CLRLQIINT1 {
 	address			0x051
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	mask	CLRLQIPHASE_LQ	0x80
-	mask	CLRLQIPHASE_NLQ	0x40
-	bit	CLRLIQABORT	0x20
-	mask	CLRLQICRCI_LQ	0x10
-	mask	CLRLQICRCI_NLQ	0x08
-	bit	CLRLQIBADLQI	0x04
-	mask	CLRLQIOVERI_LQ	0x02
-	mask	CLRLQIOVERI_NLQ	0x01
+	field	CLRLQIPHASE_LQ	0x80
+	field	CLRLQIPHASE_NLQ	0x40
+	field	CLRLIQABORT	0x20
+	field	CLRLQICRCI_LQ	0x10
+	field	CLRLQICRCI_NLQ	0x08
+	field	CLRLQIBADLQI	0x04
+	field	CLRLQIOVERI_LQ	0x02
+	field	CLRLQIOVERI_NLQ	0x01
 }
 
 /*
@@ -1966,14 +1994,14 @@ register LQIMODE1 {
 	address			0x051
 	access_mode	RW
 	modes		M_CFG
-	mask	ENLQIPHASE_LQ	0x80
-	mask	ENLQIPHASE_NLQ	0x40
-	bit	ENLIQABORT	0x20
-	mask	ENLQICRCI_LQ	0x10
-	mask	ENLQICRCI_NLQ	0x08
-	bit	ENLQIBADLQI	0x04
-	mask	ENLQIOVERI_LQ	0x02
-	mask	ENLQIOVERI_NLQ	0x01
+	field	ENLQIPHASE_LQ	0x80
+	field	ENLQIPHASE_NLQ	0x40
+	field	ENLIQABORT	0x20
+	field	ENLQICRCI_LQ	0x10
+	field	ENLQICRCI_NLQ	0x08
+	field	ENLQIBADLQI	0x04
+	field	ENLQIOVERI_LQ	0x02
+	field	ENLQIOVERI_NLQ	0x01
 }
 
 /*
@@ -1983,14 +2011,14 @@ register LQISTAT2 {
 	address			0x052
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	PACKETIZED	0x80
-	bit	LQIPHASE_OUTPKT	0x40
-	bit	LQIWORKONLQ	0x20
-	bit	LQIWAITFIFO	0x10
-	bit	LQISTOPPKT	0x08
-	bit	LQISTOPLQ	0x04
-	bit	LQISTOPCMD	0x02
-	bit	LQIGSAVAIL	0x01
+	field	PACKETIZED	0x80
+	field	LQIPHASE_OUTPKT	0x40
+	field	LQIWORKONLQ	0x20
+	field	LQIWAITFIFO	0x10
+	field	LQISTOPPKT	0x08
+	field	LQISTOPLQ	0x04
+	field	LQISTOPCMD	0x02
+	field	LQIGSAVAIL	0x01
 }
 
 /*
@@ -2000,8 +2028,8 @@ register SSTAT3 {
 	address			0x053
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	NTRAMPERR	0x02
-	bit	OSRAMPERR	0x01
+	field	NTRAMPERR	0x02
+	field	OSRAMPERR	0x01
 }
 
 /*
@@ -2011,8 +2039,8 @@ register CLRSINT3 {
 	address			0x053
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRNTRAMPERR	0x02
-	bit	CLROSRAMPERR	0x01
+	field	CLRNTRAMPERR	0x02
+	field	CLROSRAMPERR	0x01
 }
 
 /*
@@ -2022,8 +2050,8 @@ register SIMODE3 {
 	address			0x053
 	access_mode	RW
 	modes		M_CFG
-	bit	ENNTRAMPERR	0x02
-	bit	ENOSRAMPERR	0x01
+	field	ENNTRAMPERR	0x02
+	field	ENOSRAMPERR	0x01
 }
 
 /*
@@ -2033,11 +2061,11 @@ register LQOSTAT0 {
 	address			0x054
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	LQOTARGSCBPERR	0x10
-	bit	LQOSTOPT2	0x08
-	bit	LQOATNLQ	0x04
-	bit	LQOATNPKT	0x02
-	bit	LQOTCRC		0x01
+	field	LQOTARGSCBPERR	0x10
+	field	LQOSTOPT2	0x08
+	field	LQOATNLQ	0x04
+	field	LQOATNPKT	0x02
+	field	LQOTCRC		0x01
 }
 
 /*
@@ -2047,11 +2075,11 @@ register CLRLQOINT0 {
 	address			0x054
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRLQOTARGSCBPERR	0x10
-	bit	CLRLQOSTOPT2		0x08
-	bit	CLRLQOATNLQ		0x04
-	bit	CLRLQOATNPKT		0x02
-	bit	CLRLQOTCRC		0x01
+	field	CLRLQOTARGSCBPERR	0x10
+	field	CLRLQOSTOPT2		0x08
+	field	CLRLQOATNLQ		0x04
+	field	CLRLQOATNPKT		0x02
+	field	CLRLQOTCRC		0x01
 }
 
 /*
@@ -2061,11 +2089,11 @@ register LQOMODE0 {
 	address			0x054
 	access_mode	RW
 	modes		M_CFG
-	bit	ENLQOTARGSCBPERR	0x10
-	bit	ENLQOSTOPT2		0x08
-	bit	ENLQOATNLQ		0x04
-	bit	ENLQOATNPKT		0x02
-	bit	ENLQOTCRC		0x01
+	field	ENLQOTARGSCBPERR	0x10
+	field	ENLQOSTOPT2		0x08
+	field	ENLQOATNLQ		0x04
+	field	ENLQOATNPKT		0x02
+	field	ENLQOTCRC		0x01
 }
 
 /*
@@ -2075,11 +2103,11 @@ register LQOSTAT1 {
 	address			0x055
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	LQOINITSCBPERR	0x10
-	bit	LQOSTOPI2	0x08
-	bit	LQOBADQAS	0x04
-	bit	LQOBUSFREE	0x02
-	bit	LQOPHACHGINPKT	0x01
+	field	LQOINITSCBPERR	0x10
+	field	LQOSTOPI2	0x08
+	field	LQOBADQAS	0x04
+	field	LQOBUSFREE	0x02
+	field	LQOPHACHGINPKT	0x01
 }
 
 /*
@@ -2089,11 +2117,11 @@ register CLRLQOINT1 {
 	address			0x055
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	CLRLQOINITSCBPERR	0x10
-	bit	CLRLQOSTOPI2		0x08
-	bit	CLRLQOBADQAS		0x04
-	bit	CLRLQOBUSFREE		0x02
-	bit	CLRLQOPHACHGINPKT	0x01
+	field	CLRLQOINITSCBPERR	0x10
+	field	CLRLQOSTOPI2		0x08
+	field	CLRLQOBADQAS		0x04
+	field	CLRLQOBUSFREE		0x02
+	field	CLRLQOPHACHGINPKT	0x01
 }
 
 /*
@@ -2103,11 +2131,11 @@ register LQOMODE1 {
 	address			0x055
 	access_mode	RW
 	modes		M_CFG
-	bit	ENLQOINITSCBPERR	0x10
-	bit	ENLQOSTOPI2		0x08
-	bit	ENLQOBADQAS		0x04
-	bit	ENLQOBUSFREE		0x02
-	bit	ENLQOPHACHGINPKT	0x01
+	field	ENLQOINITSCBPERR	0x10
+	field	ENLQOSTOPI2		0x08
+	field	ENLQOBADQAS		0x04
+	field	ENLQOBUSFREE		0x02
+	field	ENLQOPHACHGINPKT	0x01
 }
 
 /*
@@ -2117,10 +2145,10 @@ register LQOSTAT2 {
 	address			0x056
 	access_mode	RO
 	modes		M_DFF0, M_DFF1, M_SCSI
-	mask	LQOPKT		0xE0
-	bit	LQOWAITFIFO	0x10
-	bit	LQOPHACHGOUTPKT	0x02	/* outside of packet boundaries. */
-	bit	LQOSTOP0	0x01	/* Stopped after sending all packets */
+	field	LQOPKT		0xE0
+	field	LQOWAITFIFO	0x10
+	field	LQOPHACHGOUTPKT	0x02	/* outside of packet boundaries. */
+	field	LQOSTOP0	0x01	/* Stopped after sending all packets */
 }
 
 /*
@@ -2141,14 +2169,14 @@ register SIMODE1 {
 	address			0x057
 	access_mode	RW
 	modes		M_DFF0, M_DFF1, M_SCSI
-	bit	ENSELTIMO	0x80
-	bit	ENATNTARG	0x40
-	bit	ENSCSIRST	0x20
-	bit	ENPHASEMIS	0x10
-	bit	ENBUSFREE	0x08
-	bit	ENSCSIPERR	0x04
-	bit	ENSTRB2FAST	0x02
-	bit	ENREQINIT	0x01
+	field	ENSELTIMO	0x80
+	field	ENATNTARG	0x40
+	field	ENSCSIRST	0x20
+	field	ENPHASEMIS	0x10
+	field	ENBUSFREE	0x08
+	field	ENSCSIPERR	0x04
+	field	ENSTRB2FAST	0x02
+	field	ENREQINIT	0x01
 }
 
 /*
@@ -2168,9 +2196,9 @@ register DFFSXFRCTL {
 	address			0x05A
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	CLRSHCNT	0x04
-	bit	CLRCHN		0x02
-	bit	RSTCHN		0x01
+	field	CLRSHCNT	0x04
+	field	CLRCHN		0x02
+	field	RSTCHN		0x01
 }
 
 /*
@@ -2190,13 +2218,13 @@ register SEQINTSRC {
 	address			0x05B
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	bit	CTXTDONE	0x40
-	bit	SAVEPTRS	0x20
-	bit	CFG4DATA	0x10
-	bit	CFG4ISTAT	0x08
-	bit	CFG4TSTAT	0x04
-	bit	CFG4ICMD	0x02
-	bit	CFG4TCMD	0x01
+	field	CTXTDONE	0x40
+	field	SAVEPTRS	0x20
+	field	CFG4DATA	0x10
+	field	CFG4ISTAT	0x08
+	field	CFG4TSTAT	0x04
+	field	CFG4ICMD	0x02
+	field	CFG4TCMD	0x01
 }
 
 /*
@@ -2206,13 +2234,13 @@ register CLRSEQINTSRC {
 	address			0x05B
 	access_mode	WO
 	modes		M_DFF0, M_DFF1
-	bit	CLRCTXTDONE	0x40
-	bit	CLRSAVEPTRS	0x20
-	bit	CLRCFG4DATA	0x10
-	bit	CLRCFG4ISTAT	0x08
-	bit	CLRCFG4TSTAT	0x04
-	bit	CLRCFG4ICMD	0x02
-	bit	CLRCFG4TCMD	0x01
+	field	CLRCTXTDONE	0x40
+	field	CLRSAVEPTRS	0x20
+	field	CLRCFG4DATA	0x10
+	field	CLRCFG4ISTAT	0x08
+	field	CLRCFG4TSTAT	0x04
+	field	CLRCFG4ICMD	0x02
+	field	CLRCFG4TCMD	0x01
 }
 
 /*
@@ -2222,13 +2250,13 @@ register SEQIMODE {
 	address			0x05C
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	ENCTXTDONE	0x40
-	bit	ENSAVEPTRS	0x20
-	bit	ENCFG4DATA	0x10
-	bit	ENCFG4ISTAT	0x08
-	bit	ENCFG4TSTAT	0x04
-	bit	ENCFG4ICMD	0x02
-	bit	ENCFG4TCMD	0x01
+	field	ENCTXTDONE	0x40
+	field	ENSAVEPTRS	0x20
+	field	ENCFG4DATA	0x10
+	field	ENCFG4ISTAT	0x08
+	field	ENCFG4TSTAT	0x04
+	field	ENCFG4ICMD	0x02
+	field	ENCFG4TCMD	0x01
 }
 
 /*
@@ -2248,11 +2276,13 @@ register MDFFSTAT {
 	address			0x05D
 	access_mode	RO
 	modes		M_DFF0, M_DFF1
-	bit	LASTSDONE	0x10
-	bit	SHVALID		0x08
-	bit	DLZERO		0x04 /* FIFO data ends on packet boundary. */
-	bit	DATAINFIFO	0x02
-	bit	FIFOFREE	0x01
+	field	SHCNTNEGATIVE	0x40 /* Rev B or higher */
+	field	SHCNTMINUS1	0x20 /* Rev B or higher */
+	field	LASTSDONE	0x10
+	field	SHVALID		0x08
+	field	DLZERO		0x04 /* FIFO data ends on packet boundary. */
+	field	DATAINFIFO	0x02
+	field	FIFOFREE	0x01
 }
 
 /*
@@ -2262,7 +2292,7 @@ register CRCCONTROL {
 	address			0x05d
 	access_mode	RW
 	modes		M_CFG
-	bit	CRCVALCHKEN		0x40
+	field	CRCVALCHKEN		0x40
 }
 
 /*
@@ -2272,8 +2302,8 @@ register SCSITEST {
 	address			0x05E
 	access_mode	RW
 	modes		M_CFG
-	bit	CNTRTEST	0x08
-	bit	SEL_TXPLL_DEBUG	0x04
+	field	CNTRTEST	0x08
+	field	SEL_TXPLL_DEBUG	0x04
 }
 
 /*
@@ -2303,9 +2333,9 @@ register IOPDNCTL {
 	address			0x05F
 	access_mode	RW
 	modes		M_CFG
-	bit	DISABLE_OE	0x80
-	bit	PDN_IDIST	0x04
-	bit	PDN_DIFFSENSE	0x01
+	field	DISABLE_OE	0x80
+	field	PDN_IDIST	0x04
+	field	PDN_DIFFSENSE	0x01
 }
 
 /*
@@ -2372,10 +2402,10 @@ register NEGPPROPTS {
 	address			0x063
 	access_mode	RW
 	modes		M_SCSI
-	bit	PPROPT_PACE	0x08
-	bit	PPROPT_QAS	0x04
-	bit	PPROPT_DT	0x02
-	bit	PPROPT_IUT	0x01
+	field	PPROPT_PACE	0x08
+	field	PPROPT_QAS	0x04
+	field	PPROPT_DT	0x02
+	field	PPROPT_IUT	0x01
 }
 
 /*
@@ -2385,10 +2415,10 @@ register NEGCONOPTS {
 	address			0x064
 	access_mode	RW
 	modes		M_SCSI
-	bit	ENAIP		0x08
-	bit	ENAUTOATNI	0x04
-	bit	ENAUTOATNO	0x02
-	bit	WIDEXFER	0x01
+	field	ENAIP		0x08
+	field	ENAUTOATNI	0x04
+	field	ENAUTOATNO	0x02
+	field	WIDEXFER	0x01
 }
 
 /*
@@ -2398,6 +2428,19 @@ register ANNEXCOL {
 	address			0x065
 	access_mode	RW
 	modes		M_SCSI
+}
+
+register SCSCHKN {
+	address			0x066
+	access_mode	RW
+	modes		M_CFG
+	field	STSELSKIDDIS	0x40
+	field	CURFIFODEF	0x20
+	field	WIDERESEN	0x10
+	field	SDONEMSKDIS	0x08
+	field	DFFACTCLR	0x04
+	field	SHVALIDSTDIS	0x02
+	field	LSTSGCLRDIS	0x01
 }
 
 const AHD_ANNEXCOL_PRECOMP	4
@@ -2434,13 +2477,13 @@ register PLL960CTL0 {
 	address			0x068
 	access_mode	RW
 	modes		M_CFG
-	bit	PLL_VCOSEL	0x80
-	bit	PLL_PWDN	0x40
-	mask	PLL_NS		0x30
-	bit	PLL_ENLUD	0x08
-	bit	PLL_ENLPF	0x04
-	bit	PLL_DLPF	0x02
-	bit	PLL_ENFBM	0x01
+	field	PLL_VCOSEL	0x80
+	field	PLL_PWDN	0x40
+	field	PLL_NS		0x30
+	field	PLL_ENLUD	0x08
+	field	PLL_ENLPF	0x04
+	field	PLL_DLPF	0x02
+	field	PLL_ENFBM	0x01
 }
 
 /*
@@ -2459,9 +2502,9 @@ register PLL960CTL1 {
 	address			0x069
 	access_mode	RW
 	modes		M_CFG
-	bit	PLL_CNTEN	0x80
-	bit	PLL_CNTCLR	0x40
-	bit	PLL_RST		0x01
+	field	PLL_CNTEN	0x80
+	field	PLL_CNTCLR	0x40
+	field	PLL_RST		0x01
 }
 
 /*
@@ -2509,13 +2552,13 @@ register PLL400CTL0 {
 	address			0x06C
 	access_mode	RW
 	modes		M_CFG
-	bit	PLL_VCOSEL	0x80
-	bit	PLL_PWDN	0x40
-	mask	PLL_NS		0x30
-	bit	PLL_ENLUD	0x08
-	bit	PLL_ENLPF	0x04
-	bit	PLL_DLPF	0x02
-	bit	PLL_ENFBM	0x01
+	field	PLL_VCOSEL	0x80
+	field	PLL_PWDN	0x40
+	field	PLL_NS		0x30
+	field	PLL_ENLUD	0x08
+	field	PLL_ENLPF	0x04
+	field	PLL_DLPF	0x02
+	field	PLL_ENFBM	0x01
 }
 
 /*
@@ -2535,9 +2578,9 @@ register PLL400CTL1 {
 	address			0x06D
 	access_mode	RW
 	modes		M_CFG
-	bit	PLL_CNTEN	0x80
-	bit	PLL_CNTCLR	0x40
-	bit	PLL_RST		0x01
+	field	PLL_CNTEN	0x80
+	field	PLL_CNTCLR	0x40
+	field	PLL_RST		0x01
 }
 
 /*
@@ -2591,9 +2634,9 @@ register SCBAUTOPTR {
 	address			0x0AB
 	access_mode	RW
 	modes		M_CFG
-	bit	AUSCBPTR_EN	0x80
-	mask	SCBPTR_ADDR	0x38
-	mask	SCBPTR_OFF	0x07
+	field	AUSCBPTR_EN	0x80
+	field	SCBPTR_ADDR	0x38
+	field	SCBPTR_OFF	0x07
 }
 
 /*
@@ -2632,11 +2675,11 @@ register CCSGCTL {
 	address			0x0AD
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	CCSGDONE	0x80
-	bit	SG_CACHE_AVAIL	0x10
-	bit	CCSGEN		0x08
-	bit	SG_FETCH_REQ	0x02
-	bit	CCSGRESET	0x01
+	field	CCSGDONE	0x80
+	field	SG_CACHE_AVAIL	0x10
+	field	CCSGEN		0x08
+	field	SG_FETCH_REQ	0x02
+	field	CCSGRESET	0x01
 }
 
 /*
@@ -2646,12 +2689,12 @@ register CCSCBCTL {
 	address			0x0AD
 	access_mode	RW
 	modes		M_CCHAN
-	bit	CCSCBDONE	0x80
-	bit	ARRDONE		0x40
-	bit	CCARREN		0x10
-	bit	CCSCBEN		0x08
-	bit	CCSCBDIR	0x04
-	bit	CCSCBRESET	0x01
+	field	CCSCBDONE	0x80
+	field	ARRDONE		0x40
+	field	CCARREN		0x10
+	field	CCSCBEN		0x08
+	field	CCSCBDIR	0x04
+	field	CCSCBRESET	0x01
 }
 
 /*
@@ -2661,12 +2704,12 @@ register CMC_RAMBIST {
 	address			0x0AD
 	access_mode	RW
 	modes		M_CFG
-	bit	SG_ELEMENT_SIZE		0x80
-	bit	SCBRAMBIST_FAIL		0x40
-	bit	SG_BIST_FAIL		0x20
-	bit	SG_BIST_EN		0x10
-	bit	CMC_BUFFER_BIST_FAIL	0x02
-	bit	CMC_BUFFER_BIST_EN	0x01
+	field	SG_ELEMENT_SIZE		0x80
+	field	SCBRAMBIST_FAIL		0x40
+	field	SG_BIST_FAIL		0x20
+	field	SG_BIST_EN		0x10
+	field	CMC_BUFFER_BIST_FAIL	0x02
+	field	CMC_BUFFER_BIST_EN	0x01
 }
 
 /*
@@ -2714,8 +2757,8 @@ register FLEXDMASTAT {
 	address			0x0B5
 	access_mode	RW
 	modes		M_SCSI
-	bit	FLEXDMAERR	0x02
-	bit	FLEXDMADONE	0x01
+	field	FLEXDMAERR	0x02
+	field	FLEXDMADONE	0x01
 }
 
 /*
@@ -2743,12 +2786,12 @@ register BRDCTL {
 	address			0x0B9
 	access_mode	RW
 	modes		M_SCSI
-	bit	FLXARBACK	0x80
-	bit	FLXARBREQ	0x40
-	mask	BRDADDR		0x38
-	bit	BRDEN		0x04
-	bit	BRDRW		0x02
-	bit	BRDSTB		0x01
+	field	FLXARBACK	0x80
+	field	FLXARBREQ	0x40
+	field	BRDADDR		0x38
+	field	BRDEN		0x04
+	field	BRDRW		0x02
+	field	BRDSTB		0x01
 }
 
 /*
@@ -2777,12 +2820,12 @@ register SEESTAT {
 	address			0x0BE
 	access_mode	RO
 	modes		M_SCSI
-	bit	INIT_DONE	0x80
-	mask	SEEOPCODE	0x70
-	bit	LDALTID_L	0x08
-	bit	SEEARBACK	0x04
-	bit	SEEBUSY		0x02
-	bit	SEESTART	0x01
+	field	INIT_DONE	0x80
+	field	SEEOPCODE	0x70
+	field	LDALTID_L	0x08
+	field	SEEARBACK	0x04
+	field	SEEBUSY		0x02
+	field	SEESTART	0x01
 }
 
 /*
@@ -2792,20 +2835,21 @@ register SEECTL {
 	address			0x0BE
 	access_mode	RW
 	modes		M_SCSI
-	mask	SEEOPCODE	0x70
-	mask	SEEOP_ERASE	0x70
-	mask	SEEOP_READ	0x60
-	mask	SEEOP_WRITE	0x50
+	field	SEEOPCODE	0x70 {
+		SEEOP_ERASE	0x70,
+		SEEOP_READ	0x60,
+		SEEOP_WRITE	0x50,
 	/*
 	 * The following four commands use special
 	 * addresses for differentiation.
 	 */
-	mask	SEEOP_ERAL	0x40
+		SEEOP_ERAL	0x40
+	}
 	mask	SEEOP_EWEN	0x40
 	mask	SEEOP_WALL	0x40
 	mask	SEEOP_EWDS	0x40
-	bit	SEERST		0x02
-	bit	SEESTART	0x01
+	field	SEERST		0x02
+	field	SEESTART	0x01
 }
 
 const SEEOP_ERAL_ADDR	0x80
@@ -2840,9 +2884,9 @@ register DSPFLTRCTL {
 	address			0x0C0
 	access_mode	RW
 	modes		M_CFG
-	bit	FLTRDISABLE	0x20
-	bit	EDGESENSE	0x10
-	mask	DSPFCNTSEL	0x0F
+	field	FLTRDISABLE	0x20
+	field	EDGESENSE	0x10
+	field	DSPFCNTSEL	0x0F
 }
 
 /*
@@ -2852,10 +2896,10 @@ register DSPDATACTL {
 	address			0x0C1
 	access_mode	RW
 	modes		M_CFG
-	bit	BYPASSENAB	0x80
-	bit	DESQDIS		0x10
-	bit	RCVROFFSTDIS	0x04
-	bit	XMITOFFSTDIS	0x02
+	field	BYPASSENAB	0x80
+	field	DESQDIS		0x10
+	field	RCVROFFSTDIS	0x04
+	field	XMITOFFSTDIS	0x02
 }
 
 /*
@@ -2876,8 +2920,8 @@ register DSPREQCTL {
 	address			0x0C2
 	access_mode	RW
 	modes		M_CFG
-	mask	MANREQCTL	0xC0
-	mask	MANREQDLY	0x3F
+	field	MANREQCTL	0xC0
+	field	MANREQDLY	0x3F
 }
 
 /*
@@ -2887,8 +2931,8 @@ register DSPACKCTL {
 	address			0x0C3
 	access_mode	RW
 	modes		M_CFG
-	mask	MANACKCTL	0xC0
-	mask	MANACKDLY	0x3F
+	field	MANACKCTL	0xC0
+	field	MANACKDLY	0x3F
 }
 
 /*
@@ -2910,8 +2954,8 @@ register DSPSELECT {
 	address			0x0C4
 	access_mode	RW
 	modes		M_CFG
-	bit	AUTOINCEN	0x80
-	mask	DSPSEL		0x1F
+	field	AUTOINCEN	0x80
+	field	DSPSEL		0x1F
 }
 
 const NUMDSPS 0x14
@@ -2923,8 +2967,8 @@ register WRTBIASCTL {
 	address			0x0C5
 	access_mode	WO
 	modes		M_CFG
-	bit	AUTOXBCDIS	0x80
-	mask	XMITMANVAL	0x3F
+	field	AUTOXBCDIS	0x80
+	field	XMITMANVAL	0x3F
 }
 
 const WRTBIASCTL_CPQ_DEFAULT 0x97
@@ -2936,8 +2980,8 @@ register RCVRBIOSCTL {
 	address			0x0C6
 	access_mode	WO
 	modes		M_CFG
-	bit	AUTORBCDIS	0x80
-	mask	RCVRMANVAL	0x3F
+	field	AUTORBCDIS	0x80
+	field	RCVRMANVAL	0x3F
 }
 
 /*
@@ -2976,12 +3020,12 @@ register DFDBCTL {
 	address				0x0C8
 	access_mode	RW
 	modes		M_DFF0, M_DFF1
-	bit	DFF_CIO_WR_RDY		0x20
-	bit	DFF_CIO_RD_RDY		0x10
-	bit	DFF_DIR_ERR		0x08
-	bit	DFF_RAMBIST_FAIL	0x04
-	bit	DFF_RAMBIST_DONE	0x02
-	bit	DFF_RAMBIST_EN		0x01
+	field	DFF_CIO_WR_RDY		0x20
+	field	DFF_CIO_RD_RDY		0x10
+	field	DFF_DIR_ERR		0x08
+	field	DFF_RAMBIST_FAIL	0x04
+	field	DFF_RAMBIST_DONE	0x02
+	field	DFF_RAMBIST_EN		0x01
 }
 
 /*
@@ -3046,14 +3090,14 @@ register OVLYADDR {
 register SEQCTL0 {
 	address			0x0D6
 	access_mode RW
-	bit	PERRORDIS	0x80
-	bit	PAUSEDIS	0x40
-	bit	FAILDIS		0x20
-	bit	FASTMODE	0x10
-	bit	BRKADRINTEN	0x08
-	bit	STEP		0x04
-	bit	SEQRESET	0x02
-	bit	LOADRAM		0x01
+	field	PERRORDIS	0x80
+	field	PAUSEDIS	0x40
+	field	FAILDIS		0x20
+	field	FASTMODE	0x10
+	field	BRKADRINTEN	0x08
+	field	STEP		0x04
+	field	SEQRESET	0x02
+	field	LOADRAM		0x01
 }
 
 /*
@@ -3063,10 +3107,10 @@ register SEQCTL0 {
 register SEQCTL1 {
 	address			0x0D7
 	access_mode RW
-	bit	OVRLAY_DATA_CHK	0x08
-	bit	RAMBIST_DONE	0x04
-	bit	RAMBIST_FAIL	0x02
-	bit	RAMBIST_EN	0x01
+	field	OVRLAY_DATA_CHK	0x08
+	field	RAMBIST_DONE	0x04
+	field	RAMBIST_FAIL	0x02
+	field	RAMBIST_EN	0x01
 }
 
 /*
@@ -3076,8 +3120,8 @@ register SEQCTL1 {
 register FLAGS {
 	address			0x0D8
 	access_mode RO
-	bit	ZERO		0x02
-	bit	CARRY		0x01
+	field	ZERO		0x02
+	field	CARRY		0x01
 }
 
 /*
@@ -3086,12 +3130,12 @@ register FLAGS {
 register SEQINTCTL {
 	address			0x0D9
 	access_mode RW
-	bit	INTVEC1DSL	0x80
-	bit	INT1_CONTEXT	0x20
-	bit	SCS_SEQ_INT1M1	0x10
-	bit	SCS_SEQ_INT1M0	0x08
-	mask	INTMASK		0x06
-	bit	IRET		0x01
+	field	INTVEC1DSL	0x80
+	field	INT1_CONTEXT	0x20
+	field	SCS_SEQ_INT1M1	0x10
+	field	SCS_SEQ_INT1M0	0x08
+	field	INTMASK		0x06
+	field	IRET		0x01
 }
 
 /*
@@ -3163,7 +3207,7 @@ register BRKADDR0 {
 register BRKADDR1 {
 	address			0x0E6
 	access_mode	RW
-	bit	BRKDIS		0x80	/* Disable Breakpoint */
+	field	BRKDIS		0x80	/* Disable Breakpoint */
 }
 
 /*
@@ -3308,9 +3352,9 @@ scratch_ram {
 	}
 	SG_STATE {
 		size		1
-		bit	SEGS_AVAIL	0x01
-		bit	LOADING_NEEDED	0x02
-		bit	FETCH_INPROG	0x04
+		field	SEGS_AVAIL	0x01
+		field	LOADING_NEEDED	0x02
+		field	FETCH_INPROG	0x04
 	}
 	/*
 	 * Track whether the transfer byte count for
@@ -3406,29 +3450,29 @@ scratch_ram {
 	/* Parameters for DMA Logic */
 	DMAPARAMS {
 		size		1
-		bit	PRELOADEN	0x80
-		bit	WIDEODD		0x40
-		bit	SCSIEN		0x20
-		bit	SDMAEN		0x10
-		bit	SDMAENACK	0x10
-		bit	HDMAEN		0x08
-		bit	HDMAENACK	0x08
-		bit	DIRECTION	0x04	/* Set indicates PCI->SCSI */
-		bit	FIFOFLUSH	0x02
-		bit	FIFORESET	0x01
+		field	PRELOADEN	0x80
+		field	WIDEODD		0x40
+		field	SCSIEN		0x20
+		field	SDMAEN		0x10
+		field	SDMAENACK	0x10
+		field	HDMAEN		0x08
+		field	HDMAENACK	0x08
+		field	DIRECTION	0x04	/* Set indicates PCI->SCSI */
+		field	FIFOFLUSH	0x02
+		field	FIFORESET	0x01
 	}
 	SEQ_FLAGS {
 		size		1
-		bit	NOT_IDENTIFIED		0x80
-		bit	TARGET_CMD_IS_TAGGED	0x40
-		bit	NO_CDB_SENT		0x40
-		bit	DPHASE			0x20
+		field	NOT_IDENTIFIED		0x80
+		field	TARGET_CMD_IS_TAGGED	0x40
+		field	NO_CDB_SENT		0x40
+		field	DPHASE			0x20
 		/* Target flags */
-		bit	TARG_CMD_PENDING	0x10
-		bit	CMDPHASE_PENDING	0x08
-		bit	DPHASE_PENDING		0x04
-		bit	SPHASE_PENDING		0x02
-		bit	NO_DISCONNECT		0x01
+		field	TARG_CMD_PENDING	0x10
+		field	CMDPHASE_PENDING	0x08
+		field	DPHASE_PENDING		0x04
+		field	SPHASE_PENDING		0x02
+		field	NO_DISCONNECT		0x01
 	}
 	/*
 	 * Temporary storage for the
@@ -3446,19 +3490,20 @@ scratch_ram {
 	 */
 	LASTPHASE {
 		size		1
-		bit	CDI		0x80
-		bit	IOI		0x40
-		bit	MSGI		0x20
-		mask	PHASE_MASK	CDI|IOI|MSGI
-		mask	P_DATAOUT	0x00
-		mask	P_DATAIN	IOI
-		mask	P_DATAOUT_DT	P_DATAOUT|MSGO
-		mask	P_DATAIN_DT	P_DATAIN|MSGO
-		mask	P_COMMAND	CDI
-		mask	P_MESGOUT	CDI|MSGI
-		mask	P_STATUS	CDI|IOI
-		mask	P_MESGIN	CDI|IOI|MSGI
-		mask	P_BUSFREE	0x01
+		field	CDI		0x80
+		field	IOI		0x40
+		field	MSGI		0x20
+		enum	PHASE_MASK  CDO|IOO|MSGO {
+			P_DATAOUT	0x0,
+			P_DATAIN	IOO,
+			P_DATAOUT_DT	P_DATAOUT|MSGO,
+			P_DATAIN_DT	P_DATAIN|MSGO,
+			P_COMMAND	CDO,
+			P_MESGOUT	CDO|MSGO,
+			P_STATUS	CDO|IOO,
+			P_MESGIN	CDO|IOO|MSGO,
+			P_BUSFREE	0x01
+		}
 	}
 	/*
 	 * Base address of our shared data with the kernel driver in host
@@ -3474,6 +3519,13 @@ scratch_ram {
 	 */
 	QOUTFIFO_NEXT_ADDR {
 		size		4
+	}
+	/*
+	 * Value to "or" into the SCBPTR[1] value to
+	 * indicate that an entry in the QINFIFO is valid.
+	 */
+	QOUTFIFO_ENTRY_VALID_TAG {
+		size		1
 	}
 	/*
 	 * Kernel and sequencer offsets into the queue of
@@ -3517,12 +3569,12 @@ scratch_ram {
 	 */
 	SCSISEQ_TEMPLATE {
 		size		1
-		bit	MANUALCTL	0x40
-		bit	ENSELI		0x20
-		bit	ENRSELI		0x10
-		mask	MANUALP		0x0C
-		bit	ENAUTOATNP	0x02
-		bit	ALTSTIM		0x01
+		field	MANUALCTL	0x40
+		field	ENSELI		0x20
+		field	ENRSELI		0x10
+		field	MANUALP		0x0C
+		field	ENAUTOATNP	0x02
+		field	ALTSTIM		0x01
 	}
 
 	/*
@@ -3534,9 +3586,9 @@ scratch_ram {
 
 	SEQ_FLAGS2 {
 		size		1
-		bit	SCB_DMA			  0x01
-		bit	TARGET_MSG_PENDING	  0x02
-		bit	SELECTOUT_QFROZEN	  0x04
+		field	SCB_DMA			  0x01
+		field	TARGET_MSG_PENDING	  0x02
+		field	SELECTOUT_QFROZEN	  0x04
 	}
 	/*
 	 * Target-mode CDB type to CDB length table used
@@ -3559,9 +3611,9 @@ scb {
 	SCB_RESIDUAL_SGPTR {
 		size	4
 		alias	SCB_CDB_PTR
-		mask	SG_ADDR_MASK		0xf8	/* In the last byte */
-		bit	SG_OVERRUN_RESID	0x02	/* In the first byte */
-		bit	SG_LIST_NULL		0x01	/* In the first byte */
+		field	SG_ADDR_MASK		0xf8	/* In the last byte */
+		field	SG_OVERRUN_RESID	0x02	/* In the first byte */
+		field	SG_LIST_NULL		0x01	/* In the first byte */
 	}
 	SCB_SCSI_STATUS {
 		size	1
@@ -3586,7 +3638,7 @@ scb {
 	}
 	SCB_CDB_LEN {
 		size	1
-		bit	SCB_CDB_LEN_PTR	0x80	/* CDB in host memory */
+		field	SCB_CDB_LEN_PTR	0x80	/* CDB in host memory */
 	}
 	SCB_TASK_MANAGEMENT {
 		size	1
@@ -3610,43 +3662,46 @@ scb {
 		 * the data address.
 		 */
 		size	4
-		bit	SG_LAST_SEG		0x80	/* In the fourth byte */
-		mask	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
+		field	SG_LAST_SEG		0x80	/* In the fourth byte */
+		field	SG_HIGH_ADDR_BITS	0x7F	/* In the fourth byte */
 	}
 	SCB_SGPTR {
 		size	4
-		bit	SG_STATUS_VALID	0x04	/* In the first byte */
-		bit	SG_FULL_RESID	0x02	/* In the first byte */
-		bit	SG_LIST_NULL	0x01	/* In the first byte */
+		field	SG_STATUS_VALID	0x04	/* In the first byte */
+		field	SG_FULL_RESID	0x02	/* In the first byte */
+		field	SG_LIST_NULL	0x01	/* In the first byte */
 	}
 	SCB_CONTROL {
 		size	1
-		bit	TARGET_SCB	0x80
-		bit	DISCENB		0x40
-		bit	TAG_ENB		0x20
-		bit	MK_MESSAGE	0x10
-		bit	STATUS_RCVD	0x08
-		bit	DISCONNECTED	0x04
-		mask	SCB_TAG_TYPE	0x03
+		field	TARGET_SCB	0x80
+		field	DISCENB		0x40
+		field	TAG_ENB		0x20
+		field	MK_MESSAGE	0x10
+		field	STATUS_RCVD	0x08
+		field	DISCONNECTED	0x04
+		field	SCB_TAG_TYPE	0x03
 	}
 	SCB_SCSIID {
 		size	1
-		mask	TID	0xF0
-		mask	OID	0x0F
+		field	TID	0xF0
+		field	OID	0x0F
 	}
 	SCB_LUN {
 		size	1
-		mask	LID				0xff
+		field	LID				0xff
 	}
 	SCB_TASK_ATTRIBUTE {
 		size	1
-		alias	SCB_NONPACKET_TAG
 	}
 	SCB_BUSADDR {
 		size	4
 	}
+	SCB_SPARE {
+		size	8
+		alias	SCB_PKT_LUN
+	}
 	SCB_DISCONNECTED_LISTS {
-		size	16
+		size	8
 	}
 }
 
@@ -3657,6 +3712,7 @@ const TID_SHIFT		4
 const TARGET_CMD_CMPLT	0xfe
 const INVALID_ADDR	0x80
 #define SCB_LIST_NULL	0xff
+#define QOUTFIFO_ENTRY_VALID_TOGGLE	0x80
 
 const CCSGADDR_MAX	0x80
 const CCSCBADDR_MAX	0x80
@@ -3696,7 +3752,8 @@ const STATUS_QUEUE_FULL		0x28
 const STATUS_PKT_SENSE		0xFF
 const TARGET_DATA_IN		1
 
-const SCB_TRANSFER_SIZE		48
+const SCB_TRANSFER_SIZE_FULL_LUN	56
+const SCB_TRANSFER_SIZE_1BYTE_LUN	48
 /* PKT_OVERRUN_BUFSIZE must be a multiple of 256 less than 64K */
 const PKT_OVERRUN_BUFSIZE	512
 
@@ -3709,6 +3766,7 @@ const SG_PREFETCH_ALIGN_MASK download
 const SG_PREFETCH_ADDR_MASK download
 const SG_SIZEOF download
 const PKT_OVERRUN_BUFOFFSET download
+const SCB_TRANSFER_SIZE	download
 
 /*
  * BIOS SCB offsets
