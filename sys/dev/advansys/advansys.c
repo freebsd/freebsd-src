@@ -56,6 +56,9 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/resource.h>
+#include <sys/bus.h> 
+#include <sys/rman.h> 
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -73,8 +76,6 @@
 
 #include <dev/advansys/advansys.h>
 
-u_long adv_unit;
-
 static void	adv_action(struct cam_sim *sim, union ccb *ccb);
 static void	adv_execute_ccb(void *arg, bus_dma_segment_t *dm_segs,
 				int nsegments, int error);
@@ -91,8 +92,6 @@ static __inline void adv_free_ccb_info(struct adv_softc *adv,
 static __inline void adv_set_state(struct adv_softc *adv, adv_state state);
 static __inline void adv_clear_state(struct adv_softc *adv, union ccb* ccb);
 static void adv_clear_state_really(struct adv_softc *adv, union ccb* ccb);
-
-struct adv_softc *advsoftcs[NADV];   /* XXX Config should handle this */
 
 static __inline struct adv_ccb_info *
 adv_get_ccb_info(struct adv_softc *adv)
@@ -729,33 +728,17 @@ adv_timeout(void *arg)
 }
 
 struct adv_softc *
-adv_alloc(int unit, bus_space_tag_t tag, bus_space_handle_t bsh)
+adv_alloc(device_t dev, bus_space_tag_t tag, bus_space_handle_t bsh)
 {
-	struct	 adv_softc *adv;
-   
-	if (unit >= NADV) {
-		printf("adv: unit number (%d) too high\n", unit);
-		return NULL;
-	}
+	struct adv_softc *adv = device_get_softc(dev);
 
 	/*
 	 * Allocate a storage area for us
 	 */
-	if (advsoftcs[unit]) {
-		printf("adv%d: memory already allocated\n", unit);
-		return NULL;
-	}
-
-	adv = malloc(sizeof(struct adv_softc), M_DEVBUF, M_NOWAIT);
-	if (!adv) {
-		printf("adv%d: cannot malloc!\n", unit);
-		return NULL;
-	}
-	bzero(adv, sizeof(struct adv_softc));
 	LIST_INIT(&adv->pending_ccbs);
 	SLIST_INIT(&adv->free_ccb_infos);
-	advsoftcs[unit] = adv;
-	adv->unit = unit;
+	adv->dev = dev;
+	adv->unit = device_get_unit(dev);
 	adv->tag = tag;
 	adv->bsh = bsh;
 
@@ -791,7 +774,6 @@ adv_free(struct adv_softc *adv)
 	case 0:
 		break;
 	}
-	free(adv, M_DEVBUF);
 }
 
 int
