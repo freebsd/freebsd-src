@@ -269,6 +269,16 @@ FilterCheck(const struct ip *pip, const struct filter *filter, unsigned *psecs)
             sport = ntohs(0);
             break;
 #endif
+          case IPPROTO_ESP:
+            cproto = P_ESP;
+            estab = syn = finrst = -1;
+            sport = ntohs(0);
+            break;
+          case IPPROTO_AH:
+            cproto = P_AH;
+            estab = syn = finrst = -1;
+            sport = ntohs(0);
+            break;
           case IPPROTO_UDP:
           case IPPROTO_IPIP:
             cproto = P_UDP;
@@ -632,6 +642,30 @@ PacketCheck(struct bundle *bundle, unsigned char *cp, int nb,
       loglen += strlen(logbuf + loglen);
       snprintf(logbuf + loglen, sizeof logbuf - loglen,
                "%s:%d", inet_ntoa(pip->ip_dst), ntohs(uh->uh_dport));
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
+
+  case IPPROTO_ESP:
+    if (logit && loglen < sizeof logbuf) {
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+               "ESP: %s ---> ", inet_ntoa(pip->ip_src));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+               "%s, spi %08x", inet_ntoa(pip->ip_dst),
+               (u_int32_t) ptop);
+      loglen += strlen(logbuf + loglen);
+    }
+    break;
+
+  case IPPROTO_AH:
+    if (logit && loglen < sizeof logbuf) {
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+               "AH: %s ---> ", inet_ntoa(pip->ip_src));
+      loglen += strlen(logbuf + loglen);
+      snprintf(logbuf + loglen, sizeof logbuf - loglen,
+               "%s, spi %08x", inet_ntoa(pip->ip_dst),
+               (u_int32_t) (ptop + sizeof(u_int32_t)));
       loglen += strlen(logbuf + loglen);
     }
     break;
