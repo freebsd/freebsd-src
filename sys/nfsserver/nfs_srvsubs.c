@@ -546,7 +546,10 @@ nfsrv_modevent(module_t mod, int type, void *data)
 		nfsrv_initcache();	/* Init the server request cache */
 		NFSD_LOCK();
 		nfsrv_init(0);		/* Init server data structures */
-		callout_init(&nfsrv_callout, 0);
+		if (debug_mpsafenet)
+			callout_init(&nfsrv_callout, CALLOUT_MPSAFE);
+		else
+			callout_init(&nfsrv_callout, 0);
 		NFSD_UNLOCK();
 		nfsrv_timer(0);
 
