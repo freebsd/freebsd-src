@@ -14,4 +14,4 @@ extern u_short	*Crtat;
 extern u_int	crtc_addr;
 extern char	scr_map[];
 extern int	scrn_blanked;
-extern char	*palette;
+extern char	palette[];
