@@ -610,8 +610,10 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		 * Check to see if this thread was interrupted and
 		 * is still in the mutex queue of waiting threads:
 		 */
-		if (_thread_run->interrupted != 0)
+		if (_thread_run->interrupted != 0) {
 			mutex_queue_remove(*mutex, _thread_run);
+			ret = EINTR;
+		}
 
 		/* Unlock the mutex structure: */
 		_SPINUNLOCK(&(*mutex)->lock);
