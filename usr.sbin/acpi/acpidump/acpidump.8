@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 31, 2000
+.Dd August 16, 2004
 .Dt ACPIDUMP 8
 .Os
 .Sh NAME
@@ -66,6 +66,9 @@ The
 .Nm
 utility can extract the DSDT data block from physical memory and store it into
 a DSDT output file and optionally also disassemble it.
+If Secondary System Description Table (SSDT) entries exist, then the DSDT
+output file will include those tables.
+Disassembly of the DSDT will also include SSDT tables, if such exist.
 .Pp
 When
 .Nm
@@ -152,7 +155,6 @@ Verbose messages are enabled.
 In the current implementation,
 .Nm
 does not dump the
-Secondary System Descriptor Table (SSDT),
 Embedded Controller Descriptor Table (ECDT),
 or BOOT structures.
 .Sh FILES
