@@ -2758,6 +2758,8 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, "</Flags>\n");
 		sbuf_printf(sb, "%s<Components>%u</Components>\n", indent,
 		    sc->sc_ndisks);
+		sbuf_printf(sb, "%s<State>%s</State>\n", indent,
+		    g_raid3_device_state2str(sc->sc_state));
 	}
 }
 
