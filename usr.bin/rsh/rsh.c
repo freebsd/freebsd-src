@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 #endif
 static char rcsid[] =
-	"$Id$";
+	"$Id: rsh.c,v 1.13 1997/09/28 08:57:24 markm Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -98,7 +98,7 @@ main(argc, argv)
 	struct servent *sp;
 	long omask;
 	int argoff, asrsh, ch, dflag, nflag, one, rem;
-	pid_t pid;
+	pid_t pid = 0;
 	uid_t uid;
 	char *args, *host, *p, *user;
 	int timeout = 0;
