@@ -178,6 +178,7 @@ chrdev	name		comments
 159	ata		ATA control device
 160	spic		Sony Programmable I/O Controller (jogdial)
 161	swdoc		Sitara networks watchdog device
+162	digi		Digiboard
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 253	mfs		Used by MFS

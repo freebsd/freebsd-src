@@ -72,8 +72,12 @@
 #	cua*	dialout serial ports
 #	ttyA*	Specialix SI/XIO dialin ports ('*' = number of devices)
 #	cuaA*	Specialix SI/XIO dialout ports
-#	ttyD*	Digiboard - 16 dialin ports
-#	cuaD*	Digiboard - 16 dialout ports
+#	ttyDXX	Digiboard Xi - 16 dialin ports (dgb)
+#	cuaDXX	Digiboard Xi - 16 dialout ports (dgb)
+#	ttyDX.X	Digiboards (work in progress) - 16 dialin ports (digi)
+#	cuaDX.X	Digiboards (work in progress) - 16 dialout ports (digi)
+#	ttyM*	Digiboard Xem - 16 dialin ports (dgm)
+#	cuaM*	Digiboard Xem - 16 dialout ports (dgm)
 #	ttyR*	Rocketport dialin ports
 #	cuaR*	Rocketport dialout ports
 #
@@ -1238,6 +1242,25 @@ ttyD?)
 		mknod ttyiD$name c $major `expr $minor + 32`
 		mknod ttylD$name c $major `expr $minor + 64`
 	done
+
+	# Also create devices for the digi driver
+	umask 7
+	major=162
+	card=`expr $i : 'tty.*\(.\)$'`
+	rm -f digi$card.ctl
+	mknod digi$card.ctl c $major $(($card \* 65536 + 8388608)) uucp:dialer
+	unit=0
+	while [ $unit -lt 16 ]
+	do
+		base=`expr $card \* 65536 + $unit`
+		name=$card.$unit
+		rm -f tty*D$name
+		mknod ttyD$name c $major $base
+		mknod ttyiD$name c $major $(($base + 1048576))
+		mknod ttylD$name c $major $(($base + 2097152))
+		unit=$(($unit + 1))
+	done
+	umask 77
 	;;
 
 cuaD?)
@@ -1254,9 +1277,28 @@ cuaD?)
 		mknod cuaiD$name c $major `expr $minor + 32 + 128` uucp:dialer
 		mknod cualD$name c $major `expr $minor + 64 + 128` uucp:dialer
 	done
+
+	# Also create devices for the digi driver
+	major=162
+	card=`expr $i : 'cua.*\(.\)$'`
+	rm -f digi$card.ctl
+	mknod digi$card.ctl c $major $(($card \* 65536 + 8388608)) uucp:dialer
+	unit=0
+	while [ $unit -lt 16 ]
+	do
+		base=`expr $card \* 65536 + $unit`
+		name=$card.$unit
+		rm -f cua*D$name
+		mknod cuaD$name c $major $(($base + 4194304)) uucp:dialer
+		mknod cuaiD$name c $major $(($base + 5242880)) uucp:dialer
+		mknod cualD$name c $major $(($base + 6291456)) uucp:dialer
+		unit=$(($unit + 1))
+	done
 	umask 77
 	;;
 
+# Digiboard Xem - superceeded by the digi device above
+#
 ttyM*)
 	portlist="0 1 2 3 4 5 6 7 8 9 a b c d e f"
 	modulelist="a b c d"
