@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.3 1995/03/16 18:13:05 bde Exp $
+ * $Id: fdesc_vfsops.c,v 1.4 1995/03/16 20:23:38 wollman Exp $
  */
 
 /*
@@ -55,6 +55,8 @@
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/fdesc/fdesc.h>
+
+int fdesc_statfs __P((struct mount *, struct statfs *, struct proc *));
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
@@ -96,6 +98,7 @@ fdesc_mount(mp, path, data, ndp, p)
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("fdesc", mp->mnt_stat.f_mntfromname, sizeof("fdesc"));
+	(void)fdesc_statfs(mp, &mp->mnt_stat, p);
 	return (0);
 }
 
