@@ -1530,7 +1530,7 @@ list_pipes(void *data, uint nbytes, int ac, char *av[])
 		next = (char *)p + l;
 		nbytes -= l;
 
-		if (rulenum != 0 && rulenum != p->pipe_nr)
+		if ((rulenum != 0 && rulenum != p->pipe_nr) || do_pipe == 2)
 			continue;
 
 		/*
@@ -1564,6 +1564,12 @@ list_pipes(void *data, uint nbytes, int ac, char *av[])
 		l = sizeof(*fs) + fs->rq_elements * sizeof(*q);
 		next = (char *)fs + l;
 		nbytes -= l;
+
+		if (rulenum != 0 && ((rulenum != fs->fs_nr && do_pipe == 2) ||
+		    (rulenum != fs->parent_nr && do_pipe == 1))) {
+			continue;
+		}
+
 		q = (struct dn_flow_queue *)(fs+1);
 		sprintf(prefix, "q%05d: weight %d pipe %d ",
 		    fs->fs_nr, fs->weight, fs->parent_nr);
