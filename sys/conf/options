@@ -310,11 +310,6 @@ ALTQ_CDNR		opt_altq.h
 ALTQ_PRIQ		opt_altq.h
 ALTQ_NOPCC		opt_altq.h
 ALTQ_DEBUG		opt_altq.h
-BOOTP			opt_bootp.h
-BOOTP_COMPAT		opt_bootp.h
-BOOTP_NFSROOT		opt_bootp.h
-BOOTP_NFSV3		opt_bootp.h
-BOOTP_WIRED_TO		opt_bootp.h
 BRIDGE			opt_bdg.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h

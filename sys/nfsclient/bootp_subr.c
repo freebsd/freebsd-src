@@ -43,8 +43,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bootp.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -590,6 +588,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	int gotrootpath;
 	int retry;
 	const char *s;
+	char *cp;
 
 	NET_ASSERT_GIANT();
 
@@ -954,14 +953,19 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 		error = 0;
 		goto out;
 	}
-#ifndef BOOTP_NFSROOT
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
-		if (bootpc_ifctx_isresolved(ifctx) != 0) {
-			error = 0;
-			goto out;
+
+	if ((cp = getenv("bootp.nfsroot")) != NULL)
+		freeenv(cp);
+	else {
+		for (ifctx = gctx->interfaces; ifctx != NULL;
+		    ifctx = ifctx->next) {
+			if (bootpc_ifctx_isresolved(ifctx) != 0) {
+				error = 0;
+				goto out;
+			}
 		}
 	}
-#endif
+
 	error = ETIMEDOUT;
 	goto out;
 
@@ -1641,10 +1645,9 @@ bootpc_init(void)
 	struct bootpc_ifcontext *ifctx, *nctx;	/* Interface BOOTP contexts */
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
 	struct ifnet *ifp;
-	int error;
-#ifndef BOOTP_WIRED_TO
+	char *cp, *bootp_wired_to;
+	int bootp_nfsroot, error;
 	int ifcnt;
-#endif
 	struct nfsv3_diskless *nd;
 	struct thread *td;
 
@@ -1667,31 +1670,31 @@ bootpc_init(void)
 	/*
 	 * Find a network interface.
 	 */
-#ifdef BOOTP_WIRED_TO
-	printf("bootpc_init: wired to interface '%s'\n",
-	       __XSTRING(BOOTP_WIRED_TO));
-	allocifctx(gctx);
-#else
-	/*
-	 * Preallocate interface context storage, if another interface
-	 * attaches and wins the race, it won't be eligible for bootp.
-	 */
-	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&ifnet), ifcnt = 0;
-	     ifp != NULL;
-	     ifp = TAILQ_NEXT(ifp, if_link)) {
-		if ((ifp->if_flags &
-		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
-		    IFF_BROADCAST)
-			continue;
-		ifcnt++;
-	}
-	IFNET_RUNLOCK();
-	if (ifcnt == 0)
-		panic("bootpc_init: no eligible interfaces");
-	for (; ifcnt > 0; ifcnt--)
+	if ((bootp_wired_to = getenv("bootp.wired_to")) != NULL) {
+		printf("bootpc_init: wired to interface '%s'\n",
+		    bootp_wired_to);
 		allocifctx(gctx);
-#endif
+	} else {
+		/*
+		 * Preallocate interface context storage, if another interface
+		 * attaches and wins the race, it won't be eligible for bootp.
+		 */
+		IFNET_RLOCK();
+		for (ifp = TAILQ_FIRST(&ifnet), ifcnt = 0;
+		     ifp != NULL;
+		     ifp = TAILQ_NEXT(ifp, if_link)) {
+			if ((ifp->if_flags &
+			    (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
+			    IFF_BROADCAST)
+				continue;
+			ifcnt++;
+		}
+		IFNET_RUNLOCK();
+		if (ifcnt == 0)
+			panic("bootpc_init: no eligible interfaces");
+		for (; ifcnt > 0; ifcnt--)
+			allocifctx(gctx);
+	}
 
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet), ifctx = gctx->interfaces;
@@ -1699,29 +1702,24 @@ bootpc_init(void)
 	     ifp = TAILQ_NEXT(ifp, if_link)) {
 		strlcpy(ifctx->ireq.ifr_name, ifp->if_xname,
 		    sizeof(ifctx->ireq.ifr_name));
-#ifdef BOOTP_WIRED_TO
-		if (strcmp(ifctx->ireq.ifr_name,
-			   __XSTRING(BOOTP_WIRED_TO)) != 0)
-			continue;
-#else
-		if ((ifp->if_flags &
-		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
+		if (bootp_wired_to) {
+			if (strcmp(ifctx->ireq.ifr_name, bootp_wired_to) != 0)
+				continue;
+		} else if ((ifp->if_flags &
+		    (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
 		    IFF_BROADCAST)
 			continue;
-#endif
 		ifctx->ifp = ifp;
 		ifctx = ifctx->next;
 	}
 	IFNET_RUNLOCK();
 
 	if (gctx->interfaces == NULL || gctx->interfaces->ifp == NULL) {
-#ifdef BOOTP_WIRED_TO
-		panic("bootpc_init: Could not find interface specified "
-		      "by BOOTP_WIRED_TO: "
-		      __XSTRING(BOOTP_WIRED_TO));
-#else
-		panic("bootpc_init: no suitable interface");
-#endif
+		if (bootp_wired_to)
+			panic("bootpc_init: Could not find interface specified "
+			    "by bootp.wired_to: %s", bootp_wired_to);
+		else
+			panic("bootpc_init: no suitable interface");
 	}
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
@@ -1732,12 +1730,17 @@ bootpc_init(void)
 
 	error = bootpc_call(gctx, td);
 
+	if ((cp = getenv("bootp.nfsroot")) != NULL) {
+		freeenv(cp);
+		bootp_nfsroot = 1;
+	} else
+		bootp_nfsroot = 0;
+
 	if (error != 0) {
-#ifdef BOOTP_NFSROOT
-		panic("BOOTP call failed");
-#else
-		printf("BOOTP call failed\n");
-#endif
+		if (bootp_nfsroot)
+			panic("BOOTP call failed");
+		else
+			printf("BOOTP call failed\n");
 	}
 
 	mountopts(&nd->root_args, NULL);
@@ -1746,10 +1749,8 @@ bootpc_init(void)
 		if (bootpc_ifctx_isresolved(ifctx) != 0)
 			bootpc_decode_reply(nd, ifctx, gctx);
 
-#ifdef BOOTP_NFSROOT
-	if (gctx->gotrootpath == 0)
+	if (bootp_nfsroot && gctx->gotrootpath == 0)
 		panic("bootpc: No root path offered");
-#endif
 
 	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
 		bootpc_adjust_interface(ifctx, gctx, td);
@@ -1795,6 +1796,8 @@ out:
 		free(ifctx, M_TEMP);
 	}
 	free(gctx, M_TEMP);
+	if (bootp_wired_to)
+		freeenv(bootp_wired_to);
 }
 
 /*
@@ -1807,27 +1810,31 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
     struct nfs_args *args, struct thread *td)
 {
 	struct mbuf *m;
+	char *cp;
 	int error;
 	int authunixok;
 	int authcount;
 	int authver;
 
-#ifdef BOOTP_NFSV3
-	/* First try NFS v3 */
-	/* Get port number for MOUNTD. */
-	error = krpc_portmap(mdsin, RPCPROG_MNT, RPCMNT_VER3,
-			     &mdsin->sin_port, td);
-	if (error == 0) {
-		m = xdr_string_encode(path, strlen(path));
+	if ((cp = getenv("bootp.nfsv3")) != NULL) {
+		/* First try NFS v3 */
+		/* Get port number for MOUNTD. */
+		freeenv(cp);
+		error = krpc_portmap(mdsin, RPCPROG_MNT, RPCMNT_VER3,
+		    &mdsin->sin_port, td);
+		if (error == 0) {
+			m = xdr_string_encode(path, strlen(path));
 
-		/* Do RPC to mountd. */
-		error = krpc_call(mdsin, RPCPROG_MNT, RPCMNT_VER3,
-				  RPCMNT_MOUNT, &m, NULL, td);
-	}
-	if (error == 0) {
-		args->flags |= NFSMNT_NFSV3;
-	} else {
-#endif
+			/* Do RPC to mountd. */
+			error = krpc_call(mdsin, RPCPROG_MNT, RPCMNT_VER3,
+			    RPCMNT_MOUNT, &m, NULL, td);
+		}
+		if (error == 0)
+			args->flags |= NFSMNT_NFSV3;
+	} else
+		error = 1;	/* Need to try NFS v2 */
+
+	if (error) {
 		/* Fallback to NFS v2 */
 
 		/* Get port number for MOUNTD. */
@@ -1843,10 +1850,7 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 				  RPCMNT_MOUNT, &m, NULL, td);
 		if (error != 0)
 			return error;	/* message already freed */
-
-#ifdef BOOTP_NFSV3
 	}
-#endif
 
 	if (xdr_int_decode(&m, &error) != 0 || error != 0)
 		goto bad;
