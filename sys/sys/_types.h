@@ -41,6 +41,7 @@ typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
 typedef	__uint32_t	__gid_t;
 typedef	__uint16_t	__mode_t;		/* permissions */
+typedef	int		__nl_item;
 typedef	__int64_t	__off_t;		/* file offset */
 typedef	__int32_t	__pid_t;		/* process [group] */
 typedef	__uint8_t	__sa_family_t;
