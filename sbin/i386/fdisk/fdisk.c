@@ -670,9 +670,8 @@ dos(partp)
 	int cy, sec;
 	u_int32_t end;
 
-	if (partp->dp_typ == 0 && partp->dp_start == 0 &&
-	    partp->dp_size == 0) {
-		bcopy(partp, &mtpart, sizeof(*partp));
+	if (partp->dp_typ == 0 && partp->dp_start == 0 && partp->dp_size == 0) {
+		memcpy(partp, &mtpart, sizeof(*partp));
 		return;
 	}
 
