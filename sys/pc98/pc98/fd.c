@@ -372,7 +372,7 @@ static	d_strategy_t	fdstrategy;
 static struct cdevsw fd_cdevsw;
 static struct bdevsw fd_bdevsw = 
 	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
-	  nodump,	nopsize,	0,	"fd",	&fd_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK,	"fd",	&fd_cdevsw,	-1 };
 
 
 static struct isa_device *fdcdevs[NFDC];
