@@ -119,10 +119,12 @@ svr4_sys_ioctl(td, uap)
 #endif
 
 	switch (cmd & 0xff00) {
+#ifndef BURN_BRIDGES
 	case SVR4_tIOC:
 	        DPRINTF(("ttold\n"));
 		fun = svr4_ttold_ioctl;
 		break;
+#endif
 
 	case SVR4_TIOC:
 	        DPRINTF(("term\n"));
