@@ -180,6 +180,7 @@ __END_DECLS
 #define	ERESTART	(-1)		/* restart syscall */
 #define	EJUSTRETURN	(-2)		/* don't modify regs, just return */
 #define	ENOIOCTL	(-3)		/* ioctl not handled by this layer */
+#define	EDIRIOCTL	(-4)		/* do direct ioctl in GEOM */
 #endif
 
 #endif
