@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.11 1995/01/16 16:33:46 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.12 1995/01/22 00:48:39 gibbs Exp $
  */
 /*
  * TODO:
@@ -957,15 +957,6 @@ ahcintr(unit)
 						   + scsi_id);
 
 				mask = (0x01 << scsi_id);
-				if(ahc->needsdtr & mask){
-					/* note asynch xfers and clear flag */
-					targ_scratch &= 0xf0;
-					ahc->needsdtr &= ~mask;
-        				printf("ahc%d: target %d refusing "
-					       "syncronous negotiation.  Using "
-					       "asyncronous transfers\n",
-						unit, scsi_id);
-				}
 				if(ahc->needwdtr & mask){
 					/* note 8bit xfers and clear flag */
 					targ_scratch &= 0x7f;
@@ -975,11 +966,23 @@ ahcintr(unit)
 					       "8bit transfers\n",
 						unit, scsi_id);
 				}
+				else if(ahc->needsdtr & mask){
+					/* note asynch xfers and clear flag */
+					targ_scratch &= 0xf0;
+					ahc->needsdtr &= ~mask;
+        				printf("ahc%d: target %d refusing "
+					       "syncronous negotiation.  Using "
+					       "asyncronous transfers\n",
+						unit, scsi_id);
+				}
+				else
+					/*
+					 * Otherwise, we ignore it.
+					 */
+					break;
 				outb(HA_TARG_SCRATCH + iobase + scsi_id,
 				     targ_scratch);
-				/*
-				 * Otherwise, we ignore it.
-				 */
+				outb(SCSIRATE + iobase, targ_scratch);
 				break;
 			}
                     case BAD_STATUS:   
