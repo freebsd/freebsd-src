@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Jonathan Lemon
+ * Copyright (c) 1999,2000 Jonathan Lemon
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,20 @@
 
 #ifndef _IDAVAR_H
 #define _IDAVAR_H
+
+#define ida_inb(ida, port) \
+	bus_space_read_1((ida)->tag, (ida)->bsh, port)
+#define ida_inw(ida, port) \
+	bus_space_read_2((ida)->tag, (ida)->bsh, port)
+#define ida_inl(ida, port) \
+	bus_space_read_4((ida)->tag, (ida)->bsh, port)
+
+#define ida_outb(ida, port, val) \
+	bus_space_write_1((ida)->tag, (ida)->bsh, port, val)
+#define ida_outw(ida, port, val) \
+	bus_space_write_2((ida)->tag, (ida)->bsh, port, val)
+#define ida_outl(ida, port, val) \
+	bus_space_write_4((ida)->tag, (ida)->bsh, port, val)
 
 struct ida_hdr {
 	u_int8_t	drive;		/* logical drive */
@@ -88,7 +102,18 @@ struct ida_qcb {
 		SLIST_ENTRY(ida_qcb) sle;
 	} link;
 	bus_dmamap_t	dmamap;
+	bus_addr_t	hwqcb_busaddr;
 	struct		buf *buf;		/* buf associated with qcb */
+};
+
+struct ida_softc;
+
+struct ida_access {
+	int		(*fifo_full)(struct ida_softc *);
+	void		(*submit)(struct ida_softc *, struct ida_qcb *);
+	bus_addr_t	(*done)(struct ida_softc *);
+	int		(*int_pending)(struct ida_softc *);
+	void		(*int_enable)(struct ida_softc *, int);
 };
 
 /*
@@ -130,6 +155,8 @@ struct ida_softc {
 	SLIST_HEAD(, ida_qcb)	free_qcbs;	
 	STAILQ_HEAD(, ida_qcb) 	qcb_queue;
 	struct		buf_queue_head buf_queue;
+
+	struct		ida_access cmd;
 };
 
 /*
@@ -140,7 +167,7 @@ struct ida_softc {
 struct id_softc {
 	device_t	dev;
 	struct 		ida_softc *controller;
-	struct 		diskslices *slices;
+	struct		disk disk;
 	struct		devstat stats;
 	int		unit;
 	int		cylinders;
@@ -151,6 +178,13 @@ struct id_softc {
 	int		flags;
 };
 
+struct ida_board {
+	u_int32_t	board;
+	char 		*desc;
+	struct		ida_access *accessor;
+};
+
+extern int ida_detach(device_t dev);
 extern struct ida_softc *ida_alloc(device_t dev, struct resource *regs,
 	int regs_type, int regs_id, bus_dma_tag_t parent_dmat);
 extern void ida_free(struct ida_softc *ida);
