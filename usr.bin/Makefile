@@ -22,6 +22,7 @@ SUBDIR=	alias \
 	biff \
 	brandelf \
 	bzip2 \
+	bzip2recover \
 	c89 \
 	c99 \
 	calendar \
