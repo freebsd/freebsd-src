@@ -197,7 +197,8 @@ SUBDIR+=boot98cfg
 SUBDIR+=ofwdump
 .endif
 
-.if ${MACHINE} == "i386" || ${MACHINE} == "alpha" || ${MACHINE} == "pc98"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "alpha" || \
+    ${MACHINE_ARCH} == "ia64"
 SUBDIR+=	sysinstall
 .endif
 
