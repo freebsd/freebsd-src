@@ -334,8 +334,10 @@ chn_rdfeed(struct pcm_channel *c)
 	})
 
 	amt = sndbuf_getready(b);
-	if (sndbuf_getfree(bs) < amt)
+	if (sndbuf_getfree(bs) < amt) {
 		c->xruns++;
+		amt = sndbuf_getfree(bs);
+	}
 	ret = (amt > 0)? sndbuf_feed(b, bs, c, c->feeder, amt) : 0;
 
 	amt = sndbuf_getready(b);
@@ -400,14 +402,14 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 	ret = 0;
 	count = hz;
 	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
-		sz = MIN(buf->uio_resid, sndbuf_getblksz(bs));
+		sz = MIN(buf->uio_resid, sndbuf_getready(bs));
 
-		if (sz <= sndbuf_getready(bs)) {
+		if (sz > 0) {
 			ret = sndbuf_uiomove(bs, buf, sz);
 		} else {
-			if (c->flags & CHN_F_NBIO)
+			if (c->flags & CHN_F_NBIO) {
 				ret = EWOULDBLOCK;
-			else {
+			} else {
 				timeout = (hz * sndbuf_getblksz(bs)) / (sndbuf_getspd(bs) * sndbuf_getbps(bs));
 				if (timeout < 1)
 					timeout = 1;
@@ -415,7 +417,10 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 				if (ret == EWOULDBLOCK) {
 					count -= timeout;
 					ret = 0;
+				} else {
+					count = hz;
 				}
+
 			}
 		}
 	}
