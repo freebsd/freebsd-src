@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.124
+    Original revision: 1.139
 -->
 
 <!--
@@ -278,6 +278,36 @@
       指示子を用いることで, (調整可能な)
       カーネル環境変数を設定することができるようになりました.
       <!-- hrs:needs to be revised --></para>
+
+    <para>ローダとカーネルリンカは,
+      KLD のある各ディレクトリに存在する
+      <filename>linker.hints</filename> というファイルから
+      モジュール名およびバージョンと KLD ファイル名の対応を調べるようになりました.
+      新しく追加されたユーティリティ &man.kldxref.8; は,
+      これらのファイルを生成するために使用します.</para>
+
+    <para>比較的新しいマシンの多くで, PCCARD デバイスの割り込みを
+      ISA もしくは PCI のいずれかの割り込み経路に設定することが可能になりました.
+      &man.pcic.4; ドライバが更新され, 新たにその両方の割り込み経路に対応
+      (以前は ISA のみの対応でした) しています. &merged;
+      ほとんどのラップトップ型 PC における PCMCIA
+      デバイスの設定が簡単で柔軟に行なえるようになっています.
+      また, さまざまある PCI バスを使った Cardbus ブリッジ (Orinoco 社の PCI NIC
+      で使われています) にも対応しました.
+      PCI 割り込み経路制御が原因で,
+      マシンの異常停止やパニック等の問題が発生するものもありますが,
+      その場合は従来の ISA 割り込み経路制御に設定することで問題を解決できる可能性があります.
+      その際には <filename>/boot/loader.conf</filename>
+      にある次の行を書き換えてください.</para>
+
+    <programlisting>hw.pcic.intr_path="1"
+hw.pcic.irq="0"</programlisting>
+
+    <para>&os; を問題の発生するマシンにインストールする際は,
+      一番最初の起動中, ブートローダに次の行を入力すると良いでしょう.</para>
+
+    <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
@@ -903,6 +933,13 @@
         プロジェクトによる ACPI 対応機能が取り込まれ,
         ACPI CA 20010816 リリースに更新されました.</para>
 
+      <para>自動設定および電源管理の規格で業界標準となっている
+        ACPI (Advanced Configuration and Power Interface)
+        に新しく対応しました.
+        ACPI の機能は <application>Intel ACPI Component
+          Architecture</application> プロジェクトから提供されているもので,
+        ACPI CA 20010831 リリースに更新されています.</para>
+
       <sect4 arch="i386">
         <title>isdn4bsd</title>
 
@@ -1246,6 +1283,30 @@
       &man.lpd.8; のセキュリティ上の弱点が修正されました
       (セキュリティ勧告 FreeBSD-SA-01:58 参照).
       &merged;</para>
+
+    <para>&man.rmuser.8; に存在していた競合状態が修正されました.
+      これは非常に限られた時間ですが
+      <filename>/etc/master.passwd</filename>
+      が誰でも読み込み可能な状態になるというものです
+      (セキュリティ勧告 FreeBSD-SA-01:59 参照). 
+      &merged;</para>
+
+    <para>標準のシステムパスに存在する, <username>root</username>
+      が所有者となっていないあらゆるバイナリに
+      <literal>schg</literal> フラグが設定されるようになりました.
+      これは &man.cron.8; を経由したり, あるいは
+      <username>root</username>
+      ユーザやそのバイナリ所有者以外のユーザから実行し,
+      そのバイナリを悪用することを防ぐためです.
+      また <filename>/etc/periodic/daily/410.status-uucp</filename> から
+      実行される &man.uustat.1; は,
+      <username>root</username> 権限ではなく
+      <username>uucp</username> ユーザ権限で実行されるように変更されています.
+      &merged;</para>
+
+    <para>&man.semop.2;
+      システムコールに存在していたバッファオーバフロー問題による
+      セキュリティホールが修正されました.&merged;</para>
   </sect2>
 
   <sect2 id="userland">
@@ -2293,13 +2354,32 @@
 
       <para>The &man.csh.1; シェルが &man.tcsh.1; に置き換えられました.
         ただし <command>csh</command> というコマンド名はそのまま使用できます.
-        <application>tcsh</application> はバージョン 6.10 に更新されました.
+        <application>tcsh</application> はバージョン 6.11 に更新されました.
         &merged;</para>
 
       <para>&man.traceroute.8; は,
         デフォルトの最大 TTL 値を
         <varname>net.inet.ip.ttl</varname> sysctl 変数から得るようになりました.
         &merged;</para>
+
+      <sect4>
+        <title>CVSup</title>
+
+        <para><application>CVSup</application> は
+          &os; Ports Collection で良く使われるユーティリティの一つです.
+          以前はこれをインストールする複数の port/package が存在しましたが,
+          <port>net/cvsup-bin</port> および <port>net/cvsupd-bin</port>
+          は廃止され, <port>net/cvsup</port> になりました.</para>
+
+        <para>&os; Ports Collection の <port>net/cvsup</port>
+          からインストールできる
+          <application>CVSup</application> は 16.1_3 に更新されています. 
+          この更新では 2001 年 9 月 9 日 01:46:40 UTC
+          (UNIX epoch から 1,000,000,000 秒後)
+          以降のすべてのファイルのタイムスタンプに影響する,
+          長い間存在していた (ただし表面化しなかった)
+          バグが修正されました.</para>
+      </sect4>
 
       <sect4 id="kame-userland">
         <title>KAME</title>
