@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.18 1999/04/05 10:18:50 peter Exp $
+# $Id: Makefile,v 1.20 1999/04/08 09:21:52 obrien Exp $
 #
 
 #
@@ -94,7 +94,7 @@ $i-parse.c: tree-check.h
 tree-check.h: gencheck
 	./gencheck > ${.TARGET}
 
-GENSRCS+=	tree-check.h
+CLEANFILES+=	tree-check.h
 
 #-----------------------------------------------------------------------
 # C parser
@@ -186,7 +186,7 @@ OBJS+=		${SRCS:N*.h:R:S/$/.o/g}
 # would do if we defined PROG, except for leaving out dependencies on
 # insn-*.h because these dependencies would be circular.
 #
-${OBJS}: ${SRCS:M*.h:Ninsn-*.h:Ntree-check.h:Ngenrtl.h}
+${OBJS}: ${SRCS:M*.h:Ninsn-*.h:Ngenrtl.h}
 
 # Give all dependencies on insn-*.h explicitly
 # This suffices for `make -j<any> depend', and after that all
