@@ -41,20 +41,23 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 	wchar_t *wsp;
 	wint_t wc;
 
-	ORIENTLOCK(fp, 1);
+	FLOCKFILE(fp);
+	ORIENT(fp, 1);
 
-	if (n <= 0)
-		return (NULL);
+	if (n <= 0) {
+		errno = EINVAL;
+		goto error;
+	}
 
 	wsp = ws;
 	while (n-- > 1) {
 		/* XXX Inefficient */
-		if ((wc = fgetwc(fp)) == WEOF && errno == EILSEQ)
-			return (NULL);
+		if ((wc = __fgetwc(fp)) == WEOF && errno == EILSEQ)
+			goto error;
 		if (wc == WEOF) {
 			if (wsp == ws)
 				/* EOF/error, no characters read yet. */
-				return (NULL);
+				goto error;
 			break;
 		}
 		*wsp++ = (wchar_t)wc;
@@ -62,6 +65,11 @@ fgetws(wchar_t * __restrict ws, int n, FILE * __restrict fp)
 			break;
 	}
 	*wsp++ = L'\0';
+	FUNLOCKFILE(fp);
 
 	return (ws);
+
+error:
+	FUNLOCKFILE(fp);
+	return (NULL);
 }
