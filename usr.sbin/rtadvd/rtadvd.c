@@ -158,11 +158,9 @@ main(argc, argv)
 #endif
 	struct timeval *timeout;
 	int i, ch;
-	int fflag = 0;
+	int fflag = 0, logopt;
 	FILE *pidfp;
 	pid_t pid;
-
-	openlog("rtadvd", LOG_NDELAY|LOG_PID, LOG_DAEMON);
 
 	/* get command line options and arguments */
 	while ((ch = getopt(argc, argv, "c:dDfM:Rs")) != -1) {
@@ -202,6 +200,11 @@ main(argc, argv)
 		exit(1);
 	}
 
+	logopt = LOG_NDELAY | LOG_PID;
+	if (fflag)
+		logopt |= LOG_PERROR;
+	openlog("rtadvd", logopt, LOG_DAEMON);
+
 	/* set log level */
 	if (dflag == 0)
 		(void)setlogmask(LOG_UPTO(LOG_ERR));
@@ -228,6 +231,7 @@ main(argc, argv)
 		fprintf(stderr, "fatal: inet_pton failed\n");
 		exit(1);
 	}
+
 	if (!fflag)
 		daemon(1, 0);
 
