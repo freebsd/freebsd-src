@@ -64,7 +64,7 @@
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
  *
- * $Id: swap_pager.c,v 1.112 1999/01/27 18:19:52 dillon Exp $
+ * $Id: swap_pager.c,v 1.113 1999/02/06 07:22:21 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -75,6 +75,7 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 #include <sys/blist.h>
 #include <sys/lock.h>
 
@@ -107,15 +108,33 @@ extern int vm_swap_size;	/* number of free swap blocks, in pages */
 
 int swap_pager_full;		/* swap space exhaustion (w/ hysteresis)*/
 static int nsw_rcount;		/* free read buffers			*/
-static int nsw_wcount;		/* free write buffers			*/
-static int nsw_hysteresis;	/* hysteresis				*/
-static int max_pageout_cluster;	/* maximum VOP I/O allowed		*/
+static int nsw_wcount_sync;	/* limit write buffers / synchronous	*/
+static int nsw_wcount_async;	/* limit write buffers / asynchronous	*/
+static int nsw_wcount_async_max;/* assigned maximum			*/
+static int nsw_cluster_max;	/* maximum VOP I/O allowed		*/
 static int sw_alloc_interlock;	/* swap pager allocation interlock	*/
 
 struct blist *swapblist;
 static struct swblock **swhash;
 static int swhash_mask;
+static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
+static int swap_cluster_max;	/* maximum VOP I/O allowed		*/
 
+#ifndef DISALLOW_SWAP_TUNE
+
+SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
+        CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
+SYSCTL_INT(_vm, OID_AUTO, swap_cluster_max,
+        CTLFLAG_RW, &swap_cluster_max, 0, "Maximum swap I/O cluster (pages)");
+
+#else
+
+SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
+        CTLFLAG_RD, &swap_async_max, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, swap_cluster_max,
+        CTLFLAG_RD, &swap_cluster_max, 0, "");
+
+#endif
 
 /*
  * "named" and "unnamed" anon region objects.  Try to reduce the overhead
@@ -258,16 +277,30 @@ swap_pager_swap_init()
 	 * initialize workable values (0 will work for hysteresis
 	 * but it isn't very efficient).
 	 *
-	 * The max_pageout_cluster is constrained by the bp->b_pages[]
+	 * The nsw_cluster_max is constrained by the bp->b_pages[]
 	 * array (MAXPHYS/PAGE_SIZE) and our locally defined
 	 * MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
 	 * constrained by the swap device interleave stripe size.
+	 *
+	 * Currently we hardwire nsw_wcount_async to 4.  This limit is 
+	 * designed to prevent other I/O from having high latencies due to
+	 * our pageout I/O.  The value 4 works well for one or two active swap
+	 * devices but is probably a little low if you have more.  Even so,
+	 * a higher value would probably generate only a limited improvement
+	 * with three or four active swap devices since the system does not
+	 * typically have to pageout at extreme bandwidths.   We will want
+	 * at least 2 per swap devices, and 4 is a pretty good value if you
+	 * have one NFS swap device due to the command/ack latency over NFS.
+	 * So it all works out pretty well.
 	 */
 
+	swap_cluster_max = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
+
 	nsw_rcount = (nswbuf + 1) / 2;
-	nsw_wcount = (nswbuf + 3) / 4;
-	nsw_hysteresis = nsw_wcount / 2;
-	max_pageout_cluster = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
+	nsw_wcount_sync = (nswbuf + 3) / 4;
+	nsw_wcount_async = 4;
+	nsw_wcount_async_max = nsw_wcount_async;
+	nsw_cluster_max = swap_cluster_max;
 
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
@@ -1015,6 +1048,57 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 	/*
 	 * Step 2
 	 *
+	 * Update nsw parameters from swap_async_max and swap_cluster_max 
+	 * sysctl values.  Do not let the sysop crash the machine with bogus
+	 * numbers.
+	 */
+
+#ifndef DISALLOW_SWAP_TUNE
+
+	if (swap_async_max != nsw_wcount_async_max) {
+		int n;
+		int s;
+
+		/*
+		 * limit range
+		 */
+		if ((n = swap_async_max) > nswbuf / 2)
+			n = nswbuf / 2;
+		if (n < 1)
+			n = 1;
+		swap_async_max = n;
+
+		/*
+		 * Adjust difference ( if possible ).  If the current async
+		 * count is too low, we may not be able to make the adjustment
+		 * at this time.
+		 */
+		s = splvm();
+		n -= nsw_wcount_async_max;
+		if (nsw_wcount_async + n >= 0) {
+			nsw_wcount_async += n;
+			nsw_wcount_async_max += n;
+			wakeup(&nsw_wcount_async);
+		}
+		splx(s);
+	}
+
+	if (swap_cluster_max != nsw_cluster_max) {
+		int n;
+
+		if ((n = swap_cluster_max) < 1)
+			n = 1;
+		if (n > min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER))
+			n = min((MAXPHYS/PAGE_SIZE), MAX_PAGEOUT_CLUSTER);
+		swap_cluster_max = n;
+		nsw_cluster_max = n;
+	}
+
+#endif
+
+	/*
+	 * Step 3
+	 *
 	 * Assign swap blocks and issue I/O.  We reallocate swap on the fly.
 	 * The page is left dirty until the pageout operation completes
 	 * successfully.
@@ -1031,7 +1115,7 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 */
 
 		n = min(BLIST_MAX_ALLOC, count - i);
-		n = min(n, max_pageout_cluster);
+		n = min(n, nsw_cluster_max);
 
 		/*
 		 * Get biggest block of swap we can.  If we fail, fall
@@ -1072,12 +1156,17 @@ swap_pager_putpages(object, m, count, sync, rtvals)
 		 * NOTE: B_PAGING is set by pbgetvp()
 		 */
 
-		bp = getpbuf(&nsw_wcount);
+		if (sync == TRUE) {
+			bp = getpbuf(&nsw_wcount_sync);
+			bp->b_flags = B_BUSY;
+		} else {
+			bp = getpbuf(&nsw_wcount_async);
+			bp->b_flags = B_BUSY | B_ASYNC;
+		}
 		bp->b_spc = NULL;	/* not used, but NULL-out anyway */
 
 		pmap_qenter((vm_offset_t)bp->b_data, &m[i], n);
 
-		bp->b_flags = B_BUSY | B_ASYNC;
 		bp->b_proc = &proc0; /* XXX (but without B_PHYS this is ok) */
 		bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
 
@@ -1396,8 +1485,15 @@ swp_pager_async_iodone(bp)
 	 * release the physical I/O buffer
 	 */
 
-	relpbuf(bp, ((bp->b_flags & B_READ) ? &nsw_rcount : &nsw_wcount));
-
+	relpbuf(
+	    bp, 
+	    ((bp->b_flags & B_READ) ? &nsw_rcount : 
+		((bp->b_flags & B_ASYNC) ? 
+		    &nsw_wcount_async : 
+		    &nsw_wcount_sync
+		)
+	    )
+	);
 	splx(s);
 }
 
