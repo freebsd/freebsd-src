@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.162 1995/12/22 18:17:34 bde Exp $
+ *	$Id: machdep.c,v 1.163 1995/12/24 08:10:41 davidg Exp $
  */
 
 #include "npx.h"
@@ -623,7 +623,7 @@ identifycpu()
 	case CPUCLASS_586:
 #endif
 #if !defined(I686_CPU)
-	case CPUCLASS_586:
+	case CPUCLASS_686:
 #endif
 		panic("CPU class not configured");
 	default:
