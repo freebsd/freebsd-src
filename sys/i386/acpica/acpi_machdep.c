@@ -194,19 +194,19 @@ acpi_capm_get_pwstatus(apm_pwstatus_t app)
 }
 
 static int
-apmopen(dev_t dev, int flag, int fmt, struct thread *td)
+apmopen(dev_t dev, int flag, int fmt, d_thread_t *td)
 {
 	return (0);
 }
 
 static int
-apmclose(dev_t dev, int flag, int fmt, struct thread *td)
+apmclose(dev_t dev, int flag, int fmt, d_thread_t *td)
 {
 	return (0);
 }
 
 static int
-apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+apmioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, d_thread_t *td)
 {
 	int	error = 0;
 	struct	acpi_softc *acpi_sc;
@@ -304,7 +304,7 @@ apmwrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-apmpoll(dev_t dev, int events, struct thread *td)
+apmpoll(dev_t dev, int events, d_thread_t *td)
 {
 	return (0);
 }
