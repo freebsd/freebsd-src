@@ -556,14 +556,6 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		lock_list = PCPU_PTR(spinlocks);
 
 	/*
-	 * Try locks do not block if they fail to acquire the lock, thus
-	 * there is no danger of deadlocks or of switching while holding a
-	 * spin lock if we acquire a lock via a try operation.
-	 */
-	if (flags & LOP_TRYLOCK)
-		goto out;
-
-	/*
 	 * Is this the first lock acquired?  If so, then no order checking
 	 * is needed.
 	 */
@@ -607,6 +599,14 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		lock1->li_line = line;
 		return;
 	}
+
+	/*
+	 * Try locks do not block if they fail to acquire the lock, thus
+	 * there is no danger of deadlocks or of switching while holding a
+	 * spin lock if we acquire a lock via a try operation.
+	 */
+	if (flags & LOP_TRYLOCK)
+		goto out;
 
 	/*
 	 * Check for duplicate locks of the same type.  Note that we only
