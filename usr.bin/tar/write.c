@@ -796,9 +796,26 @@ record_hardlink(struct bsdtar *bsdtar, struct archive_entry *entry,
 }
 
 #ifdef HAVE_POSIX_ACL
+void			setup_acl(struct bsdtar *bsdtar,
+			     struct archive_entry *entry, const char *accpath,
+			     int acl_type, int archive_entry_acl_type);
+
 void
 setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
     const char *accpath)
+{
+	archive_entry_acl_clear(entry);
+
+	setup_acl(bsdtar, entry, accpath,
+	    ACL_TYPE_ACCESS, ARCHIVE_ENTRY_ACL_TYPE_ACCESS);
+	/* XXX Don't bother with default for non-directories. XXX */
+	setup_acl(bsdtar, entry, accpath,
+	    ACL_TYPE_DEFAULT, ARCHIVE_ENTRY_ACL_TYPE_DEFAULT);
+}
+
+void
+setup_acl(struct bsdtar *bsdtar, struct archive_entry *entry,
+    const char *accpath, int acl_type, int archive_entry_acl_type)
 {
 	acl_t		 acl;
 	acl_tag_t	 acl_tag;
@@ -807,10 +824,8 @@ setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
 	int		 s, ae_id, ae_tag, ae_perm;
 	const char	*ae_name;
 
-	archive_entry_acl_clear(entry);
-
 	/* Retrieve access ACL from file. */
-	acl = acl_get_file(accpath, ACL_TYPE_ACCESS);
+	acl = acl_get_file(accpath, acl_type);
 	if (acl != NULL) {
 		s = acl_get_entry(acl, ACL_FIRST_ENTRY, &acl_entry);
 		while (s == 1) {
@@ -849,15 +864,13 @@ setup_acls(struct bsdtar *bsdtar, struct archive_entry *entry,
 				ae_perm |= ARCHIVE_ENTRY_ACL_WRITE;
 
 			archive_entry_acl_add_entry(entry,
-			    ARCHIVE_ENTRY_ACL_TYPE_ACCESS, ae_perm, ae_tag,
+			    archive_entry_acl_type, ae_perm, ae_tag,
 			    ae_id, ae_name);
 
 			s = acl_get_entry(acl, ACL_NEXT_ENTRY, &acl_entry);
 		}
 		acl_free(acl);
 	}
-
-	/* XXX TODO: Default acl ?? XXX */
 }
 #else
 void
