@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -51,6 +53,8 @@ static const char sccsid[] = "@(#)column.c	8.4 (Berkeley) 5/4/95";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+#define	TAB	8
 
 void  c_columnate __P((void));
 void *emalloc __P((int));
@@ -120,6 +124,7 @@ main(argc, argv)
 	if (!entries)
 		exit(eval);
 
+	maxlength = (maxlength + TAB) & ~(TAB - 1);
 	if (tflag)
 		maketbl();
 	else if (maxlength >= termwidth)
@@ -131,14 +136,12 @@ main(argc, argv)
 	exit(eval);
 }
 
-#define	TAB	8
 void
 c_columnate()
 {
 	int chcnt, col, cnt, endcol, numcols;
 	char **lp;
 
-	maxlength = (maxlength + TAB) & ~(TAB - 1);
 	numcols = termwidth / maxlength;
 	endcol = maxlength;
 	for (chcnt = col = 0, lp = list;; ++lp) {
@@ -166,7 +169,6 @@ r_columnate()
 {
 	int base, chcnt, cnt, col, endcol, numcols, numrows, row;
 
-	maxlength = (maxlength + TAB) & ~(TAB - 1);
 	numcols = termwidth / maxlength;
 	numrows = entries / numcols;
 	if (entries % numcols)
