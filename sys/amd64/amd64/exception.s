@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.25 1997/04/26 11:45:05 peter Exp $
+ *	$Id: exception.s,v 1.2 1997/05/24 17:09:44 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -43,8 +43,19 @@
 #include <sys/syscall.h>			/* syscall numbers */
 #include <machine/asmacros.h>			/* miscellaneous macros */
 #include <sys/cdefs.h>				/* CPP macros */
-#include <machine/smpasm.h>
 
+#ifdef SMP
+#include <machine/smpasm.h>	/* this includes <machine/apic.h> */
+#define GET_MPLOCK		call _get_mplock
+#define REL_MPLOCK		call _rel_mplock
+#define	MP_INSTR_LOCK		lock
+#else
+#define GET_MPLOCK		/* NOP get Kernel Mutex */
+#define REL_MPLOCK		/* NOP release mutex */
+#define	MP_INSTR_LOCK		/* NOP instruction lock */
+#endif  /* SMP */
+
+#define	KCSEL		0x08			/* kernel code selector */
 #define	KDSEL		0x10			/* kernel data selector */
 #define	SEL_RPL_MASK	0x0003
 #define	TRAPF_CS_OFF	(13 * 4)
@@ -140,9 +151,7 @@ IDTVEC(fpu)
 	movl	_cpl,%eax
 	pushl	%eax
 	pushl	$0				/* dummy unit to finish building intr frame */
-#ifdef SMP
-	call	_get_mplock
-#endif /* SMP */
+	GET_MPLOCK
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,%eax
 	movl	%eax,_cpl
@@ -168,9 +177,7 @@ alltraps_with_regs_pushed:
 	movl	%ax,%es
 	FAKE_MCOUNT(12*4(%esp))
 calltrap:
-#ifdef SMP
-	call	_get_mplock
-#endif /* SMP */
+	GET_MPLOCK
 	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
@@ -220,9 +227,7 @@ IDTVEC(syscall)
 	movl	%eax,TF_EFLAGS(%esp)
 	movl	$7,TF_ERR(%esp) 		/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
-#ifdef SMP
-	call	_get_mplock
-#endif /* SMP */
+	GET_MPLOCK
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
@@ -249,9 +254,7 @@ IDTVEC(int0x80_syscall)
 	movl	%ax,%es
 	movl	$2,TF_ERR(%esp)			/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
-#ifdef SMP
-	call	_get_mplock
-#endif /* SMP */
+	GET_MPLOCK
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
 	call	_syscall
@@ -268,13 +271,14 @@ ENTRY(fork_trampoline)
 	movl	$SWI_AST_MASK,_cpl
 	call	_splz
 
-#if defined(SMP)
+#ifdef SMP
 	GETCPUID(%eax)
 	leal	_SMPruntime(,%eax,8), %eax
 	pushl	%eax
 #else
 	pushl	$_runtime
-#endif
+#endif  /* SMP */
+
 	call	_microtime
 	popl	%eax
 
@@ -314,4 +318,4 @@ ENTRY(fork_trampoline)
 	ALIGN_DATA
 	.text
 	SUPERALIGN_TEXT
-#include "i386/isa/icu.s"
+#include "i386/isa/ipl.s"
