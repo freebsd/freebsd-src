@@ -28,27 +28,24 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: sr.4,v 1.5 1997/02/22 13:25:43 peter Exp $
+.\" $Id: sr.4,v 1.6 1997/03/21 20:13:58 mpp Exp $
 .\"
 .Dd July 4, 1996
 .Dt SR 4 i386
 .Os
 .Sh NAME
 .Nm sr
-.Nd synchronous RISCom/N2 device driver.
+.Nd synchronous RISCom/N2 / WANic 400/405 device driver.
 .Sh SYNOPSYS
-.Cd "device sr0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector arintr"
-.Cd "device sr1 at isa? port 0x310 net irq 11 flags 0x1 iomem 0xd0000 vector arintr"
+.Cd "device sr0 at isa? port 0x300 net irq 10 iomem 0xd0000 vector srintr"
+.Cd "device sr1 at isa? port 0x310 net irq 11 flags 0x1 iomem 0xd0000 vector srintr"
 .Pp
 .Cd "pseudo-device sppp"
 .Sh DESCRIPTION
 The
 .Nm sr
-driver supports the RISCom/N2 ISA cards that is based on the
-HD64570 chip.
-.Pp
-Line speeds of up to 2Mbps is possible. At this speed about 95% of the
-bandwidth is usable with 486DX processors.
+driver supports the RISCom/N2 ISA cards and the WANic 400/405 PCI cards
+that is based on the HD64570 chip.
 .Pp
 The standard
 .Tn FreeBSD
@@ -105,15 +102,13 @@ The card cannot use the specified interrupt. Choose a different one.
 .It Pa /sys/i386/isa/ic/hd64570.h
 .It Pa /sys/i386/isa/if_srregs.h
 .It Pa /sys/i386/isa/if_sr.c
+.It Pa /sys/pci/if_sr_p.c
 .El
 .Sh BUGS
 At the moment only the X.21 interface is tested. The others
 may need tweaks to the clock selection code.
 .Pp
 The code can probably stand some optimizing.
-.Pp
-There must be lots because this code is still very green. Please report
-them to jhay@mikom.csir.co.za
 .Sh SEE ALSO
 .Xr ar 4 ,
 .Xr cx 4 ,
@@ -123,4 +118,4 @@ them to jhay@mikom.csir.co.za
 .Sh AUTHOR
 The
 .Nm sr
-device driver was written by John Hay, jhay@mikom.csir.co.za.
+device driver was written by John Hay, jhay@FreeBSD.ORG
