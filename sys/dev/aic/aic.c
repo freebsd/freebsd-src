@@ -70,6 +70,8 @@ static void aic_scsi_reset __P((struct aic_softc *aic));
 static void aic_chip_reset __P((struct aic_softc *aic));
 static void aic_reset __P((struct aic_softc *aic, int initiate_reset));
 
+devclass_t aic_devclass;
+
 static struct aic_scb *free_scbs;
 
 static struct aic_scb *
