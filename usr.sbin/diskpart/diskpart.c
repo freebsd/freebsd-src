@@ -55,6 +55,9 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define	for_now			/* show all of `c' partition for disklabel */
 #define	NPARTITIONS	8
@@ -114,7 +117,9 @@ int	pflag;			/* print device driver partition tables */
 int	dflag;			/* print disktab entry */
 
 struct	disklabel *promptfordisk();
+int	gettype __P((char *, char **));
 static void usage __P((void));
+int	ustrcmp __P((char *, char *));
 
 int
 main(argc, argv)
@@ -125,23 +130,29 @@ main(argc, argv)
 	register int curcyl, spc, def, part, layout, j;
 	int threshhold, numcyls[NPARTITIONS], startcyl[NPARTITIONS];
 	int totsize = 0;
-	char *lp, *tyname;
+	char *lp, *tyname = NULL;
+	int ch;
 
-	argc--, argv++;
-	if (argc < 1)
+	while ((ch = getopt(argc, argv, "dps:")) != -1)
+		switch(ch) {
+		case 'd':
+			dflag++;
+			break;
+		case 'p':
+			pflag++;
+			break;
+		case 's':
+			totsize = atoi(optarg);
+			break;
+		default:
+			usage();
+		}
+	argv += optind;
+	argc -= optind;
+
+	if (argc != 1)
 		usage();
-	if (argc > 0 && strcmp(*argv, "-p") == 0) {
-		pflag++;
-		argc--, argv++;
-	}
-	if (argc > 0 && strcmp(*argv, "-d") == 0) {
-		dflag++;
-		argc--, argv++;
-	}
-	if (argc > 1 && strcmp(*argv, "-s") == 0) {
-		totsize = atoi(argv[1]);
-		argc += 2, argv += 2;
-	}
+
 	dp = getdiskbyname(*argv);
 	if (dp == NULL) {
 		if (isatty(0))
@@ -337,6 +348,7 @@ main(argc, argv)
 			startcyl[part], startcyl[part] + numcyls[part] - 1,
 			defpart[def][part] % spc ? "*" : "");
 	}
+	return(0);
 }
 
 static void
@@ -465,6 +477,7 @@ again:
 	return (dp);
 }
 
+int
 gettype(t, names)
 	char *t;
 	char **names;
@@ -479,6 +492,7 @@ gettype(t, names)
 	return (-1);
 }
 
+int
 ustrcmp(s1, s2)
 	register char *s1, *s2;
 {
