@@ -49,12 +49,12 @@ void rip __P((char *buf));
 
 /* Simplified application programming interface. */
 #include <pwd.h>
-int skeylookup __P((struct skey *mp,char *name));
-int skeyverify __P((struct skey *mp,char *response));
-int skeychallenge __P((struct skey *mp,char *name, char *challenge));
-int skeyinfo __P((struct skey *mp, char* name, char *ss));
-int skeyaccess __P((char *user, char *port, char *host, char *addr));
-char *skey_getpass __P((char *prompt, struct passwd *pwd, int pwok));
+int skeylookup __P((struct skey *mp, const char *name));
+int skeyverify __P((struct skey *mp, char *response));
+int skeychallenge __P((struct skey *mp, const char *name, char *challenge));
+int skeyinfo __P((struct skey *mp, const char* name, char *ss));
+int skeyaccess __P((char *user, const char *port, const char *host, const char *addr));
+char *skey_getpass __P((const char *prompt, struct passwd * pwd, int pwok));
 char *skey_crypt __P((char *pp, char *salt, struct passwd *pwd, int pwok));
 
 #endif /* _SKEY_H_ */
