@@ -13,8 +13,8 @@ The
 driver provides support for a 
 .Tn SCSI
 tape. It allows the tape
-to be run in upto four different modes depending on minor numbers
-and supports several different `submodes'.
+to be run in up to four different modes depending on minor numbers
+and supports several different `sub-modes'.
 The device can have both a
 .Em raw
 interface
@@ -96,15 +96,22 @@ freshly from the new mode.  (See below for more on modes.)
 .El
 .Pp
 Parameters that are required to last across the unmounting of a tape
-should be set on the control device.  This is submode 3 (see below) and is
+should be set on the control device.  This is sub-mode 3 (see below) and is
 reached through a file with a name of the form
-.Pa /dev/st Ns Ar y Ns Pa ctl. Ns Ar x ,
+.Sm off
+.No Xo
+.Pa /dev/st
+.Ar Y
+.Pa ctl.
+.Ar X
+.Xc ,
+.Sm on
 where
-.Ar y
+.Ar Y
 is the drive number and
-.Ar x
+.Ar X
 is the mode number.
-.Sh MODES AND SUBMODES
+.Sh MODES AND SUB-MODES
 There are four 
 .Sq operation
 modes. These are controlled by bits 2 and 3 of the minor number and
@@ -125,8 +132,8 @@ table in the driver's source code.
 .Pp
 In addition to the four operating modes mentioned above, 
 bits 0 and 1 of the minor number are interpreted as
-.Sq submodes .
-The submodes differ in the action taken when the device is closed:
+.Sq sub-modes .
+The sub-modes differ in the action taken when the device is closed:
 .Bl -tag -width XXXX
 .It 00
 A close will rewind the device; if the tape has been 
@@ -146,7 +153,7 @@ The device is unmounted.
 .It 11
 This is a special mode, known as the 
 .Dq control device
-for the mode.  Parameters set for the mode while in this sub mode will
+for the mode.  Parameters set for the mode while in this sub-mode will
 be remembered from one mount to the next.  This allows the system
 administrator to set different characteristics (e.g., density,
 blocksize)
@@ -155,7 +162,7 @@ on each mode, and have the different modes keep those parameters
 independent of any parameter changes a user may invoke during a single
 mount session.  At the completion of the user's mount session, drive
 parameters will revert to those set by the administrator.  I/O
-operations cannot be performed on this device/submode.  General
+operations cannot be performed on this device/sub-mode.  General
 .Xr scsi 4
 ioctls can
 .Em only
@@ -167,8 +174,7 @@ tapes may run in either
 .Sq Em variable
 or
 .Sq Em fixed
- block-size modes.
-Most 
+block-size modes.  Most 
 .Tn QIC Ns -type
 devices run in fixed block-size mode, where most nine-track tapes and
 many new cartridge formats allow variable block-size.  The difference
@@ -212,10 +218,10 @@ written to the tape, and has not done a read since the last write,
 then a file mark will be written to the tape when the device is
 closed.  If a rewind is requested after a write, then the driver
 assumes that the last file on the tape has been written, and ensures
-that there are two filemarks written to the tape.  The exception to
+that there are two file marks written to the tape.  The exception to
 this is that there seems to be a standard (which we follow, but don't
 understand why) that certain types of tape do not actually write two
-filemarks to tape, but when read, report a `phantom' filemark when the
+file marks to tape, but when read, report a `phantom' file mark when the
 last file is read.  These devices include the QIC family of devices.
 (It might be that this set of devices is the same set as that of fixed
 block devices.  This has not been detirmined yet, and they are treated
@@ -228,7 +234,7 @@ to quickly and conveniently recognise and deal
 with brands and models of drive that have special requirements.
 .Pp
 There is a table (called the
-.Dq Em Rogues' Gallery )
+.Dq Em Rogues Gallery )
 in which the indentification
 strings of known errant drives can be stored.  Alongside each is
 a set of flags that allows the setting of densities and blocksizes for each 
@@ -243,35 +249,59 @@ calls apply to
 tapes.  Some also apply to other tapes.  They are defined
 in the header file
 .Aq Pa /sys/mtio.h .
+.\"
+.\" Almost all of this discussion belongs in a separate mt(4)
+.\" manual page, since it is common to all magnetic tapes.
+.\"
 .Pp
 .Bl -tag -width MTIOCEEOT
 .It Dv MTIOCGET
-Get the mt control structure filled out by the driver, showing
-all the present settings.
+.Pq Li "struct mtget"
+Retrieve the status and parameters of the tape.
 .It Dv MTIOCTOP
-Perform one of the following operations. These operations all have a 
-single argument, which is either a boolean, or a signed integer, depending
-on the operation.
+.Pq Li "struct mtop"
+Perform a multiplexed operation.  The argument structure is as follows:
+.Bd -literal -offset indent
+struct mtop {
+	short	mt_op;
+	daddr_t	mt_count;
+};
+.Ed
+.Pp
+The following operation values are defined for
+.Va mt_op :
 .Bl -tag -width MTSELDNSTY
 .It Dv MTWEOF
-Write N end of file marks at the present head position.
+Write
+.Va mt_count
+end of file marks at the present head position.
 .It Dv MTFSF
-Skip over N Filemarks. Leave the head on the EOM side of the last skipped
-Filemark.
+Skip over
+.Va mt_count
+file marks. Leave the head on the EOM side of the last skipped
+file mark.
 .It Dv MTBSF
-Skip BACKWARDS over N Filemarks. Leave the head on the BOM (beginning of media)
-side of the last skipped Filemark.
+Skip
+.Em backwards
+over
+.Va mt_count
+file marks. Leave the head on the BOM (beginning of media)
+side of the last skipped file mark.
 .It Dv MTFSR
-Skip forwards over N records.
+Skip forwards over 
+.Va mt_count
+records.
 .It Dv MTBSR
-Skip backwards over N records.
+Skip backwards over
+.Va mt_count
+records.
 .It Dv MTREW
 Rewind the device to the beginning of the media.
 .It Dv MTOFFL
 Rewind the media (and, if possible, eject). Even if the device cannot
 eject the media it will often no longer respond to normal requests.
 .It Dv MTNOP
-No Op, set status only..
+No-op; set status only.
 .It Dv MTCACHE
 Enable controller buffering.
 .It Dv MTNOCACHE
@@ -282,16 +312,20 @@ variable blocksize operation, and the blocksize is set to 0, then the drive
 will be driven in variable mode. This parameter is in effect for the present
 mount session only, unless set on the control device.
 .It Dv MTSETDNSTY
-Set the Density value (see 
+Set the density value (see 
 .Xr mt 1 )
 to use when running in the mode opened (minor bits 2 and 3).
 This parameter is in effect for the present
 mount session only, unless set on the control device.
 .El
 .It Dv MTIOCIEOT
-?Set END of TAPE processing... not yet supported.
+Set end-of-tape processing (not presently supported for
+.Nm
+devices).
 .It Dv MTIOCEEOT
-?Set END of TAPE processing... not yet supported.
+Set end-of-tape processing (not presently supported for
+.Nm
+devices).
 .El
 .Pp
 In addition, the 
@@ -326,7 +360,8 @@ Parameters set to this device become the default parameters for [en]rst0.3
 .Sh DIAGNOSTICS
 None.
 .Sh SEE ALSO
-.Xr mt 1
+.Xr mt 1 ,
+.Xr scsi 4
 .Sh HISTORY
 This
 .Nm
