@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vmstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.34 1999/05/10 00:33:32 imp Exp $";
+	"$Id: vmstat.c,v 1.35 1999/05/12 11:49:47 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -765,7 +765,8 @@ cpustats()
 void
 dointr()
 {
-	register long *intrcnt, inttotal, uptime;
+	register u_long *intrcnt, uptime;
+	register u_int64_t inttotal;
 	register int nintr, inamlen;
 	register char *intrname;
 
@@ -784,12 +785,13 @@ dointr()
 	nintr /= sizeof(long);
 	while (--nintr >= 0) {
 		if (*intrcnt)
-			(void)printf("%-12s %8ld %8ld\n", intrname,
+			(void)printf("%-12s %8lu %8lu\n", intrname,
 			    *intrcnt, *intrcnt / uptime);
 		intrname += strlen(intrname) + 1;
 		inttotal += *intrcnt++;
 	}
-	(void)printf("Total        %8ld %8ld\n", inttotal, inttotal / uptime);
+	(void)printf("Total        %8llu %8llu\n", inttotal,
+			inttotal / (u_int64_t) uptime);
 }
 
 #define	MAX_KMSTATS	200
