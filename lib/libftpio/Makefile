@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=		ftpio
-SHLIB_MAJOR=	6
+SHLIB_MAJOR=	5
 SHLIB_MINOR=	0
 
 SRCS=		ftpio.c ftperr.c
