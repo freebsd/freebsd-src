@@ -854,20 +854,27 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 
     ref = refobj->symtab + symnum;
     name = refobj->strtab + ref->st_name;
-    hash = elf_hash(name);
     defobj = NULL;
 
-    /* Handle STT_SECTION specially. */
-    if (ELF_ST_TYPE(ref->st_info) == STT_SECTION) {
-	if (ELF_ST_BIND(ref->st_info) != STB_LOCAL ||
-	    ref->st_shndx != symnum) {
+    /*
+     * We don't have to do a full scale lookup if the symbol is local.
+     * We know it will bind to the instance in this load module; to
+     * which we already have a pointer (ie ref). By not doing a lookup,
+     * we not only improve performance, but it also avoids unresolvable
+     * symbols when local symbols are not in the hash table. This has
+     * been seen with the ia64 toolchain.
+     */
+    if (ELF_ST_BIND(ref->st_info) != STB_LOCAL) {
+	if (ELF_ST_TYPE(ref->st_info) == STT_SECTION) {
 	    _rtld_error("%s: Bogus symbol table entry %lu", refobj->path,
 		symnum);
 	}
+	hash = elf_hash(name);
+	def = symlook_default(name, hash, refobj, &defobj, in_plt);
+    } else {
 	def = ref;
 	defobj = refobj;
-    } else
-	def = symlook_default(name, hash, refobj, &defobj, in_plt);
+    }
 
     /*
      * If we found no definition and the reference is weak, treat the
