@@ -6,6 +6,6 @@ CFLAGS+=-DCRYPT -DKERBEROS -I${.CURDIR}/../../usr.bin/passwd
 DPADD=	${LIBKDB} ${LIBKRB} ${LIBDES}
 LDADD=	-lkdb -lkrb -ldes
 .PATH:	${.CURDIR}/../../usr.bin/rlogin
-MAN8=	kpasswdd.0
+MAN8=	kpasswdd.8
 
 .include <bsd.prog.mk>

@@ -2,7 +2,7 @@
 
 PROG=	tftpd
 SRCS=	tftpd.c tftpsubs.c
-MAN8=	tftpd.0
+MAN8=	tftpd.8
 CFLAGS+=-I${.CURDIR}/../../usr.bin/tftp
 .PATH:	${.CURDIR}/../../usr.bin/tftp
 
