@@ -7,7 +7,18 @@ ITEMS:'
 
 20000825:
 	/boot/device.hints is now required for installkernel to
-	succeed.
+	succeed.  You should copy GENERIC.hints for your architecture
+	into /boot/device.hints.  If and only if you compile hints
+	into your kernel, then this file may be empty.  Please note,
+	if you have an empty or missing /boot/device.hints file and
+	you neglected to compile hints into your kernel, no boot
+	messages will appear after the boot loader tries to start the
+	kernel.
+
+20000821:
+	If you do NOT have ``options RANDOMDEV'' in your kernel and
+	you DO want the random device then add randomdev_load="YES" to
+	/boot/loader.conf.
 
 20000812:
 	suidperl is now always built and installed on the system, but
@@ -290,6 +301,7 @@ COMMON ITEMS:
 	-------------------------------------
 	make buildworld
 	make buildkernel KERNEL=YOUR_KERNEL_HERE
+	cp src/sys/${MACHINE_ARCH}/GENERIC.hints /boot/device.hints [2]
 	make installkernel KERNEL=YOUR_KERNEL_HERE
 	make installworld
 	[1]
@@ -310,6 +322,10 @@ COMMON ITEMS:
 	[1] If you have third party modules, such as vmware, you
 	should disable them at this point so they don't crash your
 	system on reboot.
+
+	[2] If you have legacy ISA devices, you may need to create
+	your own device.hints to reflect your unique hardware
+	configuration.
 
 FORMAT:
 
