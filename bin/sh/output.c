@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.2 1994/09/24 02:58:06 davidg Exp $
+ *	$Id: output.c,v 1.3 1996/09/01 10:21:23 peter Exp $
  */
 
 #ifndef lint
@@ -52,6 +52,7 @@ static char sccsid[] = "@(#)output.c	8.2 (Berkeley) 5/4/95";
  */
 
 #include <sys/ioctl.h>
+#include <sys/types.h>	/* quad_t */
 
 #include <stdio.h>	/* defines BUFSIZ */
 #include <string.h>
@@ -337,7 +338,7 @@ fmtstr(va_alist)
  * Formatted output.  This routine handles a subset of the printf formats:
  * - Formats supported: d, u, o, X, s, and c.
  * - The x format is also accepted but is treated like X.
- * - The l modifier is accepted.
+ * - The l and q modifiers is accepted.
  * - The - and # flags are accepted; # only works with the o format.
  * - Width and precision may be specified with any format except c.
  * - An * may be given for the width or precision.
@@ -349,7 +350,7 @@ fmtstr(va_alist)
 #define TEMPSIZE 24
 
 #ifdef __STDC__
-static const char digit[16] = "0123456789ABCDEF";
+static const char digit[] = "0123456789ABCDEF";
 #else
 static const char digit[17] = "0123456789ABCDEF";
 #endif
@@ -368,10 +369,11 @@ doformat(dest, f, ap)
 	int width;
 	int prec;
 	int islong;
+	int isquad;
 	char *p;
 	int sign;
-	long l;
-	unsigned long num;
+	quad_t l;
+	u_quad_t num;
 	unsigned base;
 	int len;
 	int size;
@@ -387,6 +389,7 @@ doformat(dest, f, ap)
 		width = 0;
 		prec = -1;
 		islong = 0;
+		isquad = 0;
 		for (;;) {
 			if (*f == '-')
 				flushleft++;
@@ -418,11 +421,16 @@ doformat(dest, f, ap)
 		if (*f == 'l') {
 			islong++;
 			f++;
+		} else if (*f == 'q') {
+			isquad++;
+			f++;
 		}
 		switch (*f) {
 		case 'd':
 			if (islong)
 				l = va_arg(ap, long);
+			else if (isquad)
+				l = va_arg(ap, quad_t);
 			else
 				l = va_arg(ap, int);
 			sign = 0;
@@ -447,6 +455,8 @@ uns_number:	  /* an unsigned number */
 			sign = 0;
 			if (islong)
 				num = va_arg(ap, unsigned long);
+			else if (isquad)
+				num = va_arg(ap, u_quad_t);
 			else
 				num = va_arg(ap, unsigned int);
 number:		  /* process a number */

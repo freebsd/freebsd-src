@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: parser.c,v 1.11 1996/02/03 13:27:55 joerg Exp $
+ *	$Id: parser.c,v 1.12 1996/09/01 10:21:31 peter Exp $
  */
 
 #ifndef lint
@@ -95,6 +95,8 @@ struct heredoc *heredoc;
 int quoteflag;			/* set if (part of) last token was quoted */
 int startlinno;			/* line # where last token started */
 
+/* XXX When 'noaliases' is set to one, no alias expansion takes place. */
+static int noaliases = 0;
 
 #define GDB_HACK 1 /* avoid local declarations which gdb can't handle */
 #ifdef GDB_HACK
@@ -414,6 +416,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		if (lasttoken != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
 		cpp = &n1->ncase.cases;
+		noaliases = 1;	/* turn off alias expansion */
 		checkkwd = 2, readtoken();
 		do {
 			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
@@ -431,18 +434,19 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			}
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
-				synexpect(TRP);
+				noaliases = 0, synexpect(TRP);
 			cp->nclist.body = list(0);
 
 			checkkwd = 2;
 			if ((t = readtoken()) != TESAC) {
 				if (t != TENDCASE)
-					synexpect(TENDCASE);
+					noaliases = 0, synexpect(TENDCASE);
 				else
 					checkkwd = 2, readtoken();
 			}
 			cpp = &cp->nclist.next;
 		} while(lasttoken != TESAC);
+		noaliases = 0;	/* reset alias expansion */
 		*cpp = NULL;
 		checkkwd = 1;
 		break;
@@ -712,7 +716,8 @@ readtoken() {
 					goto out;
 				}
 			}
-			if ((ap = lookupalias(wordtext, 1)) != NULL) {
+			if (noaliases == 0 &&
+			    (ap = lookupalias(wordtext, 1)) != NULL) {
 				pushstring(ap->val, strlen(ap->val), ap);
 				checkkwd = savecheckkwd;
 				goto top;

@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sh.1	8.6 (Berkeley) 5/4/95
-.\"	$Id: sh.1,v 1.6 1996/08/29 18:06:10 wosch Exp $
+.\"	$Id: sh.1,v 1.7 1996/09/01 10:21:39 peter Exp $
 .\"
 .na
 .TH SH 1
@@ -1281,7 +1281,7 @@ resets trapped (but not ignored) signals to the
 default action. The trap command has no effect on
 signals that were ignored on entry to the shell.
 .TP
-ulimit [ -HSacdflmnpst ] [ limit ]
+ulimit [ -HSacdflmnust ] [ limit ]
 Set or display resource limits (see getrlimit(2)).
 If ``limit'' is specified, the named resource will be set;
 otherwise the current resource value will be displayed.
