@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.174 1995/07/24 08:02:07 asami Exp $
+# $Id: bsd.port.mk,v 1.175 1995/08/18 10:06:28 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -329,6 +329,10 @@ PATCHDIST:=	${DISTDIR}
 DISTFILES?=		${DISTNAME}${EXTRACT_SUFX}
 PKGNAME?=		${DISTNAME}
 
+# This is what is actually going to be extracted, and is overridable
+#  by user.
+EXTRACT_ONLY?=	${DISTFILES}
+
 # Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
 CATEGORIES?=	orphans
@@ -491,21 +495,12 @@ do-fetch:
 do-extract:
 	@/bin/rm -rf ${WRKDIR}
 	@/bin/mkdir -p ${WRKDIR}
-.if defined(EXTRACT_ONLY)
 	@for file in ${EXTRACT_ONLY}; do \
 		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
 		then \
 			exit 1; \
 		fi \
 	done
-.else
-	@for file in ${DISTFILES}; do \
-		if ! (cd ${WRKDIR};${EXTRACT_CMD} ${EXTRACT_BEFORE_ARGS} ${DISTDIR}/$$file ${EXTRACT_AFTER_ARGS});\
-		then \
-			exit 1; \
-		fi \
-	done
-.endif
 .endif
 
 # Patch
