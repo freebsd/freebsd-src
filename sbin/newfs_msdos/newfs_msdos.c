@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.3 1998/07/16 12:24:51 rnordier Exp $";
+	"$Id: newfs_msdos.c,v 1.4 1998/07/19 15:02:39 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -243,6 +243,7 @@ main(int argc, char *argv[])
     u_int8_t *img;
     const char *fname, *dtype, *bname;
     ssize_t n;
+    time_t now;
     u_int fat, bss, rds, cls, dir, lsn, x, x1, x2;
     int ch, fd, fd1;
 
@@ -541,7 +542,8 @@ main(int argc, char *argv[])
     print_bpb(&bpb);
     if (!opt_N) {
 	gettimeofday(&tv, NULL);
-	tm = localtime(&tv.tv_sec);
+	now = tv.tv_sec;
+	tm = localtime(&now);
 	if (!(img = malloc(bpb.bps)))
 	    err(1, NULL);
 	dir = bpb.res + (bpb.spf ? bpb.spf : bpb.bspf) * bpb.nft;
