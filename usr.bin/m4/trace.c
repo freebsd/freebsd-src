@@ -1,4 +1,4 @@
-/* $OpenBSD: trace.c,v 1.4 2002/02/16 21:27:48 millert Exp $ */
+/* $OpenBSD: trace.c,v 1.6 2002/04/26 16:15:16 espie Exp $ */
 /*
  * Copyright (c) 2001 Marc Espie.
  *
@@ -25,6 +25,7 @@
  */
 
 #include <sys/cdefs.h>
+__RCSID_SOURCE("$OpenBSD: trace.c,v 1.6 2002/04/26 16:15:16 espie Exp $");
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
@@ -66,8 +67,7 @@ static int frame_level(void);
 static unsigned int flags = TRACE_QUOTE | TRACE_EXPANSION;
 
 static struct t *
-find_trace_entry(name)
-	const char *name;
+find_trace_entry(const char *name)
 {
 	struct t *n;
 
@@ -79,9 +79,7 @@ find_trace_entry(name)
 
 
 void
-mark_traced(name, on)
-	const char *name;
-	int on;
+mark_traced(const char *name, int on)
 {
 	struct t *n, *n2;
 
@@ -103,18 +101,17 @@ mark_traced(name, on)
 	} else {
 	    n = find_trace_entry(name);
 	    if (n == NULL) {
-	n = xalloc(sizeof(struct t));
-	n->name = xstrdup(name);
-	n->next = l;
-	l = n;
+		    n = xalloc(sizeof(struct t));
+		    n->name = xstrdup(name);
+		    n->next = l;
+		    l = n;
 	    }
 	    n->on = on;
 	}
 }
 
 int 
-is_traced(name)
-	const char *name;
+is_traced(const char *name)
 {
 	struct t *n;
 
@@ -125,8 +122,7 @@ is_traced(name)
 }
 
 void
-trace_file(name)
-	const char *name;
+trace_file(const char *name)
 {
 
 	if (traceout != stderr)
@@ -137,8 +133,7 @@ trace_file(name)
 }
 
 static unsigned int
-letter_to_flag(c)
-	int c;
+letter_to_flag(int c)
 {
 	switch(c) {
 	case 'a':
@@ -169,8 +164,7 @@ letter_to_flag(c)
 }
 
 void
-set_trace_flags(s)
-	const char *s;
+set_trace_flags(const char *s)
 {
 	char mode = 0;
 	unsigned int f = 0;
@@ -207,8 +201,7 @@ frame_level()
 }
 
 static void
-print_header(inp)
-	struct input_file *inp;
+print_header(struct input_file *inp)
 {
 	fprintf(traceout, "m4trace:");
 	if (flags & TRACE_FILENAME)
@@ -221,10 +214,7 @@ print_header(inp)
 }
 
 ssize_t 
-trace(argv, argc, inp)
-	const char **argv;
-	int argc;
-	struct input_file *inp;
+trace(const char *argv[], int argc, struct input_file *inp)
 {
 	print_header(inp);
 	if (flags & TRACE_CONT) {
@@ -263,8 +253,7 @@ trace(argv, argc, inp)
 }
 
 void 
-finish_trace(mark)
-size_t mark;
+finish_trace(size_t mark)
 {
 	fprintf(traceout, " -> ");
 	if (flags & TRACE_QUOTE)

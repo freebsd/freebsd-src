@@ -1,4 +1,4 @@
-/*	$OpenBSD: look.c,v 1.9 2002/02/16 21:27:48 millert Exp $	*/
+/*	$OpenBSD: look.c,v 1.10 2002/04/26 16:15:16 espie Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993
@@ -37,7 +37,8 @@
  */
 
 #include <sys/cdefs.h>
-__SCCSID("@(#)look.c      8.1 (Berkeley) 6/6/93");
+__SCCSID("@(#)look.c	8.1 (Berkeley) 6/6/93");
+__RCSID_SOURCE("$OpenBSD: look.c,v 1.10 2002/04/26 16:15:16 espie Exp $");
 __FBSDID("$FreeBSD$");
 
 /*
@@ -57,9 +58,8 @@ __FBSDID("$FreeBSD$");
 
 static void freent(ndptr);
 
-unsigned
-hash(name)
-	const char *name;
+unsigned int
+hash(const char *name)
 {
 	unsigned int h = 0;
 	while (*name)
@@ -71,8 +71,7 @@ hash(name)
  * find name in the hash table
  */
 ndptr 
-lookup(name)
-	const char *name;
+lookup(const char *name)
 {
 	ndptr p;
 	unsigned int h;
@@ -89,8 +88,7 @@ lookup(name)
  * The new entry is added in front of a hash bucket.
  */
 ndptr 
-addent(name)
-	const char *name;
+addent(const char *name)
 {
 	unsigned int h;
 	ndptr p;
@@ -105,8 +103,7 @@ addent(name)
 }
 
 static void
-freent(p)
-	ndptr p;
+freent(ndptr p)
 {
 	free((char *) p->name);
 	if (p->defn != null)
@@ -118,9 +115,7 @@ freent(p)
  * remove an entry from the hashtable
  */
 void
-remhash(name, all)
-	const char *name;
-	int all;
+remhash(const char *name, int all)
 {
 	unsigned int h;
 	ndptr xp, tp, mp;
