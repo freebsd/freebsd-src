@@ -946,22 +946,6 @@ options 	MSGBUF_SIZE=40960
 
 
 #####################################################################
-# HARDWARE BUS CONFIGURATION
-
-#
-# ISA bus
-#
-
-# 
-# EISA bus
-#
-
-#
-# PCI bus & PCI options:
-#
-
-
-#####################################################################
 # HARDWARE DEVICE CONFIGURATION
 
 # For ISA the required hints are listed.
