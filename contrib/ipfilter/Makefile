@@ -3,7 +3,7 @@
 #
 # See the IPFILTER.LICENCE file for details on licencing.
 #
-# $Id: Makefile,v 2.11.2.8 2001/06/26 10:43:10 darrenr Exp $
+# $Id: Makefile,v 2.11.2.13 2002/03/06 09:43:15 darrenr Exp $
 #
 BINDEST=/usr/local/bin
 SBINDEST=/sbin
@@ -34,7 +34,7 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 #
 # Uncomment the next 3 lines if you want to view the state table a la top(1)
 # (requires that you have installed ncurses).
-#STATETOP_CFLAGS=-DSTATETOP
+STATETOP_CFLAGS=-DSTATETOP
 #
 # Where to find the ncurses include files (if not in default path), 
 #
@@ -43,7 +43,7 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 #
 # How to link the ncurses library
 #
-#STATETOP_LIB=-lncurses
+STATETOP_LIB=-lcurses
 #STATETOP_LIB=-L/usr/local/lib -lncurses
 
 #
@@ -59,7 +59,7 @@ LOGFAC=-DLOGFAC=LOG_LOCAL0
 #
 POLICY=-DIPF_DEFAULT_PASS=FR_PASS
 #
-MFLAGS1='CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2) $(INET6)' \
+MFLAGS1='CFLAGS=$(CFLAGS) $(ARCHINC) $(SOLARIS2) $(INET6) $(IPFLOG)' \
 	"IPFLOG=$(IPFLOG)" "LOGFAC=$(LOGFAC)" "POLICY=$(POLICY)" \
 	"SOLARIS2=$(SOLARIS2)" "DEBUG=$(DEBUG)" "DCPU=$(CPU)" \
 	"CPUDIR=$(CPUDIR)" 'STATETOP_CFLAGS=$(STATETOP_CFLAGS)' \
@@ -100,7 +100,7 @@ tests:
 
 include:
 	if [ ! -f netinet/done ] ; then \
-		(cd netinet; ln -s ../*.h .; ln -s ../ip_ftp_pxy.c .; ln -s ../ip_rcmd_pxy.c .; ln -s ../ip_raudio_pxy.c .); \
+		(cd netinet; ln -s ../*.h .; ln -s ../ip_*_pxy.c .; ); \
 		(cd netinet; ln -s ../ipsend/tcpip.h tcpip.h); \
 		touch netinet/done; \
 	fi
@@ -168,8 +168,8 @@ bsdi bsdos: include
 
 irix IRIX: include
 	make setup "TARGOS=IRIX" "CPUDIR=$(CPUDIR)"
-	-(cd IRIX/$(CPUDIR); if [ $(MAKE) = make ] ; then make -f Makefile.std build TOP=../.. $(DEST) $(MFLAGS); else smake build TOP=../.. $(DEST) $(MFLAGS); fi;)
-	-(cd IRIX/$(CPUDIR); if [ $(MAKE) = make ] ; then make -f Makefile.ipsend.std TOP=../.. $(DEST) $(MFLAGS); else smake -f Makefile.ipsend TOP=../.. $(DEST) $(MFLAGS); fi)
+	-(cd IRIX/$(CPUDIR); if [ $(MAKE) = make ] ; then make -f Makefile.std build TOP=../.. $(DEST) SGI=`../getrev` $(MFLAGS); else smake build SGI=`../getrev` TOP=../.. $(DEST) $(MFLAGS); fi;)
+	-(cd IRIX/$(CPUDIR); if [ $(MAKE) = make ] ; then make -f Makefile.ipsend.std SGI=`../getrev` TOP=../.. $(DEST) $(MFLAGS); else smake -f Makefile.ipsend SGI=`../getrev` TOP=../.. $(DEST) $(MFLAGS); fi)
 
 linux: include
 	make setup "TARGOS=Linux" "CPUDIR=$(CPUDIR)"
@@ -258,7 +258,7 @@ install-bsd:
 	(cd BSD/$(CPUDIR); make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
 
 install-sunos4: solaris
-	(cd SunOS4; $(MAKE) "CPU=$(CPU) TOP=.." install)
+	(cd SunOS4; $(MAKE) "CPU=$(CPU)" "TOP=.." install)
 
 install-sunos5: solaris
 	(cd SunOS5; $(MAKE) "CPUDIR=`uname -p`-`uname -r`" "CPU=$(CPU) TOP=.." install)

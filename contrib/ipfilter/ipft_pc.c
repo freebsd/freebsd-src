@@ -3,6 +3,9 @@
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <stdio.h>
 #include <string.h>
 #if !defined(__SVR4) && !defined(__GNUC__)
@@ -31,7 +34,7 @@
 #include "ipt.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.2.2.2 2001/06/26 10:43:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipft_pc.c,v 2.2.2.3 2002/02/22 15:32:54 darrenr Exp $";
 #endif
 
 struct	llc	{

@@ -1,6 +1,9 @@
 /*
  * Based upon 4.4BSD's /usr/sbin/arp
  */
+#ifdef __sgi
+# include <sys/ptimers.h>
+#endif
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>

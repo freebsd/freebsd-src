@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_state.h	1.3 1/12/96 (C) 1995 Darren Reed
- * $Id: ip_state.h,v 2.13.2.4 2001/06/26 10:43:17 darrenr Exp $
+ * $Id: ip_state.h,v 2.13.2.10 2002/03/06 14:07:38 darrenr Exp $
  */
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
@@ -57,17 +57,20 @@ typedef struct ipstate {
 	struct	ipstate	**is_pnext;
 	struct	ipstate	*is_hnext;
 	struct	ipstate	**is_phnext;
+	struct	ipstate	**is_me;
 	u_long	is_age;
+	u_int	is_frage[2];	/* age from filter rule, forward & reverse */
 	u_int	is_pass;
 	U_QUAD_T	is_pkts;
 	U_QUAD_T	is_bytes;
-	void	*is_ifp[2];
+	void	*is_ifp[4];
 	frentry_t	*is_rule;
 	union	i6addr	is_src;
 	union	i6addr	is_dst;
 	u_char	is_p;			/* Protocol */
 	u_char	is_v;
 	u_int	is_hv;
+	u_32_t	is_rulen;		/* rule number */
 	u_32_t	is_flags;
 	u_32_t	is_opt;			/* packet options set */
 	u_32_t	is_optmsk;		/*    "      "    mask */
@@ -80,7 +83,7 @@ typedef struct ipstate {
 		tcpstate_t	is_ts;
 		udpstate_t	is_us;
 	} is_ps;
-	char	is_ifname[2][IFNAMSIZ];
+	char	is_ifname[4][IFNAMSIZ];
 #if SOLARIS || defined(__sgi)
 	kmutex_t	is_lock;
 #endif
@@ -103,7 +106,7 @@ typedef struct ipstate {
 #define	is_dport	is_tcp.ts_dport
 #define	is_state	is_tcp.ts_state
 #define	is_ifpin	is_ifp[0]
-#define	is_ifpout	is_ifp[1]
+#define	is_ifpout	is_ifp[2]
 
 #define	TH_OPENING	(TH_SYN|TH_ACK)
 /*
@@ -177,12 +180,15 @@ extern	u_long	fr_tcptimeout;
 extern	u_long	fr_tcpclosed;
 extern	u_long	fr_tcphalfclosed;
 extern	u_long	fr_udptimeout;
+extern	u_long	fr_udpacktimeout;
 extern	u_long	fr_icmptimeout;
+extern	u_long	fr_icmpacktimeout;
+extern	ipstate_t	*ips_list;
 extern	int	fr_state_lock;
 extern	int	fr_stateinit __P((void));
 extern	int	fr_tcpstate __P((ipstate_t *, fr_info_t *, ip_t *, tcphdr_t *));
-extern	ipstate_t	*fr_addstate __P((ip_t *, fr_info_t *, u_int));
-extern	frentry_t	*fr_checkstate __P((ip_t *, fr_info_t *));
+extern	ipstate_t *fr_addstate __P((ip_t *, fr_info_t *, ipstate_t **, u_int));
+extern	frentry_t *fr_checkstate __P((ip_t *, fr_info_t *));
 extern	void	ip_statesync __P((void *));
 extern	void	fr_timeoutstate __P((void));
 extern	void	fr_tcp_age __P((u_long *, u_char *, fr_info_t *, int));
