@@ -1393,6 +1393,14 @@ nfs_doio(bp, cr, p)
 
 		bp->b_flags |= B_WRITEINPROG;
 		error = nfs_writerpc(vp, uiop, cr, &iomode, &must_commit);
+
+		/*
+		 * When setting B_NEEDCOMMIT also set B_CLUSTEROK to try
+		 * to cluster the buffers needing commit.  This will allow
+		 * the system to submit a single commit rpc for the whole
+		 * cluster.
+		 */
+
 		if (!error && iomode == NFSV3WRITE_UNSTABLE) {
 		    bp->b_flags |= B_NEEDCOMMIT;
 		    if (bp->b_dirtyoff == 0
