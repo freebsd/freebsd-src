@@ -59,9 +59,9 @@ void cpu_critical_fork_exit(void);
  *	is non-zero will be deferred.
  */
 static __inline void
-cpu_critical_enter(void)
+cpu_critical_enter(struct thread *td)
 {
-	curthread->td_md.md_savecrit = intr_disable();
+	td->td_md.md_savecrit = intr_disable();
 }
 
 /*
@@ -76,15 +76,15 @@ cpu_critical_enter(void)
  *	code for us, so we do not have to do anything fancy.
  */
 static __inline void
-cpu_critical_exit(void)
+cpu_critical_exit(struct thread *td)
 {
-	intr_restore(curthread->td_md.md_savecrit);
+	intr_restore(td->td_md.md_savecrit);
 }
 
 #else /* !(__GNUC__ || __INTEL_COMPILER) */
 
-void cpu_critical_enter(void);
-void cpu_critical_exit(void);
+void cpu_critical_enter(struct thread *td);
+void cpu_critical_exit(struct thread *td);
 
 #endif        /* __GNUC__ || __INTEL_COMPILER */
 
