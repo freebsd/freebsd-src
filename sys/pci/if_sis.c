@@ -151,6 +151,10 @@ static void sis_read_mac	__P((struct sis_softc *, device_t, caddr_t));
 static device_t sis_find_bridge	__P((device_t));
 #endif
 
+static void sis_mii_sync	__P((struct sis_softc *));
+static void sis_mii_send	__P((struct sis_softc *, u_int32_t, int));
+static int sis_mii_readreg	__P((struct sis_softc *, struct sis_mii_frame *));
+static int sis_mii_writereg	__P((struct sis_softc *, struct sis_mii_frame *));
 static int sis_miibus_readreg	__P((device_t, int, int));
 static int sis_miibus_writereg	__P((device_t, int, int, int));
 static void sis_miibus_statchg	__P((device_t));
@@ -463,12 +467,198 @@ static void sis_read_mac(sc, dev, dest)
 }
 #endif
 
+/*
+ * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ */
+static void sis_mii_sync(sc)
+	struct sis_softc	*sc;
+{
+	register int		i;
+
+	SIO_SET(SIS_MII_DIR|SIS_MII_DATA);
+
+	for (i = 0; i < 32; i++) {
+		SIO_SET(SIS_MII_CLK);
+		DELAY(1);
+		SIO_CLR(SIS_MII_CLK);
+		DELAY(1);
+	}
+
+	return;
+}
+
+/*
+ * Clock a series of bits through the MII.
+ */
+static void sis_mii_send(sc, bits, cnt)
+	struct sis_softc	*sc;
+	u_int32_t		bits;
+	int			cnt;
+{
+	int			i;
+
+	SIO_CLR(SIS_MII_CLK);
+
+	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
+                if (bits & i) {
+			SIO_SET(SIS_MII_DATA);
+                } else {
+			SIO_CLR(SIS_MII_DATA);
+                }
+		DELAY(1);
+		SIO_CLR(SIS_MII_CLK);
+		DELAY(1);
+		SIO_SET(SIS_MII_CLK);
+	}
+}
+
+/*
+ * Read an PHY register through the MII.
+ */
+static int sis_mii_readreg(sc, frame)
+	struct sis_softc	*sc;
+	struct sis_mii_frame	*frame;
+	
+{
+	int			i, ack, s;
+
+	s = splimp();
+
+	/*
+	 * Set up frame for RX.
+	 */
+	frame->mii_stdelim = SIS_MII_STARTDELIM;
+	frame->mii_opcode = SIS_MII_READOP;
+	frame->mii_turnaround = 0;
+	frame->mii_data = 0;
+	
+	/*
+ 	 * Turn on data xmit.
+	 */
+	SIO_SET(SIS_MII_DIR);
+
+	sis_mii_sync(sc);
+
+	/*
+	 * Send command/address info.
+	 */
+	sis_mii_send(sc, frame->mii_stdelim, 2);
+	sis_mii_send(sc, frame->mii_opcode, 2);
+	sis_mii_send(sc, frame->mii_phyaddr, 5);
+	sis_mii_send(sc, frame->mii_regaddr, 5);
+
+	/* Idle bit */
+	SIO_CLR((SIS_MII_CLK|SIS_MII_DATA));
+	DELAY(1);
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+
+	/* Turn off xmit. */
+	SIO_CLR(SIS_MII_DIR);
+
+	/* Check for ack */
+	SIO_CLR(SIS_MII_CLK);
+	DELAY(1);
+	ack = CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA;
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+
+	/*
+	 * Now try reading data bits. If the ack failed, we still
+	 * need to clock through 16 cycles to keep the PHY(s) in sync.
+	 */
+	if (ack) {
+		for(i = 0; i < 16; i++) {
+			SIO_CLR(SIS_MII_CLK);
+			DELAY(1);
+			SIO_SET(SIS_MII_CLK);
+			DELAY(1);
+		}
+		goto fail;
+	}
+
+	for (i = 0x8000; i; i >>= 1) {
+		SIO_CLR(SIS_MII_CLK);
+		DELAY(1);
+		if (!ack) {
+			if (CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA)
+				frame->mii_data |= i;
+			DELAY(1);
+		}
+		SIO_SET(SIS_MII_CLK);
+		DELAY(1);
+	}
+
+fail:
+
+	SIO_CLR(SIS_MII_CLK);
+	DELAY(1);
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+
+	splx(s);
+
+	if (ack)
+		return(1);
+	return(0);
+}
+
+/*
+ * Write to a PHY register through the MII.
+ */
+static int sis_mii_writereg(sc, frame)
+	struct sis_softc	*sc;
+	struct sis_mii_frame	*frame;
+	
+{
+	int			s;
+
+	s = splimp();
+	/*
+	 * Set up frame for TX.
+	 */
+
+	frame->mii_stdelim = SIS_MII_STARTDELIM;
+	frame->mii_opcode = SIS_MII_WRITEOP;
+	frame->mii_turnaround = SIS_MII_TURNAROUND;
+	
+	/*
+ 	 * Turn on data output.
+	 */
+	SIO_SET(SIS_MII_DIR);
+
+	sis_mii_sync(sc);
+
+	sis_mii_send(sc, frame->mii_stdelim, 2);
+	sis_mii_send(sc, frame->mii_opcode, 2);
+	sis_mii_send(sc, frame->mii_phyaddr, 5);
+	sis_mii_send(sc, frame->mii_regaddr, 5);
+	sis_mii_send(sc, frame->mii_turnaround, 2);
+	sis_mii_send(sc, frame->mii_data, 16);
+
+	/* Idle bit. */
+	SIO_SET(SIS_MII_CLK);
+	DELAY(1);
+	SIO_CLR(SIS_MII_CLK);
+	DELAY(1);
+
+	/*
+	 * Turn off xmit.
+	 */
+	SIO_CLR(SIS_MII_DIR);
+
+	splx(s);
+
+	return(0);
+}
+
 static int sis_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
 	struct sis_softc	*sc;
 	int			i, val = 0;
+	struct sis_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
@@ -487,33 +677,47 @@ static int sis_miibus_readreg(dev, phy, reg)
 		 */
 		if (!CSR_READ_4(sc, NS_BMSR))
 			DELAY(1000);
-		val = CSR_READ_4(sc, NS_BMCR + (reg * 4));
-		return(val);
+		return CSR_READ_4(sc, NS_BMCR + (reg * 4));
 	}
-
+	/*
+	* Chipsets < SIS_635 seem not to be able to read/write
+	* through mdio. Use the enhanced PHY access register
+	* again for them.
+	*/
 	if (sc->sis_type == SIS_TYPE_900 &&
-	    sc->sis_rev < SIS_REV_635 && phy != 0)
-		return(0);
+	    sc->sis_rev < SIS_REV_635) {
 
-	CSR_WRITE_4(sc, SIS_PHYCTL, (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
-	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
+		if (phy != 0)
+			return(0);
 
-	for (i = 0; i < SIS_TIMEOUT; i++) {
-		if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
-			break;
+		CSR_WRITE_4(sc, SIS_PHYCTL,
+		    (phy << 11) | (reg << 6) | SIS_PHYOP_READ);
+		SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
+
+		for (i = 0; i < SIS_TIMEOUT; i++) {
+			if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
+				break;
+		}
+
+		if (i == SIS_TIMEOUT) {
+			printf("sis%d: PHY failed to come ready\n",
+			    sc->sis_unit);
+			return(0);
+		}
+
+		val = (CSR_READ_4(sc, SIS_PHYCTL) >> 16) & 0xFFFF;
+
+		if (val == 0xFFFF)
+			return(0);
+
+		return(val);
+	} else {
+		bzero((char *)&frame, sizeof(frame));
+		frame.mii_phyaddr = phy;
+		frame.mii_regaddr = reg;
+		sis_mii_readreg(sc, &frame);
+		return(frame.mii_data);
 	}
-
-	if (i == SIS_TIMEOUT) {
-		printf("sis%d: PHY failed to come ready\n", sc->sis_unit);
-		return(0);
-	}
-
-	val = (CSR_READ_4(sc, SIS_PHYCTL) >> 16) & 0xFFFF;
-
-	if (val == 0xFFFF)
-		return(0);
-
-	return(val);
 }
 
 static int sis_miibus_writereg(dev, phy, reg, data)
@@ -522,6 +726,7 @@ static int sis_miibus_writereg(dev, phy, reg, data)
 {
 	struct sis_softc	*sc;
 	int			i;
+	struct sis_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
@@ -532,21 +737,31 @@ static int sis_miibus_writereg(dev, phy, reg, data)
 		return(0);
 	}
 
-	if (sc->sis_type == SIS_TYPE_900 && phy != 0)
-		return(0);
+	if (sc->sis_type == SIS_TYPE_900 &&
+	    sc->sis_rev < SIS_REV_635) {
 
-	CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
-	    (reg << 6) | SIS_PHYOP_WRITE);
-	SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
+		if (phy != 0)
+			return(0);
+		CSR_WRITE_4(sc, SIS_PHYCTL, (data << 16) | (phy << 11) |
+		    (reg << 6) | SIS_PHYOP_WRITE);
+		SIS_SETBIT(sc, SIS_PHYCTL, SIS_PHYCTL_ACCESS);
 
-	for (i = 0; i < SIS_TIMEOUT; i++) {
-		if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
-			break;
+		for (i = 0; i < SIS_TIMEOUT; i++) {
+			if (!(CSR_READ_4(sc, SIS_PHYCTL) & SIS_PHYCTL_ACCESS))
+				break;
+		}
+ 
+		if (i == SIS_TIMEOUT)
+			printf("sis%d: PHY failed to come ready\n",
+			    sc->sis_unit);
+	} else {
+		bzero((char *)&frame, sizeof(frame));
+ 
+		frame.mii_phyaddr = phy;
+		frame.mii_regaddr = reg;
+		frame.mii_data = data;
+		sis_mii_writereg(sc, &frame);
 	}
-
-	if (i == SIS_TIMEOUT)
-		printf("sis%d: PHY failed to come ready\n", sc->sis_unit);
-
 	return(0);
 }
 
@@ -590,9 +805,12 @@ static u_int32_t sis_crc(sc, addr)
 	 * different than the SiS, so we special-case it.
 	 */
 	if (sc->sis_type == SIS_TYPE_83815)
-		return((crc >> 23) & 0x1FF);
-
-	return((crc >> 25) & 0x0000007F);
+		return (crc >> 23);
+	else if (sc->sis_rev >= SIS_REV_635 ||
+	    sc->sis_rev == SIS_REV_900B)
+		return (crc >> 24);
+	else
+		return (crc >> 25);
 }
 
 static void sis_setmulti_ns(sc)
@@ -649,38 +867,54 @@ static void sis_setmulti_sis(sc)
 {
 	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
-	u_int32_t		h = 0, i, filtsave;
+	u_int32_t		h, i, n, ctl;
+	u_int16_t		hashes[16];
 
 	ifp = &sc->arpcom.ac_if;
 
+	/* hash table size */
+	if (sc->sis_rev >= SIS_REV_635 ||
+	    sc->sis_rev == SIS_REV_900B)
+		n = 16;
+	else
+		n = 8;
+
+	ctl = CSR_READ_4(sc, SIS_RXFILT_CTL) & SIS_RXFILTCTL_ENABLE;
+
+	if (ifp->if_flags & IFF_BROADCAST)
+		ctl |= SIS_RXFILTCTL_BROAD;
+
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
-		SIS_SETBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLMULTI);
-		return;
+		ctl |= SIS_RXFILTCTL_ALLMULTI;
+		if (ifp->if_flags & IFF_PROMISC)
+			ctl |= SIS_RXFILTCTL_BROAD|SIS_RXFILTCTL_ALLPHYS;
+		for (i = 0; i < n; i++)
+			hashes[i] = ~0;
+	} else {
+		for (i = 0; i < n; i++)
+			hashes[i] = 0;
+		i = 0;
+		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			h = sis_crc(sc,
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+			hashes[h >> 4] |= 1 << (h & 0xf);
+			i++;
+		}
+		if (i > n) {
+			ctl |= SIS_RXFILTCTL_ALLMULTI;
+			for (i = 0; i < n; i++)
+				hashes[i] = ~0;
+		}
 	}
 
-	SIS_CLRBIT(sc, SIS_RXFILT_CTL, SIS_RXFILTCTL_ALLMULTI);
-
-	filtsave = CSR_READ_4(sc, SIS_RXFILT_CTL);
-
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < 8; i++) {
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, (4 + ((i * 16) >> 4)) << 16);
-		CSR_WRITE_4(sc, SIS_RXFILT_DATA, 0);
+	for (i = 0; i < n; i++) {
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, (4 + i) << 16);
+		CSR_WRITE_4(sc, SIS_RXFILT_DATA, hashes[i]);
 	}
 
-	/* now program new ones */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
-	    ifma = ifma->ifma_link.le_next) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		h = sis_crc(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, (4 + (h >> 4)) << 16);
-		SIS_SETBIT(sc, SIS_RXFILT_DATA, (1 << (h & 0xF)));
-	}
-
-	CSR_WRITE_4(sc, SIS_RXFILT_CTL, filtsave);
-
-	return;
+	CSR_WRITE_4(sc, SIS_RXFILT_CTL, ctl);
 }
 
 static void sis_reset(sc)
@@ -748,10 +982,11 @@ static int sis_attach(dev)
 	u_int32_t		command;
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			unit, error, rid, waittime;
 
 	s = splimp();
 
+	error = waittime = 0;
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct sis_softc));
@@ -854,6 +1089,13 @@ static int sis_attach(dev)
 	/* Reset the adapter. */
 	sis_reset(sc);
 
+	if (sc->sis_type == SIS_TYPE_900 &&
+            (sc->sis_rev == SIS_REV_635 ||
+             sc->sis_rev == SIS_REV_900B)) {
+		SIO_SET(SIS_CFG_RND_CNT);
+		SIO_SET(SIS_CFG_PERR_DETECT);
+	}
+
 	/*
 	 * Get station address from the EEPROM.
 	 */
@@ -919,7 +1161,32 @@ static int sis_attach(dev)
 		else if (sc->sis_rev == SIS_REV_635 ||
 			 sc->sis_rev == SIS_REV_630ET)
 			sis_read_mac(sc, dev, (caddr_t)&eaddr);
-		else
+		else if (sc->sis_rev == SIS_REV_96x) {
+			/*
+			 * Allow to read EEPROM from LAN. It is shared
+			 * between a 1394 controller and the NIC and each
+			 * time we access it, we need to set SIS_EECMD_REQ.
+			 */
+			SIO_SET(SIS_EECMD_REQ);
+			for (waittime = 0; waittime < SIS_TIMEOUT;
+			    waittime++) {
+				/* Force EEPROM to idle state. */
+				sis_eeprom_idle(sc);
+				if (CSR_READ_4(sc, SIS_EECTL) & SIS_EECMD_GNT) {
+					sis_read_eeprom(sc, (caddr_t)&eaddr,
+					    SIS_EE_NODEADDR, 3, 0);
+					break;
+				}
+				DELAY(1);
+			}
+			/*
+			 * Set SIS_EECTL_CLK to high, so a other master
+			 * can operate on the i2c bus.
+			 */
+			SIO_SET(SIS_EECTL_CLK);
+			/* Refuse EEPROM access by LAN */
+			SIO_SET(SIS_EECMD_DONE);
+		} else
 #endif
 			sis_read_eeprom(sc, (caddr_t)&eaddr,
 			    SIS_EE_NODEADDR, 3, 0);
@@ -1606,8 +1873,15 @@ static void sis_init(xsc)
 	CSR_WRITE_4(sc, SIS_TX_LISTPTR,
 	    vtophys(&sc->sis_ldata->sis_tx_list[0]));
 
-	/* Set RX configuration */
-	CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG);
+	/* SIS_CFG_EDB_MASTER_EN indicates the EDB bus is used instead of
+	 * the PCI bus. When this bit is set, the Max DMA Burst Size
+	 * for TX/RX DMA should be no larger than 16 double words.
+	 */
+	if (CSR_READ_4(sc, SIS_CFG) & SIS_CFG_EDB_MASTER_EN) {
+		CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG64);
+	} else {
+		CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG256);
+	}
 
 	/* Accept Long Packets for VLAN support */
 	SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_JABBER);

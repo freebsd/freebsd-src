@@ -114,15 +114,30 @@
 #define SIS_CFG_OUTOFWIN_TIMER	0x00000020
 #define SIS_CFG_SINGLE_BACKOFF	0x00000040
 #define SIS_CFG_PCIREQ_ALG	0x00000080
+#define SIS_CFG_FAIR_BACKOFF	0x00000200 /* 635 & 900B Specific */
+#define SIS_CFG_RND_CNT		0x00000400 /* 635 & 900B Specific */
+#define SIS_CFG_EDB_MASTER_EN	0x00002000
 
 #define SIS_EECTL_DIN		0x00000001
 #define SIS_EECTL_DOUT		0x00000002
 #define SIS_EECTL_CLK		0x00000004
 #define SIS_EECTL_CSEL		0x00000008
 
+#define	SIS_MII_CLK		0x00000040
+#define	SIS_MII_DIR		0x00000020
+#define	SIS_MII_DATA		0x00000010
+
 #define SIS_EECMD_WRITE		0x140
 #define SIS_EECMD_READ		0x180
 #define SIS_EECMD_ERASE		0x1c0
+
+/*
+ * EEPROM Commands for SiS96x
+ * chipsets.
+ */
+#define SIS_EECMD_REQ		0x00000400
+#define SIS_EECMD_DONE		0x00000200
+#define SIS_EECMD_GNT		0x00000100
 
 #define SIS_EE_NODEADDR		0x8
 #define NS_EE_NODEADDR		0x6
@@ -247,8 +262,10 @@
 #define SIS_RXDMA_128BYTES	0x00600000
 #define SIS_RXDMA_256BYTES	0x00700000
 
-#define SIS_RXCFG \
-	(SIS_RXCFG_DRAIN(64)|SIS_RXDMA_256BYTES)
+#define SIS_RXCFG256 \
+ 	(SIS_RXCFG_DRAIN(64)|SIS_RXDMA_256BYTES)
+#define SIS_RXCFG64 \
+	(SIS_RXCFG_DRAIN(64)|SIS_RXDMA_64BYTES)
 
 #define SIS_RXFILTCTL_ADDR	0x000F0000
 #define NS_RXFILTCTL_MCHASH	0x00200000
@@ -366,11 +383,14 @@ struct sis_ring_data {
 /*
  * SiS 900 PCI revision codes.
  */
+#define SIS_REV_900B		0x0003
+#define SIS_REV_630A		0x0080
 #define SIS_REV_630E		0x0081
 #define SIS_REV_630S		0x0082
 #define SIS_REV_630EA1		0x0083
 #define SIS_REV_630ET		0x0084
 #define SIS_REV_635		0x0090
+#define SIS_REV_96x		0x0091
 
 /*
  * NatSemi vendor ID
@@ -387,6 +407,23 @@ struct sis_type {
 	u_int16_t		sis_did;
 	char			*sis_name;
 };
+
+struct sis_mii_frame {
+	u_int8_t		mii_stdelim;
+	u_int8_t		mii_opcode;
+	u_int8_t		mii_phyaddr;
+	u_int8_t		mii_regaddr;
+	u_int8_t		mii_turnaround;
+	u_int16_t		mii_data;
+};
+
+/*
+ * MII constants
+ */
+#define	SIS_MII_STARTDELIM	0x01
+#define	SIS_MII_READOP		0x02
+#define	SIS_MII_WRITEOP		0x01
+#define	SIS_MII_TURNAROUND	0x02
 
 #define SIS_TYPE_900	1
 #define SIS_TYPE_7016	2
