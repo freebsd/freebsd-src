@@ -117,7 +117,7 @@ random_write(dev_t dev, struct uio *uio, int flag)
 		error = uiomove(random_buf, c, uio);
 		if (error)
 			break;
-		/* write_random(random_buf, c); */
+		write_random(random_buf, c);
 	}
 	free(random_buf, M_TEMP);
 	return error;
