@@ -41,9 +41,11 @@ pthread_attr_setschedparam(pthread_attr_t *attr, const struct sched_param *param
 {
 	int ret = 0;
 
-	if ((attr == NULL) || (*attr == NULL) || (param == NULL))
+	if ((attr == NULL) || (*attr == NULL))
 		ret = EINVAL;
-	else
+	else if (param == NULL) {
+		ret = ENOTSUP;
+	} else
 		(*attr)->prio = param->sched_priority;
 
 	return(ret);
