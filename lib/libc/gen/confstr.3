@@ -32,7 +32,7 @@
 .\"	@(#)confstr.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd June 18, 2001
 .Dt CONFSTR 3
 .Os BSD 4
 .Sh NAME
@@ -45,21 +45,25 @@
 .Ft size_t
 .Fn confstr "int name" "char *buf" "size_t len"
 .Sh DESCRIPTION
-.Bf -symbolic
-This interface is obsoleted by
+This interface is specified by
+.\" .St -p1003.1-200x .
+.Tn POSIX .
+A more flexible (but non-portable) interface is provided by
 .Xr sysctl 3 .
-.Ef
 .Pp
 The
 .Fn confstr
 function provides a method for applications to get configuration
 defined string values.
+Shell programmers needing access to these parameters should use the
+.Xr getconf 1
+utility.
 .Pp
 The
 .Fa name
 argument specifies the system variable to be queried.
 Symbolic constants for each name value are found in the include file
-.Li <unistd.h> .
+.Aq Pa unistd.h .
 The
 .Fa len
 argument specifies the size of the buffer referenced by the
@@ -107,7 +111,7 @@ was truncated.
 The
 .Fn confstr
 function may fail and set
-.Va error
+.Va errno
 for any of the errors specified for the library functions
 .Xr malloc 3
 and
@@ -121,6 +125,9 @@ The value of the
 argument is invalid.
 .El
 .Sh SEE ALSO
+.Xr getconf 1 ,
+.Xr pathconf 2 ,
+.Xr sysconf 3 ,
 .Xr sysctl 3
 .Sh HISTORY
 The
