@@ -75,6 +75,7 @@ int cardbus_do_cis(device_t dev, device_t child);
 #define CISTPL_DATE		0x44
 #define CISTPL_BATTERY		0x45
 #define CISTPL_ORG		0x46
+#define CISTPL_CUSTOMSTART	0x80
 #define CISTPL_END		0xFF
 
 /* BAR */
