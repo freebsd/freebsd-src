@@ -527,7 +527,8 @@ in_pcbdetach(inp)
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
 #ifdef IPSEC
-	ipsec4_delete_pcbpolicy(inp);
+	if (inp->inp_sp != NULL)
+		ipsec4_delete_pcbpolicy(inp);
 #endif /*IPSEC*/
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
