@@ -637,6 +637,9 @@ release.8:
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
 	@mkdir -p ${RD}/mfsfd/boot
 	@cp /boot/boot* ${RD}/mfsfd/boot
+.if ${MACHINE} == "i386"
+	@cp /boot/mbr ${RD}/mfsfd/boot
+.endif
 	@cp /boot/loader.help ${RD}/mfsfd/boot
 	@cd ${.CURDIR} && ${MAKE} createBOOTMFS 
 .if exists(${.CURDIR}/${MACHINE}/drivers.conf)
