@@ -141,7 +141,7 @@ getpwnam(name)
 	 * are in /etc/master.passwd.
 	 */
 	if (rval && _pw_passwd.pw_name[0] == '+') rval = 0;
-#endif
+
 	if (!_pw_stayopen) {
 		(void)(_pw_db->close)(_pw_db);
 		_pw_db = (DB *)NULL;
