@@ -4541,6 +4541,9 @@ hw.pcic.irq="0"</programlisting>
       それを引数にして入力がなくなるまで複数回コマンドを呼び出すという
       <option>-L</option> オプションが追加されました。&merged;</para>
 
+    <para>&man.xargs.1; に、ユーティリティを複数並列に実行する
+      <option>-P</option> オプションが追加されました。</para>
+
     <para role="historic">コンパイラが FSF が提供している
       C/C++ ランタイム初期化コードを使用するように変更されました。
       この変更によりFSF が公開しているソースとの親和性だけでなく、
