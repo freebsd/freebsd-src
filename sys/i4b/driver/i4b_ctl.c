@@ -27,9 +27,9 @@
  *	i4b_ctl.c - i4b system control port driver
  *	------------------------------------------
  *
- *	$Id: i4b_ctl.c,v 1.4 1999/05/20 10:08:56 hm Exp $
+ *	$Id: i4b_ctl.c,v 1.25 1999/06/08 08:13:00 hm Exp $
  *
- *	last edit-date: [Mon Apr 26 11:16:28 1999]
+ *	last edit-date: [Tue Jun  8 09:27:15 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -83,6 +83,7 @@
 #include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/layer1/i4b_l1.h>
+#include <i4b/layer2/i4b_l2.h>
 
 static int openflag = 0;
 
@@ -99,6 +100,8 @@ static d_poll_t		i4bctlpoll;
 #endif
 
 #define CDEV_MAJOR 55
+
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
 static struct cdevsw i4bctl_cdevsw = {
 	/* open */	i4bctlopen,
 	/* close */	i4bctlclose,
@@ -120,6 +123,12 @@ static struct cdevsw i4bctl_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+#else
+static struct cdevsw i4bctl_cdevsw = 
+	{ i4bctlopen,	i4bctlclose,	noread,		nowrite,
+	  i4bctlioctl,	nostop,		nullreset,	nodevtotty,
+	  POLLFIELD,	nommap,		NULL,	"i4bctl", NULL,	-1 };
+#endif
 
 static void i4bctlattach(void *);
 PSEUDO_SET(i4bctlattach, i4b_i4bctldrv);
@@ -150,8 +159,12 @@ int i4bctlioctl __P((dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 static void
 i4bctlinit(void *unused)
 {
-    
-    cdevsw_add(&i4bctl_cdevsw);
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+	cdevsw_add(&i4bctl_cdevsw);
+#else
+	dev_t dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &i4bctl_cdevsw, NULL);
+#endif
 }
 
 SYSINIT(i4bctldev, SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, &i4bctlinit, NULL);
@@ -329,6 +342,42 @@ i4bctlioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			sc->sc_chan[hst->chan].stat_XDU = 0;
 			sc->sc_chan[hst->chan].stat_RFO = 0;
 			
+                        break;
+                }
+
+                case I4B_CTL_GET_LAPDSTAT:
+                {
+                        l2stat_t *l2s;
+                        l2_softc_t *sc;
+                        l2s = (l2stat_t *)data;
+
+                        if( l2s->unit < 0 || l2s->unit > ISIC_MAXUNIT)
+                        {
+                        	error = EINVAL;
+				break;
+			}
+			  
+			sc = &l2_softc[l2s->unit];
+
+			bcopy(&sc->stat, &l2s->lapdstat, sizeof(lapdstat_t));
+                        break;
+                }
+
+                case I4B_CTL_CLR_LAPDSTAT:
+                {
+                        int *up;
+                        l2_softc_t *sc;
+                        up = (int *)data;
+
+                        if( *up < 0 || *up > ISIC_MAXUNIT)
+                        {
+                        	error = EINVAL;
+				break;
+			}
+			  
+			sc = &l2_softc[*up];
+
+			bzero(&sc->stat, sizeof(lapdstat_t));
                         break;
                 }
 

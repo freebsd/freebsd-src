@@ -27,9 +27,9 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.106 1999/05/19 08:51:14 hm Exp $ 
+ *	$Id: i4b_ioctl.h,v 1.125 1999/07/30 07:02:11 hm Exp $ 
  *
- *      last edit-date: [Wed May 19 10:56:56 1999]
+ *      last edit-date: [Fri Jul 30 08:53:47 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -46,7 +46,7 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		81		/* release number	*/
+#define	REL		83		/* release number	*/
 #define STEP		0		/* release step		*/
 
 /*---------------------------------------------------------------------------*
@@ -103,7 +103,9 @@
 #define	CARD_TYPEP_ITKIX1	18	/* ITK ix1 micro 		*/
 #define CARD_TYPEP_AVMA1PCI	19	/* AVM FRITZ!CARD PCI		*/
 #define CARD_TYPEP_PCC16	20	/* ELSA PCC-16			*/
-
+#define CARD_TYPEP_AVM_PNP	21	/* AVM FRITZ!CARD PnP		*/
+#define CARD_TYPEP_SIE_ISURF2 	22	/* Siemens I-Surf 2 PnP		*/
+#define CARD_TYPEP_ASUSCOMIPAC	23	/* Asuscom ISDNlink 128 K PnP	*/
 /*
  * in case you add support for more cards, please update:
  *
@@ -113,7 +115,7 @@
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		20	/* max type */
+#define CARD_TYPEP_MAX		23	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
@@ -175,7 +177,7 @@ typedef	unsigned int cause_t;		/* 32 bit unsigned int	*/
  *---------------------------------------------------------------------------*/
 #define SHA_FIXU	0    /* timeout algorithm for fix unit charging */
 #define SHA_VARU	1    /* timeout algorithm for variable unit charging */
- 
+
 /*---------------------------------------------------------------------------*
  *	The shorthold data struct
  *---------------------------------------------------------------------------*/
@@ -593,14 +595,15 @@ typedef struct {
 
 /*---------------------------------------------------------------------------*
  *	request version and release info from kernel part
+ *	(msg_vr_req_t is also used by tel & rbch drivers)
  *---------------------------------------------------------------------------*/
 typedef struct {
 	int	version;	/* version number */
 	int	release;	/* release number */
 	int	step;		/* release step number */	
 } msg_vr_req_t;
- 
-#define	I4B_VR_REQ		_IOR('4', 9, msg_vr_req_t)
+
+#define I4B_VR_REQ              _IOR('4', 9, msg_vr_req_t)
 
 /*---------------------------------------------------------------------------*
  *	Protocol download to active cards

@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: isdnd.rc.5,v 1.34 1999/05/03 08:48:25 hm Exp $ 
+.\"	$Id: isdnd.rc.5,v 1.36 1999/07/28 14:17:45 hm Exp $ 
 .\"
-.\"     last edit-date: [Thu Apr  8 18:29:22 1999]
+.\"     last edit-date: [Wed Jul 28 15:57:02 1999]
 .\"
-.Dd February, 23, 1999
+.Dd May 20, 1999
 .Dt isdnd.rc 5
 .Sh NAME
 .Nm isdnd.rc
@@ -91,6 +91,8 @@ Specifies the name of the accounting file which is used when the keyword
 .Em useacctfile
 (see below) is set to 
 .Em on .
+See also system keyword
+.Em rotatesuffix .
 If this keyword is omitted the system default is used. (optional)
 
 .It Li aliasing
@@ -203,6 +205,14 @@ expects to find the program below the path
 which is prepended to the string specified as a parameter to this keyword.
 (optional)
 
+.It Li rotatesuffix
+Specifies a suffix for renaming the log- and the accountingfilename. In case
+rotatesuffix is used and a USR1 signal is sent to isdnd, the logfile and the
+accounting file is not only closed and reopened but the old logfile is also
+renamed to the former filename with the rotatesuffix string appended.
+If this keyword is omitted, the logfiles are just closed and reopened; this
+is also the default behaviour. (optional)
+
 .It Li rtprio
 Specifies the realtime priority 
 .Nm isdnd
@@ -299,6 +309,7 @@ Normal behavior, call the remote site which is supposed to accept the call.
 .It Ar calledback
 Callback behavior, call the remote side which rejects the call and calls
 us back.
+.El
 
 .It Li dialrandincr
 When dialing or re-dialing and this parameter is set to
@@ -315,7 +326,7 @@ This keyword is used to configure if incoming and outgoing, incoming-only or
 outgoing only connections are possible.
 The keyword is optional, the default is
 .Em inout .
-.El
+
 .Pp
 The currently supported parameters are:
 .Pp

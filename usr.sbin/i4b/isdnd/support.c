@@ -27,9 +27,9 @@
  *	i4b daemon - misc support routines
  *	----------------------------------
  *
- *	$Id: support.c,v 1.56 1999/04/28 15:37:02 hm Exp $ 
+ *	$Id: support.c,v 1.59 1999/07/05 13:46:46 hm Exp $ 
  *
- *      last edit-date: [Wed Apr 28 17:13:36 1999]
+ *      last edit-date: [Mon Jul  5 15:29:22 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -600,7 +600,10 @@ name_of_controller(int ctrl_type, int card_type)
 		"ELSA MicroLink MCall",
  		"ITK ix1 micro",
 		"AVM Fritz!Card PCI",
-		"ELSA PCC-16"
+		"ELSA PCC-16",
+		"AVM Fritz!Card PnP",		
+		"Siemens I-Surf 2.0 PnP",		
+ 		"Asuscom ISDNlink 128K PnP"
 	};
 
 	static char *daic_card[] = {

@@ -27,9 +27,9 @@
  *	i4b_rbch.c - device driver for raw B channel data
  *	---------------------------------------------------
  *
- *	$Id: i4b_rbch.c,v 1.3 1999/05/20 10:09:02 hm Exp $
+ *	$Id: i4b_rbch.c,v 1.36 1999/07/19 14:03:33 hm Exp $
  *
- *	last edit-date: [Thu May  6 13:40:22 1999]
+ *	last edit-date: [Fri Jul  9 09:37:02 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -49,7 +49,7 @@
 #include <sys/proc.h>
 #include <sys/tty.h>
 
-#ifdef __NetBSD__
+#if defined (__NetBSD__) || defined (__OpenBSD__)
 extern cc_t ttydefchars;
 #define termioschars(t) memcpy((t)->c_cc, &ttydefchars, sizeof((t)->c_cc))
 #endif
@@ -69,9 +69,11 @@ extern cc_t ttydefchars;
 
 #ifdef __FreeBSD__
 #include <machine/i4b_ioctl.h>
+#include <machine/i4b_rbch_ioctl.h>
 #include <machine/i4b_debug.h>
 #else
 #include <i4b/i4b_ioctl.h>
+#include <i4b/i4b_rbch_ioctl.h>
 #include <i4b/i4b_debug.h>
 #endif
 
@@ -147,8 +149,7 @@ int i4brbchioctl __P((dev_t dev, IOCTL_CMD_T cmd, caddr_t arg, int flag, struct 
 #ifdef OS_USES_POLL
 int i4brbchpoll __P((dev_t dev, int events, struct proc *p));
 #else
-/* XXX fix "static" to PDEVSTATIC */
-static int i4brbchselect __P((dev_t dev, int rw, struct proc *p));
+PDEVSTATIC int i4brbchselect __P((dev_t dev, int rw, struct proc *p));
 #endif
 #endif
 
@@ -175,6 +176,8 @@ PDEVSTATIC d_select_t i4brbchselect;
 #endif
 
 #define CDEV_MAJOR 57
+
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
 static struct cdevsw i4brbch_cdevsw = {
 	/* open */	i4brbchopen,
 	/* close */	i4brbchclose,
@@ -196,6 +199,13 @@ static struct cdevsw i4brbch_cdevsw = {
 	/* maxio */	0,
 	/* bmaj */	-1
 };
+#else
+static struct cdevsw i4brbch_cdevsw = {
+	i4brbchopen,	i4brbchclose,	i4brbchread,	i4brbchwrite,
+  	i4brbchioctl,	nostop,		noreset,	nodevtotty,
+	POLLFIELD,	nommap, 	NULL, "i4brbch", NULL, -1
+};
+#endif
 
 static void i4brbchattach(void *);
 PSEUDO_SET(i4brbchattach, i4b_rbch);
@@ -210,8 +220,12 @@ PSEUDO_SET(i4brbchattach, i4b_rbch);
 static void
 i4brbchinit(void *unused)
 {
-
-    cdevsw_add(&i4brbch_cdevsw);
+#if defined (__FreeBSD_version) && __FreeBSD_version >= 400006
+	cdevsw_add(&i4brbch_cdevsw);
+#else
+	dev_t dev = makedev(CDEV_MAJOR, 0);
+	cdevsw_add(&dev, &i4brbch_cdevsw, NULL);
+#endif
 }
 
 SYSINIT(i4brbchdev, SI_SUB_DRIVERS,
@@ -247,6 +261,7 @@ dummy_i4brbchattach(struct device *parent, struct device *self, void *aux)
 	printf("dummy_i4brbchattach: aux=0x%x\n", aux);
 }
 #endif /* __bsdi__ */
+
 /*---------------------------------------------------------------------------*
  *	interface attach routine
  *---------------------------------------------------------------------------*/
@@ -282,7 +297,7 @@ i4brbchattach()
 /*---------------------------------------------------------------------------*
  *	open rbch device
  *---------------------------------------------------------------------------*/
-int
+PDEVSTATIC int
 i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = minor(dev);
@@ -305,7 +320,7 @@ i4brbchopen(dev_t dev, int flag, int fmt, struct proc *p)
 /*---------------------------------------------------------------------------*
  *	close rbch device
  *---------------------------------------------------------------------------*/
-int
+PDEVSTATIC int
 i4brbchclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = minor(dev);
@@ -326,7 +341,7 @@ i4brbchclose(dev_t dev, int flag, int fmt, struct proc *p)
 /*---------------------------------------------------------------------------*
  *	read from rbch device
  *---------------------------------------------------------------------------*/
-int
+PDEVSTATIC int
 i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 {
 	struct mbuf *m;
@@ -419,7 +434,7 @@ i4brbchread(dev_t dev, struct uio *uio, int ioflag)
 /*---------------------------------------------------------------------------*
  *	write to rbch device
  *---------------------------------------------------------------------------*/
-int
+PDEVSTATIC int
 i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 {
 	struct mbuf *m;
@@ -520,60 +535,96 @@ i4brbchwrite(dev_t dev, struct uio * uio, int ioflag)
 	return(error);
 }
 
+/*---------------------------------------------------------------------------*
+ *	rbch device ioctl handlibg
+ *---------------------------------------------------------------------------*/
 PDEVSTATIC int
-i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc* p) {
+i4brbchioctl(dev_t dev, IOCTL_CMD_T cmd, caddr_t data, int flag, struct proc* p)
+{
 	int error = 0;
 	int unit = minor(dev);
 
 	switch(cmd)
 	{
-#if 0
-		case I4B_RBCH_DIALOUT:
-if(bootverbose)printf("EE-rbch%d: attempting dialout (ioctl)\n", unit);
-			i4b_l4_dialout(BDRV_RBCH, unit);
-			break;
-#endif
-			
 		case FIOASYNC:	/* Set async mode */
-			if (*(int *)data) {
-if(bootverbose)printf("EE-rbch%d: setting async mode\n", unit);
-			} else {
-if(bootverbose)printf("EE-rbch%d: clearing async mode\n", unit);
+			if (*(int *)data)
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, setting async mode\n", unit));
+			}
+			else
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, clearing async mode\n", unit));
 			}
 			break;
+
 		case FIONBIO:
-			if (*(int *)data) {
-if(bootverbose)printf("EE-rbch%d: setting non-blocking mode\n", unit);
+			if (*(int *)data)
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, setting non-blocking mode\n", unit));
 				rbch_softc[unit].sc_devstate |= ST_NOBLOCK;
-			} else {
-if(bootverbose)printf("EE-rbch%d: clearing non-blocking mode\n", unit);
+			}
+			else
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, clearing non-blocking mode\n", unit));
 				rbch_softc[unit].sc_devstate &= ~ST_NOBLOCK;
 			}
 			break;
+
 		case TIOCCDTR:	/* Clear DTR */
-			if(rbch_softc[unit].sc_devstate & ST_CONNECTED) {
-if(bootverbose)printf("EE-rbch%d: disconnecting for DTR down\n", unit);
+			if(rbch_softc[unit].sc_devstate & ST_CONNECTED)
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, disconnecting for DTR down\n", unit));
 				i4b_l4_disconnect_ind(rbch_softc[unit].cd);
 			}
 			break;
+
+		case I4B_RBCH_DIALOUT:
+                {
+			size_t l;
+
+			for (l = 0; l < TELNO_MAX && ((char *)data)[l]; l++)
+				;
+			if (l)
+			{
+				DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, attempting dialout to %s\n", unit, (char *)data));
+				i4b_l4_dialoutnumber(BDRV_RBCH, unit, l, (char *)data);
+				break;
+			}
+			/* fall through to SDTR */
+		}
+
 		case TIOCSDTR:	/* Set DTR */
-if(bootverbose)printf("EE-rbch%d: attempting dialout (DTR)\n", unit);
+			DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, attempting dialout (DTR)\n", unit));
 			i4b_l4_dialout(BDRV_RBCH, unit);
 			break;
+
 		case TIOCSETA:	/* Set termios struct */
 			break;
+
 		case TIOCGETA:	/* Get termios struct */
 			*(struct termios *)data = rbch_softc[unit].it_in;
 			break;
+
 		case TIOCMGET:
 			*(int *)data = TIOCM_LE|TIOCM_DTR|TIOCM_RTS|TIOCM_CTS|TIOCM_DSR;
 			if (rbch_softc[unit].sc_devstate & ST_CONNECTED)
 				*(int *)data |= TIOCM_CD;
 			break;
+
+		case I4B_RBCH_VR_REQ:
+                {
+			msg_vr_req_t *mvr;
+
+			mvr = (msg_vr_req_t *)data;
+
+			mvr->version = VERSION;
+			mvr->release = REL;
+			mvr->step = STEP;			
+			break;
+		}
+
 		default:	/* Unknown stuff */
-			printf("\n ========= i4brbch%d - ioctl, unknown cmd %lx ==================== \n",
-			       unit,
-			       (u_long)cmd);
+			DBGL4(L4_RBCHDBG, "i4brbchioctl", ("unit %d, ioctl, unknown cmd %lx\n", unit, (u_long)cmd));
 			error = EINVAL;
 			break;
 	}
@@ -642,8 +693,7 @@ i4brbchpoll(dev_t dev, int events, struct proc *p)
 /*---------------------------------------------------------------------------*
  *	device driver select
  *---------------------------------------------------------------------------*/
-/* XXX fix "static" to PDEVSTATIC */
-static int
+PDEVSTATIC int
 i4brbchselect(dev_t dev, int rw, struct proc *p)
 {
 	int unit = minor(dev);

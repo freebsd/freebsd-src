@@ -27,9 +27,9 @@
  *	i4b_l1.h - isdn4bsd layer 1 header file
  *	---------------------------------------
  *
- *	$Id: i4b_l1.h,v 1.61 1999/04/21 07:50:31 hm Exp $ 
+ *	$Id: i4b_l1.h,v 1.64 1999/07/05 13:46:46 hm Exp $ 
  *
- *      last edit-date: [Tue Mar 16 15:50:24 1999]
+ *      last edit-date: [Mon Jul  5 15:32:02 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,42 +48,36 @@
 /*---------------------------------------------------------------------------
  *	kernel config file flags definition
  *---------------------------------------------------------------------------*/
- /* XXX: we do need these only for real ISA (not even ISAPNP cards), and only
-  * because we are not confident enough in the general ISA probe routine (as
-  * practiced by the NetBSD variant). *And* it is completely redundant to the
-  * various options enabling only a few card's support routines to be compiled
-  * in. Probably the current truth is: this is usefull for anybody with more
-  * than one supported real ISA card. It is not usefull in generic configs,
-  * nor in typical one-controller-only configurations.
-  * Further - it is identical to the CARD_TYPEP_xxx definitions in
-  * ../machine/i4b_ioctl.h.
-  */
 #define FLAG_TELES_S0_8		1
 #define FLAG_TELES_S0_16	2
 #define FLAG_TELES_S0_163	3
 #define FLAG_AVM_A1		4
-#define FLAG_TELES_S0_163_PnP	5	/* XXX - not needed, remove! */
-#define FLAG_CREATIX_S0_PnP	6	/* XXX - not needed, remove! */
+#define FLAG_TELES_S0_163_PnP	5
+#define FLAG_CREATIX_S0_PnP	6
 #define FLAG_USR_ISDN_TA_INT	7
-#define FLAG_DRN_NGO		8	/* XXX - not needed, remove! */
-#define FLAG_SWS		9	/* XXX - not needed, remove! */
-#define FLAG_AVM_A1_PCMCIA	10	/* XXX - not needed, remove! */
-#define FLAG_DYNALINK		11	/* XXX - not needed, remove! */
+#define FLAG_DRN_NGO		8
+#define FLAG_SWS		9
+#define FLAG_AVM_A1_PCMCIA	10
+#define FLAG_DYNALINK		11
 #define FLAG_BLMASTER		12
-#define FLAG_ELSA_QS1P_ISA	13	/* XXX - not needed, remove! */
-#define FLAG_ELSA_QS1P_PCI	14	/* XXX - not needed, remove! */
+#define FLAG_ELSA_QS1P_ISA	13
+#define FLAG_ELSA_QS1P_PCI	14
 #define FLAG_SIEMENS_ITALK	15
-#define	FLAG_ELSA_MLIMC		16	/* XXX - not needed, remove! */
-#define	FLAG_ELSA_MLMCALL	17	/* XXX - not needed, remove! */
+#define	FLAG_ELSA_MLIMC		16
+#define	FLAG_ELSA_MLMCALL	17
 #define FLAG_ITK_IX1		18
-#define FLAG_ELSA_PCC16		19
+#define FLAG_AVMA1PCI     	19
+#define FLAG_ELSA_PCC16		20
+#define FLAG_AVM_PNP		21
+#define FLAG_SIEMENS_ISURF2	22
+#define FLAG_ASUSCOM_IPAC	23
 
-#define SEC_DELAY	1000000		/* one second DELAY for DELAY*/
+#define SEC_DELAY		1000000	/* one second DELAY for DELAY*/
 
-#define MAX_DFRAME_LEN	264		/* max length of a D frame */
+#define MAX_DFRAME_LEN		264	/* max length of a D frame */
 
 #ifndef __bsdi__
-#define min(a,b)	((a)<(b)?(a):(b))
+#define min(a,b)		((a)<(b)?(a):(b))
 #endif
 
 #if !defined(__FreeBSD__) && !defined(__bsdi__)
@@ -190,7 +184,7 @@ struct isic_softc
 #endif
 
 	int		sc_unit;	/* unit number		*/
-	int		sc_irq;	/* interrupt vector	*/
+	int		sc_irq;		/* interrupt vector	*/
 
 #ifdef __FreeBSD__
 	int		sc_port;	/* port base address	*/
@@ -205,6 +199,7 @@ struct isic_softc
 	u_int		sc_maddr;	/* "memory address" for card config register */
 	int sc_num_mappings;		/* number of io mappings provided */
 	struct isic_io_map *sc_maps;
+
 #define	MALLOC_MAPS(sc)	\
 	(sc)->sc_maps = (struct isic_io_map*)malloc(sizeof((sc)->sc_maps[0])*(sc)->sc_num_mappings, M_DEVBUF, 0)
 #endif
@@ -266,6 +261,7 @@ struct isic_softc
 #endif
 	
 	int		sc_I430T4;	/* Timer T4 running */	
+
 #if defined(__FreeBSD__) && __FreeBSD__ >=3
 	struct callout_handle sc_T4_callout;
 #endif
@@ -396,7 +392,10 @@ extern int isic_attach_itkix1 ( struct isa_device *dev );
 extern int isic_attach_drnngo ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_sws ( struct isa_device *dev );
 extern int isic_attach_Eqs1pi(struct isa_device *dev, unsigned int iobase2);
+extern int isic_attach_avm_pnp(struct isa_device *dev, unsigned int iobase2);
+extern int isic_attach_siemens_isurf(struct isa_device *dev, unsigned int iobase2);
 extern int isic_attach_Eqs1pp(int unit, unsigned int iobase1, unsigned int iobase2);
+extern int isic_attach_asi(struct isa_device *dev, unsigned int iobase2);
 extern void isic_bchannel_setup (int unit, int hscx_channel, int bprot, int activate );
 extern int isic_hscx_fifo(isic_Bchan_t *, struct isic_softc *);
 extern void isic_hscx_init ( struct isic_softc *sc, int hscx_channel, int activate );
@@ -412,6 +411,8 @@ extern void isic_next_state ( struct isic_softc *sc, int event );
 extern char *isic_printstate ( struct isic_softc *sc );
 extern int isic_probe_avma1 ( struct isa_device *dev );
 extern int isic_probe_avma1_pcmcia ( struct isa_device *dev );
+extern int isic_probe_avm_pnp ( struct isa_device *dev, unsigned int iobase2);
+extern int isic_probe_siemens_isurf ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_Cs0P ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_Dyn ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_s016 ( struct isa_device *dev );
@@ -423,6 +424,7 @@ extern int isic_probe_itkix1 ( struct isa_device *dev );
 extern int isic_probe_drnngo ( struct isa_device *dev, unsigned int iobase2);
 extern int isic_probe_sws ( struct isa_device *dev );
 extern int isic_probe_Eqs1pi(struct isa_device *dev, unsigned int iobase2);
+extern int isic_probe_asi(struct isa_device *dev, unsigned int iobase2);
 
 #elif defined(__bsdi__)
 

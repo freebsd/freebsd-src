@@ -27,9 +27,9 @@
  *	i4b daemon - config file processing
  *	-----------------------------------
  *
- *	$Id: rc_config.c,v 1.42 1999/04/29 08:27:10 hm Exp $ 
+ *	$Id: rc_config.c,v 1.43 1999/05/20 13:30:36 hm Exp $ 
  *
- *      last edit-date: [Thu Apr 29 08:49:46 1999]
+ *      last edit-date: [Thu May 20 14:11:26 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -141,6 +141,8 @@ set_config_defaults(void)
 		rarr[i].re_flg = 0;
 	}
 
+	strcpy(rotatesuffix, "");
+	
 	/* entry section cleanup */
 	
 	for(i=0; i < CFG_ENTRY_MAX; i++, cep++)
@@ -625,6 +627,11 @@ cfg_setval(int keyword)
 				rarr[nregprog].re_flg = 1;
 
 			nregprog++;
+			break;
+
+		case ROTATESUFFIX:
+			strcpy(rotatesuffix, yylval.str);
+			DBGL(DL_RCCF, (log(LL_DBG, "system: rotatesuffix = %s", yylval.str)));
 			break;
 
 		case RTPRIO:

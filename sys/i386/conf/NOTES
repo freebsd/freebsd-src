@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.620 1999/07/26 05:47:17 cracauer Exp $
+#	$Id: LINT,v 1.621 1999/08/04 17:29:33 green Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1842,7 +1842,7 @@ options AVM_A1
 options USR_STI
 #device isic0 at isa? port 0x268 irq 5 flags 7
 #
-# ITK ix1 Micro
+# ITK ix1 Micro ( < V.3, non-PnP version )
 options ITKIX1
 #device isic0 at isa? port 0x398 irq 10 flags 18
 #
@@ -1876,6 +1876,18 @@ options DYNALINK
 # ELSA QuickStep 1000pro ISA
 options ELSA_QS1ISA
 #device	isic0 at isa? port ? irq ?
+#
+# ITK ix1 Micro ( V.3, PnP version )
+options "ITKIX1"
+#device isic0 at isa? port ? irq ?
+#
+# AVM Fritz!Card PnP
+options "AVM_PNP"  
+#device isic0 at isa? port ? irq ?
+#
+# Siemens I-Surf 2.0 
+options "SIEMENS_ISURF2"  
+#device isic0 at isa? port ? irq ?
 #
 # PCI-Cards:
 # ----------

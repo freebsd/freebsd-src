@@ -33,9 +33,9 @@
  *	i4b daemon - network monitor client
  *	-----------------------------------
  *
- *	$Id: main.c,v 1.12 1999/05/11 08:15:59 hm Exp $
+ *	$Id: main.c,v 1.14 1999/05/30 13:39:55 hm Exp $
  *
- *      last edit-date: [Tue Apr 20 14:14:26 1999]
+ *      last edit-date: [Sun May 30 15:19:47 1999]
  *
  *	-mh	created
  *	-hm	checking in
@@ -88,7 +88,7 @@ static void print_disconnect(time_t tstamp, int channel);
 static void print_updown(time_t tstamp, int channel, int isup);
 static void handle_event(BYTE *msg, int len);
 #ifdef DEBUG
-static void dump_event(BYTE *msg, int len);
+static void dump_event(BYTE *msg, int len, int readflag);
 #endif
 
 /*
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 	int portno = DEF_MONPORT;
 	int i;
 
-	while ((i = getopt(argc, argv, "dh:p:l:")) != EOF)
+	while ((i = getopt(argc, argv, "dh:p:l:")) != -1)
 	{
 		switch (i)
 		{
@@ -341,7 +341,7 @@ static void mloop()
 			}
 #ifdef DEBUG
 			if (dumpall)
-				dump_event(buf, ret);
+				dump_event(buf, ret, 1);
 #endif
 			handle_event(buf, ret);
 		}
@@ -352,17 +352,20 @@ static void mloop()
 /*
  * Dump a complete event packet.
  */
-static void dump_event(BYTE *msg, int len)
+static void dump_event(BYTE *msg, int len, int read)
 {
 	int i;
 
-	printf("event dump:");
+	if(read)
+		printf("read from socket:");
+	else
+		printf("write to socket:");
 
 	for (i = 0; i < len; i++)
 	{
 		if (i % 8 == 0)
-			printf("\n%02x: ", i);
-		printf("%02x %c  ", msg[i], isprint(msg[i]) ? msg[i] : '.');
+			printf("\n%02d: ", i);
+		printf("0x%02x %c  ", msg[i], isprint(msg[i]) ? msg[i] : '.');
 	}
 	printf("\n");
 }
@@ -477,6 +480,11 @@ static void handle_event(BYTE *msg, int len)
 			I4B_PUT_2B(cmd, I4B_MON_ICLIENT_VERMINOR, MPROT_REL);
 			I4B_PUT_4B(cmd, I4B_MON_ICLIENT_EVENTS, ~0U);
 
+#ifdef DEBUG
+			if (dumpall)
+				dump_event(cmd, sizeof cmd, 0);
+#endif
+			
 			write(monsock, cmd, sizeof cmd);
 
 			break;
@@ -621,6 +629,11 @@ static void handle_input()
 		    {
 		    	BYTE cmd[I4B_MON_DUMPRIGHTS_SIZE];
 			I4B_PREP_CMD(cmd, I4B_MON_DUMPRIGHTS_CODE);
+#ifdef DEBUG
+			if (dumpall)
+				dump_event(cmd, I4B_MON_DUMPRIGHTS_SIZE, 0);
+#endif
+
 			write(monsock, cmd, I4B_MON_DUMPRIGHTS_SIZE);
 		    }
 		    break;
@@ -629,6 +642,11 @@ static void handle_input()
 		    {
 		    	BYTE cmd[I4B_MON_DUMPMCONS_SIZE];
 			I4B_PREP_CMD(cmd, I4B_MON_DUMPMCONS_CODE);
+#ifdef DEBUG
+			if (dumpall)
+				dump_event(cmd, I4B_MON_DUMPMCONS_CODE, 0);
+#endif
+
 			write(monsock, cmd, I4B_MON_DUMPMCONS_SIZE);
 		    }
 		    break;
@@ -637,6 +655,11 @@ static void handle_input()
 		    {
 		    	BYTE cmd[I4B_MON_CFGREREAD_SIZE];
 			I4B_PREP_CMD(cmd, I4B_MON_CFGREREAD_CODE);
+#ifdef DEBUG
+			if (dumpall)
+				dump_event(cmd, I4B_MON_CFGREREAD_CODE, 0);
+#endif
+
 			write(monsock, cmd, I4B_MON_CFGREREAD_SIZE);
 		    }
 		    break;
@@ -649,6 +672,11 @@ static void handle_input()
 			fgets(buf, sizeof buf, stdin);
 			channel = atoi(buf);
 			I4B_PUT_4B(cmd, I4B_MON_HANGUP_CHANNEL, channel);
+#ifdef DEBUG
+			if (dumpall)
+				dump_event(cmd, I4B_MON_HANGUP_CHANNEL, 0);
+#endif
+
 			write(monsock, cmd, I4B_MON_HANGUP_SIZE);
 		    }
 		    break;
