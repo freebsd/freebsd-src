@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: conf.c,v 1.3 1998/09/17 23:52:15 msmith Exp $
+ *	$Id: conf.c,v 1.4 1998/09/18 02:03:30 msmith Exp $
  */
 
 #include <stand.h>
@@ -65,7 +65,7 @@ struct fs_ops *file_system[] = {
 extern struct module_format	i386_aout;
 
 struct module_format *module_formats[] = {
-/*    &i386_aout,			XXX BTX */
+    &i386_aout,
     NULL
 };
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.3 1998/09/14 18:27:05 msmith Exp $
+ *	$Id: aout_freebsd.c,v 1.4 1998/09/17 23:52:07 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -102,7 +102,7 @@ aout_exec(struct loaded_module *mp)
     argv[2] = 0;				/* old cyloffset */
     argv[3] = 0;				/* old esym */
     argv[4] = 0;				/* "new" bootinfo magic */
-    argv[5] = (u_int32_t)vtophys(&bi);
+    argv[5] = (u_int32_t)VTOP(&bi);
 
     /* find the last module in the chain */
     for (xp = mp; xp->m_next != NULL; xp = xp->m_next)
