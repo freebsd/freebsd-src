@@ -751,7 +751,6 @@ in the config file"
 #endif
 
 EXTERN	u_char	*more_chars;		/* response buffer via kbd */
-EXTERN	int	char_count;		/* response char count */
 EXTERN	u_char	color;			/* color or mono display */
 
 EXTERN	u_short	kern_attr;		/* kernel messages char attributes */
@@ -968,7 +967,6 @@ u_char bgansitopc[] = {			/* background ANSI color -> pc */
 };
 
 #if !PCVT_NETBSD
-/* XXX Crtat is shared with syscons. */
 u_short *Crtat;			/* screen start address */
 #if !(PCVT_FREEBSD > 110 && PCVT_FREEBSD < 200)
 struct tty *pcconsp =	&pccons[0];		/* ptr to current device */
