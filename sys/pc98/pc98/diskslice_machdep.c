@@ -438,14 +438,9 @@ reread_mbr:
 	 */
 	secpercyl = (u_long)max_nsectors * max_ntracks;
 	if (secpercyl != 0) {
-		u_long	secperunit;
-
 		lp->d_nsectors = max_nsectors;
 		lp->d_ntracks = max_ntracks;
 		lp->d_secpercyl = secpercyl;
-		secperunit = secpercyl * max_ncyls;
-		if (lp->d_secperunit < secperunit)
-			lp->d_secperunit = secperunit;
 		lp->d_ncylinders = lp->d_secperunit / secpercyl;
 	}
 
