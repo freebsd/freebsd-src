@@ -149,6 +149,13 @@ was negative.
 .It Bq Er EAGAIN
 The file was marked for non-blocking I/O,
 and no data were ready to be read.
+.It Bq Er EISDIR
+The file descriptor is associated with a directory residing
+on a filesystem that does not allow regular read operations on
+directories (e.g. NFS).
+.It Bq Er EOPNOTSUPP
+The file descriptor is associated with a filesystem and file type that
+do not allow regular read operations on it.
 .El
 .Pp
 In addition,
