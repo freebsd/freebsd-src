@@ -13,7 +13,7 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c decode.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog
 
-DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL}
+DPADD= ${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK}
 LDADD=  -ldialog -lncurses -lmytinfo -lutil -ldisk
 
 makedevs.c:	Makefile rtermcap
