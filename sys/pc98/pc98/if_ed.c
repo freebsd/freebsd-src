@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.11.2.3 1997/01/04 16:50:53 kato Exp $
+ *	$Id: if_ed.c,v 1.11.2.4 1997/02/05 13:27:21 kato Exp $
  */
 
 /*
@@ -109,7 +109,6 @@
 /* register offsets */
 struct pc98_edregister {
 	u_int *port;
-	u_int ioskip;
 	u_int nic_offset;
 	u_int asic_offset;
 	u_int data;
@@ -2728,8 +2727,7 @@ ed_init(xsc)
 	 */
 #ifdef PC98
 		for (i = 0; i < ETHER_ADDR_LEN; ++i)
-			outb(sc->nic_addr + ED_P1_PAR0 + i * sc->edreg.ioskip,
-				 sc->arpcom.ac_enaddr[i]);
+			outb(sc->nic_addr + ED_P1_PAR(i), sc->arpcom.ac_enaddr[i]);
 #else
 		for (i = 0; i < ETHER_ADDR_LEN; ++i)
 			outb(sc->nic_addr + ED_P1_PAR0 + i, sc->arpcom.ac_enaddr[i]);
@@ -4154,7 +4152,7 @@ ed_setrcr(sc)
 		 */
 #ifdef PC98
 			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR0 + i * sc->edreg.ioskip, 0xff);
+				outb(sc->nic_addr + ED_P1_MAR(i), 0xff);
 #else
 			for (i = 0; i < 8; i++)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, 0xff);
@@ -4184,8 +4182,7 @@ ed_setrcr(sc)
 			 */
 #ifdef PC98
 			for (i = 0; i < 8; i++)
-				outb(sc->nic_addr + ED_P1_MAR0 + i * sc->edreg.ioskip,
-					 ((u_char *) mcaf)[i]);
+				outb(sc->nic_addr + ED_P1_MAR(i), ((u_char *) mcaf)[i]);
 #else
 			for (i = 0; i < 8; i++)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, ((u_char *) mcaf)[i]);
@@ -4202,7 +4199,7 @@ ed_setrcr(sc)
 			 */
 #ifdef PC98
 			for (i = 0; i < 8; ++i)
-				outb(sc->nic_addr + ED_P1_MAR0 + i * sc->edreg.ioskip, 0x00);
+				outb(sc->nic_addr + ED_P1_MAR(i), 0x00);
 #else
 			for (i = 0; i < 8; ++i)
 				outb(sc->nic_addr + ED_P1_MAR0 + i, 0x00);

@@ -198,6 +198,8 @@ static	int pc98_set_register __P((struct isa_device *dev, int type));
 #define	ED_P1_PAR4	sc->edreg.port[0x05]
 #undef	ED_P1_PAR5
 #define	ED_P1_PAR5	sc->edreg.port[0x06]
+#undef	ED_P1_PAR
+#define	ED_P1_PAR(i)	sc->edreg.port[0x01 + i]
 #undef	ED_P1_CURR
 #define	ED_P1_CURR	sc->edreg.port[0x07]
 #undef	ED_P1_MAR0
@@ -216,6 +218,8 @@ static	int pc98_set_register __P((struct isa_device *dev, int type));
 #define	ED_P1_MAR6	sc->edreg.port[0x0e]
 #undef	ED_P1_MAR7
 #define	ED_P1_MAR7	sc->edreg.port[0x0f]
+#undef	ED_P1_MAR
+#define	ED_P1_MAR(i)	sc->edreg.port[0x08 + i]
 
 /*
  * Page 2 register offsets.
@@ -389,7 +393,6 @@ pc98_set_register(struct isa_device *dev, int type)
 	switch (type) {
 	case ED_TYPE98_GENERIC:
 		sc->edreg.port = edp_generic;
-		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0010;
 		ED_NOVELL_DATA = 0x0000;
@@ -401,7 +404,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_LGY:
 		sc->edreg.port = edp_generic;
-		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0200;
 		ED_NOVELL_DATA = 0x0000;
@@ -413,7 +415,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_EGY:
 		sc->edreg.port = edp_egy98;
-		sc->edreg.ioskip = 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0200;
 		ED_NOVELL_DATA = 0x0000;
@@ -425,7 +426,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_ICM:
 		sc->edreg.port = edp_generic;
-		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
@@ -437,7 +437,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_BDN:
 		sc->edreg.port = edp_la98;
-		sc->edreg.ioskip = 0x1000;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0;
@@ -449,7 +448,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_SIC:
 		sc->edreg.port = edp_sic98;
-		sc->edreg.ioskip = 0x200;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x2000;
 		ED_NOVELL_DATA = 0x00;			/* dummy */
@@ -461,7 +459,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_LPC:
 		sc->edreg.port = edp_generic;
-		sc->edreg.ioskip = 0x1;
 		ED_NOVELL_NIC_OFFSET = 0x0000;
 		ED_NOVELL_ASIC_OFFSET = 0x0100;
 		ED_NOVELL_DATA = 0x0000;
@@ -473,7 +470,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_108:
 		sc->edreg.port = edp_nec108;
-		sc->edreg.ioskip = 2;
 		adj = (dev->id_iobase & 0xf000) / 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = (0x888 | adj) - dev->id_iobase;
@@ -486,7 +482,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_LA98:
 		sc->edreg.port = edp_la98;
-		sc->edreg.ioskip = 0x1000;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x100;
 		ED_NOVELL_DATA = 0x0000;
@@ -498,7 +493,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_CNET98EL:
 		sc->edreg.port = edp_generic;
-		sc->edreg.ioskip = 1;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
 		ED_NOVELL_DATA = 0x000e;
@@ -509,7 +503,6 @@ pc98_set_register(struct isa_device *dev, int type)
 
 	case ED_TYPE98_CNET98:
 		sc->edreg.port = edp_cnet98;
-		sc->edreg.ioskip = 2;
 		ED_NOVELL_NIC_OFFSET = 0;
 		ED_NOVELL_ASIC_OFFSET = 0x0400;
 		ED_NOVELL_DATA = 0x0000;
