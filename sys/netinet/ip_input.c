@@ -41,6 +41,7 @@
 #include "opt_ipdn.h"
 #include "opt_ipdivert.h"
 #include "opt_ipfilter.h"
+#include "opt_ipstealth.h"
 
 #include <stddef.h>
 
