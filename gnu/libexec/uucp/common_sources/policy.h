@@ -203,7 +203,7 @@
    HAVE_SAVED_SETUID to 1, but your system does not have saved set
    user ID, uucp will fail with an error message whenever anybody
    other than the uucp user uses it.  */
-#define HAVE_SAVED_SETUID 1
+#define HAVE_SAVED_SETUID 0
 
 /* On some systems, such as 4.4BSD-Lite, NetBSD, the DG Aviion and,
    possibly, the RS/6000, the setreuid function is broken.  It should
