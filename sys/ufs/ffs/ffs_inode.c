@@ -478,11 +478,13 @@ done:
 	for (i = 0; i < NDADDR; i++)
 		if (newblks[i] != DIP(oip, i_db[i]))
 			panic("ffs_truncate2");
+	VI_LOCK(ovp);
 	if (length == 0 &&
 	    (fs->fs_magic != FS_UFS2_MAGIC || oip->i_din2->di_extsize == 0) &&
 	    (!TAILQ_EMPTY(&ovp->v_dirtyblkhd) ||
 	     !TAILQ_EMPTY(&ovp->v_cleanblkhd)))
 		panic("ffs_truncate3");
+	VI_UNLOCK(ovp);
 #endif /* DIAGNOSTIC */
 	/*
 	 * Put back the real size.

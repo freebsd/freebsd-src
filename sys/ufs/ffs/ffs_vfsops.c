@@ -411,6 +411,7 @@ ffs_reload(mp, cred, td)
 	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		vfs_object_create(devvp, td, td->td_ucred);
+		/* XXX Why lock only to release immediately?? */
 		mtx_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, td);
 	}
@@ -495,6 +496,7 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
+		/* XXX Why lock only to release immediately? */
 		mtx_lock(&vp->v_interlock);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
@@ -580,6 +582,7 @@ ffs_mountfs(devvp, mp, td, malloctype)
 	if (vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 		vfs_object_create(devvp, td, cred);
+		/* XXX Why lock only to release immediately?? */
 		mtx_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, td);
 	}
@@ -1152,11 +1155,10 @@ loop:
 	qsync(mp);
 #endif
 	devvp = ump->um_devvp;
-	mtx_lock(&devvp->v_interlock);
+	VI_LOCK(devvp);
 	if (waitfor != MNT_LAZY &&
 	    (devvp->v_numoutput > 0 || TAILQ_FIRST(&devvp->v_dirtyblkhd))) {
-		mtx_unlock(&devvp->v_interlock);
-		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
 		if ((error = VOP_FSYNC(devvp, cred, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0, td);
@@ -1165,7 +1167,7 @@ loop:
 			goto loop;
 		}
 	} else
-		mtx_unlock(&devvp->v_interlock);
+		VI_UNLOCK(devvp);
 	/*
 	 * Write back modified superblock.
 	 */
