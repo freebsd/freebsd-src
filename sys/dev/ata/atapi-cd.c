@@ -159,7 +159,7 @@ acdattach(struct ata_device *atadev)
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
 		acd_make_dev(tmpcdp);
-		devstat_add_entry(tmpcdp->stats, "acd", tmpcdp->lun, DEV_BSIZE,
+		tmpcdp->stats = devstat_new_entry("acd", tmpcdp->lun, DEV_BSIZE,
 				  DEVSTAT_NO_ORDERED_TAGS,
 				  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 				  DEVSTAT_PRIORITY_CD);
@@ -178,7 +178,7 @@ acdattach(struct ata_device *atadev)
     }
     else {
 	acd_make_dev(cdp);
-	devstat_add_entry(cdp->stats, "acd", cdp->lun, DEV_BSIZE,
+	cdp->stats = devstat_new_entry("acd", cdp->lun, DEV_BSIZE,
 			  DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
@@ -249,11 +249,6 @@ acd_init_lun(struct ata_device *atadev)
     cdp->block_size = 2048;
     cdp->slot = -1;
     cdp->changer_info = NULL;
-    if (!(cdp->stats = malloc(sizeof(struct devstat), M_ACD,
-			      M_NOWAIT | M_ZERO))) {
-	free(cdp, M_ACD);
-	return NULL;
-    }
     return cdp;
 }
 
