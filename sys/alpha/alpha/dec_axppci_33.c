@@ -42,7 +42,6 @@
 #include <machine/clock.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-#include <pci/pci_ioctl.h>
 #include <alpha/pci/lcavar.h>
 
 #include "sio.h"
