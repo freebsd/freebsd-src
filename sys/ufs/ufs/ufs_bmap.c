@@ -214,7 +214,7 @@ ufs_bmaparray(vp, bn, bnp, ap, nump, runp, runb)
 			    ++bn, ++*runp);
 			bn = xap->in_off;
 			if (runb && bn) {
-				for(--bn; bn > 0 && *runb < maxrun &&
+				for(--bn; bn >= 0 && *runb < maxrun &&
 			    		is_sequential(ump, ((daddr_t *)bp->b_data)[bn],
 					    ((daddr_t *)bp->b_data)[bn+1]);
 			    		--bn, ++*runb);
