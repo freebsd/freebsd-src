@@ -1669,7 +1669,7 @@ ndis_setstate_80211(sc)
 				ic->ic_wep_mode = IEEE80211_WEP_8021X;
 		}
 #endif
-		arg = NDIS_80211_AUTHMODE_SHARED;
+		arg = NDIS_80211_AUTHMODE_AUTO;
 	} else {
 		arg = NDIS_80211_WEPSTAT_DISABLED;
 		len = sizeof(arg);
@@ -1680,8 +1680,10 @@ ndis_setstate_80211(sc)
 	len = sizeof(arg);
 	rval = ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &len);
 
+#ifdef notyet
 	if (rval)
 		device_printf (sc->ndis_dev, "set auth failed: %d\n", rval);
+#endif
 
 	/* Set SSID. */
 
