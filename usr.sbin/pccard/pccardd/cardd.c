@@ -88,6 +88,7 @@ dump_config_file(void)
 			pr_cmd(cp->remove);
 		}
 	}
+	fflush(stdout);
 }
 
 static void
