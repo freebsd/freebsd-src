@@ -1230,12 +1230,13 @@ config_subdisk(int update)
     if (sd->sectors < 0)
 	throw_rude_remark(EINVAL, "sd %s has no length spec", sd->name);
 
-    sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_SD_TYPE),
-	UID_ROOT,
-	GID_WHEEL,
-	S_IRUSR | S_IWUSR,
-	"vinum/sd/%s",
-	sd->name);
+    if (sd->dev == NULL)
+        sd->dev = make_dev(&vinum_cdevsw, VINUMRMINOR(sdno, VINUM_SD_TYPE),
+	    UID_ROOT,
+	    GID_WHEEL,
+ 	    S_IRUSR | S_IWUSR,
+	    "vinum/sd/%s",
+	    sd->name);
     if (state != sd_unallocated)			    /* we had a specific state to set */
 	sd->state = state;				    /* do it now */
     else if (sd->state == sd_unallocated)		    /* no, nothing set yet, */
@@ -1423,14 +1424,15 @@ config_plex(int update)
     current_plex = plexno;
     plex->state = state;				    /* set whatever state we chose */
     vinum_conf.plexes_used++;				    /* one more in use */
-    plex->dev = make_dev(&vinum_cdevsw,
-	VINUMRMINOR(plexno, VINUM_PLEX_TYPE),
-	UID_ROOT,
-	GID_WHEEL,
-	S_IRUSR | S_IWUSR,
-	"vinum/plex/%s",
-	plex->name);
-}
+    if (plex->dev == NULL)
+        plex->dev = make_dev(&vinum_cdevsw,
+	    VINUMRMINOR(plexno, VINUM_PLEX_TYPE),
+	    UID_ROOT,
+	    GID_WHEEL,
+            S_IRUSR | S_IWUSR,
+            "vinum/plex/%s",
+            plex->name);
+    }
 
 /*
  * Handle a volume definition.
@@ -1558,13 +1560,14 @@ config_volume(int update)
     for (i = 0; i < vol->plexes; i++)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
     vinum_conf.volumes_used++;				    /* one more in use */
-    vol->dev = make_dev(&vinum_cdevsw,
-	VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
-	UID_ROOT,
-	GID_WHEEL,
-	S_IRUSR | S_IWUSR,
-	"vinum/%s",
-	vol->name);
+    if (vol->dev == NULL)
+        vol->dev = make_dev(&vinum_cdevsw,
+            VINUMRMINOR(volno, VINUM_VOLUME_TYPE),
+            UID_ROOT,
+            GID_WHEEL,
+            S_IRUSR | S_IWUSR,
+            "vinum/%s",
+            vol->name);
 }
 
 /*
@@ -1817,8 +1820,6 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     log(LOG_INFO, "vinum: removing %s\n", plex->name);
-    if (isstriped(plex))
-	mtx_destroy(&plex->lockmtx);
     free_plex(plexno);
     vinum_conf.plexes_used--;				    /* one less plex */
 }
