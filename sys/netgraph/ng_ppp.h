@@ -92,6 +92,19 @@ struct ng_ppp_link_config {
 	u_int32_t	bandwidth;	/* link bandwidth (in bytes/second) */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_PPP_LINK_TYPE_INFO	{				\
+	{							\
+	  { "enable",		&ng_parse_int8_type	},	\
+	  { "protocomp",	&ng_parse_int8_type	},	\
+	  { "acfcomp",		&ng_parse_int8_type	},	\
+	  { "mru",		&ng_parse_int16_type	},	\
+	  { "latency",		&ng_parse_int32_type	},	\
+	  { "bandwidth",	&ng_parse_int32_type	},	\
+	  { NULL },						\
+	}							\
+}
+
 /* Node config structure */
 struct ng_ppp_node_config {
 	u_int16_t	mrru;			/* multilink peer MRRU */
@@ -112,6 +125,28 @@ struct ng_ppp_node_config {
 			links[NG_PPP_MAX_LINKS];
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_PPP_CONFIG_TYPE_INFO(arytype)	{		\
+	{							\
+	  { "mrru",		&ng_parse_int16_type	},	\
+	  { "multilink",	&ng_parse_int8_type	},	\
+	  { "recvShortSeq",	&ng_parse_int8_type	},	\
+	  { "xmitShortSeq",	&ng_parse_int8_type	},	\
+	  { "roundRobin",	&ng_parse_int8_type	},	\
+	  { "ip",		&ng_parse_int8_type	},	\
+	  { "appletalk",	&ng_parse_int8_type	},	\
+	  { "ipx",		&ng_parse_int8_type	},	\
+	  { "comp",		&ng_parse_int8_type	},	\
+	  { "decomp",		&ng_parse_int8_type	},	\
+	  { "encryption",	&ng_parse_int8_type	},	\
+	  { "decryption",	&ng_parse_int8_type	},	\
+	  { "vjcomp",		&ng_parse_int8_type	},	\
+	  { "vjdecomp",		&ng_parse_int8_type	},	\
+	  { "links",		(arytype)		},	\
+	  { NULL },						\
+	}							\
+}
+
 /* Statistics struct for a link (or the bundle if NG_PPP_BUNDLE_LINKNUM) */
 struct ng_ppp_link_stat {
 	u_int32_t xmitFrames;		/* xmit frames on link */
@@ -121,5 +156,18 @@ struct ng_ppp_link_stat {
 	u_int32_t badProtos;		/* frames rec'd with bogus protocol */
 	u_int32_t dupFragments;		/* MP frames with duplicate seq # */
 };
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPP_STATS_TYPE_INFO	{				\
+	{							\
+	  { "xmitFrames",	&ng_parse_int32_type	},	\
+	  { "xmitOctets",	&ng_parse_int32_type	},	\
+	  { "recvFrames",	&ng_parse_int32_type	},	\
+	  { "recvOctets",	&ng_parse_int32_type	},	\
+	  { "badProtos",	&ng_parse_int32_type	},	\
+	  { "dupFragments",	&ng_parse_int32_type	},	\
+	  { NULL },						\
+	}							\
+}
 
 #endif /* _NETGRAPH_PPP_H_ */

@@ -133,7 +133,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ngs_rcvdata,
 	ngs_rcvdata,
-	ngs_disconnect
+	ngs_disconnect,
+	NULL
 };
 NETGRAPH_INIT(socket, &typestruct);
 

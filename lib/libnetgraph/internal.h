@@ -61,7 +61,7 @@ extern void	(*_NgLogx)(const char *fmt, ...);
 #define NGLOG	(*_NgLog)
 #define NGLOGX	(*_NgLogx)
 
-extern void	_NgDebugSockaddr(struct sockaddr_ng *sg);
-extern void	_NgDebugMsg(struct ng_mesg *msg);
+extern void	_NgDebugSockaddr(const struct sockaddr_ng *sg);
+extern void	_NgDebugMsg(const struct ng_mesg *msg, const char *path);
 extern void	_NgDebugBytes(const u_char *ptr, int size);
 

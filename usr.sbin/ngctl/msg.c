@@ -1,8 +1,8 @@
 
 /*
- * connect.c
+ * msg.c
  *
- * Copyright (c) 1996-1999 Whistle Communications, Inc.
+ * Copyright (c) 1999 Whistle Communications, Inc.
  * All rights reserved.
  * 
  * Subject to the following obligations and disclaimer of warranty, use and
@@ -34,53 +34,55 @@
  * THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
  * OF SUCH DAMAGE.
  *
+ * $Whistle: msg.c,v 1.2 1999/11/29 23:38:35 archie Exp $
  * $FreeBSD$
  */
 
 #include "ngctl.h"
 
-static int ConnectCmd(int ac, char **av);
+#define BUF_SIZE	1024
 
-const struct ngcmd connect_cmd = {
-	ConnectCmd,
-	"connect [path] <relpath> <hook> <peerhook>",
-	"Connects hook <peerhook> of the node at <relpath> to <hook>",
-	"The connect command creates a link between the two nodes at"
-	" \"path\" and \"relpath\" using hooks \"hook\" and \"peerhook\","
-	" respectively. The \"relpath\", if not absolute, is specified"
-	" relative to the node at \"path\"."
-	" If \"path\" is omitted then \".\" is assumed.",
-	{ "join" }
+static int MsgCmd(int ac, char **av);
+
+const struct ngcmd msg_cmd = {
+	MsgCmd,
+	"msg path command [args ... ]",
+	"Send a netgraph control message to the node at \"path\"",
+	"The msg command constructs a netgraph control message from the"
+	" command name and ASCII arguments (if any) and sends that message"
+	" to the node.  It does this by first asking the node to convert"
+	" the ASCII message into binary format, and resending the result."
+	" The typecookie used for the message is assumed to be the typecookie"
+	" corresponding to the target node's type.",
+	{ "cmd" }
 };
 
 static int
-ConnectCmd(int ac, char **av)
+MsgCmd(int ac, char **av)
 {
-	struct ngm_connect con;
-	char *path = ".";
+	char buf[BUF_SIZE];
+	char *path, *cmdstr;
+	int i;
 
 	/* Get arguments */
-	switch (ac) {
-	case 5:
-		path = av[1];
-		ac--;
-		av++;
-		/* FALLTHROUGH */
-	case 4:
-		snprintf(con.path, sizeof(con.path), "%s", av[1]);
-		snprintf(con.ourhook, sizeof(con.ourhook), "%s", av[2]);
-		snprintf(con.peerhook, sizeof(con.peerhook), "%s", av[3]);
-		break;
-	default:
+	if (ac < 3)
 		return(CMDRTN_USAGE);
+	path = av[1];
+	cmdstr = av[2];
+
+	/* Put command and arguments back together as one string */
+	for (*buf = '\0', i = 3; i < ac; i++) {
+		snprintf(buf + strlen(buf),
+		    sizeof(buf) - strlen(buf), " %s", av[i]);
 	}
 
-	/* Send message */
-	if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
-	    NGM_CONNECT, &con, sizeof(con)) < 0) {
+	/* Send it */
+	if (NgSendAsciiMsg(csock, path, "%s%s", cmdstr, buf) < 0) {
 		warn("send msg");
 		return(CMDRTN_ERROR);
 	}
+
+	/* Done */
 	return(CMDRTN_OK);
 }
 

@@ -61,6 +61,7 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_async.h>
+#include <netgraph/ng_parse.h>
 
 #include <net/ppp_defs.h>
 
@@ -91,7 +92,7 @@ typedef struct ng_async_private *sc_p;
 #define ERROUT(x)		do { error = (x); goto done; } while (0)
 
 /* Netgraph methods */
-static ng_constructor_t	nga_constructor;
+static ng_constructor_t		nga_constructor;
 static ng_rcvdata_t		nga_rcvdata;
 static ng_rcvmsg_t		nga_rcvmsg;
 static ng_shutdown_t		nga_shutdown;
@@ -101,6 +102,55 @@ static ng_disconnect_t		nga_disconnect;
 /* Helper stuff */
 static int	nga_rcv_sync(const sc_p sc, struct mbuf *m, meta_p meta);
 static int	nga_rcv_async(const sc_p sc, struct mbuf *m, meta_p meta);
+
+/* Parse type for struct ng_async_cfg */
+static const struct ng_parse_struct_info
+	nga_config_type_info = NG_ASYNC_CONFIG_TYPE_INFO;
+static const struct ng_parse_type nga_config_type = {
+	&ng_parse_struct_type,
+	&nga_config_type_info
+};
+
+/* Parse type for struct ng_async_stat */
+static const struct ng_parse_struct_info
+	nga_stats_type_info = NG_ASYNC_STATS_TYPE_INFO;
+static const struct ng_parse_type nga_stats_type = {
+	&ng_parse_struct_type,
+	&nga_stats_type_info,
+};
+
+/* List of commands and how to convert arguments to/from ASCII */
+static const struct ng_cmdlist nga_cmdlist[] = {
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_SET_CONFIG,
+	  "setconfig",
+	  &nga_config_type,
+	  NULL
+	},
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_GET_CONFIG,
+	  "getconfig",
+	  NULL,
+	  &nga_config_type
+	},
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_GET_STATS,
+	  "getstats",
+	  NULL,
+	  &nga_stats_type
+	},
+	{
+	  NGM_ASYNC_COOKIE,
+	  NGM_ASYNC_CMD_CLR_STATS,
+	  "clrstats",
+	  &nga_stats_type,
+	  NULL
+	},
+	{ 0 }
+};
 
 /* Define the netgraph node type */
 static struct ng_type typestruct = {
@@ -115,7 +165,8 @@ static struct ng_type typestruct = {
 	NULL,
 	nga_rcvdata,
 	nga_rcvdata,
-	nga_disconnect
+	nga_disconnect,
+	nga_cmdlist
 };
 NETGRAPH_INIT(async, &typestruct);
 

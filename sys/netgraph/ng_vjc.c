@@ -112,7 +112,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_vjc_rcvdata,
 	ng_vjc_rcvdata,
-	ng_vjc_disconnect
+	ng_vjc_disconnect,
+	NULL
 };
 NETGRAPH_INIT(vjc, &typestruct);
 

@@ -65,9 +65,32 @@ struct ng_mesg {
 	} header;
 	char	data[0];		/* placeholder for actual data */
 };
-#define NG_VERSION 1
+
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_NG_MESG_INFO(dtype)	{			\
+	{							\
+	  { "version",		&ng_parse_int8_type	},	\
+	  { "spare",		&ng_parse_int8_type	},	\
+	  { "arglen",		&ng_parse_int16_type	},	\
+	  { "flags",		&ng_parse_int32_type	},	\
+	  { "token",		&ng_parse_int32_type	},	\
+	  { "typecookie",	&ng_parse_int32_type	},	\
+	  { "cmd",		&ng_parse_int32_type	},	\
+	  { "cmdstr",		&ng_parse_cmdbuf_type	},	\
+	  { "data",		(dtype)			},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Negraph type binary compatibility field */
+#define NG_VERSION	2
+
+/* Flags field flags */
 #define NGF_ORIG	0x0000		/* the msg is the original request */
 #define NGF_RESP	0x0001		/* the message is a response */
+
+/* Type of a unique node ID */
+#define ng_ID_t unsigned int
 
 /*
  * Here we describe the "generic" messages that all nodes inherently
@@ -76,46 +99,84 @@ struct ng_mesg {
  */
 
 /* Generic message type cookie */
-#define NGM_GENERIC_COOKIE 851672668
+#define NGM_GENERIC_COOKIE	851672668
 
 /* Generic messages defined for this type cookie */
-#define	NGM_SHUTDOWN	0x0001 	/* no args */
-#define NGM_MKPEER	0x0002
-#define NGM_CONNECT	0x0003
-#define NGM_NAME	0x0004
-#define NGM_RMHOOK	0x0005
-#define	NGM_NODEINFO	0x0006	/* get nodeinfo for the target */
-#define	NGM_LISTHOOKS	0x0007	/* get nodeinfo for the target + hook info */
-#define	NGM_LISTNAMES	0x0008	/* list all globally named nodes */
-#define	NGM_LISTNODES	0x0009	/* list all nodes, named and unnamed */
-#define	NGM_LISTTYPES	0x000a	/* list all installed node types */
-#define	NGM_TEXT_STATUS	0x000b	/* (optional) returns human readable status */
+#define	NGM_SHUTDOWN		1	/* shut down node */
+#define NGM_MKPEER		2	/* create and attach a peer node */
+#define NGM_CONNECT		3	/* connect two nodes */
+#define NGM_NAME		4	/* give a node a name */
+#define NGM_RMHOOK		5	/* break a connection btw. two nodes */
+#define	NGM_NODEINFO		6	/* get nodeinfo for the target */
+#define	NGM_LISTHOOKS		7	/* get list of hooks on node */
+#define	NGM_LISTNAMES		8	/* list all globally named nodes */
+#define	NGM_LISTNODES		9	/* list all nodes, named and unnamed */
+#define	NGM_LISTTYPES		10	/* list all installed node types */
+#define	NGM_TEXT_STATUS		11	/* (optional) get text status report */
+#define	NGM_BINARY2ASCII	12	/* convert struct ng_mesg to ascii */
+#define	NGM_ASCII2BINARY	13	/* convert ascii to struct ng_mesg */
 
-/*
- * Args sections for generic NG commands. All strings are NUL-terminated.
- */
+/* Structure used for NGM_MKPEER */
 struct ngm_mkpeer {
 	char	type[NG_TYPELEN + 1];			/* peer type */
 	char	ourhook[NG_HOOKLEN + 1];		/* hook name */
 	char	peerhook[NG_HOOKLEN + 1];		/* peer hook name */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_MKPEER_INFO()	{			\
+	{							\
+	  { "type",		&ng_parse_typebuf_type	},	\
+	  { "ourhook",		&ng_parse_hookbuf_type	},	\
+	  { "peerhook",		&ng_parse_hookbuf_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_CONNECT */
 struct ngm_connect {
 	char	path[NG_PATHLEN + 1];			/* peer path */
 	char	ourhook[NG_HOOKLEN + 1];		/* hook name */
 	char	peerhook[NG_HOOKLEN + 1];		/* peer hook name */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_CONNECT_INFO()	{			\
+	{							\
+	  { "path",		&ng_parse_pathbuf_type	},	\
+	  { "ourhook",		&ng_parse_hookbuf_type	},	\
+	  { "peerhook",		&ng_parse_hookbuf_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_NAME */
 struct ngm_name {
 	char	name[NG_NODELEN + 1];			/* node name */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_NAME_INFO()	{				\
+	{							\
+	  { "name",		&ng_parse_nodebuf_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_RMHOOK */
 struct ngm_rmhook {
 	char	ourhook[NG_HOOKLEN + 1];		/* hook name */
 };
 
-#define ng_ID_t unsigned int
-/* Structures used in response to NGM_NODEINFO and NGM_LISTHOOKS */
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_RMHOOK_INFO()	{			\
+	{							\
+	  { "hook",		&ng_parse_hookbuf_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_NODEINFO */
 struct nodeinfo {
 	char		name[NG_NODELEN + 1];	/* node name (if any) */
         char    	type[NG_TYPELEN + 1];   /* peer type */
@@ -123,33 +184,91 @@ struct nodeinfo {
 	u_int32_t	hooks;			/* number of active hooks */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_NODEINFO_INFO()	{			\
+	{							\
+	  { "name",		&ng_parse_nodebuf_type	},	\
+	  { "type",		&ng_parse_typebuf_type	},	\
+	  { "id",		&ng_parse_int32_type	},	\
+	  { "hooks",		&ng_parse_int32_type	},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_LISTHOOKS */
 struct linkinfo {
 	char		ourhook[NG_HOOKLEN + 1];	/* hook name */
 	char		peerhook[NG_HOOKLEN + 1];	/* peer hook */
 	struct nodeinfo	nodeinfo;
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_LINKINFO_INFO(nitype)	{		\
+	{							\
+	  { "ourhook",		&ng_parse_hookbuf_type	},	\
+	  { "peerhook",		&ng_parse_hookbuf_type	},	\
+	  { "nodeinfo",		(nitype)		},	\
+	  { NULL },						\
+	}							\
+}
+
 struct hooklist {
 	struct nodeinfo nodeinfo;		/* node information */
 	struct linkinfo link[0];		/* info about each hook */
 };
 
-/* Structure used for NGM_LISTNAMES/NGM_LISTNODES (not node specific) */
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_HOOKLIST_INFO(nitype,litype)	{		\
+	{							\
+	  { "nodeinfo",		(nitype)		},	\
+	  { "linkinfo",		(litype)		},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_LISTNAMES/NGM_LISTNODES */
 struct namelist {
 	u_int32_t	numnames;
 	struct nodeinfo	nodeinfo[0];
 };
 
-/* Structures used for NGM_LISTTYPES (not node specific) */
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_LISTNODES_INFO(niarraytype)	{		\
+	{							\
+	  { "numnames",		&ng_parse_int32_type	},	\
+	  { "nodeinfo",		(niarraytype)		},	\
+	  { NULL },						\
+	}							\
+}
+
+/* Structure used for NGM_LISTTYPES */
 struct typeinfo {
 	char		typename[NG_TYPELEN + 1];	/* name of type */
 	u_int32_t	numnodes;			/* number alive */
 };
 
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_TYPEINFO_INFO()		{		\
+	{							\
+	  { "typename",		&ng_parse_typebuf_type	},	\
+	  { "typeinfo",		&ng_parse_int32_type	},	\
+	  { NULL },						\
+	}							\
+}
+
 struct typelist {
 	u_int32_t	numtypes;
 	struct typeinfo	typeinfo[0];
 };
+
+/* Keep this in sync with the above structure definition */
+#define NG_GENERIC_TYPELIST_INFO(tiarraytype)	{		\
+	{							\
+	  { "numtypes",		&ng_parse_int32_type	},	\
+	  { "typeinfo",		(tiarraytype)		},	\
+	  { NULL },						\
+	}							\
+}
 
 /*
  * For netgraph nodes that are somehow associated with file descriptors
