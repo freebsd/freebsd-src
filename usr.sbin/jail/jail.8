@@ -233,7 +233,7 @@ script from within the jail.
 .Pp
 NOTE: If you plan to allow untrusted users to have root access inside the
 jail, you may wish to consider setting the
-.Va kern.security.jail.set_hostname_allowed
+.Va security.jail.set_hostname_allowed
 to 0.
 Please see the management reasons why this is a good idea.
 If you do decide to set this variable,
@@ -311,14 +311,14 @@ default, modified from within the jail, so the
 status entry is unreliable by default.
 To disable the setting of the hostname
 from within a jail, set the
-.Va kern.security.jail.set_hostname_allowed
+.Va security.jail.set_hostname_allowed
 sysctl variable in the host environment to 0, which will affect all jails.
 You can have this sysctl set on each boot using
 .Xr sysctl.conf 5 .
 Just add the following line to
 .Pa /etc/sysctl.conf :
 .Pp
-.Dl kern.security.jail.set_hostname_allowed=0
+.Dl security.jail.set_hostname_allowed=0
 .Pp
 In a future version of
 .Fx ,
@@ -332,7 +332,7 @@ MIB variables.
 Currently, these variables affect all jails on the system, although in
 the future this functionality may be finer grained.
 .Bl -tag -width XXX
-.It Va kern.security.jail.set_hostname_allowed
+.It Va security.jail.set_hostname_allowed
 This MIB entry determines whether or not processes within a jail are
 allowed to change their hostname via
 .Xr hostname 1
@@ -344,7 +344,7 @@ information in
 .Pa /proc .
 As such, this should be disabled in environments where privileged access to
 jails is given out to untrusted parties.
-.It Va kern.security.jail.socket_unixiproute_only
+.It Va security.jail.socket_unixiproute_only
 The jail functionality binds an IPv4 address to each jail, and limits
 access to other network addresses in the IPv4 space that may be available
 in the host environment.
@@ -361,7 +361,7 @@ domain sockets,
 IPv4 addresses, and routing sockets.
 To enable access to other domains, this MIB variable may be set to
 0.
-.It Va kern.security.jail.sysvipc_allowed
+.It Va security.jail.sysvipc_allowed
 This MIB entry determines whether or not processes within a jail have access
 to System V IPC primitives.
 In the current jail implementation, System V primitives share a single

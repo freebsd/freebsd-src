@@ -61,9 +61,9 @@
 
 static int	capabilities_enabled = 0;
 
-SYSCTL_NODE(_kern_security, OID_AUTO, capabilities, CTLFLAG_RW, 0,
+SYSCTL_NODE(_security, OID_AUTO, capabilities, CTLFLAG_RW, 0,
     "POSIX.1e Capabilities");
-SYSCTL_INT(_kern_security_capabilities, OID_AUTO, enabled, CTLFLAG_RW,
+SYSCTL_INT(_security_capabilities, OID_AUTO, enabled, CTLFLAG_RW,
     &capabilities_enabled, 0, "POSIX.1e Capabilities enabled");
 #endif
 
