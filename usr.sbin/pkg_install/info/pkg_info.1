@@ -1,0 +1,78 @@
+.\"
+.\" FreeBSD install - a package for the installation and maintainance
+.\" of non-core utilities.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" Jordan K. Hubbard
+.\"
+.\"
+.\"     @(#)pkg_info.1
+.\"
+.TH pkg_info 1 "July 18, 1993" "" "FreeBSD"
+
+.SH NAME
+pkg_info - a utility for getting information on software package distributions.
+.SH SYNOPSIS
+.na
+.B pkg_info
+.RB [options]
+.RB "pkg-file|pkg-name\ [.. pkg-file|pkg-name]"
+
+.SH DESCRIPTION
+The
+.B pkg_info
+command is used to dump out information for packages, either packed up in
+files or already installed on the system
+with the
+.B pkg_create
+command.
+
+.SH OPTIONS
+.TP
+The following command line options are supported.
+.TP
+.B \-a
+Show all currently installed packages.
+.TP
+.B \-v
+Turns on verbose output.
+.TP
+.B \-p
+Show the installation prefix for each package.
+.TP
+.B \-c
+Show the comment (one liner) field for each package.
+.TP
+.B \-d
+Show the long description field for each package.
+.TP
+.B \-i
+Show the install script (if any) for each package.
+.TP
+.B \-k
+Show the de-install script (if any) for each package.
+.TP
+.B \-r
+Show the requirements script (if any) for each package.
+.PP
+.SH "TECHNICAL DETAILS"
+Package info is either extracted from files supplied on the
+command line, or from already installed package information
+in /var/db/pkg/<pkg-name>.
+.SH BUGS
+Sure to be some.
+.SH "SEE ALSO"
+.BR pkg_add "(" 1 "),"
+.BR pkg_create "(" 1 "),"
+.BR pkg_delete "(" 1 "),"
+.SH AUTHORS
+Jordan Hubbard
+

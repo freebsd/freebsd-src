@@ -1,0 +1,125 @@
+.\"
+.\" FreeBSD install - a package for the installation and maintainance
+.\" of non-core utilities.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" Jordan K. Hubbard
+.\"
+.\"
+.\"     @(#)pkg_add.1
+.\"
+.TH pkg_add 1 "July 18, 1993" "" "FreeBSD"
+
+.SH NAME
+pkg_add - a utility for installing software package distributions.
+.SH SYNOPSIS
+.na
+.B pkg_add
+.RB [options]
+.RB "pkg-name\ [.. pkg-name]"
+
+.SH DESCRIPTION
+The
+.B pkg_add
+command is used to extract packages that have been previously created
+with the
+.B pkg_create
+command.
+
+.SH OPTIONS
+.TP
+The following command line options are supported.
+.TP
+.B \-v
+Turns on verbose output.
+.B "Optional."
+.TP
+.B \-I
+If an installation script exists for a given package, do not execute it.
+.B "Optional."
+.TP
+.B \-n
+Don't actually install a package, just report the steps that
+would be taken if it was.
+.B "Optional."
+.TP
+.B \-R
+Do not record the installation of a package.  This means
+that you cannot deinstall it later, so only use this option if
+you know what you are doing!
+.B "Optional."
+.TP
+.BI "\-p\ " prefix
+Sets
+.I prefix
+as the directory in which to extract files from any packages
+which do not explicitly set theirs.
+.B "Optional."
+.PP
+.SH "TECHNICAL DETAILS"
+.B
+pkg_add
+is fairly simple.  It simply extracts the requested packages into
+the current working directory and then performs the following steps:
+.PP
+If the package contains a
+.B require
+file (see 
+.B pkg_create
+), then this is executed first with the flag
+.b INSTALL
+to see whether or not installation should
+continue (a non-zero exit status means no).  
+.PP
+If an
+.B install
+script exists for the package, it is then executed as follows:
+.PP
+First, before installing files in the data set, the
+.B install
+script is called with the flags
+.PP
+.B <script>
+.I pkg-name PRE-INSTALL
+.PP
+Where
+.I pkg-name
+is the name of the package in question and
+.I PRE-INSTALL
+is a keyword denoting that this is the "pre installation" pass.
+Files are then copied from the packing list into their new homes, as expected,
+and the
+.B install
+script is then executed a second time with the flags
+.PP
+.B <script>
+.I pkg-name POST-INSTALL
+.PP
+This all allows you to write an
+.B install
+script that does "before and after" actions.
+.PP
+After installation is complete, a copy of the packing list, in addition
+to any
+.B deinstall
+script the package might have, is copied into /var/pkg/<pkg-name>
+for subsequent possible use by
+.B pkg-delete.
+.PP
+.SH BUGS
+Sure to be some.
+.SH "SEE ALSO"
+.BR pkg_create "(" 1 "),"
+.BR pkg_info "(" 1 "),"
+.BR pkg_delete "(" 1 "),"
+.SH AUTHORS
+Jordan Hubbard
+

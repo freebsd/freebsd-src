@@ -1,0 +1,270 @@
+#ifndef lint
+static const char *rcsid = "$Id: plist.c,v 1.5 1993/08/26 08:13:49 jkh Exp $";
+#endif
+
+/*
+ * FreeBSD install - a package for the installation and maintainance
+ * of non-core utilities.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * Jordan K. Hubbard
+ * 18 July 1993
+ *
+ * General packing list routines.
+ *
+ */
+
+#include "lib.h"
+
+/* Add an item to a packing list */
+void
+add_plist(Package *p, int type, char *arg)
+{
+    PackingList tmp;
+
+    tmp = new_plist_entry();
+    tmp->name = copy_string(arg);
+    tmp->type = type;
+
+    if (!p->head)
+	p->head = p->tail = tmp;
+    else {
+	tmp->prev = p->tail;
+	p->tail->next = tmp;
+	p->tail = tmp;
+    }
+}
+
+/* Return the last (most recent) entry in a packing list */
+PackingList
+last_plist(Package *p)
+{
+    return p->tail;
+}
+
+/* Mark all items in a packing list to prevent iteration over them */
+void
+mark_plist(Package *pkg)
+{
+    PackingList p = pkg->head;
+
+    while (p) {
+	p->marked = TRUE;
+	p = p->next;
+    }
+}
+
+/* Allocate a new packing list entry */
+PackingList
+new_plist_entry(void)
+{
+    PackingList ret;
+
+    ret = (PackingList)malloc(sizeof(struct _plist));
+    bzero(ret, sizeof(struct _plist));
+    return ret;
+}
+
+/* Free an entire packing list */
+void
+free_plist(Package *pkg)
+{
+    PackingList p = pkg->head;
+
+    while (p) {
+	PackingList p1 = p->next;
+
+	free(p->name);
+	free(p);
+	p = p1;
+    }
+    pkg->head = pkg->tail = NULL;
+}
+
+/*
+ * For an ascii string denoting a plist command, return its code and
+ * optionally its argument(s)
+ */
+int
+plist_cmd(char *s, char **arg)
+{
+    char cmd[FILENAME_MAX + 20];	/* 20 == fudge for max cmd len */
+    char *cp, *sp;
+
+    strcpy(cmd, s);
+    str_lowercase(cmd);
+    cp = cmd;
+    sp = s;
+    while (*cp) {
+	if (isspace(*cp)) {
+	    *cp = '\0';
+	    while (isspace(*sp)) /* Never sure if macro, increment later */
+		++sp;
+	    break;
+	}
+	++cp, ++sp;
+    }
+    if (arg)
+	*arg = sp;
+    if (!strcmp(cmd, "cwd"))
+	return PLIST_CWD;
+    else if (!strcmp(cmd, "exec"))
+	return PLIST_CMD;
+    else if (!strcmp(cmd, "mode"))
+	return PLIST_CHMOD;
+    else if (!strcmp(cmd, "owner"))
+	return PLIST_CHOWN;
+    else if (!strcmp(cmd, "group"))
+	return PLIST_CHGRP;
+    else if (!strcmp(cmd, "comment"))
+	return PLIST_COMMENT;
+    else if (!strcmp(cmd, "ignore"))
+	return PLIST_IGNORE;
+    else if (!strcmp(cmd, "name"))
+	return PLIST_NAME;
+    else
+	return FAIL;
+}
+
+/* Read a packing list from a file */
+void
+read_plist(Package *pkg, FILE *fp)
+{
+    char *cp, pline[FILENAME_MAX];
+    int cmd;
+
+    while (fgets(pline, FILENAME_MAX, fp)) {
+	int len = strlen(pline) - 1;
+
+	while (isspace(pline[len]))
+	    pline[len--] = '\0';
+	if (!len)
+	    continue;
+	cp = pline;
+	if (pline[0] == CMD_CHAR) {
+	    cmd = plist_cmd(pline + 1, &cp);
+	    if (cmd == FAIL)
+		barf("Bad command '%s'", pline);
+	}
+	else
+	    cmd = PLIST_FILE; 
+	add_plist(pkg, cmd, cp);
+    }
+}
+
+/* Write a packing list to a file, converting commands to ascii equivs */
+void
+write_plist(Package *pkg, FILE *fp)
+{
+    PackingList plist = pkg->head;
+
+    while (plist) {
+	switch(plist->type) {
+	case PLIST_FILE:
+	    fprintf(fp, "%s\n", plist->name);
+	    break;
+
+	case PLIST_CWD:
+	    fprintf(fp, "%ccwd %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_CMD:
+	    fprintf(fp, "%cexec %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_CHMOD:
+	    fprintf(fp, "%cchmod %s\n", CMD_CHAR,
+		    plist->name ? plist->name : "");
+	    break;
+
+	case PLIST_CHOWN:
+	    fprintf(fp, "%cchown %s\n", CMD_CHAR,
+		    plist->name ? plist->name : "");
+	    break;
+
+	case PLIST_CHGRP:
+	    fprintf(fp, "%cchgrp %s\n", CMD_CHAR,
+		    plist->name ? plist->name : "");
+	    break;
+
+	case PLIST_COMMENT:
+	    fprintf(fp, "%ccomment %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	case PLIST_IGNORE:
+	    fprintf(fp, "%cignore\n", CMD_CHAR);
+	    break;
+
+	case PLIST_NAME:
+	    fprintf(fp, "%cname %s\n", CMD_CHAR, plist->name);
+	    break;
+
+	default:
+	    barf("Unknown command type %d (%s)\n", plist->type, plist->name);
+	    break;
+	}
+	plist = plist->next;
+    }
+}
+
+/* Delete the results of a package installation, not the packaging itself */
+void
+delete_package(Boolean ign_err, Package *pkg)
+{
+    PackingList p = pkg->head;
+    char *Where = ".";
+
+    while (p) {
+	if (p->type == PLIST_CWD) {
+	    Where = p->name;
+	    if (Verbose)
+		printf("Delete: (CWD to %s)\n", Where);
+	}
+	else if (p->type == PLIST_IGNORE)
+	    p = p->next;
+	else if (p->type == PLIST_FILE) {
+	    char full_name[FILENAME_MAX];
+
+	    sprintf(full_name, "%s/%s", Where, p->name);
+	    if (Verbose)
+		printf("Delete: %s\n", full_name);
+	    
+	    if (!Fake && delete_hierarchy(full_name, ign_err))
+		whinge("Unable to completely remove file '%s'", full_name);
+	}
+	p = p->next;
+    }
+}
+
+/* Selectively delete a hierarchy */
+int
+delete_hierarchy(char *dir, Boolean ign_err)
+{
+    char *cp1, *cp2;
+    
+    cp1 = cp2 = dir;
+    if (vsystem("%s -r%s %s", REMOVE_CMD, (ign_err ? "f" : ""), dir))
+	return 1;
+    while (cp2) {
+	if ((cp2 = rindex(cp1, '/')) != NULL)
+	    *cp2 = '\0';
+	if (!isempty(dir))
+	    return 0;
+	if (vsystem("%s %s", RMDIR_CMD, dir) && ign_err)
+	    return 1;
+	/* Put it back */
+	if (cp2) {
+	    *cp2 = '/';
+	    cp1 = cp2 - 1;
+	}
+    }
+    return 0;
+}
