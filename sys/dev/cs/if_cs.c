@@ -166,14 +166,14 @@ control_dc_dc(struct cs_softc *sc, int on_not_off)
 static int
 cs_duplex_auto(struct cs_softc *sc)
 {
-        int i, error=0, unit=sc->arpcom.ac_if.if_unit;
+        int i, error=0;
         
 	cs_writereg(sc, PP_AutoNegCTL,
 	    RE_NEG_NOW | ALLOW_FDX | AUTO_NEG_ENABLE);
         for (i=0; cs_readreg(sc, PP_AutoNegST) & AUTO_NEG_BUSY; i++) {
                 if (i > 40000) {
-                        printf(CS_NAME"%1d: full/half duplex "
-                               "auto negotiation timeout\n", unit);
+                        if_printf(&sc->arpcom.ac_if,
+                        	"full/half duplex auto negotiation timeout\n");
 			error = ETIMEDOUT;
                         break;
                 }
@@ -186,14 +186,13 @@ cs_duplex_auto(struct cs_softc *sc)
 static int
 enable_tp(struct cs_softc *sc)
 {
-	int unit = sc->arpcom.ac_if.if_unit;
 
 	cs_writereg(sc, PP_LineCTL, sc->line_ctl & ~AUI_ONLY);
 	control_dc_dc(sc, 0);
 	DELAY( 150000 );
 
 	if ((cs_readreg(sc, PP_LineST) & LINK_OK)==0) {
-		printf(CS_NAME"%1d: failed to enable TP\n", unit);
+		if_printf(&sc->arpcom.ac_if, "failed to enable TP\n");
                 return EINVAL;
 	}
 
@@ -255,14 +254,13 @@ send_test_pkt(struct cs_softc *sc)
 static int
 enable_aui(struct cs_softc *sc)
 {
-	int unit = sc->arpcom.ac_if.if_unit;
 
 	control_dc_dc(sc, 0);
 	cs_writereg(sc, PP_LineCTL,
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
-		printf(CS_NAME"%1d failed to enable AUI\n", unit);
+		if_printf(&sc->arpcom.ac_if, "failed to enable AUI\n");
 		return EINVAL;
         }
         return 0;
@@ -274,14 +272,13 @@ enable_aui(struct cs_softc *sc)
 static int
 enable_bnc(struct cs_softc *sc)
 {
-	int unit = sc->arpcom.ac_if.if_unit;
 
 	control_dc_dc(sc, 1);
 	cs_writereg(sc, PP_LineCTL,
 	    (sc->line_ctl & ~AUTO_AUI_10BASET) | AUI_ONLY);
 
 	if (!send_test_pkt(sc)) {
-		printf(CS_NAME"%1d failed to enable BNC\n", unit);
+		if_printf(&sc->arpcom.ac_if, "failed to enable BNC\n");
 		return EINVAL;
         }
         return 0;
@@ -465,7 +462,7 @@ cs_cs89x0_probe(device_t dev)
         if (drq>0)
 		cs_writereg(sc, pp_isadma, drq);
 	else {
-		printf( CS_NAME"%1d: incorrect drq\n", unit );
+		device_printf(dev, "incorrect drq\n",);
 		return 0;
 	}
         */
@@ -621,8 +618,7 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 
 		sc->buffer=malloc(ETHER_MAX_LEN-ETHER_CRC_LEN,M_DEVBUF,M_NOWAIT);
 		if (sc->buffer == NULL) {
-                        printf(CS_NAME"%d: Couldn't allocate memory for NIC\n",
-                               unit);
+                        if_printf(ifp, "Couldn't allocate memory for NIC\n");
                         return(0);
 		}
 
@@ -656,7 +652,7 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
                 case A_CNF_MEDIA_10B_T: media = IFM_ETHER|IFM_10_T; break;
                 case A_CNF_MEDIA_10B_2: media = IFM_ETHER|IFM_10_2; break;
                 case A_CNF_MEDIA_AUI:   media = IFM_ETHER|IFM_10_5; break;
-                default: printf(CS_NAME"%d: adapter has no media\n", unit);
+                default: if_printf(ifp, "adapter has no media\n");
                 }
                 ifmedia_set(&sc->media, media);
 		cs_mediaset(sc, media);
@@ -665,8 +661,8 @@ cs_attach(struct cs_softc *sc, int unit, int flags)
 	}
 
 	if (bootverbose)
-		printf(CS_NAME"%d: ethernet address %6D\n",
-		       ifp->if_unit, sc->arpcom.ac_enaddr, ":");
+		if_printf(ifp, "ethernet address %6D\n",
+		       sc->arpcom.ac_enaddr, ":");
 
 	return (0);
 }
@@ -773,13 +769,13 @@ cs_get_packet(struct cs_softc *sc)
 	length = cs_inw(sc, RX_FRAME_PORT);
 
 #ifdef CS_DEBUG
-	printf(CS_NAME"%1d: rcvd: stat %x, len %d\n",
-		ifp->if_unit, status, length);
+	if_printf(ifp, "rcvd: stat %x, len %d\n",
+		status, length);
 #endif
 
 	if (!(status & RX_OK)) {
 #ifdef CS_DEBUG
-		printf(CS_NAME"%1d: bad pkt stat %x\n", ifp->if_unit, status);
+		if_printf(ifp, "bad pkt stat %x\n", status);
 #endif
 		ifp->if_ierrors++;
 		return -1;
@@ -844,14 +840,13 @@ csintr(void *arg)
 	int status;
 
 #ifdef CS_DEBUG
-	int unit = ifp->if_unit;
-	printf(CS_NAME"%1d: Interrupt.\n", unit);
+	if_printf(ifp, "Interrupt.\n");
 #endif
 
 	while ((status=cs_inw(sc, ISQ_PORT))) {
 
 #ifdef CS_DEBUG
-		printf( CS_NAME"%1d:from ISQ: %04x\n", unit, status );
+		if_printf(ifp, "from ISQ: %04x\n", status);
 #endif
 
 		switch (status & ISQ_EVENT_MASK) {
@@ -1084,7 +1079,7 @@ cs_ioctl(register struct ifnet *ifp, u_long command, caddr_t data)
 	int s,error=0;
 
 #ifdef CS_DEBUG
-	printf(CS_NAME"%d: ioctl(%lx)\n",sc->arpcom.ac_if.if_unit,command);
+	if_printf(ifp, "ioctl(%lx)\n", command);
 #endif
 
 	s=splimp();
@@ -1217,7 +1212,7 @@ cs_mediaset(struct cs_softc *sc, int media)
 	    ~(SERIAL_RX_ON | SERIAL_TX_ON));
 
 #ifdef CS_DEBUG
-	printf(CS_NAME"%d: cs_setmedia(%x)\n",sc->arpcom.ac_if.if_unit,media);
+	if_printf(&sc->arpcom.ac_if, "cs_setmedia(%x)\n", media);
 #endif
 
 	switch (IFM_SUBTYPE(media)) {
