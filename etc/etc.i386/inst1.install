@@ -674,7 +674,6 @@ while :; do
 		break
 	fi
 done
-echo
 swap_offset=`expr $root_offset + $root`
 part_used=`expr $part_used + $swap`
 echo	"" >/etc/disktab
@@ -720,12 +719,11 @@ while [ $part_used -lt $partition ]; do
 				echo -n "On which directory should this filesystem be mounted? [usr] "
 				read resp junk
 				part_name=${resp:-usr}
-				part_name=`expr "$part_name" : '/*\(.*\)'`
+				part_name=`expr X"$part_name" : 'X/*\(.*\)'`
 			done
 			break
 		fi
 	done
-	echo
 	if [ ! "$ename" ]; then	
 		ename=$part_name
 		offset=`expr $part_offset + $root + $swap`
@@ -749,21 +747,33 @@ while [ $part_used -lt $partition ]; do
 		part_used=partition
 	fi
 done
-if [ "$have_dos_part" -a ! "$hname" ]; then
-	part_name=""
-	echo	"There appears to be a MS-DOS filesystem on disk."
-	while [ "$part_name" = "" ]; do
-		echo -n "On which directory should this filesystem be mounted? [dos] "
-		read resp junk
-		part_name=${resp:-dos}
-		part_name=`expr "$part_name" : '/*\(.*\)'`
-	done
-	hname=$part_name
-	eval offset=\$start${have_dos_part}
-	eval part_size=\$size${have_dos_part}
-	echo -n "	:ph#${part_size}:oh#${offset}" >>/etc/disktab
-	echo ":th=MSDOS:\\" >>/etc/disktab
-	part_used=partition
+if [ "$have_dos_part" != "$opsys_part" -a "$RUN_FDISK" != "overwrite" -a \
+    ! "$hname" ]; then
+	echo
+	echo	"There appears to be a MS-DOS filesystem on the hard disk."
+	echo -n "Make this be accessible from ${OPSYSTEM}? [y] "
+	read resp junk
+	case "${resp:-y}" in
+	y*|Y*)
+		part_name=""
+		while [ "$part_name" = "" ]; do
+			echo
+			echo -n "On which directory should this filesystem be mounted? [dos] "
+			read resp junk
+			part_name=${resp:-dos}
+			part_name=`expr X"$part_name" : 'X/*\(.*\)'`
+		done
+		hname=$part_name
+		eval offset=\$start${have_dos_part}
+		eval part_size=\$size${have_dos_part}
+		echo -n "	:ph#${part_size}:oh#${offset}" >>/etc/disktab
+		echo ":th=MSDOS:\\" >>/etc/disktab
+		part_used=partition
+		;;
+	*)
+		have_dos_part=""
+		;;
+	esac
 else
 	have_dos_part=""
 fi
@@ -943,7 +953,7 @@ echo "export TERM"
 echo "mount -at ufs"
 echo "echo" 
 echo "echo	\"Insert cpio installation floppy in drive and\""
-echo "echo -n	\"enter that drive's number (e.g. 0 or 1): [0] \""
+echo "echo -n	\"enter that drive's number (0 or 1): [0] \""
 echo "read resp junk"
 echo "driveno=\${resp:-0}"
 echo "mount -o ro /dev/fd\${driveno}a /mnt"
@@ -957,9 +967,8 @@ echo "read resp junk"
 echo "case \"\$resp\" in"
 echo "y*|Y*)"
 echo "	echo"	
-echo "	echo	\"Remove cpio installation floppy from drive.\""
-echo "	echo	\"Insert third installation (dos) floppy and\""
-echo "	echo -n	\"enter that drive's number (e.g. 0 or 1): [0] \""
+echo "	echo	\"Remove cpio floppy from drive, insert dos floppy, and\""
+echo "	echo -n	\"enter that drive's number (0 or 1): [0] \""
 echo "	read resp junk"
 echo "	driveno=\${resp:-0}"
 echo "	mount -t pcfs -o ro /dev/fd\${driveno}a /mnt"
