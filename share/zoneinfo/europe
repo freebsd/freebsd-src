@@ -1,4 +1,4 @@
-# @(#)europe	7.32
+# @(#)europe	7.38
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -36,7 +36,7 @@
 #	 5:00	ESK ESD	Yekaterinburg (was 4:00) (was SSK, SSD)*
 #	 6:00	OSK OSD	Omsk (was 5:00)*
 #	 6:00	NSK NSD	Novosibirsk (was 7:00)
-#	 7:00	TSK TSD	Tomsk (was 6:00)*
+#	 7:00	KRSK KRSD Krasnoyarsk (was 6:00)
 #	 8:00	ISK ISD	Irkutsk (was 7:00)*
 #	 9:00	YSK YSD	Yakutsk (was 8:00)*
 #	10:00	VSK VSD	Vladivostok (was 9:00)*
@@ -124,6 +124,15 @@
 # In the tables below, we condense this complicated story into a single
 # transition date for London, namely 1847 Sep 22.  We don't know as much
 # about Dublin, so we use 1880 Aug 2, the legal transition time.
+
+# From Paul Eggert (1996-06-12):
+# Summer Time was first seriously proposed by William Willett (1857-1915),
+# a London builder who circulated a pamphlet ``Waste of Daylight'' (1907)
+# that proposed advancing clocks 20 minutes on each of four Sundays in April,
+# and retarding them by the same amount on four Sundays in September.
+# A bill was drafted in 1909 and introduced in Parliament several times,
+# but it met with ridicule and opposition, especially from farming interests.
+# One-hour Summer Time was eventually adopted as a wartime measure in 1916.
 
 # From Arthur David Olson (January 19, 1989):
 #
@@ -418,6 +427,22 @@
 # who provided the wartime regulations and a snippet of Hansard explaining
 # why double summer time started on a Monday in 1945 (it was Easter).
 
+# From Peter Ilieve <peter@aldie.co.uk> (1996-05-29):
+# I have now got a copy of the British Standard Time Act 1968.
+# It says (S4(2)) that it expires at 02:00 GMT on 31 October 1971 unless
+# an Order in Council was passed in Parliament to make the Act permanent.
+# No Order was passed, so 02:00 1971-10-31 it is...
+#
+# Interestingly, it says baldly `This Act shall come into force on
+# 27 October 1968', without giving a time. As S1 of the Act merely
+# stated that `The time for general purposes in the United Kingdom
+# (to be known as British standard time) shall be one hour in
+# advance of Greenwich mean time throughout the year; ...' you could
+# possibly argue that the start time of BStandardT was 00:00 1968-10-27,
+# especially as the Act repealed the Summer Time Acts 1916--1947 in toto,
+# thereby destroying the authority of the Summer Time Order specifying
+# summer time in 1968....
+
 # From Peter Ilieve <peter@memex.co.uk> (November 18, 1993)
 #
 # Here is a revised version of my tabrules file for the perl script I sent
@@ -600,6 +625,11 @@
 # 1995-97 is now in place.  The Summer Time Order 1994 (SI 1994/2798)
 # came into force on 16 November.  It restates the dates from the EC
 # seventh Summer Time Directive....
+#
+# From Peter Ilieve <peter@aldie.co.uk> (1996-04-20):
+# Proposals for the eighth directive were supposed to have been produced
+# by the Commission by 1 Jan 96. They have not yet appeared (I asked just
+# before Easter).
 
 # From Peter Ilieve <peter@memex.co.uk> (March 28, 1994):
 # The [GB-Eire] end date of 22 October [1995] conflicts with your current rule
@@ -612,7 +642,7 @@
 # To maintain strict historical accuracy you could start a new UK ending rule
 # of Oct Sun>=22 in 1990.
 
-# From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
+# From Paul Eggert <eggert@twinsun.com> (1996-06-12):
 #
 # As Ilieve remarks, the date `20 April 1924' in the table of ``Summer Time: A
 # Consultation Document'' (Cm 722, 1989) table is a transcription error;
@@ -632,17 +662,29 @@
 # It actually just had one transition.
 #     * Northern Ireland used single daylight savings time throughout WW II.
 # Actually, it conformed to Britain.
+#     * GB-Eire changed standard time to 1 hour ahead of GMT on 1968-02-18.
+# Actually, that date saw the usual switch to summer time.
+# Standard time was not changed until 1968-10-27 (the clocks didn't change).
 #
-# The following claim by Shanks is possible though doubtful;
-# we'll ignore it for now.
+# The following claims by Shanks are possible though doubtful;
+# we'll ignore them for now.
 #     * Jersey, Guernsey, and the Isle of Man did not switch from GMT
 #	to daylight savings time until 1921 Apr 3, when they began to
 #	conform with Great Britain.
+#     * Dublin's 1971-10-31 switch was at 02:00, even though London's was 03:00.
+#
 #
 # Whitman says Dublin Mean Time was -0:25:21, which is more precise than Shanks.
 
+# From an anonymous contributor (1996-06-02):
+# The law governing time in Ireland is under Statutory Instrument SI 395/94,
+# which gives force to European Union 7th Council Directive # 94/21/EC.
+# Under this directive, the Minister for Justice in Ireland makes appropriate
+# regulations. I spoke this morning with the Secretary of the Department of
+# Justice (tel +353 1 678 9711) who confirmed to me that the correct name is
+# "Irish Summer Time", abbreviated to "IST".
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	GB-Eire 1847	only	-	Sep	22	0:00	0	GMT
 # 1916 to 1925--irregular
 Rule	GB-Eire	1916	only	-	May	21	2:00s	1:00	BST
 Rule	GB-Eire	1916	only	-	Oct	 1	2:00s	0	GMT
@@ -706,43 +748,44 @@ Rule	GB-Eire	1958	1959	-	Apr	Sun>=16	2:00s	1:00	BST
 Rule	GB-Eire	1960	only	-	Apr	10	2:00s	1:00	BST
 Rule	GB-Eire	1961	1963	-	Mar	lastSun	2:00s	1:00	BST
 Rule	GB-Eire	1964	1967	-	Mar	Sun>=19	2:00s	1:00	BST
+Rule	GB-Eire	1968	only	-	Feb	18	2:00s	1:00	BST
 Rule	GB-Eire	1972	1980	-	Mar	Sun>=16	2:00s	1:00	BST
 # 1953 to 1980, ending rules
 Rule	GB-Eire	1953	1960	-	Oct	Sun>=1	2:00s	0	GMT
-Rule	GB-Eire	1961	1967	-	Oct	Sun>=23	2:00s	0	GMT
-Rule	GB-Eire	1971	only	-	Oct	31	3:00	0	GMT
+Rule	GB-Eire	1961	1968	-	Oct	Sun>=23	2:00s	0	GMT
 Rule	GB-Eire	1972	1980	-	Oct	Sun>=23	2:00s	0	GMT
 # 1981 on
 Rule	GB-Eire	1981	1995	-	Mar	lastSun	1:00u	1:00	BST
 Rule	GB-Eire 1981	1989	-	Oct	Sun>=23	1:00u	0	GMT
 Rule	GB-Eire 1990	1995	-	Oct	Sun>=22	1:00u	0	GMT
-# See EC for rules starting in 1996.
+# See EU for rules starting in 1996.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/London	-0:01:15 -	LMT	1847 Sep 22
-			 0:00	GB-Eire	%s	1968 Feb 18 2:00
-			 1:00	-	BST	1971 Oct 31 2:00
+			 0:00	GB-Eire	%s	1968 Oct 27
+			 1:00	-	BST	1971 Oct 31 2:00u
 			 0:00	GB-Eire	%s	1996
-			 0:00	EC	GMT/BST
+			 0:00	EU	GMT/BST
 Zone	Europe/Belfast	-0:23:40 -	LMT	1880 Aug  2
 			-0:25:21 -	DMT	1916 May 21 2:00    # Dublin MT
 			-0:25:21 1:00	DST	1916 Oct  1 3:00
-			 0:00	GB-Eire	%s	1968 Feb 18 2:00
-			 1:00	-	BST	1971 Oct 31 3:00
+			 0:00	GB-Eire	%s	1968 Oct 27
+			 1:00	-	BST	1971 Oct 31 2:00u
 			 0:00	GB-Eire	%s	1996
-			 0:00	EC	GMT/BST
+			 0:00	EU	GMT/BST
 Zone	Europe/Dublin	-0:25:21 -	LMT	1880 Aug  2
 			-0:25:21 -	DMT	1916 May 21 2:00    # Dublin MT
 			-0:25:21 1:00	DST	1916 Oct  1 3:00
-			 0:00	GB-Eire	%s	1940 Feb 25 2:00
-			 0:00	1:00	BST	1946 Oct  6 2:00
+			 0:00	GB-Eire	%s	1921 Dec  6
+			 0:00	GB-Eire	GMT/IST	1940 Feb 25 2:00
+			 0:00	1:00	IST	1946 Oct  6 2:00
 			 0:00	-	GMT	1947 Mar 16 2:00
-			 0:00	1:00	BST	1947 Nov  2 2:00
+			 0:00	1:00	IST	1947 Nov  2 2:00
 			 0:00	-	GMT	1948 Apr 18 2:00
-			 0:00	GB-Eire	%s	1968 Feb 18 2:00
-			 1:00	-	BST	1971 Oct 31 3:00
-			 0:00	GB-Eire	%s	1996
-			 0:00	EC	GMT/BST
+			 0:00	GB-Eire	GMT/IST	1968 Oct 27
+			 1:00	-	IST	1971 Oct 31 2:00u
+			 0:00	GB-Eire	GMT/IST	1996
+			 0:00	EU	GMT/IST
 
 # ZONE-DESCR Europe London United_Kingdom All points except N. Ireland
 # ZONE-DESCR Europe Belfast United_Kingdom Northern Ireland
@@ -752,19 +795,18 @@ Zone	Europe/Dublin	-0:25:21 -	LMT	1880 Aug  2
 
 # Continental Europe
 
-# EC rules are for the European Community.
+# EU rules are for the European Union, previously known as the EC, EEC,
+# Common Market, etc.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	EC	1800	only	-	Jan	 1	 0:00	0	-
-Rule	EC	1977	1980	-	Apr	Sun>=1	 1:00u	1:00	" DST"
-Rule	EC	1977	only	-	Sep	lastSun	 1:00u	0	-
-Rule	EC	1978	only	-	Oct	 1	 1:00u	0	-
-Rule	EC	1979	1995	-	Sep	lastSun	 1:00u	0	-
-Rule	EC	1981	max	-	Mar	lastSun	 1:00u	1:00	" DST"
-Rule	EC	1996	max	-	Oct	lastSun	 1:00u	0	-
+Rule	EU	1977	1980	-	Apr	Sun>=1	 1:00u	1:00	" DST"
+Rule	EU	1977	only	-	Sep	lastSun	 1:00u	0	-
+Rule	EU	1978	only	-	Oct	 1	 1:00u	0	-
+Rule	EU	1979	1995	-	Sep	lastSun	 1:00u	0	-
+Rule	EU	1981	max	-	Mar	lastSun	 1:00u	1:00	" DST"
+Rule	EU	1996	max	-	Oct	lastSun	 1:00u	0	-
 
-# W-Eur differs from EC only in that W-Eur uses standard time.
-Rule	W-Eur	1800	only	-	Jan	 1	 0:00	0	-
+# W-Eur differs from EU only in that W-Eur uses standard time.
 Rule	W-Eur	1977	1980	-	Apr	Sun>=1	 1:00s	1:00	" DST"
 Rule	W-Eur	1977	only	-	Sep	lastSun	 1:00s	0	-
 Rule	W-Eur	1978	only	-	Oct	 1	 1:00s	0	-
@@ -773,18 +815,13 @@ Rule	W-Eur	1981	max	-	Mar	lastSun	 1:00s	1:00	" DST"
 Rule	W-Eur	1996	max	-	Oct	lastSun	 1:00s	0	-
 
 # Older M-Eur rules are for convenience in the tables.
-# From 1977 on, M-Eur differs from EC only in that M-Eur uses standard time.
-Rule	M-Eur	1800	only	-	Jan	 1	 0:00	0	-
+# From 1977 on, M-Eur differs from EU only in that M-Eur uses standard time.
 Rule	M-Eur	1916	only	-	Apr	30	23:00	1:00	" DST"
 Rule	M-Eur	1916	only	-	Oct	 1	 1:00	0	-
 Rule	M-Eur	1917	1918	-	Apr	Mon>=15	 2:00s	1:00	" DST"
 Rule	M-Eur	1917	1918	-	Sep	Mon>=15	 2:00s	0	-
 Rule	M-Eur	1940	only	-	Apr	 1	 2:00s	1:00	" DST"
-# Shanks says DST was continuous from 1940 Apr 1 to 1942 Nov 2; go with Whitman.
-Rule	M-Eur	1940	only	-	Dec	31	 2:00s	0	-
-Rule	M-Eur	1941	only	-	Feb	25	 2:00s	1:00	" DST"
-Rule	M-Eur	1941	only	-	Oct	 5	 2:00s	0	-
-Rule	M-Eur	1942	only	-	Jan	 1	 2:00s	1:00	" DST"
+# Whitman says 1941 DST was only from Feb 25 to Oct 5; go with Shanks.
 Rule	M-Eur	1942	only	-	Nov	 2	 2:00s	0	-
 Rule	M-Eur	1943	only	-	Mar	29	 2:00s	1:00	" DST"
 Rule	M-Eur	1943	only	-	Oct	 4	 2:00s	0	-
@@ -799,7 +836,6 @@ Rule	M-Eur	1981	max	-	Mar	lastSun	 2:00s	1:00	" DST"
 Rule	M-Eur	1996	max	-	Oct	lastSun	 2:00s	0	-
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Russia	1880	only	-	Jan	 1	 0:00	0	-
 Rule	Russia	1917	only	-	Jul	 1	23:00	1:00	" DST"
 Rule	Russia	1917	only	-	Dec	28	 0:00	0	-
 Rule	Russia	1918	only	-	May	31	22:00	2:00	" DDST"
@@ -822,9 +858,9 @@ Rule	Russia	1985	max	-	Mar	lastSun	 2:00s	1:00	D
 # These are for backward compatibility with older versions.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	WET		0:00	EC	WET%s
+Zone	WET		0:00	EU	WET%s
 Zone	MET		1:00	M-Eur	MET%s
-Zone	EET		2:00	EC	EET%s
+Zone	EET		2:00	EU	EET%s
 
 # Tom Hoffman says that MET is also known as Central European Time
 
@@ -863,7 +899,7 @@ Zone	Europe/Tirane	1:19:20 -	LMT	1914
 			1:00	-	MET	1940 Jun 16
 			1:00	Albania	MET%s	1985 Mar 31 1:00
 			1:00	W-Eur	MET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Tirane Albania All points
 
@@ -872,13 +908,12 @@ Zone	Europe/Tirane	1:19:20 -	LMT	1914
 Zone	Europe/Andorra	0:06:04 -	LMT	1901
 			0:00	-	WET	1946 Sep 30
 			1:00	-	MET	1985 Mar 31 2:00
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Andorra Andorra All points
 
 # Austria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Austria	1918	only	-	Jun	16	3:00	0	-
 Rule	Austria	1920	only	-	Apr	 5	2:00s	1:00	" DST"
 Rule	Austria	1920	only	-	Sep	13	2:00s	0	-
 Rule	Austria	1945	only	-	Apr	 2	2:00s	1:00	" DST"
@@ -893,7 +928,7 @@ Zone	Europe/Vienna	1:05:20 -	LMT	1893 Apr
 			1:00	Austria	MET%s	1940 Apr  1 2:00
 			1:00	M-Eur	MET%s	1945 Apr  2 2:00
 			1:00	Austria	MET%s	1981
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Vienna Austria All points
 
@@ -906,7 +941,7 @@ Zone	Europe/Minsk	1:50:16 -	LMT	1880
 			3:00	Russia	MS%s	1991 Mar 31 2:00s
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Minsk Belarus All points
 
@@ -956,7 +991,7 @@ Zone	Europe/Brussels	0:17:20 -	LMT	1880
 			0:00	Belgium	WET%s	1940 Feb 24 23:00
 			1:00	M-Eur	MET%s	1945 Apr  2  2:00
 			1:00	Belgium	MET%s	1977
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Brussels Belgium All points
 
@@ -968,7 +1003,7 @@ Zone	Europe/Sarajevo	1:13:40	-	LMT	1884
 			1:00	M-Eur	MET%s	1945 May  8  2:00s
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Sarajevo Bosnia_and_Herzegovina All points
 
@@ -989,7 +1024,7 @@ Zone	Europe/Sofia	1:33:16 -	LMT	1880
 			2:00	-	EET	1979 Mar 31 23:00
 			2:00	Bulg	EET%s	1982 Sep 26  2:00
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Sofia Bulgaria All points
 
@@ -1001,13 +1036,12 @@ Zone	Europe/Zagreb	1:03:52	-	LMT	1884
 			1:00	M-Eur	MET%s	1945 May  8  2:00s
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Zagreb Croatia All points
 
 # Czech Republic
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Czech	1944	only	-	Sep	17	2:00s	0	-
 Rule	Czech	1945	only	-	Apr	 8	2:00s	1:00	" DST"
 Rule	Czech	1945	only	-	Nov	18	2:00s	0	-
 Rule	Czech	1946	only	-	May	 6	2:00s	1:00	" DST"
@@ -1020,7 +1054,7 @@ Zone	Europe/Prague	0:57:44 -	LMT	1850
 			0:58	-	PMT	1891 Oct     # Prague Mean Time
 			1:00	M-Eur	MET%s	1944 Sep 17 2:00s
 			1:00	Czech	MET%s	1979
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Prague Czech_Republic All points
 
@@ -1047,10 +1081,10 @@ Zone Europe/Copenhagen	 0:50:20 -	LMT	1890
 			 1:00	Denmark	MET%s	1942 Nov  2 2:00s
 			 1:00	M-Eur	MET%s	1945 Apr  2 2:00
 			 1:00	Denmark	MET%s	1980
-			 1:00	EC	MET%s
+			 1:00	EU	MET%s
 Zone Atlantic/Faeroe	-0:27:04 -	LMT	1908 Jan 11	# Torshavn
 			 0:00	-	WET	1981
-			 0:00	EC	WET%s
+			 0:00	EU	WET%s
 Zone America/Scoresbysund -1:29:00 -	LMT	1916 Jul 28
 			-2:00	-	MGT	1980 Apr  6 2:00
 			-2:00	M-Eur	MGT%s	1981 Mar 29
@@ -1086,7 +1120,7 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			3:00	Russia	MS%s	1989 Mar 26 2:00s
 			2:00	1:00  "EET DST"	1989 Sep 24 2:00s
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Tallinn Estonia All points
 
@@ -1101,14 +1135,13 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 # Go with Strang instead.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Finland	1921	only	-	May	1	0:00	0	-
 Rule	Finland	1942	only	-	Apr	3	0:00	1:00	" DST"
 Rule	Finland	1942	only	-	Oct	3	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 			1:40	-	HMT	1921 May    # Helsinki Mean Time
 			2:00	Finland	EET%s	1981 Mar 29 2:00
-			2:00	EC	EET%s
+			2:00	EU	EET%s
 
 # ZONE-DESCR Europe Helsinki Finland All points
 
@@ -1116,7 +1149,6 @@ Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 # Shanks seems to use `24:00' ambiguously; we resolve it with Whitman.
 # From Shanks (1991):
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	France	1911	only	-	Jan	 1	 0:00	0	-
 Rule	France	1916	only	-	Jun	14	23:00s	1:00	" DST"
 Rule	France	1916	1919	-	Oct	Sun>=1	 0:00	0	-
 Rule	France	1917	only	-	Mar	24	23:00s	1:00	" DST"
@@ -1172,7 +1204,7 @@ Zone	Europe/Paris	0:09:21 -	LMT	1891 Mar 15 0:01
 			1:00	M-Eur	MET%s	1944 Aug 25
 			0:00	France	WET%s	1945 Sep 16 3:00
 			1:00	France	MET%s	1977
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Paris France All points
 
@@ -1194,7 +1226,7 @@ Rule	Germany	1949	only	-	Apr	10	2:00s	1:00	" DST"
 Zone	Europe/Berlin	0:53:28 -	LMT	1893 Apr
 			1:00	M-Eur	MET%s	1945 Apr 2 2:00
 			1:00	Germany	MET%s	1980
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Berlin Germany All points
 
@@ -1203,7 +1235,7 @@ Zone	Europe/Berlin	0:53:28 -	LMT	1893 Apr
 Zone Europe/Gibraltar	-0:21:24 -	LMT	1880 Aug  2
 			0:00	GB-Eire	%s	1957 Apr 14 2:00
 			1:00	-	MET	1982
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Gibraltar United_Kingdom Gibraltar
 
@@ -1212,7 +1244,6 @@ Zone Europe/Gibraltar	-0:21:24 -	LMT	1880 Aug  2
 # Part switched to the Gregorian calendar on 1916 Jul 28.
 # The rest switched on 1920 Mar 18.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Greece	1916	only	-	July	28	0:01	0	-
 # Whitman gives 1932 Jul 5 - Nov 1; go with Shanks.
 Rule	Greece	1932	only	-	Jul	 7	0:00	1:00	" DST"
 Rule	Greece	1932	only	-	Sep	 1	0:00	0	-
@@ -1243,14 +1274,15 @@ Zone	Europe/Athens	1:34:52 -	LMT	1895 Sep 14
 			1:00	Greece	MET%s	1944 Apr  4
 			2:00	Greece	EET%s	1981
 			# Shanks says they switched to M-Eur in 1981;
-			# go with EC intead, since Greece joined it on Jan 1.
-			2:00	EC	EET%s
+			# go with EU intead, since Greece joined it on Jan 1.
+			2:00	EU	EET%s
 
 # ZONE-DESCR Europe Athens Greece All points
 
 # Hungary
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Hungary	1918	only	-	Sep	29	 2:00s	0	-
+Rule	Hungary	1918	only	-	Apr	 1	 3:00	1:00	" DST"
+Rule	Hungary	1918	only	-	Sep	29	 3:00	0	-
 Rule	Hungary	1919	only	-	Apr	15	 3:00	1:00	" DST"
 Rule	Hungary	1919	only	-	Sep	15	 3:00	0	-
 Rule	Hungary	1920	only	-	Apr	 5	 3:00	1:00	" DST"
@@ -1271,11 +1303,11 @@ Rule	Hungary	1957	only	-	Sep	lastSun	 3:00	0	-
 Rule	Hungary	1980	only	-	Apr	 6	 1:00	1:00	" DST"
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Budapest	1:16:20 -	LMT	1890 Oct
-			1:00	M-Eur	MET%s	1918 Jul
+			1:00	M-Eur	MET%s	1918
 			1:00	Hungary	MET%s	1941 Apr  6  2:00
 			1:00	M-Eur	MET%s	1945 May  1 23:00
 			1:00	Hungary	MET%s	1980 Sep 28  2:00s
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Budapest Hungary All points
 
@@ -1315,7 +1347,6 @@ Zone	Europe/Budapest	1:16:20 -	LMT	1890 Oct
 # Reykavik was -1:28 from 1837 to 1908, local mean time before that.
 #
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Iceland	1908	only	-	Jan	 1	 0:00	0	S
 Rule	Iceland	1917	1918	-	Feb	19	23:00	1:00	D
 Rule	Iceland	1917	only	-	Oct	21	 1:00	0	S
 Rule	Iceland	1918	only	-	Nov	16	 1:00	0	S
@@ -1345,22 +1376,43 @@ Zone Atlantic/Reykjavik	-1:27:24 -	LMT	1837
 # ZONE-DESCR Atlantic Reykjavik Iceland All points
 
 # Italy
+# From Paul Eggert (1996-05-06):
+# For Italian DST we have three sources: Shanks, Whitman, and F. Pollastri
+# <URL:http://pisolo.cstv.to.cnr.it/toi/uk/ienitlt.html> (see `FP' below),
+# taken from a publication of the Italian National Electrotechnical Institute.
+# When the three sources disagree, guess who's right, as follows:
+#
+# year	FP	Shanks (S)	Whitman (W)	Go with:
+# 1916	06-03	06-03 24:00	06-03 00:00	FP & W
+#	09-30	09-30 24:00	09-30 01:00	FP; guess 24:00s
+# 1917	04-01	03-31 24:00	03-31 00:00	FP & S
+#	09-30	09-29 24:00	09-30 01:00	FP & W
+# 1918	03-09	03-09 24:00	03-09 00:00	FP & S
+#	10-06	10-05 24:00	10-06 01:00	FP & W
+# 1919	03-01	03-01 24:00	03-01 00:00	FP & S
+#	10-04	10-04 24:00	10-04 01:00	FP; guess 24:00s
+# 1920	03-20	03-20 24:00	03-20 00:00	FP & S
+#	09-18	09-18 24:00	10-01 01:00	FP; guess 24:00s
+# 1944	04-02	04-03 02:00			S (see M-Eur)
+#	09-16	10-02 03:00			FP; guess 24:00s
+# 1945	09-14	09-16 24:00			FP; guess 24:00s
+# 1970	05-21	05-31 00:00			S
+#	09-20	09-27 00:00			S
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Italy	1893	only	-	Nov	 1	0:00s	0	S
-# Shanks gives transition times of 1916-1920 as 24:00; go with Whitman.
 Rule	Italy	1916	only	-	Jun	 3	0:00s	1:00	" DST"
-Rule	Italy	1916	only	-	Sep	30	0:00s	0	-
-Rule	Italy	1917	only	-	Mar	31	0:00s	1:00	" DST"
+Rule	Italy	1916	only	-	Oct	 1	0:00s	0	-
+Rule	Italy	1917	only	-	Apr	 1	0:00s	1:00	" DST"
 Rule	Italy	1917	only	-	Sep	30	0:00s	0	-
-Rule	Italy	1918	only	-	Mar	 9	0:00s	1:00	" DST"
+Rule	Italy	1918	only	-	Mar	10	0:00s	1:00	" DST"
 Rule	Italy	1918	1919	-	Oct	Sun>=1	0:00s	0	-
-Rule	Italy	1919	only	-	Mar	 1	0:00s	1:00	" DST"
-Rule	Italy	1920	only	-	Mar	20	0:00s	1:00	" DST"
-# Shanks gives 1920 Sep 18; go with Whitman.
-Rule	Italy	1920	only	-	Oct	 1	0:00s	0	-
-Rule	Italy	1940	only	-	Jun	15	0:00	1:00	" DST"
+Rule	Italy	1919	only	-	Mar	 2	0:00s	1:00	" DST"
+Rule	Italy	1920	only	-	Mar	21	0:00s	1:00	" DST"
+Rule	Italy	1920	only	-	Sep	19	0:00s	0	-
+Rule	Italy	1940	only	-	Jun	15	0:00s	1:00	" DST"
+Rule	Italy	1944	only	-	Sep	17	0:00s	0	-
 Rule	Italy	1945	only	-	Apr	 2	2:00	1:00	" DST"
-Rule	Italy	1945	only	-	Sep	17	0:00	0	-
+Rule	Italy	1945	only	-	Sep	15	0:00s	0	-
 Rule	Italy	1946	only	-	Mar	17	2:00s	1:00	" DST"
 Rule	Italy	1946	only	-	Oct	 6	2:00s	0	-
 Rule	Italy	1947	only	-	Mar	16	0:00s	1:00	" DST"
@@ -1388,9 +1440,9 @@ Rule	Italy	1979	only	-	Sep	30	0:00s	0	-
 Zone	Europe/Rome	0:49:56 -	LMT	1866 Sep 22
 			0:50	-	RMT	1893 Nov	# Rome Mean Time
 			1:00	Italy	MET%s	1942 Nov  2 2:00s
-			1:00	M-Eur	MET%s	1945 Apr  2 2:00s
+			1:00	M-Eur	MET%s	1944 Jul
 			1:00	Italy	MET%s	1980
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 Link	Europe/Rome	Europe/Vatican
 Link	Europe/Rome	Europe/San_Marino
@@ -1413,7 +1465,7 @@ Zone	Europe/Riga	1:36:24	-	LMT	1880
 			3:00	Russia	MS%s	1991 Mar 31 2:00s
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Riga Latvia All points
 
@@ -1421,7 +1473,7 @@ Zone	Europe/Riga	1:36:24	-	LMT	1880
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
 			1:00	-	MET	1981
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Vaduz Liechtenstein All points
 
@@ -1439,14 +1491,13 @@ Zone	Europe/Vilnius	1:41:16	-	LMT	1880
 			3:00	Russia	MS%s	1991 Mar 31 2:00s
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Vilnius Lithuania All points
 
 # Luxembourg
 # Whitman disagrees with most of these dates in minor ways; go with Shanks.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Lux	1904	only	-	Jun	 1	 0:00	0	-
 Rule	Lux	1916	only	-	May	14	23:00	1:00	" DST"
 Rule	Lux	1916	only	-	Oct	 1	 1:00	0	-
 Rule	Lux	1917	only	-	Apr	28	23:00	1:00	" DST"
@@ -1477,7 +1528,7 @@ Zone Europe/Luxembourg	0:24:36 -	LMT	1904 Jun
 			0:00	Belgium	WET%s	1940 May 14 3:00
 			1:00	M-Eur	WET%s	1944 Sep 18 3:00
 			1:00	Belgium	MET%s	1977
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Luxembourg Luxembourg All points
 
@@ -1489,7 +1540,7 @@ Zone	Europe/Skopje	1:25:44	-	LMT	1884
 			1:00	M-Eur	MET%s	1945 May  8  2:00s
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Skopje Fmr_Yugoslav_Rep_Of_Macedonia All points
 
@@ -1508,7 +1559,7 @@ Zone	Europe/Malta	0:58:04 -	LMT	1893 Nov  2	# Valletta
 			1:00	M-Eur	MET%s	1945 Apr  2 2:00s
 			1:00	Italy	MET%s	1973 Mar 31
 			1:00	Malta	MET%s	1981
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Malta Malta All points
 
@@ -1520,7 +1571,7 @@ Zone	Europe/Chisinau	1:55:20 -	LMT	1924 May  2
 			3:00	Russia	MS%s	1991 Mar 31 2:00s
 			2:00	1:00  "EET DST"	1991 Sep 29 2:00s
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Chisinau Moldova All points
 
@@ -1531,7 +1582,7 @@ Zone	Europe/Monaco	0:29:32 -	LMT	1891 Mar 15
 			0:09:21	-	PMT	1911 Mar 11    # Paris Mean Time
 			0:00	France	WET%s	1945 Sep 16 3:00
 			1:00	France	MET%s	1977
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Monaco Monaco All points
 
@@ -1539,7 +1590,6 @@ Zone	Europe/Monaco	0:29:32 -	LMT	1891 Mar 15
 # Howse writes that the Netherlands' railways used GMT between 1892 and 1940,
 # but for other purposes the Netherlands used Amsterdam mean time.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Neth	1892	only	-	May	 1	0:00	0	AMT
 # Shanks gives 1916 May 1 0:00 and 1916 Oct 1 0:00; go with Whitman.
 Rule	Neth	1916	only	-	May	 1	2:00s	1:00	NST
 Rule	Neth	1916	only	-	Oct	 2	2:00s	0	AMT
@@ -1571,13 +1621,12 @@ Zone Europe/Amsterdam	0:19:28 -	LMT	1892 May
 			0:20	Neth	%s	1940 May 16 0:40
 			1:00	M-Eur	MET%s	1945 Apr  2 2:00
 			1:00	Neth	MET%s	1977
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Amsterdam Netherlands All points
 
 # Norway
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Norway	1892	only	-	May	 1	0:00	0	-
 # Whitman gives 1916 May 21 - 1916 Oct 21; go with Shanks.
 Rule	Norway	1916	only	-	May	22	1:00	1:00	" DST"
 Rule	Norway	1916	only	-	Sep	30	0:00	0	-
@@ -1595,7 +1644,7 @@ Zone	Europe/Oslo	0:43:00 -	LMT	1895
 			1:00	Norway	MET%s	1940 Aug 10 23:00
 			1:00	M-Eur	MET%s	1945 Apr  2  2:00
 			1:00	Norway	MET%s	1980
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 # Svalbard is like Europe/Oslo.
 #
 # From Whitman:
@@ -1639,13 +1688,12 @@ Zone	Europe/Warsaw	1:24:00 -	LMT	1880
 			1:00	M-Eur	MET%s	1944 Oct
 			1:00	Poland	MET%s	1977 Apr  3 1:00
 			1:00	W-Eur	MET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Warsaw Poland All points
 
 # Portugal
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Port	1911	only	-	May	24	 0:00	0	-
 Rule	Port	1916	only	-	Jun	17	23:00	1:00	" DST"
 # Whitman gives 1916 Oct 31; go with Shanks.
 Rule	Port	1916	only	-	Nov	 1	 1:00	0	-
@@ -1712,16 +1760,16 @@ Zone	Europe/Lisbon	-0:36:32 -	LMT	1884
 			 0:00	Port	WET%s	1966 Apr  3 2:00
 			 1:00	-	MET	1976 Sep 26 1:00
 			 0:00	Port	WET%s	1983 Sep 25 1:00s
-			 0:00	EC	WET%s	1992 Sep 27 1:00s
+			 0:00	EU	WET%s	1992 Sep 27 1:00s
 # From Rui Pedro Salgueiro <rps@inescca.inescc.pt> (November 12, 1992):
 # Portugal has recently (September, 27) changed timezone
 # (from WET to MET or CET) to harmonize with EEC.
-			 1:00	EC	MET%s	1996 Mar 31 1:00u
+			 1:00	EU	MET%s	1996 Mar 31 1:00u
 # Martin Bruckmann <martin@ua.pt> (1996-02-29) reports via Peter Ilieve
 # that Portugal is reverting to 0:00 by not moving its clocks this spring.
 # The new Prime Minister was fed up with getting up in the dark in the winter.
-			 0:00	-     "WET DST"	1996 Oct 27 1:00u
-			 0:00	EC	WET%s
+			 0:00	1:00  "WET DST"	1996 Oct 27 1:00u
+			 0:00	EU	WET%s
 # We don't know what happened to Madeira or the Azores,
 # so we'll just use Shanks for now.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -1736,7 +1784,7 @@ Zone Atlantic/Madeira	-1:07:36 -	LMT	1884		# Funchal
 			-1:00	Port	ACT%s	1966 Apr  3 2:00
 			 0:00	-	WET	1977 Mar 27
 			 0:00	Port	WET%s	1983 Sep 25 1:00s
-			 0:00	EC	WET%s
+			 0:00	EU	WET%s
 
 # ZONE-DESCR Europe Lisbon Portugal All points except:
 # ZONE-DESCR Atlantic Azores Portugal Azores
@@ -1746,7 +1794,6 @@ Zone Atlantic/Madeira	-1:07:36 -	LMT	1884		# Funchal
 # Catholic Romania switched from the Julian to the Gregorian calendar on
 # on 1919 Mar 18.  Greek Orthodox Romania switched on 1920 Mar 18.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Romania	1931	only	-	Jul	24	 0:00	0	-
 Rule	Romania	1932	only	-	May	21	 0:00s	1:00	" DST"
 Rule	Romania	1932	1939	-	Oct	Sun>=1	 0:00s	0	-
 Rule	Romania	1933	1939	-	Apr	Sun>=2	 0:00s	1:00	" DST"
@@ -1759,7 +1806,7 @@ Zone Europe/Bucharest	1:44:24 -	LMT	1891 Oct
 			1:44	-	BMT	1931 Jul 24	# Bucharest MT
 			2:00	Romania	EET%s	1981 Mar 29 2:00s
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 
 # ZONE-DESCR Europe Bucharest Romania All points
 
@@ -1812,7 +1859,6 @@ Zone Asia/Omsk		 4:53:36 -	LMT	1924 May  2
 # I do not know why they have decided to make this change;
 # as far as I remember it was done exactly during winter->summer switching
 # so we (Novosibirsk) simply did not switch.
-# Tomsk is still 4 hours ahead of Moscow.
 Zone Asia/Novosibirsk	 5:31:40 -	LMT	1924 May  2
 			 6:00	-	NSK	1957 Mar
 			 7:00	Russia	NS%s	1991 Mar 31 2:00s
@@ -1822,13 +1868,13 @@ Zone Asia/Novosibirsk	 5:31:40 -	LMT	1924 May  2
 			 6:00	1:00	NSD	1994 Sep 25 2:00s
 			 6:00	Russia	NS%s
 # ZONE-DESCR Asia Novosibirsk Russia Novosibirsk zone
-Zone Asia/Tomsk		 5:39:52 -	LMT	1924 May  2
-			 6:00	-	TSK	1957 Mar
-			 7:00	Russia	TS%s	1991 Mar 31 2:00s
-			 6:00	1:00	TSD	1991 Sep 29 2:00s
-			 6:00	-	TSK	1992 Jan 19 2:00s
-			 7:00	Russia	TS%s
-# ZONE-DESCR Asia Tomsk Russia Tomsk zone
+Zone Asia/Krasnoyarsk	 6:11:20 -	LMT	1924 May  2
+			 6:00	-	KRSK	1957 Mar
+			 7:00	Russia	KRS%s	1991 Mar 31 2:00s
+			 6:00	1:00	KRSD	1991 Sep 29 2:00s
+			 6:00	-	KRSK	1992 Jan 19 2:00s
+			 7:00	Russia	KRS%s
+# ZONE-DESCR Asia Krasnoyarsk Russia Krasnoyarsk zone
 Zone Asia/Irkutsk	 6:57:20 -	LMT	1880
 			 6:57	-	LST	1924 May  2
 			 7:00	-	ISK	1957 Mar
@@ -1888,13 +1934,12 @@ Zone Europe/Ljubljana	0:58:04	-	LMT	1884
 			1:00	M-Eur	MET%s	1945 May  8  2:00s
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Ljubljana Slovenia All points
 
 # Spain
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Spain	1901	only	-	Jan	 1	 0:00	0	-
 # For 1917-1919 Whitman gives Apr Sat>=1 - Oct Sat>=1; go with Shanks.
 Rule	Spain	1917	only	-	May	 5	23:00s	1:00	" DST"
 Rule	Spain	1917	1919	-	Oct	 6	23:00s	0	-
@@ -1936,12 +1981,12 @@ Rule	Spain	1978	only	-	Oct	 1	 1:00	0	-
 Zone	Europe/Madrid	-0:14:44 -	LMT	1901
 			 0:00	Spain	WET%s	1946 Sep 30
 			 1:00	Spain	MET%s	1979
-			 1:00	EC	MET%s
+			 1:00	EU	MET%s
 Zone	Atlantic/Canary	-1:01:36 -	LMT	1922 Mar # Las Palmas de Gran C.
 			-1:00	-	ACT	1946 Sep 30 1:00
 			 0:00	-	WET	1980 Apr  6 0:00s
 			 0:00	1:00  "WET DST"	1980 Sep 28 0:00s
-			 0:00	EC	WET%s
+			 0:00	EU	WET%s
 
 # ZONE-DESCR Europe Madrid Spain All points except:
 # ZONE-DESCR Atlantic Canary Spain Canary Islands
@@ -1953,7 +1998,7 @@ Zone Europe/Stockholm	1:12:12 -	LMT	1878 May 31
 			1:00	-	MET	1916 Apr 14 23:00s
 			1:00	1:00  "MET DST"	1916 Sep 30 23:00s
 			1:00	-	MET	1980
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Stockholm Sweden All points
 
@@ -1963,7 +2008,6 @@ Zone Europe/Stockholm	1:12:12 -	LMT	1878 May 31
 # and their performance improved enormously.  Communities began to keep
 # mean time in preference to apparent time -- Geneva from 1780 ....
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Swiss	1894	only	-	Jun	1	0:00	0	-
 # From Whitman (who writes ``Midnight?''):
 Rule	Swiss	1940	only	-	Nov	 2	0:00	1:00	" DST"
 Rule	Swiss	1940	only	-	Dec	31	0:00	0	-
@@ -1974,7 +2018,7 @@ Rule	Swiss	1941	1942	-	Oct	Sun>=1	0:00	0	-
 Zone	Europe/Zurich	0:34:08 -	LMT	1848 Sep 12
 			0:30	-	SST	1894 Jun   # Swiss Standard Time
 			1:00	Swiss	MET%s	1981
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Zurich Switzerland All points
 
@@ -1982,7 +2026,6 @@ Zone	Europe/Zurich	0:34:08 -	LMT	1848 Sep 12
 # European Turkey switched to the Gregorian calendar in 1908.
 # Asian Turkey switched in 1914.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
-Rule	Turkey	1910	only	-	Oct	 1	0:00	0	-
 Rule	Turkey	1916	only	-	May	 1	0:00	1:00	" DST"
 Rule	Turkey	1916	only	-	Oct	 1	0:00	0	-
 Rule	Turkey	1920	only	-	Mar	28	0:00	1:00	" DST"
@@ -2042,7 +2085,7 @@ Zone	Europe/Istanbul	1:55:52 -	LMT	1880
 			3:00	Turkey	TUR%s	1985 Apr 20
 			2:00	Turkey	EET%s	1986
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 
 # ZONE-DESCR Europe Istanbul Turkey All points
@@ -2062,7 +2105,7 @@ Zone Europe/Kiev	2:02:04 -	LMT	1880
 			2:00	-	EET	1930 Jun 21
 			3:00	Russia	MS%s	1990 Jul 17
 			2:00	M-Eur	EET%s
-#			This may change to `EC' soon.
+#			This may change to `EU' soon.
 Zone Europe/Simferopol	2:16:24 -	LMT	1880
 			2:08	Russia	LST%s	1919 Jul  1 2:00
 			2:08	Ukraine	LST%s	1924 May  2
@@ -2087,7 +2130,7 @@ Zone	Europe/Belgrade	1:22:00	-	LMT	1884
 			1:00	M-Eur	MET%s	1945 May  8  2:00s
 			1:00	1:00  "MET DST"	1945 Sep 16  2:00s
 			1:00	-	MET	1983
-			1:00	EC	MET%s
+			1:00	EU	MET%s
 
 # ZONE-DESCR Europe Belgrade Serbia All points
 
