@@ -164,6 +164,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 {
 	struct itimerval it, old_it;
 	struct timeval tv;
+	struct proc *p;
 
 #ifdef DEBUG
 	if (ldebug(alarm))
@@ -177,18 +178,19 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	it.it_value.tv_usec = 0;
 	it.it_interval.tv_sec = 0;
 	it.it_interval.tv_usec = 0;
-	PROC_LOCK(td->td_proc);
-	old_it = td->td_proc->p_realtimer;
+	p = td->td_proc;
+	PROC_LOCK(p);
+	old_it = p->p_realtimer;
 	getmicrouptime(&tv);
 	if (timevalisset(&old_it.it_value))
-		callout_stop(&td->td_proc->p_itcallout);
+		callout_stop(&p->p_itcallout);
 	if (it.it_value.tv_sec != 0) {
-		callout_reset(&td->td_proc->p_itcallout, tvtohz(&it.it_value),
-		    realitexpire, td->td_proc);
+		callout_reset(&p->p_itcallout, tvtohz(&it.it_value),
+		    realitexpire, p);
 		timevaladd(&it.it_value, &tv);
 	}
-	td->td_proc->p_realtimer = it;
-	PROC_UNLOCK(td->td_proc);
+	p->p_realtimer = it;
+	PROC_UNLOCK(p);
 	if (timevalcmp(&old_it.it_value, &tv, >)) {
 		timevalsub(&old_it.it_value, &tv);
 		if (old_it.it_value.tv_usec != 0)
@@ -809,6 +811,7 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 		struct	rusage *rusage;
 	} */ tmp;
 	int error, tmpstat;
+	struct proc *p;
 
 #ifdef DEBUG
 	if (ldebug(wait4))
@@ -828,9 +831,10 @@ linux_wait4(struct thread *td, struct linux_wait4_args *args)
 	if ((error = wait4(td, &tmp)) != 0)
 		return error;
 
-	PROC_LOCK(td->td_proc);
-	SIGDELSET(td->td_proc->p_siglist, SIGCHLD);
-	PROC_UNLOCK(td->td_proc);
+	p = td->td_proc;
+	PROC_LOCK(p);
+	SIGDELSET(p->p_siglist, SIGCHLD);
+	PROC_UNLOCK(p);
 
 	if (args->status) {
 		if ((error = copyin(args->status, &tmpstat, sizeof(int))) != 0)
