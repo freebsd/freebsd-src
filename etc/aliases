@@ -17,11 +17,6 @@
 MAILER-DAEMON: postmaster
 postmaster: root
 
-# Common convention aliases 
-abuse:	root
-webmaster:	root
-hostmaster:	root
-
 # General redirections for pseudo accounts
 bin:	root
 daemon:	root
@@ -48,12 +43,13 @@ xten:	root
 # support:
 
 # NETWORK OPERATIONS MAILBOX NAMES
-# abuse:	root
+abuse:	root
 # noc:		root
-# security:	root
+security:	root
 
 # SUPPORT MAILBOX NAMES FOR SPECIFIC INTERNET SERVICES
-# ftp: 		root
+ftp: 		root
+ftp-bugs: 	ftp
 # hostmaster: 	root
 # webmaster: 	root
 # www: 		webmaster
