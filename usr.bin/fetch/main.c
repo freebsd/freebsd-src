@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: main.c,v 1.46 1998/05/09 08:56:07 des Exp $ */
+/* $Id: main.c,v 1.47 1998/09/20 00:01:26 jkh Exp $ */
 
 #include <sys/types.h>
 
@@ -52,7 +52,7 @@ static void
 usage()
 {
 	fprintf(stderr, "%s\n%s\n", 
-		"usage: fetch [-DHILMNPRTValmnpqrv] [-o outputfile] [-S bytes]",
+		"usage: fetch [-DHILMNPRTVablmnpqrtv] [-o outputfile] [-S bytes]",
 		"             [-f file -h host [-c dir] | URL]");
 	exit(EX_USAGE);
 }
@@ -74,9 +74,9 @@ main(int argc, char *const *argv)
     fs.fs_expectedsize = -1;
     change_to_dir = file_to_get = hostname = 0;
 
-    while ((c = getopt(argc, argv, "abc:D:f:h:HilLmMnNo:pPqRrS:tT:vV:")) != -1) {
+    while ((c = getopt(argc, argv, "abc:D:f:h:HIlLmMnNo:pPqRrS:tT:vV:")) != -1) {
 	    switch (c) {
-	    case 'D': case 'H': case 'I': case 'N': case 'L': case 'V': 
+	    case 'D': case 'H': case 'I': case 'L': case 'N': case 'V': 
 		    break;	/* ncftp compatibility */
 	    
 	    case 'a':

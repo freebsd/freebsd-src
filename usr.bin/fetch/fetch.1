@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.23 1998/05/09 21:39:49 wollman Exp $
+.\" $Id: fetch.1,v 1.24 1998/09/20 00:01:26 jkh Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -7,13 +7,14 @@
 .Nd retrieve a file by Uniform Resource Locator
 .Sh SYNOPSIS
 .Nm fetch
-.Op Fl MPabmnpqr
+.Op Fl MPablmnpqrtv
 .Op Fl S Ar size
+.Op Fl T Ar timeout
 .Op Fl o Ar file
 .Ar URL
 .Op Ar ...
 .Nm fetch
-.Op Fl MPRmnpqr
+.Op Fl MPRlmnpqrv
 .Op Fl S Ar size
 .Op Fl o Ar file
 .Op Fl c Ar dir
@@ -102,7 +103,7 @@ under any circumstances, even if the transfer failed or was incomplete.
 .It Fl r
 Restart a previously interrupted transfer.
 .It Fl S Ar bytes
-Require file size reported by 
+Require the file size reported by
 .Tn FTP
 or 
 .Tn HTTP
@@ -114,10 +115,6 @@ This option is useful to prevent
 .Nm fetch
 from downloading a file that is either incomplete or the wrong version,
 given the correct size of the file in advance.
-.It Fl t
-Work around a different set of buggy
-.Tn TCP
-implementations.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
@@ -126,6 +123,10 @@ Overrides the environment variables
 for ftp transfers or
 .Ev HTTP_TIMEOUT 
 for http transfers if set.
+.It Fl t
+Work around a different set of buggy
+.Tn TCP
+implementations.
 .It Fl v
 Increase verbosity.  More
 .Fl v Ns \&'s
