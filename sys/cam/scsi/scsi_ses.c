@@ -288,6 +288,9 @@ sesasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		int inq_len;
 
 		cgd = (struct ccb_getdev *)arg;
+		if (arg == NULL) {
+			break;
+		}
 
 		inq_len = cgd->inq_data.additional_length + 4;
 
