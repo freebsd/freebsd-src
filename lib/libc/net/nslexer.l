@@ -43,11 +43,13 @@ static char *rcsid =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
+#include "namespace.h"
 #include <ctype.h>
 #include <err.h>
 #define _NS_PRIVATE
 #include <nsswitch.h>
 #include <string.h>
+#include "un-namespace.h"
 
 #include "nsparser.h"
 
