@@ -148,13 +148,6 @@
 
 #include "i386/isa/isa_device.h"
 
-void twdelay25();
-void twdelayn(int n);
-void twsetuptimes(int *a);
-int twprobe();
-int twattach();
-void twintr(int unit);
-
 /*
  * Transmission is done by calling write() to send three byte packets of data.
  * The first byte contains a four bit house code (0=A to 15=P).
@@ -201,6 +194,10 @@ void twintr(int unit);
 #define TWPRI		(PZERO+8)	/* I don't know any better, so let's */
 					/* use the same as the line printer */
 
+int twprobe();
+int twattach();
+void twintr(int unit);
+
 struct isa_driver twdriver = {
   twprobe, twattach, "tw"
 };
@@ -236,6 +233,15 @@ struct tw_sc {
 #endif /* HIRESTIME */
 } tw_sc[NTW];
 
+static void twdelay25();
+static void twdelayn(int n);
+static void twsetuptimes(int *a);
+static int wait_for_zero(struct tw_sc *sc);
+static int twgetbytes(struct tw_sc *sc, u_char *p, int cnt);
+static int twsend(struct tw_sc *sc, int h, int k, int cnt);
+static int next_zero(struct tw_sc *sc);
+static int twchecktime(int target, int tol);
+
 /*
  * Counter value for delay loop.
  * It is adjusted by twprobe so that the delay loop takes about 25us.
@@ -255,7 +261,7 @@ int twdelaycount;
  * fairly forgiving.
  */
 
-void twdelay25()
+static void twdelay25()
 {
   int cnt;
   for(cnt = twdelaycount; cnt; cnt--);	/* Should take about 25us */
@@ -268,7 +274,7 @@ void twdelay25()
  * if we happen to be interrupted during the delay.
  */
 
-void twdelayn(int n)
+static void twdelayn(int n)
 {
 #ifdef HIRESTIME
   int t, d;
@@ -572,7 +578,7 @@ short X10_KEY_INV[32]   = { 12, 16,  4, 17,  2, 18, 10, 19,
 
 #define TWRETRY		10		/* Try 10 times to sync with AC line */
 
-int twsend(sc, h, k, cnt)
+static int twsend(sc, h, k, cnt)
 struct tw_sc *sc;
 int h, k, cnt;
 {
@@ -658,7 +664,7 @@ int h, k, cnt;
  * X-10 packet.
  */
  
-int wait_for_zero(sc)
+static int wait_for_zero(sc)
 struct tw_sc *sc;
 {
   int i, old, new, max, cnt;
@@ -690,7 +696,7 @@ struct tw_sc *sc;
  * last bit was transmitted.
  */
 
-int next_zero(sc)
+static int next_zero(sc)
 struct tw_sc *sc;
 {
   int d;
@@ -711,7 +717,7 @@ struct tw_sc *sc;
  * Should be called at priority spltty()
  */
 
-int twputpkt(sc, p)
+static int twputpkt(sc, p)
 struct tw_sc *sc;
 u_char *p;
 {
@@ -742,7 +748,7 @@ u_char *p;
  * Should be called at priority spltty()
  */
 
-int twgetbytes(sc, p, cnt)
+static int twgetbytes(sc, p, cnt)
 struct tw_sc *sc;
 u_char *p;
 int cnt;
@@ -938,7 +944,7 @@ int unit;
  * or reception is on schedule.
  */
 
-void twsetuptimes(int *a)
+static void twsetuptimes(int *a)
 {
   struct timeval tv;
   int i, t;
@@ -958,7 +964,7 @@ void twsetuptimes(int *a)
  * on schedule.
  */
 
-int twchecktime(int target, int tol)
+static int twchecktime(int target, int tol)
 {
   struct timeval tv;
   int t, d;
