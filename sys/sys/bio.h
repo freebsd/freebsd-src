@@ -136,6 +136,8 @@ bioq_first(struct bio_queue_head *head)
 void biodone(struct bio *bp);
 void biofinish(struct bio *bp, struct devstat *stat, int error);
 int biowait(struct bio *bp, const char *wchan);
+void bioq_disksort(struct bio_queue_head *ap, struct bio *bp);
+#define bioqdisksort(foo, bar) bioq_disksort(foo, bar)
 void bioq_init(struct bio_queue_head *head);
 void bioq_remove(struct bio_queue_head *head, struct bio *bp);
 
