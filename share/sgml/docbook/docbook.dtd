@@ -1,0 +1,270 @@
+<!-- ...................................................................... -->
+<!-- DocBook DTD V2.4.1 ................................................... -->
+<!-- File docbook.dtd ..................................................... -->
+
+<!-- Copyright 1992, 1993, 1994, 1995 HaL Computer Systems, Inc., 
+     O'Reilly & Associates, Inc., and ArborText, Inc.
+
+     Permission to use, copy, modify and distribute the DocBook DTD and
+     its accompanying documentation for any purpose and without fee is
+     hereby granted in perpetuity, provided that the above copyright
+     notice and this paragraph appear in all copies.  The copyright
+     holders make no representation about the suitability of the DTD for
+     any purpose.  It is provided "as is" without expressed or implied
+     warranty.
+
+     If you modify the DocBook DTD in any way, except for declaring and
+     referencing additional sets of general entities and declaring
+     additional notations, label your DTD as a variant of DocBook.  See
+     the maintenance documentation for more information.
+
+     Please direct all questions, bug reports, or suggestions for
+     changes to the davenport@online.ora.com mailing list or to one of
+     the maintainers:
+
+     o Terry Allen, O'Reilly & Associates, Inc.
+       101 Morris St., Sebastopol, CA 95472
+       <terry@ora.com>
+
+     o Eve Maler, ArborText, Inc.
+       105 Lexington St., Burlington, MA 01803
+       <elm@arbortext.com>
+-->
+
+<!-- ...................................................................... -->
+
+<!-- This is the driver file for Version 2.4.1 of the DocBook DTD.
+     Please use the following formal public identifier to identify it:
+
+     "-//Davenport//DTD DocBook V2.4.1//EN"
+
+     For example, if your document's top-level element is Book, and
+     you are using DocBook directly, use the FPI in the DOCTYPE
+     declaration:
+
+     <!DOCTYPE Book PUBLIC "-//Davenport//DTD DocBook V2.4.1//EN" [...]>
+
+     Or, if you have a higher-level driver file that customizes DocBook,
+     use the FPI in the parameter entity declaration:
+
+     <!ENTITY % DocBookDTD PUBLIC "-//Davenport//DTD DocBook V2.4.1//EN">
+     %DocBookDTD;
+
+     The DocBook DTD is accompanied by an SGML declaration.
+
+     See the documentation for detailed information on the parameter
+     entity and module scheme used in DocBook, customizing DocBook and
+     planning for interchange, and changes made since the last release
+     of DocBook.
+-->
+
+<!-- ...................................................................... -->
+<!-- Notation declarations ................................................ -->
+
+<!ENTITY % local.notation.class "">
+<!ENTITY % notation.class
+		"BMP| CGM-CHAR | CGM-BINARY | CGM-CLEAR | DITROFF | DVI 
+		| EPS | EQN | FAX | GIF | IGES | PCX | PIC | PS | TBL | TEX 
+		| TIFF | WMF | WPG | linespecific 
+		%local.notation.class;">
+
+<!NOTATION BMP		PUBLIC
+"+//ISBN 0-7923-9432-1::Graphic Notation//NOTATION Microsoft Windows bitmap//EN">
+<!NOTATION CGM-CHAR	PUBLIC "ISO 8632/2//NOTATION Character encoding//EN">
+<!NOTATION CGM-BINARY	PUBLIC "ISO 8632/3//NOTATION Binary encoding//EN">
+<!NOTATION CGM-CLEAR	PUBLIC "ISO 8632/4//NOTATION Clear text encoding//EN">
+<!NOTATION DITROFF	SYSTEM "DITROFF">
+<!NOTATION DVI		SYSTEM "DVI">
+<!NOTATION EPS		PUBLIC 
+"+//ISBN 0-201-18127-4::Adobe//NOTATION PostScript Language Ref. Manual//EN">
+<!-- EQN was SYSTEM "-//AT&T//NOTATION EQN-1//EN" -->
+<!NOTATION EQN		SYSTEM>
+<!NOTATION FAX		PUBLIC 
+"-//USA-DOD//NOTATION CCITT Group 4 Facsimile Type 1 Untiled Raster//EN">
+<!NOTATION GIF		SYSTEM "GIF">
+<!NOTATION IGES		PUBLIC 
+"-//USA-DOD//NOTATION (ASME/ANSI Y14.26M-1987) Initial Graphics Exchange Specification//EN">
+<!NOTATION PCX		PUBLIC 
+"+//ISBN 0-7923-9432-1::Graphic Notation//NOTATION ZSoft PCX bitmap//EN">
+<!-- PIC was SYSTEM "-//AT&T//NOTATION EQN-1//EN" -->
+<!NOTATION PIC		SYSTEM>
+<!NOTATION PS		SYSTEM "PS">
+<!-- TBL was SYSTEM "-//AT&T//NOTATION EQN-1//EN" -->
+<!NOTATION TBL		SYSTEM>
+<!NOTATION TEX		PUBLIC 
+"+//ISBN 0-201-13448-9::Knuth//NOTATION The TeXbook//EN">
+<!NOTATION TIFF		SYSTEM "TIFF">
+<!NOTATION WMF		PUBLIC 
+"+//ISBN 0-7923-9432-1::Graphic Notation//NOTATION Microsoft Windows Metafile//EN">
+<!NOTATION WPG		SYSTEM "WPG" --WordPerfect Graphic format-->
+<!NOTATION linespecific	SYSTEM 
+"line ends and leading white space must be preserved in output">
+
+<!-- ...................................................................... -->
+<!-- ISO character entity sets ............................................ -->
+
+<!ENTITY % ISOamsa.module	"INCLUDE">
+<!ENTITY % ISOamsb.module	"INCLUDE">
+<!ENTITY % ISOamsc.module	"INCLUDE">
+<!ENTITY % ISOamsn.module	"INCLUDE">
+<!ENTITY % ISOamso.module	"INCLUDE">
+<!ENTITY % ISOamsr.module	"INCLUDE">
+<!ENTITY % ISObox.module	"INCLUDE">
+<!ENTITY % ISOcyr1.module	"INCLUDE">
+<!ENTITY % ISOcyr2.module	"INCLUDE">
+<!ENTITY % ISOdia.module	"INCLUDE">
+<!ENTITY % ISOgrk1.module	"INCLUDE">
+<!ENTITY % ISOgrk2.module	"INCLUDE">
+<!ENTITY % ISOgrk3.module	"INCLUDE">
+<!ENTITY % ISOgrk4.module	"INCLUDE">
+<!ENTITY % ISOlat1.module	"INCLUDE">
+<!ENTITY % ISOlat2.module	"INCLUDE">
+<!ENTITY % ISOnum.module	"INCLUDE">
+<!ENTITY % ISOpub.module	"INCLUDE">
+<!ENTITY % ISOtech.module	"INCLUDE">
+
+<![ %ISOamsa.module; [
+<!ENTITY % ISOamsa PUBLIC
+"ISO 8879:1986//ENTITIES Added Math Symbols: Arrow Relations//EN">
+%ISOamsa;
+<!--end of ISOamsa.module-->]]>
+
+<![ %ISOamsb.module; [
+<!ENTITY % ISOamsb PUBLIC
+"ISO 8879:1986//ENTITIES Added Math Symbols: Binary Operators//EN">
+%ISOamsb;
+<!--end of ISOamsb.module-->]]>
+
+<![ %ISOamsc.module; [
+<!ENTITY % ISOamsc PUBLIC
+"ISO 8879:1986//ENTITIES Added Math Symbols: Delimiters//EN">
+%ISOamsc;
+<!--end of ISOamsc.module-->]]>
+
+<![ %ISOamsn.module; [
+<!ENTITY % ISOamsn PUBLIC
+"ISO 8879:1986//ENTITIES Added Math Symbols: Negated Relations//EN">
+%ISOamsn;
+<!--end of ISOamsn.module-->]]>
+
+<![ %ISOamso.module; [
+<!ENTITY % ISOamso PUBLIC
+"ISO 8879:1986//ENTITIES Added Math Symbols: Ordinary//EN">
+%ISOamso;
+<!--end of ISOamso.module-->]]>
+
+<![ %ISOamsr.module; [
+<!ENTITY % ISOamsr PUBLIC
+"ISO 8879:1986//ENTITIES Added Math Symbols: Relations//EN">
+%ISOamsr;
+<!--end of ISOamsr.module-->]]>
+
+<![ %ISObox.module; [
+<!ENTITY % ISObox PUBLIC
+"ISO 8879:1986//ENTITIES Box and Line Drawing//EN">
+%ISObox;
+<!--end of ISObox.module-->]]>
+
+<![ %ISOcyr1.module; [
+<!ENTITY % ISOcyr1 PUBLIC
+"ISO 8879:1986//ENTITIES Russian Cyrillic//EN">
+%ISOcyr1;
+<!--end of ISOcyr1.module-->]]>
+
+<![ %ISOcyr2.module; [
+<!ENTITY % ISOcyr2 PUBLIC
+"ISO 8879:1986//ENTITIES Non-Russian Cyrillic//EN">
+%ISOcyr2;
+<!--end of ISOcyr2.module-->]]>
+
+<![ %ISOdia.module; [
+<!ENTITY % ISOdia PUBLIC
+"ISO 8879:1986//ENTITIES Diacritical Marks//EN">
+%ISOdia;
+<!--end of ISOdia.module-->]]>
+
+<![ %ISOgrk1.module; [
+<!ENTITY % ISOgrk1 PUBLIC
+"ISO 8879:1986//ENTITIES Greek Letters//EN">
+%ISOgrk1;
+<!--end of ISOgrk1.module-->]]>
+
+<![ %ISOgrk2.module; [
+<!ENTITY % ISOgrk2 PUBLIC
+"ISO 8879:1986//ENTITIES Monotoniko Greek//EN">
+%ISOgrk2;
+<!--end of ISOgrk2.module-->]]>
+
+<![ %ISOgrk3.module; [
+<!ENTITY % ISOgrk3 PUBLIC
+"ISO 8879:1986//ENTITIES Greek Symbols//EN">
+%ISOgrk3;
+<!--end of ISOgrk3.module-->]]>
+
+<![ %ISOgrk4.module; [
+<!ENTITY % ISOgrk4 PUBLIC
+"ISO 8879:1986//ENTITIES Alternative Greek Symbols//EN">
+%ISOgrk4;
+<!--end of ISOgrk4.module-->]]>
+
+<![ %ISOlat1.module; [
+<!ENTITY % ISOlat1 PUBLIC
+"ISO 8879:1986//ENTITIES Added Latin 1//EN">
+%ISOlat1;
+<!--end of ISOlat1.module-->]]>
+
+<![ %ISOlat2.module; [
+<!ENTITY % ISOlat2 PUBLIC
+"ISO 8879:1986//ENTITIES Added Latin 2//EN">
+%ISOlat2;
+<!--end of ISOlat2.module-->]]>
+
+<![ %ISOnum.module; [
+<!ENTITY % ISOnum PUBLIC
+"ISO 8879:1986//ENTITIES Numeric and Special Graphic//EN">
+%ISOnum;
+<!--end of ISOnum.module-->]]>
+
+<![ %ISOpub.module; [
+<!ENTITY % ISOpub PUBLIC
+"ISO 8879:1986//ENTITIES Publishing//EN">
+%ISOpub;
+<!--end of ISOpub.module-->]]>
+
+<![ %ISOtech.module; [
+<!ENTITY % ISOtech PUBLIC
+"ISO 8879:1986//ENTITIES General Technical//EN">
+%ISOtech;
+<!--end of ISOtech.module-->]]>
+
+<!-- ...................................................................... -->
+<!-- DTD modules .......................................................... -->
+
+<!-- Information pool .............. -->
+
+<!ENTITY % dbpool PUBLIC 
+"-//Davenport//ELEMENTS DocBook Information Pool V2.4.1//EN">
+%dbpool;
+
+<!-- Redeclaration placeholder ..... -->
+
+<!ENTITY % intermod.redecl.module "IGNORE">
+<![ %intermod.redecl.module; [
+%rdbmods;
+<!--end of intermod.redecl.module-->]]>
+
+<!-- Document hierarchy ............ -->
+
+<!ENTITY % dbhier PUBLIC 
+"-//Davenport//ELEMENTS DocBook Document Hierarchy V2.4.1//EN">
+%dbhier;
+
+<!-- ...................................................................... -->
+<!-- Other general entities ............................................... -->
+
+<!ENTITY % dbgenent PUBLIC
+"-//Davenport//ELEMENTS DocBook Additional General Entities//EN">
+%dbgenent;
+
+<!-- End of DocBook DTD V2.4.1 ............................................ -->
+<!-- ...................................................................... -->
