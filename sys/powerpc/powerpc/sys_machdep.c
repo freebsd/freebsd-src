@@ -35,5 +35,5 @@ int
 sysarch(struct thread *td, struct sysarch_args *uap)
 {
 
-	return (EOPNOTSUPP);
+	return (EINVAL);
 }
