@@ -49,6 +49,9 @@ pam_std_option(int *options, const char *name)
 		{ "use_mapped_pass",	PAM_OPT_USE_MAPPED_PASS },
 		{ "echo_pass",		PAM_OPT_ECHO_PASS },
 		{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+		{ "nullok",		PAM_OPT_NULLOK },
+		{ "no_anon",		PAM_OPT_NO_ANON },
+		{ "ignore",		PAM_OPT_IGNORE },
 		{ NULL,			0 }
 	};
 	struct opttab *p;
