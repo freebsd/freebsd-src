@@ -114,6 +114,9 @@ SYSINIT(scheduler, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, scheduler, NULL)
 static void swapout(struct proc *);
 #endif
 
+/*
+ * MPSAFE
+ */
 int
 kernacc(addr, len, rw)
 	caddr_t addr;
@@ -132,6 +135,9 @@ kernacc(addr, len, rw)
 	return (rv == TRUE);
 }
 
+/*
+ * MPSAFE
+ */
 int
 useracc(addr, len, rw)
 	caddr_t addr;
@@ -162,12 +168,15 @@ useracc(addr, len, rw)
 	return (rv == TRUE);
 }
 
+/*
+ * MPSAFE
+ */
 void
 vslock(addr, len)
 	caddr_t addr;
 	u_int len;
 {
-	GIANT_REQUIRED;
+
 	vm_map_wire(&curproc->p_vmspace->vm_map, trunc_page((vm_offset_t)addr),
 	    round_page((vm_offset_t)addr + len), FALSE);
 }
