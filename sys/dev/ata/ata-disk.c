@@ -253,7 +253,7 @@ ad_start(struct ata_device *atadev)
 
     /* setup request */
     request->device = atadev;
-    request->driver = bp;
+    request->bio = bp;
     request->callback = ad_done;
     request->timeout = 5;
     request->retries = 2;
@@ -306,14 +306,13 @@ ad_start(struct ata_device *atadev)
 	biofinish(bp, NULL, EIO);
 	return;
     }
-    request->flags |= ATA_R_SKIPSTART;
     ata_queue_request(request);
 }
 
 static void
 ad_done(struct ata_request *request)
 {
-    struct bio *bp = request->driver;
+    struct bio *bp = request->bio;
 
     /* finish up transfer */
     if ((bp->bio_error = request->result))

@@ -359,6 +359,9 @@ ata_interrupt(void *data)
 		    min((request->bytecount - request->donecount),
 			request->transfersize);
 
+		/* clear interrupt seen flag as we need to wait again */
+		request->flags &= ~ATA_R_INTR_SEEN;
+
 		/* if data write command, output the data */
 		if (request->flags & ATA_R_WRITE) {
 
@@ -510,19 +513,15 @@ ata_interrupt(void *data)
 	break;
     }
 
-    /* if we timed out, we hold on to the channel, ata_reinit() will unlock */
-    if (request->flags & ATA_R_TIMEOUT) {
-	ata_finish(request);
-	return;
+    /* if we timed out the unlocking of the ATA channel is done later */
+    if (!(request->flags & ATA_R_TIMEOUT)) {
+	ch->running = NULL;
+	ATA_UNLOCK_CH(ch);
+	ch->locking(ch, ATA_LF_UNLOCK);
     }
 
     /* schedule completition for this request */
     ata_finish(request);
-
-    /* unlock the ATA channel for new work */
-    ch->running = NULL;
-    ATA_UNLOCK_CH(ch);
-    ch->locking(ch, ATA_LF_UNLOCK);
 }
 
 /* must be called with ATA channel locked */
