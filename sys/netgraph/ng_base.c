@@ -45,18 +45,17 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
-#include <sys/syslog.h>
-#include <sys/sysctl.h>
-#include <sys/queue.h>
 #include <sys/mbuf.h>
-#include <sys/ctype.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
+#include <sys/systm.h>
 
 #include <net/netisr.h>
 
