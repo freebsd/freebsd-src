@@ -41,6 +41,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 	int i;
 	int error;
 	int spl;
+	int chk_blockno;
 	caddr_t sa;
 	off_t blockno;
 	u_int iolen;
@@ -59,6 +60,12 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 		    devtoname(dev), dev->si_iosize_max);
 		dev->si_iosize_max = DFLTPHYS;
 	}
+
+	/* Don't check block number overflow for D_MEM */
+	if ((devsw(dev)->d_flags & D_TYPEMASK) == D_MEM)
+		chk_blockno = 0;
+	else
+		chk_blockno = 1;
 
 	for (i = 0; i < uio->uio_iovcnt; i++) {
 		while (uio->uio_iov[i].iov_len) {
@@ -92,7 +99,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 			bp->b_bufsize = bp->b_bcount;
 
 			blockno = bp->b_offset >> DEV_BSHIFT;
-			if ((daddr_t)blockno != blockno) {
+			if (chk_blockno && (daddr_t)blockno != blockno) {
 				error = EINVAL; /* blockno overflow */
 				goto doerror;
 			}
