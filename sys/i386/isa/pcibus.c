@@ -119,7 +119,6 @@ static struct pcibus i386pci = {
 	pcibus_ftag,
 	pcibus_read,
 	pcibus_write,
-	ICU_LEN,
 	pcibus_ihandler_attach,
 	pcibus_ihandler_detach,
 	pcibus_imask_include,
