@@ -214,8 +214,6 @@ SYSCTL_DECL(_hw_snd);
 struct sysctl_ctx_list *snd_sysctl_tree(device_t dev);
 struct sysctl_oid *snd_sysctl_tree_top(device_t dev);
 
-void pcm_lock(struct snddev_info *d);
-void pcm_unlock(struct snddev_info *d);
 struct pcm_channel *pcm_getfakechan(struct snddev_info *d);
 struct pcm_channel *pcm_chnalloc(struct snddev_info *d, int direction, pid_t pid, int chnum);
 int pcm_chnrelease(struct pcm_channel *c);
@@ -242,10 +240,9 @@ int snd_setup_intr(device_t dev, struct resource *res, int flags,
 void *snd_mtxcreate(const char *desc, const char *type);
 void snd_mtxfree(void *m);
 void snd_mtxassert(void *m);
-/*
-void snd_mtxlock(void *m);
-void snd_mtxunlock(void *m);
-*/
+#define	snd_mtxlock(m) mtx_lock(m)
+#define	snd_mtxunlock(m) mtx_unlock(m)
+
 int sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS);
 
 typedef int (*sndstat_handler)(struct sbuf *s, device_t dev, int verbose);
@@ -270,12 +267,44 @@ int sndstat_busy(void);
 #define DV_F_DRQ_MASK	0x00000007	/* mask for secondary drq */
 #define	DV_F_DUAL_DMA	0x00000010	/* set to use secondary dma channel */
 
-/* ought to be made obsolete */
+/* ought to be made obsolete but still used by mss */
 #define	DV_F_DEV_MASK	0x0000ff00	/* force device type/class */
 #define	DV_F_DEV_SHIFT	8		/* force device type/class */
 
-#define	snd_mtxlock(m) mtx_lock(m)
-#define	snd_mtxunlock(m) mtx_unlock(m)
+#define	PCM_DEBUG_MTX
+
+/*
+ * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
+ * so that the macro versions of pcm_{,un}lock can dereference them.
+ */
+
+#ifdef	PCM_DEBUG_MTX
+struct snddev_channel {
+	SLIST_ENTRY(snddev_channel) link;
+	struct pcm_channel *channel;
+};
+
+struct snddev_info {
+	SLIST_HEAD(, snddev_channel) channels;
+	struct pcm_channel *fakechan;
+	unsigned devcount, playcount, reccount, vchancount;
+	unsigned flags;
+	int inprog;
+	unsigned int bufsz;
+	void *devinfo;
+	device_t dev;
+	char status[SND_STATUSLEN];
+	struct sysctl_ctx_list sysctl_tree;
+	struct sysctl_oid *sysctl_tree_top;
+	struct mtx *lock;
+};
+
+#define	pcm_lock(d) mtx_lock(((struct snddev_info *)(d))->lock)
+#define	pcm_unlock(d) mtx_unlock(((struct snddev_info *)(d))->lock)
+#else
+void pcm_lock(struct snddev_info *d);
+void pcm_unlock(struct snddev_info *d);
+#endif
 
 #endif /* _KERNEL */
 
