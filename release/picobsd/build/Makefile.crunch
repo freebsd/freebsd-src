@@ -7,7 +7,7 @@ all: crunch
 
 crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
-	@( if [ -f crunch.inc ] ; then \
+	-@( if [ -f crunch.inc ] ; then \
 		crunchgen -p ${PICO_OBJ} -o -h ./crunch.inc ./crunch1.conf ; \
 	else \
 		crunchgen -p ${PICO_OBJ} -o ./crunch1.conf ; \
