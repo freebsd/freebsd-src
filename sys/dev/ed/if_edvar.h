@@ -190,32 +190,30 @@ struct ed_softc {
 		rman_get_bushandle((sc)->port_res), \
 		(sc)->asic_offset + (port), (uint32_t *)(addr), (count))
 
-void	ed_release_resources	(device_t);
-int	ed_alloc_port		(device_t, int, int);
-int	ed_alloc_memory		(device_t, int, int);
-int	ed_alloc_irq		(device_t, int, int);
+void	ed_release_resources(device_t);
+int	ed_alloc_port(device_t, int, int);
+int	ed_alloc_memory(device_t, int, int);
+int	ed_alloc_irq(device_t, int, int);
 
-int	ed_probe_generic8390	(struct ed_softc *);
-int	ed_probe_WD80x3		(device_t, int, int);
-int	ed_probe_WD80x3_generic	(device_t, int, unsigned short *[]);
-int	ed_probe_3Com		(device_t, int, int);
-int	ed_probe_SIC		(device_t, int, int);
-int	ed_probe_Novell		(device_t, int, int);
-int	ed_probe_Novell_generic	(device_t, int);
-int	ed_probe_HP_pclanp	(device_t, int, int);
+int	ed_probe_generic8390(struct ed_softc *);
+int	ed_probe_WD80x3(device_t, int, int);
+int	ed_probe_WD80x3_generic(device_t, int, unsigned short *[]);
+int	ed_probe_3Com(device_t, int, int);
+int	ed_probe_SIC(device_t, int, int);
+int	ed_probe_Novell(device_t, int, int);
+int	ed_probe_Novell_generic(device_t, int);
+int	ed_probe_HP_pclanp(device_t, int, int);
 
-int	ed_attach		(device_t);
-void	ed_stop			(struct ed_softc *);
-void	ed_pio_readmem		(struct ed_softc *, long, unsigned char *,
-				     unsigned short);
-void	ed_pio_writemem		(struct ed_softc *, char *,
-				     unsigned short, unsigned short);
+int	ed_attach(device_t);
+void	ed_stop(struct ed_softc *);
+void	ed_pio_readmem(struct ed_softc *, long, unsigned char *, unsigned short);
+void	ed_pio_writemem(struct ed_softc *, char *, unsigned short, unsigned short);
 #ifndef ED_NO_MIIBUS
-int	ed_miibus_readreg	(device_t, int, int);
-void	ed_miibus_writereg	(device_t, int, int, int);
-int	ed_ifmedia_upd		(struct ifnet *);
-void	ed_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
-void	ed_child_detached	(device_t, device_t);
+int	ed_miibus_readreg(device_t, int, int);
+void	ed_miibus_writereg(device_t, int, int, int);
+int	ed_ifmedia_upd(struct ifnet *);
+void	ed_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+void	ed_child_detached(device_t, device_t);
 #endif
 
 driver_intr_t	edintr;
