@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)igmp.c	8.1 (Berkeley) 7/19/93
- * $Id: igmp.c,v 1.12 1995/06/13 17:51:05 wollman Exp $
+ * $Id: igmp.c,v 1.13 1995/11/14 20:33:52 phk Exp $
  */
 
 /*
@@ -66,6 +66,10 @@
 #include <netinet/ip_var.h>
 #include <netinet/igmp.h>
 #include <netinet/igmp_var.h>
+
+extern int	fill_rti __P((struct in_multi *inm));
+extern struct router_info *
+		find_rti __P((struct ifnet *ifp));
 
 struct igmpstat igmpstat;
 
