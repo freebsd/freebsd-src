@@ -77,7 +77,8 @@ Allow
 .Ar allowed_peer
 to log to this
 .Nm
-using UDP datagrams.  Multiple
+using UDP datagrams.
+Multiple
 .Fl a
 options may be specified.
 .Pp
@@ -105,11 +106,13 @@ If specified,
 .Ar service
 is the name or number of an UDP service (see
 .Xr services 5 )
-the source packet must belong to.  A
+the source packet must belong to.
+A
 .Ar service
 of
 .Ql \&*
-allows packets being sent from any UDP port.  The default
+allows packets being sent from any UDP port.
+The default
 .Ar service
 is
 .Ql syslog .
@@ -120,7 +123,8 @@ is IPv4 address, a missing
 will be substituted by the historic class A or class B netmasks if
 .Ar ipaddr
 belongs into the address range of class A or B, respectively, or
-by 24 otherwise.  If
+by 24 otherwise.
+If
 .Ar ipaddr
 is IPv6 address, a missing
 .Ar masklen
@@ -132,7 +136,8 @@ will be substituted by 128.
 .Xc
 Accept datagrams where the reverse address lookup yields
 .Ar domainname
-for the sender address.  The meaning of
+for the sender address.
+The meaning of
 .Ar service
 is as explained above.
 .It Xo
@@ -165,7 +170,8 @@ If specified twice, disable this compression in all cases.
 .It Fl d
 Put
 .Nm
-into debugging mode.  This is probably only of use to developers working on
+into debugging mode.
+This is probably only of use to developers working on
 .Nm .
 .It Fl f
 Specify the pathname of an alternate configuration file;
@@ -209,19 +215,24 @@ The primary use for this is to place additional log sockets in
 .Pa /var/run/log
 of various chroot filespaces.
 .It Fl s
-Operate in secure mode.  Do not log messages from remote machines.  If
+Operate in secure mode.
+Do not log messages from remote machines.
+If
 specified twice, no network socket will be opened at all, which also
 disables logging to remote machines.
 .It Fl u
-Unique priority logging.  Only log messages at the specified priority.
+Unique priority logging.
+Only log messages at the specified priority.
 Without this option, messages at the stated priority or higher are logged.
 This option changes the default comparison from
 .Dq =>
 to
 .Dq = .
 .It Fl v
-Verbose logging.  If specified once, the numeric facility and priority are
-logged with each locally-written message.  If specified more than once,
+Verbose logging.
+If specified once, the numeric facility and priority are
+logged with each locally-written message.
+If specified more than once,
 the names of the facility and priority are logged with each locally-written
 message.
 .El
@@ -307,9 +318,11 @@ extensions.
 .Sh BUGS
 The ability to log messages received in UDP packets is equivalent to
 an unauthenticated remote disk-filling service, and should probably be
-disabled by default.  Some sort of
+disabled by default.
+Some sort of
 .No inter- Ns Nm syslogd
-authentication mechanism ought to be worked out.  To prevent the worst
+authentication mechanism ought to be worked out.
+To prevent the worst
 abuse, use of the
 .Fl a
 option is therefore highly recommended.
@@ -317,7 +330,8 @@ option is therefore highly recommended.
 The
 .Fl a
 matching algorithm doesn't pretend to be very efficient; use of numeric
-IP addresses is faster than domain name comparison.  Since the allowed
+IP addresses is faster than domain name comparison.
+Since the allowed
 peer list is being walked linearly, peer groups where frequent messages
 are being anticipated from should be put early into the
 .Fl a

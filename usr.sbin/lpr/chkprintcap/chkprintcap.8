@@ -64,7 +64,8 @@ capability).
 The
 .Nm
 utility exits with a status equal to the number of errors encountered before
-processing stopped.  (In some cases, processing can stop before the
+processing stopped.
+(In some cases, processing can stop before the
 entire file is scanned.)
 .Pp
 If the
@@ -89,8 +90,10 @@ The
 utility was written by
 .An Garrett A. Wollman Aq wollman@lcs.mit.edu .
 .Sh BUGS
-Not enough sanity-checking is done.  At a minimum, the ownership and
-mode of the spool directories should also be checked.  Other
+Not enough sanity-checking is done.
+At a minimum, the ownership and
+mode of the spool directories should also be checked.
+Other
 parameters whose value could cause
 .Xr lpd 8
 to fail should be diagnosed.

@@ -53,7 +53,8 @@ consists of the
 and
 .Sq HDD boot menu .
 The IPL occupies sector 0 of a disk and is followed by the partition
-table.  The IPL loads the HDD boot menu that starts from 0x400.
+table.
+The IPL loads the HDD boot menu that starts from 0x400.
 .Pp
 The
 .Nm
@@ -67,12 +68,15 @@ than that in the format command.
 The options are:
 .Bl -tag -width indent
 .It Fl B
-Install the IPL and HDD boot menu.  This option causes the IPL and HDD
+Install the IPL and HDD boot menu.
+This option causes the IPL and HDD
 boot menu code to be replaced.
 .It Fl i Ar boot0
-Specify which IPL image to use.  The default is /boot/boot0.
+Specify which IPL image to use.
+The default is /boot/boot0.
 .It Fl m Ar boot0.5
-Specify which HDD boot menu image to use.  The default is
+Specify which HDD boot menu image to use.
+The default is
 /boot/boot0.5.
 .It Fl f Ar boot0.bak
 Specify that a backup copy of the preexisting IPL should be written to
@@ -86,7 +90,8 @@ This file is created if it does not exist, and truncated if it does.
 .It Fl v Ar version
 Specify the version number.
 .It Fl s Ar secsize
-Specify the sector size.  The default sector size is 512
+Specify the sector size.
+The default sector size is 512
 (bytes/sector).
 .El
 .Sh SEE ALSO

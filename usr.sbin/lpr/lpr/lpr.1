@@ -57,7 +57,8 @@
 The
 .Nm
 utility uses a spooling daemon to print the named files when facilities
-become available.  If no names appear, the standard input is assumed.
+become available.
+If no names appear, the standard input is assumed.
 .Pp
 The following single letter options are used to notify the line printer
 spooler that the files are not standard text files.
@@ -118,7 +119,8 @@ These options apply to the handling of
 the print job:
 .Bl -tag -width indent
 .It Fl P
-Force output to a specific printer.  Normally,
+Force output to a specific printer.
+Normally,
 the default printer is used (site dependent), or the value of the
 environment variable
 .Ev PRINTER
@@ -133,13 +135,15 @@ printing (with the
 .Fl s
 option).
 .It Fl s
-Use symbolic links.  Usually files are copied to the spool directory.
+Use symbolic links.
+Usually files are copied to the spool directory.
 The
 .Fl s
 option will use
 .Xr symlink  2
 to link data files rather than trying to copy them so large files can be
-printed.  This means the files should
+printed.
+This means the files should
 not be modified or removed until they have been printed.
 .El
 .Pp
@@ -148,12 +152,13 @@ The remaining options apply to copies, the page display, and headers:
 .It Fl \&# Ns Ar num
 The quantity
 .Ar num
-is the number of copies desired of each file named.  For example,
+is the number of copies desired of each file named.
+For example,
 .Bd -literal -offset indent
 lpr \-#3 foo.c bar.c more.c
 .Ed
 would result in 3 copies of the file foo.c, followed by 3 copies
-of the file bar.c, etc.  On the other hand,
+of the file bar.c, etc.\&  On the other hand,
 .Bd -literal -offset indent
 cat foo.c bar.c more.c \&| lpr \-#3
 .Ed
@@ -177,7 +182,8 @@ file referencing
 the font pathname.
 .It Fl C Ar class
 Job classification
-to use on the burst page.  For example,
+to use on the burst page.
+For example,
 .Bd -literal -offset indent
 lpr \-C EECS foo.c
 .Ed

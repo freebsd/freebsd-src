@@ -49,13 +49,16 @@ utility
 is a daemon which co-operates with
 .Nm
 daemons on other hosts to provide
-a status monitoring service.  The daemon accepts requests from
+a status monitoring service.
+The daemon accepts requests from
 programs running on the local host (typically,
 .Xr rpc.lockd 8 ,
 the NFS file locking daemon) to monitor the status of specified
-hosts.  If a monitored host crashes and restarts, the remote daemon will
+hosts.
+If a monitored host crashes and restarts, the remote daemon will
 notify the local daemon, which in turn will notify the local program(s)
-which requested the monitoring service.  Conversely, if this host crashes
+which requested the monitoring service.
+Conversely, if this host crashes
 and re-starts, when the
 .Nm
 re-starts, it will notify all of the hosts which were being monitored
@@ -65,8 +68,10 @@ The following option is available:
 .Bl -tag -width indent
 .It Fl d
 Cause debugging information to be written to syslog, recording
-all RPC transactions to the daemon.  These messages are logged with level
-LOG_DEBUG and facility LOG_DAEMON.  Error conditions are logged irrespective
+all RPC transactions to the daemon.
+These messages are logged with level
+LOG_DEBUG and facility LOG_DAEMON.
+Error conditions are logged irrespective
 of this option, using level LOG_ERR.
 .El
 .Pp
@@ -91,8 +96,9 @@ RPC protocol specification used by local applications to register monitoring req
 .Xr rpc.lockd 8
 .Sh BUGS
 There is no means for the daemon to tell when a monitored host has
-disappeared permanently (eg. catastrophic hardware failure), as opposed
-to transient failure of the host or an intermediate router.  At present,
+disappeared permanently (e.g.\& catastrophic hardware failure), as opposed
+to transient failure of the host or an intermediate router.
+At present,
 it will re-try notification attempts at frequent intervals for 10 minutes,
 then hourly, and finally gives up after 24 hours.
 .Pp
@@ -102,7 +108,8 @@ This is convenient for the NFS locking protocol, but probably reduces the
 usefulness of the monitoring system for other applications.
 .Pp
 The current implementation uses more than 1Kbyte per monitored host in
-the status file (and also in VM).  This may be inefficient for NFS servers
+the status file (and also in VM).
+This may be inefficient for NFS servers
 with large numbers of clients.
 .Sh STANDARDS
 The implementation is based on the specification in X/Open CAE Specification

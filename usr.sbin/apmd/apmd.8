@@ -47,10 +47,12 @@ utility
 monitors the occurrence of the specified Advanced Power Management
 .Pq Tn APM
 events and, if one of the events occurs, it executes the sequence of
-commands corresponding to the event.  Only the events specified in the
+commands corresponding to the event.
+Only the events specified in the
 configuration file are notified to
 .Nm ;
-all other events are ignored.  For each event posted by the APM BIOS,
+all other events are ignored.
+For each event posted by the APM BIOS,
 .Nm
 invokes the sequence of commands specified in the configuration file.
 When
@@ -66,7 +68,8 @@ The
 utility recognizes the following runtime options:
 .Bl -tag -width -f_file
 .It Fl d
-Starts in debug mode.  This causes
+Starts in debug mode.
+This causes
 .Nm
 to execute in the foreground instead of in daemon mode.
 .It Fl f Ar file
@@ -114,7 +117,8 @@ When
 .Nm
 receives an APM event, it forks a child process to execute the
 commands specified in the configuration file and then continues
-listening for more events.  The child process executes the commands
+listening for more events.
+The child process executes the commands
 specified, one at a time and in the order that they are listed.
 .Pp
 While
@@ -135,7 +139,8 @@ This can be used to kill or reconfigure
 .Sh CONFIGURATION FILE
 The structure of the
 .Nm
-configuration file is quite simple.  For example:
+configuration file is quite simple.
+For example:
 .Pp
 .Bd -literal
 apm_event SUSPENDREQ {
@@ -167,7 +172,8 @@ each events.
 APM events
 .Bd -ragged -offset indent
 If you wish to execute the same commands for different events, the
-event names should be delimited by a comma.  The following are
+event names should be delimited by a comma.
+The following are
 valid event names:
 .Bl -item
 .It
@@ -241,7 +247,8 @@ The following built-in functions are currently supported:
 .It
 - reject:
 .Bd -ragged -offset indent
-Reject last request posted by APM BIOS.  This can be used to reject
+Reject last request posted by APM BIOS.
+This can be used to reject
 a SUSPEND request when the LCD is closed and put the system in a
 STANDBY state instead.
 .Ed
