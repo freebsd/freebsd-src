@@ -24,7 +24,7 @@
 	</listitem>
         <listitem>
           <para>System specific information for each of the
-          systems/boards supported  by &os;;.</para>
+          systems/boards supported by &os;.</para>
         </listitem>
 	<listitem>
 	  <para>Information on expansion boards for &os;,
@@ -37,12 +37,12 @@
   </sect2>
 
   <sect2>
-    <title>In general, what do you need to run &os; on an &arch;</title>
+    <title>In general, what do you need to run &os; on a &arch;</title>
 
-    <para>&os;/&arch; requires a &arch.print; system.  Currently, the
+    <para>&os;/&arch; requires an &arch.print; system.  Currently, the
       newer PCI-based systems are supported better than the older SBus
-      based systems.  The following systems are know to work to
-      varying degrees :</para>
+      based systems.  The following systems are known to work to
+      varying degrees:</para>
 
       <itemizedlist>
         <listitem>
@@ -81,9 +81,9 @@
 
       <para>UltraSPARC Ultra1-family systems have not been throroughly
 	tested with FreeBSD.  These systems are not very well
-	supported, but you MAY be able to install FreeBSD onto one an
+	supported, but you <emphasis>may</emphasis> be able to install FreeBSD onto an
 	Ultra-1e with a <devicename>hme</devicename> Ethernet
-	interface .</para>
+	interface.</para>
     </sect3>
 
     <sect3>
@@ -193,7 +193,7 @@
       work on &arch; only.</para>
 
     <para>The PCI bus is fully supported.  SBus support is limited,
-      but is reported to work well enough to netboot a SBus-based
+      but is reported to work well enough to netboot an SBus-based
       Ultra 2 workstation.</para>
 
     <para>1.44 Mbyte floppy drives are <emphasis>not</emphasis> yet
