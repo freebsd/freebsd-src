@@ -345,6 +345,7 @@ struct ncr53c9x_softc {
 	int sc_maxsync;		/* Maximum sync period */
 	int sc_maxoffset;	/* Maximum offset */
 	int sc_maxwidth;	/* Maximum width */
+	int sc_extended_geom;	/* Should we return extended geometry */
 
 	struct mtx sc_lock;	/* driver mutex */
 };
