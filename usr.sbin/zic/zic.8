@@ -1,5 +1,5 @@
 .\" $FreeBSD$
-.Dd October 29, 1997
+.Dd June 20, 2004
 .Dt ZIC 8
 .Os
 .Sh NAME
@@ -7,6 +7,7 @@
 .Nd timezone compiler
 .Sh SYNOPSIS
 .Nm
+.Op Fl -version
 .Op Fl Dsv
 .Op Fl d Ar directory
 .Op Fl g Ar group
@@ -30,6 +31,8 @@ the standard input is read.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl -version
+Output version information and exit.
 .It Fl D
 Do not automatically create directories.  If the input file(s) specify
 an output file in a directory which does not already exist, the
