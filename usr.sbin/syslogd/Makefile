@@ -5,6 +5,6 @@ PROG=	syslogd
 SRCS=	syslogd.c ttymsg.c
 .PATH:	${.CURDIR}/../../usr.bin/wall
 MAN=	syslog.conf.5 syslogd.8
-COPTS+=	-Wall -DINET6
+COPTS+=	-DINET6
 
 .include <bsd.prog.mk>

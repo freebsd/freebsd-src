@@ -7,7 +7,6 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 	mbuf.c mp.c pap.c physical.c pred.c probe.c prompt.c proto.c route.c \
 	server.c sig.c slcompress.c sync.c systems.c tcp.c tcpmss.c \
 	throughput.c timer.c tty.c tun.c udp.c vjcomp.c
-CFLAGS+=-Wall
 LDADD+= -lcrypt -lmd -lutil -lz
 DPADD+=	${LIBCRYPT} ${LIBMD} ${LIBUTIL} ${LIBZ}
 .if defined(NOSUID) || defined(PPP_NOSUID)

@@ -2,6 +2,6 @@
 PROG=	wicontrol
 MAN=	wicontrol.8
 
-CFLAGS+= -Wall -DWICACHE
+CFLAGS+= -DWICACHE
 
 .include <bsd.prog.mk>

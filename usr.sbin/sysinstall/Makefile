@@ -14,7 +14,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	system.c tape.c tcpip.c termcap.c ttys.c ufs.c usb.c user.c \
 	variable.c wizard.c keymap.h
 
-CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I.
+CFLAGS+= -I${.CURDIR}/../../gnu/lib/libdialog -I.
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
