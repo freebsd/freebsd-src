@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.3 (Berkeley) 8/22/94
- * $Id: vfs_cache.c,v 1.9 1995/03/10 20:26:29 davidg Exp $
+ * $Id: vfs_cache.c,v 1.10 1995/03/10 20:29:51 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -140,6 +140,7 @@ cache_lookup(dvp, vpp, cnp)
 		/* If one of the vp's went stale, don't bother anymore. */
 		if ((ncp->nc_dvpid != ncp->nc_dvp->v_id) ||
 		    (ncp->nc_vpid  != ncp->nc_vp->v_id)) {
+			nchstats.ncs_falsehits++;
 			PURGE(ncp);
 			continue;
 		}
@@ -172,6 +173,7 @@ cache_lookup(dvp, vpp, cnp)
 
 	/* We found a negative match, and want to create it, so purge */
 	if (cnp->cn_nameiop == CREATE) {
+		nchstats.ncs_badhits++;
 		PURGE(ncp);
 		return (0);
 	}
