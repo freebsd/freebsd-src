@@ -80,7 +80,7 @@ typedef struct _plandata {
 		mode_t _m_data;		/* mode mask */
 		struct {
 			u_long _f_flags;
-			u_long _f_mask;
+			u_long _f_notflags;
 		} fl;
 		nlink_t _l_data;		/* link count */
 		off_t _o_data;			/* file size */
@@ -101,7 +101,7 @@ typedef struct _plandata {
 #define	a_data	p_un._a_data
 #define	c_data	p_un._c_data
 #define fl_flags	p_un.fl._f_flags
-#define fl_mask		p_un.fl._f_mask
+#define fl_notflags	p_un.fl._f_notflags
 #define	g_data	p_un._g_data
 #define	i_data	p_un._i_data
 #define	l_data	p_un._l_data
