@@ -199,8 +199,7 @@ mlx_free(struct mlx_softc *sc)
 
     /* release the register window mapping */
     if (sc->mlx_mem != NULL)
-	bus_release_resource(sc->mlx_dev, SYS_RES_MEMORY, 
-			     (sc->mlx_iftype == MLX_IFTYPE_3) ? MLX_CFG_BASE1 : MLX_CFG_BASE0, sc->mlx_mem);
+	bus_release_resource(sc->mlx_dev, sc->mlx_mem_type, sc->mlx_mem_rid, sc->mlx_mem);
 
     /* free controller enquiry data */
     if (sc->mlx_enq2 != NULL)
