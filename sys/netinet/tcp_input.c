@@ -350,8 +350,7 @@ tcp_input(m, off0)
 	register struct inpcb *inp = NULL;
 	u_char *optp = NULL;
 	int optlen = 0;
-	int len = 0;
-	int tlen, off;
+	int len, tlen, off;
 	int drop_hdrlen;
 	register struct tcpcb *tp = 0;
 	register int thflags;
