@@ -1,0 +1,34 @@
+.\" this is comment
+.Dd April 30, 1994
+.Dt SKEY.ACCESS 5
+.Os FreeBSD 1.2
+.Sh NAME
+.Nm skey.access
+.Nd List of S/Key obligated host adresses
+.Sh DESCRIPTION
+The
+.Nm skey.access
+file contains a number of lines specifying host IP adresses
+for which the use of S/Key passwords is obligated.
+.Pp
+The first word of each line says if UNIX passwords are 
+to be permitted or denied. When denied, only S/Key passwords
+are allowed.
+The  remainder of the rule is a networknumber and mask. A rule matches a
+host if any of its addresses satisfies:
+	network = (address & mask)
+.Sh FILES
+.Bl -tag -width /etc/skey.access -compact
+.It Pa /etc/skey.access
+The
+.Nm skey.access
+file resides in
+.Pa /etc .
+.El
+.Sh SEE ALSO
+.Xr skey 1 ,
+.Xr keyinit 1 ,
+.Xr key 1 ,
+.Xr keyinfo 1
+.Sh AUTHOR
+Guido van Rooij
