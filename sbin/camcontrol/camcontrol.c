@@ -859,7 +859,7 @@ scsixferrate(struct cam_device *device)
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		char *error_string = "error getting transfer settings";
+		const char error_string[] = "error getting transfer settings";
 
 		if (retval < 0)
 			warn(error_string);
@@ -986,7 +986,7 @@ parse_btl(char *tstr, int *bus, int *target, int *lun, cam_argmask *arglist)
 static int
 dorescan_or_reset(int argc, char **argv, int rescan)
 {
-	static const char *must =
+	static const char must[] =
 		"you must specify a bus, or a bus:target:lun to %s";
 	int rv, error = 0;
 	int bus = -1, target = -1, lun = -1;
@@ -2822,7 +2822,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((immediate == 0)
 	   && ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP))) {
-		char *errstr = "error sending format command";
+		const char errstr[] = "error sending format command";
 
 		if (retval < 0)
 			warn(errstr);
