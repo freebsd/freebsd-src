@@ -254,7 +254,7 @@ readdisklabel(dev, strat, lp)
 	bp->b_dev = dev;
 	bp->b_blkno = LABELSECTOR;
 	bp->b_bcount = lp->d_secsize;
-	bp->b_flags = B_BUSY | B_READ;
+	bp->b_flags |= B_BUSY | B_READ;
 	bp->b_cylinder = LABELSECTOR / lp->d_secpercyl;
 	(*strat)(bp);
 	if (biowait(bp))
@@ -363,7 +363,7 @@ writedisklabel(dev, strat, lp)
 	 * Note that you can't write a label out over a corrupted label!
 	 * (also stupid.. how do you write the first one? by raw writes?)
 	 */
-	bp->b_flags = B_BUSY | B_READ;
+	bp->b_flags |= B_BUSY | B_READ;
 	(*strat)(bp);
 	error = biowait(bp);
 	if (error)
@@ -375,7 +375,7 @@ writedisklabel(dev, strat, lp)
 		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
 		    dkcksum(dlp) == 0) {
 			*dlp = *lp;
-			bp->b_flags = B_BUSY | B_WRITE;
+			bp->b_flags |= B_BUSY | B_WRITE;
 			(*strat)(bp);
 			error = biowait(bp);
 			goto done;
@@ -387,7 +387,7 @@ done:
 	bzero(bp->b_data, lp->d_secsize);
 	dlp = (struct disklabel *)bp->b_data;
 	*dlp = *lp;
-	bp->b_flags = B_BUSY | B_WRITE;
+	bp->b_flags |= B_BUSY | B_WRITE;
 	(*strat)(bp);
 	error = biowait(bp);
 #endif
