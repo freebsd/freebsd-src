@@ -37,18 +37,18 @@ CLEANFILES+=	em68kelf.c	\
 		em68knbsd.c
 
 em68kelf.c:	emulparams/m68kelf.sh emultempl/elf32.em \
-		scripttempl/elf.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/elf.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    ${_m68k_path} notused notused notused m68kelf "" m68kelf
 
 em68klynx.c:	emulparams/m68klynx.sh emultempl/generic.em \
-		scripttempl/m68klynx.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/m68klynx.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/m68k-lynx/usr/lib notused notused notused \
 	    m68klynx "" m68klynx
 
 em68knbsd.c:	emulparams/m68knbsd.sh emultempl/generic.em \
-		scripttempl/aout.sc genscripts.sh emultempl/stringify.sed
+		scripttempl/aout.sc genscripts.sh stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
 	    /usr/cross/m68k-netbsdaout/usr/lib notused notused notused \
 	    m68knbsd "" m68knbsd

@@ -38,7 +38,7 @@ ldemul-list.h:
 	echo "#define EMULATION_LIST ${EMLST} 0" >> ldemul-list.h
 
 stringify.sed:
-	ln -sf ${SRCDIR}/ld/emultempl/stringify.sed ${.TARGET}
+	ln -sf ${SRCDIR}/ld/emultempl/astring.sed ${.TARGET}
 
 afterinstall:
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
