@@ -31,10 +31,10 @@ MAN=		kpasswdd.8
 .PATH:	${KRB5DIR}/kpasswd
 
 kadm5/admin.h:	kadm5
-	cp ${KRB5DIR}/lib/kadm5/admin.h ${.TARGET}
+	cat ${KRB5DIR}/lib/kadm5/admin.h > ${.TARGET}
 
 kadm5/private.h: kadm5
-	cp ${KRB5DIR}/lib/kadm5/private.h ${.TARGET}
+	cat ${KRB5DIR}/lib/kadm5/private.h > ${.TARGET}
 
 kadm5:
 	mkdir ${.TARGET}
