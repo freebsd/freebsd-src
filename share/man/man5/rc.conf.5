@@ -161,6 +161,8 @@ If set to
 .Ar YES ,
 and the kernel was not built with IPFIREWALL, the ipfw
 kernel module will be loaded.
+See also
+.Ar ipfilter_enable .
 .It Ar firewall_script
 (str) If you want to run a firewall script other than
 .Pa /etc/rc.firewall ,
@@ -218,6 +220,218 @@ or
 flag is automatically added with the above
 .Ar natd_interface
 as an argument.
+.\" ----- ipfilter_enable seting --------------------------------
+.It Ar ipfilter_enable
+(bool) Set to
+.Ar NO
+by default.
+Setting this to
+.Ar YES
+enables
+.Xr ipf 8
+packet filtering.
+Strictly speaking almost any filter could be established
+"abusing" this setting and the fact that
+.Ar ipfilter_program ,
+.Ar ipfilter_rules
+and
+.Ar ipfilter_flags
+are concatenated to form a command,
+as long as the file specified in
+.Ar ipfilter_rules
+is readable.
+When
+.Ar ipfilter_enable
+and
+.Ar ipnat_enable
+are set to
+.Ar YES
+and the file specified in
+.Ar ipnat_rules
+is readable,
+.Ar ipnat_program ,
+.Ar ipnat_rules
+and
+.Ar ipnat_flags
+make up a command line to start a network address translation program.
+When
+.Ar ipfilter_enable
+and
+.Ar ipmon_enable
+are set to
+.Ar YES ,
+.Ar ipmon_program
+and
+.Ar ipmon_flags
+form another command line for monitoring the above actions.
+See
+.Pa /etc/rc.network
+for details.
+.Pp
+Typical usage will require putting
+.Bd -literal
+ipfilter_enable="YES"
+ipfilter_flags=""
+ipnat_enable="YES"
+ipmon_enable="YES"
+
+.Ed
+into
+.Pa /etc/rc.conf
+and editing
+.Pa /etc/ipf.rules
+and
+.Pa /etc/ipnat.rules
+appropriately.
+Turning off
+.Ar firewall_enable
+when using ipf is recommended.
+Having
+.Bd -literal
+options  IPFILTER
+options  IPFILTER_LOG
+options  IPFILTER_DEFAULT_BLOCK
+
+.Ed
+in the kernel configuration file is a good idea, too.
+.\" ----- ipfilter_program setting ------------------------------
+.It Ar ipfilter_program
+(str) Set to
+.Ar /sbin/ipf -Fa -f
+by default.
+This variable contains a command line
+up to (but not including) the filter rule definition
+(expected to live in a separate file).
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipfilter_rules setting --------------------------------
+.It Ar ipfilter_rules
+(str) Set to
+.Ar /etc/ipf.rules
+by default.
+This variable contains the name of the filter rule definition file.
+The file is expected to be readable for the filter command to execute.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipfilter_flags setting --------------------------------
+.It Ar ipfilter_flags
+(str) Set to
+.Ar -E
+by default.
+This variable contains flags appended to the filter command
+after the rule definition filename.
+The default setting will initialize an on demand loaded ipf module.
+When compiling ipfilter directly into your kernel (as is recommended)
+the variable should be empty to not initialize
+the code more than once.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipnat_enable setting ----------------------------------
+.It Ar ipnat_enable
+(bool) Set to
+.Ar NO
+by default.
+Set it to
+.Ar YES
+to enable
+.Xr ipnat 8
+network address translation.
+Setting this variable needs setting
+.Ar ipfilter_enable ,
+too.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipnat_program setting ---------------------------------
+.It Ar ipnat_program
+(str) Set to
+.Ar /sbin/ipnat -CF -f
+by default.
+This variable contains a command line
+up to (but not including) the translation rule definition
+(expected to live in a separate file).
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipnat_rules setting -----------------------------------
+.It Ar ipnat_rules
+(str) Set to
+.Ar /etc/ipnat.rules
+by default.
+This variable contains the name of the file
+holding the network address translation definition.
+This file is expected to be readable for the NAT command to execute.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipnat_flags setting -----------------------------------
+.It Ar ipnat_flags
+(str) Empty by default.
+This variable contains additional flags
+appended to the ipnat command line
+after the rule definition filename.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipmon_enable setting ----------------------------------
+.It Ar ipmon_enable
+(bool) Set to
+.Ar NO
+by default.
+Set it to
+.Ar YES
+to enable
+.Xr ipmon 8
+monitoring (logging
+.Xr ipf 8
+and
+.Xr ipnat 8
+events).
+Setting this variable needs setting
+.Ar ipfilter_enable ,
+too.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipmon_program setting ---------------------------------
+.It Ar ipmon_program
+(str) Set to
+.Ar /sbin/ipmon
+by default.
+This variable contains the
+.Xr ipmon 8
+executable filename.
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- ipmon_flags setting -----------------------------------
+.It Ar ipmon_flags
+(str) Set to
+.Ar -Ds
+by default.
+This variable contains flags passed to the
+.Xr ipmon 8
+program.
+Another typical example would be
+.Ar -D /var/log/ipflog
+to have
+.Xr ipmon 8
+log directly to a file bypassing
+.Xr syslogd 8 .
+Make sure to adjust
+.Pa /etc/newsyslog.conf
+in such case like this:
+.Bd -literal
+/var/log/ipflog  640  10  100  *  Z  /var/run/ipmon.pid
+
+.Ed
+See
+.Ar ipfilter_enable
+for a detailled discussion.
+.\" ----- end of added ipf hook ---------------------------------
 .It Ar tcp_extensions
 (bool) Set to
 .Ar NO
