@@ -24,14 +24,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -71,21 +72,21 @@ int	 R_flag;	/*    -R: don't delete partially transferred files */
 int	 r_flag;	/*    -r: restart previously interrupted transfer */
 off_t	 S_size;        /*    -S: require size to match */
 int	 s_flag;        /*    -s: show size, don't fetch */
-u_int	 T_secs = 120;	/*    -T: transfer timeout in seconds */
+long	 T_secs = 120;	/*    -T: transfer timeout in seconds */
 int	 t_flag;	/*!   -t: workaround TCP bug */
 int	 U_flag;	/*    -U: do not use high ports */
 int	 v_level = 1;	/*    -v: verbosity level */
 int	 v_tty;		/*        stdout is a tty */
 pid_t	 pgrp;		/*        our process group */
-u_int	 w_secs;	/*    -w: retry delay */
+long	 w_secs;	/*    -w: retry delay */
 int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
 int	 sigalrm;	/* SIGALRM received */
 int	 siginfo;	/* SIGINFO received */
 int	 sigint;	/* SIGINT received */
 
-u_int	 ftp_timeout;	/* default timeout for FTP transfers */
-u_int	 http_timeout;	/* default timeout for HTTP transfers */
+long	 ftp_timeout;	/* default timeout for FTP transfers */
+long	 http_timeout;	/* default timeout for HTTP transfers */
 u_char	*buf;		/* transfer buffer */
 
 
@@ -134,18 +135,34 @@ stat_display(struct xferstat *xs, int force)
 	if (ioctl(STDERR_FILENO, TIOCGPGRP, &ctty_pgrp) == -1 ||
 	    (pid_t)ctty_pgrp != pgrp)
 		return;
-	
+
 	gettimeofday(&now, NULL);
 	if (!force && now.tv_sec <= xs->last.tv_sec)
 		return;
 	xs->last = now;
 
 	fprintf(stderr, "\rReceiving %s", xs->name);
-	if (xs->size <= 0)
+	if (xs->size <= 0) {
 		fprintf(stderr, ": %lld bytes", (long long)xs->rcvd);
-	else
+	} else {
+		long elapsed;
+
 		fprintf(stderr, " (%lld bytes): %d%%", (long long)xs->size,
 		    (int)((100.0 * xs->rcvd) / xs->size));
+		elapsed = xs->last.tv_sec - xs->start.tv_sec;
+		if (elapsed > 30 && xs->rcvd > 0) {
+			long remaining;
+
+			remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
+			fprintf(stderr, " (ETA ");
+			if (remaining > 3600) {
+				fprintf(stderr, "%02ld:", remaining / 3600);
+				remaining %= 3600;
+			}
+			fprintf(stderr, "%02ld:%02ld)  ",
+			    remaining / 60, remaining % 60);
+		}
+	}
 }
 
 /*
@@ -327,8 +344,17 @@ fetch(char *URL, const char *path)
 
 	/* just print size */
 	if (s_flag) {
-		if (fetchStat(url, &us, flags) == -1)
+		if (timeout)
+			alarm(timeout);
+		r = fetchStat(url, &us, flags);
+		if (timeout)
+			alarm(0);
+		if (sigalrm || sigint)
+			goto signal;
+		if (r == -1) {
+			warnx("%s", fetchLastErrString);
 			goto failure;
+		}
 		if (us.size == -1)
 			printf("Unknown\n");
 		else
@@ -358,7 +384,14 @@ fetch(char *URL, const char *path)
 		url->offset = sb.st_size;
 
 	/* start the transfer */
-	if ((f = fetchXGet(url, &us, flags)) == NULL) {
+	if (timeout)
+		alarm(timeout);
+	f = fetchXGet(url, &us, flags);
+	if (timeout)
+		alarm(0);
+	if (sigalrm || sigint)
+		goto signal;
+	if (f == NULL) {
 		warnx("%s: %s", path, fetchLastErrString);
 		goto failure;
 	}
@@ -386,7 +419,7 @@ fetch(char *URL, const char *path)
 		goto success;
 	}
 
-	if (us.size == -1 && !o_stdout)
+	if (us.size == -1 && !o_stdout && v_level > 0)
 		warnx("%s: size of remote file is not known", path);
 	if (v_level > 1) {
 		if (sb.st_size != -1)
@@ -448,14 +481,14 @@ fetch(char *URL, const char *path)
 		if (sb.st_size == us.size && sb.st_mtime == us.mtime)
 			goto success;
 	}
-	
+
 	if (of == NULL) {
 		/*
 		 * We don't yet have an output file; either this is a
 		 * vanilla run with no special flags, or the local and
 		 * remote files didn't match.
 		 */
-		
+
 		if (url->offset != 0) {
 			/*
 			 * We tried to restart a transfer, but for
@@ -479,15 +512,13 @@ fetch(char *URL, const char *path)
 				++slash;
 			asprintf(&tmppath, "%.*s.fetch.XXXXXX.%s",
 			    (int)(slash - path), path, slash);
+			if (tmppath != NULL) {
+				mkstemps(tmppath, strlen(slash) + 1);
+				of = fopen(tmppath, "w");
+			}
 		}
-		
-		if (tmppath != NULL) {
-			mkstemps(tmppath, strlen(slash) + 1);
-			of = fopen(tmppath, "w");
-		} else {
+		if (of == NULL)
 			of = fopen(path, "w");
-		}
-		
 		if (of == NULL) {
 			warn("%s: open()", path);
 			goto failure;
@@ -502,30 +533,25 @@ fetch(char *URL, const char *path)
 
 	/* suck in the data */
 	signal(SIGINFO, sig_handler);
-	while (!sigint && !sigalrm) {
+	while (!sigint) {
 		if (us.size != -1 && us.size - count < B_size)
 			size = us.size - count;
 		else
 			size = B_size;
-		if (timeout)
-			alarm(timeout);
 		if (siginfo) {
 			stat_end(&xs);
 			siginfo = 0;
 		}
 		if ((size = fread(buf, 1, size, f)) == 0) {
-			if (ferror(f) && errno == EINTR && !sigalrm && !sigint)
+			if (ferror(f) && errno == EINTR && !sigint)
 				clearerr(f);
 			else
 				break;
 		}
-		if (timeout)
-			alarm(0);
 		stat_update(&xs, count += size);
 		for (ptr = buf; size > 0; ptr += wr, size -= wr)
 			if ((wr = fwrite(ptr, 1, size, of)) < size) {
-				if (ferror(of) && errno == EINTR &&
-				    !sigalrm && !sigint)
+				if (ferror(of) && errno == EINTR && !sigint)
 					clearerr(of);
 				else
 					break;
@@ -533,18 +559,23 @@ fetch(char *URL, const char *path)
 		if (size != 0)
 			break;
 	}
+	if (!sigalrm)
+		sigalrm = ferror(f) && errno == ETIMEDOUT;
 	signal(SIGINFO, SIG_DFL);
-
-	if (timeout)
-		alarm(0);
 
 	stat_end(&xs);
 
+	/*
+	 * If the transfer timed out or was interrupted, we still want to
+	 * set the mtime in case the file is not removed (-r or -R) and
+	 * the user later restarts the transfer.
+	 */
+ signal:
 	/* set mtime of local file */
-	if (!n_flag && us.mtime && !o_stdout
-	    && (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
+	if (!n_flag && us.mtime && !o_stdout && of != NULL &&
+	    (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
 		struct timeval tv[2];
-	
+
 		fflush(of);
 		tv[0].tv_sec = (long)(us.atime ? us.atime : us.mtime);
 		tv[1].tv_sec = (long)us.mtime;
@@ -554,13 +585,16 @@ fetch(char *URL, const char *path)
 	}
 
 	/* timed out or interrupted? */
- signal:
 	if (sigalrm)
 		warnx("transfer timed out");
 	if (sigint) {
 		warnx("transfer interrupted");
 		goto failure;
 	}
+
+	/* timeout / interrupt before connection completley established? */
+	if (f == NULL)
+		goto failure;
 
 	if (!sigalrm) {
 		/* check the status of our files */
@@ -620,27 +654,11 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "Usage: fetch [-146AFMPRUadlmnpqrsv] [-o outputfile] [-S bytes]",
+	    "usage: fetch [-146AFMPRUadlmnpqrsv] [-o outputfile] [-S bytes]",
 	    "             [-B bytes] [-T seconds] [-w seconds]",
 	    "             [-h host -f file [-c dir] | URL ...]");
 }
 
-
-#define PARSENUM(NAME, TYPE)				\
-static int						\
-NAME(const char *s, TYPE *v)				\
-{							\
-        *v = 0;						\
-	for (*v = 0; *s; s++)				\
-		if (isdigit(*s))			\
-			*v = *v * 10 + *s - '0';	\
-		else					\
-			return -1;			\
-	return 0;					\
-}
-
-PARSENUM(parseint, u_int);
-PARSENUM(parseoff, off_t);
 
 /*
  * Entry point
@@ -651,11 +669,11 @@ main(int argc, char *argv[])
 	struct stat sb;
 	struct sigaction sa;
 	const char *p, *s;
-	char *q;
+	char *end, *q;
 	int c, e, r;
 
 	while ((c = getopt(argc, argv,
-	    "146AaB:bc:dFf:Hh:lMmnPpo:qRrS:sT:tUvw:")) != EOF)
+	    "146AaB:bc:dFf:Hh:lMmnPpo:qRrS:sT:tUvw:")) != -1)
 		switch (c) {
 		case '1':
 			once_flag = 1;
@@ -673,7 +691,8 @@ main(int argc, char *argv[])
 			a_flag = 1;
 			break;
 		case 'B':
-			if (parseoff(optarg, &B_size) == -1)
+			B_size = (off_t)strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid buffer size (%s)", optarg);
 			break;
 		case 'b':
@@ -693,7 +712,7 @@ main(int argc, char *argv[])
 			f_filename = optarg;
 			break;
 		case 'H':
-			warnx("The -H option is now implicit, "
+			warnx("the -H option is now implicit, "
 			    "use -U to disable");
 			break;
 		case 'h':
@@ -733,14 +752,16 @@ main(int argc, char *argv[])
 			r_flag = 1;
 			break;
 		case 'S':
-			if (parseoff(optarg, &S_size) == -1)
+			S_size = (off_t)strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid size (%s)", optarg);
 			break;
 		case 's':
 			s_flag = 1;
 			break;
 		case 'T':
-			if (parseint(optarg, &T_secs) == -1)
+			T_secs = strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid timeout (%s)", optarg);
 			break;
 		case 't':
@@ -755,7 +776,8 @@ main(int argc, char *argv[])
 			break;
 		case 'w':
 			a_flag = 1;
-			if (parseint(optarg, &w_secs) == -1)
+			w_secs = strtol(optarg, &end, 10);
+			if (*optarg == '\0' || *end != '\0')
 				errx(1, "invalid delay (%s)", optarg);
 			break;
 		default:
@@ -793,16 +815,16 @@ main(int argc, char *argv[])
 
 	/* timeouts */
 	if ((s = getenv("FTP_TIMEOUT")) != NULL) {
-		if (parseint(s, &ftp_timeout) == -1) {
-			warnx("FTP_TIMEOUT (%s) is not a positive integer",
-			    optarg);
+		ftp_timeout = strtol(s, &end, 10);
+		if (*s == '\0' || *end != '\0' || ftp_timeout < 0) {
+			warnx("FTP_TIMEOUT (%s) is not a positive integer", s);
 			ftp_timeout = 0;
 		}
 	}
 	if ((s = getenv("HTTP_TIMEOUT")) != NULL) {
-		if (parseint(s, &http_timeout) == -1) {
-			warnx("HTTP_TIMEOUT (%s) is not a positive integer",
-			    optarg);
+		http_timeout = strtol(s, &end, 10);
+		if (*s == '\0' || *end != '\0' || http_timeout < 0) {
+			warnx("HTTP_TIMEOUT (%s) is not a positive integer", s);
 			http_timeout = 0;
 		}
 	}
@@ -838,9 +860,9 @@ main(int argc, char *argv[])
 	v_tty = isatty(STDERR_FILENO);
 	if (v_tty)
 		pgrp = getpgrp();
-	
+
 	r = 0;
-	
+
 	/* authentication */
 	if (v_tty)
 		fetchAuthMethod = query_auth;
@@ -853,9 +875,9 @@ main(int argc, char *argv[])
 
 		if (!*p)
 			p = "fetch.out";
-	
+
 		fetchLastErrCode = 0;
-	
+
 		if (o_flag) {
 			if (o_stdout) {
 				e = fetch(*argv, "-");
@@ -872,10 +894,10 @@ main(int argc, char *argv[])
 
 		if (sigint)
 			kill(getpid(), SIGINT);
-	
+
 		if (e == 0 && once_flag)
 			exit(0);
-	
+
 		if (e) {
 			r = 1;
 			if ((fetchLastErrCode
@@ -885,7 +907,7 @@ main(int argc, char *argv[])
 			    && fetchLastErrCode != FETCH_RESOLV
 			    && fetchLastErrCode != FETCH_UNKNOWN)) {
 				if (w_secs && v_level)
-					fprintf(stderr, "Waiting %d seconds "
+					fprintf(stderr, "Waiting %ld seconds "
 					    "before retrying\n", w_secs);
 				if (w_secs)
 					sleep(w_secs);
