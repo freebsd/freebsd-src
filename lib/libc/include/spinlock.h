@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: spinlock.h,v 1.1 1998/03/09 05:05:32 jb Exp $
  *
  * Lock definitions used in both libc and libpthread.
  *
@@ -43,10 +43,10 @@
  * Thread function prototype definitions:
  */
 __BEGIN_DECLS
-long	_atomic_lock __P((long *, long));
-long	_atomic_unlock __P((long *));
-void	_spinlock __P((long *));
-void	_spinunlock __P((long *));
+long	_atomic_lock __P((volatile long *, long));
+long	_atomic_unlock __P((volatile long *));
+void	_spinlock __P((volatile long *));
+void	_spinunlock __P((volatile long *));
 __END_DECLS
 
 #endif /* _SPINLOCK_H_ */
