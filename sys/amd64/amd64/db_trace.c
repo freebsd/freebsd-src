@@ -22,38 +22,10 @@
  * 
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
- */
-/*
- * HISTORY
- * $Log: db_trace.c,v $
- * Revision 1.1  1992/03/25  21:42:05  pace
- * Initial revision
  *
- * Revision 2.6  91/02/05  17:11:21  mrt
- * 	Changed to new Mach copyright
- * 	[91/02/01  17:31:32  mrt]
- * 
- * Revision 2.5  91/01/09  19:55:27  rpd
- * 	Fixed stack tracing for threads without kernel stacks.
- * 	[91/01/09            rpd]
- * 
- * Revision 2.4  91/01/08  15:10:22  rpd
- * 	Reorganized the pcb.
- * 	[90/12/11            rpd]
- * 
- * Revision 2.3  90/11/05  14:27:07  rpd
- * 	If we can not guess the number of args to a function, use 5 vs 0.
- * 	[90/11/02            rvb]
- * 
- * Revision 2.2  90/08/27  21:56:20  dbg
- * 	Import db_sym.h.
- * 	[90/08/21            dbg]
- * 	Fix includes.
- * 	[90/08/08            dbg]
- * 	Created from rvb's code for new debugger.
- * 	[90/07/11            dbg]
- * 
+ *	$Id$
  */
+
 #include "param.h"
 #include "proc.h"
 #include <machine/db_machdep.h>
