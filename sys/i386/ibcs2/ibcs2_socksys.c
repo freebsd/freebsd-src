@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_socksys.c,v 1.2 1994/10/13 23:10:58 sos Exp $
+ *	$Id: ibcs2_socksys.c,v 1.1 1994/10/14 08:53:08 sos Exp $
  */
 
 #include <sys/param.h>
@@ -86,7 +86,7 @@ static struct fileops ss_socket_fops = {
 static int (*close_s)__P((struct file *fp, struct proc *p));
 static int (*ioctl_s)__P((struct file *fp, int cmd, caddr_t data, struct proc *p));
 
-int	ss_debug = 1;
+int	ss_debug = 10;
 
 static int
 ss_syscall(arg, p)
@@ -100,7 +100,6 @@ ss_syscall(arg, p)
 	retval[0] = retval[1] = 0;
 	cmd = ((struct ss_call *)arg)->arg[0];
 
-#ifdef SS_DEBUG
 	if(ss_debug) {
 	static char *ss_syscall_strings[] = {
 		"0?", "accept", "bind", "connect", "getpeername",
@@ -129,7 +128,6 @@ ss_syscall(arg, p)
 		((struct ss_call *)arg)->arg[5],
 		((struct ss_call *)arg)->arg[6]);
 	}
-#endif	/* SS_DEBUG */
 
 	error = 0;
 
@@ -137,21 +135,18 @@ ss_syscall(arg, p)
 
 	case CMD_SO_SS_DEBUG:
 
-		ss_debug = ((struct ss_call *)arg)->arg[1];
+		/* ss_debug = ((struct ss_call *)arg)->arg[1]; */
 		break;
 
 	case CMD_SO_SOCKET: { /* NO CONV */
 
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("SO_SOCKET af in %d\n",
 				((struct ss_call *)arg)->arg[1]);
-#endif	/* SS_DEBUG */
 		((struct ss_call *)arg)->arg[1] = ss_convert(
 			af_whatevers,
 			&(((struct ss_call *)arg)->arg[1]),
 			0);
-#ifdef SS_DEBUG
 		if(ss_debug > 1) {
 			printf("SO_SOCKET af out %d\n",
 				((struct ss_call *)arg)->arg[1]);
@@ -159,24 +154,19 @@ ss_syscall(arg, p)
 			printf("SO_SOCKET type in %d\n",
 				((struct ss_call *)arg)->arg[2]);
 		}
-#endif	/* SS_DEBUG */
 		((struct ss_call *)arg)->arg[2] = ss_convert(
 			type_whatevers,
 			&(((struct ss_call *)arg)->arg[2]),
 			0);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("SO_SOCKET type out %d\n",
 				((struct ss_call *)arg)->arg[2]);
-#endif	/* SS_DEBUG */
 
 		SYSCALL(SYS_socket, 0, 0);
 
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("ss_syscall: [%d] socket fd=%d\n",
 				p->p_pid, retval[0]);
-#endif	/* SS_DEBUG */
 		put_socket_fops(p,retval[0]);
 
 		break;
@@ -186,11 +176,9 @@ ss_syscall(arg, p)
 
 		SYSCALL(SYS_accept, 2, SS_STRUCT_SOCKADDR);
 
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("ss_syscall: [%d] accept fd=%d\n",
 				p->p_pid, retval[0]);
-#endif	/* SS_DEBUG */
 		put_socket_fops(p,retval[0]);
 
 		break;
@@ -223,10 +211,8 @@ ss_syscall(arg, p)
 				if(error = copyout((caddr_t)&saddr,
 						(caddr_t)addr, sizeof(long)))
 					return(error);
-#ifdef SS_DEBUG
 				if (ss_debug)
 					printf("ss_syscall: remapped INADDR_ANY to localhost\n");
-#endif	/* SS_DEBUG */
 			}
 		}
 		SYSCALL(SYS_connect, 2, SS_STRUCT_SOCKADDR);
@@ -322,7 +308,7 @@ ss_syscall(arg, p)
 		printf("ss_syscall: default 0x%x\n",cmd);
 		return (EINVAL);
 	}
-	IBCS2_MAGIC_RETURN;
+	IBCS2_MAGIC_RETURN(arg);
 }
 
 
@@ -336,7 +322,6 @@ ss_fop_ioctl(fp, cmd, arg, p)
 	int error;
 	int retval[2];
 
-#ifdef SS_DEBUG
 	if(ss_debug) {
 	static char **ioctl_strings;
 	int	fd;
@@ -440,7 +425,6 @@ ss_fop_ioctl(fp, cmd, arg, p)
 	printf("0x%x (0x%x) <0x%x>\n",
 		fp, cmd, arg);
 	}
-#endif	/* SS_DEBUG */
 
 	/* No dogs allowed */
 
@@ -458,6 +442,9 @@ ss_fop_ioctl(fp, cmd, arg, p)
 	error = 0;
 
 	switch (cmd) {
+	case SS_SIOCSOCKSYS:		/* ss syscall */
+		return ss_syscall(arg, p);
+
 	case SS_SIOCSHIWAT:	/* set high watermark */
 	case SS_SIOCSLOWAT:	/* set low watermark */
 		break;		/* return value of 0 and no error */
@@ -642,7 +629,7 @@ ss_fop_ioctl(fp, cmd, arg, p)
 				cmd, (unsigned long)arg);
 		return (EINVAL);
 	}
-	IBCS2_MAGIC_RETURN;
+	IBCS2_MAGIC_RETURN(arg);
 }
 
 int
@@ -656,7 +643,6 @@ sockioctl(dev, cmd, arg, fflag, p)
 	int error;
 	int retval[2];
 
-#ifdef SS_DEBUG
 	if(ss_debug) {
 	char	cmd_type;
 	int	cmd_ordinal;
@@ -764,7 +750,6 @@ sockioctl(dev, cmd, arg, fflag, p)
 	printf("0x%x (0x%x) <0x%x>\n",
 		dev, cmd, arg);
 	}
-#endif	/* SS_DEBUG */
 
 	if(*(((int *)arg) - 3) != IBCS2_MAGIC_IN){
 		printf("sockioctl: bad magic (sys_generic.c has no socksys mods?)\n");
@@ -848,7 +833,7 @@ sockioctl(dev, cmd, arg, fflag, p)
 			cmd, (unsigned long)arg);
 		return (EINVAL);
 	}
-	IBCS2_MAGIC_RETURN;
+	IBCS2_MAGIC_RETURN(arg);
 }
 
 
@@ -859,10 +844,8 @@ int sockopen(dev, mode, devtype, p)
 	struct proc *p;
 {
 
-#ifdef SS_DEBUG
 	if(ss_debug)
 		printf("sockopen: [%d] 0x%x\n", p->p_pid, dev);
-#endif	/* SS_DEBUG */
 
 	/* minor = 0 is the socksys device itself. No special handling
 	 *           will be needed as it is controlled by the application
@@ -887,17 +870,13 @@ int sockopen(dev, mode, devtype, p)
         (sizeof(*(su)) - sizeof((su)->sun_path) + strlen((su)->sun_path)) + 1
 	struct sockaddr_un *Xaddr = (struct sockaddr_un *)UA_ALLOC();
 	retval[0] = retval[1] = 0;
-#ifdef SS_DEBUG
 	if(ss_debug)
 		printf("sockopen: SPX: [%d] opening\n", p->p_pid);
-#endif	/* SS_DEBUG */
 
 	/* Grab a socket. */
-#ifdef SS_DEBUG
 	if(ss_debug)
 		printf("sockopen: SPX: [%d] get a unix domain socket\n",
 					p->p_pid);
-#endif	/* SS_DEBUG */
 	args[0] = AF_UNIX;
 	args[1] = SOCK_STREAM;
 	args[2] = 0;
@@ -912,11 +891,9 @@ int sockopen(dev, mode, devtype, p)
 	}
 
 	/* Connect the socket to X. */
-#ifdef SS_DEBUG
 	if(ss_debug)
 		printf("sockopen: SPX: [%d] connect to /tmp/X11-unix/X0\n",
 			p->p_pid);
-#endif	/* SS_DEBUG */
 	args[0] = fd;
 	Xaddr->sun_family = AF_UNIX;
 	copyout("/tmp/.X11-unix/X0", Xaddr->sun_path, 18);
@@ -942,10 +919,8 @@ int sockclose(dev, flag, mode, p)
 	int mode;
 	struct proc *p;
 {
-#ifdef SS_DEBUG
 	if(ss_debug)
 		printf("sockclose: [%d] 0x%x\n", p->p_pid, dev);
-#endif	/* SS_DEBUG */
 	return(0);
 }
 
@@ -953,7 +928,6 @@ static
 int ss_fop_close(struct file *fp, struct proc *p)
 {
 
-#ifdef SS_DEBUG
 int	fd;
 struct filedesc *fdp;
 
@@ -965,20 +939,15 @@ struct filedesc *fdp;
 					break;
 		printf("ss_fop_close: [%d] fd=%d ", p->p_pid, fd);
 	}
-#endif	/* SS_DEBUG */
 
 	if(fp->f_type == DTYPE_SOCKET) {
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("is a socket\n");
-#endif	/* SS_DEBUG */
 		return(close_s(fp, p));
 	}
 	else {
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("is not a socket\n");
-#endif	/* SS_DEBUG */
 		return(ENOTSOCK);
 	}
 }
@@ -1023,19 +992,15 @@ int	rc;
 		rc = ss_convert_struct( (caddr_t)*(arg + convert_arg),
 					indicator,
 					SS_NATIVE_TO_ALIEN);
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("ss_SYSCALL: [%d] error=%d, rc=%d\n",
 						p->p_pid, error, rc);
-#endif /* SS_DEBUG */
 	}
 	else {
 		rc = 0;
 		error = (*sysent[n].sy_call)(p, arg + 1, retval);
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("ss_SYSCALL: [%d] error=%d\n",p->p_pid, error);
-#endif /* SS_DEBUG */
 	}
 
 	return(error ? error : rc);
@@ -1057,24 +1022,18 @@ int	indicator;
 	cmd_ordinal = cmd & 0xff;
 	these[0] = cmd_type;
 	these[1] = cmd_ordinal;
-#ifdef SS_DEBUG
 	if(ss_debug > 1)
 		printf("ss_IOCTL: calling ss_convert with %d(%c) %d\n",
 				these[0],these[0],these[1]);
-#endif /* SS_DEBUG */
 	indicator = ss_convert( struct_whatevers, these, 0);
-#ifdef SS_DEBUG
 	if(ss_debug > 1)
 		printf("ss_IOCTL: ss_convert returns indicator %d\n",indicator);
-#endif /* SS_DEBUG */
 	if(indicator){
 		error = ss_convert_struct((caddr_t)*(arg + 2),
 					  indicator,
 					  SS_ALIEN_TO_NATIVE);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_IOCTL: ss_convert_struct returns %d\n",error);
-#endif /* SS_DEBUG */
 		if(error)
 			return(error);
 		/* change len in ioctl now - in the general case */
@@ -1082,19 +1041,15 @@ int	indicator;
 		rc = ss_convert_struct( (caddr_t)*(arg + 2),
 					indicator,
 					SS_NATIVE_TO_ALIEN);
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("ss_IOCTL: [%d] error=%d, rc=%d\n",p->p_pid,
 						error, rc);
-#endif /* SS_DEBUG */
 	}
 	else {
 		rc = 0;
 		error = ioctl_s(fp, cmd, (caddr_t)arg, p);
-#ifdef SS_DEBUG
 		if(ss_debug)
 			printf("ss_IOCTL: [%d] error=%d\n",p->p_pid, error);
-#endif /* SS_DEBUG */
 	}
 
 	return(error ? error : rc);
@@ -1285,19 +1240,15 @@ int	error, len;
 		case SS_ALIEN_TO_NATIVE:
 
 		error = ss_atn(alien, indicator);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_convert: ATN ss_atn error %d\n",error);
-#endif /* SS_DEBUG */
 		return(error);
 
 		case SS_NATIVE_TO_ALIEN:
 
 		error = ss_nta(alien, indicator);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_convert: NTA ss_nta error %d\n",error);
-#endif /* SS_DEBUG */
 		return(error);
 
 		}
@@ -1350,19 +1301,15 @@ int	error;
 
 		if(error = copyin((caddr_t)alien,(caddr_t)&hdr,sizeof(hdr)))
 			return(error);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_atn:copyin 0x%x\n",hdr.alien_family);
-#endif /* SS_DEBUG */
 
 		if( hdr.alien_family < AF_MAX){
 			hdr.native.family = hdr.alien_family >> 8; /* 386 endianess */
 			/* OR LEN FOM A PARAM ? */
 			hdr.native.len = sizeof(struct sockaddr);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_atn:copyout 0x%x\n",hdr.alien_family);
-#endif /* SS_DEBUG */
 			error = copyout((caddr_t)&hdr,(caddr_t)alien,sizeof(hdr));
 			return(error);
 		}
@@ -1424,15 +1371,11 @@ int	error;
 
 		if(error = copyin((caddr_t)alien,(caddr_t)&hdr,sizeof(hdr)))
 			return(error);
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_nta:copyin 0x%x\n",hdr.alien_family);
-#endif /* SS_DEBUG */
 		hdr.alien_family = hdr.native.family;
-#ifdef SS_DEBUG
 		if(ss_debug > 1)
 			printf("ss_nta:copyout 0x%x\n",hdr.alien_family);
-#endif /* SS_DEBUG */
 		error = copyout((caddr_t)&hdr,(caddr_t)alien,sizeof(hdr));
 		return(error);
 	}
