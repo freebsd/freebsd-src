@@ -75,7 +75,7 @@
  * requirement.
  */
 
-#include "opt_vlan.h"
+#include "vlan.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
