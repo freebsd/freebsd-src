@@ -5,8 +5,7 @@
 KMOD=	libmchain
 SRCS=	subr_mchain.c
 
-EXPORT_SYMS=	m_fixhdr	\
-		mb_init		\
+EXPORT_SYMS=	mb_init		\
 		mb_initm	\
 		mb_done		\
 		mb_detach	\
