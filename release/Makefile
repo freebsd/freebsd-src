@@ -448,7 +448,8 @@ release.2:
 # Make and install the generic kernel(s).
 release.3:
 .for kernel in ${KERNELS}
-	rm -f ${RD}/kernels/${kernel}
+	-chflags -R noschg ${RD}/kernels/${kernel}
+	rm -rf ${RD}/kernels/${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
 	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
