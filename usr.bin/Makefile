@@ -10,10 +10,6 @@
 .if ${MACHINE_ARCH} != "ia64"
 .if !defined(NO_TOOLCHAIN)
 _xlint=	xlint
-_lex=	lex
-_yacc=	yacc
-_c89=	c89
-_c99=	c99
 .endif
 .endif
 
@@ -22,6 +18,13 @@ _c99=	c99
 _gprof=	gprof
 .endif
 _truss=	truss
+.endif
+
+.if !defined(NO_TOOLCHAIN)
+_c89=	c89
+_c99=	c99
+_lex=	lex
+_yacc=	yacc
 .endif
 
 SUBDIR=	alias \
