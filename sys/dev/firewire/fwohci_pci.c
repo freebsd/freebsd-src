@@ -301,8 +301,11 @@ fwohci_pci_attach(device_t self)
 				/*nsegments*/0x20,
 				/*maxsegsz*/0x8000,
 				/*flags*/BUS_DMA_ALLOCNOW,
+#if __FreeBSD_version >= 501102
 				/*lockfunc*/busdma_lock_mutex,
-				/*lockarg*/&Giant, &sc->fc.dmat);
+				/*lockarg*/&Giant,
+#endif
+				&sc->fc.dmat);
 	if (err != 0) {
 		printf("fwohci_pci_attach: Could not allocate DMA tag "
 			"- error %d\n", err);
