@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.4 1994/10/18 04:26:53 davidg Exp $
+ *	$Id: procfs_mem.c,v 1.5 1994/10/18 04:40:41 davidg Exp $
  */
 
 /*
@@ -73,7 +73,7 @@ procfs_rwmem(p, uio)
 	do {
 		vm_map_t map, tmap;
 		vm_object_t object;
-		vm_offset_t kva;
+		vm_offset_t kva = 0;
 		vm_offset_t uva;
 		int page_offset;		/* offset into page */
 		vm_offset_t pageno;		/* page number */
