@@ -41,7 +41,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_BUTTON
-MODULE_NAME("BUTTON")
+ACPI_MODULE_NAME("BUTTON")
 
 struct acpi_button_softc {
     device_t	button_dev;
@@ -103,14 +103,14 @@ acpi_button_attach(device_t dev)
     struct acpi_button_softc	*sc;
     ACPI_STATUS			status;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     sc = device_get_softc(dev);
     sc->button_dev = dev;
     sc->button_handle = acpi_get_handle(dev);
 
-    if ((status = AcpiInstallNotifyHandler(sc->button_handle, ACPI_DEVICE_NOTIFY, 
-					   acpi_button_notify_handler, sc)) != AE_OK) {
+    if (ACPI_FAILURE(status = AcpiInstallNotifyHandler(sc->button_handle, ACPI_DEVICE_NOTIFY, 
+					   acpi_button_notify_handler, sc))) {
 	device_printf(sc->button_dev, "couldn't install Notify handler - %s\n", AcpiFormatException(status));
 	return_VALUE(ENXIO);
     }
@@ -123,7 +123,7 @@ acpi_button_notify_pressed_for_sleep(void *arg)
     struct acpi_button_softc	*sc;
     struct acpi_softc		*acpi_sc;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     sc = (struct acpi_button_softc *)arg;
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
@@ -154,7 +154,7 @@ acpi_button_notify_pressed_for_wakeup(void *arg)
     struct acpi_button_softc	*sc;
     struct acpi_softc		*acpi_sc;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     sc = (struct acpi_button_softc *)arg;
     acpi_sc = acpi_device_get_parent_softc(sc->button_dev);
@@ -188,7 +188,7 @@ acpi_button_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_button_softc	*sc = (struct acpi_button_softc *)context;
 
-    FUNCTION_TRACE_U32(__func__, notify);
+    ACPI_FUNCTION_TRACE_U32(__func__, notify);
 
     switch (notify) {
     case ACPI_NOTIFY_BUTTON_PRESSED_FOR_SLEEP:
