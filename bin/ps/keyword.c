@@ -192,6 +192,8 @@ static VAR var[] = {
 		UIDFMT, 0},
 	{"upr", "UPR", NULL, 0, kvar, NULL, 3, KOFF(ki_pri.pri_user), UCHAR,
 		"d", 0},
+	{"uprocp", "UPROCP", NULL, 0, kvar, NULL, 8, KOFF(ki_paddr), KPTR,
+		"lx", 0},
 	{"user", "USER", NULL, LJUST|DSIZ, uname, s_uname, USERLEN, 0, CHAR,
 		NULL, 0},
 	{"usrpri", "", "upr", 0, NULL, NULL, 0, 0, CHAR, NULL, 0},
