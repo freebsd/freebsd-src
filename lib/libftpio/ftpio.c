@@ -509,15 +509,16 @@ ftp_timeout(int sig)
     /* Debug("ftp_pkg: ftp_timeout called - operation timed out"); */
 }
 
-static struct sigaction new;
-
 static void
 ftp_set_timeout(void)
 {
+    struct sigaction new;
     char *cp;
     int ival;
 
     FtpTimedOut = FALSE;
+    sigemptyset(&new.sa_mask);
+    new.sa_flags = 0;
     new.sa_handler = ftp_timeout;
     sigaction(SIGALRM, &new, NULL);
     cp = getenv("FTP_TIMEOUT");
@@ -529,7 +530,11 @@ ftp_set_timeout(void)
 static void
 ftp_clear_timeout(void)
 {
+    struct sigaction new;
+
     alarm(0);
+    sigemptyset(&new.sa_mask);
+    new.sa_flags = 0;
     new.sa_handler = SIG_DFL;
     sigaction(SIGALRM, &new, NULL);
 }
