@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.1 1994/08/08 01:03:58 wollman Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.2 1994/09/23 10:25:38 davidg Exp $";
 #endif
 
 #include <sys/param.h>
@@ -39,7 +39,7 @@ static char rcsid[] = "$Id: ypbind.c,v 1.1 1994/08/08 01:03:58 wollman Exp $";
 #include <sys/file.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
-#include <sys/syslog.h>
+#include <syslog.h>
 #include <stdio.h>
 #include <errno.h>
 #include <ctype.h>
@@ -61,6 +61,14 @@ static char rcsid[] = "$Id: ypbind.c,v 1.1 1994/08/08 01:03:58 wollman Exp $";
 #define BINDINGDIR "/var/yp/binding"
 #endif
 
+/*
+ * Number of seconds to wait before for ping replies before we
+ * decide that our server is dead.
+ */
+#ifndef FAIL_THRESHOLD
+#define FAIL_THRESHOLD 20
+#endif
+
 struct _dom_binding {
 	struct _dom_binding *dom_pnext;
 	char dom_domain[YPMAXDOMAIN + 1];
@@ -72,6 +80,8 @@ struct _dom_binding {
 	time_t dom_check_t;
 	int dom_lockfd;
 	int dom_alive;
+	int dom_answered;
+	int dom_interval;
 };
 
 extern bool_t xdr_domainname(), xdr_ypbind_resp();
@@ -135,7 +145,6 @@ CLIENT *clnt;
 		unlink(path);
 		ypdb->dom_pnext = ypbindlist;
 		ypbindlist = ypdb;
-		check++;
 		return NULL;
 	}
 
@@ -158,7 +167,6 @@ CLIENT *clnt;
 		ypdb->dom_lockfd = -1;
 		sprintf(path, "%s/%s.%d", BINDINGDIR, ypdb->dom_domain, ypdb->dom_vers);
 		unlink(path);
-		check++;
 		return NULL;
 	}
 #endif
@@ -363,13 +371,18 @@ char **argv;
 	bzero((char *)ypbindlist, sizeof *ypbindlist);
 	strncpy(ypbindlist->dom_domain, domainname, sizeof ypbindlist->dom_domain);
 	ypbindlist->dom_vers = YPVERS;
+	ypbindlist->dom_interval = 0;
 	ypbindlist->dom_alive = 0;
+	ypbindlist->dom_answered = 0;
 	ypbindlist->dom_lockfd = -1;
+	ypbindlist->dom_check_t = time(NULL) + ypbindlist->dom_interval;
 	sprintf(path, "%s/%s.%d", BINDINGDIR, ypbindlist->dom_domain,
 		ypbindlist->dom_vers);
 	(void)unlink(path);
 
+	openlog(argv[0], LOG_PID, LOG_AUTH);
 	width = getdtablesize();
+
 	while(1) {
 		fdsr = svc_fdset;
 		FD_SET(rpcsock, &fdsr);
@@ -389,8 +402,6 @@ char **argv;
 				handle_replies();
 			}
 			svc_getreqset(&fdsr);
-			if(check)
-				checkwork();
 			break;
 		}
 	}
@@ -404,25 +415,54 @@ char **argv;
  * binding	t==60		check server	t=10	binding
  * binding	t=10		broadcast	t=2	no binding
  */
+
+/*
+ * The above comment makes no sense whatsoever. This is what should
+ * be happening:
+ *
+ * - If we have any servers in our binding list marked alive, ping
+ *   them _and them alone_ only once every 60 seconds to make sure
+ *   they haven't crapped out on us (i.e. bother only the servers
+ *   we know about: *DON'T* continually bother everybody with broadcast
+ *   packets every 5 seconds like we used to).
+ * - If they don't respond within FAIL_THRESHOLD seconds after the ping,
+ *   they're toast: mark them unalive and start to scream and shout.
+ * - If we don't have any servers marked alive, then we're in desperate
+ *   trouble and we need to broadcast a cry for help every 5 seconds
+ *   until somebody answers us.
+ */
+
 checkwork()
 {
 	struct _dom_binding *ypdb;
 	time_t t;
 
-	check = 0;
-
-	time(&t);
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
-		if(ypdb->dom_alive==0 || ypdb->dom_check_t < t) {
-			broadcast(ypdb->dom_domain);
-			time(&t);
-			ypdb->dom_check_t = t + 5;
+		time(&t);
+		if (ypdb->dom_check_t < t) {
+			broadcast(ypdb->dom_domain,
+				ypdb->dom_server_addr, ypdb->dom_alive);
+			ypdb->dom_check_t = t + ypdb->dom_interval;
+			ypdb->dom_answered = 0;
+			if (ypdb->dom_vers == 0)
+				syslog (LOG_NOTICE,
+				"NIS server [%s] for domain %s not responding.",
+				inet_ntoa(ypdb->dom_server_addr.sin_addr),	
+				ypdb->dom_domain);
+		} else 
+		if (!ypdb->dom_answered && ypdb->dom_alive &&
+				ypdb->dom_check_t < (t + FAIL_THRESHOLD)) {
+			ypdb->dom_check_t = ypdb->dom_alive = 
+				ypdb->dom_vers = 0;
+			ypdb->dom_interval = 5;
 		}
 	}
 }
 
-broadcast(dom)
+broadcast(dom, saddr, direct)
 char *dom;
+struct sockaddr_in saddr;
+int direct;
 {
 	struct rpc_msg rpcmsg;
 	char buf[1400], inbuf[8192];
@@ -487,51 +527,64 @@ char *dom;
 		return -1;
 	}
 
-	ifc.ifc_len = sizeof inbuf;
-	ifc.ifc_buf = inbuf;
-	if( ioctl(sock, SIOCGIFCONF, &ifc) < 0) {
-		close(sock);
-		perror("ioctl(SIOCGIFCONF)");
-		return -1;
-	}
-	ifr = ifc.ifc_req;
-	ifreq.ifr_name[0] = '\0';
-	for(i=0; i<ifc.ifc_len; i+=len, ifr=(struct ifreq *)((caddr_t)ifr+len)) {
-#if defined(BSD) && BSD >= 199103
-		len = sizeof ifr->ifr_name + ifr->ifr_addr.sa_len;
-#else
-		len = sizeof ifc.ifc_len / sizeof(struct ifreq);
-#endif
-		ifreq = *ifr;
-		if( ifreq.ifr_addr.sa_family != AF_INET)
-			continue;
-		if( ioctl(sock, SIOCGIFFLAGS, &ifreq) < 0) {
-			perror("ioctl(SIOCGIFFLAGS)");
-			continue;
+	/*
+	 * It's impolite to blast broadcast packets all over the place
+	 * when we don't really have to.
+	 */
+	if (!direct) {
+		ifc.ifc_len = sizeof inbuf;
+		ifc.ifc_buf = inbuf;
+		if( ioctl(sock, SIOCGIFCONF, &ifc) < 0) {
+			close(sock);
+			perror("ioctl(SIOCGIFCONF)");
+			return -1;
 		}
-		if( (ifreq.ifr_flags & IFF_UP) == 0)
-			continue;
-
-		ifreq.ifr_flags &= (IFF_LOOPBACK | IFF_BROADCAST);
-		if( ifreq.ifr_flags==IFF_BROADCAST ) {
-			if( ioctl(sock, SIOCGIFBRDADDR, &ifreq) < 0 ) {
-				perror("ioctl(SIOCGIFBRDADDR)");
+		ifr = ifc.ifc_req;
+		ifreq.ifr_name[0] = '\0';
+		for(i=0; i<ifc.ifc_len; i+=len, ifr=(struct ifreq *)((caddr_t)ifr+len)) {
+#if defined(BSD) && BSD >= 199103
+			len = sizeof ifr->ifr_name + ifr->ifr_addr.sa_len;
+#else
+			len = sizeof ifc.ifc_len / sizeof(struct ifreq);
+#endif
+			ifreq = *ifr;
+			if( ifreq.ifr_addr.sa_family != AF_INET)
+				continue;
+			if( ioctl(sock, SIOCGIFFLAGS, &ifreq) < 0) {
+				perror("ioctl(SIOCGIFFLAGS)");
 				continue;
 			}
-		} else if( ifreq.ifr_flags==IFF_LOOPBACK ) {
-			if( ioctl(sock, SIOCGIFADDR, &ifreq) < 0 ) {
-				perror("ioctl(SIOCGIFADDR)");
+			if( (ifreq.ifr_flags & IFF_UP) == 0)
 				continue;
-			}
-		} else
-			continue;
 
-		in = ((struct sockaddr_in *)&ifreq.ifr_addr)->sin_addr;
+			ifreq.ifr_flags &= (IFF_LOOPBACK | IFF_BROADCAST);
+			if( ifreq.ifr_flags==IFF_BROADCAST ) {
+				if( ioctl(sock, SIOCGIFBRDADDR, &ifreq) < 0 ) {
+					perror("ioctl(SIOCGIFBRDADDR)");
+					continue;
+				}
+			} else if( ifreq.ifr_flags==IFF_LOOPBACK ) {
+				if( ioctl(sock, SIOCGIFADDR, &ifreq) < 0 ) {
+					perror("ioctl(SIOCGIFADDR)");
+					continue;
+				}
+			} else
+				continue;
+
+			in = ((struct sockaddr_in *)&ifreq.ifr_addr)->sin_addr;
+			bsin.sin_addr = in;
+			if( sendto(rpcsock, buf, outlen, 0,	
+				(struct sockaddr *)&bsin, sizeof bsin) < 0 )
+				perror("sendto");
+		}
+	} else {
+		in = ((struct sockaddr_in *)&saddr)->sin_addr;
 		bsin.sin_addr = in;
 		if( sendto(rpcsock, buf, outlen, 0, (struct sockaddr *)&bsin,
 		   sizeof bsin) < 0 )
 			perror("sendto");
 	}
+
 	close(sock);
 	return 0;
 }
@@ -617,15 +670,30 @@ int force;
 		ypbindlist = ypdb;
 	}
 
-	/* soft update, alive, less than 30 seconds old */
-	if(ypdb->dom_alive==1 && force==0 && ypdb->dom_check_t<time(NULL)+30)
+	/* soft update, alive, less than FAIL_THRESHOLD seconds old */
+	if(ypdb->dom_alive==1 && (force==0 || ypdb->dom_answered == 0)
+		&& (ypdb->dom_check_t - FAIL_THRESHOLD) > time(NULL)) {
+		ypdb->dom_answered = 1;
+		ypdb->dom_interval = 60;
 		return;
+	}
+
+	/*
+	 * We've recovered from a crash: inform the world.
+	 */
+	if (ypdb->dom_vers == 0)
+		syslog(LOG_NOTICE, "NIS server [%s] for domain %s OK.",
+			inet_ntoa(ypdb->dom_server_addr.sin_addr),
+                        ypdb->dom_domain);
 
 	bcopy((char *)raddrp, (char *)&ypdb->dom_server_addr,
 		sizeof ypdb->dom_server_addr);
-	ypdb->dom_check_t = time(NULL) + 60;	/* recheck binding in 60 seconds */
+
 	ypdb->dom_vers = YPVERS;
 	ypdb->dom_alive = 1;
+	ypdb->dom_answered = 1;
+	ypdb->dom_interval = 60;
+	ypdb->dom_check_t = time(NULL) + ypdb->dom_interval;
 
 	if(ypdb->dom_lockfd != -1)
 		close(ypdb->dom_lockfd);
