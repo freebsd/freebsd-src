@@ -132,6 +132,7 @@ WLDEBUG		opt_wavelan.h
 P1003_1B			opt_posix.h
 _KPOSIX_PRIORITY_SCHEDULING	opt_posix.h
 _KPOSIX_VERSION			opt_posix.h
+P1003_1B_SEMAPHORES		opt_posix.h
 
 #####################################################################
 # SECURITY POLICY PARAMETERS
