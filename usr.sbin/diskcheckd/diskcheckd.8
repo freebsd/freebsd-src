@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2000
+.Dd July 4, 2001
 .Dt DISKCHECKD 8
 .Os
 .Sh NAME
@@ -49,7 +49,13 @@ by default.
 Any blank lines or lines starting with a
 .Ql #
 character in this file are ignored.
-Each non-comment line of this file should contain four white space separated
+Each non-comment line of this file should must be in one of two formats.
+The first format is
+.Ql !xx ,
+and specifies that device names matching
+.Ql /dev/xx*
+should not be included in expansion of wildcards (see below).
+The second format consists of four white space separated
 fields,
 which are the full pathname of the disk device,
 the size of that disk,
@@ -80,12 +86,13 @@ Fields which are not specified should contain a single
 .Dq *
 character.
 .Pp
-Note that any rate specified will be rounded to the nearest power of 2,
-and will be forced into the range 512 bytes to 128 kilobytes,
-inclusive.
-Any rate calculated from the frequency and size information will be rounded
-in the same way,
-so if you specify the third field (days for complete scan) it is unlikely
+Note that
+.Nm
+always reads data from the disk in 64KB blocks,
+so the rate your specify may not be the exact rate at which the disk is
+actually checked.
+Similarly,
+if you specify the third field (days for complete scan) it is unlikely
 that a complete scan will actually take exactly this many days.
 .Pp
 To run
