@@ -1,6 +1,6 @@
 	    Internet Software Consortium DHCP Distribution
 			     Version 3.0.1
-			 Release Candidate 10
+			 Release Candidate 12
 			       June, 2002
 
 			     Release Notes
@@ -45,6 +45,53 @@ Measurement Systems, Igor Sharfmesser at Kazakh Telecom, and Brian
 Murrell at BC Tel Advanced Communications.  I'd like to express my
 thanks to all of these good people here, both for working on the code
 and for prodding me into improving it.
+
+			Changes since 3.0.1rc11
+
+- A patch from Steve Campbell was applied with minor modifications to
+  permit reverse dns PTR record updates with values containing spaces.
+
+- A patch from Florian Lohoff was applied with some modifications to
+  dhcrelay.  It now discards packets whose hop count exceeds 10 by default,
+  and a command-line option (-c) can be used to set this threshold.
+
+- A failover bug relating to identifying peers by name length instead of
+  by name was fixed.
+
+- Delcaring failover configs within shared-network statements should no
+  longer result in error.
+
+- The -nw command line option to dhclient now works.
+
+- Thanks to a patch from Michael Richardson:
+	- Some problems with long option processing have been fixed.
+	- Some fixes to minires so that updates of KEY records will work.
+
+- contrib/ms2isc was updated by Shu-Min Chang of the Intel Corporation.
+  see contrib/ms2isc/readme.txt for revision notes.
+
+- Dhclient no longer uses shell commands to kill another instance of
+  itself, it sends the signal directly.  Thanks to a patch from Martin
+  Blapp.
+
+- The FreeBSD dhclient-script was changed so that a failure to write to
+  /etc/resolv.conf does not prematurely end the script.  This keeps dhclient
+  from looping infinitely when this is the case.  Thanks to a patch from
+  Martin Blapp.
+
+- A patch from Bill Stephens was applied which resolves a problem with lease
+  expiry times in failover configurations.
+
+- A memory leak in configuration parsing was closed thanks to a patch from
+  Steve G.
+
+- The function which discovers interfaces will now skip non-broadcast or
+  point-to-point interfaces, thanks to a patch from David Brownlee.
+
+- Options not yet known by the dhcpd or dhclient have had their names
+  changed such that they do not contain # symbols, in case they should ever
+  appear in a lease file.  An option that might have been named "#144" is
+  now "unknown-144".
 
 			Changes since 3.0.1rc10
 

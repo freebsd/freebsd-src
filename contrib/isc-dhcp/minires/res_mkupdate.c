@@ -21,7 +21,7 @@
  */
 
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: res_mkupdate.c,v 1.7 2001/01/11 02:16:24 mellon Exp $";
+static const char rcsid[] = "$Id: res_mkupdate.c,v 1.7.2.2 2003/05/19 00:33:22 dhankins Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -52,6 +52,7 @@ static int gethexnum_str(const u_char **, const u_char *);
 static int getword_str(char *, int,
 		       const unsigned char **,
 		       const unsigned char *);
+static int getphrase_str(char *, int, const u_char **, const u_char *);
 static int getstr_str(char *, int, const u_char **, const u_char *);
 
 struct valuelist {
@@ -101,7 +102,8 @@ res_nmkupdate(res_state statp,
 	u_int16_t rtype, rclass;
 	u_int32_t n1, rttl;
 	u_char *dnptrs[20], **dpp, **lastdnptr;
-	unsigned siglen, keylen, certlen;
+	unsigned siglen, certlen;
+	int keylen;
 	unsigned buflen = *blp;
 	u_char *buf = (unsigned char *)bp;
 
@@ -234,7 +236,7 @@ res_nmkupdate(res_state statp,
 		case T_MR:
 		case T_NS:
 		case T_PTR:
-			if (!getword_str(buf2, sizeof buf2, &startp, endp))
+			if (!getphrase_str(buf2, sizeof buf2, &startp, endp))
 				return (-1);
 			n = dn_comp(buf2, cp, buflen, dnptrs, lastdnptr);
 			if (n < 0)
@@ -549,36 +551,6 @@ res_nmkupdate(res_state statp,
 			cp += siglen;
 			break;
 		    }
-		case ns_t_key:
-			/* flags */
-			n = gethexnum_str(&startp, endp);
-			if (n < 0)
-				return (-1);
-			ShrinkBuffer(INT16SZ);
-			PUTSHORT(n, cp);
-			/* proto */
-			n = getnum_str(&startp, endp);
-			if (n < 0)
-				return (-1);
-			ShrinkBuffer(1);
-			*cp++ = n;
-			/* alg */
-			n = getnum_str(&startp, endp);
-			if (n < 0)
-				return (-1);
-			ShrinkBuffer(1);
-			*cp++ = n;
-			/* key */
-			if ((n = getword_str(buf2, sizeof buf2,
-					     &startp, endp)) < 0)
-				return (-1);
-			keylen = b64_pton(buf2, buf3, sizeof(buf3));
-			if (keylen < 0)
-				return (-1);
-			ShrinkBuffer(keylen);
-			memcpy(cp, buf3, keylen);
-			cp += keylen;
-			break;
 		case ns_t_nxt:
 		    {
 			int success, nxt_type;
@@ -613,6 +585,38 @@ res_nmkupdate(res_state statp,
 			cp += n;
 			break;
 		    }
+#endif
+#if 1
+		case ns_t_key:
+			/* flags */
+			n = gethexnum_str(&startp, endp);
+			if (n < 0)
+				return (-1);
+			ShrinkBuffer(INT16SZ);
+			PUTSHORT(n, cp);
+			/* proto */
+			n = getnum_str(&startp, endp);
+			if (n < 0)
+				return (-1);
+			ShrinkBuffer(1);
+			*cp++ = n;
+			/* alg */
+			n = getnum_str(&startp, endp);
+			if (n < 0)
+				return (-1);
+			ShrinkBuffer(1);
+			*cp++ = n;
+			/* key */
+			if ((n = getword_str(buf2, sizeof buf2,
+					     &startp, endp)) < 0)
+				return (-1);
+			keylen = b64_pton(buf2, buf3, sizeof(buf3));
+			if (keylen < 0)
+				return (-1);
+			ShrinkBuffer(keylen);
+			memcpy(cp, buf3, keylen);
+			cp += keylen;
+			break;
 		case ns_t_cert:
 			/* type */
 			n = getnum_str(&startp, endp);
@@ -645,6 +649,8 @@ res_nmkupdate(res_state statp,
 			break;
 #endif
 		default:
+		  fprintf(stderr, "NSupdate of RR type: %d not implemented\n",
+			  rrecp->r_type);
 			return (-1);
 		} /*switch*/
 		n = (u_int16_t)((cp - sp2) - INT16SZ);
@@ -679,6 +685,35 @@ getword_str(char *buf, int size, const u_char **startpp, const u_char *endp) {
                                 continue;
                         }
                 }
+                (*startpp)++;
+                if (cp >= buf+size-1)
+                        break;
+                *cp++ = (u_char)c;
+        }
+        *cp = '\0';
+        return (cp != buf);
+}
+
+/*
+ * Get a phrase - possibly containing blanks - from a string (not file)
+ * into buf. modify the start pointer to point after the
+ * phrase in the string.
+ */
+static int
+getphrase_str(char *buf, int size, const u_char **startpp, const u_char *endp) {
+        char *cp;
+        int c;
+ 
+        for (cp = buf; *startpp <= endp; ) {
+                c = **startpp;
+                if (isspace(c) && cp == buf ) {
+			/* leading whitespace */
+			(*startpp)++;
+			continue;
+		}
+		else if ( c == '\0' ) {
+			break;
+		}
                 (*startpp)++;
                 if (cp >= buf+size-1)
                         break;
