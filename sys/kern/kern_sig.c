@@ -479,7 +479,7 @@ execsigs(p)
 	 * through p_sigmask (unless they were caught,
 	 * and are now ignored by default).
 	 */
-	PROC_LOCK(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	ps = p->p_sigacts;
 	while (SIGNOTEMPTY(p->p_sigcatch)) {
 		sig = sig_ffs(&p->p_sigcatch);
@@ -505,7 +505,6 @@ execsigs(p)
 	p->p_procsig->ps_flag &= ~(PS_NOCLDWAIT | PS_CLDSIGIGN);
 	if (ps->ps_sigact[_SIG_IDX(SIGCHLD)] == SIG_IGN)
 		ps->ps_sigact[_SIG_IDX(SIGCHLD)] = SIG_DFL;
-	PROC_UNLOCK(p);
 }
 
 /*
