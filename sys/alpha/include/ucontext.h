@@ -43,11 +43,14 @@ typedef struct __mcontext {
 	unsigned long mc_fpregs[32];
 	unsigned long mc_fpcr;
 	unsigned long mc_fp_control;
+#define	_MC_FPOWNED_NONE	0	/* FP state not used */
+#define	_MC_FPOWNED_FPU		1	/* FP state came from FPU */
+#define	_MC_FPOWNED_PCB		2	/* FP state came from PCB */
 	long	mc_ownedfp;
-#define	__UC_REV0_SIGFRAME	1	/* context is a signal frame */
-#define	__UC_REV0_TRAPFRAME	2	/* context is a trap frame */
+#define	_MC_REV0_SIGFRAME	1	/* context is a signal frame */
+#define	_MC_REV0_TRAPFRAME	2	/* context is a trap frame */
 	long	mc_format;
-	long	__spare__[6];
+	long	mc_spare[6];
 } mcontext_t;
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)

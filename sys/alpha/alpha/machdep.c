@@ -210,7 +210,9 @@ static void freebsd4_sendsig(sig_t catcher, int sig, sigset_t *mask,
     u_long code);
 #endif
 
+static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static void identifycpu(void);
+static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 
 struct kva_md_info kmi;
 
@@ -1405,7 +1407,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    frame->tf_regs[FRAME_TRAPARG_A1];
 	sf.sf_uc.uc_mcontext.mc_regs[R_TRAPARG_A2] =
 	    frame->tf_regs[FRAME_TRAPARG_A2];
-	sf.sf_uc.uc_mcontext.mc_format = __UC_REV0_SIGFRAME;
+	sf.sf_uc.uc_mcontext.mc_format = _MC_REV0_SIGFRAME;
 
 	/*
 	 * Allocate and validate space for the signal handler
@@ -1664,13 +1666,15 @@ sigreturn(struct thread *td,
 		return (error);
 	}
 #ifdef COMPAT_43
-	 if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
-		  return osigreturn(td, (struct osigreturn_args *)uap);
+	if (((struct osigcontext*)&uc)->sc_regs[R_ZERO] == 0xACEDBADE)
+		return osigreturn(td, (struct osigreturn_args *)uap);
 #endif
 
 	/*
 	 * Restore the user-supplied information
 	 */
+	if ((error = set_fpcontext(td, &uc.uc_mcontext)) != 0)
+		return (error);
 	set_regs(td, (struct reg *)uc.uc_mcontext.mc_regs);
 	val = (uc.uc_mcontext.mc_regs[R_PS] | ALPHA_PSL_USERSET) &
 	    ~ALPHA_PSL_USERCLR;
@@ -1691,12 +1695,6 @@ sigreturn(struct thread *td,
 	SIG_CANTMASK(p->p_sigmask);
 	signotify(p);
 	PROC_UNLOCK(p);
-
-	/* XXX ksc.sc_ownedfp ? */
-	alpha_fpstate_drop(td);
-	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
-	      &td->td_pcb->pcb_fp, sizeof(struct fpreg));
-	td->td_pcb->pcb_fp_control = uc.uc_mcontext.mc_fp_control;
 
 	return (EJUSTRETURN);
 }
@@ -2007,6 +2005,133 @@ set_regs(td, regs)
 	tp->tf_regs[FRAME_PC] = regs->r_regs[R_ZERO];
 	pcb->pcb_hw.apcb_usp = regs->r_regs[R_SP];
 
+	return (0);
+}
+
+int
+get_mcontext(struct thread *td, mcontext_t *mcp)
+{
+	/*
+	 * Use a trapframe for getsetcontext, so just copy the
+	 * threads trapframe.
+	 */
+	bcopy(&td->td_frame, &mcp->mc_regs, sizeof(td->td_frame));
+
+	/*
+	 * When the thread is the current thread, the user stack pointer
+	 * is not in the PCB; it must be read from the PAL.
+	 */
+	if (td == curthread)
+		mcp->mc_regs[FRAME_SP] = alpha_pal_rdusp();
+
+	mcp->mc_format = _MC_REV0_TRAPFRAME;
+	mcp->mc_onstack = sigonstack(alpha_pal_rdusp()) ? 1 : 0;
+	get_fpcontext(td, mcp);
+	return (0);
+}
+
+int
+set_mcontext(struct thread *td, const mcontext_t *mcp)
+{
+	int ret;
+	unsigned long val;
+
+	if ((mcp->mc_format != _MC_REV0_TRAPFRAME) &&
+	    (mcp->mc_format != _MC_REV0_SIGFRAME))
+		return (EINVAL);
+	else if ((ret = set_fpcontext(td, mcp)) != 0)
+		return (ret);
+
+	if (mcp->mc_format == _MC_REV0_SIGFRAME) {
+		set_regs(td, (struct reg *)&mcp->mc_regs);
+		val = (mcp->mc_regs[R_PS] | ALPHA_PSL_USERSET) &
+		    ~ALPHA_PSL_USERCLR;
+		td->td_frame->tf_regs[FRAME_PS] = val;
+		td->td_frame->tf_regs[FRAME_PC] = mcp->mc_regs[R_PC];
+		td->td_frame->tf_regs[FRAME_FLAGS] = 0;
+		if (td == curthread)
+			alpha_pal_wrusp(mcp->mc_regs[R_SP]);
+
+	} else {
+		if (td == curthread)
+			alpha_pal_wrusp(mcp->mc_regs[FRAME_SP]);
+		/*
+		 * The context is a trapframe, so just copy it over the
+		 * threads frame.
+		 */
+		bcopy(&mcp->mc_regs, &td->td_frame, sizeof(td->td_frame));
+	}
+	return (0);
+}
+
+static void
+get_fpcontext(struct thread *td, mcontext_t *mcp)
+{
+	register_t s;
+
+	s = intr_disable();
+	if ((td->td_md.md_flags & MDTD_FPUSED) == 0) {
+		intr_restore(s);
+		mcp->mc_ownedfp = _MC_FPOWNED_NONE;
+	} else if (PCPU_GET(fpcurthread) == td) {
+		/* See comments in alpha_fpstate_save() regarding FEN. */
+		if (td != curthread)
+			alpha_pal_wrfen(1);
+		/*
+		 * The last field (fpr_cr) of struct fpreg isn't
+		 * included in mc_fpregs, but it immediately follows
+		 * it in mcontext_t.
+		 */
+		savefpstate((struct fpreg *)&mcp->mc_fpregs);
+		if (td != curthread)
+			alpha_pal_wrfen(0);
+		intr_restore(s);
+		mcp->mc_ownedfp = _MC_FPOWNED_FPU;
+	} else {
+		/*
+		 * The thread doesn't own the FPU so get the state from
+		 * the PCB.
+		 */
+		intr_restore(s);
+		bcopy(&td->td_pcb->pcb_fp, &mcp->mc_fpregs,
+		    sizeof(td->td_pcb->pcb_fp));
+		mcp->mc_ownedfp = _MC_FPOWNED_PCB;
+	}
+	/* There's no harm in always doing the following. */
+	mcp->mc_fp_control = td->td_pcb->pcb_fp_control;
+}
+
+static int
+set_fpcontext(struct thread *td, const mcontext_t *mcp)
+{
+	register_t s;
+
+	if (mcp->mc_ownedfp == _MC_FPOWNED_NONE) {
+		/* XXX - Drop fpu state so we get a clean state? */
+		alpha_fpstate_drop(td);
+	}
+	else if ((mcp->mc_ownedfp != _MC_FPOWNED_FPU) &&
+	    (mcp->mc_ownedfp != _MC_FPOWNED_PCB))
+		return (EINVAL);
+	else {
+		s = intr_disable();
+		if (PCPU_GET(fpcurthread) == td) {
+			/*
+			 * The last field (fpr_cr) of struct fpreg isn't
+			 * included in mc_fpregs, but it immediately follows
+			 * it in mcontext_t.
+			 */
+			restorefpstate((struct fpreg *)&mcp->mc_fpregs);
+			intr_restore(s);
+		}
+		else {
+			/* Just save the state in the PCB. */
+			intr_restore(s);
+			bcopy(&mcp->mc_fpregs, &td->td_pcb->pcb_fp,
+			    sizeof (td->td_pcb->pcb_fp));
+		}
+		td->td_pcb->pcb_fp_control = mcp->mc_fp_control;
+	}
 	return (0);
 }
 
