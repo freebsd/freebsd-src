@@ -1,7 +1,7 @@
 /*
  * Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /sys/miscfs/devfs/RCS/devfs_front.c,v 1.3 1995/01/07 04:20:25 root Exp root $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_front.c,v 1.2 1995/04/20 07:34:52 julian Exp $
  *
  */
 
@@ -139,7 +139,7 @@ int dev_mk_front(dn_p parent,devnm_p back,devnm_p *devnm_pp , struct devfsmount 
 	case	DEV_BDEV:
 	case	DEV_CDEV:
 	case	DEV_DDEV:
-		newfp->dnp = back->dnp;
+		dnp = newfp->dnp = back->dnp;
 		newfp->dnp->links++; /* wherever it is.....*/
 		break;
 	case	DEV_DIR:
@@ -472,4 +472,5 @@ DBPRINT(("(New vnode)"));
 			error = EINVAL;
 		}
 	}
-	return
+	return error;
+}
