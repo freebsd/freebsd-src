@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.10 1999/03/07 18:23:56 brian Exp $
+ *	$Id: natd.c,v 1.11 1999/03/11 09:24:52 brian Exp $
  */
 
 #define SYSLOG_NAMES
