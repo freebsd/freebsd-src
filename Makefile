@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.186 1998/05/28 12:31:42 peter Exp $
+#	$Id: Makefile,v 1.187 1998/05/28 13:20:35 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -722,7 +722,6 @@ build-tools:
 		bin/mkdir		\
 		bin/mv			\
 		bin/rm			\
-		bin/sh			\
 		bin/test		\
 		gnu/usr.bin/awk		\
 		gnu/usr.bin/bc		\
@@ -734,6 +733,7 @@ build-tools:
 		gnu/usr.bin/perl/perl	\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo	\
+		bin/sh
 		usr.bin/basename	\
 		usr.bin/cap_mkdb	\
 		usr.bin/chflags		\
@@ -744,6 +744,7 @@ build-tools:
 		usr.bin/file2c		\
 		usr.bin/find		\
 		usr.bin/gencat		\
+		usr.bin/id		\
 		usr.bin/lorder		\
 		usr.bin/m4		\
 		usr.bin/mkdep		\
