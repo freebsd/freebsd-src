@@ -267,10 +267,9 @@ static	int db_mach_vtrace(void);
 
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
-	int lines, quit;
+	int quit;
 	
 	quit = 0;
-	lines = NUM_LINES_PER_PAGE;
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
 	tstate.first = -1;
 	if (strcmp(modif, "v") == 0)
