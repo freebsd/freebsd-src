@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.152 1999/02/24 21:26:26 dillon Exp $
+ * $Id: vm_object.c,v 1.153 1999/03/14 06:36:00 alc Exp $
  */
 
 /*
@@ -1453,7 +1453,7 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	vm_pindex_t prev_pindex;
 	vm_size_t prev_size, next_size;
 {
-	vm_size_t newsize;
+	vm_pindex_t next_pindex;
 
 	if (prev_object == NULL) {
 		return (TRUE);
@@ -1481,9 +1481,10 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 
 	prev_size >>= PAGE_SHIFT;
 	next_size >>= PAGE_SHIFT;
+	next_pindex = prev_pindex + prev_size;
 
 	if ((prev_object->ref_count > 1) &&
-	    (prev_object->size != prev_pindex + prev_size)) {
+	    (prev_object->size != next_pindex)) {
 		return (FALSE);
 	}
 
@@ -1491,17 +1492,20 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	 * Remove any pages that may still be in the object from a previous
 	 * deallocation.
 	 */
-
-	vm_object_page_remove(prev_object,
-	    prev_pindex + prev_size,
-	    prev_pindex + prev_size + next_size, FALSE);
+	if (next_pindex < prev_object->size) {
+		vm_object_page_remove(prev_object,
+				      next_pindex,
+				      next_pindex + next_size, FALSE);
+		if (prev_object->type == OBJT_SWAP)
+			swap_pager_freespace(prev_object,
+					     next_pindex, next_size);
+	}
 
 	/*
 	 * Extend the object if necessary.
 	 */
-	newsize = prev_pindex + prev_size + next_size;
-	if (newsize > prev_object->size)
-		prev_object->size = newsize;
+	if (next_pindex + next_size > prev_object->size)
+		prev_object->size = next_pindex + next_size;
 
 	return (TRUE);
 }
