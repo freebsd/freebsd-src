@@ -100,6 +100,7 @@ struct socket {
  */
 	struct sockbuf {
 		struct	selinfo sb_sel;	/* process selecting read/write */
+#define	sb_startzero	sb_mb
 		struct	mbuf *sb_mb;	/* the mbuf chain */
 		u_int	sb_cc;		/* actual chars in buffer */
 		u_int	sb_hiwat;	/* max actual char count */

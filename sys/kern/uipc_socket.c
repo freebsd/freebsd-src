@@ -1133,8 +1133,14 @@ sorflush(so)
 	socantrcvmore(so);
 	sbunlock(sb);
 	asb = *sb;
-	bzero(sb, sizeof (*sb));
+	/*
+	 * Invalidate/clear most of the sockbuf structure, but keep
+	 * its selinfo structure valid.
+	 */
+	bzero(&sb->sb_startzero,
+	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	splx(s);
+
 	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
 	sbrelease(&asb, so);
