@@ -2,7 +2,7 @@
 
 SCRIPTS=generic.sh
 SCRIPTSNAME=alias
-NOMAN=
+NOOBJ=
 
 LINKS=	${BINDIR}/alias ${BINDIR}/bg \
 	${BINDIR}/alias ${BINDIR}/cd \
