@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.25 1999/05/07 16:33:08 peter Exp $
+ * $Id: pci_compat.c,v 1.26 1999/05/08 21:59:41 dfr Exp $
  *
  */
 
@@ -114,7 +114,8 @@ pci_map_dense(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 #ifdef __alpha__
 		vm_offset_t dense;
 
-		if(dense = pci_cvt_to_dense(*pa)){
+		dense = pci_cvt_to_dense(*pa);
+		if (dense) {
 			*pa = dense;
 			*va = ALPHA_PHYS_TO_K0SEG(*pa);
 			return (1);
@@ -134,7 +135,8 @@ pci_map_bwx(pcici_t cfg, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 #ifdef __alpha__
 		vm_offset_t bwx;
 
-		if(bwx = pci_cvt_to_bwx(*pa)){
+		bwx = pci_cvt_to_bwx(*pa);
+		if (bwx) {
 			*pa = bwx;
 			*va = ALPHA_PHYS_TO_K0SEG(*pa);
 			return (1);
