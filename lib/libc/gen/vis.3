@@ -58,9 +58,11 @@ a string which represents the character
 .Fa c .
 If
 .Fa c
-needs no encoding, it is copied in unaltered.  The string is
+needs no encoding, it is copied in unaltered.
+The string is
 null terminated, and a pointer to the end of the string is
-returned.  The maximum length of any encoding is four
+returned.
+The maximum length of any encoding is four
 characters (not including the trailing
 .Dv NUL ) ;
 thus, when
@@ -160,9 +162,11 @@ Synonym for
 \&|
 .Dv VIS_NL .
 .It Dv VIS_SAFE
-Only encode "unsafe" characters.  Unsafe means control
+Only encode "unsafe" characters.
+Unsafe means control
 characters which may cause common terminals to perform
-unexpected functions.  Currently this form allows space,
+unexpected functions.
+Currently this form allows space,
 tab, newline, backspace, bell, and return - in addition
 to all graphic characters - unencoded.
 .El
@@ -259,7 +263,8 @@ where
 .Ar d
 represents a hexadecimal digit.
 .It Dv VIS_OCTAL
-Use a three digit octal sequence.  The form is
+Use a three digit octal sequence.
+The form is
 .Ql \eddd
 where
 .Ar d

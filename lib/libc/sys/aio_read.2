@@ -85,7 +85,8 @@ The Asynchronous I/O Control Block structure pointed to by
 and the buffer that the
 .Fa iocb->aio_buf
 member of that structure references must remain valid until the
-operation has completed.  For this reason, use of auto (stack) variables
+operation has completed.
+For this reason, use of auto (stack) variables
 for these objects is discouraged.
 .Pp
 The asynchronous I/O control buffer
@@ -122,7 +123,8 @@ system call is not supported.
 .Pp
 The following conditions may be synchronously detected when the
 .Fn aio_read
-system call is made, or asynchronously, at any time thereafter.  If they
+system call is made, or asynchronously, at any time thereafter.
+If they
 are detected at call time,
 .Fn aio_read
 returns -1 and sets

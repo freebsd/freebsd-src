@@ -59,7 +59,8 @@ If set, the kernel will force sharing of the entire address space,
 typically by sharing the hardware page table directly.
 The child
 will thus inherit and share all the segments the parent process owns,
-whether they are normally shareable or not.  The stack segment is
+whether they are normally shareable or not.
+The stack segment is
 not split (both the parent and child return on the same stack) and thus
 .Fn rfork
 with the RFMEM flag may not generally be called directly from high level
@@ -67,7 +68,8 @@ languages including C.
 May be set only with
 .Dv RFPROC .
 A helper function is provided to assist with this problem and will cause
-the new process to run on the provided stack.  See
+the new process to run on the provided stack.
+See
 .Xr rfork_thread 3
 for information.
 .It Dv RFSIGSHARE
@@ -75,7 +77,8 @@ If set, the kernel will force sharing the sigacts structure between the
 child and the parent.
 .It Dv RFLINUXTHPN
 If set, the kernel will return SIGUSR1 instead of SIGCHILD upon thread
-exit for the child.  This is intended to mimic certain Linux clone behaviour.
+exit for the child.
+This is intended to mimic certain Linux clone behaviour.
 .El
 .Pp
 File descriptors in a shared file descriptor table are kept
@@ -110,7 +113,8 @@ Upon successful completion,
 .Fn rfork
 returns a value
 of 0 to the child process and returns the process ID of the child
-process to the parent process.  Otherwise, a value of -1 is returned
+process to the parent process.
+Otherwise, a value of -1 is returned
 to the parent process, no child process is created, and the global
 variable
 .Va errno
@@ -166,7 +170,8 @@ does not yet implement a native
 .Fn clone
 library call, and the current pthreads implementation does not use
 .Fn rfork
-with RFMEM.  A native port of the linux threads library,
+with RFMEM.
+A native port of the linux threads library,
 .Pa /usr/ports/devel/linuxthreads ,
 contains a working
 .Fn clone

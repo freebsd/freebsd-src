@@ -71,10 +71,12 @@ or
 .Fa shm_perm.cuid ,
 or it must have superuser privileges.
 .It Dv IPC_RMID
-Removes the segment from the system.  The removal will not take
+Removes the segment from the system.
+The removal will not take
 effect until all processes having attached the segment have exited;
 however, once the IPC_RMID operation has taken place, no further
-processes will be allowed to attach the segment.  For the operation
+processes will be allowed to attach the segment.
+For the operation
 to succeed, the calling process's effective uid must match
 .Fa shm_perm.uid
 or

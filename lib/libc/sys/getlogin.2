@@ -76,7 +76,8 @@ except the caller must provide the buffer
 with length
 .Fa len
 bytes
-to hold the result.  The buffer should be at least
+to hold the result.
+The buffer should be at least
 .Dv MAXLOGNAME
 bytes in length.
 .Pp
@@ -103,7 +104,8 @@ Making a
 .Fn setsid
 system call is the
 .Em ONLY
-way to do this.  The
+way to do this.
+The
 .Xr daemon 3
 function calls
 .Fn setsid

@@ -112,7 +112,8 @@ Upon return from
 the pointer is incremented by the number of bytes which were written.
 .Pp
 Objects that are not capable of seeking always write from the current
-position.  The value of the pointer associated with such an object
+position.
+The value of the pointer associated with such an object
 is undefined.
 .Pp
 If the real user is not the super-user, then
@@ -134,7 +135,8 @@ the return value must be noted,
 and the remainder of the operation should be retried when possible.
 .Sh RETURN VALUES
 Upon successful completion the number of bytes which were written
-is returned.  Otherwise a -1 is returned and the global variable
+is returned.
+Otherwise a -1 is returned and the global variable
 .Va errno
 is set to indicate the error.
 .Sh ERRORS

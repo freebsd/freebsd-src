@@ -60,7 +60,8 @@ This interface is made obsolete by
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
 the signal is blocked from further occurrence, the current process
-context is saved, and a new one is built.  A process may specify a
+context is saved, and a new one is built.
+A process may specify a
 .Em handler
 to which a signal is delivered, or specify that a signal is to be
 .Em blocked
@@ -69,7 +70,8 @@ or
 A process may also specify that a default action is to be taken
 by the system when a signal occurs.
 Normally, signal handlers execute on the current stack
-of the process.  This may be changed, on a per-handler basis,
+of the process.
+This may be changed, on a per-handler basis,
 so that signals are taken on a special
 .Em "signal stack" .
 .Pp
@@ -82,8 +84,10 @@ but other signals may yet occur.
 A global
 .Em "signal mask"
 defines the set of signals currently blocked from delivery
-to a process.  The signal mask for a process is initialized
-from that of its parent (normally 0).  It
+to a process.
+The signal mask for a process is initialized
+from that of its parent (normally 0).
+It
 may be changed with a
 .Xr sigblock 2
 or
@@ -92,12 +96,15 @@ call, or when a signal is delivered to the process.
 .Pp
 When a signal
 condition arises for a process, the signal is added to a set of
-signals pending for the process.  If the signal is not currently
+signals pending for the process.
+If the signal is not currently
 .Em blocked
-by the process then it is delivered to the process.  When a signal
+by the process then it is delivered to the process.
+When a signal
 is delivered, the current state of the process is saved,
 a new signal mask is calculated (as described below),
-and the signal handler is invoked.  The call to the handler
+and the signal handler is invoked.
+The call to the handler
 is arranged so that if the signal handling routine returns
 normally the process will resume execution in the context
 from before the signal's delivery.
@@ -119,7 +126,8 @@ in the signal mask associated with the handler to be invoked.
 The
 .Fn sigvec
 function
-assigns a handler for a specific signal.  If
+assigns a handler for a specific signal.
+If
 .Fa vec
 is non-zero, it
 specifies a handler routine and mask

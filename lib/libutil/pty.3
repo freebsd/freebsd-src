@@ -62,7 +62,8 @@ If the argument
 is not
 .Dv NULL ,
 .Fn openpty
-copies the pathname of the slave pty to this area.  The caller is
+copies the pathname of the slave pty to this area.
+The caller is
 responsible for allocating the required space in this array.
 .Pp
 If the arguments
@@ -86,12 +87,16 @@ The
 .Fn forkpty
 function first calls
 .Fn openpty
-to obtain the next available pseudo-terminal from the system.  Upon success,
-it forks off a new process.  In the child process, it closes the descriptor
+to obtain the next available pseudo-terminal from the system.
+Upon success,
+it forks off a new process.
+In the child process, it closes the descriptor
 for the master side of the pty, and calls
 .Xr login_tty 3
-for the slave pty.  In the parent process, it closes the descriptor for the
-slave side of the pty.  The arguments
+for the slave pty.
+In the parent process, it closes the descriptor for the
+slave side of the pty.
+The arguments
 .Fa amaster ,
 .Fa name ,
 .Fa termp ,
@@ -133,7 +138,8 @@ may set it to any value as described for
 .Xr group 5
 .Sh BUGS
 The calling process must have an effective UID of super-user in order
-to perform all the intended actions.  No notification will occur if
+to perform all the intended actions.
+No notification will occur if
 .Fn openpty
 or
 .Fn forkpty

@@ -39,9 +39,11 @@
 .Sh DESCRIPTION
 These routines are part of the
 .Tn RPC
-library.  They implement
+library.
+They implement
 .Tn DES
-Authentication.  See
+Authentication.
+See
 .Xr rpc 3
 for further details about
 .Tn RPC .
@@ -81,14 +83,16 @@ derived from the utility routine
 but could also represent a user name using
 .Fn user2netname .
 The second field is window on the validity of
-the client credential, given in seconds.  A small
+the client credential, given in seconds.
+A small
 window is more secure than a large one, but choosing
 too small of a window will increase the frequency of
 resynchronizations because of clock drift.
 The third
 argument
 .Fa addr
-is optional.  If it is
+is optional.
+If it is
 .Dv NULL ,
 then the authentication system will assume
 that the local clock is always in sync with the server's
@@ -104,7 +108,8 @@ address of the
 server itself.
 The final argument
 .Fa ckey
-is also optional.  If it is
+is also optional.
+If it is
 .Dv NULL ,
 then the authentication system will
 generate a random
@@ -184,7 +189,8 @@ takes a server netname and a
 .Tn DES
 key, and decrypts the key by
 using the public key of the server and the secret key
-associated with the effective uid of the calling process.  It
+associated with the effective uid of the calling process.
+It
 is the inverse of
 .Fn key_encryptsession .
 .Pp
@@ -195,7 +201,8 @@ is a keyserver interface routine.
 It
 takes a server netname and a des key, and encrypts
 it using the public key of the server and the secret key
-associated with the effective uid of the calling process.  It
+associated with the effective uid of the calling process.
+It
 is the inverse of
 .Fn key_decryptsession .
 .Pp
@@ -230,7 +237,8 @@ Returns
 .Dv TRUE
 if it succeeds and
 .Dv FALSE
-if it fails.  Inverse of
+if it fails.
+Inverse of
 .Fn host2netname .
 .Pp
 The

@@ -170,7 +170,8 @@ layer.
 These functions may be used in new applications, but users may find it
 easier to use the various SCSI CCB building functions included with the
 .Xr cam 3
-library.  (e.g.\&
+library.
+(e.g.\&
 .Fn cam_fill_csio ,
 .Fn scsi_start_stop ,
 and
@@ -194,10 +195,12 @@ argument.
 .Fa data_ptr
 is the data buffer used during the
 .Tn SCSI
-data phase.  If no data is to be
+data phase.
+If no data is to be
 transferred for the
 .Tn SCSI
-command in question, this should be set to NULL.  If there is data to
+command in question, this should be set to NULL.
+If there is data to
 transfer for the command, this buffer must be at least
 .Fa dxfer_len
 long.
@@ -252,17 +255,20 @@ typedef enum {
 } ccb_flags;
 .Ed
 .Pp
-Multiple flags should be ORed together.  Any of the CCB flags may be used,
+Multiple flags should be ORed together.
+Any of the CCB flags may be used,
 although it is worth noting several important ones here:
 .Pp
 .Bl -tag -width CAM_PASS_ERR_RECOVER
 .It Dv CAM_DIR_IN
-This indicates that the operation in question is a read operation.  i.e.,
+This indicates that the operation in question is a read operation.
+i.e.,
 data is being read from the
 .Tn SCSI
 device to the user-supplied buffer.
 .It Dv CAM_DIR_OUT
-This indicates that the operation is a write operation.  i.e. data is being
+This indicates that the operation is a write operation.
+i.e., data is being
 written from the user-supplied buffer to the device.
 .It Dv CAM_DIR_NONE
 This indicates that there is no data to be transferred for this command.
@@ -271,7 +277,8 @@ This flag disables device queue freezing as an error recovery mechanism.
 .It Dv CAM_PASS_ERR_RECOVER
 This flag tells the
 .Xr pass 4
-driver to enable error recovery.  The default is to not perform error
+driver to enable error recovery.
+The default is to not perform error
 recovery, which means that the retry count won't be honored without this
 flag, among other things.
 .It Dv CAM_DATA_PHYS
@@ -282,7 +289,8 @@ is a physical address, not a virtual address.
 .Pp
 The
 .Fa retry_count
-tells the kernel how many times to retry the command in question.  The
+tells the kernel how many times to retry the command in question.
+The
 retry count is ignored unless the
 .Xr pass 4
 driver is told to enable error recovery via the
@@ -291,22 +299,26 @@ flag.
 .Pp
 The
 .Fa timeout
-tells the kernel how long to wait for the given command to complete.  If
+tells the kernel how long to wait for the given command to complete.
+If
 the timeout expires and the command hasn't completed, the CCB will be
 returned from the kernel with an appropriate error status.
 .Pp
 .Fa cmd_spec
 is a CDB format specifier used to build up the SCSI CDB.
-This text string is made up of a list of field specifiers.  Field
+This text string is made up of a list of field specifiers.
+Field
 specifiers specify the value for each CDB field (including indicating
 that the value be taken from the next argument in the
 variable argument list), the width
-of the field in bits or bytes, and an optional name.  White space is
+of the field in bits or bytes, and an optional name.
+White space is
 ignored, and the pound sign ('#') introduces a comment that ends at the
 end of the current line.
 .Pp
 The optional name is the first part of a field specifier and
-is in curly braces.  The text in curly braces in this example are
+is in curly braces.
+The text in curly braces in this example are
 the names:
 .Dl "{PS} v:b1 {Reserved} 0:b1 {Page Code} v:b6 # Mode select page"
 .Pp
@@ -378,7 +390,8 @@ function takes two arguments:
 .It Fa gethook
 is passed into the
 .Fn arg_get
-function at each invocation.  This enables the
+function at each invocation.
+This enables the
 .Fn arg_get
 function to keep some state in between calls without using global or static
 variables.
@@ -447,7 +460,8 @@ is a void pointer to the value being passed into the function.
 .It Fa count
 is the size of the value being passed into the
 .Fn arg_put
-function.  The argument format determines the unit of measure.
+function.
+The argument format determines the unit of measure.
 .It Fa name
 This is a text description of the field, if one was provided in the
 .Fa fmt .
@@ -506,7 +520,8 @@ The CAM versions of these functions are based upon similar functions
 implemented for the old
 .Fx
 .Tn SCSI
-layer.  The encoding/decoding functions in the old
+layer.
+The encoding/decoding functions in the old
 .Tn SCSI
 code were written by Peter Dufault.
 .Pp
@@ -516,7 +531,8 @@ SCSI command in user space.
 The old
 .Va scsireq
 data structure was almost identical to the SGI /dev/scsi data
-structure.  If anyone knows the name of the authors it should
+structure.
+If anyone knows the name of the authors it should
 go here; Peter Dufault first read about it in a 1989 Sun Expert magazine.
 .Pp
 The new CCB data structures are derived from the CAM-2 and CAM-3
@@ -533,16 +549,20 @@ library and the related kernel ioctl.
 If anyone needs that for compatibility contact dufault@hda.com.
 .Sh AUTHORS
 Kenneth Merry implemented the CAM versions of these encoding and decoding
-functions.  This current work is based upon earlier work by Peter Dufault.
+functions.
+This current work is based upon earlier work by Peter Dufault.
 .Sh BUGS
 There should probably be a function that encodes both the CDB and the data
 buffer portions of a
 .Tn SCSI
-CCB.  I discovered this while implementing the arbitrary command execution
+CCB.
+I discovered this while implementing the arbitrary command execution
 code in
 .Xr camcontrol 8 ,
 but I haven't yet had time to implement such a function.
 .Pp
-Some of the CCB flag descriptions really don't belong here.  Rather they
-belong in a generic CCB man page.  Since that man page hasn't yet been
+Some of the CCB flag descriptions really don't belong here.
+Rather they
+belong in a generic CCB man page.
+Since that man page hasn't yet been
 written, the shorter descriptions here will have to suffice.

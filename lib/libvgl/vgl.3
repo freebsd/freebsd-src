@@ -136,7 +136,8 @@
 .Sh DESCRIPTION
 .Nm Libvgl
 is a library that enables the programmer access to the graphics
-modes supported by the console driver (syscons). The library takes care of
+modes supported by the console driver (syscons).
+The library takes care of
 programming the actual video hardware, and provides a number of simple
 functions to do various graphic operations.
 There is also support for a
@@ -199,7 +200,8 @@ more than one raw scan code may be generated when a key is pressed.
 when you have finished using the keyboard, call this function.
 .Pp
 .Fn VGLKeyboardGetCh
-read one byte from the keyboard.  As the keyboard I/O is in the
+read one byte from the keyboard.
+As the keyboard I/O is in the
 .Dq raw
 input mode, the function will not block even if there is no input data,
 and returns 0.
@@ -371,7 +373,8 @@ set the border color to color
 .Va color .
 .Pp
 .Fn VGLSetVScreenSize
-change the virtual screen size of the display.  Note that this
+change the virtual screen size of the display.
+Note that this
 function must be called when our vty is in the foreground.
 And
 .Va object
@@ -380,7 +383,8 @@ must be
 Passing an in-memory bitmap to this function results in error.
 .Pp
 The desired virtual screen width may not be achievable because
-of the video card hardware.  In such case the video driver (and
+of the video card hardware.
+In such case the video driver (and
 underlaying video BIOS) may choose the next largest values.
 Always examine
 .Va object->VXsize

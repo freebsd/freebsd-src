@@ -322,7 +322,8 @@ The host you were connected to crashed and rebooted.
 .It Er 53 ECONNABORTED Em "Software caused connection abort" .
 A connection abort was caused internal to your host machine.
 .It Er 54 ECONNRESET Em "Connection reset by peer" .
-A connection was forcibly closed by a peer.  This normally
+A connection was forcibly closed by a peer.
+This normally
 results from a loss of the connection on the remote socket
 due to a timeout or a reboot.
 .It Er 55 ENOBUFS Em "\&No buffer space available" .
@@ -353,11 +354,13 @@ A
 or
 .Xr send 2
 request failed because the connected party did not
-properly respond after a period of time.  (The timeout
+properly respond after a period of time.
+(The timeout
 period is dependent on the communication protocol.)
 .It Er 61 ECONNREFUSED Em "Connection refused" .
 No connection could be made because the target machine actively
-refused it.  This usually results from trying to connect
+refused it.
+This usually results from trying to connect
 to a service that is inactive on the foreign host.
 .It Er 62 ELOOP Em "Too many levels of symbolic links" .
 A path name lookup involved more than 32
@@ -462,7 +465,8 @@ at run-time.
 .Bl -tag -width Ds
 .It  Process ID .
 Each active process in the system is uniquely identified by a non-negative
-integer called a process ID.  The range of this ID is from 0 to 99999.
+integer called a process ID.
+The range of this ID is from 0 to 99999.
 .It  Parent process ID
 A new process is created by a currently active process; (see
 .Xr fork 2 ) .
@@ -472,8 +476,10 @@ the parent process ID of each child is set to the ID of a system process,
 .Xr init 8 .
 .It  Process Group
 Each active process is a member of a process group that is identified by
-a non-negative integer called the process group ID.  This is the process
-ID of the group leader.  This grouping permits the signaling of related
+a non-negative integer called the process group ID.
+This is the process
+ID of the group leader.
+This grouping permits the signaling of related
 processes (see
 .Xr termios 4 )
 and the job control mechanisms of
@@ -527,7 +533,8 @@ termed the real user ID.
 .Pp
 Each user is also a member of one or more groups.
 One of these groups is distinguished from others and
-used in implementing accounting facilities.  The positive
+used in implementing accounting facilities.
+The positive
 integer corresponding to this distinguished group is termed
 the real group ID.
 .Pp
@@ -544,7 +551,8 @@ group IDs, and it is unspecified whether the effective group ID is
 a member of the list.)
 .Pp
 The effective user ID and effective group ID are initially the
-process's real user ID and real group ID respectively.  Either
+process's real user ID and real group ID respectively.
+Either
 may be modified through execution of a set-user-ID or set-group-ID
 file (possibly by one its ancestors) (see
 .Xr execve 2 ) .
@@ -553,7 +561,8 @@ list) is duplicated, so that the execution of a set-group-ID program
 does not result in the loss of the original (real) group ID.
 .Pp
 The group access list is a set of group IDs
-used only in determining resource accessibility.  Access checks
+used only in determining resource accessibility.
+Access checks
 are performed as described below in ``File Access Permissions''.
 .It  "Saved Set User ID and Saved Set Group ID"
 When a process executes a new file, the effective user ID is set
@@ -625,12 +634,14 @@ If a path name begins with a slash, the path search begins at the
 .Em root
 directory.
 Otherwise, the search begins from the current working directory.
-A slash by itself names the root directory.  An empty
+A slash by itself names the root directory.
+An empty
 pathname refers to the current directory.
 .It  Directory
 A directory is a special type of file that contains entries
 that are references to other files.
-Directory entries are called links.  By convention, a directory
+Directory entries are called links.
+By convention, a directory
 contains at least two links,
 .Ql .\&
 and
@@ -639,32 +650,38 @@ referred to as
 .Em dot
 and
 .Em dot-dot
-respectively.  Dot refers to the directory itself and
+respectively.
+Dot refers to the directory itself and
 dot-dot refers to its parent directory.
 .It "Root Directory and Current Working Directory"
 Each process has associated with it a concept of a root directory
 and a current working directory for the purpose of resolving path
-name searches.  A process's root directory need not be the root
+name searches.
+A process's root directory need not be the root
 directory of the root file system.
 .It  File Access Permissions
 Every file in the file system has a set of access permissions.
 These permissions are used in determining whether a process
 may perform a requested operation on the file (such as opening
-a file for writing).  Access permissions are established at the
-time a file is created.  They may be changed at some later time
+a file for writing).
+Access permissions are established at the
+time a file is created.
+They may be changed at some later time
 through the
 .Xr chmod 2
 call.
 .Pp
 File access is broken down according to whether a file may be: read,
-written, or executed.  Directory files use the execute
+written, or executed.
+Directory files use the execute
 permission to control if the directory may be searched.
 .Pp
 File access permissions are interpreted by the system as
 they apply to three different classes of users: the owner
 of the file, those users in the file's group, anyone else.
 Every file has an independent set of access permissions for
-each of these classes.  When an access check is made, the system
+each of these classes.
+When an access check is made, the system
 decides if permission should be granted by checking the access
 information applicable to the caller.
 .Pp
@@ -707,9 +724,12 @@ for more information about the types available and
 their properties.
 .Pp
 Each instance of the system supports some number of sets of
-communications protocols.  Each protocol set supports addresses
-of a certain format.  An Address Family is the set of addresses
-for a specific group of protocols.  Each socket has an address
+communications protocols.
+Each protocol set supports addresses
+of a certain format.
+An Address Family is the set of addresses
+for a specific group of protocols.
+Each socket has an address
 chosen from the address family in which the socket was created.
 .El
 .Sh SEE ALSO

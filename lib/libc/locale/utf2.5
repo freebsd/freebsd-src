@@ -61,9 +61,11 @@ Unicode Standard.
 .Pp
 .Nm UTF2
 representation is backwards compatible with ASCII, so 0x00-0x7f refer to the
-ASCII character set.  The multibyte encodings of wide characters between
+ASCII character set.
+The multibyte encodings of wide characters between
 0x0080 and 0xffff
-consist entirely of bytes whose high order bit is set.  The actual
+consist entirely of bytes whose high order bit is set.
+The actual
 encoding is represented by the following table:
 .Bd -literal
 [0x0000 - 0x007f] [00000000.0bbbbbbb] -> 0bbbbbbb
