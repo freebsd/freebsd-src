@@ -100,9 +100,7 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 	int i, np, ne;
 	int error;
 	char buf[32];
-#ifdef CPU_SOEKRIS
 	char tmp[10];
-#endif
 
 	error = SYSCTL_OUT(req, gpio_config, 33);
 	if (error != 0 || req->newptr == NULL)
