@@ -1,6 +1,6 @@
-dnl @(#) $Header: configure.in,v 1.10 96/09/24 18:44:24 leres Exp $ (LBL)
+dnl @(#) $Id: configure.in,v 1.33 2000/12/18 09:38:26 leres Exp $ (LBL)
 dnl
-dnl Copyright (c) 1995, 1996
+dnl Copyright (c) 1995, 1996, 1997, 1999, 2000
 dnl	The Regents of the University of California.  All rights reserved.
 dnl
 dnl Process this file with autoconf to produce a configure script.
@@ -18,13 +18,16 @@ fi
 
 AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 
-AC_CHECK_HEADERS(malloc.h sys/select.h)
+AC_CHECK_HEADERS(malloc.h sys/select.h sys/sockio.h net/route.h \
+    net/if_dl.h inet/mib2.h)
 
-AC_REPLACE_FUNCS(strerror)
+AC_REPLACE_FUNCS(strerror usleep)
 AC_CHECK_FUNCS(setlinebuf)
+if test $ac_cv_func_usleep = "no" ; then
+	AC_CHECK_FUNCS(nanosleep)
+fi
 
-AC_CHECK_LIB(socket, main)
-AC_CHECK_LIB(nsl, main)
+AC_LBL_LIBRARY_NET
 
 case "$target_os" in
 
@@ -40,28 +43,91 @@ freebsd*)
 	AC_DEFINE(HAVE_RAW_OPTIONS)
 	;;
 
+linux*)
+	V_INCLS="$V_INCLS -Ilinux-include"
+	AC_DEFINE(BYTESWAP_IP_HDR)
+	;;
+
 osf3*)
 	dnl Workaround around ip_hl vs. ip_vhl problem in netinet/ip.h
 	AC_DEFINE(__STDC__,2)
 	;;
 
+solaris2.[[012345]]*)
+	AC_DEFINE(BYTESWAP_IP_HDR)
+	AC_DEFINE(CANT_HACK_IPCKSUM)
+	;;
+
 solaris*)
-	AC_DEFINE(BYTESWAP_IP_LEN)
+	AC_DEFINE(BYTESWAP_IP_HDR)
 	;;
 esac
 
-AC_CHECK_TYPE(int32_t, int)
-AC_CHECK_TYPE(u_int32_t, u_int)
+dnl
+dnl What kind of routing table lookup do we have?
+dnl
+AC_MSG_CHECKING(routing table type)
+t="generic"
+if test $ac_cv_header_inet_mib2_h = yes ; then
+	t="mib"
+elif test $ac_cv_header_net_route_h = yes -a \
+    $ac_cv_header_net_if_dl_h = yes ; then
+	t="socket"
+elif test -f /proc/net/route ; then
+	t="linux"
+fi
+
+AC_MSG_RESULT(${t})
+V_FINDSADDR="findsaddr-${t}.c"
+
+
+AC_LBL_CHECK_TYPE(int32_t, int)
+AC_LBL_CHECK_TYPE(u_int32_t, u_int)
 
 AC_LBL_DEVEL(V_CCOPT)
 
-if test -r lbl/gnuc.h ; then
+AC_LBL_SOCKADDR_SA_LEN
+
+AC_MSG_CHECKING(if struct icmp has icmp_nextmtu)
+AC_CACHE_VAL(ac_cv_struct_icmp_has_icmp_nextmtu,
+    LBL_SAVE_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS $V_INCLS"
+    AC_TRY_COMPILE([   
+#       include <sys/param.h>
+#	include <sys/socket.h>
+#	include <netinet/in_systm.h>
+#       if __STDC__
+        /* osf3 has REALLY good prototyes */
+        struct mbuf;
+        struct rtentry;
+#       endif
+#       include <netinet/in.h>
+#       include <netinet/ip.h>
+#       include <netinet/ip_icmp.h>
+#       include <netinet/if_ether.h>],
+	[u_int i = sizeof(((struct icmp *)0)->icmp_nextmtu)],
+	ac_cv_struct_icmp_has_icmp_nextmtu=yes,
+	ac_cv_struct_icmp_has_icmp_nextmtu=no)
+    CFLAGS="$LBL_SAVE_CFLAGS")
+AC_MSG_RESULT($ac_cv_struct_icmp_has_icmp_nextmtu)
+if test $ac_cv_struct_icmp_has_icmp_nextmtu = yes ; then
+	AC_DEFINE(HAVE_ICMP_NEXTMTU)
+fi
+
+if test "${srcdir}" = "." ; then
+	srcdirprefix=""
+else
+	srcdirprefix="./"
+fi
+
+if test -r ${srcdirprefix}lbl/gnuc.h ; then
 	rm -f gnuc.h
-	ln -s lbl/gnuc.h gnuc.h
+	ln -s ${srcdirprefix}lbl/gnuc.h gnuc.h
 fi
 
 AC_SUBST(V_CCOPT)
 AC_SUBST(V_INCLS)
+AC_SUBST(V_FINDSADDR)
 
 AC_PROG_INSTALL
 
