@@ -131,7 +131,7 @@ alarmcatch()
 			    "  DUMP: %s: (\"yes\" or \"no\") ",
 			    attnmessage);
 		else
-			msgtail("\7\7");
+			msgtail("\a\a");
 	} else {
 		if (timeout) {
 			msgtail("\n");
@@ -259,7 +259,7 @@ sendmes(tty, message)
 		setbuf(f_tty, buf);
 		(void) fprintf(f_tty,
 		    "\n\
-\7\7\7Message from the dump program to all operators at %d:%02d ...\r\n\n\
+\a\a\aMessage from the dump program to all operators at %d:%02d ...\r\n\n\
 DUMP: NEEDS ATTENTION: ",
 		    localclock->tm_hour, localclock->tm_min);
 		for (cp = lastmsg; ; cp++) {
