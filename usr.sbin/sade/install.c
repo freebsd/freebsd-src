@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.184 1997/05/05 06:32:43 jkh Exp $
+ * $Id: install.c,v 1.185 1997/05/22 00:17:08 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -707,6 +707,8 @@ installConfigure(void)
 	dmenuOpenSimple(&MenuConfigure, FALSE);
 	restorescr(w);
     }
+    configRC_conf("/etc/rc.conf");
+    sync();
 }
 
 int
