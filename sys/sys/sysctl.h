@@ -86,6 +86,17 @@ struct ctlname {
 #define CTLFLAG_PRISON	0x04000000	/* Prisoned roots can fiddle */
 #define CTLFLAG_DYN	0x02000000	/* Dynamic oid - can be freed */
 #define CTLFLAG_SKIP	0x01000000	/* Skip this sysctl when listing */
+#define CTLMASK_SECURE	0x00F00000	/* Secure level */
+
+/*
+ * Secure level.   Note that CTLFLAG_SECURE == CTLFLAG_SECURE1.  
+ *
+ * Secure when the securelevel is raised to at least N.
+ */
+#define CTLSHIFT_SECURE	20
+#define CTLFLAG_SECURE1	(CTLFLAG_SECURE | (0 << CTLSHIFT_SECURE))
+#define CTLFLAG_SECURE2	(CTLFLAG_SECURE | (1 << CTLSHIFT_SECURE))
+#define CTLFLAG_SECURE3	(CTLFLAG_SECURE | (2 << CTLSHIFT_SECURE))
 
 /*
  * USE THIS instead of a hardwired number from the categories below

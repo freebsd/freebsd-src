@@ -1098,7 +1098,7 @@ static int
 sysctl_root(SYSCTL_HANDLER_ARGS)
 {
 	struct sysctl_oid *oid;
-	int error, indx;
+	int error, indx, lvl;
 
 	error = sysctl_find_oid(arg1, arg2, &oid, &indx, req);
 	if (error)
@@ -1122,7 +1122,8 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 
 	/* Is this sysctl sensitive to securelevels? */
 	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {
-		error = securelevel_gt(req->td->td_ucred, 0);
+		lvl = (oid->oid_kind & CTLMASK_SECURE) >> CTLSHIFT_SECURE;
+		error = securelevel_gt(req->td->td_ucred, lvl);
 		if (error)
 			return (error);
 	}
