@@ -122,7 +122,7 @@ static char *
 fstype(Chunk *c1)
 {
     if (c1->type == fat)
-	return "msdos";
+	return "msdosfs";
     else if (c1->type == part) {
 	if (c1->subtype != FS_SWAP)
 	    return "ufs";
