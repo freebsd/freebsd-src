@@ -337,7 +337,7 @@ mi_switch(int flags, struct thread *newtd)
 	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
 	if (td->td_proc->p_flag & P_SA)
 		newtd = thread_switchout(td, flags, newtd);
-	sched_switch(td, newtd);
+	sched_switch(td, newtd, flags);
 
 	CTR4(KTR_PROC, "mi_switch: new thread %p (kse %p, pid %ld, %s)",
 	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);

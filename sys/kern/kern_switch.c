@@ -192,7 +192,7 @@ retry:
  *  sched_thread_exit()  (local)
  *  sched_switch()  (local)
  *  sched_thread_exit()  (local)
- *  remrunqueue()  (local) (commented out)
+ *  remrunqueue()  (local) 
  */
 static void
 slot_fill(struct ksegrp *kg)
@@ -224,7 +224,7 @@ slot_fill(struct ksegrp *kg)
 	}
 }
 
-#if 0
+#ifdef SCHED_4BSD
 /*
  * Remove a thread from its KSEGRP's run queue.
  * This in turn may remove it from a KSE if it was already assigned
@@ -248,7 +248,7 @@ remrunqueue(struct thread *td)
 	 * If it is not a threaded process, take the shortcut.
 	 */
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
-		/* Bring its kse with it, leave the thread attached */
+		/* remve from sys run queue and free up a slot */
 		sched_rem(td);
 		kg->kg_avail_opennings++;
 		ke->ke_state = KES_THREAD; 
@@ -259,7 +259,7 @@ remrunqueue(struct thread *td)
 	kg->kg_runnable--;
 	if (ke->ke_state == KES_ONRUNQ) {
 		/*
-		 * This thread has been assigned to a KSE.
+		 * This thread has been assigned to the system run queue.
 		 * We need to dissociate it and try assign the
 		 * KSE to the next available thread. Then, we should
 		 * see if we need to move the KSE in the run queues.
@@ -271,7 +271,7 @@ remrunqueue(struct thread *td)
 		KASSERT((td2 != NULL), ("last assigned has wrong value"));
 		if (td2 == td) 
 			kg->kg_last_assigned = td3;
-		slot_fill(kg);
+		/* slot_fill(kg); */ /* will replace it with another */
 	}
 }
 #endif
