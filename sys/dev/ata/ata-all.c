@@ -51,7 +51,7 @@
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #endif
-#if NISA > 0
+#ifdef DEV_ISA
 #include <isa/isavar.h>
 #include <isa/isareg.h>
 #endif
