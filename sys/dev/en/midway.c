@@ -132,7 +132,6 @@ enum {
 #include <sys/socket.h>
 #include <sys/mbuf.h>
 #include <sys/endian.h>
-#include <sys/sbuf.h>
 #include <sys/stdint.h>
 #include <vm/uma.h>
 
@@ -1553,40 +1552,18 @@ static int
 en_sysctl_istats(SYSCTL_HANDLER_ARGS)
 {
 	struct en_softc *sc = arg1;
-	struct sbuf *sb;
+	uint32_t *ret;
 	int error;
 
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_clear(sb);
+	ret = malloc(sizeof(sc->stats), M_TEMP, M_WAITOK);
 
 	EN_LOCK(sc);
-
-#define DO(NAME) sbuf_printf(sb, #NAME": %u\n", sc->stats.NAME)
-	DO(vtrash);
-	DO(otrash);
-	DO(ttrash);
-	DO(mfixaddr);
-	DO(mfixlen);
-	DO(mfixfail);
-	DO(txmbovr);
-	DO(dmaovr);
-	DO(txoutspace);
-	DO(txdtqout);
-	DO(launch);
-	DO(hwpull);
-	DO(swadd);
-	DO(rxqnotus);
-	DO(rxqus);
-	DO(rxdrqout);
-	DO(rxmbufout);
-	DO(txnomap);
-#undef DO
-
+	bcopy(&sc->stats, ret, sizeof(sc->stats));
 	EN_UNLOCK(sc);
 
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
+	error = SYSCTL_OUT(req, ret, sizeof(sc->stats));
+	free(ret, M_TEMP);
+
 	return (error);
 }
 
@@ -2786,6 +2763,9 @@ en_attach(struct en_softc *sc)
 	ifp->if_ioctl = en_ioctl;
 	ifp->if_start = en_start;
 
+	mtx_init(&sc->en_mtx, device_get_nameunit(sc->dev),
+	    MTX_NETWORK_LOCK, MTX_DEF);
+
 	/*
 	 * Make the sysctl tree
 	 */
@@ -2798,7 +2778,7 @@ en_attach(struct en_softc *sc)
 
 	if (SYSCTL_ADD_PROC(&sc->sysctl_ctx, SYSCTL_CHILDREN(sc->sysctl_tree),
 	    OID_AUTO, "istats", CTLFLAG_RD, sc, 0, en_sysctl_istats,
-	    "A", "internal statistics") == NULL)
+	    "S", "internal statistics") == NULL)
 		goto fail;
 
 #ifdef EN_DEBUG
@@ -2806,9 +2786,6 @@ en_attach(struct en_softc *sc)
 	    OID_AUTO, "debug", CTLFLAG_RW , &sc->debug, 0, "") == NULL)
 		goto fail;
 #endif
-
-	mtx_init(&sc->en_mtx, device_get_nameunit(sc->dev),
-	    MTX_NETWORK_LOCK, MTX_DEF);
 
 	MGET(sc->padbuf, M_TRYWAIT, MT_DATA);
 	if (sc->padbuf == NULL)
