@@ -1325,13 +1325,12 @@ xpt_init(dummy)
 	 */
 	xpt_config_hook =
 	    (struct intr_config_hook *)malloc(sizeof(struct intr_config_hook),
-					      M_TEMP, M_NOWAIT);
+					      M_TEMP, M_NOWAIT | M_ZERO);
 	if (xpt_config_hook == NULL) {
 		printf("xpt_init: Cannot malloc config hook "
 		       "- failing attach\n");
 		return;
 	}
-	bzero(xpt_config_hook, sizeof(*xpt_config_hook));
 
 	xpt_config_hook->ich_func = xpt_config;
 	if (config_intrhook_establish(xpt_config_hook) != 0) {
@@ -5380,10 +5379,10 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 
 		if ((device->quirk->quirks & CAM_QUIRK_NOSERIAL) == 0)
 			serial_buf = (struct scsi_vpd_unit_serial_number *)
-				malloc(sizeof(*serial_buf), M_TEMP, M_NOWAIT);
+				malloc(sizeof(*serial_buf), M_TEMP,
+					M_NOWAIT | M_ZERO);
 
 		if (serial_buf != NULL) {
-			bzero(serial_buf, sizeof(*serial_buf));
 			scsi_inquiry(csio,
 				     /*retries*/4,
 				     probedone,

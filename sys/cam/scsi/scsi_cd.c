@@ -3030,8 +3030,7 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 	}
 
 	if (length != 0) {
-		databuf = malloc(length, M_DEVBUF, M_WAITOK);
-		bzero(databuf, length);
+		databuf = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 	} else
 		databuf = NULL;
 
@@ -3162,11 +3161,9 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 		length = sizeof(*challenge_data);
 
-		challenge_data = malloc(length, M_DEVBUF, M_WAITOK);
+		challenge_data = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 
 		databuf = (u_int8_t *)challenge_data;
-
-		bzero(databuf, length);
 
 		scsi_ulto2b(length - sizeof(challenge_data->data_len),
 			    challenge_data->data_len);
@@ -3181,11 +3178,9 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 		length = sizeof(*key2_data);
 
-		key2_data = malloc(length, M_DEVBUF, M_WAITOK);
+		key2_data = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 
 		databuf = (u_int8_t *)key2_data;
-
-		bzero(databuf, length);
 
 		scsi_ulto2b(length - sizeof(key2_data->data_len),
 			    key2_data->data_len);
@@ -3200,11 +3195,9 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 
 		length = sizeof(*rpc_data);
 
-		rpc_data = malloc(length, M_DEVBUF, M_WAITOK);
+		rpc_data = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 
 		databuf = (u_int8_t *)rpc_data;
-
-		bzero(databuf, length);
 
 		scsi_ulto2b(length - sizeof(rpc_data->data_len),
 			    rpc_data->data_len);
@@ -3347,8 +3340,7 @@ cdreaddvdstructure(struct cam_periph *periph, struct dvd_struct *dvdstruct)
 	}
 
 	if (length != 0) {
-		databuf = malloc(length, M_DEVBUF, M_WAITOK);
-		bzero(databuf, length);
+		databuf = malloc(length, M_DEVBUF, M_WAITOK | M_ZERO);
 	} else
 		databuf = NULL;
 
