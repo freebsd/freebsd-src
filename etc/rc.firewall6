@@ -49,6 +49,21 @@ fi
 #	http://www.awlonline.com/product/0%2C2627%2C0201633574%2C00.html
 #
 
+setup_local () {
+	############
+	# Only in rare cases do you want to change these rules
+	#
+	${fw6cmd} add 100 pass all from any to any via lo0
+	#
+	# ND
+	#
+	# DAD
+	${fw6cmd} add pass ipv6-icmp from :: to ff02::/16
+	# RS, RA, NS, NA, redirect...
+	${fw6cmd} add pass ipv6-icmp from fe80::/10 to fe80::/10
+	${fw6cmd} add pass ipv6-icmp from fe80::/10 to ff02::/16
+}
+
 if [ -n "${1}" ]; then
 	ipv6_firewall_type="${1}"
 fi
@@ -78,24 +93,12 @@ ${fw6cmd} -f flush
 #
 # ${fw6cmd} add 65000 pass all from any to any
 
-############
-# Only in rare cases do you want to change these rules
-#
-${fw6cmd} add 100 pass all from any to any via lo0
-#
-# ND
-#
-# DAD
-${fw6cmd} add pass ipv6-icmp from :: to ff02::/16
-# RS, RA, NS, NA, redirect...
-${fw6cmd} add pass ipv6-icmp from fe80::/10 to fe80::/10
-${fw6cmd} add pass ipv6-icmp from fe80::/10 to ff02::/16
-
 
 # Prototype setups.
 #
 case ${ipv6_firewall_type} in
 [Oo][Pp][Ee][Nn])
+	setup_local
 	${fw6cmd} add 65000 pass all from any to any
 	;;
 
@@ -112,6 +115,8 @@ case ${ipv6_firewall_type} in
 	net="3ffe:505:2:1::"
 	prefixlen="64"
 	ip="3ffe:505:2:1::1"
+
+	setup_local
 
 	# Allow any traffic to or from my own net.
 	${fw6cmd} add pass all from ${ip} to ${net}/${prefixlen}
@@ -173,6 +178,8 @@ case ${ipv6_firewall_type} in
 	inet="3ffe:505:2:2::"
 	iprefixlen="64"
 	iip="3ffe:505:2:2::1"
+
+	setup_local
 
 	# Stop spoofing
 	${fw6cmd} add deny all from ${inet}/${iprefixlen} to any in via ${oif}
@@ -265,6 +272,10 @@ case ${ipv6_firewall_type} in
 	# config file.
 	;;
 
+[Cc][Ll][Oo][Ss][Ee][Dd])
+	# Only enable the loopback interface
+	${fw6cmd} add 100 pass all from any to any via lo0
+	;;
 [Uu][Nn][Kk][Nn][Oo][Ww][Nn])
 	;;
 *)
