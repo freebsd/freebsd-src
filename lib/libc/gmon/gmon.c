@@ -54,9 +54,9 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 
 #if defined(__i386__) || defined(__sparc64__) || defined(__amd64__)
-extern char *minbrk asm (".minbrk");
+extern char *minbrk __asm (".minbrk");
 #else
-extern char *minbrk asm ("minbrk");
+extern char *minbrk __asm ("minbrk");
 #endif
 
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
