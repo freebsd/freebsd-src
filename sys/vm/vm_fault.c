@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.44 1996/05/18 03:37:35 dyson Exp $
+ * $Id: vm_fault.c,v 1.45 1996/05/19 07:36:45 dyson Exp $
  */
 
 /*
@@ -291,6 +291,8 @@ RetryFault:;
 				PAGE_WAKEUP(m);
 				goto RetryFault;
 			}
+
+			vm_page_unqueue(m);
 
 			if (m->valid &&
 				((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
