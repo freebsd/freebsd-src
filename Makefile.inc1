@@ -729,7 +729,8 @@ _generic_libs+=	kerberosIV/lib
 .endif
 
 _prebuild_libs+= lib/libcom_err lib/libcrypt lib/libkvm lib/libmd \
-		lib/libncurses lib/libopie lib/libradius lib/librpcsvc \
+		lib/libncurses lib/libopie lib/libpam lib/libradius \
+		lib/librpcsvc \
 		lib/libsbuf lib/libtacplus lib/libutil lib/libypclnt \
 		lib/libz lib/msun
 
@@ -755,7 +756,7 @@ _generic_libs+=	usr.bin/lex/lib
 _generic_libs+=	usr.sbin/pcvt/keycap
 .endif
 
-.for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
+.for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
 	${ECHODIR} "===> ${_lib}"; \
@@ -765,6 +766,16 @@ ${_lib}__L: .PHONY
 		${MAKE} DIRPRFX=${_lib}/ install
 .endif
 .endfor
+
+# libpam is special: we need to build static PAM modules before
+# static PAM library, and dynamic PAM library before dynamic PAM
+# modules.
+lib/libpam__L: .PHONY
+	${ECHODIR} "===> lib/libpam"; \
+		cd ${.CURDIR}/lib/libpam; \
+		${MAKE} DIRPRFX=lib/libpam/ depend; \
+		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
+		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
 _startup_libs: ${_startup_libs:S/$/__L/}
 _prebuild_libs: ${_prebuild_libs:S/$/__L/}
