@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_log.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_log.c,v 1.15 1995/12/08 23:21:33 phk Exp $
+ * $Id: subr_log.c,v 1.16 1995/12/14 08:31:40 phk Exp $
  */
 
 /*
@@ -254,8 +254,9 @@ log_drvinit(void *unused)
 		cdevsw_add(&dev,&log_cdevsw,NULL);
 		log_devsw_installed = 1;
 #ifdef DEVFS
-		log_devfs_token = devfs_add_devsw(
-			"/", "log", &log_cdevsw, 0, DV_CHR, 0, 0, 0600);
+		log_devfs_token = devfs_add_devswf(&log_cdevsw, 0, DV_CHR,
+						   UID_ROOT, GID_WHEEL, 0600,
+						   "klog");
 #endif
     	}
 }
