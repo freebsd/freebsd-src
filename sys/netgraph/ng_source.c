@@ -331,7 +331,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			timevalclear(&sc->stats.elapsedTime);
 			timevalclear(&sc->stats.endTime);
 			getmicrotime(&sc->stats.startTime);
-			ng_timeout(&sc->intr_ch, node, NULL, 0,
+			ng_callout(&sc->intr_ch, node, NULL, 0,
 			    ng_source_intr, sc, 0);
 		    }
 		    break;
@@ -359,7 +359,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				timevalclear(&sc->stats.elapsedTime);
 				timevalclear(&sc->stats.endTime);
 				getmicrotime(&sc->stats.startTime);
-				ng_timeout(&sc->intr_ch, node, NULL, 0,
+				ng_callout(&sc->intr_ch, node, NULL, 0,
 				    ng_source_intr, sc, 0);
 			}
 			break;
@@ -586,7 +586,7 @@ static void
 ng_source_stop (sc_p sc)
 {
 	if (sc->node->nd_flags & NG_SOURCE_ACTIVE) {
-		ng_untimeout(&sc->intr_ch, sc->node);
+		ng_uncallout(&sc->intr_ch, sc->node);
 		sc->node->nd_flags &= ~NG_SOURCE_ACTIVE;
 		getmicrotime(&sc->stats.endTime);
 		sc->stats.elapsedTime = sc->stats.endTime;
@@ -626,7 +626,7 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 	if (sc->packets == 0)
 		ng_source_stop(sc);
 	else
-		ng_timeout(&sc->intr_ch, node, NULL, NG_SOURCE_INTR_TICKS,
+		ng_callout(&sc->intr_ch, node, NULL, NG_SOURCE_INTR_TICKS,
 		    ng_source_intr, sc, 0);
 }
 
