@@ -592,9 +592,7 @@ apmprobe(struct isa_device *dvp)
 		printf("apm: 32-bit connection error.\n");
 		return 0;
 	}
-#ifndef APM_BROKEN_STATCLOCK
 	if (dvp->id_flags & 0x20)
-#endif
 		statclock_disable = 1;
 	return -1;
 }
