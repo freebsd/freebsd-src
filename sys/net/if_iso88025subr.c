@@ -80,7 +80,8 @@
 static int iso88025_resolvemulti (struct ifnet *, struct sockaddr **,
 				  struct sockaddr *));
 
-#define IFP2AC(IFP) ((struct arpcom *)IFP)
+#define	IFP2AC(IFP)	((struct arpcom *)IFP)
+#define	senderr(e)	do { error = (e); goto bad; } while (0)
 
 void
 iso88025_ifattach(struct ifnet *ifp)

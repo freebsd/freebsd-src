@@ -130,7 +130,6 @@ struct	iso88025_addr {
 
 #define ISO88025_MAX_MTU	18000
 #define ISO88025_DEFAULT_MTU	1500
-#define senderr(e) { error = (e); goto bad;}
 
 void	iso88025_ifattach	(struct ifnet *);
 void	iso88025_ifdetach	(struct ifnet *, int);
