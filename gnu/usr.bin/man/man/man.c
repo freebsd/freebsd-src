@@ -16,11 +16,16 @@
 
 #define MAN_MAIN
 
-#include <sys/types.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
 #include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <ctype.h>
+#include <errno.h>
+#ifdef __FreeBSD__
+#include <locale.h>
+#endif
+#include <stdio.h>
+#include <string.h>
 #include <signal.h>
 #include "config.h"
 #include "gripes.h"
@@ -57,14 +62,7 @@ extern int fclose ();
 extern char *sprintf ();
 #endif
 
-extern char *strdup ();
-
-extern char **glob_vector ();
 extern char **glob_filename ();
-extern int access ();
-extern int unlink ();
-extern int system ();
-extern int chmod ();
 extern int is_newer ();
 extern int is_directory ();
 extern int do_system_command ();
@@ -131,6 +129,10 @@ main (argc, argv)
 
   prognam = mkprogname (argv[0]);
 
+  unsetenv("IFS");
+#ifdef __FreeBSD__
+  (void) setlocale(LC_ALL, "");
+#endif
   man_getopt (argc, argv);
 
   if (optind == argc)
@@ -175,10 +177,14 @@ main (argc, argv)
 	  continue;
 	}
 
-      if (apropos)
+      if (apropos) {
 	do_apropos (nextarg);
-      else if (whatis)
+	status = (status ? 0 : 1); /* reverts status, see below */
+      }
+      else if (whatis) {
 	do_whatis (nextarg);
+	status = (status ? 0 : 1); /* reverts status, see below */
+      }
       else
 	{
 	  status = man (nextarg);
@@ -313,6 +319,8 @@ man_getopt (argc, argv)
 	  break;
 	case 'P':
 	  pager = strdup (optarg);
+	  if (setenv("PAGER", pager, 1) != 0)
+		  (void)fprintf(stderr, "setenv PAGER=%s\n", pager);
 	  break;
 	case 'S':
 	  colon_sep_section_list = strdup (optarg);
@@ -411,6 +419,10 @@ man_getopt (argc, argv)
   mp = manpathlist;
   for (p = manp; ; p = end+1)
     {
+      if (mp == manpathlist + MAXDIRS - 1) {
+	fprintf (stderr, "Warning: too many directories in manpath, truncated!\n");
+	break;
+      }
       if ((end = strchr (p, ':')) != NULL)
 	*end = '\0';
 
@@ -423,9 +435,7 @@ man_getopt (argc, argv)
 	    fprintf (stderr, "Alternate system `%s' specified\n",
 		     alt_system_name);
 
-	  strcpy (buf, p);
-	  strcat (buf, "/");
-	  strcat (buf, alt_system_name);
+	  snprintf(buf, sizeof(buf), "%s/%s", p, alt_system_name);
 
 	  mp = add_dir_to_mpath_list (mp, buf);
 	}
@@ -525,15 +535,17 @@ convert_name (name, to_cat)
 #ifdef DO_COMPRESS
   if (to_cat)
     {
-      int len = strlen (name) + 3;
+      int olen = strlen(name);
       int cextlen = strlen(COMPRESS_EXT);
+      int len = olen + cextlen;
 
-      to_name = (char *) malloc (len);
+      to_name = malloc (len+1);
       if (to_name == NULL)
-	gripe_alloc (len, "to_name");
+	gripe_alloc (len+1, "to_name");
       strcpy (to_name, name);
+      olen -= cextlen;
       /* Avoid tacking it on twice */
-      if (strcmp(name + (len - (3 + cextlen)), COMPRESS_EXT))
+      if (olen >= 1 && strcmp(name + olen, COMPRESS_EXT) != 0)
       	strcat (to_name, COMPRESS_EXT);
     }
   else
@@ -591,9 +603,9 @@ glob_for_file (path, section, name, cat)
   char **gf;
 
   if (cat)
-    sprintf (pathname, "%s/cat%s/%s.%s*", path, section, name, section);
+    snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%s*", path, section, name, section);
   else
-    sprintf (pathname, "%s/man%s/%s.%s*", path, section, name, section);
+    snprintf (pathname, sizeof(pathname), "%s/man%s/%s.%s*", path, section, name, section);
 
   if (debug)
     fprintf (stderr, "globbing %s\n", pathname);
@@ -603,18 +615,18 @@ glob_for_file (path, section, name, cat)
   if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
     {
       if (cat)
-	sprintf (pathname, "%s/cat%s/%s.%c*", path, section, name, *section);
+	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.%c*", path, section, name, *section);
       else
-	sprintf (pathname, "%s/man%s/%s.%c*", path, section, name, *section);
+	snprintf (pathname, sizeof(pathname), "%s/man%s/%s.%c*", path, section, name, *section);
 
       gf = glob_filename (pathname);
     }
   if ((gf == (char **) -1 || *gf == NULL) && isdigit (*section))
     {
       if (cat)
-	sprintf (pathname, "%s/cat%s/%s.0*", path, section, name);
+	snprintf (pathname, sizeof(pathname), "%s/cat%s/%s.0*", path, section, name);
       else
-	sprintf (pathname, "%s/man%s/%s.0*", path, section, name);
+	snprintf (pathname, sizeof(pathname), "%s/man%s/%s.0*", path, section, name);
       if (debug)
 	fprintf (stderr, "globbing %s\n", pathname);
       gf = glob_filename (pathname);
@@ -638,9 +650,9 @@ make_name (path, section, name, cat)
   char buf[FILENAME_MAX];
 
   if (cat)
-    sprintf (buf, "%s/cat%s/%s.%s", path, section, name, section);
+    snprintf (buf, sizeof(buf), "%s/cat%s/%s.%s", path, section, name, section);
   else
-    sprintf (buf, "%s/man%s/%s.%s", path, section, name, section);
+    snprintf (buf, sizeof(buf), "%s/man%s/%s.%s", path, section, name, section);
 
   if (access (buf, R_OK) == 0)
     names[i++] = strdup (buf);
@@ -653,9 +665,9 @@ make_name (path, section, name, cat)
   if (section[1] != '\0')
     {
       if (cat)
-	sprintf (buf, "%s/cat%c/%s.%s", path, section[0], name, section);
+	snprintf (buf, sizeof(buf), "%s/cat%c/%s.%s", path, section[0], name, section);
       else
-	sprintf (buf, "%s/man%c/%s.%s", path, section[0], name, section);
+	snprintf (buf, sizeof(buf), "%s/man%c/%s.%s", path, section[0], name, section);
 
       if (access (buf, R_OK) == 0)
 	names[i++] = strdup (buf);
@@ -708,9 +720,9 @@ display_cat_file (file)
       char *expander = get_expander (file);
 
       if (expander != NULL)
-	sprintf (command, "%s %s | %s", expander, file, pager);
+	snprintf (command, sizeof(command), "%s %s | %s", expander, file, pager);
       else
-	sprintf (command, "%s %s", pager, file);
+	snprintf (command, sizeof(command), "%s %s", pager, file);
 
       found = do_system_command (command);
     }
@@ -737,18 +749,20 @@ ultimate_source (name, path)
   char *beg;
   char *end;
 
-  strcpy (ult, name);
-  strcpy (buf, name);
+  strncpy (ult, name, sizeof(ult)-1);
+  ult[sizeof(ult)-1] = '\0';
+  strncpy (buf, name, sizeof(buf)-1);
+  ult[sizeof(buf)-1] = '\0';
 
  next:
 
   if ((fp = fopen (ult, "r")) == NULL)
-    return buf;
-
-  if (fgets (buf, BUFSIZ, fp) == NULL)
     return ult;
 
-  if (strlen (buf) < 5)
+  end = fgets (buf, BUFSIZ, fp);
+  fclose(fp);
+
+  if (!end || strlen (buf) < 5)
     return ult;
 
   beg = buf;
@@ -763,11 +777,8 @@ ultimate_source (name, path)
 
       *end = '\0';
 
-      strcpy (ult, path);
-      strcat (ult, "/");
-      strcat (ult, beg);
-
-      strcpy (buf, ult);
+      snprintf(ult, sizeof(ult), "%s/%s", path, beg);
+      snprintf(buf, sizeof(buf), "%s", ult);
 
       goto next;
     }
@@ -779,34 +790,34 @@ ultimate_source (name, path)
 }
 
 void
-add_directive (first, d, file, buf)
+add_directive (first, d, file, buf, bufsize)
      int *first;
      char *d;
      char *file;
      char *buf;
+     int bufsize;
 {
   if (strcmp (d, "") != 0)
     {
       if (*first)
 	{
 	  *first = 0;
-	  strcpy (buf, d);
-	  strcat (buf, " ");
-	  strcat (buf, file);
+	  snprintf(buf, bufsize, "%s %s", d, file);
 	}
       else
 	{
-	  strcat (buf, " | ");
-	  strcat (buf, d);
+	  strncat (buf, " | ", bufsize-strlen(buf)-1);
+	  strncat (buf, d, bufsize-strlen(buf)-1);
 	}
     }
 }
 
 int
-parse_roff_directive (cp, file, buf)
+parse_roff_directive (cp, file, buf, bufsize)
   char *cp;
   char *file;
   char *buf;
+  int bufsize;
 {
   char c;
   int first = 1;
@@ -822,9 +833,9 @@ parse_roff_directive (cp, file, buf)
 	    fprintf (stderr, "found eqn(1) directive\n");
 
 	  if (troff)
-	    add_directive (&first, EQN, file, buf);
+	    add_directive (&first, EQN, file, buf, bufsize);
 	  else
-	    add_directive (&first, NEQN, file, buf);
+	    add_directive (&first, NEQN, file, buf, bufsize);
 
 	  break;
 
@@ -833,7 +844,7 @@ parse_roff_directive (cp, file, buf)
 	  if (debug)
 	    fprintf (stderr, "found grap(1) directive\n");
 
-	  add_directive (&first, GRAP, file, buf);
+	  add_directive (&first, GRAP, file, buf, bufsize);
 
 	  break;
 
@@ -842,7 +853,7 @@ parse_roff_directive (cp, file, buf)
 	  if (debug)
 	    fprintf (stderr, "found pic(1) directive\n");
 
-	  add_directive (&first, PIC, file, buf);
+	  add_directive (&first, PIC, file, buf, bufsize);
 
 	  break;
 
@@ -852,7 +863,7 @@ parse_roff_directive (cp, file, buf)
 	    fprintf (stderr, "found tbl(1) directive\n");
 
 	  tbl_found++;
-	  add_directive (&first, TBL, file, buf);
+	  add_directive (&first, TBL, file, buf, bufsize);
 	  break;
 
 	case 'v':
@@ -860,7 +871,7 @@ parse_roff_directive (cp, file, buf)
 	  if (debug)
 	    fprintf (stderr, "found vgrind(1) directive\n");
 
-	  add_directive (&first, VGRIND, file, buf);
+	  add_directive (&first, VGRIND, file, buf, bufsize);
 	  break;
 
 	case 'r':
@@ -868,7 +879,7 @@ parse_roff_directive (cp, file, buf)
 	  if (debug)
 	    fprintf (stderr, "found refer(1) directive\n");
 
-	  add_directive (&first, REFER, file, buf);
+	  add_directive (&first, REFER, file, buf, bufsize);
 	  break;
 
 	case ' ':
@@ -891,19 +902,19 @@ parse_roff_directive (cp, file, buf)
 #ifdef HAS_TROFF
   if (troff)
     {
-      strcat (buf, " | ");
-      strcat (buf, TROFF);
+      strncat (buf, " | ", bufsize-strlen(buf)-1); 
+      strncat (buf, TROFF, bufsize-strlen(buf)-1);
     }
   else
 #endif
     {
-      strcat (buf, " | ");
-      strcat (buf, NROFF);
+      strncat (buf, " | ", bufsize-strlen(buf)-1); 
+      strncat (buf, NROFF, bufsize-strlen(buf)-1);
     }
   if (tbl_found && !troff && strcmp (COL, "") != 0)
     {
-      strcat (buf, " | ");
-      strcat (buf, COL);
+      strncat (buf, " | ", bufsize-strlen(buf)-1); 
+      strncat (buf, COL, bufsize-strlen(buf)-1);
     }
 
   return 0;
@@ -924,7 +935,7 @@ make_roff_command (file)
       if (debug)
 	fprintf (stderr, "parsing directive from command line\n");
 
-      status = parse_roff_directive (roff_directive, file, buf);
+      status = parse_roff_directive (roff_directive, file, buf, sizeof(buf));
 
       if (status == 0)
 	return buf;
@@ -936,15 +947,14 @@ make_roff_command (file)
   if ((fp = fopen (file, "r")) != NULL)
     {
       cp = line;
-      fgets (line, 100, fp);
+      fgets (line, BUFSIZ, fp);
+      fclose(fp);
       if (*cp++ == '\'' && *cp++ == '\\' && *cp++ == '"' && *cp++ == ' ')
 	{
 	  if (debug)
 	    fprintf (stderr, "parsing directive from file\n");
 
-	  status = parse_roff_directive (cp, file, buf);
-
-	  fclose (fp);
+	  status = parse_roff_directive (cp, file, buf, sizeof(buf));
 
 	  if (status == 0)
 	    return buf;
@@ -968,7 +978,7 @@ make_roff_command (file)
       if (debug)
 	fprintf (stderr, "parsing directive from environment\n");
 
-      status = parse_roff_directive (cp, file, buf);
+      status = parse_roff_directive (cp, file, buf, sizeof(buf));
 
       if (status == 0)
 	return buf;
@@ -981,20 +991,20 @@ make_roff_command (file)
     fprintf (stderr, "using default preprocessor sequence\n");
 
   if ((cp = get_expander(file)) == NULL)
-    cp = "cat";
-  sprintf(buf, "%s %s | ", cp, file);
+    cp = "/bin/cat";
+  snprintf(buf, sizeof(buf), "%s %s | ", cp, file);
 #ifdef HAS_TROFF
   if (troff)
     {
       if (strcmp (TBL, "") != 0)
 	{
-	  strcat (buf, TBL);
-	  strcat (buf, " | ");
-	  strcat (buf, TROFF);
+	  strncat(buf, TBL, sizeof(buf)-strlen(buf)-1);
+	  strncat(buf, " | ", sizeof(buf)-strlen(buf)-1);
+	  strncat(buf, TROFF, sizeof(buf)-strlen(buf)-1);
 	}
       else
 	{
-	  strcat (buf, TROFF);
+	  strncat(buf, TROFF, sizeof(buf)-strlen(buf)-1);
 	}
     }
   else
@@ -1002,22 +1012,49 @@ make_roff_command (file)
     {
       if (strcmp (TBL, "") != 0)
 	{
-	  strcat (buf, TBL);
-	  strcat (buf, " | ");
-	  strcat (buf, NROFF);
+	  strncat(buf, TBL, sizeof(buf)-strlen(buf)-1);
+	  strncat(buf, " | ", sizeof(buf)-strlen(buf)-1);
+	  strncat(buf, NROFF, sizeof(buf)-strlen(buf)-1);
 	}
       else
 	{
-	  strcpy (buf, NROFF);
+	  strncpy (buf, NROFF, sizeof(buf));
 	}
 
       if (strcmp (COL, "") != 0)
 	{
-	  strcat (buf, " | ");
-	  strcat (buf, COL);
+	  strncat (buf, " | ", sizeof(buf)-strlen(buf)-1);
+	  strncat (buf, COL, sizeof(buf)-strlen(buf)-1);
 	}
     }
   return buf;
+}
+
+sig_t ohup, oint, oquit, oterm;
+static char temp[FILENAME_MAX];
+
+void cleantmp()
+{
+	unlink(temp);
+	exit(1);
+}
+
+void
+set_sigs()
+{
+  ohup = signal(SIGHUP, cleantmp);
+  oint = signal(SIGINT, cleantmp);
+  oquit = signal(SIGQUIT, cleantmp);
+  oterm = signal(SIGTERM, cleantmp);
+}
+
+void
+restore_sigs()
+{
+  signal(SIGHUP, ohup);
+  signal(SIGINT, oint);
+  signal(SIGQUIT, oquit);
+  signal(SIGTERM, oterm);
 }
 
 /*
@@ -1025,78 +1062,152 @@ make_roff_command (file)
  * 1 for success and 0 for failure.
  */
 int
-make_cat_file (path, man_file, cat_file)
+make_cat_file (path, man_file, cat_file, manid)
      register char *path;
      register char *man_file;
      register char *cat_file;
 {
-  int status;
-  int mode;
-  FILE *fp;
+  int s, f;
+  FILE *fp, *pp;
   char *roff_command;
   char command[FILENAME_MAX];
-  char temp[FILENAME_MAX];
-
-  sprintf(temp, "%s.tmp", cat_file);
-  if ((fp = fopen (temp, "w")) != NULL)
-    {
-      fclose (fp);
-      unlink (temp);
 
       roff_command = make_roff_command (man_file);
       if (roff_command == NULL)
 	return 0;
-      else
+
+  snprintf(temp, sizeof(temp), "%s.tmpXXXXXX", cat_file);
+  if ((f = mkstemp(temp)) >= 0 && (fp = fdopen(f, "w")) != NULL)
+    {
+      set_sigs();
+
+      if (fchmod (f, CATMODE) < 0) {
+	perror("fchmod");
+	unlink(temp);
+	restore_sigs();
+	fclose(fp);
+	return 0;
+      } else if (debug)
+	fprintf (stderr, "mode of %s is now %o\n", temp, CATMODE);
+
 #ifdef DO_COMPRESS
-	sprintf (command, "(cd %s ; %s | %s > %s)", path,
-		 roff_command, COMPRESSOR, temp);
+      snprintf (command, sizeof(command), "(cd %s ; %s | %s)", path,
+		roff_command, COMPRESSOR);
 #else
-        sprintf (command, "(cd %s ; %s > %s)", path,
-		 roff_command, temp);
+      snprintf (command, sizeof(command), "(cd %s ; %s)", path,
+		roff_command);
 #endif
-      /*
-       * Don't let the user interrupt the system () call and screw up
-       * the formatted man page if we're not done yet.
-       */
       fprintf (stderr, "Formatting page, please wait...");
       fflush(stderr);
 
-      status = do_system_command (command);
-
-      if (status <= 0) {
-	fprintf(stderr, "Failed.\n");
-	unlink(temp);
-	exit(1);
-      }
+      if (debug)
+	fprintf (stderr, "\ntrying command: %s\n", command);
       else {
-        if (rename(temp, cat_file) == -1) {
-		/* FS might be sticky */
-		sprintf(command, "cp %s %s", temp, cat_file);
-		if (system(command))
+
+#ifdef SETREUID
+	if (manid) {
+	  setreuid(-1, ruid);
+	  setregid(-1, rgid);
+	}
+#endif
+	if ((pp = popen(command, "r")) == NULL) {
+	  s = errno;
+	fprintf(stderr, "Failed.\n");
+	  errno = s;
+	  perror("popen");
+#ifdef SETREUID
+	  if (manid) {
+	    setreuid(-1, euid);
+	    setregid(-1, egid);
+	  }
+#endif
+	unlink(temp);
+	  restore_sigs();
+	  fclose(fp);
+	  return 0;
+      }
+#ifdef SETREUID
+	if (manid) {
+	  setreuid(-1, euid);
+	  setregid(-1, egid);
+	}
+#endif
+
+	while ((s = getc(pp)) != EOF)
+	  putc(s, fp);
+
+	if ((s = pclose(pp)) == -1) {
+	  s = errno;
+	  fprintf(stderr, "Failed.\n");
+	  errno = s;
+	  perror("pclose");
+	  unlink(temp);
+	  restore_sigs();
+	  fclose(fp);
+	  return 0;
+	}
+
+	if (s != 0) {
+	  fprintf(stderr, "Failed.\n");
+	  gripe_system_command(s);
+	  unlink(temp);
+	  restore_sigs();
+	  fclose(fp);
+	  return 0;
+	}
+      }
+
+      if (debug)
+	unlink(temp);
+      else if (rename(temp, cat_file) == -1) {
+	s = errno;
 			fprintf(stderr,
 				"\nHmm!  Can't seem to rename %s to %s, check permissions on man dir!\n",
 				temp, cat_file);
+	errno = s;
+	perror("rename");
 		unlink(temp);
+	restore_sigs();
+	fclose(fp);
 		return 0;
 	}
-      }
-      fprintf(stderr, "Done.\n");
-      if (status == 1)
-	{
-	  mode = CATMODE;
-	  chmod (cat_file, mode);
+      restore_sigs();
 
-	  if (debug)
-	    fprintf (stderr, "mode of %s is now %o\n", cat_file, mode);
+      if (fclose(fp)) {
+	s = errno;
+	if (!debug)
+	  unlink(cat_file);
+	fprintf(stderr, "Failed.\n");
+	errno = s;
+	perror("fclose");
+	return 0;
+      }
+
+      if (debug) {
+	fprintf(stderr, "No output, debug mode.\n");
+	return 0;
 	}
 
+      fprintf(stderr, "Done.\n");
 
       return 1;
     }
   else
     {
-      if (debug)
-	fprintf (stderr, "Couldn't open %s for writing.\n", cat_file);
+      if (f >= 0) {
+	s = errno;
+	unlink(temp);
+	errno = s;
+      }
+      if (debug) {
+	s = errno;
+	fprintf (stderr, "Couldn't open %s for writing.\n", temp);
+	errno = s;
+      }
+      if (f >= 0) {
+	perror("fdopen");
+	close(f);
+      }
 
       return 0;
     }
@@ -1132,7 +1243,7 @@ format_and_display (path, man_file, cat_file)
       if (roff_command == NULL)
 	return 0;
       else
-	sprintf (command, "(cd %s ; %s)", path, roff_command);
+	snprintf (command, sizeof(command), "(cd %s ; %s)", path, roff_command);
 
       found = do_system_command (command);
     }
@@ -1158,10 +1269,10 @@ format_and_display (path, man_file, cat_file)
 #ifdef SETREUID
 	      setreuid(-1, euid);
 	      setregid(-1, egid);
+	      found = make_cat_file (path, man_file, cat_file, 1);
+#else
+	      found = make_cat_file (path, man_file, cat_file, 0);
 #endif
-
-	      found = make_cat_file (path, man_file, cat_file);
-
 #ifdef SETREUID
 	      setreuid(-1, ruid);
 	      setregid(-1, rgid);
@@ -1173,7 +1284,7 @@ format_and_display (path, man_file, cat_file)
 		       effective group (user) ID == real group (user) ID
 		     except for the call above, I believe the problems
 		     of reading private man pages is avoided.  */
-		  found = make_cat_file (path, man_file, cat_file);
+		  found = make_cat_file (path, man_file, cat_file, 0);
 	        }
 #endif
 #ifdef SECURE_MAN_UID
@@ -1192,7 +1303,7 @@ format_and_display (path, man_file, cat_file)
 		   */
 		  setuid (getuid ());
 
-		  found = make_cat_file (path, man_file, cat_file);
+		  found = make_cat_file (path, man_file, cat_file, 0);
 		}
 #endif
 	      if (found)
@@ -1212,7 +1323,7 @@ format_and_display (path, man_file, cat_file)
 		  if (roff_command == NULL)
 		    return 0;
 		  else
-		    sprintf (command, "(cd %s ; %s | %s)", path,
+		    snprintf (command, sizeof(command), "(cd %s ; %s | %s)", path,
 			     roff_command, pager);
 
 		  found = do_system_command (command);
@@ -1401,7 +1512,8 @@ get_section_list ()
   int i;
   char *p;
   char *end;
-  static char *tmp_section_list[100];
+#define TMP_SECTION_LIST_SIZE 100
+  static char *tmp_section_list[TMP_SECTION_LIST_SIZE];
 
   if (colon_sep_section_list == NULL)
     {
@@ -1416,7 +1528,7 @@ get_section_list ()
     }
 
   i = 0;
-  for (p = colon_sep_section_list; ; p = end+1)
+  for (p = colon_sep_section_list; i < TMP_SECTION_LIST_SIZE ; p = end+1) 
     {
       if ((end = strchr (p, ':')) != NULL)
 	*end = '\0';
