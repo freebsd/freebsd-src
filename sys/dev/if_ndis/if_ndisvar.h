@@ -102,6 +102,7 @@ struct ndis_softc {
 	int			ndis_link;
 	uint32_t		ndis_filter;
 	int			ndis_if_flags;
+	int			ndis_skip;
 
 	struct sysctl_ctx_list	ndis_ctx;
 	struct sysctl_oid	*ndis_tree;
