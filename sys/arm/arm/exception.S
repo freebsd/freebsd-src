@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 	.text	
 	.align	0
 
-AST_ALIGNMENT_FAULT_LOCALS
+AST_LOCALS
 
 /*
  * reset_entry:
@@ -78,12 +78,11 @@ Lreset_panicmsg:
  */
 ASENTRY_NP(swi_entry)
 	PUSHFRAME
-	ENABLE_ALIGNMENT_FAULTS
 
 	mov	r0, sp			/* Pass the frame to any function */
 	bl	_C_LABEL(swi_handler)	/* It's a SWI ! */
 
-	DO_AST_AND_RESTORE_ALIGNMENT_FAULTS
+	DO_AST
 	PULLFRAME
 	movs	pc, lr			/* Exit */
 
@@ -100,7 +99,6 @@ ASENTRY_NP(prefetch_abort_entry)
         sub     lr, lr, #0x00000004     /* Adjust the lr */
 
 	PUSHFRAMEINSVC
-	ENABLE_ALIGNMENT_FAULTS
 	ldr	r1, Lprefetch_abort_handler_address
 	adr	lr, exception_exit
  	mov	r0, sp			/* pass the stack pointer as r0 */
@@ -138,8 +136,6 @@ ASENTRY_NP(data_abort_entry)
         sub     lr, lr, #0x00000008     /* Adjust the lr */
 	PUSHFRAMEINSVC			/* Push trap frame and switch */
 					/* to SVC32 mode */
-	ENABLE_ALIGNMENT_FAULTS
-
 	ldr	r1, Ldata_abort_handler_address
 	adr	lr, exception_exit
 	mov	r0, sp			/* pass the stack pointer as r0 */
@@ -191,13 +187,13 @@ Laddress_exception_msg:
  * being posted between testing and exit to user mode.
  *
  * This function uses PULLFRAMEFROMSVCANDEXIT and
- * DO_AST_AND_RESTORE_ALIGNMENT_FAULTS thus should
+ * DO_AST
  * only be called if the exception handler used PUSHFRAMEINSVC
- * followed by ENABLE_ALIGNMENT_FAULTS.
+ * 
  */
 
 exception_exit:
-	DO_AST_AND_RESTORE_ALIGNMENT_FAULTS
+	DO_AST
 	PULLFRAMEFROMSVCANDEXIT
 
 /*
@@ -350,7 +346,6 @@ Lundefined_handler_indirection:
 
 ENTRY_NP(undefinedinstruction_bounce)
 	PUSHFRAMEINSVC
-	ENABLE_ALIGNMENT_FAULTS
 
 	mov	r0, sp
 	adr	lr, exception_exit
