@@ -222,31 +222,23 @@ struct linux_pt_fpxreg {
 static int
 linux_proc_read_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 {
-	int error;
 
-	error = 0;
-	mtx_lock_spin(&sched_lock);
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	if (cpu_fxsr == 0 || (td->td_proc->p_sflag & PS_INMEM) == 0)
-		error = EIO;
-	else
-		bcopy(&td->td_pcb->pcb_save.sv_xmm, fpxregs, sizeof(*fpxregs));
-	mtx_unlock_spin(&sched_lock);
-	return (error);
+		return (EIO);
+	bcopy(&td->td_pcb->pcb_save.sv_xmm, fpxregs, sizeof(*fpxregs));
+	return (0);
 }
 
 static int
 linux_proc_write_fpxregs(struct thread *td, struct linux_pt_fpxreg *fpxregs)
 {
-	int error;
 
-	error = 0;
-	mtx_lock_spin(&sched_lock);
+	PROC_LOCK_ASSERT(td->td_proc, MA_OWNED);
 	if (cpu_fxsr == 0 || (td->td_proc->p_sflag & PS_INMEM) == 0)
-		error = EIO;
-	else
-		bcopy(fpxregs, &td->td_pcb->pcb_save.sv_xmm, sizeof(*fpxregs));
-	mtx_unlock_spin(&sched_lock);
-	return (error);
+		return (EIO);
+	bcopy(fpxregs, &td->td_pcb->pcb_save.sv_xmm, sizeof(*fpxregs));
+	return (0);
 }
 #endif
 
