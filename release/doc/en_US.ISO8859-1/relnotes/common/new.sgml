@@ -497,6 +497,15 @@
     <para>&man.arp.8; now prints the applicable interface name for
     each ARP entry.</para>
 
+    <para arch="i386">A minimalized version of &man.camcontrol.8; is
+    now available on the installation floppy.  This allows it to
+    rescan for devices that have been connected after booting, or to
+    show the devices attached to SCSI busses (e. g. from within the
+    <quote>emergency holographic shell</quote>).  As a side-effect,
+    this allows devices attached to &man.aic.4;-based PCMCIA SCSI
+    adapters like the Adaptec APA-1460 to be used during
+    installation.</para>
+
     <para>&man.cat.1; now has the ability to read from UNIX-domain
     sockets.</para>
 
