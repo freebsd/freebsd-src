@@ -57,7 +57,6 @@
 #undef	ADDCARRY
 #define ADDCARRY(x)     if ((x) > 0xffff) (x) -= 0xffff
 #define REDUCE          {sum = (sum & 0xffff) + (sum >> 16); ADDCARRY(sum);}
-#define INVERT		sum == 0xffff ? sum : ~sum & 0xffff
 
 /*
  * Thanks to gcc we don't have to guess
@@ -432,7 +431,7 @@ skip_start:
 		sum += su.s;
 	}
 	REDUCE;
-	return (INVERT);
+	return (~sum & 0xffff);
 }
 
 /*
