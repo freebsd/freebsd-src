@@ -65,7 +65,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fils.c	1.21 4/20/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.4 2000/05/22 12:47:38 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: fils.c,v 2.21.2.5 2000/07/20 14:13:30 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -209,6 +209,7 @@ char *argv[];
 			opts |= OPT_ACCNT|OPT_SHOWLIST;
 			break;
 		case 'A' :
+			device = IPAUTH_NAME;
 			opts |= OPT_AUTHSTATS;
 			break;
 		case 'C' :
@@ -297,7 +298,7 @@ char *argv[];
 	bzero((char *)&ipsst, sizeof(ipsst));
 	bzero((char *)&ifrst, sizeof(ifrst));
 
-	if (ioctl(fd, SIOCGETFS, &fiop) == -1) {
+	if (!(opts & OPT_AUTHSTATS) && ioctl(fd, SIOCGETFS, &fiop) == -1) {
 		perror("ioctl(ipf:SIOCGETFS)");
 		exit(-1);
 	}

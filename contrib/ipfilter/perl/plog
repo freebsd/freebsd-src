@@ -320,8 +320,7 @@ while (defined ($_ = shift))
                 defined ($arg) || &usage (1, qq{-$flag requires an argument});
                 if ($flag eq 's')
                 {
-                    defined ($services) && &usage (1, qq{too many service maps}
-);
+                    defined ($services) && &usage (1, qq{too many service maps});
                     $services = $arg;
                 }
                 elsif ($flag eq 'A')
@@ -433,8 +432,7 @@ while (<STDIN>)
     # dd/mm/yyyy (no y2k problem here!). Both formats then have a packet
     # timestamp and the log info.
     my ($log);
-    if (s/^\w+\s+\d+\s+\d+:\d+:\d+\s+(?:\d\w:)?[\w\.\-]+\s+\S*ipmon\[\d+\]:\s+(
-?:\[ID\s+\d+\s+[\w\.]+\]\s+)?\d+:\d+:\d+\.\d+\s+//)
+    if (s/^\w+\s+\d+\s+\d+:\d+:\d+\s+(?:\d\w:)?[\w\.\-]+\s+\S*ipmon\[\d+\]:\s+(?:\[ID\s+\d+\s+[\w\.]+\]\s+)?\d+:\d+:\d+\.\d+\s+//)
     {
         $log = $_;
     }
@@ -457,15 +455,13 @@ while (<STDIN>)
     # number, "PR", a protocol name or number, "len", a header length, a
     # packet length (which will be in parentheses for protocols other than
     # TCP, UDP, or ICMP), and maybe some additional info.
-    my @fields = ($log =~ /^(?:(\d+)x)?\s*(\w+)\s+@(\d+):(\d+)\s+(\w)\s+([\w\-\
-..,]+)\s+->\s+([\w\-\.,]+)\s+PR\s+(\w+)\s+len\s+(\d+)\s+\(?(\d+)\)?\s*(.*)$/ox);
+    my @fields = ($log =~ /^(?:(\d+)x)?\s*(\w+)\s+@(\d+):(\d+)\s+(\w)\s+([\w\-\..,]+)\s+->\s+([\w\-\.,]+)\s+PR\s+(\w+)\s+len\s+(\d+)\s+\(?(\d+)\)?\s*(.*)$/ox);
     unless (scalar (@fields))
     {
         print STDERR "$me:$.: cannot parse: $_\n";
         next;
     }
-    my ($count, $if, $group, $rule, $act, $src, $dest, $proto, $hlen, $len, $mo
-re) = @fields;
+    my ($count, $if, $group, $rule, $act, $src, $dest, $proto, $hlen, $len, $more) = @fields;
 
     # Skip actions we're not interested in.
     next unless (exists ($selectActs{$act}));
@@ -530,8 +526,7 @@ re) = @fields;
     $dest = $x;
 
     # Skip hosts we're not interested in.
-    next if ($selectHosts && !(exists ($selectHosts{$src}) || exists ($selectHo
-sts{$dest})));
+    next if ($selectHosts && !(exists ($selectHosts{$src}) || exists ($selectHosts{$dest})));
 
     # Convert proto to proto number.
     $proto = &protoNumber ($proto);
@@ -566,12 +561,10 @@ sts{$dest})));
     }
 
     # Count the packet as outgoing traffic from the source address.
-    &countPacket ($src, 's', $dest, $proto, $count, "$sport:$dport:$if:$act") i
-f ($sTable);
+    &countPacket ($src, 's', $dest, $proto, $count, "$sport:$dport:$if:$act") if ($sTable);
 
     # Count the packet as incoming traffic to the destination address.
-    &countPacket ($dest, 'd', $src, $proto, $count, "$dport:$sport:$if:$act") i
-f ($dTable);
+    &countPacket ($dest, 'd', $src, $proto, $count, "$dport:$sport:$if:$act") if ($dTable);
 }
 
 my $dir;
@@ -588,16 +581,14 @@ foreach $dir (@dirs)
     {
         my @a = split (/\./, $a);
         my @b = split (/\./, $b);
-        $a[0] <=> $b[0] || $a[1] <=> $b[1] || $a[2] <=> $b[2] || $a[3] <=> $b[3
-];
+        $a[0] <=> $b[0] || $a[1] <=> $b[1] || $a[2] <=> $b[2] || $a[3] <=> $b[3];
     }
 
     sub packetSort
     {
         my ($asport, $adport, $aif, $aact) = split (/:/, $a);
         my ($bsport, $bdport, $bif, $bact) = split (/:/, $b);
-        $bact cmp $aact || $aif cmp $bif || $asport <=> $bsport || $adport <=> 
-$bdport;
+        $bact cmp $aact || $aif cmp $bif || $asport <=> $bsport || $adport <=> $bdport;
     }
 
     my $host;
@@ -636,19 +627,15 @@ $bdport;
                     $act = '?' unless (defined ($act = $acts{$act}));
                     if (($protoName eq 'tcp') || ($protoName eq 'udp'))
                     {
-                        printf ("    %-6s %7s %4d %4s %16s %2s %s.%s\n", $if, $
-act, $count, $protoName, &portName ($sport, $protoName), $arrow, $peerName, &po
-rtName ($dport, $protoName));
+                        printf ("    %-6s %7s %4d %4s %16s %2s %s.%s\n", $if, $act, $count, $protoName, &portName ($sport, $protoName), $arrow, $peerName, &portName ($dport, $protoName));
                     }
                     elsif ($protoName eq 'icmp')
                     {
-                        printf ("    %-6s %7s %4d %4s %16s %2s %s\n", $if, $act
-, $count, $protoName, &icmpType ($sport), $arrow, $peerName);
+                        printf ("    %-6s %7s %4d %4s %16s %2s %s\n", $if, $act, $count, $protoName, &icmpType ($sport), $arrow, $peerName);
                     }
                     else
                     {
-                        printf ("    %-6s %7s %4d %4s %16s %2s %s\n", $if, $act
-, $count, $protoName, '', $arrow, $peerName);
+                        printf ("    %-6s %7s %4d %4s %16s %2s %s\n", $if, $act, $count, $protoName, '', $arrow, $peerName);
                     }
                 }
             }
@@ -672,8 +659,7 @@ sub portName
     unless (exists ($pn{$pname}))
     {
         my $name = getservbyport ($port, $proto);
-        $pn{$pname} = (defined ($name) ? $name : ($port <= 1023 ? $port : '<hig
-h>'));
+        $pn{$pname} = (defined ($name) ? $name : ($port <= 1023 ? $port : '<high>'));
     }
     return $pn{$pname};
 }

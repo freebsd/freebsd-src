@@ -57,7 +57,7 @@ extern	char	*sys_errlist[];
 
 #if !defined(lint)
 static const char sccsid[] ="@(#)ipnat.c	1.9 6/5/96 (C) 1993 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.2 2000/05/15 06:54:18 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipnat.c,v 2.16.2.3 2000/07/27 13:07:13 darrenr Exp $";
 #endif
 
 
@@ -111,7 +111,7 @@ int argc;
 char *argv[];
 {
 	char	*file = NULL;
-	int	fd = -1, opts = 0, c;
+	int	fd = -1, opts = 0, c, mode = O_RDWR;
 
 	while ((c = getopt(argc, argv, "CdFf:hlnrsv")) != -1)
 		switch (c)
@@ -133,15 +133,18 @@ char *argv[];
 			break;
 		case 'l' :
 			opts |= OPT_LIST;
+			mode = O_RDONLY;
 			break;
 		case 'n' :
 			opts |= OPT_NODO;
+			mode = O_RDONLY;
 			break;
 		case 'r' :
 			opts |= OPT_REMOVE;
 			break;
 		case 's' :
 			opts |= OPT_STAT;
+			mode = O_RDONLY;
 			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
@@ -153,7 +156,7 @@ char *argv[];
 	gethostname(thishost, sizeof(thishost));
 	thishost[sizeof(thishost) - 1] = '\0';
 
-	if (!(opts & OPT_NODO) && ((fd = open(IPL_NAT, O_RDWR)) == -1) &&
+	if (!(opts & OPT_NODO) && ((fd = open(IPL_NAT, mode)) == -1) &&
 	    ((fd = open(IPL_NAT, O_RDONLY)) == -1)) {
 		(void) fprintf(stderr, "%s: open: %s\n", IPL_NAT,
 			STRERROR(errno));
