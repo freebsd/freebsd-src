@@ -94,5 +94,6 @@ struct nfs_args {
 #define	NFSMNT_ACREGMAX		0x00080000
 #define	NFSMNT_ACDIRMIN		0x00100000
 #define	NFSMNT_ACDIRMAX		0x00200000
+#define	NFSMNT_NOLOCKD		0x00400000 /* Locks are local */
 
 #endif

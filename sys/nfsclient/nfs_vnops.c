@@ -2838,6 +2838,11 @@ static int
 nfs_advlock(struct vop_advlock_args *ap)
 {
 
+	if ((VFSTONFS(ap->a_vp->v_mount)->nm_flag & NFSMNT_NOLOCKD) != 0) {
+		struct nfsnode *np = VTONFS(ap->a_vp);
+
+		return (lf_advlock(ap, &(np->n_lockf), np->n_size));
+	}
 	return (nfs_dolock(ap));
 }
 
