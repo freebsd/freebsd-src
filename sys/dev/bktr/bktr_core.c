@@ -2039,7 +2039,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 	buffer = target_buffer;
 
 	/* contruct sync : for video packet format */
-	*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 15 | BKTR_FM1;
+	*dma_prog++ = OP_SYNC  | 1 << 15 | BKTR_FM1;
 
 	/* sync, mode indicator packed data */
 	*dma_prog++ = 0;  /* NULL WORD */
@@ -2073,7 +2073,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 
 	case 3:
 		/* sync vre */
-		*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 24 | 1 << 15 | BKTR_VRO;
+		*dma_prog++ = OP_SYNC |  1 << 15 | BKTR_VRO;
 		*dma_prog++ = 0;  /* NULL WORD */
 		*dma_prog++ = OP_JUMP | 0xc << 24 ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
@@ -2087,7 +2087,7 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 		dma_prog = (u_long *) bktr->odd_dma_prog;
 
 		/* sync vre IRQ bit */
-		*dma_prog++ = OP_SYNC | 0xc << 24 | 1 << 15 | BKTR_FM1;
+		*dma_prog++ = OP_SYNC |  1 << 15 | BKTR_FM1;
 		*dma_prog++ = 0;  /* NULL WORD */
 
 		for (i = 0; i < (rows/interlace); i++) {
@@ -2100,9 +2100,9 @@ rgb_prog( bktr_ptr_t bktr, char i_flag, int cols,
 	}
 
 	/* sync vre IRQ bit */
-	*dma_prog++ = OP_SYNC | 0xc << 24 | 1 << 24 | 1 << 15 | BKTR_VRE;
+	*dma_prog++ = OP_SYNC |  1 << 24 | 1 << 15 | BKTR_VRE;
 	*dma_prog++ = 0;  /* NULL WORD */
-	*dma_prog++ = OP_JUMP | 0xc << 24;
+	*dma_prog++ = OP_JUMP ;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
 	*dma_prog++ = 0;  /* NULL WORD */
 }
@@ -2288,10 +2288,10 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 	t1 = target_buffer;
 
 	/* contruct sync : for video packet format */
-	*dma_prog++ = OP_SYNC | 0xC << 24 | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
+	*dma_prog++ = OP_SYNC  | 1 << 15 |	BKTR_FM3; /*sync, mode indicator packed data*/
 	*dma_prog++ = 0;  /* NULL WORD */
 
-	for (i = 0; i < (rows/interlace ); i++) {
+	for (i = 0; i < (rows/interlace ) - 1; i++) {
 		*dma_prog++ = inst;
 		*dma_prog++ = cols/2 | cols/2 << 16;
 		*dma_prog++ = target_buffer;
@@ -2318,10 +2318,10 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 		return;
 
 	case 3:
-		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 15 |  BKTR_VRO;  
+		*dma_prog++ = OP_SYNC	| 1 << 15 |   BKTR_VRO; 
 		*dma_prog++ = 0;  /* NULL WORD */
 
-		*dma_prog++ = OP_JUMP  | 0xc << 24 ;
+		*dma_prog++ = OP_JUMP  ;
 		*dma_prog = (u_long ) vtophys(bktr->odd_dma_prog);
 		break;
 	}
@@ -2332,10 +2332,10 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 
 		target_buffer  = (u_long) buffer + cols;
 		t1 = target_buffer + cols/2;
-		*dma_prog++ = OP_SYNC	| 0xc << 24 |  1 << 24 |   1 << 15 | BKTR_FM3; 
+		*dma_prog++ = OP_SYNC	|   1 << 15 | BKTR_FM3; 
 		*dma_prog++ = 0;  /* NULL WORD */
 
-		for (i = 0; i < (rows/interlace ) ; i++) {
+		for (i = 0; i < (rows/interlace )  - 1; i++) {
 			*dma_prog++ = inst;
 			*dma_prog++ = cols/2 | cols/2 << 16;
 			*dma_prog++ = target_buffer;
@@ -2345,9 +2345,9 @@ yuv422_prog( bktr_ptr_t bktr, char i_flag,
 		}
 	}
     
-	*dma_prog++ = OP_SYNC  | 0xC << 24 | 1 << 24 |	BKTR_VRE; 
+	*dma_prog++ = OP_SYNC  | 1 << 24 |   BKTR_VRE; 
 	*dma_prog++ = 0;  /* NULL WORD */
-	*dma_prog++ = OP_JUMP | 0xC << 24;;
+	*dma_prog++ = OP_JUMP ;
 	*dma_prog++ = (u_long ) vtophys(bktr->dma_prog) ;
 	*dma_prog++ = 0;  /* NULL WORD */
 }
