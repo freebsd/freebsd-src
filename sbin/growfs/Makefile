@@ -14,7 +14,6 @@ WARNS?=	6
 
 .if defined(GFSDBG)
 SRCS+=  debug.c
-CFLAGS+=-DFS_DEBUG
 .endif  
 
 .include <bsd.prog.mk>      
