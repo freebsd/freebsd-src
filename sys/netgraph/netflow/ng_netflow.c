@@ -35,6 +35,7 @@ static const char rcs_id[] =
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
+#include <sys/syslog.h>
 #include <sys/ctype.h>
 
 #include <net/if.h>
@@ -417,7 +418,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		 * Data arrived on export hook.
 		 * This must not happen.
 		 */
-		printf("ng_netflow: incoming data on export hook!\n");
+		log(LOG_ERR, "ng_netflow: incoming data on export hook!\n");
 		ERROUT(EINVAL);
 	};
 
