@@ -52,4 +52,5 @@ install:
 	${INSTALL} ${COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
 		${_docs} ${DESTDIR}${DOCDIR}/${VOLUME}
 
+.include <bsd.dep.mk>
 .include <bsd.obj.mk>
