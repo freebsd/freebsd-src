@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $NetBSD: rpcbind,v 1.4 2000/07/26 00:11:49 lukem Exp $
+#
+
+# PROVIDE: rpcbind
+# REQUIRE: NETWORK ntpdate syslogd named ppp
+
+. /etc/rc.subr
+
+name="rpcbind"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+run_rc_command "$1"

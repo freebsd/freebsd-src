@@ -1,0 +1,30 @@
+#!/bin/sh
+#
+# $NetBSD: mountcritlocal,v 1.3 2000/07/26 00:11:49 lukem Exp $
+#
+
+# PROVIDE: mountcritlocal
+# REQUIRE: root
+
+. /etc/rc.subr
+
+name="mountcritlocal"
+start_cmd="mountcritlocal_start"
+stop_cmd=":"
+
+mountcritlocal_start()
+{
+	#	mount critical local filesystems
+	#	(as specified in $critical_filesystems_beforenet)
+	#
+	mount_critical_filesystems local
+
+	#	clean up left-over files.
+	#	this could include the cleanup of lock files and /var/run, etc.
+	#
+	rm -f /etc/nologin /var/spool/lock/LCK.* /var/spool/uucp/STST/*
+	(cd /var/run && rm -rf -- *)
+}
+
+load_rc_config $name
+run_rc_command "$1"

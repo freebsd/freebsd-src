@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# $NetBSD: ccd,v 1.2 2000/04/26 05:13:51 thorpej Exp $
+#
+
+# PROVIDE: disks
+
+. /etc/rc.subr
+
+name="ccd"
+start_cmd="ccd_start"
+stop_cmd=":"
+
+ccd_start()
+{
+	if [ -f /etc/ccd.conf ]; then
+		echo "Configuring CCD devices."
+		ccdconfig -C
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

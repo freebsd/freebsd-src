@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# $NetBSD: postfix,v 1.4 2000/05/13 08:45:08 lukem Exp $
+#
+
+# PROVIDE: mail
+# REQUIRE: LOGIN
+
+#	we could do this, but make mail start late, so that things like
+#	.forward's are not processed until the system is fully operational
+## REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="postfix"
+rcvar=$name
+required_files="/etc/${name}/main.cf"
+start_cmd="postfix start"
+stop_cmd="postfix stop"
+reload_cmd="postfix reload"
+extra_commands="reload"
+
+load_rc_config $name
+run_rc_command "$1"

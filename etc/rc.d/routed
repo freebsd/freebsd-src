@@ -1,0 +1,25 @@
+#!/bin/sh
+#
+# $NetBSD: routed,v 1.4 2000/05/13 08:45:09 lukem Exp $
+#
+
+# PROVIDE: routed
+# REQUIRE: DAEMON gated
+
+. /etc/rc.subr
+
+name="routed"
+rcvar=$name
+command="/sbin/${name}"
+start_precmd="routed_precmd"
+
+routed_precmd()
+{
+	if checkyesno gated && checkyesno routed; then
+		warn "gated and routed both requested to be run: only running gated."
+		return 1
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# $NetBSD: mountall,v 1.2 2000/04/27 21:00:50 veego Exp $
+#
+
+# PROVIDE: mountall
+# REQUIRE: beforemountlkm
+
+. /etc/rc.subr
+
+name="mountall"
+start_cmd="echo 'Mounting all filesystems...'; mount -a"
+stop_cmd="echo 'Unmounting all filesystems...'; umount -a"
+
+load_rc_config $name
+run_rc_command "$1"

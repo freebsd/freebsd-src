@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $NetBSD: cron,v 1.4 2000/07/17 15:24:48 lukem Exp $
+#
+
+# PROVIDE: cron
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="cron"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+run_rc_command "$1"
