@@ -33,12 +33,13 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.17 1995/08/16 01:37:22 paulus Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.5 1995/10/31 21:20:45 peter Exp $";
 #endif
 
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <syslog.h>
 #include <pwd.h>
 #include <string.h>
@@ -109,8 +110,6 @@ static int  have_chap_secret __P((char *, char *));
 static int  scan_authfile __P((FILE *, char *, char *, char *,
 				  struct wordlist **, char *));
 static void free_wordlist __P((struct wordlist *));
-
-extern char *crypt __P((char *, char *));
 
 /*
  * An Open on LCP has requested a change from Dead to Establish phase.

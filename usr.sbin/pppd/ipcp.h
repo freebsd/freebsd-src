@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.5 1994/09/21 06:47:37 paulus Exp $
+ * $Id: ipcp.h,v 1.4 1995/10/31 21:21:09 peter Exp $
  */
 
 /*
@@ -25,6 +25,10 @@
 #define CI_ADDRS	1	/* IP Addresses */
 #define CI_COMPRESSTYPE	2	/* Compression Type */
 #define	CI_ADDR		3
+#define CI_DNS1		129	/* Primary DNS */
+#define CI_NBNS1	130	/* Primary NBNS */
+#define CI_DNS2		131	/* Secondary DNS */
+#define CI_NBNS2	132	/* Secondary NBNS */
 
 #define MAX_STATES 16		/* from slcompress.h */
 

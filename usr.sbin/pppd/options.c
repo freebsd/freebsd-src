@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: options.c,v 1.7 1995/10/31 21:29:25 peter Exp $";
+static char rcsid[] = "$Id: options.c,v 1.8 1995/11/04 10:44:22 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -69,6 +69,8 @@ int	crtscts = 0;		/* Use hardware flow control */
 int	modem = 1;		/* Use modem control lines */
 int	inspeed = 0;		/* Input/Output speed requested */
 u_int32_t netmask = 0;		/* IP netmask to set on interface */
+u_int32_t dns1 = 0;		/* Primary DNS server */
+u_int32_t dns2 = 0;		/* Secondary DNS server */
 int	lockflag = 0;		/* Create lock file to lock the serial dev */
 int	nodetach = 0;		/* Don't detach from controlling tty */
 char	*connector = NULL;	/* Script to establish physical link */
@@ -125,6 +127,8 @@ static int setconnector __P((char **));
 static int setdisconnector __P((char **));
 static int setdomain __P((char **));
 static int setnetmask __P((char **));
+static int setdns1 __P((char **));
+static int setdns2 __P((char **));
 static int setcrtscts __P((void));
 static int setnocrtscts __P((void));
 static int setxonxoff __P((void));
@@ -213,6 +217,8 @@ static struct cmd {
     {"mru", 1, setmru},		/* Set MRU value for negotiation */
     {"mtu", 1, setmtu},		/* Set our MTU */
     {"netmask", 1, setnetmask},	/* set netmask */
+    {"dns1", 1, setdns1},	/* set Primary Domain Name Server */
+    {"dns2", 1, setdns2},	/* set Secondary Domain Name Server */
     {"passive", 0, setpassive},	/* Set passive mode */
     {"silent", 0, setsilent},	/* Set silent mode */
     {"modem", 0, setmodem},	/* Use modem control lines */
@@ -1399,6 +1405,44 @@ setnetmask(argv)
     }
 
     netmask = mask.s_addr;
+    return (1);
+}
+
+
+/*
+ * setdns1 - set the primary dns.
+ */
+static int
+setdns1(argv)
+    char **argv;
+{
+    struct in_addr mask;
+
+    if ((inet_aton(*argv, &mask) < 0)) {
+	fprintf(stderr, "Invalid dns1 %s\n", *argv);
+	return (0);
+    }
+
+    dns1 = mask.s_addr;
+    return (1);
+}
+
+
+/*
+ * setdns2 - set the secondary dns.
+ */
+static int
+setdns2(argv)
+    char **argv;
+{
+    struct in_addr mask;
+
+    if ((inet_aton(*argv, &mask) < 0)) {
+	fprintf(stderr, "Invalid dns2 %s\n", *argv);
+	return (0);
+    }
+
+    dns2 = mask.s_addr;
     return (1);
 }
 
