@@ -1,4 +1,5 @@
 #	@(#)README	8.1 (Berkeley) 6/5/93
+#	$Id$
 
 WEB ---- (introduction provided by jaw@riacs) -------------------------
 
@@ -9,3 +10,8 @@ noun and adverbial phrases.  The wordlist makes a dandy 'grep' victim.
 
      -- James A. Woods    {ihnp4,hplabs}!ames!jaw    (or jaw@riacs)
 
+Dictionaries for other languages, e.g. Afrikaans, American, Aussie,
+Chinese, Croatian, Czech, Danish, Dutch, Esperanto, Finnish, French,
+German, Hindi, Hungarian, Italian, Japanese, Latin, Norwegian, Polish,
+Russian, Spanish, Swahili, Swedish, Yiddish, are available
+at ftp://sable.ox.ac.uk/pub/wordlists.
