@@ -262,6 +262,7 @@ tcp_init()
 	uma_zone_set_max(tcptw_zone, maxsockets);
 	tcp_timer_init();
 	syncache_init();
+	tcp_reass_init();
 }
 
 /*
@@ -763,7 +764,8 @@ tcp_discardcb(tp)
 	while ((q = LIST_FIRST(&tp->t_segq)) != NULL) {
 		LIST_REMOVE(q, tqe_q);
 		m_freem(q->tqe_m);
-		FREE(q, M_TSEGQ);
+		uma_zfree(tcp_reass_zone, q);
+		tcp_reass_qsize--;
 	}
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
@@ -824,7 +826,8 @@ tcp_drain()
 			            != NULL) {
 					LIST_REMOVE(te, tqe_q);
 					m_freem(te->tqe_m);
-					FREE(te, M_TSEGQ);
+					uma_zfree(tcp_reass_zone, te);
+					tcp_reass_qsize--;
 				}
 			}
 			INP_UNLOCK(inpb);
