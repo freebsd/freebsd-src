@@ -32,8 +32,6 @@
  * CIS Handling for the Cardbus Bus
  */
 
-#define	CARDBUS_DEBUG
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -54,15 +52,12 @@
 
 #include "card_if.h"
 
-#if defined CARDBUS_DEBUG
-#define	DPRINTF(a) printf a
-#define	DEVPRINTF(x) device_printf x
-#else
-#define	DPRINTF(a)
-#define	DEVPRINTF(x)
-#endif
-
 __FBSDID("$FreeBSD$");
+
+extern int cardbus_cis_debug;
+
+#define	DPRINTF(a) if (cardbus_cis_debug) printf a
+#define	DEVPRINTF(x) if (cardbus_cis_debug) device_printf x
 
 #define	DECODE_PARAMS							\
 		(device_t cbdev, device_t child, int id, int len,	\
