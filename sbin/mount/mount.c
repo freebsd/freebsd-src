@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mount.c	8.25 (Berkeley) 5/8/95";
 #endif
 static const char rcsid[] =
-	"$Id: mount.c,v 1.28 1998/07/06 07:12:38 charnier Exp $";
+	"$Id: mount.c,v 1.29 1999/03/16 22:26:51 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -63,6 +63,10 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
+/* `meta' options */
+#define MOUNT_META_OPTION_FSTAB		"fstab"	
+#define MOUNT_META_OPTION_CURRENT	"current"
+
 int debug, fstab_style, verbose;
 
 char   *catopt __P((char *, const char *));
@@ -72,11 +76,14 @@ int	hasopt __P((const char *, const char *));
 int	ismounted __P((struct fstab *, struct statfs *, int));
 int	isremountable __P((const char *));
 void	mangle __P((char *, int *, const char **));
+char   *update_options __P((char *, char *, int));
 int	mountfs __P((const char *, const char *, const char *,
 			int, const char *, const char *));
+void	remopt __P((char *, const char *));
 void	prmount __P((struct statfs *));
 void	putfsent __P((const struct statfs *));
 void	usage __P((void));
+char   *flags2opts __P((int));
 
 /* Map from mount options to printable formats. */
 static struct opt {
@@ -99,7 +106,7 @@ static struct opt {
 	{ MNT_NOCLUSTERW,	"noclusterw" },
 	{ MNT_SUIDDIR,		"suiddir" },
 	{ MNT_SOFTDEP,		"soft-updates" },
-	{ NULL }
+	{ 0, NULL }
 };
 
 /*
@@ -224,10 +231,15 @@ main(argc, argv)
 				errx(1,
 				    "unknown special file or file system %s",
 				    *argv);
-			if ((fs = getfsfile(mntbuf->f_mntonname)) != NULL)
+			if ((fs = getfsfile(mntbuf->f_mntonname)) != NULL) {
 				mntfromname = fs->fs_spec;
-			else
+				options = update_options(options, fs->fs_mntops,
+				    mntbuf->f_flags);
+			} else {
 				mntfromname = mntbuf->f_mntfromname;
+				options = update_options(options, NULL,
+				    mntbuf->f_flags);
+			}
 			rval = mountfs(mntbuf->f_fstypename, mntfromname,
 			    mntbuf->f_mntonname, init_flags, options, 0);
 			break;
@@ -524,6 +536,9 @@ catopt(s0, s1)
 	size_t i;
 	char *cp;
 
+	if (s1 == NULL || *s1 == '\0')
+		return s0;
+
 	if (s0 && *s0) {
 		i = strlen(s0) + strlen(s1) + 1 + 1;
 		if ((cp = malloc(i)) == NULL)
@@ -548,7 +563,7 @@ mangle(options, argcp, argv)
 
 	argc = *argcp;
 	for (s = options; (p = strsep(&s, ",")) != NULL;)
-		if (*p != '\0')
+		if (*p != '\0') {
 			if (*p == '-') {
 				argv[argc++] = p;
 				p = strchr(p, '=');
@@ -560,8 +575,95 @@ mangle(options, argcp, argv)
 				argv[argc++] = "-o";
 				argv[argc++] = p;
 			}
+		}
 
 	*argcp = argc;
+}
+
+
+char *
+update_options(opts, fstab, curflags)
+	char *opts;
+	char *fstab;
+	int curflags;
+{
+	char *o, *p;
+	char *cur;
+	char *expopt, *newopt, *tmpopt;
+
+	if (opts == NULL)
+		return strdup("");
+
+	fstab = strdup(fstab);
+
+	/* remove meta options from list */
+	remopt(fstab, MOUNT_META_OPTION_FSTAB);
+	remopt(fstab, MOUNT_META_OPTION_CURRENT);
+	cur = flags2opts(curflags);
+
+	/*
+	 * Expand all meta-options passed to us first.
+	 */
+	expopt = NULL;
+	for (p = opts; (o = strsep(&p, ",")) != NULL;) {
+		if (strcmp(MOUNT_META_OPTION_FSTAB, o) == 0)
+			expopt = catopt(expopt, fstab);
+		else if (strcmp(MOUNT_META_OPTION_CURRENT, o) == 0)
+			expopt = catopt(expopt, cur);
+		else
+			expopt = catopt(expopt, o);
+	}
+	free(fstab);
+	free(cur);
+	free(opts);
+
+	/*
+	 * Remove previous contradictory arguments. Given option "foo" we
+	 * remove all the "nofoo" options. Given "nofoo" we remove "nonofoo"
+	 * and "foo" - so we can deal with possible options like "notice".
+	 */
+	newopt = NULL;
+	for (p = expopt; (o = strsep(&p, ",")) != NULL;) {
+		if ((tmpopt = malloc( strlen(o) + 2 + 1 )) == NULL)
+			errx(1, "malloc failed");
+	
+		strcpy(tmpopt, "no");
+		strcat(tmpopt, o);
+		remopt(newopt, tmpopt);
+		free(tmpopt);
+
+		if (strncmp("no", o, 2) == 0)
+			remopt(newopt, o+2);
+
+		newopt = catopt(newopt, o);
+	}
+	free(expopt);
+
+	return newopt;
+}
+
+void
+remopt(string, opt)
+	char *string;
+ 	const char *opt;
+{
+	char *o, *p, *r;
+
+	if (string == NULL || *string == '\0' || opt == NULL || *opt == '\0')
+		return;
+
+	r = string;
+
+	for (p = string; (o = strsep(&p, ",")) != NULL;) {
+		if (strcmp(opt, o) != 0) {
+			if (*r == ',' && *o != '\0')
+				r++;
+			while ((*r++ = *o++) != '\0')
+			    ;
+			*--r = ',';
+		}
+	}
+	*r = '\0';
 }
 
 void
@@ -580,33 +682,12 @@ putfsent(ent)
 	const struct statfs *ent;
 {
 	struct fstab *fst;
-
+	char *opts;
+  
+	opts = flags2opts(ent->f_flags);
 	printf("%s\t%s\t%s %s", ent->f_mntfromname, ent->f_mntonname,
-	    ent->f_fstypename, (ent->f_flags & MNT_RDONLY) ? "ro" : "rw");
-
-	/* XXX should use optnames[] - put shorter names in it. */
-	if (ent->f_flags & MNT_SYNCHRONOUS)
-		printf(",sync");
-	if (ent->f_flags & MNT_NOEXEC)
-		printf(",noexec");
-	if (ent->f_flags & MNT_NOSUID)
-		printf(",nosuid");
-	if (ent->f_flags & MNT_NODEV)
-		printf(",nodev");
-	if (ent->f_flags & MNT_UNION)
-		printf(",union");
-	if (ent->f_flags & MNT_ASYNC)
-		printf(",async");
-	if (ent->f_flags & MNT_NOATIME)
-		printf(",noatime");
-	if (ent->f_flags & MNT_NOCLUSTERR)
-		printf(",noclusterr");
-	if (ent->f_flags & MNT_NOCLUSTERW)
-		printf(",noclusterw");
-	if (ent->f_flags & MNT_NOSYMFOLLOW)
-		printf (",nosymfollow");
-	if (ent->f_flags & MNT_SUIDDIR)
-		printf(",suiddir");
+	    ent->f_fstypename, opts);
+	free(opts);
 
 	if ((fst = getfsspec(ent->f_mntfromname)))
 		printf("\t%u %u\n", fst->fs_freq, fst->fs_passno);
@@ -616,4 +697,30 @@ putfsent(ent)
 		printf("\t1 1\n");
 	else
 		printf("\t0 0\n");
+}
+
+
+char *
+flags2opts(flags)
+	int flags;
+{
+	char *res;
+
+	res = NULL;
+
+	res = catopt(res, (flags & MNT_RDONLY) ? "ro" : "rw");
+
+	if (flags & MNT_SYNCHRONOUS)	res = catopt(res, "sync");
+	if (flags & MNT_NOEXEC)		res = catopt(res, "noexec");
+	if (flags & MNT_NOSUID)		res = catopt(res, "nosuid");
+	if (flags & MNT_NODEV)		res = catopt(res, "nodev");
+	if (flags & MNT_UNION)		res = catopt(res, "union");
+	if (flags & MNT_ASYNC)		res = catopt(res, "async");
+	if (flags & MNT_NOATIME)	res = catopt(res, "noatime");
+	if (flags & MNT_NOCLUSTERR)	res = catopt(res, "noclusterr");
+	if (flags & MNT_NOCLUSTERW)	res = catopt(res, "noclusterw");
+	if (flags & MNT_NOSYMFOLLOW)	res = catopt(res, "nosymfollow");
+	if (flags & MNT_SUIDDIR)	res = catopt(res, "suiddir");
+
+	return res;
 }
