@@ -347,6 +347,7 @@ archive_entry_atime(struct archive_entry *entry)
 long
 archive_entry_atime_nsec(struct archive_entry *entry)
 {
+	(void)entry; /* entry can be unused here. */
 	return (ARCHIVE_STAT_ATIME_NANOS(&entry->ae_stat));
 }
 
@@ -435,6 +436,7 @@ archive_entry_mtime(struct archive_entry *entry)
 long
 archive_entry_mtime_nsec(struct archive_entry *entry)
 {
+	(void)entry; /* entry can be unused here. */
 	return (ARCHIVE_STAT_MTIME_NANOS(&entry->ae_stat));
 }
 
