@@ -1,6 +1,6 @@
 PROG=	sysinstall
 NOMAN=	yes
-CLEANFILES+=	makedevs.c rtermcap
+CLEANFILES+=	makedevs.c rtermcap dumpnlist kern-nlist.h
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
