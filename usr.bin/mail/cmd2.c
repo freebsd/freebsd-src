@@ -61,7 +61,7 @@ next(msgvec)
 	if (*msgvec != NULL) {
 
 		/*
-		 * If some messages were supplied, find the 
+		 * If some messages were supplied, find the
 		 * first applicable one following dot using
 		 * wrap around.
 		 */

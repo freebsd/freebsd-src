@@ -1,21 +1,21 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
  * This program causes Kerberos tickets to be destroyed.
- * Options are: 
+ * Options are:
  *
  *   -q[uiet]	- no bell even if tickets not destroyed
- *   -f[orce]	- no message printed at all 
+ *   -f[orce]	- no message printed at all
  *
  *	from: kdestroy.c,v 4.5 88/03/18 15:16:02 steiner Exp $
- *	$Id: kdestroy.c,v 1.2 1994/07/19 19:24:16 g89r4222 Exp $
+ *	$Id: kdestroy.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdestroy.c,v 1.2 1994/07/19 19:24:16 g89r4222 Exp $";
+"$Id: kdestroy.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>

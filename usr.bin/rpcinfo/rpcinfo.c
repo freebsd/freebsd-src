@@ -1,7 +1,7 @@
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
-static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1993/09/13 23:22:42 jtc Exp $";
+static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1994/08/07 18:23:25 wollman Exp $";
 #endif
 
 /*
@@ -20,23 +20,23 @@ static char rcsid[] = "$Id: rpcinfo.c,v 1.1 1993/09/13 23:22:42 jtc Exp $";
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -180,7 +180,7 @@ main(argc, argv)
 
 	return (0);
 }
-		
+
 static void
 udpping(portnum, argc, argv)
 	u_short portnum;
@@ -195,7 +195,7 @@ udpping(portnum, argc, argv)
 	int sock = RPC_ANYSOCK;
 	struct rpc_err rpcerr;
 	int failure;
-    
+
 	if (argc < 2 || argc > 3) {
 		usage();
 		exit(1);
@@ -482,7 +482,7 @@ pmapdump(argc, argv)
 	struct timeval minutetimeout;
 	register CLIENT *client;
 	struct rpcent *rpc;
-	
+
 	if (argc > 1) {
 		usage();
 		exit(1);
@@ -536,8 +536,8 @@ pmapdump(argc, argv)
 	}
 }
 
-/* 
- * reply_proc collects replies from the broadcast. 
+/*
+ * reply_proc collects replies from the broadcast.
  * to get a unique list of responses the output of rpcinfo should
  * be piped through sort(1) and then uniq(1).
  */

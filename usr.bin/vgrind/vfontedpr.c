@@ -98,7 +98,7 @@ static char    *defsfile[2] = { _PATH_VGRINDEFS, 0 };
 				/* name of language definitions file */
 static int	margin;
 static int	plstack[PSMAX];	/* the procedure nesting level stack */
-static char	pname[BUFSIZ+1]; 
+static char	pname[BUFSIZ+1];
 static boolean  prccont;	/* continue last procedure */
 static int	psptr;		/* the stack index of the current procedure */
 static char	pstack[PSMAX][PNAMELEN+1];	/* the procedure name stack */
@@ -228,12 +228,12 @@ main(argc, argv)
 	if (i == -1) {
 	    fprintf (stderr, "no entry for language %s\n", language);
 	    exit (0);
-	} else  if (i == -2) { fprintf(stderr, 
+	} else  if (i == -2) { fprintf(stderr,
 	    "cannot find vgrindefs file %s\n", defsfile[0]);
 	    exit (0);
-	} else if (i == -3) { fprintf(stderr, 
-	    "potential reference loop detected in vgrindefs file %s\n", 
-            defsfile[0]);				      
+	} else if (i == -3) { fprintf(stderr,
+	    "potential reference loop detected in vgrindefs file %s\n",
+            defsfile[0]);
 	    exit(0);
 	}
 	if (cgetustr(defs, "kw", &cp) == -1)
@@ -373,7 +373,7 @@ putScp(os)
 	    pstack[psptr][PNAMELEN] = NULL;
 	    plstack[psptr] = blklevel;
 	}
-    } 
+    }
 skip:
     do {
 	/* check for string, comment, blockstart, etc */
@@ -539,7 +539,7 @@ putKcp (start, end, force)
     while (start <= end) {
 	if (idx) {
 	    if (*start == ' ' || *start == '\t') {
-		if (xfld == 0)	
+		if (xfld == 0)
 		    printf("\001");
 		printf("\t");
 		xfld = 1;
@@ -559,12 +559,12 @@ putKcp (start, end, force)
 	}
 
 	if (!nokeyw && !force)
-	    if ((*start == '#' || isidchr(*start)) 
+	    if ((*start == '#' || isidchr(*start))
 	    && (start == _start || !isidchr(start[-1]))) {
 		i = iskw(start);
 		if (i > 0) {
 		    ps("\\*(+K");
-		    do 
+		    do
 			putcp(*start++);
 		    while (--i > 0);
 		    ps("\\*(-K");

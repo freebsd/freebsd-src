@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: enc_writ.c,v 1.2 1994/07/19 19:21:56 g89r4222 Exp $
+ *	$Id: enc_writ.c,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
  */
 
 #include <errno.h>
@@ -67,10 +67,10 @@ des_cblock *iv;
 
 	if (des_rw_mode & DES_PCBC_MODE)
 		pcbc_encrypt((des_cblock *)p,(des_cblock *)&(outbuf[HDRSIZE]),
-			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT); 
+			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT);
 	else
 		cbc_encrypt((des_cblock *)p,(des_cblock *)&(outbuf[HDRSIZE]),
-			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT); 
+			(long)((len<8)?8:len),sched,iv,DES_ENCRYPT);
 
 	/* output */
 	outnum=rnum+HDRSIZE;

@@ -60,7 +60,7 @@ tmp()
 		(void)sprintf(path, "%s%s", envtmp, strrchr(_PATH_RANTMP, '/'));
 	else
 		bcopy(_PATH_RANTMP, path, sizeof(_PATH_RANTMP));
-	
+
 	sigfillset(&set);
 	(void)sigprocmask(SIG_BLOCK, &set, &oset);
 	if ((fd = mkstemp(path)) == -1)

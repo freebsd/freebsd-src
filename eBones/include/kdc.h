@@ -1,12 +1,12 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
- * Include file for the Kerberos Key Distribution Center. 
+ * Include file for the Kerberos Key Distribution Center.
  *
  *	from: kdc.h,v 4.1 89/01/24 17:54:04 jon Exp $
- *	$Id: kdc.h,v 1.2 1994/07/19 19:23:11 g89r4222 Exp $
+ *	$Id: kdc.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 #ifndef KDC_DEFS

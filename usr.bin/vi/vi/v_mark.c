@@ -185,7 +185,7 @@ mark(sp, ep, vp, cmd)
 	/*
 	 * Forward marks are always line oriented, and it's set in the
 	 * vcmd.c table.  Backward marks that start and stop at column
-	 * 0 of the line are also line mode commands. 
+	 * 0 of the line are also line mode commands.
 	 */
 	if (vp->m_start.cno == 0 && vp->m_stop.cno == 0)
 		F_SET(vp, VM_LMODE);

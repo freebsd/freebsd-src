@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: cbc_cksm.c,v 1.2 1994/07/19 19:21:45 g89r4222 Exp $
+ *	$Id: cbc_cksm.c,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
  */
 
 #include "des_locl.h"
@@ -34,7 +34,7 @@ des_cblock *ivec;
 			}
 		else
 			c2ln(in,tin0,tin1,l);
-			
+
 		tin0^=tout0;
 		tin1^=tout1;
 		tin[0]=tin0;

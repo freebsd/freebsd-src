@@ -150,7 +150,7 @@ UNCH *ename;
      int rc;
      PNE np;
      UNCH *tp;
-     
+
      if (sgmlment(ename))		/* already defined it */
 	  return;
      rc = sgmlgent(ename, &np, &tp);
@@ -294,7 +294,7 @@ UNIV id;
 	  ret = run_process(argv);
 	  if (ret != 0)
 	       suberr++;
-	  
+
 	  current_filename = 0;
 	  free(argv);
 	  if (ret == 0)
@@ -410,7 +410,7 @@ UNCH *s;
      print_string(n, s, 0);
      putchar('\n');
 }
-     
+
 
 static VOID output_implied_attribute(ent, aname)
 UNCH *ent, *aname;
@@ -451,7 +451,7 @@ int type;
      fatal("invalid attribute type %d", type);
 #endif
      return "INVALID";
-}	  
+}
 
 static VOID output_begin_attribute(ent, aname, type)
 UNCH *ent, *aname;
@@ -576,7 +576,7 @@ int is_sdata;
      if (is_sdata)
 	  fputs("\\|", stdout);
 }
-		    
+
 
 static VOID print_id(id, pubid, sysid)
 UNIV id;

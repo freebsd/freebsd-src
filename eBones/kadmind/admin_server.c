@@ -96,7 +96,7 @@ char *argv[];
 
     if (krbrlm[0] == 0)
 	if (krb_get_lrealm(krbrlm, 0) != KSUCCESS) {
-	    fprintf(stderr, 
+	    fprintf(stderr,
 		    "Unable to get local realm.  Fix krb.conf or use -r.\n");
 	    exit(1);
 	}
@@ -165,7 +165,7 @@ doexit()
     return(0);
 #endif /* POSIX */
 }
-   
+
 unsigned pidarraysize = 0;
 int *pidarray = (int *)0;
 
@@ -217,7 +217,7 @@ kadm_listen()
 	    if (errno != EINTR)
 		log("select: %s",error_message(errno));
 	    continue;
-	}      
+	}
 	if (FD_ISSET(admin_fd, &readfds)) {
 	    /* accept the conn */
 	    addrlen = sizeof(peer);
@@ -297,7 +297,7 @@ struct sockaddr_in *who;
       /* db locked */
       u_long retcode = KADM_DB_INUSE;
       char *pdat;
-      
+
       dat_len = KADM_VERSIZE + sizeof(u_long);
       dat = (u_char *) malloc((unsigned)dat_len);
       pdat = (char *) dat;
@@ -352,10 +352,10 @@ struct sockaddr_in *who;
 	}
 	if ((retval = kadm_ser_in(&dat,&dat_len)) != KADM_SUCCESS)
 	    log("processing request: %s", error_message(retval));
-    
+
 	/* kadm_ser_in did the processing and returned stuff in
 	   dat & dat_len , return the appropriate data */
-    
+
     out:
 	dlen = (u_short) dat_len;
 
@@ -364,13 +364,13 @@ struct sockaddr_in *who;
 	    abort();			/* XXX */
 	}
 	dlen = htons(dlen);
-    
+
 	if (krb_net_write(fd, (char *)&dlen, sizeof(u_short)) < 0) {
 	    log("writing dlen to client: %s",error_message(errno));
 	    (void) close(fd);
 	    cleanexit(6);
 	}
-    
+
 	if (krb_net_write(fd, (char *)dat, dat_len) < 0) {
 	    log(LOG_ERR, "writing to client: %s",error_message(errno));
 	    (void) close(fd);
@@ -435,7 +435,7 @@ kill_children()
 {
     register int i;
     int osigmask;
-    
+
     osigmask = sigblock(sigmask(SIGCHLD));
 
     for (i = 0; i < pidarraysize; i++) {

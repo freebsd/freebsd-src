@@ -15,12 +15,12 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: mk_safe.c,v 4.12 89/03/22 14:50:49 jtkohl Exp $
- *	$Id: mk_safe.c,v 1.2 1994/07/19 19:25:59 g89r4222 Exp $
+ *	$Id: mk_safe.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: mk_safe.c,v 1.2 1994/07/19 19:25:59 g89r4222 Exp $";
+"$Id: mk_safe.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
 #endif /* lint */
 
 /* system include files */
@@ -65,7 +65,7 @@ static long msg_time_sec;
  *			HOST_BYTE_ORDER		byte order in low bit
  *
  * ===================== begin checksum ================================
- * 
+ *
  * 4 bytes		length			length of user data
  * length		in			user data
  * 1 byte		msg_time_5ms		timestamp milliseconds
@@ -132,15 +132,15 @@ long krb_mk_safe(in,out,length,key,sender,receiver)
      * direction bit is the sign bit of the timestamp.  Ok until
      * 2038??
      */
-    /* For compatibility with broken old code, compares are done in VAX 
-       byte order (LSBFIRST) */ 
-    if (lsb_net_ulong_less(sender->sin_addr.s_addr, /* src < recv */ 
-			  receiver->sin_addr.s_addr)==-1) 
-        msg_time_sec =  -msg_time_sec; 
-    else if (lsb_net_ulong_less(sender->sin_addr.s_addr, 
-				receiver->sin_addr.s_addr)==0) 
-        if (lsb_net_ushort_less(sender->sin_port,receiver->sin_port) == -1) 
-            msg_time_sec = -msg_time_sec; 
+    /* For compatibility with broken old code, compares are done in VAX
+       byte order (LSBFIRST) */
+    if (lsb_net_ulong_less(sender->sin_addr.s_addr, /* src < recv */
+			  receiver->sin_addr.s_addr)==-1)
+        msg_time_sec =  -msg_time_sec;
+    else if (lsb_net_ulong_less(sender->sin_addr.s_addr,
+				receiver->sin_addr.s_addr)==0)
+        if (lsb_net_ushort_less(sender->sin_port,receiver->sin_port) == -1)
+            msg_time_sec = -msg_time_sec;
     /*
      * all that for one tiny bit!  Heaven help those that talk to
      * themselves.

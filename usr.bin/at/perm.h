@@ -1,4 +1,4 @@
-/* 
+/*
  *  perm.h -  header for at(1)
  *  Copyright (C) 1994  Thomas Koenig
  *

@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -36,7 +36,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: devmenu.c,v 1.1 1995/04/13 21:10:59 wollman Exp $";
+	"$Id: devmenu.c,v 1.2 1995/04/14 18:33:43 wollman Exp $";
 #endif
 
 #include <stdlib.h>
@@ -249,5 +249,5 @@ usage(const char *argv0)
 	fprintf(stderr, "%s: usage:\n"
 		"%s [-c class] [-s state] [-t title] [-h hfile] [-f outfile]"
 		"[-n] [-i] [-d]\n", argv0, argv0);
-	
+
 }

@@ -94,10 +94,10 @@ static int MakePrintStatus __P((ClientData, ClientData));
  *-----------------------------------------------------------------------
  * Make_TimeStamp --
  *	Set the cmtime field of a parent node based on the mtime stamp in its
- *	child. Called from MakeOODate via Lst_ForEach. 
+ *	child. Called from MakeOODate via Lst_ForEach.
  *
  * Results:
- *	Always returns 0. 
+ *	Always returns 0.
  *
  * Side Effects:
  *	The cmtime of the parent node will be changed if the mtime
@@ -134,7 +134,7 @@ MakeTimeStamp (pgn, cgn)
  *	will have been recreated.
  *
  * Results:
- *	TRUE if the node is out of date. FALSE otherwise. 
+ *	TRUE if the node is out of date. FALSE otherwise.
  *
  * Side Effects:
  *	The mtime field of the node and the cmtime field of its parents
@@ -330,7 +330,7 @@ Make_HandleUse (cgn, pgn)
 	     */
 	    (void) Lst_Concat (pgn->commands, cgn->commands, LST_CONCNEW);
 	}
-	
+
 	if (Lst_Open (cgn->children) == SUCCESS) {
 	    while ((ln = Lst_Next (cgn->children)) != NILLNODE) {
 		gn = (GNode *)Lst_Datum (ln);
@@ -343,7 +343,7 @@ Make_HandleUse (cgn, pgn)
 	    }
 	    Lst_Close (cgn->children);
 	}
-	
+
 	pgn->type |= cgn->type & ~(OP_OPMASK|OP_USE|OP_TRANSFORM);
 
 	/*
@@ -372,7 +372,7 @@ MakeHandleUse (pgn, cgn)
  * Make_Update  --
  *	Perform update on the parents of a node. Used by JobFinish once
  *	a node has been dealt with and by MakeStartJobs if it finds an
- *	up-to-date node. 
+ *	up-to-date node.
  *
  * Results:
  *	Always returns 0
@@ -471,7 +471,7 @@ Make_Update (cgn)
 	}
 #endif
     }
-    
+
     if (Lst_Open (cgn->parents) == SUCCESS) {
 	while ((ln = Lst_Next (cgn->parents)) != NILLNODE) {
 	    pgn = (GNode *)Lst_Datum (ln);
@@ -516,7 +516,7 @@ Make_Update (cgn)
 	    (void)Lst_EnQueue(toBeMade, (ClientData)succ);
 	}
     }
-    
+
     /*
      * Set the .PREFIX and .IMPSRC variables for all the implied parents
      * of this node.
@@ -666,7 +666,7 @@ static Boolean
 MakeStartJobs ()
 {
     register GNode	*gn;
-    
+
     while (!Job_Full() && !Lst_IsEmpty (toBeMade)) {
 	gn = (GNode *) Lst_DeQueue (toBeMade);
 	if (DEBUG(MAKE)) {
@@ -699,7 +699,7 @@ MakeStartJobs ()
 		continue;
 	    }
 	}
-	
+
 	numNodes--;
 	if (Make_OODate (gn)) {
 	    if (DEBUG(MAKE)) {
@@ -724,7 +724,7 @@ MakeStartJobs ()
 		 */
 		Make_DoAllVar (gn);
 	    }
-	    
+
 	    Make_Update (gn);
 	}
     }
@@ -819,22 +819,22 @@ Make_Run (targs)
 
     examine = Lst_Duplicate(targs, NOCOPY);
     numNodes = 0;
-    
+
     /*
      * Make an initial downward pass over the graph, marking nodes to be made
      * as we go down. We call Suff_FindDeps to find where a node is and
      * to get some children for it if it has none and also has no commands.
      * If the node is a leaf, we stick it on the toBeMade queue to
      * be looked at in a minute, otherwise we add its children to our queue
-     * and go on about our business. 
+     * and go on about our business.
      */
     while (!Lst_IsEmpty (examine)) {
 	gn = (GNode *) Lst_DeQueue (examine);
-	
+
 	if (!gn->make) {
 	    gn->make = TRUE;
 	    numNodes++;
-	    
+
 	    /*
 	     * Apply any .USE rules before looking for implicit dependencies
 	     * to make sure everything has commands that should...
@@ -849,7 +849,7 @@ Make_Run (targs)
 	    }
 	}
     }
-    
+
     Lst_Destroy (examine, NOFREE);
 
     if (queryFlag) {
@@ -865,7 +865,7 @@ Make_Run (targs)
 	 * get started, nothing will happen since the remaining upward
 	 * traversal of the graph is performed by the routines in job.c upon
 	 * the finishing of a job. So we fill the Job table as much as we can
-	 * before going into our loop. 
+	 * before going into our loop.
 	 */
 	(void) MakeStartJobs();
     }
@@ -894,6 +894,6 @@ Make_Run (targs)
      */
     errors = ((errors == 0) && (numNodes != 0));
     Lst_ForEach(targs, MakePrintStatus, (ClientData) &errors);
-    
+
     return (TRUE);
 }

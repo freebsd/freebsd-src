@@ -1,15 +1,15 @@
 /*
- * $Source: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kadmin.c,v $
- * $Author: qjb $
+ * $Source: /home/ncvs/src/eBones/kadmin/kadmin.c,v $
+ * $Author: wollman $
  *
  * Copyright 1988 by the Massachusetts Institute of Technology.
  *
  * For copying and distribution information, please see the file
  * Copyright.MIT.
  *
- * Kerberos database administrator's tool.  
- * 
- * The default behavior of kadmin is if the -m option is given 
+ * Kerberos database administrator's tool.
+ *
+ * The default behavior of kadmin is if the -m option is given
  * on the commandline, multiple requests are allowed to be given
  * with one entry of the admin password (until the tickets expire).
  * If you do not want this to be an available option, compile with
@@ -54,7 +54,7 @@ static char default_realm[REALM_SZ]; /* default kerberos realm */
 static char krbrlm[REALM_SZ];	/* current realm being administered */
 #ifndef NO_MULTIPLE
 static int multiple = 0;	/* Allow multiple requests per ticket */
-#endif 
+#endif
 
 main(argc, argv)
   int argc;
@@ -106,18 +106,18 @@ setvals(vals, string)
 	strcpy(realm, default_realm);
     if (strcmp(realm, krbrlm)) {
 	strcpy(krbrlm, realm);
-	if ((status = kadm_init_link(PWSERV_NAME, KRB_MASTER, krbrlm)) 
+	if ((status = kadm_init_link(PWSERV_NAME, KRB_MASTER, krbrlm))
 	    != KADM_SUCCESS)
-	    printf("kadm error for realm %s: %s\n", 
+	    printf("kadm error for realm %s: %s\n",
 		   krbrlm, error_message(status));
     }
-    if (status) 
+    if (status)
 	return 1;
     else
 	return KADM_SUCCESS;
-}    
+}
 
-void 
+void
 change_password(argc, argv)
     int     argc;
     char   *argv[];
@@ -145,7 +145,7 @@ change_password(argc, argv)
 
 	/* get the new password */
 	(void) sprintf(pw_prompt, "New password for %s:", argv[1]);
-	
+
 	if (get_password(&new.key_low, &new.key_high,
 			 pw_prompt, SWAP) == GOOD_PW) {
 	    status = kadm_mod(&old, &new);
@@ -163,13 +163,13 @@ change_password(argc, argv)
 	    clean_up();
 #endif
     }
-    else 
+    else
 	printf("kadmin: Principal does not exist.\n");
     return;
 }
 
 /*ARGSUSED*/
-void 
+void
 change_admin_password(argc, argv)
     int     argc;
     char   *argv[];
@@ -206,7 +206,7 @@ change_admin_password(argc, argv)
     return;
 }
 
-void 
+void
 add_new_key(argc, argv)
     int     argc;
     char   *argv[];
@@ -228,10 +228,10 @@ add_new_key(argc, argv)
 	/* get the admin's password */
 	if (get_admin_password() != GOOD_PW)
 	    return;
-	
+
 	/* get the new password */
 	(void) sprintf(pw_prompt, "Password for %s:", argv[1]);
-	
+
 	if (get_password(&new.key_low, &new.key_high,
 			 pw_prompt, SWAP) == GOOD_PW) {
 	    status = kadm_add(&new);
@@ -253,7 +253,7 @@ add_new_key(argc, argv)
     return;
 }
 
-void 
+void
 get_entry(argc, argv)
     int     argc;
     char   *argv[];
@@ -283,12 +283,12 @@ get_entry(argc, argv)
 	/* get the admin's password */
 	if (get_admin_password() != GOOD_PW)
 	    return;
-	
+
 	if ((status = kadm_get(&vals, fields)) == KADM_SUCCESS)
 	    prin_vals(&vals);
 	else
 	    printf("kadm error: %s\n",error_message(status));
-	
+
 #ifndef NO_MULTIPLE
 	if (!multiple)
 	    clean_up();
@@ -300,7 +300,7 @@ get_entry(argc, argv)
 }
 
 
-void 
+void
 help(argc, argv)
     int     argc;
     char   *argv[];
@@ -435,18 +435,18 @@ do_init(argc, argv)
 #else
 #define OPTION_STRING "u:r:"
 #endif
-    
+
     bzero(myname, sizeof(myname));
 
     if (!inited) {
-	/* 
-	 * This is only as a default/initial realm; we don't care 
+	/*
+	 * This is only as a default/initial realm; we don't care
 	 * about failure.
 	 */
 	if (krb_get_lrealm(default_realm, 1) != KSUCCESS)
 	    strcpy(default_realm, KRB_REALM);
 
-	/* 
+	/*
 	 * If we can reach the local realm, initialize to it.  Otherwise,
 	 * don't initialize.
 	 */
@@ -455,7 +455,7 @@ do_init(argc, argv)
 	else
 	    strcpy(krbrlm, default_realm);
 
-	while ((c = getopt(argc, argv, OPTION_STRING)) != EOF) 
+	while ((c = getopt(argc, argv, OPTION_STRING)) != EOF)
 	    switch (c) {
 	      case 'u':
 		strncpy(myname, optarg, sizeof(myname) - 1);
@@ -508,9 +508,9 @@ get_admin_password()
 	/* If admin tickets exist and are valid, just exit. */
 	bzero(&c, sizeof(c));
 	if (krb_get_cred(PWSERV_NAME, KADM_SINST, krbrlm, &c) == KSUCCESS)
-	    /* 
+	    /*
 	     * If time is less than lifetime - FUDGE_VALUE after issue date,
-	     * tickets will probably last long enough for the next 
+	     * tickets will probably last long enough for the next
 	     * transaction.
 	     */
 	    if (time(0) < (c.issue_date + (5 * 60 * c.lifetime) - FUDGE_VALUE))
@@ -518,14 +518,14 @@ get_admin_password()
 	ticket_life = DEFAULT_TKT_LIFE;
     }
 #endif
-    
+
     if (princ_exists(myname, "admin", krbrlm) != PE_NO) {
 	if (read_long_pw_string(admin_passwd, sizeof(admin_passwd)-1,
 				"Admin password:", 0)) {
 	    fprintf(stderr, "Error reading admin password.\n");
 	    goto bad;
 	}
-	status = krb_get_pw_in_tkt(myname, "admin", krbrlm, PWSERV_NAME, 
+	status = krb_get_pw_in_tkt(myname, "admin", krbrlm, PWSERV_NAME,
 				   KADM_SINST, ticket_life, admin_passwd);
 	bzero(admin_passwd, sizeof(admin_passwd));
     }
@@ -546,7 +546,7 @@ get_admin_password()
 		"while getting password tickets");
 	goto bad;
     }
-    
+
  bad:
     bzero(admin_passwd, sizeof(admin_passwd));
     (void) dest_tkt();
@@ -560,8 +560,8 @@ clean_up()
     return;
 }
 
-void 
-quit() 
+void
+quit()
 {
     printf("Cleaning up and exiting.\n");
     clean_up();

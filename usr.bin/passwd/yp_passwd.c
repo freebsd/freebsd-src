@@ -58,11 +58,11 @@ getnewyppasswd(register struct passwd *pw)
   char *buf;
   char salt[9], *p=NULL;
   int tries = 0;
-  
+
   buf = (char *) malloc(30);
-  
+
   printf("Changing YP password for %s.\n", pw->pw_name);
-  
+
   buf[0] = '\0';
   while(1) {
     p = getpass("Please enter new password:");
@@ -85,7 +85,7 @@ getnewyppasswd(register struct passwd *pw)
         return NULL;
     }
   }
-  
+
   /* grab a random printable character that isn't a colon */
   srandom((int)time((time_t *)NULL));
   to64(&salt[0], random(), 2);
@@ -204,7 +204,7 @@ getserver( void )
               				prog_name, yperr_string(err));
       return NULL;
   }
-  
+
   if ((err = yp_master(domainname, "passwd.byname", &master)) != 0) {
       fprintf(stderr, "%s: can't find the master ypserver: %s\n",
               				prog_name, yperr_string(err));
@@ -242,7 +242,7 @@ yp_passwd(char *user)
   if ((master = getserver()) == NULL) {
       exit(1);
   }
-  
+
   /* Obtain the passwd struct for the user whose password is to be changed.
    */
   uid = getuid();
@@ -273,7 +273,7 @@ yp_passwd(char *user)
   yppasswd.newpw.pw_dir = pw->pw_dir;
   yppasswd.newpw.pw_shell = pw->pw_shell;
   yppasswd.oldpass = NULL;
-  
+
   switch (use_yp_passwd + (opt_fullname << 1) + (opt_shell << 2)) {
   case 1:
       what = "YP password";
@@ -303,21 +303,21 @@ yp_passwd(char *user)
   }
 
   if (use_yp_passwd) {
-      if ((s = getnewyppasswd(pw)) == NULL) 
+      if ((s = getnewyppasswd(pw)) == NULL)
       	  exit (1);
       yppasswd.newpw.pw_passwd = s;
   }
   if (opt_fullname) {
-      if ((s = getnewfullname(pw)) == NULL) 
+      if ((s = getnewfullname(pw)) == NULL)
       	  exit (1);
       yppasswd.newpw.pw_gecos = s;
   }
   if (opt_shell) {
-      if ((s = getnewshell(pw)) == NULL) 
+      if ((s = getnewshell(pw)) == NULL)
       	  exit (1);
       yppasswd.newpw.pw_shell = s;
   }
-  
+
   /* The yppasswd.x file said `unix authentication required',
    * so I added it. This is the only reason it is in here.
    * My yppasswdd doesn't use it, but maybe some others out there
@@ -339,7 +339,7 @@ yp_passwd(char *user)
       fprintf( stderr, "Error while changing %s.\n", what );
   }
 
-  printf("\nThe %s has%s been changed on %s.\n", 
+  printf("\nThe %s has%s been changed on %s.\n",
   		what, (err || status)? " not" : "", master);
 
   auth_destroy( clnt->cl_auth );

@@ -720,7 +720,7 @@ domem()
 			(void)printf("%4d",size);
 		else
 			(void)printf("%3dK",size>>10);
-		(void)printf(" %8ld %6ld %10ld %7ld %10ld\n", 
+		(void)printf(" %8ld %6ld %10ld %7ld %10ld\n",
 			kp->kb_total - kp->kb_totalfree,
 			kp->kb_totalfree, kp->kb_calls,
 			kp->kb_highwat, kp->kb_couldfree);

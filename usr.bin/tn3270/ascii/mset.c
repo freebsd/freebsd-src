@@ -286,7 +286,7 @@ char *begin, *tc_name;
 		case '\\':
 		case '\'':
 		   if (toshell) {
-	    	      numbchars += 2; 
+	    	      numbchars += 2;
 	    	      printf("%c%c", '\\', pchar);
 		   }
 		   else {
@@ -397,7 +397,7 @@ char *argv[];
     recurse(0, head);
     /* now print them out */
     for (rptr = regstates[0].forward; rptr->result != 0;
-	 rptr = rptr->forward) { 
+	 rptr = rptr->forward) {
 	printString(rptr->match_end, rptr->match_start, rptr->result);
     }
     if (toshell) {

@@ -1,13 +1,13 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  *
  *	from: ext_srvtab.c,v 4.1 89/07/18 16:49:30 jtkohl Exp $
- *	$Id: ext_srvtab.c,v 1.2 1994/07/19 19:22:36 g89r4222 Exp $
+ *	$Id: ext_srvtab.c,v 1.1.1.1 1994/09/30 14:49:53 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: ext_srvtab.c,v 1.2 1994/07/19 19:22:36 g89r4222 Exp $";
+"$Id: ext_srvtab.c,v 1.1.1.1 1994/09/30 14:49:53 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -39,12 +39,12 @@ main(argc, argv)
     int fopen_errs = 0;
     int arg;
     Principal princs[40];
-    int more; 
+    int more;
     int prompt = TRUE;
     register int n, i;
-    
+
     bzero(realm, sizeof(realm));
-    
+
     /* Parse commandline arguments */
     if (argc < 2)
 	usage();
@@ -57,7 +57,7 @@ main(argc, argv)
 		    usage();
 		else {
 		    strcpy(realm, argv[i]);
-		    /* 
+		    /*
 		     * This is to humor the broken way commandline
 		     * argument parsing is done.  Later, this
 		     * program ignores everything that starts with -.
@@ -118,7 +118,7 @@ main(argc, argv)
 	    bcopy(&princs[i].key_low, session_key, sizeof(long));
 	    bcopy(&princs[i].key_high, session_key + sizeof(long),
 		  sizeof(long));
-	    kdb_encrypt_key (session_key, session_key, 
+	    kdb_encrypt_key (session_key, session_key,
 			     master_key, master_key_schedule, DES_DECRYPT);
 	    FWrite(session_key, sizeof session_key, 1, fout);
 	}
@@ -158,7 +158,7 @@ StampOutSecrets()
 
 usage()
 {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "Usage: %s [-n] [-r realm] instance [instance ...]\n", progname);
     exit(1);
 }

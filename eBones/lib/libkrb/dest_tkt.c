@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: dest_tkt.c,v 4.9 89/10/02 16:23:07 jtkohl Exp $
- *	$Id: dest_tkt.c,v 1.2 1994/07/19 19:25:07 g89r4222 Exp $
+ *	$Id: dest_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: dest_tkt.c,v 1.2 1994/07/19 19:25:07 g89r4222 Exp $";
+"$Id: dest_tkt.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
 #endif /* lint */
 
 #include <stdio.h>
@@ -75,8 +75,8 @@ out:
     if (errno == ENOENT) return RET_TKFIL;
     else if (errno != 0) return KFAILURE;
 #ifdef TKT_SHMEM
-    /* 
-     * handle the shared memory case 
+    /*
+     * handle the shared memory case
      */
     (void) strcpy(shmidname, file);
     (void) strcat(shmidname, ".shm");

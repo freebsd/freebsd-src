@@ -120,7 +120,7 @@ netfinger(name)
 	 * Otherwise, all high bits are stripped; if it isn't printable and
 	 * it isn't a space, we can simply set the 7th bit.  Every ASCII
 	 * character with bit 7 set is printable.
-	 */ 
+	 */
 	if (fp = fdopen(s, "r"))
 		while ((c = getc(fp)) != EOF) {
 			c &= 0x7f;

@@ -152,7 +152,7 @@ main(argc, argv)
 		    "couldn't read command code on Kerberos update");
 	}
 
-	code = (u_char) retval; 
+	code = (u_char) retval;
 	if (code != KSUCCESS) {
 		(void) sprintf(msgbuf, "%s", krb_err_txt[code]);
 		send_packet(msgbuf, RCRYPT);

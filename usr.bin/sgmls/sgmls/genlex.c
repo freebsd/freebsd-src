@@ -34,7 +34,7 @@ int main(argc, argv)
   UNCH tab[256];
   char special[256];
   /* Shunned character numbers in the reference concrete syntax. */
-  static UNCH refshun[] = { 
+  static UNCH refshun[] = {
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
     19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 127, 255
   };
@@ -89,7 +89,7 @@ int main(argc, argv)
 
     for (j = 0; j < 256; j++)
       if (!special[j]) {
-	if (shunned[j]) 
+	if (shunned[j])
 	  tab[j] = lextabs[i][CANON_ASCII_NONSGML];
 	else
 	  tab[j] = lextabs[i][CANON_ASCII_DATACHAR];

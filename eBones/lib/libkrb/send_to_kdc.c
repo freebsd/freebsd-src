@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: send_to_kdc.c,v 4.20 90/01/02 13:40:37 jtkohl Exp $
- *	$Id: send_to_kdc.c,v 1.2 1995/01/25 05:40:00 gibbs Exp $
+ *	$Id: send_to_kdc.c,v 1.3 1995/01/25 06:37:33 gibbs Exp $
  */
 
 #ifndef lint
@@ -257,7 +257,7 @@ static send_recv(pkt,rpkt,f,_to,addrs)
             printf("Sending message...");
         (void) fflush(stdout);
     }
-    if ((numsent = sendto(f,(char *)(pkt->dat), pkt->length, 0, 
+    if ((numsent = sendto(f,(char *)(pkt->dat), pkt->length, 0,
 			  (struct sockaddr *)_to,
                           S_AD_SZ)) != pkt->length) {
         if (krb_debug)

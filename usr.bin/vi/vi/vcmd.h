@@ -146,7 +146,7 @@ typedef struct _vicmdarg {
 	 * routines set the cursor to the last character inserted; for '<',
 	 * '>' and '!', the underlying ex commands that do the operation will
 	 * set the cursor for us.   We still need a VC_C flag because there are
-	 * special motion semantics that are associated with the 'c' command. 
+	 * special motion semantics that are associated with the 'c' command.
 	 * We don't need VC_ flags for the others, because, as far as I know,
 	 * there are no special semantics associated with their motions.  So,
 	 * we group them under a single VC_ flag so that the standard motion

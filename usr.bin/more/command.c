@@ -487,7 +487,7 @@ again:		if (sigs)
 				 * to 0 and get a new character for the start
 				 * of the pattern.
 				 */
-				start_mca(action, 
+				start_mca(action,
 				    (action == A_F_SEARCH) ? "!/" : "!?");
 				wsearch = 0;
 				c = getcc();
@@ -497,10 +497,10 @@ again:		if (sigs)
 			if (number <= 0)
 				number = 1;
 			if (wsearch)
-				start_mca(last_mca, 
+				start_mca(last_mca,
 				    (last_mca == A_F_SEARCH) ? "/" : "?");
 			else
-				start_mca(last_mca, 
+				start_mca(last_mca,
 				    (last_mca == A_F_SEARCH) ? "!/" : "!?");
 			CMD_EXEC;
 			(void)search(mca == A_F_SEARCH, (char *)NULL,

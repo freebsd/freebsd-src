@@ -242,7 +242,7 @@ longloopmessage()
 	ierror("Calculating line numbers");
 	/*
 	 * Set the lnloop flag here, so if the user interrupts while
-	 * we are calculating line numbers, the signal handler will 
+	 * we are calculating line numbers, the signal handler will
 	 * turn off line numbers (linenums=0).
 	 */
 	lnloop = 1;
@@ -292,9 +292,9 @@ find_linenum(pos)
 	 * reading the file forward or backward till we
 	 * get to the place we want.
 	 *
-	 * First decide whether we should go forward from the 
+	 * First decide whether we should go forward from the
 	 * previous one or backwards from the next one.
-	 * The decision is based on which way involves 
+	 * The decision is based on which way involves
 	 * traversing fewer bytes in the file.
 	 */
 	flush();

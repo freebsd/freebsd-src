@@ -1,17 +1,17 @@
 /*
- * Copyright 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
  * <Copyright.MIT>.
  *
  * This is where a cache would be implemented, if it were necessary.
  *
  *	from: krb_cache.c,v 4.5 89/01/24 18:12:34 jon Exp $
- *	$Id: krb_cache.c,v 1.2 1994/07/19 19:23:35 g89r4222 Exp $
+ *	$Id: krb_cache.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_cache.c,v 1.2 1994/07/19 19:23:35 g89r4222 Exp $";
+"$Id: krb_cache.c,v 1.1.1.1 1994/09/30 14:49:55 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -34,7 +34,7 @@ extern long kerb_debug;
 static  init = 0;
 
 /*
- * initialization routine for cache 
+ * initialization routine for cache
  */
 
 int
@@ -45,7 +45,7 @@ kerb_cache_init()
 }
 
 /*
- * look up a principal in the cache returns number of principals found 
+ * look up a principal in the cache returns number of principals found
  */
 
 int
@@ -66,7 +66,7 @@ kerb_cache_get_principal(serv, inst, principal, max)
 	fprintf(stderr, "cache_get_principal for %s %s max = %d\n",
 	    serv, inst, max);
 #endif DEBUG
-    
+
 #ifdef DEBUG
     if (kerb_debug & 2) {
 	if (found) {
@@ -83,7 +83,7 @@ kerb_cache_get_principal(serv, inst, principal, max)
 
 /*
  * insert/replace a principal in the cache returns number of principals
- * inserted 
+ * inserted
  */
 
 int
@@ -106,13 +106,13 @@ kerb_cache_put_principal(principal, max)
 	    max);
     }
 #endif
-    
+
     for (i = 0; i < max; i++) {
 #ifdef DEBUG
 	if (kerb_debug & 2)
 	    fprintf(stderr, "\n %s %s",
 		    principal->name, principal->instance);
-#endif	
+#endif
 	/* DO IT */
 	count++;
 	principal++;
@@ -121,7 +121,7 @@ kerb_cache_put_principal(principal, max)
 }
 
 /*
- * look up a dba in the cache returns number of dbas found 
+ * look up a dba in the cache returns number of dbas found
  */
 
 int
@@ -158,7 +158,7 @@ kerb_cache_get_dba(serv, inst, dba, max)
 }
 
 /*
- * insert/replace a dba in the cache returns number of dbas inserted 
+ * insert/replace a dba in the cache returns number of dbas inserted
  */
 
 int
@@ -183,7 +183,7 @@ kerb_cache_put_dba(dba, max)
 	if (kerb_debug & 2)
 	    fprintf(stderr, "\n %s %s",
 		    dba->name, dba->instance);
-#endif	
+#endif
 	/* DO IT */
 	count++;
 	dba++;

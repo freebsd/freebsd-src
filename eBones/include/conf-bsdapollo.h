@@ -4,7 +4,7 @@
  * <Copyright.MIT>.
  *
  *	from: conf-bsdapollo.h,v 4.1 89/01/24 14:26:22 jtkohl Exp $
- *	$Id: conf-bsdapollo.h,v 1.2 1994/07/19 19:22:50 g89r4222 Exp $
+ *	$Id: conf-bsdapollo.h,v 1.1.1.1 1994/09/30 14:49:53 csgr Exp $
  */
 
 #define BSDUNIX
@@ -18,4 +18,4 @@
  */
 #define const
 
-	
+

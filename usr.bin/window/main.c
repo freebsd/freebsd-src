@@ -64,7 +64,7 @@ char **argv;
 	char *cmd = 0;
 	char tflag = 0;
 
-	escapec = ESCAPEC;	
+	escapec = ESCAPEC;
 	if (p = rindex(*argv, '/'))
 		p++;
 	else

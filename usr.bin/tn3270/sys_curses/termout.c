@@ -204,7 +204,7 @@ SlowScreen()
     register int fieldattr, termattr;
     register int columnsleft;
 
-#define	NORMAL		0		
+#define	NORMAL		0
 #define	HIGHLIGHT	1		/* Mask bits */
 #define	NONDISPLAY	4		/* Mask bits */
 #define	UNDETERMINED	8		/* Mask bits */
@@ -633,7 +633,7 @@ InitTerminal()
 		2400, 4800, 9600 };
 #endif
     extern void InitMapping();
-    
+
     InitMapping();		/* Go do mapping file (MAP3270) first */
     if (!screenInitd) { 	/* not initialized */
 #if	defined(unix)

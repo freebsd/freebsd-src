@@ -6,7 +6,7 @@ SRCS=	su.c
 CFLAGS+=-DSKEY
 
 LDADD=	-lskey -lmd -lcrypt
-DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT} 
+DPADD=	${LIBSKEY} ${LIBMD} ${LIBCRYPT}
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
 	|| defined(MAKE_EBONES))

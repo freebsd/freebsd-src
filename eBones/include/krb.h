@@ -1,12 +1,12 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
- * Include file for the Kerberos library. 
+ * Include file for the Kerberos library.
  *
- *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $ 
- *	$Id: krb.h,v 1.4 1994/09/24 14:15:41 g89r4222 Exp $
+ *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
+ *	$Id: krb.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 /* Only one time, please */
@@ -37,7 +37,7 @@ typedef unsigned short gid_t;
 #endif /* NO_UIDGID_T */
 
 /*
- * Kerberos specific definitions 
+ * Kerberos specific definitions
  *
  * KRBLOG is the log file for the kerberos master server. KRB_CONF is
  * the configuration file where different host machines running master
@@ -47,7 +47,7 @@ typedef unsigned short gid_t;
  * requests, which can go to slaves) must go to it. KRB_HOST is the
  * default machine * when looking for a kerberos slave server.  Other
  * possibilities are * in the KRB_CONF file. KRB_REALM is the name of
- * the realm. 
+ * the realm.
  */
 
 #ifdef notdef

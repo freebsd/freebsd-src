@@ -1,15 +1,15 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
  *	from: fgetst.c,v 4.0 89/01/23 10:08:31 jtkohl Exp $
- *	$Id: fgetst.c,v 1.2 1994/07/19 19:25:10 g89r4222 Exp $
+ *	$Id: fgetst.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: fgetst.c,v 1.2 1994/07/19 19:25:10 g89r4222 Exp $";
+"$Id: fgetst.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
 #endif	/* lint */
 
 #include <stdio.h>
@@ -20,7 +20,7 @@ static char rcsid[] =
  * until it reads a null byte.  When finished, what has been read exists
  * in "s". If "count" characters were actually read, the last is changed
  * to a null, so the returned string is always null-terminated.  fgetst
- * returns the number of characters read, including the null terminator. 
+ * returns the number of characters read, including the null terminator.
  */
 
 fgetst(f, s, n)

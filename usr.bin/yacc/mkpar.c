@@ -341,7 +341,7 @@ int stateno;
     register action *p;
 
     count = 0;
-    ruleno = 0; 
+    ruleno = 0;
     for (p = parser[stateno]; p; p = p->next)
     {
 	if (p->action_code == SHIFT && p->suppressed == 0)
@@ -370,7 +370,7 @@ defreds()
     for (i = 0; i < nstates; i++)
 	defred[i] = sole_reduction(i);
 }
- 
+
 free_action_row(p)
 register action *p;
 {

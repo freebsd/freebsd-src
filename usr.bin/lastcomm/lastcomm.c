@@ -188,7 +188,7 @@ requested(argv, acp)
 
 	do {
 		p = user_from_uid(acp->ac_uid, 0);
-		if (!strcmp(p, *argv)) 
+		if (!strcmp(p, *argv))
 			return (1);
 		if ((p = getdev(acp->ac_tty)) && !strcmp(p, *argv))
 			return (1);

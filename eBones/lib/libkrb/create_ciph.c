@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: create_ciph.c,v 4.8 89/05/18 21:24:26 jis Exp $
- *	$Id: create_ciph.c,v 1.2 1994/07/19 19:24:58 g89r4222 Exp $
+ *	$Id: create_ciph.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: create_ciph.c,v 1.2 1994/07/19 19:24:58 g89r4222 Exp $";
+"$Id: create_ciph.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -30,24 +30,24 @@ static char *rcsid =
  * 			variable
  * type			or constant	   data
  * ----			-----------	   ----
- * 
- * 
+ *
+ *
  * 8 bytes		session		session key for client, service
- * 
+ *
  * string		service		service name
- * 
+ *
  * string		instance	service instance
- * 
+ *
  * string		realm		KDC realm
- * 
+ *
  * unsigned char	life		ticket lifetime
- * 
+ *
  * unsigned char	kvno		service key version number
- * 
+ *
  * unsigned char	tkt->length	length of following ticket
- * 
+ *
  * data			tkt->dat	ticket for service
- * 
+ *
  * 4 bytes		kdc_time	KDC's timestamp
  *
  * <=7 bytes		null		   null pad to 8 byte multiple

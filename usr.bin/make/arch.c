@@ -135,8 +135,8 @@ ArchFree(ap)
     Arch *a = (Arch *) ap;
     Hash_Search	  search;
     Hash_Entry	  *entry;
-    
-    /* Free memory from hash entries */ 
+
+    /* Free memory from hash entries */
     for (entry = Hash_EnumFirst(&a->members, &search);
 	 entry != (Hash_Entry *)NULL;
 	 entry = Hash_EnumNext(&search))
@@ -146,7 +146,7 @@ ArchFree(ap)
     Hash_DeleteTable(&a->members);
     free((Address) a);
 }
-	
+
 
 
 /*-
@@ -182,7 +182,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 				     * variable substitution performed on it */
 
     libName = *linePtr;
-    
+
     subLibName = FALSE;
 
     for (cp = libName; *cp != '(' && *cp != '\0'; cp++) {
@@ -194,14 +194,14 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	    int 	length;
 	    Boolean	freeIt;
 	    char	*result;
-	    
+
 	    result=Var_Parse(cp, ctxt, TRUE, &length, &freeIt);
 	    if (result == var_Error) {
 		return(FAILURE);
 	    } else {
 		subLibName = TRUE;
 	    }
-	    
+
 	    if (freeIt) {
 		free(result);
 	    }
@@ -213,7 +213,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
     if (subLibName) {
 	libName = Var_Subst(NULL, libName, ctxt, TRUE);
     }
-    
+
 
     for (;;) {
 	/*
@@ -289,7 +289,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	    char    *buf;
 	    char    *sacrifice;
 	    char    *oldMemName = memName;
-	    
+
 	    memName = Var_Subst(NULL, memName, ctxt, TRUE);
 
 	    /*
@@ -335,7 +335,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	    Dir_Expand(memName, dirSearchPath, members);
 	    while (!Lst_IsEmpty(members)) {
 		member = (char *)Lst_DeQueue(members);
-		
+
 		sprintf(nameBuf, "%s(%s)", libName, member);
 		free(member);
 		gn = Targ_FindNode (nameBuf, TARG_CREATE);
@@ -374,7 +374,7 @@ Arch_ParseArchive (linePtr, nodeLst, ctxt)
 	if (doSubst) {
 	    free(memName);
 	}
-	
+
 	*cp = saveChar;
     }
 
@@ -520,7 +520,7 @@ ArchStatMember (archive, member, hash)
     if (arch == (FILE *) NULL) {
 	return ((struct ar_hdr *) NULL);
     }
-    
+
     /*
      * We use the ARMAG string to make sure this is an archive we
      * can handle...
@@ -535,7 +535,7 @@ ArchStatMember (archive, member, hash)
     ar->name = strdup (archive);
     Hash_InitTable (&ar->members, -1);
     memName[AR_MAX_NAME_LEN] = '\0';
-    
+
     while (fread ((char *)&arh, sizeof (struct ar_hdr), 1, arch) == 1) {
 	if (strncmp ( arh.ar_fmag, ARFMAG, sizeof (arh.ar_fmag)) != 0) {
 				 /*
@@ -651,7 +651,7 @@ ArchFindMember (archive, member, arhPtr, mode)
     if (arch == (FILE *) NULL) {
 	return ((FILE *) NULL);
     }
-    
+
     /*
      * We use the ARMAG string to make sure this is an archive we
      * can handle...
@@ -676,7 +676,7 @@ ArchFindMember (archive, member, arhPtr, mode)
     if (len > sizeof (arhPtr->ar_name)) {
 	tlen = sizeof (arhPtr->ar_name);
     }
-    
+
     while (fread ((char *)arhPtr, sizeof (struct ar_hdr), 1, arch) == 1) {
 	if (strncmp(arhPtr->ar_fmag, ARFMAG, sizeof (arhPtr->ar_fmag) ) != 0) {
 	     /*
@@ -940,7 +940,7 @@ Arch_MemMTime (gn)
 /*-
  *-----------------------------------------------------------------------
  * Arch_FindLib --
- *	Search for a library along the given search path. 
+ *	Search for a library along the given search path.
  *
  * Results:
  *	None.
@@ -1004,7 +1004,7 @@ Arch_FindLib (gn, path)
  *		  opinion we should not bother with the TOC at all since
  *		  this is used by 'ar' rules that affect the data contents
  *		  of the archive, not by ranlib rules, which affect the
- *		  TOC. 
+ *		  TOC.
  *
  * Results:
  *	TRUE if the library is out-of-date. FALSE otherwise.
@@ -1019,7 +1019,7 @@ Arch_LibOODate (gn)
     GNode   	  *gn;  	/* The library's graph node */
 {
     Boolean 	  oodate;
-    
+
     if (OP_NOP(gn->type) && Lst_IsEmpty(gn->children)) {
 	oodate = FALSE;
     } else if ((gn->mtime > now) || (gn->mtime < gn->cmtime)) {

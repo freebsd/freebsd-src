@@ -6,15 +6,15 @@
  * This file contains configuration information for the Kerberos library
  * which is machine specific; currently, this file contains
  * configuration information for the vax, the "ibm032" (RT), and the
- * "PC8086" (IBM PC). 
+ * "PC8086" (IBM PC).
  *
  * Note:  cross-compiled targets must appear BEFORE their corresponding
  * cross-compiler host.  Otherwise, both will be defined when running
  * the native compiler on the programs that construct cross-compiled
- * sources. 
+ * sources.
  *
- *	from: krb_conf.h,v 4.0 89/01/23 09:59:27 jtkohl Exp $ 
- *	$Id: krb_conf.h,v 1.2 1994/07/19 19:23:18 g89r4222 Exp $
+ *	from: krb_conf.h,v 4.0 89/01/23 09:59:27 jtkohl Exp $
+ *	$Id: krb_conf.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 #ifndef KRB_CONF_DEFS

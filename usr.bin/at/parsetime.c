@@ -1,4 +1,4 @@
-/* 
+/*
  *  parsetime.c - parse time for at(1)
  *  Copyright (C) 1993, 1994  Thomas Koenig
  *
@@ -130,7 +130,7 @@ static size_t sc_len;   /* scanner - lenght of token buffer */
 static int sc_tokid;	/* scanner - token id */
 static int sc_tokplur;	/* scanner - is token plural? */
 
-static char rcsid[] = "$Id: parsetime.c,v 1.1 1994/05/10 18:23:08 kernel Exp $";
+static char rcsid[] = "$Id: parsetime.c,v 1.3 1995/04/12 02:42:35 ache Exp $";
 
 /* Local functions */
 
@@ -246,7 +246,7 @@ plonk(int tok)
 } /* plonk */
 
 
-/* 
+/*
  * expect() gets a token and dies most horribly if it's not the token we want
  */
 static void
@@ -417,7 +417,7 @@ assign_date(struct tm *tm, long mday, long mon, long year)
 } /* assign_date */
 
 
-/* 
+/*
  * month() picks apart a month specification
  *
  *  /[<month> NUMBER [NUMBER]]           \

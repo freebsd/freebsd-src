@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";*/
-static char RCSid[] = "$Id: strip.c,v 1.3 1994/09/08 12:27:08 bde Exp $";
+static char RCSid[] = "$Id: strip.c,v 1.4 1994/12/18 01:18:17 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -140,7 +140,7 @@ s_sym(fn, fd, ep)
 	if (lseek(fd, (off_t)0, SEEK_SET) == -1 ||
 	    write(fd, ep, sizeof(EXEC)) != sizeof(EXEC) ||
 	    ftruncate(fd, fsize))
-		err(0, "%s: %s", fn, strerror(errno)); 
+		err(0, "%s: %s", fn, strerror(errno));
 }
 
 void
@@ -208,7 +208,7 @@ s_stab(fn, fd, ep)
 			*nsym = *sym;
 			nsym->strx = nstr - nstrbase;
 			p = strbase + sym->strx;
-			if (xflag && 
+			if (xflag &&
 			    (!(sym->n_type & N_EXT) ||
 			     (sym->n_type & ~N_EXT) == N_FN ||
 			     strcmp(p, "gcc_compiled.") == 0 ||

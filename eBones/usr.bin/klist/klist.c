@@ -1,18 +1,18 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright 1987, 1988 by the Massachusetts Institute of Technology.
  * For copying and distribution information, please see the file
- * <Copyright.MIT>. 
+ * <Copyright.MIT>.
  *
  * Lists your current Kerberos tickets.
  * Written by Bill Sommerfeld, MIT Project Athena.
  *
  *	from: klist.c,v 4.15 89/08/30 11:19:16 jtkohl Exp $
- *	$Id: klist.c,v 1.2 1994/07/19 19:24:38 g89r4222 Exp $
+ *	$Id: klist.c,v 1.1.1.1 1994/09/30 14:49:58 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: klist.c,v 1.2 1994/07/19 19:24:38 g89r4222 Exp $";
+"$Id: klist.c,v 1.1.1.1 1994/09/30 14:49:58 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -97,11 +97,11 @@ int tgt_test, long_form;
     if (long_form)
 	printf("Ticket file:	%s\n", file);
 
-    /* 
-     * Since krb_get_tf_realm will return a ticket_file error, 
+    /*
+     * Since krb_get_tf_realm will return a ticket_file error,
      * we will call tf_init and tf_close first to filter out
-     * things like no ticket file.  Otherwise, the error that 
-     * the user would see would be 
+     * things like no ticket file.  Otherwise, the error that
+     * the user would see would be
      * klist: can't find realm of ticket file: No ticket file (tf_util)
      * instead of
      * klist: No ticket file (tf_util)
@@ -116,7 +116,7 @@ int tgt_test, long_form;
     /* Close ticket file */
     (void) tf_close();
 
-    /* 
+    /*
      * We must find the realm of the ticket file here before calling
      * tf_init because since the realm of the ticket file is not
      * really stored in the principal section of the file, the
@@ -143,13 +143,13 @@ int tgt_test, long_form;
 	    exit(1);
     }
 
-    /* 
+    /*
      * You may think that this is the obvious place to get the
      * realm of the ticket file, but it can't be done here as the
-     * routine to do this must open the ticket file.  This is why 
+     * routine to do this must open the ticket file.  This is why
      * it was done before tf_init.
      */
-       
+
     if (!tgt_test && long_form)
 	printf("Principal:\t%s%s%s%s%s\n\n", pname,
 	       (pinst[0] ? "." : ""), pinst,
@@ -218,7 +218,7 @@ char *file;
     int count;
 
     printf("Server key file:   %s\n", file);
-	
+
     if ((stab = open(file, O_RDONLY, 0400)) < 0) {
 	perror(file);
 	exit(1);

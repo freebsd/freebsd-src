@@ -152,7 +152,7 @@ argcount(argv)
 	register char **ap;
 
 	for (ap = argv; *ap++ != NOSTR;)
-		;	
+		;
 	return ap - argv - 1;
 }
 

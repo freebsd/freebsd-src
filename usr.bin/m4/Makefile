@@ -1,6 +1,6 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 
-# -DEXTENDED 
+# -DEXTENDED
 # 	if you want the paste & spaste macros.
 
 PROG=	m4

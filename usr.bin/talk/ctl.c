@@ -81,7 +81,7 @@ open_sockt()
 }
 
 /* open the ctl socket */
-open_ctl() 
+open_ctl()
 {
 	int length;
 

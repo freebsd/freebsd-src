@@ -200,7 +200,7 @@ main(argc,argv)
 			else if ((ifp = fopen(p, "r")) == NULL)
 				oops("%s: %s", p, strerror(errno));
 			sp = -1;
-			fp = 0; 
+			fp = 0;
 			infile[0] = ifp;
 			macro();
 			if (ifp != stdin)
@@ -377,7 +377,7 @@ macro() {
  * combo with lookup to speed things up.
  */
 ndptr
-inspect(tp) 
+inspect(tp)
 register char *tp;
 {
 	register int c;
@@ -401,9 +401,9 @@ register char *tp;
 }
 
 /*
- * initkwds - initialise m4 keywords as fast as possible. 
+ * initkwds - initialise m4 keywords as fast as possible.
  * This very similar to install, but without certain overheads,
- * such as calling lookup. Malloc is not used for storing the 
+ * such as calling lookup. Malloc is not used for storing the
  * keyword strings, since we simply use the static  pointers
  * within keywrds block.
  */

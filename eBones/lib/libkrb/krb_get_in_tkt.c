@@ -5,12 +5,12 @@
  * <Copyright.MIT>.
  *
  *	from: der: krb_get_in_tkt.c,v 4.19 89/07/18 16:31:31 jtkohl Exp $
- *	$Id: krb_get_in_tkt.c,v 1.2 1994/07/19 19:25:47 g89r4222 Exp $
+ *	$Id: krb_get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $
  */
 
 #ifndef lint
 static char *rcsid =
-"$Id: krb_get_in_tkt.c,v 1.2 1994/07/19 19:25:47 g89r4222 Exp $";
+"$Id: krb_get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:02 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -48,16 +48,16 @@ static int decrypt_tkt(user, instance, realm, arg, key_proc, cipp)
 #ifndef NOENCRYPTION
     /* Attempt to decrypt it */
 #endif
-    
+
     /* generate a key */
-    
+
     {
 	register int rc;
 	rc = (*key_proc)(user,instance,realm,arg,key);
 	if (rc)
 	    return(rc);
     }
-    
+
 #ifndef NOENCRYPTION
     key_sched(key,key_s);
     pcbc_encrypt((C_Block *)cip->dat,(C_Block *)cip->dat,
@@ -259,7 +259,7 @@ krb_get_in_tkt(user, instance, realm, service, sinstance, life,
     kvno = (unsigned char) ptr[1];
     tkt->length = (unsigned char) ptr[2];
     ptr += 3;
-    
+
     if ((tkt->length < 0) ||
 	((tkt->length + (ptr - (char *) cip->dat)) > cip->length))
 	return(INTK_BADPW);

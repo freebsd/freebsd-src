@@ -40,7 +40,7 @@
 
 #ifndef lint
 static char *moduleid =
-	"@(#)$Id: print.c,v 1.21 1994/05/03 17:58:23 christos Exp $";
+	"@(#)$Id: print.c,v 1.1.1.1 1994/09/03 19:16:22 csgr Exp $";
 #endif  /* lint */
 
 #define SZOF(a)	(sizeof(a) / sizeof(a[0]))
@@ -59,14 +59,14 @@ struct magic *m;
 
 	if (m->flag & INDIR)
 		(void) fprintf(stderr, "(%s,%d),",
-			       (m->in.type >= 0 && m->in.type < SZOF(typ)) ? 
+			       (m->in.type >= 0 && m->in.type < SZOF(typ)) ?
 					typ[(unsigned char) m->in.type] :
 					"*bad*",
 			       m->in.offset);
 
 	(void) fprintf(stderr, " %s%s", (m->flag & UNSIGNED) ? "u" : "",
-		       (m->type >= 0 && m->type < SZOF(typ)) ? 
-				typ[(unsigned char) m->type] : 
+		       (m->type >= 0 && m->type < SZOF(typ)) ?
+				typ[(unsigned char) m->type] :
 				"*bad*");
 	if (m->mask != ~0L)
 		(void) fprintf(stderr, " & %.8x", m->mask);
@@ -112,7 +112,7 @@ struct magic *m;
  * ckfprintf - fprintf, but with error checking
  */
 void
-ckfputs(str, fil) 	
+ckfputs(str, fil)
     const char *str;
     FILE *fil;
 {
@@ -166,9 +166,9 @@ error(va_alist)
 	f = va_arg(va, const char *);
 #endif
 	/* cuz we use stdout for most, stderr here */
-	(void) fflush(stdout); 
+	(void) fflush(stdout);
 
-	if (progname != NULL) 
+	if (progname != NULL)
 		(void) fprintf(stderr, "%s: ", progname);
 	(void) vfprintf(stderr, f, va);
 	va_end(va);
@@ -193,10 +193,10 @@ magwarn(va_alist)
 	f = va_arg(va, const char *);
 #endif
 	/* cuz we use stdout for most, stderr here */
-	(void) fflush(stdout); 
+	(void) fflush(stdout);
 
-	if (progname != NULL) 
-		(void) fprintf(stderr, "%s: %s, %d: ", 
+	if (progname != NULL)
+		(void) fprintf(stderr, "%s: %s, %d: ",
 			       progname, magicfile, lineno);
 	(void) vfprintf(stderr, f, va);
 	va_end(va);

@@ -218,7 +218,7 @@ next:		for (start = fmt;; ++fmt) {
 		case 'd': case 'i': case 'o': case 'u': case 'x': case 'X': {
 			long p;
 			char *f;
-			
+
 			if ((f = mklong(start, convch)) == NULL)
 				return (1);
 			if (getlong(&p))
@@ -379,7 +379,7 @@ getlong(lp)
 				warnx("%s: %s", *gargv, strerror(ERANGE));
 				return (1);
 			}
-			
+
 		*lp = val;
 		++gargv;
 		return (0);

@@ -4,12 +4,12 @@
  * <Copyright.MIT>.
  *
  *	from: get_in_tkt.c,v 4.12 89/07/18 16:32:56 jtkohl Exp $
- *	$Id: get_in_tkt.c,v 1.2 1994/07/19 19:25:16 g89r4222 Exp $
+ *	$Id: get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[] =
-"$Id: get_in_tkt.c,v 1.2 1994/07/19 19:25:16 g89r4222 Exp $";
+"$Id: get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif /* lint */
 
 #include <krb.h>
@@ -69,7 +69,7 @@ static int passwd_to_key(user,instance,realm,passwd,key)
  * krb_get_pw_in_tkt() passes two additional arguments to krb_get_in_tkt():
  * the name of a routine (passwd_to_key()) to be used to get the
  * password in case the "password" argument is null and NULL for the
- * decryption procedure indicating that krb_get_in_tkt should use the 
+ * decryption procedure indicating that krb_get_in_tkt should use the
  * default method of decrypting the response from the KDC.
  *
  * The result of the call to krb_get_in_tkt() is returned.
@@ -86,8 +86,8 @@ krb_get_pw_in_tkt(user,instance,realm,service,sinstance,life,password)
 
 #ifdef NOENCRYPTION
 /*
- * $Source: /home/CVS/src/eBones/krb/get_in_tkt.c,v $
- * $Author: g89r4222 $
+ * $Source: /home/ncvs/src/eBones/krb/get_in_tkt.c,v $
+ * $Author: csgr $
  *
  * Copyright 1985, 1986, 1987, 1988 by the Massachusetts Institute
  * of Technology.
@@ -102,7 +102,7 @@ krb_get_pw_in_tkt(user,instance,realm,service,sinstance,life,password)
 
 #ifndef	lint
 static char rcsid_read_password_c[] =
-"Bones$Header: /home/CVS/src/eBones/krb/get_in_tkt.c,v 1.2 1994/07/19 19:25:16 g89r4222 Exp $";
+"Bones$Header: /home/ncvs/src/eBones/krb/get_in_tkt.c,v 1.1.1.1 1994/09/30 14:50:00 csgr Exp $";
 #endif	lint
 
 #include <des.h>
@@ -170,7 +170,7 @@ placebo_read_pw_string(s,max,prompt,verify)
 {
     int ok = 0;
     char *ptr;
-    
+
 #ifdef BSDUNIX
     jmp_buf old_env;
     struct sgttyb tty_state;
@@ -187,7 +187,7 @@ placebo_read_pw_string(s,max,prompt,verify)
 	goto lose;
 
     /* save terminal state*/
-    if (ioctl(0,TIOCGETP,&tty_state) == -1) 
+    if (ioctl(0,TIOCGETP,&tty_state) == -1)
 	return -1;
 
     push_signals();

@@ -158,7 +158,7 @@ aci(sp, ep, cmdp, cmd)
 
 	if (sex_get(sp, ep, sp->tiqp, 0, flags) != INP_OK)
 		goto err;
-	
+
 	/*
 	 * If doing a change, replace lines for as long as possible.  Then,
 	 * append more lines or delete remaining lines.  Changes to an empty

@@ -105,7 +105,7 @@ connect()
 				;
 			if (*cp)
 				*cp++ = '\0';
-			
+
 			if (conflag = (*acu->acu_dialer)(phnum, CU)) {
 				if (CM != NOSTR)
 					pwrite(FD, CM, size(CM));
@@ -142,7 +142,7 @@ connect()
 				;
 			if (*cp)
 				*cp++ = '\0';
-			
+
 			if (conflag = (*acu->acu_dialer)(phnum, CU)) {
 				fclose(fd);
 				if (CM != NOSTR)
@@ -175,7 +175,7 @@ disconnect(reason)
 		logent(value(HOST), "", acu->acu_name, "call terminated");
 		if (boolean(value(VERBOSE)))
 			printf("\r\ndisconnecting...");
-	} else 
+	} else
 		logent(value(HOST), "", acu->acu_name, reason);
 	(*acu->acu_disconnect)();
 }

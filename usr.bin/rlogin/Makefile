@@ -5,7 +5,7 @@ SRCS=	rlogin.c
 
 .if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS) \
 	|| defined(MAKE_EBONES))
-SRCS+=	krcmd.c kcmd.c 
+SRCS+=	krcmd.c kcmd.c
 DPADD=	${LIBKRB} ${LIBDES}
 CFLAGS+=-DKERBEROS -DCRYPT
 LDADD=	-lkrb -ldes

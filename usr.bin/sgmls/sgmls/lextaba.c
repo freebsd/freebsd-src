@@ -457,15 +457,15 @@ DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT,
 DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, DAT, NON
 };
 
-#undef SIG 
-#undef DAT 
-#undef NON 
-#undef NU  
-#undef NMS 
-#undef SPC 
-#undef EE  
-#undef EOB 
-#undef RS  
+#undef SIG
+#undef DAT
+#undef NON
+#undef NU
+#undef NMS
+#undef SPC
+#undef EE
+#undef EOB
+#undef RS
 #undef COM1
 #undef LIT3
 #undef LITA

@@ -145,7 +145,7 @@ output_rule_data()
     register int i;
     register int j;
 
-  
+
     fprintf(output_file, "short %slhs[] = {%42d,", symbol_prefix,
 	    symbol_value[start_symbol]);
 

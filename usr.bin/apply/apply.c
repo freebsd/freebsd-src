@@ -111,7 +111,7 @@ main(argc, argv)
 	if ((cmd = malloc(sizeof("exec ") - 1 +
 	    strlen(argv[0]) + 9 * (sizeof(" %1") - 1) + 1)) == NULL)
 		err(1, NULL);
-		
+
 	if (n == 0) {
 		/* If nargs not set, default to a single argument. */
 		if (nargs == -1)

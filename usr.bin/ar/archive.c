@@ -63,7 +63,7 @@ open_archive(mode)
 {
 	int created, fd, nr;
 	char buf[SARMAG];
-	
+
 	created = 0;
 	if (mode & O_CREAT) {
 		mode |= O_EXCL;
@@ -81,14 +81,14 @@ open_archive(mode)
 	if ((fd = open(archive, mode, DEFFILEMODE)) < 0)
 		error(archive);
 
-	/* 
-	 * Attempt to place a lock on the opened file - if we get an 
+	/*
+	 * Attempt to place a lock on the opened file - if we get an
 	 * error then someone is already working on this library (or
 	 * it's going across NFS).
 	 */
 opened:	if (flock(fd, LOCK_EX|LOCK_NB) && errno != EOPNOTSUPP)
 		error(archive);
-	
+
 	/*
 	 * If not created, O_RDONLY|O_RDWR indicates that it has to be
 	 * in archive format.
@@ -281,7 +281,7 @@ copy_ar(cfp, size)
 	off_t sz;
 	int from, nr, nw, off, to;
 	char buf[8*1024];
-	
+
 	if (!(sz = size))
 		return;
 

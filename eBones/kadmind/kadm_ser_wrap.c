@@ -12,7 +12,7 @@ static char rcsid_module_c[] =
 "BonesHeader: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kadm_ser_wrap.c,v 4.4 89/09/26 09:29:36 jtkohl Exp ";
 #endif	lint
 
-/* 
+/*
 kadm_ser_wrap.c
 unwraps wrapped packets and calls the appropriate server subroutine
 */
@@ -28,7 +28,7 @@ unwraps wrapped packets and calls the appropriate server subroutine
 
 Kadm_Server server_parm;
 
-/* 
+/*
 kadm_ser_init
 set up the server_parm structure
 */
@@ -147,7 +147,7 @@ int *dat_len;
 #else
     des_key_sched(ad.session, sess_sched);
 #endif
-    if (retc = (int) krb_rd_priv(in_st, r_len, sess_sched, ad.session, 
+    if (retc = (int) krb_rd_priv(in_st, r_len, sess_sched, ad.session,
 				 &server_parm.recv_addr,
 				 &server_parm.admin_addr, &msg_st)) {
 	clr_cli_secrets();

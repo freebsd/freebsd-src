@@ -7,17 +7,17 @@
  * dump a kerberos database to an ascii readable file and load this
  * file into the database. Read locking of the database is done during a
  * dump operation. NO LOCKING is done during a load operation. Loads
- * should happen with other processes shutdown. 
+ * should happen with other processes shutdown.
  *
  * Written July 9, 1987 by Jeffrey I. Schiller
  *
  *	from: kdb_util.c,v 4.4 90/01/09 15:57:20 raeburn Exp $
- *	$Id: kdb_util.c,v 1.3 1994/09/24 14:04:21 g89r4222 Exp $
+ *	$Id: kdb_util.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: kdb_util.c,v 1.3 1994/09/24 14:04:21 g89r4222 Exp $";
+"$Id: kdb_util.c,v 1.1.1.1 1994/09/30 14:49:57 csgr Exp $";
 #endif	lint
 
 #include <stdio.h>
@@ -62,7 +62,7 @@ main(argc, argv)
     char *db_name;
 
     progname = prog;
-    
+
     if (argc != 3 && argc != 4) {
 	fprintf(stderr, "Usage: %s operation file-name [database name].\n",
 		argv[0]);
@@ -77,7 +77,7 @@ main(argc, argv)
 	perror("Can't open database");
 	exit(1);
     }
-    
+
     if (!strcmp(argv[1], "load"))
 	op = OP_LOAD;
     else if (!strcmp(argv[1], "dump"))
@@ -134,7 +134,7 @@ main(argc, argv)
       break;
     case OP_CONVERT_OLD_DB:
       convert_old_format_db (db_name, file);
-      printf("Don't forget to do a `kdb_util load %s' to reload the database!\n", file_name);      
+      printf("Don't forget to do a `kdb_util load %s' to reload the database!\n", file_name);
       break;
     }
     exit(0);
@@ -148,7 +148,7 @@ clear_secrets ()
   bzero((char *)new_master_key_schedule, sizeof (Key_schedule));
 }
 
-/* cv_key is a procedure which takes a principle and changes its key, 
+/* cv_key is a procedure which takes a principle and changes its key,
    either for a new method of encrypting the keys, or a new master key.
    if cv_key is null no transformation of key is done (other than net byte
    order). */
@@ -163,7 +163,7 @@ static int dump_db_1(arg, principal)
     Principal *principal;
 {	    /* replace null strings with "*" */
     struct callback_args *a = (struct callback_args *)arg;
-    
+
     if (principal->instance[0] == '\0') {
 	principal->instance[0] = '*';
 	principal->instance[1] = '\0';
@@ -205,7 +205,7 @@ dump_db (db_file, output_file, cv_key)
 
     a.cv_key = cv_key;
     a.output_file = output_file;
-    
+
     kerb_db_iterate (dump_db_1, (char *)&a);
     return fflush(output_file);
 }
@@ -432,7 +432,7 @@ convert_old_format_db (db_file, out)
 
   /*
    * now use the master key to decrypt (old style) the key in the db, had better
-   * be the same! 
+   * be the same!
    */
   bcopy((char *)&principal_data[0].key_low, (char *)key_from_db, 4);
   bcopy((char *)&principal_data[0].key_high,
@@ -451,7 +451,7 @@ convert_old_format_db (db_file, out)
     fprintf(stderr, "does not match database.\n");
     exit (-1);
   }
-    
+
   fprintf(stderr, "Master key verified.\n");
   (void) fflush(stderr);
 
@@ -468,14 +468,14 @@ register char *cp;
     int local;
 
     zaptime(&tp);			/* clear out the struct */
-    
+
     if (strlen(cp) > 10) {		/* new format */
 	(void) strncpy(wbuf, cp, 4);
 	wbuf[4] = 0;
 	tp.tm_year = atoi(wbuf);
 	cp += 4;			/* step over the year */
 	local = 0;			/* GMT */
-    } else {				/* old format: local time, 
+    } else {				/* old format: local time,
 					   year is 2 digits, assuming 19xx */
 	wbuf[0] = *cp++;
 	wbuf[1] = *cp++;
@@ -492,11 +492,11 @@ register char *cp;
     wbuf[0] = *cp++;
     wbuf[1] = *cp++;
     tp.tm_mday = atoi(wbuf);
-    
+
     wbuf[0] = *cp++;
     wbuf[1] = *cp++;
     tp.tm_hour = atoi(wbuf);
-    
+
     wbuf[0] = *cp++;
     wbuf[1] = *cp++;
     tp.tm_min = atoi(wbuf);

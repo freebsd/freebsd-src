@@ -4,10 +4,10 @@
  * <Copyright.MIT>.
  *
  * This file defines the types of log messages logged by klog.  Each
- * type of message may be selectively turned on or off. 
+ * type of message may be selectively turned on or off.
  *
  *	from: klog.h,v 4.7 89/01/24 17:55:07 jon Exp $
- *	$Id: klog.h,v 1.2 1994/07/19 19:23:12 g89r4222 Exp $
+ *	$Id: klog.h,v 1.1.1.1 1994/09/30 14:49:54 csgr Exp $
  */
 
 #ifndef KLOG_DEFS

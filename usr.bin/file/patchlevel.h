@@ -3,9 +3,19 @@
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.14 1994/05/03 17:58:23 christos Exp $
+ * $Id: patchlevel.h,v 1.1.1.1 1994/09/03 19:16:23 csgr Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.1.1.1  1994/09/03  19:16:23  csgr
+ * Bring in file 3.14 by Ian Darwin (and Christos Zoulas)
+ *
+ * The following files were moved to different names:
+ * - file.man -> file.1
+ * - magic.man -> magic.5
+ *
+ * The following file was removed:
+ * - Magdir/Makefile
+ *
  * Revision 1.14  1994/05/03  17:58:23  christos
  * changes from mycroft@gnu.ai.mit.edu (Charles Hannum) for unsigned
  *
@@ -39,15 +49,15 @@
  * Numerous changes from Guy Harris too numerous to mention but including
  * byte-order independance, fixing "old-style masking", etc. etc. A bugfix
  * for broken symlinks from martin@@d255s004.zfe.siemens.de.
- * 
+ *
  * Revision 1.7  93/01/05  14:57:27  ian
  * Couple of nits picked by Christos (again, thanks).
- * 
+ *
  * Revision 1.6  93/01/05  13:51:09  ian
  * Lotsa work on the Magic directory.
- * 
+ *
  * Revision 1.5  92/09/14  14:54:51  ian
  * Fix a tiny null-pointer bug in previous fix for tar archive + uncompress.
- * 
+ *
  */
 

@@ -209,7 +209,7 @@ fetchpigs()
 		if (time == 0 || (pp->p_flag & P_INMEM) == 0)
 			*pctp = 0;
 		else
-			*pctp = ((double) pp->p_pctcpu / 
+			*pctp = ((double) pp->p_pctcpu /
 					fscale) / (1.0 - exp(time * lccpu));
 	}
 	/*

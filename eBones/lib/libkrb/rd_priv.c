@@ -15,12 +15,12 @@
  * Steve Miller    Project Athena  MIT/DEC
  *
  *	from: rd_priv.c,v 4.14 89/04/28 11:59:42 jtkohl Exp $
- *	$Id: rd_priv.c,v 1.2 1994/07/19 19:26:11 g89r4222 Exp $
+ *	$Id: rd_priv.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $
  */
 
 #ifndef lint
 static char rcsid[]=
-"$Id: rd_priv.c,v 1.2 1994/07/19 19:26:11 g89r4222 Exp $";
+"$Id: rd_priv.c,v 1.1.1.1 1994/09/30 14:50:03 csgr Exp $";
 #endif /* lint */
 
 /* system include files */
@@ -154,17 +154,17 @@ long krb_rd_priv(in,in_length,schedule,key,sender,receiver,m_data)
     p += sizeof(m_data->time_sec);
 
     /* check direction bit is the sign bit */
-    /* For compatibility with broken old code, compares are done in VAX 
-       byte order (LSBFIRST) */ 
+    /* For compatibility with broken old code, compares are done in VAX
+       byte order (LSBFIRST) */
     if (lsb_net_ulong_less(sender->sin_addr.s_addr,
-			   receiver->sin_addr.s_addr)==-1) 
-	/* src < recv */ 
-	m_data->time_sec =  - m_data->time_sec; 
-    else if (lsb_net_ulong_less(sender->sin_addr.s_addr, 
-				receiver->sin_addr.s_addr)==0) 
+			   receiver->sin_addr.s_addr)==-1)
+	/* src < recv */
+	m_data->time_sec =  - m_data->time_sec;
+    else if (lsb_net_ulong_less(sender->sin_addr.s_addr,
+				receiver->sin_addr.s_addr)==0)
 	if (lsb_net_ushort_less(sender->sin_port,receiver->sin_port)==-1)
 	    /* src < recv */
-	    m_data->time_sec =  - m_data->time_sec; 
+	    m_data->time_sec =  - m_data->time_sec;
     /*
      * all that for one tiny bit!
      * Heaven help those that talk to themselves.

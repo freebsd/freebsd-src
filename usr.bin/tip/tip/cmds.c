@@ -94,7 +94,7 @@ flush_remote ()
 	ioctl (FD, TIOCSETP, &buf);	/*   wflushtty */
 #endif
 }
-	
+
 /*
  * FTP - remote ==> local
  *  get a file from the remote host
@@ -103,7 +103,7 @@ getfl(c)
 	char c;
 {
 	char buf[256], *cp, *expand();
-	
+
 	putchar(c);
 	/*
 	 * get the UNIX receiving file's name
@@ -115,7 +115,7 @@ getfl(c)
 		printf("\r\n%s: cannot creat\r\n", copyname);
 		return;
 	}
-	
+
 	/*
 	 * collect parameters
 	 */
@@ -182,14 +182,14 @@ xfer(buf, fd, eofchars)
 	quit = 0;
 	kill(pid, SIGIOT);
 	read(repdes[0], (char *)&ccc, 1);  /* Wait until read process stops */
-	
+
 	/*
 	 * finish command
 	 */
 	r = '\r';
 	pwrite(FD, &r, 1);
 	do
-		read(FD, &c, 1); 
+		read(FD, &c, 1);
 	while ((c&0177) != '\n');
 
 	usedefchars ();
@@ -269,14 +269,14 @@ transfer(buf, fd, eofchars)
 	quit = 0;
 	kill(pid, SIGIOT);
 	read(repdes[0], (char *)&ccc, 1);  /* Wait until read process stops */
-	
+
 	/*
 	 * finish command
 	 */
 	r = '\r';
 	pwrite(FD, &r, 1);
 	do
-		read(FD, &c, 1); 
+		read(FD, &c, 1);
 	while ((c&0177) != '\n');
 	usedefchars ();
 	(void) setjmp(intbuf);

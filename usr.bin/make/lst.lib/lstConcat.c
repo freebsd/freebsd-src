@@ -149,7 +149,7 @@ Lst_Concat (l1, l2, flags)
 
 	/*
 	 * Finish bookkeeping. The last new element becomes the last element
-	 * of list one. 
+	 * of list one.
 	 */
 	list1->lastPtr = last;
 
@@ -173,4 +173,4 @@ Lst_Concat (l1, l2, flags)
 
     return (SUCCESS);
 }
-	
+

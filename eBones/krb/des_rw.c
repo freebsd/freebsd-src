@@ -11,7 +11,7 @@
  * are met:
  * 1. Redistributions of source code must retain the entire comment,
  *    including the above copyright notice, this list of conditions
- *    and the following disclaimer, verbatim, at the beginning of 
+ *    and the following disclaimer, verbatim, at the beginning of
  *    the source file.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: des_rw.c,v 1.5 1994/09/24 18:54:41 g89r4222 Exp $
+ * $Id: des_rw.c,v 1.1.1.1 1994/09/30 14:49:59 csgr Exp $
  */
 
 /*
@@ -61,11 +61,11 @@
  *     +--+--+--+--+--+--+--+--+
  *     |  garbage     | data   |
  *     |                       |
- *     +-----------------------+----> des_pcbc_encrypt() --> 
+ *     +-----------------------+----> des_pcbc_encrypt() -->
  *
  * (Note that the length field sent before the actual message specifies
  * the number of data bytes, not the length of the entire padded message.
- * 
+ *
  * When data is read, if the message received is longer than the number
  * of bytes requested, then the remaining bytes are stored until the
  * following call to des_read().  If the number of bytes received is
@@ -160,7 +160,7 @@ int des_read(fd, buf, len)
 		stored -= len;
 		buff_ptr += len;
 		return(len);
-	} else { 
+	} else {
 		if (stored) {
 			bcopy(buff_ptr, buf, stored);
 			nreturned = stored;
@@ -184,11 +184,11 @@ int des_read(fd, buf, len)
 	if(nread != pad_length)
 		return(0);
 
-	des_pcbc_encrypt((des_cblock*) des_buff, (des_cblock*) buff_ptr, 
+	des_pcbc_encrypt((des_cblock*) des_buff, (des_cblock*) buff_ptr,
 		(msg_length < 8 ? 8 : msg_length),
 		key_sched, (des_cblock*) &des_key, DES_DECRYPT);
 
-	
+
 	if(msg_length < 8)
 		buff_ptr += (8 - msg_length);
 	stored = msg_length;
@@ -237,7 +237,7 @@ int des_write(fd, buf, len)
 
 		for(i = 0 ; i < 8 ; i+= sizeof(long)) {
 			rnd = random();
-			bcopy(&rnd, garbage+i, 
+			bcopy(&rnd, garbage+i,
 				(i <= (8 - sizeof(long)))?sizeof(long):(8-i));
 		}
 		bcopy(buf, garbage + 8 - len, len);
@@ -253,7 +253,7 @@ int des_write(fd, buf, len)
 
 
 	write_len = htonl(len);
-	if(write(fd, &write_len, sizeof(write_len)) != sizeof(write_len)) 
+	if(write(fd, &write_len, sizeof(write_len)) != sizeof(write_len))
 		return(-1);
 	if(write(fd, des_buff, pad_len) != pad_len)
 		return(-1);

@@ -2,7 +2,7 @@
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 /*-
- *	$Id: enc_read.c,v 1.2 1994/07/19 19:21:54 g89r4222 Exp $
+ *	$Id: enc_read.c,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
  */
 
 #include <errno.h>
@@ -22,7 +22,7 @@ des_cblock *iv;
 	/* data to be unencrypted */
 	int net_num=0;
 	unsigned char net[BSIZE];
-	/* extra unencrypted data 
+	/* extra unencrypted data
 	 * for when a block of 100 comes in but is des_read one byte at
 	 * a time. */
 	static char unnet[BSIZE];
@@ -61,7 +61,7 @@ des_cblock *iv;
 
 	/* first - get the length */
 	net_num=0;
-	while (net_num < HDRSIZE) 
+	while (net_num < HDRSIZE)
 		{
 		i=read(fd,&(net[net_num]),HDRSIZE-net_num);
 		if ((i == -1) && (errno == EINTR)) continue;

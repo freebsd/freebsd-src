@@ -1312,22 +1312,22 @@ struct parse pcbeal = {"EAL", lexgrp, ealtab, 0, 0, 0, 0};
 
 static UNCH
 /*       sig  dat  num  nms  spc  non  ee   eob  rs   com  lit  lita tagc  */
-				       
+
 sp31 []={SP1 ,SP1 ,SP1 ,SP1 ,TK1 ,SP1 ,SP1 ,SP1 ,TK1 ,CM0 ,TK1 ,TK1 ,SP1 },
 sp31a[]={INV_,ISIG,LEN_,LEN_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,LIT1,LIT2,ESGD},
-				       
+
 tk31 []={TK1 ,TK1 ,SP1 ,SP1 ,TK1 ,TK1 ,TK1 ,TK1 ,TK1 ,CM1 ,TK1 ,TK1 ,SP1 },
 tk31a[]={INV_,ISIG,NUM1,NAS1,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,LIT1,LIT2,ESGD},
-				       
+
 cm30 []={SP1 ,CM0 ,SP1 ,SP1 ,SP1 ,CM0 ,SP1 ,CM0 ,SP1 ,CM2 ,SP1 ,SP1 ,SP1 },
 cm30a[]={PCI_,ISIG,PCI_,PCI_,PCI_,SYS_,PCI_,GET_,PCI_,NOP_,PCI_,PCI_,PCI_},
-				       
+
 cm31 []={TK1 ,CM1 ,TK1 ,TK1 ,TK1 ,CM1 ,TK1 ,CM1 ,TK1 ,CM2 ,TK1 ,TK1 ,TK1 },
 cm31a[]={PCI_,ISIG,PCI_,PCI_,PCI_,SYS_,PCI_,GET_,PCI_,NOP_,PCI_,PCI_,PCI_},
-				       
+
 cm32 []={CM2 ,CM2 ,CM2 ,CM2 ,CM2 ,CM2 ,TK1 ,CM2 ,CM2 ,CM3 ,CM2 ,CM2 ,CM2 },
 cm32a[]={NOP_,ISIG,NOP_,NOP_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,NOP_,NOP_,NOP_},
-				       
+
 cm33 []={CM2 ,CM3 ,CM2 ,CM2 ,CM2 ,CM3 ,TK1 ,CM3 ,CM2 ,TK1 ,CM2 ,CM2 ,CM2 },
 cm33a[]={NOP_,ISIG,NOP_,NOP_,NOP_,SYS_,EOF_,GET_,RS_ ,NOP_,NOP_,NOP_,NOP_},
 
