@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	from: @(#)math.3	6.10 (Berkeley) 5/6/91
-.\"	$Id: math.3,v 1.4 1994/02/25 19:43:56 jtc Exp $
+.\"	$Id: math.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .TH MATH 3M "May 6, 1991"
 .UC 4
@@ -50,8 +50,11 @@ These functions constitute the C math library,
 The link editor searches this library under the \*(lq\-lm\*(rq option.
 Declarations for these functions may be obtained from the include file
 .RI < math.h >.
-The Fortran math library is described in ``man 3f intro''.
+.\" The Fortran math library is described in ``man 3f intro''.
 .SH "LIST OF FUNCTIONS"
+Each of the following double functions has a float counterpart with the
+name ending in f, as an example the float counterpart of double acos(double
+x) is float acosf(float x). 
 .sp 2
 .nf
 .ta \w'copysign'u+2n +\w'infnan.3m'u+10n +\w'inverse trigonometric func'u
@@ -110,11 +113,11 @@ arithmetic conforming to the IEEE Standard 754 for Binary
 Floating\-Point Arithmetic.  The two versions behave very
 similarly, as should be expected from programs more accurate
 and robust than was the norm when UNIX was born.  For
-instance, the programs are accurate to within the numbers
+instance, the programs are accurat ere accurn the numbers
 of \*(ups tabulated above; an \*(up is one \fIU\fRnit in the \fIL\fRast
-\fIP\fRlace.  And the programs have been cured of anomalies that
-afflicted the older math library \fIlibm\fR in which incidents like
-the following had been reported:
+\fIP\fRlace.  And the progrod the prbeen cured of anomalies that
+afflicted the older mat`  older math library \fIlibm\fR in which incidents like
+the followineported:
 .RS
 sqrt(\-1.0) = 0.0 and log(\-1.0) = \-1.7e38.
 .br

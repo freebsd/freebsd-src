@@ -30,73 +30,110 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
-.\"	$Id: exp.3,v 1.7 1994/02/11 18:34:05 jtc Exp $
+.\"	$Id: exp.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd July 31, 1991
 .Dt EXP 3
 .Os BSD 4
 .Sh NAME
 .Nm exp ,
+.Nm expf ,
 .Nm exp2 ,
+.Nm exp2f ,
 .Nm exp10 ,
+.Nm exp10f ,
 .Nm expm1 ,
+.Nm expm1f ,
 .Nm log ,
+.Nm logf ,
 .Nm log2 ,
+.Nm log2f ,
 .Nm log10 ,
+.Nm log10f ,
 .Nm log1p ,
-.Nm pow
+.Nm log1pf ,
+.Nm pow ,
+.Nm powf
 .Nd exponential, logarithm, power functions
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn exp "double x"
+.Ft float
+.Fn expf "float x"
 .Ft double
 .Fn expm1 "double x"
+.Ft float
+.Fn expm1f "float x"
 .Ft double
 .Fn log "double x"
+.Ft float
+.Fn logf "float x"
 .Ft double
 .Fn log10 "double x"
+.Ft float
+.Fn log10f "float x"
 .Ft double
 .Fn log1p "double x"
+.Ft float
+.Fn log1pf "float x"
 .Ft double
 .Fn pow "double x" "double y"
+.Ft float
+.Fn powf "float x" "float y"
 .Sh DESCRIPTION
 The
 .Fn exp
-function computes the exponential value of the given argument
+and the
+.Fn expf
+functions compute the exponential value of the given argument
 .Fa x .
 .Pp
 The
 .Fn expm1
-function computes the value exp(x)\-1 accurately even for tiny argument
+and the 
+.Fn expm1f
+functions compute the value exp(x)\-1 accurately even for tiny argument
 .Fa x .
 .Pp
 The
 .Fn log
-function computes the value of the natural logarithm of argument 
+and the
+.Fn logf
+functions compute the value of the natural logarithm of argument 
 .Fa x.
 .Pp
 The
 .Fn log10
-function computes the value of the logarithm of argument
+and the
+.Fn log10f
+functions compute the value of the logarithm of argument
 .Fa x
 to base 10.
 .Pp
 The
 .Fn log1p
-function computes
+and the
+.Fn log1pf
+functions compute
 the value of log(1+x) accurately even for tiny argument
 .Fa x .
 .Pp
 The
 .Fn pow
-computes the value
+and the
+.Fn powf
+functions compute the value
 of
 .Ar x
 to the exponent
 .Ar y .
 .Sh ERROR (due to Roundoff etc.)
-exp(x), log(x), expm1(x) and log1p(x) are accurate to within 
+.Fn exp(x) ,
+.Fn log(x) ,
+.Fn expm1(x) and
+.Fn log1p(x)
+are accurate to within 
 an
 .Em ulp ,
 and log10(x) to within about 2
@@ -145,8 +182,7 @@ These functions will return the appropriate computation unless an error
 occurs or an argument is out of range.
 The functions
 .Fn exp ,
-.Fn expm1
-and
+.Fn expm1 ,
 .Fn pow
 detect if the computed value will overflow,
 set the global variable
@@ -156,7 +192,7 @@ and cause a reserved operand fault on a
 .Tn VAX
 or
 .Tn Tahoe .
-The function
+The functions
 .Fn pow x y
 checks to see if
 .Fa x

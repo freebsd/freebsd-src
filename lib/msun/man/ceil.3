@@ -30,22 +30,27 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     from: @(#)ceil.3	5.1 (Berkeley) 5/2/91
-.\"	$Id: ceil.3,v 1.6 1994/03/11 01:32:08 jtc Exp $
+.\"	$Id: ceil.3,v 1.1.1.1 1994/08/19 09:39:42 jkh Exp $
 .\"
 .Dd March 10, 1994
 .Dt CEIL 3
 .Os
 .Sh NAME
-.Nm ceil
+.Nm ceil ,
+.Nm ceilf
 .Nd round to smallest integral value not greater than x
 .Sh SYNOPSIS
 .Fd #include <math.h>
 .Ft double
 .Fn ceil "double x"
+.Ft float
+.Fn ceil "float x"
 .Sh DESCRIPTION
 The
 .Fn ceil
-function returns the smallest integral value
+and the
+.Fn ceilf
+functions return the smallest integral value
 (represented as a double precision number)
 greater than or equal to
 .Fa x .
