@@ -2906,7 +2906,7 @@ pmap_remove_pages(pmap, sva, eva)
 		return;
 	}
 #endif
-
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	s = splvm();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 
