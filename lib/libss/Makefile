@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.13 1996/08/30 02:04:37 peter Exp $
+#	$Id: Makefile,v 1.14 1996/09/05 17:14:31 bde Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -29,7 +29,7 @@ beforeinstall:
 		${DESTDIR}/usr/include/ss
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/copyright.h \
 		${DESTDIR}/usr/include/ss/mit-sipb-copyright.h
-.if exists(ss_err.h)
+.if exists(${.OBJDIR}/ss_err.h)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ss_err.h \
 		${DESTDIR}/usr/include/ss
 .endif
