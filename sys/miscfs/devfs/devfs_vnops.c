@@ -1353,7 +1353,7 @@ devfs_open( struct vop_open_args *ap)
 				return (EPERM);
 			/*
 			 * When running in secure mode, do not allow opens
-			 * for writing of /dev/mem, /dev/kmem, or character
+			 * for writing of character
 			 * devices whose corresponding block devices are
 			 * currently mounted.
 			 */
@@ -1363,8 +1363,6 @@ devfs_open( struct vop_open_args *ap)
 				    bvp->v_usecount > 0 &&
 				    (error = vfs_mountedon(bvp)))
 					return (error);
-				if (iskmemdev(dev))
-					return (EPERM);
 			}
 		}
 		if ((dsw->d_flags & D_TYPEMASK) == D_TTY)

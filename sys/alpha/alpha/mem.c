@@ -123,6 +123,11 @@ mmopen(dev, flags, fmt, p)
 {
 
 	switch (minor(dev)) {
+	case 0:
+	case 1:
+		if (securelevel >= 1)
+			return (EPERM);
+		break;
 	case 32:
 #ifdef PERFMON
 		return perfmon_open(dev, flags, fmt, p);
@@ -365,23 +370,6 @@ mmpoll(dev, events, p)
 	default:
 		return seltrue(dev, events, p);
 	}
-}
-
-/*
- * Routine that identifies /dev/mem and /dev/kmem.
- *
- * A minimal stub routine can always return 0.
- */
-int
-iskmemdev(dev)
-	dev_t dev;
-{
-
-	return (((major(dev) == mem_cdevsw.d_maj)
-		 && (minor(dev) == 0 || minor(dev) == 1))
-/* or the osf/1 mem device */
-		||((major(dev) == 0) 
-		   && (minor(dev) == 0x00200002)));
 }
 
 int
