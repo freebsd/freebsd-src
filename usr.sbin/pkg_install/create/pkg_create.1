@@ -118,6 +118,21 @@ space in your
 directory is limited.  Be sure to leave some number of `X' characters
 for mktemp(3) to fill in with a unique ID.
 .B "Optional."
+.TP
+.BI "\-X\ " file
+Pass
+.I file
+as a
+.B \-exclude-from
+argument to
+.B tar
+when creating final package.  See
+.B tar
+man page (or run
+.B tar
+with
+.B --help
+flag) for further information on using this flag.
 .PP
 .SH "TECHNICAL DETAILS"
 The "packing list" format (see \fB-f\fR) is fairly simple, being
