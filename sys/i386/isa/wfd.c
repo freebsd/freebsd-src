@@ -41,7 +41,7 @@
 #include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/file.h>
-#include <sys/fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
@@ -65,7 +65,7 @@ static	d_strategy_t	wfdstrategy;
 #define BDEV_MAJOR 24
 static struct cdevsw wfd_cdevsw;
 static struct bdevsw wfd_bdevsw = 
-	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,	/*22*/
+	{ wfdbopen,	wfdbclose,	wfdstrategy,	wfdioctl,
 	  nodump,	nopsize,	0,	"wfd",	&wfd_cdevsw,	-1 };
 
 #ifndef ATAPI_STATIC
@@ -198,7 +198,6 @@ wfdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	}
 	wfdtab[wfdnlun] = t;
 	bzero (t, sizeof (struct wfd));
-	bufq_init(&t->buf_queue);
 	t->ata = ata;
 	t->unit = unit;
 	lun = t->lun = wfdnlun++;
@@ -433,7 +432,7 @@ void wfdstrategy (struct buf *bp)
 	x = splbio();
 
 	/* Place it in the queue of disk activities for this disk. */
-	bufqdisksort (&t->buf_queue, bp);
+	tqdisksort (&t->buf_queue, bp);
 
 	/* Tell the device to get going on the transfer if it's
 	 * not doing anything, otherwise just wait for completion. */
@@ -451,7 +450,7 @@ void wfdstrategy (struct buf *bp)
  */
 static void wfd_start (struct wfd *t)
 {
-	struct buf *bp = bufq_first(&t->buf_queue);
+	struct buf *bp = TAILQ_FIRST(&t->buf_queue);
 	u_long blkno, nblk;
 	u_char op_code;
 	long count;
@@ -461,7 +460,7 @@ static void wfd_start (struct wfd *t)
 		return;
 
 	/* Unqueue the request. */
-	bufq_remove(&t->buf_queue, bp);
+	TAILQ_REMOVE(&t->buf_queue, bp, b_act);
 
 	/* We have a buf, now we should make a command
 	 * First, translate the block to absolute and put it in terms of the
@@ -480,7 +479,7 @@ static void wfd_start (struct wfd *t)
 
 	atapi_request_callback (t->ata, t->unit, op_code, 0,
 		blkno>>24, blkno>>16, blkno>>8, blkno, 0, nblk>>8, nblk, 0, 0,
-		0, 0, 0, 0, 0, (u_char*) bp->b_data, count,
+		0, 0, 0, 0, 0, (u_char*) bp->b_un.b_addr, count,
 		(void*)wfd_done, t, bp);
 }
 
