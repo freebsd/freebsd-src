@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: random.c,v 1.8 1997/03/29 19:55:03 ache Exp $
  *
  */
 
@@ -38,6 +38,7 @@
 static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/time.h>          /* for srandomdev() */
 #include <fcntl.h>             /* for srandomdev() */
 #include <stdio.h>
 #include <stdlib.h>
@@ -285,10 +286,10 @@ srandom(x)
  * state buffer are no longer derived from the LC algorithm applied to
  * a fixed seed.
  */
-int
+void
 srandomdev()
 {
-	int fd;
+	int fd, done;
 	size_t len;
 
 	if (rand_type == TYPE_0)
@@ -296,20 +297,26 @@ srandomdev()
 	else
 		len = rand_deg * sizeof state[0];
 
+	done = 0;
 	fd = open("/dev/urandom", O_RDONLY, 0);
-	if (fd < 0)
-		return -1;
-	if (read(fd, (void *) state, len) < (ssize_t) len) {
+	if (fd >= 0) {
+		if (read(fd, (void *) state, len) == (ssize_t) len)
+			done = 1;
 		close(fd);
-		return -1;
 	}
-	close(fd);
+
+	if (!done) {
+		struct timeval tv;
+
+		gettimeofday(&tv, NULL);
+		srandom(getpid() ^ tv.tv_sec ^ tv.tv_usec);
+		return;
+	}
 
 	if (rand_type != TYPE_0) {
 		fptr = &state[rand_sep];
 		rptr = &state[0];
 	}
-	return 0;
 }
 
 /*
