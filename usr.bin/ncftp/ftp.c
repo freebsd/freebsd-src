@@ -99,7 +99,9 @@ extern struct userinfo		uinfo;
 extern struct macel			macros[];
 extern struct lslist		*lshead, *lstail;
 extern int					is_ls;
+#ifdef PASSIVEMODE
 extern int					passivemode;
+#endif
 
 #ifdef GATEWAY
 extern string				gateway;
@@ -1691,11 +1693,14 @@ int initconn(void)
 	int					on = 1, rval;
 	string				str;
 	Sig_t				oldintr;
+#ifdef PASSIVEMODE
 	int					a1, a2, a3, a4, p1, p2;
 	unsigned char		n[6];
+#endif
   
   	oldintr = Signal(SIGINT, SIG_IGN);
 
+#ifdef PASSIVEMODE
 	if (passivemode) {
 		data = socket(AF_INET, SOCK_STREAM, 0);
 		if (data < 0) {
@@ -1745,6 +1750,7 @@ int initconn(void)
 		rval = 0;
 		goto Return;
 	}
+#endif
 
 noport:
 	data_addr = myctladdr;
@@ -1853,8 +1859,10 @@ dataconn(char *mode)
 #ifdef SOCKS
 	s = Raccept(data, (struct sockaddr *) &from, &fromlen);
 #else
+#ifdef PASSIVEMODE
  	if (passivemode)
  		return( fdopen( data, mode ));
+#endif
 	s = Accept(data, &from, &fromlen);
 #endif
 	if (s < 0) {
