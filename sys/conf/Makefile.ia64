@@ -19,7 +19,7 @@
 GCC3=	you bet
 
 # Which version of config(8) is required.
-%VERSREQ=	600000
+%VERSREQ=	600001
 
 STD8X16FONT?=	iso
 
