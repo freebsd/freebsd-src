@@ -183,8 +183,7 @@ arstrategy(struct bio *bp)
 	struct ar_buf *buf1, *buf2;
 	int plba;
 
-	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT);
-	bzero(buf1, sizeof(struct ar_buf));
+	buf1 = malloc(sizeof(struct ar_buf), M_AR, M_NOWAIT | M_ZERO);
 	if (rdp->flags & AR_F_SPAN) {
 	    plba = lba;
 	    while (plba >= (rdp->subdisk[buf1->drive]->total_secs-rdp->reserved)
@@ -315,12 +314,12 @@ ar_highpoint_conf(struct ad_softc *adp, struct ar_softc **raidp)
     for (array = 0; array < 8; array++) {
 	if (!raidp[array]) {
 	    raidp[array] = 
-	        (struct ar_softc*)malloc(sizeof(struct ar_softc),M_AR,M_NOWAIT);
+	        (struct ar_softc*)malloc(sizeof(struct ar_softc),M_AR,
+					 M_NOWAIT | M_ZERO);
 	    if (!raidp[array]) {
 		printf("ar: failed to allocate raid config storage\n");
 		return 1;
 	    }
-	    bzero(raidp[array], sizeof(struct ar_softc));
 	}
 	raid = raidp[array];
 

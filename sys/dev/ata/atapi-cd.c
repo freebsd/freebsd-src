@@ -143,13 +143,12 @@ acdattach(struct atapi_softc *atp)
 			   sizeof(struct changer)>>8, sizeof(struct changer),
 			   0, 0, 0, 0, 0, 0 };
 
-	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT);
+	chp = malloc(sizeof(struct changer), M_ACD, M_NOWAIT | M_ZERO);
 	if (chp == NULL) {
 	    printf("acd: out of memory\n");
 	    free(cdp, M_ACD);
 	    return -1;
 	}
-	bzero(chp, sizeof(struct changer));
 	error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)chp, 
 			        sizeof(struct changer),
 				ATPR_F_READ, 60, NULL, NULL);
@@ -233,9 +232,8 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
 {
     struct acd_softc *cdp;
 
-    if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT)))
+    if (!(cdp = malloc(sizeof(struct acd_softc), M_ACD, M_NOWAIT | M_ZERO)))
 	return NULL;
-    bzero(cdp, sizeof(struct acd_softc));
     bioq_init(&cdp->bio_queue);
     cdp->atp = atp;
     cdp->lun = ata_get_lun(&acd_lun_map);
@@ -243,11 +241,11 @@ acd_init_lun(struct atapi_softc *atp, struct devstat *stats)
     cdp->slot = -1;
     cdp->changer_info = NULL;
     if (stats == NULL) {
-	if (!(cdp->stats = malloc(sizeof(struct devstat), M_ACD, M_NOWAIT))) {
+	if (!(cdp->stats = malloc(sizeof(struct devstat), M_ACD,
+				  M_NOWAIT | M_ZERO))) {
 	    free(cdp, M_ACD);
 	    return NULL;
 	}
-	bzero(cdp->stats, sizeof(struct devstat));
     }
     else
 	cdp->stats = stats;

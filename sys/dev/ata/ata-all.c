@@ -1794,12 +1794,11 @@ ata_init(void)
 {
     /* register boot attach to be run when interrupts are enabled */
     if (!(ata_delayed_attach = (struct intr_config_hook *)
-			     malloc(sizeof(struct intr_config_hook),
-			     M_TEMP, M_NOWAIT))) {
+			       malloc(sizeof(struct intr_config_hook),
+				      M_TEMP, M_NOWAIT | M_ZERO))) {
 	printf("ata: malloc of delayed attach hook failed\n");
 	return;
     }
-    bzero(ata_delayed_attach, sizeof(struct intr_config_hook));
 
     ata_delayed_attach->ich_func = (void*)ata_boot_attach;
     if (config_intrhook_establish(ata_delayed_attach) != 0) {

@@ -84,12 +84,11 @@ afdattach(struct atapi_softc *atp)
     struct afd_softc *fdp;
     dev_t dev;
 
-    fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT);
+    fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO);
     if (!fdp) {
 	printf("afd: out of memory\n");
 	return -1;
     }
-    bzero(fdp, sizeof(struct afd_softc));
     bioq_init(&fdp->bio_queue);
     fdp->atp = atp;
     fdp->lun = ata_get_lun(&afd_lun_map);
