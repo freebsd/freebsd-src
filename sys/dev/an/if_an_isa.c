@@ -79,7 +79,6 @@ static struct isa_pnp_id an_ids[] = {
 
 static int an_probe_isa		(device_t);
 static int an_attach_isa	(device_t);
-static int an_detach_isa	(device_t);
 
 static int
 an_probe_isa(dev)
@@ -133,26 +132,11 @@ an_attach_isa(dev)
 	return (0);
 }
 
-static int
-an_detach_isa(device_t dev)
-{
-	struct an_softc		*sc = device_get_softc(dev);
-	struct ifnet		*ifp = &sc->arpcom.ac_if;
-
-	an_stop(sc);
-	ifmedia_removeall(&sc->an_ifmedia);
-	ether_ifdetach(ifp);
-	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
-	an_release_resources(dev);
-
-	return (0);
-}
-
 static device_method_t an_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		an_probe_isa),
 	DEVMETHOD(device_attach,	an_attach_isa),
-	DEVMETHOD(device_detach,	an_detach_isa),
+	DEVMETHOD(device_detach,	an_detach),
 	DEVMETHOD(device_shutdown,	an_shutdown),
 	{ 0, 0 }
 };

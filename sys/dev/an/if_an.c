@@ -503,6 +503,7 @@ an_dma_free(sc, dma)
 {
 	bus_dmamap_unload(sc->an_dtag, dma->an_dma_map);
 	bus_dmamem_free(sc->an_dtag, dma->an_dma_vaddr, dma->an_dma_map);
+	dma->an_dma_vaddr = 0;
 	bus_dmamap_destroy(sc->an_dtag, dma->an_dma_map);
 }
 
@@ -814,6 +815,29 @@ an_attach(sc, unit, flags)
 fail:;
 	mtx_destroy(&sc->an_mtx);
 	return(error);
+}
+
+int
+an_detach(device_t dev)
+{
+	struct an_softc		*sc = device_get_softc(dev);
+	struct ifnet		*ifp = &sc->arpcom.ac_if;
+
+	if (sc->an_gone) {
+		device_printf(dev,"already unloaded\n");
+		return(0);
+	}
+	AN_LOCK(sc);
+	an_stop(sc);
+	ifmedia_removeall(&sc->an_ifmedia);
+	ifp->if_flags &= ~IFF_RUNNING;
+	ether_ifdetach(ifp);
+	sc->an_gone = 1;
+	AN_UNLOCK(sc);
+	bus_teardown_intr(dev, sc->irq_res, sc->irq_handle);
+	an_release_resources(dev);
+	mtx_destroy(&sc->an_mtx);
+	return (0);
 }
 
 static void
@@ -1417,6 +1441,8 @@ an_read_record(sc, ltv)
 			*ptr2 = CSR_READ_1(sc, AN_DATA1);
 		}
 	} else { /* MPI-350 */
+		if (!sc->an_rid_buffer.an_dma_vaddr)
+			return(EIO);
 		an_rid_desc.an_valid = 1;
 		an_rid_desc.an_len = AN_RID_BUFFER_SIZE;
 		an_rid_desc.an_rid = 0;
@@ -1449,11 +1475,18 @@ an_read_record(sc, ltv)
 			an_rid_desc.an_len = an_ltv->an_len;
 		}
 
-		if (an_rid_desc.an_len > 2)
-			bcopy(&an_ltv->an_type,
-			      &ltv->an_val, 
-			      an_rid_desc.an_len - 2);
-		ltv->an_len = an_rid_desc.an_len + 2;
+		len = an_rid_desc.an_len;
+		if (len > (ltv->an_len - 2)) {
+			printf("an%d: record length mismatch -- expected %d, "
+			       "got %d for Rid %x\n", sc->an_unit,
+			       ltv->an_len - 2, len, ltv->an_type);
+			len = ltv->an_len - 2;
+		} else {
+			ltv->an_len = len + 2;
+		}
+		bcopy(&an_ltv->an_type,
+		    &ltv->an_val, 
+		    len);
 	}
 
 	if (an_dump)
@@ -3376,9 +3409,8 @@ writerids(ifp, l_ioctl)
  * Linux driver
  */
 
-#define FLASH_DELAY(_sc, x)	AN_UNLOCK(_sc) ; \
-	tsleep(ifp, PZERO, "flash", ((x) / hz) + 1); \
-	AN_LOCK(_sc) ;
+#define FLASH_DELAY(_sc, x)	msleep(ifp, &(_sc)->an_mtx, PZERO, \
+	"flash", ((x) / hz) + 1);
 #define FLASH_COMMAND	0x7e7e
 #define FLASH_SIZE	32 * 1024
 
