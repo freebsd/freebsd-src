@@ -37,10 +37,6 @@
 .\"	@(#)ss..	8.1 (Berkeley) 6/8/93
 .\"
 .\" $FreeBSD$
-.R1
-database ref.bib
-accumulate
-.R2
 .EH 'PSD:15-%''Yacc: Yet Another Compiler-Compiler'
 .OH 'Yacc: Yet Another Compiler-Compiler''PSD:15-%'
 .\".RP

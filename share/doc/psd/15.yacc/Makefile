@@ -2,10 +2,15 @@
 # $FreeBSD$
 
 VOLUME=		psd/15.yacc
-SRCS=		ss.. ss0 ss1 ss2 ss3 ss4 ss5 ss6 ss7 ss8 ss9 ssA ssB ssa ssb ssc ssd
+SRCS=		stubs ss.. ss0 ss1 ss2 ss3 ss4 ss5 ss6 ss7 ss8 ss9 \
+		ssA ssB ssa ssb ssc ssd
 EXTRA=		ref.bib
 MACROS=		-ms
 USE_REFER=	YES
-CD_HACK=	${.CURDIR}
+CLEANFILES=	stubs
+
+stubs:
+	@(echo .R1; echo database ${.CURDIR}/ref.bib; \
+	    echo accumulate; echo .R2) > ${.TARGET}
 
 .include <bsd.doc.mk>
