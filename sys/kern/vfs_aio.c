@@ -1387,22 +1387,14 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	fhold(fp);
 
 	if (aiocbe->uaiocb.aio_offset == -1LL) {
-		fdrop(fp, td);
-		uma_zfree(aiocb_zone, aiocbe);
-		if (type == 0)
-			suword(&job->_aiocb_private.error, EINVAL);
-		return EINVAL;
+		error = EINVAL;
+		goto aqueue_fail;
 	}
-
 	error = suword(&job->_aiocb_private.kernelinfo, jobrefid);
 	if (error) {
-		fdrop(fp, td);
-		uma_zfree(aiocb_zone, aiocbe);
-		if (type == 0)
-			suword(&job->_aiocb_private.error, EINVAL);
-		return error;
+		error = EINVAL;
+		goto aqueue_fail;
 	}
-
 	aiocbe->uaiocb._aiocb_private.kernelinfo = (void *)(intptr_t)jobrefid;
 	if (jobrefid == LONG_MAX)
 		jobrefid = 1;
@@ -1419,15 +1411,11 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 		}
 		return 0;
 	}
-
 	if ((opcode != LIO_READ) && (opcode != LIO_WRITE)) {
-		fdrop(fp, td);
-		uma_zfree(aiocb_zone, aiocbe);
-		if (type == 0) {
+		if (type == 0)
 			suword(&job->_aiocb_private.status, 0);
-			suword(&job->_aiocb_private.error, EINVAL);
-		}
-		return EINVAL;
+		error = EINVAL;
+		goto aqueue_fail;
 	}
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify == SIGEV_KEVENT) {
