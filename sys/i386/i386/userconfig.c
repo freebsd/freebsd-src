@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.52 1996/10/03 07:51:40 jkh Exp $
+ **      $Id: userconfig.c,v 1.53 1996/10/05 10:44:07 jkh Exp $
  **/
 
 /**
@@ -2211,7 +2211,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.52 1996/10/03 07:51:40 jkh Exp $
+ *      $Id: userconfig.c,v 1.53 1996/10/05 10:44:07 jkh Exp $
  */
 
 #include "scbus.h"
@@ -2265,7 +2265,9 @@ static int set_device_enable(CmdParm *);
 static int set_device_disable(CmdParm *);
 static int quitfunc(CmdParm *);
 static int helpfunc(CmdParm *);
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
 static int introfunc(CmdParm *);
+#endif
 
 static int lineno;
 
@@ -2294,7 +2296,9 @@ static Cmd CmdList[] = {
     { "ex", 	quitfunc, 		NULL },		/* exit (quit)	*/
     { "f",	set_device_flags,	int_parms },	/* flags dev mask */
     { "h", 	helpfunc, 		NULL },		/* help		*/
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
     { "intro", 	introfunc, 		NULL },		/* intro screen	*/
+#endif
     { "iom",	set_device_mem,		addr_parms },	/* iomem dev addr */
     { "ios",	set_device_iosize,	int_parms },	/* iosize dev size */
     { "ir",	set_device_irq,		int_parms },	/* irq dev #	*/
@@ -2559,6 +2563,7 @@ center(int y, char *str)
     putxy((80 - strlen(str)) / 2, y, str);
 }
 
+#if defined(USERCONFIG_BOOT) && defined(VISUAL_USERCONFIG)
 static int
 introfunc(CmdParm *parms)
 {
@@ -2587,6 +2592,7 @@ introfunc(CmdParm *parms)
     cngetc();
     return 0;
 }
+#endif
 
 static int
 lsdevtab(struct isa_device *dt)
