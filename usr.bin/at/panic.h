@@ -21,6 +21,8 @@
  * THEORY OF LIABILITY, WETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifdef __FreeBSD__
@@ -31,12 +33,12 @@ void
 #ifdef __GNUC__
 __NORETURN
 #endif
-panic(char *a);
+panic(const char *a);
 void
 #ifdef __GNUC__
 __NORETURN
 #endif
-perr(char *a);
+perr(const char *a);
 void
 #ifdef __GNUC__
 __NORETURN

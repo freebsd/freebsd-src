@@ -47,7 +47,7 @@ static const char rcsid[] =
 /* Global functions */
 
 void
-panic(char *a)
+panic(const char *a)
 {
 /* Something fatal has happened, print error message and exit.
  */
@@ -61,7 +61,7 @@ panic(char *a)
 }
 
 void
-perr(char *a)
+perr(const char *a)
 {
 /* Some operating system error; print error message and exit.
  */
