@@ -115,6 +115,11 @@ argument should point to a buffer at least
 .Fa size
 bytes long;
 this buffer will be used instead of the current buffer.
+If
+.Fa buf
+is not NULL, it is the caller's responsibility to
+.Xr free 3
+this buffer after closing the stream.
 (If the
 .Fa size
 argument
