@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a Ar file
-.Op Fl f Ar file
+.Op Fl o Ar file
 .Op Fl l
 .Ar command
 .Sh DESCRIPTION
@@ -74,22 +74,14 @@ Append the output of
 to 
 .Ar file
 instead of writing to stderr.
-.It Fl f Ar file
+.It Fl o Ar file
 Write the output to 
 .Ar file
 instead of stderr.  If
 .Ar file
 exists, then 
 .Nm
-will overwrite the file if premissions permit such an operation.
-The output can be sent to stdout by giving
-a file name
-.Do
--
-.Dc
-to the 
-.Fl f
-option.
+will overwrite the file if its permissions allow it.
 .It Fl l
 The contents of the
 .Em rusage
@@ -106,6 +98,24 @@ is available as
 to
 .Xr csh
 users.
+.Sh NOTES
+The output of
+.Nm
+can be directed to standard output by specifying
+.Do
+-
+.Dc
+as the argument to the
+.Fl a
+or
+.Fl o
+option.
+.Pp
+The
+.Fl a
+and
+.Fl o
+options are mutually exclusive.
 .Sh BUGS
 The granularity of seconds on micro processors is crude and
 can result in times being reported for CPU usage which are too large by
