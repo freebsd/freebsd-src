@@ -302,7 +302,12 @@ The current implementation supports only the
 .Li "\&""C""
 and
 .Li "\&""POSIX""
-locales for all but the LC_CTYPE and LC_COLLATE locale.
+locales for all but the 
+.Dv LC_COLLATE ,
+.Dv LC_CTYPE ,
+and
+.Dv LC_TIME
+categories.
 .Pp
 In spite of the gnarly currency support in
 .Fn localeconv ,
