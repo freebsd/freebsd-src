@@ -1,4 +1,4 @@
-#	$Id: BSD.var.dist,v 1.13 1994/05/31 04:38:13 ache Exp $
+#	$Id: BSD.var.dist,v 1.14 1994/05/31 05:05:41 ache Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -36,7 +36,7 @@ rwho
 ..
 spool
 	/set type=dir uname=bin gname=daemon mode=0755
-	lock    uname=uucp gname=dialer
+	lock    uname=uucp gname=dialer mode=0775
 	..
 	lpd
 	..
