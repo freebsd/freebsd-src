@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootinfo.c,v 1.4 1999/03/08 11:05:42 dcs Exp $
+ *	$Id: bootinfo.c,v 1.6 1999/03/20 14:13:09 dcs Exp $
  */
 
 #include <stand.h>
@@ -153,11 +153,29 @@ int
 bi_load(struct bootinfo_v1 *bi, vm_offset_t *ffp_save,
 	struct loaded_module *mp)
 {
+    char			*rootdevname;
+    struct alpha_devdesc	*rootdev;
     struct loaded_module	*xp;
     vm_offset_t			addr, bootinfo_addr;
     u_int			pad;
     vm_offset_t			ssym, esym;
     struct module_metadata	*md;
+
+    /* 
+     * Allow the environment variable 'rootdev' to override the supplied device 
+     * This should perhaps go to MI code and/or have $rootdev tested/set by
+     * MI code before launching the kernel.
+     */
+    rootdevname = getenv("rootdev");
+    alpha_getdev((void **)(&rootdev), rootdevname, NULL);
+    if (rootdev == NULL) {		/* bad $rootdev/$currdev */
+	printf("can't determine root device\n");
+	return(EINVAL);
+    }
+
+    /* Try reading the /etc/fstab file to select the root device */
+    getrootmount(alpha_fmtdev((void *)rootdev));
+    free(rootdev);
 
     ssym = esym = 0;
     if ((md = mod_findmetadata(mp, MODINFOMD_SSYM)) != NULL)
