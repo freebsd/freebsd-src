@@ -51,6 +51,7 @@ static char *orig_rcsid = "$NetBSD: hesiod.c,v 1.9 1999/02/11 06:16:38 simonb Ex
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <netinet/in.h>
@@ -64,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "un-namespace.h"
 
 struct hesiod_p {
 	char	*lhs;			/* normally ".ns" */
@@ -163,7 +165,7 @@ hesiod_to_bind(void *context, const char *name, const char *type)
 	const char	*rhs;
 	int		 len;
 
-	if (strlcpy(bindname, name, sizeof(bindname)) >= sizeof(bindname)) {
+	if (_strlcpy(bindname, name, sizeof(bindname)) >= sizeof(bindname)) {
 		errno = EMSGSIZE;
 		return NULL;
 	}

@@ -37,9 +37,11 @@ static char sccsid[] = "@(#)strerror.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include "un-namespace.h"
 
 #define	UPREFIX		"Unknown error: "
 
@@ -69,8 +71,8 @@ errstr(int num, char *buf, size_t len)
 	} while (uerr /= 10);
 	if (num < 0)
 		*--t = '-';
-	strlcpy(buf, UPREFIX, len);
-	strlcat(buf, t, len);
+	_strlcpy(buf, UPREFIX, len);
+	_strlcat(buf, t, len);
 }
 
 int
@@ -81,7 +83,7 @@ strerror_r(int errnum, char *strerrbuf, size_t buflen)
 		errstr(errnum, strerrbuf, buflen);
 		return (EINVAL);
 	}
-	if (strlcpy(strerrbuf, sys_errlist[errnum], buflen) >= buflen)
+	if (_strlcpy(strerrbuf, sys_errlist[errnum], buflen) >= buflen)
 		return (ERANGE);
 	return (0);
 }
