@@ -827,37 +827,35 @@ pmap_new_proc(p)
 	struct proc *p;
 {
 #ifdef I386_CPU
-	int updateneeded;
+	int updateneeded = 0;
 #endif
 	int i;
 	vm_object_t upobj;
+	vm_offset_t up;
 	vm_page_t m;
-	struct user *up;
 	unsigned *ptek, oldpte;
 
 	/*
 	 * allocate object for the upages
 	 */
-	if ((upobj = p->p_upages_obj) == NULL) {
-		upobj = vm_object_allocate( OBJT_DEFAULT, UPAGES);
+	upobj = p->p_upages_obj;
+	if (upobj == NULL) {
+		upobj = vm_object_allocate(OBJT_DEFAULT, UPAGES);
 		p->p_upages_obj = upobj;
 	}
 
 	/* get a kernel virtual address for the UPAGES for this proc */
-	if ((up = p->p_addr) == NULL) {
-		up = (struct user *) kmem_alloc_nofault(kernel_map,
-				UPAGES * PAGE_SIZE);
-		if (up == NULL)
-			panic("pmap_new_proc: u_map allocation failed");
-		p->p_addr = up;
+	up = (vm_offset_t)p->p_addr;
+	if (up == 0) {
+		up = kmem_alloc_nofault(kernel_map, UPAGES * PAGE_SIZE);
+		if (up == 0)
+			panic("pmap_new_proc: upage allocation failed");
+		p->p_addr = (struct user *)up;
 	}
 
-	ptek = (unsigned *) vtopte((vm_offset_t) up);
+	ptek = (unsigned *)vtopte(up);
 
-#ifdef I386_CPU
-	updateneeded = 0;
-#endif
-	for(i=0;i<UPAGES;i++) {
+	for (i = 0; i < UPAGES; i++) {
 		/*
 		 * Get a kernel stack page
 		 */
@@ -878,7 +876,7 @@ pmap_new_proc(p)
 #ifdef I386_CPU
 			updateneeded = 1;
 #else
-			invlpg((vm_offset_t) up + i * PAGE_SIZE);
+			invlpg(up + i * PAGE_SIZE);
 #endif
 		}
 
@@ -903,23 +901,22 @@ pmap_dispose_proc(p)
 {
 	int i;
 	vm_object_t upobj;
+	vm_offset_t up;
 	vm_page_t m;
 	unsigned *ptek, oldpte;
 
 	upobj = p->p_upages_obj;
-
-	ptek = (unsigned *) vtopte((vm_offset_t) p->p_addr);
-	for(i=0;i<UPAGES;i++) {
-
-		if ((m = vm_page_lookup(upobj, i)) == NULL)
-			panic("pmap_dispose_proc: upage already missing???");
-
+	up = (vm_offset_t)p->p_addr;
+	ptek = (unsigned *)vtopte(up);
+	for (i = 0; i < UPAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
-
 		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
 #ifndef I386_CPU
-		invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
+		invlpg(up + i * PAGE_SIZE);
 #endif
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
@@ -938,18 +935,18 @@ pmap_swapout_proc(p)
 {
 	int i;
 	vm_object_t upobj;
+	vm_offset_t up;
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
-	/*
-	 * let the upages be paged
-	 */
-	for(i=0;i<UPAGES;i++) {
-		if ((m = vm_page_lookup(upobj, i)) == NULL)
-			panic("pmap_swapout_proc: upage already missing???");
+	up = (vm_offset_t)p->p_addr;
+	for (i = 0; i < UPAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_proc: upage already missing?");
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
-		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
+		pmap_kremove(up + i * PAGE_SIZE);
 	}
 }
 
@@ -962,24 +959,21 @@ pmap_swapin_proc(p)
 {
 	int i,rv;
 	vm_object_t upobj;
+	vm_offset_t up;
 	vm_page_t m;
 
 	upobj = p->p_upages_obj;
-	for(i=0;i<UPAGES;i++) {
-
+	up = (vm_offset_t)p->p_addr;
+	for (i = 0; i < UPAGES; i++) {
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
-		pmap_kenter(((vm_offset_t) p->p_addr) + i * PAGE_SIZE,
-			VM_PAGE_TO_PHYS(m));
-
+		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
 		if (m->valid != VM_PAGE_BITS_ALL) {
 			rv = vm_pager_get_pages(upobj, &m, 1, 0);
 			if (rv != VM_PAGER_OK)
-				panic("pmap_swapin_proc: cannot get upages for proc: %d\n", p->p_pid);
+				panic("pmap_swapin_proc: cannot get upage for proc: %d\n", p->p_pid);
 			m = vm_page_lookup(upobj, i);
 			m->valid = VM_PAGE_BITS_ALL;
 		}
-
 		vm_page_wire(m);
 		vm_page_wakeup(m);
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
