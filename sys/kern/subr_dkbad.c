@@ -132,7 +132,7 @@ readbad144(dev, strat, lp, bdp)
 			msg = "bad sector table I/O error";
 	} while ((bp->b_flags & B_ERROR) && (i += 2) < 10 &&
 		 i < lp->d_nsectors);
-	bp->b_flags = B_INVAL | B_AGE;
+	bp->b_flags |= B_INVAL | B_AGE;
 	brelse(bp);
 	return (msg);
 }
