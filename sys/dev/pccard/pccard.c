@@ -370,10 +370,11 @@ pccard_function_init(struct pccard_function *pf)
 		 * from this config entry.
 		 */
 		for (i = 0; i < cfe->num_iospace; i++) {
-			resource_list_delete(rl, SYS_RES_IOPORT, i);
-			if (cfe->iores[i])
+			if (cfe->iores[i]) {
+				resource_list_delete(rl, SYS_RES_IOPORT, i);
 				bus_release_resource(bus, SYS_RES_IOPORT,
 				    cfe->iorid[i], cfe->iores[i]);
+			}
 			cfe->iores[i] = NULL;
 		}
 		if (cfe->irqmask && cfe->irqres) {
