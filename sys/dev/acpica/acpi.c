@@ -1831,6 +1831,11 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     sc->acpi_sleep_disabled = 1;
     ACPI_UNLOCK(acpi);
 
+    /*
+     * Be sure to hold Giant across DEVICE_SUSPEND/RESUME since non-MPSAFE
+     * drivers need this.
+     */
+    mtx_lock(&Giant);
     slp_state = ACPI_SS_NONE;
     switch (state) {
     case ACPI_STATE_S1:
@@ -1928,6 +1933,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
     if (state != ACPI_STATE_S5)
 	timeout(acpi_sleep_enable, (caddr_t)sc, hz * ACPI_MINIMUM_AWAKETIME);
 
+    mtx_unlock(&Giant);
     return_ACPI_STATUS (status);
 }
 
