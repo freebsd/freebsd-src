@@ -1061,11 +1061,12 @@ CHANNEL_DECLARE(emurchan);
 /* -------------------------------------------------------------------- */
 /* The interrupt handler */
 static void
-emu_intr(void *p)
+emu_intr(void *data)
 {
-	struct sc_info *sc = (struct sc_info *)p;
+	struct sc_info *sc = data;
 	u_int32_t stat, ack, i, x;
 
+	snd_mtxlock(sc->lock);
 	while (1) {
 		stat = emu_rd(sc, IPR, 4);
 		if (stat == 0)
@@ -1073,35 +1074,18 @@ emu_intr(void *p)
 		ack = 0;
 
 		/* process irq */
-		if (stat & IPR_INTERVALTIMER) {
+		if (stat & IPR_INTERVALTIMER)
 			ack |= IPR_INTERVALTIMER;
-			x = 0;
-			for (i = 0; i < sc->nchans; i++) {
-				if (sc->pch[i].run) {
-					x = 1;
-					chn_intr(sc->pch[i].channel);
-				}
-			}
-			if (x == 0)
-				emu_enatimer(sc, 0);
-		}
 
-
-		if (stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL)) {
+		if (stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL))
 			ack |= stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL);
-			if (sc->rch[0].channel)
-				chn_intr(sc->rch[0].channel);
-		}
-		if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
+
+		if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL))
 			ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
-			if (sc->rch[1].channel)
-				chn_intr(sc->rch[1].channel);
-		}
-		if (stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL)) {
+
+		if (stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL))
 			ack |= stat & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL);
-			if (sc->rch[2].channel)
-				chn_intr(sc->rch[2].channel);
-		}
+
 		if (stat & IPR_PCIERROR) {
 			ack |= IPR_PCIERROR;
 			device_printf(sc->dev, "pci error\n");
@@ -1116,10 +1100,44 @@ emu_intr(void *p)
 		}
 
 		if (stat & ~ack)
-			device_printf(sc->dev, "dodgy irq: %x (harmless)\n", stat & ~ack);
+			device_printf(sc->dev, "dodgy irq: %x (harmless)\n",
+			    stat & ~ack);
 
 		emu_wr(sc, IPR, stat, 4);
+
+		if (ack) {
+			snd_mtxunlock(sc->lock);
+
+			if (ack & IPR_INTERVALTIMER) {
+				x = 0;
+				for (i = 0; i < sc->nchans; i++) {
+					if (sc->pch[i].run) {
+						x = 1;
+						chn_intr(sc->pch[i].channel);
+					}
+				}
+				if (x == 0)
+					emu_enatimer(sc, 0);
+			}
+
+
+			if (ack & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL)) {
+				if (sc->rch[0].channel)
+					chn_intr(sc->rch[0].channel);
+			}
+			if (ack & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
+				if (sc->rch[1].channel)
+					chn_intr(sc->rch[1].channel);
+			}
+			if (ack & (IPR_MICBUFFULL | IPR_MICBUFHALFFULL)) {
+				if (sc->rch[2].channel)
+					chn_intr(sc->rch[2].channel);
+			}
+
+			snd_mtxlock(sc->lock);
+		}
 	}
+	snd_mtxunlock(sc->lock);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1944,7 +1962,7 @@ emu_pci_attach(device_t dev)
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
-	    snd_setup_intr(dev, sc->irq, 0, emu_intr, sc, &sc->ih)) {
+	    snd_setup_intr(dev, sc->irq, INTR_MPSAFE, emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
