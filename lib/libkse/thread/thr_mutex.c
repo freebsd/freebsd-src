@@ -146,7 +146,7 @@ init_static (pthread_mutex_t *mutex)
 
 	_SPINLOCK(&static_init_lock);
 
-	if ( *mutex == NULL )
+	if (*mutex == NULL)
 		ret = pthread_mutex_init(mutex, NULL);
 	else
 		ret = 0;
