@@ -161,7 +161,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	error = 0;
 	start = 0;
 
-	if ((error = fork1(td, ff, &p2)) != 0)
+	if ((error = fork1(td, ff, 0, &p2)) != 0)
 		return (error);
 
 	PROC_LOCK(p2);
