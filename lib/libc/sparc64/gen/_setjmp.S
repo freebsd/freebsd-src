@@ -52,6 +52,8 @@
 
 #include <machine/asm.h>
 
+#include "assym.s"
+
 /*
  * C library -- _setjmp, _longjmp
  *
@@ -63,39 +65,36 @@
  * The previous signal state is NOT restored.
  */
 
-#define	JB_SP	0x0
-#define	JB_PC	0x8
-#define	JB_FP	0x10
-
 ENTRY(_setjmp)
-	stx	%sp, [%o0 + JB_SP]	/* store caller's stack pointer */
-	stx	%o7, [%o0 + JB_PC]	/* ... return pc */
-	stx	%fp, [%o0 + JB_FP]	/* ... and frame pointer */
+	stx	%sp, [%o0 + UC_MC + MC_O6]
+	stx	%o7, [%o0 + UC_MC + MC_O7]
+	stx	%fp, [%o0 + UC_MC + MC_G1]
 	retl
-	 clr	%o0		! return 0
+	 clr	%o0
+END(_setjmp)
 
 ENTRY(_longjmp)
-	mov	1, %g6
-	movrnz	%o1, %o1, %g6	! compute v ? v : 1 in a global register
-	mov	%o0, %g1	! save a in another global register
-	ldx	[%g1 + JB_FP], %g7	/* get caller's frame */
-1:	cmp	%fp, %g7	! compare against desired frame
-	bl,a	1b		! if below,
-	 restore		!    pop frame and loop
-	be,a	2f		! if there,
-	 ldx	[%g1 + JB_SP], %o2	!    fetch return %sp
+	mov	1, %g1
+	movrnz	%o1, %o1, %g1			! compute v ? v : 1
+	mov	%o0, %g2
+	ldx	[%g2 + UC_MC + MC_G1], %g3	! fetch callers frame
+1:	cmp	%fp, %g3			! compare against desired frame
+	bl,a	1b				! if below,
+	 restore				!    pop frame and loop
+	be,a	2f				! if there,
+	 ldx	[%g2 + UC_MC + MC_O6], %o0	!    fetch return %sp
 
 .Lbotch:
-	call	CNAME(longjmperror)	! otherwise, went too far; bomb out
+	call	CNAME(longjmperror)
 	 nop
 	illtrap
 
-2:	cmp	%o2, %sp	! %sp must not decrease
+2:	cmp	%o0, %sp			! %sp must not decrease
 	bge,a	3f
-	 mov	%o2, %sp	! it is OK, put it in place
+	 mov	%o0, %sp			! it is OK, put it in place
 	b,a	.Lbotch
 	 nop
-3:	ldx	[%g1 + JB_PC], %o3	! fetch pc
-	jmp	%o3 + 8		! success, return %g6
-	 mov	%g6, %o0
-
+3:	ldx	[%g2 + UC_MC + MC_O7], %o7	! fetch return address
+	retl
+	 mov	%g1, %o0			! return v ? v : 1;
+END(_longjmp)
