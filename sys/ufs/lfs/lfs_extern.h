@@ -31,23 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_extern.h	8.2 (Berkeley) 4/16/94
- * $Id: lfs_extern.h,v 1.10 1995/12/17 21:09:48 phk Exp $
+ * $Id: lfs_extern.h,v 1.11 1995/12/22 17:56:37 bde Exp $
  */
 
 #ifndef _UFS_LFS_LFS_EXTERN_H_
 #define	_UFS_LFS_LFS_EXTERN_H_
 
 #ifdef KERNEL
-struct fid;
+
+struct inode;
 struct mount;
 struct nameidata;
-struct proc;
-struct statfs;
-struct timeval;
-struct inode;
-struct uio;
-struct mbuf;
-
 
 int	 lfs_balloc __P((struct vnode *, u_long, daddr_t, struct buf **));
 int	 lfs_blkatoff __P((struct vop_blkatoff_args *));
@@ -85,6 +79,7 @@ extern vop_t **lfs_vnodeop_p;
 extern vop_t **lfs_specop_p;
 extern vop_t **lfs_fifoop_p;
 #define LFS_FIFOOPS lfs_fifoop_p
+
 #endif /* KERNEL */
 
 __BEGIN_DECLS

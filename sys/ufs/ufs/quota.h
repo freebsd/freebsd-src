@@ -34,11 +34,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)quota.h	8.1 (Berkeley) 6/11/93
- * $Id: quota.h,v 1.4 1995/12/22 15:58:54 phk Exp $
+ * $Id: quota.h,v 1.5 1996/02/27 07:57:57 mpp Exp $
  */
 
-#ifndef _UFS_UFS_QUOTA_
-#define _UFS_UFS_QUOTA_
+#ifndef _UFS_UFS_QUOTA_H_
+#define	_UFS_UFS_QUOTA_H_
 
 /*
  * Definitions for disk quotas imposed on the average user
@@ -168,17 +168,12 @@ struct	dquot {
 #define	DQREF(dq)	(dq)->dq_cnt++
 #endif
 
-#include <sys/cdefs.h>
+#ifdef	KERNEL
 
-struct dquot;
 struct inode;
 struct mount;
-struct proc;
-struct ucred;
-struct ufsmount;
 struct vnode;
-#ifdef	KERNEL
-__BEGIN_DECLS
+
 int	chkdq __P((struct inode *, long, struct ucred *, int));
 int	chkiq __P((struct inode *, long, struct ucred *, int));
 void	dqinit __P((void));
@@ -191,12 +186,15 @@ int	quotaon __P((struct proc *, struct mount *, int, caddr_t));
 int	setquota __P((struct mount *, u_long, int, caddr_t));
 int	setuse __P((struct mount *, u_long, int, caddr_t));
 int	ufs_quotactl __P((struct mount *, int, uid_t, caddr_t, struct proc *));
-__END_DECLS
-#else	/* KERNEL */
+
+#else /* !KERNEL */
+
+#include <sys/cdefs.h>
+
 __BEGIN_DECLS
 int	quotactl __P((const char *, int, int, char *));
 __END_DECLS
-#endif	/* KERNEL */
 
+#endif /* KERNEL */
 
-#endif /* _QUOTA_ */
+#endif /* !_UFS_UFS_QUOTA_H_ */
