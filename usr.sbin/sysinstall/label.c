@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.88 1999/03/30 04:09:21 jkh Exp $
+ * $Id: label.c,v 1.89 1999/05/07 04:36:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -424,7 +424,7 @@ getNewfsCmd(PartInfo *p)
 #define PART_PART_COL	0
 #define PART_MOUNT_COL	8
 #define PART_SIZE_COL	(PART_MOUNT_COL + MAX_MOUNT_NAME + 3)
-#define PART_NEWFS_COL	(PART_SIZE_COL + 7)
+#define PART_NEWFS_COL	(PART_SIZE_COL + 8)
 #define PART_OFF	38
 
 #define TOTAL_AVAIL_LINES       (10)
@@ -478,8 +478,8 @@ print_label_chunks(void)
 	mvaddstr(ChunkPartStartRow - 2, PART_MOUNT_COL + (i * PART_OFF), "Mount");
 	mvaddstr(ChunkPartStartRow - 1, PART_MOUNT_COL + (i * PART_OFF), "-----");
 
-	mvaddstr(ChunkPartStartRow - 2, PART_SIZE_COL + (i * PART_OFF) + 2, "Size");
-	mvaddstr(ChunkPartStartRow - 1, PART_SIZE_COL + (i * PART_OFF) + 2, "----");
+	mvaddstr(ChunkPartStartRow - 2, PART_SIZE_COL + (i * PART_OFF) + 3, "Size");
+	mvaddstr(ChunkPartStartRow - 1, PART_SIZE_COL + (i * PART_OFF) + 3, "----");
 
 	mvaddstr(ChunkPartStartRow - 2, PART_NEWFS_COL + (i * PART_OFF), "Newfs");
 	mvaddstr(ChunkPartStartRow - 1, PART_NEWFS_COL + (i * PART_OFF), "-----");
@@ -591,7 +591,7 @@ print_label_chunks(void)
 		newfs = "*";
 	    for (j = 0; j < MAX_MOUNT_NAME && mountpoint[j]; j++)
 		onestr[PART_MOUNT_COL + j] = mountpoint[j];
-	    snprintf(num, 10, "%4ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
+	    snprintf(num, 10, "%5ldMB", label_chunk_info[i].c->size ? label_chunk_info[i].c->size / ONE_MEG : 0);
 	    memcpy(onestr + PART_SIZE_COL, num, strlen(num));
 	    memcpy(onestr + PART_NEWFS_COL, newfs, strlen(newfs));
 	    onestr[PART_NEWFS_COL + strlen(newfs)] = '\0';
