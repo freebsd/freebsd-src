@@ -3072,7 +3072,6 @@ options 	BROOKTREE_ALLOC_PAGES="(217*4+1)"
 # Broken:
 ##options 	CAPABILITIES
 options 	COMPAT_SUNOS
-options 	CV_DEBUG
 options 	MAXFILES=999
 # METEOR_TEST_VIDEO has no effect since meteor is broken.
 options 	METEOR_TEST_VIDEO
