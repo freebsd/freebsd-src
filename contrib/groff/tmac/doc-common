@@ -499,10 +499,21 @@
 .ds aa \&\f\\n(cF\s\\n(cZ
 .if !\\n(.$==1 .tm Usage: .Lb [library name]
 .if "\\$1"libc" \&Standard C Library (libc, -lc)
-.if "\\$1"libcompat" \&Compatibility Library (libcompat, -lcompat)
+.if "\\$1"libc_r" \&Reentrant C Library (libc_r, -lc_r)
+.if "\\$1"libcalendar" \&Calendar Arithmetic Library (libcalendar, -lcalendar)
+.if "\\$1"libcam" \&Common Access Method User Library (libcam, -lcam)
 .if "\\$1"libcrypt" \&Crypt Library (libcrypt, -lcrypt)
+.if "\\$1"libdevstat" \&Device Statistics Library (libdevstat, -ldevstat)
+.if "\\$1"libdisk" \&Interface to Slice and Partition Labels Library (libdisk, -ldisk)
+.if "\\$1"libedit" \&Line Editor and History Library (libedit, -ledit)
+.if "\\$1"libfetch" \&File Transfer Library (libfetch, -lfetch)
+.if "\\$1"libipx" \&IPX Address Conversion Support Library (libipx, -lipx)
 .if "\\$1"libkvm" \&Kernel Data Access Library (libkvm, -lkvm)
 .if "\\$1"libm" \&Math Library (libm, -lm)
+.if "\\$1"libmd" \&Message Diggest (MD4, MD5, etc.) Support Library (libmd, -lmd)
+.if "\\$1"libnetgraph" \&Netgraph User Library (libnetgraph, -lnetgraph)
+.if "\\$1"libposix1e" \&POSIX.1e Security API Library (libposix1e, -lposix1e)
+.if "\\$1"libskey" \&S/Key Password Control Table Access Library (libskey, -lskey)
 .if "\\$1"libutil" \&System Utilities Library (libutil, -lutil)
-.if "\\$1"libz" \&Compression Library (libz, -lz)
+.if "\\$1"libvgl" \&Video Graphics Library (libvgl, -lvgl)
 ..
