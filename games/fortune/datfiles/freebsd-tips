@@ -1,8 +1,8 @@
 This fortune brought to you by:
 $FreeBSD$
 %
-Having trouble using FTP through a firewall?  Try setting the environment
-variable FTP_PASSIVE_MODE to yes, and see ftp(1) for more details.
+Having trouble using fetch through a firewall? Try setting the environment
+variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.
 %
 By pressing "Scroll Lock" you can use the arrow keys to scroll backward
 through the console output.  Press "Scroll Lock" again to turn it off.
@@ -61,7 +61,9 @@ Simple tcsh prompt: set prompt = '%# '
 %
 If you want df(1) and other commands to display disk sizes in
 kilobytes instead of 512-byte blocks, set BLOCKSIZE in your
-environment to 'K'.
+environment to 'K'.  You can also use 'M' for Megabytes or 'G' for
+Gigabytes.  If you want df(1) to automatically select the best size
+then use 'df -h'.
 %
 To change an environment variable in tcsh you use: setenv NAME "value"
 where NAME is the name of the variable and "value" its new value.
@@ -71,8 +73,8 @@ To change an environment variable in /bin/sh use:
 	$ VARIABLE="value"
 	$ export VARIABLE
 %
-/etc/make.conf contains overrides to /etc/defaults/make.conf, which
-controls the options used to compile software on this system.
+You can use /etc/make.conf to control the options used to compile software
+on this system.  Example entries are in /usr/share/examples/etc/make.conf.
 %
 To do a fast search for a file, try
 
@@ -293,162 +295,175 @@ install it by doing
 as root.  This will install a collection of packages that is appropriate for
 running a "generic" server.
 %
-You can make a log of your terminal session with script(1). 
+You can make a log of your terminal session with script(1).
 %
-"man ports" gives many useful hints about installing FreeBSD ports. 
+"man ports" gives many useful hints about installing FreeBSD ports.
 %
-ports/net/netcat port is useful not only for redirecting input/output 
-to TCP or UDP connections, but also for proxying them. See inetd(8) for 
-details. 
+"man security" gives very good advice on how to tune the security of your
+FreeBSD system.
 %
-If other operating systems have damaged your Master Boot Record, you can 
-reinstall it either with /stand/sysinstall or with boot0cfg(8). See 
+Want to find a specific port, just type the following under /usr/ports,
+or one its subdirectories:
+
+	"make search port=<port-name>"
+    or
+	"make search key="<keyword>"
+%
+Want to see how much virtual memory you're using? Just type "swapinfo" to
+be shown information about the usage of your swap partitions.
+%
+ports/net/netcat port is useful not only for redirecting input/output
+to TCP or UDP connections, but also for proxying them. See inetd(8) for
+details.
+%
+If other operating systems have damaged your Master Boot Record, you can
+reinstall it either with /stand/sysinstall or with boot0cfg(8). See
 "man boot0cfg" for details.
 %
-Need to see the calendar for this month? Simply type "cal".  To see the 
-whole year, type "cal -y". 
+Need to see the calendar for this month? Simply type "cal".  To see the
+whole year, type "cal -y".
 		-- Dru <genesis@istar.ca>
 %
-Need to quickly return to your home directory? Type "cd". 
+Need to quickly return to your home directory? Type "cd".
 		-- Dru <genesis@istar.ca>
 %
-To see the last time that you logged in, use lastlogin(8). 
+To see the last time that you logged in, use lastlogin(8).
 		-- Dru <genesis@istar.ca>
 %
-To clear the screen, use "clear". To re-display your screen buffer, press 
-the scroll lock key and use your page up button. When you're finished, 
-press the scroll lock key again to get your prompt back. 
+To clear the screen, use "clear". To re-display your screen buffer, press
+the scroll lock key and use your page up button. When you're finished,
+press the scroll lock key again to get your prompt back.
 		-- Dru <genesis@istar.ca>
 %
-To save disk space in your home directory, can compress files you 
-rarely use with "gzip filename". 
+To save disk space in your home directory, can compress files you
+rarely use with "gzip filename".
 		-- Dru <genesis@istar.ca>
 %
-To read a compressed file without having to first uncompress it, use 
-"zcat" or "zmore" to view it. 
+To read a compressed file without having to first uncompress it, use
+"zcat" or "zmore" to view it.
 		-- Dru <genesis@istar.ca>
 %
-To see how much disk space is left on your partitions, use 
+To see how much disk space is left on your partitions, use
 
 	df -h
 		-- Dru <genesis@istar.ca>
 %
-To see the 10 largest files on a directory or partition, use 
+To see the 10 largest files on a directory or partition, use
 
 	du /partition_or_directory_name | sort -rn | head
 		-- Dru <genesis@istar.ca>
 %
-To determine whether a file is a text file, executable, or some other type 
-of file, use 
+To determine whether a file is a text file, executable, or some other type
+of file, use
 
 	file filename
 		-- Dru <genesis@istar.ca>
 %
-Time to change your password? Type "passwd" and follow the prompts. 
+Time to change your password? Type "passwd" and follow the prompts.
 		-- Dru <genesis@istar.ca>
 %
-Want to know how many words, lines, or bytes are contained in a file? Type 
-"wc filename". 
+Want to know how many words, lines, or bytes are contained in a file? Type
+"wc filename".
 		-- Dru <genesis@istar.ca>
 %
-Need to print a manpage? Use 
+Need to print a manpage? Use
 
 	man name_of_manpage | col -bx | lpr
 		-- Dru <genesis@istar.ca>
 %
-Need to remove all those ^M characters from a DOS file? Try 
+Need to remove all those ^M characters from a DOS file? Try
 
 	col -bx < dosfile > newfile
 		-- Dru <genesis@istar.ca>
 %
-Forget what directory you are in? Type "pwd". 
+Forget what directory you are in? Type "pwd".
 		-- Dru <genesis@istar.ca>
 %
-If you are in the C shell and have just installed a new program, you won't 
-be able to run it unless you first type "rehash". 
+If you are in the C shell and have just installed a new program, you won't
+be able to run it unless you first type "rehash".
 		-- Dru <genesis@istar.ca>
 %
-Need to leave your terminal for a few minutes and don't want to logout? 
-Use "lock -p". When you return, use your password as the key to unlock the 
-terminal. 
+Need to leave your terminal for a few minutes and don't want to logout?
+Use "lock -p". When you return, use your password as the key to unlock the
+terminal.
 		-- Dru <genesis@istar.ca>
 %
-Need to find the location of a program? Use "locate program_name". 
+Need to find the location of a program? Use "locate program_name".
 		-- Dru <genesis@istar.ca>
 %
-Forget how to spell a word or a variation of a word? Use 
+Forget how to spell a word or a variation of a word? Use
 
 	look portion_of_word_you_know
 		-- Dru <genesis@istar.ca>
 %
-To see the last 10 lines of a long file, use "tail filename". To see the 
-first 10 lines, use "head filename". 
+To see the last 10 lines of a long file, use "tail filename". To see the
+first 10 lines, use "head filename".
 		-- Dru <genesis@istar.ca>
 %
-To see how long it takes a command to run, type the word "time" before the 
-command name. 
+To see how long it takes a command to run, type the word "time" before the
+command name.
 		-- Dru <genesis@istar.ca>
 %
-To quickly create an empty file, use "touch filename". 
+To quickly create an empty file, use "touch filename".
 		-- Dru <genesis@istar.ca>
 %
-To find out the hostname associated with an IP address, use 
+To find out the hostname associated with an IP address, use
 
 	dig -x IP_address
 		-- Dru <genesis@istar.ca>
 %
-If you use the C shell, add the following line to the .cshrc file in your 
-home directory to prevent core files from being written to disk: 
+If you use the C shell, add the following line to the .cshrc file in your
+home directory to prevent core files from being written to disk:
 
 	limit coredumpsize 0
 		-- Dru <genesis@istar.ca>
 %
-If you need a reminder to leave your terminal, type "leave hhmm" where 
-"hhmm" represents in how many hours and minutes you need to leave. 
+If you need a reminder to leave your terminal, type "leave +hhmm" where
+"hhmm" represents in how many hours and minutes you need to leave.
 		-- Dru <genesis@istar.ca>
 %
-Need to do a search in a manpage or in a file you've sent to a pager? Use 
-"/search_word". To repeat the same search, type "n" for next. 
+Need to do a search in a manpage or in a file you've sent to a pager? Use
+"/search_word". To repeat the same search, type "n" for next.
 		-- Dru <genesis@istar.ca>
 %
-Forget when Easter is? Try "ncal -e". If you need the date for Orthodox 
-Easter, use "ncal -o" instead. 
+Forget when Easter is? Try "ncal -e". If you need the date for Orthodox
+Easter, use "ncal -o" instead.
 		-- Dru <genesis@istar.ca>
 %
-Need to see your routing table? Type "netstat -rn". The entry with the G 
-flag is your gateway. 
+Need to see your routing table? Type "netstat -rn". The entry with the G
+flag is your gateway.
 		-- Dru <genesis@istar.ca>
 %
-Need to see which daemons are listening for connection requests? Use 
-"sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6. 
+Need to see which daemons are listening for connection requests? Use
+"sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6.
 		-- Dru <genesis@istar.ca>
 %
-Can't remember is you've installed a certain port or not? Try "pkg_info | 
-grep port_name". 
+Can't remember is you've installed a certain port or not? Try "pkg_info |
+grep port_name".
 		-- Dru <genesis@istar.ca>
 %
-Got some time to kill? Try typing "hangman". 
+Got some time to kill? Try typing "hangman".
 		-- Dru <genesis@istar.ca>
 %
-To erase a line you've written at the command prompt, use "Ctrl u". 
+To erase a line you've written at the command prompt, use "Ctrl-U".
 		-- Dru <genesis@istar.ca>
 %
-To repeat the last command in the C shell, type "!!". 
+To repeat the last command in the C shell, type "!!".
 		-- Dru <genesis@istar.ca>
 %
-Need to quickly empty a file? Use "echo > filename". 
+Need to quickly empty a file? Use "echo > filename".
 		-- Dru <genesis@istar.ca>
 %
-To see all of the directories on your FreeBSD system, type 
+To see all of the directories on your FreeBSD system, type
 
 	ls -R / | more
 		-- Dru <genesis@istar.ca>
 %
-To see the IP addresses currently set on your active interfaces, type 
-"ifconfig -u". 
+To see the IP addresses currently set on your active interfaces, type
+"ifconfig -u".
 		-- Dru <genesis@istar.ca>
 %
-To see the MAC addresses of the NICs on your system, type 
+To see the MAC addresses of the NICs on your system, type
 
 	ifconfig -a
 		-- Dru <genesis@istar.ca>
@@ -469,3 +484,9 @@ write
 
 This won't work if you don't have write permissions to the directory
 and probably won't be suitable if you're editing through a symbolic link.
+%
+If you want to quickly check for duplicate package/port installations,
+try the following pkg_info command.
+
+	pkg_info | sort | sed -e 's/-[0-9].*$//' | \
+	uniq -c | grep -v '^[[:space:]]*1'
