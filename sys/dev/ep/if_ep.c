@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.49 1996/06/18 01:22:21 bde Exp $
+ *  $Id: if_ep.c,v 1.50 1996/07/13 10:49:53 davidg Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -626,7 +626,7 @@ ep_isa_attach(is)
     GO_WINDOW(0);
     if(irq == 9)
 	irq = 2;
-    outw(BASE + EP_W0_RESOURCE_CFG, SET_IRQ(irq));
+    SET_IRQ(BASE, irq);
 
     ep_attach(sc);
     return 1;
