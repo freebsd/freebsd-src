@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile,v 1.12 1998/02/19 14:18:36 drochner Exp $
 
 BASE= 		loader
-PROG= 		${BASE}
+PROG= 		${BASE}.exe
 NOMAN=
 NEWVERSWHAT=	"ARC disk boot" ${MACHINE_ARCH}
 
@@ -31,7 +31,7 @@ STRIP=
 BINDIR?=	/boot
 LOAD_ADDRESS?=	0xffffffff80900000
 
-all: ${BASE}.exe
+all: ${PROG}
 
 vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
