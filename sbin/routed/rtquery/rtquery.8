@@ -1,4 +1,4 @@
-.\"	$Id: rtquery.8,v 1.7 1997/06/13 20:58:09 max Exp $
+.\"	$Id: rtquery.8,v 1.1.1.1.2.4 1997/08/19 21:22:17 joerg Exp $
 .Dd June 1, 1996
 .Dt RTQUERY 8
 .Os BSD 4.4
@@ -30,12 +30,12 @@ command.  The routing information in any routing
 .Em response
 packets returned is displayed numerically and symbolically.
 .Pp
-.Em Rtquery
+.Nm Rtquery
 by default uses the
 .Em request
 command.
 When the
-.Ar -p
+.Fl p
 option is specified,
 .Nm rtquery
 uses the
@@ -43,7 +43,9 @@ uses the
 command, an
 undocumented extension to the RIP protocol supported by
 .Xr gated 8 .
-When querying gated, the
+When querying
+.Xr gated 8 ,
+the
 .Em poll
 command is preferred over the
 .Em request
@@ -85,37 +87,37 @@ command to request full routing information from
 This is an undocumented extension RIP protocol supported only by
 .Xr gated 8 .
 .It Fl 1
-query using RIP version 1 instead of RIP version 2.
+Query using RIP version 1 instead of RIP version 2.
 .It Fl w Ar timeout
-changes the delay for an answer from each host.
+Changes the delay for an answer from each host.
 By default, each host is given 15 seconds to respond.
 .It Fl r Ar addr
-ask about the route to destination
+Ask about the route to destination
 .Em addr .
 .It Fl a Ar passwd=XXX
 .It Fl a Ar md5_passwd=XXX|KeyID
-cause the query to be sent with the indicated cleartext or MD5 password.
+Cause the query to be sent with the indicated cleartext or MD5 password.
 .It Fl t Ar op
-change tracing, where
+Change tracing, where
 .Em op
 is one of the following.
 Requests from processes not running with UID 0 or on distant networks
 are generally ignored by the daemon except for a message in the system log.
-.Xr gated 8 
+.Xr Gated 8 
 is likely to ignore these debugging requests.
 .El
 .Bl -tag -width Ds -offset indent-two
 .It Em on=tracefile
-turn tracing on into the specified file.  That file must usually
+Turn tracing on into the specified file.  That file must usually
 have been specified when the daemon was started or be the same
 as a fixed name, often
 .Pa /etc/routed.trace .
 .It Em more
-increases the debugging level.
+Increases the debugging level.
 .It Em off
 turns off tracing.
 .It Em dump
-dumps the daemon's routing table to the current tracefile.
+Dumps the daemon's routing table to the current tracefile.
 .El
 .Sh SEE ALSO
 .Xr gated 8 ,

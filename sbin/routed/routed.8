@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)routed.8	8.2 (Berkeley) 12/11/93
-.\"	$Id: routed.8,v 1.2.2.3 1997/08/19 21:22:05 joerg Exp $
+.\"	$Id: routed.8,v 1.2.2.4 1998/07/17 20:13:50 jkh Exp $
 .\"
 .Dd June 1, 1996
 .Dt ROUTED 8
@@ -49,7 +49,7 @@
 .Op Fl P Ar parms
 .Sh DESCRIPTION
 .Nm Routed
-is a dameon invoked at boot time to manage the network
+is a daemon invoked at boot time to manage the network
 routing tables.
 It uses Routing Information Protocol, RIPv1 (RFC\ 1058),
 RIPv2 (RFC\ 1723),
@@ -152,7 +152,7 @@ If an entry has not been updated for 3 minutes, the entry's metric
 is set to infinity and marked for deletion.
 Deletions are delayed until the route has been advertised with
 an infinite metric to insure the invalidation
-is propagated throughout the local internet.
+is propagated throughout the local Internet.
 This is a form of
 .Em poison reverse .
 .Pp
@@ -246,7 +246,7 @@ This is the default if multiple network interfaces are present on which
 RIP or Router Discovery have not been disabled, and if the kernel switch
 ipforwarding=1.
 .It Fl q
-is the opposite of the
+Is the opposite of the
 .Fl s
 option.
 This is the default when only one interface is present.
@@ -267,7 +267,7 @@ on the command line or
 in the
 .Pa /etc/gateways
 file.
-since a larger metric
+Since a larger metric
 will be used, reducing the spread of the potentially dangerous
 default route.
 This is typically used on a gateway to the Internet,
@@ -297,20 +297,20 @@ option overrides the
 .Fl q
 option to the limited extent of advertising the host route.
 .It Fl A
-do not ignore RIPv2 authentication if we do not care about RIPv2
+Do not ignore RIPv2 authentication if we do not care about RIPv2
 authentication.
 This option is required for conformance with RFC 1723.
 However, it makes no sense and breaks using RIP as a discovery protocol
 to ignore all RIPv2 packets that carry authentication when this machine
 does not care about authentication.
 .It Fl T Ar tracefile
-increases the debugging level to at least 1 and
+Increases the debugging level to at least 1 and
 causes debugging information to be appended to the trace file.
 Note that because of security concerns, it is wisest to not run
 .Nm routed
 routinely with tracing directed to a file.
 .It Fl t
-increases the debugging level, which causes more information to be logged
+Increases the debugging level, which causes more information to be logged
 on the tracefile specified with
 .Fl T
 or standard out.
@@ -323,7 +323,7 @@ signals or with the
 .Xr rtquery 8
 command.
 .It Fl F Ar net[/mask][,metric]
-minimize routes in transmissions via interfaces with addresses that match
+Minimize routes in transmissions via interfaces with addresses that match
 .Em net/mask ,
 and synthesizes a default route to this machine with the
 .Em metric .
@@ -342,7 +342,7 @@ number and mask.
 See also
 .Fl g .
 .It Fl P Ar parms
-is equivalent to adding the parameter
+Is equivalent to adding the parameter
 line
 .Em parms
 to the
@@ -359,7 +359,7 @@ It is better to use
 instead of
 appending the name of the trace file to the command.
 .Pp
-.Nm
+.Nm Routed
 also supports the notion of
 "distant"
 .Em passive
@@ -460,7 +460,7 @@ or
 must have been started before
 .Nm routed Ns .)
 .Pp
-.Ar mask
+.Ar Mask
 is an optional number between 1 and 32 indicating the netmask associated
 with
 .Ar Nname .
@@ -471,7 +471,7 @@ be forwarded.
 .Pp
 .Ar Value
 is the hop count to the destination host or network.
-.Ar " host hname "
+.Ar " Host hname "
 is equivalent to
 .Ar " net  nname/32 ".
 .Pp
@@ -535,7 +535,7 @@ no password is output.
 Incoming packets can carry any password that is valid, will
 be valid within 24 hours, or that was valid within 24 hours.
 .It Cm md5_passwd Ns \&= Ns Ar XXX1|KeyID[start|stop]
-specifes a RIPv2 MD5 password.
+specifies a RIPv2 MD5 password.
 Except that a
 .Cm KeyID
 is required, this keyword is similar to
@@ -585,11 +585,11 @@ specifies that Router Discovery solicitations should be sent,
 even on point-to-point links,
 which by default only listen to Router Discovery messages.
 .It Cm no_rdisc_adv
-disables the transmission of Router Discovery Advertisements
+disables the transmission of Router Discovery Advertisements.
 .It Cm rdisc_adv
 specifies that Router Discovery Advertisements should be sent,
 even on point-to-point links,
-which by default only listen to Router Discovery messages
+which by default only listen to Router Discovery messages.
 .It Cm bcast_rdisc
 specifies that Router Discovery packets should be broadcast instead of
 multicast.
@@ -602,7 +602,7 @@ are transmitted to N seconds and their lifetime to 3*N.
 .It Cm fake_default Ns \&= Ns Ar metric
 has an identical effect to
 .Fl F Ar net[/mask][=metric]
-with the network and mask coming from the sepcified interface.
+with the network and mask coming from the specified interface.
 .It Cm pm_rdisc
 is similar to
 .Cm fake_default .
@@ -633,7 +633,7 @@ for distant gateways
 .Xr icmp 4 ,
 .Xr udp 4 ,
 .Xr gated 8 ,
-.Xr rtquery 8 .
+.Xr rtquery 8
 .Rs
 .%T Internet Transport Protocols
 .%R XSIS 028112

@@ -102,7 +102,7 @@ extern struct radix_mask {
 		m = rn_mkfreelist; \
 		rn_mkfreelist = (m)->rm_mklist; \
 	} else \
-		R_Malloc(m, struct radix_mask *, sizeof (*(m))); }\
+		m = (struct radix_mask *)rtmalloc(sizeof (*(m)), "MKGet"); }\
 
 #define MKFree(m) { (m)->rm_mklist = rn_mkfreelist; rn_mkfreelist = (m);}
 
@@ -137,7 +137,6 @@ struct radix_node_head {
 #define Bcmp(a, b, n) bcmp(((char *)(a)), ((char *)(b)), (n))
 #define Bcopy(a, b, n) bcopy(((char *)(a)), ((char *)(b)), (unsigned)(n))
 #define Bzero(p, n) bzero((char *)(p), (int)(n));
-#define R_Malloc(p, t, n) (p = (t) malloc((unsigned int)(n)))
 #define Free(p) free((char *)p);
 
 void	 rn_init __P((void));

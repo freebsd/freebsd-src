@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.4 $"
+#ident "$Revision: 1.1.1.1.2.1 $"
 
 #include "defs.h"
 #include <netinet/in_systm.h>
@@ -252,7 +252,7 @@ set_supplier(void)
 	if (supplier_set)
 		return;
 
-	trace_act("start suppying routes");
+	trace_act("start supplying routes");
 
 	/* Forget discovered routes.
 	 */
@@ -294,7 +294,7 @@ rdisc_age(naddr bad_gate)
 	struct dr *drp;
 
 
-	/* If only adverising, then do only that. */
+	/* If only advertising, then do only that. */
 	if (supplier) {
 		/* if switching from client to server, get rid of old
 		 * default routes.
@@ -407,7 +407,7 @@ del_rdisc(struct dr *drp)
 	}
 
 	/* If that was the last good discovered router on the interface,
-	 * then solicit a new one.
+	 * then solicite a new one.
 	 * This is contrary to RFC 1256, but defends against black holes.
 	 */
 	if (i == 0
@@ -610,7 +610,7 @@ parse_ad(naddr from,
 				new_drp = drp;
 
 		} else if (new_drp->dr_ts != 0) {
-			/* look for the least valueable entry to reuse
+			/* look for the least valuable entry to reuse
 			 */
 			if ((!(new_drp->dr_ifp->int_state & IS_SICK)
 			     && (drp->dr_ifp->int_state & IS_SICK))
@@ -714,7 +714,7 @@ send_rdisc(union ad_u *p,
 		if (rdisc_sock_mcast != ifp) {
 			/* select the right interface. */
 #ifdef MCAST_PPP_BUG
-			/* Do not specifiy the primary interface explicitly
+			/* Do not specify the primary interface explicitly
 			 * if we have the multicast point-to-point kernel
 			 * bug, since the kernel will do the wrong thing
 			 * if the local address of a point-to-point link

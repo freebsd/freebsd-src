@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.1.1.1.2.1 $"
+#ident "$Revision: 1.1.1.1.2.2 $"
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -806,7 +806,7 @@ parse_quote(char **linep,
 		if (c == '\0')
 			break;
 
-		if (c == '\\' && pc != '\0') {
+		if (c == '\\' && *pc != '\0') {
 			if ((c = *pc++) == 'n') {
 				c = '\n';
 			} else if (c == 'r') {
