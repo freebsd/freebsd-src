@@ -54,8 +54,10 @@
 #include <pthread.h>
 #include <pthread_np.h>
 
+#ifndef LIBTHREAD_DB
 #include "lock.h"
 #include "pthread_md.h"
+#endif
 
 /*
  * Evaluate the storage class specifier.
