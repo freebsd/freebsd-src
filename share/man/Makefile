@@ -8,6 +8,7 @@ MAKEWHATIS?=	makewhatis
 
 makedb:
 	${MAKEWHATIS} ${DESTDIR}${BINDIR}/man
+	${MAKEWHATIS} ${DESTDIR}${BINDIR}/openssl/man
 
 .include "${.CURDIR}/../Makefile.inc"
 .include <bsd.subdir.mk>
