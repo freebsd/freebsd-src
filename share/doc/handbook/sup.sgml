@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.7 1995/09/27 00:46:30 jmz Exp $ -->
+<!-- $Id: sup.sgml,v 1.8 1995/09/27 19:20:43 nate Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -14,7 +14,7 @@ purpose of this document is get the beginner up and running with sup.
 <p>First off you will need to pick up the sup binaries.  The easiest
 way of doing this is to grab the sup.tgz package from:
 <verb>
-        ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/packages/sup.tgz
+        ftp://ftp.FreeBSD.ORG:/pub/FreeBSD/packages/All/sup-2.0.tgz
 </verb>
 Install the sup package using pkg_add and add the following line to
 your /etc/services file (if it doesn't already exist):
@@ -23,18 +23,21 @@ your /etc/services file (if it doesn't already exist):
 </verb>
 
 SUP gets the information it needs to run from a configuration file 
-called a supfile.  This file tells sup what collections it will be updating
-and/or installing and where they go.  The supfile in this directory will
-sup both the source and ports collection - look for the blank line separating
-the two collections; if you don't want ports, you can simply delete all the
-ports entries.  If you're inside the United States, you may also uncomment
-the `secure' collection line to grab the DES code.  If you're outside the
-U.S., you should NOT sup this code from FreeBSD.ORG as this will
-violate U.S. export restrictions.  Simply sup everything <em>but</em> the secure
-collection and then go look on braae.ru.ac.za, where it's available for
-anonymous ftp for those outside the U.S.
-
-Any other distributions you do not wish to receive can be commented out
+called a supfile. This file should be found in 
+<tt>/usr/share/examples/sup/standard-supfile</tt> for the standard 
+distributions.
+This file tells sup what collections it will be updating
+and/or installing and where they go.  This supfile will sup the current source
+collection.  For ports please have a look at 
+<tt>/usr/share/examples/sup/ports-supfile</tt>.
+If you're inside the United States, you may also uncomment
+the `secure' and `eBones' collection lines to grab the DES code.  
+If you're outside the
+U.S., you should NOT sup this code from sup.FreeBSD.ORG as this will
+violate U.S. export restrictions.  Instead you should use the 
+<tt>secure-supfile</tt> found within the above directory.  This will
+connect you to the international sup site that contains a secure distribution.
+Any distributions you do not wish to receive can be commented out
 with a &num; at the beginning of the distribution line.
 
 Once this is setup, you're ready to go.  To start sup type:
@@ -55,25 +58,32 @@ a -current user.
 
 <sect1><heading>Description of FreeBSD SUP distributions</heading>
 
-<p>For the main FreeBSD distribution:
+<p>For the main FreeBSD distribution useing the standard-supfile:
 <verb>
 base:		/usr/src/...		misc files at the top of /usr/src
-bin:		/usr/src/bin		system binaries
-secure:		/usr/src/secure		DES Sources.  U.S./Canada only!
+bin:		/usr/src/bin		user and system binaries
+secure:		/usr/src/secure		DES Sources (US/Canada ONLY) 
+eBones:		/usr/src/eBones		Kerberos and DES (US/Canada ONLY)
 etc:		/usr/src/etc		system files
 games:		/usr/src/games		games
 gnu:		/usr/src/gnu		sources under the GNU Public License
 include:	/usr/src/include	include files
 sys:		/usr/src/sys		kernel sources
 lib:		/usr/src/lib		libraries
-libexec:	/usr/src/libexec	more system binaries
+libexec:	/usr/src/libexec	system binaries
 share:		/usr/src/share		various shared resources
-sbin:		/usr/src/sbin		even more system binaries
+sbin:		/usr/src/sbin		single user system binaries
 usrbin:		/usr/src/usr.bin	user binaries
-usrsbin:	/usr/src/usr.sbin	that's it for the system binaries
+usrsbin:	/usr/src/usr.sbin	system binaries
 </verb>
 
-And for the ports collection:
+<p>For the international FreeBSD distribution using the secure-supfile:
+<verb>
+secure:		/usr/src/secure		DES Sources
+eBones:		/usr/src/eBones		Kerberos and DES
+</verb>
+
+<p>And for the ports collection:
 <verb>
 ports-base:	/usr/ports/...		misc files at the top of /usr/ports
 ports-editors:  /usr/ports/editors	text editors
