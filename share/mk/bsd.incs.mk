@@ -77,3 +77,4 @@ installincludes:
 .endif !target(installincludes)
 
 realinstall: installincludes
+.ORDER: beforeinstall installincludes
