@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      disk quotas under FreeBSD.  By Mike Pritchard, 1996.
 
-     $Id$
+     $Id: quotas.sgml,v 1.1 1996/03/04 22:50:30 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -153,6 +153,18 @@ to:
 /usr: blocks in use: 65, limits (soft = 500, hard = 600)
 </verb>
   The new quota limits will be in place when you exit the editor.
+
+  <p>Sometimes it is desirable to set quota limits on a range
+  of uids.  This can be done by use of the <tt>-p</tt> option
+  on the <tt>edquota</tt> command.  First, assign the desired
+  quota limit to a user, and then run 
+  <tt>edquota -p protouser startuid-enduid</tt>.
+  For example, if user <tt>test</tt> has the desired quota
+  limits, the following command can be used to duplicate
+  those quota limits for uids 10,000 through 19,999:
+<verb>
+edquota -p test 10000-19999
+</verb>
 
   <p>See <tt>man edquota</tt> for more detailed information.
 
