@@ -159,6 +159,9 @@
 #define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + KVA_RANGE - PAGE_SIZE)
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 
+#define	VM_MIN_PROM_ADDRESS	(0xf0000000)
+#define	VM_MAX_PROM_ADDRESS	(0xffffe000)
+
 /*
  * Initial pagein size of beginning of executable file.
  */

@@ -359,7 +359,8 @@ pmap_bootstrap(vm_offset_t ekva)
 		    "translation: start=%#lx size=%#lx tte=%#lx",
 		    translations[i].om_start, translations[i].om_size,
 		    translations[i].om_tte);
-		if (translations[i].om_start < 0xf0000000)	/* XXX!!! */
+		if (translations[i].om_start < VM_MIN_PROM_ADDRESS ||
+		    translations[i].om_start > VM_MAX_PROM_ADDRESS)
 			continue;
 		for (off = 0; off < translations[i].om_size;
 		    off += PAGE_SIZE) {
@@ -418,8 +419,7 @@ pmap_map_tsb(void)
 		    TD_P | TD_W;
 		stxa(AA_DMMU_TAR, ASI_DMMU, TLB_TAR_VA(va) |
 		    TLB_TAR_CTX(TLB_CTX_KERNEL));
-		stxa(0, ASI_DTLB_DATA_IN_REG, data);
-		membar(Sync);
+		stxa_sync(0, ASI_DTLB_DATA_IN_REG, data);
 	}
 
 	/*
