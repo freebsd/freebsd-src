@@ -76,9 +76,8 @@ int i386_set_ldt __P((int, union descriptor *, int));
 int i386_get_ioperm __P((unsigned int, unsigned int *, int *));
 int i386_set_ioperm __P((unsigned int, unsigned int, int));
 int i386_vm86 __P((int, void *));
-int i386_set_watch __P((int watchnum, unsigned int watchaddr, int size,
-                        int access, struct dbreg * d));
-int i386_clr_watch __P((int watchnum, struct dbreg * d));
+int i386_set_watch __P((int, unsigned int, int, int, struct dbreg *));
+int i386_clr_watch __P((int, struct dbreg *));
 __END_DECLS
 #endif
 
