@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.14 1994/08/04 19:51:01 davidg Exp $
+ *	$Id: support.s,v 1.15 1994/08/09 11:21:44 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -947,27 +947,6 @@ ENTRY(copyoutstr)
 
 #endif /* I486_CPU || I586_CPU */
 
-/*
- * This was split from copyinstr_fault mainly because pushing gs changes the
- * stack offsets.  It's better to have it separate for mcounting too.
- */
-cpystrflt:
-	movl	$EFAULT,%eax
-cpystrflt_x:
-	/* set *lencopied and return %eax */
-	movl	_curpcb,%ecx
-	movl	$0,PCB_ONFAULT(%ecx)
-	movl	20(%esp),%ecx
-	subl	%edx,%ecx
-	movl	24(%esp),%edx
-	orl	%edx,%edx
-	jz	1f
-	movl	%ecx,(%edx)
-1:
-	popl	%edi
-	popl	%esi
-	ret
-
 
 /*
  * copyinstr(from, to, maxlen, int *lencopied)
@@ -980,54 +959,62 @@ ENTRY(copyinstr)
 	pushl	%esi
 	pushl	%edi
 	movl	_curpcb,%ecx
-	movl	$copyinstr_fault,PCB_ONFAULT(%ecx)
+	movl	$cpystrflt,PCB_ONFAULT(%ecx)
 
 	movl	12(%esp),%esi			/* %esi = from */
 	movl	16(%esp),%edi			/* %edi = to */
 	movl	20(%esp),%edx			/* %edx = maxlen */
-	/*
-	 * XXX should avoid touching gs.  Either copy the string in and
-	 * check the bounds later or get its length and check the bounds
-	 * and then use copyin().
-	 */
-	pushl	%gs
-	movl	__udatasel,%eax
-	movl	%ax,%gs
+
+	movl	$VM_MAXUSER_ADDRESS,%eax
+
+	/* make sure 'from' is within bounds */
+	subl	%esi,%eax
+	jbe	cpystrflt
+
+	/* restrict maxlen to <= VM_MAXUSER_ADDRESS-from */
+	cmpl	%edx,%eax
+	jae	1f
+	movl	%eax,%edx
+	movl	%eax,20(%esp)
+1:
 	incl	%edx
 	cld
-1:
+
+2:
 	decl	%edx
-	jz	2f
-	gs
+	jz	3f
+
 	lodsb
 	stosb
 	orb	%al,%al
-	jnz	1b
+	jnz	2b
 
 	/* Success -- 0 byte reached */
 	decl	%edx
 	xorl	%eax,%eax
-	jmp	3f
-2:
-	/* edx is zero -- return ENAMETOOLONG */
-	movl	$ENAMETOOLONG,%eax
-	jmp	3f
-
-	ALIGN_TEXT
-copyinstr_fault:
-	movl	$EFAULT,%eax
+	jmp	cpystrflt_x
 3:
+	/* edx is zero - return ENAMETOOLONG or EFAULT */
+	cmpl	$VM_MAXUSER_ADDRESS,%esi
+	jae	cpystrflt
+4:
+	movl	$ENAMETOOLONG,%eax
+	jmp	cpystrflt_x
+
+cpystrflt:
+	movl	$EFAULT,%eax
+
+cpystrflt_x:
 	/* set *lencopied and return %eax */
 	movl	_curpcb,%ecx
 	movl	$0,PCB_ONFAULT(%ecx)
-	movl	24(%esp),%ecx
+	movl	20(%esp),%ecx
 	subl	%edx,%ecx
-	movl	28(%esp),%edx
-	orl	%edx,%edx
-	jz	4f
+	movl	24(%esp),%edx
+	testl	%edx,%edx
+	jz	1f
 	movl	%ecx,(%edx)
-4:
-	popl	%gs
+1:
 	popl	%edi
 	popl	%esi
 	ret
