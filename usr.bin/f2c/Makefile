@@ -2,7 +2,7 @@
 
 PROG=	f2c
 
-g = -O -g
+g = -O
 CFLAGS = $g -DANSI_Libraries -I${.CURDIR} -I.
 SHELL = /bin/sh
 
