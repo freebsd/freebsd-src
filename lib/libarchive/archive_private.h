@@ -42,16 +42,7 @@
  * directories so that they can be initially restored writable, then
  * fixed up at end.  This also handles mtime/atime fixups.
  */
-struct archive_extract_dir_entry {
-	struct archive_extract_dir_entry	*next;
-	mode_t		 mode;
-	int64_t		 mtime;
-	int64_t		 atime;
-	unsigned long	 mtime_nanos;
-	unsigned long	 atime_nanos;
-	/* Note: ctime cannot be restored, so don't bother */
-	char		*name;
-};
+struct archive_extract_dir_entry;
 
 struct archive {
 	/*

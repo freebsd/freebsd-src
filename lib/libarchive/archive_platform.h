@@ -22,21 +22,52 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+/*
+ * This header is the first thing included in any of the libarchive
+ * source files.  As far as possible, platform-specific issues should
+ * be dealt with here and not within individual source files.
+ */
 
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
+#ifndef ARCHIVE_PLATFORM_H_INCLUDED
+#define	ARCHIVE_PLATFORM_H_INCLUDED
+
+/* FreeBSD-specific definitions. */
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>  /* For __FBSDID */
+#define HAVE_POSIX_ACL 1
+#define HAVE_CHFLAGS 1
+#define HAVE_LUTIMES 1
+#define HAVE_LCHMOD 1
+#define ARCHIVE_ERRNO_FILE_FORMAT EFTYPE
+#define ARCHIVE_ERRNO_PROGRAMMER EDOOFUS
+#define ARCHIVE_ERRNO_MISC (-1)
 #endif
 
-#include "archive.h"
+/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
+#ifndef __FreeBSD__
+#define __FBSDID(a)     /* null */
+#endif
 
-int
-archive_read_support_compression_all(struct archive *a)
-{
-	archive_read_support_compression_bzip2(a);
-	archive_read_support_compression_gzip(a);
-	return (ARCHIVE_OK);
-}
+/* Linux */
+#ifdef LINUX
+#define ARCHIVE_ERRNO_FILE_FORMAT EILSEQ
+#define ARCHIVE_ERRNO_PROGRAMMER EINVAL
+#define ARCHIVE_ERRNO_MISC (-1)
+#define st_atimespec st_atim
+#define st_mtimespec st_mtim
+#define st_ctimespec st_ctim
+#endif
+
+/*
+ * XXX TODO: Use autoconf to handle non-FreeBSD platforms.
+ *
+ * #if !defined(__FreeBSD__)
+ *    #include "config.h"
+ * #endif
+ */
+
+#endif /* !ARCHIVE_H_INCLUDED */
