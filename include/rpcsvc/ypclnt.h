@@ -26,14 +26,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypclnt.h,v 1.6 1997/02/23 09:17:34 peter Exp $
+ *	$Id: ypclnt.h,v 1.7 1997/05/07 02:27:18 eivind Exp $
  */
 
 #ifndef _RPCSVC_YPCLNT_H_
 #define _RPCSVC_YPCLNT_H_
-
-#include <rpc/rpc.h>
-#include <rpcsvc/yp_prot.h>
 
 #define YPERR_BADARGS	1		/* args to function are bad */
 #define YPERR_RPC	2		/* RPC failure */
