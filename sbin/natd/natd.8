@@ -315,9 +315,12 @@ will be used as a default.
 Use
 .Ar address
 as the aliasing address.
-If this option is not specified, the
+Either this or the
 .Fl interface
-option must be used.
+option must be used (but not both),
+if the
+.Fl proxy_only
+option is not specified.
 The specified address is usually the address assigned to the
 .Dq public
 network interface.
