@@ -476,21 +476,15 @@ exec_setregs(td, entry, stack, ps_strings)
 {
 	struct trapframe *regs = td->td_frame;
 	struct pcb *pcb = td->td_pcb;
-	u_int64_t pc;
 	
 	wrmsr(MSR_FSBASE, 0);
 	wrmsr(MSR_KGSBASE, 0);	/* User value while we're in the kernel */
 	pcb->pcb_fsbase = 0;
 	pcb->pcb_gsbase = 0;
-	pcb->pcb_kgsbase = rdmsr(MSR_GSBASE);
 	load_ds(_udatasel);
 	load_es(_udatasel);
 	load_fs(_udatasel);
-	critical_enter();
-	pc = rdmsr(MSR_GSBASE);
-	load_gs(_udatasel);	/* Clobbers kernel %GS.base */
-	wrmsr(MSR_GSBASE, pc);
-	critical_exit();
+	load_gs(_udatasel);
 	pcb->pcb_ds = _udatasel;
 	pcb->pcb_es = _udatasel;
 	pcb->pcb_fs = _udatasel;
@@ -1317,7 +1311,6 @@ hammer_time(void)
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
 	thread0.td_pcb->pcb_cr3 = IdlePML4;
-	thread0.td_pcb->pcb_kgsbase = (u_int64_t)pc;
 	thread0.td_frame = &proc0_tf;
 }
 
