@@ -18,6 +18,9 @@
  *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
  *  dufault@hda.com (Peter Dufault)
  *
+ * Copyright (c) 2001 Joerg Wunsch,
+ *  joerg_wunsch@uriah.sax.de (Joerg Wunsch)
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -26,13 +29,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -1836,7 +1832,7 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 
 	fd = devclass_get_softc(fd_devclass, fdu);
 	fd->flags &= ~FD_OPEN;
-	fd->options &= ~FDOPT_NORETRY;
+	fd->options &= ~(FDOPT_NORETRY | FDOPT_NOERRLOG | FDOPT_NOERROR);
 
 	return (0);
 }
@@ -2661,28 +2657,35 @@ retrier(struct fdc_data *fdc)
 	fail:
 		{
 			dev_t sav_bio_dev = bp->bio_dev;
+			int printerror = (fd->options & FDOPT_NOERRLOG) == 0;
+
 			/* Trick diskerr */
 			bp->bio_dev = makedev(major(bp->bio_dev),
 				    (FDUNIT(minor(bp->bio_dev))<<3)|RAW_PART);
-			diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
-				(struct disklabel *)NULL);
+			if (printerror)
+				diskerr(bp, "hard error", fdc->fd->skip / DEV_BSIZE,
+					(struct disklabel *)NULL);
 			bp->bio_dev = sav_bio_dev;
-			if (fdc->flags & FDC_STAT_VALID)
-			{
-				printf(
+			if (printerror) {
+				if (fdc->flags & FDC_STAT_VALID)
+				{
+					printf(
 			" (ST0 %b ST1 %b ST2 %b cyl %u hd %u sec %u)\n",
-				       fdc->status[0], NE7_ST0BITS,
-				       fdc->status[1], NE7_ST1BITS,
-				       fdc->status[2], NE7_ST2BITS,
-				       fdc->status[3], fdc->status[4],
-				       fdc->status[5]);
-			}
+					       fdc->status[0], NE7_ST0BITS,
+					       fdc->status[1], NE7_ST1BITS,
+					       fdc->status[2], NE7_ST2BITS,
+					       fdc->status[3], fdc->status[4],
+					       fdc->status[5]);
+				}
 			else
-				printf(" (No status)\n");
+					printf(" (No status)\n");
+			}
 		}
-		bp->bio_flags |= BIO_ERROR;
-		bp->bio_error = EIO;
-		bp->bio_resid += bp->bio_bcount - fdc->fd->skip;
+		if ((fd->options & FDOPT_NOERROR) == 0) {
+			bp->bio_flags |= BIO_ERROR;
+			bp->bio_error = EIO;
+			bp->bio_resid += bp->bio_bcount - fdc->fd->skip;
+		}
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
 		device_unbusy(fd->dev);
@@ -2788,6 +2791,7 @@ fdioctl(dev, cmd, addr, flag, p)
 
 	struct fd_type *fdt;
 	struct disklabel *dl;
+	struct fdc_status *fsp;
 	char buffer[DEV_BSIZE];
 	int error = 0;
 
@@ -2865,6 +2869,19 @@ fdioctl(dev, cmd, addr, flag, p)
 
 	case FD_SOPTS:			/* set drive options */
 		fd->options = *(int *)addr;
+		break;
+
+	case FD_CLRERR:
+		if (suser(p) != 0)
+			return EPERM;
+		fd->fdc->fdc_errs = 0;
+		break;
+
+	case FD_GSTAT:
+		fsp = (struct fdc_status *)addr;
+		if ((fd->fdc->flags & FDC_STAT_VALID) == 0)
+			return EINVAL;
+		memcpy(fsp->status, fd->fdc->status, 7 * sizeof(u_int));
 		break;
 
 	default:
