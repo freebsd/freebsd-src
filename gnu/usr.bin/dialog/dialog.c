@@ -17,6 +17,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
+ * $FreeBSD$
+ *
  *
  *  HISTORY:
  *
@@ -87,9 +89,9 @@
 #include <sys/wait.h>
 #include <dialog.h>
 
-void Usage(unsigned char *name);
+void Usage(char *name);
 
-int main(int argc, unsigned char *argv[])
+int main(int argc, char *argv[])
 {
   int offset = 0, clear_screen = 0, end_common_opts = 0, retval;
   unsigned char *title = NULL;
@@ -367,9 +369,9 @@ int main(int argc, unsigned char *argv[])
       exit(-1);
     }
     init_dialog();
-    retval = dialog_tree(argv+offset+7, argc-offset-7, *argv[offset+2],
-    	title, argv[offset+3], atoi(argv[offset+4]), atoi(argv[offset+5]),
-                            atoi(argv[offset+6]), &tresult);
+    retval = dialog_tree((unsigned char **)argv+offset+7, argc-offset-7,
+	*argv[offset+2], title, argv[offset+3], atoi(argv[offset+4]),
+	atoi(argv[offset+5]), atoi(argv[offset+6]), &tresult);
 
     dialog_update();
     if (!retval)
@@ -390,7 +392,7 @@ int main(int argc, unsigned char *argv[])
 /*
  * Print program usage
  */
-void Usage(unsigned char *name)
+void Usage(char *name)
 {
   fprintf(stderr, "\
 \ndialog version 0.3, by Savio Lam (lam836@cs.cuhk.hk).\
