@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.44 1998/04/15 17:44:58 bde Exp $
+ *	$Id: identcpu.c,v 1.45 1998/04/26 03:18:38 dyson Exp $
  */
 
 #include "opt_cpu.h"
@@ -428,8 +428,10 @@ printcpuinfo(void)
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0 ||
 	    strcmp(cpu_vendor, "AuthenticAMD") == 0 ||
 		((strcmp(cpu_vendor, "CyrixInstead") == 0) &&
-		 (cpu_id & 0xf00 > 5))) {
+		 ((cpu_id & 0xf00) > 5))) {
 		printf("  Stepping=%ld", cpu_id & 0xf);
+		if (strcmp(cpu_vendor, "CyrixInstead") == 0)
+			printf("  DIR=0x%04lx", cyrix_did);
 		if (cpu_high > 0) {
 			/*
 			 * Here we should probably set up flags indicating
@@ -476,9 +478,9 @@ printcpuinfo(void)
 			);
 		}
 	} else if (strcmp(cpu_vendor, "CyrixInstead") == 0) {
-		printf("  DIR=0x%lx", cyrix_did);
+		printf("  DIR=0x%04lx", cyrix_did);
 		printf("  Stepping=%ld", (cyrix_did & 0xf000) >> 12);
-		printf("  Revision=%ld", (cyrix_did & 0x0fff) >> 8);
+		printf("  Revision=%ld", (cyrix_did & 0x0f00) >> 8);
 #ifndef CYRIX_CACHE_REALLY_WORKS
 		if (cpu == CPU_M1 && (cyrix_did & 0xff00) < 0x1700)
 			printf("\n  CPU cache: write-through mode");
@@ -687,6 +689,7 @@ finishidentcpu(void)
 			 * Cyrix's datasheet does not describe DIRs.
 			 * Therefor, I assume it does not have them
 			 * and use the result of the cpuid instruction.
+			 * XXX they seem to have it for now at least. -Peter
 			 */
 			identifycyrix();
 			cpu = CPU_M2;
@@ -730,6 +733,8 @@ finishidentcpu(void)
 				write_cyrix_reg(CCR4, read_cyrix_reg(CCR4) | CCR4_CPUID);
 				write_cyrix_reg(CCR3, ccr3);
 
+				do_cpuid(0, regs);
+				cpu_high = regs[0];	/* eax */
 				do_cpuid(1, regs);
 				cpu_id = regs[0];	/* eax */
 				cpu_feature = regs[3];	/* edx */
