@@ -330,12 +330,11 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	char	pathbuf[32], *strval, *periph_name;
 
 	unit = 0;
-	hit = 0;
 
 	periph_name = p_drv->driver_name;
 	snprintf(pathbuf, sizeof(pathbuf), "scbus%d", pathid);
 	i = -1;
-	while ((i = resource_locate(i, periph_name)) != -1) {
+	for (hit = 0; (i = resource_locate(i, periph_name)) != -1; hit = 0) {
 		dname = resource_query_name(i);
 		dunit = resource_query_unit(i);
 		if (resource_string_value(dname, dunit, "at", &strval) == 0) {
