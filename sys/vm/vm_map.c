@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.21 1995/04/16 12:56:17 davidg Exp $
+ * $Id: vm_map.c,v 1.22 1995/05/30 08:16:07 rgrimes Exp $
  */
 
 /*
@@ -774,11 +774,11 @@ vm_map_find(map, object, offset, addr, length, find_space)
 	int result, s = 0;
 
 	start = *addr;
-	vm_map_lock(map);
 
 	if (map == kmem_map)
 		s = splhigh();
 
+	vm_map_lock(map);
 	if (find_space) {
 		if (vm_map_findspace(map, start, length, addr)) {
 			vm_map_unlock(map);
