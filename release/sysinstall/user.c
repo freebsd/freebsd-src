@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.1.2.6 1997/01/15 04:50:22 jkh Exp $
+ * $Id: user.c,v 1.1.2.7 1997/01/24 21:06:06 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -122,7 +122,7 @@ static Layout userLayout[] = {
 #define LAYOUT_PASSWD		3
     { 3, 43, 15, PASSWD_FIELD_LEN - 1,
       "Password:", "The password for this user (enter this field with care!)",
-      passwd, STRINGOBJ, NULL },
+      passwd, NO_ECHO_OBJ(STRINGOBJ), NULL },
 #define LAYOUT_GECOS		4
     { 8, 6, 33, GECOS_FIELD_LEN - 1,
       "Full name:", "The user's full name (comment)",
@@ -368,14 +368,14 @@ userAddGroup(dialogMenuItem *self)
 
 reenter:
     cancelbutton = okbutton = 0;
-    while (layoutDialogLoop(ds_win, groupLayout, &obj, &n, max, &cancelbutton, &cancel)) {
-	if (firsttime && n == LAYOUT_GNAME) {
-	    /* fill in the blanks, well, just the GID */
-	    completeGroup();
-	    RefreshStringObj(groupLayout[LAYOUT_GID].obj);
-	    firsttime = FALSE;
-	}
+    if (firsttime) {
+	/* fill in the blanks, well, just the GID */
+	completeGroup();
+	RefreshStringObj(groupLayout[LAYOUT_GID].obj);
+	firsttime = FALSE;
     }
+
+    while (layoutDialogLoop(ds_win, groupLayout, &obj, &n, max, &cancelbutton, &cancel));
 
     if (!cancel && !verifyGroupSettings())
 	goto reenter;
@@ -693,19 +693,19 @@ userAddUser(dialogMenuItem *self)
     
 reenter:
     cancelbutton = okbutton = 0;
-    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel)) {
-	if (firsttime && n == LAYOUT_UNAME) {
-	    /* fill in the blanks, well, just the GID */
-	    completeUser();
-	    RefreshStringObj(userLayout[LAYOUT_UID].obj);
-	    RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
-	    RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
-	    RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
-	    RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
-	    RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
-	    firsttime = FALSE;
-	}
+    if (firsttime) {
+	/* fill in the blanks, well, just the GID */
+	completeUser();
+	RefreshStringObj(userLayout[LAYOUT_UID].obj);
+	RefreshStringObj(userLayout[LAYOUT_UGROUP].obj);
+	RefreshStringObj(userLayout[LAYOUT_GECOS].obj);
+	RefreshStringObj(userLayout[LAYOUT_UMEMB].obj);
+	RefreshStringObj(userLayout[LAYOUT_HOMEDIR].obj);
+	RefreshStringObj(userLayout[LAYOUT_SHELL].obj);
+	firsttime = FALSE;
     }
+
+    while (layoutDialogLoop(ds_win, userLayout, &obj, &n, max, &cancelbutton, &cancel));
 
     if (!cancel && !verifyUserSettings(ds_win))
 	goto reenter;
