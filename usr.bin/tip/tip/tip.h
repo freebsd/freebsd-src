@@ -42,6 +42,7 @@
 #include <machine/endian.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/param.h>
 
 #if HAVE_TERMIOS
 #include <sys/ioctl.h>         /* for TIOCHPCL */
@@ -253,6 +254,9 @@ void logent __P((char *, char *, char *, char*));
 #define NOVAL	((value_t *)NULL)
 #define NOACU	((acu_t *)NULL)
 #define NOSTR	((char *)NULL)
+#ifdef NOFILE
+#undef NOFILE
+#endif
 #define NOFILE	((FILE *)NULL)
 #define NOPWD	((struct passwd *)0)
 
@@ -286,8 +290,8 @@ int	stoprompt;		/* for interrupting a prompt session */
 int	timedout;		/* ~> transfer timedout */
 int	cumode;			/* simulating the "cu" program */
 
-char	fname[80];		/* file name buffer for ~< */
-char	copyname[80];		/* file name buffer for ~> */
+char	fname[MAXPATHLEN];	/* file name buffer for ~< */
+char	copyname[MAXPATHLEN];	/* file name buffer for ~> */
 char	ccc;			/* synchronization character */
 char	ch;			/* for tipout */
 char	*uucplock;		/* name of lock file for uucp's */
@@ -313,7 +317,7 @@ extern	void disconnect __P((char *));
 extern	void shell_uid __P((void));
 extern	void unraw __P((void));
 extern	void pwrite __P((int, char *, int));
-extern	int prompt __P((char *, char *));
+extern	int prompt __P((char *, char *, int));
 extern	void  consh __P((int));
 extern	void tipabort __P((char *));
 
