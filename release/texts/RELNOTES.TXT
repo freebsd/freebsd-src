@@ -44,6 +44,8 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
+Linux mode has undergone significant bug fixes and improvements.
+
 The Berkeley Packet Filter (bpf) is enabled by default.  This is to allow
 DHCP supported installs.
 
@@ -91,6 +93,11 @@ Driver support for M-systems DiskOnChip products integrated.
 
 1.3. USERLAND CHANGES
 ---------------------
+
+The support environment for Linux mode has finally been updated. The
+linux_lib and linux_devel ports are replaced by resp. linux_base and
+linux_devtools. These new ports are based on Red Hat 5.2 packages
+and include support for both glibc2 and libc5 based applications.
 
 Sysinstall now contains DHCP client support.
 
