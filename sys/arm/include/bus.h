@@ -727,6 +727,9 @@ int	bus_dmamap_load (bus_dma_tag_t, bus_dmamap_t, void *,
 	    bus_size_t, bus_dmamap_callback_t *, void *, int);
 int	bus_dmamap_load_mbuf (bus_dma_tag_t, bus_dmamap_t,
 	    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
+int	bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+   	    struct mbuf *mbuf, bus_dma_segment_t *segs,
+	    int *nsegs, int flags);
 int	bus_dmamap_load_uio (bus_dma_tag_t, bus_dmamap_t,
 	    struct uio *, bus_dmamap_callback2_t *, void *, int);
 void	bus_dmamap_unload (bus_dma_tag_t, bus_dmamap_t);
