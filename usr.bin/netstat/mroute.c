@@ -160,30 +160,27 @@ mrt_stats(u_long mstaddr)
 
 	kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	printf("IPv4 multicast forwarding:\n");
-	printf(" %10lu multicast forwarding cache lookup%s\n",
-	  mrtstat.mrts_mfc_lookups, plural(mrtstat.mrts_mfc_lookups));
-	printf(" %10lu multicast forwarding cache miss%s\n",
-	  mrtstat.mrts_mfc_misses, plurales(mrtstat.mrts_mfc_misses));
-	printf(" %10lu upcall%s to mrouted\n",
-	  mrtstat.mrts_upcalls, plural(mrtstat.mrts_upcalls));
-	printf(" %10lu upcall queue overflow%s\n",
-	  mrtstat.mrts_upq_ovflw, plural(mrtstat.mrts_upq_ovflw));
-	printf(" %10lu upcall%s dropped due to full socket buffer\n",
-	  mrtstat.mrts_upq_sockfull, plural(mrtstat.mrts_upq_sockfull));
-	printf(" %10lu cache cleanup%s\n",
-	  mrtstat.mrts_cache_cleanups, plural(mrtstat.mrts_cache_cleanups));
-	printf(" %10lu datagram%s with no route for origin\n",
-	  mrtstat.mrts_no_route, plural(mrtstat.mrts_no_route));
-	printf(" %10lu datagram%s arrived with bad tunneling\n",
-	  mrtstat.mrts_bad_tunnel, plural(mrtstat.mrts_bad_tunnel));
-	printf(" %10lu datagram%s could not be tunneled\n",
-	  mrtstat.mrts_cant_tunnel, plural(mrtstat.mrts_cant_tunnel));
-	printf(" %10lu datagram%s arrived on wrong interface\n",
-	  mrtstat.mrts_wrong_if, plural(mrtstat.mrts_wrong_if));
-	printf(" %10lu datagram%s selectively dropped\n",
-	  mrtstat.mrts_drop_sel, plural(mrtstat.mrts_drop_sel));
-	printf(" %10lu datagram%s dropped due to queue overflow\n",
-	  mrtstat.mrts_q_overflow, plural(mrtstat.mrts_q_overflow));
-	printf(" %10lu datagram%s dropped for being too large\n",
-	  mrtstat.mrts_pkt2large, plural(mrtstat.mrts_pkt2large));
+
+#define	p(f, m) if (mrtstat.f || sflag <= 1) \
+	printf(m, mrtstat.f, plural(mrtstat.f))
+#define	p2(f, m) if (mrtstat.f || sflag <= 1) \
+	printf(m, mrtstat.f, plurales(mrtstat.f))
+
+	p(mrts_mfc_lookups, "\t%lu multicast forwarding cache lookup%s\n");
+	p2(mrts_mfc_misses, "\t%lu multicast forwarding cache miss%s\n");
+	p(mrts_upcalls, "\t%lu upcall%s to mrouted\n");
+	p(mrts_upq_ovflw, "\t%lu upcall queue overflow%s\n");
+	p(mrts_upq_sockfull,
+	    "\t%lu upcall%s dropped due to full socket buffer\n");
+	p(mrts_cache_cleanups, "\t%lu cache cleanup%s\n");
+	p(mrts_no_route, "\t%lu datagram%s with no route for origin\n");
+	p(mrts_bad_tunnel, "\t%lu datagram%s arrived with bad tunneling\n");
+	p(mrts_cant_tunnel, "\t%lu datagram%s could not be tunneled\n");
+	p(mrts_wrong_if, "\t%lu datagram%s arrived on wrong interface\n");
+	p(mrts_drop_sel, "\t%lu datagram%s selectively dropped\n");
+	p(mrts_q_overflow, "\t%lu datagram%s dropped due to queue overflow\n");
+	p(mrts_pkt2large, "\t%lu datagram%s dropped for being too large\n");
+
+#undef	p2
+#undef	p
 }
