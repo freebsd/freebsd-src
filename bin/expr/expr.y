@@ -495,26 +495,20 @@ struct val *a, *b;
 	char errbuf[256];
 	int eval;
 	struct val *v;
-	char *newpat;
 
 	/* coerce to both arguments to strings */
 	to_string(a);
 	to_string(b);
 
-	/* patterns are anchored to the beginning of the line */
-	newpat = malloc (strlen (b->u.s) + 2);
-	strcpy (newpat, "^");
-	strcat (newpat, b->u.s);
-
 	/* compile regular expression */
-	if ((eval = regcomp (&rp, newpat, 0)) != 0) {
+	if ((eval = regcomp (&rp, b->u.s, 0)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
 		errx (2, "%s", errbuf);
 	}
-	free (newpat);
 
 	/* compare string against pattern */
-	if (regexec(&rp, a->u.s, 2, rm, 0) == 0) {
+	/* remember that patterns are anchored to the beginning of the line */
+	if (regexec(&rp, a->u.s, 2, rm, 0) == 0 && rm[0].rm_so == 0) {
 		if (rm[1].rm_so >= 0) {
 			*(a->u.s + rm[1].rm_eo) = '\0';
 			v = make_str (a->u.s + rm[1].rm_so);
