@@ -335,7 +335,9 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 	 * Gaurd against symlink tricks.  Reject any archive entry whose
 	 * destination would be altered by a symlink.
 	 */
-	/* XXX TODO: Make this faster!!! XXX */
+	/* XXX TODO: Make this faster by comparing current path to
+	 * prefix of last successful check to avoid duplicate lstat()
+	 * calls. XXX */
 	pn = name;
 	if (bsdtar->security == NULL) {
 		bsdtar->security = malloc(sizeof(*bsdtar->security));
@@ -359,9 +361,18 @@ security_problem(struct bsdtar *bsdtar, struct archive_entry *entry)
 			if (errno == ENOENT)
 				break;
 		} else if (S_ISLNK(st.st_mode)) {
-			bsdtar_warnc(0,"Cannot extract %s through symlink %s",
-			    name, bsdtar->security->path);
-			return (1);
+			if (*pn == '\0') {
+				/* Last element is symlink; just remove it. */
+				unlink(bsdtar->security->path);
+			} else if (bsdtar->option_unlink_first) {
+				/* User asked us to remove problems. */
+				unlink(bsdtar->security->path);
+			} else {
+				bsdtar_warnc(0,
+				    "Cannot extract %s through symlink %s",
+				    name, bsdtar->security->path);
+				return (1);
+			}
 		}
 	}
 
