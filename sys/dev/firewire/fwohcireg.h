@@ -34,7 +34,7 @@
  * $FreeBSD$
  *
  */
-#define		PCI_CBMEM		0x10
+#define		PCI_CBMEM		PCIR_BAR(0)
 
 #define		FW_VENDORID_NEC		0x1033
 #define		FW_VENDORID_TI		0x104c
@@ -47,6 +47,7 @@
 #define		FW_DEVICE_UPD861	(0x0063 << 16)
 #define		FW_DEVICE_UPD871	(0x00ce << 16)
 #define		FW_DEVICE_UPD72870	(0x00cd << 16)
+#define		FW_DEVICE_UPD72873	(0x00e7 << 16)
 #define		FW_DEVICE_UPD72874	(0x00f2 << 16)
 #define		FW_DEVICE_TITSB22	(0x8009 << 16)
 #define		FW_DEVICE_TITSB23	(0x8019 << 16)

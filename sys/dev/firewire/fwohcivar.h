@@ -35,10 +35,10 @@
  *
  */
 
-#if __FreeBSD_version >= 500000
-#define FWOHCI_TASKQUEUE        1
-#else
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 #define FWOHCI_TASKQUEUE        0
+#else
+#define FWOHCI_TASKQUEUE        1
 #endif
 #if FWOHCI_TASKQUEUE
 #include <sys/taskqueue.h>
@@ -49,7 +49,7 @@ typedef struct fwohci_softc {
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
 	void *ih;
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 	void *ih_cam;
 	void *ih_bio;
 #endif

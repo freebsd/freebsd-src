@@ -44,18 +44,26 @@
 #include <sys/conf.h>
 #include <sys/sysctl.h>
 
-#if __FreeBSD_version < 500000
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 #include <machine/clock.h>	/* for DELAY() */
 #endif
 
 #include <sys/bus.h>		/* used by smbus and newbus */
 #include <machine/bus.h>
 
+#ifdef __DragonFly__
+#include "firewire.h"
+#include "firewirereg.h"
+#include "fwmem.h"
+#include "iec13213.h"
+#include "iec68113.h"
+#else
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/iec68113.h>
+#endif
 
 struct crom_src_buf {
 	struct crom_src	src;
@@ -80,7 +88,8 @@ MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 devclass_t firewire_devclass;
 
-static int firewire_match      (device_t);
+static void firewire_identify	(driver_t *, device_t);
+static int firewire_probe	(device_t);
 static int firewire_attach      (device_t);
 static int firewire_detach      (device_t);
 static int firewire_resume      (device_t);
@@ -105,7 +114,8 @@ static int fw_bmr (struct firewire_comm *);
 
 static device_method_t firewire_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		firewire_match),
+	DEVMETHOD(device_identify,	firewire_identify),
+	DEVMETHOD(device_probe,		firewire_probe),
 	DEVMETHOD(device_attach,	firewire_attach),
 	DEVMETHOD(device_detach,	firewire_detach),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
@@ -236,7 +246,6 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 		return EINVAL;
 	}
 
-	microtime(&xfer->tv);
 	if (info->flag & FWTI_TLABEL) {
 		if((tl = fw_get_tlabel(fc, xfer)) == -1 )
 			return EIO;
@@ -299,6 +308,7 @@ fw_asystart(struct fw_xfer *xfer)
 		return;
 	}
 #endif
+	microtime(&xfer->tv);
 	s = splfw();
 	xfer->state = FWXF_INQ;
 	STAILQ_INSERT_TAIL(&xfer->q->q, xfer, link);
@@ -310,11 +320,17 @@ fw_asystart(struct fw_xfer *xfer)
 	return;
 }
 
+static void
+firewire_identify(driver_t *driver, device_t parent)
+{
+	BUS_ADD_CHILD(parent, 0, "firewire", -1);
+}
+
 static int
-firewire_match( device_t dev )
+firewire_probe(device_t dev)
 {
 	device_set_desc(dev, "IEEE1394(FireWire) bus");
-	return -140;
+	return (0);
 }
 
 static void
@@ -412,6 +428,7 @@ firewire_attach(device_t dev)
 	bus_generic_attach(dev);
 
 	/* bus_reset */
+	fw_busreset(fc);
 	fc->ibr(fc);
 
 	return 0;
@@ -624,8 +641,13 @@ fw_reset_crom(struct firewire_comm *fc)
 	crom_add_entry(root, CSRKEY_NCAP, 0x0083c0); /* XXX */
 	/* private company_id */
 	crom_add_entry(root, CSRKEY_VENDOR, CSRVAL_VENDOR_PRIVATE);
+#ifdef __DragonFly__
+	crom_add_simple_text(src, root, &buf->vendor, "DragonFly Project");
+	crom_add_entry(root, CSRKEY_HW, __DragonFly_cc_version);
+#else
 	crom_add_simple_text(src, root, &buf->vendor, "FreeBSD Project");
 	crom_add_entry(root, CSRKEY_HW, __FreeBSD_version);
+#endif
 	crom_add_simple_text(src, root, &buf->hw, hostname);
 }
 
@@ -830,7 +852,7 @@ fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
 	struct fw_bind *tfw, *prev = NULL;
 
 	if (fwb->start > fwb->end) {
-		printf("%s: invalid range\n", __FUNCTION__);
+		printf("%s: invalid range\n", __func__);
 		return EINVAL;
 	}
 
@@ -848,7 +870,7 @@ fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
 		goto out;
 	}
 
-	printf("%s: bind failed\n", __FUNCTION__);
+	printf("%s: bind failed\n", __func__);
 	return (EBUSY);
 
 out:
@@ -876,7 +898,7 @@ fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
 			goto found;
 		}
 
-	printf("%s: no such bind\n", __FUNCTION__);
+	printf("%s: no such bind\n", __func__);
 	splx(s);
 	return (1);
 found:
@@ -964,10 +986,10 @@ fw_xfer_alloc_buf(struct malloc_type *type, int send_len, int recv_len)
 	struct fw_xfer *xfer;
 
 	xfer = fw_xfer_alloc(type);
-	xfer->send.pay_len = send_len;
-	xfer->recv.pay_len = recv_len;
 	if (xfer == NULL)
 		return(NULL);
+	xfer->send.pay_len = send_len;
+	xfer->recv.pay_len = recv_len;
 	if (send_len > 0) {
 		xfer->send.payload = malloc(send_len, type, M_NOWAIT | M_ZERO);
 		if (xfer->send.payload == NULL) {
@@ -1040,7 +1062,7 @@ void
 fw_xfer_free_buf( struct fw_xfer* xfer)
 {
 	if (xfer == NULL) {
-		printf("%s: xfer == NULL\n", __FUNCTION__);
+		printf("%s: xfer == NULL\n", __func__);
 		return;
 	}
 	fw_xfer_unload(xfer);
@@ -1057,7 +1079,7 @@ void
 fw_xfer_free( struct fw_xfer* xfer)
 {
 	if (xfer == NULL) {
-		printf("%s: xfer == NULL\n", __FUNCTION__);
+		printf("%s: xfer == NULL\n", __func__);
 		return;
 	}
 	fw_xfer_unload(xfer);
@@ -1462,8 +1484,13 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 			fc->ongonode, fc->ongoaddr);
 
 	if(xfer->resp != 0){
-		printf("node%d: resp=%d addr=0x%x\n",
-			fc->ongonode, xfer->resp, fc->ongoaddr);
+		device_printf(fc->bdev,
+		    "bus_explore node=%d addr=0x%x resp=%d retry=%d\n",
+		    fc->ongonode, fc->ongoaddr, xfer->resp, xfer->retry);
+		if (xfer->retry < fc->max_asyretry) {
+			fw_asystart(xfer);
+			return;
+		}
 		goto errnode;
 	}
 
@@ -1582,8 +1609,11 @@ nextaddr:
 	return;
 errnode:
 	fc->retry_count++;
-	if (fc->ongodev != NULL)
+	if (fc->ongodev != NULL) {
 		fc->ongodev->status = FWDEVINVAL;
+		/* Invalidate ROM */
+		fc->ongodev->csrrom[0] = 0;
+	}
 nextnode:
 	fw_xfer_free( xfer);
 	fc->ongonode++;
@@ -1642,7 +1672,8 @@ fw_attach_dev(struct firewire_comm *fc)
 	free(devlistp, M_TEMP);
 
 	if (fc->retry_count > 0) {
-		printf("probe failed for %d node\n", fc->retry_count);
+		device_printf(fc->bdev, "bus_explore failed for %d nodes\n",
+		    fc->retry_count);
 #if 0
 		callout_reset(&fc->retry_probe_callout, hz*2,
 					(void *)fc->ibr, (void *)fc);
@@ -1829,10 +1860,10 @@ fw_rcv(struct fw_rcv_buf *rb)
 			fp->mode.rreqq.dest_lo);
 		if(bind == NULL){
 			printf("Unknown service addr 0x%04x:0x%08x %s(%x)"
-#if __FreeBSD_version >= 500000
-			    " src=0x%x data=%x\n",
-#else
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 			    " src=0x%x data=%lx\n",
+#else
+			    " src=0x%x data=%x\n",
 #endif
 			    fp->mode.wreqq.dest_hi, fp->mode.wreqq.dest_lo,
 			    tcode_str[tcode], tcode,
@@ -1951,10 +1982,10 @@ fw_rcv(struct fw_rcv_buf *rb)
 		STAILQ_INSERT_TAIL(&xferq->q, rb->xfer, link);
 		splx(s);
 		sc = device_get_softc(rb->fc->bdev);
-#if __FreeBSD_version >= 500000
-		if (SEL_WAITING(&xferq->rsel))
-#else
+#if defined(__DragonFly__) || __FreeBSD_version < 500000
 		if (&xferq->rsel.si_pid != 0)
+#else
+		if (SEL_WAITING(&xferq->rsel))
 #endif
 			selwakeuppri(&xferq->rsel, FWPRI);
 		if (xferq->flag & FWXFERQ_WAKEUP) {
@@ -2202,19 +2233,19 @@ static int
 fw_modevent(module_t mode, int type, void *data)
 {
 	int err = 0;
-#if __FreeBSD_version >= 500000
+#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	static eventhandler_tag fwdev_ehtag = NULL;
 #endif
 
 	switch (type) {
 	case MOD_LOAD:
-#if __FreeBSD_version >= 500000
+#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 		fwdev_ehtag = EVENTHANDLER_REGISTER(dev_clone,
 						fwdev_clone, 0, 1000);
 #endif
 		break;
 	case MOD_UNLOAD:
-#if __FreeBSD_version >= 500000
+#if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 		if (fwdev_ehtag != NULL)
 			EVENTHANDLER_DEREGISTER(dev_clone, fwdev_ehtag);
 #endif
@@ -2226,5 +2257,8 @@ fw_modevent(module_t mode, int type, void *data)
 }
 
 
+#ifdef __DragonFly__
+DECLARE_DUMMY_MODULE(firewire);
+#endif
 DRIVER_MODULE(firewire,fwohci,firewire_driver,firewire_devclass,fw_modevent,0);
 MODULE_VERSION(firewire, 1);
