@@ -44,7 +44,6 @@ typedef	long sig_atomic_t;
 #endif
 
 #if __BSD_VISIBLE
-typedef	int osigset_t;
 
 struct osigcontext {
 };
