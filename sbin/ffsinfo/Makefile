@@ -4,8 +4,6 @@
 # $FreeBSD$
 #
 
-MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
-
 GROWFS= ${.CURDIR}/../growfs
 .PATH: ${GROWFS}
 
