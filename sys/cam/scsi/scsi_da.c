@@ -322,9 +322,16 @@ static struct da_quirk_entry da_quirk_table[] =
  	},
 	{
 		/*
-		 * Nikon Coolpix 995
+		 * Nikon Coolpix E775/E995 Cameras 
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NIKON", "NIKON DSC E995", "*"},
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "NIKON", "NIKON DSC E*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE
+	},
+	{
+		/*
+		 * Nikon Coolpix E885 Camera
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Nikon", "Digital Camera", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
