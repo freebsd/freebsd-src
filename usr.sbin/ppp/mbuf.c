@@ -75,7 +75,7 @@ m_length(struct mbuf *bp)
   return len;
 }
 
-const char *
+static const char *
 mbuftype(int type)
 {
   static const char * const mbufdesc[MB_MAX] = { 
