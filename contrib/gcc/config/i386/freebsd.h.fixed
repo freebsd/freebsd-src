@@ -89,9 +89,6 @@ Boston, MA 02111-1307, USA.  */
 #undef ASM_COMMENT_START
 #define ASM_COMMENT_START "#"
 
-#undef COMMENT_BEGIN
-#define COMMENT_BEGIN "#"
-
 #undef ASM_APP_ON
 #define ASM_APP_ON "#APP\n"
 
