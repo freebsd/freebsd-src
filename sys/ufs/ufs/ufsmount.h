@@ -65,13 +65,14 @@ struct ufsmount {
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 	u_long	um_fstype;			/* type of filesystem */
 	struct	fs *um_fs;			/* pointer to superblock */
-	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
-	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	struct	ufs_extattr_per_mount um_extattr;	/* extended attrs */
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
 	u_long	um_seqinc;			/* inc between seq blocks */
-	long	um_numindirdeps;		/* indirdeps for this filesys */
+	struct	mtx um_lock;			/* Protects ufsmount & fs */
+	long	um_numindirdeps;		/* outstanding indirdeps */
+	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
+	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */
 	time_t	um_itime[MAXQUOTAS];		/* inode quota time limit */
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
@@ -92,6 +93,10 @@ struct ufsmount {
 #define UFS_VALLOC(aa, bb, cc, dd) VFSTOUFS((aa)->v_mount)->um_valloc(aa, bb, cc, dd)
 #define UFS_VFREE(aa, bb, cc) VFSTOUFS((aa)->v_mount)->um_vfree(aa, bb, cc)
 #define UFS_IFREE(aa, bb) ((aa)->um_ifree(aa, bb))
+
+#define	UFS_LOCK(aa)	mtx_lock(&(aa)->um_lock)
+#define	UFS_UNLOCK(aa)	mtx_unlock(&(aa)->um_lock)
+#define	UFS_MTX(aa)	(&(aa)->um_lock)
 
 /*
  * Filesystem types
