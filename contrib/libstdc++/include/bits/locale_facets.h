@@ -55,6 +55,9 @@ namespace std
 # define  _GLIBCPP_NUM_FACETS 14
 #endif
 
+  template<typename _CharT, typename _Traits>
+    struct __pad;
+
   // 22.2.1.1  Template class ctype
   // Include host and configuration specific ctype enums for ctype_base.
   #include <bits/ctype_base.h>
@@ -652,6 +655,7 @@ namespace std
       virtual iter_type 
       do_get(iter_type, iter_type, ios_base&, ios_base::iostate&, bool&) const;
 
+
       virtual iter_type 
       do_get(iter_type, iter_type, ios_base&, ios_base::iostate&, long&) const;
 
@@ -696,6 +700,23 @@ namespace std
 
   template<typename _CharT, typename _InIter>
     locale::id num_get<_CharT, _InIter>::id;
+
+#if 0
+  // Partial specialization for istreambuf_iterator, so can use traits_type.
+  template<typename _CharT>
+    class num_get<_CharT, istreambuf_iterator<_CharT> >;
+
+      iter_type 
+      _M_extract_float(iter_type, iter_type, ios_base&, ios_base::iostate&, 
+		       string& __xtrc) const;
+
+      iter_type 
+      _M_extract_int(iter_type, iter_type, ios_base&, ios_base::iostate&, 
+		     string& __xtrc, int& __base) const;
+
+      virtual iter_type 
+      do_get(iter_type, iter_type, ios_base&, ios_base::iostate&, bool&) const;
+#endif
 
   template<typename _CharT, typename _OutIter>
     class num_put : public locale::facet, public __num_base
@@ -1357,8 +1378,9 @@ namespace std
       { _M_initialize_moneypunct(); }
 
       explicit 
-      moneypunct(__c_locale __cloc, size_t __refs = 0) : locale::facet(__refs)
-      { _M_initialize_moneypunct(__cloc); }
+      moneypunct(__c_locale __cloc, const char* __s, size_t __refs = 0) 
+      : locale::facet(__refs)
+      { _M_initialize_moneypunct(__cloc, __s); }
 
       char_type
       decimal_point() const
@@ -1438,7 +1460,8 @@ namespace std
 
       // For use at construction time only.
        void 
-       _M_initialize_moneypunct(__c_locale __cloc = _S_c_locale);
+       _M_initialize_moneypunct(__c_locale __cloc = _S_c_locale, 
+				const char* __name = NULL);
     };
 
   template<typename _CharT, bool _Intl>
@@ -1455,11 +1478,11 @@ namespace std
 
   template<> 
     void
-    moneypunct<char, true>::_M_initialize_moneypunct(__c_locale __cloc);
+    moneypunct<char, true>::_M_initialize_moneypunct(__c_locale, const char*);
 
   template<> 
     void
-    moneypunct<char, false>::_M_initialize_moneypunct(__c_locale __cloc);
+    moneypunct<char, false>::_M_initialize_moneypunct(__c_locale, const char*);
 
 #ifdef _GLIBCPP_USE_WCHAR_T
   template<>
@@ -1470,11 +1493,13 @@ namespace std
 
   template<> 
     void
-    moneypunct<wchar_t, true>::_M_initialize_moneypunct(__c_locale __cloc);
+    moneypunct<wchar_t, true>::_M_initialize_moneypunct(__c_locale, 
+							const char*);
 
   template<> 
     void
-    moneypunct<wchar_t, false>::_M_initialize_moneypunct(__c_locale __cloc);
+    moneypunct<wchar_t, false>::_M_initialize_moneypunct(__c_locale, 
+							 const char*);
 #endif
 
   template<typename _CharT, bool _Intl>
