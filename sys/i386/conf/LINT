@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.119 1994/12/17 08:06:01 jkh Exp $
+#	$Id: LINT,v 1.120 1994/12/17 08:37:22 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -146,13 +146,17 @@ options		TPCONS			#ISO TP class 0 over X.25
 #  aware of the legal and administrative consequences of enabling this
 #  option.  The number of devices determines the maximum number of
 #  simultaneous BPF clients programs runnable.
+#  The `disc' pseudo-device implements a minimal network interface,
+#  which throws away all packets sent and never receives any.  It is
+#  included for testing purposes.
 #
 pseudo-device	ether			#Generic Ethernet
 pseudo-device	sppp			#Generic Synchronous PPP
-pseudo-device	loop			#Network loop back device
+pseudo-device	loop			#Network loopback device
 pseudo-device	sl	2		#Serial Line IP
 pseudo-device	ppp	2		#Point-to-point protocol
 pseudo-device	bpfilter	4	#Berkeley packet filter
+pseudo-device	disc			#Discard device
 
 options		NSIP			#XNS over IP
 options		EON			#ISO CLNP over IP
