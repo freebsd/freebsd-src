@@ -1,6 +1,4 @@
 /* $FreeBSD$ */
-/*	BSDI osd_unix.h,v 1.7 1998/06/03 19:14:58 karels Exp	*/
-
 /*
  * Copyright (c) 1996-1999 Distributed Processing Technology Corporation
  * All rights reserved.
