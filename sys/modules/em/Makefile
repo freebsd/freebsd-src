@@ -1,5 +1,4 @@
-# $FreeBSD$
-
+#$FreeBSD$
 .PATH:	${.CURDIR}/../../dev/em
 KMOD	= if_em
 SRCS	= device_if.h bus_if.h pci_if.h opt_bdg.h
