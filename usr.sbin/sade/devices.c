@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.12 1995/05/08 21:39:33 jkh Exp $
+ * $Id: devices.c,v 1.13 1995/05/11 06:10:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -42,6 +42,7 @@
  */
 
 #include "sysinstall.h"
+#include <sys/fcntl.h>
 #include <ctype.h>
 
 /* Where we start displaying chunk information on the screen */
@@ -83,7 +84,7 @@ device_get_all(DeviceType which, int *ndevs)
 
 	for (i = 0; cdrom_table[i]; i++) {
 	    snprintf(try, FILENAME_MAX, "/mnt/dev/%s", cdrom_table[i]);
-	    fd = open(try);
+	    fd = open(try, O_RDWR);
 	    if (fd > 0) {
 		close(fd);
 		devs = safe_realloc(devs, sizeof(Device) * (*ndevs + 2));

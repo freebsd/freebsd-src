@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.13 1995/05/08 21:39:37 jkh Exp $
+ * $Id: install.c,v 1.14 1995/05/11 06:10:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -207,6 +207,7 @@ void
 cpio_extract(void)
 {
     int i, j, zpid, cpid, pfd[2];
+    extern int wait(int *status);
 
     while (CpioFD == -1) {
 	msgConfirm("Please Insert CPIO floppy in floppy drive 0");

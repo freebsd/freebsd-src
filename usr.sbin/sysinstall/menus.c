@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.10 1995/05/10 07:44:59 jkh Exp $
+ * $Id: menus.c,v 1.11 1995/05/11 06:10:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -98,11 +98,15 @@ answers in the FAQ.",
 "Confused?  Press F1 for help.",
 "usage.hlp",			/* help file */
 { { "README", "Read this for a general description of FreeBSD", /* R */
-	DMENU_DISPLAY_FILE, (void *)"readme.hlp", 0, 0		},
+	DMENU_DISPLAY_FILE, (void *)"README", 0, 0		},
   { "Hardware", "The FreeBSD survival guide for PC hardware.",  /* H */
 	DMENU_DISPLAY_FILE, (void *)"hardware.hlp", 0, 0	},
   { "Install", "A step-by-step guide to installing FreeBSD.",   /* I */
 	DMENU_DISPLAY_FILE, (void *)"install.hlp", 0, 0		},
+  { "Copyright", "The FreeBSD Copyright notices.",   		/* C */
+	DMENU_DISPLAY_FILE, (void *)"COPYRIGHT", 0, 0		},
+  { "Release", "The release notes for this version of FreeBSD.", /* R */
+	DMENU_DISPLAY_FILE, (void *)"COPYRIGHT", 0, 0		},
   { "FAQ", "Frequently Asked Questions about FreeBSD.",         /* F */
 	DMENU_DISPLAY_FILE, (void *)"faq.hlp", 0, 0		},
   { NULL } },
