@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: simplelock.s,v 1.8 1997/08/29 07:26:27 smp Exp smp $
+ *	$Id: simplelock.s,v 1.9 1997/08/31 03:05:56 smp Exp smp $
  */
 
 /*
@@ -83,6 +83,8 @@ ENTRY(s_lock_init)
  *	the local cache (and thus causing external bus writes) with repeated
  *	writes to the lock.
  */
+#ifndef SL_DEBUG
+
 ENTRY(s_lock)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$1, %ecx
@@ -96,6 +98,43 @@ wait:
 	jmp	setlock			/* empty again, try once more */
 gotit:
 	ret
+
+#else /* SL_DEBUG */
+
+ENTRY(s_lock)
+	cmpl	$0, _smp_active
+	je	gotit
+
+	movl	4(%esp), %eax		/* get the address of the lock */
+setlock:
+	movl	_cpu_lockid, %ecx	/* add cpu id portion */
+	incl	%ecx			/* add lock portion */
+	xchgl	%ecx, (%eax)
+	testl	%ecx, %ecx
+	jz	gotit			/* it was clear, return */
+	pushl	%ecx			/* save what we xchanged */
+	decl	%ecx			/* remove lock portion */
+	cmpl	_cpu_lockid, %ecx	/* do we hold it? */
+	je	bad_slock		/* yes, thats not good... */
+	addl	$4, %esp		/* clear the stack */
+wait:
+	cmpl	$0, (%eax)		/* wait to empty */
+	jne	wait			/* still set... */
+	jmp	setlock			/* empty again, try once more */
+gotit:
+	ret
+
+	ALIGN_TEXT
+bad_slock:
+	/* %ecx (current lock) is already on the stack */
+	pushl	%eax
+	pushl	_cpuid
+	pushl	$bsl1
+	call	_panic
+
+bsl1:	.asciz	"rslock: cpu: %d, addr: 0x%08x, lock: 0x%08x"
+
+#endif /* SL_DEBUG */
 
 
 /*
@@ -168,6 +207,8 @@ ENTRY(test_and_set)
 /*
  * void ss_lock(struct simplelock *lkp)
  */
+#ifndef SL_DEBUG
+
 ENTRY(ss_lock)
 	movl	4(%esp), %eax		/* get the address of the lock */
 	movl	$1, %ecx		/* value for a held lock */
@@ -189,6 +230,52 @@ swait:
 sgotit:
 	popl	_ss_tpr			/* save the old task priority */
 	ret
+
+#else /* SL_DEBUG */
+
+ENTRY(ss_lock)
+	cmpl	$0, _smp_active
+	je	sgotit2
+
+	movl	4(%esp), %eax		/* get the address of the lock */
+ssetlock:
+	movl	_cpu_lockid, %ecx	/* add cpu id portion */
+	incl	%ecx			/* add lock portion */
+	pushl	lapic_tpr		/* save current task priority */
+#ifdef FAST_HI
+	movl	$TPR_BLOCK_FHWI, lapic_tpr	/* block FAST hw INTs */
+#else
+	movl	$TPR_BLOCK_HWI, lapic_tpr	/* block hw INTs */
+#endif
+	xchgl	%ecx, (%eax)		/* compete */
+	testl	%ecx, %ecx
+	jz	sgotit			/* it was clear, return */
+	pushl	%ecx			/* save what we xchanged */
+	decl	%ecx			/* remove lock portion */
+	cmpl	_cpu_lockid, %ecx	/* do we hold it? */
+	je	sbad_slock		/* yes, thats not good... */
+	addl	$4, %esp		/* clear the stack */
+	popl	lapic_tpr		/* previous value while waiting */
+swait:
+	cmpl	$0, (%eax)		/* wait to empty */
+	jne	swait			/* still set... */
+	jmp	ssetlock		/* empty again, try once more */
+sgotit:
+	popl	_ss_tpr			/* save the old task priority */
+sgotit2:
+	ret
+
+	ALIGN_TEXT
+sbad_slock:
+	/* %ecx (current lock) is already on the stack */
+	pushl	%eax
+	pushl	_cpuid
+	pushl	$sbsl1
+	call	_panic
+
+sbsl1:	.asciz	"rsslock: cpu: %d, addr: 0x%08x, lock: 0x%08x"
+
+#endif /* SL_DEBUG */
 
 /*
  * void ss_unlock(struct simplelock *lkp)

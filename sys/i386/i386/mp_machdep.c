@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.32 1997/08/30 01:25:13 smp Exp smp $
+ *	$Id: mp_machdep.c,v 1.34 1997/08/31 03:05:56 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -1446,16 +1446,18 @@ struct simplelock	fast_intr_lock;
 /* critical region around INTR() routines */
 struct simplelock	intr_lock;
 
-#ifdef SIMPLE_MPINTRLOCK
-/* critical region around INTR() routines */
-struct simplelock	mpintr_lock;
+/* lock regions around the clock hardware */
 struct simplelock	clock_lock;
+
+#ifdef SIMPLE_MPINTRLOCK
+/* lock regions protected in UP kernel via cli/sti */
+struct simplelock	mpintr_lock;
 #endif
 
-#if 0
-/* lock the com (tty) data structures */
+#ifdef USE_COMLOCK
+/* locks com (tty) data/hardware accesses: a FASTINTR() */
 struct simplelock	com_lock;
-#endif
+#endif /* USE_COMLOCK */
 
 static void
 init_locks(void)
@@ -1470,27 +1472,16 @@ init_locks(void)
 	isr_lock = FREE_LOCK;
 
 #ifdef SIMPLE_MPINTRLOCK
-	/* lock regions protected in UP kernel via cli/sti */
 	s_lock_init((struct simplelock*)&mpintr_lock);
+#endif
 	s_lock_init((struct simplelock*)&clock_lock);
-#endif
-
-	/* serializes FAST_INTR() accesses */
 	s_lock_init((struct simplelock*)&fast_intr_lock);
-
-	/* serializes INTR() accesses */
 	s_lock_init((struct simplelock*)&intr_lock);
-
-	/* locks the IO APIC and apic_imen accesses */
 	s_lock_init((struct simplelock*)&imen_lock);
-
-	/* locks cpl/cml/cim/ipending accesses */
 	s_lock_init((struct simplelock*)&cpl_lock);
-
-#if 0
-	/* locks com (tty) data/hardware accesses: a FASTINTR() */
+#ifdef USE_COMLOCK
 	s_lock_init((struct simplelock*)&com_lock);
-#endif
+#endif /* USE_COMLOCK */
 }
 
 
