@@ -1847,6 +1847,10 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		if ( bktr->card.msp3400c )
 		  msp_autodetect( bktr );
 
+		/* after every channel change, we must restart the DPL35xx */
+		if ( bktr->card.dpl3518a )
+		  dpl_autodetect( bktr );
+
 		temp_mute( bktr, FALSE );
 		break;
 
@@ -1884,6 +1888,10 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		/* audio chip to reselect NICAM STEREO or MONO audio */
 		if ( bktr->card.msp3400c )
 		  msp_autodetect( bktr );
+
+		/* after every channel change, we must restart the DPL35xx */
+		if ( bktr->card.dpl3518a )
+		  dpl_autodetect( bktr );
 
 		temp_mute( bktr, FALSE );
 		break;
@@ -3736,13 +3744,13 @@ i2cRead( bktr_ptr_t bktr, int addr )
 
 #define IICBUS(bktr) ((bktr)->i2c_sc.iicbus)
 
-/* The MSP34xx Audio chip require i2c bus writes of up to 5 bytes which the */
-/* bt848 automated i2c bus controller cannot handle */
+/* The MSP34xx and DPL35xx Audio chip require i2c bus writes of up */
+/* to 5 bytes which the bt848 automated i2c bus controller cannot handle */
 /* Therefore we need low level control of the i2c bus hardware */
 
-/* Write to the MSP registers */
+/* Write to the MSP or DPL registers */
 void
-msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data)
+msp_dpl_write(bktr_ptr_t bktr, int i2c_addr,  unsigned char dev, unsigned int addr, unsigned int data)
 {
 	unsigned char addr_l, addr_h, data_h, data_l ;
 
@@ -3751,7 +3759,7 @@ msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int da
 	data_h = (data >>8) & 0xff;
 	data_l = data & 0xff;
 
-	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), i2c_addr, 0 /* no timeout? */);
 
 	iicbus_write_byte(IICBUS(bktr), dev, 0);
 	iicbus_write_byte(IICBUS(bktr), addr_h, 0);
@@ -3764,9 +3772,9 @@ msp_write(bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int da
 	return;
 }
 
-/* Write to the MSP registers */
+/* Read from the MSP or DPL registers */
 unsigned int
-msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
+msp_dpl_read(bktr_ptr_t bktr, int i2c_addr, unsigned char dev, unsigned int addr)
 {
 	unsigned int data;
 	unsigned char addr_l, addr_h, dev_r;
@@ -3778,13 +3786,13 @@ msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
 	dev_r = dev+1;
 
 	/* XXX errors ignored */
-	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), i2c_addr, 0 /* no timeout? */);
 
 	iicbus_write_byte(IICBUS(bktr), dev_r, 0);
 	iicbus_write_byte(IICBUS(bktr), addr_h, 0);
 	iicbus_write_byte(IICBUS(bktr), addr_l, 0);
 
-	iicbus_repeated_start(IICBUS(bktr), bktr->msp_addr +1, 0 /* no timeout? */);
+	iicbus_repeated_start(IICBUS(bktr), i2c_addr +1, 0 /* no timeout? */);
 	iicbus_read(IICBUS(bktr), data_read, 2, &read, IIC_LAST_READ, 0);
 	iicbus_stop(IICBUS(bktr));
 
@@ -3793,24 +3801,24 @@ msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr)
 	return (data);
 }
 
-/* Reset the MSP chip */
+/* Reset the MSP or DPL chip */
 /* The user can block the reset (which is handy if you initialise the
- * MSP audio in another operating system first (eg in Windows)
+ * MSP and/or DPL audio in another operating system first (eg in Windows)
  */
 void
-msp_reset( bktr_ptr_t bktr )
+msp_dpl_reset( bktr_ptr_t bktr, int i2c_addr )
 {
 
 #ifndef BKTR_NO_MSP_RESET
 	/* put into reset mode */
-	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), i2c_addr, 0 /* no timeout? */);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x80, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_stop(IICBUS(bktr));
 
 	/* put back to operational mode */
-	iicbus_start(IICBUS(bktr), bktr->msp_addr, 0 /* no timeout? */);
+	iicbus_start(IICBUS(bktr), i2c_addr, 0 /* no timeout? */);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
 	iicbus_write_byte(IICBUS(bktr), 0x00, 0);
@@ -4019,9 +4027,10 @@ static int i2c_read_byte( bktr_ptr_t bktr, unsigned char *data, int last ) {
 }
 #undef BITD
 
-/* Write to the MSP registers */
-void msp_write( bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned int data){
-	unsigned int msp_w_addr = bktr->msp_addr;
+/* Write to the MSP or DPL registers */
+void msp_dpl_write( bktr_ptr_t bktr, int i2c_addr, unsigned char dev, unsigned int addr,
+		    unsigned int data){
+	unsigned int msp_w_addr = i2c_addr;
 	unsigned char addr_l, addr_h, data_h, data_l ;
 	addr_h = (addr >>8) & 0xff;
 	addr_l = addr & 0xff;
@@ -4038,8 +4047,8 @@ void msp_write( bktr_ptr_t bktr, unsigned char dev, unsigned int addr, unsigned 
 	i2c_stop(bktr);
 }
 
-/* Write to the MSP registers */
-unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr){
+/* Read from the MSP or DPL registers */
+unsigned int msp_dpl_read(bktr_ptr_t bktr, int i2c_addr, unsigned char dev, unsigned int addr){
 	unsigned int data;
 	unsigned char addr_l, addr_h, data_1, data_2, dev_r ;
 	addr_h = (addr >>8) & 0xff;
@@ -4047,13 +4056,13 @@ unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr){
 	dev_r = dev+1;
 
 	i2c_start(bktr);
-	i2c_write_byte(bktr,bktr->msp_addr);
+	i2c_write_byte(bktr,i2c_addr);
 	i2c_write_byte(bktr,dev_r);
 	i2c_write_byte(bktr,addr_h);
 	i2c_write_byte(bktr,addr_l);
 
 	i2c_start(bktr);
-	i2c_write_byte(bktr,bktr->msp_addr+1);
+	i2c_write_byte(bktr,i2c_addr+1);
 	i2c_read_byte(bktr,&data_1, 0);
 	i2c_read_byte(bktr,&data_2, 1);
 	i2c_stop(bktr);
@@ -4061,16 +4070,16 @@ unsigned int msp_read(bktr_ptr_t bktr, unsigned char dev, unsigned int addr){
 	return data;
 }
 
-/* Reset the MSP chip */
+/* Reset the MSP or DPL chip */
 /* The user can block the reset (which is handy if you initialise the
  * MSP audio in another operating system first (eg in Windows)
  */
-void msp_reset( bktr_ptr_t bktr ) {
+void msp_dpl_reset( bktr_ptr_t bktr, int i2c_addr ) {
 
 #ifndef BKTR_NO_MSP_RESET
 	/* put into reset mode */
 	i2c_start(bktr);
-	i2c_write_byte(bktr, bktr->msp_addr);
+	i2c_write_byte(bktr, i2c_addr);
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x80);
 	i2c_write_byte(bktr, 0x00);
@@ -4078,7 +4087,7 @@ void msp_reset( bktr_ptr_t bktr ) {
 
 	/* put back to operational mode */
 	i2c_start(bktr);
-	i2c_write_byte(bktr, bktr->msp_addr);
+	i2c_write_byte(bktr, i2c_addr);
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x00);
 	i2c_write_byte(bktr, 0x00);

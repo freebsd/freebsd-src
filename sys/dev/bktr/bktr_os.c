@@ -1117,7 +1117,7 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 /*
  * bktr_mmap.
  * Note: 2.2.5/2.2.6/2.2.7/3.0 users must manually
- * edit the following line and change  "vm_offset_t" to "int""
+ * edit the line below and change  "vm_offset_t" to "int"
  */
 int bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 

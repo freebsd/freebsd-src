@@ -367,6 +367,7 @@ struct CARDTYPE {
 	u_char			tuner_pllAddr;	/* Tuner i2c address */
 	u_char			dbx;		/* Has DBX chip? */
 	u_char			msp3400c;	/* Has msp3400c chip? */
+	u_char			dpl3518a;	/* Has dpl3518a chip? */
 	u_char			eepromAddr;
 	u_char			eepromSize;	/* bytes / EEPROMBLOCKSIZE */
 	u_int			audiomuxs[ 5 ];	/* tuner, ext (line-in) */
@@ -590,11 +591,13 @@ struct bktr_softc {
     u_long              id;
 #define BT848_USE_XTALS 0
 #define BT848_USE_PLL   1
-    int                 xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */    int                 remote_control;      /* remote control detected */
-    int                 remote_control_addr;   /* remote control i2c address */
+    int			xtal_pll_mode;	/* Use XTAL or PLL mode for PAL/SECAM */
+    int			remote_control;      /* remote control detected */
+    int			remote_control_addr;   /* remote control i2c address */
     char		msp_version_string[9]; /* MSP version string 34xxx-xx */
     int			msp_addr;	       /* MSP i2c address */
-
+    char		dpl_version_string[9]; /* DPL version string 35xxx-xx */
+    int			dpl_addr;	       /* DPL i2c address */
 
 };
 

@@ -1,4 +1,7 @@
 /* $FreeBSD$ */
+/*
+ * MAINTAINER = Roger Hardiman <roger@freebsd.org>
+ */
 
 /*
  * This is part of the Driver for Video Capture Cards (Frame grabbers)
@@ -413,4 +416,12 @@
 
 2.03   5 Oct 1999 Thomas Runge <runge@rostock.zgdv.de>
 		  Found FM radio bug mute introduced in release 2.00
+
+2.04  20 Oct 1999 Roger Hardiman <roger@freebsd.org>
+		  Updated AverMedia audio sources to support FM and Line In
+		  sources properly. (Based on info supplied by AverMedia)
+		  Make PLL mode the default for Bt878 chips. This means PAL
+		  Bt878 users no longer need the BKTR_USE_PLL kernel option.
+		  Detect and auto-configure Dolby Surround Sound DPL3518A chip
+		  on Hauppauge WinTV Theater. From Frank Nobis <fn@radio-do.de>
 
