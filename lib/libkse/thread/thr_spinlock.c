@@ -43,6 +43,7 @@
 #define	MAX_SPINLOCKS	5
 
 struct spinlock_extra {
+	spinlock_t	*owner;
 	struct lock	lock;
 	kse_critical_t	crit;
 };
@@ -122,6 +123,7 @@ init_spinlock(spinlock_t *lck)
 	KSE_LOCK_ACQUIRE(curkse, &spinlock_static_lock);
 	if ((lck->fname == NULL) && (spinlock_count < MAX_SPINLOCKS)) {
 		lck->fname = (char *)&extra[spinlock_count];
+		extra[spinlock_count].owner = lck;
 		spinlock_count++;
 	}
 	KSE_LOCK_RELEASE(curkse, &spinlock_static_lock);
@@ -134,19 +136,22 @@ _thr_spinlock_init(void)
 	int i;
 
 	if (initialized != 0) {
-		_lock_destroy(&spinlock_static_lock);
-		for (i = 0; i < MAX_SPINLOCKS; i++) {
-			_lock_destroy(&extra[i].lock);
+		_lock_reinit(&spinlock_static_lock, LCK_ADAPTIVE,
+		    _kse_lock_wait, _kse_lock_wakeup);
+		for (i = 0; i < spinlock_count; i++) {
+			_lock_reinit(&extra[i].lock, LCK_ADAPTIVE,
+			    _kse_lock_wait, _kse_lock_wakeup);
 		}
-	}
-
-	if (_lock_init(&spinlock_static_lock, LCK_ADAPTIVE,
-	    _kse_lock_wait, _kse_lock_wakeup) != 0)
-		PANIC("Cannot initialize spinlock_static_lock");
-	for (i = 0; i < MAX_SPINLOCKS; i++) {
-		if (_lock_init(&extra[i].lock, LCK_ADAPTIVE,
+		spinlock_count = 0;
+	} else {
+		if (_lock_init(&spinlock_static_lock, LCK_ADAPTIVE,
 		    _kse_lock_wait, _kse_lock_wakeup) != 0)
-			PANIC("Cannot initialize spinlock extra");
+			PANIC("Cannot initialize spinlock_static_lock");
+		for (i = 0; i < MAX_SPINLOCKS; i++) {
+			if (_lock_init(&extra[i].lock, LCK_ADAPTIVE,
+			    _kse_lock_wait, _kse_lock_wakeup) != 0)
+				PANIC("Cannot initialize spinlock extra");
+		}
+		initialized = 1;
 	}
-	initialized = 1;
 }
