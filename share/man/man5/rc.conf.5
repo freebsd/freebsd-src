@@ -1495,6 +1495,12 @@ An option to set this up initially
 (from a list of known servers) is also provided by the
 .Xr sysinstall 8
 program when the system is first installed.
+.It Va ntpdate_hosts
+.Pq Vt str
+A whitespace-separated list of NTP servers to synchronize with at startup.
+The default is to use the servers listed in
+.Pa /etc/ntp.conf ,
+if that file exists.
 .It Va ntpdate_program
 .Pq Vt str
 Path to
