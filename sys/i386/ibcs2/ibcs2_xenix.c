@@ -34,6 +34,7 @@
 #include <sys/systm.h>
 #include <sys/namei.h> 
 #include <sys/sysproto.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/filio.h>
 #include <sys/vnode.h>
@@ -160,8 +161,8 @@ xenix_utsname(struct thread *td, struct xenix_utsname_args *uap)
 	bzero(&ibcs2_sco_uname, sizeof(struct ibcs2_sco_utsname));
 	strncpy(ibcs2_sco_uname.sysname, ostype,
 		sizeof(ibcs2_sco_uname.sysname) - 1);
-	strncpy(ibcs2_sco_uname.nodename, hostname,
-		sizeof(ibcs2_sco_uname.nodename) - 1);
+	strncpy(ibcs2_sco_uname.nodename, getcredhostname(td->td_ucred),
+	    sizeof(ibcs2_sco_uname.nodename) - 1);
 	strncpy(ibcs2_sco_uname.release, osrelease,
 		sizeof(ibcs2_sco_uname.release) - 1);
 	strncpy(ibcs2_sco_uname.kernelid, version,

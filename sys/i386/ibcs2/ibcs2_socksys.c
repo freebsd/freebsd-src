@@ -28,6 +28,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -148,7 +149,8 @@ ibcs2_getipdomainname(td, uap)
 	int len;
 
 	/* Get the domain name */
-	snprintf(hname, sizeof(hname), "%s", hostname);
+	snprintf(hname, sizeof(hname), "%s", getcredhostname(td->td_ucred));
+
 	dptr = index(hname, '.');
 	if ( dptr )
 		dptr++;
