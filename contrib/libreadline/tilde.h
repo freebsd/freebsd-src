@@ -30,29 +30,17 @@ extern "C" {
 
 /* A function can be defined using prototypes and compile on both ANSI C
    and traditional C compilers with something like this:
-	extern char *func __P((char *, char *, int)); */
+	extern char *func PARAMS((char *, char *, int)); */
 
-#if !defined (__P)
+#if !defined (PARAMS)
 #  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
-#    define __P(protos) protos
+#    define PARAMS(protos) protos
 #  else
-#    define __P(protos) ()
+#    define PARAMS(protos) ()
 #  endif
 #endif
 
-#if !defined (__STDC__) && !defined (__cplusplus)
-#  if defined (__GNUC__)	/* gcc with -traditional */
-#    if !defined (const)
-#      define const __const
-#    endif /* !const */
-#  else /* !__GNUC__ */
-#    if !defined (const)
-#      define const
-#    endif /* !const */
-#  endif /* !__GNUC__ */
-#endif /* !__STDC__ && !__cplusplus */
-
-typedef char *tilde_hook_func_t __P((char *));
+typedef char *tilde_hook_func_t PARAMS((char *));
 
 /* If non-null, this contains the address of a function that the application
    wants called before trying the standard tilde expansions.  The function
@@ -77,11 +65,11 @@ extern char **tilde_additional_prefixes;
 extern char **tilde_additional_suffixes;
 
 /* Return a new string which is the result of tilde expanding STRING. */
-extern char *tilde_expand __P((const char *));
+extern char *tilde_expand PARAMS((const char *));
 
 /* Do the work of tilde expansion on FILENAME.  FILENAME starts with a
    tilde.  If there is no expansion, call tilde_expansion_failure_hook. */
-extern char *tilde_expand_word __P((const char *));
+extern char *tilde_expand_word PARAMS((const char *));
 
 #ifdef __cplusplus
 }

@@ -73,7 +73,8 @@ typedef struct { SigHandler *sa_handler; int sa_mask, sa_flags; } sighandler_cxt
 #  define sigemptyset(m)
 #endif /* !HAVE_POSIX_SIGNALS */
 
-static SigHandler *rl_set_sighandler __P((int, SigHandler *, sighandler_cxt *));
+static SigHandler *rl_set_sighandler PARAMS((int, SigHandler *, sighandler_cxt *));
+static void rl_maybe_set_sighandler PARAMS((int, SigHandler *, sighandler_cxt *));
 
 /* Exported variables for use by applications. */
 
@@ -232,7 +233,7 @@ rl_set_sighandler (sig, handler, ohandler)
   struct sigaction act;
 
   act.sa_handler = handler;
-  act.sa_flags = 0;
+  act.sa_flags = 0;	/* XXX - should we set SA_RESTART for SIGWINCH? */
   sigemptyset (&act.sa_mask);
   sigemptyset (&ohandler->sa_mask);
   sigaction (sig, &act, &old_handler);
