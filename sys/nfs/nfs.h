@@ -632,6 +632,7 @@ int	nfs_savenickauth __P((struct nfsmount *, struct ucred *, int,
 			      struct mbuf *));
 int	nfs_adv __P((struct mbuf **, caddr_t *, int, int));
 void	nfs_nhinit __P((void));
+int	nfs_nmcancelreqs __P((struct nfsmount *));
 void	nfs_timer __P((void*));
 int	nfsrv_dorec __P((struct nfssvc_sock *, struct nfsd *, 
 			 struct nfsrv_descript **));
