@@ -77,13 +77,13 @@ static void lba2msf(u_int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static u_int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
 static int acd_done(struct atapi_request *);
 static void acd_read_toc(struct acd_softc *);
-static void acd_construct_label(struct acd_softc *);
 static int acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
 static int acd_open_track(struct acd_softc *, struct cdr_track *);
 static int acd_close_track(struct acd_softc *);
 static int acd_close_disk(struct acd_softc *);
 static int acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
+static int acd_get_progress(struct acd_softc *cdp, int *);
 static int acd_report_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_send_key(struct acd_softc *, struct dvd_authinfo *);
 static int acd_read_structure(struct acd_softc *, struct dvd_struct *);
@@ -530,12 +530,8 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
-	if (!(flags & O_NONBLOCK) && !(flags & FWRITE))
-	    acd_read_toc(cdp);
-	else
-	    atapi_test_ready(cdp->atp);
+	acd_read_toc(cdp);
     }
-    acd_construct_label(cdp);
     return 0;
 }
 
@@ -553,8 +549,8 @@ acdclose(dev_t dev, int flags, int fmt, struct proc *p)
 	    tsleep(&cdp->changer_info, PRIBIO, "acdclo", 0);
 	}
 	acd_prevent_allow(cdp, 0);
+	cdp->flags &= ~F_LOCKED;
     }
-    cdp->flags &= ~F_LOCKED;
     return 0;
 }
 
@@ -602,13 +598,13 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	break;
 
     case CDIOCALLOW:
-	cdp->flags &= ~F_LOCKED;
 	error = acd_prevent_allow(cdp, 0);
+	cdp->flags &= ~F_LOCKED;
 	break;
 
     case CDIOCPREVENT:
-	cdp->flags |= F_LOCKED;
 	error = acd_prevent_allow(cdp, 1);
+	cdp->flags |= F_LOCKED;
 	break;
 
     case CDIOCRESET:
@@ -1041,6 +1037,10 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	cdp->block_size = *(int *)addr;
 	break;
 
+    case CDRIOCGETPROGRESS:
+        error = acd_get_progress(cdp, (int *)addr);
+	break;
+
     case DVDIOCREPORTKEY:
 	if (!cdp->cap.read_dvdrom)
 	    error = EINVAL;
@@ -1228,7 +1228,8 @@ acd_read_toc(struct acd_softc *cdp)
     bzero(&cdp->info, sizeof(cdp->info));
     bzero(ccb, sizeof(ccb));
 
-    atapi_test_ready(cdp->atp);
+    if (atapi_test_ready(cdp->atp) != 0)
+	return;
 
     cdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
 
@@ -1270,25 +1271,6 @@ acd_read_toc(struct acd_softc *cdp)
     cdp->info.blksize = ntohl(cdp->info.blksize);
     cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
 
-#ifdef ACD_DEBUG
-    if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
-	printf("acd%d: ", cdp->lun);
-	if (cdp->toc.tab[0].control & 4)
-	    printf("%dMB ", cdp->info.volsize / 512);
-	else
-	    printf("%d:%d audio ", cdp->info.volsize / 75 / 60,
-		cdp->info.volsize / 75 % 60);
-	printf("(%d sectors (%d bytes)), %d tracks\n", 
-	    cdp->info.volsize, cdp->info.blksize,
-	    cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
-    }
-#endif
-    return;
-}
-
-static void
-acd_construct_label(struct acd_softc *cdp)
-{
     bzero(&cdp->disklabel, sizeof(struct disklabel));
     strncpy(cdp->disklabel.d_typename, "               ", 
     	    sizeof(cdp->disklabel.d_typename));
@@ -1313,6 +1295,20 @@ acd_construct_label(struct acd_softc *cdp)
     cdp->disklabel.d_magic = DISKMAGIC;
     cdp->disklabel.d_magic2 = DISKMAGIC;
     cdp->disklabel.d_checksum = dkcksum(&cdp->disklabel);
+
+#ifdef ACD_DEBUG
+    if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
+	printf("acd%d: ", cdp->lun);
+	if (cdp->toc.tab[0].control & 4)
+	    printf("%dMB ", cdp->info.volsize / 512);
+	else
+	    printf("%d:%d audio ", cdp->info.volsize / 75 / 60,
+		cdp->info.volsize / 75 % 60);
+	printf("(%d sectors (%d bytes)), %d tracks\n", 
+	    cdp->info.volsize, cdp->info.blksize,
+	    cdp->toc.hdr.ending_track - cdp->toc.hdr.starting_track + 1);
+    }
+#endif
 }
 
 static int 
@@ -1372,10 +1368,20 @@ acd_select_slot(struct acd_softc *cdp)
 static int
 acd_close_disk(struct acd_softc *cdp)
 {
-    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0, 0x02, 0, 0, 0, 0, 0, 
+    int8_t ccb[16] = { ATAPI_CLOSE_TRACK, 0x01, 0x02, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
+    int timeout = 5*60*2;
+    int error;
 
-    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 5*60, NULL, NULL);
+    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
+    if (error)
+	return error;
+    while (timeout-- > 0) {
+	if ((error = atapi_test_ready(cdp->atp)) != EBUSY)
+	    return error;
+	tsleep(&error, PRIBIO, "acdcld", hz/2);
+    }
+    return EIO;
 }
 
 static int
@@ -1462,7 +1468,7 @@ static int
 acd_close_track(struct acd_softc *cdp)
 {
     int8_t ccb[16] = { ATAPI_SYNCHRONIZE_CACHE, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0 };
+		       0, 0, 0, 0, 0, 0, 0, 0 };
 
     return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60, NULL, NULL);
 }
@@ -1487,6 +1493,26 @@ acd_read_track_info(struct acd_softc *cdp,
     info->fixed_packet_size = ntohl(info->fixed_packet_size);
     info->track_length = ntohl(info->track_length);
     return 0;
+}
+
+static int
+acd_get_progress(struct acd_softc *cdp, int *finished)
+{
+    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
+		       sizeof(struct atapi_reqsense),
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    struct atapi_reqsense sense;
+    int error;
+
+    if ((error = atapi_test_ready(cdp->atp)) != EBUSY) {
+	*finished = 100;
+	return error;
+    }
+
+    error = atapi_queue_cmd(cdp->atp, ccb, (caddr_t)&sense, sizeof(sense),
+    			    ATPR_F_READ, 10, NULL, NULL);
+    *finished = ((sense.sk_specific2|(sense.sk_specific1<<8))*100) / 65535;
+    return error;
 }
 
 static int
@@ -1758,13 +1784,11 @@ acd_eject(struct acd_softc *cdp, int close)
 static int
 acd_blank(struct acd_softc *cdp)
 {
-    int8_t ccb[16] = { ATAPI_BLANK, 1, 0, 0, 0, 0, 0, 0, 
+    int8_t ccb[16] = { ATAPI_BLANK, 0x10 | 0x01, 0, 0, 0, 0, 0, 0, 
 		       0, 0, 0, 0, 0, 0, 0, 0 };
-    int error;
 
-    error = atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 60*60, NULL, NULL);
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
-    return error;
+    return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
 
 static int
