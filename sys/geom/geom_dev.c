@@ -196,7 +196,6 @@ g_dev_open(dev_t dev, int flags, int fmt, struct thread *td)
 	    gp->name, flags, fmt, td);
 	DROP_GIANT();
 	g_topology_lock();
-	g_silence();
 	r = flags & FREAD ? 1 : 0;
 	w = flags & FWRITE ? 1 : 0;
 #ifdef notyet
@@ -227,7 +226,6 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 	    gp->name, flags, fmt, td);
 	DROP_GIANT();
 	g_topology_lock();
-	g_silence();
 	r = flags & FREAD ? -1 : 0;
 	w = flags & FWRITE ? -1 : 0;
 #ifdef notyet

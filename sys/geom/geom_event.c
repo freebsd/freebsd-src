@@ -62,29 +62,18 @@
 #include <geom/geom_int.h>
 
 static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
-static u_int g_pending_events, g_silence_events;
+static u_int g_pending_events;
 static void g_do_event(struct g_event *ep);
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
 static struct mtx g_eventlock;
 static int g_shutdown;
 
 void
-g_silence(void)
-{
-
-	g_silence_events = 1;
-}
-
-void
 g_waitidle(void)
 {
 
-	g_silence_events = 0;
-	mtx_lock(&Giant);
-	wakeup(&g_silence_events);
 	while (g_pending_events)
 		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
-	mtx_unlock(&Giant);
 }
 
 void
