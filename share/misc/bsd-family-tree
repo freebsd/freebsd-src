@@ -54,17 +54,17 @@ Tenth Edition     |                      |
                   |
    *---------- 4.3BSD NET/2 -------------------+-------------*
    |                    |                      |             |
-386BSD 0.0              |                      |           BSD/OS ALPHA
+386BSD 0.0              |                      |           BSD/386 ALPHA
    |                    |                      |             |
-386BSD 0.1 ------------>+                      |           BSD/OS 0.3.[13]
+386BSD 0.1 ------------>+                      |           BSD/386 0.3.[13]
    |     \              |                  4.4BSD Alpha      |
-   |     386BSD 1.0     |                      |           BSD/OS 0.9.[34]
+   |     386BSD 1.0     |                      |           BSD/386 0.9.[34]
    |                    |                  4.4BSD            |
    |                    |                    / |             |
    |                    |   4.4BSD-Encumbered  |             |
-   |                 NetBSD 0.8                |           BSD/OS 1.0
+   |                 NetBSD 0.8                |           BSD/386 1.0
    |                    |                      |             |
-FreeBSD 1.0          NetBSD 0.9                |           BSD/OS 1.1
+FreeBSD 1.0          NetBSD 0.9                |           BSD/386 1.1
    |                    |           .----- 4.4BSD Lite       |
 FreeBSD 1.1             |          /   /       |     \       |
    |                    |         /   /        |      \      |
@@ -134,7 +134,7 @@ FreeBSD 4.0  |               | NetBSD 1.4.2    |             |
  *---FreeBSD 4.1             |    |            |             |
  |      |                    |    |            |             |
  |   FreeBSD 4.1.1           |    |            |             |
- |      |                    |    |            |             |
+ |      |                    |    v            |             |
  |   FreeBSD 4.2             | NetBSD 1.4.3    |             |
  |      |                    |             OpenBSD 2.8     BSD/OS 4.2
  |      v                 NetBSD 1.5           |             |
@@ -239,25 +239,25 @@ Tenth   Edition         1989-10-xx [QCU]
 4.3BSD Reno             1990-06-xx [QCU], [DOC]
 4.3BSD NET/2            1991-06-xx [QCU]
 
-BSD/OS ALPHA		1991-12-xx [BSDI]
+BSD/386 ALPHA		1991-12-xx [BSDI]
 				first code released to people outside BSDI
 386BSD 0.0              1992-02-xx [DOC]
-BSD/OS 0.3.1	        1992-04-xx [BSDI] first ext. beta; B customers
-BSD/OS 0.3.3		1992-06-xx [BSDI] first CDROM version
+BSD/386 0.3.1	        1992-04-xx [BSDI] first ext. beta; B customers
+BSD/386 0.3.3		1992-06-xx [BSDI] first CDROM version
 386BSD 0.1              1992-07-28 [DOC]
 4.4BSD Alpha            1992-07-07
-BSD/OS 0.9.3		1992-10-xx [BSDI]
+BSD/386 0.9.3		1992-10-xx [BSDI]
 				first external gamma; G customers
-BSD/OS 0.9.4		1992-12-xx [BSDI]
+BSD/386 0.9.4		1992-12-xx [BSDI]
 				would have been 1.0 except for request
 				for preliminary injunction
-BSD/OS 1.0 		1993-03-xx [BSDI]
+BSD/386 1.0 		1993-03-xx [BSDI]
 				injunction denied; first official release
 NetBSD 0.8              1993-04-20 [NBD]
 4.4BSD                  1993-06-01 [USE]
 NetBSD 0.9              1993-08-23 [NBD]
 FreeBSD 1.0		1993-11-xx [FOO]
-BSD/OS 1.1		1994-02-xx [BSDI]
+BSD/386 1.1		1994-02-xx [BSDI]
 4.4BSD Lite             1994-03-01 [USE]
 FreeBSD 1.1		1994-04-xx [FBD]
 FreeBSD 1.1.5.1		1994-07-xx [FBD]
