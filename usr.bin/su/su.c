@@ -413,7 +413,18 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: su [%s] [login [args]]\n", ARGSTR);
+	(void)fprintf(stderr, "usage: su [-] %s%s[login [args]]\n",
+#ifdef KERBEROS
+	    "[-Kflm] ",
+#else
+	    "[-flm] ",
+#endif
+#ifdef LOGIN_CAP
+	    "[-c class] "
+#else
+	    ""
+#endif
+	    );
 	exit(1);
 }
 
