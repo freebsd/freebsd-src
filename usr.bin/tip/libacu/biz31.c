@@ -1,3 +1,6 @@
+/*	$OpenBSD: biz31.c,v 1.6 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: biz31.c,v 1.5 1997/02/11 09:24:14 mrg Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,10 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)biz31.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] = "$OpenBSD: biz31.c,v 1.6 2001/10/24 18:38:58 millert Exp $";
 #endif /* not lint */
 
-#include "tipconf.h"
 #include "tip.h"
 
 #define MAXRETRY	3		/* sync up retry count */
@@ -54,7 +59,7 @@ static int
 biz_dialer(num, mod)
 	char *num, *mod;
 {
-	register int connected = 0;
+	int connected = 0;
 
 	if (!bizsync(FD)) {
 		logent(value(HOST), "", "biz", "out of sync");
@@ -82,11 +87,11 @@ biz_dialer(num, mod)
 	 *	` CONNECTION\r\n^G'		success
 	 */
 	connected = detect(" ");
-#if ACULOG
+#ifdef ACULOG
 	if (timeout) {
 		char line[80];
 
-		sprintf(line, "%d second dial timeout",
+		(void)sprintf(line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "biz", line);
 	}
@@ -119,7 +124,7 @@ biz31_disconnect()
 
 	write(FD, DISCONNECT_CMD, 4);
 	sleep(2);
-	ioctl(FD, TIOCFLUSH);
+	tcflush(FD, TCIOFLUSH);
 }
 
 biz31_abort()
@@ -130,7 +135,7 @@ biz31_abort()
 
 static int
 echo(s)
-	register char *s;
+	char *s;
 {
 	char c;
 
@@ -162,7 +167,7 @@ sigALRM()
 
 static int
 detect(s)
-	register char *s;
+	char *s;
 {
 	sig_t f;
 	char c;
@@ -187,7 +192,7 @@ detect(s)
 
 static int
 flush(s)
-	register char *s;
+	char *s;
 {
 	sig_t f;
 	char c;
@@ -222,12 +227,12 @@ bizsync(fd)
 #	define chars(b)	(b)
 #	define IOCTL	FIONREAD
 #endif
-	register int already = 0;
+	int already = 0;
 	char buf[10];
 
 retry:
 	if (ioctl(fd, IOCTL, (caddr_t)&b) >= 0 && chars(b) > 0)
-		ioctl(fd, TIOCFLUSH);
+		tcflush(FD, TCIOFLUSH);
 	write(fd, "\rp>\r", 4);
 	sleep(1);
 	if (ioctl(fd, IOCTL, (caddr_t)&b) >= 0) {

@@ -1,3 +1,6 @@
+/*	$OpenBSD: biz22.c,v 1.7 2001/10/24 18:38:58 millert Exp $	*/
+/*	$NetBSD: biz22.c,v 1.6 1997/02/11 09:24:11 mrg Exp $	*/
+
 /*
  * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -32,10 +35,12 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)biz22.c	8.1 (Berkeley) 6/6/93";
+#endif
+static char rcsid[] = "$OpenBSD: biz22.c,v 1.7 2001/10/24 18:38:58 millert Exp $";
 #endif /* not lint */
 
-#include "tipconf.h"
 #include "tip.h"
 
 #define DISCONNECT_CMD	"\20\04"	/* disconnection string */
@@ -43,6 +48,9 @@ static char sccsid[] = "@(#)biz22.c	8.1 (Berkeley) 6/6/93";
 static	void sigALRM();
 static	int timeout = 0;
 static	jmp_buf timeoutbuf;
+
+static	int cmd(), detect();
+void	biz22_disconnect();
 
 /*
  * Dial up on a BIZCOMP Model 1022 with either
@@ -53,9 +61,8 @@ static int
 biz_dialer(num, mod)
 	char *num, *mod;
 {
-	register int connected = 0;
+	int connected = 0;
 	char cbuf[40];
-	static int cmd(), detect();
 
 	if (boolean(value(VERBOSE)))
 		printf("\nstarting call...");
@@ -67,15 +74,13 @@ biz_dialer(num, mod)
 		printf("can't initialize bizcomp...");
 		return (0);
 	}
-	strcpy(cbuf, "\02.\r");
+	(void)strcpy(cbuf, "\02.\r");
 	cbuf[1] = *mod;
 	if (cmd(cbuf)) {
 		printf("can't set dialing mode...");
 		return (0);
 	}
-	strcpy(cbuf, "\02D");
-	strcat(cbuf, num);
-	strcat(cbuf, "\r");
+	(void)snprintf(cbuf, sizeof(cbuf), "\02D%s\r", num);
 	write(FD, cbuf, strlen(cbuf));
 	if (!detect("7\r")) {
 		printf("can't get dial tone...");
@@ -89,11 +94,11 @@ biz_dialer(num, mod)
 	 *	1 \r		success
 	 */
 	connected = detect("1\r");
-#if ACULOG
+#ifdef ACULOG
 	if (timeout) {
 		char line[80];
 
-		sprintf(line, "%d second dial timeout",
+		(void)sprintf(line, "%ld second dial timeout",
 			number(value(DIALTIMEOUT)));
 		logent(value(HOST), num, "biz1022", line);
 	}
@@ -103,6 +108,7 @@ biz_dialer(num, mod)
 	return (connected);
 }
 
+int
 biz22w_dialer(num, acu)
 	char *num, *acu;
 {
@@ -110,6 +116,7 @@ biz22w_dialer(num, acu)
 	return (biz_dialer(num, "W"));
 }
 
+int
 biz22f_dialer(num, acu)
 	char *num, *acu;
 {
@@ -117,15 +124,15 @@ biz22f_dialer(num, acu)
 	return (biz_dialer(num, "V"));
 }
 
+void
 biz22_disconnect()
 {
-	int rw = 2;
-
 	write(FD, DISCONNECT_CMD, 4);
 	sleep(2);
-	ioctl(FD, TIOCFLUSH, &rw);
+	tcflush(FD, TCIOFLUSH);
 }
 
+void
 biz22_abort()
 {
 
@@ -142,7 +149,7 @@ sigALRM()
 
 static int
 cmd(s)
-	register char *s;
+	char *s;
 {
 	sig_t f;
 	char c;
@@ -164,7 +171,7 @@ cmd(s)
 
 static int
 detect(s)
-	register char *s;
+	char *s;
 {
 	sig_t f;
 	char c;

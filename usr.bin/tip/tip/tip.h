@@ -1,3 +1,6 @@
+/*	$OpenBSD: tip.h,v 1.11 2001/09/09 19:30:49 millert Exp $	*/
+/*	$NetBSD: tip.h,v 1.7 1997/04/20 00:02:46 mellon Exp $	*/
+
 /*
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -39,18 +42,12 @@
  */
 
 #include <sys/types.h>
-#include <machine/endian.h>
 #include <sys/file.h>
 #include <sys/time.h>
+#include <sys/wait.h>
+#include <sys/ioctl.h>
 
-#if HAVE_TERMIOS
-#include <sys/ioctl.h>         /* for TIOCHPCL */
-#include <sys/filio.h>    /* for FIONREAD */
-#include <sys/termios.h>
-#else
-#include <sgtty.h>
-#endif
-
+#include <termios.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,6 +57,7 @@
 #include <setjmp.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
 
 /*
  * Remote host attributes
@@ -79,14 +77,11 @@ char	*PH;			/* phone number file */
 char	*RM;			/* remote file name */
 char	*HO;			/* host name */
 
-char	*LI;			/* login script */
-char	*LO;			/* logout script */
-
 long	BR;			/* line speed for conversation */
 long	FS;			/* frame size for transfers */
 
-char	DU;			/* this host is dialed up */
-char	HW;			/* this device is hardwired, see hunt.c */
+short	DU;			/* this host is dialed up */
+short	HW;			/* this device is hardwired, see hunt.c */
 char	*ES;			/* escape character */
 char	*EX;			/* exceptions */
 char	*FO;			/* force (literal next) char*/
@@ -96,7 +91,8 @@ char	*PR;			/* remote prompt */
 long	DL;			/* line delay for file transfers to remote */
 long	CL;			/* char delay for file transfers to remote */
 long	ET;			/* echocheck timeout */
-char	HD;			/* this host is half duplex - do local echo */
+short	HD;			/* this host is half duplex - do local echo */
+short	DC;			/* this host is directly connected. */
 
 /*
  * String value table
@@ -139,8 +135,8 @@ typedef
 	struct {
 		char	*acu_name;
 		int	(*acu_dialer)();
-		void	(*acu_disconnect)();
-		void	(*acu_abort)();
+		int	(*acu_disconnect)();
+		int	(*acu_abort)();
 	}
 	acu_t;
 
@@ -152,30 +148,18 @@ typedef
  *   initialize it in vars.c, so we cast it as needed to keep lint
  *   happy.
  */
-typedef
-	union {
-		int	zz_number;
-		short	zz_boolean[2];
-		char	zz_character[4];
-		int	*zz_address;
-	}
-	zzhack;
 
 #define value(v)	vtable[v].v_value
 
-#define number(v)	((((zzhack *)(&(v))))->zz_number)
+#define	number(v)	((long)(v))
+#define	boolean(v)      ((short)(long)(v))
+#define	character(v)    ((char)(long)(v))
+#define	address(v)      ((long *)(v))
 
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define boolean(v)	((((zzhack *)(&(v))))->zz_boolean[0])
-#define character(v)	((((zzhack *)(&(v))))->zz_character[0])
-#endif
-
-#if BYTE_ORDER == BIG_ENDIAN
-#define boolean(v)	((((zzhack *)(&(v))))->zz_boolean[1])
-#define character(v)	((((zzhack *)(&(v))))->zz_character[3])
-#endif
-
-#define address(v)	((((zzhack *)(&(v))))->zz_address)
+#define	setnumber(v,n)		do { (v) = (char *)(long)(n); } while (0)
+#define	setboolean(v,n)		do { (v) = (char *)(long)(n); } while (0)
+#define	setcharacter(v,n)	do { (v) = (char *)(long)(n); } while (0)
+#define	setaddress(v,n)		do { (v) = (char *)(n); } while (0)
 
 /*
  * Escape command table definitions --
@@ -197,9 +181,10 @@ typedef
 #define PRIV	02		/* priviledged, root execute only */
 
 extern int	vflag;		/* verbose during reading of .tiprc file */
+extern int	noesc;		/* no escape `~' char */
 extern value_t	vtable[];	/* variable table */
 
-#if !ACULOG
+#ifndef ACULOG
 #define logent(a, b, c, d)
 #define loginit()
 #endif
@@ -209,62 +194,49 @@ extern value_t	vtable[];	/* variable table */
  *  value(DEFINE) turns into a static address.
  */
 
-/*
-'a,.!awk '{ printf("\%s \%s \%d\n", $1, $2, NR - 1); }'
-*/
+#define BEAUTIFY	0
+#define BAUDRATE	1
+#define DIALTIMEOUT	2
+#define EOFREAD		3
+#define EOFWRITE	4
+#define EOL		5
+#define ESCAPE		6
+#define EXCEPTIONS	7
+#define FORCE		8
+#define FRAMESIZE	9
+#define HOST		10
+#define LOG		11
+#define PHONES		12
+#define PROMPT		13
+#define RAISE		14
+#define RAISECHAR	15
+#define RECORD		16
+#define REMOTE		17
+#define SCRIPT		18
+#define TABEXPAND	19
+#define VERBOSE		20
+#define SHELL		21
+#define HOME		22
+#define ECHOCHECK	23
+#define DISCONNECT	24
+#define TAND		25
+#define LDELAY		26
+#define CDELAY		27
+#define ETIMEOUT	28
+#define RAWFTP		29
+#define HALFDUPLEX	30
+#define	LECHO		31
+#define	PARITY		32
 
-#define BEAUTIFY 0
-#define BAUDRATE 1
-#define DIALTIMEOUT 2
-#define EOFREAD 3
-#define EOFWRITE 4
-#define EOL 5
-#define ESCAPE 6
-#define EXCEPTIONS 7
-#define FORCE 8
-#define FRAMESIZE 9
-#define HOST 10
-#define LOG 11
-#define LOGIN 12
-#define LOGOUT 13
-#define PHONES 14
-#define PROMPT 15
-#define RAISE 16
-#define RAISECHAR 17
-#define RECORD 18
-#define REMOTE 19
-#define SCRIPT 20
-#define TABEXPAND 21
-#define VERBOSE 22
-#define SHELL 23
-#define HOME 24
-#define ECHOCHECK 25
-#define DISCONNECT 26
-#define TAND 27
-#define LDELAY 28
-#define CDELAY 29
-#define ETIMEOUT 30
-#define RAWFTP 31
-#define HALFDUPLEX 32
-#define LECHO 33
-#define PARITY 34
 #define NOVAL	((value_t *)NULL)
 #define NOACU	((acu_t *)NULL)
 #define NOSTR	((char *)NULL)
 #define NOFILE	((FILE *)NULL)
 #define NOPWD	((struct passwd *)0)
 
-#if HAVE_TERMIOS
-struct termios otermios;
-struct termios ctermios;
-#else /* HAVE_TERMIOS */
-struct sgttyb	arg;		/* current mode of local terminal */
-struct sgttyb	defarg;		/* initial mode of local terminal */
-struct tchars	tchars;		/* current state of terminal */
-struct tchars	defchars;	/* initial state of terminal */
-struct ltchars	ltchars;	/* current local characters of terminal */
-struct ltchars	deflchars;	/* initial local characters of terminal */
-#endif /* HAVE_TERMIOS */
+struct termios	term;		/* current mode of terminal */
+struct termios	defterm;	/* initial mode of terminal */
+struct termios	defchars;	/* current mode with initial chars */
 
 FILE	*fscript;		/* FILE for scripting */
 
@@ -273,6 +245,7 @@ int	repdes[2];		/* read process sychronization channel */
 int	FD;			/* open file descriptor to remote host */
 int	AC;			/* open file descriptor to dialer (v831 only) */
 int	vflag;			/* print .tiprc initialization sequence */
+int	noesc;			/* no `~' escape char */
 int	sfd;			/* for ~< operation */
 int	pid;			/* pid of tipout */
 uid_t	uid, euid;		/* real and effective user id's */
@@ -283,26 +256,57 @@ int	intflag;		/* recognized interrupt */
 int	stoprompt;		/* for interrupting a prompt session */
 int	timedout;		/* ~> transfer timedout */
 int	cumode;			/* simulating the "cu" program */
+int	bits8;			/* terminal is is 8-bit mode */
+#define STRIP_PAR	(bits8 ? 0377 : 0177)
 
-char	fname[80];		/* file name buffer for ~< */
-char	copyname[80];		/* file name buffer for ~> */
+char	fname[PATH_MAX];	/* file name buffer for ~< */
+char	copyname[PATH_MAX];	/* file name buffer for ~> */
 char	ccc;			/* synchronization character */
 char	ch;			/* for tipout */
 char	*uucplock;		/* name of lock file for uucp's */
 
-int	odisc;				/* initial tty line discipline */
-extern	int disc;			/* current tty discpline */
+int	odisc;			/* initial tty line discipline */
+extern	int disc;		/* current tty discpline */
+
+extern	char *__progname;	/* program name */
 
 extern	char *ctrl();
 extern	char *vinterp();
 extern	char *connect();
 
-int	tipabort	__P((char *));
-
-#define TL_VERBOSE       0x00000001
-#define TL_SIGNAL_TIPOUT 0x00000002
-
-int tiplink (char *cmd, unsigned int flags);
-void raw ();
-
-/* end of tip.h */
+char	*sname __P((char *s));
+int	any __P((int cc, char *p));
+int	anyof __P((char *s1, char *s2));
+int	args __P((char *buf, char *a[], int num));
+int	escape __P((void));
+int	prompt __P((char *s, char *p, size_t sz));
+int	size __P((char *s));
+int	speed __P((int n));
+int	uu_lock __P((char *ttyname));
+int	uu_unlock __P((char *ttyname));
+int	vstring __P((char *s, char *v));
+long	hunt __P((char *name));
+void	cumain __P((int argc, char *argv[]));
+void	daemon_uid __P((void));
+void	disconnect __P((char *reason));
+void	execute __P((char *s));
+void	logent __P((char *group, char *num, char *acu, char *message));
+void	loginit __P((void));
+void	prtime __P((char *s, time_t a));
+void	parwrite __P((int fd, char *buf, int n));
+void	raw __P((void));
+void	send __P((int c));
+void	setparity __P((char *defparity));
+void	setscript __P((void));
+void	shell_uid __P((void));
+void	tandem __P((char *option));
+void	tipabort __P((char *msg));
+void	tipin __P((void));
+void	tipout __P((void));
+void	transfer __P((char *buf, int fd, char *eofchars));
+void	transmit __P((FILE *fd, char *eofchars, char *command));
+void	ttysetup __P((int speed));
+void	unraw __P((void));
+void	user_uid __P((void));
+void	vinit __P((void));
+void	vlex __P((char *s));
