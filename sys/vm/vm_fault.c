@@ -488,10 +488,8 @@ readrest:
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;
-					if (mt->dirty == 0)
-						vm_page_test_dirty(mt);
+					pmap_remove_all(mt);
 					if (mt->dirty) {
-						pmap_remove_all(mt);
 						vm_page_deactivate(mt);
 					} else {
 						vm_page_cache(mt);
