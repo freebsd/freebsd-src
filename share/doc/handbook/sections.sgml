@@ -1,4 +1,4 @@
-<!-- $Id: sections.sgml,v 1.15 1996/07/02 23:16:17 wosch Exp $ -->
+<!-- $Id: sections.sgml,v 1.16 1996/07/29 07:15:57 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Entities containing all the pieces of the handbook are -->
@@ -12,6 +12,7 @@
 <!ENTITY current SYSTEM "current.sgml">
 <!ENTITY stable SYSTEM "stable.sgml">
 <!ENTITY crypt SYSTEM "crypt.sgml">
+<!ENTITY development SYSTEM "development.sgml">
 <!ENTITY dialup SYSTEM "dialup.sgml">
 <!ENTITY diskless SYSTEM "diskless.sgml">
 <!ENTITY dma SYSTEM "dma.sgml">
