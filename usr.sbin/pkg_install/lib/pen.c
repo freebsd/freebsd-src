@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.10 1995/04/18 13:04:34 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.11 1995/04/21 06:30:41 jkh Exp $";
 #endif
 
 /*
@@ -29,8 +29,6 @@ static const char *rcsid = "$Id: pen.c,v 1.10 1995/04/18 13:04:34 jkh Exp $";
 /* For keeping track of where we are */
 static char Cwd[FILENAME_MAX];
 static char Pen[FILENAME_MAX];
-
-static long min_free(char *);
 
 /*
  * Make a temporary directory to play in and chdir() to it, returning
@@ -93,10 +91,13 @@ where_playpen(void)
 	return NULL;
 }
 
-static long min_free(char *tmpdir)
+long
+min_free(char *tmpdir)
 {
     struct statfs buf;
 
+    if (!tmpdir)
+	tmpdir = Pen;
     if (statfs(tmpdir, &buf) != 0) {
 	perror("Error in statfs");
 	return -1;
