@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.34 1995/03/21 01:11:44 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.35 1995/03/21 23:07:19 davidg Exp $
  */
 
 /*
@@ -1115,7 +1115,6 @@ vnode_pager_output(vnp, m, count, rtvals)
 	int bsize;
 	int s;
 	daddr_t block;
-	struct timeval tv;
 	int runpg;
 
 	int error = 0;
