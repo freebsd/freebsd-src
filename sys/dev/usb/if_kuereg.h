@@ -110,11 +110,7 @@ struct kue_ether_desc {
 #define KUE_RXFILT_MULTICAST		0x0010
 
 #define KUE_TIMEOUT		1000
-#define KUE_BUFSZ		1536
 #define KUE_MIN_FRAMELEN	60
-
-#define KUE_RX_LIST_CNT		1
-#define KUE_TX_LIST_CNT		1
 
 #define KUE_CTL_READ		0x01
 #define KUE_CTL_WRITE		0x02
@@ -136,25 +132,6 @@ struct kue_type {
 	u_int16_t		kue_did;
 };
 
-struct kue_softc;
-
-struct kue_chain {
-	struct kue_softc	*kue_sc;
-	usbd_xfer_handle	kue_xfer;
-	char			*kue_buf;
-	struct mbuf		*kue_mbuf;
-	int			kue_idx;
-};
-
-struct kue_cdata {
-	struct kue_chain	kue_tx_chain[KUE_TX_LIST_CNT];
-	struct kue_chain	kue_rx_chain[KUE_RX_LIST_CNT];
-	int			kue_tx_prod;
-	int			kue_tx_cons;
-	int			kue_tx_cnt;
-	int			kue_rx_prod;
-};
-
 #define KUE_INC(x, y)		(x) = (x + 1) % y
 
 struct kue_softc {
@@ -169,7 +146,7 @@ struct kue_softc {
 	int			kue_if_flags;
 	u_int16_t		kue_rxfilt;
 	u_int8_t		*kue_mcfilters;
-	struct kue_cdata	kue_cdata;
+	struct ue_cdata		kue_cdata;
 #if __FreeBSD_version >= 500000
 	struct mtx		kue_mtx;
 #endif
