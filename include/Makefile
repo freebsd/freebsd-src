@@ -83,7 +83,7 @@ INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
 .endfor
 
 copies:
-.for i in ${LDIRS} ${LSYMSUBDIRS} machine
+.for i in ${LDIRS} ${LSYMSUBDIRS} machine crypto
 	if [ -L ${DESTDIR}/usr/include/$i ]; then \
 		rm -f ${DESTDIR}/usr/include/$i; \
 	fi
@@ -95,6 +95,9 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
 .endfor
+	cd ${.CURDIR}/../sys; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 opencrypto/*.h \
+		${DESTDIR}/usr/include/crypto
 .if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
@@ -112,6 +115,8 @@ symlinks:
 	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../sys/$i ${DESTDIR}/usr/include/$i
 .endfor
+	rm -rf ${DESTDIR}/usr/include/crypto
+	ln -s ../../sys/opencrypto ${DESTDIR}/usr/include/crypto
 .for i in ${LSYMSUBDIRS}
 	rm -rf ${DESTDIR}/usr/include/$i
 	ln -s ../../../sys/$i ${DESTDIR}/usr/include/$i
