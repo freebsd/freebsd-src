@@ -32,7 +32,7 @@
  ((len > 1 && !strncmp (str, "gsdb", len)) ? SDB_DEBUG : DBX_DEBUG)
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__alpha -D__alpha__ -D__FreeBSD__ -D__ELF__"
+#define CPP_PREDEFINES "-Dunix -D__alpha -D__alpha__ -D__ELF__ -D__FreeBSD__=3 -Asystem(unix) -Asystem(FreeBSD) -Acpu(alpha) -Amachine(alpha)"
 
 #undef LINK_SPEC
 #define LINK_SPEC "-m elf64alpha					\
