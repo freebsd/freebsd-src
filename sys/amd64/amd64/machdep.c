@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.18 1993/11/17 23:24:56 wollman Exp $
+ *	$Id: machdep.c,v 1.19 1993/11/25 01:30:55 wollman Exp $
  */
 
 #include "npx.h"
@@ -460,6 +460,7 @@ sendsig(catcher, sig, mask, code)
 	fp->sf_signum = sig;
 	fp->sf_code = code;
 	fp->sf_scp = &fp->sf_sc;
+	fp->sf_addr = (char *) regs[tERR];
 	fp->sf_handler = catcher;
 
 	/* save scratch registers */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)frame.h	5.2 (Berkeley) 1/18/91
- *	$Id: frame.h,v 1.3 1993/11/07 17:42:56 wollman Exp $
+ *	$Id: frame.h,v 1.4 1993/11/17 23:25:03 wollman Exp $
  */
 
 #ifndef _MACHINE_FRAME_H_
@@ -105,6 +105,7 @@ struct sigframe {
 	int	sf_signum;
 	int	sf_code;
 	struct	sigcontext *sf_scp;
+	char	*sf_addr;
 	sig_t	sf_handler;
 	int	sf_eax;	
 	int	sf_edx;	
