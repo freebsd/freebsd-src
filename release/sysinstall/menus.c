@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.27 1995/06/07 05:50:59 jkh Exp $
+ * $Id: menus.c,v 1.41.2.28 1995/06/07 06:50:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -731,8 +731,20 @@ software not provided in the base distributions.",
       { NULL } },
 };
 
+static char *
+menuCheckNTP(DMenuItem *item)
+{
+    return getenv("ntpdate") ? "ON" : "OFF";
+}
+
+static char *
+menuCheckRouted(DMenuItem *item)
+{
+    return getenv("routedflags") ? "ON" : "OFF";
+}
+
 DMenu MenuNetworking = {
-    DMENU_NORMAL_TYPE,
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
     "You may have already configured one network device (and the\n\
 other various hostname/gateway/name server parameters) in the process\n\
@@ -741,17 +753,17 @@ aspects of your system's network configuration.",
     NULL,
     NULL,
     { { "NFS client",	"This machine will be an NFS client",
-	DMENU_SET_VARIABLE, "nfs_client=YES", 0, 0		},
+	DMENU_SET_VARIABLE, "nfs_client=YES", 0, 0, dmenuVarCheck	},
       { "NFS server",	"This machine will be an NFS server",
-	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0		},
+	DMENU_SET_VARIABLE, "nfs_server=YES", 0, 0, dmenuVarCheck	},
       { "Interfaces",	"Configure network interfaces",
-	DMENU_CALL,	tcpMenuSelect, 0, 0			},
+	DMENU_CALL,	tcpMenuSelect, 0, 0				},
       { "ntpdate",	"Select a clock-syncronization server",
-	DMENU_SUBMENU,	&MenuNTP, 0, 0				},
+	DMENU_SUBMENU,	&MenuNTP, 0, 0, menuCheckNTP		},
       { "routed",	"Set flags for routed (default: -q)",
-	DMENU_CALL,	configRoutedFlags, 0, 0			},
+	DMENU_CALL,	configRoutedFlags, 0, 0, menuCheckRouted	},
       { "rwhod",	"This machine wants to run the rwho daemon",
-	DMENU_SET_VARIABLE, "rwhod=YES", 0, 0			},
+	DMENU_SET_VARIABLE, "rwhod=YES", 0, 0, dmenuVarCheck		},
       { "Exit", "Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
@@ -838,54 +850,60 @@ the other keymaps below.",
     "Choose a keyboard map",
     NULL,
     { { "Danish CP865", "Danish Code Page 865 keymap",
-	DMENU_SET_VARIABLE, "keymap=danish.cp865", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=danish.cp865", 0, 0, dmenuVarCheck	},
       { "Danish ISO", "Danish ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=danish.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=danish.iso", 0, 0, dmenuVarCheck	},
       { "French ISO", "French ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=fr.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=fr.iso", 0, 0, dmenuVarCheck	},
       { "German CP850", "German Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=german.cp850", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=german.cp850", 0, 0, dmenuVarCheck	},
       { "German ISO", "German ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=german.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=german.iso", 0, 0, dmenuVarCheck	},
       { "Russian CP866", "Russian Code Page 866 keymap",
-	DMENU_SET_VARIABLE, "keymap=ru.cp866", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=ru.cp866", 0, 0, dmenuVarCheck	},
       { "Russian KOI8", "Russian koi8 keymap",
-	DMENU_SET_VARIABLE, "keymap=ru.koi8-r", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=ru.koi8-r", 0, 0, dmenuVarCheck	},
       { "Russian s-KOI8", "Russian shifted koi8 keymap",
-	DMENU_SET_VARIABLE, "keymap=ru.koi8-r.shift", 0, 0	},
+	DMENU_SET_VARIABLE, "keymap=ru.koi8-r.shift", 0, 0, dmenuVarCheck},
       { "Swedish CP850", "Swedish Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=swedish.cp850", 0, 0	},
+	DMENU_SET_VARIABLE, "keymap=swedish.cp850", 0, 0, dmenuVarCheck	},
       { "Swedish ISO", "Swedish ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=swedish.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=swedish.iso", 0, 0, dmenuVarCheck	},
       { "U.K. CP850", "United Kingdom Code Page 850 keymap",
-	DMENU_SET_VARIABLE, "keymap=uk.cp850", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=uk.cp850", 0, 0, dmenuVarCheck	},
       { "U.K. ISO", "United Kingdom ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=uk.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=uk.iso", 0, 0, dmenuVarCheck	},
       { "U.S. ISO", "United States ISO keymap",
-	DMENU_SET_VARIABLE, "keymap=us.iso", 0, 0		},
+	DMENU_SET_VARIABLE, "keymap=us.iso", 0, 0, dmenuVarCheck	},
       { NULL } },
 };
 
 DMenu MenuSysconsKeyrate = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Keyboard Repeat Rate",
     "This menu allows you to set the speed at which keys repeat\n\
 when held down.",
     "Choose a keyboard repeat rate",
     NULL,
     { { "Slow", "Slow keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=slow", 0, 0		},
+	DMENU_SET_VARIABLE, "keyrate=slow", 0, 0, dmenuVarCheck		},
       { "Normal", "\"Normal\" keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=normal", 0, 0		},
+	DMENU_SET_VARIABLE, "keyrate=normal", 0, 0, dmenuVarCheck	},
       { "Fast", "Fast keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=fast", 0, 0		},
+	DMENU_SET_VARIABLE, "keyrate=fast", 0, 0, dmenuVarCheck		},
       { "Default", "Use default keyboard repeat rate",
-	DMENU_SET_VARIABLE, "keyrate=NO", 0, 0			},
+	DMENU_SET_VARIABLE, "keyrate=NO", 0, 0, dmenuVarCheck		},
       { NULL } },
 };
 
+static char *
+menuSaverTimeoutCheck(DMenuItem *item)
+{
+    return getenv("blanktime") ? "ON" : "OFF";
+}
+
 DMenu MenuSysconsSaver = {
-    DMENU_NORMAL_TYPE,
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screen Saver",
     "By default, the console driver will not attempt to do anything\n\
 special with your screen when it's idle.  If you expect to leave your\n\
@@ -894,15 +912,15 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
     "Choose a nifty-looking screen saver",
     NULL,
     { { "blank", "Simply blank the screen",
-	DMENU_SET_VARIABLE, "saver=star", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=star", 0, 0, dmenuVarCheck		},
       { "Green", "\"Green\" power saving mode (if supported by monitor)",
-	DMENU_SET_VARIABLE, "saver=snake", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=snake", 0, 0, dmenuVarCheck		},
       { "Snake", "Draw a FreeBSD \"snake\" on your screen",
-	DMENU_SET_VARIABLE, "saver=snake", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=snake", 0, 0, dmenuVarCheck		},
       { "Star",	"A \"twinkling stars\" effect",
-	DMENU_SET_VARIABLE, "saver=star", 0, 0		},
+	DMENU_SET_VARIABLE, "saver=star", 0, 0, dmenuVarCheck		},
       { "Timeout", "Set the screen saver timeout interval",
-	DMENU_CALL, configSaverTimeout, 0, 0		},
+	DMENU_CALL, configSaverTimeout, 0, 0, menuSaverTimeoutCheck	},
       { "Exit", "Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },

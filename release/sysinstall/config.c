@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.25 1995/06/06 06:16:31 jkh Exp $
+ * $Id: config.c,v 1.15.2.26 1995/06/07 05:50:52 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -346,6 +346,17 @@ skip:
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
     }
+}
+
+int
+configRoutedFlags(char *str)
+{
+    char *val;
+
+    val = msgGetInput("-q", "Specify the flags for routed; -q is the default, -s is\na good choice for gateway machines.");
+    if (val)
+	variable_set2("routedflags", val);
+    return 0;
 }
 
 int
