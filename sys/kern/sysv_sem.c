@@ -406,10 +406,12 @@ semundo_adjust(td, supptr, semid, semnum, adjval)
 	for (i = 0; i < suptr->un_cnt; i++, sunptr++) {
 		if (sunptr->un_id != semid || sunptr->un_num != semnum)
 			continue;
-		if (adjval == 0)
-			sunptr->un_adjval = 0;
-		else
-			sunptr->un_adjval += adjval;
+		if (adjval != 0) {
+			adjval += sunptr->un_adjval;
+			if (adjval > seminfo.semaem || adjval < -seminfo.semaem)
+				return (ERANGE);
+		}
+		sunptr->un_adjval = adjval;
 		if (sunptr->un_adjval == 0) {
 			suptr->un_cnt--;
 			if (i < suptr->un_cnt)
@@ -422,6 +424,8 @@ semundo_adjust(td, supptr, semid, semnum, adjval)
 	/* Didn't find the right entry - create it */
 	if (adjval == 0)
 		return(0);
+	if (adjval > seminfo.semaem || adjval < -seminfo.semaem)
+		return (ERANGE);
 	if (suptr->un_cnt != seminfo.semume) {
 		sunptr = &suptr->un_ent[suptr->un_cnt];
 		suptr->un_cnt++;
@@ -489,6 +493,7 @@ __semctl(td, uap)
 	int i, rval, error;
 	struct semid_ds sbuf;
 	register struct semid_ds *semaptr;
+	u_short usval;
 
 #ifdef SEM_DEBUG
 	printf("call to semctl(%d, %d, %d, 0x%x)\n", semid, semnum, cmd, arg);
@@ -640,6 +645,10 @@ __semctl(td, uap)
 		}
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
 			goto done2;
+		if (real_arg.val < 0 || real_arg.val > seminfo.semvmx) {
+			error = ERANGE;
+			goto done2;
+		}
 		semaptr->sem_base[semnum].semval = real_arg.val;
 		semundo_clear(semid, semnum);
 		wakeup((caddr_t)semaptr);
@@ -652,10 +661,14 @@ __semctl(td, uap)
 			goto done2;
 		for (i = 0; i < semaptr->sem_nsems; i++) {
 			error = copyin(&real_arg.array[i],
-			    (caddr_t)&semaptr->sem_base[i].semval,
-			    sizeof(real_arg.array[0]));
+			    (caddr_t)&usval, sizeof(real_arg.array[0]));
 			if (error != 0)
 				break;
+			if (usval > seminfo.semvmx) {
+				error = ERANGE;
+				break;
+			}
+			semaptr->sem_base[i].semval = usval;
 		}
 		semundo_clear(semid, -1);
 		wakeup((caddr_t)semaptr);
@@ -822,12 +835,12 @@ semop(td, uap)
 {
 	int semid = uap->semid;
 	u_int nsops = uap->nsops;
-	struct sembuf sops[MAX_SOPS];
+	struct sembuf *sops = NULL;
 	register struct semid_ds *semaptr;
 	register struct sembuf *sopptr;
 	register struct sem *semptr;
-	struct sem_undo *suptr = NULL;
-	int i, j, error = 0;
+	struct sem_undo *suptr;
+	int i, j, error;
 	int do_wakeup, do_undos;
 
 #ifdef SEM_DEBUG
@@ -856,26 +869,49 @@ semop(td, uap)
 		error = EINVAL;
 		goto done2;
 	}
-
-	if ((error = ipcperm(td, &semaptr->sem_perm, IPC_W))) {
+	if (nsops > seminfo.semopm) {
 #ifdef SEM_DEBUG
-		printf("error = %d from ipcperm\n", error);
-#endif
-		goto done2;
-	}
-
-	if (nsops > MAX_SOPS) {
-#ifdef SEM_DEBUG
-		printf("too many sops (max=%d, nsops=%u)\n", MAX_SOPS, nsops);
+		printf("too many sops (max=%d, nsops=%d)\n", seminfo.semopm,
+		    nsops);
 #endif
 		error = E2BIG;
 		goto done2;
 	}
 
-	if ((error = copyin(uap->sops, &sops, nsops * sizeof(sops[0]))) != 0) {
+	/* Allocate memory for sem_ops */
+	sops = malloc(nsops * sizeof(sops[0]), M_SEM, M_WAITOK);
+	if (!sops)
+		panic("Failed to allocate %d sem_ops", nsops);
+
+	if ((error = copyin(uap->sops, sops, nsops * sizeof(sops[0]))) != 0) {
 #ifdef SEM_DEBUG
-		printf("error = %d from copyin(%08x, %08x, %u)\n", error,
-		    uap->sops, &sops, nsops * sizeof(sops[0]));
+		printf("error = %d from copyin(%08x, %08x, %d)\n", error,
+		    uap->sops, sops, nsops * sizeof(sops[0]));
+#endif
+		goto done2;
+	}
+
+	/*
+	 * Initial pass thru sops to see what permissions are needed.
+	 * Also perform any checks that don't need repeating on each
+	 * attempt to satisfy the request vector.
+	 */
+	j = 0;		/* permission needed */
+	do_undos = 0;
+	for (i = 0; i < nsops; i++) {
+		sopptr = &sops[i];
+		if (sopptr->sem_num >= semaptr->sem_nsems) {
+			error = EFBIG;
+			goto done2;
+		}
+		if (sopptr->sem_flg & SEM_UNDO && sopptr->sem_op != 0)
+			do_undos = 1;
+		j |= (sopptr->sem_op == 0) ? SEM_R : SEM_A;
+	}
+
+	if ((error = ipcperm(td, &semaptr->sem_perm, j))) {
+#ifdef SEM_DEBUG
+		printf("error = %d from ipaccess\n", error);
 #endif
 		goto done2;
 	}
@@ -889,19 +925,12 @@ semop(td, uap)
 	 * This ensures that from the perspective of other tasks, a set
 	 * of requests is atomic (never partially satisfied).
 	 */
-	do_undos = 0;
-
 	for (;;) {
 		do_wakeup = 0;
+		error = 0;	/* error return if necessary */
 
 		for (i = 0; i < nsops; i++) {
 			sopptr = &sops[i];
-
-			if (sopptr->sem_num >= semaptr->sem_nsems) {
-				error = EFBIG;
-				goto done2;
-			}
-
 			semptr = &semaptr->sem_base[sopptr->sem_num];
 
 #ifdef SEM_DEBUG
@@ -923,21 +952,21 @@ semop(td, uap)
 					    semptr->semzcnt > 0)
 						do_wakeup = 1;
 				}
-				if (sopptr->sem_flg & SEM_UNDO)
-					do_undos = 1;
 			} else if (sopptr->sem_op == 0) {
-				if (semptr->semval > 0) {
+				if (semptr->semval != 0) {
 #ifdef SEM_DEBUG
 					printf("semop:  not zero now\n");
 #endif
 					break;
 				}
+			} else if (semptr->semval + sopptr->sem_op >
+			    seminfo.semvmx) {
+				error = ERANGE;
+				break;
 			} else {
 				if (semptr->semncnt > 0)
 					do_wakeup = 1;
 				semptr->semval += sopptr->sem_op;
-				if (sopptr->sem_flg & SEM_UNDO)
-					do_undos = 1;
 			}
 		}
 
@@ -956,6 +985,10 @@ semop(td, uap)
 		for (j = 0; j < i; j++)
 			semaptr->sem_base[sops[j].sem_num].semval -=
 			    sops[j].sem_op;
+
+		/* If we detected an error, return it */
+		if (error != 0)
+			goto done2;
 
 		/*
 		 * If the request that we couldn't satisfy has the
@@ -979,8 +1012,6 @@ semop(td, uap)
 #ifdef SEM_DEBUG
 		printf("semop:  good morning (error=%d)!\n", error);
 #endif
-
-		suptr = NULL;	/* sem_undo may have been reallocated */
 
 		if (error != 0) {
 			error = EINTR;
@@ -1014,6 +1045,7 @@ done:
 	 * Process any SEM_UNDO requests.
 	 */
 	if (do_undos) {
+		suptr = NULL;
 		for (i = 0; i < nsops; i++) {
 			/*
 			 * We only need to deal with SEM_UNDO's for non-zero
@@ -1062,14 +1094,18 @@ done:
 		} /* loop through the sops */
 	} /* if (do_undos) */
 
-	/* We're definitely done - set the sempid's */
+	/* We're definitely done - set the sempid's and time */
 	for (i = 0; i < nsops; i++) {
 		sopptr = &sops[i];
 		semptr = &semaptr->sem_base[sopptr->sem_num];
 		semptr->sempid = td->td_proc->p_pid;
 	}
+	semaptr->sem_otime = time_second;
 
-	/* Do a wakeup if any semaphore was up'd. */
+	/*
+	 * Do a wakeup if any semaphore was up'd whilst something was
+	 * sleeping on it.
+	 */
 	if (do_wakeup) {
 #ifdef SEM_DEBUG
 		printf("semop:  doing wakeup\n");
@@ -1084,6 +1120,8 @@ done:
 #endif
 	td->td_retval[0] = 0;
 done2:
+	if (sops)
+	    free(sops, M_SEM);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -1098,9 +1136,6 @@ semexit_myhook(p)
 {
 	register struct sem_undo *suptr;
 	register struct sem_undo **supptr;
-	int did_something;
-
-	did_something = 0;
 
 	/*
 	 * Go through the chain of undo vectors looking for one
