@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: alpha_module.c,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
  */
 
 /*
@@ -36,22 +36,6 @@
 
 #include "bootstrap.h"
 #include "libalpha.h"
-
-/*
- * Look for a method and having found it, boot the kernel module.
- */
-int
-alpha_boot(void)
-{
-    int		i;
-
-    for (i = 0; module_formats[i] != NULL; i++) {
-	if (((loaded_modules->m_flags & MF_FORMATMASK) == module_formats[i]->l_format) &&
-	    (module_formats[i]->l_exec != NULL)) {
-	    return((module_formats[i]->l_exec)(loaded_modules));
-	}
-    }
-}
 
 /*
  * Use voodoo to load modules required by current hardware.

@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.1.1.1 1998/08/21 03:17:42 msmith Exp $
+# $Id: Makefile,v 1.2 1998/08/22 10:31:01 dfr Exp $
 
 LIB=		alpha
 NOPIC=		true
@@ -18,7 +18,7 @@ CFLAGS+= -DDISK_DEBUG
 
 SRCS=	OSFpal.c elf_freebsd.c prom.c prom_disp.S prom_swpal.S start.S \
 	pal.S reboot.c delay.c time.c alpha_module.c devicename.c \
-	srmdisk.c srmnet.c getsecs.c
+	srmdisk.c srmnet.c getsecs.c alpha_copy.c
 
 all: libalpha.a
 

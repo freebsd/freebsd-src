@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: libi386.h,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 
@@ -69,7 +69,12 @@ extern void		pvbcopy(vm_offset_t, void*, int);
 extern void		pbzero(vm_offset_t, int);
 extern vm_offset_t	vtophys(void*);
 
+extern int		i386_copyin(void *src, vm_offset_t dest, size_t len);
+extern int		i386_readin(int fd, vm_offset_t dest, size_t len);
+
+/* XXX pread deprecated */
 extern int		pread(int, vm_offset_t, int);
+
 extern void		startprog(vm_offset_t, int, u_int32_t *, vm_offset_t);
 
 extern void		delay(int);
@@ -79,7 +84,6 @@ extern int		getextmem(void);
 extern void		reboot(void);
 extern void		gateA20(void);
 
-extern int		i386_boot(void);
 extern int		i386_autoload(void);
 
 extern int		bi_getboothowto(char *kargs);

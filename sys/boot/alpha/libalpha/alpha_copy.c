@@ -23,26 +23,28 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i386_module.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
+ *	$Id$
  */
-
 /*
- * i386-specific module functionality.
+ * MD primitives supporting placement of module data 
  *
+ * XXX should check load address/size against memory top.
  */
-
 #include <stand.h>
-#include <string.h>
 
-#include "bootstrap.h"
-#include "libi386.h"
+#include "libalpha.h"
 
-/*
- * Use voodoo to load modules required by current hardware.
- */
 int
-i386_autoload(void)
+alpha_copyin(void *src, vm_offset_t dest, size_t len)
 {
-    /* XXX use PnP to locate stuff here */
-    return(0);
+    bcopy(src, dest, len);
+    return(len);
 }
+
+int
+alpha_readin(int fd, vm_offset_t dest, size_t len)
+{
+    return(read(fd, dest, len));
+}
+
+    

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bootstrap.h,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -85,13 +85,6 @@ extern struct console	*consoles[];
 extern void		cons_probe(void);
 
 /*
- * Module loader.
- */
-#define MF_FORMATMASK	0xf
-#define MF_AOUT		0
-#define MF_ELF		1
-
-/*
  * Module metadata header.
  *
  * Metadata are allocated on our heap, and copied into kernel space
@@ -110,14 +103,16 @@ struct module_metadata
  *
  * At least one module (the kernel) must be loaded in order to boot.
  * The kernel is always loaded first.
+ *
+ * String fields (m_name, m_type) should be dynamically allocated.
  */
 struct loaded_module
 {
     char			*m_name;	/* module name */
-    char			*m_type;	/* module type, eg 'kernel', 'pnptable', etc. */
+    char			*m_type;	/* verbose module type, eg 'ELF kernel', 'pnptable', etc. */
     char			*m_args;	/* arguments for the module */
-    void			*m_metadata;	/* metadata that will be placed in the module directory */
-    int				m_flags;	/* 0xffff reserved for arch-specific use */
+    struct module_metadata	*m_metadata;	/* metadata that will be placed in the module directory */
+    int				m_loader;	/* index of the loader that read the file */
     vm_offset_t			m_addr;		/* load address */
     size_t			m_size;		/* module size */
     struct loaded_module	*m_next;	/* next module */
@@ -125,16 +120,21 @@ struct loaded_module
 
 struct module_format
 {
-    int		l_format;
     /* Load function must return EFTYPE if it can't handle the module supplied */
     int		(* l_load)(char *filename, vm_offset_t dest, struct loaded_module **result);
+    /* Only a loader that will load a kernel (first module) should have an exec handler */
     int		(* l_exec)(struct loaded_module *amp);
 };
 extern struct module_format	*module_formats[];	/* supplied by consumer */
 extern struct loaded_module	*loaded_modules;
 extern int			mod_load(char *name, int argc, char *argv[]);
 extern struct loaded_module	*mod_findmodule(char *name, char *type);
+extern void			mod_addmetadata(struct loaded_module *mp, int type, size_t size, void *p);
+extern struct module_metadata	*mod_findmetadata(struct loaded_module *mp, int type);
 
+/*
+ * Module information subtypes
+ */
 /* XXX these belong in <machine/bootinfo.h> */
 #define MODINFO_NAME		0x0000
 #define MODINFO_TYPE		0x0001
@@ -142,6 +142,13 @@ extern struct loaded_module	*mod_findmodule(char *name, char *type);
 #define MODINFO_SIZE		0x0003
 #define MODINFO_METADATA	0x8000
 
+#define MODINFOMD_AOUTEXEC	0x0001		/* a.out exec header */
+#define MODINFOMD_ELFHDR	0x0002		/* ELF header */
+
+/* MI module loaders */
+extern int	aout_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result);
+
+/* extern int	elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result); */
 
 #if defined(__ELF__)
 
@@ -211,16 +218,21 @@ struct bootblk_command
 extern struct linker_set Xcommand_set;
 
 /* 
- * functions called down from the generic code
+ * The intention of the architecture switch is to provide a convenient
+ * encapsulation of the interface between the bootstrap MI and MD code.
+ * MD code may selectively populate the switch at runtime based on the
+ * actual configuration of the target system.
  */
 struct arch_switch
 {
     /* Automatically load modules as required by detected hardware */
     int			(* arch_autoload)();
-    /* Boot the loaded kernel (first loaded module) */
-    int			(* arch_boot)(void);
     /* Locate the device for (name), return pointer to tail in (*path) */
     int			(*arch_getdev)(void **dev, char *name, char **path);
+    /* Copy from local address space to module address space, similar to bcopy() */
+    int			(*arch_copyin)(void *src, vm_offset_t dest, size_t len);
+    /* Read from file to module address space, same semantics as read() */
+    int			(*arch_readin)(int fd, vm_offset_t dest, size_t len);
 };
 extern struct arch_switch archsw;
 
