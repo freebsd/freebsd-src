@@ -556,6 +556,7 @@ Var_Value(char *name, GNode *ctxt, char **frp)
 
 	if (v->flags & VAR_FROM_ENV) {
 	    Buf_Destroy(v->val, FALSE);
+	    free(v->name);
 	    free(v);
 	    *frp = p;
 	}
