@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lookup.c	8.15 (Berkeley) 6/16/95
- * $Id: ufs_lookup.c,v 1.15 1997/08/26 07:32:51 phk Exp $
+ * $Id: ufs_lookup.c,v 1.16 1997/09/02 20:06:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -78,11 +78,23 @@ int	dirchk = 0;
  * be "."., but the caller must check to ensure it does an vrele and vput
  * instead of two vputs.
  *
+ * This routine is actually used as VOP_CACHEDLOOKUP method, and the
+ * filesystem employs the generic vfs_cache_lookup() as VOP_LOOKUP
+ * method.
+ *
+ * vfs_cache_lookup() performs the following for us:
+ *	check that it is a directory
+ *	check accessibility of directory
+ *	check for modification attempts on read-only mounts
+ *	if name found in cache
+ *	    if at end of path and deleting or creating
+ *		drop it
+ *	     else
+ *		return name.
+ *	return VOP_CACHEDLOOKUP()
+ *
  * Overall outline of ufs_lookup:
  *
- *	check accessibility of directory
- *	look for name in cache, if found, then if at end of path
- *	  and deleting or creating, drop it, else return name
  *	search for name in directory, to found or notfound
  * notfound:
  *	if creating, return locked directory, leaving info on available slots
@@ -136,18 +148,6 @@ ufs_lookup(ap)
 	dp = VTOI(vdp);
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
-
-	/*
-	 * Check accessiblity of directory.
-	 */
-	if ((dp->i_mode & IFMT) != IFDIR)
-		return (ENOTDIR);
-	error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc);
-	if (error)
-		return (error);
-	if ((flags & ISLASTCN) && (vdp->v_mount->mnt_flag & MNT_RDONLY) &&
-	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
-		return (EROFS);
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
