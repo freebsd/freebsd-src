@@ -29,16 +29,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bootinfo.h,v 1.1 1994/10/06 09:25:25 rgrimes Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_
 #define	_MACHINE_BOOTINFO_H_ 
 
+#define N_BIOS_GEOM	8
 struct bootinfo_t {
 	unsigned int		version;
 	unsigned char		*kernelname;
 	struct nfs_diskless	*nfs_diskless;
+	unsigned int		n_bios_used;
+	unsigned long		bios_geom[N_BIOS_GEOM];
 };
 
 #endif	/* _MACHINE_BOOTINFO_H_ */
