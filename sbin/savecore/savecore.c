@@ -63,7 +63,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "zopen.h"
+
+extern FILE *zopen(const char *fname, const char *mode);
 
 #ifdef __alpha__
 #define ok(number) ALPHA_K0SEG_TO_PHYS(number)
@@ -138,7 +139,6 @@ void     find_dev __P((dev_t));
 int	 get_crashtime __P((void));
 void	 get_dumpsize __P((void));
 void	 kmem_setup __P((void));
-void	 log __P((int, char *, ...)) __printflike(2, 3);
 void	 Lseek __P((int, off_t, int));
 int	 Open __P((const char *, int rw));
 int	 Read __P((int, void *, int));
@@ -289,7 +289,7 @@ kmem_setup()
 	if (kernel)
 		return;
 
-	lseek(kmem, (off_t)current_nl[X_VERSION].n_value, SEEK_SET);
+	Lseek(kmem, (off_t)current_nl[X_VERSION].n_value, SEEK_SET);
 	Read(kmem, vers, sizeof(vers));
 	vers[sizeof(vers) - 1] = '\0';
 	p = strchr(vers, '\n');
@@ -398,9 +398,9 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 	/* Create the core file. */
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	(void)snprintf(path, sizeof(path), "%s/vmcore.%d%s",
-	    savedir, bounds, compress ? ".Z" : "");
+	    savedir, bounds, compress ? ".gz" : "");
 	if (compress)
-		fp = zopen(path, "w", 0);
+		fp = zopen(path, "w");
 	else
 		fp = fopen(path, "w");
 	if (fp == NULL) {
@@ -427,41 +427,45 @@ err1:			syslog(LOG_WARNING, "%s: %m", path);
 				syslog(LOG_ERR, "%s: %m", ddname);
 			goto err2;
 		}
-		for (nw = 0; nw < nr; nw = he) {
-			/* find a contiguous block of zeroes */
-			for (hs = nw; hs < nr; hs += BLOCKSIZE) {
-				for (he = hs; he < nr && buf[he] == 0; ++he)
-					/* nothing */ ;
 
+		if (compress) {
+			nw = fwrite(buf, 1, nr, fp);
+		} else {
+			for (nw = 0; nw < nr; nw = he) {
+			    /* find a contiguous block of zeroes */
+			    for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+				for (he = hs; he < nr && buf[he] == 0; ++he)
+				    /* nothing */ ;
 				/* is the hole long enough to matter? */
 				if (he >= hs + BLOCKSIZE)
-					break;
-			}
+				    break;
+			    }
 			
-			/* back down to a block boundary */
-			he &= BLOCKMASK;
+			    /* back down to a block boundary */
+			    he &= BLOCKMASK;
 
-			/*
-			 * 1) Don't go beyond the end of the buffer.
-			 * 2) If the end of the buffer is less than
-			 *    BLOCKSIZE bytes away, we're at the end
-			 *    of the file, so just grab what's left.
-			 */
-			if (hs + BLOCKSIZE > nr)
+			    /*
+			     * 1) Don't go beyond the end of the buffer.
+			     * 2) If the end of the buffer is less than
+			     *    BLOCKSIZE bytes away, we're at the end
+			     *    of the file, so just grab what's left.
+			     */
+			    if (hs + BLOCKSIZE > nr)
 				hs = he = nr;
 			
-			/*
-			 * At this point, we have a partial ordering:
-			 *     nw <= hs <= he <= nr
-			 * If hs > nw, buf[nw..hs] contains non-zero data.
-			 * If he > hs, buf[hs..he] is all zeroes.
-			 */
-			if (hs > nw)
+			    /*
+			     * At this point, we have a partial ordering:
+			     *     nw <= hs <= he <= nr
+			     * If hs > nw, buf[nw..hs] contains non-zero data.
+			     * If he > hs, buf[hs..he] is all zeroes.
+			     */
+			    if (hs > nw)
 				if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
-					break;
-			if (he > hs)
+				    break;
+			    if (he > hs)
 				if (fseek(fp, he - hs, SEEK_CUR) == -1)
-					break;
+				    break;
+			}
 		}
 		if (nw != nr) {
 			syslog(LOG_ERR, "%s: %m", path);
@@ -477,9 +481,9 @@ err2:			syslog(LOG_WARNING,
 	/* Copy the kernel. */
 	ifd = Open(kernel ? kernel : getbootfile(), O_RDONLY);
 	(void)snprintf(path, sizeof(path), "%s/kernel.%d%s",
-	    savedir, bounds, compress ? ".Z" : "");
+	    savedir, bounds, compress ? ".gz" : "");
 	if (compress)
-		fp = zopen(path, "w", 0);
+		fp = zopen(path, "w");
 	else
 		fp = fopen(path, "w");
 	if (fp == NULL) {
