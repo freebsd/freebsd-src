@@ -1441,6 +1441,20 @@
       </itemizedlist>
     </para>
 
+    <para arch="i386">RealTek RTL8150-based USB Ethernet NICs
+      (&man.rue.4; driver)
+
+      <itemizedlist>
+        <listitem>
+	  <para>GREEN HOUSE GH-USB100B</para>
+        </listitem>
+        <listitem>
+	  <para>MELCO LUA-KTX</para>
+        </listitem>
+      </itemizedlist>
+
+      </para>
+
     <para arch="i386,alpha">ASIX Electronics AX88140A PCI NICs (&man.dc.4; driver)
       <itemizedlist>
         <listitem>
