@@ -1,7 +1,8 @@
 /* makeinfo.h -- declarations for Makeinfo.
-   $Id: makeinfo.h,v 1.37 2002/03/28 16:33:48 karl Exp $
+   $Id: makeinfo.h,v 1.3 2003/01/17 17:14:34 karl Exp $
 
-   Copyright (C) 1996, 97, 98, 99, 2000, 01, 02 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software
+   Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -194,6 +195,9 @@ DECLARE (int, process_plaintext, -1);
 /* Nonzero means that we process @tex and @iftex.  (--iftex) */
 DECLARE (int, process_tex, 0);
 
+/* Nonzero means that we process @xml and @ifxml.  (--ifxml) */
+DECLARE (int, process_xml, 0);
+
 /* Maximum number of references to a single node before complaining.
    (--reference-limit) */
 DECLARE (int, reference_warning_limit, 1000);
@@ -260,11 +264,6 @@ DECLARE (int, expensive_validation, 0);
 #define SPLIT_SIZE_THRESHOLD 70000  /* What's good enough for Stallman... */
 #define DEFAULT_SPLIT_SIZE 50000    /* Is probably good enough for me. */
 DECLARE (int, splitting, 1);    /* Defaults to true for now. */
-
-#define command_char(c) (!cr_or_whitespace(c) \
-                         && (c) != '{' \
-                         && (c) != '}' \
-                         && (c) != '=')
 
 #define skip_whitespace() \
      while ((input_text_offset != input_text_length) && \
