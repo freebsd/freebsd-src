@@ -48,12 +48,9 @@
 #define	_SWAP_PAGER_	1
 
 /*
- * SWB_NPAGES can be set to any value from 1 to 16 pages per allocation,
- * however, due to the allocation spilling into non-swap pager backed memory,
- * suggest keeping SWB_NPAGES small (1-4).  If high performance is mandatory
- * perhaps up to 8 pages might be in order????
- * Above problem has been fixed, now we support 16 pages per block.  Unused
- * space is recovered by the swap pager now...
+ * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
+ * pages per allocation.  We recommend you stick with the default of 8.
+ * The 16-page limit is due to the radix code (kern/subr_blist.c).
  */
 #if !defined(SWB_NPAGES)
 #define SWB_NPAGES 8
