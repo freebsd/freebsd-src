@@ -43,7 +43,6 @@
 static char sccsid[] = "@(#)isctype.c	8.3 (Berkeley) 2/24/94";
 #endif /* LIBC_SCCS and not lint */
 
-#define _ANSI_LIBRARY
 #include <ctype.h>
 
 #undef isalnum
@@ -51,7 +50,7 @@ int
 isalnum(c)
 	int c;
 {
-	return(__istype((c), (_A|_D)));
+	return (__istype((c), (_A|_D)));
 }
 
 #undef isalpha
@@ -67,7 +66,7 @@ int
 isascii(c)
 	int c;
 {
-	return((c & ~0x7F) == 0);
+	return (((c) & ~0x7F) == 0);
 }
 
 #undef isblank
@@ -155,7 +154,7 @@ int
 toascii(c)
 	int c;
 {
-	return (c & 0177);
+	return ((c) & 0x7F);
 }
 
 #undef tolower
@@ -163,7 +162,7 @@ int
 tolower(c)
 	int c;
 {
-        return((c & _CRMASK) ? ___tolower(c) : _CurrentRuneLocale->maplower[c]);
+        return (__tolower(c));
 }
 
 #undef toupper
@@ -171,5 +170,5 @@ int
 toupper(c)
 	int c;
 {
-        return((c & _CRMASK) ? ___toupper(c) : _CurrentRuneLocale->mapupper[c]);
+        return (__toupper(c));
 }
