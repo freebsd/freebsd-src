@@ -307,8 +307,6 @@ static void
 cmi_spdif_speed(struct cmi_info *cmi, int speed) {
 	u_int32_t fcr1, lcr, mcr;
 
-	mcr  = 0;
-
 	if (speed >= 44100) {
 		fcr1 = CMPCI_REG_SPDIF0_ENABLE;
 		lcr  = CMPCI_REG_XSPDIF_ENABLE;
@@ -318,12 +316,12 @@ cmi_spdif_speed(struct cmi_info *cmi, int speed) {
 		fcr1 = mcr = lcr = 0;
 	}
 
-	cmi_partial_wr4(cmi, CMPCI_REG_FUNC_1, 0,
-			CMPCI_REG_SPDIF0_ENABLE, fcr1);
 	cmi_partial_wr4(cmi, CMPCI_REG_MISC, 0,
 			CMPCI_REG_W_SPDIF_48L | CMPCI_REG_SPDIF_48K, mcr);
 	cmi_partial_wr4(cmi, CMPCI_REG_LEGACY_CTRL, 0,
 			CMPCI_REG_XSPDIF_ENABLE, lcr);
+	cmi_partial_wr4(cmi, CMPCI_REG_FUNC_1, 0,
+			CMPCI_REG_SPDIF0_ENABLE, fcr1);
 }
 
 /* ------------------------------------------------------------------------- */
