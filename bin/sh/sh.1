@@ -1268,6 +1268,8 @@ With no arguments, the
 builtin command prints the names and values of all defined aliases
 (see
 .Ic unalias ) .
+Alias values are written with appropriate quoting so that they are
+suitable for reinput to the shell.
 .It Ic bg Op Ar job ...
 Continue the specified jobs
 (or the current job if no jobs are given)

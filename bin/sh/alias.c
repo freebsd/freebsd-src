@@ -207,8 +207,11 @@ aliascmd(int argc, char **argv)
 
 		for (i = 0; i < ATABSIZE; i++)
 			for (ap = atab[i]; ap; ap = ap->next) {
-				if (*ap->name != '\0')
-				    out1fmt("alias %s=%s\n", ap->name, ap->val);
+				if (*ap->name != '\0') {
+					out1fmt("alias %s=", ap->name);
+					out1qstr(ap->val);
+					out1c('\n');
+				}
 			}
 		return (0);
 	}
@@ -217,8 +220,11 @@ aliascmd(int argc, char **argv)
 			if ((ap = lookupalias(n, 0)) == NULL) {
 				outfmt(out2, "alias: %s not found\n", n);
 				ret = 1;
-			} else
-				out1fmt("alias %s=%s\n", n, ap->val);
+			} else {
+				out1fmt("alias %s=", n);
+				out1qstr(ap->val);
+				out1c('\n');
+			}
 		else {
 			*v++ = '\0';
 			setalias(n, v);
