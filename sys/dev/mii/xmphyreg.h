@@ -44,6 +44,7 @@
 #define XMPHY_BMCR_LOOP		0x4000
 #define XMPHY_BMCR_AUTOEN	0x1000	/* Autoneg enabled */
 #define XMPHY_BMCR_PDOWN	0x0800	/* Power down */
+#define XMPHY_BMCR_ISO		0x0400	/* Isolate */
 #define XMPHY_BMCR_STARTNEG	0x0200	/* Restart autoneg */
 #define XMPHY_BMCR_FDX		0x0100	/* Duplex mode */
 

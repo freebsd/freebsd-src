@@ -218,6 +218,7 @@ dev/mii/exphy.c		optional miibus
 dev/mii/inphy.c		optional miibus
 dev/mii/mlphy.c		optional miibus
 dev/mii/nsphy.c		optional miibus
+dev/mii/nsgphy.c	optional miibus
 dev/mii/pnphy.c		optional miibus
 dev/mii/pnaphy.c	optional miibus
 dev/mii/tlphy.c		optional miibus

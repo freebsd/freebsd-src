@@ -55,11 +55,13 @@ oui BROADCOM			0x001018	Broadcom Corporation
 oui DAVICOM			0x00606e	Davicom Semiconductor
 oui ICS				0x00a0be	Integrated Circuit Systems
 oui INTEL			0x00aa00	Intel
+oui JATO			0x00e083	Jato Technologies
 oui LEVEL1			0x00207b	Level 1
 oui NATSEMI			0x080017	National Semiconductor
 oui QUALSEMI			0x006051	Quality Semiconductor
 oui SEEQ			0x00a07d	Seeq
 oui SIS				0x00e006	Silicon Integrated Systems
+oui TDK				0x00c039	TDK
 oui TI				0x080028	Texas Instruments
 oui XAQTI			0x00e0ae	XaQti Corp.
 oui MARVELL			0x005043	Marvell Semiconductor
@@ -117,12 +119,17 @@ model INTEL I82562EM		0x0032 i82562EM 10/100 media interface
 model INTEL I82562ET		0x0033 i82562ET 10/100 media interface
 model INTEL I82553C		0x0035 i82553 10/100 media interface
 
+/* Jato Technologies PHYs */
+model JATO BASEX		0x0000 Jato 1000baseX media interface
+
 /* Level 1 PHYs */
 model xxLEVEL1 LXT970		0x0000 LXT970 10/100 media interface
 
 /* National Semiconductor PHYs */
 model NATSEMI DP83840		0x0000 DP83840 10/100 media interface
 model NATSEMI DP83843		0x0001 DP83843 10/100 media interface
+model NATSEMI DP83891		0x0005 DP83891 10/100/1000 media interface
+model NATSEMI DP83861		0x0006 DP83861 10/100/1000 media interface
 
 /* Quality Semiconductor PHYs */
 model QUALSEMI QS6612		0x0000 QS6612 10/100 media interface
@@ -133,6 +140,9 @@ model xxSEEQ 84220		0x0004 Seeq 84220 10/100 media interface
 
 /* Silicon Integrated Systems PHYs */
 model xxSIS 900			0x0000 SiS 900 10/100 media interface
+
+/* TDK */
+model TDK 78Q2120		0x0014 TDK 78Q2120 media interface
 
 /* Texas Instruments PHYs */
 model xxTI TLAN10T		0x0001 ThunderLAN 10baseT media interface
