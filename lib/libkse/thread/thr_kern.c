@@ -66,15 +66,22 @@ __FBSDID("$FreeBSD$");
  * Define a high water mark for the maximum number of threads that
  * will be cached.  Once this level is reached, any extra threads
  * will be free()'d.
- *
- * XXX - It doesn't make sense to worry about the maximum number of
- *       KSEs that we can cache because the system will limit us to
- *       something *much* less than the maximum number of threads
- *       that we can have.  Disregarding KSEs in their own group,
- *       the maximum number of KSEs is the number of processors in
- *       the system.
  */
 #define	MAX_CACHED_THREADS	100
+/*
+ * Define high water marks for the maximum number of KSEs and KSE groups
+ * that will be cached. Because we support 1:1 threading, there could have
+ * same number of KSEs and KSE groups as threads. Once these levels are
+ * reached, any extra KSE and KSE groups will be free()'d.
+ */
+#ifdef SYSTEM_SCOPE_ONLY
+#define	MAX_CACHED_KSES		100
+#define	MAX_CACHED_KSEGS	100
+#else
+#define	MAX_CACHED_KSES		50
+#define	MAX_CACHED_KSEGS	50
+#endif
+
 #define	KSE_STACKSIZE		16384
 
 #define	KSE_SET_MBOX(kse, thrd) \
@@ -136,9 +143,11 @@ static void	kse_sched_single(struct kse_mailbox *kmbx);
 static void	kse_switchout_thread(struct kse *kse, struct pthread *thread);
 static void	kse_wait(struct kse *kse, struct pthread *td_wait, int sigseq);
 static void	kse_free_unlocked(struct kse *kse);
+static void	kse_destroy(struct kse *kse);
 static void	kseg_free_unlocked(struct kse_group *kseg);
 static void	kseg_init(struct kse_group *kseg);
 static void	kseg_reinit(struct kse_group *kseg);
+static void	kseg_destroy(struct kse_group *kseg);
 static void	kse_waitq_insert(struct pthread *thread);
 static void	kse_wakeup_multi(struct kse *curkse);
 static struct kse_mailbox *kse_wakeup_one(struct pthread *thread);
@@ -149,7 +158,9 @@ static void	thr_resume_check(struct pthread *curthread, ucontext_t *ucp,
 		    struct pthread_sigframe *psf);
 static int	thr_timedout(struct pthread *thread, struct timespec *curtime);
 static void	thr_unlink(struct pthread *thread);
-
+static void	thread_gc(struct pthread *thread);
+static void	kse_gc(struct pthread *thread);
+static void	kseg_gc(struct pthread *thread);
 
 static __inline void
 kse_set_curthread(struct kse *kse, struct pthread *td)
@@ -1248,6 +1259,14 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 void
 _thr_gc(struct pthread *curthread)
 {
+	thread_gc(curthread);
+	kse_gc(curthread);
+	kseg_gc(curthread);
+}
+
+static void
+thread_gc(struct pthread *curthread)
+{
 	struct pthread *td, *td_next;
 	kse_critical_t crit;
 	TAILQ_HEAD(, pthread) worklist;
@@ -1317,9 +1336,60 @@ _thr_gc(struct pthread *curthread)
 		} else
 			DBG_MSG("Initial thread won't be freed\n");
 	}
-	/* XXX free kse and ksegrp list should be looked as well */
 }
 
+static void
+kse_gc(struct pthread *curthread)
+{
+	kse_critical_t crit;
+	TAILQ_HEAD(, kse) worklist;
+	struct kse *kse;
+
+	if (free_kse_count <= MAX_CACHED_KSES)
+		return;
+	TAILQ_INIT(&worklist);
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
+	while (free_kse_count > MAX_CACHED_KSES) {
+		kse = TAILQ_FIRST(&free_kseq);
+		TAILQ_REMOVE(&free_kseq, kse, k_qe);
+		TAILQ_INSERT_HEAD(&worklist, kse, k_qe);
+		free_kse_count--;
+	}
+	KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+	_kse_critical_leave(crit);
+
+	while ((kse = TAILQ_FIRST(&worklist))) {
+		TAILQ_REMOVE(&worklist, kse, k_qe);
+		kse_destroy(kse);
+	}
+}
+
+static void
+kseg_gc(struct pthread *curthread)
+{
+	kse_critical_t crit;
+	TAILQ_HEAD(, kse_group) worklist;
+	struct kse_group *kseg;
+
+	if (free_kseg_count <= MAX_CACHED_KSEGS)
+		return; 
+	crit = _kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curthread->kse, &kse_lock);
+	while (free_kseg_count > MAX_CACHED_KSEGS) {
+		kseg = TAILQ_FIRST(&free_kse_groupq);
+		TAILQ_REMOVE(&free_kse_groupq, kseg, kg_qe);
+		free_kseg_count--;
+		TAILQ_INSERT_HEAD(&worklist, kseg, kg_qe);
+	}
+	KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
+	_kse_critical_leave(crit);
+
+	while ((kseg = TAILQ_FIRST(&worklist))) {
+		TAILQ_REMOVE(&worklist, kseg, kg_qe);
+		kseg_destroy(kseg);
+	}
+}
 
 /*
  * Only new threads that are running or suspended may be scheduled.
@@ -2019,6 +2089,26 @@ _kseg_alloc(struct pthread *curthread)
 	return (kseg);
 }
 
+static void
+kseg_init(struct kse_group *kseg)
+{
+	kseg_reinit(kseg);
+	_lock_init(&kseg->kg_lock, LCK_ADAPTIVE, _kse_lock_wait,
+	    _kse_lock_wakeup);
+}
+
+static void
+kseg_reinit(struct kse_group *kseg)
+{
+	TAILQ_INIT(&kseg->kg_kseq);
+	TAILQ_INIT(&kseg->kg_threadq);
+	TAILQ_INIT(&kseg->kg_schedq.sq_waitq);
+	kseg->kg_threadcount = 0;
+	kseg->kg_ksecount = 0;
+	kseg->kg_idle_kses = 0;
+	kseg->kg_flags = 0;
+}
+
 /*
  * This must be called with the kse lock held and when there are
  * no more threads that reference it.
@@ -2044,6 +2134,14 @@ _kseg_free(struct kse_group *kseg)
 	kseg_free_unlocked(kseg);
 	KSE_LOCK_RELEASE(curkse, &kse_lock);
 	_kse_critical_leave(crit);
+}
+
+static void
+kseg_destroy(struct kse_group *kseg)
+{
+	_lock_destroy(&kseg->kg_lock);
+	_pq_free(&kseg->kg_schedq.sq_runq);
+	free(kseg);
 }
 
 /*
@@ -2193,7 +2291,6 @@ kse_free_unlocked(struct kse *kse)
 	kse->k_kcb->kcb_kmbx.km_quantum = 20000;
 	kse->k_flags = 0;
 	TAILQ_INSERT_HEAD(&free_kseq, kse, k_qe);
-	_kcb_dtor(kse->k_kcb);
 	free_kse_count++;
 }
 
@@ -2214,23 +2311,17 @@ _kse_free(struct pthread *curthread, struct kse *kse)
 }
 
 static void
-kseg_init(struct kse_group *kseg)
+kse_destroy(struct kse *kse)
 {
-	kseg_reinit(kseg);
-	_lock_init(&kseg->kg_lock, LCK_ADAPTIVE, _kse_lock_wait,
-	    _kse_lock_wakeup);
-}
+	int i;
 
-static void
-kseg_reinit(struct kse_group *kseg)
-{
-	TAILQ_INIT(&kseg->kg_kseq);
-	TAILQ_INIT(&kseg->kg_threadq);
-	TAILQ_INIT(&kseg->kg_schedq.sq_waitq);
-	kseg->kg_threadcount = 0;
-	kseg->kg_ksecount = 0;
-	kseg->kg_idle_kses = 0;
-	kseg->kg_flags = 0;
+	if (kse->k_stack.ss_sp != NULL)
+		free(kse->k_stack.ss_sp);
+	_kcb_dtor(kse->k_kcb);
+	for (i = 0; i < MAX_KSE_LOCKLEVEL; ++i)
+		_lockuser_destroy(&kse->k_lockusers[i]);
+	_lock_destroy(&kse->k_lock);
+	free(kse);
 }
 
 struct pthread *
