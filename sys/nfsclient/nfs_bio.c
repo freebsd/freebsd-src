@@ -1025,9 +1025,9 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 
 	if (nmp->nm_flag & NFSMNT_INT) {
 		bp = getblk(vp, bn, size, PCATCH, 0);
-		while (bp == (struct buf *)0) {
-			if (nfs_sigintr(nmp, (struct nfsreq *)0, td))
-				return ((struct buf *)0);
+		while (bp == NULL) {
+			if (nfs_sigintr(nmp, NULL, td))
+				return (NULL);
 			bp = getblk(vp, bn, size, 0, 2 * hz);
 		}
 	} else {
@@ -1076,7 +1076,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 		error = tsleep((caddr_t)&np->n_flag, PRIBIO + 2, "nfsvinval",
 			slptimeo);
 		if (error && intrflg &&
-		    nfs_sigintr(nmp, (struct nfsreq *)0, td))
+		    nfs_sigintr(nmp, NULL, td))
 			return (EINTR);
 	}
 
@@ -1087,7 +1087,7 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
 	while (error) {
 		if (intrflg &&
-		    nfs_sigintr(nmp, (struct nfsreq *)0, td)) {
+		    nfs_sigintr(nmp, NULL, td)) {
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
@@ -1165,7 +1165,7 @@ again:
 		 */
 		NFS_DPF(ASYNCIO, ("nfs_asyncio: waking iod %d for mount %p\n",
 		    iod, nmp));
-		nfs_iodwant[iod] = (struct proc *)0;
+		nfs_iodwant[iod] = NULL;
 		nfs_iodmount[iod] = nmp;
 		nmp->nm_bufqiods++;
 		wakeup((caddr_t)&nfs_iodwant[iod]);

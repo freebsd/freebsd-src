@@ -437,8 +437,8 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 		auio.uio_resid = 1000000000;
 		flags = MSG_DONTWAIT;
 		error = so->so_proto->pr_usrreqs->pru_soreceive
-			(so, &nam, &auio, &mp, (struct mbuf **)0, &flags);
-		if (error || mp == (struct mbuf *)0) {
+			(so, &nam, &auio, &mp, NULL, &flags);
+		if (error || mp == NULL) {
 			if (error == EWOULDBLOCK)
 				slp->ns_flag |= SLP_NEEDQ;
 			else
@@ -472,8 +472,7 @@ nfsrv_rcv(struct socket *so, void *arg, int waitflag)
 			auio.uio_resid = 1000000000;
 			flags = MSG_DONTWAIT;
 			error = so->so_proto->pr_usrreqs->pru_soreceive
-				(so, &nam, &auio, &mp,
-						(struct mbuf **)0, &flags);
+				(so, &nam, &auio, &mp, NULL, &flags);
 			if (mp) {
 				struct nfsrv_rec *rec;
 				rec = malloc(sizeof(struct nfsrv_rec),
@@ -568,12 +567,12 @@ nfsrv_getstream(struct nfssvc_sock *slp, int waitflag)
 	     */
 	    if (slp->ns_cc == slp->ns_reclen) {
 		recm = slp->ns_raw;
-		slp->ns_raw = slp->ns_rawend = (struct mbuf *)0;
+		slp->ns_raw = slp->ns_rawend = NULL;
 		slp->ns_cc = slp->ns_reclen = 0;
 	    } else if (slp->ns_cc > slp->ns_reclen) {
 		len = 0;
 		m = slp->ns_raw;
-		om = (struct mbuf *)0;
+		om = NULL;
 		while (len < slp->ns_reclen) {
 			if ((len + m->m_len) > slp->ns_reclen) {
 				m2 = m_copym(m, 0, slp->ns_reclen - len,
@@ -596,7 +595,7 @@ nfsrv_getstream(struct nfssvc_sock *slp, int waitflag)
 				len += m->m_len;
 				m = m->m_next;
 				recm = slp->ns_raw;
-				om->m_next = (struct mbuf *)0;
+				om->m_next = NULL;
 			} else {
 				om = m;
 				len += m->m_len;
@@ -625,11 +624,11 @@ nfsrv_getstream(struct nfssvc_sock *slp, int waitflag)
 		    m_freem(slp->ns_frag);
 		} else {
 		    nfs_realign(&slp->ns_frag, 10 * NFSX_UNSIGNED);
-		    rec->nr_address = (struct sockaddr *)0;
+		    rec->nr_address = NULL;
 		    rec->nr_packet = slp->ns_frag;
 		    STAILQ_INSERT_TAIL(&slp->ns_rec, rec, nr_link);
 		}
-		slp->ns_frag = (struct mbuf *)0;
+		slp->ns_frag = NULL;
 	    }
 	}
 }
@@ -715,7 +714,7 @@ nfsrv_send(struct socket *so, struct sockaddr *nam, struct mbuf *top)
 
 	soflags = so->so_proto->pr_flags;
 	if ((soflags & PR_CONNREQUIRED) || (so->so_state & SS_ISCONNECTED))
-		sendnam = (struct sockaddr *)0;
+		sendnam = NULL;
 	else
 		sendnam = nam;
 	if (so->so_type == SOCK_SEQPACKET)
@@ -763,5 +762,5 @@ nfsrv_timer(void *arg)
 			nfsrv_wakenfsd(slp);
 	}
 	splx(s);
-	nfsrv_timer_handle = timeout(nfsrv_timer, (void *)0, nfsrv_ticks);
+	nfsrv_timer_handle = timeout(nfsrv_timer, NULL, nfsrv_ticks);
 }

@@ -604,7 +604,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	int error, rdonly, linklen;
 	struct componentname *cnp = &ndp->ni_cnd;
 
-	*retdirp = (struct vnode *)0;
+	*retdirp = NULL;
 	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
 
 	/*
@@ -789,7 +789,7 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		auio.uio_offset = 0;
 		auio.uio_rw = UIO_READ;
 		auio.uio_segflg = UIO_SYSSPACE;
-		auio.uio_td = (struct thread *)0;
+		auio.uio_td = NULL;
 		auio.uio_resid = MAXPATHLEN;
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
@@ -881,7 +881,7 @@ nfsm_adj(struct mbuf *mp, int len, int nul)
 	m = mp;
 	for (;;) {
 		count += m->m_len;
-		if (m->m_next == (struct mbuf *)0)
+		if (m->m_next == NULL)
 			break;
 		m = m->m_next;
 	}
@@ -1031,7 +1031,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	struct sockaddr_int *saddr;
 #endif
 
-	*vpp = (struct vnode *)0;
+	*vpp = NULL;
 
 	if (nfs_ispublicfh(fhp)) {
 		if (!pubflag || !nfs_pub.np_valid)

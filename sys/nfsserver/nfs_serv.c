@@ -192,7 +192,7 @@ nfsrv3_access(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam, &rdonly, TRUE);
 	if (error) {
 		nfsm_reply(NFSX_UNSIGNED);
-		nfsm_srvpostop_attr(1, (struct vattr *)0);
+		nfsm_srvpostop_attr(1, NULL);
 		error = 0;
 		goto nfsmout;
 	}
@@ -648,7 +648,7 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 #ifndef nolint
-	mp = (struct mbuf *)0;
+	mp = NULL;
 #endif
 	mp3 = NULL;
 	fhp = &nfh.fh_generic;
@@ -681,12 +681,12 @@ nfsrv_readlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	uiop->uio_resid = len;
 	uiop->uio_rw = UIO_READ;
 	uiop->uio_segflg = UIO_SYSSPACE;
-	uiop->uio_td = (struct thread *)0;
+	uiop->uio_td = NULL;
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam, &rdonly, TRUE);
 	if (error) {
 		nfsm_reply(2 * NFSX_UNSIGNED);
 		if (v3)
-			nfsm_srvpostop_attr(1, (struct vattr *)0);
+			nfsm_srvpostop_attr(1, NULL);
 		error = 0;
 		goto nfsmout;
 	}
@@ -780,7 +780,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		vp = NULL;
 		nfsm_reply(2 * NFSX_UNSIGNED);
 		if (v3)
-			nfsm_srvpostop_attr(1, (struct vattr *)0);
+			nfsm_srvpostop_attr(1, NULL);
 		error = 0;
 		goto nfsmout;
 	}
@@ -1136,7 +1136,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    uiop->uio_resid = len;
 	    uiop->uio_rw = UIO_WRITE;
 	    uiop->uio_segflg = UIO_SYSSPACE;
-	    uiop->uio_td = (struct thread *)0;
+	    uiop->uio_td = NULL;
 	    uiop->uio_offset = off;
 	    error = VOP_WRITE(vp, uiop, ioflags, cred);
 	    nfsrvstats.srvvop_writes++;
@@ -1391,7 +1391,7 @@ loop1:
 		    ioflags = (IO_METASYNC | IO_SYNC | IO_NODELOCKED);
 		uiop->uio_rw = UIO_WRITE;
 		uiop->uio_segflg = UIO_SYSSPACE;
-		uiop->uio_td = (struct thread *)0;
+		uiop->uio_td = NULL;
 		uiop->uio_offset = nfsd->nd_off;
 		uiop->uio_resid = nfsd->nd_eoff - nfsd->nd_off;
 		if (uiop->uio_resid > 0) {
@@ -1588,7 +1588,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3), how, exclusive_flag = 0;
 	caddr_t cp;
 	struct mbuf *mb, *mreq;
-	struct vnode *dirp = (struct vnode *)0;
+	struct vnode *dirp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	u_quad_t tempsize;
@@ -1869,7 +1869,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	u_int32_t major, minor;
 	enum vtype vtyp;
 	struct mbuf *mb, *mreq;
-	struct vnode *vp, *dirp = (struct vnode *)0;
+	struct vnode *vp, *dirp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct mount *mp = NULL;
@@ -2155,8 +2155,8 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	struct mbuf *mb, *mreq;
 	struct nameidata fromnd, tond;
-	struct vnode *fvp, *tvp, *tdvp, *fdirp = (struct vnode *)0;
-	struct vnode *tdirp = (struct vnode *)0;
+	struct vnode *fvp, *tvp, *tdvp, *fdirp = NULL;
+	struct vnode *tdirp = NULL;
 	struct vattr fdirfor, fdiraft, tdirfor, tdiraft;
 	nfsfh_t fnfh, tnfh;
 	fhandle_t *ffhp, *tfhp;
@@ -2166,7 +2166,7 @@ nfsrv_rename(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 #ifndef nolint
-	fvp = (struct vnode *)0;
+	fvp = NULL;
 #endif
 	ffhp = &fnfh.fh_generic;
 	tfhp = &tnfh.fh_generic;
@@ -2381,7 +2381,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int error = 0, rdonly, len, dirfor_ret = 1, diraft_ret = 1;
 	int getret = 1, v3 = (nfsd->nd_flag & ND_NFSV3);
 	struct mbuf *mb, *mreq;
-	struct vnode *vp = NULL, *xp, *dirp = (struct vnode *)0;
+	struct vnode *vp = NULL, *xp, *dirp = NULL;
 	struct vattr dirfor, diraft, at;
 	nfsfh_t nfh, dnfh;
 	fhandle_t *fhp, *dfhp;
@@ -2501,13 +2501,13 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	struct nameidata nd;
 	struct vattr *vap = &va;
 	struct nfsv2_sattr *sp;
-	char *bpos, *pathcp = (char *)0;
+	char *bpos, *pathcp = NULL;
 	struct uio io;
 	struct iovec iv;
 	int error = 0, len, len2, dirfor_ret = 1, diraft_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	struct mbuf *mb, *mreq;
-	struct vnode *dirp = (struct vnode *)0;
+	struct vnode *dirp = NULL;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct mount *mp = NULL;
@@ -2560,7 +2560,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	io.uio_iovcnt = 1;
 	io.uio_segflg = UIO_SYSSPACE;
 	io.uio_rw = UIO_READ;
-	io.uio_td = (struct thread *)0;
+	io.uio_td = NULL;
 	nfsm_mtouio(&io, len2);
 	if (!v3) {
 		sp = nfsm_dissect(struct nfsv2_sattr *, NFSX_V2SATTR);
@@ -2831,7 +2831,7 @@ nfsrv_rmdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int error = 0, len, dirfor_ret = 1, diraft_ret = 1;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	struct mbuf *mb, *mreq;
-	struct vnode *vp, *dirp = (struct vnode *)0;
+	struct vnode *vp, *dirp = NULL;
 	struct vattr dirfor, diraft;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
@@ -3070,7 +3070,7 @@ again:
 	io.uio_resid = fullsiz;
 	io.uio_segflg = UIO_SYSSPACE;
 	io.uio_rw = UIO_READ;
-	io.uio_td = (struct thread *)0;
+	io.uio_td = NULL;
 	eofflag = 0;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (cookies) {
@@ -3348,7 +3348,7 @@ again:
 	io.uio_resid = fullsiz;
 	io.uio_segflg = UIO_SYSSPACE;
 	io.uio_rw = UIO_READ;
-	io.uio_td = (struct thread *)0;
+	io.uio_td = NULL;
 	eofflag = 0;
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	if (cookies) {

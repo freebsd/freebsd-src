@@ -246,7 +246,7 @@ nfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 	u_quad_t tquad;
 
 #ifndef nolint
-	sfp = (struct nfs_statfs *)0;
+	sfp = NULL;
 #endif
 	error = nfs_nget(mp, (nfsfh_t *)nmp->nm_fh, nmp->nm_fhsize, &np);
 	if (error)
@@ -452,7 +452,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 		error = rtrequest(RTM_ADD, (struct sockaddr *)&sin,
 		    (struct sockaddr *)&nd->mygateway,
 		    (struct sockaddr *)&mask,
-		    RTF_UP | RTF_GATEWAY, (struct rtentry **)0);
+		    RTF_UP | RTF_GATEWAY, NULL);
 		if (error)
 			panic("nfs_mountroot: RTM_ADD: %d", error);
 	}
@@ -697,7 +697,7 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
 	if (nmp->nm_so && adjsock) {
 		nfs_safedisconnect(nmp);
 		if (nmp->nm_sotype == SOCK_DGRAM)
-			while (nfs_connect(nmp, (struct nfsreq *)0)) {
+			while (nfs_connect(nmp, NULL)) {
 				printf("nfs_args: retrying connect\n");
 				(void) tsleep((caddr_t)&lbolt,
 					      PSOCK, "nfscon", 0);
@@ -850,7 +850,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * the first request, in case the server is not responding.
 	 */
 	if (nmp->nm_sotype == SOCK_DGRAM &&
-		(error = nfs_connect(nmp, (struct nfsreq *)0)))
+		(error = nfs_connect(nmp, NULL)))
 		goto bad;
 
 	/*
