@@ -41,7 +41,11 @@ static char copyright[] =
 static char sccsid[] = "@(#)colcrt.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <err.h>
+#include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 /*
  * colcrt - replaces col for crts with new nroff esp. when using tbl.
  * Bill Joy UCB July 14, 1977
@@ -67,6 +71,9 @@ char	printall;
 FILE	*f;
 
 static void usage __P((void));
+static void pflush __P((int));
+static int plus __P((char, char));
+static void move __P((int, int));
 
 int
 main(argc, argv)
@@ -186,19 +193,21 @@ usage()
 	exit(1);
 }
 
+static int
 plus(c, d)
 	char c, d;
 {
 
-	return (c == '|' && d == '-' || d == '_');
+	return ((c == '|' && d == '-') || d == '_');
 }
 
 int first;
 
+static void
 pflush(ol)
 	int ol;
 {
-	register int i, j;
+	register int i;
 	register char *cp;
 	char lastomit;
 	int l;
@@ -229,6 +238,7 @@ pflush(ol)
 	first = 1;
 }
 
+static void
 move(l, m)
 	int l, m;
 {

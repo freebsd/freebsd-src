@@ -70,7 +70,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chat.c,v 1.8 1997/06/24 06:52:33 charnier Exp $";
+static char rcsid[] = "$Id: chat.c,v 1.9 1997/08/22 15:24:36 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -367,7 +367,7 @@ char **argv;
 void do_file (chat_file)
 char *chat_file;
     {
-    int linect, len, sendflg;
+    int linect, sendflg;
     char *sp, *arg, quote;
     char buf [STR_LEN];
     FILE *cfp;

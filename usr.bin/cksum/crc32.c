@@ -86,9 +86,11 @@ unsigned long crctab[256] = {
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 u_long crc32_total = 0 ;
 
+int
 crc32(fd, cval, clen)
     register int fd;
     u_long *cval, *clen;
@@ -96,11 +98,10 @@ crc32(fd, cval, clen)
     u_long crc = ~0;
     char buf[BUFSIZ], *p ;
     int len, nr ;
-    FILE *in;
 	
     len = 0 ;
     crc32_total = ~crc32_total ;
-    while (nr = read(fd, buf, sizeof(buf)))
+    while ((nr = read(fd, buf, sizeof(buf))))
         for (len += nr, p = buf; nr--; ++p) {
 	    CRC(crc, *p) ;
 	    CRC(crc32_total, *p) ;
