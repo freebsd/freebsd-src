@@ -167,13 +167,14 @@ state(k, ve)
 	KINFO *k;
 	VARENT *ve;
 {
-	int flag;
+	int flag, sflag;
 	char *cp;
 	VAR *v;
 	char buf[16];
 
 	v = ve->var;
 	flag = k->ki_p->ki_flag;
+	sflag = k->ki_p->ki_flag;
 	cp = buf;
 
 	switch (k->ki_p->ki_stat) {
@@ -183,7 +184,7 @@ state(k, ve)
 		break;
 
 	case SSLEEP:
-		if (flag & P_SINTR)	/* interruptable (long) */
+		if (sflag & PS_SINTR)	/* interruptable (long) */
 			*cp = k->ki_p->ki_slptime >= MAXSLP ? 'I' : 'S';
 		else
 			*cp = 'D';
@@ -210,7 +211,7 @@ state(k, ve)
 		*cp = '?';
 	}
 	cp++;
-	if (!(flag & P_INMEM))
+	if (!(sflag & PS_INMEM))
 		*cp++ = 'W';
 	if (k->ki_p->ki_nice < NZERO)
 		*cp++ = '<';
@@ -520,7 +521,7 @@ getpcpu(k)
 #define	fxtofl(fixpt)	((double)(fixpt) / fscale)
 
 	/* XXX - I don't like this */
-	if (k->ki_p->ki_swtime == 0 || (k->ki_p->ki_flag & P_INMEM) == 0)
+	if (k->ki_p->ki_swtime == 0 || (k->ki_p->ki_sflag & PS_INMEM) == 0)
 		return (0.0);
 	if (rawcpu)
 		return (100.0 * fxtofl(k->ki_p->ki_pctcpu));
@@ -552,7 +553,7 @@ getpmem(k)
 	if (failure)
 		return (0.0);
 
-	if ((k->ki_p->ki_flag & P_INMEM) == 0)
+	if ((k->ki_p->ki_sflag & PS_INMEM) == 0)
 		return (0.0);
 	/* XXX want pmap ptpages, segtab, etc. (per architecture) */
 	szptudot = UPAGES;
