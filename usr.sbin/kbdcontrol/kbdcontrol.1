@@ -13,15 +13,15 @@
 .\"     @(#)kbdcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd June 30, 1999
+.Dd May 24, 2001
 .Dt KBDCONTROL 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm kbdcontrol
 .Nd a utility for manipulating the syscons console driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl dFKix
+.Op Fl cdFKix
 .Oo
 .Fl b
 .Ar duration . Ns Ar pitch | Ar belltype
@@ -97,6 +97,8 @@ Install keyboard map file from
 .Ar keymap_file .
 You may load the keyboard map file from a menu-driven command, 
 .Xr kbdmap 1 .
+.It Fl c
+Clear the history buffer.
 .It Fl d
 Dump the current keyboard map onto stdout.
 The output may be redirected to a file and can be loaded
