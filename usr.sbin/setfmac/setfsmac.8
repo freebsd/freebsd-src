@@ -1,12 +1,12 @@
 .\" Copyright (c) 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" This software was developed for the FreeBSD Project by Chris Costello
 .\" at Safeport Network Services and Network Associates Labs, the
 .\" Security Research Division of Network Associates, Inc. under
 .\" DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
 .\" DARPA CHATS research program.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -15,7 +15,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 
+.\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -27,8 +27,9 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
+.\"
 .Dd March 13, 2003
 .Os
 .Dt SETFSMAC 8
@@ -38,15 +39,15 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ehvx
-.Op Fl f Ar specfile
-.Op Fl s Ar specfile
-.Ar path ...
+.Oo Fl f Ar specfile Oc ...
+.Oo Fl s Ar specfile Oc ...
+.Ar
 .Sh DESCRIPTION
 The
 .Nm
 utility accepts a list of specification files as input and sets the MAC
 labels on the specified file system hierarchies.
-Path names specified will be visited in order as given in the command
+Path names specified will be visited in order as given on the command
 line, and each tree will be traversed in pre-order.
 (Generally, it will not be very useful to use relative paths instead of
 absolute paths.)
@@ -86,11 +87,11 @@ NOTE: Only the first entry for each file is applied;
 all others are disregarded and silently dropped.
 .Ef
 The prefix
-.Dq sebsd/
+.Dq Li sebsd/
 will be automatically prepended to the labels in
 .Ar specfile .
 Labels matching
-.Dq <<none>>
+.Dq Li <<none>>
 will be explicitly not relabeled.
 This permits SEBSD to reuse existing SELinux policy specification files.
 .It Fl v
@@ -99,7 +100,7 @@ Increase the degree of verbosity.
 Do not recurse into new file systems when traversing them.
 .El
 .Sh FILES
-.Bl -tag -width /usr/share/security/lomac-policy.contexts -compact
+.Bl -tag -width ".Pa /usr/share/security/lomac-policy.contexts" -compact
 .It Pa /usr/share/security/lomac-policy.contexts
 Sample specfile containing LOMAC policy entries.
 .El
@@ -111,7 +112,8 @@ This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh SEE ALSO
 .Xr mac 3 ,
