@@ -835,7 +835,7 @@ struct ndis_kevent {
 };
 
 struct ndis_event {
-	struct ndis_kevent	ne_event;
+	struct nt_kevent	ne_event;
 };
 
 typedef struct ndis_event ndis_event;
@@ -858,8 +858,8 @@ struct ndis_kdpc {
 };
 
 struct ndis_timer {
-	struct ndis_ktimer	nt_timer;
-	struct ndis_kdpc	nt_dpc;
+	struct ktimer		nt_ktimer;
+	struct kdpc		nt_kdpc;
 };
 
 typedef struct ndis_timer ndis_timer;
@@ -867,10 +867,11 @@ typedef struct ndis_timer ndis_timer;
 typedef void (*ndis_timer_function)(void *, void *, void *, void *);
 
 struct ndis_miniport_timer {
-	struct ndis_ktimer	nmt_ktimer;
-	struct ndis_kdpc	nmt_dpc;
+	struct ktimer		nmt_ktimer;
+	struct kdpc		nmt_kdpc;
 	ndis_timer_function	nmt_timerfunc;
 	void			*nmt_timerctx;
+	ndis_miniport_block	*nmt_block;
 	struct ndis_miniport_timer	*nmt_nexttimer;
 };
 
