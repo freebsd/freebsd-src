@@ -183,17 +183,19 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		for (i = 0; i < hdr->hdr_entries; i++) {
 			struct uuid unused = GPT_ENT_TYPE_UNUSED;
 			struct uuid freebsd = GPT_ENT_TYPE_FREEBSD;
+			struct uuid tmp;
 			if (i >= GPT_MAX_SLICES)
 				break;
 			ent = (void*)(buf + i * hdr->hdr_entsz);
-			if (!memcmp(&ent->ent_type, &unused, sizeof(unused)))
+			le_uuid_dec(&ent->ent_type, &tmp);
+			if (!memcmp(&tmp, &unused, sizeof(unused)))
 				continue;
 			/* XXX: This memory leaks */
 			gs->part[i] = g_malloc(hdr->hdr_entsz, M_WAITOK);
 			if (gs->part[i] == NULL)
 				break;
 			bcopy(ent, gs->part[i], hdr->hdr_entsz);
-			ps = (!memcmp(&ent->ent_type, &freebsd, sizeof(freebsd)))
+			ps = (!memcmp(&tmp, &freebsd, sizeof(freebsd)))
 			    ? 's' : 'p';
 			g_topology_lock();
 			(void)g_slice_config(gp, i, G_SLICE_CONFIG_SET,
