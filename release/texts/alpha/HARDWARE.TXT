@@ -1391,6 +1391,61 @@ contain:
 	options         DEC_KN8AE	# Alpha 8200/8400 (Turbolaser)
         cpu             EV5 
 
+*
+* Alpha Processor Inc. UP1000
+*
+
+The UP1000 is an ATX mainboard based on the 21264a CPU which itself lives in
+a Slot B module. It is normally housed in a ATX [mini]tower enclosure.
+
+Features:
+- 21264a Alpha CPU at 600 or 700 MHz in a Slot B module (includes cooling fans)
+- memory bus: 128 bits
+- on-board Bcache / L2 cache: 2Mb (600Mhz) or 4Mb (700Mhz) cache
+- AMD AMD-751 system controller chip
+- Acer Labs M1543C PCI-ISA bridge controller / super-IO chip
+- PS/2 mouse & keyboard port 
+- memory: 168-pin PC100 unbuffered SDRAM DIMMS
+	  3 DIMM slots
+	  DIMM sizes supported are 64, 128 or 256 Mb in size
+- 2x 16550A serial port
+- 1x ECP/EPP parallel port
+- floppy interface
+- 2x embedded Ultra DMA33 IDE interface
+- 2x USB port
+- expansion: 4 32 bit PCI slots 
+             2 ISA slots 
+	     1 AGP slot
+
+Slot B:
+Slot B is a box-like enclosure that houses a daughterboard for the CPU and
+cache. It has 2 small fans for cooling. Loud ones too..
+
+Memory:
+The machine needs ECC capable DIMMs, so 72 bit ones. This does not appear to
+be documented in the UP1000 docs. The system accesses the serial EEPROM on
+the DIMMs via the SM bus. Note that if only a single DIMM is used it must be
+installed in slot *2*. This is a bit counter-intuitive.
+
+Power
+The UP1000 needs a 400Watt ATX power supply according to the manufacturer. 
+This might be a bit overly conservative/pessimistic judging from the power
+consumption of the board & cpu. But as always you will have to take your
+expansion cards and peripherals into account. The M1543C chip contains power 
+management functionality & temperature monitoring (via I2C / SM bus).
+
+Console
+Chances are that your UP1000 comes by default with AlphaBios only. The SRM
+console firmware is available from the Alpha Processor Inc. website. It is
+currently available in a beta version which was successfully used during the 
+port of FreeBSD to the UP1000.
+
+EIDE:
+The embedded Ultra DMA EIDE ports are bootable by the SRM console.
+
+USB:
+Is disabled by the SRM console and has not (yet) been tested with FreeBSD.
+
 Supported hardware overview
 ---------------------------
 
