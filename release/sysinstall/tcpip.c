@@ -50,24 +50,25 @@
 #include "sysinstall.h"
 
 static char		hostname[256], domainname[256],
-			ipaddr[32], netmask[32], gateway[32],
-			nameserver[32], extras[256], iface[4];
+			gateway[32], nameserver[32], iface[8];
 static int		okbutton, cancelbutton;
+static char		ipaddr[32], netmask[32], extras[256];
 
 #define TCP_DIALOG_Y		0
 #define TCP_DIALOG_X		8
 #define TCP_DIALOG_WIDTH	COLS - 16
 #define TCP_DIALOG_HEIGHT	LINES - 2
 
-/* The names of the available interfaces, for the list */
-char *iface_names[INTERFACE_MAX];
-
 typedef struct _interface {
-  
+    char ipaddr[32];
     char netmask[32];
-    char ifconfig_extras[256];
+    char extras[256];
     Device *dev;
 } Interface;
+
+/* The names and details of the available interfaces, for the list */
+Interface 	if_list[INTERFACE_MAX];
+char		*iface_names[INTERFACE_MAX];
 
 typedef struct _layout {
     int		y;
@@ -171,7 +172,7 @@ tcpOpenDialog(char *str)
     			max, n_iface;
     char                *tmp;
     Device		**devs;
-    char		old_iface[4];
+    char		old_iface[8];
 
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
@@ -203,9 +204,9 @@ tcpOpenDialog(char *str)
 	      " Per Interface Configuration ");
 
 
-    bzero(ipaddr, sizeof(ipaddr));
-    bzero(netmask, sizeof(netmask));
-    bzero(extras, sizeof(extras));
+    strcpy(ipaddr, if_list[0].ipaddr);
+    strcpy(netmask, if_list[0].netmask);
+    strcpy(extras, if_list[0].extras);
 
     tmp = getenv(VAR_HOSTNAME);
     if (tmp)
@@ -228,7 +229,7 @@ tcpOpenDialog(char *str)
     else
 	bzero(nameserver, sizeof(nameserver));
 
-    n=0;
+    n = 0;
 #define lt layout[n]
     while (lt.help != NULL) {
 	switch (lt.type) {
@@ -254,7 +255,7 @@ tcpOpenDialog(char *str)
 	AddObj(&obj, lt.type, (void *) lt.obj);
 	n++;
     }
-    max = n-1;
+    max = n - 1;
     
     last = obj;
     while (last->next)
@@ -267,6 +268,7 @@ tcpOpenDialog(char *str)
 
     n = 0;
     cancelbutton = okbutton = 0;
+    strcpy(iface, iface_names[0]);
     strcpy(old_iface, iface);
 
     while (!quit) {
@@ -290,53 +292,85 @@ tcpOpenDialog(char *str)
 	    if (obj->prev !=NULL ) {
 		obj = obj->prev;
 		--n;
-	    }
-	    else {
+	    } else {
 		obj = last;
 		n = max;
 	    }
 	    break;
 
 	case KEY_DOWN:
-	    if (obj->next != NULL) {
+	    if (n == 7) {
+		n = 4;
+		obj = (((first->next)->next)->next)->next;
+	    } else if (obj->next != NULL) {
 		obj = obj->next;
 		++n;
-	    }
-	    else {
+	    } else {
 		obj = first;
 		n = 0;
 	    }
 	    break;
 
-	case SEL_BUTTON:
-	    if (cancelbutton) {
-		cancel = TRUE, quit = TRUE;
+	case SEL_TAB:
+	    if (n == 7) {
+		n = 4;
+		obj = (((first->next)->next)->next)->next;
+	    } else if (obj->next != NULL) {
+		++n;
+	    } else {
+		n = 0;
 	    }
-	    else {
+	    if (n == 5) {
+		n = 8;
+		obj = ((obj->next)->next)->next;
+	    }
+	    break;
+
+	case SEL_BUTTON:
+ 	    if (cancelbutton) {
+		cancel = TRUE, quit = TRUE;
+	    } else {
 		if (verifySettings())
 		    quit = TRUE;
 	    }
 	    break;
 
 	case SEL_CR:
-	case SEL_TAB:
 	    if (strcmp(old_iface, iface)) {
-	      n_iface=0;
-	      while(strcmp(iface, iface_names[n_iface]) &&
-		    iface_names[n_iface])
-		n_iface++;
-	      
-	      if (iface_names[n_iface]) {
-		msgFatal("Erk - run off the end of the list of interfaces!");
-		exit(1);
-	      }
-
-	      strcpy(ipaddr, 
-	      
-	      strcpy(old_iface, iface);
+		/* First, find the old value */
+		n_iface = 0;
+		while (strcmp(old_iface, iface_names[n_iface]) &&
+		       (iface_names[n_iface] != NULL))
+		    ++n_iface;
+		
+		if (iface_names[n_iface] == NULL)
+		    msgFatal("Erk - run off the end of the list of interfaces!");
+		strcpy(if_list[n_iface].ipaddr, ipaddr);
+		strcpy(if_list[n_iface].netmask, netmask);
+		strcpy(if_list[n_iface].extras, extras);
+		
+		/* Now go find the new location */
+		n_iface = 0;
+		while (strcmp(iface, iface_names[n_iface]) &&
+		       (iface_names[n_iface] != NULL))
+		    ++n_iface;
+		if (iface_names[n_iface] == NULL)
+		    msgFatal("Erk - run off the end of the list of interfaces!");
+		strcpy(ipaddr, if_list[n_iface].ipaddr);
+		strcpy(netmask, if_list[n_iface].netmask);
+		strcpy(extras, if_list[n_iface].extras);
+		
+		RefreshStringObj(layout[5].obj);
+		RefreshStringObj(layout[6].obj);
+		RefreshStringObj(layout[7].obj);
+		
+		strcpy(old_iface, iface);
 	    }
 
-	    if (n < max)
+	    if (n == 7) {
+		n = 4;
+		obj = (((first->next)->next)->next)->next;
+	    } else if (n < max)
 		++n;
 	    else
 		n = 0;
@@ -356,6 +390,7 @@ tcpOpenDialog(char *str)
 	if (n == 1) {
 	    if ((tmp = index(hostname, '.')) != NULL) {
 		strncpy(domainname, tmp + 1, strlen(tmp + 1));
+		domainname[strlen(tmp+1)] = '\0';
 		RefreshStringObj(layout[1].obj);
 	    }
 	}
