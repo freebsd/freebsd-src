@@ -1,5 +1,5 @@
 .ig
-Copyright (C) 1994-2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1994-2000, 2001, 2003 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -146,7 +146,7 @@ This program was written without the benefit of complete, official
 documentation on the tagged font metric format.
 It is therefore likely that it will fail to work on tfm files that are
 dissimilar to those for the internal fonts on the Laserjet 4,
-with which it was tested:
+with which it was tested.
 .LP
 TrueType tfm files are not supported.
 .SH "SEE ALSO"

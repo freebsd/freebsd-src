@@ -40,10 +40,10 @@ better into the groff package.
 
   . Used error() and fatal() from libgroff for all source files.
 
-  . Renamed *.c to *.cc; updates as needed for C++ (prototypes, proper
+  . Renamed *.c to *.cpp; updates as needed for C++ (prototypes, proper
     casts, standard header files etc).  Heavy formatting.
 
-  . main.cc:
+  . main.cpp:
 
       Using groff's default values instead of DEVDIR, DEFAULTDEV, PRINTER,
       TYPESETTER, and GREMLIB.

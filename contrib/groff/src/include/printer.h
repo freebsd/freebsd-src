@@ -2,7 +2,7 @@
 
 // <groff_src_dir>/src/include/printer.h
 
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    Written by James Clark (jjc@jclark.com)
@@ -30,10 +30,10 @@
 /* Description
 
    The class `printer' performs the postprocessing.  Each
-   postprocessor only need to implement a derived class of `printer' and
+   postprocessor only needs to implement a derived class of `printer' and
    a suitable function `make_printer' for the device-dependent tasks.
    Then the methods of class `printer' are called automatically by
-   `do_file()' in `input.cc'.
+   `do_file()' in `input.cpp'.
 */
 
 #include "color.h"
@@ -67,8 +67,8 @@ public:
 		      int *widthp = 0);
   void set_special_char(const char *nm, const environment *env,
 			int *widthp = 0);
-  void set_numbered_char(int n, const environment *env,
-			 int *widthp = 0);
+  virtual void set_numbered_char(int n, const environment *env,
+				 int *widthp = 0);
   int set_char_and_width(const char *nm, const environment *env,
 			 int *widthp, font **f);
   font *get_font_from_index(int fontno);
@@ -85,6 +85,8 @@ public:
 		       char type = 'p');
 protected:
   font_pointer_list *font_list;
+  font **font_table;
+  int nfonts;
 
   // information about named characters
   int is_char_named;
@@ -94,8 +96,6 @@ protected:
   int named_char_n;
 
 private:
-  font **font_table;
-  int nfonts;
   font *find_font(const char *);
   virtual void set_char(int index, font *f, const environment *env,
 			int w, const char *name) = 0;

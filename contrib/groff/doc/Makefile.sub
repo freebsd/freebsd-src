@@ -1,4 +1,4 @@
-# Copyright (C) 2002 Free Software Foundation, Inc.
+# Copyright (C) 2002, 2003 Free Software Foundation, Inc.
 #      Written by Werner Lemberg <wl@gnu.org>
 # 
 # This file is part of groff.
@@ -17,6 +17,10 @@
 # with groff; see the file COPYING.  If not, write to the Free Software
 # Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
+# These may be overridden if cross-compiling.
+GROFFBIN=$(top_builddir)/src/roff/groff/groff
+GROFF_BIN_PATH=`echo $(groff_bin_dirs) | sed -e 's|  *|:|g'`
+
 # Since info files are distributed within the groff package, no
 # autoconf test for the makeinfo binary is done.
 MAKEINFO=makeinfo
@@ -33,7 +37,6 @@ groff_bin_dirs=\
   $(top_builddir)/src/preproc/html \
   $(top_builddir)/src/devices/grops \
   $(top_builddir)/src/devices/grohtml
-groff_bin_path=`echo $(groff_bin_dirs) | sed -e 's|  *|:|g'`
 
 FFLAG=-F$(top_builddir)/font -F$(top_srcdir)/font
 TFLAG=-M$(top_builddir)/tmac -M$(top_srcdir)/tmac
@@ -41,10 +44,10 @@ TFLAG=-M$(top_builddir)/tmac -M$(top_srcdir)/tmac
 GROFF=\
   GROFF_COMMAND_PREFIX=''; \
   export GROFF_COMMAND_PREFIX; \
-  GROFF_BIN_PATH=$(groff_bin_path); \
+  GROFF_BIN_PATH=$(GROFF_BIN_PATH); \
   export GROFF_BIN_PATH; \
   sed -e "s;@VERSION@;$(version)$(revision);" $< \
-  | $(top_builddir)/src/roff/groff/groff $(TFLAG) $(FFLAG) -Upet -ww
+  | $(GROFFBIN) $(TFLAG) $(FFLAG) -Upet -ww
 
 DOCFILES=\
   meref.me \
@@ -122,7 +125,8 @@ groff: groff.texinfo
 	$(MAKEINFO) -I$(srcdir) $(srcdir)/groff.texinfo
 
 gnu.eps: gnu.xpm
-	xpmtoppm $(srcdir)/gnu.xpm | pnmdepth 15 | pnmtops -noturn -rle >$@
+	xpmtoppm $(srcdir)/gnu.xpm | pnmdepth 15 | \
+          $(pnmtops_nosetpage) -noturn -rle >$@
 gnu.png: gnu.xpm
 	xpmtoppm $(srcdir)/gnu.xpm | pnmdepth 15 | pnmtopng >$@
 

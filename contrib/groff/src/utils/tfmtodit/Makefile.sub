@@ -3,4 +3,4 @@ MAN1=tfmtodit.n
 XLIBS=$(LIBGROFF)
 MLIB=$(LIBM)
 OBJS=tfmtodit.$(OBJEXT)
-CCSRCS=$(srcdir)/tfmtodit.cc
+CCSRCS=$(srcdir)/tfmtodit.cpp

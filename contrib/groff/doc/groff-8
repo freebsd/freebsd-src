@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,432 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Warnings,  Prev: Debugging,  Up: Debugging
+
+Warnings
+--------
+
+   The warnings that can be given to `gtroff' are divided into the
+following categories.  The name associated with each warning is used by
+the `-w' and `-W' options; the number is used by the `warn' request and
+by the `.warn' register.
+
+`char'
+`1'
+     Non-existent glyphs.(1) (*note Warnings-Footnote-1::)  This is
+     enabled by default.
+
+`number'
+`2'
+     Invalid numeric expressions.  This is enabled by default.  *Note
+     Expressions::.
+
+`break'
+`4'
+     In fill mode, lines which could not be broken so that their length
+     was less than the line length.  This is enabled by default.
+
+`delim'
+`8'
+     Missing or mismatched closing delimiters.
+
+`el'
+`16'
+     Use of the `el' request with no matching `ie' request.  *Note
+     if-else::.
+
+`scale'
+`32'
+     Meaningless scaling indicators.
+
+`range'
+`64'
+     Out of range arguments.
+
+`syntax'
+`128'
+     Dubious syntax in numeric expressions.
+
+`di'
+`256'
+     Use of `di' or `da' without an argument when there is no current
+     diversion.
+
+`mac'
+`512'
+     Use of undefined strings, macros and diversions.  When an undefined
+     string, macro, or diversion is used, that string is automatically
+     defined as empty.  So, in most cases, at most one warning is given
+     for each name.
+
+`reg'
+`1024'
+     Use of undefined number registers.  When an undefined number
+     register is used, that register is automatically defined to have a
+     value of 0.  So, in most cases, at most one warning is given for
+     use of a particular name.
+
+`tab'
+`2048'
+     Use of a tab character where a number was expected.
+
+`right-brace'
+`4096'
+     Use of `\}' where a number was expected.
+
+`missing'
+`8192'
+     Requests that are missing non-optional arguments.
+
+`input'
+`16384'
+     Invalid input characters.
+
+`escape'
+`32768'
+     Unrecognized escape sequences.  When an unrecognized escape
+     sequence `\X' is encountered, the escape character is ignored, and
+     X is printed.
+
+`space'
+`65536'
+     Missing space between a request or macro and its argument.  This
+     warning is given when an undefined name longer than two characters
+     is encountered, and the first two characters of the name make a
+     defined name.  The request or macro is not invoked.  When this
+     warning is given, no macro is automatically defined.  This is
+     enabled by default.  This warning never occurs in compatibility
+     mode.
+
+`font'
+`131072'
+     Non-existent fonts.  This is enabled by default.
+
+`ig'
+`262144'
+     Invalid escapes in text ignored with the `ig' request.  These are
+     conditions that are errors when they do not occur in ignored text.
+
+`color'
+`524288'
+     Color related warnings.
+
+`all'
+     All warnings except `di', `mac' and `reg'.  It is intended that
+     this covers all warnings that are useful with traditional macro
+     packages.
+
+`w'
+     All warnings.
+
+
+File: groff,  Node: Warnings-Footnotes,  Up: Warnings
+
+   (1) `char' is a misnomer since it reports missing glyphs - there
+aren't missing input characters, only invalid ones.
+
+
+File: groff,  Node: Implementation Differences,  Prev: Debugging,  Up: gtroff Reference
+
+Implementation Differences
+==========================
+
+   GNU `troff' has a number of features which cause incompatibilities
+with documents written with old versions of `troff'.
+
+   Long names cause some incompatibilities.  UNIX `troff' interprets
+
+
+     .dsabcd
+
+as defining a string `ab' with contents `cd'.  Normally, GNU `troff'
+interprets this as a call of a macro named `dsabcd'.  Also UNIX `troff'
+interprets `\*[' or `\n[' as references to a string or number register
+called `['.  In GNU `troff', however, this is normally interpreted as
+the start of a long name.  In compatibility mode GNU `troff' interprets
+long names in the traditional way (which means that they are not
+recognized as names).
+
+ - Request: .cp [n]
+ - Request: .do cmd
+ - Register: \n[.C]
+     If N is missing or non-zero, turn on compatibility mode;
+     otherwise, turn it off.
+
+     The read-only number register `.C' is 1 if compatibility mode is
+     on, 0 otherwise.
+
+     Compatibility mode can be also turned on with the `-C' command line
+     option.
+
+     The `do' request turns off compatibility mode while executing its
+     arguments as a `gtroff' command.
+
+
+          .do fam T
+
+     executes the `fam' request when compatibility mode is enabled.
+
+     `gtroff' restores the previous compatibility setting before
+     interpreting any files sourced by the CMD.
+
+   Two other features are controlled by `-C'.  If not in compatibility
+mode, GNU `troff' preserves the input level in delimited arguments:
+
+
+     .ds xx '
+     \w'abc\*(xxdef'
+
+In compatibility mode, the string `72def'' is returned; without `-C'
+the resulting string is `168' (assuming a TTY output device).
+
+   Finally, the escapes `\f', `\H', `\m', `\M', `\R', `\s', and `\S'
+are transparent for recognizing the beginning of a line only in
+compatibility mode (this is a rather obscure feature).  For example,
+the code
+
+
+     .de xx
+     Hallo!
+     ..
+     \fB.xx\fP
+
+prints `Hallo!' in bold face if in compatibility mode, and `.xx' in
+bold face otherwise.
+
+   GNU `troff' does not allow the use of the escape sequences `\|',
+`\^', `\&', `\{', `\}', `\<SP>', `\'', `\`', `\-', `\_', `\!', `\%',
+and `\c' in names of strings, macros, diversions, number registers,
+fonts or environments; UNIX `troff' does.  The `\A' escape sequence
+(*note Identifiers::) may be helpful in avoiding use of these escape
+sequences in names.
+
+   Fractional point sizes cause one noteworthy incompatibility.  In
+UNIX `troff' the `ps' request ignores scale indicators and thus
+
+
+     .ps 10u
+
+sets the point size to 10 points, whereas in GNU `troff' it sets the
+point size to 10 scaled points.  *Note Fractional Type Sizes::, for
+more information.
+
+   In GNU `troff' there is a fundamental difference between
+(unformatted) input characters and (formatted) output glyphs.
+Everything that affects how a glyph is output is stored with the glyph
+node; once a glyph node has been constructed it is unaffected by any
+subsequent requests that are executed, including `bd', `cs', `tkf',
+`tr', or `fp' requests.  Normally glyphs are constructed from input
+characters at the moment immediately before the glyph is added to the
+current output line.  Macros, diversions and strings are all, in fact,
+the same type of object; they contain lists of input characters and
+glyph nodes in any combination.  A glyph node does not behave like an
+input character for the purposes of macro processing; it does not
+inherit any of the special properties that the input character from
+which it was constructed might have had.  For example,
+
+
+     .di x
+     \\\\
+     .br
+     .di
+     .x
+
+prints `\\' in GNU `troff'; each pair of input backslashes is turned
+into one output backslash and the resulting output backslashes are not
+interpreted as escape characters when they are reread.  UNIX `troff'
+would interpret them as escape characters when they were reread and
+would end up printing one `\'.  The correct way to obtain a printable
+backslash is to use the `\e' escape sequence: This always prints a
+single instance of the current escape character, regardless of whether
+or not it is used in a diversion; it also works in both GNU `troff' and
+UNIX `troff'.(1) (*note Implementation Differences-Footnote-1::)  To
+store, for some reason, an escape sequence in a diversion that will be
+interpreted when the diversion is reread, either use the traditional
+`\!' transparent output facility, or, if this is unsuitable, the new
+`\?' escape sequence.
+
+   *Note Diversions::, and *Note Gtroff Internals::, for more
+information.
+
+
+File: groff,  Node: Implementation Differences-Footnotes,  Up: Implementation Differences
+
+   (1) To be completely independent of the current escape character,
+use `\(rs' which represents a reverse solidus (backslash) glyph.
+
+
+File: groff,  Node: Preprocessors,  Next: Output Devices,  Prev: gtroff Reference,  Up: Top
+
+Preprocessors
+*************
+
+   This chapter describes all preprocessors that come with `groff' or
+which are freely available.
+
+* Menu:
+
+* geqn::
+* gtbl::
+* gpic::
+* ggrn::
+* grap::
+* grefer::
+* gsoelim::
+
+
+File: groff,  Node: geqn,  Next: gtbl,  Prev: Preprocessors,  Up: Preprocessors
+
+`geqn'
+======
+
+* Menu:
+
+* Invoking geqn::
+
+
+File: groff,  Node: Invoking geqn,  Prev: geqn,  Up: geqn
+
+Invoking `geqn'
+---------------
+
+
+File: groff,  Node: gtbl,  Next: gpic,  Prev: geqn,  Up: Preprocessors
+
+`gtbl'
+======
+
+* Menu:
+
+* Invoking gtbl::
+
+
+File: groff,  Node: Invoking gtbl,  Prev: gtbl,  Up: gtbl
+
+Invoking `gtbl'
+---------------
+
+
+File: groff,  Node: gpic,  Next: ggrn,  Prev: gtbl,  Up: Preprocessors
+
+`gpic'
+======
+
+* Menu:
+
+* Invoking gpic::
+
+
+File: groff,  Node: Invoking gpic,  Prev: gpic,  Up: gpic
+
+Invoking `gpic'
+---------------
+
+
+File: groff,  Node: ggrn,  Next: grap,  Prev: gpic,  Up: Preprocessors
+
+`ggrn'
+======
+
+* Menu:
+
+* Invoking ggrn::
+
+
+File: groff,  Node: Invoking ggrn,  Prev: ggrn,  Up: ggrn
+
+Invoking `ggrn'
+---------------
+
+
+File: groff,  Node: grap,  Next: grefer,  Prev: ggrn,  Up: Preprocessors
+
+`grap'
+======
+
+   A free implementation of `grap', written by Ted Faber, is available
+as an extra package from the following address:
+
+     `http://www.lunabase.org/~faber/Vault/software/grap/'
+
+
+File: groff,  Node: grefer,  Next: gsoelim,  Prev: grap,  Up: Preprocessors
+
+`grefer'
+========
+
+* Menu:
+
+* Invoking grefer::
+
+
+File: groff,  Node: Invoking grefer,  Prev: grefer,  Up: grefer
+
+Invoking `grefer'
+-----------------
+
+
+File: groff,  Node: gsoelim,  Prev: grefer,  Up: Preprocessors
+
+`gsoelim'
+=========
+
+* Menu:
+
+* Invoking gsoelim::
+
+
+File: groff,  Node: Invoking gsoelim,  Prev: gsoelim,  Up: gsoelim
+
+Invoking `gsoelim'
+------------------
+
+
+File: groff,  Node: Output Devices,  Next: File formats,  Prev: Preprocessors,  Up: Top
+
+Output Devices
+**************
+
+* Menu:
+
+* Special Characters::
+* grotty::
+* grops::
+* grodvi::
+* grolj4::
+* grolbp::
+* grohtml::
+* gxditview::
+
+
+File: groff,  Node: Special Characters,  Next: grotty,  Prev: Output Devices,  Up: Output Devices
+
+Special Characters
+==================
+
+   *Note Font Files::.
+
+
+File: groff,  Node: grotty,  Next: grops,  Prev: Special Characters,  Up: Output Devices
+
+`grotty'
+========
+
+* Menu:
+
+* Invoking grotty::
+
+
+File: groff,  Node: Invoking grotty,  Prev: grotty,  Up: grotty
+
+Invoking `grotty'
+-----------------
 
 
 File: groff,  Node: grops,  Next: grodvi,  Prev: grotty,  Up: Output Devices
@@ -215,7 +638,7 @@ File: groff,  Node: gtroff Output-Footnotes,  Up: gtroff Output
 
    (1) The parser and postprocessor for intermediate output can be
 found in the file
-`GROFF-SOURCE-DIR/src/libs/libdriver/input.cc'.
+`GROFF-SOURCE-DIR/src/libs/libdriver/input.cpp'.
 
 
 File: groff,  Node: Language Concepts,  Next: Command Reference,  Prev: gtroff Output,  Up: gtroff Output
@@ -446,6 +869,7 @@ string argument.
           Set color using the RGB color scheme, having the 3 color
           components RED, GREEN, and BLUE.
 
+
 `N N'
      Print glyph with index N (a non-negative integer) of the current
      font.  This command is a `gtroff' extension.
@@ -509,6 +933,7 @@ string argument.
      Informs about a paddable white space to increase readability.  The
      spacing itself must be performed explicitly by a move command.
 
+
 
 File: groff,  Node: Simple Commands-Footnotes,  Up: Simple Commands
 
@@ -542,9 +967,8 @@ called V1, V2, ..., VN stand for vertical distances where positive
 means down, negative up.  All these distances are offsets relative to
 the current location.
 
-   Unless indicated otherwise, each graphics command directly
-corresponds to a similar `gtroff' `\D' escape sequence.  *Note Drawing
-Requests::.
+   Each graphics command directly corresponds to a similar `gtroff'
+`\D' escape sequence.  *Note Drawing Requests::.
 
    Unknown `D' commands are assumed to be device-specific.  Its
 arguments are parsed as strings; the whole information is then sent to
@@ -625,6 +1049,7 @@ means a syntactical line break as defined above.
           Set fill color for solid drawing objects using the RGB color
           scheme, having the 3 color components RED, GREEN, and BLUE.
 
+
 `Df N<line break>'
      The argument N must be an integer in the range -32767 to 32767.
 
@@ -634,7 +1059,7 @@ means a syntactical line break as defined above.
           to solid black, and values in between to intermediate shades
           of gray; this is obsoleted by command `DFg'.
 
-    N < 0 or N < 1000
+    N < 0 or N > 1000
           Set the filling color to the color that is currently being
           used for the text and the outline, see command `m'.  For
           example, the command sequence
@@ -644,6 +1069,7 @@ means a syntactical line break as defined above.
                Df -1
 
           sets all colors to blue.
+
 
      No position changing.  This command is a `gtroff' extension.
 
@@ -674,6 +1100,7 @@ means a syntactical line break as defined above.
      the argument to the actual horizontal position, while the vertical
      position is not changed.  Although this doesn't make sense it is
      kept for compatibility.  This command is a `gtroff' extension.
+
 
 
 File: groff,  Node: Device Control Commands,  Next: Obsolete Command,  Prev: Graphics Commands,  Up: Command Reference
@@ -785,6 +1212,7 @@ syntactical line break (*note Separation::).
      escape sequence `\X'.  The line-continuing feature is a `gtroff'
      extension.
 
+
 
 File: groff,  Node: Obsolete Command,  Prev: Device Control Commands,  Up: Command Reference
 
@@ -807,6 +1235,7 @@ DDG
      separating space is obligatory.  In AT&T `troff', large clusters
      of these and other commands are used, mostly without spaces; this
      made such output almost unreadable.
+
 
    For modern high-resolution devices, this command does not make sense
 because the width of the glyphs can become much larger than two decimal
@@ -917,6 +1346,7 @@ AT&T `troff' output
      Due to the obsolete jump-and-write command, the text clusters in
      the AT&T `troff' output are almost unreadable.
 
+
 
 File: groff,  Node: Output Language Compatibility,  Prev: Intermediate Output Examples,  Up: gtroff Output
 
@@ -983,286 +1413,4 @@ and for each font F a font file called `F'.
 File: groff,  Node: Font Files-Footnotes,  Up: Font Files
 
    (1) Plan 9 `troff' has also abandoned the binary format.
-
-
-File: groff,  Node: DESC File Format,  Next: Font File Format,  Prev: Font Files,  Up: Font Files
-
-`DESC' File Format
-------------------
-
-   The `DESC' file can contain the following types of line.  Except for
-the `charset' keyword which must comes last (if at all), the order of
-the lines is not important.
-
-`res N'
-     There are N machine units per inch.
-
-`hor N'
-     The horizontal resolution is N machine units.
-
-`vert N'
-     The vertical resolution is N machine units.
-
-`sizescale N'
-     The scale factor for point sizes.  By default this has a value
-     of 1.  One scaled point is equal to one point/N.  The arguments to
-     the `unitwidth' and `sizes' commands are given in scaled points.
-     *Note Fractional Type Sizes::, for more information.
-
-`unitwidth N'
-     Quantities in the font files are given in machine units for fonts
-     whose point size is N scaled points.
-
-`prepro PROGRAM'
-     Call PROGRAM as a preprocessor.  Currently, this keyword is used
-     by `groff' with option `-Thtml' only.
-
-`postpro PROGRAM'
-     Call PROGRAM as a postprocessor.  For example, the line
-
-
-          postpro grodvi
-
-     in the file `devdvi/DESC' makes `groff' call `grodvi' if option
-     `-Tdvi' is given (and `-Z' isn't used).
-
-`tcommand'
-     This means that the postprocessor can handle the `t' and `u'
-     intermediate output commands.
-
-`sizes S1 S2 ... SN 0'
-     This means that the device has fonts at S1, S2, ...  SN scaled
-     points.  The list of sizes must be terminated by 0 (this is digit
-     zero).  Each SI can also be a range of sizes M-N.  The list can
-     extend over more than one line.
-
-`styles S1 S2 ... SM'
-     The first M font positions are associated with styles S1 ... SM.
-
-`fonts N F1 F2 F3 ... FN'
-     Fonts F1 ... FN are mounted in the font positions M+1, ..., M+N
-     where M is the number of styles.  This command may extend over
-     more than one line.  A font name of 0 means no font is mounted on
-     the corresponding font position.
-
-`family FAM'
-     The default font family is FAM.
-
-`use_charnames_in_special'
-     This command indicates that `gtroff' should encode special
-     characters inside special commands.  Currently, this is only used
-     by the HTML output device.  *Note Postprocessor Access::.
-
-`papersize STRING ...'
-     Select a paper size.  Valid values for STRING are the ISO paper
-     types `A0'-`A7', `B0'-`B7', `C0'-`C7', `D0'-`D7', `DL', and the US
-     paper types `letter', `legal', `tabloid', `ledger', `statement',
-     `executive', `com10', and `monarch'.  Case is not significant for
-     STRING if it holds predefined paper types.  Alternatively, STRING
-     can be a file name (e.g. `/etc/papersize'); if the file can be
-     opened, `groff' reads the first line and tests for the above paper
-     sizes.  Finally, STRING can be a custom paper size in the format
-     `LENGTH,WIDTH' (no spaces before and after the comma).  Both
-     LENGTH and WIDTH must have a unit appended; valid values are `i'
-     for inches, `C' for centimeters, `p' for points, and `P' for
-     picas.  Example: `12c,235p'.  An argument which starts with a
-     digit is always treated as a custom paper format.  `papersize'
-     sets both the vertical and horizontal dimension of the output
-     medium.
-
-     More than one argument can be specified; `groff' scans from left to
-     right and uses the first valid paper specification.
-
-`pass_filenames'
-     Tell `gtroff' to emit the name of the source file currently being
-     processed.  This is achieved by the intermediate output command
-     `F'.  Currently, this is only used by the HTML output device.
-
-`print PROGRAM'
-     Use PROGRAM as a spooler program for printing.  If omitted, the
-     `-l' and `-L' options of `groff' are ignored.
-
-`charset'
-     This line and everything following in the file are ignored.  It is
-     allowed for the sake of backwards compatibility.
-
-   The `res', `unitwidth', `fonts', and `sizes' lines are mandatory.
-Other commands are ignored by `gtroff' but may be used by
-postprocessors to store arbitrary information about the device in the
-`DESC' file.
-
-   Here a list of obsolete keywords which are recognized by `groff' but
-completely ignored: `spare1', `spare2', `biggestfont'.
-
-
-File: groff,  Node: Font File Format,  Prev: DESC File Format,  Up: Font Files
-
-Font File Format
-----------------
-
-   A "font file", also (and probably better) called a "font description
-file", has two sections.  The first section is a sequence of lines each
-containing a sequence of blank delimited words; the first word in the
-line is a key, and subsequent words give a value for that key.
-
-`name F'
-     The name of the font is F.
-
-`spacewidth N'
-     The normal width of a space is N.
-
-`slant N'
-     The glyphs of the font have a slant of N degrees.  (Positive means
-     forward.)
-
-`ligatures LIG1 LIG2 ... LIGN [0]'
-     Glyphs LIG1, LIG2, ..., LIGN are ligatures; possible ligatures are
-     `ff', `fi', `fl', `ffi' and `ffl'.  For backwards compatibility,
-     the list of ligatures may be terminated with a 0.  The list of
-     ligatures may not extend over more than one line.
-
-`special'
-     The font is "special"; this means that when a glyph is requested
-     that is not present in the current font, it is searched for in any
-     special fonts that are mounted.
-
-   Other commands are ignored by `gtroff' but may be used by
-postprocessors to store arbitrary information about the font in the font
-file.
-
-   The first section can contain comments which start with the `#'
-character and extend to the end of a line.
-
-   The second section contains one or two subsections.  It must contain
-a `charset' subsection and it may also contain a `kernpairs'
-subsection.  These subsections can appear in any order.  Each
-subsection starts with a word on a line by itself.
-
-   The word `charset' starts the character set subsection.(1) (*note
-Font File Format-Footnote-1::)  The `charset' line is followed by a
-sequence of lines.  Each line gives information for one glyph.  A line
-comprises a number of fields separated by blanks or tabs.  The format is
-
-     NAME METRICS TYPE CODE [ENTITY-NAME] [`--' COMMENT]
-
-NAME identifies the glyph name(2) (*note Font File Format-Footnote-2::):
-If NAME is a single character C then it corresponds to the `gtroff'
-input character C; if it is of the form `\C' where C is a single
-character, then it corresponds to the special character `\[C]';
-otherwise it corresponds to the special character `\[NAME]'.  If it is
-exactly two characters XX it can be entered as `\(XX'.  Note that
-single-letter special characters can't be accessed as `\C'; the only
-exception is `\-' which is identical to `\[-]'.
-
-   `gtroff' supports 8-bit input characters; however some utilities
-have difficulties with eight-bit characters.  For this reason, there is
-a convention that the entity name `charN' is equivalent to the single
-input character whose code is N.  For example, `char163' would be
-equivalent to the character with code 163 which is the pounds sterling
-sign in the ISO Latin-1 character set.  You shouldn't use `charN'
-entities in font description files since they are related to input, not
-output.  Otherwise, you get hard-coded connections between input and
-output encoding which prevents use of different (input) character sets.
-
-   The name `---' is special and indicates that the glyph is unnamed;
-such glyphs can only be used by means of the `\N' escape sequence in
-`gtroff'.
-
-   The TYPE field gives the glyph type:
-
-`1'
-     the glyph has a descender, for example, `p';
-
-`2'
-     the glyph has an ascender, for example, `b';
-
-`3'
-     the glyph has both an ascender and a descender, for example, `('.
-
-   The CODE field gives the code which the postprocessor uses to print
-the glyph.  The glyph can also be input to `gtroff' using this code by
-means of the `\N' escape sequence.  CODE can be any integer.  If it
-starts with `0' it is interpreted as octal; if it starts with `0x' or
-`0X' it is interpreted as hexadecimal.  Note, however, that the `\N'
-escape sequence only accepts a decimal integer.
-
-   The ENTITY-NAME field gives an ASCII string identifying the glyph
-which the postprocessor uses to print the `gtroff' glyph NAME.  This
-field is optional and has been introduced so that the HTML device
-driver can encode its character set.  For example, the glyph `\[Po]' is
-represented as `&pound;' in HTML 4.0.
-
-   Anything on the line after the ENTITY-NAME field resp. after `--'
-will be ignored.
-
-   The METRICS field has the form:
-
-     WIDTH[`,'HEIGHT[`,'DEPTH[`,'ITALIC-CORRECTION
-       [`,'LEFT-ITALIC-CORRECTION[`,'SUBSCRIPT-CORRECTION]]]]]
-
-There must not be any spaces between these subfields (it has been split
-here into two lines for better legibility only).  Missing subfields are
-assumed to be 0.  The subfields are all decimal integers.  Since there
-is no associated binary format, these values are not required to fit
-into a variable of type `char' as they are in `ditroff'.  The WIDTH
-subfield gives the width of the glyph.  The HEIGHT subfield gives the
-height of the glyph (upwards is positive); if a glyph does not extend
-above the baseline, it should be given a zero height, rather than a
-negative height.  The DEPTH subfield gives the depth of the glyph, that
-is, the distance from the baseline to the lowest point below the
-baseline to which the glyph extends (downwards is positive); if a glyph
-does not extend below the baseline, it should be given a zero depth,
-rather than a negative depth.  The ITALIC-CORRECTION subfield gives the
-amount of space that should be added after the glyph when it is
-immediately to be followed by a glyph from a roman font.  The
-LEFT-ITALIC-CORRECTION subfield gives the amount of space that should
-be added before the glyph when it is immediately to be preceded by a
-glyph from a roman font.  The SUBSCRIPT-CORRECTION gives the amount of
-space that should be added after a glyph before adding a subscript.
-This should be less than the italic correction.
-
-   A line in the `charset' section can also have the format
-
-
-     NAME "
-
-This indicates that NAME is just another name for the glyph mentioned
-in the preceding line.
-
-   The word `kernpairs' starts the kernpairs section.  This contains a
-sequence of lines of the form:
-
-
-     C1 C2 N
-
-This means that when glyph C1 appears next to glyph C2 the space
-between them should be increased by N.  Most entries in the kernpairs
-section have a negative value for N.
-
-
-File: groff,  Node: Font File Format-Footnotes,  Up: Font File Format
-
-   (1) This keyword is misnamed since it starts a list of ordered
-glyphs, not characters.
-
-   (2) The distinction between input, characters, and output, glyphs,
-is not clearly separated in the terminology of `groff'; for example,
-the `char' request should be called `glyph' since it defines an output
-entity.
-
-
-File: groff,  Node: Installation,  Next: Copying This Manual,  Prev: File formats,  Up: Top
-
-Installation
-************
-
-
-File: groff,  Node: Copying This Manual,  Next: Request Index,  Prev: Installation,  Up: Top
-
-Copying This Manual
-*******************
-
-* Menu:
-
-* GNU Free Documentation License::  License for copying this manual.
 

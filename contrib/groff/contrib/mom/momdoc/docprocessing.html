@@ -675,7 +675,8 @@ She also puts the same thing in the middle of
 <p>
 If you're not using <strong>DOCTYPE CHAPTER</strong>, the macro serves
 no purpose and <strong>mom</strong> ignores it.
-<a name="CHAPTER_STRING"></a>
+<p>
+<a name="CHAPTER_STRING"><strong>CHAPTER_STRING<strong></a>
 <p>
 If you're not writing in English, you can ask <strong>mom</strong>
 to use the word for chapter in your own language by telling
@@ -688,8 +689,42 @@ like this:
 
 You can also use <strong>CHAPTER_STRING</strong> if you want
 &quot;CHAPTER&quot; instead of &quot;Chapter&quot; in the doc- and
-page-headers.  (See also the
-<a href="#CHAPTER_NOTE">Special Note on CHAPTER</a>.)
+page-headers.
+<br>
+
+<!---CHAPTER_TITLE--->
+
+<hr width="66%" align="left">
+<p>
+<a name="CHAPTER_TITLE"></a>
+Macro: <strong>CHAPTER_TITLE</strong> <var>&quot;&lt;chapter title&gt;&quot;</var>
+
+<p>
+If, either in addition to or instead of &quot;Chapter #&quot; appearing
+at the top of chapters, you want your chapter to have a title, use
+<strong>CHAPTER_TITLE</strong> with your title enclosed in
+double-quotes, like this:
+<p>
+<pre>
+	.CHAPTER_TITLE "The DMCA Nazis"
+</pre>
+
+If you've used
+<a href="#CHAPTER">CHAPTER</a> to give the chapter a number,
+&quot;Chapter #&quot; and the title will appear at the top of the
+chapter, like this:
+<p>
+<pre>
+                       Chapter 1
+                    The DMCA Nazis
+</pre>
+
+In such a case, by default, only the chapter's title will appear in the
+page headers, not &quot;Chapter #&quot;.
+<p>
+If you omit <strong>CHAPTER</strong> when setting up your reference
+macros, only the title will appear, both at the top of page one and in
+subsequent page headers.
 <br>
 
 <!---DRAFT--->
@@ -710,13 +745,16 @@ default), <strong>mom</strong> ignores <strong>DRAFT</strong>.
 <strong>Mom</strong> prints the draft number beside the word
 &quot;Draft&quot; in the middle part of
 <a href="definitions.html#TERMS_HEADER">page headers</a>.
+<p>
+<a name="DRAFT_STRING"><strong>DRAFT STRING<strong></a>
+<p>
 If you're not writing in English, you can ask <strong>mom</strong>
 to use the word for draft in your own language by telling
 her what it is with the <strong>DRAFT_STRING</strong> macro,
 like this:
 <p>
 <pre>
-	.DRAFT_STRING "Ébauche"
+	.DRAFT_STRING "Jet"
 </pre>
 
 <!---REVISION--->
@@ -738,6 +776,9 @@ accepts a
 <strong>Mom</strong> prints the revision number beside the shortform
 &quot;Rev.&quot; in the middle part of
 <a href="definitions.html#TERMS_HEADER">page headers</a>.
+<p>
+<a name="REVISION_STRING"><strong>REVISION STRING</strong></a>
+<p>
 If you're not writing in English, you can ask <strong>mom</strong>
 to use the word for revision, or a shortform therof in your own language
 by telling her what it is with the <strong>REVISION_STRING</strong>
@@ -807,23 +848,29 @@ for how <strong>mom</strong>'s outputs each part of the page header.)
 <p>
 <strong>CHAPTER</strong> prints &quot;Chapter #&quot; in place of a
 <a href="definitions.html#TERMS_DOCHEADER">docheader</a>
-(# is what you gave to
-<a href="#CHAPTER">CHAPTER</a>),
-or, if you omit the <strong>CHAPTER</strong> macro and give the chapter
-a title with
-<a href="#CHAPTER_STRING">CHAPTER_STRING</a>,
-<strong>mom</strong> prints the chapter title.  Page headers contain the
-author, the title of the book (which you gave with
+(# is what you gave to the
+<a href="#REFERENCE_MACROS">reference macro</a>
+<a href="#CHAPTER">CHAPTER</a>).
+If you give the chapter a title with
+<a href="#CHAPTER_TITLE">CHAPTER TITLE</a>,
+<strong>mom</strong> prints &quot;Chapter #&quot; and the title
+underneath.  If you omit the <strong>CHAPTER</strong> reference
+macro but supply a
+<a href="#CHAPTER_TITLE">CHAPTER_TITLE</a>,
+<strong>mom</strong> prints only the chapter title. <em>(*For
+backward compatability with pre-1.1.5 versions of</em>
+<strong>mom</strong><em>, you can also supply a chapter title by
+ommitting the</em> <strong>CHAPTER</strong> <em>reference macro and
+supplying a chapter title with
+<a href="#CHAPTER_STRING">CHAPTER_STRING</a>.
+<p>
+The page headers in <strong>DOCTYPE CHAPTER</a> contain the author,
+the title of the book (which you gave with
 <a href="#TITLE">TITLE</a>),
 and &quot;Chapter #&quot; (or the chapter title).  See
 <a href="headfootpage.html#HEADER_STYLE">Default Specs for Headers</a>
 for <strong>mom</strong>'s default type parameters for each part of
 the page header.
-<p>
-<em>*See the
-<a href="#CHAPTER_NOTE">Special Note on CHAPTER</a>
-below for how you can make DOCTYPE CHAPTER print something
-other than &quot;Chapter #&quot; as its docheader.</em>
 <p>
 <strong>NAMED</strong> takes an additional argument: a name
 for this particular kind of document  (e.g. outline, synopsis,
@@ -841,35 +888,6 @@ for how <strong>mom</strong>'s outputs each part of the page header.)
 the section
 <a href="letters.html#INTRO">Writing Letters</a>
 for instructions on using <strong>mom</strong> to format letters.
-
-<a name="CHAPTER_NOTE"><h3><u>Special Note on CHAPTER</u></h3></a>
-In novels, new chapters are generally (but not always)
-introduced by &quot;Chapter #&quot;.  Other types of documents
-(reports and so on) often require specific titles for chapters.
-If your document is of this latter type, use <strong>DOCTYPE
-CHAPTER</strong> in the following way:
-<br>
-<ol>
-	<li>Omit the
-		<a href="#REFERENCE_MACROS">reference macro</a>
-		<a href="#CHAPTER">CHAPTER</a>
-	<li>Invoke
-		<a href="#CHAPTER_STRING">.CHAPTER_STRING</a>
-		with the title you'd like the chapter to have (enclosed
-		in double-quotes, of course).
-</ol>
-<p>
-Here's a recipe for setting up a chapter entitled &quot;The DMCA
-Nazis&quot;.
-<pre>
-	.AUTHOR &quot;Outraged Hacker&quot;
-	.TITLE  &quot;Limiting Copyright&quot;
-	\#
-	.DOCTYPE    CHAPTER
-	.PRINTSTYLE TYPESET
-	\#
-	.CHAPTER_STRING &quot;The DMCA Nazis&quot;
-</pre>
 <br>
 
 <!---PRINTSTYLE--->
@@ -1123,7 +1141,7 @@ adjusted to fill pages fully to the bottom margin.
 </ul>
 
 <hr width="66%" align="left">
-<a name="TYPE_BEFORE_START"><h2><u>Using typesetting macros prior to START</u></h2></a>
+<a name="TYPE_BEFORE_START"><h2><u>Using the typesetting macros prior to START</u></h2></a>
 
 When used before the
 <a href="#START">START</a>
@@ -1306,6 +1324,15 @@ compensate:
 	(Document type)   bold italic, underscored, 3 points larger than running text
 </pre>
 
+If the
+<a href="#DOCTYPE">DOCTYPE</a>
+is CHAPTER,
+<pre>
+	   Chapter #       bold, 4 points larger than running text
+	 Chapter Title     bold italic, 4 points larger than running text
+</pre>
+
+<p>
 The
 <a href="definitions.html#TERMS_FAMILY">family</a>
 is the prevailing family of the whole document.
@@ -1313,7 +1340,7 @@ is the prevailing family of the whole document.
 <h3><u>The docheader macros to:</u></h3>
 <ol>
 	<li><a href="#CHANGE_START">Change the starting position</a>
-	<li><a href="#ADJUST_LEADING">Adjust the leading</a>
+	<li><a href="#ADJUST_LEADING">Adjust the docheader leading</a>
 	<li><a href="#CHANGE_FAMILY">Change the family of docheader elements</a>
 	<li><a href="#CHANGE_FONT">Change the font of docheader elements</a>
 	<li><a href="#CHANGE_SIZE">Adjust the size of docheader elements</a>
@@ -1357,9 +1384,14 @@ to place them where you want.
 <a name="ADJUST_LEADING"><h3><u>2. Adjust the leading</u></h3></a>
 The
 <a href="definitions.html#TERMS_LEADING">leading</a> of
-docheaders is the same as running text.  If you'd like a
-different leading, say, 2 points more than the lead of running
-text, use:
+docheaders is the same as running text (except when
+<a href="#DOCTYPE">DOCTYPE</a>
+is <strong>CHAPTER</a> <em>and both</em> a chapter number and a
+chapter title have been supplied, in which case the default is 4 points
+more than running text.)
+<p>
+If you'd like your docheaders to have a different leading, say, 2
+points more than the lead of running text, use:
 <p>
 <pre>
 	.DOCHEADER_LEAD +2p
@@ -1378,6 +1410,7 @@ of each docheader element separately:
 <p>
 <ul>
 <li><strong>TITLE_FAMILY</strong> <var>&lt;family&gt;</var>
+<li><strong>CHAPTER_TITLE_FAMILY</strong> <var>&lt;family&gt;</var>
 <li><strong>SUBTITLE_FAMILY</strong> <var>&lt;family&gt;</var>
 <li><strong>AUTHOR_FAMILY</strong> <var>&lt;family&gt;</var>
 <li><strong>DOCTYPE_FAMILY</strong> <var>&lt;family&gt;</var> (if
@@ -1393,6 +1426,7 @@ of each docheader element separately:
 <p>
 <ul>
 <li><strong>TITLE_FONT</strong> <var>R | B | I | BI</var>
+<li><strong>CHAPTER_TITLE_FONT</strong> <var>R | B | I | BI</var>
 <li><strong>SUBTITLE_FONT</strong> <var>R | B | I | BI</var>
 <li><strong>AUTHOR_FONT</strong> <var>R | B | I | BI</var>
 <li><strong>DOCTYPE_FONT</strong> <var>R | B | I | BI</var> (if
@@ -1410,8 +1444,8 @@ The following macros let you adjust the point size of each docheader
 element separately.
 <p>
 <strong>Mom</strong> calculates the point size
-of docheader elements from the point size of paragraphs, so you
-must prepend a + or - sign to the argument.  Points is
+of docheader elements from the point size of paragraphs in running
+text, so you must prepend a + or - sign to the argument.  Points is
 assumed as the
 <a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>,
 so there's no need to append a unit to the argument.  Fractional point
@@ -1421,6 +1455,9 @@ sizes are allowed.
 <li><strong>TITLE_SIZE</strong> <var>&lt;+/-points&gt;</var>
 <br>
 default = +3.5 (+4 if docheader title is &quot;Chapter #&quot;)
+<li><strong>CHAPTER_TITLE_SIZE</strong> <var>&lt;+/-points&gt;</var>
+<br>
+default = +4
 <li><strong>SUBTITLE_SIZE</strong> <var>&lt;+/-points&gt;</var>
 <br>
 default = +0
@@ -1436,6 +1473,7 @@ default = +3
 Simply pass the appropriate macro the size adjustment you want.
 
 <a name="CHANGE_ATTRIBUTE"><h3><u>6. Change the attribution string (&quot;by&quot;)</u></h3></a>
+<p>
 If you're not writing in English, you can change what
 <strong>mom</strong> prints where &quot;by&quot; appears in
 docheaders.  For example,
@@ -1582,7 +1620,7 @@ or (god help us) an epigraph, you must do the following in order for
 <!========================================================================>
 
 <a name="START_MACRO">
-<h2><u>Initiate document processing</u></h2>
+<h2><u>Start document processing</u></h2>
 </a>
 
 In order to use <strong>mom</strong>'s document element macros

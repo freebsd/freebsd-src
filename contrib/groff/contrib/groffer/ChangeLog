@@ -1,3 +1,100 @@
+2003-01-22  Bernd Warken  <bwarken@mayn.de>
+	________________________________________________________________
+	* release of groffer 0.9.4
+
+	* groffer.sh: corrections for some restrictive shells
+	- Possible exit codes in actual `ash' are between 0 and 63.  To
+	handle even deeper restrictions, use 7 as maximal code instead
+	of 255 as replacement for error -1.
+	- Remove variables $_BAD2 and $_BAD3.
+	- Replace `trap' argument `EXIT' by 0 and write new fuctions
+	`trap_clean' and `trap_set' to handle the restrictions of `trap'
+	for some shells.
+	- Correct wrong $MANPATH to $_MAN_PATH in function
+	`man_do_filespec'.
+	- Test existence of directory before deleting it in the
+	`clean_up' definitions.
+	- Correct help output in `usage' (called by `--help').
+	
+	* TODO:
+	Remove mention of `shoop' and `apropos'.
+
+2002-10-21  Bernd Warken  <bwarken@mayn.de>
+	________________________________________________________________
+	* release of groffer 0.9.3
+
+	* groffer.sh: new temporary subdirectory
+	- Generate temporary subdirectory for storing temporary files
+	with better names in future groffer versions (name:
+	"groffer$$" in usual temporary directory).
+	- Use `umask 000' for temporary files to allow cleaning up
+	for everyone after a system break.
+	- Change both clean_up() functions (for normal shell and
+	for main_display() subshell) to handle the new subdirectory.
+	- clean_up_secondary() and $_TMP_PREFIX are unnecessary now, so
+	they were removed.
+
+	* Makefile.sub: `sed' commands for "groffer:"
+	- Remove "@g@" entry (not used in "groffer.sh").
+	- Add global replace for "@BINDIR@" and "@VERSION@" for future
+	usage.
+
+	* TODO: think about...
+	- writing part of groffer in C/C++.
+	- handling several files with different macro packages.
+	
+2002-10-17  Bernd Warken  <bwarken@mayn.de>
+	________________________________________________________________
+	* fixes of groffer 0.9.2
+
+	* groffer.sh:
+	Terminate main_parse_MANOPT() if $MANOPT is empty or consists
+	of space characters only.
+
+	* groffer.man: some fixes in "GROFFER OPTIONS"
+	- New macro ".Header_CB" for CB font in .TP headers; used for
+	definition of variables in option --mode.
+	- Fix some option references to refer to long options.
+	
+	* README:
+	New file for general information on the groffer source; it is
+	not installed.
+	
+2002-10-14  Bernd Warken  <bwarken@mayn.de>
+
+	* Makefile.sub:
+	add replacement "@BINDIR@" to "$(bindir)" for "groffer:"
+
+	* groffer.sh:
+	Define $_this as "@BINDIR@/${_PROGRAM_NAME}" to save the right
+	installation position of groffer for the special shell calling.
+
+	* groffer.man:
+	Remove double definition of filespec parameters.
+
+2002-10-13  Bernd Warken  <bwarken@mayn.de>
+	________________________________________________________________
+	* release of groffer 0.9.2
+
+	* groffer.sh: fixes
+	- Fix some 'sed' functions: two in func_stack_dump(), one in
+	  base_name(), add 'sed' command in list_from_cmdline().
+	- Finish main_parse_MANOPT() if $MANOPT is empty.
+	- Sort $_OPTS_GROFF_SHORT_NA like groff short options (but
+	  unchanged).
+	- Fix some comments.
+
+	* groffer.man: make it more readable (but no additions)
+	- A shortened section "SYNOPSIS" is followed by a simplified
+	  section "DESCRIPTION".
+	- The options from "SYNOPSIS" go to new section "OPTION
+	  OVERVIEW" with all groffer options in a single subsection.
+	- The details of all groffer options are described in section
+	  "GROFFER OPTIONS".
+	- New macro for file names ".File_name".
+	- "Option Parsing" is moved to section "COMPATIBILITY".
+	- Fix some "EXAMPLES".
+	
 2002-09-30  Bernd Warken  <bwarken@mayn.de>
 	________________________________________________________________
 	* release of groffer 0.9.1

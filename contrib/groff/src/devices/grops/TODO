@@ -1,7 +1,5 @@
 Read PFB files directly.
 
-Generate %%DocumentMedia comment.
-
 Generate %%For comment.
 
 Generate %%Title comment.

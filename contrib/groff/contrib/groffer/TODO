@@ -2,9 +2,9 @@
 
 # File position: <groff-source>/contrib/groffer/TODO
 
-# Last update: 30 Sep 2002
+# Last update: 22 Jan 2003
 
-# Copyright (C) 2001,2002 Free Software Foundation, Inc.
+# Copyright (C) 2001,2002,2003 Free Software Foundation, Inc.
 # Written by Bernd Warken <bwarken@mayn.de>
 
 # This file is part of groff.
@@ -32,9 +32,10 @@ Optimization:
 - Optimize man path determination in manpath_add_lang_sys() for speed
   by building-up the man path only by and by as far as necessary
   (not trivial).
+- To increase the running speed write part of the groffer shell script
+  in C/C++.
 
 Features:
-- Consider using the `shoop' package (OOP for `sh').
 - Revise option handling of `grog'.
 - `gxditview' needs a complete shower.
 
@@ -42,9 +43,11 @@ Revision:
 - Should there be a native implementation for `--apropos'?
 - Revise the `--all' feature to better reflect GNU man.
 - The debug function stack is buggy (no effect on normal operation).
+- The actual `groff' and `grog' do not support file arguments each
+of which has a different macro package (except `man' and `doc').  So
+`roffer' should create several display files for such arguments.
 
 Documentation:
-- Write a README file.
 - Improve the documentation of the search algorithm for man pages in
   both the groffer script and the man page `groffer.man'.
 - In `groff.man', add more documentation for parts that were taken over

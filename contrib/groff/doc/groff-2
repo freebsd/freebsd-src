@@ -1,8 +1,9 @@
-This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+This is groff, produced by makeinfo version 4.3d from ./groff.texinfo.
 
-This manual documents GNU `troff' version 1.18.
+This manual documents GNU `troff' version 1.19.
 
-   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1994-2000, 2001, 2002, 2003 Free Software Foundation,
+Inc.
 
      Permission is granted to copy, distribute and/or modify this
      document under the terms of the GNU Free Documentation License,
@@ -16,10 +17,82 @@ This manual documents GNU `troff' version 1.18.
      modify this GNU Manual, like GNU software.  Copies published by
      the Free Software Foundation raise funds for GNU development."
    
-INFO-DIR-SECTION Miscellaneous
+INFO-DIR-SECTION Typesetting
 START-INFO-DIR-ENTRY
 * Groff: (groff).               The GNU troff document formatting system.
 END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Man options,  Next: Man usage,  Prev: man,  Up: man
+
+Options
+-------
+
+   The command line format for using the `man' macros with `groff' is:
+
+
+     groff -m man [ -rLL=LENGTH ] [ -rLT=LENGTH ] [ -rFT=DIST ]
+           [ -rcR=1 ] [ -rC1 ] [ -rD1 ] [-rHY=FLAGS ]
+           [ -rPNNN ] [ -rSXX ] [ -rXNNN ]
+           [ -rIN=LENGTH ] [ -rSN=LENGTH ] [ FILES... ]
+
+It is possible to use `-man' instead of `-m man'.
+
+`-rcR=1'
+     This option (the default if a TTY output device is used) creates a
+     single, very long page instead of multiple pages.  Use `-rcR=0' to
+     disable it.
+
+`-rC1'
+     If more than one manual page is given on the command line, number
+     the pages continuously, rather than starting each at 1.
+
+`-rD1'
+     Double-sided printing.  Footers for even and odd pages are
+     formatted differently.
+
+`-rFT=DIST'
+     Set the position of the footer text to DIST.  If positive, the
+     distance is measured relative to the top of the page, otherwise it
+     is relative to the bottom.  The default is -0.5i.
+
+`-rHY=FLAGS'
+     Set hyphenation flags.  Possible values are 1 to hyphenate without
+     restrictions, 2  to not hyphenate the last word on a page, 4 to
+     not hyphenate the last two characters of a word, and 8 to not
+     hyphenate the first two characters of a word.  These values are
+     additive; the default is 14.
+
+`-rIN=LENGTH'
+     Set the body text indent to LENGTH.  If not specified, the indent
+     defaults to 7n (7 characters) in nroff mode and 7.2n otherwise.
+     For nroff, this value should always be an integer multiple of unit
+     `n' to get consistent indentation.
+
+`-rLL=LENGTH'
+     Set line length to LENGTH.  If not specified, the line length
+     defaults to 78 en in nroff mode (this is 78 characters per line)
+     and 6.5 inch otherwise.
+
+`-rLT=LENGTH'
+     Set title length to LENGTH.  If not specified, the title length
+     defaults to the line length.
+
+`-rPNNN'
+     Page numbering starts with NNN rather than with 1.
+
+`-rSXX'
+     Use XX (which can be 10, 11, or 12pt) as the base document font
+     size instead of the default value of 10pt.
+
+`-rSN=LENGTH'
+     Set the indent for sub-subheadings to LENGTH.  If not specified,
+     the indent defaults to 3n.
+
+`-rXNNN'
+     After page NNN, number pages as NNNa, NNNb, NNNc, etc.  For
+     example, the option `-rX2' produces the following page numbers: 1,
+     2, 2a, 2b, 2c, etc.
 
 
 File: groff,  Node: Man usage,  Next: Man font macros,  Prev: Man options,  Up: man
@@ -56,34 +129,37 @@ further customization, put additional macros and requests into the file
      Set up an unnumbered section heading sticking out to the left.
      Prints out all the text following `SH' up to the end of the line
      (or the text in the next line if there is no argument to `SH') in
-     bold face, one size larger than the base document size.
-     Additionally, the left margin for the following text is reset to
-     its default value.
+     bold face (or the font specified by the string `HF'), one size
+     larger than the base document size.  Additionally, the left margin
+     and the indentation for the following text is reset to its default
+     value.
 
  - Macro: .SS [heading]
      Set up an unnumbered (sub)section heading.  Prints out all the text
      following `SS' up to the end of the line (or the text in the next
-     line if there is no argument to `SS') in bold face, at the same
-     size as the base document size.  Additionally, the left margin for
-     the following text is reset to its default value.
+     line if there is no argument to `SS') in bold face (or the font
+     specified by the string `HF'), at the same size as the base
+     document size.  Additionally, the left margin and the indentation
+     for the following text is reset to its default value.
 
  - Macro: .TP [nnn]
      Set up an indented paragraph with label.  The indentation is set to
      NNN if that argument is supplied (the default unit is `n' if
-     omitted), otherwise it is set to the default indentation value.
+     omitted), otherwise it is set to the previous indentation value
+     specified with `TP', `IP', or `HP' (or to the default value if
+     none of them have been used yet).
 
      The first line of text following this macro is interpreted as a
      string to be printed flush-left, as it is appropriate for a label.
      It is not interpreted as part of a paragraph, so there is no
      attempt to fill the first line with text from the following input
      lines.  Nevertheless, if the label is not as wide as the
-     indentation, then the paragraph starts at the same line (but
-     indented), continuing on the following lines.  If the label is
-     wider than the indentation, then the descriptive part of the
-     paragraph begins on the line following the label, entirely
-     indented.  Note that neither font shape nor font size of the label
-     is set to a default value; on the other hand, the rest of the text
-     has default font settings.
+     indentation the paragraph starts at the same line (but indented),
+     continuing on the following lines.  If the label is wider than the
+     indentation the descriptive part of the paragraph begins on the
+     line following the label, entirely indented.  Note that neither
+     font shape nor font size of the label is set to a default value;
+     on the other hand, the rest of the text has default font settings.
 
  - Macro: .LP
  - Macro: .PP
@@ -92,18 +168,21 @@ further customization, put additional macros and requests into the file
      at the current position, followed by a vertical space downwards by
      the amount specified by the `PD' macro.  The font size and shape
      are reset to the default value (10pt roman if no `-rS' option is
-     given on the command line).  Finally, the current left margin is
-     restored.
+     given on the command line).  Finally, the current left margin and
+     the indentation is restored.
 
  - Macro: .IP [designator [nnn]]
      Set up an indented paragraph, using DESIGNATOR as a tag to mark
      its beginning.  The indentation is set to NNN if that argument is
-     supplied (default unit is `n'), otherwise the default indentation
-     value is used.  Font size and face of the paragraph (but not the
-     designator) are reset to their default values.  To start an
-     indented paragraph with a particular indentation but without a
-     designator, use `""' (two double quotes) as the first argument of
-     `IP'.
+     supplied (default unit is `n'), otherwise it is set to the
+     previous indentation value specified with `TP', `IP', or `HP' (or
+     the default value if none of them have been used yet).  Font size
+     and face of the paragraph (but not the designator) are reset to
+     their default values.
+
+     To start an indented paragraph with a particular indentation but
+     without a designator, use `""' (two double quotes) as the first
+     argument of `IP'.
 
      For example, to start a paragraph with bullets as the designator
      and 4 en indentation, write
@@ -115,18 +194,25 @@ further customization, put additional macros and requests into the file
  - Macro: .HP [nnn]
      Set up a paragraph with hanging left indentation.  The indentation
      is set to NNN if that argument is supplied (default unit is `n'),
-     otherwise the default indentation value is used.  Font size and
-     face are reset to their default values.
+     otherwise it is set to the previous indentation value specified
+     with `TP', `IP', or `HP' (or the default value if non of them have
+     been used yet).  Font size and face are reset to their default
+     values.
 
  - Macro: .RS [nnn]
      Move the left margin to the right by the value NNN if specified
-     (default unit is `n'); otherwise the default indentation value is
-     used.  Calls to the `RS' macro can be nested.
+     (default unit is `n'); otherwise it is set to the previous
+     indentation value specified with `TP', `IP', or `HP' (or to the
+     default value if none of them have been used yet).  The
+     indentation value is then set to the default.
+
+     Calls to the `RS' macro can be nested.
 
  - Macro: .RE [nnn]
-     Move the left margin back to level NNN; if no argument is given,
-     it moves one level back.  The first level (i.e., no call to `RS'
-     yet) has number 1, and each call to `RS' increases the level by 1.
+     Move the left margin back to level NNN, restoring the previous left
+     margin.  If no argument is given, it moves one level back.  The
+     first level (i.e., no call to `RS' yet) has number 1, and each call
+     to `RS' increases the level by 1.
 
    To summarize, the following macros cause a line break with the
 insertion of vertical space (which amount can be changed with the `PD'
@@ -156,28 +242,34 @@ command line option `-rS=N' is given, use Npt as the default text size.
      face font, one point size smaller than the default font.
 
  - Macro: .BI text
-     Set its arguments alternately in bold face and italic.  Thus,
+     Set its arguments alternately in bold face and italic, without a
+     space between the arguments.  Thus,
 
 
           .BI this "word and" that
 
-     would set "this" and "that" in bold face, and "word and" in
-     italics.
+     produces "thisword andthat" with "this" and "that" in bold face,
+     and "word and" in italics.
 
  - Macro: .IB text
-     Set its arguments alternately in italic and bold face.
+     Set its arguments alternately in italic and bold face, without a
+     space between the arguments.
 
  - Macro: .RI text
-     Set its arguments alternately in roman and italic.
+     Set its arguments alternately in roman and italic, without a space
+     between the arguments.
 
  - Macro: .IR text
-     Set its arguments alternately in italic and roman.
+     Set its arguments alternately in italic and roman, without a space
+     between the arguments.
 
  - Macro: .BR text
-     Set its arguments alternately in bold face and roman.
+     Set its arguments alternately in bold face and roman, without a
+     space between the arguments.
 
  - Macro: .RB text
-     Set its arguments alternately in roman and bold face.
+     Set its arguments alternately in roman and bold face, without a
+     space between the arguments.
 
  - Macro: .B [text]
      Set TEXT in bold face.  If no text is present on the line where
@@ -194,8 +286,8 @@ File: groff,  Node: Miscellaneous man macros,  Next: Predefined man strings,  Pr
 Miscellaneous macros
 --------------------
 
-   The default indentation is 7.2 en for all output devices except for
-`grohtml' which ignores indentation.
+   The default indentation is 7.2n in troff mode and 7n in nroff mode
+except for `grohtml' which ignores indentation.
 
  - Macro: .DT
      Set tabs every 0.5 inches.  Since this macro is always executed
@@ -206,10 +298,48 @@ Miscellaneous macros
      Adjust the empty space before a new paragraph (or section).  The
      optional argument gives the amount of space (default unit is `v');
      without parameter, the value is reset to its default value (1 line
-     for TTY devices, 0.4v otherwise).
+     in nroff mode, 0.4v otherwise).
 
-   This affects the macros `SH', `SS', `TP', `LP' (as well as `PP' and
-`P'), `IP', and `HP'.
+     This affects the macros `SH', `SS', `TP', `LP' (as well as `PP'
+     and `P'), `IP', and `HP'.
+
+   The following two macros are included for BSD compatibility.
+
+ - Macro: .AT [system [release]]
+     Alter the footer for use with AT&T manpages.  This command exists
+     only for compatibility; don't use it.  The first argument SYSTEM
+     can be:
+
+    `3'
+          7th Edition (the default)
+
+    `4'
+          System III
+
+    `5'
+          System V
+
+     An optional second argument RELEASE to `AT' specifies the release
+     number (such as "System V Release 3").
+
+ - Macro: .UC [version]
+     Alters the footer for use with BSD manpages.  This command exists
+     only for compatibility; don't use it.  The argument can be:
+
+    `3'
+          3rd Berkeley Distribution (the default)
+
+    `4'
+          4th Berkeley Distribution
+
+    `5'
+          4.2 Berkeley Distribution
+
+    `6'
+          4.3 Berkeley Distribution
+
+    `7'
+          4.4 Berkeley Distribution
 
 
 File: groff,  Node: Predefined man strings,  Next: Preprocessors in man pages,  Prev: Miscellaneous man macros,  Up: man
@@ -221,6 +351,9 @@ Predefined strings
 
  - String: \*[S]
      Switch back to the default font size.
+
+ - String: \*[HF]
+     The typeface used for headings.  The default is `B'.
 
  - String: \*[R]
      The `registered' sign.
@@ -234,7 +367,7 @@ Predefined strings
      respectively.
 
 
-File: groff,  Node: Preprocessors in man pages,  Prev: Predefined man strings,  Up: man
+File: groff,  Node: Preprocessors in man pages,  Next: Optional man extensions,  Prev: Predefined man strings,  Up: man
 
 Preprocessors in `man' pages
 ----------------------------
@@ -249,6 +382,134 @@ Note the single space character after the double quote.  WORD consists
 of letters for the needed preprocessors: `e' for `geqn', `r' for
 `grefer', `t' for `gtbl'.  Modern implementations of the `man' program
 read this first line and automatically call the right preprocessor(s).
+
+
+File: groff,  Node: Optional man extensions,  Prev: Preprocessors in man pages,  Up: man
+
+Optional `man' extensions
+-------------------------
+
+   Use the file `man.local' for local extensions to the `man' macros or
+for style changes.
+
+Custom headers and footers
+..........................
+
+   In groff versions 1.18.2 and later, you can specify custom headers
+and footers by redefining the following macros in `man.local'.
+
+ - Macro: .PT
+     Control the content of the headers.  Normally, the header prints
+     the command name and section number on either side, and the
+     optional fifth argument to `TH' in the center.
+
+ - Macro: .BT
+     Control the content of the footers.  Normally, the footer prints
+     the page number and the third and fourth arguments to `TH'.
+
+     Use the `FT' number register to specify the footer position.  The
+     default is -0.5i.
+
+Ultrix-specific man macros
+..........................
+
+   The `groff' source distribution includes a file named `man.ultrix',
+containing macros compatible with the Ultrix variant of `man'.  Copy
+this file into `man.local' (or use the `mso' request to load it) to
+enable the following macros.
+
+ - Macro: .CT key
+     Print `<CTRL/KEY>'.
+
+ - Macro: .CW
+     Print subsequent text using the constant width (Courier) typeface.
+
+ - Macro: .Ds
+     Begin a non-filled display.
+
+ - Macro: .De
+     End a non-filled display started with `Ds'.
+
+ - Macro: .EX [indent]
+     Begins a non-filled display using the constant width (Courier)
+     typeface.  Use the optional INDENT argument to indent the display.
+
+ - Macro: .EE
+     End a non-filled display started with `EX'.
+
+ - Macro: .G [text]
+     Sets TEXT in Helvetica.  If no text is present on the line where
+     the macro is called, then the text of the next line appears in
+     Helvetica.
+
+ - Macro: .GL [text]
+     Sets TEXT in Helvetica Oblique.  If no text is present on the line
+     where the macro is called, then the text of the next line appears
+     in Helvetica Oblique.
+
+ - Macro: .HB [text]
+     Sets TEXT in Helvetica Bold.  If no text is present on the line
+     where the macro is called, then all text up to the next `HB'
+     appears in Helvetica Bold.
+
+ - Macro: .TB [text]
+     Identical to `HB'.
+
+ - Macro: .MS title sect [punct]
+     Set a manpage reference in Ultrix format.  The TITLE is in Courier
+     instead of italic.  Optional punctuation follows the section
+     number without an intervening space.
+
+ - Macro: .NT [`C'] [title]
+     Begin a note.  Print the optional title, or the word "Note",
+     centered on the page.  Text following the macro makes up the body
+     of the note, and is indented on both sides.  If the first argument
+     is `C', the body of the note is printed centered (the second
+     argument replaces the word "Note" if specified).
+
+ - Macro: .NE
+     End a note begun with `NT'.
+
+ - Macro: .PN path [punct]
+     Set the path name in constant width (Courier), followed by
+     optional punctuation.
+
+ - Macro: .Pn [punct] path [punct]
+     When called with two arguments, identical to `PN'.  When called
+     with three arguments, set the second argument in constant width
+     (Courier), bracketed by the first and third arguments in the
+     current font.
+
+ - Macro: .R
+     Switch to roman font and turn off any underlining in effect.
+
+ - Macro: .RN
+     Print the string `<RETURN>'.
+
+ - Macro: .VS [`4']
+     Start printing a change bar in the margin if the number `4' is
+     specified.  Otherwise, this macro does nothing.
+
+ - Macro: .VE
+     End printing the change bar begun by `VS'.
+
+Simple example
+..............
+
+   The following example `man.local' file alters the `SH' macro to add
+some extra vertical space before printing the heading.  Headings are
+printed in Helvetica Bold.
+
+
+     .\" Make the heading fonts Helvetica
+     .ds HF HB
+     .
+     .\" Put more whitespace in front of headings.
+     .rn SH SH-orig
+     .de SH
+     .  if t .sp (u;\\n[PD]*2)
+     .  SH-orig \\$*
+     ..
 
 
 File: groff,  Node: mdoc,  Next: ms,  Prev: man,  Up: Macro Packages
@@ -1256,7 +1517,7 @@ those headings wrapped in `XS' and `XE' macros.
           .NH 2
           Methodology
           .XS
-          	Methodology
+          Methodology
           .XE
           .LP
           ...
@@ -1303,381 +1564,4 @@ a document.
    Altering the `NH' macro to automatically build the table of contents
 is perhaps initially more difficult, but would save a great deal of
 time in the long run if you use `ms' regularly.
-
-
-File: groff,  Node: ms Strings and Special Characters,  Prev: ms TOC,  Up: ms Page Layout
-
-Strings and Special Characters
-..............................
-
-   The `ms' macros provide the following predefined strings.  You can
-change the string definitions to help in creating documents in
-languages other than English.
-
- - String: \*[REFERENCES]
-     Contains the string printed at the beginning of the references
-     (bibliography) page.  The default is `References'.
-
- - String: \*[ABSTRACT]
-     Contains the string printed at the beginning of the abstract.  The
-     default is `ABSTRACT'.
-
- - String: \*[TOC]
-     Contains the string printed at the beginning of the table of
-     contents.
-
- - String: \*[MONTH1]
- - String: \*[MONTH2]
- - String: \*[MONTH3]
- - String: \*[MONTH4]
- - String: \*[MONTH5]
- - String: \*[MONTH6]
- - String: \*[MONTH7]
- - String: \*[MONTH8]
- - String: \*[MONTH9]
- - String: \*[MONTH10]
- - String: \*[MONTH11]
- - String: \*[MONTH12]
-     Prints the full name of the month in dates.  The default is
-     `January', `February', etc.
-
-   The following special characters are available(1) (*note ms Strings
-and Special Characters-Footnote-1::):
-
- - String: \*[-]
-     Prints an em dash.
-
- - String: \*[*Q]
- - String: \*[*U]
-     Prints typographer's quotes in troff, plain quotes in nroff.  `*Q'
-     is the left quote and `*U' is the right quote.
-
-   Improved accent marks are available in the `ms' macros.
-
- - Macro: .AM
-     Specify this macro at the beginning of your document to enable
-     extended accent marks and special characters.  This is a Berkeley
-     extension.
-
-     To use the accent marks, place them *after* the character being
-     accented.
-
-   The following accent marks are available after invoking the `AM'
-macro:
-
- - String: \*[']
-     Acute accent.
-
- - String: \*[`]
-     Grave accent.
-
- - String: \*[^]
-     Circumflex.
-
- - String: \*[,]
-     Cedilla.
-
- - String: \*[~]
-     Tilde.
-
- - String: \*[:]
-     Umlaut.
-
- - String: \*[v]
-     Hacek.
-
- - String: \*[_]
-     Macron (overbar).
-
- - String: \*[.]
-     Underdot.
-
- - String: \*[o]
-     Ring above.
-
-   The following are standalone characters available after invoking the
-`AM' macro:
-
- - String: \*[?]
-     Upside-down question mark.
-
- - String: \*[!]
-     Upside-down exclamation point.
-
- - String: \*[8]
-     German ss ligature.
-
- - String: \*[3]
-     Yogh.
-
- - String: \*[Th]
-     Uppercase thorn.
-
- - String: \*[th]
-     Lowercase thorn.
-
- - String: \*[D-]
-     Uppercase eth.
-
- - String: \*[d-]
-     Lowercase eth.
-
- - String: \*[q]
-     Hooked o.
-
- - String: \*[ae]
-     Lowercase ae ligature.
-
- - String: \*[Ae]
-     Uppercase AE ligature.
-
-
-File: groff,  Node: ms Strings and Special Characters-Footnotes,  Up: ms Strings and Special Characters
-
-   (1) For an explanation what special characters are see *Note Special
-Characters::.
-
-
-File: groff,  Node: Differences from AT&T ms,  Prev: ms Page Layout,  Up: ms
-
-Differences from AT&T `ms'
---------------------------
-
-   This section lists the (minor) differences between the `groff -ms'
-macros and AT&T `troff -ms' macros.
-
-* Menu:
-
-* Missing ms Macros::
-* Additional ms Macros::
-
-
-File: groff,  Node: Missing ms Macros,  Next: Additional ms Macros,  Prev: Differences from AT&T ms,  Up: Differences from AT&T ms
-
-`troff' macros not appearing in `groff'
-.......................................
-
-   Macros missing from `groff -ms' are cover page macros specific to
-Bell Labs.  The macros known to be missing are:
-
-`.TM'
-     Technical memorandum; a cover sheet style
-
-`.IM'
-     Internal memorandum; a cover sheet style
-
-`.MR'
-     Memo for record; a cover sheet style
-
-`.MF'
-     Memo for file; a cover sheet style
-
-`.EG'
-     Engineer's notes; a cover sheet style
-
-`.TR'
-     Computing Science Tech Report; a cover sheet style
-
-`.OK'
-     Other keywords
-
-`.CS'
-     Cover sheet information
-
-`.MH'
-     A cover sheet macro
-
-
-File: groff,  Node: Additional ms Macros,  Prev: Missing ms Macros,  Up: Differences from AT&T ms
-
-`groff' macros not appearing in AT&T `troff'
-............................................
-
-   The `groff -ms' macros have a few minor extensions compared to the
-AT&T `troff -ms' macros.
-
- - Macro: .AM
-     Improved accent marks.  *Note ms Strings and Special Characters::,
-     for details.
-
- - Macro: .DS I
-     Indented display.  The default behavior of AT&T `troff -ms' was to
-     indent; the `groff' default prints displays flush left with the
-     body text.
-
- - Macro: .CW
-     Print text in `constant width' (Courier) font.
-
- - Macro: .IX
-     Indexing term (printed on standard error).  You can write a script
-     to capture and process an index generated in this manner.
-
-
-   The following additional number registers appear in `groff -ms':
-
- - Register: \n[MINGW]
-     Specifies a minimum space between columns (for multi-column
-     output); this takes the place of the `GW' register that was
-     documented but apparently not implemented in AT&T `troff'.
-
-
-   Several new string registers are available as well.  You can change
-these to handle (for example) the local language.  *Note ms Strings and
-Special Characters::, for details.
-
-
-File: groff,  Node: me,  Next: mm,  Prev: ms,  Up: Macro Packages
-
-`me'
-====
-
-   See the `meintro.me' and `meref.me' documents in groff's `doc'
-directory.
-
-
-File: groff,  Node: mm,  Prev: me,  Up: Macro Packages
-
-`mm'
-====
-
-   See the `groff_mm(7)' man page (type `man groff_mm' at the command
-line).
-
-
-File: groff,  Node: gtroff Reference,  Next: Preprocessors,  Prev: Macro Packages,  Up: Top
-
-`gtroff' Reference
-******************
-
-   This chapter covers *all* of the facilities of `gtroff'.  Users of
-macro packages may skip it if not interested in details.
-
-* Menu:
-
-* Text::
-* Input Conventions::
-* Measurements::
-* Expressions::
-* Identifiers::
-* Embedded Commands::
-* Registers::
-* Manipulating Filling and Adjusting::
-* Manipulating Hyphenation::
-* Manipulating Spacing::
-* Tabs and Fields::
-* Character Translations::
-* Troff and Nroff Mode::
-* Line Layout::
-* Line Control::
-* Page Layout::
-* Page Control::
-* Fonts::
-* Sizes::
-* Strings::
-* Conditionals and Loops::
-* Writing Macros::
-* Page Motions::
-* Drawing Requests::
-* Traps::
-* Diversions::
-* Environments::
-* Suppressing output::
-* Colors::
-* I/O::
-* Postprocessor Access::
-* Miscellaneous::
-* Gtroff Internals::
-* Debugging::
-* Implementation Differences::
-
-
-File: groff,  Node: Text,  Next: Input Conventions,  Prev: gtroff Reference,  Up: gtroff Reference
-
-Text
-====
-
-   `gtroff' input files contain text with control commands interspersed
-throughout.  But, even without control codes, `gtroff' still does
-several things with the input text:
-
-   * filling and adjusting
-
-   * adding additional space after sentences
-
-   * hyphenating
-
-   * inserting implicit line breaks
-
-* Menu:
-
-* Filling and Adjusting::
-* Hyphenation::
-* Sentences::
-* Tab Stops::
-* Implicit Line Breaks::
-
-
-File: groff,  Node: Filling and Adjusting,  Next: Hyphenation,  Prev: Text,  Up: Text
-
-Filling and Adjusting
----------------------
-
-   When `gtroff' reads text, it collects words from the input and fits
-as many of them together on one output line as it can.  This is known as
-"filling".
-
-   Once `gtroff' has a "filled" line, it tries to "adjust" it.  This
-means it widens the spacing between words until the text reaches the
-right margin (in the default adjustment mode).  Extra spaces between
-words are preserved, but spaces at the end of lines are ignored.
-Spaces at the front of a line cause a "break" (breaks are explained in
-*Note Implicit Line Breaks::).
-
-   *Note Manipulating Filling and Adjusting::.
-
-
-File: groff,  Node: Hyphenation,  Next: Sentences,  Prev: Filling and Adjusting,  Up: Text
-
-Hyphenation
------------
-
-   Since the odds are not great for finding a set of words, for every
-output line, which fit nicely on a line without inserting excessive
-amounts of space between words, `gtroff' hyphenates words so that it
-can justify lines without inserting too much space between words.  It
-uses an internal hyphenation algorithm (a simplified version of the
-algorithm used within TeX) to indicate which words can be hyphenated
-and how to do so.  When a word is hyphenated, the first part of the
-word is added to the current filled line being output (with an attached
-hyphen), and the other portion is added to the next line to be filled.
-
-   *Note Manipulating Hyphenation::.
-
-
-File: groff,  Node: Sentences,  Next: Tab Stops,  Prev: Hyphenation,  Up: Text
-
-Sentences
----------
-
-   Although it is often debated, some typesetting rules say there
-should be different amounts of space after various punctuation marks.
-For example, the `Chicago typsetting manual' says that a period at the
-end of a sentence should have twice as much space following it as would
-a comma or a period as part of an abbreviation.
-
-   `gtroff' does this by flagging certain characters (normally `!',
-`?', and `.') as "end-of-sentence" characters.  When `gtroff'
-encounters one of these characters at the end of a line, it appends a
-normal space followed by a "sentence space" in the formatted output.
-(This justifies one of the conventions mentioned in *Note Input
-Conventions::.)
-
-   In addition, the following characters and symbols are treated
-transparently while handling end-of-sentence characters: `"', `'', `)',
-`]', `*', `\[dg]', and `\[rq]'.
-
-   See the `cflags' request in *Note Using Symbols::, for more details.
-
-   To prevent the insertion of extra space after an end-of-sentence
-character (at the end of a line), append `\&'.
 

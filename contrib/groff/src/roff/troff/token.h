@@ -112,6 +112,15 @@ extern void check_missing_character();
 extern void skip_line();
 extern void handle_initial_title();
 
+enum char_mode {
+  CHAR_NORMAL,
+  CHAR_FALLBACK,
+  CHAR_FONT_SPECIAL,
+  CHAR_SPECIAL
+};
+
+extern void do_define_character(char_mode, const char * = 0);
+
 struct hunits;
 extern void read_title_parts(node **part, hunits *part_width);
 
