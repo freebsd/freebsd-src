@@ -362,7 +362,7 @@ crdread(dev_t dev, struct uio *uio, int ioflag)
 		return (EBUSY);
 	mp = &slt->mem[win];
 	oldmap = *mp;
-	mp->flags = slt->rwmem|MDF_ACTIVE;
+	mp->flags = slt->rwmem | MDF_ACTIVE;
 	while (uio->uio_resid && error == 0) {
 		mp->card = uio->uio_offset;
 		mp->size = PCCARD_MEMSIZE;
