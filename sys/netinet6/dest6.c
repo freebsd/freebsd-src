@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: dest6.c,v 1.12 2000/05/05 11:00:57 sumikawa Exp $	*/
+/*	$KAME: dest6.c,v 1.27 2001/03/29 05:34:30 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -35,12 +35,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/kernel.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -59,10 +61,13 @@ dest6_input(mp, offp, proto)
 	struct mbuf **mp;
 	int *offp, proto;
 {
-	register struct mbuf *m = *mp;
+	struct mbuf *m = *mp;
 	int off = *offp, dstoptlen, optlen;
 	struct ip6_dest *dstopts;
 	u_int8_t *opt;
+	struct ip6_hdr *ip6;
+
+	ip6 = mtod(m, struct ip6_hdr *);
 
 	/* validation of the length of the header */
 #ifndef PULLDOWN_TEST
@@ -102,19 +107,21 @@ dest6_input(mp, offp, proto)
 		case IP6OPT_PADN:
 			optlen = *(opt + 1) + 2;
 			break;
-		 default:		/* unknown option */
-			 if ((optlen = ip6_unknown_opt(opt, m,
-						       opt-mtod(m, u_int8_t *))) == -1)
-				 return(IPPROTO_DONE);
-			 optlen += 2;
-			 break;
+
+		default:		/* unknown option */
+			optlen = ip6_unknown_opt(opt, m,
+			    opt - mtod(m, u_int8_t *));
+			if (optlen == -1)
+				return (IPPROTO_DONE);
+			optlen += 2;
+			break;
 		}
 	}
 
 	*offp = off;
-	return(dstopts->ip6d_nxt);
+	return (dstopts->ip6d_nxt);
 
   bad:
 	m_freem(m);
-	return(IPPROTO_DONE);
+	return (IPPROTO_DONE);
 }

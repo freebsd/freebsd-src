@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: ip_ecn.h,v 1.5 2000/03/27 04:58:38 sumikawa Exp $	*/
+/*	$KAME: ip_ecn.h,v 1.6 2001/05/03 14:51:48 itojun Exp $	*/
 
 /*
  * Copyright (C) 1999 WIDE Project.
@@ -35,11 +35,15 @@
  * http://www.aciri.org/floyd/papers/draft-ipsec-ecn-00.txt
  */
 
+#if defined(_KERNEL) && !defined(_LKM)
+#include "opt_inet.h"
+#endif
+
 #define ECN_ALLOWED	1	/* ECN allowed */
 #define ECN_FORBIDDEN	0	/* ECN forbidden */
 #define ECN_NOCARE	(-1)	/* no consideration to ECN */
 
 #ifdef _KERNEL
-extern void ip_ecn_ingress __P((int, u_int8_t *, u_int8_t *));
-extern void ip_ecn_egress __P((int, u_int8_t *, u_int8_t *));
+extern void ip_ecn_ingress __P((int, u_int8_t *, const u_int8_t *));
+extern void ip_ecn_egress __P((int, const u_int8_t *, u_int8_t *));
 #endif

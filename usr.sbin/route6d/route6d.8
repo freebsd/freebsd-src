@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: route6d.8,v 1.8 2000/05/31 17:00:09 itojun Exp $
+.\"	$KAME: route6d.8,v 1.10 2000/11/24 11:57:18 itojun Exp $
 .\"
 .\" Copyright (c) 1996 WIDE Project. All rights reserved.
 .\"
@@ -16,13 +16,13 @@
 .\" A PARTICULAR PURPOSE.
 .Dd January 31, 1997
 .Dt ROUTE6D 8
-.Os KAME
+.Os
 .Sh NAME
 .Nm route6d
 .Nd RIP6 Routing Daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl adDhlqsS
+.Op Fl adDhlnqsS
 .Bk -words
 .Op Fl R Ar routelog
 .Ek
@@ -145,6 +145,9 @@ For example, with
 .Dc
 .Nm
 will accept default route and routes in 6bone test address, but no others.
+.\"
+.It Fl n
+Do not update the kernel routing table.
 .\"
 .It Fl N Ar if1[,if2...]
 Do not listen to, or advertise, route from/to interfaces specified by

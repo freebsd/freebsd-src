@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: sha1.c,v 1.4 2000/03/27 04:36:23 sumikawa Exp $	*/
+/*	$KAME: sha1.c,v 1.5 2000/11/08 06:13:08 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.

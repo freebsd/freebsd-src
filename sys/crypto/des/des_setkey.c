@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: des_setkey.c,v 1.3 2000/03/27 04:36:33 sumikawa Exp $	*/
+/*	$KAME: des_setkey.c,v 1.5 2000/11/06 13:58:09 itojun Exp $	*/
 
 /* crypto/des/set_key.c */
 /* Copyright (C) 1995-1996 Eric Young (eay@mincom.oz.au)
@@ -55,15 +55,13 @@
  * 1.1 added norm_expand_bits
  * 1.0 First working version
  */
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <crypto/des/des_locl.h>
 #include <crypto/des/podd.h>
 #include <crypto/des/sk.h>
 
-#ifndef NOPROTO
-static int check_parity(des_cblock (*key));
-#else
-static int check_parity();
-#endif
+static int check_parity __P((des_cblock (*)));
 
 int des_check_key=0;
 

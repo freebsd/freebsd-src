@@ -608,8 +608,15 @@ p_rtentry(rt)
 	p_sockaddr(kgetsa(rt->rt_gateway), NULL, RTF_HOST,
 	    WID_GW(addr.u_sa.sa_family));
 	p_flags(rt->rt_flags, "%-6.6s ");
-	if (addr.u_sa.sa_family == AF_INET || lflag)
-		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
+	if (addr.u_sa.sa_family == AF_INET || lflag) {
+		printf("%6ld %8ld", rt->rt_refcnt, rt->rt_use);
+		if (lflag) {
+			if (rt->rt_rmx.rmx_mtu != 0)
+				printf("%6lu ", rt->rt_rmx.rmx_mtu);
+			else
+				printf("%6s ", "");
+		}
+	}
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
 			kget(rt->rt_ifp, ifnet);

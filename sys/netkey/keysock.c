@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: keysock.c,v 1.22 2000/05/23 13:19:21 itojun Exp $	*/
+/*	$KAME: keysock.c,v 1.24 2000/12/03 00:41:48 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -56,11 +56,7 @@
 #include <netkey/keydb.h>
 #include <netkey/key.h>
 #include <netkey/keysock.h>
-#ifdef IPSEC_DEBUG
 #include <netkey/key_debug.h>
-#else
-#define	KEYDEBUG(lev,arg)
-#endif
 
 #include <machine/stdarg.h>
 
@@ -158,6 +154,8 @@ key_sendup0(rp, m, promisc)
 	struct mbuf *m;
 	int promisc;
 {
+	int error;
+
 	if (promisc) {
 		struct sadb_msg *pmsg;
 
@@ -184,17 +182,18 @@ key_sendup0(rp, m, promisc)
 		pfkeystat.in_msgtype[pmsg->sadb_msg_type]++;
 	}
 
-	if (!sbappendaddr(&rp->rcb_socket->so_rcv,
-			(struct sockaddr *)&key_src, m, NULL)) {
+	if (!sbappendaddr(&rp->rcb_socket->so_rcv, (struct sockaddr *)&key_src,
+	    m, NULL)) {
 #ifdef IPSEC_DEBUG
 		printf("key_sendup0: sbappendaddr failed\n");
 #endif
 		pfkeystat.in_nomem++;
 		m_freem(m);
-		return ENOBUFS;
-	}
+		error = ENOBUFS;
+	} else
+		error = 0;
 	sorwakeup(rp->rcb_socket);
-	return 0;
+	return error;
 }
 
 /* XXX this interface should be obsoleted. */

@@ -58,6 +58,7 @@
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/bpf.h>
+#include <net/bpfdesc.h>
 
 #ifdef	INET
 #include <netinet/in.h>
@@ -236,6 +237,8 @@ looutput(ifp, m, dst, rt)
 		m_copydata(m, 0, m->m_pkthdr.len, mtod(n, caddr_t));
 		n->m_pkthdr = m->m_pkthdr;
 		n->m_len = m->m_pkthdr.len;
+		n->m_pkthdr.aux = m->m_pkthdr.aux;
+		m->m_pkthdr.aux = (struct mbuf *)NULL;
 		m_freem(m);
 		m = n;
 	}
@@ -277,7 +280,7 @@ contiguousfail:
 int
 if_simloop(ifp, m, af, hlen)
 	struct ifnet *ifp;
-	register struct mbuf *m;
+	struct mbuf *m;
 	int af;
 	int hlen;
 {
@@ -300,17 +303,19 @@ if_simloop(ifp, m, af, hlen)
 	if (ifp->if_bpf) {
 		struct mbuf m0, *n = m;
 
-		/*
-		 * We need to prepend the address family as
-		 * a four byte field.  Cons up a dummy header
-		 * to pacify bpf.  This is safe because bpf
-		 * will only read from the mbuf (i.e., it won't
-		 * try to free it or keep a pointer a to it).
-		 */
-		m0.m_next = m;
-		m0.m_len = 4;
-		m0.m_data = (char *)&af;
-		n = &m0;
+		if (ifp->if_bpf->bif_dlt == DLT_NULL) {
+			/*
+			 * We need to prepend the address family as
+			 * a four byte field.  Cons up a dummy header
+			 * to pacify bpf.  This is safe because bpf
+			 * will only read from the mbuf (i.e., it won't
+			 * try to free it or keep a pointer a to it).
+			 */
+			m0.m_next = m;
+			m0.m_len = 4;
+			m0.m_data = (char *)&af;
+			n = &m0;
+		}
 		bpf_mtap(ifp, n);
 	}
 

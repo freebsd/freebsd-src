@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: in6_prefix.h,v 1.6 2000/03/25 07:23:45 sumikawa Exp $	*/
+/*	$KAME: in6_prefix.h,v 1.10 2001/02/08 16:30:30 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, 1998 and 1999 WIDE Project.
@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/callout.h>
 
 struct rr_prefix {
 	struct ifprefix	rp_ifpr;
@@ -85,4 +87,5 @@ LIST_HEAD(rr_prhead, rr_prefix);
 extern struct rr_prhead rr_prefix;
 
 void in6_rr_timer __P((void *));
+extern struct callout in6_rr_timer_ch;
 int delete_each_prefix  __P((struct rr_prefix *rpp, u_char origin));
