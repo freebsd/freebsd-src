@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.52 1997/06/07 04:36:10 bde Exp $
+ *	$Id: swtch.s,v 1.53 1997/06/22 16:03:35 peter Exp $
  */
 
 #include "npx.h"
@@ -274,22 +274,17 @@ _idle:
 	 * XXX callers of cpu_switch() do a bogus splclock().  Locking should
 	 * be left to cpu_switch().
 	 */
-	movl	$SWI_AST_MASK,_cpl
-	testl	$~SWI_AST_MASK,_ipending
-	je	idle_loop
-	call	_splz
+	call	_spl0
 
 	ALIGN_TEXT
 idle_loop:
 	cli
-	movb	$1,_intr_nesting_level		/* charge Intr if we leave */
 	cmpl	$0,_whichrtqs			/* real-time queue */
 	CROSSJUMP(jne, sw1a, je)
 	cmpl	$0,_whichqs			/* normal queue */
 	CROSSJUMP(jne, nortqr, je)
 	cmpl	$0,_whichidqs			/* 'idle' queue */
 	CROSSJUMP(jne, idqr, je)
-	movb	$0,_intr_nesting_level		/* charge Idle for this loop */
 	call	_vm_page_zero_idle
 	testl	%eax, %eax
 	jnz	idle_loop
@@ -352,8 +347,6 @@ ENTRY(cpu_switch)
 	popl	%eax
 1:
 #endif	/* NNPX > 0 */
-
-	movb	$1,_intr_nesting_level		/* charge Intr, not Sys/Idle */
 
 	movl	$0,_curproc			/* out of process */
 
@@ -520,7 +513,6 @@ swtch_com:
 	movl	%edx,_curpcb
 	movl	%ecx,_curproc			/* into next process */
 
-	movb	$0,_intr_nesting_level
 #ifdef SMP
 #if defined(TEST_LOPRIO)
 	/* Set us to prefer to get irq's from the apic since we have the lock */
