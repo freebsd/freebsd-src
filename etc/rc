@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.87 1996/03/14 18:24:05 nate Exp $
+#	$Id: rc,v 1.88 1996/05/03 05:37:04 asami Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -120,7 +120,7 @@ rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
 rm -f /dev/log
-(cd /var/run && { rm -rf -- *; cp /dev/null utmp; chmod 644 utmp; })
+(cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 echo clearing /tmp
 
