@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.19 1997/12/08 01:06:22 sef Exp $
+ *	$Id: procfs_subr.c,v 1.20 1997/12/09 05:03:41 sef Exp $
  */
 
 #include <sys/param.h>
@@ -358,16 +358,30 @@ procfs_exit(struct proc *p)
 	struct pfsnode *pfs;
 	pid_t pid = p->p_pid;
 
-	for (pfs = pfshead; pfs ; pfs = pfs->pfs_next) {
-		struct vnode *vp = PFSTOV(pfs);
-		/*
-		 * XXX - this is probably over-paranoid here --
-		 * for some reason, occasionally the v_tag is
-		 * not VT_PROCFS; this results in a panic.  I'm
-		 * not sure *why* that is happening.
-		 */
-		if (pfs->pfs_pid == pid && vp->v_usecount &&
-		    vp->v_tag == VT_PROCFS)
-			vgone(vp);
+	/*
+	 * The reason for this loop is not obvious -- basicly,
+	 * procfs_freevp(), which is called via vgone() (eventually),
+	 * removes the specified procfs node from the pfshead list.
+	 * It does this by *pfsp = pfs->pfs_next, meaning that it
+	 * overwrites the node.  So when we do pfs = pfs->next, we
+	 * end up skipping the node that replaces the one that was
+	 * vgone'd.  Since it may have been the last one on the list,
+	 * it may also have been set to null -- but *our* pfs pointer,
+	 * here, doesn't see this.  So the loop starts from the beginning
+	 * again.
+	 *
+	 * This is not a for() loop because the final event
+	 * would be "pfs = pfs->pfs_next"; in the case where
+	 * pfs is set to pfshead again, that would mean that
+	 * pfshead is skipped over.
+	 *
+	 */
+	pfs = pfshead;
+	while (pfs) {
+		if (pfs->pfs_pid == pid) {
+			vgone(PFSTOV(pfs));
+			pfs = pfshead;
+		} else
+			pfs = pfs->pfs_next;
 	}
 }
