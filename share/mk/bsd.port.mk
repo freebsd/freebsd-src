@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.148 1995/04/22 01:22:49 jkh Exp $
+# $Id: bsd.port.mk,v 1.149 1995/04/24 09:05:34 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -350,35 +350,35 @@ is_depended:	install
 ################################################################
 
 .if defined(NO_EXTRACT) && !target(extract)
-extract:
+extract: checksum
 	@${TOUCH} ${TOUCH_FLAGS} ${EXTRACT_COOKIE}
-checksum:
+checksum: fetch
 	@${DO_NADA}
 makesum:
 	@${DO_NADA}
 .endif
 .if defined(NO_CONFIGURE) && !target(configure)
-configure:
+configure: patch
 	@${TOUCH} ${TOUCH_FLAGS} ${CONFIGURE_COOKIE}
 .endif
 .if defined(NO_BUILD) && !target(build)
-build:
+build: configure
 	@${TOUCH} ${TOUCH_FLAGS} ${BUILD_COOKIE}
 .endif
 .if defined(NO_PACKAGE) && !target(package)
-package:
+package: install
 	@${DO_NADA}
 .endif
 .if defined(NO_PACKAGE) && !target(repackage)
-repackage:
+repackage: install
 	@${DO_NADA}
 .endif
 .if defined(NO_INSTALL) && !target(install)
-install:
+install: build
 	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
 .endif
 .if defined(NO_PATCH) && !target(patch)
-patch:
+patch: extract
 	@${TOUCH} ${TOUCH_FLAGS} ${PATCH_COOKIE}
 .endif
 
@@ -784,7 +784,9 @@ clean: pre-clean
 	@${ECHO_MSG} "===>  Cleaning for ${PKGNAME}"
 	@rm -f ${EXTRACT_COOKIE} ${CONFIGURE_COOKIE} ${INSTALL_COOKIE} \
 		${BUILD_COOKIE} ${PATCH_COOKIE}
-.if !defined(NO_WRKDIR)
+.if defined(NO_WRKDIR)
+	@rm -f ${WRKDIR}/.*_done
+.else
 	@rm -rf ${WRKDIR}
 .endif
 .endif
