@@ -533,9 +533,6 @@ extern int	configSecurityExtreme(dialogMenuItem *self);
 extern int	configSecurityModerate(dialogMenuItem *self);
 extern int	configEtcTtys(dialogMenuItem *self);
 
-/* crc.c */
-extern int	crc(int, unsigned long *, unsigned long *);
-
 /* devices.c */
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d),
 				  int (*check)(dialogMenuItem *d));
