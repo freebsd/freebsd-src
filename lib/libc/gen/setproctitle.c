@@ -18,6 +18,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/exec.h>
@@ -31,6 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "un-namespace.h"
+
+#include "libc_private.h"
 
 /*
  * Older FreeBSD 2.0, 2.1 and 2.2 had different ps_strings structures and
@@ -53,7 +57,6 @@ struct old_ps_strings {
 #include <stdarg.h>
 
 #define SPT_BUFSIZE 2048	/* from other parts of sendmail */
-extern char * __progname;	/* is this defined in a .h anywhere? */
 
 void
 setproctitle(const char *fmt, ...)
@@ -83,7 +86,7 @@ setproctitle(const char *fmt, ...)
 			len = 0;
 		} else {
 			/* print program name heading for grep */
-			(void) snprintf(buf, sizeof(buf), "%s: ", __progname);
+			(void)snprintf(buf, sizeof(buf), "%s: ", _getprogname());
 			len = strlen(buf);
 		}
 
