@@ -43,7 +43,8 @@ static int at_ifinit( struct ifnet *ifp, struct at_ifaddr *aa,
 		    (a)->sat_addr.s_node == (b)->sat_addr.s_node )
 
 int
-at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
+at_control(struct socket *so, int cmd, caddr_t data,
+		struct ifnet *ifp, struct proc *p )
 {
     struct ifreq	*ifr = (struct ifreq *)data;
     struct sockaddr_at	*sat;
