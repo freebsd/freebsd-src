@@ -651,7 +651,6 @@ diskPartitionWrite(dialogMenuItem *self)
 	return DITEM_SUCCESS;
 
     for (i = 0; devs[i]; i++) {
-	Chunk *c1;
 	Disk *d = (Disk *)devs[i]->private;
 	static u_char *boot1;
 #ifndef __alpha__
