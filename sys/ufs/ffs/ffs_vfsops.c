@@ -43,6 +43,8 @@
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/bio.h>
 #include <sys/buf.h>

@@ -51,6 +51,8 @@
 #include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
 #include <sys/malloc.h>

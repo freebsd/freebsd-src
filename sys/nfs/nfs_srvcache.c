@@ -44,6 +44,8 @@
  */
 #include <sys/param.h>
 #include <sys/malloc.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>

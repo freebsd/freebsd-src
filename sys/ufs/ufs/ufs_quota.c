@@ -45,6 +45,8 @@
 #include <sys/fcntl.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 
 #include <ufs/ufs/extattr.h>

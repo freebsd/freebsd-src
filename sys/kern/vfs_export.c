@@ -59,6 +59,8 @@
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>

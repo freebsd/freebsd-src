@@ -31,6 +31,8 @@
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <net/radix.h>
+#include <sys/socket.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/filedesc.h>
