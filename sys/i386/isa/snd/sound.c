@@ -180,11 +180,11 @@ pcmattach(struct isa_device * dev)
 
     d->io_base = dev->id_iobase ;
     d->irq = ffs(dev->id_irq) - 1 ;
-    d->dma1 = dev->id_drq ;
+    d->dbuf_out.chan = dev->id_drq ;
     if (dev->id_flags != -1 && dev->id_flags & DV_F_DUAL_DMA) /* enable dma2 */
-	d->dma2 = dev->id_flags & DV_F_DRQ_MASK ;
+	d->dbuf_in.chan = dev->id_flags & DV_F_DRQ_MASK ;
     else
-	d->dma2 = d->dma1 ;
+	d->dbuf_in.chan = d->dbuf_out.chan ;
     /* XXX should also set bd_id from flags ? */
     d->status_ptr = 0;
 
@@ -198,9 +198,9 @@ pcmattach(struct isa_device * dev)
     alloc_dbuf( &(d->dbuf_out), d->bufsize );
     alloc_dbuf( &(d->dbuf_in), d->bufsize );
 
-    isa_dma_acquire(d->dma1);
-    if (d->dma2 != d->dma1)
-	isa_dma_acquire(d->dma2);
+    isa_dma_acquire(d->dbuf_out.chan);
+    if (FULL_DUPLEX(d))
+	isa_dma_acquire(d->dbuf_in.chan);
     /*
      * initialize standard parameters for the device. This can be
      * overridden by device-specific configurations but better do
@@ -359,7 +359,7 @@ sndopen(dev_t i_dev, int flags, int mode, struct proc * p)
 
     default:
 	if (d->open == NULL) {
-	    printf("open: bad unit %d, perhaps you want unit %d ?\n",
+	    printf("open: unit %d not configured, perhaps you want unit %d ?\n",
 		unit, unit+1 );
 	    return (ENXIO) ;
 	} else
@@ -445,7 +445,7 @@ sndread(dev_t i_dev, struct uio * buf, int flag)
 	DDB(printf("read denied, another reader is in\n"));
         return EBUSY ;
     }
-    if (d->dma1 == d->dma2) {           /* half duplex */
+    if ( ! FULL_DUPLEX(d) ) {           /* half duplex */
         if ( d->flags & SND_F_WRITING ) {
             /* another writer is in, deny request */
             splx(s);
@@ -516,7 +516,7 @@ sndwrite(dev_t i_dev, struct uio * buf, int flag)
 	DDB(printf("write denied, another writer is in\n"));
         return EBUSY ;
     }
-    if (d->dma1 == d->dma2) {           /* half duplex */
+    if ( ! FULL_DUPLEX(d) ) {           /* half duplex */
         if ( d->flags & SND_F_READING ) {
 	    DDB(printf("write denied, half duplex and a reader is in\n"));
             /* another reader is in, deny request */
@@ -825,7 +825,7 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 
     case SNDCTL_DSP_SETFRAGMENT:
 	/* XXX watch out, this is RW! */
-	printf("SNDCTL_DSP_SETFRAGMENT 0x%08x\n", *(int *)arg);
+	DEB(printf("SNDCTL_DSP_SETFRAGMENT 0x%08x\n", *(int *)arg));
 	{
 	    int bytes, count;
 	    bytes = *(int *)arg & 0xffff ;
@@ -850,24 +850,65 @@ sndioctl(dev_t i_dev, int cmd, caddr_t arg, int mode, struct proc * p)
 
     case SNDCTL_DSP_GETISPACE:
 	/* return space available in the input queue */
-	((audio_buf_info *)arg)->bytes = d->dbuf_in.fl ;
-	((audio_buf_info *)arg)->fragments = 1 ;
-	((audio_buf_info *)arg)->fragstotal = 
-		d->dbuf_in.bufsize / d->rec_blocksize ;
-	((audio_buf_info *)arg)->fragsize = d->rec_blocksize ;
+	{
+	    audio_buf_info *a = (audio_buf_info *)arg;
+	    snd_dbuf *b = &(d->dbuf_in);
+	    if (b->dl)
+		dsp_rd_dmaupdate( b );
+	    a->bytes = d->dbuf_in.fl ;
+	    a->fragments = 1 ;
+	    a->fragstotal = b->bufsize / d->rec_blocksize ;
+	    a->fragsize = d->rec_blocksize ;
+	}
 	break ;
 
     case SNDCTL_DSP_GETOSPACE:
 	/* return space available in the output queue */
-	((audio_buf_info *)arg)->bytes = d->dbuf_out.fl ;
-	((audio_buf_info *)arg)->fragments = 1 ;
-	((audio_buf_info *)arg)->fragstotal = 
-		d->dbuf_out.bufsize / d->play_blocksize ;
-	((audio_buf_info *)arg)->fragsize = d->play_blocksize ;
+	{
+	    audio_buf_info *a = (audio_buf_info *)arg;
+	    snd_dbuf *b = &(d->dbuf_out);
+	    if (b->dl)
+		dsp_wr_dmaupdate( b );
+	    a->bytes = d->dbuf_out.fl ;
+	    a->fragments = 1 ;
+	    a->fragstotal = b->bufsize / d->play_blocksize ;
+	    a->fragsize = d->play_blocksize ;
+	}
+	break ;
+
+    case SNDCTL_DSP_GETIPTR:
+	{
+	    count_info *a = (count_info *)arg;
+	    snd_dbuf *b = &(d->dbuf_in);
+	    if (b->dl)
+		dsp_rd_dmaupdate( b );
+	    a->bytes = b->total;
+	    a->blocks = (b->total - b->prev_total +
+		    d->rec_blocksize -1 ) / d->rec_blocksize ;
+	    a->ptr = b->fp ; /* XXX not sure... */
+	    b->prev_total = b->total ;
+	}
+	break;
+
+    case SNDCTL_DSP_GETOPTR:
+	{
+	    count_info *a = (count_info *)arg;
+	    snd_dbuf *b = &(d->dbuf_out);
+	    if (b->dl)
+		dsp_wr_dmaupdate( b );
+	    a->bytes = b->total;
+	    a->blocks = (b->total - b->prev_total +
+		    d->play_blocksize -1 ) / d->play_blocksize ;
+	    a->ptr = b->rp ; /* XXX not sure... */
+	    b->prev_total = b->total ;
+	}
 	break ;
 
     case SNDCTL_DSP_GETCAPS :
-	printf("dsp getcaps\n");
+	*(int *) arg = 0x0 ; /* revision */
+	if (FULL_DUPLEX(d))
+		*(int *) arg |= DSP_CAP_DUPLEX ;
+	*(int *) arg |= DSP_CAP_REALTIME ;
 	break ;
 
     case SOUND_PCM_READ_BITS:
@@ -1087,7 +1128,7 @@ init_status(snddev_info *d)
     if (status_len != 0) /* only do init once */
 	return ;
     sprintf(status_buf,
-	"FreeBSD Audio Driver (971023) "  __DATE__ " " __TIME__ "\n"
+	"FreeBSD Audio Driver (971117) "  __DATE__ " " __TIME__ "\n"
 	"Installed devices:\n");
 
     for (i = 0; i < NPCM_MAX; i++) {
@@ -1096,19 +1137,19 @@ init_status(snddev_info *d)
 		"pcm%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, pcm_info[i].name, pcm_info[i].io_base,
 		pcm_info[i].irq,
-		pcm_info[i].dma1, pcm_info[i].dma2);
+		pcm_info[i].dbuf_out.chan, pcm_info[i].dbuf_in.chan);
         if (midi_info[i].open)
             sprintf(status_buf + strlen(status_buf),
 		"midi%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, midi_info[i].name, midi_info[i].io_base,
 		midi_info[i].irq,
-		midi_info[i].dma1, midi_info[i].dma2);
+		midi_info[i].dbuf_out.chan, midi_info[i].dbuf_in.chan);
         if (synth_info[i].open)
             sprintf(status_buf + strlen(status_buf),
 		"synth%d: <%s> at 0x%x irq %d dma %d:%d\n",
 		i, synth_info[i].name, synth_info[i].io_base,
 		synth_info[i].irq,
-		synth_info[i].dma1, synth_info[i].dma2);
+		synth_info[i].dbuf_out.chan, synth_info[i].dbuf_in.chan);
     }
     status_len = strlen(status_buf) ;
 }
