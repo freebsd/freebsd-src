@@ -535,11 +535,7 @@ initsd(int sdno, int verify)
 	vol = NULL;
 
     if (sd->init_blocksize == 0) {
-	if (plex->stripesize != 0)			    /* we're striped, don't init more than */
-	    sd->init_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, /* one block at a time */
-		plex->stripesize << DEV_BSHIFT);
-	else
-	    sd->init_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
+        sd->init_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
     } else if (sd->init_blocksize > MAX_REVIVE_BLOCKSIZE)
 	sd->init_blocksize = MAX_REVIVE_BLOCKSIZE;
 
