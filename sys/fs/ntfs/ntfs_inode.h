@@ -1,4 +1,4 @@
-/*	$NetBSD: ntfs_inode.h,v 1.2 1999/05/06 15:43:19 christos Exp $	*/
+/*	$NetBSD: ntfs_inode.h,v 1.8 1999/10/31 19:45:26 jdolecek Exp $	*/
 
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
@@ -57,46 +57,41 @@
 #define	IN_PRELOADED	0x4000	/* loaded from directory entry */
 
 struct ntnode {
+	struct vnode   *i_devvp;	/* vnode of blk dev we live on */
+	dev_t           i_dev;		/* Device associated with the inode. */
+
 	LIST_ENTRY(ntnode)	i_hash;
 	struct ntnode  *i_next;
 	struct ntnode **i_prev;
 	struct ntfsmount       *i_mp;
 	ino_t           i_number;
-	dev_t           i_dev;
 	u_int32_t       i_flag;
-	int		i_lock;
+
+	/* locking */
+	struct lock	i_lock;
+	struct simplelock i_interlock;
 	int		i_usecount;
-#if defined(__NetBSD__)
-	pid_t		i_lockholder;
-	pid_t		i_lockwaiter;
-	int		i_lockcount;
-#endif
+
 	LIST_HEAD(,fnode)	i_fnlist;
 	LIST_HEAD(,ntvattr)	i_valist;
 
 	long		i_nlink;	/* MFR */
 	ino_t		i_mainrec;	/* MFR */
 	u_int32_t	i_frflag;	/* MFR */
-
-	uid_t           i_uid;
-	gid_t           i_gid;
-	mode_t          i_mode;
 };
 
 #define	FN_PRELOADED	0x0001
 #define	FN_VALID	0x0002
 #define	FN_AATTRNAME	0x0004	/* space allocated for f_attrname */
 struct fnode {
-	struct lock	f_lock;		/* Must be first */
+#ifdef __FreeBSD__
+	struct lock	f_lock;	/* fnode lock >Keep this first< */
+#endif
 	
 	LIST_ENTRY(fnode) f_fnlist;
 	struct vnode   *f_vp;		/* Associatied vnode */
-	struct ntnode  *f_ip;
+	struct ntnode  *f_ip;		/* Associated ntnode */
 	u_long		f_flag;
-	struct vnode   *f_devvp;
-	struct ntfsmount *f_mp;
-	dev_t           f_dev;
-	enum vtype      f_type;
 
 	ntfs_times_t	f_times;	/* $NAME/dirinfo */
 	ino_t		f_pnumber;	/* $NAME/dirinfo */
@@ -114,4 +109,12 @@ struct fnode {
 	u_int32_t       f_lastdnum;
 	caddr_t         f_dirblbuf;
 	u_int32_t       f_dirblsz;
+};
+
+/* This overlays the fid structure (see <sys/mount.h>) */
+struct ntfid {
+        u_int16_t ntfid_len;     /* Length of structure. */
+        u_int16_t ntfid_pad;     /* Force 32-bit alignment. */
+        ino_t     ntfid_ino;     /* File number (ino). */
+        int32_t   ntfid_gen;     /* Generation number. */
 };
