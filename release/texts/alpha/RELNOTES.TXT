@@ -45,7 +45,7 @@ Table of contents:
 1.1. KERNEL CHANGES
 -------------------
 
-Support for Adaptec 152x/151x/AIC-6360 SCSI controlers is back.
+Support for Adaptec 152x/151x/AIC-6360 SCSI controllers is back.
 
 netgraph(4) has been added.  Netgraph provides a uniform and modular system
 for the implementation of kernel objects which perform various networking
