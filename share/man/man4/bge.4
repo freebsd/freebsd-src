@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 27, 2001
+.Dd December 18, 2004
 .Dt BGE 4
 .Os
 .Sh NAME
 .Nm bge
-.Nd "Broadcom BCM570x PCI gigabit ethernet adapter driver"
+.Nd "Broadcom BCM570x/5721/5750/5751 PCI Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device bge"
@@ -44,8 +44,8 @@
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM570x
-family of gigabit ethernet controller chips, including the
-following:
+5721, 5750 and 5751 families of Gigabit Ethernet controller chips,
+including the following:
 .Pp
 .Bl -bullet -compact
 .It
@@ -119,7 +119,7 @@ or
 .Cm half-duplex
 modes.
 .It Cm 100baseTX
-Set 100Mbps (fast ethernet) operation.
+Set 100Mbps (Fast Ethernet) operation.
 The
 .Xr ifconfig 8
 .Ic mediaopt
@@ -133,7 +133,7 @@ Set 1000baseTX operation over twisted pair.  Only
 .Cm full-duplex
 mode is supported.
 .It Cm 1000baseSX
-Set 1000Mbps (gigabit ethernet) operation.
+Set 1000Mbps (Gigabit Ethernet) operation.
 Both
 .Cm full-duplex
 and
