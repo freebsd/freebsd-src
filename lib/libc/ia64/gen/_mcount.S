@@ -22,29 +22,54 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#define	_MCOUNT_DECL	void __mcount
-#define	MCOUNT
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
 
-#define	FUNCTION_ALIGNMENT	32
+	.text
 
-typedef unsigned long	fptrdiff_t;
-
-#ifdef _KERNEL
 /*
- * The following two macros do splhigh and splx respectively.
+ * Important registers:
+ *	r8	structure return address
+ *	r15	static link (nested routines)
+ *	rp	our return address
+ *	in0	caller's ar.pfs
+ *	in1	caller's gp
+ *	in2	caller's rp
+ *	in3	GOT entry
+ *	ar.pfs	our pfs
  */
-#define MCOUNT_ENTER(s) \n\
-	_c = intr_disable()
-#define MCOUNT_EXIT(s) \n\
-	intr_restore(_c)
-#define	MCOUNT_DECL(s)	register_t c;
+ENTRY_NOPROFILE(_mcount, 4)
+	alloc		loc0 = ar.pfs, 4, 4, 2, 0
+	mov		loc1 = r8
+	mov		loc2 = rp
+	mov		loc3 = r15
+	;;
+	mov		out0 = in2
+	mov		out1 = rp
+	br.call.sptk	rp = __mcount
+	;;
+1:
+	mov		gp = in1
+	mov		r14 = ip
+	mov		b7 = loc2
+	;;
+	add		r14 = 2f - 1b, r14
+	mov		ar.pfs = loc0
+	mov		rp = in2
+	;;
+	mov		r15 = loc3
+	mov		b7 = r14
+	mov		b6 = loc2
+	mov		r8 = loc1
+	mov		r14 = in0
+	br.ret.sptk	b7
+	;;
+2:
+	mov		ar.pfs = r14
+	br.sptk		b6
+	;;
+END(_mcount)
 
-#else /* !_KERNEL */
-
-typedef unsigned long	uintfptr_t;
-
-#endif
+WEAK_ALIAS(mcount, _mcount)
