@@ -10,9 +10,8 @@
  * in the Pubic Domain for your edification and enjoyment.
  */
 
-#ifndef lint
-static const char rcsid[] = "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <string.h>
