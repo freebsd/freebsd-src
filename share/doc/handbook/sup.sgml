@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.22 1996/12/19 20:24:37 jkh Exp $ -->
+<!-- $Id: sup.sgml,v 1.27 1997/03/11 06:42:03 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -24,7 +24,7 @@ supfile is said to be supping <ref id="current" name="-current">.
 <url url="file:/usr/share/examples/sup/ports-supfile"
 name="/usr/share/examples/sup/ports-supfile">.<p>
 If you are interested in obtaining the
-<url url="http://www.freebsd.org/cgi-bin/cvsweb" name="CVS"> files
+<url url="http://www.freebsd.org/cgi/cvsweb.cgi" name="CVS"> files
 that make up the source tree, refer to
 <url url="file:/usr/share/examples/sup/cvs-supfile"
 name="/usr/share/examples/sup/cvs-supfile">.<p>
@@ -76,6 +76,7 @@ join the &a.stable and read
 <verb>
 src-base:	/usr/src/...		misc files at the top of /usr/src
 src-bin:	/usr/src/bin		user and system binaries
+src-contrib:	/usr/src/contrib	contributed software
 src-secure:	/usr/src/secure		DES Sources (US/Canada ONLY) 
 src-eBones:	/usr/src/eBones		Kerberos and DES (US/Canada ONLY)
 src-etc:	/usr/src/etc		system files
@@ -124,6 +125,7 @@ ports-emulators:  /usr/ports/emulators	emulators for other OSes
 ports-games:	  /usr/ports/games	games
 ports-graphics:	  /usr/ports/graphics	various graphics utilities
 ports-japanese:	  /usr/ports/japanese	Japanese support
+ports-korean:	  /usr/ports/korean	Korean support
 ports-lang:	  /usr/ports/lang	programming languages
 ports-mail:	  /usr/ports/mail	mail software
 ports-math:	  /usr/ports/math	numerical computation software

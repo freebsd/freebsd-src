@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: alternatives.ms,v 1.2 1997/01/05 12:13:26 mckay Exp $
+.\" $Id: alternatives.ms,v 1.4 1997/02/22 13:03:27 peter Exp $
 .\"
 .ds RH Alternative implementations
 .NH

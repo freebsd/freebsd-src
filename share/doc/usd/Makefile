@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 4/20/94
-#	$Id: Makefile,v 1.3 1995/01/12 20:58:10 wollman Exp $
+#	$Id: Makefile,v 1.6 1997/02/22 13:06:12 peter Exp $
 
 # The following modules are encumbered:
 # 01.begin 02.learn 03.shell 05.dc 06.bc 09.edtut 10.edadv 15.sed 16.awk

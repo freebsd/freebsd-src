@@ -59,7 +59,7 @@ These changes reduce the percentage of time spent running
 in the system by nearly 9%.
 .nr H2 1
 .ds RH Acknowledgements
-.SH
+.NH
 \s+2Acknowledgements\s0
 .PP
 I would like to thank Robert Elz for sharing his ideas and 
@@ -73,7 +73,7 @@ Contract No. N00039-82-C-0235.
 .ds RH References
 .nr H2 1
 .sp 2
-.SH
+.NH
 \s+2References\s-2
 .LP
 .IP [Bentley81] 20

@@ -1,11 +1,12 @@
-<!-- $Id$ -->
+<!-- $Id: diskless.sgml,v 1.6 1997/02/25 04:55:14 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.7 -->
+<!-- Original revision: 1.9 -->
 <!-- 日本語訳 Y.Suzuki(yasu@hike.te.chiba-u.ac.jp)-->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>
 
-<p><em>Contributed by &a.martin;.</em>
+<p><em>原作: &a.martin;</em>
+<p><em>訳: &a.yasu;</em>
 
         <tt>netboot.com/netboot.rom</tt>によって、
         ディスクのないクライアントで

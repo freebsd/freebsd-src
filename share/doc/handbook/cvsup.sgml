@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.1 1996/12/19 20:23:05 jkh Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.11 1997/03/06 05:55:08 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -37,17 +37,17 @@ project, however, because CVSup is both faster and more flexible.
 
 <p>The easiest way to install CVSup if you are running FreeBSD 2.2 or
 later is to use either <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/net/cvsup/"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="the port"> from the FreeBSD <ref id="ports" name="ports
 collection"> or the corresponding <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-2.2/net/cvsup-14.0.tgz"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/net/cvsup-14.1.1.tgz"
 name="binary package">, depending on whether you prefer to roll your
 own or not.
 
 <p>If you are running FreeBSD-2.1.6, you unfortunately cannot use the
 binary package versions due to the fact that it requires a version of
 the C library that did not yet exist in FreeBSD-2.1.6.  You can easily
-use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup/"
+use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup.tar.gz"
 name="the port">, however, just as with FreeBSD 2.2.  Simply unpack
 the tar file, cd to the cvsup subdirectory and type "make install"
 
@@ -56,7 +56,7 @@ url="http://www.research.digital.com/SRC/modula-3/html/home.html"
 name="Modula-3">, both the package and the port require that the
 Modula-3 runtime libraries be installed.  These are available as the
 <url
-url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib"
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib.tar.gz"
 name="lang/modula-3-lib"> port and the <url
 url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/lang/modula-3-lib-3.6.tgz"
 name="lang/modula-3-lib-3.6"> package.  If you follow the same
@@ -66,14 +66,25 @@ installed automatically when you install the CVSup port or package.
 <p>The Modula-3 libraries are rather large, and fetching and compiling
 them is not an instantaneous process.  For that reason, a third option
 is provided.  You can get <em>statically linked</em> FreeBSD
-executables for CVSup from:
+executables for CVSup from either the USA distribution site:
 
 <itemize>
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz">
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.1.1.tar.gz">
   (client).
-  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz"
-  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz">
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.1.1.tar.gz">
+  (server).
+</itemize>
+
+or the German mirror:
+
+<itemize>
+  <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz"
+  name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsup-bin-14.1.1.tar.gz">
+  (client).
+  <item><url url="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsupd-bin-14.1.1.tar.gz"
+  name="ftp://ftp.cs.tu-berlin.de/pub/FreeBSD/CVSup/cvsupd-bin-14.1.1.tar.gz">
   (server).
 </itemize>
 
@@ -148,21 +159,20 @@ name="FreeBSD-current">.
 <item>Which files do you want to receive?<label id="cvsup:config:files">
 
 <p>As with sup, the files available via CVSup are organized into named
-groups called "collections".  The collections making up the FreeBSD
-source tree are described in <ref id="sup:dists" name="the sup
-collections document">.  In this example, we wish to receive the
+groups called "collections".  The collections that are available are
+described <ref id="cvsup:collec" name="here">.
+In this example, we wish to receive the
 entire main source tree for the FreeBSD system.  There is a single
 large collection "src-all" which will give us all of that, except the
 export-controlled cryptography support.  Let us assume for this
 example that we are in the USA or Canada.  Then we can get the
-cryptography code with two additional collections, "src-eBones" and
-"src-secure".  As a first step toward constructing our supfile, we
+cryptography code with one additional collection, "cvs-crypto".
+As a first step toward constructing our supfile, we
 simply list these collections, one per line:
 
 <verb>
   src-all
-  src-eBones
-  src-secure
+  cvs-crypto
 </verb>
 
 <p><item>Which version(s) of them do you want?<label id="cvsup:config:vers">
@@ -186,7 +196,7 @@ different tomorrow than it means today.
 <descrip>
   <tag/tag=./
     The main line of development, also known as FreeBSD-current.
-    Note:  the "." is not punctuation; it's the name of the tag.
+    Note:  the "." is not punctuation; it is the name of the tag.
   <tag/tag=RELENG_2_2/
     The line of development leading up to FreeBSD-2.2.
   <tag/tag=RELENG_2_1_0/
@@ -236,23 +246,25 @@ cost in terms of disk space, however.
 
 <p><item>Where do you want to get them from?<label id="cvsup:config:where">
 
-<p>This one is easy.  We use the "host=" field to tell cvsup to get
-its updates from the primary FreeBSD distribution site,
+<p>We use the "host=" field to tell cvsup where to obtain its updates.
+Any of the <ref id="mirrors-cvsup" name="CVSup mirror sites"> will do,
+though you should try to select one that's near to you.
+In this example, we'll use the primary FreeBSD distribution site,
 "cvsup.FreeBSD.org":
 
 <verb>
   *default host=cvsup.FreeBSD.org
 </verb>
 
-<p>On any particular run of cvsup, we can override this setting on the
+<p>On any particular run of cvsup, you can override this setting on the
 command line, with "-h hostname".
 
 <p><item>Where do you want to put them on your own machine?<label id="cvsup:config:dest">
 
 <p>The "prefix=" field tells cvsup where to put the files it receives.
-In this example, we'll put the source files directly into our main
+In this example, we will put the source files directly into our main
 source tree, "/usr/src".  The "src" directory is already implicit in the
-collections we've chosen to receive, so this is the correct
+collections we have chosen to receive, so this is the correct
 specification:
 
 <verb>
@@ -263,7 +275,7 @@ specification:
 
 <p>The cvsup client maintains certain status files in what is called
 the "base" directory.  These files help CVSup to work more
-efficiently, by keeping track of which updates you've already
+efficiently, by keeping track of which updates you have already
 received.  We will use the standard base directory,
 "/usr/local/etc/cvsup":
 
@@ -271,12 +283,12 @@ received.  We will use the standard base directory,
   *default base=/usr/local/etc/cvsup
 </verb>
 
-<p>This setting is used by default if it's not specified in the
-supfile, so we actually don't need the above line.
+<p>This setting is used by default if it is not specified in the
+supfile, so we actually do not need the above line.
 
-<p>If your base directory doesn't already exist, now would be a good
+<p>If your base directory does not already exist, now would be a good
 time to create it.  The cvsup client will refuse to run if the base
-directory doesn't exist.
+directory does not exist.
 
 <p><item>Miscellaneous supfile settings:
 
@@ -300,11 +312,11 @@ alone.
 
 <p>"use-rel-suffix" is ... arcane.  If you really want to know about
 it, see the cvsup(1) manual page.  Otherwise, just specify it and
-don't worry about it.
+do not worry about it.
 
 <p>"compress" enables the use of gzip-style compression on the
 communication channel.  If your network link is T1 speed or faster,
-you probably shouldn't use compression.  Otherwise, it helps
+you probably should not use compression.  Otherwise, it helps
 substantially.
 
 <p><item>Putting it all together:
@@ -318,8 +330,7 @@ substantially.
   *default base=/usr/local/etc/cvsup
   *default release=cvs delete use-rel-suffix compress
   src-all
-  src-eBones
-  src-secure
+  cvs-crypto
 </verb>
 </itemize>
 
@@ -332,7 +343,7 @@ quite simple:
   cvsup supfile
 </verb>
 
-<p>where "supfile" is of course the name of the supfile you've just created.
+<p>where "supfile" is of course the name of the supfile you have just created.
 Assuming you are running under X11, cvsup will display a GUI window with
 some buttons to do the usual things.  Press the "go" button, and watch
 it run.
@@ -357,10 +368,10 @@ for all file updates.  CVSup will examine your usual files in
 updates will instead land in "/var/tmp/dest/usr/src".  CVSup will also
 leave its base directory status files untouched when run this way.
 The new versions of those files will be written into the specified
-directory.  As long as you have read access to "/usr/src", you don't
+directory.  As long as you have read access to "/usr/src", you do not
 even need to be root to perform this kind of trial run.
 
-<p>If you are not running X11 or if you just don't like GUIs, you
+<p>If you are not running X11 or if you just do not like GUIs, you
 should add a couple of options to the command line when you run cvsup:
 
 <verb>
@@ -378,8 +389,164 @@ The default is 0, which means total silence except for error messages.
 type "cvsup -H".  For more detailed descriptions, see the manual page.
 
 <p>Once you are satisfied with the way updates are working, you can arrange
-for regular runs of cvsup using cron(8).  Obviously, you shouldn't let
+for regular runs of cvsup using cron(8).  Obviously, you should not let
 cvsup use its GUI when running it from cron.
+
+<sect1><heading>CVSup File Collections<label id="cvsup:collec"></heading>
+
+<p>The file collections available via CVSup are organized
+hierarchically.  There are a few large collections, and they are
+divided into smaller sub-collections.  Receiving a large collection
+is equivalent to receiving each of its sub-collections.
+The hierarchical relationships among collections are reflected by
+the use of indentation in the list below.
+
+<p> The most commonly used collections are <tt/src-all/,
+<tt/cvs-crypto/, and <tt/ports-all/.  The other collections are used
+only by small groups of people for specialized purposes, and some mirror
+sites may not carry all of them.
+
+<descrip>
+<tag><tt>cvs-all release=cvs</tt></tag>
+The main FreeBSD CVS repository, excluding the export-restricted
+cryptography code.
+  <p>
+  <descrip>
+  <tag><tt>distrib release=cvs</tt></tag>
+  Files related to the distribution and mirroring of FreeBSD.
+  <tag><tt>ports-all release=cvs</tt></tag>
+  The FreeBSD ports collection.
+    <p>
+    <descrip>
+    <tag><tt>ports-archivers release=cvs</tt></tag>
+    Archiving tools.
+    <tag><tt>ports-astro release=cvs</tt></tag>
+    Astronomical ports.
+    <tag><tt>ports-audio release=cvs</tt></tag>
+    Sound support.
+    <tag><tt>ports-base release=cvs</tt></tag>
+    Miscellaneous files at the top of /usr/ports.
+    <tag><tt>ports-benchmarks release=cvs</tt></tag>
+    Benchmarks.
+    <tag><tt>ports-cad release=cvs</tt></tag>
+    Computer aided design tools.
+    <tag><tt>ports-chinese release=cvs</tt></tag>
+    Chinese language support.
+    <tag><tt>ports-comms release=cvs</tt></tag>
+    Communication software.
+    <tag><tt>ports-databases release=cvs</tt></tag>
+    Databases.
+    <tag><tt>ports-devel release=cvs</tt></tag>
+    Development utilities.
+    <tag><tt>ports-editors release=cvs</tt></tag>
+    Editors.
+    <tag><tt>ports-emulators release=cvs</tt></tag>
+    Emulators for other operating systems.
+    <tag><tt>ports-games release=cvs</tt></tag>
+    Games.
+    <tag><tt>ports-graphics release=cvs</tt></tag>
+    Graphics utilities.
+    <tag><tt>ports-japanese release=cvs</tt></tag>
+    Japanese language support.
+    <tag><tt>ports-korean release=cvs</tt></tag>
+    Korean language support.
+    <tag><tt>ports-lang release=cvs</tt></tag>
+    Programming languages.
+    <tag><tt>ports-mail release=cvs</tt></tag>
+    Mail software.
+    <tag><tt>ports-math release=cvs</tt></tag>
+    Numerical computation software.
+    <tag><tt>ports-mbone release=cvs</tt></tag>
+    MBone applications.
+    <tag><tt>ports-misc release=cvs</tt></tag>
+    Miscellaneous utilities.
+    <tag><tt>ports-net release=cvs</tt></tag>
+    Networking software.
+    <tag><tt>ports-news release=cvs</tt></tag>
+    USENET news software.
+    <tag><tt>ports-plan9 release=cvs</tt></tag>
+    Various programs from Plan9.
+    <tag><tt>ports-print release=cvs</tt></tag>
+    Printing software.
+    <tag><tt>ports-russian release=cvs</tt></tag>
+    Russian language support.
+    <tag><tt>ports-security release=cvs</tt></tag>
+    Security utilities.
+    <tag><tt>ports-shells release=cvs</tt></tag>
+    Command line shells.
+    <tag><tt>ports-sysutils release=cvs</tt></tag>
+    System utilities.
+    <tag><tt>ports-vietnamese release=cvs</tt></tag>
+    Vietnamese language support.
+    <tag><tt>ports-www release=cvs</tt></tag>
+    Software related to the World Wide Web.
+    <tag><tt>ports-x11 release=cvs</tt></tag>
+    X11 software.
+    </descrip>
+  <tag><tt>src-all release=cvs</tt></tag>
+  The main FreeBSD sources, excluding the export-restricted cryptography
+  code.
+    <p>
+    <descrip>
+    <tag><tt>src-base release=cvs</tt></tag>
+    Miscellaneous files at the top of <tt>/usr/src</tt>.
+    <tag><tt>src-bin release=cvs</tt></tag>
+    User utilities that may be needed in single-user mode
+    (<tt>/usr/src/bin</tt>).
+    <tag><tt>src-contrib release=cvs</tt></tag>
+    Utilities and libraries from other outside the FreeBSD project, used
+    relatively unmodified (<tt>/usr/src/contrib</tt>).
+    <tag><tt>src-etc release=cvs</tt></tag>
+    System configuration files (<tt>/usr/src/etc</tt>).
+    <tag><tt>src-games release=cvs</tt></tag>
+    Games (<tt>/usr/src/games</tt>).
+    <tag><tt>src-gnu release=cvs</tt></tag>
+    Utilities covered by the GNU Public License (<tt>/usr/src/gnu</tt>).
+    <tag><tt>src-include release=cvs</tt></tag>
+    Header files (<tt>/usr/src/include</tt>).
+    <tag><tt>src-lib release=cvs</tt></tag>
+    Libraries (<tt>/usr/src/lib</tt>).
+    <tag><tt>src-libexec release=cvs</tt></tag>
+    System programs normally executed by other programs
+    (<tt>/usr/src/libexec</tt>).
+    <tag><tt>src-release release=cvs</tt></tag>
+    Files required to produce a FreeBSD release (<tt>/usr/src/release</tt>).
+    <tag><tt>src-sbin release=cvs</tt></tag>
+    System utilities for single-user mode (<tt>/usr/src/sbin</tt>).
+    <tag><tt>src-share release=cvs</tt></tag>
+    Files that can be shared across multiple systems (<tt>/usr/src/share</tt>).
+    <tag><tt>src-sys release=cvs</tt></tag>
+    The kernel (<tt>/usr/src/sys</tt>).
+    <tag><tt>src-tools release=cvs</tt></tag>
+    Various tools for the maintenance of FreeBSD (<tt>/usr/src/tools</tt>).
+    <tag><tt>src-usrbin release=cvs</tt></tag>
+    User utilities (<tt>/usr/src/usr.bin</tt>).
+    <tag><tt>src-usrsbin release=cvs</tt></tag>
+    System utilities (<tt>/usr/src/usr.sbin</tt>).
+    </descrip>
+  <tag><tt>www release=cvs</tt></tag>
+  The sources for the World Wide Web data.
+  </descrip>
+<tag><tt>cvs-crypto release=cvs</tt></tag>
+The export-restricted cryptography code.
+<p>
+  <descrip>
+  <tag><tt>src-eBones release=cvs</tt></tag>
+  Kerberos and DES (<tt>/usr/src/eBones</tt>).
+  <tag><tt>src-secure release=cvs</tt></tag>
+  DES (<tt>/usr/src/secure</tt>).
+  </descrip>
+<tag><tt>distrib release=self</tt></tag>
+The CVSup server's own configuration files.  Used by CVSup mirror sites.
+<tag><tt>gnats release=current</tt></tag>
+The GNATS bug-tracking database.
+<tag><tt>src-sys release=lite2</tt></tag>
+The CVS repository for the lite2 kernel merge.
+<tag><tt>src-sys release=smp</tt></tag>
+The CVS repository for the SMP project.
+<tag><tt>www release=current</tt></tag>
+The installed World Wide Web data.  Used by WWW mirror sites.
+</descrip>
 
 <sect1><heading>Announcements, Questions, and Bug Reports</heading>
 

@@ -1,15 +1,158 @@
-<!-- $Id: contrib.sgml,v 1.18 1996/12/18 09:15:55 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.39 1997/03/07 04:56:55 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.174 -->
+<!-- Original revision: 1.225 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
 
+<chapt><heading>FreeBSDプロジェクトスタッフ<label id="staff"></heading>
 
-<chapt><heading>FreeBSD へのコントリビュータ<label id="contrib"></heading>
-
-<p><em>原作: 不明</em>
 <p><em>訳: &a.hanai;<newline>28 August 1996.</em>
+
+<p>FreeBSDプロジェクトは, 以下の人々によって管理運営されています.
+
+  <sect><heading>FreeBSD コアチーム<label id="contrib:core"></heading>
+    <p>FreeBSD コアチームは, プロジェクトの運用委員会を形成し, FreeBSD
+      プロジェクトの全般的な目的や方針の決定を行います. さらに,
+      FreeBSDプロジェクトの<ref id="contrib:who" name="特定の分野">の
+      運用も行っています.
+
+    <p>(姓でアルファベット順):
+
+      <itemize>
+	<item>&a.asami;
+	<item>&a.jmb;
+	<item>&a.ache;
+	<item>&a.dyson;
+	<item>&a.bde;
+	<item>&a.gibbs;
+	<item>&a.davidg;
+	<item>&a.jkh;
+	<item>&a.phk;
+	<item>&a.rich;
+	<item>&a.gpalmer;
+	<item>&a.jdp;
+	<item>&a.guido;
+	<item>&a.sos;
+	<item>&a.peter;
+	<item>&a.wollman;
+	<item>&a.joerg;
+      </itemize>
+
+  <sect><heading>FreeBSD の開発者たち<label id="contrib:committers"></heading>
+
+    <p>(CVSの)commitする権利を持っていて, FreeBSD のソースツリーについて
+       作業をおこなっている人々がいます. すべてのコアチームのメンバと
+      ほとんどの FreeBSDドキュメンテーションプロジェクトのスタッフはま
+      た 開発者でもあります.
+
+      <itemize>
+	<item>&a.mbarkah;
+        <item>&a.torstenb;
+	<item>&a.danny;
+        <item>&a.gclarkii;
+	<item>&a.cracauer;
+        <item>&a.adam;
+        <item>&a.dufault;
+        <item>&a.uhclem;
+	<item>&a.tegge;
+	<item>&a.eivind;
+        <item>&a.sef;
+        <item>&a.julian;
+        <item>&a.se;  
+        <item>&a.fenner;
+        <item>&a.jfieber;
+	<item>&a.jfitz;
+        <item>&a.lars;
+	<item>&a.scrappy;
+        <item>&a.tg;
+        <item>&a.graichen;
+        <item>&a.rgrimes;
+	<item>&a.jmg;
+	<item>&a.jhay;
+        <item>&a.hsu;
+        <item>&a.ugen;
+        <item>&a.gj;
+	<item>&a.nsj;
+        <item>&a.ljo;
+	<item>&a.darrenr;
+	<item>&a.kato;
+	<item>&a.andreas;
+        <item>&a.erich;
+	<item>&a.imp;
+        <item>&a.smace;
+	<item>&a.mckay;
+        <item>&a.amurai;
+        <item>&a.markm;
+	<item>&a.max;
+        <item>&a.alex;
+	<item>&a.davidn;
+	<item>&a.obrien;
+        <item>&a.fsmp; 
+	<item>&a.smpatel;
+        <item>&a.wpaul; 
+        <item>&a.jmacd; 
+        <item>&a.steve; 
+        <item>&a.mpp;
+        <item>&a.dfr;  
+        <item>&a.jraynard;
+        <item>&a.csgr;
+        <item>&a.martin;
+        <item>&a.paul;
+        <item>&a.roberto;
+        <item>&a.chuckr;
+        <item>&a.dima;
+        <item>&a.wosch;
+        <item>&a.ats;
+        <item>&a.msmith;
+        <item>&a.brian; 
+        <item>&a.karl;
+        <item>&a.pst;
+        <item>&a.swallace;
+        <item>&a.nate;
+	<item>&a.yokota;
+        <item>&a.jmz; 
+        <item>&a.hanai;
+      </itemize>
+
+    <sect><heading>FreeBSD ドキュメンテーションプロジェクト<label
+	id="contrib:doc"></heading>
+
+    <p>FreeBSD ドキュメンテーションプロジェクトは複数のサービスを提供
+      しています. それぞれのサービスは, 以下の担当者とその
+      <em>副担当者</em>によって運用されています.
+
+      <p><descrip>
+        <tag/ドキュメンテーションプロジェクト担当/ &a.jfieber
+        <tag/Web 管理責任者/ &a.mbarkah; <p><em>副責任者</em> &a.paul
+        <tag/ハンドブックおよび FAQ 編集担当/ &a.pds
+        <tag/ドキュメント構築環境の技術責任者/ &a.paul; <p><em>副責任者</em> &a.dave
+        <tag/Mirror 担当/ &a.ulf; <p><em>副担当</em>&a.john
+        <tag/ニュースフラッシュ編集担当/ &a.nsj; <p><em>副担当</em>&a.john;
+        <tag/FreeBSD ギャラリーおよび商用ベンダ情報ページ担当/ &a.ricardag; <p><em>副担当</em>&a.cawimm
+        <tag/WEB ページデザイン等の美術担当/ &a.dave; <p><em>副担当</em>&a.opsys
+        <tag/データベース技術担当/ &a.mayo; <p><em>副担当</em>&a.cracauer
+        <tag/CGI 技術担当/ &a.cracauer
+        <tag/雑務担当/ &a.nsj
+      </descrip>
+
+  <sect><heading>担当者<label id="contrib:who"></heading>
+ 
+    <p><descrip>
+        <tag/最高技術責任者/ &a.davidg 
+        <tag/ドキュメンテーションプロジェクト担当/ &a.jfieber
+        <tag/国際化/ &a.ache 
+        <tag/ネットワーク/ &a.wollman 
+        <tag/ポストマスタ/ &a.jmb; 
+        <tag/リリースコーディネータ/ &a.jkh 
+	<tag/セキュリティ担当/ &a.guido
+        <tag/CVS ツリー管理者/ &a.peter 
+        <tag/ports コレクション担当/ &a.asami 
+        <tag/XFree86 Project, Inc. との渉外担当/ &a.rich 
+        <tag/Usenet サポート/ &a.joerg;
+      </descrip>
+
+<chapt><heading>FreeBSDへのコントリビュータ<label id="contrib"></heading>
 
   <sect><heading>BSD派生ソフトウェアへのコントリビュータ</heading>
 
@@ -43,7 +186,7 @@
       また, 東芝 XM3401B CDROM ドライブ を寄付してくれた Dermot McDonnell
       に感謝します. その CDROM ドライブはもっとも役に立ちました.
 
-      実験的な仕事としてフロッピーテープストリーマを寄付してくれた
+      実験のためにフロッピーテープストリーマを寄付してくれた
       &a.chuck; に感謝します.
 
       <tt>wt</tt>ドライバを改良するために Wangtek と Archive の
@@ -58,112 +201,6 @@
       また, FreeBSDプロジェクトへ資金やサービスを提供してくれた人々の
       リストは <ref id="donors" name="寄贈者ギャラリー"> をご覧ください.
 
-  <sect><heading>FreeBSD コアチーム<label id="contrib:core"></heading>
-
-    <p>(姓でアルファベット順):
-
-      <itemize>
-	<item>&a.asami
-	<item>&a.ache
-	<item>&a.dyson
-	<item>&a.bde
-	<item>&a.gibbs
-	<item>&a.davidg
-	<item>&a.jkh
-	<item>&a.phk
-	<item>&a.rich
-	<item>&a.gpalmer
-	<item>&a.sos
-	<item>&a.peter
-	<item>&a.wollman
-	<item>&a.joerg
-      </itemize>
-
-  <sect><heading>FreeBSD の開発者たち<label id="contrib:committers"></heading>
-
-    <p>(CVSの)commitする権利を持っていて, FreeBSD のソースツリーについて
-       作業をおこなっている人々がいます. すべてのコアチームのメンバはまた
-       開発者でもあります.
-
-      <itemize>
-        <item>&a.torstenb;
-        <item>&a.gclarkii;
-        <item>&a.adam;
-        <item>&a.dufault;
-        <item>&a.uhclem;
-        <item>&a.julian;
-        <item>&a.sef;
-        <item>&a.se;  
-        <item>&a.fenner;
-        <item>&a.jfieber;
-	<item>&a.jfitz;
-	<item>&a.scrappy;
-	<item>&a.jhay;
-        <item>&a.lars;
-        <item>&a.tg;
-        <item>&a.graichen;
-        <item>&a.rgrimes;
-        <item>&a.hsu;
-        <item>&a.ugen;
-        <item>&a.gj;
-	<item>&a.kato;
-	<item>&a.andreas;
-	<item>&a.imp;
-        <item>&a.ljo;
-        <item>&a.erich;
-        <item>&a.smace;
-	<item>&a.mckay;
-        <item>&a.amurai;
-        <item>&a.markm;
-	<item>&a.max;
-        <item>&a.alex;
-	<item>&a.davidn;
-       <item>&a.obrien;
-        <item>&a.wpaul; 
-	<item>&a.smpatel;
-        <item>&a.jmacd; 
-        <item>&a.jdp;
-        <item>&a.mpp;
-        <item>&a.dfr;  
-        <item>&a.csgr;
-        <item>&a.martin;
-        <item>&a.paul;
-        <item>&a.roberto;
-        <item>&a.jraynard;
-        <item>&a.chuckr;
-        <item>&a.dima;
-        <item>&a.wosch;
-        <item>&a.ats;
-        <item>&a.msmith;
-        <item>&a.karl;
-        <item>&a.pst;
-        <item>&a.guido;
-        <item>&a.swallace;
-        <item>&a.nate;
-        <item>&a.jmz; 
-        <item>&a.fsmp; 
-        <item>&a.steve; 
-      </itemize>
-
-  <sect><heading>担当者<label id="contrib:who"></heading>
- 
-    <p><descrip>
-        <tag/議長/ &a.jkh 
-        <tag/最高技術責任者/ &a.davidg 
-        <tag/(各種)文書/ &a.mpp
-        <tag/国際化/ &a.ache 
-        <tag/ネットワーク/ &a.wollman 
-        <tag/ポストマスタ/ &a.jmb; 
-        <tag/広報/ &a.jkh 
-        <tag/リリースコーディネータ/ &a.jkh 
-	<tag/セキュリティ担当/ &a.pst; and &a.guido
-        <tag/CVS ツリー管理者/ &a.peter 
-        <tag/ports コレクション担当/ &a.asami 
-        <tag/Web 管理者/ &a.jfieber
-        <tag/FAQ 担当/ &a.pds
-        <tag/XFree86 Project, Inc. との渉外担当/ &a.rich 
-      </descrip>
-
     <sect><heading>その他の FreeBSD へのコントリビュータ<label
       id="contrib:additional"></heading>
 
@@ -176,9 +213,10 @@
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
+	  <item>Alan Cox &lt;alc@cs.rice.edu&gt;
 	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
 	  <item>Andreas Lohr &lt;andreas@marvin.RoBIN.de&gt;
-<item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
+	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
 	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
@@ -187,15 +225,17 @@
 	  <item>Andrey Zakhvatov &lt;andy@cgu.chel.su&gt;
 	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
+          <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
 	  <item>Bernd Rosauer &lt;br@schiele-ct.de&gt;
 	  <item>Bill Kish &lt;kish@osf.org&gt;
 	  <item>&a.wlloyd
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
 	  <item>Boyd Faulkner &lt;faulkner@mpd.tandem.com&gt;
-	  <item>Brent J. Nordquist &lt;nordquist@platinum.com&gt;
+	  <item>Brent J. Nordquist &lt;bjn@visi.com&gt;
 	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
-	  <item>Brian Tao &lt;taob@io.org&gt;
+	  <item>Brian Tao &lt;taob@risc.org&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
+	  <item>Charles Mott &lt;cmott@srv.net&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
 	  <item>Chris G. Demetriou &lt;cgd@postgres.berkeley.edu&gt;
 	  <item>Chris Stenton &lt;jacs@gnome.co.uk&gt;
@@ -205,10 +245,12 @@
 	  <item>Christian Haury &lt;Christian.Haury@sagem.fr&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
 	  <item>Chuck Hein &lt;chein@cisco.com&gt;
+	  <item>Conrad Sabatier &lt;conrads@neosoft.com&gt;
 	  <item>Cornelis van der Laan &lt;nils@guru.ims.uni-stuttgart.de&gt;
 	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
 	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
+          <item>Dan Cross &lt;tenser@spitfire.ecsel.psu.edu&gt;
 	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
 	  <item>Daniel M. Eischen &lt;deischen@iworks.InterWorks.org&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
@@ -240,40 +282,51 @@
 	  <item>Hidekazu Kuroki &lt;hidekazu@cs.titech.ac.jp&gt;
 	  <item>Hidetoshi Shimokawa &lt;simokawa@sat.t.u-tokyo.ac.jp&gt;
 	  <item>Holger Veit &lt;Holger.Veit@gmd.de&gt;
+          <item>Hung-Chi Chu &lt;hcchu@r350.ee.ntu.edu.tw&gt;
 	  <item>Igor Vinokurov &lt;igor@zynaps.ru&gt;
 	  <item>Ikuo Nakagawa &lt;ikuo@isl.intec.co.jp&gt;
 	  <item>IMAMURA Tomoaki &lt;tomoak-i@is.aist-nara.ac.jp&gt;
 	  <item>Ishii Masahiro &lt;?&gt;
+          <item>Itsuro Saito &lt;saito@miv.t.u-tokyo.ac.jp&gt;
 	  <item>J.T. Conklin &lt;jtc@cygnus.com&gt;
 	  <item>James Clark &lt;jjc@jclark.com&gt;
 	  <item>James da Silva &lt;jds@cs.umd.edu&gt; et al
 	  <item>Janusz Kokot &lt;janek@gaja.ipan.lublin.pl&gt;
 	  <item>Jason Thorpe &lt;thorpej@nas.nasa.gov&gt;
 	  <item>Javier Martin Rueda &lt;jmrueda@diatel.upm.es&gt;
+	  <item>Jeffrey Wheat &lt;jeff@cetlink.net&gt;
 	  <item>Jian-Da Li &lt;jdli@csie.NCTU.edu.tw&gt;
 	  <item>Jim Lowe &lt;james@cs.uwm.edu&gt;
 	  <item>Jim Wilson &lt;wilson@moria.cygnus.com&gt;
           <item>Johann Tonsing &lt;jtonsing@mikom.csir.co.za&gt;
+          <item>Joel Sutton &lt;suttonj@interconnect.com.au&gt;
 	  <item>John Capo &lt;jc@irbs.com&gt;
           <item>John Perry &lt;perry@vishnu.alias.net&gt;
-	  <item>John-Mark Gurney &lt;gurney_j@efn.org&gt;
 	  <item>Juergen Lock &lt;nox@jelal.hb.north.de&gt;
 	  <item>Juha Inkari &lt;inkari@cc.hut.fi&gt;
+	  <item>Julian Assange &lt;proff@suburbia.net&gt;
 	  <item>Julian Jenkins &lt;kaveman@magna.com.au&gt;
 	  <item>Julian Stacey &lt;jhs@freebsd.org&gt;
+          <item>Jun-ichiro Itoh &lt;itojun@csl.sony.co.jp&gt;
+          <item>Justin M. Seger &lt;jseger@scds.ziplink.net&gt;
 	  <item>Kazuhiko Kiriyama &lt;kiri@kiri.toba-cmt.ac.jp&gt;
 	  <item>Kazutaka YOKOTA &lt;yokota@zodiac.mech.utsunomiya-u.ac.jp&gt;
 	  <item>Keith Bostic &lt;bostic@toe.CS.Berkeley.EDU&gt;
 	  <item>Keith Moore &lt;?&gt;
+	  <item>Kenneth Monville &lt;desmo@bandwidth.org&gt;
 	  <item>Kirk McKusick &lt;mckusick@mckusick.com&gt;
+          <item>Kiroh HARADA &lt;kiroh@kh.rim.or.jp&gt;
 	  <item>Koichi Sato &lt;copan@ppp.fastnet.or.jp&gt;
 	  <item>Kostya Lukin &lt;lukin@okbmei.msk.su&gt;
 	  <item>Kurt Olsen &lt;kurto@tiny.mcs.usu.edu&gt;
 	  <item>Lars Koeller &lt;Lars_Koeller@odie.physik2.uni-rostock.de&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
+	  <item>Luigi Rizzo &lt;luigi@iet.unipi.it&gt;
+          <item>Makoto Matsushita &lt;matusita@ics.es.osaka-u.ac.jp&gt;
 	  <item>Manu Iyengar &lt;iyengar@grunthos.pscwa.psca.com&gt;
 	  <item>Marc Frajola &lt;marc@dev.com&gt;
-	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
+	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu&gt;
+          <item>Marc Slemko &lt;marcs@znep.com&gt;
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
 	  <item>Mark Huizer &lt;xaa@stack.nl&gt;
 	  <item>Mark J. Taylor &lt;mtaylor@cybernet.com&gt;
@@ -281,10 +334,11 @@
 	    &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	  <item>Martin Birgmeier
 	  <item>Masachika ISHIZUKA &lt;ishizuka@isis.min.ntt.jp&gt;
-      <item>Mats Lofkvist &lt;mal@algonet.se&gt;
+	  <item>Mats Lofkvist &lt;mal@algonet.se&gt;
 	  <item>Matt Bartley &lt;mbartley@lear35.cytex.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Matt White &lt;mwhite+@CMU.EDU&gt;
+          <item>Matthew Hunt &lt;mph@pobox.com&gt;
 	  <item>Matthew N. Dodd &lt;winter@jurai.net&gt;
 	  <item>Matthew Stein &lt;matt@bdd.net&gt;
 	  <item>Michael Butschky &lt;butsch@computi.erols.com&gt;
@@ -292,6 +346,7 @@
 	  <item>Michael Searle &lt;searle@longacre.demon.co.uk&gt;
 	  <item>Miguel Angel Sagreras &lt;msagre@cactus.fi.uba.ar&gt;
 	  <item>Mikael Hybsch &lt;micke@dynas.se&gt;
+	  <item>Mikhail Teterin &lt;mi@aldan.ziplink.net&gt;
 	  <item>Mike McGaughey &lt;mmcg@cs.monash.edu.au&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
@@ -307,7 +362,9 @@
 	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
+	  <item>Paulo Menezes &lt;paulo@isr.uc.pt&gt;
 	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
+          <item>Pedro A M Vazquez &lt;vazquez@IQM.Unicamp.BR&gt;
 	  <item>Peter Stubbs &lt;PETERS@staidan.qld.edu.au&gt;
 	  <item>Philippe Charnier &lt;charnier@lirmm.fr&gt;
 	  <item>R. Kym Horsell &lt;?&gt;
@@ -322,9 +379,12 @@
 	  <item>Ronald Kuehn &lt;kuehn@rz.tu-clausthal.de&gt;
 	  <item>Sander Vesik &lt;sander@haldjas.folklore.ee&gt;
 	  <item>Sandro Sigala &lt;ssigala@globalnet.it&gt;
+	  <item>Sascha Blank &lt;blank@fox.uni-trier.de&gt;
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
+	  <item>Simon Marlow &lt;simonm@dcs.gla.ac.uk&gt;
+          <item>Slaven Rezi (Tomi) &lt;eserte@cs.tu-berlin.de&gt;
 	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stefan Moeding &lt;moeding@bn.DeTeMobil.de&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
@@ -340,6 +400,7 @@
 	  <item>Tim Vanderhoek &lt;ac199@freenet.hamilton.on.ca&gt;
 	  <item>Tom Samplonius &lt;tom@misery.sdf.com&gt;
 	  <item>Torbjorn Granlund &lt;tege@matematik.su.se&gt;
+	  <item>Tor Egge &lt;tegge@itea.ntnu.no&gt;
 	  <item>Toshihiro Kanda &lt;candy@fct.kgc.co.jp&gt;
 	  <item>Ville Eerola &lt;ve@sci.fi&gt;
 	  <item>Werner Griessl &lt;werner@btp1da.phy.uni-bayreuth.de&gt;

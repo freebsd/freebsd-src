@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.2 1995/01/11 04:10:07 wollman Exp $
+#	$Id: Makefile,v 1.6 1997/02/22 13:04:05 peter Exp $
 
 VOLUME=	papers
 DOC=	px
@@ -8,6 +8,7 @@ EXTRA=	fig1.1.n fig1.2.n fig1.3.n fig2.3.raw fig2.4.n fig3.2.n \
 	fig3.3.n table2.1.n table2.2.n table2.3.n table3.1.n tmac.p
 OBJS=	fig2.3.n
 CLEANFILES+=fig2.3.n
+MACROS= -ms
 
 USE_SOELIM=	yes
 USE_SOELIMPP=	yes

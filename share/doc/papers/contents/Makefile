@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.1 1995/01/11 00:15:20 wollman Exp $
+#	$Id: Makefile,v 1.4 1997/02/22 13:02:54 peter Exp $
 
 VOLUME=	papers
-DOC=	CONTENTS
+DOC=	contents
 
 SRCS=	contents.ms
 FILES=	${SRCS}

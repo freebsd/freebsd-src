@@ -1,6 +1,6 @@
-<!-- $Id: nfs.sgml,v 1.2 1996/12/20 06:49:35 max Exp $ -->
+<!-- $Id: nfs.sgml,v 1.6 1997/02/25 04:57:11 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.7 -->
+<!-- Original revision: 1.9 -->
 
 <sect><heading>NFS<label id="nfs"></heading>
 

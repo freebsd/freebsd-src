@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)conclusions.ms	6.2 (Berkeley) 4/16/91
-.\"	$Id$
+.\"	$Id: conclusions.ms,v 1.5 1997/02/22 13:02:59 peter Exp $
 .\"
 .ds RH Conclusions
 .NH
@@ -95,7 +95,7 @@ transfers are used.
 .ds RH Acknowledgements
 .nr H2 1
 .sp 1
-.SH
+.NH
 \s+2Acknowledgements\s0
 .PP
 We thank Paul Massigilia and Bill Grace
@@ -116,7 +116,7 @@ Contract No. N00039-82-C-0235.
 .ds RH References
 .nr H2 1
 .sp 1
-.SH
+.NH
 \s+2References\s0
 .LP
 .IP [McKusick83] 20

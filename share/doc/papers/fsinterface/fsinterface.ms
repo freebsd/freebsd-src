@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)fsinterface.ms	1.4 (Berkeley) 4/16/91
-.\"	$Id$
+.\"	$Id: fsinterface.ms,v 1.5 1997/02/22 13:03:06 peter Exp $
 .\"
 .if \nv .rm CM
 .de UX
@@ -93,7 +93,7 @@ This proposal and the rationale underlying its development
 have been presented to major software vendors
 as an early step toward convergence on a compatible filesystem interface.
 .AE
-.SH
+.NH
 Introduction
 .PP
 As network communications and workstation environments
@@ -154,7 +154,7 @@ the implementations were done, and from the filesystems originally targetted
 by the designs.
 These differences are summarized in the following sections
 within the limitations of the published specifications.
-.SH
+.NH
 Design goals
 .PP
 There are several design goals which, in varying degrees,
@@ -224,7 +224,7 @@ at the expense of performance.
 Although the performance of RFS is yet to be seen,
 AT&T seems to have considered compatibility far more important than modularity
 or performance.
-.SH
+.NH
 Differences among filesystem interfaces
 .PP
 The existing filesystem interfaces may be characterized
@@ -290,7 +290,7 @@ is the name lookup operation.
 that obtain a ``file handle'' for a vnode which may be given
 to a client by a server, such that the vnode may be retrieved
 upon later presentation of the file handle.)
-.SH
+.NH
 Name translation issues
 .PP
 Each of the systems described include a mechanism for performing
@@ -443,7 +443,7 @@ but the VFS interface forces all filesystems to share the problem.
 This restriction against locking between calls also
 forces duplication of work during file creation and deletion.
 This is considered unacceptable.
-.SH
+.NH
 Support facilities and other interactions
 .PP
 Several support facilities are used by the current
@@ -543,7 +543,7 @@ which may create problems with reentrancy,
 the style of the system call interface,
 and the conventions for synchronization
 (sleep/wakeup, handling of interrupted system calls, semaphores).
-.SH
+.NH
 The Berkeley Proposal
 .PP
 The Sun VFS interface has been most widely used of the three described here.
@@ -765,7 +765,7 @@ enum	uio_seg {
 	UIO_USERISPACE		/* from user I space */
 };
 .DE
-.SH
+.NH
 File and filesystem operations
 .PP
 With the introduction of the data structures used by the filesystem
@@ -1082,7 +1082,7 @@ struct vattr {
 \fB+\fP	u_long	va_bytes1;	/* reserved if va_bytes not a quad */
 };
 .DE
-.SH
+.NH
 Conclusions
 .PP
 The Sun VFS filesystem interface is the most widely used generic
@@ -1096,7 +1096,7 @@ The proposed interface is now being implemented by the Computer Systems
 Research Group at Berkeley.
 If the design succeeds in improving the flexibility and performance
 of the filesystem layering, it will be advanced as a model interface.
-.SH
+.NH
 Acknowledgements
 .PP
 The filesystem interface described here is derived from Sun's VFS interface.
@@ -1105,7 +1105,7 @@ We are indebted to members of the Sun and DEC system groups
 for long discussions of the issues involved.
 .br
 .ne 2i
-.SH
+.NH
 References
 
 .IP Brownbridge82 \w'Satyanarayanan85\0\0'u

@@ -1,4 +1,4 @@
-# $Id: $
+# $Id: Makefile,v 1.4 1997/02/22 13:00:18 peter Exp $
 #
 .SUFFIXES: .nr .grn
 

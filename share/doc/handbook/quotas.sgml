@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      disk quotas under FreeBSD.  By Mike Pritchard, 1996.
 
-     $Id: quotas.sgml,v 1.2 1996/03/31 21:17:17 mpp Exp $
+     $Id: quotas.sgml,v 1.6 1997/02/24 23:20:49 mpp Exp $
 
      The FreeBSD Documentation Project
 
@@ -84,7 +84,7 @@ quotas=YES
 
   <p>At this point you should reboot your system with your new kernel.
   <tt>/etc/rc</tt> will automatically run the appropriate commands to 
-  create the initial quota files for all of quotas you enabled
+  create the initial quota files for all of the quotas you enabled
   in <tt>/etc/fstab</tt>, so there is no need to manually create any
   zero length quota files.
 

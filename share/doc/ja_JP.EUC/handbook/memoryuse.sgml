@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: memoryuse.sgml,v 1.5 1997/02/25 04:57:05 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.7 -->
+<!-- Original revision: 1.9 -->
 
 <sect><heading>PC におけるメモリの利用<label id="memoryuse"></heading>
 

@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.49 1996/12/18 00:10:02 obrien Exp $ -->
+<!-- $Id: porting.sgml,v 1.69 1997/03/10 11:55:17 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -49,16 +49,27 @@ the ports collection.
 	is already included; if not, add the code:
 
 <tscreen><verb>
-#ifdef _HAVE_PARAM_H
+#ifdef (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>
 #endif
 </verb></tscreen>
 
-	to the proper place in the <tt>.c</tt> file and add
-	<tt>-D_HAVE_PARAM_H</tt> to the <tt>CFLAGS</tt> in the
-	Makefile.
+      <p>to the proper place in the <tt>.c</tt> file.  We believe that every
+        system that defines these to symbols has sys/param.h.  If you find
+        a system that doesn't, we would like to know.  Please send mail to
+        <htmlurl url='mailto:ports@FreeBSD.org' name='ports@FreeBSD.org'>.
+	  <p>Or you can use the GNU Autoconf style of doing this:
 
-	Then, you may use:
+<tscreen><verb>
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+</verb></tscreen>
+
+	Don't forget to add <tt>-DHAVE_SYS_PARAM_H</tt> to the <tt>CFLAGS</tt>
+    in the Makefile for this method.
+
+	Once you have <tt>&lt;sys/param.h&gt;</tt> included, you may use:
 
 <tscreen><verb>
 #if (defined(BSD) && (BSD >= 199103))
@@ -77,6 +88,12 @@ the ports collection.
 	to detect if the code is being compiled on a 4.4 code base or
 	newer (e.g. FreeBSD 2.x, 4.4, NetBSD 1.0, BSD/386 2.0 or
 	above).
+
+	The value of the BSD macro is 199506 for the 4.4BSD-Lite2 code
+	base.  This is stated for informational purposes only.  It should
+	not be used to distinguish between version of FreeBSD based only
+	on 4.4-Lite vs. versions that have merged in changes from 4.4-Lite2.
+	The __FreeBSD__ macro should be used instead.
 
       <p>Use sparingly:
 
@@ -120,10 +137,18 @@ the ports collection.
 2.1.5-RELEASE:                  199607
 2.2-current before 2.1.6:       199608
 2.1.6-RELEASE:                  199612
-2.2-RELEASE:                    199701
-3.0-current as of Feb 1997:     199702  (will certainly be bumped)
+2.1.7-RELEASE:                  199612
+2.2-RELEASE:                    220000
+3.0-current as of Feb 1997:     300000
 </verb></tscreen>
-The pattern is the year followed by the month.
+	  The pattern used to be year followed by the month, but we
+	  decided to change it to a more straightforward major/minor
+	  system starting from 2.2.  This is because the parallel
+	  development on several branches made it infeasible to
+	  classify the releases simply by their real release dates.
+	  (Note that if you are making a port now, you don't have to
+	  worry about old -current's; they are listed here just for
+	  your reference.)
 
       </itemize>
 
@@ -264,8 +289,7 @@ lib/X11/oneko/mouse.xpm
 	  and works correctly.
 
       <sect3>
-	<heading><label id="porting:submitting">Submitting the
-	  port</heading>
+	<heading>Submitting the port<label id="porting:submitting"></heading>
 
 	<p>Now that you are happy with your port, the only thing
 	  remaining is to put it in the main FreeBSD ports tree and
@@ -598,7 +622,7 @@ MASTER_SITE_SUBDIR=   applications
 </verb></tscreen>
         <p>The user can also set the MASTER_SITE_* variables in
           <tt>/etc/make.conf</tt> to override our choices, and use their
-	  favorate mirrors of these popular archives instead.
+	  favorite mirrors of these popular archives instead.
 
       <sect3>
 	<heading>PATCHFILES<label id="porting:patchfiles"></heading>
@@ -898,11 +922,11 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	to us (i.e., if your modified ports directory is called
 	`<tt>superedit</tt>' and the original as in our tree is
 	`<tt>superedit.bak</tt>', then send us the result of `<tt>diff
-	-ru superedit.bak superedit</tt>'.)  If the port has changed
-	so much that the diff is larger than the new port itself, you
-	can <ref id="porting:submitting" name="upload"> the port
-	following the procedure described above.  Either way, don't
-	forget to send us a message using <tt>send-pr(1)</tt>!
+	-ru superedit.bak superedit</tt>').  Please examine the output
+	to make sure all the changes make sense.  The best way to send
+	us the diff is by including it to <tt>send-pr(1)</tt>.  Please
+	mention any added or deleted files in the message, as they
+	have to be explicitly specified to CVS when doing a commit.
 
     <sect2>
       <heading>Do's and Dont's</heading>
@@ -956,6 +980,14 @@ MAN8=      baz.8
 	<p>Note that this is not usually necessary with ports that are X
 	   applications and use Imake to build.
 
+	<p>If your port anchors its man tree somewhere other than 
+	   <tt>PREFIX</tt>, you can use the <tt>MANPREFIX</tt> to set it.
+	   Also, if only manpages in certain section go in a
+	   non-standard place, such as many Perl modules ports, you
+	   can set individual man paths using
+	   <tt>MAN<em>sect</em>PREFIX</tt> (where <em>sect</em> is one
+	   of 1-9, L or N).
+
       <sect3>
 	<heading>INSTALL_* macros</heading>
 	<p>Do use the macros provided in <tt>bsd.port.mk</tt> to
@@ -981,7 +1013,7 @@ MAN8=      baz.8
 	<heading>INSTALL package script</heading>
 	<p>If your port needs execute commands when the binary package
 	  is installed with pkg_add you can do with via the pkg/INSTALL
-	  script.  This script will automattically be added to the 
+	  script.  This script will automatically be added to the 
 	  package, and will be run twice by pkg_add.  The first time
 	  will as `<tt>INSTALL ${PKGNAME} PRE-INSTALL</tt>'
 	  and the second time as `<tt>INSTALL ${PKGNAME} POST-INSTALL</tt>'.
@@ -1037,10 +1069,10 @@ MAN8=      baz.8
 	  <tt>/etc/make.conf</tt>.)
 
 	<p>If you need to display a message to the installer, you may
-	  place the message in <tt>pkg/DISPLAY</tt>.  This capibility
+	  place the message in <tt>pkg/MESSAGE</tt>.  This capibility
 	  is often useful to display additional installation steps to
 	  be taken after a pkg_add, or to display licensing information.
-	  (note: the DISPLAY file does not need to be added to pkg/PLIST).
+	  (note: the MESSAGE file does not need to be added to pkg/PLIST).
 
 
       <sect3>
@@ -1217,8 +1249,8 @@ lib/libtcl.so.7.3
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
  # &dollar;Id&dollar;
- [ ^^^^ do not worry about this, it will be automatically filled in by
-  CVS when it is committed to our repository]
+ [ ^^^^ This will be automatically replaced with RCS ID string by CVS 
+  when it is committed to our repository.]
  #
  
  [section to describe the port itself and the master site - DISTNAME

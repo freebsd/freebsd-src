@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: abs.ms,v 1.2 1997/01/05 12:13:25 mckay Exp $
+.\" $Id: abs.ms,v 1.4 1997/02/22 13:03:26 peter Exp $
 .\"
 .if n .ND
 .TL

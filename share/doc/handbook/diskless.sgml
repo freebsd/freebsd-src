@@ -1,4 +1,4 @@
-<!-- $Id: diskless.sgml,v 1.6 1996/09/22 15:40:11 wosch Exp $ -->
+<!-- $Id: diskless.sgml,v 1.9 1997/02/22 12:58:23 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>Diskless operation<label id="diskless"></heading>

@@ -1,6 +1,6 @@
-<!-- $Id: porting.sgml,v 1.7 1996/12/19 15:24:58 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.19 1997/03/11 03:04:03 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.49 -->
+<!-- Original revision: 1.69 -->
 
 <sect1><heading>フリーソフトウェアの移植<label id="porting"></heading>
 
@@ -50,24 +50,41 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 	<tt>&lt;sys/param.h&gt;</tt>で定義されています. このファイルが
 	すでにインクルードされていればよいのですが, もしそうでない場合
 	には以下のコードを, その<tt>.c</tt> ファイルの適当な場所に加
-	えて, Makefileの<tt>CFLAGS</tt>に<tt>-D_HAVE_PARAM_H</tt>を加
 	えてください.
 
 <tscreen><verb>
-#ifdef _HAVE_PARAM_H
+#ifdef (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>
 #endif
 </verb></tscreen>
 
-	そして, 次のようにしてそのコードが4.3 Net2コードベース, または
-	それより新しいもの (例: FreeBSD 1.x, 4.3/Reno, NetBSD 0.9, 386BSD, 
-	BSD/386 1.1とそれ以前) の上でコンパイルされているかを検出できます. 
+      <p>これらのシンボルが定義されているすべてのシステムには 
+	sys/param.h があるはずです. もし, そうでないシステムを発見した
+	ら我々にも教えてください. 
+	<htmlurl url='mailto:ports@FreeBSD.org' name='ports@FreeBSD.org'>
+	までメールを送ってください.
+
+      <p>あるいは, GNU の Autoconf のスタイルを使用することもできます,
+
+<tscreen><verb>
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+</verb></tscreen>
+
+	この方法を使用するときには, Makefile 中の<tt>CFLAGS</tt>に
+	<tt>-DHAVE_SYS_PARAM_H</tt> を加えることを忘れないようにしてく
+	ださい. 
+
+	いったん<tt>&lt;sys/param.h&gt;</tt>がインクルードされると,
 
 <tscreen><verb>
 #if (defined(BSD) && (BSD >= 199103))
 </verb></tscreen>
 
-	また,
+	このようにしてそのコードが4.3 Net2コードベース, または
+	それより新しいもの (例: FreeBSD 1.x, 4.3/Reno, NetBSD 0.9, 386BSD, 
+	BSD/386 1.1とそれ以前) の上でコンパイルされているかを検出できます. 
 
 <tscreen><verb>
 #if (defined(BSD) && (BSD >= 199306))
@@ -76,6 +93,13 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 	これは, 4.4コードベース, またはそれより新しいもの (例: FreeBSD
 	2.x, 4.4, NetBSD 1.0, BSD/386 2.0とそれ以後) の上でコンパイルさ
 	れているかどうかを検出するために使用します.
+
+	4.4BSD-Lite2 コードベースでは, BSD マクロの値は 199506 になっ
+	ています.  これは参考程度の意味合いしかありません.
+	4.4-Lite ベースの FreeBSD と 4.4-Lite2 での変更がマージされた
+	バージョンとを区別するのに使用するべきものではありません.
+	この目的のためには, __FreeBSD__ マクロをかわりに使用してくださ
+	い.
 
       <p>以下は控え目に使ってください.
 
@@ -119,11 +143,19 @@ Portsコレクションについてのさらに細かい内部の働きについては, そちらのファイルを
 2.1.5-RELEASE:                   199607
 2.2-current (2.1.6以前):         199608
 2.1.6-RELEASE:                   199612
-2.2-RELEASE:                     199701
-3.0-current (1997年2月現在)      199702  (リリースが出る毎に変わります)
+2.1.7-RELEASE:                   199612
+2.2-RELEASE:                     220000
+3.0-current (1997年2月現在)      300000  (リリースが出る毎に変わります)
 </verb></tscreen>
-見ての通り, これは年・月というフォーマットになっています.
-
+	見ての通り, これは年・月というフォーマットになっていましたが,
+	バージョン 2.2 から, より直接的にメジャー/マイナー番号を使う
+	ように変更になりました. 並行していくつかのブランチ(枝分かれし
+	たバージョン)を開発する場合には, リーリスされた日付でそれらの
+	リリースを分類することが不可能だからです.
+	(あなたが今 port を作成するときに, 古い -current 達について心配
+	する必要はありません. これは参考のために挙げられているにすぎま
+	せん.)
+	
       </itemize>
 
       <p>これまで, 何百ものportが作られてきましたが,
@@ -262,7 +294,7 @@ lib/X11/oneko/mouse.xpm
 	  れ, 正しく動作することを確認してください.
 
       <sect3>
-	<heading><label id="porting:submitting">Portの送付</heading>
+	<heading>Portの送付<label id="porting:submitting"></heading>
 
 	<p>さあ, あなたのportに満足したら, あとはそれをFreeBSDのメイ
 	  ンのportsツリーに置いて, 皆に使ってもらうだけです. そのた
@@ -896,12 +928,12 @@ FETCH_DEPENDS=  ncftp2:${PORTSDIR}/net/ncftp2
 	をとって送ってください. (例えば, 変更前のディレクトリが 
 	`<tt>superedit.bak</tt>' という名前でとってあり, 変更後のもの
 	が `<tt>superedit</tt>' に入っているなら, `<tt>diff -ru
-	superedit.bak superedit</tt>' の結果を送ってください. ) もし変
-	更点が多すぎて, パッチが新しいport全体より大きくなる場合には, 
-	前に述べた手順にしたがって新しいport全体を<ref
-	id="porting:submitting" name="アップロード">してください. いず
-	れの場合にも, <tt>send-pr(1)</tt> を使ってメールを送るのを忘れ
-	ないようにしてください.
+	superedit.bak superedit</tt>' の結果を送ってください. )
+	diff の出力を見て, すべての変更が正しくなされているか確認してください.
+	変更箇所については, <tt>send-pr</tt> に diff の出力結果を入れて私たち
+	に送ってもらうのが一番よいです. commit する際に CVS に明確に記述しな
+        ければならないので, 付け加えたり削除したりしたファイルがあったら,
+	それについて書いておいてください.
 
     <sect2>
       <heading>やっていいことといけないこと</heading>
@@ -958,6 +990,14 @@ MAN8=      baz.8
 </verb></tscreen>
 	<p>なお, 普通 Imake を使ってコンパイルされる X アプリケーショ
 	  ンの場合はこの指定は必要ありません.
+
+	<p><tt>PREFIX</tt>以外のディレクトリの下にマニュアルを置く
+	  ようなportでは<tt>MANPREFIX</tt>を指定することが
+	  できます. さらに, 特定のセクションのマニュアルだけ, 標準では
+	  ない場所にインストールする場合(例えば多くの Perl のモ
+	  ジュールの ports の場合)には, 個々のマニュアルのパスを
+	  <tt>MAN<em>sect</em>PREFIX</tt> (<em>sect</em>は, 1 から 9
+	  または, L か N を表わします) によって指定できます.
 
       <sect3>
 	<heading>INSTALL_* マクロ</heading>
@@ -1041,10 +1081,10 @@ MAN8=      baz.8
 	  <tt>NOPORTDOCS</tt>については気にしないでください.)
 
 	<p>(Packageの)インストールを行っているユーザに対してメッセージ
-	  を表示したい場合には, そのメッセージを <tt>pkg/DISPLAY</tt>
+	  を表示したい場合には, そのメッセージを <tt>pkg/MESSAGE</tt>
 	  に置くこともできます. この機能は, pkg_add したあとの
 	  追加のインストール手順や, ライセンス情報を表示するのに便利で
-	  す. (注意: DISPLAY ファイルは pkg/PLIST に加える必要はありま
+	  す. (注意: MESSAGE ファイルは pkg/PLIST に加える必要はありま
 	  せん.
 
       <sect3>
@@ -1222,8 +1262,8 @@ lib/libtcl.so.7.3
  # Whom:		Satoshi Asami <asami@FreeBSD.ORG>
  #
  # &dollar;Id&dollar;
- [ ^^^^ この行の内容は気にしないでください. CVSツリーに入れる時に
-自動的に書き込まれます]
+ [ ^^^^ この部分は, CVS ツリーに入れる時に自動的に RCS の ID 文字列に
+  置き換えられます.]
  #
  
  [Port自体, およびオリジナルのソースを取ってくるところを記述する部分.

@@ -1,6 +1,6 @@
-<!-- $Id: ports.sgml,v 1.2 1996/12/21 11:56:32 max Exp $ -->
+<!-- $Id: ports.sgml,v 1.8 1997/03/10 01:09:48 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.18 -->
+<!-- Original revision: 1.24 -->
 
 <sect><heading>ports コレクション <label id="ports"></heading>
 
@@ -94,7 +94,7 @@ name="スケルトン"> を使用して収めているものです.
 <p>
 もしあなたが (<htmlurl url="file://localhost/usr/ports/shells/bash" 
 name="あなたの FreeBSD システム"> または 
-<htmlurl url="ftp://www.freebsd.org/pub/FreeBSD/ports/shells/bash" 
+<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD/ports/shells/bash" 
 name="FTP サイト"> にある) ports スケルトンを見ていて, そこに潜んでいる
 あらゆる種類の先端的なロケット工学的なものを見つけられると期待していると, 
 つまらなそうなファイルやディレクトリがそこにあるだけなのを見て, 
@@ -250,11 +250,14 @@ ports make メカニズムは, データベースディレクトリのすべての ports を
 <p>
 <em>XFree86</em> の配布に含まれる <tt>lndir(1)</tt> コマンドを使用して
 「リンクツリー」を作ります. ディスクの空き領域を見つけてディレクトリを作成し, 
-<tt>/usr/ports</tt> からそのディレクトリへシンボリックリンクを張ります. 
-そして CD-ROM 上の ``ports'' ディレクトリのフルパス名を引数として 
-<tt>lndir(1)</tt> コマンドを実行します. 
- (例えば <tt>lndir /cdrom/ports</tt> のように:) 
-そして, 作成したリンクツリーの中で ports を構築することで, CD-ROM から
+そこにカレントディレクトリを移します. そして CD-ROM 上の ``ports'' 
+ディレクトリのフルパス名を最初の引数とし, . (カレントディレクトリ) を 
+2 番目の引数として <tt>lndir(1)</tt> コマンドを実行します. 
+これは例えば以下のようになるでしょう: 
+<verb>
+	lndir /cdrom/ports .
+</verb>
+<p>そして, 作成したリンクツリーの中で ports を構築することで, CD-ROM から
 直接 ports を構築することができます. 
 <p>
 ライセンスの制限により, いくつかの ports でオリジナルのソースコードを 

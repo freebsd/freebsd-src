@@ -1,10 +1,10 @@
-<!-- $Id$ -->
+<!-- $Id: linuxemu.sgml,v 1.7 1997/02/25 04:56:46 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.13 -->
+<!-- Original revision: 1.17 -->
 
 <chapt><heading>Linux エミュレーション<label id="linuxemu"></heading>
 
-<p><em>原作: &a.brian and &a.rich;</em>
+<p><em>原作: &a.handy and &a.rich;</em>
 <p><em>訳: &a.kiroh;.<newline>24 September 1996.</em>
 
 <sect><heading>Linux エミュレータのインストール</heading>
