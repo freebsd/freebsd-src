@@ -39,7 +39,7 @@ i386_clr_watch(int watchnum, struct dbreg * d)
 	if (watchnum < 0 || watchnum >= 4)
 		return -1;
 
-	d->dr7 = d->dr7 & ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
+	DBREG_DRX(d,7) = DBREG_DRX(d,7) & ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
         DBREG_DRX(d,watchnum) = 0;
 
 	return 0;
