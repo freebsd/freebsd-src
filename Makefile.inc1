@@ -357,7 +357,7 @@ installcheck:
 	fi
 .endif
 .if ${TARGET_ARCH} == ${MACHINE_ARCH} && !defined(DISTDIR) && \
-    (!defined(DESTDIR) || ${DESTDIR} == "" || ${DESTDIR} == "/")
+    (!defined(DESTDIR) || empty(DESTDIR) || ${DESTDIR} == "/")
 	@echo "Checking to see if your booted kernel is fresh enough.."
 	${.OBJDIR}/bin/sh/sh -c \
 	    'echo "Testing installed kernel for new sigaction(2) syscall"'
