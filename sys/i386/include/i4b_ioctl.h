@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	i4b_ioctl.h - messages kernel <--> userland
  *	-------------------------------------------
  *
- *	$Id: i4b_ioctl.h,v 1.150 1999/12/13 21:25:28 hm Exp $ 
+ *	$Id: i4b_ioctl.h,v 1.196 2000/10/09 11:17:07 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:12:16 1999]
+ *      last edit-date: [Mon Oct  9 13:17:34 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,8 +48,8 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		90		/* release number	*/
-#define STEP		1 		/* release step		*/
+#define	REL		95		/* release number	*/
+#define STEP		04		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
@@ -87,6 +87,20 @@
 #define	CTRL_NUMTYPES	5		/* number of controller types	*/
 
 /*---------------------------------------------------------------------------*
+ *	CTRL_PASSIVE: driver types
+ *---------------------------------------------------------------------------*/
+#define MAXL1UNITS      8		/* max number of units	*/
+
+#define L1DRVR_ISIC     0		/* isic - driver	*/
+#define L1DRVR_IWIC     1		/* iwic - driver	*/
+#define L1DRVR_IFPI     2		/* ifpi - driver	*/
+#define L1DRVR_IHFC     3		/* ihfc - driver	*/
+#define L1DRVR_IFPNP    4		/* ifpnp - driver	*/
+
+/* MAXL1DRVR MUST be updated when more passive drivers are added !!! */
+#define MAXL1DRVR       (L1DRVR_IFPNP + 1)
+
+/*---------------------------------------------------------------------------*
  *	card types for CTRL_PASSIVE 
  *---------------------------------------------------------------------------*/
 #define CARD_TYPEP_INVAL	(-1)	/* invalid, error		*/
@@ -114,16 +128,21 @@
 #define CARD_TYPEP_AVM_PNP	21	/* AVM FRITZ!CARD PnP		*/
 #define CARD_TYPEP_SIE_ISURF2 	22	/* Siemens I-Surf 2 PnP		*/
 #define CARD_TYPEP_ASUSCOMIPAC	23	/* Asuscom ISDNlink 128 K PnP	*/
+#define CARD_TYPEP_WINB6692	24	/* Winbond W6692 based		*/
+#define CARD_TYPEP_16_3C	25	/* Teles S0/16.3c PnP (HFC-S/SP	*/
+#define CARD_TYPEP_ACERP10	26	/* Acer ISDN P10 (HFC-S)	*/
+#define CARD_TYPEP_TELEINT_NO_1	27	/* TELEINT ISDN SPEED No. 1 (HFC-1) */
+
 /*
  * in case you add support for more cards, please update:
  *
- *	isdnd:		support.c, name_of_controller()
+ *	isdnd:		controller.c, name_of_controller()
  *	diehl/diehlctl:	main.c, listall()
  *
  * and adjust CARD_TYPEP_MAX below.
  */
 
-#define CARD_TYPEP_MAX		23	/* max type */
+#define CARD_TYPEP_MAX		27	/* max type */
 
 /*---------------------------------------------------------------------------*
  *	card types for CTRL_DAIC
@@ -162,6 +181,7 @@
 #define BDRV_IPR	2       /* IP over raw HDLC interface driver    */
 #define BDRV_ISPPP	3       /* sync Kernel PPP interface driver     */
 #define BDRV_IBC	4       /* BSD/OS point to point driver		*/
+#define BDRV_ING	5       /* NetGraph ing driver			*/
 
 /*---------------------------------------------------------------------------*
  * B channel protocol
@@ -311,6 +331,12 @@ typedef struct {
 #define  SCR_USR_PASS 2		/* screening user provided, verified & passed */
 #define  SCR_USR_FAIL 3		/* screening user provided, verified & failed */
 #define  SCR_NET      4		/* screening network provided		*/
+	int		prs_ind;/* presentation indicator		*/
+#define  PRS_NONE     0		/* no presentation indicator transmitted*/
+#define  PRS_ALLOWED  1		/* presentation allowed			*/
+#define  PRS_RESTRICT 2		/* presentation restricted		*/
+#define  PRS_NNINTERW 3		/* number not available due to interworking */
+#define  PRS_RESERVED 4		/* reserved				*/
 	char		display[DISPLAY_MAX];	/* content of display IE*/
 } msg_connect_ind_t;
 

@@ -27,11 +27,11 @@
  *	i4b_isdnq931.h - DSS1 layer 3 message types
  *	-------------------------------------------
  *
- *	$Id: i4b_isdnq931.h,v 1.6 1999/12/13 21:25:24 hm Exp $
+ *	$Id: i4b_isdnq931.h,v 1.7 2000/04/27 07:42:43 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Mon Dec 13 21:44:28 1999]
+ *	last edit-date: [Thu Apr 27 09:46:13 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -76,7 +76,7 @@
 #define IEI_LLCOMPAT	0x7c	/* low layer compatibility		*/
 #define IEI_HLCOMPAT	0x7d	/* high layer compatibility		*/
 #define IEI_USERUSER	0x7e	/* user-user				*/
-#define IEI_ESACPE	0x7f	/* escape for extension			*/
+#define IEI_ESCAPE	0x7f	/* escape for extension			*/
 
 /* Q.932 variable length information element identifiers */
 

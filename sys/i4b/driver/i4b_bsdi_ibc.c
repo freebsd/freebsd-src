@@ -30,11 +30,11 @@
  *	i4b_bsdi_ibc.c - isdn4bsd kernel BSD/OS point to point driver
  *	-------------------------------------------------------------
  *
- *	$Id: i4b_bsdi_ibc.c,v 1.1 1999/04/23 08:35:07 hm Exp $
+ *	$Id: i4b_bsdi_ibc.c,v 1.3 2000/08/21 07:21:07 hm Exp $
  *
  * $FreeBSD$
  *
- *	last edit-date: [Tue Dec 14 21:55:37 1999]
+ *	last edit-date: [Tue Dec 14 21:55:24 1999]
  *
  *---------------------------------------------------------------------------*/
 
@@ -184,7 +184,11 @@ ibcattach(void *dummy)
 		sc->sc_loutb = 0;
 		sc->sc_fn = 1;
 #endif
+#if defined(__FreeBSD_version) && ((__FreeBSD_version >= 500009) || (410000 <= __FreeBSD_version && __FreeBSD_version < 500000))
+		ether_ifattach(ifp, 0);
+#else
 		if_attach(ifp);
+#endif
 		p2p_attach(&sc->sc_p2pcom);
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *      i4b_l3fsm.c - layer 3 FSM
  *      -------------------------
  * 
- *	$Id: i4b_l3fsm.h,v 1.7 1999/12/13 21:25:27 hm Exp $ 
+ *	$Id: i4b_l3fsm.h,v 1.8 2000/04/27 09:25:22 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 22:05:09 1999]
+ *      last edit-date: [Thu Apr 27 11:07:16 2000]
  *
  *---------------------------------------------------------------------------*/
 
