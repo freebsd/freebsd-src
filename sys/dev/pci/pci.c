@@ -1297,8 +1297,8 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	 */
 	if (device_get_parent(child) == dev) {
 		/*
-		 * If device doesn't have an interrupt routed, and is
-		 * deserving of  an interrupt, try to assign it one.
+		 * If the child device doesn't have an interrupt routed
+		 * and is deserving of an interrupt, try to assign it one.
 		 */
 		if ((type == SYS_RES_IRQ) &&
 		    !PCI_INTERRUPT_VALID(cfg->intline) &&
