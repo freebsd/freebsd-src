@@ -90,6 +90,7 @@ static struct {
   { PHYS_DEDICATED, "dedicated" },
   { PHYS_DDIAL, "ddial" },
   { PHYS_BACKGROUND, "background" },
+  { PHYS_FOREGROUND, "foreground" },
   { PHYS_ALL, "*" },
   { 0, 0 }
 };
