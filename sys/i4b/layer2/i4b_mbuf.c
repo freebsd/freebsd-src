@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b - mbuf handling support routines
  *	------------------------------------
  *
- *	$Id: i4b_mbuf.c,v 1.15 2000/05/29 15:41:42 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:55:18 2000]
+ *      last edit-date: [Sat Jan 13 13:15:45 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -141,8 +139,17 @@ void
 i4b_Dcleanifq(struct ifqueue *ifq)
 {
 	int x = splimp();
-	
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	IF_DRAIN(ifq);
+#else
+	struct mbuf *m;
+	while(!IF_QEMPTY(ifq))
+	{
+		IF_DEQUEUE(ifq, m);
+		i4b_Dfreembuf(m);
+	}
+#endif
 	splx(x);
 }
 
@@ -218,7 +225,16 @@ i4b_Bcleanifq(struct ifqueue *ifq)
 {
 	int x = splimp();
 	
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	IF_DRAIN(ifq);
+#else
+	struct mbuf *m;
+	while(!IF_QEMPTY(ifq))
+	{
+		IF_DEQUEUE(ifq, m);
+		i4b_Bfreembuf(m);
+	}
+#endif
 	splx(x);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_ipr.c - isdn4bsd IP over raw HDLC ISDN network driver
  *	---------------------------------------------------------
  *
- *	$Id: i4b_ipr.c,v 1.59 2000/08/28 07:24:58 hm Exp $
- *
  * $FreeBSD$
  *
- *	last edit-date: [Fri Aug 25 20:25:21 2000]
+ *	last edit-date: [Fri Jan 12 15:43:51 2001]
  *
  *---------------------------------------------------------------------------*
  *
@@ -71,7 +69,8 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
+
+#if defined(__FreeBSD__)
 #include <sys/ioccom.h>
 #include <sys/sockio.h>
 #ifdef IPR_VJ
@@ -120,6 +119,7 @@
 #else
 #include "bpfilter.h"
 #endif
+
 #if NBPFILTER > 0 || NBPF > 0
 #include <sys/time.h>
 #include <net/bpf.h>
@@ -231,16 +231,13 @@ enum ipr_states {
 #define	THE_UNIT	sc->sc_unit
 #endif
 
-#ifdef __FreeBSD__
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 300001
-#  define IOCTL_CMD_T u_long
-#else
-#ifdef __NetBSD__
+#if defined __FreeBSD__ || defined __NetBSD__
 #  define IOCTL_CMD_T u_long
 #else
 #  define IOCTL_CMD_T int
 #endif
-#endif
+
+#ifdef __FreeBSD__
 PDEVSTATIC void i4biprattach(void *);
 PSEUDO_SET(i4biprattach, i4b_ipr);
 static int i4biprioctl(struct ifnet *ifp, IOCTL_CMD_T cmd, caddr_t data);
@@ -276,12 +273,10 @@ i4biprattach()
 	struct ipr_softc *sc = ipr_softc;
 	int i;
 
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 #ifdef IPR_VJ
 	printf("i4bipr: %d IP over raw HDLC ISDN device(s) attached (VJ header compression)\n", NI4BIPR);
 #else
 	printf("i4bipr: %d IP over raw HDLC ISDN device(s) attached\n", NI4BIPR);
-#endif
 #endif
 	
 	for(i=0; i < NI4BIPR; sc++, i++)
@@ -294,9 +289,6 @@ i4biprattach()
 		
 #ifdef __FreeBSD__		
 		sc->sc_if.if_name = "ipr";
-#if __FreeBSD__ < 3
-		sc->sc_if.if_next = NULL;
-#endif
 		sc->sc_if.if_unit = i;
 #elif defined(__bsdi__)
 		sc->sc_if.if_name = "ipr";
@@ -324,8 +316,10 @@ i4biprattach()
 
 		sc->sc_if.if_snd.ifq_maxlen = I4BIPRMAXQLEN;
 		sc->sc_fastq.ifq_maxlen = I4BIPRMAXQLEN;
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 		mtx_init(&sc->sc_fastq.ifq_mtx, "i4b_ipr_fastq", MTX_DEF);
-		
+#endif		
 		sc->sc_if.if_ipackets = 0;
 		sc->sc_if.if_ierrors = 0;
 		sc->sc_if.if_opackets = 0;
@@ -368,9 +362,7 @@ i4biprattach()
 		}
 #endif
 #endif
-
 		sc->sc_updown = SOFT_ENA;	/* soft enabled */
-
 		sc->sc_dialresp = DSTAT_NONE;	/* no response */
 		sc->sc_lastdialresp = DSTAT_NONE;
 		
@@ -510,6 +502,7 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 	/* check for space in choosen send queue */
 	
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if(! IF_HANDOFF(ifq, m, NULL))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
@@ -517,6 +510,17 @@ i4biproutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 		sc->sc_if.if_oerrors++;
 		return(ENOBUFS);
 	}
+#else
+        if(IF_QFULL(ifq))
+        {
+		NDBGL4(L4_IPRDBG, "ipr%d: send queue full!", unit);
+                IF_DROP(ifq);
+                m_freem(m);
+                splx(s);
+                sc->sc_if.if_oerrors++;
+                return(ENOBUFS);
+        }	
+#endif
 	
 	NDBGL4(L4_IPRDBG, "ipr%d: add packet to send queue!", unit);
 	
@@ -645,11 +649,37 @@ static void
 iprclearqueues(struct ipr_softc *sc)
 {
 	int x;
-	
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	x = splimp();
 	IF_DRAIN(&sc->sc_fastq);
 	IF_DRAIN(&sc->sc_if.if_snd);
 	splx(x);
+#else
+        struct mbuf *m;
+
+	for(;;)
+	{
+		x = splimp();
+		IF_DEQUEUE(&sc->sc_fastq, m);
+		splx(x);
+		if(m)
+			m_freem(m);
+		else
+			break;
+	}
+
+	for(;;)
+        {
+		x = splimp();
+		IF_DEQUEUE(&sc->sc_if.if_snd, m);
+		splx(x);
+		if(m)
+			m_freem(m);
+		else
+			break;
+	}
+#endif
 }
         
 #if I4BIPRACCT
@@ -1047,6 +1077,7 @@ error:
 	}
 #endif /* NBPFILTER > 0  || NBPF > 0 */
 
+#if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if(! IF_HANDOFF(&ipintrq, m, NULL))
 	{
 		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
@@ -1057,6 +1088,21 @@ error:
 	{
 		schednetisr(NETISR_IP);
 	}
+#else
+        if(IF_QFULL(&ipintrq))
+        {
+		NDBGL4(L4_IPRDBG, "ipr%d: ipintrq full!", unit);
+                IF_DROP(&ipintrq);
+                sc->sc_if.if_ierrors++;
+                sc->sc_if.if_iqdrops++;
+                m_freem(m);
+        }
+        else
+        {
+                IF_ENQUEUE(&ipintrq, m);
+                schednetisr(NETISR_IP);
+        }
+#endif	
 }
 
 /*---------------------------------------------------------------------------*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	i4b_bchan.c - B channel handling L1 procedures
  *	----------------------------------------------
  *
- *	$Id: i4b_bchan.c,v 1.6 2000/05/29 15:41:41 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon May 29 16:42:26 2000]
+ *      last edit-date: [Fri Jan 12 16:52:15 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -92,7 +90,10 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	/* receiver part */
 
 	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4	
 	mtx_init(&chan->rx_queue.ifq_mtx, "i4b_isic_rx", MTX_DEF);
+#endif
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
@@ -107,7 +108,10 @@ isic_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	/* transmitter part */
 
 	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined (__FreeBSD__) && __FreeBSD__ > 4	
 	mtx_init(&chan->tx_queue.ifq_mtx, "i4b_isic_tx", MTX_DEF);
+#endif
 	
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 

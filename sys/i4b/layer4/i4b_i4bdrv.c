@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,18 +27,15 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.59 2000/10/06 08:37:43 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  2 09:55:28 2000]
+ *      last edit-date: [Fri Jan 12 16:49:34 2001]
  *
  *---------------------------------------------------------------------------*/
 
 #include "i4b.h"
 #include "i4bipr.h"
 #include "i4btel.h"
-
 
 #if NI4B > 1
 #error "only 1 (one) i4b device possible!"
@@ -258,24 +255,16 @@ i4battach(void *dummy)
 i4battach()
 #endif
 {
-#ifndef HACK_NO_PSEUDO_ATTACH_MSG
 	printf("i4b: ISDN call control device attached\n");
-#endif
+
 	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
+
+#if defined(__FreeBSD__) && __FreeBSD__ > 4	
 	mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", MTX_DEF);
+#endif
 
 #if defined(__FreeBSD__)
-#if __FreeBSD__ == 3
-
-#ifdef DEVFS
-	devfs_token = devfs_add_devswf(&i4b_cdevsw, 0, DV_CHR,
-				       UID_ROOT, GID_WHEEL, 0600,
-				       "i4b");
-#endif
-
-#else
 	make_dev(&i4b_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "i4b");
-#endif
 #endif
 }
 
@@ -333,8 +322,13 @@ i4bread(dev_t dev, struct uio *uio, int ioflag)
 	while(IF_QEMPTY(&i4b_rdqueue))
 	{
 		readflag = 1;
+#if defined (__FreeBSD__) && __FreeBSD__ > 4		
 		error = msleep((caddr_t) &i4b_rdqueue, &i4b_rdqueue.ifq_mtx,
-		    (PZERO + 1) | PCATCH, "bird", 0);
+			(PZERO + 1) | PCATCH, "bird", 0);
+#else
+		error = tsleep((caddr_t) &i4b_rdqueue, (PZERO + 1) | PCATCH,
+			"bird", 0);
+#endif
 		if (error != 0) {
 			IF_UNLOCK(&i4b_rdqueue);
 			splx(x);
