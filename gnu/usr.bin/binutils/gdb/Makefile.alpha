@@ -5,4 +5,9 @@
 XSRCS+= freebsd-nat.c alpha-tdep.c kvm-fbsd.c
 LDADD+= -lkvm
 
+findvar%UAfix.c: findvar.c
+	sed -e \
+	    's,char registers[REGISTER_BYTES + /* SLOP */ 256];,char registers[REGISTER_BYTES + /* SLOP */ 256] __attribute__ ((aligned (8)));,g' \
+	    ${.ALLSRC} >${.TARGET}
+
 .PATH: ${.CURDIR}/alpha

@@ -1,7 +1,8 @@
-#
 # $FreeBSD$
-#
 
 XSRCS+= freebsd-nat.c i386-tdep.c i387-tdep.c kvm-fbsd.c
+
+findvar%UAfix.c: findvar.c
+	ln -sf ${.ALLSRC} ${.TARGET}
 
 .PATH: ${.CURDIR}/i386
