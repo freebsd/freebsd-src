@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.52 1995/07/10 08:53:22 davidg Exp $
+ * $Id: vm_pageout.c,v 1.53 1995/07/13 08:48:40 davidg Exp $
  */
 
 /*
@@ -88,6 +88,33 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
+
+/*
+ * System initialization
+ */
+
+/* the kernel process "vm_pageout"*/
+static void vm_pageout __P((void));
+struct proc *pageproc;
+
+static struct kproc_desc page_kp = {
+	"pagedaemon",
+	vm_pageout,
+	&pageproc
+};
+SYSINIT_KT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, (caddr_t)&page_kp)
+
+/* the kernel process "vm_daemon"*/
+static void vm_daemon __P((void));
+struct	proc *vmproc;
+
+static struct kproc_desc vm_kp = {
+	"vmdaemon",
+	vm_daemon,
+	&vmproc
+};
+SYSINIT_KT(vmdaemon, SI_SUB_KTHREAD_VM, SI_ORDER_FIRST, kproc_start, (caddr_t)&vm_kp)
+
 
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
 
@@ -789,7 +816,7 @@ rescan1:
 /*
  *	vm_pageout is the high level pageout daemon.
  */
-void
+static void
 vm_pageout()
 {
 	(void) spl0();
@@ -853,7 +880,7 @@ vm_pageout()
 	}
 }
 
-void
+static void
 vm_daemon()
 {
 	vm_object_t object;
