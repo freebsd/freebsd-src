@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.19 1999/05/08 18:08:59 peter Exp $
+ *	$Id: subr_bus.c,v 1.20 1999/05/08 21:59:35 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -100,6 +100,7 @@ struct method {
     LIST_ENTRY(method) link;	/* linked list of methods */
     int offset;			/* offset in method table */
     int refs;			/* count of device_op_desc users */
+    devop_t deflt;		/* default implementation */
     char* name;			/* unique name of method */
 };
 
@@ -132,6 +133,7 @@ register_method(struct device_op_desc *desc)
     bzero(m, sizeof(struct method) + strlen(desc->name) + 1);
     m->offset = next_method_offset++;
     m->refs = 1;
+    m->deflt = desc->deflt;
     m->name = (char*) (m + 1);
     strcpy(m->name, desc->name);
     LIST_INSERT_HEAD(&methods, m, link);
@@ -167,6 +169,7 @@ compile_methods(driver_t *driver)
 {
     device_ops_t ops;
     struct device_method *m;
+    struct method *cm;
     int i;
 
     /*
@@ -185,8 +188,13 @@ compile_methods(driver_t *driver)
     bzero(ops, sizeof(struct device_ops) + (next_method_offset-1) * sizeof(devop_t));
 
     ops->maxoffset = next_method_offset;
+    /* Fill in default methods and then overwrite with driver methods */
     for (i = 0; i < next_method_offset; i++)
 	ops->methods[i] = error_method;
+    for (cm = LIST_FIRST(&methods); cm; cm = LIST_NEXT(cm, link)) {
+	if (cm->deflt)
+	    ops->methods[cm->offset] = cm->deflt;
+    }
     for (i = 0, m = driver->methods; m->desc; i++, m++)
 	ops->methods[m->desc->offset] = m->func;
     PDEBUG(("%s has %d method%s, wasting %d bytes",
@@ -723,7 +731,9 @@ static int
 device_probe_child(device_t dev, device_t child)
 {
     devclass_t dc;
+    driverlink_t best = 0;
     driverlink_t dl;
+    int result, pri = 0;
 
     dc = dev->devclass;
     if (dc == NULL)
@@ -737,12 +747,51 @@ device_probe_child(device_t dev, device_t child)
 	 dl = next_matching_driver(dc, child, dl)) {
 	PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
 	device_set_driver(child, dl->driver);
-	if (DEVICE_PROBE(child) == 0) {
-	    if (!child->devclass)
-		device_set_devclass(child, dl->driver->name);
-	    child->state = DS_ALIVE;
-	    return 0;
+	result = DEVICE_PROBE(child);
+
+	/*
+	 * If the driver returns SUCCESS, there can be no higher match
+	 * for this device.
+	 */
+	if (result == 0) {
+	    best = dl;
+	    pri = 0;
+	    break;
 	}
+
+	/*
+	 * The driver returned an error so it certainly doesn't match.
+	 */
+	if (result > 0)
+	    continue;
+
+	/*
+	 * A priority lower than SUCCESS, remember the best matching
+	 * driver. Initialise the value of pri for the first match.
+	 */
+	if (best == 0 || result > pri) {
+	    best = dl;
+	    pri = result;
+	    continue;
+	}
+    }
+
+    /*
+     * If we found a driver, change state and initialise the devclass.
+     */
+    if (best) {
+	if (!child->devclass)
+	    device_set_devclass(child, best->driver->name);
+	device_set_driver(child, best->driver);
+	if (pri < 0) {
+	    /*
+	     * A bit bogus. Call the probe method again to make sure
+	     * that we have the right description.
+	     */
+	    DEVICE_PROBE(child);
+	}
+	child->state = DS_ALIVE;
+	return 0;
     }
 
     return ENXIO;

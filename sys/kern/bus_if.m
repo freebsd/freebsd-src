@@ -23,10 +23,24 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.7 1999/04/16 21:22:37 peter Exp $
+#	$Id: bus_if.m,v 1.8 1999/05/08 21:59:34 dfr Exp $
 #
 
 INTERFACE bus;
+
+#
+# Default implementations of some methods.
+#
+CODE {
+	static struct resource *
+	null_alloc_resource(device_t dev, device_t child,
+			    int type, int *rid,
+			    u_long start, u_long end,
+			    u_long count, u_int flags)
+	{
+	    return 0;
+	}
+};
 
 #
 # This is called from system code which prints out a description of a
@@ -112,7 +126,7 @@ METHOD struct resource * alloc_resource {
 	u_long		end;
 	u_long		count;
 	u_int		flags;
-};
+} DEFAULT null_alloc_resource;
 
 METHOD int activate_resource {
 	device_t	dev;
