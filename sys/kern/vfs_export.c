@@ -1296,15 +1296,45 @@ bdevvp(dev, vpp)
  * how many users there are is inadequate; the v_usecount for
  * the vnodes need to be accumulated.  vcount() does that.
  */
-void
+struct vnode *
 addaliasu(nvp, nvp_rdev)
 	struct vnode *nvp;
 	udev_t nvp_rdev;
 {
+	struct vnode *ovp;
+	vop_t **ops;
+	dev_t dev;
 
 	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
 		panic("addaliasu on non-special vnode");
-	addalias(nvp, udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0));
+	dev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
+	/*
+	 * Check to see if we have a bdevvp vnode with no associated
+	 * filesystem. If so, we want to associate the filesystem of
+	 * the new newly instigated vnode with the bdevvp vnode and
+	 * discard the newly created vnode rather than leaving the
+	 * bdevvp vnode lying around with no associated filesystem.
+	 */
+	if (vfinddev(dev, nvp->v_type, &ovp) == 0 || ovp->v_data != NULL) {
+		addalias(nvp, dev);
+		return (nvp);
+	}
+	/*
+	 * Discard unneeded vnode, but save its node specific data.
+	 * Note that if there is a lock, it is carried over in the
+	 * node specific data to the replacement vnode.
+	 */
+	vref(ovp);
+	ovp->v_data = nvp->v_data;
+	ovp->v_tag = nvp->v_tag;
+	nvp->v_data = NULL;
+	ops = nvp->v_op;
+	nvp->v_op = ovp->v_op;
+	ovp->v_op = ops;
+	insmntque(ovp, nvp->v_mount);
+	vrele(nvp);
+	vgone(nvp);
+	return (ovp);
 }
 
 void
@@ -1648,7 +1678,7 @@ vclean(vp, flags, p)
 	 */
 	if (flags & DOCLOSE) {
 		if (TAILQ_FIRST(&vp->v_dirtyblkhd) != NULL)
-			(void) vn_write_suspend_wait(vp, V_WAIT);
+			(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 		if (vinvalbuf(vp, V_SAVE, NOCRED, p, 0, 0) != 0)
 			vinvalbuf(vp, 0, NOCRED, p, 0, 0);
 	}

@@ -537,7 +537,7 @@ struct vop_bwrite_args;
 extern int	(*lease_check_hook) __P((struct vop_lease_args *));
 
 void	addalias __P((struct vnode *vp, dev_t nvp_rdev));
-void	addaliasu __P((struct vnode *vp, udev_t nvp_rdev));
+struct	vnode *addaliasu __P((struct vnode *vp, udev_t nvp_rdev));
 int 	bdevvp __P((dev_t dev, struct vnode **vpp));
 /* cache_* may belong in namei.h. */
 void	cache_enter __P((struct vnode *dvp, struct vnode *vp,
@@ -593,7 +593,8 @@ int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 int	vn_start_write __P((struct vnode *vp, struct mount **mpp, int flags));
 dev_t	vn_todev __P((struct vnode *vp));
-int	vn_write_suspend_wait __P((struct vnode *vp, int flags));
+int	vn_write_suspend_wait __P((struct vnode *vp, struct mount *mp,
+		int flags));
 int 	vn_writechk __P((struct vnode *vp));
 int	vfs_cache_lookup __P((struct vop_lookup_args *ap));
 int	vfs_object_create __P((struct vnode *vp, struct proc *p,

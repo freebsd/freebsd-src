@@ -1282,7 +1282,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {
 			vp->v_op = spec_nfsv2nodeop_p;
-			addaliasu(vp, rdev);
+			vp = addaliasu(vp, rdev);
+			np->n_vnode = vp;
 		}
 		np->n_mtime = mtime.tv_sec;
 	}

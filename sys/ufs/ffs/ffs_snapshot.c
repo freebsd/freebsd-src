@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_snapshot.c	8.10 (McKusick) 7/11/00
+ *	@(#)ffs_snapshot.c	8.11 (McKusick) 7/23/00
  * $FreeBSD$
  */
 
@@ -290,6 +290,7 @@ restart:
 		if (fs->fs_cgsize < fs->fs_bsize)
 			bzero(&nbp->b_data[fs->fs_cgsize],
 			    fs->fs_bsize - fs->fs_cgsize);
+		nbp->b_flags |= B_VALIDSUSPWRT;
 		bawrite(nbp);
 		base = cg * fs->fs_fpg / fs->fs_frag;
 		if (base + len > numblks)
@@ -311,6 +312,7 @@ restart:
 		indiroff = (base + loc - NDADDR) % NINDIR(fs);
 		for ( ; loc < len; loc++, indiroff++) {
 			if (indiroff >= NINDIR(fs)) {
+				ibp->b_flags |= B_VALIDSUSPWRT;
 				bawrite(ibp);
 				error = VOP_BALLOC(vp,
 				    lblktosize(fs, (off_t)(base + loc)),
@@ -325,7 +327,8 @@ restart:
 				continue;
 			((ufs_daddr_t *)(ibp->b_data))[indiroff] = BLK_NOCOPY;
 		}
-		brelse(bp);
+		bqrelse(bp);
+		ibp->b_flags |= B_VALIDSUSPWRT;
 		bdwrite(ibp);
 	}
 	/*
@@ -340,6 +343,7 @@ restart:
 	if (fs->fs_sbsize < fs->fs_bsize)
 		bzero(&nbp->b_data[fs->fs_sbsize],
 		    fs->fs_bsize - fs->fs_sbsize);
+	nbp->b_flags |= B_VALIDSUSPWRT;
 	bawrite(nbp);
 	blkno = fragstoblks(fs, fs->fs_csaddr);
 	len = howmany(fs->fs_cssize, fs->fs_bsize) - 1;
@@ -354,6 +358,7 @@ restart:
 			size = fs->fs_cssize % fs->fs_bsize;
 		}
 		bcopy(fs->fs_csp[loc], nbp->b_data, size);
+		nbp->b_flags |= B_VALIDSUSPWRT;
 		bawrite(nbp);
 	}
 	/*
@@ -366,6 +371,7 @@ restart:
 		if (error)
 			goto out1;
 		readblock(nbp, inoblks[loc]);
+		nbp->b_flags |= B_VALIDSUSPWRT;
 		bdwrite(nbp);
 	}
 	/*
@@ -410,6 +416,7 @@ restart:
 		dip->di_blocks = 0;
 		dip->di_flags &= ~(SF_IMMUTABLE | SF_SNAPSHOT);
 		bzero(&dip->di_db[0], (NDADDR + NIADDR) * sizeof(ufs_daddr_t));
+		nbp->b_flags |= B_VALIDSUSPWRT;
 		bdwrite(nbp);
 	}
 	/*
@@ -422,7 +429,7 @@ restart:
 		if (error)
 			goto out1;
 		copyblkno = fragstoblks(fs, dbtofsb(fs, ibp->b_blkno));
-		brelse(ibp);
+		bqrelse(ibp);
 		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)copyblkno),
 		    fs->fs_bsize, p->p_ucred, 0, &nbp);
 		if (error)
@@ -434,7 +441,8 @@ restart:
 			goto out1;
 		}
 		bcopy(ibp->b_data, nbp->b_data, fs->fs_bsize);
-		brelse(ibp);
+		bqrelse(ibp);
+		nbp->b_flags |= B_VALIDSUSPWRT;
 		bawrite(nbp);
 	}
 	/*
@@ -518,7 +526,7 @@ indiracct(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks, blksperindir)
 	} else {
 		MALLOC(bap, ufs_daddr_t *, fs->fs_bsize, M_DEVBUF, M_WAITOK);
 		bcopy(bp->b_data, (caddr_t)bap, fs->fs_bsize);
-		brelse(bp);
+		bqrelse(bp);
 	}
 	error = snapacct(snapvp, &bap[0], &bap[last]);
 	if (error || level == 0)
@@ -539,7 +547,7 @@ indiracct(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks, blksperindir)
 	}
 out:
 	if (snapvp != cancelvp)
-		brelse(bp);
+		bqrelse(bp);
 	else
 		FREE(bap, M_DEVBUF);
 	return (error);
@@ -578,8 +586,10 @@ snapacct(vp, oldblkp, lastblkp)
 		if (*blkp != 0)
 			panic("snapacct: bad block");
 		*blkp = BLK_SNAP;
-		if (lbn >= NDADDR)
+		if (lbn >= NDADDR) {
+			ibp->b_flags |= B_VALIDSUSPWRT;
 			bdwrite(ibp);
+		}
 	}
 	return (0);
 }
@@ -732,7 +742,7 @@ ffs_snapblkfree(freeip, bno, size)
 		default:
 		case BLK_NOCOPY:
 			if (lbn >= NDADDR)
-				brelse(ibp);
+				bqrelse(ibp);
 			continue;
 		/*
 		 * No previous snapshot claimed the block, so it will be
@@ -787,7 +797,7 @@ ffs_snapblkfree(freeip, bno, size)
 			return (1);
 		}
 		if (lbn >= NDADDR)
-			brelse(ibp);
+			bqrelse(ibp);
 		/*
 		 * Allocate the block into which to do the copy. Note that this
 		 * allocation will never require any additional allocations for
@@ -933,40 +943,57 @@ ffs_copyonwrite(ap)
 		if (bp->b_vp == vp)
 			continue;
 		/*
-		 * Check to see if block needs to be copied.
+		 * Check to see if block needs to be copied. We have to
+		 * be able to do the VOP_BALLOC without blocking, otherwise
+		 * we may get in a deadlock with another process also
+		 * trying to allocate. If we find outselves unable to
+		 * get the buffer lock, we unlock the snapshot vnode,
+		 * sleep briefly, and try again.
 		 */
+retry:
+		vn_lock(vp, LK_SHARED | LK_RETRY, p);
 		if (lbn < NDADDR) {
 			blkno = ip->i_db[lbn];
 		} else {
-			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 			p->p_flag |= P_COWINPROGRESS;
 			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-			    fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			   fs->fs_bsize, KERNCRED, B_METAONLY | B_NOWAIT, &ibp);
 			p->p_flag &= ~P_COWINPROGRESS;
-			VOP_UNLOCK(vp, 0, p);
-			if (error)
-				break;
+			if (error) {
+				VOP_UNLOCK(vp, 0, p);
+				if (error != EWOULDBLOCK)
+					break;
+				tsleep(vp, p->p_usrpri, "nap", 1);
+				goto retry;
+			}
 			indiroff = (lbn - NDADDR) % NINDIR(fs);
 			blkno = ((ufs_daddr_t *)(ibp->b_data))[indiroff];
-			brelse(ibp);
+			bqrelse(ibp);
 		}
 #ifdef DIAGNOSTIC
 		if (blkno == BLK_SNAP && bp->b_lblkno >= 0)
 			panic("ffs_copyonwrite: bad copy block");
 #endif
-		if (blkno != 0)
+		if (blkno != 0) {
+			VOP_UNLOCK(vp, 0, p);
 			continue;
+		}
 		/*
 		 * Allocate the block into which to do the copy. Note that this
 		 * allocation will never require any additional allocations for
 		 * the snapshot inode.
 		 */
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		p->p_flag |= P_COWINPROGRESS;
 		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)lbn),
-		    fs->fs_bsize, KERNCRED, 0, &cbp);
+		    fs->fs_bsize, KERNCRED, B_NOWAIT, &cbp);
 		p->p_flag &= ~P_COWINPROGRESS;
 		VOP_UNLOCK(vp, 0, p);
+		if (error) {
+			if (error != EWOULDBLOCK)
+				break;
+			tsleep(vp, p->p_usrpri, "nap", 1);
+			goto retry;
+		}
 #ifdef DEBUG
 		if (snapdebug) {
 			printf("Copyonwrite: snapino %d lbn %d for ",
@@ -979,8 +1006,6 @@ ffs_copyonwrite(ap)
 			    cbp->b_blkno);
 		}
 #endif
-		if (error)
-			break;
 		/*
 		 * If we have already read the old block contents, then
 		 * simply copy them to the new block.
