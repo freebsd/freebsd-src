@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: common.h,v 1.1 1998/11/05 19:48:16 des Exp $
+ *	$Id: common.h,v 1.2 1998/11/06 22:14:08 des Exp $
  */
 
 #ifndef _COMMON_H_INCLUDED
@@ -40,7 +40,8 @@ struct fetcherr {
 
 void		 _fetch_seterr(struct fetcherr *, int);
 void		 _fetch_syserr(void);
-int		 fetchConnect(char *, int);
+int		 _fetch_info(char *fmt, ...);
+int		 fetchConnect(char *, int, int);
     
 #define _ftp_seterr(n)	 _fetch_seterr(_ftp_errlist, n)
 #define _http_seterr(n)	 _fetch_seterr(_http_errlist, n)

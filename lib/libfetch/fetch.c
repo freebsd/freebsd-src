@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: fetch.c,v 1.5 1998/11/05 19:48:17 des Exp $
+ *	$Id: fetch.c,v 1.6 1998/11/06 22:14:08 des Exp $
  */
 
 #include <sys/param.h>
@@ -38,6 +38,9 @@
 
 #include "fetch.h"
 #include "common.h"
+
+
+int fetchLastErrCode;
 
 
 /*** Local data **************************************************************/
@@ -205,7 +208,7 @@ fetchParseURL(char *URL)
     else URL += 2;
 
     p = strpbrk(URL, "/@");
-    if (*p == '@') {
+    if (p && *p == '@') {
 	/* username */
 	for (q = URL, i = 0; (*q != ':') && (*q != '@'); q++)
 	    if (i < URL_USERLEN)
