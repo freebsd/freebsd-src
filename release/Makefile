@@ -694,7 +694,7 @@ release.9:
 .if ${TARGET_ARCH} != "ia64"
 	@cp ${RD}/trees/base/boot/boot* ${RD}/mfsfd/boot
 .endif
-.if ${TARGET} == "i386"
+.if ${TARGET} == "i386" || ${TARGET_ARCH} == "amd64"
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
 	@echo "Making the regular boot floppy."
