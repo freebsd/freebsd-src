@@ -358,10 +358,6 @@ who has the better lawyer.
 %
 A lack of leadership is no substitute for inaction.
 %
-A lack of leadership is no substitute for inaction.
-%
-A lack of leadership is no substitute for inaction.
-%
 A lady with one of her ears applied
 To an open keyhole heard, inside,
 Two female gossips in converse free --
@@ -1503,9 +1499,6 @@ Corollary:
 Antonym, n.:
 	The opposite of the word you're trying to think of.
 %
-Any clod can have the facts, but having an opinion is an art.
-		-- Charles McCabe
-%
 Any clod can have the facts, but having opinions is an art.
 		-- Charles McCabe
 %
@@ -1595,10 +1588,6 @@ tried taking candy from a baby.
 %
 Anything free is worth what you pay for it.
 %
-Anything is good and useful if it's made of chocolate.
-%
-Anything is good if it's made of chocolate.
-%
 Anything labeled "NEW" and/or "IMPROVED" isn't.  The label means the
 price went up.  The label "ALL NEW", "COMPLETELY NEW", or "GREAT NEW"
 means the price went way up.
@@ -1640,8 +1629,6 @@ general can be said."
 %
 ARCHDUKE FERDINAND FOUND ALIVE --
     FIRST WORLD WAR A MISTAKE
-%
-Are you a turtle?
 %
 Are you a turtle?
 %
@@ -1839,10 +1826,6 @@ it is, that is equivalent to saying that it is at rest.
 %
 At Group L, Stoffel oversees six first-rate programmers, a managerial
 challenge roughly comparable to herding cats.
-		-- The Washington Post Magazine, 9 June, 1985
-%
-At Group L, Stoffel oversees six first-rate programmers, a managerial
-challenge roughly comparable to herding cats.
 		-- The Washington Post Magazine, June 9, 1985
 %
 ... at least I thought I was dancing, 'til somebody stepped on my hand.
@@ -2010,8 +1993,6 @@ already in the company of: (1) a date, (2) his wife, (3) a better
 looking and richer male friend.
 %
 "Being disintegrated makes me ve-ry an-gry!"  <huff, huff>
-%
-"Being disintegrated makes me ve-ry an-gry!" <huff, huff>
 %
 Bell Labs Unix -- Reach out and grep someone.
 %
@@ -3011,8 +2992,8 @@ Dawn, n.:
 %
 Day of inquiry.  You will be subpoenaed.
 %
-%DCL-MEM-BAD, bad memory
-VMS-F-PDGERS, pudding between the ears
+%DCL-E-MEMBAD, bad memory
+-SYSTEM-F-VMSPDGERS, pudding between the ears
 %
 Dealing with failure is easy: work hard to improve.  Success is also
 easy to handle: you've solved the wrong problem.  Work hard to
@@ -3129,6 +3110,11 @@ come of nothing: speak again." -- King Lear.
 			     - (((x)>>3)&0x11111111))
 
 		-- really weird C code to count the number of bits in a word
+%
+Definitions of hardware and software for dummies:
+
+	Hardware is what you kick;
+	Software is what you curse.
 %
 			DELETE A FORTUNE!
 
@@ -4893,7 +4879,7 @@ time travel, you never can tell."
 		-- Doctor Who "Androids of Tara"
 %
 Got Mole problems?
-Call Avogardo 6.02 x 10^23
+Call Avogadro 6.02 x 10^23
 %
 Goto, n.:
 	A programming tool that exists to allow structured programmers
@@ -8790,8 +8776,6 @@ Meader's Law:
 	Whatever happens to you, it will previously have happened to
 everyone you know, only more so.
 %
-Measure with a micrometer.  Mark with chalk.  Cut with an axe.
-%
 Meeting, n.:
 	An assembly of people coming together to decide what person or
 department not represented in the room must solve a problem.
@@ -10360,6 +10344,12 @@ when there is no longer anything to take away.
 %
 Personifiers Unite!  You have nothing to lose but Mr. Dignity!
 %
+Peter Wemm Murphy Field, n.:
+	A field of abnormally frequent and severe Murphy's Law events
+emanating from Mr. Peter Wemm.  The field was first discovered and
+identified in Denmark during the initial FreeBSD SMP development.
+Mr. Wemm was residing in Australia at the time.
+%
 Peter's Law of Substitution:
 	Look after the molehills, and the mountains will look after
 themselves.
@@ -11602,9 +11592,6 @@ Slurm, n.:
 	The slime that accumulates on the underside of a soap bar when
 it sits in the dish too long.
 		-- Rich Hall, "Sniglets"
-%
-Smoking is one of the leading causes of statistics.
-		-- Fletcher Knebel
 %
 Smoking is one of the leading causes of statistics.
 		-- Fletcher Knebel
@@ -16415,9 +16402,3 @@ since I first called my brother's father dad.
 %
 Zymurgy's Law of Volunteer Labor:
 	People are always available for work in the past tense.
-%
-Definitions of hardware and software for dummies:
-
-	Hardware is what you kick;
-	Software is what you curse.
-
