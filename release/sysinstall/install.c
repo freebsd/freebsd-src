@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.6 1995/06/01 09:51:59 jkh Exp $
+ * $Id: install.c,v 1.70.2.7 1995/06/01 22:27:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -348,13 +348,6 @@ make_filesystems(void)
 			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
 		    }
 		}
-	    }
-	    else if (c1->type == fat) {
-		PartInfo *tmp = (PartInfo *)c1->private;
-
-		if (!tmp)
-		    continue;
-		command_func_add(tmp->mountpoint, Mount_DOS, c1->name);
 	    }
 	}
     }
