@@ -1838,17 +1838,20 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	/*
 	 * next hop determination.  This routine is derived from ether_outpout.
 	 */
+again:
 	if (rt) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			rt0 = rt = rtalloc1((struct sockaddr *)dst, 1, 0UL);
 			if (rt != NULL) {
 				RT_REMREF(rt);
 				RT_UNLOCK(rt);
-				if (rt->rt_ifp != ifp) {
-					/* XXX: loop care? */
-					return nd6_output(ifp, origifp, m0,
-					    dst, rt);
-				}
+				if (rt->rt_ifp != ifp)
+					/*
+					 * XXX maybe we should update ifp too,
+					 * but the original code didn't and I
+					 * don't know what is correct here.
+					 */
+					goto again;
 			} else
 				senderr(EHOSTUNREACH);
 		}
