@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aout_freebsd.c,v 1.9 1998/10/02 20:53:16 msmith Exp $
+ *	$Id: aout_freebsd.c,v 1.10 1998/10/09 07:11:19 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -56,21 +56,26 @@ aout_exec(struct loaded_module *mp)
     vm_offset_t			entry, bootinfop;
     int				boothowto, err, bootdev;
     struct bootinfo		*bi;
+    vm_offset_t			ssym, esym;
 
     if ((md = mod_findmetadata(mp, MODINFOMD_AOUTEXEC)) == NULL)
 	return(EFTYPE);			/* XXX actually EFUCKUP */
     ehdr = (struct exec *)&(md->md_data);
 
-    /* XXX allow override? */
-    setenv("kernelname", mp->m_name, 1);
-
     if ((err = bi_load(mp->m_args, &boothowto, &bootdev, &bootinfop)) != 0)
 	return(err);
     entry = ehdr->a_entry & 0xffffff;
 
+    ssym = esym = 0;
+    if ((md = mod_findmetadata(mp, MODINFOMD_SSYM)) != NULL)
+	ssym = *((vm_offset_t *)&(md->md_data));
+    if ((md = mod_findmetadata(mp, MODINFOMD_ESYM)) != NULL)
+	esym = *((vm_offset_t *)&(md->md_data));
+    if (ssym == 0 || esym == 0) 
+	ssym = esym = 0;	/* sanity */
     bi = (struct bootinfo *)PTOV(bootinfop);
-    bi->bi_symtab = mp->m_addr + ehdr->a_text + ehdr->a_data + ehdr->a_bss;
-    bi->bi_esymtab = bi->bi_symtab + sizeof(ehdr->a_syms) + ehdr->a_syms;
+    bi->bi_symtab = ssym;	/* XXX this is only the primary kernel symtab */
+    bi->bi_esymtab = esym;
 
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
 
