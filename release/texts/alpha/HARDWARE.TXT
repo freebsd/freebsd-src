@@ -50,7 +50,8 @@ OpenBSD, Tru64 Unix or OpenVMS for that matter). With the demise of
 WindowsNT/alpha a lot of former NT boxes are sold on the second hand
 market. They have little or no trade-in value when they are NT-only from the
 console perspective. So, be suspicious if the price appears too good.
-Known non-SRM machines are the Digital XL266/XLT300 and the Samsung PC164UX.
+Known non-SRM machines are the Digital XL266/XLT300, the Samsung PC164UX
+and 164BX.
 
 As part of the SRM you will get the so called OSF/1 PAL code (OSF/1 being the
 initial name of DECs Unix offering on Alpha). The PAL code can be thought
