@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		v21modem
-NOMAN=		1
+NOMAN=
 DPADD=		${LIBUTIL} ${LIBM}
 LDADD=		-lutil -lm
 CFLAGS+=	-g -Wall

@@ -15,7 +15,7 @@
        ${.CURDIR}/../../lib/libutil 
 
 LIB=		rescue
-INTERNALLIB=	yes	# Don't install this library
+INTERNALLIB=	# Don't install this library
 SRCS=		exec.c getusershell.c login_class.c popen.c rcmdsh.c \
 		sysctl.c system.c
 

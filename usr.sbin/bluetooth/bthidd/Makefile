@@ -3,7 +3,7 @@
 
 PROG=		bthidd
 #MAN=		bthidd.8 bthidd.conf.5
-NOMAN=		1
+NOMAN=
 SRCS=		bthidd.c client.c hid.c lexer.l parser.y server.c session.c
 WARNS?=		1
 CFLAGS+=	-I${.CURDIR}

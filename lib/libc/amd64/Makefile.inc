@@ -6,4 +6,4 @@
 #
 # AMD64 is 64-bit, so it doesn't need quad functions:
 #
-NO_QUAD=1
+NO_QUAD=

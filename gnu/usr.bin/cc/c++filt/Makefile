@@ -6,7 +6,7 @@
 
 PROG=	c++filt
 SRCS=	cp-demangle.c cplus-dem+%DIKED.c
-NOMAN=	1
+NOMAN=
 
 CFLAGS+= -DSTANDALONE_DEMANGLER -DIN_GCC -DVERSION=\"$(version)\"
 

@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	koi2855
-NOMAN=	#true
+NOMAN=
 
 CFLAGS+= -I${.CURDIR}/../../common_source
 

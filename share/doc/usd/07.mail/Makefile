@@ -5,7 +5,7 @@ VOLUME=		usd/07.mail
 SRCS=		mail0.nr mail1.nr mail2.nr mail3.nr mail4.nr mail5.nr mail6.nr \
 		mail7.nr mail8.nr mail9.nr maila.nr
 MACROS=		-me
-USE_TBL=	YES
+USE_TBL=
 SRCDIR=		${.CURDIR}/../../../../usr.bin/mail/USD.doc
 
 .include <bsd.doc.mk>

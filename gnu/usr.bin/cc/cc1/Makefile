@@ -7,7 +7,7 @@
 PROG=	cc1
 SRCS=	main.c c-parse+%DIKED.c c-lang.c stub-objc.c
 BINDIR=	/usr/libexec
-NOMAN=	1
+NOMAN=
 NOSHARED?=yes
 
 CFLAGS+= -I.

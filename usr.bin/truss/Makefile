@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 WARNS?=	2
-NO_WERROR=	yes
+NO_WERROR=
 PROG=	truss
 SRCS=	main.c setup.c syscalls.c syscalls.h ioctl.c ${MACHINE_ARCH}-fbsd.c
 .if ${MACHINE_ARCH} == "i386"

@@ -20,7 +20,7 @@ CFLAGS+=-D_LOCK_DEBUG
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
 
-PRECIOUSLIB=	yes
+PRECIOUSLIB=
 
 .include "${.CURDIR}/uthread/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"

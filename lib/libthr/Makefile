@@ -18,7 +18,7 @@ CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
 # enable extra internal consistancy checks
 CFLAGS+=-D_PTHREADS_INVARIANTS
 
-PRECIOUSLIB=	yes
+PRECIOUSLIB=
 
 WARNS?=	2
 

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-NOOBJ=		noobj
+NOOBJ=
 FILES=		IMPLEMENTATION
 FILESDIR=	${SHAREDIR}/doc/IPv6
 

@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	ppt
-NOMAN=	noman
+NOMAN=
 
 WARNS?=	6
 
