@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.12 1996/07/11 16:31:59 wollman Exp $
+ * $Id: uipc_socket2.c,v 1.13 1996/08/19 19:22:26 julian Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,9 @@ SYSCTL_INT(_kern, KERN_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 SYSCTL_INT(_kern, OID_AUTO, sockbuf_waste_factor, CTLFLAG_RW, &sb_efficiency,
 	   0, "");
+
+static int sominqueue = 0;
+SYSCTL_INT(_kern, KERN_SOMINQUEUE, sominqueue, CTLFLAG_RW, &sominqueue, 0, "");
 
 /*
  * Procedures to manipulate state flags of socket
@@ -163,7 +166,8 @@ sonewconn1(head, connstatus)
 {
 	register struct socket *so;
 
-	if (head->so_qlen > 3 * head->so_qlimit / 2)
+	if ((head->so_qlen > 3 * head->so_qlimit / 2) &&
+	    (head->so_qlen > sominqueue))
 		return ((struct socket *)0);
 	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_DONTWAIT);
 	if (so == NULL)
