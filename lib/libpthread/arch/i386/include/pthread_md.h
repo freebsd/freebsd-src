@@ -48,4 +48,7 @@ extern int _thr_getcontext(ucontext_t *);
 
 #define	THR_GETCONTEXT(ucp)	_thr_getcontext(ucp)
 #define	THR_SETCONTEXT(ucp)	_thr_setcontext(ucp)
+
+#define	THR_ALIGNBYTES	15
+#define	THR_ALIGN(td)	(((unsigned)(td) + THR_ALIGNBYTES) & ~THR_ALIGNBYTES)
 #endif
