@@ -196,6 +196,7 @@ static struct part_type
 	,{0xAC, "IBM JFS"}
 	,{0xB7, "BSDI BSD/386 file system"}
 	,{0xB8, "BSDI BSD/386 swap"}
+	,{0xBE, "Solaris x86 boot"}
 	,{0xC1, "DRDOS/sec with 12-bit FAT"}
 	,{0xC4, "DRDOS/sec with 16-bit FAT (< 32MB)"}
 	,{0xC6, "DRDOS/sec with 16-bit FAT (>= 32MB)"}
