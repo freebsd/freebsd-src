@@ -36,7 +36,12 @@
 .Dt CHPASS 1
 .Os
 .Sh NAME
-.Nm chpass, chfn, chsh, ypchpass, ypchfn, ypchsh
+.Nm chpass ,
+.Nm chfn ,
+.Nm chsh ,
+.Nm ypchpass ,
+.Nm ypchfn ,
+.Nm ypchsh
 .Nd add or change user database information
 .Sh SYNOPSIS
 .Nm chpass
@@ -46,7 +51,7 @@
 .Op user
 .Sh DESCRIPTION
 The
-.Nm chpass
+.Nm
 program
 allows editing of the user database information associated
 with
@@ -57,14 +62,14 @@ The information is formatted and supplied to an editor for changes.
 Only the information that the user is allowed to change is displayed.
 .Pp
 The options are as follows:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl a
 The super-user is allowed to directly supply a user database
 entry, in the format specified by
 .Xr passwd 5 ,
 as an argument.
 This argument must be a colon
-.Pq Dq :
+.Pq Dq \:
 separated list of all the
 user database fields, although they may be empty.
 .It Fl p
@@ -72,10 +77,8 @@ The super-user is allowed to directly supply an encrypted password field,
 in the format used by
 .Xr crypt 3 ,
 as an argument.
-.It Fl s
-The
-.Fl s
-option attempts to change the user's shell to
+.It Fl s Ar newshell
+Attempt to change the user's shell to
 .Ar newshell .
 .El
 .Pp
@@ -192,7 +195,9 @@ heading
 .Pp
 The user's
 .Ar home directory
-is the full UNIX path name where the user
+is the full
+.Ux
+path name where the user
 will be placed at login.
 .Pp
 The
@@ -210,14 +215,16 @@ Non-standard is defined as a shell not found in
 .Pa /etc/shells .
 .Pp
 Once the information has been verified,
-.Nm chpass
+.Nm
 uses
 .Xr pwd_mkdb 8
 to update the user database.
 .Sh ENVIRONMENT
 The
 .Xr vi 1
-editor will be used unless the environment variable EDITOR is set to
+editor will be used unless the environment variable
+.Ev EDITOR
+is set to
 an alternate editor.
 When the editor terminates, the information is re-read and used to
 update the user database itself.
@@ -228,12 +235,12 @@ with the user.
 can also be used in conjunction with NIS, however some restrictions
 apply.
 Currently,
-.Nm chpass
+.Nm
 can only make changes to the NIS passwd maps through
 .Xr rpc.yppasswdd 8 ,
 which normally only permits changes to a user's password, shell and GECOS
 fields. Except when invoked by the super-user on the NIS master server,
-.Nm chpass
+.Nm
 (and, similarly,
 .Xr passwd 1 )
 can not use the
@@ -258,14 +265,14 @@ Note: these exceptions only apply when the NIS master server is a
 system).
 .Pp
 Consequently, except where noted, the following restrictions apply when
-.Nm chpass
+.Nm
 is used with NIS:
 .Bl -enum -offset indent
 .It
 .Em "Only the shell and GECOS information may be changed" .
 All other
 fields are restricted, even when
-.Nm chpass
+.Nm
 is invoked by the super-user.
 While support for
 changing other fields could be added, this would lead to
@@ -330,26 +337,24 @@ will refuse to update the NIS maps.
 .Pp
 Exception: the super-user on the NIS master server is permitted to
 change a user's NIS password with
-.Nm chpass .
+.Nm Ns .
 .El
 .Pp
 There are also a few extra option flags that are available when
-.Nm chpass
+.Nm
 is compiled with NIS support:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl l
-The
-.Fl l
-flag forces
-.Nm chpass
+Force
+.Nm
 to modify the local copy of a user's password
 information in the even that a user exists in both
 the local and NIS databases.
 .It Fl y
-This flag has the opposite effect of
+Opposite effect of
 .Fl l .
 This flag is largely redundant since
-.Nm chpass
+.Nm
 operates on NIS entries by default if NIS is enabled.
 .It Fl d Ar domain
 Specify a particular NIS domain.
@@ -362,7 +367,7 @@ option can be used to override a default, or to specify a domain
 when the system domain name is not set.
 .It Fl h Ar host
 Specify the name or address of an NIS server to query. Normally,
-.Nm chpass
+.Nm
 will communicate with the NIS master host specified in the
 .Pa master.passwd
 or
@@ -389,12 +394,14 @@ Force the use of RPC-based updates when communicating with
 .Xr rpc.yppasswdd 8
 .Pq Dq old-mode .
 When invoked by the super-user on the NIS master server,
-.Nm chpass
+.Nm
 allows unrestricted changes to the NIS passwd maps using dedicated,
-non-RPC-based mechanism (in this case, a UNIX domain socket). The
+non-RPC-based mechanism (in this case, a
+.Ux
+domain socket). The
 .Fl o
 flag can be used to force
-.Nm chpass
+.Nm
 to use the standard update mechanism instead. This option is provided
 mainly for testing purposes.
 .El
@@ -402,13 +409,13 @@ mainly for testing purposes.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
 .It Pa /etc/master.passwd
-The user database
+the user database
 .It Pa /etc/passwd
-A Version 7 format password file
+a Version 7 format password file
 .It Pa /etc/chpass.XXXXXX
-Temporary copy of the password file
+temporary copy of the password file
 .It Pa /etc/shells
-The list of approved shells
+the list of approved shells
 .El
 .Sh SEE ALSO
 .Xr finger 1 ,
@@ -434,7 +441,7 @@ The
 and
 .Xr ypchsh 1
 commands are really only links to
-.Nm chpass .
+.Nm Ns .
 .Sh BUGS
 User information should (and eventually will) be stored elsewhere.
 .Sh HISTORY
