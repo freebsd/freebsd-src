@@ -528,14 +528,26 @@ main(argc, argv)
      */
     shlvl(1);
 
-    if ((tcp = getenv("HOME")) != NULL)
-	cp = quote(SAVE(tcp));
-    else
+    if ((tcp = getenv("HOME")) != NULL) {
+	if (strlen(tcp) >= MAXPATHLEN) {
+	    struct passwd *pw;
+	    if ((pw = getpwuid(getuid())) != NULL)
+		cp = quote(SAVE(pw->pw_dir));
+	    else {
+		tcp[MAXPATHLEN-1] = '\0';
+		cp = quote(SAVE(tcp));
+	    }
+	} else {
+	    cp = quote(SAVE(tcp));
+	}
+    } else
 	cp = NULL;
+
     if (cp == NULL)
 	fast = 1;		/* No home -> can't read scripts */
     else
 	set(STRhome, cp, VAR_READWRITE);
+
     dinit(cp);			/* dinit thinks that HOME == cwd in a login
 				 * shell */
     /*
