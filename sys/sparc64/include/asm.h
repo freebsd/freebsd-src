@@ -70,13 +70,49 @@
 #define CNAME(csym)		csym
 #define HIDENAME(asmsym)	__CONCAT(.,asmsym)
 
-#define	CCFSZ	192
-#define	SPOFF	2047
+/* sys/sparc64/sparc64/ *.S have their own definitions. */
+#ifndef CCFSZ
+#define	CCFSZ	192	/* 0xc0 */
+#endif
+#ifndef	SPOFF
+#define	SPOFF	2047	/* 0x7ff */
+#endif
+
+#ifdef GPROF
+#define	_ALIGN_TEXT	.align 32
+#else
+#define	_ALIGN_TEXT	.p2align 4
+#endif
+
+#define _START_ENTRY \
+	.text ; \
+	_ALIGN_TEXT
+
+/*
+ * Define a function entry point.
+ *
+ * The compiler produces #function for the .type pseudo-op, but the '#'
+ * character has special meaning in cpp macros, so we use @function like
+ * other architectures.  The assembler seems to accept both.
+ * The assembler also accepts a .proc pseudo-op, which is used by the
+ * peep hole optimizer, whose argument is the type code of the return
+ * value.  Since this is difficult to predict and its expected that
+ * assembler code is already optimized, we leave it out.
+ */
+#define	_ENTRY(x) \
+	_START_ENTRY ; \
+	.globl	CNAME(x) ; \
+	.type	CNAME(x),@function ; \
+CNAME(x):
+
+#define	ENTRY(x)	_ENTRY(x)
+#define	END(x)		.size x, . - x
 
 /*
  * Kernel RCS ID tag and copyright macros
  */
 
+#undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
 #define __FBSDID(s)	.ident s
 #else
