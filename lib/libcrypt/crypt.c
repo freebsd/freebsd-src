@@ -34,14 +34,57 @@ static char rcsid[] = "$FreeBSD$";
 #include <string.h>
 #include "crypt.h"
 
+static const struct {
+	const char *const name;
+	char *(*const func)(const char *, const char *);
+	const char *const magic;
+} crypt_types[] = {
+	{
+		"des",
+		crypt_des,
+		NULL
+	},
+	{
+		"md5",
+		crypt_md5,
+		"$1$"
+	},
+	{
+		NULL,
+		NULL
+	}
+};
+
+static int crypt_type = 0;
+
+const char *
+crypt_get_format(void) {
+
+	return (crypt_types[crypt_type].name);
+}
+
+int
+crypt_set_format(char *type) {
+	int i;
+
+	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
+		if (strcmp(type, crypt_types[i].name) == 0) {
+			crypt_type = i;
+			return (1);
+		}
+	}
+	return (0);
+}
+
 char *
 crypt(char *passwd, char *salt)
 {
-	if (!strncmp(salt, "$1$", 3))
-		return crypt_md5(passwd, salt);
-#ifdef NONEXPORTABLE_CRYPT
-	return crypt_des(passwd, salt);
-#else
-	return crypt_md5(passwd, salt);
-#endif
+	int i;
+
+	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
+		if (crypt_types[i].magic != NULL && strncmp(salt,
+		    crypt_types[i].magic, strlen(crypt_types[i].magic)) == 0)
+			return (crypt_types[i].func(passwd, salt));
+	}
+	return (crypt_types[crypt_type].func(passwd, salt));
 }
