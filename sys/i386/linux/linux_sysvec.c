@@ -377,6 +377,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	l_sigset_t lmask;
 	int oonstack, i;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		linux_rt_sendsig(catcher, sig, mask, code);
