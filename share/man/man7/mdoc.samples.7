@@ -196,7 +196,6 @@ outlined as follows:
 .It
 .Tn "BUGS"
 .El
-.ne 7
 .Sh TROFF IDIOSYNCRASIES
 The
 .Nm \-mdoc
@@ -534,7 +533,7 @@ and if it is specified,
 the volume title may be omitted.
 .Pp
 Under
-.Tn FreeBSD ,
+.Fx ,
 the following section numbers and their descriptions are described below:
 .Pp
 .Bl -column SMM -offset indent -compact
@@ -580,7 +579,7 @@ The name of the operating system
 should be the common acronym, e.g.
 .Tn BSD
 or
-.Tn FreeBSD
+.Fx
 or
 .Tn ATT .
 The release should be the standard release
@@ -614,7 +613,6 @@ will be ugly.
 .It Li \&.Dd month day, year
 The date should be written formally:
 .Pp
-.ne 5
 .Dl January 25, 1989
 .El
 .Sh INTRODUCTION OF MANUAL AND GENERAL TEXT DOMAINS
@@ -876,6 +874,23 @@ It is an error to call
 .Ql \&.An
 without
 any arguments.
+.Pp
+In the
+.Sx AUTHORS
+section, an
+.Ql \&.An
+request causes a line break allowing each new name
+to appear on its own line.
+If this is not desirable, the
+.Bd -literal -offset indent
+\&.An -nosplit
+.Ed
+.Pp
+call will turn this off.
+To turn splitting back on, call the
+.Bd -literal -offset indent
+\&.An -split
+.Ed
 .Ss Argument Macro
 The
 .Ql \&.Ar
@@ -1605,7 +1620,6 @@ and while they have nesting limitations, the one line quote macros
 can be used inside
 of them.
 .Pp
-.ne 5
 .Bd -filled -offset indent
 .Bl -column "quote " "close " "open " "Enclose Stringx(in XX) " XXstringXX
 .Em " Quote	 Close	 Open	Function	Result"
@@ -1657,7 +1671,6 @@ The
 (no space) macro performs the analogous suffix function.
 .El
 .Pp
-.ne 4
 Examples of quoting:
 .Bl -tag -width ".Aq Pa ctype.h ) ,xxxxxxxx" -compact -offset indent
 .It Li \&.Aq

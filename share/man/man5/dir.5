@@ -150,7 +150,8 @@ struct dirent {
 .Xr fs 5 ,
 .Xr inode 5
 .Sh BUGS
-The usage of the member d_type of struct dirent is unportable as it is FreeBSD-specific.
+The usage of the member d_type of struct dirent is unportable as it is
+.Fx Ns -specific .
 It also may fail on certain filesystems, for example the cd9660 filesystem.
 .Sh HISTORY
 A

@@ -36,7 +36,7 @@
 .Cd "device scd0 at isa? port 0x230"
 .Sh DESCRIPTION
 The
-.Nm scd
+.Nm
 driver provides a data interface to the Sony CDU31 and CDU33A CD-ROM
 drives.  The drive must be hooked to a Sony proprietary interface
 card or a compatible clone.
@@ -51,6 +51,7 @@ accesses the raw device.
 .Sh SEE ALSO
 .Pa /sys/i386/isa/scd.c
 .Sh AUTHORS
+.An -nosplit
 The driver was written by
 .An Mikael Hybsch
 with code contributed by
@@ -59,6 +60,6 @@ and
 .An Brian Moore .
 .Sh HISTORY
 The
-.Nm scd
+.Nm
 driver first appeared in
 .Fx 2.0.5 .

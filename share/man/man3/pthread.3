@@ -204,7 +204,9 @@ Push the specified cancellation cleanup handler onto the calling thread's
 cancellation stack.
 .El
 .Sh INSTALLATION
-The current FreeBSD POSIX thread implementation is built in the library
+The current
+.Fx
+POSIX thread implementation is built in the library
 .Fa libc_r
 which contains both thread-safe libc functions and the thread functions.
 This library replaces
@@ -218,13 +220,15 @@ is built as part of a 'make world'.  To disable the build of
 you must supply the '-DNOLIBC_R' option to
 .Xr make 1 .
 .Pp
-A FreeBSD specific option has been added to gcc to make linking
+A
+.Fx
+specific option has been added to gcc to make linking
 threaded processes simple.
 .Fa gcc -pthread
 links a threaded process against
 .Fa libc_r
 instead of
-.Fa libc.
+.Fa libc .
 .Sh SEE ALSO
 .Xr pthread_create 3 ,
 .Xr pthread_detach 3 ,

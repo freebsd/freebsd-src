@@ -35,7 +35,9 @@
 .Sh DESCRIPTION
 The program called
 .Nm
-is the final stage of FreeBSD's kernel bootstrapping process.
+is the final stage of
+.Fx Ns 's
+kernel bootstrapping process.
 On IA32 (i386) architectures, it is a
 .Pa BTX
 client.
@@ -112,7 +114,7 @@ will be set and
 .Nm
 will engage interactive mode.
 .Sh BUILTIN COMMANDS
-.Nm Loader Ns No 's
+.Nm Loader Ns 's
 builtin commands take its parameters from the command line.
 Presently,
 the only way to call them from a script is by using
@@ -294,7 +296,7 @@ Notice that this environment variables are not inherited by any shell
 after the system has been booted.
 .Pp
 A few variables are set automatically by
-.Nm loader .
+.Nm .
 Others can affect either
 .Nm
 or kernel's behavior at boot.
@@ -368,7 +370,7 @@ This has been deprecated in favour of
 .Va root_disk_unit .
 .It Va prompt
 Value of
-.Nm Ns No 's
+.Nm Ns 's
 prompt.
 Defaults to
 .Li Dq "${currdev}>" .
@@ -518,7 +520,7 @@ virtual machine library that can be called by C functions and vice
 versa.
 .Pp
 In
-.Nm No ,
+.Nm ,
 each line read interactively is then fed to
 .Tn FICL ,
 which may call
@@ -782,16 +784,14 @@ Search-Order extensions word set.
 first appeared in
 .Fx 3.1 .
 .Sh AUTHORS
-.Bl -item
-.It
+.An -nosplit
 .Nm
 was written by
-.An Michael Smith Aq msmith@freebsd.org .
-.It
+.An Michael Smith Aq msmith@FreeBSD.org .
+.Pp
 .Tn FICL
 was written by
 .An John Sadler Aq john_sadler@alum.mit.edu .
-.El
 .Sh BUGS
 The
 .Ic expect

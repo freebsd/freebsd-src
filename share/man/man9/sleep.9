@@ -97,16 +97,16 @@ includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, else signals are
 not checked.  Returns 0 if awakened,
-.Dv EWOULDBLOCK
+.Er EWOULDBLOCK
 if the timeout expires.  If
 .Dv PCATCH
 is set and a signal needs to be delivered,
-.Dv ERESTART
+.Er ERESTART
 is returned if the current system call should be restarted if
 possible, and
-.Dv EINTR
+.Er EINTR
 is returned if the system call should be interrupted by the signal
-.Pq return Dv EINTR .
+.Pq return Er EINTR .
 .Pp
 .Nm Asleep
 implements the new asynchronous sleep function.  It takes the same arguments
@@ -216,7 +216,7 @@ appeared in a very early version of Unix.
 appeared in
 .Bx 4.4 .
 .Pp
-.Nm Asleep/await 
+.Nm Asleep Ns / Ns Nm await 
 first appeared in
 .Fx 3.0
 and is designed to shift the burden of blocking
@@ -227,9 +227,9 @@ used to be the traditional form.  It doesn't let you specify a timeout nor a
 .Ar wmesg ,
 hence it has been discontinued.
 .Sh AUTHORS
-This man page has been written by
-.ie t J\(:org Wunsch.
-.el Joerg Wunsch. 
+.An -nosplit
+This man page was written by
+.An J\(:org Wunsch .
 .Nm Asleep
 and
 .Nm await

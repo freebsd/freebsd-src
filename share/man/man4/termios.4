@@ -174,7 +174,7 @@ process is orphaned, the
 .Xr read 2
 returns -1 with
 .Va errno set to
-.Er Dv EIO
+.Er EIO
 and no
 signal is sent.  The default action of the
 .Dv SIGTTIN
@@ -205,7 +205,7 @@ the
 .Xr write 2
 returns -1 with
 errno set to
-.Er Dv EIO
+.Er EIO
 and no signal is sent.
 .Pp
 Certain calls that set terminal parameters are treated in the same
@@ -1018,7 +1018,7 @@ If
 .Dv ONOEOT
 is set,
 .Tn ASCII
-.Dv EOT NS 's
+.Dv EOT Ns 's
 are discarded on output.
 .Ss Control Modes
 Values of the
@@ -1091,7 +1091,7 @@ is set, the receiver is enabled.  Otherwise, no character is
 received. 
 Not all hardware supports this bit.  In fact, this flag
 is pretty silly and if it were not part of the
-.Nm termios
+.Nm
 specification
 it would be omitted.
 .Pp

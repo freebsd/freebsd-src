@@ -32,8 +32,9 @@
 .Nm kld
 .Nd dynamic kernel linker facility
 .Sh DESCRIPTION
-The LKM (Loadable Kernel Modules) facility has been deprecated in FreeBSD
-3.0 and above in favor of the 
+The LKM (Loadable Kernel Modules) facility has been deprecated in
+.Fx 3.0
+and above in favor of the 
 .Nm
 interface.
 This interface, like its
@@ -49,7 +50,7 @@ is a generic type, for which the module itself handles loading and
 unloading.
 .Pp
 The
-.Tn FreeBSD
+.Fx
 system makes extensive use of loadable kernel modules, and provides loadable
 versions of most filesystems, the
 .Tn NFS
@@ -90,7 +91,7 @@ system.
 .It Em "Device Driver modules"
 New block and character device
 drivers may be loaded into the system with
-.Nm KLD .
+.Nm .
 The major problem with loading
 a device driver is that the driver's
 device nodes must be exist for the
@@ -147,7 +148,7 @@ fails to execute the entry point.
 .Pp
 .Xr kldload 8
 returns the cryptic message
-.Sq ENOEXEC Po Exec format error Pc
+.Sq Li "ENOEXEC (Exec format error)"
 for any error encountered while loading a module.
 .Pp
 When system internal interfaces change, old modules often cannot

@@ -78,7 +78,7 @@ by giving a set of capabilities that they have and by describing
 how operations are performed.
 Padding requirements and initialization sequences
 are included in
-.Nm Ns .
+.Nm .
 .Pp
 Entries in
 .Nm
@@ -1248,7 +1248,7 @@ and the starting and ending columns in memory, in that order.
 .Xr terminfo
 capability is described for completeness.
 It is unlikely that any
-.Nm Ns \- Ns using
+.Nm Ns \-using
 program will support it.)
 .Pp
 If the terminal can retain display memory above the screen, then the
@@ -1266,7 +1266,7 @@ may bring down non-blank lines.
 .Ss Insert/Delete Character
 There are two basic kinds of intelligent terminals with respect to
 insert/delete character that can be described using
-.Nm Ns .
+.Nm .
 The most common insert/delete character operations affect only the characters
 on the current line and shift characters off the end of the line rigidly.
 Other terminals, such as the Concept\-100 and the Perkin Elmer Owl, make
@@ -1667,7 +1667,7 @@ the display for cursor addressing to work properly.
 This is also used for the Tektronix 4025, where
 .Sy \&ti
 sets the command character to be the one used by
-.Nm Ns .
+.Nm .
 .Pp
 Other capabilities
 include
@@ -1881,7 +1881,7 @@ the number of times to repeat it.
 (This is a
 .Xr terminfo
 feature that is unlikely to be supported by a program that uses
-.Nm Ns . )
+.Nm . )
 .Pp
 If the terminal has a settable command character, such as the
 Tektronix 4025, this can be indicated with

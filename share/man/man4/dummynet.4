@@ -23,10 +23,10 @@ In its current implementation,
 packet selection is done with the
 .Nm ipfw
 program, by means of
-.Nm ``pipe''
+.Dq pipe
 rules.
 A dummynet
-.Nm pipe
+.Em pipe
 is characterized by a bandwidth, delay, queue size, and loss
 rate, which can be configured with the
 .Nm ipfw
@@ -97,7 +97,7 @@ destination, or passed again through the
 .Nm ipfw
 rules, starting from the one after the matching rule.
 .Pp
-.Nm dummynet
+.Nm
 performs its task once per timer tick.
 The granularity of operation is
 thus controlled by the kernel option
@@ -118,7 +118,7 @@ operation.
 .Sh KERNEL OPTIONS
 The following options in the kernel configuration file are related
 to
-.Nm dummynet
+.Nm
 operation:
 .Bd -literal
   IPFIREWALL               - enable ipfirewall (required for dummynet).

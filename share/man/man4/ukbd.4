@@ -136,13 +136,13 @@ also has effect on the AT keyboard driver `atkbd'.
 .Bl -tag -width /dev/kbd0 -compact
 .It Pa /dev/kbd*
 blocking device nodes
-.Sh EXAMPLE
+.Sh EXAMPLES
 .Bd -literal -offset indent
 device ukbd
 .Ed
 .Pp
 Add the
-.Nm ukbd
+.Nm
 driver to the kernel.
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
@@ -153,8 +153,9 @@ driver to the kernel.
 .Xr config 8
 .\".Sh HISTORY
 .Sh AUTHORS
+.An -nosplit
 The
-.Nm ukbd
+.Nm
 driver was written by
 .An Lennart Augustsson Aq augustss@cs.chalmers.se
 for

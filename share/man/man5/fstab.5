@@ -42,24 +42,24 @@
 .Fd #include <fstab.h>
 .Sh DESCRIPTION
 The file
-.Nm fstab
+.Nm
 contains descriptive information about the various file
 systems.
-.Nm fstab
+.Nm
 is only read by programs, and not written;
 it is the duty of the system administrator to properly create 
 and maintain this file.
 Each filesystem is described on a separate line;
 fields on each line are separated by tabs or spaces.
 The order of records in
-.Nm fstab
+.Nm
 is important because
 .Xr fsck 8 ,
 .Xr mount 8 ,
 and
 .Xr umount 8
 sequentially iterate through
-.Nm fstab
+.Nm
 doing their thing.
 .Pp
 The first field,
@@ -240,7 +240,7 @@ and
 .Bl -tag -width /etc/fstab -compact
 .It Pa /etc/fstab
 The file
-.Nm fstab
+.Nm
 resides in
 .Pa /etc .
 .El

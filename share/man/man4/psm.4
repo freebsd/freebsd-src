@@ -292,7 +292,9 @@ driver.
 When this flag is set, the
 .Nm
 driver won't reset the pointing device when initializing the device.
-If the FreeBSD kernel
+If the
+.Fx
+kernel
 is started after another OS has run, the pointing device will inherit
 settings from the previous OS.
 However, because there is no way for the
@@ -619,7 +621,7 @@ movement counts as described in
 `blocking' device node under
 .Em devfs .
 .El
-.Sh EXAMPLE
+.Sh EXAMPLES
 .Dl "device psm0 at atkbdc? irq 12 flags 0x2000"
 .Pp
 Add the
@@ -780,6 +782,7 @@ It was never functional anyway.
 .Xr syslogd 8
 .\".Sh HISTORY
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver is based on the work done by quite a number of people, including

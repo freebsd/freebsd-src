@@ -41,13 +41,16 @@
 .Nm time
 .Nd system time variables
 .Sh SYNOPSIS
-.Va extern struct timeval boottime;
-.br
-.Va extern volatile struct timeval mono_time;
-.br
-.Va extern struct timeval runtime;
-.br
-.Va extern struct timeval time;
+.Bl -item -compact
+.It
+.Va extern struct timeval boottime ;
+.It
+.Va extern volatile struct timeval mono_time ;
+.It
+.Va extern struct timeval runtime ;
+.It
+.Va extern struct timeval time ;
+.El
 .Sh DESCRIPTION
 The
 .Va time
