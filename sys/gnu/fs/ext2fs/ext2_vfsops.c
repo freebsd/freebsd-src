@@ -536,20 +536,13 @@ loop:
 	MNT_ILOCK(mp);
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
-		if (vp->v_iflag & VI_XLOCK) {
+		if (vp->v_iflag & VI_DOOMED) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		MNT_IUNLOCK(mp);
 		/*
-		 * Step 4: invalidate all inactive vnodes.
-		 */
-		if (vp->v_usecount == 0) {
-			vgonel(vp, td);
-			goto loop;
-		}
-		/*
-		 * Step 5: invalidate all cached file data.
+		 * Step 4: invalidate all cached file data.
 		 */
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
 			goto loop;
@@ -557,7 +550,7 @@ loop:
 		if (vinvalbuf(vp, 0, td, 0, 0))
 			panic("ext2_reload: dirty2");
 		/*
-		 * Step 6: re-read inode data for all active vnodes.
+		 * Step 5: re-read inode data for all active vnodes.
 		 */
 		ip = VTOI(vp);
 		error =
@@ -857,7 +850,7 @@ ext2_sync(mp, waitfor, td)
 loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
 		VI_LOCK(vp);
-		if (vp->v_type == VNON || (vp->v_iflag & VI_XLOCK)) {
+		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
 			VI_UNLOCK(vp);
 			continue;
 		}
