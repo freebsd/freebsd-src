@@ -1528,6 +1528,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.c89.1; has been converted from a shell script to a
     binary executable, fixing some minor bugs. &merged;</para>
 
+    <para arch="i386">A minimalized version of &man.camcontrol.8; is
+    now available on the installation floppy.  This allows it to
+    rescan for devices that have been connected after booting, or to
+    show the devices attached to SCSI busses (e. g. from within the
+    <quote>emergency holographic shell</quote>). &merged;</para>
+
     <para>&man.cat.1; now has the ability to read from UNIX-domain
     sockets. &merged;</para>
 
