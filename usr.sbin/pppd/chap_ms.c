@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: chap_ms.c,v 1.4 1998/03/22 05:32:48 peter Exp $";
+static char rcsid[] = "$Id: chap_ms.c,v 1.5 1998/06/20 18:02:09 peter Exp $";
 #endif
 
 #ifdef CHAPMS
@@ -266,7 +266,7 @@ ChapMS_NT(rchallenge, rchallenge_len, secret, secret_len, response)
 	unicodePassword[i * 2] = (u_char)secret[i];
 
     MD4Init(&md4Context);
-    MD4Update(&md4Context, unicodePassword, secret_len * 2 * 8);	/* Unicode is 2 bytes/char, *8 for bit count */
+    MD4Update(&md4Context, unicodePassword, secret_len * 2);	/* Unicode is 2 bytes/char */
 
     MD4Final(hash, &md4Context); 	/* Tell MD4 we're done */
 
