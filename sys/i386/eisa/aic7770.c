@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.17 1995/11/05 04:42:47 gibbs Exp $
+ *	$Id: aic7770.c,v 1.18 1995/11/09 07:14:09 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -44,10 +44,10 @@
 #define AHC_EISA_IOSIZE	0x100
 #define INTDEF		0x5cul		/* Interrupt Definition Register */
 
-int	aic7770probe __P((void));
-int	aic7770_attach __P((struct eisa_device *e_dev));
+static int	aic7770probe __P((void));
+static int	aic7770_attach __P((struct eisa_device *e_dev));
 
-struct eisa_driver ahc_eisa_driver = {
+static struct eisa_driver ahc_eisa_driver = {
 					"ahc",
 					aic7770probe,
 					aic7770_attach,
@@ -89,7 +89,7 @@ aic7770_match(type)
 	return (NULL);
 }
 
-int
+static int
 aic7770probe(void)
 {
 	u_long iobase;
@@ -142,7 +142,7 @@ aic7770probe(void)
 	return count;
 }
 
-int
+static int
 aic7770_attach(e_dev)
 	struct eisa_device *e_dev;
 {
