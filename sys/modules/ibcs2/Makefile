@@ -10,6 +10,7 @@ SRCS=	ibcs2.c ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
 NOMAN=
 CFLAGS+= -DLKM -I. -DCOMPAT_IBCS2
 CLEANFILES+= vnode_if.h vnode_if.c
+EXPORT_SYMS= _ibcs2_mod _ibcs2_emul_path _ibcs2_svr3_sysvec
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

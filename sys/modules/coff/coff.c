@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: coff.c,v 1.1 1994/10/14 08:46:12 sos Exp $
+ *	$Id: coff.c,v 1.2 1995/05/30 06:06:00 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -40,19 +40,19 @@ extern const struct execsw coff_execsw;
 
 MOD_EXEC("ibcs2_coff_mod", -1, (struct execsw*)&coff_execsw)
 
-coff_load(struct lkm_table *lkmtp, int cmd)
+ibcs2_coff_load(struct lkm_table *lkmtp, int cmd)
 {
 	uprintf("coff loader installed\n");
 	return 0;
 }
 
-coff_unload(struct lkm_table *lkmtp, int cmd)
+ibcs2_coff_unload(struct lkm_table *lkmtp, int cmd)
 {
 	uprintf("coff loader removed\n");
 	return 0;
 }
 
-coff_init(struct lkm_table *lkmtp, int cmd, int ver)
+ibcs2_coff_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, coff_load, coff_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, ibcs2_coff_load, ibcs2_coff_unload, nosys);
 }
