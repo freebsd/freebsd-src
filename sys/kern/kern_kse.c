@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
-#include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -53,6 +52,7 @@ static uma_zone_t upcall_zone;
 /* DEBUG ONLY */
 extern int virtual_cpu;
 extern int thread_debug;
+
 extern int max_threads_per_proc;
 extern int max_groups_per_proc;
 extern int max_threads_hits;
@@ -72,39 +72,6 @@ extern void kse_purge(struct proc *p, struct thread *td);
 extern void kse_purge_group(struct thread *td);
 void kseinit(void);
 void kse_GC(void);
-
-static int virtual_cpu;
-SYSCTL_DECL(_kern_threads);
-
-static int
-sysctl_kse_virtual_cpu(SYSCTL_HANDLER_ARGS)
-{
-	int error, new_val;
-	int def_val;
-
-#ifdef SMP
-	def_val = mp_ncpus;
-#else
-	def_val = 1;
-#endif
-	if (virtual_cpu == 0)
-		new_val = def_val;
-	else
-		new_val = virtual_cpu;
-	error = sysctl_handle_int(oidp, &new_val, 0, req);
-        if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (new_val < 0)
-		return (EINVAL);
-	virtual_cpu = new_val;
-	return (0);
-}
-
-/* DEBUG ONLY */
-SYSCTL_PROC(_kern_threads, OID_AUTO, virtual_cpu, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof(virtual_cpu), sysctl_kse_virtual_cpu, "I",
-	"debug virtual cpus");
-
 
 struct kse_upcall *
 upcall_alloc(void)
@@ -265,10 +232,24 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	int    error, count;
 
 	p = td->td_proc;
+	/* 
+	 * Ensure that this is only called from the UTS
+	 */
 	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
 		return (EINVAL);
+
 	kg = td->td_ksegrp;
 	count = 0;
+
+	/*
+	 * Calculate the existing non-exiting upcalls in this ksegroup.
+	 * If we are the last upcall but there are still other threads,
+	 * then do not exit. We need the other threads to be able to 
+	 * complete whatever they are doing.
+	 * XXX This relies on the userland knowing what to do if we return.
+	 * It may be a better choice to convert ourselves into a kse_release
+	 * ( or similar) and wait in the kernel to be needed.
+	 */
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	FOREACH_UPCALL_IN_GROUP(kg, ku2) {
@@ -284,6 +265,12 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	ku->ku_flags |= KUF_EXITING;
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
+
+	/* 
+	 * Mark the UTS mailbox as having been finished with.
+	 * If that fails then just go for a segfault.
+	 * XXX need to check it that can be deliverred without a mailbox.
+	 */
 	error = suword(&ku->ku_mailbox->km_flags, ku->ku_mflags|KMF_DONE);
 	PROC_LOCK(p);
 	if (error)
@@ -467,12 +454,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	if ((err = copyin(uap->mbx, &mbx, sizeof(mbx))))
 		return (err);
 
-	/* Too bad, why hasn't kernel always a cpu counter !? */
-#ifdef SMP
 	ncpus = mp_ncpus;
-#else
-	ncpus = 1;
-#endif
 	if (virtual_cpu != 0)
 		ncpus = virtual_cpu;
 	if (!(mbx.km_flags & KMF_BOUND))
@@ -635,7 +617,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 }
 
 /*
- * Initialize global kse related resources.
+ * Initialize global thread allocation resources.
  */
 void
 kseinit(void)
@@ -669,7 +651,7 @@ kse_GC(void)
 	 * Don't even bother to lock if none at this instant,
 	 * we really don't care about the next instant..
 	 */
-	if ((!TAILQ_EMPTY(&zombie_upcalls))) {
+	if (!TAILQ_EMPTY(&zombie_upcalls)) {
 		mtx_lock_spin(&kse_zombie_lock);
 		ku_first = TAILQ_FIRST(&zombie_upcalls);
 		if (ku_first)
@@ -929,7 +911,7 @@ thread_schedule_upcall(struct thread *td, struct kse_upcall *ku)
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
 	thread_link(td2, ku->ku_ksegrp);
-	/* inherit blocked thread's context */
+	/* inherit parts of blocked thread's context as a good template */
 	cpu_set_upcall(td2, td);
 	/* Let the new thread become owner of the upcall */
 	ku->ku_owner   = td2;
@@ -1285,3 +1267,4 @@ thread_upcall_check(struct thread *td)
 	else
 		return (0);
 }
+
