@@ -843,8 +843,10 @@ exec_new_vmspace(imgp, sv)
 	    vm_map_max(map) == sv->sv_maxuser) {
 		if (vmspace->vm_shm)
 			shmexit(p);
+		vm_page_lock_queues();
 		pmap_remove_pages(vmspace_pmap(vmspace), vm_map_min(map),
 		    vm_map_max(map));
+		vm_page_unlock_queues();
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
 	} else {
 		vmspace_exec(p, sv->sv_minuser, sv->sv_maxuser);
