@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <sys/reboot.h>
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <signal.h>
 #include <err.h>
 #include <errno.h>
@@ -58,17 +59,17 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-void usage __P((void));
+void usage(void);
+u_int get_pageins(void);
 
 int dohalt;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct passwd *pw;
 	int ch, howto, i, lflag, nflag, qflag, pflag, sverrno;
+	u_int pageins;
 	char *p;
 	const char *user;
 
@@ -83,7 +84,7 @@ main(argc, argv)
 		case 'd':
 			howto |= RB_DUMP;
 			break;
-		case 'l':		/* Undocumented; used by shutdown. */
+		case 'l':
 			lflag = 1;
 			break;
 		case 'n':
@@ -153,12 +154,19 @@ main(argc, argv)
 	/*
 	 * After the processes receive the signal, start the rest of the
 	 * buffers on their way.  Wait 5 seconds between the SIGTERM and
-	 * the SIGKILL to give everybody a chance.
+	 * the SIGKILL to give everybody a chance. If there is a lot of
+	 * paging activity then wait longer, up to a maximum of approx
+	 * 60 seconds.
 	 */
 	sleep(2);
-	if (!nflag)
-		sync();
-	sleep(3);
+	for (i = 0; i < 20; i++) {
+		pageins = get_pageins();
+		if (!nflag)
+			sync();
+		sleep(3);
+		if (get_pageins() == pageins)
+			break;
+	}
 
 	for (i = 1;; ++i) {
 		if (kill(-1, SIGKILL) == -1) {
@@ -190,4 +198,19 @@ usage()
 	(void)fprintf(stderr, "usage: %s [-dnpq]\n",
 	    dohalt ? "halt" : "reboot");
 	exit(1);
+}
+
+u_int
+get_pageins()
+{
+	u_int pageins;
+	size_t len;
+
+	len = sizeof(pageins);
+	if (sysctlbyname("vm.stats.vm.v_swappgsin", &pageins, &len, NULL, 0)
+	    != 0) {
+		warnx("v_swappgsin");
+		return (0);
+	}
+	return pageins;
 }
