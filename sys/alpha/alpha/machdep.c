@@ -2020,7 +2020,6 @@ Debugger(const char *msg)
 int
 bounds_check_with_label(struct bio *bp, struct disklabel *lp, int wlabel)
 {
-#if 0
         struct partition *p = lp->d_partitions + dkpart(bp->bio_dev);
         int labelsect = lp->d_partitions[0].p_offset;
         int maxsz = p->p_size,
@@ -2067,7 +2066,6 @@ bounds_check_with_label(struct bio *bp, struct disklabel *lp, int wlabel)
 
 bad:
         bp->bio_flags |= BIO_ERROR;
-#endif
         return(-1);
 
 }
