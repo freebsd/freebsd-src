@@ -547,7 +547,7 @@ findpcb:
 		 * packet with M_BCAST not set.
 		 */
 		if (m->m_flags & (M_BCAST|M_MCAST) ||
-		    IN_MULTICAST(ti->ti_dst.s_addr))
+		    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 			goto drop;
 		am = m_get(M_DONTWAIT, MT_SONAME);	/* XXX */
 		if (am == NULL)
@@ -1289,7 +1289,7 @@ dropwithreset:
 	 * Don't bother to respond if destination was broadcast/multicast.
 	 */
 	if ((tiflags & TH_RST) || m->m_flags & (M_BCAST|M_MCAST) ||
-	    IN_MULTICAST(ti->ti_dst.s_addr))
+	    IN_MULTICAST(ntohl(ti->ti_dst.s_addr)))
 		goto drop;
 	if (tiflags & TH_ACK)
 		tcp_respond(tp, ti, m, (tcp_seq)0, ti->ti_ack, TH_RST);
