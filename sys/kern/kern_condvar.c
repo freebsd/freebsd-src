@@ -244,7 +244,7 @@ int
 cv_wait_sig(struct cv *cvp, struct mtx *mp)
 {
 	struct thread *td;
-	struct proc *p
+	struct proc *p;
 	int rval;
 	int sig;
 	WITNESS_SAVE_DECL(mp);
