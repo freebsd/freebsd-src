@@ -1,5 +1,5 @@
 /*-
- *	$Id: dgm.c,v 1.6 1998/12/07 21:58:18 archie Exp $
+ *	$Id: dgm.c,v 1.7 1999/01/30 12:17:32 phk Exp $
  *
  *  This driver and the associated header files support the ISA PC/Xem
  *  Digiboards.  Its evolutionary roots are described below.
@@ -2105,7 +2105,4 @@ dgm_drvinit(void *unused)
 
 SYSINIT(dgmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,dgm_drvinit,NULL)
 
-int fi(){
-	return 0;
-}
 #endif /* NDGM > 0 */
