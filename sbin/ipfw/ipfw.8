@@ -463,6 +463,9 @@ random packet drop or
 .Xr dummynet 4 )
 to simulate the effect of multiple paths leading to out-of-order
 packet delivery.
+.Pp
+Note: this condition is checked before any other condition, including
+ones such as keep-state or check-state which might have side effects.
 .It Cm log Op Cm logamount Ar number
 When a packet matches a rule with the
 .Cm log
@@ -492,6 +495,9 @@ clearing the logging counter or the packet counter for that entry, see the
 .Cm resetlog
 command.
 .Pp
+Note: logging is done after all other packet matching conditions
+have been successfully verified, and before performing the final
+action (accept, deny, etc.) on the packet.
 .El
 .Ss RULE ACTIONS
 A rule can be associated with one of the following actions, which
@@ -1604,10 +1610,6 @@ When set, the packet exiting from the
 pipe is not passed though the firewall again.
 Otherwise, after a pipe action, the packet is
 reinjected into the firewall at the next rule.
-.Pp
-Note: bridged and layer 2 packets coming out of a pipe
-are never reinjected in the firewall irrespective of the
-value of this variable.
 .It Em net.inet.ip.fw.verbose : No 1
 Enables verbose messages.
 .It Em net.inet.ip.fw.verbose_limit : No 0
