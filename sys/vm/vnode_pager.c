@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.37 1995/04/09 06:03:56 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.38 1995/05/10 18:56:09 davidg Exp $
  */
 
 /*
@@ -936,15 +936,17 @@ vnode_pager_output(vnp, m, count, rtvals)
 	maxsize = count * PAGE_SIZE;
 	ncount = count;
 
-	if( maxsize + m[0]->offset > vnp->vnp_size) {
-		maxsize = vnp->vnp_size - m[0]->offset;
+	if (maxsize + m[0]->offset > vnp->vnp_size) {
+		if (vnp->vnp_size > m[0]->offset)
+			maxsize = vnp->vnp_size - m[0]->offset;
+		else
+			maxsize = 0;
 		ncount = (maxsize + PAGE_SIZE - 1) / PAGE_SIZE;
-
-		if( ncount < count) {
-			for(i=ncount;i<count;i++) {
+		if (ncount < count) {
+			for (i = ncount; i < count; i++) {
 				rtvals[i] = VM_PAGER_BAD;
 			}
-			if( ncount == 0) {
+			if (ncount == 0) {
 				printf("vnode_pager_output: write past end of file: %d, %d\n",
 					m[0]->offset, vnp->vnp_size);
 				return rtvals[0];
@@ -952,8 +954,8 @@ vnode_pager_output(vnp, m, count, rtvals)
 		}
 	}
 
-	for(i=0;i<count;i++) {
-		++m[i]->busy;
+	for (i = 0; i < count; i++) {
+		m[i]->busy++;
 		m[i]->flags &= ~PG_BUSY;
 	}
 
@@ -970,18 +972,18 @@ vnode_pager_output(vnp, m, count, rtvals)
 	cnt.v_vnodeout++;
 	cnt.v_vnodepgsout += ncount;
 
-	if( error) {
+	if (error) {
 		printf("vnode_pager_output: I/O error %d\n", error);
 	}
-	if( auio.uio_resid) {
+	if (auio.uio_resid) {
 		printf("vnode_pager_output: residual I/O %d at %d\n", auio.uio_resid, m[0]->offset);
 	}
-	for(i=0;i < count;i++) {
-		--m[i]->busy;
-		if( i < ncount) {
+	for (i = 0; i < count; i++) {
+		m[i]->busy--;
+		if (i < ncount) {
 			rtvals[i] = VM_PAGER_OK;
 		}
-		if((m[i]->busy == 0) && (m[i]->flags & PG_WANTED))
+		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED))
 			wakeup((caddr_t) m[i]);
 	}
 	return rtvals[0];
