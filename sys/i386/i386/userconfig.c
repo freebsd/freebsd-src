@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.97 1997/11/25 19:30:36 markm Exp $
+ **      $Id: userconfig.c,v 1.98 1997/12/06 08:20:00 ache Exp $
  **/
 
 /**
@@ -2371,7 +2371,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.97 1997/11/25 19:30:36 markm Exp $
+ *      $Id: userconfig.c,v 1.98 1997/12/06 08:20:00 ache Exp $
  */
 
 #include "scbus.h"
@@ -3086,8 +3086,7 @@ static int
 lsdevtab(struct isa_device *dt)
 {
     for (; dt->id_id != 0; dt++) {
-	int i;
-	char line[80];
+	char dname[80];
 
 	if (lineno >= 23) {
 		printf("<More> ");
@@ -3100,33 +3099,18 @@ lsdevtab(struct isa_device *dt)
 	}
 	if (lineno == 0) {
 		printf(
-"Device   port       irq   drq   iomem   iosize   unit  flags      enabled\n");
+"Device   port       irq   drq   iomem   iosize   unit  flags      enab confl\n"
+		    );
 		++lineno;
 	}
-	/*
-	 * printf() doesn't support %#, %- or even field widths for strings,
-	 * so formatting is not straightforward.
-	 */
-	bzero(line, sizeof line);
-	sprintf(line, "%s%d", dt->id_driver->name, dt->id_unit);
-	/* Missing: id_id (don't need it). */
-	/* Missing: id_driver (useful if we could show it by name). */
-	sprintf(line + 9, "0x%x", dt->id_iobase);
-	sprintf(line + 20, "%d", ffs(dt->id_irq) - 1);
-	sprintf(line + 26, "%d", dt->id_drq);
-	sprintf(line + 32, "%p", dt->id_maddr);
-	sprintf(line + 40, "%d", dt->id_msize);
-	/* Missing: id_msize (0 at start, useful if we can get here later). */
-	/* Missing: id_intr (useful if we could show it by name). */
-	/* Display only: id_unit. */
-	sprintf(line + 49, "%d", dt->id_unit);
-	sprintf(line + 55, "0x%x", dt->id_flags);
-	/* Missing: id_scsiid, id_alive, id_ri_flags, id_reconfig (0 now...) */
-	sprintf(line + 66, "%s", dt->id_enabled ? "Yes" : "No");
-	for (i = 0; i < 66; ++i)
-		if (line[i] == '\0')
-			line[i] = ' ';
-	printf("%s\n", line);
+	sprintf(dname, "%s%d", dt->id_driver->name, dt->id_unit);
+	printf("%-9.9s%-#11x%-6d%-6d%-8p%-9d%-6d%-#11x%-5s%-3s\n",
+	    dname, /* dt->id_id, dt->id_driver(by name), */ dt->id_iobase,
+	    ffs(dt->id_irq) - 1, dt->id_drq, dt->id_maddr, dt->id_msize,
+	    /* dt->id_intr(by name), */ dt->id_unit, dt->id_flags,
+	    /* dt->id_scsiid, dt->id_alive, dt->id_ri_flags, */
+	    /* dt->id_reconfig, */ dt->id_enabled ? "Yes" : "No",
+	    dt->id_conflicts ? "Yes" : "No");
 	++lineno;
     }
     return(0);
