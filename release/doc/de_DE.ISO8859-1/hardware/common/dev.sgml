@@ -28,8 +28,8 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.37 2002/10/16 21:06:54 ue Exp $
-	basiert auf: 1.108
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/dev.sgml,v 1.39 2002/10/19 18:35:24 ue Exp $
+	basiert auf: 1.110
 -->
 
 <sect1>
@@ -961,7 +961,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Promise SuperTrak ATA RAID Controller (pst
+    <para arch="i386">Promise SuperTrak ATA RAID Controller (&man.pst.4;
       Treiber)
       <itemizedlist>
         <listitem>
@@ -3082,6 +3082,9 @@
     <para arch="i386,alpha,ia64,sparc64">Serielle Schnittstellen nach
       <quote>PC standard</quote> auf Basis der 8250, 16450 und 16550
       Chips (&man.sio.4; Treiber)</para>
+
+    <para arch="sparc64">Serielle Schnittstellen auf Basis des SAB82532
+      Chips (sab Treiber)</para>
 
     <para arch="i386,alpha">AST 4 Port Karte (bei Benutzung eines
       gemeinsamen IRQs)</para>
