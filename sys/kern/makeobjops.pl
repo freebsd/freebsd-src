@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 #
 # Copyright (c) 1992, 1993
 #        The Regents of the University of California.  All rights reserved.
@@ -42,12 +42,20 @@
 # Script to produce kobj front-end sugar.
 #
 
+use strict;
 use Getopt::Std;
 
-$line_width = 80;
+my $line_width = 80;
+
+my $gerror = 0;
+my @filenames;
+my $tmpdir;
+
+my $intname;
 
 # Process the command line
 #
+our ($opt_c, $opt_d, $opt_h, $opt_l, $opt_p);
 getopts('cdhl:p')
     or usage();
 
@@ -62,7 +70,7 @@ if (defined($opt_l)) {
 	if $opt_d;
 }
 
-foreach $arg (@ARGV) {
+foreach my $arg (@ARGV) {
     die("Invalid input filename '$arg'\n")
 	unless ($arg =~ m/\.m$/);
     warn "Filename: $arg"
@@ -93,16 +101,17 @@ $tmpdir = '/var/tmp'
 $tmpdir = '.'                       # give up and use current dir
     if !$tmpdir;
 
-foreach $src (@filenames) {
+foreach my $src (@filenames) {
     # Names of the created files
-    $ctmpname = "$tmpdir/ctmp.$$";
-    $htmpname = "$tmpdir/htmp.$$";
+    my $ctmpname = "$tmpdir/ctmp.$$";
+    my $htmpname = "$tmpdir/htmp.$$";
 
-    ($name, $path, $suffix) = &fileparse($src, '.m');
+    my ($name, $path, $suffix) = &fileparse($src, '.m');
     $path = '.'
 	unless $opt_p;
-    $cfilename="$path/$name.c";
-    $hfilename="$path/$name.h";
+
+    my $cfilename="$path/$name.c";
+    my $hfilename="$path/$name.h";
 
     warn "Processing from $src to $cfilename / $hfilename via $ctmpname / $htmpname"
 	if $opt_d;
@@ -152,13 +161,13 @@ foreach $src (@filenames) {
 	print HFILE "\n";
     }
 
-    %methods = ();    # clear list of methods
-    @mnames = ();
-    @defaultmethods = ();
-    $lineno = 0;
-    $error = 0;       # to signal clean up and gerror setting
+    my %methods = ();    # clear list of methods
+    my @mnames = ();
+    my @defaultmethods = ();
+    my $lineno = 0;
+    my $error = 0;       # to signal clean up and gerror setting
 
-    LINE: while ($line = <SRC>) {
+    LINE: while (my $line = <SRC>) {
 	$lineno++;
 
 	# take special notice of include directives.
@@ -178,7 +187,7 @@ foreach $src (@filenames) {
 	    # nop
 	} elsif ($line =~ m/^INTERFACE\s*([^\s;]*)(\s*;?)/i) {
 	    $intname = $1;
-	    $semicolon = $2;
+	    my $semicolon = $2;
 	    unless ($intname =~ m/^[a-z_][a-z0-9_]*$/) {
 		warn $line
 		    if $opt_d;
@@ -200,10 +209,10 @@ foreach $src (@filenames) {
 	    print CFILE '#include "'.$intname.'_if.h"'."\n\n"
 		if $opt_c;
 	} elsif ($line =~ m/^CODE\s*{$/i) {
-	    $code = "";
-	    $line = <SRC>;
+	    my $code = "";
+	    my $line = <SRC>;
 	    $line =~ m/^(\s*)/;
-	    $indent = $1;           # find the indent used
+	    my $indent = $1;           # find the indent used
 	    while ($line !~ m/^}/) {
 		$line =~ s/^$indent//g; # remove the indent
 		$code .= $line;
@@ -213,10 +222,10 @@ foreach $src (@filenames) {
 	    print CFILE "\n".$code."\n"
 		if $opt_c;
 	} elsif ($line =~ m/^HEADER\s*{$/i) {
-	    $header = "";
-	    $line = <SRC>;
+	    my $header = "";
+	    my $line = <SRC>;
 	    $line =~ m/^(\s*)/;
-	    $indent = $1;              # find the indent used
+	    my $indent = $1;              # find the indent used
 	    while ($line !~ m/^}/) {
 		$line =~ s/^$indent//g; # remove the indent
 		$header .= $line;
@@ -226,6 +235,8 @@ foreach $src (@filenames) {
 	    print HFILE $header
 		    if $opt_h;
 	} elsif ($line =~ m/^(STATIC|)METHOD/i) {
+	    my $default;
+
 	    # Get the return type function name and delete that from
 	    # the line. What is left is the possibly first function argument
 	    # if it is on the same line.
@@ -236,10 +247,10 @@ foreach $src (@filenames) {
 		last LINE;
 	    }
 	    $line =~ s/^(STATIC|)METHOD\s+([^\{]+?)\s*\{\s*//i;
-	    $static = $1;
-	    @ret = split m/\s+/, $2;
+	    my $static = $1;
+	    my @ret = split m/\s+/, $2;
 	    $name = pop @ret;          # last element is name of method
-	    $ret = join(" ", @ret);    # return type
+	    my $ret = join(" ", @ret);    # return type
 
 	    warn "Method: name=$name return type=$ret"
 		if $opt_d;
@@ -280,7 +291,7 @@ foreach $src (@filenames) {
 		$error = 1;
 		last LINE;
 	    }
-	    $extra = $1;
+	    my $extra = $1;
 	    if ($extra =~ /\s*DEFAULT\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*;/) {
 		$default = $1;
 	    } else {
@@ -294,13 +305,13 @@ foreach $src (@filenames) {
 	    $line =~ s/\s+$//;            # ... and trailing whitespace
 	    $line =~ s/\s+/ /g;           # remove double spaces
 
-	    @arguments = split m/\s*;\s*/, $line;
-	    @varnames = ();               # list of varnames
-	    foreach $argument (@arguments) {
+	    my @arguments = split m/\s*;\s*/, $line;
+	    my @varnames = ();               # list of varnames
+	    foreach my $argument (@arguments) {
 		next                      # skip argument if argument is empty
 		    if !$argument;
 
-		@ar = split m/[*\s]+/, $argument;
+		my @ar = split m/[*\s]+/, $argument;
 		if ($#ar == 0) {          # only 1 word in argument?
 		    warn "$src:$lineno: no type for '$argument'";
 		    $error = 1;
@@ -314,12 +325,12 @@ foreach $src (@filenames) {
 	       . 'Varnames: ' . join(', ', @varnames)
 		if $opt_d;
 
-	    $mname = $intname.'_'.$name;  # method name
-	    $umname = uc($mname);         # uppercase method name
+	    my $mname = $intname.'_'.$name;  # method name
+	    my $umname = uc($mname);         # uppercase method name
 
-	    $arguments = join(", ", @arguments);
-	    $firstvar = $varnames[0];
-	    $varnames = join(", ", @varnames);
+	    my $arguments = join(", ", @arguments);
+	    my $firstvar = $varnames[0];
+	    my $varnames = join(", ", @varnames);
 
 	    $default = "0" if $default eq "";
 	    push @defaultmethods, $default;
@@ -387,6 +398,7 @@ foreach $src (@filenames) {
     close HFILE
 	if $opt_h;
 
+    my $rc;
     if (!$error) {
 	if ($opt_c) {
 	    ($rc = system("mv $ctmpname $cfilename"))
@@ -422,6 +434,7 @@ sub usage {
 sub format_line {
     my ($line, $maxlength, $break, $new_end, $new_start) = @_;
     my $rline = "";
+    my $i;
 
     while (length($line) > $maxlength
 	    and ($i = rindex $line, $break, $maxlength-length($new_end)) != -1) {
