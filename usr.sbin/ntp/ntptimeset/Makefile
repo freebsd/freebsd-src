@@ -1,16 +1,12 @@
-#
 # $FreeBSD$
-#
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/ntpdate
+.PATH: ${.CURDIR}/../../../contrib/ntp/ntpdate
 
-PROG= ntptimeset
-
-SRCS= ntptimeset.c ntptime_config.c version.c
+PROG=	ntptimeset
+NOMAN=	yes
+SRCS=	ntptimeset.c ntptime_config.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
-
-NOMAN= yes
 
 DPADD=	${LIBNTP}
 LDADD=	${LIBNTP}
