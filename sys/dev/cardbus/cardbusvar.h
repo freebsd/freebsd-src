@@ -37,4 +37,20 @@ struct cardbus_devinfo {
 	u_int8_t        mbelow1mb; /* bit mask of BARs which require below 1Mb */
 	u_int8_t        ibelow1mb; /* bit mask of BARs which require below 1Mb */
 #define        BARBIT(RID) (1<<(((RID)-CARDBUS_BASE0_REG)/4))
+	u_int16_t	mfrid;		/* manufacturer id */
+	u_int16_t	prodid;		/* product id */
+	u_int		funcid;		/* function id */
+	union {
+		struct {
+			u_int		type;		/* UART type */
+		} sio;
+		struct {
+			u_int8_t	nid[6];		/* MAC address */
+			u_int8_t	tech;		/* technology */
+			u_int8_t	contype;	/* connector type */
+			u_int32_t	speed[3];	/* available speeds */
+			u_int8_t	media[4];	/* media types */
+		} lan;
+	} funce;
+	u_int32_t	fepresent;	/* bit mask of funce values present */
 };

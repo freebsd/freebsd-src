@@ -106,6 +106,9 @@ void	cardbus_cis_free(device_t, struct cis_tupleinfo*, int*);
 /* TPL_FUNC_LAN */
 #define	TPL_FUNCE_LAN_TECH	1	/* technology */
 #define	TPL_FUNCE_LAN_SPEED	2	/* speed */
-#define	TPL_FUNCE_LAN_MEDIA	2	/* which media do you use? */
+#define	TPL_FUNCE_LAN_MEDIA	3	/* which media do you use? */
 #define	TPL_FUNCE_LAN_NID	4	/* node id (address) */
 #define	TPL_FUNCE_LAN_CONN	5	/* connector type (shape) */
+
+/* TPL_FUNC_SERIAL */
+#define	TPL_FUNCE_SER_UART	0	/* UART type */
