@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
-.\"	$Id: telnet.1,v 1.3.2.1 1997/02/05 06:01:04 pst Exp $
+.\"	$Id: telnet.1,v 1.3.2.2 1997/08/18 07:08:03 charnier Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNET 1
@@ -51,7 +51,7 @@ protocol
 .Op Fl n Ar tracefile
 .Oo
 .Ar host
-.Op port
+.Op Ar port
 .Oc
 .Sh DESCRIPTION
 The
@@ -240,7 +240,7 @@ option is enabled, or if the
 .Ic localchars
 toggle is
 .Dv TRUE
-(the default for \*(Lqold line by line\*(Lq; see below),
+(the default for \*(Lqold line by line\*(Rq; see below),
 the user's
 .Ic quit  ,
 .Ic intr ,
@@ -486,13 +486,13 @@ Disable the
 .Dv TELNET LINEMODE
 option, or, if the remote side does not understand the
 .Dv LINEMODE
-option, then enter \*(Lqcharacter at a time\*(Lq mode.
+option, then enter \*(Lqcharacter at a time\*(Rq mode.
 .It Ic line
 Enable the
 .Dv TELNET LINEMODE
 option, or, if the remote side does not understand the
 .Dv LINEMODE
-option, then attempt to enter \*(Lqold-line-by-line\*(Lq mode.
+option, then attempt to enter \*(Lqold-line-by-line\*(Rq mode.
 .It Ic isig Pq Ic \-isig 
 Attempt to enable (disable) the 
 .Dv TRAPSIG
@@ -748,7 +748,7 @@ is enabled, and the status character is typed, a
 sequence (see
 .Ic send ayt
 preceding) is sent to the
-remote host.  The initial value for the "Are You There"
+remote host.  The initial value for the \*(LqAre You There\*(Rq
 character is the terminal's status character.
 .It Ic echo
 This is the value (initially \*(Lq^E\*(Rq) which, when in
@@ -881,7 +881,7 @@ If
 .Nm telnet
 is operating in
 .Dv LINEMODE
-or \*(Lqold line by line\*(Lq mode, then this character is taken to
+or \*(Lqold line by line\*(Rq mode, then this character is taken to
 be the terminal's
 .Ic lnext
 character.
@@ -916,7 +916,7 @@ If
 .Nm
 is operating in
 .Dv LINEMODE
-or \*(Lqold line by line\*(Lq mode, then this character is taken to
+or \*(Lqold line by line\*(Rq mode, then this character is taken to
 be the terminal's
 .Ic reprint
 character.
@@ -997,7 +997,7 @@ If
 .Nm
 is operating in
 .Dv LINEMODE
-or \*(Lqold line by line\*(Lq mode, then this character is taken to
+or \*(Lqold line by line\*(Rq mode, then this character is taken to
 be the terminal's
 .Ic worderase
 character.
