@@ -127,7 +127,7 @@ afd_sense(struct afd_softc *fdp)
     int8_t ccb[16] = { ATAPI_MODE_SENSE_BIG, 0, ATAPI_REWRITEABLE_CAP_PAGE,
 		       0, 0, 0, 0, sizeof(buffer)>>8, sizeof(buffer) & 0xff,
 		       0, 0, 0, 0, 0, 0, 0 };
-    int32_t error, count;
+    int32_t count, error = 0;
 
     bzero(buffer, sizeof(buffer));
     /* get drive capabilities, some drives needs this repeated */
