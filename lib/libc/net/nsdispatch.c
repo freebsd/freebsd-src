@@ -141,12 +141,12 @@ typedef	int	(*vector_comparison)(const void *, const void *);
 typedef	void	(*vector_free_elem)(void *);
 static	void	  vector_sort(void *, unsigned int, size_t,
 		    vector_comparison);
-static	void	  vector_free(void **, unsigned int *, size_t,
+static	void	  vector_free(void *, unsigned int *, size_t,
 		    vector_free_elem);
 static	void	 *vector_ref(unsigned int, void *, unsigned int, size_t);
 static	void	 *vector_search(const void *, void *, unsigned int, size_t,
 		    vector_comparison);
-static	int	  vector_append(const void *, void **, unsigned int *, size_t);
+static	void	 *vector_append(const void *, void *, unsigned int *, size_t);
 
 
 /*
@@ -184,23 +184,22 @@ vector_search(const void *key, void *vec, unsigned int count, size_t esize,
 }
 
 
-static int
-vector_append(const void *elem, void **vec, unsigned int *count, size_t esize)
+static void *
+vector_append(const void *elem, void *vec, unsigned int *count, size_t esize)
 {
 	void	*p;
 
 	if ((*count % ELEMSPERCHUNK) == 0) {
-		p = realloc(*vec, (*count + ELEMSPERCHUNK) * esize);
+		p = realloc(vec, (*count + ELEMSPERCHUNK) * esize);
 		if (p == NULL) {
 			nss_log_simple(LOG_ERR, "memory allocation failure");
-			return (0);
-		} else
-			*vec = p;
+			return (vec);
+		}
+		vec = p;
 	}
-	memmove((void *)(((uintptr_t)*vec) + (*count * esize)),
-	    elem, esize);
+	memmove((void *)(((uintptr_t)vec) + (*count * esize)), elem, esize);
 	(*count)++;
-	return (1);
+	return (vec);
 }
 
 
@@ -214,20 +213,21 @@ vector_ref(unsigned int i, void *vec, unsigned int count, size_t esize)
 }
 
 
+#define VECTOR_FREE(v, c, s, f) \
+	do { vector_free(v, c, s, f); v = NULL; } while (0)
 static void
-vector_free(void **vec, unsigned int *count, size_t esize,
+vector_free(void *vec, unsigned int *count, size_t esize,
     vector_free_elem free_elem)
 {
 	unsigned int	 i;
 	void		*elem;
 
 	for (i = 0; i < *count; i++) {
-		elem = vector_ref(i, *vec, *count, esize);
+		elem = vector_ref(i, vec, *count, esize);
 		if (elem != NULL)
 			free_elem(elem);
 	}
-	free(*vec);
-	*vec = NULL;
+	free(vec);
 	*count = 0;
 }
 
@@ -266,7 +266,7 @@ _nsdbtaddsrc(ns_dbt *dbt, const ns_src *src)
 {
 	const ns_mod	*modp;
 
-	vector_append(src, (void **)&dbt->srclist, &dbt->srclistsize,
+	dbt->srclist = vector_append(src, dbt->srclist, &dbt->srclistsize,
 	    sizeof(*src));
 	modp = vector_search(&src->name, _nsmod, _nsmodsize, sizeof(*_nsmod),
 	    string_compare);
@@ -341,9 +341,9 @@ nss_configure(void)
 	_nsyyin = fopen(path, "r");
 	if (_nsyyin == NULL)
 		goto fin;
-	vector_free((void **)&_nsmap, &_nsmapsize, sizeof(*_nsmap),
+	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
-	vector_free((void **)&_nsmod, &_nsmodsize, sizeof(*_nsmod),
+	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
 	nss_load_builtin_modules();
 	_nsyyparse();
@@ -377,7 +377,7 @@ _nsdbtput(const ns_dbt *dbt)
 			return;
 		}
 	}
-	vector_append(dbt, (void **)&_nsmap, &_nsmapsize, sizeof(*_nsmap));
+	_nsmap = vector_append(dbt, _nsmap, &_nsmapsize, sizeof(*_nsmap));
 }
 
 
@@ -483,7 +483,7 @@ nss_load_module(const char *source, nss_module_register_fn reg_fn)
 		qsort(mod.mtab, mod.mtabsize, sizeof(mod.mtab[0]),
 		    mtab_compare);
 fin:
-	vector_append(&mod, (void **)&_nsmod, &_nsmodsize, sizeof(*_nsmod));
+	_nsmod = vector_append(&mod, _nsmod, &_nsmodsize, sizeof(*_nsmod));
 	vector_sort(_nsmod, _nsmodsize, sizeof(*_nsmod), string_compare);
 }
 
@@ -511,9 +511,9 @@ static void
 nss_atexit(void)
 {
 	(void)_pthread_rwlock_wrlock(&nss_lock);
-	vector_free((void **)&_nsmap, &_nsmapsize, sizeof(*_nsmap),
+	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
-	vector_free((void **)&_nsmod, &_nsmodsize, sizeof(*_nsmod),
+	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
 	    (vector_free_elem)ns_mod_free);
 	(void)_pthread_rwlock_unlock(&nss_lock);
 }
