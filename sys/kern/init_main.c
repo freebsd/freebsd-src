@@ -463,6 +463,7 @@ start_init(void *dummy)
 	p->p_fd->fd_cdir = rootvnode;
 	VREF(p->p_fd->fd_cdir);
 	p->p_fd->fd_rdir = rootvnode;
+	VREF(p->p_fd->fd_rdir);
 	VOP_UNLOCK(rootvnode, 0, p);
 
 	/*
