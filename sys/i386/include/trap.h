@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.h	5.4 (Berkeley) 5/9/91
- *	$Id: trap.h,v 1.7 1997/02/22 09:35:19 peter Exp $
+ *	$Id: trap.h,v 1.8 1999/07/25 13:16:08 cracauer Exp $
  */
 
 #ifndef _MACHINE_TRAP_H_
@@ -76,11 +76,7 @@
 #define	    ILL_ALIGN_FAULT	T_ALIGNFLT
 #define	    ILL_FPOP_FAULT	T_FPOPFLT	/* coprocessor operand fault */
 
-/* 
- * codes for SIGFPE/ARITHTRAP 
- *
- */
-/* portable macros */
+/* portable macros for SIGFPE/ARITHTRAP */
 #define FPE_INTDIV	1	/* integer divide by zero */
 #define FPE_INTOVF	2	/* integer overflow */
 #define FPE_FLTDIV	3	/* floating point divide by zero */
@@ -91,15 +87,13 @@
 #define FPE_FLTSUB	8	/* subscript out of range */
 
 /* old FreeBSD macros, deprecated */
-#define	    FPE_INTOVF_TRAP	0x1	/* integer overflow */
-#define	    FPE_INTDIV_TRAP	0x2	/* integer divide by zero */
-#define	    FPE_FLTDIV_TRAP	0x3	/* floating/decimal divide by zero */
-#define	    FPE_FLTOVF_TRAP	0x4	/* floating overflow */
-#define	    FPE_FLTUND_TRAP	0x5	/* floating underflow */
-#define	    FPE_FPU_NP_TRAP	0x6	/* floating point unit not present 
-					 * - won't happen in practice
-					 */
-#define	    FPE_SUBRNG_TRAP	0x7	/* subrange out of bounds */
+#define	FPE_INTOVF_TRAP	0x1	/* integer overflow */
+#define	FPE_INTDIV_TRAP	0x2	/* integer divide by zero */
+#define	FPE_FLTDIV_TRAP	0x3	/* floating/decimal divide by zero */
+#define	FPE_FLTOVF_TRAP	0x4	/* floating overflow */
+#define	FPE_FLTUND_TRAP	0x5	/* floating underflow */
+#define	FPE_FPU_NP_TRAP	0x6	/* floating point unit not present  */
+#define	FPE_SUBRNG_TRAP	0x7	/* subrange out of bounds */
 
 /* codes for SIGBUS */
 #define	    BUS_PAGE_FAULT	T_PAGEFLT	/* page fault protection base */
