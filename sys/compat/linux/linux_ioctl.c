@@ -1381,6 +1381,7 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 	struct ifnet *ifp;
 	int len, unit;
 	char *ep;
+	int is_eth, index;
 
 	for (len = 0; len < LINUX_IFNAMSIZ; ++len)
 		if (!isalpha(lxname[len]))
@@ -1390,13 +1391,18 @@ ifname_linux_to_bsd(const char *lxname, char *bsdname)
 	unit = (int)strtoul(lxname + len, &ep, 10);
 	if (ep == NULL || ep == lxname + len || ep >= lxname + LINUX_IFNAMSIZ)
 		return (NULL);
+	index = 0;
+	is_eth = (len == 3 && !strncmp(lxname, "eth", len)) ? 1 : 0;
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
-		/* allow Linux programs to use FreeBSD names */
+		/*
+		 * Allow Linux programs to use FreeBSD names. Don't presume
+		 * we never have an interface named "eth", so don't make
+		 * the test optional based on is_eth.
+		 */
 		if (ifp->if_unit == unit && ifp->if_name[len] == '\0' &&
 		    strncmp(ifp->if_name, lxname, len) == 0)
 			break;
-		if (ifp->if_index == unit && IFP_IS_ETH(ifp) &&
-		    strncmp(lxname, "eth", len) == 0)
+		if (is_eth && IFP_IS_ETH(ifp) && unit == index++)
 			break;
 	}
 	if (ifp != NULL)
