@@ -170,6 +170,7 @@ dev/ex/if_ex_pccard.c	optional ex card
 dev/fe/if_fe.c		optional fe
 dev/fe/if_fe_pccard.c	optional fe card
 dev/fxp/if_fxp.c	optional fxp
+dev/gx/if_gx.c		optional gx
 dev/hea/eni.c		optional hea
 dev/hea/eni_buffer.c	optional hea
 dev/hea/eni_globals.c	optional hea
