@@ -42,8 +42,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-#include <a.out.h>
-
+#include "a.out.h"
 #include "btx.h"
 #include "elfh.h"
 
