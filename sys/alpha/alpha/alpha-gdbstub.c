@@ -96,9 +96,9 @@
 #include <sys/reboot.h>
 #include <sys/systm.h>
 #include <sys/signal.h>
+#include <sys/cons.h>
 
 #include <machine/reg.h>
-#include <machine/cons.h>
 
 #include <ddb/ddb.h>
 

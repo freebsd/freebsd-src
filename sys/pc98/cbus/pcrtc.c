@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.73 1999/07/26 12:21:09 kato Exp $
+ *	$Id: clock.c,v 1.74 1999/07/30 11:43:10 kato Exp $
  */
 
 /*
@@ -63,10 +63,10 @@
 #include <sys/lock.h>
 #endif
 #include <sys/sysctl.h>
+#include <sys/cons.h>
 
 #include <machine/clock.h>
 #ifdef CLK_CALIBRATION_LOOP
-#include <machine/cons.h>
 #endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>

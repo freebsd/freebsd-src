@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.56 1999/07/20 20:55:50 green Exp $
+ * $Id: kern_shutdown.c,v 1.57 1999/07/20 21:29:13 green Exp $
  */
 
 #include "opt_ddb.h"
@@ -57,10 +57,10 @@
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/sysproto.h>
+#include <sys/cons.h>
 
 #include <machine/pcb.h>
 #include <machine/clock.h>
-#include <machine/cons.h>
 #include <machine/md_var.h>
 #ifdef SMP
 #include <machine/smp.h>		/* smp_active, cpuid */

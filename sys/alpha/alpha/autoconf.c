@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: autoconf.c,v 1.29 1999/07/17 20:47:40 phk Exp $
+ *	$Id: autoconf.c,v 1.30 1999/07/21 21:11:28 dfr Exp $
  */
 
 #include "opt_bootp.h"
@@ -42,8 +42,8 @@
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <sys/devicestat.h>
+#include <sys/cons.h>
 
-#include <machine/cons.h>
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/cpuconf.h>

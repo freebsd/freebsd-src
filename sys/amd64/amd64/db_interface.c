@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.43 1998/12/28 23:02:56 msmith Exp $
+ *	$Id: db_interface.c,v 1.44 1999/04/28 01:03:17 luoqi Exp $
  */
 
 /*
@@ -32,8 +32,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/reboot.h>
+#include <sys/cons.h>
 
-#include <machine/cons.h>
 #include <machine/cpu.h>
 #ifdef SMP
 #include <machine/smp.h>

@@ -141,7 +141,7 @@
 #if PCVT_NETBSD > 9
 #include "dev/cons.h"
 #elif PCVT_FREEBSD >= 200
-#include <machine/cons.h>
+#include <sys/cons.h>
 #else
 #include "i386/i386/cons.h"
 #endif

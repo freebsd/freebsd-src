@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: zs_tlsb.c,v 1.14 1999/07/04 14:58:04 phk Exp $
+ *	$Id: zs_tlsb.c,v 1.15 1999/07/29 01:02:45 mdodd Exp $
  */
 /*
  * This driver is a hopeless hack to get the SimOS console working.  A real
@@ -41,7 +41,7 @@
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
-#include <machine/cons.h>
+#include <sys/cons.h>
 #include <machine/clock.h>
 
 #include <alpha/tlsb/gbusvar.h>

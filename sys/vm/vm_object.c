@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.160 1999/07/16 05:11:36 alc Exp $
+ * $Id: vm_object.c,v 1.161 1999/08/01 06:05:09 alc Exp $
  */
 
 /*
@@ -1523,7 +1523,7 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 #ifdef DDB
 #include <sys/kernel.h>
 
-#include <machine/cons.h>
+#include <sys/cons.h>
 
 #include <ddb/ddb.h>
 
