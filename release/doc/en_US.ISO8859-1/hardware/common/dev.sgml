@@ -302,12 +302,6 @@
           </para>
 	</listitem>
         <listitem arch="i386">
-	  <para>Seagate ST01/02 SCSI controllers</para>
-	</listitem>
-        <listitem arch="i386">
-	  <para>Future Domain 8xx/950 series SCSI controllers</para>
-	</listitem>
-        <listitem arch="i386">
 	  <para>WD7000 SCSI controller</para>
 	</listitem>
       </itemizedlist>
@@ -768,10 +762,7 @@
 
     &hwlist.awi;
 
-    <para arch="i386">Atheros AR5210, AR5211, and AR5212-based
-      802.11a/b/g network interfaces (&man.ath.4; driver)
-    </para>
-
+    &hwlist.ath;
   </sect2>
 
   <sect2 id="misc-network">
