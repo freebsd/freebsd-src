@@ -52,7 +52,7 @@ DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
 
-SCRIPTS= scriptdump
+#SCRIPTS= scriptdump
 
 LOCALPREFIX=	/usr
 
