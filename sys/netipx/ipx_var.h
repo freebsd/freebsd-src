@@ -31,7 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)$Id$
+ *	@(#)ipx_var.h
+ *
+ * $Id: ipx_var.h,v 1.2 1995/10/31 23:36:40 julian Exp $
  */
 
 #ifndef _NETIPX_IPX_VAR_H_
