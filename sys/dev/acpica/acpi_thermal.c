@@ -137,6 +137,7 @@ static driver_t acpi_tz_driver = {
 
 static devclass_t acpi_tz_devclass;
 DRIVER_MODULE(acpi_tz, acpi, acpi_tz_driver, acpi_tz_devclass, 0, 0);
+MODULE_DEPEND(acpi_tz, acpi, 1, 1, 1);
 
 static struct sysctl_ctx_list	acpi_tz_sysctl_ctx;
 static struct sysctl_oid	*acpi_tz_sysctl_tree;

@@ -83,6 +83,7 @@ static driver_t acpi_acad_driver = {
 
 static devclass_t acpi_acad_devclass;
 DRIVER_MODULE(acpi_acad, acpi, acpi_acad_driver, acpi_acad_devclass, 0, 0);
+MODULE_DEPEND(acpi_acad, acpi, 1, 1, 1);
 
 static void
 acpi_acad_get_status(void *context)
