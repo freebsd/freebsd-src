@@ -76,6 +76,8 @@ tbl_ent	vendors[] = {
 	{ VENDAPI_UNKNOWN,	"Unknown" },
 	{ VENDAPI_FORE_1,	"Fore" },
 	{ VENDAPI_ENI_1,	"ENI" },
+ 	{ VENDAPI_IDT_1,	"IDT-1" },
+ 	{ VENDAPI_IDT_2,	"IDT-2" },
 	{ 0,			0 },
 };
 
@@ -88,7 +90,12 @@ tbl_ent adapter_types[] = {
 	{ DEV_FORE_SBA200E,	"SBA-200E" },
 	{ DEV_FORE_SBA200,	"SBA-200" },
 	{ DEV_FORE_PCA200E,	"PCA-200E" },
+	{ DEV_FORE_ESA200E,	"ESA-200E" },
 	{ DEV_ENI_155P,		"ENI-155p" },
+ 	{ DEV_IDT_155,		"IDT-77211/155" },
+	{ DEV_PROATM_25,	"ProATM-25" },
+	{ DEV_PROATM_155,	"ProATM-155" },
+	{ DEV_VATMPIF,		"Virtual" },
 	{ 0,			0 },
 };
 
@@ -102,6 +109,7 @@ tbl_ent media_types[] = {
 	{ MEDIA_OC3C,		"OC-3c" },
 	{ MEDIA_OC12C,		"OC-12c" },
 	{ MEDIA_UTP155,		"155 Mbps UTP" },
+	{ MEDIA_UTP25,		"25.6 Mbps UTP" },
 	{ 0,			0 },
 };
 
@@ -113,6 +121,9 @@ tbl_ent bus_types[] = {
 	{ BUS_SBUS_B16,	"SBus" },
 	{ BUS_SBUS_B32,	"SBus" },
 	{ BUS_PCI,	"PCI" },
+	{ BUS_EISA,	"EISA" },
+	{ BUS_USB,	"USB" },
+	{ BUS_VIRTUAL,	"Virtual" },
 	{ 0,			0 },
 };
 

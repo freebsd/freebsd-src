@@ -29,7 +29,7 @@
 
 PROG=	atm
 SRCS=	atm.c atm_fore200.c atm_eni.c atm_inet.c atm_print.c \
-	atm_set.c atm_show.c atm_subr.c
+	atm_set.c atm_show.c atm_subr.c atm_proatm.c
 MAN=	atm.8
 
 CFLAGS+=	-I${.CURDIR}/../../../sys

@@ -680,6 +680,9 @@ show_intf_stats(argc, argv, cmdp)
 		case VENDOR_ENI:
 			show_eni_stats(intf, argc, argv);
 			break;
+		case VENDOR_PROSUM:
+			show_proatm_stats(intf, argc, argv);
+			break;
 		default:
 			fprintf(stderr, "%s: Unknown adapter vendor\n",
 					prog);

@@ -159,6 +159,9 @@ void		print_fore200_aal4 __P((struct air_vinfo_rsp *));
 void		print_fore200_aal5 __P((struct air_vinfo_rsp *));
 void		print_fore200_driver __P((struct air_vinfo_rsp *));
 
+	/* atm_proatm.c */
+void		show_proatm_stats(char *, int, char **);
+
 	/* atm_inet.c */
 void		ip_pvcadd __P((int, char **, struct cmd *, struct atmaddreq *,
 			struct air_int_rsp *));
