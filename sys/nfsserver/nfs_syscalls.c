@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.24 1997/05/13 17:25:44 dfr Exp $
+ * $Id: nfs_syscalls.c,v 1.25 1997/06/25 21:07:26 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -1129,7 +1129,8 @@ nfsrv_init(terminating)
 			free((caddr_t)slp, M_NFSSVC);
 		}
 		nfsrv_cleancache();	/* And clear out server cache */
-	}
+	} else
+		nfs_pub.np_valid = 0;
 
 	TAILQ_INIT(&nfssvc_sockhead);
 	nfssvc_sockhead_flag &= ~SLP_INIT;
