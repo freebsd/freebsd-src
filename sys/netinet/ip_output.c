@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.5 1994/08/18 22:35:31 wollman Exp $
+ * $Id: ip_output.c,v 1.6 1994/09/06 22:42:24 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -790,7 +790,7 @@ ip_setmoptions(optname, imop, m)
 	}
 
 	switch (optname) {
-
+#ifdef MROUTING
 	/* store an index number for the vif you wanna use in the send */
 	case IP_MULTICAST_VIF:
 		if (m == NULL || m->m_len != sizeof(int)) {
@@ -804,6 +804,7 @@ ip_setmoptions(optname, imop, m)
 		}
 		imo->imo_multicast_vif = i;
 		break;
+#endif
 
 	case IP_MULTICAST_IF:
 		/*
