@@ -1257,7 +1257,7 @@ chn_setblocksize(pcm_channel *c, int blkcnt, int blksz)
 	blksz >>= 1;
 
 	/* round down to fit hw buffer size */
-	RANGE(blksz, 16, b->bufsize / 2);
+	RANGE(blksz, 16, b->maxsize / 2);
 
 	b->blksz = CHANNEL_SETBLOCKSIZE(c->methods, c->devinfo, blksz);
 
