@@ -2,8 +2,6 @@
 # $FreeBSD$
 #
 
-MAINTAINER=markm@FreeBSD.org
-
 LIB=	wrap
 SHLIB_MAJOR= 3
 INCS=	tcpd.h
