@@ -346,7 +346,7 @@ struct vfsconf {
 	int	vfc_refcount;		/* number mounted of this type */
 	int	vfc_flags;		/* permanent flags */
 	struct	vfsoptdecl *vfc_opts;	/* mount options */
-	struct	vfsconf *vfc_next;	/* next in list */
+	TAILQ_ENTRY(vfsconf) vfc_list;	/* list of vfscons */
 };
 
 /* Userland version of the struct vfsconf. */
@@ -451,7 +451,9 @@ MALLOC_DECLARE(M_MOUNT);
 #endif
 extern int maxvfsconf;		/* highest defined filesystem type */
 extern int nfs_mount_type;	/* vfc_typenum for nfs, or -1 */
-extern struct vfsconf *vfsconf;	/* head of list of filesystem types */
+
+TAILQ_HEAD(vfsconfhead, vfsconf);
+extern struct vfsconfhead vfsconf;
 
 /*
  * Operations supported on mounted filesystem.
@@ -532,13 +534,10 @@ struct vfsops {
 
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\
-		&vfsops,					\
-		#fsname,					\
-		-1,						\
-		0,						\
-		flags,						\
-		NULL,						\
-		NULL						\
+		.vfc_vfsops = &vfsops,				\
+		.vfc_name = #fsname,				\
+		.vfc_typenum = -1,				\
+		.vfc_flags = flags,				\
 	};							\
 	static moduledata_t fsname ## _mod = {			\
 		#fsname,					\
@@ -555,11 +554,11 @@ extern	char *mountrootfsname;
 int	dounmount(struct mount *, int, struct thread *);
 int	kernel_mount(struct iovec *, u_int, int);
 int	kernel_vmount(int flags, ...);
+struct vfsconf *vfs_byname(const char *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_mount(struct thread *, const char *, char *, int, void *);
-int	vfs_nmount(struct thread *, int, struct uio *);
 int	vfs_setpublicfs			    /* set publicly exported fs */
 	    (struct mount *, struct netexport *, struct export_args *);
 int	vfs_lock(struct mount *);         /* lock a vfs */
