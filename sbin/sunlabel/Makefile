@@ -2,7 +2,7 @@
 
 PROG=sunlabel
 SRCS=sunlabel.c geom_sunlabel_enc.c
-NOMAN=
+MAN=	sunlabel.8
 WARNS=5
 
 DPADD=	${LIBGEOM}
