@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/mac.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
 #include <sys/proc.h>
 #include <sys/time.h>
@@ -65,8 +66,6 @@ int tz_dsttime;
  * timers when they expire.
  */
 
-static int	nanosleep1(struct thread *td, struct timespec *rqt,
-		    struct timespec *rmt);
 static int	settime(struct thread *, struct timeval *);
 static void	timevalfix(struct timeval *);
 static void	no_lease_updatetime(int);
@@ -259,8 +258,8 @@ clock_getres(struct thread *td, struct clock_getres_args *uap)
 
 static int nanowait;
 
-static int
-nanosleep1(struct thread *td, struct timespec *rqt, struct timespec *rmt)
+int
+kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
 	struct timespec ts, ts2, ts3;
 	struct timeval tv;
@@ -320,7 +319,7 @@ nanosleep(struct thread *td, struct nanosleep_args *uap)
 	if (uap->rmtp &&
 	    !useracc((caddr_t)uap->rmtp, sizeof(rmt), VM_PROT_WRITE))
 			return (EFAULT);
-	error = nanosleep1(td, &rqt, &rmt);
+	error = kern_nanosleep(td, &rqt, &rmt);
 	if (error && uap->rmtp) {
 		int error2;
 
