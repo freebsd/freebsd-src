@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.58 1996/11/09 18:12:12 jkh Exp $
+ * $Id: config.c,v 1.59 1996/11/09 19:25:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -359,7 +359,7 @@ configXFree86(dialogMenuItem *self)
 {
     if (file_executable("/usr/X11R6/bin/XF86Setup")) {
 	dialog_clear();
-	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /compat/lib");
+	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
 	systemExecute("/usr/X11R6/bin/XF86Setup");
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
