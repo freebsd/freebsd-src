@@ -190,7 +190,7 @@ nwfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred) {
 			np->n_mtime = vattr.va_mtime.tv_sec;
 		}
 	}
-	error = ncp_read(NWFSTOCONN(nmp), &np->n_fh, uiop,cred);
+	error = ncp_read(NWFSTOCONN(nmp), &np->n_fh, uiop, cred);
 	return (error);
 }
 
