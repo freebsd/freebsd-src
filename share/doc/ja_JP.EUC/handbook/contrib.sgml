@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.38 1997/03/06 03:25:53 hanai Exp $ -->
+<!-- $Id: contrib.sgml,v 1.39 1997/03/07 04:56:55 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 <!-- Original revision: 1.225 -->
 
@@ -359,6 +359,7 @@
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
 	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
+          <item>Oliver Laumann &lt;net@informatik.uni-bremen.de&gt;
 	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
