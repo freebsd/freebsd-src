@@ -39,7 +39,7 @@ LDADD=	-ll -ly
 
 CLEANFILES=	y.tab.c y.tab.h key_test.o keytest
 
-# libpfkey.
+# libpfkey
 # ipsec_strerror.c is for avoiding shlib reference to non-exported function.
 .PATH: ${.CURDIR}/../../lib/libipsec ${.CURDIR}/../../sys/netkey
 SRCS+= pfkey.c pfkey_dump.c key_debug.c ipsec_strerror.c
