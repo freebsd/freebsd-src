@@ -42,6 +42,7 @@
 
 #include <machine/md_var.h>
 #include <machine/npx.h>
+#include <machine/pcb.h>
 #include <machine/reg.h>
 
 #include <i386/linux/linux.h>
