@@ -1,0 +1,113 @@
+#
+# PCCARD -- GENERIC laptop support
+#
+# For more information read the handbook part System Administration -> 
+# Configuring the FreeBSD Kernel -> The Configuration File. 
+# The handbook is available in /usr/share/doc/handbook or online as
+# latest version from the FreeBSD World Wide Web server 
+# <URL:http://www.FreeBSD.ORG/>
+#
+# An exhaustive list of options and more detailed explanations of the 
+# device lines is present in the ./LINT configuration file. If you are 
+# in doubt as to the purpose or necessity of a line, check first in LINT.
+#
+#	$Id$
+
+machine		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
+cpu		"I586_CPU"
+cpu		"I686_CPU"
+ident		PCCARD
+maxusers	10
+
+options		MATH_EMULATE		#Support for x87 emulation
+options		INET			#InterNETworking
+options		FFS			#Berkeley Fast Filesystem
+options		NFS			#Network Filesystem
+options		MSDOSFS			#MSDOS Filesystem
+options		"CD9660"		#ISO 9660 Filesystem
+options		PROCFS			#Process filesystem
+options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
+options		SCSI_DELAY=15		#Be pessimistic about Joe SCSI device
+options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
+options		UCONSOLE		#Allow users to grab the console
+options		FAILSAFE		#Be conservative
+options		USERCONFIG		#boot -c editor
+options		VISUAL_USERCONFIG	#visual boot -c editor
+
+config		kernel	root on wd0
+
+controller	isa0
+controller	pci0
+
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+
+options		"CMD640"	# work around CMD640 chip deficiency
+controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
+disk		wd0	at wdc0 drive 0
+
+controller	wdc1	at isa? port "IO_WD2" bio irq 15 vector wdintr
+
+options		ATAPI		#Enable ATAPI support for IDE bus
+options		ATAPI_STATIC	#Don't do it as an LKM
+device		wcd0	#IDE CD-ROM
+
+controller	aic0	at isa? port 0x340 bio irq 11 vector aicintr
+
+controller	scbus0
+
+device		sd0
+
+device		od0	#See LINT for possible `od' options.
+
+device		st0
+
+device		cd0	#Only need one of these, the code dynamically grows
+
+# syscons is the default console driver, resembling an SCO console
+device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+
+device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+#
+# Laptop support (see LINT for more options)
+#
+device		apm0    at isa? flags 0x31	# Advanced Power Management
+
+# PCCARD (PCMCIA) support
+controller	card0
+device		pcic0	at card?
+device		pcic1	at card?
+
+device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4 vector siointr
+device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
+device		sio2	at isa? disable port "IO_COM3" tty irq 5 vector siointr
+device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
+
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+
+device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
+
+device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
+device ep0 at isa? port 0x300 net irq 10 vector epintr
+device fe0 at isa? port 0x300 net irq ? vector feintr
+
+pseudo-device	loop
+pseudo-device	ether
+pseudo-device	sl	1
+# iijppp uses tun instead of ppp device
+#pseudo-device	ppp	1
+pseudo-device	tun	1
+pseudo-device	pty	16
+pseudo-device	gzip		# Exec gzipped a.out's
+
+# KTRACE enables the system-call tracing facility ktrace(2).
+# This adds 4 KB bloat to your kernel, and slightly increases
+# the costs of each syscall.
+options		KTRACE		#kernel tracing
+
+# This provides support for System V shared memory.
+#
+options         SYSVSHM
