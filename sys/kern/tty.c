@@ -2205,7 +2205,7 @@ ttwakeup(tp)
 	if (ISSET(tp->t_state, TS_ASYNC) && tp->t_sigio != NULL)
 		pgsigio(tp->t_sigio, SIGIO, (tp->t_session != NULL));
 	wakeup(TSA_HUP_OR_INPUT(tp));
-        KNOTE(&tp->t_rsel.si_note, 0);
+	KNOTE(&tp->t_rsel.si_note, 0);
 }
 
 /*
@@ -2230,7 +2230,7 @@ ttwwakeup(tp)
 		CLR(tp->t_state, TS_SO_OLOWAT);
 		wakeup(TSA_OLOWAT(tp));
 	}
-        KNOTE(&tp->t_wsel.si_note, 0);
+	KNOTE(&tp->t_wsel.si_note, 0);
 }
 
 /*
