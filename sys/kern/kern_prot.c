@@ -968,8 +968,6 @@ suser_xxx(cred, proc, flag)
 		return (EPERM);
 	if (proc && proc->p_prison && !(flag & PRISON_ROOT))
 		return (EPERM);
-	if (proc)
-		proc->p_acflag |= ASU;
 	return (0);
 }
 
