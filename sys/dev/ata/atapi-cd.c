@@ -812,7 +812,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 	    int32_t lba;
 	    caddr_t buffer, ubuf = args->buffer;
 	    int8_t ccb[16];
-	    int frames, error = 0;
+	    int frames;
 
 	    if (!cdp->toc.hdr.ending_track) {
 		error = EIO;
