@@ -41,17 +41,14 @@
 #define	PIC_PLT(x)	x@plt
 #ifdef	__STDC__
 #define	PIC_GOT(x)	XXX
-#define	PIC_GOTOFF(x)	XXX
 #else	/* not __STDC__ */
 #define	PIC_GOT(x)	XXX
-#define	PIC_GOTOFF(x)	XXX
 #endif	/* __STDC__ */
 #else
 #define	PIC_PROLOGUE
 #define	PIC_EPILOGUE
 #define	PIC_PLT(x)	x
 #define PIC_GOT(x)	x
-#define	PIC_GOTOFF(x)	x
 #endif
 
 #define	CNAME(csym)		csym
