@@ -33,10 +33,10 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: things/unifdef.1,v 1.23 2002/05/14 22:15:03 fanf Exp $
+.\"	$dotat: things/unifdef.1,v 1.25 2002/09/24 19:16:29 fanf2 Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2002
+.Dd September 24, 2002
 .Dt UNIFDEF 1
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
-.Op Fl clst
+.Op Fl cklst
 .Oo
 .Fl I Ns Ar path
 .Fl D Ns Ar sym Ns Op = Ns Ar val
@@ -97,6 +97,14 @@ and
 directives are only processed
 if the symbol is specified on the command line,
 otherwise they are also passed through unchanged.
+Constant
+.Ic #if
+and
+.Ic #elif
+expressions are passed through by default,
+or they may be processed by specifying the
+.Fl k
+flag.
 .Pp
 The
 .Nm
@@ -152,6 +160,18 @@ then the operation of
 is complemented,
 i.e., the lines that would have been removed or blanked
 are retained and vice versa.
+.Pp
+.It Fl k
+Process
+.Ic #if
+and
+.Ic #elif
+lines with constant expressions.
+By default, sections controlled by such lines are passed through unchanged
+because they typically start
+.Li #if 0
+and are used as a kind of comment to sketch out future or past development.
+It would be rude to strip them out, just as it would be for normal comments.
 .Pp
 .It Fl l
 Replace removed lines with blank lines
