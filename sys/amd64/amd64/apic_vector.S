@@ -329,86 +329,6 @@ _Xcpuast:
 	POP_FRAME
 	iret			
 
-#if 0
-
-/*
- *	 Executed by a CPU when it receives an XFORWARD_IRQ IPI.
- */
-
-	.text
-	SUPERALIGN_TEXT
-	.globl _Xforward_irq
-_Xforward_irq:
-	PUSH_FRAME
-	movl	$KDSEL, %eax
-	mov	%ax, %ds		/* use KERNEL data segment */
-	mov	%ax, %es
-	movl	$KPSEL, %eax
-	mov	%ax, %fs
-
-	movl	$0, _lapic+LA_EOI	/* End Of Interrupt to APIC */
-
-	FAKE_MCOUNT(13*4(%esp))
-
-	lock
-	incl	CNAME(forward_irq_hitcnt)
-	cmpb	$4, PCPU(INTR_NESTING_LEVEL)
-	jae	1f
-	
-	incb	PCPU(INTR_NESTING_LEVEL)
-	sti
-	
-	MEXITCOUNT
-	jmp	doreti_next		/* Handle forwarded interrupt */
-1:
-	lock
-	incl	CNAME(forward_irq_toodeepcnt)
-	MEXITCOUNT
-	POP_FRAME
-	iret
-
-/*
- * 
- */
-forward_irq:
-	MCOUNT
-	cmpl	$0,_invltlb_ok
-	jz	4f
-
-	cmpl	$0, CNAME(forward_irq_enabled)
-	jz	4f
-
-/* XXX - this is broken now, because mp_lock doesn't exist
-	movl	_mp_lock,%eax
-	cmpl	$FREE_LOCK,%eax
-	jne	1f
- */
-	movl	$0, %eax		/* Pick CPU #0 if noone has lock */
-1:
-	shrl	$24,%eax
-	movl	_cpu_num_to_apic_id(,%eax,4),%ecx
-	shll	$24,%ecx
-	movl	_lapic+LA_ICR_HI, %eax
-	andl	$~APIC_ID_MASK, %eax
-	orl	%ecx, %eax
-	movl	%eax, _lapic+LA_ICR_HI
-
-2:
-	movl	_lapic+LA_ICR_LO, %eax
-	andl	$APIC_DELSTAT_MASK,%eax
-	jnz	2b
-	movl	_lapic+LA_ICR_LO, %eax
-	andl	$APIC_RESV2_MASK, %eax
-	orl	$(APIC_DEST_DESTFLD|APIC_DELMODE_FIXED|XFORWARD_IRQ_OFFSET), %eax
-	movl	%eax, _lapic+LA_ICR_LO
-3:
-	movl	_lapic+LA_ICR_LO, %eax
-	andl	$APIC_DELSTAT_MASK,%eax
-	jnz	3b
-4:		
-	ret
-#endif
-	
 /*
  * Executed by a CPU when it receives an Xcpustop IPI from another CPU,
  *
@@ -570,11 +490,6 @@ _Xrendezvous:
 	
 	
 	.data
-#if 0
-/* active flag for lazy masking */
-iactive:
-	.long	0
-#endif
 
 #ifdef COUNT_XINVLTLB_HITS
 	.globl	_xhits
