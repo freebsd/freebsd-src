@@ -233,6 +233,11 @@ pfs_read(struct vop_read_args *va)
 
 	if (proc != NULL)
 		PRELE(proc);
+
+	if (error) {
+		sbuf_delete(sb);
+		return (error);
+	}
 	
 	/* XXX we should possibly detect and handle overflows */
 	sbuf_finish(sb);
@@ -390,6 +395,11 @@ pfs_readlink(struct vop_readlink_args *va)
 
 	if (proc != NULL)
 		PRELE(proc);
+	
+	if (error) {
+		sbuf_delete(&sb);
+		return (error);
+	}
 	
 	/* XXX we should detect and handle overflows */
 	sbuf_finish(&sb);
