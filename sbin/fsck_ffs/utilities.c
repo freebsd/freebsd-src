@@ -101,3 +101,10 @@ retry:
 	 */
 	return (origname);
 }
+
+void
+infohandler(sig)
+	int sig;
+{
+	got_siginfo = 1;
+}

@@ -140,6 +140,7 @@ main(argc, argv)
 		(void)signal(SIGINT, catch);
 	if (preen)
 		(void)signal(SIGQUIT, catchquit);
+	signal(SIGINFO, infohandler);
 	/*
 	 * Push up our allowed memory limit so we can cope
 	 * with huge filesystems.
