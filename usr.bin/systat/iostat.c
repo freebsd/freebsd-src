@@ -111,7 +111,7 @@ closeiostat(w)
 int
 initiostat()
 {
-	if ((num_devices = getnumdevs()) < 0)
+	if ((num_devices = devstat_getnumdevs(NULL)) < 0)
 		return(0);
 
 	cur.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
@@ -155,7 +155,7 @@ fetchiostat()
 	 * the selection process again, in case a device that we
 	 * were previously displaying has gone away.
 	 */
-	switch (getdevs(&cur)) {
+	switch (devstat_getdevs(NULL, &cur)) {
 	case -1:
 		errx(1, "%s", devstat_errbuf);
 		break;
@@ -320,12 +320,13 @@ devstats(row, col, dn)
 	
 	di = dev_select[dn].position;
 
-	busy_seconds = compute_etime(cur.busy_time, last.busy_time);
+	busy_seconds = devstat_compute_etime(cur.busy_time, last.busy_time);
 
-	if (compute_stats(&cur.dinfo->devices[di], &last.dinfo->devices[di],
-			  busy_seconds, NULL, NULL, NULL,
-			  &kb_per_transfer, &transfers_per_second,
-			  &mb_per_second, NULL, NULL) != 0)
+	if (devstat_compute_statistics(&cur.dinfo->devices[di],
+	    &last.dinfo->devices[di], busy_seconds,
+	    DSM_KB_PER_TRANSFER, &kb_per_transfer,
+	    DSM_TRANSFERS_PER_SECOND, &transfers_per_second,
+	    DSM_MB_PER_SECOND, &mb_per_second, DSM_NONE) != 0)
 		errx(1, "%s", devstat_errbuf);
 
 	if (numbers) {

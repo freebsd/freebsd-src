@@ -109,7 +109,7 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2,
 	 * devstat version.  If not, exit and print a message informing 
 	 * the user of his mistake.
 	 */
-	if (checkversion() < 0)
+	if (devstat_checkversion(NULL) < 0)
 		errx(1, "%s", devstat_errbuf);
 
 	generation = 0;
@@ -119,7 +119,7 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2,
 	select_generation = 0;
 	last_type = DS_MATCHTYPE_NONE;
 
-	if (getdevs(s1) == -1)
+	if (devstat_getdevs(NULL, s1) == -1)
 		errx(1, "%s", devstat_errbuf);
 
 	num_devices = s1->dinfo->numdevs;
@@ -132,10 +132,9 @@ dsinit(int maxshowdevs, struct statinfo *s1, struct statinfo *s2,
 	 * device list has changed, so we don't look for return values of 0
 	 * or 1.  If we get back -1, though, there is an error.
 	 */
-	if (selectdevs(&dev_select, &num_selected, &num_selections,
-		       &select_generation, generation, s1->dinfo->devices,
-		       num_devices, NULL, 0, NULL, 0, DS_SELECT_ADD,
-		       maxshowdevs, 0) == -1)
+	if (devstat_selectdevs(&dev_select, &num_selected, &num_selections,
+	    &select_generation, generation, s1->dinfo->devices, num_devices,
+	    NULL, 0, NULL, 0, DS_SELECT_ADD, maxshowdevs, 0) == -1)
 		errx(1, "%s", devstat_errbuf);
 
 	return(1);
@@ -155,20 +154,15 @@ dscmd(char *cmd, char *args, int maxshowdevs, struct statinfo *s1)
 	if (prefix(cmd, "type") || prefix(cmd, "match"))
 		return(dsmatchselect(args, DS_SELECT_ONLY, maxshowdevs, s1));
 	if (prefix(cmd, "refresh")) {
-		retval = selectdevs(&dev_select, &num_selected, &num_selections,
-				    &select_generation, generation,
-				    s1->dinfo->devices, num_devices, 
-				    (last_type == DS_MATCHTYPE_PATTERN) ?
-					matches : NULL,
-				    (last_type == DS_MATCHTYPE_PATTERN) ?
-					num_matches : 0,
-				    (last_type == DS_MATCHTYPE_SPEC) ?
-					specified_devices : NULL, 
-				    (last_type == DS_MATCHTYPE_SPEC) ?
-					num_devices_specified : 0,
-				    (last_type == DS_MATCHTYPE_NONE) ?
-					DS_SELECT_ADD : DS_SELECT_ADDONLY,
-				    maxshowdevs, 0);
+		retval = devstat_selectdevs(&dev_select, &num_selected,
+		    &num_selections, &select_generation, generation,
+		    s1->dinfo->devices, num_devices, 
+		    (last_type ==DS_MATCHTYPE_PATTERN) ?  matches : NULL,
+		    (last_type ==DS_MATCHTYPE_PATTERN) ?  num_matches : 0,
+		    (last_type == DS_MATCHTYPE_SPEC) ?specified_devices : NULL, 
+		    (last_type == DS_MATCHTYPE_SPEC) ?num_devices_specified : 0,
+		    (last_type == DS_MATCHTYPE_NONE) ?  DS_SELECT_ADD :
+		    DS_SELECT_ADDONLY, maxshowdevs, 0);
 		if (retval == -1) {
 			warnx("%s", devstat_errbuf);
 			return(0);
@@ -225,7 +219,7 @@ dsmatchselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 	}
 
 	for (i = 0; i < num_args; i++) {
-		if (buildmatch(tstr[i], &matches, &num_matches) != 0) {	
+		if (devstat_buildmatch(tstr[i], &matches, &num_matches) != 0) {	
 			warnx("%s", devstat_errbuf);
 			return(0);
 		}
@@ -234,11 +228,10 @@ dsmatchselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 
 		last_type = DS_MATCHTYPE_PATTERN;
 
-		retval = selectdevs(&dev_select, &num_selected, &num_selections,
-				    &select_generation, generation,
-				    s1->dinfo->devices, num_devices, matches, 
-				    num_matches, NULL, 0, select_mode,
-				    maxshowdevs, 0);
+		retval = devstat_selectdevs(&dev_select, &num_selected,
+		    &num_selections, &select_generation, generation,
+		    s1->dinfo->devices, num_devices, matches, num_matches,
+		    NULL, 0, select_mode, maxshowdevs, 0);
 		if (retval == -1)
 			err(1, "device selection error");
 		else if (retval == 1)
@@ -311,11 +304,11 @@ dsselect(char *args, devstat_select_mode select_mode, int maxshowdevs,
 	if (num_devices_specified > 0) {
 		last_type = DS_MATCHTYPE_SPEC;
 
-		retval = selectdevs(&dev_select, &num_selected, &num_selections,
-				    &select_generation, generation,
-				    s1->dinfo->devices, num_devices, NULL, 0,
-				    specified_devices, num_devices_specified,
-				    select_mode, maxshowdevs, 0);
+		retval = devstat_selectdevs(&dev_select, &num_selected,
+		    &num_selections, &select_generation, generation,
+		    s1->dinfo->devices, num_devices, NULL, 0,
+		    specified_devices, num_devices_specified,
+		    select_mode, maxshowdevs, 0);
 		if (retval == -1)
 			err(1, "%s", devstat_errbuf);
 		else if (retval == 1)
