@@ -23,56 +23,29 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: acpidump.c,v 1.3 2000/08/08 14:12:21 iwasaki Exp $
  *	$FreeBSD$
  */
 
 #include <sys/param.h>
-
 #include <assert.h>
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "acpidump.h"
 
-static void
-asl_dump_from_file(char *file)
-{
-	u_int8_t	*dp;
-	u_int8_t	*end;
-	struct	ACPIsdt *dsdt;
-
-	acpi_load_dsdt(file, &dp, &end);
-	acpi_dump_dsdt(dp, end);
-}
-
-static void
-asl_dump_from_devmem()
-{
-	struct	ACPIrsdp *rp;
-	struct	ACPIsdt *rsdp;
-
-	rp = acpi_find_rsd_ptr();
-	if (!rp)
-		errx(1, "Can't find ACPI information\n");
-
-	acpi_print_rsd_ptr(rp);
-	rsdp = (struct ACPIsdt *) acpi_map_sdt(rp->rsdt_addr);
-	if (memcmp(rsdp->signature, "RSDT", 4) ||
-	    acpi_checksum(rsdp, rsdp->len))
-		errx(1, "RSDT is corrupted\n");
-
-	acpi_handle_rsdt(rsdp);
-}
+int	dflag;	/* Disassemble AML using iasl(8) */
+int	tflag;	/* Dump contents of SDT tables */
+int	vflag;	/* Use verbose messages */
 
 static void
 usage(const char *progname)
 {
 
-	printf("usage:\t%s [-r] [-o dsdt_file_for_output]\n", progname);
-	printf("\t%s [-r] [-f dsdt_file_for_input]\n", progname);
-	printf("\t%s [-h]\n", progname);
+	fprintf(stderr, "usage: %s [-d] [-t] [-h] [-v] [-f dsdt_input] "
+			"[-o dsdt_output]\n", progname);
 	exit(1);
 }
 
@@ -80,28 +53,87 @@ int
 main(int argc, char *argv[])
 {
 	char	c, *progname;
+	char	*dsdt_input_file, *dsdt_output_file;
+	struct	ACPIsdt *sdt;
 
+	dsdt_input_file = dsdt_output_file = NULL;
 	progname = argv[0];
-	while ((c = getopt(argc, argv, "f:o:hr")) != -1) {
+
+	if (argc < 2)
+		usage(progname);
+
+	while ((c = getopt(argc, argv, "dhtvf:o:")) != -1) {
 		switch (c) {
+		case 'd':
+			dflag = 1;
+			break;
+		case 't':
+			tflag = 1;
+			break;
+		case 'v':
+			vflag = 1;
+			break;
 		case 'f':
-			asl_dump_from_file(optarg);
-			return (0);
+			dsdt_input_file = optarg;
+			break;
 		case 'o':
-			aml_dumpfile = optarg;
+			dsdt_output_file = optarg;
 			break;
 		case 'h':
-			usage(progname);
-			break;
-		case 'r':
-			rflag++;
-			break;
 		default:
-			argc -= optind;
-			argv += optind;
+			usage(progname);
+			/* NOTREACHED */
 		}
 	}
+	argc -= optind;
+	argv += optind;
 
-	asl_dump_from_devmem();
-	return (0);
+	/* Get input either from file or /dev/mem */
+	if (dsdt_input_file != NULL) {
+		if (dflag == 0 && tflag == 0) {
+			warnx("Need to specify -d or -t with DSDT input file");
+			usage(progname);
+		} else if (tflag != 0) {
+			warnx("Can't use -t with DSDT input file");
+			usage(progname);
+		}
+		if (vflag)
+			warnx("loading DSDT file: %s", dsdt_input_file);
+		sdt = dsdt_load_file(dsdt_input_file);
+	} else {
+		if (vflag)
+			warnx("loading RSD PTR from /dev/mem");
+		sdt = sdt_load_devmem();
+	}
+
+	/* Display misc. SDT tables (only available when using /dev/mem) */
+	if (tflag) {
+		if (vflag)
+			warnx("printing various SDT tables");
+		sdt_print_all(sdt);
+	}
+
+	/* Translate RSDT to DSDT pointer */
+	if (dsdt_input_file == NULL) {
+		sdt = sdt_from_rsdt(sdt, "FACP");
+		sdt = dsdt_from_facp((struct FACPbody *)sdt->body);
+	}
+
+	/* Dump the DSDT to a file */
+	if (dsdt_output_file != NULL) {
+		if (vflag)
+			warnx("saving DSDT file: %s", dsdt_output_file);
+		dsdt_save_file(dsdt_output_file, sdt);
+	}
+
+	/* Disassemble the DSDT into ASL */
+	if (dflag) {
+		if (vflag)
+			warnx("disassembling DSDT, iasl messages follow");
+		aml_disassemble(sdt);
+		if (vflag)
+			warnx("iasl processing complete");
+	}
+
+	exit(0);
 }
