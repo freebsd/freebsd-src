@@ -268,7 +268,7 @@ nwfs_unmount(struct mount *mp, int mntflags, struct proc *p)
 	conn = NWFSTOCONN(nmp);
 	ncp_conn_puthandle(nmp->connh,NULL,0);
 	if (ncp_conn_lock(conn,p,p->p_ucred,NCPM_WRITE | NCPM_EXECUTE) == 0) {
-		if(ncp_disconnect(conn))
+		if(ncp_conn_free(conn))
 			ncp_conn_unlock(conn,p);
 	}
 	mp->mnt_data = (qaddr_t)0;
