@@ -282,8 +282,10 @@ umtxq_sleep(struct thread *td, struct umtx_key *key, int priority,
 	    const char *wmesg, int timo)
 {
 	int chain = umtxq_hash(key);
-
-	return (msleep(td, umtxq_mtx(chain), priority, wmesg, timo));
+	int error = msleep(td, umtxq_mtx(chain), priority, wmesg, timo);
+	if (error == EWOULDBLOCK)
+		error = ETIMEDOUT;
+	return (error);
 }
 
 static int
@@ -538,12 +540,12 @@ do_lock(struct thread *td, struct umtx *umtx, long id,
 			timespecsub(&ts1, &ts2);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 			if (tv.tv_sec < 0) {
-				error = EWOULDBLOCK;
+				error = ETIMEDOUT;
 				break;
 			}
 			timo = tvtohz(&tv);
 			error = _do_lock(td, umtx, id, timo);
-			if (error != EWOULDBLOCK)
+			if (error != ETIMEDOUT)
 				break;
 		}
 	}
@@ -641,7 +643,7 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *abstime)
 			TIMESPEC_TO_TIMEVAL(&tv, &ts1);
 			umtxq_lock(&uq.uq_key);
 			if (tv.tv_sec < 0) {
-				error = EWOULDBLOCK;
+				error = ETIMEDOUT;
 				break;
 			}
 			timo = tvtohz(&tv);
