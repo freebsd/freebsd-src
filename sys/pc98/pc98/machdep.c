@@ -38,7 +38,6 @@
  * $FreeBSD$
  */
 
-#include "acpi.h"
 #include "apm.h"
 #include "npx.h"
 #include "opt_atalk.h"
@@ -101,6 +100,7 @@
 #include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/mutex.h>
+#include <machine/pc/bios.h>
 #include <machine/pcb_ext.h>		/* pcb.h included via sys/user.h */
 #include <machine/globaldata.h>
 #include <machine/globals.h>
@@ -125,10 +125,6 @@
 #include <machine/vm86.h>
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
-
-#if NACPI > 0
-#include <sys/acpi.h>
-#endif
 
 extern void init386 __P((int first));
 extern void dblfault_handler __P((void));
@@ -1746,11 +1742,7 @@ getmemsize(int first)
 	vm_offset_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t pte;
 	const char *cp;
-	struct {
-		u_int64_t base;
-		u_int64_t length;
-		u_int32_t type;
-	} *smap;
+	struct bios_smap *smap;
 
 	bzero(&vmf, sizeof(struct vm86frame));
 	bzero(physmap, sizeof(physmap));
@@ -1810,22 +1802,16 @@ getmemsize(int first)
 	/*
 	 * get memory map with INT 15:E820
 	 */
-#define SMAPSIZ 	sizeof(*smap)
-#define SMAP_SIG	0x534D4150			/* 'SMAP' */
-
 	vmc.npages = 0;
 	smap = (void *)vm86_addpage(&vmc, 1, KERNBASE + (1 << PAGE_SHIFT));
 	vm86_getptr(&vmc, (vm_offset_t)smap, &vmf.vmf_es, &vmf.vmf_di);
 
-#if NACPI > 0
-	acpi_init_addr_range();
-#endif
 	physmap_idx = 0;
 	vmf.vmf_ebx = 0;
 	do {
 		vmf.vmf_eax = 0xE820;
 		vmf.vmf_edx = SMAP_SIG;
-		vmf.vmf_ecx = SMAPSIZ;
+		vmf.vmf_ecx = sizeof(struct bios_smap);
 		i = vm86_datacall(0x15, &vmf, &vmc);
 		if (i || vmf.vmf_eax != SMAP_SIG)
 			break;
@@ -1836,13 +1822,7 @@ getmemsize(int first)
 				(u_int32_t)smap->base,
 				*(u_int32_t *)((char *)&smap->length + 4),
 				(u_int32_t)smap->length);
-#if NACPI > 0
-		/* Save ACPI related memory Info */
-		if (smap->type == 0x03 || smap->type == 0x04) {
-			acpi_register_addr_range(smap->base,
-						 smap->length, smap->type);
-		}
-#endif
+
 		if (smap->type != 0x01)
 			goto next_run;
 
