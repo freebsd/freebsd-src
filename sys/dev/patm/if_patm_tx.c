@@ -385,7 +385,7 @@ patm_start(struct ifnet *ifp)
 
 #ifdef ENABLE_BPF
 		if (!(vcc->vcc.flags & ATMIO_FLAG_NG) &&
-		    (vcc->vcc.flags & ATM_PH_AAL5) &&
+		    (vcc->vcc.aal == ATMIO_AAL_5) &&
 		    (vcc->vcc.flags & ATM_PH_LLCSNAP))
 		 	BPF_MTAP(ifp, m);
 #endif
@@ -712,7 +712,7 @@ patm_tx(struct patm_softc *sc, u_int stamp, u_int status)
 				vcc->scd = NULL;
 				vcc->vflags &= ~PATM_VCC_TX_CLOSING;
 
-				if (vcc->vflags & PATM_VCC_ASYNC) {
+				if (vcc->vcc.flags & ATMIO_FLAG_ASYNC) {
 					patm_tx_vcc_closed(sc, vcc);
 					if (!(vcc->vflags & PATM_VCC_OPEN))
 						patm_vcc_closed(sc, vcc);

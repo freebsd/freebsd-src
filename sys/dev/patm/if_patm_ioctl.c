@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
  * Open the VCC with the given parameters
  */
 static int
-patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg, u_int async)
+patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg)
 {
 	u_int cid;
 	struct patm_vcc *vcc;
@@ -120,7 +120,7 @@ patm_open_vcc(struct patm_softc *sc, struct atmio_openvcc *arg, u_int async)
 	/* check some parameters */
 	vcc->cid = cid;
 	vcc->vcc = arg->param;
-	vcc->vflags = async;
+	vcc->vflags = 0;
 	vcc->rxhand = arg->rxhand;
 	switch (vcc->vcc.aal) {
 
@@ -209,6 +209,8 @@ patm_open_vcc1(struct patm_softc *sc, struct atm_pseudoioctl *ph)
 
 	bzero(&v, sizeof(v));
 	v.param.flags = ATM_PH_FLAGS(&ph->aph) & (ATM_PH_AAL5 | ATM_PH_LLCSNAP);
+	v.param.flags |= ATMIO_FLAG_ASYNC;
+
 	v.param.vpi = ATM_PH_VPI(&ph->aph);
 	v.param.vci = ATM_PH_VCI(&ph->aph);
 	v.param.aal = (ATM_PH_FLAGS(&ph->aph) & ATM_PH_AAL5)
@@ -217,7 +219,7 @@ patm_open_vcc1(struct patm_softc *sc, struct atm_pseudoioctl *ph)
 	v.param.tparam.pcr = sc->ifatm.mib.pcr;
 	v.rxhand = ph->rxhand;
 
-	return (patm_open_vcc(sc, &v, PATM_VCC_ASYNC));
+	return (patm_open_vcc(sc, &v));
 }
 
 /*
@@ -254,7 +256,7 @@ patm_close_vcc(struct patm_softc *sc, struct atmio_closevcc *arg)
 	if (vcc->vflags & PATM_VCC_RX_OPEN)
 		patm_rx_vcc_close(sc, vcc);
 
-	if (vcc->vflags & PATM_VCC_ASYNC)
+	if (vcc->vcc.flags & ATMIO_FLAG_ASYNC)
 		goto done;
 
 	while (vcc->vflags & (PATM_VCC_TX_CLOSING | PATM_VCC_RX_CLOSING)) {
@@ -402,7 +404,7 @@ patm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	  case SIOCATMOPENVCC:		/* netgraph/harp internal use */
-		error = patm_open_vcc(sc, (struct atmio_openvcc *)data, 0);
+		error = patm_open_vcc(sc, (struct atmio_openvcc *)data);
 		break;
 
 	  case SIOCATMCLOSEVCC:		/* netgraph and HARP internal use */
