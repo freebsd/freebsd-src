@@ -80,10 +80,10 @@ struct nsip_req {
 #endif
 
 #ifdef	_KERNEL
-struct	ns_ifaddr *ns_ifaddr;
-struct	ns_ifaddr *ns_iaonnetof();
-void	nsintr(void);
-struct	ifqueue	nsintrq;	/* XNS input packet queue */
+extern struct ns_ifaddr	*ns_ifaddr;
+extern struct ns_ifaddr	*ns_iaonnetof(void);
+void			nsintr(void);
+extern struct ifqueue	nsintrq;	/* XNS input packet queue */
 #endif
 
 #endif
