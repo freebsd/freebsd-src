@@ -207,6 +207,7 @@ char	**av;
 	 */
 
 	(void) fclose(inf);
+	Tbl.str_numstr = Num_pts - 1;
 
 	if (Oflag)
 		do_order();
@@ -230,7 +231,7 @@ char	**av;
 
 	rewind(outf);
 	Tbl.str_version = htonl(Tbl.str_version);
-	Tbl.str_numstr = htonl(Num_pts - 1);
+	Tbl.str_numstr = htonl(Tbl.str_numstr);
 	Tbl.str_longlen = htonl(Tbl.str_longlen);
 	Tbl.str_shortlen = htonl(Tbl.str_shortlen);
 	Tbl.str_flags = htonl(Tbl.str_flags);
