@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)chpass.c	8.4 (Berkeley) 4/2/94";
 static char rcsid[] =
-	"$Id: chpass.c,v 1.4 1995/08/13 16:12:24 wpaul Exp $";
+	"$Id: chpass.c,v 1.5 1995/09/02 03:56:17 wpaul Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -141,31 +141,6 @@ main(argc, argv)
 		default:
 			usage();
 		}
-	if (op == NEWSH) {
-		/* protect p_shell -- it thinks NULL is /bin/sh */
-		if (!arg[0])
-			usage();
-		if (p_shell(arg, pw, (ENTRY *)NULL))
-			pw_error((char *)NULL, 0, 1);
-	}
-
-	if (op == LOADENTRY) {
-		if (uid)
-			baduser();
-		pw = &lpw;
-		if (!pw_scan(arg, pw))
-			exit(1);
-	}
-
-	if (op == NEWPW) {
-		if (uid)
-			baduser();
-
-		if(strchr(arg, ':')) {
-			errx(1, "invalid format for password");
-		}
-		pw->pw_passwd = arg;
-	}
 
 #ifdef YP
 	pw->pw_name = strdup(pw->pw_name);
@@ -192,6 +167,32 @@ main(argc, argv)
 		}
 	}
 #endif /* YP */
+
+	if (op == NEWSH) {
+		/* protect p_shell -- it thinks NULL is /bin/sh */
+		if (!arg[0])
+			usage();
+		if (p_shell(arg, pw, (ENTRY *)NULL))
+			pw_error((char *)NULL, 0, 1);
+	}
+
+	if (op == LOADENTRY) {
+		if (uid)
+			baduser();
+		pw = &lpw;
+		if (!pw_scan(arg, pw))
+			exit(1);
+	}
+
+	if (op == NEWPW) {
+		if (uid)
+			baduser();
+
+		if(strchr(arg, ':')) {
+			errx(1, "invalid format for password");
+		}
+		pw->pw_passwd = arg;
+	}
 
 	/*
 	 * The temporary file/file descriptor usage is a little tricky here.
