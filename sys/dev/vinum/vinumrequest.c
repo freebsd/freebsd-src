@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.26 1999/12/30 07:38:33 grog Exp grog $
+ * $Id: vinumrequest.c,v 1.30 2001/01/09 04:20:55 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -253,8 +253,7 @@ vinumstart(struct buf *bp, int reviveok)
 		diskaddr + (bp->b_bcount / DEV_BSIZE));
 	}
 
-	if ((status > REQUEST_RECOVERED)		    /* can't satisfy it */
-	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
+	if (status > REQUEST_RECOVERED) {		    /* can't satisfy it */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
 		bp->b_io.bio_flags |= BIO_ERROR;
@@ -281,14 +280,12 @@ vinumstart(struct buf *bp, int reviveok)
 		&diskstart,
 		bp->b_blkno + (bp->b_bcount / DEV_BSIZE));  /* build requests for the plex */
 	}
-	if ((status > REQUEST_RECOVERED)		    /* can't satisfy it */
-	||(bp->b_flags & B_DONE)) {			    /* XXX shouldn't get this without bad status */
+	if (status > REQUEST_RECOVERED) {		    /* can't satisfy it */
 	    if (status == REQUEST_DOWN) {		    /* not enough subdisks */
 		bp->b_error = EIO;			    /* I/O error */
 		bp->b_io.bio_flags |= BIO_ERROR;
 	    }
-	    if ((bp->b_flags & B_DONE) == 0)
-		bufdone(bp);
+	    bufdone(bp);
 	    freerq(rq);
 	    return -1;
 	}
@@ -494,7 +491,6 @@ bre(struct request *rq,
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_error = ENOMEM;
 		    bp->b_io.bio_flags |= BIO_ERROR;
-		    bufdone(bp);
 		    return REQUEST_ENOMEM;
 		}
 		rqg->plexno = plexno;
@@ -533,7 +529,6 @@ bre(struct request *rq,
 		    deallocrqg(rqg);
 		    bp->b_error = ENOMEM;
 		    bp->b_io.bio_flags |= BIO_ERROR;
-		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 	    }
@@ -578,7 +573,6 @@ bre(struct request *rq,
 		if (rqg == NULL) {			    /* malloc failed */
 		    bp->b_error = ENOMEM;
 		    bp->b_io.bio_flags |= BIO_ERROR;
-		    bufdone(bp);
 		    return REQUEST_ENOMEM;
 		}
 		rqg->plexno = plexno;
@@ -643,7 +637,6 @@ bre(struct request *rq,
 		    deallocrqg(rqg);
 		    bp->b_error = ENOMEM;
 		    bp->b_io.bio_flags |= BIO_ERROR;
-		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
 		*diskaddr += rqe->datalen;		    /* look at the remainder */
@@ -873,7 +866,6 @@ abortrequest(struct request *rq, int error)
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
     bp->b_io.bio_flags |= BIO_ERROR;
-    bufdone(bp);
     return error;					    /* and give up */
 }
 
