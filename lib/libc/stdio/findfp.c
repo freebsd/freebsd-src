@@ -74,6 +74,26 @@ FILE __sF[3] = {
 };
 struct glue __sglue = { &uglue, 3, __sF };
 
+/*
+ * The following kludge is done to ensure enough binary compatibility
+ * with future versions of libc.  Or rather it allows us to work with
+ * libraries that have been built with a newer libc that defines these
+ * symbols and expects libc to provide them.  We only have need to support
+ * i386 and alpha because they are the only "old" systems we have deployed.
+ */
+#if defined(__i386__)
+#define FILE_SIZE 88
+#elif defined(__alpha__)
+#define FILE_SIZE 152
+#endif
+#ifndef FILE_SIZE
+#error "You must define FILE_SIZE for this platform"
+#endif
+#define X(loc, sym)	__strong_reference(loc, sym)
+X(__sF + FILE_SIZE * 0, __stdin);
+X(__sF + FILE_SIZE * 1, __stdout);
+X(__sF + FILE_SIZE * 2, __stderr);
+
 static struct glue *	moreglue __P((int));
 
 static spinlock_t thread_lock = _SPINLOCK_INITIALIZER;
