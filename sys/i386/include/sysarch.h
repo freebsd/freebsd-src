@@ -30,16 +30,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sysarch.h,v 1.6 1997/02/22 09:35:18 peter Exp $
+ *	$Id: sysarch.h,v 1.7 1997/08/09 00:03:22 dyson Exp $
  */
 
 /*
  * Architecture specific syscalls (i386)
  */
 #ifndef _MACHINE_SYSARCH_H_
-#define _MACHINE_SYSARCH_H_ 1
-
-#include <sys/cdefs.h>
+#define _MACHINE_SYSARCH_H_
 
 #define I386_GET_LDT	0
 #define I386_SET_LDT	1
@@ -49,14 +47,15 @@
 				/* xxxxx */
 #define I386_VM86	6
 
-#ifdef KERNEL
-/* nothing here yet... */
-#else /* not KERNEL */
-__BEGIN_DECLS
+#ifndef KERNEL
+#include <sys/cdefs.h>
 
+union descriptor;
+
+__BEGIN_DECLS
 int i386_get_ldt __P((int, union descriptor *, int));
 int i386_set_ldt __P((int, union descriptor *, int));
-
 __END_DECLS
-#endif /* not KERNEL */
-#endif /* _MACHINE_SYSARCH_H_ */
+#endif /* !KERNEL */
+
+#endif /* !_MACHINE_SYSARCH_H_ */
