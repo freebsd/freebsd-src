@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_icmp.h,v 1.3 1994/08/21 05:27:31 paul Exp $
+ * $Id: ip_icmp.h,v 1.7 1996/01/30 22:58:24 mpp Exp $
  */
 
 #ifndef _NETINET_IP_ICMP_H_
@@ -41,6 +41,14 @@
  * Interface Control Message Protocol Definitions.
  * Per RFC 792, September 1981.
  */
+
+/*
+ * Internal of an ICMP Router Advertisement
+ */
+struct icmp_ra_addr {
+	u_int32_t ira_addr;
+	u_int32_t ira_preference;
+};
 
 /*
  * Structure of an icmp header.
@@ -63,6 +71,12 @@ struct icmp {
 			n_short ipm_void;
 			n_short ipm_nextmtu;
 		} ih_pmtu;
+
+		struct ih_rtradv {
+			u_char irt_num_addrs;
+			u_char irt_wpa;
+			u_int16_t irt_lifetime;
+		} ih_rtradv;
 	} icmp_hun;
 #define	icmp_pptr	icmp_hun.ih_pptr
 #define	icmp_gwaddr	icmp_hun.ih_gwaddr
@@ -71,6 +85,9 @@ struct icmp {
 #define	icmp_void	icmp_hun.ih_void
 #define	icmp_pmvoid	icmp_hun.ih_pmtu.ipm_void
 #define	icmp_nextmtu	icmp_hun.ih_pmtu.ipm_nextmtu
+#define	icmp_num_addrs	icmp_hun.ih_rtradv.irt_num_addrs
+#define	icmp_wpa	icmp_hun.ih_rtradv.irt_wpa
+#define	icmp_lifetime	icmp_hun.ih_rtradv.irt_lifetime
 	union {
 		struct id_ts {
 			n_time its_otime;
@@ -81,6 +98,7 @@ struct icmp {
 			struct ip idi_ip;
 			/* options and then 64 bits of data */
 		} id_ip;
+		struct icmp_ra_addr id_radv;
 		u_long	id_mask;
 		char	id_data[1];
 	} icmp_dun;
@@ -88,6 +106,7 @@ struct icmp {
 #define	icmp_rtime	icmp_dun.id_ts.its_rtime
 #define	icmp_ttime	icmp_dun.id_ts.its_ttime
 #define	icmp_ip		icmp_dun.id_ip.idi_ip
+#define	icmp_radv	icmp_dun.id_radv
 #define	icmp_mask	icmp_dun.id_mask
 #define	icmp_data	icmp_dun.id_data
 };
@@ -95,7 +114,7 @@ struct icmp {
 /*
  * Lower bounds on packet lengths for various types.
  * For the error advice packets must first insure that the
- * packet is large enought to contain the returned ip header.
+ * packet is large enough to contain the returned ip header.
  * Only then can we do the check to see if 64 bits of packet
  * data have been returned, since we need to check the returned
  * ip header length.
