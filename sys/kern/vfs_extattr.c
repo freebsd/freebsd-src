@@ -2318,8 +2318,8 @@ setutimes(td, vp, ts, numtimes, nullflag)
 #ifdef MAC
 	error = mac_check_vnode_setutimes(td->td_ucred, vp, vattr.va_atime,
 	    vattr.va_mtime);
-	if (error == 0)
 #endif
+	if (error == 0)
 		error = VOP_SETATTR(vp, &vattr, td->td_ucred, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);

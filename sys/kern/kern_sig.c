@@ -1579,7 +1579,7 @@ tdsignal(struct thread *td, int sig, sig_t action)
 		if (TD_IS_RUNNING(td) && td != curthread) {
 			forward_signal(td);
 		}
-	}
+	  }
 #endif
 }
 
