@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: busdma_machdep.c,v 1.3 1999/06/05 13:29:50 dfr Exp $
+ *      $Id: busdma_machdep.c,v 1.4 1999/07/01 20:59:56 peter Exp $
  */
 
 #include <sys/param.h>
@@ -140,6 +140,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		return (ENOMEM);
 
 	newtag->parent = parent;
+	newtag->alignment = alignment;
 	newtag->boundary = boundary;
 	newtag->lowaddr = trunc_page(lowaddr) + (PAGE_SIZE - 1);
 	newtag->highaddr = trunc_page(highaddr) + (PAGE_SIZE - 1);
@@ -352,9 +353,9 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 */
 		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
-				      (flags & BUS_DMA_NOWAIT)
-				      ? M_NOWAIT : M_WAITOK,
-				      0ul, dmat->lowaddr, 1ul, dmat->boundary);
+		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
+		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
+		    dmat->boundary);
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
@@ -400,6 +401,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	bus_dma_segment_t      *sg;
 	int			seg;
 	int			error;
+	vm_offset_t		nextpaddr;
 
 	error = 0;
 
@@ -475,17 +477,17 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	seg = 1;
 	sg->ds_len = 0;
 
+	nextpaddr = 0;
+
 	do {
 		bus_size_t	size;
-		vm_offset_t	nextpaddr = 0;
 
 		paddr = pmap_kextract(vaddr);
 		size = PAGE_SIZE - (paddr & PAGE_MASK);
 		if (size > buflen)
 			size = buflen;
 
-		if (map->pagesneeded != 0
-		 && run_filter(dmat, paddr)) {
+		if (map->pagesneeded != 0 && run_filter(dmat, paddr)) {
 			paddr = add_bounce_page(dmat, map, vaddr, size);
 		}
 
@@ -506,6 +508,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		vaddr += size;
 		nextpaddr = paddr + size;
 		buflen -= size;
+
 	} while (buflen > 0);
 
 	if (buflen != 0) {
