@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.42 1995/11/16 09:45:23 bde Exp $
+ * $Id: vfs_subr.c,v 1.43 1995/11/20 12:42:11 phk Exp $
  */
 
 /*
@@ -89,6 +89,7 @@ u_long freevnodes	= 0;
 struct mntlist mountlist;	/* mounted filesystem list */
 
 int desiredvnodes;
+SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RD, &desiredvnodes, 0, "");
 
 /*
  * Initialize the vnode management data structures.
@@ -1281,7 +1282,7 @@ sysctl_vnode SYSCTL_HANDLER_ARGS
 #define VNODESZ	sizeof (struct vnode)
 
 	req->lock = 0;
-	if (req->oldptr) /* Make an estimate */
+	if (!req->oldptr) /* Make an estimate */
 		return (SYSCTL_OUT(req, 0,
 			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
