@@ -100,5 +100,5 @@ const struct objs nightobjs[] = {
 	{ 249,	FOOT },
 	{ 250,	FOOT },
 	{ 93,	PAPAYAS },
-	0
+	{ 0, 0 }
 };
