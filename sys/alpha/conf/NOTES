@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.23 1999/05/26 23:22:14 gallatin Exp $
+#	$Id: GENERIC,v 1.24 1999/06/05 13:29:56 dfr Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -136,6 +136,8 @@ pseudo-device	gzip		# Exec gzipped a.out's
 # the costs of each syscall.
 options		KTRACE		#kernel tracing
 
-# This provides support for System V shared memory.
+# This provides support for System V shared memory and message queues.
 #
-options		SYSVSHM
+options         SYSVSHM
+options         SYSVMSG
+options         SYSVSEM
