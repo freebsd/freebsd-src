@@ -694,19 +694,20 @@ div_modevent(module_t mod, int type, void *unused)
 		 * connected.  Maybe this can be changed later to forcefully
 		 * disconnect any open sockets.
 		 *
-		 * XXXRW: Note that there is a slight race here, as a socket
-		 * could be opened between when we test and when we
-		 * unregister.
+		 * XXXRW: Note that there is a slight race here, as a new
+		 * socket open request could be spinning on the lock and then
+		 * we destroy the lock.
 		 */
-		INP_INFO_RLOCK(&divcbinfo);
+		INP_INFO_WLOCK(&divcbinfo);
 		n = divcbinfo.ipi_count;
-		INP_INFO_RUNLOCK(&divcbinfo);
 		if (n != 0) {
 			err = EBUSY;
+			INP_INFO_WUNLOCK(&divcbinfo);
 			break;
 		}
 		ip_divert_ptr = NULL;
 		err = pf_proto_unregister(PF_INET, IPPROTO_DIVERT, SOCK_RAW);
+		INP_INFO_WUNLOCK(&divcbinfo);
 		INP_INFO_LOCK_DESTROY(&divcbinfo);
 		break;
 	default:
