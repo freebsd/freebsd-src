@@ -44,8 +44,8 @@
  * 18 Dec 93.
  */
 
-#ifndef	_SWAP_PAGER_
-#define	_SWAP_PAGER_	1
+#ifndef	_VM_SWAP_PAGER_H_
+#define	_VM_SWAP_PAGER_H_ 1
 
 /*
  * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
@@ -107,4 +107,4 @@ struct buf;
 void swstrategy(struct buf *bp);	/* probably needs to move elsewhere */
 
 #endif				/* _KERNEL */
-#endif				/* _SWAP_PAGER_ */
+#endif				/* _VM_SWAP_PAGER_H_ */
