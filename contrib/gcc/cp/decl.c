@@ -1,6 +1,6 @@
 /* Process declarations and variables for C compiler.
    Copyright (C) 1988, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002  Free Software Foundation, Inc.
+   2001, 2002, 2003  Free Software Foundation, Inc.
    Contributed by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -6182,6 +6182,10 @@ lookup_name_real (name, prefer_type, nonclass, namespaces_only)
 	}
     }
 
+  /* The name might be from an enclosing class of the current scope.  */
+  if (!val && !nonclass && current_class_type)
+    val = qualify_lookup (lookup_nested_field (name, !yylex), flags);
+
   /* Now lookup in namespace scopes.  */
   if (!val || val_is_implicit_typename)
     {
@@ -6668,7 +6672,7 @@ cxx_init_decl_processing ()
     ptr_ftype_sizetype 
       = build_function_type (ptr_type_node,
 			     tree_cons (NULL_TREE,
-					c_size_type_node,
+					size_type_node,
 					void_list_node));
     newtype = build_exception_variant
       (ptr_ftype_sizetype, add_exception_specifier
@@ -9411,10 +9415,10 @@ check_static_variable_definition (decl, type)
      the definition, but not both.  If it appears in the class, the
      member is a member constant.  The file-scope definition is always
      required.  */
-  if (CLASS_TYPE_P (type) || TREE_CODE (type) == REFERENCE_TYPE)
+  if (!ARITHMETIC_TYPE_P (type) && TREE_CODE (type) != ENUMERAL_TYPE)
     {
       error ("invalid in-class initialization of static data member of non-integral type `%T'",
-		type);
+	     type);
       /* If we just return the declaration, crashes will sometimes
 	 occur.  We therefore return void_type_node, as if this was a
 	 friend declaration, to cause callers to completely ignore
