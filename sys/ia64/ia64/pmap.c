@@ -522,12 +522,12 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 	if (initial_pvs < MINPV)
 		initial_pvs = MINPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	uma_zone_set_allocf(pvzone, pmap_allocf);
 	uma_prealloc(pvzone, initial_pvs);
 
 	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	uma_zone_set_allocf(ptezone, pmap_allocf);
 	uma_prealloc(ptezone, initial_pvs);
 
