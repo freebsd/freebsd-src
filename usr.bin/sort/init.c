@@ -56,6 +56,7 @@ static const char *setcolumn __P((const char *, struct field *, int));
 int setfield __P((const char *, struct field *, int));
 static int findgap __P((u_char *, int, int));
 static void shift_at_REC_D __P((u_char *, int));
+static int collcmp __P((const void *, const void *));
 
 extern struct coldesc clist[(ND+1)*2];
 extern int ncols;
@@ -321,6 +322,7 @@ findgap (u_char *table, int old, int new)
 		}
 	}
 
+	ret = old;
 	if (fto >= 0 && rto >= 0) {
 		ret = fto;
 		if (fto - old > old - rto)
@@ -329,8 +331,6 @@ findgap (u_char *table, int old, int new)
 		ret = fto;
 	else if (rto >= 0)
 		ret = rto;
-	else
-		errx(2, "can't find gap");
 
 	return ret;
 }
@@ -381,7 +381,7 @@ shift_at_REC_D (u_char *table, int new)
 				else if (table[i] >= oldn && table[i] < to)
 					table[i]++;
 			}
-		} else {
+		} else if (to < old) {
 			oldn = old - (old <= new);
 			for (i = 0; i < NBINS; i++) {
 				if (table[i] == new && i != REC_D)
@@ -389,8 +389,22 @@ shift_at_REC_D (u_char *table, int new)
 				else if (table[i] <= oldn && table[i] > to)
 					table[i]--;
 			}
-		}
+		} else
+			warnx("can't resolve conflict in the sorting table");
 	}
+}
+
+static int
+collcmp (const void *a, const void *b)
+{
+	static char sa[2], sb[2];
+
+	if (*((char *)a) == *((char *)b))
+		return 0;
+	sa[0] = *((char *)a);
+	sb[0] = *((char *)b);
+
+	return strcoll(sa, sb);
 }
 
 /*
@@ -406,12 +420,19 @@ void
 settables(gflags)
 	int gflags;
 {
+	u_char idx2asc[NBINS];
 	u_char *wts;
-	int i, j, n;
+	int i, n;
+
+	for (i = 0; i < NBINS; i++)
+		idx2asc[i] = i;
+	qsort(idx2asc, NBINS, sizeof(u_char), collcmp);
 
 	for (i = 0; i < NBINS; i++) {
-		Ftable[i] = ascii[i] = i;
-		RFtable[i] = Rascii[i] = NBINS - 1 - i;
+		n = idx2asc[i];
+		Ftable[n] = ascii[n] = i;
+		RFtable[n] = Rascii[n] = NBINS - 1 - i;
+
 		alltable[i] = 1;
 
 		if (i == '\n' || isprint(i))
@@ -435,8 +456,7 @@ settables(gflags)
 		}
 	}
 
-	/* Skip ascii[], REC_D is already inplace */
-	/* shift_at_REC_D (ascii, REC_D); */
+	shift_at_REC_D (ascii, REC_D);
 	shift_at_REC_D (Rascii, REC_D);
 	shift_at_REC_D (Ftable, REC_D);
 	shift_at_REC_D (RFtable, REC_D);
