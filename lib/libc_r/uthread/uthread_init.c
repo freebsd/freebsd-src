@@ -187,13 +187,11 @@ _thread_init(void)
 		SLIST_INIT(&_stackq);
 
 		/* Create the red zone for the main stack. */
-		if (mmap((void *) USRSTACK
-			 - PTHREAD_STACK_INITIAL,
-			 PTHREAD_STACK_GUARD, 0, MAP_ANON,
-			 -1, 0) == MAP_FAILED) {
+		if (mmap((void *) USRSTACK - PTHREAD_STACK_INITIAL -
+		    PTHREAD_STACK_GUARD, PTHREAD_STACK_GUARD, 0, MAP_ANON,
+		    -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
-		}
-		
+
 		/*
 		 * Write a magic value to the thread structure
 		 * to help identify valid ones:
@@ -248,7 +246,7 @@ _thread_init(void)
 
 			/* Get the signal handler details: */
 			else if (_thread_sys_sigaction(i, NULL,
-						       &_thread_sigact[i - 1]) != 0) {
+			    &_thread_sigact[i - 1]) != 0) {
 				/*
 				 * Abort this process if signal
 				 * initialisation fails: 
