@@ -47,36 +47,6 @@
 #define DBG_MSG(x...)
 #endif
 
-__weak_reference(_sigprocmask, sigprocmask);
-
-int
-_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
-{
-	sigset_t new;
-
-	/*
-	 * Make sure applications can't unblock our synchronization
-	 * signal. We always want to take this with sigwait().
-	 */
-	if (set != NULL) {
-		new = *set;
-		switch (how) {
-		case SIG_BLOCK:
-		case SIG_SETMASK:
-			SIGADDSET(new, SIGTHR);
-			break;
-		case SIG_UNBLOCK:
-			SIGDELSET(new, SIGTHR);
-			break;
-		default:
-			break;
-		}
-		set = &new;
-	}
-
-	return (__sys_sigprocmask(how, set, oset));
-}
-
 __weak_reference(_pthread_sigmask, pthread_sigmask);
 
 int
