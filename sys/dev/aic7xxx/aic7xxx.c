@@ -588,7 +588,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			 */
 			if (ahc->scb_data->recovery_scbs == 0
 			 || (scb->flags & SCB_RECOVERY_SCB) != 0)
-				aic_scb_timer_reset(scb, 5 * 1000000);
+				aic_scb_timer_reset(scb, 5 * 1000);
 			break;
 		}
 		default:
@@ -7155,7 +7155,7 @@ bus_reset:
 			ahc_print_path(ahc, active_scb);
 			printf("BDR message in message buffer\n");
 			active_scb->flags |= SCB_DEVICE_RESET;
-			aic_scb_timer_reset(scb, 2 * 1000000);
+			aic_scb_timer_reset(scb, 2 * 1000);
 		} else if (last_phase != P_BUSFREE
 			&& (ahc_inb(ahc, SSTAT1) & REQINIT) == 0) {
 			/*
@@ -7257,7 +7257,7 @@ bus_reset:
 				printf("Queuing a BDR SCB\n");
 				ahc_qinfifo_requeue_tail(ahc, scb);
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
-				aic_scb_timer_reset(scb, 2 * 1000000);
+				aic_scb_timer_reset(scb, 2 * 1000);
 			} else {
 				/* Go "immediatly" to the bus reset */
 				/* This shouldn't happen */
