@@ -53,16 +53,6 @@
 MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
 
 /*
- * XXX this bloat just exands the sysctl__vfs linker set a little so that
- * we can attach sysctls for VFS modules without expanding the linker set.
- * Currently (1998/09/06), only one VFS uses sysctls, so 2 extra linker
- * set slots are more than sufficient.
- */
-static int mod_xx;
-SYSCTL_INT(_vfs, OID_AUTO, mod0, CTLFLAG_RD, &mod_xx, 0, "");
-SYSCTL_INT(_vfs, OID_AUTO, mod1, CTLFLAG_RD, &mod_xx, 0, "");
-
-/*
  * Zone for namei
  */
 struct vm_zone *namei_zone;
