@@ -64,10 +64,18 @@ and
 .Fn getnetbyaddr
 functions
 each return a pointer to an object with the
-following structure
-containing the broken-out
-fields of a line in the network data base,
-.Pa /etc/networks .
+following structure describing an internet network.
+This structure contains either the information obtained
+from the nameserver, 
+.Xr named 8 ,
+broken-out fields of a line in the network data base
+.Pa /etc/networks ,
+or entries supplied by the
+.Xr yp 4 
+system.  The order of the lookups is controlled by the
+`networks' entry in 
+.Xr nsswitch.conf 5 .
+.Pp
 .Bd -literal -offset indent
 struct	netent {
 	char		*n_name;	/* official name of net */
@@ -129,8 +137,10 @@ must be
 .Dv AF_INET .
 Network numbers are supplied in host order.
 .Sh FILES
-.Bl -tag -width /etc/networks -compact
+.Bl -tag -width /etc/nsswitch.conf -compact
 .It Pa /etc/networks
+.It Pa /etc/nsswitch.conf
+.It Pa /etc/resolv.conf
 .El
 .Sh DIAGNOSTICS
 Null pointer

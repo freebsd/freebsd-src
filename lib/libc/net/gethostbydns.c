@@ -74,6 +74,8 @@ static char rcsid[] = "$FreeBSD$";
 #include <ctype.h>
 #include <errno.h>
 #include <syslog.h>
+#include <stdarg.h>
+#include <nsswitch.h>
 
 #include "res_config.h"
 
@@ -474,19 +476,23 @@ __dns_getanswer(answer, anslen, qname, qtype)
 	return(gethostanswer((const querybuf *)answer, anslen, qname, qtype));
 }
 
-struct hostent *
-_gethostbydnsname(name, af)
+int
+_dns_gethostbyname(void *rval, void *cb_data, va_list ap)
+{
 	const char *name;
 	int af;
-{
 	querybuf buf;
 	register const char *cp;
 	char *bp;
 	int n, size, type, len;
 
+	name = va_arg(ap, const char *);
+	af = va_arg(ap, int);
+	*(struct hostent **)rval = NULL;
+
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 
 	switch (af) {
@@ -501,7 +507,7 @@ _gethostbydnsname(name, af)
 	default:
 		h_errno = NETDB_INTERNAL;
 		errno = EAFNOSUPPORT;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 
 	host.h_addrtype = af;
@@ -531,7 +537,7 @@ _gethostbydnsname(name, af)
 				 */
 				if (inet_pton(af, name, host_addr) <= 0) {
 					h_errno = HOST_NOT_FOUND;
-					return (NULL);
+					return NS_NOTFOUND;
 				}
 				strncpy(hostbuf, name, MAXDNAME);
 				hostbuf[MAXDNAME] = '\0';
@@ -546,7 +552,8 @@ _gethostbydnsname(name, af)
 				if (_res.options & RES_USE_INET6)
 					_map_v4v6_hostent(&host, &bp, &len);
 				h_errno = NETDB_SUCCESS;
-				return (&host);
+				*(struct hostent **)rval = &host;
+				return NS_SUCCESS;
 			}
 			if (!isdigit((unsigned char)*cp) && *cp != '.')
 				break;
@@ -564,7 +571,7 @@ _gethostbydnsname(name, af)
 				 */
 				if (inet_pton(af, name, host_addr) <= 0) {
 					h_errno = HOST_NOT_FOUND;
-					return (NULL);
+					return NS_NOTFOUND;
 				}
 				strncpy(hostbuf, name, MAXDNAME);
 				hostbuf[MAXDNAME] = '\0';
@@ -577,7 +584,8 @@ _gethostbydnsname(name, af)
 				h_addr_ptrs[1] = NULL;
 				host.h_addr_list = h_addr_ptrs;
 				h_errno = NETDB_SUCCESS;
-				return (&host);
+				*(struct hostent **)rval = &host;
+				return NS_SUCCESS;
 			}
 			if (!isxdigit((unsigned char)*cp) && *cp != ':' && *cp != '.')
 				break;
@@ -585,17 +593,18 @@ _gethostbydnsname(name, af)
 
 	if ((n = res_search(name, C_IN, type, buf.buf, sizeof(buf))) < 0) {
 		dprintf("res_search failed (%d)\n", n);
-		return (NULL);
+		return NS_UNAVAIL;
 	}
-	return (gethostanswer(&buf, n, name, type));
+	*(struct hostent **)rval = gethostanswer(&buf, n, name, type);
+	return (*(struct hostent **)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
-struct hostent *
-_gethostbydnsaddr(addr, len, af)
+int
+_dns_gethostbyaddr(void *rval, void *cb_data, va_list ap)
+{
 	const char *addr;	/* XXX should have been def'd as u_char! */
 	int len, af;
-{
-	const u_char *uaddr = (const u_char *)addr;
+	const u_char *uaddr;
 	static const u_char mapped[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0xff,0xff };
 	static const u_char tunnelled[] = { 0,0, 0,0, 0,0, 0,0, 0,0, 0,0 };
 	int n, size;
@@ -608,10 +617,17 @@ _gethostbydnsaddr(addr, len, af)
 	u_long old_options;
 	char hname2[MAXDNAME+1];
 #endif /*SUNSECURITY*/
+
+	addr = va_arg(ap, const char *);
+	uaddr = (const u_char *)addr;
+	len = va_arg(ap, int);
+	af = va_arg(ap, int);
+	
+	*(struct hostent **)rval = NULL;
 	
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	if (af == AF_INET6 && len == IN6ADDRSZ &&
 	    (!bcmp(uaddr, mapped, sizeof mapped) ||
@@ -632,12 +648,12 @@ _gethostbydnsaddr(addr, len, af)
 	default:
 		errno = EAFNOSUPPORT;
 		h_errno = NETDB_INTERNAL;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	if (size != len) {
 		errno = EINVAL;
 		h_errno = NETDB_INTERNAL;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	switch (af) {
 	case AF_INET:
@@ -662,14 +678,14 @@ _gethostbydnsaddr(addr, len, af)
 	n = res_query(qbuf, C_IN, T_PTR, (u_char *)buf.buf, sizeof buf.buf);
 	if (n < 0) {
 		dprintf("res_query failed (%d)\n", n);
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	if (n > sizeof buf.buf) {
 		dprintf("static buffer is too small (%d)\n", n);
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	if (!(hp = gethostanswer(&buf, n, qbuf, T_PTR)))
-		return (NULL);	/* h_errno was set by gethostanswer() */
+		return NS_NOTFOUND;   /* h_errno was set by gethostanswer() */
 #ifdef SUNSECURITY
 	if (af == AF_INET) {
 	    /*
@@ -687,7 +703,7 @@ _gethostbydnsaddr(addr, len, af)
 		       hname2, inet_ntoa(*((struct in_addr *)addr)));
 		_res.options = old_options;
 		h_errno = HOST_NOT_FOUND;
-		return (NULL);
+		return NS_NOTFOUND;
 	    }
 	    _res.options = old_options;
 	    for (haddr = rhp->h_addr_list; *haddr; haddr++)
@@ -698,7 +714,7 @@ _gethostbydnsaddr(addr, len, af)
 		       "gethostbyaddr: A record of %s != PTR record [%s]",
 		       hname2, inet_ntoa(*((struct in_addr *)addr)));
 		h_errno = HOST_NOT_FOUND;
-		return (NULL);
+		return NS_NOTFOUND;
 	    }
 	}
 #endif /*SUNSECURITY*/
@@ -713,7 +729,8 @@ _gethostbydnsaddr(addr, len, af)
 		hp->h_length = IN6ADDRSZ;
 	}
 	h_errno = NETDB_SUCCESS;
-	return (hp);
+	*(struct hostent **)rval = hp;
+	return (hp != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
 #ifdef RESOLVSORT

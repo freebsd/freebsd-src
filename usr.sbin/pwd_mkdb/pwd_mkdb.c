@@ -520,7 +520,7 @@ scan(fp, pw)
 	} else
 		is_comment = 0;
 
-	if (!pw_scan(line, pw)) {
+	if (!__pw_scan(line, pw, _PWSCAN_WARN|_PWSCAN_MASTER)) {
 		warnx("at line #%d", lcnt);
 fmt:		errno = EFTYPE;	/* XXX */
 		error(pname);

@@ -137,24 +137,6 @@ If the process which calls them has an effective uid of 0, the encrypted
 password will be returned, otherwise, the password field of the returned
 structure will point to the string
 .Ql * .
-.Sh YP/NIS INTERACTION
-When the
-.Xr yp 4
-password database is enabled, the
-.Fn getpwnam
-and
-.Fn getpwuid
-functions use the YP maps
-.Dq Li passwd.byname
-and
-.Dq Li passwd.byuid ,
-respectively, if the requested password entry is not found in the 
-local database.  The
-.Fn getpwent
-function will step through the YP map
-.Dq Li passwd.byname
-if the entire map is enabled as described in
-.Xr passwd 5 .
 .Sh RETURN VALUES
 The functions
 .Fn getpwent ,
@@ -187,6 +169,7 @@ A Version 7 format password file
 .Xr getlogin 2 ,
 .Xr getgrent 3 ,
 .Xr yp 4 ,
+.Xr nsswitch.conf 5 ,
 .Xr passwd 5 ,
 .Xr pwd_mkdb 8 ,
 .Xr vipw 8
@@ -220,3 +203,16 @@ a pointer to that object.
 Subsequent calls to
 the same function
 will modify the same object.
+.Pp
+The functions
+.Fn getpwent ,
+.Fn endpwent ,
+.Fn setpassent ,
+and
+.Fn setpwent
+are fairly useless in a networked environment and should be
+avoided, if possible.
+.Fn getpwent
+makes no attempt to suppress duplicate information if multiple
+sources are specified in
+.Xr nsswitch.conf 5

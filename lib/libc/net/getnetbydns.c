@@ -77,6 +77,8 @@ static char rcsid[] = "$FreeBSD$";
 #include <string.h>
 #include <unistd.h>
 #include <syslog.h>
+#include <stdarg.h>
+#include <nsswitch.h>
 
 #include "res_config.h"
 
@@ -218,11 +220,11 @@ static	char *net_aliases[MAXALIASES], netbuf[PACKETSZ];
 	return (NULL);
 }
 
-struct netent *
-_getnetbydnsaddr(net, net_type)
-	register unsigned long net;
-	register int net_type;
+int
+_dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 {
+	unsigned long net;
+	int net_type;
 	unsigned int netbr[4];
 	int nn, anslen;
 	querybuf buf;
@@ -230,8 +232,13 @@ _getnetbydnsaddr(net, net_type)
 	unsigned long net2;
 	struct netent *net_entry;
 
+	net = va_arg(ap, unsigned long);
+	net_type = va_arg(ap, int);
+
+	*(struct netent **)rval = NULL;
+
 	if (net_type != AF_INET)
-		return (NULL);
+		return NS_UNAVAIL;
 
 	for (nn = 4, net2 = net; net2; net2 >>= 8)
 		netbr[--nn] = net2 & 0xff;
@@ -257,7 +264,7 @@ _getnetbydnsaddr(net, net_type)
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
 #endif
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	net_entry = getnetanswer(&buf, anslen, BYADDR);
 	if (net_entry) {
@@ -267,22 +274,27 @@ _getnetbydnsaddr(net, net_type)
 		while ((u_net & 0xff) == 0 && u_net != 0)
 			u_net >>= 8;
 		net_entry->n_net = u_net;
-		return (net_entry);
+		*(struct netent **)rval = net_entry;
+		return NS_SUCCESS;
 	}
-	return (NULL);
+	return NS_NOTFOUND;
 }
 
-struct netent *
-_getnetbydnsname(net)
-	register const char *net;
+int
+_dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 {
+	const char *net;
 	int anslen;
 	querybuf buf;
 	char qbuf[MAXDNAME];
 
+	net = va_arg(ap, const char *);
+
+	*(struct netent**)rval = NULL;
+
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
-		return (NULL);
+		return NS_UNAVAIL;
 	}
 	strncpy(qbuf, net, sizeof(qbuf) - 1);
 	qbuf[sizeof(qbuf) - 1] = '\0';
@@ -292,9 +304,10 @@ _getnetbydnsname(net)
 		if (_res.options & RES_DEBUG)
 			printf("res_query failed\n");
 #endif
-		return (NULL);
+		return NS_UNAVAIL;
 	}
-	return getnetanswer(&buf, anslen, BYNAME);
+	*(struct netent**)rval = getnetanswer(&buf, anslen, BYNAME);
+	return (*(struct netent**)rval != NULL) ? NS_SUCCESS : NS_NOTFOUND;
 }
 
 void

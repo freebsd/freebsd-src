@@ -264,5 +264,5 @@ bad:					(void)fclose(fp);
 		return (0);
 	}
 	free(p);
-	return (pw_scan(buf, pw));
+	return (__pw_scan(buf, pw, _PWSCAN_WARN|_PWSCAN_MASTER));
 }

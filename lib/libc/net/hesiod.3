@@ -1,0 +1,136 @@
+.\"	$NetBSD: hesiod.3,v 1.1 1999/01/25 03:43:04 lukem Exp $
+.\"	$FreeBSD$
+.\"
+.\" from: #Id: hesiod.3,v 1.9.2.1 1997/01/03 21:02:23 ghudson Exp #
+.\"
+.\" Copyright 1988, 1996 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH HESIOD 3 "30 November 1996"
+.SH NAME
+hesiod, hesiod_init, hesiod_resolve, hesiod_free_list, hesiod_to_bind, hesiod_end \- Hesiod name server interface library
+.SH SYNOPSIS
+.nf
+.B #include <hesiod.h>
+.PP
+.B int hesiod_init(void **\fIcontext\fP)
+.B char **hesiod_resolve(void *\fIcontext\fP, const char *\fIname\fP,
+.B 	const char *\fItype\fP)
+.B void hesiod_free_list(void *\fIcontext\fP, char **\fIlist\fP);
+.B char *hesiod_to_bind(void *\fIcontext\fP, const char *\fIname\fP,
+.B 	const char *\fItype\fP)
+.B void hesiod_end(void *\fIcontext\fP)
+.PP
+.B cc file.c -lhesiod
+.fi
+.SH DESCRIPTION
+This family of functions allows you to perform lookups of Hesiod
+information, which is stored as text records in the Domain Name
+Service.  To perform lookups, you must first initialize a
+.IR context ,
+an opaque object which stores information used internally by the
+library between calls.
+.I hesiod_init
+initializes a context, storing a pointer to the context in the
+location pointed to by the
+.I context
+argument.
+.I hesiod_end
+frees the resources used by a context.
+.PP
+.I hesiod_resolve
+is the primary interface to the library.  If successful, it returns a
+list of one or more strings giving the records matching
+.I name
+and
+.IR type .
+The last element of the list is followed by a NULL pointer.  It is the
+caller's responsibility to call
+.I hesiod_free_list
+to free the resources used by the returned list.
+.PP
+.I hesiod_to_bind
+converts
+.I name
+and
+.I type
+into the DNS name used by
+.IR hesiod_resolve .
+It is the caller's responsibility to free the returned string using
+.IR free .
+.SH RETURN VALUES
+If successful,
+.I hesiod_init
+returns 0; otherwise it returns \-1 and sets
+.I errno
+to indicate the error.  On failure,
+.I hesiod_resolve
+and
+.I hesiod_to_bind
+return NULL and set the global variable
+.I errno
+to indicate the error.
+.SH ENVIRONMENT
+If the environment variable
+.B HES_DOMAIN
+is set, it will override the domain in the Hesiod configuration file.
+If the environment variable
+.B HESIOD_CONFIG
+is set, it specifies the location of the Hesiod configuration file.
+.SH SEE ALSO
+`Hesiod - Project Athena Technical Plan -- Name Service', named(8),
+hesiod.conf(5)
+.SH ERRORS
+Hesiod calls may fail because of:
+.IP ENOMEM
+Insufficient memory was available to carry out the requested
+operation.
+.IP ENOEXEC
+.I hesiod_init
+failed because the Hesiod configuration file was invalid.
+.IP ECONNREFUSED
+.I hesiod_resolve
+failed because no name server could be contacted to answer the query.
+.IP EMSGSIZE
+.I hesiod_resolve
+or
+.I hesiod_to_bind
+failed because the query or response was too big to fit into the
+packet buffers.
+.IP ENOENT
+.I hesiod_resolve
+failed because the name server had no text records matching
+.I name
+and
+.IR type ,
+or
+.I hesiod_to_bind
+failed because the
+.I name
+argument had a domain extension which could not be resolved with type
+``rhs-extension'' in the local Hesiod domain.
+.SH AUTHOR
+Steve Dyer, IBM/Project Athena
+.br
+Greg Hudson, MIT Team Athena
+.br
+Copyright 1987, 1988, 1995, 1996 by the Massachusetts Institute of Technology.
+.SH BUGS
+The strings corresponding to the
+.I errno
+values set by the Hesiod functions are not particularly indicative of
+what went wrong, especially for
+.I ENOEXEC
+and
+.IR ENOENT .

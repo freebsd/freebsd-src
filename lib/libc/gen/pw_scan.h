@@ -35,6 +35,7 @@
  *	$FreeBSD$
  */
 
-extern int	pw_big_ids_warning;
+#define _PWSCAN_MASTER 0x01
+#define _PWSCAN_WARN   0x02
 
-extern int	pw_scan __P((char *, struct passwd *));
+extern int	__pw_scan __P((char *, struct passwd *, int));

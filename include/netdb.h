@@ -240,18 +240,8 @@ void	_setnethtent __P((int));
 void	_endnethtent __P((void));
 void	_setnetdnsent __P((int));
 void	_endnetdnsent __P((void));
-struct hostent * _gethostbyhtname  __P((const char *, int));
-struct hostent * _gethostbydnsname __P((const char *, int));
 struct hostent * _gethostbynisname __P((const char *, int));
-struct hostent * _gethostbyhtaddr  __P((const char *, int, int));
-struct hostent * _gethostbydnsaddr __P((const char *, int, int));
 struct hostent * _gethostbynisaddr __P((const char *, int, int));
-struct netent *  _getnetbyhtname  __P((const char *));
-struct netent *  _getnetbydnsname __P((const char *));
-struct netent *  _getnetbynisname __P((const char *));
-struct netent *  _getnetbyhtaddr  __P((unsigned long, int));
-struct netent *  _getnetbydnsaddr __P((unsigned long, int));
-struct netent *  _getnetbynisaddr __P((unsigned long, int));
 void _map_v4v6_address __P((const char *src, char *dst));
 void _map_v4v6_hostent __P((struct hostent *hp, char **bp, int *len));
 __END_DECLS
