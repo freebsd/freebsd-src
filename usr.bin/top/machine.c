@@ -604,8 +604,8 @@ size_t len;
 	    quit(23);
     }
     if (nlen != len) {
-	    fprintf(stderr, "top: sysctl(%s...) expected %d, got %d\n", name, 
-		len, nlen);
+	    fprintf(stderr, "top: sysctl(%s...) expected %lu, got %lu\n", name,
+		(unsigned long)len, (unsigned long)nlen);
 	    quit(23);
     }
 }
