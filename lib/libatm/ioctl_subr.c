@@ -84,10 +84,8 @@ extern char	*prog;
  *	int 	length of the returned VCC information
  *
  */
-int
-do_info_ioctl(req, buf_len)
-	struct atminfreq	*req;
-	int 			buf_len;
+ssize_t
+do_info_ioctl(struct atminfreq *req, size_t buf_len)
 {
 	int	rc, s;
 	caddr_t	buf;
@@ -151,13 +149,11 @@ mem_retry:
  *	int 	length of the retuned VCC information
  *
  */
-int
-get_vcc_info(intf, vccp)
-	char			*intf;
-	struct air_vcc_rsp	**vccp;
+ssize_t
+get_vcc_info(const char *intf, struct air_vcc_rsp **vccp)
 {
-	int	buf_len = sizeof(struct air_vcc_rsp) * 100;
-	struct atminfreq	air;
+	size_t buf_len = sizeof(struct air_vcc_rsp) * 100;
+	struct atminfreq air;
 
 	/*
 	 * Initialize IOCTL request
@@ -190,9 +186,7 @@ get_vcc_info(intf, vccp)
  *
  */
 int
-get_subnet_mask(intf, mask)
-	char			*intf;
-	struct sockaddr_in	*mask;
+get_subnet_mask(const char *intf, struct sockaddr_in *mask)
 {
 	int			rc, s;
 	struct ifreq		req;
@@ -247,8 +241,7 @@ get_subnet_mask(intf, mask)
  *
  */
 int
-get_mtu(intf)
-	char	*intf;
+get_mtu(const char *intf)
 {
 	int			rc, s;
 	struct ifreq		req;
@@ -301,8 +294,7 @@ get_mtu(intf)
  *
  */
 int
-verify_nif_name(name)
-	char *name;
+verify_nif_name(const char *name)
 {
 	int	rc, s;
 	struct atminfreq	air;
@@ -371,12 +363,10 @@ verify_nif_name(name)
  *      int     length of returned Config information
  *
  */
-int
-get_cfg_info ( intf, cfgp )
-        char                    *intf;
-        struct air_cfg_rsp      **cfgp;
+ssize_t
+get_cfg_info(const char *intf, struct air_cfg_rsp **cfgp)
 {
-        int     buf_len = sizeof(struct air_cfg_rsp) * 4;
+        size_t buf_len = sizeof(struct air_cfg_rsp) * 4;
         struct atminfreq air;
 
         /*
@@ -409,12 +399,10 @@ get_cfg_info ( intf, cfgp )
  *      int     length of returned Config information
  *
  */
-int
-get_intf_info ( intf, intp )
-        char                    *intf;
-        struct air_int_rsp      **intp;
+ssize_t
+get_intf_info(const char *intf, struct air_int_rsp **intp)
 {
-        int     buf_len = sizeof(struct air_int_rsp) * 4;
+        size_t buf_len = sizeof(struct air_int_rsp) * 4;
         struct atminfreq air;
 
         /*
@@ -448,12 +436,10 @@ get_intf_info ( intf, intp )
  *      int     length of returned Netif information
  *
  */
-int
-get_netif_info ( intf, netp )
-        char                    *intf;
-        struct air_netif_rsp    **netp;
+ssize_t
+get_netif_info(const char *intf, struct air_netif_rsp **netp)
 {
-        int     buf_len = sizeof(struct air_netif_rsp) * 10;
+        size_t buf_len = sizeof(struct air_netif_rsp) * 10;
         struct atminfreq air;
 
         /*
@@ -473,5 +459,3 @@ get_netif_info ( intf, netp )
         return ( buf_len );
 
 }
-
-
