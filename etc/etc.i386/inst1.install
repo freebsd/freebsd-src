@@ -54,6 +54,11 @@ case $resp in
 	y*|Y*)
 		echo
 		echo    "Cool!  Let's get to it..."
+		echo	""
+		echo	"If a mistake is made along the way, don't bail out."
+		echo	"At the end, you have the option to redo the configuration."
+		echo	"If you really must bail out at some point, then type <CTRL>+C,"
+		echo	"and enter \`halt' at the command prompt \`#'."
 		;;
 	*)
 		echo    ""
@@ -63,6 +68,9 @@ case $resp in
 		exit
 		;;
 esac
+
+verified_install=""
+while [ "$verified_install" = "" ]; do	# Begin of Big Loop
 
 rotdelay=""
 drivename=wd0
@@ -397,15 +405,29 @@ while [ "$answer" = "" ]; do
 	echo $answer
 	case $answer in
 		Yes|yes|YES)
+			verified_install=1
 			echo    ""
 			echo    "OK!  Here we go..."
 			;;
 		No|no|NO)
-			echo    ""
-			echo    "OK, then.  enter 'halt' to halt the machine."
-			echo    "Once the machine has halted, remove the floppy,"
-			echo    "and press any key to reboot."
-			exit
+			echo ""
+			echo -n "Would you like to change the configuration? [y] "
+			read answer junk
+			if [ "$answer" = "" ]; then
+				answer=y
+			fi
+			echo $answer
+			case $answer in
+				y*|Y*)
+					;;
+				*)
+					echo    ""
+					echo    "OK, then.  enter 'halt' to halt the machine."
+					echo    "Once the machine has halted, remove the floppy,"
+					echo    "and press any key to reboot."
+					exit
+					;;
+			esac
 			;;
 		*)
 			echo "Please spell out either of \`yes' or \`no'..." 
@@ -414,6 +436,8 @@ while [ "$answer" = "" ]; do
 			;;
 	esac
 done
+
+done	# End of Big Loop
 
 echo    ""
 echo -n "Labelling disk..."
