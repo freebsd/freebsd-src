@@ -334,6 +334,7 @@ i386/isa/sound/sscape.c		optional	sscape
 i386/isa/sound/sys_timer.c	optional	snd
 i386/isa/sound/trix.c		optional	trix
 i386/isa/sound/uart6850.c	optional	uart
+i386/isa/spic.c			optional	spic
 i386/isa/spigot.c		optional	spigot
 i386/isa/spkr.c			optional	speaker
 i386/isa/stallion.c		optional	stl

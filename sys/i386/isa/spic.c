@@ -68,6 +68,7 @@
 #include <sys/malloc.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
+#include <sys/proc.h>
 
 #include <i386/isa/spicreg.h>
 
@@ -235,6 +236,7 @@ spic_probe(device_t dev)
 	if (device_get_unit(dev))
 		return ENXIO;
 
+
 	bzero(sc, sizeof(struct spic_softc));
 
 	if (!(sc->sc_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
@@ -304,7 +306,7 @@ spic_probe(device_t dev)
 	/* Enable ACPI mode to get Fn key events */
 	/* XXX This may slow down your VAIO if ACPI is not supported in the kernel.
 	outb(0xb2, 0xf0);
-	*/
+	 */
 
 	device_printf(dev,"device model type = %d\n", sc->sc_model);
 	
@@ -421,9 +423,6 @@ spictimeout(void *arg)
 			case 0x30: /* Lid switch */
 				printf("Lid switch event: %x\n",param);
 				break;
-			case 0x0c: /* We must ignore these type of event for C1VP... */
-			case 0x70: /* Closing/Opening the lid on C1VP */
-				break;
 			default:
 				printf("Unknown event: event %02x param %02x\n", event, param);
 				break;
@@ -447,7 +446,7 @@ spictimeout(void *arg)
 }
 
 static int
-spicopen(dev_t dev, int flag, int fmt, struct thread *td)
+spicopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct spic_softc *sc;
 
@@ -465,7 +464,7 @@ spicopen(dev_t dev, int flag, int fmt, struct thread *td)
 }
 
 static int
-spicclose(dev_t dev, int flag, int fmt, struct thread *td)
+spicclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct spic_softc *sc;
 
@@ -512,7 +511,7 @@ spicread(dev_t dev, struct uio *uio, int flag)
 }
 
 static int
-spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
+spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct spic_softc *sc;
 
@@ -522,9 +521,10 @@ spicioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 }
 
 static int
-spicpoll(dev_t dev, int events, struct thread *td)
+spicpoll(dev_t dev, int events, struct proc *p)
 {
 	struct spic_softc *sc;
+	struct proc *p1;
 	int revents = 0, s;
 
 	sc = devclass_get_softc(spic_devclass, 0);
@@ -532,8 +532,13 @@ spicpoll(dev_t dev, int events, struct thread *td)
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (sc->sc_count)
 			revents |= events & (POLLIN | POLLRDNORM);
-		else
-			selrecord(td, &sc->sc_rsel); /* Who shall we wake? */
+		else {
+			if (sc->sc_rsel.si_pid && (p1=pfind(sc->sc_rsel.si_pid))
+					&& p1->p_wchan == (caddr_t)&selwait)
+				sc->sc_rsel.si_flags = SI_COLL;
+			else
+				sc->sc_rsel.si_pid = p->p_pid;
+		}
 	}
 	splx(s);
 
