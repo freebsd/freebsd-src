@@ -709,7 +709,8 @@ acpi_cpu_startup_cx()
     SYSCTL_ADD_PROC(&acpi_cpu_sysctl_ctx,
 		    SYSCTL_CHILDREN(acpi_cpu_sysctl_tree),
 		    OID_AUTO, "cx_history", CTLTYPE_STRING | CTLFLAG_RD,
-		    NULL, 0, acpi_cpu_history_sysctl, "A", "");
+		    NULL, 0, acpi_cpu_history_sysctl, "A",
+		    "count of full sleeps for Cx state / short sleeps");
 
 #ifdef notyet
     /* Signal platform that we can handle _CST notification. */
