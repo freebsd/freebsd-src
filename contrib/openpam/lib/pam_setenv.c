@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_setenv.c#8 $
+ * $P4: //depot/projects/openpam/lib/pam_setenv.c#12 $
  */
 
 #include <stdlib.h>
@@ -67,15 +67,14 @@ pam_setenv(pam_handle_t *pamh,
 		RETURNC(PAM_SYSTEM_ERR);
 
 	/* is it already there? */
-	if (!overwrite && openpam_findenv(pamh, name, strlen(name)) != -1)
+	if (!overwrite && openpam_findenv(pamh, name, strlen(name)) >= 0)
 		RETURNC(PAM_SUCCESS);
 
 	/* set it... */
-	if ((env = malloc(strlen(name) + strlen(value) + 2)) == NULL)
+	if (asprintf(&env, "%s=%s", name, value) < 0)
 		RETURNC(PAM_BUF_ERR);
-	sprintf(env, "%s=%s", name, value);
 	r = pam_putenv(pamh, env);
-	free(env);
+	FREE(env);
 	RETURNC(r);
 }
 

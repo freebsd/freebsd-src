@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_getenv.c#13 $
+ * $P4: //depot/projects/openpam/lib/pam_getenv.c#16 $
  */
 
 #include <stdlib.h>
@@ -60,7 +60,7 @@ pam_getenv(pam_handle_t *pamh,
 		RETURNS(NULL);
 	if (name == NULL || strchr(name, '=') != NULL)
 		RETURNS(NULL);
-	if ((i = openpam_findenv(pamh, name, strlen(name))) == -1)
+	if ((i = openpam_findenv(pamh, name, strlen(name))) < 0)
 		RETURNS(NULL);
 	for (str = pamh->env[i]; *str != '\0'; ++str) {
 		if (*str == '=') {

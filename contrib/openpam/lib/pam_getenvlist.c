@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_getenvlist.c#10 $
+ * $P4: //depot/projects/openpam/lib/pam_getenvlist.c#12 $
  */
 
 #include <stdlib.h>
@@ -66,8 +66,8 @@ pam_getenvlist(pam_handle_t *pamh)
 	for (i = 0; i < pamh->env_count; ++i) {
 		if ((envlist[i] = strdup(pamh->env[i])) == NULL) {
 			while (i)
-				free(envlist[--i]);
-			free(envlist);
+				FREE(envlist[--i]);
+			FREE(envlist);
 			openpam_log(PAM_LOG_ERROR, "%s",
 				pam_strerror(pamh, PAM_BUF_ERR));
 			RETURNP(NULL);

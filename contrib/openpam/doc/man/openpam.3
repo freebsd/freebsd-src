@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -33,7 +33,7 @@
 .\"
 .\" $P4$
 .\"
-.Dd May 2, 2003
+.Dd June 1, 2003
 .Dt OPENPAM 3
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Nm openpam_get_option ,
 .Nm openpam_log ,
 .Nm openpam_nullconv ,
+.Nm openpam_readline ,
 .Nm openpam_restore_cred ,
 .Nm openpam_set_option ,
 .Nm openpam_ttyconv ,
@@ -68,6 +69,8 @@
 .Fn openpam_log "int level" "const char *fmt" "..."
 .Ft int
 .Fn openpam_nullconv "int n" "const struct pam_message **msg" "struct pam_response **resp" "void *data"
+.Ft char *
+.Fn openpam_readline "FILE *f" "int *lineno" "size_t *lenp"
 .Ft int
 .Fn openpam_restore_cred "pam_handle_t *pamh"
 .Ft int
@@ -108,6 +111,7 @@ standardization.
 .Xr openpam_get_option 3 ,
 .Xr openpam_log 3 ,
 .Xr openpam_nullconv 3 ,
+.Xr openpam_readline 3 ,
 .Xr openpam_restore_cred 3 ,
 .Xr openpam_set_option 3 ,
 .Xr openpam_ttyconv 3 ,
