@@ -985,27 +985,33 @@ if_link_state_change(struct ifnet *ifp, int link_state)
 {
 	int link;
 
+	/* Return if state hasn't changed. */
+	if (ifp->if_link_state == link_state)
+		return;
+
+	ifp->if_link_state = link_state;
+
 	/* Notify that the link state has changed. */
-	if (ifp->if_link_state != link_state) {
-		ifp->if_link_state = link_state;
-		rt_ifmsg(ifp);
-		if (link_state == LINK_STATE_UP)
-			link = NOTE_LINKUP;
-		else if (link_state == LINK_STATE_DOWN)
-			link = NOTE_LINKDOWN;
-		else
-			link = NOTE_LINKINV;
-		KNOTE_UNLOCKED(&ifp->if_klist, link);
-		if (ifp->if_nvlans != 0)
-			(*vlan_link_state_p)(ifp, link);
+	rt_ifmsg(ifp);
+	if (link_state == LINK_STATE_UP)
+		link = NOTE_LINKUP;
+	else if (link_state == LINK_STATE_DOWN)
+		link = NOTE_LINKDOWN;
+	else
+		link = NOTE_LINKINV;
+	KNOTE_UNLOCKED(&ifp->if_klist, link);
+	if (ifp->if_nvlans != 0)
+		(*vlan_link_state_p)(ifp, link);
 
-		if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
-		    IFP2AC(ifp)->ac_netgraph != NULL)
-			(*ng_ether_link_state_p)(ifp, link_state);
-
-		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
-		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
-	}
+	if ((ifp->if_type == IFT_ETHER || ifp->if_type == IFT_L2VLAN) &&
+	    IFP2AC(ifp)->ac_netgraph != NULL)
+		(*ng_ether_link_state_p)(ifp, link_state);
+#ifdef DEV_CARP
+	if (ifp->if_carp)
+		carp_carpdev_state(ifp->if_carp);
+#endif
+	log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
+	    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
 }
 
 /*
