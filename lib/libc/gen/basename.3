@@ -42,19 +42,19 @@ The
 .Fn basename
 function
 returns the last component from the pathname pointed to by
-.Ar path ,
+.Fa path ,
 deleting any trailing
 .Sq \&/
 characters.
 If
-.Ar path
+.Fa path
 consists entirely of
 .Sq \&/
 characters, a pointer to the string
 .Qq \&/
 is returned.
 If
-.Ar path
+.Fa path
 is a null pointer or the empty string, a pointer to the string
 .Qq \&.
 is returned.
@@ -62,7 +62,7 @@ is returned.
 On successful completion,
 .Fn basename
 returns a pointer to the last component of
-.Ar path .
+.Fa path .
 .Pp
 If
 .Fn basename

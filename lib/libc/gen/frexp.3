@@ -54,24 +54,24 @@ The
 function breaks a floating-point number into a normalized
 fraction and an integral power of 2.
 It stores the integer in the
-.Em int
+.Vt int
 object pointed to by
 .Fa exp .
 .Sh RETURN VALUES
 The
 .Fn frexp
 function returns the value
-.Em x ,
+.Va x ,
 such that
-.Em x
+.Va x
 is a
-.Em double
+.Vt double
 with magnitude in the interval
 .Bo 1/2 , 1 Pc
 or zero, and
 .Fa value
 equals
-.Em x
+.Va x
 times 2 raised to the power
 .Fa *exp .
 If

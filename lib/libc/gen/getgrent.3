@@ -69,7 +69,7 @@ which is described
 in
 .Xr group 5 .
 Each line of the database is defined by the structure
-.Ar group
+.Vt group
 found in the include
 file
 .Aq Pa grp.h :
@@ -87,9 +87,9 @@ The functions
 and
 .Fn getgrgid
 search the group database for the given group name pointed to by
-.Ar name
+.Fa name
 or the group id pointed to by
-.Ar gid ,
+.Fa gid ,
 respectively, returning the first one encountered.  Identical group
 names or group gids may result in undefined behavior.
 .Pp

@@ -54,28 +54,28 @@ The
 system call grafts
 a file system object onto the system file tree
 at the point
-.Ar dir .
+.Fa dir .
 The argument
-.Ar data
+.Fa data
 describes the file system object to be mounted.
 The argument
-.Ar type
+.Fa type
 tells the kernel how to interpret
-.Ar data
+.Fa data
 (See
-.Ar type
+.Fa type
 below).
 The contents of the file system
 become available through the new mount point
-.Ar dir .
+.Fa dir .
 Any files in
-.Ar dir
+.Fa dir
 at the time
 of a successful mount are swept under the carpet so to speak, and
 are unavailable until the file system is unmounted.
 .Pp
 The following
-.Ar flags
+.Fa flags
 may be specified to
 suppress default semantics which affect file system access.
 .Bl -tag -width MNT_SYNCHRONOUS
@@ -188,10 +188,10 @@ A component of
 does not exist.
 .It Bq Er ENOTDIR
 A component of
-.Ar name
+.Fa name
 is not a directory,
 or a path prefix of
-.Ar special
+.Fa special
 is not a directory.
 .It Bq Er EBUSY
 Another process currently holds a reference to
@@ -207,18 +207,18 @@ file system mount:
 .Bl -tag -width Er
 .It Bq Er ENODEV
 A component of ufs_args
-.Ar fspec
+.Fa fspec
 does not exist.
 .It Bq Er ENOTBLK
-.Ar Fspec
+.Fa fspec
 is not a block device.
 .It Bq Er ENXIO
 The major device number of
-.Ar fspec
+.Fa fspec
 is out of range (this indicates no device driver exists
 for the associated hardware).
 .It Bq Er EBUSY
-.Ar Fspec
+.Fa fspec
 is already mounted.
 .It Bq Er EMFILE
 No space remains in the mount table.
@@ -232,7 +232,7 @@ group information for the file system.
 An I/O error occurred while reading the super block or
 cylinder group information.
 .It Bq Er EFAULT
-.Ar Fspec
+.Fa fspec
 points outside the process's allocated address space.
 .El
 .Pp

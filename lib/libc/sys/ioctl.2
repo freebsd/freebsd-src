@@ -61,15 +61,15 @@ must be an open file descriptor.
 The third argument to
 .Fn ioctl
 is traditionally named
-.Ar "char *argp" .
+.Va "char *argp" .
 Most uses of
 .Fn ioctl
 in
 .Fx 3.0
 however, require the third argument to be a
-.Ar caddr_t
+.Vt caddr_t
 or an
-.Ar int .
+.Vt int .
 .Pp
 An
 .Fn ioctl
