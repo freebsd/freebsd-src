@@ -1737,6 +1737,8 @@ LcpEchoCheck (f)
     fsm *f;
 {
     LcpSendEchoRequest (f);
+    if (f->state != OPENED)
+	    return;
 
     /*
      * Start the timer for the next interval.
