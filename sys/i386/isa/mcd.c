@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.45 1995/08/15 19:56:59 joerg Exp $
+ *	$Id: mcd.c,v 1.46 1995/09/08 11:07:48 bde Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -169,10 +169,11 @@ int	mcdclose(dev_t dev, int flags, int fmt, struct proc *p);
 void	mcdstrategy(struct buf *bp);
 int	mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p);
 int	mcdsize(dev_t dev);
-static	void	mcd_done(struct mcd_mbx *mbx);
 static	void	mcd_start(int unit);
 static	int	mcd_getdisklabel(int unit);
+#ifdef NOTYET
 static	void	mcd_configure(struct mcd_data *cd);
+#endif
 static	int	mcd_get(int unit, char *buf, int nmax);
 static  int     mcd_setflags(int unit,struct mcd_data *cd);
 static	int	mcd_getstat(int unit,int sflg);
@@ -203,8 +204,8 @@ static  int     mcd_lock_door(int unit, int lock);
 static  int     mcd_close_tray(int unit);
 
 extern	int	hz;
-extern	int	mcd_probe(struct isa_device *dev);
-extern	int	mcd_attach(struct isa_device *dev);
+static	int	mcd_probe(struct isa_device *dev);
+static	int	mcd_attach(struct isa_device *dev);
 struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 
 #define mcd_put(port,byte)	outb(port,byte)
@@ -248,7 +249,6 @@ mcd_registerdev(struct isa_device *id)
 int mcd_attach(struct isa_device *dev)
 {
 	struct mcd_data *cd = mcd_data + dev->id_unit;
-	int i;
 
 	cd->iobase = dev->id_iobase;
 	cd->flags |= MCDINIT;
@@ -449,7 +449,6 @@ static void mcd_start(int unit)
 	struct mcd_data *cd = mcd_data + unit;
 	struct buf *bp, *qp = &cd->head;
 	struct partition *p;
-	int part;
 	register s = splbio();
 
 	if (cd->flags & MCDMBXBSY) {
@@ -679,11 +678,13 @@ drqs[] = {
 };
 #endif
 
+#ifdef NOT_YET
 static void
 mcd_configure(struct mcd_data *cd)
 {
 	outb(cd->iobase+mcd_config,cd->config);
 }
+#endif
 
 /* Wait for non-busy - return 0 on timeout */
 static int
@@ -707,7 +708,6 @@ mcd_probe(struct isa_device *dev)
 	int port = dev->id_iobase;
 	int unit = dev->id_unit;
 	int i, j;
-	int status;
 	unsigned char stbytes[3];
 
 	mcd_registerdev(dev);
@@ -796,7 +796,6 @@ mcd_waitrdy(int port,int dly)
 static int
 mcd_getreply(int unit,int dly)
 {
-	int	i;
 	struct	mcd_data *cd = mcd_data + unit;
 	int	port = cd->iobase;
 
@@ -854,7 +853,6 @@ mcd_setflags(int unit, struct mcd_data *cd)
 static int
 mcd_get(int unit, char *buf, int nmax)
 {
-	int port = mcd_data[unit].iobase;
 	int i,k;
 
 	for (i=0; i<nmax; i++) {
@@ -926,7 +924,6 @@ static int
 mcd_volinfo(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
-	int i;
 
 	/* Just return if we already have it */
 	if (cd->flags & MCDVOLINFO) return 0;

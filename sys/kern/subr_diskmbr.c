@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.15 1995/08/23 10:41:57 jkh Exp $
+ *	$Id: diskslice_machdep.c,v 1.16 1995/08/23 11:43:45 jkh Exp $
  */
 
 #include <stddef.h>
@@ -167,7 +167,6 @@ dsinit(dname, dev, strat, lp, sspp)
 	u_long	mbr_offset;
 	char	partname[2];
 	u_long	secpercyl;
-	int	slice;
 	char	*sname;
 	struct diskslice *sp;
 	struct diskslices *ssp;
@@ -369,7 +368,6 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	u_char	*cp;
 	int	dospart;
 	struct dos_partition *dp;
-	int	end_slice;
 	u_long	ext_offsets[NDOSPART];
 	u_long	ext_sizes[NDOSPART];
 	char	partname[2];

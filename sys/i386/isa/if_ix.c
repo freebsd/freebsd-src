@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.10 1995/10/13 19:47:48 wollman Exp $
+ *	$Id: if_ix.c,v 1.11 1995/10/26 20:29:45 julian Exp $
  */
 
 #include "ix.h"
@@ -189,7 +189,6 @@ static inline void
 ix_registerdev(struct isa_device *id, const char *descr)
 {
 	struct kern_devconf *kdc = &ix_softc[id->id_unit].kdc;
-	char *longdescr;
 	*kdc = kdc_ix_template;
 	kdc->kdc_unit = id->id_unit;
 	kdc->kdc_parentdata = id;
@@ -1501,7 +1500,6 @@ ixioctl(struct ifnet *ifp, int cmd, caddr_t data) {
 	int	unit = ifp->if_unit;
 	int	status = 0;
 	int	s;
-	ix_softc_t	*sc = &ix_softc[unit];
 
 	DEBUGBEGIN(DEBUGIOCTL)
 	DEBUGDO(printf("ixioctl:");)

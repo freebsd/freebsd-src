@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.36 1995/08/23 23:02:24 gibbs Exp $
+ *      $Id: aha1742.c,v 1.37 1995/09/19 18:55:06 bde Exp $
  */
 
 #include <sys/types.h>
@@ -262,24 +262,24 @@ struct ahb_data {
 	int     numecbs;
 }      *ahbdata[NAHB];
 
-int     ahbprobe();
-int	ahbprobe1 __P((struct isa_device *dev));
-int     ahb_attach();
-int	ahb_init __P((int unit));
-inthand2_t ahbintr;
-int32   ahb_scsi_cmd();
-timeout_t ahb_timeout;
-void	ahb_done();
-static	struct	ecb *cheat;
-void	ahb_free_ecb();
-void    ahbminphys();
-struct	ecb *ahb_ecb_phys_kv();
-u_int32 ahb_adapter_info();
+static int		ahbprobe();
+static int		ahbprobe1 __P((struct isa_device *dev));
+static int		ahb_attach();
+static int 		ahb_init __P((int unit));
+inthand2_t		ahbintr;
+static int32		ahb_scsi_cmd();
+static timeout_t	ahb_timeout;
+static void		ahb_done();
+static struct ecb	*cheat;
+static void		ahb_free_ecb();
+static void		ahbminphys();
+static struct		ecb *ahb_ecb_phys_kv();
+static u_int32		ahb_adapter_info();
 
 #define	EISA_MAX_SLOTS	16	/* XXX This should go into a comon header */
-static  ahb_slot = 0;		/* slot last board was found in */
-static  ahb_unit = 0;
-int     ahb_debug = 0;
+static  int		ahb_slot = 0;	/* slot last board was found in */
+static  int		ahb_unit = 0;
+static 	int		ahb_debug = 0;
 #define AHB_SHOWECBS 0x01
 #define AHB_SHOWINTS 0x02
 #define AHB_SHOWCMDS 0x04
@@ -296,7 +296,7 @@ struct isa_driver ahbdriver =
 	"ahb"
 };
 
-struct scsi_adapter ahb_switch =
+static struct scsi_adapter ahb_switch =
 {
 	ahb_scsi_cmd,
 	ahbminphys,
@@ -308,7 +308,7 @@ struct scsi_adapter ahb_switch =
 };
 
 /* the below structure is so we have a default dev struct for our link struct */
-struct scsi_device ahb_dev =
+static struct scsi_device ahb_dev =
 {
     NULL,			/* Use default error handler */
     NULL,			/* have a queue, served by this */
@@ -354,7 +354,7 @@ main()
 /*
  * Function to send a command out through a mailbox
  */
-void
+static void
 ahb_send_mbox(int unit, int opcode, int target, struct ecb *ecb)
 {
 	int     port = ahbdata[unit]->baseport;
@@ -382,7 +382,7 @@ ahb_send_mbox(int unit, int opcode, int target, struct ecb *ecb)
 /*
  * Function to poll for command completion when in poll mode
  */
-int
+static int
 ahb_poll(int unit, int wait)
 {				/* in msec  */
 	struct ahb_data *ahb = ahbdata[unit];
@@ -412,7 +412,7 @@ ahb_poll(int unit, int wait)
 /*
  * Function to  send an immediate type command to the adapter
  */
-void
+static void
 ahb_send_immed(int unit, int target, u_long cmd)
 {
 	int     port = ahbdata[unit]->baseport;
@@ -441,7 +441,7 @@ ahb_send_immed(int unit, int target, u_long cmd)
  * If we find one, note it's address (slot) and call
  * the actual probe routine to check it out.
  */
-int
+static int
 ahbprobe(dev)
 	struct isa_device *dev;
 {
@@ -476,7 +476,7 @@ ahbprobe(dev)
  * as an argument, takes the isa_device structure from
  * autoconf.c.
  */
-int
+static int
 ahbprobe1(dev)
 	struct isa_device *dev;
 {
@@ -533,7 +533,7 @@ ahbprobe1(dev)
 /*
  * Attach all the sub-devices we can find
  */
-int
+static int
 ahb_attach(dev)
 	struct isa_device *dev;
 {
@@ -571,7 +571,7 @@ ahb_attach(dev)
  * Return some information to the caller about
  * the adapter and it's capabilities
  */
-u_int32
+static u_int32
 ahb_adapter_info(unit)
 	int     unit;
 {
@@ -669,7 +669,7 @@ ahbintr(unit)
  * adaptor, now we look to see how the operation
  * went.
  */
-void
+static void
 ahb_done(unit, ecb, state)
 	int    unit, state;
 	struct ecb *ecb;
@@ -753,7 +753,7 @@ done:	xs->flags |= ITSDONE;
  * A ecb (and hence a mbx-out is put onto the
  * free list.
  */
-void
+static void
 ahb_free_ecb(unit, ecb, flags)
 	int	unit, flags;
 	struct	ecb *ecb;
@@ -784,7 +784,7 @@ ahb_free_ecb(unit, ecb, flags)
  * new one. If so, put it in the hash table too
  * otherwise either return an error or sleep
  */
-struct ecb *
+static struct ecb *
 ahb_get_ecb(unit, flags)
 	int	unit, flags;
 {
@@ -840,7 +840,7 @@ gottit:	if (!(flags & SCSI_NOMASK))
  * given a physical address, find the ecb that
  * it corresponds to:
  */
-struct ecb *
+static struct ecb *
 ahb_ecb_phys_kv(ahb, ecb_phys)
 	struct ahb_data *ahb;
 	physaddr ecb_phys;
@@ -859,7 +859,7 @@ ahb_ecb_phys_kv(ahb, ecb_phys)
 /*
  * Start the board, ready for normal operation
  */
-int
+static int
 ahb_init(unit)
 	int     unit;
 {
@@ -955,7 +955,7 @@ ahb_init(unit)
 #define min(x,y) (x < y ? x : y)
 #endif	/* min */
 
-void
+static void
 ahbminphys(bp)
 	struct buf *bp;
 {
@@ -969,7 +969,7 @@ ahbminphys(bp)
  * the data address. Also needs the unit, target
  * and lu
  */
-int32
+static int32
 ahb_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1181,7 +1181,7 @@ ahb_scsi_cmd(xs)
 	return (COMPLETE);
 }
 
-void
+static void
 ahb_timeout(void *arg1)
 {
 	struct ecb * ecb = (struct ecb *)arg1;
@@ -1236,7 +1236,7 @@ ahb_timeout(void *arg1)
 }
 
 #ifdef	AHBDEBUG
-void
+static void
 ahb_print_ecb(ecb)
 	struct ecb *ecb;
 {
@@ -1253,7 +1253,7 @@ ahb_print_ecb(ecb)
 	show_scsi_cmd(ecb->xs);
 }
 
-void
+static void
 ahb_print_active_ecb(int unit)
 {
 	struct ahb_data *ahb = ahbdata[unit];

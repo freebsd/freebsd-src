@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.6 1995/09/08 11:07:55 bde Exp $ */
+/* $Id: scd.c,v 1.7 1995/09/19 18:55:15 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -100,7 +100,7 @@
 #define	SCDBLKSIZE	2048
 
 #ifdef SCD_DEBUG
-   int scd_debuglevel = SCD_DEBUG;
+   static int scd_debuglevel = SCD_DEBUG;
 #  define XDEBUG(level, data) {if (scd_debuglevel >= level) printf data;}
 #else
 #  define XDEBUG(level, data)
@@ -118,7 +118,7 @@ struct scd_mbx {
 	short		count;
 };
 
-struct scd_data {
+static struct scd_data {
 	int	iobase;
 	char	double_speed;
 	char	*name;
@@ -156,7 +156,6 @@ static	int	msf2hsg(bcd_t *msf);
 static void process_attention(unsigned unit);
 static inline void write_control(unsigned port, unsigned data);
 static int waitfor_status_bits(int unit, int bits_set, int bits_clear);
-static int waitfor_attention(int unit);
 static int send_cmd(u_int unit, u_char cmd, u_int nargs, ...);
 static void init_drive(unsigned unit);
 static int spin_up(unsigned unit);
@@ -184,8 +183,8 @@ static int scd_toc_entrys(int unit, struct ioc_read_toc_entry *te);
 
 extern	int	hz;
 
-int	scd_probe(struct isa_device *dev);
-int	scd_attach(struct isa_device *dev);
+static int	scd_probe(struct isa_device *dev);
+static int	scd_attach(struct isa_device *dev);
 struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
 
 static struct kern_devconf kdc_scd[NSCD] = { {
@@ -212,7 +211,6 @@ scd_registerdev(struct isa_device *id)
 int scd_attach(struct isa_device *dev)
 {
 	struct scd_data *cd = scd_data + dev->id_unit;
-	int i;
 
 	cd->iobase = dev->id_iobase;	/* Already set by probe, but ... */
 
@@ -287,8 +285,6 @@ scdclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
 	int unit,part,phys;
 	struct scd_data *cd;
-	int rlen;
-	char rdata[10];
 
 	unit = scd_unit(dev);
 	if (unit >= NSCD)
@@ -386,7 +382,6 @@ scd_start(int unit)
 	struct scd_data *cd = scd_data + unit;
 	struct buf *bp, *qp = &cd->head;
 	struct partition *p;
-	int part;
 	register s = splbio();
 
 	if (cd->flags & SCDMBXBSY) {
@@ -511,7 +506,7 @@ scd_playtracks(int unit, struct ioc_play_track *pt)
 	struct ioc_play_msf msf;
 	int a = pt->start_track;
 	int z = pt->end_track;
-	int rc, i;
+	int rc;
 
 	if (!(cd->flags & SCDTOC) && (rc = read_toc(unit)) != 0) {
 		if (rc == -ERR_NOT_SPINNING) {
@@ -638,7 +633,6 @@ static int
 scd_eject(int unit)
 {
 	struct scd_data *cd = scd_data + unit;
-	int port = cd->iobase;
 
 	cd->audio_status = CD_AS_AUDIO_INVALID;
 	cd->flags &= ~(SCDSPINNING|SCDTOC);
@@ -794,10 +788,9 @@ scd_doread(int state, struct scd_mbx *mbxin)
 	int	port = mbx->port;
 	struct	buf *bp = mbx->bp;
 	struct	scd_data *cd = scd_data + unit;
-	int	reg,i,k,c;
+	int	reg,i;
 	int	blknum;
 	caddr_t	addr;
-	char	rdata[10];
 	static char sdata[3];	/* Must be preserved between calls to this function */
 
 loop:
@@ -836,7 +829,6 @@ trystat:
 
 		mbx->sz = cd->blksize;
 
-firstblock:
 		/* for first block */
 		mbx->nblk = (bp->b_bcount + (mbx->sz-1)) / mbx->sz;
 		mbx->skip = 0;
@@ -1093,7 +1085,6 @@ process_attention(unsigned unit)
 	unsigned port = scd_data[unit].iobase;
 	unsigned char code;
 	int count = 0;
-	int i;
 
 	while (IS_ATTENTION(port) && count++ < 30) {
 		write_control(port, CBIT_ATTENTION_CLEAR);
@@ -1314,7 +1305,6 @@ get_result(u_int unit, int result_len, u_char *result)
 {
 	unsigned int port = scd_data[unit].iobase;
 	unsigned int res_reg = port + IREG_RESULT;
-	unsigned char c;
 	int loop_index = 2; /* send_cmd() reads two bytes ... */
 
 	XDEBUG(1, ("scd%d: DEBUG: get_result: bytes=%d\n", unit, result_len));
@@ -1375,7 +1365,8 @@ send_cmd(u_int unit, u_char cmd, u_int nargs, ...)
 
 	outb(port+OREG_COMMAND, cmd);
 
-	if (rc = waitfor_status_bits(unit, SBIT_RESULT_READY, SBIT_BUSY))
+	rc = waitfor_status_bits(unit, SBIT_RESULT_READY, SBIT_BUSY);
+	if (rc)
 		return -0x100;
 
 	reg = port + IREG_RESULT;

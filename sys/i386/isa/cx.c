@@ -485,7 +485,6 @@ void cxout (cx_chan_t *c, char b)
 	unsigned char *buf, *p, sym;
 	unsigned short port = c->chip->port, len = 0, cnt_port, sts_port;
 	struct tty *tp = c->ttyp;
-	int i;
 
 	if (! tp)
 		return;

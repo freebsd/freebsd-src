@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.31 1995/10/13 19:47:44 wollman Exp $
+ *  $Id: if_ep.c,v 1.32 1995/10/26 20:29:37 julian Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -309,7 +309,6 @@ epprobe(is)
 {
     struct ep_softc *sc = &ep_softc[is->id_unit];
     u_short k;
-    int i;
 
     ep_registerdev(is);
 
@@ -778,11 +777,8 @@ void
 epintr(unit)
     int unit;
 {
-    int i;
     register int status;
     register struct ep_softc *sc = &ep_softc[unit];
-    struct ifnet *ifp = &sc->arpcom.ac_if;
-    struct mbuf *m;
     int x;
 
     x=splbio();

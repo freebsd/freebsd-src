@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.10 1995/08/23 23:02:25 gibbs Exp $
+ * $Id: aic6360.c,v 1.11 1995/09/19 18:55:07 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -796,7 +796,6 @@ aicprobe(parent, self, aux)
 	struct aic_softc *aic = (void *)self;
 	struct isa_attach_args *ia = aux;
 #endif
-	int i, len, ic;
 
 #ifdef __FreeBSD__
 	if (unit >= NAIC) {
@@ -875,7 +874,6 @@ aic_find(aic)
 {
 	u_short iobase = aic->iobase;
 	char chip_id[sizeof(IDSTRING)];	/* For chips that support it */
-	char *start;
 	int i;
 
 	/* Remove aic6360 from possible powerdown mode */
@@ -1172,7 +1170,6 @@ aic_scsi_cmd(xs)
 	struct acb 	*acb;
 	int s = 0;
 	int flags;
-	u_short iobase = aic->iobase;
 
 	SC_DEBUG(sc, SDEV_DB2, ("aic_scsi_cmd\n"));
 	AIC_TRACE(("aic_scsi_cmd\n"));
@@ -1363,11 +1360,10 @@ aic_sched(aic)
 	register struct aic_softc *aic;
 #endif
 {
-	struct scsi_xfer *xs;
 	struct scsi_link *sc;
 	struct acb *acb;
 	u_short iobase = aic->iobase;
-	int t, l;
+	int t;
 	u_char simode0, simode1, scsiseq;
 
 	AIC_TRACE(("aic_sched\n"));
@@ -1427,8 +1423,6 @@ aic_done(acb)
 #else
 	struct aic_softc *aic = sc->adapter_softc;
 #endif
-	u_short iobase = aic->iobase;
-	struct acb *acb2;
 
 	AIC_TRACE(("aic_done "));
 
@@ -1853,7 +1847,6 @@ aic_msgout(aic)
 	register u_short iobase = aic->iobase;
 	struct aic_tinfo *ti;
 	struct acb *acb;
-	u_char dmastat, scsisig;
 
 	/* First determine what to send. If we haven't seen a
 	 * phasechange this is a retransmission request.
@@ -1964,7 +1957,6 @@ aic_dataout(aic)
 {
 	register u_short iobase = aic->iobase;
 	register u_char dmastat;
-	struct acb *acb = aic->nexus;
 	int amount, olddleft = aic->dleft;
 #define DOUTAMOUNT 128		/* Full FIFO */
 
@@ -2085,8 +2077,7 @@ aic_datain(aic)
 {
 	register u_short iobase = aic->iobase;
 	register u_char dmastat;
-	struct acb *acb = aic->nexus;
-	int amount, olddleft = aic->dleft;
+	int olddleft = aic->dleft;
 #define DINAMOUNT 128		/* Default amount of data to transfer */
 
 	/* Enable DATA IN transfers */
@@ -2222,9 +2213,7 @@ aicintr(aic)
 	register struct scsi_link *sc;
 	register u_short iobase = aic->iobase;
 	struct aic_tinfo *ti;
-	int done, amount;
-	u_char sstat0, sstat1, scsisig, dmastat, sstat2;
-	u_char scsiseq, simode0, simode1, sxfrctl0;
+	u_char sstat0, sstat1,  sstat2, sxfrctl0;
 
 
 	LOGLINE(aic);

@@ -13,7 +13,7 @@
  *   the SMC Elite Ultra (8216), the 3Com 3c503, the NE1000 and NE2000,
  *   and a variety of similar clones.
  *
- * $Id: if_ed.c,v 1.79 1995/10/21 00:55:23 phk Exp $
+ * $Id: if_ed.c,v 1.80 1995/10/26 20:29:27 julian Exp $
  */
 
 #include "ed.h"
@@ -307,7 +307,6 @@ static inline void
 ed_registerdev(struct isa_device *id, const char *descr)
 {
 	struct kern_devconf *kdc = &ed_softc[id->id_unit].kdc;
-	char *longdescr;
 	*kdc = kdc_ed_template;
 	kdc->kdc_unit = id->id_unit;
 	kdc->kdc_parentdata = id;
@@ -1289,7 +1288,7 @@ ed_probe_pccard(isa_dev, ether)
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
 	int     i;
 	u_int   memsize;
-	u_char  iptr, isa16bit, sum;
+	u_char  isa16bit;
 
 	sc->nic_addr = isa_dev->id_iobase; 
 	sc->gone = 0;
