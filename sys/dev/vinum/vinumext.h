@@ -46,8 +46,8 @@ extern int debug;					    /* debug flags */
 #endif
 
 /* Physical read and write drive */
-#define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
-#define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
+#define read_drive(a, b, c, d) driveio (a, b, c, d, BIO_READ)
+#define write_drive(a, b, c, d) driveio (a, b, c, d, BIO_WRITE)
 
 #define CHECKALLOC(ptr, msg) \
   if (ptr == NULL) \

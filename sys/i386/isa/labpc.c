@@ -992,7 +992,7 @@ labpcstrategy(struct buf *bp)
 	struct ctlr *ctlr = labpcs[UNIT(bp->b_dev)];
 
 	if (DIGITAL(bp->b_dev)) {
-		if (bp->b_flags & B_READ) {
+		if (bp->b_iocmd == BIO_READ) {
 			ctlr->starter = null_start;
 			ctlr->stop = all_stop;
 			ctlr->intr = null_intr;
@@ -1007,7 +1007,7 @@ labpcstrategy(struct buf *bp)
 		}
 	}
 	else {
-		if (bp->b_flags & B_READ) {
+		if (bp->b_iocmd == BIO_READ) {
 
 			ctlr->starter = INTERVAL(ctlr->dev) ? ad_interval_start : ad_start;
 			ctlr->stop = all_stop;

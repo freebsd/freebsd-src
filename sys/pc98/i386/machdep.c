@@ -2656,7 +2656,7 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
 #if LABELSECTOR != 0
             bp->b_blkno + p->p_offset + sz > LABELSECTOR + labelsect &&
 #endif
-            (bp->b_flags & B_READ) == 0 && wlabel == 0) {
+            (bp->b_iocmd == BIO_WRITE) && wlabel == 0) {
                 bp->b_error = EROFS;
                 goto bad;
         }
@@ -2664,7 +2664,7 @@ bounds_check_with_label(struct buf *bp, struct disklabel *lp, int wlabel)
 #if     defined(DOSBBSECTOR) && defined(notyet)
         /* overwriting master boot record? */
         if (bp->b_blkno + p->p_offset <= DOSBBSECTOR &&
-            (bp->b_flags & B_READ) == 0 && wlabel == 0) {
+            (bp->b_iocmd == BIO_WRITE) && wlabel == 0) {
                 bp->b_error = EROFS;
                 goto bad;
         }

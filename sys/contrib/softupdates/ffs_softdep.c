@@ -2780,7 +2780,7 @@ softdep_disk_io_initiation(bp)
 	 * We only care about write operations. There should never
 	 * be dependencies for reads.
 	 */
-	if (bp->b_flags & B_READ)
+	if (bp->b_iocmd == BIO_READ)
 		panic("softdep_disk_io_initiation: read");
 	/*
 	 * Do any necessary pre-I/O processing.

@@ -556,7 +556,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		}
 
 		if (dirs[i] & CAM_DIR_OUT) {
-			flags[i] = B_WRITE;
+			flags[i] = BIO_WRITE;
 			if (!useracc(*data_ptrs[i], lengths[i], 
 				     VM_PROT_READ)) {
 				printf("cam_periph_mapmem: error, "
@@ -568,12 +568,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 			}
 		}
 
-		/*
-		 * XXX this check is really bogus, since B_WRITE currently
-		 * is all 0's, and so it is "set" all the time.
-		 */
 		if (dirs[i] & CAM_DIR_IN) {
-			flags[i] |= B_READ;
+			flags[i] = BIO_READ;
 			if (!useracc(*data_ptrs[i], lengths[i], 
 				     VM_PROT_WRITE)) {
 				printf("cam_periph_mapmem: error, "
@@ -610,7 +606,10 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		mapinfo->bp[i]->b_bufsize = lengths[i];
 
 		/* set the flags */
-		mapinfo->bp[i]->b_flags = flags[i] | B_PHYS;
+		mapinfo->bp[i]->b_flags = B_PHYS;
+
+		/* set the direction */
+		mapinfo->bp[i]->b_iocmd = flags[i];
 
 		/* map the buffer into kernel memory */
 		vmapbuf(mapinfo->bp[i]);

@@ -1944,7 +1944,7 @@ static int fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 {
 	u_char *cptr = (u_char *)addr;
 
-	if (flags & B_READ) {
+	if (flags == BIO_READ) {
 		if (fdc->state != PIOREAD) {
 			fdc->state = PIOREAD;
 			return(0);
@@ -2003,7 +2003,7 @@ fdstate(fdc_p fdc)
 	fdblk = 128 << fd->ft->secsize;
 	if (fdc->fd && (fd != fdc->fd))
 		device_printf(fd->dev, "confused fd pointers\n");
-	read = bp->b_flags & B_READ;
+	read = bp->b_iocmd == BIO_READ;
 	format = bp->b_flags & B_FORMAT;
 	if (format) {
 		finfo = (struct fd_formb *)bp->b_data;
@@ -2257,7 +2257,7 @@ fdstate(fdc_p fdc)
 				 */
 				SET_BCDR(fdc, 1, bp->b_bcount, 0);
 
-				(void)fdcpio(fdc,bp->b_flags,
+				(void)fdcpio(fdc,bp->b_iocmd,
 					bp->b_data+fd->skip,
 					bp->b_bcount);
 
@@ -2290,7 +2290,7 @@ fdstate(fdc_p fdc)
 				 * the WRITE command is sent
 				 */
 				if (!read)
-					(void)fdcpio(fdc,bp->b_flags,
+					(void)fdcpio(fdc,bp->b_iocmd,
 					    bp->b_data+fd->skip,
 					    fdblk);
 			}
@@ -2320,7 +2320,7 @@ fdstate(fdc_p fdc)
 			 * if this is a read, then simply await interrupt
 			 * before performing PIO
 			 */
-			if (read && !fdcpio(fdc,bp->b_flags,
+			if (read && !fdcpio(fdc,bp->b_iocmd,
 			    bp->b_data+fd->skip,fdblk)) {
 				fd->tohandle = timeout(fd_iotimeout, fdc, hz);
 				return(0);      /* will return later */
@@ -2368,7 +2368,7 @@ fdstate(fdc_p fdc)
 		 * actually perform the PIO read.  The IOCOMPLETE case
 		 * removes the timeout for us.  
 		 */
-		(void)fdcpio(fdc,bp->b_flags,bp->b_data+fd->skip,fdblk);
+		(void)fdcpio(fdc,bp->b_iocmd,bp->b_data+fd->skip,fdblk);
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
 	case IOCOMPLETE: /* IO DONE, post-analyze */

@@ -208,14 +208,14 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 #if LABELSECTOR != 0
 	    slicerel_secno + nsec > LABELSECTOR + labelsect &&
 #endif
-	    (bp->b_flags & B_READ) == 0 && sp->ds_wlabel == 0) {
+	    (bp->b_iocmd == BIO_WRITE) && sp->ds_wlabel == 0) {
 		bp->b_error = EROFS;
 		goto bad;
 	}
 
 #if defined(DOSBBSECTOR) && defined(notyet)
 	/* overwriting master boot record? */
-	if (slicerel_secno <= DOSBBSECTOR && (bp->b_flags & B_READ) == 0 &&
+	if (slicerel_secno <= DOSBBSECTOR && (bp->b_iocmd == BIO_WRITE) &&
 	    sp->ds_wlabel == 0) {
 		bp->b_error = EROFS;
 		goto bad;
@@ -259,10 +259,9 @@ if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
 		ic->ic_args[0].ia_long = (LABELSECTOR + labelsect -
 		    slicerel_secno) * ssp->dss_secsize;
 		ic->ic_args[1].ia_ptr = sp;
-		bp->b_flags |= B_CALL;
 		bp->b_iodone = dsiodone;
 		bp->b_iodone_chain = ic;
-		if (!(bp->b_flags & B_READ)) {
+		if (!(bp->b_iocmd == BIO_READ)) {
 			/*
 			 * XXX even disklabel(8) writes directly so we need
 			 * to adjust writes.  Perhaps we should drop support
@@ -537,11 +536,10 @@ dsiodone(bp)
 	char *msg;
 
 	ic = bp->b_iodone_chain;
-	bp->b_flags = (ic->ic_prev_flags & B_CALL)
-		      | (bp->b_flags & ~(B_CALL | B_DONE));
+	bp->b_flags = bp->b_flags & ~B_DONE;
 	bp->b_iodone = ic->ic_prev_iodone;
 	bp->b_iodone_chain = ic->ic_prev_iodone_chain;
-	if (!(bp->b_flags & B_READ)
+	if (!(bp->b_iocmd == BIO_READ)
 	    || (!(bp->b_flags & B_ERROR) && bp->b_error == 0)) {
 		msg = fixlabel((char *)NULL, ic->ic_args[1].ia_ptr,
 			       (struct disklabel *)

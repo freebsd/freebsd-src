@@ -200,7 +200,8 @@ single_block_read:
 			 * if it isn't in the cache, then get a chunk from
 			 * disk if sequential, otherwise just get the block.
 			 */
-			bp->b_flags |= B_READ | B_RAM;
+			bp->b_flags |= B_RAM;
+			bp->b_iocmd = BIO_READ;
 			lblkno += 1;
 		}
 	}
@@ -228,7 +229,8 @@ single_block_read:
 					blkno, size, ntoread, NULL);
 			} else {
 				rbp = getblk(vp, lblkno, size, 0, 0);
-				rbp->b_flags |= B_READ | B_ASYNC | B_RAM;
+				rbp->b_flags |= B_ASYNC | B_RAM;
+				rbp->b_iocmd = BIO_READ;
 				rbp->b_blkno = blkno;
 			}
 		}
@@ -246,7 +248,7 @@ single_block_read:
 		if ((bp->b_flags & B_CLUSTER) == 0)
 			vfs_busy_pages(bp, 0);
 		bp->b_flags &= ~(B_ERROR|B_INVAL);
-		if (bp->b_flags & (B_ASYNC|B_CALL))
+		if ((bp->b_flags & B_ASYNC) || bp->b_iodone != NULL)
 			BUF_KERNPROC(bp);
 		error = VOP_STRATEGY(vp, bp);
 		curproc->p_stats->p_ru.ru_inblock++;
@@ -257,10 +259,10 @@ single_block_read:
 	 */
 	if (rbp) {
 		if (error) {
-			rbp->b_flags &= ~(B_ASYNC | B_READ);
+			rbp->b_flags &= ~B_ASYNC;
 			brelse(rbp);
 		} else if (rbp->b_flags & B_CACHE) {
-			rbp->b_flags &= ~(B_ASYNC | B_READ);
+			rbp->b_flags &= ~B_ASYNC;
 			bqrelse(rbp);
 		} else {
 #if defined(CLUSTERDEBUG)
@@ -281,7 +283,7 @@ single_block_read:
 			if ((rbp->b_flags & B_CLUSTER) == 0)
 				vfs_busy_pages(rbp, 0);
 			rbp->b_flags &= ~(B_ERROR|B_INVAL);
-			if (rbp->b_flags & (B_ASYNC|B_CALL))
+			if ((rbp->b_flags & B_ASYNC) || rbp->b_iodone != NULL)
 				BUF_KERNPROC(rbp);
 			(void) VOP_STRATEGY(vp, rbp);
 			curproc->p_stats->p_ru.ru_inblock++;
@@ -325,12 +327,13 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 	if (fbp) {
 		tbp = fbp;
-		tbp->b_flags |= B_READ; 
+		tbp->b_iocmd = BIO_READ; 
 	} else {
 		tbp = getblk(vp, lbn, size, 0, 0);
 		if (tbp->b_flags & B_CACHE)
 			return tbp;
-		tbp->b_flags |= B_ASYNC | B_READ | B_RAM;
+		tbp->b_flags |= B_ASYNC | B_RAM;
+		tbp->b_iocmd = BIO_READ;
 	}
 
 	tbp->b_blkno = blkno;
@@ -344,7 +347,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 	bp->b_data = (char *)((vm_offset_t)bp->b_data |
 	    ((vm_offset_t)tbp->b_data & PAGE_MASK));
-	bp->b_flags = B_ASYNC | B_READ | B_CALL | B_CLUSTER | B_VMIO;
+	bp->b_flags = B_ASYNC | B_CLUSTER | B_VMIO;
+	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = cluster_callback;
 	bp->b_blkno = blkno;
 	bp->b_lblkno = lbn;
@@ -400,7 +404,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 
 			if ((fbp && (i == 1)) || (i == (run - 1)))
 				tbp->b_flags |= B_RAM;
-			tbp->b_flags |= B_READ | B_ASYNC;
+			tbp->b_flags |= B_ASYNC;
+			tbp->b_iocmd = BIO_READ;
 			if (tbp->b_blkno == tbp->b_lblkno) {
 				tbp->b_blkno = bn;
 			} else if (tbp->b_blkno != bn) {
@@ -716,7 +721,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 		bp->b_offset = tbp->b_offset;
 		bp->b_data = (char *)((vm_offset_t)bp->b_data |
 		    ((vm_offset_t)tbp->b_data & PAGE_MASK));
-		bp->b_flags |= B_CALL | B_CLUSTER |
+		bp->b_flags |= B_CLUSTER |
 				(tbp->b_flags & (B_VMIO | B_NEEDCOMMIT));
 		bp->b_iodone = cluster_callback;
 		pbgetvp(vp, bp);
@@ -811,8 +816,9 @@ cluster_wbuild(vp, size, start_lbn, len)
 
 			s = splbio();
 			bundirty(tbp);
-			tbp->b_flags &= ~(B_READ | B_DONE | B_ERROR);
+			tbp->b_flags &= ~(B_DONE | B_ERROR);
 			tbp->b_flags |= B_ASYNC;
+			tbp->b_iocmd = BIO_WRITE;
 			reassignbuf(tbp, tbp->b_vp);	/* put on clean list */
 			++tbp->b_vp->v_numoutput;
 			splx(s);

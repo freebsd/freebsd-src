@@ -337,7 +337,7 @@ scdstrategy(struct buf *bp)
 	}
 
 	/* read only */
-	if (!(bp->b_flags & B_READ)) {
+	if (!(bp->b_iocmd == BIO_READ)) {
 		bp->b_error = EROFS;
 		goto bad;
 	}

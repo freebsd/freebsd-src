@@ -321,7 +321,7 @@ afd_start(struct atapi_softc *atp)
 
     bzero(ccb, sizeof(ccb));
 
-    if (bp->b_flags & B_READ)
+    if (bp->b_iocmd == BIO_READ)
 	ccb[0] = ATAPI_READ_BIG;
     else
 	ccb[0] = ATAPI_WRITE_BIG;
@@ -338,7 +338,7 @@ afd_start(struct atapi_softc *atp)
 
 	atapi_queue_cmd(fdp->atp, ccb, data_ptr, 
 			fdp->transfersize * fdp->cap.sector_size,
-			(bp->b_flags & B_READ) ? ATPR_F_READ : 0, 30,
+			(bp->b_iocmd == BIO_READ) ? ATPR_F_READ : 0, 30,
 			afd_partial_done, bp);
 
 	count -= fdp->transfersize;
@@ -354,7 +354,7 @@ afd_start(struct atapi_softc *atp)
     ccb[8] = count;
 
     atapi_queue_cmd(fdp->atp, ccb, data_ptr, count * fdp->cap.sector_size,
-		    bp->b_flags&B_READ ? ATPR_F_READ : 0, 30, afd_done, bp);
+		    (bp->b_iocmd == BIO_READ) ? ATPR_F_READ : 0, 30, afd_done, bp);
 }
 
 static int32_t 

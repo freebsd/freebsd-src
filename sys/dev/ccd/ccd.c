@@ -193,7 +193,7 @@ static	void ccdattach __P((void));
 static	int ccd_modevent __P((module_t, int, void *));
 
 /* called by biodone() at interrupt time */
-static	void ccdiodone __P((struct ccdbuf *cbp));
+static	void ccdiodone __P((struct buf *bp));
 
 static	void ccdstart __P((struct ccd_softc *, struct buf *));
 static	void ccdinterleave __P((struct ccd_softc *, int));
@@ -887,7 +887,7 @@ ccdstart(cs, bp)
 			 * to writes when making this determination and we
 			 * also try to avoid hogging.
 			 */
-			if ((cbp[0]->cb_buf.b_flags & B_READ) == 0) {
+			if (cbp[0]->cb_buf.b_iocmd == BIO_WRITE) {
 				cbp[0]->cb_buf.b_vp->v_numoutput++;
 				cbp[1]->cb_buf.b_vp->v_numoutput++;
 				VOP_STRATEGY(cbp[0]->cb_buf.b_vp, 
@@ -911,7 +911,7 @@ ccdstart(cs, bp)
 			/*
 			 * Not mirroring
 			 */
-			if ((cbp[0]->cb_buf.b_flags & B_READ) == 0)
+			if (cbp[0]->cb_buf.b_iocmd == BIO_WRITE)
 				cbp[0]->cb_buf.b_vp->v_numoutput++;
 			VOP_STRATEGY(cbp[0]->cb_buf.b_vp, &cbp[0]->cb_buf);
 		}
@@ -1050,8 +1050,9 @@ ccdbuffer(cb, cs, bp, bn, addr, bcount)
 	 * Fill in the component buf structure.
 	 */
 	cbp = getccdbuf(NULL);
-	cbp->cb_buf.b_flags = bp->b_flags | B_CALL;
-	cbp->cb_buf.b_iodone = (void (*)(struct buf *))ccdiodone;
+	cbp->cb_buf.b_flags = bp->b_flags;
+	cbp->cb_buf.b_iocmd = bp->b_iocmd;
+	cbp->cb_buf.b_iodone = ccdiodone;
 	cbp->cb_buf.b_dev = ci->ci_dev;		/* XXX */
 	cbp->cb_buf.b_blkno = cbn + cboff + CCD_OFFSET;
 	cbp->cb_buf.b_offset = dbtob(cbn + cboff + CCD_OFFSET);
@@ -1122,9 +1123,10 @@ ccdintr(cs, bp)
  * take a ccd interrupt.
  */
 static void
-ccdiodone(cbp)
-	struct ccdbuf *cbp;
+ccdiodone(ibp)
+	struct buf *ibp;
 {
+	struct ccdbuf *cbp = (struct ccdbuf *)ibp;
 	struct buf *bp = cbp->cb_obp;
 	int unit = cbp->cb_unit;
 	int count, s;
@@ -1153,7 +1155,7 @@ ccdiodone(cbp)
 		const char *msg = "";
 
 		if ((ccd_softc[unit].sc_cflags & CCDF_MIRROR) &&
-		    (cbp->cb_buf.b_flags & B_READ) &&
+		    (cbp->cb_buf.b_iocmd == BIO_READ) &&
 		    (cbp->cb_pflags & CCDPF_MIRROR_DONE) == 0) {
 			/*
 			 * We will try our read on the other disk down
@@ -1186,7 +1188,7 @@ ccdiodone(cbp)
 	 */
 
 	if (ccd_softc[unit].sc_cflags & CCDF_MIRROR) {
-		if ((cbp->cb_buf.b_flags & B_READ) == 0) {
+		if (cbp->cb_buf.b_iocmd == BIO_WRITE) {
 			/*
 			 * When writing, handshake with the second buffer
 			 * to determine when both are done.  If both are not

@@ -407,7 +407,7 @@ spec_strategy(ap)
 	struct mount *mp;
 
 	bp = ap->a_bp;
-	if (((bp->b_flags & B_READ) == 0) &&
+	if ((bp->b_iocmd == BIO_WRITE) &&
 		(LIST_FIRST(&bp->b_dep)) != NULL && bioops.io_start)
 		(*bioops.io_start)(bp);
 
@@ -417,7 +417,7 @@ spec_strategy(ap)
 	 */
 	vp = ap->a_vp;
 	if (vn_isdisk(vp, NULL) && (mp = vp->v_specmountpoint) != NULL) {
-		if ((bp->b_flags & B_READ) == 0) {
+		if (bp->b_iocmd == BIO_WRITE) {
 			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
 				mp->mnt_stat.f_asyncwrites++;
 			else
@@ -458,7 +458,7 @@ spec_freeblks(ap)
 	if ((bsw->d_flags & D_CANFREE) == 0)
 		return (0);
 	bp = geteblk(ap->a_length);
-	bp->b_flags |= B_FREEBUF;
+	bp->b_iocmd = BIO_DELETE;
 	bp->b_dev = ap->a_vp->v_rdev;
 	bp->b_blkno = ap->a_addr;
 	bp->b_offset = dbtob(ap->a_addr);
@@ -657,7 +657,7 @@ spec_getpages(ap)
 	pmap_qenter(kva, ap->a_m, pcount);
 
 	/* Build a minimal buffer header. */
-	bp->b_flags = B_READ | B_CALL;
+	bp->b_iocmd = BIO_READ;
 	bp->b_iodone = spec_getpages_iodone;
 
 	/* B_PHYS is not set, but it is nice to fill this in. */

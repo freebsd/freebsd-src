@@ -106,7 +106,7 @@ vinum_daemon(void)
 		    log(LOG_WARNING,
 			"vinum: recovering I/O request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 			rq,
-			rq->bp->b_flags & B_READ ? "Read" : "Write",
+			rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 			major(rq->bp->b_dev),
 			minor(rq->bp->b_dev),
 			rq->bp->b_blkno,

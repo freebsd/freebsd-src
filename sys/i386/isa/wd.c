@@ -700,7 +700,7 @@ wdstart(int ctrlr)
 #ifdef WDDEBUG
 	if (du->dk_skip == 0)
 		printf("wd%d: wdstart: %s %d@%d; map ", lunit,
-		       (bp->b_flags & B_READ) ? "read" : "write",
+		       (bp->b_iocmd == BIO_READ) ? "read" : "write",
 		       bp->b_bcount, blknum);
 	else
 		printf(" %d)%x", du->dk_skip, inb(du->dk_altport));
@@ -734,7 +734,7 @@ wdstart(int ctrlr)
 		 * XXX this looks like an attempt to skip bad sectors
 		 * on write.
 		 */
-		if (wdtab[ctrlr].b_errcnt && (bp->b_flags & B_READ) == 0)
+		if (wdtab[ctrlr].b_errcnt && (bp->b_iocmd == BIO_WRITE))
 			du->dk_bc += DEV_BSIZE;
 
 		count1 = howmany( du->dk_bc, DEV_BSIZE);
@@ -742,7 +742,7 @@ wdstart(int ctrlr)
 		du->dk_flags &= ~DKFL_MULTI;
 
 		if (du->dk_flags & DKFL_SINGLE) {
-			command = (bp->b_flags & B_READ)
+			command = (bp->b_iocmd == BIO_READ)
 				  ? WDCC_READ : WDCC_WRITE;
 			count1 = 1;
 			du->dk_currentiosize = 1;
@@ -752,16 +752,16 @@ wdstart(int ctrlr)
 				(void *)((int)bp->b_data + 
 				     du->dk_skip * DEV_BSIZE),
 				du->dk_bc,
-				bp->b_flags & B_READ)) {
+				bp->b_iocmd == BIO_READ)) {
 				du->dk_flags |= DKFL_DMA;
-				if( bp->b_flags & B_READ)
+				if(bp->b_iocmd == BIO_READ)
 					command = WDCC_READ_DMA;
 				else
 					command = WDCC_WRITE_DMA;
 				du->dk_currentiosize = count1;
 			} else if( (count1 > 1) && (du->dk_multi > 1)) {
 				du->dk_flags |= DKFL_MULTI;
-				if( bp->b_flags & B_READ) {
+				if(bp->b_iocmd == BIO_READ) {
 					command = WDCC_READ_MULTI;
 				} else {
 					command = WDCC_WRITE_MULTI;
@@ -770,7 +770,7 @@ wdstart(int ctrlr)
 				if( du->dk_currentiosize > count1)
 					du->dk_currentiosize = count1;
 			} else {
-				if( bp->b_flags & B_READ) {
+				if(bp->b_iocmd == BIO_READ) {
 					command = WDCC_READ;
 				} else {
 					command = WDCC_WRITE;
@@ -797,7 +797,7 @@ wdstart(int ctrlr)
 					   (void *)((int)bp->b_data + 
 						    du->dk_skip * DEV_BSIZE),
 					   du->dk_bc,
-					   bp->b_flags & B_READ);
+					   bp->b_iocmd == BIO_READ);
 		}
 		while (wdcommand(du, cylin, head, sector, count1, command)
 		       != 0) {
@@ -842,7 +842,7 @@ wdstart(int ctrlr)
 	}
 
 	/* If this is a read operation, just go away until it's done. */
-	if (bp->b_flags & B_READ)
+	if (bp->b_iocmd == BIO_READ)
 		return;
 
 	/* Ready to send data? */
@@ -1010,7 +1010,7 @@ oops:
 	/*
 	 * If this was a successful read operation, fetch the data.
 	 */
-	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
+	if ((bp->b_iocmd == BIO_READ && !(bp->b_flags & B_ERROR))
             && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 	    && wdtab[unit].b_active) {
 		u_int	chk, dummy, multisize;
@@ -1074,7 +1074,7 @@ outt:
 			/* see if more to transfer */
 			if (du->dk_bc > 0 && (du->dk_flags & DKFL_ERROR) == 0) {
 				if( (du->dk_flags & DKFL_SINGLE) ||
-					((bp->b_flags & B_READ) == 0)) {
+					(bp->b_iocmd == BIO_WRITE)) {
 					wdtab[unit].b_active = 0;
 					wdstart(unit);
 				} else {

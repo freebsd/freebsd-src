@@ -181,7 +181,7 @@ readdisklabel(dev, lp)
 	bp->b_blkno = LABELSECTOR * ((int)lp->d_secsize/DEV_BSIZE);
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags &= ~B_INVAL;
-	bp->b_flags |= B_READ;
+	bp->b_iocmd = BIO_READ;
 	BUF_STRATEGY(bp, 1);
 	if (biowait(bp))
 		msg = "I/O error";
@@ -284,7 +284,7 @@ writedisklabel(dev, lp)
 	 * (also stupid.. how do you write the first one? by raw writes?)
 	 */
 	bp->b_flags &= ~B_INVAL;
-	bp->b_flags |= B_READ;
+	bp->b_iocmd = BIO_READ;
 	BUF_STRATEGY(bp, 1);
 	error = biowait(bp);
 	if (error)
@@ -296,8 +296,8 @@ writedisklabel(dev, lp)
 		if (dlp->d_magic == DISKMAGIC && dlp->d_magic2 == DISKMAGIC &&
 		    dkcksum(dlp) == 0) {
 			*dlp = *lp;
-			bp->b_flags &= ~(B_DONE | B_READ);
-			bp->b_flags |= B_WRITE;
+			bp->b_flags &= ~B_DONE;
+			bp->b_iocmd = BIO_WRITE;
 #ifdef __alpha__
 			alpha_fix_srm_checksum(bp);
 #endif
@@ -313,7 +313,7 @@ done:
 	dlp = (struct disklabel *)bp->b_data;
 	*dlp = *lp;
 	bp->b_flags &= ~B_INVAL;
-	bp->b_flags |= B_WRITE;
+	bp->b_iocmd = BIO_WRITE;
 	BUF_STRATEGY(bp, 1);
 	error = biowait(bp);
 #endif
@@ -375,7 +375,7 @@ diskerr(bp, what, pri, blkdone, lp)
 		pr = printf;
 	sname = dsname(bp->b_dev, unit, slice, part, partname);
 	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
-	      bp->b_flags & B_READ ? "read" : "writ");
+	      bp->b_iocmd == BIO_READ ? "read" : "writ");
 	sn = bp->b_blkno;
 	if (bp->b_bcount <= DEV_BSIZE)
 		(*pr)("%ld", (long)sn);
