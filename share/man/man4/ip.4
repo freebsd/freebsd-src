@@ -164,6 +164,22 @@ control message from
 can be used directly as a control message for
 .Xr sendmsg 2 .
 .Pp
+If the 
+.Dv IP_RECVIF 
+option is enabled on a 
+.Dv SOCK_DGRAM
+socket, the 
+.Xr recvmsg 2 
+call returns a struct sockaddr_dl corresponding to the interface on which the   
+packet was received. The msg_control field in the msghdr structure points     
+to a buffer that contains a cmsghdr structure followed by the 
+struct sockaddr_dl. The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = sizeof(struct sockaddr_dl)
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVIF
+.Ed
+.Pp
 .Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.
