@@ -604,6 +604,10 @@ linux_mremap(struct thread *td, struct linux_mremap_args *args)
 	return error;
 }
 
+#define LINUX_MS_ASYNC       0x0001
+#define LINUX_MS_INVALIDATE  0x0002
+#define LINUX_MS_SYNC        0x0004
+
 int
 linux_msync(struct thread *td, struct linux_msync_args *args)
 {
@@ -611,7 +615,7 @@ linux_msync(struct thread *td, struct linux_msync_args *args)
 
 	bsd_args.addr = (caddr_t)args->addr;
 	bsd_args.len = args->len;
-	bsd_args.flags = 0;	/* XXX ignore */
+	bsd_args.flags = args->fl & ~LINUX_MS_SYNC;
 
 	return msync(td, &bsd_args);
 }
