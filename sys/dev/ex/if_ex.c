@@ -103,8 +103,8 @@ struct ex_softc {
 
 static struct ex_softc ex_sc[NEX]; /* XXX would it be better to malloc(3) the memory? */
 
-static char irq2eemap[] = { -1, -1, 0, 1, -1, 2, -1, -1, -1, 0, 3, 4, -1, -1, -1, -1 };
-static u_char ee2irqmap[] = { 9, 3, 5, 10, 11, 0, 0, 0 };
+static char irq2eemap[] = { -1, -1, -1, 0, 1, 2, -1, 3, -1, 4, 5, 6, 7, -1, -1, -1 };
+static u_char ee2irqmap[] = { 3, 4, 5, 7, 9, 10, 11, 12 };
 
 static int ex_probe __P((struct isa_device *));
 static int ex_attach __P((struct isa_device *));
@@ -176,7 +176,7 @@ int ex_probe(struct isa_device *dev)
 	 * Reset the card.
 	 */
 	outb(iobase + CMD_REG, Reset_CMD);
-	DELAY(200);
+	DELAY(400);
 
 	/*
 	 * Fill in several fields of the softc structure:
@@ -256,7 +256,13 @@ int ex_attach(struct isa_device *dev)
 	if_attach(ifp);
 	ether_ifattach(ifp);
 
-	printf("ex%d: Intel EtherExpress Pro/10, address %6D, connector ", dev->id_unit, sc->arpcom.ac_enaddr, ":");
+	if (sc->arpcom.ac_enaddr[0] == 0x00 &&
+	    sc->arpcom.ac_enaddr[1] == 0xA0 &&
+	    sc->arpcom.ac_enaddr[2] == 0xC9) {
+		printf("ex%d: Intel EtherExpress Pro/10+, address %6D, connector ", dev->id_unit, sc->arpcom.ac_enaddr, ":");
+	} else {
+		printf("ex%d: Intel EtherExpress Pro/10, address %6D, connector ", dev->id_unit, sc->arpcom.ac_enaddr, ":");
+	}
 	switch(sc->connector) {
 		case Conn_TPE: printf("TPE\n"); break;
 		case Conn_BNC: printf("BNC\n"); break;
