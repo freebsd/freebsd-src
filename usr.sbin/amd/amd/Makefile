@@ -3,7 +3,7 @@
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998
 #
-# $Id: Makefile,v 1.14 1998/08/27 08:09:40 obrien Exp $
+# $Id: Makefile,v 1.15 1998/08/30 19:59:49 gpalmer Exp $
 #
 
 .PATH:		${.CURDIR}/../../../contrib/amd/amd
@@ -25,8 +25,8 @@ SRCS+=		srvr_amfs_auto.c srvr_nfs.c
 
 CFLAGS+=	-I${.CURDIR}/../../../contrib/amd/amd
 
-DPADD+=		${LIBAMU}
-LDADD+=		${LIBAMU} -lrpcsvc
+DPADD=		${LIBAMU} ${LIBRPCSVC}
+LDADD=		${LIBAMU} -lrpcsvc
 
 CLEANFILES+=	conf_parse.c conf_parse.h conf_tok.c
 
