@@ -60,7 +60,7 @@
 #include <sys/malloc.h>
 #include <machine/reg.h>
 #include <vm/vm_zone.h>
-#include <i386/linux/linprocfs/linprocfs.h>
+#include <compat/linprocfs/linprocfs.h>
 #include <sys/pioctl.h>
 
 extern struct vnode *procfs_findtextvp __P((struct proc *));

@@ -67,7 +67,7 @@
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
-#include <i386/linux/linprocfs/linprocfs.h>
+#include <compat/linprocfs/linprocfs.h>
 
 /*
  * Various conversion macros
