@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.4 1995/05/16 02:53:05 jkh Exp $
+ * $Id: dist.c,v 1.5 1995/05/16 11:37:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -102,8 +102,6 @@ distSetEverything(char *str)
 int
 distSetSrc(char *str)
 {
-    extern DMenu MenuSrcDistributions;
-
     dmenuOpenSimple(&MenuSrcDistributions);
     if (SrcDists)
 	Dists |= DIST_SRC;
@@ -113,9 +111,7 @@ distSetSrc(char *str)
 static int
 distSetXF86(char *str)
 {
-    extern DMenu MenuXF86;
-
-    dmenuOpenSimple(&MenuXF86);
+    dmenuOpenSimple(&MenuXF86Select);
     return 0;
 }
 

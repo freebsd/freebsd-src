@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.17 1995/05/16 02:53:11 jkh Exp $
+ * $Id: install.c,v 1.18 1995/05/16 11:37:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,20 +76,16 @@ installCommit(char *str)
 	msgConfirm("You haven't told me what distributions to load yet!\nPlease select a distribution from the Distributions menu.");
 	return 0;
     }
-    if (mediaVerify()) {
-	msgConfirm("Please correct installation media problems and try again!");
+    if (!mediaVerify())
 	return 0;
-    }
-    if (msgYesNo("Last Chance!  Are you SURE you want continue the\ninstallation?  If you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before doing this.\nWe take no responsibility for lost disk contents!"))
+    if (msgYesNo("Last Chance!  Are you SURE you want continue the installation?\n\nIf you're running this on an existing system, we STRONGLY\nencourage you to make proper backups before proceeding.\nWe take no responsibility for lost disk contents!"))
 	return 0;
 
     mbrContents = NULL;
     if (!msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
 	mbrContents = bteasy17;
-    else {
-	if (!msgYesNo("Would you like to remove an existing boot manager?"))
-	    mbrContents = mbr;
-    }
+    else if (!msgYesNo("Would you like to remove an existing boot manager?"))
+	mbrContents = mbr;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
@@ -164,8 +160,22 @@ make_filesystems(void)
 	disk = (Disk *)devs[i]->private;
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
+
 	/* Make the proper device mount points in /mnt/dev */
 	MakeDevDisk(disk, "/mnt/dev");
+
+	/* Now make all the other devices the first time around */
+	if (i == 0) {
+	    extern int makedevs(void);
+
+	    chdir("/mnt");
+	    if (makedevs()) {
+		if (msgYesNo("Failed to make some of the devices in /mnt!  Continue?"))
+		    return;
+	    }
+	    chdir("/");
+	}
+
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {

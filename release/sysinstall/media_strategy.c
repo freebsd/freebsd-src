@@ -2,9 +2,9 @@
  * The new sysinstall program.
  *
  * This is probably the last attempt in the `sysinstall' line, the next
- * generation being slated for what's essentially a complete rewrite.
+ * generation being slated to essentially a complete rewrite.
  *
- * $Id: main.c,v 1.7 1995/05/16 11:37:17 jkh Exp $
+ * $Id: media.c,v 1.5 1995/05/16 11:37:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,39 +41,93 @@
  *
  */
 
+#include <stdio.h>
 #include "sysinstall.h"
 
-int
-main(int argc, char **argv)
+/* Various media "strategy" routines */
+
+Boolean
+mediaInitCDROM(Device *dev)
 {
-    int choice, scroll, curr, max;
-
-    if (geteuid() != 0) {
-	fprintf(stderr, "This utility can only be run as root.\n");
-	return 1;
-    }
-    /* Set up whatever things need setting up */
-    systemInitialize(argc, argv);
-
-    /* Probe for all relevant devices on the system */
-    deviceGetAll();
-
-    /* Welcome user to FreeBSD */
-    systemWelcome();
-
-    /* Default to English */
-    lang_set_English(NULL);
-
-    /* Begin user dialog at outer menu */
-    while (1) {
-	choice = scroll = curr = max = 0;
-	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max);
-	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
-	    break;
-    }
-    /* Say goodnight, Gracie */
-    systemShutdown();
-
-    /* If we're running as init, we should never get here */
-    return 0;
+    return TRUE;
 }
+
+Boolean
+mediaGetCDROM(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaCloseCDROM(Device *dev)
+{
+    return;
+}
+
+Boolean
+mediaInitFloppy(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
+mediaGetFloppy(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaCloseFloppy(Device *dev)
+{
+    return;
+}
+
+Boolean
+mediaInitTape(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
+mediaGetTape(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaCloseTape(Device *dev)
+{
+    return;
+}
+
+Boolean
+mediaInitNetwork(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
+mediaGetNetwork(char *dist)
+{
+    return TRUE;
+}
+
+void
+mediaCloseNetwork(Device *dev)
+{
+}
+
+Boolean
+mediaInitUFS(Device *dev)
+{
+    return TRUE;
+}
+
+Boolean
+mediaGetUFS(char *dist)
+{
+    return TRUE;
+}
+
+/* UFS has no close routine since this is handled at the device level */
+

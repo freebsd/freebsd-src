@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.6 1995/05/16 02:53:16 jkh Exp $
+ * $Id: main.c,v 1.7 1995/05/16 11:37:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,8 +43,6 @@
 
 #include "sysinstall.h"
 
-extern DMenu	MenuInitial;
-
 int
 main(int argc, char **argv)
 {
@@ -64,7 +62,7 @@ main(int argc, char **argv)
     systemWelcome();
 
     /* Default to English */
-    /* lang_set_English(NULL); */
+    lang_set_English(NULL);
 
     /* Begin user dialog at outer menu */
     while (1) {
