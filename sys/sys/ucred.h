@@ -38,18 +38,14 @@
 #define	_SYS_UCRED_H_
 
 /*
- * XXXMAC: this recursive include could be #ifdef _KERNEL if struct
- * ucred could also be #ifdef _KERNEL.
- */
-#include <sys/_label.h>
-
-/*
  * Credentials.
  *
  * Please do not inspect cr_uid directly to determine superuserness.
  * Only the suser() or suser_cred() function should be used for this.
  */
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_UCRED)
+#include <sys/_label.h>
+
 struct ucred {
 	u_int	cr_ref;			/* reference count */
 #define	cr_startcopy cr_uid
@@ -69,7 +65,7 @@ struct ucred {
 };
 #define	NOCRED	((struct ucred *)0)	/* no credential available */
 #define	FSCRED	((struct ucred *)-1)	/* filesystem credential */
-#endif /* _KERNEL */
+#endif /* _KERNEL || _WANT_UCRED */
 
 /*
  * This is the external representation of struct ucred.
