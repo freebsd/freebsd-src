@@ -1200,9 +1200,6 @@ static void rl_txeof(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	/* Clear the timeout timer. */
-	ifp->if_timer = 0;
-
 	/*
 	 * Go through our tx list and free mbufs for those
 	 * frames that have been uploaded.
@@ -1242,6 +1239,9 @@ static void rl_txeof(sc)
 		RL_INC(sc->rl_cdata.last_tx);
 		ifp->if_flags &= ~IFF_OACTIVE;
 	} while (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx);
+
+	ifp->if_timer =
+	    (sc->rl_cdata.last_tx == sc->rl_cdata.cur_tx) ? 0 : 5;
 
 	return;
 }
