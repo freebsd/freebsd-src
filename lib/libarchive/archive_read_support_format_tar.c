@@ -61,8 +61,51 @@ struct archive_entry_header_ustar {
 };
 
 /*
+ * Structure of GNU tar header
+ */
+struct gnu_sparse {
+	char	offset[12];
+	char	numbytes[12];
+};
+
+struct archive_entry_header_gnutar {
+	char	name[100];
+	char	mode[8];
+	char	uid[8];
+	char	gid[8];
+	char	size[12];
+	char	mtime[12];
+	char	checksum[8];
+	char	typeflag[1];
+	char	linkname[100];
+	char	magic[8];  /* "ustar  \0" (note blank/blank/null at end) */
+	char	uname[32];
+	char	gname[32];
+	char	devmajor[8];
+	char	devminor[8];
+	char	atime[12];
+	char	ctime[12];
+	char	offset[12];
+	char	longnames[4];
+	char	unused[1];
+	struct gnu_sparse sparse[4];
+	char	isextended[1];
+	char	realsize[12];
+	/*
+	 * GNU doesn't use POSIX 'prefix' field; they use the 'L' (longname)
+	 * entry instead.
+	 */
+};
+
+/*
  * Data specific to this format.
  */
+struct sparse_block {
+	struct sparse_block	*next;
+	off_t	offset;
+	off_t	remaining;
+};
+
 struct tar {
 	struct archive_string	 acl_text;
 	struct archive_string	 entry_name;
@@ -79,10 +122,15 @@ struct tar {
 	off_t			 entry_bytes_remaining;
 	off_t			 entry_offset;
 	off_t			 entry_padding;
+	struct sparse_block	*sparse_list;
 };
 
 static size_t	UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n);
 static int	archive_block_is_null(const unsigned char *p);
+int		gnu_read_sparse_data(struct archive *, struct tar *,
+		    const struct archive_entry_header_gnutar *header);
+void		gnu_parse_sparse_data(struct archive *, struct tar *,
+		    const struct gnu_sparse *sparse, int length);
 static int	header_Solaris_ACL(struct archive *,  struct tar *,
 		    struct archive_entry *, struct stat *, const void *);
 static int	header_common(struct archive *,  struct tar *,
@@ -295,6 +343,7 @@ archive_read_format_tar_read_data(struct archive *a,
 {
 	ssize_t bytes_read;
 	struct tar *tar;
+	struct sparse_block *p;
 
 	tar = *(a->pformat_data);
 	if (tar->entry_bytes_remaining > 0) {
@@ -303,6 +352,19 @@ archive_read_format_tar_read_data(struct archive *a,
 			return (ARCHIVE_FATAL);
 		if (bytes_read > tar->entry_bytes_remaining)
 			bytes_read = tar->entry_bytes_remaining;
+		while (tar->sparse_list != NULL &&
+		    tar->sparse_list->remaining == 0) {
+			p = tar->sparse_list;
+			tar->sparse_list = p->next;
+			free(p);
+			if (tar->sparse_list != NULL)
+				tar->entry_offset = tar->sparse_list->offset;
+		}
+		if (tar->sparse_list != NULL) {
+			if (tar->sparse_list->remaining < bytes_read)
+				bytes_read = tar->sparse_list->remaining;
+			tar->sparse_list->remaining -= bytes_read;
+		}
 		*size = bytes_read;
 		*offset = tar->entry_offset;
 		tar->entry_offset += bytes_read;
@@ -1132,41 +1194,6 @@ pax_time(const wchar_t *p, int64_t *ps, long *pn)
 }
 
 /*
- * Structure of GNU tar header
- */
-struct archive_entry_header_gnutar {
-	char	name[100];
-	char	mode[8];
-	char	uid[8];
-	char	gid[8];
-	char	size[12];
-	char	mtime[12];
-	char	checksum[8];
-	char	typeflag[1];
-	char	linkname[100];
-	char	magic[8];  /* "ustar  \0" (note blank/blank/null at end) */
-	char	uname[32];
-	char	gname[32];
-	char	devmajor[8];
-	char	devminor[8];
-	char	atime[12];
-	char	ctime[12];
-	char	offset[12];
-	char	longnames[4];
-	char	unused[1];
-	struct {
-	    char	offset[12];
-	    char	numbytes[12];
-	}	sparse[4];
-	char	isextended[1];
-	char	realsize[12];
-	/*
-	 * GNU doesn't use POSIX 'prefix' field; they use the 'L' (longname)
-	 * entry instead.
-	 */
-};
-
-/*
  * Parse GNU tar header
  */
 static int
@@ -1212,17 +1239,91 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	else
 		st->st_rdev = 0;
 
-	/* Grab GNU-specific fields. */
-	/* TODO: FILL THIS IN!!! */
-	st->st_atime = tar_atol(header->atime, sizeof(header->atime));
-	st->st_ctime = tar_atol(header->ctime, sizeof(header->ctime));
-
-	/* XXX TODO: Recognize and skip extra GNU header blocks. */
-
 	tar->entry_bytes_remaining = st->st_size;
 	tar->entry_padding = 0x1ff & (-tar->entry_bytes_remaining);
 
+	/* Grab GNU-specific fields. */
+	st->st_atime = tar_atol(header->atime, sizeof(header->atime));
+	st->st_ctime = tar_atol(header->ctime, sizeof(header->ctime));
+	if (header->realsize[0] != 0) {
+		st->st_size = tar_atol(header->realsize,
+		    sizeof(header->realsize));
+	}
+
+	if (header->sparse[0].offset[0] != 0) {
+		gnu_read_sparse_data(a, tar, header);
+	} else {
+		if (header->isextended[0] != 0) {
+			/* XXX WTF? XXX */
+		}
+	}
+
 	return (0);
+}
+
+int
+gnu_read_sparse_data(struct archive *a, struct tar *tar,
+    const struct archive_entry_header_gnutar *header)
+{
+	ssize_t bytes_read;
+	const void *data;
+	struct extended {
+		struct gnu_sparse sparse[21];
+		char	isextended[1];
+		char	padding[7];
+	};
+	const struct extended *ext;
+
+	gnu_parse_sparse_data(a, tar, header->sparse, 4);
+	if (header->isextended[0] == 0)
+		return (ARCHIVE_OK);
+
+	do {
+		bytes_read = (a->compression_read_ahead)(a, &data, 512);
+		if (bytes_read < 0)
+			return (ARCHIVE_FATAL);
+		if (bytes_read < 512) {
+			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Truncated tar archive "
+			    "detected while reading sparse file data");
+			return (ARCHIVE_FATAL);
+		}
+		(a->compression_read_consume)(a, 512);
+		ext = (const struct extended *)data;
+		gnu_parse_sparse_data(a, tar, ext->sparse, 21);
+	} while (ext->isextended[0] != 0);
+	if (tar->sparse_list != NULL)
+		tar->entry_offset = tar->sparse_list->offset;
+	return (ARCHIVE_OK);
+}
+
+void
+gnu_parse_sparse_data(struct archive *a, struct tar *tar,
+    const struct gnu_sparse *sparse, int length)
+{
+	struct sparse_block *last;
+	struct sparse_block *p;
+
+	(void)a; /* UNUSED */
+
+	last = tar->sparse_list;
+	while (last != NULL && last->next != NULL)
+		last = last->next;
+
+	while (length > 0 && sparse->offset[0] != 0) {
+		p = malloc(sizeof(*p));
+		memset(p, 0, sizeof(*p));
+		if (last != NULL)
+			last->next = p;
+		else
+			tar->sparse_list = p;
+		last = p;
+		p->offset = tar_atol(sparse->offset, sizeof(sparse->offset));
+		p->remaining =
+		    tar_atol(sparse->numbytes, sizeof(sparse->numbytes));
+		sparse++;
+		length--;
+	}
 }
 
 /*-

@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This implementation minimizes copying of data and is sparse-file aware.
  */
-ssize_t
+int
 archive_read_data_into_fd(struct archive *a, int fd)
 {
 	int r;
@@ -76,6 +76,6 @@ archive_read_data_into_fd(struct archive *a, int fd)
 	}
 
 	if (r != ARCHIVE_EOF)
-		return (-1);
-	return (total_written);
+		return (r);
+	return (ARCHIVE_OK);
 }

@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
-ssize_t
+int
 archive_read_data_into_buffer(struct archive *a, void *d, ssize_t len)
 {
 	char *dest;
@@ -45,5 +45,5 @@ archive_read_data_into_buffer(struct archive *a, void *d, ssize_t len)
 		bytes_read = archive_read_data(a, dest + total_bytes,
 		    len - total_bytes);
 	}
-	return (total_bytes);
+	return (ARCHIVE_OK);
 }

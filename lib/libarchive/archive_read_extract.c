@@ -319,7 +319,6 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
     int flags)
 {
 	int fd, r;
-	ssize_t s;
 
 	r = ARCHIVE_OK;
 	fd = archive_read_extract_regular_open(a,
@@ -328,12 +327,7 @@ archive_read_extract_regular(struct archive *a, struct archive_entry *entry,
 		archive_set_error(a, errno, "Can't open");
 		return (ARCHIVE_WARN);
 	}
-	s = archive_read_data_into_fd(a, fd);
-	if (s < archive_entry_size(entry)) {
-		/* Didn't read enough data?  Complain but keep going. */
-		archive_set_error(a, EIO, "Archive data truncated");
-		r = ARCHIVE_WARN;
-	}
+	r = archive_read_data_into_fd(a, fd);
 	set_ownership(a, entry, flags);
 	set_time(a, entry, flags);
 	/* Always restore permissions for regular files. */
