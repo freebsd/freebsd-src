@@ -538,7 +538,7 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 		return error;
 	inp = (struct inpcb *)so->so_pcb;
 	inp->inp_vflag |= INP_IPV6;
-	if (ip6_mapped_addr_on)
+	if (!ip6_v6only)
 		inp->inp_vflag |= INP_IPV4;
 	inp->in6p_hops = -1;	/* use kernel default */
 	inp->in6p_cksum = -1;	/* just to be sure */
@@ -627,7 +627,7 @@ udp6_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	error = in6_pcbconnect(inp, nam, td);
 	splx(s);
 	if (error == 0) {
-		if (ip6_mapped_addr_on) { /* should be non mapped addr */
+		if (!ip6_v6only) { /* should be non mapped addr */
 			inp->inp_vflag &= ~INP_IPV4;
 			inp->inp_vflag |= INP_IPV6;
 		}
@@ -703,7 +703,7 @@ udp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		}
 	}
 
-	if (ip6_mapped_addr_on) {
+	if (!ip6_v6only) {
 		int hasv4addr;
 		struct sockaddr_in6 *sin6 = 0;
 
