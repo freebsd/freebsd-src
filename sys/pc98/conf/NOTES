@@ -380,17 +380,13 @@ hint.mse.0.irq="13"
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
 #       (requires miibus)
-# el:   3Com 3C501 (slow!)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
-# le:   Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
-#       DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
 # lnc:  Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 and
 #       Am79C960)
 # oltr: Olicom ISA token-ring adapters OC-3115, OC-3117, OC-3118 and OC-3133.
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540 and OC-3250.
-# rdp:  RealTek RTL 8002-based pocket ethernet adapters
 # sbni: Granch SBNI12-xx ISA and PCI adapters
 # sr:   RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl:   Lucent Wavelan (ISA card only).
@@ -398,40 +394,22 @@ hint.mse.0.irq="13"
 # Order for ISA/EISA devices is important here
 
 device		ar
-hint.ar.0.at="isa"
-hint.ar.0.port="0x300"
-hint.ar.0.irq="10"
-hint.ar.0.maddr="0xd0000"
 device		ed
 #options 	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
 hint.ed.0.port="0x280"
 hint.ed.0.irq="5"
 hint.ed.0.maddr="0xd8000"
-device		el	1
-hint.el.0.at="isa"
-hint.el.0.port="0x300"
-hint.el.0.irq="9"
 device		ie			# Hints only required for Starlan
 hint.ie.2.at="isa"
 hint.ie.2.port="0x300"
 hint.ie.2.irq="5"
 hint.ie.2.maddr="0xd0000"
-device		le	1
-hint.le.0.at="isa"
-hint.le.0.port="0x300"
-hint.le.0.irq="5"
-hint.le.0.maddr="0xd0000"
 device		lnc
 hint.lnc.0.at="isa"
 hint.lnc.0.port="0x280"
 hint.lnc.0.irq="10"
 hint.lnc.0.drq="0"
-device		rdp	1
-hint.rdp.0.at="isa"
-hint.rdp.0.port="0x378"
-hint.rdp.0.irq="7"
-hint.rdp.0.flags="2"
 device		sbni
 hint.sbni.0.at="isa"
 hint.sbni.0.port="0x210"
@@ -443,12 +421,7 @@ hint.snc.0.port="0x888"
 hint.snc.0.irq="6"
 hint.snc.0.maddr="0xc0000"
 device		sr
-hint.sr.0.at="isa"
-hint.sr.0.port="0x300"
-hint.sr.0.irq="5"
-hint.sr.0.maddr="0xd0000"
 device		oltr
-hint.oltr.0.at="isa"
 device		wl
 hint.wl.0.at="isa"
 hint.wl.0.port="0x300"
@@ -468,9 +441,6 @@ hint.ct.0.at="isa"
 device		ncv
 device		nsp
 device		stg
-hint.stg.0.at="isa"
-hint.stg.0.port="0x140"
-hint.stg.0.port="11"
 
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
@@ -485,49 +455,16 @@ options		SAFE_RNDTEST	# enable rndtest support
 #
 # Miscellaneous hardware:
 #
-# wt: Wangtek and Archive QIC-02/QIC-36 tape drives
-# ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
 # pmtimer: Timer device driver for power management events (APM or ACPI)
-# spigot: The Creative Labs Video Spigot video-acquisition board
 # cy: Cyclades serial driver
 # digi: Digiboard driver
-# gp:  National Instruments AT-GPIB and AT-GPIB/TNT board, PCMCIA-GPIB
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
 #    0x0020  Statclock is broken.
-
-# Notes on the spigot:
-#  The video spigot is at 0xad6.  This port address can not be changed.
-#  The irq values may only be 10, 11, or 15
-#  I/O memory is an 8kb region.  Possible values are:
-#    0a0000, 0a2000, ..., 0fffff, f00000, f02000, ..., ffffff
-#    The start address must be on an even boundary.
-#  Add the following option if you want to allow non-root users to be able
-#  to access the spigot.  This option is not secure because it allows users
-#  direct access to the I/O page.
-#  	options SPIGOT_UNSECURE
-
-# Notes on the Specialix SI/XIO driver:
-#  The host card is memory, not IO mapped.
-#  The Rev 1 host cards use a 64K chunk, on a 32K boundary.
-#  The Rev 2 host cards use a 32K chunk, on a 32K boundary.
-#  The cards can use an IRQ of 11, 12 or 15.
-
-# Notes on the Sony Programmable I/O controller
-#  This is a temporary driver that should someday be replaced by something
-#  that hooks into the ACPI layer.  The device is hooked to the PIIX4's
-#  General Device 10 decoder, which means you have to fiddle with PCI
-#  registers to map it in, even though it is otherwise treated here as
-#  an ISA device.  At the moment, the driver polls, although the device
-#  is capable of generating interrupts.  It largely undocumented.
-#  The port location in the hint is where you WANT the device to be
-#  mapped.  0x10a0 seems to be traditional.  At the moment the jogdial
-#  is the only thing truly supported, but apparently a fair percentage
-#  of the Vaio extra features are controlled by this device.
 
 # Notes on the Stallion stl and stli drivers:
 #  See src/i386/isa/README.stl for complete instructions.
@@ -544,20 +481,6 @@ options		SAFE_RNDTEST	# enable rndtest support
 #	Brumby:                      flags 2          msize 0x4000
 #	Stallion:                    flags 1          msize 0x10000
 
-device		wt	1
-hint.wt.0.at="isa"
-hint.wt.0.port="0x300"
-hint.wt.0.irq="5"
-hint.wt.0.drq="1"
-device		ctx
-hint.ctx.0.at="isa"
-hint.ctx.0.port="0x230"
-hint.ctx.0.maddr="0xd0000"
-device		spigot	1
-hint.spigot.0.at="isa"
-hint.spigot.0.port="0xad6"
-hint.spigot.0.irq="15"
-hint.spigot.0.maddr="0xee000"
 device		apm
 hint.apm.0.flags="0x20"
 device		canbus
@@ -568,14 +491,7 @@ hint.pmc.0.port="0x8f0"
 device		pmtimer			# Adjust system timer at wakeup time
 device		cy	1
 options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
-hint.cy.0.at="isa"
-hint.cy.0.irq="10"
-hint.cy.0.maddr="0xd4000"
-hint.cy.0.msize="0x2000"
 device		digi
-hint.digi.0.at="isa"
-hint.digi.0.port="0x104"
-hint.digi.0.maddr="0xd0000"
 # BIOS & FEP/OS components of device digi.
 device		digi_CX
 device		digi_CX_PCI
@@ -584,22 +500,11 @@ device		digi_EPCX_PCI
 device		digi_Xe
 device		digi_Xem
 device		digi_Xr
-device		gp
-hint.gp.0.at="isa"
-hint.gp.0.port="0x2c0"
 device		olpt
 hint.olpt.0.at="isa"
 hint.olpt.0.port="0x040"
 device		stl
-hint.stl.0.at="isa"
-hint.stl.0.port="0x2a0"
-hint.stl.0.irq="10"
 device		stli
-hint.stli.0.at="isa"
-hint.stli.0.port="0x2a0"
-hint.stli.0.maddr="0xcc000"
-hint.stli.0.flags="23"
-hint.stli.0.msize="0x1000"
 
 #
 # Laptop/Notebook options:
@@ -704,12 +609,6 @@ device		itjc
 #	iavc driver (AVM active cards, needs i4bcapi driver!)
 #
 device		iavc
-#
-# AVM B1 ISA bus (PnP mode not supported!)
-# ----------------------------------------
-hint.iavc.0.at="isa"
-hint.iavc.0.port="0x150"
-hint.iavc.0.irq="5"
 #
 #---------------------------------------------------------------------------
 #	ISDN Protocol Stack - mandatory for all hardware drivers
@@ -858,7 +757,6 @@ options 	FB_INSTALL_CDEV		# install a CDEV entry in /dev
 options 	PECOFF_SUPPORT
 options 	PECOFF_DEBUG
 
-options 	ENABLE_ALART
 options 	I4B_SMP_WORKAROUND
 options 	I586_PMC_GUPROF=0x70000
 options 	KBDIO_DEBUG=2
