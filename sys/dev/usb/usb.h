@@ -384,8 +384,8 @@ typedef struct {
 #define  UISUBCLASS_SCSI	6
 #define  UIPROTO_MASS_CBI_I	0
 #define  UIPROTO_MASS_CBI	1
-#define  UIPROTO_MASS_BULK	2
-#define  UIPROTO_MASS_BULK_P	80	/* 'P' for the Iomega Zip drive */
+#define  UIPROTO_MASS_BBB	2
+#define  UIPROTO_MASS_BBB_P	80	/* 'P' for the Iomega Zip drive */
 
 #define UICLASS_HUB		0x09
 #define  UISUBCLASS_HUB		0
