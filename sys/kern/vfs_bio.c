@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.25 1995/01/24 10:00:43 davidg Exp $
+ * $Id: vfs_bio.c,v 1.26 1995/01/26 03:34:31 davidg Exp $
  */
 
 /*
@@ -433,7 +433,10 @@ brelse(struct buf * bp)
 				--m->bmapped;
 				if (m->bmapped == 0) {
 					PAGE_WAKEUP(m);
-					if ((m->dirty & m->valid) == 0 &&
+					if (m->valid == 0) {
+						pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+						vm_page_free(m);
+					} else if ((m->dirty & m->valid) == 0 &&
 						(m->flags & PG_REFERENCED) == 0 &&
 							!pmap_is_referenced(VM_PAGE_TO_PHYS(m)))
 						vm_page_cache(m);
