@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.5 1998/09/16 23:30:01 ken Exp $
+ *      $Id: cam_xpt.c,v 1.6 1998/09/17 23:58:53 ken Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -236,12 +236,17 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 {
 	{
 		/* Reports QUEUE FULL for temporary resource shortages */
-		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP39100?", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP39100*", "*" },
 		/*quirks*/0, /*mintags*/24, /*maxtags*/32
 	},
 	{
 		/* Reports QUEUE FULL for temporary resource shortages */
-		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP34550?", "*" },
+		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP34550*", "*" },
+		/*quirks*/0, /*mintags*/24, /*maxtags*/32
+	},
+	{
+		/* Reports QUEUE FULL for temporary resource shortages */
+		{ T_DIRECT, SIP_MEDIA_FIXED, quantum, "XP32275*", "*" },
 		/*quirks*/0, /*mintags*/24, /*maxtags*/32
 	},
 	{
