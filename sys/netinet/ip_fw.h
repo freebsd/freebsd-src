@@ -126,7 +126,7 @@ extern struct  ip_fw *ip_acct_chain;
 /*
  * Function pointers.
  */
-extern int (*ip_fw_chk_ptr)(struct ip *,struct ifnet *,struct ip_fw *);
+extern int (*ip_fw_chk_ptr)(struct mbuf *, struct ip *,struct ifnet *,struct ip_fw *);
 extern int (*ip_fw_ctl_ptr)(int,struct mbuf *);
 
 extern void (*ip_acct_cnt_ptr)(struct ip *,struct ifnet *,struct ip_fw *,int);
@@ -135,7 +135,7 @@ extern int  (*ip_acct_ctl_ptr)(int,struct mbuf *);
 /*
  * Function definitions.
  */
-int ip_fw_chk(struct ip *,struct ifnet *,struct ip_fw *);
+int ip_fw_chk(struct mbuf *, struct ip *,struct ifnet *,struct ip_fw *);
 int ip_fw_ctl(int,struct mbuf *);
 
 void ip_acct_cnt(struct ip *,struct ifnet *,struct ip_fw *,int);
