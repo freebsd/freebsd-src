@@ -361,6 +361,10 @@ struct flow_manager {
  */
 #define NG_MKMESSAGE(msg, cookie, cmdid, len, how)			\
 	do {								\
+	  KASSERT(!(how & M_DONTWAIT),					\
+	      ("NG_MKMESSAGE() with how=M_DONTWAIT (%d)\n", how));	\
+	  KASSERT(!(how & M_TRYWAIT),					\
+	      ("NG_MKMESSAGE() with how=M_TRYWAIT (%d)\n", how));	\
 	  MALLOC((msg), struct ng_mesg *, sizeof(struct ng_mesg)	\
 	    + (len), M_NETGRAPH_MSG, (how) | M_ZERO);			\
 	  if ((msg) == NULL)						\
