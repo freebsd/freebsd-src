@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.1 1997/10/02 21:17:10 wosch Exp wosch $
+#	$Id: bsd.info.mk,v 1.42 1997/10/04 13:00:56 wosch Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -170,7 +170,7 @@ distribute: _SUBDIR
 .if defined(SRCS)
 CLEANFILES+=	${INFO}.texi
 ${INFO}.texi: ${SRCS}
-	echo "\\input ${SRCS}" > ${.TARGET}
+	cat ${.ALLSRC} > ${.TARGET}
 .endif
 
 depend: _SUBDIR
