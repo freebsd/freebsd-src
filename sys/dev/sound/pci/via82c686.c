@@ -475,8 +475,20 @@ via_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	pci_write_config(dev, VIA_PCICONF_MISC,
-		VIA_PCICONF_ACLINKENAB | VIA_PCICONF_ACSGD | VIA_PCICONF_ACNOTRST | VIA_PCICONF_ACVSR, 1);
+	/* Wake up and reset AC97 if necessary */
+	if (!(pci_read_config(dev, VIA_AC97STATUS, 1) & VIA_AC97STATUS_RDY)) {
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_EN | VIA_ACLINK_NRST | VIA_ACLINK_SYNC, 1);
+		DELAY(1000);
+		pci_write_config(dev, VIA_ACLINKCTRL,  0, 1);
+		DELAY(1000);
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);
+		DELAY(1000);
+	}
+
+	if (pci_read_config(dev, VIA_ACLINKCTRL, 1) != VIA_ACLINK_DESIRED) {
+		pci_write_config(dev, VIA_ACLINKCTRL, VIA_ACLINK_DESIRED, 1);
+		DELAY(1000);
+	}
 
 	via->regid = PCIR_MAPS;
 	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0, 1, RF_ACTIVE);
@@ -503,7 +515,8 @@ via_attach(device_t dev)
 	if (!via->codec)
 		goto bad;
 
-	mixer_init(dev, ac97_getmixerclass(), via->codec);
+	if (mixer_init(dev, ac97_getmixerclass(), via->codec))
+		goto bad;
 
 	via->codec_caps = ac97_getextcaps(via->codec);
 	ac97_setextmode(via->codec, 
