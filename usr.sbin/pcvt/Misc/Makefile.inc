@@ -1,0 +1,3 @@
+DISTRIBUTION=	doc
+BINDIR=		/usr/share/pcvt
+BINMODE=	0444

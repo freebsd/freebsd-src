@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.101 1997/10/16 17:38:55 jkh Exp $
+#	$Id: BSD.usr.dist,v 1.102 1997/10/16 17:47:00 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -450,6 +450,12 @@
 	    sv_SE.ISO_8859-1
             ..
         ..
+	pcvt
+	    Doc
+	    ..
+	    Etc
+	    ..
+	..
         perl
             sys
             ..
