@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: klogin.c,v 1.20 1997/05/02 14:27:42 assar Exp $");
+RCSID("$Id: klogin.c,v 1.27 1999/10/04 16:11:48 bg Exp $");
 
 #ifdef KERBEROS
 
@@ -43,6 +43,36 @@ extern int notickets;
 extern char *krbtkfile_env;
 
 static char tkt_location[MaxPathLen];
+
+static int
+multiple_get_tkt(char *name,
+		 char *instance,
+		 char *realm,
+		 char *service,
+		 char *sinstance,
+		 int life,
+		 char *password)
+{
+  int ret;
+  int n;
+  char rlm[256];
+
+  /* First try to verify against the supplied realm. */
+  ret = krb_get_pw_in_tkt(name, instance, realm, service, realm, life,
+			  password);
+  if(ret == KSUCCESS)
+    return KSUCCESS;
+
+  /* Verify all local realms, except the supplied realm. */
+  for (n = 1; krb_get_lrealm(rlm, n) == KSUCCESS; n++)
+    if (strcmp(rlm, realm) != 0) {
+      ret = krb_get_pw_in_tkt(name, instance, rlm,service, rlm,life, password);
+      if (ret == KSUCCESS)
+	return KSUCCESS;
+    }
+
+  return ret;
+}
 
 /*
  * Attempt to log the user in using Kerberos authentication
@@ -73,7 +103,7 @@ klogin(struct passwd *pw, char *instance, char *localhost, char *password)
      * without issuing any tickets.
      */
     if (strcmp(pw->pw_name, "root") == 0 ||
-	krb_get_lrealm(realm, 0) != KSUCCESS)
+	krb_get_lrealm(realm, 1) != KSUCCESS)
 	return (1);
 
     noticketsdontcomplain = 0; /* enable warning message */
@@ -96,9 +126,25 @@ klogin(struct passwd *pw, char *instance, char *localhost, char *password)
     krbtkfile_env = tkt_location;
     krb_set_tkt_string(tkt_location);
 
-    kerror = krb_get_pw_in_tkt(pw->pw_name, instance,
-			       realm, KRB_TICKET_GRANTING_TICKET, realm,
-			       DEFAULT_TKT_LIFE, password);
+    /*
+     * Set real as well as effective ID to 0 for the moment,
+     * to make the kerberos library do the right thing.
+     */
+    if (setuid(0) < 0) {
+        warnx("setuid");
+	return (1);
+    }
+
+    /*
+     * Get ticket
+     */
+    kerror = multiple_get_tkt(pw->pw_name,
+			      instance,
+			      realm,
+			      KRB_TICKET_GRANTING_TICKET,
+			      realm,
+			      DEFAULT_TKT_LIFE,
+			      password);
 
     /*
      * If we got a TGT, get a local "rcmd" ticket and check it so as to
@@ -121,8 +167,7 @@ klogin(struct passwd *pw, char *instance, char *localhost, char *password)
     if (chown(TKT_FILE, pw->pw_uid, pw->pw_gid) < 0)
 	syslog(LOG_ERR, "chown tkfile (%s): %m", TKT_FILE);
 
-    strncpy(savehost, krb_get_phost(localhost), sizeof(savehost));
-    savehost[sizeof(savehost)-1] = '\0';
+    strlcpy(savehost, krb_get_phost(localhost), sizeof(savehost));
 
 #ifdef KLOGIN_PARANOID
     /*

@@ -47,7 +47,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: kntoln.c,v 1.7 1997/03/23 03:53:12 joda Exp $");
+RCSID("$Id: kntoln.c,v 1.10 1998/06/09 19:25:21 joda Exp $");
 
 int
 krb_kntoln(AUTH_DAT *ad, char *lname)
@@ -91,9 +91,8 @@ extern int errno;
 
 static char     lrealm[REALM_SZ] = "";
 
-an_to_ln(ad,lname)
-AUTH_DAT        *ad;
-char            *lname;
+int
+an_to_ln(AUTH_DAT *ad, char *lname)
 {
         static DBM *aname = NULL;
         char keyname[ANAME_SZ+INST_SZ+REALM_SZ+2];
@@ -131,9 +130,8 @@ strcmp(ad->prealm,lrealm)) {
         return(KSUCCESS);
 }
 
-an_to_a(ad, str)
-        AUTH_DAT *ad;
-        char *str;
+void
+an_to_a(AUTH_DAT *ad, char *str)
 {
         strcpy(str, ad->pname);
         if(*ad->pinst) {
@@ -149,9 +147,8 @@ an_to_a(ad, str)
  * into a struct AUTH_DAT.
  */
 
-a_to_an(str, ad)
-        AUTH_DAT *ad;
-        char *str;
+int
+a_to_an(char *str, AUTH_DAT *ad)
 {
         char *buf = (char *)malloc(strlen(str)+1);
         char *rlm, *inst, *princ;

@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.27 1997/05/20 18:58:37 bg Exp $
+# $Id: Makefile.in,v 1.31 1998/04/26 09:59:31 assar Exp $
 
 srcdir		= @srcdir@
 VPATH		= @srcdir@
@@ -7,8 +7,8 @@ SHELL		= /bin/sh
 
 @SET_MAKE@
 
-SUBDIRS		= sample kauth bsd movemail afsutil \
-		  kpopper xnlock kx otp @APPL_KIP_DIR@ ftp telnet
+SUBDIRS		= sample kauth bsd movemail push afsutil \
+		  popper xnlock kx @OTP_dir@ @APPL_KIP_DIR@ ftp telnet
 
 all:
 	for i in $(SUBDIRS); \
@@ -40,4 +40,4 @@ realclean:
 	for i in $(SUBDIRS); \
 	do (cd $$i && $(MAKE) $(MFLAGS) realclean); done
 
-.PHONY: all install uninstall clean distclean realclean mostlyclean
+.PHONY: all Wall install uninstall clean mostlyclean distclean realclean

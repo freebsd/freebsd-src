@@ -1,17 +1,19 @@
-# $Id: Makefile.in,v 1.23 1997/03/23 13:04:08 assar Exp $
+# $Id: Makefile.in,v 1.30 1999/03/10 19:01:14 joda Exp $
 
 SHELL	= /bin/sh
 
 srcdir	= @srcdir@
 VPATH	= @srcdir@
 
-topdir	= ..
+top_builddir	= ..
 
 CC		= @CC@
+LINK		= @LINK@
 AR		= ar
 RANLIB		= @RANLIB@
 DEFS		= @DEFS@
-CFLAGS		= @CFLAGS@
+CFLAGS		= @CFLAGS@ $(WFLAGS)
+WFLAGS		= @WFLAGS@
 LD_FLAGS	= @LD_FLAGS@
 INSTALL		= @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -40,17 +42,17 @@ Wall:
 	make CFLAGS="-g -Wall -Wno-comment -Wmissing-prototypes -Wmissing-declarations -D__USE_FIXED_PROTOTYPES__"
 
 .c.o:
-	$(CC) -c $(CPPFLAGS) $(DEFS) -I../include -I$(srcdir) $(CFLAGS) $<
+	$(CC) -c $(DEFS) -I../include -I$(srcdir) $(CFLAGS) $(CPPFLAGS) $<
 
 install: all
-	$(MKINSTALLDIRS) $(bindir)
+	$(MKINSTALLDIRS) $(DESTDIR)$(bindir)
 	for x in $(PROGS); do \
-	  $(INSTALL_PROGRAM) $$x $(bindir)/`echo $$x | sed '$(transform)'`; \
+	  $(INSTALL_PROGRAM) $$x $(DESTDIR)$(bindir)/`echo $$x | sed '$(transform)'`; \
 	done
 
 uninstall:
 	for x in $(PROGS); do \
-	  rm -f $(bindir)/`echo $$x | sed '$(transform)'`; \
+	  rm -f $(DESTDIR)$(bindir)/`echo $$x | sed '$(transform)'`; \
 	done
 
 TAGS: $(SOURCES)
@@ -69,24 +71,20 @@ distclean: clean
 realclean: distclean
 	rm -f TAGS
 
-dist: $(DISTFILES)
-	for file in $(DISTFILES); do \
-	  ln $$file ../`cat ../.fname`/lib \
-	    || cp -p $$file ../`cat ../.fname`/lib; \
-	done
-
 KLIB=-L../lib/krb -lkrb -L../lib/des -ldes
 LIBROKEN=-L../lib/roken -lroken
 
 kinit$(EXECSUFFIX): kinit.o
-	$(CC) $(LD_FLAGS) $(LDFLAGS) -o $@ kinit.o $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
+	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ kinit.o $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
 
 kdestroy$(EXECSUFFIX): kdestroy.o
-	$(CC) $(LD_FLAGS) $(LDFLAGS) -o $@ kdestroy.o $(KRB_KAFS_LIB) $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
+	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ kdestroy.o $(KRB_KAFS_LIB) $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
 
 klist$(EXECSUFFIX): klist.o
-	$(CC) $(LD_FLAGS) $(LDFLAGS) -o $@ klist.o $(KRB_KAFS_LIB) $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
+	$(LINK) $(LD_FLAGS) $(LDFLAGS) -o $@ klist.o $(KRB_KAFS_LIB) $(KLIB) $(LIBROKEN) $(LIBS) $(LIBROKEN)
 
 # su move to appl/bsd
 
 $(OBJECTS): ../include/config.h
+
+.PHONY: all Wall install uninstall check clean mostlyclean distclean realclean

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kauth.h,v 1.18 1997/05/20 18:40:31 bg Exp $ */
+/* $Id: kauth.h,v 1.21 1999/12/02 16:58:31 joda Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -92,6 +87,9 @@
 #endif
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <err.h>
@@ -113,6 +111,6 @@ int write_encrypted (int, void*, size_t, des_key_schedule,
 int read_encrypted (int, void*, size_t, void **, des_key_schedule,
 		    des_cblock*, struct sockaddr_in*, struct sockaddr_in*);
 
-unsigned pack_args (char *, krb_principal*, int, char*, char*);
+int pack_args (char *, size_t, krb_principal*, int, const char*, const char*);
 
-int unpack_args (char*, krb_principal*, int*, char*, char*);
+int unpack_args (const char*, krb_principal*, int*, char*, char*);

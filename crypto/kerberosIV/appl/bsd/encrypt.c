@@ -46,13 +46,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: encrypt.c,v 1.3 1996/04/30 13:50:54 bg Exp $");
-
-#undef BSIZE
-
-/* used in des_read and des_write */
-#define MAXWRITE	(1024*16)
-#define BSIZE		(MAXWRITE+4)
+RCSID("$Id: encrypt.c,v 1.4 1999/06/17 18:47:26 assar Exp $");
 
 /* replacements for htonl and ntohl since I have no idea what to do
  * when faced with machines with 8 byte longs. */
@@ -78,11 +72,11 @@ des_enc_read(int fd, char *buf, int len, struct des_ks_struct *sched, des_cblock
 {
   /* data to be unencrypted */
   int net_num=0;
-  unsigned char net[BSIZE];
+  unsigned char net[DES_RW_BSIZE];
   /* extra unencrypted data 
    * for when a block of 100 comes in but is des_read one byte at
    * a time. */
-  static char unnet[BSIZE];
+  static char unnet[DES_RW_BSIZE];
   static int unnet_start=0;
   static int unnet_left=0;
   int i;
@@ -114,7 +108,7 @@ des_enc_read(int fd, char *buf, int len, struct des_ks_struct *sched, des_cblock
     }
 
   /* We need to get more data. */
-  if (len > MAXWRITE) len=MAXWRITE;
+  if (len > DES_RW_MAXWRITE) len=DES_RW_MAXWRITE;
 
   /* first - get the length */
   net_num=0;
@@ -133,7 +127,7 @@ des_enc_read(int fd, char *buf, int len, struct des_ks_struct *sched, des_cblock
   /* num should be rounded up to the next group of eight
    * we make sure that we have read a multiple of 8 bytes from the net.
    */
-  if ((num > MAXWRITE) || (num < 0)) /* error */
+  if ((num > DES_RW_MAXWRITE) || (num < 0)) /* error */
     return(-1);
   rnum=(num < 8)?8:((num+7)/8*8);
 
@@ -172,7 +166,7 @@ des_enc_read(int fd, char *buf, int len, struct des_ks_struct *sched, des_cblock
        * FIXED - Should be ok now 18-9-90 - eay */
       if (len < rnum)
 	{
-	  char tmpbuf[BSIZE];
+	  char tmpbuf[DES_RW_BSIZE];
 
 	  if (des_rw_mode & DES_PCBC_MODE)
 	    des_pcbc_encrypt((des_cblock *)net,
@@ -223,7 +217,7 @@ des_enc_write(int fd, char *buf, int len, struct des_ks_struct *sched, des_cbloc
 {
   long rnum;
   int i,j,k,outnum;
-  char outbuf[BSIZE+HDRSIZE];
+  char outbuf[DES_RW_BSIZE+HDRSIZE];
   char shortbuf[8];
   char *p;
   static int start=1;
@@ -237,13 +231,13 @@ des_enc_write(int fd, char *buf, int len, struct des_ks_struct *sched, des_cbloc
     }
 
   /* lets recurse if we want to send the data in small chunks */
-  if (len > MAXWRITE)
+  if (len > DES_RW_MAXWRITE)
     {
       j=0;
       for (i=0; i<len; i+=k)
 	{
 	  k=des_enc_write(fd,&(buf[i]),
-			  ((len-i) > MAXWRITE)?MAXWRITE:(len-i),sched,iv);
+			  ((len-i) > DES_RW_MAXWRITE)?DES_RW_MAXWRITE:(len-i),sched,iv);
 	  if (k < 0)
 	    return(k);
 	  else

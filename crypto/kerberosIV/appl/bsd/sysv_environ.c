@@ -2,7 +2,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: sysv_environ.c,v 1.21 1997/05/14 17:34:15 joda Exp $");
+RCSID("$Id: sysv_environ.c,v 1.23 1997/12/14 23:50:44 assar Exp $");
 
 #ifdef HAVE_ULIMIT_H
 #include <ulimit.h>
@@ -86,7 +86,6 @@ void sysv_newenv(int argc, char **argv, struct passwd *pwd,
 		 char *term, int pflag)
 {
     unsigned umask_val;
-    long    limit_val;
     char    buf[BUFSIZ];
     int     count = 0;
     struct censored *cp;
@@ -153,7 +152,7 @@ void sysv_newenv(int argc, char **argv, struct passwd *pwd,
 	char *sep = "/";
 	if(KRB4_MAILDIR[strlen(KRB4_MAILDIR) - 1] == '/')
 	    sep = "";
-	k_concat(buf, sizeof(buf), KRB4_MAILDIR, sep, pwd->pw_name, NULL);
+	roken_concat(buf, sizeof(buf), KRB4_MAILDIR, sep, pwd->pw_name, NULL);
     }
     setenv("MAIL", buf, 1);
     setenv("LOGNAME", pwd->pw_name, 1);
@@ -182,6 +181,8 @@ void sysv_newenv(int argc, char **argv, struct passwd *pwd,
     }
 #ifdef HAVE_ULIMIT
     if (default_ulimit) {
+	long    limit_val;
+
 	if (sscanf(default_ulimit, "%ld", &limit_val) == 1 && limit_val)
 	    if (ulimit(UL_SETFSIZE, limit_val) < 0)
 	        warn ("ulimit(UL_SETFSIZE, %ld)", limit_val);

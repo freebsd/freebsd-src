@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: create_ciph.c,v 1.9 1997/04/01 08:18:20 joda Exp $");
+RCSID("$Id: create_ciph.c,v 1.13 1999/12/02 16:58:41 joda Exp $");
 
 /*
  * This routine is used by the authentication server to create
@@ -91,23 +86,53 @@ create_ciph(KTEXT c,		/* Text block to hold ciphertext */
 
 {
     unsigned char *p = c->dat;
+    size_t rem = sizeof(c->dat);
+    int tmp;
 
     memset(c, 0, sizeof(KTEXT_ST));
 
+    if (rem < 8)
+	return KFAILURE;
     memcpy(p, session, 8);
     p += 8;
-    
-    p += krb_put_nir(service, instance, realm, p);
-    
-    p += krb_put_int(life, p, 1);
-    p += krb_put_int(kvno, p, 1);
+    rem -= 8;
 
-    p += krb_put_int(tkt->length, p, 1);
+    tmp = krb_put_nir(service, instance, realm, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
+    
+    tmp = krb_put_int(life, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_int(kvno, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_int(tkt->length, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    if (rem < tkt->length)
+	return KFAILURE;
     memcpy(p, tkt->dat, tkt->length);
     p += tkt->length;
+    rem -= tkt->length;
 
-    p += krb_put_int(kdc_time, p, 4);
+    tmp = krb_put_int(kdc_time, p, rem, 4);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
     /* multiple of eight bytes */
     c->length = (p - c->dat + 7) & ~7;

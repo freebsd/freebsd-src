@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: strerror.c,v 1.8 1997/05/02 14:29:33 assar Exp $");
+RCSID("$Id: strerror.c,v 1.10 1999/12/02 16:58:53 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -56,7 +51,7 @@ strerror(int eno)
     if(eno < 0 || eno >= sys_nerr)
 	snprintf(emsg, sizeof(emsg), "Error %d occurred.", eno);
     else
-	strcpy(emsg, sys_errlist[eno]);
+	snprintf(emsg, sizeof(emsg), "%s", sys_errlist[eno]);
 
     return emsg;
 }

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: err.h,v 1.13 1997/05/02 14:29:30 assar Exp $ */
+/* $Id: err.h,v 1.15 1999/12/02 16:58:45 joda Exp $ */
 
 #ifndef __ERR_H__
 #define __ERR_H__
@@ -53,8 +48,8 @@ extern const char *__progname;
 #define __attribute__(x)
 #endif
 
-void warnerr(int doexit, int eval, int doerrno, const char *fmt, va_list ap)
-     __attribute__ ((format (printf, 4, 0)));
+void warnerr(int doerrno, const char *fmt, va_list ap)
+     __attribute__ ((format (printf, 2, 0)));
 
 void verr(int eval, const char *fmt, va_list ap)
      __attribute__ ((noreturn, format (printf, 2, 0)));

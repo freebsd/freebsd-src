@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: cr_err_reply.c,v 1.9 1997/04/01 08:18:19 joda Exp $");
+RCSID("$Id: cr_err_reply.c,v 1.11 1999/12/02 16:58:41 joda Exp $");
 
 /*
  * This routine is used by the Kerberos authentication server to
@@ -74,26 +69,54 @@ RCSID("$Id: cr_err_reply.c,v 1.9 1997/04/01 08:18:19 joda Exp $");
  * string		e_string	   error text
  */
 
-void
+int
 cr_err_reply(KTEXT pkt, char *pname, char *pinst, char *prealm, 
 	     u_int32_t time_ws, u_int32_t e, char *e_string)
 {
     unsigned char *p = pkt->dat;
+    int tmp;
+    size_t rem = sizeof(pkt->dat);
     
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    p += krb_put_int(AUTH_MSG_ERR_REPLY, p, 1);
+    tmp = krb_put_int(KRB_PROT_VERSION, p, rem, 1);
+    if (tmp < 0)
+	return -1;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_int(AUTH_MSG_ERR_REPLY, p, rem, 1);
+    if (tmp < 0)
+	return -1;
+    p += tmp;
+    rem -= tmp;
 
     if (pname == NULL) pname = "";
     if (pinst == NULL) pinst = "";
     if (prealm == NULL) prealm = "";
 
-    p += krb_put_nir(pname, pinst, prealm, p);
-    
-    p += krb_put_int(time_ws, p, 4);
+    tmp = krb_put_nir(pname, pinst, prealm, p, rem);
+    if (tmp < 0)
+	return -1;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_int(e, p, 4);
+    tmp = krb_put_int(time_ws, p, rem, 4);
+    if (tmp < 0)
+	return -1;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_string(e_string, p);
+    tmp = krb_put_int(e, p, rem, 4);
+    if (tmp < 0)
+	return -1;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_string(e_string, p, rem);
+    if (tmp < 0)
+	return -1;
+    p += tmp;
+    rem -= tmp;
 
     pkt->length = p - pkt->dat;
+    return 0;
 }

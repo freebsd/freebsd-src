@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,32 +33,50 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: mk_req.c,v 1.17 1997/05/30 17:42:38 bg Exp $");
+RCSID("$Id: mk_req.c,v 1.22 1999/12/02 16:58:43 joda Exp $");
 
 static int lifetime = 255;	/* But no longer than TGT says. */
 
 
-static void
+static int
 build_request(KTEXT req, char *name, char *inst, char *realm, 
 	      u_int32_t checksum)
 {
     struct timeval tv;
     unsigned char *p = req->dat;
+    int tmp;
+    size_t rem = sizeof(req->dat);
     
-    p += krb_put_nir(name, inst, realm, p);
-    
-    p += krb_put_int(checksum, p, 4);
+    tmp = krb_put_nir(name, inst, realm, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
+    tmp = krb_put_int(checksum, p, rem, 4);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
     /* Fill in the times on the request id */
-    gettimeofday(&tv, NULL);
+    krb_kdctimeofday(&tv);
+
+    if (rem < 1)
+	return KFAILURE;
 
     *p++ = tv.tv_usec / 5000; /* 5ms */
+    --rem;
     
-    p += krb_put_int(tv.tv_sec, p, 4);
+    tmp = krb_put_int(tv.tv_sec, p, rem, 4);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
     /* Fill to a multiple of 8 bytes for DES */
     req->length = ((p - req->dat + 7)/8) * 8;
+    return 0;
 }
 
 
@@ -125,10 +138,20 @@ krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
     char myrealm[REALM_SZ];
 
     unsigned char *p = authent->dat;
+    int rem = sizeof(authent->dat);
+    int tmp;
 
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    
-    p += krb_put_int(AUTH_MSG_APPL_REQUEST, p, 1);
+    tmp = krb_put_int(KRB_PROT_VERSION, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_int(AUTH_MSG_APPL_REQUEST, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
     
     /* Get the ticket and move it into the authenticator */
     if (krb_ap_req_debug)
@@ -155,9 +178,9 @@ krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
      */
 
     retval = krb_get_cred(KRB_TICKET_GRANTING_TICKET, realm, realm, 0);
-    if (retval == KSUCCESS)
-      strncpy(myrealm, realm, REALM_SZ);
-    else
+    if (retval == KSUCCESS) {
+      strlcpy(myrealm, realm, REALM_SZ);
+    } else
       retval = krb_get_tf_realm(TKT_FILE, myrealm);
     
     if (retval != KSUCCESS)
@@ -167,25 +190,45 @@ krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
         krb_warning("serv=%s.%s@%s princ=%s.%s@%s\n", service, instance, realm,
 		    cr.pname, cr.pinst, myrealm);
 
-    p += krb_put_int(cr.kvno, p, 1);
+    tmp = krb_put_int(cr.kvno, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_string(realm, p);
+    tmp = krb_put_string(realm, p, rem);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
-    p += krb_put_int(ticket->length, p, 1);
+    tmp = krb_put_int(ticket->length, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
-    build_request(req_id, cr.pname, cr.pinst, myrealm, checksum);
+    retval = build_request(req_id, cr.pname, cr.pinst, myrealm, checksum);
+    if (retval != KSUCCESS)
+	return retval;
     
     encrypt_ktext(req_id, &cr.session, DES_ENCRYPT);
 
-    p += krb_put_int(req_id->length, p, 1);
+    tmp = krb_put_int(req_id->length, p, rem, 1);
+    if (tmp < 0)
+	return KFAILURE;
+    p += tmp;
+    rem -= tmp;
 
+    if (rem < ticket->length + req_id->length)
+	return KFAILURE;
+    
     memcpy(p, ticket->dat, ticket->length);
-    
     p += ticket->length;
-    
+    rem -= ticket->length;
     memcpy(p, req_id->dat, req_id->length);
-    
     p += req_id->length;
+    rem -= req_id->length;
 
     authent->length = p - authent->dat;
     

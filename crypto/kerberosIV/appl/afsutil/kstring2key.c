@@ -30,7 +30,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-/* $FreeBSD$ */
 
 #include "config.h"
 
@@ -43,7 +42,7 @@ RCSID("$Id: kstring2key.c,v 1.16 1999/12/02 16:58:28 joda Exp $");
 
 #include <roken.h>
 
-#include <openssl/des.h>
+#include <des.h>
 #include <krb.h>
 
 #define VERIFY 0

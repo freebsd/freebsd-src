@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,60 +33,94 @@
 
 #include "kauth.h"
 
-RCSID("$Id: marshall.c,v 1.7 1997/04/01 08:17:32 joda Exp $");
+RCSID("$Id: marshall.c,v 1.10 1999/12/02 16:58:31 joda Exp $");
 
-unsigned
-pack_args (char *buf, krb_principal *pr, int lifetime,
-	   char *locuser, char *tktfile)
+int
+pack_args (char *buf,
+	   size_t sz,
+	   krb_principal *pr,
+	   int lifetime,
+	   const char *locuser,
+	   const char *tktfile)
 {
-    char *p;
+    char *p = buf;
+    int len;
 
     p = buf;
-    strcpy (p, pr->name);
-    p += strlen (pr->name) + 1;
-    strcpy (p, pr->instance);
-    p += strlen (pr->instance) + 1;
-    strcpy (p, pr->realm);
-    p += strlen (pr->realm) + 1;
+
+    len = strlen(pr->name);
+    if (len >= sz)
+	return -1;
+    memcpy (p, pr->name, len + 1);
+    p += len + 1;
+    sz -= len + 1;
+
+    len = strlen(pr->instance);
+    if (len >= sz)
+	return -1;
+    memcpy (p, pr->instance, len + 1);
+    p += len + 1;
+    sz -= len + 1;
+
+    len = strlen(pr->realm);
+    if (len >= sz)
+	return -1;
+    memcpy(p, pr->realm, len + 1);
+    p += len + 1;
+    sz -= len + 1;
+
+    if (sz < 1)
+	return -1;
     *p++ = (unsigned char)lifetime;
-    strcpy(p, locuser);
-    p += strlen (locuser) + 1;
-    strcpy(p, tktfile);
-    p += strlen(tktfile) + 1;
+
+    len = strlen(locuser);
+    if (len >= sz)
+	return -1;
+    memcpy (p, locuser, len + 1);
+    p += len + 1;
+    sz -= len + 1;
+
+    len = strlen(tktfile);
+    if (len >= sz)
+	return -1;
+    memcpy (p, tktfile, len + 1);
+    p += len + 1;
+    sz -= len + 1;
+
     return p - buf;
 }
 
 int
-unpack_args (char *buf, krb_principal *pr, int *lifetime,
+unpack_args (const char *buf, krb_principal *pr, int *lifetime,
 	     char *locuser, char *tktfile)
 {
     int len;
 
     len = strlen(buf);
-    if (len > SNAME_SZ)
+    if (len >= SNAME_SZ)
 	return -1;
-    strncpy(pr->name, buf, len + 1);
+    strlcpy (pr->name, buf, ANAME_SZ);
     buf += len + 1;
     len = strlen (buf);
-    if (len > INST_SZ)
+    if (len >= INST_SZ)
 	return -1;
-    strncpy (pr->instance, buf, len + 1);
+    strlcpy (pr->instance, buf, INST_SZ);
     buf += len + 1;
     len = strlen (buf);
-    if (len > REALM_SZ)
+    if (len >= REALM_SZ)
 	return -1;
-    strncpy (pr->realm, buf, len + 1);
+    strlcpy (pr->realm, buf, REALM_SZ);
     buf += len + 1;
     *lifetime = (unsigned char)*buf++;
     len = strlen(buf);
-    if (len > SNAME_SZ)
+    if (len >= SNAME_SZ)
 	return -1;
-    strncpy (locuser, buf, len + 1);
+    strlcpy (locuser, buf, SNAME_SZ);
     buf += len + 1;
     len = strlen(buf);
-    if (len > MaxPathLen)
+    if (len >= MaxPathLen)
 	return -1;
-    strncpy (tktfile, buf, len + 1);
+    strlcpy (tktfile, buf, MaxPathLen);
     buf += len + 1;
     return 0;
 }

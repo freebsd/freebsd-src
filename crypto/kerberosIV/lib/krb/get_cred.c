@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_cred.c,v 1.6 1997/05/30 17:38:29 bg Exp $");
+RCSID("$Id: get_cred.c,v 1.7 1997/12/15 17:12:55 assar Exp $");
 
 /*
  * krb_get_cred takes a service name, instance, and realm, and a
@@ -41,7 +41,7 @@ krb_get_cred(char *service,	/* Service name */
     int tf_status;              /* return value of tf function calls */
     CREDENTIALS cr;
 
-    if (c == 0)
+    if (c == NULL)
         c = &cr;
 
     /* Open ticket file and lock it for shared reading */

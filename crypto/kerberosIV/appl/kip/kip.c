@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,10 +33,10 @@
 
 #include "kip.h"
 
-RCSID("$Id: kip.c,v 1.15 1997/05/11 10:54:51 assar Exp $");
+RCSID("$Id: kip.c,v 1.18 1999/12/02 16:58:31 joda Exp $");
 
 static void
-usage()
+usage(void)
 {
      fprintf (stderr, "Usage: %s host\n",
 	      __progname);
@@ -69,12 +64,7 @@ connect_host (char *host, des_cblock *key, des_key_schedule schedule)
      hostent = gethostbyname (host);
      if (hostent == NULL) {
 	 warnx ("gethostbyname '%s': %s", host,
-#ifdef HAVE_H_ERRNO
-		hstrerror(h_errno)
-#else
-		"unknown error"
-#endif
-	     );
+		hstrerror(h_errno));
 	  return -1;
      }
 
@@ -83,8 +73,6 @@ connect_host (char *host, des_cblock *key, des_key_schedule schedule)
      thataddr.sin_port   = k_getportbyname ("kip", "tcp", htons(KIPPORT));
 
      for(p = hostent->h_addr_list; *p; ++p) {
-	 int one = 1;
-
 	 memcpy (&thataddr.sin_addr, *p, sizeof(thataddr.sin_addr));
 
 	 s = socket (AF_INET, SOCK_STREAM, 0);
@@ -94,7 +82,12 @@ connect_host (char *host, des_cblock *key, des_key_schedule schedule)
 	 }
 
 #if defined(TCP_NODELAY) && defined(HAVE_SETSOCKOPT)
-	 setsockopt (s, IPPROTO_TCP, TCP_NODELAY, (void *)&one, sizeof(one));
+	 {
+	     int one = 1;
+
+	     setsockopt (s, IPPROTO_TCP, TCP_NODELAY,
+			 (void *)&one, sizeof(one));
+	 }
 #endif
 
 	 if (connect (s, (struct sockaddr *)&thataddr, sizeof(thataddr)) < 0) {
@@ -151,8 +144,6 @@ doit (char *host)
      des_key_schedule schedule;
      des_cblock iv;
      int other, this;
-     struct ifreq ifreq;
-     int sock;
 
      other = connect_host (host, &iv, schedule);
      if (other < 0)

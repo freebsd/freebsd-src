@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,10 +33,10 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: rd_safe.c,v 1.24 1997/04/19 23:18:20 joda Exp $");
+RCSID("$Id: rd_safe.c,v 1.26 1999/12/02 16:58:43 joda Exp $");
 
 /* application include files */
-#include "lsb_addr_comp.h"
+#include "krb-archaeology.h"
 
 /* Generate two checksums in the given byteorder of the data, one
  * new-form and one old-form. It has to be done this way to be

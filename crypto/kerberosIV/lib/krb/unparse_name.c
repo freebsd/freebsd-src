@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: unparse_name.c,v 1.7 1997/04/01 08:18:46 joda Exp $");
+RCSID("$Id: unparse_name.c,v 1.10 1999/12/02 16:58:44 joda Exp $");
 
 static void
 quote_string(char *quote, char *from, char *to)
@@ -74,12 +69,13 @@ krb_unparse_name_long_r(char *name, char *instance, char *realm,
 			char *fullname)
 {
     krb_principal pr;
+
     memset(&pr, 0, sizeof(pr));
-    strcpy(pr.name, name);
+    strlcpy(pr.name, name, sizeof(pr.name));
     if(instance)
-	strcpy(pr.instance, instance);
+	strlcpy(pr.instance, instance, sizeof(pr.instance));
     if(realm)
-	strcpy(pr.realm, realm);
+	strlcpy(pr.realm, realm, sizeof(pr.realm));
     return krb_unparse_name_r(&pr, fullname);
 }
 
@@ -95,11 +91,12 @@ char *
 krb_unparse_name_long(char *name, char *instance, char *realm)
 {
     krb_principal pr;
+
     memset(&pr, 0, sizeof(pr));
-    strcpy(pr.name, name);
+    strlcpy(pr.name, name, sizeof(pr.name));
     if(instance)
-	strcpy(pr.instance, instance);
+	strlcpy(pr.instance, instance, sizeof(pr.instance));
     if(realm)
-	strcpy(pr.realm, realm);
+	strlcpy(pr.realm, realm, sizeof(pr.realm));
     return krb_unparse_name(&pr);
 }

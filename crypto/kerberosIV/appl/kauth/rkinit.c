@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "kauth.h"
 
-RCSID("$Id: rkinit.c,v 1.19 1997/04/01 08:17:33 joda Exp $");
+RCSID("$Id: rkinit.c,v 1.22.2.1 1999/12/06 17:27:56 assar Exp $");
 
 static struct in_addr *
 getalladdrs (char *hostname, unsigned *count)
@@ -53,12 +48,7 @@ getalladdrs (char *hostname, unsigned *count)
     if (hostent == NULL) {
 	warnx ("gethostbyname '%s' failed: %s\n",
 	       hostname,
-#ifdef HAVE_H_ERRNO
-	       hstrerror(h_errno)
-#else
-	       "unknown error"
-#endif
-	       );
+	       hstrerror(h_errno));
 	return NULL;
     }
     maxaddr = 1;
@@ -118,6 +108,15 @@ doit_host (krb_principal *princ, int lifetime, char *locuser,
 	return 1;
     }
 
+    if (krb_get_config_bool("nat_in_use")) {
+	struct in_addr natAddr;
+
+	if (krb_get_our_ip_for_realm(krb_realmofhost(hostname),
+				     &natAddr) == KSUCCESS
+	    || krb_get_our_ip_for_realm (NULL, &natAddr) == KSUCCESS)
+	    thisaddr.sin_addr = natAddr;
+    }
+
     status = krb_sendauth (KOPT_DO_MUTUAL, s, &text, "rcmd",
 			   hostname, krb_realmofhost (hostname),
 			   getpid(), &msg, &cred, schedule,
@@ -126,7 +125,12 @@ doit_host (krb_principal *princ, int lifetime, char *locuser,
 	warnx ("%s: %s\n", hostname, krb_get_err_text(status));
 	return 1;
     }
-    inlen = pack_args (buf, princ, lifetime, locuser, tktfile);
+    inlen = pack_args (buf, sizeof(buf),
+		       princ, lifetime, locuser, tktfile);
+    if (inlen < 0) {
+	warn ("cannot marshall arguments to %s", hostname);
+	return 1;
+    }
 
     if (write_encrypted(s, buf, inlen, schedule, &cred.session,
 			&thisaddr, &thataddr) < 0) {

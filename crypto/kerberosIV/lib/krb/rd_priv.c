@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,10 +33,10 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: rd_priv.c,v 1.24 1997/05/14 17:53:29 joda Exp $");
+RCSID("$Id: rd_priv.c,v 1.27 1999/12/02 16:58:43 joda Exp $");
 
 /* application include files */
-#include "lsb_addr_comp.h"
+#include "krb-archaeology.h"
 
 /*
  * krb_rd_priv() decrypts and checks the integrity of an
@@ -116,7 +111,7 @@ krb_rd_priv(void *in, u_int32_t in_length,
     if (delta_t > CLOCK_SKEW)
 	return RD_AP_TIME;
     if (krb_debug)
-      krb_warning("\ndelta_t = %d", (int) delta_t);
+	krb_warning("delta_t = %d\n", (int) delta_t);
 
     /*
      * caller must check timestamps for proper order and

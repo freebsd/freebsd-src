@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,12 +31,12 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: sl.h,v 1.2 1997/04/01 08:19:18 joda Exp $ */
+/* $Id: sl.h,v 1.7 1999/12/02 16:58:55 joda Exp $ */
 
 #ifndef _SL_H
 #define _SL_H
 
-typedef void (*cmd_func)(int, char **);
+typedef int (*cmd_func)(int, char **);
 
 struct sl_cmd {
   char *name;
@@ -54,5 +49,9 @@ typedef struct sl_cmd SL_cmd;
 
 void sl_help (SL_cmd *, int argc, char **argv);
 int  sl_loop (SL_cmd *, char *prompt);
+int  sl_command_loop (SL_cmd *cmds, char *prompt, void **data);
+int  sl_command (SL_cmd *cmds, int argc, char **argv);
+int sl_make_argv(char*, int*, char***);
+
 
 #endif /* _SL_H */

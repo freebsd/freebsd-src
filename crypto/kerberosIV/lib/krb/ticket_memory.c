@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -45,7 +40,7 @@
 #include "krb_locl.h"
 #include "ticket_memory.h"
 
-RCSID("$Id: ticket_memory.c,v 1.9 1997/04/20 18:07:36 assar Exp $");
+RCSID("$Id: ticket_memory.c,v 1.15 1999/12/02 16:58:44 joda Exp $");
 
 void msg(char *text, int error);
 
@@ -55,40 +50,36 @@ tktmem	*SharedMemory;
 
 static int CredIndex = -1;
 
+void PostUpdateMessage(void);
+
 int
 newTktMem(const char *tf_name)
-{
-    if(!SharedMemory)
     {
-	unsigned int MemorySize = sizeof(tktmem);
-	unsigned int MemorySizeHi = sizeof(tktmem)>>16;
-	unsigned int MemorySizeLo = MemorySize&0xFFFF;
-	SharedMemoryHandle = CreateFileMapping((HANDLE)(int)-1, 0,
+    if(!SharedMemory){
+	SharedMemoryHandle = CreateFileMapping((HANDLE)-1, 0,
 					       PAGE_READWRITE,
-					       MemorySizeHi, MemorySizeLo,
+					       sizeof(tktmem) >> 16,
+					       sizeof(tktmem) & 0xffff,
 					       "krb_memory");
 
-	if(!SharedMemoryHandle)
-	{
+	if(!SharedMemoryHandle){
 	    msg("Could not create shared memory.", GetLastError());
 	    return KFAILURE;
 	}
 		
 	SharedMemory = MapViewOfFile(SharedMemoryHandle,
 				     FILE_MAP_WRITE, 0, 0, 0);
-	if(!SharedMemory)
-	{
+	if(!SharedMemory){
 	    msg("Unable to alloc shared memory.", GetLastError());
 	    return KFAILURE;
 	}
-	if(GetLastError() != ERROR_ALREADY_EXISTS)
-	{
+	if(GetLastError() != ERROR_ALREADY_EXISTS) {
+            memset(SharedMemory, 0, sizeof(*SharedMemory));
 	    if(tf_name)
-		strcpy(SharedMemory->tmname, tf_name);
-	    SharedMemory->last_cred_no = 0;
+		strlcpy(SharedMemory->tmname,
+				tf_name, sizeof(SharedMemory->tmname));
 	}
     }
-	
     CredIndex = 0;
     return KSUCCESS;
 }
@@ -96,8 +87,7 @@ newTktMem(const char *tf_name)
 int
 freeTktMem(const char *tf_name)
 {
-    if(SharedMemory)
-    {
+    if(SharedMemory) {
 	UnmapViewOfFile(SharedMemory);
 	CloseHandle(SharedMemoryHandle);
     }
@@ -184,9 +174,8 @@ in_tkt(char *pname, char *pinst)
 int
 dest_tkt(void)
 {
-    /* Here goes code to destroy tickets in shared memory. */
-    /* Not implemented yet. */
-    return KFAILURE;
+    memset(getTktMem(0), 0, sizeof(tktmem));
+    return 0;
 }
 
 /* Short description of routines:
@@ -265,9 +254,9 @@ tf_get_pname(char *p)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    if(!TktStore->pname)
+    if(!TktStore->pname[0])
 	return KFAILURE;
-    strcpy(p, TktStore->pname);
+    strlcpy(p, TktStore->pname, ANAME_SZ);
     return KSUCCESS;
 }
 
@@ -283,9 +272,7 @@ tf_put_pname(char *p)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    if(!TktStore->pname)
-	return KFAILURE;
-    strcpy(TktStore->pname, p);
+    strlcpy(TktStore->pname, p, sizeof(TktStore->pname));
     return KSUCCESS;
 }
 
@@ -306,9 +293,7 @@ tf_get_pinst(char *inst)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    if(!TktStore->pinst)
-	return KFAILURE;
-    strcpy(inst, TktStore->pinst);
+    strlcpy(inst, TktStore->pinst, INST_SZ);
     return KSUCCESS;
 }
 
@@ -324,9 +309,7 @@ tf_put_pinst(char *inst)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
-    if(!TktStore->pinst)
-	return KFAILURE;
-    strcpy(TktStore->pinst, inst);
+    strlcpy(TktStore->pinst, inst, sizeof(TktStore->pinst));
     return KSUCCESS;
 }
 
@@ -350,6 +333,7 @@ tf_get_cred(CREDENTIALS *c)
 
     if(!(TktStore =  getTktMem(0)))
 	return KFAILURE;
+    krb_set_kdc_time_diff(TktStore->kdc_diff);
     if((index = nextCredIndex()) == -1)
 	return EOF;
     if(!(cred = TktStore->cred_vec+index))
@@ -402,17 +386,28 @@ tf_save_cred(char *service,	/* Service name */
     if(last == -1)
 	return KFAILURE;
     cred = mem->cred_vec+last;
-    strcpy(cred->service, service);
-    strcpy(cred->instance, instance);
-    strcpy(cred->realm, realm);
-    strcpy(cred->session, session);
+    strlcpy(cred->service, service, sizeof(cred->service));
+    strlcpy(cred->instance, instance, sizeof(cred->instance));
+    strlcpy(cred->realm, realm, sizeof(cred->realm));
+    memcpy(cred->session, session, sizeof(cred->session));
     cred->lifetime = lifetime;
     cred->kvno = kvno;
     memcpy(&(cred->ticket_st), ticket, sizeof(*ticket));
     cred->issue_date = issue_date;
-    strcpy(cred->pname, mem->pname);
-    strcpy(cred->pinst, mem->pinst);
+    strlcpy(cred->pname, mem->pname, sizeof(cred->pname));
+    strlcpy(cred->pinst, mem->pinst, sizeof(cred->pinst));
+    PostUpdateMessage();
     return KSUCCESS;
+}
+
+
+static void
+set_time_diff(time_t diff)
+{
+    tktmem *TktStore = getTktMem(0);
+    if(TktStore == NULL)
+	return;
+    TktStore->kdc_diff = diff;
 }
 
 
@@ -429,6 +424,8 @@ tf_setup(CREDENTIALS *cred, char *pname, char *pinst)
 	tf_close();
 	return INTK_ERR;
     }
+
+    set_time_diff(krb_get_kdc_time_diff());
 
     ret = tf_save_cred(cred->service, cred->instance, cred->realm, 
 		       cred->session, cred->lifetime, cred->kvno,

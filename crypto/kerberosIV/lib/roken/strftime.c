@@ -1,299 +1,396 @@
 /*
- * Copyright (c) 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
+ * 3. Neither the name of KTH nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software without
+ *    specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY KTH AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL KTH OR ITS CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-#include <sys/types.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <sys/time.h>
-#include <time.h>
-#elif defined(HAVE_SYS_TIME_H)
-#include <sys/time.h>
-#else
-#include <time.h>
-#endif
-#define TM_YEAR_BASE	1900	/* from <tzfile.h> */
-#include <string.h>
+#include "roken.h"
 
-static char *afmt[] = {
-	"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
+RCSID("$Id: strftime.c,v 1.10 1999/11/13 04:18:33 assar Exp $");
+
+static const char *abb_weekdays[] = {
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
 };
-static char *Afmt[] = {
-	"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+
+static const char *full_weekdays[] = {
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
 	"Saturday",
 };
-static char *bfmt[] = {
-	"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep",
-	"Oct", "Nov", "Dec",
-};
-static char *Bfmt[] = {
-	"January", "February", "March", "April", "May", "June", "July",
-	"August", "September", "October", "November", "December",
+
+static const char *abb_month[] = {
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
 };
 
-static size_t gsize;
-static char *pt;
+static const char *full_month[] = {
+    "January",
+    "February",
+    "Mars",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+};
 
-static int _add (char *);
-static int _conv (int, int, int);
-#ifdef	HAVE_MKTIME
-static int _secs (const struct tm *);
-#endif	/* HAVE_MKTIME */
-static size_t _fmt (const char *, const struct tm *);
+static const char *ampm[] = {
+    "AM",
+    "PM"
+};
+
+/*
+ * Convert hour in [0, 24] to [12 1 - 11 12 1 - 11 12]
+ */
+
+static int
+hour_24to12 (int hour)
+{
+    int ret = hour % 12;
+
+    if (ret == 0)
+	ret = 12;
+    return ret;
+	}
+
+/*
+ * Return AM or PM for `hour'
+ */
+
+static const char *
+hour_to_ampm (int hour)
+{
+    return ampm[hour / 12];
+}
+
+/*
+ * Return the week number of `tm' (Sunday being the first day of the week)
+ * as [0, 53]
+ */
+
+static int
+week_number_sun (const struct tm *tm)
+{
+    return (tm->tm_yday + 7 - (tm->tm_yday % 7 - tm->tm_wday + 7) % 7) / 7;
+}
+
+/*
+ * Return the week number of `tm' (Monday being the first day of the week)
+ * as [0, 53]
+ */
+
+static int
+week_number_mon (const struct tm *tm)
+{
+    int wday = (tm->tm_wday + 6) % 7;
+
+    return (tm->tm_yday + 7 - (tm->tm_yday % 7 - wday + 7) % 7) / 7;
+}
+
+/*
+ * Return the week number of `tm' (Monday being the first day of the
+ * week) as [01, 53].  Week number one is the one that has four or more
+ * days in that year.
+ */
+
+static int
+week_number_mon4 (const struct tm *tm)
+{
+    int wday  = (tm->tm_wday + 6) % 7;
+    int w1day = (wday - tm->tm_yday % 7 + 7) % 7;
+    int ret;
+    
+    ret = (tm->tm_yday + w1day) / 7;
+    if (w1day >= 4)
+	--ret;
+    if (ret == -1)
+	ret = 53;
+    else
+	++ret;
+    return ret;
+}
+
+/*
+ *
+ */
 
 size_t
-strftime(char *s, size_t maxsize, const char *format, const struct tm *t)
+strftime (char *buf, size_t maxsize, const char *format,
+	  const struct tm *tm)
 {
+    size_t n = 0;
+    size_t ret;
 
-	pt = s;
-	if ((gsize = maxsize) < 1)
-		return(0);
-	if (_fmt(format, t)) {
-		*pt = '\0';
-		return(maxsize - gsize);
-	}
-	return(0);
-}
-
-static size_t
-_fmt(const char *format, const struct tm *t)
-{
-	for (; *format; ++format) {
-		if (*format == '%')
-			switch(*++format) {
-			case '\0':
-				--format;
+    while (*format != '\0' && n < maxsize) {
+	if (*format == '%') {
+	    ++format;
+	    if(*format == 'E' || *format == 'O')
+		++format;
+	    switch (*format) {
+	    case 'a' :
+		ret = snprintf (buf, maxsize - n,
+				"%s", abb_weekdays[tm->tm_wday]);
 				break;
 			case 'A':
-				if (t->tm_wday < 0 || t->tm_wday > 6)
-					return(0);
-				if (!_add(Afmt[t->tm_wday]))
-					return(0);
-				continue;
-			case 'a':
-				if (t->tm_wday < 0 || t->tm_wday > 6)
-					return(0);
-				if (!_add(afmt[t->tm_wday]))
-					return(0);
-				continue;
-			case 'B':
-				if (t->tm_mon < 0 || t->tm_mon > 11)
-					return(0);
-				if (!_add(Bfmt[t->tm_mon]))
-					return(0);
-				continue;
-			case 'b':
+		ret = snprintf (buf, maxsize - n,
+				"%s", full_weekdays[tm->tm_wday]);
+		break;
 			case 'h':
-				if (t->tm_mon < 0 || t->tm_mon > 11)
-					return(0);
-				if (!_add(bfmt[t->tm_mon]))
-					return(0);
-				continue;
-			case 'C':
-				if (!_fmt("%a %b %e %H:%M:%S %Y", t))
-					return(0);
-				continue;
+	    case 'b' :
+		ret = snprintf (buf, maxsize - n,
+				"%s", abb_month[tm->tm_mon]);
+		break;
+	    case 'B' :
+		ret = snprintf (buf, maxsize - n,
+				"%s", full_month[tm->tm_mon]);
+		break;
 			case 'c':
-				if (!_fmt("%m/%d/%y %H:%M:%S", t))
-					return(0);
-				continue;
-			case 'D':
-				if (!_fmt("%m/%d/%y", t))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%d:%02d:%02d %02d:%02d:%02d",
+				tm->tm_year,
+				tm->tm_mon + 1,
+				tm->tm_mday,
+				tm->tm_hour,
+				tm->tm_min,
+				tm->tm_sec);
+		break;
+	    case 'C' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d", (tm->tm_year + 1900) / 100);
+		break;
 			case 'd':
-				if (!_conv(t->tm_mday, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d", tm->tm_mday);
+		break;
+	    case 'D' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d/%02d/%02d",
+				tm->tm_mon + 1,
+				tm->tm_mday,
+				(tm->tm_year + 1900) % 100);
+		break;
 			case 'e':
-				if (!_conv(t->tm_mday, 2, ' '))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%2d", tm->tm_mday);
+		break;
+	    case 'F':
+		ret = snprintf (buf, maxsize - n,
+				"%04d-%02d-%02d", tm->tm_year + 1900,
+				tm->tm_mon + 1, tm->tm_mday);
+		break;
+	    case 'g':
+		/* last two digits of week-based year */
+		abort();
+	    case 'G':
+		/* week-based year */
+		abort();
 			case 'H':
-				if (!_conv(t->tm_hour, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d", tm->tm_hour);
+		break;
 			case 'I':
-				if (!_conv(t->tm_hour % 12 ?
-				    t->tm_hour % 12 : 12, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d",
+				hour_24to12 (tm->tm_hour));
+		break;
 			case 'j':
-				if (!_conv(t->tm_yday + 1, 3, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%03d", tm->tm_yday + 1);
+		break;
 			case 'k':
-				if (!_conv(t->tm_hour, 2, ' '))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%2d", tm->tm_hour);
+		break;
 			case 'l':
-				if (!_conv(t->tm_hour % 12 ?
-				    t->tm_hour % 12 : 12, 2, ' '))
-					return(0);
-				continue;
-			case 'M':
-				if (!_conv(t->tm_min, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%2d",
+				hour_24to12 (tm->tm_hour));
+		break;
 			case 'm':
-				if (!_conv(t->tm_mon + 1, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d", tm->tm_mon + 1);
+		break;
+	    case 'M' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d", tm->tm_min);
+		break;
 			case 'n':
-				if (!_add("\n"))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n, "\n");
+		break;
 			case 'p':
-				if (!_add(t->tm_hour >= 12 ? "PM" : "AM"))
-					return(0);
-				continue;
-			case 'R':
-				if (!_fmt("%H:%M", t))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n, "%s",
+				hour_to_ampm (tm->tm_hour));
+		break;
 			case 'r':
-				if (!_fmt("%I:%M:%S %p", t))
-					return(0);
-				continue;
-			case 'S':
-				if (!_conv(t->tm_sec, 2, '0'))
-					return(0);
-				continue;
-#ifdef HAVE_MKTIME
+		ret = snprintf (buf, maxsize - n,
+				"%02d:%02d:%02d %s",
+				hour_24to12 (tm->tm_hour),
+				tm->tm_min,
+				tm->tm_sec,
+				hour_to_ampm (tm->tm_hour));
+		break;
+	    case 'R' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d:%02d",
+				tm->tm_hour,
+				tm->tm_min);
+		    
 			case 's':
-				if (!_secs(t))
-					return(0);
-				continue;
-#endif	/* HAVE_MKTIME */
+		ret = snprintf (buf, maxsize - n,
+				"%d", (int)mktime((struct tm *)tm));
+		break;
+	    case 'S' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d", tm->tm_sec);
+		break;
+	    case 't' :
+		ret = snprintf (buf, maxsize - n, "\t");
+		break;
 			case 'T':
 			case 'X':
-				if (!_fmt("%H:%M:%S", t))
-					return(0);
-				continue;
-			case 't':
-				if (!_add("\t"))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d:%02d:%02d",
+				tm->tm_hour,
+				tm->tm_min,
+				tm->tm_sec);
+		break;
+	    case 'u' :
+		ret = snprintf (buf, maxsize - n,
+				"%d", (tm->tm_wday == 0) ? 7 : tm->tm_wday);
+		break;
 			case 'U':
-				if (!_conv((t->tm_yday + 7 - t->tm_wday) / 7,
-				    2, '0'))
-					return(0);
-				continue;
-			case 'W':
-				if (!_conv((t->tm_yday + 7 -
-				    (t->tm_wday ? (t->tm_wday - 1) : 6))
-				    / 7, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d", week_number_sun (tm));
+		break;
+	    case 'V' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d", week_number_mon4 (tm));
+		break;
 			case 'w':
-				if (!_conv(t->tm_wday, 1, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%d", tm->tm_wday);
+		break;
+	    case 'W' :
+		ret = snprintf (buf, maxsize - n,
+				"%02d", week_number_mon (tm));
+		break;
 			case 'x':
-				if (!_fmt("%m/%d/%y", t))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%d:%02d:%02d",
+				tm->tm_year,
+				tm->tm_mon + 1,
+				tm->tm_mday);
+		break;
 			case 'y':
-				if (!_conv((t->tm_year + TM_YEAR_BASE)
-				    % 100, 2, '0'))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%02d", (tm->tm_year + 1900) % 100);
+		break;
 			case 'Y':
-				if (!_conv(t->tm_year + TM_YEAR_BASE, 4, '0'))
-					return(0);
-				continue;
-#ifdef notdef
+		ret = snprintf (buf, maxsize - n,
+				"%d", tm->tm_year + 1900);
+		break;
+	    case 'z':
+		ret = snprintf (buf, maxsize - n,
+				"%ld",
+#if defined(HAVE_STRUCT_TM_TM_GMTOFF)
+				(long)tm->tm_gmtoff
+#elif defined(HAVE_TIMEZONE)
+				tm->tm_isdst ?
+				(long)altzone :
+				(long)timezone
+#else
+#error Where in timezone chaos are you?
+#endif    
+				);
+		break;
 			case 'Z':
-				if (!t->tm_zone || !_add(t->tm_zone))
-					return(0);
-				continue;
+		ret = snprintf (buf, maxsize - n,
+				"%s",
+
+#if defined(HAVE_STRUCT_TM_TM_ZONE)
+				tm->tm_zone
+#elif defined(HAVE_TIMEZONE)
+				tzname[tm->tm_isdst]
+#else
+#error what?
 #endif
+		    );
+		break;
+	    case '\0' :
+		--format;
+		/* FALLTHROUGH */
 			case '%':
-			/*
-			 * X311J/88-090 (4.12.3.5): if conversion char is
-			 * undefined, behavior is undefined.  Print out the
-			 * character itself as printf(3) does.
-			 */
+		ret = snprintf (buf, maxsize - n,
+				"%%");
+		break;
 			default:
+		ret = snprintf (buf, maxsize - n,
+				"%%%c", *format);
 				break;
-		}
-		if (!gsize--)
-			return(0);
-		*pt++ = *format;
+}
+	    if (ret >= maxsize - n)
+		return 0;
+	    n   += ret;
+	    buf += ret;
+	    ++format;
+	} else {
+	    *buf++ = *format++;
+	    ++n;
+}
 	}
-	return(gsize);
-}
-
-#ifdef HAVE_MKTIME
-static int
-_secs(const struct tm *t)
-{
-	static char buf[15];
-	time_t s;
-	char *p;
-	struct tm tmp;
-
-	/* Make a copy, mktime(3) modifies the tm struct. */
-	tmp = *t;
-	s = mktime(&tmp);
-	for (p = buf + sizeof(buf) - 2; s > 0 && p > buf; s /= 10)
-		*p-- = s % 10 + '0';
-	return(_add(++p));
-}
-#endif	/* HAVE_MKTIME */
-
-static int
-_conv(int n, int digits, int pad)
-{
-	static char buf[10];
-	char *p;
-
-	for (p = buf + sizeof(buf) - 2; n > 0 && p > buf; n /= 10, --digits)
-		*p-- = n % 10 + '0';
-	while (p > buf && digits-- > 0)
-		*p-- = pad;
-	return(_add(++p));
-}
-
-static int
-_add(str)
-	char *str;
-{
-	for (;; ++pt, --gsize) {
-		if (!gsize)
-			return(0);
-		if (!(*pt = *str++))
-			return(1);
-	}
+    *buf++ = '\0';
+    return n;
 }

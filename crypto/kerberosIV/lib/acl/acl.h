@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,12 +31,10 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: acl.h,v 1.5 1997/04/01 08:17:52 joda Exp $ */
+/* $Id: acl.h,v 1.7 1999/12/02 16:58:37 joda Exp $ */
 
 #ifndef __ACL_H
 #define __ACL_H
-
-#include <sys/cdefs.h>
 
 void acl_canonicalize_principal __P((char *principal, char *canon));
 int acl_initialize __P((char *acl_file, int perm));

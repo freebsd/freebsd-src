@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -39,7 +34,7 @@
 #include "krb_locl.h"
 #include <klog.h>
 
-RCSID("$Id: logging.c,v 1.14 1997/05/11 09:01:40 assar Exp $");
+RCSID("$Id: logging.c,v 1.18 1999/12/02 16:58:42 joda Exp $");
 
 struct krb_log_facility {
     char filename[MaxPathLen]; 
@@ -87,7 +82,7 @@ krb_openlog(struct krb_log_facility *f,
 	    FILE *file,
 	    krb_log_func_t func)
 {
-    strcpy(f->filename, filename);
+    strlcpy(f->filename, filename, MaxPathLen);
     f->file = file;
     f->func = func;
     return KSUCCESS;
@@ -109,7 +104,7 @@ log_tty(FILE *f, const char *format,  va_list args)
 static struct krb_log_facility std_log = { "/dev/tty", NULL, log_tty };
 
 static void
-init_std_log ()
+init_std_log (void)
 {
   static int done = 0;
 

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: slav_locl.h,v 1.11 1997/05/20 18:40:47 bg Exp $ */
+/* $Id: slav_locl.h,v 1.14 1999/12/02 16:58:56 joda Exp $ */
 
 #ifndef __slav_locl_h
 #define __slav_locl_h
@@ -86,6 +81,9 @@
 
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <roken.h>
@@ -95,6 +93,8 @@
 #include <klog.h>
 #include <prot.h>
 #include <kdc.h>
+
+#include <krb_log.h>
 
 #include "kprop.h"
 

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -40,7 +35,7 @@
  * Author: d93-jka@nada.kth.se - June 1996
  */
 
-/* $Id: ticket_memory.h,v 1.6 1997/04/20 06:25:12 assar Exp $ */
+/* $Id: ticket_memory.h,v 1.8 1999/12/02 16:58:44 joda Exp $ */
 
 #ifndef	TICKET_MEMORY_H
 #define TICKET_MEMORY_H
@@ -56,6 +51,7 @@ typedef struct _tktmem
   char pinst[INST_SZ];	/* Principal's instance */
   int last_cred_no;
   CREDENTIALS cred_vec[CRED_VEC_SZ];
+  time_t kdc_diff;
 } tktmem;
 
 int newTktMem(const char *tf_name);

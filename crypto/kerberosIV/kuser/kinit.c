@@ -19,7 +19,7 @@
 
 #include "kuser_locl.h"
 
-RCSID("$Id$");
+RCSID("$Id: kinit.c,v 1.17 1997/12/12 04:48:44 assar Exp $");
 
 #define	LIFE	DEFAULT_TKT_LIFE /* lifetime of ticket in 5-minute units */
 #define CHPASSLIFE 2
@@ -60,7 +60,6 @@ main(int argc, char **argv)
     *inst = *realm = '\0';
     iflag = rflag = vflag = lflag = pflag = 0;
     lifetime = LIFE;
-    set_progname(argv[0]);
 
     while (--argc) {
 	if ((*++argv)[0] != '-') {
@@ -97,8 +96,8 @@ main(int argc, char **argv)
 	iflag = rflag = 1;
 	username = NULL;
     }
-    if (k_gethostname(buf, MaxHostNameLen)) 
-	err(1, "k_gethostname failed");
+    if (gethostname(buf, MaxHostNameLen)) 
+	err(1, "gethostname failed");
     printf("%s (%s)\n", ORGANIZATION, buf);
     if (username) {
 	printf("Kerberos Initialization for \"%s", aname);

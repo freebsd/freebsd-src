@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-1997, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: snprintf.c,v 1.13 1997/05/25 02:00:31 assar Exp $");
+RCSID("$Id: snprintf.c,v 1.24 1999/12/02 16:58:52 joda Exp $");
 #endif
 #include <stdio.h>
 #include <stdarg.h>
@@ -47,21 +42,30 @@ RCSID("$Id: snprintf.c,v 1.13 1997/05/25 02:00:31 assar Exp $");
 #include <ctype.h>
 #include <roken.h>
 
+enum format_flags {
+    minus_flag     =  1,
+    plus_flag      =  2,
+    space_flag     =  4,
+    alternate_flag =  8,
+    zero_flag      = 16
+};
+
 /*
  * Common state
  */
 
 struct state {
-  char *str;
-  char *s;
-  char *theend;
+  unsigned char *str;
+  unsigned char *s;
+  unsigned char *theend;
   size_t sz;
   size_t max_sz;
-  int (*append_char)(struct state *, char);
+  int (*append_char)(struct state *, unsigned char);
   int (*reserve)(struct state *, size_t);
   /* XXX - methods */
 };
 
+#ifndef HAVE_VSNPRINTF
 static int
 sn_reserve (struct state *state, size_t n)
 {
@@ -69,31 +73,30 @@ sn_reserve (struct state *state, size_t n)
 }
 
 static int
-sn_append_char (struct state *state, char c)
+sn_append_char (struct state *state, unsigned char c)
 {
   if (sn_reserve (state, 1)) {
-    *state->s++ = '\0';
     return 1;
   } else {
     *state->s++ = c;
     return 0;
   }
 }
+#endif
 
 static int
 as_reserve (struct state *state, size_t n)
 {
-  while (state->s + n > state->theend) {
+  if (state->s + n > state->theend) {
     int off = state->s - state->str;
-    char *tmp;
+    unsigned char *tmp;
 
     if (state->max_sz && state->sz >= state->max_sz)
       return 1;
 
+    state->sz = max(state->sz * 2, state->sz + n);
     if (state->max_sz)
-      state->sz = min(state->max_sz, state->sz*2);
-    else
-      state->sz *= 2;
+      state->sz = min(state->sz, state->max_sz);
     tmp = realloc (state->str, state->sz);
     if (tmp == NULL)
       return 1;
@@ -105,7 +108,7 @@ as_reserve (struct state *state, size_t n)
 }
 
 static int
-as_append_char (struct state *state, char c)
+as_append_char (struct state *state, unsigned char c)
 {
   if(as_reserve (state, 1))
     return 1;
@@ -118,59 +121,108 @@ as_append_char (struct state *state, char c)
 static int
 append_number (struct state *state,
 	       unsigned long num, unsigned base, char *rep,
-	       int width, int zerop, int minusp)
+	      int width, int prec, int flags, int minusp)
 {
-  int i, len;
+  int len = 0;
+  int i;
 
-  len = 0;
-  if (num == 0) {
-    ++len;
+  /* given precision, ignore zero flag */
+  if(prec != -1)
+    flags &= ~zero_flag;
+  else
+    prec = 1;
+  /* zero value with zero precision -> "" */
+  if(prec == 0 && num == 0)
+    return 0;
+  do{
+    if((*state->append_char)(state, rep[num % base]))
+      return 1;
+    len++;
+    num /= base;
+  }while(num);
+  prec -= len;
+  /* pad with prec zeros */
+  while(prec-- > 0){
     if((*state->append_char) (state, '0'))
       return 1;
+    len++;
   }
-  while (num > 0) {
-    ++len;
-    if ((*state->append_char) (state, rep[num % base]))
+  /* add length of alternate prefix (added later) to len */
+  if(flags & alternate_flag && (base == 16 || base == 8))
+    len += base / 8;
+  /* pad with zeros */
+  if(flags & zero_flag){
+    width -= len;
+    if(minusp || (flags & space_flag) || (flags & plus_flag))
+      width--;
+    while(width-- > 0){
+      if((*state->append_char)(state, '0'))
       return 1;
-    num /= base;
+      len++;
+    }
   }
+  /* add alternate prefix */
+  if(flags & alternate_flag && (base == 16 || base == 8)){
+    if(base == 16)
+      if((*state->append_char)(state, rep[10] + 23)) /* XXX */
+	return 1;
+    if((*state->append_char)(state, '0'))
+      return 1;
+  }
+  /* add sign */
   if (minusp) {
-    ++len;
     if ((*state->append_char) (state, '-'))
       return 1;
+    len++;
+  } else if(flags & plus_flag) {
+    if((*state->append_char)(state, '+'))
+      return 1;
+    len++;
+  } else if(flags & space_flag) {
+    if((*state->append_char)(state, ' '))
+      return 1;
+    len++;
   }
-
-  for (i = 0; i < len / 2; ++i) {
-    char c;
-
-    c = state->s[-i-1];
+  if(flags & minus_flag)
+    /* swap before padding with spaces */
+    for(i = 0; i < len / 2; i++){
+      char c = state->s[-i-1];
     state->s[-i-1] = state->s[-len+i];
     state->s[-len+i] = c;
   }
-
-  if (width > len) {
-    if ((*state->reserve) (state, width - len))
+  width -= len;
+  while(width-- > 0){
+    if((*state->append_char)(state,  ' '))
       return 1;
-
-#ifdef HAVE_MEMMOVE
-    memmove (state->s + width - 2 * len, state->s - len, len);
-#else
-    bcopy (state->s - len, state->s + width - 2 * len, len);
-#endif
-    for (i = 0; i < width - len; ++i)
-      state->s[-len+i] = (zerop ? '0' : ' ');
-    state->s += width - len;
-
+    len++;
   }
+  if(!(flags & minus_flag))
+    /* swap after padding with spaces */
+    for(i = 0; i < len / 2; i++){
+      char c = state->s[-i-1];
+      state->s[-i-1] = state->s[-len+i];
+      state->s[-len+i] = c;
+    }
+    
   return 0;
 }
 
 static int
 append_string (struct state *state,
-	       char *arg,
-	       int prec)
+	       unsigned char *arg,
+	       int width,
+	       int prec,
+	       int flags)
 {
-  if (prec) {
+  if(prec != -1)
+    width -= prec;
+  else
+    width -= strlen((char *)arg);
+  if(!(flags & minus_flag))
+    while(width-- > 0)
+      if((*state->append_char) (state, ' '))
+	return 1;
+  if (prec != -1) {
     while (*arg && prec--)
       if ((*state->append_char) (state, *arg++))
 	return 1;
@@ -179,6 +231,29 @@ append_string (struct state *state,
       if ((*state->append_char) (state, *arg++))
 	return 1;
   }
+  if(flags & minus_flag)
+    while(width-- > 0)
+      if((*state->append_char) (state, ' '))
+	return 1;
+  return 0;
+}
+
+static int
+append_char(struct state *state,
+	    unsigned char arg,
+	    int width,
+	    int flags)
+{
+  while(!(flags & minus_flag) && --width > 0)
+    if((*state->append_char) (state, ' '))
+      return 1;
+    
+  if((*state->append_char) (state, arg))
+    return 1;
+  while((flags & minus_flag) && --width > 0)
+    if((*state->append_char) (state, ' '))
+      return 1;
+    
   return 0;
 }
 
@@ -188,36 +263,51 @@ append_string (struct state *state,
 
 #define PARSE_INT_FORMAT(res, arg, unsig) \
 if (long_flag) \
-     res = va_arg(arg, unsig long); \
+     res = (unsig long)va_arg(arg, unsig long); \
 else if (short_flag) \
-     res = va_arg(arg, unsig short); \
+     res = (unsig short)va_arg(arg, unsig short); \
 else \
-     res = va_arg(arg, unsig int)
+     res = (unsig int)va_arg(arg, unsig int)
 
 /*
  * zyxprintf - return 0 or -1
  */
 
 static int
-xyzprintf (struct state *state, const char *format, va_list ap)
+xyzprintf (struct state *state, const char *char_format, va_list ap)
 {
-  char c;
+  const unsigned char *format = (const unsigned char *)char_format;
+  unsigned char c;
 
   while((c = *format++)) {
     if (c == '%') {
-      int zerop      = 0;
+      int flags      = 0;
       int width      = 0;
-      int prec       = 0;
+      int prec       = -1;
       int long_flag  = 0;
       int short_flag = 0;
 
-      c = *format++;
-
       /* flags */
-      if (c == '0') {
-	zerop = 1;
-	c = *format++;
+      while((c = *format++)){
+	if(c == '-')
+	  flags |= minus_flag;
+	else if(c == '+')
+	  flags |= plus_flag;
+	else if(c == ' ')
+	  flags |= space_flag;
+	else if(c == '#')
+	  flags |= alternate_flag;
+	else if(c == '0')
+	  flags |= zero_flag;
+	else
+	  break;
       }
+
+      if((flags & space_flag) && (flags & plus_flag))
+	flags ^= space_flag;
+
+      if((flags & minus_flag) && (flags & zero_flag))
+	flags ^= zero_flag;
 
       /* width */
       if (isdigit(c))
@@ -232,6 +322,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 
       /* precision */
       if (c == '.') {
+	prec = 0;
 	c = *format++;
 	if (isdigit(c))
 	  do {
@@ -256,13 +347,15 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 
       switch (c) {
       case 'c' :
-	if ((*state->append_char)(state, (unsigned char)va_arg(ap, int)))
+	if(append_char(state, va_arg(ap, int), width, flags))
 	  return -1;
 	break;
       case 's' :
 	if (append_string(state,
-			  va_arg(ap, char*),
-			  prec))
+			  va_arg(ap, unsigned char*),
+			  width,
+			  prec, 
+			  flags))
 	  return -1;
 	break;
       case 'd' :
@@ -271,7 +364,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	unsigned long num;
 	int minusp = 0;
 
-	PARSE_INT_FORMAT(arg, ap, );
+	PARSE_INT_FORMAT(arg, ap, signed);
 
 	if (arg < 0) {
 	  minusp = 1;
@@ -280,7 +373,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	  num = arg;
 
 	if (append_number (state, num, 10, "0123456789",
-			   width, zerop, minusp))
+			   width, prec, flags, minusp))
 	  return -1;
 	break;
       }
@@ -290,7 +383,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
 	if (append_number (state, arg, 10, "0123456789",
-			   width, zerop, 0))
+			   width, prec, flags, 0))
 	  return -1;
 	break;
       }
@@ -300,7 +393,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
 	if (append_number (state, arg, 010, "01234567",
-			   width, zerop, 0))
+			   width, prec, flags, 0))
 	  return -1;
 	break;
       }
@@ -310,7 +403,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
 	if (append_number (state, arg, 0x10, "0123456789abcdef",
-			   width, zerop, 0))
+			   width, prec, flags, 0))
 	  return -1;
 	break;
       }
@@ -320,7 +413,7 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	PARSE_INT_FORMAT(arg, ap, unsigned);
 
 	if (append_number (state, arg, 0x10, "0123456789ABCDEF",
-			   width, zerop, 0))
+			   width, prec, flags, 0))
 	  return -1;
 	break;
       }
@@ -328,10 +421,18 @@ xyzprintf (struct state *state, const char *format, va_list ap)
 	unsigned long arg = (unsigned long)va_arg(ap, void*);
 
 	if (append_number (state, arg, 0x10, "0123456789ABCDEF",
-			   width, zerop, 0))
+			   width, prec, flags, 0))
 	  return -1;
 	break;
       }
+      case 'n' : {
+	int *arg = va_arg(ap, int*);
+	*arg = state->s - state->str;
+	break;
+      }
+      case '\0' :
+	  --format;
+	  /* FALLTHROUGH */
       case '%' :
 	if ((*state->append_char)(state, c))
 	  return -1;
@@ -458,9 +559,6 @@ vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
   struct state state;
 
   state.max_sz = max_sz;
-  if (max_sz)
-    state.sz   = min(1, max_sz);
-  else
     state.sz   = 1;
   state.str    = malloc(state.sz);
   if (state.str == NULL) {
@@ -483,7 +581,7 @@ vasnprintf (char **ret, size_t max_sz, const char *format, va_list args)
     *state.s = '\0';
     len = state.s - state.str;
     tmp = realloc (state.str, len+1);
-    if (state.str == NULL) {
+    if (tmp == NULL) {
       free (state.str);
       *ret = NULL;
       return -1;
@@ -500,12 +598,13 @@ vsnprintf (char *str, size_t sz, const char *format, va_list args)
 {
   struct state state;
   int ret;
+  unsigned char *ustr = (unsigned char *)str;
 
   state.max_sz = 0;
   state.sz     = sz;
-  state.str    = str;
-  state.s      = str;
-  state.theend = str + sz - 1;
+  state.str    = ustr;
+  state.s      = ustr;
+  state.theend = ustr + sz - 1;
   state.append_char = sn_append_char;
   state.reserve     = sn_reserve;
 

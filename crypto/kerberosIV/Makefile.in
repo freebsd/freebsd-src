@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.30 1997/05/20 18:58:34 bg Exp $
+# $Id: Makefile.in,v 1.36 1999/03/01 13:04:23 joda Exp $
 
 srcdir		= @srcdir@
 prefix		= @prefix@
@@ -14,7 +14,7 @@ TRAVELKIT = appl/kauth/kauth kuser/klist appl/telnet/telnet/telnet \
 
 @SET_MAKE@
 
-SUBDIRS		= util include lib kuser server slave admin kadmin appl man doc
+SUBDIRS		= include lib kuser server slave admin kadmin appl man doc
 
 all:
 	for i in $(SUBDIRS); \
@@ -27,7 +27,7 @@ check:
 	cd lib && $(MAKE) $(MFLAGS) check
 
 install:
-	$(MKINSTALLDIRS) $(prefix)
+	$(MKINSTALLDIRS) $(DESTDIR)$(prefix)
 	for i in $(SUBDIRS); \
 	do (cd $$i && $(MAKE) $(MFLAGS) install); done
 
@@ -67,4 +67,7 @@ realclean:
 	for i in $(SUBDIRS); \
 	do (cd $$i && $(MAKE) $(MFLAGS) realclean); done
 
-.PHONY: all install install-strip uninstall travelkit travelkit-strip clean distclean realclean mostlyclean
+$(srcdir)/aclocal.m4:
+	cd $(srcdir) && aclocal -I cf
+
+.PHONY: all Wall check install install-strip uninstall travelkit travelkit-strip clean mostlyclean distclean realclean

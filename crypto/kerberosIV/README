@@ -1,3 +1,6 @@
+
+*** PLEASE REPORT BUGS AND PROBLEMS TO kth-krb-bugs@nada.kth.se ***
+
 This is a severly hacked up version of Eric Young's eBones-p9 kerberos
 version. The DES library has been updated with his 3.23 version and
 numerous patches collected over the years have been applied to both

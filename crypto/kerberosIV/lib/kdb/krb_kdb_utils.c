@@ -31,7 +31,7 @@ or implied warranty.
 
 #include <kdc.h>
 
-RCSID("$Id: krb_kdb_utils.c,v 1.23 1997/05/02 14:29:10 assar Exp $");
+RCSID("$Id: krb_kdb_utils.c,v 1.25 1999/03/13 21:24:21 assar Exp $");
 
 /* always try /.k for backwards compatibility */
 static char *master_key_files[] = { MKEYFILE, "/.k", NULL };
@@ -60,7 +60,7 @@ k_strerror(int eno)
 int
 kdb_new_get_master_key(des_cblock *key, des_key_schedule schedule)
 {
-  int kfile;
+  int kfile = -1;
   int i;
   char buf[1024];
 
@@ -128,7 +128,9 @@ kdb_new_get_master_key(des_cblock *key, des_key_schedule schedule)
   exit(1);
 }
 
-int kdb_new_get_new_master_key(des_cblock *key, des_key_schedule schedule, 
+int
+kdb_new_get_new_master_key(des_cblock *key,
+			   des_key_schedule schedule, 
 			       int verify)
 {
 #ifndef RANDOM_MKEY
@@ -147,7 +149,9 @@ int kdb_new_get_new_master_key(des_cblock *key, des_key_schedule schedule,
   return 0;
 }
 
-int kdb_get_master_key(int prompt, des_cblock *master_key, 
+int
+kdb_get_master_key(int prompt,
+		   des_cblock *master_key, 
 		       des_key_schedule master_key_sched)
 {
   int ask = (prompt == KDB_GET_TWICE);
@@ -163,9 +167,11 @@ int kdb_get_master_key(int prompt, des_cblock *master_key,
   return 0;
 }
 
-int kdb_kstash(des_cblock *master_key, char *file)
+int
+kdb_kstash(des_cblock *master_key, char *file)
 {
   int kfile;
+
   kfile = open(file, O_TRUNC | O_RDWR | O_CREAT, 0600);
   if (kfile < 0) {
     return -1;
@@ -214,7 +220,7 @@ kdb_verify_master_key (des_cblock *master_key,
   n = kerb_get_principal(KERB_M_NAME, KERB_M_INST, principal_data,
 			 1 /* only one please */, &more);
   if ((n != 1) || more) {
-    if (out != (FILE *) NULL) 
+    if (out != NULL) 
       fprintf(out,
 	      "verify_master_key: %s, %d found.\n",
 	      "Kerberos error on master key version lookup",
@@ -225,7 +231,7 @@ kdb_verify_master_key (des_cblock *master_key,
   master_key_version = (long) principal_data[0].key_version;
 
   /* set up the master key */
-  if (out != (FILE *) NULL)  /* should we punt this? */
+  if (out != NULL)  /* should we punt this? */
     fprintf(out, "Current Kerberos master key version is %d.\n",
 	    principal_data[0].kdc_key_ver);
 
@@ -245,7 +251,7 @@ kdb_verify_master_key (des_cblock *master_key,
   memset(key_from_db, 0, sizeof(key_from_db));
   memset(principal_data, 0, sizeof (principal_data));
 
-  if (n && (out != (FILE *) NULL)) {
+  if (n && (out != NULL)) {
     fprintf(out, "\n\07\07verify_master_key: Invalid master key; ");
     fprintf(out, "does not match database.\n");
   }

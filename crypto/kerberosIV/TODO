@@ -2,6 +2,9 @@
 rlogind, rshd, popper, ftpd (telnetd uses nonce?)
   Add a replay cache.
 
+rcp
+  figure out how it should really behave with -r
+
 telnet, rlogin, rsh, rcp
   Some form of support for ticket forwarding, perhaps only for AFS tickets.
 
@@ -24,9 +27,6 @@ autoconf
 
 libraries
   generate archive and shared libraries in some portable way.
-
-k_get_all_addrs
-  for Cray UNICOS
 
 ftpd
 

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,9 +33,10 @@
 
 #include "common.h"
 #include <stdio.h>
+#include <err.h>
 #include "roken.h"
 
-RCSID("$Id: buffer.c,v 1.1 1997/05/18 19:59:24 assar Exp $");
+RCSID("$Id: buffer.c,v 1.3 1999/12/02 16:58:29 joda Exp $");
 
 /*
  * Allocate a buffer enough to handle st->st_blksize, if

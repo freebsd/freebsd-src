@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)pathnames.h	5.2 (Berkeley) 4/9/90
- *	$Id: pathnames.h,v 1.23 1996/11/17 06:36:42 joda Exp $
+ *	$Id: pathnames.h,v 1.25 1998/02/03 23:29:30 assar Exp $
  */
 
 /******* First fix default path, we stick to _PATH_DEFPATH everywhere */
@@ -64,6 +64,9 @@
 
 #undef _PATH_RSH		/* Redifine rsh */
 #define _PATH_RSH	BINDIR  "/rsh"
+
+#undef _PATH_RCP		/* Redifine rcp */
+#define _PATH_RCP	BINDIR  "/rcp"
 
 #undef _PATH_LOGIN
 #define _PATH_LOGIN	BINDIR "/login"
@@ -175,6 +178,10 @@
 #define _PATH_ETC_ENVIRONMENT "/etc/environment"
 #endif
 
+#ifndef _PATH_ETC_SECURETTY
+#define _PATH_ETC_SECURETTY "/etc/securetty"
+#endif
+
 /*
  * NeXT KLUDGE ALERT!!!!!!!!!!!!!!!!!!
  * Some sort of bug in the NEXTSTEP cpp.
@@ -186,6 +193,8 @@
 #define	_PATH_RLOGIN	"/usr/athena/bin/rlogin"
 #undef  _PATH_RSH
 #define _PATH_RSH	"/usr/athena/bin/rsh"
+#undef  _PATH_RCP
+#define _PATH_RCP	"/usr/athena/bin/rcp"
 #undef  _PATH_LOGIN
 #define _PATH_LOGIN	"/usr/athena/bin/login"
 #endif

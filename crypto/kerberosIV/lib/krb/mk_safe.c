@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,10 +33,10 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: mk_safe.c,v 1.21 1997/04/19 23:18:03 joda Exp $");
+RCSID("$Id: mk_safe.c,v 1.25 1999/12/02 16:58:43 joda Exp $");
 
 /* application include files */
-#include "lsb_addr_comp.h"
+#include "krb-archaeology.h"
 
 
 /* from rd_safe.c */
@@ -89,24 +84,24 @@ krb_mk_safe(void *in, void *out, u_int32_t length, des_cblock *key,
     unsigned char *start;
     u_int32_t src_addr;
 
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    p += krb_put_int(AUTH_MSG_SAFE, p, 1);
+    p += krb_put_int(KRB_PROT_VERSION, p, 1, 1);
+    p += krb_put_int(AUTH_MSG_SAFE, p, 1, 1);
     
     start = p;
 
-    p += krb_put_int(length, p, 4);
+    p += krb_put_int(length, p, 4, 4);
 
     memcpy(p, in, length);
     p += length;
     
-    gettimeofday(&tv, NULL);
+    krb_kdctimeofday(&tv);
 
     *p++ = tv.tv_usec/5000; /* 5ms */
     
     src_addr = sender->sin_addr.s_addr;
-    p += krb_put_address(src_addr, p);
+    p += krb_put_address(src_addr, p, 4);
 
-    p += krb_put_int(lsb_time(tv.tv_sec, sender, receiver), p, 4);
+    p += krb_put_int(lsb_time(tv.tv_sec, sender, receiver), p, 4, 4);
 
     {
 	/* We are faking big endian mode, so we need to fix the

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,15 +33,22 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: hstrerror.c,v 1.17 1997/06/01 03:37:25 assar Exp $");
+RCSID("$Id: hstrerror.c,v 1.22 1999/12/02 16:58:46 joda Exp $");
 #endif
-
-#include "roken.h"
 
 #ifndef HAVE_HSTRERROR
 
+#include "roken.h"
+
 #include <stdio.h>
+
+#ifdef HAVE_NETDB_H
+#if (defined(SunOS) && (SunOS >= 50))
+#define hstrerror broken_proto
+#endif
 #include <netdb.h>
+#undef hstrerror
+#endif
 
 #ifndef HAVE_H_ERRNO
 int h_errno = -17; /* Some magic number */
@@ -73,11 +75,11 @@ extern int h_nerr;
 
 #endif
 
-char *
+const char *
 hstrerror(int herr)
 {
     if (0 <= herr && herr < h_nerr)
-	return (char *) h_errlist[herr];
+	return h_errlist[herr];
     else if(herr == -17)
 	return "unknown error";
     else

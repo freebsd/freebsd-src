@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: afssysdefs.h,v 1.15 1997/04/01 08:18:12 joda Exp $ */
+/* $Id: afssysdefs.h,v 1.21 1999/12/02 16:58:40 joda Exp $ */
 
 /*
  * This section is for machines using single entry point AFS syscalls!
@@ -47,17 +42,22 @@
  * entry point syscalls.
  */
 
-#if SunOS == 4
+#if SunOS == 40
 #define AFS_SYSCALL	31
 #endif
 
-#if SunOS == 5
+#if SunOS >= 50 && SunOS < 57
 #define AFS_SYSCALL	105
+#endif
+
+#if SunOS == 57
+#define AFS_SYSCALL	73
 #endif
 
 #if defined(__hpux)
 #define AFS_SYSCALL	50
 #define AFS_SYSCALL2	49
+#define AFS_SYSCALL3	48
 #endif
 
 #if defined(_AIX)
@@ -78,7 +78,7 @@
 #define AFS_SYSCALL	31
 #endif
 
-#if defined(__NetBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
 #define AFS_SYSCALL 210
 #endif
 

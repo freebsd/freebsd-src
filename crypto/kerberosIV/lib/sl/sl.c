@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: sl.c,v 1.12 1997/06/01 03:15:07 assar Exp $");
+RCSID("$Id: sl.c,v 1.25 1999/12/02 16:58:55 joda Exp $");
 #endif
 
 #include "sl_locl.h"
@@ -89,18 +84,21 @@ sl_help (SL_cmd *cmds, int argc, char **argv)
     } else { 
 	c = sl_match (cmds, argv[1], 0);
 	if (c == NULL)
-	    printf ("No such command: %s. Try \"help\" for a list of all commands\n",
+	    printf ("No such command: %s. "
+		    "Try \"help\" for a list of all commands\n",
 		    argv[1]);
 	else {
-	    printf ("%s\t%s", c->name, c->usage);
+	    printf ("%s\t%s\n", c->name, c->usage);
+	    if(c->help && *c->help)
+		printf ("%s\n", c->help);
 	    if((++c)->name && c->func == NULL) {
-		printf ("\nSynonyms:");
+		printf ("Synonyms:");
 		while (c->name && c->func == NULL)
 		    printf ("\t%s", (c++)->name);
-	    }
 	    printf ("\n");
 	}
     }
+}
 }
 
 #ifdef HAVE_READLINE
@@ -131,60 +129,95 @@ add_history(char *p)
 #endif
 
 int
-sl_loop (SL_cmd *cmds, char *prompt)
+sl_command(SL_cmd *cmds, int argc, char **argv)
 {
-    unsigned max_count;
-    char **ptr;
-
-    max_count = 17;
-    ptr = malloc(max_count * sizeof(*ptr));
-    if (ptr == NULL) {
-	printf ("sl_loop: failed to allocate %u bytes of memory\n",
-		(int) max_count * sizeof(*ptr));
+    SL_cmd *c;
+    c = sl_match (cmds, argv[0], 0);
+    if (c == NULL)
 	return -1;
+    return (*c->func)(argc, argv);
+}
+
+struct sl_data {
+    int max_count;
+    char **ptr;
+};
+
+int
+sl_make_argv(char *line, int *ret_argc, char ***ret_argv)
+{
+    char *foo = NULL;
+    char *p;
+    int argc, nargv;
+    char **argv;
+    
+    nargv = 10;
+    argv = malloc(nargv * sizeof(*argv));
+    if(argv == NULL)
+	return ENOMEM;
+    argc = 0;
+
+    for(p = strtok_r (line, " \t", &foo);
+	p;
+	p = strtok_r (NULL, " \t", &foo)) {
+	if(argc == nargv - 1) {
+	    char **tmp;
+	    nargv *= 2;
+	    tmp = realloc (argv, nargv * sizeof(*argv));
+	    if (tmp == NULL) {
+		free(argv);
+		return ENOMEM;
+	    }
+	    argv = tmp;
+	}
+	argv[argc++] = p;
+    }
+    argv[argc] = NULL;
+    *ret_argc = argc;
+    *ret_argv = argv;
+    return 0;
     }
 
-    for (;;) {
+/* return values: 0 on success, -1 on fatal error, or return value of command */
+int
+sl_command_loop(SL_cmd *cmds, char *prompt, void **data)
+{
+    int ret = 0;
 	char *buf;
-	unsigned count;
-	SL_cmd *c;
+    int argc;
+    char **argv;
 
+    ret = 0;
 	buf = readline(prompt);
 	if(buf == NULL)
-	    break;
+	return 1;
 
 	if(*buf)
 	    add_history(buf);
-	count = 0;
-	{
-	    char *foo = NULL;
-	    char *p;
-
-	    for(p = strtok_r (buf, " \t", &foo);
-		p;
-		p = strtok_r (NULL, " \t", &foo)) {
-		if(count == max_count) {
-		    max_count *= 2;
-		    ptr = realloc (ptr, max_count * sizeof(*ptr));
-		    if (ptr == NULL) {
-			printf ("sl_loop: failed to allocate %u "
-				"bytes of memory\n",
-				(unsigned) max_count * sizeof(*ptr));
+    ret = sl_make_argv(buf, &argc, &argv);
+    if(ret) {
+	fprintf(stderr, "sl_loop: out of memory\n");
+	free(buf);
 			return -1;
-		    }
 		}
-		ptr[count++] = p;
+    if (argc >= 1) {
+	ret = sl_command(cmds, argc, argv);
+	if(ret == -1) {
+	    printf ("Unrecognized command: %s\n", argv[0]);
+	    ret = 0;
 	    }
 	}
-	if (count > 0) {
-	    c = sl_match (cmds, ptr[0], 0);
-	    if (c)
-		(*c->func)(count, ptr);
-	    else
-		printf ("Unrecognized command: %s\n", ptr[0]);
-	}
 	free(buf);
+    free(argv);
+    return ret;
     }
-    free (ptr);
-    return 0;
+
+int 
+sl_loop(SL_cmd *cmds, char *prompt)
+{
+    void *data = NULL;
+    int ret;
+    while((ret = sl_command_loop(cmds, prompt, &data)) == 0)
+	;
+    return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -36,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: xdbm.h,v 1.2 1997/04/01 08:19:16 joda Exp $ */
+/* $Id: xdbm.h,v 1.6 1999/12/02 16:58:54 joda Exp $ */
 
 /* Generic *dbm include file */
 
@@ -49,6 +44,9 @@
 #include <dbm.h>
 #elif defined(HAVE_RPCSVC_DBM_H)
 #include <rpcsvc/dbm.h>
+#elif defined(HAVE_DB_H)
+#define DB_DBM_HSEARCH 1
+#include <db.h>
 #endif
 
 /* Macros to convert ndbm names to dbm names.

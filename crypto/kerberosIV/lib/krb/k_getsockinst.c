@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: k_getsockinst.c,v 1.10 1997/05/02 14:29:17 assar Exp $");
+RCSID("$Id: k_getsockinst.c,v 1.13 1999/12/02 16:58:42 joda Exp $");
 
 /*
  * Return in inst the name of the local interface bound to socket
@@ -61,8 +56,7 @@ k_getsockinst(int fd, char *inst, size_t inst_size)
   if (hnam == 0)
     goto fail;
 
-  strncpy (inst, hnam->h_name, inst_size);
-  inst[inst_size - 1] = '\0';
+  strlcpy (inst, hnam->h_name, inst_size);
   k_ricercar(inst); /* Canonicalize name */
   return 0;			/* Success */
 

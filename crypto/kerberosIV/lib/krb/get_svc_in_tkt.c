@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_svc_in_tkt.c,v 1.8 1997/03/23 03:53:09 joda Exp $");
+RCSID("$Id: get_svc_in_tkt.c,v 1.9 1999/06/29 21:18:04 bg Exp $");
 
 /*
  * This file contains two routines: srvtab_to_key(), which gets
@@ -47,7 +47,10 @@ RCSID("$Id: get_svc_in_tkt.c,v 1.8 1997/03/23 03:53:09 joda Exp $");
  */
 
 int 
-srvtab_to_key(char *user, char *instance, char *realm, void *srvtab,
+srvtab_to_key(const char *user,
+	      char *instance,
+	      const char *realm,
+	      const void *srvtab,
 	      des_cblock *key)
 {
     if (!srvtab)

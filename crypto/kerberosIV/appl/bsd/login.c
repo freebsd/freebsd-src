@@ -38,10 +38,18 @@
  */
 
 #include "bsd_locl.h"
+#ifdef HAVE_CAPABILITY_H
+#include <capability.h>
+#endif
+#ifdef HAVE_SYS_CAPABILITY_H
+#include <sys/capability.h>
+#endif
 
-RCSID("$Id: login.c,v 1.104 1997/05/20 20:35:06 assar Exp $");
+RCSID("$Id: login.c,v 1.125 1999/11/30 19:24:01 bg Exp $");
 
+#ifdef OTP
 #include <otp.h>
+#endif
 
 #include "sysv_default.h"
 #ifdef SYSV_SHADOW
@@ -94,8 +102,7 @@ static int
 change_passwd(struct passwd  *who)
 {
         int             status;
-        int             pid;
-        int             wpid;
+    pid_t pid;
  
         switch (pid = fork()) {
 	case -1:
@@ -105,8 +112,7 @@ change_passwd(struct passwd  *who)
 	    execlp("/bin/passwd", "passwd", who->pw_name, (char *) 0);
 	    _exit(1);
 	default:
-	    while ((wpid = wait(&status)) != -1 && wpid != pid)
-		/* void */ ;
+	waitpid(pid, &status, 0);
 	    return (status);
 	}
 }
@@ -177,7 +183,9 @@ main(int argc, char **argv)
 	char localhost[MaxHostNameLen];
 	char full_hostname[MaxHostNameLen];
 	int auth_level = AUTH_NONE;
+#ifdef OTP
 	OtpContext otp_ctx;
+#endif
 	int mask = 022;		/* Default umask (set below) */
 	int maxtrys = 5;	/* Default number of allowed failed logins */
 
@@ -210,20 +218,22 @@ main(int argc, char **argv)
 
 	*full_hostname = '\0';
 	domain = NULL;
-	if (k_gethostname(localhost, sizeof(localhost)) < 0)
+	if (gethostname(localhost, sizeof(localhost)) < 0)
 		syslog(LOG_ERR, "couldn't get local hostname: %m");
 	else
 		domain = strchr(localhost, '.');
 
 	fflag = hflag = pflag = rflag = 0;
 	uid = getuid();
-	while ((ch = getopt(argc, argv, "a:d:fh:pr:")) != EOF)
+	while ((ch = getopt(argc, argv, "a:d:fh:pr:")) != -1)
 	        switch (ch) {
 		case 'a':
 			if (strcmp (optarg, "none") == 0)
 				auth_level = AUTH_NONE;
+#ifdef OTP
 			else if (strcmp (optarg, "otp") == 0)
 				auth_level = AUTH_OTP;
+#endif
 			else
 				warnx ("bad value for -a: %s", optarg);
 			break;
@@ -240,7 +250,9 @@ main(int argc, char **argv)
 			if (uid)
 				errx(1, "-h option: %s", strerror(EPERM));
 			hflag = 1;
-			strncpy(full_hostname, optarg, sizeof(full_hostname)-1);
+			strlcpy(full_hostname,
+					optarg,
+					sizeof(full_hostname));
 			if (domain && (p = strchr(optarg, '.')) &&
 			    strcasecmp(p, domain) == 0)
 				*p = 0;
@@ -263,7 +275,9 @@ main(int argc, char **argv)
 				exit(1);
                         }
 			rflag = 1;
-			strncpy(full_hostname, optarg, sizeof(full_hostname)-1);
+			strlcpy(full_hostname,
+					optarg,
+					sizeof(full_hostname));
 			if (domain && (p = strchr(optarg, '.')) &&
 			    strcasecmp(p, domain) == 0)
 				*p = 0;
@@ -275,7 +289,10 @@ main(int argc, char **argv)
 			if (!uid)
 				syslog(LOG_ERR, "invalid flag %c", ch);
 			fprintf(stderr,
-				"usage: login [-fp] [-a otp]"
+				"usage: login [-fp]"
+#ifdef OTP
+				" [-a otp]"
+#endif
 				"[-h hostname | -r hostname] [username]\n");
 			exit(1);
 		}
@@ -366,7 +383,7 @@ main(int argc, char **argv)
 				badlogin(tbuf);
 			failures = 0;
 		}
-		strcpy(tbuf, username);
+		strlcpy(tbuf, username, sizeof(tbuf));
 
 		pwd = paranoid_getpwnam (username);
 
@@ -394,11 +411,14 @@ main(int argc, char **argv)
 
 		setpriority(PRIO_PROCESS, 0, -4);
 
+#ifdef OTP
 		if (otp_challenge (&otp_ctx, username,
 				   ss, sizeof(ss)) == 0)
 			snprintf (prompt, sizeof(prompt), "%s's %s Password: ",
 				  username, ss);
-		else {
+		else
+#endif
+		{
 			if (auth_level == AUTH_NONE)
 				snprintf(prompt, sizeof(prompt), "%s's Password: ",
 					 username);
@@ -406,9 +426,11 @@ main(int argc, char **argv)
 				char *s;
 
 				rval = 1;
+#ifdef OTP
 				s = otp_error(&otp_ctx);
 				if(s)
 					printf ("OTP: %s\n", s);
+#endif
 				continue;
 			}
 		}
@@ -419,9 +441,12 @@ main(int argc, char **argv)
 
 		/* Verify it somehow */
 
+#ifdef OTP
 		if (otp_verify_user (&otp_ctx, passwd) == 0)
 			rval = 0;
-		else if (pwd == NULL)
+		else
+#endif
+		if (pwd == NULL)
 			;
 		else if (auth_level == AUTH_NONE) {
 			uid_t pwd_uid = pwd->pw_uid;
@@ -445,8 +470,10 @@ main(int argc, char **argv)
 			char *s;
 
 			rval = 1;
+#ifdef OTP
 			if ((s = otp_error(&otp_ctx)))
 				printf ("OTP: %s\n", s);
+#endif
 		}
 
 		memset (passwd, 0, sizeof(passwd));
@@ -507,28 +534,45 @@ main(int argc, char **argv)
 	    struct udb *udb;
 	    long t;
 	    const long maxcpu = 46116860184; /* some random constant */
+	    
+	    if(setjob(pwd->pw_uid, 0) < 0) 
+		warn("setjob");
+
 	    udb = getudbnam(pwd->pw_name);
-	    if(udb == UDB_NULL){
-		    warnx("Failed to get UDB entry.");
-		    exit(1);
-	    }
+	    if(udb == UDB_NULL)
+		errx(1, "Failed to get UDB entry.");
+
+	    /* per process cpu limit */
 	    t = udb->ue_pcpulim[UDBRC_INTER];
 	    if(t == 0 || t > maxcpu)
 		t = CPUUNLIM;
 	    else
-		t *= 100 * CLOCKS_PER_SEC;
+		t *= CLK_TCK;
 
 	    if(limit(C_PROC, 0, L_CPU, t) < 0)
-		warn("limit C_PROC");
+		warn("limit process cpu");
 
+	    /* per process memory limit */
+	    if(limit(C_PROC, 0, L_MEM, udb->ue_pmemlim[UDBRC_INTER]) < 0)
+		warn("limit process memory");
+
+	    /* per job cpu limit */
 	    t = udb->ue_jcpulim[UDBRC_INTER];
 	    if(t == 0 || t > maxcpu)
 		t = CPUUNLIM;
 	    else
-		t *= 100 * CLOCKS_PER_SEC;
+		t *= CLK_TCK;
 
-	    if(limit(C_JOBPROCS, 0, L_CPU, t) < 0)
-		warn("limit C_JOBPROCS");
+	    if(limit(C_JOB, 0, L_CPU, t) < 0)
+		warn("limit job cpu");
+
+	    /* per job processor limit */
+	    if(limit(C_JOB, 0, L_CPROC, udb->ue_jproclim[UDBRC_INTER]) < 0)
+		warn("limit job processors");
+
+	    /* per job memory limit */
+	    if(limit(C_JOB, 0, L_MEM, udb->ue_jmemlim[UDBRC_INTER]) < 0)
+		warn("limit job memory");
 
 	    nice(udb->ue_nice[UDBRC_INTER]);
 	}
@@ -590,9 +634,11 @@ main(int argc, char **argv)
 	 */
 	login_fbtab(tty, pwd->pw_uid, pwd->pw_gid);
 
-	chown(ttyn, pwd->pw_uid,
-	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
-	chmod(ttyn, S_IRUSR | S_IWUSR | S_IWGRP);
+	if (chown(ttyn, pwd->pw_uid,
+	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid) < 0)
+	  err(1, "chown tty failed");
+	if (chmod(ttyn, S_IRUSR | S_IWUSR | S_IWGRP) < 0)
+	  err(1, "chmod tty failed");
 	setgid(pwd->pw_gid);
 
 	initgroups(username, pwd->pw_gid);
@@ -608,7 +654,7 @@ main(int argc, char **argv)
          * that LD_* and IFS are never preserved.
          */
 	if (term[0] == '\0')
-		strncpy(term, stypeof(tty), sizeof(term));
+		strlcpy(term, stypeof(tty), sizeof(term));
         /* set up a somewhat censored environment. */
         sysv_newenv(argc, argv, pwd, term, pflag);
 #ifdef KERBEROS
@@ -620,12 +666,13 @@ main(int argc, char **argv)
 		syslog(LOG_INFO, "DIALUP %s, %s", tty, pwd->pw_name);
 
 	/* If fflag is on, assume caller/authenticator has logged root login. */
-	if (rootlogin && fflag == 0)
+	if (rootlogin && fflag == 0) {
 		if (hostname)
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s FROM %s",
 			    username, tty, hostname);
 		else
 			syslog(LOG_NOTICE, "ROOT LOGIN (%s) ON %s", username, tty);
+	}
 
 #ifdef KERBEROS
 	if (!quietlog && notickets == 1 && !noticketsdontcomplain)
@@ -668,7 +715,7 @@ main(int argc, char **argv)
 #endif /* NO_MOTD */
 
 #ifdef LOGIN_ACCESS
-	if (login_access(pwd->pw_name, hostname ? full_hostname : tty) == 0) {
+	if (login_access(pwd, hostname ? full_hostname : tty) == 0) {
 		printf("Permission denied\n");
 		if (hostname)
 			syslog(LOG_NOTICE, "%s LOGIN REFUSED FROM %s",
@@ -683,11 +730,12 @@ main(int argc, char **argv)
 	signal(SIGALRM, SIG_DFL);
 	signal(SIGQUIT, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
+#ifdef SIGTSTP
 	signal(SIGTSTP, SIG_IGN);
+#endif
 
-	tbuf[0] = '-';
-	strcpy(tbuf + 1, (p = strrchr(pwd->pw_shell, '/')) ?
-	       p + 1 : pwd->pw_shell);
+	p = strrchr(pwd->pw_shell, '/');
+	snprintf (tbuf, sizeof(tbuf), "-%s", p ? p + 1 : pwd->pw_shell);
 
 #ifdef HAVE_SETLOGIN
      	if (setlogin(pwd->pw_name) < 0)
@@ -702,6 +750,35 @@ main(int argc, char **argv)
 #if defined(SYSV_SHADOW) && defined(HAVE_GETSPNAM)
 	spwd = getspnam (username);
 	endspent ();
+#endif
+	/* perhaps work some magic */
+	if(do_osfc2_magic(pwd->pw_uid))
+	    sleepexit(1);
+#if defined(HAVE_SGI_GETCAPABILITYBYNAME) && defined(HAVE_CAP_SET_PROC)
+	/* XXX SGI capability hack IRIX 6.x (x >= 0?) has something
+	   called capabilities, that allow you to give away
+	   permissions (such as chown) to specific processes. From 6.5
+	   this is default on, and the default capability set seems to
+	   not always be the empty set. The problem is that the
+	   runtime linker refuses to do just about anything if the
+	   process has *any* capabilities set, so we have to remove
+	   them here (unless otherwise instructed by /etc/capability).
+	   In IRIX < 6.5, these functions was called sgi_cap_setproc,
+	   etc, but we ignore this fact (it works anyway). */
+	{
+	    struct user_cap *ucap = sgi_getcapabilitybyname(pwd->pw_name);
+	    cap_t cap;
+	    if(ucap == NULL)
+		cap = cap_from_text("all=");
+	    else
+		cap = cap_from_text(ucap->ca_default);
+	    if(cap == NULL)
+		err(1, "cap_from_text");
+	    if(cap_set_proc(cap) < 0)
+		err(1, "cap_set_proc");
+	    cap_free(cap);
+	    free(ucap);
+	}
 #endif
 	/* Discard permissions last so can't get killed and drop core. */
 	{
@@ -742,10 +819,18 @@ main(int argc, char **argv)
 
 	if (k_hasafs()) {
 	    char cell[64];
+#ifdef _AIX
+	    /* XXX this is a fix for a bug in AFS for AIX 4.3, w/o
+               this hack the kernel crashes on the following
+               pioctl... */
+	    char *pw_dir = strdup(pwd->pw_dir);
+#else
+	    char *pw_dir = pwd->pw_dir;
+#endif
 	    k_setpag();
-	    if(k_afs_cell_of_file(pwd->pw_dir, cell, sizeof(cell)) == 0)
-		k_afsklog(cell, 0);
-	    k_afsklog(0, 0);
+	    if(k_afs_cell_of_file(pw_dir, cell, sizeof(cell)) == 0)
+		krb_afslog(cell, 0);
+	    krb_afslog(0, 0);
 	}
 
 	execlp(pwd->pw_shell, tbuf, 0);
@@ -773,11 +858,12 @@ getloginname(int prompt)
 	static char nbuf[NBUFSIZ];
 
 	for (;;) {
-                if (prompt)
+	if (prompt) {
                     if (ttyprompt && *ttyprompt)
                         printf("%s", ttyprompt);
                     else
 		        printf("login: ");
+	}
 		prompt = 1;
 		for (p = nbuf; (ch = getchar()) != '\n'; ) {
 			if (ch == EOF) {
@@ -787,7 +873,7 @@ getloginname(int prompt)
 			if (p < nbuf + (NBUFSIZ - 1))
 				*p++ = ch;
 		}
-		if (p > nbuf)
+	if (p > nbuf) {
 			if (nbuf[0] == '-')
 				warnx("login names may not start with '-'.");
 			else {
@@ -797,17 +883,47 @@ getloginname(int prompt)
 			}
 	}
 }
+}
+
+static int
+find_in_etc_securetty (char *ttyn)
+{
+    FILE *f;
+    char buf[128];
+    int ret = 0;
+
+    f = fopen (_PATH_ETC_SECURETTY, "r");
+    if (f == NULL)
+	return 0;
+    while (fgets(buf, sizeof(buf), f) != NULL) {
+	if(buf[strlen(buf) - 1] == '\n')
+	    buf[strlen(buf) - 1] = '\0';
+	if (strcmp (buf, ttyn) == 0) {
+	    ret = 1;
+	    break;
+	}
+    }
+    fclose(f);
+    return ret;
+}
 
 static int
 rootterm(char *ttyn)
 {
-#ifndef HAVE_TTYENT_H
-        return (default_console == 0 || strcmp(default_console, ttyname(0)) == 0);
-#else
+#ifdef HAVE_TTYENT_H
+    {
 	struct ttyent *t;
 
-	return ((t = getttynam(ttyn)) && t->ty_status & TTY_SECURE);
+	t = getttynam (ttyn);
+	if (t && t->ty_status & TTY_SECURE)
+	    return 1;
+    }
 #endif
+    if (find_in_etc_securetty(ttyn))
+	return 1;
+    if (default_console == 0 || strcmp(default_console, ttyn) == 0)
+	return 1;
+    return 0;
 }
 
 static RETSIGTYPE
@@ -834,7 +950,7 @@ checknologin(void)
 static void
 dolastlog(int quiet)
 {
-#if defined(HAVE_LASTLOG_H) || defined(HAVE_LOGIN_H) || defined(SYSV_SHADOW)
+#if defined(HAVE_LASTLOG_H) || defined(HAVE_LOGIN_H)
 	struct lastlog ll;
 	int fd;
 

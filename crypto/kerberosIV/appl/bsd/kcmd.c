@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: kcmd.c,v 1.19 1997/05/02 14:27:42 assar Exp $");
+RCSID("$Id: kcmd.c,v 1.20 1998/07/13 13:54:07 assar Exp $");
 
 #define	START_PORT	5120	 /* arbitrary */
 
@@ -100,6 +100,7 @@ kcmd(int *sock,
 	int rc;
 	char *host_save;
 	int status;
+	char **h_addr_list;
 
 	pid = getpid();
 	hp = gethostbyname(*ahost);
@@ -112,6 +113,7 @@ kcmd(int *sock,
 	if (host_save == NULL)
 		return -1;
 	*ahost = host_save;
+	h_addr_list = hp->h_addr_list;
 
 	/* If realm is null, look up from table */
 	if (realm == NULL || realm[0] == '\0')
@@ -127,7 +129,7 @@ kcmd(int *sock,
 			return (-1);
 		}
 		sin.sin_family = hp->h_addrtype;
-		memcpy (&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
+		memcpy (&sin.sin_addr, h_addr_list[0], sizeof(sin.sin_addr));
 		sin.sin_port = rport;
 		if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 			break;
@@ -144,12 +146,12 @@ kcmd(int *sock,
 			timo *= 2;
 			continue;
 		}
-		if (hp->h_addr_list[1] != NULL) {
+		if (h_addr_list[1] != NULL) {
 			warn ("kcmd: connect (%s)",
 			      inet_ntoa(sin.sin_addr));
-			hp->h_addr_list++;
+			h_addr_list++;
 			memcpy(&sin.sin_addr,
-			       hp->h_addr_list[0], 
+			       *h_addr_list, 
 			       sizeof(sin.sin_addr));
 			fprintf(stderr, "Trying %s...\n",
 				inet_ntoa(sin.sin_addr));

@@ -1,103 +1,105 @@
-/* This defines the Andrew string_to_key function.  It accepts a password
- * string as input and converts its via a one-way encryption algorithm to a DES
- * encryption key.  It is compatible with the original Andrew authentication
- * service password database.
+/*
+ * Copyright (c) 1999 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
+ *
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
  */
 
 #include "krb_locl.h"
 
-RCSID("$Id: str2key.c,v 1.10 1997/03/23 03:53:19 joda Exp $");
+RCSID("$Id: str2key.c,v 1.17 1999/12/02 16:58:44 joda Exp $");
 
-static void
-mklower(char *s)
-{
-    for (; *s; s++)
-        if ('A' <= *s && *s <= 'Z')
-            *s = *s - 'A' + 'a';
-}
+#define lowcase(c) (('A' <= (c) && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
 
 /*
- * Short passwords, i.e 8 characters or less.
+ * The string to key function used by Transarc AFS.
  */
-static void
-afs_cmu_StringToKey (char *str, char *cell, des_cblock *key)
+void
+afs_string_to_key(const char *pass, const char *cell, des_cblock *key)
 {
-    char  password[8+1];	/* crypt is limited to 8 chars anyway */
+  if (strlen(pass) <= 8)	/* Short passwords. */
+    {
+      char buf[8 + 1], *s;
     int   i;
-    int   passlen;
 
-    memset (key, 0, sizeof(key));
-    memset(password, 0, sizeof(password));
-
-    strncpy (password, cell, 8);
-    passlen = strlen (str);
-    if (passlen > 8) passlen = 8;
-
-    for (i=0; i<passlen; i++)
-        password[i] = str[i] ^ cell[i];	/* make sure cell is zero padded */
-
+      /*
+       * XOR cell and password and pad (or fill) with 'X' to length 8,
+       * then use crypt(3) to create DES key.
+       */
     for (i=0; i<8; i++)
-        if (password[i] == '\0') password[i] = 'X';
-
-    /* crypt only considers the first 8 characters of password but for some
-       reason returns eleven characters of result (plus the two salt chars). */
-    strncpy((char *)key, (char *)crypt(password, "#~") + 2, sizeof(des_cblock));
-
-    /* parity is inserted into the LSB so leftshift each byte up one bit.  This
-       allows ascii characters with a zero MSB to retain as much significance
-       as possible. */
-    {   char *keybytes = (char *)key;
-        unsigned int temp;
-
-        for (i = 0; i < 8; i++) {
-            temp = (unsigned int) keybytes[i];
-            keybytes[i] = (unsigned char) (temp << 1);
-        }
-    }
-    des_fixup_key_parity (key);
+	{
+	  buf[i] = *pass ^ lowcase(*cell);
+	  if (buf[i] == 0)
+	    buf[i] = 'X';
+	  if (*pass != 0)
+	    pass++;
+	  if (*cell != 0)
+	    cell++;
 }
+      buf[8] = 0;
 
-/*
- * Long passwords, i.e 9 characters or more.
- */
-static void
-afs_transarc_StringToKey (char *str, char *cell, des_cblock *key)
+      s = crypt(buf, "p1");	/* Result from crypt is 7bit chars. */
+      s = s + 2;		/* Skip 2 chars of salt. */
+      for (i = 0; i < 8; i++)
+	((char *) key)[i] = s[i] << 1; /* High bit is always zero */
+      des_fixup_key_parity(key); /*       Low  bit is parity */
+    }
+  else				/* Long passwords */
 {
-    des_key_schedule schedule;
-    des_cblock temp_key;
+      int plen, clen;
+      char *buf, *t;
+      des_key_schedule sched;
     des_cblock ivec;
-    char password[512];
-    int  passlen;
 
-    strncpy (password, str, sizeof(password));
-    if ((passlen = strlen (password)) < sizeof(password)-1)
-        strncat (password, cell, sizeof(password)-passlen);
-    if ((passlen = strlen(password)) > sizeof(password)) passlen = sizeof(password);
+      /*
+       * Concatenate password with cell name,
+       * then checksum twice to create DES key.
+       */
+      plen = strlen(pass);
+      clen = strlen(cell);
+      buf = malloc(plen + clen + 1);
+      memcpy(buf, pass, plen);
+      for (t = buf + plen; *cell != 0; t++, cell++)
+	*t = lowcase(*cell);
 
     memcpy(&ivec, "kerberos", 8);
-    memcpy(&temp_key, "kerberos", 8);
-    des_fixup_key_parity (&temp_key);
-    des_key_sched (&temp_key, schedule);
-    des_cbc_cksum ((des_cblock *)password, &ivec, passlen, schedule, &ivec);
+      memcpy(key, "kdsbdsns", 8);
+      des_key_sched(key, sched);
+      /* Beware, ivec is passed twice */
+      des_cbc_cksum((des_cblock *)buf, &ivec, plen + clen, sched, &ivec);
 
-    memcpy(&temp_key, &ivec, 8);
-    des_fixup_key_parity (&temp_key);
-    des_key_sched (&temp_key, schedule);
-    des_cbc_cksum ((des_cblock *)password, key, passlen, schedule, &ivec);
-
+      memcpy(key, &ivec, 8);
+      des_fixup_key_parity(key);
+      des_key_sched(key, sched);
+      /* Beware, ivec is passed twice */
+      des_cbc_cksum((des_cblock *)buf, key, plen + clen, sched, &ivec);
+      free(buf);
     des_fixup_key_parity (key);
 }
-
-void
-afs_string_to_key(char *str, char *cell, des_cblock *key)
-{
-    char realm[REALM_SZ+1];
-    strncpy(realm, cell, REALM_SZ);
-    realm[REALM_SZ] = 0;
-    mklower(realm);
-
-    if (strlen(str) > 8)
-        afs_transarc_StringToKey (str, realm, key);
-    else
-        afs_cmu_StringToKey (str, realm, key);
 }

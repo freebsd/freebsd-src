@@ -9,14 +9,12 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_destroy.c,v 1.7 1997/03/31 02:25:21 assar Exp $");
+RCSID("$Id: kdb_destroy.c,v 1.9 1998/06/09 19:24:13 joda Exp $");
 
 int
 main(int argc, char **argv)
 {
     char    answer[10];		/* user input */
-    char    dbm[256];		/* database path and name */
-    char    dbm1[256];		/* database path and name */
 #ifdef HAVE_NEW_DB
     char   *file;               /* database file names */
 #else
@@ -25,21 +23,22 @@ main(int argc, char **argv)
 
     set_progname (argv[0]);
 
-    strcpy(dbm, DBM_FILE);
 #ifdef HAVE_NEW_DB
-    file = strcat(dbm, ".db");
+    asprintf(&file, "%s.db", DBM_FILE);
+    if (file == NULL)
+	err (1, "malloc");
 #else
-    strcpy(dbm1, DBM_FILE);
-    file1 = strcat(dbm, ".dir");
-    file2 = strcat(dbm1, ".pag");
+    asprintf(&file1, "%s.dir", DBM_FILE);
+    asprintf(&file2, "%s.pag", DBM_FILE);
+    if (file1 == NULL || file2 == NULL)
+	err (1, "malloc");
 #endif
 
     printf("You are about to destroy the Kerberos database ");
     printf("on this machine.\n");
     printf("Are you sure you want to do this (y/n)? ");
-    fgets(answer, sizeof(answer), stdin);
-
-    if (answer[0] == 'y' || answer[0] == 'Y') {
+    if (fgets(answer, sizeof(answer), stdin) != NULL
+	&& (answer[0] == 'y' || answer[0] == 'Y')) {
 #ifdef HAVE_NEW_DB
       if (unlink(file) == 0)
 #else

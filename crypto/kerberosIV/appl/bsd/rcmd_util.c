@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rcmd_util.c,v 1.15 1997/05/02 14:27:44 assar Exp $");
+RCSID("$Id: rcmd_util.c,v 1.19 1999/12/02 16:58:28 joda Exp $");
 
 int
 get_login_port(int kerberos, int encryption)
@@ -130,8 +125,14 @@ static struct { int speed; int bps; } conv[] = {
 #ifdef B19200
     {B19200, 19200},
 #endif
+#ifdef EXTA
+    {EXTA, 19200},
+#endif
 #ifdef B38400
     {B38400, 38400},
+#endif
+#ifdef EXTB
+    {EXTB, 38400},
 #endif
 #ifdef B57600
     {B57600, 57600},
@@ -240,7 +241,7 @@ warning(const char *fmt, ...)
     if (strncmp(rstar_no_warn, "yes", 3) != 0) {
 	/* XXX */
 	fprintf(stderr, "%s: warning, using standard ", __progname);
-	warnx(fmt, args);
+	vwarnx(fmt, args);
     }
     va_end(args);
 }

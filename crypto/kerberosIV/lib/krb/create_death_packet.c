@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: create_death_packet.c,v 1.8 1997/04/01 08:18:21 joda Exp $");
+RCSID("$Id: create_death_packet.c,v 1.10 1999/12/02 16:58:41 joda Exp $");
 
 /*
  * This routine creates a packet to type AUTH_MSG_DIE which is sent to
@@ -74,11 +69,29 @@ krb_create_death_packet(char *a_name)
     KTEXT pkt = &pkt_st;
 
     unsigned char *p = pkt->dat;
+    int tmp;
+    int rem = sizeof(pkt->dat);
+
+    pkt->length = 0;
     
-    p += krb_put_int(KRB_PROT_VERSION, p, 1);
-    p += krb_put_int(AUTH_MSG_DIE, p, 1);
+    tmp = krb_put_int(KRB_PROT_VERSION, p, rem, 1);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_int(AUTH_MSG_DIE, p, rem, 1);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_string(a_name, p, rem);
+    if (tmp < 0)
+	return NULL;
+    p += tmp;
+    rem -= tmp;
     
-    p += krb_put_string(a_name, p);
     pkt->length = p - pkt->dat;
     return pkt;
 }

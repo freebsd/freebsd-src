@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: logwtmp.c,v 1.10 1997/05/25 15:17:56 assar Exp $");
+RCSID("$Id: logwtmp.c,v 1.14 1999/12/02 16:58:31 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -74,18 +69,20 @@ RCSID("$Id: logwtmp.c,v 1.10 1997/05/25 15:17:56 assar Exp $");
 #endif
 
 void
-logwtmp(char *line, char *name, char *host)
+ftpd_logwtmp(char *line, char *name, char *host)
 {
     static int init = 0;
-    static int fd, fdx;
-    struct timeval tv;
+    static int fd;
+#ifdef WTMPX_FILE
+    static int fdx;
+#endif
     struct utmp ut;
 #ifdef WTMPX_FILE
     struct utmpx utx;
 #endif
 
     memset(&ut, 0, sizeof(struct utmp));
-#ifdef HAVE_UT_TYPE
+#ifdef HAVE_STRUCT_UTMP_UT_TYPE
     if(name[0])
 	ut.ut_type = USER_PROCESS;
     else
@@ -93,10 +90,10 @@ logwtmp(char *line, char *name, char *host)
 #endif
     strncpy(ut.ut_line, line, sizeof(ut.ut_line));
     strncpy(ut.ut_name, name, sizeof(ut.ut_name));
-#ifdef HAVE_UT_PID
+#ifdef HAVE_STRUCT_UTMP_UT_PID
     ut.ut_pid = getpid();
 #endif
-#ifdef HAVE_UT_HOST
+#ifdef HAVE_STRUCT_UTMP_UT_HOST
     strncpy(ut.ut_host, host, sizeof(ut.ut_host));
 #endif
     ut.ut_time = time(NULL);
@@ -105,14 +102,18 @@ logwtmp(char *line, char *name, char *host)
     strncpy(utx.ut_line, line, sizeof(utx.ut_line));
     strncpy(utx.ut_user, name, sizeof(utx.ut_user));
     strncpy(utx.ut_host, host, sizeof(utx.ut_host));
-#ifdef HAVE_UT_SYSLEN
+#ifdef HAVE_STRUCT_UTMPX_UT_SYSLEN
     utx.ut_syslen = strlen(host) + 1;
     if (utx.ut_syslen > sizeof(utx.ut_host))
         utx.ut_syslen = sizeof(utx.ut_host);
 #endif
+    {
+	struct timeval tv;
+
     gettimeofday (&tv, 0);
     utx.ut_tv.tv_sec = tv.tv_sec;
     utx.ut_tv.tv_usec = tv.tv_usec;
+    }
 
     if(name[0])
 	utx.ut_type = USER_PROCESS;

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,9 +33,9 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: lsb_addr_comp.c,v 1.9 1997/04/01 08:18:37 joda Exp $");
+RCSID("$Id: lsb_addr_comp.c,v 1.16 1999/12/02 16:58:42 joda Exp $");
 
-#include "lsb_addr_comp.h"
+#include "krb-archaeology.h"
 
 int
 krb_lsb_antinet_ulong_cmp(u_int32_t x, u_int32_t y)
@@ -83,23 +78,57 @@ krb_lsb_antinet_ushort_cmp(u_int16_t x, u_int16_t y)
 u_int32_t
 lsb_time(time_t t, struct sockaddr_in *src, struct sockaddr_in *dst)
 {
+    int dir = 1;
+    const char *fw;
+
     /*
      * direction bit is the sign bit of the timestamp.  Ok until
      * 2038??
      */
+    if(krb_debug) {
+	krb_warning("lsb_time: src = %s:%u\n", 
+		    inet_ntoa(src->sin_addr), ntohs(src->sin_port));
+	krb_warning("lsb_time: dst = %s:%u\n", 
+		    inet_ntoa(dst->sin_addr), ntohs(dst->sin_port));
+    }
+
     /* For compatibility with broken old code, compares are done in VAX 
        byte order (LSBFIRST) */ 
     if (krb_lsb_antinet_ulong_less(src->sin_addr.s_addr, /* src < recv */ 
 				   dst->sin_addr.s_addr) < 0) 
-        t = -t;
+        dir = -1;
     else if (krb_lsb_antinet_ulong_less(src->sin_addr.s_addr, 
 					dst->sin_addr.s_addr)==0) 
         if (krb_lsb_antinet_ushort_less(src->sin_port, dst->sin_port) < 0)
-            t = -t;
+            dir = -1;
     /*
      * all that for one tiny bit!  Heaven help those that talk to
      * themselves.
      */
+    if(krb_get_config_bool("reverse_lsb_test")) {
+	if(krb_debug) 
+	    krb_warning("lsb_time: reversing direction: %d -> %d\n", dir, -dir);
+	dir = -dir;
+    }else if((fw = krb_get_config_string("firewall_address"))) {
+	struct in_addr fw_addr;
+	fw_addr.s_addr = inet_addr(fw);
+	if(fw_addr.s_addr != INADDR_NONE) {
+	    int s_lt_d, d_lt_f;
+	    krb_warning("lsb_time: fw = %s\n", inet_ntoa(fw_addr));
+	    /* negate if src < dst < fw || fw < dst < src */
+	    s_lt_d = (krb_lsb_antinet_ulong_less(src->sin_addr.s_addr,
+						 dst->sin_addr.s_addr) == -1);
+	    d_lt_f = (krb_lsb_antinet_ulong_less(fw_addr.s_addr,
+						 dst->sin_addr.s_addr) == 1);
+	    if((s_lt_d ^ d_lt_f) == 0) {
+		if(krb_debug) 
+		    krb_warning("lsb_time: reversing direction: %d -> %d\n", 
+				dir, -dir);
+		dir = -dir;
+	    }
+	}
+    }
+    t = t * dir;
     t = t & 0xffffffff;
     return t;
 }

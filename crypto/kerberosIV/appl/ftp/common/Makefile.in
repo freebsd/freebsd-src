@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.17 1997/05/18 20:00:06 assar Exp $
+# $Id: Makefile.in,v 1.23 1999/03/10 19:01:11 joda Exp $
 
 SHELL		= /bin/sh
 
@@ -10,16 +10,17 @@ CC 	= @CC@
 AR	= ar
 RANLIB 	= @RANLIB@
 DEFS 	= @DEFS@
-CFLAGS 	= @CFLAGS@
+CFLAGS 	= @CFLAGS@ $(WFLAGS)
+WFLAGS = @WFLAGS@
 
 INSTALL = @INSTALL@
 
 prefix 	= @prefix@
 
-SOURCES = base64.c glob.c sockbuf.c buffer.c
+SOURCES = sockbuf.c buffer.c
 OBJECTS = $(libcommon_OBJS)
 
-libcommon_OBJS = base64.o glob.o sockbuf.o buffer.o
+libcommon_OBJS = sockbuf.o buffer.o
 
 LIBNAME = $(LIBPREFIX)common
 LIBEXT = a
@@ -29,7 +30,7 @@ LIB = $(LIBNAME).$(LIBEXT)
 all: $(LIB)
 
 .c.o:
-	$(CC) -c $(CFLAGS) -I$(srcdir) -I../../../include $(DEFS) $<
+	$(CC) -c -I$(srcdir) -I../../../include $(DEFS) $(CFLAGS) $(CPPFLAGS) $<
 
 $(LIB): $(libcommon_OBJS)
 	rm -f $@
@@ -50,3 +51,5 @@ distclean:
 	rm -f Makefile
 
 $(OBJECTS): ../../../include/config.h
+
+.PHONY: all install uninstall clean cleandir distclean

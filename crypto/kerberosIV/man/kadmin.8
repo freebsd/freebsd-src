@@ -1,176 +1,140 @@
-.\" $Id: kadmin.8,v 1.4 1997/04/02 21:09:53 assar Exp $
+.\" $Id: kadmin.8,v 1.6 1998/12/18 16:56:29 assar Exp $
 .\" Copyright 1989 by the Massachusetts Institute of Technology.
 .\"
 .\" For copying and distribution information,
 .\" please see the file <mit-copyright.h>.
 .\"
-.TH KADMIN 8 "Kerberos Version 4.0" "MIT Project Athena"
-.SH NAME
-kadmin \- network utility for Kerberos database administration
-.SH SYNOPSIS
-.B kadmin [-u user] [-r default_realm] [-m] [-t]
-.SH DESCRIPTION
-This utility provides a unified administration interface to
-the
-Kerberos
-master database.
-Kerberos
-administrators
-use
-.I kadmin
-to register new users and services to the master database,
-and to change information about existing database entries.
-For instance, an administrator can use
-.I kadmin
-to change a user's
-Kerberos
-password.
-A Kerberos administrator is a user with an ``admin'' instance
-whose name appears on one of the Kerberos administration access control
-lists.  If the \-u option is used, 
-.I user 
-will be used as the administrator instead of the local user.
-If the \-r option is used, 
-.I default_realm
-will be used as the default realm for transactions.  Otherwise,
-the local realm will be used by default.
-If the \-m option is used, multiple requests will be permitted 
-on only one entry of the admin password.  Some sites won't
-support this option.  The \-t option is used to tell kadmin to use the
-existing ticket file instead of creating a new one.
 
+.Dd February  3, 1998
+.Dt KADMIN 8
+.Os "KTH-KRB"
+.Sh NAME
+.Nm kadmin
+.Nd
+network utility for Kerberos database administration
+.Sh SYNOPSIS
+.Nm
+.Op Fl p Ar principal
+.Op Fl u Ar username
+.Op Fl r Ar realm
+.Op Fl m
+.Op Fl T Ar timeout
+.Op Fl t
+.Op Fl -version
+.Op Fl h
+.Op Fl -help
+.Ar [command]
+.Sh DESCRIPTION
+This utility provides a unified administration interface to the
+Kerberos master database.  Kerberos administrators use
+.Nm
+to register new users and services to the master database, and to
+change information about existing database entries, such as changing a
+user's Kerberos password. A Kerberos administrator is a user with an
+.Dq admin
+instance whose name appears on one of the Kerberos administration
+access control lists.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Fl p Ar principal
+This is the adminstrator principal to use when talking to the Kadmin
+server. The default is taken from the users environment.
+.It Fl r Ar realm
+This is the default realm to use for transactions. Default is the
+local realm.
+.It Fl u Ar username
+This is similar to 
+.Fl p ,
+but specifies a name, that gets appended with a
+.Dq admin
+instance.
+.It Fl T Ar timeout
+To prevent someone from walking up to an unguarded terminal and doing
+malicious things, administrator tickets are destroyed after a period
+of inactivity. This flag changes the timeout from the default of one
+minute. A timeout of zero seconds disables this functionality.
+.It Fl m
+Historically
+.Nm
+destroyed tickets after every command; this flag used to stop this
+behaviour (only destroying tickets upon exit). Now it's just a synonym
+for
+.Fl T Ar 0 .
+.It Fl t
+Use existing tickets (if any are available), this also disbles
+timeout, and doesn't destroy any tickets upon exit.
+
+These tickets have to be for the changepw.kerberos service.  Use
+.Nm kinit -p
+to acquire them.
+.El
+.Pp
 The
-.I kadmin
+.Nm
 program communicates over the network with the
-.I kadmind
+.Nm kadmind
 program, which runs on the machine housing the Kerberos master
-database.
-The
-.I kadmind
-creates new entries and makes modifications to the database.
-
+database, and does the actual modifications to the database.
+.Pp
 When you enter the
-.I kadmin
-command,
-the program displays a message that welcomes you and explains
-how to ask for help.
-Then
-.I kadmin
-waits for you to enter commands (which are described below).
-It then asks you for your
-.I admin
-password before accessing the database.
-
+.Nm
+command, the program displays a message that welcomes you and explains
+how to ask for help.  Then
+.Nm
+waits for you to enter commands (which are described below).  It then
+asks you for your administrator's password before accessing the
+database.
+.Pp
 All commands can be abbreviated as long as they are unique.  Some
 short versions of the commands are also recognized for backwards
 compatibility.
-
-Use the
-.I add_new_key
-(or
-.I ank
-for short)
-command to register a new principal
-with the master database.
-The command requires one argument,
-the principal's name.  The name
-given can be fully qualified using 
-the standard 
-.I name.instance@realm
-convention.
-You are asked to enter your
-.I admin
-password,
-then prompted twice to enter the principal's
-new password.  If no realm is specified, 
-the local realm is used unless another was
-given on the commandline with the \-r flag.  
-If no instance is
-specified, a null instance is used.  If
-a realm other than the default realm is specified,
-you will need to supply your admin password for
-the other realm.
-
-Use the
-.I change_password (cpw)
-to change a principal's
-Kerberos
+.Pp
+Recognised commands:
+.Bl -tag -width Ds
+.It add_new_key Ar principal
+Creates a new principal in the Kerberos database. You give the name of
+the new principal as an argument. You will then be asked for a maximum
+ticket lifetime, attributes, the expiration date of the principal, and
+finally the password of the principal.
+.It change_password Ar principal
+Changes a principal's password. You will be prompted for the new
 password.
-The command requires one argument,
-the principal's
-name.
-You are asked to enter your
-.I admin
-password,
-then prompted twice to enter the principal's new password.
-The name
-given can be fully qualified using 
-the standard 
-.I name.instance@realm
-convention.
-
-Use the
-.I change_key (ckey)
-if you have a need to change the raw key of a particular principal.
-In other words, if you do not want to input a DES key instead of a
-password that will get converted into a DES key.
-
-Use the
-.I change_admin_password (cap)
-to change your
-.I admin
-instance password.
-This command requires no arguments.
-It prompts you for your old
-.I admin
-password, then prompts you twice to enter the new
-.I admin
-password.  If this is your first command, 
-the default realm is used.  Otherwise, the realm
-used in the last command is used.
-
-Use the
-.I del_entry (del)
-to remove an entry from the kerberos database.
-
-Use the
-.I mod_entry (mod)
-to modify a particular entry, for example to change the expire date.
-
-Use the
-.I destroy_tickets (dest)
-command to destroy your admin tickets explicitly.
-
-Use the
-.I list_requests (lr)
-command to get a list of possible commands.
-
-Use the
-.I help
-command to display
-.IR kadmin's
-various help messages.
-If entered without an argument,
-.I help
-displays a general help message.
-You can get detailed information on specific
-.I kadmin
-commands
-by entering 
-.I help
-.IR command_name .
-
-To quit the program, type
-.IR quit .
-
-.SH BUGS
-The user interface is primitive, and the command names could be better.
-
-.SH "SEE ALSO"
-kerberos(1), kadmind(8), kpasswd(1), ksrvutil(8)
-.br
-``A Subsystem Utilities Package for UNIX'' by Ken Raeburn
-.SH AUTHORS
+.It change_key Ar principal
+This is the same as change_password, but the password is given as a
+raw DES key (for the few occations when you need this).
+.It change_admin_password
+Changes your own admin password. It will prompt you for you old and
+new passwords.
+.It del_entry Ar principal
+Removes principal from the database.
+.It get_entry Ar principal
+Show various information for the given principal. Note that the key is
+shown as zeros.
+.It mod_entry Ar principal
+Modifies a particular entry, for instance to change the expiration
+date.  
+.It destroy_tickets
+Destroys your admin tickets explicitly.
+.It quit
+Obvious.
+.El
+.\".Sh ENVIRONMENT
+.\".Sh FILES
+.\".Sh EXAMPLES
+.\".Sh DIAGNOSTICS
+.Sh SEE ALSO
+.Xr kerberos 1 ,
+.Xr kadmind 8 ,
+.Xr kpasswd 1 ,
+.Xr kinit 1 ,
+.Xr ksrvutil 8
+.\".Sh STANDARDS
+.\".Sh HISTORY
+.Sh AUTHORS
 Jeffrey I. Schiller, MIT Project Athena
-.br
+.Pp
 Emanuel Jay Berkenbilt, MIT Project Athena
+.Sh BUGS
+The user interface is primitive, and the command names could be
+better.

@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: ruserpass.c,v 1.10 1997/05/02 14:27:55 assar Exp $");
+RCSID("$Id: ruserpass.c,v 1.16 1999/09/16 20:37:31 assar Exp $");
 
 static	int token (void);
 static	FILE *cfile;
@@ -63,6 +63,46 @@ static struct toktab {
 	{ NULL,		0 }
 };
 
+/*
+ * Write a copy of the hostname into `hostname, sz' and return a guess
+ * as to the `domain' of that hostname.
+ */
+
+static char *
+guess_domain (char *hostname, size_t sz)
+{
+    struct hostent *he;
+    char *dot;
+    char *a;
+    char **aliases;
+
+    if (gethostname (hostname, sz) < 0) {
+	strlcpy (hostname, "", sz);
+	return "";
+    }
+    dot = strchr (hostname, '.');
+    if (dot != NULL)
+	return dot + 1;
+
+    he = gethostbyname (hostname);
+    if (he == NULL)
+	return hostname;
+
+    dot = strchr (he->h_name, '.');
+    if (dot != NULL) {
+	strlcpy (hostname, he->h_name, sz);
+	return dot + 1;
+    }
+    for (aliases = he->h_aliases; (a = *aliases) != NULL; ++aliases) {
+	dot = strchr (a, '.');
+	if (dot != NULL) {
+	    strlcpy (hostname, a, sz);
+	    return dot + 1;
+	}
+    }
+    return hostname;
+}
+
 int
 ruserpass(char *host, char **aname, char **apass, char **aacct)
 {
@@ -70,12 +110,8 @@ ruserpass(char *host, char **aname, char **apass, char **aacct)
 	int t, i, c, usedefault = 0;
 	struct stat stb;
 
-	if(k_gethostname(myhostname, MaxHostNameLen) < 0)
-	    strcpy(myhostname, "");
-	if((mydomain = strchr(myhostname, '.')) == NULL)
-	    mydomain = myhostname;
-	else
-	    mydomain++;
+    mydomain = guess_domain (myhostname, MaxHostNameLen);
+
 	hdir = getenv("HOME");
 	if (hdir == NULL)
 		hdir = ".";
@@ -125,13 +161,14 @@ next:
 		while ((t = token()) && t != MACH && t != DEFAULT) switch(t) {
 
 		case LOGIN:
-			if (token())
+	    if (token()) {
 				if (*aname == 0) { 
 					*aname = strdup(tokval);
 				} else {
 					if (strcmp(*aname, tokval))
 						goto next;
 				}
+	    }
 			break;
 		case PASSWD:
 			if ((*aname == NULL || strcmp(*aname, "anonymous")) &&
@@ -161,7 +198,8 @@ next:
 				fclose(cfile);
 				return (0);
 			}
-			while ((c=getc(cfile)) != EOF && c == ' ' || c == '\t');
+	    while ((c=getc(cfile)) != EOF && 
+		   (c == ' ' || c == '\t'));
 			if (c == EOF || c == '\n') {
 				printf("Missing macdef name argument.\n");
 				goto bad;

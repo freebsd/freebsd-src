@@ -33,7 +33,7 @@
 
 #include "bsd_locl.h"
 
-RCSID ("$Id: su.c,v 1.59 1997/05/26 17:45:54 bg Exp $");
+RCSID ("$Id: su.c,v 1.70 1999/11/13 06:14:11 assar Exp $");
 
 #ifdef SYSV_SHADOW
 #include "sysv_shadow.h"
@@ -46,8 +46,9 @@ static int koktologin (char *name, char *realm, char *toname);
 static int chshell (char *sh);
 
 /* Handle '-' option after all the getopt options */
-#define	ARGSTR	"Kflmi:"
+#define	ARGSTR	"Kflmti:"
 
+int destroy_tickets = 0;
 static int use_kerberos = 1;
 static char *root_inst = "root";
 
@@ -66,7 +67,7 @@ main (int argc, char **argv)
     set_progname (argv[0]);
 
     asme = asthem = fastlogin = 0;
-    while ((ch = getopt (argc, argv, ARGSTR)) != EOF)
+    while ((ch = getopt (argc, argv, ARGSTR)) != -1)
 	switch ((char) ch) {
 	case 'K':
 	    use_kerberos = 0;
@@ -82,13 +83,16 @@ main (int argc, char **argv)
 	    asme = 1;
 	    asthem = 0;
 	    break;
+	case 't':
+	    destroy_tickets = 1;
+	    break;
 	case 'i':
 	    root_inst = optarg;
 	    break;
 	case '?':
 	default:
 	    fprintf (stderr,
-		     "usage: su [-Kflm] [-i root-instance] [-] [login]\n");
+		     "usage: su [-Kflmt] [-i root-instance] [-] [login]\n");
 	    exit (1);
 	}
     /* Don't handle '-' option with getopt */
@@ -112,7 +116,7 @@ main (int argc, char **argv)
     if (errno)
 	prio = 0;
     setpriority (PRIO_PROCESS, 0, -2);
-    openlog ("su", LOG_CONS, 0);
+    openlog ("su", LOG_CONS, LOG_AUTH);
 
     /* get current login name and shell */
     ruid = getuid ();
@@ -123,13 +127,17 @@ main (int argc, char **argv)
     if (pwd == NULL)
 	errx (1, "who are you?");
     username = strdup (pwd->pw_name);
-    if (asme)
-	if (pwd->pw_shell && *pwd->pw_shell)
-	    shell = strcpy (shellbuf, pwd->pw_shell);
-	else {
+    if (username == NULL)
+	errx (1, "strdup: out of memory");
+    if (asme) {
+	if (pwd->pw_shell && *pwd->pw_shell) {
+	    strlcpy (shellbuf, pwd->pw_shell, sizeof(shellbuf));
+	    shell = shellbuf;
+	} else {
 	    shell = _PATH_BSHELL;
 	    iscsh = NO;
 	}
+    }
 
     /* get target login information, default to root */
     user = *argv ? *argv : "root";
@@ -229,6 +237,8 @@ main (int argc, char **argv)
 	    char *t = getenv ("TERM");
 
 	    environ = malloc (10 * sizeof (char *));
+	    if (environ == NULL)
+		err (1, "malloc");
 	    environ[0] = NULL;
 	    setenv ("PATH", _PATH_DEFPATH, 1);
 	    if (t)
@@ -250,13 +260,13 @@ main (int argc, char **argv)
 	    *np-- = "-m";
     }
     if (asthem) {
-	avshellbuf[0] = '-';
-	strcpy (avshellbuf + 1, avshell);
+	snprintf (avshellbuf, sizeof(avshellbuf),
+		  "-%s", avshell);
 	avshell = avshellbuf;
     } else if (iscsh == YES) {
 	/* csh strips the first character... */
-	avshellbuf[0] = '_';
-	strcpy (avshellbuf + 1, avshell);
+	snprintf (avshellbuf, sizeof(avshellbuf),
+		  "_%s", avshell);
 	avshell = avshellbuf;
     }
     *np = avshell;
@@ -272,10 +282,12 @@ main (int argc, char **argv)
 
 	if (k_setpag () != 0)
 	    warn ("setpag");
-	code = k_afsklog (0, 0);
+	code = krb_afslog (0, 0);
 	if (code != KSUCCESS && code != KDC_PR_UNKNOWN)
 	    warnx ("afsklog: %s", krb_get_err_text (code));
     }
+    if (destroy_tickets)
+        dest_tkt ();
     execv (shell, np);
     warn ("execv(%s)", shell);
     if (getuid () == 0) {
@@ -334,6 +346,15 @@ kerberos (char *username, char *user, int uid)
     setenv ("KRBTKFILE", krbtkfile, 1);
     krb_set_tkt_string (krbtkfile);
     /*
+     * Set real as well as effective ID to 0 for the moment,
+     * to make the kerberos library do the right thing.
+     */
+    if (setuid(0) < 0) {
+        warn("setuid");
+	return (1);
+    }
+
+    /*
      * Little trick here -- if we are su'ing to root, we need to get a ticket
      * for "xxx.root", where xxx represents the name of the person su'ing.
      * Otherwise (non-root case), we need to get a ticket for "yyy.", where
@@ -388,13 +409,12 @@ kerberos (char *username, char *user, int uid)
     }
     setpriority (PRIO_PROCESS, 0, -2);
 
-    if (k_gethostname (hostname, sizeof (hostname)) == -1) {
+    if (gethostname (hostname, sizeof (hostname)) == -1) {
 	warn ("gethostname");
 	dest_tkt ();
 	return (1);
     }
-    strncpy (savehost, krb_get_phost (hostname), sizeof (savehost));
-    savehost[sizeof (savehost) - 1] = '\0';
+    strlcpy (savehost, krb_get_phost (hostname), sizeof (savehost));
 
     kerno = krb_mk_req (&ticket, "rcmd", savehost, lrealm, 33);
 
@@ -438,6 +458,7 @@ kerberos (char *username, char *user, int uid)
 	    return (1);
 	}
     }
+    if (!destroy_tickets)
     fprintf (stderr, "Don't forget to kdestroy before exiting the shell.\n");
     return (0);
 }

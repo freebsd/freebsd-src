@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: cmds.c,v 1.23 1997/06/01 22:52:37 assar Exp $");
+RCSID("$Id: cmds.c,v 1.36 1999/09/16 20:37:28 assar Exp $");
 
 typedef void (*sighand)(int);
 
@@ -119,12 +119,17 @@ setpeer(int argc, char **argv)
 		/*
 		 * Set up defaults for FTP.
 		 */
-		strcpy(typename, "ascii"), type = TYPE_A;
+		strlcpy(typename, "ascii", sizeof(typename));
+		type = TYPE_A;
 		curtype = TYPE_A;
-		strcpy(formname, "non-print"), form = FORM_N;
-		strcpy(modename, "stream"), mode = MODE_S;
-		strcpy(structname, "file"), stru = STRU_F;
-		strcpy(bytename, "8"), bytesize = 8;
+		strlcpy(formname, "non-print", sizeof(formname));
+		form = FORM_N;
+		strlcpy(modename, "stream", sizeof(modename));
+		mode = MODE_S;
+		strlcpy(structname, "file", sizeof(structname));
+		stru = STRU_F;
+		strlcpy(bytename, "8", sizeof(bytename));
+		bytesize = 8;
 		if (autologin)
 			login(argv[1]);
 
@@ -165,7 +170,7 @@ setpeer(int argc, char **argv)
 			 * for text files unless changed by the user.
 			 */
 			type = 0;
-			strcpy(typename, "binary");
+			strlcpy(typename, "binary", sizeof(typename));
 			if (overbose)
 			    printf("Using %s mode to transfer files.\n",
 				typename);
@@ -238,7 +243,7 @@ settype(int argc, char **argv)
 	else
 		comret = command("TYPE %s", p->t_mode);
 	if (comret == COMPLETE) {
-		strcpy(typename, p->t_name);
+		strlcpy(typename, p->t_name, sizeof(typename));
 		curtype = type = p->t_type;
 	}
 }
@@ -398,6 +403,7 @@ usage:
 		argv[2] = domap(argv[2]);
 	}
 	sendrequest(cmd, argv[1], argv[2],
+		    curtype == TYPE_I ? "rb" : "r",
 	    argv[1] != oldargv1 || argv[2] != oldargv2);
 }
 
@@ -476,7 +482,9 @@ mput(int argc, char **argv)
 					tp = domap(tp);
 				}
 				sendrequest((sunique) ? "STOU" : "STOR",
-				    cp, tp, cp != tp || !interactive);
+			    cp, tp,
+			    curtype == TYPE_I ? "rb" : "r",
+			    cp != tp || !interactive);
 				if (!mflag && fromatty) {
 					ointer = interactive;
 					interactive = 1;
@@ -501,7 +509,9 @@ mput(int argc, char **argv)
 				tp = (ntflag) ? dotrans(argv[i]) : argv[i];
 				tp = (mapflag) ? domap(tp) : tp;
 				sendrequest((sunique) ? "STOU" : "STOR",
-				    argv[i], tp, tp != argv[i] || !interactive);
+			    argv[i],
+			    curtype == TYPE_I ? "rb" : "r",
+			    tp, tp != argv[i] || !interactive);
 				if (!mflag && fromatty) {
 					ointer = interactive;
 					interactive = 1;
@@ -526,7 +536,9 @@ mput(int argc, char **argv)
 				tp = (ntflag) ? dotrans(*cpp) : *cpp;
 				tp = (mapflag) ? domap(tp) : tp;
 				sendrequest((sunique) ? "STOU" : "STOR",
-				    *cpp, tp, *cpp != tp || !interactive);
+			    *cpp, tp,
+			    curtype == TYPE_I ? "rb" : "r",
+			    *cpp != tp || !interactive);
 				if (!mflag && fromatty) {
 					ointer = interactive;
 					interactive = 1;
@@ -546,15 +558,26 @@ mput(int argc, char **argv)
 void
 reget(int argc, char **argv)
 {
-
-	getit(argc, argv, 1, "r+w");
+    getit(argc, argv, 1, curtype == TYPE_I ? "r+wb" : "r+w");
 }
 
 void
 get(int argc, char **argv)
 {
+    char *mode;
 
-	getit(argc, argv, 0, restart_point ? "r+w" : "w" );
+    if (restart_point)
+	if (curtype == TYPE_I)
+	    mode = "r+wb";
+	else
+	    mode = "r+w";
+    else
+	if (curtype == TYPE_I)
+	    mode = "wb";
+	else
+	    mode = "w";
+
+    getit(argc, argv, 0, mode);
 }
 
 /*
@@ -564,17 +587,17 @@ int
 getit(int argc, char **argv, int restartit, char *mode)
 {
 	int loc = 0;
+	int local_given = 1;
 	char *oldargv1, *oldargv2;
 
 	if (argc == 2) {
 		argc++;
+		local_given = 0;
 		argv[2] = argv[1];
 		loc++;
 	}
-	if (argc < 2 && !another(&argc, &argv, "remote-file"))
-		goto usage;
-	if (argc < 3 && !another(&argc, &argv, "local-file")) {
-usage:
+	if ((argc < 2 && !another(&argc, &argv, "remote-file")) ||
+	    (argc < 3 && !another(&argc, &argv, "local-file"))) {
 		printf("usage: %s remote-file [ local-file ]\n", argv[0]);
 		code = -1;
 		return (0);
@@ -619,25 +642,35 @@ usage:
 				return (0);
 			}
 			restart_point = stbuf.st_size;
-		} else {
-			if (ret == 0) {
+		} else if (ret == 0) {
 				int overbose;
+			int cmdret;
+			int yy, mo, day, hour, min, sec;
+			struct tm *tm;
 
 				overbose = verbose;
 				if (debug == 0)
 					verbose = -1;
-				if (command("MDTM %s", argv[1]) == COMPLETE) {
-					int yy, mo, day, hour, min, sec;
-					struct tm *tm;
+			cmdret = command("MDTM %s", argv[1]);
 					verbose = overbose;
-					sscanf(reply_string,
+			if (cmdret != COMPLETE) {
+				printf("%s\n", reply_string);
+				return (0);
+			}
+			if (sscanf(reply_string,
 					    "%*s %04d%02d%02d%02d%02d%02d",
-					    &yy, &mo, &day, &hour, &min, &sec);
+				   &yy, &mo, &day, &hour, &min, &sec)
+			    != 6) {
+				printf ("bad MDTM result\n");
+				return (0);
+			}
+
 					tm = gmtime(&stbuf.st_mtime);
 					tm->tm_mon++;
-					if (tm->tm_year > yy%100)
-						return (1);
-					if ((tm->tm_year == yy%100 && 
+			tm->tm_year += 1900;
+
+			if ((tm->tm_year > yy) ||
+			    (tm->tm_year == yy && 
 					    tm->tm_mon > mo) ||
 					   (tm->tm_mon == mo && 
 					    tm->tm_mday > day) ||
@@ -648,19 +681,19 @@ usage:
 					   (tm->tm_min == min && 
 					    tm->tm_sec > sec))
 						return (1);
-				} else {
-					printf("%s\n", reply_string);
-					verbose = overbose;
-					return (0);
 				}
 			}
-		}
-	}
 
 	recvrequest("RETR", argv[2], argv[1], mode,
-	    argv[1] != oldargv1 || argv[2] != oldargv2);
+		    argv[1] != oldargv1 || argv[2] != oldargv2, local_given);
 	restart_point = 0;
 	return (0);
+}
+
+static int
+suspicious_filename(const char *fn)
+{
+    return strstr(fn, "../") != NULL || *fn == '/';
 }
 
 /*
@@ -687,6 +720,8 @@ mget(int argc, char **argv)
 			mflag = 0;
 			continue;
 		}
+		if (mflag && suspicious_filename(cp))
+		    printf("*** Suspicious filename: %s\n", cp);
 		if (mflag && confirm(argv[0], cp)) {
 			tp = cp;
 			if (mcase) {
@@ -701,8 +736,9 @@ mget(int argc, char **argv)
 			if (mapflag) {
 				tp = domap(tp);
 			}
-			recvrequest("RETR", tp, cp, "w",
-			    tp != cp || !interactive);
+			recvrequest("RETR", tp, cp,
+				    curtype == TYPE_I ? "wb" : "w",
+				    tp != cp || !interactive, 0);
 			if (!mflag && fromatty) {
 				ointer = interactive;
 				interactive = 1;
@@ -747,15 +783,21 @@ remglob(char **argv, int doswitch)
 		return (cp);
 	}
 	if (ftemp == NULL) {
-		strcpy(temp, _PATH_TMP_XXX);
-		mktemp(temp);
+	int fd;
+	strlcpy(temp, _PATH_TMP_XXX, sizeof(temp));
+	fd = mkstemp(temp);
+	if(fd < 0){
+	    warn("unable to create temporary file %s", temp);
+	    return NULL;
+	}
+	close(fd);
 		oldverbose = verbose, verbose = 0;
 		oldhash = hash, hash = 0;
 		if (doswitch) {
 			pswitch(!proxy);
 		}
 		for (mode = "w"; *++argv != NULL; mode = "a")
-			recvrequest ("NLST", temp, *argv, mode, 0);
+	    recvrequest ("NLST", temp, *argv, mode, 0, 0);
 		if (doswitch) {
 			pswitch(!proxy);
 		}
@@ -766,16 +808,20 @@ remglob(char **argv, int doswitch)
 			printf("can't find list of remote files, oops\n");
 			return (NULL);
 		}
+    }
+    while(fgets(buf, sizeof (buf), ftemp)) {
+	if ((cp = strchr(buf, '\n')) != NULL)
+	    *cp = '\0';
+	if(!interactive && suspicious_filename(buf)){
+	    printf("Ignoring remote globbed file `%s'\n", buf);
+	    continue;
 	}
-	if (fgets(buf, sizeof (buf), ftemp) == NULL) {
+	return buf;
+    }
 		fclose(ftemp);
 		ftemp = NULL;
 		return (NULL);
 	}
-	if ((cp = strchr(buf, '\n')) != NULL)
-		*cp = '\0';
-	return (buf);
-}
 
 char *
 onoff(int bool)
@@ -1113,11 +1159,12 @@ ls(int argc, char **argv)
 		return;
 	}
 	if (strcmp(argv[2], "-") && *argv[2] != '|')
-		if (!globulize(&argv[2]) || !confirm("output to local-file:", argv[2])) {
+	    if (!globulize(&argv[2]) || !confirm("output to local-file:", 
+						 argv[2])) {
 			code = -1;
 			return;
 	}
-	recvrequest(cmd, argv[2], argv[1], "w", 0);
+	recvrequest(cmd, argv[2], argv[1], "w", 0, 1);
 }
 
 /*
@@ -1154,7 +1201,7 @@ usage:
 	setjmp(jabort);
 	for (i = 1; mflag && i < argc-1; ++i) {
 		*mode = (i == 1) ? 'w' : 'a';
-		recvrequest(cmd, dest, argv[i], mode, 0);
+		recvrequest(cmd, dest, argv[i], mode, 0, 1);
 		if (!mflag && fromatty) {
 			ointer = interactive;
 			interactive = 1;
@@ -1193,8 +1240,8 @@ shell(int argc, char **argv)
 		namep = strrchr(shell,'/');
 		if (namep == NULL)
 			namep = shell;
-		strcpy(shellnam,"-");
-		strcat(shellnam, ++namep);
+		snprintf (shellnam, sizeof(shellnam),
+			  "-%s", ++namep);
 		if (strcmp(namep, "sh") != 0)
 			shellnam[0] = '+';
 		if (debug) {
@@ -1369,19 +1416,16 @@ site(int argc, char **argv)
 void
 quote1(char *initial, int argc, char **argv)
 {
-	int i, len;
+    int i;
 	char buf[BUFSIZ];		/* must be >= sizeof(line) */
 
-	strcpy(buf, initial);
-	if (argc > 1) {
-		len = strlen(buf);
-		len += strlen(strcpy(&buf[len], argv[1]));
-		for (i = 2; i < argc; i++) {
-			buf[len++] = ' ';
-			len += strlen(strcpy(&buf[len], argv[i]));
-		}
+    strlcpy(buf, initial, sizeof(buf));
+    for(i = 1; i < argc; i++) {
+	if(i > 1)
+	    strlcat(buf, " ", sizeof(buf));
+	strlcat(buf, argv[i], sizeof(buf));
 	}
-	if (command(buf) == PRELIM) {
+    if (command("%s", buf) == PRELIM) {
 		while (getreply(0) == PRELIM)
 			continue;
 	}
@@ -1467,7 +1511,7 @@ disconnect(int argc, char **argv)
 	}
 	cout = NULL;
 	connected = 0;
-	krb4_quit();
+	sec_end();
 	data = -1;
 	if (!proxy) {
 		macnum = 0;
@@ -1485,7 +1529,7 @@ confirm(char *cmd, char *file)
 	fflush(stdout);
 	if (fgets(line, sizeof line, stdin) == NULL)
 		return (0);
-	return (*line != 'n' && *line != 'N');
+	return (*line == 'y' || *line == 'Y');
 }
 
 void
@@ -1531,12 +1575,11 @@ account(int argc, char **argv)
 	if (argc > 1) {
 		++argv;
 		--argc;
-		strncpy(acct,*argv,49);
-		acct[49] = '\0';
+		strlcpy (acct, *argv, sizeof(acct));
 		while (argc > 1) {
 			--argc;
 			++argv;
-			strncat(acct,*argv, 49-strlen(acct));
+			strlcat(acct, *argv, sizeof(acct));
 		}
 	}
 	else {
@@ -1648,14 +1691,12 @@ setntrans(int argc, char **argv)
 	}
 	ntflag++;
 	code = ntflag;
-	strncpy(ntin, argv[1], 16);
-	ntin[16] = '\0';
+	strlcpy (ntin, argv[1], 17);
 	if (argc == 2) {
 		ntout[0] = '\0';
 		return;
 	}
-	strncpy(ntout, argv[2], 16);
-	ntout[16] = '\0';
+	strlcpy (ntout, argv[2], 17);
 }
 
 char *
@@ -1712,10 +1753,10 @@ setnmap(int argc, char **argv)
 		cp = strchr(altarg, ' ');
 	}
 	*cp = '\0';
-	strncpy(mapin, altarg, MaxPathLen - 1);
+	strlcpy(mapin, altarg, MaxPathLen);
 	while (*++cp == ' ')
 		continue;
-	strncpy(mapout, cp, MaxPathLen - 1);
+	strlcpy(mapout, cp, MaxPathLen);
 }
 
 char *
@@ -1967,7 +2008,9 @@ macdef(int argc, char **argv)
 	if (interactive) {
 		printf("Enter macro line by line, terminating it with a null line\n");
 	}
-	strncpy(macros[macnum].mac_name, argv[1], 8);
+	strlcpy(macros[macnum].mac_name,
+			argv[1],
+			sizeof(macros[macnum].mac_name));
 	if (macnum == 0) {
 		macros[macnum].mac_start = macbuf;
 	}
@@ -2067,7 +2110,7 @@ void
 newer(int argc, char **argv)
 {
 
-	if (getit(argc, argv, -1, "w"))
+	if (getit(argc, argv, -1, curtype == TYPE_I ? "wb" : "w"))
 		printf("Local file \"%s\" is newer than remote file \"%s\"\n",
 			argv[2], argv[1]);
 }

@@ -25,7 +25,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kpasswd.c,v 1.25 1997/05/02 14:28:51 assar Exp $");
+RCSID("$Id: kpasswd.c,v 1.29 1999/11/13 06:33:20 assar Exp $");
 
 static void
 usage(int value)
@@ -57,7 +57,7 @@ main(int argc, char **argv)
 			       default_principal.instance,
 			       default_principal.realm);
 
-    while ((c = getopt(argc, argv, "u:n:i:r:h")) != EOF) {
+    while ((c = getopt(argc, argv, "u:n:i:r:h")) != -1) {
 	switch (c) {
 	case 'u':
 	    status = krb_parse_name (optarg, &principal);
@@ -70,7 +70,9 @@ main(int argc, char **argv)
 	    break;
 	case 'n':
 	    if (k_isname(optarg))
-		strncpy(principal.name, optarg, sizeof(principal.name) - 1);
+		strlcpy(principal.name,
+				optarg,
+				sizeof(principal.name));
 	    else {
 		warnx("Bad name: %s", optarg);
 		usage(1);
@@ -78,9 +80,9 @@ main(int argc, char **argv)
 	    break;
 	case 'i':
 	    if (k_isinst(optarg))
-		strncpy(principal.instance,
+		strlcpy(principal.instance,
 			optarg,
-			sizeof(principal.instance) - 1);
+				sizeof(principal.instance));
 	    else {
 		warnx("Bad instance: %s", optarg);
 		usage(1);
@@ -88,7 +90,9 @@ main(int argc, char **argv)
 	    break;
 	case 'r':
 	    if (k_isrealm(optarg)) {
-		strncpy(principal.realm, optarg, sizeof(principal.realm) - 1);
+		strlcpy(principal.realm,
+				optarg,
+				sizeof(principal.realm));
 		realm_given++; 
 	    } else {
 		warnx("Bad realm: %s", optarg);
@@ -112,18 +116,28 @@ main(int argc, char **argv)
     }
 
     if (use_default) {
-	strcpy(principal.name, default_principal.name);
-	strcpy(principal.instance, default_principal.instance);
-	strcpy(principal.realm, default_principal.realm);
+	strlcpy(principal.name,
+			default_principal.name,
+			sizeof(principal.name));
+	strlcpy(principal.instance,
+			default_principal.instance,
+			sizeof(principal.instance));
+	strlcpy(principal.realm,
+			default_principal.realm,
+			sizeof(principal.realm));
     } else {
 	if (!principal.name[0])
-	    strcpy(principal.name, default_principal.name);
+	    strlcpy(principal.name,
+			    default_principal.name,
+			    sizeof(principal.name));
 	if (!principal.realm[0])
-	    strcpy(principal.realm, default_principal.realm);
+	    strlcpy(principal.realm,
+			    default_principal.realm,
+			    sizeof(principal.realm));
     }
 
-    snprintf(tktstring, sizeof(tktstring),
-	     TKT_ROOT "_cpw_%u", (unsigned)getpid());
+    snprintf(tktstring, sizeof(tktstring), "%s_cpw_%u",
+	     TKT_ROOT, (unsigned)getpid());
     krb_set_tkt_string(tktstring);
     
     if (get_pw_new_pwd(pword, sizeof(pword), &principal,

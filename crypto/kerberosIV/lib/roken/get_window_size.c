@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: get_window_size.c,v 1.4 1997/04/01 08:18:59 joda Exp $");
+RCSID("$Id: get_window_size.c,v 1.9 1999/12/02 16:58:46 joda Exp $");
 #endif
 
 #include <stdlib.h>
@@ -68,29 +63,40 @@ RCSID("$Id: get_window_size.c,v 1.4 1997/04/01 08:18:59 joda Exp $");
 int
 get_window_size(int fd, struct winsize *wp)
 {
-#if defined(TIOCGWINSZ)
-  return ioctl(fd, TIOCGWINSZ, wp);
-#elif defined(TIOCGSIZE)
-  struct ttysize ts;
-  int error;
+    int ret = -1;
+    
+    memset(wp, 0, sizeof(*wp));
 
-  if ((error = ioctl(0, TIOCGSIZE, &ts)) != 0)
-    return (error);
+#if defined(TIOCGWINSZ)
+    ret = ioctl(fd, TIOCGWINSZ, wp);
+#elif defined(TIOCGSIZE)
+    {
+  struct ttysize ts;
+
+	ret = ioctl(fd, TIOCGSIZE, &ts);
+	if(ret == 0) {
   wp->ws_row = ts.ts_lines;
   wp->ws_col = ts.ts_cols;
-  wp->ws_xpixel = 0;
-  wp->ws_ypixel = 0;
-  return 0;
+	}
+    }
 #elif defined(HAVE__SCRSIZE)
+    {
   int dst[2];
 
   _scrsize(dst);
   wp->ws_row = dst[1];
   wp->ws_col = dst[0];
-  wp->ws_xpixel = 0;
-  wp->ws_ypixel = 0;
-  return 0;
-#else
-  return -1;
+	ret = 0;
+    }
 #endif
+    if (ret != 0) {
+        char *s;
+        if((s = getenv("COLUMNS")))
+	    wp->ws_col = atoi(s);
+	if((s = getenv("LINES")))
+	    wp->ws_row = atoi(s);
+	if(wp->ws_col > 0 && wp->ws_row > 0)
+	    ret = 0;
+    }
+    return ret;
 }

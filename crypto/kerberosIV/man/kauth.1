@@ -1,4 +1,4 @@
-.\" $Id: kauth.1,v 1.1 1996/05/04 01:49:34 d91-jda Exp $
+.\" $Id: kauth.1,v 1.3 1998/06/30 15:29:17 assar Exp $
 .\"
 .Dd May 4, 1996
 .Dt KAUTH 1
@@ -47,7 +47,8 @@ User on the remote host that should own the ticket file.
 .It Fl t 
 Ticket file on remote host.
 .It Fl l
-Lifetime of tickets i minutes
+Lifetime of tickets in minutes. A value of -1 is used for maximum
+ticket lifetime.
 .It Fl f
 Srvtab to get service keys from. Default is 
 .Pa /etc/srvtab .
@@ -60,6 +61,7 @@ AFS cell to get tokens for, default is your local cell.
 .El
 .Sh SEE ALSO
 .Xr kinit 1 ,
-.Xr kauthd 8
+.Xr kauthd 8 ,
+.Xr kafs 3
 .Sh BUGS
 There is no help-switch.

@@ -36,6 +36,9 @@
 #ifndef _EXTERN_H_
 #define _EXTERN_H_
 
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
 #ifdef HAVE_NETINET_IN_H
 #include <netinet/in.h>
 #endif
@@ -49,8 +52,13 @@
 #ifdef HAVE_PWD_H
 #include <pwd.h>
 #endif
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
+
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+
+#ifndef NBBY
+#define NBBY CHAR_BIT
 #endif
 
 void	abor(void);
@@ -59,12 +67,14 @@ char  **copyblk(char **);
 void	cwd(char *);
 void	do_delete(char *);
 void	dologout(int);
+void	eprt(char *);
+void	epsv(char *);
 void	fatal(char *);
 int	filename_check(char *);
 int	ftpd_pclose(FILE *);
 FILE   *ftpd_popen(char *, char *, int, int);
-char   *getline(char *, int);
-void	logwtmp(char *, char *, char *);
+char   *ftpd_getline(char *, int);
+void	ftpd_logwtmp(char *, char *, char *);
 void	lreply(int, const char *, ...)
 #ifdef __GNUC__
 __attribute__ ((format (printf, 2, 3)))
@@ -78,8 +88,8 @@ __attribute__ ((format (printf, 1, 2)))
 #endif
 ;
 void	pass(char *);
-void	passive(void);
-void	perror_reply(int, char *);
+void	pasv(void);
+void	perror_reply(int, const char *);
 void	pwd(void);
 void	removedir(char *);
 void	renamecmd(char *, char *);
@@ -89,7 +99,7 @@ void	reply(int, const char *, ...)
 __attribute__ ((format (printf, 2, 3)))
 #endif
 ;
-void	retrieve(char *, char *);
+void	retrieve(const char *, char *);
 void	send_file_list(char *);
 void	setproctitle(const char *, ...)
 #ifdef __GNUC__
@@ -103,20 +113,29 @@ void	upper(char *);
 void	user(char *);
 void	yyerror(char *);
 
+void	list_file(char*);
+
 void	kauth(char *, char*);
 void	klist(void);
+void	cond_kdestroy(void);
+void	kdestroy(void);
+void	krbtkfile(const char *tkfile);
+void	afslog(const char *cell);
+void	afsunlog(void);
 
 int	find(char *);
+
+void	builtin_ls(FILE*, const char*);
 
 int	do_login(int code, char *passwd);
 int	klogin(char *name, char *password);
 
 const char *ftp_rooted(const char *path);
 
-extern struct sockaddr_in ctrl_addr, his_addr;
+extern struct sockaddr *ctrl_addr, *his_addr;
 extern char hostname[];
 
-extern	struct sockaddr_in data_dest;
+extern	struct sockaddr *data_dest;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;

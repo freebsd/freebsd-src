@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -37,9 +32,11 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: kauth.c,v 1.14 1997/05/11 04:08:04 assar Exp $");
+#include <krb.h>
+RCSID("$Id: kauth.c,v 1.20 1999/12/02 16:58:29 joda Exp $");
 
-void kauth(int argc, char **argv)
+void
+kauth(int argc, char **argv)
 {
     int ret;
     char buf[1024];
@@ -52,6 +49,8 @@ void kauth(int argc, char **argv)
     char passwd[100];
     int tmp;
 	
+    int save;
+
     if(argc > 2){
 	printf("usage: %s [principal]\n", argv[0]);
 	code = -1;
@@ -65,9 +64,11 @@ void kauth(int argc, char **argv)
     overbose = verbose;
     verbose = 0;
 
+    save = set_command_prot(prot_private);
     ret = command("SITE KAUTH %s", name);
     if(ret != CONTINUE){
 	verbose = overbose;
+	set_command_prot(save);
 	code = -1;
 	return;
     }
@@ -75,6 +76,7 @@ void kauth(int argc, char **argv)
     p = strstr(reply_string, "T=");
     if(!p){
 	printf("Bad reply from server.\n");
+	set_command_prot(save);
 	code = -1;
 	return;
     }
@@ -82,6 +84,7 @@ void kauth(int argc, char **argv)
     tmp = base64_decode(p, &tkt.dat);
     if(tmp < 0){
 	printf("Failed to decode base64 in reply.\n");
+	set_command_prot(save);
 	code = -1;
 	return;
     }
@@ -92,6 +95,7 @@ void kauth(int argc, char **argv)
     if(!p){
 	printf("Bad reply from server.\n");
 	verbose = overbose;
+	set_command_prot(save);
 	code = -1;
 	return;
     }
@@ -120,10 +124,16 @@ void kauth(int argc, char **argv)
     memset(key, 0, sizeof(key));
     memset(schedule, 0, sizeof(schedule));
     memset(passwd, 0, sizeof(passwd));
-    base64_encode(tktcopy.dat, tktcopy.length, &p);
+    if(base64_encode(tktcopy.dat, tktcopy.length, &p) < 0) {
+	printf("Out of memory base64-encoding.\n");
+	set_command_prot(save);
+	code = -1;
+	return;
+    }
     memset (tktcopy.dat, 0, tktcopy.length);
     ret = command("SITE KAUTH %s %s", name, p);
     free(p);
+    set_command_prot(save);
     if(ret != COMPLETE){
 	code = -1;
 	return;
@@ -131,7 +141,8 @@ void kauth(int argc, char **argv)
     code = 0;
 }
 
-void klist(int argc, char **argv)
+void
+klist(int argc, char **argv)
 {
     int ret;
     if(argc != 1){
@@ -141,5 +152,47 @@ void klist(int argc, char **argv)
     }
     
     ret = command("SITE KLIST");
+    code = (ret == COMPLETE);
+}
+
+void
+kdestroy(int argc, char **argv)
+{
+    int ret;
+    if (argc != 1) {
+	printf("usage: %s\n", argv[0]);
+	code = -1;
+	return;
+    }
+    ret = command("SITE KDESTROY");
+    code = (ret == COMPLETE);
+}
+
+void
+krbtkfile(int argc, char **argv)
+{
+    int ret;
+    if(argc != 2) {
+	printf("usage: %s tktfile\n", argv[0]);
+	code = -1;
+	return;
+    }
+    ret = command("SITE KRBTKFILE %s", argv[1]);
+    code = (ret == COMPLETE);
+}
+
+void
+afslog(int argc, char **argv)
+{
+    int ret;
+    if(argc > 2) {
+	printf("usage: %s [cell]\n", argv[0]);
+	code = -1;
+	return;
+    }
+    if(argc == 2)
+	ret = command("SITE AFSLOG %s", argv[1]);
+    else
+	ret = command("SITE AFSLOG");
     code = (ret == COMPLETE);
 }
