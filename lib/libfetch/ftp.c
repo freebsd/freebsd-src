@@ -532,6 +532,9 @@ fetchStatFTP(struct url *url, struct url_stat *us, char *flags)
     time_t t;
     int e, cd;
 
+    us->size = -1;
+    us->atime = us->mtime = 0;
+    
     /* connect to server */
     if ((cd = _ftp_cached_connect(url, flags)) == NULL)
 	return -1;
