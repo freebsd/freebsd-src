@@ -190,7 +190,8 @@ initmbufs()
 	nmbtypes = mbtypeslen / sizeof(*m_mbtypes);
 #endif
 	len = sizeof(int);
-	if (sysctlbyname("kern.smp.cpus", &ncpu, &len, NULL, 0) < 0) {
+	if (sysctlbyname("kern.smp.cpus", &ncpu, &len, NULL, 0) < 0 &&
+	    sysctlbyname("hw.ncpu", &ncpu, &len, NULL, 0) < 0) {
 		error("sysctl getting number of cpus");
 		return 0;
 	}
