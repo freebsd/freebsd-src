@@ -42,9 +42,6 @@
 9:	lduw	[r1], r2 ; \
 	brnz,a,pn r2, 9b ; \
 	 nop
-#else
-#define	IPI_WAIT(r1, r2, r3)
-#endif
 
 /*
  * Trigger a softint at the desired level.
