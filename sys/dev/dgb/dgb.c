@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.35 1998/04/21 21:06:56 brian Exp $
+ *  dgb.c $Id: dgb.c,v 1.36 1998/06/07 17:09:53 dfr Exp $
  *
  *  Digiboard driver.
  *
@@ -421,7 +421,7 @@ dgbprobe(dev)
 	/* left 24 bits only (ISA address) */
 	sc->pmem=((long)dev->id_maddr & 0xFFFFFF); 
 	
-	DPRINT4(DB_INFO,"dgb%d: port 0x%x mem 0x%x\n",unit,sc->port,sc->pmem);
+	DPRINT4(DB_INFO,"dgb%d: port 0x%x mem 0x%lx\n",unit,sc->port,sc->pmem);
 
 	outb(sc->port, FEPRST);
 	sc->status=DISABLED;
@@ -489,9 +489,9 @@ dgbprobe(dev)
 			printf("dgb%d: PC/Xe 64/8K (windowed)\n",dev->id_unit);
 			sc->type=PCXEVE;
 			if((u_long)sc->pmem & ~0xFFE000) {
-				printf("dgb%d: warning: address 0x%x truncated to 0x%x\n",
+				printf("dgb%d: warning: address 0x%lx truncated to 0x%lx\n",
 					dev->id_unit, sc->pmem,
-					(long)sc->pmem & 0xFFE000);
+					sc->pmem & 0xFFE000);
 
 				dev->id_maddr= (u_char *)( (long)sc->pmem & 0xFFE000 );
 			}
@@ -2035,9 +2035,8 @@ dgbparam(tp, t)
 
 		if(cflag!=port->fepcflag) {
 			port->fepcflag=cflag;
-			DPRINT6(DB_PARAM,"dgb%d: port%d: set cflag=0x%x c=0x%x\n",
-					unit,pnum,cflag&(FEP_CBAUD|FEP_FASTBAUD),cflag,
-					t->c_cflag&~CRTSCTS);
+			DPRINT5(DB_PARAM,"dgb%d: port%d: set cflag=0x%x c=0x%x\n",
+					unit,pnum,cflag,t->c_cflag&~CRTSCTS);
 			fepcmd(port, SETCTRLFLAGS, (unsigned)cflag, 0, 0, 0);
 		}
 		mval= port->omodem | (DTR|RTS);
