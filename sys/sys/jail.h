@@ -68,7 +68,7 @@ extern int	jail_sysvipc_allowed;
 struct ucred;
 struct sockaddr;
 int jailed __P((struct ucred *cred));
-const char *getcredhostname __P((struct ucred *cred));
+void getcredhostname __P((struct ucred *cred, char *, size_t));
 int prison_check __P((struct ucred *cred1, struct ucred *cred2));
 void prison_free __P((struct prison *pr));
 u_int32_t prison_getip __P((struct ucred *cred));
