@@ -20,8 +20,8 @@
  */
 
 #ifndef lint
-static  char rcsid[] =
-	"@(#)$Header: print-fddi.c,v 1.31 96/07/14 19:38:59 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: print-fddi.c,v 1.33 96/12/10 23:20:49 leres Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_FDDI
@@ -279,7 +279,7 @@ fddi_if_print(u_char *pcap, const struct pcap_pkthdr *h,
 	/*
 	 * Get the FDDI addresses into a canonical form
 	 */
-	extract_fddi_addrs(fddip, (char*)ESRC(&ehdr), (char*)EDST(&ehdr));
+	extract_fddi_addrs(fddip, (char *)ESRC(&ehdr), (char *)EDST(&ehdr));
 	/*
 	 * Some printers want to get back at the link level addresses,
 	 * and/or check that they're not walking off the end of the packet.

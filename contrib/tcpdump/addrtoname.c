@@ -22,8 +22,8 @@
  *  and address to string conversion routines
  */
 #ifndef lint
-static char rcsid[] =
-    "@(#) $Header: addrtoname.c,v 1.49 96/07/02 00:19:35 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: addrtoname.c,v 1.54 96/12/05 22:10:19 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
@@ -164,7 +164,7 @@ getname(const u_char *ap)
 	addr = *(const u_int32_t *)ap;
 #else
 	/*
-	 * Deal with alignment.
+	 * Extract 32 bits in network order, dealing with alignment.
 	 */
 	switch ((long)ap & 3) {
 
@@ -173,26 +173,26 @@ getname(const u_char *ap)
 		break;
 
 	case 2:
-#if BYTE_ORDER == LITTLE_ENDIAN
-		addr = ((u_int32_t)*(u_short *)(ap + 2) << 16) |
-			(u_int32_t)*(u_short *)ap;
-#else
+#ifdef WORDS_BIGENDIAN
 		addr = ((u_int32_t)*(u_short *)ap << 16) |
 			(u_int32_t)*(u_short *)(ap + 2);
+#else
+		addr = ((u_int32_t)*(u_short *)(ap + 2) << 16) |
+			(u_int32_t)*(u_short *)ap;
 #endif
 		break;
 
 	default:
-#if BYTE_ORDER == LITTLE_ENDIAN
-		addr = ((u_int32_t)ap[3] << 24) |
-			((u_int32_t)ap[2] << 16) |
-			((u_int32_t)ap[1] << 8) |
-			(u_int32_t)ap[0];
-#else
+#ifdef WORDS_BIGENDIAN
 		addr = ((u_int32_t)ap[0] << 24) |
 			((u_int32_t)ap[1] << 16) |
 			((u_int32_t)ap[2] << 8) |
 			(u_int32_t)ap[3];
+#else
+		addr = ((u_int32_t)ap[3] << 24) |
+			((u_int32_t)ap[2] << 16) |
+			((u_int32_t)ap[1] << 8) |
+			(u_int32_t)ap[0];
 #endif
 		break;
 	}
@@ -739,7 +739,7 @@ dnaddr_string(u_short dnaddr)
 
 /* Return a zero'ed hnamemem struct and cuts down on calloc() overhead */
 struct hnamemem *
-newhnamemem()
+newhnamemem(void)
 {
 	register struct hnamemem *p;
 	static struct hnamemem *ptr = NULL;

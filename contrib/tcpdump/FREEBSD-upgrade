@@ -8,11 +8,11 @@ To upgrade to a newer version of tcpdump, when it is available:
 
 	2. Use the command:
 		cvs import -m 'Virgin import of LBL tcpdump v<version>' \
-			src/contrib/tcpdump LBL v<version>
+			-I linux-include src/contrib/tcpdump LBL v<version>
 
 	   For example, to do the import of version 3.2.1, I typed:
 		cvs import -m 'Virgin import of LBL tcpdump v3.2.1' \
-			src/contrib/tcpdump LBL v3_2_1
+			-I linux-include src/contrib/tcpdump LBL v3_2_1
 
 	3. Follow the instructions printed out in step 2 to resolve any
 	   conflicts between local FreeBSD changes and the newer version.
