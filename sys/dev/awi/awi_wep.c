@@ -1,6 +1,4 @@
 /*	$NetBSD: awi_wep.c,v 1.4 2000/08/14 11:28:03 onoe Exp $	*/
-/* $FreeBSD$ */
-
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -36,6 +34,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * WEP support framework for the awi driver.

@@ -1,5 +1,7 @@
-/* $FreeBSD$ */
 /*	$NecBSD: ct.c,v 1.13.12.5 2001/06/26 07:31:53 honda Exp $	*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*	$NetBSD$	*/
 
 #define	CT_DEBUG

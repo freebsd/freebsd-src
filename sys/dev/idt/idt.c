@@ -74,9 +74,10 @@
  *  2.  The memory allocation could be cleaned up quite a bit.
  *
  ******************************************************************************
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

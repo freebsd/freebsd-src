@@ -34,9 +34,10 @@
  * some of the original driver still exists here.  Those portions are...
  *   Copyright (c) 1996, 1997, 1998, 1999 Mark Tinguely
  *   All rights reserved.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

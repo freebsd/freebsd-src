@@ -1,5 +1,4 @@
 /*	$NetBSD: uftdi.c,v 1.13 2002/09/23 05:51:23 simonb Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -36,6 +35,9 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * FTDI FT8U100AX serial adapter driver

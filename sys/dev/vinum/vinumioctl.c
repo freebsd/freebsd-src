@@ -2,6 +2,9 @@
  * XXX replace all the checks on object validity with
  * calls to valid<object>
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*-
  * Copyright (c) 1997, 1998, 1999
  *	Nan Yang Computer Services Limited.  All rights reserved.
@@ -42,7 +45,6 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumioctl.c,v 1.23 2003/05/23 01:02:22 grog Exp grog $
- * $FreeBSD$
  */
 
 #include <dev/vinum/vinumhdr.h>

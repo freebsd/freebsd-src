@@ -2,7 +2,6 @@
  * Downloadable microcode for Second Generation
  * Advanced Systems Inc. SCSI controllers
  *
- * $FreeBSD$
  *
  * Obtained from:
  * advansys.c - Linux Host Driver for AdvanSys SCSI Adapters
@@ -14,8 +13,10 @@
  * modification, are permitted provided that redistributions of source
  * code retain the above copyright notice and this comment without
  * modification.
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 

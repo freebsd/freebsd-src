@@ -42,6 +42,9 @@
  *
  *      @(#)zs.c        8.1 (Berkeley) 7/19/93
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 /*-
  * Copyright (c) 2003 Jake Burkholder.
  * All rights reserved.
@@ -67,7 +70,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 /*

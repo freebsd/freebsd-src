@@ -11,6 +11,9 @@
  *(C)Copyright 1995-2001 Tekram Technology Co.,Ltd.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  *	HISTORY:					
  *						

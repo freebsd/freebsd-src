@@ -1,5 +1,4 @@
 /*	$NetBSD: ohci.c,v 1.125 2002/05/28 12:42:38 augustss Exp $	*/
-/*	$FreeBSD$	*/
 
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
@@ -16,6 +15,9 @@
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
  *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

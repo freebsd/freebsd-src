@@ -1,10 +1,12 @@
 /*	$NetBSD: ehci.c,v 1.46 2003/03/09 19:51:13 augustss Exp $	*/
-/*	$FreeBSD$	*/
 
 /*
  * TODO
  *  hold off explorations by companion controllers until ehci has started.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 2001 The NetBSD Foundation, Inc.

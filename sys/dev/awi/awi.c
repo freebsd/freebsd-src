@@ -1,6 +1,4 @@
 /*	$NetBSD: awi.c,v 1.26 2000/07/21 04:48:55 onoe Exp $	*/
-/* $FreeBSD$ */
-
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -36,13 +34,20 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/*
- * Driver for AMD 802.11 firmware.
- * Uses am79c930 chip driver to talk to firmware running on the am79c930.
- *
- * More-or-less a generic ethernet-like if driver, with 802.11 gorp added.
- */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/*
+ * Driver for AMD 802.11 PCnetMobile firmware.
+ * Uses am79c930 chip driver to talk to firmware running on the am79c930.
+ * More-or-less a generic ethernet-like if driver, with 802.11 gorp added.
+ *
+ * The initial version of the driver was written by
+ * Bill Sommerfeld <sommerfeld@netbsd.org>.
+ * Then the driver module completely rewritten to support cards with DS phy
+ * and to support adhoc mode by Atsushi Onoe <onoe@netbsd.org>
+ */
 /*
  * todo:
  *	- flush tx queue on resynch.
@@ -73,16 +78,6 @@
  *	- ifmedia revision.
  *	- common 802.11 mibish things.
  *	- common 802.11 media layer.
- */
-
-/*
- * Driver for AMD 802.11 PCnetMobile firmware.
- * Uses am79c930 chip driver to talk to firmware running on the am79c930.
- *
- * The initial version of the driver was written by
- * Bill Sommerfeld <sommerfeld@netbsd.org>.
- * Then the driver module completely rewritten to support cards with DS phy
- * and to support adhoc mode by Atsushi Onoe <onoe@netbsd.org>
  */
 
 #include "opt_inet.h"

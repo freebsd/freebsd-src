@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NecBSD: ncr53c500.c,v 1.30.12.3 2001/06/26 07:31:41 honda Exp $	*/
 /*	$NetBSD$	*/
 
@@ -36,6 +35,9 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 
 #include <sys/param.h>

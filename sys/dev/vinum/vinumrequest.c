@@ -38,8 +38,10 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumrequest.c,v 1.36 2003/05/08 04:34:55 grog Exp grog $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>

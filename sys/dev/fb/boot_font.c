@@ -34,6 +34,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
  * This font lives in the public domain. It it a PC font, IBM encoding,
  * which was designed for use with syscons.

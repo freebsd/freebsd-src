@@ -36,8 +36,10 @@
  * advised of the possibility of such damage.
  *
  * $Id: vinumutil.c,v 1.17 2003/04/28 02:54:43 grog Exp $
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* This file contains utility routines used both in kernel and user context */
 

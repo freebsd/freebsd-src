@@ -30,9 +30,10 @@
  * SUCH DAMAGE.
  *
  * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#27 $
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <dev/aic7xxx/aic79xx_osm.h>
 #include <dev/aic7xxx/aic79xx_inline.h>

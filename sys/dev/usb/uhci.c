@@ -1,5 +1,4 @@
 /*	$NetBSD: uhci.c,v 1.160 2002/05/28 12:42:39 augustss Exp $	*/
-/*	$FreeBSD$	*/
 
 /*	Also already incorporated from NetBSD:
  *	$NetBSD: uhci.c,v 1.162 2002/07/11 21:14:28 augustss Exp $
@@ -14,6 +13,9 @@
  *	$NetBSD: uhci.c,v 1.172 2003/02/23 04:19:26 simonb Exp $
  *	$NetBSD: uhci.c,v 1.173 2003/05/13 04:41:59 gson Exp $
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 
 /*

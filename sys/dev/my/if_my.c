@@ -1,4 +1,5 @@
-/*
+/*-
+ * Written by: yen_cw@myson.com.tw
  * Copyright (c) 2002 Myson Technology Inc.
  * All rights reserved.
  *
@@ -23,9 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Written by: yen_cw@myson.com.tw  available at: http://www.myson.com.tw/
- *
- * Myson fast ethernet PCI NIC driver
+ * Myson fast ethernet PCI NIC driver, available at: http://www.myson.com.tw/
  */
 
 #include <sys/cdefs.h>
@@ -1875,5 +1874,3 @@ my_shutdown(device_t dev)
 	my_stop(sc);
 	return;
 }
-
-

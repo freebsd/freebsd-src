@@ -1,5 +1,7 @@
 /*	$NetBSD: pcmcia_cis_quirks.c,v 1.6 2000/04/12 21:07:55 scw Exp $ */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define	PCCARDDEBUG
 
