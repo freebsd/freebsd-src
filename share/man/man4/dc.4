@@ -49,21 +49,21 @@ embedded controllers based on the following chipsets:
 .It
 DEC/Intel 21143
 .It
-Macronix 98713, 98713A, 98715, 98715A, 98725, 98727 and 98732
-.It
-Davicom DM9100, DM9102 and DM9102A
+ADMtek AL981 Comet and AN985 Centaur
 .It
 ASIX Electronics AX88140A and AX88141
 .It
-ADMtek AL981 Comet and AN985 Centaur
+Conexant LANfinity RS7112 (miniPCI)
+.It
+Davicom DM9100, DM9102 and DM9102A
 .It
 Lite-On 82c168 and 82c169 PNIC
 .It
 Lite-On/Macronix 82c115 PNIC II
 .It
-Xircom X3201 (cardbus only)
+Macronix 98713, 98713A, 98715, 98715A, 98725, 98727 and 98732
 .It
-Conexant LANfinity RS7112 (miniPCI)
+Xircom X3201 (cardbus only)
 .El
 .Pp
 All of these chips have the same general register layout, DMA
@@ -103,52 +103,52 @@ driver at this time:
 .Pp
 .Bl -bullet -compact -offset indent
 .It
-Digital DE500-BA 10/100 (21143, non-MII)
+3Com OfficeConnect 10/100B (ADMtek AN985 Centaur-P)
 .It
-Built in DE500-BA on DEC Alpha workstations (21143, non-MII)
+Alfa Inc GFC2204 (ASIX AX88140A)
 .It
 Built in 10Mbps only ethernet on Compaq Presario 7900 series
 desktops (21143, non-MII)
 .It
+Built in DE500-BA on DEC Alpha workstations (21143, non-MII)
+.It
 Built in ethernet on LinkSys EtherFast 10/100 Instant GigaDrive (DM9102, MII)
 .It
-Kingston KNE100TX (21143, MII)
-.It
-D-Link DFE-570TX (21143, MII, quad port)
-.It
-NDC SOHOware SFA110A (98713A)
-.It
-NDC SOHOware SFA110A Rev B4 (98715AEC-C)
-.It
-SVEC PN102-TX (98713)
+CNet Pro110B (ASIX AX88140A)
 .It
 CNet Pro120A (98715A or 98713A) and CNet Pro120B (98715)
 .It
 Compex RL100-TX (98713 or 98713A)
 .It
-LinkSys LNE100TX (PNIC 82c168, 82c169)
+D-Link DFE-570TX (21143, MII, quad port)
 .It
-NetGear FA310-TX Rev. D1, D2 or D3 (PNIC 82c169)
-.It
-Matrox FastNIC 10/100 (PNIC 82c168, 82c169)
-.It
-Kingston KNE110TX (PNIC 82c169)
-.It
-LinkSys LNE100TX v2.0 (PNIC II 82c115)
+Digital DE500-BA 10/100 (21143, non-MII)
 .It
 Jaton XpressNet (Davicom DM9102)
 .It
-Alfa Inc GFC2204 (ASIX AX88140A)
+Kingston KNE100TX (21143, MII)
 .It
-CNet Pro110B (ASIX AX88140A)
+Kingston KNE110TX (PNIC 82c169)
+.It
+LinkSys LNE100TX (PNIC 82c168, 82c169)
+.It
+LinkSys LNE100TX v2.0 (PNIC II 82c115)
 .It
 LinkSys LNE100TX v4.0/4.1 (ADMtek AN985 Centaur-P)
 .It
-3Com OfficeConnect 10/100B (ADMtek AN985 Centaur-P)
+Matrox FastNIC 10/100 (PNIC 82c168, 82c169)
 .It
 Microsoft MN-120 10/100 CardBus (ADMTek Centaur-C)
 .It
 Microsoft MN-130 10/100 PCI (ADMTek Centaur-P)
+.It
+NDC SOHOware SFA110A (98713A)
+.It
+NDC SOHOware SFA110A Rev B4 (98715AEC-C)
+.It
+NetGear FA310-TX Rev. D1, D2 or D3 (PNIC 82c169)
+.It
+SVEC PN102-TX (98713)
 .El
 .Pp
 The
