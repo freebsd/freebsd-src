@@ -23,7 +23,7 @@ FILES=	DAEMON LOGIN NETWORKING SERVERS \
 	mountd moused mroute6d mrouted msgs \
 	named natd netif netoptions \
 	network_ipv6 nfsclient nfsd \
-	nfslocking nfsserver nisdomain nsswitch ntpd ntpdate \
+	nfslocking nfsserver nisdomain nsswitch ntpd \
 	othermta \
 	pccard pcvt pf pflog preseedrandom \
 	power_profile ppp-user pppoed pwcheck \

@@ -24,6 +24,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 6.x IS SLOW:
 	to maximize performance.
 
 20040914:
+	/etc/rc.d/ntpdate has been removed in favor of using the -g
+	flag to ntpd(1).  By default, if ntpd is enabled,  it will sync
+	with the time servers listed in /etc/ntp.conf regardless of the
+	time difference (slew).  To prevent this, add
+	ntpd_sync_on_start="NO" to /etc/rc.conf.
+
+	NOTE: Doing a sync (ntpd -g) is noticably slower than ntpdate(1),
+	but is also more accurate (hence ntpdate(1) being depreciated).
+
+20040914:
 	The format of the pflogd(8) logfile "/var/log/pflog" has changed for
 	architectures that have a 64 bit long type to make it compatible to
 	the standard pcap format. In order to prevent corruption move away
