@@ -2,6 +2,10 @@
 
 M4?=	m4
 
+.if defined(PAGING)
+M4FLAGS+=	-DPAGING
+.endif
+
 ORG=	0x9000
 
 AFLAGS+=	--defsym PC98=1
@@ -18,7 +22,8 @@ btx: btx.o
 .endif
 
 btx.o: btx.m4 btx.s
-	(cd ${.CURDIR}; ${M4} btx.m4 btx.s) | ${AS} ${AFLAGS} -o ${.TARGET}
+	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btx.m4 btx.s) | \
+	   ${AS} ${AFLAGS} -o ${.TARGET}
 
 CLEANFILES+= btx btx.out btx.o
 
