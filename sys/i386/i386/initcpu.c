@@ -26,10 +26,11 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.10 1997/11/21 22:33:52 jlemon Exp $
+ *		$Id: initcpu.c,v 1.11 1998/01/03 05:35:51 kato Exp $
  */
 
 #include "opt_cpu.h"
+#include "opt_failsafe.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
