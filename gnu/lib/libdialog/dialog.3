@@ -11,7 +11,7 @@
 .\" nor does the author assume any responsibility for damages incurred with
 .\" its use.
 .\"
-.\" $Id$
+.\" $Id: dialog.3,v 1.5 1997/02/22 15:42:35 peter Exp $
 .\"
 .Dd December 18, 1995
 .Dt dialog 3
@@ -115,7 +115,17 @@ used, if specified, while painting the box and border regions of the
 object.
 
 .Ft "int"
-.Fn line_edit "WINDOW *dialog" "int box_y" "int box_x" "int flen" "int box_width" "chtype attrs" "int first" "u_char *result"
+.Fo line_edit
+.Fa "WINDOW *dialog"
+.Fa "int box_y"
+.Fa "int box_x"
+.Fa "int flen"
+.Fa "int box_width"
+.Fa "chtype attrs"
+.Fa "int first"
+.Fa "unsigned char *result"
+.Fa "int attr_mask"
+.Fc
 
 Invoke a simple line editor with an edit box of dimensions \fBbox_x,
 box_y\fR and \fBbox_width\fR.  The field length is constrained by
@@ -136,13 +146,13 @@ Returns the height of string in \fBp\fR, counting newlines.
 Returns the width of string in \fBp\fR, counting newlines.
 
 .Ft "void"
-.Fn dialog_create_rc "u_char *filename"
+.Fn dialog_create_rc "unsigned char *filename"
 
 Dump dialog library settings into \fBfilename\fR for later retreival
 as defaults.  Returns 0 on success, -1 on failure.
 
 .Ft "int"
-.Fn dialog_yesno "u_char *title" "u_char *prompt" "int height" "int width"
+.Fn dialog_yesno "unsigned char *title" "unsigned char *prompt" "int height" "int width"
 
 Display a text box using \fBtitle\fR and \fBprompt\fR strings of dimensions
 \fBheight\fR and \fBwidth\fR.  Also paint a pair of \fBYes\fR and \fBNo\fR
@@ -150,7 +160,7 @@ buttons at the bottom.  If the \fBYes\fR button is chosen, return FALSE.
 If \fBNo\fR, return TRUE.
 
 .Ft "int"
-.Fn dialog_prgbox "u_char *title" "u_char *line" "int height" "int width" "int pause" "int use_shell"
+.Fn dialog_prgbox "unsigned char *title" "const unsigned char *line" "int height" "int width" "int pause" "int use_shell"
 
 Display a text box of dimensions \fBheight\fR and \fBwidth\fR
 containing the output of command \fBline\fR.  If \fBuse_shell\fR is
@@ -161,7 +171,7 @@ confirmation requestor will be put up when execution terminates.
 Returns 0 on success, -1 on failure.
 
 .Ft "int"
-.Fn dialog_textbox "u_char *title" "u_char *prompt" "int height" "int width"
+.Fn dialog_textbox "unsigned char *title" "unsigned char *prompt" "int height" "int width"
 
 Display a text box containing the contents of string \fBprompt\fR of dimensions
 \fBheight\fR and \fBwidth\fR.
@@ -169,7 +179,7 @@ Display a text box containing the contents of string \fBprompt\fR of dimensions
 Returns 0 on success, -1 on failure.
 
 .Ft "int"
-.Fn dialog_menu "u_char *title" "u_char *prompt" "int height" "int width" "int menu_height" "int item_no" "void *itptr" "u_char *result, int *ch, int *sc"
+.Fn dialog_menu "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int menu_height" "int item_no" "void *itptr" "unsigned char *result, int *ch, int *sc"
 
 Display a menu of dimensions \fBheight\fR and \fBwidth\fR with an
 optional internal menu height of \fBmenu_height\fR.  The \fBitem_no\fR
@@ -200,7 +210,7 @@ item selection and scroll position values across calls.
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
 
 .Ft "int"
-.Fn dialog_checklist "u_char *title" "u_char *prompt" "int height" "int width" "int m_height" "int item_no" "void *itptr" "u_char *result"
+.Fn dialog_checklist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int m_height" "int item_no" "void *itptr" "unsigned char *result"
 
 Display a menu of dimensions \fBheight\fR and \fBwidth\fR with an
 optional internal menu height of \fBmenu_height\fR.  The \fBitem_no\fR
@@ -243,7 +253,7 @@ behavior, you're no longer constrained by it.
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
 
 .Ft "int"
-.Fn dialog_radiolist "u_char *title" "u_char *prompt" "int height" "int width" "int m_height" "int item_no" "void *it" "u_char *result"
+.Fn dialog_radiolist "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int m_height" "int item_no" "void *it" "unsigned char *result"
 
 Display a menu of dimensions \fBheight\fR and \fBwidth\fR with an
 optional internal menu height of \fBmenu_height\fR.  The \fBitem_no\fR
@@ -286,7 +296,7 @@ behavior.
 Returns 0 on success, 1 on Cancel and -1 on failure or ESC.
 
 .Ft "int"
-.Fn dialog_inputbox "u_char *title" "u_char *prompt" "int height" "int width" "u_char *result"
+.Fn dialog_inputbox "unsigned char *title" "unsigned char *prompt" "int height" "int width" "unsigned char *result"
 
 Displays a single-line text input field in a box displaying \fBtitle\fR and \fBprompt\fR
 of dimensions \fBheight\fR and \fBwidth\fR.  The field entered is stored in \fBresult\fR.
@@ -315,7 +325,7 @@ Returns directory name selected or NULL.
 Bring up a generic "hey, you!" notifier dialog containing \fBmsg\fR.
 
 .Ft "int"
-.Fn dialog_mesgbox "u_char *title" "u_char *prompt" "int height" "int width"
+.Fn dialog_mesgbox "unsigned char *title" "unsigned char *prompt" "int height" "int width"
 
 Like a notifier dialog, but with more control over \fBtitle\fR, \fBprompt\fR, \fBwidth\fR and
 \fBheight\fR.  This object will also wait for user confirmation, unlike \fBdialog_notify\fR.
@@ -323,7 +333,7 @@ Like a notifier dialog, but with more control over \fBtitle\fR, \fBprompt\fR, \f
 Returns 0 on success, -1 on failure.
 
 .Ft "void"
-.Fn dialog_gauge "u_char *title" "u_char *prompt" "int y" "int x" "int height" "int width" "int perc"
+.Fn dialog_gauge "char *title" "char *prompt" "int y" "int x" "int height" "int width" "int perc"
 
 Display a horizontal bar-graph style gauge.  A value of \fB100\fR for \fBperc\fR constitutes
 a full gauge, a value of \fB0\fR an empty one.
