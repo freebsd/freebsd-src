@@ -404,7 +404,11 @@ pccard_function_init(struct pccard_function *pf)
 		for (i = 0; i < cfe->num_iospace; i++) {
 			start = cfe->iospace[i].start;
 			if (start)
+#ifdef COOKIE_FOR_IMP
 				end = start + cfe->iospace[i].length - 1;
+#else
+				goto not_this_one;
+#endif
 			else
 				end = ~0;
 			cfe->iorid[i] = i;
