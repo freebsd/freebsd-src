@@ -3,7 +3,7 @@
 FILES=	kgzldr.o
 SRCS=	start.s boot.c inflate.c lib.c crt.s sio.s
 OBJS=	${SRCS:N*.h:R:S/$/.o/g}
-CFLAGS=	-fno-builtin
+CFLAGS=	-ffreestanding
 .if ${OBJFORMAT} == aout
 CFLAGS+=-O2
 .else

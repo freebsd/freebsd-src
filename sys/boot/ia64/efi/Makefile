@@ -11,6 +11,7 @@ STRIP=		# We must not strip loader.efi at install time.
 
 SRCS+=		main.c conf.c dev_net.c
 
+CFLAGS+=	-ffreestanding
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/${MACHINE_ARCH}

@@ -9,7 +9,7 @@ INTERNALSTATICLIB=	true
 SRCS=	skiconsole.c time.c copy.c devicename.c module.c exit.c
 SRCS+=	delay.c skifs.c elf_freebsd.c bootinfo.c ssc.c
 
-CFLAGS+=	-fpic -g
+CFLAGS+=	-ffreestanding -fpic -g
 CFLAGS+=	-I${.CURDIR}/../include
 CFLAGS+=	-I${.CURDIR}/../include/${MACHINE_ARCH}
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
