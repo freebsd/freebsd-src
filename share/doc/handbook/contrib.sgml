@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: contrib.sgml,v 1.1 1995/07/09 21:39:55 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>FreeBSD contributor list<label id="contrib">
@@ -136,7 +136,7 @@
 	  <item>Martin Renters &lt;martin@innovus.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
 	  <item>Nate Williams &lt;nate@FreeBSD.org&gt;
-	  <item>Nobuhiro Yasutomi &lt;nobu@@psrc.isac.co.jp&gt;
+	  <item>Nobuhiro Yasutomi &lt;nobu@psrc.isac.co.jp&gt;
 	  <item>Ollivier Robert &lt;roberto@FreeBSD.org&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
