@@ -123,19 +123,23 @@ procfs_dostatus(curp, p, pfs, uio)
 		DOCHECK();
 	}
 
-	if (p->p_flag & P_INMEM) {
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if (p->p_sflag & PS_INMEM) {
 		struct timeval ut, st;
 
 		calcru(p, &ut, &st, (struct timeval *) NULL);
+		mtx_exit(&sched_lock, MTX_SPIN);
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
 		    " %ld,%ld %ld,%ld %ld,%ld",
 		    p->p_stats->p_start.tv_sec,
 		    p->p_stats->p_start.tv_usec,
 		    ut.tv_sec, ut.tv_usec,
 		    st.tv_sec, st.tv_usec);
-	} else
+	} else {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		ps += snprintf(ps, psbuf + sizeof(psbuf) - ps,
 		    " -1,-1 -1,-1 -1,-1");
+	}
 	DOCHECK();
 
 	ps += snprintf(ps, psbuf + sizeof(psbuf) - ps, " %s",
