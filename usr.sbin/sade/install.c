@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.172 1997/02/22 14:11:46 peter Exp $
+ * $Id: install.c,v 1.173 1997/03/07 16:39:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -318,8 +318,8 @@ installFixitCDROM(dialogMenuItem *self)
 
     fixit_common();
 
-    msgConfirm("Please remove the FreeBSD CDROM now.");
     mediaDevice->shutdown(mediaDevice);
+    msgConfirm("Please remove the FreeBSD CDROM now.");
     return DITEM_SUCCESS;
 }
 
@@ -353,8 +353,8 @@ installFixitFloppy(dialogMenuItem *self)
 
     fixit_common();
 
-    msgConfirm("Please remove the fixit floppy now.");
     unmount("/mnt2", MNT_FORCE);
+    msgConfirm("Please remove the fixit floppy now.");
     return DITEM_SUCCESS;
 }
 
