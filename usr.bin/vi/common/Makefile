@@ -23,7 +23,7 @@ CLEANFILES+=${SPECHDR} ${EX} vi.1
 # General sources.
 SRCS=	cut.c delete.c exf.c line.c log.c main.c mark.c msg.c options.c \
 	options_f.c put.c screen.c search.c seq.c signal.c recover.c \
-	term.c trace.c util.c
+	term.c trace.c util.c ${SPECHDR}
 
 # Ex source.
 SRCS+=	ex.c ex_abbrev.c ex_append.c ex_args.c ex_argv.c ex_at.c ex_bang.c \
