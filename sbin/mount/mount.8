@@ -170,7 +170,9 @@ is used to indicate the file system type.
 The type
 .Ar ufs
 is the default.
-The \fI-t\fP option can be used
+The 
+.Fl t
+option can be used
 to indicate that the actions should only be taken on
 filesystems of the specified type.
 More than one type may be specified in a comma separated list.
@@ -199,6 +201,20 @@ where
 is replaced by the type name.
 For example, nfs filesystems are mounted by the program
 .Pa /sbin/mount_nfs .
+.Pp
+Most filesystems will be dynamically loaded by their mount programs
+if not already present in the kernel, using the
+.Xr vfsload 3
+subroutine.  Because this mechanism requires writable temporary space,
+the filesystem type containing
+.Pa /tmp
+must be compiled into the kernel, and the filesystems containing
+.Pa /tmp 
+and
+.Pa /usr/bin/ld 
+must be listed in
+.Pa /etc/fstab
+before any filesystems which might be dynamically loaded.
 .It Fl u
 The
 .Fl u
@@ -241,6 +257,7 @@ file system table
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
+.Xr vfsload 3 ,
 .Xr fstab 5 ,
 .Xr mount_cd9660 8 ,
 .Xr mount_fdesc 8 ,
