@@ -4,8 +4,8 @@ dnl
 dnl report bugs to chet@po.cwru.edu
 dnl
 dnl Process this file with autoconf to produce a configure script.
-AC_REVISION([for Readline 4.0, version 2.14, from autoconf version] AC_ACVERSION)
-LIBVERSION=4.0
+AC_REVISION([for Readline 4.1, version 2.22, from autoconf version] AC_ACVERSION)
+LIBVERSION=4.1
 
 AC_INIT(readline.h)
 AC_CONFIG_HEADER(config.h)
@@ -32,6 +32,7 @@ fi
 test -z "$CFLAGS" && CFLAGS=-g auto_cflags=1
 
 AC_PROG_CC
+dnl AC_AIX
 AC_MINIX
 
 # If we're using gcc and the user hasn't specified CFLAGS, add -O to CFLAGS.
@@ -53,7 +54,8 @@ AC_RETSIGTYPE
 AC_HEADER_STAT
 AC_HEADER_DIRENT
 
-AC_CHECK_FUNCS(strcasecmp select setenv putenv tcgetattr setlocale lstat)
+AC_CHECK_FUNCS(lstat memmove putenv select setenv setlocale \
+		strcasecmp tcgetattr)
 
 AC_FUNC_STRCOLL
 
@@ -102,7 +104,7 @@ esac
 #
 if test -f ${srcdir}/support/shobj-conf; then
         AC_MSG_CHECKING(configuration for building shared libraries)
-        eval `${CONFIG_SHELL-/bin/sh} ${srcdir}/support/shobj-conf -C ${CC} -c ${host_cpu} -o ${host_os} -v ${host_vendor}`
+        eval `${CONFIG_SHELL-/bin/sh} ${srcdir}/support/shobj-conf -C "${CC}" -c ${host_cpu} -o ${host_os} -v ${host_vendor}`
         AC_SUBST(SHOBJ_CC)
         AC_SUBST(SHOBJ_CFLAGS)
         AC_SUBST(SHOBJ_LD)
@@ -116,9 +118,20 @@ if test -f ${srcdir}/support/shobj-conf; then
 	AC_SUBST(SHLIB_LIBVERSION)
 	AC_SUBST(SHLIB_LIBS)
         AC_MSG_RESULT($SHLIB_STATUS)
+
+	# shared library versioning
+	# quoted for m4 so I can use character classes
+	SHLIB_MAJOR=[`expr "$LIBVERSION" : '\([0-9]\)\..*'`]
+	SHLIB_MINOR=[`expr "$LIBVERSION" : '[0-9]\.\([0-9]\).*'`]
+	AC_SUBST(SHLIB_MAJOR)
+	AC_SUBST(SHLIB_MINOR)
 fi
 
-BUILD_DIR=`pwd`
+case "$host_os" in
+msdosdjgpp*)	BUILD_DIR=`pwd.exe` ;;	# to prevent //d/path/file
+*)		BUILD_DIR=`pwd` ;;
+esac
+
 AC_SUBST(BUILD_DIR)
 
 AC_SUBST(CFLAGS)
