@@ -10,7 +10,6 @@ Release.
 
 This is for the 4.4 release branch.  All entries since 4.4 are an
 itemized list of commits to this branch, numbered from the beginning.
-By this count, we're at 4.4-RELEASE-p19.
 
 The security advisories related to various patches contain information
 on how to build/install a minimal set of binaries and start/stop a
