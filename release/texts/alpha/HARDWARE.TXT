@@ -409,8 +409,13 @@ some of the MX5 riser card versions. Some of the MX5 risers have the *same*
 chip as the MiataGL. All in all there is a lot of variation.
 
 Sound: 
-both MX5 and MiataGL have an on-board sound chip, an ESS1888.  
-I have yet to see/hear it work on my MiataGL. But it is being worked on.
+Both MX5 and MiataGL have an on-board sound chip, an ESS1888. It emulates
+a SoundBlaster and can be enabled by putting 
+
+	device pcm0                                                           
+	device sbc0    
+
+in your kernel configuration file.
 
 Cache: 
 in case your Miata has the optional cache board installed make sure
@@ -738,7 +743,10 @@ the system uses parity memory SIMMs, but it does not need 36 bit wide SIMMs.
 bit SIMMs will not work. 4, 8, 16, 32 and 64 Mbyte SIMMs are supported.
 
 Sound:
-the sound interface is not supported by FreeBSD. 
+The AS200 sound hardware is reported to work OK assuming you have the following
+line in your kernel config file:
+
+	device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011
 
 SCSI:
 AlphaStation 200 series has an automatic SCSI terminator. This means that as
