@@ -154,6 +154,13 @@ c = a / b;
 fpresetsticky(FP_X_DZ);
 fpsetmask(FP_X_DZ);
 .Ed
+.Sh IMPLEMENTATION NOTES
+The
+.Fn fpgetprec
+and
+.Fn fpsetprec
+functions provide functionality unavailable on many platforms.
+At present, they are implemented only on the i386 and amd64 platforms.
 .Sh SEE ALSO
 .Xr isnan 3
 .Sh CAVEAT
