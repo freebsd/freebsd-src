@@ -57,16 +57,16 @@ static const char rcsid[] =
 #include <sysexits.h>
 #include <unistd.h>
 
-int	build(char *, mode_t);
-void	usage(void);
+static int	build(char *, mode_t);
+static void	usage(void);
 
 int vflag;
 
 int
 main(int argc, char *argv[])
 {
-	int ch, exitval, success, omode, pflag;
-	mode_t *set = (mode_t *)NULL;
+	int ch, exitval, success, pflag;
+	mode_t omode, *set = (mode_t *)NULL;
 	char *mode;
 
 	omode = pflag = 0;
