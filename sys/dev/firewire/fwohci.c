@@ -1774,27 +1774,10 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		OWRITE(sc,  OHCI_ATSCTLCLR, OHCI_CNTL_DMA_RUN);
 		sc->atrs.xferq.flag &= ~FWXFERQ_RUNNING;
 
-#if 0
-		for( i = 0 ; i < fc->nisodma ; i ++ ){
-			OWRITE(sc,  OHCI_IRCTLCLR(i), OHCI_CNTL_DMA_RUN);
-			OWRITE(sc,  OHCI_ITCTLCLR(i), OHCI_CNTL_DMA_RUN);
-		}
-
-#endif
-		fw_busreset(fc);
-
-		/* XXX need to wait DMA to stop */
 #ifndef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
 #endif
-#if 0
-		/* pending all pre-bus_reset packets */
-		fwohci_txd(sc, &sc->atrq);
-		fwohci_txd(sc, &sc->atrs);
-		fwohci_arcv(sc, &sc->arrs, -1);
-		fwohci_arcv(sc, &sc->arrq, -1);
-#endif
-
+		fw_busreset(fc);
 
 		OWRITE(sc, OHCI_AREQHI, 1 << 31);
 		/* XXX insecure ?? */
@@ -1902,6 +1885,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 		fwohci_txd(sc, &sc->atrs);
 		fwohci_arcv(sc, &sc->arrs, -1);
 		fwohci_arcv(sc, &sc->arrq, -1);
+		fw_drain_txq(fc);
 #endif
 		fw_sidrcv(fc, buf, plen, 0);
 	}
@@ -2564,11 +2548,11 @@ device_printf(sc->fc.dev, "%04x %2x 0x%08x 0x%08x 0x%08x 0x%08x\n", len,
 	fwohci_irx_enable(fc, dmach);
 }
 
-#define PLEN(x)	(((ntohs(x))+0x3) & ~0x3)
+#define PLEN(x)	roundup2(ntohs(x), sizeof(u_int32_t))
 static int
-fwohci_get_plen(struct fwohci_softc *sc, struct fw_pkt *fp, int hlen)
+fwohci_get_plen(struct fwohci_softc *sc, struct fwohci_dbch *dbch, struct fw_pkt *fp, int hlen)
 {
-	int i;
+	int i, r;
 
 	for( i = 4; i < hlen ; i+=4){
 		fp->mode.ld[i/4] = htonl(fp->mode.ld[i/4]);
@@ -2576,32 +2560,49 @@ fwohci_get_plen(struct fwohci_softc *sc, struct fw_pkt *fp, int hlen)
 
 	switch(fp->mode.common.tcode){
 	case FWTCODE_RREQQ:
-		return sizeof(fp->mode.rreqq) + sizeof(u_int32_t);
+		r = sizeof(fp->mode.rreqq) + sizeof(u_int32_t);
+		break;
 	case FWTCODE_WRES:
-		return sizeof(fp->mode.wres) + sizeof(u_int32_t);
+		r = sizeof(fp->mode.wres) + sizeof(u_int32_t);
+		break;
 	case FWTCODE_WREQQ:
-		return sizeof(fp->mode.wreqq) + sizeof(u_int32_t);
+		r = sizeof(fp->mode.wreqq) + sizeof(u_int32_t);
+		break;
 	case FWTCODE_RREQB:
-		return sizeof(fp->mode.rreqb) + sizeof(u_int32_t);
+		r = sizeof(fp->mode.rreqb) + sizeof(u_int32_t);
+		break;
 	case FWTCODE_RRESQ:
-		return sizeof(fp->mode.rresq) + sizeof(u_int32_t);
+		r = sizeof(fp->mode.rresq) + sizeof(u_int32_t);
+		break;
 	case FWTCODE_WREQB:
-		return sizeof(struct fw_asyhdr) + PLEN(fp->mode.wreqb.len)
+		r = sizeof(struct fw_asyhdr) + PLEN(fp->mode.wreqb.len)
 						+ sizeof(u_int32_t);
+		break;
 	case FWTCODE_LREQ:
-		return sizeof(struct fw_asyhdr) + PLEN(fp->mode.lreq.len)
+		r = sizeof(struct fw_asyhdr) + PLEN(fp->mode.lreq.len)
 						+ sizeof(u_int32_t);
+		break;
 	case FWTCODE_RRESB:
-		return sizeof(struct fw_asyhdr) + PLEN(fp->mode.rresb.len)
+		r = sizeof(struct fw_asyhdr) + PLEN(fp->mode.rresb.len)
 						+ sizeof(u_int32_t);
+		break;
 	case FWTCODE_LRES:
-		return sizeof(struct fw_asyhdr) + PLEN(fp->mode.lres.len)
+		r = sizeof(struct fw_asyhdr) + PLEN(fp->mode.lres.len)
 						+ sizeof(u_int32_t);
+		break;
 	case FWOHCITCODE_PHY:
-		return 16;
+		r = 16;
+		break;
+	default:
+		device_printf(sc->fc.dev, "Unknown tcode %d\n",
+						fp->mode.common.tcode);
+		r = 0;
 	}
-	device_printf(sc->fc.dev, "Unknown tcode %d\n", fp->mode.common.tcode);
-	return 0;
+	if (r > dbch->xferq.psize) {
+		device_printf(sc->fc.dev, "Invalid packet length %d\n", r);
+		/* panic ? */
+	}
+	return r;
 }
 
 static void
@@ -2655,7 +2656,8 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 #endif
 					fp=(struct fw_pkt *)dbch->frag.buf;
 					dbch->frag.plen
-						= fwohci_get_plen(sc, fp, hlen);
+						= fwohci_get_plen(sc,
+							dbch, fp, hlen);
 					if (dbch->frag.plen == 0)
 						goto out;
 				}
@@ -2695,7 +2697,8 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					goto out;
 				}
 				if (len >= hlen) {
-					plen = fwohci_get_plen(sc, fp, hlen);
+					plen = fwohci_get_plen(sc,
+							dbch, fp, hlen);
 					if (plen == 0)
 						goto out;
 					plen = (plen + 3) & ~3;
@@ -2705,8 +2708,7 @@ fwohci_arcv(struct fwohci_softc *sc, struct fwohci_dbch *dbch, int count)
 					len -= hlen;
 				}
 				if(resCount > 0 || len > 0){
-					buf = malloc( dbch->xferq.psize,
-							M_FW, M_NOWAIT);
+					buf = malloc(plen, M_FW, M_NOWAIT);
 					if(buf == NULL){
 						printf("cannot malloc!\n");
 						free(db_tr->buf, M_FW);
