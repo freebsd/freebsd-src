@@ -230,16 +230,16 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 #
 # FE_8BIT_SUPPORT is needed to support LAC-98
 #
-#device ed0 at isa? port 0x00d0 irq 6
-#device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
-#device ed1 at isa? port 0x00d8 irq 6 flags 0x200000
-#device ed3 at isa? port 0x00d0 irq 6 flags 0x400000
-#device ed4 at isa? port 0x56d0 irq 5 flags 0x500000
-#device ed2 at isa? port 0x00d8 irq 6 flags 0x300000
-#device ed7 at isa? port 0x00d0 irq 6 flags 0x900000
-#device ed6 at isa? port 0x0770 irq 6 flags 0x800000
-#device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
-#device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
+device ed0 at isa? port 0x00d0 irq 6
+device ed5 at isa? port 0x00d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000
+device ed1 at isa? port 0x00d8 irq 6 flags 0x200000
+device ed3 at isa? port 0x00d0 irq 6 flags 0x400000
+device ed4 at isa? port 0x56d0 irq 5 flags 0x500000
+device ed2 at isa? port 0x00d8 irq 6 flags 0x300000
+device ed7 at isa? port 0x00d0 irq 6 flags 0x900000
+device ed6 at isa? port 0x0770 irq 6 flags 0x800000
+device ed9 at isa? port 0x03d0 irq 6 flags 0xb00000
+device ed8 at isa? port 0xa3d0 irq 6 iomem 0xd0000 iosiz 16384 flags 0xa00000
 device ep0 at isa? port 0x40d0 irq 3
 device fe0 at isa? port 0x00d0 irq 3
 device fe1 at isa? port 0x73d0 irq 5
