@@ -290,6 +290,7 @@ DMenu MenuIndex = {
       { " Media, UFS",		"Select UFS installation media.",	NULL, mediaSetUFS },
       { " Media, FTP",		"Select FTP installation media.",	NULL, mediaSetFTP },
       { " Media, FTP Passive",	"Select passive FTP installation media.", NULL, mediaSetFTPPassive },
+      { " Media, HTTP",		"Select FTP via HTTP proxy installation media.", NULL, mediaSetHTTP },
       { " Network Interfaces",	"Configure network interfaces",		NULL, tcpMenuSelect },
       { " Networking Services",	"The network services menu.",		NULL, dmenuSubmenu, NULL, &MenuNetworking },
       { " NFS, client",		"Set NFS client flag.",			dmenuVarCheck, dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
@@ -769,6 +770,7 @@ DMenu MenuMedia = {
     { { "1 CDROM",		"Install from a FreeBSD CDROM",		NULL, mediaSetCDROM },
       { "2 FTP",		"Install from an FTP server",		NULL, mediaSetFTPActive },
       { "3 FTP Passive",	"Install from an FTP server through a firewall", NULL, mediaSetFTPPassive },
+      { "3b HTTP",		"Install from an FTP server through a http proxy", NULL, mediaSetHTTP },
       { "4 DOS",		"Install from a DOS partition",		NULL, mediaSetDOS },
       { "5 NFS",		"Install over NFS",			NULL, mediaSetNFS },
       { "6 File System",	"Install from an existing filesystem",	NULL, mediaSetUFS },
@@ -1005,10 +1007,6 @@ DMenu MenuXF86SelectCore = {
       { " lk98",	"Server link kit for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
 #endif
-      { " sources",	"XFree86 3.3.5 standard sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
-      { " csources",	"XFree86 3.3.5 contrib sources",
-	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_CSRC },
       { NULL } },
 };
 

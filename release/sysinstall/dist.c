@@ -126,8 +126,6 @@ static Distribution SrcDistTable[] = {
 static Distribution XF86DistTable[] = {
 { "XF86335",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
 { "XF86335",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
-{ "Xsrc1",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_SRC,		NULL		},
-{ "Xsrcctrb",	"/usr/X11R6/src",	&XF86Dists,	DIST_XF86_CSRC,		NULL		},
 { "Xbin",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_BIN,		NULL		},
 { "Xcfg",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_CFG,		NULL		},
 { "Xdoc",	"/usr/X11R6",		&XF86Dists,	DIST_XF86_DOC,		NULL		},
