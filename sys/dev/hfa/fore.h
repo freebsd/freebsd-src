@@ -98,7 +98,7 @@ typedef struct m_ext	M_ext;
  *	#define	BUF1_SM_SIZE	MAX(BUF1_SM_LEN - BUF1_SM_DOFF, 64)
  *
  */
-#define	BUF1_SM_DOFF	((BUF1_SM_HOFF + SIZEOF_Buf_handle) - BUF1_SM_HDR)
+#define	BUF1_SM_DOFF	(SIZEOF_Buf_handle)
 #define	BUF1_SM_SIZE	(BUF1_SM_LEN - BUF1_SM_DOFF)
 
 #define	BUF1_SM_QUELEN	16	/* Entries in supply queue */
