@@ -2,20 +2,20 @@
 
 BIND_DIR=	${.CURDIR}/../../contrib/bind9
 LIB_BIND_DIR=	${.CURDIR}/../../lib/bind
-SRCDIR=		${BIND_DIR}/bin/check
+SRCDIR=		${BIND_DIR}/bin/dnssec
 
 .include	"${LIB_BIND_DIR}/config.mk"
 
-PROG=		named-checkzone
+PROG=		dnssec-signzone
 
 .PATH: ${SRCDIR}
-SRCS+=		named-checkzone.c check-tool.c
+SRCS+=		dnssec-signzone.c dnssectool.c
 
-CFLAGS+=	-I${LIB_BIND_DIR}
+CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD} ${PTHREAD_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
-MAN=		named-checkzone.8
+MAN=		dnssec-signzone.8
 
 .include <bsd.prog.mk>

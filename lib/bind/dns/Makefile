@@ -36,8 +36,8 @@ SRCS+=		acl.c adb.c byaddr.c \
 CFLAGS+=	-I${SRCDIR}/sec/dst/include -I${SRCDIR}/include -I${SRCDIR}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=		${LIBPTHREAD}
-LDADD=		-lpthread
+DPADD=		${CRYPTO_DPADD} ${PTHREAD_DPADD}
+LDADD=		${CRYPTO_LDADD} ${PTHREAD_LDADD}
 
 DNSINCS=	${SRCDIR}/include/dns/acl.h \
 		${SRCDIR}/include/dns/adb.h \
