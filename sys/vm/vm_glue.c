@@ -338,8 +338,9 @@ faultin(p)
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 
-		mtx_assert(&Giant, MA_OWNED);
+		mtx_lock(&vm_mtx);
 		pmap_swapin_proc(p);
+		mtx_unlock(&vm_mtx);
 
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
@@ -373,6 +374,7 @@ scheduler(dummy)
 	int ppri;
 
 	mtx_assert(&Giant, MA_OWNED | MA_NOTRECURSED);
+	mtx_unlock(&Giant);
 
 loop:
 	mtx_lock(&vm_mtx);
@@ -383,7 +385,6 @@ loop:
 	}
 	mtx_unlock(&vm_mtx);
 
-	mtx_unlock(&Giant);
 	pp = NULL;
 	ppri = INT_MIN;
 	sx_slock(&allproc_lock);
@@ -416,7 +417,6 @@ loop:
 	 */
 	if ((p = pp) == NULL) {
 		tsleep(&proc0, PVM, "sched", maxslp * hz / 2);
-		mtx_lock(&Giant);
 		goto loop;
 	}
 	mtx_lock_spin(&sched_lock);
@@ -430,6 +430,7 @@ loop:
 	PROC_LOCK(p);
 	faultin(p);
 	PROC_UNLOCK(p);
+	mtx_unlock(&Giant);
 	mtx_lock_spin(&sched_lock);
 	p->p_swtime = 0;
 	mtx_unlock_spin(&sched_lock);
@@ -477,15 +478,17 @@ int action;
 	mtx_unlock(&vm_mtx);
 	outp = outp2 = NULL;
 	outpri = outpri2 = INT_MIN;
-	sx_slock(&allproc_lock);
 retry:
+	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
 		struct vmspace *vm;
 		
+		mtx_lock(&vm_mtx);
 		PROC_LOCK(p);
 		if (p->p_lock != 0 ||
 		    (p->p_flag & (P_TRACED|P_SYSTEM|P_WEXIT)) != 0) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&vm_mtx);
 			continue;
 		}
 		/*
@@ -498,6 +501,7 @@ retry:
 		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) != PS_INMEM) {
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
+			mtx_unlock(&vm_mtx);
 			continue;
 		}
 
@@ -505,6 +509,7 @@ retry:
 		default:
 			mtx_unlock_spin(&sched_lock);
 			PROC_UNLOCK(p);
+			mtx_unlock(&vm_mtx);
 			continue;
 
 		case SSLEEP:
@@ -515,6 +520,7 @@ retry:
 			if (PRI_IS_REALTIME(p->p_pri.pri_class)) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
+				mtx_unlock(&vm_mtx);
 				continue;
 			}
 
@@ -527,6 +533,7 @@ retry:
 				(p->p_slptime < swap_idle_threshold1)) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
+				mtx_unlock(&vm_mtx);
 				continue;
 			}
 
@@ -540,19 +547,11 @@ retry:
 				  (p->p_slptime < swap_idle_threshold2))) {
 				mtx_unlock_spin(&sched_lock);
 				PROC_UNLOCK(p);
+				mtx_unlock(&vm_mtx);
 				continue;
 			}
 			mtx_unlock_spin(&sched_lock);
 
-			mtx_lock(&vm_mtx);
-#if 0
-			/*
-			 * XXX: This is broken.  We release the lock we
-			 * acquire before calling swapout, so we could
-			 * still deadlock if another CPU locks this process'
-			 * VM data structures after we release the lock but
-			 * before we call swapout().
-			 */
 			++vm->vm_refcnt;
 			/*
 			 * do not swapout a process that is waiting for VM
@@ -563,10 +562,10 @@ retry:
 					NULL, curproc)) {
 				vmspace_free(vm);
 				PROC_UNLOCK(p);
+				mtx_unlock(&vm_mtx);
 				continue;
 			}
 			vm_map_unlock(&vm->vm_map);
-#endif
 			/*
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
@@ -574,14 +573,16 @@ retry:
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (p->p_slptime > swap_idle_threshold2))) {
+				sx_sunlock(&allproc_lock);
 				swapout(p);
 				vmspace_free(vm);
 				didswap++;
 				mtx_unlock(&vm_mtx);
 				goto retry;
 			}
-			mtx_unlock(&vm_mtx);
 			PROC_UNLOCK(p);
+			vmspace_free(vm);
+			mtx_unlock(&vm_mtx);
 		}
 	}
 	sx_sunlock(&allproc_lock);
