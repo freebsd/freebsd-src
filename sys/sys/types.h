@@ -136,7 +136,7 @@ typedef	_BSD_TIME_T_	time_t;
  * be enough for most uses.
  */
 #ifndef	FD_SETSIZE
-#define	FD_SETSIZE	1024
+#define	FD_SETSIZE	256
 #endif
 
 typedef long	fd_mask;
