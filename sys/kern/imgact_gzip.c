@@ -209,7 +209,7 @@ do_aout_hdr(struct imgact_gzip * gz)
 	 */
 	mtx_assert(&Giant, MA_OWNED);
 	if (			/* text can't exceed maximum text size */
-	    gz->a_out.a_text > MAXTSIZ ||
+	    gz->a_out.a_text > maxtsiz ||
 
 	/* data + bss can't exceed rlimit */
 	    gz->a_out.a_data + gz->bss_size >

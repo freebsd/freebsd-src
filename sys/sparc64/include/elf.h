@@ -121,7 +121,7 @@ __ElfType(Hashelt);
  * its maximum allowed size.
  */
 #define	ELF_RTLD_ADDR(vmspace) \
-    (round_page((vm_offset_t)(vmspace)->vm_daddr + MAXDSIZ))
+    (round_page((vm_offset_t)(vmspace)->vm_daddr + maxdsiz))
 
 #endif /* _KERNEL */
 #endif /* !_MACHINE_ELF_H_ */

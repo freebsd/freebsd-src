@@ -106,7 +106,7 @@ exec_linux_imgact(imgp)
      * text/data/bss must not exceed limits
      */
     mtx_assert(&Giant, MA_OWNED);
-    if (a_out->a_text > MAXTSIZ ||
+    if (a_out->a_text > maxtsiz ||
 	a_out->a_data + bss_size > imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur)
 	return (ENOMEM);
 

@@ -163,7 +163,7 @@ exec_aout_imgact(imgp)
 	 */
 	mtx_assert(&Giant, MA_OWNED);
 	if (/* text can't exceed maximum text size */
-	    a_out->a_text > MAXTSIZ ||
+	    a_out->a_text > maxtsiz ||
 
 	    /* data + bss can't exceed rlimit */
 	    a_out->a_data + bss_size >
