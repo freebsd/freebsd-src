@@ -1387,6 +1387,8 @@ vm_page_try_to_cache(vm_page_t m)
 int
 vm_page_try_to_free(vm_page_t m)
 {
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if (m->dirty || m->hold_count || m->busy || m->wire_count ||
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
 		return (0);
