@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.68 1998/10/26 19:07:39 brian Exp $
+ * $Id: ipcp.c,v 1.69 1999/01/28 01:56:32 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -606,7 +606,12 @@ IpcpSendConfigReq(struct fsm *fp)
       ua_htons(&proto, o->data);
       INC_LCP_OPT(TY_COMPPROTO, 4, o);
     } else {
-      ua_htonl(&ipcp->my_compproto, o->data);
+      struct compreq req;
+
+      req.proto = htons(ipcp->my_compproto >> 16);
+      req.slots = (ipcp->my_compproto >> 8) & 255;
+      req.compcid = ipcp->my_compproto & 1;
+      memcpy(o->data, &req, 4);
       INC_LCP_OPT(TY_COMPPROTO, 6, o);
     }
   }
@@ -898,7 +903,9 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
       break;
 
     case TY_COMPPROTO:
-      memcpy(&compproto, cp + 2, 4);
+      pcomp = (struct compreq *)(cp + 2);
+      compproto = (ntohs(pcomp->proto) << 16) + (pcomp->slots << 8) +
+                  pcomp->compcid;
       log_Printf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
       switch (mode_type) {
@@ -907,11 +914,11 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	  memcpy(dec->rejend, cp, length);
 	  dec->rejend += length;
 	} else {
-	  pcomp = (struct compreq *) (cp + 2);
 	  switch (length) {
 	  case 4:		/* RFC1172 */
 	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
-	      log_Printf(LogWARN, "Peer is speaking RFC1172 compression protocol !\n");
+	      log_Printf(LogWARN, "Peer is speaking RFC1172 compression "
+                         "protocol !\n");
 	      ipcp->heis1172 = 1;
 	      ipcp->peer_compproto = compproto;
 	      memcpy(dec->ackend, cp, length);
@@ -924,18 +931,29 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	    }
 	    break;
 	  case 6:		/* RFC1332 */
-	    if (ntohs(pcomp->proto) == PROTO_VJCOMP
-		&& pcomp->slots <= MAX_VJ_STATES
-                && pcomp->slots >= MIN_VJ_STATES) {
-	      ipcp->peer_compproto = compproto;
-	      ipcp->heis1172 = 0;
-	      memcpy(dec->ackend, cp, length);
-	      dec->ackend += length;
+	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+              if (pcomp->slots <= MAX_VJ_STATES
+                  && pcomp->slots >= MIN_VJ_STATES) {
+                /* Ok, we can do that */
+	        ipcp->peer_compproto = compproto;
+	        ipcp->heis1172 = 0;
+	        memcpy(dec->ackend, cp, length);
+	        dec->ackend += length;
+	      } else {
+                /* Get as close as we can to what he wants */
+	        ipcp->heis1172 = 0;
+	        memcpy(dec->nakend, cp, 2);
+	        pcomp->slots = pcomp->slots < MIN_VJ_STATES ?
+                               MIN_VJ_STATES : MAX_VJ_STATES;
+	        memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
+	        dec->nakend += length;
+              }
 	    } else {
+              /* What we really want */
 	      memcpy(dec->nakend, cp, 2);
 	      pcomp->proto = htons(PROTO_VJCOMP);
 	      pcomp->slots = DEF_VJ_STATES;
-	      pcomp->compcid = 0;
+	      pcomp->compcid = 1;
 	      memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
 	      dec->nakend += length;
 	    }
@@ -949,9 +967,18 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
 	break;
 
       case MODE_NAK:
+	if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+          if (pcomp->slots > MAX_VJ_STATES)
+            pcomp->slots = MAX_VJ_STATES;
+          else if (pcomp->slots < MIN_VJ_STATES)
+            pcomp->slots = MIN_VJ_STATES;
+          compproto = (ntohs(pcomp->proto) << 16) + (pcomp->slots << 8) +
+                      pcomp->compcid;
+        } else
+          compproto = 0;
 	log_Printf(LogIPCP, "%s changing compproto: %08x --> %08x\n",
 		  tbuff, ipcp->my_compproto, compproto);
-	ipcp->my_compproto = compproto;
+        ipcp->my_compproto = compproto;
 	break;
 
       case MODE_REJ:
