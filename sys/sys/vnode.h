@@ -563,8 +563,9 @@ int	speedup_syncer __P((void));
 int	textvp_fullpath __P((struct proc *p, char **retbuf, char **retfreebuf));
 int	vaccess __P((enum vtype type, mode_t file_mode, uid_t uid, gid_t gid,
 	    mode_t acc_mode, struct ucred *cred, int *privused));
-int	vaccess_acl_posix1e __P((enum vtype type, struct acl *acl,
-    mode_t acc_mode, struct ucred *cred, int *privused));
+int	vaccess_acl_posix1e __P((enum vtype type, uid_t file_uid,
+	    gid_t file_gid, struct acl *acl, mode_t acc_mode,
+	    struct ucred *cred, int *privused));
 void 	vattr_null __P((struct vattr *vap));
 int 	vcount __P((struct vnode *vp));
 void	vdrop __P((struct vnode *));

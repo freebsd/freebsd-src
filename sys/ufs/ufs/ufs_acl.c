@@ -79,23 +79,23 @@ ufs_sync_acl_from_inode(struct inode *ip, struct acl *acl)
 		case ACL_USER_OBJ:
 			acl->acl_entry[i].ae_perm = acl_posix1e_mode_to_perm(
 			    ACL_USER_OBJ, ip->i_mode);
-			acl->acl_entry[i].ae_id = ip->i_uid;
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID;
 			break;
 	
 		case ACL_GROUP_OBJ:
 			acl_group_obj = &acl->acl_entry[i];
-			acl->acl_entry[i].ae_id = ip->i_gid;
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID;
 			break;
 
 		case ACL_OTHER:
 			acl->acl_entry[i].ae_perm = acl_posix1e_mode_to_perm(
 			    ACL_OTHER, ip->i_mode);
-			acl->acl_entry[i].ae_id = 0;
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID;
 			break;
 
 		case ACL_MASK:
 			acl_mask = &acl->acl_entry[i];
-			acl->acl_entry[i].ae_id = 0;
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID;
 			break;
 
 		case ACL_USER:
@@ -159,12 +159,10 @@ ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip,
 		switch (acl->acl_entry[i].ae_tag) {
 		case ACL_USER_OBJ:
 			acl_user_obj = &acl->acl_entry[i];
-			ip->i_uid = acl->acl_entry[i].ae_id;
 			break;
 
 		case ACL_GROUP_OBJ:
 			acl_group_obj = &acl->acl_entry[i];
-			ip->i_gid = acl->acl_entry[i].ae_id;
 			break;
 
 		case ACL_OTHER:
@@ -191,14 +189,14 @@ ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip,
 		/*
 		 * There is no ACL_MASK, so use the ACL_GROUP_OBJ entry.
 		 */
-		ip->i_mode &= ~ALLPERMS;
+		ip->i_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
 		ip->i_mode |= acl_posix1e_perms_to_mode(acl_user_obj,
 		    acl_group_obj, acl_other);
 	} else {
 		/*
 		 * Use the ACL_MASK entry.
 		 */
-		ip->i_mode &= ~ALLPERMS;
+		ip->i_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
 		ip->i_mode |= acl_posix1e_perms_to_mode(acl_user_obj,
 		    acl_mask, acl_other);
 	}
@@ -257,13 +255,13 @@ ufs_getacl(ap)
 			 */
 			ap->a_aclp->acl_cnt = 3;
 			ap->a_aclp->acl_entry[0].ae_tag = ACL_USER_OBJ;
-			ap->a_aclp->acl_entry[0].ae_id = 0;
+			ap->a_aclp->acl_entry[0].ae_id = ACL_UNDEFINED_ID;
 			ap->a_aclp->acl_entry[0].ae_perm = 0;
 			ap->a_aclp->acl_entry[1].ae_tag = ACL_GROUP_OBJ;
-			ap->a_aclp->acl_entry[1].ae_id = 0;
+			ap->a_aclp->acl_entry[1].ae_id = ACL_UNDEFINED_ID;
 			ap->a_aclp->acl_entry[1].ae_perm = 0;
 			ap->a_aclp->acl_entry[2].ae_tag = ACL_OTHER;
-			ap->a_aclp->acl_entry[2].ae_id = 0;
+			ap->a_aclp->acl_entry[2].ae_id = ACL_UNDEFINED_ID;
 			ap->a_aclp->acl_entry[2].ae_perm = 0;
 			ufs_sync_acl_from_inode(ip, ap->a_aclp);
 			error = 0;
@@ -359,11 +357,8 @@ ufs_setacl(ap)
 	} */ *ap;
 {
 	struct inode *ip = VTOI(ap->a_vp);
-	struct acl_entry *acl_user_obj, *acl_group_obj, *acl_other;
 	mode_t old_mode, preserve_mask;
-	uid_t old_uid, new_uid = 0;
-	gid_t old_gid, new_gid = 0;
-	int error, i;
+	int error;
 
 	/*
 	 * If this is a set operation rather than a delete operation,
@@ -404,64 +399,6 @@ ufs_setacl(ap)
 	 */
 	if ((error = VOP_ACCESS(ap->a_vp, VADMIN, ap->a_cred, ap->a_p)))
 		return (error);
-
-	/*
-	 * ACL_TYPE_ACCESS may involve the changing of ownership, sticky
-	 * bit, setugid bits on the file or directory.  As such, it requires
-	 * special handling to identify these changes, and to authorize
-	 * them.
-	 * ACL_TYPE_DEFAULT does not require this, and ap->a_aclp should
-	 * not be dereferenced without a NULL check, as it may be a delete
-	 * operation.
-	 */
-	switch(ap->a_type) {
-	case ACL_TYPE_ACCESS:
-		/*
-		 * Identify ACL_USER_OBJ, ACL_GROUP_OBJ, and determine if
-		 * they have changed.  If so, authorize in the style of
-		 * ufs_chown().  While we're at it, identify ACL_OTHER.
-	 	 */
-		acl_user_obj = acl_group_obj = acl_other = NULL;
-		for (i = 0; i < ap->a_aclp->acl_cnt; i++)
-			switch(ap->a_aclp->acl_entry[i].ae_tag) {
-			case ACL_USER_OBJ:
-				acl_user_obj = &ap->a_aclp->acl_entry[i];
-				new_uid = acl_user_obj->ae_id;
-				break;
-			case ACL_GROUP_OBJ:
-				acl_group_obj = &ap->a_aclp->acl_entry[i];
-				new_gid = acl_group_obj->ae_id;
-				break;
-			case ACL_OTHER:
-				acl_other = &ap->a_aclp->acl_entry[i];
-				break;
-			default:
-			}
-		old_uid = ip->i_uid;
-		old_gid = ip->i_gid;
-
-		/*
-		 * Authorize changes to base object ownership in the style
-		 * of ufs_chown().
-		 */
-		if (new_uid != old_uid && (error = suser_xxx(ap->a_cred,
-		    ap->a_p, PRISON_ROOT)))
-			return (error);
-		if (new_gid != old_gid && !groupmember(new_gid, ap->a_cred) &&
-		    (error = suser_xxx(ap->a_cred, ap->a_p, PRISON_ROOT)))
-			return (error);
-
-	case ACL_TYPE_DEFAULT:
-		/*
-		 * ACL_TYPE_DEFAULT can literally be written straight into
-		 * the EA unhindered, as it has gone through sanity checking
-		 * already.
-	 	 */
-		break;
-
-	default:
-		panic("ufs_setacl(): unknown acl type\n");
-	}
 
 	switch(ap->a_type) {
 	case ACL_TYPE_ACCESS:
@@ -509,22 +446,9 @@ ufs_setacl(ap)
 		 * Now that the EA is successfully updated, update the
 		 * inode and mark it as changed.
 		 */
-		old_uid = ip->i_uid;
-		old_gid = ip->i_gid;
 		old_mode = ip->i_mode;
 		preserve_mask = ISVTX | ISGID | ISUID;
 		ufs_sync_inode_from_acl(ap->a_aclp, ip, preserve_mask);
-
-		/*
-		 * Clear the ISGID and ISUID bits if the ownership has
-		 * changed, or appropriate privilege is not available.
-		 * XXX: This should probably be a check for broadening
-		 * availability of the bits, but it's not clear from the
-		 * spec.
-		 */
-		if (suser_xxx(ap->a_cred, NULL, PRISON_ROOT) &&
-		    (ip->i_gid != old_gid || ip->i_uid != old_uid))
-			ip->i_mode &= ~(ISUID | ISGID);
 		ip->i_flag |= IN_CHANGE;
 	}
 
