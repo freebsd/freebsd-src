@@ -47,6 +47,7 @@
 typedef int	acl_type_t;
 typedef int	acl_tag_t;
 typedef mode_t	acl_perm_t;
+typedef mode_t *acl_permset_t;
 
 struct acl_entry {
 	acl_tag_t	ae_tag;
@@ -133,21 +134,36 @@ __END_DECLS
  * ACL type for different file systems (i.e., AFS).
  */
 __BEGIN_DECLS
+int	acl_add_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 int	acl_calc_mask(acl_t *acl_p);
+int	acl_clear_perms(acl_permset_t _permset_d);
+int	acl_copy_entry(acl_entry_t _dest_d, acl_entry_t _src_d);
+ssize_t	acl_copy_ext(void *_buf_p, acl_t _acl, ssize_t _size);
+acl_t	acl_copy_int(const void *_buf_p);
+int	acl_create_entry(acl_t *_acl_p, acl_entry_t *_entry_p);
 int	acl_delete_fd_np(int _filedes, acl_type_t _type);
 int	acl_delete_entry(acl_t acl, acl_entry_t entry_d);
 int	acl_delete_file_np(const char *_path_p, acl_type_t _type);
 int	acl_delete_def_file(const char *_path_p);
+int	acl_delete_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 acl_t	acl_dup(acl_t _acl);
 int	acl_free(void *_obj_p);
 acl_t	acl_from_text(const char *_buf_p);
+int	acl_get_entry(acl_t _acl, int _entry_id, acl_entry_t *_entry_p);
 acl_t	acl_get_fd(int _fd);
 acl_t	acl_get_fd_np(int fd, acl_type_t _type);
 acl_t	acl_get_file(const char *_path_p, acl_type_t _type);
+void	*acl_get_qualifier(acl_entry_t _entry_d);
+int	acl_get_permset(acl_entry_t _entry_d, acl_permset_t *_permset_p);
+int	acl_get_tag_type(acl_entry_t _entry_d, acl_tag_t *_tag_type_p);
 acl_t	acl_init(int _count);
 int	acl_set_fd(int _fd, acl_t _acl);
 int	acl_set_fd_np(int _fd, acl_t _acl, acl_type_t _type);
 int	acl_set_file(const char *_path_p, acl_type_t _type, acl_t _acl);
+int	acl_set_permset(acl_entry_t _entry_d, acl_permset_t _permset_d);
+int	acl_set_qualifier(acl_entry_t _entry_d, const void *_tag_qualifier_p);
+int	acl_set_tag_type(acl_entry_t _entry_d, acl_tag_t _tag_type);
+ssize_t	acl_size(acl_t _acl);
 char	*acl_to_text(acl_t _acl, ssize_t *_len_p);
 int	acl_valid(acl_t _acl);
 int	acl_valid_fd_np(int _fd, acl_type_t _type, acl_t _acl);
