@@ -561,7 +561,6 @@ pps_event(struct pps_state *pps, int event)
 {
 	struct bintime bt;
 	struct timespec ts, *tsp, *osp;
-	u_int64_t scale;
 	u_int tcount, *pcount;
 	int foff, fhard;
 	pps_seq_t *pseq;
@@ -627,6 +626,8 @@ pps_event(struct pps_state *pps, int event)
 	}
 #ifdef PPS_SYNC
 	if (fhard) {
+		u_int64_t scale;
+
 		/*
 		 * Feed the NTP PLL/FLL.
 		 * The FLL wants to know how many (hardware) nanoseconds
