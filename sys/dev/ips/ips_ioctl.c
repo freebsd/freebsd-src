@@ -86,18 +86,19 @@ static int ips_ioctl_start(ips_command_t *command)
 static int ips_ioctl_cmd(ips_softc_t *sc, ips_ioctl_t *ioctl_cmd, ips_user_request *user_request)
 {
 	int error = EINVAL;
-	       	if (bus_dma_tag_create(	/* parent    */	sc->adapter_dmatag,
-				/* alignment */	1,
-				/* boundary  */	0,
-				/* lowaddr   */	BUS_SPACE_MAXADDR_32BIT,
-				/* highaddr  */	BUS_SPACE_MAXADDR,
-				/* filter    */	NULL,
-				/* filterarg */	NULL,
-				/* maxsize   */	ioctl_cmd->datasize,
-				/* numsegs   */	1,
-				/* maxsegsize*/	ioctl_cmd->datasize,
-				/* flags     */	0,
-				&ioctl_cmd->dmatag) != 0) {
+
+	if (bus_dma_tag_create(	/* parent    */	sc->adapter_dmatag,
+			/* alignment */	1,
+			/* boundary  */	0,
+			/* lowaddr   */	BUS_SPACE_MAXADDR_32BIT,
+			/* highaddr  */	BUS_SPACE_MAXADDR,
+			/* filter    */	NULL,
+			/* filterarg */	NULL,
+			/* maxsize   */	ioctl_cmd->datasize,
+			/* numsegs   */	1,
+			/* maxsegsize*/	ioctl_cmd->datasize,
+			/* flags     */	0,
+			&ioctl_cmd->dmatag) != 0) {
 		return ENOMEM;
         }
 	if(bus_dmamem_alloc(ioctl_cmd->dmatag, &ioctl_cmd->data_buffer, 
