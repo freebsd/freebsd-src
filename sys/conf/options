@@ -452,6 +452,7 @@ ENABLE_ALART		opt_intpm.h
 
 # These cause changes all over the kernel
 BLKDEV_IOSIZE		opt_global.h
+BURN_BRIDGES		opt_gloabl.h
 DEBUG			opt_global.h
 DEBUG_LOCKS		opt_global.h
 DEBUG_VFS_LOCKS		opt_global.h
