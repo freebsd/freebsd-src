@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.66 1999/01/21 08:29:07 dillon Exp $
+ * $Id: nfs_bio.c,v 1.67 1999/03/12 02:24:58 julian Exp $
  */
 
 
@@ -144,6 +144,12 @@ nfs_getpages(ap)
 		return VM_PAGER_ERROR;
 	}
 
+	/*
+	 * Calculate the number of bytes read and validate only that number
+	 * of bytes.  Note that due to pending writes, size may be 0.  This
+	 * does not mean that the remaining data is invalid!
+	 */
+
 	size = count - uio.uio_resid;
 
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
@@ -154,11 +160,19 @@ nfs_getpages(ap)
 		m->flags &= ~PG_ZERO;
 
 		if (nextoff <= size) {
+			/*
+			 * Read operation filled an entire page
+			 */
 			m->valid = VM_PAGE_BITS_ALL;
 			m->dirty = 0;
-		} else {
-			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_validclean(m, 0, nvalid);
+		} else if (size > toff) {
+			/*
+			 * Read operation filled a partial page, set valid
+			 * bits properly.  validclean will zero out
+			 * any cruft in the buffer when setting a valid bit,
+			 * if the size is not DEV_BSIZE aligned.
+			 */
+			vm_page_set_validclean(m, 0, size - toff);
 		}
 		
 		if (i != ap->a_reqpage) {
@@ -183,6 +197,13 @@ nfs_getpages(ap)
 			} else {
 				vnode_pager_freepage(m);
 			}
+		} else {
+			/*
+			 * This page is being mapped, clear out any other
+			 * cruft in the invalid areas of the page.
+			 */
+			if (m->valid && m->valid != VM_PAGE_BITS_ALL)
+				vm_page_zero_invalid(m, FALSE);
 		}
 	}
 	return 0;
@@ -784,8 +805,16 @@ again:
 		}
 		np->n_flag |= NMODIFIED;
 
+		/*
+		 * If dirtyend exceeds file size, chop it down.  If this
+		 * creates a reverse-indexed or degenerate situation with
+		 * dirtyoff/end, 0 them.
+		 */
+
 		if ((off_t)bp->b_blkno * DEV_BSIZE + bp->b_dirtyend > np->n_size)
 			bp->b_dirtyend = np->n_size - (off_t)bp->b_blkno * DEV_BSIZE;
+		if (bp->b_dirtyoff >= bp->b_dirtyend)
+			bp->b_dirtyoff = bp->b_dirtyend = 0;
 
 		/*
 		 * If the new write will leave a contiguous dirty
@@ -838,13 +867,20 @@ again:
 		 */
 		nfs_prot_buf(bp, on, n);
 
-		if (bp->b_dirtyend > 0) {
-			bp->b_dirtyoff = min(on, bp->b_dirtyoff);
-			bp->b_dirtyend = max((on + n), bp->b_dirtyend);
-		} else {
-			bp->b_dirtyoff = on;
-			bp->b_dirtyend = on + n;
+		/*
+		 * Only update dirtyoff/dirtyend if not a degenerate 
+		 * condition.
+		 */
+		if (n) {
+			if (bp->b_dirtyend > 0) {
+				bp->b_dirtyoff = min(on, bp->b_dirtyoff);
+				bp->b_dirtyend = max((on + n), bp->b_dirtyend);
+			} else {
+				bp->b_dirtyoff = on;
+				bp->b_dirtyend = on + n;
+			}
 		}
+
 		/*
 		 * To avoid code complexity, we may have to throw away
 		 * previously valid ranges when merging the new dirty range

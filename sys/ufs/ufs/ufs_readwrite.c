@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_readwrite.c	8.11 (Berkeley) 5/8/95
- * $Id: ufs_readwrite.c,v 1.56 1999/01/21 08:29:09 dillon Exp $
+ * $Id: ufs_readwrite.c,v 1.57 1999/01/28 00:57:56 dillon Exp $
  */
 
 #define	BLKSIZE(a, b, c)	blksize(a, b, c)
@@ -189,6 +189,13 @@ READ(ap)
 
 		lbn = lblkno(fs, uio->uio_offset);
 		nextlbn = lbn + 1;
+
+		/*
+		 * size of buffer.  The buffer representing the
+		 * end of the file is rounded up to the size of
+		 * the block type ( fragment or full block, 
+		 * depending ).
+		 */
 		size = BLKSIZE(fs, ip, lbn);
 		blkoffset = blkoff(fs, uio->uio_offset);
 		
@@ -536,11 +543,14 @@ ffs_getpages(ap)
 	firstindex = ap->a_m[0]->pindex;
 
 	/*
-	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block
-	 * then, the entire page is valid --
+	 * if ANY DEV_BSIZE blocks are valid on a large filesystem block,
+	 * then the entire page is valid.  Since the page may be mapped,
+	 * user programs might reference data beyond the actual end of file
+	 * occuring within the page.  We have to zero that data.
 	 */
 	if (mreq->valid) {
-		mreq->valid = VM_PAGE_BITS_ALL;
+		if (mreq->valid != VM_PAGE_BITS_ALL)
+			vm_page_zero_invalid(mreq, TRUE);
 		for (i = 0; i < pcount; i++) {
 			if (i != ap->a_reqpage) {
 				vm_page_free(ap->a_m[i]);
@@ -568,6 +578,7 @@ ffs_getpages(ap)
 		(firstindex != 0) && (firstindex <= vp->v_lastr) &&
 		 ((firstindex + pcount) > vp->v_lastr)) ||
 		(obj->behavior == OBJ_SEQUENTIAL)) {
+
 		struct uio auio;
 		struct iovec aiov;
 		int error;
@@ -620,8 +631,8 @@ ffs_getpages(ap)
 
 		if (mreq->valid == 0) 
 			return VM_PAGER_ERROR;
-
-		mreq->valid = VM_PAGE_BITS_ALL;
+		if (mreq->valid != VM_PAGE_BITS_ALL)
+			vm_page_zero_invalid(mreq, TRUE);
 		return VM_PAGER_OK;
 	}
 

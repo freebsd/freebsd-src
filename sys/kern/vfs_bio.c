@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.202 1999/03/12 02:24:56 julian Exp $
+ * $Id: vfs_bio.c,v 1.203 1999/03/19 10:17:44 bde Exp $
  */
 
 /*
@@ -2489,21 +2489,37 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
 	struct vnode *vp = bp->b_vp;
 	vm_ooffset_t soff, eoff;
 
+	/*
+	 * Start and end offsets in buffer.  eoff - soff may not cross a
+	 * page boundry or cross the end of the buffer.
+	 */
 	soff = off;
 	eoff = (off + PAGE_SIZE) & ~PAGE_MASK;
 	if (eoff > bp->b_offset + bp->b_bufsize)
 		eoff = bp->b_offset + bp->b_bufsize;
+
 	if (vp->v_tag == VT_NFS && vp->v_type != VBLK) {
 		vm_ooffset_t sv, ev;
 		vm_page_set_invalid(m,
 		    (vm_offset_t) (soff & PAGE_MASK),
 		    (vm_offset_t) (eoff - soff));
+		/*
+		 * bp->b_validoff and bp->b_validend restrict the valid range
+		 * that we can set.  Note that these offsets are not DEV_BSIZE
+		 * aligned.  vm_page_set_validclean() must know what 
+		 * sub-DEV_BSIZE ranges to clear.
+		 */
+#if 0
 		sv = (bp->b_offset + bp->b_validoff + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		ev = (bp->b_offset + bp->b_validend + (DEV_BSIZE - 1)) & 
 		    ~(DEV_BSIZE - 1);
+#endif
+		sv = bp->b_offset + bp->b_validoff;
+		ev = bp->b_offset + bp->b_validend;
 		soff = qmax(sv, soff);
 		eoff = qmin(ev, eoff);
 	}
+
 	if (eoff > soff)
 		vm_page_set_validclean(m,
 	       (vm_offset_t) (soff & PAGE_MASK),

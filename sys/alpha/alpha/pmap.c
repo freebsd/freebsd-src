@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.14 1999/01/24 06:04:50 dillon Exp $
+ *	$Id: pmap.c,v 1.15 1999/02/19 14:25:32 luoqi Exp $
  */
 
 /*
@@ -2523,16 +2523,32 @@ pmap_kernel()
 }
 
 /*
- *	pmap_zero_page zeros the specified (machine independent)
- *	page by mapping the page into virtual memory and using
- *	bzero to clear its contents, one machine dependent page
- *	at a time.
+ *	pmap_zero_page zeros the specified hardware page by
+ *	mapping it into virtual memory and using bzero to clear
+ *	its contents.
  */
+
 void
 pmap_zero_page(vm_offset_t pa)
 {
 	vm_offset_t va = ALPHA_PHYS_TO_K0SEG(pa);
 	bzero((caddr_t) va, PAGE_SIZE);
+}
+
+
+/*
+ *	pmap_zero_page_area zeros the specified hardware page by
+ *	mapping it into virtual memory and using bzero to clear
+ *	its contents.
+ *
+ *	off and size must reside within a single page.
+ */
+
+void
+pmap_zero_page_area(vm_offset_t pa, int off, int size)
+{
+	vm_offset_t va = ALPHA_PHYS_TO_K0SEG(pa);
+	bzero((char *)(caddr_t)va + off, size);
 }
 
 /*

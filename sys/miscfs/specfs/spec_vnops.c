@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.80 1999/01/27 22:42:07 dillon Exp $
+ * $Id: spec_vnops.c,v 1.81 1999/02/25 05:22:30 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -866,8 +866,12 @@ spec_getpages(ap)
 			m->valid = VM_PAGE_BITS_ALL;
 			m->dirty = 0;
 		} else if (toff < nread) {
-			int nvalid = ((nread + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_validclean(m, 0, nvalid);
+			/*
+			 * Since this is a VM request, we have to supply the
+			 * unaligned offset to allow vm_page_set_validclean()
+			 * to zero sub-DEV_BSIZE'd portions of the page.
+			 */
+			vm_page_set_validclean(m, 0, nread - toff);
 		} else {
 			m->valid = 0;
 			m->dirty = 0;
@@ -894,6 +898,12 @@ spec_getpages(ap)
 			}
 		} else if (m->valid) {
 			gotreqpage = 1;
+			/*
+			 * Since this is a VM request, we need to make the
+			 * entire page presentable by zeroing invalid sections.
+			 */
+			if (m->valid != VM_PAGE_BITS_ALL)
+			    vm_page_zero_invalid(m, FALSE);
 		}
 	}
 	if (!gotreqpage) {
