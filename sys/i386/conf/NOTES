@@ -1571,6 +1571,10 @@ controller	miibus0
 # Technologies ST201 PCI fast ethernet controller. This includes the
 # D-Link DFE-550TX.
 #
+# The 'sis' device provides support for adapters based on the Silicon
+# Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet controller
+# chips.
+#
 # The 'sk' device provides support for the SysKonnect SK-984x series
 # PCI gigabit ethernet NICs. This includes the SK-9841 and SK-9842
 # single port cards (single mode and multimode fiber) and the
@@ -1722,7 +1726,9 @@ device		mx0
 device		pn0
 device		rl0
 device		sf0
+device		sis0
 device		sk0
+device		ste0
 device		ti0
 device		tl0
 device		tx0
