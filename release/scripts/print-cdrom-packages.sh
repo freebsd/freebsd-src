@@ -58,6 +58,8 @@ CDROM_SET_1="${CDROM_SET_1} x11/gnome"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/afterstep"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/enlightenment"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/fvwm2"
+CDROM_SET_1="${CDROM_SET_1} x11-wm/sawfish"
+CDROM_SET_1="${CDROM_SET_1} x11-wm/windowmaker"
 CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
 
 # This is the set of "people really want these" packages.  Please add to
