@@ -534,6 +534,9 @@ int	 in_localaddr(struct in_addr);
 char 	*inet_ntoa(struct in_addr); /* in libkern */
 char	*inet_ntoa_r(struct in_addr ina, char *buf); /* in libkern */
 
+#define in_hosteq(s, t)	((s).s_addr == (t).s_addr)
+#define in_nullhost(x)	((x).s_addr == INADDR_ANY)
+
 #define satosin(sa)	((struct sockaddr_in *)(sa))
 #define sintosa(sin)	((struct sockaddr *)(sin))
 #define ifatoia(ifa)	((struct in_ifaddr *)(ifa))
