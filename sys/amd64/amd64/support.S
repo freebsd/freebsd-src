@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include "npx.h"
+#include "opt_npx.h"
 
 #include <machine/asmacros.h>
 #include <machine/cputypes.h>
@@ -60,7 +60,7 @@ _copyout_vector:
 	.globl	_ovbcopy_vector
 _ovbcopy_vector:
 	.long	_generic_bcopy
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 kernel_fpu_lock:
 	.byte	0xfe
 	.space	3
@@ -191,7 +191,7 @@ do0:
 	ret
 #endif
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 ENTRY(i586_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
@@ -331,7 +331,7 @@ intreg_i586_bzero:
 	stosb
 	popl	%edi
 	ret
-#endif /* I586_CPU && NNPX > 0 */
+#endif /* I586_CPU && defined(DEV_NPX) */
 
 ENTRY(i686_pagezero)
 	pushl	%edi
@@ -483,7 +483,7 @@ ENTRY(generic_bcopy)
 	cld
 	ret
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 ENTRY(i586_bcopy)
 	pushl	%esi
 	pushl	%edi
@@ -619,7 +619,7 @@ small_i586_bcopy:
 	popl	%esi
 	cld
 	ret
-#endif /* I586_CPU && NNPX > 0 */
+#endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
  * Note: memcpy does not support overlapping copies
@@ -758,7 +758,7 @@ ENTRY(generic_copyout)
 	/* bcopy(%esi, %edi, %ebx) */
 	movl	%ebx,%ecx
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 	ALIGN_TEXT
 slow_copyout:
 #endif
@@ -790,7 +790,7 @@ copyout_fault:
 	movl	$EFAULT,%eax
 	ret
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 ENTRY(i586_copyout)
 	/*
 	 * Duplicated from generic_copyout.  Could be done a bit better.
@@ -842,7 +842,7 @@ ENTRY(i586_copyout)
 	call	_fastmove
 	addl	$4,%esp
 	jmp	done_copyout
-#endif /* I586_CPU && NNPX > 0 */
+#endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
  * copyin(from_user, to_kernel, len) - MP SAFE
@@ -869,7 +869,7 @@ ENTRY(generic_copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 	ALIGN_TEXT
 slow_copyin:
 #endif
@@ -883,7 +883,7 @@ slow_copyin:
 	rep
 	movsb
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 	ALIGN_TEXT
 done_copyin:
 #endif
@@ -903,7 +903,7 @@ copyin_fault:
 	movl	$EFAULT,%eax
 	ret
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 ENTRY(i586_copyin)
 	/*
 	 * Duplicated from generic_copyin.  Could be done a bit better.
@@ -936,9 +936,9 @@ ENTRY(i586_copyin)
 	call	_fastmove
 	addl	$8,%esp
 	jmp	done_copyin
-#endif /* I586_CPU && NNPX > 0 */
+#endif /* I586_CPU && defined(DEV_NPX) */
 
-#if defined(I586_CPU) && NNPX > 0
+#if defined(I586_CPU) && defined(DEV_NPX)
 /* fastmove(src, dst, len)
 	src in %esi
 	dst in %edi
@@ -1124,7 +1124,7 @@ fastmove_tail_fault:
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
-#endif /* I586_CPU && NNPX > 0 */
+#endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
  * fu{byte,sword,word} - MP SAFE
