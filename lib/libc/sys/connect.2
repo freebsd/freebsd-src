@@ -117,10 +117,13 @@ be completed immediately.
 It is possible to
 .Xr select 2
 for completion by selecting the socket for writing.
+.It Bq Er EINTR
+The connection attempt was interrupted by the delivery of a signal.
+The connection will be established in the background,
+as in the case of
+.Er EINPROGRESS .
 .It Bq Er EALREADY
-The socket is non-blocking
-and a previous connection attempt
-has not yet been completed.
+A previous connection attempt has not yet been completed.
 .It Bq Er EACCES
 An attempt is made to connect to a broadcast address (obtained through the
 .Dv INADDR_BROADCAST 
