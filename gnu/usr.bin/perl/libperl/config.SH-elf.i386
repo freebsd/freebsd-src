@@ -5,12 +5,12 @@
 # do not forget to propagate your changes by running "Configure -der". You may
 # instead choose to run each of the .SH files by yourself, or "Configure -S".
 #
-# $Id: config.SH-elf.i386,v 1.4 1998/09/24 17:25:26 markm Exp $
+# $Id: config.SH-elf.i386,v 1.5 1998/09/26 16:17:05 markm Exp $
 #
 
 # Package name      : perl5
 # Source directory  : .
-# Configuration time: $Date: 1998/09/24 17:25:26 $
+# Configuration time: $Date: 1998/09/26 16:17:05 $
 # Configured by     : markm
 # Target system     : freebsd 3.0-current #0:
 
@@ -55,7 +55,7 @@ ccdlflags=' '
 ccflags=''
 cf_by='markm'
 cf_email='markm@freebsd.org'
-cf_time='$Date: 1998/09/24 17:25:26 $'
+cf_time='$Date: 1998/09/26 16:17:05 $'
 chgrp=''
 chmod=''
 chown=''
@@ -406,7 +406,7 @@ ldflags="-Wl,-E "
 less='less'
 lib_ext='.a'
 libc='undef'
-libperl='libperl.a'
+libperl='libperl.so.3'
 libpth="/usr/lib /usr/local/lib"
 libs='-lm -lc -lcrypt'
 libswanted='sfio socket inet nsl nm ndbm gdbm dbm db dl dld ld sun m c cposix posix ndir dir crypt ucb bsd BSD PW x'
@@ -558,7 +558,7 @@ useopcode='true'
 useperlio='undef'
 useposix='true'
 usesfio='false'
-useshrplib='false'
+useshrplib='true'
 usethreads='undef'
 usevfork='true'
 usrinc='/usr/include'
