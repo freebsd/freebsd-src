@@ -44,14 +44,15 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/unistd.h>
 #include <sys/errno.h>
 #include <sys/interrupt.h>
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
 
@@ -84,7 +85,6 @@
 #endif
 
 #include <sys/vmmeter.h>
-#include <machine/mutex.h>
 #include <sys/ktr.h>
 #include <machine/cpu.h>
 
@@ -174,6 +174,19 @@ ithd_loop(void *dummy)
 	 * list of handlers, giving each one a go at it.
 	 */
 	for (;;) {
+		/*
+		 * If we don't have any handlers, then we are an orphaned
+		 * thread and just need to die.
+		 */
+		if (me->it_ih == NULL) {
+			CTR2(KTR_INTR, "ithd_loop pid %d(%s) exiting",
+			     me->it_proc->p_pid, me->it_proc->p_comm);
+			curproc->p_ithd = NULL;
+			free(me, M_DEVBUF);
+			mtx_enter(&Giant, MTX_DEF);
+			kthread_exit(0);
+		}
+
 		CTR3(KTR_INTR, "ithd_loop pid %d(%s) need=%d",
 		     me->it_proc->p_pid, me->it_proc->p_comm, me->it_need);
 		while (me->it_need) {
