@@ -115,7 +115,6 @@ wi_pci_probe(dev)
 	for(i=0; pci_ids[i].vendor != 0; i++) {
 		if ((pci_get_vendor(dev) == pci_ids[i].vendor) &&
 			(pci_get_device(dev) == pci_ids[i].device)) {
-			sc->wi_prism2 = 1;
 			sc->wi_bus_type = pci_ids[i].bus_type;
 			device_set_desc(dev, pci_ids[i].desc);
 			return (0);
