@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.47 1999/03/04 18:04:40 alc Exp $
+ *	$Id: imgact_aout.c,v 1.48 1999/03/10 07:07:42 alc Exp $
  */
 
 #include <sys/param.h>
@@ -119,6 +119,9 @@ exec_aout_imgact(imgp)
 	case QMAGIC:
 		virtual_offset = PAGE_SIZE;
 		file_offset = 0;
+		/* Pass PS_STRINGS for BSD/OS binaries only. */
+		if (N_GETMID(*a_out) == MID_ZERO)
+			imgp->ps_strings = PS_STRINGS;
 		break;
 	default:
 		/* NetBSD compatibility */
