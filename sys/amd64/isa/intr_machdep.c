@@ -480,6 +480,7 @@ icu_setup(int intr, driver_intr_t *handler, void *arg, int flags)
 #else
 	if ((u_int)intr >= ICU_LEN || intr == ICU_SLAVEID)
 #endif /* APIC_IO */
+		return (EINVAL);
 	if (intr_handler[intr] != isa_strayintr)
 		return (EBUSY);
 
