@@ -387,9 +387,9 @@ udp_input(m, off)
 			udpstat.udps_noportbcast++;
 			goto badheadlocked;
 		}
-		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
-			goto badheadlocked;
 		if (blackhole)
+			goto badheadlocked;
+		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
 			goto badheadlocked;
 		*ip = save_ip;
 		ip->ip_len += iphlen;
