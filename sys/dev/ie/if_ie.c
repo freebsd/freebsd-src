@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.10 1994/08/24 22:32:43 ats Exp $
+ *	$Id: if_ie.c,v 1.11 1994/08/25 20:16:59 wollman Exp $
  */
 
 /*
@@ -485,7 +485,7 @@ ieattach(dvp)
   ifp->if_unit = unit;
   ifp->if_name = iedriver.name;
   ifp->if_mtu = ETHERMTU;
-  printf("<%s R%d> ethernet address %s\n", 
+  printf(" <%s R%d> ethernet address %s\n", 
 	 ie_hardware_names[ie_softc[unit].hard_type],
 	 ie_softc[unit].hard_vers + 1,
 	 ether_sprintf(ie->arpcom.ac_enaddr));
