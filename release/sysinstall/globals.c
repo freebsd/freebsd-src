@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.14 1996/08/01 10:58:51 jkh Exp $
+ * $Id: globals.c,v 1.14.2.1 1997/01/22 00:28:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -44,7 +44,6 @@
 int		DebugFD;	/* Where diagnostic output goes */
 Boolean		Fake;		/* Only pretend to be useful */
 Boolean		RunningAsInit;	/* Are we running as init? */
-Boolean		Chrooted;	/* Yow, have we chrooted yet? */
 Boolean		DialogActive;	/* Is libdialog initialized? */
 Boolean		ColorDisplay;	/* Are we on a color display? */
 Boolean		OnVTY;		/* Are we on a VTY? */
@@ -68,5 +67,4 @@ globalsInit(void)
     VarHead = NULL;
     mediaDevice = NULL;
     RunningAsInit = FALSE;
-    Chrooted = FALSE;
 }

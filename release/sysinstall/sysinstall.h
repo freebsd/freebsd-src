@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.15 1997/01/20 16:15:30 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.16 1997/01/22 00:28:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -145,6 +145,7 @@
 #define VAR_UFS_PATH			"ufs"
 #define VAR_USR_SIZE			"usrSize"
 #define VAR_VAR_SIZE			"varSize"
+#define VAR_XF86_CONFIG			"xf86config"
 
 #define DEFAULT_TAPE_BLOCKSIZE	"20"
 
@@ -313,7 +314,6 @@ extern int		DebugFD;		/* Where diagnostic output goes			*/
 extern Boolean		Fake;			/* Don't actually modify anything - testing	*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
-extern Boolean		Chrooted;		/* Yow, are we chrooted yet?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
@@ -367,6 +367,7 @@ extern DMenu		MenuDiskDevices;	/* Disk devices menu				*/
 extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
+extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
 
 /* Stuff from libdialog which isn't properly declared outside */
 extern void display_helpfile(void);
@@ -637,8 +638,6 @@ extern int	package_extract(Device *dev, char *name, Boolean depended);
 extern Boolean	package_exists(char *name);
 
 /* system.c */
-extern int	alarm_clear(void);
-extern void	alarm_set(int delay, void (*handler)(int sig));
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(int status);
 extern int	execExecute(char *cmd, char *name);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.44.2.4 1997/01/19 09:59:36 jkh Exp $
+ * $FreeBSD$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -127,16 +127,16 @@ static Option Options[] = {
       OPT_IS_VAR,	RELNAME_PROMPT,		VAR_RELNAME,		varCheck	},
 { "Install Root",	"Which directory to unpack distributions or packages relative to",
       OPT_IS_VAR,	INSTROOT_PROMPT,	VAR_INSTALL_ROOT,	varCheck	},
+{ "Browser package",	"This is the browser package that will be used for viewing HTML docs",
+      OPT_IS_VAR,	BPKG_PROMPT,		VAR_BROWSER_PACKAGE,	varCheck	},
+{ "Browser Exec",	"This is the path to the main binary of the browser package",
+      OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
 { "Media Timeout",	"Timeout value in seconds for slow media.",
       OPT_IS_VAR,	TIMEOUT_PROMPT,		VAR_MEDIA_TIMEOUT,	varCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
-{ "Browser Exec",	"This is the path to the main binary of the browser package",
-      OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
-{ "Browser Pkg",	"This is the browser package that will be used for viewing HTML docs",
-      OPT_IS_VAR,	BPKG_PROMPT,		VAR_BROWSER_PACKAGE,	varCheck	},
 { "Apache package",	"The name of the Apache package to install if requested",
       OPT_IS_VAR,	APACHE_PKG_PROMPT,	VAR_APACHE_PKG,		varCheck	},
 { "Samba package",	"The name of the Samba package to install if requested",

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.62.2.8 1997/01/15 04:50:12 jkh Exp $
+ * $Id: media.c,v 1.62.2.9 1997/01/19 09:59:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,6 +46,26 @@
 #include <sys/wait.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+static Boolean got_intr = FALSE;
+
+/* timeout handler */
+static void
+handle_intr(int sig)
+{
+    msgDebug("User generated interrupt.\n");
+    got_intr = TRUE;
+}
+
+static int
+check_for_interrupt(void)
+{
+    if (got_intr) {
+	got_intr = FALSE;
+	return TRUE;
+    }
+    return FALSE;
+}
 
 static int
 genericHook(dialogMenuItem *self, DeviceType type)
@@ -518,25 +538,6 @@ mediaExtractDistEnd(int zpid, int cpid)
     return TRUE;
 }
 
-static void
-media_timeout(int sig)
-{
-    alarm(0);
-}
-
-/* Return the timeout interval */
-int
-mediaTimeout(void)
-{
-    char *cp;
-    int t;
-
-    cp = getenv(VAR_MEDIA_TIMEOUT);
-    if (!cp || !(t = atoi(cp)))
-	t = MEDIA_TIMEOUT;
-    return t;
-}
-
 Boolean
 mediaExtractDist(char *dir, char *dist, FILE *fp)
 {
@@ -604,20 +605,19 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     total = 0;
     (void)gettimeofday(&start, (struct timezone *)0);
 
-    /* Make ^C fake a sudden timeout */
-    new.sa_handler = media_timeout;
+    /* Make ^C abort the current transfer rather than the whole show */
+    new.sa_handler = handle_intr;
     new.sa_flags = 0;
     new.sa_mask = 0;
     sigaction(SIGINT, &new, &old);
 
-    alarm_set(mediaTimeout(), media_timeout);
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
-	if (!alarm_clear()) {
-	    msgConfirm("Failure to read from media - timeout or user abort.\n");
+	if (check_for_interrupt()) {
+	    msgConfirm("Failure to read from media:  User interrupt.");
 	    break;
 	}
 	if (write(qfd[1], buf, i) != i) {
-	    msgConfirm("Write error on transfer to cpio process, try of %d bytes\n", i);
+	    msgConfirm("Write error on transfer to cpio process, try of %d bytes.", i);
 	    break;
 	}
 	else {
@@ -633,9 +633,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 	    msgInfo("%10d bytes read from %s dist @ %.1f KB/sec.",
 		    total, dist, (total / seconds) / 1024.0);
 	}
-	alarm_set(mediaTimeout(), media_timeout);
     }
-    alarm_clear();
     sigaction(SIGINT, &old, NULL);	/* restore sigint */
     close(qfd[1]);
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16.2.2 1997/01/19 09:59:28 jkh Exp $
+ * $Id: floppy.c,v 1.16.2.3 1997/01/22 00:28:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,7 +117,7 @@ mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (floppyMounted)
 	return TRUE;
@@ -188,7 +188,7 @@ mediaGetFloppy(Device *dev, char *file, Boolean probe)
 void
 mediaShutdownFloppy(Device *dev)
 {
-    char *mountpoint = (!Chrooted && RunningAsInit) ? "/mnt/dist" : "/dist";
+    char *mountpoint = "/dist";
 
     if (floppyMounted) {
 	if (unmount(mountpoint, MNT_FORCE) != 0)
