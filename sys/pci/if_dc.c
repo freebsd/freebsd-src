@@ -1183,7 +1183,10 @@ void dc_setfilt_admtek(sc)
 	    ifma = ifma->ifma_link.le_next) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
-		h = dc_crc_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		if (DC_IS_CENTAUR(sc))
+			h = dc_crc_le(sc, LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
+		else
+			h = dc_crc_be(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
 		if (h < 32)
 			hashes[0] |= (1 << h);
 		else
@@ -1871,6 +1874,7 @@ static int dc_attach(dev)
 	case DC_DEVICEID_EN2242:
 	case DC_DEVICEID_3CSOHOB:
 		sc->dc_type = DC_TYPE_AN985;
+		sc->dc_flags |= DC_64BIT_HASH;
 		sc->dc_flags |= DC_TX_USE_TX_INTR;
 		sc->dc_flags |= DC_TX_ADMTEK_WAR;
 		sc->dc_pmode = DC_PMODE_MII;
