@@ -69,6 +69,9 @@ extern struct netif_driver efi_net;
 /* Find EFI network resources */
 extern void efinet_init_driver(void);
 
+/* Map handles to units */
+int efifs_get_unit(EFI_HANDLE);
+
 /* Wrapper over EFI filesystems. */
 extern struct fs_ops efi_fsops;
 
