@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.5 1995/04/29 07:21:11 phk Exp $
+ * $Id: disk.c,v 1.6 1995/04/30 06:09:26 phk Exp $
  *
  */
 
@@ -131,21 +131,28 @@ Int_Open_Disk(char *name, u_long size)
 				warn("failed to add MBR chunk for slice %d",i - 1);
 		if (ds.dss_slices[i].ds_type == 0xa5) {
 			struct disklabel *dl;
-			int j;
 
 			dl = read_disklabel(fd,
 				ds.dss_slices[i].ds_offset + LABELSECTOR);
 			if(dl) {
 				char pname[20];
+				int j;
+				u_long l;
+				if (dl->d_partitions[RAW_PART].p_offset == 0 &&
+				    dl->d_partitions[RAW_PART].p_size ==
+					ds.dss_slices[i].ds_size)
+					l = ds.dss_slices[i].ds_offset;
+				else
+					l = 0;
 				for(j=0; j < dl->d_npartitions; j++) {
 					sprintf(pname,"%s%c",sname,j+'a');
-					if (j == 2 || j == 3)
+					if (j == RAW_PART || j == 3)
 						continue;
 					if (!dl->d_partitions[j].p_size)
 						continue;
 					if (Add_Chunk(d,
 						dl->d_partitions[j].p_offset +
-						ds.dss_slices[i].ds_offset,
+						l,
 						dl->d_partitions[j].p_size,
 						pname,part,0,0))
 						warn(
@@ -156,11 +163,11 @@ Int_Open_Disk(char *name, u_long size)
 				if (dl->d_partitions[3].p_size)
 					Add_Chunk(d,
 						dl->d_partitions[3].p_offset +
-						ds.dss_slices[i].ds_offset,
+						l,
 						dl->d_partitions[3].p_size,
 						pname,part,0,0);
+				free(dl);
 			}
-			free(dl);
 		}
 	}
 	close(fd);
