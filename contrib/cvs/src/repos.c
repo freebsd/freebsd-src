@@ -106,12 +106,6 @@ Name_Repository (dir, update_dir)
      * one by tacking on the CVSROOT environment variable. If the CVSROOT
      * environment variable is not set, die now.
      */
-    if (strcmp (repos, "..") == 0 || strncmp (repos, "../", 3) == 0)
-    {
-	error (0, 0, "in directory %s:", xupdate_dir);
-	error (0, 0, "`..'-relative repositories are not supported.");
-	error (1, 0, "illegal source repository");
-    }
     if (! isabsolute(repos))
     {
 	char *newrepos;
@@ -122,6 +116,12 @@ Name_Repository (dir, update_dir)
 	    error (0, 0, "must set the CVSROOT environment variable\n");
 	    error (0, 0, "or specify the '-d' option to %s.", program_name);
 	    error (1, 0, "illegal repository setting");
+	}
+	if (pathname_levels (repos) > 0)
+	{
+	    error (0, 0, "in directory %s:", xupdate_dir);
+	    error (0, 0, "`..'-relative repositories are not supported.");
+	    error (1, 0, "illegal source repository");
 	}
 	newrepos = xmalloc (strlen (CVSroot_directory) + strlen (repos) + 10);
 	(void) sprintf (newrepos, "%s/%s", CVSroot_directory, repos);

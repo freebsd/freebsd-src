@@ -22,7 +22,45 @@ static int admin_fileproc PROTO ((void *callerdat, struct file_info *finfo));
 
 static const char *const admin_usage[] =
 {
-    "Usage: %s %s rcs-options files...\n",
+    "Usage: %s %s [options] files...\n",
+    "\t-a users   Append (comma-separated) user names to access list.\n",
+    "\t-A file    Append another file's access list.\n",
+    "\t-b[rev]    Set default branch (highest branch on trunk if omitted).\n",
+    "\t-c string  Set comment leader.\n",
+    "\t-e[users]  Remove (comma-separated) user names from access list\n",
+    "\t           (all names if omitted).\n",
+    "\t-I         Run interactively.\n",
+    "\t-k subst   Set keyword substitution mode:\n",
+    "\t   kv   (Default) Substitue keyword and value.\n",
+    "\t   kvl  Substitue keyword, value, and locker (if any).\n",
+    "\t   k    Substitue keyword only.\n",
+    "\t   o    Preserve original string.\n",
+    "\t   b    Like o, but mark file as binary.\n",
+    "\t   v    Substitue value only.\n",
+    "\t-l[rev]    Lock revision (latest revision on branch,\n",
+    "\t           latest revision on trunk if omitted).\n",
+    "\t-L         Set strict locking.\n",
+    "\t-m rev:msg  Replace revision's log message.\n",
+    "\t-n tag[:[rev]]  Tag branch or revision.  If :rev is omitted,\n",
+    "\t                delete the tag; if rev is omitted, tag the latest\n",
+    "\t                revision on the default branch.\n",
+    "\t-N tag[:[rev]]  Same as -n except override existing tag.\n",
+    "\t-o range   Delete (outdate) specified range of revisions:\n",
+    "\t   rev1::rev2  Between rev1 and rev2, excluding rev1 and rev2.\n",
+    "\t   rev::       After rev on the same branch.\n",
+    "\t   ::rev       Before rev on the same branch.\n",
+    "\t   rev         Just rev.\n",
+    "\t   rev1:rev2   Between rev1 and rev2, including rev1 and rev2.\n",
+    "\t   rev:        rev and following revisions on the same branch.\n",
+    "\t   :rev        rev and previous revisions on the same branch.\n",
+    "\t-q         Run quietly.\n",
+    "\t-s state[:rev]  Set revision state (latest revision on branch,\n",
+    "\t                latest revision on trunk if omitted).\n",
+    "\t-t[file]   Get descriptive text from file (stdin if omitted).\n",
+    "\t-t-string  Set descriptive text.\n",
+    "\t-u[rev]    Unlock the revision (latest revision on branch,\n",
+    "\t           latest revision on trunk if omitted).\n",
+    "\t-U         Unset strict locking.\n",
     "(Specify the --help global option for a list of other help options)\n",
     NULL
 };
@@ -53,9 +91,7 @@ struct admin_data
     /* Keyword substitution mode (-k), e.g. "-kb".  */
     char *kflag;
 
-    /* Description (-t).  See sanity.sh for various moanings about
-       files and stdin and such.  "" if -t specified without an
-       argument.  It is "-t" followed by the argument.  */
+    /* Description (-t).  */
     char *desc;
 
     /* Interactive (-I).  Problematic with client/server.  */
@@ -191,11 +227,6 @@ admin (argc, argv)
 		break;
 
 	    case 'e':
-		if (optarg == NULL)
-		{
-		    error (1, 0,
-			   "removing entire access list not yet implemented");
-		}
 		arg_add (&admin_data, 'e', optarg);
 		break;
 
@@ -287,13 +318,15 @@ admin (argc, argv)
 		    error (0, 0, "duplicate 't' option");
 		    goto usage_error;
 		}
-		if (optarg == NULL)
-		    admin_data.desc = xstrdup ("-t");
+		if (optarg != NULL && optarg[0] == '-')
+		    admin_data.desc = xstrdup (optarg + 1);
 		else
 		{
-		    admin_data.desc = xmalloc (strlen (optarg) + 5);
-		    strcpy (admin_data.desc, "-t");
-		    strcat (admin_data.desc, optarg);
+		    size_t bufsize = 0;
+		    size_t len;
+
+		    get_file (optarg, optarg, "r", &admin_data.desc,
+			      &bufsize, &len);
 		}
 		break;
 
@@ -417,7 +450,26 @@ admin (argc, argv)
 	if (admin_data.delete_revs != NULL)
 	    send_arg (admin_data.delete_revs);
 	if (admin_data.desc != NULL)
-	    send_arg (admin_data.desc);
+	{
+	    char *p = admin_data.desc;
+	    send_to_server ("Argument -t-", 0);
+	    while (*p)
+	    {
+		if (*p == '\n')
+		{
+		    send_to_server ("\012Argumentx ", 0);
+		    ++p;
+		}
+		else
+		{
+		    char *q = strchr (p, '\n');
+		    if (q == NULL) q = p + strlen (p);
+		    send_to_server (p, q - p);
+		    p = q;
+		}
+	    }
+	    send_to_server ("\012", 1);
+	}
 	if (admin_data.quiet)
 	    send_arg ("-q");
 	if (admin_data.kflag != NULL)
@@ -598,20 +650,7 @@ admin_fileproc (callerdat, finfo)
     if (admin_data->desc != NULL)
     {
 	free (rcs->desc);
-	rcs->desc = NULL;
-	if (admin_data->desc[2] == '-')
-	    rcs->desc = xstrdup (admin_data->desc + 3);
-	else
-	{
-	    char *descfile = admin_data->desc + 2;
-	    size_t bufsize = 0;
-	    size_t len;
-
-	    /* If -t specified with no argument, read from stdin. */
-	    if (*descfile == '\0')
-		descfile = NULL;
-	    get_file (descfile, descfile, "r", &rcs->desc, &bufsize, &len);
-	}
+	rcs->desc = xstrdup (admin_data->desc);
     }
     if (admin_data->kflag != NULL)
     {
@@ -642,6 +681,8 @@ admin_fileproc (callerdat, finfo)
 		if (arg[1] == 'a')
 		    for (u = 0; u < argc; ++u)
 			RCS_addaccess (rcs, users[u]);
+		else if (argc == 0)
+		    RCS_delaccess (rcs, NULL);
 		else
 		    for (u = 0; u < argc; ++u)
 			RCS_delaccess (rcs, users[u]);
@@ -748,20 +789,24 @@ admin_fileproc (callerdat, finfo)
 		    rev = xstrdup (p);
 		}
 		revnum = RCS_gettag (rcs, rev, 0, NULL);
-		free (rev);
 		if (revnum != NULL)
+		{
 		    n = findnode (rcs->versions, revnum);
-		if (revnum == NULL || n == NULL)
+		    free (revnum);
+		}
+		else
+		    n = NULL;
+		if (n == NULL)
 		{
 		    error (0, 0,
 			   "%s: can't set state of nonexisting revision %s",
 			   rcs->path,
 			   rev);
-		    if (revnum != NULL)
-			free (revnum);
+		    free (rev);
 		    status = 1;
 		    continue;
 		}
+		free (rev);
 		delta = (RCSVers *) n->data;
 		free (delta->state);
 		delta->state = tag;
@@ -788,6 +833,7 @@ admin_fileproc (callerdat, finfo)
 		msg = p;
 
 		n = findnode (rcs->versions, rev);
+		free (rev);
 		delta = (RCSVers *) n->data;
 		if (delta->text == NULL)
 		{
@@ -823,12 +869,7 @@ admin_fileproc (callerdat, finfo)
 	   additional message is to make it clear that the previous problems
 	   caused CVS to forget about the idea of modifying the RCS file.  */
 	error (0, 0, "cannot modify RCS file for `%s'", finfo->file);
-
-	/* Upon failure, we want to abandon any changes made to the
-	   RCS data structure.  Forcing a reparse does the trick,
-	   but leaks memory and is kludgey.  Should we export
-	   free_rcsnode_contents for this purpose? */
-	RCS_reparsercsfile (rcs, (FILE **) NULL, (struct rcsbuffer *) NULL);
+	RCS_abandon (rcs);
     }
 
   exitfunc:

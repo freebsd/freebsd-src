@@ -50,16 +50,16 @@ prefix = @prefix@
 exec_prefix = @exec_prefix@
 
 # Where to install the executables.
-bindir = $(exec_prefix)/bin
+bindir = @bindir@
 
 # Where to put the system-wide .cvsrc file
-libdir = $(prefix)/lib
+libdir = @libdir@
 
 # Where to put the Info files
-infodir = $(prefix)/info
+infodir = @infodir@
 
 # Where to put the manual pages.
-mandir = $(prefix)/man
+mandir = @mandir@
 
 #### End of system configuration section. ####
 
