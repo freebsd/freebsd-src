@@ -654,12 +654,19 @@ post_stats:
 #endif
 
 	/*
-	 * If VLANs are configured on the interface, check to
-	 * see if the device performed the decapsulation and
+	 * Check to see if the device performed the VLAN decapsulation and
 	 * provided us with the tag.
 	 */
-	if (ifp->if_nvlans &&
+	if (m_tag_first(m) != NULL &&
 	    m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL) != NULL) {
+		/*
+		 * If no VLANs are configured, drop.
+		 */
+		if (ifp->if_nvlans == 0) {
+			ifp->if_noproto++;
+			m_freem(m);
+			return;
+		}
 		/*
 		 * vlan_input() will either recursively call ether_input()
 		 * or drop the packet.
