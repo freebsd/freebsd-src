@@ -345,7 +345,7 @@ failed:
 	if (bp)
 		brelse (bp);
 	mp->mnt_data = (qaddr_t)NULL;
-	g_wither_geom_close(cp->geom, ENXIO);
+	g_vfs_close(cp, td);
 	return (error);
 }
 
@@ -375,7 +375,7 @@ hpfs_unmount(
 	}
 
 	vinvalbuf(hpmp->hpm_devvp, V_SAVE, td, 0, 0);
-	g_wither_geom_close(hpmp->hpm_cp->geom, ENXIO);
+	g_vfs_close(hpmp->hpm_cp, td);
 	vrele(hpmp->hpm_devvp);
 
 	dprintf(("hpfs_umount: freeing memory...\n"));
