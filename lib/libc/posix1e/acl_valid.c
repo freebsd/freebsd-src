@@ -34,6 +34,7 @@
 #include <sys/acl.h>
 #include "un-namespace.h"
 #include <sys/errno.h>
+#include <stdlib.h>
 
 #include "acl_support.h"
 
@@ -54,6 +55,10 @@ acl_valid(acl_t acl)
 {
 	int	error;
 
+	if (acl == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	_posix1e_acl_sort(acl);
 	error = _posix1e_acl_check(acl);
 	if (error) {
@@ -70,6 +75,10 @@ acl_valid_file_np(const char *pathp, acl_type_t type, acl_t acl)
 {
 	int	error;
 
+	if (pathp == NULL || acl == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
@@ -87,6 +96,10 @@ acl_valid_fd_np(int fd, acl_type_t type, acl_t acl)
 {
 	int	error;
 
+	if (acl == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {

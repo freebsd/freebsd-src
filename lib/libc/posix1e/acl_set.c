@@ -51,6 +51,10 @@ acl_set_file(const char *path_p, acl_type_t type, acl_t acl)
 {
 	int	error;
 
+	if (acl == NULL || path_p == NULL) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if (_posix1e_acl(acl, type)) {
 		error = _posix1e_acl_sort(acl);
 		if (error) {
