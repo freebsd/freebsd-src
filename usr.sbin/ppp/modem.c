@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.104 1999/02/26 21:28:12 brian Exp $
+ * $Id: modem.c,v 1.105 1999/03/07 01:02:39 brian Exp $
  *
  *  TODO:
  */
@@ -554,7 +554,7 @@ modem_Open(struct physical *modem, struct bundle *bundle)
         int fids[2];
 
         modem->name.base = modem->name.full + 1;
-        if (pipe(fids) < 0)
+        if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, fids) < 0)
           log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",
 	             strerror(errno));
         else {
