@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.48 1996/10/08 22:41:31 bde Exp $
+#	$Id: Makefile,v 1.49 1996/10/14 12:37:47 bde Exp $
 #
 
 PROG=	boot
@@ -10,18 +10,28 @@ BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
-CFLAGS+=	-DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	${CWARNFLAGS}
 
 # Probe the keyboard and use the serial console if the keyboard isn't found.
-#CFLAGS+=	-DPROBE_KEYBOARD
+.if defined(BOOT_PROBE_KEYBOARD)
+CFLAGS+=	-DPROBE_KEYBOARD
+.endif
 
 # Probe the keyboard lock and use the serial console if the keyboard is locked.
-#CFLAGS+=	-DPROBE_KEYBOARD_LOCK
+.if defined(BOOT_PROBE_KEYBOARD_LOCK)
+CFLAGS+=	-DPROBE_KEYBOARD_LOCK
+.endif
 
 # Force use of the serial console.
-#CFLAGS+=	-DFORCE_COMCONSOLE
+.if defined(BOOT_FORCE_COMCONSOLE)
+CFLAGS+=	-DFORCE_COMCONSOLE
+.endif
+
+# By default, if a serial port is going to be used as console, use COM1
+# (aka /dev/ttyd0).
+BOOT_COMCONSOLE_PORT?=0x3F8
+CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT}
 
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
