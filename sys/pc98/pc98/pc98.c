@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.23 1997/04/27 13:22:08 kato Exp $
+ *	$Id: pc98.c,v 1.24 1997/04/27 13:41:08 kato Exp $
  */
 
 /*
@@ -133,10 +133,6 @@ static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr18), &IDTVEC(fastintr19),
 	&IDTVEC(fastintr20), &IDTVEC(fastintr21),
 	&IDTVEC(fastintr22), &IDTVEC(fastintr23)
-#if defined(IPI_INTS)
-/* XXX probably NOT needed, we register_intr(slowintr[I]) */ 
-	, &IDTVEC(ipi24), &IDTVEC(ipi25), &IDTVEC(ipi26), &IDTVEC(ipi27)
-#endif /* IPI_INTS */
 #endif /* APIC_IO */
 };
 
@@ -148,9 +144,6 @@ static inthand_t *slowintr[ICU_LEN] = {
 #if defined(APIC_IO)
 	, &IDTVEC(intr16), &IDTVEC(intr17), &IDTVEC(intr18), &IDTVEC(intr19),
 	&IDTVEC(intr20), &IDTVEC(intr21), &IDTVEC(intr22), &IDTVEC(intr23)
-#if defined(IPI_INTS)
-	, &IDTVEC(ipi24), &IDTVEC(ipi25), &IDTVEC(ipi26), &IDTVEC(ipi27)
-#endif /* IPI_INTS */
 #endif /* APIC_IO */
 };
 
@@ -1052,13 +1045,8 @@ isa_irq_pending(dvp)
 	struct isa_device *dvp;
 {
 	/* read APIC IRR containing the 16 ISA INTerrupts */
-#if defined(TEST_UPPERPRIO)
-	if ((u_int32_t)dvp->id_irq == APIC_IRQ10)
-		return (int)(apic_base[APIC_IRR2] & 1);
-	else
-#endif /** TEST_UPPERPRIO */
-		return ((apic_base[APIC_IRR1] & 0x00ffffff)
-		    & (u_int32_t)dvp->id_irq) ? 1 : 0;
+	return ((apic_base[APIC_IRR1] & 0x00ffffff)
+		& (u_int32_t)dvp->id_irq) ? 1 : 0;
 }
 
 /*
@@ -1159,24 +1147,9 @@ register_intr(intr, device_id, flags, handler, maskptr, unit)
 	intr_mptr[intr] = maskptr;
 	intr_mask[intr] = mask | (1 << intr);
 	intr_unit[intr] = unit;
-#if defined(TEST_UPPERPRIO)
-	if (intr == 10) {
-	    printf("--- setting IRQ10 to IDT64\n");
-	    setidt(64,
-	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	}
-	else {
-	    printf("setting IRQ%02d to IDT%02d\n", intr, ICU_OFFSET+intr);
-	    setidt(ICU_OFFSET + intr,
-	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
-	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-	}
-#else
 	setidt(ICU_OFFSET + intr,
 	       flags & RI_FAST ? fastintr[intr] : slowintr[intr],
 	       SDT_SYS386IGT, SEL_KPL, GSEL(GCODE_SEL, SEL_KPL));
-#endif /** TEST_UPPERPRIO */
 	write_eflags(ef);
 	for (cp = intrnames, id = 0; id <= device_id; id++)
 		while (*cp++ != '\0')
