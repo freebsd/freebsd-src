@@ -124,7 +124,7 @@ Lst_Remove (l, ln)
      * necessary and as expected.
      */
     if (lNode->useCount == 0) {
-	free ((Address)ln);
+	free (ln);
     } else {
 	lNode->flags |= LN_DELETED;
     }

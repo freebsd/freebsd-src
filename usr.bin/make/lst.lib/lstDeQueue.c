@@ -62,21 +62,21 @@ __RCSID("$FreeBSD$");
  *
  *-----------------------------------------------------------------------
  */
-ClientData
+void *
 Lst_DeQueue (l)
     Lst	    	  l;
 {
-    ClientData	  rd;
+    void *	  rd;
     register ListNode	tln;
 
     tln = (ListNode) Lst_First (l);
     if (tln == NULL) {
-	return ((ClientData) NULL);
+	return ((void *) NULL);
     }
 
     rd = tln->datum;
     if (Lst_Remove (l, (LstNode)tln) == FAILURE) {
-	return ((ClientData) NULL);
+	return ((void *) NULL);
     } else {
 	return (rd);
     }

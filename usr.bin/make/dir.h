@@ -65,7 +65,7 @@ void Dir_ClearPath __P((Lst));
 void Dir_Concat __P((Lst, Lst));
 void Dir_PrintDirectories __P((void));
 void Dir_PrintPath __P((Lst));
-void Dir_Destroy __P((ClientData));
-ClientData Dir_CopyDir __P((ClientData));
+void Dir_Destroy __P((void *));
+void * Dir_CopyDir __P((void *));
 
 #endif /* _DIR */

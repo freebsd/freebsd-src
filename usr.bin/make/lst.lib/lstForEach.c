@@ -67,8 +67,8 @@ __RCSID("$FreeBSD$");
 void
 Lst_ForEach (l, proc, d)
     Lst	    	  	l;
-    register int	(*proc) __P((ClientData, ClientData));
-    register ClientData	d;
+    register int	(*proc) __P((void *, void *));
+    register void *	d;
 {
     Lst_ForEachFrom(l, Lst_First(l), proc, d);
 }
