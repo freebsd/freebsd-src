@@ -267,10 +267,18 @@ esac
 
 umount -a >/dev/null 2>&1
 
+# Set up the list of network filesystem types for which mounting should be
+# delayed until after network initialization.
+networkfs_types='nfs:NFS smbfs:SMB portalfs:PORTAL'
+case ${extra_netfs_types} in
+[Nn][Oo])
+	;;
+*)
+	networkfs_types="${networkfs_types} ${extra_netfs_types}"
+	;;
+esac
+
 # Mount everything except nfs filesystems.
-if [ -z "${networkfs_types}" ]; then
-	networkfs_types='nfs:NFS smbfs:SMB portalfs:PORTAL'
-fi
 mount_excludes='no'
 for i in ${networkfs_types}; do
 	fstype=${i%:*}
