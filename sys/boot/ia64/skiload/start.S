@@ -26,8 +26,6 @@
  * $FreeBSD$
  */
 
-#include <machine/fpu.h>
-
 #define	STACKSIZE	16384
 #define	FPSR_DEFAULT	0x0009804c0270033f
 
