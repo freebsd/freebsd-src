@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.41 1996/08/29 19:57:48 peter Exp $
+#	$Id: Makefile,v 1.42 1996/08/30 19:37:14 peter Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -53,6 +53,9 @@ beforeinstall: ${SHARED}
 	cd ${.CURDIR}/protocols; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${PROTOFILES} ${DESTDIR}/usr/include/protocols
+	cd ${.CURDIR}/rpc; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${RPCFILES} ${DESTDIR}/usr/include/rpc
 	@rm -f osreldate.h
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
 	@${ECHO} creating osreldate.h from newvers.sh
