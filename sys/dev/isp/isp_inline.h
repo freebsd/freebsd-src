@@ -219,4 +219,58 @@ isp_print_bytes(isp, msg, amt, arg)
 		buf[0] = 0;
 	}
 }
+
+/*
+ * Do the common path to try and ensure that link is up, we've scanned
+ * the fabric (if we're on a fabric), and that we've synchronized this
+ * all with our own database and done the appropriate logins.
+ *
+ * We repeatedly check for firmware state and loop state after each
+ * action because things may have changed while we were doing this.
+ * Any failure or change of state causes us to return a nonzero value.
+ *
+ * We honor HBA roles in that if we're not in Initiator mode, we don't
+ * attempt to sync up the database (that's for somebody else to do,
+ * if ever).
+ *
+ * We assume we enter here with any locks held.
+ */
+
+static INLINE int isp_fc_runstate __P((struct ispsoftc *, int));
+
+static INLINE int
+isp_fc_runstate(isp, tval)
+	struct ispsoftc *isp;
+	int tval;
+{
+	fcparam *fcp;
+	int *tptr;
+
+	if (IS_SCSI(isp))
+		return (0);
+
+	tptr = tval? &tval : NULL;
+	if (isp_control(isp, ISPCTL_FCLINK_TEST, tptr) != 0) {
+		return (-1);
+	}
+	fcp = FCPARAM(isp);
+	if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate < LOOP_PDB_RCVD)
+		return (-1);
+	if (isp_control(isp, ISPCTL_SCAN_FABRIC, NULL) != 0) {
+		return (-1);
+	}
+	if (isp_control(isp, ISPCTL_SCAN_LOOP, NULL) != 0) {
+		return (-1);
+	}
+	if ((isp->isp_role & ISP_ROLE_INITIATOR) == 0) {
+		return (0);
+	}
+	if (isp_control(isp, ISPCTL_PDB_SYNC, NULL) != 0) {
+		return (-1);
+	}
+	if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate != LOOP_READY) {
+		return (-1);
+	}
+	return (0);
+}
 #endif	/* _ISP_INLINE_H */
