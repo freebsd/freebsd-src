@@ -58,7 +58,7 @@ struct ddloc {
 	long	loc_index;	/* key associated with structure */
 	long	loc_seek;	/* magic cookie returned by getdirentries */
 	long	loc_loc;	/* offset of entry in buffer */
-	DIR*	loc_dirp;	/* directory which used this entry */
+	const DIR* loc_dirp;	/* directory which used this entry */
 };
 
 #define	NDIRHASH	32	/* Num of hash lists, must be a power of 2 */
@@ -134,7 +134,7 @@ found:
  */
 void
 _reclaim_telldir(dirp)
-	register DIR *dirp;
+	register const DIR *dirp;
 {
 	register struct ddloc *lp;
 	register struct ddloc **prevlp;
