@@ -1473,7 +1473,8 @@ uma_startup(void *bootmem)
 	slabrefzone = uma_zcreate("UMA RCntSlabs",
 				  slabsize,
 				  NULL, NULL, NULL, NULL,
-				  UMA_ALIGN_PTR, UMA_ZFLAG_INTERNAL);
+				  UMA_ALIGN_PTR,
+				  UMA_ZFLAG_INTERNAL|UMA_ZONE_NOFREE);
 
 	hashzone = uma_zcreate("UMA Hash",
 	    sizeof(struct slabhead *) * UMA_HASH_SIZE_INIT,
