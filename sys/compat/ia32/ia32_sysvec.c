@@ -129,20 +129,33 @@ struct sysentvec ia32_freebsd_sysvec = {
 };
 
 
-const char freebsd32_emul_path[] = "/compat/ia32";
-
 static Elf32_Brandinfo ia32_brand_info = {
 						ELFOSABI_FREEBSD,
 						EM_386,
 						"FreeBSD",
-						"/compat/ia32",
-						"/usr/libexec/ld-elf.so.1",
-						&ia32_freebsd_sysvec
+						NULL,
+						"/libexec/ld-elf.so.1",
+						&ia32_freebsd_sysvec,
+						"/libexec/ld-elf-32.so.1",
 					  };
 
 SYSINIT(ia32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&ia32_brand_info);
+
+static Elf32_Brandinfo ia32_brand_oinfo = {
+						ELFOSABI_FREEBSD,
+						EM_386,
+						"FreeBSD",
+						NULL,
+						"/usr/libexec/ld-elf.so.1",
+						&ia32_freebsd_sysvec,
+						"/usr/libexec/ld-elf-32.so.1",
+					  };
+
+SYSINIT(oia32, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf32_insert_brand_entry,
+	&ia32_brand_oinfo);
 
 /* XXX may be freebsd32 MI */
 static register_t *

@@ -84,14 +84,29 @@ static Elf64_Brandinfo freebsd_brand_info = {
 						ELFOSABI_FREEBSD,
 						EM_IA_64,
 						"FreeBSD",
-						"",
+						NULL,
 						"/libexec/ld-elf.so.1",
-						&elf64_freebsd_sysvec
+						&elf64_freebsd_sysvec,
+						NULL,
 					  };
 
 SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_info);
+
+static Elf64_Brandinfo freebsd_brand_oinfo = {
+						ELFOSABI_FREEBSD,
+						EM_IA_64,
+						"FreeBSD",
+						NULL,
+						"/usr/libexec/ld-elf.so.1",
+						&elf64_freebsd_sysvec,
+						NULL,
+					  };
+
+SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf64_insert_brand_entry,
+	&freebsd_brand_oinfo);
 
 Elf_Addr link_elf_get_gp(linker_file_t);
 
