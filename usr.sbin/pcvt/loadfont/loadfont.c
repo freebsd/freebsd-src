@@ -44,6 +44,7 @@
  *---------------------------------------------------------------------------*/
 
 #include <stdio.h>
+#include <err.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -129,13 +130,7 @@ char *argv[];
 	if(dflag)
 	{
 		if((fd = open(device, O_RDWR)) == -1)
-		{
-			char buffer[80];
-			strcpy(buffer,"ERROR opening ");
-			strcat(buffer,device);
-			perror(buffer);
-			exit(1);
-		}
+			err(1, "ERROR opening %s", device);
 	}
 	else
 	{
@@ -147,10 +142,7 @@ char *argv[];
 		int i;
 
 		if(ioctl(fd, VGAGETSCREEN, &screeninfo) == -1)
-		{
-		    perror("ioctl VGAGETSCREEN failed");
-		    exit(1);
-		}
+			err(1, "ioctl VGAGETSCREEN failed");
 
 		switch(screeninfo.adaptor_type)
 		{
@@ -183,20 +175,10 @@ char *argv[];
 	sbp = &sbuf;
 
 	if((in = fopen(filename, "r")) == NULL)
-	{
-		char buffer[80];
-		sprintf(buffer, "cannot open file %s for reading", filename);
-		perror(buffer);
-		exit(1);
-	}
+		err(1, "cannot open file %s for reading", filename);
 
 	if((fstat(fileno(in), sbp)) != 0)
-	{
-		char buffer[80];
-		sprintf(buffer, "cannot fstat file %s", filename);
-		perror(buffer);
-		exit(1);
-	}
+		err(1, "cannot fstat file %s", filename);
 
 	switch(sbp->st_size)
 	{
@@ -225,21 +207,15 @@ char *argv[];
 			break;
 
 		default:
-			fprintf(stderr,"error, file %s is no valid font file, size=%d\n",argv[1],sbp->st_size);
-			exit(1);
+			errx(1, "error, file %s is no valid font file, size=%d", argv[1], sbp->st_size);
 	}
 
 	if((fonttab = (unsigned char *)malloc((size_t)sbp->st_size)) == NULL)
-	{
-		fprintf(stderr,"error, malloc failed\n");
-		exit(1);
-	}
+		errx(1, "error, malloc failed");
 
 	if((ret = fread(fonttab, sizeof(*fonttab), sbp->st_size, in)) != sbp->st_size)
-	{
-		fprintf(stderr,"error reading file %s, size = %d, read =  is no valid font file, size=%d\n",argv[1],sbp->st_size, ret);
-		exit(1);
-	}
+		errx(1, "error reading file %s, size = %d, read = is no valid font file, size=%d",
+			 argv[1], sbp->st_size, ret);
 
 	loadfont(chr_set, chr_height, fonttab);
 	setfont(chr_set, 1, chr_height - 1, scr_scan, scr_rows);
@@ -259,10 +235,7 @@ int charset, fontloaded, charscan, scrscan, scrrow;
 	vfattr.screen_size = scrrow;
 
 	if(ioctl(fd, VGASETFONTATTR, &vfattr) == -1)
-	{
-		perror("loadfont - ioctl VGASETFONTATTR failed, error");
-		exit(1);
-	}
+		err(1, "ioctl VGASETFONTATTR failed, error");
 }
 
 loadfont(fontset,charscanlines,font_table)
@@ -285,10 +258,7 @@ unsigned char *font_table;
 		}
 		font_table += charscanlines;
 		if(ioctl(fd, VGALOADCHAR, &vlc) == -1)
-		{
-			perror("loadfont - ioctl VGALOADCHAR failed, error");
-			exit(1);
-		}
+			err(1, "ioctl VGALOADCHAR failed, error");
 	}
 }
 
@@ -301,10 +271,7 @@ int charset;
 	vfattr.character_set = charset;
 
 	if(ioctl(fd, VGAGETFONTATTR, &vfattr) == -1)
-	{
-		perror("loadfont - ioctl VGAGETFONTATTR failed, error");
-		exit(1);
-	}
+		err(1, "ioctl VGAGETFONTATTR failed, error");
 	printf(" %d  ",charset);
 	if(vfattr.font_loaded)
 	{
