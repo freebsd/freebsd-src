@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_epreg.h,v 1.1 1993/12/14 04:26:47 hpeyerl Exp $
+ *	$Id: if_epreg.h,v 1.2 1994/01/10 19:13:50 ats Exp $
  */
 /**************************************************************************
  *										  *
@@ -181,9 +181,9 @@
 #define SET_RD_0_MASK		(u_short) (0xf<<11)
 #define SET_RX_FILTER		(u_short) (0x10<<11)
 #      define FIL_INDIVIDUAL	(u_short) (0x1)
-#      define FIL_GROUP		(u_short) (0x2)
+#      define FIL_MULTICAST	(u_short) (0x2)
 #      define FIL_BRDCST	(u_short) (0x4)
-#      define FIL_ALL		(u_short) (0x8)
+#      define FIL_PROMISC	(u_short) (0x8)
 #define SET_RX_EARLY_THRESH	(u_short) (0x11<<11)
 #define SET_TX_AVAIL_THRESH	(u_short) (0x12<<11)
 #define SET_TX_START_THRESH	(u_short) (0x13<<11)
@@ -276,8 +276,8 @@
 #define ACTIVATE_ADAPTER_TO_CONFIG 	0xff
 #define ENABLE_DRQ_IRQ			0x0001
 #define MFG_ID 				0x6d50
-#define PROD_ID 			0x9150
-#define BASE 				sc->ep_io_addr
+#define PROD_ID 			0x9050
+#define BASE 				sc->ep_iobase
 #define GO_WINDOW(x) 			outw(BASE+EP_COMMAND, WINDOW_SELECT|x)
 #define AUI 				0x1
 #define BNC 				0x2
@@ -293,3 +293,14 @@
 #define ENABLE_UTP			0xc0
 #define DISABLE_UTP			0x0
 #define RX_BYTES_MASK			(u_short) (0x07ff)
+
+
+/*
+ * EISA registers (offset from slot base)
+ */
+#define	EISA_VENDOR		0x0c80	/* vendor ID (2 ports) */
+#define	EISA_MODEL		0x0c82	/* model number (2 ports) */
+#define	EISA_CONTROL		0x0c84
+#define	 EISA_RESET		0x04
+#define	 EISA_ERROR		0x02
+#define	 EISA_ENABLE		0x01
