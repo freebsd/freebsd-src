@@ -45,7 +45,12 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)bdes.c	8.1 (Berkeley) 6/6/93";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 /*
