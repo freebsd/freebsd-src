@@ -18,6 +18,12 @@
 .Sh DESCRIPTION
 /dev/snp? are snoop devices which allow user to attach to any tty
 and watch activities on it.
+The kernel must be compiled with
+.Cd "device snp" ,
+or the
+.Nm
+device must be loaded,
+for these devices to be available.
 .Pp
 To associate a given
 .Nm
@@ -50,6 +56,7 @@ and detached.
 .Sh SEE ALSO
 .Xr pty 4 ,
 .Xr sio 4 ,
+.Xr kldload 8 ,
 .Xr watch 8
 .Sh RESTRICTIONS
 Only the superuser may access the

@@ -14,7 +14,16 @@
 .Op Ar tty
 .Sh DESCRIPTION
 .Nm Watch
-allows the user to examine all data coming through a specified tty.
+allows the user to examine all data coming through a specified tty
+using the
+.Xr snp 4
+device.
+If the
+.Xr snp 4
+device is not available,
+.Nm
+will attempt to load the module
+.Pq Nm snp .
 .Nm Watch
 writes to standard output.
 .Pp
@@ -91,7 +100,8 @@ control-X is passed to the terminal as with other control characters.
 .Sh SEE ALSO
 .Xr pty 4 ,
 .Xr sio 4 ,
-.Xr snp 4
+.Xr snp 4 ,
+.Xr kldload 8
 .Sh BUGS
 No terminal emulation is performed.
 All user output is reproduced as-is.
