@@ -5,6 +5,8 @@
 ; the /etc/namedb directory.
 ;
 
+$TTL	3600
+
 @	IN	SOA	@host@. root.@host@.  (
 				@date@	; Serial
 				3600	; Refresh
