@@ -170,7 +170,7 @@ fsm_open(f)
 
     case CLOSING:
 	f->state = STOPPING;
-	/* fall through */
+	/* FALLTHROUGH */
     case STOPPED:
     case OPENED:
 	if( f->flags & OPT_RESTART ){
@@ -674,7 +674,7 @@ fsm_protreject(f)
     switch( f->state ){
     case CLOSING:
 	UNTIMEOUT(fsm_timeout, f);	/* Cancel timeout */
-	/* fall through */
+	/* FALLTHROUGH */
     case CLOSED:
 	f->state = CLOSED;
 	if( f->callbacks->finished )
@@ -686,7 +686,7 @@ fsm_protreject(f)
     case ACKRCVD:
     case ACKSENT:
 	UNTIMEOUT(fsm_timeout, f);	/* Cancel timeout */
-	/* fall through */
+	/* FALLTHROUGH */
     case STOPPED:
 	f->state = STOPPED;
 	if( f->callbacks->finished )

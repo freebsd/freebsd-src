@@ -733,7 +733,7 @@ main(int argc, char *argv[])
     case MOUSE_PROTO_INPORT:
         /* INPORT and BUS are the same... */
 	rodent.rtype = MOUSE_PROTO_BUS;
-	/* FALL THROUGH */
+	/* FALLTHROUGH */
     case MOUSE_PROTO_BUS:
 	if (!rodent.portname)
 	    rodent.portname = "/dev/mse0";
@@ -1398,7 +1398,7 @@ r_init(void)
     case MOUSE_PROTO_SYSMOUSE:
 	if (rodent.hw.iftype == MOUSE_IF_SYSMOUSE)
 	    setmousespeed(1200, rodent.baudrate, rodentcflags[rodent.rtype]);
-	/* fall through */
+	/* FALLTHROUGH */
 
     case MOUSE_PROTO_BUS:
     case MOUSE_PROTO_INPORT:
@@ -1877,7 +1877,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 		    break;
 		case 0:
 		    /* device type packet - shouldn't happen */
-		    /* FALL THROUGH */
+		    /* FALLTHROUGH */
 		default:
 		    act->dx = act->dy = 0;
 		    act->button = act->obutton;

@@ -223,7 +223,7 @@ prompt_Read(struct fdescriptor *d, struct bundle *bundle, const fd_set *fdset)
       prompt_TtyCommandMode(p);
       p->nonewline = 0;
       /* We'll get a prompt because of our status change */
-      /* Fall through */
+      /* FALLTHROUGH */
 
     default:
       /* Wait 'till we're in a state we care about */
