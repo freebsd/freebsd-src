@@ -68,7 +68,7 @@ char *
 mac_to_text(struct mac *mac_p, size_t *len_p)
 {
 	char *biba = NULL, *mls = NULL, *string = NULL, *te = NULL;
-	int len = -1;
+	int len = -1, before;
 
 	biba = mac_biba_string_from_label(mac_p);
 	if (biba == NULL)
@@ -82,10 +82,50 @@ mac_to_text(struct mac *mac_p, size_t *len_p)
 	if (te == NULL)
 		goto out;
 
-	len = asprintf(&string, "%s%s%s%s%s%s%s%s%s%s%s",
-	    STRING_BIBA, STRING_ELEMENTSEP, biba, STRING_LISTSEP,
-	    STRING_MLS, STRING_ELEMENTSEP, mls, STRING_LISTSEP,
-	    STRING_TE, STRING_ELEMENTSEP, te);
+	len = 0;
+	if (strlen(biba) != 0)
+		len += strlen(STRING_LISTSEP) + strlen(STRING_BIBA) +
+		    strlen(STRING_ELEMENTSEP) + strlen(biba);
+	if (strlen(mls) != 0)
+		len += strlen(STRING_LISTSEP) + strlen(STRING_MLS) +
+		    strlen(STRING_ELEMENTSEP) + strlen(mls);
+	if (strlen(te) != 0)
+		len += strlen(STRING_LISTSEP) + strlen(STRING_TE) +
+		    strlen(STRING_ELEMENTSEP) + strlen(te);
+
+	if (len == 0) {
+		string = strdup("");
+		goto out;
+	}
+
+	string = (char *) malloc(len+1);
+	if (string == NULL)
+		return (NULL);
+
+	len = 0;
+	before = 0;
+
+	if (strlen(biba) != 0) {
+		if (before)
+			len += sprintf(string + len, "%s", STRING_LISTSEP);
+		len += sprintf(string + len, "%s%s%s", STRING_BIBA,
+		    STRING_ELEMENTSEP, biba);
+		before = 1;
+	}
+	if (strlen(mls) != 0) {
+		if (before)
+			len += sprintf(string + len, "%s", STRING_LISTSEP);
+		len += sprintf(string + len, "%s%s%s", STRING_MLS,
+		    STRING_ELEMENTSEP, mls);
+		before = 1;
+	}
+	if (strlen(te) != 0) {
+		if (before)
+			len += sprintf(string + len, "%s", STRING_LISTSEP);
+		len += sprintf(string + len, "%s%s%s", STRING_TE,
+		    STRING_ELEMENTSEP, te);
+		before = 1;
+	}
 
 out:
 	if (biba != NULL)
@@ -165,7 +205,29 @@ mac_from_text(const char *text_p)
 		}
 	}
 
-	if (biba_seen != 1 || mls_seen != 1 || te_seen != 1) {
+	if (biba_seen == 0) {
+		error = mac_biba_label_from_string("", label);
+		if (error) {
+			errno = error;
+			goto exit2;
+		}
+	}
+	if (mls_seen == 0) {
+		error = mac_mls_label_from_string("", label);
+		if (error) {
+			errno = error;
+			goto exit2;
+		}
+	}
+	if (te_seen == 0) {
+		error = mac_te_label_from_string("", label);
+		if (error) {
+			errno = error;
+			goto exit2;
+		}
+	}
+
+	if (biba_seen > 1 || mls_seen > 1 || te_seen > 1) {
 		errno = EINVAL;
 		goto exit2;
 	}
