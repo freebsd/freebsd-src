@@ -65,13 +65,14 @@ typedef struct acl	*acl_t;
 /*
  * Possible valid values for ae_tag field.
  */
-#define	ACL_USER_OBJ	0x00000001
-#define	ACL_USER	0x00000002
-#define	ACL_GROUP_OBJ	0x00000004
-#define	ACL_GROUP	0x00000008
-#define	ACL_MASK	0x00000010
-#define	ACL_OTHER	0x00000020
-#define	ACL_OTHER_OBJ	ACL_OTHER
+#define	ACL_UNDEFINED_TAG	0x00000000
+#define	ACL_USER_OBJ		0x00000001
+#define	ACL_USER		0x00000002
+#define	ACL_GROUP_OBJ		0x00000004
+#define	ACL_GROUP		0x00000008
+#define	ACL_MASK		0x00000010
+#define	ACL_OTHER		0x00000020
+#define	ACL_OTHER_OBJ		ACL_OTHER
 
 /*
  * Possible valid values for acl_type_t arguments.
@@ -92,6 +93,18 @@ typedef struct acl	*acl_t;
 #define	ACL_PERM_NONE		0x0000
 #define	ACL_PERM_BITS		(ACL_EXECUTE | ACL_WRITE | ACL_READ)
 #define	ACL_POSIX1E_BITS	(ACL_EXECUTE | ACL_WRITE | ACL_READ)
+
+/*
+ * Possible entry_id values for acl_get_entry()
+ */
+#define        ACL_FIRST_ENTRY         0
+#define        ACL_NEXT_ENTRY          1
+
+/*
+ * Undefined value in ae_id field
+ */
+#define        ACL_UNDEFINED_ID        ((uid_t)-1)
+
 
 #ifdef _KERNEL
 
