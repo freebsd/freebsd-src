@@ -334,7 +334,7 @@ RetryFault:;
 				vm_page_cowfault(fs.m);
 				splx(s);
 				vm_page_unlock_queues();
-				unlock_things(&fs);
+				unlock_and_deallocate(&fs);
 				goto RetryFault;
 			}
 
