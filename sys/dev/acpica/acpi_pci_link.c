@@ -270,6 +270,9 @@ acpi_pci_link_dump(struct acpi_pci_link_softc *sc)
 	struct link *link;
 	int i, j;
 
+#ifdef SMP
+	ACPI_SERIAL_ASSERT(pci_link);
+#endif
 	printf("Index  IRQ  Rtd  Ref  IRQs\n");
 	for (i = 0; i < sc->pl_num_links; i++) {
 		link = &sc->pl_links[i];
@@ -293,6 +296,9 @@ acpi_pci_link_attach(device_t dev)
 	int prslinks;
 
 	sc = device_get_softc(dev);
+#ifdef SMP
+	ACPI_SERIAL_BEGIN(pci_link);
+#endif
 
 	/*
 	 * Count the number of current resources so we know how big of
@@ -377,9 +383,15 @@ acpi_pci_link_attach(device_t dev)
 		device_printf(dev, "Links after disable:\n");
 		acpi_pci_link_dump(sc);
 	}
+#ifdef SMP
+	ACPI_SERIAL_END(pci_link);
+#endif
 	return (0);
 
 fail:
+#ifdef SMP
+	ACPI_SERIAL_END(pci_link);
+#endif
 	for (i = 0; i < sc->pl_num_links; i++)
 		if (sc->pl_links[i].l_irqs != NULL)
 			free(sc->pl_links[i].l_irqs, M_PCI_LINK);
