@@ -1412,6 +1412,9 @@ ahc_timeout(void *arg)
 		pause_sequencer(ahc);
 	} while (ahc_inb(ahc, INTSTAT) & INT_PEND);
 
+	/* Make sure the sequencer is in a safe location. */
+	ahc_clear_critical_section(ahc);
+
 	ahc_print_path(ahc, scb);
 	if ((scb->flags & SCB_ACTIVE) == 0) {
 		/* Previous timeout took care of me already */
@@ -1447,7 +1450,7 @@ ahc_timeout(void *arg)
 			printf("sg[%d] - Addr 0x%x : Length %d\n",
 			       i,
 			       scb->sg_list[i].addr,
-			       scb->sg_list[i].len);
+			       scb->sg_list[i].len & AHC_SG_LEN_MASK);
 		}
 	}
 	if (scb->flags & (SCB_DEVICE_RESET|SCB_ABORT)) {
@@ -1497,7 +1500,7 @@ bus_reset:
 			 * and wait for it's timeout to expire before
 			 * taking additional action.
 			 */ 
-			active_scb = &ahc->scb_data->scbarray[active_scb_index];
+			active_scb = ahc_lookup_scb(ahc, active_scb_index);
 			if (active_scb->hscb->scsiid != scb->hscb->scsiid
 			 || active_scb->hscb->lun != scb->hscb->lun) {
 				struct	ccb_hdr *ccbh;
@@ -1574,7 +1577,7 @@ bus_reset:
 			}
 
 			if (disconnected) {
-				u_int active_scb;
+				struct scb *prev_scb;
 
 				ahc_set_recoveryscb(ahc, scb);
 				/*
@@ -1585,28 +1588,25 @@ bus_reset:
 					   |  SCB_DEVICE_RESET;
 
 				/*
-				 * Mark the cached copy of this SCB in the
-				 * disconnected list too, so that a reconnect
-				 * at this point causes a BDR or abort.
+				 * Actually re-queue this SCB in an attempt
+				 * to select the device before it reconnects.
+				 * In either case (selection or reselection),
+				 * we will now issue a target reset to the
+				 * timed-out device.
+				 *
+				 * Remove any cached copy of this SCB in the
+				 * disconnected list in preparation for the
+				 * queuing of our abort SCB.  We use the
+				 * same element in the SCB, SCB_NEXT, for
+				 * both the qinfifo and the disconnected list.
 				 */
-				active_scb = ahc_inb(ahc, SCBPTR);
-				if (ahc_search_disc_list(ahc, target,
-							 channel, lun,
-							 scb->hscb->tag,
-							 /*stop_on_first*/TRUE,
-							 /*remove*/FALSE,
-							 /*save_state*/FALSE)) {
-					u_int scb_control;
-
-					scb_control = ahc_inb(ahc, SCB_CONTROL);
-					scb_control |= MK_MESSAGE;
-					ahc_outb(ahc, SCB_CONTROL, scb_control);
-				}
-				ahc_outb(ahc, SCBPTR, active_scb);
+				ahc_search_disc_list(ahc, target, channel,
+						     lun, scb->hscb->tag,
+						     /*stop_on_first*/TRUE,
+						     /*remove*/TRUE,
+						     /*save_state*/TRUE);
 
 				/*
-				 * Actually re-queue this SCB in case we can
-				 * select the device before it reconnects.
 				 * Clear out any entries in the QINFIFO first
 				 * so we are the next SCB for this target
 				 * to run.
@@ -1620,15 +1620,16 @@ bus_reset:
 						   SEARCH_COMPLETE);
 				ahc_print_path(ahc, scb);
 				printf("Queuing a BDR SCB\n");
-				ahc->qinfifo[ahc->qinfifonext++] =
-				    scb->hscb->tag;
-				if ((ahc->features & AHC_QUEUE_REGS) != 0) {
-					ahc_outb(ahc, HNSCB_QOFF,
-						 ahc->qinfifonext);
-				} else {
-					ahc_outb(ahc, KERNEL_QINPOS,
-						 ahc->qinfifonext);
+				prev_scb = NULL;
+				if (ahc_qinfifo_count(ahc) != 0) {
+					u_int prev_tag;
+
+					prev_tag =
+					    ahc->qinfifo[ahc->qinfifonext - 1];
+					prev_scb = ahc_lookup_scb(ahc,
+								  prev_tag);
 				}
+				ahc_qinfifo_requeue(ahc, prev_scb, scb);
 				scb->io_ctx->ccb_h.timeout_ch =
 				    timeout(ahc_timeout, (caddr_t)scb, 2 * hz);
 				unpause_sequencer(ahc);
