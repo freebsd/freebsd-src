@@ -246,8 +246,8 @@ fork1(p1, flags, procp)
 	 * a nonprivileged user to exceed their current limit.
 	 */
 	ok = chgproccnt(p1->p_cred->p_uidinfo, 1,
-		p1->p_rlimit[RLIMIT_NPROC].rlim_cur);
-	if (uid != 0 && !ok) {
+		(uid != 0) ? p1->p_rlimit[RLIMIT_NPROC].rlim_cur : 0);
+	if (!ok) {
 		/*
 		 * Back out the process count
 		 */
