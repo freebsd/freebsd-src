@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.20 1995/08/02 10:12:47 dfr Exp $
+ * $Id: nfs_serv.c,v 1.21 1995/08/03 12:14:16 dfr Exp $
  */
 
 /*
@@ -1706,8 +1706,7 @@ nfsrv_remove(nfsd, slp, procp, mrq)
 			error = EBUSY;
 			goto out;
 		}
-		if (vp->v_flag & VTEXT)
-			(void) vnode_pager_uncache(vp);
+		vnode_pager_uncache(vp);
 out:
 		if (!error) {
 		    	int deallocobj = 0;
