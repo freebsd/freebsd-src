@@ -150,44 +150,38 @@ ng_device_constructor(node_p node)
 	if (priv == NULL)
 		return (ENOMEM);
 
-	mtx_init(&priv->ngd_mtx, "ng_device", NULL, MTX_DEF);
-	mtx_lock(&priv->ngd_mtx);
-
 	mtx_lock(&ng_device_mtx);
-
 	priv->unit = get_free_unit();
 	if(priv->unit < 0) {
 		printf("%s: No free unit found by get_free_unit(), "
 				"increase MAX_NGD\n",__func__);
 		mtx_unlock(&ng_device_mtx);
-		mtx_destroy(&priv->ngd_mtx);
 		FREE(priv, M_NETGRAPH);
 		return(EINVAL);
 	}
-
-	priv->ngddev = make_dev(&ngd_cdevsw, unit2minor(priv->unit), UID_ROOT,
-	    GID_WHEEL, 0600, NG_DEVICE_DEVNAME "%d", priv->unit);
-	if(priv->ngddev == NULL) {
-		printf("%s(): make_dev() failed\n",__func__);
-		mtx_unlock(&ng_device_mtx);
-		mtx_destroy(&priv->ngd_mtx);
-		FREE(priv, M_NETGRAPH);
-		return(EINVAL);
-	}
-
 	SLIST_INSERT_HEAD(&ngd_nodes, priv, links);
-
 	mtx_unlock(&ng_device_mtx);
 
+	/* Initialize mutexes and queue */
+	mtx_init(&priv->ngd_mtx, "ng_device", NULL, MTX_DEF);
 	mtx_init(&priv->readq.ifq_mtx, "ng_device queue", NULL, MTX_DEF);
 	IFQ_SET_MAXLEN(&priv->readq, ifqmaxlen);
 
 	/* Link everything together */
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
+
+	priv->ngddev = make_dev(&ngd_cdevsw, unit2minor(priv->unit), UID_ROOT,
+	    GID_WHEEL, 0600, NG_DEVICE_DEVNAME "%d", priv->unit);
+	if(priv->ngddev == NULL) {
+		printf("%s(): make_dev() failed\n",__func__);
+		mtx_destroy(&priv->ngd_mtx);
+		mtx_destroy(&priv->readq.ifq_mtx);
+		FREE(priv, M_NETGRAPH);
+		return(EINVAL);
+	}
+	/* XXX: race here? */
 	priv->ngddev->si_drv1 = priv;
-	
-	mtx_unlock(&priv->ngd_mtx);
 
 	return(0);
 }
@@ -547,7 +541,7 @@ ng_device_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
-		mtx_init(&ng_device_mtx, "ng_device", NULL, MTX_DEF);
+		mtx_init(&ng_device_mtx, "ng_device global", NULL, MTX_DEF);
 		break;
 	case MOD_UNLOAD:
 		mtx_destroy(&ng_device_mtx);
