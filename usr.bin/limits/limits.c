@@ -20,7 +20,7 @@
  *
  * Display/change(+runprogram)/eval resource limits.
  *
- *	$Id: limits.c,v 1.3 1997/03/29 04:30:26 imp Exp $
+ *	$Id: limits.c,v 1.4 1997/05/10 19:00:58 davidn Exp $
  */
 
 #include <err.h>
@@ -450,7 +450,7 @@ usage(char const *msg, ...)
 	va_end(argp);
     }
     (void)fprintf(stderr,
-    "limits [-C class|-U user] [-eaSHBE] [-cdflmnstu [val]] [[name=val ...] cmd]\n");
+"usage: limits [-C class|-U user] [-eaSHBE] [-cdflmnstu [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
