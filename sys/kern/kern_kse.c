@@ -270,8 +270,26 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 int
 kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
+	struct proc *p;
+	struct thread *td2;
 
-	return(ENOSYS);
+	p = td->td_proc;
+	mtx_lock_spin(&sched_lock);
+	FOREACH_THREAD_IN_PROC(p, td2) {
+		if (td2->td_mailbox == uap->tmbx) {
+			td2->td_flags |= TDF_INTERRUPT;
+			if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR)) {
+				if (td2->td_flags & TDF_CVWAITQ)
+					cv_abort(td2);
+				else
+					abortsleep(td2);
+			}	
+			mtx_unlock_spin(&sched_lock);
+			return 0;
+		}
+	}
+	mtx_unlock_spin(&sched_lock);
+	return(ESRCH);
 }
 
 int
@@ -1390,7 +1408,9 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	 * it would be nice if this all happenned only on the first time 
 	 * through. (the scan for extra work etc.)
 	 */
+	mtx_lock_spin(&sched_lock);
 	td->td_flags &= ~TDF_UPCALLING;
+	mtx_unlock_spin(&sched_lock);
 #if 0
 	error = suword((caddr_t)ke->ke_mailbox +
 	    offsetof(struct kse_mailbox, km_curthread), 0);
