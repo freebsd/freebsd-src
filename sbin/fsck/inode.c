@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)inode.c	8.4 (Berkeley) 4/18/94";
+static char sccsid[] = "@(#)inode.c	8.5 (Berkeley) 2/8/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -311,7 +311,10 @@ cacheino(dp, inumber)
 	inpp = &inphead[inumber % numdirs];
 	inp->i_nexthash = *inpp;
 	*inpp = inp;
-	inp->i_parent = (ino_t)0;
+	if (inumber == ROOTINO)
+		inp->i_parent = ROOTINO;
+	else
+		inp->i_parent = (ino_t)0;
 	inp->i_dotdot = (ino_t)0;
 	inp->i_number = inumber;
 	inp->i_isize = dp->di_size;
