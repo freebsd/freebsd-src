@@ -16,11 +16,42 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  */
+/*-
+ * Copyright (c) 2003-2005 McAfee, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc under DARPA/SPAWAR
+ * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS research
+ * program.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "opt_sysvipc.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -28,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/msg.h>
@@ -47,6 +79,11 @@ static int sysvmsg_modload(struct module *, int, void *);
 #define DPRINTF(a)	printf a
 #else
 #define DPRINTF(a)
+#endif
+#ifdef MAC_DEBUG
+#define MPRINTF(a)	printf a
+#else
+#define MPRINTF(a)
 #endif
 
 static void msg_freehdr(struct msg *msghdr);
@@ -188,6 +225,9 @@ msginit()
 		if (i > 0)
 			msghdrs[i-1].msg_next = &msghdrs[i];
 		msghdrs[i].msg_next = NULL;
+#ifdef MAC
+		mac_init_sysv_msgmsg(&msghdrs[i]);
+#endif
     	}
 	free_msghdrs = &msghdrs[0];
 
@@ -198,6 +238,9 @@ msginit()
 		msqids[i].u.msg_qbytes = 0;	/* implies entry is available */
 		msqids[i].u.msg_perm.seq = 0;	/* reset to a known value */
 		msqids[i].u.msg_perm.mode = 0;
+#ifdef MAC
+		mac_init_sysv_msgqueue(&msqids[i]);
+#endif
 	}
 	mtx_init(&msq_mtx, "msq", NULL, MTX_DEF);
 }
@@ -207,6 +250,9 @@ msgunload()
 {
 	struct msqid_kernel *msqkptr;
 	int msqid;
+#ifdef MAC
+	int i;
+#endif
 
 	for (msqid = 0; msqid < msginfo.msgmni; msqid++) {
 		/*
@@ -223,6 +269,12 @@ msgunload()
 	if (msqid != msginfo.msgmni)
 		return (EBUSY);
 
+#ifdef MAC
+	for (i = 0; i < msginfo.msgtql; i++)
+		mac_destroy_sysv_msgmsg(&msghdrs[i]);
+	for (msqid = 0; msqid < msginfo.msgmni; msqid++)
+		mac_destroy_sysv_msgqueue(&msqids[msqid]);
+#endif
 	free(msgpool, M_MSG);
 	free(msgmaps, M_MSG);
 	free(msghdrs, M_MSG);
@@ -320,6 +372,9 @@ msg_freehdr(msghdr)
 		panic("msghdr->msg_spot != -1");
 	msghdr->msg_next = free_msghdrs;
 	free_msghdrs = msghdr;
+#ifdef MAC
+	mac_cleanup_sysv_msgmsg(msghdr);
+#endif
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -373,6 +428,13 @@ msgctl(td, uap)
 		error = EINVAL;
 		goto done2;
 	}
+#ifdef MAC
+	error = mac_check_sysv_msqctl(td->td_ucred, msqkptr, cmd);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_msqctl returned %d\n", error));
+		goto done2;
+	}
+#endif
 
 	error = 0;
 	rval = 0;
@@ -384,6 +446,27 @@ msgctl(td, uap)
 		struct msg *msghdr;
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
+
+#ifdef MAC
+		/*
+		 * Check that the thread has MAC access permissions to
+		 * individual msghdrs.  Note: We need to do this in a
+		 * separate loop because the actual loop alters the
+		 * msq/msghdr info as it progresses, and there is no going
+		 * back if half the way through we discover that the
+		 * thread cannot free a certain msghdr.  The msq will get
+		 * into an inconsistent state.
+		 */
+		for (msghdr = msqkptr->u.msg_first; msghdr != NULL;
+		    msghdr = msghdr->msg_next) {
+			error = mac_check_sysv_msgrmid(td->td_ucred, msghdr);
+			if (error != 0) {
+				MPRINTF(("mac_check_sysv_msgrmid returned %d\n",
+				    error));
+				goto done2;
+			}
+		}
+#endif
 
 		/* Free the message headers */
 		msghdr = msqkptr->u.msg_first;
@@ -404,6 +487,10 @@ msgctl(td, uap)
 			panic("msg_qnum is screwed up");
 
 		msqkptr->u.msg_qbytes = 0;	/* Mark it as free */
+
+#ifdef MAC
+		mac_cleanup_sysv_msgqueue(msqkptr);
+#endif
 
 		wakeup(msqkptr);
 	}
@@ -505,6 +592,14 @@ msgget(td, uap)
 				    msgflg & 0700));
 				goto done2;
 			}
+#ifdef MAC
+			error = mac_check_sysv_msqget(cred, msqkptr);
+			if (error != 0) {
+				MPRINTF(("mac_check_sysv_msqget returned %d\n",
+				    error));
+				goto done2;
+			}
+#endif
 			goto found;
 		}
 	}
@@ -547,6 +642,9 @@ msgget(td, uap)
 		msqkptr->u.msg_stime = 0;
 		msqkptr->u.msg_rtime = 0;
 		msqkptr->u.msg_ctime = time_second;
+#ifdef MAC
+		mac_create_sysv_msgqueue(cred, msqkptr);
+#endif
 	} else {
 		DPRINTF(("didn't find it and wasn't asked to create it\n"));
 		error = ENOENT;
@@ -618,6 +716,14 @@ msgsnd(td, uap)
 		DPRINTF(("requester doesn't have write access\n"));
 		goto done2;
 	}
+
+#ifdef MAC
+	error = mac_check_sysv_msqsnd(td->td_ucred, msqkptr);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_msqsnd returned %d\n", error));
+		goto done2;
+	}
+#endif
 
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
 	DPRINTF(("msgsz=%d, msgssz=%d, segs_needed=%d\n", msgsz, msginfo.msgssz,
@@ -732,6 +838,14 @@ msgsnd(td, uap)
 	free_msghdrs = msghdr->msg_next;
 	msghdr->msg_spot = -1;
 	msghdr->msg_ts = msgsz;
+#ifdef MAC
+	/*
+	 * XXXMAC: Should the mac_check_sysv_msgmsq check follow here
+	 * immediately?  Or, should it be checked just before the msg is
+	 * enqueued in the msgq (as it is done now)?
+	 */
+	mac_create_sysv_msgmsg(td->td_ucred, msqkptr, msghdr);
+#endif
 
 	/*
 	 * Allocate space for the message
@@ -836,6 +950,27 @@ msgsnd(td, uap)
 		goto done2;
 	}
 
+#ifdef MAC
+	/*
+	 * Note: Since the task/thread allocates the msghdr and usually
+	 * primes it with its own MAC label, for a majority of policies, it
+	 * won't be necessary to check whether the msghdr has access
+	 * permissions to the msgq.  The mac_check_sysv_msqsnd check would
+	 * suffice in that case.  However, this hook may be required where
+	 * individual policies derive a non-identical label for the msghdr
+	 * from the current thread label and may want to check the msghdr
+	 * enqueue permissions, along with read/write permissions to the
+	 * msgq.
+	 */
+	error = mac_check_sysv_msgmsq(td->td_ucred, msghdr, msqkptr);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_msqmsq returned %d\n", error));
+		msg_freehdr(msghdr);
+		wakeup(msqkptr);
+		goto done2;
+	}
+#endif
+
 	/*
 	 * Put the message into the queue
 	 */
@@ -921,6 +1056,14 @@ msgrcv(td, uap)
 		goto done2;
 	}
 
+#ifdef MAC
+	error = mac_check_sysv_msqrcv(td->td_ucred, msqkptr);
+	if (error != 0) {
+		MPRINTF(("mac_check_sysv_msqrcv returned %d\n", error));
+		goto done2;
+	}
+#endif
+
 	msghdr = NULL;
 	while (msghdr == NULL) {
 		if (msgtyp == 0) {
@@ -934,6 +1077,15 @@ msgrcv(td, uap)
 					error = E2BIG;
 					goto done2;
 				}
+#ifdef MAC
+				error = mac_check_sysv_msgrcv(td->td_ucred,
+				    msghdr);
+				if (error != 0) {
+					MPRINTF(("mac_check_sysv_msgrcv "
+					    "returned %d\n", error));
+					goto done2;
+				}
+#endif
 				if (msqkptr->u.msg_first == msqkptr->u.msg_last) {
 					msqkptr->u.msg_first = NULL;
 					msqkptr->u.msg_last = NULL;
@@ -973,6 +1125,16 @@ msgrcv(td, uap)
 						error = E2BIG;
 						goto done2;
 					}
+#ifdef MAC
+					error = mac_check_sysv_msgrcv(
+					    td->td_ucred, msghdr);
+					if (error != 0) {
+						MPRINTF(("mac_check_sysv_"
+						    "msgrcv returned %d\n",
+						    error));
+						goto done2;
+					}
+#endif
 					*prev = msghdr->msg_next;
 					if (msghdr == msqkptr->u.msg_last) {
 						if (previous == NULL) {
