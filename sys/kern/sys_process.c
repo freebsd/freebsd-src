@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sys_process.c,v 1.45 1999/04/28 11:37:04 phk Exp $
+ *	$Id: sys_process.c,v 1.46 1999/07/01 22:52:40 peter Exp $
  */
 
 #include <sys/param.h>
@@ -275,6 +275,12 @@ ptrace(curp, uap)
 #ifdef PT_SETFPREGS
 	case PT_SETFPREGS:
 #endif
+#ifdef PT_GETDBREGS
+	case PT_GETDBREGS:
+#endif
+#ifdef PT_SETDBREGS
+	case PT_SETDBREGS:
+#endif
 		/* not being traced... */
 		if ((p->p_flag & P_TRACED) == 0)
 			return EPERM;
@@ -501,6 +507,32 @@ ptrace(curp, uap)
 			return (procfs_dofpregs(curp, p, NULL, &uio));
 		}
 #endif /* defined(PT_SETFPREGS) || defined(PT_GETFPREGS) */
+
+#ifdef PT_SETDBREGS
+	case PT_SETDBREGS:
+		write = 1;
+		/* fallthrough */
+#endif /* PT_SETDBREGS */
+#ifdef PT_GETDBREGS
+	case PT_GETDBREGS:
+		/* write = 0 above */
+#endif /* PT_SETDBREGS */
+#if defined(PT_SETDBREGS) || defined(PT_GETDBREGS)
+		if (!procfs_validdbregs(p))	/* no P_SYSTEM procs please */
+			return EINVAL;
+		else {
+			iov.iov_base = uap->addr;
+			iov.iov_len = sizeof(struct dbreg);
+			uio.uio_iov = &iov;
+			uio.uio_iovcnt = 1;
+			uio.uio_offset = 0;
+			uio.uio_resid = sizeof(struct dbreg);
+			uio.uio_segflg = UIO_USERSPACE;
+			uio.uio_rw = write ? UIO_WRITE : UIO_READ;
+			uio.uio_procp = curp;
+			return (procfs_dodbregs(curp, p, NULL, &uio));
+		}
+#endif /* defined(PT_SETDBREGS) || defined(PT_GETDBREGS) */
 
 	default:
 		break;
