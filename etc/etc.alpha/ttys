@@ -41,6 +41,8 @@ ttyv6	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv7	"/usr/libexec/getty Pc"		cons25	on  secure
 ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
+# serial console for AlphaServer 8200 and 8400 ("TurboLaser")
+#zs0	"/usr/libexec/getty std.9600"	vt100	on secure
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
 ttyd0	"/usr/libexec/getty std.9600"	vt100	on secure
 ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
