@@ -88,7 +88,7 @@ ep_pccard_probe(device_t dev)
 	if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
 		if (bootverbose) 
 			device_printf(dev, "Pass 1 of 2 detection "
-			    "failed (nonfatal)\n");
+			    "failed (nonfatal) id 0x%x\n", epb->prod_id);
 		epb->cmd_off = 2;
 		epb->prod_id = get_e(sc, EEPROM_PROD_ID);
 		if ((desc = ep_pccard_identify(epb->prod_id)) == NULL) {
@@ -127,6 +127,8 @@ ep_pccard_identify(u_short id)
 		return ("3Com Etherlink III 3C589");
 	case 0x2056: /* 3C562/3C563 */
 		return ("3Com 3C562D/3C563D");
+	case 0x0010:	/* 3C1 */
+		return ("3Com Megahertz C1");
 	}
 	return (NULL);
 }
@@ -140,6 +142,7 @@ ep_pccard_card_attach(struct ep_board *epb)
 	case 0x2b57: /* 3C572BT */
 	case 0x4057: /* 3C574 */
 	case 0x4b57: /* 3C574B */
+	case 0x0010: /* 3C1 */
 		epb->mii_trans = 1;
 		return (1);
 	case 0x2056: /* 3C562D/3C563D */
