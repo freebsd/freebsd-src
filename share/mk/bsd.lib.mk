@@ -1,10 +1,13 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.60 1997/08/05 03:49:48 asami Exp $
+#	$Id: bsd.lib.mk,v 1.61 1997/08/30 23:23:13 peter Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
+
+# Default executable format
+BINFORMAT?=	aout
 
 .if exists(${.CURDIR}/shlib_version)
 SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major

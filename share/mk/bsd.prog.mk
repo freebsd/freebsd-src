@@ -1,9 +1,12 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.54 1997/08/05 03:49:49 asami Exp $
+#	$Id: bsd.prog.mk,v 1.55 1997/08/30 23:23:17 peter Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
 .endif
+
+# Default executable format
+BINFORMAT?=	aout
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
