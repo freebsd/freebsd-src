@@ -221,6 +221,51 @@ cpu_thread_setup(struct thread *td)
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
+	struct pcb *pcb2;
+
+	/* Point the pcb to the top of the stack. */
+	pcb2 = td->td_pcb;
+
+	/*
+	 * Copy the upcall pcb.  This loads kernel regs.
+	 * Those not loaded individually below get their default
+	 * values here.
+	 *
+	 * XXXKSE It might be a good idea to simply skip this as
+	 * the values of the other registers may be unimportant.
+	 * This would remove any requirement for knowing the KSE
+	 * at this time (see the matching comment below for
+	 * more analysis) (need a good safe default).
+	 */
+	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
+
+	/*
+	 * Create a new fresh stack for the new thread.
+	 * Don't forget to set this stack value into whatever supplies
+	 * the address for the fault handlers.
+	 * The contexts are filled in at the time we actually DO the
+	 * upcall as only then do we know which KSE we got.
+	 */
+	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
+
+	/*
+	 * Set registers for trampoline to user mode.  Leave space for the
+	 * return address on stack.  These are the kernel mode register values.
+	 */
+	pcb2->pcb_cr3 = vtophys(vmspace_pmap(td->td_proc->p_vmspace)->pm_pml4);
+	pcb2->pcb_r12 = (register_t)fork_return;	    /* trampoline arg */
+	pcb2->pcb_rbp = 0;
+	pcb2->pcb_rsp = (register_t)td->td_frame - sizeof(void *);	/* trampoline arg */
+	pcb2->pcb_rbx = (register_t)td;			    /* trampoline arg */
+	pcb2->pcb_rip = (register_t)fork_trampoline;
+	pcb2->pcb_rflags = td->td_frame->tf_rflags & ~PSL_I; /* ints disabled */
+	/*
+	 * If we didn't copy the pcb, we'd need to do the following registers:
+	 * pcb2->pcb_savefpu:	cloned above.
+	 * pcb2->pcb_rflags:	cloned above.
+	 * pcb2->pcb_onfault:	cloned above (always NULL here?).
+	 * pcb2->pcb_[fg]sbase: cloned above
+	 */
 }
 
 /*
@@ -231,6 +276,29 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 void
 cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
+
+	/* 
+	 * Do any extra cleaning that needs to be done.
+	 * The thread may have optional components
+	 * that are not present in a fresh thread.
+	 * This may be a recycled thread so make it look
+	 * as though it's newly allocated.
+	 */
+	cpu_thread_clean(td);
+
+	/*
+	 * Set the trap frame to point at the beginning of the uts
+	 * function.
+	 */
+	td->td_frame->tf_rsp =
+	    ((register_t)ku->ku_stack.ss_sp + ku->ku_stack.ss_size) & ~0x0f;
+	td->td_frame->tf_rip = (register_t)ku->ku_func;
+
+	/*
+	 * Pass the address of the mailbox for this kse to the uts
+	 * function as a parameter on the stack.
+	 */
+	td->td_frame->tf_rdi = (register_t)ku->ku_mailbox;
 }
 
 
