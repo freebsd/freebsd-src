@@ -978,7 +978,8 @@ sbmix_init(snd_mixer *m)
 		mix_setdevs(m, SBPRO_MIXER_DEVICES);
 		mix_setrecdevs(m, SBPRO_RECORDING_DEVICES);
 		sb_setmixer(sb, 0, 1); /* reset mixer */
-		sb_setmixer(sb, MIC_VOL, 0x6); /* mic volume max */
+		if (!(sb->bd_flags & BD_F_ESS))
+			sb_setmixer(sb, MIC_VOL, 0x6); /* mic volume max */
 		sb_setmixer(sb, RECORD_SRC, 0x0); /* mic source */
 		sb_setmixer(sb, FM_VOL, 0x0); /* no midi */
 		break;
