@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.39 1999/01/27 20:09:17 dillon Exp $ */
+/* $Id: ccd.c,v 1.40 1999/02/10 00:03:23 ken Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -501,7 +501,7 @@ ccdinit(ccd, cpaths, p)
 	devstat_add_entry(&cs->device_stats, "ccd", ccd->ccd_unit,
 			  ccg->ccg_secsize, DEVSTAT_ALL_SUPPORTED,
 			  DEVSTAT_TYPE_ASC0 |DEVSTAT_TYPE_IF_OTHER,
-			  DEVSTAT_PRIORITY_OTHER);
+			  DEVSTAT_PRIORITY_CCD);
 
 	cs->sc_flags |= CCDF_INITED;
 	cs->sc_cflags = ccd->ccd_flags;	/* So we can find out later... */
