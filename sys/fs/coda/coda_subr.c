@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  * 	@(#) src/sys/coda/coda_subr.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_subr.c,v 1.4 1998/09/11 18:50:17 rvb Exp $
+ *  $Id: coda_subr.c,v 1.5 1998/09/13 13:57:59 rvb Exp $
  * 
   */
 
@@ -46,6 +46,9 @@
 /*
  * HISTORY
  * $Log: coda_subr.c,v $
+ * Revision 1.5  1998/09/13 13:57:59  rvb
+ * Finish conversion of cfs -> coda
+ *
  * Revision 1.4  1998/09/11 18:50:17  rvb
  * All the references to cfs, in symbols, structs, and strings
  * have been changed to coda.  (Same for CFS.)
@@ -210,7 +213,11 @@
  * 4.	coda_cacheprint (under DEBUG) prints names with vnode/cnode address
  */
 
+#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#define NVCODA 4
+#else
 #include <vcoda.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -460,6 +467,7 @@ coda_unmounting(whoIam)
 }
 
 #ifdef	DEBUG
+void
 coda_checkunmounting(mp)
 	struct mount *mp;
 {	
@@ -481,7 +489,7 @@ loop:
 	}
 }
 
-int
+void
 coda_cacheprint(whoIam)
 	struct mount *whoIam;
 {	
@@ -490,7 +498,7 @@ coda_cacheprint(whoIam)
 	int count = 0;
 
 	printf("coda_cacheprint: coda_ctlvp %p, cp %p", coda_ctlvp, VTOC(coda_ctlvp));
-	coda_nc_name(coda_ctlvp);
+	coda_nc_name(VTOC(coda_ctlvp));
 	printf("\n");
 
 	for (hash = 0; hash < CODA_CACHESIZE; hash++) {

@@ -27,7 +27,7 @@
  * Mellon the rights to redistribute these changes without encumbrance.
  * 
  *  	@(#) src/sys/cfs/coda_vfsops.c,v 1.1.1.1 1998/08/29 21:14:52 rvb Exp $
- *  $Id: coda_vfsops.c,v 1.4 1998/09/11 18:50:17 rvb Exp $
+ *  $Id: coda_vfsops.c,v 1.5 1998/09/13 13:57:59 rvb Exp $
  * 
  */
 
@@ -47,6 +47,9 @@
 /*
  * HISTORY
  * $Log: coda_vfsops.c,v $
+ * Revision 1.5  1998/09/13 13:57:59  rvb
+ * Finish conversion of cfs -> coda
+ *
  * Revision 1.4  1998/09/11 18:50:17  rvb
  * All the references to cfs, in symbols, structs, and strings
  * have been changed to coda.  (Same for CFS.)
@@ -181,7 +184,12 @@
  * 
  * 
  */ 
+
+#ifdef	ACTUALLY_LKM_NOT_KERNEL
+#define NVCODA 4
+#else
 #include <vcoda.h>
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -222,24 +230,6 @@ struct coda_op_stats coda_vfsopstats[CODA_VFSOPS_SIZE];
 
 extern int coda_nc_initialized;     /* Set if cache has been initialized */
 extern int vc_nb_open __P((dev_t, int, int, struct proc *));
-
-struct vfsops coda_vfsops = {
-    coda_mount,
-    coda_start,
-    coda_unmount,
-    coda_root,
-    coda_quotactl,
-    coda_nb_statfs,
-    coda_sync,
-    coda_vget,
-    (int (*) (struct mount *, struct fid *, struct sockaddr *, struct vnode **,
-	      int *, struct ucred **))
-	eopnotsupp,
-    (int (*) (struct vnode *, struct fid *)) eopnotsupp,
-    coda_init,
-};
-
-VFS_SET(coda_vfsops, coda, VFCF_NETWORK);
 
 int
 coda_vfsopstats_init(void)
@@ -727,3 +717,28 @@ struct mount *devtomp(dev)
     /* mount structure wasn't found */ 
     return(NULL); 
 }
+
+struct vfsops coda_vfsops = {
+    coda_mount,
+    coda_start,
+    coda_unmount,
+    coda_root,
+    coda_quotactl,
+    coda_nb_statfs,
+    coda_sync,
+    coda_vget,
+    (int (*) (struct mount *, struct fid *, struct sockaddr *, struct vnode **,
+	      int *, struct ucred **))
+	eopnotsupp,
+    (int (*) (struct vnode *, struct fid *)) eopnotsupp,
+    coda_init,
+};
+
+#ifdef	ACTUALLY_LKM_NOT_KERNEL
+/*
+ * This case is being handled in coda_fbsd.c
+ * What we want is too hairy for VFS_SET to get right!
+ */
+#else
+VFS_SET(coda_vfsops, coda, VFCF_NETWORK);
+#endif
