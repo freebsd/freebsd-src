@@ -98,11 +98,13 @@ interrupt(a0, a1, a2, framep)
 	globalp = (struct globaldata *) alpha_pal_rdval();
 	p = curproc;
 	atomic_add_int(&p->p_intr_nesting_level, 1);
+#ifndef SMP
 	{
 		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
 			panic("possible stack overflow\n");
 		}
 	}
+#endif
 
 	framep->tf_regs[FRAME_TRAPARG_A0] = a0;
 	framep->tf_regs[FRAME_TRAPARG_A1] = a1;
@@ -117,12 +119,6 @@ interrupt(a0, a1, a2, framep)
 		
 	case ALPHA_INTR_CLOCK:	/* clock interrupt */
 		CTR0(KTR_INTR, "clock interrupt");
-		if (PCPU_GET(cpuid) != hwrpb->rpb_primary_cpu_id) {
-			CTR0(KTR_INTR, "ignoring clock on secondary");
-			atomic_subtract_int(&p->p_intr_nesting_level, 1);
-			return;
-		}
-			
 		alpha_clock_interrupt(framep);
 		break;
 
