@@ -668,8 +668,8 @@ ipsec_setspidx_mbuf(spidx, dir, family, m)
 	bzero(spidx, sizeof(*spidx));
 
 	spidx->dir = dir;
-	spidx->src.__ss_len = spidx->dst.__ss_len = _SALENBYAF(family);
-	spidx->src.__ss_family = spidx->dst.__ss_family = family;
+	spidx->src.ss_len = spidx->dst.ss_len = _SALENBYAF(family);
+	spidx->src.ss_family = spidx->dst.ss_family = family;
 	spidx->prefs = spidx->prefd = _INALENBYAF(family) << 3;
 
     {
@@ -878,8 +878,8 @@ ipsec4_setspidx_inpcb(m, pcb)
 
 	spidx = &pcb->inp_sp->sp_in->spidx;
 	spidx->dir = IPSEC_DIR_INBOUND;
-	spidx->src.__ss_len = spidx->dst.__ss_len = _SALENBYAF(AF_INET);
-	spidx->src.__ss_family = spidx->dst.__ss_family = AF_INET;
+	spidx->src.ss_len = spidx->dst.ss_len = _SALENBYAF(AF_INET);
+	spidx->src.ss_family = spidx->dst.ss_family = AF_INET;
 	spidx->prefs = _INALENBYAF(AF_INET) << 3;
 	spidx->prefd = _INALENBYAF(AF_INET) << 3;
 	spidx->ul_proto = pcb->inp_socket->so_proto->pr_protocol;
@@ -889,8 +889,8 @@ ipsec4_setspidx_inpcb(m, pcb)
 
 	spidx = &pcb->inp_sp->sp_out->spidx;
 	spidx->dir = IPSEC_DIR_OUTBOUND;
-	spidx->src.__ss_len = spidx->dst.__ss_len = _SALENBYAF(AF_INET);
-	spidx->src.__ss_family = spidx->dst.__ss_family = AF_INET;
+	spidx->src.ss_len = spidx->dst.ss_len = _SALENBYAF(AF_INET);
+	spidx->src.ss_family = spidx->dst.ss_family = AF_INET;
 	spidx->prefs = _INALENBYAF(AF_INET) << 3;
 	spidx->prefd = _INALENBYAF(AF_INET) << 3;
 	spidx->ul_proto = pcb->inp_socket->so_proto->pr_protocol;
@@ -957,8 +957,8 @@ ipsec6_setspidx_in6pcb(m, pcb)
 
 	spidx = &pcb->in6p_sp->sp_in->spidx;
 	spidx->dir = IPSEC_DIR_INBOUND;
-	spidx->src.__ss_len = spidx->dst.__ss_len = _SALENBYAF(AF_INET6);
-	spidx->src.__ss_family = spidx->dst.__ss_family = AF_INET6;
+	spidx->src.ss_len = spidx->dst.ss_len = _SALENBYAF(AF_INET6);
+	spidx->src.ss_family = spidx->dst.ss_family = AF_INET6;
 	spidx->prefs = _INALENBYAF(AF_INET6) << 3;
 	spidx->prefd = _INALENBYAF(AF_INET6) << 3;
 	spidx->ul_proto = pcb->in6p_socket->so_proto->pr_protocol;
@@ -968,8 +968,8 @@ ipsec6_setspidx_in6pcb(m, pcb)
 
 	spidx = &pcb->in6p_sp->sp_out->spidx;
 	spidx->dir = IPSEC_DIR_OUTBOUND;
-	spidx->src.__ss_len = spidx->dst.__ss_len = _SALENBYAF(AF_INET6);
-	spidx->src.__ss_family = spidx->dst.__ss_family = AF_INET6;
+	spidx->src.ss_len = spidx->dst.ss_len = _SALENBYAF(AF_INET6);
+	spidx->src.ss_family = spidx->dst.ss_family = AF_INET6;
 	spidx->prefs = _INALENBYAF(AF_INET6) << 3;
 	spidx->prefd = _INALENBYAF(AF_INET6) << 3;
 	spidx->ul_proto = pcb->in6p_socket->so_proto->pr_protocol;
@@ -1420,7 +1420,7 @@ ipsec_get_reqlevel(isr)
 	/* sanity check */
 	if (isr == NULL || isr->sp == NULL)
 		panic("ipsec_get_reqlevel: NULL pointer is passed.\n");
-	if (isr->sp->spidx.src.__ss_family != isr->sp->spidx.dst.__ss_family)
+	if (isr->sp->spidx.src.ss_family != isr->sp->spidx.dst.ss_family)
 		panic("ipsec_get_reqlevel: family mismatched.\n");
 
 #define	IPSEC_CHECK_DEFAULT(lev) \
@@ -1430,7 +1430,7 @@ ipsec_get_reqlevel(isr)
 			(lev) = IPSEC_LEVEL_USE) : (lev))
 
 	/* set default level */
-	switch (isr->sp->spidx.src.__ss_family) {
+	switch (isr->sp->spidx.src.ss_family) {
 #ifdef INET
 	case AF_INET:
 		esp_trans_deflev = IPSEC_CHECK_DEFAULT(ip4_esp_trans_deflev);
@@ -1449,7 +1449,7 @@ ipsec_get_reqlevel(isr)
 #endif /* INET6 */
 	default:
 		panic("key_get_reqlevel: Unknown family. %d\n",
-			isr->sp->spidx.src.__ss_family);
+			isr->sp->spidx.src.ss_family);
 	}
 
 #undef IPSEC_CHECK_DEFAULT(lev)
@@ -1725,7 +1725,7 @@ ipsec_hdrsiz(sp)
 		}
 
 		if (isr->saidx.mode == IPSEC_MODE_TUNNEL) {
-			switch (isr->saidx.dst.__ss_family) {
+			switch (isr->saidx.dst.ss_family) {
 			case AF_INET:
 				clen += sizeof(struct ip);
 				break;
@@ -1737,7 +1737,7 @@ ipsec_hdrsiz(sp)
 			default:
 				printf("ipsec_hdrsiz: unknown AF %d "
 					"in IPsec tunnel SA\n",
-					isr->saidx.dst.__ss_family);
+					isr->saidx.dst.ss_family);
 				break;
 			}
 		}
@@ -1842,8 +1842,8 @@ ipsec4_encapsulate(m, sav)
 	size_t plen;
 
 	/* can't tunnel between different AFs */
-	if (sav->sah->saidx.src.__ss_family != sav->sah->saidx.dst.__ss_family
-	 || sav->sah->saidx.src.__ss_family != AF_INET) {
+	if (sav->sah->saidx.src.ss_family != sav->sah->saidx.dst.ss_family
+	 || sav->sah->saidx.src.ss_family != AF_INET) {
 		m_freem(m);
 		return EINVAL;
 	}
@@ -1947,8 +1947,8 @@ ipsec6_encapsulate(m, sav)
 	size_t plen;
 
 	/* can't tunnel between different AFs */
-	if (sav->sah->saidx.src.__ss_family != sav->sah->saidx.dst.__ss_family
-	 || sav->sah->saidx.src.__ss_family != AF_INET6) {
+	if (sav->sah->saidx.src.ss_family != sav->sah->saidx.dst.ss_family
+	 || sav->sah->saidx.src.ss_family != AF_INET6) {
 		m_freem(m);
 		return EINVAL;
 	}
@@ -2246,13 +2246,13 @@ ipsec_logsastr(sav)
 	struct secasindex *saidx = &sav->sah->saidx;
 
 	/* validity check */
-	if (sav->sah->saidx.src.__ss_family != sav->sah->saidx.dst.__ss_family)
+	if (sav->sah->saidx.src.ss_family != sav->sah->saidx.dst.ss_family)
 		panic("ipsec_logsastr: family mismatched.\n");
 
 	snprintf(buf, sizeof(buf), "SA(SPI=%u ", (u_int32_t)ntohl(sav->spi));
 	for (p = buf; p && *p; p++)
 		;
-	if (saidx->src.__ss_family == AF_INET) {
+	if (saidx->src.ss_family == AF_INET) {
 		u_int8_t *s, *d;
 		s = (u_int8_t *)&((struct sockaddr_in *)&saidx->src)->sin_addr;
 		d = (u_int8_t *)&((struct sockaddr_in *)&saidx->dst)->sin_addr;
@@ -2261,7 +2261,7 @@ ipsec_logsastr(sav)
 			s[0], s[1], s[2], s[3], d[0], d[1], d[2], d[3]);
 	}
 #ifdef INET6
-	else if (saidx->src.__ss_family == AF_INET6) {
+	else if (saidx->src.ss_family == AF_INET6) {
 		snprintf(p, sizeof(buf) - (p - buf),
 			"src=%s",
 			ip6_sprintf(&((struct sockaddr_in6 *)&saidx->src)->sin6_addr));
@@ -2381,7 +2381,7 @@ ipsec4_output(state, sp, flags)
 			 * build IPsec tunnel.
 			 */
 			/* XXX should be processed with other familiy */
-			if (isr->sav->sah->saidx.src.__ss_family != AF_INET) {
+			if (isr->sav->sah->saidx.src.ss_family != AF_INET) {
 				printf("ipsec4_output: family mismatched "
 					"between inner and outer spi=%u\n",
 					(u_int32_t)ntohl(isr->sav->spi));
@@ -2694,7 +2694,7 @@ ipsec6_output_tunnel(state, sp, flags)
 			 * build IPsec tunnel.
 			 */
 			/* XXX should be processed with other familiy */
-			if (isr->sav->sah->saidx.src.__ss_family != AF_INET6) {
+			if (isr->sav->sah->saidx.src.ss_family != AF_INET6) {
 				printf("ipsec4_output: family mismatched "
 					"between inner and outer, spi=%u\n",
 					(u_int32_t)ntohl(isr->sav->spi));
@@ -2906,7 +2906,7 @@ ipsec4_tunnel_validate(ip, nxt0, sav)
 #endif
 	if (hlen != sizeof(struct ip))
 		return 0;
-	switch (sav->sah->saidx.dst.__ss_family) {
+	switch (sav->sah->saidx.dst.ss_family) {
 	case AF_INET:
 		sin = (struct sockaddr_in *)&sav->sah->saidx.dst;
 		if (bcmp(&ip->ip_dst, &sin->sin_addr, sizeof(ip->ip_dst)) != 0)
@@ -2937,7 +2937,7 @@ ipsec6_tunnel_validate(ip6, nxt0, sav)
 
 	if (nxt != IPPROTO_IPV6)
 		return 0;
-	switch (sav->sah->saidx.dst.__ss_family) {
+	switch (sav->sah->saidx.dst.ss_family) {
 	case AF_INET6:
 		sin6 = ((struct sockaddr_in6 *)&sav->sah->saidx.dst);
 		if (!IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst, &sin6->sin6_addr))
