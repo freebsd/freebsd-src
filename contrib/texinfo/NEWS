@@ -1,11 +1,113 @@
 This file records noteworthy changes.
 
+4.0 (28 September 1999)
+* Language:
+  . New command @anchor for cross references to arbitrary points.
+  . New commands @documentlanguage sets the main document language,
+    and @documentencoding sets the document input encoding (although not
+    much is done yet with either).
+  . New command @pagesizes allows limited control of text area for typesetting.
+  . New command @acronym for abbreviations in all caps, such as `NASA'.
+  . New command @alias for simple command aliases.
+  . New command @definfoenclose for better control of info output.
+  . New commands @deftypeivar for typed instance variables of a class
+    and @deftypeop for typed operations of a class.
+  . New command @novalidate suppresses cross-reference checking and (in
+    TeX) auxiliary file creation.
+  . New commands @setcontentsaftertitlepage and
+    @setshortcontentsaftertitlepage to force printing the table of
+    contents after @end titlepage.  Also, @contents and @shortcontents
+    themselves can now appear at the beginning of the document as
+    well as the end.
+  . New markup commands: @env (for environment variables), @command (for
+    command names), @option (for command-line options).
+  . New commands @smallformat and @smalldisplay, a la @smallexample.
+  . New command @exampleindent to set indentation of example-like
+    environments a la @paragraphindent.
+  . @uref takes an optional third argument of text to show instead of
+    (rather than in addition to) the url for info and dvi output.
+  . @footnote works in an @item for a @table.
+* texinfo.tex:
+  . latest version always at ftp://ftp.gnu.org/gnu/texinfo.tex (and mirrors).
+  . implements @macro.
+  . implements @paragraphindent (except asis).
+  . @emph and @i use true italic type (cmti) instead of slanted (cmsl).
+  . implements pdf output when run with pdftex.
+  . better support for internationalization via txi-??.tex files.
+* makeinfo:
+  . supports HTML output with the --html option.
+  . implication of --html: @top nodes should be wrapped in @ifnottex
+    rather than @ifinfo.  @ifinfo conditionals are not expanded with --html.
+  . new option --number-sections to output chapter/section numbers.
+  . dashes and quotes are not treated specially in node names.
+  . new option --commands-in-node-names to allow @-commands in node names.
+    (Not implemented in TeX, and most likely never will be.)
+  . @emph output uses _underscores_.
+  . @image looks for .png files before .jpg.
+  . only output `Making ... file' line when verbose.
+  . allow -v as synonym for --verbose.
+  . new command line options to specify which conditionals to process
+    (but --iftex is not fully implemented).
+  . warns if @var contains any of ,[]().
+  . @quote-arg implicitly done for all one-argument macros, so commas in
+    the argument text are allowed.
+  . \\ required in macro body to get single \, no other `escapes' defined.
+* info:
+  . ISO Latin 1 characters are displayed and input as-is by default.
+  . new option --vi-keys to enable vi-like and less-like key bindings.
+  . new command S does case-sensitive searching.
+  . new commands C-x n and C-x N repeat last search, respectively, in the
+    same and in reverse direction, without prompting for the string.  These
+    commands are bound to n and N under --vi-keys, like in Less.
+  . new command G menu1 menu2 ... searches for menu items from (dir),
+    as allowed on the command line.
+  . new command O (capital o, not zero) goes directly to the node that
+    describes command-line options.
+  . new command-line option --show-options causes the node which
+    describes command-line options to be the first node displayed.
+  . M-prior and M-DEL do new command info-scroll-other-window-backward.
+  . / searches like s does.
+  . If the search string includes upper-case letters, in both incremental
+    and non-incremental search, the search is case-sensitive.
+  . S searches case-sensitively even if the search string is all
+    lower-case.
+  . - makes the argument negative (so e.g. `- /' searches backward).
+  . l restores point in the window returned to.
+  . SPC/DEL do not move outside the current document.
+  . foo.info is found before foo.
+  . `info foo --index-search=bar' now searches for bar in foo's index.
+  . support for files compressed with bzip2.
+* install-info:
+  . handles gzipped dir files.
+  . sort entries into alphabetical order.
+  . install direntries only in preceding dircategory, not in all.
+  . --delete does not require the info file to exist.
+  . --delete can handle XEmacs-style dir entries.
+* texi2dvi:
+  . bug fixed: now uses only the @iftex and @tex parts of the source.
+  . process LaTeX source as well as Texinfo source.
+  . output PDF (using pdftex) with new option --pdf.
+  . handles --OPTION=ARG style of command line arguments.
+  . new option --batch for progress reports but no interaction.
+  . new option --clean to remove all auxiliary files.
+  . new option --quiet for silence (unless there are errors).
+  . new option -I for specifying directories for @include to search.
+  . handles LaTeX files (running BibTeX etc.).
+* Fixes to util/gen-dir-node and util/fix-info-dir (formerly util/update-info).
+* Distribution:
+  . Man pages included.
+  . Czech and Norwegian message translations.
+  . Various translations for texinfo.tex fixed words included.
+  . DJGPP support.
+
+
 3.12 (3 March 1998)
 * Elisp files removed, since they are only usefully distributed with Emacs.
 * Restore inclusion of compile-time $(infodir) to INFOPATH.
 * install-info creates a proper dir file.
 * Various portability fixes.
 
+
 3.11 (31 July 1997)
 * New commands:
   - @uref to make a reference to a url; @url now only indicates such.
@@ -40,6 +142,7 @@ This file records noteworthy changes.
 
 3.10 (nonexistent)
 
+
 3.9 (4 October 1996)
 * makeinfo:
   - Give a suppressible (with --no-validate) error for references
@@ -52,6 +155,7 @@ This file records noteworthy changes.
 * configure: Include replacements for memcpy and memmove functions in
   the distribution, in case they are missing.
 
+
 3.8 (30 September 1996)
 * Define and/or document new and/or previously existing commands:
   Accents: @" @' @, @" @= @^ @` @~ @H @d @dotaccent @dotless @ringaccent
@@ -93,46 +197,55 @@ This file records noteworthy changes.
     @infoinclude
     @iappendix @iappendixsection @iappendixsec @iappendixsubsec
       @iappendixsubsubsec
-    @ichapter @isection @isubsection @isubsubsection 
+    @ichapter @isection @isubsection @isubsubsection
     @iunnumbered @iunnumberedsec @iunnumberedsubsec @iunnumberedsubsubsec
     @setchapterstyle
     @titlespec
 
+
 3.7 (24 December 1995)
 * Have --version print texinfo release number as well as the individual
   program version.
 * Better man page cleaning.
 * Update Elisp files from current Emacs release.
 
+
 3.6 (21 June 1995)
 * Unmatched brace error reporting improved.
 * Missing comment terminator prevented compilation.
 
+
 3.5 (20 June 1995)
 * Autoconf update.
 * Support for parallel makes.
 * make install does not install Elisp files.
 
+
 3.4 (19 June 1995)
 * Handle @ifhtml in Elisp.
 * Update FSF address.
 
+
 3.3 (15 June 1995)
 * Portability changes.
 * Compile Elisp files.
 * Don't distribute .info* files.
 
+
 3.2 (9 June 1995)
 * Standalone Info can read Unix man pages.
 * New commands: @! @? @^ @" @enddots.
 * makeinfo -E does macro expansion (and nothing else).
 
+
 3.1 (23 May 1993)
-Just bug fixes, see ChangeLog for full details. 
+Just bug fixes, see ChangeLog for full details.
 
-texinfo-3.0: first release of Texinfo version 2, with many new commands.
+
+3.0: first release of Texinfo version 2, with many new commands.
 
 
+
 Here is the separate NEWS for old releases of Info:
 
 Version 2.11,     Sat Apr  1 09:15:21 1995
@@ -332,4 +445,3 @@ Changes since 2.0:
 * Scrolling in redisplay is implemented.
 * Recursive uses of the echo area made more robust.
 * Garbage collection of unreferenced nodes.
-

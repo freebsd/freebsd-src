@@ -1,9 +1,7 @@
-/* search.c -- How to search large bodies of text. */
+/* search.c -- searching large bodies of text.
+   $Id: search.c,v 1.5 1999/03/05 19:56:59 karl Exp $
 
-/* This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -198,7 +196,7 @@ search_backward (input_string, binding)
         {
           c = *(buff - i);
 
-          if (c != string[i] && (alternate && c != alternate[i]))
+          if (c != string[i] && (!alternate || c != alternate[i]))
             break;
         }
 
@@ -292,7 +290,7 @@ skip_whitespace_and_newlines (string)
 {
   register int i;
 
-  for (i = 0; string && (whitespace (string[i]) || string[i] == '\n'); i++);
+  for (i = 0; string && whitespace_or_newline (string[i]); i++);
   return (i);
 }
 

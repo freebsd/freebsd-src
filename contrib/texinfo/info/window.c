@@ -1,10 +1,7 @@
-/* window.c -- Windows in Info.
-   $Id: window.c,v 1.5 1998/02/23 22:43:38 karl Exp $
+/* window.c -- windows in Info.
+   $Id: window.c,v 1.11 1999/06/25 21:57:40 karl Exp $
 
-   This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,16 +27,16 @@
 #include "infomap.h"
 
 /* The window which describes the screen. */
-WINDOW *the_screen = (WINDOW *)NULL;
+WINDOW *the_screen = NULL;
 
 /* The window which describes the echo area. */
-WINDOW *the_echo_area = (WINDOW *)NULL;
+WINDOW *the_echo_area = NULL;
 
 /* The list of windows in Info. */
-WINDOW *windows = (WINDOW *)NULL;
+WINDOW *windows = NULL;
 
 /* Pointer to the active window in WINDOW_LIST. */
-WINDOW *active_window = (WINDOW *)NULL;
+WINDOW *active_window = NULL;
 
 /* The size of the echo area in Info.  It never changes, irregardless of the
    size of the screen. */
@@ -56,9 +53,9 @@ void
 window_initialize_windows (width, height)
      int width, height;
 {
-  the_screen = (WINDOW *)xmalloc (sizeof (WINDOW));
-  the_echo_area = (WINDOW *)xmalloc (sizeof (WINDOW));
-  windows = (WINDOW *)xmalloc (sizeof (WINDOW));
+  the_screen = xmalloc (sizeof (WINDOW));
+  the_echo_area = xmalloc (sizeof (WINDOW));
+  windows = xmalloc (sizeof (WINDOW));
   active_window = windows;
 
   zero_mem (the_screen, sizeof (WINDOW));
@@ -85,7 +82,7 @@ window_initialize_windows (width, height)
      area. */
   the_echo_area->height = ECHO_AREA_HEIGHT;
   active_window->height = the_screen->height - 1 - the_echo_area->height;
-  window_new_screen_size (width, height, (VFunction *)NULL);
+  window_new_screen_size (width, height, NULL);
 
   /* The echo area uses a different keymap than normal info windows. */
   the_echo_area->keymap = echo_area_keymap;
@@ -102,7 +99,7 @@ window_initialize_windows (width, height)
 
 /* If non-null, a function to call with WINDOW as argument when the function
    window_new_screen_size () has deleted WINDOW. */
-VFunction *window_deletion_notifier = (VFunction *)NULL;
+VFunction *window_deletion_notifier = NULL;
 
 void
 window_new_screen_size (width, height)
@@ -139,7 +136,7 @@ window_new_screen_size (width, height)
         {
           windows->height = 0;
           maybe_free (windows->line_starts);
-          windows->line_starts = (char **)NULL;
+          windows->line_starts = NULL;
           windows->line_count = 0;
           break;
         }
@@ -187,7 +184,7 @@ window_new_screen_size (width, height)
         {
           win->width = width;
           maybe_free (win->modeline);
-          win->modeline = (char *)xmalloc (1 + width);
+          win->modeline = xmalloc (1 + width);
         }
 
       win->height += delta_each;
@@ -274,14 +271,14 @@ window_make_window (node)
 
   /* If there isn't enough room to make another window, return now. */
   if ((active_window->height / 2) < WINDOW_MIN_SIZE)
-    return ((WINDOW *)NULL);
+    return (NULL);
 
   /* Make and initialize the new window.
      The fudging about with -1 and +1 is because the following window in the
      chain cannot start at window->height, since that is where the modeline
      for the previous window is displayed.  The inverse adjustment is made
      in window_delete_window (). */
-  window = (WINDOW *)xmalloc (sizeof (WINDOW));
+  window = xmalloc (sizeof (WINDOW));
   window->width = the_screen->width;
   window->height = (active_window->height / 2) - 1;
 #if defined (SPLIT_BEFORE_ACTIVE)
@@ -292,8 +289,8 @@ window_make_window (node)
 #endif
   window->keymap = info_keymap;
   window->goal_column = -1;
-  window->modeline = (char *)xmalloc (1 + window->width);
-  window->line_starts = (char **)NULL;
+  window->modeline = xmalloc (1 + window->width);
+  window->line_starts = NULL;
   window->flags = W_UpdateWindow | W_WindowVisible;
   window_set_node_of_window (window, node);
 
@@ -538,7 +535,7 @@ window_tile_windows (style)
   per_win_height = avail / numwins;
   leftover = avail - (per_win_height * numwins);
 
-  last_adjusted = (WINDOW *)NULL;
+  last_adjusted = NULL;
   for (win = windows; win; win = win->next)
     {
       if (do_internals || !win->node ||
@@ -610,10 +607,12 @@ window_set_node_of_window (window, node)
   window->point = 0;
   recalculate_line_starts (window);
   window->flags |= W_UpdateWindow;
+  /* The display_pos member is nonzero if we're displaying an anchor.  */
+  window->point = node ? node->display_pos : 0;
   window_adjust_pagetop (window);
   window_make_modeline (window);
 }
-
+
 /* Delete WINDOW from the list of known windows.  If this window was the
    active window, make the next window in the chain be the active window.
    If the active window is the next or previous window, choose that window
@@ -766,7 +765,7 @@ string_width (string, hpos)
   return (width);
 }
 
-/* Quickly guess the approximate number of lines to that NODE would
+/* Quickly guess the approximate number of lines that NODE would
    take to display.  This really only counts carriage returns. */
 int
 window_physical_lines (node)
@@ -793,12 +792,12 @@ calculate_line_starts (window)
      WINDOW *window;
 {
   register int i, hpos;
-  char **line_starts = (char **)NULL;
+  char **line_starts = NULL;
   int line_starts_index = 0, line_starts_slots = 0;
   int bump_index;
   NODE *node;
 
-  window->line_starts = (char **)NULL;
+  window->line_starts = NULL;
   window->line_count = 0;
   node = window->node;
 
@@ -1079,9 +1078,9 @@ window_make_modeline (window)
   /* Calculate the maximum size of the information to stick in MODELINE. */
   {
     int modeline_len = 0;
-    char *parent = (char *)NULL, *filename = "*no file*";
+    char *parent = NULL, *filename = "*no file*";
     char *nodename = "*no node*";
-    char *update_message = (char *)NULL;
+    char *update_message = NULL;
     NODE *node = window->node;
 
     if (node)
@@ -1113,7 +1112,7 @@ window_make_modeline (window)
     modeline_len += 10 + strlen (_("-----Info: (), lines ----, "));
     modeline_len += window->width;
 
-    modeline = (char *)xmalloc (1 + modeline_len);
+    modeline = xmalloc (1 + modeline_len);
 
     /* Special internal windows have no filename. */
     if (!parent && !*filename)
@@ -1194,14 +1193,10 @@ window_set_state (window, state)
 }
 
 
-/* **************************************************************** */
-/*                                                                  */
-/*                 Manipulating Home-Made Nodes                     */
-/*                                                                  */
-/* **************************************************************** */
+/* Manipulating home-made nodes.  */
 
 /* A place to buffer echo area messages. */
-static NODE *echo_area_node = (NODE *)NULL;
+static NODE *echo_area_node = NULL;
 
 /* Make the node of the_echo_area be an empty one. */
 static void
@@ -1213,7 +1208,7 @@ free_echo_area ()
       free (echo_area_node);
     }
 
-  echo_area_node = (NODE *)NULL;
+  echo_area_node = NULL;
   window_set_node_of_window (the_echo_area, echo_area_node);
 }
   
@@ -1245,7 +1240,7 @@ window_message_in_echo_area (format, arg1, arg2)
    and ARG2.  The message appears immediately, but does not destroy
    any existing message.  A future call to unmessage_in_echo_area ()
    restores the old contents. */
-static NODE **old_echo_area_nodes = (NODE **)NULL;
+static NODE **old_echo_area_nodes = NULL;
 static int old_echo_area_nodes_index = 0;
 static int old_echo_area_nodes_slots = 0;
 
@@ -1260,7 +1255,7 @@ message_in_echo_area (format, arg1, arg2)
                             old_echo_area_nodes, old_echo_area_nodes_slots,
                             4, NODE *);
     }
-  echo_area_node = (NODE *)NULL;
+  echo_area_node = NULL;
   window_message_in_echo_area (format, arg1, arg2);
 }
 
@@ -1277,7 +1272,7 @@ unmessage_in_echo_area ()
 }
 
 /* A place to build a message. */
-static char *message_buffer = (char *)NULL;
+static char *message_buffer = NULL;
 static int message_buffer_index = 0;
 static int message_buffer_size = 0;
 
@@ -1290,7 +1285,7 @@ message_buffer_resize (length)
   if (!message_buffer)
     {
       message_buffer_size = length + 1;
-      message_buffer = (char *)xmalloc (message_buffer_size);
+      message_buffer = xmalloc (message_buffer_size);
       message_buffer_index = 0;
     }
 
@@ -1328,14 +1323,44 @@ build_message_buffer (format, arg1, arg2)
       else
         {
           char c;
+          char *fmt_start = format + i;
+          char *fmt;
+          int fmt_len, formatted_len;
 
-          c = format[++i];
+          i++;
+          while (format[i] && strchr ("-. +0123456789", format[i]))
+            i++;
+          c = format[i];
+
+          if (c == '\0')
+            abort ();
+
+          fmt_len = format + i - fmt_start + 1;
+          fmt = (char *) xmalloc (fmt_len + 1);
+          strncpy (fmt, fmt_start, fmt_len);
+          fmt[fmt_len] = '\0';
+
+          /* If we have "%-98s", maybe 98 calls for a longer string.  */
+          if (fmt_len > 2)
+            {
+              int j;
+
+              for (j = 0; j < fmt_len; j++)
+                if (isdigit (fmt[j]))
+                  break;
+
+              formatted_len = atoi (fmt + j);
+            }
+          else
+            formatted_len = c == 's' ? 0 : 1; /* %s can produce empty string */
 
           switch (c)
             {
             case '%':           /* Insert a percent sign. */
-              message_buffer_resize (len + 1);
-              message_buffer[message_buffer_index++] = '%';
+              message_buffer_resize (len + formatted_len);
+              sprintf
+                (message_buffer + message_buffer_index, fmt, "%");
+              message_buffer_index += formatted_len;
               break;
 
             case 's':           /* Insert the current arg as a string. */
@@ -1346,9 +1371,11 @@ build_message_buffer (format, arg1, arg2)
                 string = (char *)args[arg_index++];
                 string_len = strlen (string);
 
+                if (formatted_len > string_len)
+                  string_len = formatted_len;
                 message_buffer_resize (len + string_len);
                 sprintf
-                  (message_buffer + message_buffer_index, "%s", string);
+                  (message_buffer + message_buffer_index, fmt, string);
                 message_buffer_index += string_len;
               }
               break;
@@ -1361,9 +1388,10 @@ build_message_buffer (format, arg1, arg2)
                 long_val = (long)args[arg_index++];
                 integer = (int)long_val;
 
-                message_buffer_resize (len + 32);
+                message_buffer_resize (len + formatted_len > 32
+                                       ? formatted_len : 32);
                 sprintf
-                  (message_buffer + message_buffer_index, "%d", integer);
+                  (message_buffer + message_buffer_index, fmt, integer);
                 message_buffer_index = strlen (message_buffer);
               }
               break;
@@ -1376,14 +1404,17 @@ build_message_buffer (format, arg1, arg2)
                 long_val = (long)args[arg_index++];
                 character = (int)long_val;
 
-                message_buffer_resize (len + 1);
-                message_buffer[message_buffer_index++] = character;
+                message_buffer_resize (len + formatted_len);
+                sprintf
+                  (message_buffer + message_buffer_index, fmt, character);
+                message_buffer_index += formatted_len;
               }
               break;
 
             default:
               abort ();
             }
+          free (fmt);
         }
     }
   message_buffer[message_buffer_index] = '\0';
@@ -1411,15 +1442,16 @@ message_buffer_to_node ()
 {
   NODE *node;
 
-  node = (NODE *)xmalloc (sizeof (NODE));
-  node->filename = (char *)NULL;
-  node->parent = (char *)NULL;
-  node->nodename = (char *)NULL;
+  node = xmalloc (sizeof (NODE));
+  node->filename = NULL;
+  node->parent = NULL;
+  node->nodename = NULL;
   node->flags = 0;
+  node->display_pos =0;
 
   /* Make sure that this buffer ends with a newline. */
   node->nodelen = 1 + strlen (message_buffer);
-  node->contents = (char *)xmalloc (1 + node->nodelen);
+  node->contents = xmalloc (1 + node->nodelen);
   strcpy (node->contents, message_buffer);
   node->contents[node->nodelen - 1] = '\n';
   node->contents[node->nodelen] = '\0';

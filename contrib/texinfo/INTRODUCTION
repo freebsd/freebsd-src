@@ -48,18 +48,6 @@ read this file, type
 
          $ info -f info-stnd
 
-If you are using GNU Emacs, you may want to install the Emacs Lisp files
-permanently.  Move them them to a directory in the load-path for Emacs;
-otherwise Emacs will not be able to load the autoloaded support files, such
-as `texinfmt.el'.
-
-The `texinfo.el' file contains the autoload commands; it is the only
-file that needs to be loaded initially.  If your Emacs does not
-automatically load `texinfo.el', you can tell it to do so by placing
-the following in `default.el' or in your `.emacs' file:
-
-         (load "texinfo")
-
 
 To create a printed manual
 ==========================
@@ -90,13 +78,10 @@ program is not part of this distribution, but is available separately.
 After following those instructions, type the following to make the .dvi
 files:
 
-      $ make texinfo.dvi
-      $ (cd info; make info.dvi info-stnd.dvi)
-      $ (cd makeinfo; make makeinfo.dvi)
+      $ (cd doc; make dvi)
 
-You can then print the resulting .dvi files with the `lpr' command (on BSD
-systems.  On SysV systems the command is `lp'.  Consult your man pages for
-more information). 
+You can then print the resulting .dvi files with the `lpr' or `lp'
+commands, or maybe `dvips'.
 
 For example, the command to print the texinfo.dvi file might be:
 
