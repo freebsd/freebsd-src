@@ -2481,15 +2481,15 @@ ipsec6_logpacketstr(ip6, spi)
 
 	p = buf;
 	snprintf(buf, sizeof(buf), "packet(SPI=%u ", (u_int32_t)ntohl(spi));
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), "src=%s",
 		ip6_sprintf(&ip6->ip6_src));
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), " dst=%s",
 		ip6_sprintf(&ip6->ip6_dst));
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), ")");
 
@@ -2512,7 +2512,7 @@ ipsec_logsastr(sav)
 
 	p = buf;
 	snprintf(buf, sizeof(buf), "SA(SPI=%u ", (u_int32_t)ntohl(sav->spi));
-	while (p && *p)
+	while (*p)
 		p++;
 	if (((struct sockaddr *)&saidx->src)->sa_family == AF_INET) {
 		u_int8_t *s, *d;
@@ -2527,14 +2527,14 @@ ipsec_logsastr(sav)
 		snprintf(p, sizeof(buf) - (p - buf),
 			"src=%s",
 			ip6_sprintf(&((struct sockaddr_in6 *)&saidx->src)->sin6_addr));
-		while (p && *p)
+		while (*p)
 			p++;
 		snprintf(p, sizeof(buf) - (p - buf),
 			" dst=%s",
 			ip6_sprintf(&((struct sockaddr_in6 *)&saidx->dst)->sin6_addr));
 	}
 #endif
-	while (p && *p)
+	while (*p)
 		p++;
 	snprintf(p, sizeof(buf) - (p - buf), ")");
 
