@@ -32,7 +32,7 @@
  */
 
 /*
- * Support for `psycho' and `psycho+' UPA to PCI bridge and 
+ * Support for `psycho' and `psycho+' UPA to PCI bridge and
  * UltraSPARC IIi and IIe `sabre' PCI controllers.
  */
 
@@ -192,7 +192,7 @@ struct psycho_clr {
  * and manages two PCI buses.  "psycho" has two 64-bit 33MHz buses, while
  * "psycho+" controls both a 64-bit 33Mhz and a 64-bit 66Mhz PCI bus.  You
  * will usually find a "psycho+" since I don't think the original "psycho"
- * ever shipped, and if it did it would be in the U30.  
+ * ever shipped, and if it did it would be in the U30.
  *
  * Each "psycho" PCI bus appears as a separate OFW node, but since they are
  * both part of the same IC, they only have a single register space.  As such,
@@ -204,7 +204,7 @@ struct psycho_clr {
  * numbers on some machines.
  *
  * On UltraII machines, there can be any number of "psycho+" ICs, each
- * providing two PCI buses.  
+ * providing two PCI buses.
  *
  *
  * XXXX The psycho/sabre node has an `interrupts' attribute.  They contain
@@ -255,7 +255,7 @@ psycho_probe(device_t dev)
  *	- figure out the IGN.
  *	- find our partner psycho
  *	- configure ourselves
- *	- bus range, bus, 
+ *	- bus range, bus,
  *	- interrupt map,
  *	- setup the chipsets.
  *	- if we're the first of the pair, initialise the IOMMU, otherwise
@@ -579,7 +579,7 @@ psycho_attach(device_t dev)
 	 */
 	ofw_pci_init_intr(dev, sc->sc_node, sc->sc_intrmap, sc->sc_nintrmap,
 	    &sc->sc_intrmapmsk);
-	
+
 	device_add_child(dev, "pci", device_get_unit(dev));
 	return (bus_generic_attach(dev));
 }
@@ -666,7 +666,7 @@ psycho_ue(void *arg)
 	sc->sc_regs->ue_int_clr = 0;
 	/* It's uncorrectable.  Dump the regs and panic. */
 	panic("%s: uncorrectable DMA error AFAR %llx AFSR %llx\n",
-		device_get_name(sc->sc_dev), 
+		device_get_name(sc->sc_dev),
 		(long long)regs->psy_ue_afar, (long long)regs->psy_ue_afsr);
 }
 
@@ -679,7 +679,7 @@ psycho_ce(void *arg)
 	sc->sc_regs->ce_int_clr = 0;
 	/* It's correctable.  Dump the regs and continue. */
 	printf("%s: correctable DMA error AFAR %llx AFSR %llx\n",
-		device_get_name(sc->sc_dev), 
+		device_get_name(sc->sc_dev),
 		(long long)regs->psy_ce_afar, (long long)regs->psy_ce_afsr);
 }
 
@@ -692,7 +692,7 @@ psycho_bus_a(void *arg)
 	sc->sc_regs->pciaerr_int_clr = 0;
 	/* It's uncorrectable.  Dump the regs and panic. */
 	panic("%s: PCI bus A error AFAR %lx AFSR %lx\n",
-	    device_get_name(sc->sc_dev), 
+	    device_get_name(sc->sc_dev),
 	    regs->psy_pcictl[0].pci_afar, regs->psy_pcictl[0].pci_afsr);
 }
 
@@ -805,6 +805,28 @@ psycho_maxslots(device_t dev)
 	return (31);
 }
 
+/*
+ * Keep a table of quirky PCI devices that need fixups before the MI PCI code
+ * creates the resource lists. This needs to be moved around once other bus
+ * drivers are added. Moving it to the MI code should maybe be reconsidered
+ * if one of these devices appear in non-sparc64 boxen. It's likely that not
+ * all BIOSes/firmwares can deal with them.
+ */
+struct psycho_dquirk {
+	u_int32_t	dq_devid;
+	int		dq_quirk;
+};
+
+/* Quirk types. May be or'ed together. */
+#define	DQT_BAD_INTPIN	1	/* Intpin reg 0, but intpin used */
+
+static struct psycho_dquirk dquirks[] = {
+	{ 0x1001108e, DQT_BAD_INTPIN },		/* Sun HME (PCIO func. 1) */
+	{ 0x1101108e, DQT_BAD_INTPIN },		/* Sun GEM (PCIO2 func. 1) */
+};
+
+#define	NDQUIRKS	(sizeof(dquirks) / sizeof(dquirks[0]))
+
 static u_int32_t
 psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	int width)
@@ -812,15 +834,17 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	struct psycho_softc *sc;
 	bus_space_handle_t bh;
 	u_long offset = 0;
-	u_int32_t r;
+	u_int32_t r, devid;
+	int i;
 
 	/*
 	 * The psycho bridge does not tolerate accesses to unconfigured PCI
 	 * devices' or function's config space, so look up the device in the
-	 * first, and if it is not present, return a value that will make the
-	 * detection think that there is no device here. This is somehow ugly...
+	 * firmware device tree first, and if it is not present, return a value
+	 * that will make the detection code think that there is no device here.
+	 * This is ugly...
 	 */
-	if (ofw_pci_find_node(bus, slot, func) == 0)
+	if (reg == 0 && ofw_pci_find_node(bus, slot, func) == 0)
 		return (0xffffffff);
 	sc = (struct psycho_softc *)device_get_softc(dev);
 	offset = PSYCHO_CONF_OFF(bus, slot, func, reg);
@@ -837,6 +861,27 @@ psycho_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		break;
 	default:
 		panic("psycho_read_config: bad width");
+	}
+	if (reg == PCIR_INTPIN && r == 0) {
+		/* Check for DQT_BAD_INTPIN quirk. */
+		devid = psycho_read_config(dev, bus, slot, func,
+		    PCIR_DEVVENDOR, 4);
+		for (i = 0; i < NDQUIRKS; i++) {
+			if (dquirks[i].dq_devid == devid) {
+				/*
+				 * Need to set the intpin to a value != 0 so
+				 * that the MI code will think that this device
+				 * has an interrupt.
+				 * Just use 1 (intpin a) for now. This is, of
+				 * course, bogus, but since interrupts are
+				 * routed in advance, this does not really
+				 * matter.
+				 */
+				if ((dquirks[i].dq_quirk & DQT_BAD_INTPIN) != 0)
+					r = 1;
+				break;
+			}
+		}
 	}
 	return (r);
 }
@@ -944,7 +989,7 @@ psycho_setup_intr(device_t dev, device_t child,
 	 * XXX We only compare INOs rather than IGNs since the firmware may
 	 * not provide the IGN and the IGN is constant for all device on that
 	 * PCI controller.  This could cause problems for the FFB/external
-	 * interrupt which has a full vector that can be set arbitrarily.  
+	 * interrupt which has a full vector that can be set arbitrarily.
 	 */
 	ino = INTINO(vec);
 
@@ -964,15 +1009,15 @@ psycho_setup_intr(device_t dev, device_t child,
 	/* Disable the interrupt while we fiddle with it */
 	*intrmapptr &= ~INTMAP_V;
 	membar(Sync);
-	error = bus_setup_intr(dev, ires, flags, psycho_intr_stub, pc,
-	    cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+	    psycho_intr_stub, pc, cookiep);
 	if (error != 0) {
 		free(pc, M_DEVBUF);
 		return (error);
 	}
 	pc->pci_cookie = *cookiep;
 	*cookiep = pc;
-	
+
 	/*
 	 * Clear the interrupt, it might have been triggered before it was
 	 * set up.
@@ -996,7 +1041,8 @@ psycho_teardown_intr(device_t dev, device_t child,
 	int error;
 
 	pc = (struct psycho_clr *)cookie;
-	error = bus_teardown_intr(dev, vec, pc->pci_cookie);
+	error = BUS_TEARDOWN_INTR(device_get_parent(dev), child, vec,
+	    pc->pci_cookie);
 	/*
 	 * Don't disable the interrupt for now, so that stray interupts get
 	 * detected...
@@ -1056,7 +1102,7 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	bh += rman_get_start(rv);
 	rman_set_bustag(rv, bt);
-	rman_set_bushandle(rv, bh); 
+	rman_set_bushandle(rv, bh);
 
 	if (needactivate) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
@@ -1064,7 +1110,7 @@ psycho_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return (NULL);
 		}
 	}
-	
+
 	return (rv);
 }
 
@@ -1082,7 +1128,7 @@ static int
 psycho_deactivate_resource(device_t bus, device_t child, int type, int rid,
     struct resource *r)
 {
-		
+
 	if (type == SYS_RES_IRQ)
 		return (bus_deactivate_resource(bus, type, rid, r));
 	return (rman_deactivate_resource(r));
