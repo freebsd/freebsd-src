@@ -1,1 +1,2 @@
-BINDIR?=	/usr/local/bin
+BINDIR=		/usr/local/bin
+MANDIR=		/usr/local/man/man
