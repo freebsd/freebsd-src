@@ -211,7 +211,6 @@ pppopen(dev, tp)
     getmicrotime(&sc->sc_if.if_lastchange);
     sc->sc_if.if_baudrate = tp->t_ospeed;
 
-    tp->t_sc = (caddr_t) sc;
     tp->t_hotchar = PPP_FLAG;
     ttyflush(tp, FREAD | FWRITE);
 
@@ -248,13 +247,10 @@ pppclose(tp, flag)
     ttyflush(tp, FREAD | FWRITE);
     clist_free_cblocks(&tp->t_canq);
     clist_free_cblocks(&tp->t_outq);
-    sc = (struct ppp_softc *) tp->t_sc;
+    sc = ppp_for_tty(tp);
     if (sc != NULL) {
-	tp->t_sc = NULL;
-	if (tp == (struct tty *) sc->sc_devp) {
 	    pppasyncrelinq(sc);
 	    pppdealloc(sc);
-	}
     }
     splx(s);
     return 0;
@@ -313,7 +309,7 @@ pppread(tp, uio, flag)
     struct uio *uio;
     int flag;
 {
-    register struct ppp_softc *sc = (struct ppp_softc *)tp->t_sc;
+    register struct ppp_softc *sc = ppp_for_tty(tp);
     struct mbuf *m, *m0;
     register int s;
     int error = 0;
@@ -372,7 +368,7 @@ pppwrite(tp, uio, flag)
     struct uio *uio;
     int flag;
 {
-    register struct ppp_softc *sc = (struct ppp_softc *)tp->t_sc;
+    register struct ppp_softc *sc = ppp_for_tty(tp);
     struct mbuf *m, *m0, **mp;
     struct sockaddr dst;
     int len, error, s;
@@ -381,7 +377,7 @@ pppwrite(tp, uio, flag)
 	return 0;		/* wrote 0 bytes */
     if (tp->t_line != PPPDISC)
 	return (EINVAL);
-    if (sc == NULL || tp != (struct tty *) sc->sc_devp)
+    if (sc == NULL)
 	return EIO;
     if (uio->uio_resid > sc->sc_if.if_mtu + PPP_HDRLEN ||
 	uio->uio_resid < PPP_HDRLEN)
@@ -433,7 +429,7 @@ ppptioctl(tp, cmd, data, flag, td)
     int flag;
     struct thread *td;
 {
-    struct ppp_softc *sc = (struct ppp_softc *) tp->t_sc;
+    struct ppp_softc *sc = ppp_for_tty(tp);
     int error, s;
 
     if (sc == NULL || tp != (struct tty *) sc->sc_devp)
@@ -748,7 +744,7 @@ static int
 pppstart(tp)
     register struct tty *tp;
 {
-    register struct ppp_softc *sc = (struct ppp_softc *) tp->t_sc;
+    register struct ppp_softc *sc = ppp_for_tty(tp);
 
     /*
      * Call output process whether or not there is any output.
@@ -764,7 +760,7 @@ pppstart(tp)
      */
     if (CCOUNT(&tp->t_outq) < PPP_LOWAT
 	&& !((tp->t_state & TS_CONNECTED) == 0)
-	&& sc != NULL && tp == (struct tty *) sc->sc_devp) {
+	&& sc != NULL) {
 	ppp_restart(sc);
     }
 
@@ -834,8 +830,8 @@ pppinput(c, tp)
     struct mbuf *m;
     int ilen, s;
 
-    sc = (struct ppp_softc *) tp->t_sc;
-    if (sc == NULL || tp != (struct tty *) sc->sc_devp)
+    sc = ppp_for_tty(tp);
+    if (sc == NULL)
 	return 0;
 
     ++tk_nin;
