@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id: 460.status-mail-rejects,v 1.5 1998/02/05 15:33:54 wosch Exp $
+# $Id: 460.status-mail-rejects,v 1.6 1998/02/05 15:38:17 wosch Exp $
 #
 
 if [ -d /etc/mail -a -f /var/log/maillog ]; then
@@ -9,8 +9,7 @@ if [ -d /etc/mail -a -f /var/log/maillog ]; then
 
   start=`date -v-1d '+%b %d' | sed 's/0\(.\)$/ \1/'`
   zcat -fc /var/log/maillog.0* /var/log/maillog | grep reject= |
-	perl -ne "print \"\$1\n\" 
-	    if (/^$start.*ruleset=check_mail, arg1=<.*@([^>]*)>.*reject=/o || 
-                /^$start.*ruleset=check_relay, arg1=([^, ]*), .*reject=/o)" | 
+	perl -ne "print \"\$2\n\" 
+	if /^$start.*ruleset=check_\S+,\s+arg1=(<[^@]+@)?([^>,]+).*reject=/o;" |
 	sort | uniq -c | sort -nr
 fi
