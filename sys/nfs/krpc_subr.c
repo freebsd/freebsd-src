@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id: krpc_subr.c,v 1.5 1997/09/02 01:19:26 bde Exp $	*/
+/*	$Id: krpc_subr.c,v 1.6 1997/10/12 20:25:36 phk Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -45,13 +45,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
-#include <sys/sockio.h>
-#include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/mbuf.h>
-#include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 

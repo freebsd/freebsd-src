@@ -23,13 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_module.c,v 1.2 1997/08/02 14:31:33 bde Exp $
+ *	$Id: kern_module.c,v 1.3 1997/10/24 05:29:07 jmg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.35 1997/05/10 10:01:31 jhay Exp $
+ * $Id: if_ethersubr.c,v 1.36 1997/07/15 23:25:32 julian Exp $
  */
 
 #include <sys/param.h>
@@ -39,11 +39,8 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -52,7 +49,6 @@
 #include <net/if_llc.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/ethernet.h>
 
 #ifdef INET
 #include <netinet/in.h>

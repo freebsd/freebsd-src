@@ -39,13 +39,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/domain.h>
-#if defined(__FreeBSD__)
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
-#include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -55,8 +49,6 @@
 #include <net/if.h>
 #include <net/if_atm.h>
 #include <net/netisr.h>
-#include <net/radix.h>
-#include <net/route.h>
 
 #include <netinet/in.h>
 

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.130 1997/10/12 20:24:21 phk Exp $
+ * $Id: vfs_bio.c,v 1.131 1997/10/26 20:55:04 phk Exp $
  */
 
 /*
@@ -56,9 +56,6 @@
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
-#include <sys/proc.h>
-
-#include <miscfs/specfs/specdev.h>
 
 static MALLOC_DEFINE(M_BIOBUF, "BIO buffer", "BIO buffer");
 

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.44 1997/10/17 06:27:44 davidg Exp $
+ *	$Id: if_fxp.c,v 1.45 1997/10/23 01:45:15 davidg Exp $
  */
 
 /*
@@ -42,7 +42,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/syslog.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>

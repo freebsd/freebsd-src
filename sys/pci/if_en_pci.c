@@ -48,7 +48,6 @@
 #if (NEN > 0) && (NPCI > 0)
 
 #include <sys/param.h>
-#include <sys/types.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #ifndef SHUTDOWN_PRE_SYNC
@@ -63,11 +62,8 @@
 #include <sys/devconf.h>
 #endif
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 
-#include <machine/cpufunc.h>		/* for rdtsc proto for clock.h below */
 #include <machine/clock.h>		/* for DELAY */
 
 #include <net/if.h>

@@ -31,14 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.37 1997/09/16 11:43:59 bde Exp $
+ *	$Id: tcp_subr.c,v 1.38 1997/09/16 18:36:06 joerg Exp $
  */
 
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -47,7 +45,6 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
-#include <sys/errno.h>
 
 #include <net/route.h>
 #include <net/if.h>
@@ -59,7 +56,6 @@
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip_icmp.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.50 1997/09/10 20:22:28 phk Exp $
+ * $Id: nfs_serv.c,v 1.51 1997/09/21 04:23:49 dyson Exp $
  */
 
 /*
@@ -74,8 +74,6 @@
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
 #include <nfs/nfsproto.h>

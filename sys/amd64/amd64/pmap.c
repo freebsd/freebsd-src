@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.167 1997/10/26 12:33:39 dyson Exp $
+ *	$Id: pmap.c,v 1.168 1997/10/27 00:34:15 dyson Exp $
  */
 
 /*
@@ -68,12 +68,9 @@
  *	and to when physical maps must be made correct.
  */
 
-#include "opt_cpu.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/malloc.h>
 #include <sys/msgbuf.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
@@ -93,7 +90,6 @@
 
 #include <sys/user.h>
 
-#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
