@@ -265,6 +265,9 @@
     <para>&man.route.8; can now create <quote>proxy only</quote>
     published ARP entries.</para>
 
+    <para>&man.sysinstall.8; now has the ability to load KLDs as a
+    part of the installation.</para>
+
     <para>&man.syslogd.8; now has the ability to bind to a specific
     address--as opposed to using every available one--via the
     <option>-b</option> option.</para>
