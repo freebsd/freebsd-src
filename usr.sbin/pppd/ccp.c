@@ -26,16 +26,52 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ccp.c,v 1.11 1995/08/16 04:15:38 paulus Exp $";
+static char rcsid[] = "$Id: ccp.c,v 1.21 1997/05/22 06:45:59 paulus Exp $";
 #endif
 
+#include <string.h>
 #include <syslog.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
+#include <net/ppp_defs.h>
 #include <net/ppp-comp.h>
 
 #include "pppd.h"
 #include "fsm.h"
 #include "ccp.h"
+
+/*
+ * Protocol entry points from main code.
+ */
+static void ccp_init __P((int unit));
+static void ccp_open __P((int unit));
+static void ccp_close __P((int unit, char *));
+static void ccp_lowerup __P((int unit));
+static void ccp_lowerdown __P((int));
+static void ccp_input __P((int unit, u_char *pkt, int len));
+static void ccp_protrej __P((int unit));
+static int  ccp_printpkt __P((u_char *pkt, int len,
+			      void (*printer) __P((void *, char *, ...)),
+			      void *arg));
+static void ccp_datainput __P((int unit, u_char *pkt, int len));
+
+struct protent ccp_protent = {
+    PPP_CCP,
+    ccp_init,
+    ccp_input,
+    ccp_protrej,
+    ccp_lowerup,
+    ccp_lowerdown,
+    ccp_open,
+    ccp_close,
+    ccp_printpkt,
+    ccp_datainput,
+    1,
+    "CCP",
+    NULL,
+    NULL,
+    NULL
+};
 
 fsm ccp_fsm[NUM_PPP];
 ccp_options ccp_wantoptions[NUM_PPP];	/* what to request the peer to use */
@@ -56,7 +92,8 @@ static int  ccp_reqci __P((fsm *, u_char *, int *, int));
 static void ccp_up __P((fsm *));
 static void ccp_down __P((fsm *));
 static int  ccp_extcode __P((fsm *, int, int, u_char *, int));
-static void ccp_rack_timeout __P(());
+static void ccp_rack_timeout __P((void *));
+static char *method_name __P((ccp_options *, ccp_options *));
 
 static fsm_callbacks ccp_callbacks = {
     ccp_resetci,
@@ -79,10 +116,11 @@ static fsm_callbacks ccp_callbacks = {
 /*
  * Do we want / did we get any compression?
  */
-#define ANY_COMPRESS(opt)	((opt).bsd_compress)
+#define ANY_COMPRESS(opt)	((opt).deflate || (opt).bsd_compress \
+				 || (opt).predictor_1 || (opt).predictor_2)
 
 /*
- * Local state (mainly for handling reset-reqs and reset-acks
+ * Local state (mainly for handling reset-reqs and reset-acks).
  */
 static int ccp_localstate[NUM_PPP];
 #define RACK_PENDING	1	/* waiting for reset-ack */
@@ -90,10 +128,12 @@ static int ccp_localstate[NUM_PPP];
 
 #define RACKTIMEOUT	1	/* second */
 
+static int all_rejected[NUM_PPP];	/* we rejected all peer's options */
+
 /*
  * ccp_init - initialize CCP.
  */
-void
+static void
 ccp_init(unit)
     int unit;
 {
@@ -109,17 +149,23 @@ ccp_init(unit)
     memset(&ccp_allowoptions[unit], 0, sizeof(ccp_options));
     memset(&ccp_hisoptions[unit],   0, sizeof(ccp_options));
 
-    ccp_wantoptions[0].bsd_compress = 1;
-    ccp_wantoptions[0].bsd_bits = 12;	/* default value */
+    ccp_wantoptions[0].deflate = 1;
+    ccp_wantoptions[0].deflate_size = DEFLATE_MAX_SIZE;
+    ccp_allowoptions[0].deflate = 1;
+    ccp_allowoptions[0].deflate_size = DEFLATE_MAX_SIZE;
 
+    ccp_wantoptions[0].bsd_compress = 1;
+    ccp_wantoptions[0].bsd_bits = BSD_MAX_BITS;
     ccp_allowoptions[0].bsd_compress = 1;
     ccp_allowoptions[0].bsd_bits = BSD_MAX_BITS;
+
+    ccp_allowoptions[0].predictor_1 = 1;
 }
 
 /*
  * ccp_open - CCP is allowed to come up.
  */
-void
+static void
 ccp_open(unit)
     int unit;
 {
@@ -127,26 +173,34 @@ ccp_open(unit)
 
     if (f->state != OPENED)
 	ccp_flags_set(unit, 1, 0);
-    if (!ANY_COMPRESS(ccp_wantoptions[unit]))
+
+    /*
+     * Find out which compressors the kernel supports before
+     * deciding whether to open in silent mode.
+     */
+    ccp_resetci(f);
+    if (!ANY_COMPRESS(ccp_gotoptions[unit]))
 	f->flags |= OPT_SILENT;
+
     fsm_open(f);
 }
 
 /*
  * ccp_close - Terminate CCP.
  */
-void
-ccp_close(unit)
+static void
+ccp_close(unit, reason)
     int unit;
+    char *reason;
 {
     ccp_flags_set(unit, 0, 0);
-    fsm_close(&ccp_fsm[unit]);
+    fsm_close(&ccp_fsm[unit], reason);
 }
 
 /*
  * ccp_lowerup - we may now transmit CCP packets.
  */
-void
+static void
 ccp_lowerup(unit)
     int unit;
 {
@@ -156,7 +210,7 @@ ccp_lowerup(unit)
 /*
  * ccp_lowerdown - we may not transmit CCP packets.
  */
-void
+static void
 ccp_lowerdown(unit)
     int unit;
 {
@@ -166,7 +220,7 @@ ccp_lowerdown(unit)
 /*
  * ccp_input - process a received CCP packet.
  */
-void
+static void
 ccp_input(unit, p, len)
     int unit;
     u_char *p;
@@ -189,7 +243,7 @@ ccp_input(unit, p, len)
      */
     if (oldstate == REQSENT && p[0] == TERMACK
 	&& !ANY_COMPRESS(ccp_gotoptions[unit]))
-	ccp_close(unit);
+	ccp_close(unit, "No compression negotiated");
 }
 
 /*
@@ -214,7 +268,7 @@ ccp_extcode(f, code, id, p, len)
     case CCP_RESETACK:
 	if (ccp_localstate[f->unit] & RACK_PENDING && id == f->reqid) {
 	    ccp_localstate[f->unit] &= ~(RACK_PENDING | RREQ_REPEAT);
-	    UNTIMEOUT(ccp_rack_timeout, (caddr_t) f);
+	    UNTIMEOUT(ccp_rack_timeout, f);
 	}
 	break;
 
@@ -228,7 +282,7 @@ ccp_extcode(f, code, id, p, len)
 /*
  * ccp_protrej - peer doesn't talk CCP.
  */
-void
+static void
 ccp_protrej(unit)
     int unit;
 {
@@ -247,12 +301,38 @@ ccp_resetci(f)
     u_char opt_buf[16];
 
     *go = ccp_wantoptions[f->unit];
+    all_rejected[f->unit] = 0;
+
+    /*
+     * Check whether the kernel knows about the various
+     * compression methods we might request.
+     */
     if (go->bsd_compress) {
 	opt_buf[0] = CI_BSD_COMPRESS;
 	opt_buf[1] = CILEN_BSD_COMPRESS;
-	opt_buf[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, go->bsd_bits);
-	if (!ccp_test(f->unit, opt_buf, CILEN_BSD_COMPRESS, 0))
+	opt_buf[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, BSD_MIN_BITS);
+	if (ccp_test(f->unit, opt_buf, CILEN_BSD_COMPRESS, 0) <= 0)
 	    go->bsd_compress = 0;
+    }
+    if (go->deflate) {
+	opt_buf[0] = CI_DEFLATE;
+	opt_buf[1] = CILEN_DEFLATE;
+	opt_buf[2] = DEFLATE_MAKE_OPT(DEFLATE_MIN_SIZE);
+	opt_buf[3] = DEFLATE_CHK_SEQUENCE;
+	if (ccp_test(f->unit, opt_buf, CILEN_DEFLATE, 0) <= 0)
+	    go->deflate = 0;
+    }
+    if (go->predictor_1) {
+	opt_buf[0] = CI_PREDICTOR_1;
+	opt_buf[1] = CILEN_PREDICTOR_1;
+	if (ccp_test(f->unit, opt_buf, CILEN_PREDICTOR_1, 0) <= 0)
+	    go->predictor_1 = 0;
+    }
+    if (go->predictor_2) {
+	opt_buf[0] = CI_PREDICTOR_2;
+	opt_buf[1] = CILEN_PREDICTOR_2;
+	if (ccp_test(f->unit, opt_buf, CILEN_PREDICTOR_2, 0) <= 0)
+	    go->predictor_2 = 0;
     }
 }
 
@@ -265,7 +345,10 @@ ccp_cilen(f)
 {
     ccp_options *go = &ccp_gotoptions[f->unit];
 
-    return (go->bsd_compress? CILEN_BSD_COMPRESS: 0);
+    return (go->bsd_compress? CILEN_BSD_COMPRESS: 0)
+	+ (go->deflate? CILEN_DEFLATE: 0)
+	+ (go->predictor_1? CILEN_PREDICTOR_1: 0)
+	+ (go->predictor_2? CILEN_PREDICTOR_2: 0);
 }
 
 /*
@@ -277,18 +360,78 @@ ccp_addci(f, p, lenp)
     u_char *p;
     int *lenp;
 {
+    int res;
     ccp_options *go = &ccp_gotoptions[f->unit];
     u_char *p0 = p;
 
+    /*
+     * Add the compression types that we can receive, in decreasing
+     * preference order.  Get the kernel to allocate the first one
+     * in case it gets Acked.
+     */
+    if (go->deflate) {
+	p[0] = CI_DEFLATE;
+	p[1] = CILEN_DEFLATE;
+	p[2] = DEFLATE_MAKE_OPT(go->deflate_size);
+	p[3] = DEFLATE_CHK_SEQUENCE;
+	for (;;) {
+	    res = ccp_test(f->unit, p, CILEN_DEFLATE, 0);
+	    if (res > 0) {
+		p += CILEN_DEFLATE;
+		break;
+	    }
+	    if (res < 0 || go->deflate_size <= DEFLATE_MIN_SIZE) {
+		go->deflate = 0;
+		break;
+	    }
+	    --go->deflate_size;
+	    p[2] = DEFLATE_MAKE_OPT(go->deflate_size);
+	}
+    }
     if (go->bsd_compress) {
 	p[0] = CI_BSD_COMPRESS;
 	p[1] = CILEN_BSD_COMPRESS;
 	p[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, go->bsd_bits);
-	if (ccp_test(f->unit, p, CILEN_BSD_COMPRESS, 0))
-	    p += CILEN_BSD_COMPRESS;
-	else
-	    go->bsd_compress = 0;
+	if (p != p0) {
+	    p += CILEN_BSD_COMPRESS;	/* not the first option */
+	} else {
+	    for (;;) {
+		res = ccp_test(f->unit, p, CILEN_BSD_COMPRESS, 0);
+		if (res > 0) {
+		    p += CILEN_BSD_COMPRESS;
+		    break;
+		}
+		if (res < 0 || go->bsd_bits <= BSD_MIN_BITS) {
+		    go->bsd_compress = 0;
+		    break;
+		}
+		--go->bsd_bits;
+		p[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, go->bsd_bits);
+	    }
+	}
     }
+    /* XXX Should Predictor 2 be preferable to Predictor 1? */
+    if (go->predictor_1) {
+	p[0] = CI_PREDICTOR_1;
+	p[1] = CILEN_PREDICTOR_1;
+	if (p == p0 && ccp_test(f->unit, p, CILEN_PREDICTOR_1, 0) <= 0) {
+	    go->predictor_1 = 0;
+	} else {
+	    p += CILEN_PREDICTOR_1;
+	}
+    }
+    if (go->predictor_2) {
+	p[0] = CI_PREDICTOR_2;
+	p[1] = CILEN_PREDICTOR_2;
+	if (p == p0 && ccp_test(f->unit, p, CILEN_PREDICTOR_2, 0) <= 0) {
+	    go->predictor_2 = 0;
+	} else {
+	    p += CILEN_PREDICTOR_2;
+	}
+    }
+
+    go->method = (p > p0)? p0[0]: -1;
+
     *lenp = p - p0;
 }
 
@@ -303,7 +446,20 @@ ccp_ackci(f, p, len)
     int len;
 {
     ccp_options *go = &ccp_gotoptions[f->unit];
+    u_char *p0 = p;
 
+    if (go->deflate) {
+	if (len < CILEN_DEFLATE
+	    || p[0] != CI_DEFLATE || p[1] != CILEN_DEFLATE
+	    || p[2] != DEFLATE_MAKE_OPT(go->deflate_size)
+	    || p[3] != DEFLATE_CHK_SEQUENCE)
+	    return 0;
+	p += CILEN_DEFLATE;
+	len -= CILEN_DEFLATE;
+	/* XXX Cope with first/fast ack */
+	if (len == 0)
+	    return 1;
+    }
     if (go->bsd_compress) {
 	if (len < CILEN_BSD_COMPRESS
 	    || p[0] != CI_BSD_COMPRESS || p[1] != CILEN_BSD_COMPRESS
@@ -311,7 +467,31 @@ ccp_ackci(f, p, len)
 	    return 0;
 	p += CILEN_BSD_COMPRESS;
 	len -= CILEN_BSD_COMPRESS;
+	/* XXX Cope with first/fast ack */
+	if (p == p0 && len == 0)
+	    return 1;
     }
+    if (go->predictor_1) {
+	if (len < CILEN_PREDICTOR_1
+	    || p[0] != CI_PREDICTOR_1 || p[1] != CILEN_PREDICTOR_1)
+	    return 0;
+	p += CILEN_PREDICTOR_1;
+	len -= CILEN_PREDICTOR_1;
+	/* XXX Cope with first/fast ack */
+	if (p == p0 && len == 0)
+	    return 1;
+    }
+    if (go->predictor_2) {
+	if (len < CILEN_PREDICTOR_2
+	    || p[0] != CI_PREDICTOR_2 || p[1] != CILEN_PREDICTOR_2)
+	    return 0;
+	p += CILEN_PREDICTOR_2;
+	len -= CILEN_PREDICTOR_2;
+	/* XXX Cope with first/fast ack */
+	if (p == p0 && len == 0)
+	    return 1;
+    }
+
     if (len != 0)
 	return 0;
     return 1;
@@ -334,7 +514,24 @@ ccp_nakci(f, p, len)
     memset(&no, 0, sizeof(no));
     try = *go;
 
-    if (go->bsd_compress && !no.bsd_compress && len >= CILEN_BSD_COMPRESS
+    if (go->deflate && len >= CILEN_DEFLATE
+	&& p[0] == CI_DEFLATE && p[1] == CILEN_DEFLATE) {
+	no.deflate = 1;
+	/*
+	 * Peer wants us to use a different code size or something.
+	 * Stop asking for Deflate if we don't understand his suggestion.
+	 */
+	if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL
+	    || DEFLATE_SIZE(p[2]) < DEFLATE_MIN_SIZE
+	    || p[3] != DEFLATE_CHK_SEQUENCE)
+	    try.deflate = 0;
+	else if (DEFLATE_SIZE(p[2]) < go->deflate_size)
+	    try.deflate_size = DEFLATE_SIZE(p[2]);
+	p += CILEN_DEFLATE;
+	len -= CILEN_DEFLATE;
+    }
+
+    if (go->bsd_compress && len >= CILEN_BSD_COMPRESS
 	&& p[0] == CI_BSD_COMPRESS && p[1] == CILEN_BSD_COMPRESS) {
 	no.bsd_compress = 1;
 	/*
@@ -350,7 +547,9 @@ ccp_nakci(f, p, len)
     }
 
     /*
-     * Have a look at any remaining options...???
+     * Predictor-1 and 2 have no options, so they can't be Naked.
+     *
+     * XXX What should we do with any remaining options?
      */
 
     if (len != 0)
@@ -375,6 +574,22 @@ ccp_rejci(f, p, len)
 
     try = *go;
 
+    /*
+     * Cope with empty configure-rejects by ceasing to send
+     * configure-requests.
+     */
+    if (len == 0 && all_rejected[f->unit])
+	return -1;
+
+    if (go->deflate && len >= CILEN_DEFLATE
+	&& p[0] == CI_DEFLATE && p[1] == CILEN_DEFLATE) {
+	if (p[2] != DEFLATE_MAKE_OPT(go->deflate_size)
+	    || p[3] != DEFLATE_CHK_SEQUENCE)
+	    return 0;		/* Rej is bad */
+	try.deflate = 0;
+	p += CILEN_DEFLATE;
+	len -= CILEN_DEFLATE;
+    }
     if (go->bsd_compress && len >= CILEN_BSD_COMPRESS
 	&& p[0] == CI_BSD_COMPRESS && p[1] == CILEN_BSD_COMPRESS) {
 	if (p[2] != BSD_MAKE_OPT(BSD_CURRENT_VERSION, go->bsd_bits))
@@ -382,6 +597,18 @@ ccp_rejci(f, p, len)
 	try.bsd_compress = 0;
 	p += CILEN_BSD_COMPRESS;
 	len -= CILEN_BSD_COMPRESS;
+    }
+    if (go->predictor_1 && len >= CILEN_PREDICTOR_1
+	&& p[0] == CI_PREDICTOR_1 && p[1] == CILEN_PREDICTOR_1) {
+	try.predictor_1 = 0;
+	p += CILEN_PREDICTOR_1;
+	len -= CILEN_PREDICTOR_1;
+    }
+    if (go->predictor_2 && len >= CILEN_PREDICTOR_2
+	&& p[0] == CI_PREDICTOR_2 && p[1] == CILEN_PREDICTOR_2) {
+	try.predictor_2 = 0;
+	p += CILEN_PREDICTOR_2;
+	len -= CILEN_PREDICTOR_2;
     }
 
     if (len != 0)
@@ -405,7 +632,7 @@ ccp_reqci(f, p, lenp, dont_nak)
     int *lenp;
     int dont_nak;
 {
-    int ret, newret;
+    int ret, newret, res;
     u_char *p0, *retp;
     int len, clen, type, nb;
     ccp_options *ho = &ccp_hisoptions[f->unit];
@@ -416,6 +643,7 @@ ccp_reqci(f, p, lenp, dont_nak)
     len = *lenp;
 
     memset(ho, 0, sizeof(ccp_options));
+    ho->method = (len > 0)? p[0]: -1;
 
     while (len > 0) {
 	newret = CONFACK;
@@ -429,6 +657,49 @@ ccp_reqci(f, p, lenp, dont_nak)
 	    clen = p[1];
 
 	    switch (type) {
+	    case CI_DEFLATE:
+		if (!ao->deflate || clen != CILEN_DEFLATE) {
+		    newret = CONFREJ;
+		    break;
+		}
+
+		ho->deflate = 1;
+		ho->deflate_size = nb = DEFLATE_SIZE(p[2]);
+		if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL
+		    || p[3] != DEFLATE_CHK_SEQUENCE
+		    || nb > ao->deflate_size || nb < DEFLATE_MIN_SIZE) {
+		    newret = CONFNAK;
+		    if (!dont_nak) {
+			p[2] = DEFLATE_MAKE_OPT(ao->deflate_size);
+			p[3] = DEFLATE_CHK_SEQUENCE;
+			/* fall through to test this #bits below */
+		    } else
+			break;
+		}
+
+		/*
+		 * Check whether we can do Deflate with the window
+		 * size they want.  If the window is too big, reduce
+		 * it until the kernel can cope and nak with that.
+		 * We only check this for the first option.
+		 */
+		if (p == p0) {
+		    for (;;) {
+			res = ccp_test(f->unit, p, CILEN_DEFLATE, 1);
+			if (res > 0)
+			    break;		/* it's OK now */
+			if (res < 0 || nb == DEFLATE_MIN_SIZE || dont_nak) {
+			    newret = CONFREJ;
+			    p[2] = DEFLATE_MAKE_OPT(ho->deflate_size);
+			    break;
+			}
+			newret = CONFNAK;
+			--nb;
+			p[2] = DEFLATE_MAKE_OPT(nb);
+		    }
+		}
+		break;
+
 	    case CI_BSD_COMPRESS:
 		if (!ao->bsd_compress || clen != CILEN_BSD_COMPRESS) {
 		    newret = CONFREJ;
@@ -438,22 +709,63 @@ ccp_reqci(f, p, lenp, dont_nak)
 		ho->bsd_compress = 1;
 		ho->bsd_bits = nb = BSD_NBITS(p[2]);
 		if (BSD_VERSION(p[2]) != BSD_CURRENT_VERSION
-		    || nb > ao->bsd_bits) {
+		    || nb > ao->bsd_bits || nb < BSD_MIN_BITS) {
 		    newret = CONFNAK;
-		    nb = ao->bsd_bits;
-		} else if (nb < BSD_MIN_BITS) {
-		    newret = CONFREJ;
-		} else if (!ccp_test(f->unit, p, CILEN_BSD_COMPRESS, 1)) {
-		    if (nb > BSD_MIN_BITS) {
-			--nb;
-			newret = CONFNAK;
+		    if (!dont_nak) {
+			p[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, ao->bsd_bits);
+			/* fall through to test this #bits below */
 		    } else
-			newret = CONFREJ;
-		}
-		if (newret == CONFNAK && !dont_nak) {
-		    p[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, nb);
+			break;
 		}
 
+		/*
+		 * Check whether we can do BSD-Compress with the code
+		 * size they want.  If the code size is too big, reduce
+		 * it until the kernel can cope and nak with that.
+		 * We only check this for the first option.
+		 */
+		if (p == p0) {
+		    for (;;) {
+			res = ccp_test(f->unit, p, CILEN_BSD_COMPRESS, 1);
+			if (res > 0)
+			    break;
+			if (res < 0 || nb == BSD_MIN_BITS || dont_nak) {
+			    newret = CONFREJ;
+			    p[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION,
+						ho->bsd_bits);
+			    break;
+			}
+			newret = CONFNAK;
+			--nb;
+			p[2] = BSD_MAKE_OPT(BSD_CURRENT_VERSION, nb);
+		    }
+		}
+		break;
+
+	    case CI_PREDICTOR_1:
+		if (!ao->predictor_1 || clen != CILEN_PREDICTOR_1) {
+		    newret = CONFREJ;
+		    break;
+		}
+
+		ho->predictor_1 = 1;
+		if (p == p0
+		    && ccp_test(f->unit, p, CILEN_PREDICTOR_1, 1) <= 0) {
+		    newret = CONFREJ;
+		}
+		break;
+
+	    case CI_PREDICTOR_2:
+		if (!ao->predictor_2 || clen != CILEN_PREDICTOR_2) {
+		    newret = CONFREJ;
+		    break;
+		}
+
+		ho->predictor_2 = 1;
+		if (p == p0
+		    && ccp_test(f->unit, p, CILEN_PREDICTOR_2, 1) <= 0) {
+		    newret = CONFREJ;
+		}
 		break;
 
 	    default:
@@ -463,7 +775,7 @@ ccp_reqci(f, p, lenp, dont_nak)
 
 	if (newret == CONFNAK && dont_nak)
 	    newret = CONFREJ;
-	if (!(newret == CONFACK || newret == CONFNAK && ret == CONFREJ)) {
+	if (!(newret == CONFACK || (newret == CONFNAK && ret == CONFREJ))) {
 	    /* we're returning this option */
 	    if (newret == CONFREJ && ret == CONFNAK)
 		retp = p0;
@@ -477,13 +789,53 @@ ccp_reqci(f, p, lenp, dont_nak)
 	len -= clen;
     }
 
-    if (ret != CONFACK)
-	*lenp = retp - p0;
+    if (ret != CONFACK) {
+	if (ret == CONFREJ && *lenp == retp - p0)
+	    all_rejected[f->unit] = 1;
+	else
+	    *lenp = retp - p0;
+    }
     return ret;
 }
 
 /*
- * CCP has come up - inform the kernel driver.
+ * Make a string name for a compression method (or 2).
+ */
+static char *
+method_name(opt, opt2)
+    ccp_options *opt, *opt2;
+{
+    static char result[64];
+
+    if (!ANY_COMPRESS(*opt))
+	return "(none)";
+    switch (opt->method) {
+    case CI_DEFLATE:
+	if (opt2 != NULL && opt2->deflate_size != opt->deflate_size)
+	    sprintf(result, "Deflate (%d/%d)", opt->deflate_size,
+		    opt2->deflate_size);
+	else
+	    sprintf(result, "Deflate (%d)", opt->deflate_size);
+	break;
+    case CI_BSD_COMPRESS:
+	if (opt2 != NULL && opt2->bsd_bits != opt->bsd_bits)
+	    sprintf(result, "BSD-Compress (%d/%d)", opt->bsd_bits,
+		    opt2->bsd_bits);
+	else
+	    sprintf(result, "BSD-Compress (%d)", opt->bsd_bits);
+	break;
+    case CI_PREDICTOR_1:
+	return "Predictor 1";
+    case CI_PREDICTOR_2:
+	return "Predictor 2";
+    default:
+	sprintf(result, "Method %d", opt->method);
+    }
+    return result;
+}
+
+/*
+ * CCP has come up - inform the kernel driver and log a message.
  */
 static void
 ccp_up(f)
@@ -491,12 +843,25 @@ ccp_up(f)
 {
     ccp_options *go = &ccp_gotoptions[f->unit];
     ccp_options *ho = &ccp_hisoptions[f->unit];
+    char method1[64];
 
     ccp_flags_set(f->unit, 1, 1);
-    if (go->bsd_compress || ho->bsd_compress)
-	syslog(LOG_NOTICE, "%s enabled",
-	       go->bsd_compress? ho->bsd_compress? "Compression":
-	       "Receive compression": "Transmit compression");
+    if (ANY_COMPRESS(*go)) {
+	if (ANY_COMPRESS(*ho)) {
+	    if (go->method == ho->method) {
+		syslog(LOG_NOTICE, "%s compression enabled",
+		       method_name(go, ho));
+	    } else {
+		strcpy(method1, method_name(go, NULL));
+		syslog(LOG_NOTICE, "%s / %s compression enabled",
+		       method1, method_name(ho, NULL));
+	    }
+	} else
+	    syslog(LOG_NOTICE, "%s receive compression enabled",
+		   method_name(go, NULL));
+    } else if (ANY_COMPRESS(*ho))
+	syslog(LOG_NOTICE, "%s transmit compression enabled",
+	       method_name(ho, NULL));
 }
 
 /*
@@ -507,7 +872,7 @@ ccp_down(f)
     fsm *f;
 {
     if (ccp_localstate[f->unit] & RACK_PENDING)
-	UNTIMEOUT(ccp_rack_timeout, (caddr_t) f);
+	UNTIMEOUT(ccp_rack_timeout, f);
     ccp_localstate[f->unit] = 0;
     ccp_flags_set(f->unit, 1, 0);
 }
@@ -515,14 +880,14 @@ ccp_down(f)
 /*
  * Print the contents of a CCP packet.
  */
-char *ccp_codenames[] = {
+static char *ccp_codenames[] = {
     "ConfReq", "ConfAck", "ConfNak", "ConfRej",
     "TermReq", "TermAck", "CodeRej",
     NULL, NULL, NULL, NULL, NULL, NULL,
     "ResetReq", "ResetAck",
 };
 
-int
+static int
 ccp_printpkt(p, plen, printer, arg)
     u_char *p;
     int plen;
@@ -566,6 +931,16 @@ ccp_printpkt(p, plen, printer, arg)
 	    len -= optlen;
 	    optend = p + optlen;
 	    switch (code) {
+	    case CI_DEFLATE:
+		if (optlen >= CILEN_DEFLATE) {
+		    printer(arg, "deflate %d", DEFLATE_SIZE(p[2]));
+		    if (DEFLATE_METHOD(p[2]) != DEFLATE_METHOD_VAL)
+			printer(arg, " method %d", DEFLATE_METHOD(p[2]));
+		    if (p[3] != DEFLATE_CHK_SEQUENCE)
+			printer(arg, " check %d", p[3]);
+		    p += CILEN_DEFLATE;
+		}
+		break;
 	    case CI_BSD_COMPRESS:
 		if (optlen >= CILEN_BSD_COMPRESS) {
 		    printer(arg, "bsd v%d %d", BSD_VERSION(p[2]),
@@ -573,10 +948,31 @@ ccp_printpkt(p, plen, printer, arg)
 		    p += CILEN_BSD_COMPRESS;
 		}
 		break;
+	    case CI_PREDICTOR_1:
+		if (optlen >= CILEN_PREDICTOR_1) {
+		    printer(arg, "predictor 1");
+		    p += CILEN_PREDICTOR_1;
+		}
+		break;
+	    case CI_PREDICTOR_2:
+		if (optlen >= CILEN_PREDICTOR_2) {
+		    printer(arg, "predictor 2");
+		    p += CILEN_PREDICTOR_2;
+		}
+		break;
 	    }
 	    while (p < optend)
 		printer(arg, " %.2x", *p++);
 	    printer(arg, ">");
+	}
+	break;
+
+    case TERMACK:
+    case TERMREQ:
+	if (len > 0 && *p >= ' ' && *p < 0x7f) {
+	    print_string(p, len, printer, arg);
+	    p += len;
+	    len = 0;
 	}
 	break;
     }
@@ -600,7 +996,7 @@ ccp_printpkt(p, plen, printer, arg)
  * decompression; if it was, we take CCP down, thus disabling
  * compression :-(, otherwise we issue the reset-request.
  */
-void
+static void
 ccp_datainput(unit, pkt, len)
     int unit;
     u_char *pkt;
@@ -615,7 +1011,7 @@ ccp_datainput(unit, pkt, len)
 	     * Disable compression by taking CCP down.
 	     */
 	    syslog(LOG_ERR, "Lost compression sync: disabling compression");
-	    ccp_close(unit);
+	    ccp_close(unit, "Lost compression sync");
 	} else {
 	    /*
 	     * Send a reset-request to reset the peer's compressor.
@@ -624,7 +1020,7 @@ ccp_datainput(unit, pkt, len)
 	     */
 	    if (!(ccp_localstate[f->unit] & RACK_PENDING)) {
 		fsm_sdata(f, CCP_RESETREQ, f->reqid = ++f->id, NULL, 0);
-		TIMEOUT(ccp_rack_timeout, (caddr_t) f, RACKTIMEOUT);
+		TIMEOUT(ccp_rack_timeout, f, RACKTIMEOUT);
 		ccp_localstate[f->unit] |= RACK_PENDING;
 	    } else
 		ccp_localstate[f->unit] |= RREQ_REPEAT;
@@ -637,13 +1033,13 @@ ccp_datainput(unit, pkt, len)
  */
 static void
 ccp_rack_timeout(arg)
-    caddr_t arg;
+    void *arg;
 {
-    fsm *f = (fsm *) arg;
+    fsm *f = arg;
 
     if (f->state == OPENED && ccp_localstate[f->unit] & RREQ_REPEAT) {
 	fsm_sdata(f, CCP_RESETREQ, f->reqid, NULL, 0);
-	TIMEOUT(ccp_rack_timeout, (caddr_t) f, RACKTIMEOUT);
+	TIMEOUT(ccp_rack_timeout, f, RACKTIMEOUT);
 	ccp_localstate[f->unit] &= ~RREQ_REPEAT;
     } else
 	ccp_localstate[f->unit] &= ~RACK_PENDING;
