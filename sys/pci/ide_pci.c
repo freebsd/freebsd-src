@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ide_pci.c,v 1.13 1998/07/11 07:45:52 bde Exp $
+ *	$Id: ide_pci.c,v 1.14 1998/07/15 02:32:26 bde Exp $
  */
 
 #include "pci.h"
@@ -696,8 +696,8 @@ intel_piix_dmainit(struct ide_pci_cookie *cookie,
 
 		unitno = cookie->ctlr * 2 + cookie->unit;
 
-		mask = 1 << unitno + 3 << (16 + unitno * 4);
-		new = 1 << unitno + 2 << (16 + unitno * 4);
+		mask = (1 << unitno) + (3 << (16 + unitno * 4));
+		new  = (1 << unitno) + (2 << (16 + unitno * 4));
 
 		pci_conf_write(cookie->tag, 0x48, 
 			(pci_conf_read(cookie->tag, 0x48) & ~mask) | new);
