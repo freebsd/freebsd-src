@@ -56,7 +56,8 @@ getchar()
 {
 	int retval;
 	FLOCKFILE(stdin);
-	ORIENT(stdin, -1);
+	/* Orientation set by __sgetc() when buffer is empty. */
+	/* ORIENT(stdin, -1); */
 	retval = __sgetc(stdin);
 	FUNLOCKFILE(stdin);
 	return (retval);
