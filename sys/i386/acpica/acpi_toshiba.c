@@ -212,20 +212,15 @@ TUNABLE_INT("hw.acpi.toshiba.enable_fn_keys", &enable_fn_keys);
 static int
 acpi_toshiba_probe(device_t dev)
 {
-	ACPI_HANDLE h;
-	int ret = ENXIO;
+	static char *tosh_ids[] = { "TOS6200", "TOS6207", NULL };
 
-	h = acpi_get_handle(dev);
-	if (!acpi_disabled("toshiba") &&
-	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
-	    device_get_unit(dev) == 0 &&
-	    (acpi_MatchHid(h, "TOS6200") ||
-	     acpi_MatchHid(h, "TOS6207"))) {
-		device_set_desc(dev, "Toshiba HCI Extras");
-		ret = 0;
-	}
+	if (acpi_disabled("toshiba") ||
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, tosh_ids) == NULL ||
+	    device_get_unit(dev) != 0)
+		return (ENXIO);
 
-	return (ret);
+	device_set_desc(dev, "Toshiba HCI Extras");
+	return (0);
 }
 
 static int
@@ -524,18 +519,16 @@ acpi_toshiba_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 static int
 acpi_toshiba_video_probe(device_t dev)
 {
-	int ret = ENXIO;
+	static char *vid_ids[] = { "TOS6201", NULL };
 
-	if (!acpi_disabled("toshiba") &&
-	    acpi_get_type(dev) == ACPI_TYPE_DEVICE &&
-	    device_get_unit(dev) == 0 &&
-	     acpi_MatchHid(acpi_get_handle(dev), "TOS6201")) {
-		device_quiet(dev);
-		device_set_desc(dev, "Toshiba Video");
-		ret = 0;
-	}
+	if (acpi_disabled("toshiba") ||
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, vid_ids) == NULL ||
+	    device_get_unit(dev) != 0)
+		return (ENXIO);
 
-	return (ret);
+	device_quiet(dev);
+	device_set_desc(dev, "Toshiba Video");
+	return (0);
 }
 
 static int
