@@ -2583,20 +2583,16 @@ siocnputc(struct consdev *cd, int c)
 	}
 	s = spltty();
 	need_unlock = 0;
-	if (!kdb_active) {
-		if (sio_inited == 2 && !mtx_owned(&sio_lock)) {
-			mtx_lock_spin(&sio_lock);
-			need_unlock = 1;
-		}
+	if (!kdb_active && sio_inited == 2 && !mtx_owned(&sio_lock)) {
+		mtx_lock_spin(&sio_lock);
+		need_unlock = 1;
 	}
 	siocnopen(&sp, iobase, speed);
 	siocntxwait(iobase);
 	outb(iobase + com_data, c);
 	siocnclose(&sp, iobase);
-	if (!kdb_active) {
-		if (need_unlock)
-			mtx_unlock_spin(&sio_lock);
-	}
+	if (need_unlock)
+		mtx_unlock_spin(&sio_lock);
 	splx(s);
 }
 
