@@ -222,19 +222,6 @@ mac_mls_equal_element(struct mac_mls_element *a, struct mac_mls_element *b)
 }
 
 static int
-mac_mls_equal_range(struct mac_mls *a, struct mac_mls *b)
-{
-
-	KASSERT((a->mm_flags & MAC_MLS_FLAG_RANGE) != 0,
-	    ("mac_mls_equal_range: a not range"));
-	KASSERT((b->mm_flags & MAC_MLS_FLAG_RANGE) != 0,
-	    ("mac_mls_equal_range: b not range"));
-
-	return (mac_mls_equal_element(&a->mm_rangelow, &b->mm_rangelow) &&
-	    mac_mls_equal_element(&a->mm_rangehigh, &b->mm_rangehigh));
-}
-
-static int
 mac_mls_equal_single(struct mac_mls *a, struct mac_mls *b)
 {
 
