@@ -92,7 +92,8 @@ typedef enum {
 typedef enum {
 	DA_Q_NONE		= 0x00,
 	DA_Q_NO_SYNC_CACHE	= 0x01,
-	DA_Q_NO_6_BYTE		= 0x02
+	DA_Q_NO_6_BYTE		= 0x02,
+	DA_Q_NO_PREVENT		= 0x04
 } da_quirks;
 
 typedef enum {
@@ -219,9 +220,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
-		/*
-		 * See above.
-		 */
+		/* See above. */
 		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
@@ -495,6 +494,30 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 #endif /* DA_OLD_QUIRKS */
+	{
+		/*
+		 * EXATELECOM (Sigmatel) i-Bead 100/105 USB Flash MP3 Player
+		 * PR: kern/51675
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "EXATEL", "i-BEAD10*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Jungsoft NEXDISK USB flash key
+		 * PR: kern/54737
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "JUNGSOFT", "NEXDISK*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+ 	{
+ 		/*
+ 		 * Creative Nomad MUVO mp3 player (USB)
+ 		 * PR: kern/53094
+ 		 */
+ 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CREATIVE", "NOMAD_MUVO", "*"},
+ 		/*quirks*/ DA_Q_NO_SYNC_CACHE|DA_Q_NO_PREVENT
+ 	},
 };
 
 static	d_open_t	daopen;
@@ -695,9 +718,9 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 				  * softc->params.secs_per_track;
 		label->d_secperunit = softc->params.sectors;
 
-		if (((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)) {
+		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
+		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 			daprevent(periph, PR_PREVENT);
-		}
 	
 		/*
 		 * Check to see whether or not the blocksize is set yet.
@@ -711,9 +734,9 @@ daopen(dev_t dev, int flags, int fmt, struct proc *p)
 	}
 	
 	if (error != 0) {
-		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
+		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
+		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 			daprevent(periph, PR_ALLOW);
-		}
 		softc->flags &= ~DA_FLAG_OPEN;
 		cam_periph_release(periph);
 	}
@@ -791,7 +814,8 @@ daclose(dev_t dev, int flag, int fmt, struct proc *p)
 	}
 
 	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
-		daprevent(periph, PR_ALLOW);
+		if ((softc->quirks & DA_Q_NO_PREVENT) == 0)
+			daprevent(periph, PR_ALLOW);
 		/*
 		 * If we've got removeable media, mark the blocksize as
 		 * unavailable, since it could change when new media is
