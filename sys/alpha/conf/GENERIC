@@ -93,6 +93,10 @@ device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
+# RAID controllers
+device		amr		# AMI MegaRAID
+device		mlx		# Mylex DAC960 family
+
 # SCSI peripherals
 device		scbus		# SCSI bus (required)
 device		da		# Direct Access (disks)
