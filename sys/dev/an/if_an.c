@@ -2353,10 +2353,8 @@ an_media_status(ifp, imr)
 	}
 
 	imr->ifm_status = IFM_AVALID;
-	if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
+	if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 		imr->ifm_status |= IFM_ACTIVE;
-	else if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
-			imr->ifm_status |= IFM_ACTIVE;
 }
 
 /********************** Cisco utility support routines *************/
