@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.51.2.2 1997/03/07 09:20:08 joerg Exp $
+ * $Id: vfs_syscalls.c,v 1.51.2.3 1997/03/26 20:05:44 guido Exp $
  */
 
 /*
@@ -1208,49 +1208,24 @@ olstat(p, uap, retval)
 	register struct olstat_args *uap;
 	int *retval;
 {
-	struct vnode *vp, *dvp;
-	struct stat sb, sb1;
+	struct vnode *vp;
+	struct stat sb;
 	struct ostat osb;
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    uap->path, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
-	/*
-	 * For symbolic links, always return the attributes of its
-	 * containing directory, except for mode, size, and links.
-	 */
 	vp = nd.ni_vp;
-	dvp = nd.ni_dvp;
-	if (vp->v_type != VLNK) {
-		if (dvp == vp)
-			vrele(dvp);
-		else
-			vput(dvp);
-		error = vn_stat(vp, &sb, p);
-		vput(vp);
-		if (error)
-			return (error);
-	} else {
-		error = vn_stat(dvp, &sb, p);
-		vput(dvp);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		error = vn_stat(vp, &sb1, p);
-		vput(vp);
-		if (error)
-			return (error);
-		sb.st_mode &= ~S_IFDIR;
-		sb.st_mode |= S_IFLNK;
-		sb.st_nlink = sb1.st_nlink;
-		sb.st_size = sb1.st_size;
-		sb.st_blocks = sb1.st_blocks;
-	}
+	error = vn_stat(vp, &sb, p);
+	if (vp->v_type == VLNK)
+		sb.st_mode |= S_IFLNK | ACCESSPERMS;	/* 0777 */
+	vput(vp);
+	if (error)
+		return (error);
 	cvtstat(&sb, &osb);
 	error = copyout((caddr_t)&osb, (caddr_t)uap->ub, sizeof (osb));
 	return (error);
@@ -1335,47 +1310,22 @@ lstat(p, uap, retval)
 	int *retval;
 {
 	int error;
-	struct vnode *vp, *dvp;
-	struct stat sb, sb1;
+	struct vnode *vp;
+	struct stat sb;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
 	    uap->path, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
-	/*
-	 * For symbolic links, always return the attributes of its
-	 * containing directory, except for mode, size, and links.
-	 */
 	vp = nd.ni_vp;
-	dvp = nd.ni_dvp;
-	if (vp->v_type != VLNK) {
-		if (dvp == vp)
-			vrele(dvp);
-		else
-			vput(dvp);
-		error = vn_stat(vp, &sb, p);
-		vput(vp);
-		if (error)
-			return (error);
-	} else {
-		error = vn_stat(dvp, &sb, p);
-		vput(dvp);
-		if (error) {
-			vput(vp);
-			return (error);
-		}
-		error = vn_stat(vp, &sb1, p);
-		vput(vp);
-		if (error)
-			return (error);
-		sb.st_mode &= ~S_IFDIR;
-		sb.st_mode |= S_IFLNK;
-		sb.st_nlink = sb1.st_nlink;
-		sb.st_size = sb1.st_size;
-		sb.st_blocks = sb1.st_blocks;
-	}
+	error = vn_stat(vp, &sb, p);
+	if (vp->v_type == VLNK)
+		sb.st_mode |= S_IFLNK | ACCESSPERMS;	/* 0777 */
+	vput(vp);
+	if (error)
+		return (error);
 	error = copyout((caddr_t)&sb, (caddr_t)uap->ub, sizeof (sb));
 	return (error);
 }
@@ -1616,6 +1566,43 @@ chown(p, uap, retval)
 	struct nameidata nd;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, p);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	vp = nd.ni_vp;
+	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
+	VOP_LOCK(vp);
+	VATTR_NULL(&vattr);
+	vattr.va_uid = uap->uid;
+	vattr.va_gid = uap->gid;
+	error = VOP_SETATTR(vp, &vattr, p->p_ucred, p);
+	vput(vp);
+	return (error);
+}
+
+/*
+ * Set ownership given a path name, do not cross symlinks.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct lchown_args {
+	char	*path;
+	int	uid;
+	int	gid;
+};
+#endif
+/* ARGSUSED */
+int
+lchown(p, uap, retval)
+	struct proc *p;
+	register struct lchown_args *uap;
+	int *retval;
+{
+	register struct vnode *vp;
+	struct vattr vattr;
+	int error;
+	struct nameidata nd;
+
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, p);
 	error = namei(&nd);
 	if (error)
 		return (error);
