@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.90 1995/01/01 20:06:20 ache Exp $
+# $Id: bsd.port.mk,v 1.91 1995/01/03 11:51:59 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -89,6 +89,8 @@
 # reinstall		- Install the results of a build, ignoring "already installed"
 #				  flag.
 # package		- Create a package from a build.
+# describe		- Try to generate a one-line description for each port for
+#				  use in INDEX files and the like.
 #
 # Default sequence for "all" is:  fetch extract configure build
 
