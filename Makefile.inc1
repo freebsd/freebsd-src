@@ -400,7 +400,7 @@ build32:
 .if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} ${_t}
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= ${_t}
 .endfor
 .endif
 .for _t in obj includes
@@ -425,7 +425,7 @@ build32:
 .endfor
 .for _dir in lib/libncurses lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
-	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} build-tools
+	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= build-tools
 .endfor
 	cd ${.CURDIR}; \
 	    ${LIB32MAKE} -f Makefile.inc1 DESTDIR=${LIB32TMP} libraries 
