@@ -97,7 +97,7 @@ void drive_io_done(struct buf *);
 void save_config(void);
 void daemon_save_config(void);
 void write_config(char *, int);
-int start_config(void);
+int start_config(int);
 void finish_config(int);
 void remove(struct vinum_ioctl_msg *msg);
 void remove_drive_entry(int driveno, int force, int recurse);
