@@ -893,8 +893,12 @@ pmap_page_lookup(vm_object_t object, vm_pindex_t pindex)
 	vm_page_t m;
 retry:
 	m = vm_page_lookup(object, pindex);
-	if (m && vm_page_sleep_busy(m, FALSE, "pplookp"))
-		goto retry;
+	if (m != NULL) {
+		vm_page_lock_queues();
+		if (vm_page_sleep_if_busy(m, FALSE, "pplookp"))
+			goto retry;
+		vm_page_unlock_queues();
+	}
 	return m;
 }
 
@@ -1338,7 +1342,8 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	 * page-table pages.  Those pages are zero now, and
 	 * might as well be placed directly into the zero queue.
 	 */
-	if (vm_page_sleep_busy(p, FALSE, "pmaprl"))
+	vm_page_lock_queues();
+	if (vm_page_sleep_if_busy(p, FALSE, "pmaprl"))
 		return 0;
 
 	vm_page_busy(p);
@@ -1361,7 +1366,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	if (p->pindex == NUSERLEV3MAPS + NUSERLEV2MAPS)
 		bzero(pmap->pm_lev1 + K1SEGLEV1I, nklev2 * PTESIZE);
 
-	if (pmap->pm_ptphint && (pmap->pm_ptphint->pindex == p->pindex))
+	if (pmap->pm_ptphint == p)
 		pmap->pm_ptphint = NULL;
 
 #ifdef PMAP_DEBUG
@@ -1377,6 +1382,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	p->wire_count--;
 	cnt.v_wire_count--;
 	vm_page_free_zero(p);
+	vm_page_unlock_queues();
 	return 1;
 }
 
