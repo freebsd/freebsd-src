@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.11 1998/05/01 04:42:53 ache Exp $
+#	$Id: Makefile,v 1.12 1998/05/01 10:01:00 andreas Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/bc/bc \
 	${.CURDIR}/../../../contrib/bc/lib \
@@ -12,7 +12,7 @@ SRCS=	${GENSRCS} ${BCSRCS}
 
 YACC=	bison -y
 
-CFLAGS+=-I${.CURDIR} -I. -I${.CURDIR}/../../../contrib/bc/h
+CFLAGS+=-I${.CURDIR} -I. -I${.CURDIR}/../../../contrib/bc/h -DHAVE_CONFIG_H
 
 bc.h: bc.c
 	mv y.tab.h bc.h
