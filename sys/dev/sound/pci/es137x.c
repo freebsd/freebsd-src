@@ -68,6 +68,7 @@ SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &debug, 0, "");
 #define ES1370_PCI_ID 0x50001274
 #define ES1371_PCI_ID 0x13711274
 #define ES1371_PCI_ID2 0x13713274
+#define ES1371_PCI_ID3 0x58801274
 
 #define ES_BUFFSIZE 4096
 
@@ -493,7 +494,7 @@ es1371_init(struct es_info *es, int rev)
 	es->ctrl = 0;
 	es->sctrl = 0;
 	/* initialize the chips */
-	if (rev == 7 || rev >= 9) {
+	if (rev == 7 || rev >= 9 || rev == 2) {
 #define ES1371_BINTSUMM_OFF 0x07
 		bus_space_write_4(es->st, es->sh, ES1371_BINTSUMM_OFF, 0x20);
 		if (debug > 0) printf("es_init rev == 7 || rev >= 9\n");
@@ -724,7 +725,8 @@ es_pci_probe(device_t dev)
 		device_set_desc(dev, "AudioPCI ES1370");
 		return 0;
 	} else if (pci_get_devid(dev) == ES1371_PCI_ID ||
-		   pci_get_devid(dev) == ES1371_PCI_ID2) {
+		   pci_get_devid(dev) == ES1371_PCI_ID2 ||
+		   pci_get_devid(dev) == ES1371_PCI_ID3) {
 		device_set_desc(dev, "AudioPCI ES1371");
 		return 0;
 	}
@@ -789,7 +791,8 @@ es_pci_attach(device_t dev)
 	}
 
 	if (pci_get_devid(dev) == ES1371_PCI_ID ||
-	    pci_get_devid(dev) == ES1371_PCI_ID2) {
+	    pci_get_devid(dev) == ES1371_PCI_ID2 || 
+	    pci_get_devid(dev) == ES1371_PCI_ID3) {
 		if(-1 == es1371_init(es, pci_get_revid(dev))) {
 			device_printf(dev, "unable to initialize the card\n");
 			goto bad;
