@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.249.2.9
+    Original revision: 1.22.2.249.2.12
 -->
 
 <articleinfo>
@@ -258,6 +258,12 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
 
       <para>&man.ata.4; ドライバが、&man.atacontrol.8; を使った
 	ATA RAID の生成、削除、クエリ、再構築に対応しました。</para>
+
+      <para>&new.462; &man.ata.4;
+        ドライバが最大転送データサイズを正しく計算するようになりました。
+        この修正により、特定の ATA デバイスにアクセスした時に数多く生じていた
+        <literal>READ_BIG</literal>
+        エラーやその他のエラーが発生しなくなっています。</para>
     </sect3>
 
     <sect3>
@@ -457,7 +463,22 @@ options HZ=1000 # 必須ではないが、これも付けることを強く推奨</programlisting>
       この問題の詳細は、
       セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink> をご覧ください。</para>
-  </sect2>
+
+    <para>&new.462; ローカルユーザが FFS
+      ファイルシステム上の任意のブロックを読み書きできるというバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink> をご覧ください。</para>
+
+    <para>&new.462; NFS サーバのコードに含まれていた、
+      リモートからのサービス妨害攻撃を可能にするバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink> をご覧ください。</para>
+
+    <para>&new.462; &man.kqueue.2; 機構を使うことで、
+      ローカルユーザがシステムパニックを引き起こすことができる可能性のあるバグが修正されました。
+      この問題の詳細は、セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink> をご覧ください。</para>
+   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
