@@ -1,4 +1,5 @@
 --
+* clock state machine bugfix
 * Lose the source port check on incoming packets
 * (x)ntpdc compatibility patch
 * Virtual IP improvements
