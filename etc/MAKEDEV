@@ -281,7 +281,7 @@ fixit)
 	sh MAKEDEV ppi0					# cdev, parallel port
 	sh MAKEDEV iic0					# cdev, I2C device
 	sh MAKEDEV smb0					# cdev, SMBus device
-	sh MAKEDEV usb usb0 ums0 ulpt0 ugen0		# cdev, USB devices
+	sh MAKEDEV ums0					# cdev, USB devices
 	sh MAKEDEV tun0					# cdev, network
 	sh MAKEDEV ch0					# cdev, miscellaneous
 	sh MAKEDEV apm apmctl card0			# cdev, laptop
@@ -900,7 +900,10 @@ ums*)
 
 ulpt*)
 	unit=`expr $i : 'ulpt\(.*\)'`
-	mknod ulpt$unit c 113 $unit
+   minor=$unit
+	mknod ulpt$unit c 113 $minor
+	minor=`expr $unit + 64`
+	mknod unlpt$unit c 113 $minor		# and the 'no prime' version
 	;;
 
 ugen*)
