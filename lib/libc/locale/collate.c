@@ -161,7 +161,7 @@ __collate_load_tables(const char *encoding)
 	FREAD(TMP_substitute_table, sizeof(__collate_substitute_table), 1, fp);
 	FREAD(TMP_char_pri_table, sizeof(__collate_char_pri_table), 1, fp);
 	FREAD(TMP_chain_pri_table,
-	      sizeof(*__collate_chain_pri_table) * chains, 1, fp);
+	      sizeof(*__collate_chain_pri_table), chains, fp);
 	(void)fclose(fp);
 
 	(void)strcpy(collate_encoding, encoding);
@@ -280,8 +280,8 @@ __collate_print_tables()
 		printf("\t'%c' --> \"%s\"\n", i,
 		       __collate_substitute_table[i]);
 	printf("Chain priority table:\n");
-	for (p2 = __collate_chain_pri_table; p2->str[0]; p2++)
-		printf("\t\"%s\" : %d %d\n\n", p2->str, p2->prim, p2->sec);
+	for (p2 = __collate_chain_pri_table; p2->str[0] != '\0'; p2++)
+		printf("\t\"%s\" : %d %d\n", p2->str, p2->prim, p2->sec);
 	printf("Char priority table:\n");
 	for (i = 0; i < UCHAR_MAX + 1; i++)
 		printf("\t'%c' : %d %d\n", i, __collate_char_pri_table[i].prim,
