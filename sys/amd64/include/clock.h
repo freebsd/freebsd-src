@@ -3,7 +3,7 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.7 1995/12/10 13:38:07 phk Exp $
+ *	$Id: clock.h,v 1.8 1995/12/24 08:10:49 davidg Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
@@ -58,6 +58,7 @@ extern int	disable_rtc_set;
 extern unsigned	i586_ctr_rate;	/* fixed point */
 extern long long i586_last_tick;
 extern long long i586_ctr_bias;
+extern unsigned long i586_avg_tick;
 #endif
 extern int 	timer0_max_count;
 extern u_int 	timer0_overflow_threshold;
@@ -72,17 +73,16 @@ static __inline u_long
 cpu_thisticklen(u_long dflt)
 {
 	long long old;
-	long rv;
+	long len;
 	
 	if (i586_ctr_rate) {
 		old = i586_last_tick;
 		I586_CYCLECTR(i586_last_tick);
-		rv = ((i586_last_tick - old) << I586_CTR_RATE_SHIFT)
+		len = ((i586_last_tick - old) << I586_CTR_RATE_SHIFT)
 			/ i586_ctr_rate;
-	} else {
-		rv = dflt;
+		i586_avg_tick = i586_avg_tick * 15 / 16 + len / 16;
 	}
-	return rv;
+	return dflt;
 }
 #endif
 
