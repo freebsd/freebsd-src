@@ -159,13 +159,6 @@ restore_intr(unsigned int msr)
 	mtmsr(msr);
 }
 
-static __inline void
-powerpc_mb(void)
-{
-
-	__asm __volatile("eieio; sync" : : : "memory");
-}
-
 static __inline struct pcpu *
 powerpc_get_pcpup(void)
 {
