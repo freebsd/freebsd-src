@@ -52,7 +52,11 @@
 #include <sys/vnode.h>
 
 #ifdef __FreeBSD__
-#include <machine/clock.h>		/* for DELAY */
+
+#if (__FreeBSD_version < 500000)
+#include <machine/clock.h>              /* for DELAY */
+#endif
+
 #include <pci/pcivar.h>
 
 #if (__FreeBSD_version >=300000)
