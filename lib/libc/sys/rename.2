@@ -50,10 +50,10 @@ causes the link named
 .Fa from
 to be renamed as
 .Fa to .
-If 
+If
 .Fa to
 exists, it is first removed.
-Both 
+Both
 .Fa from
 and
 .Fa to
@@ -92,7 +92,7 @@ not the file or directory to which it points.
 .\".Ql rename a/foo b/bar
 .\"and
 .\".Ql rename b/bar a/foo ,
-.\"respectively, 
+.\"respectively,
 .\"the system may deadlock attempting to lock
 .\"both directories for modification.
 .\"Hard links to directories should be
@@ -100,7 +100,7 @@ not the file or directory to which it points.
 .Sh RETURN VALUES
 A 0 value is returned if the operation succeeds, otherwise
 .Fn rename
-returns -1 and the global variable 
+returns -1 and the global variable
 .Va errno
 indicates the reason for the failure.
 .Sh ERRORS
@@ -197,5 +197,5 @@ is a directory and is not empty.
 .Sh STANDARDS
 The
 .Fn rename
-function call is expected to conform to 
+function call is expected to conform to
 .St -p1003.1-90 .

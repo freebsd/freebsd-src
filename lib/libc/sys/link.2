@@ -138,7 +138,7 @@ is being placed cannot be extended because the
 user's quota of disk blocks on the file system
 containing the directory has been exhausted.
 .It Bq Er EIO
-An I/O error occurred while reading from or writing to 
+An I/O error occurred while reading from or writing to
 the file system to make the directory entry.
 .It Bq Er EROFS
 The requested link requires writing in a directory on a read-only file
@@ -154,7 +154,7 @@ is outside the process's allocated address space.
 .Sh STANDARDS
 The
 .Fn link
-function call is expected to conform to 
+function call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
 A
@@ -166,4 +166,4 @@ The
 .Fn link
 system call traditionally allows the super-user to link directories which
 corrupts the filesystem coherency.  This implementation no longer permits
-it. 
+it.

@@ -69,7 +69,7 @@ and
 functions calculate a 160-bit cryptographic checksum (digest)
 for any number of input bytes.  A cryptographic checksum is a one-way
 hash function; that is, it is computationally impractical to find
-the input corresponding to a particular output.  This net result is 
+the input corresponding to a particular output.  This net result is
 a ``fingerprint'' of the input-data, which doesn't disclose the actual
 input.
 .Pp
@@ -103,7 +103,7 @@ which converts the return value to a 41-character
 string which represents the 160 bits in hexadecimal.
 .Pp
 .Fn SHA1_File
-calculates the digest of a file, and uses 
+calculates the digest of a file, and uses
 .Fn SHA1_End
 to return the result.
 If the file cannot be opened, a null pointer is returned.
@@ -134,7 +134,7 @@ When using
 .Fn SHA1_File ,
 or
 .Fn SHA1_Data ,
-the 
+the
 .Fa buf
 argument can be a null pointer, in which case the returned string
 is allocated with
@@ -142,7 +142,7 @@ is allocated with
 and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
-If the 
+If the
 .Fa buf
 argument is non-null it must point to at least 41 characters of buffer space.
 .Sh SEE ALSO

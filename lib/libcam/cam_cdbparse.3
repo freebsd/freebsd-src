@@ -170,7 +170,7 @@ layer.
 These functions may be used in new applications, but users may find it
 easier to use the various SCSI CCB building functions included with the
 .Xr cam 3
-library.  (e.g. 
+library.  (e.g.
 .Fn cam_fill_csio ,
 .Fn scsi_start_stop ,
 and
@@ -244,7 +244,7 @@ typedef enum {
      CAM_MSGB_VALID        = 0x20000000,/* Message buffer valid		*/
      CAM_STATUS_VALID      = 0x40000000,/* Status buffer valid		*/
      CAM_DATAB_VALID       = 0x80000000,/* Data buffer valid		*/
-	
+
 /* Host target Mode flags */
      CAM_TERM_IO           = 0x20000000,/* Terminate I/O Message sup.    */
      CAM_DISCONNECT        = 0x40000000,/* Disconnects are mandatory     */
@@ -289,7 +289,7 @@ driver is told to enable error recovery via the
 .Dv CAM_PASS_ERR_RECOVER
 flag.
 .Pp
-The 
+The
 .Fa timeout
 tells the kernel how long to wait for the given command to complete.  If
 the timeout expires and the command hasn't completed, the CCB will be
@@ -368,7 +368,7 @@ except that the values to substitute for variable arguments in
 are retrieved via the
 .Fn arg_get
 function passed in to
-.Fn csio_build_visit 
+.Fn csio_build_visit
 instead of via
 .Xr stdarg 3 .
 The

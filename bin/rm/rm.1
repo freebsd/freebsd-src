@@ -69,7 +69,7 @@ the exit status to reflect an error.
 The
 .Fl f
 option overrides any previous
-.Fl i 
+.Fl i
 options.
 .It Fl i
 Request confirmation before attempting to remove each file, regardless of
@@ -78,7 +78,7 @@ terminal.
 The
 .Fl i
 option overrides any previous
-.Fl f 
+.Fl f
 options.
 .It Fl P
 Overwrite regular files before deleting them.
@@ -86,14 +86,14 @@ Files are overwritten three times, first with the byte pattern 0xff,
 then 0x00, and then 0xff again, before they are deleted.
 .It Fl R
 Attempt to remove the file hierarchy rooted in each file argument.
-The 
+The
 .Fl R
 option implies the
 .Fl d
 option.
 If the
 .Fl i
-option is specified, the user is prompted for confirmation before 
+option is specified, the user is prompted for confirmation before
 each directory's contents are processed (as well as before the attempt
 is made to remove the directory).
 If the user does not respond affirmatively, the file hierarchy rooted in
@@ -179,7 +179,7 @@ utility differs from historical implementations in that the
 .Fl f
 option only masks attempts to remove non-existent files instead of
 masking a large variety of errors.
-The 
+The
 .Fl v
 option is non-standard and its use in scripts is not recommended.
 .Pp

@@ -55,7 +55,7 @@ on the descriptor
 The results are undefined if the most recent
 .Xr kvm 3
 library call did not produce an error.
-The string returned is stored in memory owned by 
+The string returned is stored in memory owned by
 .Xr kvm 3
 so the message should be copied out and saved elsewhere if necessary.
 .Sh BUGS
@@ -65,7 +65,7 @@ call, since failure is indicated by returning a
 .Dv NULL
 descriptor.
 Therefore, errors on open are output to the special error buffer
-passed to 
+passed to
 .Fn kvm_openfiles .
 This option is not available to
 .Fn kvm_open .

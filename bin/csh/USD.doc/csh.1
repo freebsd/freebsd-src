@@ -119,7 +119,7 @@ for it in the glossary.
 Acknowledgements
 .PP
 Numerous people have provided good input about previous versions
-of 
+of
 .I csh
 and aided in its debugging and in the debugging of its documentation.
 I would especially like to thank Michael Ubell
@@ -209,7 +209,7 @@ is to be read ``control-\fIx\fR'' and represents the striking of the \fIx\fR
 key while the control key is held down.)
 The mail program
 then echoed the characters `EOT' and transmitted our message.
-The characters `% ' were printed before and after the mail command 
+The characters `% ' were printed before and after the mail command
 by the shell to indicate that input was needed.
 .PP
 After typing the `% ' prompt the shell was reading command input from
@@ -292,7 +292,7 @@ rather than having a large number of hard to remember options.
 .NH 2
 Output to files
 .PP
-Commands that normally read input or write output on the terminal 
+Commands that normally read input or write output on the terminal
 can also be executed with this input and/or output done to
 a file.
 .PP
@@ -679,7 +679,7 @@ beginning are treated specially.
 Neither `*' or `?' or the `[' `]' mechanism will match it.
 This prevents accidental matching of the filenames `.' and `..'
 in the working directory which have special meaning to the system,
-as well as other files such as 
+as well as other files such as
 .I \&.cshrc
 which are not normally
 visible.
@@ -732,7 +732,7 @@ as it is used less frequently.
 Quotation
 .PP
 We have already seen a number of metacharacters used by the shell.
-These metacharacters pose a problem in that we cannot use them directly 
+These metacharacters pose a problem in that we cannot use them directly
 as parts of words.
 Thus the command
 .DS
@@ -742,7 +742,7 @@ will not echo the character `*'.
 It will either echo an sorted list of filenames in the
 current
 .I "working directory,"
-or print the message `No match' if there are 
+or print the message `No match' if there are
 no files in the working directory.
 .PP
 The recommended mechanism for placing characters which are neither numbers,
@@ -826,7 +826,7 @@ The shell also terminates when it gets an end-of-file printing `logout';
 \s-2UNIX\s0 then logs you off the system.
 Since this means that typing too many ^D's can accidentally log us off,
 the shell has a mechanism for preventing this.
-This 
+This
 .I ignoreeof
 option will be discussed in section 2.2.
 .PP

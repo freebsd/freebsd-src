@@ -55,7 +55,7 @@ and each process it creates may be obtained with the
 .Fn getrlimit
 call, and set with the
 .Fn setrlimit
-call.  
+call.
 .Pp
 The
 .Fa resource
@@ -104,7 +104,7 @@ A resource limit is specified as a soft limit and a hard limit.  When a
 soft limit is exceeded a process may receive a signal (for example, if
 the cpu time or file size is exceeded), but it will be allowed to
 continue execution until it reaches the hard limit (or modifies
-its resource limit).  The 
+its resource limit).  The
 .Em rlimit
 structure is used to specify the hard and soft limits on a resource,
 .Bd -literal -offset indent
@@ -115,9 +115,9 @@ struct rlimit {
 .Ed
 .Pp
 Only the super-user may raise the maximum limits.  Other users
-may only alter 
+may only alter
 .Fa rlim_cur
-within the range from 0 to 
+within the range from 0 to
 .Fa rlim_max
 or (irreversibly) lower
 .Fa rlim_max .

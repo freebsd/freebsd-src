@@ -51,19 +51,19 @@
 .Nd functions for IEEE arithmetic
 .Sh SYNOPSIS
 .Fd #include <math.h>
-.Ft double 
+.Ft double
 .Fn copysign "double x" "double y"
-.Ft float 
+.Ft float
 .Fn copysignf "float x" "float y"
-.Ft int 
+.Ft int
 .Fn finite "double x"
-.Ft int 
+.Ft int
 .Fn finitef "float x"
 .Ft int
 .Fn ilogb "double x"
 .Ft int
 .Fn ilogbf "float x"
-.Ft double 
+.Ft double
 .Fn nextafter "double x" "double y"
 .Ft float
 .Fn nextafterf "float x" "float y"
@@ -71,12 +71,12 @@
 .Fn remainder "double x" "double y"
 .Ft float
 .Fn remainderf "float x" "float y"
-.Ft double 
+.Ft double
 .Fn scalbn "double x" "int n"
-.Ft float 
+.Ft float
 .Fn scalbnf "float x" "int n"
 .Sh DESCRIPTION
-These functions are required or recommended by 
+These functions are required or recommended by
 .St -ieee754 .
 .Pp
 .Fn copysign
@@ -109,18 +109,18 @@ return
 .Fa x Ns 's exponent
 .Fa n ,
 in integer format.
-.Fn ilogb \*(Pm\*(If 
-returns 
+.Fn ilogb \*(Pm\*(If
+returns
 .Dv INT_MAX
 and
 .Fn ilogb 0
-returns 
+returns
 .Dv INT_MIN .
 .Pp
-.Fn nextafter 
+.Fn nextafter
 and
 .Fn nextafterf
-return the next machine representable number from 
+return the next machine representable number from
 .Fa x
 in direction
 .Fa y .
@@ -176,7 +176,7 @@ computed by exponent manipulation.
 .Sh HISTORY
 The
 .Nm ieee
-functions appeared in 
+functions appeared in
 .Bx 4.3 .
 .Sh STANDARDS
 .St -ieee754

@@ -56,7 +56,7 @@
 .Op Fl K Ar keepalive
 .Op Fl O Ar outfill
 .Op Fl S Ar unit
-.Ar ttyname 
+.Ar ttyname
 .Sh DESCRIPTION
 .Nm Slattach
 is used to assign a tty line to a network interface,
@@ -164,7 +164,7 @@ By default sliplogin dynamically assigns the unit number.
 .It Ar ttyname
 Specify the name of the tty device.
 .Ar Ttyname
-should be a string of the form 
+should be a string of the form
 .Ql ttyXX
 or
 .Ql /dev/ttyXX .
@@ -193,7 +193,7 @@ the server and log in, etc.
 To reconfigure the network interface in case the slip unit number
 changes, use the
 .Fl u Ar unit-command
-option to specify a script or executable that will be invoked as 
+option to specify a script or executable that will be invoked as
 .Ql sh \-c Ar unit-command old new
 where
 .Ar old

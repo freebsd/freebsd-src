@@ -52,7 +52,7 @@
 .Op device id
 .Op generic args
 .Nm
-.Ic inquiry 
+.Ic inquiry
 .Op device id
 .Op generic args
 .Op Fl D
@@ -377,7 +377,7 @@ that is to be written.  If the format is
 bytes of data will be read from standard input and written to the device.
 .El
 .It Ic debug
-Turn on CAM debugging printfs in the kernel.  This requires options CAMDEBUG 
+Turn on CAM debugging printfs in the kernel.  This requires options CAMDEBUG
 in your kernel config file.  WARNING:  enabling debugging printfs currently
 causes an EXTREME number of kernel printfs.  You may have difficulty
 turning off the debugging printfs once they start, since the kernel will be
@@ -607,14 +607,14 @@ variable allows the user to specify an alternate mode page format file.
 .Pp
 The
 .Ev EDITOR
-variable determines which text editor 
+variable determines which text editor
 .Nm
 starts when editing mode pages.
 .Sh FILES
 .Bl -tag -width /usr/share/misc/scsi_modes -compact
 .It Pa /usr/share/misc/scsi_modes
 is the SCSI mode format database.
-.It Pa /dev/xpt0 
+.It Pa /dev/xpt0
 is the transport layer device.
 .It Pa /dev/pass*
 are the CAM application passthrough devices.
@@ -717,7 +717,7 @@ utility and
 .Xr scsi 3
 library, written by Julian Elischer and Peter Dufault.  The
 .Xr scsi 8
-program first appeared in 386BSD 0.1.2.4, and first appeared in 
+program first appeared in 386BSD 0.1.2.4, and first appeared in
 .Fx
 in
 .Fx 2.0.5 .
@@ -734,7 +734,7 @@ camcontrol cmd -n da -u 1 -c "00 00 00 00 00 v" 0x00 -v
 The sense information from the test unit ready command would not get
 printed out, since the first
 .Xr getopt 3
-call in 
+call in
 .Nm
 bails out when it sees the second argument to
 .Fl c

@@ -129,7 +129,7 @@ For more details of the properties of the sticky bit, see
 If mode ISUID (set UID) is set on a directory,
 and the MNT_SUIDDIR option was used in the mount of the filesystem,
 then the owner of any new files and sub-directories
-created within this directory are set 
+created within this directory are set
 to be the same as the owner of that directory.
 If this function is enabled, new directories will inherit
 the bit from their parents.  Execute bits are removed from
@@ -146,7 +146,7 @@ such should not be used on shell machines, especially on home directories.
 This option requires the SUIDDIR
 option in the kernel to work.
 Only UFS filesystems support this option.
-For more details of the suiddir mount option, see 
+For more details of the suiddir mount option, see
 .Xr mount 8 .
 .Pp
 Writing or changing the owner of a file
@@ -212,7 +212,7 @@ An I/O error occurred while reading from or writing to the file system.
 .Sh STANDARDS
 The
 .Fn chmod
-function call is expected to conform to 
+function call is expected to conform to
 .St -p1003.1-90 ,
 except for the return of
 .Er EFTYPE

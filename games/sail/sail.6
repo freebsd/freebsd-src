@@ -63,7 +63,7 @@ players or the computer.  They may re-enact one of the many
 historical sea battles recorded in the game, or they can choose
 a fictional battle.
 .PP
-As a sea captain in the 
+As a sea captain in the
 .I Sail
 Navy, the player has complete control over the workings of his ship.
 He must order every maneuver, change the set of his sails, and judge the
@@ -100,7 +100,7 @@ must calculate moves for each ship it controls, the
 more ships the computer is playing, the slower the game will appear.
 .PP
 If a player joins a game in progress, he will synchronize
-with the other players (a rather slow process for everyone), and 
+with the other players (a rather slow process for everyone), and
 then he may play along with the rest.
 .PP
 To implement a multi-user game in Version 7 UNIX, which was the operating
@@ -113,7 +113,7 @@ shared file.  For example,
 .I Sail
 uses a temporary file named /tmp/#sailsink.21 for scenario 21, and
 corresponding file names for the other scenarios.  To provide exclusive
-access to the temporary file, 
+access to the temporary file,
 .I Sail
 uses a technique stolen from an old game called "pubcaves" by Jeff Cohen.
 Processes do a busy wait in the loop
@@ -125,7 +125,7 @@ Processes do a busy wait in the loop
 .br
 .sp
 until they are able to create a link to a file named "/tmp/#saillock.??".
-The "??" correspond to the scenario number of the game.  Since UNIX 
+The "??" correspond to the scenario number of the game.  Since UNIX
 guarantees that a link will point to only one file, the process that succeeds
 in linking will have exclusive access to the temporary file.
 .PP
@@ -147,10 +147,10 @@ The most noticeable effect this communication has on the game is the
 delay in moving.  Suppose a player types a move for his ship and hits
 return.  What happens then?  The player process saves up messages to
 be written to the temporary file in a buffer.  Every 7 seconds or so, the
-player process gets exclusive access to the temporary file and writes 
+player process gets exclusive access to the temporary file and writes
 out its buffer to the file.  The driver, running asynchronously, must
 read in the movement command, process it, and write out the results.  This
-takes two exclusive accesses to the temporary file.  Finally, when the player 
+takes two exclusive accesses to the temporary file.  Finally, when the player
 process gets around to doing another 7 second update, the results of the
 move are displayed on the screen.  Hence, every movement requires four
 exclusive accesses to the temporary file (anywhere from 7 to 21 seconds
@@ -167,7 +167,7 @@ sail around quite quickly.
 If the player types several movement commands between two 7 second updates,
 only the last movement command typed will be seen by the driver.  Movement
 commands within the same update "overwrite" each other, in a sense.
-.SH THE HISTORY OF SAIL 
+.SH THE HISTORY OF SAIL
 I wrote the first version of
 .I Sail
 on a PDP 11/70 in the fall of 1980.  Needless to say, the code was horrendous,
@@ -177,7 +177,7 @@ tremendous rewrite from the top down, I got the first working version up by
 1981.  There were several annoying bugs concerning firing broadsides and
 finding angles.
 .I Sail
-uses no floating point, by the way, so the direction routines are rather 
+uses no floating point, by the way, so the direction routines are rather
 tricky.
 Ed Wang rewrote my angle() routine in 1981 to be more correct (although
 it still doesn't work perfectly), and he added code to let a player select
@@ -207,7 +207,7 @@ result was very much cleaner and (?) faster.  He added window movement
 commands and find ship commands.
 .SH HISTORICAL INFO
 Old Square Riggers were very maneuverable ships capable of intricate
-sailing.  Their only disadvantage was an inability to sail very 
+sailing.  Their only disadvantage was an inability to sail very
 close to the wind.  The design of a wooden ship allowed only for the
 guns to bear to the left and right sides.  A few guns of small
 aspect (usually 6 or 9 pounders) could point forward, but their
@@ -278,7 +278,7 @@ or boat actions.  They could hit hard and get away fast.
 Lastly, there were the corvettes, sloops, and brigs.  These were smaller
 ships mounting typically fewer than 20 guns.  A corvette was only slightly
 smaller than a frigate, so one might have up to 30 guns.  Sloops were used
-for carrying dispatches or passengers.  Brigs were something you built for 
+for carrying dispatches or passengers.  Brigs were something you built for
 land-locked lakes.
 .SH SAIL PARTICULARS
 Ships in
@@ -288,7 +288,7 @@ the ship, and the other represents the stern.  Ships have nationalities
 and numbers.  The first ship of a nationality is number 0, the second
 number 1, etc.  Therefore, the first British ship in a game would be
 printed as "b0".  The second Brit would be "b1", and the fifth Don
-would be "s4".  
+would be "s4".
 .PP
 Ships can set normal sails, called Battle Sails, or bend on extra canvas
 called Full Sails.  A ship under full sail is a beautiful sight indeed,
@@ -322,7 +322,7 @@ be it 0,1,2,3,4, or 5.  E.g., the "b0" captured by an American becomes the
 The ultimate example is, of course, an exploding Brit captured by an
 American: "#&".
 .SH MOVEMENT
-Movement is the most confusing part of 
+Movement is the most confusing part of
 .I Sail
 to many.  Ships can head in 8 directions:
 .nf
@@ -339,15 +339,15 @@ at all for two turns, it will begin to drift.  If a ship has begun to
 drift, then it must move forward before it turns, if it plans to do
 more than make a right or left turn, which is always possible.
 .PP
-Movement commands to 
+Movement commands to
 .I Sail
 are a string of forward moves and turns.  An example is "l3".  It will
 turn a ship left and then move it ahead 3 spaces.  In the drawing above,
-the "b0" made 7 successive left turns.  When 
+the "b0" made 7 successive left turns.  When
 .I Sail
-prompts you for a move, it prints three characters of import.  E.g., 
+prompts you for a move, it prints three characters of import.  E.g.,
 .nf
-	move (7, 4): 
+	move (7, 4):
 .fi
 The first number is the maximum number of moves you can make,
 including turns.  The second number is the maximum number of turns
@@ -383,7 +383,7 @@ if you turn closer to the wind, you most likely won't be able to sail the
 full allowance printed in the "move" prompt.
 .PP
 Old sailing captains had to keep an eye constantly on the wind.  Captains
-in 
+in
 .I Sail
 are no different.  A ship's ability to move depends on its attitude to the
 wind.  The best angle possible is to have the wind off your quarter, that is,
@@ -397,7 +397,7 @@ sail speeds are given first, and full sail speeds are given in parenthesis.
 				-^-3(6)
 				/|\\
 				 | 4(7)
-				3(6)  
+				3(6)
 
 .fi
 Pretend the bow of your ship (the "^") is pointing upward and the wind is
@@ -436,7 +436,7 @@ The number of fouls and grapples you have are displayed on the upper
 right of the screen.
 .SH BOARDING
 Boarding was a very costly venture in terms of human life.  Boarding parties
-may be formed in 
+may be formed in
 .I Sail
 to either board an enemy ship or to defend your own ship against attack.
 Men organized as Defensive Boarding Parties fight twice as hard to save
@@ -447,10 +447,10 @@ number of men sent.
 .SH CREW QUALITY
 The British seaman was world renowned for his sailing abilities.  American
 sailors, however, were actually the best seamen in the world.  Because the
-American Navy offered twice the wages of the Royal Navy, British seamen 
+American Navy offered twice the wages of the Royal Navy, British seamen
 who liked the sea defected to America by the thousands.
 .PP
-In 
+In
 .I Sail,
 crew quality is quantized into 5 energy levels.  "Elite" crews can outshoot
 and outfight all other sailors.  "Crack" crews are next.  "Mundane" crews
@@ -483,10 +483,10 @@ ship:
 .nf
 
 			Load  D! R!
-			Hull  9  
+			Hull  9
 			Crew  4  4  2
-			Guns  4  4  
-			Carr  2  2 
+			Guns  4  4
+			Carr  2  2
 			Rigg  5 5 5 5
 
 .fi
@@ -508,14 +508,14 @@ mere opportunity to fire them does not guarantee any hits.  Many factors
 influence the destructive force of a broadside.  First of all, and the chief
 factor, is distance.  It is harder to hit a ship at range ten than it is
 to hit one sloshing alongside.  Next is raking.  Raking fire, as
-mentioned before, 
+mentioned before,
 can sometimes dismast a ship at range ten.  Next, crew size and quality affects
 the damage done by a broadside.   The number of guns firing also bears on the
 point,
 so to speak.  Lastly, weather affects the accuracy of a broadside.  If the
 seas are high (5 or 6), then the lower gunports of ships of the line can't
 even be opened to run out the guns.  This gives frigates and other flush
-decked vessels an advantage in a storm.  The scenario 
+decked vessels an advantage in a storm.  The scenario
 .I Pellew vs. The Droits de L'Homme
 takes advantage of this peculiar circumstance.
 .SH REPAIRS
@@ -523,7 +523,7 @@ Repairs may be made to your Hull, Guns, and Rigging at the slow rate of
 two points per three turns.  The message "Repairs Completed" will be
 printed if no more repairs can be made.
 .SH PECULIARITIES OF COMPUTER SHIPS
-Computer ships in 
+Computer ships in
 .I Sail
 follow all the rules above with a few exceptions.  Computer ships never
 repair damage.  If they did, the players could never beat them.  They
@@ -536,7 +536,7 @@ A.I. distance function and a depth first search to find the maximum "score."
 It seems to work fairly well, although I'll be the first to admit it isn't
 perfect.
 .SH HOW TO PLAY
-Commands are given to 
+Commands are given to
 .I Sail
 by typing a single character.  You will then be prompted for further
 input.  A brief summary of the commands follows.
@@ -547,7 +547,7 @@ input.  A brief summary of the commands follows.
     'f'  Fire broadsides if they bear
     'l'  Reload
     'L'  Unload broadsides (to change ammo)
-    'm'  Move 
+    'm'  Move
     'i'  Print the closest ship
     'I'  Print all ships
     'F'  Find a particular ship or ships (e.g. "a?" for all Americans)
@@ -572,7 +572,7 @@ input.  A brief summary of the commands follows.
 .fi
 .br
 .SH SCENARIOS
-Here is a summary of the scenarios in 
+Here is a summary of the scenarios in
 .I Sail:
 
 .br
@@ -868,7 +868,7 @@ has been a group effort.
 .SH AUTHOR
 Dave Riggle
 .SH CO-AUTHOR
-Ed Wang 
+Ed Wang
 .SH REFITTING
 Craig Leres
 .SH CONSULTANTS

@@ -135,7 +135,7 @@ argument is optional.
 ccd0            16      none    /dev/da2e /dev/da3e
 .Ed
 .Pp
-The component devices need to name partitions of type 
+The component devices need to name partitions of type
 .Li FS_BSDFFS
 (or
 .Dq 4.2BSD
@@ -144,7 +144,7 @@ as shown by
 .Sh EXAMPLES
 A number of ccdconfig examples are shown below.  The arguments passed
 to ccdconfig are exactly the same as you might place in the
-.Pa /etc/ccd.conf 
+.Pa /etc/ccd.conf
 configuration file.  The first example creates a 4-disk stripe out of
 four scsi disk partitions.  The stripe uses a 64 sector interleave.
 The second example is an example of a complex stripe/mirror combination.
@@ -160,7 +160,7 @@ mirror.  /dev/da2e is mirrored with /dev/da4e and assigned to ccd0.
 .Pp
 When you create a new ccd disk you generally want to
 .Nm disklabel
-it before doing anything else.  Once you create the initial label you can 
+it before doing anything else.  Once you create the initial label you can
 edit it, adding additional partitions.  The label itself takes up the first
 16 sectors of the ccd disk.  If all you are doing is creating filesystems
 with newfs, you do not have to worry about this as newfs will skip the
@@ -186,7 +186,7 @@ device list making up the ccd disk, will usually destroy any prior
 data on that ccd disk.  If this occurs it is usually a good idea to
 reinitialize the label before [re]constructing your ccd disk.
 .Sh RECOVERY
-An error on a ccd disk is usually unrecoverable unless you are using the 
+An error on a ccd disk is usually unrecoverable unless you are using the
 mirroring option.  But mirroring has its own perils:  It assumes that
 both copies of the data at any given sector are the same.  This holds true
 until a write error occurs or until you replace either side of the mirror.

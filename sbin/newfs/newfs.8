@@ -68,9 +68,9 @@
 .Sh DESCRIPTION
 .Nm Newfs
 is used to initialize and clear filesystems before first use.
-Before running 
+Before running
 .Nm
-the disk must be labeled using 
+the disk must be labeled using
 .Xr disklabel 8 .
 .Nm Newfs
 builds a file system on the specified special file.
@@ -157,8 +157,8 @@ specifies the average file size on the file system.
 .It Fl m Ar free space \&%
 The percentage of space reserved from normal users; the minimum free
 space threshold.
-The default value used is 
-defined by 
+The default value used is
+defined by
 .Dv MINFREE
 from
 .Aq Pa ufs/ffs/fs.h ,
@@ -191,7 +191,7 @@ for more details on how to set this option.
 .It Fl s Ar size
 The size of the file system in sectors.  This value defaults to the size of the
 raw partition specified in
-.Ar special 
+.Ar special
 (in other words,
 .Nm
 will use the entire partition for the file system).
@@ -203,7 +203,7 @@ This option is useful for synthetic disks such as
 .Nm vinum .
 .El
 .Pp
-The following options override the standard sizes for the disk geometry. 
+The following options override the standard sizes for the disk geometry.
 Their default values are taken from the disk label.
 Changing these defaults is useful only when using
 .Nm
@@ -211,7 +211,7 @@ to build a file system whose raw image will eventually be used on a
 different type of disk than the one on which it is initially created
 (for example on a write-once disk).
 Note that changing any of these values from their defaults will make
-it impossible for 
+it impossible for
 .Xr fsck 8
 to find the alternate superblocks if the standard superblock is lost.
 .Bl -tag -width indent

@@ -62,7 +62,7 @@ into the buffer pointed to by
 .Fa buf .
 .Fn Readv
 performs the same action, but scatters the input data
-into the 
+into the
 .Fa iovcnt
 buffers specified by the members of the
 .Fa iov
@@ -71,9 +71,9 @@ array: iov[0], iov[1], ..., iov[iovcnt\|\-\|1].
 performs the same function, but reads from the specified position in
 the file without modifying the file pointer.
 .Pp
-For 
+For
 .Fn readv ,
-the 
+the
 .Fa iovec
 structure is defined as:
 .Pp
@@ -84,10 +84,10 @@ struct iovec {
 };
 .Ed
 .Pp
-Each 
+Each
 .Fa iovec
 entry specifies the base address and length of an area
-in memory where data should be placed. 
+in memory where data should be placed.
 .Fn Readv
 will always fill an area completely before proceeding
 to the next.
@@ -199,7 +199,7 @@ The file was marked for non-blocking I/O,
 and no data were ready to be read.
 .El
 .Pp
-In addition, 
+In addition,
 .Fn readv
 may return one of the following errors:
 .Bl -tag -width Er
@@ -244,7 +244,7 @@ The file descriptor is associated with a pipe, socket, or FIFO.
 .Sh STANDARDS
 The
 .Fn read
-function call is expected to conform to 
+function call is expected to conform to
 .St -p1003.1-90 .
 The
 .Fn readv

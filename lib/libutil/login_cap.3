@@ -152,10 +152,10 @@ functions will search for a record with an id of "default",
 with that name returned in the
 .Ar lc_class
 field.
-In addition, if the referenced user has a UID of 0 (normally,                  
-"root", although the user name is not considered) then                         
-.Fn login_getpwclass                                                           
-will search for a record with an id of "root" before it searches               
+In addition, if the referenced user has a UID of 0 (normally,
+"root", although the user name is not considered) then
+.Fn login_getpwclass
+will search for a record with an id of "root" before it searches
 for the record with the id of "default".
 .Pp
 The
@@ -196,11 +196,11 @@ contained within it may override the system defaults.
 This scheme allows users to override some login settings from
 those in the system login class database by creating class records
 for their own private class with a record id of `me'.
-In the context of a 
+In the context of a
 .Em login ,
 it should be noted that some options cannot by overridden by
 users for two reasons; many options, such as resource settings
-and default process priorities, require root privileges 
+and default process priorities, require root privileges
 in order to take effect, and other fields in the user's file are
 not be consulted at all during the early phases of login for
 security or administrative reasons.
@@ -272,7 +272,7 @@ The manpage for
 .Xr login.conf 5
 deals in specific tags and their type.
 .Pp
-Note that with all functions in this group, you should not call 
+Note that with all functions in this group, you should not call
 .Xr free 3
 on any pointers returned.
 Memory allocated during retrieval or processing of capability
@@ -337,7 +337,7 @@ If in the first format, then the value given may be "inf" or
 "infinity" which results in a return value of RLIM_INFINITY.
 If the given capability tag cannot be found, the
 .Ar def
-parameter is returned, and if an error occurs, the 
+parameter is returned, and if an error occurs, the
 .Ar error
 parameter is returned.
 .It Fn login_getcapsize

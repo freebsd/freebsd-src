@@ -42,7 +42,7 @@
 .Sh NAME
 .Nm kvm_getprocs ,
 .Nm kvm_getargv ,
-.Nm kvm_getenvv 
+.Nm kvm_getenvv
 .Nd access user process state
 .Sh LIBRARY
 .Lb libkvm
@@ -74,7 +74,7 @@ describes the filtering predicate as follows:
 .It Sy KERN_PROC_ALL
 all processes
 .It Sy KERN_PROC_PID
-processes with process id 
+processes with process id
 .Fa arg
 .It Sy KERN_PROC_PGRP
 processes with process group
@@ -97,13 +97,13 @@ The number of processes found is returned in the reference parameter
 .Fa cnt .
 The processes are returned as a contiguous array of kinfo_proc structures.
 This memory is locally allocated, and subsequent calls to
-.Fn kvm_getprocs 
-and 
+.Fn kvm_getprocs
+and
 .Fn kvm_close
 will overwrite this storage.
 .Pp
 .Fn kvm_getargv
-returns a null-terminated argument vector that corresponds to the 
+returns a null-terminated argument vector that corresponds to the
 command line arguments passed to process indicated by
 .Fa p .
 Most likely, these arguments correspond to the values passed to
@@ -114,7 +114,7 @@ Note that the original command name can be found, unaltered,
 in the p_comm field of the process structure returned by
 .Fn kvm_getprocs .
 .Pp
-The 
+The
 .Fa nchr
 argument indicates the maximum number of characters, including null bytes,
 to use in building the strings.  If this amount is exceeded, the string
@@ -127,13 +127,13 @@ that print only a one line summary of a command and should not copy
 out large amounts of text only to ignore it.
 If
 .Fa nchr
-is zero, no limit is imposed and all argument strings are returned in 
+is zero, no limit is imposed and all argument strings are returned in
 their entirety.
 .Pp
 The memory allocated to the argv pointers and string storage
-is owned by the kvm library.  Subsequent 
-.Fn kvm_getprocs 
-and 
+is owned by the kvm library.  Subsequent
+.Fn kvm_getprocs
+and
 .Xr kvm_close 3
 calls will clobber this storage.
 .Pp

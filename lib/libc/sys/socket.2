@@ -161,7 +161,7 @@ Once connected, data may be transferred using
 .Xr read 2
 and
 .Xr write 2
-calls or some variant of the 
+calls or some variant of the
 .Xr send 2
 and
 .Xr recv 2
@@ -212,7 +212,7 @@ sockets employ the same system calls
 as
 .Dv SOCK_STREAM
 sockets.  The only difference
-is that 
+is that
 .Xr read 2
 calls will return only the amount of data requested,
 and any remaining in the arriving packet will be discarded.
@@ -227,7 +227,7 @@ calls.  Datagrams are generally received with
 .Xr recvfrom 2 ,
 which returns the next datagram with its return address.
 .Pp
-An 
+An
 .Xr fcntl 2
 call can be used to specify a process group to receive
 a
