@@ -28,6 +28,10 @@ WD?=	${.OBJDIR}/_.w
 # contents of the image filesystems.
 #CUSTOMIZE?=	${.CURDIR}/somescript.sh
 
+# Set this to the name of a directory used to populate the
+# configuration slice.
+#CFGMASTER?=	${.CURDIR}/cfgmaster
+
 #
 # The final resulting image is in ${.OBJDIR}/_.i and the single slice
 # image in ${.OBJDIR}/_.i.s1
@@ -146,6 +150,7 @@ _.md:	_.cs
 		${SC} \
 		${DATASLICE} \
 		${WD} ${.OBJDIR}/_.i \
+		${CFGMASTER}
 		> _.md.tmp 2>&1
 	mv _.mtree.tmp _.mtree
 	mv _.md.tmp _.md
