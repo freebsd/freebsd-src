@@ -70,8 +70,10 @@
  *
  * $FreeBSD$
  */
+
 #include <stdio.h>
 #include <fcntl.h>
+#include <paths.h>
 #include <string.h>
 #include <sys/ioccom.h>
 
@@ -97,7 +99,7 @@ main(int argc, char *argv[])
     if (ioctl(kernel_fd, CDEV_IOCTL1, &one) == -1) {
 	perror("CDEV_IOCTL1");
     } else {
-	printf( "Sent ioctl CDEV_IOCTL1 to device /dev/" CDEV_DEVICE "\n");
+	printf( "Sent ioctl CDEV_IOCTL1 to device %s%s\n", _PATH_DEV, CDEV_DEVICE);
     }
 
     len = strlen(writestr) + 1;

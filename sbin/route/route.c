@@ -66,6 +66,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -178,7 +179,7 @@ main(argc, argv)
 	pid = getpid();
 	uid = getuid();
 	if (tflag)
-		s = open("/dev/null", O_WRONLY, 0);
+		s = open(_PATH_DEVNULL, O_WRONLY, 0);
 	else
 		s = socket(PF_ROUTE, SOCK_RAW, 0);
 	if (s < 0)

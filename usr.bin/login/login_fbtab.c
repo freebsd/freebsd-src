@@ -66,6 +66,7 @@
 #include <string.h>
 #include <errno.h>
 #include <dirent.h>
+#include <paths.h>
 #include <unistd.h>
 #include "pathnames.h"
 
@@ -98,7 +99,7 @@ gid_t   gid;
 	    *cp = 0;				/* strip comment */
 	if ((cp = devname = strtok(buf, WSPACE)) == 0)
 	    continue;				/* empty or comment */
-	if (strncmp(devname, "/dev/", 5) != 0
+	if (strncmp(devname, _PATH_DEV, sizeof _PATH_DEV - 1) != 0
 	       || (cp = strtok((char *) 0, WSPACE)) == 0
 	       || *cp != '0'
 	       || sscanf(cp, "%o", &prot) == 0

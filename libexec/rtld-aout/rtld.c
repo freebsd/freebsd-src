@@ -45,6 +45,7 @@
 #include <err.h>
 #include <fcntl.h>
 #include <a.out.h>
+#include <paths.h>
 #include <stab.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -66,8 +67,8 @@
 #ifndef MAP_ANON
 #define MAP_ANON	0
 #define anon_open() do {					\
-	if ((anon_fd = open("/dev/zero", O_RDWR, 0)) == -1)	\
-		err("open: %s", "/dev/zero");			\
+	if ((anon_fd = open(_PATH_DEVZERO, O_RDWR, 0)) == -1)	\
+		err("open: %s", _PATH_DEVZERO);			\
 } while (0)
 #define anon_close() do {	\
 	(void)close(anon_fd);	\

@@ -31,6 +31,7 @@
 #include <sys/fcntl.h>
 #include <sys/sysctl.h>
 #include <err.h>
+#include <paths.h>
 #include <machine/swiz.h>
 #include <machine/sysarch.h>
 #include <stdlib.h>
@@ -54,9 +55,9 @@ swiz_init()
     size_t len = sizeof(u_int64_t);
     int error;
 
-    mem_fd = open("/dev/mem", O_RDWR);
+    mem_fd = open(_PATH_MEM, O_RDWR);
     if (mem_fd < 0)
-	err(1, "/dev/mem");
+	err(1, _PATH_MEM);
     swiz_ports = mmap(0, 1L<<32, PROT_READ, MAP_ANON, -1, 0);
 
     if ((error = sysctlbyname("hw.chipset.ports", &swiz_io_base, &len,

@@ -55,6 +55,7 @@
 #include <sys/disklabel.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
+#include <paths.h>
 
 #include "opt_ddb.h"
 #ifdef DDB
@@ -253,7 +254,7 @@ vfs_mountroot_ask(void)
 	for(;;) {
 		printf("\nManual root filesystem specification:\n");
 		printf("  <fstype>:<device>  Mount <device> using filesystem <fstype>\n");
-		printf("                       eg. ufs:/dev/da0s1a\n");
+		printf("                       eg. ufs:%sda0s1a\n", _PATH_DEV);
 		printf("  ?                  List valid disk boot devices\n");
 		printf("  <empty line>       Abort manual input\n");
 		printf("\nmountroot> ");
