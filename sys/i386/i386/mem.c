@@ -215,22 +215,25 @@ mmrw(dev_t dev, struct uio *uio, int flags)
 * instead of going through read/write			*
 \*******************************************************/
 static int
-memmmap(dev_t dev, vm_offset_t offset, int prot)
+memmmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int prot)
 {
 	switch (minor(dev))
 	{
 
 	/* minor device 0 is physical memory */
 	case 0:
-        	return (i386_btop(offset));
+		*paddr = offset;
+		break;
 
 	/* minor device 1 is kernel memory */
 	case 1:
-        	return (i386_btop(vtophys(offset)));
+        	*paddr = vtophys(offset);
+		break;
 
 	default:
 		return (-1);
 	}
+	return (0);
 }
 
 /*

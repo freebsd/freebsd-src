@@ -419,7 +419,7 @@ fwmem_poll (dev_t dev, int events, fw_proc *td)
 	return EINVAL;
 }
 int
-fwmem_mmap (dev_t dev, vm_offset_t offset, int nproto)
+fwmem_mmap (dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nproto)
 {  
 	return EINVAL;
 }

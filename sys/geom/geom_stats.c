@@ -122,15 +122,17 @@ static struct cdevsw geom_stats_cdevsw = {
 };
 
 static int
-g_stat_mmap(dev_t dev, vm_offset_t offset, int nprot)
+g_stat_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 	struct statspage *spp;
 
 	if (nprot != VM_PROT_READ)
 		return (-1);
 	TAILQ_FOREACH(spp, &pagelist, list) {
-		if (offset == 0)
-			return (vtophys(spp->stat) >> PAGE_SHIFT);
+		if (offset == 0) {
+			*paddr = vtophys(spp->stat);
+			return (0);
+		}
 		offset -= PAGE_SIZE;
 	}
 	return (-1);

@@ -1452,13 +1452,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	}
 }
 
-vm_offset_t
-pmap_phys_address(int ppn)
-{
-	TODO;
-	return (0);
-}
-
 /*
  * Map a list of wired pages into kernel virtual address space.  This is
  * intended for temporary mappings which do not need page modification or

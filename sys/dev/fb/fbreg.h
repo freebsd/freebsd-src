@@ -81,7 +81,8 @@ typedef int vi_blank_display_t(video_adapter_t *adp, int mode);
 #define V_DISPLAY_STAND_BY	2
 #define V_DISPLAY_SUSPEND	3
 */
-typedef int vi_mmap_t(video_adapter_t *adp, vm_offset_t offset, int prot);
+typedef int vi_mmap_t(video_adapter_t *adp, vm_offset_t offset,
+		      vm_offset_t *paddr, int prot);
 typedef int vi_ioctl_t(video_adapter_t *adp, u_long cmd, caddr_t data);
 typedef int vi_clear_t(video_adapter_t *adp);
 typedef int vi_fill_rect_t(video_adapter_t *adp, int val, int x, int y,
@@ -212,7 +213,7 @@ int		genfbwrite(genfb_softc_t *sc, video_adapter_t *adp,
 int		genfbioctl(genfb_softc_t *sc, video_adapter_t *adp,
 			   u_long cmd, caddr_t arg, int flag, struct thread *td);
 int		genfbmmap(genfb_softc_t *sc, video_adapter_t *adp,
-			  vm_offset_t offset, int prot);
+			  vm_offset_t offset, vm_offset_t *paddr, int prot);
 
 #endif /* FB_INSTALL_CDEV */
 

@@ -441,7 +441,7 @@ tdfx_close(dev_t dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
+tdfx_mmap(dev_t dev, vm_offset_t offset, vm_offset_t *paddr, int nprot)
 {
 	/* 
 	 * mmap(2) is called by a user process to request that an area of memory
@@ -472,14 +472,17 @@ tdfx_mmap(dev_t dev, vm_offset_t offset, int nprot)
 	/* We must stay within the bound of our address space */
 	if((offset & 0xff000000) == tdfx_info[0]->addr0) {
 		offset &= 0xffffff;
-		return atop(rman_get_start(tdfx_info[0]->memrange) + offset);
+		*paddr = rman_get_start(tdfx_info[0]->memrange) + offset;
+		return 0;
 	}
 	
 	if(tdfx_count > 1) {
 		tdfx_info[1] = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass, 1);
 		if((offset & 0xff000000) == tdfx_info[1]->addr0) {
 			offset &= 0xffffff;
-			return atop(rman_get_start(tdfx_info[1]->memrange) + offset);
+			*paddr = rman_get_start(tdfx_info[1]->memrange) +
+			    offset;
+			return 0;
 		}
 	}
 
