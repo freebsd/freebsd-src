@@ -433,7 +433,7 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (++timesthrough == 1) {
 		mwp->mntfrom = imax(mwp->mntfrom, (int)strlen("Filesystem"));
 		if (hflag) {
-			header = "  Size";
+			header = "   Size";
 			mwp->total = mwp->used = mwp->avail =
 			    (int)strlen(header);
 		} else {
@@ -478,7 +478,9 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 		(void)printf(" %*jd %*jd %4.0f%% ", mwp->iused, (intmax_t)used,
 		    mwp->ifree, (intmax_t)sfsp->f_ffree, inodes == 0 ? 100.0 :
 		    (double)used / (double)inodes * 100.0);
-	} else if (!total)
+	} else
+		(void)printf("  ");
+	if (!total)
 		(void)printf("  %s", sfsp->f_mntonname);
 	(void)printf("\n");
 }
