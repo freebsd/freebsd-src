@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)auth_unix.c 1.19 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)auth_unix.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: auth_unix.c,v 1.1 1993/10/27 05:40:11 paul Exp $";
+static char *rcsid = "$Id: auth_unix.c,v 1.1 1994/08/07 18:35:39 wollman Exp $";
 #endif
 
 /*
@@ -48,6 +48,7 @@ static char *rcsid = "$Id: auth_unix.c,v 1.1 1993/10/27 05:40:11 paul Exp $";
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <sys/param.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <rpc/auth.h>
@@ -84,6 +85,18 @@ struct audata {
 
 static bool_t marshal_new_auth();
 
+/*
+ * This goop is here because some servers refuse to accept a
+ * credential with more than some number (usually 8) supplementary
+ * groups.  Blargh!
+ */
+static int authunix_maxgrouplist = 0;
+
+int
+set_rpc_maxgrouplist(int num)
+{
+	authunix_maxgrouplist = num;
+}
 
 /*
  * Create a unix style authenticator.
@@ -134,7 +147,13 @@ authunix_create(machname, uid, gid, len, aup_gids)
 	aup.aup_machname = machname;
 	aup.aup_uid = uid;
 	aup.aup_gid = gid;
-	aup.aup_len = (u_int)len;
+	/* GW: continuation of max group list hack */
+	if(authunix_maxgrouplist != 0) {
+		aup.aup_len = ((len > authunix_maxgrouplist) ? len 
+			       : authunix_maxgrouplist);
+	} else {
+		aup.aup_len = (u_int)len;
+	}
 	aup.aup_gids = aup_gids;
 
 	/*
@@ -175,14 +194,20 @@ authunix_create_default()
 	register int uid;
 	register int gid;
 	int gids[NGRPS];
+	int i;
+	gid_t real_gids[NGROUPS];
 
 	if (gethostname(machname, MAX_MACHINE_NAME) == -1)
 		abort();
 	machname[MAX_MACHINE_NAME] = 0;
 	uid = geteuid();
 	gid = getegid();
-	if ((len = getgroups(NGRPS, gids)) < 0)
+	if ((len = getgroups(NGROUPS, real_gids)) < 0)
 		abort();
+	if(len > NGRPS) len = NGRPS; /* GW: turn `gid_t's into `int's */
+	for(i = 0; i < len; i++) { 
+		gids[i] = real_gids[i];
+	}
 	return (authunix_create(machname, uid, gid, len, gids));
 }
 
