@@ -49,8 +49,15 @@
 #include <cam/cam_xpt_sim.h>
 #include <cam/cam_debug.h>
 
+static void	configure_first(void *);
 static void	configure(void *);
-SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL)
+static void	configure_final(void *);
+
+SYSINIT(configure1, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure_first, NULL);
+/* SI_ORDER_SECOND is hookable */
+SYSINIT(configure2, SI_SUB_CONFIGURE, SI_ORDER_THIRD, configure, NULL);
+/* SI_ORDER_MIDDLE is hookable */
+SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 
 #ifdef BOOTP
 void bootpc_init(void);
@@ -65,6 +72,11 @@ device_t isa_bus_device = 0;
  * Determine i/o configuration for a machine.
  */
 static void
+configure_first(void *dummy)
+{
+}
+
+static void
 configure(void *dummy)
 {
 	device_add_child(root_bus, "nexus", 0);
@@ -78,6 +90,11 @@ configure(void *dummy)
 	if (isa_bus_device)
 		isa_probe_children(isa_bus_device);
 #endif
+}
+
+static void
+configure_final(void *dummy)
+{
 
 	/*
 	 * Now we're ready to handle (pending) interrupts.
