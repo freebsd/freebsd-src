@@ -27,5 +27,6 @@
 LIB=		pam_ftp
 SHLIB_NAME=	pam_ftp.so
 SRCS=		pam_ftp.c
+MAN=		pam_ftp.8
 
 .include <bsd.lib.mk>

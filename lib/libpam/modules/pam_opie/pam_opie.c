@@ -27,77 +27,98 @@
  *	$FreeBSD$
  */
 
-#include <syslog.h>	/* XXX */
-
+#include <sys/types.h>
+#include <opie.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <string.h>
-#include <opie.h>
+#include <unistd.h>
 
 #define PAM_SM_AUTH
 #include <security/pam_modules.h>
-
 #include "pam_mod_misc.h"
 
+enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX };
+
+static struct opttab other_options[] = {
+	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+	{ NULL, 0 }
+};
+
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
-    const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-	int retval;
-	const char *user;
-	const char *response;
 	struct opie opie;
+	struct options options;
+	struct passwd *pwd;
+	int retval, i;
+	char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
 	char challenge[OPIE_CHALLENGE_MAX];
 	char prompt[OPIE_CHALLENGE_MAX+22];
-	char resp_buf[OPIE_SECRET_MAX];
-	int options;
-	int i;
+	char resp[OPIE_SECRET_MAX];
+	const char *user;
+	const char *response;
 
-	user = NULL;
-	options = 0;
-	for (i = 0;  i < argc;  i++)
-		pam_std_option(&options, argv[i]);
+	pam_std_option(&options, other_options, argc, argv);
+
+	PAM_LOG("Options processed");
+
 	/*
 	 * It doesn't make sense to use a password that has already been
 	 * typed in, since we haven't presented the challenge to the user
 	 * yet.
 	 */
-	options &= ~(PAM_OPT_USE_FIRST_PASS | PAM_OPT_TRY_FIRST_PASS);
-	if ((retval = pam_get_user(pamh, (const char **)&user, NULL))
-	    != PAM_SUCCESS)
-		return retval;
+	if (pam_test_option(&options, PAM_OPT_USE_FIRST_PASS, NULL) ||
+	    pam_test_option(&options, PAM_OPT_TRY_FIRST_PASS, NULL))
+		PAM_RETURN(PAM_AUTH_ERR);
+
+	user = NULL;
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
+		pwd = getpwuid(getuid());
+		user = pwd->pw_name;
+	}
+	else {
+		retval = pam_get_user(pamh, (const char **)&user, NULL);
+		if (retval != PAM_SUCCESS)
+			PAM_RETURN(retval);
+	}
+
+	PAM_LOG("Got user: %s", user);
+
 	/*
 	 * Don't call the OPIE atexit() handler when our program exits,
 	 * since the module has been unloaded and we will SEGV.
 	 */
 	opiedisableaeh();
 
-	if (opiechallenge(&opie, (char *)user, challenge) != 0)
-		return PAM_AUTH_ERR;
-	snprintf(prompt, sizeof prompt, "%s\nPassword: ", challenge);
-	if ((retval = pam_get_pass(pamh, &response, prompt, options)) !=
-	    PAM_SUCCESS) {
-		opieunlock();
-		return retval;
-	}
-	if (response[0] == '\0' && !(options & PAM_OPT_ECHO_PASS)) {
-		options |= PAM_OPT_ECHO_PASS;
-		snprintf(prompt, sizeof prompt,
-			 "%s\nPassword [echo on]: ", challenge);
-		if ((retval = pam_get_pass(pamh, &response, prompt,
-		    options)) != PAM_SUCCESS) {
+	opiechallenge(&opie, (char *)user, challenge);
+	for (i = 0; i < 2; i++) {
+		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
+		retval = pam_get_pass(pamh, &response, prompt, &options);
+		if (retval != PAM_SUCCESS) {
 			opieunlock();
-			return retval;
+			PAM_RETURN(retval);
 		}
+
+		PAM_LOG("Completed challenge %d: %s", i, response);
+
+		if (response[0] != '\0')
+			break;
+
+		/* Second time round, echo the password */
+		pam_set_option(&options, PAM_OPT_ECHO_PASS);
 	}
+
 	/* We have to copy the response, because opieverify mucks with it. */
-	snprintf(resp_buf, sizeof resp_buf, "%s", response);
+	snprintf(resp, sizeof resp, "%s", response);
+
 	/*
 	 * Opieverify is supposed to return -1 only if an error occurs.
 	 * But it returns -1 even if the response string isn't in the form
 	 * it expects.  Thus we can't log an error and can only check for
 	 * success or lack thereof.
 	 */
-	return opieverify(&opie, resp_buf) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR;
+	PAM_RETURN(opieverify(&opie, resp) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int

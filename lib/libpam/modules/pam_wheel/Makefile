@@ -27,7 +27,6 @@
 LIB=		pam_wheel
 SHLIB_NAME=	pam_wheel.so
 SRCS=		pam_wheel.c
+MAN=		pam_wheel.8
 
 .include <bsd.lib.mk>
-
-.PATH:		${PAMDIR}/modules/pam_wheel

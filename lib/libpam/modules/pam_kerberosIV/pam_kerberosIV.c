@@ -47,9 +47,9 @@ int	noticketsdontcomplain = 1;
 char	*krbtkfile_env;
 
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
-    const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
+	struct options options;
 	int retval;
 	const char *user;
 	char *principal;
@@ -57,40 +57,46 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 	const char *password;
 	char localhost[MAXHOSTNAMELEN + 1];
 	struct passwd *pwd;
-	int options;
-	int i;
 
-	options = 0;
-	for (i = 0;  i < argc;  i++)
-		pam_std_option(&options, argv[i]);
-	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
+	pam_std_option(&options, NULL, argc, argv);
+	retval = pam_get_user(pamh, &user, NULL);
+	if (retval != PAM_SUCCESS)
 		return retval;
-	if ((retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
-	    options)) != PAM_SUCCESS)
+
+	retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT, &options);
+	if (retval != PAM_SUCCESS)
 		return retval;
+
 	if (gethostname(localhost, sizeof localhost - 1) == -1)
 		return PAM_SYSTEM_ERR;
-	if ((principal = strdup(user)) == NULL)
+
+	principal = strdup(user);
+	if (principal == NULL)
 		return PAM_BUF_ERR;
-	if ((instance = strchr(principal, '.')) != NULL)
+
+	instance = strchr(principal, '.');
+	if (instance != NULL)
 		*instance++ = '\0';
 	else
 		instance = "";
-	if ((pwd = getpwnam(user)) != NULL &&
-	    klogin(pwd, instance, localhost, (char *)password) == 0) {
-		if (!(flags & PAM_SILENT) && notickets &&
-		    !noticketsdontcomplain)
-			pam_prompt(pamh, PAM_ERROR_MSG,
-			    "Warning: no Kerberos tickets issued", NULL);
-		/*
-		 * XXX - I think the ticket file really isn't supposed to
-		 * be even created until pam_sm_setcred() is called.
-		 */
-		if (krbtkfile_env != NULL)
-			setenv("KRBTKFILE", krbtkfile_env, 1);
-		retval = PAM_SUCCESS;
-	} else
-		retval = PAM_AUTH_ERR;
+
+	retval = PAM_AUTH_ERR;
+	pwd = getpwnam(user);
+	if (pwd != NULL) {
+		if (klogin(pwd, instance, localhost, (char *)password) == 0) {
+			if (!(flags & PAM_SILENT) && notickets && !noticketsdontcomplain)
+				pam_prompt(pamh, PAM_ERROR_MSG,
+				    "Warning: no Kerberos tickets issued",
+				    NULL);
+			/*
+			 * XXX - I think the ticket file isn't supposed to
+			 * be created until pam_sm_setcred() is called.
+			 */
+			if (krbtkfile_env != NULL)
+				setenv("KRBTKFILE", krbtkfile_env, 1);
+			retval = PAM_SUCCESS;
+		}
+	}
 	/*
 	 * The PAM infrastructure will obliterate the cleartext
 	 * password before returning to the application.

@@ -1,0 +1,91 @@
+.\" Copyright (c) 2001 Mark R V Murray
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 7, 2001
+.Dt PAM_OPIE 8
+.Os
+.Sh NAME
+.Nm pam_opie
+.Nd OPIE PAM module
+.Sh SYNOPSIS
+.Op Ar service-name
+.Ar module-type
+.Ar control-flag
+.Pa pam_opie
+.Op Ar options
+.Sh DESCRIPTION
+The OPIE authentication service module for PAM,
+.Nm
+provides functionality for only one PAM category:
+that of authentication.
+In terms of the 
+.Ar module-type
+parameter, this is the
+.Dv auth
+feature.
+It also provides a null function for session management.
+.Ss OPIE Authentication Module
+The OPIE authentication component
+provides functions to verify the identity of a user
+.Pq Fn pam_sm_authenticate ,
+which obtains the relevant
+.Xr opie 4
+credentials.
+It provides the user with an OPIE challenge,
+and verifies that this is correct with
+.Xr opiechallenge 3 .
+.Pp
+The following options may be passed to the authentication module:
+.Bl -tag -xwidth ".Cm use_first_pass"
+.It Cm debug
+.Xr syslog 3
+debugging information at
+.Dv LOG_DEBUG
+level.
+.It Cm auth_as_self
+This option will require the user
+to authenticate themself as the user
+given by
+.Fn getuid 2 ,
+not as the account they are attempting to access.
+This is primarily for services like
+.Xr su 1 ,
+where the user's ability to retype
+their own password
+might be deemed sufficient.
+.El
+.Sh FILES
+.Bl -tag -xwidth ".Pa /etc/opiekeys" -compact
+.It Pa /etc/opiekeys
+default OPIE password database.
+.El
+.Sh SEE ALSO
+.Xr passwd 1 ,
+.Xr opiechallenge 3 ,
+.Xr opie 4 ,
+.Xr syslog 3 ,
+.Xr pam.conf 5 ,
+.Xr pam 8
