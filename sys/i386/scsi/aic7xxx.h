@@ -3,7 +3,7 @@
  * SCSI controllers.  This is used to implement product specific
  * probe and attach routines.
  *
- * Copyright (c) 1994, 1995, 1996 Justin T. Gibbs.
+ * Copyright (c) 1994, 1995, 1996, 1997 Justin T. Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.31.2.1 1996/11/09 13:52:30 jkh Exp $
+ *	$Id$
  */
 
 #ifndef _AIC7XXX_H_
@@ -144,7 +144,8 @@ typedef enum {
 	SCB_ASSIGNEDQ		= 0x0200,
 	SCB_SENTORDEREDTAG	= 0x0400,
 	SCB_MSGOUT_SDTR		= 0x0800,
-	SCB_MSGOUT_WDTR		= 0x1000
+	SCB_MSGOUT_WDTR		= 0x1000,
+	SCB_ABORT		= 0x2000
 } scb_flag;
 
 /*
@@ -214,6 +215,11 @@ struct scb_data {
 					 */
 };
 
+struct ahc_busreset_args {
+	struct	ahc_softc *ahc;
+	char	bus;
+};
+
 struct ahc_softc {
 #if defined(__FreeBSD__)
 	int	unit;
@@ -230,6 +236,8 @@ struct ahc_softc {
 #endif
 	volatile u_int8_t *maddr;
 	struct	scb_data *scb_data;
+	struct	ahc_busreset_args	busreset_args;
+	struct	ahc_busreset_args	busreset_args_b;
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
 	STAILQ_HEAD(, scb) waiting_scbs;/*
@@ -268,6 +276,9 @@ struct ahc_softc {
 	u_int8_t	unpause;
 	u_int8_t	pause;
 	u_int8_t	in_timeout;
+	u_int8_t	in_reset;
+#define CHANNEL_A_RESET		0x01
+#define CHANNEL_B_RESET		0x02
 };
 
 struct full_ahc_softc {
