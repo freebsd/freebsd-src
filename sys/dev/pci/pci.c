@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.26 1995/07/27 21:38:45 se Exp $
+**  $Id: pci.c,v 1.27 1995/07/27 21:56:51 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -372,7 +372,7 @@ pci_bus_config (void)
 	};
 #endif
 	for (device=0; device<pci_maxdevice; device ++) {
-		char*   name;
+		char*   name = "";
 		struct pci_device **dvpp;
 
 		if ((pcicb->pcicb_seen >> device) & 1)
