@@ -47,6 +47,9 @@
 #include <i386/isa/isa_device.h>
 
 #include <pccard/i82365.h>
+#ifdef	PC98
+#include <pccard/pcic98reg.h>
+#endif
 
 #include <pccard/card.h>
 #include <pccard/driver.h>
