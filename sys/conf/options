@@ -152,8 +152,14 @@ P1003_1B_SEMAPHORES		opt_posix.h
 #####################################################################
 # SECURITY POLICY PARAMETERS
 
-# Support for Mandatory Access Control (MAC)
+# Support for Mandatory Access Control (MAC), extensible kernel
+# access control framework.
 MAC
+
+# Options for MAC framework behavior and performance
+MAC_ALWAYS_LABEL_MBUF	opt_mac.h
+
+# MAC policy modules that can be linked into the kernel
 MAC_BIBA	opt_dontuse.h
 MAC_BSDEXTENDED	opt_dontuse.h
 MAC_DEBUG	opt_mac.h
