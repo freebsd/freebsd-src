@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.14 1995/03/20 18:11:31 wollman Exp $
+ * $Id: ip_output.c,v 1.15 1995/03/20 18:31:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>

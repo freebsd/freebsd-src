@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.4 (Berkeley) 1/21/94
- * $Id: udp_usrreq.c,v 1.7 1995/02/16 01:47:36 wollman Exp $
+ * $Id: udp_usrreq.c,v 1.8 1995/03/16 18:15:09 bde Exp $
  */
 
 #include <sys/param.h>
@@ -43,6 +43,7 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <sys/queue.h>
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
@@ -69,11 +70,16 @@ int	udpcksum = 1;
 int	udpcksum = 0;		/* XXX */
 #endif
 
-struct	inpcb udb;		/* from udp_var.h */
+struct	inpcbhead udb;		/* from udp_var.h */
+struct	inpcbinfo udbinfo;
+
+#ifndef UDBHASHSIZE
+#define UDBHASHSIZE 64
+#endif
+
 struct	udpstat udpstat;	/* from udp_var.h */
 
 struct	sockaddr_in udp_in = { sizeof(udp_in), AF_INET };
-struct	inpcb *udp_last_inpcb = &udb;
 
 static	void udp_detach __P((struct inpcb *));
 static	void udp_notify __P((struct inpcb *, int));
@@ -82,7 +88,9 @@ static	struct mbuf *udp_saveopt __P((caddr_t, int, int));
 void
 udp_init()
 {
-	udb.inp_next = udb.inp_prev = &udb;
+	LIST_INIT(&udb);
+	udbinfo.listhead = &udb;
+	udbinfo.hashbase = phashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashsize);
 }
 
 void
@@ -189,7 +197,7 @@ udp_input(m, iphlen)
 		 * (Algorithm copied from raw_intr().)
 		 */
 		last = NULL;
-		for (inp = udb.inp_next; inp != &udb; inp = inp->inp_next) {
+		for (inp = udb.lh_first; inp != NULL; inp = inp->inp_list.le_next) {
 			if (inp->inp_lport != uh->uh_dport)
 				continue;
 			if (inp->inp_laddr.s_addr != INADDR_ANY) {
@@ -250,18 +258,9 @@ udp_input(m, iphlen)
 	/*
 	 * Locate pcb for datagram.
 	 */
-	inp = udp_last_inpcb;
-	if (inp->inp_lport != uh->uh_dport ||
-	    inp->inp_fport != uh->uh_sport ||
-	    inp->inp_faddr.s_addr != ip->ip_src.s_addr ||
-	    inp->inp_laddr.s_addr != ip->ip_dst.s_addr) {
-		inp = in_pcblookup(&udb, ip->ip_src, uh->uh_sport,
-		    ip->ip_dst, uh->uh_dport, INPLOOKUP_WILDCARD);
-		if (inp)
-			udp_last_inpcb = inp;
-		udpstat.udpps_pcbcachemiss++;
-	}
-	if (inp == 0) {
+	inp = in_pcblookuphash(&udbinfo, ip->ip_src, uh->uh_sport,
+	    ip->ip_dst, uh->uh_dport);
+	if (inp == NULL) {
 		udpstat.udps_noport++;
 		if (m->m_flags & (M_BCAST | M_MCAST)) {
 			udpstat.udps_noportbcast++;
@@ -503,7 +502,7 @@ udp_usrreq(so, req, m, addr, control)
 			break;
 		}
 		s = splnet();
-		error = in_pcballoc(so, &udb);
+		error = in_pcballoc(so, &udbinfo);
 		splx(s);
 		if (error)
 			break;
@@ -617,8 +616,6 @@ udp_detach(inp)
 {
 	int s = splnet();
 
-	if (inp == udp_last_inpcb)
-		udp_last_inpcb = &udb;
 	in_pcbdetach(inp);
 	splx(s);
 }

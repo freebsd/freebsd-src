@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.17 1995/03/27 07:12:24 davidg Exp $
+ *	$Id: tcp_input.c,v 1.18 1995/04/05 10:32:14 olah Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -43,6 +43,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/errno.h>
+#include <sys/queue.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -64,12 +65,12 @@ struct	tcpiphdr tcp_saveti;
 #endif
 
 int	tcprexmtthresh = 3;
-struct	inpcb *tcp_last_inpcb = &tcb;
 tcp_seq	tcp_iss;
 tcp_cc	tcp_ccgen;
-struct	inpcb tcb;
 struct	tcpstat tcpstat;
 u_long	tcp_now;
+struct inpcbhead tcb;
+struct inpcbinfo tcbinfo;
 
 #endif /* TUBA_INCLUDE */
 
@@ -333,17 +334,7 @@ tcp_input(m, iphlen)
 	 * Locate pcb for segment.
 	 */
 findpcb:
-	inp = tcp_last_inpcb;
-	if (inp->inp_lport != ti->ti_dport ||
-	    inp->inp_fport != ti->ti_sport ||
-	    inp->inp_faddr.s_addr != ti->ti_src.s_addr ||
-	    inp->inp_laddr.s_addr != ti->ti_dst.s_addr) {
-		inp = in_pcblookup(&tcb, ti->ti_src, ti->ti_sport,
-		    ti->ti_dst, ti->ti_dport, INPLOOKUP_WILDCARD);
-		if (inp)
-			tcp_last_inpcb = inp;
-		++tcpstat.tcps_pcbcachemiss;
-	}
+	inp = in_pcblookuphash(&tcbinfo, ti->ti_src, ti->ti_sport, ti->ti_dst, ti->ti_dport);
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then
@@ -393,6 +384,7 @@ findpcb:
 			inp = (struct inpcb *)so->so_pcb;
 			inp->inp_laddr = ti->ti_dst;
 			inp->inp_lport = ti->ti_dport;
+			in_pcbrehash(inp);
 #if BSD>=43
 			inp->inp_options = ip_srcroute();
 #endif
