@@ -53,7 +53,6 @@ SUBDIR=	apply \
 	fsync \
 	ftp \
 	gencat \
-	getconf \
 	getopt \
 	gprof \
 	head \
@@ -232,8 +231,12 @@ SUBDIR+=ar \
 SUBDIR+=uac
 .endif
 
-.if ${MACHINE_ARCH} != "ia64"
+# Things which don't compile on new platforms yet:
+.if ${MACHINE_ARCH} != "sparc64" && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=xlint
+.endif
+.if ${MACHINE_ARCH} != "sparc64"
+SUBDIR+=getconf
 .endif
 
 .if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
