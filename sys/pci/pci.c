@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.109 1999/07/01 22:58:03 peter Exp $
+ * $Id: pci.c,v 1.110 1999/07/03 20:17:07 peter Exp $
  *
  */
 
@@ -67,6 +67,10 @@
 static STAILQ_HEAD(devlist, pci_devinfo) pci_devq;
 u_int32_t pci_numdevs = 0;
 static u_int32_t pci_generation = 0;
+
+#define PCI_MFCTR_CHAR0(ID) (char)(((ID>>10) & 0x1F) | '@')  /* Bits 10-14 */
+#define PCI_MFCTR_CHAR1(ID) (char)(((ID>>5 ) & 0x1F) | '@')  /* Bits 5-9   */
+#define PCI_MFCTR_CHAR2(ID) (char)(( ID      & 0x1F) | '@')  /* Bits 0-4   */
 
 /* return base address of memory or port map */
 
@@ -1126,6 +1130,32 @@ pci_print_child(device_t dev, device_t child)
 	printf(" on %s%d", device_get_name(dev), device_get_unit(dev));
 }
 
+static void
+pci_probe_nomatch(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo;
+	pcicfgregs *cfg;
+        
+	dinfo = device_get_ivars(child);
+	cfg = &dinfo->cfg;
+
+	device_printf(dev, "unknown card %c%c%c%04x (vendor=0x%04x, dev=0x%04x) at %d.$d",
+		PCI_MFCTR_CHAR0(cfg->vendor),
+		PCI_MFCTR_CHAR1(cfg->vendor),
+		PCI_MFCTR_CHAR2(cfg->vendor),
+		cfg->device,
+		cfg->vendor,
+		cfg->device,
+		pci_get_slot(child),
+		pci_get_function(child));
+	if (cfg->intpin > 0 && cfg->intline != 255) {
+		printf(" irq %d", cfg->intline);
+	}
+	printf("\n");
+                                      
+	return;
+}
+
 static int
 pci_read_ivar(device_t dev, device_t child, int which, u_long *result)
 {
@@ -1442,6 +1472,7 @@ static device_method_t pci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	pci_print_child),
+	DEvMETHOD(bus_probe_nomatch,	pci_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	pci_write_ivar),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
