@@ -34,6 +34,8 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/signal.h>
+#include <sys/systm.h>
+#include <sys/ucontext.h>
 #include <sys/user.h>
 #include <sys/ucontext.h>
 #include <sys/vmmeter.h>
@@ -153,6 +155,9 @@ ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
 ASSYM(PC_IQ, offsetof(struct pcpu, pc_iq));
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
+ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
+ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
+ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 ASSYM(IH_SHIFT, IH_SHIFT);
@@ -187,6 +192,8 @@ ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
 
 ASSYM(MD_UTRAP, offsetof(struct mdproc, md_utrap));
+
+ASSYM(MTX_LOCK, offsetof(struct mtx, mtx_lock));
 
 ASSYM(P_COMM, offsetof(struct proc, p_comm));
 ASSYM(P_MD, offsetof(struct proc, p_md));

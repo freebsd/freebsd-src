@@ -155,13 +155,6 @@ vm_offset_t kernel_page;
  */
 struct pmap kernel_pmap_store;
 
-/*
- * Map of free and in use hardware contexts and index of first potentially
- * free context.
- */
-static char pmap_context_map[PMAP_CONTEXT_MAX];
-static u_int pmap_context_base;
-
 static boolean_t pmap_initialized = FALSE;
 
 /* Convert a tte data field into a page mask */
@@ -173,12 +166,6 @@ static vm_offset_t pmap_page_masks[] = {
 };
 
 #define	PMAP_TD_GET_MASK(d)	pmap_page_masks[TD_GET_SIZE((d))]
-
-/*
- * Allocate and free hardware context numbers.
- */
-static u_int pmap_context_alloc(void);
-static void pmap_context_destroy(u_int i);
 
 /*
  * Allocate physical memory for use in pmap_bootstrap.
@@ -476,6 +463,43 @@ pmap_bootstrap_alloc(vm_size_t size)
 		return (pa);
 	}
 	panic("pmap_bootstrap_alloc");
+}
+
+void
+pmap_context_rollover(void)
+{
+	u_long data;
+	int i;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	CTR0(KTR_PMAP, "pmap_context_rollover");
+	for (i = 0; i < 64; i++) {
+		data = ldxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG);
+		if ((data & TD_V) != 0 && (data & TD_P) == 0) {
+			stxa(TLB_DAR_SLOT(i), ASI_DTLB_DATA_ACCESS_REG, 0);
+			membar(Sync);
+		}
+		data = ldxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG);
+		if ((data & TD_V) != 0 && (data & TD_P) == 0) {
+			stxa(TLB_DAR_SLOT(i), ASI_ITLB_DATA_ACCESS_REG, 0);
+			membar(Sync);
+		}
+	}
+	PCPU_SET(tlb_ctx, PCPU_GET(tlb_ctx_min));
+}
+
+static __inline u_int
+pmap_context_alloc(void)
+{
+	u_int context;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	context = PCPU_GET(tlb_ctx);
+	if (context + 1 == PCPU_GET(tlb_ctx_max))
+		pmap_context_rollover();
+	else
+		PCPU_SET(tlb_ctx, context + 1);
+	return (context);
 }
 
 /*
@@ -1078,8 +1102,10 @@ pmap_swapin_thread(struct thread *td)
 void
 pmap_pinit0(pmap_t pm)
 {
+	int i;
 
-	pm->pm_context[PCPU_GET(cpuid)] = pmap_context_alloc();
+	for (i = 0; i < MAXCPU; i++)
+		pm->pm_context[i] = 0;
 	pm->pm_active = 0;
 	pm->pm_count = 1;
 	pm->pm_tsb = NULL;
@@ -1129,8 +1155,9 @@ pmap_pinit(pmap_t pm)
 	}
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
+	for (i = 0; i < MAXCPU; i++)
+		pm->pm_context[i] = -1;
 	pm->pm_active = 0;
-	pm->pm_context[PCPU_GET(cpuid)] = pmap_context_alloc();
 	pm->pm_count = 1;
 	TAILQ_INIT(&pm->pm_pvlist);
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
@@ -1162,7 +1189,6 @@ pmap_release(pmap_t pm)
 	KASSERT(pmap_resident_count(pm) == 0,
 	    ("pmap_release: resident pages %ld != 0",
 	    pmap_resident_count(pm)));
-	pmap_context_destroy(pm->pm_context[PCPU_GET(cpuid)]);
 	TAILQ_FOREACH(m, &obj->memq, listq) {
 		if (vm_page_sleep_busy(m, FALSE, "pmaprl"))
 			continue;
@@ -1769,6 +1795,7 @@ pmap_mincore(pmap_t pm, vm_offset_t addr)
 void
 pmap_activate(struct thread *td)
 {
+	struct vmspace *vm;
 	vm_offset_t tsb;
 	u_long context;
 	pmap_t pm;
@@ -1777,21 +1804,24 @@ pmap_activate(struct thread *td)
 	 * Load all the data we need up front to encourage the compiler to
 	 * not issue any loads while we have interrupts disable below.
 	 */
-	pm = &td->td_proc->p_vmspace->vm_pmap;
-	context = pm->pm_context[PCPU_GET(cpuid)];
+	vm = td->td_proc->p_vmspace;
+	pm = &vm->vm_pmap;
 	tsb = (vm_offset_t)pm->pm_tsb;
 
-	KASSERT(context != 0, ("pmap_activate: activating nucleus context"));
-	KASSERT(context != -1, ("pmap_activate: steal context"));
 	KASSERT(pm->pm_active == 0, ("pmap_activate: pmap already active?"));
+	KASSERT(pm->pm_context[PCPU_GET(cpuid)] != 0,
+	    ("pmap_activate: activating nucleus context?"));
 
+	mtx_lock_spin(&sched_lock);
 	wrpr(pstate, 0, PSTATE_MMU);
 	mov(tsb, TSB_REG);
-	wrpr(pstate, 0, PSTATE_NORMAL);
-	pm->pm_active |= 1 << PCPU_GET(cpuid);
+	wrpr(pstate, 0, PSTATE_KERNEL);
+	context = pmap_context_alloc();
+	pm->pm_context[PCPU_GET(cpuid)] = context;
+	pm->pm_active |= PCPU_GET(cpumask);
 	stxa(AA_DMMU_PCXR, ASI_DMMU, context);
 	membar(Sync);
-	wrpr(pstate, 0, PSTATE_KERNEL);
+	mtx_unlock_spin(&sched_lock);
 }
 
 vm_offset_t
@@ -1799,33 +1829,4 @@ pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
 {
 
 	return (va);
-}
-
-/*
- * Allocate a hardware context number from the context map.
- */
-static u_int
-pmap_context_alloc(void)
-{
-	u_int i;
-
-	i = pmap_context_base;
-	do {
-		if (pmap_context_map[i] == 0) {
-			pmap_context_map[i] = 1;
-			pmap_context_base = (i + 1) & (PMAP_CONTEXT_MAX - 1);
-			return (i);
-		}
-	} while ((i = (i + 1) & (PMAP_CONTEXT_MAX - 1)) != pmap_context_base);
-	panic("pmap_context_alloc");
-}
-
-/*
- * Free a hardware context number back to the context map.
- */
-static void
-pmap_context_destroy(u_int i)
-{
-
-	pmap_context_map[i] = 0;
 }
