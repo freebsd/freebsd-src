@@ -1,1 +1,0 @@
-ccflags="$ccflags -J"

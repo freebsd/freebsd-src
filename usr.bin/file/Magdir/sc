@@ -1,5 +1,0 @@
-
-#------------------------------------------------------------------------------
-# sc:  file(1) magic for "sc" spreadsheet
-#
-38	string		Spreadsheet	sc spreadsheet file

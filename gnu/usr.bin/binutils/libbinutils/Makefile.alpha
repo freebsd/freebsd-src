@@ -1,5 +1,0 @@
-#
-# $FreeBSD$
-#
-
-TARGET=		alpha-unknown-freebsdelf

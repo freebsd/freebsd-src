@@ -1,7 +1,0 @@
-# Host: Sequent Symmetry running ptx 1.3, with Weitek 1167 or i387
-
-XM_FILE= xm-ptx4.h
-XDEPFILES= inftarg.o fork-child.o symm-nat.o corelow.o core-aout.o solib.o core-regset.o
-XM_CLIBS= -lseq
-
-NAT_FILE= nm-ptx4.h
