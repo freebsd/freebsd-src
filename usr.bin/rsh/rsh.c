@@ -40,7 +40,7 @@ static char copyright[] =
 #ifndef lint
 static char sccsid[] = "From: @(#)rsh.c	8.3 (Berkeley) 4/6/94";
 static char rcsid[] =
-	"$Id$";
+	"$Id: rsh.c,v 1.10 1997/02/22 19:56:46 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -130,7 +130,7 @@ main(argc, argv)
 #else
 #define	OPTIONS	"8KLde:l:nt:w"
 #endif
-	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
+	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
 		case 'K':
 #ifdef KERBEROS

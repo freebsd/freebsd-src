@@ -39,7 +39,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "@(#)strip.c	8.1 (Berkeley) 6/6/93";*/
-static char RCSid[] = "$Id$";
+static char RCSid[] = "$Id: strip.c,v 1.9 1997/02/22 19:57:14 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 	char *fn;
 
 	sfcn = s_sym;
-	while ((ch = getopt(argc, argv, "dx")) != EOF)
+	while ((ch = getopt(argc, argv, "dx")) != -1)
 		switch(ch) {
                 case 'x':
                         xflag = 1;

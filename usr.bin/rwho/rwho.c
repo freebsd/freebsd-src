@@ -88,7 +88,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_TIME, "");
 
-	while ((ch = getopt(argc, argv, "a")) != EOF)
+	while ((ch = getopt(argc, argv, "a")) != -1)
 		switch((char)ch) {
 		case 'a':
 			aflg = 1;

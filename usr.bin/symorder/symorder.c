@@ -84,7 +84,7 @@ main(argc, argv)
 	int ch, n, o;
 
 	xfilename = NULL;
-	while ((ch = getopt(argc, argv, "cmtx:")) != EOF)
+	while ((ch = getopt(argc, argv, "cmtx:")) != -1)
 		switch(ch) {
 		case 'c':
 			clean = 1;

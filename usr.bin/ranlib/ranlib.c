@@ -67,7 +67,7 @@ main(argc, argv)
 	int ch, eval, tflag;
 
 	tflag = 0;
-	while ((ch = getopt(argc, argv, "t")) != EOF)
+	while ((ch = getopt(argc, argv, "t")) != -1)
 		switch(ch) {
 		case 't':
 			tflag = 1;

@@ -65,7 +65,7 @@ main(argc, argv)
 	struct rusage ru;
 
 	lflag = 0;
-	while ((ch = getopt(argc, argv, "l")) != EOF)
+	while ((ch = getopt(argc, argv, "l")) != -1)
 		switch((char)ch) {
 		case 'l':
 			lflag = 1;

@@ -58,7 +58,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "nwctsobfF:ld")) != EOF)
+	while ((ch = getopt(argc, argv, "nwctsobfF:ld")) != -1)
 		switch((char)ch) {
 		case 'n':
 			none++;

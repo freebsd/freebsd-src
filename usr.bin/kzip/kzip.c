@@ -9,7 +9,7 @@
  * Copyright (C) 1993  Hannu Savolainen
  * Ported to 386bsd by Serge Vakulenko
  * based on tools/build.c by Linus Torvalds
- * $Id$
+ * $Id: kzip.c,v 1.7 1997/02/22 19:55:31 peter Exp $
  *
  */
 
@@ -51,7 +51,7 @@ main(int argc, char **argv)
 	char out[BUFSIZ];
 	char base[32];
 	
-	while ((c = getopt(argc, argv, "l:v")) != EOF) {
+	while ((c = getopt(argc, argv, "l:v")) != -1) {
 		switch (c) {
 		case 'l':
 			forceaddr = strtoul(optarg, NULL, 0);

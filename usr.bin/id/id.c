@@ -70,7 +70,7 @@ main(argc, argv)
 	int Gflag, ch, gflag, id, nflag, pflag, rflag, uflag;
 
 	Gflag = gflag = nflag = pflag = rflag = uflag = 0;
-	while ((ch = getopt(argc, argv, "Ggnpru")) != EOF)
+	while ((ch = getopt(argc, argv, "Ggnpru")) != -1)
 		switch(ch) {
 		case 'G':
 			Gflag = 1;

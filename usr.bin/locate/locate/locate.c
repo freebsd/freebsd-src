@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: locate.c,v 1.9 1997/02/22 19:55:47 peter Exp $
  */
 
 #ifndef lint
@@ -154,7 +154,7 @@ main(argc, argv)
 #endif
 	(void) setlocale(LC_ALL, "");
 
-        while ((ch = getopt(argc, argv, "Scd:il:ms")) != EOF)
+        while ((ch = getopt(argc, argv, "Scd:il:ms")) != -1)
                 switch(ch) {
                 case 'S':	/* statistic lines */   
                         f_statistic = 1;

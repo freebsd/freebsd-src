@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: lockf.c,v 1.4 1997/02/22 19:55:54 peter Exp $
  */
 
 #include <sys/types.h>
@@ -62,7 +62,7 @@ main(int argc, char **argv)
 
     silent = 0;
     waitsec = -1;	/* Infinite. */
-    while ((ch = getopt(argc, argv, "st:")) != EOF) {
+    while ((ch = getopt(argc, argv, "st:")) != -1) {
 	switch (ch) {
 
 	case 's':
