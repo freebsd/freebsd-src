@@ -93,7 +93,7 @@ main(argc, argv)
 	char	cmd[100];			/* too ugly to explain */
 
 	aflag = uflag = NO;
-	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) !=  -1)
+	while ((ch = getopt(argc, argv, "BFadf:tuwvx")) != -1)
 		switch(ch) {
 		case 'B':
 			searchar = '?';
