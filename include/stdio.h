@@ -132,6 +132,9 @@ typedef	struct __sFILE {
 
 __BEGIN_DECLS
 extern FILE __sF[];
+extern FILE *__stdinp;
+extern FILE *__stdoutp;
+extern FILE *__stderrp;
 __END_DECLS
 
 #define	__SLBF	0x0001		/* line buffered */
@@ -194,9 +197,16 @@ __END_DECLS
 #define	SEEK_END	2	/* set file offset to EOF plus offset */
 #endif
 
+/* To be removed by 5.0-RELEASE */
+#if (defined(__i386__) || defined(__alpha__)) && !defined(_FIXED_STDIO)
 #define	stdin	(&__sF[0])
 #define	stdout	(&__sF[1])
 #define	stderr	(&__sF[2])
+#else
+#define	stdin	__stdinp
+#define	stdout	__stdoutp
+#define	stderr	__stderrp
+#endif
 
 /*
  * Functions defined in ANSI C standard.
