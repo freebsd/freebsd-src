@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_spinlock.c,v 1.1 1998/04/29 09:59:28 jb Exp $
  *
  */
 
@@ -47,7 +47,7 @@
  * assumes that the lock will be available very soon.
  */
 void
-_spinlock(long *lck)
+_spinlock(volatile long *lck)
 {
 	do {
 		/*
