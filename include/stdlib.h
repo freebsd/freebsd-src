@@ -102,6 +102,7 @@ void	 qsort __P((void *, size_t, size_t,
 int	 rand __P((void));
 void	*realloc __P((void *, size_t));
 void	 srand __P((unsigned));
+void	 sranddev __P((void));
 double	 strtod __P((const char *, char **));
 long	 strtol __P((const char *, char **, int));
 long long	 
