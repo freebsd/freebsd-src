@@ -18,8 +18,8 @@
 0	string		#!\ /usr/local/bin/tcsh	Tenex C shell script text
 #
 # zsh/ash/ae/nawk/gawk magic from cameron@cs.unsw.oz.au (Cameron Simpson)
-0	string		#!/usr/local/bin/zsh	Paul Falstad's zsh
-0	string		#!\ /usr/local/bin/zsh	Paul Falstad's zsh
+0	string		#!/usr/local/bin/zsh	Z shell script text
+0	string		#!\ /usr/local/bin/zsh	Z shell script text
 0	string		#!/usr/local/bin/ash	Neil Brown's ash
 0	string		#!\ /usr/local/bin/ash	Neil Brown's ash
 0	string		#!/usr/local/bin/ae	Neil Brown's ae
