@@ -22,7 +22,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: slstat.c,v 1.3 1994/11/19 13:57:21 jkh Exp $";
+static char rcsid[] = "$Id: slstat.c,v 1.4 1995/05/30 03:52:30 rgrimes Exp $";
 #endif
 
 #include <stdio.h>
@@ -132,6 +132,13 @@ main(argc, argv)
 			kflag++;
 		}
 	}
+	/*
+	 * Discard setgid privileges if not the running kernel so that bad
+	 * guys can't print interesting stuff from kernel memory.
+	 */
+	if (system != NULL || kmemf != NULL)
+	        setgid(getgid());
+
 	kvm_h = kvm_openfiles(system, kmemf, NULL, O_RDONLY, errbuf);
 	if (kvm_h == 0) {
 		(void)fprintf(stderr,
