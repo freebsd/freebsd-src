@@ -78,15 +78,6 @@ __FBSDID("$FreeBSD$");
 
 #include "pathnames.h"
 
-/* FIX!  These are too low, but are traditional */
-#define DEFAULT_NEWFS_BLOCK  8192U
-#define DEFAULT_NEWFS_FRAG   1024U
-#define DEFAULT_NEWFS_CPG    16U
-
-#define BIG_NEWFS_BLOCK  16384U
-#define BIG_NEWFS_FRAG   2048U
-#define BIG_NEWFS_CPG    64U
-
 static void	makelabel(const char *, struct disklabel *);
 static int	writelabel(void);
 static int readlabel(int flag);
@@ -988,50 +979,20 @@ getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
 
 	switch (pp->p_fstype) {
 	case FS_UNUSED:
-		/*
-		 * allow us to accept defaults for
-		 * fsize/frag/cpg
-		 */
+	case FS_BSDFFS:
+	case FS_BSDLFS:
+		/* accept defaults for fsize/frag/cpg */
 		if (tp) {
 			NXTNUM(pp->p_fsize);
 			if (pp->p_fsize == 0)
 				break;
 			NXTNUM(v);
 			pp->p_frag = v / pp->p_fsize;
+			if (tp != NULL)
+				NXTNUM(pp->p_cpg);
 		}
 		/* else default to 0's */
 		break;
-
-	/* These happen to be the same */
-	case FS_BSDFFS:
-	case FS_BSDLFS:
-		if (tp) {
-			NXTNUM(pp->p_fsize);
-			if (pp->p_fsize == 0)
-				break;
-			NXTNUM(v);
-			pp->p_frag = v / pp->p_fsize;
-			NXTNUM(pp->p_cpg);
-		} else {
-			/*
-			 * FIX! poor attempt at adaptive
-			 */
-			/* 1 GB */
-			if (pp->p_size < 1024*1024*1024 / lp->d_secsize) {
-				/*
-				 * FIX! These are too low, but are traditional
-				 */
-				pp->p_fsize = DEFAULT_NEWFS_FRAG;
-				pp->p_frag = DEFAULT_NEWFS_BLOCK /
-				    DEFAULT_NEWFS_FRAG;
-				pp->p_cpg = DEFAULT_NEWFS_CPG;
-			} else {
-				pp->p_fsize = BIG_NEWFS_FRAG;
-				pp->p_frag = BIG_NEWFS_BLOCK /
-				    BIG_NEWFS_FRAG;
-				pp->p_cpg = BIG_NEWFS_CPG;
-			}
-		}
 	default:
 		break;
 	}
