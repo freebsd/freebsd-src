@@ -955,17 +955,20 @@ pr_pack(buf, cc, from, tv)
 #endif
 			tp += phdr_len;
 
-			/* Copy to avoid alignment problems: */
-			memcpy(&tv1, tp, sizeof(tv1));
-			tvsub(tv, &tv1);
- 			triptime = ((double)tv->tv_sec) * 1000.0 +
- 			    ((double)tv->tv_usec) / 1000.0;
-			tsum += triptime;
-			tsumsq += triptime * triptime;
-			if (triptime < tmin)
-				tmin = triptime;
-			if (triptime > tmax)
-				tmax = triptime;
+			if (cc - ICMP_MINLEN - phdr_len >= sizeof(tv1)) {
+				/* Copy to avoid alignment problems: */
+				memcpy(&tv1, tp, sizeof(tv1));
+				tvsub(tv, &tv1);
+ 				triptime = ((double)tv->tv_sec) * 1000.0 +
+ 				    ((double)tv->tv_usec) / 1000.0;
+				tsum += triptime;
+				tsumsq += triptime * triptime;
+				if (triptime < tmin)
+					tmin = triptime;
+				if (triptime > tmax)
+					tmax = triptime;
+			} else
+				timing = 0;
 		}
 
 		seq = ntohs(icp->icmp_seq);
@@ -1008,7 +1011,9 @@ pr_pack(buf, cc, from, tv)
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[phdr_len];
 			dp = &outpack[MINICMPLEN + phdr_len];
-			for (i = phdr_len; i < datalen; ++i, ++cp, ++dp) {
+			cc -= ICMP_MINLEN + phdr_len;
+			for (i = phdr_len; i < datalen && cc != 0;
+			     ++i, ++cp, ++dp, cc--) {
 				if (*cp != *dp) {
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
