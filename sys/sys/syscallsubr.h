@@ -38,6 +38,7 @@ struct msghdr;
 struct rlimit;
 struct rusage;
 struct sockaddr;
+struct itimerval;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -55,6 +56,7 @@ int	kern_execve(struct thread *td, char *fname, char **argv, char **envv,
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
+int	kern_getitimer(struct thread *, u_int, struct itimerval *);
 int	kern_getrusage(struct thread *td, int who, struct rusage *rup);
 int	kern_getsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t *valsize);
@@ -85,6 +87,8 @@ int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
 int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 	    struct mbuf *control);
+int	kern_setitimer(struct thread *, u_int, struct itimerval *,
+	    struct itimerval *);
 int	kern_setrlimit(struct thread *, u_int, struct rlimit *);
 int	kern_setsockopt(struct thread *td, int s, int level, int name,
 	    void *optval, enum uio_seg valseg, socklen_t valsize);
