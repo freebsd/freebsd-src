@@ -10,11 +10,11 @@
 . /etc/rc.subr
 
 name="ppp"
-rcvar="ppp_enable"
-start_cmd="ppp_start"
-stop_cmd=":"
+rcvar=`set_rcvar`
+start_precmd="ppp_precmd"
+start_postcmd="ppp_postcmd"
 
-ppp_start()
+ppp_precmd()
 {
 	# Establish ppp mode.
 	#
@@ -24,21 +24,21 @@ ppp_start()
 		ppp_mode="auto"
 	fi
 
-	ppp_command="/usr/sbin/ppp -quiet -${ppp_mode}"
+	rc_flags="$rc_flags -quiet -${ppp_mode}"
 
 	# Switch on NAT mode?
 	#
 	case ${ppp_nat} in
 	[Yy][Ee][Ss])
-		ppp_command="${ppp_command} -nat"
+		rc_flags="$rc_flags -nat"
 		;;
 	esac
 
-	ppp_command="${ppp_command} ${ppp_profile}"
+	rc_flags="$rc_flags ${ppp_profile}"
+}
 
-	echo "Starting ppp as \"${ppp_user}\""
-	su -m ${ppp_user} -c "exec ${ppp_command}"
-
+ppp_postcmd()
+{
 	# Re-Sync ipfilter so it picks up any new network interfaces
 	#
 	/etc/rc.d/ipfilter resync
