@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.2 1996/11/29 19:48:56 phk Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.3 1996/12/12 11:18:36 jkh Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -400,11 +400,35 @@ A: This is not actually a hang, simply a very LONG "wdc0" probe that
    To eliminate the problem, boot with the -c flag and eliminate the wdc0
    device, or compile a custom kernel.
 
+
 Q: My system can not find my Intel EtherExpress 16 card.
 
 A: You must set your Intel EtherExpress 16 card to be memory mapped at
    address 0xD0000, and set the amount of mapped memory to 32K using
    the Intel supplied softset.exe program.
+
+
+Q: When installing on an EISA HP Netserver, my on-board AIC-7xxx
+   SCSI controller isn't detected.
+
+A: This is a known problem, and will hopefully be fixed in the future.
+   In order to get your system installed at all, boot with the -c
+   option into UserConfig, but _don't_ use the pretty visual mode but
+   the plain old CLI mode.  Type
+
+	eisa 12
+	quit
+
+   there at the prompt.  (Instead of `quit', you might also type
+   `visual', and continue the rest of the configuration session in
+   visual mode.)  Don't forget to install the kernel source code
+   distribution, you will need to install a custom kernel on those
+   systems.
+
+   Refer to the FAQ topic 3.16 for an explanation of the problem, and
+   for how to continue.  Remember that you can find the FAQ on your
+   local system in /usr/share/doc/FAQ, provided you have installed the
+   `doc' distribution.
 
 [ Please add more hardware tips to this Q&A section! ]
 
