@@ -136,8 +136,6 @@ pccard_attach_card(device_t dev)
 
 		pf->sc = sc;
 		pf->cfe = NULL;
-		pf->ih_fct = NULL;
-		pf->ih_arg = NULL;
 		pf->dev = NULL;
 	}
 #if 0
@@ -161,9 +159,18 @@ pccard_attach_card(device_t dev)
 		 */
 		device_printf(dev, "Starting to attach....\n");
 		ivar = malloc(sizeof(struct pccard_ivar), M_DEVBUF, M_WAITOK);
+		bzero(ivar, sizeof *ivar);
 		child = device_add_child(dev, NULL, -1);
 		device_set_ivars(child, ivar);
 		ivar->fcn = pf;
+		/*
+		 * XXX We might want to move the next two lines into
+		 * XXX the pccard interface layer.  For the moment, this
+		 * XXX is OK, but some drivers want to pick the config
+		 * XXX entry to use as well as some address tweaks (mostly
+		 * XXX due to bugs in decode logic that makes some
+		 * XXX addresses illegal or broken).
+		 */
 		pccard_function_init(pf);
 		pccard_function_enable(pf);
 		device_printf(dev, "pf %p pf->sc %p\n", pf, pf->sc);
@@ -172,13 +179,15 @@ pccard_attach_card(device_t dev)
 			pf->dev = child;
 
 			DEVPRINTF((sc->dev, "function %d CCR at %d "
-			     "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
-			     pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
-			     pccard_ccr_read(pf, 0x00),
+			    "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
+			    pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
+			    pccard_ccr_read(pf, 0x00),
 			pccard_ccr_read(pf, 0x02), pccard_ccr_read(pf, 0x04),
 			pccard_ccr_read(pf, 0x06), pccard_ccr_read(pf, 0x0A),
 			pccard_ccr_read(pf, 0x0C), pccard_ccr_read(pf, 0x0E),
 			pccard_ccr_read(pf, 0x10), pccard_ccr_read(pf, 0x12)));
+		} else {
+			device_delete_child(dev, child);
 		}
 	}
 	return 0;
@@ -296,9 +305,25 @@ pccard_function_init(struct pccard_function *pf)
 	 * need to look for one we can allocate the resources
 	 * and then set them so the alloc_resources work later.
 	 */
-	cfe = STAILQ_FIRST(&pf->cfe_head);
-	pf->cfe = cfe;
-
+	for (cfe = STAILQ_FIRST(&pf->cfe_head); cfe != NULL;
+	    cfe = STAILQ_NEXT(cfe, cfe_list)) {
+		pf->cfe = cfe;
+		/*
+		 * XXX Need to try to allocate resources for this cfe and
+		 * XXX if we succeed in getting ALL of them, we will break
+		 * XXX out of the loop and use the reset of the resource
+		 * XXX mechanism to make sure that the values that we get
+		 * XXX here to work later.
+		 */
+		printf("%d: f %d type %d iospace %d 0x%lx-0x%lx mask 0x%lx memspace %d 0x%lx-0x%lx irqmask 0x%x\n",
+		    cfe->number, cfe->flags, cfe->iftype,
+		    cfe->num_iospace, cfe->iospace[0].start, 
+		    cfe->iospace[0].start + cfe->iospace[0].length - 1,
+		    cfe->iomask,
+		    cfe->num_memspace, cfe->memspace[0].hostaddr, 
+		    cfe->memspace[0].hostaddr + cfe->memspace[0].length - 1,
+		    cfe->irqmask);
+	}
 }
 
 /* Enable a PCCARD function */
@@ -376,14 +401,19 @@ pccard_function_enable(struct pccard_function *pf)
 	if (pccard_mfc(pf->sc)) {
 		reg |= (PCCARD_CCR_OPTION_FUNC_ENABLE |
 			PCCARD_CCR_OPTION_ADDR_DECODE);
+		/* 
+		 * XXX Need to enable PCCARD_CCR_OPTION_IRQ_ENABLE if
+		 * XXX we have an interrupt handler, but we don't know that
+		 * XXX at this point.
+		 */
+#if 0
 		if (pf->ih_fct)
 			reg |= PCCARD_CCR_OPTION_IREQ_ENABLE;
-
+#endif
 	}
 	pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
 
 	reg = 0;
-
 	if ((pf->cfe->flags & PCCARD_CFE_IO16) == 0)
 		reg |= PCCARD_CCR_STATUS_IOIS8;
 	if (pf->cfe->flags & PCCARD_CFE_AUDIO)
@@ -502,8 +532,8 @@ pccard_io_map(struct pccard_function *pf, int width, bus_addr_t offset,
 {
 	int reg;
 
-	if (pccard_chip_io_map(pf->sc->pct, pf->sc->pch,
-	    width, offset, size, pcihp, windowp))
+	if (pccard_chip_io_map(pf->sc->pct, pf->sc->pch, width, offset, size,
+	    pcihp, windowp))
 		return (1);
 
 	/*
@@ -658,7 +688,6 @@ pccard_print_child(device_t dev, device_t child)
 		    "%ld");
 		pccard_print_resources(rl, "drq", SYS_RES_DRQ, PCCARD_NDRQ, 
 		    "%ld");
-		retval += printf(" slot ?"); /* XXX imp */
 	}
 
 	retval += bus_print_child_footer(dev, child);
@@ -771,6 +800,9 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	case PCCARD_IVAR_CIS3_STR:
 		*(char **) result = sc->card.cis1_info[2];
 		break;
+	case PCCARD_IVAR_CIS4_STR:
+		*(char **) result = sc->card.cis1_info[2];
+		break;
 	}
 	return (0);
 }
@@ -778,8 +810,12 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 static void
 pccard_driver_added(device_t dev, driver_t *driver)
 {
-	/* XXX eventually we need to attach stuff when we know we */
-	/* XXX have kids. */
+	/*
+	 * XXX eventually we need to attach stuff when we know we
+	 * XXX have kids.  For now we do nothing because we normally
+	 * XXX add children ourselves.  We don't want to necessarily
+	 * XXX force a reprobe.
+	 */
 }
 
 static device_method_t pccard_methods[] = {
