@@ -848,14 +848,15 @@ options 	PPS_SYNC
 # device drivers.  The host adapters are listed in the ISA and PCI
 # device configuration sections below.
 #
-# Beginning with FreeBSD 2.0.5 you can wire down your SCSI devices so
-# that a given bus, target, and LUN always come on line as the same
-# device unit.  In earlier versions the unit numbers were assigned
-# in the order that the devices were probed on the SCSI bus.  This
-# means that if you removed a disk drive, you may have had to rewrite
-# your /etc/fstab file, and also that you had to be careful when adding
-# a new disk as it may have been probed earlier and moved your device
-# configuration around.
+# It is possible to wire down your SCSI devices so that a given bus,
+# target, and LUN always come on line as the same device unit.  In
+# earlier versions the unit numbers were assigned in the order that
+# the devices were probed on the SCSI bus.  This means that if you
+# removed a disk drive, you may have had to rewrite your /etc/fstab
+# file, and also that you had to be careful when adding a new disk
+# as it may have been probed earlier and moved your device configuration
+# around.  (See also option GEOM_VOL for a different solution to this
+# problem.)
 
 # This old behavior is maintained as the default behavior.  The unit
 # assignment begins with the first non-wired down unit for a device
