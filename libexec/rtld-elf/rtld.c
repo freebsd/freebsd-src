@@ -1566,11 +1566,8 @@ dlopen(const char *name, int mode)
 	    assert(*old_obj_tail == obj);
 
 	    result = load_needed_objects(obj);
-	    if (result != -1 && ld_tracing) {
-		trace_loaded_objects(obj);
-		wlock_release();
-		exit(0);
-	    }
+	    if (result != -1 && ld_tracing)
+		goto trace;
 
 	    if (result == -1 ||
 	      (init_dag(obj), relocate_objects(obj, mode == RTLD_NOW)) == -1) {
@@ -1583,7 +1580,8 @@ dlopen(const char *name, int mode)
 		/* Make list of init functions to call. */
 		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
-	}
+	} else if (ld_tracing)
+	    goto trace;
     }
 
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
@@ -1595,6 +1593,10 @@ dlopen(const char *name, int mode)
     objlist_clear(&initlist);
     wlock_release();
     return obj;
+trace:
+    trace_loaded_objects(obj);
+    wlock_release();
+    exit(0);
 }
 
 void *
