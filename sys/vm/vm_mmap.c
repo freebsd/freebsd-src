@@ -282,6 +282,16 @@ mmap(p, uap)
 			return (EBADF);
 		if (fp->f_type != DTYPE_VNODE)
 			return (EINVAL);
+		/*
+		 * POSIX shared-memory objects are defined to have
+		 * kernel persistence, and are not defined to support
+		 * read(2)/write(2) -- or even open(2).  Thus, we can
+		 * use MAP_ASYNC to trade on-disk coherence for speed.
+		 * The shm_open(3) library routine turns on the FPOSIXSHM
+		 * flag to request this behavior.
+		 */
+		if (fp->f_flag & FPOSIXSHM)
+			flags |= MAP_NOSYNC;
 		vp = (struct vnode *) fp->f_data;
 		if (vp->v_type != VREG && vp->v_type != VCHR)
 			return (EINVAL);
