@@ -99,8 +99,8 @@ show_mbr(struct mbr *mbr)
 	window = newwin(LINES-2, COLS-2, 1, 1);
 	keypad(window, TRUE);
 
-	draw_box(window, 1, 1, LINES - 2, COLS - 2,
-				COLOR_PAIR(COLOR_YELLOW), COLOR_PAIR(COLOR_BLUE));
+	draw_box(window, 1, 1, LINES - 2, COLS - 2, dialog_attr, border_attr);
+	wattrset(window, dialog_attr);
 
 	for (i=0; i<NDOSPART/2; i++) {
 		for (j=0; j<NDOSPART/2; j++) {
