@@ -22,6 +22,8 @@ Boston, MA 02111-1307, USA.  */
 /* This file lives in at least two places: libiberty and gcc.
    Don't change one without the other.  */
 
+/* $FreeBSD$ */
+
 #if defined (IN_GCC) || defined (HAVE_CONFIG_H)
 #include "config.h"
 #endif
@@ -120,13 +122,14 @@ choose_temp_base ()
   base = try (getenv ("TMP"), base);
   base = try (getenv ("TEMP"), base);
 
+  base = try (tmp, base);
+
 #ifdef P_tmpdir
   base = try (P_tmpdir, base);
 #endif
 
-  /* Try /usr/tmp, then /tmp.  */
+  /* Try /usr/tmp even though it usually doesn't exist on FreeBSD.  */
   base = try (usrtmp, base);
-  base = try (tmp, base);
  
   /* If all else fails, use the current directory!  */
   if (base == 0)
@@ -166,13 +169,14 @@ make_temp_file (suffix)
   base = try (getenv ("TMP"), base);
   base = try (getenv ("TEMP"), base);
 
+  base = try (tmp, base);
+
 #ifdef P_tmpdir
   base = try (P_tmpdir, base);
 #endif
 
-  /* Try /usr/tmp, then /tmp.  */
+  /* Try /usr/tmp even though it usually doesn't exist on FreeBSD.  */
   base = try (usrtmp, base);
-  base = try (tmp, base);
  
   /* If all else fails, use the current directory!  */
   if (base == 0)
