@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.227.2.4 1996/11/30 09:53:38 asami Exp $
+# $Id: bsd.port.mk,v 1.227.2.5 1996/12/04 05:56:03 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -398,6 +398,9 @@ PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
 .if exists(${PKGDIR}/REQ)
 PKG_ARGS+=		-r ${PKGDIR}/REQ
 .endif
+.if exists(${PKGDIR}/MESSAGE)
+PKG_ARGS+=		-D ${PKGDIR}/MESSAGE
+.endif
 .if !defined(NO_MTREE) && defined(MTREE_LOCAL)
 PKG_ARGS+=		-m ${MTREE_LOCAL}
 .endif
@@ -429,6 +432,7 @@ GREP?=		/usr/bin/grep
 GZCAT?=		/usr/bin/gzcat
 GZIP?=		-9
 GZIP_CMD?=	/usr/bin/gzip -nf ${GZIP}
+GUNZIP_CMD?=	/usr/bin/gunzip -f
 SED?=		/usr/bin/sed
 
 # Used to print all the '===>' style prompts - override this to turn them off.
@@ -459,7 +463,7 @@ MASTER_SITE_TEX_CTAN?=  \
 MASTER_SITE_SUNSITE?=	\
 	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
 	ftp://ftp.infomagic.com/pub/mirrors/linux/sunsite/${MASTER_SITE_SUBDIR}/ \
-	ftp://ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
+	ftp://ftp.funet.fi/pub/mirrors/sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/
 
 # The primary backup site.
 MASTER_SITE_BACKUP?=	\
@@ -551,6 +555,10 @@ _MANPAGES+=	${MANL:S.^.man/${MANLANG}/manl/.}
 _MANPAGES+=	${MANN:S.^.man/${MANLANG}/mann/.}
 .endif
 
+.if defined(_MANPAGES) && defined(MANCOMPRESSED)
+_MANPAGES:=	${_MANPAGES:S/$/.gz/}
+.endif
+
 .MAIN: all
 
 ################################################################
@@ -581,19 +589,11 @@ IGNORE=	"is not an interactive port"
 .elif (defined(REQUIRES_MOTIF) && !defined(HAVE_MOTIF))
 IGNORE=	"requires Motif"
 .elif (defined(NO_CDROM) && defined(FOR_CDROM))
-.if ${NO_CDROM} == yes
-IGNORE=	"may not be placed on a CDROM"
-.else
 IGNORE=	"may not be placed on a CDROM: ${NO_CDROM}"
-.endif
 .elif (defined(RESTRICTED) && defined(NO_RESTRICTED))
 IGNORE=	"is restricted: ${RESTRICTED}"
 .elif defined(BROKEN)
-.if ${BROKEN} == yes
-IGNORE=	"is marked as broken"
-.else
 IGNORE=	"is marked as broken: ${BROKEN}"
-.endif
 .endif
 
 .if defined(IGNORE)
@@ -693,7 +693,11 @@ install: build
 # Disable package
 .if defined(NO_PACKAGE) && !target(package)
 package:
+.if defined(IGNORE_SILENT)
 	@${DO_NADA}
+.else
+	@${ECHO_MSG} "===>  ${PKGNAME} may not be packaged: ${NO_PACKAGE}."
+.endif
 .endif
 
 # Disable describe
@@ -973,11 +977,18 @@ _PORT_USE: .USE
 		  X11BASE=${X11BASE} \
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
-.if make(real-install) && defined(_MANPAGES) && !defined(NOMANCOMPRESS)
+.if make(real-install) && defined(_MANPAGES)
+.if defined(MANCOMPRESSED) && defined(NOMANCOMPRESS)
+	@${ECHO_MSG} "===>   Uncompressing manual pages for ${PKGNAME}"
+.for manpage in ${_MANPAGES}
+	@${GUNZIP_CMD} ${MANPREFIX}/${manpage}
+.endfor
+.elif !defined(MANCOMPRESSED) && !defined(NOMANCOMPRESS)
 	@${ECHO_MSG} "===>   Compressing manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
 	@${GZIP_CMD} ${MANPREFIX}/${manpage}
 .endfor
+.endif
 .endif
 .if make(real-install) && !defined(NO_PKG_REGISTER)
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fake-pkg
@@ -1370,13 +1381,18 @@ misc-depends:
 
 .if !target(clean-depends)
 clean-depends:
-	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS}; do \
+.if defined(FETCH_DEPENDS) || defined(BUILD_DEPENDS) || defined(LIB_DEPENDS) \
+	|| defined(RUN_DEPENDS)
+	@for i in ${FETCH_DEPENDS} ${BUILD_DEPENDS} ${LIB_DEPENDS} ${RUN_DEPENDS}; do \
 		dir=`${ECHO} $$i | ${SED} -e 's/.*://'`; \
 		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
 	done
+.endif
+.if defined(DEPENDS)
 	@for dir in ${DEPENDS}; do \
 		if [ -d $$dir ] ; then (cd $$dir; ${MAKE} clean); fi \
 	done
+.endif
 .endif
 
 .if !target(depends-list)
