@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.12 1995/12/14 14:35:33 peter Exp $
+ *	$Id: exception.s,v 1.13 1995/12/19 14:30:24 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -167,17 +167,6 @@ calltrap:
 	FAKE_MCOUNT(_btrap)			/* init "from" _btrap -> calltrap */
 	incl	_cnt+V_TRAP
 	orl	$SWI_AST_MASK,_cpl
-
-	/*
-	 * Fake a call frame: point %ebp at a 2 element array consisting
-	 * of { trappee's %ebp, trappee's %eip }.  The stack frame is in
-	 * the wrong order for this, but the trappee's %ebp is fortunately
-	 * followed by junk which we can overwrite with the trappee's %eip.
-	 */
-	movl	TF_EIP(%esp),%eax
-	movl	%eax,TF_ISP(%esp)
-	lea	TF_EBP(%esp),%ebp
-
 	call	_trap
 
 	/*
