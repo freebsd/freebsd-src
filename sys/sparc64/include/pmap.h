@@ -95,7 +95,7 @@ void	pmap_remove_all(vm_page_t m);
 
 void	pmap_clear_write(vm_page_t m);
 
-#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
+#define	vtophys(va)	pmap_kextract(((vm_offset_t)(va)))
 
 extern	vm_offset_t avail_start;
 extern	vm_offset_t avail_end;
@@ -104,7 +104,6 @@ extern	struct pmap kernel_pmap_store;
 extern	vm_offset_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
-extern	vm_offset_t kernel_page;
 
 extern	int pmap_pagedaemon_waken;
 
