@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: ng_h4.c,v 1.5 2003/05/10 05:51:25 max Exp $
+ * $Id: ng_h4.c,v 1.7 2004/08/23 18:08:15 max Exp $
  * $FreeBSD$
  * 
  * Based on:
@@ -69,6 +69,8 @@
  ** corresponding netgraph node via a NGIOCGINFO ioctl().
  *****************************************************************************
  *****************************************************************************/
+
+NET_NEEDS_GIANT("ng_h4");
 
 /* MALLOC define */
 #ifndef NG_SEPARATE_MALLOC
@@ -199,7 +201,7 @@ ng_h4_open(struct cdev *dev, struct tty *tp)
 
 	/* Set back pointers */
 	NG_NODE_SET_PRIVATE(sc->node, sc);
-	tp->t_sc = (caddr_t) sc;
+	tp->t_lsc = (caddr_t) sc;
 
 	/* The node has to be a WRITER because data can change node status */
 	NG_NODE_FORCE_WRITER(sc->node);
@@ -228,7 +230,7 @@ out:
 static int
 ng_h4_close(struct tty *tp, int flag)
 {
-	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_sc;
+	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
 	int		s;
 
 	s = spltty(); /* XXX */
@@ -236,7 +238,7 @@ ng_h4_close(struct tty *tp, int flag)
 	ttyflush(tp, FREAD | FWRITE);
 	clist_free_cblocks(&tp->t_outq);
 	if (sc != NULL) {
-		tp->t_sc = NULL;
+		tp->t_lsc = NULL;
 
 		if (sc->node != NULL) {
 			if (sc->flags & NG_H4_TIMEOUT)
@@ -285,7 +287,7 @@ static int
 ng_h4_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 		struct thread *td)
 {
-	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_sc;
+	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
 	int		s, error = 0;
 
 	s = spltty(); /* XXX */
@@ -326,7 +328,7 @@ ng_h4_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 static int
 ng_h4_input(int c, struct tty *tp)
 {
-	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_sc;
+	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
 
 	if (sc == NULL || tp != sc->tp ||
 	    sc->node == NULL || NG_NODE_NOT_VALID(sc->node))
@@ -546,7 +548,7 @@ ng_h4_input(int c, struct tty *tp)
 static int
 ng_h4_start(struct tty *tp)
 {
-	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_sc;
+	ng_h4_info_p	sc = (ng_h4_info_p) tp->t_lsc;
 
 	if (sc == NULL || tp != sc->tp || 
 	    sc->node == NULL || NG_NODE_NOT_VALID(sc->node))
