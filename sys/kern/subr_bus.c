@@ -1548,16 +1548,16 @@ hint_load(char *cp)
 	walker++;
 	if (walker != ep)
 		return;
-	if (1 || bootverbose)
+	if (bootverbose)
 		printf("Setting %s %d %s to ", name, unit, resname);
 	val = strtol(ep, &op, 0);
 	if (*ep != '\0' && *op == '\0') {
 		resource_set_int(name, unit, resname, val);
-		if (1 || bootverbose)
+		if (bootverbose)
 			printf("%d (int)\n", val);
 	} else {
 		resource_set_string(name, unit, resname, ep);
-		if (1 || bootverbose)
+		if (bootverbose)
 			printf("%s (string)\n", ep);
 	}
 }
