@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.51 1999/04/19 06:56:24 imp Exp $
+ *	$Id: if_zp.c,v 1.52 1999/07/06 19:22:55 des Exp $
  */
 /*-
  * TODO:
@@ -129,21 +129,6 @@ static char const zpdummy[] = "code to use the includes of card.h and pcic.h";
 #include <sys/syslog.h>
 
 #include <net/if.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
-
-#ifdef IPX
-#include <netipx/ipx.h>
-#include <netipx/ipx_if.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -1014,62 +999,17 @@ zpioctl(ifp, cmd, data)
 	u_long  cmd;
 	caddr_t data;
 {
-	register struct ifaddr *ifa = (struct ifaddr *) data;
 	struct zp_softc *sc = ifp->if_softc;
 	int     error = 0;
 
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			zpinit(ifp->if_unit);	/* before arpwhohas */
-			arp_ifinit((struct arpcom *) ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		case AF_IPX:
-			{
-				register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+        case SIOCSIFADDR:
+        case SIOCGIFADDR:
+        case SIOCSIFMTU:
+                error = ether_ioctl(ifp, command, data);
+                break;
 
-				if (ipx_nullhost(*ina))
-					ina->x_host =
-					    *(union ipx_host *) (sc->arpcom.ac_enaddr);
-				else {
-					ifp->if_flags &= ~IFF_RUNNING;
-					bcopy((caddr_t) ina->x_host.c_host,
-					    (caddr_t) sc->arpcom.ac_enaddr,
-					    sizeof(sc->arpcom.ac_enaddr));
-				}
-				zpinit(ifp->if_unit);
-				break;
-			}
-#endif
-#ifdef NS
-		case AF_NS:
-			{
-				register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-				if (ns_nullhost(*ina))
-					ina->x_host =
-					    *(union ns_host *) (sc->arpcom.ac_enaddr);
-				else {
-					ifp->if_flags &= ~IFF_RUNNING;
-					bcopy((caddr_t) ina->x_host.c_host,
-					    (caddr_t) sc->arpcom.ac_enaddr,
-					    sizeof(sc->arpcom.ac_enaddr));
-				}
-				zpinit(ifp->if_unit);
-				break;
-			}
-#endif
-		default:
-			zpinit(ifp->if_unit);
-			break;
-		}
-		break;
 	case SIOCSIFFLAGS:
 		if ((ifp->if_flags & IFF_UP) == 0 && ifp->if_flags & IFF_RUNNING) {
 			ifp->if_flags &= ~IFF_RUNNING;

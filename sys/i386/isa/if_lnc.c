@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.61 1999/07/06 19:22:50 des Exp $
+ * $Id: if_lnc.c,v 1.62 1999/08/10 01:03:49 mdodd Exp $
  */
 
 /*
@@ -83,10 +83,6 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
 
 #if NBPF > 0
 #include <net/bpf.h>
@@ -1845,28 +1841,17 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 {
 
 	struct lnc_softc *sc = ifp->if_softc;
-	struct ifaddr  *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;
 	int s, error = 0;
 
 	s = splimp();
 
 	switch (command) {
-	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			lnc_init(sc);
-			arp_ifinit((struct arpcom *)ifp, ifa);
-			break;
-#endif
-		default:
-			lnc_init(sc);
-			break;
-		}
-		break;
+        case SIOCSIFADDR:
+        case SIOCGIFADDR:
+        case SIOCSIFMTU:
+                error = ether_ioctl(ifp, command, data);
+                break;
 
 	case SIOCSIFFLAGS:
 #ifdef DEBUG
@@ -1916,16 +1901,6 @@ lnc_ioctl(struct ifnet * ifp, u_long command, caddr_t data)
 	case SIOCDELMULTI:
 		lnc_init(sc);
 		error = 0;
-		break;
-	case SIOCSIFMTU:
-		/*
-		 * Set the interface MTU.
-		 */
-
-		if (ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL;
-		} else
-			ifp->if_mtu = ifr->ifr_mtu;
 		break;
 	default:
 		error = EINVAL;

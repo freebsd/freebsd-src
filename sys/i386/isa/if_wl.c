@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.21 1999/04/27 11:15:02 phk Exp $ */
+/* $Id: if_wl.c,v 1.22 1999/07/06 19:22:54 des Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1160,7 +1160,6 @@ wlread(int unit, u_short fd_p)
 static int
 wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-    register struct ifaddr	*ifa = (struct ifaddr *)data;
     register struct ifreq	*ifr = (struct ifreq *)data;
     int				unit = ifp->if_unit;
     register struct wl_softc	*sc = WLSOFTC(unit);
@@ -1180,33 +1179,11 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     opri = splimp();
     switch (cmd) {
     case SIOCSIFADDR:
-	/* Set own IP address and enable interface */
-	ifp->if_flags |= IFF_UP;
-	switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-	case AF_INET:
-	    wlinit(sc);
-	    arp_ifinit((struct arpcom *)ifp, ifa);
-	    break;
-#endif
-#ifdef NS
-	case AF_NS:
-	{
-	    register struct ns_addr *ina = 
-		&(IA_SNS(ifa)->sns_addr);
-	    if (ns_nullhost(*ina))
-		ina->x_host = *(union ns_host *)(ds->wl_addr);
-	    else
-		wlsetaddr(ina->x_host.c_host, unit);
-	    wlinit(sc);
-	    break;
-	}
-#endif	
-	default:
-	    wlinit(sc);
-	    break;
-	}
-	break;
+    case SIOCGIFADDR:
+    case SIOCSIFMTU:
+        error = ether_ioctl(ifp, command, data);
+        break;
+
     case SIOCSIFFLAGS:
 	if (ifp->if_flags & IFF_ALLMULTI) {
 	    mode |= MOD_ENAL;
