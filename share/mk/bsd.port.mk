@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.133 1995/04/09 09:59:42 asami Exp $
+# $Id: bsd.port.mk,v 1.134 1995/04/09 10:24:09 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -414,6 +414,26 @@ ${INSTALL_COOKIE}:
 .endif
 .endif
 	@${TOUCH} ${TOUCH_FLAGS} ${INSTALL_COOKIE}
+.endif
+
+# package-name and package-depends are internal targets and really
+# shouldn't be touched by anybody but the release engineers.
+
+# Nobody should want to override this unless PKGNAME is simply bogus.
+.if !target(package-name)
+package-name:
+.if !defined(NO_PACKAGE)
+	@echo ${PKGNAME}
+.endif
+.endif
+
+# Show (recursively) all the packages this package depends on.
+.if !target(package-depends)
+package-depends:
+	@for i in ${EXEC_DEPENDS} ${LIB_DEPENDS}; do \
+		dir=`echo $$i | sed -e 's/.*://'`; \
+		(cd $$dir ; ${MAKE} package-name package-depends); \
+	done
 .endif
 
 .if !target(pre-package)
