@@ -119,6 +119,32 @@ else
 	echo "PASS: Could not delete ...a by writing to ...a" 1>&2
 fi
 
+if ./sunlabel -B -b ${TMP}i0 ${MD} ; then
+	if [ ! -c /dev/${MD}a ] ; then
+		echo "FAILED: Writing bootcode killed ...a" 1>&2
+		exit 2
+	else
+		echo "PASS: Could write bootcode while closed" 1>&2
+	fi
+else
+	echo "FAILED: Could not write bootcode while closed" 1>&2
+	exit 2
+fi
+
+exec 7> /dev/${MD}c
+if ktrace ./sunlabel -B -b ${TMP}i0 ${MD} ; then
+	if [ ! -c /dev/${MD}a ] ; then
+		echo "FAILED: Writing bootcode killed ...a" 1>&2
+		exit 2
+	else
+		echo "PASS: Could write bootcode while open" 1>&2
+	fi
+else
+	echo "FAILED: Could not write bootcode while open" 1>&2
+	exit 2
+fi
+exec 7> /dev/null
+
 if dd if=${TMP}i0 of=/dev/${MD}c 2>/dev/null ; then
 	echo "PASS: Could delete ...a by writing to ...c" 1>&2
 else
