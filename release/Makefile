@@ -267,7 +267,6 @@ rerelease release:
 	echo "export BUILDNAME=${BUILDNAME}"	>> ${CHROOTDIR}/mk
 	echo "export VNDEVICE=${VNDEVICE}"	>> ${CHROOTDIR}/mk
 	echo "export OBJFORMAT=${OBJFORMAT}"	>> ${CHROOTDIR}/mk
-	echo "export MODULES_WITH_WORLD=YES"	>> ${CHROOTDIR}/mk
 .if defined(RELEASETAG)
 	echo "export RELEASETAG=${RELEASETAG}"	>> ${CHROOTDIR}/mk
 .endif
@@ -371,12 +370,16 @@ release.2:
 # Make and install the generic kernel(s).
 release.3:
 .for kernel in ${KERNELS}
-	rm -f ${RD}/kernels/${kernel}
+	-chflags -R noschg ${RD}/kernels/${kernel}
+	rm -rf ${RD}/kernels/${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
-	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=${kernel} KERNEL_KO=${kernel} KODIR=""
+	cd ${.CURDIR} && ${MAKE} doSTDKERNEL KERNEL=${kernel} KODIR=/${kernel}
 	rm -rf ${.CURDIR}/../sys/compile/${kernel}
-	cp ${RD}/kernels/${kernel} ${RD}/trees/bin/kernel.${kernel}
+	-mkdir ${RD}/trees/bin/boot/${kernel}
+	cp -p ${RD}/kernels/${kernel}/kernel ${RD}/trees/bin/boot/${kernel}
 .endfor
+	# Install a standard boot kernel+modules
+	cp -Rp ${RD}/kernels/GENERIC ${RD}/trees/bin/boot/kernel
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -781,6 +784,16 @@ doKERNEL:
 			make kernel-depend && \
 			make ${KERNEL_FLAGS} ${KERNEL_KO} && \
 			make kernel-reinstall DESTDIR=${RD}/kernels && \
+			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
+			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
+
+doSTDKERNEL:
+	@rm -f ${RD}/kernels/${KERNEL}
+	@cd ${.CURDIR}/../sys/${MACHINE}/conf && config ${KERNEL}
+	@cd ${.CURDIR}/../sys/compile/${KERNEL} && \
+			make depend && \
+			make ${KERNEL_FLAGS} KERNEL=${kernel} && \
+			make KERNEL=${kernel} DESTDIR=${RD}/kernels install && \
 			[ -r ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ] && \
 			cp ${.CURDIR}/../sys/${MACHINE}/conf/${KERNEL}.hints ${RD}/kernels
 
