@@ -1181,7 +1181,12 @@ _pmap_allocpte(pmap, ptepindex)
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
+		PMAP_UNLOCK(pmap);
+		vm_page_unlock_queues();
 		VM_WAIT;
+		vm_page_lock_queues();
+		PMAP_LOCK(pmap);
+
 		/*
 		 * Indicate the need to retry.  While waiting, the page table
 		 * page may have been allocated.
@@ -1556,11 +1561,11 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
 
-	vm_page_lock_queues();
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1912,6 +1917,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 #endif
 
 	mpte = NULL;
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
+	sched_pin();
+
 	/*
 	 * In the case that a page table page is not
 	 * resident, we are creating it here.
@@ -1930,7 +1940,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	}
 #endif
 
-	pte = pmap_pte(pmap, va);
+	pte = pmap_pte_quick(pmap, va);
 
 	/*
 	 * Page Directory table entry not valid, we need a new PT page
@@ -2003,11 +2013,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 */
 	if (opa) {
 		int err;
-		vm_page_lock_queues();
-		PMAP_LOCK(pmap);
 		err = pmap_remove_pte(pmap, pte, va);
-		PMAP_UNLOCK(pmap);
-		vm_page_unlock_queues();
 		if (err)
 			panic("pmap_enter: pte vanished, va: 0x%x", va);
 	}
@@ -2054,6 +2060,9 @@ validate:
 			pmap_invalidate_page(pmap, va);
 		}
 	}
+	sched_unpin();
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -2072,6 +2081,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	pt_entry_t *pte;
 	vm_paddr_t pa;
+
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
 
 	/*
 	 * In the case that a page table page is not
@@ -2122,11 +2134,10 @@ retry:
 	pte = vtopte(va);
 	if (*pte) {
 		if (mpte != NULL) {
-			vm_page_lock_queues();
 			pmap_unwire_pte_hold(pmap, mpte);
-			vm_page_unlock_queues();
+			mpte = NULL;
 		}
-		return 0;
+		goto out;
 	}
 
 	/*
@@ -2151,7 +2162,9 @@ retry:
 		pte_store(pte, pa | PG_V | PG_U);
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
-
+out:
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 	return mpte;
 }
 
@@ -2301,6 +2314,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	if (!pmap_is_current(src_pmap))
 		return;
 
+	vm_page_lock_queues();
+	PMAP_LOCK(dst_pmap);
+	sched_pin();
 	for (addr = src_addr; addr < end_addr; addr = pdnxt) {
 		pt_entry_t *src_pte, *dst_pte;
 		vm_page_t dstmpte, srcmpte;
@@ -2356,7 +2372,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				 * block.
 				 */
 				dstmpte = pmap_allocpte(dst_pmap, addr);
-				dst_pte = pmap_pte(dst_pmap, addr);
+				dst_pte = pmap_pte_quick(dst_pmap, addr);
 				if ((*dst_pte == 0) && (ptetemp = *src_pte)) {
 					/*
 					 * Clear the modified and
@@ -2367,11 +2383,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					*dst_pte = ptetemp & ~(PG_M | PG_A);
 					dst_pmap->pm_stats.resident_count++;
 					pmap_insert_entry(dst_pmap, addr, m);
-	 			} else {
-					vm_page_lock_queues();
+	 			} else
 					pmap_unwire_pte_hold(dst_pmap, dstmpte);
-					vm_page_unlock_queues();
-				}
 				if (dstmpte->hold_count >= srcmpte->hold_count)
 					break;
 			}
@@ -2379,6 +2392,9 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			src_pte++;
 		}
 	}
+	sched_unpin();
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(dst_pmap);
 }	
 
 static __inline void
