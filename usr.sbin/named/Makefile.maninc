@@ -1,5 +1,5 @@
 # From: Id: Makefile.maninc,v 8.1 1994/12/15 06:23:43 vixie Exp
-# $Id$
+# $Id: Makefile.maninc,v 1.3 1997/02/22 16:07:59 peter Exp $
 
 # (the BIND kit's man page Makefile has gotten bad and crazy over the years.
 #  this file has to be included AFTER bsd.prog.mk (which includes bsd.man.mk))
@@ -51,6 +51,7 @@ EXT_SED_CMD =	INDOT_U=`echo "${INDOT}"|tr "[a-z]" "[A-Z]"`; \
 		-e "s/@BSD_SYSCALL_EXT@/${BSD_SYSCALL_EXT}/g" \
 		-e "s/@BSD_SYSCALL_EXT_U@/$${BSD_SYSCALL_EXT_U}/g" \
 		-e "s/@LIB_C_EXT@/${LIB_C_EXT}/g" \
-		-e "s/@LIB_C_EXT_U@/$${LIB_C_EXT_U}/g"
+		-e "s/@LIB_C_EXT_U@/$${LIB_C_EXT_U}/g" \
+		-e "s@/etc/named\.conf@/etc/namedb/named.conf@g"
 
 MANFILTER=	${EXT_SED_CMD}
