@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.10 1995/05/01 04:05:25 phk Exp $
+ * $Id: disk.c,v 1.11 1995/05/02 19:52:27 jkh Exp $
  *
  */
 
@@ -122,7 +122,7 @@ Int_Open_Disk(char *name, u_long size)
 				ce = extended;
 				break;
 			default:
-				ce = foo;
+				ce = unknown;
 				break;
 		}	
 		flags |= CHUNK_ALIGN;
