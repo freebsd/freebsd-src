@@ -1372,6 +1372,9 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 	case EVFILT_WRITE:
 		kn->kn_fop = &pipe_wfiltops;
 		cpipe = cpipe->pipe_peer;
+		if (cpipe == NULL)
+			/* other end of pipe has been closed */
+			return (EBADF);
 		break;
 	default:
 		return (1);
