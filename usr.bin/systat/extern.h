@@ -51,6 +51,7 @@ extern int	*dk_select;
 extern int	CMDLINE;
 extern int	dk_ndrive;
 extern int	hz, stathz;
+extern double	hertz;		/* sampling frequency for cp_time and dk_time */
 extern int	naptime, col;
 extern int	nhosts;
 extern int	nports;
