@@ -36,10 +36,10 @@
 .\" $FreeBSD$
 .\"
 .Dd March 15, 2003
-.Dt DISKLABEL 8
+.Dt BSDLABEL 8
 .Os
 .Sh NAME
-.Nm disklabel
+.Nm bsdlabel
 .Nd read and write disk pack label
 .Sh SYNOPSIS
 .Nm
@@ -731,7 +731,7 @@ The asterisk
 indicates that the partition does not begin or end exactly on a
 cylinder boundary.
 .Sh EXAMPLES
-.Dl "disklabel da0s1"
+.Dl "bsdlabel da0s1"
 .Pp
 Display the in-core label for the first slice of the
 .Pa da0
@@ -742,7 +742,7 @@ disk, as obtained via
 the base disk name should be specified, such as
 .Pa da0 . )
 .Pp
-.Dl "disklabel da0s1 > savedlabel"
+.Dl "bsdlabel da0s1 > savedlabel"
 .Pp
 Save the in-core label for
 .Pa da0s1
@@ -752,7 +752,7 @@ This file can be used with the
 .Fl R
 option to restore the label at a later date.
 .Pp
-.Dl "disklabel -w -r /dev/da0s1 da2212 foo"
+.Dl "bsdlabel -w -r /dev/da0s1 da2212 foo"
 .Pp
 Create a label for
 .Pa da0s1
@@ -763,14 +763,14 @@ found in
 Any existing bootstrap code will be clobbered
 and the disk rendered unbootable.
 .Pp
-.Dl "disklabel -e -r da0s1"
+.Dl "bsdlabel -e -r da0s1"
 .Pp
 Read the on-disk label for
 .Pa da0s1 ,
 edit it, and reinstall in-core as well as on-disk.
 Existing bootstrap code is unaffected.
 .Pp
-.Dl "disklabel -e -r -n da0s1"
+.Dl "bsdlabel -e -r -n da0s1"
 .Pp
 Read the on-disk label for
 .Pa da0s1 ,
@@ -779,7 +779,7 @@ It does
 .Em not
 install the new label either in-core or on-disk.
 .Pp
-.Dl "disklabel -r -w da0s1 auto"
+.Dl "bsdlabel -r -w da0s1 auto"
 .Pp
 Try to auto-detect the required information from
 .Pa da0s1 ,
@@ -789,7 +789,7 @@ Use another
 command to edit the
 partitioning and file system information.
 .Pp
-.Dl "disklabel -R da0s1 savedlabel"
+.Dl "bsdlabel -R da0s1 savedlabel"
 .Pp
 Restore the on-disk and in-core label for
 .Pa da0s1
@@ -797,7 +797,7 @@ from information in
 .Pa savedlabel .
 Existing bootstrap code is unaffected.
 .Pp
-.Dl "disklabel -R -n da0s1 label_layout"
+.Dl "bsdlabel -R -n da0s1 label_layout"
 .Pp
 Display what the label would be for
 .Pa da0s1
@@ -810,7 +810,7 @@ or
 .Cm *
 partition sizes.
 .Pp
-.Dl "disklabel -B da0s1"
+.Dl "bsdlabel -B da0s1"
 .Pp
 Install a new bootstrap on
 .Pa da0s1 .
@@ -818,7 +818,7 @@ The boot code comes from
 .Pa /boot/boot .
 On-disk and in-core labels are unchanged.
 .Pp
-.Dl "disklabel -w -B /dev/da0s1 -b newboot da2212"
+.Dl "bsdlabel -w -B /dev/da0s1 -b newboot da2212"
 .Pp
 Install a new label and bootstrap.
 The label is derived from
@@ -833,8 +833,8 @@ in the current working directory.
 dd if=/dev/zero of=/dev/da0 bs=512 count=32
 fdisk -BI da0
 dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
-disklabel -w -B da0s1 auto
-disklabel -e da0s1
+bsdlabel -w -B da0s1 auto
+bsdlabel -e da0s1
 .Ed
 .Pp
 Completely wipe any prior information on the disk, creating a new bootable
@@ -856,7 +856,7 @@ such as
 and
 .Cm * ,
 which could be used as a source file for
-.Dq Li "disklabel -R ad0s1c new_label_file" :
+.Dq Li "bsdlabel -R ad0s1c new_label_file" :
 .Bd -literal -offset 4n
 # /dev/ad0s1c:
 type: ESDI
@@ -889,7 +889,7 @@ drivedata: 0
 .Sh SEE ALSO
 .Xr ccd 4 ,
 .Xr md 4 ,
-.Xr disklabel 5 ,
+.Xr bsdlabel 5 ,
 .Xr disktab 5 ,
 .Xr boot0cfg 8 ,
 .Xr fdisk 8 ,
