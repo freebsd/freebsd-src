@@ -46,7 +46,7 @@ For PCI based ATA/ATAPI support:
 To support ATA compliant disk drives:
 .Cd device atadisk
 .Pp
-To support ATAPI CD-ROM, CDR, CDRW or DVD drives:
+To support ATAPI CD-ROM, CDR, CDRW, DVD-ROM and DVD-RAM drives:
 .Cd device atapicd
 .Pp
 To support ATAPI floppy drives,
@@ -57,7 +57,7 @@ To support ATAPI tape drives:
 .Cd device atapist
 .Pp
 To set the controller numbering to static,
-just like the
+just like the deprecated
 .Xr wd 4
 driver:
 .Cd options ATA_STATIC_ID
@@ -65,7 +65,7 @@ driver:
 To enable DMA on an ATAPI device:
 .Cd options ATA_ENABLE_ATAPI_DMA
 .Sh DESCRIPTION
-This driver provides access to disk drives, CD-ROM drives,
+This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
 ZIP drives and tape streamers connected to controllers
 according to the ATA and ATAPI standards.
 These devices are also commonly known as IDE or EIDE devices.
@@ -86,7 +86,7 @@ DMA 2 (WDMA2), 16 MB/sec
 .It Intel PIIX4
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It Intel ICH
-Ultra DMA 33 (UDMA2), 33 MB/sec
+Ultra DMA 66 (UDMA4), 66 MB/sec
 .It Promise Fasttrak-33
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It Promise Fasttrak-66
@@ -101,6 +101,10 @@ Ultra DMA 33 (UDMA2), 33 MB/sec
 Ultra DMA 33 (UDMA2), 33 MB/sec
 .It VIA 82C686
 Ultra DMA 66 (UDMA4), 66 MB/sec
+.It CMD 646
+DMA 2 (WDMA2), 16 MB/sec
+.It Cypress 82C693
+DMA 2 (WDMA2), 16 MB/sec
 .El
 .Pp
 All unknown chipsets can be supported at the maximum speed of 16 MB/sec.
