@@ -232,7 +232,6 @@ g_mirror_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 static struct g_class g_mirror_class	= {
 	.name = MIRROR_CLASS_NAME,
 	.taste = g_mirror_taste,
-	G_CLASS_INITIALIZER
 };
 
 DECLARE_GEOM_CLASS(g_mirror_class, g_mirror);
