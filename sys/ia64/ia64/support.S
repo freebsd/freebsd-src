@@ -149,10 +149,15 @@ END(ia64_physical_mode)
  */
 ENTRY(ia64_call_efi_physical, 6)
 
+	.prologue
+	.regstk	6,4,5,0
+	.save	ar.pfs,loc0
 	alloc	loc0=ar.pfs,6,4,5,0
 	;;
+	.save	rp,loc1
 	mov	loc1=rp
 	;;
+	.body
 	br.call.sptk.many rp=ia64_physical_mode
 	;;
 	mov	loc2=r8			// psr to restore mode
@@ -357,8 +362,13 @@ ENTRY(copystr, 4)
 END(copystr)
 
 ENTRY(copyinstr, 4)
+	.prologue
+	.regstk	4, 3, 4, 0
+	.save	ar.pfs,loc0
 	alloc	loc0=ar.pfs,4,3,4,0
+	.save	rp,loc1
 	mov	loc1=rp
+	.body
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
 	;; 
@@ -392,8 +402,13 @@ ENTRY(copyinstr, 4)
 END(copyinstr)
 
 ENTRY(copyoutstr, 4)
+	.prologue
+	.regstk	4, 3, 4, 0
+	.save	ar.pfs,loc0
 	alloc	loc0=ar.pfs,4,3,4,0
+	.save	rp,loc1
 	mov	loc1=rp
+	.body
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
 	;; 
@@ -507,8 +522,13 @@ END(memcpy)
 	
 ENTRY(copyin, 3)
 	
-	alloc	loc0=ar.pfs,3,3,3,0
+	.prologue
+	.regstk	4, 3, 4, 0
+	.save	ar.pfs,loc0
+	alloc	loc0=ar.pfs,4,3,4,0
+	.save	rp,loc1
 	mov	loc1=rp
+	.body
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that src addr
 	;; 
@@ -542,8 +562,13 @@ END(copyin)
 
 ENTRY(copyout, 3)
 	
-	alloc	loc0=ar.pfs,3,3,3,0
+	.prologue
+	.regstk	4, 3, 4, 0
+	.save	ar.pfs,loc0
+	alloc	loc0=ar.pfs,4,3,4,0
+	.save	rp,loc1
 	mov	loc1=rp
+	.body
 
 	movl	loc2=VM_MAXUSER_ADDRESS		// make sure that dest addr
 	;; 

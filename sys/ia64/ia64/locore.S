@@ -119,8 +119,8 @@ ENTRY(__start, 1)
 	;;
 	ld8	out0=[out0]
 	;; 
-	add	r16=PCB_B0,out0		// return to mi_startup
-	movl	r17=mi_startup
+	add	r16=PCB_B0,out0		// return to mi_startup_trampoline
+	movl	r17=mi_startup_trampoline
 	;;
 	st8	[r16]=r17
 	;; 
@@ -129,6 +129,19 @@ ENTRY(__start, 1)
 	/* NOTREACHED */	
 	
 END(__start)
+
+
+ENTRY(mi_startup_trampoline, 0)
+	.prologue
+	.save	rp,r0
+	.body
+	
+	br.call.sptk.many rp=mi_startup
+
+	// Should never happen
+1:	br.cond.sptk.few 1b
+
+END(mi_startup_trampoline)
 
 /*
  * AP wake-up entry point. The handoff state is similar as for the BSP,
