@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.19 1999/02/10 00:03:15 ken Exp $
+ *      $Id: scsi_sa.c,v 1.20 1999/03/01 01:07:47 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -242,6 +242,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "WANGTEK",
 		  "5525ES*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 512
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "WANGTEK",
+		  "51000*", "*"}, SA_QUIRK_FIXED|SA_QUIRK_1FM, 1024
 	}
 };
 
