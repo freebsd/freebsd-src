@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.52.4.4 1996/10/16 02:15:56 jkh Exp $
+ *	$Id: locore.s,v 1.52.4.5 1996/11/14 15:55:40 jkh Exp $
  */
 
 /*
@@ -613,7 +613,7 @@ over_symalloc:
 	movl    _KPTphys-KERNBASE,%ebx		/* base of kernel page tables */
 	lea     (0xa0 * PTESIZE)(%ebx),%ebx	/* hardwire ISA hole at KERNBASE + 0xa0000 */
 	movl	$0x100-0xa0,%ecx		/* for this many pte s, */
-	movl	$(0xa0000|PG_V|PG_KW|PG_N),%eax	/* valid, kernel read/write, non-cacheable */
+	movl	$(0xa0000|PG_V|PG_KW),%eax	/* valid, kernel read/write, non-cacheable */
 	movl	%ebx,_atdevphys-KERNBASE	/* save phys addr of ptes */
 	fillkpt
 
