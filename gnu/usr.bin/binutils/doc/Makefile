@@ -1,9 +1,5 @@
 # $FreeBSD$
 
-NO_GDB=	yes
-
-#NO_GDB=	yes
-
 .include "../Makefile.inc0"
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
