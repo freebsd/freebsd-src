@@ -25,7 +25,7 @@ nlockmgr	100021
 x25.inr		100022
 statmon		100023
 status		100024
-bootparam	100026
+bootparamd	100026	bootparam
 ypupdated	100028	ypupdate
 keyserv		100029	keyserver
 tfsd		100037 
