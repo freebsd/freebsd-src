@@ -4,8 +4,8 @@
 
 /* skey_getpass - read regular or s/key password */
 
-char   *skey_getpass(prompt, pwd, pwok)
-char   *prompt;
+char *skey_getpass(prompt, pwd, pwok)
+const char *prompt;
 struct passwd *pwd;
 int     pwok;
 {
