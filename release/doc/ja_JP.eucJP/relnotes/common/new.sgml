@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.170
+    Original revision: 1.177
 -->
 
 <articleinfo>
@@ -369,6 +369,12 @@
       (ただし現時点で利用できるのは,
       一つのプロセスに対して一つのスレッドのみです).</para>
 
+    <para arch="i386">&man.loader.8; が
+      <application>bzip2</application> で圧縮されたカーネルと
+      モジュールのロードをオプションでサポートしました
+      (デフォルトはオフで, コンパイル時に有効にできます).
+      &merged;</para>
+
     <sect3>
       <title>プロセッサ・マザーボードの対応状況</title>
 
@@ -508,6 +514,12 @@
         <literal>device miibus</literal> のエントリを必要とするようになりました.
         &merged;</para>
 
+      <para>&man.gx.4; ドライバが追加され, Intel 82542 と 82543
+	のギガビットイーサネットコントローラチップがサポートされました.
+	ファイバと銅線の両方のカードがサポートされています.
+	VLAN タグ付け/挿入は両方のチップでサポートされ, 82543 では
+	さらに TCP/IP チェックサム offload をサポートしています.</para>
+
       <para>Level 1 LXT1001 NetCellerator
         ギガビットイーサネットコントローラチップに対応する
         &man.lge.4; ドライバが新たに追加されました.
@@ -578,10 +590,6 @@
 
       <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに対応しました.</para>
 
-      <para>&man.wx.4; ドライバが Intel PRO1000-F および
-        PRO1000-T (10/100/1000) アダプタに対応しました.
-        &merged;</para>
-
       <para>&man.xl.4; ドライバが
         ラップトップで使われている 3Com 3C556 および
         3C556B MiniPCI アダプタに対応しました.
@@ -592,6 +600,11 @@
         新しいチップセットにおいて)
         VLAN タグフレームの受信をサポートしました.
         &merged;</para>
+
+      <para>&man.xl.4; は 3C905B, 3C905C, 3C980C などのように
+	その機能を実装しているカードにおいて,
+	受信側/送信側 TCP/IP のチェックサム offload に対応しました.
+	&merged;</para>
 
       <para>インターフェイス毎に用意される
         <varname>ifnet</varname> 構造体に,
@@ -1142,6 +1155,11 @@ hw.pcic.irq="0"</programlisting>
           <literal>maxconnecttime</literal> が追加されました.
           これは一つの接続がオープン状態にある時間を制限します.
           &merged;</para>
+
+	<para>&man.isdnphone.8; はキーパッド経由でメッセージを PBX や
+	  exchange office に送るための <option>-k</option> をサポート
+	  しました.</para>
+	<!-- XXX: kuriyama: exchange office って MS の? -->
       </sect4>
 
       <sect4 id="kame-kernel">
@@ -1488,6 +1506,13 @@ hw.pcic.irq="0"</programlisting>
       指定方法は
       <filename>/etc/apmd.conf</filename> にあるコメントアウトされた例をご覧ください.
       &merged;</para>
+
+    <para>&man.arp.8; は各 ARP エントリに対して適切な
+      インターフェイス名を表示するようになりました. &merged;</para>
+
+    <para>&man.arp.8; は FDDI や ATM インターフェイスに対して
+      <literal>[fddi]</literal> や <literal>[atm]</literal>
+      タグを表示するようになりました.</para>
 
     <para>&man.ata.4; ドライバの動作を制御するコマンド
       &man.atacontrol.8; が追加されました.</para>
@@ -1852,6 +1877,10 @@ hw.pcic.irq="0"</programlisting>
       起動ローダのインストール時設定ができるようになりました.
       &merged;</para>
 
+    <para><filename>libstand</filename> は
+      <application>bzip2</application> で圧縮されたファイルを含む
+      ファイルシステムをサポートするようになりました. &merged;</para>
+
     <para><filename>libfetch</filename> が passive FTP
       で用いる TCP ポート番号範囲の既定値が変更されました.
       これは &man.fetch.1; の動作に影響しますが,
@@ -2047,13 +2076,13 @@ hw.pcic.irq="0"</programlisting>
       この変更により &man.fsck.8; の性能が改善され,
       フラグメンテーションが少なくなります. &merged;</para>
 
-    <para>NFS が IPv6 に対応しました.</para>
+    <para><application>NFS</application> が IPv6 に対応しました.</para>
 
     <para>行番号を付加するフィルタプログラム &man.nl.1;
       が新たに追加されました.
       &merged;</para>
 
-    <para>nsswitch 機能が NetBSD からマージされました.
+    <para><application>nsswitch</application> 機能が NetBSD からマージされました.
       &man.nsswitch.conf.5; ファイルを作成することで,
       &man.passwd.5; や &man.group.5; といったさまざまなデータベースを,
       通常のテキストファイル, NIS, Hesiod
@@ -2157,6 +2186,10 @@ hw.pcic.irq="0"</programlisting>
       <quote>代理専用 (proxy only)</quote>
       の公開済み ARP エントリを作成できるようになりました. &merged;</para>
 
+    <para>&man.route.8; の <option>add</option> コマンドは
+      <option>-ifp</option> と <option>-ifa</option> の修飾子
+      をサポートするようになりました.</para>
+
     <para>&man.portmap.8; が &man.rpcbind.8; に置き換えられました.</para>
 
     <para>&man.rpcgen.1; は,
@@ -2171,7 +2204,7 @@ hw.pcic.irq="0"</programlisting>
     <para>ELF 動的リンカである &man.rtld.1; のパフォーマンスが向上しました.
       &merged;</para>
 
-    <para>RSA Security 社が RSA アルゴリズムに関する特許権を放棄したため,
+    <para>RSA Security 社が <application>RSA</application> アルゴリズムに関する特許権を放棄したため,
       <application>OpenSSL</application> に含まれる本来の RSA
       アルゴリズム実装が標準状態で有効化されるようになり,
       合衆国在住であるかどうかに関わらず <port>rsaref</port> port および
@@ -2216,6 +2249,9 @@ hw.pcic.irq="0"</programlisting>
       <literal>struct selinfo</literal> および関連する関数が
       <filename>&lt;sys/selinfo.h&gt;</filename>
       に移動しました.</para>
+
+    <para>&man.strstr.3; の変形である &man.strnstr.3; と
+      &man.strcasestr.3; が実装されました.</para>
 
     <para>&man.stty.1; が新たに
       <literal>erase2</literal> コントロール文字に対応しました.
@@ -2267,6 +2303,9 @@ hw.pcic.irq="0"</programlisting>
       &man.sysinstall.8; のマニュアルページも,
       他のユーティリティと同様の方法でインストールされるようになっています.</para>
 
+    <para>&man.sysinstall.8; がインストール中に KLD を
+      ロードできるようになりました.</para>
+
     <para>&man.syslogd.8; に新たなオプション
       <option>-n</option> が追加されました.
       これは syslog 要求に対する DNS 問い合わせを抑制します.
@@ -2280,7 +2319,8 @@ hw.pcic.irq="0"</programlisting>
 
     <para>&man.syslogd.8; に新しく <option>-b</option> オプションが追加されました.
       これは &man.syslogd.8; を,
-      利用可能なすべてのアドレスではなく指定アドレスへ bind させるためのものです.</para>
+      利用可能なすべてのアドレスではなく指定アドレスへ bind
+      させるためのものです. &merged;</para>
 
     <para>&man.tail.1; が 2GB を超えるファイルの処理に対応しました.
       &merged;</para>
