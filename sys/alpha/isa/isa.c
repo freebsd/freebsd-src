@@ -282,17 +282,49 @@ struct isa_intr {
  */
 
 static void
-isa_handle_intr(void *arg)
+isa_handle_fast_intr(void *arg)
 {
 	struct isa_intr *ii = arg;
 	int irq = ii->irq;
 
 	ii->intr(ii->arg);
 
-	if (ii->irq > 7)
+	if (irq > 7)
 		outb(IO_ICU2, 0x20 | (irq & 7));
 	outb(IO_ICU1, 0x20 | (irq > 7 ? 2 : irq));
 }
+
+static void
+isa_handle_intr(void *arg)
+{
+	struct isa_intr *ii = arg;
+
+	ii->intr(ii->arg);
+}
+
+/*
+ * Send a non-specific EIO early, then disable the source
+ */
+
+static void
+isa_disable_intr(int vector)
+{
+        int irq = (vector - 0x800) >> 4;
+
+	if (irq > 7)
+		outb(IO_ICU2, 0x20 | (irq & 7));
+	outb(IO_ICU1, 0x20 | (irq > 7 ? 2 : irq));
+
+	isa_intr_disable(irq);
+}
+
+static void
+isa_enable_intr(int vector)
+{
+	int irq = (vector - 0x800) >> 4;
+	isa_intr_enable(irq);
+}
+
 
 int
 isa_setup_intr(device_t dev, device_t child,
@@ -319,10 +351,12 @@ isa_setup_intr(device_t dev, device_t child,
 
 	error = alpha_setup_intr(
 			 device_get_nameunit(child ? child : dev),
-			 0x800 + (irq->r_start << 4), isa_handle_intr, ii,
+			 0x800 + (irq->r_start << 4), 
+			 ((flags & INTR_FAST) ? isa_handle_fast_intr :
+			     isa_handle_intr), ii,
 			 ithread_priority(flags), flags, &ii->ih,
 			 &intrcnt[INTRCNT_ISA_IRQ + irq->r_start],
-			 NULL, NULL);
+			 isa_disable_intr, isa_enable_intr);
 	if (error) {
 		free(ii, M_DEVBUF);
 		return error;
