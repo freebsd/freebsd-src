@@ -18,6 +18,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20020801:	p16	FreeBSD-SA-02:36.nfs
+	RPCs with zero-length payload would cause an infinite loop.
+
 20020801:	p15	FreeBSD-SA-02:34.rpc
 	The original fix applied to the XDR decoder was in error.
 
