@@ -1,12 +1,6 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.2 1995/01/12 22:09:39 hsu Exp $
+/* $Header: /home/ncvs/src/gnu/usr.bin/patch/inp.c,v 1.3 1995/05/30 05:02:31 rgrimes Exp $
  *
- * $Log: inp.c,v $
- * Revision 1.2  1995/01/12  22:09:39  hsu
- * Fix bug that created new files even when running in -C check mode.
- * Reviewed by: phk
- *
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
+ * Log: inp.c,v
  *
  * Revision 2.0.1.1  88/06/03  15:06:13  lwall
  * patch10: made a little smarter about sccs files
@@ -126,7 +120,7 @@ char *filename;
 
 #define try(f,a1,a2) (Sprintf(s + pathlen, f, a1, a2), stat(s, &cstat) == 0)
 	if ((   try("RCS/%s%s", filebase, RCSSUFFIX)
-	     || try("RCS/%s"  , filebase,         0)
+	     || try("RCS/%s%s", filebase,        "")
 	     || try(    "%s%s", filebase, RCSSUFFIX))
 	    &&
 	    /* Check that RCS file is not working file.
@@ -240,7 +234,7 @@ char *filename;
 "this file doesn't appear to be the %s version--aborting.\n", revision);
 	    }
 	    else {
-		ask2(
+		(void) ask2(
 "This file doesn't appear to be the %s version--patch anyway? [n] ",
 		    revision);
 	    if (*buf != 'y')
@@ -289,7 +283,7 @@ char *filename;
 "this file doesn't appear to be the %s version--aborting.\n", revision);
 	    }
 	    else {
-		ask2(
+		(void) ask2(
 "This file doesn't appear to be the %s version--patch anyway? [n] ",
 		    revision);
 		if (*buf != 'y')

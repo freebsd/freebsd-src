@@ -1,5 +1,5 @@
 char rcsid[] =
-	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.5 1995/01/12 22:09:40 hsu Exp $";
+	"$Header: /home/ncvs/src/gnu/usr.bin/patch/patch.c,v 1.6 1995/05/30 05:02:34 rgrimes Exp $";
 
 /* patch - a program to apply diffs to original files
  *
@@ -8,25 +8,7 @@ char rcsid[] =
  * This program may be copied as long as you don't try to make any
  * money off of it, or pretend that you wrote it.
  *
- * $Log: patch.c,v $
- * Revision 1.5  1995/01/12  22:09:40  hsu
- * Fix bug that created new files even when running in -C check mode.
- * Reviewed by: phk
- *
- * Revision 1.4  1994/02/25  21:46:04  phk
- * added the -C/-check again.
- *
- * Revision 1.3  1994/02/17  22:20:34  jkh
- * Put this back - I was somehow under the erroneous impression that patch was in
- * ports, until I saw the the commit messages, that is! :-)  All changed backed out.
- *
- * Revision 1.2  1994/02/17  22:16:03  jkh
- * From Poul-Henning Kamp -  Implement a -C option to verify the integrity of
- * a patch before actually applying it.
- *
- * Revision 1.1.1.1  1993/06/19  14:21:52  paul
- * b-maked patch-2.10
- *
+ * Log: patch.c,v
  * Revision 2.0.2.0  90/05/01  22:17:50  davison
  * patch12u: unidiff support added
  *
@@ -296,12 +278,12 @@ char **argv;
 				reverse ? "Assuming" : "Ignoring");
 			}
 			else {
-			    ask3(
+			    (void) ask3(
 "%seversed (or previously applied) patch detected!  %s -R? [y] ",
 				reverse ? "R" : "Unr",
 				reverse ? "Assume" : "Ignore");
 			    if (*buf == 'n') {
-				ask1("Apply anyway? [n] ");
+				(void) ask1("Apply anyway? [n] ");
 				if (*buf == 'y')
 				    rev_okayed = TRUE;
 				else
@@ -414,6 +396,7 @@ char **argv;
 	set_signals(1);
     }
     my_exit(failtotal);
+    return (failtotal);
 }
 
 /* Prepare to find the next patch to do in the patch file. */

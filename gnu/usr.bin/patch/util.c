@@ -169,7 +169,7 @@ Reg1 char *s;
     }
     else {
 	t = rv;
-	while (*t++ = *s++);
+	while ((*t++ = *s++));
     }
     return rv;
 }
@@ -227,7 +227,7 @@ long arg1,arg2,arg3;
 
 /* Get a response from the user, somehow or other. */
 
-void
+int
 ask(pat,arg1,arg2,arg3)
 char *pat;
 long arg1,arg2,arg3;
@@ -260,7 +260,9 @@ long arg1,arg2,arg3;
     }
     else {				/* no terminal at all--default it */
 	buf[0] = '\n';
-	r = 1;
+	buf[1] = 0;
+	say1(buf);
+	return 0;			/* signal possible error */
     }
     if (r <= 0)
 	buf[0] = 0;
@@ -268,6 +270,11 @@ long arg1,arg2,arg3;
 	buf[r] = '\0';
     if (!tty2)
 	say1(buf);
+
+    if (r <= 0)
+	return 0;			/* if there was an error, return it */
+    else
+	return 1;
 }
 #endif /* lint */
 
@@ -410,7 +417,7 @@ int assume_exists;
 
 #define try(f, a1, a2) (Sprintf(tmpbuf + pathlen, f, a1, a2), stat(tmpbuf, &filestat) == 0)
 	if (   try("RCS/%s%s", filebase, RCSSUFFIX)
-	    || try("RCS/%s"  , filebase,         0)
+	    || try("RCS/%s%s", filebase,        "")
 	    || try(    "%s%s", filebase, RCSSUFFIX)
 	    || try("SCCS/%s%s", SCCSPREFIX, filebase)
 	    || try(     "%s%s", SCCSPREFIX, filebase))
