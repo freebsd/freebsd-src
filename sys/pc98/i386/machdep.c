@@ -1037,31 +1037,31 @@ struct soft_segment_descriptor gdt_segs[
 	0  			/* limit granularity (byte/page units)*/ },
 /* GAPMCODE32_SEL 8 APM BIOS 32-bit interface (32bit Code) */
 {	0,			/* segment base address (overwritten by APM)  */
-	0xfffff,		/* length */
+	0xffff,			/* length (overwritten by APM)  */
 	SDT_MEMERA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+	0  			/* limit granularity (byte/page units)*/ },
 /* GAPMCODE16_SEL 9 APM BIOS 32-bit interface (16bit Code) */
 {	0,			/* segment base address (overwritten by APM)  */
-	0xfffff,		/* length */
+	0xffff,			/* length (overwritten by APM)  */
 	SDT_MEMERA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
 	0,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+	0  			/* limit granularity (byte/page units)*/ },
 /* GAPMDATA_SEL	10 APM BIOS 32-bit interface (Data) */
 {	0,			/* segment base address (overwritten by APM) */
-	0xfffff,		/* length */
+	0xffff,			/* length (overwritten by APM)  */
 	SDT_MEMRWA,		/* segment type */
 	0,			/* segment descriptor priority level */
 	1,			/* segment descriptor present */
 	0, 0,
-	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ },
+	0,			/* default 32 vs 16 bit size */
+	0  			/* limit granularity (byte/page units)*/ },
 };
 
 static struct soft_segment_descriptor ldt_segs[] = {
