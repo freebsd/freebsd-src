@@ -684,6 +684,8 @@ spec_getpages(ap)
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 	bp->b_resid = 0;
+	bp->b_runningbufspace = bp->b_bufsize;
+	runningbufspace += bp->b_runningbufspace;
 
 	cnt.v_vnodein++;
 	cnt.v_vnodepgsin += pcount;
