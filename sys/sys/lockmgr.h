@@ -57,14 +57,14 @@ struct lock {
 	short	lk_prio;		/* priority at which to sleep */
 	const char *lk_wmesg;		/* resource sleeping (for tsleep) */
 	int	lk_timo;		/* maximum sleep time (for tsleep) */
-	pid_t	lk_lockholder;		/* pid of exclusive lock holder */
+	struct thread *lk_lockholder;	/* thread of exclusive lock holder */
 	struct	lock *lk_newlock;	/* lock taking over this lock */
 #ifdef	DEBUG_LOCKS
 	const char *lk_filename;
 	const char *lk_lockername;
 	int     lk_lineno;
 
-	pid_t	lk_slockholder;
+	struct thread *lk_slockholder;
 	const char *lk_sfilename;
 	const char *lk_slockername;
 	int     lk_slineno;
@@ -176,8 +176,8 @@ struct lock {
 /*
  * Indicator that no process holds exclusive lock
  */
-#define LK_KERNPROC ((pid_t) -2)
-#define LK_NOPROC ((pid_t) -1)
+#define LK_KERNPROC ((struct thread *)-2)
+#define LK_NOPROC ((struct thread *) -1)
 
 #ifdef INVARIANTS
 #define	LOCKMGR_ASSERT(lkp, what, p) do {				\
