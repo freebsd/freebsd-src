@@ -1,8 +1,8 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/2/93
-#	$Id: Makefile.inc,v 1.6 1997/10/15 16:15:20 bde Exp $
+#	$Id: Makefile.inc,v 1.7 1997/10/21 08:41:04 bde Exp $
 
 # compat-43 sources
-.PATH: ${.CURDIR}/../libc/${MACHINE}/compat-43 ${.CURDIR}/../libc/compat-43
+.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/compat-43 ${.CURDIR}/../libc/compat-43
 
 SRCS+=	creat.c gethostid.c getwd.c killpg.c sethostid.c setpgrp.c \
 	setrgid.c setruid.c sigcompat.c
