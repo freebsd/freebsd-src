@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.178 1996/03/11 02:21:42 hsu Exp $
+ *	$Id: machdep.c,v 1.179 1996/03/26 19:57:51 wollman Exp $
  */
 
 #include "npx.h"
@@ -1093,6 +1093,9 @@ SYSCTL_INT(_machdep, CPU_DISRTCSET, disable_rtc_set,
 
 SYSCTL_STRUCT(_machdep, CPU_BOOTINFO, bootinfo, 
 	CTLFLAG_RD, &bootinfo, bootinfo, "");
+
+SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
+	CTLFLAG_RW, &wall_cmos_clock, 0, "");
 
 /*
  * Initialize 386 and configure to run kernel
