@@ -1,6 +1,6 @@
 .\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
 .\"
-.Dd 11 July 1998
+.Dd 15 January 1999
 .Dt vinum 8
 .Os FreeBSD
 .Sh NAME
@@ -30,9 +30,14 @@ Attach a plex to a volume, or a subdisk to a plex.
 .in +1i
 Cause the volume manager to enter the kernel debugger.
 .in
+.Cd debug
+.Ar flags
+.in +1i
+Set debugging flags.
+.in
 .Cd detach
 .Op Ar plex | subdisk
-.in +1
+.in +1i
 Detach a plex or subdisk from the volume or plex to which it is attached.
 .in
 .Cd info
@@ -112,12 +117,21 @@ List information about volumes
 Remake the device nodes in 
 .Ar /dev/vinum .
 .in
+.Cd quit
+.in +1i
+Exit the
+.Nm
+program when running in interactive mode.  Normally this would be done by
+entering the
+.Ar EOF
+character.
+.in
 .Cd read
-.Ar disk-partition
+.Ar disk Op disk...
 .in +1i
 Read the
 .Nm
-configuration from the specified disk partition.
+configuration from the specified disks.
 .in
 .Cd rename Op Fl r
 .Ar [ drive | subdisk | plex | volume ]
@@ -164,6 +178,11 @@ XXX
 Set the state of the object to \fIstate\fP\|
 .in
 ..
+.Cd setdaemon
+.Op value
+.in +1i
+Set dæmon configuration.
+.in
 .Cd start
 .Op volume | plex | subdisk
 .in +1i
@@ -184,7 +203,10 @@ for more information about the volume manager.
 .Xr vinum 8
 is designed either for interactive use, when started without a command, or to
 execute a single command if the command is supplied as arguments to
-.Nm vinum.
+.Nm vinum .
+In interactive mode, 
+.Nm
+maintains a command line history.
 .Ss OPTIONS
 .Nm
 commands may optionally be followed by an option.  Any of the following options
@@ -245,7 +267,8 @@ commands perform the following functions:
 .Bl -hang
 .It Nm attach Ar plex Ar volume
 .Op Nm rename
-.sp -1v
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm attach Ar subdisk Ar plex Ar [offset]
 .Op Nm rename
 .sp
@@ -300,13 +323,49 @@ CONFIGURATION FILE below for more information.
 .Ar debug
 is used to enter the remote kernel debugger.  It is only activated if
 .Nm
-is built with the DEBUG option.  This option will stop the execution of the
-operating system until the kernel debugger is exited.  If there is no remote
+is built with the 
+.Ar VINUMDEBUG 
+option.  This option will stop the execution of the operating system until the
+kernel debugger is exited.  If remote debugging is set and there is no remote
 connection for a kernel debugger, it will be necessary to reset the system and
 reboot in order to leave the debugger.
+.It Nm debug
+.Ar flags
+.Pp
+Set a bit mask of internal debugging flags.  These will change without warning
+as the product matures; to be certain, read the header file
+.Pa sys/dev/vinumvar.h .
+The bit mask is composed of the following values:
+.Bl -hang
+.It DEBUG_ADDRESSES (1)
+.br
+Show buffer information during requests
+.It DEBUG_NUMOUTPUT (2)
+.br
+Show the value of 
+.Dv vp->v_numoutput.
+.It DEBUG_RESID (4)
+.br
+Go into debugger in 
+.Fd complete_rqe.
+.It DEBUG_LASTREQS (8)
+.br
+Keep a circular buffer of last requests.
+.It DEBUG_REVIVECONFLICT (16)
+.br
+Print info about revive conflicts.
+.It DEBUG_REMOTEGDB (256)
+.br
+Go into remote
+.Ic gdb
+when the
+.Nm debug
+command is issued.
+.El
 .It Nm detach Op Fl f 
 .Ar plex
-.sp -1v
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm detach Op Fl f 
 .Ar subdisk
 .sp
@@ -327,7 +386,7 @@ the subdisk is marked absent, and can later be replaced with the
 .Nm attach
 command.
 .It Nm info
-.Pp
+.br
 .Nm
 .Ar info
 displays information about
@@ -335,6 +394,117 @@ displays information about
 memory usage.  This is intended primarily for debugging.  With the 
 .Fl v
 option, it will give detailed information about the memory areas in use.
+.Pp
+With the
+.Fl V
+option,
+.Ar info
+displays information about the last up to 64 I/O requests handled by the
+.Nm
+driver.  This information is only collected if debug flag 8 is set.  The format
+looks like:
+.Pp
+.Bd -literal
+vinum -> info -V
+Flags: 0x200    1 opens
+Total of 38 blocks malloced, total memory: 16460
+Maximum allocs:       56, malloc table at 0xf0f72dbc
+
+Time             Event       Buf        Dev     Offset          Bytes   SD      SDoff   Doffset Goffset
+
+14:40:00.637758 1VS Write 0xf2361f40    0x5b03  0x10            16384
+14:40:00.639280 2LR Write 0xf2361f40    0x5b03  0x10            16384
+14:40:00.639294 3RQ Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
+14:40:00.639455 3RQ Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
+14:40:00.639529 3RQ Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
+14:40:00.652978 4DN Read  0xf2361f40    0x427   0x104109        8192    19      0       0       0
+14:40:00.667040 4DN Read  0xf2361f40    0x40f   0x6e109         8192    16      0       0       0
+14:40:00.668556 4DN Read  0xf2361f40    0x417   0xd2109         8192    17      0       0       0
+14:40:00.669777 6RP Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
+14:40:00.685547 4DN Write 0xf2361f40    0x427   0x104109        8192    19      0       0       0
+.Ed
+.Pp
+The 
+.Ar Buf
+field always contains the address of the user buffer header.  This can be used
+to identify the requests associated with a user request, though this is not 100%
+reliable: theoretically two requests in sequence could use the same buffer
+header, though this is not common.  The beginning of a request can be identified
+by the event
+.Ar 1VS .
+The example above shows the requests involved in a single user request.
+.Pp
+The
+.Ar Event
+field contains information related to the sequence of events in the request
+chain.  The digit
+.Ar 1
+to 
+.Ar 6
+indicates the approximate sequence of events, and the two-letter abbreviation is
+a mnemonic for the location
+.Bl -hang
+.It 1VS
+(vinumstrategy) shows information about the user request on entry to
+.Fd vinumstrategy .
+The device number is the
+.Nm
+device, and offset and length are the user parameters.  This is always the
+beginning of a request sequence.
+.It 2LR
+(launch_requests) shows the user request just prior to launching the low-level
+.Nm
+requests in the function
+.Fd launch_requests.
+The parameters should be the same as in the
+.Ar 1VS
+information.
+.Pp
+In the following requests,
+.Ar Dev
+is the device number of the associated disk partition,
+.Ar Offset 
+is the offset from the beginning of the partition,
+.Ar SD
+is the subdisk index in 
+.Dv vinum_conf ,
+.Ar SDoff
+is the offset from the beginning of the subdisk,
+.Ar Doffset
+is the offset of the associated data request, and
+.Ar Goffset
+is the offset of the associated group request, where applicable.
+.It 3RQ
+(request) shows one of possibly several low-level
+.Nm
+requests which are launched to satisfy the high-level request.  This information
+is also logged in 
+.Fd launch_requests.
+.It 4DN
+(done) is called from 
+.Fd complete_rqe,
+showing the completion of a request.  This completion should match a request
+launched either at stage
+.Ar 4DN
+from 
+.Fd launch_requests, 
+or from 
+.Fd complete_raid5_write
+at stage
+.Ar 5RD
+or
+.Ar 6RP .
+.It 5RD
+(RAID-5 data) is called from 
+.Fd complete_raid5_write
+and represents the data written to a RAID-5 data stripe after calculating
+parity.
+.It 6RP
+(RAID-5 parity) is called from 
+.Fd complete_raid5_write
+and represents the data written to a RAID-5 parity stripe after calculating
+parity.
+.El
 .\" XXX
 .It Nm init Ar plex
 .Pp
@@ -374,33 +544,38 @@ This command is deprecated.
 .Op Fl r
 .Op Fl V
 .Op volume | plex | subdisk
-.sp -1
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm l
 .Op Fl r
 .Op Fl V
 .Op volume | plex | subdisk
-.sp -1
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm ld
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
 .Op volume
-.sp -1
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm ls
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
 .Op subdisk
-.sp -1
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm lp
 .Op Fl r
 .Op Fl s
 .Op Fl v
 .Op Fl V
 .Op plex
-.sp -1
+.if n .sp -1v
+.if t .sp -.6v
 .It Nm lv
 .Op Fl r
 .Op Fl s
@@ -447,18 +622,34 @@ command removes the directory /dev/vinum and recreates it with device nodes
 which reflect the current configuration.  This command is not intended for
 general use, and is provided for emergency use only.
 .Pp
+.It Nm quit
+Exit the
+.Nm
+program when running in interactive mode.  Normally this would be done by
+entering the
+.Ar EOF
+character.
 .It Nm read
-.Ar disk-partition
+.Ar disk Op disk...
 .Pp
 The
 .Nm read
-command reads a previously created
-.Nm
-configuration from the specified disk partition.
+command scans the specified disks for
+.Nm 
+partitions containing previously created configuration information.  It reads
+the configuration in order from the most recently updated to least recently
+updated configuration.  This is the normal method used to start
+.Nm vinum .
 .Nm
 maintains an up-to-date copy of all configuration information on each disk
-partition.  You can specify any of the partitions in a configuration as the
+partition.  You must specify all of the partitions in a configuration as the
 parameter to this command.
+.Nm
+.Nm read
+will accept the names of non-Vinum partitions, so you can specify all partitions
+upon which a
+.Nm
+partition might be resident to this command.
 .It Nm rename
 .Op Fl r
 .Ar [ drive | subdisk | plex | volume ]
@@ -568,6 +759,15 @@ care: it can result in total loss of data on a volume.
 .\"XXX
 .Nm This command has not yet been implemented.
 ..
+.It Nm setdaemon
+.Op value
+.Pp
+.Nm setdaemon
+sets a variable bitmask for the
+.Nm
+dæmon.  This command is temporary and will be replaced.  Currently, the bit mask
+may contain the bits 1 (log every action to syslog) and 4 (don't update
+configuration).  Option bit 4 can be useful for error recovery.
 .It Nm start
 .Op volume | plex | subdisk
 .Pp
@@ -1019,14 +1219,62 @@ commands, though especially
 .Nm resetconfig
 outputs all sort of dire warnings.  Don't use these commands unless you have a
 good reason to do so.
+.It
+Some state transitions are not very intuitive.  In fact, it's not clear whether
+this is a bug or a feature.  If you find that you can't start an object in some
+strange state, such as a
+.Ar reborn
+subdisk, try first to get it into
+.Ar stopped
+state, with the
+.Nm stop
+or
+.Nm stop Ar -f
+commands.  If that works, you should then be able to start it.  If you find 
+that this is the only way to get out of a position where easier methods fail,
+please report the situation.
+.It
+If you build the kernel module with the
+.Ar -DVINUMDEBUG
+option, you must also build
+.Nm vinum(8)
+with the
+.Ar -DVINUMDEBUG
+option, since the size of some data objects used by both components depends on
+this option.  If you don't do so, commands will fail with the message
+.Ar Invalid argument ,
+and a console message will be logged such as
+.Pp
+.Bd -literal
+vinumioctl: invalid ioctl from process 247 (vinum): c0e44642
+.Ed
+.Pp
+This error may also occur if you use old versions of kld or userland program.
 .El
 .Sh BUGS
+.Bl -enum
+.It
 .Nm
 is currently in beta test.  Many bugs can be expected.  The configuration
 mechanism is not yet fully functional.  If you have difficulties, please look at
 http://www.lemis.com/vinum_beta.html and
 http://www.lemis.com/vinum_debugging.html before reporting problems.
-.Pp
+.It
+It is possible to unload
+.Nm
+with the
+.Nm kldunload
+command.  This is buggy, and the only reason it is present at all is to make it
+easier for people testing the system: the alternative is a reboot.  It works
+about 80% of the time: expect about one panic every five unloads.
+.It
+It is possible to configure
+.Nm
+statically, but it has never been tested in this form.  Don't even bother to
+report the problem if you have trouble with a static
+.Nm
+pseudo-device.
+.It
 This man page tickles a bug in the
 .Ar doc
 man page macros: depending on your screen size, you may get the error message
@@ -1037,6 +1285,7 @@ warning: page 6: table text block will not fit on one page
 This will be fixed in a later rewrite of the page, when the
 .Nm tbl
 macros will be removed.
+.El
 .Sh FILES
 .Ar /dev/vinum
 - directory with device nodes for

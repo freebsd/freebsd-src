@@ -1,6 +1,9 @@
-/*
- * Copyright (c) 1997 Nan Yang Computer Services Limited
- * All rights reserved.
+/*-
+ * Copyright (c) 1997, 1998
+ *	Nan Yang Computer Services Limited.  All rights reserved.
+ *
+ *  This software is distributed under the so-called ``Berkeley
+ *  License'':
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -12,28 +15,30 @@
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
- *      This product includes software developed for the NetBSD Project
- *      by Jason R. Thorpe.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
+ *	This product includes software developed by Nan Yang Computer
+ *      Services Limited.
+ * 4. Neither the name of the Company nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
- * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
- * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * This software is provided ``as is'', and any express or implied
+ * warranties, including, but not limited to, the implied warranties of
+ * merchantability and fitness for a particular purpose are disclaimed.
+ * In no event shall the company or contributors be liable for any
+ * direct, indirect, incidental, special, exemplary, or consequential
+ * damages (including, but not limited to, procurement of substitute
+ * goods or services; loss of use, data, or profits; or business
+ * interruption) however caused and on any theory of liability, whether
+ * in contract, strict liability, or tort (including negligence or
+ * otherwise) arising in any way out of the use of this software, even if
+ * advised of the possibility of such damage.
+ *
  */
 
-/* $Id: vext.h,v 1.1.1.1 1998/09/16 05:57:36 grog Exp $ */
+/* $Id: vext.h,v 1.10 1999/01/12 04:31:45 grog Exp grog $ */
 
 #define MAXARGS 64					    /* maximum number of args on a line */
-#define PLEXINITSIZE MAXPHYS				    /* block size to write when initializing */
+#define PLEXINITSIZE 61440				    /* this is what the system does somewhere */
 
 enum {
     KILOBYTE = 1024,
@@ -61,6 +66,10 @@ void vinum_resetconfig(int argc, char *argv[], char *arg0[]);
 void vinum_start(int argc, char *argv[], char *arg0[]);
 void continue_revive(int plexno);
 void vinum_stop(int argc, char *argv[], char *arg0[]);
+void vinum_makedev(int argc, char *argv[], char *arg0[]);
+void vinum_help(int argc, char *argv[], char *arg0[]);
+void vinum_quit(int argc, char *argv[], char *arg0[]);
+void vinum_setdaemon(int argc, char *argv[], char *arg0[]);
 void reset_volume_stats(int volno, int recurse);
 void reset_plex_stats(int plexno, int recurse);
 void reset_sd_stats(int sdno, int recurse);
@@ -77,6 +86,7 @@ void vinum_ld(int argc, char *argv[], char *arg0[]);
 void vinum_ls(int argc, char *argv[], char *arg0[]);
 void vinum_lp(int argc, char *argv[], char *arg0[]);
 void vinum_lv(int argc, char *argv[], char *arg0[]);
+void start_daemon(void);
 #ifdef VINUMDEBUG
 void vinum_debug(int argc, char *argv[], char *arg0[]);
 #endif
