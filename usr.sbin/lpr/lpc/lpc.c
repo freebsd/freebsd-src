@@ -237,7 +237,6 @@ help(argc, argv)
 	if (argc == 1) {
 		register int i, j, w;
 		int columns, width = 0, lines;
-		extern int NCMDS;
 
 		printf("Commands may be abbreviated.  Commands are:\n\n");
 		for (c = cmdtab; c->c_name; c++) {

@@ -118,7 +118,6 @@ main(argc, argv)
 {
 	struct passwd *pw;
 	struct group *gptr;
-	extern char *itoa();
 	register char *arg, *cp;
 	char buf[BUFSIZ];
 	int i, f;
@@ -689,7 +688,6 @@ mktemps()
 	register int len, fd, n;
 	register char *cp;
 	char buf[BUFSIZ];
-	char *lmktemp();
 
 	(void) sprintf(buf, "%s/.seq", SD);
 	if ((fd = open(buf, O_RDWR|O_CREAT, 0661)) < 0) {

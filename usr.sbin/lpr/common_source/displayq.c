@@ -61,11 +61,6 @@ static char sccsid[] = "@(#)displayq.c	8.4 (Berkeley) 4/28/95";
 /*
  * Stuff for handling job specifications
  */
-extern int	requ[];		/* job number of spool entries */
-extern int	requests;	/* # of spool requests */
-extern char    *user[];	        /* users to process */
-extern int	users;		/* # of users in user array */
-
 static int	col;		/* column on screen */
 static char	current[40];	/* current file being printed */
 static char	file[132];	/* print file name */
