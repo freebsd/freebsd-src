@@ -57,7 +57,6 @@ vsscanf(str, fmt, ap)
 	const char *fmt;
 	_BSD_VA_LIST_ ap;
 {
-	int ret;
 	FILE f;
 
 	f._flags = __SRD;
