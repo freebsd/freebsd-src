@@ -35,6 +35,9 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 extern "C" {
 #endif
 
+/* FreeBSD does not adhere to the Intel386 System V ABI.  */
+#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+
 #include "ansidecl.h"
 #include "symcat.h"
 #if defined (__STDC__) || defined (ALMOST_STDC) || defined (HAVE_STRINGIZE)
