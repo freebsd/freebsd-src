@@ -614,7 +614,7 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 				ro->ro_rt = rtalloc1(&((struct route *)ro)
 						     ->ro_dst, 0, 0UL);
 			} else {
-				rtcalloc((struct route *)ro);
+				rtalloc((struct route *)ro);
 			}
 		}
 
