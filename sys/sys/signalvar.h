@@ -216,8 +216,20 @@ struct pgrp;
 struct thread;
 struct proc;
 struct sigio;
+struct sx;
 
 extern int sugid_coredump;	/* Sysctl variable kern.sugid_coredump */
+extern struct sx	sigio_lock;
+
+/*
+ * Lock the pointers for a sigio object in the underlying objects of
+ * a file descriptor.
+ */
+#define SIGIO_SLOCK()	sx_slock(&sigio_lock)
+#define SIGIO_XLOCK()	sx_xlock(&sigio_lock)
+#define SIGIO_SUNLOCK()	sx_sunlock(&sigio_lock)
+#define SIGIO_XUNLOCK()	sx_xunlock(&sigio_lock)
+#define SIGIO_ASSERT(what)	sx_assert(&sigio_lock, what)
 
 /*
  * Machine-independent functions:

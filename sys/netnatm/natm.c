@@ -38,15 +38,18 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/sockio.h>
-#include <sys/protosw.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/conf.h>
+#include <sys/sockio.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
 
 #include <net/if.h>
 #include <net/if_atm.h>

@@ -36,10 +36,14 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/lock.h>
 #include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/stat.h>
+#include <sys/sx.h>
+#include <sys/systm.h>
 #include <net/if.h>
 #include <netatm/port.h>
 #include <netatm/queue.h>
@@ -51,7 +55,6 @@
 #include <netatm/atm_stack.h>
 #include <netatm/atm_pcb.h>
 #include <netatm/atm_var.h>
-#include <sys/stat.h>
 
 #ifndef lint
 __RCSID("@(#) $FreeBSD$");

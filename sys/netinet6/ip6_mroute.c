@@ -49,22 +49,25 @@
 #include "opt_inet6.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/callout.h>
+#include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
-#include <sys/protosw.h>
-#include <sys/errno.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
+#include <sys/sx.h>
 #include <sys/syslog.h>
+#include <sys/systm.h>
+#include <sys/time.h>
 
 #include <net/if.h>
-#include <net/route.h>
 #include <net/raw_cb.h>
+#include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
