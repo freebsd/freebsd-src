@@ -24,27 +24,47 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- */
-
-/* Unit number allocation functions.
+ *
+ *
+ * Unit number allocation functions.
  *
  * These functions implement a mixed run-length/bitmap management of unit
- * number spaces.
+ * number spaces in a very memory efficient manner.
  *
- * Allocation is always lowest free number first.
+ * Allocation policy is always lowest free number first.
  *
- * Worst case memory usage (disregarding boundary effects in the low end)
- * is two bits for each slot in the unit number space.  (For a full
- * [0 ... UINT_MAX] space that is still a lot of course.)
+ * A return value of -1 signals that no more unit numbers are available.
  *
- * The typical case, where no unit numbers are freed, is managed in a
- * constant sized memory footprint of:
- *   sizeof(struct unrhdr) + 2 * sizeof (struct unr) == 56 bytes on i386
+ * There is no cost associated with the range of unitnumbers, so unless
+ * the resource really is finite, specify INT_MAX to new_unrhdr() and
+ * forget about checking the return value.
  *
- * The caller must provide locking.
+ * If a mutex is not provided when the unit number space is created, a
+ * default global mutex is used.  The advantage to passing a mutex in, is
+ * that the the alloc_unrl() function can be called with the mutex already
+ * held (it will not be released by alloc_unrl()).
+ *
+ * The allocation function alloc_unr{l}() never sleeps (but it may block on
+ * the mutex of course).
+ *
+ * Freeing a unit number may require allocating memory, and can therefore
+ * sleep so the free_unr() function does not come in a pre-locked variant.
  *
  * A userland test program is included.
  *
+ * Memory usage is a very complex function of the the exact allocation
+ * pattern, but always very compact:
+ *    * For the very typical case where a single unbroken run of unit
+ *      numbers are allocated 44 bytes are used on i386.
+ *    * For a unit number space of 1000 units and the random pattern
+ *      in the usermode test program included, the worst case usage
+ *	was 252 bytes on i386 for 500 allocated and 500 free units.
+ *    * For a unit number space of 10000 units and the random pattern
+ *      in the usermode test program included, the worst case usage
+ *	was 798 bytes on i386 for 5000 allocated and 5000 free units.
+ *    * The worst case is where every other unit number is allocated and
+ *	the the rest are free.  In that case 44 + N/4 bytes are used where
+ *	N is the number of the highest unit allocated.
  */
 
 #include <sys/types.h>
@@ -57,6 +77,9 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/limits.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 /*
  * In theory it would be smarter to allocate the individual blocks
@@ -69,23 +92,69 @@ static MALLOC_DEFINE(M_UNIT, "Unitno", "Unit number allocation");
 #define Malloc(foo) malloc(foo, M_UNIT, M_WAITOK | M_ZERO)
 #define Free(foo) free(foo, M_UNIT)
 
+static struct mtx unitmtx;
+
+MTX_SYSINIT(unit, &unitmtx, "unit# allocation", MTX_DEF);
+
 #else /* ...USERLAND */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define KASSERT(cond, arg) \
 	do { \
 		if (!(cond)) { \
 			printf arg; \
-			exit (1); \
+			abort(); \
 		} \
 	} while (0)
 
-#define Malloc(foo) calloc(foo, 1)
+static int no_alloc;
+#define Malloc(foo) _Malloc(foo, __LINE__)
+static void *
+_Malloc(size_t foo, int line)
+{
+
+	KASSERT(no_alloc == 0, ("malloc in wrong place() line %d", line));
+	return (calloc(foo, 1));
+}
 #define Free(foo) free(foo)
 
-#endif
+struct unrhdr;
+
+
+struct mtx {
+	int	state;
+} unitmtx;
+
+static void
+mtx_lock(struct mtx *mp)
+{
+	KASSERT(mp->state == 0, ("mutex already locked"));
+	mp->state = 1;
+}
+
+static void
+mtx_unlock(struct mtx *mp)
+{
+	KASSERT(mp->state == 1, ("mutex not locked"));
+	mp->state = 0;
+}
+
+#define MA_OWNED	9
+
+static void
+mtx_assert(struct mtx *mp, int flag)
+{
+	if (flag == MA_OWNED) {
+		KASSERT(mp->state == 1, ("mtx_assert(MA_OWNED) not true"));
+	}
+}
+
+#define CTASSERT(foo)
+
+#endif /* USERLAND */
 
 /*
  * This is our basic building block.
@@ -107,8 +176,15 @@ struct unr {
 	void			*ptr;
 };
 
+struct unrb {
+	u_char			busy;
+	bitstr_t		map[sizeof(struct unr) - 1];
+};
+
+CTASSERT(sizeof(struct unr) == sizeof(struct unrb));
+
 /* Number of bits in the bitmap */
-#define NBITS	(sizeof(struct unr) * 8)
+#define NBITS	((int)sizeof(((struct unrb *)NULL)->map) * 8)
 
 /* Header element for a unr number space. */
 
@@ -118,8 +194,12 @@ struct unrhdr {
 	u_int			high;	/* Highest item */
 	u_int			busy;	/* Count of allocated items */
 	u_int			alloc;	/* Count of memory allocations */
+	u_int			first;	/* items in allocated from start */
+	u_int			last;	/* items free at end */
+	struct mtx		*mtx;
 };
 
+static void print_unrhdr(struct unrhdr *uh);
 
 #if defined(DIAGNOSTIC) || !defined(_KERNEL)
 /*
@@ -133,23 +213,28 @@ static void
 check_unrhdr(struct unrhdr *uh, int line)
 {
 	struct unr *up;
+	struct unrb *ub;
 	u_int x, y, z, w;
 
-	y = 0;
+	y = uh->first;
 	z = 0;
 	TAILQ_FOREACH(up, &uh->head, list) {
 		z++;
 		if (up->ptr != uh && up->ptr != NULL) {
+			ub = up->ptr;
+			KASSERT (up->len <= NBITS,
+			    ("UNR inconsistency: len %u max %d (line %d)\n",
+			    up->len, NBITS, line));
 			z++;
 			w = 0;
-			for (x = 0; x < NBITS; x++)
-				if (bit_test((bitstr_t *)up->ptr, x))
+			for (x = 0; x < up->len; x++)
+				if (bit_test(ub->map, x))
 					w++;
-			KASSERT (w == up->len,
-			    ("UNR inconsistency: bits %u found %u\n",
-			    up->len, w));
-		}
-		if (up->ptr != NULL)
+			KASSERT (w == ub->busy,
+			    ("UNR inconsistency: busy %u found %u (line %d)\n",
+			    ub->busy, w, line));
+			y += w;
+		} else if (up->ptr != NULL) 
 			y += up->len;
 	}
 	KASSERT (y == uh->busy,
@@ -177,16 +262,27 @@ check_unrhdr(struct unrhdr *uh, int line)
  */
 
 static __inline void *
-new_unr(struct unrhdr *uh)
+new_unr(struct unrhdr *uh, void **p1, void **p2)
 {
-	uh->alloc++;
-	return (Malloc(sizeof (struct unr)));
+	void *p;
 
+	uh->alloc++;
+	KASSERT(*p1 != NULL || *p2 != NULL, ("Out of cached memory"));
+	if (*p1 != NULL) {
+		p = *p1;
+		*p1 = NULL;
+		return (p);
+	} else {
+		p = *p2;
+		*p2 = NULL;
+		return (p);
+	}
 }
 
 static __inline void
 delete_unr(struct unrhdr *uh, void *ptr)
 {
+
 	uh->alloc--;
 	Free(ptr);
 }
@@ -198,22 +294,24 @@ delete_unr(struct unrhdr *uh, void *ptr)
  */
 
 struct unrhdr *
-new_unrhdr(u_int low, u_int high, struct mtx *mutex __unused)
+new_unrhdr(int low, int high, struct mtx *mutex)
 {
 	struct unrhdr *uh;
-	struct unr *up;
 
 	KASSERT(low <= high,
 	    ("UNR: use error: new_unrhdr(%u, %u)", low, high));
 	uh = Malloc(sizeof *uh);
+	if (mutex != NULL)
+		uh->mtx = mutex;
+	else
+		uh->mtx = &unitmtx;
 	TAILQ_INIT(&uh->head);
 	uh->low = low;
 	uh->high = high;
-	up = new_unr(uh);
-	up->len = 1 + (high - low);
-	up->ptr = NULL;
-	TAILQ_INSERT_HEAD(&uh->head, up, list);
+	uh->first = 0;
+	uh->last = 1 + (high - low);
 	check_unrhdr(uh, __LINE__);
+printf("NEW_UNRHDR %x-%x -> %p\n", low, high, uh);
 	return (uh);
 }
 
@@ -221,108 +319,285 @@ void
 delete_unrhdr(struct unrhdr *uh)
 {
 
+	check_unrhdr(uh, __LINE__);
 	KASSERT(uh->busy == 0, ("unrhdr has %u allocations", uh->busy));
-	
-	/* We should have a single un only */
-	delete_unr(uh, TAILQ_FIRST(&uh->head));
 	KASSERT(uh->alloc == 0, ("UNR memory leak in delete_unrhdr"));
 	Free(uh);
 }
 
+static __inline int
+is_bitmap(struct unrhdr *uh, struct unr *up)
+{
+	return (up->ptr != uh && up->ptr != NULL);
+}
+
 /*
- * See if a given unr should be collapsed with a neighbor
+ * Look for sequence of items which can be combined into a bitmap, if
+ * multiple are present, take the one which saves most memory.
+ * 
+ * Return (1) if a sequence was found to indicate that another call
+ * might be able to do more.  Return (0) if we found no suitable sequence.
+ *
+ * NB: called from alloc_unr(), no new memory allocation allowed.
+ */
+static int
+optimize_unr(struct unrhdr *uh)
+{
+	struct unr *up, *uf, *us;
+	struct unrb *ub, *ubf;
+	u_int a, l, ba;
+
+	/*
+	 * Look for the run of items (if any) which when collapsed into
+	 * a bitmap would save most memory.
+	 */
+	us = NULL;
+	ba = 0;
+	TAILQ_FOREACH(uf, &uh->head, list) {
+		if (uf->len >= NBITS)
+			continue;
+		a = 1;
+		if (is_bitmap(uh, uf))
+			a++;
+		l = uf->len;
+		up = uf;
+		while (1) {
+			up = TAILQ_NEXT(up, list);
+			if (up == NULL)
+				break;
+			if ((up->len + l) > NBITS)
+				break;
+			a++;
+			if (is_bitmap(uh, up))
+				a++;
+			l += up->len;
+		}
+		if (a > ba) {
+			ba = a;
+			us = uf;
+		}
+	}
+	if (ba < 3)
+		return (0);
+
+	/*
+	 * If the first element is not a bitmap, make it one.
+	 * Trying to do so without allocating more memory complicates things
+	 * a bit
+	 */
+	if (!is_bitmap(uh, us)) {
+		uf = TAILQ_NEXT(us, list);
+		TAILQ_REMOVE(&uh->head, us, list);
+		a = us->len;
+		l = us->ptr == uh ? 1 : 0;
+		ub = (void *)us;
+		ub->busy = 0;
+		if (l) {
+			bit_nset(ub->map, 0, a);
+			ub->busy += a;
+		} else {
+			bit_nclear(ub->map, 0, a);
+		}
+		if (!is_bitmap(uh, uf)) {
+			if (uf->ptr == NULL) {
+				bit_nclear(ub->map, a, a + uf->len - 1);
+			} else {
+				bit_nset(ub->map, a, a + uf->len - 1);
+				ub->busy += uf->len;
+			}
+			uf->ptr = ub;
+			uf->len += a;
+			us = uf;
+		} else {
+			ubf = uf->ptr;
+			for (l = 0; l < uf->len; l++, a++) {
+				if (bit_test(ubf->map, l)) {
+					bit_set(ub->map, a);
+					ub->busy++;
+				} else {
+					bit_clear(ub->map, a);
+				}
+			}
+			uf->len = a;
+			delete_unr(uh, uf->ptr);
+			uf->ptr = ub;
+			us = uf;
+		}
+	}
+	ub = us->ptr;
+	while (1) {
+		uf = TAILQ_NEXT(us, list);
+		if (uf == NULL)
+			return (1);
+		if (uf->len + us->len > NBITS)
+			return (1);
+		if (uf->ptr == NULL) {
+			bit_nclear(ub->map, us->len, us->len + uf->len - 1);
+			us->len += uf->len;
+			TAILQ_REMOVE(&uh->head, uf, list);
+			delete_unr(uh, uf);
+		} else if (uf->ptr == uh) {
+			bit_nset(ub->map, us->len, us->len + uf->len - 1);
+			ub->busy += uf->len;
+			us->len += uf->len;
+			TAILQ_REMOVE(&uh->head, uf, list);
+			delete_unr(uh, uf);
+		} else {
+			ubf = uf->ptr;
+			for (l = 0; l < uf->len; l++, us->len++) {
+				if (bit_test(ubf->map, l)) {
+					bit_set(ub->map, us->len);
+					ub->busy++;
+				} else {
+					bit_clear(ub->map, us->len);
+				}
+			}
+			TAILQ_REMOVE(&uh->head, uf, list);
+			delete_unr(uh, ubf);
+			delete_unr(uh, uf);
+		}
+	}
+}
+
+/*
+ * See if a given unr should be collapsed with a neighbor.
+ *
+ * NB: called from alloc_unr(), no new memory allocation allowed.
  */
 static void
 collapse_unr(struct unrhdr *uh, struct unr *up)
 {
 	struct unr *upp;
+	struct unrb *ub;
 
-	upp = TAILQ_PREV(up, unrhd, list);
-	if (upp != NULL && up->ptr == upp->ptr) {
-		up->len += upp->len;
+	/* If bitmap is all set or clear, change it to runlength */
+	if (is_bitmap(uh, up)) {
+		ub = up->ptr;
+		if (ub->busy == up->len) {
+			delete_unr(uh, up->ptr);
+			up->ptr = uh;
+		} else if (ub->busy == 0) {
+			delete_unr(uh, up->ptr);
+			up->ptr = NULL;
+		}
+	}
+
+	/* If nothing left in runlength, delete it */
+	if (up->len == 0) {
+		upp = TAILQ_PREV(up, unrhd, list);
+		if (upp == NULL)
+			upp = TAILQ_NEXT(up, list);
+		TAILQ_REMOVE(&uh->head, up, list);
+		delete_unr(uh, up);
+		up = upp;
+	}
+
+	/* If we have "hot-spot" still, merge with neighbor if possible */
+	if (up != NULL) {
+		upp = TAILQ_PREV(up, unrhd, list);
+		if (upp != NULL && up->ptr == upp->ptr) {
+			up->len += upp->len;
+			TAILQ_REMOVE(&uh->head, upp, list);
+			delete_unr(uh, upp);
+			}
+		upp = TAILQ_NEXT(up, list);
+		if (upp != NULL && up->ptr == upp->ptr) {
+			up->len += upp->len;
+			TAILQ_REMOVE(&uh->head, upp, list);
+			delete_unr(uh, upp);
+		}
+	}
+
+	/* Merge into ->first if possible */
+	upp = TAILQ_FIRST(&uh->head);
+	if (upp != NULL && upp->ptr == uh) {
+		uh->first += upp->len;
 		TAILQ_REMOVE(&uh->head, upp, list);
 		delete_unr(uh, upp);
+		if (up == upp)
+			up = NULL;
 	}
-	upp = TAILQ_NEXT(up, list);
-	if (upp != NULL && up->ptr == upp->ptr) {
-		up->len += upp->len;
+
+	/* Merge into ->last if possible */
+	upp = TAILQ_LAST(&uh->head, unrhd);
+	if (upp != NULL && upp->ptr == NULL) {
+		uh->last += upp->len;
 		TAILQ_REMOVE(&uh->head, upp, list);
 		delete_unr(uh, upp);
+		if (up == upp)
+			up = NULL;
 	}
+
+	/* Try to make bitmaps */
+	while (optimize_unr(uh))
+		continue;
 }
 
 /*
  * Allocate a free unr.
  */
-u_int
-alloc_unr(struct unrhdr *uh)
+int
+alloc_unrl(struct unrhdr *uh)
 {
-	struct unr *up, *upp;
+	struct unr *up;
+	struct unrb *ub;
 	u_int x;
 	int y;
 
+	mtx_assert(uh->mtx, MA_OWNED);
 	check_unrhdr(uh, __LINE__);
-	x = uh->low;
-	/*
-	 * We can always allocate from one of the first two unrs on the list.
-	 * The first one is likely an allocated run, but the second has to
-	 * be a free run or a bitmap.
-	 */
+	x = uh->low + uh->first;
+
 	up = TAILQ_FIRST(&uh->head);
-	KASSERT(up != NULL, ("UNR empty list"));
-	if (up->ptr == uh) {
-		x += up->len;
-		up = TAILQ_NEXT(up, list);
-	}
-	KASSERT(up != NULL, ("UNR Ran out of numbers")); /* XXX */
-	KASSERT(up->ptr != uh, ("UNR second element allocated"));
 
-	if (up->ptr != NULL) {
-		/* Bitmap unr */
-		KASSERT(up->len < NBITS, ("UNR bitmap confusion"));
-		bit_ffc((bitstr_t *)up->ptr, NBITS, &y);
-		KASSERT(y != -1, ("UNR corruption: No clear bit in bitmap."));
-		bit_set((bitstr_t *)up->ptr, y);
-		up->len++;
+	/*
+	 * If we have an ideal split, just adjust the first+last
+	 */
+	if (up == NULL && uh->last > 0) {
+		uh->first++;
+		uh->last--;
 		uh->busy++;
-		if (up->len == NBITS) {
-			/* The unr is all allocated, drop bitmap */
-			delete_unr(uh, up->ptr);
-			up->ptr = uh;
-			collapse_unr(uh, up);
-		}
-		check_unrhdr(uh, __LINE__);
-		return (x + y);
-	}
-
-	if (up->len == 1) {
-		/* Run of one free item, grab it */
-		up->ptr = uh;
-		uh->busy++;
-		collapse_unr(uh, up);
-		check_unrhdr(uh, __LINE__);
 		return (x);
 	}
 
 	/*
-	 * Slice first item into an preceeding allocated run, even if we
-	 * have to create it.  Because allocation is always lowest free
-	 * number first, we know the preceeding element (if any) to be
-	 * an allocated run.
+	 * We can always allocate from the first list element, so if we have 
+	 * nothing on the list, we must have run out of unit numbers.
 	 */
-	upp = TAILQ_PREV(up, unrhd, list);
-	if (upp == NULL) {
-		upp = new_unr(uh);
-		upp->len = 0;
-		upp->ptr = uh;
-		TAILQ_INSERT_BEFORE(up, upp, list);
+	if (up == NULL) {
+printf("Out of units %p\n", uh);
+print_unrhdr(uh);
+		return (-1);
 	}
-	KASSERT(upp->ptr == uh, ("UNR list corruption"));
-	upp->len++;
-	up->len--;
+
+	KASSERT(up->ptr != uh, ("UNR first element is allocated"));
+
+	if (up->ptr == NULL) {	/* free run */
+		uh->first++;
+		up->len--;
+	} else {		/* bitmap */
+		ub = up->ptr;
+		KASSERT(ub->busy < up->len, ("UNR bitmap confusion"));
+		bit_ffc(ub->map, up->len, &y);
+		KASSERT(y != -1, ("UNR corruption: No clear bit in bitmap."));
+		bit_set(ub->map, y);
+		ub->busy++;
+		x += y;
+	}
 	uh->busy++;
-	check_unrhdr(uh, __LINE__);
+	collapse_unr(uh, up);
 	return (x);
+}
+
+int
+alloc_unr(struct unrhdr *uh)
+{
+	int i;
+
+	mtx_lock(uh->mtx);
+	i = alloc_unrl(uh);
+	mtx_unlock(uh->mtx);
+	return (i);
 }
 
 /*
@@ -330,203 +605,130 @@ alloc_unr(struct unrhdr *uh)
  *
  * If we can save unrs by using a bitmap, do so.
  */
-void
-free_unr(struct unrhdr *uh, u_int item)
+static void
+free_unrl(struct unrhdr *uh, u_int item, void **p1, void **p2)
 {
-	struct unr *up, *upp, *upn, *ul;
-	u_int x, l, xl, n, pl;
+	struct unr *up, *upp, *upn;
+	struct unrb *ub;
+	u_int pl;
 
 	KASSERT(item >= uh->low && item <= uh->high,
 	    ("UNR: free_unr(%u) out of range [%u...%u]",
 	     item, uh->low, uh->high));
 	check_unrhdr(uh, __LINE__);
 	item -= uh->low;
-	xl = x = 0;
-	/* Find the start of the potential bitmap */
-	l = item - item % NBITS;
-	ul = 0;
-	TAILQ_FOREACH(up, &uh->head, list) {
-
-		/* Keep track of which unr we'll split if we do */
-		if (x <= l) {
-			ul = up;
-			xl = x;
-		}
-
-		/* Handle bitmap items */
-		if (up->ptr != NULL && up->ptr != uh) {
-			if (x + NBITS <= item) { /* not yet */
-				x += NBITS;
-				continue;
-			}
-			KASSERT(bit_test((bitstr_t *)up->ptr, item - x) != 0,
-			    ("UNR: Freeing free item %d (%d) (bitmap)\n",
-			     item, item - x));
-			bit_clear((bitstr_t *)up->ptr, item - x);
-			uh->busy--;
-			up->len--;
-			/*
-			 * XXX: up->len == 1 could possibly be collapsed to
-			 * XXX: neighboring runs.
-			 */
-			if (up->len > 0)
-				return;
-			/* We have freed all items in bitmap, drop it */
-			delete_unr(uh, up->ptr);
-			up->ptr = NULL;
-			up->len = NBITS;
-			collapse_unr(uh, up);
-			check_unrhdr(uh, __LINE__);
-			return;
-		}
-
-		/* Run length unr's */
-		
-		if (x + up->len <= item) {	/* not yet */
-			x += up->len;
-			continue;
-		}
-
-		/* We now have our run length unr */
-		KASSERT(up->ptr == uh,
-		    ("UNR Freeing free item %d (run))\n", item));
-
-		/* Just this one left, reap it */
-		if (up->len == 1) {
-			up->ptr = NULL;
-			uh->busy--;
-			collapse_unr(uh, up);
-			check_unrhdr(uh, __LINE__);
-			return;
-		}
-
-		/* Check if we can shift the item to the previous run */
-		upp = TAILQ_PREV(up, unrhd, list);
-		if (item == x && upp != NULL && upp->ptr == NULL) {
-			upp->len++;
-			up->len--;
-			uh->busy--;
-			check_unrhdr(uh, __LINE__);
-			return;
-		}
-
-		/* Check if we can shift the item to the next run */
-		upn = TAILQ_NEXT(up, list);
-		if (item == x + up->len - 1 &&
-		    upn != NULL && upn->ptr == NULL) {
-			upn->len++;
-			up->len--;
-			uh->busy--;
-			check_unrhdr(uh, __LINE__);
-			return;
-		}
-
-		/* Split off the tail end, if any. */
-		pl = up->len - (1 + (item - x));
-		if (pl > 0) {
-			upp = new_unr(uh);
-			upp->ptr = uh;
-			upp->len = pl;
-			TAILQ_INSERT_AFTER(&uh->head, up, upp, list);
-		}
-
-		if (item == x) {
-			/* We are done splitting */
-			up->len = 1;
-			up->ptr = NULL;
-		} else {
-			/* The freed item */
-			upp = new_unr(uh);
-			upp->len = 1;
-			upp->ptr = NULL;
-			TAILQ_INSERT_AFTER(&uh->head, up, upp, list);
-			/* Adjust current unr */
-			up->len = item - x;
-		}
-
+	upp = TAILQ_FIRST(&uh->head);
+	/*
+	 * Freeing in the ideal split case
+	 */
+	if (item + 1 == uh->first && upp == NULL) {
+		uh->last++;
+		uh->first--;
 		uh->busy--;
-		check_unrhdr(uh, __LINE__);
-
-		/* Our ul marker element may have shifted one later */
-		if (ul->len + xl <= l) {
-			xl += ul->len;
-			ul = TAILQ_NEXT(ul, list);
-		}
-		KASSERT(ul != NULL, ("UNR lost bitmap pointer"));
-
-		/* Count unrs entirely inside potential bitmap */
-		n = 0;
-		pl = xl;
-		item = l + NBITS;
-		for (up = ul;
-		     up != NULL && pl + up->len <= item;
-		     up = TAILQ_NEXT(up, list)) {
-			if (pl >= l)
-				n++;
-			pl += up->len;
-		}
-
-		/* If less than three, a bitmap does not pay off */
-		if (n < 3)
-			return;
-
-		/* Allocate bitmap */
-		upp = new_unr(uh);
-		upp->ptr = new_unr(uh);
-
-		/* Insert bitmap after ul element */
-		TAILQ_INSERT_AFTER(&uh->head, ul, upp, list);
-
-		/* Slice off the tail from the ul element */
-		pl = ul->len - (l - xl);
-		if (ul->ptr != NULL) {
-			bit_nset(upp->ptr, 0, pl - 1);
-			upp->len = pl;
-		}
-		ul->len -= pl;
-
-		/* Ditch ul if it got reduced to zero size */
-		if (ul->len == 0) {
-			TAILQ_REMOVE(&uh->head, ul, list);
-			delete_unr(uh, ul);
-		}
-
-		/* Soak up run length unrs until we have absorbed NBITS */
-		while (pl != NBITS) {
-
-			/* Grab first one in line */
-			upn = TAILQ_NEXT(upp, list);
-
-			/* We may not have a multiple of NBITS totally */
-			if (upn == NULL)
-				break;
-
-			/* Run may extend past our new bitmap */
-			n = NBITS - pl;
-			if (n > upn->len)
-				n = upn->len;
-
-			if (upn->ptr != NULL) {
-				bit_nset(upp->ptr, pl, pl + n - 1);
-				upp->len += n;
-			}
-			pl += n;
-
-			if (n != upn->len) {
-				/* We did not absorb the entire run */
-				upn->len -= n;
-				break;
-			} 
-			TAILQ_REMOVE(&uh->head, upn, list);
-			delete_unr(uh, upn);
-		}
 		check_unrhdr(uh, __LINE__);
 		return;
 	}
-	KASSERT(0 != 1, ("UNR: Fell off the end in free_unr()"));
+	/*
+ 	 * Freeing in the ->first section.  Create a run starting at the
+	 * freed item.  The code below will subdivide it.
+	 */
+	if (item < uh->first) {
+		up = new_unr(uh, p1, p2);
+		up->ptr = uh;
+		up->len = uh->first - item;
+		TAILQ_INSERT_HEAD(&uh->head, up, list);
+		uh->first -= up->len;
+	}
+
+	item -= uh->first;
+
+	/* Find the item which contains the unit we want to free */
+	TAILQ_FOREACH(up, &uh->head, list) {
+		if (up->len > item)
+			break;
+		item -= up->len;
+	}
+
+	/* Handle bitmap items */
+	if (is_bitmap(uh, up)) {
+		ub = up->ptr;
+		
+		KASSERT(bit_test(ub->map, item) != 0,
+		    ("UNR: Freeing free item %d (bitmap)\n", item));
+		bit_clear(ub->map, item);
+		uh->busy--;
+		ub->busy--;
+		collapse_unr(uh, up);
+		return;
+	}
+
+	KASSERT(up->ptr == uh, ("UNR Freeing free item %d (run))\n", item));
+
+	/* Just this one left, reap it */
+	if (up->len == 1) {
+		up->ptr = NULL;
+		uh->busy--;
+		collapse_unr(uh, up);
+		return;
+	}
+
+	/* Check if we can shift the item into the previous 'free' run */
+	upp = TAILQ_PREV(up, unrhd, list);
+	if (item == 0 && upp != NULL && upp->ptr == NULL) {
+		upp->len++;
+		up->len--;
+		uh->busy--;
+		collapse_unr(uh, up);
+		return;
+	}
+
+	/* Check if we can shift the item to the next 'free' run */
+	upn = TAILQ_NEXT(up, list);
+	if (item == up->len - 1 && upn != NULL && upn->ptr == NULL) {
+		upn->len++;
+		up->len--;
+		uh->busy--;
+		collapse_unr(uh, up);
+		return;
+	}
+
+	/* Split off the tail end, if any. */
+	pl = up->len - (1 + item);
+	if (pl > 0) {
+		upp = new_unr(uh, p1, p2);
+		upp->ptr = uh;
+		upp->len = pl;
+		TAILQ_INSERT_AFTER(&uh->head, up, upp, list);
+	}
+
+	/* Split off head end, if any */
+	if (item > 0) {
+		upp = new_unr(uh, p1, p2);
+		upp->len = item;
+		upp->ptr = uh;
+		TAILQ_INSERT_BEFORE(up, upp, list);
+	}
+	up->len = 1;
+	up->ptr = NULL;
+	uh->busy--;
+	collapse_unr(uh, up);
 }
 
-#ifndef _KERNEL	/* USERLAND test driver */
+void
+free_unr(struct unrhdr *uh, u_int item)
+{
+	void *p1, *p2;
+
+	p1 = Malloc(sizeof(struct unr));
+	p2 = Malloc(sizeof(struct unr));
+	mtx_lock(uh->mtx);
+	free_unrl(uh, item, &p1, &p2);
+	mtx_unlock(uh->mtx);
+	if (p1 != NULL)
+		Free(p1);
+	if (p2 != NULL)
+		Free(p2);
+}
 
 /*
  * Simple stochastic test driver for the above functions
@@ -536,6 +738,7 @@ static void
 print_unr(struct unrhdr *uh, struct unr *up)
 {
 	u_int x;
+	struct unrb *ub;
 
 	printf("  %p len = %5u ", up, up->len);
 	if (up->ptr == NULL)
@@ -543,12 +746,13 @@ print_unr(struct unrhdr *uh, struct unr *up)
 	else if (up->ptr == uh)
 		printf("alloc\n");
 	else {
-		printf(" [");
-		for (x = 0; x < NBITS; x++) {
-			if (bit_test((bitstr_t *)up->ptr, x))
-				putchar('#');
+		ub = up->ptr;
+		printf("bitmap(%d) [", ub->busy);
+		for (x = 0; x < up->len; x++) {
+			if (bit_test(ub->map, x))
+				printf("#");
 			else 
-				putchar(' ');
+				printf(" ");
 		}
 		printf("]\n");
 	}
@@ -560,9 +764,10 @@ print_unrhdr(struct unrhdr *uh)
 	struct unr *up;
 	u_int x;
 
-	printf("%p low = %u high = %u busy %u\n",
-	    uh, uh->low, uh->high, uh->busy);
-	x = uh->low;
+	printf(
+	    "%p low = %u high = %u first = %u last = %u busy %u chunks = %u\n",
+	    uh, uh->low, uh->high, uh->first, uh->last, uh->busy, uh->alloc);
+	x = uh->low + uh->first;
 	TAILQ_FOREACH(up, &uh->head, list) {
 		printf("  from = %5u", x);
 		print_unr(uh, up);
@@ -573,6 +778,8 @@ print_unrhdr(struct unrhdr *uh)
 	}
 }
 
+#ifndef _KERNEL	/* USERLAND test driver */
+
 /* Number of unrs to test */
 #define NN	10000
 
@@ -580,34 +787,51 @@ int
 main(int argc __unused, const char **argv __unused)
 {
 	struct unrhdr *uh;
-	int i, x, m;
+	u_int i, x, m, j;
 	char a[NN];
 
+	setbuf(stdout, NULL);
 	uh = new_unrhdr(0, NN - 1, NULL);
+	print_unrhdr(uh);
 
 	memset(a, 0, sizeof a);
 
 	fprintf(stderr, "sizeof(struct unr) %d\n", sizeof (struct unr));
+	fprintf(stderr, "sizeof(struct unrb) %d\n", sizeof (struct unrb));
 	fprintf(stderr, "sizeof(struct unrhdr) %d\n", sizeof (struct unrhdr));
+	fprintf(stderr, "NBITS %d\n", NBITS);
 	x = 1;
-	for (m = 0; m < NN; m++) {
-		i = random() % NN;
+	for (m = 0; m < NN * 100; m++) {
+		j = random();
+		i = (j >> 1) % NN;
+#if 0
+		if (a[i] && (j & 1))
+			continue;
+#endif
 		if (a[i]) {
 			printf("F %u\n", i);
 			free_unr(uh, i);
 			a[i] = 0;
 		} else {
+			no_alloc = 1;
 			i = alloc_unr(uh);
-			a[i] = 1;
-			printf("A %u\n", i);
+			if (i != -1) {
+				a[i] = 1;
+				printf("A %u\n", i);
+			}
+			no_alloc = 0;
 		}
 		if (1)	/* XXX: change this for detailed debug printout */
 			print_unrhdr(uh);
 		check_unrhdr(uh, __LINE__);
 	}
-	for (i = 0; i < NN; i++)
-		if (a[i])
+	for (i = 0; i < NN; i++) {
+		if (a[i]) {
+			printf("C %u\n", i);
 			free_unr(uh, i);
+			print_unrhdr(uh);
+		}
+	}
 	print_unrhdr(uh);
 	delete_unrhdr(uh);
 	return (0);
