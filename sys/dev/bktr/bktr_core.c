@@ -526,6 +526,9 @@ common_bktr_attach( bktr_ptr_t bktr, int unit, u_long pci_id, u_int rev )
 	}
 #endif	/* FreeBSD or BSDi */
 
+#ifdef USE_VBIMUTEX
+	mtx_init(&bktr->vbimutex, "bktr vbi lock", NULL, MTX_DEF);
+#endif
 
 /* If this is a module, save the current contiguous memory */
 #if defined(BKTR_FREEBSD_MODULE)
@@ -807,6 +810,7 @@ common_bktr_intr( void *arg )
 	 * both Odd and Even VBI data is captured. Therefore we do this
 	 * in the Even field interrupt handler.
 	 */
+	LOCK_VBI(bktr);
 	if (  (bktr->vbiflags & VBI_CAPTURE)
 	    &&(bktr->vbiflags & VBI_OPEN)
             &&(field==EVEN_F)) {
@@ -826,6 +830,7 @@ common_bktr_intr( void *arg )
 
 
 	}
+	UNLOCK_VBI(bktr);
 
 	/*
 	 *  Register the completed field
@@ -1066,8 +1071,13 @@ video_open( bktr_ptr_t bktr )
 int
 vbi_open( bktr_ptr_t bktr )
 {
-	if (bktr->vbiflags & VBI_OPEN)		/* device is busy */
+
+	LOCK_VBI(bktr);
+
+	if (bktr->vbiflags & VBI_OPEN) {	/* device is busy */
+		UNLOCK_VBI(bktr);
 		return( EBUSY );
+	}
 
 	bktr->vbiflags |= VBI_OPEN;
 
@@ -1080,6 +1090,8 @@ vbi_open( bktr_ptr_t bktr )
 
 	bzero((caddr_t) bktr->vbibuffer, VBI_BUFFER_SIZE);
 	bzero((caddr_t) bktr->vbidata,  VBI_DATA_SIZE);
+
+	UNLOCK_VBI(bktr);
 
 	return( 0 );
 }
@@ -1166,7 +1178,11 @@ int
 vbi_close( bktr_ptr_t bktr )
 {
 
+	LOCK_VBI(bktr);
+
 	bktr->vbiflags &= ~VBI_OPEN;
+
+	UNLOCK_VBI(bktr);
 
 	return( 0 );
 }
@@ -1232,19 +1248,32 @@ video_read(bktr_ptr_t bktr, int unit, dev_t dev, struct uio *uio)
 int
 vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 {
-	int             readsize, readsize2;
+	int             readsize, readsize2, start;
 	int             status;
 
+	/*
+	 * XXX - vbi_read() should be protected against being re-entered
+	 * while it is unlocked for the uiomove.
+	 */
+	LOCK_VBI(bktr);
 
 	while(bktr->vbisize == 0) {
 		if (ioflag & IO_NDELAY) {
-			return EWOULDBLOCK;
+			status = EWOULDBLOCK;
+			goto out;
 		}
 
 		bktr->vbi_read_blocked = TRUE;
-		if ((status = tsleep(VBI_SLEEP, VBIPRI, "vbi", 0))) {
-			return status;
+#ifdef USE_VBIMUTEX
+		if ((status = msleep(VBI_SLEEP, &bktr->vbimutex, VBIPRI, "vbi",
+		    0))) {
+			goto out;
 		}
+#else
+		if ((status = tsleep(VBI_SLEEP, VBIPRI, "vbi", 0))) {
+			goto out;
+		}
+#endif
 	}
 
 	/* Now we have some data to give to the user */
@@ -1262,12 +1291,18 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 		/* We need to wrap around */
 
 		readsize2 = VBI_BUFFER_SIZE - bktr->vbistart;
-               	status = uiomove((caddr_t)bktr->vbibuffer + bktr->vbistart, readsize2, uio);
-		status += uiomove((caddr_t)bktr->vbibuffer, (readsize - readsize2), uio);
+		start =  bktr->vbistart;
+		UNLOCK_VBI(bktr);
+               	status = uiomove((caddr_t)bktr->vbibuffer + start, readsize2, uio);
+		if (status == 0)
+			status = uiomove((caddr_t)bktr->vbibuffer, (readsize - readsize2), uio);
 	} else {
+		UNLOCK_VBI(bktr);
 		/* We do not need to wrap around */
 		status = uiomove((caddr_t)bktr->vbibuffer + bktr->vbistart, readsize, uio);
 	}
+
+	LOCK_VBI(bktr);
 
 	/* Update the number of bytes left to read */
 	bktr->vbisize -= readsize;
@@ -1275,6 +1310,9 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 	/* Update vbistart */
 	bktr->vbistart += readsize;
 	bktr->vbistart = bktr->vbistart % VBI_BUFFER_SIZE; /* wrap around if needed */
+
+out:
+	UNLOCK_VBI(bktr);
 
 	return( status );
 
