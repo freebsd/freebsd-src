@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_conf.c,v 1.38 1999/05/12 11:06:45 phk Exp $
+ * $Id: kern_conf.c,v 1.39 1999/05/12 13:06:34 phk Exp $
  */
 
 #include <sys/param.h>
@@ -182,7 +182,7 @@ major(dev_t x)
 	uintptr_t i = (uintptr_t)x;
 
 #ifdef DEVT_FASCIST
-	return(253 - ((i >> 8) & 0xff));
+	return(255 - ((i >> 8) & 0xff));
 #else
 	return((i >> 8) & 0xff);
 #endif
@@ -200,7 +200,7 @@ dev_t
 makedev(int x, int y)
 {
 #ifdef DEVT_FASCIST
-        return ((dev_t) (((253 - x) << 8) | y));
+        return ((dev_t) (((255 - x) << 8) | y));
 #else
         return ((dev_t) ((x << 8) | y));
 #endif
