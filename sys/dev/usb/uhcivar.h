@@ -85,7 +85,11 @@ struct uhci_xfer {
 	uhci_intr_info_t iinfo;
 	struct usb_task	abort_task;
 	int curframe;
+	u_int32_t uhci_xfer_flags;
 };
+
+#define UHCI_XFER_ABORTING	0x0001	/* xfer is aborting. */
+#define UHCI_XFER_ABORTWAIT	0x0002	/* abort completion is being awaited. */
 
 #define UXFER(xfer) ((struct uhci_xfer *)(xfer))
 

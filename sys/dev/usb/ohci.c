@@ -998,6 +998,7 @@ ohci_allocx(struct usbd_bus *bus)
 		memset(xfer, 0, sizeof (struct ohci_xfer));
 		usb_init_task(&OXFER(xfer)->abort_task, ohci_timeout_task,
 		    xfer);
+		OXFER(xfer)->ohci_xfer_flags = 0;
 #ifdef DIAGNOSTIC
 		xfer->busy_free = XFER_BUSY;
 #endif
@@ -2254,6 +2255,7 @@ ohci_close_pipe(usbd_pipe_handle pipe, ohci_soft_ed_t *head)
 void
 ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 {
+	struct ohci_xfer *oxfer = OXFER(xfer);
 	struct ohci_pipe *opipe = (struct ohci_pipe *)xfer->pipe;
 	ohci_softc_t *sc = (ohci_softc_t *)opipe->pipe.device->bus;
 	ohci_soft_ed_t *sed = opipe->sed;
@@ -2277,9 +2279,28 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 		panic("ohci_abort_xfer: not in process context");
 
 	/*
+	 * If an abort is already in progress then just wait for it to
+	 * complete and return.
+	 */
+	if (oxfer->ohci_xfer_flags & OHCI_XFER_ABORTING) {
+		DPRINTFN(2, ("ohci_abort_xfer: already aborting\n"));
+		/* No need to wait if we're aborting from a timeout. */
+		if (status == USBD_TIMEOUT)
+			return;
+		/* Override the status which might be USBD_TIMEOUT. */
+		xfer->status = status;
+		DPRINTFN(2, ("ohci_abort_xfer: waiting for abort to finish\n"));
+		oxfer->ohci_xfer_flags |= OHCI_XFER_ABORTWAIT;
+		while (oxfer->ohci_xfer_flags & OHCI_XFER_ABORTING)
+			tsleep(&oxfer->ohci_xfer_flags, PZERO, "ohciaw", 0);
+		return;
+	}
+
+	/*
 	 * Step 1: Make interrupt routine and hardware ignore xfer.
 	 */
 	s = splusb();
+	oxfer->ohci_xfer_flags |= OHCI_XFER_ABORTING;
 	xfer->status = status;	/* make software ignore it */
 	usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 	usb_rem_task(xfer->pipe->device, &OXFER(xfer)->abort_task);
@@ -2314,6 +2335,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	p = xfer->hcpriv;
 #ifdef DIAGNOSTIC
 	if (p == NULL) {
+		oxfer->ohci_xfer_flags &= ~OHCI_XFER_ABORTING; /* XXX */
 		splx(s);
 		printf("ohci_abort_xfer: hcpriv is NULL\n");
 		return;
@@ -2350,6 +2372,12 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	/*
 	 * Step 5: Execute callback.
 	 */
+	/* Do the wakeup first to avoid touching the xfer after the callback. */
+	oxfer->ohci_xfer_flags &= ~OHCI_XFER_ABORTING;
+	if (oxfer->ohci_xfer_flags & OHCI_XFER_ABORTWAIT) {
+		oxfer->ohci_xfer_flags &= ~OHCI_XFER_ABORTWAIT;
+		wakeup(&oxfer->ohci_xfer_flags);
+	}
 	usb_transfer_complete(xfer);
 
 	splx(s);
