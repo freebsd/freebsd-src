@@ -612,7 +612,16 @@ cv_timedwait_end(void *arg)
 	mtx_lock_spin(&sched_lock);
 	if (td->td_flags & TDF_TIMEOUT) {
 		td->td_flags &= ~TDF_TIMEOUT;
-		setrunqueue(td);
+		if (td->td_proc->p_sflag & PS_INMEM) {
+			setrunqueue(td);
+			maybe_resched(td);
+		} else {
+			td->td_state = TDS_SWAPPED;
+			if ((td->td_proc->p_sflag & PS_SWAPPINGIN) == 0) {
+				td->td_proc->p_sflag |= PS_SWAPINREQ;
+				wakeup(&proc0);
+			}
+		}
 	} else if (td->td_wchan != NULL) {
 		if (td->td_state == TDS_SLP)	/* XXXKSE */
 			setrunnable(td);

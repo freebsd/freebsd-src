@@ -621,12 +621,21 @@ endtsleep(arg)
 	mtx_lock_spin(&sched_lock);
 	/*
 	 * This is the other half of the synchronization with msleep()
-	 * described above.  If the PS_TIMEOUT flag is set, we lost the
+	 * described above.  If the TDS_TIMEOUT flag is set, we lost the
 	 * race and just need to put the process back on the runqueue.
 	 */
 	if ((td->td_flags & TDF_TIMEOUT) != 0) {
 		td->td_flags &= ~TDF_TIMEOUT;
-		setrunqueue(td);
+		if (td->td_proc->p_sflag & PS_INMEM) {
+			setrunqueue(td);
+			maybe_resched(td);
+		} else {
+			td->td_state = TDS_SWAPPED;
+			if ((td->td_proc->p_sflag & PS_SWAPPINGIN) == 0) {
+				td->td_proc->p_sflag |= PS_SWAPINREQ;
+				wakeup(&proc0);
+			}
+		}
 	} else if (td->td_wchan != NULL) {
 		if (td->td_state == TDS_SLP)  /* XXXKSE */
 			setrunnable(td);
