@@ -2461,7 +2461,7 @@ pmap_remove_pages(pmap, sva, eva)
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 		pte = vtopte(pv->pv_va);
 #else
-		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte(pmap, pv->pv_va);
 #endif
 		tpte = *pte;
 
@@ -2487,7 +2487,7 @@ pmap_remove_pages(pmap, sva, eva)
 		KASSERT(m < &vm_page_array[vm_page_array_size],
 			("pmap_remove_pages: bad tpte %#jx", (uintmax_t)tpte));
 
-		pv->pv_pmap->pm_stats.resident_count--;
+		pmap->pm_stats.resident_count--;
 
 		pte_clear(pte);
 
@@ -2499,15 +2499,14 @@ pmap_remove_pages(pmap, sva, eva)
 		}
 
 		npv = TAILQ_NEXT(pv, pv_plist);
-		TAILQ_REMOVE(&pv->pv_pmap->pm_pvlist, pv, pv_plist);
+		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 
 		m->md.pv_list_count--;
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-		if (TAILQ_FIRST(&m->md.pv_list) == NULL) {
+		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_WRITEABLE);
-		}
 
-		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
+		pmap_unuse_pt(pmap, pv->pv_va, pv->pv_ptem);
 		free_pv_entry(pv);
 	}
 	pmap_invalidate_all(pmap);
@@ -2525,9 +2524,11 @@ pmap_is_modified(vm_page_t m)
 {
 	pv_entry_t pv;
 	pt_entry_t *pte;
+	boolean_t rv;
 
+	rv = FALSE;
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS))
-		return FALSE;
+		return (rv);
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
@@ -2546,13 +2547,12 @@ pmap_is_modified(vm_page_t m)
 #endif
 		PMAP_LOCK(pv->pv_pmap);
 		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
-		if (*pte & PG_M) {
-			PMAP_UNLOCK(pv->pv_pmap);
-			return TRUE;
-		}
+		rv = (*pte & PG_M) != 0;
 		PMAP_UNLOCK(pv->pv_pmap);
+		if (rv)
+			break;
 	}
-	return (FALSE);
+	return (rv);
 }
 
 /*
