@@ -787,7 +787,6 @@ doit(who)
 #else
 	for (;;) {
 		char *lp;
-		extern char *line, *getpty();
 
 		if ((lp = getpty()) == NULL)
 			fatal(net, "Out of ptys");
