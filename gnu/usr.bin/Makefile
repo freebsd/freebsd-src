@@ -20,7 +20,6 @@ SUBDIR= bc \
 	sdiff \
 	send-pr \
 	sort \
-	tar \
 	texinfo
  
 .if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
