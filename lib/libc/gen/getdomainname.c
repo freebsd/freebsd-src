@@ -36,7 +36,7 @@
 static char sccsid[] = "From: @(#)gethostname.c	8.1 (Berkeley) 6/4/93";
 */
 static const char rcsid[] =
-  "$Id: getdomainname.c,v 1.1 1994/08/08 00:40:23 wollman Exp $";
+  "$Id: getdomainname.c,v 1.2 1996/07/12 19:55:19 wollman Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -53,7 +53,7 @@ getdomainname(name, namelen)
 	size_t size;
 
 	mib[0] = CTL_KERN;
-	mib[1] = KERN_DOMAINNAME;
+	mib[1] = KERN_NISDOMAINNAME;
 	size = namelen;
 	if (sysctl(mib, 2, name, &size, NULL, 0) == -1)
 		return (-1);
