@@ -9,10 +9,10 @@ CFLAGS+=	-DIPSEC -DINET6
 SRCS=		authenc.c commands.c main.c network.c ring.c sys_bsd.c \
 		telnet.c terminal.c tn3270.c utilities.c
 
-DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMP}
-DPADD+=		${LIBIPSEC}
-LDADD=		-ltermcap ${LIBTELNET} -lcrypto -lcrypt -lmp
-LDADD+=		-lipsec -lpam
+DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMP} \
+		${LIBIPSEC} ${LIBPAM}
+LDADD=		-ltermcap ${LIBTELNET} -lcrypto -lcrypt -lmp \
+		-lipsec ${MINUSLPAM}
 
 .include <bsd.prog.mk>
 
