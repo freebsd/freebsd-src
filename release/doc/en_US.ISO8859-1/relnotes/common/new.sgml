@@ -90,7 +90,7 @@
 
     <para arch="i386">The &os; boot loader now supports a
     <option>-p</option> flag to force the kernel will pause after each
-    line of output during the probing phase.</para>
+    line of output during the probing phase. &merged;</para>
 
     <para>Support for USB devices was added to the
     <filename>GENERIC</filename> kernel and to the installation
@@ -455,7 +455,7 @@
       support the Broadcom BCM570x family of Gigabit Ethernet
       controllers, including the 3Com 3c996-T, the SysKonnect SK-9D21
       and SK-9D41, and the built-in Gigabit Ethernet NICs on Dell
-      PowerEdge 2550 servers.  TCP/IP checksum offload, jumbo frames
+      PowerEdge 2550 servers.  Output TCP/IP checksum offload, jumbo frames
       and VLAN tag insertion/stripping are supported, as well as
       interrupt moderation. &merged;</para>
 
@@ -842,7 +842,8 @@
       <para arch="i386">The ncv, nsp, and stg drivers have
       been ported from NetBSD/pc98.  They support the NCR 53C50 /
       Workbit Ninja SCSI-3 / TMC 18C30, 18C50 based PC-Card/ISA SCSI
-      controllers. &merged;</para>
+      controllers.  All three drivers can be built and loaded as
+      modules. &merged;</para>
 
       <para>Some problems in &man.sa.4; error handling have been
       fixed, including the <quote>tape drive spinning indefinitely
@@ -923,10 +924,8 @@
       <para>The directory layout preference algorithm for FFS has been
       changed to improve its speed on large filesystems. &merged;</para>
 
-      <para arch="i386">smbfs (CIFS) support in kernel has been added.
-      The corresponding userland filesystem mount utility can be found 
-      in the <port>net/smbfs</port> port in the &os; Ports 
-      Collection. &merged;</para>
+      <para arch="i386">smbfs (CIFS) support in kernel has been
+      added. &merged;</para>
 
       <para>For consistency, the fdesc, fifo, null, msdos, portal,
       umap, and union filesystems have been renamed to fdescfs,
@@ -2353,6 +2352,9 @@
       5.6.0.</para>
 
       <para>&man.routed.8; has been updated to version 2.22. &merged;</para>
+
+      <para>Version 1.4.1 of the <application>smbfs</application>
+      userland utilities have been imported.</para>
 
       <para><application>tcpdump</application> has been updated to
       3.6.3. &merged;</para>
