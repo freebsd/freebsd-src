@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: dumpcis.c,v 1.9 1997/11/18 21:08:06 nate Exp $";
+	"$Id: dumpcis.c,v 1.10 1999/02/05 16:00:15 kuriyama Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -43,7 +43,7 @@ static const char rcsid[] =
 
 int     nocards;
 
-void
+static void
 scan(slot)
 	int     slot;
 {
@@ -57,7 +57,8 @@ scan(slot)
 	if (fd < 0)
 		return;
 	nocards++;
-	ioctl(fd, PIOCGSTATE, &st);
+	if (ioctl(fd, PIOCGSTATE, &st))
+		err(1, "ioctl (PIOCGSTATE)");
 	if (st.state == filled) {
 		cp = readcis(fd);
 		if (cp) {
