@@ -1419,9 +1419,11 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 		instance = find_instance(curthread->td_sleeplocks, lock);
 	else if ((lock->lo_class->lc_flags & LC_SPINLOCK) != 0)
 		instance = find_instance(PCPU_GET(spinlocks), lock);
-	else
+	else {
 		panic("Lock (%s) %s is not sleep or spin!",
 		    lock->lo_class->lc_name, lock->lo_name);
+		return;
+	}
 	switch (flags) {
 	case LA_UNLOCKED:
 		if (instance != NULL)
@@ -1437,9 +1439,11 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 	case LA_XLOCKED:
 	case LA_XLOCKED | LA_RECURSED:
 	case LA_XLOCKED | LA_NOTRECURSED:
-		if (instance == NULL)
+		if (instance == NULL) {
 			panic("Lock (%s) %s not locked @ %s:%d.",
 			    lock->lo_class->lc_name, lock->lo_name, file, line);
+			break;
+		}
 		if ((flags & LA_XLOCKED) != 0 &&
 		    (instance->li_flags & LI_EXCLUSIVE) == 0)
 			panic("Lock (%s) %s not exclusively locked @ %s:%d.",
