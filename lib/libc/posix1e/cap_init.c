@@ -45,8 +45,7 @@ cap_init(void)
 		errno = ENOMEM;
 		return (NULL);
 	}
-
-	bzero(cap, sizeof(struct cap));
+	cap_clear(cap);
 
 	return (cap);
 }

@@ -32,6 +32,8 @@
 #include <sys/types.h>
 #include <sys/capability.h>
 
+#include <string.h>
+
 int
 cap_clear(cap_t cap_p)
 {
