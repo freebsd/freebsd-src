@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.4 1995/02/16 15:19:00 bde Exp $
+ *	$Id: subr_diskslice.c,v 1.5 1995/02/18 22:10:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -85,13 +85,38 @@ adjust_label(lp, offset)
 	struct disklabel *lp;
 	u_long	offset;
 {
+	u_long	end;
 	int	part;
 	struct partition *pp;
+	u_long	start;
 
-	pp = &lp->d_partitions[0];
-	for (part = 0; part < lp->d_npartitions; part++, pp++)
-		if (pp->p_offset != 0 || pp->p_size != 0)
-			pp->p_offset += offset;
+	if (lp->d_magic != DISKMAGIC || lp->d_magic2 != DISKMAGIC
+	    || dkcksum(lp) != 0) {
+		printf("adjust_label failed: bad magic or checksum\n");
+		return;
+	}
+	pp = &lp->d_partitions[RAW_PART];
+	start = pp->p_offset;
+	end = start + pp->p_size;
+	if (start > end || start + offset > end + offset) {
+		printf(
+		"adjust_label failed: invalid raw partition or offset\n");
+		return;
+	}
+	pp -= RAW_PART;
+	for (part = 0; part < lp->d_npartitions; part++, pp++) {
+		if (pp->p_offset != 0 || pp->p_size != 0) {
+			/* XXX silently discard junk. */
+			if (pp->p_offset < start
+			    || pp->p_offset + pp->p_size > end
+			    || pp->p_offset + pp->p_size < pp->p_offset)
+				bzero(pp, sizeof *pp);
+			else
+				pp->p_offset += offset;
+		}
+ 	}
+ 	lp->d_checksum = 0;
+ 	lp->d_checksum = dkcksum(lp);
 }
 
 /*
@@ -460,25 +485,32 @@ dsopen(dname, dev, mode, sspp, lp, strat, setgeom)
 	 * XXX reinitialize the slice table unless there is an open device
 	 * on the unit.  This should only be done if the media has changed.
 	 */
-	need_init = !dsisopen(*sspp);
-	if (*sspp != NULL && need_init)
+	ssp = *sspp;
+	need_init = !dsisopen(ssp);
+	if (ssp != NULL && need_init)
 		dsgone(sspp);
 	if (need_init) {
 		printf("dsinit\n");
 		error = dsinit(dname, dev, strat, lp, sspp);
-		if (error != 0)
+		if (error != 0) {
+			dsgone(sspp);
 			return (error);
+		}
 		lp->d_npartitions = RAW_PART + 1;
 		lp->d_partitions[RAW_PART].p_size = lp->d_secperunit;
+		ssp = *sspp;
+		if (ssp->dss_nslices == BASE_SLICE)
+			ssp->dss_slices[COMPATIBILITY_SLICE].ds_size
+				= lp->d_secperunit;
 		if (setgeom != NULL) {
 			error = setgeom(lp);
-			if (error != 0)
-				/* XXX clean up? */
+			if (error != 0) {
+				dsgone(sspp);
 				return (error);
+			}
 		}
 	}
 
-	ssp = *sspp;
 	slice = dkslice(dev);
 	if (slice >= ssp->dss_nslices)
 		return (ENXIO);
@@ -564,60 +596,56 @@ fixlabel(dname, unit, slice, sp, lp)
 	struct diskslice *sp;
 	struct disklabel *lp;
 {
-	bool_t	adjust;
+	u_long	end;
 	int	part;
 	struct partition *pp;
+	u_long	start;
 	bool_t	warned;
 
-	pp = &lp->d_partitions[LABEL_PART];
-	if (pp->p_offset != 0 && pp->p_offset != sp->ds_offset) {
+	pp = &lp->d_partitions[RAW_PART];
+	if (pp->p_offset != sp->ds_offset) {
 		printf(
-"%s%ds%d: rejecting BSD label: label partition start != 0 and != slice start\n",
+"%s%ds%d: rejecting BSD label: raw partition start != slice start\n",
 		       dname, unit, slice);
 		slice_info(dname, unit, slice, sp);
-		partition_info(dname, unit, slice, LABEL_PART, pp);
+		partition_info(dname, unit, slice, RAW_PART, pp);
 		return ("invalid partition table");
 	}
 	if (pp->p_size != sp->ds_size) {
-		printf("%s%ds%d: label partition size != slice size\n",
+		printf("%s%ds%d: raw partition size != slice size\n",
 		       dname, unit, slice);
 		slice_info(dname, unit, slice, sp);
-		partition_info(dname, unit, slice, LABEL_PART, pp);
+		partition_info(dname, unit, slice, RAW_PART, pp);
 		if (pp->p_size > sp->ds_size) {
-			printf("%s%ds%d: truncating label partition\n",
+			printf("%s%ds%d: truncating raw partition\n",
 			       dname, unit, slice);
 			pp->p_size = sp->ds_size;
 		}
 	}
-	adjust = FALSE;
+	start = sp->ds_offset;
+	end = start + sp->ds_size;
+	pp -= RAW_PART;
 	warned = FALSE;
-	if (pp->p_offset != 0) {
-		printf("%s%ds%d: adjusting offsets in BSD label\n",
-		       dname, unit, slice);
-		slice_info(dname, unit, slice, sp);
-		partition_info(dname, unit, slice, LABEL_PART, pp);
-		adjust = TRUE;
-		warned = TRUE;
-	}
-	pp -= LABEL_PART;
 	for (part = 0; part < lp->d_npartitions; part++, pp++) {
-		if (adjust && (pp->p_offset != 0 || pp->p_size != 0))
-			pp->p_offset -= sp->ds_offset;
-		if (pp->p_offset + pp->p_size > sp->ds_size
-		    || pp->p_offset + pp->p_size < pp->p_offset) {
-			printf(
+		if (pp->p_offset != 0 || pp->p_size != 0) {
+			if (pp->p_offset < start
+			    || pp->p_offset + pp->p_size > end
+			    || pp->p_offset + pp->p_size < pp->p_offset) {
+				printf(
 "%s%ds%d: rejecting partition in BSD label: it isn't entirely within the slice\n",
-			       dname, unit, slice);
-			if (!warned) {
-				slice_info(dname, unit, slice, sp);
-				warned = TRUE;
-			}
-			if (adjust)
-				pp->p_offset += sp->ds_offset;
-			partition_info(dname, unit, slice, part, pp);
-			bzero(pp, sizeof *pp);
+				       dname, unit, slice);
+				if (!warned) {
+					slice_info(dname, unit, slice, sp);
+					warned = TRUE;
+				}
+				partition_info(dname, unit, slice, part, pp);
+				bzero(pp, sizeof *pp);
+			} else
+				pp->p_offset -= sp->ds_offset;
 		}
 	}
+ 	lp->d_checksum = 0;
+ 	lp->d_checksum = dkcksum(lp);
 
 	/* XXX TODO: fix general params in *lp? */
 
