@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.201 1998/05/19 08:58:48 phk Exp $
+ *	$Id: pmap.c,v 1.202 1998/05/21 07:47:34 dyson Exp $
  */
 
 /*
@@ -535,7 +535,10 @@ pmap_setdevram(unsigned long long basea, vm_offset_t sizea)
 		PPro_vmtrr[free].mask = mask;
 		wrmsr(PPRO_VMTRRphysBase0 + free * 2, base);
 		wrmsr(PPRO_VMTRRphysMask0 + free * 2, mask);
-		printf("pmap: added WC mapping at page: 0x%x %x, size: %d mask: 0x%x %x\n", base, sizea, mask);
+		printf(
+	"pmap: added WC mapping at page: 0x%x %x, size: %u mask: 0x%x %x\n",
+		    (u_int)(base >> 32), (u_int)base, sizea,
+		    (u_int)(mask >> 32), (u_int)mask);
 	}
 }
 
@@ -1777,7 +1780,9 @@ pmap_remove_pte(pmap, ptq, va)
 		if (oldpte & PG_M) {
 #if defined(PMAP_DIAGNOSTIC)
 			if (pmap_nw_modified((pt_entry_t) oldpte)) {
-				printf("pmap_remove: modified page not writable: va: 0x%lx, pte: 0x%lx\n", va, (int) oldpte);
+				printf(
+	"pmap_remove: modified page not writable: va: 0x%x, pte: 0x%x\n",
+				    va, oldpte);
 			}
 #endif
 			if (pmap_track_modified(va))
@@ -1977,7 +1982,9 @@ pmap_remove_all(pa)
 		if (tpte & PG_M) {
 #if defined(PMAP_DIAGNOSTIC)
 			if (pmap_nw_modified((pt_entry_t) tpte)) {
-				printf("pmap_remove_all: modified page not writable: va: 0x%lx, pte: 0x%lx\n", pv->pv_va, tpte);
+				printf(
+	"pmap_remove_all: modified page not writable: va: 0x%x, pte: 0x%x\n",
+				    pv->pv_va, tpte);
 			}
 #endif
 			if (pmap_track_modified(pv->pv_va))
@@ -2195,7 +2202,9 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_offset_t pa, vm_prot_t prot,
 
 #if defined(PMAP_DIAGNOSTIC)
 		if (pmap_nw_modified((pt_entry_t) origpte)) {
-			printf("pmap_enter: modified page not writable: va: 0x%lx, pte: 0x%lx\n", va, origpte);
+			printf(
+	"pmap_enter: modified page not writable: va: 0x%x, pte: 0x%x\n",
+			    va, origpte);
 		}
 #endif
 
@@ -3057,7 +3066,7 @@ pmap_testbit(pa, bit)
 
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
-			printf("Null pmap (tb) at va: 0x%lx\n", pv->pv_va);
+			printf("Null pmap (tb) at va: 0x%x\n", pv->pv_va);
 			continue;
 		}
 #endif
@@ -3111,7 +3120,7 @@ pmap_changebit(pa, bit, setem)
 
 #if defined(PMAP_DIAGNOSTIC)
 		if (!pv->pv_pmap) {
-			printf("Null pmap (cb) at va: 0x%lx\n", pv->pv_va);
+			printf("Null pmap (cb) at va: 0x%x\n", pv->pv_va);
 			continue;
 		}
 #endif
@@ -3512,11 +3521,10 @@ pmap_pvdump(pa)
 		pv;
 		pv = TAILQ_NEXT(pv, pv_list)) {
 #ifdef used_to_be
-		printf(" -> pmap %x, va %x, flags %x",
-		    pv->pv_pmap, pv->pv_va, pv->pv_flags);
+		printf(" -> pmap %p, va %x, flags %x",
+		    (void *)pv->pv_pmap, pv->pv_va, pv->pv_flags);
 #endif
-		printf(" -> pmap %x, va %x",
-		    pv->pv_pmap, pv->pv_va);
+		printf(" -> pmap %p, va %x", (void *)pv->pv_pmap, pv->pv_va);
 		pads(pv->pv_pmap);
 	}
 	printf(" ");

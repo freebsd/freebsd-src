@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.91 1998/03/16 01:56:03 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.92 1998/07/04 20:45:42 julian Exp $
  */
 
 /*
@@ -903,8 +903,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 		printf("vnode_pager_putpages: I/O error %d\n", error);
 	}
 	if (auio.uio_resid) {
-		printf("vnode_pager_putpages: residual I/O %d at %ld\n",
-			auio.uio_resid, m[0]->pindex);
+		printf("vnode_pager_putpages: residual I/O %d at %lu\n",
+		    auio.uio_resid, (u_long)m[0]->pindex);
 	}
 	for (i = 0; i < ncount; i++) {
 		rtvals[i] = VM_PAGER_OK;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.64 1998/07/04 20:45:33 julian Exp $
+ * $Id: spec_vnops.c,v 1.65 1998/07/04 22:30:23 julian Exp $
  */
 
 #include <sys/param.h>
@@ -874,11 +874,15 @@ spec_getpages(ap)
 	if (!gotreqpage) {
 		m = ap->a_m[ap->a_reqpage];
 #ifndef MAX_PERF
-		printf("spec_getpages: I/O read failure: (error code=%d)\n", error);
-		printf("               size: %d, resid: %d, a_count: %d, valid: 0x%x\n",
-				size, bp->b_resid, ap->a_count, m->valid);
-		printf("               nread: %d, reqpage: %d, pindex: %d, pcount: %d\n",
-				nread, ap->a_reqpage, m->pindex, pcount);
+		printf(
+	    "spec_getpages: I/O read failure: (error code=%d)\n",
+		    error);
+		printf(
+	    "               size: %d, resid: %ld, a_count: %d, valid: 0x%x\n",
+		    size, bp->b_resid, ap->a_count, m->valid);
+		printf(
+	    "               nread: %d, reqpage: %d, pindex: %lu, pcount: %d\n",
+		    nread, ap->a_reqpage, (u_long)m->pindex, pcount);
 #endif
 		/*
 		 * Free the buffer header back to the swap buffer pool.

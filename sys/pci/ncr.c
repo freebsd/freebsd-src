@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.117 1998/04/17 22:37:04 des Exp $
+**  $Id: ncr.c,v 1.118 1998/06/07 17:12:40 dfr Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1342,7 +1342,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.117 1998/04/17 22:37:04 des Exp $\n";
+	"\n$Id: ncr.c,v 1.118 1998/06/07 17:12:40 dfr Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4114,8 +4114,8 @@ static int32_t ncr_start (struct scsi_xfer * xp)
 
 	if ((unsigned)xp->datalen > 128*1024*1024) {
 		PRINT_ADDR(xp);
-		printf ("trying to transfer %8x bytes, mem addr = %8x\n", 
-			xp->datalen, xp->data);
+		printf ("trying to transfer %8lx bytes, mem addr = %8p\n", 
+			(u_long) xp->datalen, (void *) xp->data);
 		{
 			int j;
 			PRINT_ADDR(xp);
@@ -6052,8 +6052,9 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	    return;
 	}
 	if (cp != np->header.cp) {
-	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08lx != 0x%08lx) np->ccb = 0x%08lx\n", 
-		    ncr_name (np), (u_long) cp, (u_long) np->header.cp, np->ccb);
+	    printf ("%s: SCSI phase error fixup: CCB address mismatch (%p != %p) np->ccb = %p\n", 
+		    ncr_name (np), (void *) cp, (void *) np->header.cp,
+		    (void *) np->ccb);
 /*	    return;*/
 	}
 
@@ -7470,7 +7471,7 @@ ncrgetfreq (ncb_p np, int gen)
 	OUTB (nc_scntl3, 0);
 
 	if (bootverbose >= 2)
-	  	printf ("\tDelay (GEN=%d): %lu msec\n", gen, ms);
+	  	printf ("\tDelay (GEN=%d): %d msec\n", gen, ms);
 	/*
 	 * adjust for prescaler, and convert into KHz 
 	 */
@@ -7498,7 +7499,7 @@ static void ncr_getclock (ncb_p np, u_char multiplier)
 			f2 = ncrgetfreq (np, 11);
 
 			if (bootverbose >= 2)
-			  printf ("\tNCR clock is %luKHz, %luKHz\n", f1, f2);
+			  printf ("\tNCR clock is %uKHz, %uKHz\n", f1, f2);
 			if (f1 > f2) f1 = f2;	/* trust lower result	*/
 			if (f1 > 45000) {
 				scntl3 = 5;	/* >45Mhz: assume 80MHz	*/

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.101 1998/06/07 17:13:13 dfr Exp $
+ *	$Id: vm_page.c,v 1.102 1998/06/21 18:02:48 bde Exp $
  */
 
 /*
@@ -1072,9 +1072,10 @@ vm_page_freechk_and_unqueue(m)
 #if !defined(MAX_PERF)
 	if (m->busy || ((m->queue - m->pc) == PQ_FREE) ||
 		(m->hold_count != 0)) {
-		printf("vm_page_free: pindex(%ld), busy(%d), PG_BUSY(%d), hold(%d)\n",
-			m->pindex, m->busy,
-			(m->flags & PG_BUSY) ? 1 : 0, m->hold_count);
+		printf(
+		"vm_page_free: pindex(%lu), busy(%d), PG_BUSY(%d), hold(%d)\n",
+		    (u_long)m->pindex, m->busy, (m->flags & PG_BUSY) ? 1 : 0,
+		    m->hold_count);
 		if ((m->queue - m->pc) == PQ_FREE)
 			panic("vm_page_free: freeing free page");
 		else

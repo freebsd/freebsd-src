@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.94 1998/06/17 14:13:13 bde Exp $
+ *      $Id: cd.c,v 1.95 1998/07/04 22:30:23 julian Exp $
  */
 
 #include "opt_bounce.h"
@@ -204,9 +204,8 @@ cdattach(struct scsi_link *sc_link)
 		cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK | SCSI_SILENT);
 	}
 	if (dp->disksize) {
-		printf("cd present [%ld x %ld byte records]",
-		    cd->params.disksize,
-		    cd->params.blksize);
+		printf("cd present [%lu x %lu byte records]",
+		    cd->params.disksize, (u_long)cd->params.blksize);
 	} else {
 		printf("can't get the size");
 	}
@@ -260,8 +259,8 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 		return (ENXIO);
 
 	SC_DEBUG(sc_link, SDEV_DB1,
-	    ("cd_open: dev=0x%lx (unit %ld,partition %ld)\n",
-		dev, unit, part));
+	    ("cd_open: dev=0x%lx (unit %lu,partition %lu)\n",
+	    (u_long)dev, (u_long)unit, (u_long)part));
 	/*
 	 * Check that it is still responding and ok.
 	 * if the media has been changed this will result in a
@@ -330,8 +329,8 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	 	 *  Check that the partition CAN exist
 	 	 */
 		if (part >= cd->disklabel.d_npartitions) {
-			SC_DEBUG(sc_link, SDEV_DB3, ("partition %ld > %d\n", part
-				,cd->disklabel.d_npartitions));
+			SC_DEBUG(sc_link, SDEV_DB3, ("partition %lu > %u\n",
+			    (u_long)part, cd->disklabel.d_npartitions));
 			errcode = ENXIO;
 			goto bad;
 		}
@@ -339,8 +338,8 @@ cd_open(dev_t dev, int flags, int fmt, struct proc *p,
 	 	 *  and that it DOES exist
 	 	 */
 		if (cd->disklabel.d_partitions[part].p_fstype == FS_UNUSED) {
-			SC_DEBUG(sc_link, SDEV_DB3,
-					("part %ld type UNUSED\n", part));
+			SC_DEBUG(sc_link, SDEV_DB3, ("part %lu type UNUSED\n",
+			    (u_long)part));
 			errcode = ENXIO;
 			goto bad;
 		}
@@ -505,7 +504,7 @@ cdstart(unit, flags)
 	struct scsi_link *sc_link = SCSI_LINK(&cd_switch, unit);
 	struct scsi_data *cd = sc_link->sd;
 
-	SC_DEBUG(sc_link, SDEV_DB2, ("cdstart%ld ", unit));
+	SC_DEBUG(sc_link, SDEV_DB2, ("cdstart%lu ", (u_long)unit));
 	/*
 	 * See if there is a buf to do and we are not already
 	 * doing one
@@ -572,7 +571,7 @@ cdstart(unit, flags)
 		    SCSI_DATA_IN : SCSI_DATA_OUT))
 	    != SUCCESSFULLY_QUEUED) {
 	      bad:
-		printf("cd%ld: oops not queued\n", unit);
+		printf("cd%lu: oops not queued\n", (u_long)unit);
 		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
@@ -604,7 +603,7 @@ cd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p,
 	unit = CDUNIT(dev);
 	part = PARTITION(dev);
 	cd = sc_link->sd;
-	SC_DEBUG(sc_link, SDEV_DB2, ("cdioctl 0x%x ", cmd));
+	SC_DEBUG(sc_link, SDEV_DB2, ("cdioctl 0x%lx ", cmd));
 
 	/*
 	 * If the device is not valid.. abandon ship
@@ -1178,8 +1177,8 @@ cd_size(unit, flags)
 		blksize = 2048;	/* some drives lie ! */
 	if (size < 100)
 		size = 400000;	/* ditto */
-	SC_DEBUG(sc_link, SDEV_DB3, ("cd%d: %ld %ld byte blocks\n"
-		,unit, size, blksize));
+	SC_DEBUG(sc_link, SDEV_DB3, ("cd%d: %lu %lu byte blocks\n",
+	    unit, (u_long)size, (u_long)blksize));
 	cd->params.disksize = size;
 	cd->params.blksize = blksize;
 	return (size);

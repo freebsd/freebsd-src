@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.128 1998/06/07 17:13:10 dfr Exp $
+ * $Id: vm_map.c,v 1.129 1998/06/21 14:53:43 bde Exp $
  */
 
 /*
@@ -2929,8 +2929,9 @@ DB_SHOW_COMMAND(procvm, procvm)
 		p = curproc;
 	}
 
-	printf("p = 0x%x, vmspace = 0x%x, map = 0x%x, pmap = 0x%x\n",
-		p, p->p_vmspace, &p->p_vmspace->vm_map, &p->p_vmspace->vm_pmap);
+	db_printf("p = %p, vmspace = %p, map = %p, pmap = %p\n",
+	    (void *)p, (void *)p->p_vmspace, (void *)&p->p_vmspace->vm_map,
+	    (void *)&p->p_vmspace->vm_pmap);
 
 	vm_map_print ((long) &p->p_vmspace->vm_map, 1, 0, NULL);
 }
