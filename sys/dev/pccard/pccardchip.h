@@ -54,39 +54,39 @@ typedef int pccard_mem_handle_t;
 
 struct pccard_chip_functions {
 	/* memory space allocation */
-	int	(*mem_alloc) __P((pccard_chipset_handle_t, bus_size_t,
-		    struct pccard_mem_handle *));
-	void	(*mem_free) __P((pccard_chipset_handle_t,
-		    struct pccard_mem_handle *));
+	int	(*mem_alloc)(pccard_chipset_handle_t, bus_size_t,
+		    struct pccard_mem_handle *);
+	void	(*mem_free)(pccard_chipset_handle_t,
+		    struct pccard_mem_handle *);
 
 	/* memory space window mapping */
-	int	(*mem_map) __P((pccard_chipset_handle_t, int, bus_addr_t,
+	int	(*mem_map)(pccard_chipset_handle_t, int, bus_addr_t,
 		    bus_size_t, struct pccard_mem_handle *,
-		    bus_addr_t *, int *));
-	void	(*mem_unmap) __P((pccard_chipset_handle_t, int));
+		    bus_addr_t *, int *);
+	void	(*mem_unmap)(pccard_chipset_handle_t, int);
 
 	/* I/O space allocation */
-	int	(*io_alloc) __P((pccard_chipset_handle_t, bus_addr_t,
-		    bus_size_t, bus_size_t, struct pccard_io_handle *));
-	void	(*io_free) __P((pccard_chipset_handle_t,
-		    struct pccard_io_handle *));
+	int	(*io_alloc) (pccard_chipset_handle_t, bus_addr_t,
+		    bus_size_t, bus_size_t, struct pccard_io_handle *);
+	void	(*io_free) (pccard_chipset_handle_t,
+		    struct pccard_io_handle *);
 
 	/* I/O space window mapping */
-	int	(*io_map) __P((pccard_chipset_handle_t, int, bus_addr_t,
-		    bus_size_t, struct pccard_io_handle *, int *));
-	void	(*io_unmap) __P((pccard_chipset_handle_t, int));
+	int	(*io_map) (pccard_chipset_handle_t, int, bus_addr_t,
+		    bus_size_t, struct pccard_io_handle *, int *);
+	void	(*io_unmap) (pccard_chipset_handle_t, int);
 
 	/* interrupt glue */
-	void	*(*intr_establish) __P((pccard_chipset_handle_t,
-		    struct pccard_function *, int, int (*)(void *), void *));
-	void	(*intr_disestablish) __P((pccard_chipset_handle_t, void *));
+	void	*(*intr_establish) (pccard_chipset_handle_t,
+		    struct pccard_function *, int, int (*)(void *), void *);
+	void	(*intr_disestablish) (pccard_chipset_handle_t, void *);
 
 	/* card enable/disable */
-	void	(*socket_enable) __P((pccard_chipset_handle_t));
-	void	(*socket_disable) __P((pccard_chipset_handle_t));
+	void	(*socket_enable) (pccard_chipset_handle_t);
+	void	(*socket_disable) (pccard_chipset_handle_t);
 
 	/* card detection */
-	int (*card_detect) __P((pccard_chipset_handle_t));  
+	int (*card_detect)(pccard_chipset_handle_t);  
 };
 
 /* Memory space functions. */

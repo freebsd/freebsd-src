@@ -65,16 +65,16 @@ int	pccard_verbose = 1;
 int	pccard_verbose = 0;
 #endif
 
-int	pccard_print __P((void *, const char *));
+int	pccard_print(void *, const char *);
 
-static __inline void pccard_socket_enable __P((pccard_chipset_tag_t,
-					     pccard_chipset_handle_t *));
-static __inline void pccard_socket_disable __P((pccard_chipset_tag_t,
-					      pccard_chipset_handle_t *));
+static __inline void pccard_socket_enable(pccard_chipset_tag_t,
+					     pccard_chipset_handle_t *);
+static __inline void pccard_socket_disable(pccard_chipset_tag_t,
+					      pccard_chipset_handle_t *);
 
-int pccard_card_intr __P((void *));
+int pccard_card_intr(void *);
 #ifdef PCCARDDEBUG
-int pccard_card_intrdebug __P((void *));
+int pccard_card_intrdebug(void *);
 #endif
 
 int
@@ -557,7 +557,7 @@ void *
 pccard_intr_establish(pf, ipl, ih_fct, ih_arg)
 	struct pccard_function *pf;
 	int ipl;
-	int (*ih_fct) __P((void *));
+	int (*ih_fct)(void *);
 	void *ih_arg;
 {
 	void *ret;
