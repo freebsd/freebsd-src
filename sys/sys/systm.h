@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.82 1999/01/10 01:58:27 eivind Exp $
+ * $Id: systm.h,v 1.83 1999/01/15 00:03:39 msmith Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -163,6 +163,7 @@ void	setstatclockrate __P((int hzrate));
 void	hardpps __P((struct timeval *tvp, long usec));
 
 char	*getenv __P((char *name));
+int	getenv_int __P((char *name, int *data));
 extern char *kern_envp;
 
 #ifdef APM_FIXUP_CALLTODO 
