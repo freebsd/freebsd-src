@@ -84,6 +84,8 @@ int	across;			/* mult col flag; write across page */
 int	dspace;			/* double space flag */
 char	inchar;			/* expand input char */
 int	ingap;			/* expand input gap */
+int	pausefst;		/* Pause before first page */
+int	pauseall;		/* Pause before each page */
 int	formfeed;		/* use formfeed as trailer */
 char	*header;		/* header name instead of file name */
 char	ochar;			/* contract output char */
@@ -136,6 +138,28 @@ main(argc, argv)
 	if (errcnt || ret_val)
 		exit(1);
 	return(0);
+}
+
+/*
+ * Check if we should pause and write an alert character and wait for a
+ * carriage return on /dev/tty.
+ */
+void
+ttypause(pagecnt)
+	int pagecnt;
+{
+	int pch;
+	FILE *ttyfp;
+
+	if ((pauseall || (pausefst && pagecnt == 1)) &&
+	    isatty(STDOUT_FILENO)) {
+		if ((ttyfp = fopen("/dev/tty", "r")) != NULL) {
+			(void)putc('\a', stderr);
+			while ((pch = getc(ttyfp)) != '\n' && pch != EOF)
+				;
+			(void)fclose(ttyfp);
+		}
+	}
 }
 
 /*
@@ -221,6 +245,8 @@ onecol(argc, argv)
 			ops = 0;
 			ips = 0;
 			cps = 0;
+
+			ttypause(pagecnt);
 
 			/*
 			 * loop by line
@@ -410,6 +436,8 @@ vertcol(argc, argv)
 		 * loop by page
 		 */
 		for(;;) {
+			ttypause(pagecnt);
+
 			/*
 			 * loop by column
 			 */
@@ -666,6 +694,8 @@ horzcol(argc, argv)
 		 * loop by page
 		 */
 		for(;;) {
+			ttypause(pagecnt);
+
 			/*
 			 * loop by line
 			 */
@@ -856,6 +886,8 @@ mulfile(argc, argv)
 	 * continue to loop while any file still has data
 	 */
 	while (actf > 0) {
+		ttypause(pagecnt);
+
 		/*
 		 * loop by line
 		 */
@@ -1561,7 +1593,8 @@ void
 usage()
 {
 	(void)fputs(
-	 "usage: pr [+page] [-col] [-adFmrt] [-e[ch][gap]] [-h header]\n",err);
+	 "usage: pr [+page] [-col] [-adFfmprt] [-e[ch][gap]] [-h header]\n",
+	 err);
 	(void)fputs(
 	 "          [-i[ch][gap]] [-l line] [-n[ch][width]] [-o offset]\n",err);
 	(void)fputs(
@@ -1596,7 +1629,7 @@ setup(argc, argv)
 		}
 	} else
 		err = stderr;
-	while ((c = egetopt(argc, argv, "#adFmrte?h:i?L:l:n?o:s?w:")) != -1) {
+	while ((c = egetopt(argc, argv, "#adFfmrte?h:i?L:l:n?o:ps?w:")) != -1) {
 		switch (c) {
 		case '+':
 			if ((pgnm = atoi(eoptarg)) < 1) {
@@ -1640,6 +1673,9 @@ setup(argc, argv)
 			} else
 				ingap = INGAP;
 			break;
+		case 'f':
+			++pausefst;
+			/*FALLTHROUGH*/
 		case 'F':
 			++formfeed;
 			break;
@@ -1704,6 +1740,9 @@ setup(argc, argv)
 					err);
 				return(1);
 			}
+			break;
+		case 'p':
+			++pauseall;
 			break;
 		case 'r':
 			++nodiag;
