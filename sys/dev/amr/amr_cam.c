@@ -506,7 +506,6 @@ amr_cam_poll(struct cam_sim *sim)
 static void
 amr_cam_complete(struct amr_command *ac)
 {
-    struct amr_softc		*sc = ac->ac_sc;
     struct amr_passthrough      *ap = (struct amr_passthrough *)ac->ac_data;
     struct ccb_scsiio           *csio = (struct ccb_scsiio *)ac->ac_private;
     struct scsi_inquiry_data    *inq = (struct scsi_inquiry_data *)csio->data_ptr;
@@ -570,7 +569,6 @@ amr_cam_complete(struct amr_command *ac)
 static void
 amr_cam_complete_extcdb(struct amr_command *ac)
 {
-    struct amr_softc		*sc = ac->ac_sc;
     struct amr_ext_passthrough      *aep = (struct amr_ext_passthrough *)ac->ac_data;
     struct ccb_scsiio           *csio = (struct ccb_scsiio *)ac->ac_private;
     struct scsi_inquiry_data    *inq = (struct scsi_inquiry_data *)csio->data_ptr;
