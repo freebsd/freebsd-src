@@ -47,15 +47,6 @@
 #include "debug.h"
 #include "rtld.h"
 
-/*
- * Debugging support.
- */
-
-#define assert(cond)	((cond) ? (void) 0 :\
-    (msg("oops: " __XSTRING(__LINE__) "\n"), abort()))
-#define msg(s)		(write(1, s, strlen(s)))
-#define trace()		msg("trace: " __XSTRING(__LINE__) "\n");
-
 extern Elf_Dyn _DYNAMIC;
 
 /* Relocate a non-PLT object with addend. */

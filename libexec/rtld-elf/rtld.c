@@ -52,20 +52,22 @@
 #include "debug.h"
 #include "rtld.h"
 
-/*
- * Debugging support.
- */
-
-#define assert(cond)	((cond) ? (void) 0 :\
-    (msg("oops: " __XSTRING(__LINE__) "\n"), abort()))
-#define msg(s)		(write(1, s, strlen(s)))
-#define trace()		msg("trace: " __XSTRING(__LINE__) "\n");
-
 #define END_SYM		"_end"
 #define PATH_RTLD	"/usr/libexec/ld-elf.so.1"
 
 /* Types. */
 typedef void (*func_ptr_type)();
+
+typedef struct Struct_LockInfo {
+    void *context;		/* Client context for creating locks */
+    void *thelock;		/* The one big lock */
+    /* Methods */
+    void (*rlock_acquire)(void *lock);
+    void (*wlock_acquire)(void *lock);
+    void (*lock_release)(void *lock);
+    void (*lock_destroy)(void *lock);
+    void (*context_destroy)(void *context);
+} LockInfo;
 
 /*
  * Function declarations.
@@ -88,6 +90,7 @@ static void linkmap_delete(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *);
 static int load_preload_objects(void);
 static Obj_Entry *load_object(char *);
+static void lock_nop(void *);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_add(Objlist *, Obj_Entry *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
@@ -128,6 +131,8 @@ static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
 static Objlist list_main =	/* Objects loaded at program startup */
   STAILQ_HEAD_INITIALIZER(list_main);
 
+static LockInfo lockinfo;
+
 static Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 
 #define GDB_STATE(s)	r_debug.r_state = s; r_debug_state();
@@ -147,6 +152,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
     (func_ptr_type) &dladdr,
+    (func_ptr_type) &dllockinit,
     NULL
 };
 
@@ -156,6 +162,24 @@ static func_ptr_type exports[] = {
  */
 char *__progname;
 char **environ;
+
+static __inline void
+rlock_acquire(void)
+{
+    lockinfo.rlock_acquire(lockinfo.thelock);
+}
+
+static __inline void
+wlock_acquire(void)
+{
+    lockinfo.wlock_acquire(lockinfo.thelock);
+}
+
+static __inline void
+lock_release(void)
+{
+    lockinfo.lock_release(lockinfo.thelock);
+}
 
 /*
  * Main entry point for dynamic linking.  The first argument is the
@@ -322,6 +346,9 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     set_program_var("__progname", argv[0] != NULL ? basename(argv[0]) : "");
     set_program_var("environ", env);
 
+    dbg("initializing default locks");
+    dllockinit(NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
     r_debug_state();		/* say hello to gdb! */
 
     dbg("calling _init functions");
@@ -344,6 +371,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
     Elf_Addr *where;
     Elf_Addr target;
 
+    wlock_acquire();
     if (obj->pltrel)
 	rel = (const Elf_Rel *) ((caddr_t) obj->pltrel + reloff);
     else
@@ -361,6 +389,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
       (void *)target, basename(defobj->path));
 
     reloc_jmpslot(where, target);
+    lock_release();
     return target;
 }
 
@@ -1058,6 +1087,11 @@ load_object(char *path)
     return obj;
 }
 
+static void
+lock_nop(void *lock)
+{
+}
+
 static Obj_Entry *
 obj_from_addr(const void *addr)
 {
@@ -1223,16 +1257,21 @@ search_library_path(const char *name, const char *path)
 int
 dlclose(void *handle)
 {
-    Obj_Entry *root = dlcheck(handle);
+    Obj_Entry *root;
 
-    if (root == NULL)
+    wlock_acquire();
+    root = dlcheck(handle);
+    if (root == NULL) {
+	lock_release();
 	return -1;
+    }
 
     GDB_STATE(RT_DELETE);
     unload_object(root, true);
     root->dl_refcount--;
     GDB_STATE(RT_CONSISTENT);
 
+    lock_release();
     return 0;
 }
 
@@ -1244,14 +1283,67 @@ dlerror(void)
     return msg;
 }
 
+void
+dllockinit(void *context,
+	   void *(*lock_create)(void *context),
+           void (*rlock_acquire)(void *lock),
+           void (*wlock_acquire)(void *lock),
+           void (*lock_release)(void *lock),
+           void (*lock_destroy)(void *lock),
+	   void (*context_destroy)(void *context))
+{
+    /* NULL arguments mean reset to the built-in locks. */
+    if (lock_create == NULL) {
+	context = NULL;
+	lock_create = lockdflt_create;
+	rlock_acquire = wlock_acquire = lockdflt_acquire;
+	lock_release = lockdflt_release;
+	lock_destroy = lockdflt_destroy;
+	context_destroy = NULL;
+    }
+
+    /* Temporarily set locking methods to no-ops. */
+    lockinfo.rlock_acquire = lock_nop;
+    lockinfo.wlock_acquire = lock_nop;
+    lockinfo.lock_release = lock_nop;
+
+    /* Release any existing locks and context. */
+    if (lockinfo.lock_destroy != NULL)
+	lockinfo.lock_destroy(lockinfo.thelock);
+    if (lockinfo.context_destroy != NULL)
+	lockinfo.context_destroy(lockinfo.context);
+
+    /*
+     * Allocate the locks we will need and call all the new locking
+     * methods, to accomplish any needed lazy binding for the methods
+     * themselves.
+     */
+    lockinfo.thelock = lock_create(lockinfo.context);
+    rlock_acquire(lockinfo.thelock);
+    lock_release(lockinfo.thelock);
+    wlock_acquire(lockinfo.thelock);
+    lock_release(lockinfo.thelock);
+
+    /* Record the new method information. */
+    lockinfo.context = context;
+    lockinfo.rlock_acquire = rlock_acquire;
+    lockinfo.wlock_acquire = wlock_acquire;
+    lockinfo.lock_release = lock_release;
+    lockinfo.lock_destroy = lock_destroy;
+    lockinfo.context_destroy = context_destroy;
+}
+
 void *
 dlopen(const char *name, int mode)
 {
-    Obj_Entry **old_obj_tail = obj_tail;
-    Obj_Entry *obj = NULL;
+    Obj_Entry **old_obj_tail;
+    Obj_Entry *obj;
 
+    wlock_acquire();
     GDB_STATE(RT_ADD);
 
+    old_obj_tail = obj_tail;
+    obj = NULL;
     if (name == NULL) {
 	obj = obj_main;
 	obj->refcount++;
@@ -1280,7 +1372,7 @@ dlopen(const char *name, int mode)
     }
 
     GDB_STATE(RT_CONSISTENT);
-
+    lock_release();
     return obj;
 }
 
@@ -1296,12 +1388,14 @@ dlsym(void *handle, const char *name)
     def = NULL;
     defobj = NULL;
 
+    wlock_acquire();
     if (handle == NULL || handle == RTLD_NEXT) {
 	void *retaddr;
 
 	retaddr = __builtin_return_address(0);	/* __GNUC__ only */
 	if ((obj = obj_from_addr(retaddr)) == NULL) {
 	    _rtld_error("Cannot determine caller's shared object");
+	    lock_release();
 	    return NULL;
 	}
 	if (handle == NULL) {	/* Just the caller's shared object. */
@@ -1316,8 +1410,10 @@ dlsym(void *handle, const char *name)
 	    }
 	}
     } else {
-	if ((obj = dlcheck(handle)) == NULL)
+	if ((obj = dlcheck(handle)) == NULL) {
+	    lock_release();
 	    return NULL;
+	}
 
 	if (obj->mainprog) {
 	    /* Search main program and all libraries loaded by it. */
@@ -1333,10 +1429,13 @@ dlsym(void *handle, const char *name)
 	}
     }
 
-    if (def != NULL)
+    if (def != NULL) {
+	lock_release();
 	return defobj->relocbase + def->st_value;
+    }
 
     _rtld_error("Undefined symbol \"%s\"", name);
+    lock_release();
     return NULL;
 }
 
@@ -1348,9 +1447,11 @@ dladdr(const void *addr, Dl_info *info)
     void *symbol_addr;
     unsigned long symoffset;
     
+    wlock_acquire();
     obj = obj_from_addr(addr);
     if (obj == NULL) {
         _rtld_error("No shared object contains address");
+	lock_release();
         return 0;
     }
     info->dli_fname = obj->path;
@@ -1389,6 +1490,7 @@ dladdr(const void *addr, Dl_info *info)
         if (info->dli_saddr == addr)
             break;
     }
+    lock_release();
     return 1;
 }
 

@@ -3,8 +3,8 @@
 #
 MAINTAINER=	jdp
 PROG=		ld-elf.so.1
-SRCS=		rtld_start.S rtld.c map_object.c malloc.c xmalloc.c debug.c \
-		reloc.c
+SRCS=		rtld_start.S rtld.c lockdflt.c map_object.c malloc.c \
+		xmalloc.c debug.c reloc.c
 NOMAN=		true
 CFLAGS+=	-Wall -DFREEBSD_ELF -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}
 LDFLAGS+=	-nostdlib -e .rtld_start

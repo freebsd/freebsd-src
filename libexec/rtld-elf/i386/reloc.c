@@ -48,15 +48,6 @@
 #include "rtld.h"
 
 /*
- * Debugging support.
- */
-
-#define assert(cond)	((cond) ? (void) 0 :\
-    (msg("oops: " __XSTRING(__LINE__) "\n"), abort()))
-#define msg(s)		(write(1, s, strlen(s)))
-#define trace()		msg("trace: " __XSTRING(__LINE__) "\n");
-
-/*
  * Process the special R_386_COPY relocations in the main program.  These
  * copy data from a shared object into a region in the main program's BSS
  * segment.
