@@ -418,7 +418,9 @@ udp_append(last, ip, n, off, udp_in)
 	struct sockaddr *append_sa;
 	struct socket *so;
 	struct mbuf *opts = 0;
+#ifdef INET6
 	struct sockaddr_in6 udp_in6;
+#endif
 
 	INP_LOCK_ASSERT(last);
 
