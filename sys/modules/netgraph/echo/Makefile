@@ -3,7 +3,6 @@
 
 KMOD=		ng_echo
 SRCS= 		ng_echo.c
-MAN=		ng_echo.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

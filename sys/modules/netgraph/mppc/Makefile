@@ -3,7 +3,6 @@
 
 KMOD=		ng_mppc
 SRCS= 		ng_mppc.c opt_netgraph.h
-MAN=		ng_mppc.4
 KMODDEPS=	netgraph
 
 NETGRAPH_MPPC_COMPRESSION?=	0

@@ -3,7 +3,6 @@
 
 KMOD=		ng_tee
 SRCS= 		ng_tee.c
-MAN=		ng_tee.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>
