@@ -1,6 +1,6 @@
 <!--
 	$FreeBSD$
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/config.sgml,v 1.1.2.1 2002/03/11 00:57:48 ue Exp $
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/config.sgml,v 1.1.2.2 2002/10/12 10:16:54 mheinen Exp $
         $Id: config.sgml,v 1.2 2001/08/13 05:46:10 ue Exp $
         basiert auf: 1.1.2.2
 -->
@@ -422,7 +422,7 @@
 
             <entry>dyn</entry>
 
-            <entry>DPT SmartRaid V, VI, and Adaptec SCSI RAID</entry>
+            <entry>DPT SmartRaid V, VI, und Adaptec SCSI RAID</entry>
           </row>
 
           <row>
@@ -506,7 +506,7 @@
 
             <entry>dyn</entry>
 
-            <entry>Wangtek and Archive QIC-02/QIC-36</entry>
+            <entry>Wangtek und Archive QIC-02/QIC-36</entry>
           </row>
 
           <row>
@@ -691,7 +691,7 @@
 
             <entry>n/a</entry>
 
-            <entry>Allied-Telesyn AT1700, RE2000 and Fujitsu FMV-180</entry>
+            <entry>Allied-Telesyn AT1700, RE2000 und Fujitsu FMV-180</entry>
           </row>
 
           <row>
@@ -705,7 +705,7 @@
 
             <entry>dyn</entry>
 
-            <entry>Intel EtherExpress Pro/100B and Intel PRO/100+
+            <entry>Intel EtherExpress Pro/100B und Intel PRO/100+
               Management Adapter</entry>
           </row>
 
@@ -720,7 +720,7 @@
 
             <entry>d0000</entry>
 
-            <entry>AT&amp;T StarLAN 10 and EN100; 3Com 3C507; NI5210;
+            <entry>AT&amp;T StarLAN 10 und EN100; 3Com 3C507; NI5210;
               Intel EtherExpress (8/16,16[TP])</entry>
           </row>
 
@@ -735,7 +735,7 @@
 
             <entry>d0000</entry>
 
-            <entry>Digital Equipment EtherWorks 2 and EtherWorks
+            <entry>Digital Equipment EtherWorks 2 und EtherWorks
               3</entry>
           </row>
 
