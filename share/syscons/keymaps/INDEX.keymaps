@@ -1,4 +1,4 @@
-# $Id: INDEX.keymaps,v 1.25.2.2 1999/06/23 08:21:39 yokota Exp $
+# $Id: INDEX.keymaps,v 1.25.2.3 1999/07/07 13:24:26 yokota Exp $
 #
 # database for kbdmap(8) 
 #
@@ -89,6 +89,8 @@ fr.iso.acc.kbd:de:Französisch ISO-8859-1 (accent keys)
 fr.iso.acc.kbd:fr:Français ISO-8859-1 (accent keys)
 fr.iso.acc.kbd:pt:Francês ISO-8859-1 (com acentos)
 fr.iso.acc.kbd:es:Francés ISO-8859-1 (con acentos)
+
+fr_CA.iso.acc.kbd:en:French Canadian ISO-8859-1 (accent keys)
 
 german.iso.kbd:en:German ISO-8859-1
 german.iso.kbd:de:Deutsch ISO-8859-1
