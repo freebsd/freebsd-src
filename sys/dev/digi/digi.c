@@ -298,16 +298,16 @@ digi_init(struct digi_softc *sc)
 	case PCXEM:
 	case PCIEPCX:
 	case PCIXR:
-		if (sc->model == PCIXR)
+		if (sc->pcibus)
 			PCIPORT = FEPRST;
 		else
 			outb(sc->port, FEPRST | FEPMEM);
 
-		for (i = 0; ((sc->model == PCIXR ? PCIPORT : inb(sc->port)) &
+		for (i = 0; ((sc->pcibus ? PCIPORT : inb(sc->port)) &
 		    FEPMASK) != FEPRST; i++) {
 			if (i > 1000) {
-				log(LOG_ERR, "digi%d: init reset failed\n",
-				    sc->res.unit);
+				log(LOG_ERR, "digi%d: %s init reset failed\n",
+				    sc->res.unit, sc->name);
 				return (EIO);
 			}
 			tsleep(sc, PUSER | PCATCH, "digiinit0", 1);
@@ -348,7 +348,7 @@ digi_init(struct digi_softc *sc)
 	ptr = sc->setwin(sc, MISCGLOBAL);
 	W(ptr) = 0;
 
-	if (sc->model == PCIXR) {
+	if (sc->pcibus) {
 		PCIPORT = FEPCLR;
 		resp = FEPRST;
 	} else if (sc->model == PCXEVE) {
@@ -359,7 +359,7 @@ digi_init(struct digi_softc *sc)
 		resp = FEPRST | FEPMEM;
 	}
 
-	for (i = 0; ((sc->model == PCIXR ? PCIPORT : inb(sc->port)) & FEPMASK)
+	for (i = 0; ((sc->pcibus ? PCIPORT : inb(sc->port)) & FEPMASK)
 	    == resp; i++) {
 		if (i > 1000) {
 			log(LOG_ERR, "digi%d: BIOS start failed\n",
