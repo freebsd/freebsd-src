@@ -49,9 +49,9 @@ vers.o: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 ${BASE}: ${BASE}.sym ${BASE}.help
 	objcopy -O binary ${BASE}.sym ${BASE}
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o setdef0.o setdef1.o
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBFICL} ${LIBALPHA} ${CRT} vers.o
 	${LD} -o ${BASE}.sym -M -e start -N -Ttext ${LOAD_ADDRESS} \
-	${CRT} setdef0.o ${OBJS} setdef1.o vers.o \
+	${CRT} ${OBJS} vers.o \
 	-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBFICL} ${LIBSTAND} \
 	>${.OBJDIR}/${BASE}.list
 
@@ -87,20 +87,11 @@ beforeinstall:
 start.o:	${.CURDIR}/../libalpha/start.S
 	${CC} -c ${CFLAGS} $<
 
-setdef0.o: setdefs.h
-
-setdef1.o: setdefs.h
-
 machine:
 	ln -sf ${.CURDIR}/../../../alpha/include machine
 
 CLEANFILES+=	machine
 
 .include <bsd.prog.mk>
-
-.ORDER: setdefs.h setdef0.c setdef1.c
-setdefs.h setdef0.c setdef1.c: ${OBJS}
-	@echo Generating linker sets
-	@gensetdefs ${OBJS}
 
 beforedepend ${OBJS}: machine

@@ -63,9 +63,9 @@ ${BASE}.efi: ${BASE}.sym
 		--target=efi-app-${MACHINE_ARCH} \
 		${BASE}.sym ${BASE}.efi
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o setdef0.o setdef1.o
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o
 	${LD} ${LDFLAGS} -o ${BASE}.sym -M \
-	${CRT} setdef0.o ${OBJS} setdef1.o vers.o \
+	${CRT} {OBJS} vers.o \
 	${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
 	> ${.OBJDIR}/${BASE}.list
 
@@ -85,18 +85,9 @@ beforeinstall:
 start.o:	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/start.S
 	${CC} -c ${CFLAGS} $<
 
-setdef0.o: setdefs.h
-
-setdef1.o: setdefs.h
-
 machine:
 	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
 
 .include <bsd.prog.mk>
-
-.ORDER: setdefs.h setdef0.c setdef1.c
-setdefs.h setdef0.c setdef1.c: ${OBJS}
-	@echo Generating linker sets
-	@perl ${.CURDIR}/../../../kern/gensetdefs.pl ${OBJS}
 
 beforedepend ${OBJS}: machine
