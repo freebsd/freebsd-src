@@ -920,14 +920,11 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 
     DDB(quad_t ticks; ticks = rdtsc();)
 
-    args.rule = NULL;		/* did we match a firewall rule ? */
-    /* Fetch state from dummynet tag, ignore others */
-    for (;m0->m_type == MT_TAG; m0 = m0->m_next)
-	if (m0->_m_tag_id == PACKET_TAG_DUMMYNET) {
-	    args.rule = ((struct dn_pkt *)m0)->rule;
-	    shared = 0;			/* For sure this is our own mbuf. */
-	}
-    if (args.rule == NULL)
+    /* did we match a firewall rule ? */
+    args.rule = ip_dn_find_rule(m0);
+    if (args.rule)
+        shared = 0;			/* For sure this is our own mbuf. */
+    else
 	bdg_thru++;			/* count 1st time through bdg_forward */
 
     /*
@@ -1046,7 +1043,6 @@ bdg_forward(struct mbuf *m0, struct ifnet *dst)
 
 	args.m = m0;		/* the packet we are looking at		*/
 	args.oif = NULL;	/* this is an input packet		*/
-	args.divert_rule = 0;	/* we do not support divert yet		*/
 	args.next_hop = NULL;	/* we do not support forward yet	*/
 	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
 	i = ip_fw_chk_ptr(&args);
