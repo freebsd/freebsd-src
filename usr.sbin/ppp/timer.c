@@ -17,11 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.30 1998/06/20 01:36:38 brian Exp $
+ * $Id: timer.c,v 1.31 1998/06/27 14:18:11 brian Exp $
  *
  *  TODO:
  */
 
+#include <errno.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/time.h>
@@ -96,8 +97,8 @@ timer_Start(struct pppTimer * tp)
   if (pt) {
     pt->next = tp;
   } else {
-    timer_InitService();
     TimerList = tp;
+    timer_InitService(0);	/* Start the Timer Service */
   }
   if (t)
     t->rest -= tp->rest;
@@ -143,7 +144,7 @@ StopTimerNoBlock(struct pppTimer * tp)
 static void
 TimerService(void)
 {
-  struct pppTimer *tp, *exp, *wt;
+  struct pppTimer *tp, *exp, *next;
 
   if (log_IsKept(LogTIMER)) {
     static time_t t;		/* Only show timers globally every second */
@@ -153,43 +154,34 @@ TimerService(void)
       timer_Show(LogTIMER, NULL);
     t = n;
   }
+
   tp = TimerList;
   if (tp) {
-    tp->rest--;
-    if (tp->rest == 0) {
+    tp->rest = 0;
 
-      /*
-       * Multiple timers may expires at once. Create list of expired timers.
-       */
-      exp = NULL;
-      do {
-	tp->state = TIMER_EXPIRED;
-	wt = tp->next;
-	tp->enext = exp;
-	exp = tp;
-	tp = wt;
-      } while (tp && (tp->rest == 0));
-
-      TimerList = tp;
-      if (TimerList == NULL)	/* No timers ? */
-	timer_TermService();	/* Terminate Timer Service */
-
-      /*
-       * Process all expired timers.
-       */
-      while (exp) {
-#ifdef notdef
-	timer_Stop(exp);
-#endif
-	if (exp->func)
-	  (*exp->func) (exp->arg);
-
-	/*
-	 * Just Removing each item from expired list And exp->enext will be
-	 * intialized at next expire in this funtion.
-	 */
-	exp = exp->enext;
-      }
+    /* Multiple timers might expire at once. Create a list of expired timers */
+    exp = NULL;
+    do {
+      tp->state = TIMER_EXPIRED;
+      next = tp->next;
+      tp->enext = exp;
+      exp = tp;
+      tp = next;
+    } while (tp && tp->rest == 0);
+  
+    TimerList = tp;
+    if (TimerList != NULL)	/* Any timers remaining ? */
+      timer_InitService(1);	/* Restart the Timer Service */
+    else
+      timer_TermService();	/* Stop the Timer Service */
+  
+    /* Process all expired timers */
+    while (exp) {
+      next = exp->enext;
+      exp->enext = NULL;
+      if (exp->func)
+        (*exp->func)(exp->arg);
+      exp = next;
     }
   }
 }
@@ -223,15 +215,20 @@ timer_Show(int LogLevel, struct prompt *prompt)
 }
 
 void 
-timer_InitService()
+timer_InitService(int restart)
 {
   struct itimerval itimer;
 
-  sig_signal(SIGALRM, (void (*) (int)) TimerService);
-  itimer.it_interval.tv_sec = itimer.it_value.tv_sec = 0;
-  itimer.it_interval.tv_usec = itimer.it_value.tv_usec = TICKUNIT;
-  if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
-    log_Printf(LogERROR, "Unable to set itimer.\n");
+  if (TimerList) {
+    if (!restart)
+      sig_signal(SIGALRM, (void (*)(int))TimerService);
+    itimer.it_interval.tv_sec = 0;
+    itimer.it_interval.tv_usec = 0;
+    itimer.it_value.tv_sec = TimerList->rest / SECTICKS;
+    itimer.it_value.tv_usec = (TimerList->rest % SECTICKS) * TICKUNIT;
+    if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
+      log_Printf(LogERROR, "Unable to set itimer (%s)\n", sys_errlist[errno]);
+  }
 }
 
 void 
@@ -242,6 +239,6 @@ timer_TermService(void)
   itimer.it_interval.tv_usec = itimer.it_interval.tv_sec = 0;
   itimer.it_value.tv_usec = itimer.it_value.tv_sec = 0;
   if (setitimer(ITIMER_REAL, &itimer, NULL) == -1)
-    log_Printf(LogERROR, "Unable to set itimer.\n");
+    log_Printf(LogERROR, "Unable to set itimer (%s)\n", sys_errlist[errno]);
   sig_signal(SIGALRM, SIG_IGN);
 }
