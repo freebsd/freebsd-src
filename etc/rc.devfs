@@ -1,0 +1,14 @@
+#
+# $Id$
+#
+# If there is a global system configuration file, suck it in.
+if [ -f /etc/rc.conf ]; then
+	. /etc/rc.conf
+fi
+
+# Setup DEVFS, ie permisisons, links etc.
+
+echo -n 'Setting up DEVFS: '
+ln -fs ttyv0 vga
+
+echo '.'
