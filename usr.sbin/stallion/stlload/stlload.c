@@ -32,18 +32,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $Id$
  */
 
 /*****************************************************************************/
 
-#include <stdio.h>
-#include <errno.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
@@ -56,7 +59,6 @@ char	*defdevice = "/dev/staliomem%d";
 char	*image = BOOTDIR "/cdk.sys";
 char	*oldimage = BOOTDIR "/2681.sys";
 
-char	*progname;
 char	*memdevice;
 char	devstr[128];
 int	brdnr = 0;
@@ -92,26 +94,18 @@ cdkonbsig_t	onbsig;
 /*
  *	Declare internal function prototypes here.
  */
-void	usage(void);
+static void	usage(void);
 int	ecpfindports(cdkecpsig_t *sigp);
 int	onbfindports(cdkonbsig_t *sigp);
 int	download(void);
 
 /*****************************************************************************/
 
-void usage()
+static void usage()
 {
-	fprintf(stderr, "Usage: %s [OPTION]\n\n", progname);
-	fprintf(stderr, "    -h      print this information\n");
-	fprintf(stderr, "    -v      print full diagnotsic trace\n");
-	fprintf(stderr, "    -V      show version information and exit\n");
-	fprintf(stderr, "    -i      specify image file to use\n");
-	fprintf(stderr, "    -b      download board number\n");
-	fprintf(stderr, "    -d      specify memory device to use\n");
-	fprintf(stderr, "    -B      enable slave boot banner\n");
-	fprintf(stderr, "    -R      reset board only\n");
-	fprintf(stderr, "    -t      set size of TX slave buffer\n");
-	fprintf(stderr, "    -r      set size of RX slave buffer\n");
+	fprintf(stderr, "%s\n%s\n",
+"usage: stlload [-vhVR] [-i image-file] [-c control-device] [-r rx-buf-size]",
+"               [-t tx-buf-size] [-B boot-banner] [-b unit-number]");
 	exit(0);
 }
 
@@ -185,14 +179,12 @@ int download()
 	unsigned char	alivemarker;
 	time_t		strttime;
 	int		memfd, ifd;
-	int		nrdevs, sigok, n, rc;
+	int		nrdevs, sigok, n;
 
 	if (verbose)
 		printf("Opening shared memory device %s\n", memdevice);
 	if ((memfd = open(memdevice, O_RDWR)) < 0) {
-		fprintf(stderr,
-			"%s: failed to open memory device %s, errno=%d\n",
-			progname, memdevice, errno);
+		warn("failed to open memory device %s", memdevice);
 		return(-1);
 	}
 
@@ -205,16 +197,14 @@ int download()
 	if (verbose)
 		printf("Stoping any current slave\n");
 	if (ioctl(memfd, STL_BSTOP, 0) < 0) {
-		fprintf(stderr, "%s: ioctl(STL_BSTOP) failed, errno=%d\n",
-			progname, errno);
+		warn("ioctl(STL_BSTOP)");
 		return(-1);
 	}
 
 	if (verbose)
 		printf("Reseting the board\n");
 	if (ioctl(memfd, STL_BRESET, 0) < 0) {
-		fprintf(stderr, "%s: ioctl(STL_BRESET) failed, errno=%d\n",
-			progname, errno);
+		warn("ioctl(STL_BRESET)");
 		return(-1);
 	}
 	if (reset)
@@ -227,8 +217,7 @@ int download()
 	if (verbose)
 		printf("Interrupting board to activate shared memory\n");
 	if (ioctl(memfd, STL_BINTR, 0) < 0) {
-		fprintf(stderr, "%s: ioctl(STL_BINTR) failed, errno=%d\n",
-			progname, errno);
+		warn("ioctl(STL_BINTR)");
 		return(-1);
 	}
 	/*sleep(1);*/
@@ -236,8 +225,7 @@ int download()
 	if (verbose)
 		printf("Opening slave image file %s\n", image);
 	if ((ifd = open(image, O_RDONLY)) < 0) {
-		fprintf(stderr, "%s: failed to open image file %s, errno=%d\n",
-			progname, image, errno);
+		warn("failed to open image file %s", image);
 		return(-1);
 	}
 
@@ -251,14 +239,11 @@ int download()
 		printf("Reading ROM signature from board\n");
 
 	if (lseek(memfd, CDK_SIGADDR, SEEK_SET) != CDK_SIGADDR) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory file, errno=%d\n",
-			progname, CDK_FEATADDR, errno);
+		warn("lseek(%x) failed on memory file", CDK_FEATADDR);
 		return(-1);
 	}
 	if (read(memfd, &ecpsig, sizeof(cdkecpsig_t)) < 0) {
-		fprintf(stderr, "%s: read of ROM signature failed, errno=%d\n",
-			progname, errno);
+		warn("read of ROM signature failed");
 		return(-1);
 	}
 	if (ecpsig.magic == ECP_MAGIC) {
@@ -269,14 +254,11 @@ int download()
 	}
 
 	if (lseek(memfd, CDK_SIGADDR, SEEK_SET) != CDK_SIGADDR) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory file, errno=%d\n",
-			 progname, CDK_FEATADDR, errno);
+		warn("lseek(%x) failed on memory file", CDK_FEATADDR);
 		return(-1);
 	}
 	if (read(memfd, &onbsig, sizeof(cdkonbsig_t)) < 0) {
-		fprintf(stderr, "%s: read of ROM signature failed, errno=%d\n",
-			progname, errno);
+		warn("read of ROM signature failed");
 		return(-1);
 	}
 	if ((onbsig.magic0 == ONB_MAGIC0) && (onbsig.magic1 == ONB_MAGIC1) &&
@@ -289,7 +271,7 @@ int download()
 	}
 
 	if (! sigok) {
-		fprintf(stderr, "%s: unknown signature from board\n", progname);
+		warnx("unknown signature from board");
 		return(-1);
 	}
 
@@ -305,33 +287,24 @@ int download()
 	if (verbose)
 		printf("Copying vector table into shared memory\n");
 	if ((n = read(ifd, buf, CDK_SIGADDR)) < 0) {
-		fprintf(stderr, "%s: read of image file failed, errno=%d\n",
-			progname, errno);
+		warn("read of image file failed");
 		return(-1);
 	}
 	if (lseek(memfd, 0, SEEK_SET) != 0) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory file, errno=%d\n",
-			progname, CDK_FEATADDR, errno);
+		warn("lseek(%x) failed on memory file", CDK_FEATADDR);
 		return(-1);
 	}
 	if (write(memfd, buf, n) < 0) {
-		fprintf(stderr,
-			"%s: write to memory device failed, errno=%d\n",
-			progname, errno);
+		warn("write to memory device failed");
 		return(-1);
 	}
 
 	if (lseek(ifd, 0x1000, SEEK_SET) != 0x1000) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on image file, errno=%d\n",
-			progname, CDK_FEATADDR, errno);
+		warn("lseek(%x) failed on image file", CDK_FEATADDR);
 		return(-1);
 	}
 	if (lseek(memfd, 0x1000, SEEK_SET) != 0x1000) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory device, errno=%d\n",
-			progname, CDK_FEATADDR, errno);
+		warn("lseek(%x) failed on memory device", CDK_FEATADDR);
 		return(-1);
 	}
 
@@ -340,15 +313,11 @@ int download()
  */
 	do {
 		if ((n = read(ifd, buf, BUFSIZE)) < 0) {
-			fprintf(stderr,
-				"%s: read of image file failed, errno=%d\n",
-				progname, errno);
+			warn("read of image file failed");
 			return(-1);
 		}
 		if (write(memfd, buf, n) < 0) {
-			fprintf(stderr,
-				"%s: write to memory device failed, errno=%d\n",
-				progname, errno);
+			warn("write to memory device failed");
 			return(-1);
 		}
 	} while (n == BUFSIZE);
@@ -365,15 +334,11 @@ int download()
 	if (verbose)
 		printf("Loading features into shared memory\n");
 	if (lseek(memfd, CDK_FEATADDR, SEEK_SET) != CDK_FEATADDR) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory device, errno=%d\n",
-			progname, CDK_FEATADDR, errno);
+		warn("lseek(%x) failed on memory device", CDK_FEATADDR);
 		return(-1);
 	}
 	if (write(memfd, &feature, sizeof(cdkfeature_t)) < 0) {
-		fprintf(stderr,
-			"%s: write to memory device failed, errno=%d\n",
-			progname, errno);
+		warn("write to memory device failed");
 		return(-1);
 	}
 
@@ -385,16 +350,12 @@ int download()
 	if (verbose)
 		printf("Setting alive marker to 0\n");
 	if (lseek(memfd, CDK_RDYADDR, SEEK_SET) != CDK_RDYADDR) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory device, errno=%d\n",
-			progname, CDK_RDYADDR, errno);
+		warn("lseek(%x) failed on memory device", CDK_RDYADDR);
 		return(-1);
 	}
 	alivemarker = 0;
 	if (write(memfd, &alivemarker, 1) < 0) {
-		fprintf(stderr,
-			"%s: write to memory device failed, errno=%d\n",
-			progname, errno);
+		warn("write to memory device failed");
 		return(-1);
 	}
 
@@ -405,8 +366,7 @@ int download()
 	if (verbose)
 		printf("Interrupting board to start slave image\n");
 	if (ioctl(memfd, STL_BINTR, 0) < 0) {
-		fprintf(stderr, "%s: ioctl(STL_BINTR) failed, errno=%d\n",
-			progname, errno);
+		warn("ioctl(STL_BINTR) failed");
 		return(-1);
 	}
 
@@ -416,15 +376,11 @@ int download()
 			strttime, TIMEOUT);
 	while (time((time_t *) NULL) < (strttime + TIMEOUT)) {
 		if (lseek(memfd, CDK_RDYADDR, SEEK_SET) != CDK_RDYADDR) {
-			fprintf(stderr,
-				"%s: lseek(%x) failed on memory device, "
-				"errno=%d\n", progname, CDK_RDYADDR, errno);
+			warn("lseek(%x) failed on memory device", CDK_RDYADDR);
 			return(-1);
 		}
 		if (read(memfd, &alivemarker, 1) < 0){
-			fprintf(stderr,
-				"%s: read of image file failed, errno=%d\n",
-				progname, errno);
+			warn("read of image file failed");
 			return(-1);
 		}
 		if (alivemarker == CDK_ALIVEMARKER)
@@ -432,20 +388,17 @@ int download()
 	}
 
 	if (alivemarker != CDK_ALIVEMARKER) {
-		fprintf(stderr, "%s: slave image failed to start\n", progname);
+		warnx("slave image failed to start");
 		return(-1);
 	}
 
 	if (lseek(memfd, CDK_RDYADDR, SEEK_SET) != CDK_RDYADDR) {
-		fprintf(stderr,
-			"%s: lseek(%x) failed on memory device, errno=%d\n",
-			progname, CDK_RDYADDR, errno);
+		warn("lseek(%x) failed on memory device", CDK_RDYADDR);
 		return(-1);
 	}
 	alivemarker = 0;
 	if (write(memfd, &alivemarker, 1) < 0) {
-		fprintf(stderr, "%s: write to memory device failed, errno=%d\n",
-			 progname, errno);
+		warn("write to memory device failed");
 		return(-1);
 	}
 
@@ -460,8 +413,7 @@ int download()
 	if (verbose)
 		printf("Driver initializing host shared memory interface\n");
 	if (ioctl(memfd, STL_BSTART, 0) < 0) {
-		fprintf(stderr, "%s: ioctl(STL_BSTART) failed, errno=%d\n",
-			progname, errno);
+		warn("ioctl(STL_BSTART) failed");
 		return(-1);
 	}
 
@@ -477,12 +429,11 @@ void main(int argc, char *argv[])
 	int		optind, c;
 
 	optind = 0;
-	progname = argv[0];
 
 	while ((c = getopt(argc, argv, "hvVRB:i:b:d:t:r:")) != -1) {
 		switch (c) {
 		case 'V':
-			printf("%s version %s\n", progname, version);
+			printf("stlload version %s\n", version);
 			exit(0);
 			break;
 		case 'B':
@@ -520,12 +471,8 @@ void main(int argc, char *argv[])
 	}
 
 	if (memdevice == (char *) NULL) {
-		if ((brdnr < 0) || (brdnr >= 8)) {
-			fprintf(stderr,
-				"%s: invalid board number %d specified\n",
-				progname, brdnr);
-			exit(1);
-		}
+		if ((brdnr < 0) || (brdnr >= 8))
+			errx(1, "invalid board number %d specified", brdnr);
 		sprintf(devstr, defdevice, brdnr);
 		memdevice = &devstr[0];
 		if (verbose)
@@ -538,22 +485,13 @@ void main(int argc, char *argv[])
 /*
  *	Check that the shared memory device exits and is a character device.
  */
-	if (stat(memdevice, &statinfo) < 0) {
-		fprintf(stderr, "%s: memory device %s does not exist\n",
-			progname, memdevice);
-		exit(1);
-	}
-	if ((statinfo.st_mode & S_IFMT) != S_IFCHR) {
-		fprintf(stderr, "%s: memory device %s is not a char device\n",
-			progname, memdevice);
-		exit(1);
-	}
+	if (stat(memdevice, &statinfo) < 0)
+		errx(1, "memory device %s does not exist", memdevice);
+	if ((statinfo.st_mode & S_IFMT) != S_IFCHR)
+		errx(1, "memory device %s is not a char device", memdevice);
 
-	if (stat(image, &statinfo) < 0) {
-		fprintf(stderr, "%s: image file %s does not exist\n",
-			progname, image);
-		exit(1);
-	}
+	if (stat(image, &statinfo) < 0)
+		errx(1, "image file %s does not exist", image);
 
 /*
  *	All argument checking is now done. So lets get this show on the road.
