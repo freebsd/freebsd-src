@@ -98,11 +98,7 @@ static const char rcsid[] =
 #include "pathnames.h"
 #include "extern.h"
 
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 static char version[] = "Version 6.00LS";
 #undef main

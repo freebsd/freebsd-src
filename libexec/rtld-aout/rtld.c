@@ -51,11 +51,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 #include <link.h>
 
@@ -2293,19 +2289,11 @@ die __P((void))
  * Generate an error message that can be later be retrieved via dlerror.
  */
 static void
-#if __STDC__
 generror(char *fmt, ...)
-#else
-generror(fmt, va_alist)
-char	*fmt;
-#endif
 {
 	va_list	ap;
-#if __STDC__
+
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
         vsnprintf (dlerror_buf, DLERROR_BUF_SIZE, fmt, ap);
         dlerror_msg = dlerror_buf;
 
@@ -2313,21 +2301,12 @@ char	*fmt;
 }
 
 void
-#if __STDC__
 xprintf(char *fmt, ...)
-#else
-xprintf(fmt, va_alist)
-char	*fmt;
-#endif
 {
 	char buf[256];
 	va_list	ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 
+	va_start(ap, fmt);
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	(void)write(STDOUT_FILENO, buf, strlen(buf));
 	va_end(ap);
