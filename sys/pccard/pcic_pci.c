@@ -59,12 +59,25 @@
 
 static int pcic_pci_get_memory(device_t dev);
 
+SYSCTL_DECL(_hw_pcic);
+
 static int pcic_ignore_function_1 = 0;
 TUNABLE_INT("hw.pcic.ignore_function_1", &pcic_ignore_function_1);
-SYSCTL_DECL(_hw_pcic);
 SYSCTL_INT(_hw_pcic, OID_AUTO, ignore_function_1, CTLFLAG_RD,
     &pcic_ignore_function_1, 0,
     "When set, driver ignores pci function 1 of the bridge");
+
+/*
+ * The following should be a hint, so we can do it on a per device
+ * instance, but this is convenient.  Do not set this unless pci
+ * routing doesn't work.  It is purposely vague and undocumented
+ * at the moment.
+ */
+static int pcic_interrupt_route = (int) pci_parallel;
+TUNABLE_INT("hw.pcic.interrupt_route", &pcic_interrupt_route);
+SYSCTL_INT(_hw_pcic, OID_AUTO, interrupt_route, CTLFLAG_RD,
+    &pcic_interrupt_route, (int) pci_parallel,
+    "Interrupt routing type for pci cardbus bridges.");
 
 struct pcic_pci_table
 {
@@ -208,16 +221,21 @@ pcic_pci_lookup(u_int32_t devid, struct pcic_pci_table *tbl)
 static void
 pcic_pci_pd6832_init(device_t dev)
 {
+	struct pcic_softc *sc = device_get_softc(dev);
 	u_long bcr; 		/* to set interrupts */
 
-        /*
-         * CLPD683X management interrupt enable bit is bit 11 in bridge
-         * control register(offset 0x3d).
-         * When this bit is turned on, card status change interrupt sets
-         * on ISA IRQ interrupt.
+	/*
+	 * CLPD683X management interrupt enable bit is bit 11 in bridge
+	 * control register(offset 0x3d).
+	 * When this bit is turned on, card status change interrupt sets
+	 * on ISA IRQ interrupt.
 	 */
 	bcr = pci_read_config(dev, CB_PCI_BRIDGE_CTRL, 2);
 	bcr |= CLPD6832_BCR_MGMT_IRQ_ENA;
+	if (sc->csc_route == pci_parallel)
+		bcr &= ~CLPD6832_BCR_ISA_IRQ;
+	else
+		bcr |= CLPD6832_BCR_ISA_IRQ;
 	pci_write_config(dev, CB_PCI_BRIDGE_CTRL, bcr, 2);
 }
 
@@ -350,7 +368,7 @@ pcic_pci_cardbus_init(device_t dev)
 static void
 pcic_pci_ricoh_init(device_t dev, int old)
 {
-	u_int16_t       brgcntl;
+	u_int16_t	brgcntl;
 
 	/*
 	 * Ricoh chips have a legacy bridge enable different than most
@@ -477,11 +495,16 @@ pcic_pci_probe(device_t dev)
 	 * Allocated/deallocate interrupt.  This forces the PCI BIOS or
 	 * other MD method to route the interrupts to this card.
 	 * This so we get the interrupt number in the probe message.
+	 * We only need to route interrupts when we're doing pci
+	 * parallel interrupt routing.
 	 */
-	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, RF_ACTIVE);
-	if (res)
-		bus_release_resource(dev, SYS_RES_IRQ, rid, res);
+	if (pcic_interrupt_route == pci_parallel) {
+		rid = 0;
+		res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+		    RF_ACTIVE);
+		if (res)
+			bus_release_resource(dev, SYS_RES_IRQ, rid, res);
+	}
 	
 	return (0);
 }
@@ -503,16 +526,17 @@ pcic_pci_attach(device_t dev)
 	int rid;
 	struct resource *r;
 	int error;
-	static int num6729;
+	u_long start;
+	u_long end;
 
 	/*
 	 * In sys/pci/pcireg.h, PCIR_COMMAND must be separated
 	 * PCI_COMMAND_REG(0x04) and PCI_STATUS_REG(0x06).
 	 * Takeshi Shibagaki(shiba@jp.freebsd.org).
 	 */
-        command = pci_read_config(dev, PCIR_COMMAND, 4);
-        command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
-        pci_write_config(dev, PCIR_COMMAND, command, 4);
+	command = pci_read_config(dev, PCIR_COMMAND, 4);
+	command |= PCIM_CMD_PORTEN | PCIM_CMD_MEMEN;
+	pci_write_config(dev, PCIR_COMMAND, command, 4);
 
 	sc = (struct pcic_softc *) device_get_softc(dev);
 	sp = &sc->slots[0];
@@ -529,13 +553,11 @@ pcic_pci_attach(device_t dev)
 		sp->putb = pcic_putb_io;
 		sc->bst = sp->bst = rman_get_bustag(sc->iores);
 		sc->bsh = sp->bsh = rman_get_bushandle(sc->iores);
-		sp->offset = (num6729 % 2) * PCIC_SLOT_SIZE;
+		sp->offset = pci_get_function(dev) * PCIC_SLOT_SIZE;
 		sp->controller = PCIC_PD672X;
 		sp->revision = 0;
 		sc->flags = PCIC_PD_POWER;
-		num6729++;
 	} else {
-		device_printf(dev, "Memory mapped device, will work.\n");
 		sc->memrid = CB_PCI_SOCKET_BASE;
 		sc->memres = bus_alloc_resource(dev, SYS_RES_MEMORY,
 		    &sc->memrid, 0, ~0, 1, RF_ACTIVE);
@@ -557,24 +579,24 @@ pcic_pci_attach(device_t dev)
 			sp->revision = 0;
 			sc->flags = PCIC_DF_POWER;
 		}
-		sp->slt = (struct slot *) 1;
 	}
+	sp->slt = (struct slot *) 1;
 	sc->dev = dev;
-	sc->csc_route = pci_parallel;
-	sc->func_route = pci_parallel;
+	sc->csc_route = pcic_interrupt_route;
+	sc->func_route = pcic_interrupt_route;
 
 	switch (device_id) {
 	case PCI_DEVICE_ID_RICOH_RL5C465:
 	case PCI_DEVICE_ID_RICOH_RL5C466:
 		pcic_pci_ricoh_init(dev, 1);
-                pcic_pci_cardbus_init(dev);
+		pcic_pci_cardbus_init(dev);
 		break;
 	case PCI_DEVICE_ID_RICOH_RL5C475:
 	case PCI_DEVICE_ID_RICOH_RL5C476:
 	case PCI_DEVICE_ID_RICOH_RL5C477:
 	case PCI_DEVICE_ID_RICOH_RL5C478:
 		pcic_pci_ricoh_init(dev, 0);
-                pcic_pci_cardbus_init(dev);
+		pcic_pci_cardbus_init(dev);
 		break;
 	case PCI_DEVICE_ID_PCIC_TI1031:
 	case PCI_DEVICE_ID_PCIC_TI1130:
@@ -591,20 +613,27 @@ pcic_pci_attach(device_t dev)
 	case PCI_DEVICE_ID_PCIC_TI1450:
 	case PCI_DEVICE_ID_PCIC_TI1451:
 	case PCI_DEVICE_ID_PCIC_TI4451:
-                pcic_pci_ti_init(dev);
-                pcic_pci_cardbus_init(dev);
+		pcic_pci_ti_init(dev);
+		pcic_pci_cardbus_init(dev);
 		break;
 	case PCI_DEVICE_ID_PCIC_CLPD6832:
 		pcic_pci_pd6832_init(dev);
 		break;
 	default:
-                pcic_pci_cardbus_init(dev);
-                break;
+		pcic_pci_cardbus_init(dev);
+		break;
 	}
 
+	if (sc->csc_route == pci_parallel) {
+		start = 0;
+		end = ~0;
+	} else {
+		start = pcic_override_irq;
+		end = pcic_override_irq;
+	}
 	rid = 0;
 	r = NULL;
-	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1, 
+	r = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, start, end, 1, 
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (r == NULL) {
 		device_printf(dev, "Failed to allocate managment irq\n");
@@ -650,7 +679,7 @@ pcic_pci_get_memory(device_t dev)
 	sockbase = pci_read_config(dev, sc->memrid, 4);
 	sockbase = (sockbase & 0xfffffff0) & -(sockbase & 0xfffffff0);
 #define CARDBUS_SYS_RES_MEMORY_START    0x44000000
-#define CARDBUS_SYS_RES_MEMORY_END      0xFFFFFFFF
+#define CARDBUS_SYS_RES_MEMORY_END	0xFFFFFFFF
 	sc->memres = bus_generic_alloc_resource(device_get_parent(dev),
 	    dev, SYS_RES_MEMORY, &sc->memrid,
 	    CARDBUS_SYS_RES_MEMORY_START, CARDBUS_SYS_RES_MEMORY_END,
