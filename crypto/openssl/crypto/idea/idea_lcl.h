@@ -54,7 +54,6 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- * $FreeBSD$
  */
 
 /* The new form of this macro (check if the a*b == 0) was suggested by 

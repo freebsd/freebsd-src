@@ -54,12 +54,10 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- * $FreeBSD$
  */
 
 #include "ssl_locl.h"
-#ifndef NO_SSL2
+#ifndef OPENSSL_NO_SSL2
 #include <stdio.h>
 #include <openssl/objects.h>
 
@@ -79,16 +77,23 @@ SSL_METHOD *SSLv2_method(void)
 
 	if (init)
 		{
-		memcpy((char *)&SSLv2_data,(char *)sslv2_base_method(),
-			sizeof(SSL_METHOD));
-		SSLv2_data.ssl_connect=ssl2_connect;
-		SSLv2_data.ssl_accept=ssl2_accept;
-		SSLv2_data.get_ssl_method=ssl2_get_method;
-		init=0;
+		CRYPTO_w_lock(CRYPTO_LOCK_SSL_METHOD);
+		
+		if (init)
+			{
+			memcpy((char *)&SSLv2_data,(char *)sslv2_base_method(),
+				sizeof(SSL_METHOD));
+			SSLv2_data.ssl_connect=ssl2_connect;
+			SSLv2_data.ssl_accept=ssl2_accept;
+			SSLv2_data.get_ssl_method=ssl2_get_method;
+			init=0;
+			}
+		
+		CRYPTO_w_unlock(CRYPTO_LOCK_SSL_METHOD);
 		}
 	return(&SSLv2_data);
 	}
-#else /* !NO_SSL2 */
+#else /* !OPENSSL_NO_SSL2 */
 
 # if PEDANTIC
 static void *dummy=&dummy;
