@@ -45,11 +45,9 @@ DPADD+= ${TELNETOBJDIR}/libtelnet.a
 
 CFLAGS+=-DAUTHENTICATION -DENCRYPTION
 
-.ifdef MAKE_EBONES
 .if exists(/usr/lib/libkrb.a)
 CFLAGS+= -DKRB4
 LDADD+= -ldes -lkrb
-.endif
 .endif
 
 .if exists(/usr/lib/libkrb5.a)
