@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.139 1999/08/17 05:08:39 alc Exp $
+ *	$Id: vm_page.c,v 1.140 1999/08/17 18:09:01 alc Exp $
  */
 
 /*
@@ -855,7 +855,7 @@ loop:
 	m->act_count = 0;
 	m->busy = 0;
 	m->valid = 0;
-	m->dirty = 0;
+	KASSERT(m->dirty == 0, ("vm_page_alloc: free/cache page %p was dirty", m));
 	m->queue = PQ_NONE;
 
 	/*
@@ -1761,7 +1761,7 @@ again1:
 			cnt.v_free_count--;
 			m->valid = VM_PAGE_BITS_ALL;
 			m->flags = 0;
-			m->dirty = 0;
+			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
 			m->busy = 0;
 			m->queue = PQ_NONE;
