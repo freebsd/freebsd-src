@@ -14,15 +14,13 @@
 # $FreeBSD$
 
 PROG=	traceroute6
-
+MAN=	traceroute6.8
 BINOWN=	root
-BINGRP=	bin
 BINMODE=4555
 
 CFLAGS+=-DINET6 -DIPSEC -DHAVE_POLL
+
 DPADD=	${LIBIPSEC}
 LDADD=	-lipsec
-
-MAN=	traceroute6.8
 
 .include <bsd.prog.mk>
