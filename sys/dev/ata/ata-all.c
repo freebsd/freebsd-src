@@ -818,13 +818,25 @@ ata_probe(device_t dev)
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(1);
     status0 = inb(scp->ioaddr + ATA_STATUS);
+    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5) {
+	outb(scp->ioaddr + ATA_ERROR, 0x58);
+	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+	    if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
+		inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5)  
+	mask |= 0x01;
+    }
+
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(1);	
     status1 = inb(scp->ioaddr + ATA_STATUS);
-    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5)
-	mask |= 0x01;
-    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5)
+    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5) {
+	outb(scp->ioaddr + ATA_ERROR, 0x58);
+	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+	    if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
+		inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5)  
 	mask |= 0x02;
+    }
+
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   mask, status0, status1);
