@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.252 1998/02/12 16:35:11 yokota Exp $
+ *  $Id: syscons.c,v 1.253 1998/02/12 20:52:24 phk Exp $
  */
 
 #include "sc.h"
@@ -57,6 +57,7 @@
 #include <machine/pc/display.h>
 #include <machine/apm_bios.h>
 #include <machine/random.h>
+#include <machine/bootinfo.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -114,7 +115,6 @@ typedef struct old_mouse_info {
 } old_mouse_info_t;
 
 /* XXX use sc_bcopy where video memory is concerned */
-#define sc_bcopy generic_bcopy
 extern void generic_bcopy(const void *, void *, size_t);
 
 static default_attr user_default = {
@@ -162,6 +162,7 @@ static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 	u_char      	scr_rmap[256];
 	char        	*video_mode_ptr = NULL;
+static	int		vesa_mode;
 	int     	fonts_loaded = 0
 #ifdef STD8X16FONT
 	| FONT_16
@@ -249,6 +250,7 @@ static void sccnupdate(scr_stat *scp);
 static scr_stat *get_scr_stat(dev_t dev);
 static scr_stat *alloc_scp(void);
 static void init_scp(scr_stat *scp);
+static void sc_bcopy(u_short *p, int from, int to, int mark);
 static int get_scr_num(void);
 static timeout_t scrn_timer;
 static void scrn_update(scr_stat *scp, int show_cursor);
@@ -256,7 +258,7 @@ static void stop_scrn_saver(void (*saver)(int));
 static void clear_screen(scr_stat *scp);
 static int switch_scr(scr_stat *scp, u_int next_scr);
 static void exchange_scr(void);
-static inline void move_crsr(scr_stat *scp, int x, int y);
+static void move_crsr(scr_stat *scp, int x, int y);
 static void scan_esc(scr_stat *scp, u_char c);
 static void draw_cursor_image(scr_stat *scp); 
 static void remove_cursor_image(scr_stat *scp); 
@@ -321,11 +323,17 @@ static	struct cdevsw	scdevsw = {
 /*
  * These functions need to be before calls to them so they can be inlined.
  */
-static inline void
+static void
 draw_cursor_image(scr_stat *scp)
 {
     u_short cursor_image, *ptr = Crtat + (scp->cursor_pos - scp->scr_buf);
     u_short prev_image;
+
+    if (vesa_mode) {
+	sc_bcopy(scp->scr_buf, scp->cursor_pos - scp->scr_buf, 
+	  scp->cursor_pos - scp->scr_buf, 1);
+	return;
+    }
 
     /* do we have a destructive cursor ? */
     if (flags & CHAR_CURSOR) {
@@ -370,13 +378,17 @@ draw_cursor_image(scr_stat *scp)
     *ptr = cursor_image;
 }
 
-static inline void
+static void
 remove_cursor_image(scr_stat *scp)
 {
-    *(Crtat + (scp->cursor_oldpos - scp->scr_buf)) = scp->cursor_saveunder;
+    if (vesa_mode)
+	sc_bcopy(scp->scr_buf, scp->cursor_pos - scp->scr_buf, 
+	  scp->cursor_pos - scp->scr_buf, 0);
+    else
+	*(Crtat + (scp->cursor_oldpos - scp->scr_buf)) = scp->cursor_saveunder;
 }
 
-static inline void
+static void
 move_crsr(scr_stat *scp, int x, int y)
 {
     if (x < 0)
@@ -436,7 +448,12 @@ scvidprobe(int unit, int flags)
     cp = (u_short *)CGA_BUF;
     was = *cp;
     *cp = (u_short) 0xA55A;
-    if (*cp == 0xA55A) {
+    if (bootinfo.bi_vesa == 0x102) {
+	vesa_mode = bootinfo.bi_vesa;
+	Crtat  = (u_short *)pa_to_va(0xA0000);
+	crtc_type = KD_PIXEL;
+        bzero(Crtat, 800*600/8);
+    } else if (*cp == 0xA55A) {
 	Crtat = (u_short *)CGA_BUF;
 	crtc_addr = COLOR_BASE;
 	crtc_type = KD_CGA;
@@ -452,45 +469,43 @@ scvidprobe(int unit, int flags)
     }
     *cp = was;
 
-    /* 
-     * Check rtc and BIOS date area.
-     * XXX: don't use BIOSDATA_EQUIPMENT, it is not a dead copy
-     * of RTC_EQUIPMENT. The bit 4 and 5 of the ETC_EQUIPMENT are
-     * zeros for EGA and VGA. However, the EGA/VGA BIOS will set 
-     * these bits in BIOSDATA_EQUIPMENT according to the monitor
-     * type detected.
-     */
-    switch ((rtcin(RTC_EQUIPMENT) >> 4) & 3) {	/* bit 4 and 5 */
-    case 0: /* EGA/VGA, or nothing */
-	crtc_type = KD_EGA;
-	/* the color adapter may be in the 40x25 mode... XXX */
-	break;
-    case 1: /* CGA 40x25 */
-	/* switch to the 80x25 mode? XXX */
-	/* FALL THROUGH */
-    case 2: /* CGA 80x25 */
-	/* `crtc_type' has already been set... */
-	/* crtc_type = KD_CGA; */
-	break;
-    case 3: /* MDA */
-	/* `crtc_type' has already been set... */
-	/* crtc_type = KD_MONO; */
-	break;
-    }
+    if (crtc_type != KD_PIXEL) {
+	/* 
+	 * Check rtc and BIOS date area.
+	 * XXX: don't use BIOSDATA_EQUIPMENT, it is not a dead copy
+	 * of RTC_EQUIPMENT. The bit 4 and 5 of the ETC_EQUIPMENT are
+	 * zeros for EGA and VGA. However, the EGA/VGA BIOS will set 
+	 * these bits in BIOSDATA_EQUIPMENT according to the monitor
+	 * type detected.
+	 */
+	switch ((rtcin(RTC_EQUIPMENT) >> 4) & 3) {	/* bit 4 and 5 */
+	case 0: /* EGA/VGA, or nothing */
+	    crtc_type = KD_EGA;
+	    /* the color adapter may be in the 40x25 mode... XXX */
+	    break;
+	case 1: /* CGA 40x25 */
+	    /* switch to the 80x25 mode? XXX */
+	    /* FALL THROUGH */
+	case 2: /* CGA 80x25 */
+	    /* `crtc_type' has already been set... */
+	    /* crtc_type = KD_CGA; */
+	    break;
+	case 3: /* MDA */
+	    /* `crtc_type' has already been set... */
+	    /* crtc_type = KD_MONO; */
+	    break;
+	}
 
-    /* is this a VGA or higher ? */
-    outb(crtc_addr, 7);
-    if (inb(crtc_addr) == 7) {
+	/* is this a VGA or higher ? */
+	outb(crtc_addr, 7);
+	if (inb(crtc_addr) == 7) {
 
-        crtc_type = KD_VGA;
-	crtc_vga = TRUE;
-	read_vgaregs(vgaregs);
+	    crtc_type = KD_VGA;
+	    crtc_vga = TRUE;
+	    read_vgaregs(vgaregs);
 
-	/* Get the BIOS video mode pointer */
-	segoff = *(u_long *)pa_to_va(0x4a8);
-	pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
-	if (ISMAPPED(pa, sizeof(u_long))) {
-	    segoff = *(u_long *)pa_to_va(pa);
+	    /* Get the BIOS video mode pointer */
+	    segoff = *(u_long *)pa_to_va(0x4a8);
 	    pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
 	    if (ISMAPPED(pa, MODE_PARAM_SIZE))
 		video_mode_ptr = (char *)pa_to_va(pa);
@@ -754,6 +769,9 @@ scattach(struct isa_device *dev)
 	break;
     case KD_CGA:
 	printf("CGA");
+	break;
+    case KD_PIXEL:
+	printf("Graphics display (VESA mode = 0x%x)", vesa_mode);
 	break;
     case KD_MONO:
     case KD_HERCULES:
@@ -2006,11 +2024,11 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	    return ENXIO;
 
     case PIO_FONT8x16:  	/* set 8x16 dot font */
-	if (!crtc_vga)
+	if (!crtc_vga && crtc_type != KD_PIXEL)
 	    return ENXIO;
 	bcopy(data, font_16, 16*256);
 	fonts_loaded |= FONT_16;
-	if (!(cur_console->status & UNKNOWN_MODE)) {
+	if (crtc_vga && !(cur_console->status & UNKNOWN_MODE)) {
 	    copy_font(LOAD, FONT_16, font_16);
 	    if (flags & CHAR_CURSOR)
 	        set_destructive_cursor(cur_console);
@@ -2018,7 +2036,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case GIO_FONT8x16:  	/* get 8x16 dot font */
-	if (!crtc_vga)
+	if (!crtc_vga && crtc_type != KD_PIXEL)
 	    return ENXIO;
 	if (fonts_loaded & FONT_16) {
 	    bcopy(font_16, data, 16*256);
@@ -2270,15 +2288,13 @@ static void
 scrn_update(scr_stat *scp, int show_cursor)
 {
     /* update screen image */
-    if (scp->start <= scp->end) {
-        sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
-    	    (1 + scp->end - scp->start) * sizeof(u_short));
-    }
+    if (scp->start <= scp->end) 
+        sc_bcopy(scp->scr_buf, scp->start, scp->end, 0);
 
     /* we are not to show the cursor and the mouse pointer... */
     if (!show_cursor) {
         scp->end = 0;
-        scp->start = scp->xsize*scp->ysize;
+        scp->start = scp->xsize*scp->ysize - 1;
 	return;
     }
 
@@ -2334,7 +2350,7 @@ scrn_update(scr_stat *scp, int show_cursor)
         draw_cutmarking(scp);
 
     scp->end = 0;
-    scp->start = scp->xsize*scp->ysize;
+    scp->start = scp->xsize*scp->ysize - 1;
 }
 
 int
@@ -2464,6 +2480,9 @@ exchange_scr(void)
     update_leds(new_scp->status);
     delayed_next_scr = FALSE;
     mark_all(new_scp);
+    if (vesa_mode == 0x102) {
+	bzero(Crtat, 800*600/8);
+    }
 }
 
 static void
@@ -3214,8 +3233,9 @@ scinit(void)
     }
 
     /* copy screen to temporary buffer */
-    sc_bcopy(Crtat, sc_buffer,
-	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
+    if (crtc_type != KD_PIXEL)
+	    generic_bcopy(Crtat, sc_buffer,
+		   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
     console[0]->scr_buf = console[0]->mouse_pos = console[0]->mouse_oldpos
 	= sc_buffer;
@@ -4512,7 +4532,7 @@ set_destructive_cursor(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
 #endif
     set_font_mode(buf);
-    sc_bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
+    generic_bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode(buf);
 }
 
@@ -4813,8 +4833,7 @@ draw_mouse_image(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
     set_font_mode(buf);
-    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + SC_MOUSE_CHAR * 32, 
-	     128);
+    generic_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + SC_MOUSE_CHAR * 32, 128);
     set_normal_mode(buf);
     *(crt_pos) = (*(scp->mouse_pos) & 0xff00) | SC_MOUSE_CHAR;
     *(crt_pos+scp->xsize) = 
@@ -4946,6 +4965,31 @@ blink_screen(void *arg)
 		  Crtat, scp->xsize * scp->ysize);
 	blink_in_progress--;
 	timeout(blink_screen, scp, hz / 10);
+    }
+}
+
+void 
+sc_bcopy(u_short *p, int from, int to, int mark)
+{
+    if (!vesa_mode) {
+	generic_bcopy(p+from, Crtat+from, (to-from+1)*sizeof (u_short));
+    } else if (vesa_mode == 0x102) {
+	u_char *d;
+	int i,j;
+
+	for (i = from ; i <= to ; i++) {
+	    for (j = 0 ; j < 16; j++) {
+		d = (u_char *)Crtat;
+		d += 10 + 6*16*100;
+		d += (i%80);
+		d += 16*100*(i/80);
+		d += 100*j;
+		if (mark)
+		    *d++ = 255^font_16[(p[i]&0xff)*16+j];
+		else
+		    *d++ = font_16[(p[i]&0xff)*16+j];
+	    }
+	}
     }
 }
 
