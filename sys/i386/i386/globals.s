@@ -23,12 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.4 1998/05/17 23:08:03 tegge Exp $
+ * $Id: globals.s,v 1.5 1998/05/28 09:29:56 phk Exp $
  */
 
 #include "opt_vm86.h"
 
+#ifndef SMP
 #include <machine/asmacros.h>
+#endif
 #include <machine/pmap.h>
 
 #include "assym.s"
