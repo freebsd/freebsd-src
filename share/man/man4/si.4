@@ -1,5 +1,4 @@
 .\" $FreeBSD$
-.\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
 .Dt SI 4 i386
@@ -101,11 +100,6 @@ To manipulate the initial/locked settings, the
 command is useful.  When setting the "locked" variables, enabling the mode
 on the lock device will lock the termios mode, while disabling the mode will
 unlock it.
-.\" The following requests should be uncommented and used where appropriate.
-.\" This next request is for sections 2 and 3 function return values only.
-.\" .Sh RETURN VALUES
-.\" This next request is for sections 1, 6, 7 & 8 only
-.\" .Sh ENVIRONMENT
 .Sh FILES
 .Bl -tag -width /dev/si_control -compact
 .It Pa /dev/si_control
@@ -124,12 +118,6 @@ initial termios state devices for dialout ports
 .It Pa /dev/cualA*
 locked termios state devices for dialout ports
 .El
-.\" .Sh EXAMPLES
-.\" This next request is for sections 1, 6, 7 & 8 only
-.\"     (command return values (to shell) and fprintf/stderr type diagnostics)
-.\" .Sh DIAGNOSTICS
-.\" The next request is for sections 2 and 3 error and signal handling only.
-.\" .Sh ERRORS
 .Sh SEE ALSO
 .Xr stty 1 ,
 .Xr sio 4 ,
@@ -137,7 +125,6 @@ locked termios state devices for dialout ports
 .Xr tty 4 ,
 .Xr comcontrol 8 ,
 .Xr sicontrol 8
-.\" .Sh STANDARDS
 .Sh HISTORY
 This driver is loosely based on driver code originating at Specialix, which
 was ported to run on BSDI by
