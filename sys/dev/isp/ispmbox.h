@@ -253,6 +253,8 @@ typedef struct {
 	u_int32_t	ds_count;
 } ispds64_t;
 
+#define	DSTYPE_32BIT	0
+#define	DSTYPE_64BIT	1
 typedef struct {
 	u_int16_t	ds_type;	/* 0-> ispds_t, 1-> ispds64_t */
 	u_int32_t	ds_segment;	/* unused */
@@ -263,7 +265,7 @@ typedef struct {
 /*
  * These elements get swizzled around for SBus instances.
  */
-#define	_ISP_SWAP8(a, b)	{	\
+#define	ISP_SWAP8(a, b)	{		\
 	u_int8_t tmp;			\
 	tmp = a;			\
 	a = b;				\
@@ -275,18 +277,6 @@ typedef struct {
 	u_int8_t	rqs_seqno;
 	u_int8_t	rqs_flags;
 } isphdr_t;
-/*
- * There are no (for all intents and purposes) non-sparc SBus machines
- */
-#ifdef	__sparc__
-#define	ISP_SBUSIFY_ISPHDR(isp, hdrp)					\
-    if ((isp)->isp_bustype == ISP_BT_SBUS) {				\
-	_ISP_SWAP8((hdrp)->rqs_entry_count, (hdrp)->rqs_entry_type);	\
-	_ISP_SWAP8((hdrp)->rqs_flags, (hdrp)->rqs_seqno);		\
-    }
-#else
-#define	ISP_SBUSIFY_ISPHDR(a, b)
-#endif
 
 /* RQS Flag definitions */
 #define	RQSFLAG_CONTINUATION	0x01
@@ -350,18 +340,6 @@ typedef struct {
 #define SYNC_TARGET	1
 #define SYNC_ALL	2
 
-/*
- * There are no (for all intents and purposes) non-sparc SBus machines
- */
-#ifdef	__sparc__
-#define	ISP_SBUSIFY_ISPREQ(isp, rqp)					\
-    if ((isp)->isp_bustype == ISP_BT_SBUS) {				\
-	_ISP_SWAP8((rqp)->req_target, (rqp)->req_lun_trn);		\
-    }
-#else
-#define	ISP_SBUSIFY_ISPREQ(a, b)
-#endif
-
 #define	ISP_RQDSEG_T2		3
 typedef struct {
 	isphdr_t	req_header;
@@ -373,7 +351,7 @@ typedef struct {
 	u_int16_t	_res2;
 	u_int16_t	req_time;
 	u_int16_t	req_seg_count;
-	u_int32_t	req_cdb[4];
+	u_int8_t	req_cdb[16];
 	u_int32_t	req_totalcnt;
 	ispds_t		req_dataseg[ISP_RQDSEG_T2];
 } ispreqt2_t;
@@ -389,7 +367,7 @@ typedef struct {
 	u_int16_t	_res2;
 	u_int16_t	req_time;
 	u_int16_t	req_seg_count;
-	u_int32_t	req_cdb[4];
+	u_int8_t	req_cdb[16];
 	u_int32_t	req_totalcnt;
 	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
 } ispreqt3_t;
@@ -455,6 +433,11 @@ typedef struct {
 	u_int8_t	req_response[8];	/* FC only */
 	u_int8_t	req_sense_data[32];
 } ispstatusreq_t;
+
+typedef struct {
+	isphdr_t	req_header;
+	u_int8_t	req_sense_data[60];
+} ispstatus_cont_t;
 
 /* 
  * For Qlogic 2X00, the high order byte of SCSI status has
