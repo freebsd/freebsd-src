@@ -37,7 +37,7 @@
 .\"
 .Dd October 28, 1999
 .Dt NG_PPPOE 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_pppoe
 .Nd RFC 2516 PPPOE protocol netgraph node type
@@ -46,7 +46,7 @@
 .Fd #include <netgraph/ng_pppoe.h>
 .Sh DESCRIPTION
 The
-.Nm 
+.Nm pppoe
 node type performs the PPPoE protocol. It is used in conjunction with the
 .Xr netgraph 4
 extensions to the Ethernet framework to divert and inject Ethernet packets
@@ -164,7 +164,7 @@ This node shuts down upon receipt of a
 control message, when all session have been disconnected or when the
 .Dv ethernet
 hook is disconnected.
-.Sh EXAMPLE USAGE
+.Sh EXAMPLES
 The following code uses 
 .Dv libnetgraph
 to set up a
@@ -395,5 +395,10 @@ setup(char *ethername, char *service, char *sessname,
 .%T "A Method for transmitting PPP over Ethernet (PPPoE)"
 .%O RFC 2516
 .Re
-.Sh AUTHOR
-Julian Elischer <julian@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq julian@whistle.com
