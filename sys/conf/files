@@ -336,6 +336,8 @@ dev/streams/streams.c	optional streams
 dev/sym/sym_hipd.c	optional sym					\
 	dependency	"$S/dev/sym/sym_{conf,defs}.h"
 dev/tdfx/tdfx_pci.c	optional	tdfx
+dev/twe/twe.c		optional twe
+dev/twe/twe_disk.c	optional twe
 #
 # USB support
 dev/usb/usb_if.m	optional usb
