@@ -80,13 +80,26 @@ static char 	    meta[256];
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
 static void CompatInterrupt(int);
-static int CompatRunCommand(void *, void *);
 static int CompatMake(void *, void *);
 static int shellneed(char *);
 
 static char *sh_builtin[] = { 
 	"alias", "cd", "eval", "exec", "exit", "read", "set", "ulimit", 
 	"unalias", "umask", "unset", "wait", ":", 0};
+
+static void
+CompatInit(void)
+{
+    char    	  *cp;	    /* Pointer to string of shell meta-characters */
+
+    for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
+	meta[(unsigned char) *cp] = 1;
+    }
+    /*
+     * The null character serves as a sentinel in the string.
+     */
+    meta[0] = 1;
+}
 
 /*-
  *-----------------------------------------------------------------------
@@ -123,7 +136,7 @@ CompatInterrupt (int signo)
 	if (signo == SIGINT) {
 	    gn = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
 	    if (gn != NULL) {
-		Lst_ForEach(gn->commands, CompatRunCommand, (void *)gn);
+		Lst_ForEach(gn->commands, Compat_RunCommand, (void *)gn);
 	    }
 	}
 
@@ -162,7 +175,7 @@ shellneed (char *cmd)
 
 /*-
  *-----------------------------------------------------------------------
- * CompatRunCommand --
+ * Compat_RunCommand --
  *	Execute the next command for a target. If the command returns an
  *	error, the node's made field is set to ERROR and creation stops.
  *	The node from which the command came is also given.
@@ -175,12 +188,13 @@ shellneed (char *cmd)
  *
  *-----------------------------------------------------------------------
  */
-static int
-CompatRunCommand (void *cmdp, void *gnp)
+int
+Compat_RunCommand (void *cmdp, void *gnp)
 {
     char    	  *cmdStart;	/* Start of expanded command */
     char	  *cp;
     Boolean 	  silent,   	/* Don't print command */
+		  doit,		/* Execute even in -n */
 		  errCheck; 	/* Check errors */
     int 	  reason;   	/* Reason for child's death */
     int	    	  status;   	/* Description of child's death */
@@ -204,6 +218,7 @@ CompatRunCommand (void *cmdp, void *gnp)
 #endif
     silent = gn->type & OP_SILENT;
     errCheck = !(gn->type & OP_IGNORE);
+    doit = FALSE;
 
     cmdNode = Lst_Member (gn->commands, (void *)cmd);
     cmdStart = Var_Subst (NULL, cmd, gn, FALSE);
@@ -232,11 +247,22 @@ CompatRunCommand (void *cmdp, void *gnp)
 	return(0);
     }
 
-    while ((*cmd == '@') || (*cmd == '-')) {
-	if (*cmd == '@') {
+    while ((*cmd == '@') || (*cmd == '-') || (*cmd == '+')) {
+	switch (*cmd) {
+
+	  case '@':
 	    silent = DEBUG(LOUD) ? FALSE : TRUE;
-	} else {
+	    break;
+
+	  case '-':
 	    errCheck = FALSE;
+	    break;
+
+	  case '+':
+	    doit = TRUE;
+	    if (!meta[0])		/* we came here from jobs */
+		CompatInit();
+	    break;
 	}
 	cmd++;
     }
@@ -255,9 +281,9 @@ CompatRunCommand (void *cmdp, void *gnp)
 
     /*
      * Print the command before echoing if we're not supposed to be quiet for
-     * this one. We also print the command if -n given.
+     * this one. We also print the command if -n given, but not if '+'.
      */
-    if (!silent || noExecute) {
+    if (!silent || (noExecute && !doit)) {
 	printf ("%s\n", cmd);
 	fflush(stdout);
     }
@@ -266,7 +292,7 @@ CompatRunCommand (void *cmdp, void *gnp)
      * If we're not supposed to execute any commands, this is as far as
      * we go...
      */
-    if (noExecute) {
+    if (!doit && noExecute) {
 	return (0);
     }
 
@@ -470,7 +496,7 @@ CompatMake (void *gnp, void *pgnp)
 
 	/*
 	 * Alter our type to tell if errors should be ignored or things
-	 * should not be printed so CompatRunCommand knows what to do.
+	 * should not be printed so Compat_RunCommand knows what to do.
 	 */
 	if (Targ_Ignore (gn)) {
 	    gn->type |= OP_IGNORE;
@@ -486,7 +512,7 @@ CompatMake (void *gnp, void *pgnp)
 	     */
 	    if (!touchFlag) {
 		curTarg = gn;
-		Lst_ForEach (gn->commands, CompatRunCommand, (void *)gn);
+		Lst_ForEach (gn->commands, Compat_RunCommand, (void *)gn);
 		curTarg = NULL;
 	    } else {
 		Job_Touch (gn, gn->type & OP_SILENT);
@@ -625,9 +651,10 @@ CompatMake (void *gnp, void *pgnp)
 void
 Compat_Run(Lst targs)
 {
-    char    	  *cp;	    /* Pointer to string of shell meta-characters */
     GNode   	  *gn = NULL;/* Current root target */
     int	    	  errors;   /* Number of targets not remade due to errors */
+
+    CompatInit();
 
     if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
 	signal(SIGINT, CompatInterrupt);
@@ -642,14 +669,6 @@ Compat_Run(Lst targs)
 	signal(SIGQUIT, CompatInterrupt);
     }
 
-    for (cp = "#=|^(){};&<>*?[]:$`\\\n"; *cp != '\0'; cp++) {
-	meta[(unsigned char) *cp] = 1;
-    }
-    /*
-     * The null character serves as a sentinel in the string.
-     */
-    meta[0] = 1;
-
     ENDNode = Targ_FindNode(".END", TARG_CREATE);
     /*
      * If the user has defined a .BEGIN target, execute the commands attached
@@ -658,7 +677,7 @@ Compat_Run(Lst targs)
     if (!queryFlag) {
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NULL) {
-	    Lst_ForEach(gn->commands, CompatRunCommand, (void *)gn);
+	    Lst_ForEach(gn->commands, Compat_RunCommand, (void *)gn);
             if (gn->made == ERROR) {
                 printf("\n\nStop.\n");
                 exit(1);
@@ -693,6 +712,6 @@ Compat_Run(Lst targs)
      * If the user has defined a .END target, run its commands.
      */
     if (errors == 0) {
-	Lst_ForEach(ENDNode->commands, CompatRunCommand, (void *)gn);
+	Lst_ForEach(ENDNode->commands, Compat_RunCommand, (void *)gn);
     }
 }
