@@ -9,7 +9,7 @@
 .Nm tun
 .Nd tunnel software network interface
 .Sh SYNOPSIS
-.Cd pseudo-device tun Op Ar count
+.Cd pseudo-device tun
 .Sh DESCRIPTION
 The
 .Nm tun
@@ -41,11 +41,9 @@ interface.
 The network interfaces are named
 .Sy tun Ns Ar 0 ,
 .Sy tun Ns Ar 1 ,
-etc, as many in all as the
-.Ar count
-figure given on the
-.Sy pseudo-device
-line.  Each one supports the usual network-interface
+etc, as many as were made by
+.Xr MAKEDEV 8 .
+Each one supports the usual network-interface
 .Xr ioctl 2 Ns s ,
 such as
 .Dv SIOCSIFADDR
