@@ -113,7 +113,7 @@ LIST_HEAD(npcblist, natmpcb);
 
 /* global data structures */
 
-struct npcblist natm_pcbs;		/* global list of pcbs */
+extern struct npcblist natm_pcbs;	/* global list of pcbs */
 extern	struct ifqueue natmintrq;	/* natm packet input queue */
 #define	NATM_STAT
 #ifdef NATM_STAT
