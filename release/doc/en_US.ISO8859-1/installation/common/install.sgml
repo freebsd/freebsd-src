@@ -87,7 +87,7 @@ from {alpha,i386}/INSTALL.TXT.
     described in <filename>HARDWARE.TXT</filename>.</para>
 
     <para arch="alpha">You will need a dedicated disk for
-    FreeBSD/alpha. It is not possible to share a disk with another
+    &os;/alpha. It is not possible to share a disk with another
     operating system at this time. This disk will need to be attached
     to a SCSI controller which is supported by the SRM firmware or an
     IDE disk assuming the SRM in your machine supports booting from
@@ -212,7 +212,7 @@ from {alpha,i386}/INSTALL.TXT.
       support booting from CDROM) and would like to simply install
       over the net using PPP, SLIP or a dedicated connection.
       You should start the installation by building
-      a set of FreeBSD boot floppy from the files
+      a set of &os; boot floppies from the files
       <filename>floppies/kern.flp</filename> and
       <filename>floppies/mfsroot.flp</filename> using the instructions
       found in <xref linkend="floppies">.  Restart your computer using
@@ -222,8 +222,8 @@ from {alpha,i386}/INSTALL.TXT.
       via FTP or NFS.</para>
 
       <para arch="alpha">The easiest type of installation is from
-      CDROM.  If you have a supported CDROM drive and a FreeBSD
-      installation CDROM, you can boot FreeBSD directly from the
+      CDROM.  If you have a supported CDROM drive and a &os;
+      installation CDROM, you can boot &os; directly from the
       CDROM. Insert the CDROM into the drive and type the following
       command to start the installation (substituting the name of the
       appropriate CDROM drive if necessary):</para>
@@ -232,7 +232,7 @@ from {alpha,i386}/INSTALL.TXT.
 
       <para arch="alpha">Alternatively you can boot the installation
       from floppy disk. You should start the installation by building
-      a set of FreeBSD boot floppy from the files
+      a set of &os; boot floppies from the files
       <filename>floppies/kern.flp</filename> and
       <filename>floppies/mfsroot.flp</filename> using the instructions
       found in <xref linkend="floppies">. From the SRM console prompt
@@ -607,7 +607,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         the direct mounting of <filename>/usr/archive/stuff/FreeBSD</filename>, not just
         <filename>/usr</filename> or <filename>/usr/archive/stuff</filename>.</para>
 
-        <para>In FreeBSD's <filename>/etc/exports</filename> file this is controlled by the
+        <para>In &os;'s <filename>/etc/exports</filename> file this is controlled by the
         <option>-alldirs</option> option.  Other NFS servers may have different
         conventions.  If you are getting <literal>Permission Denied</literal> messages
         from the server then it's likely that you don't have this
