@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ray.c,v 1.27 2000/05/07 16:03:36 dmlb Exp $
+ * $Id: if_ray.c,v 1.24 2000/04/24 15:49:20 dmlb Exp $
  *
  */
 
@@ -72,11 +72,6 @@
  * problem managing and setting up the correct memory maps. This
  * driver should reset the memory maps correctly under PAO and non-PAO
  * -stable systems. Work is in hand to fix these problems for -current.
- *
- * So, if you want to use this driver make sure that
- *	options RAY_NEED_CM_FIXUP
- *	options RAY_NEED_CM_REMAPPING
- * are in your kernel configuration file.
  *
  * The first fixes the brain deadness of pccardd (where it reads the
  * CIS for common memory, sets it all up and then throws it all away
@@ -262,14 +257,14 @@
 #define RAY_DEBUG	(				\
  			/* RAY_DBG_RECERR	| */	\
  			/* RAY_DBG_SUBR		| */ 	\
-			   RAY_DBG_BOOTPARAM	|    	\
+			   RAY_DBG_BOOTPARAM	|   	\
 			/* RAY_DBG_STARTJOIN	| */	\
 			/* RAY_DBG_CCS		| */	\
                         /* RAY_DBG_IOCTL	| */	\
                         /* RAY_DBG_MBUF		| */ 	\
                         /* RAY_DBG_RX		| */	\
-                        /* RAY_DBG_CM		| */	\
-                        /* RAY_DBG_COM		| */	\
+                        /* RAY_DBG_CM		| */ 	\
+                        /* RAY_DBG_COM		| */ 	\
                         /* RAY_DBG_STOP		| */	\
 			0				\
 			)
@@ -278,11 +273,9 @@
  * XXX build options - move to LINT
  */
 #define RAY_NEED_CM_REMAPPING	1	/* Needed until pccard maps more than one memory area */
-
 #define RAY_COM_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
 #define RAY_RESET_TIMEOUT	(5*hz)	/* Timeout for resetting the card */
 #define RAY_TX_TIMEOUT		(hz/2)	/* Timeout for rescheduling TX */
-
 #define RAY_USE_CALLOUT_STOP	0	/* Set for kernels with callout_stop function - 3.3 and above */
 /*
  * XXX build options - move to LINT
@@ -293,8 +286,6 @@
 #endif /* RAY_DEBUG */
 
 #include "ray.h"
-#include "card.h"
-#include "bpfilter.h"
 
 #if NRAY > 0
 
@@ -312,9 +303,9 @@
 #include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-#include <sys/uio.h>
-#include <sys/proc.h>
-#include <sys/ucred.h>
+
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -322,24 +313,19 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
-
-#if NBPFILTER > 0
 #include <net/bpf.h>
-#endif /* NBPFILTER */
 
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 #include <machine/clock.h>
 #include <machine/md_var.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/limits.h>
 
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
-
-#include <pccard/cardinfo.h>
-#include <pccard/cis.h>
-#include <pccard/driver.h>
-#include <pccard/slot.h>
+#include <dev/pccard/pccardvar.h>
+#include "card_if.h"
 
 #include <dev/ray/if_ieee80211.h>
 #include <dev/ray/if_rayreg.h>
@@ -350,9 +336,9 @@
 /*
  * Prototyping
  */
-static int	ray_attach		(struct isa_device *dev);
+static int	ray_attach		(device_t);
 static int	ray_ccs_alloc		(struct ray_softc *sc, size_t *ccsp, u_int cmd, int timo);
-static u_int8_t	ray_ccs_free 		(struct ray_softc *sc, size_t ccs);
+static u_int8_t	ray_ccs_free		(struct ray_softc *sc, size_t ccs);
 static void	ray_com_ecf		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_com_ecf_done	(struct ray_softc *sc);
 static void	ray_com_ecf_timo	(void *xsc);
@@ -367,7 +353,7 @@ static void	ray_com_runq		(struct ray_softc *sc);
 static void	ray_com_runq_add	(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_com_runq_arr	(struct ray_softc *sc, struct ray_comq_entry *com[], int ncom, char *wmesg);
 static void	ray_com_runq_done	(struct ray_softc *sc);
-static void	ray_detach		(struct pccard_devinfo *dev_p);
+static int	ray_detach		(device_t);
 static void	ray_init_user		(void *xsc);
 static void	ray_init_assoc		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_assoc_done	(struct ray_softc *sc, size_t ccs);
@@ -375,7 +361,7 @@ static void	ray_init_download	(struct ray_softc *sc, struct ray_comq_entry *com)
 static void	ray_init_download_done	(struct ray_softc *sc, size_t ccs);
 static void	ray_init_sj		(struct ray_softc *sc, struct ray_comq_entry *com);
 static void	ray_init_sj_done	(struct ray_softc *sc, size_t ccs);
-static int	ray_intr		(struct pccard_devinfo *dev_p);
+static void	ray_intr		(void *xsc);
 static void	ray_intr_ccs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
 static void	ray_intr_rcs		(struct ray_softc *sc, u_int8_t cmd, size_t ccs);
 static void	ray_intr_updt_errcntrs	(struct ray_softc *sc);
@@ -383,7 +369,7 @@ static int	ray_ioctl		(struct ifnet *ifp, u_long command, caddr_t data);
 static void	ray_mcast		(struct ray_softc *sc, struct ray_comq_entry *com); 
 static void	ray_mcast_done		(struct ray_softc *sc, size_t ccs); 
 static int	ray_mcast_user		(struct ray_softc *sc); 
-static int	ray_probe		(struct pccard_devinfo *dev_p);
+static int	ray_probe		(device_t);
 static void	ray_promisc		(struct ray_softc *sc, struct ray_comq_entry *com); 
 static int	ray_promisc_user	(struct ray_softc *sc); 
 static void	ray_repparams		(struct ray_softc *sc, struct ray_comq_entry *com);
@@ -425,66 +411,76 @@ static void	ray_attr_write_1	(struct ray_softc *sc, off_t offset, u_int8_t byte)
 /*
  * PC-Card (PCMCIA) driver definition
  */
-PCCARD_MODULE(ray, ray_probe, ray_detach, ray_intr, 0, net_imask);
+static device_method_t ray_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ray_probe),
+	DEVMETHOD(device_attach,	ray_attach),
+	DEVMETHOD(device_detach,	ray_detach),
 
-/*
+	{ 0, 0 }
+};
+
+static driver_t ray_driver = {
+	"ray",
+	ray_methods,
+	sizeof(struct ray_softc)
+};
+
+static devclass_t ray_devclass;
+
+DRIVER_MODULE(ray, pccard, ray_driver, ray_devclass, 0, 0);
+
+/* 
  * Probe for the card by checking its startup results.
  *
  * Fixup any bugs/quirks for different firmware.
  */
 static int
-ray_probe(struct pccard_devinfo *dev_p)
+ray_probe(device_t dev)
 {
-	struct ray_softc *sc;
-	struct ray_ecf_startup_v5 *ep;
-	int doRemap;
+	struct ray_softc *sc = device_get_softc(dev);
+	struct ray_ecf_startup_v5 *ep = &sc->sc_ecf_startup;
+	int error;
 
-	if (dev_p->isahd.id_unit >= NRAY)
-		return (ENODEV);
-
-	sc = &ray_softc[dev_p->isahd.id_unit];
-	ep = &sc->sc_ecf_startup;
+	sc->dev = dev;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
-#if RAY_NEED_CM_REMAPPING
-	sc->slotnum = dev_p->slt->slotnum;
-	ray_res_alloc_am(sc);
-	RAY_DPRINTF(sc, RAY_DBG_CM,
-	    "Memory window flags 0x%02x, start %p, "
-	    "size 0x%x, card address 0x%lx",
-	    sc->md.flags, sc->md.start, sc->md.size, sc->md.card);
+#if (RAY_DBG_CM || RAY_DBG_BOOTPARAM)
+	{
+		u_long flags = 0xffff;
+		CARD_GET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_IOPORT,
+		    0, &flags);
+		RAY_PRINTF(sc,
+		    "ioport start 0x%0lx count 0x%0lx flags 0x%0lx",
+		    bus_get_resource_start(dev, SYS_RES_IOPORT, 0),
+		    bus_get_resource_count(dev, SYS_RES_IOPORT, 0),
+		    flags);
+		CARD_GET_RES_FLAGS(device_get_parent(dev), dev, SYS_RES_MEMORY,
+		    0, &flags);
+		RAY_PRINTF(sc,
+		    "memory start 0x%0lx count 0x%0lx flags 0x%0lx",
+		    bus_get_resource_start(dev, SYS_RES_MEMORY, 0),
+		    bus_get_resource_count(dev, SYS_RES_MEMORY, 0),
+		    flags);
+		RAY_PRINTF(sc, "irq start 0x%0lx count 0x%0lx",
+		    bus_get_resource_start(dev, SYS_RES_IRQ, 0),
+		    bus_get_resource_count(dev, SYS_RES_IRQ, 0));
+	}
+#endif /* (RAY_DBG_CM || RAY_DBG_BOOTPARAM) */
 
-	doRemap = 0;
-	if (sc->md.start == 0x0) {
-		RAY_PRINTF(sc, "pccardd did not map CM - giving up");
-		return (ENXIO);
+	error = ray_res_alloc_cm(sc);
+	if (error)
+		return (error);
+	error = ray_res_alloc_am(sc);
+	if (error) {
+		ray_res_release(sc);
+		return (error);
 	}
-	if (sc->md.flags != MDF_ACTIVE) {
-		RAY_PRINTF(sc, "fixing up CM flags from 0x%x to 0x40",
-		    sc->md.flags);
-		doRemap = 1;
-		sc->md.flags = MDF_ACTIVE;
+	error = ray_res_alloc_irq(sc);
+	if (error) {
+		ray_res_release(sc);
+		return (error);
 	}
-	if (sc->md.size != 0xc000) {
-		RAY_PRINTF(sc, "fixing up CM size from 0x%x to 0xc000",
-		    sc->md.size);
-		doRemap = 1;
-		sc->md.size = 0xc000;
-		dev_p->isahd.id_msize = sc->md.size;
-	}
-	if (sc->md.card != 0) {
-		RAY_PRINTF(sc, "fixing up CM card address from 0x%lx to 0x0",
-		    sc->md.card);
-		doRemap = 1;
-		sc->md.card = 0;
-	}
-	if (doRemap)
-		ray_attr_mapcm(sc);
-#endif /* RAY_NEED_CM_REMAPPING */
-
-	sc->unit = dev_p->isahd.id_unit;
-	sc->maddr = dev_p->isahd.id_maddr;
-	sc->flags = dev_p->isahd.id_flags;
 
 	/*
 	 * Read startup results, check the card is okay and work out what
@@ -496,22 +492,17 @@ ray_probe(struct pccard_devinfo *dev_p)
 	if (ep->e_status != RAY_ECFS_CARD_OK) {
 		RAY_PRINTF(sc, "card failed self test 0x%b",
 		    ep->e_status, RAY_ECFS_PRINTFB);
+		ray_res_release(sc);
 		return (ENXIO);
 	}
 	if (sc->sc_version != RAY_ECFS_BUILD_4 &&
 	    sc->sc_version != RAY_ECFS_BUILD_5) {
 		RAY_PRINTF(sc, "unsupported firmware version 0x%0x",
 		    ep->e_fw_build_string);
+		ray_res_release(sc);
 		return (ENXIO);
 	}
-	printf("ray%d: <Raylink/IEEE 802.11>"
-	    "maddr %p msize 0x%x irq %d flags 0x%x on isa (PC-Card slot %d)\n",
-	    sc->unit,
-	    sc->maddr,
-	    dev_p->isahd.id_msize,
-	    ffs(dev_p->isahd.id_irq) - 1,
-	    sc->flags,
-	    sc->slotnum);
+	RAY_DPRINTF(sc, RAY_DBG_BOOTPARAM, "found a card");
 	sc->gone = 0;
 
 	/*
@@ -525,24 +516,21 @@ ray_probe(struct pccard_devinfo *dev_p)
 	if (sc->sc_version == RAY_ECFS_BUILD_4 && sc->sc_tibsize == 0x55)
 		sc->sc_tibsize = sizeof(struct ray_tx_tib);
 
-	return (ray_attach(&dev_p->isahd));
+	return (0);
 }
 
 /*
  * Attach the card into the kernel
  */
 static int
-ray_attach(struct isa_device *dev_p)
+ray_attach(device_t dev)
 {
-	struct ray_softc *sc;
-	struct ray_ecf_startup_v5 *ep;
-	struct ifnet *ifp;
+	struct ray_softc *sc = device_get_softc(dev);
+	struct ray_ecf_startup_v5 *ep = &sc->sc_ecf_startup;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	size_t ccs;
 	int i;
 
-	sc = &ray_softc[dev_p->id_unit];
-	ep = &sc->sc_ecf_startup;
-	ifp = &sc->arpcom.ac_if;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
@@ -580,7 +568,7 @@ ray_attach(struct isa_device *dev_p)
 		    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 		ifp->if_softc = sc;
 		ifp->if_name = "ray";
-		ifp->if_unit = sc->unit;
+		ifp->if_unit = device_get_unit(dev);
 		ifp->if_timer = 0;
 #if XXX_MCAST
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
@@ -608,9 +596,7 @@ ray_attach(struct isa_device *dev_p)
 	callout_handle_init(&sc->reset_timerh);
 	callout_handle_init(&sc->tx_timerh);
 	TAILQ_INIT(&sc->sc_comq);
-#if NBPFILTER > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
-#endif /* NBFFILTER */
 #if XXX
 	at_shutdown(ray_shutdown, sc, SHUTDOWN_POST_SYNC);
 #endif /* XXX */
@@ -658,19 +644,17 @@ ray_attach(struct isa_device *dev_p)
  * and ensure that any driver entry points such as
  * read and write do not hang.
  */
-static void
-ray_detach(struct pccard_devinfo *dev_p)
+static int
+ray_detach(device_t dev)
 {
-	struct ray_softc *sc;
-	struct ifnet *ifp;
+	struct ray_softc *sc = device_get_softc(dev);
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 
-	sc = &ray_softc[dev_p->isahd.id_unit];
-	ifp = &sc->arpcom.ac_if;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 
 	if (sc->gone) {
-	    RAY_PRINTF(sc, "unloaded");
-	    return;
+		RAY_PRINTF(sc, "unloaded");
+		return (0);
 	}
 
 	/*
@@ -698,15 +682,16 @@ ray_detach(struct pccard_devinfo *dev_p)
 	/*
 	 * Cleardown interface
 	 */
-	if_down(ifp); /* XXX should be if_detach for -current */
+	if_detach(ifp);
 
 	/*
-	 * Mark card as gone
+	 * Mark card as gone and release resources
 	 */
 	sc->gone = 1;
+	ray_res_release(sc);
 	RAY_PRINTF(sc, "unloading complete");
 
-	return;
+	return (0);
 }
 
 /*
@@ -1257,7 +1242,7 @@ ray_stop(struct ray_softc *sc)
 	/*
 	 * Clear out timers and sort out driver state
 	 */
-	RAY_DPRINTF(sc, RAY_DBG_STOP, "HCS_intr %d RCSI 0x%0x",
+	RAY_DPRINTF(sc, RAY_DBG_STOP, "HCS_intr %d RCSI 0x%0x", 
 	    RAY_HCS_INTR(sc), SRAM_READ_1(sc, RAY_SCB_RCSI));
 	RAY_DPRINTF(sc, RAY_DBG_STOP, "ECF ready %d", RAY_ECF_READY(sc));
 
@@ -1545,10 +1530,8 @@ ray_tx(struct ifnet *ifp)
 	 * needed the 802.11 aware program can "translate" the .11 to ethernet
 	 * for tcpdump -r.
 	 */
-#if NBPFILTER > 0
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m0);
-#endif /* NBPFILTER */
 
 	/*
 	 * Translation - capability as described earlier
@@ -2001,10 +1984,8 @@ skip_read:
 	 */
 	ifp->if_ipackets++;
 	ray_rx_update_cache(sc, src, siglev, antenna);
-#if NBPFILTER > 0
 	if (ifp->if_bpf)
 		bpf_mtap(ifp, m0);
-#endif /* NBPFILTER */
 	eh = mtod(m0, struct ether_header *);
 	m_adj(m0, sizeof(struct ether_header));
 	ether_input(ifp, eh, m0);
@@ -2063,23 +2044,21 @@ found:
 /*
  * Process an interrupt
  */
-static int
-ray_intr(struct pccard_devinfo *dev_p)
+static void
+ray_intr(void *xsc)
 {
-	struct ray_softc *sc;
-	struct ifnet *ifp;
+	struct ray_softc *sc = (struct ray_softc *)xsc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	size_t ccs;
 	u_int8_t cmd;
 	int ccsi, count;
 
-	sc = &ray_softc[dev_p->isahd.id_unit];
-	ifp = &sc->arpcom.ac_if;
 	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
 	RAY_MAP_CM(sc);
 
 	if (sc->gone) {
 		RAY_PRINTF(sc, "unloaded");
-		return (0);
+		return;
 	}
 
 	/*
@@ -2112,8 +2091,6 @@ ray_intr(struct pccard_devinfo *dev_p)
 
 	if ((++sc->sc_checkcounters % 32) == 0)
 		ray_intr_updt_errcntrs(sc);
-
-	return (count);
 }
 
 /*
@@ -3189,107 +3166,181 @@ ray_ccs_free(struct ray_softc *sc, size_t ccs)
 static int
 ray_res_alloc_am(struct ray_softc *sc)
 {
-#if RAY_NEED_CM_REMAPPING
-	struct ucred uc;
-	struct pcred pc;
-	struct proc p;
-
 	RAY_DPRINTF(sc, RAY_DBG_SUBR | RAY_DBG_CM, "");
 
-	sc->md.window = 0;
+	sc->am_rid = 1;		/* pccard uses 0 */
+	sc->am_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &sc->am_rid,
+	    0, ~0, 0x1000, RF_ACTIVE);
+	if (!sc->am_res) {
+		RAY_PRINTF(sc, "Cannot allocate attribute memory");
+		return (ENOMEM);
+	}
+	/* XXX ensure attribute memory settings */
+	sc->am_bsh = rman_get_bushandle(sc->am_res);
+	sc->am_bst = rman_get_bustag(sc->am_res);
+#if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
+	{
+		u_long flags = 0xffff;
+		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+		    SYS_RES_MEMORY, sc->am_rid, &flags); /* XXX card_get_res_flags */
+		RAY_PRINTF(sc, "allocated attribute memory:\n"
+		    "  start 0x%0lx count 0x%0lx flags 0x%0lx",
+		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
+		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid),
+		    flags);
+	}
+#endif /* RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM) */
 
-	p.p_cred = &pc;
-	p.p_cred->pc_ucred = &uc;
-	p.p_cred->pc_ucred->cr_uid = 0;
-
-	cdevsw[CARD_MAJOR]->d_ioctl(makedev(CARD_MAJOR, sc->slotnum),
-	    PIOCGMEM, (caddr_t)&sc->md, 0, &p);
-#endif /* RAY_NEED_CM_REMAPPING */
 	return (0);
 }
 
+/*
+ * Allocate the common memory on the card
+ *
+ * XXX the pccard manager should get this right eventually and allocate it
+ * XXX for us - that why I'm using rid == 0
+ * XXX I might end up just setting these using set_start etc.
+ */
 static int
 ray_res_alloc_cm(struct ray_softc *sc)
 {
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+
+	sc->cm_rid = 0;		/* pccard uses 0 */
+	sc->cm_res = bus_alloc_resource(sc->dev, SYS_RES_MEMORY, &sc->cm_rid,
+	    0, ~0, 0xc000, RF_ACTIVE);
+	if (!sc->cm_res) {
+		RAY_PRINTF(sc, "Cannot allocate common memory");
+		return (ENOMEM);
+	}
+	/* XXX ensure 8bit access */
+	sc->cm_bsh = rman_get_bushandle(sc->cm_res);
+	sc->cm_bst = rman_get_bustag(sc->cm_res);
+#if RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM)
+	{
+		u_long flags = 0xffff;
+		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+		    SYS_RES_MEMORY, sc->cm_rid, &flags); /* XXX card_get_res_flags */
+		RAY_PRINTF(sc, "allocated common memory:\n"
+		    "  start 0x%0lx count 0x%0lx flags 0x%0lx",
+		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
+		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
+		    flags);
+	}
+#endif /* RAY_DEBUG & (RAY_DBG_CM | RAY_DBG_BOOTPARAM) */
+
 	return (0);
 }
 
+/*
+ * Get an irq and attach it to the bus
+ */
 static int
 ray_res_alloc_irq(struct ray_softc *sc)
 {
+	int error;
+
+	RAY_DPRINTF(sc, RAY_DBG_SUBR, "");
+
+	sc->irq_rid = 0;
+	sc->irq_res = bus_alloc_resource(sc->dev, SYS_RES_IRQ, &sc->irq_rid,
+	    0, ~0, 1, RF_ACTIVE);
+	if (!sc->irq_res) {
+		RAY_PRINTF(sc, "Cannot allocate irq");
+		return (ENOMEM);
+	}
+	if ((error = bus_setup_intr(sc->dev, sc->irq_res, INTR_TYPE_NET,
+	    ray_intr, sc, &sc->irq_handle)) != 0) {
+		RAY_PRINTF(sc, "Failed to setup irq");
+		return (error);
+	}
+	RAY_DPRINTF(sc, RAY_DBG_CM | RAY_DBG_BOOTPARAM, "allocated irq:\n"
+	    "  start 0x%0lx count 0x%0lx",
+	    bus_get_resource_start(sc->dev, SYS_RES_IRQ, sc->irq_rid),
+	    bus_get_resource_count(sc->dev, SYS_RES_IRQ, sc->irq_rid));
+
 	return (0);
 }
 
+/*
+ * Release all of the card's resources
+ */
 static void
 ray_res_release(struct ray_softc *sc)
 {
+	if (sc->irq_res != 0) {
+		bus_teardown_intr(sc->dev, sc->irq_res, sc->irq_handle);
+		bus_release_resource(sc->dev, SYS_RES_IRQ,
+		    sc->irq_rid, sc->irq_res);
+		sc->irq_res = 0;
+	}
+	if (sc->am_res != 0) {
+		bus_release_resource(sc->dev, SYS_RES_MEMORY,
+		    sc->am_rid, sc->am_res);
+		sc->am_res = 0;
+	}
+	if (sc->cm_res != 0) {
+		bus_release_resource(sc->dev, SYS_RES_MEMORY,
+		    sc->cm_rid, sc->cm_res);
+		sc->cm_res = 0;
+	}
 }
 
 /*
  * Hacks for working around the PCCard layer problems.
  *
- * For OLDCARD
+ * For NEWBUS kludge and OLDCARD.
  *
- * Taken from if_xe.c.
- *
- * Until there is a real way of accessing the attribute memory from a driver
- * these have to stay.
- *
- * The hack to use the crdread/crdwrite device functions causes the attribute
- * memory to be remapped into the controller and looses the mapping of
- * the common memory.
- *
- * We cheat by using PIOCSMEM and assume that the common memory window
- * is in window 0 of the card structure.
- *
- * Also
- *	pccard/pcic.c/crdread does mark the unmapped window as inactive
- *	pccard/pccard.c/map_mem toggles the mapping of a window on
- *	successive calls
+ * We just call the pccard layer to change and restore the mapping each
+ * time we use the attribute memory.
  *
  */
-#if RAY_NEED_CM_REMAPPING 
+#if RAY_NEED_CM_REMAPPING
 static void
 ray_attr_mapam(struct ray_softc *sc)
 {
+	CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev, SYS_RES_MEMORY,
+	    sc->am_rid, PCCARD_A_MEM_ATTR); /* XXX card_set_res_flags */
+#if RAY_DEBUG & RAY_DBG_CM
+	{
+		u_long flags = 0xffff;
+		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+		    SYS_RES_MEMORY, sc->am_rid, &flags); /* XXX card_get_res_flags */
+		RAY_PRINTF(sc, "attribute memory\n"
+		    "  start 0x%0lx count 0x%0lx flags 0x%0lx",
+		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->am_rid),
+		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->am_rid),
+		    flags);
+	}
+#endif /* RAY_DEBUG & RAY_DBG_CM */
 }
 
 static void
 ray_attr_mapcm(struct ray_softc *sc)
 {
-	struct ucred uc;
-	struct pcred pc;
-	struct proc p;
-
-	RAY_DPRINTF(sc, RAY_DBG_CM, "");
-
-	p.p_cred = &pc;
-	p.p_cred->pc_ucred = &uc;
-	p.p_cred->pc_ucred->cr_uid = 0;
-
-	cdevsw[CARD_MAJOR]->d_ioctl(makedev(CARD_MAJOR, sc->slotnum),
-	    PIOCSMEM, (caddr_t)&sc->md, 0, &p);
+	CARD_SET_RES_FLAGS(device_get_parent(sc->dev), sc->dev, SYS_RES_MEMORY,
+	    sc->cm_rid, 0); /* XXX card_set_res_flags */
+#if RAY_DEBUG & RAY_DBG_CM
+	{
+		u_long flags = 0xffff;
+		CARD_GET_RES_FLAGS(device_get_parent(sc->dev), sc->dev,
+		    SYS_RES_MEMORY, sc->cm_rid, &flags); /* XXX card_get_res_flags */
+		RAY_PRINTF(sc, "common memory\n"
+		    "  start 0x%0lx count 0x%0lx flags 0x%0lx",
+		    bus_get_resource_start(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
+		    bus_get_resource_count(sc->dev, SYS_RES_MEMORY, sc->cm_rid),
+		    flags);
+	}
+#endif /* RAY_DEBUG & RAY_DBG_CM */
 }
 
 static u_int8_t
 ray_attr_read_1(struct ray_softc *sc, off_t offset)
 {
-	struct iovec iov;
-	struct uio uios;
 	u_int8_t byte;
 
-	iov.iov_base = &byte;
-	iov.iov_len = sizeof(byte);
-
-	uios.uio_iov = &iov;
-	uios.uio_iovcnt = 1;
-	uios.uio_offset = offset;
-	uios.uio_resid = 1;
-	uios.uio_segflg = UIO_SYSSPACE;
-	uios.uio_rw = UIO_READ;
-	uios.uio_procp = 0;
-	cdevsw[CARD_MAJOR]->d_read(makedev(CARD_MAJOR, sc->slotnum), &uios, 0);
-
+	ray_attr_mapam(sc);
+	byte = (u_int8_t)bus_space_read_1(sc->am_bst, sc->am_bsh, offset);
 	ray_attr_mapcm(sc);
 
 	return (byte);
@@ -3298,21 +3349,8 @@ ray_attr_read_1(struct ray_softc *sc, off_t offset)
 static void
 ray_attr_write_1(struct ray_softc *sc, off_t offset, u_int8_t byte)
 {
-	struct iovec iov;
-	struct uio uios;
-
-	iov.iov_base = &byte;
-	iov.iov_len = sizeof(byte);
-
-	uios.uio_iov = &iov;
-	uios.uio_iovcnt = 1;
-	uios.uio_offset = offset;
-	uios.uio_resid = sizeof(byte);
-	uios.uio_segflg = UIO_SYSSPACE;
-	uios.uio_rw = UIO_WRITE;
-	uios.uio_procp = 0;
-	cdevsw[CARD_MAJOR]->d_write(makedev(CARD_MAJOR, sc->slotnum), &uios, 0);
-
+	ray_attr_mapam(sc);
+	bus_space_write_1(sc->am_bst, sc->am_bsh, offset, byte);
 	ray_attr_mapcm(sc);
 }
 #endif /* RAY_NEED_CM_REMAPPING */
