@@ -197,8 +197,11 @@ static struct witness_order_list_entry order_lists[] = {
 	/*
 	 * spin locks
 	 */
-#if defined(__i386__) && defined (SMP)
+#ifdef SMP
+	{ "ap boot", &lock_class_mtx_spin },
+#ifdef __i386__
 	{ "com", &lock_class_mtx_spin },
+#endif
 #endif
 	{ "sio", &lock_class_mtx_spin },
 #ifdef __i386__
@@ -213,7 +216,6 @@ static struct witness_order_list_entry order_lists[] = {
 	 * leaf locks
 	 */
 #ifdef SMP
-	{ "ap boot", &lock_class_mtx_spin },
 #ifdef __i386__
 	{ "imen", &lock_class_mtx_spin },
 #endif
