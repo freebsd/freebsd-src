@@ -2420,7 +2420,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	 * The multicast list is only 16 items long so use promiscuous
 	 * mode and don't bother updating the multicast list.
 	 */
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 	if (count == 0) {
 		ray_com_runq_done(sc);
 		return;
@@ -2438,7 +2438,7 @@ ray_mcast(struct ray_softc *sc, struct ray_comq_entry *com)
 	SRAM_WRITE_FIELD_1(sc, com->c_ccs,
 	    ray_cmd_update_mcast, c_nmcast, count);
 	bufp = RAY_HOST_TO_ECF_BASE;
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		SRAM_WRITE_REGION(
 		    sc,
 		    bufp,
