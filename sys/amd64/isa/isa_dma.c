@@ -59,7 +59,7 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <i386/isa/isa.h>
-#include <i386/isa/ic/i8237.h>
+#include <dev/ic/i8237.h>
 #include <isa/isavar.h>
 
 /*
