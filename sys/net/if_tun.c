@@ -805,11 +805,6 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		isr = NETISR_IPX;
 		break;
 #endif
-#ifdef NS
-	case AF_NS:
-		isr = NETISR_NS;
-		break;
-#endif
 #ifdef NETATALK
 	case AF_APPLETALK:
 		isr = NETISR_ATALK2;

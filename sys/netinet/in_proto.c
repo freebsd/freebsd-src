@@ -85,11 +85,6 @@
 #include <netipx/ipx_ip.h>
 #endif
 
-#ifdef NSIP
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
-
 extern	struct domain inetdomain;
 static	struct pr_usrreqs nousrreqs;
 
@@ -216,14 +211,6 @@ struct protosw inetsw[] = {
 #ifdef IPXIP
 { SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
   ipxip_input,	0,		ipxip_ctlinput,	0,
-  0,
-  0,		0,		0,		0,
-  &rip_usrreqs
-},
-#endif
-#ifdef NSIP
-{ SOCK_RAW,	&inetdomain,	IPPROTO_IDP,	PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-  idpip_input,	0,		nsip_ctlinput,	0,
   0,
   0,		0,		0,		0,
   &rip_usrreqs

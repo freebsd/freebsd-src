@@ -45,6 +45,5 @@
 #define NG_GIF_DEMUX_HOOK_IPX		"ipx"
 #define NG_GIF_DEMUX_HOOK_ATM		"atm"
 #define NG_GIF_DEMUX_HOOK_NATM		"natm"
-#define NG_GIF_DEMUX_HOOK_NS		"ns"
 
 #endif /* _NETGRAPH_NG_GIF_DEMUX_H_ */
